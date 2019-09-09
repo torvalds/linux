@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
  /*
   * iio/adc/max1363.c
   * Copyright (C) 2008-2010 Jonathan Cameron
@@ -9,10 +10,6 @@
   * Copyright (C) 2000 Russell King
   *
   * Driver for max1363 and similar chips.
-  *
-  * This program is free software; you can redistribute it and/or modify
-  * it under the terms of the GNU General Public License version 2 as
-  * published by the Free Software Foundation.
   */
 
 #include <linux/interrupt.h>
@@ -1007,7 +1004,7 @@ static struct attribute *max1363_event_attributes[] = {
 	NULL,
 };
 
-static struct attribute_group max1363_event_attribute_group = {
+static const struct attribute_group max1363_event_attribute_group = {
 	.attrs = max1363_event_attributes,
 };
 
@@ -1029,7 +1026,6 @@ static int max1363_update_scan_mode(struct iio_dev *indio_dev,
 
 static const struct iio_info max1238_info = {
 	.read_raw = &max1363_read_raw,
-	.driver_module = THIS_MODULE,
 	.update_scan_mode = &max1363_update_scan_mode,
 };
 
@@ -1040,7 +1036,6 @@ static const struct iio_info max1363_info = {
 	.write_event_config = &max1363_write_event_config,
 	.read_raw = &max1363_read_raw,
 	.update_scan_mode = &max1363_update_scan_mode,
-	.driver_module = THIS_MODULE,
 	.event_attrs = &max1363_event_attribute_group,
 };
 
@@ -1455,8 +1450,10 @@ static int max1363_alloc_scan_masks(struct iio_dev *indio_dev)
 	int i;
 
 	masks = devm_kzalloc(&indio_dev->dev,
-			BITS_TO_LONGS(MAX1363_MAX_CHANNELS) * sizeof(long) *
-			(st->chip_info->num_modes + 1), GFP_KERNEL);
+			array3_size(BITS_TO_LONGS(MAX1363_MAX_CHANNELS),
+				    sizeof(long),
+				    st->chip_info->num_modes + 1),
+			GFP_KERNEL);
 	if (!masks)
 		return -ENOMEM;
 
@@ -1567,6 +1564,7 @@ static const struct of_device_id max1363_of_match[] = {
 	MAX1363_COMPATIBLE("maxim,max11647", max11647),
 	{ /* sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, max1363_of_match);
 #endif
 
 static int max1363_probe(struct i2c_client *client,
@@ -1576,7 +1574,6 @@ static int max1363_probe(struct i2c_client *client,
 	struct max1363_state *st;
 	struct iio_dev *indio_dev;
 	struct regulator *vref;
-	const struct of_device_id *match;
 
 	indio_dev = devm_iio_device_alloc(&client->dev,
 					  sizeof(struct max1363_state));
@@ -1603,11 +1600,8 @@ static int max1363_probe(struct i2c_client *client,
 	/* this is only used for device removal purposes */
 	i2c_set_clientdata(client, indio_dev);
 
-	match = of_match_device(of_match_ptr(max1363_of_match),
-				&client->dev);
-	if (match)
-		st->chip_info = of_device_get_match_data(&client->dev);
-	else
+	st->chip_info = of_device_get_match_data(&client->dev);
+	if (!st->chip_info)
 		st->chip_info = &max1363_chip_info_tbl[id->driver_data];
 	st->client = client;
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * drivers/net/ethernet/nxp/lpc_eth.c
  *
@@ -5,48 +6,22 @@
  *
  * Copyright (C) 2010 NXP Semiconductors
  * Copyright (C) 2012 Roland Stigge <stigge@antcom.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/sched.h>
-#include <linux/slab.h>
-#include <linux/delay.h>
-#include <linux/interrupt.h>
-#include <linux/errno.h>
-#include <linux/ioport.h>
+#include <linux/clk.h>
 #include <linux/crc32.h>
+#include <linux/etherdevice.h>
+#include <linux/module.h>
+#include <linux/of_net.h>
+#include <linux/phy.h>
 #include <linux/platform_device.h>
 #include <linux/spinlock.h>
-#include <linux/ethtool.h>
-#include <linux/mii.h>
-#include <linux/clk.h>
-#include <linux/workqueue.h>
-#include <linux/netdevice.h>
-#include <linux/etherdevice.h>
-#include <linux/skbuff.h>
-#include <linux/phy.h>
-#include <linux/dma-mapping.h>
-#include <linux/of.h>
-#include <linux/of_net.h>
-#include <linux/types.h>
 
-#include <linux/io.h>
 #include <mach/board.h>
-#include <mach/platform.h>
 #include <mach/hardware.h>
+#include <mach/platform.h>
 
 #define MODNAME "lpc-eth"
 #define DRV_VERSION "1.00"
@@ -296,7 +271,7 @@
 #define LPC_FCCR_MIRRORCOUNTERCURRENT(n)	((n) & 0xFFFF)
 
 /*
- * rxfliterctrl, rxfilterwolstatus, and rxfilterwolclear shared
+ * rxfilterctrl, rxfilterwolstatus, and rxfilterwolclear shared
  * register definitions
  */
 #define LPC_RXFLTRW_ACCEPTUNICAST		(1 << 0)
@@ -307,7 +282,7 @@
 #define LPC_RXFLTRW_ACCEPTPERFECT		(1 << 5)
 
 /*
- * rxfliterctrl register definitions
+ * rxfilterctrl register definitions
  */
 #define LPC_RXFLTRWSTS_MAGICPACKETENWOL		(1 << 12)
 #define LPC_RXFLTRWSTS_RXFILTERENWOL		(1 << 13)
@@ -797,10 +772,7 @@ static int lpc_mii_probe(struct net_device *ndev)
 		return PTR_ERR(phydev);
 	}
 
-	/* mask with MAC supported features */
-	phydev->supported &= PHY_BASIC_FEATURES;
-
-	phydev->advertising = phydev->supported;
+	phy_set_max_speed(phydev, SPEED_100);
 
 	pldat->link = 0;
 	pldat->speed = 0;
@@ -919,7 +891,6 @@ static int __lpc_handle_recv(struct net_device *ndev, int budget)
 	struct sk_buff *skb;
 	u32 rxconsidx, len, ethst;
 	struct rx_status_t *prxstat;
-	u8 *prdbuf;
 	int rx_done = 0;
 
 	/* Get the current RX buffer indexes */
@@ -959,11 +930,10 @@ static int __lpc_handle_recv(struct net_device *ndev, int budget)
 			if (!skb) {
 				ndev->stats.rx_dropped++;
 			} else {
-				prdbuf = skb_put(skb, len);
-
 				/* Copy packet from buffer */
-				memcpy(prdbuf, pldat->rx_buff_v +
-					rxconsidx * ENET_MAXF_SIZE, len);
+				skb_put_data(skb,
+					     pldat->rx_buff_v + rxconsidx * ENET_MAXF_SIZE,
+					     len);
 
 				/* Pass to upper layer */
 				skb->protocol = eth_type_trans(skb, ndev);
@@ -999,7 +969,7 @@ static int lpc_eth_poll(struct napi_struct *napi, int budget)
 	rx_done = __lpc_handle_recv(ndev, budget);
 
 	if (rx_done < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, rx_done);
 		lpc_eth_enable_int(pldat->net_base);
 	}
 
@@ -1256,23 +1226,23 @@ static const struct net_device_ops lpc_netdev_ops = {
 	.ndo_do_ioctl		= lpc_eth_ioctl,
 	.ndo_set_mac_address	= lpc_set_mac_address,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_change_mtu		= eth_change_mtu,
 };
 
 static int lpc_eth_drv_probe(struct platform_device *pdev)
 {
-	struct resource *res;
-	struct net_device *ndev;
+	struct device *dev = &pdev->dev;
+	struct device_node *np = dev->of_node;
 	struct netdata_local *pldat;
-	struct phy_device *phydev;
+	struct net_device *ndev;
 	dma_addr_t dma_handle;
+	struct resource *res;
 	int irq, ret;
 	u32 tmp;
 
 	/* Setup network interface for RMII or MII mode */
 	tmp = __raw_readl(LPC32XX_CLKPWR_MACCLK_CTRL);
 	tmp &= ~LPC32XX_CLKPWR_MACCTRL_PINS_MSK;
-	if (lpc_phy_interface_mode(&pdev->dev) == PHY_INTERFACE_MODE_MII)
+	if (lpc_phy_interface_mode(dev) == PHY_INTERFACE_MODE_MII)
 		tmp |= LPC32XX_CLKPWR_MACCTRL_USE_MII_PINS;
 	else
 		tmp |= LPC32XX_CLKPWR_MACCTRL_USE_RMII_PINS;
@@ -1282,7 +1252,7 @@ static int lpc_eth_drv_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq = platform_get_irq(pdev, 0);
 	if (!res || irq < 0) {
-		dev_err(&pdev->dev, "error getting resources.\n");
+		dev_err(dev, "error getting resources.\n");
 		ret = -ENXIO;
 		goto err_exit;
 	}
@@ -1290,12 +1260,12 @@ static int lpc_eth_drv_probe(struct platform_device *pdev)
 	/* Allocate net driver data structure */
 	ndev = alloc_etherdev(sizeof(struct netdata_local));
 	if (!ndev) {
-		dev_err(&pdev->dev, "could not allocate device.\n");
+		dev_err(dev, "could not allocate device.\n");
 		ret = -ENOMEM;
 		goto err_exit;
 	}
 
-	SET_NETDEV_DEV(ndev, &pdev->dev);
+	SET_NETDEV_DEV(ndev, dev);
 
 	pldat = netdev_priv(ndev);
 	pldat->pdev = pdev;
@@ -1307,9 +1277,9 @@ static int lpc_eth_drv_probe(struct platform_device *pdev)
 	ndev->irq = irq;
 
 	/* Get clock for the device */
-	pldat->clk = clk_get(&pdev->dev, NULL);
+	pldat->clk = clk_get(dev, NULL);
 	if (IS_ERR(pldat->clk)) {
-		dev_err(&pdev->dev, "error getting clock.\n");
+		dev_err(dev, "error getting clock.\n");
 		ret = PTR_ERR(pldat->clk);
 		goto err_out_free_dev;
 	}
@@ -1322,14 +1292,14 @@ static int lpc_eth_drv_probe(struct platform_device *pdev)
 	/* Map IO space */
 	pldat->net_base = ioremap(res->start, resource_size(res));
 	if (!pldat->net_base) {
-		dev_err(&pdev->dev, "failed to map registers\n");
+		dev_err(dev, "failed to map registers\n");
 		ret = -ENOMEM;
 		goto err_out_disable_clocks;
 	}
 	ret = request_irq(ndev->irq, __lpc_eth_interrupt, 0,
 			  ndev->name, ndev);
 	if (ret) {
-		dev_err(&pdev->dev, "error requesting interrupt.\n");
+		dev_err(dev, "error requesting interrupt.\n");
 		goto err_out_iounmap;
 	}
 
@@ -1343,7 +1313,7 @@ static int lpc_eth_drv_probe(struct platform_device *pdev)
 		sizeof(struct txrx_desc_t) + sizeof(struct rx_status_t));
 	pldat->dma_buff_base_v = 0;
 
-	if (use_iram_for_net(&pldat->pdev->dev)) {
+	if (use_iram_for_net(dev)) {
 		dma_handle = LPC32XX_IRAM_BASE;
 		if (pldat->dma_buff_size <= lpc32xx_return_iram_size())
 			pldat->dma_buff_base_v =
@@ -1354,7 +1324,7 @@ static int lpc_eth_drv_probe(struct platform_device *pdev)
 	}
 
 	if (pldat->dma_buff_base_v == 0) {
-		ret = dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
+		ret = dma_coerce_mask_and_coherent(dev, DMA_BIT_MASK(32));
 		if (ret)
 			goto err_out_free_irq;
 
@@ -1363,7 +1333,7 @@ static int lpc_eth_drv_probe(struct platform_device *pdev)
 		/* Allocate a chunk of memory for the DMA ethernet buffers
 		   and descriptors */
 		pldat->dma_buff_base_v =
-			dma_alloc_coherent(&pldat->pdev->dev,
+			dma_alloc_coherent(dev,
 					   pldat->dma_buff_size, &dma_handle,
 					   GFP_KERNEL);
 		if (pldat->dma_buff_base_v == NULL) {
@@ -1388,9 +1358,9 @@ static int lpc_eth_drv_probe(struct platform_device *pdev)
 	__lpc_get_mac(pldat, ndev->dev_addr);
 
 	if (!is_valid_ether_addr(ndev->dev_addr)) {
-		const char *macaddr = of_get_mac_address(pdev->dev.of_node);
-		if (macaddr)
-			memcpy(ndev->dev_addr, macaddr, ETH_ALEN);
+		const char *macaddr = of_get_mac_address(np);
+		if (!IS_ERR(macaddr))
+			ether_addr_copy(ndev->dev_addr, macaddr);
 	}
 	if (!is_valid_ether_addr(ndev->dev_addr))
 		eth_hw_addr_random(ndev);
@@ -1418,7 +1388,7 @@ static int lpc_eth_drv_probe(struct platform_device *pdev)
 
 	ret = register_netdev(ndev);
 	if (ret) {
-		dev_err(&pdev->dev, "Cannot register net device, aborting.\n");
+		dev_err(dev, "Cannot register net device, aborting.\n");
 		goto err_out_dma_unmap;
 	}
 	platform_set_drvdata(pdev, ndev);
@@ -1430,19 +1400,17 @@ static int lpc_eth_drv_probe(struct platform_device *pdev)
 	netdev_info(ndev, "LPC mac at 0x%08x irq %d\n",
 	       res->start, ndev->irq);
 
-	phydev = ndev->phydev;
-
-	device_init_wakeup(&pdev->dev, 1);
-	device_set_wakeup_enable(&pdev->dev, 0);
+	device_init_wakeup(dev, 1);
+	device_set_wakeup_enable(dev, 0);
 
 	return 0;
 
 err_out_unregister_netdev:
 	unregister_netdev(ndev);
 err_out_dma_unmap:
-	if (!use_iram_for_net(&pldat->pdev->dev) ||
+	if (!use_iram_for_net(dev) ||
 	    pldat->dma_buff_size > lpc32xx_return_iram_size())
-		dma_free_coherent(&pldat->pdev->dev, pldat->dma_buff_size,
+		dma_free_coherent(dev, pldat->dma_buff_size,
 				  pldat->dma_buff_base_v,
 				  pldat->dma_buff_base_p);
 err_out_free_irq:
@@ -1537,13 +1505,11 @@ static int lpc_eth_drv_resume(struct platform_device *pdev)
 }
 #endif
 
-#ifdef CONFIG_OF
 static const struct of_device_id lpc_eth_match[] = {
 	{ .compatible = "nxp,lpc-eth" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, lpc_eth_match);
-#endif
 
 static struct platform_driver lpc_eth_driver = {
 	.probe		= lpc_eth_drv_probe,
@@ -1554,7 +1520,7 @@ static struct platform_driver lpc_eth_driver = {
 #endif
 	.driver		= {
 		.name	= MODNAME,
-		.of_match_table = of_match_ptr(lpc_eth_match),
+		.of_match_table = lpc_eth_match,
 	},
 };
 

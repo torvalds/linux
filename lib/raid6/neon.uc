@@ -28,7 +28,6 @@
 
 typedef uint8x16_t unative_t;
 
-#define NBYTES(x) ((unative_t){x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x})
 #define NSIZE	sizeof(unative_t)
 
 /*
@@ -46,8 +45,12 @@ static inline unative_t SHLBYTE(unative_t v)
  */
 static inline unative_t MASK(unative_t v)
 {
-	const uint8x16_t temp = NBYTES(0);
-	return (unative_t)vcltq_s8((int8x16_t)v, (int8x16_t)temp);
+	return (unative_t)vshrq_n_s8((int8x16_t)v, 7);
+}
+
+static inline unative_t PMUL(unative_t v, unative_t u)
+{
+	return (unative_t)vmulq_p8((poly8x16_t)v, (poly8x16_t)u);
 }
 
 void raid6_neon$#_gen_syndrome_real(int disks, unsigned long bytes, void **ptrs)
@@ -57,7 +60,7 @@ void raid6_neon$#_gen_syndrome_real(int disks, unsigned long bytes, void **ptrs)
 	int d, z, z0;
 
 	register unative_t wd$$, wq$$, wp$$, w1$$, w2$$;
-	const unative_t x1d = NBYTES(0x1d);
+	const unative_t x1d = vdupq_n_u8(0x1d);
 
 	z0 = disks - 3;		/* Highest data disk */
 	p = dptr[z0+1];		/* XOR parity */
@@ -88,7 +91,7 @@ void raid6_neon$#_xor_syndrome_real(int disks, int start, int stop,
 	int d, z, z0;
 
 	register unative_t wd$$, wq$$, wp$$, w1$$, w2$$;
-	const unative_t x1d = NBYTES(0x1d);
+	const unative_t x1d = vdupq_n_u8(0x1d);
 
 	z0 = stop;		/* P/Q right side optimization */
 	p = dptr[disks-2];	/* XOR parity */
@@ -110,7 +113,30 @@ void raid6_neon$#_xor_syndrome_real(int disks, int start, int stop,
 			wq$$ = veorq_u8(w1$$, wd$$);
 		}
 		/* P/Q left side optimization */
-		for ( z = start-1 ; z >= 0 ; z-- ) {
+		for ( z = start-1 ; z >= 3 ; z -= 4 ) {
+			w2$$ = vshrq_n_u8(wq$$, 4);
+			w1$$ = vshlq_n_u8(wq$$, 4);
+
+			w2$$ = PMUL(w2$$, x1d);
+			wq$$ = veorq_u8(w1$$, w2$$);
+		}
+
+		switch (z) {
+		case 2:
+			w2$$ = vshrq_n_u8(wq$$, 5);
+			w1$$ = vshlq_n_u8(wq$$, 3);
+
+			w2$$ = PMUL(w2$$, x1d);
+			wq$$ = veorq_u8(w1$$, w2$$);
+			break;
+		case 1:
+			w2$$ = vshrq_n_u8(wq$$, 6);
+			w1$$ = vshlq_n_u8(wq$$, 2);
+
+			w2$$ = PMUL(w2$$, x1d);
+			wq$$ = veorq_u8(w1$$, w2$$);
+			break;
+		case 0:
 			w2$$ = MASK(wq$$);
 			w1$$ = SHLBYTE(wq$$);
 

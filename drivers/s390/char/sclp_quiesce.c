@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *     signal quiesce handler
  *
@@ -6,7 +7,6 @@
  *             Peter Oberparleiter <peter.oberparleiter@de.ibm.com>
  */
 
-#include <linux/module.h>
 #include <linux/types.h>
 #include <linux/cpumask.h>
 #include <linux/smp.h>
@@ -80,5 +80,4 @@ static int __init sclp_quiesce_init(void)
 {
 	return sclp_register(&sclp_quiesce_event);
 }
-
-module_init(sclp_quiesce_init);
+device_initcall(sclp_quiesce_init);

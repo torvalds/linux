@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Definitions for the registers, addresses, and platform data of the
  * DS1685/DS1687-series RTC chips.
@@ -15,10 +16,6 @@
  *    DS17x85/DS17x87 3V/5V Real-Time Clocks, 19-5222, Rev 4/10.
  *    DS1689/DS1693 3V/5V Serialized Real-Time Clocks, Rev 112105.
  *    Application Note 90, Using the Multiplex Bus RTC Extended Features.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef _LINUX_RTC_DS1685_H_
@@ -48,8 +45,6 @@ struct ds1685_priv {
 	u32 regstep;
 	resource_size_t baseaddr;
 	size_t size;
-	spinlock_t lock;
-	struct work_struct work;
 	int irq_num;
 	bool bcd_mode;
 	bool no_irq;

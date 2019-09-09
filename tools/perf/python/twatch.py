@@ -1,17 +1,10 @@
 #! /usr/bin/python
+# SPDX-License-Identifier: GPL-2.0-only
 # -*- python -*-
 # -*- coding: utf-8 -*-
 #   twatch - Experimental use of the perf python interface
 #   Copyright (C) 2011 Arnaldo Carvalho de Melo <acme@redhat.com>
 #
-#   This application is free software; you can redistribute it and/or
-#   modify it under the terms of the GNU General Public License
-#   as published by the Free Software Foundation; version 2.
-#
-#   This application is distributed in the hope that it will be useful,
-#   but WITHOUT ANY WARRANTY; without even the implied warranty of
-#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-#   General Public License for more details.
 
 import perf
 
@@ -42,10 +35,10 @@ def main(context_switch = 0, thread = -1):
 			event = evlist.read_on_cpu(cpu)
 			if not event:
 				continue
-			print "cpu: %2d, pid: %4d, tid: %4d" % (event.sample_cpu,
-								event.sample_pid,
-								event.sample_tid),
-			print event
+			print("cpu: {0}, pid: {1}, tid: {2} {3}".format(event.sample_cpu,
+                                                                        event.sample_pid,
+                                                                        event.sample_tid,
+                                                                        event))
 
 if __name__ == '__main__':
     """

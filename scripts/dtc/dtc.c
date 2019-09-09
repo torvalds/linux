@@ -1,21 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * (C) Copyright David Gibson <dwg@au1.ibm.com>, IBM Corporation.  2005.
- *
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of the
- * License, or (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307
- *                                                                   USA
  */
 
 #include <sys/stat.h>
@@ -30,7 +15,18 @@ int quiet;		/* Level of quietness */
 int reservenum;		/* Number of memory reservation slots */
 int minsize;		/* Minimum blob size */
 int padsize;		/* Additional padding to blob */
-int phandle_format = PHANDLE_BOTH;	/* Use linux,phandle or phandle properties */
+int alignsize;		/* Additional padding to blob accroding to the alignsize */
+int phandle_format = PHANDLE_EPAPR;	/* Use linux,phandle or phandle properties */
+int generate_symbols;	/* enable symbols & fixup support */
+int generate_fixups;		/* suppress generation of fixups on symbol support */
+int auto_label_aliases;		/* auto generate labels -> aliases */
+int annotate;		/* Level of annotation: 1 for input source location
+			   >1 for full input source location. */
+
+static int is_power_of_2(int x)
+{
+	return (x > 0) && ((x & (x - 1)) == 0);
+}
 
 static void fill_fullpaths(struct node *tree, const char *prefix)
 {
@@ -50,10 +46,8 @@ static void fill_fullpaths(struct node *tree, const char *prefix)
 }
 
 /* Usage related data. */
-#define FDT_VERSION(version)	_FDT_VERSION(version)
-#define _FDT_VERSION(version)	#version
 static const char usage_synopsis[] = "dtc [options] <input file>";
-static const char usage_short_opts[] = "qI:O:o:V:d:R:S:p:fb:i:H:sW:E:hv";
+static const char usage_short_opts[] = "qI:O:o:V:d:R:S:p:a:fb:i:H:sW:E:@AThv";
 static struct option const usage_long_opts[] = {
 	{"quiet",            no_argument, NULL, 'q'},
 	{"in-format",         a_argument, NULL, 'I'},
@@ -64,6 +58,7 @@ static struct option const usage_long_opts[] = {
 	{"reserve",           a_argument, NULL, 'R'},
 	{"space",             a_argument, NULL, 'S'},
 	{"pad",               a_argument, NULL, 'p'},
+	{"align",             a_argument, NULL, 'a'},
 	{"boot-cpu",          a_argument, NULL, 'b'},
 	{"force",            no_argument, NULL, 'f'},
 	{"include",           a_argument, NULL, 'i'},
@@ -71,6 +66,9 @@ static struct option const usage_long_opts[] = {
 	{"phandle",           a_argument, NULL, 'H'},
 	{"warning",           a_argument, NULL, 'W'},
 	{"error",             a_argument, NULL, 'E'},
+	{"symbols",	     no_argument, NULL, '@'},
+	{"auto-alias",       no_argument, NULL, 'A'},
+	{"annotate",         no_argument, NULL, 'T'},
 	{"help",             no_argument, NULL, 'h'},
 	{"version",          no_argument, NULL, 'v'},
 	{NULL,               no_argument, NULL, 0x0},
@@ -85,12 +83,16 @@ static const char * const usage_opts_help[] = {
 	"\n\tOutput formats are:\n"
 	 "\t\tdts - device tree source text\n"
 	 "\t\tdtb - device tree blob\n"
+#ifndef NO_YAML
+	 "\t\tyaml - device tree encoded as YAML\n"
+#endif
 	 "\t\tasm - assembler source",
-	"\n\tBlob version to produce, defaults to "FDT_VERSION(DEFAULT_FDT_VERSION)" (for dtb and asm output)",
+	"\n\tBlob version to produce, defaults to "stringify(DEFAULT_FDT_VERSION)" (for dtb and asm output)",
 	"\n\tOutput dependency file",
 	"\n\tMake space for <number> reserve map entries (for dtb and asm output)",
 	"\n\tMake the blob at least <bytes> long (extra space)",
 	"\n\tAdd padding to the blob of <bytes> long (extra space)",
+	"\n\tMake the blob align to the <bytes> (extra space)",
 	"\n\tSet the physical boot cpu",
 	"\n\tTry to produce output even if the input tree has errors",
 	"\n\tAdd a path to search for include files",
@@ -101,6 +103,9 @@ static const char * const usage_opts_help[] = {
 	 "\t\tboth   - Both \"linux,phandle\" and \"phandle\" properties",
 	"\n\tEnable/disable warnings (prefix with \"no-\")",
 	"\n\tEnable/disable errors (prefix with \"no-\")",
+	"\n\tEnable generation of symbols",
+	"\n\tEnable auto-alias of labels",
+	"\n\tAnnotate output .dts with input source file and line (-T -T for more details)",
 	"\n\tPrint this help and exit",
 	"\n\tPrint version and exit",
 	NULL,
@@ -115,6 +120,8 @@ static const char *guess_type_by_name(const char *fname, const char *fallback)
 		return fallback;
 	if (!strcasecmp(s, ".dts"))
 		return "dts";
+	if (!strcasecmp(s, ".yaml"))
+		return "yaml";
 	if (!strcasecmp(s, ".dtb"))
 		return "dtb";
 	return fallback;
@@ -123,7 +130,7 @@ static const char *guess_type_by_name(const char *fname, const char *fallback)
 static const char *guess_input_format(const char *fname, const char *fallback)
 {
 	struct stat statbuf;
-	uint32_t magic;
+	fdt32_t magic;
 	FILE *f;
 
 	if (stat(fname, &statbuf) != 0)
@@ -144,8 +151,7 @@ static const char *guess_input_format(const char *fname, const char *fallback)
 	}
 	fclose(f);
 
-	magic = fdt32_to_cpu(magic);
-	if (magic == FDT_MAGIC)
+	if (fdt32_to_cpu(magic) == FDT_MAGIC)
 		return "dtb";
 
 	return guess_type_by_name(fname, fallback);
@@ -153,7 +159,7 @@ static const char *guess_input_format(const char *fname, const char *fallback)
 
 int main(int argc, char *argv[])
 {
-	struct boot_info *bi;
+	struct dt_info *dti;
 	const char *inform = NULL;
 	const char *outform = NULL;
 	const char *outname = "-";
@@ -169,6 +175,7 @@ int main(int argc, char *argv[])
 	reservenum = 0;
 	minsize    = 0;
 	padsize    = 0;
+	alignsize  = 0;
 
 	while ((opt = util_getopt_long()) != EOF) {
 		switch (opt) {
@@ -195,6 +202,12 @@ int main(int argc, char *argv[])
 			break;
 		case 'p':
 			padsize = strtol(optarg, NULL, 0);
+			break;
+		case 'a':
+			alignsize = strtol(optarg, NULL, 0);
+			if (!is_power_of_2(alignsize))
+				die("Invalid argument \"%d\" to -a option\n",
+				    alignsize);
 			break;
 		case 'f':
 			force = true;
@@ -234,6 +247,16 @@ int main(int argc, char *argv[])
 			parse_checks_option(false, true, optarg);
 			break;
 
+		case '@':
+			generate_symbols = 1;
+			break;
+		case 'A':
+			auto_label_aliases = 1;
+			break;
+		case 'T':
+			annotate++;
+			break;
+
 		case 'h':
 			usage(NULL);
 		default:
@@ -271,14 +294,18 @@ int main(int argc, char *argv[])
 				outform = "dts";
 		}
 	}
+	if (annotate && (!streq(inform, "dts") || !streq(outform, "dts")))
+		die("--annotate requires -I dts -O dts\n");
 	if (streq(inform, "dts"))
-		bi = dt_from_source(arg);
+		dti = dt_from_source(arg);
 	else if (streq(inform, "fs"))
-		bi = dt_from_fs(arg);
+		dti = dt_from_fs(arg);
 	else if(streq(inform, "dtb"))
-		bi = dt_from_blob(arg);
+		dti = dt_from_blob(arg);
 	else
 		die("Unknown input format \"%s\"\n", inform);
+
+	dti->outname = outname;
 
 	if (depfile) {
 		fputc('\n', depfile);
@@ -286,13 +313,30 @@ int main(int argc, char *argv[])
 	}
 
 	if (cmdline_boot_cpuid != -1)
-		bi->boot_cpuid_phys = cmdline_boot_cpuid;
+		dti->boot_cpuid_phys = cmdline_boot_cpuid;
 
-	fill_fullpaths(bi->dt, "");
-	process_checks(force, bi);
+	fill_fullpaths(dti->dt, "");
+
+	/* on a plugin, generate by default */
+	if (dti->dtsflags & DTSF_PLUGIN) {
+		generate_fixups = 1;
+	}
+
+	process_checks(force, dti);
+
+	if (auto_label_aliases)
+		generate_label_tree(dti, "aliases", false);
+
+	if (generate_symbols)
+		generate_label_tree(dti, "__symbols__", true);
+
+	if (generate_fixups) {
+		generate_fixups_tree(dti, "__fixups__");
+		generate_local_fixups_tree(dti, "__local_fixups__");
+	}
 
 	if (sort)
-		sort_tree(bi);
+		sort_tree(dti);
 
 	if (streq(outname, "-")) {
 		outf = stdout;
@@ -304,11 +348,17 @@ int main(int argc, char *argv[])
 	}
 
 	if (streq(outform, "dts")) {
-		dt_to_source(outf, bi);
+		dt_to_source(outf, dti);
+#ifndef NO_YAML
+	} else if (streq(outform, "yaml")) {
+		if (!streq(inform, "dts"))
+			die("YAML output format requires dts input format\n");
+		dt_to_yaml(outf, dti);
+#endif
 	} else if (streq(outform, "dtb")) {
-		dt_to_blob(outf, bi, outversion);
+		dt_to_blob(outf, dti, outversion);
 	} else if (streq(outform, "asm")) {
-		dt_to_asm(outf, bi, outversion);
+		dt_to_asm(outf, dti, outversion);
 	} else if (streq(outform, "null")) {
 		/* do nothing */
 	} else {

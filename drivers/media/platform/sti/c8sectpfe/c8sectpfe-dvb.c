@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  c8sectpfe-dvb.c - C8SECTPFE STi DVB driver
  *
@@ -5,16 +6,6 @@
  *
  *  Author Peter Griffin <peter.griffin@linaro.org>
  *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *
- *  GNU General Public License for more details.
  */
 #include <linux/completion.h>
 #include <linux/delay.h>
@@ -152,7 +143,7 @@ int c8sectpfe_frontend_attach(struct dvb_frontend **fe,
 				"%s: stv0367ter_attach failed for NIM card %s\n"
 				, __func__, dvb_card_str(tsin->dvb_card));
 			return -ENODEV;
-		};
+		}
 
 		/*
 		 * init the demod so that i2c gate_ctrl
@@ -212,7 +203,7 @@ int c8sectpfe_frontend_attach(struct dvb_frontend **fe,
 				"%s: stv6110x_attach failed for NIM card %s\n"
 				, __func__, dvb_card_str(tsin->dvb_card));
 			return -ENODEV;
-		};
+		}
 
 		stv090x_config.tuner_init = fe2->tuner_init;
 		stv090x_config.tuner_set_mode = fe2->tuner_set_mode;

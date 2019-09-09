@@ -14,11 +14,11 @@
 
 #include <linux/vmalloc.h>
 #include <linux/oprofile.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/capability.h>
 #include <linux/dcookies.h>
 #include <linux/fs.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "oprof.h"
 #include "event_buffer.h"
@@ -91,7 +91,7 @@ int alloc_event_buffer(void)
 		return -EINVAL;
 
 	buffer_pos = 0;
-	event_buffer = vmalloc(sizeof(unsigned long) * buffer_size);
+	event_buffer = vmalloc(array_size(buffer_size, sizeof(unsigned long)));
 	if (!event_buffer)
 		return -ENOMEM;
 

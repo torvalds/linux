@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * HDMI PLL
  *
  * Copyright (C) 2013 Texas Instruments Incorporated
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 
 #define DSS_SUBSYS_NAME "HDMIPLL"
@@ -16,6 +13,7 @@
 #include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
+#include <linux/seq_file.h>
 
 #include <video/omapfb_dss.h>
 

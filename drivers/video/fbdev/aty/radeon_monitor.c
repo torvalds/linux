@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "radeonfb.h"
 
 #include <linux/slab.h>
@@ -646,7 +647,7 @@ void radeon_probe_screens(struct radeonfb_info *rinfo,
 
 
 /*
- * This functions applyes any arch/model/machine specific fixups
+ * This function applies any arch/model/machine specific fixups
  * to the panel info. It may eventually alter EDID block as
  * well or whatever is specific to a given model and not probed
  * properly by the default code

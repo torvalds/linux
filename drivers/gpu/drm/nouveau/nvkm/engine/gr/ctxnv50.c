@@ -106,6 +106,7 @@
 #define CP_SEEK_2      0x00c800ff
 
 #include "ctxnv40.h"
+#include "nv50.h"
 
 #include <subdev/fb.h>
 

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * comedi/drivers/amplc_dio.h
  *
@@ -8,16 +9,6 @@
  *
  * COMEDI - Linux Control and Measurement Device Interface
  * Copyright (C) 1998,2000 David A. Schleef <ds@schleef.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef AMPLC_DIO200_H_INCLUDED
@@ -41,9 +32,9 @@ struct dio200_board {
 	unsigned short n_subdevs;	/* number of subdevices */
 	unsigned char sdtype[DIO200_MAX_SUBDEVS];	/* enum dio200_sdtype */
 	unsigned char sdinfo[DIO200_MAX_SUBDEVS];	/* depends on sdtype */
-	bool has_int_sce:1;		/* has interrupt enable/status reg */
-	bool has_clk_gat_sce:1;		/* has clock/gate selection registers */
-	bool is_pcie:1;			/* has enhanced features */
+	unsigned int has_int_sce:1;	/* has interrupt enable/status reg */
+	unsigned int has_clk_gat_sce:1;	/* has clock/gate selection registers */
+	unsigned int is_pcie:1;			/* has enhanced features */
 };
 
 int amplc_dio200_common_attach(struct comedi_device *dev, unsigned int irq,

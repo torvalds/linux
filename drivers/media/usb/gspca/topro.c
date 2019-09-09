@@ -1,22 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Topro TP6800/6810 webcam driver.
  *
  * Copyright (C) 2011 Jean-François Moine (http://moinejf.free.fr)
  * Copyright (C) 2009 Anders Blomdell (anders.blomdell@control.lth.se)
  * Copyright (C) 2008 Thomas Champagne (lafeuil@gmail.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; If not, see <http://www.gnu.org/licenses/>.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -24,8 +12,7 @@
 #include "gspca.h"
 
 MODULE_DESCRIPTION("Topro TP6800/6810 gspca webcam driver");
-MODULE_AUTHOR("Jean-Francois Moine <http://moinejf.free.fr>, "
-		"Anders Blomdell <anders.blomdell@control.lth.se>");
+MODULE_AUTHOR("Jean-Francois Moine <http://moinejf.free.fr>, Anders Blomdell <anders.blomdell@control.lth.se>");
 MODULE_LICENSE("GPL");
 
 static int force_sensor = -1;
@@ -1454,7 +1441,7 @@ static void set_dqt(struct gspca_dev *gspca_dev, u8 q)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	/* update the jpeg quantization tables */
-	PDEBUG(D_STREAM, "q %d -> %d", sd->quality, q);
+	gspca_dbg(gspca_dev, D_STREAM, "q %d -> %d\n", sd->quality, q);
 	sd->quality = q;
 	if (q > 16)
 		q = 16;
@@ -4054,7 +4041,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 				ARRAY_SIZE(tp6810_preinit));
 	msleep(15);
 	reg_r(gspca_dev, TP6800_R18_GPIO_DATA);
-	PDEBUG(D_PROBE, "gpio: %02x", gspca_dev->usb_buf[0]);
+	gspca_dbg(gspca_dev, D_PROBE, "gpio: %02x\n", gspca_dev->usb_buf[0]);
 /* values:
  *	0x80: snapshot button
  *	0x40: LED
@@ -4628,7 +4615,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			if (*data == 0xaa || *data == 0x00)
 				return;
 			if (*data > 0xc0) {
-				PDEBUG(D_FRAM, "bad frame");
+				gspca_dbg(gspca_dev, D_FRAM, "bad frame\n");
 				gspca_dev->last_packet_type = DISCARD_PACKET;
 				return;
 			}
@@ -4781,7 +4768,6 @@ static void sd_get_streamparm(struct gspca_dev *gspca_dev,
 	struct v4l2_fract *tpf = &cp->timeperframe;
 	int fr, i;
 
-	cp->capability |= V4L2_CAP_TIMEPERFRAME;
 	tpf->numerator = 1;
 	i = get_fr_idx(gspca_dev);
 	if (i & 0x80) {

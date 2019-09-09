@@ -1,17 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * LPC32xx built-in touchscreen driver
  *
  * Copyright (C) 2010 NXP Semiconductors
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/platform_device.h>
@@ -142,11 +133,14 @@ static void lpc32xx_stop_tsc(struct lpc32xx_tsc *tsc)
 	clk_disable_unprepare(tsc->clk);
 }
 
-static void lpc32xx_setup_tsc(struct lpc32xx_tsc *tsc)
+static int lpc32xx_setup_tsc(struct lpc32xx_tsc *tsc)
 {
 	u32 tmp;
+	int err;
 
-	clk_prepare_enable(tsc->clk);
+	err = clk_prepare_enable(tsc->clk);
+	if (err)
+		return err;
 
 	tmp = tsc_readl(tsc, LPC32XX_TSC_CON) & ~LPC32XX_TSC_ADCCON_POWER_UP;
 
@@ -184,15 +178,15 @@ static void lpc32xx_setup_tsc(struct lpc32xx_tsc *tsc)
 
 	/* Enable automatic ts event capture */
 	tsc_writel(tsc, LPC32XX_TSC_CON, tmp | LPC32XX_TSC_ADCCON_AUTO_EN);
+
+	return 0;
 }
 
 static int lpc32xx_ts_open(struct input_dev *dev)
 {
 	struct lpc32xx_tsc *tsc = input_get_drvdata(dev);
 
-	lpc32xx_setup_tsc(tsc);
-
-	return 0;
+	return lpc32xx_setup_tsc(tsc);
 }
 
 static void lpc32xx_ts_close(struct input_dev *dev)
@@ -313,7 +307,6 @@ static int lpc32xx_ts_remove(struct platform_device *pdev)
 	struct lpc32xx_tsc *tsc = platform_get_drvdata(pdev);
 	struct resource *res;
 
-	device_init_wakeup(&pdev->dev, 0);
 	free_irq(tsc->irq, tsc);
 
 	input_unregister_device(tsc->dev);

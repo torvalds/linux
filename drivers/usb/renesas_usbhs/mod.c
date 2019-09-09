@@ -1,32 +1,15 @@
+// SPDX-License-Identifier: GPL-1.0+
 /*
  * Renesas USB driver
  *
  * Copyright (C) 2011 Renesas Solutions Corp.
+ * Copyright (C) 2019 Renesas Electronics Corporation
  * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
- *
  */
 #include <linux/interrupt.h>
 
 #include "common.h"
 #include "mod.h"
-
-#define usbhs_priv_to_modinfo(priv) (&priv->mod_info)
-#define usbhs_mod_info_call(priv, func, param...)	\
-({						\
-	struct usbhs_mod_info *info;		\
-	info = usbhs_priv_to_modinfo(priv);	\
-	!info->func ? 0 :			\
-	 info->func(param);			\
-})
 
 /*
  *		autonomy
@@ -50,7 +33,7 @@ static int usbhsm_autonomy_irq_vbus(struct usbhs_priv *priv,
 {
 	struct platform_device *pdev = usbhs_priv_to_pdev(priv);
 
-	renesas_usbhs_call_notify_hotplug(pdev);
+	usbhsc_schedule_notify_hotplug(pdev);
 
 	return 0;
 }
@@ -59,10 +42,17 @@ void usbhs_mod_autonomy_mode(struct usbhs_priv *priv)
 {
 	struct usbhs_mod_info *info = usbhs_priv_to_modinfo(priv);
 
-	info->irq_vbus		= usbhsm_autonomy_irq_vbus;
-	priv->pfunc.get_vbus	= usbhsm_autonomy_get_vbus;
+	info->irq_vbus = usbhsm_autonomy_irq_vbus;
+	info->get_vbus = usbhsm_autonomy_get_vbus;
 
 	usbhs_irq_callback_update(priv, NULL);
+}
+
+void usbhs_mod_non_autonomy_mode(struct usbhs_priv *priv)
+{
+	struct usbhs_mod_info *info = usbhs_priv_to_modinfo(priv);
+
+	info->get_vbus = priv->pfunc->get_vbus;
 }
 
 /*

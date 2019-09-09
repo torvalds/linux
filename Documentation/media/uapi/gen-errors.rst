@@ -1,4 +1,11 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 .. _gen_errors:
 
@@ -17,9 +24,7 @@ Generic Error Codes
     :widths: 1 16
 
 
-    -  .. row 1
-
-       -  ``EAGAIN`` (aka ``EWOULDBLOCK``)
+    -  -  ``EAGAIN`` (aka ``EWOULDBLOCK``)
 
        -  The ioctl can't be handled because the device is in state where it
 	  can't perform it. This could happen for example in case where
@@ -27,15 +32,11 @@ Generic Error Codes
 	  is also returned when the ioctl would need to wait for an event,
 	  but the device was opened in non-blocking mode.
 
-    -  .. row 2
-
-       -  ``EBADF``
+    -  -  ``EBADF``
 
        -  The file descriptor is not a valid.
 
-    -  .. row 3
-
-       -  ``EBUSY``
+    -  -  ``EBUSY``
 
        -  The ioctl can't be handled because the device is busy. This is
 	  typically return while device is streaming, and an ioctl tried to
@@ -44,59 +45,56 @@ Generic Error Codes
 	  ioctl must not be retried without performing another action to fix
 	  the problem first (typically: stop the stream before retrying).
 
-    -  .. row 4
-
-       -  ``EFAULT``
+    -  -  ``EFAULT``
 
        -  There was a failure while copying data from/to userspace, probably
 	  caused by an invalid pointer reference.
 
-    -  .. row 5
-
-       -  ``EINVAL``
+    -  -  ``EINVAL``
 
        -  One or more of the ioctl parameters are invalid or out of the
 	  allowed range. This is a widely used error code. See the
 	  individual ioctl requests for specific causes.
 
-    -  .. row 6
-
-       -  ``ENODEV``
+    -  -  ``ENODEV``
 
        -  Device not found or was removed.
 
-    -  .. row 7
-
-       -  ``ENOMEM``
+    -  -  ``ENOMEM``
 
        -  There's not enough memory to handle the desired operation.
 
-    -  .. row 8
-
-       -  ``ENOTTY``
+    -  -  ``ENOTTY``
 
        -  The ioctl is not supported by the driver, actually meaning that
 	  the required functionality is not available, or the file
 	  descriptor is not for a media device.
 
-    -  .. row 9
-
-       -  ``ENOSPC``
+    -  -  ``ENOSPC``
 
        -  On USB devices, the stream ioctl's can return this error, meaning
 	  that this request would overcommit the usb bandwidth reserved for
 	  periodic transfers (up to 80% of the USB bandwidth).
 
-    -  .. row 10
-
-       -  ``EPERM``
+    -  -  ``EPERM``
 
        -  Permission denied. Can be returned if the device needs write
 	  permission, or some special capabilities is needed (e. g. root)
 
+    -  -  ``EIO``
+
+       -  I/O error. Typically used when there are problems communicating with
+          a hardware device. This could indicate broken or flaky hardware.
+	  It's a 'Something is wrong, I give up!' type of error.
+
+    -  - ``ENXIO``
+
+       -  No device corresponding to this device special file exists.
+
+
 .. note::
 
-  #. This list is not exaustive; ioctls may return other error codes.
+  #. This list is not exhaustive; ioctls may return other error codes.
      Since errors may have side effects such as a driver reset,
      applications should abort on unexpected errors, or otherwise
      assume that the device is in a bad state.

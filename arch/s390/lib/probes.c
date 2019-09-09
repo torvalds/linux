@@ -1,9 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *    Common helper functions for kprobes and uprobes
  *
  *    Copyright IBM Corp. 2014
  */
 
+#include <linux/errno.h>
 #include <asm/kprobes.h>
 #include <asm/dis.h>
 

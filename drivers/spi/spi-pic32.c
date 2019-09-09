@@ -1,17 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Microchip PIC32 SPI controller driver.
  *
  * Purna Chandra Mandal <purna.mandal@microchip.com>
  * Copyright (c) 2016, Microchip Technology Inc.
- *
- * This program is free software; you can distribute it and/or modify it
- * under the terms of the GNU General Public License (Version 2) as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
  */
 
 #include <linux/clk.h>
@@ -52,14 +44,14 @@ struct pic32_spi_regs {
 
 /* Bit fields of SPI Control Register */
 #define CTRL_RX_INT_SHIFT	0  /* Rx interrupt generation */
-#define  RX_FIFO_EMTPY		0
+#define  RX_FIFO_EMPTY		0
 #define  RX_FIFO_NOT_EMPTY	1 /* not empty */
 #define  RX_FIFO_HALF_FULL	2 /* full by half or more */
 #define  RX_FIFO_FULL		3 /* completely full */
 
 #define CTRL_TX_INT_SHIFT	2  /* TX interrupt generation */
 #define  TX_FIFO_ALL_EMPTY	0 /* completely empty */
-#define  TX_FIFO_EMTPY		1 /* empty */
+#define  TX_FIFO_EMPTY		1 /* empty */
 #define  TX_FIFO_HALF_EMPTY	2 /* empty by half or more */
 #define  TX_FIFO_NOT_FULL	3 /* atleast one empty */
 
@@ -320,7 +312,7 @@ static int pic32_spi_dma_transfer(struct pic32_spi *pic32s,
 	desc_rx = dmaengine_prep_slave_sg(master->dma_rx,
 					  xfer->rx_sg.sgl,
 					  xfer->rx_sg.nents,
-					  DMA_FROM_DEVICE,
+					  DMA_DEV_TO_MEM,
 					  DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!desc_rx) {
 		ret = -EINVAL;
@@ -330,7 +322,7 @@ static int pic32_spi_dma_transfer(struct pic32_spi *pic32s,
 	desc_tx = dmaengine_prep_slave_sg(master->dma_tx,
 					  xfer->tx_sg.sgl,
 					  xfer->tx_sg.nents,
-					  DMA_TO_DEVICE,
+					  DMA_MEM_TO_DEV,
 					  DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!desc_tx) {
 		ret = -EINVAL;
@@ -559,7 +551,7 @@ static int pic32_spi_one_transfer(struct spi_master *master,
 		dev_err(&spi->dev, "wait error/timedout\n");
 		if (dma_issued) {
 			dmaengine_terminate_all(master->dma_rx);
-			dmaengine_terminate_all(master->dma_rx);
+			dmaengine_terminate_all(master->dma_tx);
 		}
 		ret = -ETIMEDOUT;
 	} else {
@@ -774,7 +766,7 @@ static int pic32_spi_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_master;
 
-	master->dev.of_node	= of_node_get(pdev->dev.of_node);
+	master->dev.of_node	= pdev->dev.of_node;
 	master->mode_bits	= SPI_MODE_3 | SPI_MODE_0 | SPI_CS_HIGH;
 	master->num_chipselect	= 1; /* single chip-select */
 	master->max_speed_hz	= clk_get_rate(pic32s->clk);

@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * extcon-sm5502.c - Silicon Mitus SM5502 extcon drvier to support USB switches
  *
  * Copyright (c) 2014 Samsung Electronics Co., Ltd
  * Author: Chanwoo Choi <cw00.choi@samsung.com>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/err.h>
@@ -19,7 +15,7 @@
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
-#include <linux/extcon.h>
+#include <linux/extcon-provider.h>
 
 #include "extcon-sm5502.h"
 
@@ -135,8 +131,10 @@ enum sm5502_muic_acc_type {
 	SM5502_MUIC_ADC_AUDIO_TYPE1,
 	SM5502_MUIC_ADC_OPEN = 0x1f,
 
-	/* The below accessories have same ADC value (0x1f or 0x1e).
-	   So, Device type1 is used to separate specific accessory. */
+	/*
+	 * The below accessories have same ADC value (0x1f or 0x1e).
+	 * So, Device type1 is used to separate specific accessory.
+	 */
 							/* |---------|--ADC| */
 							/* |    [7:5]|[4:0]| */
 	SM5502_MUIC_ADC_AUDIO_TYPE1_FULL_REMOTE = 0x3e,	/* |      001|11110| */

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *  Watchdog driver for Broadcom BCM47XX
  *
@@ -5,10 +6,6 @@
  *  Copyright (C) 2009 Matthieu CASTET <castet.matthieu@free.fr>
  *  Copyright (C) 2012-2013 Hauke Mehrtens <hauke@hauke-m.de>
  *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version
- *  2 of the License, or (at your option) any later version.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -97,7 +94,7 @@ static int bcm47xx_wdt_restart(struct watchdog_device *wdd,
 	return 0;
 }
 
-static struct watchdog_ops bcm47xx_wdt_hard_ops = {
+static const struct watchdog_ops bcm47xx_wdt_hard_ops = {
 	.owner		= THIS_MODULE,
 	.start		= bcm47xx_wdt_hard_start,
 	.stop		= bcm47xx_wdt_hard_stop,
@@ -106,9 +103,9 @@ static struct watchdog_ops bcm47xx_wdt_hard_ops = {
 	.restart        = bcm47xx_wdt_restart,
 };
 
-static void bcm47xx_wdt_soft_timer_tick(unsigned long data)
+static void bcm47xx_wdt_soft_timer_tick(struct timer_list *t)
 {
-	struct bcm47xx_wdt *wdt = (struct bcm47xx_wdt *)data;
+	struct bcm47xx_wdt *wdt = from_timer(wdt, t, soft_timer);
 	u32 next_tick = min(wdt->wdd.timeout * 1000, wdt->max_timer_ms);
 
 	if (!atomic_dec_and_test(&wdt->soft_ticks)) {
@@ -133,7 +130,7 @@ static int bcm47xx_wdt_soft_start(struct watchdog_device *wdd)
 	struct bcm47xx_wdt *wdt = bcm47xx_wdt_get(wdd);
 
 	bcm47xx_wdt_soft_keepalive(wdd);
-	bcm47xx_wdt_soft_timer_tick((unsigned long)wdt);
+	bcm47xx_wdt_soft_timer_tick(&wdt->soft_timer);
 
 	return 0;
 }
@@ -168,7 +165,7 @@ static const struct watchdog_info bcm47xx_wdt_info = {
 				WDIOF_MAGICCLOSE,
 };
 
-static struct watchdog_ops bcm47xx_wdt_soft_ops = {
+static const struct watchdog_ops bcm47xx_wdt_soft_ops = {
 	.owner		= THIS_MODULE,
 	.start		= bcm47xx_wdt_soft_start,
 	.stop		= bcm47xx_wdt_soft_stop,
@@ -190,8 +187,7 @@ static int bcm47xx_wdt_probe(struct platform_device *pdev)
 
 	if (soft) {
 		wdt->wdd.ops = &bcm47xx_wdt_soft_ops;
-		setup_timer(&wdt->soft_timer, bcm47xx_wdt_soft_timer_tick,
-			    (long unsigned int)wdt);
+		timer_setup(&wdt->soft_timer, bcm47xx_wdt_soft_timer_tick, 0);
 	} else {
 		wdt->wdd.ops = &bcm47xx_wdt_hard_ops;
 	}
@@ -225,9 +221,6 @@ err_timer:
 static int bcm47xx_wdt_remove(struct platform_device *pdev)
 {
 	struct bcm47xx_wdt *wdt = dev_get_platdata(&pdev->dev);
-
-	if (!wdt)
-		return -ENXIO;
 
 	watchdog_unregister_device(&wdt->wdd);
 

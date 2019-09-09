@@ -1,14 +1,9 @@
-/* adstech-dvb-t-pci.h - Keytable for adstech_dvb_t_pci Remote Controller
- *
- * keymap imported from ir-keymaps.c
- *
- * Copyright (c) 2010 by Mauro Carvalho Chehab
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- */
+// SPDX-License-Identifier: GPL-2.0+
+// adstech-dvb-t-pci.h - Keytable for adstech_dvb_t_pci Remote Controller
+//
+// keymap imported from ir-keymaps.c
+//
+// Copyright (c) 2010 by Mauro Carvalho Chehab
 
 #include <media/rc-map.h>
 #include <linux/module.h>
@@ -17,16 +12,16 @@
 
 static struct rc_map_table adstech_dvb_t_pci[] = {
 	/* Keys 0 to 9 */
-	{ 0x4d, KEY_0 },
-	{ 0x57, KEY_1 },
-	{ 0x4f, KEY_2 },
-	{ 0x53, KEY_3 },
-	{ 0x56, KEY_4 },
-	{ 0x4e, KEY_5 },
-	{ 0x5e, KEY_6 },
-	{ 0x54, KEY_7 },
-	{ 0x4c, KEY_8 },
-	{ 0x5c, KEY_9 },
+	{ 0x4d, KEY_NUMERIC_0 },
+	{ 0x57, KEY_NUMERIC_1 },
+	{ 0x4f, KEY_NUMERIC_2 },
+	{ 0x53, KEY_NUMERIC_3 },
+	{ 0x56, KEY_NUMERIC_4 },
+	{ 0x4e, KEY_NUMERIC_5 },
+	{ 0x5e, KEY_NUMERIC_6 },
+	{ 0x54, KEY_NUMERIC_7 },
+	{ 0x4c, KEY_NUMERIC_8 },
+	{ 0x5c, KEY_NUMERIC_9 },
 
 	{ 0x5b, KEY_POWER },
 	{ 0x5f, KEY_MUTE },
@@ -66,10 +61,10 @@ static struct rc_map_table adstech_dvb_t_pci[] = {
 
 static struct rc_map_list adstech_dvb_t_pci_map = {
 	.map = {
-		.scan    = adstech_dvb_t_pci,
-		.size    = ARRAY_SIZE(adstech_dvb_t_pci),
-		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
-		.name    = RC_MAP_ADSTECH_DVB_T_PCI,
+		.scan     = adstech_dvb_t_pci,
+		.size     = ARRAY_SIZE(adstech_dvb_t_pci),
+		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.name     = RC_MAP_ADSTECH_DVB_T_PCI,
 	}
 };
 

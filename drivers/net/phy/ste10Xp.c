@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * drivers/net/phy/ste10Xp.c
  *
@@ -6,12 +7,6 @@
  * Author: Giuseppe Cavallaro <peppe.cavallaro@st.com>
  *
  * Copyright (c) 2008 STMicroelectronics Limited
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- *
  */
 
 #include <linux/module.h>
@@ -86,11 +81,8 @@ static struct phy_driver ste10xp_pdriver[] = {
 	.phy_id = STE101P_PHY_ID,
 	.phy_id_mask = 0xfffffff0,
 	.name = "STe101p",
-	.features = PHY_BASIC_FEATURES | SUPPORTED_Pause,
-	.flags = PHY_HAS_INTERRUPT,
+	/* PHY_BASIC_FEATURES */
 	.config_init = ste10Xp_config_init,
-	.config_aneg = genphy_config_aneg,
-	.read_status = genphy_read_status,
 	.ack_interrupt = ste10Xp_ack_interrupt,
 	.config_intr = ste10Xp_config_intr,
 	.suspend = genphy_suspend,
@@ -99,11 +91,8 @@ static struct phy_driver ste10xp_pdriver[] = {
 	.phy_id = STE100P_PHY_ID,
 	.phy_id_mask = 0xffffffff,
 	.name = "STe100p",
-	.features = PHY_BASIC_FEATURES | SUPPORTED_Pause,
-	.flags = PHY_HAS_INTERRUPT,
+	/* PHY_BASIC_FEATURES */
 	.config_init = ste10Xp_config_init,
-	.config_aneg = genphy_config_aneg,
-	.read_status = genphy_read_status,
 	.ack_interrupt = ste10Xp_ack_interrupt,
 	.config_intr = ste10Xp_config_intr,
 	.suspend = genphy_suspend,

@@ -1,4 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
+ * Copyright (c) 2015-2018 Oracle.  All rights reserved.
  * Copyright (c) 2005-2006 Network Appliance, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -46,21 +48,20 @@
 #include <linux/sunrpc/clnt.h>
 #include <linux/sunrpc/sched.h>
 #include <linux/sunrpc/svc_rdma.h>
-#include "xprt_rdma.h"
 
 #define RPCDBG_FACILITY	RPCDBG_SVCXPRT
 
 /* RPC/RDMA parameters */
-unsigned int svcrdma_ord = RPCRDMA_ORD;
+unsigned int svcrdma_ord = 16;	/* historical default */
 static unsigned int min_ord = 1;
-static unsigned int max_ord = 4096;
+static unsigned int max_ord = 255;
 unsigned int svcrdma_max_requests = RPCRDMA_MAX_REQUESTS;
 unsigned int svcrdma_max_bc_requests = RPCRDMA_MAX_BC_REQUESTS;
 static unsigned int min_max_requests = 4;
 static unsigned int max_max_requests = 16384;
-unsigned int svcrdma_max_req_size = RPCRDMA_MAX_REQ_SIZE;
-static unsigned int min_max_inline = 4096;
-static unsigned int max_max_inline = 65536;
+unsigned int svcrdma_max_req_size = RPCRDMA_DEF_INLINE_THRESH;
+static unsigned int min_max_inline = RPCRDMA_DEF_INLINE_THRESH;
+static unsigned int max_max_inline = RPCRDMA_MAX_INLINE_THRESH;
 
 atomic_t rdma_stat_recv;
 atomic_t rdma_stat_read;
@@ -93,7 +94,6 @@ static int read_reset_stat(struct ctl_table *table, int write,
 		atomic_set(stat, 0);
 	else {
 		char str_buf[32];
-		char *data;
 		int len = snprintf(str_buf, 32, "%d\n", atomic_read(stat));
 		if (len >= 32)
 			return -EFAULT;
@@ -102,7 +102,6 @@ static int read_reset_stat(struct ctl_table *table, int write,
 			*lenp = 0;
 			return 0;
 		}
-		data = &str_buf[*ppos];
 		len -= *ppos;
 		if (len > *lenp)
 			len = *lenp;
@@ -236,9 +235,6 @@ void svc_rdma_cleanup(void)
 		unregister_sysctl_table(svcrdma_table_header);
 		svcrdma_table_header = NULL;
 	}
-#if defined(CONFIG_SUNRPC_BACKCHANNEL)
-	svc_unreg_xprt_class(&svc_rdma_bc_class);
-#endif
 	svc_unreg_xprt_class(&svc_rdma_class);
 }
 
@@ -247,8 +243,6 @@ int svc_rdma_init(void)
 	dprintk("SVCRDMA Module Init, register RPC RDMA transport\n");
 	dprintk("\tsvcrdma_ord      : %d\n", svcrdma_ord);
 	dprintk("\tmax_requests     : %u\n", svcrdma_max_requests);
-	dprintk("\tsq_depth         : %u\n",
-		svcrdma_max_requests * RPCRDMA_SQ_DEPTH_MULT);
 	dprintk("\tmax_bc_requests  : %u\n", svcrdma_max_bc_requests);
 	dprintk("\tmax_inline       : %d\n", svcrdma_max_req_size);
 
@@ -262,8 +256,5 @@ int svc_rdma_init(void)
 
 	/* Register RDMA with the SVC transport switch */
 	svc_reg_xprt_class(&svc_rdma_class);
-#if defined(CONFIG_SUNRPC_BACKCHANNEL)
-	svc_reg_xprt_class(&svc_rdma_bc_class);
-#endif
 	return 0;
 }

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Helpfile for jazzdma.c -- Mips Jazz R4030 DMA controller support
  */
@@ -37,12 +38,6 @@ extern int vdma_get_enable(int channel);
  */
 #define VDMA_PAGE(a)		((unsigned int)(a) >> 12)
 #define VDMA_OFFSET(a)		((unsigned int)(a) & (VDMA_PAGESIZE-1))
-
-/*
- * error code returned by vdma_alloc()
- * (See also arch/mips/kernel/jazzdma.c)
- */
-#define VDMA_ERROR		0xffffffff
 
 /*
  * VDMA pagetable entry description

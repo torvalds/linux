@@ -1,24 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Ultra Wide Band
  * Address management
  *
  * Copyright (C) 2005-2006 Intel Corporation
  * Inaky Perez-Gonzalez <inaky.perez-gonzalez@intel.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
- *
  *
  * FIXME: docs
  */
@@ -336,23 +322,17 @@ static ssize_t uwb_rc_mac_addr_store(struct device *dev,
 	struct uwb_mac_addr addr;
 	ssize_t result;
 
-	result = sscanf(buf, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx\n",
-			&addr.data[0], &addr.data[1], &addr.data[2],
-			&addr.data[3], &addr.data[4], &addr.data[5]);
-	if (result != 6) {
-		result = -EINVAL;
-		goto out;
-	}
+	if (!mac_pton(buf, addr.data))
+		return -EINVAL;
 	if (is_multicast_ether_addr(addr.data)) {
 		dev_err(&rc->uwb_dev.dev, "refusing to set multicast "
 			"MAC address %s\n", buf);
-		result = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 	result = uwb_rc_mac_addr_set(rc, &addr);
 	if (result == 0)
 		rc->uwb_dev.mac_addr = addr;
-out:
+
 	return result < 0 ? result : size;
 }
 DEVICE_ATTR(mac_address, S_IRUGO | S_IWUSR, uwb_rc_mac_addr_show, uwb_rc_mac_addr_store);

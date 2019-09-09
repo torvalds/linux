@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * LED Flash class driver for the flash cell of max77693 mfd.
  *
@@ -5,10 +6,6 @@
  *
  *	Authors: Jacek Anaszewski <j.anaszewski@samsung.com>
  *		 Andrzej Hajda <a.hajda@samsung.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
  */
 
 #include <linux/led-class-flash.h>
@@ -856,7 +853,7 @@ static void max77693_init_v4l2_flash_config(struct max77693_sub_led *sub_led,
 		 "%s %d-%04x", sub_led->fled_cdev.led_cdev.name,
 		 i2c_adapter_id(i2c->adapter), i2c->addr);
 
-	s = &v4l2_sd_cfg->torch_intensity;
+	s = &v4l2_sd_cfg->intensity;
 	s->min = TORCH_IOUT_MIN;
 	s->max = sub_led->fled_cdev.led_cdev.max_brightness * TORCH_IOUT_STEP;
 	s->step = TORCH_IOUT_STEP;
@@ -930,8 +927,9 @@ static int max77693_register_led(struct max77693_sub_led *sub_led,
 	max77693_init_v4l2_flash_config(sub_led, led_cfg, &v4l2_sd_cfg);
 
 	/* Register in the V4L2 subsystem. */
-	sub_led->v4l2_flash = v4l2_flash_init(dev, sub_node, fled_cdev, NULL,
-					      &v4l2_flash_ops, &v4l2_sd_cfg);
+	sub_led->v4l2_flash = v4l2_flash_init(dev, of_fwnode_handle(sub_node),
+					      fled_cdev, &v4l2_flash_ops,
+					      &v4l2_sd_cfg);
 	if (IS_ERR(sub_led->v4l2_flash)) {
 		ret = PTR_ERR(sub_led->v4l2_flash);
 		goto err_v4l2_flash_init;

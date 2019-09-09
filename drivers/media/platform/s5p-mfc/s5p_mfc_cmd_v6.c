@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * linux/drivers/media/platform/s5p-mfc/s5p_mfc_cmd_v6.c
  *
  * Copyright (c) 2012 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include "s5p_mfc_common.h"
@@ -101,6 +97,12 @@ static int s5p_mfc_open_inst_cmd_v6(struct s5p_mfc_ctx *ctx)
 	case S5P_MFC_CODEC_VP8_DEC:
 		codec_type = S5P_FIMV_CODEC_VP8_DEC_V6;
 		break;
+	case S5P_MFC_CODEC_HEVC_DEC:
+		codec_type = S5P_FIMV_CODEC_HEVC_DEC;
+		break;
+	case S5P_MFC_CODEC_VP9_DEC:
+		codec_type = S5P_FIMV_CODEC_VP9_DEC;
+		break;
 	case S5P_MFC_CODEC_H264_ENC:
 		codec_type = S5P_FIMV_CODEC_H264_ENC_V6;
 		break;
@@ -115,6 +117,9 @@ static int s5p_mfc_open_inst_cmd_v6(struct s5p_mfc_ctx *ctx)
 		break;
 	case S5P_MFC_CODEC_VP8_ENC:
 		codec_type = S5P_FIMV_CODEC_VP8_ENC_V7;
+		break;
+	case S5P_MFC_CODEC_HEVC_ENC:
+		codec_type = S5P_FIMV_CODEC_HEVC_ENC;
 		break;
 	default:
 		codec_type = S5P_FIMV_CODEC_NONE_V6;

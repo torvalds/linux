@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  ebtable_broute
  *
@@ -14,6 +15,8 @@
 #include <linux/netfilter_bridge/ebtables.h>
 #include <linux/module.h>
 #include <linux/if_bridge.h>
+
+#include "../br_private.h"
 
 /* EBT_ACCEPT means the frame will be bridged
  * EBT_DROP means the frame will be routed
@@ -48,30 +51,63 @@ static const struct ebt_table broute_table = {
 	.me		= THIS_MODULE,
 };
 
-static int ebt_broute(struct sk_buff *skb)
+static unsigned int ebt_broute(void *priv, struct sk_buff *skb,
+			       const struct nf_hook_state *s)
 {
+	struct net_bridge_port *p = br_port_get_rcu(skb->dev);
 	struct nf_hook_state state;
+	unsigned char *dest;
 	int ret;
 
-	nf_hook_state_init(&state, NULL, NF_BR_BROUTING, INT_MIN,
-			   NFPROTO_BRIDGE, skb->dev, NULL, NULL,
-			   dev_net(skb->dev), NULL);
+	if (!p || p->state != BR_STATE_FORWARDING)
+		return NF_ACCEPT;
+
+	nf_hook_state_init(&state, NF_BR_BROUTING,
+			   NFPROTO_BRIDGE, s->in, NULL, NULL,
+			   s->net, NULL);
 
 	ret = ebt_do_table(skb, &state, state.net->xt.broute_table);
-	if (ret == NF_DROP)
-		return 1; /* route it */
-	return 0; /* bridge it */
+
+	if (ret != NF_DROP)
+		return ret;
+
+	/* DROP in ebtables -t broute means that the
+	 * skb should be routed, not bridged.
+	 * This is awkward, but can't be changed for compatibility
+	 * reasons.
+	 *
+	 * We map DROP to ACCEPT and set the ->br_netfilter_broute flag.
+	 */
+	BR_INPUT_SKB_CB(skb)->br_netfilter_broute = 1;
+
+	/* undo PACKET_HOST mangling done in br_input in case the dst
+	 * address matches the logical bridge but not the port.
+	 */
+	dest = eth_hdr(skb)->h_dest;
+	if (skb->pkt_type == PACKET_HOST &&
+	    !ether_addr_equal(skb->dev->dev_addr, dest) &&
+	     ether_addr_equal(p->br->dev->dev_addr, dest))
+		skb->pkt_type = PACKET_OTHERHOST;
+
+	return NF_ACCEPT;
 }
+
+static const struct nf_hook_ops ebt_ops_broute = {
+	.hook		= ebt_broute,
+	.pf		= NFPROTO_BRIDGE,
+	.hooknum	= NF_BR_PRE_ROUTING,
+	.priority	= NF_BR_PRI_FIRST,
+};
 
 static int __net_init broute_net_init(struct net *net)
 {
-	net->xt.broute_table = ebt_register_table(net, &broute_table);
-	return PTR_ERR_OR_ZERO(net->xt.broute_table);
+	return ebt_register_table(net, &broute_table, &ebt_ops_broute,
+				  &net->xt.broute_table);
 }
 
 static void __net_exit broute_net_exit(struct net *net)
 {
-	ebt_unregister_table(net, net->xt.broute_table);
+	ebt_unregister_table(net, net->xt.broute_table, &ebt_ops_broute);
 }
 
 static struct pernet_operations broute_net_ops = {
@@ -81,21 +117,11 @@ static struct pernet_operations broute_net_ops = {
 
 static int __init ebtable_broute_init(void)
 {
-	int ret;
-
-	ret = register_pernet_subsys(&broute_net_ops);
-	if (ret < 0)
-		return ret;
-	/* see br_input.c */
-	RCU_INIT_POINTER(br_should_route_hook,
-			   (br_should_route_hook_t *)ebt_broute);
-	return 0;
+	return register_pernet_subsys(&broute_net_ops);
 }
 
 static void __exit ebtable_broute_fini(void)
 {
-	RCU_INIT_POINTER(br_should_route_hook, NULL);
-	synchronize_net();
 	unregister_pernet_subsys(&broute_net_ops);
 }
 

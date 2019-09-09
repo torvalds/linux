@@ -282,7 +282,7 @@ static void bt3c_receive(struct bt3c_info *info)
 
 			__u8 x = inb(iobase + DATA_L);
 
-			*skb_put(info->rx_skb, 1) = x;
+			skb_put_u8(info->rx_skb, x);
 			inb(iobase + DATA_H);
 			info->rx_count--;
 
@@ -355,7 +355,7 @@ static irqreturn_t bt3c_interrupt(int irq, void *dev_inst)
 		} else if ((stat & 0xff) != 0xff) {
 			if (stat & 0x0020) {
 				int status = bt3c_read(iobase, 0x7002) & 0x10;
-				BT_INFO("%s: Antenna %s", info->hdev->name,
+				bt_dev_info(info->hdev, "Antenna %s",
 							status ? "out" : "in");
 			}
 			if (stat & 0x0001)
@@ -448,7 +448,7 @@ static int bt3c_load_firmware(struct bt3c_info *info,
 {
 	char *ptr = (char *) firmware;
 	char b[9];
-	unsigned int iobase, tmp;
+	unsigned int iobase, tmp, tn;
 	unsigned long size, addr, fcs;
 	int i, err = 0;
 
@@ -490,7 +490,9 @@ static int bt3c_load_firmware(struct bt3c_info *info,
 		memset(b, 0, sizeof(b));
 		for (tmp = 0, i = 0; i < size; i++) {
 			memcpy(b, ptr + (i * 2) + 2, 2);
-			tmp += simple_strtol(b, NULL, 16);
+			if (kstrtouint(b, 16, &tn))
+				return -EINVAL;
+			tmp += tn;
 		}
 
 		if (((tmp + fcs) & 0xff) != 0xff) {
@@ -505,7 +507,8 @@ static int bt3c_load_firmware(struct bt3c_info *info,
 			memset(b, 0, sizeof(b));
 			for (i = 0; i < (size - 4) / 2; i++) {
 				memcpy(b, ptr + (i * 4) + 12, 4);
-				tmp = simple_strtoul(b, NULL, 16);
+				if (kstrtouint(b, 16, &tmp))
+					return -EINVAL;
 				bt3c_put(iobase, tmp);
 			}
 		}
@@ -684,14 +687,16 @@ static int bt3c_config(struct pcmcia_device *link)
 	unsigned long try;
 
 	/* First pass: look for a config entry that looks normal.
-	   Two tries: without IO aliases, then with aliases */
+	 * Two tries: without IO aliases, then with aliases
+	 */
 	for (try = 0; try < 2; try++)
 		if (!pcmcia_loop_config(link, bt3c_check_config, (void *) try))
 			goto found_port;
 
 	/* Second pass: try to find an entry that isn't picky about
-	   its base address, then try to grab any standard serial port
-	   address, and finally try to get any free port. */
+	 * its base address, then try to grab any standard serial port
+	 * address, and finally try to get any free port.
+	 */
 	if (!pcmcia_loop_config(link, bt3c_check_config_notpicky, NULL))
 		goto found_port;
 

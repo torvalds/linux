@@ -1,0 +1,234 @@
+#!/usr/bin/env perl
+# SPDX-License-Identifier: GPL-2.0
+#
+# Treewide grep for references to files under Documentation, and report
+# non-existing files in stderr.
+
+use warnings;
+use strict;
+use Getopt::Long qw(:config no_auto_abbrev);
+
+# NOTE: only add things here when the file was gone, but the text wants
+# to mention a past documentation file, for example, to give credits for
+# the original work.
+my %false_positives = (
+	"Documentation/scsi/scsi_mid_low_api.txt" => "Documentation/Configure.help",
+	"drivers/vhost/vhost.c" => "Documentation/virtual/lguest/lguest.c",
+);
+
+my $scriptname = $0;
+$scriptname =~ s,.*/([^/]+/),$1,;
+
+# Parse arguments
+my $help = 0;
+my $fix = 0;
+my $warn = 0;
+
+if (! -d ".git") {
+	printf "Warning: can't check if file exists, as this is not a git tree";
+	exit 0;
+}
+
+GetOptions(
+	'fix' => \$fix,
+	'warn' => \$warn,
+	'h|help|usage' => \$help,
+);
+
+if ($help != 0) {
+    print "$scriptname [--help] [--fix]\n";
+    exit -1;
+}
+
+# Step 1: find broken references
+print "Finding broken references. This may take a while...  " if ($fix);
+
+my %broken_ref;
+
+my $doc_fix = 0;
+
+open IN, "git grep ':doc:\`' Documentation/|"
+     or die "Failed to run git grep";
+while (<IN>) {
+	next if (!m,^([^:]+):.*\:doc\:\`([^\`]+)\`,);
+
+	my $d = $1;
+	my $doc_ref = $2;
+
+	my $f = $doc_ref;
+
+	$d =~ s,(.*/).*,$1,;
+	$f =~ s,.*\<([^\>]+)\>,$1,;
+
+	$f ="$d$f.rst";
+
+	next if (grep -e, glob("$f"));
+
+	if ($fix && !$doc_fix) {
+		print STDERR "\nWARNING: Currently, can't fix broken :doc:`` fields\n";
+	}
+	$doc_fix++;
+
+	print STDERR "$f: :doc:`$doc_ref`\n";
+}
+close IN;
+
+open IN, "git grep 'Documentation/'|"
+     or die "Failed to run git grep";
+while (<IN>) {
+	next if (!m/^([^:]+):(.*)/);
+
+	my $f = $1;
+	my $ln = $2;
+
+	# On linux-next, discard the Next/ directory
+	next if ($f =~ m,^Next/,);
+
+	# Makefiles and scripts contain nasty expressions to parse docs
+	next if ($f =~ m/Makefile/ || $f =~ m/\.sh$/);
+
+	# Skip this script
+	next if ($f eq $scriptname);
+
+	# Ignore the dir where documentation will be built
+	next if ($ln =~ m,\b(\S*)Documentation/output,);
+
+	if ($ln =~ m,\b(\S*)(Documentation/[A-Za-z0-9\_\.\,\~/\*\[\]\?+-]*)(.*),) {
+		my $prefix = $1;
+		my $ref = $2;
+		my $base = $2;
+		my $extra = $3;
+
+		# some file references are like:
+		# /usr/src/linux/Documentation/DMA-{API,mapping}.txt
+		# For now, ignore them
+		next if ($extra =~ m/^{/);
+
+		# Remove footnotes at the end like:
+		# Documentation/devicetree/dt-object-internal.txt[1]
+		$ref =~ s/(txt|rst)\[\d+]$/$1/;
+
+		# Remove ending ']' without any '['
+		$ref =~ s/\].*// if (!($ref =~ m/\[/));
+
+		# Remove puntuation marks at the end
+		$ref =~ s/[\,\.]+$//;
+
+		my $fulref = "$prefix$ref";
+
+		$fulref =~ s/^(\<file|ref)://;
+		$fulref =~ s/^[\'\`]+//;
+		$fulref =~ s,^\$\(.*\)/,,;
+		$base =~ s,.*/,,;
+
+		# Remove URL false-positives
+		next if ($fulref =~ m/^http/);
+
+		# Remove sched-pelt false-positive
+		next if ($fulref =~ m,^Documentation/scheduler/sched-pelt$,);
+
+		# Discard some build examples from Documentation/target/tcm_mod_builder.rst
+		next if ($fulref =~ m,mnt/sdb/lio-core-2.6.git/Documentation/target,);
+
+		# Check if exists, evaluating wildcards
+		next if (grep -e, glob("$ref $fulref"));
+
+		# Accept relative Documentation patches for tools/
+		if ($f =~ m/tools/) {
+			my $path = $f;
+			$path =~ s,(.*)/.*,$1,;
+			next if (grep -e, glob("$path/$ref $path/../$ref $path/$fulref"));
+		}
+
+		# Discard known false-positives
+		if (defined($false_positives{$f})) {
+			next if ($false_positives{$f} eq $fulref);
+		}
+
+		if ($fix) {
+			if (!($ref =~ m/(scripts|Kconfig|Kbuild)/)) {
+				$broken_ref{$ref}++;
+			}
+		} elsif ($warn) {
+			print STDERR "Warning: $f references a file that doesn't exist: $fulref\n";
+		} else {
+			print STDERR "$f: $fulref\n";
+		}
+	}
+}
+close IN;
+
+exit 0 if (!$fix);
+
+# Step 2: Seek for file name alternatives
+print "Auto-fixing broken references. Please double-check the results\n";
+
+foreach my $ref (keys %broken_ref) {
+	my $new =$ref;
+
+	my $basedir = ".";
+	# On translations, only seek inside the translations directory
+	$basedir  = $1 if ($ref =~ m,(Documentation/translations/[^/]+),);
+
+	# get just the basename
+	$new =~ s,.*/,,;
+
+	my $f="";
+
+	# usual reason for breakage: DT file moved around
+	if ($ref =~ /devicetree/) {
+		# usual reason for breakage: DT file renamed to .yaml
+		if (!$f) {
+			my $new_ref = $ref;
+			$new_ref =~ s/\.txt$/.yaml/;
+			$f=$new_ref if (-f $new_ref);
+		}
+
+		if (!$f) {
+			my $search = $new;
+			$search =~ s,^.*/,,;
+			$f = qx(find Documentation/devicetree/ -iname "*$search*") if ($search);
+			if (!$f) {
+				# Manufacturer name may have changed
+				$search =~ s/^.*,//;
+				$f = qx(find Documentation/devicetree/ -iname "*$search*") if ($search);
+			}
+		}
+	}
+
+	# usual reason for breakage: file renamed to .rst
+	if (!$f) {
+		$new =~ s/\.txt$/.rst/;
+		$f=qx(find $basedir -iname $new) if ($new);
+	}
+
+	# usual reason for breakage: use dash or underline
+	if (!$f) {
+		$new =~ s/[-_]/[-_]/g;
+		$f=qx(find $basedir -iname $new) if ($new);
+	}
+
+	# Wild guess: seek for the same name on another place
+	if (!$f) {
+		$f = qx(find $basedir -iname $new) if ($new);
+	}
+
+	my @find = split /\s+/, $f;
+
+	if (!$f) {
+		print STDERR "ERROR: Didn't find a replacement for $ref\n";
+	} elsif (scalar(@find) > 1) {
+		print STDERR "WARNING: Won't auto-replace, as found multiple files close to $ref:\n";
+		foreach my $j (@find) {
+			$j =~ s,^./,,;
+			print STDERR "    $j\n";
+		}
+	} else {
+		$f = $find[0];
+		$f =~ s,^./,,;
+		print "INFO: Replacing $ref to $f\n";
+		foreach my $j (qx(git grep -l $ref)) {
+			qx(sed "s\@$ref\@$f\@g" -i $j);
+		}
+	}
+}

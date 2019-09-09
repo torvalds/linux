@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Character device driver for reading z/VM *MONITOR service records.
  *
@@ -23,7 +24,7 @@
 #include <linux/device.h>
 #include <linux/slab.h>
 #include <net/iucv/iucv.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/ebcdic.h>
 #include <asm/extmem.h>
 
@@ -428,15 +429,15 @@ out_copy:
 	return count;
 }
 
-static unsigned int mon_poll(struct file *filp, struct poll_table_struct *p)
+static __poll_t mon_poll(struct file *filp, struct poll_table_struct *p)
 {
 	struct mon_private *monpriv = filp->private_data;
 
 	poll_wait(filp, &mon_read_wait_queue, p);
 	if (unlikely(atomic_read(&monpriv->iucv_severed)))
-		return POLLERR;
+		return EPOLLERR;
 	if (atomic_read(&monpriv->read_ready))
-		return POLLIN | POLLRDNORM;
+		return EPOLLIN | EPOLLRDNORM;
 	return 0;
 }
 

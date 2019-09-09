@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* Daemon interface
  *
  * Copyright (C) 2007 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public Licence
- * as published by the Free Software Foundation; either version
- * 2 of the Licence, or (at your option) any later version.
  */
 
 #include <linux/module.h>
@@ -31,7 +27,7 @@ static ssize_t cachefiles_daemon_read(struct file *, char __user *, size_t,
 				      loff_t *);
 static ssize_t cachefiles_daemon_write(struct file *, const char __user *,
 				       size_t, loff_t *);
-static unsigned int cachefiles_daemon_poll(struct file *,
+static __poll_t cachefiles_daemon_poll(struct file *,
 					   struct poll_table_struct *);
 static int cachefiles_daemon_frun(struct cachefiles_cache *, char *);
 static int cachefiles_daemon_fcull(struct cachefiles_cache *, char *);
@@ -289,22 +285,22 @@ found_command:
 
 /*
  * poll for culling state
- * - use POLLOUT to indicate culling state
+ * - use EPOLLOUT to indicate culling state
  */
-static unsigned int cachefiles_daemon_poll(struct file *file,
+static __poll_t cachefiles_daemon_poll(struct file *file,
 					   struct poll_table_struct *poll)
 {
 	struct cachefiles_cache *cache = file->private_data;
-	unsigned int mask;
+	__poll_t mask;
 
 	poll_wait(file, &cache->daemon_pollwq, poll);
 	mask = 0;
 
 	if (test_bit(CACHEFILES_STATE_CHANGED, &cache->flags))
-		mask |= POLLIN;
+		mask |= EPOLLIN;
 
 	if (test_bit(CACHEFILES_CULLING, &cache->flags))
-		mask |= POLLOUT;
+		mask |= EPOLLOUT;
 
 	return mask;
 }

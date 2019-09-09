@@ -63,7 +63,7 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "mxl5005s.h"
 
 static int debug;
@@ -1677,10 +1677,10 @@ static u16 MXL5005_TunerConfig(struct dvb_frontend *fe,
 	u8	AGC_Mode,	/* AGC Mode - Dual AGC: 0, Single AGC: 1 */
 	u16	TOP,		/* 0: Dual AGC; Value: take over point */
 	u16	IF_OUT_LOAD,	/* IF Out Load Resistor (200 / 300 Ohms) */
-	u8	CLOCK_OUT, 	/* 0: turn off clk out; 1: turn on clock out */
+	u8	CLOCK_OUT,	/* 0: turn off clk out; 1: turn on clock out */
 	u8	DIV_OUT,	/* 0: Div-1; 1: Div-4 */
-	u8	CAPSELECT, 	/* 0: disable On-Chip pulling cap; 1: enable */
-	u8	EN_RSSI, 	/* 0: disable RSSI; 1: enable RSSI */
+	u8	CAPSELECT,	/* 0: disable On-Chip pulling cap; 1: enable */
+	u8	EN_RSSI,	/* 0: disable RSSI; 1: enable RSSI */
 
 	/* Modulation Type; */
 	/* 0 - Default;	1 - DVB-T; 2 - ATSC; 3 - QAM; 4 - Analog Cable */
@@ -2737,8 +2737,6 @@ static u16 MXL_TuneRF(struct dvb_frontend *fe, u32 RF_Freq)
 		status += MXL_ControlWrite(fe, TG_LO_DIVVAL,	0x0);
 		status += MXL_ControlWrite(fe, TG_LO_SELVAL,	0x7);
 		divider_val = 2 ;
-		Fmax = FmaxBin ;
-		Fmin = FminBin ;
 	}
 
 	/* TG_DIV_VAL */
@@ -3586,17 +3584,18 @@ static u32 MXL_Ceiling(u32 value, u32 resolution)
 	return value / resolution + (value % resolution > 0 ? 1 : 0);
 }
 
-/* Retrieve the Initialzation Registers */
+/* Retrieve the Initialization Registers */
 static u16 MXL_GetInitRegister(struct dvb_frontend *fe, u8 *RegNum,
 	u8 *RegVal, int *count)
 {
 	u16 status = 0;
 	int i ;
 
-	u8 RegAddr[] = {
+	static const u8 RegAddr[] = {
 		11, 12, 13, 22, 32, 43, 44, 53, 56, 59, 73,
 		76, 77, 91, 134, 135, 137, 147,
-		156, 166, 167, 168, 25 };
+		156, 166, 167, 168, 25
+	};
 
 	*count = ARRAY_SIZE(RegAddr);
 
@@ -3618,11 +3617,15 @@ static u16 MXL_GetCHRegister(struct dvb_frontend *fe, u8 *RegNum, u8 *RegVal,
 
 /* add 77, 166, 167, 168 register for 2.6.12 */
 #ifdef _MXL_PRODUCTION
-	u8 RegAddr[] = {14, 15, 16, 17, 22, 43, 65, 68, 69, 70, 73, 92, 93, 106,
-	   107, 108, 109, 110, 111, 112, 136, 138, 149, 77, 166, 167, 168 } ;
+	static const u8 RegAddr[] = {
+		14, 15, 16, 17, 22, 43, 65, 68, 69, 70, 73, 92, 93, 106,
+		107, 108, 109, 110, 111, 112, 136, 138, 149, 77, 166, 167, 168
+	};
 #else
-	u8 RegAddr[] = {14, 15, 16, 17, 22, 43, 68, 69, 70, 73, 92, 93, 106,
-	   107, 108, 109, 110, 111, 112, 136, 138, 149, 77, 166, 167, 168 } ;
+	static const u8 RegAddr[] = {
+		14, 15, 16, 17, 22, 43, 68, 69, 70, 73, 92, 93, 106,
+		107, 108, 109, 110, 111, 112, 136, 138, 149, 77, 166, 167, 168
+	};
 	/*
 	u8 RegAddr[171];
 	for (i = 0; i <= 170; i++)
@@ -4063,20 +4066,19 @@ static int mxl5005s_get_if_frequency(struct dvb_frontend *fe, u32 *frequency)
 	return 0;
 }
 
-static int mxl5005s_release(struct dvb_frontend *fe)
+static void mxl5005s_release(struct dvb_frontend *fe)
 {
 	dprintk(1, "%s()\n", __func__);
 	kfree(fe->tuner_priv);
 	fe->tuner_priv = NULL;
-	return 0;
 }
 
 static const struct dvb_tuner_ops mxl5005s_tuner_ops = {
 	.info = {
-		.name           = "MaxLinear MXL5005S",
-		.frequency_min  =  48000000,
-		.frequency_max  = 860000000,
-		.frequency_step =     50000,
+		.name              = "MaxLinear MXL5005S",
+		.frequency_min_hz  =  48 * MHz,
+		.frequency_max_hz  = 860 * MHz,
+		.frequency_step_hz =  50 * kHz,
 	},
 
 	.release       = mxl5005s_release,

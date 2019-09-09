@@ -1,9 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2014 Claudio Leite <leitec@staticky.com>
  *
- * This file is licensed under the terms of the GNU General Public
- * License version 2.  This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  */
 
 /dts-v1/;
@@ -192,19 +190,20 @@
 			gpios = <&gpio1 14 GPIO_ACTIVE_LOW>;
 		};
 	};
+};
 
-	dsa {
-		compatible = "marvell,dsa";
-		#address-cells = <2>;
+&mdio {
+	status = "okay";
+
+	switch@0 {
+		compatible = "marvell,mv88e6085";
+		#address-cells = <1>;
 		#size-cells = <0>;
+		reg = <0>;
 
-		dsa,ethernet = <&eth0port>;
-		dsa,mii-bus = <&mdio>;
-
-		switch@0 {
+		ports {
 			#address-cells = <1>;
 			#size-cells = <0>;
-			reg = <0 0>;	/* MDIO address 0, switch 0 in tree */
 
 			port@0 {
 				reg = <0>;
@@ -232,15 +231,16 @@
 			};
 
 			port@6 {
-			       reg = <6>;
-			       label = "cpu";
+				reg = <6>;
+				label = "cpu";
+				ethernet = <&eth0port>;
+				fixed-link {
+					speed = <1000>;
+					full-duplex;
+				};
 			};
 		};
 	};
-};
-
-&mdio {
-	status = "okay";
 };
 
 /* eth0 is connected to a Marvell 88E6171 switch, without a PHY. So set

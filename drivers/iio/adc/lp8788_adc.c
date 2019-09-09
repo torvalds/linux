@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * TI LP8788 MFD - ADC driver
  *
  * Copyright 2012 Texas Instruments
  *
  * Author: Milo(Woogyom) Kim <milo.kim@ti.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/delay.h>
@@ -125,7 +122,6 @@ static int lp8788_adc_read_raw(struct iio_dev *indio_dev,
 
 static const struct iio_info lp8788_adc_info = {
 	.read_raw = &lp8788_adc_read_raw,
-	.driver_module = THIS_MODULE,
 };
 
 #define LP8788_CHAN(_id, _type) {				\

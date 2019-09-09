@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ROHM BU21023/24 Dual touch support resistive touch screen driver
  * Copyright (C) 2012 ROHM CO.,LTD.
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 #include <linux/delay.h>
 #include <linux/firmware.h>
@@ -304,7 +296,7 @@ static int rohm_i2c_burst_read(struct i2c_client *client, u8 start, void *buf,
 	msg[1].len = len;
 	msg[1].buf = buf;
 
-	i2c_lock_adapter(adap);
+	i2c_lock_bus(adap, I2C_LOCK_SEGMENT);
 
 	for (i = 0; i < 2; i++) {
 		if (__i2c_transfer(adap, &msg[i], 1) < 0) {
@@ -313,7 +305,7 @@ static int rohm_i2c_burst_read(struct i2c_client *client, u8 start, void *buf,
 		}
 	}
 
-	i2c_unlock_adapter(adap);
+	i2c_unlock_bus(adap, I2C_LOCK_SEGMENT);
 
 	return ret;
 }
@@ -1103,13 +1095,6 @@ static void rohm_ts_close(struct input_dev *input_dev)
 	ts->initialized = false;
 }
 
-static void rohm_ts_remove_sysfs_group(void *_dev)
-{
-	struct device *dev = _dev;
-
-	sysfs_remove_group(&dev->kobj, &rohm_ts_attr_group);
-}
-
 static int rohm_bu21023_i2c_probe(struct i2c_client *client,
 				  const struct i2c_device_id *id)
 {
@@ -1180,18 +1165,9 @@ static int rohm_bu21023_i2c_probe(struct i2c_client *client,
 		return error;
 	}
 
-	error = sysfs_create_group(&dev->kobj, &rohm_ts_attr_group);
+	error = devm_device_add_group(dev, &rohm_ts_attr_group);
 	if (error) {
 		dev_err(dev, "failed to create sysfs group: %d\n", error);
-		return error;
-	}
-
-	error = devm_add_action(dev, rohm_ts_remove_sysfs_group, dev);
-	if (error) {
-		rohm_ts_remove_sysfs_group(dev);
-		dev_err(&client->dev,
-			"Failed to add sysfs cleanup action: %d\n",
-			error);
 		return error;
 	}
 

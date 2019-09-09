@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Support for 'media5200-platform' compatible boards.
  *
  * Copyright (C) 2008 Secret Lab Technologies Ltd.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  *
  * Description:
  * This code implements support for the Freescape Media5200 platform
@@ -17,7 +13,6 @@
  * a cascaded interrupt controller driver which attaches itself to the
  * Virtual IRQ subsystem after the primary mpc5200 interrupt controller
  * is initialized.
- *
  */
 
 #undef DEBUG
@@ -156,7 +151,7 @@ static void __init media5200_init_irq(void)
 	fpga_np = of_find_compatible_node(NULL, NULL, "fsl,media5200-fpga");
 	if (!fpga_np)
 		goto out;
-	pr_debug("%s: found fpga node: %s\n", __func__, fpga_np->full_name);
+	pr_debug("%s: found fpga node: %pOF\n", __func__, fpga_np);
 
 	media5200_irq.regs = of_iomap(fpga_np, 0);
 	if (!media5200_irq.regs)

@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Greybus Camera protocol driver.
  *
  * Copyright 2015 Google Inc.
  * Copyright 2015 Linaro Ltd.
- *
- * Released under the GPLv2 only.
  */
 
 #include <linux/debugfs.h>
@@ -289,6 +288,7 @@ static const int gb_camera_configure_streams_validate_response(
 
 	for (i = 0; i < resp->num_streams; i++) {
 		struct gb_camera_stream_config_response *cfg = &resp->config[i];
+
 		if (cfg->padding) {
 			gcam_err(gcam, "stream #%u padding != 0\n", i);
 			return -EIO;
@@ -796,7 +796,7 @@ static int gb_camera_op_configure_streams(void *priv, unsigned int *nstreams,
 	if (gb_nstreams > GB_CAMERA_MAX_STREAMS)
 		return -EINVAL;
 
-	gb_streams = kzalloc(gb_nstreams * sizeof(*gb_streams), GFP_KERNEL);
+	gb_streams = kcalloc(gb_nstreams, sizeof(*gb_streams), GFP_KERNEL);
 	if (!gb_streams)
 		return -ENOMEM;
 
@@ -841,8 +841,8 @@ done:
 }
 
 static int gb_camera_op_capture(void *priv, u32 request_id,
-		unsigned int streams, unsigned int num_frames,
-		size_t settings_size, const void *settings)
+				unsigned int streams, unsigned int num_frames,
+				size_t settings_size, const void *settings)
 {
 	struct gb_camera *gcam = priv;
 
@@ -869,7 +869,7 @@ static const struct gb_camera_ops gb_cam_ops = {
  */
 
 static ssize_t gb_camera_debugfs_capabilities(struct gb_camera *gcam,
-		char *buf, size_t len)
+					      char *buf, size_t len)
 {
 	struct gb_camera_debugfs_buffer *buffer =
 		&gcam->debugfs.buffers[GB_CAMERA_DEBUGFS_BUFFER_CAPABILITIES];
@@ -905,7 +905,7 @@ done:
 }
 
 static ssize_t gb_camera_debugfs_configure_streams(struct gb_camera *gcam,
-		char *buf, size_t len)
+						   char *buf, size_t len)
 {
 	struct gb_camera_debugfs_buffer *buffer =
 		&gcam->debugfs.buffers[GB_CAMERA_DEBUGFS_BUFFER_STREAMS];
@@ -918,7 +918,7 @@ static ssize_t gb_camera_debugfs_configure_streams(struct gb_camera *gcam,
 
 	/* Retrieve number of streams to configure */
 	token = strsep(&buf, ";");
-	if (token == NULL)
+	if (!token)
 		return -EINVAL;
 
 	ret = kstrtouint(token, 10, &nstreams);
@@ -929,7 +929,7 @@ static ssize_t gb_camera_debugfs_configure_streams(struct gb_camera *gcam,
 		return -EINVAL;
 
 	token = strsep(&buf, ";");
-	if (token == NULL)
+	if (!token)
 		return -EINVAL;
 
 	ret = kstrtouint(token, 10, &flags);
@@ -937,7 +937,7 @@ static ssize_t gb_camera_debugfs_configure_streams(struct gb_camera *gcam,
 		return ret;
 
 	/* For each stream to configure parse width, height and format */
-	streams = kzalloc(nstreams * sizeof(*streams), GFP_KERNEL);
+	streams = kcalloc(nstreams, sizeof(*streams), GFP_KERNEL);
 	if (!streams)
 		return -ENOMEM;
 
@@ -946,7 +946,7 @@ static ssize_t gb_camera_debugfs_configure_streams(struct gb_camera *gcam,
 
 		/* width */
 		token = strsep(&buf, ";");
-		if (token == NULL) {
+		if (!token) {
 			ret = -EINVAL;
 			goto done;
 		}
@@ -956,7 +956,7 @@ static ssize_t gb_camera_debugfs_configure_streams(struct gb_camera *gcam,
 
 		/* height */
 		token = strsep(&buf, ";");
-		if (token == NULL)
+		if (!token)
 			goto done;
 
 		ret = kstrtouint(token, 10, &stream->height);
@@ -965,7 +965,7 @@ static ssize_t gb_camera_debugfs_configure_streams(struct gb_camera *gcam,
 
 		/* Image format code */
 		token = strsep(&buf, ";");
-		if (token == NULL)
+		if (!token)
 			goto done;
 
 		ret = kstrtouint(token, 16, &stream->format);
@@ -999,7 +999,7 @@ done:
 };
 
 static ssize_t gb_camera_debugfs_capture(struct gb_camera *gcam,
-		char *buf, size_t len)
+					 char *buf, size_t len)
 {
 	unsigned int request_id;
 	unsigned int streams_mask;
@@ -1009,7 +1009,7 @@ static ssize_t gb_camera_debugfs_capture(struct gb_camera *gcam,
 
 	/* Request id */
 	token = strsep(&buf, ";");
-	if (token == NULL)
+	if (!token)
 		return -EINVAL;
 	ret = kstrtouint(token, 10, &request_id);
 	if (ret < 0)
@@ -1017,7 +1017,7 @@ static ssize_t gb_camera_debugfs_capture(struct gb_camera *gcam,
 
 	/* Stream mask */
 	token = strsep(&buf, ";");
-	if (token == NULL)
+	if (!token)
 		return -EINVAL;
 	ret = kstrtouint(token, 16, &streams_mask);
 	if (ret < 0)
@@ -1025,7 +1025,7 @@ static ssize_t gb_camera_debugfs_capture(struct gb_camera *gcam,
 
 	/* number of frames */
 	token = strsep(&buf, ";");
-	if (token == NULL)
+	if (!token)
 		return -EINVAL;
 	ret = kstrtouint(token, 10, &num_frames);
 	if (ret < 0)
@@ -1040,7 +1040,7 @@ static ssize_t gb_camera_debugfs_capture(struct gb_camera *gcam,
 }
 
 static ssize_t gb_camera_debugfs_flush(struct gb_camera *gcam,
-		char *buf, size_t len)
+				       char *buf, size_t len)
 {
 	struct gb_camera_debugfs_buffer *buffer =
 		&gcam->debugfs.buffers[GB_CAMERA_DEBUGFS_BUFFER_FLUSH];
@@ -1066,22 +1066,22 @@ struct gb_camera_debugfs_entry {
 static const struct gb_camera_debugfs_entry gb_camera_debugfs_entries[] = {
 	{
 		.name = "capabilities",
-		.mask = S_IFREG | S_IRUGO,
+		.mask = S_IFREG | 0444,
 		.buffer = GB_CAMERA_DEBUGFS_BUFFER_CAPABILITIES,
 		.execute = gb_camera_debugfs_capabilities,
 	}, {
 		.name = "configure_streams",
-		.mask = S_IFREG | S_IRUGO | S_IWUGO,
+		.mask = S_IFREG | 0666,
 		.buffer = GB_CAMERA_DEBUGFS_BUFFER_STREAMS,
 		.execute = gb_camera_debugfs_configure_streams,
 	}, {
 		.name = "capture",
-		.mask = S_IFREG | S_IRUGO | S_IWUGO,
+		.mask = S_IFREG | 0666,
 		.buffer = GB_CAMERA_DEBUGFS_BUFFER_CAPTURE,
 		.execute = gb_camera_debugfs_capture,
 	}, {
 		.name = "flush",
-		.mask = S_IFREG | S_IRUGO | S_IWUGO,
+		.mask = S_IFREG | 0666,
 		.buffer = GB_CAMERA_DEBUGFS_BUFFER_FLUSH,
 		.execute = gb_camera_debugfs_flush,
 	},
@@ -1091,12 +1091,12 @@ static ssize_t gb_camera_debugfs_read(struct file *file, char __user *buf,
 				      size_t len, loff_t *offset)
 {
 	const struct gb_camera_debugfs_entry *op = file->private_data;
-	struct gb_camera *gcam = file->f_inode->i_private;
+	struct gb_camera *gcam = file_inode(file)->i_private;
 	struct gb_camera_debugfs_buffer *buffer;
 	ssize_t ret;
 
 	/* For read-only entries the operation is triggered by a read. */
-	if (!(op->mask & S_IWUGO)) {
+	if (!(op->mask & 0222)) {
 		ret = op->execute(gcam, NULL, 0);
 		if (ret < 0)
 			return ret;
@@ -1113,12 +1113,12 @@ static ssize_t gb_camera_debugfs_write(struct file *file,
 				       loff_t *offset)
 {
 	const struct gb_camera_debugfs_entry *op = file->private_data;
-	struct gb_camera *gcam = file->f_inode->i_private;
+	struct gb_camera *gcam = file_inode(file)->i_private;
 	ssize_t ret;
 	char *kbuf;
 
 	if (len > 1024)
-	       return -EINVAL;
+		return -EINVAL;
 
 	kbuf = kmalloc(len + 1, GFP_KERNEL);
 	if (!kbuf)
@@ -1174,33 +1174,22 @@ static int gb_camera_debugfs_init(struct gb_camera *gcam)
 		 gcam->bundle->id);
 
 	gcam->debugfs.root = debugfs_create_dir(dirname, gb_debugfs_get());
-	if (IS_ERR(gcam->debugfs.root)) {
-		gcam_err(gcam, "debugfs root create failed (%ld)\n",
-			 PTR_ERR(gcam->debugfs.root));
-		return PTR_ERR(gcam->debugfs.root);
-	}
 
-	gcam->debugfs.buffers = vmalloc(sizeof(*gcam->debugfs.buffers) *
-					GB_CAMERA_DEBUGFS_BUFFER_MAX);
+	gcam->debugfs.buffers =
+		vmalloc(array_size(GB_CAMERA_DEBUGFS_BUFFER_MAX,
+				   sizeof(*gcam->debugfs.buffers)));
 	if (!gcam->debugfs.buffers)
 		return -ENOMEM;
 
 	for (i = 0; i < ARRAY_SIZE(gb_camera_debugfs_entries); ++i) {
 		const struct gb_camera_debugfs_entry *entry =
 			&gb_camera_debugfs_entries[i];
-		struct dentry *dentry;
 
 		gcam->debugfs.buffers[i].length = 0;
 
-		dentry = debugfs_create_file(entry->name, entry->mask,
-					     gcam->debugfs.root, gcam,
-					     &gb_camera_debugfs_ops);
-		if (IS_ERR(dentry)) {
-			gcam_err(gcam,
-				 "debugfs operation %s create failed (%ld)\n",
-				 entry->name, PTR_ERR(dentry));
-			return PTR_ERR(dentry);
-		}
+		debugfs_create_file(entry->name, entry->mask,
+				    gcam->debugfs.root, gcam,
+				    &gb_camera_debugfs_ops);
 	}
 
 	return 0;

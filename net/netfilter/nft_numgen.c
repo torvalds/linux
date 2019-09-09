@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2016 Laura Garcia <nevola@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/kernel.h>
@@ -26,11 +22,8 @@ struct nft_ng_inc {
 	u32			offset;
 };
 
-static void nft_ng_inc_eval(const struct nft_expr *expr,
-			    struct nft_regs *regs,
-			    const struct nft_pktinfo *pkt)
+static u32 nft_ng_inc_gen(struct nft_ng_inc *priv)
 {
-	struct nft_ng_inc *priv = nft_expr_priv(expr);
 	u32 nval, oval;
 
 	do {
@@ -38,7 +31,16 @@ static void nft_ng_inc_eval(const struct nft_expr *expr,
 		nval = (oval + 1 < priv->modulus) ? oval + 1 : 0;
 	} while (atomic_cmpxchg(&priv->counter, oval, nval) != oval);
 
-	regs->data[priv->dreg] = nval + priv->offset;
+	return nval + priv->offset;
+}
+
+static void nft_ng_inc_eval(const struct nft_expr *expr,
+			    struct nft_regs *regs,
+			    const struct nft_pktinfo *pkt)
+{
+	struct nft_ng_inc *priv = nft_expr_priv(expr);
+
+	regs->data[priv->dreg] = nft_ng_inc_gen(priv);
 }
 
 static const struct nla_policy nft_ng_policy[NFTA_NG_MAX + 1] = {
@@ -65,7 +67,7 @@ static int nft_ng_inc_init(const struct nft_ctx *ctx,
 		return -EOVERFLOW;
 
 	priv->dreg = nft_parse_register(tb[NFTA_NG_DREG]);
-	atomic_set(&priv->counter, 0);
+	atomic_set(&priv->counter, priv->modulus - 1);
 
 	return nft_validate_register_store(ctx, priv->dreg, NULL,
 					   NFT_DATA_VALUE, sizeof(u32));
@@ -103,16 +105,21 @@ struct nft_ng_random {
 	u32			offset;
 };
 
+static u32 nft_ng_random_gen(struct nft_ng_random *priv)
+{
+	struct rnd_state *state = this_cpu_ptr(&nft_numgen_prandom_state);
+
+	return reciprocal_scale(prandom_u32_state(state), priv->modulus) +
+	       priv->offset;
+}
+
 static void nft_ng_random_eval(const struct nft_expr *expr,
 			       struct nft_regs *regs,
 			       const struct nft_pktinfo *pkt)
 {
 	struct nft_ng_random *priv = nft_expr_priv(expr);
-	struct rnd_state *state = this_cpu_ptr(&nft_numgen_prandom_state);
-	u32 val;
 
-	val = reciprocal_scale(prandom_u32_state(state), priv->modulus);
-	regs->data[priv->dreg] = val + priv->offset;
+	regs->data[priv->dreg] = nft_ng_random_gen(priv);
 }
 
 static int nft_ng_random_init(const struct nft_ctx *ctx,
@@ -188,7 +195,7 @@ nft_ng_select_ops(const struct nft_ctx *ctx, const struct nlattr * const tb[])
 
 static struct nft_expr_type nft_ng_type __read_mostly = {
 	.name		= "numgen",
-	.select_ops	= &nft_ng_select_ops,
+	.select_ops	= nft_ng_select_ops,
 	.policy		= nft_ng_policy,
 	.maxattr	= NFTA_NG_MAX,
 	.owner		= THIS_MODULE,

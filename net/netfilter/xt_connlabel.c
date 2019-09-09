@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * (C) 2013 Astaro GmbH & Co KG
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -15,7 +12,7 @@
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Florian Westphal <fw@strlen.de>");
-MODULE_DESCRIPTION("Xtables: add/match connection trackling labels");
+MODULE_DESCRIPTION("Xtables: add/match connection tracking labels");
 MODULE_ALIAS("ipt_connlabel");
 MODULE_ALIAS("ip6t_connlabel");
 
@@ -29,7 +26,7 @@ connlabel_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	bool invert = info->options & XT_CONNLABEL_OP_INVERT;
 
 	ct = nf_ct_get(skb, &ctinfo);
-	if (ct == NULL || nf_ct_is_untracked(ct))
+	if (ct == NULL)
 		return invert;
 
 	labels = nf_ct_labels_find(ct);
@@ -57,27 +54,28 @@ static int connlabel_mt_check(const struct xt_mtchk_param *par)
 	int ret;
 
 	if (info->options & ~options) {
-		pr_err("Unknown options in mask %x\n", info->options);
+		pr_info_ratelimited("Unknown options in mask %x\n",
+				    info->options);
 		return -EINVAL;
 	}
 
-	ret = nf_ct_l3proto_try_module_get(par->family);
+	ret = nf_ct_netns_get(par->net, par->family);
 	if (ret < 0) {
-		pr_info("cannot load conntrack support for proto=%u\n",
-							par->family);
+		pr_info_ratelimited("cannot load conntrack support for proto=%u\n",
+				    par->family);
 		return ret;
 	}
 
 	ret = nf_connlabels_get(par->net, info->bit);
 	if (ret < 0)
-		nf_ct_l3proto_module_put(par->family);
+		nf_ct_netns_put(par->net, par->family);
 	return ret;
 }
 
 static void connlabel_mt_destroy(const struct xt_mtdtor_param *par)
 {
 	nf_connlabels_put(par->net);
-	nf_ct_l3proto_module_put(par->family);
+	nf_ct_netns_put(par->net, par->family);
 }
 
 static struct xt_match connlabels_mt_reg __read_mostly = {

@@ -1,13 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *	CPU feature overrides for DECstation systems.  Two variations
  *	are generally applicable.
  *
  *	Copyright (C) 2013  Maciej W. Rozycki
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
  */
 #ifndef __ASM_MACH_DEC_CPU_FEATURE_OVERRIDES_H
 #define __ASM_MACH_DEC_CPU_FEATURE_OVERRIDES_H
@@ -27,6 +23,7 @@
 #define cpu_has_mcheck			0
 #define cpu_has_ejtag			0
 #define cpu_has_mips16			0
+#define cpu_has_mips16e2		0
 #define cpu_has_mdmx			0
 #define cpu_has_mips3d			0
 #define cpu_has_smartmips		0

@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Comedi driver for National Instruments AT-A2150 boards
  * Copyright (C) 2001, 2002 Frank Mori Hess <fmhess@users.sourceforge.net>
  *
  * COMEDI - Linux Control and Measurement Device Interface
  * Copyright (C) 2000 David A. Schleef <ds@schleef.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 /*
@@ -757,7 +748,7 @@ static int a2150_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	for (i = 0; i < timeout; i++) {
 		if ((DCAL_BIT & inw(dev->iobase + STATUS_REG)) == 0)
 			break;
-		udelay(1000);
+		usleep_range(1000, 3000);
 	}
 	if (i == timeout) {
 		dev_err(dev->class_dev,

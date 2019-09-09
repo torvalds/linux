@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	ASP Device Driver
  *
  *	(c) Copyright 2000 The Puffin Group Inc.
- *
- *	This program is free software; you can redistribute it and/or modify
- *	it under the terms of the GNU General Public License as published by
- *      the Free Software Foundation; either version 2 of the License, or
- *      (at your option) any later version.
  *
  *	by Helge Deller <deller@gmx.de>
  */
@@ -118,12 +114,12 @@ static int __init asp_init_chip(struct parisc_device *dev)
 	return ret;
 }
 
-static struct parisc_device_id asp_tbl[] = {
+static const struct parisc_device_id asp_tbl[] __initconst = {
 	{ HPHW_BA, HVERSION_REV_ANY_ID, HVERSION_ANY_ID, 0x00070 },
 	{ 0, }
 };
 
-struct parisc_driver asp_driver = {
+struct parisc_driver asp_driver __refdata = {
 	.name =		"asp",
 	.id_table =	asp_tbl,
 	.probe =	asp_init_chip,

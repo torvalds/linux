@@ -9,7 +9,7 @@
 			Linus
 ----------
 
-M: Matt Mackal
+N: Matt Mackal
 E: mpm@selenic.com
 D: SLOB slab allocator
 
@@ -842,10 +842,9 @@ D: ax25-utils maintainer.
 
 N: Helge Deller
 E: deller@gmx.de
-E: hdeller@redhat.de
-D: PA-RISC Linux hacker, LASI-, ASP-, WAX-, LCD/LED-driver
-S: Schimmelsrain 1
-S: D-69231 Rauenberg
+W: http://www.parisc-linux.org/
+D: PA-RISC Linux architecture maintainer
+D: LASI-, ASP-, WAX-, LCD/LED-driver
 S: Germany
 
 N: Jean Delvare
@@ -1034,6 +1033,10 @@ S: 2037 Walnut #6
 S: Boulder, Colorado 80302
 S: USA
 
+N: Hans-Christian Noren Egtvedt
+E: egtvedt@samfundet.no
+D: AVR32 architecture maintainer.
+
 N: Heiko Eißfeldt
 E: heiko@colossus.escape.de heiko@unifix.de
 D: verify_area stuff, generic SCSI fixes
@@ -1218,7 +1221,7 @@ S: Brazil
 
 N: Oded Gabbay
 E: oded.gabbay@gmail.com
-D: AMD KFD maintainer
+D: HabanaLabs and AMD KFD maintainer
 S: 12 Shraga Raphaeli
 S: Petah-Tikva, 4906418
 S: Israel
@@ -1357,7 +1360,7 @@ S: Stellenbosch, Western Cape
 S: South Africa
 
 N: Grant Grundler
-E: grundler@parisc-linux.org
+E: grantgrundler@gmail.com
 W: http://obmouse.sourceforge.net/
 W: http://www.parisc-linux.org/
 D: obmouse - rewrote Olivier Florent's Omnibook 600 "pop-up" mouse driver
@@ -1559,6 +1562,11 @@ E: jauderho@carumba.com
 W: http://www.carumba.com/
 D: bug toaster (A1 sauce makes all the difference)
 D: Random linux hacker
+
+N: James Hogan
+E: jhogan@kernel.org
+D: Metag architecture maintainer
+D: TZ1090 SoC maintainer
 
 N: Tim Hockin
 E: thockin@hockin.org
@@ -1762,7 +1770,6 @@ S: USA
 
 N: Dave Jones
 E: davej@codemonkey.org.uk
-W: http://www.codemonkey.org.uk
 D: Assorted VIA x86 support.
 D: 2.5 AGPGART overhaul.
 D: CPUFREQ maintenance.
@@ -1792,7 +1799,7 @@ S: 2300 Copenhagen S.
 S: Denmark
 
 N: Jozsef Kadlecsik
-E: kadlec@blackhole.kfki.hu
+E: kadlec@netfilter.org
 P: 1024D/470DB964 4CB3 1A05 713E 9BF7 FAC5  5809 DD8C B7B1 470D B964
 D: netfilter: TCP window tracking code
 D: netfilter: raw table
@@ -1910,7 +1917,7 @@ S: Ra'annana, Israel
 
 N: Andi Kleen
 E: andi@firstfloor.org
-U: http://www.halobates.de
+W: http://www.halobates.de
 D: network, x86, NUMA, various hacks
 S: Schwalbenstr. 96
 S: 85551 Ottobrunn
@@ -2086,11 +2093,11 @@ S: Kuala Lumpur, Malaysia
 
 N: Mohit Kumar
 D: ST Microelectronics SPEAr13xx PCI host bridge driver
-D: Synopsys Designware PCI host bridge driver
+D: Synopsys DesignWare PCI host bridge driver
 
 N: Gabor Kuti
-M: seasons@falcon.sch.bme.hu
-M: seasons@makosteszta.sote.hu
+E: seasons@falcon.sch.bme.hu
+E: seasons@makosteszta.sote.hu
 D: Original author of software suspend
 
 N: Jaroslav Kysela
@@ -2109,6 +2116,10 @@ S: J. Obrechtstr 23
 S: NL-5216 GP 's-Hertogenbosch
 S: The Netherlands
 
+N: Ashley Lai
+E: ashleydlai@gmail.com
+D: IBM VTPM driver
+
 N: Savio Lam
 E: lam836@cs.cuhk.hk
 D: Author of the dialog utility, foundation
@@ -2124,6 +2135,10 @@ N: Paul Laufer
 E: paul@laufernet.com
 D: Soundblaster driver fixes, ISAPnP quirk
 S: California, USA
+
+N: Jarkko Lavinen
+E: jarkko.lavinen@nokia.com
+D: OMAP MMC support
 
 N: Jonathan Layes
 D: ARPD support
@@ -2186,6 +2201,16 @@ D: Promised to send money if I would put his name in the source tree.
 S: Post Office Box 371
 S: North Little Rock, Arkansas 72115
 S: USA
+
+N: Christopher Li
+E: sparse@chrisli.org
+D: Sparse maintainer 2009 - 2018
+
+N: Shaohua Li
+D: Worked on many parts of the kernel, from core x86, ACPI, PCI, KVM, MM,
+D: and much more. He was the maintainer of MD from 2016 to 2018. Shaohua
+D: passed away late 2018, he will be greatly missed.
+W: https://www.spinics.net/lists/raid/msg61993.html
 
 N: Stephan Linz
 E: linz@mazet.de
@@ -2465,7 +2490,7 @@ S: Syracuse, New York 13206
 S: USA
 
 N: Kyle McMartin
-E: kyle@parisc-linux.org
+E: kyle@mcmartin.ca
 D: Linux/PARISC hacker
 D: AD1889 sound driver
 S: Ottawa, Canada
@@ -2478,12 +2503,11 @@ S: D-90453 Nuernberg
 S: Germany
 
 N: Arnaldo Carvalho de Melo
-E: acme@ghostprotocols.net
+E: acme@kernel.org
 E: arnaldo.melo@gmail.com
 E: acme@redhat.com
-W: http://oops.ghostprotocols.net:81/blog/
 P: 1024D/9224DF01 D5DF E3BB E3C8 BCBB F8AD  841A B6AB 4681 9224 DF01
-D: IPX, LLC, DCCP, cyc2x, wl3501_cs, net/ hacks
+D: tools/, IPX, LLC, DCCP, cyc2x, wl3501_cs, net/ hacks
 S: Brazil
 
 N: Karsten Merker
@@ -2520,6 +2544,10 @@ S: 22 Parker Street
 S: Ormond
 S: Victoria 3163
 S: Australia
+
+N: Eric Miao
+E: eric.y.miao@gmail.com
+D: MMP support
 
 N: Pauline Middelink
 E: middelin@polyware.nl
@@ -2558,6 +2586,11 @@ S: Editorial Board iX Mag
 S: Helstorfer Str. 7
 S: D-30625 Hannover
 S: Germany
+
+N: Ron Minnich
+E: rminnich@sandia.gov
+E: rminnich@gmail.com
+D: 9p filesystem development
 
 N: Corey Minyard
 E: minyard@wf-rch.cirr.com
@@ -2603,11 +2636,9 @@ E: tmolina@cablespeed.com
 D: bug fixes, documentation, minor hackery
 
 N: Paul Moore
-E: paul.moore@hp.com
-D: NetLabel author
-S: Hewlett-Packard
-S: 110 Spit Brook Road
-S: Nashua, NH 03062
+E: paul@paul-moore.com
+W: http://www.paul-moore.com
+D: NetLabel, SELinux, audit
 
 N: James Morris
 E: jmorris@namei.org
@@ -2774,6 +2805,10 @@ D: Maintainer of the auxiliary display drivers tree (drivers/auxdisplay/*)
 S: C/ Mieses 20, 9-B
 S: Valladolid 47009
 S: Spain
+
+N: Peter Oruba
+D: AMD Microcode loader driver
+S: Germany
 
 N: Jens Osterkamp
 E: jens@de.ibm.com
@@ -3084,7 +3119,7 @@ S: France
 N: Rik van Riel
 E: riel@redhat.com
 W: http://www.surriel.com/
-D: Linux-MM site, Documentation/sysctl/*, swap/mm readaround
+D: Linux-MM site, Documentation/admin-guide/sysctl/*, swap/mm readaround
 D: kswapd fixes, random kernel hacker, rmap VM,
 D: nl.linux.org administrator, minor scheduler additions
 S: Red Hat Boston
@@ -3328,6 +3363,18 @@ S: Braunschweiger Strasse 79
 S: 31134 Hildesheim
 S: Germany
 
+N: Martin Schwidefsky
+D: Martin was the most significant contributor to the initial s390
+D: port of the Linux Kernel and later the maintainer of the s390
+D: architecture backend for almost two decades.
+D: He passed away in 2019, and will be greatly missed.
+S: Germany
+W: https://lwn.net/Articles/789028/
+
+N: Marcel Selhorst
+E: tpmdd@selhorst.net
+D: TPM driver
+
 N: Darren Senn
 E: sinster@darkwater.com
 D: Whatever I notice needs doing (so far: itimers, /proc)
@@ -3394,6 +3441,10 @@ S: 1001 Denison Street
 S: Suite 101
 S: Markham, Ontario L3R 2Z6
 S: Canada
+
+N: Haavard Skinnemoen
+M: Haavard Skinnemoen <hskinnemoen@gmail.com>
+D: AVR32 architecture port to Linux and maintainer.
 
 N: Rick Sladkey
 E: jrs@world.std.com
@@ -3735,14 +3786,13 @@ S: 21513 Conradia Ct
 S: Cupertino, CA 95014
 S: USA
 
-N: Thibaut Varene
-E: T-Bone@parisc-linux.org
-W: http://www.parisc-linux.org/~varenet/
-P: 1024D/B7D2F063 E67C 0D43 A75E 12A5 BB1C  FA2F 1E32 C3DA B7D2 F063
+N: Thibaut Varène
+E: hacks+kernel@slashdirt.org
+W: http://hacks.slashdirt.org/
 D: PA-RISC port minion, PDC and GSCPS2 drivers, debuglocks and other bits
 D: Some ARM at91rm9200 bits, S1D13XXX FB driver, random patches here and there
 D: AD1889 sound driver
-S: Paris, France
+S: France
 
 N: Heikki Vatiainen
 E: hessu@cs.tut.fi
@@ -3945,8 +3995,6 @@ E: gwingerde@gmail.com
 D: Ralink rt2x00 WLAN driver
 D: Minix V2 file-system
 D: Misc fixes
-S: Geessinkweg 177
-S: 7544 TX Enschede
 S: The Netherlands
 
 N: Lars Wirzenius
@@ -4082,6 +4130,10 @@ S: 1507 145th Place SE #B5
 S: Bellevue, Washington 98007
 S: USA
 
+N: Haojian Zhuang
+E: haojian.zhuang@gmail.com
+D: MMP support
+
 N: Richard Zidlicky
 E: rz@linux-m68k.org, rdzidlic@geocities.com
 W: http://www.geocities.com/rdzidlic
@@ -4120,7 +4172,6 @@ W: http://www.misterjones.org
 D: MD driver
 D: EISA/sysfs subsystem
 S: France
-
 
 # Don't add your name here, unless you really _are_ after Marc
 # alphabetically. Leonard used to be very proud of being the 

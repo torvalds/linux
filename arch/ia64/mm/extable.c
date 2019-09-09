@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Kernel exception handling table support.  Derived from arch/alpha/mm/extable.c.
  *
@@ -5,7 +6,10 @@
  *	David Mosberger-Tang <davidm@hpl.hp.com>
  */
 
-#include <asm/uaccess.h>
+#include <asm/ptrace.h>
+#include <asm/extable.h>
+#include <asm/errno.h>
+#include <asm/processor.h>
 
 void
 ia64_handle_exception (struct pt_regs *regs, const struct exception_table_entry *e)

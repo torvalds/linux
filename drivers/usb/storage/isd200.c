@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Transport & Protocol Driver for In-System Design, Inc. ISD200 ASIC
  *
@@ -13,20 +14,6 @@
  * The ISD200 ASIC does not natively support ATA devices.  The chip
  * does implement an interface, the ATA Command Block (ATACB) which provides
  * a means of passing ATA commands and ATA register accesses to a device.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2, or (at your option) any
- * later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  * History:
  *
@@ -1166,7 +1153,7 @@ static int isd200_get_inquiry_data( struct us_data *us )
 				/* Fill in vendor identification fields */
 				src = (__be16 *)&id[ATA_ID_PROD];
 				dest = (__u16*)info->InquiryData.VendorId;
-				for (i=0;i<4;i++)
+				for (i = 0; i < 4; i++)
 					dest[i] = be16_to_cpu(src[i]);
 
 				src = (__be16 *)&id[ATA_ID_PROD + 8/2];
@@ -1529,8 +1516,11 @@ static void isd200_ata_command(struct scsi_cmnd *srb, struct us_data *us)
 
 	/* Make sure driver was initialized */
 
-	if (us->extra == NULL)
+	if (us->extra == NULL) {
 		usb_stor_dbg(us, "ERROR Driver not initialized\n");
+		srb->result = DID_ERROR << 16;
+		return;
+	}
 
 	scsi_set_resid(srb, 0);
 	/* scsi_bufflen might change in protocol translation to ata */

@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2014 FEDEVEL, Inc.
  *
  * Author: Robert Nelson <robertcnelson@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 /dts-v1/;
 #include "imx6dl.dtsi"
@@ -16,7 +12,8 @@
 	model = "Rex Basic i.MX6 Dual Lite Board";
 	compatible = "rex,imx6dl-rex-basic", "fsl,imx6dl";
 
-	memory {
+	memory@10000000 {
+		device_type = "memory";
 		reg = <0x10000000 0x20000000>;
 	};
 };

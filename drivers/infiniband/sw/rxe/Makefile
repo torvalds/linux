@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 obj-$(CONFIG_RDMA_RXE) += rdma_rxe.o
 
 rdma_rxe-y := \
@@ -14,11 +15,11 @@ rdma_rxe-y := \
 	rxe_qp.o \
 	rxe_cq.o \
 	rxe_mr.o \
-	rxe_dma.o \
 	rxe_opcode.o \
 	rxe_mmap.o \
 	rxe_icrc.o \
 	rxe_mcast.o \
 	rxe_task.o \
 	rxe_net.o \
-	rxe_sysfs.o
+	rxe_sysfs.o \
+	rxe_hw_counters.o

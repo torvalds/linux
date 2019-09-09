@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  mxl111sf-demod.c - driver for the MaxLinear MXL111SF DVB-T demodulator
  *
  *  Copyright (C) 2010-2014 Michael Krufky <mkrufky@linuxtv.org>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include "mxl111sf-demod.h"
@@ -481,10 +468,15 @@ static int mxl111sf_demod_read_signal_strength(struct dvb_frontend *fe,
 {
 	struct mxl111sf_demod_state *state = fe->demodulator_priv;
 	enum fe_modulation modulation;
+	int ret;
 	u16 snr;
 
-	mxl111sf_demod_calc_snr(state, &snr);
-	mxl1x1sf_demod_get_tps_modulation(state, &modulation);
+	ret = mxl111sf_demod_calc_snr(state, &snr);
+	if (ret < 0)
+		return ret;
+	ret = mxl1x1sf_demod_get_tps_modulation(state, &modulation);
+	if (ret < 0)
+		return ret;
 
 	switch (modulation) {
 	case QPSK:
@@ -549,13 +541,13 @@ static void mxl111sf_demod_release(struct dvb_frontend *fe)
 	fe->demodulator_priv = NULL;
 }
 
-static struct dvb_frontend_ops mxl111sf_demod_ops = {
+static const struct dvb_frontend_ops mxl111sf_demod_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		.name               = "MaxLinear MxL111SF DVB-T demodulator",
-		.frequency_min      = 177000000,
-		.frequency_max      = 858000000,
-		.frequency_stepsize = 166666,
+		.frequency_min_hz      = 177 * MHz,
+		.frequency_max_hz      = 858 * MHz,
+		.frequency_stepsize_hz = 166666,
 		.caps = FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 | FE_CAN_FEC_3_4 |
 			FE_CAN_FEC_5_6 | FE_CAN_FEC_7_8 | FE_CAN_FEC_AUTO |
 			FE_CAN_QPSK | FE_CAN_QAM_16 | FE_CAN_QAM_64 |

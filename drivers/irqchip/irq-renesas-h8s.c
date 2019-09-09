@@ -1,5 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * H8S interrupt contoller driver
+ * H8S interrupt controller driver
  *
  * Copyright 2015 Yoshinori Sato <ysato@users.sourceforge.jp>
  */
@@ -11,7 +12,7 @@
 #include <asm/io.h>
 
 static void *intc_baseaddr;
-#define IPRA ((unsigned long)intc_baseaddr)
+#define IPRA (intc_baseaddr)
 
 static const unsigned char ipr_table[] = {
 	0x03, 0x02, 0x01, 0x00, 0x13, 0x12, 0x11, 0x10, /* 16 - 23 */
@@ -33,7 +34,7 @@ static const unsigned char ipr_table[] = {
 static void h8s_disable_irq(struct irq_data *data)
 {
 	int pos;
-	unsigned int addr;
+	void __iomem *addr;
 	unsigned short pri;
 	int irq = data->irq;
 
@@ -47,7 +48,7 @@ static void h8s_disable_irq(struct irq_data *data)
 static void h8s_enable_irq(struct irq_data *data)
 {
 	int pos;
-	unsigned int addr;
+	void __iomem *addr;
 	unsigned short pri;
 	int irq = data->irq;
 
@@ -73,7 +74,7 @@ static __init int irq_map(struct irq_domain *h, unsigned int virq,
        return 0;
 }
 
-static struct irq_domain_ops irq_ops = {
+static const struct irq_domain_ops irq_ops = {
        .map    = irq_map,
        .xlate  = irq_domain_xlate_onecell,
 };

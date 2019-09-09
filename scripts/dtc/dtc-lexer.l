@@ -1,21 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * (C) Copyright David Gibson <dwg@au1.ibm.com>, IBM Corporation.  2005.
- *
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of the
- * License, or (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307
- *                                                                   USA
  */
 
 %option noyywrap nounput noinput never-interactive
@@ -62,7 +47,8 @@ static int dts_version = 1;
 
 static void push_input_file(const char *filename);
 static bool pop_input_file(void);
-static void lexical_error(const char *fmt, ...);
+static void PRINTF(1, 2) lexical_error(const char *fmt, ...);
+
 %}
 
 %%
@@ -121,6 +107,11 @@ static void lexical_error(const char *fmt, ...);
 			return DT_V1;
 		}
 
+<*>"/plugin/"	{
+			DPRINT("Keyword: /plugin/\n");
+			return DT_PLUGIN;
+		}
+
 <*>"/memreserve/"	{
 			DPRINT("Keyword: /memreserve/\n");
 			BEGIN_DEFAULT();
@@ -145,6 +136,13 @@ static void lexical_error(const char *fmt, ...);
 			DPRINT("<PROPNODENAME>\n");
 			BEGIN(PROPNODENAME);
 			return DT_DEL_NODE;
+		}
+
+<*>"/omit-if-no-ref/"	{
+			DPRINT("Keyword: /omit-if-no-ref/\n");
+			DPRINT("<PROPNODENAME>\n");
+			BEGIN(PROPNODENAME);
+			return DT_OMIT_NO_REF;
 		}
 
 <*>{LABEL}:	{
@@ -184,30 +182,30 @@ static void lexical_error(const char *fmt, ...);
 			if (d.len == 1) {
 				lexical_error("Empty character literal");
 				yylval.integer = 0;
-				return DT_CHAR_LITERAL;
+			} else {
+				yylval.integer = (unsigned char)d.val[0];
+
+				if (d.len > 2)
+					lexical_error("Character literal has %d"
+						      " characters instead of 1",
+						      d.len - 1);
 			}
 
-			yylval.integer = (unsigned char)d.val[0];
-
-			if (d.len > 2)
-				lexical_error("Character literal has %d"
-					      " characters instead of 1",
-					      d.len - 1);
-
+			data_free(d);
 			return DT_CHAR_LITERAL;
 		}
 
 <*>\&{LABEL}	{	/* label reference */
 			DPRINT("Ref: %s\n", yytext+1);
 			yylval.labelref = xstrdup(yytext+1);
-			return DT_REF;
+			return DT_LABEL_REF;
 		}
 
 <*>"&{/"{PATHCHAR}*\}	{	/* new-style path reference */
 			yytext[yyleng-1] = '\0';
 			DPRINT("Ref: %s\n", yytext+2);
 			yylval.labelref = xstrdup(yytext+2);
-			return DT_REF;
+			return DT_PATH_REF;
 		}
 
 <BYTESTRING>[0-9a-fA-F]{2} {

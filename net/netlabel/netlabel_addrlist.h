@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * NetLabel Network Address Lists
  *
@@ -7,25 +8,10 @@
  * as CIPSO and RIPSO.
  *
  * Author: Paul Moore <paul@paul-moore.com>
- *
  */
 
 /*
  * (c) Copyright Hewlett-Packard Development Company, L.P., 2008
- *
- * This program is free software;  you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY;  without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
- * the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program;  if not, see <http://www.gnu.org/licenses/>.
- *
  */
 
 #ifndef _NETLABEL_ADDRLIST_H
@@ -87,7 +73,7 @@ static inline struct netlbl_af4list *__af4list_valid_rcu(struct list_head *s,
 	struct list_head *i = s;
 	struct netlbl_af4list *n = __af4list_entry(s);
 	while (i != h && !n->valid) {
-		i = rcu_dereference(i->next);
+		i = rcu_dereference(list_next_rcu(i));
 		n = __af4list_entry(i);
 	}
 	return n;
@@ -154,7 +140,7 @@ static inline struct netlbl_af6list *__af6list_valid_rcu(struct list_head *s,
 	struct list_head *i = s;
 	struct netlbl_af6list *n = __af6list_entry(s);
 	while (i != h && !n->valid) {
-		i = rcu_dereference(i->next);
+		i = rcu_dereference(list_next_rcu(i));
 		n = __af6list_entry(i);
 	}
 	return n;

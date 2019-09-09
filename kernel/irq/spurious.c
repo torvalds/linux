@@ -1,6 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * linux/kernel/irq/spurious.c
- *
  * Copyright (C) 1992, 1998-2004 Linus Torvalds, Ingo Molnar
  *
  * This file contains spurious interrupt handling.
@@ -9,7 +8,6 @@
 #include <linux/jiffies.h>
 #include <linux/irq.h>
 #include <linux/module.h>
-#include <linux/kallsyms.h>
 #include <linux/interrupt.h>
 #include <linux/moduleparam.h>
 #include <linux/timer.h>
@@ -19,8 +17,8 @@
 static int irqfixup __read_mostly;
 
 #define POLL_SPURIOUS_IRQ_INTERVAL (HZ/10)
-static void poll_spurious_irqs(unsigned long dummy);
-static DEFINE_TIMER(poll_spurious_irq_timer, poll_spurious_irqs, 0, 0);
+static void poll_spurious_irqs(struct timer_list *unused);
+static DEFINE_TIMER(poll_spurious_irq_timer, poll_spurious_irqs);
 static int irq_poll_cpu;
 static atomic_t irq_poll_active;
 
@@ -68,7 +66,7 @@ static int try_one_irq(struct irq_desc *desc, bool force)
 	raw_spin_lock(&desc->lock);
 
 	/*
-	 * PER_CPU, nested thread interrupts and interrupts explicitely
+	 * PER_CPU, nested thread interrupts and interrupts explicitly
 	 * marked polled are excluded from polling.
 	 */
 	if (irq_settings_is_per_cpu(desc) ||
@@ -78,7 +76,7 @@ static int try_one_irq(struct irq_desc *desc, bool force)
 
 	/*
 	 * Do not poll disabled interrupts unless the spurious
-	 * disabled poller asks explicitely.
+	 * disabled poller asks explicitly.
 	 */
 	if (irqd_irq_disabled(&desc->irq_data) && !force)
 		goto out;
@@ -142,7 +140,7 @@ out:
 	return ok;
 }
 
-static void poll_spurious_irqs(unsigned long dummy)
+static void poll_spurious_irqs(struct timer_list *unused)
 {
 	struct irq_desc *desc;
 	int i;
@@ -175,7 +173,9 @@ out:
 
 static inline int bad_action_ret(irqreturn_t action_ret)
 {
-	if (likely(action_ret <= (IRQ_HANDLED | IRQ_WAKE_THREAD)))
+	unsigned int r = action_ret;
+
+	if (likely(r <= (IRQ_HANDLED | IRQ_WAKE_THREAD)))
 		return 0;
 	return 1;
 }
@@ -212,9 +212,9 @@ static void __report_bad_irq(struct irq_desc *desc, irqreturn_t action_ret)
 	 */
 	raw_spin_lock_irqsave(&desc->lock, flags);
 	for_each_action_of_desc(desc, action) {
-		printk(KERN_ERR "[<%p>] %pf", action->handler, action->handler);
+		printk(KERN_ERR "[<%p>] %ps", action->handler, action->handler);
 		if (action->thread_fn)
-			printk(KERN_CONT " threaded [<%p>] %pf",
+			printk(KERN_CONT " threaded [<%p>] %ps",
 					action->thread_fn, action->thread_fn);
 		printk(KERN_CONT "\n");
 	}
@@ -292,7 +292,7 @@ void note_interrupt(struct irq_desc *desc, irqreturn_t action_ret)
 	 * So in case a thread is woken, we just note the fact and
 	 * defer the analysis to the next hardware interrupt.
 	 *
-	 * The threaded handlers store whether they sucessfully
+	 * The threaded handlers store whether they successfully
 	 * handled an interrupt and we check whether that number
 	 * changed versus the last invocation.
 	 *

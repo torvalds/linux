@@ -1,11 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2004,2012 Freescale Semiconductor, Inc
  * All rights reserved.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  *
  * Freescale USB device/endpoint management registers
  */
@@ -554,7 +550,7 @@ static void dump_msg(const char *label, const u8 * buf, unsigned int length)
 #endif
 
 #define ERR(stuff...)		pr_err("udc: " stuff)
-#define WARNING(stuff...)		pr_warning("udc: " stuff)
+#define WARNING(stuff...)	pr_warn("udc: " stuff)
 #define INFO(stuff...)		pr_info("udc: " stuff)
 
 /*-------------------------------------------------------------------------*/

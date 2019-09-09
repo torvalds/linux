@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * WL3501 Wireless LAN PCMCIA Card Driver for Linux
  * Written originally for Linux 2.0.30 by Fox Chen, mhchen@golf.ccl.itri.org.tw
@@ -51,7 +52,7 @@
 #include <pcmcia/ds.h>
 
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "wl3501.h"
 
@@ -965,7 +966,7 @@ static inline void wl3501_md_ind_interrupt(struct net_device *dev,
 			    &addr4, sizeof(addr4));
 	if (!(addr4[0] == 0xAA && addr4[1] == 0xAA &&
 	      addr4[2] == 0x03 && addr4[4] == 0x00)) {
-		printk(KERN_INFO "Insupported packet type!\n");
+		printk(KERN_INFO "Unsupported packet type!\n");
 		return;
 	}
 	pkt_len = sig.size + 12 - 24 - 4 - 6;
@@ -1853,7 +1854,6 @@ static const struct net_device_ops wl3501_netdev_ops = {
 	.ndo_stop		= wl3501_close,
 	.ndo_start_xmit		= wl3501_hard_start_xmit,
 	.ndo_tx_timeout		= wl3501_tx_timeout,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 };

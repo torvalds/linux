@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * ImgTec IR Decoder setup for Sharp protocol.
  *
  * Copyright 2012-2014 Imagination Technologies Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
  */
 
 #include "img-ir-hw.h"
@@ -32,7 +28,7 @@ static int img_ir_sharp_scancode(int len, u64 raw, u64 enabled_protocols,
 		/* probably the second half of the message */
 		return -EINVAL;
 
-	request->protocol = RC_TYPE_SHARP;
+	request->protocol = RC_PROTO_SHARP;
 	request->scancode = addr << 8 | cmd;
 	return IMG_IR_SCANCODE;
 }
@@ -73,7 +69,7 @@ static int img_ir_sharp_filter(const struct rc_scancode_filter *in,
  * See also http://www.sbprojects.com/knowledge/ir/sharp.php
  */
 struct img_ir_decoder img_ir_sharp = {
-	.type = RC_BIT_SHARP,
+	.type = RC_PROTO_BIT_SHARP,
 	.control = {
 		.decoden = 0,
 		.decodend2 = 1,

@@ -1,16 +1,10 @@
-/* linux/arch/arm/plat-samsung/devs.c
- *
- * Copyright (c) 2011 Samsung Electronics Co., Ltd.
- *		http://www.samsung.com
- *
- * Base SAMSUNG platform device definitions
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
-*/
+// SPDX-License-Identifier: GPL-2.0
+//
+// Copyright (c) 2011 Samsung Electronics Co., Ltd.
+//		http://www.samsung.com
+//
+// Base SAMSUNG platform device definitions
 
-#include <linux/amba/pl330.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
@@ -77,15 +71,6 @@ static struct resource s3c_ac97_resource[] = {
 	[1] = DEFINE_RES_IRQ(IRQ_S3C244X_AC97),
 };
 
-static struct s3c_audio_pdata s3c_ac97_pdata = {
-#ifdef CONFIG_S3C24XX_DMAC
-	.dma_filter = s3c24xx_dma_filter,
-#endif
-	.dma_playback = (void *)DMACH_PCM_OUT,
-	.dma_capture = (void *)DMACH_PCM_IN,
-	.dma_capture_mic = (void *)DMACH_MIC_IN,
-};
-
 struct platform_device s3c_device_ac97 = {
 	.name		= "samsung-ac97",
 	.id		= -1,
@@ -94,7 +79,6 @@ struct platform_device s3c_device_ac97 = {
 	.dev		= {
 		.dma_mask		= &samsung_device_dma_mask,
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
-		.platform_data		= &s3c_ac97_pdata,
 	}
 };
 #endif /* CONFIG_CPU_S3C2440 */
@@ -350,8 +334,7 @@ void __init s3c_i2c0_set_platdata(struct s3c2410_platform_i2c *pd)
 		pd->bus_num = 0;
 	}
 
-	npd = s3c_set_platdata(pd, sizeof(struct s3c2410_platform_i2c),
-			       &s3c_device_i2c0);
+	npd = s3c_set_platdata(pd, sizeof(*npd), &s3c_device_i2c0);
 
 	if (!npd->cfg_gpio)
 		npd->cfg_gpio = s3c_i2c0_cfg_gpio;
@@ -379,8 +362,7 @@ void __init s3c_i2c1_set_platdata(struct s3c2410_platform_i2c *pd)
 		pd->bus_num = 1;
 	}
 
-	npd = s3c_set_platdata(pd, sizeof(struct s3c2410_platform_i2c),
-			       &s3c_device_i2c1);
+	npd = s3c_set_platdata(pd, sizeof(*npd), &s3c_device_i2c1);
 
 	if (!npd->cfg_gpio)
 		npd->cfg_gpio = s3c_i2c1_cfg_gpio;
@@ -409,8 +391,7 @@ void __init s3c_i2c2_set_platdata(struct s3c2410_platform_i2c *pd)
 		pd->bus_num = 2;
 	}
 
-	npd = s3c_set_platdata(pd, sizeof(struct s3c2410_platform_i2c),
-			       &s3c_device_i2c2);
+	npd = s3c_set_platdata(pd, sizeof(*npd), &s3c_device_i2c2);
 
 	if (!npd->cfg_gpio)
 		npd->cfg_gpio = s3c_i2c2_cfg_gpio;
@@ -439,8 +420,7 @@ void __init s3c_i2c3_set_platdata(struct s3c2410_platform_i2c *pd)
 		pd->bus_num = 3;
 	}
 
-	npd = s3c_set_platdata(pd, sizeof(struct s3c2410_platform_i2c),
-			       &s3c_device_i2c3);
+	npd = s3c_set_platdata(pd, sizeof(*npd), &s3c_device_i2c3);
 
 	if (!npd->cfg_gpio)
 		npd->cfg_gpio = s3c_i2c3_cfg_gpio;
@@ -469,8 +449,7 @@ void __init s3c_i2c4_set_platdata(struct s3c2410_platform_i2c *pd)
 		pd->bus_num = 4;
 	}
 
-	npd = s3c_set_platdata(pd, sizeof(struct s3c2410_platform_i2c),
-			       &s3c_device_i2c4);
+	npd = s3c_set_platdata(pd, sizeof(*npd), &s3c_device_i2c4);
 
 	if (!npd->cfg_gpio)
 		npd->cfg_gpio = s3c_i2c4_cfg_gpio;
@@ -499,8 +478,7 @@ void __init s3c_i2c5_set_platdata(struct s3c2410_platform_i2c *pd)
 		pd->bus_num = 5;
 	}
 
-	npd = s3c_set_platdata(pd, sizeof(struct s3c2410_platform_i2c),
-			       &s3c_device_i2c5);
+	npd = s3c_set_platdata(pd, sizeof(*npd), &s3c_device_i2c5);
 
 	if (!npd->cfg_gpio)
 		npd->cfg_gpio = s3c_i2c5_cfg_gpio;
@@ -529,8 +507,7 @@ void __init s3c_i2c6_set_platdata(struct s3c2410_platform_i2c *pd)
 		pd->bus_num = 6;
 	}
 
-	npd = s3c_set_platdata(pd, sizeof(struct s3c2410_platform_i2c),
-			       &s3c_device_i2c6);
+	npd = s3c_set_platdata(pd, sizeof(*npd), &s3c_device_i2c6);
 
 	if (!npd->cfg_gpio)
 		npd->cfg_gpio = s3c_i2c6_cfg_gpio;
@@ -559,8 +536,7 @@ void __init s3c_i2c7_set_platdata(struct s3c2410_platform_i2c *pd)
 		pd->bus_num = 7;
 	}
 
-	npd = s3c_set_platdata(pd, sizeof(struct s3c2410_platform_i2c),
-			       &s3c_device_i2c7);
+	npd = s3c_set_platdata(pd, sizeof(*npd), &s3c_device_i2c7);
 
 	if (!npd->cfg_gpio)
 		npd->cfg_gpio = s3c_i2c7_cfg_gpio;
@@ -574,14 +550,6 @@ static struct resource s3c_iis_resource[] = {
 	[0] = DEFINE_RES_MEM(S3C24XX_PA_IIS, S3C24XX_SZ_IIS),
 };
 
-static struct s3c_audio_pdata s3c_iis_platdata = {
-#ifdef CONFIG_S3C24XX_DMAC
-	.dma_filter = s3c24xx_dma_filter,
-#endif
-	.dma_playback = (void *)DMACH_I2S_OUT,
-	.dma_capture = (void *)DMACH_I2S_IN,
-};
-
 struct platform_device s3c_device_iis = {
 	.name		= "s3c24xx-iis",
 	.id		= -1,
@@ -590,7 +558,6 @@ struct platform_device s3c_device_iis = {
 	.dev		= {
 		.dma_mask		= &samsung_device_dma_mask,
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
-		.platform_data		= &s3c_iis_platdata,
 	}
 };
 #endif /* CONFIG_PLAT_S3C24XX */
@@ -635,8 +602,7 @@ void __init samsung_keypad_set_platdata(struct samsung_keypad_platdata *pd)
 {
 	struct samsung_keypad_platdata *npd;
 
-	npd = s3c_set_platdata(pd, sizeof(struct samsung_keypad_platdata),
-			&samsung_device_keypad);
+	npd = s3c_set_platdata(pd, sizeof(*npd), &samsung_device_keypad);
 
 	if (!npd->cfg_gpio)
 		npd->cfg_gpio = samsung_keypad_cfg_gpio;
@@ -741,8 +707,7 @@ void __init s3c_nand_set_platdata(struct s3c2410_platform_nand *nand)
 	 * time then there is little chance the system is going to run.
 	 */
 
-	npd = s3c_set_platdata(nand, sizeof(struct s3c2410_platform_nand),
-				&s3c_device_nand);
+	npd = s3c_set_platdata(nand, sizeof(*npd), &s3c_device_nand);
 	if (!npd)
 		return;
 
@@ -1042,8 +1007,7 @@ void __init dwc2_hsotg_set_platdata(struct dwc2_hsotg_plat *pd)
 {
 	struct dwc2_hsotg_plat *npd;
 
-	npd = s3c_set_platdata(pd, sizeof(struct dwc2_hsotg_plat),
-			&s3c_device_usb_hsotg);
+	npd = s3c_set_platdata(pd, sizeof(*npd), &s3c_device_usb_hsotg);
 
 	if (!npd->phy_init)
 		npd->phy_init = s5p_usb_phy_init;
@@ -1124,15 +1088,6 @@ void __init s3c64xx_spi0_set_platdata(int (*cfg_gpio)(void), int src_clk_nr,
 	pd.num_cs = num_cs;
 	pd.src_clk_nr = src_clk_nr;
 	pd.cfg_gpio = (cfg_gpio) ? cfg_gpio : s3c64xx_spi0_cfg_gpio;
-	pd.dma_tx = (void *)DMACH_SPI0_TX;
-	pd.dma_rx = (void *)DMACH_SPI0_RX;
-#if defined(CONFIG_PL330_DMA)
-	pd.filter = pl330_filter;
-#elif defined(CONFIG_S3C64XX_PL080)
-	pd.filter = pl08x_filter_id;
-#elif defined(CONFIG_S3C24XX_DMAC)
-	pd.filter = s3c24xx_dma_filter;
-#endif
 
 	s3c_set_platdata(&pd, sizeof(pd), &s3c64xx_device_spi0);
 }
@@ -1169,14 +1124,6 @@ void __init s3c64xx_spi1_set_platdata(int (*cfg_gpio)(void), int src_clk_nr,
 	pd.num_cs = num_cs;
 	pd.src_clk_nr = src_clk_nr;
 	pd.cfg_gpio = (cfg_gpio) ? cfg_gpio : s3c64xx_spi1_cfg_gpio;
-	pd.dma_tx = (void *)DMACH_SPI1_TX;
-	pd.dma_rx = (void *)DMACH_SPI1_RX;
-#if defined(CONFIG_PL330_DMA)
-	pd.filter = pl330_filter;
-#elif defined(CONFIG_S3C64XX_PL080)
-	pd.filter = pl08x_filter_id;
-#endif
-
 
 	s3c_set_platdata(&pd, sizeof(pd), &s3c64xx_device_spi1);
 }
@@ -1213,13 +1160,6 @@ void __init s3c64xx_spi2_set_platdata(int (*cfg_gpio)(void), int src_clk_nr,
 	pd.num_cs = num_cs;
 	pd.src_clk_nr = src_clk_nr;
 	pd.cfg_gpio = (cfg_gpio) ? cfg_gpio : s3c64xx_spi2_cfg_gpio;
-	pd.dma_tx = (void *)DMACH_SPI2_TX;
-	pd.dma_rx = (void *)DMACH_SPI2_RX;
-#if defined(CONFIG_PL330_DMA)
-	pd.filter = pl330_filter;
-#elif defined(CONFIG_S3C64XX_PL080)
-	pd.filter = pl08x_filter_id;
-#endif
 
 	s3c_set_platdata(&pd, sizeof(pd), &s3c64xx_device_spi2);
 }

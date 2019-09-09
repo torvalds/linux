@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Freescale MMA9551L Intelligent Motion-Sensing Platform driver
  * Copyright (c) 2014, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #include <linux/module.h>
@@ -27,7 +19,6 @@
 
 #define MMA9551_DRV_NAME		"mma9551"
 #define MMA9551_IRQ_NAME		"mma9551_event"
-#define MMA9551_GPIO_NAME		"mma9551_int"
 #define MMA9551_GPIO_COUNT		4
 
 /* Tilt application (inclination in IIO terms). */
@@ -333,7 +324,6 @@ static const struct iio_chan_spec mma9551_channels[] = {
 };
 
 static const struct iio_info mma9551_info = {
-	.driver_module = THIS_MODULE,
 	.read_raw = mma9551_read_raw,
 	.read_event_config = mma9551_read_event_config,
 	.write_event_config = mma9551_write_event_config,
@@ -418,8 +408,7 @@ static int mma9551_gpio_probe(struct iio_dev *indio_dev)
 	struct device *dev = &data->client->dev;
 
 	for (i = 0; i < MMA9551_GPIO_COUNT; i++) {
-		gpio = devm_gpiod_get_index(dev, MMA9551_GPIO_NAME, i,
-					    GPIOD_IN);
+		gpio = devm_gpiod_get_index(dev, NULL, i, GPIOD_IN);
 		if (IS_ERR(gpio)) {
 			dev_err(dev, "acpi gpio get index failed\n");
 			return PTR_ERR(gpio);

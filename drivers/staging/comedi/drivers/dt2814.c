@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * comedi/drivers/dt2814.c
  * Hardware driver for Data Translation DT2814
  *
  * COMEDI - Linux Control and Measurement Device Interface
  * Copyright (C) 1998 David A. Schleef <ds@schleef.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 /*
  * Driver: dt2814
@@ -245,7 +236,7 @@ static int dt2814_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return ret;
 
 	outb(0, dev->iobase + DT2814_CSR);
-	udelay(100);
+	usleep_range(100, 200);
 	if (inb(dev->iobase + DT2814_CSR) & DT2814_ERR) {
 		dev_err(dev->class_dev, "reset error (fatal)\n");
 		return -EIO;

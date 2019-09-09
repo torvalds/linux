@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * linux/sound/rt5659.h -- Platform data for RT5659
  *
  * Copyright 2013 Realtek Microelectronics
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef __LINUX_SND_RT5659_H
@@ -30,6 +27,7 @@ enum rt5659_dmic2_data_pin {
 enum rt5659_jd_src {
 	RT5659_JD_NULL,
 	RT5659_JD3,
+	RT5659_JD_HDA_HEADER,
 };
 
 struct rt5659_platform_data {

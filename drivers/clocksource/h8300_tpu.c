@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  H8S TPU Driver
  *
@@ -64,7 +65,7 @@ static inline struct tpu_priv *cs_to_priv(struct clocksource *cs)
 	return container_of(cs, struct tpu_priv, cs);
 }
 
-static cycle_t tpu_clocksource_read(struct clocksource *cs)
+static u64 tpu_clocksource_read(struct clocksource *cs)
 {
 	struct tpu_priv *p = cs_to_priv(cs);
 	unsigned long flags;
@@ -154,4 +155,4 @@ free_clk:
 	return ret;
 }
 
-CLOCKSOURCE_OF_DECLARE(h8300_tpu, "renesas,tpu", h8300_tpu_init);
+TIMER_OF_DECLARE(h8300_tpu, "renesas,tpu", h8300_tpu_init);

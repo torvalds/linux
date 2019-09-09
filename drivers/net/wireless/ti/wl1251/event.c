@@ -1,23 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * This file is part of wl1251
  *
  * Copyright (c) 1998-2007 Texas Instruments Incorporated
  * Copyright (C) 2008 Nokia Corporation
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
- *
  */
 
 #include "wl1251.h"
@@ -150,7 +136,7 @@ static int wl1251_event_process(struct wl1251 *wl, struct event_mailbox *mbox)
 				     "ROAMING_TRIGGER_LOW_RSSI_EVENT");
 			ieee80211_cqm_rssi_notify(wl->vif,
 				NL80211_CQM_RSSI_THRESHOLD_EVENT_LOW,
-				GFP_KERNEL);
+				0, GFP_KERNEL);
 		}
 
 		if (vector & ROAMING_TRIGGER_REGAINED_RSSI_EVENT_ID) {
@@ -158,7 +144,7 @@ static int wl1251_event_process(struct wl1251 *wl, struct event_mailbox *mbox)
 				     "ROAMING_TRIGGER_REGAINED_RSSI_EVENT");
 			ieee80211_cqm_rssi_notify(wl->vif,
 				NL80211_CQM_RSSI_THRESHOLD_EVENT_HIGH,
-				GFP_KERNEL);
+				0, GFP_KERNEL);
 		}
 	}
 

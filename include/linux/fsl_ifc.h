@@ -1,22 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /* Freescale Integrated Flash Controller
  *
  * Copyright 2011 Freescale Semiconductor, Inc
  *
  * Author: Dipen Dudhat <dipen.dudhat@freescale.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #ifndef __ASM_FSL_IFC_H
@@ -274,6 +261,8 @@
  */
 /* Auto Boot Mode */
 #define IFC_NAND_NCFGR_BOOT		0x80000000
+/* SRAM Initialization */
+#define IFC_NAND_NCFGR_SRAM_INIT_EN	0x20000000
 /* Addressing Mode-ROW0+n/COL0 */
 #define IFC_NAND_NCFGR_ADDR_MODE_RC0	0x00000000
 /* Addressing Mode-ROW0+n/COL0+n */
@@ -733,8 +722,8 @@ struct fsl_ifc_nand {
 	__be32 nand_erattr1;
 	u32 res19[0x10];
 	__be32 nand_fsr;
-	u32 res20[0x3];
-	__be32 nand_eccstat[6];
+	u32 res20;
+	__be32 nand_eccstat[8];
 	u32 res21[0x1c];
 	__be32 nanndcr;
 	u32 res22[0x2];

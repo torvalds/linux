@@ -1,45 +1,11 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /******************************************************************************
  *
  * Module Name: exoparg1 - AML execution - opcodes with 1 argument
  *
+ * Copyright (C) 2000 - 2019, Intel Corp.
+ *
  *****************************************************************************/
-
-/*
- * Copyright (C) 2000 - 2016, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
 
 #include <acpi/acpi.h>
 #include "accommon.h"
@@ -274,7 +240,7 @@ acpi_status acpi_ex_opcode_1A_1T_1R(struct acpi_walk_state *walk_state)
 	case AML_FIND_SET_RIGHT_BIT_OP:
 	case AML_FROM_BCD_OP:
 	case AML_TO_BCD_OP:
-	case AML_COND_REF_OF_OP:
+	case AML_CONDITIONAL_REF_OF_OP:
 
 		/* Create a return object of type Integer for these opcodes */
 
@@ -405,7 +371,7 @@ acpi_status acpi_ex_opcode_1A_1T_1R(struct acpi_walk_state *walk_state)
 			}
 			break;
 
-		case AML_COND_REF_OF_OP:	/* cond_ref_of (source_object, Result) */
+		case AML_CONDITIONAL_REF_OF_OP:	/* cond_ref_of (source_object, Result) */
 			/*
 			 * This op is a little strange because the internal return value is
 			 * different than the return value stored in the result descriptor
@@ -475,14 +441,14 @@ acpi_status acpi_ex_opcode_1A_1T_1R(struct acpi_walk_state *walk_state)
 		/*
 		 * ACPI 2.0 Opcodes
 		 */
-	case AML_COPY_OP:	/* Copy (Source, Target) */
+	case AML_COPY_OBJECT_OP:	/* copy_object (Source, Target) */
 
 		status =
 		    acpi_ut_copy_iobject_to_iobject(operand[0], &return_desc,
 						    walk_state);
 		break;
 
-	case AML_TO_DECSTRING_OP:	/* to_decimal_string (Data, Result) */
+	case AML_TO_DECIMAL_STRING_OP:	/* to_decimal_string (Data, Result) */
 
 		status =
 		    acpi_ex_convert_to_string(operand[0], &return_desc,
@@ -495,7 +461,7 @@ acpi_status acpi_ex_opcode_1A_1T_1R(struct acpi_walk_state *walk_state)
 		}
 		break;
 
-	case AML_TO_HEXSTRING_OP:	/* to_hex_string (Data, Result) */
+	case AML_TO_HEX_STRING_OP:	/* to_hex_string (Data, Result) */
 
 		status =
 		    acpi_ex_convert_to_string(operand[0], &return_desc,
@@ -603,7 +569,7 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 	/* Examine the AML opcode */
 
 	switch (walk_state->opcode) {
-	case AML_LNOT_OP:	/* LNot (Operand) */
+	case AML_LOGICAL_NOT_OP:	/* LNot (Operand) */
 
 		return_desc = acpi_ut_create_integer_object((u64) 0);
 		if (!return_desc) {
@@ -652,9 +618,8 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 		 * NOTE:  We use LNOT_OP here in order to force resolution of the
 		 * reference operand to an actual integer.
 		 */
-		status =
-		    acpi_ex_resolve_operands(AML_LNOT_OP, &temp_desc,
-					     walk_state);
+		status = acpi_ex_resolve_operands(AML_LOGICAL_NOT_OP,
+						  &temp_desc, walk_state);
 		if (ACPI_FAILURE(status)) {
 			ACPI_EXCEPTION((AE_INFO, status,
 					"While resolving operands for [%s]",
@@ -922,13 +887,26 @@ acpi_status acpi_ex_opcode_1A_0T_1R(struct acpi_walk_state *walk_state)
 			 * This is a deref_of (object_reference)
 			 * Get the actual object from the Node (This is the dereference).
 			 * This case may only happen when a local_x or arg_x is
-			 * dereferenced above.
+			 * dereferenced above, or for references to device and
+			 * thermal objects.
 			 */
-			return_desc = acpi_ns_get_attached_object((struct
-								   acpi_namespace_node
-								   *)
-								  operand[0]);
-			acpi_ut_add_reference(return_desc);
+			switch (((struct acpi_namespace_node *)operand[0])->
+				type) {
+			case ACPI_TYPE_DEVICE:
+			case ACPI_TYPE_THERMAL:
+
+				/* These types have no node subobject, return the NS node */
+
+				return_desc = operand[0];
+				break;
+
+			default:
+				/* For most types, get the object attached to the node */
+
+				return_desc = acpi_ns_get_attached_object((struct acpi_namespace_node *)operand[0]);
+				acpi_ut_add_reference(return_desc);
+				break;
+			}
 		} else {
 			/*
 			 * This must be a reference object produced by either the

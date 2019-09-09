@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (c) by Francisco Moraes <fmoraes@nc.rr.com>
  *  Driver EMU10K1X chips
@@ -13,21 +14,6 @@
  *  Chips (SB0200 model):
  *    - EMU10K1X-DBQ
  *    - STAC 9708T
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -254,7 +240,7 @@ struct emu10k1x {
 };
 
 /* hardware definition */
-static struct snd_pcm_hardware snd_emu10k1x_playback_hw = {
+static const struct snd_pcm_hardware snd_emu10k1x_playback_hw = {
 	.info =			(SNDRV_PCM_INFO_MMAP | 
 				 SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -273,7 +259,7 @@ static struct snd_pcm_hardware snd_emu10k1x_playback_hw = {
 	.fifo_size =		0,
 };
 
-static struct snd_pcm_hardware snd_emu10k1x_capture_hw = {
+static const struct snd_pcm_hardware snd_emu10k1x_capture_hw = {
 	.info =			(SNDRV_PCM_INFO_MMAP | 
 				 SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -1065,15 +1051,9 @@ static void snd_emu10k1x_proc_reg_write(struct snd_info_entry *entry,
 
 static int snd_emu10k1x_proc_init(struct emu10k1x *emu)
 {
-	struct snd_info_entry *entry;
-	
-	if(! snd_card_proc_new(emu->card, "emu10k1x_regs", &entry)) {
-		snd_info_set_text_ops(entry, emu, snd_emu10k1x_proc_reg_read);
-		entry->c.text.write = snd_emu10k1x_proc_reg_write;
-		entry->mode |= S_IWUSR;
-		entry->private_data = emu;
-	}
-	
+	snd_card_rw_proc_new(emu->card, "emu10k1x_regs", emu,
+			     snd_emu10k1x_proc_reg_read,
+			     snd_emu10k1x_proc_reg_write);
 	return 0;
 }
 
@@ -1094,7 +1074,6 @@ static int snd_emu10k1x_shared_spdif_put(struct snd_kcontrol *kcontrol,
 {
 	struct emu10k1x *emu = snd_kcontrol_chip(kcontrol);
 	unsigned int val;
-	int change = 0;
 
 	val = ucontrol->value.integer.value[0] ;
 
@@ -1109,10 +1088,10 @@ static int snd_emu10k1x_shared_spdif_put(struct snd_kcontrol *kcontrol,
 		snd_emu10k1x_ptr_write(emu, ROUTING, 0, 0x1003F);
 		snd_emu10k1x_gpio_write(emu, 0x1080);
 	}
-	return change;
+	return 0;
 }
 
-static struct snd_kcontrol_new snd_emu10k1x_shared_spdif =
+static const struct snd_kcontrol_new snd_emu10k1x_shared_spdif =
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name =		"Analog/Digital Output Jack",
@@ -1171,7 +1150,7 @@ static int snd_emu10k1x_spdif_put(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
-static struct snd_kcontrol_new snd_emu10k1x_spdif_mask_control =
+static const struct snd_kcontrol_new snd_emu10k1x_spdif_mask_control =
 {
 	.access =	SNDRV_CTL_ELEM_ACCESS_READ,
 	.iface =        SNDRV_CTL_ELEM_IFACE_PCM,
@@ -1181,7 +1160,7 @@ static struct snd_kcontrol_new snd_emu10k1x_spdif_mask_control =
 	.get =          snd_emu10k1x_spdif_get_mask
 };
 
-static struct snd_kcontrol_new snd_emu10k1x_spdif_control =
+static const struct snd_kcontrol_new snd_emu10k1x_spdif_control =
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
 	.name =         SNDRV_CTL_NAME_IEC958("",PLAYBACK,DEFAULT),
@@ -1486,14 +1465,14 @@ static void snd_emu10k1x_midi_output_trigger(struct snd_rawmidi_substream *subst
 
  */
 
-static struct snd_rawmidi_ops snd_emu10k1x_midi_output =
+static const struct snd_rawmidi_ops snd_emu10k1x_midi_output =
 {
 	.open =		snd_emu10k1x_midi_output_open,
 	.close =	snd_emu10k1x_midi_output_close,
 	.trigger =	snd_emu10k1x_midi_output_trigger,
 };
 
-static struct snd_rawmidi_ops snd_emu10k1x_midi_input =
+static const struct snd_rawmidi_ops snd_emu10k1x_midi_input =
 {
 	.open =		snd_emu10k1x_midi_input_open,
 	.close =	snd_emu10k1x_midi_input_close,

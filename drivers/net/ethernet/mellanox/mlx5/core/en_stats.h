@@ -39,15 +39,20 @@
 #define MLX5E_READ_CTR32_CPU(ptr, dsc, i) \
 	(*(u32 *)((char *)ptr + dsc[i].offset))
 #define MLX5E_READ_CTR32_BE(ptr, dsc, i) \
-	be64_to_cpu(*(__be32 *)((char *)ptr + dsc[i].offset))
+	be32_to_cpu(*(__be32 *)((char *)ptr + dsc[i].offset))
 
 #define MLX5E_DECLARE_STAT(type, fld) #fld, offsetof(type, fld)
 #define MLX5E_DECLARE_RX_STAT(type, fld) "rx%d_"#fld, offsetof(type, fld)
 #define MLX5E_DECLARE_TX_STAT(type, fld) "tx%d_"#fld, offsetof(type, fld)
+#define MLX5E_DECLARE_XDPSQ_STAT(type, fld) "tx%d_xdp_"#fld, offsetof(type, fld)
+#define MLX5E_DECLARE_RQ_XDPSQ_STAT(type, fld) "rx%d_xdp_tx_"#fld, offsetof(type, fld)
+#define MLX5E_DECLARE_XSKRQ_STAT(type, fld) "rx%d_xsk_"#fld, offsetof(type, fld)
+#define MLX5E_DECLARE_XSKSQ_STAT(type, fld) "tx%d_xsk_"#fld, offsetof(type, fld)
+#define MLX5E_DECLARE_CH_STAT(type, fld) "ch%d_"#fld, offsetof(type, fld)
 
 struct counter_desc {
 	char		format[ETH_GSTRING_LEN];
-	int		offset; /* Byte offset */
+	size_t		offset; /* Byte offset */
 };
 
 struct mlx5e_sw_stats {
@@ -59,23 +64,46 @@ struct mlx5e_sw_stats {
 	u64 tx_tso_bytes;
 	u64 tx_tso_inner_packets;
 	u64 tx_tso_inner_bytes;
+	u64 tx_added_vlan_packets;
+	u64 tx_nop;
 	u64 rx_lro_packets;
 	u64 rx_lro_bytes;
+	u64 rx_ecn_mark;
+	u64 rx_removed_vlan_packets;
 	u64 rx_csum_unnecessary;
 	u64 rx_csum_none;
 	u64 rx_csum_complete;
+	u64 rx_csum_complete_tail;
+	u64 rx_csum_complete_tail_slow;
 	u64 rx_csum_unnecessary_inner;
 	u64 rx_xdp_drop;
-	u64 rx_xdp_tx;
+	u64 rx_xdp_redirect;
+	u64 rx_xdp_tx_xmit;
+	u64 rx_xdp_tx_mpwqe;
+	u64 rx_xdp_tx_inlnw;
 	u64 rx_xdp_tx_full;
+	u64 rx_xdp_tx_err;
+	u64 rx_xdp_tx_cqe;
+	u64 tx_csum_none;
 	u64 tx_csum_partial;
 	u64 tx_csum_partial_inner;
 	u64 tx_queue_stopped;
-	u64 tx_queue_wake;
 	u64 tx_queue_dropped;
 	u64 tx_xmit_more;
+	u64 tx_recover;
+	u64 tx_cqes;
+	u64 tx_queue_wake;
+	u64 tx_cqe_err;
+	u64 tx_xdp_xmit;
+	u64 tx_xdp_mpwqe;
+	u64 tx_xdp_inlnw;
+	u64 tx_xdp_full;
+	u64 tx_xdp_err;
+	u64 tx_xdp_cqes;
 	u64 rx_wqe_err;
-	u64 rx_mpwqe_filler;
+	u64 rx_mpwqe_filler_cqes;
+	u64 rx_mpwqe_filler_strides;
+	u64 rx_oversize_pkts_sw_drop;
 	u64 rx_buff_alloc_err;
 	u64 rx_cqe_compress_blks;
 	u64 rx_cqe_compress_pkts;
@@ -83,56 +111,64 @@ struct mlx5e_sw_stats {
 	u64 rx_cache_full;
 	u64 rx_cache_empty;
 	u64 rx_cache_busy;
+	u64 rx_cache_waive;
+	u64 rx_congst_umr;
+	u64 rx_arfs_err;
+	u64 ch_events;
+	u64 ch_poll;
+	u64 ch_arm;
+	u64 ch_aff_change;
+	u64 ch_force_irq;
+	u64 ch_eq_rearm;
 
-	/* Special handling counters */
-	u64 link_down_events_phy;
-};
+#ifdef CONFIG_MLX5_EN_TLS
+	u64 tx_tls_encrypted_packets;
+	u64 tx_tls_encrypted_bytes;
+	u64 tx_tls_ctx;
+	u64 tx_tls_ooo;
+	u64 tx_tls_resync_bytes;
+	u64 tx_tls_drop_no_sync_data;
+	u64 tx_tls_drop_bypass_req;
+	u64 tx_tls_dump_packets;
+	u64 tx_tls_dump_bytes;
+#endif
 
-static const struct counter_desc sw_stats_desc[] = {
-	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_packets) },
-	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_bytes) },
-	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, tx_packets) },
-	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, tx_bytes) },
-	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, tx_tso_packets) },
-	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, tx_tso_bytes) },
-	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, tx_tso_inner_packets) },
-	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, tx_tso_inner_bytes) },
-	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_lro_packets) },
-	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_lro_bytes) },
-	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_csum_unnecessary) },
-	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_csum_none) },
-	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_csum_complete) },
-	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_csum_unnecessary_inner) },
-	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_xdp_drop) },
-	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_xdp_tx) },
-	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_xdp_tx_full) },
-	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, tx_csum_partial) },
-	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, tx_csum_partial_inner) },
-	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, tx_queue_stopped) },
-	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, tx_queue_wake) },
-	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, tx_queue_dropped) },
-	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, tx_xmit_more) },
-	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_wqe_err) },
-	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_mpwqe_filler) },
-	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_buff_alloc_err) },
-	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_cqe_compress_blks) },
-	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_cqe_compress_pkts) },
-	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_cache_reuse) },
-	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_cache_full) },
-	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_cache_empty) },
-	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_cache_busy) },
-	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, link_down_events_phy) },
+	u64 rx_xsk_packets;
+	u64 rx_xsk_bytes;
+	u64 rx_xsk_csum_complete;
+	u64 rx_xsk_csum_unnecessary;
+	u64 rx_xsk_csum_unnecessary_inner;
+	u64 rx_xsk_csum_none;
+	u64 rx_xsk_ecn_mark;
+	u64 rx_xsk_removed_vlan_packets;
+	u64 rx_xsk_xdp_drop;
+	u64 rx_xsk_xdp_redirect;
+	u64 rx_xsk_wqe_err;
+	u64 rx_xsk_mpwqe_filler_cqes;
+	u64 rx_xsk_mpwqe_filler_strides;
+	u64 rx_xsk_oversize_pkts_sw_drop;
+	u64 rx_xsk_buff_alloc_err;
+	u64 rx_xsk_cqe_compress_blks;
+	u64 rx_xsk_cqe_compress_pkts;
+	u64 rx_xsk_congst_umr;
+	u64 rx_xsk_arfs_err;
+	u64 tx_xsk_xmit;
+	u64 tx_xsk_mpwqe;
+	u64 tx_xsk_inlnw;
+	u64 tx_xsk_full;
+	u64 tx_xsk_err;
+	u64 tx_xsk_cqes;
 };
 
 struct mlx5e_qcounter_stats {
 	u32 rx_out_of_buffer;
+	u32 rx_if_down_packets;
 };
 
-static const struct counter_desc q_stats_desc[] = {
-	{ MLX5E_DECLARE_STAT(struct mlx5e_qcounter_stats, rx_out_of_buffer) },
+struct mlx5e_vnic_env_stats {
+	__be64 query_vnic_env_out[MLX5_ST_SZ_QW(query_vnic_env_out)];
 };
 
-#define VPORT_COUNTER_OFF(c) MLX5_BYTE_OFF(query_vport_counter_out, c)
 #define VPORT_COUNTER_GET(vstats, c) MLX5_GET64(query_vport_counter_out, \
 						vstats->query_vport_out, c)
 
@@ -140,74 +176,25 @@ struct mlx5e_vport_stats {
 	__be64 query_vport_out[MLX5_ST_SZ_QW(query_vport_counter_out)];
 };
 
-static const struct counter_desc vport_stats_desc[] = {
-	{ "rx_vport_unicast_packets",
-		VPORT_COUNTER_OFF(received_eth_unicast.packets) },
-	{ "rx_vport_unicast_bytes",
-		VPORT_COUNTER_OFF(received_eth_unicast.octets) },
-	{ "tx_vport_unicast_packets",
-		VPORT_COUNTER_OFF(transmitted_eth_unicast.packets) },
-	{ "tx_vport_unicast_bytes",
-		VPORT_COUNTER_OFF(transmitted_eth_unicast.octets) },
-	{ "rx_vport_multicast_packets",
-		VPORT_COUNTER_OFF(received_eth_multicast.packets) },
-	{ "rx_vport_multicast_bytes",
-		VPORT_COUNTER_OFF(received_eth_multicast.octets) },
-	{ "tx_vport_multicast_packets",
-		VPORT_COUNTER_OFF(transmitted_eth_multicast.packets) },
-	{ "tx_vport_multicast_bytes",
-		VPORT_COUNTER_OFF(transmitted_eth_multicast.octets) },
-	{ "rx_vport_broadcast_packets",
-		VPORT_COUNTER_OFF(received_eth_broadcast.packets) },
-	{ "rx_vport_broadcast_bytes",
-		VPORT_COUNTER_OFF(received_eth_broadcast.octets) },
-	{ "tx_vport_broadcast_packets",
-		VPORT_COUNTER_OFF(transmitted_eth_broadcast.packets) },
-	{ "tx_vport_broadcast_bytes",
-		VPORT_COUNTER_OFF(transmitted_eth_broadcast.octets) },
-	{ "rx_vport_rdma_unicast_packets",
-		VPORT_COUNTER_OFF(received_ib_unicast.packets) },
-	{ "rx_vport_rdma_unicast_bytes",
-		VPORT_COUNTER_OFF(received_ib_unicast.octets) },
-	{ "tx_vport_rdma_unicast_packets",
-		VPORT_COUNTER_OFF(transmitted_ib_unicast.packets) },
-	{ "tx_vport_rdma_unicast_bytes",
-		VPORT_COUNTER_OFF(transmitted_ib_unicast.octets) },
-	{ "rx_vport_rdma_multicast_packets",
-		VPORT_COUNTER_OFF(received_ib_multicast.packets) },
-	{ "rx_vport_rdma_multicast_bytes",
-		VPORT_COUNTER_OFF(received_ib_multicast.octets) },
-	{ "tx_vport_rdma_multicast_packets",
-		VPORT_COUNTER_OFF(transmitted_ib_multicast.packets) },
-	{ "tx_vport_rdma_multicast_bytes",
-		VPORT_COUNTER_OFF(transmitted_ib_multicast.octets) },
-};
-
-#define PPORT_802_3_OFF(c) \
-	MLX5_BYTE_OFF(ppcnt_reg, \
-		      counter_set.eth_802_3_cntrs_grp_data_layout.c##_high)
 #define PPORT_802_3_GET(pstats, c) \
 	MLX5_GET64(ppcnt_reg, pstats->IEEE_802_3_counters, \
 		   counter_set.eth_802_3_cntrs_grp_data_layout.c##_high)
-#define PPORT_2863_OFF(c) \
-	MLX5_BYTE_OFF(ppcnt_reg, \
-		      counter_set.eth_2863_cntrs_grp_data_layout.c##_high)
 #define PPORT_2863_GET(pstats, c) \
 	MLX5_GET64(ppcnt_reg, pstats->RFC_2863_counters, \
 		   counter_set.eth_2863_cntrs_grp_data_layout.c##_high)
-#define PPORT_2819_OFF(c) \
-	MLX5_BYTE_OFF(ppcnt_reg, \
-		      counter_set.eth_2819_cntrs_grp_data_layout.c##_high)
 #define PPORT_2819_GET(pstats, c) \
 	MLX5_GET64(ppcnt_reg, pstats->RFC_2819_counters, \
 		   counter_set.eth_2819_cntrs_grp_data_layout.c##_high)
-#define PPORT_PER_PRIO_OFF(c) \
-	MLX5_BYTE_OFF(ppcnt_reg, \
-		      counter_set.eth_per_prio_grp_data_layout.c##_high)
+#define PPORT_PHY_STATISTICAL_GET(pstats, c) \
+	MLX5_GET64(ppcnt_reg, (pstats)->phy_statistical_counters, \
+		   counter_set.phys_layer_statistical_cntrs.c##_high)
 #define PPORT_PER_PRIO_GET(pstats, prio, c) \
 	MLX5_GET64(ppcnt_reg, pstats->per_prio_counters[prio], \
 		   counter_set.eth_per_prio_grp_data_layout.c##_high)
 #define NUM_PPORT_PRIO				8
+#define PPORT_ETH_EXT_GET(pstats, c) \
+	MLX5_GET64(ppcnt_reg, (pstats)->eth_ext_counters, \
+		   counter_set.eth_extended_cntrs_grp_data_layout.c##_high)
 
 struct mlx5e_pport_stats {
 	__be64 IEEE_802_3_counters[MLX5_ST_SZ_QW(ppcnt_reg)];
@@ -215,80 +202,41 @@ struct mlx5e_pport_stats {
 	__be64 RFC_2819_counters[MLX5_ST_SZ_QW(ppcnt_reg)];
 	__be64 per_prio_counters[NUM_PPORT_PRIO][MLX5_ST_SZ_QW(ppcnt_reg)];
 	__be64 phy_counters[MLX5_ST_SZ_QW(ppcnt_reg)];
+	__be64 phy_statistical_counters[MLX5_ST_SZ_QW(ppcnt_reg)];
+	__be64 eth_ext_counters[MLX5_ST_SZ_QW(ppcnt_reg)];
 };
 
-static const struct counter_desc pport_802_3_stats_desc[] = {
-	{ "tx_packets_phy", PPORT_802_3_OFF(a_frames_transmitted_ok) },
-	{ "rx_packets_phy", PPORT_802_3_OFF(a_frames_received_ok) },
-	{ "rx_crc_errors_phy", PPORT_802_3_OFF(a_frame_check_sequence_errors) },
-	{ "tx_bytes_phy", PPORT_802_3_OFF(a_octets_transmitted_ok) },
-	{ "rx_bytes_phy", PPORT_802_3_OFF(a_octets_received_ok) },
-	{ "tx_multicast_phy", PPORT_802_3_OFF(a_multicast_frames_xmitted_ok) },
-	{ "tx_broadcast_phy", PPORT_802_3_OFF(a_broadcast_frames_xmitted_ok) },
-	{ "rx_multicast_phy", PPORT_802_3_OFF(a_multicast_frames_received_ok) },
-	{ "rx_broadcast_phy", PPORT_802_3_OFF(a_broadcast_frames_received_ok) },
-	{ "rx_in_range_len_errors_phy", PPORT_802_3_OFF(a_in_range_length_errors) },
-	{ "rx_out_of_range_len_phy", PPORT_802_3_OFF(a_out_of_range_length_field) },
-	{ "rx_oversize_pkts_phy", PPORT_802_3_OFF(a_frame_too_long_errors) },
-	{ "rx_symbol_err_phy", PPORT_802_3_OFF(a_symbol_error_during_carrier) },
-	{ "tx_mac_control_phy", PPORT_802_3_OFF(a_mac_control_frames_transmitted) },
-	{ "rx_mac_control_phy", PPORT_802_3_OFF(a_mac_control_frames_received) },
-	{ "rx_unsupported_op_phy", PPORT_802_3_OFF(a_unsupported_opcodes_received) },
-	{ "rx_pause_ctrl_phy", PPORT_802_3_OFF(a_pause_mac_ctrl_frames_received) },
-	{ "tx_pause_ctrl_phy", PPORT_802_3_OFF(a_pause_mac_ctrl_frames_transmitted) },
-};
+#define PCIE_PERF_GET(pcie_stats, c) \
+	MLX5_GET(mpcnt_reg, (pcie_stats)->pcie_perf_counters, \
+		 counter_set.pcie_perf_cntrs_grp_data_layout.c)
 
-static const struct counter_desc pport_2863_stats_desc[] = {
-	{ "rx_discards_phy", PPORT_2863_OFF(if_in_discards) },
-	{ "tx_discards_phy", PPORT_2863_OFF(if_out_discards) },
-	{ "tx_errors_phy", PPORT_2863_OFF(if_out_errors) },
-};
+#define PCIE_PERF_GET64(pcie_stats, c) \
+	MLX5_GET64(mpcnt_reg, (pcie_stats)->pcie_perf_counters, \
+		   counter_set.pcie_perf_cntrs_grp_data_layout.c##_high)
 
-static const struct counter_desc pport_2819_stats_desc[] = {
-	{ "rx_undersize_pkts_phy", PPORT_2819_OFF(ether_stats_undersize_pkts) },
-	{ "rx_fragments_phy", PPORT_2819_OFF(ether_stats_fragments) },
-	{ "rx_jabbers_phy", PPORT_2819_OFF(ether_stats_jabbers) },
-	{ "rx_64_bytes_phy", PPORT_2819_OFF(ether_stats_pkts64octets) },
-	{ "rx_65_to_127_bytes_phy", PPORT_2819_OFF(ether_stats_pkts65to127octets) },
-	{ "rx_128_to_255_bytes_phy", PPORT_2819_OFF(ether_stats_pkts128to255octets) },
-	{ "rx_256_to_511_bytes_phy", PPORT_2819_OFF(ether_stats_pkts256to511octets) },
-	{ "rx_512_to_1023_bytes_phy", PPORT_2819_OFF(ether_stats_pkts512to1023octets) },
-	{ "rx_1024_to_1518_bytes_phy", PPORT_2819_OFF(ether_stats_pkts1024to1518octets) },
-	{ "rx_1519_to_2047_bytes_phy", PPORT_2819_OFF(ether_stats_pkts1519to2047octets) },
-	{ "rx_2048_to_4095_bytes_phy", PPORT_2819_OFF(ether_stats_pkts2048to4095octets) },
-	{ "rx_4096_to_8191_bytes_phy", PPORT_2819_OFF(ether_stats_pkts4096to8191octets) },
-	{ "rx_8192_to_10239_bytes_phy", PPORT_2819_OFF(ether_stats_pkts8192to10239octets) },
-};
-
-static const struct counter_desc pport_per_prio_traffic_stats_desc[] = {
-	{ "rx_prio%d_bytes", PPORT_PER_PRIO_OFF(rx_octets) },
-	{ "rx_prio%d_packets", PPORT_PER_PRIO_OFF(rx_frames) },
-	{ "tx_prio%d_bytes", PPORT_PER_PRIO_OFF(tx_octets) },
-	{ "tx_prio%d_packets", PPORT_PER_PRIO_OFF(tx_frames) },
-};
-
-static const struct counter_desc pport_per_prio_pfc_stats_desc[] = {
-	/* %s is "global" or "prio{i}" */
-	{ "rx_%s_pause", PPORT_PER_PRIO_OFF(rx_pause) },
-	{ "rx_%s_pause_duration", PPORT_PER_PRIO_OFF(rx_pause_duration) },
-	{ "tx_%s_pause", PPORT_PER_PRIO_OFF(tx_pause) },
-	{ "tx_%s_pause_duration", PPORT_PER_PRIO_OFF(tx_pause_duration) },
-	{ "rx_%s_pause_transition", PPORT_PER_PRIO_OFF(rx_pause_transition) },
+struct mlx5e_pcie_stats {
+	__be64 pcie_perf_counters[MLX5_ST_SZ_QW(mpcnt_reg)];
 };
 
 struct mlx5e_rq_stats {
 	u64 packets;
 	u64 bytes;
 	u64 csum_complete;
+	u64 csum_complete_tail;
+	u64 csum_complete_tail_slow;
+	u64 csum_unnecessary;
 	u64 csum_unnecessary_inner;
 	u64 csum_none;
 	u64 lro_packets;
 	u64 lro_bytes;
+	u64 ecn_mark;
+	u64 removed_vlan_packets;
 	u64 xdp_drop;
-	u64 xdp_tx;
-	u64 xdp_tx_full;
+	u64 xdp_redirect;
 	u64 wqe_err;
-	u64 mpwqe_filler;
+	u64 mpwqe_filler_cqes;
+	u64 mpwqe_filler_strides;
+	u64 oversize_pkts_sw_drop;
 	u64 buff_alloc_err;
 	u64 cqe_compress_blks;
 	u64 cqe_compress_pkts;
@@ -296,28 +244,9 @@ struct mlx5e_rq_stats {
 	u64 cache_full;
 	u64 cache_empty;
 	u64 cache_busy;
-};
-
-static const struct counter_desc rq_stats_desc[] = {
-	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, packets) },
-	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, bytes) },
-	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, csum_complete) },
-	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, csum_unnecessary_inner) },
-	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, csum_none) },
-	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, xdp_drop) },
-	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, xdp_tx) },
-	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, xdp_tx_full) },
-	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, lro_packets) },
-	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, lro_bytes) },
-	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, wqe_err) },
-	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, mpwqe_filler) },
-	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, buff_alloc_err) },
-	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, cqe_compress_blks) },
-	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, cqe_compress_pkts) },
-	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, cache_reuse) },
-	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, cache_full) },
-	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, cache_empty) },
-	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, cache_busy) },
+	u64 cache_waive;
+	u64 congst_umr;
+	u64 arfs_err;
 };
 
 struct mlx5e_sq_stats {
@@ -329,54 +258,77 @@ struct mlx5e_sq_stats {
 	u64 tso_bytes;
 	u64 tso_inner_packets;
 	u64 tso_inner_bytes;
+	u64 csum_partial;
 	u64 csum_partial_inner;
+	u64 added_vlan_packets;
 	u64 nop;
+#ifdef CONFIG_MLX5_EN_TLS
+	u64 tls_encrypted_packets;
+	u64 tls_encrypted_bytes;
+	u64 tls_ctx;
+	u64 tls_ooo;
+	u64 tls_resync_bytes;
+	u64 tls_drop_no_sync_data;
+	u64 tls_drop_bypass_req;
+	u64 tls_dump_packets;
+	u64 tls_dump_bytes;
+#endif
 	/* less likely accessed in data path */
 	u64 csum_none;
 	u64 stopped;
-	u64 wake;
 	u64 dropped;
+	u64 recover;
+	/* dirtied @completion */
+	u64 cqes ____cacheline_aligned_in_smp;
+	u64 wake;
+	u64 cqe_err;
 };
 
-static const struct counter_desc sq_stats_desc[] = {
-	{ MLX5E_DECLARE_TX_STAT(struct mlx5e_sq_stats, packets) },
-	{ MLX5E_DECLARE_TX_STAT(struct mlx5e_sq_stats, bytes) },
-	{ MLX5E_DECLARE_TX_STAT(struct mlx5e_sq_stats, tso_packets) },
-	{ MLX5E_DECLARE_TX_STAT(struct mlx5e_sq_stats, tso_bytes) },
-	{ MLX5E_DECLARE_TX_STAT(struct mlx5e_sq_stats, tso_inner_packets) },
-	{ MLX5E_DECLARE_TX_STAT(struct mlx5e_sq_stats, tso_inner_bytes) },
-	{ MLX5E_DECLARE_TX_STAT(struct mlx5e_sq_stats, csum_partial_inner) },
-	{ MLX5E_DECLARE_TX_STAT(struct mlx5e_sq_stats, nop) },
-	{ MLX5E_DECLARE_TX_STAT(struct mlx5e_sq_stats, csum_none) },
-	{ MLX5E_DECLARE_TX_STAT(struct mlx5e_sq_stats, stopped) },
-	{ MLX5E_DECLARE_TX_STAT(struct mlx5e_sq_stats, wake) },
-	{ MLX5E_DECLARE_TX_STAT(struct mlx5e_sq_stats, dropped) },
-	{ MLX5E_DECLARE_TX_STAT(struct mlx5e_sq_stats, xmit_more) },
+struct mlx5e_xdpsq_stats {
+	u64 xmit;
+	u64 mpwqe;
+	u64 inlnw;
+	u64 full;
+	u64 err;
+	/* dirtied @completion */
+	u64 cqes ____cacheline_aligned_in_smp;
 };
 
-#define NUM_SW_COUNTERS			ARRAY_SIZE(sw_stats_desc)
-#define NUM_Q_COUNTERS			ARRAY_SIZE(q_stats_desc)
-#define NUM_VPORT_COUNTERS		ARRAY_SIZE(vport_stats_desc)
-#define NUM_PPORT_802_3_COUNTERS	ARRAY_SIZE(pport_802_3_stats_desc)
-#define NUM_PPORT_2863_COUNTERS		ARRAY_SIZE(pport_2863_stats_desc)
-#define NUM_PPORT_2819_COUNTERS		ARRAY_SIZE(pport_2819_stats_desc)
-#define NUM_PPORT_PER_PRIO_TRAFFIC_COUNTERS \
-	ARRAY_SIZE(pport_per_prio_traffic_stats_desc)
-#define NUM_PPORT_PER_PRIO_PFC_COUNTERS \
-	ARRAY_SIZE(pport_per_prio_pfc_stats_desc)
-#define NUM_PPORT_COUNTERS		(NUM_PPORT_802_3_COUNTERS + \
-					 NUM_PPORT_2863_COUNTERS  + \
-					 NUM_PPORT_2819_COUNTERS  + \
-					 NUM_PPORT_PER_PRIO_TRAFFIC_COUNTERS * \
-					 NUM_PPORT_PRIO)
-#define NUM_RQ_STATS			ARRAY_SIZE(rq_stats_desc)
-#define NUM_SQ_STATS			ARRAY_SIZE(sq_stats_desc)
+struct mlx5e_ch_stats {
+	u64 events;
+	u64 poll;
+	u64 arm;
+	u64 aff_change;
+	u64 force_irq;
+	u64 eq_rearm;
+};
 
 struct mlx5e_stats {
 	struct mlx5e_sw_stats sw;
 	struct mlx5e_qcounter_stats qcnt;
+	struct mlx5e_vnic_env_stats vnic;
 	struct mlx5e_vport_stats vport;
 	struct mlx5e_pport_stats pport;
+	struct rtnl_link_stats64 vf_vport;
+	struct mlx5e_pcie_stats pcie;
 };
+
+enum {
+	MLX5E_NDO_UPDATE_STATS = BIT(0x1),
+};
+
+struct mlx5e_priv;
+struct mlx5e_stats_grp {
+	u16 update_stats_mask;
+	int (*get_num_stats)(struct mlx5e_priv *priv);
+	int (*fill_strings)(struct mlx5e_priv *priv, u8 *data, int idx);
+	int (*fill_stats)(struct mlx5e_priv *priv, u64 *data, int idx);
+	void (*update_stats)(struct mlx5e_priv *priv);
+};
+
+extern const struct mlx5e_stats_grp mlx5e_stats_grps[];
+extern const int mlx5e_num_stats_grps;
+
+void mlx5e_grp_802_3_update_stats(struct mlx5e_priv *priv);
 
 #endif /* __MLX5_EN_STATS_H__ */

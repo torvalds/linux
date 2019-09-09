@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * comedi/drivers/dt2815.c
  * Hardware driver for Data Translation DT2815
  *
  * COMEDI - Linux Control and Measurement Device Interface
  * Copyright (C) 1999 Anders Blomdell <anders.blomdell@control.lth.se>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 /*
  * Driver: dt2815
@@ -188,7 +179,7 @@ static int dt2815_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		/* This is incredibly slow (approx 20 ms) */
 		unsigned int status;
 
-		udelay(1000);
+		usleep_range(1000, 3000);
 		status = inb(dev->iobase + DT2815_STATUS);
 		if (status == 4) {
 			unsigned int program;

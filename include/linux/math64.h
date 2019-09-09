@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_MATH64_H
 #define _LINUX_MATH64_H
 
@@ -11,6 +12,11 @@
 
 /**
  * div_u64_rem - unsigned 64bit divide with 32bit divisor with remainder
+ * @dividend: unsigned 64bit dividend
+ * @divisor: unsigned 32bit divisor
+ * @remainder: pointer to unsigned 32bit remainder
+ *
+ * Return: sets ``*remainder``, then returns dividend / divisor
  *
  * This is commonly provided by 32bit archs to provide an optimized 64bit
  * divide.
@@ -23,6 +29,11 @@ static inline u64 div_u64_rem(u64 dividend, u32 divisor, u32 *remainder)
 
 /**
  * div_s64_rem - signed 64bit divide with 32bit divisor with remainder
+ * @dividend: signed 64bit dividend
+ * @divisor: signed 32bit divisor
+ * @remainder: pointer to signed 32bit remainder
+ *
+ * Return: sets ``*remainder``, then returns dividend / divisor
  */
 static inline s64 div_s64_rem(s64 dividend, s32 divisor, s32 *remainder)
 {
@@ -32,6 +43,11 @@ static inline s64 div_s64_rem(s64 dividend, s32 divisor, s32 *remainder)
 
 /**
  * div64_u64_rem - unsigned 64bit divide with 64bit divisor and remainder
+ * @dividend: unsigned 64bit dividend
+ * @divisor: unsigned 64bit divisor
+ * @remainder: pointer to unsigned 64bit remainder
+ *
+ * Return: sets ``*remainder``, then returns dividend / divisor
  */
 static inline u64 div64_u64_rem(u64 dividend, u64 divisor, u64 *remainder)
 {
@@ -41,6 +57,10 @@ static inline u64 div64_u64_rem(u64 dividend, u64 divisor, u64 *remainder)
 
 /**
  * div64_u64 - unsigned 64bit divide with 64bit divisor
+ * @dividend: unsigned 64bit dividend
+ * @divisor: unsigned 64bit divisor
+ *
+ * Return: dividend / divisor
  */
 static inline u64 div64_u64(u64 dividend, u64 divisor)
 {
@@ -49,6 +69,10 @@ static inline u64 div64_u64(u64 dividend, u64 divisor)
 
 /**
  * div64_s64 - signed 64bit divide with 64bit divisor
+ * @dividend: signed 64bit dividend
+ * @divisor: signed 64bit divisor
+ *
+ * Return: dividend / divisor
  */
 static inline s64 div64_s64(s64 dividend, s64 divisor)
 {
@@ -88,6 +112,8 @@ extern s64 div64_s64(s64 dividend, s64 divisor);
 
 /**
  * div_u64 - unsigned 64bit divide with 32bit divisor
+ * @dividend: unsigned 64bit dividend
+ * @divisor: unsigned 32bit divisor
  *
  * This is the most common 64bit divide and should be used if possible,
  * as many 32bit archs can optimize this variant better than a full 64bit
@@ -103,6 +129,8 @@ static inline u64 div_u64(u64 dividend, u32 divisor)
 
 /**
  * div_s64 - signed 64bit divide with 32bit divisor
+ * @dividend: signed 64bit dividend
+ * @divisor: signed 32bit divisor
  */
 #ifndef div_s64
 static inline s64 div_s64(s64 dividend, s32 divisor)
@@ -133,6 +161,16 @@ __iter_div_u64_rem(u64 dividend, u32 divisor, u64 *remainder)
 	return ret;
 }
 
+#ifndef mul_u32_u32
+/*
+ * Many a GCC version messes this up and generates a 64x64 mult :-(
+ */
+static inline u64 mul_u32_u32(u32 a, u32 b)
+{
+	return (u64)a * b;
+}
+#endif
+
 #if defined(CONFIG_ARCH_SUPPORTS_INT128) && defined(__SIZEOF_INT128__)
 
 #ifndef mul_u64_u32_shr
@@ -160,9 +198,9 @@ static inline u64 mul_u64_u32_shr(u64 a, u32 mul, unsigned int shift)
 	al = a;
 	ah = a >> 32;
 
-	ret = ((u64)al * mul) >> shift;
+	ret = mul_u32_u32(al, mul) >> shift;
 	if (ah)
-		ret += ((u64)ah * mul) << (32 - shift);
+		ret += mul_u32_u32(ah, mul) << (32 - shift);
 
 	return ret;
 }
@@ -186,10 +224,10 @@ static inline u64 mul_u64_u64_shr(u64 a, u64 b, unsigned int shift)
 	a0.ll = a;
 	b0.ll = b;
 
-	rl.ll = (u64)a0.l.low * b0.l.low;
-	rm.ll = (u64)a0.l.low * b0.l.high;
-	rn.ll = (u64)a0.l.high * b0.l.low;
-	rh.ll = (u64)a0.l.high * b0.l.high;
+	rl.ll = mul_u32_u32(a0.l.low, b0.l.low);
+	rm.ll = mul_u32_u32(a0.l.low, b0.l.high);
+	rn.ll = mul_u32_u32(a0.l.high, b0.l.low);
+	rh.ll = mul_u32_u32(a0.l.high, b0.l.high);
 
 	/*
 	 * Each of these lines computes a 64-bit intermediate result into "c",
@@ -229,8 +267,8 @@ static inline u64 mul_u64_u32_div(u64 a, u32 mul, u32 divisor)
 	} u, rl, rh;
 
 	u.ll = a;
-	rl.ll = (u64)u.l.low * mul;
-	rh.ll = (u64)u.l.high * mul + rl.l.high;
+	rl.ll = mul_u32_u32(u.l.low, mul);
+	rh.ll = mul_u32_u32(u.l.high, mul) + rl.l.high;
 
 	/* Bits 32-63 of the result will be in rh.l.low. */
 	rl.l.high = do_div(rh.ll, divisor);
@@ -242,5 +280,21 @@ static inline u64 mul_u64_u32_div(u64 a, u32 mul, u32 divisor)
 	return rl.ll;
 }
 #endif /* mul_u64_u32_div */
+
+#define DIV64_U64_ROUND_UP(ll, d)	\
+	({ u64 _tmp = (d); div64_u64((ll) + _tmp - 1, _tmp); })
+
+/**
+ * DIV64_U64_ROUND_CLOSEST - unsigned 64bit divide with 64bit divisor rounded to nearest integer
+ * @dividend: unsigned 64bit dividend
+ * @divisor: unsigned 64bit divisor
+ *
+ * Divide unsigned 64bit dividend by unsigned 64bit divisor
+ * and round to closest integer.
+ *
+ * Return: dividend / divisor rounded to nearest integer
+ */
+#define DIV64_U64_ROUND_CLOSEST(dividend, divisor)	\
+	({ u64 _tmp = (divisor); div64_u64((dividend) + _tmp / 2, _tmp); })
 
 #endif /* _LINUX_MATH64_H */

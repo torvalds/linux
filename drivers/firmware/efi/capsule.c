@@ -1,10 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * EFI capsule support.
  *
  * Copyright 2013 Intel Corporation; author Matt Fleming
- *
- * This file is part of the Linux kernel, and is made available under
- * the terms of the GNU General Public License version 2.
  */
 
 #define pr_fmt(fmt) "efi: " fmt
@@ -214,7 +212,7 @@ efi_capsule_update_locked(efi_capsule_header_t *capsule,
  *
  * Return 0 on success, a converted EFI status code on failure.
  */
-int efi_capsule_update(efi_capsule_header_t *capsule, struct page **pages)
+int efi_capsule_update(efi_capsule_header_t *capsule, phys_addr_t *pages)
 {
 	u32 imagesize = capsule->imagesize;
 	efi_guid_t guid = capsule->guid;
@@ -231,7 +229,7 @@ int efi_capsule_update(efi_capsule_header_t *capsule, struct page **pages)
 	count = DIV_ROUND_UP(imagesize, PAGE_SIZE);
 	sg_count = sg_pages_num(count);
 
-	sg_pages = kzalloc(sg_count * sizeof(*sg_pages), GFP_KERNEL);
+	sg_pages = kcalloc(sg_count, sizeof(*sg_pages), GFP_KERNEL);
 	if (!sg_pages)
 		return -ENOMEM;
 
@@ -247,16 +245,13 @@ int efi_capsule_update(efi_capsule_header_t *capsule, struct page **pages)
 		efi_capsule_block_desc_t *sglist;
 
 		sglist = kmap(sg_pages[i]);
-		if (!sglist) {
-			rv = -ENOMEM;
-			goto out;
-		}
 
 		for (j = 0; j < SGLIST_PER_PAGE && count > 0; j++) {
-			u64 sz = min_t(u64, imagesize, PAGE_SIZE);
+			u64 sz = min_t(u64, imagesize,
+				       PAGE_SIZE - (u64)*pages % PAGE_SIZE);
 
 			sglist[j].length = sz;
-			sglist[j].data = page_to_phys(*pages++);
+			sglist[j].data = *pages++;
 
 			imagesize -= sz;
 			count--;

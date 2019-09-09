@@ -1,5 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * Documentation/ABI/stable/orangefs-sysfs:
+ * Documentation/ABI/stable/sysfs-fs-orangefs:
  *
  * What:		/sys/fs/orangefs/perf_counter_reset
  * Date:		June 2015
@@ -61,6 +62,14 @@
  *			Slots are requested and waited for,
  *			the wait times out after slot_timeout_secs.
  *
+ * What:		/sys/fs/orangefs/cache_timeout_msecs
+ * Date:		Mar 2018
+ * Contact:		Martin Brandenburg <martin@omnibond.com>
+ * Description:
+ *			Time in milliseconds between which
+ *			orangefs_revalidate_mapping will invalidate the page
+ *			cache.
+ *
  * What:		/sys/fs/orangefs/dcache_timeout_msecs
  * Date:		Jul 2016
  * Contact:		Martin Brandenburg <martin@omnibond.com>
@@ -90,6 +99,13 @@
  * Contact:		Martin Brandenburg <martin@omnibond.com>
  * Description:
  *			Readahead cache buffer count and size.
+ *
+ * What:		/sys/fs/orangefs/readahead_readcnt
+ * Date:		Jan 2017
+ * Contact:		Martin Brandenburg <martin@omnibond.com>
+ * Description:
+ *			Number of buffers (in multiples of readahead_size)
+ *			which can be read ahead for a single file at once.
  *
  * What:		/sys/fs/orangefs/acache/...
  * Date:		Jun 2015
@@ -214,6 +230,13 @@ static ssize_t sysfs_int_show(struct kobject *kobj,
 				       slot_timeout_secs);
 			goto out;
 		} else if (!strcmp(attr->attr.name,
+				   "cache_timeout_msecs")) {
+			rc = scnprintf(buf,
+				       PAGE_SIZE,
+				       "%d\n",
+				       orangefs_cache_timeout_msecs);
+			goto out;
+		} else if (!strcmp(attr->attr.name,
 				   "dcache_timeout_msecs")) {
 			rc = scnprintf(buf,
 				       PAGE_SIZE,
@@ -269,6 +292,9 @@ static ssize_t sysfs_int_store(struct kobject *kobj,
 	} else if (!strcmp(attr->attr.name, "slot_timeout_secs")) {
 		rc = kstrtoint(buf, 0, &slot_timeout_secs);
 		goto out;
+	} else if (!strcmp(attr->attr.name, "cache_timeout_msecs")) {
+		rc = kstrtoint(buf, 0, &orangefs_cache_timeout_msecs);
+		goto out;
 	} else if (!strcmp(attr->attr.name, "dcache_timeout_msecs")) {
 		rc = kstrtoint(buf, 0, &orangefs_dcache_timeout_msecs);
 		goto out;
@@ -315,7 +341,7 @@ static ssize_t sysfs_service_op_show(struct kobject *kobj,
 	/* Can't do a service_operation if the client is not running... */
 	rc = is_daemon_in_service();
 	if (rc) {
-		pr_info("%s: Client not running :%d:\n",
+		pr_info_ratelimited("%s: Client not running :%d:\n",
 			__func__,
 			is_daemon_in_service());
 		goto out;
@@ -329,7 +355,8 @@ static ssize_t sysfs_service_op_show(struct kobject *kobj,
 		if (!(orangefs_features & ORANGEFS_FEATURE_READAHEAD) &&
 		    (!strcmp(attr->attr.name, "readahead_count") ||
 		    !strcmp(attr->attr.name, "readahead_size") ||
-		    !strcmp(attr->attr.name, "readahead_count_size"))) {
+		    !strcmp(attr->attr.name, "readahead_count_size") ||
+		    !strcmp(attr->attr.name, "readahead_readcnt"))) {
 			rc = -EINVAL;
 			goto out;
 		}
@@ -360,6 +387,11 @@ static ssize_t sysfs_service_op_show(struct kobject *kobj,
 				 "readahead_count_size"))
 			new_op->upcall.req.param.op =
 				ORANGEFS_PARAM_REQUEST_OP_READAHEAD_COUNT_SIZE;
+
+		else if (!strcmp(attr->attr.name,
+				 "readahead_readcnt"))
+			new_op->upcall.req.param.op =
+				ORANGEFS_PARAM_REQUEST_OP_READAHEAD_READCNT;
 	} else if (!strcmp(kobj->name, ACACHE_KOBJ_ID)) {
 		if (!strcmp(attr->attr.name, "timeout_msecs"))
 			new_op->upcall.req.param.op =
@@ -542,7 +574,8 @@ static ssize_t sysfs_service_op_store(struct kobject *kobj,
 		if (!(orangefs_features & ORANGEFS_FEATURE_READAHEAD) &&
 		    (!strcmp(attr->attr.name, "readahead_count") ||
 		    !strcmp(attr->attr.name, "readahead_size") ||
-		    !strcmp(attr->attr.name, "readahead_count_size"))) {
+		    !strcmp(attr->attr.name, "readahead_count_size") ||
+		    !strcmp(attr->attr.name, "readahead_readcnt"))) {
 			rc = -EINVAL;
 			goto out;
 		}
@@ -610,10 +643,10 @@ static ssize_t sysfs_service_op_store(struct kobject *kobj,
 			new_op->upcall.req.param.u.value32[1] = val2;
 			goto value_set;
 		} else if (!strcmp(attr->attr.name,
-				   "perf_counter_reset")) {
-			if ((val > 0)) {
+				   "readahead_readcnt")) {
+			if ((val >= 0)) {
 				new_op->upcall.req.param.op =
-				ORANGEFS_PARAM_REQUEST_OP_READAHEAD_COUNT_SIZE;
+				ORANGEFS_PARAM_REQUEST_OP_READAHEAD_READCNT;
 			} else {
 				rc = 0;
 				goto out;
@@ -803,6 +836,9 @@ static struct orangefs_attribute op_timeout_secs_attribute =
 static struct orangefs_attribute slot_timeout_secs_attribute =
 	__ATTR(slot_timeout_secs, 0664, sysfs_int_show, sysfs_int_store);
 
+static struct orangefs_attribute cache_timeout_msecs_attribute =
+	__ATTR(cache_timeout_msecs, 0664, sysfs_int_show, sysfs_int_store);
+
 static struct orangefs_attribute dcache_timeout_msecs_attribute =
 	__ATTR(dcache_timeout_msecs, 0664, sysfs_int_show, sysfs_int_store);
 
@@ -819,6 +855,10 @@ static struct orangefs_attribute readahead_size_attribute =
 
 static struct orangefs_attribute readahead_count_size_attribute =
 	__ATTR(readahead_count_size, 0664, sysfs_service_op_show,
+	       sysfs_service_op_store);
+
+static struct orangefs_attribute readahead_readcnt_attribute =
+	__ATTR(readahead_readcnt, 0664, sysfs_service_op_show,
 	       sysfs_service_op_store);
 
 static struct orangefs_attribute perf_counter_reset_attribute =
@@ -842,11 +882,13 @@ static struct orangefs_attribute perf_time_interval_secs_attribute =
 static struct attribute *orangefs_default_attrs[] = {
 	&op_timeout_secs_attribute.attr,
 	&slot_timeout_secs_attribute.attr,
+	&cache_timeout_msecs_attribute.attr,
 	&dcache_timeout_msecs_attribute.attr,
 	&getattr_timeout_msecs_attribute.attr,
 	&readahead_count_attribute.attr,
 	&readahead_size_attribute.attr,
 	&readahead_count_size_attribute.attr,
+	&readahead_readcnt_attribute.attr,
 	&perf_counter_reset_attribute.attr,
 	&perf_history_size_attribute.attr,
 	&perf_time_interval_secs_attribute.attr,

@@ -1,19 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Tegra machine ASoC driver for boards using a MAX90809 CODEC.
  *
  * Copyright (c) 2013, NVIDIA CORPORATION.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * Based on code copyright/by:
  *
@@ -93,7 +82,7 @@ static int tegra_max98090_asoc_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_soc_ops tegra_max98090_ops = {
+static const struct snd_soc_ops tegra_max98090_ops = {
 	.hw_params = tegra_max98090_asoc_hw_params,
 };
 
@@ -176,37 +165,24 @@ static int tegra_max98090_asoc_init(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
-static int tegra_max98090_card_remove(struct snd_soc_card *card)
-{
-	struct tegra_max98090 *machine = snd_soc_card_get_drvdata(card);
-
-	if (gpio_is_valid(machine->gpio_hp_det)) {
-		snd_soc_jack_free_gpios(&tegra_max98090_hp_jack, 1,
-					&tegra_max98090_hp_jack_gpio);
-	}
-
-	if (gpio_is_valid(machine->gpio_mic_det)) {
-		snd_soc_jack_free_gpios(&tegra_max98090_mic_jack, 1,
-					&tegra_max98090_mic_jack_gpio);
-	}
-
-	return 0;
-}
+SND_SOC_DAILINK_DEFS(pcm,
+	DAILINK_COMP_ARRAY(COMP_EMPTY()),
+	DAILINK_COMP_ARRAY(COMP_CODEC(NULL, "HiFi")),
+	DAILINK_COMP_ARRAY(COMP_EMPTY()));
 
 static struct snd_soc_dai_link tegra_max98090_dai = {
 	.name = "max98090",
 	.stream_name = "max98090 PCM",
-	.codec_dai_name = "HiFi",
 	.init = tegra_max98090_asoc_init,
 	.ops = &tegra_max98090_ops,
 	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 			SND_SOC_DAIFMT_CBS_CFS,
+	SND_SOC_DAILINK_REG(pcm),
 };
 
 static struct snd_soc_card snd_soc_tegra_max98090 = {
 	.name = "tegra-max98090",
 	.owner = THIS_MODULE,
-	.remove = tegra_max98090_card_remove,
 	.dai_link = &tegra_max98090_dai,
 	.num_links = 1,
 	.controls = tegra_max98090_controls,
@@ -225,13 +201,10 @@ static int tegra_max98090_probe(struct platform_device *pdev)
 
 	machine = devm_kzalloc(&pdev->dev,
 			sizeof(struct tegra_max98090), GFP_KERNEL);
-	if (!machine) {
-		dev_err(&pdev->dev, "Can't allocate tegra_max98090\n");
+	if (!machine)
 		return -ENOMEM;
-	}
 
 	card->dev = &pdev->dev;
-	platform_set_drvdata(pdev, card);
 	snd_soc_card_set_drvdata(card, machine);
 
 	machine->gpio_hp_det = of_get_named_gpio(np, "nvidia,hp-det-gpios", 0);
@@ -251,25 +224,25 @@ static int tegra_max98090_probe(struct platform_device *pdev)
 	if (ret)
 		goto err;
 
-	tegra_max98090_dai.codec_of_node = of_parse_phandle(np,
+	tegra_max98090_dai.codecs->of_node = of_parse_phandle(np,
 			"nvidia,audio-codec", 0);
-	if (!tegra_max98090_dai.codec_of_node) {
+	if (!tegra_max98090_dai.codecs->of_node) {
 		dev_err(&pdev->dev,
 			"Property 'nvidia,audio-codec' missing or invalid\n");
 		ret = -EINVAL;
 		goto err;
 	}
 
-	tegra_max98090_dai.cpu_of_node = of_parse_phandle(np,
+	tegra_max98090_dai.cpus->of_node = of_parse_phandle(np,
 			"nvidia,i2s-controller", 0);
-	if (!tegra_max98090_dai.cpu_of_node) {
+	if (!tegra_max98090_dai.cpus->of_node) {
 		dev_err(&pdev->dev,
 			"Property 'nvidia,i2s-controller' missing or invalid\n");
 		ret = -EINVAL;
 		goto err;
 	}
 
-	tegra_max98090_dai.platform_of_node = tegra_max98090_dai.cpu_of_node;
+	tegra_max98090_dai.platforms->of_node = tegra_max98090_dai.cpus->of_node;
 
 	ret = tegra_asoc_utils_init(&machine->util_data, &pdev->dev);
 	if (ret)

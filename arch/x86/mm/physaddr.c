@@ -1,4 +1,5 @@
-#include <linux/bootmem.h>
+// SPDX-License-Identifier: GPL-2.0
+#include <linux/memblock.h>
 #include <linux/mmdebug.h>
 #include <linux/export.h>
 #include <linux/mm.h>

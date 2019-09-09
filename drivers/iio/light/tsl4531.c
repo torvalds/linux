@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * tsl4531.c - Support for TAOS TSL4531 ambient light sensor
  *
  * Copyright 2013 Peter Meerwald <pmeerw@pmeerw.net>
- *
- * This file is subject to the terms and conditions of version 2 of
- * the GNU General Public License.  See the file COPYING in the main
- * directory of this archive for more details.
  *
  * IIO driver for the TSL4531x family
  *   TSL45311/TSL45313: 7-bit I2C slave address 0x39
@@ -144,7 +141,6 @@ static const struct iio_info tsl4531_info = {
 	.read_raw = tsl4531_read_raw,
 	.write_raw = tsl4531_write_raw,
 	.attrs = &tsl4531_attribute_group,
-	.driver_module = THIS_MODULE,
 };
 
 static int tsl4531_check_id(struct i2c_client *client)

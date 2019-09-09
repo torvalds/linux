@@ -1,0 +1,32 @@
+* Samsung S6SY761 touchscreen controller
+
+Required properties:
+- compatible		: must be "samsung,s6sy761"
+- reg			: I2C slave address, (e.g. 0x48)
+- interrupts		: interrupt specification
+- avdd-supply		: analogic power supply
+- vdd-supply		: power supply
+
+Optional properties:
+- touchscreen-size-x	: see touchscreen.txt. This property is embedded in the
+			  device. If defined it forces a different x resolution.
+- touchscreen-size-y	: see touchscreen.txt. This property is embedded in the
+			  device. If defined it forces a different y resolution.
+
+Example:
+
+i2c@00000000 {
+
+	/* ... */
+
+	touchscreen@48 {
+		compatible = "samsung,s6sy761";
+		reg = <0x48>;
+		interrupt-parent = <&gpa1>;
+		interrupts = <1 IRQ_TYPE_NONE>;
+		avdd-supply = <&ldo30_reg>;
+		vdd-supply = <&ldo31_reg>;
+		touchscreen-size-x = <4096>;
+		touchscreen-size-y = <4096>;
+	};
+};

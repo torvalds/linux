@@ -1,19 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *   SAA713x ALSA support for V4L
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation, version 2
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include "saa7134.h"
@@ -277,14 +264,13 @@ static int saa7134_alsa_dma_init(struct saa7134_dev *dev, int nr_pages)
 		return -ENOMEM;
 	}
 
-	pr_debug("vmalloc is at addr 0x%08lx, size=%d\n",
-				(unsigned long)dma->vaddr,
-				nr_pages << PAGE_SHIFT);
+	pr_debug("vmalloc is at addr %p, size=%d\n",
+		 dma->vaddr, nr_pages << PAGE_SHIFT);
 
 	memset(dma->vaddr, 0, nr_pages << PAGE_SHIFT);
 	dma->nr_pages = nr_pages;
 
-	dma->sglist = vzalloc(dma->nr_pages * sizeof(*dma->sglist));
+	dma->sglist = vzalloc(array_size(sizeof(*dma->sglist), dma->nr_pages));
 	if (NULL == dma->sglist)
 		goto vzalloc_err;
 
@@ -631,7 +617,7 @@ snd_card_saa7134_capture_pointer(struct snd_pcm_substream * substream)
  *    switching to 32kHz without any frequency translation
  */
 
-static struct snd_pcm_hardware snd_card_saa7134_capture =
+static const struct snd_pcm_hardware snd_card_saa7134_capture =
 {
 	.info =                 (SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -813,8 +799,7 @@ static int snd_card_saa7134_capture_open(struct snd_pcm_substream * substream)
 	int amux, err;
 
 	if (!saa7134) {
-		pr_err("BUG: saa7134 can't find device struct."
-				" Can't proceed with open\n");
+		pr_err("BUG: saa7134 can't find device struct. Can't proceed with open\n");
 		return -ENODEV;
 	}
 	dev = saa7134->dev;
@@ -907,7 +892,7 @@ static int snd_card_saa7134_pcm(snd_card_saa7134_t *saa7134, int device)
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_card_saa7134_capture_ops);
 	pcm->private_data = saa7134;
 	pcm->info_flags = 0;
-	strcpy(pcm->name, "SAA7134 PCM");
+	strscpy(pcm->name, "SAA7134 PCM", sizeof(pcm->name));
 	return 0;
 }
 
@@ -1080,7 +1065,7 @@ static int snd_card_saa7134_new_mixer(snd_card_saa7134_t * chip)
 	unsigned int idx;
 	int err, addr;
 
-	strcpy(card->mixername, "SAA7134 Mixer");
+	strscpy(card->mixername, "SAA7134 Mixer", sizeof(card->mixername));
 
 	for (idx = 0; idx < ARRAY_SIZE(snd_saa7134_volume_controls); idx++) {
 		kcontrol = snd_ctl_new1(&snd_saa7134_volume_controls[idx],
@@ -1144,7 +1129,7 @@ static int alsa_card_saa7134_create(struct saa7134_dev *dev, int devnum)
 	if (err < 0)
 		return err;
 
-	strcpy(card->driver, "SAA7134");
+	strscpy(card->driver, "SAA7134", sizeof(card->driver));
 
 	/* Card "creation" */
 
@@ -1184,7 +1169,7 @@ static int alsa_card_saa7134_create(struct saa7134_dev *dev, int devnum)
 
 	/* End of "creation" */
 
-	strcpy(card->shortname, "SAA7134");
+	strscpy(card->shortname, "SAA7134", sizeof(card->shortname));
 	sprintf(card->longname, "%s at 0x%lx irq %d",
 		chip->dev->name, chip->iobase, chip->irq);
 

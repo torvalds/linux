@@ -1,15 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Au12x0/Au1550 PSC ALSA ASoC audio support.
  *
  * (c) 2007-2009 MSC Vertriebsges.m.b.H.,
  *	Manuel Lauss <manuel.lauss@gmail.com>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  * Au1xxx-PSC AC97 glue.
- *
  */
 
 #include <linux/init.h>
@@ -474,7 +470,7 @@ static int au1xpsc_ac97_drvresume(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops au1xpscac97_pmops = {
+static const struct dev_pm_ops au1xpscac97_pmops = {
 	.suspend	= au1xpsc_ac97_drvsuspend,
 	.resume		= au1xpsc_ac97_drvresume,
 };

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * drivers/pcmcia/sa1100_simpad.c
  *
@@ -11,7 +12,6 @@
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
-#include <asm/irq.h>
 #include <mach/simpad.h>
 #include "sa1100_generic.h"
  
@@ -20,12 +20,10 @@ static int simpad_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 
 	simpad_clear_cs3_bit(VCC_3V_EN|VCC_5V_EN|EN0|EN1);
 
-	skt->stat[SOC_STAT_CD].gpio = GPIO_CF_CD;
-	skt->stat[SOC_STAT_CD].name = "CF_CD";
-	skt->stat[SOC_STAT_RDY].gpio = GPIO_CF_IRQ;
-	skt->stat[SOC_STAT_RDY].name = "CF_RDY";
+	skt->stat[SOC_STAT_CD].name = "cf-detect";
+	skt->stat[SOC_STAT_RDY].name = "cf-ready";
 
-	return 0;
+	return soc_pcmcia_request_gpiods(skt);
 }
 
 static void simpad_pcmcia_hw_shutdown(struct soc_pcmcia_socket *skt)
@@ -41,11 +39,8 @@ simpad_pcmcia_socket_state(struct soc_pcmcia_socket *skt,
 {
 	long cs3reg = simpad_get_cs3_ro();
 
-	/* the detect signal is inverted - fix that up here */
-	state->detect = !state->detect;
-
-	state->bvd1 = 1; /* Might be cs3reg & PCMCIA_BVD1 */
-	state->bvd2 = 1; /* Might be cs3reg & PCMCIA_BVD2 */
+	/* bvd1 might be cs3reg & PCMCIA_BVD1 */
+	/* bvd2 might be cs3reg & PCMCIA_BVD2 */
 
 	if ((cs3reg & (PCMCIA_VS1|PCMCIA_VS2)) ==
 			(PCMCIA_VS1|PCMCIA_VS2)) {

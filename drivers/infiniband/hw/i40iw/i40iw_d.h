@@ -35,6 +35,8 @@
 #ifndef I40IW_D_H
 #define I40IW_D_H
 
+#define I40IW_FIRST_USER_QP_ID  2
+
 #define I40IW_DB_ADDR_OFFSET    (4 * 1024 * 1024 - 64 * 1024)
 #define I40IW_VF_DB_ADDR_OFFSET (64 * 1024)
 
@@ -67,12 +69,21 @@
 #define I40IW_STAG_TYPE_NONSHARED 1
 
 #define I40IW_MAX_USER_PRIORITY 8
+#define I40IW_MAX_STATS_COUNT 16
+#define I40IW_FIRST_NON_PF_STAT	4
+
+
+#define I40IW_MTU_TO_MSS_IPV4		40
+#define I40IW_MTU_TO_MSS_IPV6		60
+#define I40IW_DEFAULT_MTU		1500
 
 #define LS_64_1(val, bits)      ((u64)(uintptr_t)val << bits)
 #define RS_64_1(val, bits)      ((u64)(uintptr_t)val >> bits)
 #define LS_32_1(val, bits)      (u32)(val << bits)
 #define RS_32_1(val, bits)      (u32)(val >> bits)
 #define I40E_HI_DWORD(x)        ((u32)((((x) >> 16) >> 16) & 0xFFFFFFFF))
+
+#define QS_HANDLE_UNKNOWN       0xffff
 
 #define LS_64(val, field) (((u64)val << field ## _SHIFT) & (field ## _MASK))
 
@@ -86,6 +97,7 @@
 #define RDMA_OPCODE_MASK        0x0f
 #define RDMA_READ_REQ_OPCODE    1
 #define Q2_BAD_FRAME_OFFSET     72
+#define Q2_FPSN_OFFSET          64
 #define CQE_MAJOR_DRV           0x8000
 
 #define I40IW_TERM_SENT 0x01
@@ -121,6 +133,7 @@
 		&_ceq->ceqe_base[I40IW_RING_GETCURRENT_TAIL(_ceq->ceq_ring)]   \
 	)
 
+#define I40IW_AE_SOURCE_RSVD            0x0
 #define I40IW_AE_SOURCE_RQ              0x1
 #define I40IW_AE_SOURCE_RQ_0011         0x3
 
@@ -405,6 +418,8 @@
 #define I40IW_CQP_OP_QUERY_FPM_VALUES           0x20
 #define I40IW_CQP_OP_COMMIT_FPM_VALUES          0x21
 #define I40IW_CQP_OP_FLUSH_WQES                 0x22
+/* I40IW_CQP_OP_GEN_AE is the same value as I40IW_CQP_OP_FLUSH_WQES */
+#define I40IW_CQP_OP_GEN_AE                     0x22
 #define I40IW_CQP_OP_MANAGE_APBVT               0x23
 #define I40IW_CQP_OP_NOP                        0x24
 #define I40IW_CQP_OP_MANAGE_QUAD_HASH_TABLE_ENTRY 0x25
@@ -531,9 +546,6 @@
 
 #define I40IW_CQPSQ_QP_MSSCHANGE_SHIFT 52
 #define I40IW_CQPSQ_QP_MSSCHANGE_MASK (1ULL << I40IW_CQPSQ_QP_MSSCHANGE_SHIFT)
-
-#define I40IW_CQPSQ_QP_STATRSRC_SHIFT 53
-#define I40IW_CQPSQ_QP_STATRSRC_MASK (1ULL << I40IW_CQPSQ_QP_STATRSRC_SHIFT)
 
 #define I40IW_CQPSQ_QP_IGNOREMWBOUND_SHIFT 54
 #define I40IW_CQPSQ_QP_IGNOREMWBOUND_MASK       \
@@ -1098,11 +1110,14 @@
 #define I40IWQPC_SNDMSS_SHIFT 16
 #define I40IWQPC_SNDMSS_MASK (0x3fffUL << I40IWQPC_SNDMSS_SHIFT)
 
+#define I40IW_UDA_QPC_MAXFRAMESIZE_SHIFT 16
+#define I40IW_UDA_QPC_MAXFRAMESIZE_MASK (0x3fffUL << I40IW_UDA_QPC_MAXFRAMESIZE_SHIFT)
+
 #define I40IWQPC_VLANTAG_SHIFT 32
 #define I40IWQPC_VLANTAG_MASK (0xffffULL << I40IWQPC_VLANTAG_SHIFT)
 
 #define I40IWQPC_ARPIDX_SHIFT 48
-#define I40IWQPC_ARPIDX_MASK (0xfffULL << I40IWQPC_ARPIDX_SHIFT)
+#define I40IWQPC_ARPIDX_MASK (0xffffULL << I40IWQPC_ARPIDX_SHIFT)
 
 #define I40IWQPC_FLOWLABEL_SHIFT 0
 #define I40IWQPC_FLOWLABEL_MASK (0xfffffUL << I40IWQPC_FLOWLABEL_SHIFT)
@@ -1199,8 +1214,11 @@
 #define I40IWQPC_RXCQNUM_SHIFT 32
 #define I40IWQPC_RXCQNUM_MASK (0x1ffffULL << I40IWQPC_RXCQNUM_SHIFT)
 
-#define I40IWQPC_Q2ADDR_SHIFT I40IW_CQPHC_QPCTX_SHIFT
-#define I40IWQPC_Q2ADDR_MASK I40IW_CQPHC_QPCTX_MASK
+#define I40IWQPC_STAT_INDEX_SHIFT 0
+#define I40IWQPC_STAT_INDEX_MASK (0x1fULL << I40IWQPC_STAT_INDEX_SHIFT)
+
+#define I40IWQPC_Q2ADDR_SHIFT 0
+#define I40IWQPC_Q2ADDR_MASK (0xffffffffffffff00ULL << I40IWQPC_Q2ADDR_SHIFT)
 
 #define I40IWQPC_LASTBYTESENT_SHIFT 0
 #define I40IWQPC_LASTBYTESENT_MASK (0xffUL << I40IWQPC_LASTBYTESENT_SHIFT)
@@ -1232,11 +1250,8 @@
 #define I40IWQPC_PRIVEN_SHIFT 25
 #define I40IWQPC_PRIVEN_MASK (1UL << I40IWQPC_PRIVEN_SHIFT)
 
-#define I40IWQPC_LSMMPRESENT_SHIFT 26
-#define I40IWQPC_LSMMPRESENT_MASK (1UL << I40IWQPC_LSMMPRESENT_SHIFT)
-
-#define I40IWQPC_ADJUSTFORLSMM_SHIFT 27
-#define I40IWQPC_ADJUSTFORLSMM_MASK (1UL << I40IWQPC_ADJUSTFORLSMM_SHIFT)
+#define I40IWQPC_USESTATSINSTANCE_SHIFT 26
+#define I40IWQPC_USESTATSINSTANCE_MASK (1UL << I40IWQPC_USESTATSINSTANCE_SHIFT)
 
 #define I40IWQPC_IWARPMODE_SHIFT 28
 #define I40IWQPC_IWARPMODE_MASK (1UL << I40IWQPC_IWARPMODE_SHIFT)
@@ -1289,8 +1304,13 @@
 	(0xffffffffULL << I40IWQPC_LOCAL_IPADDR0_SHIFT)
 
 /* wqe size considering 32 bytes per wqe*/
-#define I40IWQP_SW_MIN_WQSIZE 4		/* 128 bytes */
-#define I40IWQP_SW_MAX_WQSIZE 2048	/* 2048 bytes */
+#define I40IW_QP_SW_MIN_WQSIZE 4		/*in WRs*/
+#define I40IW_SQ_RSVD 2
+#define I40IW_RQ_RSVD 1
+#define I40IW_MAX_QUANTAS_PER_WR 2
+#define I40IW_QP_SW_MAX_SQ_QUANTAS 2048
+#define I40IW_QP_SW_MAX_RQ_QUANTAS 16384
+#define I40IW_MAX_QP_WRS ((I40IW_QP_SW_MAX_SQ_QUANTAS / I40IW_MAX_QUANTAS_PER_WR) - 1)
 
 #define I40IWQP_OP_RDMA_WRITE 0
 #define I40IWQP_OP_RDMA_READ 1
@@ -1500,8 +1520,8 @@ enum {
 	I40IW_CQ0_ALIGNMENT_MASK =		(256 - 1),
 	I40IW_HOST_CTX_ALIGNMENT_MASK =		(4 - 1),
 	I40IW_SHADOWAREA_MASK =			(128 - 1),
-	I40IW_FPM_QUERY_BUF_ALIGNMENT_MASK =	0,
-	I40IW_FPM_COMMIT_BUF_ALIGNMENT_MASK =	0
+	I40IW_FPM_QUERY_BUF_ALIGNMENT_MASK =	(4 - 1),
+	I40IW_FPM_COMMIT_BUF_ALIGNMENT_MASK =	(4 - 1)
 };
 
 enum i40iw_alignment {
@@ -1509,13 +1529,15 @@ enum i40iw_alignment {
 	I40IW_AEQ_ALIGNMENT =		0x100,
 	I40IW_CEQ_ALIGNMENT =		0x100,
 	I40IW_CQ0_ALIGNMENT =		0x100,
-	I40IW_SD_BUF_ALIGNMENT =	0x100
+	I40IW_SD_BUF_ALIGNMENT =	0x80
 };
 
 #define I40IW_WQE_SIZE_64	64
 
 #define I40IW_QP_WQE_MIN_SIZE	32
 #define I40IW_QP_WQE_MAX_SIZE	128
+
+#define I40IW_UPDATE_SD_BUF_SIZE 128
 
 #define I40IW_CQE_QTYPE_RQ 0
 #define I40IW_CQE_QTYPE_SQ 1
@@ -1629,7 +1651,8 @@ enum i40iw_alignment {
 #define I40IW_AE_AMP_MWBIND_INVALID_BOUNDS                              0x0119
 #define I40IW_AE_AMP_MWBIND_TO_INVALID_PARENT                           0x011a
 #define I40IW_AE_AMP_MWBIND_BIND_DISABLED                               0x011b
-#define I40IW_AE_AMP_WQE_INVALID_PARAMETER                              0x0130
+#define I40IW_AE_UDA_XMIT_DGRAM_TOO_LONG                                0x0132
+#define I40IW_AE_UDA_XMIT_DGRAM_TOO_SHORT                               0x0134
 #define I40IW_AE_BAD_CLOSE                                              0x0201
 #define I40IW_AE_RDMAP_ROE_BAD_LLP_CLOSE                                0x0202
 #define I40IW_AE_CQ_OPERATION_ERROR                                     0x0203
@@ -1637,12 +1660,10 @@ enum i40iw_alignment {
 #define I40IW_AE_RDMA_READ_WHILE_ORD_ZERO                               0x0205
 #define I40IW_AE_STAG_ZERO_INVALID                                      0x0206
 #define I40IW_AE_IB_RREQ_AND_Q1_FULL                                    0x0207
-#define I40IW_AE_SRQ_LIMIT                                              0x0209
 #define I40IW_AE_WQE_UNEXPECTED_OPCODE                                  0x020a
 #define I40IW_AE_WQE_INVALID_PARAMETER                                  0x020b
 #define I40IW_AE_WQE_LSMM_TOO_LONG                                      0x0220
 #define I40IW_AE_DDP_INVALID_MSN_GAP_IN_MSN                             0x0301
-#define I40IW_AE_DDP_INVALID_MSN_RANGE_IS_NOT_VALID                     0x0302
 #define I40IW_AE_DDP_UBE_DDP_MESSAGE_TOO_LONG_FOR_AVAILABLE_BUFFER      0x0303
 #define I40IW_AE_DDP_UBE_INVALID_DDP_VERSION                            0x0304
 #define I40IW_AE_DDP_UBE_INVALID_MO                                     0x0305
@@ -1656,12 +1677,10 @@ enum i40iw_alignment {
 #define I40IW_AE_INVALID_ARP_ENTRY                                      0x0401
 #define I40IW_AE_INVALID_TCP_OPTION_RCVD                                0x0402
 #define I40IW_AE_STALE_ARP_ENTRY                                        0x0403
-#define I40IW_AE_INVALID_WQE_LENGTH                                     0x0404
 #define I40IW_AE_INVALID_MAC_ENTRY                                      0x0405
 #define I40IW_AE_LLP_CLOSE_COMPLETE                                     0x0501
 #define I40IW_AE_LLP_CONNECTION_RESET                                   0x0502
 #define I40IW_AE_LLP_FIN_RECEIVED                                       0x0503
-#define I40IW_AE_LLP_RECEIVED_MARKER_AND_LENGTH_FIELDS_DONT_MATCH       0x0504
 #define I40IW_AE_LLP_RECEIVED_MPA_CRC_ERROR                             0x0505
 #define I40IW_AE_LLP_SEGMENT_TOO_LARGE                                  0x0506
 #define I40IW_AE_LLP_SEGMENT_TOO_SMALL                                  0x0507
@@ -1678,9 +1697,6 @@ enum i40iw_alignment {
 #define I40IW_AE_LCE_QP_CATASTROPHIC                                    0x0700
 #define I40IW_AE_LCE_FUNCTION_CATASTROPHIC                              0x0701
 #define I40IW_AE_LCE_CQ_CATASTROPHIC                                    0x0702
-#define I40IW_AE_UDA_XMIT_FRAG_SEQ                                      0x0800
-#define I40IW_AE_UDA_XMIT_DGRAM_TOO_LONG                                0x0801
-#define I40IW_AE_UDA_XMIT_IPADDR_MISMATCH                               0x0802
 #define I40IW_AE_QP_SUSPEND_COMPLETE                                    0x0900
 
 #define OP_DELETE_LOCAL_MAC_IPADDR_ENTRY        1
@@ -1713,6 +1729,9 @@ enum i40iw_alignment {
 #define OP_MANAGE_VF_PBLE_BP                    28
 #define OP_QUERY_FPM_VALUES                     29
 #define OP_COMMIT_FPM_VALUES                    30
-#define OP_SIZE_CQP_STAT_ARRAY                  31
+#define OP_REQUESTED_COMMANDS                   31
+#define OP_COMPLETED_COMMANDS                   32
+#define OP_GEN_AE                               33
+#define OP_SIZE_CQP_STAT_ARRAY                  34
 
 #endif

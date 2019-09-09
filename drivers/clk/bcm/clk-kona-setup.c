@@ -579,18 +579,13 @@ static u32 *parent_process(const char *clocks[],
 	 */
 	parent_names = kmalloc_array(parent_count, sizeof(*parent_names),
 			       GFP_KERNEL);
-	if (!parent_names) {
-		pr_err("%s: error allocating %u parent names\n", __func__,
-				parent_count);
+	if (!parent_names)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	/* There is at least one parent, so allocate a selector array */
 	parent_sel = kmalloc_array(parent_count, sizeof(*parent_sel),
 				   GFP_KERNEL);
 	if (!parent_sel) {
-		pr_err("%s: error allocating %u parent selectors\n", __func__,
-				parent_count);
 		kfree(parent_names);
 
 		return ERR_PTR(-ENOMEM);
@@ -813,29 +808,29 @@ void __init kona_dt_ccu_setup(struct ccu_data *ccu,
 
 	ret = of_address_to_resource(node, 0, &res);
 	if (ret) {
-		pr_err("%s: no valid CCU registers found for %s\n", __func__,
-			node->name);
+		pr_err("%s: no valid CCU registers found for %pOFn\n", __func__,
+			node);
 		goto out_err;
 	}
 
 	range = resource_size(&res);
 	if (range > (resource_size_t)U32_MAX) {
-		pr_err("%s: address range too large for %s\n", __func__,
-			node->name);
+		pr_err("%s: address range too large for %pOFn\n", __func__,
+			node);
 		goto out_err;
 	}
 
 	ccu->range = (u32)range;
 
 	if (!ccu_data_valid(ccu)) {
-		pr_err("%s: ccu data not valid for %s\n", __func__, node->name);
+		pr_err("%s: ccu data not valid for %pOFn\n", __func__, node);
 		goto out_err;
 	}
 
 	ccu->base = ioremap(res.start, ccu->range);
 	if (!ccu->base) {
-		pr_err("%s: unable to map CCU registers for %s\n", __func__,
-			node->name);
+		pr_err("%s: unable to map CCU registers for %pOFn\n", __func__,
+			node);
 		goto out_err;
 	}
 	ccu->node = of_node_get(node);
@@ -853,16 +848,16 @@ void __init kona_dt_ccu_setup(struct ccu_data *ccu,
 
 	ret = of_clk_add_hw_provider(node, of_clk_kona_onecell_get, ccu);
 	if (ret) {
-		pr_err("%s: error adding ccu %s as provider (%d)\n", __func__,
-				node->name, ret);
+		pr_err("%s: error adding ccu %pOFn as provider (%d)\n", __func__,
+				node, ret);
 		goto out_err;
 	}
 
 	if (!kona_ccu_init(ccu))
-		pr_err("Broadcom %s initialization had errors\n", node->name);
+		pr_err("Broadcom %pOFn initialization had errors\n", node);
 
 	return;
 out_err:
 	kona_ccu_teardown(ccu);
-	pr_err("Broadcom %s setup aborted\n", node->name);
+	pr_err("Broadcom %pOFn setup aborted\n", node);
 }

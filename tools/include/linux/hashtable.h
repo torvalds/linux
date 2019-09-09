@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Statically sized hash table implementation
  * (C) 2012  Sasha Levin <levinsasha928@gmail.com>
@@ -12,10 +13,6 @@
 #include <linux/bitops.h>
 #include <linux/hash.h>
 #include <linux/log2.h>
-
-#ifndef ARRAY_SIZE
-#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
-#endif
 
 #define DEFINE_HASHTABLE(name, bits)						\
 	struct hlist_head name[1 << (bits)] =					\

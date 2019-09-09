@@ -52,8 +52,8 @@ static ssize_t read_file_node_aggr(struct file *file, char __user *user_buf,
 			 "TID", "SEQ_START", "SEQ_NEXT", "BAW_SIZE",
 			 "BAW_HEAD", "BAW_TAIL", "BAR_IDX", "SCHED", "PAUSED");
 
-	for (tidno = 0, tid = &an->tid[tidno];
-	     tidno < IEEE80211_NUM_TIDS; tidno++, tid++) {
+	for (tidno = 0; tidno < IEEE80211_NUM_TIDS; tidno++) {
+		tid = ath_node_to_tid(an, tidno);
 		txq = tid->txq;
 		ath_txq_lock(sc, txq);
 		if (tid->active) {
@@ -116,12 +116,12 @@ void ath_debug_rate_stats(struct ath_softc *sc,
 		if (rxs->rate_idx >= ARRAY_SIZE(rstats->ht_stats))
 			goto exit;
 
-		if (rxs->flag & RX_FLAG_40MHZ)
+		if (rxs->bw == RATE_INFO_BW_40)
 			rstats->ht_stats[rxs->rate_idx].ht40_cnt++;
 		else
 			rstats->ht_stats[rxs->rate_idx].ht20_cnt++;
 
-		if (rxs->flag & RX_FLAG_SHORT_GI)
+		if (rxs->enc_flags & RX_ENC_FLAG_SHORT_GI)
 			rstats->ht_stats[rxs->rate_idx].sgi_cnt++;
 		else
 			rstats->ht_stats[rxs->rate_idx].lgi_cnt++;
@@ -130,7 +130,7 @@ void ath_debug_rate_stats(struct ath_softc *sc,
 	}
 
 	if (IS_CCK_RATE(rs->rs_rate)) {
-		if (rxs->flag & RX_FLAG_SHORTPRE)
+		if (rxs->enc_flags & RX_ENC_FLAG_SHORTPRE)
 			rstats->cck_stats[rxs->rate_idx].cck_sp_cnt++;
 		else
 			rstats->cck_stats[rxs->rate_idx].cck_lp_cnt++;
@@ -249,6 +249,6 @@ void ath9k_sta_add_debugfs(struct ieee80211_hw *hw,
 {
 	struct ath_node *an = (struct ath_node *)sta->drv_priv;
 
-	debugfs_create_file("node_aggr", S_IRUGO, dir, an, &fops_node_aggr);
-	debugfs_create_file("node_recv", S_IRUGO, dir, an, &fops_node_recv);
+	debugfs_create_file("node_aggr", 0444, dir, an, &fops_node_aggr);
+	debugfs_create_file("node_recv", 0444, dir, an, &fops_node_recv);
 }

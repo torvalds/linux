@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * ip_vs_proto_tcp.c:	TCP load balancing support for IPVS
  *
  * Authors:     Wensong Zhang <wensong@linuxvirtualserver.org>
  *              Julian Anastasov <ja@ssi.bg>
- *
- *              This program is free software; you can redistribute it and/or
- *              modify it under the terms of the GNU General Public License
- *              as published by the Free Software Foundation; either version
- *              2 of the License, or (at your option) any later version.
  *
  * Changes:     Hans Schillstrom <hans.schillstrom@ericsson.com>
  *
@@ -28,8 +24,12 @@
 #include <net/ip6_checksum.h>
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv4.h>
+#include <linux/indirect_call_wrapper.h>
 
 #include <net/ip_vs.h>
+
+static int
+tcp_csum_check(int af, struct sk_buff *skb, struct ip_vs_protocol *pp);
 
 static int
 tcp_conn_schedule(struct netns_ipvs *ipvs, int af, struct sk_buff *skb,
@@ -63,7 +63,6 @@ tcp_conn_schedule(struct netns_ipvs *ipvs, int af, struct sk_buff *skb,
 	}
 
 	/* No !th->ack check to allow scheduling on SYN+ACK for Active FTP */
-	rcu_read_lock();
 
 	if (likely(!ip_vs_iph_inverse(iph)))
 		svc = ip_vs_service_find(ipvs, af, skb->mark, iph->protocol,
@@ -80,7 +79,6 @@ tcp_conn_schedule(struct netns_ipvs *ipvs, int af, struct sk_buff *skb,
 			 * It seems that we are very loaded.
 			 * We have to drop this packet :(
 			 */
-			rcu_read_unlock();
 			*verdict = NF_DROP;
 			return 0;
 		}
@@ -95,11 +93,9 @@ tcp_conn_schedule(struct netns_ipvs *ipvs, int af, struct sk_buff *skb,
 				*verdict = ip_vs_leave(svc, skb, pd, iph);
 			else
 				*verdict = NF_DROP;
-			rcu_read_unlock();
 			return 0;
 		}
 	}
-	rcu_read_unlock();
 	/* NF_ACCEPT */
 	return 1;
 }
@@ -147,14 +143,14 @@ tcp_partial_csum_update(int af, struct tcphdr *tcph,
 }
 
 
-static int
+INDIRECT_CALLABLE_SCOPE int
 tcp_snat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 		 struct ip_vs_conn *cp, struct ip_vs_iphdr *iph)
 {
 	struct tcphdr *tcph;
 	unsigned int tcphoff = iph->len;
+	bool payload_csum = false;
 	int oldlen;
-	int payload_csum = 0;
 
 #ifdef CONFIG_IP_VS_IPV6
 	if (cp->af == AF_INET6 && iph->fragoffs)
@@ -163,24 +159,24 @@ tcp_snat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 	oldlen = skb->len - tcphoff;
 
 	/* csum_check requires unshared skb */
-	if (!skb_make_writable(skb, tcphoff+sizeof(*tcph)))
+	if (skb_ensure_writable(skb, tcphoff + sizeof(*tcph)))
 		return 0;
 
 	if (unlikely(cp->app != NULL)) {
 		int ret;
 
 		/* Some checks before mangling */
-		if (pp->csum_check && !pp->csum_check(cp->af, skb, pp))
+		if (!tcp_csum_check(cp->af, skb, pp))
 			return 0;
 
 		/* Call application helper if needed */
-		if (!(ret = ip_vs_app_pkt_out(cp, skb)))
+		if (!(ret = ip_vs_app_pkt_out(cp, skb, iph)))
 			return 0;
 		/* ret=2: csum update is needed after payload mangling */
 		if (ret == 1)
 			oldlen = skb->len - tcphoff;
 		else
-			payload_csum = 1;
+			payload_csum = true;
 	}
 
 	tcph = (void *)skb_network_header(skb) + tcphoff;
@@ -196,7 +192,7 @@ tcp_snat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 		tcp_fast_csum_update(cp->af, tcph, &cp->daddr, &cp->vaddr,
 				     cp->dport, cp->vport);
 		if (skb->ip_summed == CHECKSUM_COMPLETE)
-			skb->ip_summed = (cp->app && pp->csum_check) ?
+			skb->ip_summed = cp->app ?
 					 CHECKSUM_UNNECESSARY : CHECKSUM_NONE;
 	} else {
 		/* full checksum calculation */
@@ -231,8 +227,8 @@ tcp_dnat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 {
 	struct tcphdr *tcph;
 	unsigned int tcphoff = iph->len;
+	bool payload_csum = false;
 	int oldlen;
-	int payload_csum = 0;
 
 #ifdef CONFIG_IP_VS_IPV6
 	if (cp->af == AF_INET6 && iph->fragoffs)
@@ -241,27 +237,27 @@ tcp_dnat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 	oldlen = skb->len - tcphoff;
 
 	/* csum_check requires unshared skb */
-	if (!skb_make_writable(skb, tcphoff+sizeof(*tcph)))
+	if (skb_ensure_writable(skb, tcphoff + sizeof(*tcph)))
 		return 0;
 
 	if (unlikely(cp->app != NULL)) {
 		int ret;
 
 		/* Some checks before mangling */
-		if (pp->csum_check && !pp->csum_check(cp->af, skb, pp))
+		if (!tcp_csum_check(cp->af, skb, pp))
 			return 0;
 
 		/*
 		 *	Attempt ip_vs_app call.
 		 *	It will fix ip_vs_conn and iph ack_seq stuff
 		 */
-		if (!(ret = ip_vs_app_pkt_in(cp, skb)))
+		if (!(ret = ip_vs_app_pkt_in(cp, skb, iph)))
 			return 0;
 		/* ret=2: csum update is needed after payload mangling */
 		if (ret == 1)
 			oldlen = skb->len - tcphoff;
 		else
-			payload_csum = 1;
+			payload_csum = true;
 	}
 
 	tcph = (void *)skb_network_header(skb) + tcphoff;
@@ -279,7 +275,7 @@ tcp_dnat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 		tcp_fast_csum_update(cp->af, tcph, &cp->vaddr, &cp->daddr,
 				     cp->vport, cp->dport);
 		if (skb->ip_summed == CHECKSUM_COMPLETE)
-			skb->ip_summed = (cp->app && pp->csum_check) ?
+			skb->ip_summed = cp->app ?
 					 CHECKSUM_UNNECESSARY : CHECKSUM_NONE;
 	} else {
 		/* full checksum calculation */
@@ -319,6 +315,7 @@ tcp_csum_check(int af, struct sk_buff *skb, struct ip_vs_protocol *pp)
 	switch (skb->ip_summed) {
 	case CHECKSUM_NONE:
 		skb->csum = skb_checksum(skb, tcphoff, skb->len - tcphoff, 0);
+		/* fall through */
 	case CHECKSUM_COMPLETE:
 #ifdef CONFIG_IP_VS_IPV6
 		if (af == AF_INET6) {
@@ -439,7 +436,7 @@ static bool tcp_state_active(int state)
 	return tcp_state_active_table[state];
 }
 
-static struct tcp_states_t tcp_states [] = {
+static struct tcp_states_t tcp_states[] = {
 /*	INPUT */
 /*        sNO, sES, sSS, sSR, sFW, sTW, sCL, sCW, sLA, sLI, sSA	*/
 /*syn*/ {{sSR, sES, sES, sSR, sSR, sSR, sSR, sSR, sSR, sSR, sSR }},
@@ -462,7 +459,7 @@ static struct tcp_states_t tcp_states [] = {
 /*rst*/ {{sCL, sCL, sCL, sSR, sCL, sCL, sCL, sCL, sLA, sLI, sCL }},
 };
 
-static struct tcp_states_t tcp_states_dos [] = {
+static struct tcp_states_t tcp_states_dos[] = {
 /*	INPUT */
 /*        sNO, sES, sSS, sSR, sFW, sTW, sCL, sCW, sLA, sLI, sSA	*/
 /*syn*/ {{sSR, sES, sES, sSR, sSR, sSR, sSR, sSR, sSR, sSR, sSA }},
@@ -557,7 +554,7 @@ set_tcp_state(struct ip_vs_proto_data *pd, struct ip_vs_conn *cp,
 			      ntohs(cp->cport),
 			      tcp_state_name(cp->state),
 			      tcp_state_name(new_state),
-			      atomic_read(&cp->refcnt));
+			      refcount_read(&cp->refcnt));
 
 		if (dest) {
 			if (!(cp->flags & IP_VS_CONN_F_INACTIVE) &&
@@ -572,6 +569,8 @@ set_tcp_state(struct ip_vs_proto_data *pd, struct ip_vs_conn *cp,
 				cp->flags &= ~IP_VS_CONN_F_INACTIVE;
 			}
 		}
+		if (new_state == IP_VS_TCP_S_ESTABLISHED)
+			ip_vs_control_assure_ct(cp);
 	}
 
 	if (likely(pd))
@@ -661,12 +660,10 @@ tcp_app_conn_bind(struct ip_vs_conn *cp)
 	/* Lookup application incarnations and bind the right one */
 	hash = tcp_app_hashkey(cp->vport);
 
-	rcu_read_lock();
 	list_for_each_entry_rcu(inc, &ipvs->tcp_apps[hash], p_list) {
 		if (inc->port == cp->vport) {
 			if (unlikely(!ip_vs_app_inc_get(inc)))
 				break;
-			rcu_read_unlock();
 
 			IP_VS_DBG_BUF(9, "%s(): Binding conn %s:%u->"
 				      "%s:%u to app %s on port %u\n",
@@ -680,12 +677,10 @@ tcp_app_conn_bind(struct ip_vs_conn *cp)
 			cp->app = inc;
 			if (inc->init_conn)
 				result = inc->init_conn(inc, cp);
-			goto out;
+			break;
 		}
 	}
-	rcu_read_unlock();
 
-  out:
 	return result;
 }
 
@@ -741,7 +736,6 @@ struct ip_vs_protocol ip_vs_protocol_tcp = {
 	.conn_out_get =		ip_vs_conn_out_get_proto,
 	.snat_handler =		tcp_snat_handler,
 	.dnat_handler =		tcp_dnat_handler,
-	.csum_check =		tcp_csum_check,
 	.state_name =		tcp_state_name,
 	.state_transition =	tcp_state_transition,
 	.app_conn_bind =	tcp_app_conn_bind,

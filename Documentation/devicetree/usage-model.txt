@@ -387,7 +387,7 @@ static void __init harmony_init_machine(void)
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
 
-"simple-bus" is defined in the ePAPR 1.0 specification as a property
+"simple-bus" is defined in the Devicetree Specification as a property
 meaning a simple memory mapped bus, so the of_platform_populate() code
 could be written to just assume simple-bus compatible nodes will
 always be traversed.  However, we pass it in as an argument so that

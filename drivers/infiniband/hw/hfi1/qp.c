@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015, 2016 Intel Corporation.
+ * Copyright(c) 2015 - 2019 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -66,55 +66,13 @@ MODULE_PARM_DESC(qp_table_size, "QP table size");
 static void flush_tx_list(struct rvt_qp *qp);
 static int iowait_sleep(
 	struct sdma_engine *sde,
-	struct iowait *wait,
+	struct iowait_work *wait,
 	struct sdma_txreq *stx,
-	unsigned seq);
+	unsigned int seq,
+	bool pkts_sent);
 static void iowait_wakeup(struct iowait *wait, int reason);
 static void iowait_sdma_drained(struct iowait *wait);
 static void qp_pio_drain(struct rvt_qp *qp);
-
-static inline unsigned mk_qpn(struct rvt_qpn_table *qpt,
-			      struct rvt_qpn_map *map, unsigned off)
-{
-	return (map - qpt->map) * RVT_BITS_PER_PAGE + off;
-}
-
-/*
- * Convert the AETH credit code into the number of credits.
- */
-static const u16 credit_table[31] = {
-	0,                      /* 0 */
-	1,                      /* 1 */
-	2,                      /* 2 */
-	3,                      /* 3 */
-	4,                      /* 4 */
-	6,                      /* 5 */
-	8,                      /* 6 */
-	12,                     /* 7 */
-	16,                     /* 8 */
-	24,                     /* 9 */
-	32,                     /* A */
-	48,                     /* B */
-	64,                     /* C */
-	96,                     /* D */
-	128,                    /* E */
-	192,                    /* F */
-	256,                    /* 10 */
-	384,                    /* 11 */
-	512,                    /* 12 */
-	768,                    /* 13 */
-	1024,                   /* 14 */
-	1536,                   /* 15 */
-	2048,                   /* 16 */
-	3072,                   /* 17 */
-	4096,                   /* 18 */
-	6144,                   /* 19 */
-	8192,                   /* 1A */
-	12288,                  /* 1B */
-	16384,                  /* 1C */
-	24576,                  /* 1D */
-	32768                   /* 1E */
-};
 
 const struct rvt_operation_params hfi1_post_parms[RVT_OPERATION_MAX] = {
 [IB_WR_RDMA_WRITE] = {
@@ -174,17 +132,27 @@ const struct rvt_operation_params hfi1_post_parms[RVT_OPERATION_MAX] = {
 	.qpt_support = BIT(IB_QPT_RC),
 },
 
+[IB_WR_OPFN] = {
+	.length = sizeof(struct ib_atomic_wr),
+	.qpt_support = BIT(IB_QPT_RC),
+	.flags = RVT_OPERATION_USE_RESERVE,
+},
+
+[IB_WR_TID_RDMA_WRITE] = {
+	.length = sizeof(struct ib_rdma_wr),
+	.qpt_support = BIT(IB_QPT_RC),
+	.flags = RVT_OPERATION_IGN_RNR_CNT,
+},
+
 };
 
-static void flush_tx_list(struct rvt_qp *qp)
+static void flush_list_head(struct list_head *l)
 {
-	struct hfi1_qp_priv *priv = qp->priv;
-
-	while (!list_empty(&priv->s_iowait.tx_head)) {
+	while (!list_empty(l)) {
 		struct sdma_txreq *tx;
 
 		tx = list_first_entry(
-			&priv->s_iowait.tx_head,
+			l,
 			struct sdma_txreq,
 			list);
 		list_del_init(&tx->list);
@@ -193,18 +161,29 @@ static void flush_tx_list(struct rvt_qp *qp)
 	}
 }
 
+static void flush_tx_list(struct rvt_qp *qp)
+{
+	struct hfi1_qp_priv *priv = qp->priv;
+
+	flush_list_head(&iowait_get_ib_work(&priv->s_iowait)->tx_head);
+	flush_list_head(&iowait_get_tid_work(&priv->s_iowait)->tx_head);
+}
+
 static void flush_iowait(struct rvt_qp *qp)
 {
 	struct hfi1_qp_priv *priv = qp->priv;
-	struct hfi1_ibdev *dev = to_idev(qp->ibqp.device);
 	unsigned long flags;
+	seqlock_t *lock = priv->s_iowait.lock;
 
-	write_seqlock_irqsave(&dev->iowait_lock, flags);
+	if (!lock)
+		return;
+	write_seqlock_irqsave(lock, flags);
 	if (!list_empty(&priv->s_iowait.list)) {
 		list_del_init(&priv->s_iowait.list);
+		priv->s_iowait.lock = NULL;
 		rvt_put_qp(qp);
 	}
-	write_sequnlock_irqrestore(&dev->iowait_lock, flags);
+	write_sequnlock_irqrestore(lock, flags);
 }
 
 static inline int opa_mtu_enum_to_int(int mtu)
@@ -271,6 +250,31 @@ int hfi1_check_modify_qp(struct rvt_qp *qp, struct ib_qp_attr *attr,
 	return 0;
 }
 
+/*
+ * qp_set_16b - Set the hdr_type based on whether the slid or the
+ * dlid in the connection is extended. Only applicable for RC and UC
+ * QPs. UD QPs determine this on the fly from the ah in the wqe
+ */
+static inline void qp_set_16b(struct rvt_qp *qp)
+{
+	struct hfi1_pportdata *ppd;
+	struct hfi1_ibport *ibp;
+	struct hfi1_qp_priv *priv = qp->priv;
+
+	/* Update ah_attr to account for extended LIDs */
+	hfi1_update_ah_attr(qp->ibqp.device, &qp->remote_ah_attr);
+
+	/* Create 32 bit LIDs */
+	hfi1_make_opa_lid(&qp->remote_ah_attr);
+
+	if (!(rdma_ah_get_ah_flags(&qp->remote_ah_attr) & IB_AH_GRH))
+		return;
+
+	ibp = to_iport(qp->ibqp.device, qp->port_num);
+	ppd = ppd_from_ibp(ibp);
+	priv->hdr_type = hfi1_get_hdr_type(ppd->lid, &qp->remote_ah_attr);
+}
+
 void hfi1_modify_qp(struct rvt_qp *qp, struct ib_qp_attr *attr,
 		    int attr_mask, struct ib_udata *udata)
 {
@@ -281,121 +285,85 @@ void hfi1_modify_qp(struct rvt_qp *qp, struct ib_qp_attr *attr,
 		priv->s_sc = ah_to_sc(ibqp->device, &qp->remote_ah_attr);
 		priv->s_sde = qp_to_sdma_engine(qp, priv->s_sc);
 		priv->s_sendcontext = qp_to_send_context(qp, priv->s_sc);
+		qp_set_16b(qp);
 	}
 
 	if (attr_mask & IB_QP_PATH_MIG_STATE &&
 	    attr->path_mig_state == IB_MIG_MIGRATED &&
 	    qp->s_mig_state == IB_MIG_ARMED) {
-		qp->s_flags |= RVT_S_AHG_CLEAR;
+		qp->s_flags |= HFI1_S_AHG_CLEAR;
 		priv->s_sc = ah_to_sc(ibqp->device, &qp->remote_ah_attr);
 		priv->s_sde = qp_to_sdma_engine(qp, priv->s_sc);
 		priv->s_sendcontext = qp_to_send_context(qp, priv->s_sc);
+		qp_set_16b(qp);
 	}
+
+	opfn_qp_init(qp, attr, attr_mask);
 }
 
 /**
- * hfi1_check_send_wqe - validate wqe
+ * hfi1_setup_wqe - set up the wqe
  * @qp - The qp
  * @wqe - The built wqe
+ * @call_send - Determine if the send should be posted or scheduled.
  *
- * validate wqe.  This is called
- * prior to inserting the wqe into
- * the ring but after the wqe has been
- * setup.
+ * Perform setup of the wqe.  This is called
+ * prior to inserting the wqe into the ring but after
+ * the wqe has been setup by RDMAVT. This function
+ * allows the driver the opportunity to perform
+ * validation and additional setup of the wqe.
  *
  * Returns 0 on success, -EINVAL on failure
  *
  */
-int hfi1_check_send_wqe(struct rvt_qp *qp,
-			struct rvt_swqe *wqe)
+int hfi1_setup_wqe(struct rvt_qp *qp, struct rvt_swqe *wqe, bool *call_send)
 {
 	struct hfi1_ibport *ibp = to_iport(qp->ibqp.device, qp->port_num);
 	struct rvt_ah *ah;
+	struct hfi1_pportdata *ppd;
+	struct hfi1_devdata *dd;
 
 	switch (qp->ibqp.qp_type) {
 	case IB_QPT_RC:
+		hfi1_setup_tid_rdma_wqe(qp, wqe);
+		/* fall through */
 	case IB_QPT_UC:
 		if (wqe->length > 0x80000000U)
 			return -EINVAL;
+		if (wqe->length > qp->pmtu)
+			*call_send = false;
 		break;
 	case IB_QPT_SMI:
-		ah = ibah_to_rvtah(wqe->ud_wr.ah);
-		if (wqe->length > (1 << ah->log_pmtu))
+		/*
+		 * SM packets should exclusively use VL15 and their SL is
+		 * ignored (IBTA v1.3, Section 3.5.8.2). Therefore, when ah
+		 * is created, SL is 0 in most cases and as a result some
+		 * fields (vl and pmtu) in ah may not be set correctly,
+		 * depending on the SL2SC and SC2VL tables at the time.
+		 */
+		ppd = ppd_from_ibp(ibp);
+		dd = dd_from_ppd(ppd);
+		if (wqe->length > dd->vld[15].mtu)
 			return -EINVAL;
 		break;
 	case IB_QPT_GSI:
 	case IB_QPT_UD:
-		ah = ibah_to_rvtah(wqe->ud_wr.ah);
+		ah = rvt_get_swqe_ah(wqe);
 		if (wqe->length > (1 << ah->log_pmtu))
 			return -EINVAL;
-		if (ibp->sl_to_sc[ah->attr.sl] == 0xf)
+		if (ibp->sl_to_sc[rdma_ah_get_sl(&ah->attr)] == 0xf)
 			return -EINVAL;
 	default:
 		break;
 	}
-	return wqe->length <= piothreshold;
-}
 
-/**
- * hfi1_compute_aeth - compute the AETH (syndrome + MSN)
- * @qp: the queue pair to compute the AETH for
- *
- * Returns the AETH.
- */
-__be32 hfi1_compute_aeth(struct rvt_qp *qp)
-{
-	u32 aeth = qp->r_msn & HFI1_MSN_MASK;
-
-	if (qp->ibqp.srq) {
-		/*
-		 * Shared receive queues don't generate credits.
-		 * Set the credit field to the invalid value.
-		 */
-		aeth |= HFI1_AETH_CREDIT_INVAL << HFI1_AETH_CREDIT_SHIFT;
-	} else {
-		u32 min, max, x;
-		u32 credits;
-		struct rvt_rwq *wq = qp->r_rq.wq;
-		u32 head;
-		u32 tail;
-
-		/* sanity check pointers before trusting them */
-		head = wq->head;
-		if (head >= qp->r_rq.size)
-			head = 0;
-		tail = wq->tail;
-		if (tail >= qp->r_rq.size)
-			tail = 0;
-		/*
-		 * Compute the number of credits available (RWQEs).
-		 * There is a small chance that the pair of reads are
-		 * not atomic, which is OK, since the fuzziness is
-		 * resolved as further ACKs go out.
-		 */
-		credits = head - tail;
-		if ((int)credits < 0)
-			credits += qp->r_rq.size;
-		/*
-		 * Binary search the credit table to find the code to
-		 * use.
-		 */
-		min = 0;
-		max = 31;
-		for (;;) {
-			x = (min + max) / 2;
-			if (credit_table[x] == credits)
-				break;
-			if (credit_table[x] > credits) {
-				max = x;
-			} else {
-				if (min == x)
-					break;
-				min = x;
-			}
-		}
-		aeth |= x << HFI1_AETH_CREDIT_SHIFT;
-	}
-	return cpu_to_be32(aeth);
+	/*
+	 * System latency between send and schedule is large enough that
+	 * forcing call_send to true for piothreshold packets is necessary.
+	 */
+	if (wqe->length <= piothreshold)
+		*call_send = true;
+	return 0;
 }
 
 /**
@@ -407,7 +375,7 @@ __be32 hfi1_compute_aeth(struct rvt_qp *qp)
  * It is only used in the post send, which doesn't hold
  * the s_lock.
  */
-void _hfi1_schedule_send(struct rvt_qp *qp)
+bool _hfi1_schedule_send(struct rvt_qp *qp)
 {
 	struct hfi1_qp_priv *priv = qp->priv;
 	struct hfi1_ibport *ibp =
@@ -415,28 +383,26 @@ void _hfi1_schedule_send(struct rvt_qp *qp)
 	struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
 	struct hfi1_devdata *dd = dd_from_ibdev(qp->ibqp.device);
 
-	iowait_schedule(&priv->s_iowait, ppd->hfi1_wq,
-			priv->s_sde ?
-			priv->s_sde->cpu :
-			cpumask_first(cpumask_of_node(dd->node)));
+	return iowait_schedule(&priv->s_iowait, ppd->hfi1_wq,
+			       priv->s_sde ?
+			       priv->s_sde->cpu :
+			       cpumask_first(cpumask_of_node(dd->node)));
 }
 
 static void qp_pio_drain(struct rvt_qp *qp)
 {
-	struct hfi1_ibdev *dev;
 	struct hfi1_qp_priv *priv = qp->priv;
 
 	if (!priv->s_sendcontext)
 		return;
-	dev = to_idev(qp->ibqp.device);
 	while (iowait_pio_pending(&priv->s_iowait)) {
-		write_seqlock_irq(&dev->iowait_lock);
+		write_seqlock_irq(&priv->s_sendcontext->waitlock);
 		hfi1_sc_wantpiobuf_intr(priv->s_sendcontext, 1);
-		write_sequnlock_irq(&dev->iowait_lock);
+		write_sequnlock_irq(&priv->s_sendcontext->waitlock);
 		iowait_pio_drain(&priv->s_iowait);
-		write_seqlock_irq(&dev->iowait_lock);
+		write_seqlock_irq(&priv->s_sendcontext->waitlock);
 		hfi1_sc_wantpiobuf_intr(priv->s_sendcontext, 0);
-		write_sequnlock_irq(&dev->iowait_lock);
+		write_sequnlock_irq(&priv->s_sendcontext->waitlock);
 	}
 }
 
@@ -446,49 +412,36 @@ static void qp_pio_drain(struct rvt_qp *qp)
  *
  * This schedules qp progress and caller should hold
  * the s_lock.
+ * @return true if the first leg is scheduled;
+ * false if the first leg is not scheduled.
  */
-void hfi1_schedule_send(struct rvt_qp *qp)
+bool hfi1_schedule_send(struct rvt_qp *qp)
 {
 	lockdep_assert_held(&qp->s_lock);
-	if (hfi1_send_ok(qp))
+	if (hfi1_send_ok(qp)) {
 		_hfi1_schedule_send(qp);
+		return true;
+	}
+	if (qp->s_flags & HFI1_S_ANY_WAIT_IO)
+		iowait_set_flag(&((struct hfi1_qp_priv *)qp->priv)->s_iowait,
+				IOWAIT_PENDING_IB);
+	return false;
 }
 
-/**
- * hfi1_get_credit - handle credit in aeth
- * @qp: the qp
- * @aeth: the Acknowledge Extended Transport Header
- *
- * The QP s_lock should be held.
- */
-void hfi1_get_credit(struct rvt_qp *qp, u32 aeth)
+static void hfi1_qp_schedule(struct rvt_qp *qp)
 {
-	u32 credit = (aeth >> HFI1_AETH_CREDIT_SHIFT) & HFI1_AETH_CREDIT_MASK;
+	struct hfi1_qp_priv *priv = qp->priv;
+	bool ret;
 
-	lockdep_assert_held(&qp->s_lock);
-	/*
-	 * If the credit is invalid, we can send
-	 * as many packets as we like.  Otherwise, we have to
-	 * honor the credit field.
-	 */
-	if (credit == HFI1_AETH_CREDIT_INVAL) {
-		if (!(qp->s_flags & RVT_S_UNLIMITED_CREDIT)) {
-			qp->s_flags |= RVT_S_UNLIMITED_CREDIT;
-			if (qp->s_flags & RVT_S_WAIT_SSN_CREDIT) {
-				qp->s_flags &= ~RVT_S_WAIT_SSN_CREDIT;
-				hfi1_schedule_send(qp);
-			}
-		}
-	} else if (!(qp->s_flags & RVT_S_UNLIMITED_CREDIT)) {
-		/* Compute new LSN (i.e., MSN + credit) */
-		credit = (aeth + credit_table[credit]) & HFI1_MSN_MASK;
-		if (cmp_msn(credit, qp->s_lsn) > 0) {
-			qp->s_lsn = credit;
-			if (qp->s_flags & RVT_S_WAIT_SSN_CREDIT) {
-				qp->s_flags &= ~RVT_S_WAIT_SSN_CREDIT;
-				hfi1_schedule_send(qp);
-			}
-		}
+	if (iowait_flag_set(&priv->s_iowait, IOWAIT_PENDING_IB)) {
+		ret = hfi1_schedule_send(qp);
+		if (ret)
+			iowait_clear_flag(&priv->s_iowait, IOWAIT_PENDING_IB);
+	}
+	if (iowait_flag_set(&priv->s_iowait, IOWAIT_PENDING_TID)) {
+		ret = hfi1_schedule_tid_send(qp);
+		if (ret)
+			iowait_clear_flag(&priv->s_iowait, IOWAIT_PENDING_TID);
 	}
 }
 
@@ -500,25 +453,50 @@ void hfi1_qp_wakeup(struct rvt_qp *qp, u32 flag)
 	if (qp->s_flags & flag) {
 		qp->s_flags &= ~flag;
 		trace_hfi1_qpwakeup(qp, flag);
-		hfi1_schedule_send(qp);
+		hfi1_qp_schedule(qp);
 	}
 	spin_unlock_irqrestore(&qp->s_lock, flags);
 	/* Notify hfi1_destroy_qp() if it is waiting. */
 	rvt_put_qp(qp);
 }
 
+void hfi1_qp_unbusy(struct rvt_qp *qp, struct iowait_work *wait)
+{
+	struct hfi1_qp_priv *priv = qp->priv;
+
+	if (iowait_set_work_flag(wait) == IOWAIT_IB_SE) {
+		qp->s_flags &= ~RVT_S_BUSY;
+		/*
+		 * If we are sending a first-leg packet from the second leg,
+		 * we need to clear the busy flag from priv->s_flags to
+		 * avoid a race condition when the qp wakes up before
+		 * the call to hfi1_verbs_send() returns to the second
+		 * leg. In that case, the second leg will terminate without
+		 * being re-scheduled, resulting in failure to send TID RDMA
+		 * WRITE DATA and TID RDMA ACK packets.
+		 */
+		if (priv->s_flags & HFI1_S_TID_BUSY_SET) {
+			priv->s_flags &= ~(HFI1_S_TID_BUSY_SET |
+					   RVT_S_BUSY);
+			iowait_set_flag(&priv->s_iowait, IOWAIT_PENDING_TID);
+		}
+	} else {
+		priv->s_flags &= ~RVT_S_BUSY;
+	}
+}
+
 static int iowait_sleep(
 	struct sdma_engine *sde,
-	struct iowait *wait,
+	struct iowait_work *wait,
 	struct sdma_txreq *stx,
-	unsigned seq)
+	uint seq,
+	bool pkts_sent)
 {
 	struct verbs_txreq *tx = container_of(stx, struct verbs_txreq, txreq);
 	struct rvt_qp *qp;
 	struct hfi1_qp_priv *priv;
 	unsigned long flags;
 	int ret = 0;
-	struct hfi1_ibdev *dev;
 
 	qp = tx->qp;
 	priv = qp->priv;
@@ -531,9 +509,8 @@ static int iowait_sleep(
 		 * buffer and undoing the side effects of the copy.
 		 */
 		/* Make a common routine? */
-		dev = &sde->dd->verbs_dev;
 		list_add_tail(&stx->list, &wait->tx_head);
-		write_seqlock(&dev->iowait_lock);
+		write_seqlock(&sde->waitlock);
 		if (sdma_progress(sde, seq, stx))
 			goto eagain;
 		if (list_empty(&priv->s_iowait.list)) {
@@ -542,12 +519,15 @@ static int iowait_sleep(
 
 			ibp->rvp.n_dmawait++;
 			qp->s_flags |= RVT_S_WAIT_DMA_DESC;
-			list_add_tail(&priv->s_iowait.list, &sde->dmawait);
+			iowait_get_priority(&priv->s_iowait);
+			iowait_queue(pkts_sent, &priv->s_iowait,
+				     &sde->dmawait);
+			priv->s_iowait.lock = &sde->waitlock;
 			trace_hfi1_qpsleep(qp, RVT_S_WAIT_DMA_DESC);
 			rvt_get_qp(qp);
 		}
-		write_sequnlock(&dev->iowait_lock);
-		qp->s_flags &= ~RVT_S_BUSY;
+		write_sequnlock(&sde->waitlock);
+		hfi1_qp_unbusy(qp, wait);
 		spin_unlock_irqrestore(&qp->s_lock, flags);
 		ret = -EBUSY;
 	} else {
@@ -556,7 +536,7 @@ static int iowait_sleep(
 	}
 	return ret;
 eagain:
-	write_sequnlock(&dev->iowait_lock);
+	write_sequnlock(&sde->waitlock);
 	spin_unlock_irqrestore(&qp->s_lock, flags);
 	list_del_init(&stx->list);
 	return -EAGAIN;
@@ -589,8 +569,18 @@ static void iowait_sdma_drained(struct iowait *wait)
 	spin_unlock_irqrestore(&qp->s_lock, flags);
 }
 
+static void hfi1_init_priority(struct iowait *w)
+{
+	struct rvt_qp *qp = iowait_to_qp(w);
+	struct hfi1_qp_priv *priv = qp->priv;
+
+	if (qp->s_flags & RVT_S_ACK_PENDING)
+		w->priority++;
+	if (priv->s_flags & RVT_S_ACK_PENDING)
+		w->priority++;
+}
+
 /**
- *
  * qp_to_sdma_engine - map a qp to a send engine
  * @qp: the QP
  * @sc5: the 5 bit sc
@@ -639,82 +629,6 @@ struct send_context *qp_to_send_context(struct rvt_qp *qp, u8 sc5)
 					  sc5);
 }
 
-struct qp_iter {
-	struct hfi1_ibdev *dev;
-	struct rvt_qp *qp;
-	int specials;
-	int n;
-};
-
-struct qp_iter *qp_iter_init(struct hfi1_ibdev *dev)
-{
-	struct qp_iter *iter;
-
-	iter = kzalloc(sizeof(*iter), GFP_KERNEL);
-	if (!iter)
-		return NULL;
-
-	iter->dev = dev;
-	iter->specials = dev->rdi.ibdev.phys_port_cnt * 2;
-
-	return iter;
-}
-
-int qp_iter_next(struct qp_iter *iter)
-{
-	struct hfi1_ibdev *dev = iter->dev;
-	int n = iter->n;
-	int ret = 1;
-	struct rvt_qp *pqp = iter->qp;
-	struct rvt_qp *qp;
-
-	/*
-	 * The approach is to consider the special qps
-	 * as an additional table entries before the
-	 * real hash table.  Since the qp code sets
-	 * the qp->next hash link to NULL, this works just fine.
-	 *
-	 * iter->specials is 2 * # ports
-	 *
-	 * n = 0..iter->specials is the special qp indices
-	 *
-	 * n = iter->specials..dev->rdi.qp_dev->qp_table_size+iter->specials are
-	 * the potential hash bucket entries
-	 *
-	 */
-	for (; n <  dev->rdi.qp_dev->qp_table_size + iter->specials; n++) {
-		if (pqp) {
-			qp = rcu_dereference(pqp->next);
-		} else {
-			if (n < iter->specials) {
-				struct hfi1_pportdata *ppd;
-				struct hfi1_ibport *ibp;
-				int pidx;
-
-				pidx = n % dev->rdi.ibdev.phys_port_cnt;
-				ppd = &dd_from_dev(dev)->pport[pidx];
-				ibp = &ppd->ibport_data;
-
-				if (!(n & 1))
-					qp = rcu_dereference(ibp->rvp.qp[0]);
-				else
-					qp = rcu_dereference(ibp->rvp.qp[1]);
-			} else {
-				qp = rcu_dereference(
-					dev->rdi.qp_dev->qp_table[
-						(n - iter->specials)]);
-			}
-		}
-		pqp = qp;
-		if (qp) {
-			iter->qp = qp;
-			iter->n = n;
-			return 0;
-		}
-	}
-	return ret;
-}
-
 static const char * const qp_type_str[] = {
 	"SMI", "GSI", "RC", "UC", "UD",
 };
@@ -728,19 +642,29 @@ static int qp_idle(struct rvt_qp *qp)
 		qp->s_tail == qp->s_head;
 }
 
-void qp_iter_print(struct seq_file *s, struct qp_iter *iter)
+/**
+ * qp_iter_print - print the qp information to seq_file
+ * @s: the seq_file to emit the qp information on
+ * @iter: the iterator for the qp hash list
+ */
+void qp_iter_print(struct seq_file *s, struct rvt_qp_iter *iter)
 {
 	struct rvt_swqe *wqe;
 	struct rvt_qp *qp = iter->qp;
 	struct hfi1_qp_priv *priv = qp->priv;
 	struct sdma_engine *sde;
 	struct send_context *send_context;
+	struct rvt_ack_entry *e = NULL;
+	struct rvt_srq *srq = qp->ibqp.srq ?
+		ibsrq_to_rvtsrq(qp->ibqp.srq) : NULL;
 
 	sde = qp_to_sdma_engine(qp, priv->s_sc);
 	wqe = rvt_get_swqe_ptr(qp, qp->s_last);
 	send_context = qp_to_send_context(qp, priv->s_sc);
+	if (qp->s_ack_queue)
+		e = &qp->s_ack_queue[qp->s_tail_ack_queue];
 	seq_printf(s,
-		   "N %d %s QP %x R %u %s %u %u %u f=%x %u %u %u %u %u %u PSN %x %x %x %x %x (%u %u %u %u %u %u %u) RQP %x LID %x SL %u MTU %u %u %u %u SDE %p,%u SC %p,%u SCQ %u %u PID %d\n",
+		   "N %d %s QP %x R %u %s %u %u f=%x %u %u %u %u %u %u SPSN %x %x %x %x %x RPSN %x S(%u %u %u %u %u %u %u) R(%u %u %u) RQP %x LID %x SL %u MTU %u %u %u %u %u SDE %p,%u SC %p,%u SCQ %u %u PID %d OS %x %x E %x %x %x RNR %d %s %d\n",
 		   iter->n,
 		   qp_idle(qp) ? "I" : "B",
 		   qp->ibqp.qp_num,
@@ -748,7 +672,6 @@ void qp_iter_print(struct seq_file *s, struct qp_iter *iter)
 		   qp_type_str[qp->ibqp.qp_type],
 		   qp->state,
 		   wqe ? wqe->wr.opcode : 0,
-		   qp->s_hdrwords,
 		   qp->s_flags,
 		   iowait_sdma_pending(&priv->s_iowait),
 		   iowait_pio_pending(&priv->s_iowait),
@@ -759,50 +682,52 @@ void qp_iter_print(struct seq_file *s, struct qp_iter *iter)
 		   qp->s_last_psn,
 		   qp->s_psn, qp->s_next_psn,
 		   qp->s_sending_psn, qp->s_sending_hpsn,
+		   qp->r_psn,
 		   qp->s_last, qp->s_acked, qp->s_cur,
 		   qp->s_tail, qp->s_head, qp->s_size,
 		   qp->s_avail,
+		   /* ack_queue ring pointers, size */
+		   qp->s_tail_ack_queue, qp->r_head_ack_queue,
+		   rvt_max_atomic(&to_idev(qp->ibqp.device)->rdi),
+		   /* remote QP info  */
 		   qp->remote_qpn,
-		   qp->remote_ah_attr.dlid,
-		   qp->remote_ah_attr.sl,
+		   rdma_ah_get_dlid(&qp->remote_ah_attr),
+		   rdma_ah_get_sl(&qp->remote_ah_attr),
 		   qp->pmtu,
 		   qp->s_retry,
 		   qp->s_retry_cnt,
 		   qp->s_rnr_retry_cnt,
+		   qp->s_rnr_retry,
 		   sde,
 		   sde ? sde->this_idx : 0,
 		   send_context,
 		   send_context ? send_context->sw_index : 0,
-		   ibcq_to_rvtcq(qp->ibqp.send_cq)->queue->head,
-		   ibcq_to_rvtcq(qp->ibqp.send_cq)->queue->tail,
-		   qp->pid);
+		   ib_cq_head(qp->ibqp.send_cq),
+		   ib_cq_tail(qp->ibqp.send_cq),
+		   qp->pid,
+		   qp->s_state,
+		   qp->s_ack_state,
+		   /* ack queue information */
+		   e ? e->opcode : 0,
+		   e ? e->psn : 0,
+		   e ? e->lpsn : 0,
+		   qp->r_min_rnr_timer,
+		   srq ? "SRQ" : "RQ",
+		   srq ? srq->rq.size : qp->r_rq.size
+		);
 }
 
-void qp_comm_est(struct rvt_qp *qp)
-{
-	qp->r_flags |= RVT_R_COMM_EST;
-	if (qp->ibqp.event_handler) {
-		struct ib_event ev;
-
-		ev.device = qp->ibqp.device;
-		ev.element.qp = &qp->ibqp;
-		ev.event = IB_EVENT_COMM_EST;
-		qp->ibqp.event_handler(&ev, qp->ibqp.qp_context);
-	}
-}
-
-void *qp_priv_alloc(struct rvt_dev_info *rdi, struct rvt_qp *qp,
-		    gfp_t gfp)
+void *qp_priv_alloc(struct rvt_dev_info *rdi, struct rvt_qp *qp)
 {
 	struct hfi1_qp_priv *priv;
 
-	priv = kzalloc_node(sizeof(*priv), gfp, rdi->dparms.node);
+	priv = kzalloc_node(sizeof(*priv), GFP_KERNEL, rdi->dparms.node);
 	if (!priv)
 		return ERR_PTR(-ENOMEM);
 
 	priv->owner = qp;
 
-	priv->s_ahg = kzalloc_node(sizeof(*priv->s_ahg), gfp,
+	priv->s_ahg = kzalloc_node(sizeof(*priv->s_ahg), GFP_KERNEL,
 				   rdi->dparms.node);
 	if (!priv->s_ahg) {
 		kfree(priv);
@@ -812,11 +737,13 @@ void *qp_priv_alloc(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 		&priv->s_iowait,
 		1,
 		_hfi1_do_send,
+		_hfi1_do_tid_send,
 		iowait_sleep,
 		iowait_wakeup,
-		iowait_sdma_drained);
-	setup_timer(&priv->s_rnr_timer, hfi1_rc_rnr_retry, (unsigned long)qp);
-	qp->s_timer.function = hfi1_rc_timeout;
+		iowait_sdma_drained,
+		hfi1_init_priority);
+	/* Init to a value to start the running average correctly */
+	priv->s_running_pkt_size = piothreshold / 2;
 	return priv;
 }
 
@@ -824,6 +751,7 @@ void qp_priv_free(struct rvt_dev_info *rdi, struct rvt_qp *qp)
 {
 	struct hfi1_qp_priv *priv = qp->priv;
 
+	hfi1_qp_priv_tid_free(rdi, qp);
 	kfree(priv->s_ahg);
 	kfree(priv);
 }
@@ -857,21 +785,24 @@ void flush_qp_waiters(struct rvt_qp *qp)
 {
 	lockdep_assert_held(&qp->s_lock);
 	flush_iowait(qp);
-	hfi1_stop_rc_timers(qp);
+	hfi1_tid_rdma_flush_wait(qp);
 }
 
 void stop_send_queue(struct rvt_qp *qp)
 {
 	struct hfi1_qp_priv *priv = qp->priv;
 
-	cancel_work_sync(&priv->s_iowait.iowork);
-	hfi1_del_timers_sync(qp);
+	iowait_cancel_work(&priv->s_iowait);
+	if (cancel_work_sync(&priv->tid_rdma.trigger_work))
+		rvt_put_qp(qp);
 }
 
 void quiesce_qp(struct rvt_qp *qp)
 {
 	struct hfi1_qp_priv *priv = qp->priv;
 
+	hfi1_del_tid_reap_timer(qp);
+	hfi1_del_tid_retry_timer(qp);
 	iowait_sdma_drain(&priv->s_iowait);
 	qp_pio_drain(qp);
 	flush_tx_list(qp);
@@ -879,10 +810,13 @@ void quiesce_qp(struct rvt_qp *qp)
 
 void notify_qp_reset(struct rvt_qp *qp)
 {
-	struct hfi1_qp_priv *priv = qp->priv;
-
-	priv->r_adefered = 0;
+	hfi1_qp_kern_exp_rcv_clear_all(qp);
+	qp->r_adefered = 0;
 	clear_ahg(qp);
+
+	/* Clear any OPFN state */
+	if (qp->ibqp.qp_type == IB_QPT_RC)
+		opfn_conn_error(qp);
 }
 
 /*
@@ -896,11 +830,12 @@ void hfi1_migrate_qp(struct rvt_qp *qp)
 
 	qp->s_mig_state = IB_MIG_MIGRATED;
 	qp->remote_ah_attr = qp->alt_ah_attr;
-	qp->port_num = qp->alt_ah_attr.port_num;
+	qp->port_num = rdma_ah_get_port_num(&qp->alt_ah_attr);
 	qp->s_pkey_index = qp->s_alt_pkey_index;
-	qp->s_flags |= RVT_S_AHG_CLEAR;
+	qp->s_flags |= HFI1_S_AHG_CLEAR;
 	priv->s_sc = ah_to_sc(qp->ibqp.device, &qp->remote_ah_attr);
 	priv->s_sde = qp_to_sdma_engine(qp, priv->s_sc);
+	qp_set_16b(qp);
 
 	ev.device = qp->ibqp.device;
 	ev.element.qp = &qp->ibqp;
@@ -926,7 +861,7 @@ u32 mtu_from_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp, u32 pmtu)
 	u8 sc, vl;
 
 	ibp = &dd->pport[qp->port_num - 1].ibport_data;
-	sc = ibp->sl_to_sc[qp->remote_ah_attr.sl];
+	sc = ibp->sl_to_sc[rdma_ah_get_sl(&qp->remote_ah_attr)];
 	vl = sc_to_vlt(dd, sc);
 
 	mtu = verbs_mtu_enum_to_int(qp->ibqp.device, pmtu);
@@ -957,24 +892,70 @@ int get_pmtu_from_attr(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 
 void notify_error_qp(struct rvt_qp *qp)
 {
-	struct hfi1_ibdev *dev = to_idev(qp->ibqp.device);
 	struct hfi1_qp_priv *priv = qp->priv;
+	seqlock_t *lock = priv->s_iowait.lock;
 
-	write_seqlock(&dev->iowait_lock);
-	if (!list_empty(&priv->s_iowait.list) && !(qp->s_flags & RVT_S_BUSY)) {
-		qp->s_flags &= ~RVT_S_ANY_WAIT_IO;
-		list_del_init(&priv->s_iowait.list);
-		rvt_put_qp(qp);
+	if (lock) {
+		write_seqlock(lock);
+		if (!list_empty(&priv->s_iowait.list) &&
+		    !(qp->s_flags & RVT_S_BUSY) &&
+		    !(priv->s_flags & RVT_S_BUSY)) {
+			qp->s_flags &= ~HFI1_S_ANY_WAIT_IO;
+			iowait_clear_flag(&priv->s_iowait, IOWAIT_PENDING_IB);
+			iowait_clear_flag(&priv->s_iowait, IOWAIT_PENDING_TID);
+			list_del_init(&priv->s_iowait.list);
+			priv->s_iowait.lock = NULL;
+			rvt_put_qp(qp);
+		}
+		write_sequnlock(lock);
 	}
-	write_sequnlock(&dev->iowait_lock);
 
-	if (!(qp->s_flags & RVT_S_BUSY)) {
+	if (!(qp->s_flags & RVT_S_BUSY) && !(priv->s_flags & RVT_S_BUSY)) {
 		qp->s_hdrwords = 0;
 		if (qp->s_rdma_mr) {
 			rvt_put_mr(qp->s_rdma_mr);
 			qp->s_rdma_mr = NULL;
 		}
 		flush_tx_list(qp);
+	}
+}
+
+/**
+ * hfi1_qp_iter_cb - callback for iterator
+ * @qp - the qp
+ * @v - the sl in low bits of v
+ *
+ * This is called from the iterator callback to work
+ * on an individual qp.
+ */
+static void hfi1_qp_iter_cb(struct rvt_qp *qp, u64 v)
+{
+	int lastwqe;
+	struct ib_event ev;
+	struct hfi1_ibport *ibp =
+		to_iport(qp->ibqp.device, qp->port_num);
+	struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
+	u8 sl = (u8)v;
+
+	if (qp->port_num != ppd->port ||
+	    (qp->ibqp.qp_type != IB_QPT_UC &&
+	     qp->ibqp.qp_type != IB_QPT_RC) ||
+	    rdma_ah_get_sl(&qp->remote_ah_attr) != sl ||
+	    !(ib_rvt_state_ops[qp->state] & RVT_POST_SEND_OK))
+		return;
+
+	spin_lock_irq(&qp->r_lock);
+	spin_lock(&qp->s_hlock);
+	spin_lock(&qp->s_lock);
+	lastwqe = rvt_error_qp(qp, IB_WC_WR_FLUSH_ERR);
+	spin_unlock(&qp->s_lock);
+	spin_unlock(&qp->s_hlock);
+	spin_unlock_irq(&qp->r_lock);
+	if (lastwqe) {
+		ev.device = qp->ibqp.device;
+		ev.element.qp = &qp->ibqp;
+		ev.event = IB_EVENT_QP_LAST_WQE_REACHED;
+		qp->ibqp.event_handler(&ev, qp->ibqp.qp_context);
 	}
 }
 
@@ -989,44 +970,8 @@ void notify_error_qp(struct rvt_qp *qp)
  */
 void hfi1_error_port_qps(struct hfi1_ibport *ibp, u8 sl)
 {
-	struct rvt_qp *qp = NULL;
 	struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
 	struct hfi1_ibdev *dev = &ppd->dd->verbs_dev;
-	int n;
-	int lastwqe;
-	struct ib_event ev;
 
-	rcu_read_lock();
-
-	/* Deal only with RC/UC qps that use the given SL. */
-	for (n = 0; n < dev->rdi.qp_dev->qp_table_size; n++) {
-		for (qp = rcu_dereference(dev->rdi.qp_dev->qp_table[n]); qp;
-			qp = rcu_dereference(qp->next)) {
-			if (qp->port_num == ppd->port &&
-			    (qp->ibqp.qp_type == IB_QPT_UC ||
-			     qp->ibqp.qp_type == IB_QPT_RC) &&
-			    qp->remote_ah_attr.sl == sl &&
-			    (ib_rvt_state_ops[qp->state] &
-			     RVT_POST_SEND_OK)) {
-				spin_lock_irq(&qp->r_lock);
-				spin_lock(&qp->s_hlock);
-				spin_lock(&qp->s_lock);
-				lastwqe = rvt_error_qp(qp,
-						       IB_WC_WR_FLUSH_ERR);
-				spin_unlock(&qp->s_lock);
-				spin_unlock(&qp->s_hlock);
-				spin_unlock_irq(&qp->r_lock);
-				if (lastwqe) {
-					ev.device = qp->ibqp.device;
-					ev.element.qp = &qp->ibqp;
-					ev.event =
-						IB_EVENT_QP_LAST_WQE_REACHED;
-					qp->ibqp.event_handler(&ev,
-						qp->ibqp.qp_context);
-				}
-			}
-		}
-	}
-
-	rcu_read_unlock();
+	rvt_qp_iter(&dev->rdi, sl, hfi1_qp_iter_cb);
 }

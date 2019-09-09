@@ -1,16 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (C) 2010, Lars-Peter Clausen <lars@metafoo.de>
  *  JZ4740 platform time support
- *
- *  This program is free software; you can redistribute it and/or modify it
- *  under  the terms of the GNU General	 Public License as published by the
- *  Free Software Foundation;  either version 2 of the License, or (at your
- *  option) any later version.
- *
- *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
 #include <linux/clk.h>
@@ -22,19 +13,16 @@
 #include <linux/clockchips.h>
 #include <linux/sched_clock.h>
 
-#include <asm/mach-jz4740/clock.h>
 #include <asm/mach-jz4740/irq.h>
 #include <asm/mach-jz4740/timer.h>
 #include <asm/time.h>
-
-#include "clock.h"
 
 #define TIMER_CLOCKEVENT 0
 #define TIMER_CLOCKSOURCE 1
 
 static uint16_t jz4740_jiffies_per_tick;
 
-static cycle_t jz4740_clocksource_read(struct clocksource *cs)
+static u64 jz4740_clocksource_read(struct clocksource *cs)
 {
 	return jz4740_timer_get_count(TIMER_CLOCKSOURCE);
 }
@@ -113,7 +101,7 @@ static struct clock_event_device jz4740_clockevent = {
 #ifdef CONFIG_MACH_JZ4740
 	.irq = JZ4740_IRQ_TCU0,
 #endif
-#ifdef CONFIG_MACH_JZ4780
+#if defined(CONFIG_MACH_JZ4770) || defined(CONFIG_MACH_JZ4780)
 	.irq = JZ4780_IRQ_TCU2,
 #endif
 };
@@ -145,7 +133,9 @@ void __init plat_time_init(void)
 
 	clockevent_set_clock(&jz4740_clockevent, clk_rate);
 	jz4740_clockevent.min_delta_ns = clockevent_delta2ns(100, &jz4740_clockevent);
+	jz4740_clockevent.min_delta_ticks = 100;
 	jz4740_clockevent.max_delta_ns = clockevent_delta2ns(0xffff, &jz4740_clockevent);
+	jz4740_clockevent.max_delta_ticks = 0xffff;
 	jz4740_clockevent.cpumask = cpumask_of(0);
 
 	clockevents_register_device(&jz4740_clockevent);

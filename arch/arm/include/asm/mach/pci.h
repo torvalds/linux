@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  arch/arm/include/asm/mach/pci.h
  *
  *  Copyright (C) 2000 Russell King
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef __ASM_MACH_PCI_H
@@ -16,6 +13,7 @@
 struct pci_sys_data;
 struct pci_ops;
 struct pci_bus;
+struct pci_host_bridge;
 struct device;
 
 struct hw_pci {
@@ -25,7 +23,7 @@ struct hw_pci {
 	unsigned int	io_optional:1;
 	void		**private_data;
 	int		(*setup)(int nr, struct pci_sys_data *);
-	struct pci_bus *(*scan)(int nr, struct pci_sys_data *);
+	int		(*scan)(int nr, struct pci_host_bridge *);
 	void		(*preinit)(void);
 	void		(*postinit)(void);
 	u8		(*swizzle)(struct pci_dev *dev, u8 *pin);

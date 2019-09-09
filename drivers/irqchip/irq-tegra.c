@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver code for Tegra's Legacy Interrupt Controller
  *
@@ -10,16 +11,6 @@
  *	Colin Cross <ccross@android.com>
  *
  * Copyright (C) 2010,2013, NVIDIA Corporation
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/io.h>
@@ -291,13 +282,13 @@ static int __init tegra_ictlr_init(struct device_node *node,
 	int err;
 
 	if (!parent) {
-		pr_err("%s: no parent, giving up\n", node->full_name);
+		pr_err("%pOF: no parent, giving up\n", node);
 		return -ENODEV;
 	}
 
 	parent_domain = irq_find_host(parent);
 	if (!parent_domain) {
-		pr_err("%s: unable to obtain parent domain\n", node->full_name);
+		pr_err("%pOF: unable to obtain parent domain\n", node);
 		return -ENXIO;
 	}
 
@@ -329,29 +320,29 @@ static int __init tegra_ictlr_init(struct device_node *node,
 	}
 
 	if (!num_ictlrs) {
-		pr_err("%s: no valid regions, giving up\n", node->full_name);
+		pr_err("%pOF: no valid regions, giving up\n", node);
 		err = -ENOMEM;
 		goto out_free;
 	}
 
 	WARN(num_ictlrs != soc->num_ictlrs,
-	     "%s: Found %u interrupt controllers in DT; expected %u.\n",
-	     node->full_name, num_ictlrs, soc->num_ictlrs);
+	     "%pOF: Found %u interrupt controllers in DT; expected %u.\n",
+	     node, num_ictlrs, soc->num_ictlrs);
 
 
 	domain = irq_domain_add_hierarchy(parent_domain, 0, num_ictlrs * 32,
 					  node, &tegra_ictlr_domain_ops,
 					  lic);
 	if (!domain) {
-		pr_err("%s: failed to allocated domain\n", node->full_name);
+		pr_err("%pOF: failed to allocated domain\n", node);
 		err = -ENOMEM;
 		goto out_unmap;
 	}
 
 	tegra_ictlr_syscore_init();
 
-	pr_info("%s: %d interrupts forwarded to %s\n",
-		node->full_name, num_ictlrs * 32, parent->full_name);
+	pr_info("%pOF: %d interrupts forwarded to %pOF\n",
+		node, num_ictlrs * 32, parent);
 
 	return 0;
 

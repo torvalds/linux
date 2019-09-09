@@ -1,4 +1,11 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 .. _frontend-property-terrestrial-systems:
 
@@ -100,7 +107,7 @@ to tune any ISDB-T/ISDB-Tsb hardware. Of course it is possible that some
 very sophisticated devices won't need certain parameters to tune.
 
 The information given here should help application writers to know how
-to handle ISDB-T and ISDB-Tsb hardware using the Linux DVB-API.
+to handle ISDB-T and ISDB-Tsb hardware using the Linux Digital TV API.
 
 The details given here about ISDB-T and ISDB-Tsb are just enough to
 basically show the dependencies between the needed parameter values, but

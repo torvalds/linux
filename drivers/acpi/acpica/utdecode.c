@@ -1,49 +1,16 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /******************************************************************************
  *
  * Module Name: utdecode - Utility decoding routines (value-to-string)
  *
+ * Copyright (C) 2000 - 2019, Intel Corp.
+ *
  *****************************************************************************/
-
-/*
- * Copyright (C) 2000 - 2016, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
 
 #include <acpi/acpi.h>
 #include "accommon.h"
 #include "acnamesp.h"
+#include "amlcode.h"
 
 #define _COMPONENT          ACPI_UTILITIES
 ACPI_MODULE_NAME("utdecode")
@@ -111,7 +78,7 @@ const char *acpi_gbl_region_types[ACPI_NUM_PREDEFINED_REGIONS] = {
 	"IPMI",			/* 0x07 */
 	"GeneralPurposeIo",	/* 0x08 */
 	"GenericSerialBus",	/* 0x09 */
-	"PCC"			/* 0x0A */
+	"PlatformCommChannel"	/* 0x0A */
 };
 
 const char *acpi_ut_get_region_name(u8 space_id)
@@ -237,7 +204,7 @@ const char *acpi_ut_get_object_type_name(union acpi_operand_object *obj_desc)
 
 	if (!obj_desc) {
 		ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Null Object Descriptor\n"));
-		return_PTR("[NULL Object Descriptor]");
+		return_STR("[NULL Object Descriptor]");
 	}
 
 	/* These descriptor types share a common area */
@@ -250,7 +217,7 @@ const char *acpi_ut_get_object_type_name(union acpi_operand_object *obj_desc)
 				  acpi_ut_get_descriptor_name(obj_desc),
 				  obj_desc));
 
-		return_PTR("Invalid object");
+		return_STR("Invalid object");
 	}
 
 	return_STR(acpi_ut_get_type_name(obj_desc->common.type));
@@ -272,7 +239,7 @@ const char *acpi_ut_get_node_name(void *object)
 {
 	struct acpi_namespace_node *node = (struct acpi_namespace_node *)object;
 
-	/* Must return a string of exactly 4 characters == ACPI_NAME_SIZE */
+	/* Must return a string of exactly 4 characters == ACPI_NAMESEG_SIZE */
 
 	if (!object) {
 		return ("NULL");
@@ -317,7 +284,7 @@ const char *acpi_ut_get_node_name(void *object)
 
 static const char *acpi_gbl_desc_type_names[] = {
 	/* 00 */ "Not a Descriptor",
-	/* 01 */ "Cached",
+	/* 01 */ "Cached Object",
 	/* 02 */ "State-Generic",
 	/* 03 */ "State-Update",
 	/* 04 */ "State-Package",
@@ -328,10 +295,10 @@ static const char *acpi_gbl_desc_type_names[] = {
 	/* 09 */ "State-Result",
 	/* 10 */ "State-Notify",
 	/* 11 */ "State-Thread",
-	/* 12 */ "Walk",
-	/* 13 */ "Parser",
-	/* 14 */ "Operand",
-	/* 15 */ "Node"
+	/* 12 */ "Tree Walk State",
+	/* 13 */ "Parse Tree Op",
+	/* 14 */ "Operand Object",
+	/* 15 */ "Namespace Node"
 };
 
 const char *acpi_ut_get_descriptor_name(void *object)
@@ -394,11 +361,6 @@ const char *acpi_ut_get_reference_name(union acpi_operand_object *object)
 	return (acpi_gbl_ref_class_names[object->reference.class]);
 }
 
-#if defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DEBUGGER)
-/*
- * Strings and procedures used for debug only
- */
-
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ut_get_mutex_name
@@ -432,6 +394,12 @@ const char *acpi_ut_get_mutex_name(u32 mutex_id)
 	return (acpi_gbl_mutex_names[mutex_id]);
 }
 
+#if defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DEBUGGER)
+
+/*
+ * Strings and procedures used for debug only
+ */
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ut_get_notify_name
@@ -459,9 +427,13 @@ static const char *acpi_gbl_generic_notify[ACPI_GENERIC_NOTIFY_MAX + 1] = {
 	/* 09 */ "Device PLD Check",
 	/* 0A */ "Reserved",
 	/* 0B */ "System Locality Update",
-					/* 0C */ "Shutdown Request",
-					/* Reserved in ACPI 6.0 */
-	/* 0D */ "System Resource Affinity Update"
+								/* 0C */ "Reserved (was previously Shutdown Request)",
+								/* Reserved in ACPI 6.0 */
+	/* 0D */ "System Resource Affinity Update",
+								/* 0E */ "Heterogeneous Memory Attributes Update",
+								/* ACPI 6.2 */
+						/* 0F */ "Error Disconnect Recover"
+						/* ACPI 6.3 */
 };
 
 static const char *acpi_gbl_device_notify[5] = {
@@ -491,13 +463,13 @@ static const char *acpi_gbl_thermal_notify[5] = {
 const char *acpi_ut_get_notify_name(u32 notify_value, acpi_object_type type)
 {
 
-	/* 00 - 0D are "common to all object types" (from ACPI Spec) */
+	/* 00 - 0F are "common to all object types" (from ACPI Spec) */
 
 	if (notify_value <= ACPI_GENERIC_NOTIFY_MAX) {
 		return (acpi_gbl_generic_notify[notify_value]);
 	}
 
-	/* 0E - 7F are reserved */
+	/* 10 - 7F are reserved */
 
 	if (notify_value <= ACPI_MAX_SYS_NOTIFY) {
 		return ("Reserved");
@@ -532,6 +504,54 @@ const char *acpi_ut_get_notify_name(u32 notify_value, acpi_object_type type)
 
 	return ("Hardware-Specific");
 }
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ut_get_argument_type_name
+ *
+ * PARAMETERS:  arg_type            - an ARGP_* parser argument type
+ *
+ * RETURN:      Decoded ARGP_* type
+ *
+ * DESCRIPTION: Decode an ARGP_* parser type, as defined in the amlcode.h file,
+ *              and used in the acopcode.h file. For example, ARGP_TERMARG.
+ *              Used for debug only.
+ *
+ ******************************************************************************/
+
+static const char *acpi_gbl_argument_type[20] = {
+	/* 00 */ "Unknown ARGP",
+	/* 01 */ "ByteData",
+	/* 02 */ "ByteList",
+	/* 03 */ "CharList",
+	/* 04 */ "DataObject",
+	/* 05 */ "DataObjectList",
+	/* 06 */ "DWordData",
+	/* 07 */ "FieldList",
+	/* 08 */ "Name",
+	/* 09 */ "NameString",
+	/* 0A */ "ObjectList",
+	/* 0B */ "PackageLength",
+	/* 0C */ "SuperName",
+	/* 0D */ "Target",
+	/* 0E */ "TermArg",
+	/* 0F */ "TermList",
+	/* 10 */ "WordData",
+	/* 11 */ "QWordData",
+	/* 12 */ "SimpleName",
+	/* 13 */ "NameOrRef"
+};
+
+const char *acpi_ut_get_argument_type_name(u32 arg_type)
+{
+
+	if (arg_type > ARGP_MAX) {
+		return ("Unknown ARGP");
+	}
+
+	return (acpi_gbl_argument_type[arg_type]);
+}
+
 #endif
 
 /*******************************************************************************

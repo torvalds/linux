@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2014, Sony Mobile Communications AB.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/module.h>
@@ -295,6 +287,12 @@ enum apq8064_functions {
 	APQ_MUX_cam_mclk,
 	APQ_MUX_codec_mic_i2s,
 	APQ_MUX_codec_spkr_i2s,
+	APQ_MUX_gp_clk_0a,
+	APQ_MUX_gp_clk_0b,
+	APQ_MUX_gp_clk_1a,
+	APQ_MUX_gp_clk_1b,
+	APQ_MUX_gp_clk_2a,
+	APQ_MUX_gp_clk_2b,
 	APQ_MUX_gpio,
 	APQ_MUX_gsbi1,
 	APQ_MUX_gsbi2,
@@ -353,6 +351,24 @@ static const char * const gpio_groups[] = {
 	"gpio71", "gpio72", "gpio73", "gpio74", "gpio75", "gpio76", "gpio77",
 	"gpio78", "gpio79", "gpio80", "gpio81", "gpio82", "gpio83", "gpio84",
 	"gpio85", "gpio86", "gpio87", "gpio88", "gpio89"
+};
+static const char * const gp_clk_0a_groups[] = {
+	"gpio3"
+};
+static const char * const gp_clk_0b_groups[] = {
+	"gpio34"
+};
+static const char * const gp_clk_1a_groups[] = {
+	"gpio4"
+};
+static const char * const gp_clk_1b_groups[] = {
+	"gpio50"
+};
+static const char * const gp_clk_2a_groups[] = {
+	"gpio32"
+};
+static const char * const gp_clk_2b_groups[] = {
+	"gpio25"
 };
 static const char * const ps_hold_groups[] = {
 	"gpio78"
@@ -452,6 +468,12 @@ static const struct msm_function apq8064_functions[] = {
 	FUNCTION(cam_mclk),
 	FUNCTION(codec_mic_i2s),
 	FUNCTION(codec_spkr_i2s),
+	FUNCTION(gp_clk_0a),
+	FUNCTION(gp_clk_0b),
+	FUNCTION(gp_clk_1a),
+	FUNCTION(gp_clk_1b),
+	FUNCTION(gp_clk_2a),
+	FUNCTION(gp_clk_2b),
 	FUNCTION(gpio),
 	FUNCTION(gsbi1),
 	FUNCTION(gsbi2),
@@ -490,8 +512,8 @@ static const struct msm_pingroup apq8064_groups[] = {
 	PINGROUP(0, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(1, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(2, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
-	PINGROUP(3, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
-	PINGROUP(4, NA, NA, cam_mclk, NA, NA, NA, NA, NA, NA, NA),
+	PINGROUP(3, NA, gp_clk_0a, NA, NA, NA, NA, NA, NA, NA, NA),
+	PINGROUP(4, NA, NA, cam_mclk, gp_clk_1a, NA, NA, NA, NA, NA, NA),
 	PINGROUP(5, NA, cam_mclk, NA, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(6, gsbi3, NA, NA, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(7, gsbi3, NA, NA, NA, NA, NA, NA, NA, NA, NA),
@@ -512,16 +534,16 @@ static const struct msm_pingroup apq8064_groups[] = {
 	PINGROUP(22, gsbi2, NA, NA, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(23, gsbi2, NA, NA, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(24, gsbi2, NA, NA, NA, NA, NA, NA, NA, NA, NA),
-	PINGROUP(25, gsbi2, NA, NA, NA, NA, NA, NA, NA, NA, NA),
+	PINGROUP(25, gsbi2, gp_clk_2b, NA, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(26, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(27, mi2s, NA, NA, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(28, mi2s, NA, NA, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(29, mi2s, NA, NA, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(30, mi2s, NA, NA, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(31, mi2s, NA, gsbi5_spi_cs2, gsbi6_spi_cs2, gsbi7_spi_cs2, NA, NA, NA, NA, NA),
-	PINGROUP(32, mi2s, NA, NA, NA, NA, gsbi5_spi_cs3, gsbi6_spi_cs3, gsbi7_spi_cs3, NA, NA),
+	PINGROUP(32, mi2s, gp_clk_2a, NA, NA, NA, gsbi5_spi_cs3, gsbi6_spi_cs3, gsbi7_spi_cs3, NA, NA),
 	PINGROUP(33, mi2s, NA, NA, NA, NA, NA, NA, NA, NA, NA),
-	PINGROUP(34, codec_mic_i2s, NA, NA, NA, NA, NA, NA, NA, NA, NA),
+	PINGROUP(34, codec_mic_i2s, gp_clk_0b, NA, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(35, codec_mic_i2s, NA, NA, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(36, codec_mic_i2s, NA, NA, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(37, codec_mic_i2s, NA, NA, NA, NA, NA, NA, NA, NA, NA),
@@ -537,7 +559,7 @@ static const struct msm_pingroup apq8064_groups[] = {
 	PINGROUP(47, spkr_i2s, gsbi5_spi_cs1, gsbi6_spi_cs1, gsbi7_spi_cs1, NA, NA, NA, NA, NA, NA),
 	PINGROUP(48, spkr_i2s, NA, NA, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(49, spkr_i2s, NA, NA, NA, NA, NA, NA, NA, NA, NA),
-	PINGROUP(50, spkr_i2s, NA, NA, NA, NA, NA, NA, NA, NA, NA),
+	PINGROUP(50, spkr_i2s, gp_clk_1b, NA, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(51, NA, gsbi5, NA, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(52, NA, gsbi5, NA, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(53, NA, gsbi5, NA, NA, NA, NA, NA, NA, NA, NA),

@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * 8250_dma.c - DMA Engine API support for 8250.c
  *
  * Copyright (C) 2013 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
@@ -38,10 +34,8 @@ static void __dma_tx_complete(void *param)
 		uart_write_wakeup(&p->port);
 
 	ret = serial8250_tx_dma(p);
-	if (ret) {
-		p->ier |= UART_IER_THRI;
-		serial_port_out(&p->port, UART_IER, p->ier);
-	}
+	if (ret)
+		serial8250_set_THRI(p);
 
 	spin_unlock_irqrestore(&p->port.lock, flags);
 }
@@ -72,9 +66,14 @@ int serial8250_tx_dma(struct uart_8250_port *p)
 	struct dma_async_tx_descriptor	*desc;
 	int ret;
 
-	if (uart_tx_stopped(&p->port) || dma->tx_running ||
-	    uart_circ_empty(xmit))
+	if (dma->tx_running)
 		return 0;
+
+	if (uart_tx_stopped(&p->port) || uart_circ_empty(xmit)) {
+		/* We have been called from __dma_tx_complete() */
+		serial8250_rpm_put_tx(p);
+		return 0;
+	}
 
 	dma->tx_size = CIRC_CNT_TO_END(xmit->head, xmit->tail, UART_XMIT_SIZE);
 
@@ -99,10 +98,7 @@ int serial8250_tx_dma(struct uart_8250_port *p)
 	dma_async_issue_pending(dma->txchan);
 	if (dma->tx_err) {
 		dma->tx_err = 0;
-		if (p->ier & UART_IER_THRI) {
-			p->ier &= ~UART_IER_THRI;
-			serial_out(p, UART_IER, p->ier);
-		}
+		serial8250_clear_THRI(p);
 	}
 	return 0;
 err:

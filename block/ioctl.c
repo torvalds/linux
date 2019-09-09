@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/capability.h>
 #include <linux/blkdev.h>
 #include <linux/export.h>
@@ -8,7 +9,7 @@
 #include <linux/fs.h>
 #include <linux/blktrace_api.h>
 #include <linux/pr.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 static int blkpg_ioctl(struct block_device *bdev, struct blkpg_ioctl_arg __user *arg)
 {
@@ -45,6 +46,9 @@ static int blkpg_ioctl(struct block_device *bdev, struct blkpg_ioctl_arg __user 
 				    || pstart < 0 || plength < 0 || partno > 65535)
 					return -EINVAL;
 			}
+			/* check if partition is aligned to blocksize */
+			if (p.start & (bdev_logical_block_size(bdev) - 1))
+				return -EINVAL;
 
 			mutex_lock(&bdev->bd_mutex);
 
@@ -199,9 +203,15 @@ static int blk_ioctl_discard(struct block_device *bdev, fmode_t mode,
 {
 	uint64_t range[2];
 	uint64_t start, len;
+	struct request_queue *q = bdev_get_queue(bdev);
+	struct address_space *mapping = bdev->bd_inode->i_mapping;
+
 
 	if (!(mode & FMODE_WRITE))
 		return -EBADF;
+
+	if (!blk_queue_discard(q))
+		return -EOPNOTSUPP;
 
 	if (copy_from_user(range, (void __user *)arg, sizeof(range)))
 		return -EFAULT;
@@ -213,12 +223,12 @@ static int blk_ioctl_discard(struct block_device *bdev, fmode_t mode,
 		return -EINVAL;
 	if (len & 511)
 		return -EINVAL;
-	start >>= 9;
-	len >>= 9;
 
-	if (start + len > (i_size_read(bdev->bd_inode) >> 9))
+	if (start + len > i_size_read(bdev->bd_inode))
 		return -EINVAL;
-	return blkdev_issue_discard(bdev, start, len, GFP_KERNEL, flags);
+	truncate_inode_pages_range(mapping, start, start + len - 1);
+	return blkdev_issue_discard(bdev, start >> 9, len >> 9,
+				    GFP_KERNEL, flags);
 }
 
 static int blk_ioctl_zeroout(struct block_device *bdev, fmode_t mode,
@@ -252,7 +262,7 @@ static int blk_ioctl_zeroout(struct block_device *bdev, fmode_t mode,
 	truncate_inode_pages_range(mapping, start, end);
 
 	return blkdev_issue_zeroout(bdev, start >> 9, len >> 9, GFP_KERNEL,
-				    false);
+			BLKDEV_ZERO_NOUNMAP);
 }
 
 static int put_ushort(unsigned long arg, unsigned short val)
@@ -434,11 +444,12 @@ static int blkdev_roset(struct block_device *bdev, fmode_t mode,
 {
 	int ret, n;
 
+	if (!capable(CAP_SYS_ADMIN))
+		return -EACCES;
+
 	ret = __blkdev_driver_ioctl(bdev, mode, cmd, arg);
 	if (!is_unrecognized_ioctl(ret))
 		return ret;
-	if (!capable(CAP_SYS_ADMIN))
-		return -EACCES;
 	if (get_user(n, (int __user *)arg))
 		return -EFAULT;
 	set_device_ro(bdev, n);
@@ -502,7 +513,6 @@ static int blkdev_bszset(struct block_device *bdev, fmode_t mode,
 int blkdev_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
 			unsigned long arg)
 {
-	struct backing_dev_info *bdi;
 	void __user *argp = (void __user *)arg;
 	loff_t size;
 	unsigned int max_sectors;
@@ -519,14 +529,21 @@ int blkdev_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
 				BLKDEV_DISCARD_SECURE);
 	case BLKZEROOUT:
 		return blk_ioctl_zeroout(bdev, mode, arg);
+	case BLKREPORTZONE:
+		return blkdev_report_zones_ioctl(bdev, mode, cmd, arg);
+	case BLKRESETZONE:
+		return blkdev_reset_zones_ioctl(bdev, mode, cmd, arg);
+	case BLKGETZONESZ:
+		return put_uint(arg, bdev_zone_sectors(bdev));
+	case BLKGETNRZONES:
+		return put_uint(arg, blkdev_nr_zones(bdev));
 	case HDIO_GETGEO:
 		return blkdev_getgeo(bdev, argp);
 	case BLKRAGET:
 	case BLKFRAGET:
 		if (!arg)
 			return -EINVAL;
-		bdi = blk_get_backing_dev_info(bdev);
-		return put_long(arg, (bdi->ra_pages * PAGE_SIZE) / 512);
+		return put_long(arg, (bdev->bd_bdi->ra_pages*PAGE_SIZE) / 512);
 	case BLKROGET:
 		return put_int(arg, bdev_read_only(bdev) != 0);
 	case BLKBSZGET: /* get block device soft block size (cf. BLKSSZGET) */
@@ -542,7 +559,7 @@ int blkdev_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
 	case BLKALIGNOFF:
 		return put_int(arg, bdev_alignment_offset(bdev));
 	case BLKDISCARDZEROES:
-		return put_uint(arg, bdev_discard_zeroes_data(bdev));
+		return put_uint(arg, 0);
 	case BLKSECTGET:
 		max_sectors = min_t(unsigned int, USHRT_MAX,
 				    queue_max_sectors(bdev_get_queue(bdev)));
@@ -553,8 +570,7 @@ int blkdev_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
 	case BLKFRASET:
 		if(!capable(CAP_SYS_ADMIN))
 			return -EACCES;
-		bdi = blk_get_backing_dev_info(bdev);
-		bdi->ra_pages = (arg * 512) / PAGE_SIZE;
+		bdev->bd_bdi->ra_pages = (arg * 512) / PAGE_SIZE;
 		return 0;
 	case BLKBSZSET:
 		return blkdev_bszset(bdev, mode, argp);

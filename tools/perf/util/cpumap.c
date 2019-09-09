@@ -1,14 +1,19 @@
-#include "util.h"
+// SPDX-License-Identifier: GPL-2.0
 #include <api/fs/fs.h>
 #include "../perf.h"
 #include "cpumap.h"
 #include <assert.h>
+#include <dirent.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <linux/bitmap.h>
 #include "asm/bug.h"
 
+#include <linux/ctype.h>
+#include <linux/zalloc.h>
+
 static int max_cpu_num;
+static int max_present_cpu_num;
 static int max_node_num;
 static int *cpunode_map;
 
@@ -28,7 +33,7 @@ static struct cpu_map *cpu_map__default_new(void)
 			cpus->map[i] = i;
 
 		cpus->nr = nr_cpus;
-		atomic_set(&cpus->refcnt, 1);
+		refcount_set(&cpus->refcnt, 1);
 	}
 
 	return cpus;
@@ -42,7 +47,7 @@ static struct cpu_map *cpu_map__trim_new(int nr_cpus, int *tmp_cpus)
 	if (cpus != NULL) {
 		cpus->nr = nr_cpus;
 		memcpy(cpus->map, tmp_cpus, payload_size);
-		atomic_set(&cpus->refcnt, 1);
+		refcount_set(&cpus->refcnt, 1);
 	}
 
 	return cpus;
@@ -129,7 +134,12 @@ struct cpu_map *cpu_map__new(const char *cpu_list)
 	if (!cpu_list)
 		return cpu_map__read_all_cpu_map();
 
-	if (!isdigit(*cpu_list))
+	/*
+	 * must handle the case of empty cpumap to cover
+	 * TOPOLOGY header for NUMA nodes with no CPU
+	 * ( e.g., because of CPU hotplug)
+	 */
+	if (!isdigit(*cpu_list) && *cpu_list != '\0')
 		goto out;
 
 	while (isdigit(*cpu_list)) {
@@ -176,8 +186,10 @@ struct cpu_map *cpu_map__new(const char *cpu_list)
 
 	if (nr_cpus > 0)
 		cpus = cpu_map__trim_new(nr_cpus, tmp_cpus);
-	else
+	else if (*cpu_list != '\0')
 		cpus = cpu_map__default_new();
+	else
+		cpus = cpu_map__dummy_new();
 invalid:
 	free(tmp_cpus);
 out:
@@ -251,7 +263,7 @@ struct cpu_map *cpu_map__dummy_new(void)
 	if (cpus != NULL) {
 		cpus->nr = 1;
 		cpus->map[0] = -1;
-		atomic_set(&cpus->refcnt, 1);
+		refcount_set(&cpus->refcnt, 1);
 	}
 
 	return cpus;
@@ -268,7 +280,7 @@ struct cpu_map *cpu_map__empty_new(int nr)
 		for (i = 0; i < nr; i++)
 			cpus->map[i] = -1;
 
-		atomic_set(&cpus->refcnt, 1);
+		refcount_set(&cpus->refcnt, 1);
 	}
 
 	return cpus;
@@ -277,7 +289,7 @@ struct cpu_map *cpu_map__empty_new(int nr)
 static void cpu_map__delete(struct cpu_map *map)
 {
 	if (map) {
-		WARN_ONCE(atomic_read(&map->refcnt) != 0,
+		WARN_ONCE(refcount_read(&map->refcnt) != 0,
 			  "cpu_map refcnt unbalanced\n");
 		free(map);
 	}
@@ -286,13 +298,13 @@ static void cpu_map__delete(struct cpu_map *map)
 struct cpu_map *cpu_map__get(struct cpu_map *map)
 {
 	if (map)
-		atomic_inc(&map->refcnt);
+		refcount_inc(&map->refcnt);
 	return map;
 }
 
 void cpu_map__put(struct cpu_map *map)
 {
-	if (map && atomic_dec_and_test(&map->refcnt))
+	if (map && refcount_dec_and_test(&map->refcnt))
 		cpu_map__delete(map);
 }
 
@@ -356,9 +368,49 @@ int cpu_map__build_map(struct cpu_map *cpus, struct cpu_map **res,
 	/* ensure we process id in increasing order */
 	qsort(c->map, c->nr, sizeof(int), cmp_ids);
 
-	atomic_set(&c->refcnt, 1);
+	refcount_set(&c->refcnt, 1);
 	*res = c;
 	return 0;
+}
+
+int cpu_map__get_die_id(int cpu)
+{
+	int value, ret = cpu__get_topology_int(cpu, "die_id", &value);
+
+	return ret ?: value;
+}
+
+int cpu_map__get_die(struct cpu_map *map, int idx, void *data)
+{
+	int cpu, die_id, s;
+
+	if (idx > map->nr)
+		return -1;
+
+	cpu = map->map[idx];
+
+	die_id = cpu_map__get_die_id(cpu);
+	/* There is no die_id on legacy system. */
+	if (die_id == -1)
+		die_id = 0;
+
+	s = cpu_map__get_socket(map, idx, data);
+	if (s == -1)
+		return -1;
+
+	/*
+	 * Encode socket in bit range 15:8
+	 * die_id is relative to socket, and
+	 * we need a global id. So we combine
+	 * socket + die id
+	 */
+	if (WARN_ONCE(die_id >> 8, "The die id number is too big.\n"))
+		return -1;
+
+	if (WARN_ONCE(s >> 8, "The socket id number is too big.\n"))
+		return -1;
+
+	return (s << 8) | (die_id & 0xff);
 }
 
 int cpu_map__get_core_id(int cpu)
@@ -369,7 +421,7 @@ int cpu_map__get_core_id(int cpu)
 
 int cpu_map__get_core(struct cpu_map *map, int idx, void *data)
 {
-	int cpu, s;
+	int cpu, s_die;
 
 	if (idx > map->nr)
 		return -1;
@@ -378,22 +430,32 @@ int cpu_map__get_core(struct cpu_map *map, int idx, void *data)
 
 	cpu = cpu_map__get_core_id(cpu);
 
-	s = cpu_map__get_socket(map, idx, data);
-	if (s == -1)
+	/* s_die is the combination of socket + die id */
+	s_die = cpu_map__get_die(map, idx, data);
+	if (s_die == -1)
 		return -1;
 
 	/*
-	 * encode socket in upper 16 bits
-	 * core_id is relative to socket, and
+	 * encode socket in bit range 31:24
+	 * encode die id in bit range 23:16
+	 * core_id is relative to socket and die,
 	 * we need a global id. So we combine
-	 * socket+ core id
+	 * socket + die id + core id
 	 */
-	return (s << 16) | (cpu & 0xffff);
+	if (WARN_ONCE(cpu >> 16, "The core id number is too big.\n"))
+		return -1;
+
+	return (s_die << 16) | (cpu & 0xffff);
 }
 
 int cpu_map__build_socket_map(struct cpu_map *cpus, struct cpu_map **sockp)
 {
 	return cpu_map__build_map(cpus, sockp, cpu_map__get_socket, NULL);
+}
+
+int cpu_map__build_die_map(struct cpu_map *cpus, struct cpu_map **diep)
+{
+	return cpu_map__build_map(cpus, diep, cpu_map__get_die, NULL);
 }
 
 int cpu_map__build_core_map(struct cpu_map *cpus, struct cpu_map **corep)
@@ -442,6 +504,7 @@ static void set_max_cpu_num(void)
 
 	/* set up default */
 	max_cpu_num = 4096;
+	max_present_cpu_num = 4096;
 
 	mnt = sysfs__mountpoint();
 	if (!mnt)
@@ -455,6 +518,17 @@ static void set_max_cpu_num(void)
 	}
 
 	ret = get_max_num(path, &max_cpu_num);
+	if (ret)
+		goto out;
+
+	/* get the highest present cpu number for a sparse allocation */
+	ret = snprintf(path, PATH_MAX, "%s/devices/system/cpu/present", mnt);
+	if (ret == PATH_MAX) {
+		pr_err("sysfs path crossed PATH_MAX(%d) size\n", PATH_MAX);
+		goto out;
+	}
+
+	ret = get_max_num(path, &max_present_cpu_num);
 
 out:
 	if (ret)
@@ -504,6 +578,15 @@ int cpu__max_cpu(void)
 
 	return max_cpu_num;
 }
+
+int cpu__max_present_cpu(void)
+{
+	if (unlikely(!max_present_cpu_num))
+		set_max_cpu_num();
+
+	return max_present_cpu_num;
+}
+
 
 int cpu__get_node(int cpu)
 {
@@ -648,6 +731,65 @@ size_t cpu_map__snprint(struct cpu_map *map, char *buf, size_t size)
 
 #undef COMMA
 
-	pr_debug("cpumask list: %s\n", buf);
+	pr_debug2("cpumask list: %s\n", buf);
 	return ret;
+}
+
+static char hex_char(unsigned char val)
+{
+	if (val < 10)
+		return val + '0';
+	if (val < 16)
+		return val - 10 + 'a';
+	return '?';
+}
+
+size_t cpu_map__snprint_mask(struct cpu_map *map, char *buf, size_t size)
+{
+	int i, cpu;
+	char *ptr = buf;
+	unsigned char *bitmap;
+	int last_cpu = cpu_map__cpu(map, map->nr - 1);
+
+	if (buf == NULL)
+		return 0;
+
+	bitmap = zalloc(last_cpu / 8 + 1);
+	if (bitmap == NULL) {
+		buf[0] = '\0';
+		return 0;
+	}
+
+	for (i = 0; i < map->nr; i++) {
+		cpu = cpu_map__cpu(map, i);
+		bitmap[cpu / 8] |= 1 << (cpu % 8);
+	}
+
+	for (cpu = last_cpu / 4 * 4; cpu >= 0; cpu -= 4) {
+		unsigned char bits = bitmap[cpu / 8];
+
+		if (cpu % 8)
+			bits >>= 4;
+		else
+			bits &= 0xf;
+
+		*ptr++ = hex_char(bits);
+		if ((cpu % 32) == 0 && cpu > 0)
+			*ptr++ = ',';
+	}
+	*ptr = '\0';
+	free(bitmap);
+
+	buf[size - 1] = '\0';
+	return ptr - buf;
+}
+
+const struct cpu_map *cpu_map__online(void) /* thread unsafe */
+{
+	static const struct cpu_map *online = NULL;
+
+	if (!online)
+		online = cpu_map__new(NULL); /* from /sys/devices/system/cpu/online */
+
+	return online;
 }

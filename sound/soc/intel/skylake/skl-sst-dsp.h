@@ -1,30 +1,23 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Skylake SST DSP Support
  *
  * Copyright (C) 2014-15, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as version 2, as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 
 #ifndef __SKL_SST_DSP_H__
 #define __SKL_SST_DSP_H__
 
 #include <linux/interrupt.h>
+#include <linux/uuid.h>
+#include <linux/firmware.h>
 #include <sound/memalloc.h>
 #include "skl-sst-cldma.h"
-#include "skl-tplg-interface.h"
-#include "skl-topology.h"
 
 struct sst_dsp;
 struct skl_sst;
 struct sst_dsp_device;
+struct skl_lib_info;
 
 /* Intel HD Audio General DSP Registers */
 #define SKL_ADSP_GEN_BASE		0x0
@@ -126,19 +119,31 @@ struct sst_dsp_device;
 #define SKL_ADSPCS_CPA_SHIFT		24
 #define SKL_ADSPCS_CPA_MASK(cm)		((cm) << SKL_ADSPCS_CPA_SHIFT)
 
+/* DSP Core state */
 enum skl_dsp_states {
 	SKL_DSP_RUNNING = 1,
+	/* Running in D0i3 state; can be in streaming or non-streaming D0i3 */
+	SKL_DSP_RUNNING_D0I3, /* Running in D0i3 state*/
 	SKL_DSP_RESET,
+};
+
+/* D0i3 substates */
+enum skl_dsp_d0i3_states {
+	SKL_DSP_D0I3_NONE = -1, /* No D0i3 */
+	SKL_DSP_D0I3_NON_STREAMING = 0,
+	SKL_DSP_D0I3_STREAMING = 1,
 };
 
 struct skl_dsp_fw_ops {
 	int (*load_fw)(struct sst_dsp  *ctx);
 	/* FW module parser/loader */
 	int (*load_library)(struct sst_dsp *ctx,
-		struct skl_dfw_manifest *minfo);
+		struct skl_lib_info *linfo, int lib_count);
 	int (*parse_fw)(struct sst_dsp *ctx);
 	int (*set_state_D0)(struct sst_dsp *ctx, unsigned int core_id);
 	int (*set_state_D3)(struct sst_dsp *ctx, unsigned int core_id);
+	int (*set_state_D0i3)(struct sst_dsp *ctx);
+	int (*set_state_D0i0)(struct sst_dsp *ctx);
 	unsigned int (*get_fw_errcode)(struct sst_dsp *ctx);
 	int (*load_mod)(struct sst_dsp *ctx, u16 mod_id, u8 *mod_name);
 	int (*unload_mod)(struct sst_dsp *ctx, u16 mod_id);
@@ -161,6 +166,19 @@ struct skl_dsp_loader_ops {
 				 int stream_tag);
 };
 
+#define MAX_INSTANCE_BUFF 2
+
+struct uuid_module {
+	guid_t uuid;
+	int id;
+	int is_loadable;
+	int max_instance;
+	u64 pvt_id[MAX_INSTANCE_BUFF];
+	int *instance_id;
+
+	struct list_head list;
+};
+
 struct skl_load_module_info {
 	u16 mod_id;
 	const struct firmware *fw;
@@ -175,10 +193,12 @@ struct skl_module_table {
 void skl_cldma_process_intr(struct sst_dsp *ctx);
 void skl_cldma_int_disable(struct sst_dsp *ctx);
 int skl_cldma_prepare(struct sst_dsp *ctx);
+int skl_cldma_wait_interruptible(struct sst_dsp *ctx);
 
 void skl_dsp_set_state_locked(struct sst_dsp *ctx, int state);
 struct sst_dsp *skl_dsp_ctx_init(struct device *dev,
 		struct sst_dsp_device *sst_dev, int irq);
+int skl_dsp_acquire_irq(struct sst_dsp *sst);
 bool is_skl_dsp_running(struct sst_dsp *ctx);
 
 unsigned int skl_dsp_get_enabled_cores(struct sst_dsp *ctx);
@@ -211,18 +231,25 @@ int bxt_sst_init_fw(struct device *dev, struct skl_sst *ctx);
 void skl_sst_dsp_cleanup(struct device *dev, struct skl_sst *ctx);
 void bxt_sst_dsp_cleanup(struct device *dev, struct skl_sst *ctx);
 
-int snd_skl_get_module_info(struct skl_sst *ctx,
-				struct skl_module_cfg *mconfig);
 int snd_skl_parse_uuids(struct sst_dsp *ctx, const struct firmware *fw,
 				unsigned int offset, int index);
-int skl_get_pvt_id(struct skl_sst *ctx,
-				struct skl_module_cfg *mconfig);
-int skl_put_pvt_id(struct skl_sst *ctx,
-				struct skl_module_cfg *mconfig);
+int skl_get_pvt_id(struct skl_sst *ctx, guid_t *uuid_mod, int instance_id);
+int skl_put_pvt_id(struct skl_sst *ctx, guid_t *uuid_mod, int *pvt_id);
 int skl_get_pvt_instance_id_map(struct skl_sst *ctx,
 				int module_id, int instance_id);
 void skl_freeup_uuid_list(struct skl_sst *ctx);
 
 int skl_dsp_strip_extended_manifest(struct firmware *fw);
+void skl_dsp_enable_notification(struct skl_sst *ctx, bool enable);
+
+void skl_dsp_set_astate_cfg(struct skl_sst *ctx, u32 cnt, void *data);
+
+int skl_sst_ctx_init(struct device *dev, int irq, const char *fw_name,
+		struct skl_dsp_loader_ops dsp_ops, struct skl_sst **dsp,
+		struct sst_dsp_device *skl_dev);
+int skl_prepare_lib_load(struct skl_sst *skl, struct skl_lib_info *linfo,
+			struct firmware *stripped_fw,
+			unsigned int hdr_offset, int index);
+void skl_release_library(struct skl_lib_info *linfo, int lib_count);
 
 #endif /*__SKL_SST_DSP_H__*/

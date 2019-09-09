@@ -45,7 +45,6 @@
 #include "sunxi-common-regulators.dtsi"
 
 #include <dt-bindings/gpio/gpio.h>
-#include <dt-bindings/pinctrl/sun4i-a10.h>
 
 / {
 	model = "Yones TopTech BS1078 v2 Tablet";
@@ -63,14 +62,10 @@
 };
 
 &i2c1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c1_pins_a>;
 	status = "okay";
 };
 
 &i2c2 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c2_pins_a>;
 	status = "okay";
 };
 
@@ -90,27 +85,11 @@
 	status = "okay";
 };
 
-&pio {
-	mmc0_cd_pin_bs1078v2: mmc0_cd_pin@0 {
-		allwinner,pins = "PA8";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
-	};
-};
-
 &mmc0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_bs1078v2>;
 	vmmc-supply = <&reg_vcc3v0>;
 	bus-width = <4>;
-	cd-gpios = <&pio 0 8 GPIO_ACTIVE_HIGH>; /* PA8 */
-	cd-inverted;
+	cd-gpios = <&pio 0 8 GPIO_ACTIVE_LOW>; /* PA8 */
 	status = "okay";
-};
-
-&mmc0_pins_a {
-	allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
 };
 
 &p2wi {
@@ -192,7 +171,7 @@
 
 &uart0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_pins_a>;
+	pinctrl-0 = <&uart0_ph_pins>;
 	status = "okay";
 };
 

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *    Copyright IBM Corp. 2007
  *    Author(s): Utz Bacher <utz.bacher@de.ibm.com>,
@@ -14,21 +15,26 @@
 
 #define QETH_SNIFF_AVAIL	0x0008
 
+enum qeth_ip_types {
+	QETH_IP_TYPE_NORMAL,
+	QETH_IP_TYPE_VIPA,
+	QETH_IP_TYPE_RXIP,
+};
+
 struct qeth_ipaddr {
 	struct hlist_node hnode;
 	enum qeth_ip_types type;
-	enum qeth_ipa_setdelip_flags set_flags;
-	enum qeth_ipa_setdelip_flags del_flags;
+	unsigned char mac[ETH_ALEN];
 	u8 is_multicast:1;
 	u8 in_progress:1;
 	u8 disp_flag:2;
+	u8 ipato:1;			/* ucast only */
 
 	/* is changed only for normal ip addresses
 	 * for non-normal addresses it always is  1
 	 */
 	int  ref_counter;
 	enum qeth_prot_versions proto;
-	unsigned char mac[OSA_ADDR_LEN];
 	union {
 		struct {
 			unsigned int addr;
@@ -39,8 +45,50 @@ struct qeth_ipaddr {
 			unsigned int pfxlen;
 		} a6;
 	} u;
-
 };
+
+static inline void qeth_l3_init_ipaddr(struct qeth_ipaddr *addr,
+				       enum qeth_ip_types type,
+				       enum qeth_prot_versions proto)
+{
+	memset(addr, 0, sizeof(*addr));
+	addr->type = type;
+	addr->proto = proto;
+	addr->disp_flag = QETH_DISP_ADDR_DO_NOTHING;
+}
+
+static inline bool qeth_l3_addr_match_ip(struct qeth_ipaddr *a1,
+					 struct qeth_ipaddr *a2)
+{
+	if (a1->proto != a2->proto)
+		return false;
+	if (a1->proto == QETH_PROT_IPV6)
+		return ipv6_addr_equal(&a1->u.a6.addr, &a2->u.a6.addr);
+	return a1->u.a4.addr == a2->u.a4.addr;
+}
+
+static inline bool qeth_l3_addr_match_all(struct qeth_ipaddr *a1,
+					  struct qeth_ipaddr *a2)
+{
+	/* Assumes that the pair was obtained via qeth_l3_addr_find_by_ip(),
+	 * so 'proto' and 'addr' match for sure.
+	 *
+	 * For ucast:
+	 * -	'mac' is always 0.
+	 * -	'mask'/'pfxlen' for RXIP/VIPA is always 0. For NORMAL, matching
+	 *	values are required to avoid mixups in takeover eligibility.
+	 *
+	 * For mcast,
+	 * -	'mac' is mapped from the IP, and thus always matches.
+	 * -	'mask'/'pfxlen' is always 0.
+	 */
+	if (a1->type != a2->type)
+		return false;
+	if (a1->proto == QETH_PROT_IPV6)
+		return a1->u.a6.pfxlen == a2->u.a6.pfxlen;
+	return a1->u.a4.mask == a2->u.a4.mask;
+}
+
 static inline  u64 qeth_l3_ipaddr_hash(struct qeth_ipaddr *addr)
 {
 	u64  ret = 0;
@@ -65,24 +113,21 @@ struct qeth_ipato_entry {
 	int mask_bits;
 };
 
+extern const struct attribute_group *qeth_l3_attr_groups[];
 
 void qeth_l3_ipaddr_to_string(enum qeth_prot_versions, const __u8 *, char *);
-int qeth_l3_string_to_ipaddr(const char *, enum qeth_prot_versions, __u8 *);
 int qeth_l3_create_device_attributes(struct device *);
 void qeth_l3_remove_device_attributes(struct device *);
 int qeth_l3_setrouting_v4(struct qeth_card *);
 int qeth_l3_setrouting_v6(struct qeth_card *);
 int qeth_l3_add_ipato_entry(struct qeth_card *, struct qeth_ipato_entry *);
-void qeth_l3_del_ipato_entry(struct qeth_card *, enum qeth_prot_versions,
-			u8 *, int);
-int qeth_l3_add_vipa(struct qeth_card *, enum qeth_prot_versions, const u8 *);
-void qeth_l3_del_vipa(struct qeth_card *, enum qeth_prot_versions, const u8 *);
-int qeth_l3_add_rxip(struct qeth_card *, enum qeth_prot_versions, const u8 *);
-void qeth_l3_del_rxip(struct qeth_card *card, enum qeth_prot_versions,
-			const u8 *);
-int qeth_l3_is_addr_covered_by_ipato(struct qeth_card *, struct qeth_ipaddr *);
-struct qeth_ipaddr *qeth_l3_get_addr_buffer(enum qeth_prot_versions);
-int qeth_l3_add_ip(struct qeth_card *, struct qeth_ipaddr *);
-int qeth_l3_delete_ip(struct qeth_card *, struct qeth_ipaddr *);
+int qeth_l3_del_ipato_entry(struct qeth_card *card,
+			    enum qeth_prot_versions proto, u8 *addr,
+			    int mask_bits);
+void qeth_l3_update_ipato(struct qeth_card *card);
+int qeth_l3_modify_hsuid(struct qeth_card *card, bool add);
+int qeth_l3_modify_rxip_vipa(struct qeth_card *card, bool add, const u8 *ip,
+			     enum qeth_ip_types type,
+			     enum qeth_prot_versions proto);
 
 #endif /* __QETH_L3_H__ */

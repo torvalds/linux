@@ -2,6 +2,7 @@ NXP PCF2123 SPI Real Time Clock
 
 Required properties:
 - compatible: should be: "nxp,rtc-pcf2123"
+                      or "microcrystal,rv2123"
 - reg: should be the SPI slave chipselect address
 
 Optional properties:
@@ -9,7 +10,7 @@ Optional properties:
 
 Example:
 
-rtc: nxp,rtc-pcf2123@3 {
+pcf2123: rtc@3 {
 	compatible = "nxp,rtc-pcf2123"
 	reg = <3>
 	spi-cs-high;

@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* FS-Cache object state machine handler
  *
  * Copyright (C) 2007 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  *
  * See Documentation/filesystems/caching/object.txt for a description of the
  * object state machine and the in-kernel representations.
@@ -30,6 +26,7 @@ static const struct fscache_state *fscache_look_up_object(struct fscache_object 
 static const struct fscache_state *fscache_object_available(struct fscache_object *, int);
 static const struct fscache_state *fscache_parent_ready(struct fscache_object *, int);
 static const struct fscache_state *fscache_update_object(struct fscache_object *, int);
+static const struct fscache_state *fscache_object_dead(struct fscache_object *, int);
 
 #define __STATE_NAME(n) fscache_osm_##n
 #define STATE(n) (&__STATE_NAME(n))
@@ -91,7 +88,7 @@ static WORK_STATE(LOOKUP_FAILURE,	"LCFL", fscache_lookup_failure);
 static WORK_STATE(KILL_OBJECT,		"KILL", fscache_kill_object);
 static WORK_STATE(KILL_DEPENDENTS,	"KDEP", fscache_kill_dependents);
 static WORK_STATE(DROP_OBJECT,		"DROP", fscache_drop_object);
-static WORK_STATE(OBJECT_DEAD,		"DEAD", (void*)2UL);
+static WORK_STATE(OBJECT_DEAD,		"DEAD", fscache_object_dead);
 
 static WAIT_STATE(WAIT_FOR_INIT,	"?INI",
 		  TRANSIT_TO(INIT_OBJECT,	1 << FSCACHE_OBJECT_EV_NEW_CHILD));
@@ -137,10 +134,13 @@ static const struct fscache_transition fscache_osm_run_oob[] = {
 	   { 0, NULL }
 };
 
-static int  fscache_get_object(struct fscache_object *);
-static void fscache_put_object(struct fscache_object *);
+static int  fscache_get_object(struct fscache_object *,
+			       enum fscache_obj_ref_trace);
+static void fscache_put_object(struct fscache_object *,
+			       enum fscache_obj_ref_trace);
 static bool fscache_enqueue_dependents(struct fscache_object *, int);
 static void fscache_dequeue_object(struct fscache_object *);
+static void fscache_update_aux_data(struct fscache_object *);
 
 /*
  * we need to notify the parent when an op completes that we had outstanding
@@ -169,6 +169,7 @@ static void fscache_object_sm_dispatcher(struct fscache_object *object)
 	const struct fscache_transition *t;
 	const struct fscache_state *state, *new_state;
 	unsigned long events, event_mask;
+	bool oob;
 	int event = -1;
 
 	ASSERT(object != NULL);
@@ -187,6 +188,7 @@ restart_masked:
 	if (events & object->oob_event_mask) {
 		_debug("{OBJ%x} oob %lx",
 		       object->debug_id, events & object->oob_event_mask);
+		oob = true;
 		for (t = object->oob_table; t->events; t++) {
 			if (events & t->events) {
 				state = t->transit_to;
@@ -198,6 +200,7 @@ restart_masked:
 			}
 		}
 	}
+	oob = false;
 
 	/* Wait states are just transition tables */
 	if (!state->work) {
@@ -206,6 +209,8 @@ restart_masked:
 				if (events & t->events) {
 					new_state = t->transit_to;
 					event = fls(events & t->events) - 1;
+					trace_fscache_osm(object, state,
+							  true, false, event);
 					clear_bit(event, &object->events);
 					_debug("{OBJ%x} ev %d: %s -> %s",
 					       object->debug_id, event,
@@ -225,10 +230,15 @@ restart_masked:
 execute_work_state:
 	_debug("{OBJ%x} exec %s", object->debug_id, state->name);
 
+	trace_fscache_osm(object, state, false, oob, event);
 	new_state = state->work(object, event);
 	event = -1;
 	if (new_state == NO_TRANSIT) {
 		_debug("{OBJ%x} %s notrans", object->debug_id, state->name);
+		if (unlikely(state == STATE(OBJECT_DEAD))) {
+			_leave(" [dead]");
+			return;
+		}
 		fscache_enqueue_object(object);
 		event_mask = object->oob_event_mask;
 		goto unmask_events;
@@ -239,7 +249,7 @@ execute_work_state:
 	object->state = state = new_state;
 
 	if (state->work) {
-		if (unlikely(state->work == ((void *)2UL))) {
+		if (unlikely(state == STATE(OBJECT_DEAD))) {
 			_leave(" [dead]");
 			return;
 		}
@@ -274,7 +284,7 @@ static void fscache_object_work_func(struct work_struct *work)
 	start = jiffies;
 	fscache_object_sm_dispatcher(object);
 	fscache_hist(fscache_objs_histogram, start);
-	fscache_put_object(object);
+	fscache_put_object(object, fscache_obj_put_work);
 }
 
 /**
@@ -313,6 +323,7 @@ void fscache_object_init(struct fscache_object *object,
 	object->store_limit_l = 0;
 	object->cache = cache;
 	object->cookie = cookie;
+	fscache_cookie_get(cookie, fscache_cookie_get_attach_object);
 	object->parent = NULL;
 #ifdef CONFIG_FSCACHE_OBJECT_LIST
 	RB_CLEAR_NODE(&object->objlist_link);
@@ -392,7 +403,7 @@ static const struct fscache_state *fscache_initialise_object(struct fscache_obje
 	fscache_stat(&fscache_n_cop_grab_object);
 	success = false;
 	if (fscache_object_is_live(parent) &&
-	    object->cache->ops->grab_object(object)) {
+	    object->cache->ops->grab_object(object, fscache_obj_get_add_to_deps)) {
 		list_add(&object->dep_link, &parent->dependents);
 		success = true;
 	}
@@ -645,6 +656,12 @@ static const struct fscache_state *fscache_kill_object(struct fscache_object *ob
 	fscache_mark_object_dead(object);
 	object->oob_event_mask = 0;
 
+	if (test_bit(FSCACHE_OBJECT_RETIRED, &object->flags)) {
+		/* Reject any new read/write ops and abort any that are pending. */
+		clear_bit(FSCACHE_OBJECT_PENDING_WRITE, &object->flags);
+		fscache_cancel_all_ops(object);
+	}
+
 	if (list_empty(&object->dependents) &&
 	    object->n_ops == 0 &&
 	    object->n_children == 0)
@@ -692,6 +709,11 @@ static const struct fscache_state *fscache_drop_object(struct fscache_object *ob
 	ASSERT(cookie != NULL);
 	ASSERT(!hlist_unhashed(&object->cookie_link));
 
+	if (test_bit(FSCACHE_COOKIE_AUX_UPDATED, &cookie->flags)) {
+		_debug("final update");
+		fscache_update_aux_data(object);
+	}
+
 	/* Make sure the cookie no longer points here and that the netfs isn't
 	 * waiting for us.
 	 */
@@ -704,6 +726,9 @@ static const struct fscache_state *fscache_drop_object(struct fscache_object *ob
 
 	if (awaken)
 		wake_up_bit(&cookie->flags, FSCACHE_COOKIE_INVALIDATING);
+	if (test_and_clear_bit(FSCACHE_COOKIE_LOOKING_UP, &cookie->flags))
+		wake_up_bit(&cookie->flags, FSCACHE_COOKIE_LOOKING_UP);
+
 
 	/* Prevent a race with our last child, which has to signal EV_CLEARED
 	 * before dropping our spinlock.
@@ -734,7 +759,7 @@ static const struct fscache_state *fscache_drop_object(struct fscache_object *ob
 	}
 
 	/* this just shifts the object release to the work processor */
-	fscache_put_object(object);
+	fscache_put_object(object, fscache_obj_put_drop_obj);
 	fscache_stat(&fscache_n_object_dead);
 
 	_leave("");
@@ -744,12 +769,13 @@ static const struct fscache_state *fscache_drop_object(struct fscache_object *ob
 /*
  * get a ref on an object
  */
-static int fscache_get_object(struct fscache_object *object)
+static int fscache_get_object(struct fscache_object *object,
+			      enum fscache_obj_ref_trace why)
 {
 	int ret;
 
 	fscache_stat(&fscache_n_cop_grab_object);
-	ret = object->cache->ops->grab_object(object) ? 0 : -EAGAIN;
+	ret = object->cache->ops->grab_object(object, why) ? 0 : -EAGAIN;
 	fscache_stat_d(&fscache_n_cop_grab_object);
 	return ret;
 }
@@ -757,10 +783,11 @@ static int fscache_get_object(struct fscache_object *object)
 /*
  * Discard a ref on an object
  */
-static void fscache_put_object(struct fscache_object *object)
+static void fscache_put_object(struct fscache_object *object,
+			       enum fscache_obj_ref_trace why)
 {
 	fscache_stat(&fscache_n_cop_put_object);
-	object->cache->ops->put_object(object);
+	object->cache->ops->put_object(object, why);
 	fscache_stat_d(&fscache_n_cop_put_object);
 }
 
@@ -775,7 +802,7 @@ void fscache_object_destroy(struct fscache_object *object)
 	fscache_objlist_remove(object);
 
 	/* We can get rid of the cookie now */
-	fscache_cookie_put(object->cookie);
+	fscache_cookie_put(object->cookie, fscache_cookie_put_object);
 	object->cookie = NULL;
 }
 EXPORT_SYMBOL(fscache_object_destroy);
@@ -787,7 +814,7 @@ void fscache_enqueue_object(struct fscache_object *object)
 {
 	_enter("{OBJ%x}", object->debug_id);
 
-	if (fscache_get_object(object) >= 0) {
+	if (fscache_get_object(object, fscache_obj_get_queue) >= 0) {
 		wait_queue_head_t *cong_wq =
 			&get_cpu_var(fscache_object_cong_wait);
 
@@ -795,7 +822,7 @@ void fscache_enqueue_object(struct fscache_object *object)
 			if (fscache_object_congested())
 				wake_up(cong_wq);
 		} else
-			fscache_put_object(object);
+			fscache_put_object(object, fscache_obj_put_queue);
 
 		put_cpu_var(fscache_object_cong_wait);
 	}
@@ -855,7 +882,7 @@ static bool fscache_enqueue_dependents(struct fscache_object *object, int event)
 		list_del_init(&dep->dep_link);
 
 		fscache_raise_event(dep, event);
-		fscache_put_object(dep);
+		fscache_put_object(dep, fscache_obj_put_enq_dep);
 
 		if (!list_empty(&object->dependents) && need_resched()) {
 			ret = false;
@@ -895,7 +922,8 @@ static void fscache_dequeue_object(struct fscache_object *object)
  * and creation).
  */
 enum fscache_checkaux fscache_check_aux(struct fscache_object *object,
-					const void *data, uint16_t datalen)
+					const void *data, uint16_t datalen,
+					loff_t object_size)
 {
 	enum fscache_checkaux result;
 
@@ -905,7 +933,7 @@ enum fscache_checkaux fscache_check_aux(struct fscache_object *object,
 	}
 
 	result = object->cookie->def->check_aux(object->cookie->netfs_data,
-						data, datalen);
+						data, datalen, object_size);
 	switch (result) {
 		/* entry okay as is */
 	case FSCACHE_CHECKAUX_OKAY:
@@ -945,7 +973,7 @@ static const struct fscache_state *_fscache_invalidate_object(struct fscache_obj
 	 * retire the object instead.
 	 */
 	if (!fscache_use_cookie(object)) {
-		ASSERT(object->cookie->stores.rnode == NULL);
+		ASSERT(radix_tree_empty(&object->cookie->stores));
 		set_bit(FSCACHE_OBJECT_RETIRED, &object->flags);
 		_leave(" [no cookie]");
 		return transit_to(KILL_OBJECT);
@@ -961,11 +989,12 @@ static const struct fscache_state *_fscache_invalidate_object(struct fscache_obj
 	if (!op)
 		goto nomem;
 
-	fscache_operation_init(op, object->cache->ops->invalidate_object,
+	fscache_operation_init(cookie, op, object->cache->ops->invalidate_object,
 			       NULL, NULL);
 	op->flags = FSCACHE_OP_ASYNC |
 		(1 << FSCACHE_OP_EXCLUSIVE) |
 		(1 << FSCACHE_OP_UNUSE_COOKIE);
+	trace_fscache_page_op(cookie, NULL, op, fscache_page_op_invalidate);
 
 	spin_lock(&cookie->lock);
 	if (fscache_submit_exclusive_op(object, op) < 0)
@@ -1015,6 +1044,17 @@ static const struct fscache_state *fscache_invalidate_object(struct fscache_obje
 }
 
 /*
+ * Update auxiliary data.
+ */
+static void fscache_update_aux_data(struct fscache_object *object)
+{
+	fscache_stat(&fscache_n_updates_run);
+	fscache_stat(&fscache_n_cop_update_object);
+	object->cache->ops->update_object(object);
+	fscache_stat_d(&fscache_n_cop_update_object);
+}
+
+/*
  * Asynchronously update an object.
  */
 static const struct fscache_state *fscache_update_object(struct fscache_object *object,
@@ -1022,10 +1062,7 @@ static const struct fscache_state *fscache_update_object(struct fscache_object *
 {
 	_enter("{OBJ%x},%d", object->debug_id, event);
 
-	fscache_stat(&fscache_n_updates_run);
-	fscache_stat(&fscache_n_cop_update_object);
-	object->cache->ops->update_object(object);
-	fscache_stat_d(&fscache_n_cop_update_object);
+	fscache_update_aux_data(object);
 
 	_leave("");
 	return transit_to(WAIT_FOR_CMD);
@@ -1077,3 +1114,20 @@ void fscache_object_mark_killed(struct fscache_object *object,
 	}
 }
 EXPORT_SYMBOL(fscache_object_mark_killed);
+
+/*
+ * The object is dead.  We can get here if an object gets queued by an event
+ * that would lead to its death (such as EV_KILL) when the dispatcher is
+ * already running (and so can be requeued) but hasn't yet cleared the event
+ * mask.
+ */
+static const struct fscache_state *fscache_object_dead(struct fscache_object *object,
+						       int event)
+{
+	if (!test_and_set_bit(FSCACHE_OBJECT_RUN_AFTER_DEAD,
+			      &object->flags))
+		return NO_TRANSIT;
+
+	WARN(true, "FS-Cache object redispatched after death");
+	return NO_TRANSIT;
+}

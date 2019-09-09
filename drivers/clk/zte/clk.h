@@ -1,10 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright 2015 Linaro Ltd.
  * Copyright (C) 2014 ZTE Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef __ZTE_CLK_H
@@ -13,24 +10,6 @@
 #include <linux/spinlock.h>
 
 #define PNAME(x) static const char *x[]
-
-#define CLK_HW_INIT(_name, _parent, _ops, _flags)			\
-	&(struct clk_init_data) {					\
-		.flags		= _flags,				\
-		.name		= _name,				\
-		.parent_names	= (const char *[]) { _parent },		\
-		.num_parents	= 1,					\
-		.ops		= _ops,					\
-	}
-
-#define CLK_HW_INIT_PARENTS(_name, _parents, _ops, _flags)		\
-	&(struct clk_init_data) {					\
-		.flags		= _flags,				\
-		.name		= _name,				\
-		.parent_names	= _parents,				\
-		.num_parents	= ARRAY_SIZE(_parents),			\
-		.ops		= _ops,					\
-	}
 
 struct zx_pll_config {
 	unsigned long rate;
@@ -66,8 +45,12 @@ struct clk_zx_pll {
 				CLK_GET_RATE_NOCACHE),			\
 }
 
+/*
+ * The pd_bit is not available on ZX296718, so let's pass something
+ * bigger than 31, e.g. 0xff, to indicate that.
+ */
 #define ZX296718_PLL(_name, _parent, _reg, _table)			\
-ZX_PLL(_name, _parent, _reg, _table, 0, 30)
+ZX_PLL(_name, _parent, _reg, _table, 0xff, 30)
 
 struct zx_clk_gate {
 	struct clk_gate gate;
@@ -153,6 +136,25 @@ struct zx_clk_div {
 	.id = _id,							\
 }
 
+struct clk_zx_audio_divider {
+	struct clk_hw				hw;
+	void __iomem				*reg_base;
+	unsigned int				rate_count;
+	spinlock_t				*lock;
+	u16					id;
+};
+
+#define AUDIO_DIV(_id, _name, _parent, _reg)				\
+{									\
+	.reg_base	= (void __iomem *) _reg,			\
+	.lock		= &clk_lock,					\
+	.hw.init	= CLK_HW_INIT(_name,				\
+				      _parent,				\
+				      &zx_audio_div_ops,		\
+				      0),				\
+	.id = _id,							\
+}
+
 struct clk *clk_register_zx_pll(const char *name, const char *parent_name,
 	unsigned long flags, void __iomem *reg_base,
 	const struct zx_pll_config *lookup_table, int count, spinlock_t *lock);
@@ -167,4 +169,6 @@ struct clk *clk_register_zx_audio(const char *name,
 				  unsigned long flags, void __iomem *reg_base);
 
 extern const struct clk_ops zx_pll_ops;
+extern const struct clk_ops zx_audio_div_ops;
+
 #endif

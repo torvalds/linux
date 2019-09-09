@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 #ifndef __NVKM_BUS_HWSQ_H__
 #define __NVKM_BUS_HWSQ_H__
 #include <subdev/bus.h>

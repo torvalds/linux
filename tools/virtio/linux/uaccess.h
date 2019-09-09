@@ -1,8 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef UACCESS_H
 #define UACCESS_H
-extern void *__user_addr_min, *__user_addr_max;
 
-#define ACCESS_ONCE(x) (*(volatile typeof(x) *)&(x))
+#include <linux/compiler.h>
+
+extern void *__user_addr_min, *__user_addr_max;
 
 static inline void __chk_user_ptr(const volatile void *p, size_t size)
 {
@@ -13,7 +15,7 @@ static inline void __chk_user_ptr(const volatile void *p, size_t size)
 ({								\
 	typeof(ptr) __pu_ptr = (ptr);				\
 	__chk_user_ptr(__pu_ptr, sizeof(*__pu_ptr));		\
-	ACCESS_ONCE(*(__pu_ptr)) = x;				\
+	WRITE_ONCE(*(__pu_ptr), x);				\
 	0;							\
 })
 
@@ -21,7 +23,7 @@ static inline void __chk_user_ptr(const volatile void *p, size_t size)
 ({								\
 	typeof(ptr) __pu_ptr = (ptr);				\
 	__chk_user_ptr(__pu_ptr, sizeof(*__pu_ptr));		\
-	x = ACCESS_ONCE(*(__pu_ptr));				\
+	x = READ_ONCE(*(__pu_ptr));				\
 	0;							\
 })
 

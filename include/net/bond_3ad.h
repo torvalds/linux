@@ -1,23 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright(c) 1999 - 2004 Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 59
- * Temple Place - Suite 330, Boston, MA  02111-1307, USA.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
- *
  */
 
 #ifndef _NET_BOND_3AD_H
@@ -180,6 +163,19 @@ struct port;
 #pragma pack(8)
 #endif
 
+struct bond_3ad_stats {
+	atomic64_t lacpdu_rx;
+	atomic64_t lacpdu_tx;
+	atomic64_t lacpdu_unknown_rx;
+	atomic64_t lacpdu_illegal_rx;
+
+	atomic64_t marker_rx;
+	atomic64_t marker_tx;
+	atomic64_t marker_resp_rx;
+	atomic64_t marker_resp_tx;
+	atomic64_t marker_unknown_rx;
+};
+
 /* aggregator structure(43.4.5 in the 802.3ad standard) */
 typedef struct aggregator {
 	struct mac_addr aggregator_mac_address;
@@ -265,6 +261,7 @@ struct ad_system {
 
 struct ad_bond_info {
 	struct ad_system system;	/* 802.3ad system structure */
+	struct bond_3ad_stats stats;
 	u32 agg_select_timer;		/* Timer to select aggregator after all adapter's hand shakes */
 	u16 aggregator_identifier;
 };
@@ -272,6 +269,7 @@ struct ad_bond_info {
 struct ad_slave_info {
 	struct aggregator aggregator;	/* 802.3ad aggregator structure */
 	struct port port;		/* 802.3ad port structure */
+	struct bond_3ad_stats stats;
 	u16 id;
 };
 
@@ -283,7 +281,7 @@ static inline const char *bond_3ad_churn_desc(churn_state_t state)
 		"none",
 		"unknown"
 	};
-	int max_size = sizeof(churn_description) / sizeof(churn_description[0]);
+	int max_size = ARRAY_SIZE(churn_description);
 
 	if (state >= max_size)
 		state = max_size - 1;
@@ -307,5 +305,7 @@ int bond_3ad_lacpdu_recv(const struct sk_buff *skb, struct bonding *bond,
 int bond_3ad_set_carrier(struct bonding *bond);
 void bond_3ad_update_lacp_rate(struct bonding *bond);
 void bond_3ad_update_ad_actor_settings(struct bonding *bond);
+int bond_3ad_stats_fill(struct sk_buff *skb, struct bond_3ad_stats *stats);
+size_t bond_3ad_stats_size(void);
 #endif /* _NET_BOND_3AD_H */
 

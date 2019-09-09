@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/init.h>
@@ -124,6 +125,20 @@ static struct usb_device *testdev_to_usbdev(struct usbtest_dev *test)
 
 /*-------------------------------------------------------------------------*/
 
+static inline void endpoint_update(int edi,
+				   struct usb_host_endpoint **in,
+				   struct usb_host_endpoint **out,
+				   struct usb_host_endpoint *e)
+{
+	if (edi) {
+		if (!*in)
+			*in = e;
+	} else {
+		if (!*out)
+			*out = e;
+	}
+}
+
 static int
 get_endpoints(struct usbtest_dev *dev, struct usb_interface *intf)
 {
@@ -151,45 +166,25 @@ get_endpoints(struct usbtest_dev *dev, struct usb_interface *intf)
 		 */
 		for (ep = 0; ep < alt->desc.bNumEndpoints; ep++) {
 			struct usb_host_endpoint	*e;
+			int edi;
 
 			e = alt->endpoint + ep;
+			edi = usb_endpoint_dir_in(&e->desc);
+
 			switch (usb_endpoint_type(&e->desc)) {
 			case USB_ENDPOINT_XFER_BULK:
-				break;
+				endpoint_update(edi, &in, &out, e);
+				continue;
 			case USB_ENDPOINT_XFER_INT:
 				if (dev->info->intr)
-					goto try_intr;
+					endpoint_update(edi, &int_in, &int_out, e);
+				continue;
 			case USB_ENDPOINT_XFER_ISOC:
 				if (dev->info->iso)
-					goto try_iso;
+					endpoint_update(edi, &iso_in, &iso_out, e);
 				/* FALLTHROUGH */
 			default:
 				continue;
-			}
-			if (usb_endpoint_dir_in(&e->desc)) {
-				if (!in)
-					in = e;
-			} else {
-				if (!out)
-					out = e;
-			}
-			continue;
-try_intr:
-			if (usb_endpoint_dir_in(&e->desc)) {
-				if (!int_in)
-					int_in = e;
-			} else {
-				if (!int_out)
-					int_out = e;
-			}
-			continue;
-try_iso:
-			if (usb_endpoint_dir_in(&e->desc)) {
-				if (!iso_in)
-					iso_in = e;
-			} else {
-				if (!iso_out)
-					iso_out = e;
 			}
 		}
 		if ((in && out)  ||  iso_in || iso_out || int_in || int_out)
@@ -208,12 +203,13 @@ found:
 			return tmp;
 	}
 
-	if (in) {
+	if (in)
 		dev->in_pipe = usb_rcvbulkpipe(udev,
 			in->desc.bEndpointAddress & USB_ENDPOINT_NUMBER_MASK);
+	if (out)
 		dev->out_pipe = usb_sndbulkpipe(udev,
 			out->desc.bEndpointAddress & USB_ENDPOINT_NUMBER_MASK);
-	}
+
 	if (iso_in) {
 		dev->iso_in = &iso_in->desc;
 		dev->in_iso_pipe = usb_rcvisocpipe(udev,
@@ -349,6 +345,14 @@ static unsigned get_maxpacket(struct usb_device *udev, int pipe)
 
 	ep = usb_pipe_endpoint(udev, pipe);
 	return le16_to_cpup(&ep->desc.wMaxPacketSize);
+}
+
+static int ss_isoc_get_packet_num(struct usb_device *udev, int pipe)
+{
+	struct usb_host_endpoint *ep = usb_pipe_endpoint(udev, pipe);
+
+	return USB_SS_MULT(ep->ss_ep_comp.bmAttributes)
+		* (1 + ep->ss_ep_comp.bMaxBurst);
 }
 
 static void simple_fill_buf(struct urb *urb)
@@ -581,11 +585,16 @@ alloc_sglist(int nents, int max, int vary, struct usbtest_dev *dev, int pipe)
 	return sg;
 }
 
-static void sg_timeout(unsigned long _req)
-{
-	struct usb_sg_request	*req = (struct usb_sg_request *) _req;
+struct sg_timeout {
+	struct timer_list timer;
+	struct usb_sg_request *req;
+};
 
-	usb_sg_cancel(req);
+static void sg_timeout(struct timer_list *t)
+{
+	struct sg_timeout *timeout = from_timer(timeout, t, timer);
+
+	usb_sg_cancel(timeout->req);
 }
 
 static int perform_sglist(
@@ -599,9 +608,11 @@ static int perform_sglist(
 {
 	struct usb_device	*udev = testdev_to_usbdev(tdev);
 	int			retval = 0;
-	struct timer_list	sg_timer;
+	struct sg_timeout	timeout = {
+		.req = req,
+	};
 
-	setup_timer_on_stack(&sg_timer, sg_timeout, (unsigned long) req);
+	timer_setup_on_stack(&timeout.timer, sg_timeout, 0);
 
 	while (retval == 0 && iterations-- > 0) {
 		retval = usb_sg_init(req, udev, pipe,
@@ -612,13 +623,14 @@ static int perform_sglist(
 
 		if (retval)
 			break;
-		mod_timer(&sg_timer, jiffies +
+		mod_timer(&timeout.timer, jiffies +
 				msecs_to_jiffies(SIMPLE_IO_TIMEOUT));
 		usb_sg_wait(req);
-		if (!del_timer_sync(&sg_timer))
+		if (!del_timer_sync(&timeout.timer))
 			retval = -ETIMEDOUT;
 		else
 			retval = req->status;
+		destroy_timer_on_stack(&timeout.timer);
 
 		/* FIXME check resulting data pattern */
 
@@ -992,7 +1004,7 @@ static int ch9_postconfig(struct usbtest_dev *dev)
 				dev_err(&iface->dev,
 						"hs dev qualifier --> %d\n",
 						retval);
-				return (retval < 0) ? retval : -EDOM;
+				return retval;
 			}
 			/* usb2.0 but not high-speed capable; fine */
 		} else if (retval != sizeof(struct usb_qualifier_descriptor)) {
@@ -1020,7 +1032,7 @@ static int ch9_postconfig(struct usbtest_dev *dev)
 	/* FIXME fetch strings from at least the device descriptor */
 
 	/* [9.4.5] get_status always works */
-	retval = usb_get_status(udev, USB_RECIP_DEVICE, 0, dev->buf);
+	retval = usb_get_std_status(udev, USB_RECIP_DEVICE, 0, dev->buf);
 	if (retval) {
 		dev_err(&iface->dev, "get dev status --> %d\n", retval);
 		return retval;
@@ -1030,7 +1042,7 @@ static int ch9_postconfig(struct usbtest_dev *dev)
 	 * the device's remote wakeup feature ... if we can, test that here
 	 */
 
-	retval = usb_get_status(udev, USB_RECIP_INTERFACE,
+	retval = usb_get_std_status(udev, USB_RECIP_INTERFACE,
 			iface->altsetting[0].desc.bInterfaceNumber, dev->buf);
 	if (retval) {
 		dev_err(&iface->dev, "get interface status --> %d\n", retval);
@@ -1078,11 +1090,12 @@ static void ctrl_complete(struct urb *urb)
 	struct usb_ctrlrequest	*reqp;
 	struct subcase		*subcase;
 	int			status = urb->status;
+	unsigned long		flags;
 
 	reqp = (struct usb_ctrlrequest *)urb->setup_packet;
 	subcase = container_of(reqp, struct subcase, setup);
 
-	spin_lock(&ctx->lock);
+	spin_lock_irqsave(&ctx->lock, flags);
 	ctx->count--;
 	ctx->pending--;
 
@@ -1181,7 +1194,7 @@ error:
 	/* signal completion when nothing's queued */
 	if (ctx->pending == 0)
 		complete(&ctx->complete);
-	spin_unlock(&ctx->lock);
+	spin_unlock_irqrestore(&ctx->lock, flags);
 }
 
 static int
@@ -1619,7 +1632,7 @@ static int verify_not_halted(struct usbtest_dev *tdev, int ep, struct urb *urb)
 	u16	status;
 
 	/* shouldn't look or act halted */
-	retval = usb_get_status(urb->dev, USB_RECIP_ENDPOINT, ep, &status);
+	retval = usb_get_std_status(urb->dev, USB_RECIP_ENDPOINT, ep, &status);
 	if (retval < 0) {
 		ERROR(tdev, "ep %02x couldn't get no-halt status, %d\n",
 				ep, retval);
@@ -1641,7 +1654,7 @@ static int verify_halted(struct usbtest_dev *tdev, int ep, struct urb *urb)
 	u16	status;
 
 	/* should look and act halted */
-	retval = usb_get_status(urb->dev, USB_RECIP_ENDPOINT, ep, &status);
+	retval = usb_get_std_status(urb->dev, USB_RECIP_ENDPOINT, ep, &status);
 	if (retval < 0) {
 		ERROR(tdev, "ep %02x couldn't get halt status, %d\n",
 				ep, retval);
@@ -1706,6 +1719,35 @@ static int test_halt(struct usbtest_dev *tdev, int ep, struct urb *urb)
 	return 0;
 }
 
+static int test_toggle_sync(struct usbtest_dev *tdev, int ep, struct urb *urb)
+{
+	int	retval;
+
+	/* clear initial data toggle to DATA0 */
+	retval = usb_clear_halt(urb->dev, urb->pipe);
+	if (retval < 0) {
+		ERROR(tdev, "ep %02x couldn't clear halt, %d\n", ep, retval);
+		return retval;
+	}
+
+	/* transfer 3 data packets, should be DATA0, DATA1, DATA0 */
+	retval = simple_io(tdev, urb, 1, 0, 0, __func__);
+	if (retval != 0)
+		return -EINVAL;
+
+	/* clear halt resets device side data toggle, host should react to it */
+	retval = usb_clear_halt(urb->dev, urb->pipe);
+	if (retval < 0) {
+		ERROR(tdev, "ep %02x couldn't clear halt, %d\n", ep, retval);
+		return retval;
+	}
+
+	/* host should use DATA0 again after clear halt */
+	retval = simple_io(tdev, urb, 1, 0, 0, __func__);
+
+	return retval;
+}
+
 static int halt_simple(struct usbtest_dev *dev)
 {
 	int			ep;
@@ -1734,6 +1776,33 @@ static int halt_simple(struct usbtest_dev *dev)
 		retval = test_halt(dev, ep, urb);
 	}
 done:
+	simple_free_urb(urb);
+	return retval;
+}
+
+static int toggle_sync_simple(struct usbtest_dev *dev)
+{
+	int			ep;
+	int			retval = 0;
+	struct urb		*urb;
+	struct usb_device	*udev = testdev_to_usbdev(dev);
+	unsigned		maxp = get_maxpacket(udev, dev->out_pipe);
+
+	/*
+	 * Create a URB that causes a transfer of uneven amount of data packets
+	 * This way the clear toggle has an impact on the data toggle sequence.
+	 * Use 2 maxpacket length packets and one zero packet.
+	 */
+	urb = simple_alloc_urb(udev, 0,  2 * maxp, 0);
+	if (urb == NULL)
+		return -ENOMEM;
+
+	urb->transfer_flags |= URB_ZERO_PACKET;
+
+	ep = usb_pipeendpoint(dev->out_pipe);
+	urb->pipe = dev->out_pipe;
+	retval = test_toggle_sync(dev, ep, urb);
+
 	simple_free_urb(urb);
 	return retval;
 }
@@ -1857,8 +1926,9 @@ struct transfer_context {
 static void complicated_callback(struct urb *urb)
 {
 	struct transfer_context	*ctx = urb->context;
+	unsigned long flags;
 
-	spin_lock(&ctx->lock);
+	spin_lock_irqsave(&ctx->lock, flags);
 	ctx->count--;
 
 	ctx->packet_count += urb->number_of_packets;
@@ -1898,7 +1968,7 @@ static void complicated_callback(struct urb *urb)
 		complete(&ctx->done);
 	}
 done:
-	spin_unlock(&ctx->lock);
+	spin_unlock_irqrestore(&ctx->lock, flags);
 }
 
 static struct urb *iso_alloc_urb(
@@ -1914,8 +1984,13 @@ static struct urb *iso_alloc_urb(
 
 	if (bytes < 0 || !desc)
 		return NULL;
-	maxp = 0x7ff & usb_endpoint_maxp(desc);
-	maxp *= 1 + (0x3 & (usb_endpoint_maxp(desc) >> 11));
+
+	maxp = usb_endpoint_maxp(desc);
+	if (udev->speed >= USB_SPEED_SUPER)
+		maxp *= ss_isoc_get_packet_num(udev, pipe);
+	else
+		maxp *= usb_endpoint_maxp_mult(desc);
+
 	packets = DIV_ROUND_UP(bytes, maxp);
 
 	urb = usb_alloc_urb(packets, GFP_KERNEL);
@@ -1968,7 +2043,13 @@ test_queue(struct usbtest_dev *dev, struct usbtest_param_32 *param,
 	unsigned		i;
 	unsigned long		packets = 0;
 	int			status = 0;
-	struct urb		*urbs[param->sglen];
+	struct urb		*urbs[MAX_SGLEN];
+
+	if (!param->sglen || param->iterations > UINT_MAX / param->sglen)
+		return -EINVAL;
+
+	if (param->sglen > MAX_SGLEN)
+		return -EINVAL;
 
 	memset(&context, 0, sizeof(context));
 	context.count = param->iterations * param->sglen;
@@ -1997,17 +2078,24 @@ test_queue(struct usbtest_dev *dev, struct usbtest_param_32 *param,
 	packets *= param->iterations;
 
 	if (context.is_iso) {
+		int transaction_num;
+
+		if (udev->speed >= USB_SPEED_SUPER)
+			transaction_num = ss_isoc_get_packet_num(udev, pipe);
+		else
+			transaction_num = usb_endpoint_maxp_mult(desc);
+
 		dev_info(&dev->intf->dev,
 			"iso period %d %sframes, wMaxPacket %d, transactions: %d\n",
 			1 << (desc->bInterval - 1),
-			(udev->speed == USB_SPEED_HIGH) ? "micro" : "",
-			usb_endpoint_maxp(desc) & 0x7ff,
-			1 + (0x3 & (usb_endpoint_maxp(desc) >> 11)));
+			(udev->speed >= USB_SPEED_HIGH) ? "micro" : "",
+			usb_endpoint_maxp(desc),
+			transaction_num);
 
 		dev_info(&dev->intf->dev,
 			"total %lu msec (%lu packets)\n",
 			(packets * (1 << (desc->bInterval - 1)))
-				/ ((udev->speed == USB_SPEED_HIGH) ? 8 : 1),
+				/ ((udev->speed >= USB_SPEED_HIGH) ? 8 : 1),
 			packets);
 	}
 
@@ -2092,6 +2180,8 @@ usbtest_do_ioctl(struct usb_interface *intf, struct usbtest_param_32 *param)
 	int	retval = -EOPNOTSUPP;
 
 	if (param->iterations <= 0)
+		return -EINVAL;
+	if (param->sglen > MAX_SGLEN)
 		return -EINVAL;
 	/*
 	 * Just a bunch of test cases that every HCD is expected to handle.
@@ -2514,6 +2604,20 @@ usbtest_do_ioctl(struct usb_interface *intf, struct usbtest_param_32 *param)
 			param->sglen * param->length) / (1024 * 1024));
 		retval = test_queue(dev, param,
 				dev->in_pipe, NULL, 0);
+		break;
+	/* Test data Toggle/seq_nr clear between bulk out transfers */
+	case 29:
+		if (dev->out_pipe == 0)
+			break;
+		retval = 0;
+		dev_info(&intf->dev, "TEST 29: Clear toggle between bulk writes %d times\n",
+				param->iterations);
+		for (i = param->iterations; retval == 0 && i > 0; --i)
+			retval = toggle_sync_simple(dev);
+
+		if (retval)
+			ERROR(dev, "toggle sync failed, iterations left %d\n",
+			      i);
 		break;
 	}
 	return retval;

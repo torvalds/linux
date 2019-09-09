@@ -285,42 +285,43 @@ qlcnic_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *drvinfo)
 		sizeof(drvinfo->version));
 }
 
-static int qlcnic_82xx_get_settings(struct qlcnic_adapter *adapter,
-				    struct ethtool_cmd *ecmd)
+static int qlcnic_82xx_get_link_ksettings(struct qlcnic_adapter *adapter,
+					  struct ethtool_link_ksettings *ecmd)
 {
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
 	u32 speed, reg;
 	int check_sfp_module = 0, err = 0;
 	u16 pcifn = ahw->pci_func;
+	u32 supported, advertising;
 
 	/* read which mode */
 	if (adapter->ahw->port_type == QLCNIC_GBE) {
-		ecmd->supported = (SUPPORTED_10baseT_Half |
+		supported = (SUPPORTED_10baseT_Half |
 				   SUPPORTED_10baseT_Full |
 				   SUPPORTED_100baseT_Half |
 				   SUPPORTED_100baseT_Full |
 				   SUPPORTED_1000baseT_Half |
 				   SUPPORTED_1000baseT_Full);
 
-		ecmd->advertising = (ADVERTISED_100baseT_Half |
+		advertising = (ADVERTISED_100baseT_Half |
 				     ADVERTISED_100baseT_Full |
 				     ADVERTISED_1000baseT_Half |
 				     ADVERTISED_1000baseT_Full);
 
-		ethtool_cmd_speed_set(ecmd, adapter->ahw->link_speed);
-		ecmd->duplex = adapter->ahw->link_duplex;
-		ecmd->autoneg = adapter->ahw->link_autoneg;
+		ecmd->base.speed = adapter->ahw->link_speed;
+		ecmd->base.duplex = adapter->ahw->link_duplex;
+		ecmd->base.autoneg = adapter->ahw->link_autoneg;
 
 	} else if (adapter->ahw->port_type == QLCNIC_XGBE) {
 		u32 val = 0;
 		val = QLCRD32(adapter, QLCNIC_PORT_MODE_ADDR, &err);
 
 		if (val == QLCNIC_PORT_MODE_802_3_AP) {
-			ecmd->supported = SUPPORTED_1000baseT_Full;
-			ecmd->advertising = ADVERTISED_1000baseT_Full;
+			supported = SUPPORTED_1000baseT_Full;
+			advertising = ADVERTISED_1000baseT_Full;
 		} else {
-			ecmd->supported = SUPPORTED_10000baseT_Full;
-			ecmd->advertising = ADVERTISED_10000baseT_Full;
+			supported = SUPPORTED_10000baseT_Full;
+			advertising = ADVERTISED_10000baseT_Full;
 		}
 
 		if (netif_running(adapter->netdev) && ahw->has_link_events) {
@@ -331,73 +332,73 @@ static int qlcnic_82xx_get_settings(struct qlcnic_adapter *adapter,
 				ahw->link_speed = speed * P3P_LINK_SPEED_MHZ;
 			}
 
-			ethtool_cmd_speed_set(ecmd, ahw->link_speed);
-			ecmd->autoneg = ahw->link_autoneg;
-			ecmd->duplex = ahw->link_duplex;
+			ecmd->base.speed = ahw->link_speed;
+			ecmd->base.autoneg = ahw->link_autoneg;
+			ecmd->base.duplex = ahw->link_duplex;
 			goto skip;
 		}
 
-		ethtool_cmd_speed_set(ecmd, SPEED_UNKNOWN);
-		ecmd->duplex = DUPLEX_UNKNOWN;
-		ecmd->autoneg = AUTONEG_DISABLE;
+		ecmd->base.speed = SPEED_UNKNOWN;
+		ecmd->base.duplex = DUPLEX_UNKNOWN;
+		ecmd->base.autoneg = AUTONEG_DISABLE;
 	} else
 		return -EIO;
 
 skip:
-	ecmd->phy_address = adapter->ahw->physical_port;
-	ecmd->transceiver = XCVR_EXTERNAL;
+	ecmd->base.phy_address = adapter->ahw->physical_port;
 
 	switch (adapter->ahw->board_type) {
 	case QLCNIC_BRDTYPE_P3P_REF_QG:
 	case QLCNIC_BRDTYPE_P3P_4_GB:
 	case QLCNIC_BRDTYPE_P3P_4_GB_MM:
-
-		ecmd->supported |= SUPPORTED_Autoneg;
-		ecmd->advertising |= ADVERTISED_Autoneg;
+		supported |= SUPPORTED_Autoneg;
+		advertising |= ADVERTISED_Autoneg;
+		/* fall through */
 	case QLCNIC_BRDTYPE_P3P_10G_CX4:
 	case QLCNIC_BRDTYPE_P3P_10G_CX4_LP:
 	case QLCNIC_BRDTYPE_P3P_10000_BASE_T:
-		ecmd->supported |= SUPPORTED_TP;
-		ecmd->advertising |= ADVERTISED_TP;
-		ecmd->port = PORT_TP;
-		ecmd->autoneg =  adapter->ahw->link_autoneg;
+		supported |= SUPPORTED_TP;
+		advertising |= ADVERTISED_TP;
+		ecmd->base.port = PORT_TP;
+		ecmd->base.autoneg =  adapter->ahw->link_autoneg;
 		break;
 	case QLCNIC_BRDTYPE_P3P_IMEZ:
 	case QLCNIC_BRDTYPE_P3P_XG_LOM:
 	case QLCNIC_BRDTYPE_P3P_HMEZ:
-		ecmd->supported |= SUPPORTED_MII;
-		ecmd->advertising |= ADVERTISED_MII;
-		ecmd->port = PORT_MII;
-		ecmd->autoneg = AUTONEG_DISABLE;
+		supported |= SUPPORTED_MII;
+		advertising |= ADVERTISED_MII;
+		ecmd->base.port = PORT_MII;
+		ecmd->base.autoneg = AUTONEG_DISABLE;
 		break;
 	case QLCNIC_BRDTYPE_P3P_10G_SFP_PLUS:
 	case QLCNIC_BRDTYPE_P3P_10G_SFP_CT:
 	case QLCNIC_BRDTYPE_P3P_10G_SFP_QT:
-		ecmd->advertising |= ADVERTISED_TP;
-		ecmd->supported |= SUPPORTED_TP;
+		advertising |= ADVERTISED_TP;
+		supported |= SUPPORTED_TP;
 		check_sfp_module = netif_running(adapter->netdev) &&
 				   ahw->has_link_events;
+		/* fall through */
 	case QLCNIC_BRDTYPE_P3P_10G_XFP:
-		ecmd->supported |= SUPPORTED_FIBRE;
-		ecmd->advertising |= ADVERTISED_FIBRE;
-		ecmd->port = PORT_FIBRE;
-		ecmd->autoneg = AUTONEG_DISABLE;
+		supported |= SUPPORTED_FIBRE;
+		advertising |= ADVERTISED_FIBRE;
+		ecmd->base.port = PORT_FIBRE;
+		ecmd->base.autoneg = AUTONEG_DISABLE;
 		break;
 	case QLCNIC_BRDTYPE_P3P_10G_TP:
 		if (adapter->ahw->port_type == QLCNIC_XGBE) {
-			ecmd->autoneg = AUTONEG_DISABLE;
-			ecmd->supported |= (SUPPORTED_FIBRE | SUPPORTED_TP);
-			ecmd->advertising |=
+			ecmd->base.autoneg = AUTONEG_DISABLE;
+			supported |= (SUPPORTED_FIBRE | SUPPORTED_TP);
+			advertising |=
 				(ADVERTISED_FIBRE | ADVERTISED_TP);
-			ecmd->port = PORT_FIBRE;
+			ecmd->base.port = PORT_FIBRE;
 			check_sfp_module = netif_running(adapter->netdev) &&
 					   ahw->has_link_events;
 		} else {
-			ecmd->autoneg = AUTONEG_ENABLE;
-			ecmd->supported |= (SUPPORTED_TP | SUPPORTED_Autoneg);
-			ecmd->advertising |=
+			ecmd->base.autoneg = AUTONEG_ENABLE;
+			supported |= (SUPPORTED_TP | SUPPORTED_Autoneg);
+			advertising |=
 				(ADVERTISED_TP | ADVERTISED_Autoneg);
-			ecmd->port = PORT_TP;
+			ecmd->base.port = PORT_TP;
 		}
 		break;
 	default:
@@ -412,47 +413,52 @@ skip:
 		case LINKEVENT_MODULE_OPTICAL_SRLR:
 		case LINKEVENT_MODULE_OPTICAL_LRM:
 		case LINKEVENT_MODULE_OPTICAL_SFP_1G:
-			ecmd->port = PORT_FIBRE;
+			ecmd->base.port = PORT_FIBRE;
 			break;
 		case LINKEVENT_MODULE_TWINAX_UNSUPPORTED_CABLE:
 		case LINKEVENT_MODULE_TWINAX_UNSUPPORTED_CABLELEN:
 		case LINKEVENT_MODULE_TWINAX:
-			ecmd->port = PORT_TP;
+			ecmd->base.port = PORT_TP;
 			break;
 		default:
-			ecmd->port = PORT_OTHER;
+			ecmd->base.port = PORT_OTHER;
 		}
 	}
+
+	ethtool_convert_legacy_u32_to_link_mode(ecmd->link_modes.supported,
+						supported);
+	ethtool_convert_legacy_u32_to_link_mode(ecmd->link_modes.advertising,
+						advertising);
 
 	return 0;
 }
 
-static int qlcnic_get_settings(struct net_device *dev,
-			       struct ethtool_cmd *ecmd)
+static int qlcnic_get_link_ksettings(struct net_device *dev,
+				     struct ethtool_link_ksettings *ecmd)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(dev);
 
 	if (qlcnic_82xx_check(adapter))
-		return qlcnic_82xx_get_settings(adapter, ecmd);
+		return qlcnic_82xx_get_link_ksettings(adapter, ecmd);
 	else if (qlcnic_83xx_check(adapter))
-		return qlcnic_83xx_get_settings(adapter, ecmd);
+		return qlcnic_83xx_get_link_ksettings(adapter, ecmd);
 
 	return -EIO;
 }
 
 
 static int qlcnic_set_port_config(struct qlcnic_adapter *adapter,
-				  struct ethtool_cmd *ecmd)
+				  const struct ethtool_link_ksettings *ecmd)
 {
 	u32 ret = 0, config = 0;
 	/* read which mode */
-	if (ecmd->duplex)
+	if (ecmd->base.duplex)
 		config |= 0x1;
 
-	if (ecmd->autoneg)
+	if (ecmd->base.autoneg)
 		config |= 0x2;
 
-	switch (ethtool_cmd_speed(ecmd)) {
+	switch (ecmd->base.speed) {
 	case SPEED_10:
 		config |= (0 << 8);
 		break;
@@ -475,25 +481,29 @@ static int qlcnic_set_port_config(struct qlcnic_adapter *adapter,
 	return ret;
 }
 
-static int qlcnic_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
+static int qlcnic_set_link_ksettings(struct net_device *dev,
+				     const struct ethtool_link_ksettings *ecmd)
 {
 	u32 ret = 0;
 	struct qlcnic_adapter *adapter = netdev_priv(dev);
+
+	if (qlcnic_83xx_check(adapter))
+		qlcnic_83xx_get_port_type(adapter);
 
 	if (adapter->ahw->port_type != QLCNIC_GBE)
 		return -EOPNOTSUPP;
 
 	if (qlcnic_83xx_check(adapter))
-		ret = qlcnic_83xx_set_settings(adapter, ecmd);
+		ret = qlcnic_83xx_set_link_ksettings(adapter, ecmd);
 	else
 		ret = qlcnic_set_port_config(adapter, ecmd);
 
 	if (!ret)
 		return ret;
 
-	adapter->ahw->link_speed = ethtool_cmd_speed(ecmd);
-	adapter->ahw->link_duplex = ecmd->duplex;
-	adapter->ahw->link_autoneg = ecmd->autoneg;
+	adapter->ahw->link_speed = ecmd->base.speed;
+	adapter->ahw->link_duplex = ecmd->base.duplex;
+	adapter->ahw->link_autoneg = ecmd->base.autoneg;
 
 	if (!netif_running(dev))
 		return 0;
@@ -1038,6 +1048,8 @@ int qlcnic_do_lb_test(struct qlcnic_adapter *adapter, u8 mode)
 
 	for (i = 0; i < QLCNIC_NUM_ILB_PKT; i++) {
 		skb = netdev_alloc_skb(adapter->netdev, QLCNIC_ILB_PKT_SIZE);
+		if (!skb)
+			break;
 		qlcnic_create_loopback_buff(skb->data, adapter->mac_addr);
 		skb_put(skb, QLCNIC_ILB_PKT_SIZE);
 		adapter->ahw->diag_cnt = 0;
@@ -1822,8 +1834,6 @@ qlcnic_set_dump(struct net_device *netdev, struct ethtool_dump *val)
 }
 
 const struct ethtool_ops qlcnic_ethtool_ops = {
-	.get_settings = qlcnic_get_settings,
-	.set_settings = qlcnic_set_settings,
 	.get_drvinfo = qlcnic_get_drvinfo,
 	.get_regs_len = qlcnic_get_regs_len,
 	.get_regs = qlcnic_get_regs,
@@ -1850,10 +1860,11 @@ const struct ethtool_ops qlcnic_ethtool_ops = {
 	.get_dump_flag = qlcnic_get_dump_flag,
 	.get_dump_data = qlcnic_get_dump_data,
 	.set_dump = qlcnic_set_dump,
+	.get_link_ksettings = qlcnic_get_link_ksettings,
+	.set_link_ksettings = qlcnic_set_link_ksettings,
 };
 
 const struct ethtool_ops qlcnic_sriov_vf_ethtool_ops = {
-	.get_settings		= qlcnic_get_settings,
 	.get_drvinfo		= qlcnic_get_drvinfo,
 	.get_regs_len		= qlcnic_get_regs_len,
 	.get_regs		= qlcnic_get_regs,
@@ -1872,12 +1883,13 @@ const struct ethtool_ops qlcnic_sriov_vf_ethtool_ops = {
 	.set_coalesce		= qlcnic_set_intr_coalesce,
 	.set_msglevel		= qlcnic_set_msglevel,
 	.get_msglevel		= qlcnic_get_msglevel,
+	.get_link_ksettings	= qlcnic_get_link_ksettings,
 };
 
 const struct ethtool_ops qlcnic_ethtool_failed_ops = {
-	.get_settings		= qlcnic_get_settings,
 	.get_drvinfo		= qlcnic_get_drvinfo,
 	.set_msglevel		= qlcnic_set_msglevel,
 	.get_msglevel		= qlcnic_get_msglevel,
 	.set_dump		= qlcnic_set_dump,
+	.get_link_ksettings	= qlcnic_get_link_ksettings,
 };

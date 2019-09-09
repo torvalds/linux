@@ -1,23 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>,
  *		     Creative Labs, Inc.
  *  Definitions for EMU10K1 (SB Live!) chips
- *
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 #ifndef __SOUND_EMU10K1_H
 #define __SOUND_EMU10K1_H
@@ -1610,7 +1595,7 @@ struct snd_emu10k1_fx8010_pcm {
 	struct snd_pcm_indirect pcm_rec;
 	unsigned int tram_pos;
 	unsigned int tram_shift;
-	struct snd_emu10k1_fx8010_irq *irq;
+	struct snd_emu10k1_fx8010_irq irq;
 };
 
 struct snd_emu10k1_fx8010 {
@@ -1688,7 +1673,8 @@ struct snd_emu1010 {
 	unsigned int internal_clock; /* 44100 or 48000 */
 	unsigned int optical_in; /* 0:SPDIF, 1:ADAT */
 	unsigned int optical_out; /* 0:SPDIF, 1:ADAT */
-	struct task_struct *firmware_thread;
+	struct delayed_work firmware_work;
+	u32 last_reg;
 };
 
 struct snd_emu10k1 {
@@ -1709,6 +1695,7 @@ struct snd_emu10k1 {
 	unsigned int ecard_ctrl;		/* ecard control bits */
 	unsigned int address_mode;		/* address mode */
 	unsigned long dma_mask;			/* PCI DMA mask */
+	bool iommu_workaround;			/* IOMMU workaround needed */
 	unsigned int delay_pcm_irq;		/* in samples */
 	int max_cache_pages;			/* max memory size / PAGE_SIZE */
 	struct snd_dma_buffer silent_page;	/* silent page */
@@ -1717,7 +1704,6 @@ struct snd_emu10k1 {
 	struct snd_dma_buffer p16v_buffer;
 
 	struct snd_util_memhdr *memhdr;		/* page allocation list */
-	struct snd_emu10k1_memblk *reserved_page;	/* reserved page */
 
 	struct list_head mapped_link_head;
 	struct list_head mapped_order_link_head;
@@ -1877,6 +1863,8 @@ void snd_p16v_resume(struct snd_emu10k1 *emu);
 /* memory allocation */
 struct snd_util_memblk *snd_emu10k1_alloc_pages(struct snd_emu10k1 *emu, struct snd_pcm_substream *substream);
 int snd_emu10k1_free_pages(struct snd_emu10k1 *emu, struct snd_util_memblk *blk);
+int snd_emu10k1_alloc_pages_maybe_wider(struct snd_emu10k1 *emu, size_t size,
+					struct snd_dma_buffer *dmab);
 struct snd_util_memblk *snd_emu10k1_synth_alloc(struct snd_emu10k1 *emu, unsigned int size);
 int snd_emu10k1_synth_free(struct snd_emu10k1 *emu, struct snd_util_memblk *blk);
 int snd_emu10k1_synth_bzero(struct snd_emu10k1 *emu, struct snd_util_memblk *blk, int offset, int size);
@@ -1899,7 +1887,7 @@ int snd_emu10k1_fx8010_register_irq_handler(struct snd_emu10k1 *emu,
 					    snd_fx8010_irq_handler_t *handler,
 					    unsigned char gpr_running,
 					    void *private_data,
-					    struct snd_emu10k1_fx8010_irq **r_irq);
+					    struct snd_emu10k1_fx8010_irq *irq);
 int snd_emu10k1_fx8010_unregister_irq_handler(struct snd_emu10k1 *emu,
 					      struct snd_emu10k1_fx8010_irq *irq);
 

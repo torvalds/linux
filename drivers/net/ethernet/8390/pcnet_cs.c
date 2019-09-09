@@ -49,7 +49,7 @@
 
 #include <asm/io.h>
 #include <asm/byteorder.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define PCNET_CMD	0x00
 #define PCNET_DATAPORT	0x10	/* NatSemi-defined port window offset. */
@@ -66,7 +66,6 @@
 #define PCNET_RDC_TIMEOUT (2*HZ/100)	/* Max wait in jiffies for Tx RDC */
 
 static const char *if_names[] = { "auto", "10baseT", "10base2"};
-static u32 pcnet_msg_enable;
 
 /*====================================================================*/
 
@@ -99,7 +98,7 @@ static int pcnet_open(struct net_device *dev);
 static int pcnet_close(struct net_device *dev);
 static int ei_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 static irqreturn_t ei_irq_wrapper(int irq, void *dev_id);
-static void ei_watchdog(u_long arg);
+static void ei_watchdog(struct timer_list *t);
 static void pcnet_reset_8390(struct net_device *dev);
 static int set_config(struct net_device *dev, struct ifmap *map);
 static int setup_shmem_window(struct pcmcia_device *link, int start_pg,
@@ -227,7 +226,6 @@ static const struct net_device_ops pcnet_netdev_ops = {
 	.ndo_do_ioctl 		= ei_ioctl,
 	.ndo_set_rx_mode	= ei_set_multicast_list,
 	.ndo_tx_timeout 	= ei_tx_timeout,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -291,6 +289,11 @@ static struct hw_info *get_hwinfo(struct pcmcia_device *link)
 
     virt = ioremap(link->resource[2]->start,
 	    resource_size(link->resource[2]));
+    if (unlikely(!virt)) {
+	    pcmcia_release_window(link, link->resource[2]);
+	    return NULL;
+    }
+
     for (i = 0; i < NR_INFO; i++) {
 	pcmcia_map_mem_page(link, link->resource[2],
 		hw_info[i].offset & ~(resource_size(link->resource[2])-1));
@@ -557,7 +560,6 @@ static int pcnet_config(struct pcmcia_device *link)
     int start_pg, stop_pg, cm_offset;
     int has_shmem = 0;
     struct hw_info *local_hw_info;
-    struct ei_device *ei_local;
 
     dev_dbg(&link->dev, "pcnet_config\n");
 
@@ -607,8 +609,6 @@ static int pcnet_config(struct pcmcia_device *link)
 	mii_phy_probe(dev);
 
     SET_NETDEV_DEV(dev, &link->dev);
-    ei_local = netdev_priv(dev);
-    ei_local->msg_enable = pcnet_msg_enable;
 
     if (register_netdev(dev) != 0) {
 	pr_notice("register_netdev() failed\n");
@@ -918,7 +918,7 @@ static int pcnet_open(struct net_device *dev)
 
     info->phy_id = info->eth_phy;
     info->link_status = 0x00;
-    setup_timer(&info->watchdog, ei_watchdog, (u_long)dev);
+    timer_setup(&info->watchdog, ei_watchdog, 0);
     mod_timer(&info->watchdog, jiffies + HZ);
 
     return ei_open(dev);
@@ -1007,10 +1007,10 @@ static irqreturn_t ei_irq_wrapper(int irq, void *dev_id)
     return ret;
 }
 
-static void ei_watchdog(u_long arg)
+static void ei_watchdog(struct timer_list *t)
 {
-    struct net_device *dev = (struct net_device *)arg;
-    struct pcnet_dev *info = PRIV(dev);
+    struct pcnet_dev *info = from_timer(info, t, watchdog);
+    struct net_device *dev = info->p_dev->priv;
     unsigned int nic_base = dev->base_addr;
     unsigned int mii_addr = nic_base + DLINK_GPIO;
     u_short link;
@@ -1108,6 +1108,7 @@ static int ei_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
     switch (cmd) {
     case SIOCGMIIPHY:
 	data->phy_id = info->phy_id;
+	/* fall through */
     case SIOCGMIIREG:		/* Read MII PHY register. */
 	data->val_out = mdio_read(mii_addr, data->phy_id, data->reg_num & 0x1f);
 	return 0;
@@ -1427,6 +1428,11 @@ static int setup_shmem_window(struct pcmcia_device *link, int start_pg,
     /* Try scribbling on the buffer */
     info->base = ioremap(link->resource[3]->start,
 			resource_size(link->resource[3]));
+    if (unlikely(!info->base)) {
+	    ret = -ENOMEM;
+	    goto failed;
+    }
+
     for (i = 0; i < (TX_PAGES<<8); i += 2)
 	__raw_writew((i>>1), info->base+offset+i);
     udelay(100);

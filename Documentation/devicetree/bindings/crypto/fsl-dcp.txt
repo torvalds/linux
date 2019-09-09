@@ -6,6 +6,8 @@ Required properties:
 - interrupts : Should contain MXS DCP interrupt numbers, VMI IRQ and DCP IRQ
                must be supplied, optionally Secure IRQ can be present, but
 	       is currently not implemented and not used.
+- clocks : Clock reference (only required on some SOCs: 6ull and 6sll).
+- clock-names : Must be "dcp".
 
 Example:
 
@@ -13,5 +15,4 @@ dcp@80028000 {
 	compatible = "fsl,imx28-dcp", "fsl,imx23-dcp";
 	reg = <0x80028000 0x2000>;
 	interrupts = <52 53>;
-	status = "okay";
 };

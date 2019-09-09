@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * sgtl5000.h - SGTL5000 audio codec interface
  *
  * Copyright 2010-2011 Freescale Semiconductor, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef _SGTL5000_H
@@ -398,5 +395,12 @@
 
 #define SGTL5000_SYSCLK				0x00
 #define SGTL5000_LRCLK				0x01
+
+/*
+ * SGTL5000_DAP_AUDIO_EQ
+ */
+#define SGTL5000_DAP_SEL_PEQ			1
+#define SGTL5000_DAP_SEL_TONE_CTRL		2
+#define SGTL5000_DAP_SEL_GEQ			3
 
 #endif

@@ -1,19 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * comedidev.h
  * header file for kernel-only structures, variables, and constants
  *
  * COMEDI - Linux Control and Measurement Device Interface
  * Copyright (C) 1997-2000 David A. Schleef <ds@schleef.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef _COMEDIDEV_H
@@ -186,23 +177,27 @@ struct comedi_subdevice {
 
 	unsigned int *chanlist;	/* driver-owned chanlist (not used) */
 
-	int (*insn_read)(struct comedi_device *, struct comedi_subdevice *,
-			 struct comedi_insn *, unsigned int *);
-	int (*insn_write)(struct comedi_device *, struct comedi_subdevice *,
-			  struct comedi_insn *, unsigned int *);
-	int (*insn_bits)(struct comedi_device *, struct comedi_subdevice *,
-			 struct comedi_insn *, unsigned int *);
-	int (*insn_config)(struct comedi_device *, struct comedi_subdevice *,
-			   struct comedi_insn *, unsigned int *);
+	int (*insn_read)(struct comedi_device *dev, struct comedi_subdevice *s,
+			 struct comedi_insn *insn, unsigned int *data);
+	int (*insn_write)(struct comedi_device *dev, struct comedi_subdevice *s,
+			  struct comedi_insn *insn, unsigned int *data);
+	int (*insn_bits)(struct comedi_device *dev, struct comedi_subdevice *s,
+			 struct comedi_insn *insn, unsigned int *data);
+	int (*insn_config)(struct comedi_device *dev,
+			   struct comedi_subdevice *s,
+			   struct comedi_insn *insn,
+			   unsigned int *data);
 
-	int (*do_cmd)(struct comedi_device *, struct comedi_subdevice *);
-	int (*do_cmdtest)(struct comedi_device *, struct comedi_subdevice *,
-			  struct comedi_cmd *);
-	int (*poll)(struct comedi_device *, struct comedi_subdevice *);
-	int (*cancel)(struct comedi_device *, struct comedi_subdevice *);
+	int (*do_cmd)(struct comedi_device *dev, struct comedi_subdevice *s);
+	int (*do_cmdtest)(struct comedi_device *dev,
+			  struct comedi_subdevice *s,
+			  struct comedi_cmd *cmd);
+	int (*poll)(struct comedi_device *dev, struct comedi_subdevice *s);
+	int (*cancel)(struct comedi_device *dev, struct comedi_subdevice *s);
 
 	/* called when the buffer changes */
-	int (*buf_change)(struct comedi_device *, struct comedi_subdevice *);
+	int (*buf_change)(struct comedi_device *dev,
+			  struct comedi_subdevice *s);
 
 	void (*munge)(struct comedi_device *dev, struct comedi_subdevice *s,
 		      void *data, unsigned int num_bytes,
@@ -426,6 +421,18 @@ enum comedi_cb {
  * handler will be called with the COMEDI device structure's board_ptr member
  * pointing to the matched pointer to a board name within the driver's private
  * array of static, read-only board type information.
+ *
+ * The @detach handler has two roles.  If a COMEDI device was successfully
+ * configured by the @attach or @auto_attach handler, it is called when the
+ * device is being deconfigured (by the %COMEDI_DEVCONFIG ioctl, or due to
+ * unloading of the driver, or due to device removal).  It is also called when
+ * the @attach or @auto_attach handler returns an error.  Therefore, the
+ * @attach or @auto_attach handlers can defer clean-up on error until the
+ * @detach handler is called.  If the @attach or @auto_attach handlers free
+ * any resources themselves, they must prevent the @detach handler from
+ * freeing the same resources.  The @detach handler must not assume that all
+ * resources requested by the @attach or @auto_attach handler were
+ * successfully allocated.
  */
 struct comedi_driver {
 	/* private: */
@@ -433,9 +440,9 @@ struct comedi_driver {
 	/* public: */
 	const char *driver_name;
 	struct module *module;
-	int (*attach)(struct comedi_device *, struct comedi_devconfig *);
-	void (*detach)(struct comedi_device *);
-	int (*auto_attach)(struct comedi_device *, unsigned long);
+	int (*attach)(struct comedi_device *dev, struct comedi_devconfig *it);
+	void (*detach)(struct comedi_device *dev);
+	int (*auto_attach)(struct comedi_device *dev, unsigned long context);
 	unsigned int num_names;
 	const char *const *board_name;
 	int offset;
@@ -509,6 +516,15 @@ struct comedi_driver {
  *	called when @use_count changes from 0 to 1.
  * @close: Optional pointer to a function set by the low-level driver to be
  *	called when @use_count changed from 1 to 0.
+ * @insn_device_config: Optional pointer to a handler for all sub-instructions
+ *	except %INSN_DEVICE_CONFIG_GET_ROUTES of the %INSN_DEVICE_CONFIG
+ *	instruction.  If this is not initialized by the low-level driver, a
+ *	default handler will be set during post-configuration.
+ * @get_valid_routes: Optional pointer to a handler for the
+ *	%INSN_DEVICE_CONFIG_GET_ROUTES sub-instruction of the
+ *	%INSN_DEVICE_CONFIG instruction set.  If this is not initialized by the
+ *	low-level driver, a default handler that copies zero routes back to the
+ *	user will be used.
  *
  * This is the main control data structure for a COMEDI device (as far as the
  * COMEDI core is concerned).  There are two groups of COMEDI devices -
@@ -535,8 +551,8 @@ struct comedi_device {
 
 	const char *board_name;
 	const void *board_ptr;
-	bool attached:1;
-	bool ioenabled:1;
+	unsigned int attached:1;
+	unsigned int ioenabled:1;
 	spinlock_t spinlock;	/* generic spin-lock for low-level driver */
 	struct mutex mutex;	/* generic mutex for COMEDI core */
 	struct rw_semaphore attach_lock;
@@ -558,6 +574,11 @@ struct comedi_device {
 
 	int (*open)(struct comedi_device *dev);
 	void (*close)(struct comedi_device *dev);
+	int (*insn_device_config)(struct comedi_device *dev,
+				  struct comedi_insn *insn, unsigned int *data);
+	unsigned int (*get_valid_routes)(struct comedi_device *dev,
+					 unsigned int n_pairs,
+					 unsigned int *pair_data);
 };
 
 /*
@@ -600,12 +621,6 @@ extern const struct comedi_lrange range_unknown;
 
 #define range_digital		range_unipolar5
 
-#if __GNUC__ >= 3
-#define GCC_ZERO_LENGTH_ARRAY
-#else
-#define GCC_ZERO_LENGTH_ARRAY 0
-#endif
-
 /**
  * struct comedi_lrange - Describes a COMEDI range table
  * @length: Number of entries in the range table.
@@ -619,7 +634,7 @@ extern const struct comedi_lrange range_unknown;
  */
 struct comedi_lrange {
 	int length;
-	struct comedi_krange range[GCC_ZERO_LENGTH_ARRAY];
+	struct comedi_krange range[];
 };
 
 /**
@@ -970,20 +985,24 @@ unsigned int comedi_buf_read_samples(struct comedi_subdevice *s,
 
 #define COMEDI_TIMEOUT_MS	1000
 
-int comedi_timeout(struct comedi_device *, struct comedi_subdevice *,
-		   struct comedi_insn *,
-		   int (*cb)(struct comedi_device *, struct comedi_subdevice *,
-			     struct comedi_insn *, unsigned long context),
+int comedi_timeout(struct comedi_device *dev, struct comedi_subdevice *s,
+		   struct comedi_insn *insn,
+		   int (*cb)(struct comedi_device *dev,
+			     struct comedi_subdevice *s,
+			     struct comedi_insn *insn, unsigned long context),
 		   unsigned long context);
 
 unsigned int comedi_handle_events(struct comedi_device *dev,
 				  struct comedi_subdevice *s);
 
-int comedi_dio_insn_config(struct comedi_device *, struct comedi_subdevice *,
-			   struct comedi_insn *, unsigned int *data,
+int comedi_dio_insn_config(struct comedi_device *dev,
+			   struct comedi_subdevice *s,
+			   struct comedi_insn *insn, unsigned int *data,
 			   unsigned int mask);
-unsigned int comedi_dio_update_state(struct comedi_subdevice *,
+unsigned int comedi_dio_update_state(struct comedi_subdevice *s,
 				     unsigned int *data);
+unsigned int comedi_bytes_per_scan_cmd(struct comedi_subdevice *s,
+				       struct comedi_cmd *cmd);
 unsigned int comedi_bytes_per_scan(struct comedi_subdevice *s);
 unsigned int comedi_nscans_left(struct comedi_subdevice *s,
 				unsigned int nscans);
@@ -992,32 +1011,33 @@ unsigned int comedi_nsamples_left(struct comedi_subdevice *s,
 void comedi_inc_scan_progress(struct comedi_subdevice *s,
 			      unsigned int num_bytes);
 
-void *comedi_alloc_devpriv(struct comedi_device *, size_t);
-int comedi_alloc_subdevices(struct comedi_device *, int);
-int comedi_alloc_subdev_readback(struct comedi_subdevice *);
+void *comedi_alloc_devpriv(struct comedi_device *dev, size_t size);
+int comedi_alloc_subdevices(struct comedi_device *dev, int num_subdevices);
+int comedi_alloc_subdev_readback(struct comedi_subdevice *s);
 
-int comedi_readback_insn_read(struct comedi_device *, struct comedi_subdevice *,
-			      struct comedi_insn *, unsigned int *data);
+int comedi_readback_insn_read(struct comedi_device *dev,
+			      struct comedi_subdevice *s,
+			      struct comedi_insn *insn, unsigned int *data);
 
-int comedi_load_firmware(struct comedi_device *, struct device *,
+int comedi_load_firmware(struct comedi_device *dev, struct device *hw_dev,
 			 const char *name,
-			 int (*cb)(struct comedi_device *,
+			 int (*cb)(struct comedi_device *dev,
 				   const u8 *data, size_t size,
 				   unsigned long context),
 			 unsigned long context);
 
-int __comedi_request_region(struct comedi_device *,
+int __comedi_request_region(struct comedi_device *dev,
 			    unsigned long start, unsigned long len);
-int comedi_request_region(struct comedi_device *,
+int comedi_request_region(struct comedi_device *dev,
 			  unsigned long start, unsigned long len);
-void comedi_legacy_detach(struct comedi_device *);
+void comedi_legacy_detach(struct comedi_device *dev);
 
-int comedi_auto_config(struct device *, struct comedi_driver *,
-		       unsigned long context);
-void comedi_auto_unconfig(struct device *);
+int comedi_auto_config(struct device *hardware_device,
+		       struct comedi_driver *driver, unsigned long context);
+void comedi_auto_unconfig(struct device *hardware_device);
 
-int comedi_driver_register(struct comedi_driver *);
-void comedi_driver_unregister(struct comedi_driver *);
+int comedi_driver_register(struct comedi_driver *driver);
+void comedi_driver_unregister(struct comedi_driver *driver);
 
 /**
  * module_comedi_driver() - Helper macro for registering a comedi driver

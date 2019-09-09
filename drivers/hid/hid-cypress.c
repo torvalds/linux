@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  HID driver for some cypress "special" devices
  *
@@ -9,10 +10,6 @@
  */
 
 /*
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
  */
 
 #include <linux/device.h>
@@ -37,6 +34,9 @@ static __u8 *cp_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 	unsigned int i;
 
 	if (!(quirks & CP_RDESC_SWAPPED_MIN_MAX))
+		return rdesc;
+
+	if (*rsize < 4)
 		return rdesc;
 
 	for (i = 0; i < *rsize - 4; i++)

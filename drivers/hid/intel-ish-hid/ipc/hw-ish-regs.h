@@ -1,16 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * ISH registers definitions
  *
  * Copyright (c) 2012-2016, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  */
 
 #ifndef _ISHTP_ISH_REGS_H_
@@ -109,6 +101,14 @@
  */
 #define IPC_ILUP_OFFS			(0)
 #define IPC_ILUP_BIT			(1<<IPC_ILUP_OFFS)
+
+/*
+ * ISH FW status bits in ISH FW Status Register
+ */
+#define IPC_ISH_FWSTS_SHIFT		12
+#define IPC_ISH_FWSTS_MASK		GENMASK(15, 12)
+#define IPC_GET_ISH_FWSTS(status)	\
+	(((status) & IPC_ISH_FWSTS_MASK) >> IPC_ISH_FWSTS_SHIFT)
 
 /*
  * FW status bits (relevant)

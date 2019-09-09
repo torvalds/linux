@@ -1,27 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 #ifndef _ASM_X86_ACPI_H
 #define _ASM_X86_ACPI_H
 
 /*
  *  Copyright (C) 2001 Paul Diefenbaugh <paul.s.diefenbaugh@intel.com>
  *  Copyright (C) 2001 Patrick Mochel <mochel@osdl.org>
- *
- * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
- * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
 #include <acpi/pdc_intel.h>
 
@@ -31,6 +14,7 @@
 #include <asm/mmu.h>
 #include <asm/mpspec.h>
 #include <asm/realmode.h>
+#include <asm/x86_init.h>
 
 #ifdef CONFIG_ACPI_APEI
 # include <asm/pgtable_types.h>
@@ -49,8 +33,10 @@ extern int acpi_fix_pin2_polarity;
 extern int acpi_disable_cmcff;
 
 extern u8 acpi_sci_flags;
-extern int acpi_sci_override_gsi;
+extern u32 acpi_sci_override_gsi;
 void acpi_pic_sci_set_trigger(unsigned int, u16);
+
+struct device;
 
 extern int (*__acpi_register_gsi)(struct device *dev, u32 gsi,
 				  int trigger, int polarity);
@@ -92,9 +78,9 @@ static inline unsigned int acpi_processor_cstate_check(unsigned int max_cstate)
 	if (boot_cpu_data.x86 == 0x0F &&
 	    boot_cpu_data.x86_vendor == X86_VENDOR_AMD &&
 	    boot_cpu_data.x86_model <= 0x05 &&
-	    boot_cpu_data.x86_mask < 0x0A)
+	    boot_cpu_data.x86_stepping < 0x0A)
 		return 1;
-	else if (amd_e400_c1e_detected)
+	else if (boot_cpu_has(X86_BUG_AMD_APIC_C1E))
 		return 1;
 	else
 		return max_cstate;
@@ -131,6 +117,16 @@ static inline bool acpi_has_cpu_in_madt(void)
 	return !!acpi_lapic;
 }
 
+#define ACPI_HAVE_ARCH_GET_ROOT_POINTER
+static inline u64 acpi_arch_get_root_pointer(void)
+{
+	return x86_init.acpi.get_root_pointer();
+}
+
+void acpi_generic_reduced_hw_init(void);
+
+u64 x86_default_get_root_pointer(void);
+
 #else /* !CONFIG_ACPI */
 
 #define acpi_lapic 0
@@ -139,6 +135,13 @@ static inline bool acpi_has_cpu_in_madt(void)
 static inline void acpi_noirq_set(void) { }
 static inline void acpi_disable_pci(void) { }
 static inline void disable_acpi(void) { }
+
+static inline void acpi_generic_reduced_hw_init(void) { }
+
+static inline u64 x86_default_get_root_pointer(void)
+{
+	return 0;
+}
 
 #endif /* !CONFIG_ACPI */
 
@@ -160,12 +163,13 @@ static inline pgprot_t arch_apei_get_mem_attribute(phys_addr_t addr)
 	 * you call efi_mem_attributes() during boot and at runtime,
 	 * you could theoretically see different attributes.
 	 *
-	 * Since we are yet to see any x86 platforms that require
-	 * anything other than PAGE_KERNEL (some arm64 platforms
-	 * require the equivalent of PAGE_KERNEL_NOCACHE), return that
-	 * until we know differently.
+	 * We are yet to see any x86 platforms that require anything
+	 * other than PAGE_KERNEL (some ARM64 platforms require the
+	 * equivalent of PAGE_KERNEL_NOCACHE). Additionally, if SME
+	 * is active, the ACPI information will not be encrypted,
+	 * so return PAGE_KERNEL_NOENC until we know differently.
 	 */
-	 return PAGE_KERNEL;
+	return PAGE_KERNEL_NOENC;
 }
 #endif
 

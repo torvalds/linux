@@ -10,14 +10,15 @@
  */
 
 #include <drm/drmP.h>
+#include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
-#include <drm/drm_fb_helper.h>
 #include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fb_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_of.h>
 #include <drm/drm_plane_helper.h>
+#include <drm/drm_probe_helper.h>
 #include <linux/clk.h>
 #include <linux/of_graph.h>
 #include <linux/platform_data/simplefb.h>
@@ -42,6 +43,24 @@ static void hdlcd_crtc_cleanup(struct drm_crtc *crtc)
 	drm_crtc_cleanup(crtc);
 }
 
+static int hdlcd_crtc_enable_vblank(struct drm_crtc *crtc)
+{
+	struct hdlcd_drm_private *hdlcd = crtc_to_hdlcd_priv(crtc);
+	unsigned int mask = hdlcd_read(hdlcd, HDLCD_REG_INT_MASK);
+
+	hdlcd_write(hdlcd, HDLCD_REG_INT_MASK, mask | HDLCD_INTERRUPT_VSYNC);
+
+	return 0;
+}
+
+static void hdlcd_crtc_disable_vblank(struct drm_crtc *crtc)
+{
+	struct hdlcd_drm_private *hdlcd = crtc_to_hdlcd_priv(crtc);
+	unsigned int mask = hdlcd_read(hdlcd, HDLCD_REG_INT_MASK);
+
+	hdlcd_write(hdlcd, HDLCD_REG_INT_MASK, mask & ~HDLCD_INTERRUPT_VSYNC);
+}
+
 static const struct drm_crtc_funcs hdlcd_crtc_funcs = {
 	.destroy = hdlcd_crtc_cleanup,
 	.set_config = drm_atomic_helper_set_config,
@@ -49,6 +68,8 @@ static const struct drm_crtc_funcs hdlcd_crtc_funcs = {
 	.reset = drm_atomic_helper_crtc_reset,
 	.atomic_duplicate_state = drm_atomic_helper_crtc_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_crtc_destroy_state,
+	.enable_vblank = hdlcd_crtc_enable_vblank,
+	.disable_vblank = hdlcd_crtc_disable_vblank,
 };
 
 static struct simplefb_format supported_formats[] = SIMPLEFB_FORMATS;
@@ -60,11 +81,12 @@ static int hdlcd_set_pxl_fmt(struct drm_crtc *crtc)
 {
 	unsigned int btpp;
 	struct hdlcd_drm_private *hdlcd = crtc_to_hdlcd_priv(crtc);
+	const struct drm_framebuffer *fb = crtc->primary->state->fb;
 	uint32_t pixel_format;
 	struct simplefb_format *format = NULL;
 	int i;
 
-	pixel_format = crtc->primary->state->fb->pixel_format;
+	pixel_format = fb->format->format;
 
 	for (i = 0; i < ARRAY_SIZE(supported_formats); i++) {
 		if (supported_formats[i].fourcc == pixel_format)
@@ -143,40 +165,41 @@ static void hdlcd_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	clk_set_rate(hdlcd->clk, m->crtc_clock * 1000);
 }
 
-static void hdlcd_crtc_enable(struct drm_crtc *crtc)
+static void hdlcd_crtc_atomic_enable(struct drm_crtc *crtc,
+				     struct drm_crtc_state *old_state)
 {
 	struct hdlcd_drm_private *hdlcd = crtc_to_hdlcd_priv(crtc);
 
 	clk_prepare_enable(hdlcd->clk);
 	hdlcd_crtc_mode_set_nofb(crtc);
 	hdlcd_write(hdlcd, HDLCD_REG_COMMAND, 1);
+	drm_crtc_vblank_on(crtc);
 }
 
-static void hdlcd_crtc_disable(struct drm_crtc *crtc)
+static void hdlcd_crtc_atomic_disable(struct drm_crtc *crtc,
+				      struct drm_crtc_state *old_state)
 {
 	struct hdlcd_drm_private *hdlcd = crtc_to_hdlcd_priv(crtc);
 
-	if (!crtc->state->active)
-		return;
-
+	drm_crtc_vblank_off(crtc);
 	hdlcd_write(hdlcd, HDLCD_REG_COMMAND, 0);
 	clk_disable_unprepare(hdlcd->clk);
 }
 
-static int hdlcd_crtc_atomic_check(struct drm_crtc *crtc,
-				   struct drm_crtc_state *state)
+static enum drm_mode_status hdlcd_crtc_mode_valid(struct drm_crtc *crtc,
+		const struct drm_display_mode *mode)
 {
 	struct hdlcd_drm_private *hdlcd = crtc_to_hdlcd_priv(crtc);
-	struct drm_display_mode *mode = &state->adjusted_mode;
 	long rate, clk_rate = mode->clock * 1000;
 
 	rate = clk_round_rate(hdlcd->clk, clk_rate);
-	if (rate != clk_rate) {
+	/* 0.1% seems a close enough tolerance for the TDA19988 on Juno */
+	if (abs(rate - clk_rate) * 1000 > clk_rate) {
 		/* clock required by mode not supported by hardware */
-		return -EINVAL;
+		return MODE_NOCLOCK;
 	}
 
-	return 0;
+	return MODE_OK;
 }
 
 static void hdlcd_crtc_atomic_begin(struct drm_crtc *crtc,
@@ -197,23 +220,35 @@ static void hdlcd_crtc_atomic_begin(struct drm_crtc *crtc,
 }
 
 static const struct drm_crtc_helper_funcs hdlcd_crtc_helper_funcs = {
-	.enable		= hdlcd_crtc_enable,
-	.disable	= hdlcd_crtc_disable,
-	.atomic_check	= hdlcd_crtc_atomic_check,
+	.mode_valid	= hdlcd_crtc_mode_valid,
 	.atomic_begin	= hdlcd_crtc_atomic_begin,
+	.atomic_enable	= hdlcd_crtc_atomic_enable,
+	.atomic_disable	= hdlcd_crtc_atomic_disable,
 };
 
 static int hdlcd_plane_atomic_check(struct drm_plane *plane,
 				    struct drm_plane_state *state)
 {
-	u32 src_w, src_h;
+	int i;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *crtc_state;
+	u32 src_h = state->src_h >> 16;
 
-	src_w = state->src_w >> 16;
-	src_h = state->src_h >> 16;
-
-	/* we can't do any scaling of the plane source */
-	if ((src_w != state->crtc_w) || (src_h != state->crtc_h))
+	/* only the HDLCD_REG_FB_LINE_COUNT register has a limit */
+	if (src_h >= HDLCD_MAX_YRES) {
+		DRM_DEBUG_KMS("Invalid source width: %d\n", src_h);
 		return -EINVAL;
+	}
+
+	for_each_new_crtc_in_state(state->state, crtc, crtc_state, i) {
+		/* we cannot disable the plane while the CRTC is active */
+		if (!state->fb && crtc_state->active)
+			return -EINVAL;
+		return drm_atomic_helper_check_plane_state(state, crtc_state,
+						DRM_PLANE_HELPER_NO_SCALING,
+						DRM_PLANE_HELPER_NO_SCALING,
+						false, true);
+	}
 
 	return 0;
 }
@@ -221,28 +256,20 @@ static int hdlcd_plane_atomic_check(struct drm_plane *plane,
 static void hdlcd_plane_atomic_update(struct drm_plane *plane,
 				      struct drm_plane_state *state)
 {
+	struct drm_framebuffer *fb = plane->state->fb;
 	struct hdlcd_drm_private *hdlcd;
-	struct drm_gem_cma_object *gem;
-	unsigned int depth, bpp;
-	u32 src_w, src_h, dest_w, dest_h;
+	u32 dest_h;
 	dma_addr_t scanout_start;
 
-	if (!plane->state->fb)
+	if (!fb)
 		return;
 
-	drm_fb_get_bpp_depth(plane->state->fb->pixel_format, &depth, &bpp);
-	src_w = plane->state->src_w >> 16;
-	src_h = plane->state->src_h >> 16;
-	dest_w = plane->state->crtc_w;
-	dest_h = plane->state->crtc_h;
-	gem = drm_fb_cma_get_gem_obj(plane->state->fb, 0);
-	scanout_start = gem->paddr + plane->state->fb->offsets[0] +
-		plane->state->crtc_y * plane->state->fb->pitches[0] +
-		plane->state->crtc_x * bpp / 8;
+	dest_h = drm_rect_height(&plane->state->dst);
+	scanout_start = drm_fb_cma_get_gem_addr(fb, plane->state, 0);
 
 	hdlcd = plane->dev->dev_private;
-	hdlcd_write(hdlcd, HDLCD_REG_FB_LINE_LENGTH, plane->state->fb->pitches[0]);
-	hdlcd_write(hdlcd, HDLCD_REG_FB_LINE_PITCH, plane->state->fb->pitches[0]);
+	hdlcd_write(hdlcd, HDLCD_REG_FB_LINE_LENGTH, fb->pitches[0]);
+	hdlcd_write(hdlcd, HDLCD_REG_FB_LINE_PITCH, fb->pitches[0]);
 	hdlcd_write(hdlcd, HDLCD_REG_FB_LINE_COUNT, dest_h - 1);
 	hdlcd_write(hdlcd, HDLCD_REG_FB_BASE, scanout_start);
 }
@@ -252,16 +279,10 @@ static const struct drm_plane_helper_funcs hdlcd_plane_helper_funcs = {
 	.atomic_update = hdlcd_plane_atomic_update,
 };
 
-static void hdlcd_plane_destroy(struct drm_plane *plane)
-{
-	drm_plane_helper_disable(plane);
-	drm_plane_cleanup(plane);
-}
-
 static const struct drm_plane_funcs hdlcd_plane_funcs = {
 	.update_plane		= drm_atomic_helper_update_plane,
 	.disable_plane		= drm_atomic_helper_disable_plane,
-	.destroy		= hdlcd_plane_destroy,
+	.destroy		= drm_plane_cleanup,
 	.reset			= drm_atomic_helper_plane_reset,
 	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
 	.atomic_destroy_state	= drm_atomic_helper_plane_destroy_state,
@@ -283,11 +304,10 @@ static struct drm_plane *hdlcd_plane_init(struct drm_device *drm)
 
 	ret = drm_universal_plane_init(drm, plane, 0xff, &hdlcd_plane_funcs,
 				       formats, ARRAY_SIZE(formats),
+				       NULL,
 				       DRM_PLANE_TYPE_PRIMARY, NULL);
-	if (ret) {
-		devm_kfree(drm->dev, plane);
+	if (ret)
 		return ERR_PTR(ret);
-	}
 
 	drm_plane_helper_add(plane, &hdlcd_plane_helper_funcs);
 	hdlcd->plane = plane;
@@ -307,11 +327,8 @@ int hdlcd_setup_crtc(struct drm_device *drm)
 
 	ret = drm_crtc_init_with_planes(drm, &hdlcd->crtc, primary, NULL,
 					&hdlcd_crtc_funcs, NULL);
-	if (ret) {
-		hdlcd_plane_destroy(primary);
-		devm_kfree(drm->dev, primary);
+	if (ret)
 		return ret;
-	}
 
 	drm_crtc_helper_add(&hdlcd->crtc, &hdlcd_crtc_helper_funcs);
 	return 0;

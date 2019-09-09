@@ -1,12 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* moxart-uc7112lx.dts - Device Tree file for MOXA UC-7112-LX
  *
  * Copyright (C) 2013 Jonas Jensen <jonas.jensen@gmail.com>
- *
- * Licensed under GPLv2 or later.
  */
 
 /dts-v1/;
-/include/ "moxart.dtsi"
+#include "moxart.dtsi"
 
 / {
 	model = "MOXA UC-7112-LX";

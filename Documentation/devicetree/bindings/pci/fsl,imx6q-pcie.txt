@@ -1,10 +1,15 @@
 * Freescale i.MX6 PCIe interface
 
-This PCIe host controller is based on the Synopsis Designware PCIe IP
+This PCIe host controller is based on the Synopsys DesignWare PCIe IP
 and thus inherits all the common properties defined in designware-pcie.txt.
 
 Required properties:
-- compatible: "fsl,imx6q-pcie", "fsl,imx6sx-pcie", "fsl,imx6qp-pcie"
+- compatible:
+	- "fsl,imx6q-pcie"
+	- "fsl,imx6sx-pcie",
+	- "fsl,imx6qp-pcie"
+	- "fsl,imx7d-pcie"
+	- "fsl,imx8mq-pcie"
 - reg: base address and length of the PCIe controller
 - interrupts: A list of interrupt outputs of the controller. Must contain an
   entry for each entry in the interrupt-names property.
@@ -29,14 +34,35 @@ Optional properties:
 - reset-gpio-active-high: If present then the reset sequence using the GPIO
   specified in the "reset-gpio" property is reversed (H=reset state,
   L=operation state).
+- vpcie-supply: Should specify the regulator in charge of PCIe port power.
+  The regulator will be enabled when initializing the PCIe host and
+  disabled either as part of the init process or when shutting down the
+  host.
 
 Additional required properties for imx6sx-pcie:
 - clock names: Must include the following additional entries:
 	- "pcie_inbound_axi"
+- power-domains: Must be set to phandles pointing to the DISPLAY and
+  PCIE_PHY power domains
+- power-domain-names: Must be "pcie", "pcie_phy"
+
+Additional required properties for imx7d-pcie and imx8mq-pcie:
+- power-domains: Must be set to a phandle pointing to PCIE_PHY power domain
+- resets: Must contain phandles to PCIe-related reset lines exposed by SRC
+  IP block
+- reset-names: Must contain the following entires:
+	       - "pciephy"
+	       - "apps"
+	       - "turnoff"
+- fsl,imx7d-pcie-phy: A phandle to an fsl,imx7d-pcie-phy node.
+
+Additional required properties for imx8mq-pcie:
+- clock-names: Must include the following additional entries:
+	- "pcie_aux"
 
 Example:
 
-	pcie@0x01000000 {
+	pcie@01000000 {
 		compatible = "fsl,imx6q-pcie", "snps,dw-pcie";
 		reg = <0x01ffc000 0x04000>,
 		      <0x01f00000 0x80000>;
@@ -59,3 +85,13 @@ Example:
 		clocks = <&clks 144>, <&clks 206>, <&clks 189>;
 		clock-names = "pcie", "pcie_bus", "pcie_phy";
 	};
+
+* Freescale i.MX7d PCIe PHY
+
+This is the PHY associated with the IMX7d PCIe controller.  It's used by the
+PCI-e controller via the fsl,imx7d-pcie-phy phandle.
+
+Required properties:
+- compatible:
+	- "fsl,imx7d-pcie-phy"
+- reg: base address and length of the PCIe PHY controller

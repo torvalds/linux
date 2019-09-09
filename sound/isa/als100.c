@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 /*
     card-als100.c - driver for Avance Logic ALS100 based soundcards.
@@ -9,19 +10,6 @@
     Generalised for soundcards based on DT-0196 and ALS-007 chips
     by Jonathan Woithe <jwoithe@just42.net>: June 2002.
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 */
 
 #include <linux/init.h>
@@ -79,7 +67,7 @@ struct snd_card_als100 {
 	struct snd_sb *chip;
 };
 
-static struct pnp_card_device_id snd_als100_pnpids[] = {
+static const struct pnp_card_device_id snd_als100_pnpids[] = {
 	/* DT197A30 */
 	{ .id = "RWB1688",
 	  .devs = { { "@@@0001" }, { "@X@0001" }, { "@H@0001" } },
@@ -222,15 +210,16 @@ static int snd_card_als100_probe(int dev,
 	if (pid->driver_data == SB_HW_DT019X) {
 		strcpy(card->driver, "DT-019X");
 		strcpy(card->shortname, "Diamond Tech. DT-019X");
-		sprintf(card->longname, "%s, %s at 0x%lx, irq %d, dma %d",
-			card->shortname, chip->name, chip->port,
-			irq[dev], dma8[dev]);
+		snprintf(card->longname, sizeof(card->longname),
+			 "Diamond Tech. DT-019X, %s at 0x%lx, irq %d, dma %d",
+			 chip->name, chip->port, irq[dev], dma8[dev]);
 	} else {
 		strcpy(card->driver, "ALS100");
 		strcpy(card->shortname, "Avance Logic ALS100");
-		sprintf(card->longname, "%s, %s at 0x%lx, irq %d, dma %d&%d",
-			card->shortname, chip->name, chip->port,
-			irq[dev], dma8[dev], dma16[dev]);
+		snprintf(card->longname, sizeof(card->longname),
+			 "Avance Logic ALS100, %s at 0x%lx, irq %d, dma %d&%d",
+			 chip->name, chip->port, irq[dev], dma8[dev],
+			 dma16[dev]);
 	}
 
 	if ((error = snd_sb16dsp_pcm(chip, 0)) < 0) {
@@ -321,7 +310,6 @@ static int snd_als100_pnp_suspend(struct pnp_card_link *pcard, pm_message_t stat
 	struct snd_sb *chip = acard->chip;
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
-	snd_pcm_suspend_all(chip->pcm);
 	snd_sbmixer_suspend(chip);
 	return 0;
 }

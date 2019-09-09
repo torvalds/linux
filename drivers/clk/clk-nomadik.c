@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Nomadik clock implementation
  * Copyright (C) 2013 ST-Ericsson AB
- * License terms: GNU General Public License (GPL) version 2
  * Author: Linus Walleij <linus.walleij@linaro.org>
  */
 
@@ -97,8 +97,8 @@ static void __init nomadik_src_init(void)
 	}
 	src_base = of_iomap(np, 0);
 	if (!src_base) {
-		pr_err("%s: must have src parent node with REGS (%s)\n",
-		       __func__, np->name);
+		pr_err("%s: must have src parent node with REGS (%pOFn)\n",
+		       __func__, np);
 		return;
 	}
 
@@ -267,10 +267,8 @@ pll_clk_register(struct device *dev, const char *name,
 	}
 
 	pll = kzalloc(sizeof(*pll), GFP_KERNEL);
-	if (!pll) {
-		pr_err("%s: could not allocate PLL clk\n", __func__);
+	if (!pll)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	init.name = name;
 	init.ops = &pll_clk_ops;
@@ -356,11 +354,9 @@ src_clk_register(struct device *dev, const char *name,
 	struct clk_init_data init;
 
 	sclk = kzalloc(sizeof(*sclk), GFP_KERNEL);
-	if (!sclk) {
-		pr_err("could not allocate SRC clock %s\n",
-			name);
+	if (!sclk)
 		return ERR_PTR(-ENOMEM);
-	}
+
 	init.name = name;
 	init.ops = &src_clk_ops;
 	/* Do not force-disable the static SDRAM controller */
@@ -459,7 +455,7 @@ static const char * const src_clk_names[] = {
 	"RNGCCLK   ",
 };
 
-static int nomadik_src_clk_show(struct seq_file *s, void *what)
+static int nomadik_src_clk_debugfs_show(struct seq_file *s, void *what)
 {
 	int i;
 	u32 src_pcksr0 = readl(src_base + SRC_PCKSR0);
@@ -467,7 +463,7 @@ static int nomadik_src_clk_show(struct seq_file *s, void *what)
 	u32 src_pckensr0 = readl(src_base + SRC_PCKENSR0);
 	u32 src_pckensr1 = readl(src_base + SRC_PCKENSR1);
 
-	seq_printf(s, "Clock:      Boot:   Now:    Request: ASKED:\n");
+	seq_puts(s, "Clock:      Boot:   Now:    Request: ASKED:\n");
 	for (i = 0; i < ARRAY_SIZE(src_clk_names); i++) {
 		u32 pcksrb = (i < 0x20) ? src_pcksr0_boot : src_pcksr1_boot;
 		u32 pcksr = (i < 0x20) ? src_pcksr0 : src_pcksr1;
@@ -483,17 +479,7 @@ static int nomadik_src_clk_show(struct seq_file *s, void *what)
 	return 0;
 }
 
-static int nomadik_src_clk_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, nomadik_src_clk_show, NULL);
-}
-
-static const struct file_operations nomadik_src_clk_debugfs_ops = {
-	.open           = nomadik_src_clk_open,
-	.read           = seq_read,
-        .llseek         = seq_lseek,
-	.release        = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(nomadik_src_clk_debugfs);
 
 static int __init nomadik_src_clk_init_debugfs(void)
 {
@@ -503,7 +489,7 @@ static int __init nomadik_src_clk_init_debugfs(void)
 	src_pcksr0_boot = readl(src_base + SRC_PCKSR0);
 	src_pcksr1_boot = readl(src_base + SRC_PCKSR1);
 	debugfs_create_file("nomadik-src-clk", S_IFREG | S_IRUGO,
-			    NULL, NULL, &nomadik_src_clk_debugfs_ops);
+			    NULL, NULL, &nomadik_src_clk_debugfs_fops);
 	return 0;
 }
 device_initcall(nomadik_src_clk_init_debugfs);

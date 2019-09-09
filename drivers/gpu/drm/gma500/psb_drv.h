@@ -1,19 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /**************************************************************************
  * Copyright (c) 2007-2011, Intel Corporation.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  *
  **************************************************************************/
 
@@ -21,22 +9,21 @@
 #define _PSB_DRV_H_
 
 #include <linux/kref.h>
+#include <linux/mm_types.h>
 
-#include <drm/drmP.h>
-#include <drm/drm_global.h>
-#include <drm/gma_drm.h>
-#include "psb_reg.h"
-#include "psb_intel_drv.h"
+#include <drm/drm_device.h>
+
 #include "gma_display.h"
-#include "intel_bios.h"
 #include "gtt.h"
-#include "power.h"
-#include "opregion.h"
-#include "oaktrail.h"
+#include "intel_bios.h"
 #include "mmu.h"
+#include "oaktrail.h"
+#include "opregion.h"
+#include "power.h"
+#include "psb_intel_drv.h"
+#include "psb_reg.h"
 
 #define DRIVER_AUTHOR "Alan Cox <alan@linux.intel.com> and others"
-#define DRIVER_LICENSE "GPL"
 
 #define DRIVER_NAME "gma500"
 #define DRIVER_DESC "DRM driver for the Intel GMA500, GMA600, GMA3600, GMA3650"
@@ -538,6 +525,7 @@ struct drm_psb_private {
 	int lvds_ssc_freq;
 	bool is_lvds_on;
 	bool is_mipi_on;
+	bool lvds_enabled_in_vbt;
 	u32 mipi_ctrl_display;
 
 	unsigned int core_freq;
@@ -750,13 +738,7 @@ extern int psb_gem_get_aperture(struct drm_device *dev, void *data,
 			struct drm_file *file);
 extern int psb_gem_dumb_create(struct drm_file *file, struct drm_device *dev,
 			struct drm_mode_create_dumb *args);
-extern int psb_gem_dumb_map_gtt(struct drm_file *file, struct drm_device *dev,
-			uint32_t handle, uint64_t *offset);
-extern int psb_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf);
-extern int psb_gem_create_ioctl(struct drm_device *dev, void *data,
-			struct drm_file *file);
-extern int psb_gem_mmap_ioctl(struct drm_device *dev, void *data,
-					struct drm_file *file);
+extern vm_fault_t psb_gem_fault(struct vm_fault *vmf);
 
 /* psb_device.c */
 extern const struct psb_ops psb_chip_ops;
@@ -787,38 +769,40 @@ extern const struct psb_ops cdv_chip_ops;
 extern int drm_idle_check_interval;
 
 /* Utilities */
-static inline u32 MRST_MSG_READ32(uint port, uint offset)
+static inline u32 MRST_MSG_READ32(int domain, uint port, uint offset)
 {
 	int mcr = (0xD0<<24) | (port << 16) | (offset << 8);
 	uint32_t ret_val = 0;
-	struct pci_dev *pci_root = pci_get_bus_and_slot(0, 0);
+	struct pci_dev *pci_root = pci_get_domain_bus_and_slot(domain, 0, 0);
 	pci_write_config_dword(pci_root, 0xD0, mcr);
 	pci_read_config_dword(pci_root, 0xD4, &ret_val);
 	pci_dev_put(pci_root);
 	return ret_val;
 }
-static inline void MRST_MSG_WRITE32(uint port, uint offset, u32 value)
+static inline void MRST_MSG_WRITE32(int domain, uint port, uint offset,
+				    u32 value)
 {
 	int mcr = (0xE0<<24) | (port << 16) | (offset << 8) | 0xF0;
-	struct pci_dev *pci_root = pci_get_bus_and_slot(0, 0);
+	struct pci_dev *pci_root = pci_get_domain_bus_and_slot(domain, 0, 0);
 	pci_write_config_dword(pci_root, 0xD4, value);
 	pci_write_config_dword(pci_root, 0xD0, mcr);
 	pci_dev_put(pci_root);
 }
-static inline u32 MDFLD_MSG_READ32(uint port, uint offset)
+static inline u32 MDFLD_MSG_READ32(int domain, uint port, uint offset)
 {
 	int mcr = (0x10<<24) | (port << 16) | (offset << 8);
 	uint32_t ret_val = 0;
-	struct pci_dev *pci_root = pci_get_bus_and_slot(0, 0);
+	struct pci_dev *pci_root = pci_get_domain_bus_and_slot(domain, 0, 0);
 	pci_write_config_dword(pci_root, 0xD0, mcr);
 	pci_read_config_dword(pci_root, 0xD4, &ret_val);
 	pci_dev_put(pci_root);
 	return ret_val;
 }
-static inline void MDFLD_MSG_WRITE32(uint port, uint offset, u32 value)
+static inline void MDFLD_MSG_WRITE32(int domain, uint port, uint offset,
+				     u32 value)
 {
 	int mcr = (0x11<<24) | (port << 16) | (offset << 8) | 0xF0;
-	struct pci_dev *pci_root = pci_get_bus_and_slot(0, 0);
+	struct pci_dev *pci_root = pci_get_domain_bus_and_slot(domain, 0, 0);
 	pci_write_config_dword(pci_root, 0xD4, value);
 	pci_write_config_dword(pci_root, 0xD0, mcr);
 	pci_dev_put(pci_root);
@@ -909,9 +893,8 @@ static inline void REGISTER_WRITE8(struct drm_device *dev,
 #define PSB_RSGX32(_offs)						\
 ({									\
 	if (inl(dev_priv->apm_base + PSB_APM_STS) & 0x3) {		\
-		printk(KERN_ERR						\
-			"access sgx when it's off!! (READ) %s, %d\n",	\
-	       __FILE__, __LINE__);					\
+		pr_err("access sgx when it's off!! (READ) %s, %d\n",	\
+		       __FILE__, __LINE__);				\
 		melay(1000);						\
 	}								\
 	ioread32(dev_priv->sgx_reg + (_offs));				\

@@ -1,22 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * PMac DBDMA lowlevel functions
  *
  * Copyright (c) by Takashi Iwai <tiwai@suse.de>
  * code based on dmasound.c.
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 
@@ -509,7 +496,7 @@ static void snd_pmac_pcm_update(struct snd_pmac *chip, struct pmac_stream *rec)
  * hw info
  */
 
-static struct snd_pcm_hardware snd_pmac_playback =
+static const struct snd_pcm_hardware snd_pmac_playback =
 {
 	.info =			(SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_MMAP |
@@ -528,7 +515,7 @@ static struct snd_pcm_hardware snd_pmac_playback =
 	.periods_max =		PMAC_MAX_FRAGS,
 };
 
-static struct snd_pcm_hardware snd_pmac_capture =
+static const struct snd_pcm_hardware snd_pmac_capture =
 {
 	.info =			(SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_MMAP |
@@ -681,7 +668,7 @@ static int snd_pmac_capture_close(struct snd_pcm_substream *subs)
 /*
  */
 
-static struct snd_pcm_ops snd_pmac_playback_ops = {
+static const struct snd_pcm_ops snd_pmac_playback_ops = {
 	.open =		snd_pmac_playback_open,
 	.close =	snd_pmac_playback_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -692,7 +679,7 @@ static struct snd_pcm_ops snd_pmac_playback_ops = {
 	.pointer =	snd_pmac_playback_pointer,
 };
 
-static struct snd_pcm_ops snd_pmac_capture_ops = {
+static const struct snd_pcm_ops snd_pmac_capture_ops = {
 	.open =		snd_pmac_capture_open,
 	.close =	snd_pmac_capture_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -908,7 +895,7 @@ static void detect_byte_swap(struct snd_pmac *chip)
 
 	/* if seems that Keylargo can't byte-swap  */
 	for (mio = chip->node->parent; mio; mio = mio->parent) {
-		if (strcmp(mio->name, "mac-io") == 0) {
+		if (of_node_name_eq(mio, "mac-io")) {
 			if (of_device_is_compatible(mio, "Keylargo"))
 				chip->can_byte_swap = 0;
 			break;
@@ -1313,7 +1300,7 @@ int snd_pmac_new(struct snd_card *card, struct snd_pmac **chip_return)
 	} else if (chip->is_pbook_G3) {
 		struct device_node* mio;
 		for (mio = chip->node->parent; mio; mio = mio->parent) {
-			if (strcmp(mio->name, "mac-io") == 0) {
+			if (of_node_name_eq(mio, "mac-io")) {
 				struct resource r;
 				if (of_address_to_resource(mio, 0, &r) == 0)
 					chip->macio_base =
@@ -1365,7 +1352,6 @@ void snd_pmac_suspend(struct snd_pmac *chip)
 	snd_power_change_state(chip->card, SNDRV_CTL_POWER_D3hot);
 	if (chip->suspend)
 		chip->suspend(chip);
-	snd_pcm_suspend_all(chip->pcm);
 	spin_lock_irqsave(&chip->reg_lock, flags);
 	snd_pmac_beep_stop(chip);
 	spin_unlock_irqrestore(&chip->reg_lock, flags);

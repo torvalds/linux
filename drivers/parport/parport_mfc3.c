@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Low-level parallel port routines for the Multiface 3 card
  *
  * Author: Joerg Dorchain <joerg@dorchain.net>
@@ -174,7 +175,7 @@ DPRINTK(KERN_DEBUG "read_status %02x\n", status);
 	return status;
 }
 
-static int use_cnt = 0;
+static int use_cnt;
 
 static irqreturn_t mfc3_interrupt(int irq, void *dev_id)
 {

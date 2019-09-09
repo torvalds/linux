@@ -72,7 +72,7 @@ struct fnic_trace_data {
 typedef struct fnic_trace_data fnic_trace_data_t;
 
 struct fc_trace_hdr {
-	struct timespec time_stamp;
+	struct timespec64 time_stamp;
 	u32 host_no;
 	u8 frame_type;
 	u8 frame_len;
@@ -111,7 +111,7 @@ int fnic_trace_buf_init(void);
 void fnic_trace_free(void);
 int fnic_debugfs_init(void);
 void fnic_debugfs_terminate(void);
-int fnic_trace_debugfs_init(void);
+void fnic_trace_debugfs_init(void);
 void fnic_trace_debugfs_terminate(void);
 
 /* Fnic FC CTLR Trace releated function */
@@ -123,7 +123,7 @@ int fnic_fc_trace_get_data(fnic_dbgfs_t *fnic_dbgfs_prt, u8 rdata_flag);
 void copy_and_format_trace_data(struct fc_trace_hdr *tdata,
 				fnic_dbgfs_t *fnic_dbgfs_prt,
 				int *len, u8 rdata_flag);
-int fnic_fc_trace_debugfs_init(void);
+void fnic_fc_trace_debugfs_init(void);
 void fnic_fc_trace_debugfs_terminate(void);
 
 #endif

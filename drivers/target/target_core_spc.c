@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * SCSI Primary Commands (SPC) parsing and emulation.
  *
  * (c) Copyright 2002-2013 Datera, Inc.
  *
  * Nicholas A. Bellinger <nab@kernel.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
 #include <linux/kernel.h>
@@ -108,12 +95,19 @@ spc_emulate_inquiry_std(struct se_cmd *cmd, unsigned char *buf)
 
 	buf[7] = 0x2; /* CmdQue=1 */
 
-	memcpy(&buf[8], "LIO-ORG ", 8);
-	memset(&buf[16], 0x20, 16);
+	/*
+	 * ASCII data fields described as being left-aligned shall have any
+	 * unused bytes at the end of the field (i.e., highest offset) and the
+	 * unused bytes shall be filled with ASCII space characters (20h).
+	 */
+	memset(&buf[8], 0x20,
+	       INQUIRY_VENDOR_LEN + INQUIRY_MODEL_LEN + INQUIRY_REVISION_LEN);
+	memcpy(&buf[8], dev->t10_wwn.vendor,
+	       strnlen(dev->t10_wwn.vendor, INQUIRY_VENDOR_LEN));
 	memcpy(&buf[16], dev->t10_wwn.model,
-	       min_t(size_t, strlen(dev->t10_wwn.model), 16));
+	       strnlen(dev->t10_wwn.model, INQUIRY_MODEL_LEN));
 	memcpy(&buf[32], dev->t10_wwn.revision,
-	       min_t(size_t, strlen(dev->t10_wwn.revision), 4));
+	       strnlen(dev->t10_wwn.revision, INQUIRY_REVISION_LEN));
 	buf[4] = 31; /* Set additional length to 31 */
 
 	return 0;
@@ -251,7 +245,10 @@ check_t10_vend_desc:
 	buf[off] = 0x2; /* ASCII */
 	buf[off+1] = 0x1; /* T10 Vendor ID */
 	buf[off+2] = 0x0;
-	memcpy(&buf[off+4], "LIO-ORG", 8);
+	/* left align Vendor ID and pad with spaces */
+	memset(&buf[off+4], 0x20, INQUIRY_VENDOR_LEN);
+	memcpy(&buf[off+4], dev->t10_wwn.vendor,
+	       strnlen(dev->t10_wwn.vendor, INQUIRY_VENDOR_LEN));
 	/* Extra Byte for NULL Terminator */
 	id_len++;
 	/* Identifier Length */
@@ -287,8 +284,8 @@ check_t10_vend_desc:
 		/* Skip over Obsolete field in RTPI payload
 		 * in Table 472 */
 		off += 2;
-		buf[off++] = ((lun->lun_rtpi >> 8) & 0xff);
-		buf[off++] = (lun->lun_rtpi & 0xff);
+		put_unaligned_be16(lun->lun_rtpi, &buf[off]);
+		off += 2;
 		len += 8; /* Header size + Designation descriptor */
 		/*
 		 * Target port group identifier, see spc4r17
@@ -316,8 +313,8 @@ check_t10_vend_desc:
 		off++; /* Skip over Reserved */
 		buf[off++] = 4; /* DESIGNATOR LENGTH */
 		off += 2; /* Skip over Reserved Field */
-		buf[off++] = ((tg_pt_gp_id >> 8) & 0xff);
-		buf[off++] = (tg_pt_gp_id & 0xff);
+		put_unaligned_be16(tg_pt_gp_id, &buf[off]);
+		off += 2;
 		len += 8; /* Header size + Designation descriptor */
 		/*
 		 * Logical Unit Group identifier, see spc4r17
@@ -343,8 +340,8 @@ check_lu_gp:
 		off++; /* Skip over Reserved */
 		buf[off++] = 4; /* DESIGNATOR LENGTH */
 		off += 2; /* Skip over Reserved Field */
-		buf[off++] = ((lu_gp_id >> 8) & 0xff);
-		buf[off++] = (lu_gp_id & 0xff);
+		put_unaligned_be16(lu_gp_id, &buf[off]);
+		off += 2;
 		len += 8; /* Header size + Designation descriptor */
 		/*
 		 * SCSI name string designator, see spc4r17
@@ -431,8 +428,7 @@ check_scsi_name:
 		/* Header size + Designation descriptor */
 		len += (scsi_target_len + 4);
 	}
-	buf[2] = ((len >> 8) & 0xff);
-	buf[3] = (len & 0xff); /* Page Length for VPD 0x83 */
+	put_unaligned_be16(len, &buf[2]); /* Page Length for VPD 0x83 */
 	return 0;
 }
 EXPORT_SYMBOL(spc_emulate_evpd_83);
@@ -637,9 +633,9 @@ spc_emulate_evpd_b2(struct se_cmd *cmd, unsigned char *buf)
 
 	/*
 	 * The unmap_zeroes_data set means that the underlying device supports
-	 * REQ_DISCARD and has the discard_zeroes_data bit set. This satisfies
-	 * the SBC requirements for LBPRZ, meaning that a subsequent read
-	 * will return zeroes after an UNMAP or WRITE SAME (16) to an LBA
+	 * REQ_OP_DISCARD and has the discard_zeroes_data bit set. This
+	 * satisfies the SBC requirements for LBPRZ, meaning that a subsequent
+	 * read will return zeroes after an UNMAP or WRITE SAME (16) to an LBA
 	 * See sbc4r36 6.6.4.
 	 */
 	if (((dev->dev_attrib.emulate_tpu != 0) ||
@@ -1282,13 +1278,21 @@ spc_parse_cdb(struct se_cmd *cmd, unsigned int *size)
 	struct se_device *dev = cmd->se_dev;
 	unsigned char *cdb = cmd->t_task_cdb;
 
+	if (!dev->dev_attrib.emulate_pr &&
+	    ((cdb[0] == PERSISTENT_RESERVE_IN) ||
+	     (cdb[0] == PERSISTENT_RESERVE_OUT) ||
+	     (cdb[0] == RELEASE || cdb[0] == RELEASE_10) ||
+	     (cdb[0] == RESERVE || cdb[0] == RESERVE_10))) {
+		return TCM_UNSUPPORTED_SCSI_OPCODE;
+	}
+
 	switch (cdb[0]) {
 	case MODE_SELECT:
 		*size = cdb[4];
 		cmd->execute_cmd = spc_emulate_modeselect;
 		break;
 	case MODE_SELECT_10:
-		*size = (cdb[7] << 8) + cdb[8];
+		*size = get_unaligned_be16(&cdb[7]);
 		cmd->execute_cmd = spc_emulate_modeselect;
 		break;
 	case MODE_SENSE:
@@ -1296,25 +1300,25 @@ spc_parse_cdb(struct se_cmd *cmd, unsigned int *size)
 		cmd->execute_cmd = spc_emulate_modesense;
 		break;
 	case MODE_SENSE_10:
-		*size = (cdb[7] << 8) + cdb[8];
+		*size = get_unaligned_be16(&cdb[7]);
 		cmd->execute_cmd = spc_emulate_modesense;
 		break;
 	case LOG_SELECT:
 	case LOG_SENSE:
-		*size = (cdb[7] << 8) + cdb[8];
+		*size = get_unaligned_be16(&cdb[7]);
 		break;
 	case PERSISTENT_RESERVE_IN:
-		*size = (cdb[7] << 8) + cdb[8];
+		*size = get_unaligned_be16(&cdb[7]);
 		cmd->execute_cmd = target_scsi3_emulate_pr_in;
 		break;
 	case PERSISTENT_RESERVE_OUT:
-		*size = (cdb[7] << 8) + cdb[8];
+		*size = get_unaligned_be32(&cdb[5]);
 		cmd->execute_cmd = target_scsi3_emulate_pr_out;
 		break;
 	case RELEASE:
 	case RELEASE_10:
 		if (cdb[0] == RELEASE_10)
-			*size = (cdb[7] << 8) | cdb[8];
+			*size = get_unaligned_be16(&cdb[7]);
 		else
 			*size = cmd->data_length;
 
@@ -1327,7 +1331,7 @@ spc_parse_cdb(struct se_cmd *cmd, unsigned int *size)
 		 * Assume the passthrough or $FABRIC_MOD will tell us about it.
 		 */
 		if (cdb[0] == RESERVE_10)
-			*size = (cdb[7] << 8) | cdb[8];
+			*size = get_unaligned_be16(&cdb[7]);
 		else
 			*size = cmd->data_length;
 
@@ -1338,7 +1342,7 @@ spc_parse_cdb(struct se_cmd *cmd, unsigned int *size)
 		cmd->execute_cmd = spc_emulate_request_sense;
 		break;
 	case INQUIRY:
-		*size = (cdb[3] << 8) + cdb[4];
+		*size = get_unaligned_be16(&cdb[3]);
 
 		/*
 		 * Do implicit HEAD_OF_QUEUE processing for INQUIRY.
@@ -1349,7 +1353,7 @@ spc_parse_cdb(struct se_cmd *cmd, unsigned int *size)
 		break;
 	case SECURITY_PROTOCOL_IN:
 	case SECURITY_PROTOCOL_OUT:
-		*size = (cdb[6] << 24) | (cdb[7] << 16) | (cdb[8] << 8) | cdb[9];
+		*size = get_unaligned_be32(&cdb[6]);
 		break;
 	case EXTENDED_COPY:
 		*size = get_unaligned_be32(&cdb[10]);
@@ -1361,19 +1365,18 @@ spc_parse_cdb(struct se_cmd *cmd, unsigned int *size)
 		break;
 	case READ_ATTRIBUTE:
 	case WRITE_ATTRIBUTE:
-		*size = (cdb[10] << 24) | (cdb[11] << 16) |
-		       (cdb[12] << 8) | cdb[13];
+		*size = get_unaligned_be32(&cdb[10]);
 		break;
 	case RECEIVE_DIAGNOSTIC:
 	case SEND_DIAGNOSTIC:
-		*size = (cdb[3] << 8) | cdb[4];
+		*size = get_unaligned_be16(&cdb[3]);
 		break;
 	case WRITE_BUFFER:
-		*size = (cdb[6] << 16) + (cdb[7] << 8) + cdb[8];
+		*size = get_unaligned_be24(&cdb[6]);
 		break;
 	case REPORT_LUNS:
 		cmd->execute_cmd = spc_emulate_report_luns;
-		*size = (cdb[6] << 24) | (cdb[7] << 16) | (cdb[8] << 8) | cdb[9];
+		*size = get_unaligned_be32(&cdb[6]);
 		/*
 		 * Do implicit HEAD_OF_QUEUE processing for REPORT_LUNS
 		 * See spc4r17 section 5.3

@@ -1,16 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * NFC hardware simulation driver
  * Copyright (c) 2013, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
  */
 
 #include <linux/device.h>
@@ -482,8 +473,10 @@ static int __init nfcsim_init(void)
 exit_err:
 	pr_err("Failed to initialize nfcsim driver (%d)\n", rc);
 
-	nfcsim_link_free(link0);
-	nfcsim_link_free(link1);
+	if (link0)
+		nfcsim_link_free(link0);
+	if (link1)
+		nfcsim_link_free(link1);
 
 	return rc;
 }

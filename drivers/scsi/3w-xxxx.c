@@ -1,7 +1,7 @@
 /* 
    3w-xxxx.c -- 3ware Storage Controller device driver for Linux.
 
-   Written By: Adam Radford <linuxraid@lsi.com>
+   Written By: Adam Radford <aradford@gmail.com>
    Modifications By: Joel Jacobson <linux@3ware.com>
    		     Arnaldo Carvalho de Melo <acme@conectiva.com.br>
                      Brad Strand <linux@3ware.com>
@@ -47,10 +47,9 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA 
 
    Bugs/Comments/Suggestions should be mailed to:                            
-   linuxraid@lsi.com
 
-   For more information, goto:
-   http://www.lsi.com
+   aradford@gmail.com
+
 
    History
    -------
@@ -211,7 +210,7 @@
 #include <linux/mutex.h>
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_tcq.h>
@@ -835,15 +834,17 @@ static int tw_allocate_memory(TW_Device_Extension *tw_dev, int size, int which)
 
 	dprintk(KERN_NOTICE "3w-xxxx: tw_allocate_memory()\n");
 
-	cpu_addr = pci_alloc_consistent(tw_dev->tw_pci_dev, size*TW_Q_LENGTH, &dma_handle);
+	cpu_addr = dma_alloc_coherent(&tw_dev->tw_pci_dev->dev,
+			size * TW_Q_LENGTH, &dma_handle, GFP_KERNEL);
 	if (cpu_addr == NULL) {
-		printk(KERN_WARNING "3w-xxxx: pci_alloc_consistent() failed.\n");
+		printk(KERN_WARNING "3w-xxxx: dma_alloc_coherent() failed.\n");
 		return 1;
 	}
 
 	if ((unsigned long)cpu_addr % (tw_dev->tw_pci_dev->device == TW_DEVICE_ID ? TW_ALIGNMENT_6000 : TW_ALIGNMENT_7000)) {
 		printk(KERN_WARNING "3w-xxxx: Couldn't allocate correctly aligned memory.\n");
-		pci_free_consistent(tw_dev->tw_pci_dev, size*TW_Q_LENGTH, cpu_addr, dma_handle);
+		dma_free_coherent(&tw_dev->tw_pci_dev->dev, size * TW_Q_LENGTH,
+				cpu_addr, dma_handle);
 		return 1;
 	}
 
@@ -1034,6 +1035,9 @@ static int tw_chrdev_open(struct inode *inode, struct file *file)
 
 	dprintk(KERN_WARNING "3w-xxxx: tw_ioctl_open()\n");
 
+	if (!capable(CAP_SYS_ADMIN))
+		return -EACCES;
+
 	minor_number = iminor(inode);
 	if (minor_number >= tw_device_extension_count)
 		return -ENODEV;
@@ -1060,10 +1064,16 @@ static void tw_free_device_extension(TW_Device_Extension *tw_dev)
 
 	/* Free command packet and generic buffer memory */
 	if (tw_dev->command_packet_virtual_address[0])
-		pci_free_consistent(tw_dev->tw_pci_dev, sizeof(TW_Command)*TW_Q_LENGTH, tw_dev->command_packet_virtual_address[0], tw_dev->command_packet_physical_address[0]);
+		dma_free_coherent(&tw_dev->tw_pci_dev->dev,
+				sizeof(TW_Command) * TW_Q_LENGTH,
+				tw_dev->command_packet_virtual_address[0],
+				tw_dev->command_packet_physical_address[0]);
 
 	if (tw_dev->alignment_virtual_address[0])
-		pci_free_consistent(tw_dev->tw_pci_dev, sizeof(TW_Sector)*TW_Q_LENGTH, tw_dev->alignment_virtual_address[0], tw_dev->alignment_physical_address[0]);
+		dma_free_coherent(&tw_dev->tw_pci_dev->dev,
+				sizeof(TW_Sector) * TW_Q_LENGTH,
+				tw_dev->alignment_virtual_address[0],
+				tw_dev->alignment_physical_address[0]);
 } /* End tw_free_device_extension() */
 
 /* This function will send an initconnection command to controller */
@@ -1164,7 +1174,7 @@ static int tw_setfeature(TW_Device_Extension *tw_dev, int parm, int param_size,
   	command_que_value = tw_dev->command_packet_physical_address[request_id];
 	if (command_que_value == 0) {
 		printk(KERN_WARNING "3w-xxxx: tw_setfeature(): Bad command packet physical address.\n");
-	return 1;
+		return 1;
 	}
 
 	/* Send command packet to the board */
@@ -1923,7 +1933,7 @@ static int tw_scsi_queue_lck(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_c
 	if (test_bit(TW_IN_RESET, &tw_dev->flags))
 		return SCSI_MLQUEUE_HOST_BUSY;
 
-	/* Save done function into Scsi_Cmnd struct */
+	/* Save done function into struct scsi_cmnd */
 	SCpnt->scsi_done = done;
 		 
 	/* Queue the command and get a request id */
@@ -2237,7 +2247,6 @@ static struct scsi_host_template driver_template = {
 	.sg_tablesize		= TW_MAX_SGL_LENGTH,
 	.max_sectors		= TW_MAX_SECTORS,
 	.cmd_per_lun		= TW_MAX_CMDS_PER_LUN,	
-	.use_clustering		= ENABLE_CLUSTERING,
 	.shost_attrs		= tw_host_attrs,
 	.emulated		= 1,
 	.no_write_same		= 1,
@@ -2258,7 +2267,7 @@ static int tw_probe(struct pci_dev *pdev, const struct pci_device_id *dev_id)
 
 	pci_set_master(pdev);
 
-	retval = pci_set_dma_mask(pdev, TW_DMA_MASK);
+	retval = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 	if (retval) {
 		printk(KERN_WARNING "3w-xxxx: Failed to set dma mask.");
 		goto out_disable_device;
@@ -2278,6 +2287,7 @@ static int tw_probe(struct pci_dev *pdev, const struct pci_device_id *dev_id)
 
 	if (tw_initialize_device_extension(tw_dev)) {
 		printk(KERN_WARNING "3w-xxxx: Failed to initialize device extension.");
+		retval = -ENOMEM;
 		goto out_free_device_extension;
 	}
 
@@ -2292,6 +2302,7 @@ static int tw_probe(struct pci_dev *pdev, const struct pci_device_id *dev_id)
 	tw_dev->base_addr = pci_resource_start(pdev, 0);
 	if (!tw_dev->base_addr) {
 		printk(KERN_WARNING "3w-xxxx: Failed to get io address.");
+		retval = -ENOMEM;
 		goto out_release_mem_region;
 	}
 

@@ -39,7 +39,7 @@
 
 #include "mlx4_ib.h"
 
-#define CM_CLEANUP_CACHE_TIMEOUT  (5 * HZ)
+#define CM_CLEANUP_CACHE_TIMEOUT  (30 * HZ)
 
 struct id_map_entry {
 	struct rb_node node;
@@ -168,20 +168,17 @@ static void id_map_ent_timeout(struct work_struct *work)
 {
 	struct delayed_work *delay = to_delayed_work(work);
 	struct id_map_entry *ent = container_of(delay, struct id_map_entry, timeout);
-	struct id_map_entry *db_ent, *found_ent;
+	struct id_map_entry *found_ent;
 	struct mlx4_ib_dev *dev = ent->dev;
 	struct mlx4_ib_sriov *sriov = &dev->sriov;
 	struct rb_root *sl_id_map = &sriov->sl_id_map;
-	int pv_id = (int) ent->pv_cm_id;
 
 	spin_lock(&sriov->id_map_lock);
-	db_ent = (struct id_map_entry *)idr_find(&sriov->pv_id_table, pv_id);
-	if (!db_ent)
+	if (!xa_erase(&sriov->pv_id_table, ent->pv_cm_id))
 		goto out;
 	found_ent = id_map_find_by_sl_id(&dev->ib_dev, ent->slave_id, ent->sl_cm_id);
 	if (found_ent && found_ent == ent)
 		rb_erase(&found_ent->node, sl_id_map);
-	idr_remove(&sriov->pv_id_table, pv_id);
 
 out:
 	list_del(&ent->list);
@@ -196,13 +193,12 @@ static void id_map_find_del(struct ib_device *ibdev, int pv_cm_id)
 	struct id_map_entry *ent, *found_ent;
 
 	spin_lock(&sriov->id_map_lock);
-	ent = (struct id_map_entry *)idr_find(&sriov->pv_id_table, pv_cm_id);
+	ent = xa_erase(&sriov->pv_id_table, pv_cm_id);
 	if (!ent)
 		goto out;
 	found_ent = id_map_find_by_sl_id(ibdev, ent->slave_id, ent->sl_cm_id);
 	if (found_ent && found_ent == ent)
 		rb_erase(&found_ent->node, sl_id_map);
-	idr_remove(&sriov->pv_id_table, pv_cm_id);
 out:
 	spin_unlock(&sriov->id_map_lock);
 }
@@ -247,10 +243,8 @@ id_map_alloc(struct ib_device *ibdev, int slave_id, u32 sl_cm_id)
 	struct mlx4_ib_sriov *sriov = &to_mdev(ibdev)->sriov;
 
 	ent = kmalloc(sizeof (struct id_map_entry), GFP_KERNEL);
-	if (!ent) {
-		mlx4_ib_warn(ibdev, "Couldn't allocate id cache entry - out of memory\n");
+	if (!ent)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	ent->sl_cm_id = sl_cm_id;
 	ent->slave_id = slave_id;
@@ -258,41 +252,35 @@ id_map_alloc(struct ib_device *ibdev, int slave_id, u32 sl_cm_id)
 	ent->dev = to_mdev(ibdev);
 	INIT_DELAYED_WORK(&ent->timeout, id_map_ent_timeout);
 
-	idr_preload(GFP_KERNEL);
-	spin_lock(&to_mdev(ibdev)->sriov.id_map_lock);
-
-	ret = idr_alloc_cyclic(&sriov->pv_id_table, ent, 0, 0, GFP_NOWAIT);
+	ret = xa_alloc_cyclic(&sriov->pv_id_table, &ent->pv_cm_id, ent,
+			xa_limit_32b, &sriov->pv_id_next, GFP_KERNEL);
 	if (ret >= 0) {
-		ent->pv_cm_id = (u32)ret;
+		spin_lock(&sriov->id_map_lock);
 		sl_id_map_add(ibdev, ent);
 		list_add_tail(&ent->list, &sriov->cm_list);
-	}
-
-	spin_unlock(&sriov->id_map_lock);
-	idr_preload_end();
-
-	if (ret >= 0)
+		spin_unlock(&sriov->id_map_lock);
 		return ent;
+	}
 
 	/*error flow*/
 	kfree(ent);
-	mlx4_ib_warn(ibdev, "No more space in the idr (err:0x%x)\n", ret);
+	mlx4_ib_warn(ibdev, "Allocation failed (err:0x%x)\n", ret);
 	return ERR_PTR(-ENOMEM);
 }
 
 static struct id_map_entry *
-id_map_get(struct ib_device *ibdev, int *pv_cm_id, int sl_cm_id, int slave_id)
+id_map_get(struct ib_device *ibdev, int *pv_cm_id, int slave_id, int sl_cm_id)
 {
 	struct id_map_entry *ent;
 	struct mlx4_ib_sriov *sriov = &to_mdev(ibdev)->sriov;
 
 	spin_lock(&sriov->id_map_lock);
 	if (*pv_cm_id == -1) {
-		ent = id_map_find_by_sl_id(ibdev, sl_cm_id, slave_id);
+		ent = id_map_find_by_sl_id(ibdev, slave_id, sl_cm_id);
 		if (ent)
 			*pv_cm_id = (int) ent->pv_cm_id;
 	} else
-		ent = (struct id_map_entry *)idr_find(&sriov->pv_id_table, *pv_cm_id);
+		ent = xa_load(&sriov->pv_id_table, *pv_cm_id);
 	spin_unlock(&sriov->id_map_lock);
 
 	return ent;
@@ -325,6 +313,9 @@ int mlx4_ib_multiplex_cm_handler(struct ib_device *ibdev, int port, int slave_id
 			mad->mad_hdr.attr_id == CM_REP_ATTR_ID ||
 			mad->mad_hdr.attr_id == CM_SIDR_REQ_ATTR_ID) {
 		sl_cm_id = get_local_comm_id(mad);
+		id = id_map_get(ibdev, &pv_cm_id, slave_id, sl_cm_id);
+		if (id)
+			goto cont;
 		id = id_map_alloc(ibdev, slave_id, sl_cm_id);
 		if (IS_ERR(id)) {
 			mlx4_ib_warn(ibdev, "%s: id{slave: %d, sl_cm_id: 0x%x} Failed to id_map_alloc\n",
@@ -345,6 +336,7 @@ int mlx4_ib_multiplex_cm_handler(struct ib_device *ibdev, int port, int slave_id
 		return -EINVAL;
 	}
 
+cont:
 	set_local_comm_id(mad, id->pv_cm_id);
 
 	if (mad->mad_hdr.attr_id == CM_DREQ_ATTR_ID)
@@ -405,7 +397,7 @@ void mlx4_ib_cm_paravirt_init(struct mlx4_ib_dev *dev)
 	spin_lock_init(&dev->sriov.id_map_lock);
 	INIT_LIST_HEAD(&dev->sriov.cm_list);
 	dev->sriov.sl_id_map = RB_ROOT;
-	idr_init(&dev->sriov.pv_id_table);
+	xa_init_flags(&dev->sriov.pv_id_table, XA_FLAGS_ALLOC);
 }
 
 /* slave = -1 ==> all slaves */
@@ -416,7 +408,7 @@ void mlx4_ib_cm_paravirt_clean(struct mlx4_ib_dev *dev, int slave)
 	struct rb_root *sl_id_map = &sriov->sl_id_map;
 	struct list_head lh;
 	struct rb_node *nd;
-	int need_flush = 1;
+	int need_flush = 0;
 	struct id_map_entry *map, *tmp_map;
 	/* cancel all delayed work queue entries */
 	INIT_LIST_HEAD(&lh);
@@ -424,13 +416,13 @@ void mlx4_ib_cm_paravirt_clean(struct mlx4_ib_dev *dev, int slave)
 	list_for_each_entry_safe(map, tmp_map, &dev->sriov.cm_list, list) {
 		if (slave < 0 || slave == map->slave_id) {
 			if (map->scheduled_delete)
-				need_flush &= !!cancel_delayed_work(&map->timeout);
+				need_flush |= !cancel_delayed_work(&map->timeout);
 		}
 	}
 
 	spin_unlock(&sriov->id_map_lock);
 
-	if (!need_flush)
+	if (need_flush)
 		flush_scheduled_work(); /* make sure all timers were flushed */
 
 	/* now, remove all leftover entries from databases*/
@@ -442,7 +434,7 @@ void mlx4_ib_cm_paravirt_clean(struct mlx4_ib_dev *dev, int slave)
 					 struct id_map_entry, node);
 
 			rb_erase(&ent->node, sl_id_map);
-			idr_remove(&sriov->pv_id_table, (int) ent->pv_cm_id);
+			xa_erase(&sriov->pv_id_table, ent->pv_cm_id);
 		}
 		list_splice_init(&dev->sriov.cm_list, &lh);
 	} else {
@@ -458,7 +450,7 @@ void mlx4_ib_cm_paravirt_clean(struct mlx4_ib_dev *dev, int slave)
 		/* remove those nodes from databases */
 		list_for_each_entry_safe(map, tmp_map, &lh, list) {
 			rb_erase(&map->node, sl_id_map);
-			idr_remove(&sriov->pv_id_table, (int) map->pv_cm_id);
+			xa_erase(&sriov->pv_id_table, map->pv_cm_id);
 		}
 
 		/* add remaining nodes from cm_list */

@@ -1,16 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Abilis Systems Single DVB-T Receiver
  * Copyright (C) 2008 Pierrick Hascoet <pierrick.hascoet@abilis.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/kernel.h>
@@ -133,9 +124,9 @@ out:
  * as10x_cmd_eLNA_change_mode - send eLNA change mode command to AS10x
  * @adap:      pointer to AS10x bus adapter
  * @mode:      mode selected:
- *	        - ON    : 0x0 => eLNA always ON
- *	        - OFF   : 0x1 => eLNA always OFF
- *	        - AUTO  : 0x2 => eLNA follow hysteresis parameters
+ *		- ON    : 0x0 => eLNA always ON
+ *		- OFF   : 0x1 => eLNA always OFF
+ *		- AUTO  : 0x2 => eLNA follow hysteresis parameters
  *				 to be ON or OFF
  *
  * Return 0 on success or negative value in case of error.

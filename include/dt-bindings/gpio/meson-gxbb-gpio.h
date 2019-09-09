@@ -1,15 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * GPIO definitions for Amlogic Meson GXBB SoCs
  *
  * Copyright (C) 2016 Endless Mobile, Inc.
  * Author: Carlo Caione <carlo@endlessm.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef _DT_BINDINGS_MESON_GXBB_GPIO_H
@@ -29,6 +23,7 @@
 #define	GPIOAO_11	11
 #define	GPIOAO_12	12
 #define	GPIOAO_13	13
+#define	GPIO_TEST_N	14
 
 #define	GPIOZ_0		0
 #define	GPIOZ_1		1
@@ -149,6 +144,5 @@
 #define	GPIOCLK_1	116
 #define	GPIOCLK_2	117
 #define	GPIOCLK_3	118
-#define	GPIO_TEST_N	119
 
 #endif

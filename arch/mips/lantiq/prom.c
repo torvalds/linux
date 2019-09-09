@@ -1,15 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- *  This program is free software; you can redistribute it and/or modify it
- *  under the terms of the GNU General Public License version 2 as published
- *  by the Free Software Foundation.
  *
  * Copyright (C) 2010 John Crispin <john@phrozen.org>
  */
 
 #include <linux/export.h>
 #include <linux/clk.h>
-#include <linux/bootmem.h>
-#include <linux/of_platform.h>
+#include <linux/memblock.h>
 #include <linux/of_fdt.h>
 
 #include <asm/bootinfo.h>
@@ -24,6 +21,12 @@
 /* access to the ebu needs to be locked between different drivers */
 DEFINE_SPINLOCK(ebu_lock);
 EXPORT_SYMBOL_GPL(ebu_lock);
+
+/*
+ * This is needed by the VPE loader code, just set it to 0 and assume
+ * that the firmware hardcodes this value to something useful.
+ */
+unsigned long physical_memsize = 0L;
 
 /*
  * this struct is filled by the soc specific detection code and holds
@@ -108,10 +111,3 @@ void __init prom_init(void)
 		panic("failed to register_vsmp_smp_ops()");
 #endif
 }
-
-int __init plat_of_setup(void)
-{
-	return __dt_register_buses(soc_info.compatible, "simple-bus");
-}
-
-arch_initcall(plat_of_setup);

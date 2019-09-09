@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /****************************************************************************
  * Driver for Solarflare network controllers and boards
  * Copyright 2005-2006 Fen Systems Ltd.
  * Copyright 2006-2013 Solarflare Communications Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation, incorporated herein by reference.
  */
 
 #ifndef EFX_BITFIELD_H
@@ -432,6 +429,9 @@ typedef union efx_oword {
 		(oword).u64[0] = (from).u64[0] & (mask).u64[0];	\
 		(oword).u64[1] = (from).u64[1] & (mask).u64[1];	\
 	} while (0)
+
+#define EFX_AND_QWORD(qword, from, mask)			\
+		(qword).u64[0] = (from).u64[0] & (mask).u64[0]
 
 #define EFX_OR_OWORD(oword, from, mask)				\
 	do {							\

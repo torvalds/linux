@@ -1,24 +1,22 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Userland implementation of clock_getres() for 32 bits processes in a
  * s390 kernel for use in the vDSO
  *
  *  Copyright IBM Corp. 2008
  *  Author(s): Martin Schwidefsky (schwidefsky@de.ibm.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License (version 2 only)
- * as published by the Free Software Foundation.
  */
 #include <asm/vdso.h>
 #include <asm/asm-offsets.h>
 #include <asm/unistd.h>
+#include <asm/dwarf.h>
 
 	.text
 	.align 4
 	.globl __kernel_clock_getres
 	.type  __kernel_clock_getres,@function
 __kernel_clock_getres:
-	.cfi_startproc
+	CFI_STARTPROC
 	basr	%r1,0
 	la	%r1,4f-.(%r1)
 	chi	%r2,__CLOCK_REALTIME
@@ -40,7 +38,7 @@ __kernel_clock_getres:
 3:	lhi	%r1,__NR_clock_getres		/* fallback to svc */
 	svc	0
 	br	%r14
+	CFI_ENDPROC
 4:	.long	__CLOCK_REALTIME_RES
 5:	.long	__CLOCK_COARSE_RES
-	.cfi_endproc
 	.size	__kernel_clock_getres,.-__kernel_clock_getres

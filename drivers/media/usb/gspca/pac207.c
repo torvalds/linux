@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Pixart PAC207BCA library
  *
@@ -6,21 +7,6 @@
  * Copyleft (C) 2005 Michel Xhaard mxhaard@magic.fr
  *
  * V4L2 by Jean-Francois Moine <http://moinejf.free.fr>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -170,17 +156,17 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	idreg[1] = pac207_read_reg(gspca_dev, 0x0001);
 	idreg[0] = ((idreg[0] & 0x0f) << 4) | ((idreg[1] & 0xf0) >> 4);
 	idreg[1] = idreg[1] & 0x0f;
-	PDEBUG(D_PROBE, "Pixart Sensor ID 0x%02X Chips ID 0x%02X",
-		idreg[0], idreg[1]);
+	gspca_dbg(gspca_dev, D_PROBE, "Pixart Sensor ID 0x%02X Chips ID 0x%02X\n",
+		  idreg[0], idreg[1]);
 
 	if (idreg[0] != 0x27) {
-		PDEBUG(D_PROBE, "Error invalid sensor ID!");
+		gspca_dbg(gspca_dev, D_PROBE, "Error invalid sensor ID!\n");
 		return -ENODEV;
 	}
 
-	PDEBUG(D_PROBE,
-		"Pixart PAC207BCA Image Processor and Control Chip detected"
-		" (vid/pid 0x%04X:0x%04X)", id->idVendor, id->idProduct);
+	gspca_dbg(gspca_dev, D_PROBE,
+		  "Pixart PAC207BCA Image Processor and Control Chip detected (vid/pid 0x%04X:0x%04X)\n",
+		  id->idVendor, id->idProduct);
 
 	cam = &gspca_dev->cam;
 	cam->cam_mode = sif_mode;
@@ -319,9 +305,9 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		mode = 0x02;
 	if (gspca_dev->pixfmt.width == 176) {	/* 176x144 */
 		mode |= 0x01;
-		PDEBUG(D_STREAM, "pac207_start mode 176x144");
+		gspca_dbg(gspca_dev, D_STREAM, "pac207_start mode 176x144\n");
 	} else {				/* 352x288 */
-		PDEBUG(D_STREAM, "pac207_start mode 352x288");
+		gspca_dbg(gspca_dev, D_STREAM, "pac207_start mode 352x288\n");
 	}
 	pac207_write_reg(gspca_dev, 0x41, mode);
 

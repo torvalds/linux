@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 menu "S/390 network device drivers"
 	depends on NETDEVICES && S390
 
@@ -6,10 +7,10 @@ config LCS
 	prompt "Lan Channel Station Interface"
 	depends on CCW && NETDEVICES && (ETHERNET || FDDI)
 	help
-	   Select this option if you want to use LCS networking on IBM System z.
-	   This device driver supports FDDI (IEEE 802.7) and Ethernet.
-	   To compile as a module, choose M. The module name is lcs.
-	   If you do not know what it is, it's safe to choose Y.
+	  Select this option if you want to use LCS networking on IBM System z.
+	  This device driver supports FDDI (IEEE 802.7) and Ethernet.
+	  To compile as a module, choose M. The module name is lcs.
+	  If you do not know what it is, it's safe to choose Y.
 
 config CTCM
 	def_tristate m
@@ -90,11 +91,18 @@ config QETH_L3
 	  To compile as a module choose M. The module name is qeth_l3.
 	  If unsure, choose Y.
 
-config QETH_IPV6
-	def_bool y if (QETH_L3 = IPV6) || (QETH_L3 && IPV6 = 'y')
-
 config CCWGROUP
 	tristate
 	default (LCS || CTCM || QETH)
 
+config ISM
+	tristate "Support for ISM vPCI Adapter"
+	depends on PCI && SMC
+	default n
+	help
+	  Select this option if you want to use the Internal Shared Memory
+	  vPCI Adapter.
+
+	  To compile as a module choose M. The module name is ism.
+	  If unsure, choose N.
 endmenu

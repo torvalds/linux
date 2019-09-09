@@ -1,18 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * IBM Power Virtual Ethernet Device Driver
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Copyright (C) IBM Corporation, 2003, 2010
  *
@@ -146,7 +134,6 @@ struct ibmveth_adapter {
     struct vio_dev *vdev;
     struct net_device *netdev;
     struct napi_struct napi;
-    struct net_device_stats stats;
     unsigned int mcastFilterSize;
     void * buffer_list_addr;
     void * filter_list_addr;
@@ -157,6 +144,7 @@ struct ibmveth_adapter {
     int pool_config;
     int rx_csum;
     int large_send;
+    bool is_active_trunk;
     void *bounce_buffer;
     dma_addr_t bounce_buffer_dma;
 
@@ -209,6 +197,7 @@ struct ibmveth_rx_q_entry {
 #define IBMVETH_RXQ_TOGGLE		0x80000000
 #define IBMVETH_RXQ_TOGGLE_SHIFT	31
 #define IBMVETH_RXQ_VALID		0x40000000
+#define IBMVETH_RXQ_LRG_PKT		0x04000000
 #define IBMVETH_RXQ_NO_CSUM		0x02000000
 #define IBMVETH_RXQ_CSUM_GOOD		0x01000000
 #define IBMVETH_RXQ_OFF_MASK		0x0000FFFF

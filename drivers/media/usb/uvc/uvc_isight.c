@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *      uvc_isight.c  --  USB Video Class driver - iSight support
  *
@@ -5,12 +6,6 @@
  *		Ivan N. Zlatev <contact@i-nz.net>
  *	Copyright (C) 2008-2009
  *		Laurent Pinchart <laurent.pinchart@ideasonboard.com>
- *
- *      This program is free software; you can redistribute it and/or modify
- *      it under the terms of the GNU General Public License as published by
- *      the Free Software Foundation; either version 2 of the License, or
- *      (at your option) any later version.
- *
  */
 
 #include <linux/usb.h>
@@ -27,26 +22,26 @@
  *
  * Offset   Size (bytes)	Description
  * ------------------------------------------------------------------
- * 0x00 	1   	Header length
- * 0x01 	1   	Flags (UVC-compliant)
- * 0x02 	4   	Always equal to '11223344'
- * 0x06 	8   	Always equal to 'deadbeefdeadface'
- * 0x0e 	16  	Unknown
+ * 0x00	1	Header length
+ * 0x01	1	Flags (UVC-compliant)
+ * 0x02	4	Always equal to '11223344'
+ * 0x06	8	Always equal to 'deadbeefdeadface'
+ * 0x0e	16	Unknown
  *
  * The header can be prefixed by an optional, unknown-purpose byte.
  */
 
 static int isight_decode(struct uvc_video_queue *queue, struct uvc_buffer *buf,
-		const __u8 *data, unsigned int len)
+		const u8 *data, unsigned int len)
 {
-	static const __u8 hdr[] = {
+	static const u8 hdr[] = {
 		0x11, 0x22, 0x33, 0x44,
 		0xde, 0xad, 0xbe, 0xef,
 		0xde, 0xad, 0xfa, 0xce
 	};
 
 	unsigned int maxlen, nbytes;
-	__u8 *mem;
+	u8 *mem;
 	int is_header = 0;
 
 	if (buf == NULL)
@@ -99,9 +94,11 @@ static int isight_decode(struct uvc_video_queue *queue, struct uvc_buffer *buf,
 	return 0;
 }
 
-void uvc_video_decode_isight(struct urb *urb, struct uvc_streaming *stream,
-		struct uvc_buffer *buf)
+void uvc_video_decode_isight(struct uvc_urb *uvc_urb, struct uvc_buffer *buf,
+			struct uvc_buffer *meta_buf)
 {
+	struct urb *urb = uvc_urb->urb;
+	struct uvc_streaming *stream = uvc_urb->stream;
 	int ret, i;
 
 	for (i = 0; i < urb->number_of_packets; ++i) {

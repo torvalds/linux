@@ -34,6 +34,7 @@
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
+#include <crypto/algapi.h>
 #include <crypto/hash.h>
 #include <crypto/skcipher.h>
 #include <linux/err.h>
@@ -52,7 +53,7 @@
 
 u32
 krb5_encrypt(
-	struct crypto_skcipher *tfm,
+	struct crypto_sync_skcipher *tfm,
 	void * iv,
 	void * in,
 	void * out,
@@ -61,24 +62,24 @@ krb5_encrypt(
 	u32 ret = -EINVAL;
 	struct scatterlist sg[1];
 	u8 local_iv[GSS_KRB5_MAX_BLOCKSIZE] = {0};
-	SKCIPHER_REQUEST_ON_STACK(req, tfm);
+	SYNC_SKCIPHER_REQUEST_ON_STACK(req, tfm);
 
-	if (length % crypto_skcipher_blocksize(tfm) != 0)
+	if (length % crypto_sync_skcipher_blocksize(tfm) != 0)
 		goto out;
 
-	if (crypto_skcipher_ivsize(tfm) > GSS_KRB5_MAX_BLOCKSIZE) {
+	if (crypto_sync_skcipher_ivsize(tfm) > GSS_KRB5_MAX_BLOCKSIZE) {
 		dprintk("RPC:       gss_k5encrypt: tfm iv size too large %d\n",
-			crypto_skcipher_ivsize(tfm));
+			crypto_sync_skcipher_ivsize(tfm));
 		goto out;
 	}
 
 	if (iv)
-		memcpy(local_iv, iv, crypto_skcipher_ivsize(tfm));
+		memcpy(local_iv, iv, crypto_sync_skcipher_ivsize(tfm));
 
 	memcpy(out, in, length);
 	sg_init_one(sg, out, length);
 
-	skcipher_request_set_tfm(req, tfm);
+	skcipher_request_set_sync_tfm(req, tfm);
 	skcipher_request_set_callback(req, 0, NULL, NULL);
 	skcipher_request_set_crypt(req, sg, sg, length, local_iv);
 
@@ -91,7 +92,7 @@ out:
 
 u32
 krb5_decrypt(
-     struct crypto_skcipher *tfm,
+     struct crypto_sync_skcipher *tfm,
      void * iv,
      void * in,
      void * out,
@@ -100,23 +101,23 @@ krb5_decrypt(
 	u32 ret = -EINVAL;
 	struct scatterlist sg[1];
 	u8 local_iv[GSS_KRB5_MAX_BLOCKSIZE] = {0};
-	SKCIPHER_REQUEST_ON_STACK(req, tfm);
+	SYNC_SKCIPHER_REQUEST_ON_STACK(req, tfm);
 
-	if (length % crypto_skcipher_blocksize(tfm) != 0)
+	if (length % crypto_sync_skcipher_blocksize(tfm) != 0)
 		goto out;
 
-	if (crypto_skcipher_ivsize(tfm) > GSS_KRB5_MAX_BLOCKSIZE) {
+	if (crypto_sync_skcipher_ivsize(tfm) > GSS_KRB5_MAX_BLOCKSIZE) {
 		dprintk("RPC:       gss_k5decrypt: tfm iv size too large %d\n",
-			crypto_skcipher_ivsize(tfm));
+			crypto_sync_skcipher_ivsize(tfm));
 		goto out;
 	}
 	if (iv)
-		memcpy(local_iv,iv, crypto_skcipher_ivsize(tfm));
+		memcpy(local_iv, iv, crypto_sync_skcipher_ivsize(tfm));
 
 	memcpy(out, in, length);
 	sg_init_one(sg, out, length);
 
-	skcipher_request_set_tfm(req, tfm);
+	skcipher_request_set_sync_tfm(req, tfm);
 	skcipher_request_set_callback(req, 0, NULL, NULL);
 	skcipher_request_set_crypt(req, sg, sg, length, local_iv);
 
@@ -166,9 +167,9 @@ make_checksum_hmac_md5(struct krb5_ctx *kctx, char *header, int hdrlen,
 		       unsigned int usage, struct xdr_netobj *cksumout)
 {
 	struct scatterlist              sg[1];
-	int err;
-	u8 checksumdata[GSS_KRB5_MAX_CKSUM_LEN];
-	u8 rc4salt[4];
+	int err = -1;
+	u8 *checksumdata;
+	u8 *rc4salt;
 	struct crypto_ahash *md5;
 	struct crypto_ahash *hmac_md5;
 	struct ahash_request *req;
@@ -182,28 +183,31 @@ make_checksum_hmac_md5(struct krb5_ctx *kctx, char *header, int hdrlen,
 		return GSS_S_FAILURE;
 	}
 
+	rc4salt = kmalloc_array(4, sizeof(*rc4salt), GFP_NOFS);
+	if (!rc4salt)
+		return GSS_S_FAILURE;
+
 	if (arcfour_hmac_md5_usage_to_salt(usage, rc4salt)) {
 		dprintk("%s: invalid usage value %u\n", __func__, usage);
-		return GSS_S_FAILURE;
+		goto out_free_rc4salt;
 	}
+
+	checksumdata = kmalloc(GSS_KRB5_MAX_CKSUM_LEN, GFP_NOFS);
+	if (!checksumdata)
+		goto out_free_rc4salt;
 
 	md5 = crypto_alloc_ahash("md5", 0, CRYPTO_ALG_ASYNC);
 	if (IS_ERR(md5))
-		return GSS_S_FAILURE;
+		goto out_free_cksum;
 
 	hmac_md5 = crypto_alloc_ahash(kctx->gk5e->cksum_name, 0,
 				      CRYPTO_ALG_ASYNC);
-	if (IS_ERR(hmac_md5)) {
-		crypto_free_ahash(md5);
-		return GSS_S_FAILURE;
-	}
+	if (IS_ERR(hmac_md5))
+		goto out_free_md5;
 
-	req = ahash_request_alloc(md5, GFP_KERNEL);
-	if (!req) {
-		crypto_free_ahash(hmac_md5);
-		crypto_free_ahash(md5);
-		return GSS_S_FAILURE;
-	}
+	req = ahash_request_alloc(md5, GFP_NOFS);
+	if (!req)
+		goto out_free_hmac_md5;
 
 	ahash_request_set_callback(req, CRYPTO_TFM_REQ_MAY_SLEEP, NULL, NULL);
 
@@ -231,18 +235,12 @@ make_checksum_hmac_md5(struct krb5_ctx *kctx, char *header, int hdrlen,
 		goto out;
 
 	ahash_request_free(req);
-	req = ahash_request_alloc(hmac_md5, GFP_KERNEL);
-	if (!req) {
-		crypto_free_ahash(hmac_md5);
-		crypto_free_ahash(md5);
-		return GSS_S_FAILURE;
-	}
+	req = ahash_request_alloc(hmac_md5, GFP_NOFS);
+	if (!req)
+		goto out_free_hmac_md5;
 
 	ahash_request_set_callback(req, CRYPTO_TFM_REQ_MAY_SLEEP, NULL, NULL);
 
-	err = crypto_ahash_init(req);
-	if (err)
-		goto out;
 	err = crypto_ahash_setkey(hmac_md5, cksumkey, kctx->gk5e->keylength);
 	if (err)
 		goto out;
@@ -258,8 +256,14 @@ make_checksum_hmac_md5(struct krb5_ctx *kctx, char *header, int hdrlen,
 	cksumout->len = kctx->gk5e->cksumlength;
 out:
 	ahash_request_free(req);
-	crypto_free_ahash(md5);
+out_free_hmac_md5:
 	crypto_free_ahash(hmac_md5);
+out_free_md5:
+	crypto_free_ahash(md5);
+out_free_cksum:
+	kfree(checksumdata);
+out_free_rc4salt:
+	kfree(rc4salt);
 	return err ? GSS_S_FAILURE : 0;
 }
 
@@ -276,8 +280,8 @@ make_checksum(struct krb5_ctx *kctx, char *header, int hdrlen,
 	struct crypto_ahash *tfm;
 	struct ahash_request *req;
 	struct scatterlist              sg[1];
-	int err;
-	u8 checksumdata[GSS_KRB5_MAX_CKSUM_LEN];
+	int err = -1;
+	u8 *checksumdata;
 	unsigned int checksumlen;
 
 	if (kctx->gk5e->ctype == CKSUMTYPE_HMAC_MD5_ARCFOUR)
@@ -291,15 +295,17 @@ make_checksum(struct krb5_ctx *kctx, char *header, int hdrlen,
 		return GSS_S_FAILURE;
 	}
 
-	tfm = crypto_alloc_ahash(kctx->gk5e->cksum_name, 0, CRYPTO_ALG_ASYNC);
-	if (IS_ERR(tfm))
+	checksumdata = kmalloc(GSS_KRB5_MAX_CKSUM_LEN, GFP_NOFS);
+	if (checksumdata == NULL)
 		return GSS_S_FAILURE;
 
-	req = ahash_request_alloc(tfm, GFP_KERNEL);
-	if (!req) {
-		crypto_free_ahash(tfm);
-		return GSS_S_FAILURE;
-	}
+	tfm = crypto_alloc_ahash(kctx->gk5e->cksum_name, 0, CRYPTO_ALG_ASYNC);
+	if (IS_ERR(tfm))
+		goto out_free_cksum;
+
+	req = ahash_request_alloc(tfm, GFP_NOFS);
+	if (!req)
+		goto out_free_ahash;
 
 	ahash_request_set_callback(req, CRYPTO_TFM_REQ_MAY_SLEEP, NULL, NULL);
 
@@ -349,7 +355,10 @@ make_checksum(struct krb5_ctx *kctx, char *header, int hdrlen,
 	cksumout->len = kctx->gk5e->cksumlength;
 out:
 	ahash_request_free(req);
+out_free_ahash:
 	crypto_free_ahash(tfm);
+out_free_cksum:
+	kfree(checksumdata);
 	return err ? GSS_S_FAILURE : 0;
 }
 
@@ -368,9 +377,8 @@ make_checksum_v2(struct krb5_ctx *kctx, char *header, int hdrlen,
 	struct crypto_ahash *tfm;
 	struct ahash_request *req;
 	struct scatterlist sg[1];
-	int err;
-	u8 checksumdata[GSS_KRB5_MAX_CKSUM_LEN];
-	unsigned int checksumlen;
+	int err = -1;
+	u8 *checksumdata;
 
 	if (kctx->gk5e->keyed_cksum == 0) {
 		dprintk("%s: expected keyed hash for %s\n",
@@ -383,16 +391,17 @@ make_checksum_v2(struct krb5_ctx *kctx, char *header, int hdrlen,
 		return GSS_S_FAILURE;
 	}
 
+	checksumdata = kmalloc(GSS_KRB5_MAX_CKSUM_LEN, GFP_NOFS);
+	if (!checksumdata)
+		return GSS_S_FAILURE;
+
 	tfm = crypto_alloc_ahash(kctx->gk5e->cksum_name, 0, CRYPTO_ALG_ASYNC);
 	if (IS_ERR(tfm))
-		return GSS_S_FAILURE;
-	checksumlen = crypto_ahash_digestsize(tfm);
+		goto out_free_cksum;
 
-	req = ahash_request_alloc(tfm, GFP_KERNEL);
-	if (!req) {
-		crypto_free_ahash(tfm);
-		return GSS_S_FAILURE;
-	}
+	req = ahash_request_alloc(tfm, GFP_NOFS);
+	if (!req)
+		goto out_free_ahash;
 
 	ahash_request_set_callback(req, CRYPTO_TFM_REQ_MAY_SLEEP, NULL, NULL);
 
@@ -433,7 +442,10 @@ make_checksum_v2(struct krb5_ctx *kctx, char *header, int hdrlen,
 	}
 out:
 	ahash_request_free(req);
+out_free_ahash:
 	crypto_free_ahash(tfm);
+out_free_cksum:
+	kfree(checksumdata);
 	return err ? GSS_S_FAILURE : 0;
 }
 
@@ -454,7 +466,8 @@ encryptor(struct scatterlist *sg, void *data)
 {
 	struct encryptor_desc *desc = data;
 	struct xdr_buf *outbuf = desc->outbuf;
-	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(desc->req);
+	struct crypto_sync_skcipher *tfm =
+		crypto_sync_skcipher_reqtfm(desc->req);
 	struct page *in_page;
 	int thislen = desc->fraglen + sg->length;
 	int fraglen, ret;
@@ -480,7 +493,7 @@ encryptor(struct scatterlist *sg, void *data)
 	desc->fraglen += sg->length;
 	desc->pos += sg->length;
 
-	fraglen = thislen & (crypto_skcipher_blocksize(tfm) - 1);
+	fraglen = thislen & (crypto_sync_skcipher_blocksize(tfm) - 1);
 	thislen -= fraglen;
 
 	if (thislen == 0)
@@ -514,16 +527,16 @@ encryptor(struct scatterlist *sg, void *data)
 }
 
 int
-gss_encrypt_xdr_buf(struct crypto_skcipher *tfm, struct xdr_buf *buf,
+gss_encrypt_xdr_buf(struct crypto_sync_skcipher *tfm, struct xdr_buf *buf,
 		    int offset, struct page **pages)
 {
 	int ret;
 	struct encryptor_desc desc;
-	SKCIPHER_REQUEST_ON_STACK(req, tfm);
+	SYNC_SKCIPHER_REQUEST_ON_STACK(req, tfm);
 
-	BUG_ON((buf->len - offset) % crypto_skcipher_blocksize(tfm) != 0);
+	BUG_ON((buf->len - offset) % crypto_sync_skcipher_blocksize(tfm) != 0);
 
-	skcipher_request_set_tfm(req, tfm);
+	skcipher_request_set_sync_tfm(req, tfm);
 	skcipher_request_set_callback(req, 0, NULL, NULL);
 
 	memset(desc.iv, 0, sizeof(desc.iv));
@@ -555,7 +568,8 @@ decryptor(struct scatterlist *sg, void *data)
 {
 	struct decryptor_desc *desc = data;
 	int thislen = desc->fraglen + sg->length;
-	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(desc->req);
+	struct crypto_sync_skcipher *tfm =
+		crypto_sync_skcipher_reqtfm(desc->req);
 	int fraglen, ret;
 
 	/* Worst case is 4 fragments: head, end of page 1, start
@@ -566,7 +580,7 @@ decryptor(struct scatterlist *sg, void *data)
 	desc->fragno++;
 	desc->fraglen += sg->length;
 
-	fraglen = thislen & (crypto_skcipher_blocksize(tfm) - 1);
+	fraglen = thislen & (crypto_sync_skcipher_blocksize(tfm) - 1);
 	thislen -= fraglen;
 
 	if (thislen == 0)
@@ -596,17 +610,17 @@ decryptor(struct scatterlist *sg, void *data)
 }
 
 int
-gss_decrypt_xdr_buf(struct crypto_skcipher *tfm, struct xdr_buf *buf,
+gss_decrypt_xdr_buf(struct crypto_sync_skcipher *tfm, struct xdr_buf *buf,
 		    int offset)
 {
 	int ret;
 	struct decryptor_desc desc;
-	SKCIPHER_REQUEST_ON_STACK(req, tfm);
+	SYNC_SKCIPHER_REQUEST_ON_STACK(req, tfm);
 
 	/* XXXJBF: */
-	BUG_ON((buf->len - offset) % crypto_skcipher_blocksize(tfm) != 0);
+	BUG_ON((buf->len - offset) % crypto_sync_skcipher_blocksize(tfm) != 0);
 
-	skcipher_request_set_tfm(req, tfm);
+	skcipher_request_set_sync_tfm(req, tfm);
 	skcipher_request_set_callback(req, 0, NULL, NULL);
 
 	memset(desc.iv, 0, sizeof(desc.iv));
@@ -660,20 +674,23 @@ xdr_extend_head(struct xdr_buf *buf, unsigned int base, unsigned int shiftlen)
 }
 
 static u32
-gss_krb5_cts_crypt(struct crypto_skcipher *cipher, struct xdr_buf *buf,
+gss_krb5_cts_crypt(struct crypto_sync_skcipher *cipher, struct xdr_buf *buf,
 		   u32 offset, u8 *iv, struct page **pages, int encrypt)
 {
 	u32 ret;
 	struct scatterlist sg[1];
-	SKCIPHER_REQUEST_ON_STACK(req, cipher);
-	u8 data[GSS_KRB5_MAX_BLOCKSIZE * 2];
+	SYNC_SKCIPHER_REQUEST_ON_STACK(req, cipher);
+	u8 *data;
 	struct page **save_pages;
 	u32 len = buf->len - offset;
 
-	if (len > ARRAY_SIZE(data)) {
+	if (len > GSS_KRB5_MAX_BLOCKSIZE * 2) {
 		WARN_ON(0);
 		return -ENOMEM;
 	}
+	data = kmalloc(GSS_KRB5_MAX_BLOCKSIZE * 2, GFP_NOFS);
+	if (!data)
+		return -ENOMEM;
 
 	/*
 	 * For encryption, we want to read from the cleartext
@@ -691,7 +708,7 @@ gss_krb5_cts_crypt(struct crypto_skcipher *cipher, struct xdr_buf *buf,
 
 	sg_init_one(sg, data, len);
 
-	skcipher_request_set_tfm(req, cipher);
+	skcipher_request_set_sync_tfm(req, cipher);
 	skcipher_request_set_callback(req, 0, NULL, NULL);
 	skcipher_request_set_crypt(req, sg, sg, len, iv);
 
@@ -708,6 +725,7 @@ gss_krb5_cts_crypt(struct crypto_skcipher *cipher, struct xdr_buf *buf,
 	ret = write_bytes_to_xdr_buf(buf, offset, data, len);
 
 out:
+	kfree(data);
 	return ret;
 }
 
@@ -719,7 +737,7 @@ gss_krb5_aes_encrypt(struct krb5_ctx *kctx, u32 offset,
 	struct xdr_netobj hmac;
 	u8 *cksumkey;
 	u8 *ecptr;
-	struct crypto_skcipher *cipher, *aux_cipher;
+	struct crypto_sync_skcipher *cipher, *aux_cipher;
 	int blocksize;
 	struct page **save_pages;
 	int nblocks, nbytes;
@@ -738,7 +756,7 @@ gss_krb5_aes_encrypt(struct krb5_ctx *kctx, u32 offset,
 		cksumkey = kctx->acceptor_integ;
 		usage = KG_USAGE_ACCEPTOR_SEAL;
 	}
-	blocksize = crypto_skcipher_blocksize(cipher);
+	blocksize = crypto_sync_skcipher_blocksize(cipher);
 
 	/* hide the gss token header and insert the confounder */
 	offset += GSS_KRB5_TOK_HDR_LEN;
@@ -791,7 +809,7 @@ gss_krb5_aes_encrypt(struct krb5_ctx *kctx, u32 offset,
 	memset(desc.iv, 0, sizeof(desc.iv));
 
 	if (cbcbytes) {
-		SKCIPHER_REQUEST_ON_STACK(req, aux_cipher);
+		SYNC_SKCIPHER_REQUEST_ON_STACK(req, aux_cipher);
 
 		desc.pos = offset + GSS_KRB5_TOK_HDR_LEN;
 		desc.fragno = 0;
@@ -800,7 +818,7 @@ gss_krb5_aes_encrypt(struct krb5_ctx *kctx, u32 offset,
 		desc.outbuf = buf;
 		desc.req = req;
 
-		skcipher_request_set_tfm(req, aux_cipher);
+		skcipher_request_set_sync_tfm(req, aux_cipher);
 		skcipher_request_set_callback(req, 0, NULL, NULL);
 
 		sg_init_table(desc.infrags, 4);
@@ -839,7 +857,7 @@ gss_krb5_aes_decrypt(struct krb5_ctx *kctx, u32 offset, struct xdr_buf *buf,
 	struct xdr_buf subbuf;
 	u32 ret = 0;
 	u8 *cksum_key;
-	struct crypto_skcipher *cipher, *aux_cipher;
+	struct crypto_sync_skcipher *cipher, *aux_cipher;
 	struct xdr_netobj our_hmac_obj;
 	u8 our_hmac[GSS_KRB5_MAX_CKSUM_LEN];
 	u8 pkt_hmac[GSS_KRB5_MAX_CKSUM_LEN];
@@ -858,7 +876,7 @@ gss_krb5_aes_decrypt(struct krb5_ctx *kctx, u32 offset, struct xdr_buf *buf,
 		cksum_key = kctx->initiator_integ;
 		usage = KG_USAGE_INITIATOR_SEAL;
 	}
-	blocksize = crypto_skcipher_blocksize(cipher);
+	blocksize = crypto_sync_skcipher_blocksize(cipher);
 
 
 	/* create a segment skipping the header and leaving out the checksum */
@@ -875,13 +893,13 @@ gss_krb5_aes_decrypt(struct krb5_ctx *kctx, u32 offset, struct xdr_buf *buf,
 	memset(desc.iv, 0, sizeof(desc.iv));
 
 	if (cbcbytes) {
-		SKCIPHER_REQUEST_ON_STACK(req, aux_cipher);
+		SYNC_SKCIPHER_REQUEST_ON_STACK(req, aux_cipher);
 
 		desc.fragno = 0;
 		desc.fraglen = 0;
 		desc.req = req;
 
-		skcipher_request_set_tfm(req, aux_cipher);
+		skcipher_request_set_sync_tfm(req, aux_cipher);
 		skcipher_request_set_callback(req, 0, NULL, NULL);
 
 		sg_init_table(desc.frags, 4);
@@ -913,7 +931,7 @@ gss_krb5_aes_decrypt(struct krb5_ctx *kctx, u32 offset, struct xdr_buf *buf,
 	if (ret)
 		goto out_err;
 
-	if (memcmp(pkt_hmac, our_hmac, kctx->gk5e->cksumlength) != 0) {
+	if (crypto_memneq(pkt_hmac, our_hmac, kctx->gk5e->cksumlength) != 0) {
 		ret = GSS_S_BAD_SIG;
 		goto out_err;
 	}
@@ -930,7 +948,8 @@ out_err:
  * Set the key of the given cipher.
  */
 int
-krb5_rc4_setup_seq_key(struct krb5_ctx *kctx, struct crypto_skcipher *cipher,
+krb5_rc4_setup_seq_key(struct krb5_ctx *kctx,
+		       struct crypto_sync_skcipher *cipher,
 		       unsigned char *cksum)
 {
 	struct crypto_shash *hmac;
@@ -949,7 +968,7 @@ krb5_rc4_setup_seq_key(struct krb5_ctx *kctx, struct crypto_skcipher *cipher,
 	}
 
 	desc = kmalloc(sizeof(*desc) + crypto_shash_descsize(hmac),
-		       GFP_KERNEL);
+		       GFP_NOFS);
 	if (!desc) {
 		dprintk("%s: failed to allocate shash descriptor for '%s'\n",
 			__func__, kctx->gk5e->cksum_name);
@@ -958,7 +977,6 @@ krb5_rc4_setup_seq_key(struct krb5_ctx *kctx, struct crypto_skcipher *cipher,
 	}
 
 	desc->tfm = hmac;
-	desc->flags = 0;
 
 	/* Compute intermediate Kseq from session key */
 	err = crypto_shash_setkey(hmac, kctx->Ksess, kctx->gk5e->keylength);
@@ -978,7 +996,7 @@ krb5_rc4_setup_seq_key(struct krb5_ctx *kctx, struct crypto_skcipher *cipher,
 	if (err)
 		goto out_err;
 
-	err = crypto_skcipher_setkey(cipher, Kseq, kctx->gk5e->keylength);
+	err = crypto_sync_skcipher_setkey(cipher, Kseq, kctx->gk5e->keylength);
 	if (err)
 		goto out_err;
 
@@ -996,7 +1014,8 @@ out_err:
  * Set the key of cipher kctx->enc.
  */
 int
-krb5_rc4_setup_enc_key(struct krb5_ctx *kctx, struct crypto_skcipher *cipher,
+krb5_rc4_setup_enc_key(struct krb5_ctx *kctx,
+		       struct crypto_sync_skcipher *cipher,
 		       s32 seqnum)
 {
 	struct crypto_shash *hmac;
@@ -1016,7 +1035,7 @@ krb5_rc4_setup_enc_key(struct krb5_ctx *kctx, struct crypto_skcipher *cipher,
 	}
 
 	desc = kmalloc(sizeof(*desc) + crypto_shash_descsize(hmac),
-		       GFP_KERNEL);
+		       GFP_NOFS);
 	if (!desc) {
 		dprintk("%s: failed to allocate shash descriptor for '%s'\n",
 			__func__, kctx->gk5e->cksum_name);
@@ -1025,7 +1044,6 @@ krb5_rc4_setup_enc_key(struct krb5_ctx *kctx, struct crypto_skcipher *cipher,
 	}
 
 	desc->tfm = hmac;
-	desc->flags = 0;
 
 	/* Compute intermediate Kcrypt from session key */
 	for (i = 0; i < kctx->gk5e->keylength; i++)
@@ -1053,7 +1071,8 @@ krb5_rc4_setup_enc_key(struct krb5_ctx *kctx, struct crypto_skcipher *cipher,
 	if (err)
 		goto out_err;
 
-	err = crypto_skcipher_setkey(cipher, Kcrypt, kctx->gk5e->keylength);
+	err = crypto_sync_skcipher_setkey(cipher, Kcrypt,
+					  kctx->gk5e->keylength);
 	if (err)
 		goto out_err;
 
@@ -1065,4 +1084,3 @@ out_err:
 	dprintk("%s: returning %d\n", __func__, err);
 	return err;
 }
-

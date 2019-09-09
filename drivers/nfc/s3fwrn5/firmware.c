@@ -1,20 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * NCI based driver for Samsung S3FWRN5 NFC chip
  *
  * Copyright (C) 2015 Samsung Electrnoics
  * Robert Baldyga <r.baldyga@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2 or later, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/completion.h>
@@ -76,9 +65,9 @@ static int s3fwrn5_fw_prep_msg(struct s3fwrn5_fw_info *fw_info,
 	if (!skb)
 		return -ENOMEM;
 
-	memcpy(skb_put(skb, S3FWRN5_FW_HDR_SIZE), &hdr, S3FWRN5_FW_HDR_SIZE);
+	skb_put_data(skb, &hdr, S3FWRN5_FW_HDR_SIZE);
 	if (len)
-		memcpy(skb_put(skb, len), data, len);
+		skb_put_data(skb, data, len);
 
 	*msg = skb;
 
@@ -336,7 +325,7 @@ static int s3fwrn5_fw_get_base_addr(
 	struct s3fwrn5_fw_cmd_get_bootinfo_rsp *bootinfo, u32 *base_addr)
 {
 	int i;
-	struct {
+	static const struct {
 		u8 version[4];
 		u32 base_addr;
 	} match[] = {
@@ -449,7 +438,6 @@ int s3fwrn5_fw_download(struct s3fwrn5_fw_info *fw_info)
 		SHASH_DESC_ON_STACK(desc, tfm);
 
 		desc->tfm = tfm;
-		desc->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
 
 		ret = crypto_shash_digest(desc, fw->image, image_size,
 					  hash_data);

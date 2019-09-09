@@ -1,8 +1,8 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Makefile for the kernel DVB frontend device drivers.
 #
 
-ccflags-y += -I$(srctree)/drivers/media/dvb-core/
 ccflags-y += -I$(srctree)/drivers/media/tuners/
 
 # FIXME: RTL2832 SDR driver uses power management directly from USB IF driver
@@ -58,6 +58,7 @@ obj-$(CONFIG_DVB_LGDT3306A) += lgdt3306a.o
 obj-$(CONFIG_DVB_LG2160) += lg2160.o
 obj-$(CONFIG_DVB_CX24123) += cx24123.o
 obj-$(CONFIG_DVB_LNBH25) += lnbh25.o
+obj-$(CONFIG_DVB_LNBH29) += lnbh29.o
 obj-$(CONFIG_DVB_LNBP21) += lnbp21.o
 obj-$(CONFIG_DVB_LNBP22) += lnbp22.o
 obj-$(CONFIG_DVB_ISL6405) += isl6405.o
@@ -99,7 +100,6 @@ obj-$(CONFIG_DVB_MN88472) += mn88472.o
 obj-$(CONFIG_DVB_MN88473) += mn88473.o
 obj-$(CONFIG_DVB_ISL6423) += isl6423.o
 obj-$(CONFIG_DVB_EC100) += ec100.o
-obj-$(CONFIG_DVB_HD29L2) += hd29l2.o
 obj-$(CONFIG_DVB_DS3000) += ds3000.o
 obj-$(CONFIG_DVB_TS2020) += ts2020.o
 obj-$(CONFIG_DVB_MB86A16) += mb86a16.o
@@ -111,6 +111,9 @@ obj-$(CONFIG_DVB_CXD2820R) += cxd2820r.o
 obj-$(CONFIG_DVB_CXD2841ER) += cxd2841er.o
 obj-$(CONFIG_DVB_DRXK) += drxk.o
 obj-$(CONFIG_DVB_TDA18271C2DD) += tda18271c2dd.o
+obj-$(CONFIG_DVB_STV0910) += stv0910.o
+obj-$(CONFIG_DVB_STV6111) += stv6111.o
+obj-$(CONFIG_DVB_MXL5XX) += mxl5xx.o
 obj-$(CONFIG_DVB_SI2165) += si2165.o
 obj-$(CONFIG_DVB_A8293) += a8293.o
 obj-$(CONFIG_DVB_SP2) += sp2.o
@@ -121,7 +124,12 @@ obj-$(CONFIG_DVB_RTL2832_SDR) += rtl2832_sdr.o
 obj-$(CONFIG_DVB_M88RS2000) += m88rs2000.o
 obj-$(CONFIG_DVB_AF9033) += af9033.o
 obj-$(CONFIG_DVB_AS102_FE) += as102_fe.o
+obj-$(CONFIG_DVB_GP8PSK_FE) += gp8psk-fe.o
 obj-$(CONFIG_DVB_TC90522) += tc90522.o
+obj-$(CONFIG_DVB_MN88443X) += mn88443x.o
 obj-$(CONFIG_DVB_HORUS3A) += horus3a.o
 obj-$(CONFIG_DVB_ASCOT2E) += ascot2e.o
 obj-$(CONFIG_DVB_HELENE) += helene.o
+obj-$(CONFIG_DVB_ZD1301_DEMOD) += zd1301_demod.o
+obj-$(CONFIG_DVB_CXD2099) += cxd2099.o
+obj-$(CONFIG_DVB_CXD2880) += cxd2880/

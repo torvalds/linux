@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _UAPI_LINUX_BINFMTS_H
 #define _UAPI_LINUX_BINFMTS_H
 
@@ -15,6 +16,6 @@ struct pt_regs;
 #define MAX_ARG_STRINGS 0x7FFFFFFF
 
 /* sizeof(linux_binprm->buf) */
-#define BINPRM_BUF_SIZE 128
+#define BINPRM_BUF_SIZE 256
 
 #endif /* _UAPI_LINUX_BINFMTS_H */

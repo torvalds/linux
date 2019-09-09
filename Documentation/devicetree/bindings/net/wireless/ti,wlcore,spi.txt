@@ -17,9 +17,7 @@ Required properties:
     * "ti,wl1837"
 - reg :                 Chip select address of device
 - spi-max-frequency :   Maximum SPI clocking speed of device in Hz
-- interrupt-parent, interrupts :
-                        Should contain parameters for 1 interrupt line.
-                        Interrupt parameters: parent, line number, type.
+- interrupts :          Should contain parameters for 1 interrupt line.
 - vwlan-supply :        Point the node of the regulator that powers/enable the
                         wl12xx/wl18xx chip
 

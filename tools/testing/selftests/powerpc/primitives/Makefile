@@ -1,12 +1,9 @@
+# SPDX-License-Identifier: GPL-2.0-only
 CFLAGS += -I$(CURDIR)
 
-TEST_PROGS := load_unaligned_zeropad
+TEST_GEN_PROGS := load_unaligned_zeropad
 
-all: $(TEST_PROGS)
-
-$(TEST_PROGS): ../harness.c
-
+top_srcdir = ../../../../..
 include ../../lib.mk
 
-clean:
-	rm -f $(TEST_PROGS) *.o
+$(TEST_GEN_PROGS): ../harness.c

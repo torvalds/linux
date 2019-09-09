@@ -1,7 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
  *
  * Copyright 2012 Paul Mackerras, IBM Corp. <paulus@au1.ibm.com>
  */
@@ -16,6 +14,7 @@
 #include <asm/machdep.h>
 #include <asm/cputhreads.h>
 #include <asm/hmi.h>
+#include <asm/kvm_ppc.h>
 
 /* SRR1 bits for machine check on POWER7 */
 #define SRR1_MC_LDSTERR		(1ul << (63-42))
@@ -65,10 +64,8 @@ static void reload_slb(struct kvm_vcpu *vcpu)
 /*
  * On POWER7, see if we can handle a machine check that occurred inside
  * the guest in real mode, without switching to the host partition.
- *
- * Returns: 0 => exit guest, 1 => deliver machine check to guest
  */
-static long kvmppc_realmode_mc_power7(struct kvm_vcpu *vcpu)
+static void kvmppc_realmode_mc_power7(struct kvm_vcpu *vcpu)
 {
 	unsigned long srr1 = vcpu->arch.shregs.msr;
 	struct machine_check_event mce_evt;
@@ -86,8 +83,7 @@ static long kvmppc_realmode_mc_power7(struct kvm_vcpu *vcpu)
 				   DSISR_MC_SLB_PARITY | DSISR_MC_DERAT_MULTI);
 		}
 		if (dsisr & DSISR_MC_TLB_MULTI) {
-			if (cur_cpu_spec && cur_cpu_spec->flush_tlb)
-				cur_cpu_spec->flush_tlb(TLB_INVAL_SCOPE_LPID);
+			tlbiel_all_lpid(vcpu->kvm->arch.radix);
 			dsisr &= ~DSISR_MC_TLB_MULTI;
 		}
 		/* Any other errors we don't understand? */
@@ -104,44 +100,31 @@ static long kvmppc_realmode_mc_power7(struct kvm_vcpu *vcpu)
 		reload_slb(vcpu);
 		break;
 	case SRR1_MC_IFETCH_TLBMULTI:
-		if (cur_cpu_spec && cur_cpu_spec->flush_tlb)
-			cur_cpu_spec->flush_tlb(TLB_INVAL_SCOPE_LPID);
+		tlbiel_all_lpid(vcpu->kvm->arch.radix);
 		break;
 	default:
 		handled = 0;
 	}
 
 	/*
-	 * See if we have already handled the condition in the linux host.
-	 * We assume that if the condition is recovered then linux host
-	 * will have generated an error log event that we will pick
-	 * up and log later.
-	 * Don't release mce event now. We will queue up the event so that
-	 * we can log the MCE event info on host console.
+	 * Now get the event and stash it in the vcpu struct so it can
+	 * be handled by the primary thread in virtual mode.  We can't
+	 * call machine_check_queue_event() here if we are running on
+	 * an offline secondary thread.
 	 */
-	if (!get_mce_event(&mce_evt, MCE_EVENT_DONTRELEASE))
-		goto out;
+	if (get_mce_event(&mce_evt, MCE_EVENT_RELEASE)) {
+		if (handled && mce_evt.version == MCE_V1)
+			mce_evt.disposition = MCE_DISPOSITION_RECOVERED;
+	} else {
+		memset(&mce_evt, 0, sizeof(mce_evt));
+	}
 
-	if (mce_evt.version == MCE_V1 &&
-	    (mce_evt.severity == MCE_SEV_NO_ERROR ||
-	     mce_evt.disposition == MCE_DISPOSITION_RECOVERED))
-		handled = 1;
-
-out:
-	/*
-	 * We are now going enter guest either through machine check
-	 * interrupt (for unhandled errors) or will continue from
-	 * current HSRR0 (for handled errors) in guest. Hence
-	 * queue up the event so that we can log it from host console later.
-	 */
-	machine_check_queue_event();
-
-	return handled;
+	vcpu->arch.mce_evt = mce_evt;
 }
 
-long kvmppc_realmode_machine_check(struct kvm_vcpu *vcpu)
+void kvmppc_realmode_machine_check(struct kvm_vcpu *vcpu)
 {
-	return kvmppc_realmode_mc_power7(vcpu);
+	kvmppc_realmode_mc_power7(vcpu);
 }
 
 /* Check if dynamic split is in force and return subcore size accordingly. */
@@ -162,6 +145,7 @@ void kvmppc_subcore_enter_guest(void)
 
 	local_paca->sibling_subcore_state->in_guest[subcore_id] = 1;
 }
+EXPORT_SYMBOL_GPL(kvmppc_subcore_enter_guest);
 
 void kvmppc_subcore_exit_guest(void)
 {
@@ -172,6 +156,7 @@ void kvmppc_subcore_exit_guest(void)
 
 	local_paca->sibling_subcore_state->in_guest[subcore_id] = 0;
 }
+EXPORT_SYMBOL_GPL(kvmppc_subcore_exit_guest);
 
 static bool kvmppc_tb_resync_required(void)
 {
@@ -251,16 +236,18 @@ static void kvmppc_tb_resync_done(void)
  *   secondary threads to proceed.
  * - All secondary threads will eventually call opal hmi handler on
  *   their exit path.
+ *
+ * Returns 1 if the timebase offset should be applied, 0 if not.
  */
 
 long kvmppc_realmode_hmi_handler(void)
 {
-	int ptid = local_paca->kvm_hstate.ptid;
 	bool resync_req;
 
-	/* This is only called on primary thread. */
-	BUG_ON(ptid != 0);
 	__this_cpu_inc(irq_stat.hmi_exceptions);
+
+	if (hmi_handle_debugtrig(NULL) >= 0)
+		return 1;
 
 	/*
 	 * By now primary thread has already completed guest->host
@@ -314,5 +301,13 @@ long kvmppc_realmode_hmi_handler(void)
 	} else {
 		wait_for_tb_resync();
 	}
+
+	/*
+	 * Reset tb_offset_applied so the guest exit code won't try
+	 * to subtract the previous timebase offset from the timebase.
+	 */
+	if (local_paca->kvm_hstate.kvm_vcore)
+		local_paca->kvm_hstate.kvm_vcore->tb_offset_applied = 0;
+
 	return 0;
 }

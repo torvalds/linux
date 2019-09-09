@@ -1,18 +1,14 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  linux/arch/arm/lib/memset.S
  *
  *  Copyright (C) 1995-2000 Russell King
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  *  ASM optimised string functions
  */
 #include <linux/linkage.h>
 #include <asm/assembler.h>
 #include <asm/unwind.h>
-#include <asm/export.h>
 
 	.text
 	.align	5
@@ -29,7 +25,7 @@ UNWIND( .fnstart         )
 1:	orr	r1, r1, r1, lsl #8
 	orr	r1, r1, r1, lsl #16
 	mov	r3, r1
-	cmp	r2, #16
+7:	cmp	r2, #16
 	blt	4f
 
 #if ! CALGN(1)+0
@@ -42,23 +38,23 @@ UNWIND( .fnend              )
 UNWIND( .fnstart            )
 UNWIND( .save {r8, lr}      )
 	mov	r8, r1
-	mov	lr, r1
+	mov	lr, r3
 
 2:	subs	r2, r2, #64
-	stmgeia	ip!, {r1, r3, r8, lr}	@ 64 bytes at a time.
-	stmgeia	ip!, {r1, r3, r8, lr}
-	stmgeia	ip!, {r1, r3, r8, lr}
-	stmgeia	ip!, {r1, r3, r8, lr}
+	stmiage	ip!, {r1, r3, r8, lr}	@ 64 bytes at a time.
+	stmiage	ip!, {r1, r3, r8, lr}
+	stmiage	ip!, {r1, r3, r8, lr}
+	stmiage	ip!, {r1, r3, r8, lr}
 	bgt	2b
-	ldmeqfd	sp!, {r8, pc}		@ Now <64 bytes to go.
+	ldmfdeq	sp!, {r8, pc}		@ Now <64 bytes to go.
 /*
  * No need to correct the count; we're only testing bits from now on
  */
 	tst	r2, #32
-	stmneia	ip!, {r1, r3, r8, lr}
-	stmneia	ip!, {r1, r3, r8, lr}
+	stmiane	ip!, {r1, r3, r8, lr}
+	stmiane	ip!, {r1, r3, r8, lr}
 	tst	r2, #16
-	stmneia	ip!, {r1, r3, r8, lr}
+	stmiane	ip!, {r1, r3, r8, lr}
 	ldmfd	sp!, {r8, lr}
 UNWIND( .fnend              )
 
@@ -74,11 +70,11 @@ UNWIND( .fnend                 )
 UNWIND( .fnstart               )
 UNWIND( .save {r4-r8, lr}      )
 	mov	r4, r1
-	mov	r5, r1
+	mov	r5, r3
 	mov	r6, r1
-	mov	r7, r1
+	mov	r7, r3
 	mov	r8, r1
-	mov	lr, r1
+	mov	lr, r3
 
 	cmp	r2, #96
 	tstgt	ip, #31
@@ -88,22 +84,22 @@ UNWIND( .save {r4-r8, lr}      )
 	rsb	r8, r8, #32
 	sub	r2, r2, r8
 	movs	r8, r8, lsl #(32 - 4)
-	stmcsia	ip!, {r4, r5, r6, r7}
-	stmmiia	ip!, {r4, r5}
+	stmiacs	ip!, {r4, r5, r6, r7}
+	stmiami	ip!, {r4, r5}
 	tst	r8, #(1 << 30)
 	mov	r8, r1
 	strne	r1, [ip], #4
 
 3:	subs	r2, r2, #64
-	stmgeia	ip!, {r1, r3-r8, lr}
-	stmgeia	ip!, {r1, r3-r8, lr}
+	stmiage	ip!, {r1, r3-r8, lr}
+	stmiage	ip!, {r1, r3-r8, lr}
 	bgt	3b
-	ldmeqfd	sp!, {r4-r8, pc}
+	ldmfdeq	sp!, {r4-r8, pc}
 
 	tst	r2, #32
-	stmneia	ip!, {r1, r3-r8, lr}
+	stmiane	ip!, {r1, r3-r8, lr}
 	tst	r2, #16
-	stmneia	ip!, {r4-r7}
+	stmiane	ip!, {r4-r7}
 	ldmfd	sp!, {r4-r8, lr}
 UNWIND( .fnend                 )
 
@@ -111,30 +107,40 @@ UNWIND( .fnend                 )
 
 UNWIND( .fnstart            )
 4:	tst	r2, #8
-	stmneia	ip!, {r1, r3}
+	stmiane	ip!, {r1, r3}
 	tst	r2, #4
 	strne	r1, [ip], #4
 /*
- * When we get here, we've got less than 4 bytes to zero.  We
+ * When we get here, we've got less than 4 bytes to set.  We
  * may have an unaligned pointer as well.
  */
 5:	tst	r2, #2
-	strneb	r1, [ip], #1
-	strneb	r1, [ip], #1
+	strbne	r1, [ip], #1
+	strbne	r1, [ip], #1
 	tst	r2, #1
-	strneb	r1, [ip], #1
+	strbne	r1, [ip], #1
 	ret	lr
 
 6:	subs	r2, r2, #4		@ 1 do we have enough
 	blt	5b			@ 1 bytes to align with?
 	cmp	r3, #2			@ 1
-	strltb	r1, [ip], #1		@ 1
-	strleb	r1, [ip], #1		@ 1
+	strblt	r1, [ip], #1		@ 1
+	strble	r1, [ip], #1		@ 1
 	strb	r1, [ip], #1		@ 1
 	add	r2, r2, r3		@ 1 (r2 = r2 - (4 - r3))
 	b	1b
 UNWIND( .fnend   )
 ENDPROC(memset)
 ENDPROC(mmioset)
-EXPORT_SYMBOL(memset)
-EXPORT_SYMBOL(mmioset)
+
+ENTRY(__memset32)
+UNWIND( .fnstart         )
+	mov	r3, r1			@ copy r1 to r3 and fall into memset64
+UNWIND( .fnend   )
+ENDPROC(__memset32)
+ENTRY(__memset64)
+UNWIND( .fnstart         )
+	mov	ip, r0			@ preserve r0 as return value
+	b	7b			@ jump into the middle of memset
+UNWIND( .fnend   )
+ENDPROC(__memset64)

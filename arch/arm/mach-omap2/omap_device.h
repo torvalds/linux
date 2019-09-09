@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * omap_device headers
  *
@@ -8,10 +9,6 @@
  * Cousson, Kevin Hilman, Tony Lindgren, Rajendra Nayak, Vikram
  * Pandita, Sakari Poussa, Anand Sawant, Santosh Shilimkar, Richard
  * Woodruff
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * This type of functionality should be implemented as a proper
  * omap_bus/omap_device in Linux.
@@ -74,10 +71,6 @@ int omap_device_idle(struct platform_device *pdev);
 struct platform_device *omap_device_build(const char *pdev_name, int pdev_id,
 					  struct omap_hwmod *oh, void *pdata,
 					  int pdata_len);
-
-struct platform_device *omap_device_build_ss(const char *pdev_name, int pdev_id,
-					 struct omap_hwmod **oh, int oh_cnt,
-					 void *pdata, int pdata_len);
 
 struct omap_device *omap_device_alloc(struct platform_device *pdev,
 				      struct omap_hwmod **ohs, int oh_cnt);

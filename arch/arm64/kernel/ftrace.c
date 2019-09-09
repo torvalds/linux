@@ -1,19 +1,18 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * arch/arm64/kernel/ftrace.c
  *
  * Copyright (C) 2013 Linaro Limited
  * Author: AKASHI Takahiro <takahiro.akashi@linaro.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/ftrace.h>
+#include <linux/module.h>
 #include <linux/swab.h>
 #include <linux/uaccess.h>
 
 #include <asm/cacheflush.h>
+#include <asm/debug-monitors.h>
 #include <asm/ftrace.h>
 #include <asm/insn.h>
 
@@ -70,6 +69,68 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 {
 	unsigned long pc = rec->ip;
 	u32 old, new;
+	long offset = (long)pc - (long)addr;
+
+	if (offset < -SZ_128M || offset >= SZ_128M) {
+#ifdef CONFIG_ARM64_MODULE_PLTS
+		struct plt_entry trampoline, *dst;
+		struct module *mod;
+
+		/*
+		 * On kernels that support module PLTs, the offset between the
+		 * branch instruction and its target may legally exceed the
+		 * range of an ordinary relative 'bl' opcode. In this case, we
+		 * need to branch via a trampoline in the module.
+		 *
+		 * NOTE: __module_text_address() must be called with preemption
+		 * disabled, but we can rely on ftrace_lock to ensure that 'mod'
+		 * retains its validity throughout the remainder of this code.
+		 */
+		preempt_disable();
+		mod = __module_text_address(pc);
+		preempt_enable();
+
+		if (WARN_ON(!mod))
+			return -EINVAL;
+
+		/*
+		 * There is only one ftrace trampoline per module. For now,
+		 * this is not a problem since on arm64, all dynamic ftrace
+		 * invocations are routed via ftrace_caller(). This will need
+		 * to be revisited if support for multiple ftrace entry points
+		 * is added in the future, but for now, the pr_err() below
+		 * deals with a theoretical issue only.
+		 *
+		 * Note that PLTs are place relative, and plt_entries_equal()
+		 * checks whether they point to the same target. Here, we need
+		 * to check if the actual opcodes are in fact identical,
+		 * regardless of the offset in memory so use memcmp() instead.
+		 */
+		dst = mod->arch.ftrace_trampoline;
+		trampoline = get_plt_entry(addr, dst);
+		if (memcmp(dst, &trampoline, sizeof(trampoline))) {
+			if (plt_entry_is_initialized(dst)) {
+				pr_err("ftrace: far branches to multiple entry points unsupported inside a single module\n");
+				return -EINVAL;
+			}
+
+			/* point the trampoline to our ftrace entry point */
+			module_disable_ro(mod);
+			*dst = trampoline;
+			module_enable_ro(mod, true);
+
+			/*
+			 * Ensure updated trampoline is visible to instruction
+			 * fetch before we patch in the branch.
+			 */
+			__flush_icache_range((unsigned long)&dst[0],
+					     (unsigned long)&dst[1]);
+		}
+		addr = (unsigned long)dst;
+#else /* CONFIG_ARM64_MODULE_PLTS */
+		return -EINVAL;
+#endif /* CONFIG_ARM64_MODULE_PLTS */
+	}
 
 	old = aarch64_insn_gen_nop();
 	new = aarch64_insn_gen_branch_imm(pc, addr, AARCH64_INSN_BRANCH_LINK);
@@ -84,16 +145,60 @@ int ftrace_make_nop(struct module *mod, struct dyn_ftrace *rec,
 		    unsigned long addr)
 {
 	unsigned long pc = rec->ip;
-	u32 old, new;
+	bool validate = true;
+	u32 old = 0, new;
+	long offset = (long)pc - (long)addr;
 
-	old = aarch64_insn_gen_branch_imm(pc, addr, AARCH64_INSN_BRANCH_LINK);
+	if (offset < -SZ_128M || offset >= SZ_128M) {
+#ifdef CONFIG_ARM64_MODULE_PLTS
+		u32 replaced;
+
+		/*
+		 * 'mod' is only set at module load time, but if we end up
+		 * dealing with an out-of-range condition, we can assume it
+		 * is due to a module being loaded far away from the kernel.
+		 */
+		if (!mod) {
+			preempt_disable();
+			mod = __module_text_address(pc);
+			preempt_enable();
+
+			if (WARN_ON(!mod))
+				return -EINVAL;
+		}
+
+		/*
+		 * The instruction we are about to patch may be a branch and
+		 * link instruction that was redirected via a PLT entry. In
+		 * this case, the normal validation will fail, but we can at
+		 * least check that we are dealing with a branch and link
+		 * instruction that points into the right module.
+		 */
+		if (aarch64_insn_read((void *)pc, &replaced))
+			return -EFAULT;
+
+		if (!aarch64_insn_is_bl(replaced) ||
+		    !within_module(pc + aarch64_get_branch_offset(replaced),
+				   mod))
+			return -EINVAL;
+
+		validate = false;
+#else /* CONFIG_ARM64_MODULE_PLTS */
+		return -EINVAL;
+#endif /* CONFIG_ARM64_MODULE_PLTS */
+	} else {
+		old = aarch64_insn_gen_branch_imm(pc, addr,
+						  AARCH64_INSN_BRANCH_LINK);
+	}
+
 	new = aarch64_insn_gen_nop();
 
-	return ftrace_modify_code(pc, old, new, true);
+	return ftrace_modify_code(pc, old, new, validate);
 }
 
 void arch_ftrace_update_code(int command)
 {
+	command |= FTRACE_MAY_SLEEP;
 	ftrace_modify_all_code(command);
 }
 
@@ -112,13 +217,11 @@ int __init ftrace_dyn_arch_init(void)
  *
  * Note that @frame_pointer is used only for sanity check later.
  */
-void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr,
+void prepare_ftrace_return(unsigned long self_addr, unsigned long *parent,
 			   unsigned long frame_pointer)
 {
 	unsigned long return_hooker = (unsigned long)&return_to_handler;
 	unsigned long old;
-	struct ftrace_graph_ent trace;
-	int err;
 
 	if (unlikely(atomic_read(&current->tracing_graph_pause)))
 		return;
@@ -130,18 +233,7 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr,
 	 */
 	old = *parent;
 
-	trace.func = self_addr;
-	trace.depth = current->curr_ret_stack + 1;
-
-	/* Only trace if the calling function expects to */
-	if (!ftrace_graph_entry(&trace))
-		return;
-
-	err = ftrace_push_return_trace(old, self_addr, &trace.depth,
-				       frame_pointer, NULL);
-	if (err == -EBUSY)
-		return;
-	else
+	if (!function_graph_enter(old, self_addr, frame_pointer, NULL))
 		*parent = return_hooker;
 }
 

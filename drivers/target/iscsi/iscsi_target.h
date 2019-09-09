@@ -1,5 +1,18 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef ISCSI_TARGET_H
 #define ISCSI_TARGET_H
+
+#include <linux/types.h>
+#include <linux/spinlock.h>
+
+struct iscsi_cmd;
+struct iscsi_conn;
+struct iscsi_np;
+struct iscsi_portal_group;
+struct iscsi_session;
+struct iscsi_tpg_np;
+struct kref;
+struct sockaddr_storage;
 
 extern struct iscsi_tiqn *iscsit_get_tiqn_for_login(unsigned char *);
 extern struct iscsi_tiqn *iscsit_get_tiqn(unsigned char *, int);
@@ -18,7 +31,7 @@ extern int iscsit_reset_np_thread(struct iscsi_np *, struct iscsi_tpg_np *,
 				struct iscsi_portal_group *, bool);
 extern int iscsit_del_np(struct iscsi_np *);
 extern int iscsit_reject_cmd(struct iscsi_cmd *cmd, u8, unsigned char *);
-extern void iscsit_set_unsoliticed_dataout(struct iscsi_cmd *);
+extern void iscsit_set_unsolicited_dataout(struct iscsi_cmd *);
 extern int iscsit_logout_closesession(struct iscsi_cmd *, struct iscsi_conn *);
 extern int iscsit_logout_closeconnection(struct iscsi_cmd *, struct iscsi_conn *);
 extern int iscsit_logout_removeconnforrecovery(struct iscsi_cmd *, struct iscsi_conn *);
@@ -42,9 +55,7 @@ extern struct kmem_cache *lio_ooo_cache;
 extern struct kmem_cache *lio_qr_cache;
 extern struct kmem_cache *lio_r2t_cache;
 
-extern struct idr sess_idr;
+extern struct ida sess_ida;
 extern struct mutex auth_id_lock;
-extern spinlock_t sess_idr_lock;
-
 
 #endif   /*** ISCSI_TARGET_H ***/

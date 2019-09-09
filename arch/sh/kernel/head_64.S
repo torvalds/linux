@@ -1,12 +1,9 @@
-/*
+/* SPDX-License-Identifier: GPL-2.0
+ *
  * arch/sh/kernel/head_64.S
  *
  * Copyright (C) 2000, 2001  Paolo Alberelli
  * Copyright (C) 2003, 2004  Paul Mundt
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 
 #include <linux/init.h>
@@ -99,14 +96,6 @@ empty_zero_page:
 
 	.global mmu_pdtp_cache
 mmu_pdtp_cache:
-	.space PAGE_SIZE, 0
-
-	.global empty_bad_page
-empty_bad_page:
-	.space PAGE_SIZE, 0
-
-	.global empty_bad_pte_table
-empty_bad_pte_table:
 	.space PAGE_SIZE, 0
 
 	.global	fpu_in_use

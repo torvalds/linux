@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * L2TP subsystem debugfs
  *
  * Copyright (c) 2010 Katalix Systems Ltd
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -35,7 +31,6 @@
 #include "l2tp_core.h"
 
 static struct dentry *rootdir;
-static struct dentry *tunnels;
 
 struct l2tp_dfs_seq_data {
 	struct net *net;
@@ -47,13 +42,21 @@ struct l2tp_dfs_seq_data {
 
 static void l2tp_dfs_next_tunnel(struct l2tp_dfs_seq_data *pd)
 {
-	pd->tunnel = l2tp_tunnel_find_nth(pd->net, pd->tunnel_idx);
+	/* Drop reference taken during previous invocation */
+	if (pd->tunnel)
+		l2tp_tunnel_dec_refcount(pd->tunnel);
+
+	pd->tunnel = l2tp_tunnel_get_nth(pd->net, pd->tunnel_idx);
 	pd->tunnel_idx++;
 }
 
 static void l2tp_dfs_next_session(struct l2tp_dfs_seq_data *pd)
 {
-	pd->session = l2tp_session_find_nth(pd->tunnel, pd->session_idx);
+	/* Drop reference taken during previous invocation */
+	if (pd->session)
+		l2tp_session_dec_refcount(pd->session);
+
+	pd->session = l2tp_session_get_nth(pd->tunnel, pd->session_idx);
 	pd->session_idx++;
 
 	if (pd->session == NULL) {
@@ -96,7 +99,22 @@ static void *l2tp_dfs_seq_next(struct seq_file *m, void *v, loff_t *pos)
 
 static void l2tp_dfs_seq_stop(struct seq_file *p, void *v)
 {
-	/* nothing to do */
+	struct l2tp_dfs_seq_data *pd = v;
+
+	if (!pd || pd == SEQ_START_TOKEN)
+		return;
+
+	/* Drop reference taken by last invocation of l2tp_dfs_next_session()
+	 * or l2tp_dfs_next_tunnel().
+	 */
+	if (pd->session) {
+		l2tp_session_dec_refcount(pd->session);
+		pd->session = NULL;
+	}
+	if (pd->tunnel) {
+		l2tp_tunnel_dec_refcount(pd->tunnel);
+		pd->tunnel = NULL;
+	}
 }
 
 static void l2tp_dfs_seq_tunnel_show(struct seq_file *m, void *v)
@@ -144,9 +162,8 @@ static void l2tp_dfs_seq_tunnel_show(struct seq_file *m, void *v)
 		   tunnel->encap == L2TP_ENCAPTYPE_IP ? "IP" :
 		   "");
 	seq_printf(m, " %d sessions, refcnt %d/%d\n", session_count,
-		   tunnel->sock ? atomic_read(&tunnel->sock->sk_refcnt) : 0,
-		   atomic_read(&tunnel->ref_count));
-
+		   tunnel->sock ? refcount_read(&tunnel->sock->sk_refcnt) : 0,
+		   refcount_read(&tunnel->ref_count));
 	seq_printf(m, " %08x rx %ld/%ld/%ld rx %ld/%ld/%ld\n",
 		   tunnel->debug,
 		   atomic_long_read(&tunnel->stats.tx_packets),
@@ -155,9 +172,6 @@ static void l2tp_dfs_seq_tunnel_show(struct seq_file *m, void *v)
 		   atomic_long_read(&tunnel->stats.rx_packets),
 		   atomic_long_read(&tunnel->stats.rx_bytes),
 		   atomic_long_read(&tunnel->stats.rx_errors));
-
-	if (tunnel->show != NULL)
-		tunnel->show(m, tunnel);
 }
 
 static void l2tp_dfs_seq_session_show(struct seq_file *m, void *v)
@@ -171,18 +185,15 @@ static void l2tp_dfs_seq_session_show(struct seq_file *m, void *v)
 		   "");
 	if (session->send_seq || session->recv_seq)
 		seq_printf(m, "   nr %hu, ns %hu\n", session->nr, session->ns);
-	seq_printf(m, "   refcnt %d\n", atomic_read(&session->ref_count));
-	seq_printf(m, "   config %d/%d/%c/%c/%s/%s %08x %u\n",
-		   session->mtu, session->mru,
+	seq_printf(m, "   refcnt %d\n", refcount_read(&session->ref_count));
+	seq_printf(m, "   config 0/0/%c/%c/-/%s %08x %u\n",
 		   session->recv_seq ? 'R' : '-',
 		   session->send_seq ? 'S' : '-',
-		   session->data_seq == 1 ? "IPSEQ" :
-		   session->data_seq == 2 ? "DATASEQ" : "-",
 		   session->lns_mode ? "LNS" : "LAC",
 		   session->debug,
 		   jiffies_to_msecs(session->reorder_timeout));
-	seq_printf(m, "   offset %hu l2specific %hu/%hu\n",
-		   session->offset, session->l2specific_type, session->l2specific_len);
+	seq_printf(m, "   offset 0 l2specific %hu/%hu\n",
+		   session->l2specific_type, l2tp_get_l2specific_len(session));
 	if (session->cookie_len) {
 		seq_printf(m, "   cookie %02x%02x%02x%02x",
 			   session->cookie[0], session->cookie[1],
@@ -237,8 +248,7 @@ static int l2tp_dfs_seq_show(struct seq_file *m, void *v)
 		goto out;
 	}
 
-	/* Show the tunnel or session context */
-	if (pd->session == NULL)
+	if (!pd->session)
 		l2tp_dfs_seq_tunnel_show(m, pd->tunnel);
 	else
 		l2tp_dfs_seq_session_show(m, pd->session);
@@ -315,32 +325,18 @@ static const struct file_operations l2tp_dfs_fops = {
 
 static int __init l2tp_debugfs_init(void)
 {
-	int rc = 0;
-
 	rootdir = debugfs_create_dir("l2tp", NULL);
-	if (IS_ERR(rootdir)) {
-		rc = PTR_ERR(rootdir);
-		rootdir = NULL;
-		goto out;
-	}
 
-	tunnels = debugfs_create_file("tunnels", 0600, rootdir, NULL, &l2tp_dfs_fops);
-	if (tunnels == NULL)
-		rc = -EIO;
+	debugfs_create_file("tunnels", 0600, rootdir, NULL, &l2tp_dfs_fops);
 
 	pr_info("L2TP debugfs support\n");
 
-out:
-	if (rc)
-		pr_warn("unable to init\n");
-
-	return rc;
+	return 0;
 }
 
 static void __exit l2tp_debugfs_exit(void)
 {
-	debugfs_remove(tunnels);
-	debugfs_remove(rootdir);
+	debugfs_remove_recursive(rootdir);
 }
 
 module_init(l2tp_debugfs_init);

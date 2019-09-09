@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Benq DC E300 subdriver
  *
  * Copyright (C) 2009 Jean-Francois Moine (http://moinejf.free.fr)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -156,7 +143,7 @@ static void sd_isoc_irq(struct urb *urb)
 	u8 *data;
 	int i, st;
 
-	PDEBUG(D_PACK, "sd isoc irq");
+	gspca_dbg(gspca_dev, D_PACK, "sd isoc irq\n");
 	if (!gspca_dev->streaming)
 		return;
 	if (urb->status != 0) {
@@ -184,9 +171,9 @@ static void sd_isoc_irq(struct urb *urb)
 		/* check the packet status and length */
 		if (urb0->iso_frame_desc[i].actual_length != SD_PKT_SZ
 		    || urb->iso_frame_desc[i].actual_length != SD_PKT_SZ) {
-			PERR("ISOC bad lengths %d / %d",
-				urb0->iso_frame_desc[i].actual_length,
-				urb->iso_frame_desc[i].actual_length);
+			gspca_err(gspca_dev, "ISOC bad lengths %d / %d\n",
+				  urb0->iso_frame_desc[i].actual_length,
+				  urb->iso_frame_desc[i].actual_length);
 			gspca_dev->last_packet_type = DISCARD_PACKET;
 			continue;
 		}
@@ -209,12 +196,12 @@ static void sd_isoc_irq(struct urb *urb)
 		 *	- 80 ba/bb 00 00 = start of image followed by 'ff d8'
 		 *	- 04 ba/bb oo oo = image piece
 		 *		where 'oo oo' is the image offset
-						(not cheked)
+						(not checked)
 		 *	- (other -> bad frame)
 		 * The images are JPEG encoded with full header and
 		 * normal ff escape.
 		 * The end of image ('ff d9') may occur in any URB.
-		 * (not cheked)
+		 * (not checked)
 		 */
 		data = (u8 *) urb0->transfer_buffer
 					+ urb0->iso_frame_desc[i].offset;

@@ -47,7 +47,7 @@ static const struct file_operations fops_modal_eeprom = {
 void ath9k_cmn_debug_modal_eeprom(struct dentry *debugfs_phy,
 				  struct ath_hw *ah)
 {
-	debugfs_create_file("modal_eeprom", S_IRUSR, debugfs_phy, ah,
+	debugfs_create_file("modal_eeprom", 0400, debugfs_phy, ah,
 			    &fops_modal_eeprom);
 }
 EXPORT_SYMBOL(ath9k_cmn_debug_modal_eeprom);
@@ -82,7 +82,7 @@ static const struct file_operations fops_base_eeprom = {
 void ath9k_cmn_debug_base_eeprom(struct dentry *debugfs_phy,
 				 struct ath_hw *ah)
 {
-	debugfs_create_file("base_eeprom", S_IRUSR, debugfs_phy, ah,
+	debugfs_create_file("base_eeprom", 0400, debugfs_phy, ah,
 			    &fops_base_eeprom);
 }
 EXPORT_SYMBOL(ath9k_cmn_debug_base_eeprom);
@@ -144,6 +144,8 @@ static ssize_t read_file_recv(struct file *file, char __user *user_buf,
 	RXS_ERR("BEACONS", rx_beacons);
 	RXS_ERR("FRAGS", rx_frags);
 	RXS_ERR("SPECTRAL", rx_spectral);
+	RXS_ERR("SPECTRAL SMPL GOOD", rx_spectral_sample_good);
+	RXS_ERR("SPECTRAL SMPL ERR", rx_spectral_sample_err);
 
 	RXS_ERR("CRC ERR", crc_err);
 	RXS_ERR("DECRYPT CRC ERR", decrypt_crc_err);
@@ -178,8 +180,7 @@ static const struct file_operations fops_recv = {
 void ath9k_cmn_debug_recv(struct dentry *debugfs_phy,
 			  struct ath_rx_stats *rxstats)
 {
-	debugfs_create_file("recv", S_IRUSR, debugfs_phy, rxstats,
-			    &fops_recv);
+	debugfs_create_file("recv", 0400, debugfs_phy, rxstats, &fops_recv);
 }
 EXPORT_SYMBOL(ath9k_cmn_debug_recv);
 
@@ -255,7 +256,7 @@ static const struct file_operations fops_phy_err = {
 void ath9k_cmn_debug_phy_err(struct dentry *debugfs_phy,
 			     struct ath_rx_stats *rxstats)
 {
-	debugfs_create_file("phy_err", S_IRUSR, debugfs_phy, rxstats,
+	debugfs_create_file("phy_err", 0400, debugfs_phy, rxstats,
 			    &fops_phy_err);
 }
 EXPORT_SYMBOL(ath9k_cmn_debug_phy_err);

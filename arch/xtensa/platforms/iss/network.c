@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *
  * arch/xtensa/platforms/iss/network.c
@@ -8,13 +9,9 @@
  * Based on work form the UML team.
  *
  * Copyright 2005 Tensilica Inc.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- *
  */
+
+#define pr_fmt(fmt) "%s: " fmt, __func__
 
 #include <linux/list.h>
 #include <linux/irq.h>
@@ -28,7 +25,7 @@
 #include <linux/etherdevice.h>
 #include <linux/interrupt.h>
 #include <linux/ioctl.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/ethtool.h>
 #include <linux/rtnetlink.h>
 #include <linux/platform_device.h>
@@ -349,9 +346,9 @@ static int iss_net_poll(void)
 }
 
 
-static void iss_net_timer(unsigned long priv)
+static void iss_net_timer(struct timer_list *t)
 {
-	struct iss_net_private *lp = (struct iss_net_private *)priv;
+	struct iss_net_private *lp = from_timer(lp, t, timer);
 
 	iss_net_poll();
 	spin_lock(&lp->lock);
@@ -386,10 +383,8 @@ static int iss_net_open(struct net_device *dev)
 	spin_unlock_bh(&opened_lock);
 	spin_lock_bh(&lp->lock);
 
-	init_timer(&lp->timer);
+	timer_setup(&lp->timer, iss_net_timer, 0);
 	lp->timer_val = ISS_NET_TIMER_VALUE;
-	lp->timer.data = (unsigned long) lp;
-	lp->timer.function = iss_net_timer;
 	mod_timer(&lp->timer, jiffies + lp->timer_val);
 
 out:
@@ -482,7 +477,7 @@ static int iss_net_change_mtu(struct net_device *dev, int new_mtu)
 	return -EINVAL;
 }
 
-void iss_net_user_timer_expire(unsigned long _conn)
+void iss_net_user_timer_expire(struct timer_list *unused)
 {
 }
 
@@ -582,8 +577,7 @@ static int iss_net_configure(int index, char *init)
 		return 1;
 	}
 
-	init_timer(&lp->tl);
-	lp->tl.function = iss_net_user_timer_expire;
+	timer_setup(&lp->tl, iss_net_user_timer_expire, 0);
 
 	return 0;
 
@@ -609,8 +603,6 @@ struct iss_net_init {
  * those fields. They will be later initialized in iss_net_init.
  */
 
-#define ERR KERN_ERR "iss_net_setup: "
-
 static int __init iss_net_setup(char *str)
 {
 	struct iss_net_private *device = NULL;
@@ -622,14 +614,14 @@ static int __init iss_net_setup(char *str)
 
 	end = strchr(str, '=');
 	if (!end) {
-		printk(ERR "Expected '=' after device number\n");
+		pr_err("Expected '=' after device number\n");
 		return 1;
 	}
 	*end = 0;
 	rc = kstrtouint(str, 0, &n);
 	*end = '=';
 	if (rc < 0) {
-		printk(ERR "Failed to parse '%s'\n", str);
+		pr_err("Failed to parse '%s'\n", str);
 		return 1;
 	}
 	str = end;
@@ -645,13 +637,13 @@ static int __init iss_net_setup(char *str)
 	spin_unlock(&devices_lock);
 
 	if (device && device->index == n) {
-		printk(ERR "Device %u already configured\n", n);
+		pr_err("Device %u already configured\n", n);
 		return 1;
 	}
 
-	new = alloc_bootmem(sizeof(*new));
+	new = memblock_alloc(sizeof(*new), SMP_CACHE_BYTES);
 	if (new == NULL) {
-		printk(ERR "Alloc_bootmem failed\n");
+		pr_err("Alloc_bootmem failed\n");
 		return 1;
 	}
 
@@ -662,8 +654,6 @@ static int __init iss_net_setup(char *str)
 	list_add_tail(&new->list, &eth_cmd_line);
 	return 1;
 }
-
-#undef ERR
 
 __setup("eth", iss_net_setup);
 

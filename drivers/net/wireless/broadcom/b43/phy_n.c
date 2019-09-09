@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
 
   Broadcom B43 wireless driver
@@ -6,23 +7,10 @@
   Copyright (c) 2008 Michael Buesch <m@bues.ch>
   Copyright (c) 2010-2011 Rafał Miłecki <zajec5@gmail.com>
 
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program; see the file COPYING.  If not, write to
-  the Free Software Foundation, Inc., 51 Franklin Steet, Fifth Floor,
-  Boston, MA 02110-1301, USA.
 
 */
 
+#include <linux/cordic.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/types.h>
@@ -1031,7 +1019,7 @@ static void b43_radio_2057_init_post(struct b43_wldev *dev)
 
 	b43_radio_set(dev, R2057_RFPLL_MISC_CAL_RESETN, 0x78);
 	b43_radio_set(dev, R2057_XTAL_CONFIG2, 0x80);
-	mdelay(2);
+	usleep_range(2000, 3000);
 	b43_radio_mask(dev, R2057_RFPLL_MISC_CAL_RESETN, ~0x78);
 	b43_radio_mask(dev, R2057_XTAL_CONFIG2, ~0x80);
 
@@ -1513,12 +1501,12 @@ static void b43_radio_init2055(struct b43_wldev *dev)
 
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/N/LoadSampleTable */
 static int b43_nphy_load_samples(struct b43_wldev *dev,
-					struct b43_c32 *samples, u16 len) {
+					struct cordic_iq *samples, u16 len) {
 	struct b43_phy_n *nphy = dev->phy.n;
 	u16 i;
 	u32 *data;
 
-	data = kzalloc(len * sizeof(u32), GFP_KERNEL);
+	data = kcalloc(len, sizeof(u32), GFP_KERNEL);
 	if (!data) {
 		b43err(dev->wl, "allocation for samples loading failed\n");
 		return -ENOMEM;
@@ -1544,7 +1532,7 @@ static u16 b43_nphy_gen_load_samples(struct b43_wldev *dev, u32 freq, u16 max,
 {
 	int i;
 	u16 bw, len, rot, angle;
-	struct b43_c32 *samples;
+	struct cordic_iq *samples;
 
 	bw = b43_is_40mhz(dev) ? 40 : 20;
 	len = bw << 3;
@@ -1561,7 +1549,7 @@ static u16 b43_nphy_gen_load_samples(struct b43_wldev *dev, u32 freq, u16 max,
 		len = bw << 1;
 	}
 
-	samples = kcalloc(len, sizeof(struct b43_c32), GFP_KERNEL);
+	samples = kcalloc(len, sizeof(struct cordic_iq), GFP_KERNEL);
 	if (!samples) {
 		b43err(dev->wl, "allocation for samples generation failed\n");
 		return 0;
@@ -1570,10 +1558,10 @@ static u16 b43_nphy_gen_load_samples(struct b43_wldev *dev, u32 freq, u16 max,
 	angle = 0;
 
 	for (i = 0; i < len; i++) {
-		samples[i] = b43_cordic(angle);
+		samples[i] = cordic_calc_iq(CORDIC_FIXED(angle));
 		angle += rot;
-		samples[i].q = CORDIC_CONVERT(samples[i].q * max);
-		samples[i].i = CORDIC_CONVERT(samples[i].i * max);
+		samples[i].q = CORDIC_FLOAT(samples[i].q * max);
+		samples[i].i = CORDIC_FLOAT(samples[i].i * max);
 	}
 
 	i = b43_nphy_load_samples(dev, samples, len);
@@ -5894,7 +5882,6 @@ static enum b43_txpwr_result b43_nphy_op_recalc_txpower(struct b43_wldev *dev,
 	struct ieee80211_channel *channel = dev->wl->hw->conf.chandef.chan;
 	struct b43_ppr *ppr = &nphy->tx_pwr_max_ppr;
 	u8 max; /* qdBm */
-	bool tx_pwr_state;
 
 	if (nphy->tx_pwr_last_recalc_freq == channel->center_freq &&
 	    nphy->tx_pwr_last_recalc_limit == phy->desired_txpower)
@@ -5930,7 +5917,6 @@ static enum b43_txpwr_result b43_nphy_op_recalc_txpower(struct b43_wldev *dev,
 	b43_ppr_apply_min(dev, ppr, INT_TO_Q52(8));
 
 	/* Apply */
-	tx_pwr_state = nphy->txpwrctrl;
 	b43_mac_suspend(dev);
 	b43_nphy_tx_power_ctl_setup(dev);
 	if (dev->dev->core_rev == 11 || dev->dev->core_rev == 12) {
@@ -6043,7 +6029,6 @@ static int b43_phy_initn(struct b43_wldev *dev)
 	u8 tx_pwr_state;
 	struct nphy_txgains target;
 	u16 tmp;
-	enum nl80211_band tmp2;
 	bool do_rssi_cal;
 
 	u16 clip[2];
@@ -6137,7 +6122,6 @@ static int b43_phy_initn(struct b43_wldev *dev)
 		b43_phy_write(dev, B43_NPHY_DUP40_BL, 0x9A4);
 	}
 
-	tmp2 = b43_current_band(dev->wl);
 	if (b43_nphy_ipa(dev)) {
 		b43_phy_set(dev, B43_NPHY_PAPD_EN0, 0x1);
 		b43_phy_maskset(dev, B43_NPHY_EPS_TABLE_ADJ0, 0x007F,

@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /**
  * Routines supporting the Power 7+ Nest Accelerators driver
  *
  * Copyright (C) 2011-2012 International Business Machines Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 only.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  * Author: Kent Yoder <yoder1@us.ibm.com>
  */
@@ -32,7 +20,6 @@
 #include <linux/scatterlist.h>
 #include <linux/device.h>
 #include <linux/of.h>
-#include <linux/types.h>
 #include <asm/hvcall.h>
 #include <asm/vio.h>
 
@@ -582,9 +569,7 @@ static int nx_register_algs(void)
 
 	memset(&nx_driver.stats, 0, sizeof(struct nx_stats));
 
-	rc = NX_DEBUGFS_INIT(&nx_driver);
-	if (rc)
-		goto out;
+	NX_DEBUGFS_INIT(&nx_driver);
 
 	nx_driver.of.status = NX_OKAY;
 
@@ -834,7 +819,7 @@ static void __exit nx_fini(void)
 	vio_unregister_driver(&nx_driver.viodriver);
 }
 
-static struct vio_device_id nx_crypto_driver_ids[] = {
+static const struct vio_device_id nx_crypto_driver_ids[] = {
 	{ "ibm,sym-encryption-v1", "ibm,sym-encryption" },
 	{ "", "" }
 };

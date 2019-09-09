@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Changes:
  * Arnaldo Carvalho de Melo <acme@conectiva.com.br> 08/23/2000
@@ -12,7 +13,7 @@
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/string.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
@@ -100,8 +101,8 @@ static int ioctl_internal_command(struct scsi_device *sdev, char *cmd,
 	SCSI_LOG_IOCTL(2, sdev_printk(KERN_INFO, sdev,
 				      "Ioctl returned  0x%x\n", result));
 
-	if ((driver_byte(result) & DRIVER_SENSE) &&
-	    (scsi_sense_valid(&sshdr))) {
+	if (driver_byte(result) == DRIVER_SENSE &&
+	    scsi_sense_valid(&sshdr)) {
 		switch (sshdr.sense_key) {
 		case ILLEGAL_REQUEST:
 			if (cmd[0] == ALLOW_MEDIUM_REMOVAL)
@@ -116,13 +117,15 @@ static int ioctl_internal_command(struct scsi_device *sdev, char *cmd,
 		case NOT_READY:	/* This happens if there is no disc in drive */
 			if (sdev->removable)
 				break;
+			/* FALLTHROUGH */
 		case UNIT_ATTENTION:
 			if (sdev->removable) {
 				sdev->changed = 1;
 				result = 0;	/* This is no longer considered an error */
 				break;
 			}
-		default:	/* Fall through for non-removable media */
+			/* FALLTHROUGH -- for non-removable media */
+		default:
 			sdev_printk(KERN_INFO, sdev,
 				    "ioctl_internal_command return code = %x\n",
 				    result);
@@ -199,6 +202,7 @@ static int scsi_ioctl_get_pci(struct scsi_device *sdev, void __user *arg)
 int scsi_ioctl(struct scsi_device *sdev, int cmd, void __user *arg)
 {
 	char scsi_cmd[MAX_COMMAND_SIZE];
+	struct scsi_sense_hdr sense_hdr;
 
 	/* Check for deprecated ioctls ... all the ioctls which don't
 	 * follow the new unique numbering scheme are deprecated */
@@ -218,7 +222,7 @@ int scsi_ioctl(struct scsi_device *sdev, int cmd, void __user *arg)
 
 	switch (cmd) {
 	case SCSI_IOCTL_GET_IDLUN:
-		if (!access_ok(VERIFY_WRITE, arg, sizeof(struct scsi_idlun)))
+		if (!access_ok(arg, sizeof(struct scsi_idlun)))
 			return -EFAULT;
 
 		__put_user((sdev->id & 0xff)
@@ -243,7 +247,7 @@ int scsi_ioctl(struct scsi_device *sdev, int cmd, void __user *arg)
 		return scsi_set_medium_removal(sdev, SCSI_REMOVAL_ALLOW);
 	case SCSI_IOCTL_TEST_UNIT_READY:
 		return scsi_test_unit_ready(sdev, IOCTL_NORMAL_TIMEOUT,
-					    NORMAL_RETRIES, NULL);
+					    NORMAL_RETRIES, &sense_hdr);
 	case SCSI_IOCTL_START_UNIT:
 		scsi_cmd[0] = START_STOP;
 		scsi_cmd[1] = 0;

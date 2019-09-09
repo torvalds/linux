@@ -377,6 +377,7 @@ typedef uint16_t PPSMC_Result;
 #define PPSMC_MSG_DisableAvfs                 ((uint16_t) 0x26B)
 
 #define PPSMC_MSG_PerformBtc                  ((uint16_t) 0x26C)
+#define PPSMC_MSG_LedConfig                   ((uint16_t) 0x274)
 #define PPSMC_MSG_VftTableIsValid             ((uint16_t) 0x275)
 #define PPSMC_MSG_UseNewGPIOScheme            ((uint16_t) 0x277)
 #define PPSMC_MSG_GetEnabledPsm               ((uint16_t) 0x400)
@@ -384,6 +385,8 @@ typedef uint16_t PPSMC_Result;
 #define PPSMC_MSG_AgmReadPsm                  ((uint16_t) 0x402)
 #define PPSMC_MSG_AgmResetPsm                 ((uint16_t) 0x403)
 #define PPSMC_MSG_ReadVftCell                 ((uint16_t) 0x404)
+
+#define PPSMC_MSG_ApplyAvfsCksOffVoltage      ((uint16_t) 0x415)
 
 #define PPSMC_MSG_GFX_CU_PG_ENABLE            ((uint16_t) 0x280)
 #define PPSMC_MSG_GFX_CU_PG_DISABLE           ((uint16_t) 0x281)
@@ -393,6 +396,12 @@ typedef uint16_t PPSMC_Result;
 #define PPSMC_MSG_Didt_Block_Function		  ((uint16_t) 0x301)
 
 #define PPSMC_MSG_SetVBITimeout               ((uint16_t) 0x306)
+
+#define PPSMC_MSG_EnableFFC                   ((uint16_t) 0x307)
+#define PPSMC_MSG_DisableFFC                  ((uint16_t) 0x308)
+
+#define PPSMC_MSG_EnableDpmDidt               ((uint16_t) 0x309)
+#define PPSMC_MSG_DisableDpmDidt              ((uint16_t) 0x30A)
 
 #define PPSMC_MSG_SecureSRBMWrite             ((uint16_t) 0x600)
 #define PPSMC_MSG_SecureSRBMRead              ((uint16_t) 0x601)

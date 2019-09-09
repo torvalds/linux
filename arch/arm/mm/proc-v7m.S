@@ -1,12 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  linux/arch/arm/mm/proc-v7m.S
  *
  *  Copyright (C) 2008 ARM Ltd.
  *  Copyright (C) 2001 Deep Blue Solutions Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  *  This is the "shell" of the ARMv7-M processor support.
  */
@@ -96,7 +93,7 @@ ENTRY(cpu_cm7_proc_fin)
 	ret	lr
 ENDPROC(cpu_cm7_proc_fin)
 
-	.section ".text.init", #alloc, #execinstr
+	.section ".init.text", #alloc, #execinstr
 
 __v7m_cm7_setup:
 	mov	r8, #(V7M_SCB_CCR_DC | V7M_SCB_CCR_IC| V7M_SCB_CCR_BP)
@@ -135,9 +132,14 @@ __v7m_setup_cont:
 	dsb
 	mov	r6, lr			@ save LR
 	ldr	sp, =init_thread_union + THREAD_START_SP
+	stmia	sp, {r0-r3, r12}
 	cpsie	i
 	svc	#0
 1:	cpsid	i
+	ldr	r0, =exc_ret
+	orr	lr, lr, #EXC_RET_THREADMODE_PROCESSSTACK
+	str	lr, [r0]
+	ldmia	sp, {r0-r3, r12}
 	str	r5, [r12, #11 * 4]	@ restore the original SVC vector entry
 	mov	lr, r6			@ restore LR
 
@@ -147,10 +149,10 @@ __v7m_setup_cont:
 
 	@ Configure caches (if implemented)
 	teq     r8, #0
-	stmneia	r12, {r0-r6, lr}	@ v7m_invalidate_l1 touches r0-r6
+	stmiane	sp, {r0-r6, lr}		@ v7m_invalidate_l1 touches r0-r6
 	blne	v7m_invalidate_l1
 	teq     r8, #0			@ re-evalutae condition
-	ldmneia	r12, {r0-r6, lr}
+	ldmiane	sp, {r0-r6, lr}
 
 	@ Configure the System Control Register to ensure 8-byte stack alignment
 	@ Note the STKALIGN bit is either RW or RAO.

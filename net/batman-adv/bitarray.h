@@ -1,18 +1,7 @@
-/* Copyright (C) 2006-2016  B.A.T.M.A.N. contributors:
+/* SPDX-License-Identifier: GPL-2.0 */
+/* Copyright (C) 2006-2019  B.A.T.M.A.N. contributors:
  *
  * Simon Wunderlich, Marek Lindner
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef _NET_BATMAN_ADV_BITARRAY_H_
@@ -26,7 +15,7 @@
 #include <linux/types.h>
 
 /**
- * batadv_test_bit - check if bit is set in the current window
+ * batadv_test_bit() - check if bit is set in the current window
  *
  * @seq_bits: pointer to the sequence number receive packet
  * @last_seqno: latest sequence number in seq_bits
@@ -46,7 +35,12 @@ static inline bool batadv_test_bit(const unsigned long *seq_bits,
 	return test_bit(diff, seq_bits) != 0;
 }
 
-/* turn corresponding bit on, so we can remember that we got the packet */
+/**
+ * batadv_set_bit() - Turn corresponding bit on, so we can remember that we got
+ *  the packet
+ * @seq_bits: bitmap of the packet receive window
+ * @n: relative sequence number of newly received packet
+ */
 static inline void batadv_set_bit(unsigned long *seq_bits, s32 n)
 {
 	/* if too old, just drop it */

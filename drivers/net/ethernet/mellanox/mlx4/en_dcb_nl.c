@@ -156,56 +156,62 @@ static int mlx4_en_dcbnl_getnumtcs(struct net_device *netdev, int tcid, u8 *num)
 static u8 mlx4_en_dcbnl_set_all(struct net_device *netdev)
 {
 	struct mlx4_en_priv *priv = netdev_priv(netdev);
+	struct mlx4_en_port_profile *prof = priv->prof;
 	struct mlx4_en_dev *mdev = priv->mdev;
+	u8 tx_pause, tx_ppp, rx_pause, rx_ppp;
 
 	if (!(priv->dcbx_cap & DCB_CAP_DCBX_VER_CEE))
 		return 1;
 
 	if (priv->cee_config.pfc_state) {
 		int tc;
+		rx_ppp = prof->rx_ppp;
+		tx_ppp = prof->tx_ppp;
 
-		priv->prof->rx_pause = 0;
-		priv->prof->tx_pause = 0;
 		for (tc = 0; tc < CEE_DCBX_MAX_PRIO; tc++) {
 			u8 tc_mask = 1 << tc;
 
 			switch (priv->cee_config.dcb_pfc[tc]) {
 			case pfc_disabled:
-				priv->prof->tx_ppp &= ~tc_mask;
-				priv->prof->rx_ppp &= ~tc_mask;
+				tx_ppp &= ~tc_mask;
+				rx_ppp &= ~tc_mask;
 				break;
 			case pfc_enabled_full:
-				priv->prof->tx_ppp |= tc_mask;
-				priv->prof->rx_ppp |= tc_mask;
+				tx_ppp |= tc_mask;
+				rx_ppp |= tc_mask;
 				break;
 			case pfc_enabled_tx:
-				priv->prof->tx_ppp |= tc_mask;
-				priv->prof->rx_ppp &= ~tc_mask;
+				tx_ppp |= tc_mask;
+				rx_ppp &= ~tc_mask;
 				break;
 			case pfc_enabled_rx:
-				priv->prof->tx_ppp &= ~tc_mask;
-				priv->prof->rx_ppp |= tc_mask;
+				tx_ppp &= ~tc_mask;
+				rx_ppp |= tc_mask;
 				break;
 			default:
 				break;
 			}
 		}
-		en_dbg(DRV, priv, "Set pfc on\n");
+		rx_pause = !!(rx_ppp || tx_ppp) ? 0 : prof->rx_pause;
+		tx_pause = !!(rx_ppp || tx_ppp) ? 0 : prof->tx_pause;
 	} else {
-		priv->prof->rx_pause = 1;
-		priv->prof->tx_pause = 1;
-		en_dbg(DRV, priv, "Set pfc off\n");
+		rx_ppp = 0;
+		tx_ppp = 0;
+		rx_pause = prof->rx_pause;
+		tx_pause = prof->tx_pause;
 	}
 
 	if (mlx4_SET_PORT_general(mdev->dev, priv->port,
 				  priv->rx_skb_size + ETH_FCS_LEN,
-				  priv->prof->tx_pause,
-				  priv->prof->tx_ppp,
-				  priv->prof->rx_pause,
-				  priv->prof->rx_ppp)) {
+				  tx_pause, tx_ppp, rx_pause, rx_ppp)) {
 		en_err(priv, "Failed setting pause params\n");
 		return 1;
 	}
+
+	prof->tx_ppp = tx_ppp;
+	prof->rx_ppp = rx_ppp;
+	prof->tx_pause = tx_pause;
+	prof->rx_pause = rx_pause;
 
 	return 0;
 }
@@ -238,7 +244,7 @@ static u8 mlx4_en_dcbnl_set_state(struct net_device *dev, u8 state)
 		priv->flags &= ~MLX4_EN_FLAG_DCB_ENABLED;
 	}
 
-	if (mlx4_en_setup_tc(dev, num_tcs))
+	if (mlx4_en_alloc_tx_queue_per_tc(dev, num_tcs))
 		return 1;
 
 	return 0;
@@ -303,13 +309,14 @@ static int mlx4_en_ets_validate(struct mlx4_en_priv *priv, struct ieee_ets *ets)
 	int has_ets_tc = 0;
 
 	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++) {
-		if (ets->prio_tc[i] >= MLX4_EN_NUM_UP) {
+		if (ets->prio_tc[i] >= MLX4_EN_NUM_UP_HIGH) {
 			en_err(priv, "Bad priority in UP <=> TC mapping. TC: %d, UP: %d\n",
 					i, ets->prio_tc[i]);
 			return -EINVAL;
 		}
 
 		switch (ets->tc_tsa[i]) {
+		case IEEE_8021QAZ_TSA_VENDOR:
 		case IEEE_8021QAZ_TSA_STRICT:
 			break;
 		case IEEE_8021QAZ_TSA_ETS:
@@ -319,7 +326,7 @@ static int mlx4_en_ets_validate(struct mlx4_en_priv *priv, struct ieee_ets *ets)
 		default:
 			en_err(priv, "TC[%d]: Not supported TSA: %d\n",
 					i, ets->tc_tsa[i]);
-			return -ENOTSUPP;
+			return -EOPNOTSUPP;
 		}
 	}
 
@@ -347,6 +354,10 @@ static int mlx4_en_config_port_scheduler(struct mlx4_en_priv *priv,
 	/* higher TC means higher priority => lower pg */
 	for (i = IEEE_8021QAZ_MAX_TCS - 1; i >= 0; i--) {
 		switch (ets->tc_tsa[i]) {
+		case IEEE_8021QAZ_TSA_VENDOR:
+			pg[i] = MLX4_EN_TC_VENDOR;
+			tc_tx_bw[i] = MLX4_EN_BW_MAX;
+			break;
 		case IEEE_8021QAZ_TSA_STRICT:
 			pg[i] = num_strict++;
 			tc_tx_bw[i] = MLX4_EN_BW_MAX;
@@ -403,6 +414,7 @@ static int mlx4_en_dcbnl_ieee_setpfc(struct net_device *dev,
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_en_port_profile *prof = priv->prof;
 	struct mlx4_en_dev *mdev = priv->mdev;
+	u32 tx_pause, tx_ppp, rx_pause, rx_ppp;
 	int err;
 
 	en_dbg(DRV, priv, "cap: 0x%x en: 0x%x mbc: 0x%x delay: %d\n",
@@ -411,23 +423,26 @@ static int mlx4_en_dcbnl_ieee_setpfc(struct net_device *dev,
 			pfc->mbc,
 			pfc->delay);
 
-	prof->rx_pause = !pfc->pfc_en;
-	prof->tx_pause = !pfc->pfc_en;
-	prof->rx_ppp = pfc->pfc_en;
-	prof->tx_ppp = pfc->pfc_en;
+	rx_pause = prof->rx_pause && !pfc->pfc_en;
+	tx_pause = prof->tx_pause && !pfc->pfc_en;
+	rx_ppp = pfc->pfc_en;
+	tx_ppp = pfc->pfc_en;
 
 	err = mlx4_SET_PORT_general(mdev->dev, priv->port,
 				    priv->rx_skb_size + ETH_FCS_LEN,
-				    prof->tx_pause,
-				    prof->tx_ppp,
-				    prof->rx_pause,
-				    prof->rx_ppp);
-	if (err)
+				    tx_pause, tx_ppp, rx_pause, rx_ppp);
+	if (err) {
 		en_err(priv, "Failed setting pause params\n");
-	else
-		mlx4_en_update_pfc_stats_bitmap(mdev->dev, &priv->stats_bitmap,
-						prof->rx_ppp, prof->rx_pause,
-						prof->tx_ppp, prof->tx_pause);
+		return err;
+	}
+
+	mlx4_en_update_pfc_stats_bitmap(mdev->dev, &priv->stats_bitmap,
+					rx_ppp, rx_pause, tx_ppp, tx_pause);
+
+	prof->tx_ppp = tx_ppp;
+	prof->rx_ppp = rx_ppp;
+	prof->rx_pause = rx_pause;
+	prof->tx_pause = tx_pause;
 
 	return err;
 }
@@ -472,7 +487,7 @@ static u8 mlx4_en_dcbnl_setdcbx(struct net_device *dev, u8 mode)
 			goto err;
 		if (mlx4_en_dcbnl_ieee_setpfc(dev, &pfc))
 			goto err;
-		if (mlx4_en_setup_tc(dev, 0))
+		if (mlx4_en_alloc_tx_queue_per_tc(dev, 0))
 			goto err;
 	}
 

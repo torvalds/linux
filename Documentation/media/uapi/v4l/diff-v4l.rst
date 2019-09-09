@@ -1,4 +1,11 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 .. _diff-v4l:
 
@@ -648,12 +655,12 @@ microcode programming. A new interface for MPEG compression and playback
 devices is documented in :ref:`extended-controls`.
 
 .. [#f1]
-   According to Documentation/devices.txt these should be symbolic links
+   According to Documentation/admin-guide/devices.rst these should be symbolic links
    to ``/dev/video0``. Note the original bttv interface is not
    compatible with V4L or V4L2.
 
 .. [#f2]
-   According to ``Documentation/devices.txt`` a symbolic link to
+   According to ``Documentation/admin-guide/devices.rst`` a symbolic link to
    ``/dev/radio0``.
 
 .. [#f3]

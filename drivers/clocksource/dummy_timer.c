@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/drivers/clocksource/dummy_timer.c
  *
  *  Copyright (C) 2013 ARM Ltd.
  *  All Rights Reserved
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/clockchips.h>
 #include <linux/cpu.h>
@@ -34,7 +31,7 @@ static int dummy_timer_starting_cpu(unsigned int cpu)
 static int __init dummy_timer_register(void)
 {
 	return cpuhp_setup_state(CPUHP_AP_DUMMY_TIMER_STARTING,
-				 "AP_DUMMY_TIMER_STARTING",
+				 "clockevents/dummy_timer:starting",
 				 dummy_timer_starting_cpu, NULL);
 }
 early_initcall(dummy_timer_register);

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright IBM Corp. 2008, 2009
  *
@@ -8,13 +9,18 @@
 #include <linux/linkage.h>
 #include <asm/asm-offsets.h>
 #include <asm/ftrace.h>
+#include <asm/nospec-insn.h>
 #include <asm/ptrace.h>
 #include <asm/export.h>
+
+	GEN_BR_THUNK %r1
+	GEN_BR_THUNK %r14
 
 	.section .kprobes.text, "ax"
 
 ENTRY(ftrace_stub)
-	br	%r14
+	BR_EX	%r14
+ENDPROC(ftrace_stub)
 
 #define STACK_FRAME_SIZE  (STACK_FRAME_OVERHEAD + __PT_SIZE)
 #define STACK_PTREGS	  (STACK_FRAME_OVERHEAD)
@@ -22,15 +28,15 @@ ENTRY(ftrace_stub)
 #define STACK_PTREGS_PSW  (STACK_PTREGS + __PT_PSW)
 
 ENTRY(_mcount)
-	br	%r14
-
+	BR_EX	%r14
+ENDPROC(_mcount)
 EXPORT_SYMBOL(_mcount)
 
 ENTRY(ftrace_caller)
 	.globl	ftrace_regs_caller
 	.set	ftrace_regs_caller,ftrace_caller
 	lgr	%r1,%r15
-#ifndef CC_USING_HOTPATCH
+#if !(defined(CC_USING_HOTPATCH) || defined(CC_USING_NOP_MCOUNT))
 	aghi	%r0,MCOUNT_RETURN_FIXUP
 #endif
 	aghi	%r15,-STACK_FRAME_SIZE
@@ -52,14 +58,15 @@ ENTRY(ftrace_caller)
 #endif
 	lgr	%r3,%r14
 	la	%r5,STACK_PTREGS(%r15)
-	basr	%r14,%r1
+	BASR_EX	%r14,%r1
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 # The j instruction gets runtime patched to a nop instruction.
 # See ftrace_enable_ftrace_graph_caller.
-ENTRY(ftrace_graph_caller)
+	.globl ftrace_graph_caller
+ftrace_graph_caller:
 	j	ftrace_graph_caller_end
-	lg	%r2,(STACK_PTREGS_GPRS+14*8)(%r15)
-	lg	%r3,(STACK_PTREGS_PSW+8)(%r15)
+	lmg	%r2,%r3,(STACK_PTREGS_GPRS+14*8)(%r15)
+	lg	%r4,(STACK_PTREGS_PSW+8)(%r15)
 	brasl	%r14,prepare_ftrace_return
 	stg	%r2,(STACK_PTREGS_GPRS+14*8)(%r15)
 ftrace_graph_caller_end:
@@ -67,7 +74,8 @@ ftrace_graph_caller_end:
 #endif
 	lg	%r1,(STACK_PTREGS_PSW+8)(%r15)
 	lmg	%r2,%r15,(STACK_PTREGS_GPRS+2*8)(%r15)
-	br	%r1
+	BR_EX	%r1
+ENDPROC(ftrace_caller)
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 
@@ -80,6 +88,7 @@ ENTRY(return_to_handler)
 	aghi	%r15,STACK_FRAME_OVERHEAD
 	lgr	%r14,%r2
 	lmg	%r2,%r5,32(%r15)
-	br	%r14
+	BR_EX	%r14
+ENDPROC(return_to_handler)
 
 #endif

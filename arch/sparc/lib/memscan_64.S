@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * memscan.S: Optimized memscan for Sparc64.
  *
@@ -14,6 +15,8 @@
 	.text
 	.align	32
 	.globl		__memscan_zero, __memscan_generic
+	.type		__memscan_zero,#function
+	.type		__memscan_generic,#function
 	.globl		memscan
 	EXPORT_SYMBOL(__memscan_zero)
 	EXPORT_SYMBOL(__memscan_generic)

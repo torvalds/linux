@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * bpf-script-test-kbuild.c
  * Test include from kernel header
@@ -9,7 +10,6 @@
 #define SEC(NAME) __attribute__((section(NAME), used))
 
 #include <uapi/linux/fs.h>
-#include <uapi/asm/ptrace.h>
 
 SEC("func=vfs_llseek")
 int bpf_func__vfs_llseek(void *ctx)

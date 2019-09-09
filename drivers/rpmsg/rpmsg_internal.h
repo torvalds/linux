@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * remote processor messaging bus internals
  *
@@ -6,21 +7,13 @@
  *
  * Ohad Ben-Cohen <ohad@wizery.com>
  * Brian Swetland <swetland@google.com>
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef __RPMSG_INTERNAL_H__
 #define __RPMSG_INTERNAL_H__
 
 #include <linux/rpmsg.h>
+#include <linux/poll.h>
 
 #define to_rpmsg_device(d) container_of(d, struct rpmsg_device, dev)
 #define to_rpmsg_driver(d) container_of(d, struct rpmsg_driver, drv)
@@ -70,6 +63,8 @@ struct rpmsg_endpoint_ops {
 	int (*trysendto)(struct rpmsg_endpoint *ept, void *data, int len, u32 dst);
 	int (*trysend_offchannel)(struct rpmsg_endpoint *ept, u32 src, u32 dst,
 			     void *data, int len);
+	__poll_t (*poll)(struct rpmsg_endpoint *ept, struct file *filp,
+			     poll_table *wait);
 };
 
 int rpmsg_register_device(struct rpmsg_device *rpdev);
@@ -78,5 +73,20 @@ int rpmsg_unregister_device(struct device *parent,
 
 struct device *rpmsg_find_device(struct device *parent,
 				 struct rpmsg_channel_info *chinfo);
+
+/**
+ * rpmsg_chrdev_register_device() - register chrdev device based on rpdev
+ * @rpdev:	prepared rpdev to be used for creating endpoints
+ *
+ * This function wraps rpmsg_register_device() preparing the rpdev for use as
+ * basis for the rpmsg chrdev.
+ */
+static inline int rpmsg_chrdev_register_device(struct rpmsg_device *rpdev)
+{
+	strcpy(rpdev->id.name, "rpmsg_chrdev");
+	rpdev->driver_override = "rpmsg_chrdev";
+
+	return rpmsg_register_device(rpdev);
+}
 
 #endif

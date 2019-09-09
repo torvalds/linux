@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/arch/arm/mach-mmp/irq.c
  *
@@ -6,10 +7,6 @@
  *
  *  Author:	Bin Yang <bin.yang@marvell.com>
  *              Haojian Zhuang <haojian.zhuang@gmail.com>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -33,6 +30,9 @@
 /* bit fields in PJ1_INT_SEL and PJ4_INT_SEL */
 #define SEL_INT_PENDING		(1 << 6)
 #define SEL_INT_NUM_MASK	0x3f
+
+#define MMP2_ICU_INT_ROUTE_PJ4_IRQ	(1 << 5)
+#define MMP2_ICU_INT_ROUTE_PJ4_FIQ	(1 << 6)
 
 struct icu_chip_data {
 	int			nr_irqs;
@@ -176,21 +176,22 @@ static int mmp_irq_domain_xlate(struct irq_domain *d, struct device_node *node,
 	return 0;
 }
 
-const struct irq_domain_ops mmp_irq_domain_ops = {
+static const struct irq_domain_ops mmp_irq_domain_ops = {
 	.map		= mmp_irq_domain_map,
 	.xlate		= mmp_irq_domain_xlate,
 };
 
-static struct mmp_intc_conf mmp_conf = {
+static const struct mmp_intc_conf mmp_conf = {
 	.conf_enable	= 0x51,
 	.conf_disable	= 0x0,
 	.conf_mask	= 0x7f,
 };
 
-static struct mmp_intc_conf mmp2_conf = {
+static const struct mmp_intc_conf mmp2_conf = {
 	.conf_enable	= 0x20,
 	.conf_disable	= 0x0,
-	.conf_mask	= 0x7f,
+	.conf_mask	= MMP2_ICU_INT_ROUTE_PJ4_IRQ |
+			  MMP2_ICU_INT_ROUTE_PJ4_FIQ,
 };
 
 static void __exception_irq_entry mmp_handle_irq(struct pt_regs *regs)

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2013 Samsung Electronics Co., Ltd.
  * Author: Jacek Anaszewski <j.anaszewski@samsung.com>
@@ -28,10 +29,6 @@
  * with any triggers or illuminance events. Enabling/disabling
  * one of the proximity events automatically enables/disables
  * the other one.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2, as
- * published by the Free Software Foundation.
  */
 
 #include <linux/debugfs.h>
@@ -1384,7 +1381,6 @@ static const struct iio_info gp2ap020a00f_info = {
 	.read_event_config = &gp2ap020a00f_read_event_config,
 	.write_event_value = &gp2ap020a00f_write_event_val,
 	.write_event_config = &gp2ap020a00f_write_event_config,
-	.driver_module = THIS_MODULE,
 };
 
 static int gp2ap020a00f_buffer_postenable(struct iio_dev *indio_dev)
@@ -1481,7 +1477,6 @@ static const struct iio_buffer_setup_ops gp2ap020a00f_buffer_setup_ops = {
 };
 
 static const struct iio_trigger_ops gp2ap020a00f_trigger_ops = {
-	.owner = THIS_MODULE,
 };
 
 static int gp2ap020a00f_probe(struct i2c_client *client,

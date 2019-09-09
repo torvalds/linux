@@ -1,3 +1,5 @@
+.. SPDX-License-Identifier: GPL-2.0
+
 Video device' s internal representation
 =======================================
 
@@ -31,7 +33,7 @@ of the video device exits.
 The default :c:func:`video_device_release` callback currently
 just calls ``kfree`` to free the allocated memory.
 
-There is also a ::c:func:`video_device_release_empty` function that does
+There is also a :c:func:`video_device_release_empty` function that does
 nothing (is empty) and should be used if the struct is embedded and there
 is nothing to do when it is released.
 
@@ -196,11 +198,18 @@ device.
 Which device is registered depends on the type argument. The following
 types exist:
 
-- ``VFL_TYPE_GRABBER``: ``/dev/videoX`` for video input/output devices
-- ``VFL_TYPE_VBI``: ``/dev/vbiX`` for vertical blank data (i.e. closed captions, teletext)
-- ``VFL_TYPE_RADIO``: ``/dev/radioX`` for radio tuners
-- ``VFL_TYPE_SDR``: ``/dev/swradioX`` for Software Defined Radio tuners
-- ``VFL_TYPE_TOUCH``: ``/dev/v4l-touchX`` for touch sensors
+========================== ====================	 ==============================
+:c:type:`vfl_devnode_type` Device name		 Usage
+========================== ====================	 ==============================
+``VFL_TYPE_GRABBER``       ``/dev/videoX``       for video input/output devices
+``VFL_TYPE_VBI``           ``/dev/vbiX``         for vertical blank data (i.e.
+						 closed captions, teletext)
+``VFL_TYPE_RADIO``         ``/dev/radioX``       for radio tuners
+``VFL_TYPE_SUBDEV``        ``/dev/v4l-subdevX``  for V4L2 subdevices
+``VFL_TYPE_SDR``           ``/dev/swradioX``     for Software Defined Radio
+						 (SDR) tuners
+``VFL_TYPE_TOUCH``         ``/dev/v4l-touchX``   for touch sensors
+========================== ====================	 ==============================
 
 The last argument gives you a certain amount of control over the device
 device node number used (i.e. the X in ``videoX``). Normally you will pass -1

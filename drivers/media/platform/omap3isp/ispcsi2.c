@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ispcsi2.c
  *
@@ -8,10 +9,6 @@
  *
  * Contacts: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
  *	     Sakari Ailus <sakari.ailus@iki.fi>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/delay.h>
 #include <media/v4l2-common.h>
@@ -490,7 +487,7 @@ int omap3isp_csi2_reset(struct isp_csi2_device *csi2)
 	if (!csi2->available)
 		return -ENODEV;
 
-	if (csi2->phy->phy_in_use)
+	if (csi2->phy->entity)
 		return -EBUSY;
 
 	isp_reg_set(isp, csi2->regs1, ISPCSI2_SYSCONFIG,
@@ -566,7 +563,7 @@ static int csi2_configure(struct isp_csi2_device *csi2)
 
 	pad = media_entity_remote_pad(&csi2->pads[CSI2_PAD_SINK]);
 	sensor = media_entity_to_v4l2_subdev(pad->entity);
-	buscfg = sensor->host_priv;
+	buscfg = v4l2_subdev_to_bus_cfg(pipe->external);
 
 	csi2->frame_skip = 0;
 	v4l2_subdev_call(sensor, sensor, g_skip_frames, &csi2->frame_skip);
@@ -710,7 +707,7 @@ static void csi2_isr_ctx(struct isp_csi2_device *csi2,
 
 	/* Skip interrupts until we reach the frame skip count. The CSI2 will be
 	 * automatically disabled, as the frame skip count has been programmed
-	 * in the CSI2_CTx_CTRL1::COUNT field, so reenable it.
+	 * in the CSI2_CTx_CTRL1::COUNT field, so re-enable it.
 	 *
 	 * It would have been nice to rely on the FRAME_NUMBER interrupt instead
 	 * but it turned out that the interrupt is only generated when the CSI2
@@ -753,8 +750,8 @@ void omap3isp_csi2_isr(struct isp_csi2_device *csi2)
 						 ISPCSI2_PHY_IRQSTATUS);
 		isp_reg_writel(isp, cpxio1_irqstatus,
 			       csi2->regs1, ISPCSI2_PHY_IRQSTATUS);
-		dev_dbg(isp->dev, "CSI2: ComplexIO Error IRQ "
-			"%x\n", cpxio1_irqstatus);
+		dev_dbg(isp->dev, "CSI2: ComplexIO Error IRQ %x\n",
+			cpxio1_irqstatus);
 		pipe->error = true;
 	}
 
@@ -763,13 +760,8 @@ void omap3isp_csi2_isr(struct isp_csi2_device *csi2)
 			      ISPCSI2_IRQSTATUS_ECC_NO_CORRECTION_IRQ |
 			      ISPCSI2_IRQSTATUS_COMPLEXIO2_ERR_IRQ |
 			      ISPCSI2_IRQSTATUS_FIFO_OVF_IRQ)) {
-		dev_dbg(isp->dev, "CSI2 Err:"
-			" OCP:%d,"
-			" Short_pack:%d,"
-			" ECC:%d,"
-			" CPXIO2:%d,"
-			" FIFO_OVF:%d,"
-			"\n",
+		dev_dbg(isp->dev,
+			"CSI2 Err: OCP:%d, Short_pack:%d, ECC:%d, CPXIO2:%d, FIFO_OVF:%d,\n",
 			(csi2_irqstatus &
 			 ISPCSI2_IRQSTATUS_OCP_ERR_IRQ) ? 1 : 0,
 			(csi2_irqstatus &
@@ -1058,7 +1050,7 @@ static int csi2_set_stream(struct v4l2_subdev *sd, int enable)
 
 	switch (enable) {
 	case ISP_PIPELINE_STREAM_CONTINUOUS:
-		if (omap3isp_csiphy_acquire(csi2->phy) < 0)
+		if (omap3isp_csiphy_acquire(csi2->phy, &sd->entity) < 0)
 			return -ENODEV;
 		if (csi2->output & CSI2_OUTPUT_MEMORY)
 			omap3isp_sbl_enable(isp, OMAP3_ISP_SBL_CSI2A_WRITE);
@@ -1239,7 +1231,7 @@ static int csi2_init_entities(struct isp_csi2_device *csi2)
 
 	v4l2_subdev_init(sd, &csi2_ops);
 	sd->internal_ops = &csi2_internal_ops;
-	strlcpy(sd->name, "OMAP3 ISP CSI2a", sizeof(sd->name));
+	strscpy(sd->name, "OMAP3 ISP CSI2a", sizeof(sd->name));
 
 	sd->grp_id = 1 << 16;	/* group ID for isp subdevs */
 	v4l2_set_subdevdata(sd, csi2);

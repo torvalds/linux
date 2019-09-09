@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*---------------------------------------------------------------------------+
  |  fpu_entry.c                                                              |
  |                                                                           |
@@ -27,7 +28,7 @@
 #include <linux/signal.h>
 #include <linux/regset.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/traps.h>
 #include <asm/user.h>
 #include <asm/fpu/internal.h>
@@ -112,9 +113,6 @@ void math_emulate(struct math_emu_info *info)
 	unsigned long code_base = 0;
 	unsigned long code_limit = 0;	/* Initialized to stop compiler warnings */
 	struct desc_struct code_descriptor;
-	struct fpu *fpu = &current->thread.fpu;
-
-	fpu__activate_curr(fpu);
 
 #ifdef RE_ENTRANT_CHECKING
 	if (emulating) {
@@ -147,7 +145,7 @@ void math_emulate(struct math_emu_info *info)
 		}
 
 		code_descriptor = FPU_get_ldt_descriptor(FPU_CS);
-		if (SEG_D_SIZE(code_descriptor)) {
+		if (code_descriptor.d) {
 			/* The above test may be wrong, the book is not clear */
 			/* Segmented 32 bit protected mode */
 			addr_modes.default_mode = SEG32;
@@ -155,11 +153,10 @@ void math_emulate(struct math_emu_info *info)
 			/* 16 bit protected mode */
 			addr_modes.default_mode = PM16;
 		}
-		FPU_EIP += code_base = SEG_BASE_ADDR(code_descriptor);
-		code_limit = code_base
-		    + (SEG_LIMIT(code_descriptor) +
-		       1) * SEG_GRANULARITY(code_descriptor)
-		    - 1;
+		FPU_EIP += code_base = seg_get_base(&code_descriptor);
+		code_limit = seg_get_limit(&code_descriptor) + 1;
+		code_limit *= seg_get_granularity(&code_descriptor);
+		code_limit += code_base - 1;
 		if (code_limit < code_base)
 			code_limit = 0xffffffff;
 	}

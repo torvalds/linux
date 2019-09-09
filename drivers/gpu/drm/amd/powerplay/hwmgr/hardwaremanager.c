@@ -20,11 +20,15 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
+#include "pp_debug.h"
 #include <linux/errno.h>
 #include "hwmgr.h"
 #include "hardwaremanager.h"
 #include "power_state.h"
-#include "pp_debug.h"
+
+
+#define TEMP_RANGE_MIN (0)
+#define TEMP_RANGE_MAX (80 * 1000)
 
 #define PHM_FUNC_CHECK(hw) \
 	do {							\
@@ -32,29 +36,12 @@
 			return -EINVAL;				\
 	} while (0)
 
-bool phm_is_hw_access_blocked(struct pp_hwmgr *hwmgr)
-{
-	return hwmgr->block_hw_access;
-}
-
-int phm_block_hw_access(struct pp_hwmgr *hwmgr, bool block)
-{
-	hwmgr->block_hw_access = block;
-	return 0;
-}
-
 int phm_setup_asic(struct pp_hwmgr *hwmgr)
 {
 	PHM_FUNC_CHECK(hwmgr);
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-		PHM_PlatformCaps_TablelessHardwareInterface)) {
-		if (NULL != hwmgr->hwmgr_func->asic_setup)
-			return hwmgr->hwmgr_func->asic_setup(hwmgr);
-	} else {
-		return phm_dispatch_table(hwmgr, &(hwmgr->setup_asic),
-					  NULL, NULL);
-	}
+	if (NULL != hwmgr->hwmgr_func->asic_setup)
+		return hwmgr->hwmgr_func->asic_setup(hwmgr);
 
 	return 0;
 }
@@ -63,14 +50,8 @@ int phm_power_down_asic(struct pp_hwmgr *hwmgr)
 {
 	PHM_FUNC_CHECK(hwmgr);
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-		PHM_PlatformCaps_TablelessHardwareInterface)) {
-		if (NULL != hwmgr->hwmgr_func->power_off_asic)
-			return hwmgr->hwmgr_func->power_off_asic(hwmgr);
-	} else {
-		return phm_dispatch_table(hwmgr, &(hwmgr->power_down_asic),
-					  NULL, NULL);
-	}
+	if (NULL != hwmgr->hwmgr_func->power_off_asic)
+		return hwmgr->hwmgr_func->power_off_asic(hwmgr);
 
 	return 0;
 }
@@ -86,72 +67,59 @@ int phm_set_power_state(struct pp_hwmgr *hwmgr,
 	states.pcurrent_state = pcurrent_state;
 	states.pnew_state = pnew_power_state;
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-		PHM_PlatformCaps_TablelessHardwareInterface)) {
-		if (NULL != hwmgr->hwmgr_func->power_state_set)
-			return hwmgr->hwmgr_func->power_state_set(hwmgr, &states);
-	} else {
-		return phm_dispatch_table(hwmgr, &(hwmgr->set_power_state), &states, NULL);
-	}
+	if (NULL != hwmgr->hwmgr_func->power_state_set)
+		return hwmgr->hwmgr_func->power_state_set(hwmgr, &states);
 
 	return 0;
 }
 
 int phm_enable_dynamic_state_management(struct pp_hwmgr *hwmgr)
 {
-	int ret = 1;
-	bool enabled;
+	struct amdgpu_device *adev = NULL;
+	int ret = -EINVAL;
 	PHM_FUNC_CHECK(hwmgr);
+	adev = hwmgr->adev;
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-		PHM_PlatformCaps_TablelessHardwareInterface)) {
-		if (NULL != hwmgr->hwmgr_func->dynamic_state_management_enable)
-			ret = hwmgr->hwmgr_func->dynamic_state_management_enable(hwmgr);
-	} else {
-		ret = phm_dispatch_table(hwmgr,
-				&(hwmgr->enable_dynamic_state_management),
-				NULL, NULL);
+	/* Skip for suspend/resume case */
+	if (smum_is_dpm_running(hwmgr) && !amdgpu_passthrough(adev)
+		&& adev->in_suspend) {
+		pr_info("dpm has been enabled\n");
+		return 0;
 	}
 
-	enabled = ret == 0 ? true : false;
-
-	cgs_notify_dpm_enabled(hwmgr->device, enabled);
+	if (NULL != hwmgr->hwmgr_func->dynamic_state_management_enable)
+		ret = hwmgr->hwmgr_func->dynamic_state_management_enable(hwmgr);
 
 	return ret;
 }
 
 int phm_disable_dynamic_state_management(struct pp_hwmgr *hwmgr)
 {
-	int ret = -1;
-	bool enabled;
+	int ret = -EINVAL;
 
 	PHM_FUNC_CHECK(hwmgr);
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-		PHM_PlatformCaps_TablelessHardwareInterface)) {
-		if (hwmgr->hwmgr_func->dynamic_state_management_disable)
-			ret = hwmgr->hwmgr_func->dynamic_state_management_disable(hwmgr);
-	} else {
-		ret = phm_dispatch_table(hwmgr,
-				&(hwmgr->disable_dynamic_state_management),
-				NULL, NULL);
+	if (!smum_is_dpm_running(hwmgr)) {
+		pr_info("dpm has been disabled\n");
+		return 0;
 	}
 
-	enabled = ret == 0 ? false : true;
-
-	cgs_notify_dpm_enabled(hwmgr->device, enabled);
+	if (hwmgr->hwmgr_func->dynamic_state_management_disable)
+		ret = hwmgr->hwmgr_func->dynamic_state_management_disable(hwmgr);
 
 	return ret;
 }
 
 int phm_force_dpm_levels(struct pp_hwmgr *hwmgr, enum amd_dpm_forced_level level)
 {
+	int ret = 0;
+
 	PHM_FUNC_CHECK(hwmgr);
 
 	if (hwmgr->hwmgr_func->force_dpm_level != NULL)
-		return hwmgr->hwmgr_func->force_dpm_level(hwmgr, level);
+		ret = hwmgr->hwmgr_func->force_dpm_level(hwmgr, level);
 
-	return 0;
+	return ret;
 }
 
 int phm_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
@@ -168,6 +136,15 @@ int phm_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
+int phm_apply_clock_adjust_rules(struct pp_hwmgr *hwmgr)
+{
+	PHM_FUNC_CHECK(hwmgr);
+
+	if (hwmgr->hwmgr_func->apply_clocks_adjust_rules != NULL)
+		return hwmgr->hwmgr_func->apply_clocks_adjust_rules(hwmgr);
+	return 0;
+}
+
 int phm_powerdown_uvd(struct pp_hwmgr *hwmgr)
 {
 	PHM_FUNC_CHECK(hwmgr);
@@ -177,48 +154,35 @@ int phm_powerdown_uvd(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-int phm_powergate_uvd(struct pp_hwmgr *hwmgr, bool gate)
+
+int phm_disable_clock_power_gatings(struct pp_hwmgr *hwmgr)
 {
 	PHM_FUNC_CHECK(hwmgr);
 
-	if (hwmgr->hwmgr_func->powergate_uvd != NULL)
-		return hwmgr->hwmgr_func->powergate_uvd(hwmgr, gate);
+	if (NULL != hwmgr->hwmgr_func->disable_clock_power_gating)
+		return hwmgr->hwmgr_func->disable_clock_power_gating(hwmgr);
+
 	return 0;
 }
 
-int phm_powergate_vce(struct pp_hwmgr *hwmgr, bool gate)
+int phm_pre_display_configuration_changed(struct pp_hwmgr *hwmgr)
 {
 	PHM_FUNC_CHECK(hwmgr);
 
-	if (hwmgr->hwmgr_func->powergate_vce != NULL)
-		return hwmgr->hwmgr_func->powergate_vce(hwmgr, gate);
-	return 0;
-}
+	if (NULL != hwmgr->hwmgr_func->pre_display_config_changed)
+		hwmgr->hwmgr_func->pre_display_config_changed(hwmgr);
 
-int phm_enable_clock_power_gatings(struct pp_hwmgr *hwmgr)
-{
-	PHM_FUNC_CHECK(hwmgr);
-
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-		PHM_PlatformCaps_TablelessHardwareInterface)) {
-		if (NULL != hwmgr->hwmgr_func->enable_clock_power_gating)
-			return hwmgr->hwmgr_func->enable_clock_power_gating(hwmgr);
-	} else {
-		return phm_dispatch_table(hwmgr, &(hwmgr->enable_clock_power_gatings), NULL, NULL);
-	}
 	return 0;
+
 }
 
 int phm_display_configuration_changed(struct pp_hwmgr *hwmgr)
 {
 	PHM_FUNC_CHECK(hwmgr);
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-				 PHM_PlatformCaps_TablelessHardwareInterface)) {
-		if (NULL != hwmgr->hwmgr_func->display_config_changed)
-			hwmgr->hwmgr_func->display_config_changed(hwmgr);
-	} else
-		return phm_dispatch_table(hwmgr, &hwmgr->display_configuration_changed, NULL, NULL);
+	if (NULL != hwmgr->hwmgr_func->display_config_changed)
+		hwmgr->hwmgr_func->display_config_changed(hwmgr);
+
 	return 0;
 }
 
@@ -226,9 +190,7 @@ int phm_notify_smc_display_config_after_ps_adjustment(struct pp_hwmgr *hwmgr)
 {
 	PHM_FUNC_CHECK(hwmgr);
 
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-				 PHM_PlatformCaps_TablelessHardwareInterface))
-		if (NULL != hwmgr->hwmgr_func->notify_smc_display_config_after_ps_adjustment)
+	if (NULL != hwmgr->hwmgr_func->notify_smc_display_config_after_ps_adjustment)
 			hwmgr->hwmgr_func->notify_smc_display_config_after_ps_adjustment(hwmgr);
 
 	return 0;
@@ -244,26 +206,57 @@ int phm_stop_thermal_controller(struct pp_hwmgr *hwmgr)
 	return hwmgr->hwmgr_func->stop_thermal_controller(hwmgr);
 }
 
-int phm_register_thermal_interrupt(struct pp_hwmgr *hwmgr, const void *info)
+int phm_register_irq_handlers(struct pp_hwmgr *hwmgr)
 {
 	PHM_FUNC_CHECK(hwmgr);
 
-	if (hwmgr->hwmgr_func->register_internal_thermal_interrupt == NULL)
-		return -EINVAL;
+	if (hwmgr->hwmgr_func->register_irq_handlers != NULL)
+		return hwmgr->hwmgr_func->register_irq_handlers(hwmgr);
 
-	return hwmgr->hwmgr_func->register_internal_thermal_interrupt(hwmgr, info);
+	return 0;
 }
 
 /**
 * Initializes the thermal controller subsystem.
 *
 * @param    pHwMgr  the address of the powerplay hardware manager.
-* @param    pTemperatureRange the address of the structure holding the temperature range.
 * @exception PP_Result_Failed if any of the paramters is NULL, otherwise the return value from the dispatcher.
 */
-int phm_start_thermal_controller(struct pp_hwmgr *hwmgr, struct PP_TemperatureRange *temperature_range)
+int phm_start_thermal_controller(struct pp_hwmgr *hwmgr)
 {
-	return phm_dispatch_table(hwmgr, &(hwmgr->start_thermal_controller), temperature_range, NULL);
+	int ret = 0;
+	struct PP_TemperatureRange range = {
+		TEMP_RANGE_MIN,
+		TEMP_RANGE_MAX,
+		TEMP_RANGE_MAX,
+		TEMP_RANGE_MIN,
+		TEMP_RANGE_MAX,
+		TEMP_RANGE_MAX,
+		TEMP_RANGE_MIN,
+		TEMP_RANGE_MAX,
+		TEMP_RANGE_MAX};
+	struct amdgpu_device *adev = hwmgr->adev;
+
+	if (hwmgr->hwmgr_func->get_thermal_temperature_range)
+		hwmgr->hwmgr_func->get_thermal_temperature_range(
+				hwmgr, &range);
+
+	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_ThermalController)
+			&& hwmgr->hwmgr_func->start_thermal_controller != NULL)
+		ret = hwmgr->hwmgr_func->start_thermal_controller(hwmgr, &range);
+
+	adev->pm.dpm.thermal.min_temp = range.min;
+	adev->pm.dpm.thermal.max_temp = range.max;
+	adev->pm.dpm.thermal.max_edge_emergency_temp = range.edge_emergency_max;
+	adev->pm.dpm.thermal.min_hotspot_temp = range.hotspot_min;
+	adev->pm.dpm.thermal.max_hotspot_crit_temp = range.hotspot_crit_max;
+	adev->pm.dpm.thermal.max_hotspot_emergency_temp = range.hotspot_emergency_max;
+	adev->pm.dpm.thermal.min_mem_temp = range.mem_min;
+	adev->pm.dpm.thermal.max_mem_crit_temp = range.mem_crit_max;
+	adev->pm.dpm.thermal.max_mem_emergency_temp = range.mem_emergency_max;
+
+	return ret;
 }
 
 
@@ -272,7 +265,7 @@ bool phm_check_smc_update_required_for_display_configuration(struct pp_hwmgr *hw
 	PHM_FUNC_CHECK(hwmgr);
 
 	if (hwmgr->hwmgr_func->check_smc_update_required_for_display_configuration == NULL)
-		return -EINVAL;
+		return false;
 
 	return hwmgr->hwmgr_func->check_smc_update_required_for_display_configuration(hwmgr);
 }
@@ -294,12 +287,24 @@ int phm_check_states_equal(struct pp_hwmgr *hwmgr,
 int phm_store_dal_configuration_data(struct pp_hwmgr *hwmgr,
 		    const struct amd_pp_display_configuration *display_config)
 {
+	int index = 0;
+	int number_of_active_display = 0;
+
 	PHM_FUNC_CHECK(hwmgr);
 
 	if (display_config == NULL)
 		return -EINVAL;
 
-	hwmgr->display_config = *display_config;
+	if (NULL != hwmgr->hwmgr_func->set_min_deep_sleep_dcefclk)
+		hwmgr->hwmgr_func->set_min_deep_sleep_dcefclk(hwmgr, display_config->min_dcef_deep_sleep_set_clk);
+
+	for (index = 0; index < display_config->num_path_including_non_display; index++) {
+		if (display_config->displays[index].controller_id != 0)
+			number_of_active_display++;
+	}
+
+	if (NULL != hwmgr->hwmgr_func->set_active_display_count)
+		hwmgr->hwmgr_func->set_active_display_count(hwmgr, number_of_active_display);
 
 	if (hwmgr->hwmgr_func->store_cc6_data == NULL)
 		return -EINVAL;
@@ -363,7 +368,7 @@ int phm_get_clock_info(struct pp_hwmgr *hwmgr, const struct pp_hw_power_state *s
 			PHM_PerformanceLevelDesignation designation)
 {
 	int result;
-	PHM_PerformanceLevel performance_level;
+	PHM_PerformanceLevel performance_level = {0};
 
 	PHM_FUNC_CHECK(hwmgr);
 
@@ -414,6 +419,55 @@ int phm_get_clock_by_type(struct pp_hwmgr *hwmgr, enum amd_pp_clock_type type, s
 
 }
 
+int phm_get_clock_by_type_with_latency(struct pp_hwmgr *hwmgr,
+		enum amd_pp_clock_type type,
+		struct pp_clock_levels_with_latency *clocks)
+{
+	PHM_FUNC_CHECK(hwmgr);
+
+	if (hwmgr->hwmgr_func->get_clock_by_type_with_latency == NULL)
+		return -EINVAL;
+
+	return hwmgr->hwmgr_func->get_clock_by_type_with_latency(hwmgr, type, clocks);
+
+}
+
+int phm_get_clock_by_type_with_voltage(struct pp_hwmgr *hwmgr,
+		enum amd_pp_clock_type type,
+		struct pp_clock_levels_with_voltage *clocks)
+{
+	PHM_FUNC_CHECK(hwmgr);
+
+	if (hwmgr->hwmgr_func->get_clock_by_type_with_voltage == NULL)
+		return -EINVAL;
+
+	return hwmgr->hwmgr_func->get_clock_by_type_with_voltage(hwmgr, type, clocks);
+
+}
+
+int phm_set_watermarks_for_clocks_ranges(struct pp_hwmgr *hwmgr,
+					void *clock_ranges)
+{
+	PHM_FUNC_CHECK(hwmgr);
+
+	if (!hwmgr->hwmgr_func->set_watermarks_for_clocks_ranges)
+		return -EINVAL;
+
+	return hwmgr->hwmgr_func->set_watermarks_for_clocks_ranges(hwmgr,
+								clock_ranges);
+}
+
+int phm_display_clock_voltage_request(struct pp_hwmgr *hwmgr,
+		struct pp_display_clock_request *clock)
+{
+	PHM_FUNC_CHECK(hwmgr);
+
+	if (!hwmgr->hwmgr_func->display_clock_voltage_request)
+		return -EINVAL;
+
+	return hwmgr->hwmgr_func->display_clock_voltage_request(hwmgr, clock);
+}
+
 int phm_get_max_high_clocks(struct pp_hwmgr *hwmgr, struct amd_pp_simple_clock_info *clocks)
 {
 	PHM_FUNC_CHECK(hwmgr);
@@ -423,3 +477,54 @@ int phm_get_max_high_clocks(struct pp_hwmgr *hwmgr, struct amd_pp_simple_clock_i
 
 	return hwmgr->hwmgr_func->get_max_high_clocks(hwmgr, clocks);
 }
+
+int phm_disable_smc_firmware_ctf(struct pp_hwmgr *hwmgr)
+{
+	PHM_FUNC_CHECK(hwmgr);
+
+	if (hwmgr->hwmgr_func->disable_smc_firmware_ctf == NULL)
+		return -EINVAL;
+
+	return hwmgr->hwmgr_func->disable_smc_firmware_ctf(hwmgr);
+}
+
+int phm_set_active_display_count(struct pp_hwmgr *hwmgr, uint32_t count)
+{
+	PHM_FUNC_CHECK(hwmgr);
+
+	if (!hwmgr->hwmgr_func->set_active_display_count)
+		return -EINVAL;
+
+	return hwmgr->hwmgr_func->set_active_display_count(hwmgr, count);
+}
+
+int phm_set_min_deep_sleep_dcefclk(struct pp_hwmgr *hwmgr, uint32_t clock)
+{
+	PHM_FUNC_CHECK(hwmgr);
+
+	if (!hwmgr->hwmgr_func->set_min_deep_sleep_dcefclk)
+		return -EINVAL;
+
+	return hwmgr->hwmgr_func->set_min_deep_sleep_dcefclk(hwmgr, clock);
+}
+
+int phm_set_hard_min_dcefclk_by_freq(struct pp_hwmgr *hwmgr, uint32_t clock)
+{
+	PHM_FUNC_CHECK(hwmgr);
+
+	if (!hwmgr->hwmgr_func->set_hard_min_dcefclk_by_freq)
+		return -EINVAL;
+
+	return hwmgr->hwmgr_func->set_hard_min_dcefclk_by_freq(hwmgr, clock);
+}
+
+int phm_set_hard_min_fclk_by_freq(struct pp_hwmgr *hwmgr, uint32_t clock)
+{
+	PHM_FUNC_CHECK(hwmgr);
+
+	if (!hwmgr->hwmgr_func->set_hard_min_fclk_by_freq)
+		return -EINVAL;
+
+	return hwmgr->hwmgr_func->set_hard_min_fclk_by_freq(hwmgr, clock);
+}
+

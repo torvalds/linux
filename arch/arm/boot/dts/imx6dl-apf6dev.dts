@@ -54,7 +54,8 @@
 	model = "Armadeus APF6 Solo Module on APF6Dev Board";
 	compatible = "armadeus,imx6dl-apf6dev", "armadeus,imx6dl-apf6", "fsl,imx6dl";
 
-	memory {
+	memory@10000000 {
+		device_type = "memory";
 		reg = <0x10000000 0x20000000>;
 	};
 };

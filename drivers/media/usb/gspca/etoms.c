@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Etoms Et61x151 GPL Linux driver by Michel Xhaard (09/09/2004)
  *
  * V4L2 by Jean-Francois Moine <http://moinejf.free.fr>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -164,7 +151,7 @@ static void reg_r(struct gspca_dev *gspca_dev,
 	struct usb_device *dev = gspca_dev->dev;
 
 	if (len > USB_BUF_SZ) {
-		PERR("reg_r: buffer overflow\n");
+		gspca_err(gspca_dev, "reg_r: buffer overflow\n");
 		return;
 	}
 
@@ -174,8 +161,8 @@ static void reg_r(struct gspca_dev *gspca_dev,
 			USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
 			0,
 			index, gspca_dev->usb_buf, len, 500);
-	PDEBUG(D_USBI, "reg read [%02x] -> %02x ..",
-			index, gspca_dev->usb_buf[0]);
+	gspca_dbg(gspca_dev, D_USBI, "reg read [%02x] -> %02x ..\n",
+		  index, gspca_dev->usb_buf[0]);
 }
 
 static void reg_w_val(struct gspca_dev *gspca_dev,
@@ -204,7 +191,8 @@ static void reg_w(struct gspca_dev *gspca_dev,
 		pr_err("reg_w: buffer overflow\n");
 		return;
 	}
-	PDEBUG(D_USBO, "reg write [%02x] = %02x..", index, *buffer);
+	gspca_dbg(gspca_dev, D_USBO, "reg write [%02x] = %02x..\n",
+		  index, *buffer);
 
 	memcpy(gspca_dev->usb_buf, buffer, len);
 	usb_control_msg(dev,
@@ -272,7 +260,7 @@ static int et_video(struct gspca_dev *gspca_dev,
 		     : 0);		/* stopvideo */
 	ret = Et_WaitStatus(gspca_dev);
 	if (ret != 0)
-		PERR("timeout video on/off");
+		gspca_err(gspca_dev, "timeout video on/off\n");
 	return ret;
 }
 
@@ -281,7 +269,7 @@ static void Et_init2(struct gspca_dev *gspca_dev)
 	__u8 value;
 	static const __u8 FormLine[] = { 0x84, 0x03, 0x14, 0xf4, 0x01, 0x05 };
 
-	PDEBUG(D_STREAM, "Open Init2 ET");
+	gspca_dbg(gspca_dev, D_STREAM, "Open Init2 ET\n");
 	reg_w_val(gspca_dev, ET_GPIO_DIR_CTRL, 0x2f);
 	reg_w_val(gspca_dev, ET_GPIO_OUT, 0x10);
 	reg_r(gspca_dev, ET_GPIO_IN, 1);
@@ -420,8 +408,6 @@ static void setcolors(struct gspca_dev *gspca_dev, s32 val)
 		i2c_w(gspca_dev, PAS106_REG13, &i2cflags, 1, 3);
 		i2c_w(gspca_dev, PAS106_REG9, I2cc, sizeof I2cc, 1);
 	}
-/*	PDEBUG(D_CONF , "Etoms red %d blue %d green %d",
-		I2cc[3], I2cc[0], green); */
 }
 
 static s32 getcolors(struct gspca_dev *gspca_dev)
@@ -455,7 +441,7 @@ static void Et_init1(struct gspca_dev *gspca_dev)
 /*	__u8 I2c0 [] = {0x0a, 0x12, 0x05, 0xfe, 0xfe, 0xc0, 0x01, 0x00};
 						 * 1/60000 hmm ?? */
 
-	PDEBUG(D_STREAM, "Open Init1 ET");
+	gspca_dbg(gspca_dev, D_STREAM, "Open Init1 ET\n\n");
 	reg_w_val(gspca_dev, ET_GPIO_DIR_CTRL, 7);
 	reg_r(gspca_dev, ET_GPIO_IN, 1);
 	reg_w_val(gspca_dev, ET_RESET_ALL, 1);
@@ -467,9 +453,9 @@ static void Et_init1(struct gspca_dev *gspca_dev)
 		value = ET_COMP_VAL1;
 	else
 		value = ET_COMP_VAL0;
-	PDEBUG(D_STREAM, "Open mode %d Compression %d",
-	       gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv,
-	       value);
+	gspca_dbg(gspca_dev, D_STREAM, "Open mode %d Compression %d\n",
+		  gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv,
+		  value);
 	reg_w_val(gspca_dev, ET_COMP, value);
 	reg_w_val(gspca_dev, ET_MAXQt, 0x1d);
 	reg_w_val(gspca_dev, ET_MINQt, 0x02);
@@ -608,7 +594,8 @@ static __u8 Et_getgainG(struct gspca_dev *gspca_dev)
 
 	if (sd->sensor == SENSOR_PAS106) {
 		i2c_r(gspca_dev, PAS106_REG0e);
-		PDEBUG(D_CONF, "Etoms gain G %d", gspca_dev->usb_buf[0]);
+		gspca_dbg(gspca_dev, D_CONF, "Etoms gain G %d\n",
+			  gspca_dev->usb_buf[0]);
 		return gspca_dev->usb_buf[0];
 	}
 	return 0x1f;
@@ -656,11 +643,11 @@ static void do_autogain(struct gspca_dev *gspca_dev)
 	b = ((b << 7) >> 10);
 	g = ((g << 9) + (g << 7) + (g << 5)) >> 10;
 	luma = LIMIT(r + g + b);
-	PDEBUG(D_FRAM, "Etoms luma G %d", luma);
+	gspca_dbg(gspca_dev, D_FRAM, "Etoms luma G %d\n", luma);
 	if (luma < luma_mean - luma_delta || luma > luma_mean + luma_delta) {
 		Gbright += (luma_mean - luma) >> spring;
 		Gbright = BLIMIT(Gbright);
-		PDEBUG(D_FRAM, "Etoms Gbright %d", Gbright);
+		gspca_dbg(gspca_dev, D_FRAM, "Etoms Gbright %d\n", Gbright);
 		Et_setgainG(gspca_dev, (__u8) Gbright);
 	}
 }
@@ -677,10 +664,10 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	seqframe = data[0] & 0x3f;
 	len = (int) (((data[0] & 0xc0) << 2) | data[1]);
 	if (seqframe == 0x3f) {
-		PDEBUG(D_FRAM,
-		       "header packet found datalength %d !!", len);
-		PDEBUG(D_FRAM, "G %d R %d G %d B %d",
-		       data[2], data[3], data[4], data[5]);
+		gspca_dbg(gspca_dev, D_FRAM,
+			  "header packet found datalength %d !!\n", len);
+		gspca_dbg(gspca_dev, D_FRAM, "G %d R %d G %d B %d",
+			  data[2], data[3], data[4], data[5]);
 		data += 30;
 		/* don't change datalength as the chips provided it */
 		gspca_frame_add(gspca_dev, LAST_PACKET, NULL, 0);

@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/arch/arm/mach-pxa/cm-x255.c
  *
  * Copyright (C) 2007, 2008 CompuLab, Ltd.
  * Mike Rapoport <mike@compulab.co.il>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/platform_device.h>
@@ -14,7 +11,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
 #include <linux/mtd/nand-gpio.h>
-
+#include <linux/gpio/machine.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/pxa2xx_spi.h>
 
@@ -98,7 +95,7 @@ static unsigned long cmx255_pin_config[] = {
 };
 
 #if defined(CONFIG_SPI_PXA2XX)
-static struct pxa2xx_spi_master pxa_ssp_master_info = {
+static struct pxa2xx_spi_controller pxa_ssp_master_info = {
 	.num_chipselect	= 1,
 };
 
@@ -176,6 +173,17 @@ static inline void cmx255_init_nor(void) {}
 #endif
 
 #if defined(CONFIG_MTD_NAND_GPIO) || defined(CONFIG_MTD_NAND_GPIO_MODULE)
+
+static struct gpiod_lookup_table cmx255_nand_gpiod_table = {
+	.dev_id         = "gpio-nand",
+	.table          = {
+		GPIO_LOOKUP("gpio-pxa", GPIO_NAND_CS, "nce", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("gpio-pxa", GPIO_NAND_CLE, "cle", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("gpio-pxa", GPIO_NAND_ALE, "ale", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("gpio-pxa", GPIO_NAND_RB, "rdy", GPIO_ACTIVE_HIGH),
+	},
+};
+
 static struct resource cmx255_nand_resource[] = {
 	[0] = {
 		.start = PXA_CS1_PHYS,
@@ -198,11 +206,6 @@ static struct mtd_partition cmx255_nand_parts[] = {
 };
 
 static struct gpio_nand_platdata cmx255_nand_platdata = {
-	.gpio_nce = GPIO_NAND_CS,
-	.gpio_cle = GPIO_NAND_CLE,
-	.gpio_ale = GPIO_NAND_ALE,
-	.gpio_rdy = GPIO_NAND_RB,
-	.gpio_nwp = -1,
 	.parts = cmx255_nand_parts,
 	.num_parts = ARRAY_SIZE(cmx255_nand_parts),
 	.chip_delay = 25,
@@ -220,6 +223,7 @@ static struct platform_device cmx255_nand = {
 
 static void __init cmx255_init_nand(void)
 {
+	gpiod_add_lookup_table(&cmx255_nand_gpiod_table);
 	platform_device_register(&cmx255_nand);
 }
 #else

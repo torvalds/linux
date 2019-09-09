@@ -1,0 +1,30 @@
+* STMicroelectronics STM32 HASH
+
+Required properties:
+- compatible: Should contain entries for this and backward compatible
+  HASH versions:
+  - "st,stm32f456-hash" for stm32 F456.
+  - "st,stm32f756-hash" for stm32 F756.
+- reg: The address and length of the peripheral registers space
+- interrupts: the interrupt specifier for the HASH
+- clocks: The input clock of the HASH instance
+
+Optional properties:
+- resets: The input reset of the HASH instance
+- dmas: DMA specifiers for the HASH. See the DMA client binding,
+	 Documentation/devicetree/bindings/dma/dma.txt
+- dma-names: DMA request name. Should be "in" if a dma is present.
+- dma-maxburst: Set number of maximum dma burst supported
+
+Example:
+
+hash1: hash@50060400 {
+	compatible = "st,stm32f756-hash";
+	reg = <0x50060400 0x400>;
+	interrupts = <80>;
+	clocks = <&rcc 0 STM32F7_AHB2_CLOCK(HASH)>;
+	resets = <&rcc STM32F7_AHB2_RESET(HASH)>;
+	dmas = <&dma2 7 2 0x400 0x0>;
+	dma-names = "in";
+	dma-maxburst = <0>;
+};

@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Intel MID GPIO driver
  *
  * Copyright (c) 2008-2014,2016 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 /* Supports:
@@ -20,12 +12,11 @@
  */
 
 #include <linux/delay.h>
+#include <linux/gpio/driver.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
-#include <linux/gpio/driver.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
@@ -273,9 +264,8 @@ static const struct pci_device_id intel_gpio_ids[] = {
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x08f7),
 		.driver_data = (kernel_ulong_t)&gpio_cloverview_core,
 	},
-	{ 0 }
+	{ }
 };
-MODULE_DEVICE_TABLE(pci, intel_gpio_ids);
 
 static void intel_mid_irq_handler(struct irq_desc *desc)
 {
@@ -295,7 +285,7 @@ static void intel_mid_irq_handler(struct irq_desc *desc)
 			mask = BIT(gpio);
 			/* Clear before handling so we can't lose an edge */
 			writel(mask, gedr);
-			generic_handle_irq(irq_find_mapping(gc->irqdomain,
+			generic_handle_irq(irq_find_mapping(gc->irq.domain,
 							    base + gpio));
 		}
 	}
@@ -321,7 +311,7 @@ static void intel_mid_irq_init_hw(struct intel_mid_gpio *priv)
 	}
 }
 
-static int intel_gpio_runtime_idle(struct device *dev)
+static int __maybe_unused intel_gpio_runtime_idle(struct device *dev)
 {
 	int err = pm_schedule_suspend(dev, 500);
 	return err ?: -EBUSY;
@@ -361,10 +351,8 @@ static int intel_gpio_probe(struct pci_dev *pdev,
 	pcim_iounmap_regions(pdev, 1 << 1);
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv) {
-		dev_err(&pdev->dev, "can't allocate chip data\n");
+	if (!priv)
 		return -ENOMEM;
-	}
 
 	priv->reg_base = pcim_iomap_table(pdev)[0];
 	priv->chip.label = dev_name(&pdev->dev);
@@ -421,9 +409,4 @@ static struct pci_driver intel_gpio_driver = {
 	},
 };
 
-static int __init intel_gpio_init(void)
-{
-	return pci_register_driver(&intel_gpio_driver);
-}
-
-device_initcall(intel_gpio_init);
+builtin_pci_driver(intel_gpio_driver);

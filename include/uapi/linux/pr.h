@@ -1,5 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _UAPI_PR_H
 #define _UAPI_PR_H
+
+#include <linux/types.h>
 
 enum pr_type {
 	PR_WRITE_EXCLUSIVE		= 1,

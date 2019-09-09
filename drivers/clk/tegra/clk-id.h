@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * This header provides IDs for clocks common between several Tegra SoCs
  */
@@ -12,6 +13,7 @@ enum clk_id {
 	tegra_clk_amx,
 	tegra_clk_amx1,
 	tegra_clk_apb2ape,
+	tegra_clk_ahbdma,
 	tegra_clk_apbdma,
 	tegra_clk_apbif,
 	tegra_clk_ape,
@@ -225,13 +227,11 @@ enum clk_id {
 	tegra_clk_sdmmc1_9,
 	tegra_clk_sdmmc2,
 	tegra_clk_sdmmc2_8,
-	tegra_clk_sdmmc2_9,
 	tegra_clk_sdmmc3,
 	tegra_clk_sdmmc3_8,
 	tegra_clk_sdmmc3_9,
 	tegra_clk_sdmmc4,
 	tegra_clk_sdmmc4_8,
-	tegra_clk_sdmmc4_9,
 	tegra_clk_se,
 	tegra_clk_soc_therm,
 	tegra_clk_soc_therm_8,
@@ -307,6 +307,23 @@ enum clk_id {
 	tegra_clk_xusb_ssp_src,
 	tegra_clk_sclk_mux,
 	tegra_clk_sor_safe,
+	tegra_clk_cec,
+	tegra_clk_ispa,
+	tegra_clk_dmic1,
+	tegra_clk_dmic2,
+	tegra_clk_dmic3,
+	tegra_clk_dmic1_sync_clk,
+	tegra_clk_dmic2_sync_clk,
+	tegra_clk_dmic3_sync_clk,
+	tegra_clk_dmic1_sync_clk_mux,
+	tegra_clk_dmic2_sync_clk_mux,
+	tegra_clk_dmic3_sync_clk_mux,
+	tegra_clk_iqc1,
+	tegra_clk_iqc2,
+	tegra_clk_pll_a_out_adsp,
+	tegra_clk_pll_a_out0_out_adsp,
+	tegra_clk_adsp,
+	tegra_clk_adsp_neon,
 	tegra_clk_max,
 };
 

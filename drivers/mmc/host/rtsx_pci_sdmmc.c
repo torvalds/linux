@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* Realtek PCI-Express SD/MMC Card Interface driver
  *
  * Copyright(c) 2009-2013 Realtek Semiconductor Corp. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2, or (at your option) any
- * later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Author:
  *   Wei WANG <wei_wang@realsil.com.cn>
@@ -30,7 +18,7 @@
 #include <linux/mmc/sd.h>
 #include <linux/mmc/sdio.h>
 #include <linux/mmc/card.h>
-#include <linux/mfd/rtsx_pci.h>
+#include <linux/rtsx_pci.h>
 #include <asm/unaligned.h>
 
 struct realtek_pci_sdmmc {
@@ -190,8 +178,7 @@ static int sd_pre_dma_transfer(struct realtek_pci_sdmmc *host,
 	return using_cookie;
 }
 
-static void sdmmc_pre_req(struct mmc_host *mmc, struct mmc_request *mrq,
-		bool is_first_req)
+static void sdmmc_pre_req(struct mmc_host *mmc, struct mmc_request *mrq)
 {
 	struct realtek_pci_sdmmc *host = mmc_priv(mmc);
 	struct mmc_data *data = mrq->data;
@@ -619,29 +606,22 @@ static int sd_change_phase(struct realtek_pci_sdmmc *host,
 		u8 sample_point, bool rx)
 {
 	struct rtsx_pcr *pcr = host->pcr;
-	int err;
 
 	dev_dbg(sdmmc_dev(host), "%s(%s): sample_point = %d\n",
 			__func__, rx ? "RX" : "TX", sample_point);
 
-	rtsx_pci_init_cmd(pcr);
-
-	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, CLK_CTL, CHANGE_CLK, CHANGE_CLK);
+	rtsx_pci_write_register(pcr, CLK_CTL, CHANGE_CLK, CHANGE_CLK);
 	if (rx)
-		rtsx_pci_add_cmd(pcr, WRITE_REG_CMD,
-				SD_VPRX_CTL, 0x1F, sample_point);
+		rtsx_pci_write_register(pcr, SD_VPRX_CTL,
+			PHASE_SELECT_MASK, sample_point);
 	else
-		rtsx_pci_add_cmd(pcr, WRITE_REG_CMD,
-				SD_VPTX_CTL, 0x1F, sample_point);
-	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, SD_VPCLK0_CTL, PHASE_NOT_RESET, 0);
-	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, SD_VPCLK0_CTL,
-			PHASE_NOT_RESET, PHASE_NOT_RESET);
-	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, CLK_CTL, CHANGE_CLK, 0);
-	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, SD_CFG1, SD_ASYNC_FIFO_NOT_RST, 0);
-
-	err = rtsx_pci_send_cmd(pcr, 100);
-	if (err < 0)
-		return err;
+		rtsx_pci_write_register(pcr, SD_VPTX_CTL,
+			PHASE_SELECT_MASK, sample_point);
+	rtsx_pci_write_register(pcr, SD_VPCLK0_CTL, PHASE_NOT_RESET, 0);
+	rtsx_pci_write_register(pcr, SD_VPCLK0_CTL, PHASE_NOT_RESET,
+				PHASE_NOT_RESET);
+	rtsx_pci_write_register(pcr, CLK_CTL, CHANGE_CLK, 0);
+	rtsx_pci_write_register(pcr, SD_CFG1, SD_ASYNC_FIFO_NOT_RST, 0);
 
 	return 0;
 }
@@ -708,11 +688,13 @@ static int sd_tuning_rx_cmd(struct realtek_pci_sdmmc *host,
 		u8 opcode, u8 sample_point)
 {
 	int err;
-	struct mmc_command cmd = {0};
+	struct mmc_command cmd = {};
+	struct rtsx_pcr *pcr = host->pcr;
 
-	err = sd_change_phase(host, sample_point, true);
-	if (err < 0)
-		return err;
+	sd_change_phase(host, sample_point, true);
+
+	rtsx_pci_write_register(pcr, SD_CFG3, SD_RSP_80CLK_TIMEOUT_EN,
+		SD_RSP_80CLK_TIMEOUT_EN);
 
 	cmd.opcode = opcode;
 	err = sd_read_data(host, &cmd, 0x40, NULL, 0, 100);
@@ -720,9 +702,12 @@ static int sd_tuning_rx_cmd(struct realtek_pci_sdmmc *host,
 		/* Wait till SD DATA IDLE */
 		sd_wait_data_idle(host);
 		sd_clear_error(host);
+		rtsx_pci_write_register(pcr, SD_CFG3,
+			SD_RSP_80CLK_TIMEOUT_EN, 0);
 		return err;
 	}
 
+	rtsx_pci_write_register(pcr, SD_CFG3, SD_RSP_80CLK_TIMEOUT_EN, 0);
 	return 0;
 }
 

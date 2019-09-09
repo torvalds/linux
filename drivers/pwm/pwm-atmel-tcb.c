@@ -1,8 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) Overkiz SAS 2012
  *
  * Author: Boris BREZILLON <b.brezillon@overkiz.com>
- * License terms: GNU General Public License (GPL) version 2
  */
 
 #include <linux/module.h>
@@ -17,10 +17,10 @@
 #include <linux/ioport.h>
 #include <linux/io.h>
 #include <linux/platform_device.h>
-#include <linux/atmel_tc.h>
 #include <linux/pwm.h>
 #include <linux/of_device.h>
 #include <linux/slab.h>
+#include <soc/at91/atmel_tcb.h>
 
 #define NPWM	6
 
@@ -37,11 +37,20 @@ struct atmel_tcb_pwm_device {
 	unsigned period;		/* PWM period expressed in clk cycles */
 };
 
+struct atmel_tcb_channel {
+	u32 enabled;
+	u32 cmr;
+	u32 ra;
+	u32 rb;
+	u32 rc;
+};
+
 struct atmel_tcb_pwm_chip {
 	struct pwm_chip chip;
 	spinlock_t lock;
 	struct atmel_tc *tc;
 	struct atmel_tcb_pwm_device *pwms[NPWM];
+	struct atmel_tcb_channel bkup[NPWM / 2];
 };
 
 static inline struct atmel_tcb_pwm_chip *to_tcb_chip(struct pwm_chip *chip)
@@ -175,12 +184,15 @@ static void atmel_tcb_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 	 * Use software trigger to apply the new setting.
 	 * If both PWM devices in this group are disabled we stop the clock.
 	 */
-	if (!(cmr & (ATMEL_TC_ACPC | ATMEL_TC_BCPC)))
+	if (!(cmr & (ATMEL_TC_ACPC | ATMEL_TC_BCPC))) {
 		__raw_writel(ATMEL_TC_SWTRG | ATMEL_TC_CLKDIS,
 			     regs + ATMEL_TC_REG(group, CCR));
-	else
+		tcbpwmc->bkup[group].enabled = 1;
+	} else {
 		__raw_writel(ATMEL_TC_SWTRG, regs +
 			     ATMEL_TC_REG(group, CCR));
+		tcbpwmc->bkup[group].enabled = 0;
+	}
 
 	spin_unlock(&tcbpwmc->lock);
 }
@@ -263,6 +275,7 @@ static int atmel_tcb_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 	/* Use software trigger to apply the new setting */
 	__raw_writel(ATMEL_TC_CLKEN | ATMEL_TC_SWTRG,
 		     regs + ATMEL_TC_REG(group, CCR));
+	tcbpwmc->bkup[group].enabled = 1;
 	spin_unlock(&tcbpwmc->lock);
 	return 0;
 }
@@ -388,7 +401,6 @@ static int atmel_tcb_pwm_probe(struct platform_device *pdev)
 	tcbpwm = devm_kzalloc(&pdev->dev, sizeof(*tcbpwm), GFP_KERNEL);
 	if (tcbpwm == NULL) {
 		err = -ENOMEM;
-		dev_err(&pdev->dev, "failed to allocate memory\n");
 		goto err_free_tc;
 	}
 
@@ -445,10 +457,54 @@ static const struct of_device_id atmel_tcb_pwm_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, atmel_tcb_pwm_dt_ids);
 
+#ifdef CONFIG_PM_SLEEP
+static int atmel_tcb_pwm_suspend(struct device *dev)
+{
+	struct atmel_tcb_pwm_chip *tcbpwm = dev_get_drvdata(dev);
+	void __iomem *base = tcbpwm->tc->regs;
+	int i;
+
+	for (i = 0; i < (NPWM / 2); i++) {
+		struct atmel_tcb_channel *chan = &tcbpwm->bkup[i];
+
+		chan->cmr = readl(base + ATMEL_TC_REG(i, CMR));
+		chan->ra = readl(base + ATMEL_TC_REG(i, RA));
+		chan->rb = readl(base + ATMEL_TC_REG(i, RB));
+		chan->rc = readl(base + ATMEL_TC_REG(i, RC));
+	}
+	return 0;
+}
+
+static int atmel_tcb_pwm_resume(struct device *dev)
+{
+	struct atmel_tcb_pwm_chip *tcbpwm = dev_get_drvdata(dev);
+	void __iomem *base = tcbpwm->tc->regs;
+	int i;
+
+	for (i = 0; i < (NPWM / 2); i++) {
+		struct atmel_tcb_channel *chan = &tcbpwm->bkup[i];
+
+		writel(chan->cmr, base + ATMEL_TC_REG(i, CMR));
+		writel(chan->ra, base + ATMEL_TC_REG(i, RA));
+		writel(chan->rb, base + ATMEL_TC_REG(i, RB));
+		writel(chan->rc, base + ATMEL_TC_REG(i, RC));
+		if (chan->enabled) {
+			writel(ATMEL_TC_CLKEN | ATMEL_TC_SWTRG,
+				base + ATMEL_TC_REG(i, CCR));
+		}
+	}
+	return 0;
+}
+#endif
+
+static SIMPLE_DEV_PM_OPS(atmel_tcb_pwm_pm_ops, atmel_tcb_pwm_suspend,
+			 atmel_tcb_pwm_resume);
+
 static struct platform_driver atmel_tcb_pwm_driver = {
 	.driver = {
 		.name = "atmel-tcb-pwm",
 		.of_match_table = atmel_tcb_pwm_dt_ids,
+		.pm = &atmel_tcb_pwm_pm_ops,
 	},
 	.probe = atmel_tcb_pwm_probe,
 	.remove = atmel_tcb_pwm_remove,

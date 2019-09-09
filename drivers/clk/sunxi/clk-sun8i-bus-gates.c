@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2015 Jens Kuske <jenskuske@gmail.com>
  *
@@ -5,19 +6,10 @@
  * Copyright 2015 Maxime Ripard
  *
  * Maxime Ripard <maxime.ripard@free-electrons.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/clk-provider.h>
+#include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/slab.h>
@@ -78,6 +70,10 @@ static void __init sun8i_h3_bus_gates_init(struct device_node *node)
 			clk_parent = APB1;
 		else if (index >= 96 && index <= 127)
 			clk_parent = APB2;
+		else {
+			WARN_ON(true);
+			continue;
+		}
 
 		clk_reg = reg + 4 * (index / 32);
 		clk_bit = index % 32;

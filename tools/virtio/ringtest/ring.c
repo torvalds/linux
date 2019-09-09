@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2016 Red Hat, Inc.
  * Author: Michael S. Tsirkin <mst@redhat.com>
- * This work is licensed under the terms of the GNU GPL, version 2.
  *
  * Simple descriptor-based ring. virtio 0.9 compatible event index is used for
  * signalling, unconditionally.
@@ -84,12 +84,11 @@ void alloc_ring(void)
 		perror("Unable to allocate ring buffer.\n");
 		exit(3);
 	}
-	event = malloc(sizeof *event);
+	event = calloc(1, sizeof(*event));
 	if (!event) {
 		perror("Unable to allocate event buffer.\n");
 		exit(3);
 	}
-	memset(event, 0, sizeof *event);
 	guest.avail_idx = 0;
 	guest.kicked_avail_idx = -1;
 	guest.last_used_idx = 0;
@@ -102,12 +101,11 @@ void alloc_ring(void)
 		ring[i] = desc;
 	}
 	guest.num_free = ring_size;
-	data = malloc(ring_size * sizeof *data);
+	data = calloc(ring_size, sizeof(*data));
 	if (!data) {
 		perror("Unable to allocate data buffer.\n");
 		exit(3);
 	}
-	memset(data, 0, ring_size * sizeof *data);
 }
 
 /* guest side */
@@ -163,12 +161,11 @@ void *get_buf(unsigned *lenp, void **bufp)
 	return datap;
 }
 
-void poll_used(void)
+bool used_empty()
 {
 	unsigned head = (ring_size - 1) & guest.last_used_idx;
 
-	while (ring[head].flags & DESC_HW)
-		busy_wait();
+	return (ring[head].flags & DESC_HW);
 }
 
 void disable_call()
@@ -180,27 +177,27 @@ void disable_call()
 
 bool enable_call()
 {
-	unsigned head = (ring_size - 1) & guest.last_used_idx;
-
 	event->call_index = guest.last_used_idx;
 	/* Flush call index write */
 	/* Barrier D (for pairing) */
 	smp_mb();
-	return ring[head].flags & DESC_HW;
+	return used_empty();
 }
 
 void kick_available(void)
 {
+	bool need;
+
 	/* Flush in previous flags write */
 	/* Barrier C (for pairing) */
 	smp_mb();
-	if (!need_event(event->kick_index,
-			guest.avail_idx,
-			guest.kicked_avail_idx))
-		return;
+	need = need_event(event->kick_index,
+			   guest.avail_idx,
+			   guest.kicked_avail_idx);
 
 	guest.kicked_avail_idx = guest.avail_idx;
-	kick();
+	if (need)
+		kick();
 }
 
 /* host side */
@@ -213,20 +210,17 @@ void disable_kick()
 
 bool enable_kick()
 {
-	unsigned head = (ring_size - 1) & host.used_idx;
-
 	event->kick_index = host.used_idx;
 	/* Barrier C (for pairing) */
 	smp_mb();
-	return !(ring[head].flags & DESC_HW);
+	return avail_empty();
 }
 
-void poll_avail(void)
+bool avail_empty()
 {
 	unsigned head = (ring_size - 1) & host.used_idx;
 
-	while (!(ring[head].flags & DESC_HW))
-		busy_wait();
+	return !(ring[head].flags & DESC_HW);
 }
 
 bool use_buf(unsigned *lenp, void **bufp)
@@ -259,14 +253,18 @@ bool use_buf(unsigned *lenp, void **bufp)
 
 void call_used(void)
 {
+	bool need;
+
 	/* Flush in previous flags write */
 	/* Barrier D (for pairing) */
 	smp_mb();
-	if (!need_event(event->call_index,
+
+	need = need_event(event->call_index,
 			host.used_idx,
-			host.called_used_idx))
-		return;
+			host.called_used_idx);
 
 	host.called_used_idx = host.used_idx;
-	call();
+
+	if (need)
+		call();
 }

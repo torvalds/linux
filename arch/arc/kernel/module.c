@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -32,8 +29,8 @@ int module_frob_arch_sections(Elf_Ehdr *hdr, Elf_Shdr *sechdrs,
 #ifdef CONFIG_ARC_DW2_UNWIND
 	mod->arch.unw_sec_idx = 0;
 	mod->arch.unw_info = NULL;
-	mod->arch.secstr = secstr;
 #endif
+	mod->arch.secstr = secstr;
 	return 0;
 }
 
@@ -113,8 +110,10 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 
 	}
 
+#ifdef CONFIG_ARC_DW2_UNWIND
 	if (strcmp(module->arch.secstr+sechdrs[tgtsec].sh_name, ".eh_frame") == 0)
 		module->arch.unw_sec_idx = tgtsec;
+#endif
 
 	return 0;
 

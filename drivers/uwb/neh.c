@@ -1,24 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * WUSB Wire Adapter: Radio Control Interface (WUSB[8])
  * Notification and Event Handling
  *
  * Copyright (C) 2005-2006 Intel Corporation
  * Inaky Perez-Gonzalez <inaky.perez-gonzalez@intel.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
- *
  *
  * The RC interface of the Host Wire Adapter (USB dongle) or WHCI PCI
  * card delivers a stream of notifications and events to the
@@ -115,7 +101,7 @@ struct uwb_rc_neh {
 	struct list_head list_node;
 };
 
-static void uwb_rc_neh_timer(unsigned long arg);
+static void uwb_rc_neh_timer(struct timer_list *t);
 
 static void uwb_rc_neh_release(struct kref *kref)
 {
@@ -223,7 +209,7 @@ struct uwb_rc_neh *uwb_rc_neh_add(struct uwb_rc *rc, struct uwb_rccb *cmd,
 
 	kref_init(&neh->kref);
 	INIT_LIST_HEAD(&neh->list_node);
-	setup_timer(&neh->timer, uwb_rc_neh_timer, (unsigned long)neh);
+	timer_setup(&neh->timer, uwb_rc_neh_timer, 0);
 
 	neh->rc = rc;
 	neh->evt_type = expected_type;
@@ -565,9 +551,9 @@ void uwb_rc_neh_error(struct uwb_rc *rc, int error)
 EXPORT_SYMBOL_GPL(uwb_rc_neh_error);
 
 
-static void uwb_rc_neh_timer(unsigned long arg)
+static void uwb_rc_neh_timer(struct timer_list *t)
 {
-	struct uwb_rc_neh *neh = (struct uwb_rc_neh *)arg;
+	struct uwb_rc_neh *neh = from_timer(neh, t, timer);
 	struct uwb_rc *rc = neh->rc;
 	unsigned long flags;
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * OMAP3/OMAP4 Voltage Management Routines
  *
@@ -13,10 +14,6 @@
  *
  * Copyright (C) 2010 Texas Instruments, Inc.
  * Thara Gopinath <thara@ti.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/delay.h>
@@ -83,6 +80,12 @@ int voltdm_scale(struct voltagedomain *voltdm,
 
 	if (!voltdm->scale) {
 		pr_err("%s: No voltage scale API registered for vdd_%s\n",
+			__func__, voltdm->name);
+		return -ENODATA;
+	}
+
+	if (!voltdm->volt_data) {
+		pr_err("%s: No voltage data defined for vdd_%s\n",
 			__func__, voltdm->name);
 		return -ENODATA;
 	}

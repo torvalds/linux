@@ -1,17 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Helpers for controlling modem lines via GPIO
  *
  * Copyright (C) 2014 Paratronic S.A.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/err.h>
@@ -21,6 +12,7 @@
 #include <linux/termios.h>
 #include <linux/serial_core.h>
 #include <linux/module.h>
+#include <linux/property.h>
 
 #include "serial_mctrl_gpio.h"
 
@@ -49,7 +41,7 @@ void mctrl_gpio_set(struct mctrl_gpios *gpios, unsigned int mctrl)
 {
 	enum mctrl_gpio_idx i;
 	struct gpio_desc *desc_array[UART_GPIO_MAX];
-	int value_array[UART_GPIO_MAX];
+	DECLARE_BITMAP(values, UART_GPIO_MAX);
 	unsigned int count = 0;
 
 	if (gpios == NULL)
@@ -58,10 +50,11 @@ void mctrl_gpio_set(struct mctrl_gpios *gpios, unsigned int mctrl)
 	for (i = 0; i < UART_GPIO_MAX; i++)
 		if (gpios->gpio[i] && mctrl_gpios_desc[i].dir_out) {
 			desc_array[count] = gpios->gpio[i];
-			value_array[count] = !!(mctrl & mctrl_gpios_desc[i].mctrl);
+			__assign_bit(count, values,
+				     mctrl & mctrl_gpios_desc[i].mctrl);
 			count++;
 		}
-	gpiod_set_array_value(count, desc_array, value_array);
+	gpiod_set_array_value(count, desc_array, NULL, values);
 }
 EXPORT_SYMBOL_GPL(mctrl_gpio_set);
 
@@ -124,6 +117,19 @@ struct mctrl_gpios *mctrl_gpio_init_noauto(struct device *dev, unsigned int idx)
 
 	for (i = 0; i < UART_GPIO_MAX; i++) {
 		enum gpiod_flags flags;
+		char *gpio_str;
+		bool present;
+
+		/* Check if GPIO property exists and continue if not */
+		gpio_str = kasprintf(GFP_KERNEL, "%s-gpios",
+				     mctrl_gpios_desc[i].name);
+		if (!gpio_str)
+			continue;
+
+		present = device_property_present(dev, gpio_str);
+		kfree(gpio_str);
+		if (!present)
+			continue;
 
 		if (mctrl_gpios_desc[i].dir_out)
 			flags = GPIOD_OUT_LOW;

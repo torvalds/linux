@@ -272,7 +272,6 @@ static int e3d_pci_register(struct pci_dev *pdev,
 
 	info = framebuffer_alloc(sizeof(struct e3d_info), &pdev->dev);
 	if (!info) {
-		printk(KERN_ERR "e3d: Cannot allocate fb_info\n");
 		err = -ENOMEM;
 		goto err_disable;
 	}
@@ -393,7 +392,7 @@ err_out:
 	return err;
 }
 
-static struct pci_device_id e3d_pci_table[] = {
+static const struct pci_device_id e3d_pci_table[] = {
 	{	PCI_DEVICE(PCI_VENDOR_ID_3DLABS, 0x7a0),	},
 	{	PCI_DEVICE(0x1091, 0x7a0),			},
 	{	PCI_DEVICE(PCI_VENDOR_ID_3DLABS, 0x7a2),	},

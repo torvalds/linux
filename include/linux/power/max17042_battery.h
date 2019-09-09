@@ -1,31 +1,25 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Fuel gauge driver for Maxim 17042 / 8966 / 8997
  *  Note that Maxim 8966 and 8997 are mfd and this is its subdevice.
  *
  * Copyright (C) 2011 Samsung Electronics
  * MyungJoo Ham <myungjoo.ham@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #ifndef __MAX17042_BATTERY_H_
 #define __MAX17042_BATTERY_H_
 
 #define MAX17042_STATUS_BattAbsent	(1 << 3)
-#define MAX17042_BATTERY_FULL	(100)
+#define MAX17042_BATTERY_FULL		(95)   /* Recommend. FullSOCThr value */
 #define MAX17042_DEFAULT_SNS_RESISTOR	(10000)
+#define MAX17042_DEFAULT_VMIN		(3000)
+#define MAX17042_DEFAULT_VMAX		(4500) /* LiHV cell max */
+#define MAX17042_DEFAULT_TEMP_MIN	(0)    /* For sys without temp sensor */
+#define MAX17042_DEFAULT_TEMP_MAX	(700)  /* 70 degrees Celcius */
+
+/* Consider RepCap which is less then 10 units below FullCAP full */
+#define MAX17042_FULL_THRESHOLD		10
 
 #define MAX17042_CHARACTERIZATION_DATA_SIZE 48
 

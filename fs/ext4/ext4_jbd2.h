@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * ext4_jbd2.h
  *
  * Written by Stephen C. Tweedie <sct@redhat.com>, 1999
  *
  * Copyright 1998--1999 Red Hat corp --- All Rights Reserved
- *
- * This file is part of the Linux kernel and is made available under
- * the terms of the GNU General Public License, version 2, or at your
- * option, any later version, incorporated herein by reference.
  *
  * Ext4-specific journaling extensions.
  */
@@ -77,7 +74,14 @@
 
 #define EXT4_RESERVE_TRANS_BLOCKS	12U
 
-#define EXT4_INDEX_EXTRA_TRANS_BLOCKS	8
+/*
+ * Number of credits needed if we need to insert an entry into a
+ * directory.  For each new index block, we need 4 blocks (old index
+ * block, new index block, bitmap block, bg summary).  For normal
+ * htree directories there are 2 levels; if the largedir feature
+ * enabled it's 3 levels.
+ */
+#define EXT4_INDEX_EXTRA_TRANS_BLOCKS	12U
 
 #ifdef CONFIG_QUOTA
 /* Amount of blocks needed for quota update - we know that the structure was
@@ -103,20 +107,6 @@
 #define EXT4_MAXQUOTAS_TRANS_BLOCKS(sb) (EXT4_MAXQUOTAS*EXT4_QUOTA_TRANS_BLOCKS(sb))
 #define EXT4_MAXQUOTAS_INIT_BLOCKS(sb) (EXT4_MAXQUOTAS*EXT4_QUOTA_INIT_BLOCKS(sb))
 #define EXT4_MAXQUOTAS_DEL_BLOCKS(sb) (EXT4_MAXQUOTAS*EXT4_QUOTA_DEL_BLOCKS(sb))
-
-static inline int ext4_jbd2_credits_xattr(struct inode *inode)
-{
-	int credits = EXT4_DATA_TRANS_BLOCKS(inode->i_sb);
-
-	/*
-	 * In case of inline data, we may push out the data to a block,
-	 * so we need to reserve credits for this eventuality
-	 */
-	if (ext4_has_inline_data(inode))
-		credits += ext4_writepage_trans_blocks(inode) + 1;
-	return credits;
-}
-
 
 /*
  * Ext4 handle operation types -- for logging purposes
@@ -234,6 +224,9 @@ int ext4_reserve_inode_write(handle_t *handle, struct inode *inode,
 
 int ext4_mark_inode_dirty(handle_t *handle, struct inode *inode);
 
+int ext4_expand_extra_isize(struct inode *inode,
+			    unsigned int new_extra_isize,
+			    struct ext4_iloc *iloc);
 /*
  * Wrapper functions with which ext4 calls into JBD.
  */
@@ -368,20 +361,20 @@ static inline int ext4_journal_force_commit(journal_t *journal)
 }
 
 static inline int ext4_jbd2_inode_add_write(handle_t *handle,
-					    struct inode *inode)
+		struct inode *inode, loff_t start_byte, loff_t length)
 {
 	if (ext4_handle_valid(handle))
-		return jbd2_journal_inode_add_write(handle,
-						    EXT4_I(inode)->jinode);
+		return jbd2_journal_inode_ranged_write(handle,
+				EXT4_I(inode)->jinode, start_byte, length);
 	return 0;
 }
 
 static inline int ext4_jbd2_inode_add_wait(handle_t *handle,
-					   struct inode *inode)
+		struct inode *inode, loff_t start_byte, loff_t length)
 {
 	if (ext4_handle_valid(handle))
-		return jbd2_journal_inode_add_wait(handle,
-						   EXT4_I(inode)->jinode);
+		return jbd2_journal_inode_ranged_wait(handle,
+				EXT4_I(inode)->jinode, start_byte, length);
 	return 0;
 }
 
@@ -391,7 +384,7 @@ static inline void ext4_update_inode_fsync_trans(handle_t *handle,
 {
 	struct ext4_inode_info *ei = EXT4_I(inode);
 
-	if (ext4_handle_valid(handle)) {
+	if (ext4_handle_valid(handle) && !is_handle_aborted(handle)) {
 		ei->i_sync_tid = handle->h_transaction->t_tid;
 		if (datasync)
 			ei->i_datasync_tid = handle->h_transaction->t_tid;
@@ -414,17 +407,19 @@ static inline int ext4_inode_journal_mode(struct inode *inode)
 		return EXT4_INODE_WRITEBACK_DATA_MODE;	/* writeback */
 	/* We do not support data journalling with delayed allocation */
 	if (!S_ISREG(inode->i_mode) ||
-	    test_opt(inode->i_sb, DATA_FLAGS) == EXT4_MOUNT_JOURNAL_DATA)
+	    test_opt(inode->i_sb, DATA_FLAGS) == EXT4_MOUNT_JOURNAL_DATA ||
+	    (ext4_test_inode_flag(inode, EXT4_INODE_JOURNAL_DATA) &&
+	    !test_opt(inode->i_sb, DELALLOC))) {
+		/* We do not support data journalling for encrypted data */
+		if (S_ISREG(inode->i_mode) && IS_ENCRYPTED(inode))
+			return EXT4_INODE_ORDERED_DATA_MODE;  /* ordered */
 		return EXT4_INODE_JOURNAL_DATA_MODE;	/* journal data */
-	if (ext4_test_inode_flag(inode, EXT4_INODE_JOURNAL_DATA) &&
-	    !test_opt(inode->i_sb, DELALLOC))
-		return EXT4_INODE_JOURNAL_DATA_MODE;	/* journal data */
+	}
 	if (test_opt(inode->i_sb, DATA_FLAGS) == EXT4_MOUNT_ORDERED_DATA)
 		return EXT4_INODE_ORDERED_DATA_MODE;	/* ordered */
 	if (test_opt(inode->i_sb, DATA_FLAGS) == EXT4_MOUNT_WRITEBACK_DATA)
 		return EXT4_INODE_WRITEBACK_DATA_MODE;	/* writeback */
-	else
-		BUG();
+	BUG();
 }
 
 static inline int ext4_should_journal_data(struct inode *inode)

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* radio-trust.c - Trust FM Radio card driver for Linux 2.2
  * by Eric Lammerts <eric@scintilla.utwente.nl>
  *
@@ -12,7 +13,7 @@
  * Scott McGrath    (smcgrath@twilight.vtc.vsc.edu)
  * William McGrath  (wmcgrath@twilight.vtc.vsc.edu)
  *
- * Converted to V4L2 API by Mauro Carvalho Chehab <mchehab@infradead.org>
+ * Converted to V4L2 API by Mauro Carvalho Chehab <mchehab@kernel.org>
  */
 
 #include <stdarg.h>

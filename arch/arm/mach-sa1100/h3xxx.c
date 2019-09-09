@@ -1,16 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Support for Compaq iPAQ H3100 and H3600 handheld computers (common code)
  *
  * Copyright (c) 2000,1 Compaq Computer Corporation. (Author: Jamey Hicks)
  * Copyright (c) 2009 Dmitry Artamonow <mad_soft@inbox.ru>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/kernel.h>
+#include <linux/gpio/machine.h>
 #include <linux/gpio.h>
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
@@ -86,57 +83,6 @@ static struct resource h3xxx_flash_resource =
 /*
  * H3xxx uart support
  */
-static struct gpio h3xxx_uart_gpio[] = {
-	{ H3XXX_GPIO_COM_DCD,	GPIOF_IN,		"COM DCD" },
-	{ H3XXX_GPIO_COM_CTS,	GPIOF_IN,		"COM CTS" },
-	{ H3XXX_GPIO_COM_RTS,	GPIOF_OUT_INIT_LOW,	"COM RTS" },
-};
-
-static bool h3xxx_uart_request_gpios(void)
-{
-	static bool h3xxx_uart_gpio_ok;
-	int rc;
-
-	if (h3xxx_uart_gpio_ok)
-		return true;
-
-	rc = gpio_request_array(h3xxx_uart_gpio, ARRAY_SIZE(h3xxx_uart_gpio));
-	if (rc)
-		pr_err("h3xxx_uart_request_gpios: error %d\n", rc);
-	else
-		h3xxx_uart_gpio_ok = true;
-
-	return h3xxx_uart_gpio_ok;
-}
-
-static void h3xxx_uart_set_mctrl(struct uart_port *port, u_int mctrl)
-{
-	if (port->mapbase == _Ser3UTCR0) {
-		if (!h3xxx_uart_request_gpios())
-			return;
-		gpio_set_value(H3XXX_GPIO_COM_RTS, !(mctrl & TIOCM_RTS));
-	}
-}
-
-static u_int h3xxx_uart_get_mctrl(struct uart_port *port)
-{
-	u_int ret = TIOCM_CD | TIOCM_CTS | TIOCM_DSR;
-
-	if (port->mapbase == _Ser3UTCR0) {
-		if (!h3xxx_uart_request_gpios())
-			return ret;
-		/*
-		 * DCD and CTS bits are inverted in GPLR by RS232 transceiver
-		 */
-		if (gpio_get_value(H3XXX_GPIO_COM_DCD))
-			ret &= ~TIOCM_CD;
-		if (gpio_get_value(H3XXX_GPIO_COM_CTS))
-			ret &= ~TIOCM_CTS;
-	}
-
-	return ret;
-}
-
 static void h3xxx_uart_pm(struct uart_port *port, u_int state, u_int oldstate)
 {
 	if (port->mapbase == _Ser3UTCR0) {
@@ -169,10 +115,18 @@ static int h3xxx_uart_set_wake(struct uart_port *port, u_int enable)
 }
 
 static struct sa1100_port_fns h3xxx_port_fns __initdata = {
-	.set_mctrl	= h3xxx_uart_set_mctrl,
-	.get_mctrl	= h3xxx_uart_get_mctrl,
 	.pm		= h3xxx_uart_pm,
 	.set_wake	= h3xxx_uart_set_wake,
+};
+
+static struct gpiod_lookup_table h3xxx_uart3_gpio_table = {
+	.dev_id = "sa11x0-uart.3",
+	.table = {
+		GPIO_LOOKUP("gpio", H3XXX_GPIO_COM_DCD, "dcd", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("gpio", H3XXX_GPIO_COM_CTS, "cts", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("gpio", H3XXX_GPIO_COM_RTS, "rts", GPIO_ACTIVE_LOW),
+		{ },
+	},
 };
 
 /*
@@ -264,8 +218,25 @@ static struct platform_device *h3xxx_devices[] = {
 	&h3xxx_micro_asic,
 };
 
+static struct gpiod_lookup_table h3xxx_pcmcia_gpio_table = {
+	.dev_id = "sa11x0-pcmcia",
+	.table = {
+		GPIO_LOOKUP("gpio", H3XXX_GPIO_PCMCIA_CD0,
+			    "pcmcia0-detect", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("gpio", H3XXX_GPIO_PCMCIA_IRQ0,
+			    "pcmcia0-ready", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("gpio", H3XXX_GPIO_PCMCIA_CD1,
+			    "pcmcia1-detect", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("gpio", H3XXX_GPIO_PCMCIA_IRQ1,
+			    "pcmcia1-ready", GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
+
 void __init h3xxx_mach_init(void)
 {
+	gpiod_add_lookup_table(&h3xxx_pcmcia_gpio_table);
+	gpiod_add_lookup_table(&h3xxx_uart3_gpio_table);
 	sa1100_register_uart_fns(&h3xxx_port_fns);
 	sa11x0_register_mtd(&h3xxx_flash_data, &h3xxx_flash_resource, 1);
 	platform_add_devices(h3xxx_devices, ARRAY_SIZE(h3xxx_devices));

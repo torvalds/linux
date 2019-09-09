@@ -1,4 +1,11 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 .. _VIDIOC_CROPCAP:
 
@@ -26,6 +33,7 @@ Arguments
     File descriptor returned by :ref:`open() <func-open>`.
 
 ``argp``
+    Pointer to struct :c:type:`v4l2_cropcap`.
 
 
 Description
@@ -39,16 +47,9 @@ structure. Drivers fill the rest of the structure. The results are
 constant except when switching the video standard. Remember this switch
 can occur implicit when switching the video input or output.
 
-Do not use the multiplanar buffer types. Use
-``V4L2_BUF_TYPE_VIDEO_CAPTURE`` instead of
-``V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE`` and use
-``V4L2_BUF_TYPE_VIDEO_OUTPUT`` instead of
-``V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE``.
-
 This ioctl must be implemented for video capture or output devices that
 support cropping and/or scaling and/or have non-square pixels, and for
 overlay devices.
-
 
 .. c:type:: v4l2_cropcap
 
@@ -62,9 +63,9 @@ overlay devices.
     * - __u32
       - ``type``
       - Type of the data stream, set by the application. Only these types
-	are valid here: ``V4L2_BUF_TYPE_VIDEO_CAPTURE``,
-	``V4L2_BUF_TYPE_VIDEO_OUTPUT`` and
-	``V4L2_BUF_TYPE_VIDEO_OVERLAY``. See :c:type:`v4l2_buf_type`.
+	are valid here: ``V4L2_BUF_TYPE_VIDEO_CAPTURE``, ``V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE``,
+	``V4L2_BUF_TYPE_VIDEO_OUTPUT``, ``V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE`` and
+	``V4L2_BUF_TYPE_VIDEO_OVERLAY``. See :c:type:`v4l2_buf_type` and the note below.
     * - struct :ref:`v4l2_rect <v4l2-rect-crop>`
       - ``bounds``
       - Defines the window within capturing or output is possible, this
@@ -89,6 +90,16 @@ overlay devices.
 	When cropping coordinates refer to square pixels, the driver sets
 	``pixelaspect`` to 1/1. Other common values are 54/59 for PAL and
 	SECAM, 11/10 for NTSC sampled according to [:ref:`itu601`].
+
+.. note::
+   Unfortunately in the case of multiplanar buffer types
+   (``V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE`` and ``V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE``)
+   this API was messed up with regards to how the :c:type:`v4l2_cropcap` ``type`` field
+   should be filled in. Some drivers only accepted the ``_MPLANE`` buffer type while
+   other drivers only accepted a non-multiplanar buffer type (i.e. without the
+   ``_MPLANE`` at the end).
+
+   Starting with kernel 4.13 both variations are allowed.
 
 
 

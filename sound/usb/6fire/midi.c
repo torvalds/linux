@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Linux driver for TerraTec DMX 6Fire USB
  *
@@ -6,11 +7,6 @@
  * Author:	Torsten Schenk <torsten.schenk@zoho.com>
  * Created:	Jan 01, 2011
  * Copyright:	(C) Torsten Schenk
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <sound/rawmidi.h>
@@ -139,14 +135,14 @@ static void usb6fire_midi_in_trigger(
 	spin_unlock_irqrestore(&rt->in_lock, flags);
 }
 
-static struct snd_rawmidi_ops out_ops = {
+static const struct snd_rawmidi_ops out_ops = {
 	.open = usb6fire_midi_out_open,
 	.close = usb6fire_midi_out_close,
 	.trigger = usb6fire_midi_out_trigger,
 	.drain = usb6fire_midi_out_drain
 };
 
-static struct snd_rawmidi_ops in_ops = {
+static const struct snd_rawmidi_ops in_ops = {
 	.open = usb6fire_midi_in_open,
 	.close = usb6fire_midi_in_close,
 	.trigger = usb6fire_midi_in_trigger

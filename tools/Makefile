@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 # Some of the tools (perf) use same make variables
 # as in kernel build.
 export srctree=
@@ -11,14 +12,19 @@ help:
 	@echo '  acpi                   - ACPI tools'
 	@echo '  cgroup                 - cgroup tools'
 	@echo '  cpupower               - a tool for all things x86 CPU power'
+	@echo '  debugging              - tools for debugging'
 	@echo '  firewire               - the userspace part of nosy, an IEEE-1394 traffic sniffer'
+	@echo '  firmware               - Firmware tools'
 	@echo '  freefall               - laptop accelerometer program for disk protection'
 	@echo '  gpio                   - GPIO tools'
 	@echo '  hv                     - tools used when in Hyper-V clients'
 	@echo '  iio                    - IIO tools'
+	@echo '  intel-speed-select     - Intel Speed Select tool'
 	@echo '  kvm_stat               - top-like utility for displaying kvm statistics'
-	@echo '  lguest                 - a minimal 32-bit x86 hypervisor'
-	@echo '  net                    - misc networking tools'
+	@echo '  leds                   - LEDs  tools'
+	@echo '  liblockdep             - user-space wrapper for kernel locking-validator'
+	@echo '  bpf                    - misc BPF tools'
+	@echo '  pci                    - PCI tools'
 	@echo '  perf                   - Linux performance measurement and analysis tool'
 	@echo '  selftests              - various kernel selftests'
 	@echo '  spi                    - spi tools'
@@ -28,6 +34,7 @@ help:
 	@echo '  usb                    - USB testing tools'
 	@echo '  virtio                 - vhost test module'
 	@echo '  vm                     - misc vm tools'
+	@echo '  wmi			- WMI interface examples'
 	@echo '  x86_energy_perf_policy - Intel energy policy tool'
 	@echo ''
 	@echo 'You can do:'
@@ -56,7 +63,7 @@ acpi: FORCE
 cpupower: FORCE
 	$(call descend,power/$@)
 
-cgroup firewire hv guest spi usb virtio vm net iio gpio objtool: FORCE
+cgroup firewire hv guest spi usb virtio vm bpf iio gpio objtool leds wmi pci firmware debugging: FORCE
 	$(call descend,$@)
 
 liblockdep: FORCE
@@ -76,7 +83,7 @@ perf: FORCE
 selftests: FORCE
 	$(call descend,testing/$@)
 
-turbostat x86_energy_perf_policy: FORCE
+turbostat x86_energy_perf_policy intel-speed-select: FORCE
 	$(call descend,power/x86/$@)
 
 tmon: FORCE
@@ -85,10 +92,14 @@ tmon: FORCE
 freefall: FORCE
 	$(call descend,laptop/$@)
 
-all: acpi cgroup cpupower gpio hv firewire lguest \
-		perf selftests turbostat usb \
-		virtio vm net x86_energy_perf_policy \
-		tmon freefall objtool
+kvm_stat: FORCE
+	$(call descend,kvm/$@)
+
+all: acpi cgroup cpupower gpio hv firewire liblockdep \
+		perf selftests spi turbostat usb \
+		virtio vm bpf x86_energy_perf_policy \
+		tmon freefall iio objtool kvm_stat wmi \
+		pci debugging
 
 acpi_install:
 	$(call descend,power/$(@:_install=),install)
@@ -96,13 +107,16 @@ acpi_install:
 cpupower_install:
 	$(call descend,power/$(@:_install=),install)
 
-cgroup_install firewire_install gpio_install hv_install lguest_install perf_install usb_install virtio_install vm_install net_install objtool_install:
+cgroup_install firewire_install gpio_install hv_install iio_install perf_install spi_install usb_install virtio_install vm_install bpf_install objtool_install wmi_install pci_install debugging_install:
 	$(call descend,$(@:_install=),install)
+
+liblockdep_install:
+	$(call descend,lib/lockdep,install)
 
 selftests_install:
 	$(call descend,testing/$(@:_install=),install)
 
-turbostat_install x86_energy_perf_policy_install:
+turbostat_install x86_energy_perf_policy_install intel-speed-select_install:
 	$(call descend,power/x86/$(@:_install=),install)
 
 tmon_install:
@@ -115,10 +129,11 @@ kvm_stat_install:
 	$(call descend,kvm/$(@:_install=),install)
 
 install: acpi_install cgroup_install cpupower_install gpio_install \
-		hv_install firewire_install lguest_install \
+		hv_install firewire_install iio_install liblockdep_install \
 		perf_install selftests_install turbostat_install usb_install \
-		virtio_install vm_install net_install x86_energy_perf_policy_install \
-		tmon_install freefall_install objtool_install kvm_stat_install
+		virtio_install vm_install bpf_install x86_energy_perf_policy_install \
+		tmon_install freefall_install objtool_install kvm_stat_install \
+		wmi_install pci_install debugging_install intel-speed-select_install
 
 acpi_clean:
 	$(call descend,power/acpi,clean)
@@ -126,7 +141,7 @@ acpi_clean:
 cpupower_clean:
 	$(call descend,power/cpupower,clean)
 
-cgroup_clean hv_clean firewire_clean lguest_clean spi_clean usb_clean virtio_clean vm_clean net_clean iio_clean gpio_clean objtool_clean:
+cgroup_clean hv_clean firewire_clean spi_clean usb_clean virtio_clean vm_clean wmi_clean bpf_clean iio_clean gpio_clean objtool_clean leds_clean pci_clean firmware_clean debugging_clean:
 	$(call descend,$(@:_clean=),clean)
 
 liblockdep_clean:
@@ -148,7 +163,7 @@ perf_clean:
 selftests_clean:
 	$(call descend,testing/$(@:_clean=),clean)
 
-turbostat_clean x86_energy_perf_policy_clean:
+turbostat_clean x86_energy_perf_policy_clean intel-speed-select_clean:
 	$(call descend,power/x86/$(@:_clean=),clean)
 
 tmon_clean:
@@ -160,10 +175,11 @@ freefall_clean:
 build_clean:
 	$(call descend,build,clean)
 
-clean: acpi_clean cgroup_clean cpupower_clean hv_clean firewire_clean lguest_clean \
+clean: acpi_clean cgroup_clean cpupower_clean hv_clean firewire_clean \
 		perf_clean selftests_clean turbostat_clean spi_clean usb_clean virtio_clean \
-		vm_clean net_clean iio_clean x86_energy_perf_policy_clean tmon_clean \
+		vm_clean bpf_clean iio_clean x86_energy_perf_policy_clean tmon_clean \
 		freefall_clean build_clean libbpf_clean libsubcmd_clean liblockdep_clean \
-		gpio_clean objtool_clean
+		gpio_clean objtool_clean leds_clean wmi_clean pci_clean firmware_clean debugging_clean \
+		intel-speed-select_clean
 
 .PHONY: FORCE

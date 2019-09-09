@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ssi_protocol.c
  *
@@ -7,20 +8,6 @@
  * Copyright (C) 2013 Sebastian Reichel <sre@kernel.org>
  *
  * Contact: Carlos Chinea <carlos.chinea@nokia.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
  */
 
 #include <linux/atomic.h>
@@ -464,10 +451,10 @@ static void ssip_error(struct hsi_client *cl)
 	hsi_async_read(cl, msg);
 }
 
-static void ssip_keep_alive(unsigned long data)
+static void ssip_keep_alive(struct timer_list *t)
 {
-	struct hsi_client *cl = (struct hsi_client *)data;
-	struct ssi_protocol *ssi = hsi_client_drvdata(cl);
+	struct ssi_protocol *ssi = from_timer(ssi, t, keep_alive);
+	struct hsi_client *cl = ssi->cl;
 
 	dev_dbg(&cl->device, "Keep alive kick in: m(%d) r(%d) s(%d)\n",
 		ssi->main_state, ssi->recv_state, ssi->send_state);
@@ -490,11 +477,21 @@ static void ssip_keep_alive(unsigned long data)
 	spin_unlock(&ssi->lock);
 }
 
-static void ssip_wd(unsigned long data)
+static void ssip_rx_wd(struct timer_list *t)
 {
-	struct hsi_client *cl = (struct hsi_client *)data;
+	struct ssi_protocol *ssi = from_timer(ssi, t, rx_wd);
+	struct hsi_client *cl = ssi->cl;
 
-	dev_err(&cl->device, "Watchdog trigerred\n");
+	dev_err(&cl->device, "Watchdog triggered\n");
+	ssip_error(cl);
+}
+
+static void ssip_tx_wd(struct timer_list *t)
+{
+	struct ssi_protocol *ssi = from_timer(ssi, t, tx_wd);
+	struct hsi_client *cl = ssi->cl;
+
+	dev_err(&cl->device, "Watchdog triggered\n");
 	ssip_error(cl);
 }
 
@@ -960,15 +957,6 @@ static int ssip_pn_stop(struct net_device *dev)
 	return 0;
 }
 
-static int ssip_pn_set_mtu(struct net_device *dev, int new_mtu)
-{
-	if (new_mtu > SSIP_MAX_MTU || new_mtu < PHONET_MIN_MTU)
-		return -EINVAL;
-	dev->mtu = new_mtu;
-
-	return 0;
-}
-
 static void ssip_xmit_work(struct work_struct *work)
 {
 	struct ssi_protocol *ssi =
@@ -989,11 +977,11 @@ static int ssip_pn_xmit(struct sk_buff *skb, struct net_device *dev)
 		goto drop;
 	/* Pad to 32-bits - FIXME: Revisit*/
 	if ((skb->len & 3) && skb_pad(skb, 4 - (skb->len & 3)))
-		goto drop;
+		goto inc_dropped;
 
 	/*
-	 * Modem sends Phonet messages over SSI with its own endianess...
-	 * Assume that modem has the same endianess as we do.
+	 * Modem sends Phonet messages over SSI with its own endianness.
+	 * Assume that modem has the same endianness as we do.
 	 */
 	if (skb_cow_head(skb, 0))
 		goto drop;
@@ -1041,8 +1029,9 @@ static int ssip_pn_xmit(struct sk_buff *skb, struct net_device *dev)
 drop2:
 	hsi_free_msg(msg);
 drop:
-	dev->stats.tx_dropped++;
 	dev_kfree_skb(skb);
+inc_dropped:
+	dev->stats.tx_dropped++;
 
 	return 0;
 }
@@ -1060,7 +1049,6 @@ static const struct net_device_ops ssip_pn_ops = {
 	.ndo_open	= ssip_pn_open,
 	.ndo_stop	= ssip_pn_stop,
 	.ndo_start_xmit	= ssip_pn_xmit,
-	.ndo_change_mtu	= ssip_pn_set_mtu,
 };
 
 static void ssip_pn_setup(struct net_device *dev)
@@ -1075,7 +1063,7 @@ static void ssip_pn_setup(struct net_device *dev)
 	dev->addr_len		= 1;
 	dev->tx_queue_len	= SSIP_TXQUEUE_LEN;
 
-	dev->destructor		= free_netdev;
+	dev->needs_free_netdev	= true;
 	dev->header_ops		= &phonet_header_ops;
 }
 
@@ -1087,21 +1075,13 @@ static int ssi_protocol_probe(struct device *dev)
 	int err;
 
 	ssi = kzalloc(sizeof(*ssi), GFP_KERNEL);
-	if (!ssi) {
-		dev_err(dev, "No memory for ssi protocol\n");
+	if (!ssi)
 		return -ENOMEM;
-	}
 
 	spin_lock_init(&ssi->lock);
-	init_timer_deferrable(&ssi->rx_wd);
-	init_timer_deferrable(&ssi->tx_wd);
-	init_timer(&ssi->keep_alive);
-	ssi->rx_wd.data = (unsigned long)cl;
-	ssi->rx_wd.function = ssip_wd;
-	ssi->tx_wd.data = (unsigned long)cl;
-	ssi->tx_wd.function = ssip_wd;
-	ssi->keep_alive.data = (unsigned long)cl;
-	ssi->keep_alive.function = ssip_keep_alive;
+	timer_setup(&ssi->rx_wd, ssip_rx_wd, TIMER_DEFERRABLE);
+	timer_setup(&ssi->tx_wd, ssip_tx_wd, TIMER_DEFERRABLE);
+	timer_setup(&ssi->keep_alive, ssip_keep_alive, 0);
 	INIT_LIST_HEAD(&ssi->txqueue);
 	INIT_LIST_HEAD(&ssi->cmdqueue);
 	atomic_set(&ssi->tx_usecnt, 0);
@@ -1135,6 +1115,10 @@ static int ssi_protocol_probe(struct device *dev)
 		err = -ENOMEM;
 		goto out1;
 	}
+
+	/* MTU range: 6 - 65535 */
+	ssi->netdev->min_mtu = PHONET_MIN_MTU;
+	ssi->netdev->max_mtu = SSIP_MAX_MTU;
 
 	SET_NETDEV_DEV(ssi->netdev, dev);
 	netif_carrier_off(ssi->netdev);

@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /****************************************************************************
  * Driver for Solarflare network controllers and boards
  * Copyright 2011-2013 Solarflare Communications Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation, incorporated herein by reference.
  */
 
 #include <linux/bitops.h>
@@ -121,9 +118,9 @@ void efx_mcdi_sensor_event(struct efx_nic *efx, efx_qword_t *ev)
 	}
 	if (!name)
 		name = "No sensor name available";
-	EFX_BUG_ON_PARANOID(state >= ARRAY_SIZE(sensor_status_names));
+	EFX_WARN_ON_PARANOID(state >= ARRAY_SIZE(sensor_status_names));
 	state_txt = sensor_status_names[state];
-	EFX_BUG_ON_PARANOID(hwmon_type >= EFX_HWMON_TYPES_COUNT);
+	EFX_WARN_ON_PARANOID(hwmon_type >= EFX_HWMON_TYPES_COUNT);
 	unit = efx_hwmon_unit[hwmon_type];
 	if (!unit)
 		unit = "";
@@ -298,7 +295,7 @@ efx_mcdi_mon_add_attr(struct efx_nic *efx, const char *name,
 	attr->limit_value = limit_value;
 	sysfs_attr_init(&attr->dev_attr.attr);
 	attr->dev_attr.attr.name = attr->name;
-	attr->dev_attr.attr.mode = S_IRUGO;
+	attr->dev_attr.attr.mode = 0444;
 	attr->dev_attr.show = reader;
 	hwmon->group.attrs[hwmon->n_attrs++] = &attr->dev_attr.attr;
 }

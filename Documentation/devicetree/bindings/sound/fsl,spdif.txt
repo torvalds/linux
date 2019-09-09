@@ -33,13 +33,15 @@ Required properties:
 			  it. This property is optional depending on the SoC
 			  design.
 
+Optional properties:
+
    - big-endian		: If this property is absent, the native endian mode
 			  will be in use as default, or the big endian mode
 			  will be in use for all the device registers.
 
 Example:
 
-spdif: spdif@02004000 {
+spdif: spdif@2004000 {
 	compatible = "fsl,imx35-spdif";
 	reg = <0x02004000 0x4000>;
 	interrupts = <0 52 0x04>;
@@ -59,5 +61,4 @@ spdif: spdif@02004000 {
 		"rxtx7";
 
 	big-endian;
-	status = "okay";
 };

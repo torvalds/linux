@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  This code provides functions to handle gcc's profiling data format
  *  introduced with gcc 3.4. Future versions of gcc may change the gcov
@@ -136,6 +137,18 @@ void gcov_info_unlink(struct gcov_info *prev, struct gcov_info *info)
 		gcov_info_head = info->next;
 }
 
+/**
+ * gcov_info_within_module - check if a profiling data set belongs to a module
+ * @info: profiling data set
+ * @mod: module
+ *
+ * Returns true if profiling data belongs module, false otherwise.
+ */
+bool gcov_info_within_module(struct gcov_info *info, struct module *mod)
+{
+	return within_module((unsigned long)info, mod);
+}
+
 /* Symbolic links to be created for each profiling data file. */
 const struct gcov_link gcov_link[] = {
 	{ OBJ_TREE, "gcno" },	/* Link to .gcno file in $(objtree). */
@@ -244,8 +257,7 @@ struct gcov_info *gcov_info_dup(struct gcov_info *info)
 
 	/* Duplicate gcov_info. */
 	active = num_counter_active(info);
-	dup = kzalloc(sizeof(struct gcov_info) +
-		      sizeof(struct gcov_ctr_info) * active, GFP_KERNEL);
+	dup = kzalloc(struct_size(dup, counts, active), GFP_KERNEL);
 	if (!dup)
 		return NULL;
 	dup->version		= info->version;
@@ -363,8 +375,7 @@ struct gcov_iterator *gcov_iter_new(struct gcov_info *info)
 {
 	struct gcov_iterator *iter;
 
-	iter = kzalloc(sizeof(struct gcov_iterator) +
-		       num_counter_active(info) * sizeof(struct type_info),
+	iter = kzalloc(struct_size(iter, type_info, num_counter_active(info)),
 		       GFP_KERNEL);
 	if (iter)
 		iter->info = info;

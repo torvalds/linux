@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * LED Triggers for USB Activity
  *
  * Copyright 2014 Michal Sojka <sojka@merica.cz>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/module.h>
@@ -14,6 +10,7 @@
 #include <linux/init.h>
 #include <linux/leds.h>
 #include <linux/usb.h>
+#include "common.h"
 
 #define BLINK_DELAY 30
 
@@ -40,18 +37,14 @@ void usb_led_activity(enum usb_led_event ev)
 EXPORT_SYMBOL_GPL(usb_led_activity);
 
 
-static int __init ledtrig_usb_init(void)
+void __init ledtrig_usb_init(void)
 {
 	led_trigger_register_simple("usb-gadget", &ledtrig_usb_gadget);
 	led_trigger_register_simple("usb-host", &ledtrig_usb_host);
-	return 0;
 }
 
-static void __exit ledtrig_usb_exit(void)
+void __exit ledtrig_usb_exit(void)
 {
 	led_trigger_unregister_simple(ledtrig_usb_gadget);
 	led_trigger_unregister_simple(ledtrig_usb_host);
 }
-
-module_init(ledtrig_usb_init);
-module_exit(ledtrig_usb_exit);

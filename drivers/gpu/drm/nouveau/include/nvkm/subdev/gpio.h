@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 #ifndef __NVKM_GPIO_H__
 #define __NVKM_GPIO_H__
 #include <core/subdev.h>

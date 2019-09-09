@@ -1,21 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2014 Marek Vasut <marex@denx.de>
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
  */
 
 #include "imx53.dtsi"
 
 / {
-	model = "DENX M53";
-	compatible = "denx,imx53-m53", "fsl,imx53";
+	model = "Aries/DENX M53";
+	compatible = "aries,imx53-m53", "denx,imx53-m53", "fsl,imx53";
 
-	memory {
+	memory@70000000 {
+		device_type = "memory";
 		reg = <0x70000000 0x20000000>,
 		      <0xb0000000 0x20000000>;
 	};
@@ -51,10 +46,8 @@
 	clock-frequency = <400000>;
 	status = "okay";
 
-	stmpe610@41 {
+	touchscreen@41 {
 		compatible = "st,stmpe610";
-		#address-cells = <1>;
-		#size-cells = <0>;
 		reg = <0x41>;
 		id = <0>;
 		blocks = <0x5>;
@@ -64,7 +57,6 @@
 
 		stmpe_touchscreen {
 			compatible = "st,stmpe-ts";
-			reg = <0>;
 			st,sample-time = <4>;
 			st,mod-12b = <1>;
 			st,ref-sel = <0>;

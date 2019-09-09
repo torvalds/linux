@@ -45,7 +45,6 @@
 MODULE_AUTHOR("Boyd Faulkner, Steve Wise");
 MODULE_DESCRIPTION("Chelsio T3 RDMA Driver");
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_VERSION(DRV_VERSION);
 
 static void open_rnic_dev(struct t3cdev *);
 static void close_rnic_dev(struct t3cdev *);
@@ -63,37 +62,30 @@ struct cxgb3_client t3c_client = {
 static LIST_HEAD(dev_list);
 static DEFINE_MUTEX(dev_mutex);
 
-static int disable_qp_db(int id, void *p, void *data)
-{
-	struct iwch_qp *qhp = p;
-
-	cxio_disable_wq_db(&qhp->wq);
-	return 0;
-}
-
-static int enable_qp_db(int id, void *p, void *data)
-{
-	struct iwch_qp *qhp = p;
-
-	if (data)
-		ring_doorbell(qhp->rhp->rdev.ctrl_qp.doorbell, qhp->wq.qpid);
-	cxio_enable_wq_db(&qhp->wq);
-	return 0;
-}
-
 static void disable_dbs(struct iwch_dev *rnicp)
 {
-	spin_lock_irq(&rnicp->lock);
-	idr_for_each(&rnicp->qpidr, disable_qp_db, NULL);
-	spin_unlock_irq(&rnicp->lock);
+	unsigned long index;
+	struct iwch_qp *qhp;
+
+	xa_lock_irq(&rnicp->qps);
+	xa_for_each(&rnicp->qps, index, qhp)
+		cxio_disable_wq_db(&qhp->wq);
+	xa_unlock_irq(&rnicp->qps);
 }
 
 static void enable_dbs(struct iwch_dev *rnicp, int ring_db)
 {
-	spin_lock_irq(&rnicp->lock);
-	idr_for_each(&rnicp->qpidr, enable_qp_db,
-		     (void *)(unsigned long)ring_db);
-	spin_unlock_irq(&rnicp->lock);
+	unsigned long index;
+	struct iwch_qp *qhp;
+
+	xa_lock_irq(&rnicp->qps);
+	xa_for_each(&rnicp->qps, index, qhp) {
+		if (ring_db)
+			ring_doorbell(qhp->rhp->rdev.ctrl_qp.doorbell,
+					qhp->wq.qpid);
+		cxio_enable_wq_db(&qhp->wq);
+	}
+	xa_unlock_irq(&rnicp->qps);
 }
 
 static void iwch_db_drop_task(struct work_struct *work)
@@ -105,11 +97,10 @@ static void iwch_db_drop_task(struct work_struct *work)
 
 static void rnic_init(struct iwch_dev *rnicp)
 {
-	PDBG("%s iwch_dev %p\n", __func__,  rnicp);
-	idr_init(&rnicp->cqidr);
-	idr_init(&rnicp->qpidr);
-	idr_init(&rnicp->mmidr);
-	spin_lock_init(&rnicp->lock);
+	pr_debug("%s iwch_dev %p\n", __func__,  rnicp);
+	xa_init_flags(&rnicp->cqs, XA_FLAGS_LOCK_IRQ);
+	xa_init_flags(&rnicp->qps, XA_FLAGS_LOCK_IRQ);
+	xa_init_flags(&rnicp->mrs, XA_FLAGS_LOCK_IRQ);
 	INIT_DELAYED_WORK(&rnicp->db_drop_task, iwch_db_drop_task);
 
 	rnicp->attr.max_qps = T3_MAX_NUM_QP - 32;
@@ -145,12 +136,11 @@ static void open_rnic_dev(struct t3cdev *tdev)
 {
 	struct iwch_dev *rnicp;
 
-	PDBG("%s t3cdev %p\n", __func__,  tdev);
-	printk_once(KERN_INFO MOD "Chelsio T3 RDMA Driver - version %s\n",
-		       DRV_VERSION);
-	rnicp = (struct iwch_dev *)ib_alloc_device(sizeof(*rnicp));
+	pr_debug("%s t3cdev %p\n", __func__,  tdev);
+	pr_info_once("Chelsio T3 RDMA Driver - version %s\n", DRV_VERSION);
+	rnicp = ib_alloc_device(iwch_dev, ibdev);
 	if (!rnicp) {
-		printk(KERN_ERR MOD "Cannot allocate ib device\n");
+		pr_err("Cannot allocate ib device\n");
 		return;
 	}
 	rnicp->rdev.ulp = rnicp;
@@ -160,7 +150,7 @@ static void open_rnic_dev(struct t3cdev *tdev)
 
 	if (cxio_rdev_open(&rnicp->rdev)) {
 		mutex_unlock(&dev_mutex);
-		printk(KERN_ERR MOD "Unable to open CXIO rdev\n");
+		pr_err("Unable to open CXIO rdev\n");
 		ib_dealloc_device(&rnicp->ibdev);
 		return;
 	}
@@ -171,18 +161,18 @@ static void open_rnic_dev(struct t3cdev *tdev)
 	mutex_unlock(&dev_mutex);
 
 	if (iwch_register_device(rnicp)) {
-		printk(KERN_ERR MOD "Unable to register device\n");
+		pr_err("Unable to register device\n");
 		close_rnic_dev(tdev);
 	}
-	printk(KERN_INFO MOD "Initialized device %s\n",
-	       pci_name(rnicp->rdev.rnic_info.pdev));
+	pr_info("Initialized device %s\n",
+		pci_name(rnicp->rdev.rnic_info.pdev));
 	return;
 }
 
 static void close_rnic_dev(struct t3cdev *tdev)
 {
 	struct iwch_dev *dev, *tmp;
-	PDBG("%s t3cdev %p\n", __func__,  tdev);
+	pr_debug("%s t3cdev %p\n", __func__,  tdev);
 	mutex_lock(&dev_mutex);
 	list_for_each_entry_safe(dev, tmp, &dev_list, entry) {
 		if (dev->rdev.t3cdev_p == tdev) {
@@ -192,9 +182,9 @@ static void close_rnic_dev(struct t3cdev *tdev)
 			list_del(&dev->entry);
 			iwch_unregister_device(dev);
 			cxio_rdev_close(&dev->rdev);
-			idr_destroy(&dev->cqidr);
-			idr_destroy(&dev->qpidr);
-			idr_destroy(&dev->mmidr);
+			WARN_ON(!xa_empty(&dev->cqs));
+			WARN_ON(!xa_empty(&dev->qps));
+			WARN_ON(!xa_empty(&dev->mrs));
 			ib_dealloc_device(&dev->ibdev);
 			break;
 		}

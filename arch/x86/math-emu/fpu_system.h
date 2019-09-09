@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*---------------------------------------------------------------------------+
  |  fpu_system.h                                                             |
  |                                                                           |
@@ -27,24 +28,50 @@ static inline struct desc_struct FPU_get_ldt_descriptor(unsigned seg)
 #ifdef CONFIG_MODIFY_LDT_SYSCALL
 	seg >>= 3;
 	mutex_lock(&current->mm->context.lock);
-	if (current->mm->context.ldt && seg < current->mm->context.ldt->size)
+	if (current->mm->context.ldt && seg < current->mm->context.ldt->nr_entries)
 		ret = current->mm->context.ldt->entries[seg];
 	mutex_unlock(&current->mm->context.lock);
 #endif
 	return ret;
 }
 
-#define SEG_D_SIZE(x)		((x).b & (3 << 21))
-#define SEG_G_BIT(x)		((x).b & (1 << 23))
-#define SEG_GRANULARITY(x)	(((x).b & (1 << 23)) ? 4096 : 1)
-#define SEG_286_MODE(x)		((x).b & ( 0xff000000 | 0xf0000 | (1 << 23)))
-#define SEG_BASE_ADDR(s)	(((s).b & 0xff000000) \
-				 | (((s).b & 0xff) << 16) | ((s).a >> 16))
-#define SEG_LIMIT(s)		(((s).b & 0xff0000) | ((s).a & 0xffff))
-#define SEG_EXECUTE_ONLY(s)	(((s).b & ((1 << 11) | (1 << 9))) == (1 << 11))
-#define SEG_WRITE_PERM(s)	(((s).b & ((1 << 11) | (1 << 9))) == (1 << 9))
-#define SEG_EXPAND_DOWN(s)	(((s).b & ((1 << 11) | (1 << 10))) \
-				 == (1 << 10))
+#define SEG_TYPE_WRITABLE	(1U << 1)
+#define SEG_TYPE_EXPANDS_DOWN	(1U << 2)
+#define SEG_TYPE_EXECUTE	(1U << 3)
+#define SEG_TYPE_EXPAND_MASK	(SEG_TYPE_EXPANDS_DOWN | SEG_TYPE_EXECUTE)
+#define SEG_TYPE_EXECUTE_MASK	(SEG_TYPE_WRITABLE | SEG_TYPE_EXECUTE)
+
+static inline unsigned long seg_get_base(struct desc_struct *d)
+{
+	unsigned long base = (unsigned long)d->base2 << 24;
+
+	return base | ((unsigned long)d->base1 << 16) | d->base0;
+}
+
+static inline unsigned long seg_get_limit(struct desc_struct *d)
+{
+	return ((unsigned long)d->limit1 << 16) | d->limit0;
+}
+
+static inline unsigned long seg_get_granularity(struct desc_struct *d)
+{
+	return d->g ? 4096 : 1;
+}
+
+static inline bool seg_expands_down(struct desc_struct *d)
+{
+	return (d->type & SEG_TYPE_EXPAND_MASK) == SEG_TYPE_EXPANDS_DOWN;
+}
+
+static inline bool seg_execute_only(struct desc_struct *d)
+{
+	return (d->type & SEG_TYPE_EXECUTE_MASK) == SEG_TYPE_EXECUTE;
+}
+
+static inline bool seg_writable(struct desc_struct *d)
+{
+	return (d->type & SEG_TYPE_EXECUTE_MASK) == SEG_TYPE_WRITABLE;
+}
 
 #define I387			(&current->thread.fpu.state)
 #define FPU_info		(I387->soft.info)
@@ -77,7 +104,7 @@ static inline struct desc_struct FPU_get_ldt_descriptor(unsigned seg)
 #define instruction_address	(*(struct address *)&I387->soft.fip)
 #define operand_address		(*(struct address *)&I387->soft.foo)
 
-#define FPU_access_ok(x,y,z)	if ( !access_ok(x,y,z) ) \
+#define FPU_access_ok(y,z)	if ( !access_ok(y,z) ) \
 				math_abort(FPU_info,SIGSEGV)
 #define FPU_abort		math_abort(FPU_info, SIGSEGV)
 
@@ -92,7 +119,7 @@ static inline struct desc_struct FPU_get_ldt_descriptor(unsigned seg)
 /* A simpler test than access_ok() can probably be done for
    FPU_code_access_ok() because the only possible error is to step
    past the upper boundary of a legal code area. */
-#define	FPU_code_access_ok(z) FPU_access_ok(VERIFY_READ,(void __user *)FPU_EIP,z)
+#define	FPU_code_access_ok(z) FPU_access_ok((void __user *)FPU_EIP,z)
 #endif
 
 #define FPU_get_user(x,y)       get_user((x),(y))

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * TWL6030 GPADC module driver
  *
@@ -12,28 +13,13 @@
  * Based on twl4030-madc.c
  * Copyright (C) 2008 Nokia Corporation
  * Mikko Ylinen <mikko.k.ylinen@nokia.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
- *
  */
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/of_platform.h>
-#include <linux/i2c/twl.h>
+#include <linux/mfd/twl.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 
@@ -843,7 +829,6 @@ static const struct iio_chan_spec twl6032_gpadc_iio_channels[] = {
 
 static const struct iio_info twl6030_gpadc_iio_info = {
 	.read_raw = &twl6030_gpadc_read_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static const struct twl6030_gpadc_platform_data twl6030_pdata = {
@@ -899,9 +884,10 @@ static int twl6030_gpadc_probe(struct platform_device *pdev)
 
 	gpadc = iio_priv(indio_dev);
 
-	gpadc->twl6030_cal_tbl = devm_kzalloc(dev,
-					sizeof(*gpadc->twl6030_cal_tbl) *
-					pdata->nchannels, GFP_KERNEL);
+	gpadc->twl6030_cal_tbl = devm_kcalloc(dev,
+					pdata->nchannels,
+					sizeof(*gpadc->twl6030_cal_tbl),
+					GFP_KERNEL);
 	if (!gpadc->twl6030_cal_tbl)
 		return -ENOMEM;
 

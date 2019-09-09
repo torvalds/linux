@@ -1,6 +1,6 @@
 #
 # Feature name:          rwsem-optimized
-#         Kconfig:       Optimized asm/rwsem.h
+#         Kconfig:       !RWSEM_GENERIC_SPINLOCK
 #         description:   arch provides optimized rwsem APIs
 #
     -----------------------
@@ -8,32 +8,26 @@
     -----------------------
     |       alpha: |  ok  |
     |         arc: | TODO |
-    |         arm: | TODO |
-    |       arm64: | TODO |
-    |       avr32: | TODO |
-    |    blackfin: | TODO |
+    |         arm: |  ok  |
+    |       arm64: |  ok  |
     |         c6x: | TODO |
-    |        cris: | TODO |
-    |         frv: | TODO |
+    |        csky: | TODO |
     |       h8300: | TODO |
     |     hexagon: | TODO |
     |        ia64: |  ok  |
-    |        m32r: | TODO |
     |        m68k: | TODO |
-    |       metag: | TODO |
     |  microblaze: | TODO |
     |        mips: | TODO |
-    |     mn10300: | TODO |
+    |       nds32: | TODO |
     |       nios2: | TODO |
     |    openrisc: | TODO |
     |      parisc: | TODO |
     |     powerpc: | TODO |
+    |       riscv: | TODO |
     |        s390: |  ok  |
-    |       score: | TODO |
     |          sh: |  ok  |
     |       sparc: |  ok  |
-    |        tile: | TODO |
-    |          um: | TODO |
+    |          um: |  ok  |
     |   unicore32: | TODO |
     |         x86: |  ok  |
     |      xtensa: |  ok  |

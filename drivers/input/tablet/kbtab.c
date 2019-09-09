@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -5,21 +6,12 @@
 #include <asm/unaligned.h>
 
 /*
- * Version Information
- * v0.0.1 - Original, extremely basic version, 2.4.xx only
- * v0.0.2 - Updated, works with 2.5.62 and 2.4.20;
- *           - added pressure-threshold modules param code from
- *              Alex Perry <alex.perry@ieee.org>
+ * Pressure-threshold modules param code from Alex Perry <alex.perry@ieee.org>
  */
 
-#define DRIVER_VERSION "v0.0.2"
-#define DRIVER_AUTHOR "Josh Myer <josh@joshisanerd.com>"
-#define DRIVER_DESC "USB KB Gear JamStudio Tablet driver"
-#define DRIVER_LICENSE "GPL"
-
-MODULE_AUTHOR(DRIVER_AUTHOR);
-MODULE_DESCRIPTION(DRIVER_DESC);
-MODULE_LICENSE(DRIVER_LICENSE);
+MODULE_AUTHOR("Josh Myer <josh@joshisanerd.com>");
+MODULE_DESCRIPTION("USB KB Gear JamStudio Tablet driver");
+MODULE_LICENSE("GPL");
 
 #define USB_VENDOR_ID_KBGEAR	0x084e
 
@@ -88,7 +80,7 @@ static void kbtab_irq(struct urb *urb)
 			__func__, retval);
 }
 
-static struct usb_device_id kbtab_ids[] = {
+static const struct usb_device_id kbtab_ids[] = {
 	{ USB_DEVICE(USB_VENDOR_ID_KBGEAR, 0x1001), .driver_info = 0 },
 	{ }
 };
@@ -121,6 +113,13 @@ static int kbtab_probe(struct usb_interface *intf, const struct usb_device_id *i
 	struct kbtab *kbtab;
 	struct input_dev *input_dev;
 	int error = -ENOMEM;
+
+	if (intf->cur_altsetting->desc.bNumEndpoints < 1)
+		return -ENODEV;
+
+	endpoint = &intf->cur_altsetting->endpoint[0].desc;
+	if (!usb_endpoint_is_int_in(endpoint))
+		return -ENODEV;
 
 	kbtab = kzalloc(sizeof(struct kbtab), GFP_KERNEL);
 	input_dev = input_allocate_device();
@@ -159,8 +158,6 @@ static int kbtab_probe(struct usb_interface *intf, const struct usb_device_id *i
 	input_set_abs_params(input_dev, ABS_X, 0, 0x2000, 4, 0);
 	input_set_abs_params(input_dev, ABS_Y, 0, 0x1750, 4, 0);
 	input_set_abs_params(input_dev, ABS_PRESSURE, 0, 0xff, 0, 0);
-
-	endpoint = &intf->cur_altsetting->endpoint[0].desc;
 
 	usb_fill_int_urb(kbtab->irq, dev,
 			 usb_rcvintpipe(dev, endpoint->bEndpointAddress),

@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config NET_DSA_MICROCHIP_KSZ_COMMON
+	tristate
+
+menuconfig NET_DSA_MICROCHIP_KSZ9477
+	tristate "Microchip KSZ9477 series switch support"
+	depends on NET_DSA
+	select NET_DSA_TAG_KSZ9477
+	select NET_DSA_MICROCHIP_KSZ_COMMON
+	help
+	  This driver adds support for Microchip KSZ9477 switch chips.
+
+config NET_DSA_MICROCHIP_KSZ9477_SPI
+	tristate "KSZ9477 series SPI connected switch driver"
+	depends on NET_DSA_MICROCHIP_KSZ9477 && SPI
+	select REGMAP_SPI
+	help
+	  Select to enable support for registering switches configured through SPI.

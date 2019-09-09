@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Sysfs interface for the universal power supply monitor class
  *
@@ -7,8 +8,6 @@
  *  Copyright © 2003  Ian Molton <spyro@f2s.com>
  *
  *  Modified: 2004, Oct     Szabolcs Gyurko
- *
- *  You may use this code as per GPL version 2
  */
 
 #include <linux/ctype.h>
@@ -40,74 +39,146 @@
 
 static struct device_attribute power_supply_attrs[];
 
+static const char * const power_supply_type_text[] = {
+	"Unknown", "Battery", "UPS", "Mains", "USB",
+	"USB_DCP", "USB_CDP", "USB_ACA", "USB_C",
+	"USB_PD", "USB_PD_DRP", "BrickID"
+};
+
+static const char * const power_supply_usb_type_text[] = {
+	"Unknown", "SDP", "DCP", "CDP", "ACA", "C",
+	"PD", "PD_DRP", "PD_PPS", "BrickID"
+};
+
+static const char * const power_supply_status_text[] = {
+	"Unknown", "Charging", "Discharging", "Not charging", "Full"
+};
+
+static const char * const power_supply_charge_type_text[] = {
+	"Unknown", "N/A", "Trickle", "Fast", "Standard", "Adaptive", "Custom"
+};
+
+static const char * const power_supply_health_text[] = {
+	"Unknown", "Good", "Overheat", "Dead", "Over voltage",
+	"Unspecified failure", "Cold", "Watchdog timer expire",
+	"Safety timer expire", "Over current"
+};
+
+static const char * const power_supply_technology_text[] = {
+	"Unknown", "NiMH", "Li-ion", "Li-poly", "LiFe", "NiCd",
+	"LiMn"
+};
+
+static const char * const power_supply_capacity_level_text[] = {
+	"Unknown", "Critical", "Low", "Normal", "High", "Full"
+};
+
+static const char * const power_supply_scope_text[] = {
+	"Unknown", "System", "Device"
+};
+
+static ssize_t power_supply_show_usb_type(struct device *dev,
+					  enum power_supply_usb_type *usb_types,
+					  ssize_t num_usb_types,
+					  union power_supply_propval *value,
+					  char *buf)
+{
+	enum power_supply_usb_type usb_type;
+	ssize_t count = 0;
+	bool match = false;
+	int i;
+
+	for (i = 0; i < num_usb_types; ++i) {
+		usb_type = usb_types[i];
+
+		if (value->intval == usb_type) {
+			count += sprintf(buf + count, "[%s] ",
+					 power_supply_usb_type_text[usb_type]);
+			match = true;
+		} else {
+			count += sprintf(buf + count, "%s ",
+					 power_supply_usb_type_text[usb_type]);
+		}
+	}
+
+	if (!match) {
+		dev_warn(dev, "driver reporting unsupported connected type\n");
+		return -EINVAL;
+	}
+
+	if (count)
+		buf[count - 1] = '\n';
+
+	return count;
+}
+
 static ssize_t power_supply_show_property(struct device *dev,
 					  struct device_attribute *attr,
 					  char *buf) {
-	static char *type_text[] = {
-		"Unknown", "Battery", "UPS", "Mains", "USB",
-		"USB_DCP", "USB_CDP", "USB_ACA", "USB_C",
-		"USB_PD", "USB_PD_DRP"
-	};
-	static char *status_text[] = {
-		"Unknown", "Charging", "Discharging", "Not charging", "Full"
-	};
-	static char *charge_type[] = {
-		"Unknown", "N/A", "Trickle", "Fast"
-	};
-	static char *health_text[] = {
-		"Unknown", "Good", "Overheat", "Dead", "Over voltage",
-		"Unspecified failure", "Cold", "Watchdog timer expire",
-		"Safety timer expire"
-	};
-	static char *technology_text[] = {
-		"Unknown", "NiMH", "Li-ion", "Li-poly", "LiFe", "NiCd",
-		"LiMn"
-	};
-	static char *capacity_level_text[] = {
-		"Unknown", "Critical", "Low", "Normal", "High", "Full"
-	};
-	static char *scope_text[] = {
-		"Unknown", "System", "Device"
-	};
-	ssize_t ret = 0;
+	ssize_t ret;
 	struct power_supply *psy = dev_get_drvdata(dev);
-	const ptrdiff_t off = attr - power_supply_attrs;
+	enum power_supply_property psp = attr - power_supply_attrs;
 	union power_supply_propval value;
 
-	if (off == POWER_SUPPLY_PROP_TYPE) {
+	if (psp == POWER_SUPPLY_PROP_TYPE) {
 		value.intval = psy->desc->type;
 	} else {
-		ret = power_supply_get_property(psy, off, &value);
+		ret = power_supply_get_property(psy, psp, &value);
 
 		if (ret < 0) {
 			if (ret == -ENODATA)
 				dev_dbg(dev, "driver has no data for `%s' property\n",
 					attr->attr.name);
 			else if (ret != -ENODEV && ret != -EAGAIN)
-				dev_err(dev, "driver failed to report `%s' property: %zd\n",
+				dev_err_ratelimited(dev,
+					"driver failed to report `%s' property: %zd\n",
 					attr->attr.name, ret);
 			return ret;
 		}
 	}
 
-	if (off == POWER_SUPPLY_PROP_STATUS)
-		return sprintf(buf, "%s\n", status_text[value.intval]);
-	else if (off == POWER_SUPPLY_PROP_CHARGE_TYPE)
-		return sprintf(buf, "%s\n", charge_type[value.intval]);
-	else if (off == POWER_SUPPLY_PROP_HEALTH)
-		return sprintf(buf, "%s\n", health_text[value.intval]);
-	else if (off == POWER_SUPPLY_PROP_TECHNOLOGY)
-		return sprintf(buf, "%s\n", technology_text[value.intval]);
-	else if (off == POWER_SUPPLY_PROP_CAPACITY_LEVEL)
-		return sprintf(buf, "%s\n", capacity_level_text[value.intval]);
-	else if (off == POWER_SUPPLY_PROP_TYPE)
-		return sprintf(buf, "%s\n", type_text[value.intval]);
-	else if (off == POWER_SUPPLY_PROP_SCOPE)
-		return sprintf(buf, "%s\n", scope_text[value.intval]);
-	else if (off >= POWER_SUPPLY_PROP_MODEL_NAME)
-		return sprintf(buf, "%s\n", value.strval);
+	switch (psp) {
+	case POWER_SUPPLY_PROP_STATUS:
+		ret = sprintf(buf, "%s\n",
+			      power_supply_status_text[value.intval]);
+		break;
+	case POWER_SUPPLY_PROP_CHARGE_TYPE:
+		ret = sprintf(buf, "%s\n",
+			      power_supply_charge_type_text[value.intval]);
+		break;
+	case POWER_SUPPLY_PROP_HEALTH:
+		ret = sprintf(buf, "%s\n",
+			      power_supply_health_text[value.intval]);
+		break;
+	case POWER_SUPPLY_PROP_TECHNOLOGY:
+		ret = sprintf(buf, "%s\n",
+			      power_supply_technology_text[value.intval]);
+		break;
+	case POWER_SUPPLY_PROP_CAPACITY_LEVEL:
+		ret = sprintf(buf, "%s\n",
+			      power_supply_capacity_level_text[value.intval]);
+		break;
+	case POWER_SUPPLY_PROP_TYPE:
+		ret = sprintf(buf, "%s\n",
+			      power_supply_type_text[value.intval]);
+		break;
+	case POWER_SUPPLY_PROP_USB_TYPE:
+		ret = power_supply_show_usb_type(dev, psy->desc->usb_types,
+						 psy->desc->num_usb_types,
+						 &value, buf);
+		break;
+	case POWER_SUPPLY_PROP_SCOPE:
+		ret = sprintf(buf, "%s\n",
+			      power_supply_scope_text[value.intval]);
+		break;
+	case POWER_SUPPLY_PROP_MODEL_NAME ... POWER_SUPPLY_PROP_SERIAL_NUMBER:
+		ret = sprintf(buf, "%s\n", value.strval);
+		break;
+	default:
+		ret = sprintf(buf, "%d\n", value.intval);
+	}
 
-	return sprintf(buf, "%d\n", value.intval);
+	return ret;
 }
 
 static ssize_t power_supply_store_property(struct device *dev,
@@ -115,18 +186,49 @@ static ssize_t power_supply_store_property(struct device *dev,
 					   const char *buf, size_t count) {
 	ssize_t ret;
 	struct power_supply *psy = dev_get_drvdata(dev);
-	const ptrdiff_t off = attr - power_supply_attrs;
+	enum power_supply_property psp = attr - power_supply_attrs;
 	union power_supply_propval value;
-	long long_val;
 
-	/* TODO: support other types than int */
-	ret = kstrtol(buf, 10, &long_val);
-	if (ret < 0)
-		return ret;
+	switch (psp) {
+	case POWER_SUPPLY_PROP_STATUS:
+		ret = sysfs_match_string(power_supply_status_text, buf);
+		break;
+	case POWER_SUPPLY_PROP_CHARGE_TYPE:
+		ret = sysfs_match_string(power_supply_charge_type_text, buf);
+		break;
+	case POWER_SUPPLY_PROP_HEALTH:
+		ret = sysfs_match_string(power_supply_health_text, buf);
+		break;
+	case POWER_SUPPLY_PROP_TECHNOLOGY:
+		ret = sysfs_match_string(power_supply_technology_text, buf);
+		break;
+	case POWER_SUPPLY_PROP_CAPACITY_LEVEL:
+		ret = sysfs_match_string(power_supply_capacity_level_text, buf);
+		break;
+	case POWER_SUPPLY_PROP_SCOPE:
+		ret = sysfs_match_string(power_supply_scope_text, buf);
+		break;
+	default:
+		ret = -EINVAL;
+	}
 
-	value.intval = long_val;
+	/*
+	 * If no match was found, then check to see if it is an integer.
+	 * Integer values are valid for enums in addition to the text value.
+	 */
+	if (ret < 0) {
+		long long_val;
 
-	ret = power_supply_set_property(psy, off, &value);
+		ret = kstrtol(buf, 10, &long_val);
+		if (ret < 0)
+			return ret;
+
+		ret = long_val;
+	}
+
+	value.intval = ret;
+
+	ret = power_supply_set_property(psy, psp, &value);
 	if (ret < 0)
 		return ret;
 
@@ -171,7 +273,11 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(constant_charge_voltage_max),
 	POWER_SUPPLY_ATTR(charge_control_limit),
 	POWER_SUPPLY_ATTR(charge_control_limit_max),
+	POWER_SUPPLY_ATTR(charge_control_start_threshold),
+	POWER_SUPPLY_ATTR(charge_control_end_threshold),
 	POWER_SUPPLY_ATTR(input_current_limit),
+	POWER_SUPPLY_ATTR(input_voltage_limit),
+	POWER_SUPPLY_ATTR(input_power_limit),
 	POWER_SUPPLY_ATTR(energy_full_design),
 	POWER_SUPPLY_ATTR(energy_empty_design),
 	POWER_SUPPLY_ATTR(energy_full),
@@ -195,7 +301,9 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(time_to_full_now),
 	POWER_SUPPLY_ATTR(time_to_full_avg),
 	POWER_SUPPLY_ATTR(type),
+	POWER_SUPPLY_ATTR(usb_type),
 	POWER_SUPPLY_ATTR(scope),
+	POWER_SUPPLY_ATTR(precharge_current),
 	POWER_SUPPLY_ATTR(charge_term_current),
 	POWER_SUPPLY_ATTR(calibrate),
 	/* Properties of type `const char *' */
@@ -278,14 +386,10 @@ int power_supply_uevent(struct device *dev, struct kobj_uevent_env *env)
 	char *prop_buf;
 	char *attrname;
 
-	dev_dbg(dev, "uevent\n");
-
 	if (!psy || !psy->desc) {
 		dev_dbg(dev, "No power supply yet\n");
 		return ret;
 	}
-
-	dev_dbg(dev, "POWER_SUPPLY_NAME=%s\n", psy->desc->name);
 
 	ret = add_uevent_var(env, "POWER_SUPPLY_NAME=%s", psy->desc->name);
 	if (ret)
@@ -321,8 +425,6 @@ int power_supply_uevent(struct device *dev, struct kobj_uevent_env *env)
 			ret = -ENOMEM;
 			goto out;
 		}
-
-		dev_dbg(dev, "prop %s=%s\n", attrname, prop_buf);
 
 		ret = add_uevent_var(env, "POWER_SUPPLY_%s=%s", attrname, prop_buf);
 		kfree(attrname);

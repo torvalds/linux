@@ -1,21 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
     VES1820  - Single Chip Cable Channel Receiver driver module
 
     Copyright (C) 1999 Convergence Integrated Media GmbH <ralph@convergence.de>
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
 #include <linux/delay.h>
@@ -27,7 +15,7 @@
 #include <linux/slab.h>
 #include <asm/div64.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "ves1820.h"
 
 
@@ -65,8 +53,8 @@ static int ves1820_writereg(struct ves1820_state *state, u8 reg, u8 data)
 	ret = i2c_transfer(state->i2c, &msg, 1);
 
 	if (ret != 1)
-		printk("ves1820: %s(): writereg error (reg == 0x%02x, "
-			"val == 0x%02x, ret == %i)\n", __func__, reg, data, ret);
+		printk("ves1820: %s(): writereg error (reg == 0x%02x, val == 0x%02x, ret == %i)\n",
+		       __func__, reg, data, ret);
 
 	return (ret != 1) ? -EREMOTEIO : 0;
 }
@@ -84,8 +72,8 @@ static u8 ves1820_readreg(struct ves1820_state *state, u8 reg)
 	ret = i2c_transfer(state->i2c, msg, 2);
 
 	if (ret != 2)
-		printk("ves1820: %s(): readreg error (reg == 0x%02x, "
-		"ret == %i)\n", __func__, reg, ret);
+		printk("ves1820: %s(): readreg error (reg == 0x%02x, ret == %i)\n",
+		       __func__, reg, ret);
 
 	return b1[0];
 }
@@ -137,7 +125,7 @@ static int ves1820_set_symbolrate(struct ves1820_state *state, u32 symbolrate)
 		NDEC = 3;
 
 	/* yeuch! */
-	fpxin = state->config->xin * 10;
+	fpxin = state->config->xin * 10ULL;
 	fptmp = fpxin; do_div(fptmp, 123);
 	if (symbolrate < fptmp)
 		SFIL = 1;
@@ -369,7 +357,7 @@ static void ves1820_release(struct dvb_frontend* fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops ves1820_ops;
+static const struct dvb_frontend_ops ves1820_ops;
 
 struct dvb_frontend* ves1820_attach(const struct ves1820_config* config,
 				    struct i2c_adapter* i2c,
@@ -408,13 +396,13 @@ error:
 	return NULL;
 }
 
-static struct dvb_frontend_ops ves1820_ops = {
+static const struct dvb_frontend_ops ves1820_ops = {
 	.delsys = { SYS_DVBC_ANNEX_A },
 	.info = {
 		.name = "VLSI VES1820 DVB-C",
-		.frequency_stepsize = 62500,
-		.frequency_min = 47000000,
-		.frequency_max = 862000000,
+		.frequency_min_hz =  47 * MHz,
+		.frequency_max_hz = 862 * MHz,
+		.frequency_stepsize_hz = 62500,
 		.caps = FE_CAN_QAM_16 |
 			FE_CAN_QAM_32 |
 			FE_CAN_QAM_64 |

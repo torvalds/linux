@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* $(CROSS_COMPILE)cc -Wall -Wextra -g -lpthread -o testusb testusb.c */
 
 /*
  * Copyright (c) 2002 by David Brownell
  * Copyright (c) 2010 by Samsung Electronics
  * Author: Michal Nazarewicz <mina86@mina86.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 /*
@@ -387,15 +374,17 @@ int main (int argc, char **argv)
 	/* pick defaults that works with all speeds, without short packets.
 	 *
 	 * Best per-frame data rates:
-	 *     high speed, bulk       512 * 13 * 8 = 53248
-	 *                 interrupt 1024 *  3 * 8 = 24576
-	 *     full speed, bulk/intr   64 * 19     =  1216
-	 *                 interrupt   64 *  1     =    64
-	 *      low speed, interrupt    8 *  1     =     8
+	 *     super speed,bulk      1024 * 16 * 8 = 131072
+	 *                 interrupt 1024 *  3 * 8 =  24576
+	 *     high speed, bulk       512 * 13 * 8 =  53248
+	 *                 interrupt 1024 *  3 * 8 =  24576
+	 *     full speed, bulk/intr   64 * 19     =   1216
+	 *                 interrupt   64 *  1     =     64
+	 *      low speed, interrupt    8 *  1     =      8
 	 */
 	param.iterations = 1000;
 	param.length = 1024;
-	param.vary = 512;
+	param.vary = 1024;
 	param.sglen = 32;
 
 	/* for easy use when hotplugging */
@@ -457,7 +446,7 @@ usage:
 			"\t-c iterations		default 1000\n"
 			"\t-s transfer length	default 1024\n"
 			"\t-g sglen		default 32\n"
-			"\t-v vary			default 512\n",
+			"\t-v vary			default 1024\n",
 			argv[0]);
 		return 1;
 	}

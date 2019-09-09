@@ -1,16 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *  Copyright (C) 2014, Samsung Electronics Co. Ltd. All Rights Reserved.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
  */
 
 #ifndef __SSP_SENSORHUB_H__
@@ -188,7 +178,7 @@ struct ssp_sensorhub_info {
  */
 struct ssp_data {
 	struct spi_device *spi;
-	struct ssp_sensorhub_info *sensorhub_info;
+	const struct ssp_sensorhub_info *sensorhub_info;
 	struct timer_list wdt_timer;
 	struct work_struct work_wdt;
 	struct delayed_work work_refresh;

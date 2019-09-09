@@ -1,8 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * This program is free software; you can redistribute	it and/or modify it
- * under  the terms of	the GNU General	 Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  *
  * Copyright (C) 2003, 04, 11 Ralf Baechle (ralf@linux-mips.org)
  * Copyright (C) 2011 Wind River Systems,
@@ -11,7 +8,7 @@
 #include <linux/bug.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/export.h>
 #include <linux/init.h>
 #include <linux/types.h>
@@ -78,6 +75,12 @@ static void pcibios_scanbus(struct pci_controller *hose)
 	static int need_domain_info;
 	LIST_HEAD(resources);
 	struct pci_bus *bus;
+	struct pci_host_bridge *bridge;
+	int ret;
+
+	bridge = pci_alloc_host_bridge(0);
+	if (!bridge)
+		return;
 
 	if (hose->get_busno && pci_has_flag(PCI_PROBE_ONLY))
 		next_busno = (*hose->get_busno)();
@@ -86,19 +89,24 @@ static void pcibios_scanbus(struct pci_controller *hose)
 				hose->mem_resource, hose->mem_offset);
 	pci_add_resource_offset(&resources,
 				hose->io_resource, hose->io_offset);
-	pci_add_resource_offset(&resources,
-				hose->busn_resource, hose->busn_offset);
-	bus = pci_scan_root_bus(NULL, next_busno, hose->pci_ops, hose,
-				&resources);
-	hose->bus = bus;
+	pci_add_resource(&resources, hose->busn_resource);
+	list_splice_init(&resources, &bridge->windows);
+	bridge->dev.parent = NULL;
+	bridge->sysdata = hose;
+	bridge->busnr = next_busno;
+	bridge->ops = hose->pci_ops;
+	bridge->swizzle_irq = pci_common_swizzle;
+	bridge->map_irq = pcibios_map_irq;
+	ret = pci_scan_root_bus_bridge(bridge);
+	if (ret) {
+		pci_free_host_bridge(bridge);
+		return;
+	}
+
+	hose->bus = bus = bridge->bus;
 
 	need_domain_info = need_domain_info || pci_domain_nr(bus);
 	set_pci_need_domain_info(hose, need_domain_info);
-
-	if (!bus) {
-		pci_free_resource_list(&resources);
-		return;
-	}
 
 	next_busno = bus->busn_res.end + 1;
 	/* Don't allow 8-bit bus number overflow inside the hose -
@@ -116,8 +124,12 @@ static void pcibios_scanbus(struct pci_controller *hose)
 	if (pci_has_flag(PCI_PROBE_ONLY)) {
 		pci_bus_claim_resources(bus);
 	} else {
+		struct pci_bus *child;
+
 		pci_bus_size_bridges(bus);
 		pci_bus_assign_resources(bus);
+		list_for_each_entry(child, &bus->children, node)
+			pcie_bus_configure_settings(child);
 	}
 	pci_bus_add_devices(bus);
 }
@@ -128,7 +140,7 @@ void pci_load_of_ranges(struct pci_controller *hose, struct device_node *node)
 	struct of_pci_range range;
 	struct of_pci_range_parser parser;
 
-	pr_info("PCI host bridge %s ranges:\n", node->full_name);
+	pr_info("PCI host bridge %pOF ranges:\n", node);
 	hose->of_node = node;
 
 	if (of_pci_range_parser_init(&parser, node))
@@ -190,7 +202,7 @@ void register_pci_controller(struct pci_controller *hose)
 	}
 
 	INIT_LIST_HEAD(&hose->list);
-	list_add(&hose->list, &controllers);
+	list_add_tail(&hose->list, &controllers);
 
 	/*
 	 * Do not panic here but later - this might happen before console init.
@@ -225,8 +237,6 @@ static int __init pcibios_init(void)
 	list_for_each_entry(hose, &controllers, list)
 		pcibios_scanbus(hose);
 
-	pci_fixup_irqs(pci_common_swizzle, pcibios_map_irq);
-
 	pci_initialized = 1;
 
 	return 0;
@@ -254,9 +264,8 @@ static int pcibios_enable_resources(struct pci_dev *dev, int mask)
 				(!(r->flags & IORESOURCE_ROM_ENABLE)))
 			continue;
 		if (!r->start && r->end) {
-			printk(KERN_ERR "PCI: Device %s not available "
-			       "because of resource collisions\n",
-			       pci_name(dev));
+			pci_err(dev,
+				"can't enable device: resource collisions\n");
 			return -EINVAL;
 		}
 		if (r->flags & IORESOURCE_IO)
@@ -265,8 +274,7 @@ static int pcibios_enable_resources(struct pci_dev *dev, int mask)
 			cmd |= PCI_COMMAND_MEMORY;
 	}
 	if (cmd != old_cmd) {
-		printk("PCI: Enabling device %s (%04x -> %04x)\n",
-		       pci_name(dev), old_cmd, cmd);
+		pci_info(dev, "enabling device (%04x -> %04x)\n", old_cmd, cmd);
 		pci_write_config_word(dev, PCI_COMMAND, cmd);
 	}
 	return 0;

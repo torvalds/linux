@@ -1,25 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /******************************************************************************
  *
- * GPL LICENSE SUMMARY
- *
  * Copyright(c) 2008 - 2011 Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110,
- * USA
- *
- * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.GPL.
  *
  * Contact Information:
  *  Intel Linux Wireless <ilw@linux.intel.com>
@@ -95,7 +77,7 @@ il3945_ucode_rx_stats_read(struct file *file, char __user *user_buf,
 	pos +=
 	    scnprintf(buf + pos, bufsz - pos,
 		      "%-32s     current"
-		      "acumulative       delta         max\n",
+		      "accumulative      delta         max\n",
 		      "Statistics_Rx - OFDM:");
 	pos +=
 	    scnprintf(buf + pos, bufsz - pos,
@@ -185,7 +167,7 @@ il3945_ucode_rx_stats_read(struct file *file, char __user *user_buf,
 	pos +=
 	    scnprintf(buf + pos, bufsz - pos,
 		      "%-32s     current"
-		      "acumulative       delta         max\n",
+		      "accumulative      delta         max\n",
 		      "Statistics_Rx - CCK:");
 	pos +=
 	    scnprintf(buf + pos, bufsz - pos,
@@ -273,7 +255,7 @@ il3945_ucode_rx_stats_read(struct file *file, char __user *user_buf,
 	pos +=
 	    scnprintf(buf + pos, bufsz - pos,
 		      "%-32s     current"
-		      "acumulative       delta         max\n",
+		      "accumulative      delta         max\n",
 		      "Statistics_Rx - GENERAL:");
 	pos +=
 	    scnprintf(buf + pos, bufsz - pos,
@@ -346,7 +328,7 @@ il3945_ucode_tx_stats_read(struct file *file, char __user *user_buf,
 	pos +=
 	    scnprintf(buf + pos, bufsz - pos,
 		      "%-32s     current"
-		      "acumulative       delta         max\n",
+		      "accumulative      delta         max\n",
 		      "Statistics_Tx:");
 	pos +=
 	    scnprintf(buf + pos, bufsz - pos,
@@ -447,7 +429,7 @@ il3945_ucode_general_stats_read(struct file *file, char __user *user_buf,
 	pos +=
 	    scnprintf(buf + pos, bufsz - pos,
 		      "%-32s     current"
-		      "acumulative       delta         max\n",
+		      "accumulative      delta         max\n",
 		      "Statistics_General:");
 	pos +=
 	    scnprintf(buf + pos, bufsz - pos,

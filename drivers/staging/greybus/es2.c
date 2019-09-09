@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Greybus "AP" USB driver for "ES2" controller chips
  *
  * Copyright 2014-2015 Google Inc.
  * Copyright 2014-2015 Linaro Ltd.
- *
- * Released under the GPLv2 only.
  */
 #include <linux/kthread.h>
 #include <linux/sizes.h>
@@ -127,29 +126,6 @@ struct es2_ap_dev {
 	struct list_head arpcs;
 };
 
-/**
- * timesync_enable_request - Enable timesync in an APBridge
- * @count: number of TimeSync Pulses to expect
- * @frame_time: the initial FrameTime at the first TimeSync Pulse
- * @strobe_delay: the expected delay in microseconds between each TimeSync Pulse
- * @refclk: The AP mandated reference clock to run FrameTime at
- */
-struct timesync_enable_request {
-	__u8	count;
-	__le64	frame_time;
-	__le32	strobe_delay;
-	__le32	refclk;
-} __packed;
-
-/**
- * timesync_authoritative_request - Transmit authoritative FrameTime to APBridge
- * @frame_time: An array of authoritative FrameTimes provided by the SVC
- *              and relayed to the APBridge by the AP
- */
-struct timesync_authoritative_request {
-	__le64	frame_time[GB_TIMESYNC_MAX_STROBES];
-} __packed;
-
 struct arpc {
 	struct list_head list;
 	struct arpc_request_message *req;
@@ -175,10 +151,9 @@ static int output_sync(struct es2_ap_dev *es2, void *req, u16 size, u8 cmd)
 	u8 *data;
 	int retval;
 
-	data = kmalloc(size, GFP_KERNEL);
+	data = kmemdup(req, size, GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
-	memcpy(data, req, size);
 
 	retval = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 				 cmd,
@@ -241,7 +216,7 @@ static int output_async(struct es2_ap_dev *es2, void *req, u16 size, u8 cmd)
 }
 
 static int output(struct gb_host_device *hd, void *req, u16 size, u8 cmd,
-		     bool async)
+		  bool async)
 {
 	struct es2_ap_dev *es2 = hd_to_es2(hd);
 
@@ -252,7 +227,7 @@ static int output(struct gb_host_device *hd, void *req, u16 size, u8 cmd,
 }
 
 static int es2_cport_in_enable(struct es2_ap_dev *es2,
-				struct es2_cport_in *cport_in)
+			       struct es2_cport_in *cport_in)
 {
 	struct urb *urb;
 	int ret;
@@ -264,7 +239,7 @@ static int es2_cport_in_enable(struct es2_ap_dev *es2,
 		ret = usb_submit_urb(urb, GFP_KERNEL);
 		if (ret) {
 			dev_err(&es2->usb_dev->dev,
-					"failed to submit in-urb: %d\n", ret);
+				"failed to submit in-urb: %d\n", ret);
 			goto err_kill_urbs;
 		}
 	}
@@ -281,7 +256,7 @@ err_kill_urbs:
 }
 
 static void es2_cport_in_disable(struct es2_ap_dev *es2,
-				struct es2_cport_in *cport_in)
+				 struct es2_cport_in *cport_in)
 {
 	struct urb *urb;
 	int i;
@@ -341,8 +316,8 @@ static struct urb *next_free_urb(struct es2_ap_dev *es2, gfp_t gfp_mask)
 
 	/* Look in our pool of allocated urbs first, as that's the "fastest" */
 	for (i = 0; i < NUM_CPORT_OUT_URB; ++i) {
-		if (es2->cport_out_urb_busy[i] == false &&
-				es2->cport_out_urb_cancelled[i] == false) {
+		if (!es2->cport_out_urb_busy[i] &&
+		    !es2->cport_out_urb_cancelled[i]) {
 			es2->cport_out_urb_busy[i] = true;
 			urb = es2->cport_out_urb[i];
 			break;
@@ -512,7 +487,7 @@ static void message_cancel(struct gb_message *message)
 }
 
 static int es2_cport_allocate(struct gb_host_device *hd, int cport_id,
-				unsigned long flags)
+			      unsigned long flags)
 {
 	struct es2_ap_dev *es2 = hd_to_es2(hd);
 	struct ida *id_map = &hd->cport_id_map;
@@ -526,7 +501,7 @@ static int es2_cport_allocate(struct gb_host_device *hd, int cport_id,
 	}
 
 	if (flags & GB_CONNECTION_FLAG_OFFLOADED &&
-			flags & GB_CONNECTION_FLAG_CDSI1) {
+	    flags & GB_CONNECTION_FLAG_CDSI1) {
 		if (es2->cdsi1_in_use) {
 			dev_err(&hd->dev, "CDSI1 already in use\n");
 			return -EBUSY;
@@ -586,16 +561,16 @@ static int cport_enable(struct gb_host_device *hd, u16 cport_id,
 	req->flags = cpu_to_le32(connection_flags);
 
 	dev_dbg(&hd->dev, "%s - cport = %u, flags = %02x\n", __func__,
-			cport_id, connection_flags);
+		cport_id, connection_flags);
 
 	ret = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
-				GB_APB_REQUEST_CPORT_FLAGS,
-				USB_DIR_OUT | USB_TYPE_VENDOR |
-				USB_RECIP_INTERFACE, cport_id, 0,
-				req, sizeof(*req), ES2_USB_CTRL_TIMEOUT);
+			      GB_APB_REQUEST_CPORT_FLAGS,
+			      USB_DIR_OUT | USB_TYPE_VENDOR |
+			      USB_RECIP_INTERFACE, cport_id, 0,
+			      req, sizeof(*req), ES2_USB_CTRL_TIMEOUT);
 	if (ret != sizeof(*req)) {
 		dev_err(&udev->dev, "failed to set cport flags for port %d\n",
-				cport_id);
+			cport_id);
 		if (ret >= 0)
 			ret = -EIO;
 
@@ -621,7 +596,7 @@ static int es2_cport_connected(struct gb_host_device *hd, u16 cport_id)
 			NULL, ES2_ARPC_CPORT_TIMEOUT);
 	if (ret) {
 		dev_err(dev, "failed to set connected state for cport %u: %d\n",
-				cport_id, ret);
+			cport_id, ret);
 		return ret;
 	}
 
@@ -647,7 +622,7 @@ static int es2_cport_flush(struct gb_host_device *hd, u16 cport_id)
 }
 
 static int es2_cport_shutdown(struct gb_host_device *hd, u16 cport_id,
-				u8 phase, unsigned int timeout)
+			      u8 phase, unsigned int timeout)
 {
 	struct es2_ap_dev *es2 = hd_to_es2(hd);
 	struct device *dev = &es2->usb_dev->dev;
@@ -665,7 +640,7 @@ static int es2_cport_shutdown(struct gb_host_device *hd, u16 cport_id,
 			&result, ES2_ARPC_CPORT_TIMEOUT + timeout);
 	if (ret) {
 		dev_err(dev, "failed to send shutdown over cport %u: %d (%d)\n",
-				cport_id, ret, result);
+			cport_id, ret, result);
 		return ret;
 	}
 
@@ -673,7 +648,7 @@ static int es2_cport_shutdown(struct gb_host_device *hd, u16 cport_id,
 }
 
 static int es2_cport_quiesce(struct gb_host_device *hd, u16 cport_id,
-				size_t peer_space, unsigned int timeout)
+			     size_t peer_space, unsigned int timeout)
 {
 	struct es2_ap_dev *es2 = hd_to_es2(hd);
 	struct device *dev = &es2->usb_dev->dev;
@@ -694,7 +669,7 @@ static int es2_cport_quiesce(struct gb_host_device *hd, u16 cport_id,
 			&result, ES2_ARPC_CPORT_TIMEOUT + timeout);
 	if (ret) {
 		dev_err(dev, "failed to quiesce cport %u: %d (%d)\n",
-				cport_id, ret, result);
+			cport_id, ret, result);
 		return ret;
 	}
 
@@ -755,111 +730,6 @@ static int latency_tag_disable(struct gb_host_device *hd, u16 cport_id)
 	return retval;
 }
 
-static int timesync_enable(struct gb_host_device *hd, u8 count,
-			   u64 frame_time, u32 strobe_delay, u32 refclk)
-{
-	int retval;
-	struct es2_ap_dev *es2 = hd_to_es2(hd);
-	struct usb_device *udev = es2->usb_dev;
-	struct gb_control_timesync_enable_request *request;
-
-	request = kzalloc(sizeof(*request), GFP_KERNEL);
-	if (!request)
-		return -ENOMEM;
-
-	request->count = count;
-	request->frame_time = cpu_to_le64(frame_time);
-	request->strobe_delay = cpu_to_le32(strobe_delay);
-	request->refclk = cpu_to_le32(refclk);
-	retval = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
-				 GB_APB_REQUEST_TIMESYNC_ENABLE,
-				 USB_DIR_OUT | USB_TYPE_VENDOR |
-				 USB_RECIP_INTERFACE, 0, 0, request,
-				 sizeof(*request), ES2_USB_CTRL_TIMEOUT);
-	if (retval < 0)
-		dev_err(&udev->dev, "Cannot enable timesync %d\n", retval);
-
-	kfree(request);
-	return retval;
-}
-
-static int timesync_disable(struct gb_host_device *hd)
-{
-	int retval;
-	struct es2_ap_dev *es2 = hd_to_es2(hd);
-	struct usb_device *udev = es2->usb_dev;
-
-	retval = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
-				 GB_APB_REQUEST_TIMESYNC_DISABLE,
-				 USB_DIR_OUT | USB_TYPE_VENDOR |
-				 USB_RECIP_INTERFACE, 0, 0, NULL,
-				 0, ES2_USB_CTRL_TIMEOUT);
-	if (retval < 0)
-		dev_err(&udev->dev, "Cannot disable timesync %d\n", retval);
-
-	return retval;
-}
-
-static int timesync_authoritative(struct gb_host_device *hd, u64 *frame_time)
-{
-	int retval, i;
-	struct es2_ap_dev *es2 = hd_to_es2(hd);
-	struct usb_device *udev = es2->usb_dev;
-	struct timesync_authoritative_request *request;
-
-	request = kzalloc(sizeof(*request), GFP_KERNEL);
-	if (!request)
-		return -ENOMEM;
-
-	for (i = 0; i < GB_TIMESYNC_MAX_STROBES; i++)
-		request->frame_time[i] = cpu_to_le64(frame_time[i]);
-
-	retval = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
-				 GB_APB_REQUEST_TIMESYNC_AUTHORITATIVE,
-				 USB_DIR_OUT | USB_TYPE_VENDOR |
-				 USB_RECIP_INTERFACE, 0, 0, request,
-				 sizeof(*request), ES2_USB_CTRL_TIMEOUT);
-	if (retval < 0)
-		dev_err(&udev->dev, "Cannot timesync authoritative out %d\n", retval);
-
-	kfree(request);
-	return retval;
-}
-
-static int timesync_get_last_event(struct gb_host_device *hd, u64 *frame_time)
-{
-	int retval;
-	struct es2_ap_dev *es2 = hd_to_es2(hd);
-	struct usb_device *udev = es2->usb_dev;
-	__le64 *response_frame_time;
-
-	response_frame_time = kzalloc(sizeof(*response_frame_time), GFP_KERNEL);
-	if (!response_frame_time)
-		return -ENOMEM;
-
-	retval = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
-				 GB_APB_REQUEST_TIMESYNC_GET_LAST_EVENT,
-				 USB_DIR_IN | USB_TYPE_VENDOR |
-				 USB_RECIP_INTERFACE, 0, 0, response_frame_time,
-				 sizeof(*response_frame_time),
-				 ES2_USB_CTRL_TIMEOUT);
-
-	if (retval != sizeof(*response_frame_time)) {
-		dev_err(&udev->dev, "Cannot get last TimeSync event: %d\n",
-			retval);
-
-		if (retval >= 0)
-			retval = -EIO;
-
-		goto out;
-	}
-	*frame_time = le64_to_cpu(*response_frame_time);
-	retval = 0;
-out:
-	kfree(response_frame_time);
-	return retval;
-}
-
 static struct gb_hd_driver es2_driver = {
 	.hd_priv_size			= sizeof(struct es2_ap_dev),
 	.message_send			= message_send,
@@ -875,10 +745,6 @@ static struct gb_hd_driver es2_driver = {
 	.latency_tag_enable		= latency_tag_enable,
 	.latency_tag_disable		= latency_tag_disable,
 	.output				= output,
-	.timesync_enable		= timesync_enable,
-	.timesync_disable		= timesync_disable,
-	.timesync_authoritative		= timesync_authoritative,
-	.timesync_get_last_event	= timesync_get_last_event,
 };
 
 /* Common function to report consistent warnings based on URB status */
@@ -894,6 +760,7 @@ static int check_urb_status(struct urb *urb)
 	case -EOVERFLOW:
 		dev_err(dev, "%s: overflow actual length is %d\n",
 			__func__, urb->actual_length);
+		/* fall through */
 	case -ECONNRESET:
 	case -ENOENT:
 	case -ESHUTDOWN:
@@ -979,7 +846,7 @@ static void cport_in_callback(struct urb *urb)
 
 	if (cport_id_valid(hd, cport_id)) {
 		greybus_data_rcvd(hd, cport_id, urb->transfer_buffer,
-							urb->actual_length);
+				  urb->actual_length);
 	} else {
 		dev_err(dev, "invalid cport id %u received\n", cport_id);
 	}
@@ -1034,7 +901,7 @@ static struct arpc *arpc_alloc(void *payload, u16 size, u8 type)
 		goto err_free_req;
 
 	rpc->req->type = type;
-	rpc->req->size = cpu_to_le16(sizeof(rpc->req) + size);
+	rpc->req->size = cpu_to_le16(sizeof(*rpc->req) + size);
 	memcpy(rpc->req->data, payload, size);
 
 	init_completion(&rpc->response_received);
@@ -1216,13 +1083,14 @@ static void apb_log_get(struct es2_ap_dev *es2, char *buf)
 
 	do {
 		retval = usb_control_msg(es2->usb_dev,
-					usb_rcvctrlpipe(es2->usb_dev, 0),
-					GB_APB_REQUEST_LOG,
-					USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
-					0x00, 0x00,
-					buf,
-					APB1_LOG_MSG_SIZE,
-					ES2_USB_CTRL_TIMEOUT);
+					 usb_rcvctrlpipe(es2->usb_dev, 0),
+					 GB_APB_REQUEST_LOG,
+					 USB_DIR_IN | USB_TYPE_VENDOR |
+					 USB_RECIP_INTERFACE,
+					 0x00, 0x00,
+					 buf,
+					 APB1_LOG_MSG_SIZE,
+					 ES2_USB_CTRL_TIMEOUT);
 		if (retval > 0)
 			kfifo_in(&es2->apb_log_fifo, buf, retval);
 	} while (retval > 0);
@@ -1248,9 +1116,9 @@ static int apb_log_poll(void *data)
 }
 
 static ssize_t apb_log_read(struct file *f, char __user *buf,
-				size_t count, loff_t *ppos)
+			    size_t count, loff_t *ppos)
 {
-	struct es2_ap_dev *es2 = f->f_inode->i_private;
+	struct es2_ap_dev *es2 = file_inode(f)->i_private;
 	ssize_t ret;
 	size_t copied;
 	char *tmp_buf;
@@ -1284,9 +1152,9 @@ static void usb_log_enable(struct es2_ap_dev *es2)
 	if (IS_ERR(es2->apb_log_task))
 		return;
 	/* XXX We will need to rename this per APB */
-	es2->apb_log_dentry = debugfs_create_file("apb_log", S_IRUGO,
-						gb_debugfs_get(), es2,
-						&apb_log_fops);
+	es2->apb_log_dentry = debugfs_create_file("apb_log", 0444,
+						  gb_debugfs_get(), es2,
+						  &apb_log_fops);
 }
 
 static void usb_log_disable(struct es2_ap_dev *es2)
@@ -1302,9 +1170,9 @@ static void usb_log_disable(struct es2_ap_dev *es2)
 }
 
 static ssize_t apb_log_enable_read(struct file *f, char __user *buf,
-				size_t count, loff_t *ppos)
+				   size_t count, loff_t *ppos)
 {
-	struct es2_ap_dev *es2 = f->f_inode->i_private;
+	struct es2_ap_dev *es2 = file_inode(f)->i_private;
 	int enable = !IS_ERR_OR_NULL(es2->apb_log_task);
 	char tmp_buf[3];
 
@@ -1313,11 +1181,11 @@ static ssize_t apb_log_enable_read(struct file *f, char __user *buf,
 }
 
 static ssize_t apb_log_enable_write(struct file *f, const char __user *buf,
-				size_t count, loff_t *ppos)
+				    size_t count, loff_t *ppos)
 {
 	int enable;
 	ssize_t retval;
-	struct es2_ap_dev *es2 = f->f_inode->i_private;
+	struct es2_ap_dev *es2 = file_inode(f)->i_private;
 
 	retval = kstrtoint_from_user(buf, count, 10, &enable);
 	if (retval)
@@ -1406,7 +1274,7 @@ static int ap_probe(struct usb_interface *interface,
 	}
 
 	hd = gb_hd_create(&es2_driver, &udev->dev, ES2_GBUF_MSG_SIZE_MAX,
-				num_cports);
+			  num_cports);
 	if (IS_ERR(hd)) {
 		usb_put_dev(udev);
 		return PTR_ERR(hd);
@@ -1541,9 +1409,9 @@ static int ap_probe(struct usb_interface *interface,
 
 	/* XXX We will need to rename this per APB */
 	es2->apb_log_enable_dentry = debugfs_create_file("apb_log_enable",
-							(S_IWUSR | S_IRUGO),
-							gb_debugfs_get(), es2,
-							&apb_log_enable_fops);
+							 0644,
+							 gb_debugfs_get(), es2,
+							 &apb_log_enable_fops);
 
 	INIT_LIST_HEAD(&es2->arpcs);
 	spin_lock_init(&es2->arpc_lock);

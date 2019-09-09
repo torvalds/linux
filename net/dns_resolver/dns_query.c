@@ -37,8 +37,11 @@
 
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/cred.h>
 #include <linux/dns_resolver.h>
 #include <linux/err.h>
+#include <net/net_namespace.h>
+
 #include <keys/dns_resolver-type.h>
 #include <keys/user-type.h>
 
@@ -46,15 +49,17 @@
 
 /**
  * dns_query - Query the DNS
+ * @net: The network namespace to operate in.
  * @type: Query type (or NULL for straight host->IP lookup)
  * @name: Name to look up
  * @namelen: Length of name
  * @options: Request options (or NULL if no options)
- * @_result: Where to place the returned data.
+ * @_result: Where to place the returned data (or NULL)
  * @_expiry: Where to store the result expiry time (or NULL)
+ * @invalidate: Always invalidate the key after use
  *
- * The data will be returned in the pointer at *result, and the caller is
- * responsible for freeing it.
+ * The data will be returned in the pointer at *result, if provided, and the
+ * caller is responsible for freeing it.
  *
  * The description should be of the form "[<query_type>:]<domain_name>", and
  * the options need to be appropriate for the query type requested.  If no
@@ -66,11 +71,13 @@
  *
  * Returns the size of the result on success, -ve error code otherwise.
  */
-int dns_query(const char *type, const char *name, size_t namelen,
-	      const char *options, char **_result, time64_t *_expiry)
+int dns_query(struct net *net,
+	      const char *type, const char *name, size_t namelen,
+	      const char *options, char **_result, time64_t *_expiry,
+	      bool invalidate)
 {
 	struct key *rkey;
-	const struct user_key_payload *upayload;
+	struct user_key_payload *upayload;
 	const struct cred *saved_cred;
 	size_t typelen, desclen;
 	char *desc, *cp;
@@ -79,7 +86,7 @@ int dns_query(const char *type, const char *name, size_t namelen,
 	kenter("%s,%*.*s,%zu,%s",
 	       type, (int)namelen, (int)namelen, name, namelen, options);
 
-	if (!name || namelen == 0 || !_result)
+	if (!name || namelen == 0)
 		return -EINVAL;
 
 	/* construct the query key description as "[<type>:]<name>" */
@@ -92,8 +99,6 @@ int dns_query(const char *type, const char *name, size_t namelen,
 		desclen += typelen + 1;
 	}
 
-	if (!namelen)
-		namelen = strnlen(name, 256);
 	if (namelen < 3 || namelen > 255)
 		return -EINVAL;
 	desclen += namelen + 1;
@@ -120,7 +125,7 @@ int dns_query(const char *type, const char *name, size_t namelen,
 	 * add_key() to preinstall malicious redirections
 	 */
 	saved_cred = override_creds(dns_resolver_cache);
-	rkey = request_key(&key_type_dns_resolver, desc, options);
+	rkey = request_key_net(&key_type_dns_resolver, desc, net, options);
 	revert_creds(saved_cred);
 	kfree(desc);
 	if (IS_ERR(rkey)) {
@@ -141,16 +146,15 @@ int dns_query(const char *type, const char *name, size_t namelen,
 	if (ret)
 		goto put;
 
-	upayload = user_key_payload(rkey);
+	upayload = user_key_payload_locked(rkey);
 	len = upayload->datalen;
 
-	ret = -ENOMEM;
-	*_result = kmalloc(len + 1, GFP_KERNEL);
-	if (!*_result)
-		goto put;
-
-	memcpy(*_result, upayload->data, len);
-	(*_result)[len] = '\0';
+	if (_result) {
+		ret = -ENOMEM;
+		*_result = kmemdup_nul(upayload->data, len, GFP_KERNEL);
+		if (!*_result)
+			goto put;
+	}
 
 	if (_expiry)
 		*_expiry = rkey->expiry;
@@ -158,6 +162,8 @@ int dns_query(const char *type, const char *name, size_t namelen,
 	ret = len;
 put:
 	up_read(&rkey->sem);
+	if (invalidate)
+		key_invalidate(rkey);
 	key_put(rkey);
 out:
 	kleave(" = %d", ret);

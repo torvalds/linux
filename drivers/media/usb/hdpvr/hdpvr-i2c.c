@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 
 /*
  * Hauppauge HD PVR USB driver
@@ -6,11 +7,6 @@
  *
  * IR device registration code is
  * Copyright (C) 2010	Andy Walls <awalls@md.metrocast.net>
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License as
- *	published by the Free Software Foundation, version 2.
- *
  */
 
 #if IS_ENABLED(CONFIG_I2C)
@@ -32,35 +28,23 @@
 #define Z8F0811_IR_RX_I2C_ADDR	0x71
 
 
-struct i2c_client *hdpvr_register_ir_tx_i2c(struct hdpvr_device *dev)
+struct i2c_client *hdpvr_register_ir_i2c(struct hdpvr_device *dev)
 {
 	struct IR_i2c_init_data *init_data = &dev->ir_i2c_init_data;
-	struct i2c_board_info hdpvr_ir_tx_i2c_board_info = {
-		I2C_BOARD_INFO("ir_tx_z8f0811_hdpvr", Z8F0811_IR_TX_I2C_ADDR),
-	};
-
-	init_data->name = "HD-PVR";
-	hdpvr_ir_tx_i2c_board_info.platform_data = init_data;
-
-	return i2c_new_device(&dev->i2c_adapter, &hdpvr_ir_tx_i2c_board_info);
-}
-
-struct i2c_client *hdpvr_register_ir_rx_i2c(struct hdpvr_device *dev)
-{
-	struct IR_i2c_init_data *init_data = &dev->ir_i2c_init_data;
-	struct i2c_board_info hdpvr_ir_rx_i2c_board_info = {
-		I2C_BOARD_INFO("ir_rx_z8f0811_hdpvr", Z8F0811_IR_RX_I2C_ADDR),
+	struct i2c_board_info info = {
+		I2C_BOARD_INFO("ir_z8f0811_hdpvr", Z8F0811_IR_RX_I2C_ADDR),
 	};
 
 	/* Our default information for ir-kbd-i2c.c to use */
 	init_data->ir_codes = RC_MAP_HAUPPAUGE;
 	init_data->internal_get_key_func = IR_KBD_GET_KEY_HAUP_XVR;
-	init_data->type = RC_BIT_RC5 | RC_BIT_RC6_MCE | RC_BIT_RC6_6A_32;
+	init_data->type = RC_PROTO_BIT_RC5 | RC_PROTO_BIT_RC6_MCE |
+			  RC_PROTO_BIT_RC6_6A_32;
 	init_data->name = "HD-PVR";
 	init_data->polling_interval = 405; /* ms, duplicated from Windows */
-	hdpvr_ir_rx_i2c_board_info.platform_data = init_data;
+	info.platform_data = init_data;
 
-	return i2c_new_device(&dev->i2c_adapter, &hdpvr_ir_rx_i2c_board_info);
+	return i2c_new_device(&dev->i2c_adapter, &info);
 }
 
 static int hdpvr_i2c_read(struct hdpvr_device *dev, int bus,
@@ -73,10 +57,10 @@ static int hdpvr_i2c_read(struct hdpvr_device *dev, int bus,
 		return -EINVAL;
 
 	if (wlen) {
-		memcpy(&dev->i2c_buf, wdata, wlen);
+		memcpy(dev->i2c_buf, wdata, wlen);
 		ret = usb_control_msg(dev->udev, usb_sndctrlpipe(dev->udev, 0),
 				      REQTYPE_I2C_WRITE, CTRL_WRITE_REQUEST,
-				      (bus << 8) | addr, 0, &dev->i2c_buf,
+				      (bus << 8) | addr, 0, dev->i2c_buf,
 				      wlen, 1000);
 		if (ret < 0)
 			return ret;
@@ -84,10 +68,10 @@ static int hdpvr_i2c_read(struct hdpvr_device *dev, int bus,
 
 	ret = usb_control_msg(dev->udev, usb_rcvctrlpipe(dev->udev, 0),
 			      REQTYPE_I2C_READ, CTRL_READ_REQUEST,
-			      (bus << 8) | addr, 0, &dev->i2c_buf, len, 1000);
+			      (bus << 8) | addr, 0, dev->i2c_buf, len, 1000);
 
 	if (ret == len) {
-		memcpy(data, &dev->i2c_buf, len);
+		memcpy(data, dev->i2c_buf, len);
 		ret = 0;
 	} else if (ret >= 0)
 		ret = -EIO;
@@ -103,17 +87,17 @@ static int hdpvr_i2c_write(struct hdpvr_device *dev, int bus,
 	if (len > sizeof(dev->i2c_buf))
 		return -EINVAL;
 
-	memcpy(&dev->i2c_buf, data, len);
+	memcpy(dev->i2c_buf, data, len);
 	ret = usb_control_msg(dev->udev, usb_sndctrlpipe(dev->udev, 0),
 			      REQTYPE_I2C_WRITE, CTRL_WRITE_REQUEST,
-			      (bus << 8) | addr, 0, &dev->i2c_buf, len, 1000);
+			      (bus << 8) | addr, 0, dev->i2c_buf, len, 1000);
 
 	if (ret < 0)
 		return ret;
 
 	ret = usb_control_msg(dev->udev, usb_rcvctrlpipe(dev->udev, 0),
 			      REQTYPE_I2C_WRITE_STATT, CTRL_READ_REQUEST,
-			      0, 0, &dev->i2c_buf, 2, 1000);
+			      0, 0, dev->i2c_buf, 2, 1000);
 
 	if ((ret == 2) && (dev->i2c_buf[1] == (len - 1)))
 		ret = 0;
@@ -129,9 +113,6 @@ static int hdpvr_transfer(struct i2c_adapter *i2c_adapter, struct i2c_msg *msgs,
 	struct hdpvr_device *dev = i2c_get_adapdata(i2c_adapter);
 	int retval = 0, addr;
 
-	if (num <= 0)
-		return 0;
-
 	mutex_lock(&dev->i2c_mutex);
 
 	addr = msgs[0].addr << 1;
@@ -145,15 +126,14 @@ static int hdpvr_transfer(struct i2c_adapter *i2c_adapter, struct i2c_msg *msgs,
 						 msgs[0].len);
 	} else if (num == 2) {
 		if (msgs[0].addr != msgs[1].addr) {
-			v4l2_warn(&dev->v4l2_dev, "refusing 2-phase i2c xfer "
-				  "with conflicting target addresses\n");
+			v4l2_warn(&dev->v4l2_dev, "refusing 2-phase i2c xfer with conflicting target addresses\n");
 			retval = -EINVAL;
 			goto out;
 		}
 
 		if ((msgs[0].flags & I2C_M_RD) || !(msgs[1].flags & I2C_M_RD)) {
-			v4l2_warn(&dev->v4l2_dev, "refusing complex xfer with "
-				  "r0=%d, r1=%d\n", msgs[0].flags & I2C_M_RD,
+			v4l2_warn(&dev->v4l2_dev, "refusing complex xfer with r0=%d, r1=%d\n",
+				  msgs[0].flags & I2C_M_RD,
 				  msgs[1].flags & I2C_M_RD);
 			retval = -EINVAL;
 			goto out;
@@ -185,8 +165,8 @@ static const struct i2c_algorithm hdpvr_algo = {
 	.functionality = hdpvr_functionality,
 };
 
-static struct i2c_adapter hdpvr_i2c_adapter_template = {
-	.name   = "Hauppage HD PVR I2C",
+static const struct i2c_adapter hdpvr_i2c_adapter_template = {
+	.name   = "Hauppauge HD PVR I2C",
 	.owner  = THIS_MODULE,
 	.algo   = &hdpvr_algo,
 };

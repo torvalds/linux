@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/kernel.h>
 #include <linux/serial.h>
 #include <linux/serial_8250.h>
@@ -147,8 +148,8 @@ static int __init add_legacy_port(struct device_node *np, int want_index,
 		legacy_serial_ports[index].serial_out = tsi_serial_out;
 	}
 
-	printk(KERN_DEBUG "Found legacy serial port %d for %s\n",
-	       index, np->full_name);
+	printk(KERN_DEBUG "Found legacy serial port %d for %pOF\n",
+	       index, np);
 	printk(KERN_DEBUG "  %s=%llx, taddr=%llx, irq=%lx, clk=%d, speed=%d\n",
 	       (iotype == UPIO_PORT) ? "port" : "mem",
 	       (unsigned long long)base, (unsigned long long)taddr, irq,
@@ -191,7 +192,7 @@ static int __init add_legacy_soc_port(struct device_node *np,
 	/* Add port, irq will be dealt with later. We passed a translated
 	 * IO port value. It will be fixed up later along with the irq
 	 */
-	if (tsi && !strcmp(tsi->type, "tsi-bridge"))
+	if (of_node_is_type(tsi, "tsi-bridge"))
 		return add_legacy_port(np, -1, UPIO_TSI, addr, addr,
 				       0, legacy_port_flags, 0);
 	else
@@ -207,7 +208,7 @@ static int __init add_legacy_isa_port(struct device_node *np,
 	int index = -1;
 	u64 taddr;
 
-	DBG(" -> add_legacy_isa_port(%s)\n", np->full_name);
+	DBG(" -> add_legacy_isa_port(%pOF)\n", np);
 
 	/* Get the ISA port number */
 	reg = of_get_property(np, "reg", NULL);
@@ -233,7 +234,8 @@ static int __init add_legacy_isa_port(struct device_node *np,
 	 *
 	 * Note: Don't even try on P8 lpc, we know it's not directly mapped
 	 */
-	if (!of_device_is_compatible(isa_brg, "ibm,power8-lpc")) {
+	if (!of_device_is_compatible(isa_brg, "ibm,power8-lpc") ||
+	    of_get_property(isa_brg, "ranges", NULL)) {
 		taddr = of_translate_address(np, reg);
 		if (taddr == OF_BAD_ADDR)
 			taddr = 0;
@@ -255,7 +257,7 @@ static int __init add_legacy_pci_port(struct device_node *np,
 	unsigned int flags;
 	int iotype, index = -1, lindex = 0;
 
-	DBG(" -> add_legacy_pci_port(%s)\n", np->full_name);
+	DBG(" -> add_legacy_pci_port(%pOF)\n", np);
 
 	/* We only support ports that have a clock frequency properly
 	 * encoded in the device-tree (that is have an fcode). Anything
@@ -370,10 +372,12 @@ void __init find_legacy_serial_ports(void)
 
 	/* Now find out if one of these is out firmware console */
 	path = of_get_property(of_chosen, "linux,stdout-path", NULL);
+	if (path == NULL)
+		path = of_get_property(of_chosen, "stdout-path", NULL);
 	if (path != NULL) {
 		stdout = of_find_node_by_path(path);
 		if (stdout)
-			DBG("stdout is %s\n", stdout->full_name);
+			DBG("stdout is %pOF\n", stdout);
 	} else {
 		DBG(" no linux,stdout-path !\n");
 	}
@@ -396,8 +400,7 @@ void __init find_legacy_serial_ports(void)
 	/* Next, fill our array with ISA ports */
 	for_each_node_by_type(np, "serial") {
 		struct device_node *isa = of_get_parent(np);
-		if (isa && (!strcmp(isa->name, "isa") ||
-			    !strcmp(isa->name, "lpc"))) {
+		if (of_node_name_eq(isa, "isa") || of_node_name_eq(isa, "lpc")) {
 			if (of_device_is_available(np)) {
 				index = add_legacy_isa_port(np, isa);
 				if (index >= 0 && np == stdout)
@@ -411,11 +414,12 @@ void __init find_legacy_serial_ports(void)
 	/* Next, try to locate PCI ports */
 	for (np = NULL; (np = of_find_all_nodes(np));) {
 		struct device_node *pci, *parent = of_get_parent(np);
-		if (parent && !strcmp(parent->name, "isa")) {
+		if (of_node_name_eq(parent, "isa")) {
 			of_node_put(parent);
 			continue;
 		}
-		if (strcmp(np->name, "serial") && strcmp(np->type, "serial")) {
+		if (!of_node_name_eq(np, "serial") &&
+		    !of_node_is_type(np, "serial")) {
 			of_node_put(parent);
 			continue;
 		}
@@ -593,8 +597,10 @@ static int __init check_legacy_serial_console(void)
 	/* We are getting a weird phandle from OF ... */
 	/* ... So use the full path instead */
 	name = of_get_property(of_chosen, "linux,stdout-path", NULL);
+	if (name == NULL)
+		name = of_get_property(of_chosen, "stdout-path", NULL);
 	if (name == NULL) {
-		DBG(" no linux,stdout-path !\n");
+		DBG(" no stdout-path !\n");
 		return -ENODEV;
 	}
 	prom_stdout = of_find_node_by_path(name);
@@ -602,7 +608,7 @@ static int __init check_legacy_serial_console(void)
 		DBG(" can't find stdout package %s !\n", name);
 		return -ENODEV;
 	}
-	DBG("stdout is %s\n", prom_stdout->full_name);
+	DBG("stdout is %pOF\n", prom_stdout);
 
 	name = of_get_property(prom_stdout, "name", NULL);
 	if (!name) {

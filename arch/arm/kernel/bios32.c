@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  linux/arch/arm/kernel/bios32.c
  *
@@ -458,9 +459,13 @@ static void pcibios_init_hw(struct device *parent, struct hw_pci *hw,
 	int nr, busnr;
 
 	for (nr = busnr = 0; nr < hw->nr_controllers; nr++) {
-		sys = kzalloc(sizeof(struct pci_sys_data), GFP_KERNEL);
-		if (WARN(!sys, "PCI: unable to allocate sys data!"))
+		struct pci_host_bridge *bridge;
+
+		bridge = pci_alloc_host_bridge(sizeof(struct pci_sys_data));
+		if (WARN(!bridge, "PCI: unable to allocate bridge!"))
 			break;
+
+		sys = pci_host_bridge_priv(bridge);
 
 		sys->busnr   = busnr;
 		sys->swizzle = hw->swizzle;
@@ -473,34 +478,44 @@ static void pcibios_init_hw(struct device *parent, struct hw_pci *hw,
 		ret = hw->setup(nr, sys);
 
 		if (ret > 0) {
-			struct pci_host_bridge *host_bridge;
 
 			ret = pcibios_init_resource(nr, sys, hw->io_optional);
 			if (ret)  {
-				kfree(sys);
+				pci_free_host_bridge(bridge);
 				break;
 			}
+
+			bridge->map_irq = pcibios_map_irq;
+			bridge->swizzle_irq = pcibios_swizzle;
 
 			if (hw->scan)
-				sys->bus = hw->scan(nr, sys);
-			else
-				sys->bus = pci_scan_root_bus_msi(parent,
-					sys->busnr, hw->ops, sys,
-					&sys->resources, hw->msi_ctrl);
+				ret = hw->scan(nr, bridge);
+			else {
+				list_splice_init(&sys->resources,
+						 &bridge->windows);
+				bridge->dev.parent = parent;
+				bridge->sysdata = sys;
+				bridge->busnr = sys->busnr;
+				bridge->ops = hw->ops;
+				bridge->msi = hw->msi_ctrl;
+				bridge->align_resource =
+						hw->align_resource;
 
-			if (WARN(!sys->bus, "PCI: unable to scan bus!")) {
-				kfree(sys);
+				ret = pci_scan_root_bus_bridge(bridge);
+			}
+
+			if (WARN(ret < 0, "PCI: unable to scan bus!")) {
+				pci_free_host_bridge(bridge);
 				break;
 			}
+
+			sys->bus = bridge->bus;
 
 			busnr = sys->bus->busn_res.end + 1;
 
 			list_add(&sys->node, head);
-
-			host_bridge = pci_find_host_bridge(sys->bus);
-			host_bridge->align_resource = hw->align_resource;
 		} else {
-			kfree(sys);
+			pci_free_host_bridge(bridge);
 			if (ret < 0)
 				break;
 		}
@@ -512,14 +527,12 @@ void pci_common_init_dev(struct device *parent, struct hw_pci *hw)
 	struct pci_sys_data *sys;
 	LIST_HEAD(head);
 
-	pci_add_flags(PCI_REASSIGN_ALL_RSRC);
+	pci_add_flags(PCI_REASSIGN_ALL_BUS);
 	if (hw->preinit)
 		hw->preinit();
 	pcibios_init_hw(parent, hw, &head);
 	if (hw->postinit)
 		hw->postinit();
-
-	pci_fixup_irqs(pcibios_swizzle, pcibios_map_irq);
 
 	list_for_each_entry(sys, &head, node) {
 		struct pci_bus *bus = sys->bus;
@@ -595,25 +608,6 @@ resource_size_t pcibios_align_resource(void *data, const struct resource *res,
 				start, size, align);
 
 	return start;
-}
-
-int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
-			enum pci_mmap_state mmap_state, int write_combine)
-{
-	if (mmap_state == pci_mmap_io)
-		return -EINVAL;
-
-	/*
-	 * Mark this as IO
-	 */
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-
-	if (remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
-			     vma->vm_end - vma->vm_start,
-			     vma->vm_page_prot))
-		return -EAGAIN;
-
-	return 0;
 }
 
 void __init pci_map_io_early(unsigned long pfn)

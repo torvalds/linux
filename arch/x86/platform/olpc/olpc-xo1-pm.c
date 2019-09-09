@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Support for power management features of the OLPC XO-1 laptop
  *
@@ -5,11 +6,6 @@
  * Copyright (C) 2010 One Laptop per Child
  * Copyright (C) 2006 Red Hat, Inc.
  * Copyright (C) 2006 Advanced Micro Devices, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/cs5535.h>
@@ -77,7 +73,7 @@ static int xo1_power_state_enter(suspend_state_t pm_state)
 
 asmlinkage __visible int xo1_do_sleep(u8 sleep_state)
 {
-	void *pgd_addr = __va(read_cr3());
+	void *pgd_addr = __va(read_cr3_pa());
 
 	/* Program wakeup mask (using dword access to CS5536_PM1_EN) */
 	outl(wakeup_mask << 16, acpi_base + CS5536_PM1_STS);

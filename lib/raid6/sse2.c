@@ -1,12 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* -*- linux-c -*- ------------------------------------------------------- *
  *
  *   Copyright 2002 H. Peter Anvin - All Rights Reserved
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation, Inc., 53 Temple Place Ste 330,
- *   Boston MA 02111-1307, USA; either version 2 of the License, or
- *   (at your option) any later version; incorporated herein by reference.
  *
  * ----------------------------------------------------------------------- */
 
@@ -91,7 +86,7 @@ static void raid6_sse21_gen_syndrome(int disks, size_t bytes, void **ptrs)
 
 static void raid6_sse21_xor_syndrome(int disks, int start, int stop,
 				     size_t bytes, void **ptrs)
- {
+{
 	u8 **dptr = (u8 **)ptrs;
 	u8 *p, *q;
 	int d, z, z0;
@@ -200,9 +195,9 @@ static void raid6_sse22_gen_syndrome(int disks, size_t bytes, void **ptrs)
 	kernel_fpu_end();
 }
 
- static void raid6_sse22_xor_syndrome(int disks, int start, int stop,
+static void raid6_sse22_xor_syndrome(int disks, int start, int stop,
 				     size_t bytes, void **ptrs)
- {
+{
 	u8 **dptr = (u8 **)ptrs;
 	u8 *p, *q;
 	int d, z, z0;
@@ -265,7 +260,7 @@ static void raid6_sse22_gen_syndrome(int disks, size_t bytes, void **ptrs)
 
 	asm volatile("sfence" : : : "memory");
 	kernel_fpu_end();
- }
+}
 
 const struct raid6_calls raid6_sse2x2 = {
 	raid6_sse22_gen_syndrome,
@@ -366,9 +361,9 @@ static void raid6_sse24_gen_syndrome(int disks, size_t bytes, void **ptrs)
 	kernel_fpu_end();
 }
 
- static void raid6_sse24_xor_syndrome(int disks, int start, int stop,
+static void raid6_sse24_xor_syndrome(int disks, int start, int stop,
 				     size_t bytes, void **ptrs)
- {
+{
 	u8 **dptr = (u8 **)ptrs;
 	u8 *p, *q;
 	int d, z, z0;
@@ -471,7 +466,7 @@ static void raid6_sse24_gen_syndrome(int disks, size_t bytes, void **ptrs)
 	}
 	asm volatile("sfence" : : : "memory");
 	kernel_fpu_end();
- }
+}
 
 
 const struct raid6_calls raid6_sse2x4 = {

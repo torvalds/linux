@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __KERN_LEVELS_H__
 #define __KERN_LEVELS_H__
 
@@ -13,7 +14,7 @@
 #define KERN_INFO	KERN_SOH "6"	/* informational */
 #define KERN_DEBUG	KERN_SOH "7"	/* debug-level messages */
 
-#define KERN_DEFAULT	KERN_SOH "d"	/* the default kernel loglevel */
+#define KERN_DEFAULT	""		/* the default kernel loglevel */
 
 /*
  * Annotation for a "continued" line of log printout (only done after a

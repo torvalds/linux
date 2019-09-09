@@ -1,14 +1,33 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_VIRTIO_NET_H
 #define _LINUX_VIRTIO_NET_H
 
 #include <linux/if_vlan.h>
 #include <uapi/linux/virtio_net.h>
 
+static inline int virtio_net_hdr_set_proto(struct sk_buff *skb,
+					   const struct virtio_net_hdr *hdr)
+{
+	switch (hdr->gso_type & ~VIRTIO_NET_HDR_GSO_ECN) {
+	case VIRTIO_NET_HDR_GSO_TCPV4:
+	case VIRTIO_NET_HDR_GSO_UDP:
+		skb->protocol = cpu_to_be16(ETH_P_IP);
+		break;
+	case VIRTIO_NET_HDR_GSO_TCPV6:
+		skb->protocol = cpu_to_be16(ETH_P_IPV6);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static inline int virtio_net_hdr_to_skb(struct sk_buff *skb,
 					const struct virtio_net_hdr *hdr,
 					bool little_endian)
 {
-	unsigned short gso_type = 0;
+	unsigned int gso_type = 0;
 
 	if (hdr->gso_type != VIRTIO_NET_HDR_GSO_NONE) {
 		switch (hdr->gso_type & ~VIRTIO_NET_HDR_GSO_ECN) {
@@ -38,6 +57,25 @@ static inline int virtio_net_hdr_to_skb(struct sk_buff *skb,
 
 		if (!skb_partial_csum_set(skb, start, off))
 			return -EINVAL;
+	} else {
+		/* gso packets without NEEDS_CSUM do not set transport_offset.
+		 * probe and drop if does not match one of the above types.
+		 */
+		if (gso_type && skb->network_header) {
+			if (!skb->protocol)
+				virtio_net_hdr_set_proto(skb, hdr);
+retry:
+			skb_probe_transport_header(skb);
+			if (!skb_transport_header_was_set(skb)) {
+				/* UFO does not specify ipv4 or 6: try both */
+				if (gso_type & SKB_GSO_UDP &&
+				    skb->protocol == htons(ETH_P_IP)) {
+					skb->protocol = htons(ETH_P_IPV6);
+					goto retry;
+				}
+				return -EINVAL;
+			}
+		}
 	}
 
 	if (hdr->gso_type != VIRTIO_NET_HDR_GSO_NONE) {
@@ -56,9 +94,11 @@ static inline int virtio_net_hdr_to_skb(struct sk_buff *skb,
 
 static inline int virtio_net_hdr_from_skb(const struct sk_buff *skb,
 					  struct virtio_net_hdr *hdr,
-					  bool little_endian)
+					  bool little_endian,
+					  bool has_data_valid,
+					  int vlan_hlen)
 {
-	memset(hdr, 0, sizeof(*hdr));
+	memset(hdr, 0, sizeof(*hdr));   /* no info leak */
 
 	if (skb_is_gso(skb)) {
 		struct skb_shared_info *sinfo = skb_shinfo(skb);
@@ -72,8 +112,6 @@ static inline int virtio_net_hdr_from_skb(const struct sk_buff *skb,
 			hdr->gso_type = VIRTIO_NET_HDR_GSO_TCPV4;
 		else if (sinfo->gso_type & SKB_GSO_TCPV6)
 			hdr->gso_type = VIRTIO_NET_HDR_GSO_TCPV6;
-		else if (sinfo->gso_type & SKB_GSO_UDP)
-			hdr->gso_type = VIRTIO_NET_HDR_GSO_UDP;
 		else
 			return -EINVAL;
 		if (sinfo->gso_type & SKB_GSO_TCP_ECN)
@@ -83,19 +121,16 @@ static inline int virtio_net_hdr_from_skb(const struct sk_buff *skb,
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		hdr->flags = VIRTIO_NET_HDR_F_NEEDS_CSUM;
-		if (skb_vlan_tag_present(skb))
-			hdr->csum_start = __cpu_to_virtio16(little_endian,
-				skb_checksum_start_offset(skb) + VLAN_HLEN);
-		else
-			hdr->csum_start = __cpu_to_virtio16(little_endian,
-				skb_checksum_start_offset(skb));
+		hdr->csum_start = __cpu_to_virtio16(little_endian,
+			skb_checksum_start_offset(skb) + vlan_hlen);
 		hdr->csum_offset = __cpu_to_virtio16(little_endian,
 				skb->csum_offset);
-	} else if (skb->ip_summed == CHECKSUM_UNNECESSARY) {
+	} else if (has_data_valid &&
+		   skb->ip_summed == CHECKSUM_UNNECESSARY) {
 		hdr->flags = VIRTIO_NET_HDR_F_DATA_VALID;
 	} /* else everything is zero */
 
 	return 0;
 }
 
-#endif /* _LINUX_VIRTIO_BYTEORDER */
+#endif /* _LINUX_VIRTIO_NET_H */

@@ -1,7 +1,11 @@
 #ifndef __NET_WIRELESS_REG_H
 #define __NET_WIRELESS_REG_H
+
+#include <net/cfg80211.h>
+
 /*
  * Copyright 2008-2011	Luis R. Rodriguez <mcgrof@qca.qualcomm.com>
+ * Copyright (C) 2019 Intel Corporation
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -19,6 +23,7 @@
 enum ieee80211_regd_source {
 	REGD_SOURCE_INTERNAL_DB,
 	REGD_SOURCE_CRDA,
+	REGD_SOURCE_CACHED,
 };
 
 extern const struct ieee80211_regdomain __rcu *cfg80211_regdomain;
@@ -142,5 +147,52 @@ int cfg80211_get_unii(int freq);
  * regulatory_indoor_allowed - is indoor operation allowed
  */
 bool regulatory_indoor_allowed(void);
+
+/*
+ * Grace period to timeout pre-CAC results on the dfs channels. This timeout
+ * value is used for Non-ETSI domain.
+ * TODO: May be make this timeout available through regdb?
+ */
+#define REG_PRE_CAC_EXPIRY_GRACE_MS 2000
+
+/**
+ * regulatory_pre_cac_allowed - if pre-CAC allowed in the current dfs domain
+ * @wiphy: wiphy for which pre-CAC capability is checked.
+
+ * Pre-CAC is allowed only in ETSI domain.
+ */
+bool regulatory_pre_cac_allowed(struct wiphy *wiphy);
+
+/**
+ * regulatory_propagate_dfs_state - Propagate DFS channel state to other wiphys
+ * @wiphy - wiphy on which radar is detected and the event will be propagated
+ *	to other available wiphys having the same DFS domain
+ * @chandef - Channel definition of radar detected channel
+ * @dfs_state - DFS channel state to be set
+ * @event - Type of radar event which triggered this DFS state change
+ *
+ * This function should be called with rtnl lock held.
+ */
+void regulatory_propagate_dfs_state(struct wiphy *wiphy,
+				    struct cfg80211_chan_def *chandef,
+				    enum nl80211_dfs_state dfs_state,
+				    enum nl80211_radar_event event);
+
+/**
+ * reg_dfs_domain_same - Checks if both wiphy have same DFS domain configured
+ * @wiphy1 - wiphy it's dfs_region to be checked against that of wiphy2
+ * @wiphy2 - wiphy it's dfs_region to be checked against that of wiphy1
+ */
+bool reg_dfs_domain_same(struct wiphy *wiphy1, struct wiphy *wiphy2);
+
+/**
+ * reg_reload_regdb - reload the regulatory.db firmware file
+ */
+int reg_reload_regdb(void);
+
+extern const u8 shipped_regdb_certs[];
+extern unsigned int shipped_regdb_certs_len;
+extern const u8 extra_regdb_certs[];
+extern unsigned int extra_regdb_certs_len;
 
 #endif  /* __NET_WIRELESS_REG_H */

@@ -1,13 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (C) Paul Mackerras 1997.
  *
  * Adapted for 64 bit LE PowerPC by Andrew Tauferner
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
- *
  */
 
 #include "ppc_asm.h"
@@ -15,7 +10,7 @@
 RELA = 7
 RELACOUNT = 0x6ffffff9
 
-	.text
+	.data
 	/* A procedure descriptor used when booting this as a COFF file.
 	 * When making COFF, this comes first in the link and we're
 	 * linked at 0x500000.
@@ -23,20 +18,22 @@ RELACOUNT = 0x6ffffff9
 	.globl	_zimage_start_opd
 _zimage_start_opd:
 	.long	0x500000, 0, 0, 0
+	.text
+	b	_zimage_start
 
 #ifdef __powerpc64__
 .balign 8
-p_start:	.llong	_start
-p_etext:	.llong	_etext
-p_bss_start:	.llong	__bss_start
-p_end:		.llong	_end
+p_start:	.8byte	_start
+p_etext:	.8byte	_etext
+p_bss_start:	.8byte	__bss_start
+p_end:		.8byte	_end
 
-p_toc:		.llong	__toc_start + 0x8000 - p_base
-p_dyn:		.llong	__dynamic_start - p_base
-p_rela:		.llong	__rela_dyn_start - p_base
-p_prom:		.llong	0
+p_toc:		.8byte	__toc_start + 0x8000 - p_base
+p_dyn:		.8byte	__dynamic_start - p_base
+p_rela:		.8byte	__rela_dyn_start - p_base
+p_prom:		.8byte	0
 	.weak	_platform_stack_top
-p_pstack:	.llong	_platform_stack_top
+p_pstack:	.8byte	_platform_stack_top
 #else
 p_start:	.long	_start
 p_etext:	.long	_etext
@@ -47,8 +44,10 @@ p_end:		.long	_end
 p_pstack:	.long	_platform_stack_top
 #endif
 
-	.weak	_zimage_start
 	.globl	_zimage_start
+	/* Clang appears to require the .weak directive to be after the symbol
+	 * is defined. See https://bugs.llvm.org/show_bug.cgi?id=38921  */
+	.weak	_zimage_start
 _zimage_start:
 	.globl	_zimage_start_lib
 _zimage_start_lib:

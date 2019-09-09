@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (c) Intel Corp. 2007.
  * All Rights Reserved.
@@ -6,21 +7,6 @@
  * develop this driver.
  *
  * This file is part of the Carillo Ranch video subsystem driver.
- * The Carillo Ranch video subsystem driver is free software;
- * you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * The Carillo Ranch video subsystem driver is distributed
- * in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this driver; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *
  * Authors:
  *   Thomas Hellstrom <thomas-at-tungstengraphics-dot-com>
@@ -185,6 +171,7 @@ static int __init cr_pll_init(void)
 	if (err) {
 		printk(KERN_ERR
 		       "Carillo Ranch failed to initialize vml_sys.\n");
+		iounmap(mch_regs_base);
 		pci_dev_put(mch_dev);
 		return err;
 	}

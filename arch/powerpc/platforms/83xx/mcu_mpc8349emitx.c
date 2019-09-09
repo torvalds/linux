@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Power Management and GPIO expander driver for MPC8349E-mITX-compatible MCU
  *
  * Copyright (c) 2008  MontaVista Software, Inc.
  *
  * Author: Anton Vorontsov <avorontsov@ru.mvista.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -84,7 +80,7 @@ static ssize_t show_status(struct device *d,
 
 	return sprintf(buf, "%02x\n", ret);
 }
-static DEVICE_ATTR(status, S_IRUGO, show_status, NULL);
+static DEVICE_ATTR(status, 0444, show_status, NULL);
 
 static void mcu_power_off(void)
 {
@@ -128,7 +124,7 @@ static int mcu_gpiochip_add(struct mcu *mcu)
 		return -ENODEV;
 
 	gc->owner = THIS_MODULE;
-	gc->label = np->full_name;
+	gc->label = kasprintf(GFP_KERNEL, "%pOF", np);
 	gc->can_sleep = 1;
 	gc->ngpio = MCU_NUM_GPIO;
 	gc->base = -1;
@@ -141,6 +137,7 @@ static int mcu_gpiochip_add(struct mcu *mcu)
 
 static int mcu_gpiochip_remove(struct mcu *mcu)
 {
+	kfree(mcu->gc.label);
 	gpiochip_remove(&mcu->gc);
 	return 0;
 }

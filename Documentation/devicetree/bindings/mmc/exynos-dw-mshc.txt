@@ -62,7 +62,7 @@ Required properties for a slot (Deprecated - Recommend to use one slot per host)
   rest of the gpios (depending on the bus-width property) are the data lines in
   no particular order. The format of the gpio specifier depends on the gpio
   controller.
-(Deprecated - Refer to Documentation/devicetree/binding/pinctrl/samsung-pinctrl.txt)
+(Deprecated - Refer to Documentation/devicetree/bindings/pinctrl/samsung-pinctrl.txt)
 
 Example:
 
@@ -78,7 +78,6 @@ Example:
 	};
 
 	dwmmc0@12200000 {
-		num-slots = <1>;
 		cap-mmc-highspeed;
 		cap-sd-highspeed;
 		broken-cd;

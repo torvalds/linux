@@ -1,28 +1,5 @@
-/*******************************************************************************
- *
- * Intel Ethernet Controller XL710 Family Linux Driver
- * Copyright(c) 2013 - 2015 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
- * The full GNU General Public License is included in this distribution in
- * the file called "COPYING".
- *
- * Contact Information:
- * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
- ******************************************************************************/
+/* SPDX-License-Identifier: GPL-2.0 */
+/* Copyright(c) 2013 - 2018 Intel Corporation. */
 
 #ifndef _I40E_CLIENT_H_
 #define _I40E_CLIENT_H_
@@ -55,11 +32,6 @@ enum i40e_client_state {
 enum i40e_client_instance_state {
 	__I40E_CLIENT_INSTANCE_NONE,
 	__I40E_CLIENT_INSTANCE_OPENED,
-};
-
-enum i40e_client_type {
-	I40E_CLIENT_IWARP,
-	I40E_CLIENT_VMDQ2
 };
 
 struct i40e_ops;
@@ -137,7 +109,7 @@ struct i40e_info {
 
 #define I40E_CLIENT_RESET_LEVEL_PF   1
 #define I40E_CLIENT_RESET_LEVEL_CORE 2
-#define I40E_CLIENT_VSI_FLAG_TCP_PACKET_ENABLE  BIT(1)
+#define I40E_CLIENT_VSI_FLAG_TCP_ENABLE  BIT(1)
 
 struct i40e_ops {
 	/* setup_q_vector_list enables queues with a particular vector */
@@ -203,8 +175,6 @@ struct i40e_client_instance {
 	struct i40e_info lan_info;
 	struct i40e_client *client;
 	unsigned long  state;
-	/* A count of all the in-progress calls to the client */
-	atomic_t ref_cnt;
 };
 
 struct i40e_client {
@@ -216,7 +186,8 @@ struct i40e_client {
 	u32 flags;
 #define I40E_CLIENT_FLAGS_LAUNCH_ON_PROBE	BIT(0)
 #define I40E_TX_FLAGS_NOTIFY_OTHER_EVENTS	BIT(2)
-	enum i40e_client_type type;
+	u8 type;
+#define I40E_CLIENT_IWARP 0
 	const struct i40e_client_ops *ops; /* client ops provided by the client */
 };
 

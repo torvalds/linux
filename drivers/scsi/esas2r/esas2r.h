@@ -945,8 +945,8 @@ struct esas2r_adapter {
 	struct list_head vrq_mds_head;
 	struct esas2r_mem_desc *vrq_mds;
 	int num_vrqs;
-	struct semaphore fm_api_semaphore;
-	struct semaphore fs_api_semaphore;
+	struct mutex fm_api_mutex;
+	struct mutex fs_api_mutex;
 	struct semaphore nvram_semaphore;
 	struct atto_ioctl *local_atto_ioctl;
 	u8 fw_coredump_buff[ESAS2R_FWCOREDUMP_SZ];
@@ -962,12 +962,11 @@ struct esas2r_adapter {
  * Function Declarations
  * SCSI functions
  */
-int esas2r_release(struct Scsi_Host *);
 const char *esas2r_info(struct Scsi_Host *);
 int esas2r_write_params(struct esas2r_adapter *a, struct esas2r_request *rq,
 			struct esas2r_sas_nvram *data);
-int esas2r_ioctl_handler(void *hostdata, int cmd, void __user *arg);
-int esas2r_ioctl(struct scsi_device *dev, int cmd, void __user *arg);
+int esas2r_ioctl_handler(void *hostdata, unsigned int cmd, void __user *arg);
+int esas2r_ioctl(struct scsi_device *dev, unsigned int cmd, void __user *arg);
 u8 handle_hba_ioctl(struct esas2r_adapter *a,
 		    struct atto_ioctl *ioctl_hba);
 int esas2r_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd);
@@ -984,7 +983,6 @@ int esas2r_target_reset(struct scsi_cmnd *cmd);
 /* Internal functions */
 int esas2r_init_adapter(struct Scsi_Host *host, struct pci_dev *pcid,
 			int index);
-int esas2r_cleanup(struct Scsi_Host *host);
 int esas2r_read_fw(struct esas2r_adapter *a, char *buf, long off, int count);
 int esas2r_write_fw(struct esas2r_adapter *a, const char *buf, long off,
 		    int count);

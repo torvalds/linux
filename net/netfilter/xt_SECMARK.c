@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Module for modifying the secmark field of the skb, for use by
  * security subsystems.
@@ -6,11 +7,6 @@
  * (C) 1999-2001 Marc Boucher <marc@mbsi.ca>
  *
  * (C) 2006,2008 Red Hat, Inc., James Morris <jmorris@redhat.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
@@ -35,8 +31,6 @@ secmark_tg(struct sk_buff *skb, const struct xt_action_param *par)
 	u32 secmark = 0;
 	const struct xt_secmark_target_info *info = par->targinfo;
 
-	BUG_ON(info->mode != mode);
-
 	switch (mode) {
 	case SECMARK_MODE_SEL:
 		secmark = info->secid;
@@ -60,18 +54,20 @@ static int checkentry_lsm(struct xt_secmark_target_info *info)
 				       &info->secid);
 	if (err) {
 		if (err == -EINVAL)
-			pr_info("invalid security context \'%s\'\n", info->secctx);
+			pr_info_ratelimited("invalid security context \'%s\'\n",
+					    info->secctx);
 		return err;
 	}
 
 	if (!info->secid) {
-		pr_info("unable to map security context \'%s\'\n", info->secctx);
+		pr_info_ratelimited("unable to map security context \'%s\'\n",
+				    info->secctx);
 		return -ENOENT;
 	}
 
 	err = security_secmark_relabel_packet(info->secid);
 	if (err) {
-		pr_info("unable to obtain relabeling permission\n");
+		pr_info_ratelimited("unable to obtain relabeling permission\n");
 		return err;
 	}
 
@@ -86,14 +82,14 @@ static int secmark_tg_check(const struct xt_tgchk_param *par)
 
 	if (strcmp(par->table, "mangle") != 0 &&
 	    strcmp(par->table, "security") != 0) {
-		pr_info("target only valid in the \'mangle\' "
-			"or \'security\' tables, not \'%s\'.\n", par->table);
+		pr_info_ratelimited("only valid in \'mangle\' or \'security\' table, not \'%s\'\n",
+				    par->table);
 		return -EINVAL;
 	}
 
 	if (mode && mode != info->mode) {
-		pr_info("mode already set to %hu cannot mix with "
-			"rules for mode %hu\n", mode, info->mode);
+		pr_info_ratelimited("mode already set to %hu cannot mix with rules for mode %hu\n",
+				    mode, info->mode);
 		return -EINVAL;
 	}
 
@@ -101,7 +97,7 @@ static int secmark_tg_check(const struct xt_tgchk_param *par)
 	case SECMARK_MODE_SEL:
 		break;
 	default:
-		pr_info("invalid mode: %hu\n", info->mode);
+		pr_info_ratelimited("invalid mode: %hu\n", info->mode);
 		return -EINVAL;
 	}
 

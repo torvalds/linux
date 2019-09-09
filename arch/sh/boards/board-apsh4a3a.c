@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * ALPHAPROJECT AP-SH4A-3A Support.
  *
  * Copyright (C) 2010 ALPHAPROJECT Co.,Ltd.
  * Copyright (C) 2008  Yoshihiro Shimoda
  * Copyright (C) 2009  Paul Mundt
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 #include <linux/init.h>
 #include <linux/platform_device.h>
@@ -19,7 +16,7 @@
 #include <linux/irq.h>
 #include <linux/clk.h>
 #include <asm/machvec.h>
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 #include <asm/clock.h>
 
 static struct mtd_partition nor_flash_partitions[] = {

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* linux/drivers/char/nsc_gpio.c
 
    National Semiconductor common GPIO device-file/VFS methods.
@@ -14,7 +15,7 @@
 #include <linux/init.h>
 #include <linux/nsc_gpio.h>
 #include <linux/platform_device.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 
 #define NAME "nsc_gpio"

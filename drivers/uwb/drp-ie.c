@@ -1,20 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * UWB DRP IE management.
  *
  * Copyright (C) 2005-2006 Intel Corporation
  * Copyright (C) 2008 Cambridge Silicon Radio Ltd.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <linux/kernel.h>
 #include <linux/random.h>
@@ -125,12 +114,10 @@ static struct uwb_ie_drp *uwb_drp_ie_alloc(void)
 {
 	struct uwb_ie_drp *drp_ie;
 
-	drp_ie = kzalloc(sizeof(struct uwb_ie_drp) +
-			UWB_NUM_ZONES * sizeof(struct uwb_drp_alloc),
-			GFP_KERNEL);
-	if (drp_ie) {
+	drp_ie = kzalloc(struct_size(drp_ie, allocs, UWB_NUM_ZONES),
+			 GFP_KERNEL);
+	if (drp_ie)
 		drp_ie->hdr.element_id = UWB_IE_DRP;
-	}
 	return drp_ie;
 }
 
@@ -199,7 +186,7 @@ int uwb_drp_ie_update(struct uwb_rsv *rsv)
 		rsv->drp_ie = NULL;
 		return 0;
 	}
-	
+
 	unsafe = rsv->mas.unsafe ? 1 : 0;
 
 	if (rsv->drp_ie == NULL) {
@@ -232,23 +219,23 @@ int uwb_drp_ie_update(struct uwb_rsv *rsv)
 	uwb_drp_ie_from_bm(drp_ie, &rsv->mas);
 
 	if (uwb_rsv_has_two_drp_ies(rsv)) {
-		mv = &rsv->mv; 
+		mv = &rsv->mv;
 		if (mv->companion_drp_ie == NULL) {
 			mv->companion_drp_ie = uwb_drp_ie_alloc();
 			if (mv->companion_drp_ie == NULL)
 				return -ENOMEM;
 		}
 		drp_ie = mv->companion_drp_ie;
-		
+
 		/* keep all the same configuration of the main drp_ie */
 		memcpy(drp_ie, rsv->drp_ie, sizeof(struct uwb_ie_drp));
-		
+
 
 		/* FIXME: handle properly the unsafe bit */
 		uwb_ie_drp_set_unsafe(drp_ie,       1);
 		uwb_ie_drp_set_status(drp_ie,       uwb_rsv_companion_status(rsv));
 		uwb_ie_drp_set_reason_code(drp_ie,  uwb_rsv_companion_reason_code(rsv));
-	
+
 		uwb_drp_ie_from_bm(drp_ie, &mv->companion_mas);
 	}
 

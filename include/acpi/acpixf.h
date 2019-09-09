@@ -1,52 +1,18 @@
+/* SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0 */
 /******************************************************************************
  *
  * Name: acpixf.h - External interfaces to the ACPI subsystem
  *
+ * Copyright (C) 2000 - 2019, Intel Corp.
+ *
  *****************************************************************************/
-
-/*
- * Copyright (C) 2000 - 2016, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
 
 #ifndef __ACXFACE_H__
 #define __ACXFACE_H__
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20160831
+#define ACPI_CA_VERSION                 0x20190703
 
 #include <acpi/acconfig.h>
 #include <acpi/actypes.h>
@@ -160,13 +126,14 @@ ACPI_INIT_GLOBAL(u8, acpi_gbl_create_osi_method, TRUE);
 ACPI_INIT_GLOBAL(u8, acpi_gbl_use_default_register_widths, TRUE);
 
 /*
- * Whether or not to verify the table checksum before installation. Set
- * this to TRUE to verify the table checksum before install it to the table
- * manager. Note that enabling this option causes errors to happen in some
- * OSPMs during early initialization stages. Default behavior is to do such
- * verification.
+ * Whether or not to validate (map) an entire table to verify
+ * checksum/duplication in early stage before install. Set this to TRUE to
+ * allow early table validation before install it to the table manager.
+ * Note that enabling this option causes errors to happen in some OSPMs
+ * during early initialization stages. Default behavior is to allow such
+ * validation.
  */
-ACPI_INIT_GLOBAL(u8, acpi_gbl_verify_table_checksum, TRUE);
+ACPI_INIT_GLOBAL(u8, acpi_gbl_enable_table_validation, TRUE);
 
 /*
  * Optionally enable output from the AML Debug Object.
@@ -188,18 +155,6 @@ ACPI_INIT_GLOBAL(u8, acpi_gbl_copy_dsdt_locally, FALSE);
  * some machines. Default behavior is to use the XSDT if present.
  */
 ACPI_INIT_GLOBAL(u8, acpi_gbl_do_not_use_xsdt, FALSE);
-
-/*
- * Optionally support group module level code.
- */
-ACPI_INIT_GLOBAL(u8, acpi_gbl_group_module_level_code, TRUE);
-
-/*
- * Optionally support module level code by parsing the entire table as
- * a term_list. Default is FALSE, do not execute entire table until some
- * lock order issues are fixed.
- */
-ACPI_INIT_GLOBAL(u8, acpi_gbl_parse_table_as_term_list, FALSE);
 
 /*
  * Optionally use 32-bit FADT addresses if and when there is a conflict
@@ -257,6 +212,23 @@ ACPI_INIT_GLOBAL(u8, acpi_gbl_osi_data, 0);
  * a reduced HW machine, and that flag is duplicated here for convenience.
  */
 ACPI_INIT_GLOBAL(u8, acpi_gbl_reduced_hardware, FALSE);
+
+/*
+ * Maximum timeout for While() loop iterations before forced method abort.
+ * This mechanism is intended to prevent infinite loops during interpreter
+ * execution within a host kernel.
+ */
+ACPI_INIT_GLOBAL(u32, acpi_gbl_max_loop_iterations, ACPI_MAX_LOOP_TIMEOUT);
+
+/*
+ * Optionally ignore AE_NOT_FOUND errors from named reference package elements
+ * during DSDT/SSDT table loading. This reduces error "noise" in platforms
+ * whose firmware is carrying around a bunch of unused package objects that
+ * refer to non-existent named objects. However, If the AML actually tries to
+ * use such a package, the unresolved element(s) will be replaced with NULL
+ * elements.
+ */
+ACPI_INIT_GLOBAL(u8, acpi_gbl_ignore_package_resolution_errors, FALSE);
 
 /*
  * This mechanism is used to trace a specified AML method. The method is
@@ -506,10 +478,12 @@ ACPI_EXTERNAL_RETURN_STATUS(acpi_status
 			     acpi_get_table(acpi_string signature, u32 instance,
 					    struct acpi_table_header
 					    **out_table))
+ACPI_EXTERNAL_RETURN_VOID(void acpi_put_table(struct acpi_table_header *table))
+
 ACPI_EXTERNAL_RETURN_STATUS(acpi_status
-			     acpi_get_table_by_index(u32 table_index,
-						     struct acpi_table_header
-						     **out_table))
+			    acpi_get_table_by_index(u32 table_index,
+						    struct acpi_table_header
+						    **out_table))
 ACPI_EXTERNAL_RETURN_STATUS(acpi_status
 			     acpi_install_table_handler(acpi_table_handler
 							handler, void *context))
@@ -764,6 +738,7 @@ ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status
 						     u32 gpe_number,
 						     acpi_event_status
 						     *event_status))
+ACPI_HW_DEPENDENT_RETURN_VOID(void acpi_dispatch_gpe(acpi_handle gpe_device, u32 gpe_number))
 ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status acpi_disable_all_gpes(void))
 ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status acpi_enable_all_runtime_gpes(void))
 ACPI_HW_DEPENDENT_RETURN_STATUS(acpi_status acpi_enable_all_wakeup_gpes(void))
@@ -920,6 +895,12 @@ ACPI_MSG_DEPENDENT_RETURN_VOID(ACPI_PRINTF_LIKE(3)
 				acpi_bios_error(const char *module_name,
 						u32 line_number,
 						const char *format, ...))
+ACPI_MSG_DEPENDENT_RETURN_VOID(ACPI_PRINTF_LIKE(4)
+				void ACPI_INTERNAL_VAR_XFACE
+				acpi_bios_exception(const char *module_name,
+						    u32 line_number,
+						    acpi_status status,
+						    const char *format, ...))
 ACPI_MSG_DEPENDENT_RETURN_VOID(ACPI_PRINTF_LIKE(3)
 				void ACPI_INTERNAL_VAR_XFACE
 				acpi_bios_warning(const char *module_name,
@@ -958,15 +939,6 @@ void acpi_terminate_debugger(void);
 /*
  * Divergences
  */
-ACPI_GLOBAL(u8, acpi_gbl_permanent_mmap);
-
-ACPI_EXTERNAL_RETURN_STATUS(acpi_status
-			    acpi_get_table_with_size(acpi_string signature,
-						     u32 instance,
-						     struct acpi_table_header
-						     **out_table,
-						     acpi_size *tbl_size))
-
 ACPI_EXTERNAL_RETURN_STATUS(acpi_status
 			    acpi_get_data_full(acpi_handle object,
 					       acpi_object_handler handler,

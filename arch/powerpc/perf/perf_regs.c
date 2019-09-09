@@ -1,15 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2016 Anju T, IBM Corporation.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 #include <linux/perf_event.h>
 #include <linux/bug.h>
 #include <linux/stddef.h>
@@ -68,11 +65,24 @@ static unsigned int pt_regs_offset[PERF_REG_POWERPC_MAX] = {
 	PT_REGS_OFFSET(PERF_REG_POWERPC_TRAP, trap),
 	PT_REGS_OFFSET(PERF_REG_POWERPC_DAR, dar),
 	PT_REGS_OFFSET(PERF_REG_POWERPC_DSISR, dsisr),
+	PT_REGS_OFFSET(PERF_REG_POWERPC_SIER, dar),
+	PT_REGS_OFFSET(PERF_REG_POWERPC_MMCRA, dsisr),
 };
 
 u64 perf_reg_value(struct pt_regs *regs, int idx)
 {
 	if (WARN_ON_ONCE(idx >= PERF_REG_POWERPC_MAX))
+		return 0;
+
+	if (idx == PERF_REG_POWERPC_SIER &&
+	   (IS_ENABLED(CONFIG_FSL_EMB_PERF_EVENT) ||
+	    IS_ENABLED(CONFIG_PPC32) ||
+	    !is_sier_available()))
+		return 0;
+
+	if (idx == PERF_REG_POWERPC_MMCRA &&
+	   (IS_ENABLED(CONFIG_FSL_EMB_PERF_EVENT) ||
+	    IS_ENABLED(CONFIG_PPC32)))
 		return 0;
 
 	return regs_get_register(regs, pt_regs_offset[idx]);
@@ -100,5 +110,6 @@ void perf_get_regs_user(struct perf_regs *regs_user,
 			struct pt_regs *regs_user_copy)
 {
 	regs_user->regs = task_pt_regs(current);
-	regs_user->abi  = perf_reg_abi(current);
+	regs_user->abi = (regs_user->regs) ? perf_reg_abi(current) :
+			 PERF_SAMPLE_REGS_ABI_NONE;
 }

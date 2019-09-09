@@ -1,21 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  PS3 device registration routines.
  *
  *  Copyright (C) 2007 Sony Computer Entertainment Inc.
  *  Copyright 2007 Sony Corp.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; version 2 of the License.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/delay.h>
@@ -354,9 +342,7 @@ static int ps3_setup_storage_dev(const struct ps3_repository_device *repo,
 		 repo->dev_index, repo->dev_type, port, blk_size, num_blocks,
 		 num_regions);
 
-	p = kzalloc(sizeof(struct ps3_storage_device) +
-		    num_regions * sizeof(struct ps3_storage_region),
-		    GFP_KERNEL);
+	p = kzalloc(struct_size(p, regions, num_regions), GFP_KERNEL);
 	if (!p) {
 		result = -ENOMEM;
 		goto fail_malloc;
@@ -663,8 +649,8 @@ static void ps3_find_and_add_device(u64 bus_id, u64 dev_id)
 		if (rem)
 			break;
 	}
-	pr_warning("%s:%u: device %llu:%llu not found\n", __func__, __LINE__,
-		   bus_id, dev_id);
+	pr_warn("%s:%u: device %llu:%llu not found\n",
+		__func__, __LINE__, bus_id, dev_id);
 	return;
 
 found:
@@ -859,11 +845,9 @@ static int ps3_probe_thread(void *data)
 
 		if (notify_event->event_type != notify_region_probe ||
 		    notify_event->bus_id != dev.sbd.bus_id) {
-			pr_warning("%s:%u: bad notify_event: event %llu, "
-				   "dev_id %llu, dev_type %llu\n",
-				   __func__, __LINE__, notify_event->event_type,
-				   notify_event->dev_id,
-				   notify_event->dev_type);
+			pr_warn("%s:%u: bad notify_event: event %llu, dev_id %llu, dev_type %llu\n",
+				__func__, __LINE__, notify_event->event_type,
+				notify_event->dev_id, notify_event->dev_type);
 			continue;
 		}
 

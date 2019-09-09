@@ -1,13 +1,43 @@
 /*
  * Copyright 2012 Shawn Guo <shawn.guo@linaro.org>
- * Copyright 2013 Lothar Waßmann <LW@KARO-electronics.de>
+ * Copyright 2013-2017 Lothar Waßmann <LW@KARO-electronics.de>
  *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 at the following locations:
+ * This file is dual-licensed: you can use it either under the terms
+ * of the GPL or the X11 license, at your option. Note that this dual
+ * licensing only applies to this file, and not this project as a
+ * whole.
  *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
+ *  a) This file is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License
+ *     version 2 as published by the Free Software Foundation.
+ *
+ *     This file is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ * Or, alternatively,
+ *
+ *  b) Permission is hereby granted, free of charge, to any person
+ *     obtaining a copy of this software and associated documentation
+ *     files (the "Software"), to deal in the Software without
+ *     restriction, including without limitation the rights to use,
+ *     copy, modify, merge, publish, distribute, sublicense, and/or
+ *     sell copies of the Software, and to permit persons to whom the
+ *     Software is furnished to do so, subject to the following
+ *     conditions:
+ *
+ *     The above copyright notice and this permission notice shall be
+ *     included in all copies or substantial portions of the Software.
+ *
+ *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
 /dts-v1/;
@@ -35,8 +65,9 @@
 		usbotg = &usb0;
 	};
 
-	memory {
-		reg = <0 0>; /* will be filled in by U-Boot */
+	memory@40000000 {
+		device_type = "memory";
+		reg = <0x40000000 0>; /* will be filled in by U-Boot */
 	};
 
 	onewire {
@@ -45,93 +76,75 @@
 		status = "disabled";
 	};
 
-	regulators {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		reg_usb0_vbus: regulator@0 {
-			compatible = "regulator-fixed";
-			reg = <0>;
-			regulator-name = "usb0_vbus";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
-			gpio = <&gpio0 18 GPIO_ACTIVE_HIGH>;
-			enable-active-high;
-		};
-
-		reg_usb1_vbus: regulator@1 {
-			compatible = "regulator-fixed";
-			reg = <1>;
-			regulator-name = "usb1_vbus";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
-			gpio = <&gpio3 27 GPIO_ACTIVE_HIGH>;
-			enable-active-high;
-		};
-
-		reg_2p5v: regulator@2 {
-			compatible = "regulator-fixed";
-			reg = <2>;
-			regulator-name = "2P5V";
-			regulator-min-microvolt = <2500000>;
-			regulator-max-microvolt = <2500000>;
-			regulator-always-on;
-		};
-
-		reg_3p3v: regulator@3 {
-			compatible = "regulator-fixed";
-			reg = <3>;
-			regulator-name = "3P3V";
-			regulator-min-microvolt = <3300000>;
-			regulator-max-microvolt = <3300000>;
-			regulator-always-on;
-		};
-
-		reg_can_xcvr: regulator@4 {
-			compatible = "regulator-fixed";
-			reg = <4>;
-			regulator-name = "CAN XCVR";
-			regulator-min-microvolt = <3300000>;
-			regulator-max-microvolt = <3300000>;
-			gpio = <&gpio1 0 GPIO_ACTIVE_HIGH>;
-			pinctrl-names = "default";
-			pinctrl-0 = <&tx28_flexcan_xcvr_pins>;
-		};
-
-		reg_lcd: regulator@5 {
-			compatible = "regulator-fixed";
-			reg = <5>;
-			regulator-name = "LCD POWER";
-			regulator-min-microvolt = <3300000>;
-			regulator-max-microvolt = <3300000>;
-			gpio = <&gpio1 31 GPIO_ACTIVE_HIGH>;
-			enable-active-high;
-		};
-
-		reg_lcd_reset: regulator@6 {
-			compatible = "regulator-fixed";
-			reg = <6>;
-			regulator-name = "LCD RESET";
-			regulator-min-microvolt = <3300000>;
-			regulator-max-microvolt = <3300000>;
-			gpio = <&gpio3 30 GPIO_ACTIVE_HIGH>;
-			startup-delay-us = <300000>;
-			enable-active-high;
-			regulator-always-on;
-			regulator-boot-on;
-		};
+	reg_usb0_vbus: regulator-usb0-vbus {
+		compatible = "regulator-fixed";
+		regulator-name = "usb0_vbus";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpio = <&gpio0 18 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
 	};
 
-	clocks {
-		#address-cells = <1>;
-		#size-cells = <0>;
-		mclk: clock@0 {
-			compatible = "fixed-clock";
-			reg = <0>;
-			#clock-cells = <0>;
-			clock-frequency = <26000000>;
-		};
+	reg_usb1_vbus: regulator-usb1-vbus {
+		compatible = "regulator-fixed";
+		regulator-name = "usb1_vbus";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpio = <&gpio3 27 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	reg_2p5v: regulator-2p5v {
+		compatible = "regulator-fixed";
+		regulator-name = "2P5V";
+		regulator-min-microvolt = <2500000>;
+		regulator-max-microvolt = <2500000>;
+		regulator-always-on;
+	};
+
+	reg_3p3v: regulator-3p3v {
+		compatible = "regulator-fixed";
+		regulator-name = "3P3V";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+	};
+
+	reg_can_xcvr: regulator-can-xcvr {
+		compatible = "regulator-fixed";
+		regulator-name = "CAN XCVR";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio1 0 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&tx28_flexcan_xcvr_pins>;
+	};
+
+	reg_lcd: regulator-lcd-power {
+		compatible = "regulator-fixed";
+		regulator-name = "LCD POWER";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio1 31 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	reg_lcd_reset: regulator-lcd-reset {
+		compatible = "regulator-fixed";
+		regulator-name = "LCD RESET";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio3 30 GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <300000>;
+		enable-active-high;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
+	mclk: clock-mclk {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <26000000>;
 	};
 
 	sound {
@@ -298,7 +311,7 @@
 	clock-frequency = <400000>;
 	status = "okay";
 
-	sgtl5000: sgtl5000@0a {
+	sgtl5000: sgtl5000@a {
 		compatible = "fsl,sgtl5000";
 		reg = <0x0a>;
 		VDDA-supply = <&reg_2p5v>;
@@ -312,7 +325,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&tx28_pca9554_pins>;
 		interrupt-parent = <&gpio3>;
-		interrupts = <28 0>;
+		interrupts = <28 IRQ_TYPE_NONE>;
 		gpio-controller;
 		#gpio-cells = <2>;
 		interrupt-controller;
@@ -328,6 +341,7 @@
 		interrupts = <5 IRQ_TYPE_EDGE_FALLING>;
 		reset-gpios = <&gpio2 6 GPIO_ACTIVE_LOW>;
 		wake-gpios = <&gpio4 9 GPIO_ACTIVE_HIGH>;
+		wakeup-source;
 	};
 
 	touchscreen: tsc2007@48 {
@@ -336,7 +350,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&tx28_tsc2007_pins>;
 		interrupt-parent = <&gpio3>;
-		interrupts = <20 0>;
+		interrupts = <20 IRQ_TYPE_EDGE_FALLING>;
 		pendown-gpio = <&gpio3 20 GPIO_ACTIVE_LOW>;
 		ti,x-plate-ohms = /bits/ 16 <660>;
 	};
@@ -344,6 +358,8 @@
 	ds1339: rtc@68 {
 		compatible = "mxim,ds1339";
 		reg = <0x68>;
+		trickle-resistor-ohms = <250>;
+		trickle-diode-disable;
 	};
 };
 
@@ -512,7 +528,8 @@
 		fsl,pull-up = <MXS_PULL_DISABLE>;
 	};
 
-	tx28_edt_ft5x06_pins: tx28-edt-ft5x06-pins {
+	tx28_edt_ft5x06_pins: tx28-edt-ft5x06-pins@0 {
+		reg = <0>;
 		fsl,pinmux-ids = <
 			MX28_PAD_SSP0_DATA6__GPIO_2_6 /* RESET */
 			MX28_PAD_SSP0_DATA5__GPIO_2_5 /* IRQ */
@@ -523,7 +540,8 @@
 		fsl,pull-up = <MXS_PULL_DISABLE>;
 	};
 
-	tx28_flexcan_xcvr_pins: tx28-flexcan-xcvr-pins {
+	tx28_flexcan_xcvr_pins: tx28-flexcan-xcvr-pins@0 {
+		reg = <0>;
 		fsl,pinmux-ids = <
 			MX28_PAD_LCD_D00__GPIO_1_0
 		>;
@@ -532,7 +550,8 @@
 		fsl,pull-up = <MXS_PULL_DISABLE>;
 	};
 
-	tx28_lcdif_23bit_pins: tx28-lcdif-23bit {
+	tx28_lcdif_23bit_pins: tx28-lcdif-23bit@0 {
+		reg = <0>;
 		fsl,pinmux-ids = <
 			/* LCD_D00 may be used as Flexcan Transceiver Enable on STK5-V5 */
 			MX28_PAD_LCD_D01__LCD_D1
@@ -564,7 +583,8 @@
 		fsl,pull-up = <MXS_PULL_DISABLE>;
 	};
 
-	tx28_lcdif_ctrl_pins: tx28-lcdif-ctrl {
+	tx28_lcdif_ctrl_pins: tx28-lcdif-ctrl@0 {
+		reg = <0>;
 		fsl,pinmux-ids = <
 			MX28_PAD_LCD_ENABLE__GPIO_1_31 /* Enable */
 			MX28_PAD_LCD_RESET__GPIO_3_30  /* Reset */
@@ -574,7 +594,8 @@
 		fsl,pull-up = <MXS_PULL_DISABLE>;
 	};
 
-	tx28_mac0_pins_gpio: tx28-mac0-gpio-pins {
+	tx28_mac0_pins_gpio: tx28-mac0-gpio-pins@0 {
+		reg = <0>;
 		fsl,pinmux-ids = <
 			MX28_PAD_ENET0_MDC__GPIO_4_0
 			MX28_PAD_ENET0_MDIO__GPIO_4_1
@@ -591,7 +612,8 @@
 		fsl,pull-up = <MXS_PULL_DISABLE>;
 	};
 
-	tx28_pca9554_pins: tx28-pca9554-pins {
+	tx28_pca9554_pins: tx28-pca9554-pins@0 {
+		reg = <0>;
 		fsl,pinmux-ids = <
 			MX28_PAD_PWM3__GPIO_3_28
 		>;
@@ -600,7 +622,8 @@
 		fsl,pull-up = <MXS_PULL_DISABLE>;
 	};
 
-	tx28_spi_gpio_pins: spi-gpiogrp {
+	tx28_spi_gpio_pins: spi-gpiogrp@0 {
+		reg = <0>;
 		fsl,pinmux-ids = <
 			MX28_PAD_AUART2_RX__GPIO_3_8
 			MX28_PAD_AUART2_TX__GPIO_3_9
@@ -614,7 +637,8 @@
 		fsl,pull-up = <MXS_PULL_DISABLE>;
 	};
 
-	tx28_tsc2007_pins: tx28-tsc2007-pins {
+	tx28_tsc2007_pins: tx28-tsc2007-pins@0 {
+		reg = <0>;
 		fsl,pinmux-ids = <
 			MX28_PAD_SAIF0_MCLK__GPIO_3_20 /* TSC2007 IRQ */
 		>;
@@ -624,7 +648,8 @@
 	};
 
 
-	tx28_usbphy0_pins: tx28-usbphy0-pins {
+	tx28_usbphy0_pins: tx28-usbphy0-pins@0 {
+		reg = <0>;
 		fsl,pinmux-ids = <
 			MX28_PAD_GPMI_CE2N__GPIO_0_18 /* USBOTG_VBUSEN */
 			MX28_PAD_GPMI_CE3N__GPIO_0_19 /* USBOTH_OC */
@@ -634,7 +659,8 @@
 		fsl,pull-up = <MXS_PULL_DISABLE>;
 	};
 
-	tx28_usbphy1_pins: tx28-usbphy1-pins {
+	tx28_usbphy1_pins: tx28-usbphy1-pins@0 {
+		reg = <0>;
 		fsl,pinmux-ids = <
 			MX28_PAD_SPDIF__GPIO_3_27 /* USBH_VBUSEN */
 			MX28_PAD_JTAG_RTCK__GPIO_4_20 /* USBH_OC */

@@ -1,14 +1,18 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * linux/arch/arm/mach-sa1100/shannon.c
  */
 
 #include <linux/init.h>
 #include <linux/device.h>
+#include <linux/gpio/machine.h>
 #include <linux/kernel.h>
 #include <linux/platform_data/sa11x0-serial.h>
 #include <linux/tty.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
+#include <linux/regulator/fixed.h>
+#include <linux/regulator/machine.h>
 
 #include <video/sa1100fb.h>
 
@@ -71,8 +75,43 @@ static struct sa1100fb_mach_info shannon_lcd_info = {
 	.lccr3		= LCCR3_ACBsDiv(512),
 };
 
+static struct gpiod_lookup_table shannon_pcmcia0_gpio_table = {
+	.dev_id = "sa11x0-pcmcia.0",
+	.table = {
+		GPIO_LOOKUP("gpio", 24, "detect", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("gpio", 26, "ready", GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
+
+static struct gpiod_lookup_table shannon_pcmcia1_gpio_table = {
+	.dev_id = "sa11x0-pcmcia.1",
+	.table = {
+		GPIO_LOOKUP("gpio", 25, "detect", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("gpio", 27, "ready", GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
+
+static struct regulator_consumer_supply shannon_cf_vcc_consumers[] = {
+	REGULATOR_SUPPLY("vcc", "sa11x0-pcmcia.0"),
+	REGULATOR_SUPPLY("vcc", "sa11x0-pcmcia.1"),
+};
+
+static struct fixed_voltage_config shannon_cf_vcc_pdata __initdata = {
+	.supply_name = "cf-power",
+	.microvolts = 3300000,
+	.enabled_at_boot = 1,
+};
+
 static void __init shannon_init(void)
 {
+	sa11x0_register_fixed_regulator(0, &shannon_cf_vcc_pdata,
+					shannon_cf_vcc_consumers,
+					ARRAY_SIZE(shannon_cf_vcc_consumers),
+					false);
+	sa11x0_register_pcmcia(0, &shannon_pcmcia0_gpio_table);
+	sa11x0_register_pcmcia(1, &shannon_pcmcia1_gpio_table);
 	sa11x0_ppc_configure_mcp();
 	sa11x0_register_lcd(&shannon_lcd_info);
 	sa11x0_register_mtd(&shannon_flash_data, &shannon_flash_resource, 1);

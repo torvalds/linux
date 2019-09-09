@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * NFTL mount code with extensive checks
  *
  * Author: Fabrice Bellard (fabrice.bellard@netgem.com)
  * Copyright © 2000 Netgem S.A.
  * Copyright © 1999-2010 David Woodhouse <dwmw2@infradead.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/kernel.h>
@@ -25,7 +12,7 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/mtd/mtd.h>
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 #include <linux/mtd/nftl.h>
 
 #define SECTORSIZE 512
@@ -122,8 +109,7 @@ static int find_boot_record(struct NFTLrecord *nftl)
 		if (memcmp(buf, "ANAND", 6)) {
 			printk(KERN_NOTICE "ANAND header found at 0x%x in mtd%d, but went away on reread!\n",
 			       block * nftl->EraseSize, nftl->mbd.mtd->index);
-			printk(KERN_NOTICE "New data are: %02x %02x %02x %02x %02x %02x\n",
-			       buf[0], buf[1], buf[2], buf[3], buf[4], buf[5]);
+			printk(KERN_NOTICE "New data are: %6ph\n", buf);
 			continue;
 		}
 #endif
@@ -200,13 +186,16 @@ device is already correct.
 		nftl->lastEUN = nftl->nb_blocks - 1;
 
 		/* memory alloc */
-		nftl->EUNtable = kmalloc(nftl->nb_blocks * sizeof(u16), GFP_KERNEL);
+		nftl->EUNtable = kmalloc_array(nftl->nb_blocks, sizeof(u16),
+					       GFP_KERNEL);
 		if (!nftl->EUNtable) {
 			printk(KERN_NOTICE "NFTL: allocation of EUNtable failed\n");
 			return -ENOMEM;
 		}
 
-		nftl->ReplUnitTable = kmalloc(nftl->nb_blocks * sizeof(u16), GFP_KERNEL);
+		nftl->ReplUnitTable = kmalloc_array(nftl->nb_blocks,
+						    sizeof(u16),
+						    GFP_KERNEL);
 		if (!nftl->ReplUnitTable) {
 			kfree(nftl->EUNtable);
 			printk(KERN_NOTICE "NFTL: allocation of ReplUnitTable failed\n");
@@ -273,28 +262,37 @@ static int memcmpb(void *a, int c, int n)
 static int check_free_sectors(struct NFTLrecord *nftl, unsigned int address, int len,
 			      int check_oob)
 {
-	u8 buf[SECTORSIZE + nftl->mbd.mtd->oobsize];
 	struct mtd_info *mtd = nftl->mbd.mtd;
 	size_t retlen;
-	int i;
+	int i, ret;
+	u8 *buf;
 
+	buf = kmalloc(SECTORSIZE + mtd->oobsize, GFP_KERNEL);
+	if (!buf)
+		return -1;
+
+	ret = -1;
 	for (i = 0; i < len; i += SECTORSIZE) {
 		if (mtd_read(mtd, address, SECTORSIZE, &retlen, buf))
-			return -1;
+			goto out;
 		if (memcmpb(buf, 0xff, SECTORSIZE) != 0)
-			return -1;
+			goto out;
 
 		if (check_oob) {
 			if(nftl_read_oob(mtd, address, mtd->oobsize,
 					 &retlen, &buf[SECTORSIZE]) < 0)
-				return -1;
+				goto out;
 			if (memcmpb(buf + SECTORSIZE, 0xff, mtd->oobsize) != 0)
-				return -1;
+				goto out;
 		}
 		address += SECTORSIZE;
 	}
 
-	return 0;
+	ret = 0;
+
+out:
+	kfree(buf);
+	return ret;
 }
 
 /* NFTL_format: format a Erase Unit by erasing ALL Erase Zones in the Erase Unit and
@@ -328,35 +326,33 @@ int NFTL_formatblock(struct NFTLrecord *nftl, int block)
 	memset(instr, 0, sizeof(struct erase_info));
 
 	/* XXX: use async erase interface, XXX: test return code */
-	instr->mtd = nftl->mbd.mtd;
 	instr->addr = block * nftl->EraseSize;
 	instr->len = nftl->EraseSize;
-	mtd_erase(mtd, instr);
-
-	if (instr->state == MTD_ERASE_FAILED) {
+	if (mtd_erase(mtd, instr)) {
 		printk("Error while formatting block %d\n", block);
 		goto fail;
 	}
 
-		/* increase and write Wear-Leveling info */
-		nb_erases = le32_to_cpu(uci.WearInfo);
-		nb_erases++;
+	/* increase and write Wear-Leveling info */
+	nb_erases = le32_to_cpu(uci.WearInfo);
+	nb_erases++;
 
-		/* wrap (almost impossible with current flash) or free block */
-		if (nb_erases == 0)
-			nb_erases = 1;
+	/* wrap (almost impossible with current flash) or free block */
+	if (nb_erases == 0)
+		nb_erases = 1;
 
-		/* check the "freeness" of Erase Unit before updating metadata
-		 * FixMe:  is this check really necessary ? since we have check the
-		 *         return code after the erase operation. */
-		if (check_free_sectors(nftl, instr->addr, nftl->EraseSize, 1) != 0)
-			goto fail;
+	/* check the "freeness" of Erase Unit before updating metadata
+	 * FixMe:  is this check really necessary ? since we have check the
+	 *         return code after the erase operation.
+	 */
+	if (check_free_sectors(nftl, instr->addr, nftl->EraseSize, 1) != 0)
+		goto fail;
 
-		uci.WearInfo = le32_to_cpu(nb_erases);
-		if (nftl_write_oob(mtd, block * nftl->EraseSize + SECTORSIZE +
-				   8, 8, &retlen, (char *)&uci) < 0)
-			goto fail;
-		return 0;
+	uci.WearInfo = le32_to_cpu(nb_erases);
+	if (nftl_write_oob(mtd, block * nftl->EraseSize + SECTORSIZE +
+			   8, 8, &retlen, (char *)&uci) < 0)
+		goto fail;
+	return 0;
 fail:
 	/* could not format, update the bad block table (caller is responsible
 	   for setting the ReplUnitTable to BLOCK_RESERVED on failure) */
@@ -569,7 +565,7 @@ static int get_fold_mark(struct NFTLrecord *nftl, unsigned int block)
 int NFTL_mount(struct NFTLrecord *s)
 {
 	int i;
-	unsigned int first_logical_block, logical_block, rep_block, nb_erases, erase_mark;
+	unsigned int first_logical_block, logical_block, rep_block, erase_mark;
 	unsigned int block, first_block, is_first_block;
 	int chain_length, do_format_chain;
 	struct nftl_uci0 h0;
@@ -613,7 +609,6 @@ int NFTL_mount(struct NFTLrecord *s)
 
 				logical_block = le16_to_cpu ((h0.VirtUnitNum | h0.SpareVirtUnitNum));
 				rep_block = le16_to_cpu ((h0.ReplUnitNum | h0.SpareReplUnitNum));
-				nb_erases = le32_to_cpu (h1.WearInfo);
 				erase_mark = le16_to_cpu ((h1.EraseMark | h1.EraseMark1));
 
 				is_first_block = !(logical_block >> 15);

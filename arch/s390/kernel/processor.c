@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  Copyright IBM Corp. 2008
  *  Author(s): Martin Schwidefsky (schwidefsky@de.ibm.com)
@@ -6,12 +7,17 @@
 #define KMSG_COMPONENT "cpu"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
+#include <linux/stop_machine.h>
 #include <linux/cpufeature.h>
+#include <linux/bitops.h>
 #include <linux/kernel.h>
+#include <linux/sched/mm.h>
 #include <linux/init.h>
 #include <linux/seq_file.h>
+#include <linux/mm_types.h>
 #include <linux/delay.h>
 #include <linux/cpu.h>
+
 #include <asm/diag.h>
 #include <asm/facility.h>
 #include <asm/elf.h>
@@ -26,13 +32,14 @@ struct cpu_info {
 };
 
 static DEFINE_PER_CPU(struct cpu_info, cpu_info);
+static DEFINE_PER_CPU(int, cpu_relax_retry);
 
 static bool machine_has_cpu_mhz;
 
 void __init cpu_detect_mhz_feature(void)
 {
 	if (test_facility(34) && __ecag(ECAG_CPU_ATTRIBUTE, 0) != -1UL)
-		machine_has_cpu_mhz = 1;
+		machine_has_cpu_mhz = true;
 }
 
 static void update_cpu_mhz(void *arg)
@@ -53,15 +60,20 @@ void s390_update_cpu_mhz(void)
 		on_each_cpu(update_cpu_mhz, NULL, 0);
 }
 
-void notrace cpu_relax(void)
+void notrace stop_machine_yield(const struct cpumask *cpumask)
 {
-	if (!smp_cpu_mtid && MACHINE_HAS_DIAG44) {
-		diag_stat_inc(DIAG_STAT_X044);
-		asm volatile("diag 0,0,0x44");
+	int cpu, this_cpu;
+
+	this_cpu = smp_processor_id();
+	if (__this_cpu_inc_return(cpu_relax_retry) >= spin_retry) {
+		__this_cpu_write(cpu_relax_retry, 0);
+		cpu = cpumask_next_wrap(this_cpu, cpumask, this_cpu, false);
+		if (cpu >= nr_cpu_ids)
+			return;
+		if (arch_vcpu_is_preempted(cpu))
+			smp_yield_cpu(cpu);
 	}
-	barrier();
 }
-EXPORT_SYMBOL(cpu_relax);
 
 /*
  * cpu_init - initializes state that is per-CPU.
@@ -73,7 +85,7 @@ void cpu_init(void)
 	get_cpu_id(id);
 	if (machine_has_cpu_mhz)
 		update_cpu_mhz(NULL);
-	atomic_inc(&init_mm.mm_count);
+	mmgrab(&init_mm);
 	current->active_mm = &init_mm;
 	BUG_ON(current->mm);
 	enter_lazy_tlb(&init_mm, current);
@@ -88,11 +100,24 @@ int cpu_have_feature(unsigned int num)
 }
 EXPORT_SYMBOL(cpu_have_feature);
 
+static void show_facilities(struct seq_file *m)
+{
+	unsigned int bit;
+	long *facilities;
+
+	facilities = (long *)&S390_lowcore.stfle_fac_list;
+	seq_puts(m, "facilities      :");
+	for_each_set_bit_inv(bit, facilities, MAX_FACILITY_BIT)
+		seq_printf(m, " %d", bit);
+	seq_putc(m, '\n');
+}
+
 static void show_cpu_summary(struct seq_file *m, void *v)
 {
 	static const char *hwcap_str[] = {
 		"esan3", "zarch", "stfle", "msa", "ldisp", "eimm", "dfp",
-		"edat", "etf3eh", "highgprs", "te", "vx"
+		"edat", "etf3eh", "highgprs", "te", "vx", "vxd", "vxe", "gs",
+		"vxe2", "vxp", "sort", "dflt"
 	};
 	static const char * const int_hwcap_str[] = {
 		"sie"
@@ -113,6 +138,7 @@ static void show_cpu_summary(struct seq_file *m, void *v)
 		if (int_hwcap_str[i] && (int_hwcap & (1UL << i)))
 			seq_printf(m, "%s ", int_hwcap_str[i]);
 	seq_puts(m, "\n");
+	show_facilities(m);
 	show_cacheinfo(m);
 	for_each_online_cpu(cpu) {
 		struct cpuid *id = &per_cpu(cpu_info.cpu_id, cpu);
@@ -179,3 +205,21 @@ const struct seq_operations cpuinfo_op = {
 	.stop	= c_stop,
 	.show	= show_cpuinfo,
 };
+
+int s390_isolate_bp(void)
+{
+	if (!test_facility(82))
+		return -EOPNOTSUPP;
+	set_thread_flag(TIF_ISOLATE_BP);
+	return 0;
+}
+EXPORT_SYMBOL(s390_isolate_bp);
+
+int s390_isolate_bp_guest(void)
+{
+	if (!test_facility(82))
+		return -EOPNOTSUPP;
+	set_thread_flag(TIF_ISOLATE_BP_GUEST);
+	return 0;
+}
+EXPORT_SYMBOL(s390_isolate_bp_guest);

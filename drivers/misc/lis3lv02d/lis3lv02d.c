@@ -1,28 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  lis3lv02d.c - ST LIS3LV02DL accelerometer driver
  *
  *  Copyright (C) 2007-2008 Yan Burman
  *  Copyright (C) 2008 Eric Piel
  *  Copyright (C) 2008-2009 Pavel Machek
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kernel.h>
+#include <linux/sched/signal.h>
 #include <linux/dmi.h>
 #include <linux/module.h>
 #include <linux/types.h>
@@ -650,14 +638,14 @@ out:
 	return retval;
 }
 
-static unsigned int lis3lv02d_misc_poll(struct file *file, poll_table *wait)
+static __poll_t lis3lv02d_misc_poll(struct file *file, poll_table *wait)
 {
 	struct lis3lv02d *lis3 = container_of(file->private_data,
 					      struct lis3lv02d, miscdev);
 
 	poll_wait(file, &lis3->misc_wait, wait);
 	if (atomic_read(&lis3->count))
-		return POLLIN | POLLRDNORM;
+		return EPOLLIN | EPOLLRDNORM;
 	return 0;
 }
 
@@ -855,7 +843,7 @@ static struct attribute *lis3lv02d_attributes[] = {
 	NULL
 };
 
-static struct attribute_group lis3lv02d_attribute_group = {
+static const struct attribute_group lis3lv02d_attribute_group = {
 	.attrs = lis3lv02d_attributes
 };
 

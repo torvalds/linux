@@ -1,51 +1,19 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /*******************************************************************************
  *
  * Module Name: nsaccess - Top-level functions for accessing ACPI namespace
  *
  ******************************************************************************/
 
-/*
- * Copyright (C) 2000 - 2016, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
-
 #include <acpi/acpi.h>
 #include "accommon.h"
 #include "amlcode.h"
 #include "acnamesp.h"
 #include "acdispat.h"
+
+#ifdef ACPI_ASL_COMPILER
+#include "acdisasm.h"
+#endif
 
 #define _COMPONENT          ACPI_NAMESPACE
 ACPI_MODULE_NAME("nsaccess")
@@ -68,6 +36,7 @@ acpi_status acpi_ns_root_initialize(void)
 	acpi_status status;
 	const struct acpi_predefined_names *init_val = NULL;
 	struct acpi_namespace_node *new_node;
+	struct acpi_namespace_node *prev_node = NULL;
 	union acpi_operand_object *obj_desc;
 	acpi_string val = NULL;
 
@@ -93,12 +62,28 @@ acpi_status acpi_ns_root_initialize(void)
 	 */
 	acpi_gbl_root_node = &acpi_gbl_root_node_struct;
 
-	/* Enter the pre-defined names in the name table */
+	/* Enter the predefined names in the name table */
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 			  "Entering predefined entries into namespace\n"));
 
+	/*
+	 * Create the initial (default) namespace.
+	 * This namespace looks like something similar to this:
+	 *
+	 *   ACPI Namespace (from Namespace Root):
+	 *    0  _GPE Scope        00203160 00
+	 *    0  _PR_ Scope        002031D0 00
+	 *    0  _SB_ Device       00203240 00 Notify Object: 0020ADD8
+	 *    0  _SI_ Scope        002032B0 00
+	 *    0  _TZ_ Device       00203320 00
+	 *    0  _REV Integer      00203390 00 = 0000000000000002
+	 *    0  _OS_ String       00203488 00 Len 14 "Microsoft Windows NT"
+	 *    0  _GL_ Mutex        00203580 00 Object 002035F0
+	 *    0  _OSI Method       00203678 00 Args 1 Len 0000 Aml 00000000
+	 */
 	for (init_val = acpi_gbl_pre_defined_names; init_val->name; init_val++) {
+		status = AE_OK;
 
 		/* _OSI is optional for now, will be permanent later */
 
@@ -107,16 +92,31 @@ acpi_status acpi_ns_root_initialize(void)
 			continue;
 		}
 
-		status =
-		    acpi_ns_lookup(NULL, ACPI_CAST_PTR(char, init_val->name),
-				   init_val->type, ACPI_IMODE_LOAD_PASS2,
-				   ACPI_NS_NO_UPSEARCH, NULL, &new_node);
-		if (ACPI_FAILURE(status)) {
-			ACPI_EXCEPTION((AE_INFO, status,
-					"Could not create predefined name %s",
-					init_val->name));
-			continue;
+		/*
+		 * Create, init, and link the new predefined name
+		 * Note: No need to use acpi_ns_lookup here because all the
+		 * predefined names are at the root level. It is much easier to
+		 * just create and link the new node(s) here.
+		 */
+		new_node =
+		    ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_namespace_node));
+		if (!new_node) {
+			status = AE_NO_MEMORY;
+			goto unlock_and_exit;
 		}
+
+		ACPI_COPY_NAMESEG(new_node->name.ascii, init_val->name);
+		new_node->descriptor_type = ACPI_DESC_TYPE_NAMED;
+		new_node->type = init_val->type;
+
+		if (!prev_node) {
+			acpi_gbl_root_node_struct.child = new_node;
+		} else {
+			prev_node->peer = new_node;
+		}
+
+		new_node->parent = &acpi_gbl_root_node_struct;
+		prev_node = new_node;
 
 		/*
 		 * Name entered successfully. If entry in pre_defined_names[] specifies
@@ -163,7 +163,7 @@ acpi_status acpi_ns_root_initialize(void)
 
 				new_node->value = obj_desc->method.param_count;
 #else
-				/* Mark this as a very SPECIAL method */
+				/* Mark this as a very SPECIAL method (_OSI) */
 
 				obj_desc->method.info_flags =
 				    ACPI_METHOD_INTERNAL_ONLY;
@@ -288,6 +288,7 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 {
 	acpi_status status;
 	char *path = pathname;
+	char *external_path;
 	struct acpi_namespace_node *prefix_node;
 	struct acpi_namespace_node *current_node = NULL;
 	struct acpi_namespace_node *this_node = NULL;
@@ -298,6 +299,7 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 	acpi_object_type this_search_type;
 	u32 search_parent_flag = ACPI_NS_SEARCH_PARENT;
 	u32 local_flags;
+	acpi_interpreter_mode local_interpreter_mode;
 
 	ACPI_FUNCTION_TRACE(ns_lookup);
 
@@ -423,13 +425,22 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 				num_carats++;
 				this_node = this_node->parent;
 				if (!this_node) {
+					/*
+					 * Current scope has no parent scope. Externalize
+					 * the internal path for error message.
+					 */
+					status =
+					    acpi_ns_externalize_name
+					    (ACPI_UINT32_MAX, pathname, NULL,
+					     &external_path);
+					if (ACPI_SUCCESS(status)) {
+						ACPI_ERROR((AE_INFO,
+							    "%s: Path has too many parent prefixes (^)",
+							    external_path));
 
-					/* Current scope has no parent scope */
+						ACPI_FREE(external_path);
+					}
 
-					ACPI_ERROR((AE_INFO,
-						    "%s: Path has too many parent prefixes (^) "
-						    "- reached beyond root node",
-						    pathname));
 					return_ACPI_STATUS(AE_NOT_FOUND);
 				}
 			}
@@ -485,7 +496,7 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 					  flags));
 			break;
 
-		case AML_MULTI_NAME_PREFIX_OP:
+		case AML_MULTI_NAME_PREFIX:
 
 			/* More than one name_seg, search rules do not apply */
 
@@ -528,6 +539,7 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 	 */
 	this_search_type = ACPI_TYPE_ANY;
 	current_node = this_node;
+
 	while (num_segments && current_node) {
 		num_segments--;
 		if (!num_segments) {
@@ -558,6 +570,16 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 			}
 		}
 
+		/* Handle opcodes that create a new name_seg via a full name_path */
+
+		local_interpreter_mode = interpreter_mode;
+		if ((flags & ACPI_NS_PREFIX_MUST_EXIST) && (num_segments > 0)) {
+
+			/* Every element of the path must exist (except for the final name_seg) */
+
+			local_interpreter_mode = ACPI_IMODE_EXECUTE;
+		}
+
 		/* Extract one ACPI name from the front of the pathname */
 
 		ACPI_MOVE_32_TO_32(&simple_name, path);
@@ -566,12 +588,19 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 
 		status =
 		    acpi_ns_search_and_enter(simple_name, walk_state,
-					     current_node, interpreter_mode,
+					     current_node,
+					     local_interpreter_mode,
 					     this_search_type, local_flags,
 					     &this_node);
 		if (ACPI_FAILURE(status)) {
 			if (status == AE_NOT_FOUND) {
-
+#if !defined ACPI_ASL_COMPILER	/* Note: iASL reports this error by itself, not needed here */
+				if (flags & ACPI_NS_PREFIX_MUST_EXIST) {
+					acpi_os_printf(ACPI_MSG_BIOS_ERROR
+						       "Object does not exist: %4.4s\n",
+						       &simple_name);
+				}
+#endif
 				/* Name not found in ACPI namespace */
 
 				ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
@@ -580,6 +609,37 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 						  (char *)&current_node->name,
 						  current_node));
 			}
+#ifdef ACPI_EXEC_APP
+			if ((status == AE_ALREADY_EXISTS) &&
+			    (this_node->flags & ANOBJ_NODE_EARLY_INIT)) {
+				this_node->flags &= ~ANOBJ_NODE_EARLY_INIT;
+				status = AE_OK;
+			}
+#endif
+
+#ifdef ACPI_ASL_COMPILER
+			/*
+			 * If this ACPI name already exists within the namespace as an
+			 * external declaration, then mark the external as a conflicting
+			 * declaration and proceed to process the current node as if it did
+			 * not exist in the namespace. If this node is not processed as
+			 * normal, then it could cause improper namespace resolution
+			 * by failing to open a new scope.
+			 */
+			if (acpi_gbl_disasm_flag &&
+			    (status == AE_ALREADY_EXISTS) &&
+			    ((this_node->flags & ANOBJ_IS_EXTERNAL) ||
+			     (walk_state
+			      && walk_state->opcode == AML_EXTERNAL_OP))) {
+				this_node->flags &= ~ANOBJ_IS_EXTERNAL;
+				this_node->type = (u8)this_search_type;
+				if (walk_state->opcode != AML_EXTERNAL_OP) {
+					acpi_dm_mark_external_conflict
+					    (this_node);
+				}
+				break;
+			}
+#endif
 
 			*return_node = this_node;
 			return_ACPI_STATUS(status);
@@ -655,7 +715,7 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 
 		/* Point to next name segment and make this node current */
 
-		path += ACPI_NAME_SIZE;
+		path += ACPI_NAMESEG_SIZE;
 		current_node = this_node;
 	}
 
@@ -675,6 +735,11 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 			}
 		}
 	}
+#ifdef ACPI_EXEC_APP
+	if (flags & ACPI_NS_EARLY_INIT) {
+		this_node->flags |= ANOBJ_NODE_EARLY_INIT;
+	}
+#endif
 
 	*return_node = this_node;
 	return_ACPI_STATUS(AE_OK);

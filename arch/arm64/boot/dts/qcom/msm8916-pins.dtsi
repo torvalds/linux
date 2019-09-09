@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2013-2015, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 &msmgpio {
@@ -278,7 +270,7 @@
 		pinconf {
 			pins = "gpio6", "gpio7";
 			drive-strength = <16>;
-			bias-disable = <0>;
+			bias-disable;
 		};
 	};
 
@@ -290,7 +282,7 @@
 		pinconf {
 			pins = "gpio6", "gpio7";
 			drive-strength = <2>;
-			bias-disable = <0>;
+			bias-disable;
 		};
 	};
 
@@ -302,7 +294,7 @@
 		pinconf {
 			pins = "gpio14", "gpio15";
 			drive-strength = <16>;
-			bias-disable = <0>;
+			bias-disable;
 		};
 	};
 
@@ -314,7 +306,7 @@
 		pinconf {
 			pins = "gpio14", "gpio15";
 			drive-strength = <2>;
-			bias-disable = <0>;
+			bias-disable;
 		};
 	};
 
@@ -326,7 +318,7 @@
 		pinconf {
 			pins = "gpio22", "gpio23";
 			drive-strength = <16>;
-			bias-disable = <0>;
+			bias-disable;
 		};
 	};
 
@@ -338,32 +330,7 @@
 		pinconf {
 			pins = "gpio22", "gpio23";
 			drive-strength = <2>;
-			bias-disable = <0>;
-		};
-	};
-
-	sdhc2_cd_pin {
-		sdc2_cd_on: cd_on {
-			pinmux {
-				function = "gpio";
-				pins = "gpio38";
-			};
-			pinconf {
-				pins = "gpio38";
-				drive-strength = <2>;
-				bias-pull-up;
-			};
-		};
-		sdc2_cd_off: cd_off {
-			pinmux {
-				function = "gpio";
-				pins = "gpio38";
-			};
-			pinconf {
-				pins = "gpio38";
-				drive-strength = <2>;
-				bias-disable;
-			};
+			bias-disable;
 		};
 	};
 
@@ -505,26 +472,25 @@
 		};
 	};
 
-	ext-codec-lines {
-		ext_codec_lines_act: lines_on {
+	pmx_sdc2_cd_pin {
+		sdc2_cd_on: cd_on {
 			pinmux {
 				function = "gpio";
-				pins = "gpio67";
+				pins = "gpio38";
 			};
 			pinconf {
-				pins = "gpio67";
-				drive-strength = <8>;
-				bias-disable;
-				output-high;
+				pins = "gpio38";
+				drive-strength = <2>;
+				bias-pull-up;
 			};
 		};
-		ext_codec_lines_sus: lines_off {
+		sdc2_cd_off: cd_off {
 			pinmux {
 				function = "gpio";
-				pins = "gpio67";
+				pins = "gpio38";
 			};
 			pinconf {
-				pins = "gpio67";
+				pins = "gpio38";
 				drive-strength = <2>;
 				bias-disable;
 			};
@@ -687,6 +653,14 @@
 			};
 		};
 		cdc_dmic_lines_sus: dmic_lines_off {
+			pinmux_dmic0_clk {
+				function = "dmic0_clk";
+				pins = "gpio0";
+			};
+			pinmux_dmic0_data {
+				function = "dmic0_data";
+				pins = "gpio1";
+			};
 			pinconf {
 				pins = "gpio0", "gpio1";
 				drive-strength = <2>;
@@ -695,29 +669,92 @@
 		};
 	};
 
-	cross-conn-det {
-		cross_conn_det_act: lines_on {
-			pinmux {
-				function = "gpio";
-				pins = "gpio120";
-			};
-			pinconf {
-				pins = "gpio120";
-				drive-strength = <8>;
-				output-low;
-				bias-pull-down;
-			};
+	wcnss_pin_a: wcnss-active {
+		pinmux {
+			pins = "gpio40", "gpio41", "gpio42", "gpio43", "gpio44";
+			function = "wcss_wlan";
 		};
-		cross_conn_det_sus: lines_off {
-			pinmux {
-				function = "gpio";
-				pins = "gpio120";
-			};
-			pinconf {
-				pins = "gpio120";
-				drive-strength = <2>;
-				bias-disable;
-			};
+
+		pinconf {
+			pins = "gpio40", "gpio41", "gpio42", "gpio43", "gpio44";
+			drive-strength = <6>;
+			bias-pull-up;
+		};
+	};
+
+	cci0_default: cci0_default {
+		pinmux {
+			function = "cci_i2c";
+			pins = "gpio29", "gpio30";
+		};
+		pinconf {
+			pins = "gpio29", "gpio30";
+			drive-strength = <16>;
+			bias-disable;
+		};
+	};
+
+	camera_front_default: camera_front_default {
+		pinmux_pwdn {
+			function = "gpio";
+			pins = "gpio33";
+		};
+		pinconf_pwdn {
+			pins = "gpio33";
+			drive-strength = <16>;
+			bias-disable;
+		};
+
+		pinmux_rst {
+			function = "gpio";
+			pins = "gpio28";
+		};
+		pinconf_rst {
+			pins = "gpio28";
+			drive-strength = <16>;
+			bias-disable;
+		};
+
+		pinmux_mclk1 {
+			function = "cam_mclk1";
+			pins = "gpio27";
+		};
+		pinconf_mclk1 {
+			pins = "gpio27";
+			drive-strength = <16>;
+			bias-disable;
+		};
+	};
+
+	camera_rear_default: camera_rear_default {
+		pinmux_pwdn {
+			function = "gpio";
+			pins = "gpio34";
+		};
+		pinconf_pwdn {
+			pins = "gpio34";
+			drive-strength = <16>;
+			bias-disable;
+		};
+
+		 pinmux_rst {
+			function = "gpio";
+			pins = "gpio35";
+		};
+		pinconf_rst {
+			pins = "gpio35";
+			drive-strength = <16>;
+			bias-disable;
+		};
+
+		pinmux_mclk0 {
+			function = "cam_mclk0";
+			pins = "gpio26";
+		};
+		pinconf_mclk0 {
+			pins = "gpio26";
+			drive-strength = <16>;
+			bias-disable;
 		};
 	};
 };

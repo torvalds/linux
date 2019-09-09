@@ -147,6 +147,7 @@ struct au1200_lcd_iodata_t {
 struct au1200fb_device {
 	struct fb_info *fb_info;		/* FB driver info record */
 	struct au1200fb_platdata *pd;
+	struct device *dev;
 
 	int					plane;
 	unsigned char* 		fb_mem;		/* FrameBuffer memory map */
@@ -1232,10 +1233,8 @@ static int au1200fb_fb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 {
 	struct au1200fb_device *fbdev = info->par;
 
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-	pgprot_val(vma->vm_page_prot) |= _CACHE_MASK; /* CCA=7 */
-
-	return vm_iomap_memory(vma, fbdev->fb_phys, fbdev->fb_len);
+	return dma_mmap_attrs(fbdev->dev, vma, fbdev->fb_mem, fbdev->fb_phys,
+			fbdev->fb_len, DMA_ATTR_NON_CONSISTENT);
 }
 
 static void set_global(u_int cmd, struct au1200_lcd_global_regs_t *pdata)
@@ -1518,7 +1517,7 @@ static irqreturn_t au1200fb_handle_irq(int irq, void* dev_id)
 static int au1200fb_init_fbinfo(struct au1200fb_device *fbdev)
 {
 	struct fb_info *fbi = fbdev->fb_info;
-	int bpp;
+	int bpp, ret;
 
 	fbi->fbops = &au1200fb_fb_ops;
 
@@ -1546,15 +1545,14 @@ static int au1200fb_init_fbinfo(struct au1200fb_device *fbdev)
 	}
 
 	fbi->pseudo_palette = kcalloc(16, sizeof(u32), GFP_KERNEL);
-	if (!fbi->pseudo_palette) {
+	if (!fbi->pseudo_palette)
 		return -ENOMEM;
-	}
 
-	if (fb_alloc_cmap(&fbi->cmap, AU1200_LCD_NBR_PALETTE_ENTRIES, 0) < 0) {
+	ret = fb_alloc_cmap(&fbi->cmap, AU1200_LCD_NBR_PALETTE_ENTRIES, 0);
+	if (ret < 0) {
 		print_err("Fail to allocate colormap (%d entries)",
-			   AU1200_LCD_NBR_PALETTE_ENTRIES);
-		kfree(fbi->pseudo_palette);
-		return -EFAULT;
+			  AU1200_LCD_NBR_PALETTE_ENTRIES);
+		return ret;
 	}
 
 	strncpy(fbi->fix.id, "AU1200", sizeof(fbi->fix.id));
@@ -1648,7 +1646,6 @@ static int au1200fb_drv_probe(struct platform_device *dev)
 	struct au1200fb_device *fbdev;
 	struct au1200fb_platdata *pd;
 	struct fb_info *fbi = NULL;
-	unsigned long page;
 	int bpp, plane, ret, irq;
 
 	print_info("" DRIVER_DESC "");
@@ -1668,10 +1665,6 @@ static int au1200fb_drv_probe(struct platform_device *dev)
 	printk(DRIVER_NAME ": Panel %d %s\n", panel_index, panel->name);
 	printk(DRIVER_NAME ": Win %d %s\n", window_index, win->name);
 
-	/* shut gcc up */
-	ret = 0;
-	fbdev = NULL;
-
 	for (plane = 0; plane < device_count; ++plane) {
 		bpp = winbpp(win->w[plane].mode_winctrl1);
 		if (win->w[plane].xres == 0)
@@ -1681,43 +1674,39 @@ static int au1200fb_drv_probe(struct platform_device *dev)
 
 		fbi = framebuffer_alloc(sizeof(struct au1200fb_device),
 					&dev->dev);
-		if (!fbi)
+		if (!fbi) {
+			ret = -ENOMEM;
 			goto failed;
+		}
 
 		_au1200fb_infos[plane] = fbi;
 		fbdev = fbi->par;
 		fbdev->fb_info = fbi;
 		fbdev->pd = pd;
+		fbdev->dev = &dev->dev;
 
 		fbdev->plane = plane;
 
 		/* Allocate the framebuffer to the maximum screen size */
 		fbdev->fb_len = (win->w[plane].xres * win->w[plane].yres * bpp) / 8;
 
-		fbdev->fb_mem = dmam_alloc_noncoherent(&dev->dev,
+		fbdev->fb_mem = dmam_alloc_attrs(&dev->dev,
 				PAGE_ALIGN(fbdev->fb_len),
-				&fbdev->fb_phys, GFP_KERNEL);
+				&fbdev->fb_phys, GFP_KERNEL,
+				DMA_ATTR_NON_CONSISTENT);
 		if (!fbdev->fb_mem) {
-			print_err("fail to allocate frambuffer (size: %dK))",
+			print_err("fail to allocate framebuffer (size: %dK))",
 				  fbdev->fb_len / 1024);
-			return -ENOMEM;
+			ret = -ENOMEM;
+			goto failed;
 		}
 
-		/*
-		 * Set page reserved so that mmap will work. This is necessary
-		 * since we'll be remapping normal memory.
-		 */
-		for (page = (unsigned long)fbdev->fb_phys;
-		     page < PAGE_ALIGN((unsigned long)fbdev->fb_phys +
-			     fbdev->fb_len);
-		     page += PAGE_SIZE) {
-			SetPageReserved(pfn_to_page(page >> PAGE_SHIFT)); /* LCD DMA is NOT coherent on Au1200 */
-		}
 		print_dbg("Framebuffer memory map at %p", fbdev->fb_mem);
 		print_dbg("phys=0x%08x, size=%dK", fbdev->fb_phys, fbdev->fb_len / 1024);
 
 		/* Init FB data */
-		if ((ret = au1200fb_init_fbinfo(fbdev)) < 0)
+		ret = au1200fb_init_fbinfo(fbdev);
+		if (ret < 0)
 			goto failed;
 
 		/* Register new framebuffer */
@@ -1757,21 +1746,26 @@ static int au1200fb_drv_probe(struct platform_device *dev)
 	return 0;
 
 failed:
-	/* NOTE: This only does the current plane/window that failed; others are still active */
-	if (fbi) {
+	for (plane = 0; plane < device_count; ++plane) {
+		fbi = _au1200fb_infos[plane];
+		if (!fbi)
+			break;
+
+		/* Clean up all probe data */
+		unregister_framebuffer(fbi);
 		if (fbi->cmap.len != 0)
 			fb_dealloc_cmap(&fbi->cmap);
 		kfree(fbi->pseudo_palette);
+
+		framebuffer_release(fbi);
+		_au1200fb_infos[plane] = NULL;
 	}
-	if (plane == 0)
-		free_irq(AU1200_LCD_INT, (void*)dev);
 	return ret;
 }
 
 static int au1200fb_drv_remove(struct platform_device *dev)
 {
 	struct au1200fb_platdata *pd = platform_get_drvdata(dev);
-	struct au1200fb_device *fbdev;
 	struct fb_info *fbi;
 	int plane;
 
@@ -1780,7 +1774,6 @@ static int au1200fb_drv_remove(struct platform_device *dev)
 
 	for (plane = 0; plane < device_count; ++plane)	{
 		fbi = _au1200fb_infos[plane];
-		fbdev = fbi->par;
 
 		/* Clean up all probe data */
 		unregister_framebuffer(fbi);

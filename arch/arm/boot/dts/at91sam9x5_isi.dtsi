@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * at91sam9x5_isi.dtsi - Device Tree Include file for AT91SAM9x5 SoC with an
  * Image Sensor Interface.
  *
  * Copyright (C) 2013 Boris BREZILLON <b.brezillon@overkiz.com>
- *
- * Licensed under GPLv2.
  */
 
 #include <dt-bindings/pinctrl/at91.h>
@@ -44,22 +43,13 @@
 				};
 			};
 
-			pmc: pmc@fffffc00 {
-				periphck {
-					isi_clk: isi_clk {
-						#clock-cells = <0>;
-						reg = <25>;
-					};
-				};
-			};
-
 			isi: isi@f8048000 {
 				compatible = "atmel,at91sam9g45-isi";
 				reg = <0xf8048000 0x4000>;
 				interrupts = <25 IRQ_TYPE_LEVEL_HIGH 5>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_isi_data_0_7>;
-				clocks = <&isi_clk>;
+				clocks = <&pmc PMC_TYPE_PERIPHERAL 25>;
 				clock-names = "isi_clk";
 				status = "disabled";
 				port {

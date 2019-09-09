@@ -1,12 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Samsung S5P/Exynos4 SoC series camera interface driver header
  *
  * Copyright (C) 2010 - 2013 Samsung Electronics Co., Ltd.
  * Sylwester Nawrocki <s.nawrocki@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef S5P_FIMC_H_
@@ -81,7 +78,7 @@ struct fimc_source_info {
  * v4l2_device notification id. This is only for internal use in the kernel.
  * Sensor subdevs should issue S5P_FIMC_TX_END_NOTIFY notification in single
  * frame capture mode when there is only one VSYNC pulse issued by the sensor
- * at begining of the frame transmission.
+ * at beginning of the frame transmission.
  */
 #define S5P_FIMC_TX_END_NOTIFY _IO('e', 0)
 
@@ -155,7 +152,8 @@ static inline struct exynos_video_entity *vdev_to_exynos_video_entity(
 }
 
 #define fimc_pipeline_call(ent, op, args...)				  \
-	(!(ent) ? -ENOENT : (((ent)->pipe->ops && (ent)->pipe->ops->op) ? \
+	((!(ent) || !(ent)->pipe) ? -ENOENT : \
+	(((ent)->pipe->ops && (ent)->pipe->ops->op) ? \
 	(ent)->pipe->ops->op(((ent)->pipe), ##args) : -ENOIOCTLCMD))	  \
 
 #endif /* S5P_FIMC_H_ */

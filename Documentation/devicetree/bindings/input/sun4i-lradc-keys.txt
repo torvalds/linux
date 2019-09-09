@@ -2,12 +2,15 @@ Allwinner sun4i low res adc attached tablet keys
 ------------------------------------------------
 
 Required properties:
- - compatible: "allwinner,sun4i-a10-lradc-keys"
+ - compatible: should be one of the following string:
+		"allwinner,sun4i-a10-lradc-keys"
+		"allwinner,sun8i-a83t-r-lradc"
+		"allwinner,sun50i-a64-lradc", "allwinner,sun8i-a83t-r-lradc"
  - reg: mmio address range of the chip
  - interrupts: interrupt to which the chip is connected
  - vref-supply: powersupply for the lradc reference voltage
 
-Each key is represented as a sub-node of "allwinner,sun4i-a10-lradc-keys":
+Each key is represented as a sub-node of the compatible mentioned above:
 
 Required subnode-properties:
 	- label: Descriptive name of the key.
@@ -19,7 +22,7 @@ Example:
 
 #include <dt-bindings/input/input.h>
 
-	lradc: lradc@01c22800 {
+	lradc: lradc@1c22800 {
 		compatible = "allwinner,sun4i-a10-lradc-keys";
 		reg = <0x01c22800 0x100>;
 		interrupts = <31>;

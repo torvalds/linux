@@ -1,8 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) STMicroelectronics SA 2015
  * Authors: Yannick Fertre <yannick.fertre@st.com>
  *          Hugues Fruchet <hugues.fruchet@st.com>
- * License terms:  GNU General Public License (GPL), version 2
  */
 
 #include "hva.h"
@@ -134,7 +134,7 @@ enum hva_h264_sei_payload_type {
 	SEI_FRAME_PACKING_ARRANGEMENT = 45
 };
 
-/**
+/*
  * stereo Video Info struct
  */
 struct hva_h264_stereo_video_sei {
@@ -146,7 +146,9 @@ struct hva_h264_stereo_video_sei {
 	u8 right_view_self_contained_flag;
 };
 
-/**
+/*
+ * struct hva_h264_td
+ *
  * @frame_width: width in pixels of the buffer containing the input frame
  * @frame_height: height in pixels of the buffer containing the input frame
  * @frame_num: the parameter to be written in the slice header
@@ -352,7 +354,9 @@ struct hva_h264_td {
 	u32 addr_brc_in_out_parameter;
 };
 
-/**
+/*
+ * struct hva_h264_slice_po
+ *
  * @ slice_size: slice size
  * @ slice_start_time: start time
  * @ slice_stop_time: stop time
@@ -365,7 +369,9 @@ struct hva_h264_slice_po {
 	u32 slice_num;
 };
 
-/**
+/*
+ * struct hva_h264_po
+ *
  * @ bitstream_size: bitstream size
  * @ dct_bitstream_size: dtc bitstream size
  * @ stuffing_bits: number of stuffing bits inserted by the encoder
@@ -391,7 +397,9 @@ struct hva_h264_task {
 	struct hva_h264_po po;
 };
 
-/**
+/*
+ * struct hva_h264_ctx
+ *
  * @seq_info:  sequence information buffer
  * @ref_frame: reference frame buffer
  * @rec_frame: reconstructed frame buffer
@@ -607,6 +615,7 @@ static int hva_h264_prepare_task(struct hva_ctx *pctx,
 			"%s   width(%d) or height(%d) exceeds limits (%dx%d)\n",
 			pctx->name, frame_width, frame_height,
 			H264_MAX_SIZE_W, H264_MAX_SIZE_H);
+		pctx->frame_errors++;
 		return -EINVAL;
 	}
 
@@ -617,7 +626,7 @@ static int hva_h264_prepare_task(struct hva_ctx *pctx,
 	td->frame_width = frame_width;
 	td->frame_height = frame_height;
 
-	/* set frame alignement */
+	/* set frame alignment */
 	td->window_width =  frame_width;
 	td->window_height = frame_height;
 	td->window_horizontal_offset = 0;
@@ -717,6 +726,7 @@ static int hva_h264_prepare_task(struct hva_ctx *pctx,
 	default:
 		dev_err(dev, "%s   invalid source pixel format\n",
 			pctx->name);
+		pctx->frame_errors++;
 		return -EINVAL;
 	}
 
@@ -741,6 +751,7 @@ static int hva_h264_prepare_task(struct hva_ctx *pctx,
 
 	if (td->framerate_den == 0) {
 		dev_err(dev, "%s   invalid framerate\n", pctx->name);
+		pctx->frame_errors++;
 		return -EINVAL;
 	}
 
@@ -831,6 +842,7 @@ static int hva_h264_prepare_task(struct hva_ctx *pctx,
 	    (payload > MAX_SPS_PPS_SIZE)) {
 		dev_err(dev, "%s   invalid sps/pps size %d\n", pctx->name,
 			payload);
+		pctx->frame_errors++;
 		return -EINVAL;
 	}
 
@@ -842,6 +854,7 @@ static int hva_h264_prepare_task(struct hva_ctx *pctx,
 						   (u8 *)stream->vaddr,
 						   &payload)) {
 		dev_err(dev, "%s   fail to get SEI nal\n", pctx->name);
+		pctx->frame_errors++;
 		return -EINVAL;
 	}
 
@@ -963,6 +976,7 @@ err_seq_info:
 err_ctx:
 	devm_kfree(dev, ctx);
 err:
+	pctx->sys_errors++;
 	return ret;
 }
 
@@ -993,7 +1007,6 @@ static int hva_h264_encode(struct hva_ctx *pctx, struct hva_frame *frame,
 {
 	struct hva_h264_ctx *ctx = (struct hva_h264_ctx *)pctx->priv;
 	struct hva_h264_task *task = (struct hva_h264_task *)ctx->task->vaddr;
-	struct hva_buffer *tmp_frame;
 	u32 stuffing_bytes = 0;
 	int ret = 0;
 
@@ -1017,9 +1030,7 @@ static int hva_h264_encode(struct hva_ctx *pctx, struct hva_frame *frame,
 				       &stream->bytesused);
 
 	/* switch reference & reconstructed frame */
-	tmp_frame = ctx->ref_frame;
-	ctx->ref_frame = ctx->rec_frame;
-	ctx->rec_frame = tmp_frame;
+	swap(ctx->ref_frame, ctx->rec_frame);
 
 	return 0;
 err:

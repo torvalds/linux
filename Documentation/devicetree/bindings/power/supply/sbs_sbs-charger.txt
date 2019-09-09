@@ -1,0 +1,21 @@
+SBS sbs-charger
+~~~~~~~~~~
+
+Required properties:
+ - compatible: "<vendor>,<part-number>", "sbs,sbs-charger" as fallback. The part
+     number compatible string might be used in order to take care of vendor
+     specific registers.
+
+Optional properties:
+- interrupts: Interrupt mapping for GPIO IRQ. Use in conjunction with
+    "interrupt-parent". If an interrupt is not provided the driver will switch
+    automatically to polling.
+
+Example:
+
+	ltc4100@9 {
+		compatible = "lltc,ltc4100", "sbs,sbs-charger";
+		reg = <0x9>;
+		interrupt-parent = <&gpio6>;
+		interrupts = <7 IRQ_TYPE_LEVEL_LOW>;
+	};

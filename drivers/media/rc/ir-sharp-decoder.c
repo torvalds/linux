@@ -1,18 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* ir-sharp-decoder.c - handle Sharp IR Pulse/Space protocol
  *
  * Copyright (C) 2013-2014 Imagination Technologies Ltd.
  *
  * Based on NEC decoder:
  * Copyright (C) 2010 by Mauro Carvalho Chehab
- *
- * This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation version 2 of the License.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
  */
 
 #include <linux/bitrev.h>
@@ -39,7 +31,7 @@ enum sharp_state {
 /**
  * ir_sharp_decode() - Decode one Sharp pulse or space
  * @dev:	the struct rc_dev descriptor of the device
- * @duration:	the struct ir_raw_event descriptor of the pulse/space
+ * @ev:		the struct ir_raw_event descriptor of the pulse/space
  *
  * This function returns -EINVAL if the pulse violates the state machine
  */
@@ -54,8 +46,8 @@ static int ir_sharp_decode(struct rc_dev *dev, struct ir_raw_event ev)
 		return 0;
 	}
 
-	IR_dprintk(2, "Sharp decode started at state %d (%uus %s)\n",
-		   data->state, TO_US(ev.duration), TO_STR(ev.pulse));
+	dev_dbg(&dev->dev, "Sharp decode started at state %d (%uus %s)\n",
+		data->state, TO_US(ev.duration), TO_STR(ev.pulse));
 
 	switch (data->state) {
 
@@ -149,9 +141,9 @@ static int ir_sharp_decode(struct rc_dev *dev, struct ir_raw_event ev)
 		msg = (data->bits >> 15) & 0x7fff;
 		echo = data->bits & 0x7fff;
 		if ((msg ^ echo) != 0x3ff) {
-			IR_dprintk(1,
-				   "Sharp checksum error: received 0x%04x, 0x%04x\n",
-				   msg, echo);
+			dev_dbg(&dev->dev,
+				"Sharp checksum error: received 0x%04x, 0x%04x\n",
+				msg, echo);
 			break;
 		}
 
@@ -159,23 +151,74 @@ static int ir_sharp_decode(struct rc_dev *dev, struct ir_raw_event ev)
 		command = bitrev8((msg >> 2) & 0xff);
 
 		scancode = address << 8 | command;
-		IR_dprintk(1, "Sharp scancode 0x%04x\n", scancode);
+		dev_dbg(&dev->dev, "Sharp scancode 0x%04x\n", scancode);
 
-		rc_keydown(dev, RC_TYPE_SHARP, scancode, 0);
+		rc_keydown(dev, RC_PROTO_SHARP, scancode, 0);
 		data->state = STATE_INACTIVE;
 		return 0;
 	}
 
-	IR_dprintk(1, "Sharp decode failed at count %d state %d (%uus %s)\n",
-		   data->count, data->state, TO_US(ev.duration),
-		   TO_STR(ev.pulse));
+	dev_dbg(&dev->dev, "Sharp decode failed at count %d state %d (%uus %s)\n",
+		data->count, data->state, TO_US(ev.duration), TO_STR(ev.pulse));
 	data->state = STATE_INACTIVE;
 	return -EINVAL;
 }
 
+static const struct ir_raw_timings_pd ir_sharp_timings = {
+	.header_pulse  = 0,
+	.header_space  = 0,
+	.bit_pulse     = SHARP_BIT_PULSE,
+	.bit_space[0]  = SHARP_BIT_0_PERIOD,
+	.bit_space[1]  = SHARP_BIT_1_PERIOD,
+	.trailer_pulse = SHARP_BIT_PULSE,
+	.trailer_space = SHARP_ECHO_SPACE,
+	.msb_first     = 1,
+};
+
+/**
+ * ir_sharp_encode() - Encode a scancode as a stream of raw events
+ *
+ * @protocol:	protocol to encode
+ * @scancode:	scancode to encode
+ * @events:	array of raw ir events to write into
+ * @max:	maximum size of @events
+ *
+ * Returns:	The number of events written.
+ *		-ENOBUFS if there isn't enough space in the array to fit the
+ *		encoding. In this case all @max events will have been written.
+ */
+static int ir_sharp_encode(enum rc_proto protocol, u32 scancode,
+			   struct ir_raw_event *events, unsigned int max)
+{
+	struct ir_raw_event *e = events;
+	int ret;
+	u32 raw;
+
+	raw = (((bitrev8(scancode >> 8) >> 3) << 8) & 0x1f00) |
+		bitrev8(scancode);
+	ret = ir_raw_gen_pd(&e, max, &ir_sharp_timings, SHARP_NBITS,
+			    (raw << 2) | 2);
+	if (ret < 0)
+		return ret;
+
+	max -= ret;
+
+	raw = (((bitrev8(scancode >> 8) >> 3) << 8) & 0x1f00) |
+		bitrev8(~scancode);
+	ret = ir_raw_gen_pd(&e, max, &ir_sharp_timings, SHARP_NBITS,
+			    (raw << 2) | 1);
+	if (ret < 0)
+		return ret;
+
+	return e - events;
+}
+
 static struct ir_raw_handler sharp_handler = {
-	.protocols	= RC_BIT_SHARP,
+	.protocols	= RC_PROTO_BIT_SHARP,
 	.decode		= ir_sharp_decode,
+	.encode		= ir_sharp_encode,
+	.carrier	= 38000,
+	.min_timeout	= SHARP_ECHO_SPACE + SHARP_ECHO_SPACE / 4,
 };
 
 static int __init ir_sharp_decode_init(void)
@@ -195,5 +238,5 @@ module_init(ir_sharp_decode_init);
 module_exit(ir_sharp_decode_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("James Hogan <james.hogan@imgtec.com>");
+MODULE_AUTHOR("James Hogan <jhogan@kernel.org>");
 MODULE_DESCRIPTION("Sharp IR protocol decoder");

@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/arch/arm/mm/fault-armv.c
  *
  *  Copyright (C) 1995  Linus Torvalds
  *  Modifications for ARM processor (c) 1995-2002 Russell King
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/sched.h>
 #include <linux/kernel.h>
@@ -195,7 +192,7 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long addr,
 	if (page == ZERO_PAGE(0))
 		return;
 
-	mapping = page_mapping(page);
+	mapping = page_mapping_file(page);
 	if (!test_and_set_bit(PG_dcache_clean, &page->flags))
 		__flush_dcache_page(mapping, page);
 	if (mapping) {

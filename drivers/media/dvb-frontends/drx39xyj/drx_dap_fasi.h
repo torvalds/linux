@@ -67,10 +67,10 @@
 * (2 bytes). The DAP can operate in 3 modes:
 * (1) only short
 * (2) only long
-* (3) both long and short but short preferred and long only when necesarry
+* (3) both long and short but short preferred and long only when necessary
 *
 * These modes must be selected compile time via compile switches.
-* Compile switch settings for the diffrent modes:
+* Compile switch settings for the different modes:
 * (1) DRXDAPFASI_LONG_ADDR_ALLOWED=0, DRXDAPFASI_SHORT_ADDR_ALLOWED=1
 * (2) DRXDAPFASI_LONG_ADDR_ALLOWED=1, DRXDAPFASI_SHORT_ADDR_ALLOWED=0
 * (3) DRXDAPFASI_LONG_ADDR_ALLOWED=1, DRXDAPFASI_SHORT_ADDR_ALLOWED=1
@@ -112,14 +112,14 @@
 *  + single master mode means no use of repeated starts
 *  + multi master mode means use of repeated starts
 *  Default is single master.
-*  Default can be overriden by setting the compile switch DRXDAP_SINGLE_MASTER.
+*  Default can be overridden by setting the compile switch DRXDAP_SINGLE_MASTER.
 *
 * Slave:
 * Single/multi master selected via the flags in the FASI protocol.
 *  + single master means remember memory address between i2c packets
 *  + multimaster means flush memory address between i2c packets
 *  Default is single master, DAP FASI changes multi-master setting silently
-*  into single master setting. This cannot be overrriden.
+*  into single master setting. This cannot be overridden.
 *
 */
 /* set default */
@@ -139,7 +139,7 @@
 * In single master mode, data can be written by sending the register address
 * first, then two or four bytes of data in the next packet.
 * Because the device address plus a register address equals five bytes,
-* the mimimum chunk size must be five.
+* the minimum chunk size must be five.
 * If ten-bit I2C device addresses are used, the minimum chunk size must be six,
 * because the I2C device address will then occupy two bytes when writing.
 *

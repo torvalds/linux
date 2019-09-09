@@ -1,20 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
   Interval Trees
   (C) 2012  Michel Lespinasse <walken@google.com>
 
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
   include/linux/interval_tree_generic.h
 */
@@ -33,7 +21,7 @@
  * ITSTATIC:   'static' or empty
  * ITPREFIX:   prefix to use for the inline tree definitions
  *
- * Note - before using this, please consider if non-generic version
+ * Note - before using this, please consider if generic version
  * (interval_tree.h) would work for you...
  */
 
@@ -65,11 +53,13 @@ RB_DECLARE_CALLBACKS(static, ITPREFIX ## _augment, ITSTRUCT, ITRB,	      \
 									      \
 /* Insert / remove interval nodes from the tree */			      \
 									      \
-ITSTATIC void ITPREFIX ## _insert(ITSTRUCT *node, struct rb_root *root)	      \
+ITSTATIC void ITPREFIX ## _insert(ITSTRUCT *node,			      \
+				  struct rb_root_cached *root)	 	      \
 {									      \
-	struct rb_node **link = &root->rb_node, *rb_parent = NULL;	      \
+	struct rb_node **link = &root->rb_root.rb_node, *rb_parent = NULL;    \
 	ITTYPE start = ITSTART(node), last = ITLAST(node);		      \
 	ITSTRUCT *parent;						      \
+	bool leftmost = true;						      \
 									      \
 	while (*link) {							      \
 		rb_parent = *link;					      \
@@ -78,18 +68,22 @@ ITSTATIC void ITPREFIX ## _insert(ITSTRUCT *node, struct rb_root *root)	      \
 			parent->ITSUBTREE = last;			      \
 		if (start < ITSTART(parent))				      \
 			link = &parent->ITRB.rb_left;			      \
-		else							      \
+		else {							      \
 			link = &parent->ITRB.rb_right;			      \
+			leftmost = false;				      \
+		}							      \
 	}								      \
 									      \
 	node->ITSUBTREE = last;						      \
 	rb_link_node(&node->ITRB, rb_parent, link);			      \
-	rb_insert_augmented(&node->ITRB, root, &ITPREFIX ## _augment);	      \
+	rb_insert_augmented_cached(&node->ITRB, root,			      \
+				   leftmost, &ITPREFIX ## _augment);	      \
 }									      \
 									      \
-ITSTATIC void ITPREFIX ## _remove(ITSTRUCT *node, struct rb_root *root)	      \
+ITSTATIC void ITPREFIX ## _remove(ITSTRUCT *node,			      \
+				  struct rb_root_cached *root)		      \
 {									      \
-	rb_erase_augmented(&node->ITRB, root, &ITPREFIX ## _augment);	      \
+	rb_erase_augmented_cached(&node->ITRB, root, &ITPREFIX ## _augment);  \
 }									      \
 									      \
 /*									      \
@@ -140,15 +134,35 @@ ITPREFIX ## _subtree_search(ITSTRUCT *node, ITTYPE start, ITTYPE last)	      \
 }									      \
 									      \
 ITSTATIC ITSTRUCT *							      \
-ITPREFIX ## _iter_first(struct rb_root *root, ITTYPE start, ITTYPE last)      \
+ITPREFIX ## _iter_first(struct rb_root_cached *root,			      \
+			ITTYPE start, ITTYPE last)			      \
 {									      \
-	ITSTRUCT *node;							      \
+	ITSTRUCT *node, *leftmost;					      \
 									      \
-	if (!root->rb_node)						      \
+	if (!root->rb_root.rb_node)					      \
 		return NULL;						      \
-	node = rb_entry(root->rb_node, ITSTRUCT, ITRB);			      \
+									      \
+	/*								      \
+	 * Fastpath range intersection/overlap between A: [a0, a1] and	      \
+	 * B: [b0, b1] is given by:					      \
+	 *								      \
+	 *         a0 <= b1 && b0 <= a1					      \
+	 *								      \
+	 *  ... where A holds the lock range and B holds the smallest	      \
+	 * 'start' and largest 'last' in the tree. For the later, we	      \
+	 * rely on the root node, which by augmented interval tree	      \
+	 * property, holds the largest value in its last-in-subtree.	      \
+	 * This allows mitigating some of the tree walk overhead for	      \
+	 * for non-intersecting ranges, maintained and consulted in O(1).     \
+	 */								      \
+	node = rb_entry(root->rb_root.rb_node, ITSTRUCT, ITRB);		      \
 	if (node->ITSUBTREE < start)					      \
 		return NULL;						      \
+									      \
+	leftmost = rb_entry(root->rb_leftmost, ITSTRUCT, ITRB);		      \
+	if (ITSTART(leftmost) > last)					      \
+		return NULL;						      \
+									      \
 	return ITPREFIX ## _subtree_search(node, start, last);		      \
 }									      \
 									      \

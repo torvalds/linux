@@ -1,8 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _UAPI_LINUX_TIME_H
 #define _UAPI_LINUX_TIME_H
 
 #include <linux/types.h>
-
+#include <linux/time_types.h>
 
 #ifndef _STRUCT_TIMESPEC
 #define _STRUCT_TIMESPEC
@@ -21,7 +22,6 @@ struct timezone {
 	int	tz_minuteswest;	/* minutes west of Greenwich */
 	int	tz_dsttime;	/* type of dst correction */
 };
-
 
 /*
  * Names of the interval timers, and structure
@@ -54,7 +54,11 @@ struct itimerval {
 #define CLOCK_BOOTTIME			7
 #define CLOCK_REALTIME_ALARM		8
 #define CLOCK_BOOTTIME_ALARM		9
-#define CLOCK_SGI_CYCLE			10	/* Hardware specific */
+/*
+ * The driver implementing this got removed. The clock ID is kept as a
+ * place holder. Do not reuse!
+ */
+#define CLOCK_SGI_CYCLE			10
 #define CLOCK_TAI			11
 
 #define MAX_CLOCKS			16

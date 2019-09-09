@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *	header.S
  *
@@ -16,9 +17,7 @@
  */
 
 #include <asm/segment.h>
-#include <generated/utsrelease.h>
 #include <asm/boot.h>
-#include <asm/e820.h>
 #include <asm/page_types.h>
 #include <asm/setup.h>
 #include <asm/bootparam.h>
@@ -314,7 +313,7 @@ start_sys_seg:	.word	SYSSEG		# obsolete and meaningless, but just
 
 type_of_loader:	.byte	0		# 0 means ancient bootloader, newer
 					# bootloaders know to change this.
-					# See Documentation/x86/boot.txt for
+					# See Documentation/x86/boot.rst for
 					# assigned ids
 
 # flags, unused bits must be zero (RFU) bit within loadflags
@@ -420,7 +419,17 @@ xloadflags:
 # define XLF4 0
 #endif
 
-			.word XLF0 | XLF1 | XLF23 | XLF4
+#ifdef CONFIG_X86_64
+#ifdef CONFIG_X86_5LEVEL
+#define XLF56 (XLF_5LEVEL|XLF_5LEVEL_ENABLED)
+#else
+#define XLF56 XLF_5LEVEL
+#endif
+#else
+#define XLF56 0
+#endif
+
+			.word XLF0 | XLF1 | XLF23 | XLF4 | XLF56
 
 cmdline_size:   .long   COMMAND_LINE_SIZE-1     #length of the command line,
                                                 #added with boot protocol
@@ -521,8 +530,14 @@ pref_address:		.quad LOAD_PHYSICAL_ADDR	# preferred load addr
 # the description in lib/decompressor_xxx.c for specific information.
 #
 # extra_bytes = (uncompressed_size >> 12) + 65536 + 128
+#
+# LZ4 is even worse: data that cannot be further compressed grows by 0.4%,
+# or one byte per 256 bytes. OTOH, we can safely get rid of the +128 as
+# the size-dependent part now grows so fast.
+#
+# extra_bytes = (uncompressed_size >> 8) + 65536
 
-#define ZO_z_extra_bytes	((ZO_z_output_len >> 12) + 65536 + 128)
+#define ZO_z_extra_bytes	((ZO_z_output_len >> 8) + 65536)
 #if ZO_z_output_len > ZO_z_input_len
 # define ZO_z_extract_offset	(ZO_z_output_len + ZO_z_extra_bytes - \
 				 ZO_z_input_len)

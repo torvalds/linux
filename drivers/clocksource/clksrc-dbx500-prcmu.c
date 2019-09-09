@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) ST-Ericsson SA 2011
  *
- * License Terms: GNU General Public License v2
  * Author: Mattias Wallin <mattias.wallin@stericsson.com> for ST-Ericsson
  * Author: Sundar Iyer for ST-Ericsson
  * sched_clock implementation is based on:
@@ -15,7 +15,6 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/clockchips.h>
-#include <linux/sched_clock.h>
 
 #define RATE_32K		32768
 
@@ -26,11 +25,9 @@
 #define PRCMU_TIMER_DOWNCOUNT	0x4
 #define PRCMU_TIMER_MODE	0x8
 
-#define SCHED_CLOCK_MIN_WRAP 131072 /* 2^32 / 32768 */
-
 static void __iomem *clksrc_dbx500_timer_base;
 
-static cycle_t notrace clksrc_dbx500_prcmu_read(struct clocksource *cs)
+static u64 notrace clksrc_dbx500_prcmu_read(struct clocksource *cs)
 {
 	void __iomem *base = clksrc_dbx500_timer_base;
 	u32 count, count2;
@@ -46,23 +43,11 @@ static cycle_t notrace clksrc_dbx500_prcmu_read(struct clocksource *cs)
 
 static struct clocksource clocksource_dbx500_prcmu = {
 	.name		= "dbx500-prcmu-timer",
-	.rating		= 300,
+	.rating		= 100,
 	.read		= clksrc_dbx500_prcmu_read,
 	.mask		= CLOCKSOURCE_MASK(32),
-	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
+	.flags		= CLOCK_SOURCE_IS_CONTINUOUS | CLOCK_SOURCE_SUSPEND_NONSTOP,
 };
-
-#ifdef CONFIG_CLKSRC_DBX500_PRCMU_SCHED_CLOCK
-
-static u64 notrace dbx500_prcmu_sched_clock_read(void)
-{
-	if (unlikely(!clksrc_dbx500_timer_base))
-		return 0;
-
-	return clksrc_dbx500_prcmu_read(&clocksource_dbx500_prcmu);
-}
-
-#endif
 
 static int __init clksrc_dbx500_prcmu_init(struct device_node *node)
 {
@@ -81,10 +66,7 @@ static int __init clksrc_dbx500_prcmu_init(struct device_node *node)
 		writel(TIMER_DOWNCOUNT_VAL,
 		       clksrc_dbx500_timer_base + PRCMU_TIMER_REF);
 	}
-#ifdef CONFIG_CLKSRC_DBX500_PRCMU_SCHED_CLOCK
-	sched_clock_register(dbx500_prcmu_sched_clock_read, 32, RATE_32K);
-#endif
 	return clocksource_register_hz(&clocksource_dbx500_prcmu, RATE_32K);
 }
-CLOCKSOURCE_OF_DECLARE(dbx500_prcmu, "stericsson,db8500-prcmu-timer-4",
+TIMER_OF_DECLARE(dbx500_prcmu, "stericsson,db8500-prcmu-timer-4",
 		       clksrc_dbx500_prcmu_init);

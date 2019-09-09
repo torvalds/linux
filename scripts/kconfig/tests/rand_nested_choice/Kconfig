@@ -1,0 +1,35 @@
+# SPDX-License-Identifier: GPL-2.0
+
+choice
+	prompt "choice"
+
+config A
+	bool "A"
+
+config B
+	bool "B"
+
+if B
+choice
+	prompt "sub choice"
+
+config C
+	bool "C"
+
+config D
+	bool "D"
+
+if D
+choice
+	prompt "subsub choice"
+
+config E
+	bool "E"
+
+endchoice
+endif # D
+
+endchoice
+endif # B
+
+endchoice

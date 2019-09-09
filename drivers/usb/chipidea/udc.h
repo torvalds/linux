@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * udc.h - ChipIdea UDC structures
  *
  * Copyright (C) 2008 Chipidea - MIPS Technologies, Inc. All rights reserved.
  *
  * Author: David Lopo
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef __DRIVERS_USB_CHIPIDEA_UDC_H
@@ -22,11 +19,11 @@
 /* DMA layout of transfer descriptors */
 struct ci_hw_td {
 	/* 0 */
-	u32 next;
+	__le32 next;
 #define TD_TERMINATE          BIT(0)
 #define TD_ADDR_MASK          (0xFFFFFFEUL << 5)
 	/* 1 */
-	u32 token;
+	__le32 token;
 #define TD_STATUS             (0x00FFUL <<  0)
 #define TD_STATUS_TR_ERR      BIT(3)
 #define TD_STATUS_DT_ERR      BIT(5)
@@ -36,7 +33,7 @@ struct ci_hw_td {
 #define TD_IOC                BIT(15)
 #define TD_TOTAL_BYTES        (0x7FFFUL << 16)
 	/* 2 */
-	u32 page[5];
+	__le32 page[5];
 #define TD_CURR_OFFSET        (0x0FFFUL <<  0)
 #define TD_FRAME_NUM          (0x07FFUL <<  0)
 #define TD_RESERVED_MASK      (0x0FFFUL <<  0)
@@ -45,18 +42,18 @@ struct ci_hw_td {
 /* DMA layout of queue heads */
 struct ci_hw_qh {
 	/* 0 */
-	u32 cap;
+	__le32 cap;
 #define QH_IOS                BIT(15)
 #define QH_MAX_PKT            (0x07FFUL << 16)
 #define QH_ZLT                BIT(29)
 #define QH_MULT               (0x0003UL << 30)
 #define QH_ISO_MULT(x)		((x >> 11) & 0x03)
 	/* 1 */
-	u32 curr;
+	__le32 curr;
 	/* 2 - 8 */
 	struct ci_hw_td		td;
 	/* 9 */
-	u32 RESERVED;
+	__le32 RESERVED;
 	struct usb_ctrlrequest   setup;
 } __attribute__ ((packed, aligned(4)));
 

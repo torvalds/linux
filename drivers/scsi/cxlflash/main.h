@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * CXL Flash Device Driver
  *
@@ -5,11 +6,6 @@
  *             Matthew R. Ochs <mrochs@linux.vnet.ibm.com>, IBM Corporation
  *
  * Copyright (C) 2015 IBM Corporation
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #ifndef _CXLFLASH_MAIN_H
@@ -20,11 +16,15 @@
 #include <scsi/scsi.h>
 #include <scsi/scsi_device.h>
 
+#include "backend.h"
+
 #define CXLFLASH_NAME		"cxlflash"
 #define CXLFLASH_ADAPTER_NAME	"IBM POWER CXL Flash Adapter"
+#define CXLFLASH_MAX_ADAPTERS	32
 
 #define PCI_DEVICE_ID_IBM_CORSA		0x04F0
 #define PCI_DEVICE_ID_IBM_FLASH_GT	0x0600
+#define PCI_DEVICE_ID_IBM_BRIARD	0x0624
 
 /* Since there is only one target, make it 0 */
 #define CXLFLASH_TARGET		0
@@ -36,11 +36,13 @@
 
 #define CXLFLASH_PCI_ERROR_RECOVERY_TIMEOUT	(120 * HZ)
 
-#define NUM_FC_PORTS	CXLFLASH_NUM_FC_PORTS	/* ports per AFU */
-
 /* FC defines */
 #define FC_MTIP_CMDCONFIG 0x010
 #define FC_MTIP_STATUS 0x018
+#define FC_MAX_NUM_LUNS 0x080 /* Max LUNs host can provision for port */
+#define FC_CUR_NUM_LUNS 0x088 /* Cur number LUNs provisioned for port */
+#define FC_MAX_CAP_PORT 0x090 /* Max capacity all LUNs for port (4K blocks) */
+#define FC_CUR_CAP_PORT 0x098 /* Cur capacity all LUNs for port (4K blocks) */
 
 #define FC_PNAME 0x300
 #define FC_CONFIG 0x320
@@ -63,6 +65,8 @@
 
 /* AFU command timeout values */
 #define MC_AFU_SYNC_TIMEOUT	5	/* 5 secs */
+#define MC_LUN_PROV_TIMEOUT	5	/* 5 secs */
+#define MC_AFU_DEBUG_TIMEOUT	5	/* 5 secs */
 
 /* AFU command room retry limit */
 #define MC_ROOM_RETRY_CNT	10
@@ -89,8 +93,28 @@ enum undo_level {
 struct dev_dependent_vals {
 	u64 max_sectors;
 	u64 flags;
-#define CXLFLASH_NOTIFY_SHUTDOWN   0x0000000000000001ULL
+#define CXLFLASH_NOTIFY_SHUTDOWN	0x0000000000000001ULL
+#define CXLFLASH_WWPN_VPD_REQUIRED	0x0000000000000002ULL
+#define CXLFLASH_OCXL_DEV		0x0000000000000004ULL
 };
+
+static inline const struct cxlflash_backend_ops *
+cxlflash_assign_ops(struct dev_dependent_vals *ddv)
+{
+	const struct cxlflash_backend_ops *ops = NULL;
+
+#ifdef CONFIG_OCXL_BASE
+	if (ddv->flags & CXLFLASH_OCXL_DEV)
+		ops = &cxlflash_ocxl_ops;
+#endif
+
+#ifdef CONFIG_CXL_BASE
+	if (!(ddv->flags & CXLFLASH_OCXL_DEV))
+		ops = &cxlflash_cxl_ops;
+#endif
+
+	return ops;
+}
 
 struct asyc_intr_info {
 	u64 status;

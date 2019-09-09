@@ -1,25 +1,20 @@
 /**********************************************************************
-* Author: Cavium, Inc.
-*
-* Contact: support@cavium.com
-*          Please include "LiquidIO" in the subject.
-*
-* Copyright (c) 2003-2015 Cavium, Inc.
-*
-* This file is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License, Version 2, as
-* published by the Free Software Foundation.
-*
-* This file is distributed in the hope that it will be useful, but
-* AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
-* of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
-* NONINFRINGEMENT.  See the GNU General Public License for more
-* details.
-*
-* This file may also be available under a different license from Cavium.
-* Contact Cavium, Inc. for more information
-**********************************************************************/
-
+ * Author: Cavium, Inc.
+ *
+ * Contact: support@cavium.com
+ *          Please include "LiquidIO" in the subject.
+ *
+ * Copyright (c) 2003-2016 Cavium, Inc.
+ *
+ * This file is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License, Version 2, as
+ * published by the Free Software Foundation.
+ *
+ * This file is distributed in the hope that it will be useful, but
+ * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
+ * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
+ * NONINFRINGEMENT.  See the GNU General Public License for more details.
+ ***********************************************************************/
 /*!  \file  liquidio_common.h
  *   \brief Common: Structures and macros used in PCI-NIC package by core and
  *   host driver.
@@ -32,8 +27,8 @@
 
 #define LIQUIDIO_PACKAGE ""
 #define LIQUIDIO_BASE_MAJOR_VERSION 1
-#define LIQUIDIO_BASE_MINOR_VERSION 4
-#define LIQUIDIO_BASE_MICRO_VERSION 1
+#define LIQUIDIO_BASE_MINOR_VERSION 7
+#define LIQUIDIO_BASE_MICRO_VERSION 2
 #define LIQUIDIO_BASE_VERSION   __stringify(LIQUIDIO_BASE_MAJOR_VERSION) "." \
 				__stringify(LIQUIDIO_BASE_MINOR_VERSION)
 #define LIQUIDIO_MICRO_VERSION  "." __stringify(LIQUIDIO_BASE_MICRO_VERSION)
@@ -68,12 +63,10 @@ enum octeon_tag_type {
  */
 #define OPCODE_CORE 0           /* used for generic core operations */
 #define OPCODE_NIC  1           /* used for NIC operations */
-#define OPCODE_LAST OPCODE_NIC
-
 /* Subcodes are used by host driver/apps to identify the sub-operation
  * for the core. They only need to by unique for a given subsystem.
  */
-#define OPCODE_SUBCODE(op, sub)       (((op & 0x0f) << 8) | ((sub) & 0x7f))
+#define OPCODE_SUBCODE(op, sub)       ((((op) & 0x0f) << 8) | ((sub) & 0x7f))
 
 /** OPCODE_CORE subcodes. For future use. */
 
@@ -89,12 +82,20 @@ enum octeon_tag_type {
 #define OPCODE_NIC_TIMESTAMP           0x07
 #define OPCODE_NIC_INTRMOD_CFG         0x08
 #define OPCODE_NIC_IF_CFG              0x09
+#define OPCODE_NIC_VF_DRV_NOTICE       0x0A
+#define OPCODE_NIC_INTRMOD_PARAMS      0x0B
+#define OPCODE_NIC_QCOUNT_UPDATE       0x12
+#define OPCODE_NIC_SET_TRUSTED_VF	0x13
+#define OPCODE_NIC_SYNC_OCTEON_TIME	0x14
+#define VF_DRV_LOADED                  1
+#define VF_DRV_REMOVED                -1
+#define VF_DRV_MACADDR_CHANGED         2
+
+#define OPCODE_NIC_VF_REP_PKT          0x15
+#define OPCODE_NIC_VF_REP_CMD          0x16
+#define OPCODE_NIC_UBOOT_CTL           0x17
 
 #define CORE_DRV_TEST_SCATTER_OP    0xFFF5
-
-#define OPCODE_SLOW_PATH(rh)  \
-	(OPCODE_SUBCODE(rh->r.opcode, rh->r.subcode) != \
-		OPCODE_SUBCODE(OPCODE_NIC, OPCODE_NIC_NW_DATA))
 
 /* Application codes advertised by the core driver initialization packet. */
 #define CVM_DRV_APP_START           0x0
@@ -105,31 +106,32 @@ enum octeon_tag_type {
 #define CVM_DRV_INVALID_APP         (CVM_DRV_APP_START + 0x2)
 #define CVM_DRV_APP_END             (CVM_DRV_INVALID_APP - 1)
 
-/* Macro to increment index.
- * Index is incremented by count; if the sum exceeds
- * max, index is wrapped-around to the start.
- */
-#define INCR_INDEX(index, count, max)                \
-do {                                                 \
-	if (((index) + (count)) >= (max))            \
-		index = ((index) + (count)) - (max); \
-	else                                         \
-		index += (count);                    \
-} while (0)
+#define BYTES_PER_DHLEN_UNIT        8
+#define MAX_REG_CNT                 2000000U
+#define INTRNAMSIZ                  32
+#define IRQ_NAME_OFF(i)             ((i) * INTRNAMSIZ)
+#define MAX_IOQ_INTERRUPTS_PER_PF   (64 * 2)
+#define MAX_IOQ_INTERRUPTS_PER_VF   (8 * 2)
 
-#define INCR_INDEX_BY1(index, max)	\
-do {                                    \
-	if ((++(index)) == (max))       \
-		index = 0;	        \
-} while (0)
+#define SCR2_BIT_FW_LOADED	    63
 
-#define DECR_INDEX(index, count, max)                  \
-do {						       \
-	if ((count) > (index))                         \
-		index = ((max) - ((count - index)));   \
-	else                                           \
-		index -= count;			       \
-} while (0)
+/* App specific capabilities from firmware to pf driver */
+#define LIQUIDIO_TIME_SYNC_CAP 0x1
+#define LIQUIDIO_SWITCHDEV_CAP 0x2
+#define LIQUIDIO_SPOOFCHK_CAP  0x4
+
+/* error status return from firmware */
+#define OCTEON_REQUEST_NO_PERMISSION 0xc
+
+static inline u32 incr_index(u32 index, u32 count, u32 max)
+{
+	if ((index + count) >= max)
+		index = index + count - max;
+	else
+		index += count;
+
+	return index;
+}
 
 #define OCT_BOARD_NAME 32
 #define OCT_SERIAL_LEN 64
@@ -187,6 +189,8 @@ static inline void add_sg_size(struct octeon_sg_entry *sg_entry,
 
 /*------------------------- End Scatter/Gather ---------------------------*/
 
+#define   OCTNET_FRM_LENGTH_SIZE      8
+
 #define   OCTNET_FRM_PTP_HEADER_SIZE  8
 
 #define   OCTNET_FRM_HEADER_SIZE     22 /* VLAN + Ethernet */
@@ -195,7 +199,8 @@ static inline void add_sg_size(struct octeon_sg_entry *sg_entry,
 
 #define   OCTNET_MAX_FRM_SIZE        (16000 + OCTNET_FRM_HEADER_SIZE)
 
-#define   OCTNET_DEFAULT_FRM_SIZE    (1500 + OCTNET_FRM_HEADER_SIZE)
+#define   OCTNET_DEFAULT_MTU         (1500)
+#define   OCTNET_DEFAULT_FRM_SIZE  (OCTNET_DEFAULT_MTU + OCTNET_FRM_HEADER_SIZE)
 
 /** NIC Commands are sent using this Octeon Input Queue */
 #define   OCTNET_CMD_Q                0
@@ -228,12 +233,21 @@ static inline void add_sg_size(struct octeon_sg_entry *sg_entry,
 #define   OCTNET_CMD_VERBOSE_ENABLE   0x14
 #define   OCTNET_CMD_VERBOSE_DISABLE  0x15
 
-#define   OCTNET_CMD_ENABLE_VLAN_FILTER 0x16
+#define   OCTNET_CMD_VLAN_FILTER_CTL 0x16
 #define   OCTNET_CMD_ADD_VLAN_FILTER  0x17
 #define   OCTNET_CMD_DEL_VLAN_FILTER  0x18
 #define   OCTNET_CMD_VXLAN_PORT_CONFIG 0x19
 
 #define   OCTNET_CMD_ID_ACTIVE         0x1a
+
+#define   OCTNET_CMD_SET_UC_LIST       0x1b
+#define   OCTNET_CMD_SET_VF_LINKSTATE  0x1c
+
+#define   OCTNET_CMD_QUEUE_COUNT_CTL	0x1f
+
+#define   OCTNET_CMD_GROUP1             1
+#define   OCTNET_CMD_SET_VF_SPOOFCHK    0x1
+#define   OCTNET_GROUP1_LAST_CMD        OCTNET_CMD_SET_VF_SPOOFCHK
 
 #define   OCTNET_CMD_VXLAN_PORT_ADD    0x0
 #define   OCTNET_CMD_VXLAN_PORT_DEL    0x1
@@ -241,6 +255,22 @@ static inline void add_sg_size(struct octeon_sg_entry *sg_entry,
 #define   OCTNET_CMD_RXCSUM_DISABLE    0x1
 #define   OCTNET_CMD_TXCSUM_ENABLE     0x0
 #define   OCTNET_CMD_TXCSUM_DISABLE    0x1
+#define   OCTNET_CMD_VLAN_FILTER_ENABLE 0x1
+#define   OCTNET_CMD_VLAN_FILTER_DISABLE 0x0
+
+#define   OCTNET_CMD_FAIL 0x1
+
+#define   SEAPI_CMD_FEC_SET             0x0
+#define   SEAPI_CMD_FEC_SET_DISABLE       0x0
+#define   SEAPI_CMD_FEC_SET_RS            0x1
+#define   SEAPI_CMD_FEC_GET             0x1
+
+#define   SEAPI_CMD_SPEED_SET           0x2
+#define   SEAPI_CMD_SPEED_GET           0x3
+
+#define OPCODE_NIC_VF_PORT_STATS        0x22
+
+#define   LIO_CMD_WAIT_TM 100
 
 /* RX(packets coming from wire) Checksum verification flags */
 /* TCP/UDP csum */
@@ -288,7 +318,8 @@ union octnet_cmd {
 
 		u64 more:6; /* How many udd words follow the command */
 
-		u64 reserved:29;
+		u64 cmdgroup:8;
+		u64 reserved:21;
 
 		u64 param1:16;
 
@@ -300,7 +331,8 @@ union octnet_cmd {
 
 		u64 param1:16;
 
-		u64 reserved:29;
+		u64 reserved:21;
+		u64 cmdgroup:8;
 
 		u64 more:6;
 
@@ -669,9 +701,11 @@ union oct_link_status {
 		u64 if_mode:5;
 		u64 pause:1;
 		u64 flashing:1;
-		u64 reserved:15;
+		u64 phy_type:5;
+		u64 reserved:10;
 #else
-		u64 reserved:15;
+		u64 reserved:10;
+		u64 phy_type:5;
 		u64 flashing:1;
 		u64 pause:1;
 		u64 if_mode:5;
@@ -682,6 +716,12 @@ union oct_link_status {
 		u64 duplex:8;
 #endif
 	} s;
+};
+
+enum lio_phy_type {
+	LIO_PHY_PORT_TP = 0x0,
+	LIO_PHY_PORT_FIBRE = 0x1,
+	LIO_PHY_PORT_UNKNOWN,
 };
 
 /** The txpciq info passed to host from the firmware */
@@ -696,9 +736,13 @@ union oct_txpciq {
 		u64 pkind:6;
 		u64 use_qpg:1;
 		u64 qpg:11;
-		u64 reserved:30;
+		u64 reserved0:10;
+		u64 ctrl_qpg:11;
+		u64 reserved:9;
 #else
-		u64 reserved:30;
+		u64 reserved:9;
+		u64 ctrl_qpg:11;
+		u64 reserved0:10;
 		u64 qpg:11;
 		u64 use_qpg:1;
 		u64 pkind:6;
@@ -731,13 +775,19 @@ struct oct_link_info {
 
 #ifdef __BIG_ENDIAN_BITFIELD
 	u64 gmxport:16;
-	u64 rsvd:32;
+	u64 macaddr_is_admin_asgnd:1;
+	u64 rsvd:13;
+	u64 macaddr_spoofchk:1;
+	u64 rsvd1:17;
 	u64 num_txpciq:8;
 	u64 num_rxpciq:8;
 #else
 	u64 num_rxpciq:8;
 	u64 num_txpciq:8;
-	u64 rsvd:32;
+	u64 rsvd1:17;
+	u64 macaddr_spoofchk:1;
+	u64 rsvd:13;
+	u64 macaddr_is_admin_asgnd:1;
 	u64 gmxport:16;
 #endif
 
@@ -757,22 +807,32 @@ struct liquidio_if_cfg_info {
 /** Stats for each NIC port in RX direction. */
 struct nic_rx_stats {
 	/* link-level stats */
-	u64 total_rcvd;
-	u64 bytes_rcvd;
-	u64 total_bcst;
-	u64 total_mcst;
-	u64 runts;
-	u64 ctl_rcvd;
-	u64 fifo_err;      /* Accounts for over/under-run of buffers */
-	u64 dmac_drop;
-	u64 fcs_err;
-	u64 jabber_err;
-	u64 l2_err;
-	u64 frame_err;
+	u64 total_rcvd;		/* Received packets */
+	u64 bytes_rcvd;		/* Octets of received packets */
+	u64 total_bcst;		/* Number of non-dropped L2 broadcast packets */
+	u64 total_mcst;		/* Number of non-dropped L2 multicast packets */
+	u64 runts;		/* Packets shorter than allowed */
+	u64 ctl_rcvd;		/* Received PAUSE packets */
+	u64 fifo_err;		/* Packets dropped due to RX FIFO full */
+	u64 dmac_drop;		/* Packets dropped by the DMAC filter */
+	u64 fcs_err;		/* Sum of fragment, overrun, and FCS errors */
+	u64 jabber_err;		/* Packets larger than allowed */
+	u64 l2_err;		/* Sum of DMA, parity, PCAM access, no memory,
+				 * buffer overflow, malformed L2 header or
+				 * length, oversize errors
+				 **/
+	u64 frame_err;		/* Sum of IPv4 and L4 checksum errors */
+	u64 red_drops;		/* Packets dropped by RED due to buffer
+				 * exhaustion
+				 **/
 
 	/* firmware stats */
 	u64 fw_total_rcvd;
 	u64 fw_total_fwd;
+	u64 fw_total_fwd_bytes;
+	u64 fw_total_mcast;
+	u64 fw_total_bcast;
+
 	u64 fw_err_pko;
 	u64 fw_err_link;
 	u64 fw_err_drop;
@@ -783,11 +843,11 @@ struct nic_rx_stats {
 	u64 fw_lro_pkts;   /* Number of packets that are LROed      */
 	u64 fw_lro_octs;   /* Number of octets that are LROed       */
 	u64 fw_total_lro;  /* Number of LRO packets formed          */
-	u64 fw_lro_aborts; /* Number of times lRO of packet aborted */
+	u64 fw_lro_aborts; /* Number of times LRO of packet aborted */
 	u64 fw_lro_aborts_port;
 	u64 fw_lro_aborts_seq;
 	u64 fw_lro_aborts_tsval;
-	u64 fw_lro_aborts_timer;
+	u64 fw_lro_aborts_timer;	/* Timer setting error */
 	/* intrmod: packet forward rate */
 	u64 fwd_rate;
 };
@@ -795,23 +855,42 @@ struct nic_rx_stats {
 /** Stats for each NIC port in RX direction. */
 struct nic_tx_stats {
 	/* link-level stats */
-	u64 total_pkts_sent;
-	u64 total_bytes_sent;
-	u64 mcast_pkts_sent;
-	u64 bcast_pkts_sent;
-	u64 ctl_sent;
-	u64 one_collision_sent;   /* Packets sent after one collision*/
-	u64 multi_collision_sent; /* Packets sent after multiple collision*/
-	u64 max_collision_fail;   /* Packets not sent due to max collisions */
-	u64 max_deferral_fail;   /* Packets not sent due to max deferrals */
-	u64 fifo_err;       /* Accounts for over/under-run of buffers */
-	u64 runts;
-	u64 total_collisions; /* Total number of collisions detected */
+	u64 total_pkts_sent;		/* Total frames sent on the interface */
+	u64 total_bytes_sent;		/* Total octets sent on the interface */
+	u64 mcast_pkts_sent;		/* Packets sent to the multicast DMAC */
+	u64 bcast_pkts_sent;		/* Packets sent to a broadcast DMAC */
+	u64 ctl_sent;			/* Control/PAUSE packets sent */
+	u64 one_collision_sent;		/* Packets sent that experienced a
+					 * single collision before successful
+					 * transmission
+					 **/
+	u64 multi_collision_sent;	/* Packets sent that experienced
+					 * multiple collisions before successful
+					 * transmission
+					 **/
+	u64 max_collision_fail;		/* Packets dropped due to excessive
+					 * collisions
+					 **/
+	u64 max_deferral_fail;		/* Packets not sent due to max
+					 * deferrals
+					 **/
+	u64 fifo_err;			/* Packets sent that experienced a
+					 * transmit underflow and were
+					 * truncated
+					 **/
+	u64 runts;			/* Packets sent with an octet count
+					 * lessthan 64
+					 **/
+	u64 total_collisions;		/* Packets dropped due to excessive
+					 * collisions
+					 **/
 
 	/* firmware stats */
 	u64 fw_total_sent;
 	u64 fw_total_fwd;
 	u64 fw_total_fwd_bytes;
+	u64 fw_total_mcast_sent;
+	u64 fw_total_bcast_sent;
 	u64 fw_err_pko;
 	u64 fw_err_link;
 	u64 fw_err_drop;
@@ -819,6 +898,7 @@ struct nic_tx_stats {
 	u64 fw_tso;		/* number of tso requests */
 	u64 fw_tso_fwd;		/* number of packets segmented in tso */
 	u64 fw_tx_vxlan;
+	u64 fw_err_pki;
 };
 
 struct oct_link_stats {
@@ -826,6 +906,16 @@ struct oct_link_stats {
 	struct nic_tx_stats fromhost;
 
 };
+
+static inline int opcode_slow_path(union octeon_rh *rh)
+{
+	u16 subcode1, subcode2;
+
+	subcode1 = OPCODE_SUBCODE((rh)->r.opcode, (rh)->r.subcode);
+	subcode2 = OPCODE_SUBCODE(OPCODE_NIC, OPCODE_NIC_NW_DATA);
+
+	return (subcode2 != subcode1);
+}
 
 #define LIO68XX_LED_CTRL_ADDR     0x3501
 #define LIO68XX_LED_CTRL_CFGON    0x1f
@@ -840,6 +930,7 @@ struct oct_link_stats {
 #define VITESSE_PHY_GPIO_LOW      0x3
 #define LED_IDENTIFICATION_ON     0x1
 #define LED_IDENTIFICATION_OFF    0x0
+#define LIO23XX_COPPERHEAD_LED_GPIO 0x2
 
 struct oct_mdio_cmd {
 	u64 op;
@@ -850,29 +941,6 @@ struct oct_mdio_cmd {
 };
 
 #define OCT_LINK_STATS_SIZE   (sizeof(struct oct_link_stats))
-
-/* intrmod: max. packet rate threshold */
-#define LIO_INTRMOD_MAXPKT_RATETHR	196608
-/* intrmod: min. packet rate threshold */
-#define LIO_INTRMOD_MINPKT_RATETHR	9216
-/* intrmod: max. packets to trigger interrupt */
-#define LIO_INTRMOD_RXMAXCNT_TRIGGER	384
-/* intrmod: min. packets to trigger interrupt */
-#define LIO_INTRMOD_RXMINCNT_TRIGGER	0
-/* intrmod: max. time to trigger interrupt */
-#define LIO_INTRMOD_RXMAXTMR_TRIGGER	128
-/* 66xx:intrmod: min. time to trigger interrupt
- * (value of 1 is optimum for TCP_RR)
- */
-#define LIO_INTRMOD_RXMINTMR_TRIGGER	1
-
-/* intrmod: max. packets to trigger interrupt */
-#define LIO_INTRMOD_TXMAXCNT_TRIGGER	64
-/* intrmod: min. packets to trigger interrupt */
-#define LIO_INTRMOD_TXMINCNT_TRIGGER	0
-
-/* intrmod: poll interval in seconds */
-#define LIO_INTRMOD_CHECK_INTERVAL  1
 
 struct oct_intrmod_cfg {
 	u64 rx_enable;
@@ -912,4 +980,66 @@ union oct_nic_if_cfg {
 	} s;
 };
 
+struct lio_trusted_vf {
+	uint64_t active: 1;
+	uint64_t id : 8;
+	uint64_t reserved: 55;
+};
+
+struct lio_time {
+	s64 sec;   /* seconds */
+	s64 nsec;  /* nanoseconds */
+};
+
+struct lio_vf_rep_stats {
+	u64 tx_packets;
+	u64 tx_bytes;
+	u64 tx_dropped;
+
+	u64 rx_packets;
+	u64 rx_bytes;
+	u64 rx_dropped;
+};
+
+enum lio_vf_rep_req_type {
+	LIO_VF_REP_REQ_NONE,
+	LIO_VF_REP_REQ_STATE,
+	LIO_VF_REP_REQ_MTU,
+	LIO_VF_REP_REQ_STATS,
+	LIO_VF_REP_REQ_DEVNAME
+};
+
+enum {
+	LIO_VF_REP_STATE_DOWN,
+	LIO_VF_REP_STATE_UP
+};
+
+#define LIO_IF_NAME_SIZE 16
+struct lio_vf_rep_req {
+	u8 req_type;
+	u8 ifidx;
+	u8 rsvd[6];
+
+	union {
+		struct lio_vf_rep_name {
+			char name[LIO_IF_NAME_SIZE];
+		} rep_name;
+
+		struct lio_vf_rep_mtu {
+			u32 mtu;
+			u32 rsvd;
+		} rep_mtu;
+
+		struct lio_vf_rep_state {
+			u8 state;
+			u8 rsvd[7];
+		} rep_state;
+	};
+};
+
+struct lio_vf_rep_resp {
+	u64 rh;
+	u8  status;
+	u8  rsvd[7];
+};
 #endif

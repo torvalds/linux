@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2009-2010, Lars-Peter Clausen <lars@metafoo.de>
  * JZ4740 SoC ADC driver
- *
- * This program is free software; you can redistribute it and/or modify it
- * under  the terms of the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the License, or (at your
- * option) any later version.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  * This driver synchronizes access to the JZ4740 ADC core between the
  * JZ4740 battery and hwmon drivers.
@@ -212,10 +204,8 @@ static int jz4740_adc_probe(struct platform_device *pdev)
 	int irq_base;
 
 	adc = devm_kzalloc(&pdev->dev, sizeof(*adc), GFP_KERNEL);
-	if (!adc) {
-		dev_err(&pdev->dev, "Failed to allocate driver structure\n");
+	if (!adc)
 		return -ENOMEM;
-	}
 
 	adc->irq = platform_get_irq(pdev, 0);
 	if (adc->irq < 0) {

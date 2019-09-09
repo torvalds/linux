@@ -1,12 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Performance event support - PowerPC classic/server specific definitions.
  *
  * Copyright 2008-2009 Paul Mackerras, IBM Corporation.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/types.h>
@@ -38,6 +34,11 @@ struct power_pmu {
 				unsigned long *valp);
 	int		(*get_alternatives)(u64 event_id, unsigned int flags,
 				u64 alt[]);
+	void		(*get_mem_data_src)(union perf_mem_data_src *dsrc,
+				u32 flags, struct pt_regs *regs);
+	void		(*get_mem_weight)(u64 *weight);
+	unsigned long	group_constraint_mask;
+	unsigned long	group_constraint_val;
 	u64             (*bhrb_filter_map)(u64 branch_sample_type);
 	void            (*config_bhrb)(u64 pmu_bhrb_filter);
 	void		(*disable_pmc)(unsigned int pmc, unsigned long mmcr[]);
@@ -50,6 +51,8 @@ struct power_pmu {
 			       [PERF_COUNT_HW_CACHE_OP_MAX]
 			       [PERF_COUNT_HW_CACHE_RESULT_MAX];
 
+	int		n_blacklist_ev;
+	int 		*blacklist_ev;
 	/* BHRB entries in the PMU */
 	int		bhrb_nr;
 };
@@ -65,6 +68,7 @@ struct power_pmu {
 #define PPMU_HAS_SSLOT		0x00000020 /* Has sampled slot in MMCRA */
 #define PPMU_HAS_SIER		0x00000040 /* Has SIER */
 #define PPMU_ARCH_207S		0x00000080 /* PMC is architecture v2.07S */
+#define PPMU_NO_SIAR		0x00000100 /* Do not use SIAR */
 
 /*
  * Values for flags to get_alternatives()

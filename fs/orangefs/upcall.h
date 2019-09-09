@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * (C) 2001 Clemson University and The University of Chicago
  *
@@ -182,6 +183,7 @@ enum orangefs_param_request_op {
 	ORANGEFS_PARAM_REQUEST_OP_READAHEAD_SIZE = 26,
 	ORANGEFS_PARAM_REQUEST_OP_READAHEAD_COUNT = 27,
 	ORANGEFS_PARAM_REQUEST_OP_READAHEAD_COUNT_SIZE = 28,
+	ORANGEFS_PARAM_REQUEST_OP_READAHEAD_READCNT = 29,
 };
 
 struct orangefs_param_request_s {

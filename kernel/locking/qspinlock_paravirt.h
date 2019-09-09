@@ -1,9 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _GEN_PV_LOCK_SLOWPATH
 #error "do not include this file"
 #endif
 
 #include <linux/hash.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/debug_locks.h>
 
 /*
@@ -48,33 +49,53 @@ enum vcpu_state {
 
 struct pv_node {
 	struct mcs_spinlock	mcs;
-	struct mcs_spinlock	__res[3];
-
 	int			cpu;
 	u8			state;
 };
 
 /*
- * Include queued spinlock statistics code
- */
-#include "qspinlock_stat.h"
-
-/*
+ * Hybrid PV queued/unfair lock
+ *
  * By replacing the regular queued_spin_trylock() with the function below,
  * it will be called once when a lock waiter enter the PV slowpath before
- * being queued. By allowing one lock stealing attempt here when the pending
- * bit is off, it helps to reduce the performance impact of lock waiter
- * preemption without the drawback of lock starvation.
+ * being queued.
+ *
+ * The pending bit is set by the queue head vCPU of the MCS wait queue in
+ * pv_wait_head_or_lock() to signal that it is ready to spin on the lock.
+ * When that bit becomes visible to the incoming waiters, no lock stealing
+ * is allowed. The function will return immediately to make the waiters
+ * enter the MCS wait queue. So lock starvation shouldn't happen as long
+ * as the queued mode vCPUs are actively running to set the pending bit
+ * and hence disabling lock stealing.
+ *
+ * When the pending bit isn't set, the lock waiters will stay in the unfair
+ * mode spinning on the lock unless the MCS wait queue is empty. In this
+ * case, the lock waiters will enter the queued mode slowpath trying to
+ * become the queue head and set the pending bit.
+ *
+ * This hybrid PV queued/unfair lock combines the best attributes of a
+ * queued lock (no lock starvation) and an unfair lock (good performance
+ * on not heavily contended locks).
  */
-#define queued_spin_trylock(l)	pv_queued_spin_steal_lock(l)
-static inline bool pv_queued_spin_steal_lock(struct qspinlock *lock)
+#define queued_spin_trylock(l)	pv_hybrid_queued_unfair_trylock(l)
+static inline bool pv_hybrid_queued_unfair_trylock(struct qspinlock *lock)
 {
-	struct __qspinlock *l = (void *)lock;
+	/*
+	 * Stay in unfair lock mode as long as queued mode waiters are
+	 * present in the MCS wait queue but the pending bit isn't set.
+	 */
+	for (;;) {
+		int val = atomic_read(&lock->val);
 
-	if (!(atomic_read(&lock->val) & _Q_LOCKED_PENDING_MASK) &&
-	    (cmpxchg(&l->locked, 0, _Q_LOCKED_VAL) == 0)) {
-		qstat_inc(qstat_pv_lock_stealing, true);
-		return true;
+		if (!(val & _Q_LOCKED_PENDING_MASK) &&
+		   (cmpxchg_acquire(&lock->locked, 0, _Q_LOCKED_VAL) == 0)) {
+			lockevent_inc(pv_lock_stealing);
+			return true;
+		}
+		if (!(val & _Q_TAIL_MASK) || (val & _Q_PENDING_MASK))
+			break;
+
+		cpu_relax();
 	}
 
 	return false;
@@ -87,40 +108,24 @@ static inline bool pv_queued_spin_steal_lock(struct qspinlock *lock)
 #if _Q_PENDING_BITS == 8
 static __always_inline void set_pending(struct qspinlock *lock)
 {
-	struct __qspinlock *l = (void *)lock;
-
-	WRITE_ONCE(l->pending, 1);
-}
-
-static __always_inline void clear_pending(struct qspinlock *lock)
-{
-	struct __qspinlock *l = (void *)lock;
-
-	WRITE_ONCE(l->pending, 0);
+	WRITE_ONCE(lock->pending, 1);
 }
 
 /*
  * The pending bit check in pv_queued_spin_steal_lock() isn't a memory
- * barrier. Therefore, an atomic cmpxchg() is used to acquire the lock
- * just to be sure that it will get it.
+ * barrier. Therefore, an atomic cmpxchg_acquire() is used to acquire the
+ * lock just to be sure that it will get it.
  */
 static __always_inline int trylock_clear_pending(struct qspinlock *lock)
 {
-	struct __qspinlock *l = (void *)lock;
-
-	return !READ_ONCE(l->locked) &&
-	       (cmpxchg(&l->locked_pending, _Q_PENDING_VAL, _Q_LOCKED_VAL)
-			== _Q_PENDING_VAL);
+	return !READ_ONCE(lock->locked) &&
+	       (cmpxchg_acquire(&lock->locked_pending, _Q_PENDING_VAL,
+				_Q_LOCKED_VAL) == _Q_PENDING_VAL);
 }
 #else /* _Q_PENDING_BITS == 8 */
 static __always_inline void set_pending(struct qspinlock *lock)
 {
 	atomic_or(_Q_PENDING_VAL, &lock->val);
-}
-
-static __always_inline void clear_pending(struct qspinlock *lock)
-{
-	atomic_andnot(_Q_PENDING_VAL, &lock->val);
 }
 
 static __always_inline int trylock_clear_pending(struct qspinlock *lock)
@@ -138,7 +143,7 @@ static __always_inline int trylock_clear_pending(struct qspinlock *lock)
 		 */
 		old = val;
 		new = (val & ~_Q_PENDING_MASK) | _Q_LOCKED_VAL;
-		val = atomic_cmpxchg(&lock->val, old, new);
+		val = atomic_cmpxchg_acquire(&lock->val, old, new);
 
 		if (val == old)
 			return 1;
@@ -193,7 +198,8 @@ void __init __pv_init_lock_hash(void)
 	 */
 	pv_lock_hash = alloc_large_system_hash("PV qspinlock",
 					       sizeof(struct pv_hash_entry),
-					       pv_hash_size, 0, HASH_EARLY,
+					       pv_hash_size, 0,
+					       HASH_EARLY | HASH_ZERO,
 					       &pv_lock_hash_bits, NULL,
 					       pv_hash_size, pv_hash_size);
 }
@@ -213,7 +219,7 @@ static struct qspinlock **pv_hash(struct qspinlock *lock, struct pv_node *node)
 		hopcnt++;
 		if (!cmpxchg(&he->lock, NULL, lock)) {
 			WRITE_ONCE(he->node, node);
-			qstat_hop(hopcnt);
+			lockevent_pv_hop(hopcnt);
 			return &he->lock;
 		}
 	}
@@ -263,7 +269,7 @@ pv_wait_early(struct pv_node *prev, int loop)
 	if ((loop & PV_PREV_CHECK_MASK) != 0)
 		return false;
 
-	return READ_ONCE(prev->state) != vcpu_running;
+	return READ_ONCE(prev->state) != vcpu_running || vcpu_is_preempted(prev->cpu);
 }
 
 /*
@@ -273,7 +279,7 @@ static void pv_init_node(struct mcs_spinlock *node)
 {
 	struct pv_node *pn = (struct pv_node *)node;
 
-	BUILD_BUG_ON(sizeof(struct pv_node) > 5*sizeof(struct mcs_spinlock));
+	BUILD_BUG_ON(sizeof(struct pv_node) > sizeof(struct qnode));
 
 	pn->cpu = smp_processor_id();
 	pn->state = vcpu_running;
@@ -314,8 +320,8 @@ static void pv_wait_node(struct mcs_spinlock *node, struct mcs_spinlock *prev)
 		smp_store_mb(pn->state, vcpu_halted);
 
 		if (!READ_ONCE(node->locked)) {
-			qstat_inc(qstat_pv_wait_node, true);
-			qstat_inc(qstat_pv_wait_early, wait_early);
+			lockevent_inc(pv_wait_node);
+			lockevent_cond_inc(pv_wait_early, wait_early);
 			pv_wait(&pn->state, vcpu_halted);
 		}
 
@@ -333,7 +339,8 @@ static void pv_wait_node(struct mcs_spinlock *node, struct mcs_spinlock *prev)
 		 * So it is better to spin for a while in the hope that the
 		 * MCS lock will be released soon.
 		 */
-		qstat_inc(qstat_pv_spurious_wakeup, !READ_ONCE(node->locked));
+		lockevent_cond_inc(pv_spurious_wakeup,
+				  !READ_ONCE(node->locked));
 	}
 
 	/*
@@ -353,7 +360,6 @@ static void pv_wait_node(struct mcs_spinlock *node, struct mcs_spinlock *prev)
 static void pv_kick_node(struct qspinlock *lock, struct mcs_spinlock *node)
 {
 	struct pv_node *pn = (struct pv_node *)node;
-	struct __qspinlock *l = (void *)lock;
 
 	/*
 	 * If the vCPU is indeed halted, advance its state to match that of
@@ -361,8 +367,18 @@ static void pv_kick_node(struct qspinlock *lock, struct mcs_spinlock *node)
 	 * observe its next->locked value and advance itself.
 	 *
 	 * Matches with smp_store_mb() and cmpxchg() in pv_wait_node()
+	 *
+	 * The write to next->locked in arch_mcs_spin_unlock_contended()
+	 * must be ordered before the read of pn->state in the cmpxchg()
+	 * below for the code to work correctly. To guarantee full ordering
+	 * irrespective of the success or failure of the cmpxchg(),
+	 * a relaxed version with explicit barrier is used. The control
+	 * dependency will order the reading of pn->state before any
+	 * subsequent writes.
 	 */
-	if (cmpxchg(&pn->state, vcpu_halted, vcpu_hashed) != vcpu_halted)
+	smp_mb__before_atomic();
+	if (cmpxchg_relaxed(&pn->state, vcpu_halted, vcpu_hashed)
+	    != vcpu_halted)
 		return;
 
 	/*
@@ -372,7 +388,7 @@ static void pv_kick_node(struct qspinlock *lock, struct mcs_spinlock *node)
 	 * the hash table later on at unlock time, no atomic instruction is
 	 * needed.
 	 */
-	WRITE_ONCE(l->locked, _Q_SLOW_VAL);
+	WRITE_ONCE(lock->locked, _Q_SLOW_VAL);
 	(void)pv_hash(lock, pn);
 }
 
@@ -387,7 +403,6 @@ static u32
 pv_wait_head_or_lock(struct qspinlock *lock, struct mcs_spinlock *node)
 {
 	struct pv_node *pn = (struct pv_node *)node;
-	struct __qspinlock *l = (void *)lock;
 	struct qspinlock **lp = NULL;
 	int waitcnt = 0;
 	int loop;
@@ -402,7 +417,7 @@ pv_wait_head_or_lock(struct qspinlock *lock, struct mcs_spinlock *node)
 	/*
 	 * Tracking # of slowpath locking operations
 	 */
-	qstat_inc(qstat_pv_lock_slowpath, true);
+	lockevent_inc(lock_slowpath);
 
 	for (;; waitcnt++) {
 		/*
@@ -438,21 +453,21 @@ pv_wait_head_or_lock(struct qspinlock *lock, struct mcs_spinlock *node)
 			 *
 			 * Matches the smp_rmb() in __pv_queued_spin_unlock().
 			 */
-			if (xchg(&l->locked, _Q_SLOW_VAL) == 0) {
+			if (xchg(&lock->locked, _Q_SLOW_VAL) == 0) {
 				/*
 				 * The lock was free and now we own the lock.
 				 * Change the lock value back to _Q_LOCKED_VAL
 				 * and unhash the table.
 				 */
-				WRITE_ONCE(l->locked, _Q_LOCKED_VAL);
+				WRITE_ONCE(lock->locked, _Q_LOCKED_VAL);
 				WRITE_ONCE(*lp, NULL);
 				goto gotlock;
 			}
 		}
 		WRITE_ONCE(pn->state, vcpu_hashed);
-		qstat_inc(qstat_pv_wait_head, true);
-		qstat_inc(qstat_pv_wait_again, waitcnt);
-		pv_wait(&l->locked, _Q_SLOW_VAL);
+		lockevent_inc(pv_wait_head);
+		lockevent_cond_inc(pv_wait_again, waitcnt);
+		pv_wait(&lock->locked, _Q_SLOW_VAL);
 
 		/*
 		 * Because of lock stealing, the queue head vCPU may not be
@@ -477,7 +492,6 @@ gotlock:
 __visible void
 __pv_queued_spin_unlock_slowpath(struct qspinlock *lock, u8 locked)
 {
-	struct __qspinlock *l = (void *)lock;
 	struct pv_node *node;
 
 	if (unlikely(locked != _Q_SLOW_VAL)) {
@@ -506,7 +520,7 @@ __pv_queued_spin_unlock_slowpath(struct qspinlock *lock, u8 locked)
 	 * Now that we have a reference to the (likely) blocked pv_node,
 	 * release the lock.
 	 */
-	smp_store_release(&l->locked, 0);
+	smp_store_release(&lock->locked, 0);
 
 	/*
 	 * At this point the memory pointed at by lock can be freed/reused,
@@ -515,7 +529,7 @@ __pv_queued_spin_unlock_slowpath(struct qspinlock *lock, u8 locked)
 	 * vCPU is harmless other than the additional latency in completing
 	 * the unlock.
 	 */
-	qstat_inc(qstat_pv_kick_unlock, true);
+	lockevent_inc(pv_kick_unlock);
 	pv_kick(node->cpu);
 }
 
@@ -532,7 +546,6 @@ __pv_queued_spin_unlock_slowpath(struct qspinlock *lock, u8 locked)
 #ifndef __pv_queued_spin_unlock
 __visible void __pv_queued_spin_unlock(struct qspinlock *lock)
 {
-	struct __qspinlock *l = (void *)lock;
 	u8 locked;
 
 	/*
@@ -540,7 +553,7 @@ __visible void __pv_queued_spin_unlock(struct qspinlock *lock)
 	 * unhash. Otherwise it would be possible to have multiple @lock
 	 * entries, which would be BAD.
 	 */
-	locked = cmpxchg_release(&l->locked, _Q_LOCKED_VAL, 0);
+	locked = cmpxchg_release(&lock->locked, _Q_LOCKED_VAL, 0);
 	if (likely(locked == _Q_LOCKED_VAL))
 		return;
 

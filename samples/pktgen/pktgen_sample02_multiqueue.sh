@@ -1,4 +1,5 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-2.0
 #
 # Multiqueue: Using pktgen threads for sending on multiple CPUs
 #  * adding devices to kernel threads
@@ -13,9 +14,10 @@ root_check_run_with_sudo "$@"
 # Required param: -i dev in $DEV
 source ${basedir}/parameters.sh
 
+[ -z "$COUNT" ] && COUNT="100000" # Zero means indefinitely
+
 # Base Config
 DELAY="0"        # Zero means max speed
-COUNT="100000"   # Zero means indefinitely
 [ -z "$CLONE_SKB" ] && CLONE_SKB="0"
 
 # Flow variation random source port between min and max
@@ -27,12 +29,16 @@ if [ -z "$DEST_IP" ]; then
     [ -z "$IP6" ] && DEST_IP="198.18.0.42" || DEST_IP="FD00::1"
 fi
 [ -z "$DST_MAC" ] && DST_MAC="90:e2:ba:ff:ff:ff"
+if [ -n "$DST_PORT" ]; then
+    read -r DST_MIN DST_MAX <<< $(parse_ports $DST_PORT)
+    validate_ports $DST_MIN $DST_MAX
+fi
 
 # General cleanup everything since last run
 pg_ctrl "reset"
 
 # Threads are specified with parameter -t value in $THREADS
-for ((thread = 0; thread < $THREADS; thread++)); do
+for ((thread = $F_THREAD; thread <= $L_THREAD; thread++)); do
     # The device name is extended with @name, using thread number to
     # make then unique, but any name will do.
     dev=${DEV}@${thread}
@@ -58,6 +64,13 @@ for ((thread = 0; thread < $THREADS; thread++)); do
     pg_set $dev "dst_mac $DST_MAC"
     pg_set $dev "dst$IP6 $DEST_IP"
 
+    if [ -n "$DST_PORT" ]; then
+	# Single destination port or random port range
+	pg_set $dev "flag UDPDST_RND"
+	pg_set $dev "udp_dst_min $DST_MIN"
+	pg_set $dev "udp_dst_max $DST_MAX"
+    fi
+
     # Setup random UDP port src range
     pg_set $dev "flag UDPSRC_RND"
     pg_set $dev "udp_src_min $UDP_MIN"
@@ -70,7 +83,7 @@ pg_ctrl "start"
 echo "Done" >&2
 
 # Print results
-for ((thread = 0; thread < $THREADS; thread++)); do
+for ((thread = $F_THREAD; thread <= $L_THREAD; thread++)); do
     dev=${DEV}@${thread}
     echo "Device: $dev"
     cat /proc/net/pktgen/$dev | grep -A2 "Result:"

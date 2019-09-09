@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * stv0900_init.h
  *
@@ -6,21 +7,6 @@
  * Copyright (C) ST Microelectronics.
  * Copyright (C) 2009 NetUP Inc.
  * Copyright (C) 2009 Igor M. Liplianin <liplianin@netup.ru>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #ifndef STV0900_INIT_H
@@ -152,8 +138,8 @@ struct stv0900_short_frames_car_loop_optim_vs_mod {
 
 /* Cut 1.x Tracking carrier loop carrier QPSK 1/2 to 8PSK 9/10 long Frame */
 static const struct stv0900_car_loop_optim FE_STV0900_S2CarLoop[14] = {
-	/*Modcod		2MPon 	2MPoff	5MPon 	5MPoff	10MPon
-				10MPoff	20MPon 	20MPoff	30MPon 	30MPoff */
+	/*Modcod		2MPon	2MPoff	5MPon	5MPoff	10MPon
+				10MPoff	20MPon	20MPoff	30MPon	30MPoff */
 	{ STV0900_QPSK_12,	0x1C,	0x0D,	0x1B,	0x2C,	0x3A,
 				0x1C,	0x2A,	0x3B,	0x2A,	0x1B },
 	{ STV0900_QPSK_35,	0x2C,	0x0D,	0x2B,	0x2C,	0x3A,
@@ -180,15 +166,15 @@ static const struct stv0900_car_loop_optim FE_STV0900_S2CarLoop[14] = {
 				0x0B,	0x39,	0x1A,	0x19,	0x0A },
 	{ STV0900_8PSK_89,	0x3B,	0x3B,	0x0B,	0x2B,	0x2A,
 				0x0B,	0x39,	0x1A,	0x29,	0x39 },
-	{ STV0900_8PSK_910,	0x3B,	0x3B, 	0x0B,	0x2B, 	0x2A,
+	{ STV0900_8PSK_910,	0x3B,	0x3B,	0x0B,	0x2B,	0x2A,
 				0x0B,	0x39,	0x1A,	0x29,	0x39 }
 };
 
 
 /* Cut 2.0 Tracking carrier loop carrier QPSK 1/2 to 8PSK 9/10 long Frame */
 static const struct stv0900_car_loop_optim FE_STV0900_S2CarLoopCut20[14] = {
-	/* Modcod		2MPon 	2MPoff	5MPon 	5MPoff	10MPon
-				10MPoff	20MPon 	20MPoff	30MPon 	30MPoff */
+	/* Modcod		2MPon	2MPoff	5MPon	5MPoff	10MPon
+				10MPoff	20MPon	20MPoff	30MPon	30MPoff */
 	{ STV0900_QPSK_12,	0x1F,	0x3F,	0x1E,	0x3F,	0x3D,
 				0x1F,	0x3D,	0x3E,	0x3D,	0x1E },
 	{ STV0900_QPSK_35,	0x2F,	0x3F,	0x2E,	0x2F,	0x3D,
@@ -215,7 +201,7 @@ static const struct stv0900_car_loop_optim FE_STV0900_S2CarLoopCut20[14] = {
 				0x1e,	0x3c,	0x2d,	0x2c,	0x1d },
 	{ STV0900_8PSK_89,	0x3e,	0x3e,	0x1e,	0x2e,	0x3d,
 				0x1e,	0x0d,	0x2d,	0x3c,	0x1d },
-	{ STV0900_8PSK_910,	0x3e,	0x3e, 	0x1e,	0x2e, 	0x3d,
+	{ STV0900_8PSK_910,	0x3e,	0x3e,	0x1e,	0x2e,	0x3d,
 				0x1e,	0x1d,	0x2d,	0x0d,	0x1d },
 };
 
@@ -223,8 +209,8 @@ static const struct stv0900_car_loop_optim FE_STV0900_S2CarLoopCut20[14] = {
 
 /* Cut 2.0 Tracking carrier loop carrier 16APSK 2/3 to 32APSK 9/10 long Frame */
 static const struct stv0900_car_loop_optim FE_STV0900_S2APSKCarLoopCut20[11] = {
-	/* Modcod		2MPon 	2MPoff	5MPon 	5MPoff	10MPon
-				10MPoff	20MPon 	20MPoff	30MPon 	30MPoff */
+	/* Modcod		2MPon	2MPoff	5MPon	5MPoff	10MPon
+				10MPoff	20MPon	20MPoff	30MPon	30MPoff */
 	{ STV0900_16APSK_23,	0x0C,	0x0C,	0x0C,	0x0C,	0x1D,
 				0x0C,	0x3C,	0x0C,	0x2C,	0x0C },
 	{ STV0900_16APSK_34,	0x0C,	0x0C,	0x0C,	0x0C,	0x0E,
@@ -252,8 +238,8 @@ static const struct stv0900_car_loop_optim FE_STV0900_S2APSKCarLoopCut20[11] = {
 
 /* Cut 2.0 Tracking carrier loop carrier QPSK 1/4 to QPSK 2/5 long Frame */
 static const struct stv0900_car_loop_optim FE_STV0900_S2LowQPCarLoopCut20[3] = {
-	/* Modcod		2MPon 	2MPoff	5MPon 	5MPoff	10MPon
-				10MPoff	20MPon 	20MPoff	30MPon 	30MPoff */
+	/* Modcod		2MPon	2MPoff	5MPon	5MPoff	10MPon
+				10MPoff	20MPon	20MPoff	30MPon	30MPoff */
 	{ STV0900_QPSK_14,	0x0F,	0x3F,	0x0E,	0x3F,	0x2D,
 				0x2F,	0x2D,	0x1F,	0x3D,	0x3E },
 	{ STV0900_QPSK_13,	0x0F,	0x3F,	0x0E,	0x3F,	0x2D,
@@ -279,10 +265,10 @@ struct stv0900_short_frames_car_loop_optim FE_STV0900_S2ShortCarLoop[4] = {
 };
 
 static	const struct stv0900_car_loop_optim FE_STV0900_S2CarLoopCut30[14] = {
-	/*Modcod		2MPon 	2MPoff	5MPon 	5MPoff	10MPon
-				10MPoff	20MPon 	20MPoff	30MPon 	30MPoff	*/
+	/*Modcod		2MPon	2MPoff	5MPon	5MPoff	10MPon
+				10MPoff	20MPon	20MPoff	30MPon	30MPoff	*/
 	{ STV0900_QPSK_12,	0x3C,	0x2C,	0x0C,	0x2C,	0x1B,
-				0x2C,	0x1B,	0x1C,	0x0B, 	0x3B },
+				0x2C,	0x1B,	0x1C,	0x0B,	0x3B },
 	{ STV0900_QPSK_35,	0x0D,	0x0D,	0x0C,	0x0D,	0x1B,
 				0x3C,	0x1B,	0x1C,	0x0B,	0x3B },
 	{ STV0900_QPSK_23,	0x1D,	0x0D,	0x0C,	0x1D,	0x2B,
@@ -313,8 +299,8 @@ static	const struct stv0900_car_loop_optim FE_STV0900_S2CarLoopCut30[14] = {
 
 static	const
 struct stv0900_car_loop_optim FE_STV0900_S2APSKCarLoopCut30[11] = {
-	/*Modcod		2MPon 	2MPoff	5MPon 	5MPoff	10MPon
-				10MPoff	20MPon 	20MPoff	30MPon 	30MPoff	*/
+	/*Modcod		2MPon	2MPoff	5MPon	5MPoff	10MPon
+				10MPoff	20MPon	20MPoff	30MPon	30MPoff	*/
 	{ STV0900_16APSK_23,	0x0A,	0x0A,	0x0A,	0x0A,	0x1A,
 				0x0A,	0x3A,	0x0A,	0x2A,	0x0A },
 	{ STV0900_16APSK_34,	0x0A,	0x0A,	0x0A,	0x0A,	0x0B,
@@ -341,8 +327,8 @@ struct stv0900_car_loop_optim FE_STV0900_S2APSKCarLoopCut30[11] = {
 
 static	const
 struct stv0900_car_loop_optim FE_STV0900_S2LowQPCarLoopCut30[3] = {
-	/*Modcod		2MPon 	2MPoff	5MPon 	5MPoff	10MPon
-				10MPoff	20MPon 	20MPoff	30MPon 	30MPoff*/
+	/*Modcod		2MPon	2MPoff	5MPon	5MPoff	10MPon
+				10MPoff	20MPon	20MPoff	30MPon	30MPoff*/
 	{ STV0900_QPSK_14,	0x0C,	0x3C,	0x0B,	0x3C,	0x2A,
 				0x2C,	0x2A,	0x1C,	0x3A,	0x3B },
 	{ STV0900_QPSK_13,	0x0C,	0x3C,	0x0B,	0x3C,	0x2A,

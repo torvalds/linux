@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *	Cyrix MediaGX and NatSemi Geode Suspend Modulation
  *	(C) 2002 Zwane Mwaikambo <zwane@commfireservices.com>
  *	(C) 2002 Hiroshi Miura   <miura@da-cha.org>
  *	All Rights Reserved
- *
- *	This program is free software; you can redistribute it and/or
- *      modify it under the terms of the GNU General Public License
- *      version 2 as published by the Free Software Foundation
  *
  *      The author(s) of this software shall not be held liable for damages
  *      of any nature resulting due to the use of this software. This
@@ -47,7 +44,6 @@
  *
  *      off_duration  =  (freq * DURATION) / stock_freq
  *      on_duration = DURATION - off_duration
- *
  *
  *---------------------------------------------------------------------------
  *
@@ -428,7 +424,6 @@ static int cpufreq_gx_cpu_init(struct cpufreq_policy *policy)
 	policy->max = maxfreq;
 	policy->cpuinfo.min_freq = maxfreq / max_duration;
 	policy->cpuinfo.max_freq = maxfreq;
-	policy->cpuinfo.transition_latency = CPUFREQ_ETERNAL;
 
 	return 0;
 }
@@ -438,6 +433,7 @@ static int cpufreq_gx_cpu_init(struct cpufreq_policy *policy)
  *   MediaGX/Geode GX initialize cpufreq driver
  */
 static struct cpufreq_driver gx_suspmod_driver = {
+	.flags		= CPUFREQ_NO_AUTO_DYNAMIC_SWITCHING,
 	.get		= gx_get_cpuspeed,
 	.verify		= cpufreq_gx_verify,
 	.target		= cpufreq_gx_target,

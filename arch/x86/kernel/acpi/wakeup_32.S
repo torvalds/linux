@@ -1,9 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 	.text
 #include <linux/linkage.h>
 #include <asm/segment.h>
 #include <asm/page_types.h>
 
-# Copyright 2003, 2008 Pavel Machek <pavel@suse.cz>, distribute under GPLv2
+# Copyright 2003, 2008 Pavel Machek <pavel@suse.cz
 
 	.code32
 	ALIGN
@@ -90,7 +91,7 @@ ret_point:
 .data
 ALIGN
 ENTRY(saved_magic)	.long	0
-ENTRY(saved_eip)	.long	0
+saved_eip:		.long 0
 
 # saved registers
 saved_idt:	.long	0,0

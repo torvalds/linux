@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menu "CAN Device Drivers"
 
 config CAN_VCAN
@@ -8,6 +9,24 @@ config CAN_VCAN
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called vcan.
+
+config CAN_VXCAN
+	tristate "Virtual CAN Tunnel (vxcan)"
+	---help---
+	  Similar to the virtual ethernet driver veth, vxcan implements a
+	  local CAN traffic tunnel between two virtual CAN network devices.
+	  When creating a vxcan, two vxcan devices are created as pair.
+	  When one end receives the packet it appears on its pair and vice
+	  versa. The vxcan can be used for cross namespace communication.
+
+	  In opposite to vcan loopback devices the vxcan only forwards CAN
+	  frames to its pair and does *not* provide a local echo of sent
+	  CAN frames. To disable a potential echo in af_can.c the vxcan driver
+	  announces IFF_ECHO in the interface flags. To have a clean start
+	  in each namespace the CAN GW hop counter is set to zero.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called vxcan.
 
 config CAN_SLCAN
 	tristate "Serial / USB serial CAN Adaptors (slcan)"
@@ -55,6 +74,12 @@ config CAN_CALC_BITTIMING
 config CAN_LEDS
 	bool "Enable LED triggers for Netlink based drivers"
 	depends on LEDS_CLASS
+	# The netdev trigger (LEDS_TRIGGER_NETDEV) should be able to do
+	# everything that this driver is doing. This is marked as broken
+	# because it uses stuff that is intended to be changed or removed.
+	# Please consider switching to the netdev trigger and confirm it
+	# fulfills your needs instead of fixing this driver.
+	depends on BROKEN
 	select LEDS_TRIGGERS
 	---help---
 	  This option adds two LED triggers for packet receive and transmit
@@ -70,18 +95,9 @@ config CAN_AT91
 	  This is a driver for the SoC CAN controller in Atmel's AT91SAM9263
 	  and AT91SAM9X5 processors.
 
-config CAN_BFIN
-	depends on BF534 || BF536 || BF537 || BF538 || BF539 || BF54x
-	tristate "Analog Devices Blackfin on-chip CAN"
-	---help---
-	  Driver for the Analog Devices Blackfin on-chip CAN controllers
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called bfin_can.
-
 config CAN_FLEXCAN
 	tristate "Support for Freescale FLEXCAN based chips"
-	depends on ARM || PPC
+	depends on OF && HAS_IOMEM
 	---help---
 	  Say Y here if you want to support for Freescale FlexCAN.
 
@@ -142,6 +158,7 @@ source "drivers/net/can/cc770/Kconfig"
 source "drivers/net/can/ifi_canfd/Kconfig"
 source "drivers/net/can/m_can/Kconfig"
 source "drivers/net/can/mscan/Kconfig"
+source "drivers/net/can/peak_canfd/Kconfig"
 source "drivers/net/can/rcar/Kconfig"
 source "drivers/net/can/sja1000/Kconfig"
 source "drivers/net/can/softing/Kconfig"

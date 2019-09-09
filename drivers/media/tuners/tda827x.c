@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *
  * (c) 2005 Hartmut Hackmann
  * (c) 2007 Michael Krufky
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
@@ -767,11 +754,10 @@ static void tda827xa_agcf(struct dvb_frontend *fe)
 
 /* ------------------------------------------------------------------ */
 
-static int tda827x_release(struct dvb_frontend *fe)
+static void tda827x_release(struct dvb_frontend *fe)
 {
 	kfree(fe->tuner_priv);
 	fe->tuner_priv = NULL;
-	return 0;
 }
 
 static int tda827x_get_frequency(struct dvb_frontend *fe, u32 *frequency)
@@ -821,9 +807,9 @@ static int tda827x_initial_sleep(struct dvb_frontend *fe)
 static const struct dvb_tuner_ops tda827xo_tuner_ops = {
 	.info = {
 		.name = "Philips TDA827X",
-		.frequency_min  =  55000000,
-		.frequency_max  = 860000000,
-		.frequency_step =    250000
+		.frequency_min_hz  =  55 * MHz,
+		.frequency_max_hz  = 860 * MHz,
+		.frequency_step_hz = 250 * kHz
 	},
 	.release = tda827x_release,
 	.init = tda827x_initial_init,
@@ -837,9 +823,9 @@ static const struct dvb_tuner_ops tda827xo_tuner_ops = {
 static const struct dvb_tuner_ops tda827xa_tuner_ops = {
 	.info = {
 		.name = "Philips TDA827XA",
-		.frequency_min  =  44000000,
-		.frequency_max  = 906000000,
-		.frequency_step =     62500
+		.frequency_min_hz  =  44 * MHz,
+		.frequency_max_hz  = 906 * MHz,
+		.frequency_step_hz = 62500
 	},
 	.release = tda827x_release,
 	.init = tda827x_init,

@@ -22,18 +22,40 @@
  * Authors: Ben Skeggs
  */
 #include "gk104.h"
+#include "cgrp.h"
 #include "changk104.h"
+
+#include <core/memory.h>
+
+#include <nvif/class.h>
+
+void
+gk110_fifo_runlist_cgrp(struct nvkm_fifo_cgrp *cgrp,
+			struct nvkm_memory *memory, u32 offset)
+{
+	nvkm_wo32(memory, offset + 0, (cgrp->chan_nr << 26) | (128 << 18) |
+				      (3 << 14) | 0x00002000 | cgrp->id);
+	nvkm_wo32(memory, offset + 4, 0x00000000);
+}
+
+const struct gk104_fifo_runlist_func
+gk110_fifo_runlist = {
+	.size = 8,
+	.cgrp = gk110_fifo_runlist_cgrp,
+	.chan = gk104_fifo_runlist_chan,
+	.commit = gk104_fifo_runlist_commit,
+};
 
 static const struct gk104_fifo_func
 gk110_fifo = {
+	.pbdma = &gk104_fifo_pbdma,
+	.fault.access = gk104_fifo_fault_access,
 	.fault.engine = gk104_fifo_fault_engine,
 	.fault.reason = gk104_fifo_fault_reason,
 	.fault.hubclient = gk104_fifo_fault_hubclient,
 	.fault.gpcclient = gk104_fifo_fault_gpcclient,
-	.chan = {
-		&gk110_fifo_gpfifo_oclass,
-		NULL
-	},
+	.runlist = &gk110_fifo_runlist,
+	.chan = {{0,0,KEPLER_CHANNEL_GPFIFO_B}, gk104_fifo_gpfifo_new },
 };
 
 int

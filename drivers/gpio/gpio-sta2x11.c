@@ -1,29 +1,17 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * STMicroelectronics ConneXt (STA2X11) GPIO driver
  *
  * Copyright 2012 ST Microelectronics (Alessandro Rubini)
  * Based on gpio-ml-ioh.c, Copyright 2010 OKI Semiconductors Ltd.
  * Also based on previous sta2x11 work, Copyright 2011 Wind River Systems, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- * See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
  */
 
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
+#include <linux/bitops.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/pci.h>
@@ -58,16 +46,6 @@ struct gsta_gpio {
 	unsigned			irq_type[GSTA_NR_GPIO];
 };
 
-static inline struct gsta_regs __iomem *__regs(struct gsta_gpio *chip, int nr)
-{
-	return chip->regs[nr / GSTA_GPIO_PER_BLOCK];
-}
-
-static inline u32 __bit(int nr)
-{
-	return 1U << (nr % GSTA_GPIO_PER_BLOCK);
-}
-
 /*
  * gpio methods
  */
@@ -75,8 +53,8 @@ static inline u32 __bit(int nr)
 static void gsta_gpio_set(struct gpio_chip *gpio, unsigned nr, int val)
 {
 	struct gsta_gpio *chip = gpiochip_get_data(gpio);
-	struct gsta_regs __iomem *regs = __regs(chip, nr);
-	u32 bit = __bit(nr);
+	struct gsta_regs __iomem *regs = chip->regs[nr / GSTA_GPIO_PER_BLOCK];
+	u32 bit = BIT(nr % GSTA_GPIO_PER_BLOCK);
 
 	if (val)
 		writel(bit, &regs->dats);
@@ -87,8 +65,8 @@ static void gsta_gpio_set(struct gpio_chip *gpio, unsigned nr, int val)
 static int gsta_gpio_get(struct gpio_chip *gpio, unsigned nr)
 {
 	struct gsta_gpio *chip = gpiochip_get_data(gpio);
-	struct gsta_regs __iomem *regs = __regs(chip, nr);
-	u32 bit = __bit(nr);
+	struct gsta_regs __iomem *regs = chip->regs[nr / GSTA_GPIO_PER_BLOCK];
+	u32 bit = BIT(nr % GSTA_GPIO_PER_BLOCK);
 
 	return !!(readl(&regs->dat) & bit);
 }
@@ -97,8 +75,8 @@ static int gsta_gpio_direction_output(struct gpio_chip *gpio, unsigned nr,
 				      int val)
 {
 	struct gsta_gpio *chip = gpiochip_get_data(gpio);
-	struct gsta_regs __iomem *regs = __regs(chip, nr);
-	u32 bit = __bit(nr);
+	struct gsta_regs __iomem *regs = chip->regs[nr / GSTA_GPIO_PER_BLOCK];
+	u32 bit = BIT(nr % GSTA_GPIO_PER_BLOCK);
 
 	writel(bit, &regs->dirs);
 	/* Data register after direction, otherwise pullup/down is selected */
@@ -112,8 +90,8 @@ static int gsta_gpio_direction_output(struct gpio_chip *gpio, unsigned nr,
 static int gsta_gpio_direction_input(struct gpio_chip *gpio, unsigned nr)
 {
 	struct gsta_gpio *chip = gpiochip_get_data(gpio);
-	struct gsta_regs __iomem *regs = __regs(chip, nr);
-	u32 bit = __bit(nr);
+	struct gsta_regs __iomem *regs = chip->regs[nr / GSTA_GPIO_PER_BLOCK];
+	u32 bit = BIT(nr % GSTA_GPIO_PER_BLOCK);
 
 	writel(bit, &regs->dirc);
 	return 0;
@@ -165,9 +143,9 @@ static void gsta_gpio_setup(struct gsta_gpio *chip) /* called from probe */
  */
 static void gsta_set_config(struct gsta_gpio *chip, int nr, unsigned cfg)
 {
-	struct gsta_regs __iomem *regs = __regs(chip, nr);
+	struct gsta_regs __iomem *regs = chip->regs[nr / GSTA_GPIO_PER_BLOCK];
 	unsigned long flags;
-	u32 bit = __bit(nr);
+	u32 bit = BIT(nr % GSTA_GPIO_PER_BLOCK);
 	u32 val;
 	int err = 0;
 
@@ -234,8 +212,8 @@ static void gsta_irq_disable(struct irq_data *data)
 	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(data);
 	struct gsta_gpio *chip = gc->private;
 	int nr = data->irq - chip->irq_base;
-	struct gsta_regs __iomem *regs = __regs(chip, nr);
-	u32 bit = __bit(nr);
+	struct gsta_regs __iomem *regs = chip->regs[nr / GSTA_GPIO_PER_BLOCK];
+	u32 bit = BIT(nr % GSTA_GPIO_PER_BLOCK);
 	u32 val;
 	unsigned long flags;
 
@@ -257,8 +235,8 @@ static void gsta_irq_enable(struct irq_data *data)
 	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(data);
 	struct gsta_gpio *chip = gc->private;
 	int nr = data->irq - chip->irq_base;
-	struct gsta_regs __iomem *regs = __regs(chip, nr);
-	u32 bit = __bit(nr);
+	struct gsta_regs __iomem *regs = chip->regs[nr / GSTA_GPIO_PER_BLOCK];
+	u32 bit = BIT(nr % GSTA_GPIO_PER_BLOCK);
 	u32 val;
 	int type;
 	unsigned long flags;
@@ -320,13 +298,18 @@ static irqreturn_t gsta_gpio_handler(int irq, void *dev_id)
 	return ret;
 }
 
-static void gsta_alloc_irq_chip(struct gsta_gpio *chip)
+static int gsta_alloc_irq_chip(struct gsta_gpio *chip)
 {
 	struct irq_chip_generic *gc;
 	struct irq_chip_type *ct;
+	int rv;
 
-	gc = irq_alloc_generic_chip(KBUILD_MODNAME, 1, chip->irq_base,
-				     chip->reg_base, handle_simple_irq);
+	gc = devm_irq_alloc_generic_chip(chip->dev, KBUILD_MODNAME, 1,
+					 chip->irq_base,
+					 chip->reg_base, handle_simple_irq);
+	if (!gc)
+		return -ENOMEM;
+
 	gc->private = chip;
 	ct = gc->chip_types;
 
@@ -335,8 +318,11 @@ static void gsta_alloc_irq_chip(struct gsta_gpio *chip)
 	ct->chip.irq_enable = gsta_irq_enable;
 
 	/* FIXME: this makes at most 32 interrupts. Request 0 by now */
-	irq_setup_generic_chip(gc, 0 /* IRQ_MSK(GSTA_GPIO_PER_BLOCK) */, 0,
-			       IRQ_NOREQUEST | IRQ_NOPROBE, 0);
+	rv = devm_irq_setup_generic_chip(chip->dev, gc,
+					 0 /* IRQ_MSK(GSTA_GPIO_PER_BLOCK) */,
+					 0, IRQ_NOREQUEST | IRQ_NOPROBE, 0);
+	if (rv)
+		return rv;
 
 	/* Set up all all 128 interrupts: code from setup_generic_chip */
 	{
@@ -350,6 +336,8 @@ static void gsta_alloc_irq_chip(struct gsta_gpio *chip)
 		}
 		gc->irq_cnt = i - gc->irq_base;
 	}
+
+	return 0;
 }
 
 /* The platform device used here is instantiated by the MFD device */
@@ -359,7 +347,6 @@ static int gsta_probe(struct platform_device *dev)
 	struct pci_dev *pdev;
 	struct sta2x11_gpio_pdata *gpio_pdata;
 	struct gsta_gpio *chip;
-	struct resource *res;
 
 	pdev = *(struct pci_dev **)dev_get_platdata(&dev->dev);
 	gpio_pdata = dev_get_platdata(&pdev->dev);
@@ -368,13 +355,11 @@ static int gsta_probe(struct platform_device *dev)
 		dev_err(&dev->dev, "no gpio config\n");
 	pr_debug("gpio config: %p\n", gpio_pdata);
 
-	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
-
 	chip = devm_kzalloc(&dev->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
 		return -ENOMEM;
 	chip->dev = &dev->dev;
-	chip->reg_base = devm_ioremap_resource(&dev->dev, res);
+	chip->reg_base = devm_platform_ioremap_resource(dev, 0);
 	if (IS_ERR(chip->reg_base))
 		return PTR_ERR(chip->reg_base);
 
@@ -392,43 +377,42 @@ static int gsta_probe(struct platform_device *dev)
 			gsta_set_config(chip, i, gpio_pdata->pinconfig[i]);
 
 	/* 384 was used in previous code: be compatible for other drivers */
-	err = irq_alloc_descs(-1, 384, GSTA_NR_GPIO, NUMA_NO_NODE);
+	err = devm_irq_alloc_descs(&dev->dev, -1, 384,
+				   GSTA_NR_GPIO, NUMA_NO_NODE);
 	if (err < 0) {
 		dev_warn(&dev->dev, "sta2x11 gpio: Can't get irq base (%i)\n",
 			 -err);
 		return err;
 	}
 	chip->irq_base = err;
-	gsta_alloc_irq_chip(chip);
 
-	err = request_irq(pdev->irq, gsta_gpio_handler,
-			     IRQF_SHARED, KBUILD_MODNAME, chip);
+	err = gsta_alloc_irq_chip(chip);
+	if (err)
+		return err;
+
+	err = devm_request_irq(&dev->dev, pdev->irq, gsta_gpio_handler,
+			       IRQF_SHARED, KBUILD_MODNAME, chip);
 	if (err < 0) {
 		dev_err(&dev->dev, "sta2x11 gpio: Can't request irq (%i)\n",
 			-err);
-		goto err_free_descs;
+		return err;
 	}
 
 	err = devm_gpiochip_add_data(&dev->dev, &chip->gpio, chip);
 	if (err < 0) {
 		dev_err(&dev->dev, "sta2x11 gpio: Can't register (%i)\n",
 			-err);
-		goto err_free_irq;
+		return err;
 	}
 
 	platform_set_drvdata(dev, chip);
 	return 0;
-
-err_free_irq:
-	free_irq(pdev->irq, chip);
-err_free_descs:
-	irq_free_descs(chip->irq_base, GSTA_NR_GPIO);
-	return err;
 }
 
 static struct platform_driver sta2x11_gpio_platform_driver = {
 	.driver = {
 		.name	= "sta2x11-gpio",
+		.suppress_bind_attrs = true,
 	},
 	.probe = gsta_probe,
 };

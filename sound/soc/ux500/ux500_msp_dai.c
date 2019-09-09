@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) ST-Ericsson SA 2012
  *
@@ -6,10 +7,6 @@
  *         for ST-Ericsson.
  *
  * License terms:
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -133,6 +130,7 @@ static int setup_pcm_framing(struct snd_soc_dai *dai, unsigned int rate,
 	struct ux500_msp_i2s_drvdata *drvdata = dev_get_drvdata(dai->dev);
 
 	u32 frame_length = MSP_FRAME_LEN_1;
+
 	prot_desc->frame_width = 0;
 
 	switch (drvdata->slots) {
@@ -482,7 +480,8 @@ static int ux500_msp_dai_prepare(struct snd_pcm_substream *substream,
 	if ((drvdata->fmt & SND_SOC_DAIFMT_MASTER_MASK) &&
 		(drvdata->msp->f_bitclk > 19200000)) {
 		/* If the bit-clock is higher than 19.2MHz, Vape should be
-		 * run in 100% OPP. Only when bit-clock is used (MSP master) */
+		 * run in 100% OPP. Only when bit-clock is used (MSP master)
+		 */
 		prcmu_qos_update_requirement(PRCMU_QOS_APE_OPP,
 					"ux500-msp-i2s", 100);
 		drvdata->vape_opp_constraint = 1;
@@ -705,7 +704,7 @@ static int ux500_msp_dai_probe(struct snd_soc_dai *dai)
 	return 0;
 }
 
-static struct snd_soc_dai_ops ux500_msp_dai_ops[] = {
+static const struct snd_soc_dai_ops ux500_msp_dai_ops[] = {
 	{
 		.set_sysclk = ux500_msp_dai_set_dai_sysclk,
 		.set_fmt = ux500_msp_dai_set_dai_fmt,

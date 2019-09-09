@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #include <linux/bitops.h>
 #include <linux/serial_core.h>
 #include <linux/io.h>
@@ -29,6 +30,8 @@ enum {
 	SCPDR,				/* Serial Port Data Register */
 	SCDL,				/* BRG Frequency Division Register */
 	SCCKS,				/* BRG Clock Select Register */
+	HSRTRGR,			/* Rx FIFO Data Count Trigger Register */
+	HSTTRGR,			/* Tx FIFO Data Count Trigger Register */
 
 	SCIx_NR_REGS,
 };
@@ -59,6 +62,9 @@ enum {
 /* Serial Control Register, SCIFA/SCIFB only bits */
 #define SCSCR_TDRQE	BIT(15)	/* Tx Data Transfer Request Enable */
 #define SCSCR_RDRQE	BIT(14)	/* Rx Data Transfer Request Enable */
+
+/* Serial Control Register, HSCIF-only bits */
+#define HSSCR_TOT_SHIFT	14
 
 /* SCxSR (Serial Status Register) on SCI */
 #define SCI_TDRE	BIT(7)	/* Transmit Data Register Empty */
@@ -99,6 +105,10 @@ enum {
 #define SCIF_BREAK_CLEAR	(u32)(~(SCIF_PER | SCIF_FER | SCIF_BRK))
 
 /* SCFCR (FIFO Control Register) */
+#define SCFCR_RTRG1	BIT(7)	/* Receive FIFO Data Count Trigger */
+#define SCFCR_RTRG0	BIT(6)
+#define SCFCR_TTRG1	BIT(5)	/* Transmit FIFO Data Count Trigger */
+#define SCFCR_TTRG0	BIT(4)
 #define SCFCR_MCE	BIT(3)	/* Modem Control Enable */
 #define SCFCR_TFRST	BIT(2)	/* Transmit FIFO Data Register Reset */
 #define SCFCR_RFRST	BIT(1)	/* Receive FIFO Data Register Reset */
@@ -120,6 +130,10 @@ enum {
 
 /* HSSRR HSCIF */
 #define HSCIF_SRE	BIT(15)	/* Sampling Rate Register Enable */
+#define HSCIF_SRDE	BIT(14) /* Sampling Point Register Enable */
+
+#define HSCIF_SRHP_SHIFT	8
+#define HSCIF_SRHP_MASK		0x0f00
 
 /* SCPCR (Serial Port Control Register), SCIFA/SCIFB only */
 #define SCPCR_RTSC	BIT(4)	/* Serial Port RTS# Pin / Output Pin */
@@ -145,18 +159,18 @@ enum {
 #define SCCKS_XIN	BIT(14)	/* SC_CLK uses bus clock (1) or SCIF_CLK (0) */
 
 #define SCxSR_TEND(port)	(((port)->type == PORT_SCI) ? SCI_TEND   : SCIF_TEND)
-#define SCxSR_RDxF(port)	(((port)->type == PORT_SCI) ? SCI_RDRF   : SCIF_RDF)
+#define SCxSR_RDxF(port)	(((port)->type == PORT_SCI) ? SCI_RDRF   : SCIF_DR | SCIF_RDF)
 #define SCxSR_TDxE(port)	(((port)->type == PORT_SCI) ? SCI_TDRE   : SCIF_TDFE)
 #define SCxSR_FER(port)		(((port)->type == PORT_SCI) ? SCI_FER    : SCIF_FER)
 #define SCxSR_PER(port)		(((port)->type == PORT_SCI) ? SCI_PER    : SCIF_PER)
 #define SCxSR_BRK(port)		(((port)->type == PORT_SCI) ? 0x00       : SCIF_BRK)
 
-#define SCxSR_ERRORS(port)	(to_sci_port(port)->error_mask)
+#define SCxSR_ERRORS(port)	(to_sci_port(port)->params->error_mask)
 
 #define SCxSR_RDxF_CLEAR(port) \
 	(((port)->type == PORT_SCI) ? SCI_RDxF_CLEAR : SCIF_RDxF_CLEAR)
 #define SCxSR_ERROR_CLEAR(port) \
-	(to_sci_port(port)->error_clear)
+	(to_sci_port(port)->params->error_clear)
 #define SCxSR_TDxE_CLEAR(port) \
 	(((port)->type == PORT_SCI) ? SCI_TDxE_CLEAR : SCIF_TDxE_CLEAR)
 #define SCxSR_BREAK_CLEAR(port) \

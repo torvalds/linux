@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  dell-smo8800.c - Dell Latitude ACPI SMO88XX freefall sensor driver
  *
@@ -5,16 +6,6 @@
  *  Copyright (C) 2014 Pali Rohár <pali.rohar@gmail.com>
  *
  *  This is loosely based on lis3lv02d driver.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
  */
 
 #define DRIVER_NAME "smo8800"
@@ -90,7 +81,7 @@ static ssize_t smo8800_misc_read(struct file *file, char __user *buf,
 					 struct smo8800_device, miscdev);
 
 	u32 data = 0;
-	unsigned char byte_data = 0;
+	unsigned char byte_data;
 	ssize_t retval = 1;
 
 	if (count < 1)
@@ -103,7 +94,6 @@ static ssize_t smo8800_misc_read(struct file *file, char __user *buf,
 	if (retval)
 		return retval;
 
-	byte_data = 1;
 	retval = 1;
 
 	if (data < 255)
@@ -208,6 +198,7 @@ static int smo8800_remove(struct acpi_device *device)
 	return 0;
 }
 
+/* NOTE: Keep this list in sync with drivers/i2c/busses/i2c-i801.c */
 static const struct acpi_device_id smo8800_ids[] = {
 	{ "SMO8800", 0 },
 	{ "SMO8801", 0 },

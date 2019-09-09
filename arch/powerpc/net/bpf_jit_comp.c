@@ -1,24 +1,19 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* bpf_jit_comp.c: BPF JIT compiler
  *
  * Copyright 2011 Matt Evans <matt@ozlabs.org>, IBM Corporation
  *
  * Based on the x86 BPF compiler, by Eric Dumazet (eric.dumazet@gmail.com)
  * Ported to ppc32 by Denis Kirjanov <kda@linux-powerpc.org>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; version 2
- * of the License.
  */
 #include <linux/moduleloader.h>
 #include <asm/cacheflush.h>
+#include <asm/asm-compat.h>
 #include <linux/netdevice.h>
 #include <linux/filter.h>
 #include <linux/if_vlan.h>
 
 #include "bpf_jit32.h"
-
-int bpf_jit_enable __read_mostly;
 
 static inline void bpf_flush_icache(void *start, void *end)
 {
@@ -329,6 +324,9 @@ static int bpf_jit_build_body(struct bpf_prog *fp, u32 *image,
 			BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, len) != 4);
 			PPC_LWZ_OFFS(r_A, r_skb, offsetof(struct sk_buff, len));
 			break;
+		case BPF_LDX | BPF_W | BPF_ABS: /* A = *((u32 *)(seccomp_data + K)); */
+			PPC_LWZ_OFFS(r_A, r_skb, K);
+			break;
 		case BPF_LDX | BPF_W | BPF_LEN: /* X = skb->len; */
 			PPC_LWZ_OFFS(r_X, r_skb, offsetof(struct sk_buff, len));
 			break;
@@ -377,18 +375,17 @@ static int bpf_jit_build_body(struct bpf_prog *fp, u32 *image,
 							  hash));
 			break;
 		case BPF_ANC | SKF_AD_VLAN_TAG:
-		case BPF_ANC | SKF_AD_VLAN_TAG_PRESENT:
 			BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, vlan_tci) != 2);
-			BUILD_BUG_ON(VLAN_TAG_PRESENT != 0x1000);
 
 			PPC_LHZ_OFFS(r_A, r_skb, offsetof(struct sk_buff,
 							  vlan_tci));
-			if (code == (BPF_ANC | SKF_AD_VLAN_TAG)) {
-				PPC_ANDI(r_A, r_A, ~VLAN_TAG_PRESENT);
-			} else {
-				PPC_ANDI(r_A, r_A, VLAN_TAG_PRESENT);
-				PPC_SRWI(r_A, r_A, 12);
-			}
+			break;
+		case BPF_ANC | SKF_AD_VLAN_TAG_PRESENT:
+			PPC_LBZ_OFFS(r_A, r_skb, PKT_VLAN_PRESENT_OFFSET());
+			if (PKT_VLAN_PRESENT_BIT)
+				PPC_SRWI(r_A, r_A, PKT_VLAN_PRESENT_BIT);
+			if (PKT_VLAN_PRESENT_BIT < 7)
+				PPC_ANDI(r_A, r_A, 1);
 			break;
 		case BPF_ANC | SKF_AD_QUEUE:
 			BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff,
@@ -565,7 +562,7 @@ void bpf_jit_compile(struct bpf_prog *fp)
 	if (!bpf_jit_enable)
 		return;
 
-	addrs = kzalloc((flen+1) * sizeof(*addrs), GFP_KERNEL);
+	addrs = kcalloc(flen + 1, sizeof(*addrs), GFP_KERNEL);
 	if (addrs == NULL)
 		return;
 
@@ -662,16 +659,17 @@ void bpf_jit_compile(struct bpf_prog *fp)
 		 */
 		bpf_jit_dump(flen, proglen, pass, code_base);
 
-	if (image) {
-		bpf_flush_icache(code_base, code_base + (proglen/4));
+	bpf_flush_icache(code_base, code_base + (proglen/4));
+
 #ifdef CONFIG_PPC64
-		/* Function descriptor nastiness: Address + TOC */
-		((u64 *)image)[0] = (u64)code_base;
-		((u64 *)image)[1] = local_paca->kernel_toc;
+	/* Function descriptor nastiness: Address + TOC */
+	((u64 *)image)[0] = (u64)code_base;
+	((u64 *)image)[1] = local_paca->kernel_toc;
 #endif
-		fp->bpf_func = (void *)image;
-		fp->jited = 1;
-	}
+
+	fp->bpf_func = (void *)image;
+	fp->jited = 1;
+
 out:
 	kfree(addrs);
 	return;

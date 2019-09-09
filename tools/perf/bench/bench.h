@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef BENCH_H
 #define BENCH_H
 
@@ -25,17 +26,20 @@
 # endif
 #endif
 
-int bench_numa(int argc, const char **argv, const char *prefix);
-int bench_sched_messaging(int argc, const char **argv, const char *prefix);
-int bench_sched_pipe(int argc, const char **argv, const char *prefix);
-int bench_mem_memcpy(int argc, const char **argv, const char *prefix);
-int bench_mem_memset(int argc, const char **argv, const char *prefix);
-int bench_futex_hash(int argc, const char **argv, const char *prefix);
-int bench_futex_wake(int argc, const char **argv, const char *prefix);
-int bench_futex_wake_parallel(int argc, const char **argv, const char *prefix);
-int bench_futex_requeue(int argc, const char **argv, const char *prefix);
+int bench_numa(int argc, const char **argv);
+int bench_sched_messaging(int argc, const char **argv);
+int bench_sched_pipe(int argc, const char **argv);
+int bench_mem_memcpy(int argc, const char **argv);
+int bench_mem_memset(int argc, const char **argv);
+int bench_futex_hash(int argc, const char **argv);
+int bench_futex_wake(int argc, const char **argv);
+int bench_futex_wake_parallel(int argc, const char **argv);
+int bench_futex_requeue(int argc, const char **argv);
 /* pi futexes */
-int bench_futex_lock_pi(int argc, const char **argv, const char *prefix);
+int bench_futex_lock_pi(int argc, const char **argv);
+
+int bench_epoll_wait(int argc, const char **argv);
+int bench_epoll_ctl(int argc, const char **argv);
 
 #define BENCH_FORMAT_DEFAULT_STR	"default"
 #define BENCH_FORMAT_DEFAULT		0
@@ -46,5 +50,16 @@ int bench_futex_lock_pi(int argc, const char **argv, const char *prefix);
 
 extern int bench_format;
 extern unsigned int bench_repeat;
+
+#ifndef HAVE_PTHREAD_ATTR_SETAFFINITY_NP
+#include <pthread.h>
+#include <linux/compiler.h>
+static inline int pthread_attr_setaffinity_np(pthread_attr_t *attr __maybe_unused,
+					      size_t cpusetsize __maybe_unused,
+					      cpu_set_t *cpuset __maybe_unused)
+{
+	return 0;
+}
+#endif
 
 #endif

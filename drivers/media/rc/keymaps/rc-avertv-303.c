@@ -1,14 +1,9 @@
-/* avertv-303.h - Keytable for avertv_303 Remote Controller
- *
- * keymap imported from ir-keymaps.c
- *
- * Copyright (c) 2010 by Mauro Carvalho Chehab
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- */
+// SPDX-License-Identifier: GPL-2.0+
+// avertv-303.h - Keytable for avertv_303 Remote Controller
+//
+// keymap imported from ir-keymaps.c
+//
+// Copyright (c) 2010 by Mauro Carvalho Chehab
 
 #include <media/rc-map.h>
 #include <linux/module.h>
@@ -16,16 +11,16 @@
 /* AVERTV STUDIO 303 Remote */
 
 static struct rc_map_table avertv_303[] = {
-	{ 0x2a, KEY_1 },
-	{ 0x32, KEY_2 },
-	{ 0x3a, KEY_3 },
-	{ 0x4a, KEY_4 },
-	{ 0x52, KEY_5 },
-	{ 0x5a, KEY_6 },
-	{ 0x6a, KEY_7 },
-	{ 0x72, KEY_8 },
-	{ 0x7a, KEY_9 },
-	{ 0x0e, KEY_0 },
+	{ 0x2a, KEY_NUMERIC_1 },
+	{ 0x32, KEY_NUMERIC_2 },
+	{ 0x3a, KEY_NUMERIC_3 },
+	{ 0x4a, KEY_NUMERIC_4 },
+	{ 0x52, KEY_NUMERIC_5 },
+	{ 0x5a, KEY_NUMERIC_6 },
+	{ 0x6a, KEY_NUMERIC_7 },
+	{ 0x72, KEY_NUMERIC_8 },
+	{ 0x7a, KEY_NUMERIC_9 },
+	{ 0x0e, KEY_NUMERIC_0 },
 
 	{ 0x02, KEY_POWER },
 	{ 0x22, KEY_VIDEO },
@@ -62,10 +57,10 @@ static struct rc_map_table avertv_303[] = {
 
 static struct rc_map_list avertv_303_map = {
 	.map = {
-		.scan    = avertv_303,
-		.size    = ARRAY_SIZE(avertv_303),
-		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
-		.name    = RC_MAP_AVERTV_303,
+		.scan     = avertv_303,
+		.size     = ARRAY_SIZE(avertv_303),
+		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.name     = RC_MAP_AVERTV_303,
 	}
 };
 

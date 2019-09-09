@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * INET        An implementation of the TCP/IP protocol suite for the LINUX
  *             operating system.  INET is implemented using the  BSD Socket
@@ -6,11 +7,6 @@
  *             Support for INET6 connection oriented protocols.
  *
  * Authors:    See the TCPv6 sources
- *
- *             This program is free software; you can redistribute it and/or
- *             modify it under the terms of the GNU General Public License
- *             as published by the Free Software Foundation; either version
- *             2 of the License, or(at your option) any later version.
  */
 
 #include <linux/module.h>
@@ -27,45 +23,6 @@
 #include <net/sock.h>
 #include <net/inet6_connection_sock.h>
 #include <net/sock_reuseport.h>
-
-int inet6_csk_bind_conflict(const struct sock *sk,
-			    const struct inet_bind_bucket *tb, bool relax)
-{
-	const struct sock *sk2;
-	int reuse = sk->sk_reuse;
-	int reuseport = sk->sk_reuseport;
-	kuid_t uid = sock_i_uid((struct sock *)sk);
-
-	/* We must walk the whole port owner list in this case. -DaveM */
-	/*
-	 * See comment in inet_csk_bind_conflict about sock lookup
-	 * vs net namespaces issues.
-	 */
-	sk_for_each_bound(sk2, &tb->owners) {
-		if (sk != sk2 &&
-		    (!sk->sk_bound_dev_if ||
-		     !sk2->sk_bound_dev_if ||
-		     sk->sk_bound_dev_if == sk2->sk_bound_dev_if)) {
-			if ((!reuse || !sk2->sk_reuse ||
-			     sk2->sk_state == TCP_LISTEN) &&
-			    (!reuseport || !sk2->sk_reuseport ||
-			     rcu_access_pointer(sk->sk_reuseport_cb) ||
-			     (sk2->sk_state != TCP_TIME_WAIT &&
-			      !uid_eq(uid,
-				      sock_i_uid((struct sock *)sk2))))) {
-				if (ipv6_rcv_saddr_equal(sk, sk2, true))
-					break;
-			}
-			if (!relax && reuse && sk2->sk_reuse &&
-			    sk2->sk_state != TCP_LISTEN &&
-			    ipv6_rcv_saddr_equal(sk, sk2, true))
-				break;
-		}
-	}
-
-	return sk2 != NULL;
-}
-EXPORT_SYMBOL_GPL(inet6_csk_bind_conflict);
 
 struct dst_entry *inet6_csk_route_req(const struct sock *sk,
 				      struct flowi6 *fl6,
@@ -88,6 +45,7 @@ struct dst_entry *inet6_csk_route_req(const struct sock *sk,
 	fl6->flowi6_mark = ireq->ir_mark;
 	fl6->fl6_dport = ireq->ir_rmt_port;
 	fl6->fl6_sport = htons(ireq->ir_num);
+	fl6->flowi6_uid = sk->sk_uid;
 	security_req_classify_flow(req, flowi6_to_flowi(fl6));
 
 	dst = ip6_dst_lookup_flow(sk, fl6, final_p);
@@ -136,6 +94,7 @@ static struct dst_entry *inet6_csk_route_socket(struct sock *sk,
 	fl6->flowi6_mark = sk->sk_mark;
 	fl6->fl6_sport = inet->inet_sport;
 	fl6->fl6_dport = inet->inet_dport;
+	fl6->flowi6_uid = sk->sk_uid;
 	security_sk_classify_flow(sk, flowi6_to_flowi(fl6));
 
 	rcu_read_lock();
@@ -173,7 +132,7 @@ int inet6_csk_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl_unused
 	/* Restore final destination back after routing done */
 	fl6.daddr = sk->sk_v6_daddr;
 
-	res = ip6_xmit(sk, skb, &fl6, rcu_dereference(np->opt),
+	res = ip6_xmit(sk, skb, &fl6, sk->sk_mark, rcu_dereference(np->opt),
 		       np->tclass);
 	rcu_read_unlock();
 	return res;

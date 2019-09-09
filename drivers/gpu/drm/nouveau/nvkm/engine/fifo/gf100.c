@@ -68,7 +68,14 @@ gf100_fifo_runlist_commit(struct gf100_fifo *fifo)
 	}
 	nvkm_done(cur);
 
-	target = (nvkm_memory_target(cur) == NVKM_MEM_TARGET_HOST) ? 0x3 : 0x0;
+	switch (nvkm_memory_target(cur)) {
+	case NVKM_MEM_TARGET_VRAM: target = 0; break;
+	case NVKM_MEM_TARGET_NCOH: target = 3; break;
+	default:
+		mutex_unlock(&subdev->mutex);
+		WARN_ON(1);
+		return;
+	}
 
 	nvkm_wr32(device, 0x002270, (nvkm_memory_addr(cur) >> 12) |
 				    (target << 28));
@@ -180,8 +187,10 @@ gf100_fifo_recover(struct gf100_fifo *fifo, struct nvkm_engine *engine,
 	list_del_init(&chan->head);
 	chan->killed = true;
 
-	fifo->recover.mask |= 1ULL << engine->subdev.index;
+	if (engine != &fifo->base.engine)
+		fifo->recover.mask |= 1ULL << engine->subdev.index;
 	schedule_work(&fifo->recover.work);
+	nvkm_fifo_kevent(&fifo->base, chid);
 }
 
 static const struct nvkm_enum
@@ -337,10 +346,10 @@ gf100_fifo_intr_fault(struct gf100_fifo *fifo, int unit)
 	if (eu && eu->data2) {
 		switch (eu->data2) {
 		case NVKM_SUBDEV_BAR:
-			nvkm_mask(device, 0x001704, 0x00000000, 0x00000000);
+			nvkm_bar_bar1_reset(device);
 			break;
 		case NVKM_SUBDEV_INSTMEM:
-			nvkm_mask(device, 0x001714, 0x00000000, 0x00000000);
+			nvkm_bar_bar2_reset(device);
 			break;
 		case NVKM_ENGINE_IFB:
 			nvkm_mask(device, 0x001718, 0x00000000, 0x00000000);
@@ -550,6 +559,7 @@ gf100_fifo_oneinit(struct nvkm_fifo *base)
 	struct gf100_fifo *fifo = gf100_fifo(base);
 	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
+	struct nvkm_vmm *bar = nvkm_bar_bar1_vmm(device);
 	int ret;
 
 	/* Determine number of PBDMAs by checking valid enable bits. */
@@ -575,12 +585,12 @@ gf100_fifo_oneinit(struct nvkm_fifo *base)
 	if (ret)
 		return ret;
 
-	ret = nvkm_bar_umap(device->bar, 128 * 0x1000, 12, &fifo->user.bar);
+	ret = nvkm_vmm_get(bar, 12, nvkm_memory_size(fifo->user.mem),
+			   &fifo->user.bar);
 	if (ret)
 		return ret;
 
-	nvkm_memory_map(fifo->user.mem, &fifo->user.bar, 0);
-	return 0;
+	return nvkm_memory_map(fifo->user.mem, 0, bar, fifo->user.bar, NULL, 0);
 }
 
 static void
@@ -619,7 +629,7 @@ gf100_fifo_init(struct nvkm_fifo *base)
 	}
 
 	nvkm_mask(device, 0x002200, 0x00000001, 0x00000001);
-	nvkm_wr32(device, 0x002254, 0x10000000 | fifo->user.bar.offset >> 12);
+	nvkm_wr32(device, 0x002254, 0x10000000 | fifo->user.bar->addr >> 12);
 
 	nvkm_wr32(device, 0x002100, 0xffffffff);
 	nvkm_wr32(device, 0x002140, 0x7fffffff);
@@ -630,10 +640,11 @@ static void *
 gf100_fifo_dtor(struct nvkm_fifo *base)
 {
 	struct gf100_fifo *fifo = gf100_fifo(base);
-	nvkm_vm_put(&fifo->user.bar);
-	nvkm_memory_del(&fifo->user.mem);
-	nvkm_memory_del(&fifo->runlist.mem[0]);
-	nvkm_memory_del(&fifo->runlist.mem[1]);
+	struct nvkm_device *device = fifo->base.engine.subdev.device;
+	nvkm_vmm_put(nvkm_bar_bar1_vmm(device), &fifo->user.bar);
+	nvkm_memory_unref(&fifo->user.mem);
+	nvkm_memory_unref(&fifo->runlist.mem[0]);
+	nvkm_memory_unref(&fifo->runlist.mem[1]);
 	return fifo;
 }
 

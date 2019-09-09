@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Support for CompuLab CM-T54
  */
@@ -62,12 +63,14 @@
 	hsusb2_phy: hsusb2_phy {
 		compatible = "usb-nop-xceiv";
 		reset-gpios = <&gpio3 12 GPIO_ACTIVE_LOW>; /* gpio3_76 HUB_RESET */
+		#phy-cells = <0>;
 	};
 
 	/* HS USB Host PHY on PORT 3 */
 	hsusb3_phy: hsusb3_phy {
 		compatible = "usb-nop-xceiv";
 		reset-gpios = <&gpio3 19 GPIO_ACTIVE_LOW>; /* gpio3_83 ETH_RESET */
+		#phy-cells = <0>;
 	};
 
 	leds {
@@ -178,6 +181,13 @@
 			OMAP5_IOPAD(0x0042, PIN_INPUT_PULLDOWN | MUX_MODE6)  /* llib_wakereqin.gpio1_wk15 */
 		>;
 	};
+
+	palmas_sys_nirq_pins: pinmux_palmas_sys_nirq_pins {
+		pinctrl-single,pins = <
+			/* sys_nirq1 is pulled down as the SoC is inverting it for GIC */
+			OMAP5_IOPAD(0x068, PIN_INPUT_PULLUP | MUX_MODE0)
+		>;
+	};
 };
 
 &omap5_pmx_core {
@@ -266,7 +276,7 @@
 
 	dss_hdmi_pins: pinmux_dss_hdmi_pins {
 		pinctrl-single,pins = <
-			OMAP5_IOPAD(0x013c, PIN_INPUT_PULLUP | MUX_MODE0) /* hdmi_cec */
+			OMAP5_IOPAD(0x013c, PIN_INPUT | MUX_MODE0) /* hdmi_cec */
 			OMAP5_IOPAD(0x0140, PIN_INPUT | MUX_MODE0) /* hdmi_ddc_scl */
 			OMAP5_IOPAD(0x0142, PIN_INPUT | MUX_MODE0) /* hdmi_ddc_sda */
 		>;
@@ -404,15 +414,18 @@
 	clock-frequency = <400000>;
 
 	at24@50 {
-		compatible = "at24,24c02";
+		compatible = "atmel,24c02";
 		pagesize = <16>;
 		reg = <0x50>;
 	};
 
 	palmas: palmas@48 {
 		compatible = "ti,palmas";
-		interrupts = <GIC_SPI 7 IRQ_TYPE_NONE>; /* IRQ_SYS_1N */
 		reg = <0x48>;
+		pinctrl-0 = <&palmas_sys_nirq_pins>;
+		pinctrl-names = "default";
+		/* sys_nirq/ext_sys_irq pins get inverted at mpuss wakeupgen */
+		interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_LOW>;
 		interrupt-controller;
 		#interrupt-cells = <2>;
 		ti,system-power-controller;

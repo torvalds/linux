@@ -1,5 +1,5 @@
 /*
-* Copyright(c) 2015, 2016 Intel Corporation.
+* Copyright(c) 2015, 2016, 2017 Intel Corporation.
 *
 * This file is provided under a dual BSD/GPLv2 license.  When using or
 * redistributing this file, you may do so under either license.
@@ -104,14 +104,57 @@ DEFINE_EVENT(hfi1_rc_template, hfi1_ack,
 	     TP_ARGS(qp, psn)
 );
 
-DEFINE_EVENT(hfi1_rc_template, hfi1_timeout,
+DEFINE_EVENT(hfi1_rc_template, hfi1_rcv_error,
 	     TP_PROTO(struct rvt_qp *qp, u32 psn),
 	     TP_ARGS(qp, psn)
 );
 
-DEFINE_EVENT(hfi1_rc_template, hfi1_rcv_error,
-	     TP_PROTO(struct rvt_qp *qp, u32 psn),
-	     TP_ARGS(qp, psn)
+DEFINE_EVENT(/* event */
+	hfi1_rc_template, hfi1_rc_completion,
+	TP_PROTO(struct rvt_qp *qp, u32 psn),
+	TP_ARGS(qp, psn)
+);
+
+DECLARE_EVENT_CLASS(/* rc_ack */
+	hfi1_rc_ack_template,
+	TP_PROTO(struct rvt_qp *qp, u32 aeth, u32 psn,
+		 struct rvt_swqe *wqe),
+	TP_ARGS(qp, aeth, psn, wqe),
+	TP_STRUCT__entry(/* entry */
+		DD_DEV_ENTRY(dd_from_ibdev(qp->ibqp.device))
+		__field(u32, qpn)
+		__field(u32, aeth)
+		__field(u32, psn)
+		__field(u8, opcode)
+		__field(u32, spsn)
+		__field(u32, lpsn)
+	),
+	TP_fast_assign(/* assign */
+		DD_DEV_ASSIGN(dd_from_ibdev(qp->ibqp.device))
+		__entry->qpn = qp->ibqp.qp_num;
+		__entry->aeth = aeth;
+		__entry->psn = psn;
+		__entry->opcode = wqe->wr.opcode;
+		__entry->spsn = wqe->psn;
+		__entry->lpsn = wqe->lpsn;
+	),
+	TP_printk(/* print */
+		"[%s] qpn 0x%x aeth 0x%x psn 0x%x opcode 0x%x spsn 0x%x lpsn 0x%x",
+		__get_str(dev),
+		__entry->qpn,
+		__entry->aeth,
+		__entry->psn,
+		__entry->opcode,
+		__entry->spsn,
+		__entry->lpsn
+	)
+);
+
+DEFINE_EVENT(/* do_rc_ack */
+	hfi1_rc_ack_template, hfi1_rc_ack_do,
+	TP_PROTO(struct rvt_qp *qp, u32 aeth, u32 psn,
+		 struct rvt_swqe *wqe),
+	TP_ARGS(qp, aeth, psn, wqe)
 );
 
 #endif /* __HFI1_TRACE_RC_H */

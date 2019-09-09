@@ -1,7 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _IPV6_NF_REJECT_H
 #define _IPV6_NF_REJECT_H
 
 #include <linux/icmpv6.h>
+#include <net/netfilter/nf_reject.h>
 
 void nf_send_unreach6(struct net *net, struct sk_buff *skb_in, unsigned char code,
 		      unsigned int hooknum);

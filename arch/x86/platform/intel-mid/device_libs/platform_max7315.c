@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * platform_max7315.c: max7315 platform data initialization file
  *
  * (C) Copyright 2013 Intel Corporation
  * Author: Sathyanarayanan Kuppuswamy <sathyanarayanan.kuppuswamy@intel.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; version 2
- * of the License.
  */
 
 #include <linux/init.h>
@@ -38,8 +34,10 @@ static void __init *max7315_platform_data(void *info)
 	 */
 	strcpy(i2c_info->type, "max7315");
 	if (nr++) {
-		sprintf(base_pin_name, "max7315_%d_base", nr);
-		sprintf(intr_pin_name, "max7315_%d_int", nr);
+		snprintf(base_pin_name, sizeof(base_pin_name),
+			 "max7315_%d_base", nr);
+		snprintf(intr_pin_name, sizeof(intr_pin_name),
+			 "max7315_%d_int", nr);
 	} else {
 		strcpy(base_pin_name, "max7315_base");
 		strcpy(intr_pin_name, "max7315_int");

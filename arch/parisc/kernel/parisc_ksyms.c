@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *    Architecture-specific kernel symbols
  *
@@ -8,20 +9,6 @@
  *    Copyright (C) 2002-2003 Matthew Wilcox <willy at parisc-linux.org>
  *    Copyright (C) 2002 Randolph Chung <tausq at parisc-linux.org>
  *    Copyright (C) 2002-2007 Helge Deller <deller with parisc-linux.org>
- * 
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation; either version 2 of the License, or
- *    (at your option) any later version.
- *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
- *
- *    You should have received a copy of the GNU General Public License
- *    along with this program; if not, write to the Free Software
- *    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/module.h>
@@ -35,27 +22,17 @@ EXPORT_SYMBOL(memset);
 EXPORT_SYMBOL(__xchg8);
 EXPORT_SYMBOL(__xchg32);
 EXPORT_SYMBOL(__cmpxchg_u32);
+EXPORT_SYMBOL(__cmpxchg_u64);
 #ifdef CONFIG_SMP
 EXPORT_SYMBOL(__atomic_hash);
 #endif
 #ifdef CONFIG_64BIT
 EXPORT_SYMBOL(__xchg64);
-EXPORT_SYMBOL(__cmpxchg_u64);
 #endif
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 EXPORT_SYMBOL(lclear_user);
 EXPORT_SYMBOL(lstrnlen_user);
-
-/* Global fixups - defined as int to avoid creation of function pointers */
-extern int fixup_get_user_skip_1;
-extern int fixup_get_user_skip_2;
-extern int fixup_put_user_skip_1;
-extern int fixup_put_user_skip_2;
-EXPORT_SYMBOL(fixup_get_user_skip_1);
-EXPORT_SYMBOL(fixup_get_user_skip_2);
-EXPORT_SYMBOL(fixup_put_user_skip_1);
-EXPORT_SYMBOL(fixup_put_user_skip_2);
 
 #ifndef CONFIG_64BIT
 /* Needed so insmod can set dp value */
@@ -146,12 +123,6 @@ EXPORT_SYMBOL(__moddi3);
 #ifndef CONFIG_64BIT
 extern void $$dyncall(void);
 EXPORT_SYMBOL($$dyncall);
-#endif
-
-#ifdef CONFIG_DISCONTIGMEM
-#include <asm/mmzone.h>
-EXPORT_SYMBOL(node_data);
-EXPORT_SYMBOL(pfnnid_map);
 #endif
 
 #ifdef CONFIG_FUNCTION_TRACER

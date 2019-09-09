@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * ARM Ltd. Versatile Express
  *
@@ -8,6 +9,7 @@
  */
 
 /dts-v1/;
+#include "vexpress-v2m-rs1.dtsi"
 
 / {
 	model = "V2P-CA5s";
@@ -51,6 +53,20 @@
 	memory@80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x40000000>;
+	};
+
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		/* Chipselect 2 is physically at 0x18000000 */
+		vram: vram@18000000 {
+			/* 8 MB of designated video RAM */
+			compatible = "shared-dma-pool";
+			reg = <0x18000000 0x00800000>;
+			no-map;
+		};
 	};
 
 	hdlcd@2a110000 {
@@ -190,7 +206,7 @@
 		};
 	};
 
-	smb@08000000 {
+	smb: smb@8000000 {
 		compatible = "simple-bus";
 
 		#address-cells = <2>;
@@ -247,8 +263,6 @@
 				<0 0 40 &gic 0 40 4>,
 				<0 0 41 &gic 0 41 4>,
 				<0 0 42 &gic 0 42 4>;
-
-		/include/ "vexpress-v2m-rs1.dtsi"
 	};
 
 	site2: hsb@40000000 {

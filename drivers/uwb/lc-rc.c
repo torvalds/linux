@@ -1,24 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Ultra Wide Band
  * Life cycle of radio controllers
  *
  * Copyright (C) 2005-2006 Intel Corporation
  * Inaky Perez-Gonzalez <inaky.perez-gonzalez@intel.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
- *
  *
  * FIXME: docs
  *
@@ -56,8 +42,11 @@ static struct uwb_rc *uwb_rc_find_by_index(int index)
 	struct uwb_rc *rc = NULL;
 
 	dev = class_find_device(&uwb_rc_class, NULL, &index, uwb_rc_index_match);
-	if (dev)
+	if (dev) {
 		rc = dev_get_drvdata(dev);
+		put_device(dev);
+	}
+
 	return rc;
 }
 
@@ -225,7 +214,7 @@ static struct attribute *rc_attrs[] = {
 		NULL,
 };
 
-static struct attribute_group rc_attr_group = {
+static const struct attribute_group rc_attr_group = {
 	.attrs = rc_attrs,
 };
 
@@ -467,7 +456,9 @@ struct uwb_rc *__uwb_rc_try_get(struct uwb_rc *target_rc)
 	if (dev) {
 		rc = dev_get_drvdata(dev);
 		__uwb_rc_get(rc);
+		put_device(dev);
 	}
+
 	return rc;
 }
 EXPORT_SYMBOL_GPL(__uwb_rc_try_get);
@@ -520,8 +511,11 @@ struct uwb_rc *uwb_rc_get_by_grandpa(const struct device *grandpa_dev)
 
 	dev = class_find_device(&uwb_rc_class, NULL, grandpa_dev,
 				find_rc_grandpa);
-	if (dev)
+	if (dev) {
 		rc = dev_get_drvdata(dev);
+		put_device(dev);
+	}
+
 	return rc;
 }
 EXPORT_SYMBOL_GPL(uwb_rc_get_by_grandpa);
@@ -553,8 +547,10 @@ struct uwb_rc *uwb_rc_get_by_dev(const struct uwb_dev_addr *addr)
 	struct uwb_rc *rc = NULL;
 
 	dev = class_find_device(&uwb_rc_class, NULL, addr, find_rc_dev);
-	if (dev)
+	if (dev) {
 		rc = dev_get_drvdata(dev);
+		put_device(dev);
+	}
 
 	return rc;
 }

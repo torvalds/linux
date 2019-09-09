@@ -159,6 +159,7 @@ unsigned long riva_get_memlen(struct riva_par *par)
 	unsigned int chipset = par->Chipset;
 	struct pci_dev* dev;
 	u32 amt;
+	int domain = pci_domain_nr(par->pdev->bus);
 
 	switch (chip->Architecture) {
 	case NV_ARCH_03:
@@ -226,12 +227,12 @@ unsigned long riva_get_memlen(struct riva_par *par)
 	case NV_ARCH_30:
 		if(chipset == NV_CHIP_IGEFORCE2) {
 
-			dev = pci_get_bus_and_slot(0, 1);
+			dev = pci_get_domain_bus_and_slot(domain, 0, 1);
 			pci_read_config_dword(dev, 0x7C, &amt);
 			pci_dev_put(dev);
 			memlen = (((amt >> 6) & 31) + 1) * 1024;
 		} else if (chipset == NV_CHIP_0x01F0) {
-			dev = pci_get_bus_and_slot(0, 1);
+			dev = pci_get_domain_bus_and_slot(domain, 0, 1);
 			pci_read_config_dword(dev, 0x84, &amt);
 			pci_dev_put(dev);
 			memlen = (((amt >> 4) & 127) + 1) * 1024;
@@ -417,6 +418,6 @@ riva_common_setup(struct riva_par *par)
 	}
 	par->riva.flatPanel = (par->FlatPanel > 0) ? TRUE : FALSE;
 
-	RivaGetConfig(&par->riva, par->Chipset);
+	RivaGetConfig(&par->riva, par->pdev, par->Chipset);
 }
 

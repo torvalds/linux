@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Freescale Media5200 board Device Tree Source
  *
  * Copyright 2009 Secret Lab Technologies Ltd.
  * Grant Likely <grant.likely@secretlab.ca>
  * Steven Cavanagh <scavanagh@secretlab.ca>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 /include/ "mpc5200b.dtsi"
@@ -25,7 +21,7 @@
 	};
 
 	chosen {
-		linux,stdout-path = &console;
+		stdout-path = &console;
 	};
 
 	cpus {

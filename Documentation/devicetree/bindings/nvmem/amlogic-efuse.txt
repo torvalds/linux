@@ -1,7 +1,9 @@
-= Amlogic eFuse device tree bindings =
+= Amlogic Meson GX eFuse device tree bindings =
 
 Required properties:
 - compatible: should be "amlogic,meson-gxbb-efuse"
+- clocks: phandle to the efuse peripheral clock provided by the
+	  clock controller.
 
 = Data cells =
 Are child nodes of eFuse, bindings of which as described in
@@ -11,6 +13,7 @@ Example:
 
 	efuse: efuse {
 		compatible = "amlogic,meson-gxbb-efuse";
+		clocks = <&clkc CLKID_EFUSE>;
 		#address-cells = <1>;
 		#size-cells = <1>;
 

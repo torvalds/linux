@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # TPM device configuration
 #
@@ -5,7 +6,9 @@
 menuconfig TCG_TPM
 	tristate "TPM Hardware Support"
 	depends on HAS_IOMEM
-	select SECURITYFS
+	imply SECURITYFS
+	select CRYPTO
+	select CRYPTO_HASH_INFO
 	---help---
 	  If you have a TPM security chip in your system, which
 	  implements the Trusted Computing Group's specification,
@@ -24,6 +27,17 @@ menuconfig TCG_TPM
 
 if TCG_TPM
 
+config HW_RANDOM_TPM
+	bool "TPM HW Random Number Generator support"
+	depends on TCG_TPM && HW_RANDOM && !(TCG_TPM=y && HW_RANDOM=m)
+	default y
+	---help---
+	  This setting exposes the TPM's Random Number Generator as a hwrng
+	  device. This allows the kernel to collect randomness from the TPM at
+	  boot, and provides the TPM randomines in /dev/hwrng.
+
+	  If unsure, say Y.
+
 config TCG_TIS_CORE
 	tristate
 	---help---
@@ -32,7 +46,7 @@ config TCG_TIS_CORE
 
 config TCG_TIS
 	tristate "TPM Interface Specification 1.2 Interface / TPM 2.0 FIFO Interface"
-	depends on X86
+	depends on X86 || OF
 	select TCG_TIS_CORE
 	---help---
 	  If you have a TPM security chip that is compliant with the
@@ -134,7 +148,7 @@ config TCG_XEN
 
 config TCG_CRB
 	tristate "TPM 2.0 CRB Interface"
-	depends on X86 && ACPI
+	depends on ACPI
 	---help---
 	  If you have a TPM security chip that is compliant with the
 	  TCG CRB 2.0 TPM specification say Yes and it will be accessible
@@ -144,7 +158,6 @@ config TCG_CRB
 config TCG_VTPM_PROXY
 	tristate "VTPM Proxy Interface"
 	depends on TCG_TPM
-	select ANON_INODES
 	---help---
 	  This driver proxies for an emulated TPM (vTPM) running in userspace.
 	  A device /dev/vtpmx is provided that creates a device pair

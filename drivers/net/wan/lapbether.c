@@ -1,13 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	"LAPB via ethernet" driver release 001
  *
  *	This code REQUIRES 2.1.15 or higher/ NET3.038
- *
- *	This module:
- *		This module is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  *
  *	This is a "pseudo" network driver to allow LAPB over Ethernet.
  *
@@ -35,7 +30,7 @@
 #include <linux/if_arp.h>
 #include <linux/skbuff.h>
 #include <net/sock.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/mm.h>
 #include <linux/interrupt.h>
 #include <linux/notifier.h>
@@ -306,7 +301,7 @@ static const struct net_device_ops lapbeth_netdev_ops = {
 static void lapbeth_setup(struct net_device *dev)
 {
 	dev->netdev_ops	     = &lapbeth_netdev_ops;
-	dev->destructor	     = free_netdev;
+	dev->needs_free_netdev = true;
 	dev->type            = ARPHRD_X25;
 	dev->hard_header_len = 3;
 	dev->mtu             = 1000;
@@ -346,7 +341,6 @@ out:
 fail:
 	dev_put(dev);
 	free_netdev(ndev);
-	kfree(lapbeth);
 	goto out;
 }
 

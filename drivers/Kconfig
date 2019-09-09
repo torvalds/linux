@@ -1,12 +1,22 @@
+# SPDX-License-Identifier: GPL-2.0
 menu "Device Drivers"
 
+# Keep I/O buses first
+
 source "drivers/amba/Kconfig"
+source "drivers/eisa/Kconfig"
+source "drivers/pci/Kconfig"
+source "drivers/pcmcia/Kconfig"
+source "drivers/rapidio/Kconfig"
+
 
 source "drivers/base/Kconfig"
 
 source "drivers/bus/Kconfig"
 
 source "drivers/connector/Kconfig"
+
+source "drivers/gnss/Kconfig"
 
 source "drivers/mtd/Kconfig"
 
@@ -53,6 +63,8 @@ source "drivers/input/Kconfig"
 source "drivers/char/Kconfig"
 
 source "drivers/i2c/Kconfig"
+
+source "drivers/i3c/Kconfig"
 
 source "drivers/spi/Kconfig"
 
@@ -152,6 +164,8 @@ source "drivers/remoteproc/Kconfig"
 
 source "drivers/rpmsg/Kconfig"
 
+source "drivers/soundwire/Kconfig"
+
 source "drivers/soc/Kconfig"
 
 source "drivers/devfreq/Kconfig"
@@ -174,8 +188,6 @@ source "drivers/ipack/Kconfig"
 
 source "drivers/reset/Kconfig"
 
-source "drivers/fmc/Kconfig"
-
 source "drivers/phy/Kconfig"
 
 source "drivers/powercap/Kconfig"
@@ -196,10 +208,26 @@ source "drivers/dax/Kconfig"
 
 source "drivers/nvmem/Kconfig"
 
-source "drivers/hwtracing/stm/Kconfig"
-
-source "drivers/hwtracing/intel_th/Kconfig"
+source "drivers/hwtracing/Kconfig"
 
 source "drivers/fpga/Kconfig"
+
+source "drivers/fsi/Kconfig"
+
+source "drivers/tee/Kconfig"
+
+source "drivers/mux/Kconfig"
+
+source "drivers/opp/Kconfig"
+
+source "drivers/visorbus/Kconfig"
+
+source "drivers/siox/Kconfig"
+
+source "drivers/slimbus/Kconfig"
+
+source "drivers/interconnect/Kconfig"
+
+source "drivers/counter/Kconfig"
 
 endmenu

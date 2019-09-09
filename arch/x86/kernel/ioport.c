@@ -1,9 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * This contains the io-permission bitmap code - written by obz, with changes
  * by Linus. 32/64 bits code unification by Miguel Botón.
  */
 
 #include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 #include <linux/kernel.h>
 #include <linux/capability.h>
 #include <linux/errno.h>
@@ -16,11 +18,12 @@
 #include <linux/syscalls.h>
 #include <linux/bitmap.h>
 #include <asm/syscalls.h>
+#include <asm/desc.h>
 
 /*
  * this changes the io permissions bitmap in the current task.
  */
-asmlinkage long sys_ioperm(unsigned long from, unsigned long num, int turn_on)
+long ksys_ioperm(unsigned long from, unsigned long num, int turn_on)
 {
 	struct thread_struct *t = &current->thread;
 	struct tss_struct *tss;
@@ -45,6 +48,16 @@ asmlinkage long sys_ioperm(unsigned long from, unsigned long num, int turn_on)
 		memset(bitmap, 0xff, IO_BITMAP_BYTES);
 		t->io_bitmap_ptr = bitmap;
 		set_thread_flag(TIF_IO_BITMAP);
+
+		/*
+		 * Now that we have an IO bitmap, we need our TSS limit to be
+		 * correct.  It's fine if we are preempted after doing this:
+		 * with TIF_IO_BITMAP set, context switches will keep our TSS
+		 * limit correct.
+		 */
+		preempt_disable();
+		refresh_tss_limit();
+		preempt_enable();
 	}
 
 	/*
@@ -54,7 +67,7 @@ asmlinkage long sys_ioperm(unsigned long from, unsigned long num, int turn_on)
 	 * because the ->io_bitmap_max value must match the bitmap
 	 * contents:
 	 */
-	tss = &per_cpu(cpu_tss, get_cpu());
+	tss = &per_cpu(cpu_tss_rw, get_cpu());
 
 	if (turn_on)
 		bitmap_clear(t->io_bitmap_ptr, from, num);
@@ -81,6 +94,11 @@ asmlinkage long sys_ioperm(unsigned long from, unsigned long num, int turn_on)
 	put_cpu();
 
 	return 0;
+}
+
+SYSCALL_DEFINE3(ioperm, unsigned long, from, unsigned long, num, int, turn_on)
+{
+	return ksys_ioperm(from, num, turn_on);
 }
 
 /*

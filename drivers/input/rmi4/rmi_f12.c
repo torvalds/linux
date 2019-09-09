@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2012-2016 Synaptics Incorporated
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 #include <linux/input.h>
 #include <linux/input/mt.h>
@@ -26,9 +23,12 @@ enum rmi_f12_object_type {
 	RMI_F12_OBJECT_SMALL_OBJECT		= 0x0D,
 };
 
+#define F12_DATA1_BYTES_PER_OBJ			8
+
 struct f12_data {
 	struct rmi_2d_sensor sensor;
 	struct rmi_2d_sensor_platform_data sensor_pdata;
+	bool has_dribble;
 
 	u16 data_addr;
 
@@ -68,13 +68,8 @@ static int rmi_f12_read_sensor_tuning(struct f12_data *f12)
 	u8 buf[15];
 	int pitch_x = 0;
 	int pitch_y = 0;
-	int clip_x_low = 0;
-	int clip_x_high = 0;
-	int clip_y_low = 0;
-	int clip_y_high = 0;
 	int rx_receivers = 0;
 	int tx_receivers = 0;
-	int sensor_flags = 0;
 
 	item = rmi_get_register_desc_item(&f12->control_reg_desc, 8);
 	if (!item) {
@@ -114,17 +109,15 @@ static int rmi_f12_read_sensor_tuning(struct f12_data *f12)
 	}
 
 	if (rmi_register_desc_has_subpacket(item, 2)) {
-		sensor->axis_align.clip_x_low = buf[offset];
-		sensor->axis_align.clip_x_high = sensor->max_x
-							- buf[offset + 1];
-		sensor->axis_align.clip_y_low = buf[offset + 2];
-		sensor->axis_align.clip_y_high = sensor->max_y
-							- buf[offset + 3];
+		/* Units 1/128 sensor pitch */
+		rmi_dbg(RMI_DEBUG_FN, &fn->dev,
+			"%s: Inactive Border xlo:%d xhi:%d ylo:%d yhi:%d\n",
+			__func__,
+			buf[offset], buf[offset + 1],
+			buf[offset + 2], buf[offset + 3]);
+
 		offset += 4;
 	}
-
-	rmi_dbg(RMI_DEBUG_FN, &fn->dev, "%s: x low: %d x high: %d y low: %d y high: %d\n",
-		__func__, clip_x_low, clip_x_high, clip_y_low, clip_y_high);
 
 	if (rmi_register_desc_has_subpacket(item, 3)) {
 		rx_receivers = buf[offset];
@@ -132,10 +125,9 @@ static int rmi_f12_read_sensor_tuning(struct f12_data *f12)
 		offset += 2;
 	}
 
-	if (rmi_register_desc_has_subpacket(item, 4)) {
-		sensor_flags = buf[offset];
+	/* Skip over sensor flags */
+	if (rmi_register_desc_has_subpacket(item, 4))
 		offset += 1;
-	}
 
 	sensor->x_mm = (pitch_x * rx_receivers) >> 12;
 	sensor->y_mm = (pitch_y * tx_receivers) >> 12;
@@ -146,12 +138,16 @@ static int rmi_f12_read_sensor_tuning(struct f12_data *f12)
 	return 0;
 }
 
-static void rmi_f12_process_objects(struct f12_data *f12, u8 *data1)
+static void rmi_f12_process_objects(struct f12_data *f12, u8 *data1, int size)
 {
 	int i;
 	struct rmi_2d_sensor *sensor = &f12->sensor;
+	int objects = f12->data1->num_subpackets;
 
-	for (i = 0; i < f12->data1->num_subpackets; i++) {
+	if ((f12->data1->num_subpackets * F12_DATA1_BYTES_PER_OBJ) > size)
+		objects = size / F12_DATA1_BYTES_PER_OBJ;
+
+	for (i = 0; i < objects; i++) {
 		struct rmi_2d_sensor_abs_object *obj = &sensor->objs[i];
 
 		obj->type = RMI_2D_OBJECT_NONE;
@@ -182,7 +178,7 @@ static void rmi_f12_process_objects(struct f12_data *f12, u8 *data1)
 
 		rmi_2d_sensor_abs_process(sensor, obj, i);
 
-		data1 += 8;
+		data1 += F12_DATA1_BYTES_PER_OBJ;
 	}
 
 	if (sensor->kernel_tracking)
@@ -192,47 +188,117 @@ static void rmi_f12_process_objects(struct f12_data *f12, u8 *data1)
 				      sensor->nbr_fingers,
 				      sensor->dmax);
 
-	for (i = 0; i < sensor->nbr_fingers; i++)
+	for (i = 0; i < objects; i++)
 		rmi_2d_sensor_abs_report(sensor, &sensor->objs[i], i);
 }
 
-static int rmi_f12_attention(struct rmi_function *fn,
-			     unsigned long *irq_nr_regs)
+static irqreturn_t rmi_f12_attention(int irq, void *ctx)
 {
 	int retval;
+	struct rmi_function *fn = ctx;
 	struct rmi_device *rmi_dev = fn->rmi_dev;
+	struct rmi_driver_data *drvdata = dev_get_drvdata(&rmi_dev->dev);
 	struct f12_data *f12 = dev_get_drvdata(&fn->dev);
 	struct rmi_2d_sensor *sensor = &f12->sensor;
+	int valid_bytes = sensor->pkt_size;
 
-	if (rmi_dev->xport->attn_data) {
-		memcpy(sensor->data_pkt, rmi_dev->xport->attn_data,
-			sensor->attn_size);
-		rmi_dev->xport->attn_data += sensor->attn_size;
-		rmi_dev->xport->attn_size -= sensor->attn_size;
+	if (drvdata->attn_data.data) {
+		if (sensor->attn_size > drvdata->attn_data.size)
+			valid_bytes = drvdata->attn_data.size;
+		else
+			valid_bytes = sensor->attn_size;
+		memcpy(sensor->data_pkt, drvdata->attn_data.data,
+			valid_bytes);
+		drvdata->attn_data.data += sensor->attn_size;
+		drvdata->attn_data.size -= sensor->attn_size;
 	} else {
 		retval = rmi_read_block(rmi_dev, f12->data_addr,
 					sensor->data_pkt, sensor->pkt_size);
 		if (retval < 0) {
 			dev_err(&fn->dev, "Failed to read object data. Code: %d.\n",
 				retval);
-			return retval;
+			return IRQ_RETVAL(retval);
 		}
 	}
 
 	if (f12->data1)
 		rmi_f12_process_objects(f12,
-			&sensor->data_pkt[f12->data1_offset]);
+			&sensor->data_pkt[f12->data1_offset], valid_bytes);
 
 	input_mt_sync_frame(sensor->input);
 
+	return IRQ_HANDLED;
+}
+
+static int rmi_f12_write_control_regs(struct rmi_function *fn)
+{
+	int ret;
+	const struct rmi_register_desc_item *item;
+	struct rmi_device *rmi_dev = fn->rmi_dev;
+	struct f12_data *f12 = dev_get_drvdata(&fn->dev);
+	int control_size;
+	char buf[3];
+	u16 control_offset = 0;
+	u8 subpacket_offset = 0;
+
+	if (f12->has_dribble
+	    && (f12->sensor.dribble != RMI_REG_STATE_DEFAULT)) {
+		item = rmi_get_register_desc_item(&f12->control_reg_desc, 20);
+		if (item) {
+			control_offset = rmi_register_desc_calc_reg_offset(
+						&f12->control_reg_desc, 20);
+
+			/*
+			 * The byte containing the EnableDribble bit will be
+			 * in either byte 0 or byte 2 of control 20. Depending
+			 * on the existence of subpacket 0. If control 20 is
+			 * larger then 3 bytes, just read the first 3.
+			 */
+			control_size = min(item->reg_size, 3UL);
+
+			ret = rmi_read_block(rmi_dev, fn->fd.control_base_addr
+					+ control_offset, buf, control_size);
+			if (ret)
+				return ret;
+
+			if (rmi_register_desc_has_subpacket(item, 0))
+				subpacket_offset += 1;
+
+			switch (f12->sensor.dribble) {
+			case RMI_REG_STATE_OFF:
+				buf[subpacket_offset] &= ~BIT(2);
+				break;
+			case RMI_REG_STATE_ON:
+				buf[subpacket_offset] |= BIT(2);
+				break;
+			case RMI_REG_STATE_DEFAULT:
+			default:
+				break;
+			}
+
+			ret = rmi_write_block(rmi_dev,
+				fn->fd.control_base_addr + control_offset,
+				buf, control_size);
+			if (ret)
+				return ret;
+		}
+	}
+
 	return 0;
+
 }
 
 static int rmi_f12_config(struct rmi_function *fn)
 {
 	struct rmi_driver *drv = fn->rmi_dev->driver;
+	int ret;
 
 	drv->set_irq_bits(fn->rmi_dev, fn->irq_mask);
+
+	ret = rmi_f12_write_control_regs(fn);
+	if (ret)
+		dev_warn(&fn->dev,
+			"Failed to write F12 control registers: %d\n", ret);
 
 	return 0;
 }
@@ -247,7 +313,7 @@ static int rmi_f12_probe(struct rmi_function *fn)
 	const struct rmi_register_desc_item *item;
 	struct rmi_2d_sensor *sensor;
 	struct rmi_device_platform_data *pdata = rmi_get_platform_data(rmi_dev);
-	struct rmi_transport_dev *xport = rmi_dev->xport;
+	struct rmi_driver_data *drvdata = dev_get_drvdata(&rmi_dev->dev);
 	u16 data_offset = 0;
 
 	rmi_dbg(RMI_DEBUG_FN, &fn->dev, "%s\n", __func__);
@@ -260,7 +326,7 @@ static int rmi_f12_probe(struct rmi_function *fn)
 	}
 	++query_addr;
 
-	if (!(buf & 0x1)) {
+	if (!(buf & BIT(0))) {
 		dev_err(&fn->dev,
 			"Behavior of F12 without register descriptors is undefined.\n");
 		return -ENODEV;
@@ -270,12 +336,14 @@ static int rmi_f12_probe(struct rmi_function *fn)
 	if (!f12)
 		return -ENOMEM;
 
+	f12->has_dribble = !!(buf & BIT(3));
+
 	if (fn->dev.of_node) {
 		ret = rmi_2d_sensor_of_probe(&fn->dev, &f12->sensor_pdata);
 		if (ret)
 			return ret;
-	} else if (pdata->sensor_pdata) {
-		f12->sensor_pdata = *pdata->sensor_pdata;
+	} else {
+		f12->sensor_pdata = pdata->sensor_pdata;
 	}
 
 	ret = rmi_read_register_desc(rmi_dev, query_addr,
@@ -318,6 +386,7 @@ static int rmi_f12_probe(struct rmi_function *fn)
 
 	sensor->x_mm = f12->sensor_pdata.x_mm;
 	sensor->y_mm = f12->sensor_pdata.y_mm;
+	sensor->dribble = f12->sensor_pdata.dribble;
 
 	if (sensor->sensor_type == rmi_sensor_default)
 		sensor->sensor_type =
@@ -343,7 +412,7 @@ static int rmi_f12_probe(struct rmi_function *fn)
 	 * HID attention reports.
 	 */
 	item = rmi_get_register_desc_item(&f12->data_reg_desc, 0);
-	if (item && !xport->attn_data)
+	if (item && !drvdata->attn_data.data)
 		data_offset += item->reg_size;
 
 	item = rmi_get_register_desc_item(&f12->data_reg_desc, 1);
@@ -357,15 +426,15 @@ static int rmi_f12_probe(struct rmi_function *fn)
 	}
 
 	item = rmi_get_register_desc_item(&f12->data_reg_desc, 2);
-	if (item && !xport->attn_data)
+	if (item && !drvdata->attn_data.data)
 		data_offset += item->reg_size;
 
 	item = rmi_get_register_desc_item(&f12->data_reg_desc, 3);
-	if (item && !xport->attn_data)
+	if (item && !drvdata->attn_data.data)
 		data_offset += item->reg_size;
 
 	item = rmi_get_register_desc_item(&f12->data_reg_desc, 4);
-	if (item && !xport->attn_data)
+	if (item && !drvdata->attn_data.data)
 		data_offset += item->reg_size;
 
 	item = rmi_get_register_desc_item(&f12->data_reg_desc, 5);
@@ -377,22 +446,22 @@ static int rmi_f12_probe(struct rmi_function *fn)
 	}
 
 	item = rmi_get_register_desc_item(&f12->data_reg_desc, 6);
-	if (item && !xport->attn_data) {
+	if (item && !drvdata->attn_data.data) {
 		f12->data6 = item;
 		f12->data6_offset = data_offset;
 		data_offset += item->reg_size;
 	}
 
 	item = rmi_get_register_desc_item(&f12->data_reg_desc, 7);
-	if (item && !xport->attn_data)
+	if (item && !drvdata->attn_data.data)
 		data_offset += item->reg_size;
 
 	item = rmi_get_register_desc_item(&f12->data_reg_desc, 8);
-	if (item && !xport->attn_data)
+	if (item && !drvdata->attn_data.data)
 		data_offset += item->reg_size;
 
 	item = rmi_get_register_desc_item(&f12->data_reg_desc, 9);
-	if (item && !xport->attn_data) {
+	if (item && !drvdata->attn_data.data) {
 		f12->data9 = item;
 		f12->data9_offset = data_offset;
 		data_offset += item->reg_size;
@@ -401,41 +470,42 @@ static int rmi_f12_probe(struct rmi_function *fn)
 	}
 
 	item = rmi_get_register_desc_item(&f12->data_reg_desc, 10);
-	if (item && !xport->attn_data)
+	if (item && !drvdata->attn_data.data)
 		data_offset += item->reg_size;
 
 	item = rmi_get_register_desc_item(&f12->data_reg_desc, 11);
-	if (item && !xport->attn_data)
+	if (item && !drvdata->attn_data.data)
 		data_offset += item->reg_size;
 
 	item = rmi_get_register_desc_item(&f12->data_reg_desc, 12);
-	if (item && !xport->attn_data)
+	if (item && !drvdata->attn_data.data)
 		data_offset += item->reg_size;
 
 	item = rmi_get_register_desc_item(&f12->data_reg_desc, 13);
-	if (item && !xport->attn_data)
+	if (item && !drvdata->attn_data.data)
 		data_offset += item->reg_size;
 
 	item = rmi_get_register_desc_item(&f12->data_reg_desc, 14);
-	if (item && !xport->attn_data)
+	if (item && !drvdata->attn_data.data)
 		data_offset += item->reg_size;
 
 	item = rmi_get_register_desc_item(&f12->data_reg_desc, 15);
-	if (item && !xport->attn_data) {
+	if (item && !drvdata->attn_data.data) {
 		f12->data15 = item;
 		f12->data15_offset = data_offset;
 		data_offset += item->reg_size;
 	}
 
 	/* allocate the in-kernel tracking buffers */
-	sensor->tracking_pos = devm_kzalloc(&fn->dev,
-			sizeof(struct input_mt_pos) * sensor->nbr_fingers,
+	sensor->tracking_pos = devm_kcalloc(&fn->dev,
+			sensor->nbr_fingers, sizeof(struct input_mt_pos),
 			GFP_KERNEL);
-	sensor->tracking_slots = devm_kzalloc(&fn->dev,
-			sizeof(int) * sensor->nbr_fingers, GFP_KERNEL);
-	sensor->objs = devm_kzalloc(&fn->dev,
-			sizeof(struct rmi_2d_sensor_abs_object)
-			* sensor->nbr_fingers, GFP_KERNEL);
+	sensor->tracking_slots = devm_kcalloc(&fn->dev,
+			sensor->nbr_fingers, sizeof(int), GFP_KERNEL);
+	sensor->objs = devm_kcalloc(&fn->dev,
+			sensor->nbr_fingers,
+			sizeof(struct rmi_2d_sensor_abs_object),
+			GFP_KERNEL);
 	if (!sensor->tracking_pos || !sensor->tracking_slots || !sensor->objs)
 		return -ENOMEM;
 

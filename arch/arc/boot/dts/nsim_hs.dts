@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2014-15 Synopsys, Inc. (www.synopsys.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 /dts-v1/;
 
@@ -18,13 +15,13 @@
 
 	memory {
 		device_type = "memory";
-		/* CONFIG_LINUX_LINK_BASE needs to match low mem start */
+		/* CONFIG_LINUX_RAM_BASE needs to match low mem start */
 		reg = <0x0 0x80000000 0x0 0x20000000	/* 512 MB low mem */
 		       0x1 0x00000000 0x0 0x40000000>;	/* 1 GB highmem */
 	};
 
 	chosen {
-		bootargs = "earlycon=arc_uart,mmio32,0xc0fc1000,115200n8 console=ttyARC0,115200n8";
+		bootargs = "earlycon=arc_uart,mmio32,0xc0fc1000,115200n8 console=ttyARC0,115200n8 print-fatal-signals=1";
 	};
 
 	aliases {

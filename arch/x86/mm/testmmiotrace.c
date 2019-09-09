@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Written by Pekka Paalanen, 2008-2009 <pq@iki.fi>
  */
@@ -9,7 +10,7 @@
 #include <linux/mmiotrace.h>
 
 static unsigned long mmio_address;
-module_param(mmio_address, ulong, 0);
+module_param_hw(mmio_address, ulong, iomem, 0);
 MODULE_PARM_DESC(mmio_address, " Start address of the mapping of 16 kB "
 				"(or 8 MB if read_far is non-zero).");
 

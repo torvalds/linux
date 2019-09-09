@@ -1,25 +1,5 @@
-/* Intel(R) Gigabit Ethernet Linux driver
- * Copyright(c) 2007-2014 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, see <http://www.gnu.org/licenses/>.
- *
- * The full GNU General Public License is included in this distribution in
- * the file called "COPYING".
- *
- * Contact Information:
- * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- */
+/* SPDX-License-Identifier: GPL-2.0 */
+/* Copyright(c) 2007 - 2018 Intel Corporation. */
 
 #ifndef _E1000_MBX_H_
 #define _E1000_MBX_H_
@@ -55,6 +35,10 @@
 
 #define E1000_VF_RESET		0x01 /* VF requests reset */
 #define E1000_VF_SET_MAC_ADDR	0x02 /* VF requests to set MAC addr */
+/* VF requests to clear all unicast MAC filters */
+#define E1000_VF_MAC_FILTER_CLR	(0x01 << E1000_VT_MSGINFO_SHIFT)
+/* VF requests to add unicast MAC filter */
+#define E1000_VF_MAC_FILTER_ADD	(0x02 << E1000_VT_MSGINFO_SHIFT)
 #define E1000_VF_SET_MULTICAST	0x03 /* VF requests to set MC addr */
 #define E1000_VF_SET_VLAN	0x04 /* VF requests to set VLAN */
 #define E1000_VF_SET_LPE	0x05 /* VF requests to set VMOLR.LPE */
@@ -63,11 +47,13 @@
 
 #define E1000_PF_CONTROL_MSG	0x0100 /* PF control message */
 
-s32 igb_read_mbx(struct e1000_hw *, u32 *, u16, u16);
-s32 igb_write_mbx(struct e1000_hw *, u32 *, u16, u16);
-s32 igb_check_for_msg(struct e1000_hw *, u16);
-s32 igb_check_for_ack(struct e1000_hw *, u16);
-s32 igb_check_for_rst(struct e1000_hw *, u16);
-s32 igb_init_mbx_params_pf(struct e1000_hw *);
+s32 igb_read_mbx(struct e1000_hw *hw, u32 *msg, u16 size, u16 mbx_id,
+		 bool unlock);
+s32 igb_write_mbx(struct e1000_hw *hw, u32 *msg, u16 size, u16 mbx_id);
+s32 igb_check_for_msg(struct e1000_hw *hw, u16 mbx_id);
+s32 igb_check_for_ack(struct e1000_hw *hw, u16 mbx_id);
+s32 igb_check_for_rst(struct e1000_hw *hw, u16 mbx_id);
+s32 igb_unlock_mbx(struct e1000_hw *hw, u16 mbx_id);
+s32 igb_init_mbx_params_pf(struct e1000_hw *hw);
 
 #endif /* _E1000_MBX_H_ */

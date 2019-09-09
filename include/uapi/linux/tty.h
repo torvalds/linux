@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _UAPI_LINUX_TTY_H
 #define _UAPI_LINUX_TTY_H
 
@@ -35,5 +36,7 @@
 #define N_TRACESINK	23	/* Trace data routing for MIPI P1149.7 */
 #define N_TRACEROUTER	24	/* Trace data routing for MIPI P1149.7 */
 #define N_NCI		25	/* NFC NCI UART */
+#define N_SPEAKUP	26	/* Speakup communication with synths */
+#define N_NULL		27	/* Null ldisc used for error handling */
 
 #endif /* _UAPI_LINUX_TTY_H */

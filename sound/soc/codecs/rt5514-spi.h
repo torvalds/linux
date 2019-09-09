@@ -1,12 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * rt5514-spi.h  --  RT5514 driver
  *
  * Copyright 2015 Realtek Semiconductor Corp.
  * Author: Oder Chiou <oder_chiou@realtek.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef __RT5514_SPI_H__
@@ -17,10 +14,12 @@
 */
 #define RT5514_SPI_BUF_LEN		240
 
-#define RT5514_BUFFER_VOICE_BASE	0x18001034
-#define RT5514_BUFFER_VOICE_LIMIT	0x18001038
-#define RT5514_BUFFER_VOICE_RP		0x1800103c
-#define RT5514_BUFFER_VOICE_SIZE	0x18001040
+#define RT5514_BUFFER_VOICE_BASE	0x18000200
+#define RT5514_BUFFER_VOICE_LIMIT	0x18000204
+#define RT5514_BUFFER_VOICE_WP		0x1800020c
+#define RT5514_IRQ_CTRL			0x18002094
+
+#define RT5514_IRQ_STATUS_BIT		(0x1 << 5)
 
 /* SPI Command */
 enum {

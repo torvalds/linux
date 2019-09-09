@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  LCD / Backlight control code for Sharp SL-6000x (tosa)
  *
  *  Copyright (c) 2005		Dirk Opfer
  *  Copyright (c) 2007,2008	Dmitry Baryshkov
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
- *
  */
 
 #include <linux/kernel.h>
@@ -49,7 +45,7 @@ static int tosa_tg_send(struct spi_device *spi, int adrs, uint8_t data)
 	struct spi_message msg;
 	struct spi_transfer xfer = {
 		.len		= 1,
-		.cs_change	= 1,
+		.cs_change	= 0,
 		.tx_buf		= buf,
 	};
 

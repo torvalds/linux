@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 /*
  * SPU file system
@@ -5,20 +6,6 @@
  * (C) Copyright IBM Deutschland Entwicklung GmbH 2005
  *
  * Author: Arnd Bergmann <arndb@de.ibm.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/file.h>
@@ -38,7 +25,7 @@
 #include <asm/prom.h>
 #include <asm/spu.h>
 #include <asm/spu_priv1.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "spufs.h"
 
@@ -71,15 +58,9 @@ spufs_alloc_inode(struct super_block *sb)
 	return &ei->vfs_inode;
 }
 
-static void spufs_i_callback(struct rcu_head *head)
+static void spufs_free_inode(struct inode *inode)
 {
-	struct inode *inode = container_of(head, struct inode, i_rcu);
 	kmem_cache_free(spufs_inode_cache, SPUFS_I(inode));
-}
-
-static void spufs_destroy_inode(struct inode *inode)
-{
-	call_rcu(&inode->i_rcu, spufs_i_callback);
 }
 
 static void
@@ -455,7 +436,7 @@ spufs_create_context(struct inode *inode, struct dentry *dentry,
 		}
 	}
 
-	ret = spufs_mkdir(inode, dentry, flags, mode & S_IRWXUGO);
+	ret = spufs_mkdir(inode, dentry, flags, mode & 0777);
 	if (ret)
 		goto out_aff_unlock;
 
@@ -546,7 +527,7 @@ static int spufs_create_gang(struct inode *inode,
 	struct path path = {.mnt = mnt, .dentry = dentry};
 	int ret;
 
-	ret = spufs_mkgang(inode, dentry, mode & S_IRWXUGO);
+	ret = spufs_mkgang(inode, dentry, mode & 0777);
 	if (!ret) {
 		ret = spufs_gang_open(&path);
 		if (ret < 0) {
@@ -604,6 +585,24 @@ static const match_table_t spufs_tokens = {
 	{ Opt_debug, "debug" },
 	{ Opt_err,    NULL  },
 };
+
+static int spufs_show_options(struct seq_file *m, struct dentry *root)
+{
+	struct spufs_sb_info *sbi = spufs_get_sb_info(root->d_sb);
+	struct inode *inode = root->d_inode;
+
+	if (!uid_eq(inode->i_uid, GLOBAL_ROOT_UID))
+		seq_printf(m, ",uid=%u",
+			   from_kuid_munged(&init_user_ns, inode->i_uid));
+	if (!gid_eq(inode->i_gid, GLOBAL_ROOT_GID))
+		seq_printf(m, ",gid=%u",
+			   from_kgid_munged(&init_user_ns, inode->i_gid));
+	if ((inode->i_mode & S_IALLUGO) != 0775)
+		seq_printf(m, ",mode=%o", inode->i_mode);
+	if (sbi->debug)
+		seq_puts(m, ",debug");
+	return 0;
+}
 
 static int
 spufs_parse_options(struct super_block *sb, char *options, struct inode *root)
@@ -721,13 +720,11 @@ spufs_fill_super(struct super_block *sb, void *data, int silent)
 	struct spufs_sb_info *info;
 	static const struct super_operations s_ops = {
 		.alloc_inode = spufs_alloc_inode,
-		.destroy_inode = spufs_destroy_inode,
+		.free_inode = spufs_free_inode,
 		.statfs = simple_statfs,
 		.evict_inode = spufs_evict_inode,
-		.show_options = generic_show_options,
+		.show_options = spufs_show_options,
 	};
-
-	save_mount_options(sb, data);
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)

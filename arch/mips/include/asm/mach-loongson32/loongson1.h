@@ -1,19 +1,15 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (c) 2011 Zhang, Keguang <keguang.zhang@gmail.com>
  *
  * Register mappings for Loongson 1
- *
- * This program is free software; you can redistribute	it and/or modify it
- * under  the terms of	the GNU General	 Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #ifndef __ASM_MACH_LOONGSON32_LOONGSON1_H
 #define __ASM_MACH_LOONGSON32_LOONGSON1_H
 
 #if defined(CONFIG_LOONGSON1_LS1B)
-#define DEFAULT_MEMSIZE			256	/* If no memsize provided */
+#define DEFAULT_MEMSIZE			64	/* If no memsize provided */
 #elif defined(CONFIG_LOONGSON1_LS1C)
 #define DEFAULT_MEMSIZE			32
 #endif
@@ -52,6 +48,7 @@
 #include <regs-clk.h>
 #include <regs-mux.h>
 #include <regs-pwm.h>
+#include <regs-rtc.h>
 #include <regs-wdt.h>
 
 #endif /* __ASM_MACH_LOONGSON32_LOONGSON1_H */

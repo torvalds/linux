@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Driver for SMSC USB3503 USB 2.0 hub controller driver
  *
  * Copyright (c) 2012-2013 Dongjin Kim (tobetter@gmail.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/clk.h>
@@ -185,7 +172,6 @@ static int usb3503_probe(struct usb3503 *hub)
 		hub->gpio_reset		= pdata->gpio_reset;
 		hub->mode		= pdata->initial_mode;
 	} else if (np) {
-		struct clk *clk;
 		u32 rate = 0;
 		hub->port_off_mask = 0;
 
@@ -211,32 +197,27 @@ static int usb3503_probe(struct usb3503 *hub)
 			}
 		}
 
-		clk = devm_clk_get(dev, "refclk");
-		if (IS_ERR(clk) && PTR_ERR(clk) != -ENOENT) {
+		hub->clk = devm_clk_get_optional(dev, "refclk");
+		if (IS_ERR(hub->clk)) {
 			dev_err(dev, "unable to request refclk (%ld)\n",
-					PTR_ERR(clk));
-			return PTR_ERR(clk);
+					PTR_ERR(hub->clk));
+			return PTR_ERR(hub->clk);
 		}
 
-		if (!IS_ERR(clk)) {
-			hub->clk = clk;
-
-			if (rate != 0) {
-				err = clk_set_rate(hub->clk, rate);
-				if (err) {
-					dev_err(dev,
-						"unable to set reference clock rate to %d\n",
-						(int) rate);
-					return err;
-				}
-			}
-
-			err = clk_prepare_enable(hub->clk);
+		if (rate != 0) {
+			err = clk_set_rate(hub->clk, rate);
 			if (err) {
 				dev_err(dev,
-					"unable to enable reference clock\n");
+					"unable to set reference clock rate to %d\n",
+					(int)rate);
 				return err;
 			}
+		}
+
+		err = clk_prepare_enable(hub->clk);
+		if (err) {
+			dev_err(dev, "unable to enable reference clock\n");
+			return err;
 		}
 
 		property = of_get_property(np, "disabled-ports", &len);
@@ -292,6 +273,8 @@ static int usb3503_probe(struct usb3503 *hub)
 	if (gpio_is_valid(hub->gpio_reset)) {
 		err = devm_gpio_request_one(dev, hub->gpio_reset,
 				GPIOF_OUT_INIT_LOW, "usb3503 reset");
+		/* Datasheet defines a hardware reset to be at least 100us */
+		usleep_range(100, 10000);
 		if (err) {
 			dev_err(dev,
 				"unable to request GPIO %d as reset pin (%d)\n",
@@ -335,8 +318,7 @@ static int usb3503_i2c_remove(struct i2c_client *i2c)
 	struct usb3503 *hub;
 
 	hub = i2c_get_clientdata(i2c);
-	if (hub->clk)
-		clk_disable_unprepare(hub->clk);
+	clk_disable_unprepare(hub->clk);
 
 	return 0;
 }
@@ -359,42 +341,58 @@ static int usb3503_platform_remove(struct platform_device *pdev)
 	struct usb3503 *hub;
 
 	hub = platform_get_drvdata(pdev);
-	if (hub->clk)
-		clk_disable_unprepare(hub->clk);
+	clk_disable_unprepare(hub->clk);
 
 	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
+static int usb3503_suspend(struct usb3503 *hub)
+{
+	usb3503_switch_mode(hub, USB3503_MODE_STANDBY);
+	clk_disable_unprepare(hub->clk);
+
+	return 0;
+}
+
+static int usb3503_resume(struct usb3503 *hub)
+{
+	clk_prepare_enable(hub->clk);
+	usb3503_switch_mode(hub, hub->mode);
+
+	return 0;
+}
+
 static int usb3503_i2c_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
-	struct usb3503 *hub = i2c_get_clientdata(client);
 
-	usb3503_switch_mode(hub, USB3503_MODE_STANDBY);
-
-	if (hub->clk)
-		clk_disable_unprepare(hub->clk);
-
-	return 0;
+	return usb3503_suspend(i2c_get_clientdata(client));
 }
 
 static int usb3503_i2c_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
-	struct usb3503 *hub = i2c_get_clientdata(client);
 
-	if (hub->clk)
-		clk_prepare_enable(hub->clk);
+	return usb3503_resume(i2c_get_clientdata(client));
+}
 
-	usb3503_switch_mode(hub, hub->mode);
+static int usb3503_platform_suspend(struct device *dev)
+{
+	return usb3503_suspend(dev_get_drvdata(dev));
+}
 
-	return 0;
+static int usb3503_platform_resume(struct device *dev)
+{
+	return usb3503_resume(dev_get_drvdata(dev));
 }
 #endif
 
 static SIMPLE_DEV_PM_OPS(usb3503_i2c_pm_ops, usb3503_i2c_suspend,
 		usb3503_i2c_resume);
+
+static SIMPLE_DEV_PM_OPS(usb3503_platform_pm_ops, usb3503_platform_suspend,
+		usb3503_platform_resume);
 
 static const struct i2c_device_id usb3503_id[] = {
 	{ USB3503_I2C_NAME, 0 },
@@ -426,6 +424,7 @@ static struct platform_driver usb3503_platform_driver = {
 	.driver = {
 		.name = USB3503_I2C_NAME,
 		.of_match_table = of_match_ptr(usb3503_of_match),
+		.pm = &usb3503_platform_pm_ops,
 	},
 	.probe		= usb3503_platform_probe,
 	.remove		= usb3503_platform_remove,

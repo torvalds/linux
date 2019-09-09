@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * processor_idle - idle state submodule to the ACPI processor driver
  *
@@ -8,20 +9,6 @@
  *  			- Added processor hotplug support
  *  Copyright (C) 2005  Venkatesh Pallipadi <venkatesh.pallipadi@intel.com>
  *  			- Added support for C3 on SMP
- *
- * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or (at
- *  your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful, but
- *  WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  General Public License for more details.
- *
- * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
 #define pr_fmt(fmt) "ACPI: " fmt
 
@@ -47,6 +34,8 @@
 #define ACPI_PROCESSOR_CLASS            "processor"
 #define _COMPONENT              ACPI_PROCESSOR_COMPONENT
 ACPI_MODULE_NAME("processor_idle");
+
+#define ACPI_IDLE_STATE_START	(IS_ENABLED(CONFIG_ARCH_HAS_CPU_RELAX) ? 1 : 0)
 
 static unsigned int max_cstate __read_mostly = ACPI_PROCESSOR_MAX_POWER;
 module_param(max_cstate, uint, 0000);
@@ -141,7 +130,7 @@ static void lapic_timer_check_state(int state, struct acpi_processor *pr,
 	if (cpu_has(&cpu_data(pr->id), X86_FEATURE_ARAT))
 		return;
 
-	if (amd_e400_c1e_detected)
+	if (boot_cpu_has_bug(X86_BUG_AMD_APIC_C1E))
 		type = ACPI_STATE_C1;
 
 	/*
@@ -203,8 +192,11 @@ static void lapic_timer_state_broadcast(struct acpi_processor *pr,
 static void tsc_check_state(int state)
 {
 	switch (boot_cpu_data.x86_vendor) {
+	case X86_VENDOR_HYGON:
 	case X86_VENDOR_AMD:
 	case X86_VENDOR_INTEL:
+	case X86_VENDOR_CENTAUR:
+	case X86_VENDOR_ZHAOXIN:
 		/*
 		 * AMD Fam10h TSC will tick in all
 		 * C/P/S0/S1 states when this bit is set.
@@ -278,6 +270,13 @@ static int acpi_processor_get_power_info_fadt(struct acpi_processor *pr)
 			  pr->power.states[ACPI_STATE_C2].address,
 			  pr->power.states[ACPI_STATE_C3].address));
 
+	snprintf(pr->power.states[ACPI_STATE_C2].desc,
+			 ACPI_CX_DESC_LEN, "ACPI P_LVL2 IOPORT 0x%x",
+			 pr->power.states[ACPI_STATE_C2].address);
+	snprintf(pr->power.states[ACPI_STATE_C3].desc,
+			 ACPI_CX_DESC_LEN, "ACPI P_LVL3 IOPORT 0x%x",
+			 pr->power.states[ACPI_STATE_C3].address);
+
 	return 0;
 }
 
@@ -289,6 +288,9 @@ static int acpi_processor_get_power_info_default(struct acpi_processor *pr)
 		pr->power.states[ACPI_STATE_C1].type = ACPI_STATE_C1;
 		pr->power.states[ACPI_STATE_C1].valid = 1;
 		pr->power.states[ACPI_STATE_C1].entry_method = ACPI_CSTATE_HALT;
+
+		snprintf(pr->power.states[ACPI_STATE_C1].desc,
+			 ACPI_CX_DESC_LEN, "ACPI HLT");
 	}
 	/* the C0 state only exists as a filler in our array */
 	pr->power.states[ACPI_STATE_C0].valid = 1;
@@ -761,7 +763,7 @@ static int acpi_idle_enter(struct cpuidle_device *dev,
 
 	if (cx->type != ACPI_STATE_C1) {
 		if (acpi_idle_fallback_to_c1(pr) && num_online_cpus() > 1) {
-			index = CPUIDLE_DRIVER_STATE_START;
+			index = ACPI_IDLE_STATE_START;
 			cx = per_cpu(acpi_cstate[index], dev->cpu);
 		} else if (cx->type == ACPI_STATE_C3 && pr->flags.bm_check) {
 			if (cx->bm_sts_skip || !acpi_idle_bm_check()) {
@@ -789,7 +791,7 @@ static int acpi_idle_enter(struct cpuidle_device *dev,
 	return index;
 }
 
-static void acpi_idle_enter_freeze(struct cpuidle_device *dev,
+static void acpi_idle_enter_s2idle(struct cpuidle_device *dev,
 				   struct cpuidle_driver *drv, int index)
 {
 	struct acpi_processor_cx *cx = per_cpu(acpi_cstate[index], dev->cpu);
@@ -813,7 +815,7 @@ static void acpi_idle_enter_freeze(struct cpuidle_device *dev,
 static int acpi_processor_setup_cpuidle_cx(struct acpi_processor *pr,
 					   struct cpuidle_device *dev)
 {
-	int i, count = CPUIDLE_DRIVER_STATE_START;
+	int i, count = ACPI_IDLE_STATE_START;
 	struct acpi_processor_cx *cx;
 
 	if (max_cstate == 0)
@@ -840,13 +842,20 @@ static int acpi_processor_setup_cpuidle_cx(struct acpi_processor *pr,
 
 static int acpi_processor_setup_cstates(struct acpi_processor *pr)
 {
-	int i, count = CPUIDLE_DRIVER_STATE_START;
+	int i, count;
 	struct acpi_processor_cx *cx;
 	struct cpuidle_state *state;
 	struct cpuidle_driver *drv = &acpi_idle_driver;
 
 	if (max_cstate == 0)
 		max_cstate = 1;
+
+	if (IS_ENABLED(CONFIG_ARCH_HAS_CPU_RELAX)) {
+		cpuidle_poll_state_init(drv);
+		count = 1;
+	} else {
+		count = 0;
+	}
 
 	for (i = 1; i < ACPI_PROCESSOR_MAX_POWER && i <= max_cstate; i++) {
 		cx = &pr->power.states[i];
@@ -867,14 +876,14 @@ static int acpi_processor_setup_cstates(struct acpi_processor *pr)
 			drv->safe_state_index = count;
 		}
 		/*
-		 * Halt-induced C1 is not good for ->enter_freeze, because it
+		 * Halt-induced C1 is not good for ->enter_s2idle, because it
 		 * re-enables interrupts on exit.  Moreover, C1 is generally not
 		 * particularly interesting from the suspend-to-idle angle, so
 		 * avoid C1 and the situations in which we may need to fall back
 		 * to it altogether.
 		 */
 		if (cx->type != ACPI_STATE_C1 && !acpi_idle_fallback_to_c1(pr))
-			state->enter_freeze = acpi_idle_enter_freeze;
+			state->enter_s2idle = acpi_idle_enter_s2idle;
 
 		count++;
 		if (count == CPUIDLE_STATE_MAX)
@@ -1291,7 +1300,7 @@ static int acpi_processor_setup_cpuidle_states(struct acpi_processor *pr)
 		return -EINVAL;
 
 	drv->safe_state_index = -1;
-	for (i = CPUIDLE_DRIVER_STATE_START; i < CPUIDLE_STATE_MAX; i++) {
+	for (i = ACPI_IDLE_STATE_START; i < CPUIDLE_STATE_MAX; i++) {
 		drv->states[i].name[0] = '\0';
 		drv->states[i].desc[0] = '\0';
 	}

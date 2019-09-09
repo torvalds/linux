@@ -1,20 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
 	Copyright (C) 2004 - 2009 Ivo van Doorn <IvDoorn@gmail.com>
 	Copyright (C) 2004 - 2009 Gertjan van Wingerde <gwingerde@gmail.com>
 	<http://rt2x00.serialmonkey.com>
 
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 2 of the License, or
-	(at your option) any later version.
-
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-	GNU General Public License for more details.
-
-	You should have received a copy of the GNU General Public License
-	along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -29,9 +18,10 @@
  * Interval defines
  */
 #define WATCHDOG_INTERVAL	round_jiffies_relative(HZ)
-#define LINK_TUNE_INTERVAL	round_jiffies_relative(HZ)
-#define AGC_INTERVAL		round_jiffies_relative(4 * HZ)
-#define VCO_INTERVAL		round_jiffies_relative(10 * HZ) /* 10 sec */
+#define LINK_TUNE_SECONDS	1
+#define LINK_TUNE_INTERVAL	round_jiffies_relative(LINK_TUNE_SECONDS * HZ)
+#define AGC_SECONDS		4
+#define VCO_SECONDS		10
 
 /*
  * rt2x00_rate: Per rate device information
@@ -269,30 +259,6 @@ void rt2x00link_start_watchdog(struct rt2x00_dev *rt2x00dev);
  * be running until &rt2x00link_start_watchdog is called.
  */
 void rt2x00link_stop_watchdog(struct rt2x00_dev *rt2x00dev);
-
-/**
- * rt2x00link_start_agc - Start periodic gain calibration
- * @rt2x00dev: Pointer to &struct rt2x00_dev.
- */
-void rt2x00link_start_agc(struct rt2x00_dev *rt2x00dev);
-
-/**
- * rt2x00link_start_vcocal - Start periodic VCO calibration
- * @rt2x00dev: Pointer to &struct rt2x00_dev.
- */
-void rt2x00link_start_vcocal(struct rt2x00_dev *rt2x00dev);
-
-/**
- * rt2x00link_stop_agc - Stop periodic gain calibration
- * @rt2x00dev: Pointer to &struct rt2x00_dev.
- */
-void rt2x00link_stop_agc(struct rt2x00_dev *rt2x00dev);
-
-/**
- * rt2x00link_stop_vcocal - Stop periodic VCO calibration
- * @rt2x00dev: Pointer to &struct rt2x00_dev.
- */
-void rt2x00link_stop_vcocal(struct rt2x00_dev *rt2x00dev);
 
 /**
  * rt2x00link_register - Initialize link tuning & watchdog functionality

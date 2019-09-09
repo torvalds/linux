@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for AK8813 / AK8814 TV-ecoders from Asahi Kasei Microsystems Co., Ltd. (AKM)
  *
  * Copyright (C) 2010, Guennadi Liakhovetski <g.liakhovetski@gmx.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/i2c.h>
@@ -136,7 +133,6 @@ static int ak881x_get_selection(struct v4l2_subdev *sd,
 
 	switch (sel->target) {
 	case V4L2_SEL_TGT_CROP_BOUNDS:
-	case V4L2_SEL_TGT_CROP_DEFAULT:
 		sel->r.left = 0;
 		sel->r.top = 0;
 		sel->r.width = 720;
@@ -205,14 +201,14 @@ static int ak881x_s_stream(struct v4l2_subdev *sd, int enable)
 	return 0;
 }
 
-static struct v4l2_subdev_core_ops ak881x_subdev_core_ops = {
+static const struct v4l2_subdev_core_ops ak881x_subdev_core_ops = {
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register	= ak881x_g_register,
 	.s_register	= ak881x_s_register,
 #endif
 };
 
-static struct v4l2_subdev_video_ops ak881x_subdev_video_ops = {
+static const struct v4l2_subdev_video_ops ak881x_subdev_video_ops = {
 	.s_std_output	= ak881x_s_std_output,
 	.s_stream	= ak881x_s_stream,
 };
@@ -224,7 +220,7 @@ static const struct v4l2_subdev_pad_ops ak881x_subdev_pad_ops = {
 	.get_fmt	= ak881x_fill_fmt,
 };
 
-static struct v4l2_subdev_ops ak881x_subdev_ops = {
+static const struct v4l2_subdev_ops ak881x_subdev_ops = {
 	.core	= &ak881x_subdev_core_ops,
 	.video	= &ak881x_subdev_video_ops,
 	.pad	= &ak881x_subdev_pad_ops,
@@ -233,7 +229,7 @@ static struct v4l2_subdev_ops ak881x_subdev_ops = {
 static int ak881x_probe(struct i2c_client *client,
 			const struct i2c_device_id *did)
 {
-	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
+	struct i2c_adapter *adapter = client->adapter;
 	struct ak881x *ak881x;
 	u8 ifmode, data;
 

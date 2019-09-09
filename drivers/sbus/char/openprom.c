@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Linux/SPARC PROM Configuration Driver
  * Copyright (C) 1996 Thomas K. Dyas (tdyas@noc.rutgers.edu)
@@ -14,20 +15,6 @@
  * sanity's sake.
  */
 
-/* This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA. 
- */
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -40,7 +27,7 @@
 #include <linux/fs.h>
 #include <asm/oplib.h>
 #include <asm/prom.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/openpromio.h>
 #ifdef CONFIG_PCI
 #include <linux/pci.h>
@@ -251,8 +238,9 @@ static int oprompci2node(void __user *argp, struct device_node *dp, struct openp
 		struct pci_dev *pdev;
 		struct device_node *dp;
 
-		pdev = pci_get_bus_and_slot (((int *) op->oprom_array)[0],
-				      ((int *) op->oprom_array)[1]);
+		pdev = pci_get_domain_bus_and_slot(0,
+						((int *) op->oprom_array)[0],
+						((int *) op->oprom_array)[1]);
 
 		dp = pci_device_to_OF_node(pdev);
 		data->current_node = dp;
@@ -714,22 +702,13 @@ static struct miscdevice openprom_dev = {
 
 static int __init openprom_init(void)
 {
-	struct device_node *dp;
 	int err;
 
 	err = misc_register(&openprom_dev);
 	if (err)
 		return err;
 
-	dp = of_find_node_by_path("/");
-	dp = dp->child;
-	while (dp) {
-		if (!strcmp(dp->name, "options"))
-			break;
-		dp = dp->sibling;
-	}
-	options_node = dp;
-
+	options_node = of_get_child_by_name(of_find_node_by_path("/"), "options");
 	if (!options_node) {
 		misc_deregister(&openprom_dev);
 		return -EIO;

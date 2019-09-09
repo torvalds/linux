@@ -1,19 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2001-2004 by David Brownell
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 /* this file is part of ehci-hcd.c */
@@ -258,12 +245,12 @@ ehci_urb_done(struct ehci_hcd *ehci, struct urb *urb, int status)
 	}
 
 	if (unlikely(urb->unlinked)) {
-		COUNT(ehci->stats.unlink);
+		INCR(ehci->stats.unlink);
 	} else {
 		/* report non-error and short read status as zero */
 		if (status == -EINPROGRESS || status == -EREMOTEIO)
 			status = 0;
-		COUNT(ehci->stats.complete);
+		INCR(ehci->stats.complete);
 	}
 
 #ifdef EHCI_URB_TRACE
@@ -550,11 +537,6 @@ qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh)
 
 /*-------------------------------------------------------------------------*/
 
-// high bandwidth multiplier, as encoded in highspeed endpoint descriptors
-#define hb_mult(wMaxPacketSize) (1 + (((wMaxPacketSize) >> 11) & 0x03))
-// ... and packet size, for any kind of endpoint descriptor
-#define max_packet(wMaxPacketSize) ((wMaxPacketSize) & 0x07ff)
-
 /*
  * reverse of qh_urb_transaction:  free a list of TDs.
  * used for cleanup after errors, before HC sees an URB's TDs.
@@ -651,7 +633,7 @@ qh_urb_transaction (
 		token |= (1 /* "in" */ << 8);
 	/* else it's already initted to "out" pid (0 << 8) */
 
-	maxpacket = max_packet(usb_maxpacket(urb->dev, urb->pipe, !is_input));
+	maxpacket = usb_maxpacket(urb->dev, urb->pipe, !is_input);
 
 	/*
 	 * buffer gets wrapped in one or more qtds;
@@ -770,9 +752,11 @@ qh_make (
 	gfp_t			flags
 ) {
 	struct ehci_qh		*qh = ehci_qh_alloc (ehci, flags);
+	struct usb_host_endpoint *ep;
 	u32			info1 = 0, info2 = 0;
 	int			is_input, type;
 	int			maxp = 0;
+	int			mult;
 	struct usb_tt		*tt = urb->dev->tt;
 	struct ehci_qh_hw	*hw;
 
@@ -787,13 +771,15 @@ qh_make (
 
 	is_input = usb_pipein (urb->pipe);
 	type = usb_pipetype (urb->pipe);
-	maxp = usb_maxpacket (urb->dev, urb->pipe, !is_input);
+	ep = usb_pipe_endpoint (urb->dev, urb->pipe);
+	maxp = usb_endpoint_maxp (&ep->desc);
+	mult = usb_endpoint_maxp_mult (&ep->desc);
 
 	/* 1024 byte maxpacket is a hardware ceiling.  High bandwidth
 	 * acts like up to 3KB, but is built from smaller packets.
 	 */
-	if (max_packet(maxp) > 1024) {
-		ehci_dbg(ehci, "bogus qh maxpacket %d\n", max_packet(maxp));
+	if (maxp > 1024) {
+		ehci_dbg(ehci, "bogus qh maxpacket %d\n", maxp);
 		goto done;
 	}
 
@@ -809,8 +795,7 @@ qh_make (
 		unsigned	tmp;
 
 		qh->ps.usecs = NS_TO_US(usb_calc_bus_time(USB_SPEED_HIGH,
-				is_input, 0,
-				hb_mult(maxp) * max_packet(maxp)));
+				is_input, 0, mult * maxp));
 		qh->ps.phase = NO_FRAME;
 
 		if (urb->dev->speed == USB_SPEED_HIGH) {
@@ -854,7 +839,7 @@ qh_make (
 			think_time = tt ? tt->think_time : 0;
 			qh->ps.tt_usecs = NS_TO_US(think_time +
 					usb_calc_bus_time (urb->dev->speed,
-					is_input, 0, max_packet (maxp)));
+					is_input, 0, maxp));
 			if (urb->interval > ehci->periodic_size)
 				urb->interval = ehci->periodic_size;
 			qh->ps.period = urb->interval;
@@ -925,11 +910,11 @@ qh_make (
 			 * to help them do so.  So now people expect to use
 			 * such nonconformant devices with Linux too; sigh.
 			 */
-			info1 |= max_packet(maxp) << 16;
+			info1 |= maxp << 16;
 			info2 |= (EHCI_TUNE_MULT_HS << 30);
 		} else {		/* PIPE_INTERRUPT */
-			info1 |= max_packet (maxp) << 16;
-			info2 |= hb_mult (maxp) << 30;
+			info1 |= maxp << 16;
+			info2 |= mult << 30;
 		}
 		break;
 	default:
@@ -1203,10 +1188,10 @@ static int submit_single_step_set_feature(
 	 * 15 secs after the setup
 	 */
 	if (is_setup) {
-		/* SETUP pid */
+		/* SETUP pid, and interrupt after SETUP completion */
 		qtd_fill(ehci, qtd, urb->setup_dma,
 				sizeof(struct usb_ctrlrequest),
-				token | (2 /* "setup" */ << 8), 8);
+				QTD_IOC | token | (2 /* "setup" */ << 8), 8);
 
 		submit_async(ehci, urb, &qtd_list, GFP_ATOMIC);
 		return 0; /*Return now; we shall come back after 15 seconds*/
@@ -1221,7 +1206,7 @@ static int submit_single_step_set_feature(
 
 	token |= (1 /* "in" */ << 8);  /*This is IN stage*/
 
-	maxpacket = max_packet(usb_maxpacket(urb->dev, urb->pipe, 0));
+	maxpacket = usb_maxpacket(urb->dev, urb->pipe, 0);
 
 	qtd_fill(ehci, qtd, buf, len, token, maxpacket);
 
@@ -1243,12 +1228,8 @@ static int submit_single_step_set_feature(
 	qtd_prev->hw_next = QTD_NEXT(ehci, qtd->qtd_dma);
 	list_add_tail(&qtd->qtd_list, head);
 
-	/* dont fill any data in such packets */
-	qtd_fill(ehci, qtd, 0, 0, token, 0);
-
-	/* by default, enable interrupt on urb completion */
-	if (likely(!(urb->transfer_flags & URB_NO_INTERRUPT)))
-		qtd->hw_token |= cpu_to_hc32(ehci, QTD_IOC);
+	/* Interrupt after STATUS completion */
+	qtd_fill(ehci, qtd, 0, 0, token | QTD_IOC, 0);
 
 	submit_async(ehci, urb, &qtd_list, GFP_KERNEL);
 

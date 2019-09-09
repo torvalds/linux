@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * class.c - basic device class management
  *
@@ -5,9 +6,6 @@
  * Copyright (c) 2002-3 Open Source Development Labs
  * Copyright (c) 2003-2004 Greg Kroah-Hartman
  * Copyright (c) 2003-2004 IBM Corp.
- *
- * This file is released under the GPLv2
- *
  */
 
 #include <linux/device.h>
@@ -119,48 +117,36 @@ static void class_put(struct class *cls)
 		kset_put(&cls->p->subsys);
 }
 
-static int add_class_attrs(struct class *cls)
+static struct device *klist_class_to_dev(struct klist_node *n)
 {
-	int i;
-	int error = 0;
-
-	if (cls->class_attrs) {
-		for (i = 0; cls->class_attrs[i].attr.name; i++) {
-			error = class_create_file(cls, &cls->class_attrs[i]);
-			if (error)
-				goto error;
-		}
-	}
-done:
-	return error;
-error:
-	while (--i >= 0)
-		class_remove_file(cls, &cls->class_attrs[i]);
-	goto done;
-}
-
-static void remove_class_attrs(struct class *cls)
-{
-	int i;
-
-	if (cls->class_attrs) {
-		for (i = 0; cls->class_attrs[i].attr.name; i++)
-			class_remove_file(cls, &cls->class_attrs[i]);
-	}
+	struct device_private *p = to_device_private_class(n);
+	return p->device;
 }
 
 static void klist_class_dev_get(struct klist_node *n)
 {
-	struct device *dev = container_of(n, struct device, knode_class);
+	struct device *dev = klist_class_to_dev(n);
 
 	get_device(dev);
 }
 
 static void klist_class_dev_put(struct klist_node *n)
 {
-	struct device *dev = container_of(n, struct device, knode_class);
+	struct device *dev = klist_class_to_dev(n);
 
 	put_device(dev);
+}
+
+static int class_add_groups(struct class *cls,
+			    const struct attribute_group **groups)
+{
+	return sysfs_create_groups(&cls->p->subsys.kobj, groups);
+}
+
+static void class_remove_groups(struct class *cls,
+				const struct attribute_group **groups)
+{
+	return sysfs_remove_groups(&cls->p->subsys.kobj, groups);
 }
 
 int __class_register(struct class *cls, struct lock_class_key *key)
@@ -203,7 +189,7 @@ int __class_register(struct class *cls, struct lock_class_key *key)
 		kfree(cp);
 		return error;
 	}
-	error = add_class_attrs(class_get(cls));
+	error = class_add_groups(class_get(cls), cls->class_groups);
 	class_put(cls);
 	return error;
 }
@@ -212,7 +198,7 @@ EXPORT_SYMBOL_GPL(__class_register);
 void class_unregister(struct class *cls)
 {
 	pr_debug("device class '%s': unregistering\n", cls->name);
-	remove_class_attrs(cls);
+	class_remove_groups(cls, cls->class_groups);
 	kset_unregister(&cls->p->subsys);
 }
 
@@ -297,7 +283,7 @@ void class_dev_iter_init(struct class_dev_iter *iter, struct class *class,
 	struct klist_node *start_knode = NULL;
 
 	if (start)
-		start_knode = &start->knode_class;
+		start_knode = &start->p->knode_class;
 	klist_iter_init_node(&class->p->klist_devices, &iter->ki, start_knode);
 	iter->type = type;
 }
@@ -324,7 +310,7 @@ struct device *class_dev_iter_next(struct class_dev_iter *iter)
 		knode = klist_next(&iter->ki);
 		if (!knode)
 			return NULL;
-		dev = container_of(knode, struct device, knode_class);
+		dev = klist_class_to_dev(knode);
 		if (!iter->type || iter->type == dev->type)
 			return dev;
 	}

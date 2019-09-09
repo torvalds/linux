@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * include/asm-h8300/processor.h
  *
@@ -10,12 +11,6 @@
 
 #ifndef __ASM_H8300_PROCESSOR_H
 #define __ASM_H8300_PROCESSOR_H
-
-/*
- * Default implementation of macro that returns current
- * instruction pointer ("program counter").
- */
-#define current_text_addr() ({ __label__ _l; _l: &&_l; })
 
 #include <linux/compiler.h>
 #include <asm/segment.h>
@@ -110,10 +105,6 @@ static inline void release_thread(struct task_struct *dead_task)
 {
 }
 
-/*
- * Return saved PC of a blocked thread.
- */
-unsigned long thread_saved_pc(struct task_struct *tsk);
 unsigned long get_wchan(struct task_struct *p);
 
 #define	KSTK_EIP(tsk)	\
@@ -127,7 +118,6 @@ unsigned long get_wchan(struct task_struct *p);
 #define	KSTK_ESP(tsk)	((tsk) == current ? rdusp() : (tsk)->thread.usp)
 
 #define cpu_relax()    barrier()
-#define cpu_relax_lowlatency()	cpu_relax()
 
 #define HARD_RESET_NOW() ({		\
 	local_irq_disable();		\

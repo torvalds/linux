@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Battery and Power Management code for the Sharp SL-C7xx and SL-Cxx00
  * series of PDAs
@@ -5,11 +6,6 @@
  * Copyright (c) 2004-2005 Richard Purdie
  *
  * Based on code written by Sharp for 2.4 kernels
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #undef DEBUG
@@ -341,7 +337,7 @@ static void sharpsl_charge_toggle(struct work_struct *private_)
 	sharpsl_pm.charge_start_time = jiffies;
 }
 
-static void sharpsl_ac_timer(unsigned long data)
+static void sharpsl_ac_timer(struct timer_list *unused)
 {
 	int acin = sharpsl_pm.machinfo->read_devdata(SHARPSL_STATUS_ACIN);
 
@@ -366,7 +362,7 @@ static irqreturn_t sharpsl_ac_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void sharpsl_chrg_full_timer(unsigned long data)
+static void sharpsl_chrg_full_timer(struct timer_list *unused)
 {
 	dev_dbg(sharpsl_pm.dev, "Charge Full at time: %lx\n", jiffies);
 
@@ -802,8 +798,8 @@ static ssize_t battery_voltage_show(struct device *dev, struct device_attribute 
 	return sprintf(buf, "%d\n", sharpsl_pm.battstat.mainbat_voltage);
 }
 
-static DEVICE_ATTR(battery_percentage, 0444, battery_percentage_show, NULL);
-static DEVICE_ATTR(battery_voltage, 0444, battery_voltage_show, NULL);
+static DEVICE_ATTR_RO(battery_percentage);
+static DEVICE_ATTR_RO(battery_voltage);
 
 extern void (*apm_get_power_status)(struct apm_power_info *);
 
@@ -841,9 +837,9 @@ static int sharpsl_pm_probe(struct platform_device *pdev)
 	sharpsl_pm.charge_mode = CHRG_OFF;
 	sharpsl_pm.flags = 0;
 
-	setup_timer(&sharpsl_pm.ac_timer, sharpsl_ac_timer, 0UL);
+	timer_setup(&sharpsl_pm.ac_timer, sharpsl_ac_timer, 0);
 
-	setup_timer(&sharpsl_pm.chrg_full_timer, sharpsl_chrg_full_timer, 0UL);
+	timer_setup(&sharpsl_pm.chrg_full_timer, sharpsl_chrg_full_timer, 0);
 
 	led_trigger_register_simple("sharpsl-charge", &sharpsl_charge_led_trigger);
 

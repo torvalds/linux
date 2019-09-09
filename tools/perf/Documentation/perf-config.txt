@@ -8,6 +8,8 @@ perf-config - Get and set variables in a configuration file.
 SYNOPSIS
 --------
 [verse]
+'perf config' [<file-option>] [section.name[=value] ...]
+or
 'perf config' [<file-option>] -l | --list
 
 DESCRIPTION
@@ -112,11 +114,48 @@ Given a $HOME/.perfconfig like this:
 
 	[report]
 		# Defaults
-		sort-order = comm,dso,symbol
+		sort_order = comm,dso,symbol
 		percent-limit = 0
 		queue-size = 0
 		children = true
 		group = true
+
+	[llvm]
+		dump-obj = true
+		clang-opt = -g
+
+You can hide source code of annotate feature setting the config to false with
+
+	% perf config annotate.hide_src_code=true
+
+If you want to add or modify several config items, you can do like
+
+	% perf config ui.show-headers=false kmem.default=slab
+
+To modify the sort order of report functionality in user config file(i.e. `~/.perfconfig`), do
+
+	% perf config --user report sort-order=srcline
+
+To change colors of selected line to other foreground and background colors
+in system config file (i.e. `$(sysconf)/perfconfig`), do
+
+	% perf config --system colors.selected=yellow,green
+
+To query the record mode of call graph, do
+
+	% perf config call-graph.record-mode
+
+If you want to know multiple config key/value pairs, you can do like
+
+	% perf config report.queue-size call-graph.order report.children
+
+To query the config value of sort order of call graph in user config file (i.e. `~/.perfconfig`), do
+
+	% perf config --user call-graph.sort-order
+
+To query the config value of buildid directory in system config file (i.e. `$(sysconf)/perfconfig`), do
+
+	% perf config --system buildid.dir
 
 Variables
 ~~~~~~~~~
@@ -163,6 +202,12 @@ colors.*::
 	colors.root::
 		Colors for headers in the output of a sub-commands (top, report).
 		Default values are 'white', 'blue'.
+
+core.*::
+	core.proc-map-timeout::
+		Sets a timeout (in milliseconds) for parsing /proc/<pid>/maps files.
+		Can be overridden by the --proc-map-timeout option on supported
+		subcommands. The default timeout is 500ms.
 
 tui.*, gtk.*::
 	Subcommands that can be configured here are 'top', 'report' and 'annotate'.
@@ -298,6 +343,11 @@ annotate.*::
 		Default is 'false'.
 
 		99.93 │      mov    %eax,%eax
+
+	annotate.offset_level::
+		Default is '1', meaning just jump targets will have offsets show right beside
+		the instruction. When set to '2' 'call' instructions will also have its offsets
+		shown, 3 or higher will show offsets for all instructions.
 
 hist.*::
 	hist.percentage::
@@ -462,6 +512,94 @@ record.*::
 		the build-id cache (in ~/.debug). This is the default.
 		But if this option is 'no-cache', it will not update the build-id cache.
 		'skip' skips post-processing and does not update the cache.
+
+diff.*::
+	diff.order::
+		This option sets the number of columns to sort the result.
+		The default is 0, which means sorting by baseline.
+		Setting it to 1 will sort the result by delta (or other
+		compute method selected).
+
+	diff.compute::
+		This options sets the method for computing the diff result.
+		Possible values are 'delta', 'delta-abs', 'ratio' and
+		'wdiff'.  Default is 'delta'.
+
+trace.*::
+	trace.add_events::
+		Allows adding a set of events to add to the ones specified
+		by the user, or use as a default one if none was specified.
+		The initial use case is to add augmented_raw_syscalls.o to
+		activate the 'perf trace' logic that looks for syscall
+		pointer contents after the normal tracepoint payload.
+
+	trace.args_alignment::
+		Number of columns to align the argument list, default is 70,
+		use 40 for the strace default, zero to no alignment.
+
+	trace.no_inherit::
+		Do not follow children threads.
+
+	trace.show_arg_names::
+		Should syscall argument names be printed? If not then trace.show_zeros
+		will be set.
+
+	trace.show_duration::
+		Show syscall duration.
+
+	trace.show_prefix::
+		If set to 'yes' will show common string prefixes in tables. The default
+		is to remove the common prefix in things like "MAP_SHARED", showing just "SHARED".
+
+	trace.show_timestamp::
+		Show syscall start timestamp.
+
+	trace.show_zeros::
+		Do not suppress syscall arguments that are equal to zero.
+
+llvm.*::
+	llvm.clang-path::
+		Path to clang. If omit, search it from $PATH.
+
+	llvm.clang-bpf-cmd-template::
+		Cmdline template. Below lines show its default value. Environment
+		variable is used to pass options.
+		"$CLANG_EXEC -D__KERNEL__ -D__NR_CPUS__=$NR_CPUS "\
+		"-DLINUX_VERSION_CODE=$LINUX_VERSION_CODE "	\
+		"$CLANG_OPTIONS $PERF_BPF_INC_OPTIONS $KERNEL_INC_OPTIONS " \
+		"-Wno-unused-value -Wno-pointer-sign "		\
+		"-working-directory $WORKING_DIR "		\
+		"-c \"$CLANG_SOURCE\" -target bpf $CLANG_EMIT_LLVM -O2 -o - $LLVM_OPTIONS_PIPE"
+
+	llvm.clang-opt::
+		Options passed to clang.
+
+	llvm.kbuild-dir::
+		kbuild directory. If not set, use /lib/modules/`uname -r`/build.
+		If set to "" deliberately, skip kernel header auto-detector.
+
+	llvm.kbuild-opts::
+		Options passed to 'make' when detecting kernel header options.
+
+	llvm.dump-obj::
+		Enable perf dump BPF object files compiled by LLVM.
+
+	llvm.opts::
+		Options passed to llc.
+
+samples.*::
+
+	samples.context::
+		Define how many ns worth of time to show
+		around samples in perf report sample context browser.
+
+scripts.*::
+
+	Any option defines a script that is added to the scripts menu
+	in the interactive perf browser and whose output is displayed.
+	The name of the option is the name, the value is a script command line.
+	The script gets the same options passed as a full perf script,
+	in particular -i perfdata file, --cpu, --tid
 
 SEE ALSO
 --------

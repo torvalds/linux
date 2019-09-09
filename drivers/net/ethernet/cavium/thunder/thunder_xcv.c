@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2016 Cavium, Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License
- * as published by the Free Software Foundation.
  */
 
 #include <linux/acpi.h>
@@ -20,7 +17,7 @@
 #include "nic.h"
 #include "thunder_bgx.h"
 
-#define DRV_NAME	"thunder-xcv"
+#define DRV_NAME	"thunder_xcv"
 #define DRV_VERSION	"1.0"
 
 /* Register offsets */
@@ -116,8 +113,7 @@ void xcv_setup_link(bool link_up, int link_speed)
 	int speed = 2;
 
 	if (!xcv) {
-		dev_err(&xcv->pdev->dev,
-			"XCV init not done, probe may have failed\n");
+		pr_err("XCV init not done, probe may have failed\n");
 		return;
 	}
 

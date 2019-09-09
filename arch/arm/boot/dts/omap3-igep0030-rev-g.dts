@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Device Tree Source for IGEP COM MODULE Rev. G (TI OMAP AM/DM37x)
  *
  * Copyright (C) 2014 Javier Martinez Canillas <javier@osg.samsung.com>
  * Copyright (C) 2014 Enric Balletbo i Serra <eballetbo@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include "omap3-igep0030-common.dtsi"
@@ -71,6 +68,6 @@
 		compatible = "ti,wl1835";
 		reg = <2>;
 		interrupt-parent = <&gpio5>;
-		interrupts = <8 IRQ_TYPE_LEVEL_HIGH>; /* gpio 136 */
+		interrupts = <8 IRQ_TYPE_EDGE_RISING>; /* gpio 136 */
 	};
 };

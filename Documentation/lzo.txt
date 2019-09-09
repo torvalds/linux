@@ -1,8 +1,9 @@
-
+===========================================================
 LZO stream format as understood by Linux's LZO decompressor
 ===========================================================
 
 Introduction
+============
 
   This is not a specification. No specification seems to be publicly available
   for the LZO stream format. This document describes what input format the LZO
@@ -14,12 +15,13 @@ Introduction
   for future bug reports.
 
 Description
+===========
 
   The stream is composed of a series of instructions, operands, and data. The
   instructions consist in a few bits representing an opcode, and bits forming
   the operands for the instruction, whose size and position depend on the
   opcode and on the number of literals copied by previous instruction. The
-  operands are used to indicate :
+  operands are used to indicate:
 
     - a distance when copying data from the dictionary (past output buffer)
     - a length (number of bytes to copy from dictionary)
@@ -38,7 +40,7 @@ Description
   of bits in the operand. If the number of bits isn't enough to represent the
   length, up to 255 may be added in increments by consuming more bytes with a
   rate of at most 255 per extra byte (thus the compression ratio cannot exceed
-  around 255:1). The variable length encoding using #bits is always the same :
+  around 255:1). The variable length encoding using #bits is always the same::
 
        length = byte & ((1 << #bits) - 1)
        if (!length) {
@@ -67,20 +69,44 @@ Description
   instruction may encode this distance (0001HLLL), it takes one LE16 operand
   for the distance, thus requiring 3 bytes.
 
-  IMPORTANT NOTE : in the code some length checks are missing because certain
-  instructions are called under the assumption that a certain number of bytes
-  follow because it has already been guaranteed before parsing the instructions.
-  They just have to "refill" this credit if they consume extra bytes. This is
-  an implementation design choice independent on the algorithm or encoding.
+  .. important::
+
+     In the code some length checks are missing because certain instructions
+     are called under the assumption that a certain number of bytes follow
+     because it has already been guaranteed before parsing the instructions.
+     They just have to "refill" this credit if they consume extra bytes. This
+     is an implementation design choice independent on the algorithm or
+     encoding.
+
+Versions
+
+0: Original version
+1: LZO-RLE
+
+Version 1 of LZO implements an extension to encode runs of zeros using run
+length encoding. This improves speed for data with many zeros, which is a
+common case for zram. This modifies the bitstream in a backwards compatible way
+(v1 can correctly decompress v0 compressed data, but v0 cannot read v1 data).
+
+For maximum compatibility, both versions are available under different names
+(lzo and lzo-rle). Differences in the encoding are noted in this document with
+e.g.: version 1 only.
 
 Byte sequences
+==============
 
-  First byte encoding :
+  First byte encoding::
 
-      0..17   : follow regular instruction encoding, see below. It is worth
-                noting that codes 16 and 17 will represent a block copy from
-                the dictionary which is empty, and that they will always be
+      0..16   : follow regular instruction encoding, see below. It is worth
+                noting that code 16 will represent a block copy from the
+                dictionary which is empty, and that it will always be
                 invalid at this place.
+
+      17      : bitstream version. If the first byte is 17, and compressed
+                stream length is at least 5 bytes (length of shortest possible
+                versioned bitstream), the next byte gives the bitstream version
+                (version 1 only).
+                Otherwise, the bitstream version is 0.
 
       18..21  : copy 0..3 literals
                 state = (byte - 17) = 0..3  [ copy <state> literals ]
@@ -91,7 +117,7 @@ Byte sequences
                 state = 4 [ don't copy extra literals ]
                 skip byte
 
-  Instruction encoding :
+  Instruction encoding::
 
       0 0 0 0 X X X X  (0..15)
         Depends on the number of literals copied by the last instruction.
@@ -134,6 +160,11 @@ Byte sequences
            state = S (copy S literals after this block)
            End of stream is reached if distance == 16384
 
+        In version 1 only, this instruction is also used to encode a run of
+        zeros if distance = 0xbfff, i.e. H = 1 and the D bits are all 1.
+           In this case, it is followed by a fourth byte, X.
+           run length = ((X << 3) | (0 0 0 0 0 L L L)) + 4.
+
       0 0 1 L L L L L  (32..63)
            Copy of small block within 16kB distance (preferably less than 34B)
            length = 2 + (L ?: 31 + (zero_bytes * 255) + non_zero_byte)
@@ -156,9 +187,12 @@ Byte sequences
            distance = (H << 3) + D + 1
 
 Authors
+=======
 
   This document was written by Willy Tarreau <w@1wt.eu> on 2014/07/19 during an
-  analysis of the decompression code available in Linux 3.16-rc5. The code is
-  tricky, it is possible that this document contains mistakes or that a few
-  corner cases were overlooked. In any case, please report any doubt, fix, or
-  proposed updates to the author(s) so that the document can be updated.
+  analysis of the decompression code available in Linux 3.16-rc5, and updated
+  by Dave Rodgman <dave.rodgman@arm.com> on 2018/10/30 to introduce run-length
+  encoding. The code is tricky, it is possible that this document contains
+  mistakes or that a few corner cases were overlooked. In any case, please
+  report any doubt, fix, or proposed updates to the author(s) so that the
+  document can be updated.

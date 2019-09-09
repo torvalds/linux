@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2015 Intel Corporation
  *
  * Driver for UPISEMI us5182d Proximity and Ambient Light Sensor.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  *
  * To do: Interrupt support.
  */
@@ -714,7 +706,6 @@ err:
 }
 
 static const struct iio_info us5182d_info = {
-	.driver_module	= THIS_MODULE,
 	.read_raw = us5182d_read_raw,
 	.write_raw = us5182d_write_raw,
 	.attrs = &us5182d_attr_group,
@@ -972,10 +963,17 @@ static const struct i2c_device_id us5182d_id[] = {
 
 MODULE_DEVICE_TABLE(i2c, us5182d_id);
 
+static const struct of_device_id us5182d_of_match[] = {
+	{ .compatible = "upisemi,usd5182" },
+	{}
+};
+MODULE_DEVICE_TABLE(of, us5182d_of_match);
+
 static struct i2c_driver us5182d_driver = {
 	.driver = {
 		.name = US5182D_DRV_NAME,
 		.pm = &us5182d_pm_ops,
+		.of_match_table = us5182d_of_match,
 		.acpi_match_table = ACPI_PTR(us5182d_acpi_match),
 	},
 	.probe = us5182d_probe,

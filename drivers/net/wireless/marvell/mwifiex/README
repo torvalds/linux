@@ -180,6 +180,29 @@ regrdwr
 		echo "1 0xa060 0x12" > regrdwr      : Write the MAC register
 		echo "1 0xa794 0x80000000" > regrdwr
 		                                    : Write 0x80000000 to MAC register
+
+memrw
+	This command is used to read/write the firmware memory.
+
+	Usage:
+		1) For reading firmware memory location.
+			echo r <address> 0 > /sys/kernel/debug/mwifiex/mlan0/memrw
+			cat /sys/kernel/debug/mwifiex/mlan0/memrw
+		2) For writing value to firmware memory location.
+			echo w <address> [value] > /sys/kernel/debug/mwifiex/mlan0/memrw
+
+	where the parameters are,
+		<address>:  memory address
+		[value]:    value to be written
+
+	Examples:
+		echo r 0x4cf70 0 > /sys/kernel/debug/mwifiex/mlan0/memrw
+		cat /sys/kernel/debug/mwifiex/mlan0/memrw
+						: Read memory address 0x4cf70
+		iwpriv mlan0 memrdwr -0x7fff6000 -0x40000000
+		echo w 0x8000a000 0xc0000000 > /sys/kernel/debug/mwifiex/mlan0/memrw
+						: Write 0xc0000000 to memory address 0x8000a000
+
 rdeeprom
 	This command is used to read the EEPROM contents of the card.
 

@@ -1,21 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2002,2005 Silicon Graphics, Inc.
  * Copyright (c) 2010 David Chinner.
  * Copyright (c) 2011 Christoph Hellwig.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #ifndef __XFS_EXTENT_BUSY_H__
 #define	__XFS_EXTENT_BUSY_H__
@@ -58,9 +46,16 @@ void
 xfs_extent_busy_reuse(struct xfs_mount *mp, xfs_agnumber_t agno,
 	xfs_agblock_t fbno, xfs_extlen_t flen, bool userdata);
 
+bool
+xfs_extent_busy_trim(struct xfs_alloc_arg *args, xfs_agblock_t *bno,
+		xfs_extlen_t *len, unsigned *busy_gen);
+
 void
-xfs_extent_busy_trim(struct xfs_alloc_arg *args, xfs_agblock_t bno,
-	xfs_extlen_t len, xfs_agblock_t *rbno, xfs_extlen_t *rlen);
+xfs_extent_busy_flush(struct xfs_mount *mp, struct xfs_perag *pag,
+	unsigned busy_gen);
+
+void
+xfs_extent_busy_wait_all(struct xfs_mount *mp);
 
 int
 xfs_extent_busy_ag_cmp(void *priv, struct list_head *a, struct list_head *b);

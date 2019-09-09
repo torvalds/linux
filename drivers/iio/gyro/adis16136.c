@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ADIS16133/ADIS16135/ADIS16136 gyroscope driver
  *
  * Copyright 2012 Analog Devices Inc.
  *   Author: Lars-Peter Clausen <lars@metafoo.de>
- *
- * Licensed under the GPL-2.
  */
 
 #include <linux/interrupt.h>
@@ -124,7 +123,7 @@ static int adis16136_show_product_id(void *arg, u64 *val)
 
 	return 0;
 }
-DEFINE_SIMPLE_ATTRIBUTE(adis16136_product_id_fops,
+DEFINE_DEBUGFS_ATTRIBUTE(adis16136_product_id_fops,
 	adis16136_show_product_id, NULL, "%llu\n");
 
 static int adis16136_show_flash_count(void *arg, u64 *val)
@@ -142,18 +141,21 @@ static int adis16136_show_flash_count(void *arg, u64 *val)
 
 	return 0;
 }
-DEFINE_SIMPLE_ATTRIBUTE(adis16136_flash_count_fops,
+DEFINE_DEBUGFS_ATTRIBUTE(adis16136_flash_count_fops,
 	adis16136_show_flash_count, NULL, "%lld\n");
 
 static int adis16136_debugfs_init(struct iio_dev *indio_dev)
 {
 	struct adis16136 *adis16136 = iio_priv(indio_dev);
 
-	debugfs_create_file("serial_number", 0400, indio_dev->debugfs_dentry,
-		adis16136, &adis16136_serial_fops);
-	debugfs_create_file("product_id", 0400, indio_dev->debugfs_dentry,
+	debugfs_create_file_unsafe("serial_number", 0400,
+		indio_dev->debugfs_dentry, adis16136,
+		&adis16136_serial_fops);
+	debugfs_create_file_unsafe("product_id", 0400,
+		indio_dev->debugfs_dentry,
 		adis16136, &adis16136_product_id_fops);
-	debugfs_create_file("flash_count", 0400, indio_dev->debugfs_dentry,
+	debugfs_create_file_unsafe("flash_count", 0400,
+		indio_dev->debugfs_dentry,
 		adis16136, &adis16136_flash_count_fops);
 
 	return 0;
@@ -398,7 +400,6 @@ static const struct attribute_group adis16136_attribute_group = {
 };
 
 static const struct iio_info adis16136_info = {
-	.driver_module = THIS_MODULE,
 	.attrs = &adis16136_attribute_group,
 	.read_raw = &adis16136_read_raw,
 	.write_raw = &adis16136_write_raw,

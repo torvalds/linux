@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2012 Michael Ellerman, IBM Corporation.
  * Copyright 2012 Benjamin Herrenschmidt, IBM Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
  */
 
 #include <linux/kernel.h>
@@ -16,7 +13,6 @@
 #include <asm/kvm_ppc.h>
 #include <asm/hvcall.h>
 #include <asm/xics.h>
-#include <asm/debug.h>
 #include <asm/synch.h>
 #include <asm/cputhreads.h>
 #include <asm/pgtable.h>
@@ -35,8 +31,8 @@ int kvm_irq_bypass = 1;
 EXPORT_SYMBOL(kvm_irq_bypass);
 
 static void icp_rm_deliver_irq(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
-			    u32 new_irq);
-static int xics_opal_rm_set_server(unsigned int hw_irq, int server_cpu);
+			    u32 new_irq, bool check_resend);
+static int xics_opal_set_server(unsigned int hw_irq, int server_cpu);
 
 /* -- ICS routines -- */
 static void ics_rm_check_resend(struct kvmppc_xics *xics,
@@ -44,20 +40,12 @@ static void ics_rm_check_resend(struct kvmppc_xics *xics,
 {
 	int i;
 
-	arch_spin_lock(&ics->lock);
-
 	for (i = 0; i < KVMPPC_XICS_IRQ_PER_ICS; i++) {
 		struct ics_irq_state *state = &ics->irq_state[i];
-
-		if (!state->resend)
-			continue;
-
-		arch_spin_unlock(&ics->lock);
-		icp_rm_deliver_irq(xics, icp, state->number);
-		arch_spin_lock(&ics->lock);
+		if (state->resend)
+			icp_rm_deliver_irq(xics, icp, state->number, true);
 	}
 
-	arch_spin_unlock(&ics->lock);
 }
 
 /* -- ICP routines -- */
@@ -70,7 +58,9 @@ static inline void icp_send_hcore_msg(int hcore, struct kvm_vcpu *vcpu)
 	hcpu = hcore << threads_shift;
 	kvmppc_host_rm_ops_hv->rm_core[hcore].rm_data = vcpu;
 	smp_muxed_ipi_set_message(hcpu, PPC_MSG_RM_HOST_ACTION);
-	icp_native_cause_ipi_rm(hcpu);
+	kvmppc_set_host_ipi(hcpu, 1);
+	smp_mb();
+	kvmhv_rm_send_ipi(hcpu);
 }
 #else
 static inline void icp_send_hcore_msg(int hcore, struct kvm_vcpu *vcpu) { }
@@ -143,11 +133,18 @@ static void icp_rm_set_vcpu_irq(struct kvm_vcpu *vcpu,
 
 	/* Mark the target VCPU as having an interrupt pending */
 	vcpu->stat.queue_intr++;
-	set_bit(BOOK3S_IRQPRIO_EXTERNAL_LEVEL, &vcpu->arch.pending_exceptions);
+	set_bit(BOOK3S_IRQPRIO_EXTERNAL, &vcpu->arch.pending_exceptions);
 
 	/* Kick self ? Just set MER and return */
 	if (vcpu == this_vcpu) {
 		mtspr(SPRN_LPCR, mfspr(SPRN_LPCR) | LPCR_MER);
+		return;
+	}
+
+	if (xive_enabled() && kvmhv_on_pseries()) {
+		/* No XICS access or hypercalls available, too hard */
+		this_icp->rm_action |= XICS_RM_KICK_VCPU;
+		this_icp->rm_kick_target = vcpu;
 		return;
 	}
 
@@ -177,8 +174,7 @@ static void icp_rm_set_vcpu_irq(struct kvm_vcpu *vcpu,
 static void icp_rm_clr_vcpu_irq(struct kvm_vcpu *vcpu)
 {
 	/* Note: Only called on self ! */
-	clear_bit(BOOK3S_IRQPRIO_EXTERNAL_LEVEL,
-		  &vcpu->arch.pending_exceptions);
+	clear_bit(BOOK3S_IRQPRIO_EXTERNAL, &vcpu->arch.pending_exceptions);
 	mtspr(SPRN_LPCR, mfspr(SPRN_LPCR) & ~LPCR_MER);
 }
 
@@ -286,7 +282,7 @@ static bool icp_rm_try_to_deliver(struct kvmppc_icp *icp, u32 irq, u8 priority,
 }
 
 static void icp_rm_deliver_irq(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
-			    u32 new_irq)
+			    u32 new_irq, bool check_resend)
 {
 	struct ics_irq_state *state;
 	struct kvmppc_ics *ics;
@@ -330,6 +326,10 @@ static void icp_rm_deliver_irq(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
 			goto out;
 		}
 	}
+
+	if (check_resend)
+		if (!state->resend)
+			goto out;
 
 	/* Clear the resend bit of that interrupt */
 	state->resend = 0;
@@ -376,7 +376,9 @@ static void icp_rm_deliver_irq(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
 		 */
 		if (reject && reject != XICS_IPI) {
 			arch_spin_unlock(&ics->lock);
+			icp->n_reject++;
 			new_irq = reject;
+			check_resend = 0;
 			goto again;
 		}
 	} else {
@@ -384,8 +386,14 @@ static void icp_rm_deliver_irq(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
 		 * We failed to deliver the interrupt we need to set the
 		 * resend map bit and mark the ICS state as needing a resend
 		 */
-		set_bit(ics->icsid, icp->resend_map);
 		state->resend = 1;
+
+		/*
+		 * Make sure when checking resend, we don't miss the resend
+		 * if resend_map bit is seen and cleared.
+		 */
+		smp_wmb();
+		set_bit(ics->icsid, icp->resend_map);
 
 		/*
 		 * If the need_resend flag got cleared in the ICP some time
@@ -395,7 +403,9 @@ static void icp_rm_deliver_irq(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
 		 */
 		smp_mb();
 		if (!icp->state.need_resend) {
+			state->resend = 0;
 			arch_spin_unlock(&ics->lock);
+			check_resend = 0;
 			goto again;
 		}
 	}
@@ -477,7 +487,7 @@ static void icp_rm_down_cppr(struct kvmppc_xics *xics, struct kvmppc_icp *icp,
 }
 
 
-unsigned long kvmppc_rm_h_xirr(struct kvm_vcpu *vcpu)
+unsigned long xics_rm_h_xirr(struct kvm_vcpu *vcpu)
 {
 	union kvmppc_icp_state old_state, new_state;
 	struct kvmppc_xics *xics = vcpu->kvm->arch.xics;
@@ -510,13 +520,13 @@ unsigned long kvmppc_rm_h_xirr(struct kvm_vcpu *vcpu)
 	} while (!icp_rm_try_update(icp, old_state, new_state));
 
 	/* Return the result in GPR4 */
-	vcpu->arch.gpr[4] = xirr;
+	vcpu->arch.regs.gpr[4] = xirr;
 
 	return check_too_hard(xics, icp);
 }
 
-int kvmppc_rm_h_ipi(struct kvm_vcpu *vcpu, unsigned long server,
-		    unsigned long mfrr)
+int xics_rm_h_ipi(struct kvm_vcpu *vcpu, unsigned long server,
+		  unsigned long mfrr)
 {
 	union kvmppc_icp_state old_state, new_state;
 	struct kvmppc_xics *xics = vcpu->kvm->arch.xics;
@@ -590,7 +600,7 @@ int kvmppc_rm_h_ipi(struct kvm_vcpu *vcpu, unsigned long server,
 	/* Handle reject in real mode */
 	if (reject && reject != XICS_IPI) {
 		this_icp->n_reject++;
-		icp_rm_deliver_irq(xics, icp, reject);
+		icp_rm_deliver_irq(xics, icp, reject, false);
 	}
 
 	/* Handle resends in real mode */
@@ -602,7 +612,7 @@ int kvmppc_rm_h_ipi(struct kvm_vcpu *vcpu, unsigned long server,
 	return check_too_hard(xics, this_icp);
 }
 
-int kvmppc_rm_h_cppr(struct kvm_vcpu *vcpu, unsigned long cppr)
+int xics_rm_h_cppr(struct kvm_vcpu *vcpu, unsigned long cppr)
 {
 	union kvmppc_icp_state old_state, new_state;
 	struct kvmppc_xics *xics = vcpu->kvm->arch.xics;
@@ -658,59 +668,45 @@ int kvmppc_rm_h_cppr(struct kvm_vcpu *vcpu, unsigned long cppr)
 	 */
 	if (reject && reject != XICS_IPI) {
 		icp->n_reject++;
-		icp_rm_deliver_irq(xics, icp, reject);
+		icp_rm_deliver_irq(xics, icp, reject, false);
 	}
  bail:
 	return check_too_hard(xics, icp);
 }
 
-int kvmppc_rm_h_eoi(struct kvm_vcpu *vcpu, unsigned long xirr)
+static int ics_rm_eoi(struct kvm_vcpu *vcpu, u32 irq)
 {
 	struct kvmppc_xics *xics = vcpu->kvm->arch.xics;
 	struct kvmppc_icp *icp = vcpu->arch.icp;
 	struct kvmppc_ics *ics;
 	struct ics_irq_state *state;
-	u32 irq = xirr & 0x00ffffff;
 	u16 src;
-
-	if (!xics || !xics->real_mode)
-		return H_TOO_HARD;
+	u32 pq_old, pq_new;
 
 	/*
-	 * ICP State: EOI
+	 * ICS EOI handling: For LSI, if P bit is still set, we need to
+	 * resend it.
 	 *
-	 * Note: If EOI is incorrectly used by SW to lower the CPPR
-	 * value (ie more favored), we do not check for rejection of
-	 * a pending interrupt, this is a SW error and PAPR sepcifies
-	 * that we don't have to deal with it.
-	 *
-	 * The sending of an EOI to the ICS is handled after the
-	 * CPPR update
-	 *
-	 * ICP State: Down_CPPR which we handle
-	 * in a separate function as it's shared with H_CPPR.
+	 * For MSI, we move Q bit into P (and clear Q). If it is set,
+	 * resend it.
 	 */
-	icp_rm_down_cppr(xics, icp, xirr >> 24);
 
-	/* IPIs have no EOI */
-	if (irq == XICS_IPI)
-		goto bail;
-	/*
-	 * EOI handling: If the interrupt is still asserted, we need to
-	 * resend it. We can take a lockless "peek" at the ICS state here.
-	 *
-	 * "Message" interrupts will never have "asserted" set
-	 */
 	ics = kvmppc_xics_find_ics(xics, irq, &src);
 	if (!ics)
 		goto bail;
+
 	state = &ics->irq_state[src];
 
-	/* Still asserted, resend it */
-	if (state->asserted) {
-		icp->n_reject++;
-		icp_rm_deliver_irq(xics, icp, irq);
-	}
+	if (state->lsi)
+		pq_new = state->pq_state;
+	else
+		do {
+			pq_old = state->pq_state;
+			pq_new = pq_old >> 1;
+		} while (cmpxchg(&state->pq_state, pq_old, pq_new) != pq_old);
+
+	if (pq_new & PQ_PRESENTED)
+		icp_rm_deliver_irq(xics, NULL, irq, false);
 
 	if (!hlist_empty(&vcpu->kvm->irq_ack_notifier_list)) {
 		icp->rm_action |= XICS_RM_NOTIFY_EOI;
@@ -726,21 +722,62 @@ int kvmppc_rm_h_eoi(struct kvm_vcpu *vcpu, unsigned long xirr)
 			++vcpu->stat.pthru_host;
 			if (state->intr_cpu != pcpu) {
 				++vcpu->stat.pthru_bad_aff;
-				xics_opal_rm_set_server(state->host_irq, pcpu);
+				xics_opal_set_server(state->host_irq, pcpu);
 			}
 			state->intr_cpu = -1;
 		}
 	}
+
  bail:
 	return check_too_hard(xics, icp);
 }
 
+int xics_rm_h_eoi(struct kvm_vcpu *vcpu, unsigned long xirr)
+{
+	struct kvmppc_xics *xics = vcpu->kvm->arch.xics;
+	struct kvmppc_icp *icp = vcpu->arch.icp;
+	u32 irq = xirr & 0x00ffffff;
+
+	if (!xics || !xics->real_mode)
+		return H_TOO_HARD;
+
+	/*
+	 * ICP State: EOI
+	 *
+	 * Note: If EOI is incorrectly used by SW to lower the CPPR
+	 * value (ie more favored), we do not check for rejection of
+	 * a pending interrupt, this is a SW error and PAPR specifies
+	 * that we don't have to deal with it.
+	 *
+	 * The sending of an EOI to the ICS is handled after the
+	 * CPPR update
+	 *
+	 * ICP State: Down_CPPR which we handle
+	 * in a separate function as it's shared with H_CPPR.
+	 */
+	icp_rm_down_cppr(xics, icp, xirr >> 24);
+
+	/* IPIs have no EOI */
+	if (irq == XICS_IPI)
+		return check_too_hard(xics, icp);
+
+	return ics_rm_eoi(vcpu, irq);
+}
+
 unsigned long eoi_rc;
 
-static void icp_eoi(struct irq_chip *c, u32 hwirq, u32 xirr)
+static void icp_eoi(struct irq_chip *c, u32 hwirq, __be32 xirr, bool *again)
 {
-	unsigned long xics_phys;
+	void __iomem *xics_phys;
 	int64_t rc;
+
+	if (kvmhv_on_pseries()) {
+		unsigned long retbuf[PLPAR_HCALL_BUFSIZE];
+
+		iosync();
+		plpar_hcall_raw(H_EOI, retbuf, hwirq);
+		return;
+	}
 
 	rc = pnv_opal_pci_msi_eoi(c, hwirq);
 
@@ -751,14 +788,19 @@ static void icp_eoi(struct irq_chip *c, u32 hwirq, u32 xirr)
 
 	/* EOI it */
 	xics_phys = local_paca->kvm_hstate.xics_phys;
-	_stwcix(xics_phys + XICS_XIRR, xirr);
+	if (xics_phys) {
+		__raw_rm_writel(xirr, xics_phys + XICS_XIRR);
+	} else {
+		rc = opal_int_eoi(be32_to_cpu(xirr));
+		*again = rc > 0;
+	}
 }
 
-static int xics_opal_rm_set_server(unsigned int hw_irq, int server_cpu)
+static int xics_opal_set_server(unsigned int hw_irq, int server_cpu)
 {
 	unsigned int mangle_cpu = get_hard_smp_processor_id(server_cpu) << 2;
 
-	return opal_rm_set_xive(hw_irq, mangle_cpu, DEFAULT_PRIORITY);
+	return opal_set_xive(hw_irq, mangle_cpu, DEFAULT_PRIORITY);
 }
 
 /*
@@ -777,7 +819,7 @@ static inline void this_cpu_inc_rm(unsigned int __percpu *addr)
 	raddr = per_cpu_ptr(addr, cpu);
 	l = (unsigned long)raddr;
 
-	if (REGION_ID(l) == VMALLOC_REGION_ID) {
+	if (get_region_id(l) == VMALLOC_REGION_ID) {
 		l = vmalloc_to_phys(raddr);
 		raddr = (unsigned int *)l;
 	}
@@ -809,23 +851,44 @@ static void kvmppc_rm_handle_irq_desc(struct irq_desc *desc)
 }
 
 long kvmppc_deliver_irq_passthru(struct kvm_vcpu *vcpu,
-				 u32 xirr,
+				 __be32 xirr,
 				 struct kvmppc_irq_map *irq_map,
-				 struct kvmppc_passthru_irqmap *pimap)
+				 struct kvmppc_passthru_irqmap *pimap,
+				 bool *again)
 {
 	struct kvmppc_xics *xics;
 	struct kvmppc_icp *icp;
+	struct kvmppc_ics *ics;
+	struct ics_irq_state *state;
 	u32 irq;
+	u16 src;
+	u32 pq_old, pq_new;
 
 	irq = irq_map->v_hwirq;
 	xics = vcpu->kvm->arch.xics;
 	icp = vcpu->arch.icp;
 
 	kvmppc_rm_handle_irq_desc(irq_map->desc);
-	icp_rm_deliver_irq(xics, icp, irq);
+
+	ics = kvmppc_xics_find_ics(xics, irq, &src);
+	if (!ics)
+		return 2;
+
+	state = &ics->irq_state[src];
+
+	/* only MSIs register bypass producers, so it must be MSI here */
+	do {
+		pq_old = state->pq_state;
+		pq_new = ((pq_old << 1) & 3) | PQ_PRESENTED;
+	} while (cmpxchg(&state->pq_state, pq_old, pq_new) != pq_old);
+
+	/* Test P=1, Q=0, this is the only case where we present */
+	if (pq_new == PQ_PRESENTED)
+		icp_rm_deliver_irq(xics, icp, irq, false);
 
 	/* EOI the interrupt */
-	icp_eoi(irq_desc_get_chip(irq_map->desc), irq_map->r_hwirq, xirr);
+	icp_eoi(irq_desc_get_chip(irq_map->desc), irq_map->r_hwirq, xirr,
+		again);
 
 	if (check_too_hard(xics, icp) == H_TOO_HARD)
 		return 2;

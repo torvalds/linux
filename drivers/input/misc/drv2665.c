@@ -1,18 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * DRV2665 haptics driver family
  *
  * Author: Dan Murphy <dmurphy@ti.com>
  *
  * Copyright: (C) 2015 Texas Instruments, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 
 #include <linux/i2c.h>
@@ -125,8 +117,8 @@ static void drv2665_close(struct input_dev *input)
 
 	cancel_work_sync(&haptics->work);
 
-	error = regmap_update_bits(haptics->regmap,
-				   DRV2665_CTRL_2, DRV2665_STANDBY, 1);
+	error = regmap_update_bits(haptics->regmap, DRV2665_CTRL_2,
+				   DRV2665_STANDBY, DRV2665_STANDBY);
 	if (error)
 		dev_err(&haptics->client->dev,
 			"Failed to enter standby mode: %d\n", error);
@@ -240,7 +232,7 @@ static int __maybe_unused drv2665_suspend(struct device *dev)
 
 	if (haptics->input_dev->users) {
 		ret = regmap_update_bits(haptics->regmap, DRV2665_CTRL_2,
-				DRV2665_STANDBY, 1);
+					 DRV2665_STANDBY, DRV2665_STANDBY);
 		if (ret) {
 			dev_err(dev, "Failed to set standby mode\n");
 			regulator_disable(haptics->regulator);

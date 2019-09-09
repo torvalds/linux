@@ -1,14 +1,9 @@
-/* arch/arm/plat-samsung/include/plat/wakeup-mask.h
- *
+/* SPDX-License-Identifier: GPL-2.0 */
+/*
  * Copyright 2010 Ben Dooks <ben-linux@fluff.org>
  *
  * Support for wakeup mask interrupts on newer SoCs
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
-*/
+ */
 
 #ifndef __PLAT_WAKEUP_MASK_H
 #define __PLAT_WAKEUP_MASK_H __file__
@@ -38,7 +33,7 @@ struct samsung_wakeup_mask {
  * required to be correct before we enter sleep.
  */
 extern void samsung_sync_wakemask(void __iomem *reg,
-				  struct samsung_wakeup_mask *masks,
+				  const struct samsung_wakeup_mask *masks,
 				  int nr_masks);
 
 #endif /* __PLAT_WAKEUP_MASK_H */

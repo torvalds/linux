@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * offload engine driver for the Marvell XOR engine
  * Copyright (C) 2007, 2008, Marvell International Ltd.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #include <linux/init.h>
@@ -228,8 +220,13 @@ mv_chan_clean_completed_slots(struct mv_xor_chan *mv_chan)
 	list_for_each_entry_safe(iter, _iter, &mv_chan->completed_slots,
 				 node) {
 
-		if (async_tx_test_ack(&iter->async_tx))
+		if (async_tx_test_ack(&iter->async_tx)) {
 			list_move_tail(&iter->node, &mv_chan->free_slots);
+			if (!list_empty(&iter->sg_tx_list)) {
+				list_splice_tail_init(&iter->sg_tx_list,
+							&mv_chan->free_slots);
+			}
+		}
 	}
 	return 0;
 }
@@ -244,11 +241,20 @@ mv_desc_clean_slot(struct mv_xor_desc_slot *desc,
 	/* the client is allowed to attach dependent operations
 	 * until 'ack' is set
 	 */
-	if (!async_tx_test_ack(&desc->async_tx))
+	if (!async_tx_test_ack(&desc->async_tx)) {
 		/* move this slot to the completed_slots */
 		list_move_tail(&desc->node, &mv_chan->completed_slots);
-	else
+		if (!list_empty(&desc->sg_tx_list)) {
+			list_splice_tail_init(&desc->sg_tx_list,
+					      &mv_chan->completed_slots);
+		}
+	} else {
 		list_move_tail(&desc->node, &mv_chan->free_slots);
+		if (!list_empty(&desc->sg_tx_list)) {
+			list_splice_tail_init(&desc->sg_tx_list,
+					      &mv_chan->free_slots);
+		}
+	}
 
 	return 0;
 }
@@ -334,9 +340,9 @@ static void mv_xor_tasklet(unsigned long data)
 {
 	struct mv_xor_chan *chan = (struct mv_xor_chan *) data;
 
-	spin_lock_bh(&chan->lock);
+	spin_lock(&chan->lock);
 	mv_chan_slot_cleanup(chan);
-	spin_unlock_bh(&chan->lock);
+	spin_unlock(&chan->lock);
 }
 
 static struct mv_xor_desc_slot *
@@ -450,6 +456,7 @@ static int mv_xor_alloc_chan_resources(struct dma_chan *chan)
 		dma_async_tx_descriptor_init(&slot->async_tx, chan);
 		slot->async_tx.tx_submit = mv_xor_tx_submit;
 		INIT_LIST_HEAD(&slot->node);
+		INIT_LIST_HEAD(&slot->sg_tx_list);
 		dma_desc = mv_chan->dma_desc_pool;
 		slot->async_tx.phys = dma_desc + idx * MV_XOR_SLOT_SIZE;
 		slot->idx = idx++;
@@ -762,11 +769,11 @@ static int mv_chan_memcpy_self_test(struct mv_xor_chan *mv_chan)
 	struct dmaengine_unmap_data *unmap;
 	int err = 0;
 
-	src = kmalloc(sizeof(u8) * PAGE_SIZE, GFP_KERNEL);
+	src = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!src)
 		return -ENOMEM;
 
-	dest = kzalloc(sizeof(u8) * PAGE_SIZE, GFP_KERNEL);
+	dest = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!dest) {
 		kfree(src);
 		return -ENOMEM;
@@ -789,7 +796,7 @@ static int mv_chan_memcpy_self_test(struct mv_xor_chan *mv_chan)
 	}
 
 	src_dma = dma_map_page(dma_chan->device->dev, virt_to_page(src),
-			       (size_t)src & ~PAGE_MASK, PAGE_SIZE,
+			       offset_in_page(src), PAGE_SIZE,
 			       DMA_TO_DEVICE);
 	unmap->addr[0] = src_dma;
 
@@ -801,7 +808,7 @@ static int mv_chan_memcpy_self_test(struct mv_xor_chan *mv_chan)
 	unmap->to_cnt = 1;
 
 	dest_dma = dma_map_page(dma_chan->device->dev, virt_to_page(dest),
-				(size_t)dest & ~PAGE_MASK, PAGE_SIZE,
+				offset_in_page(dest), PAGE_SIZE,
 				DMA_FROM_DEVICE);
 	unmap->addr[1] = dest_dma;
 
@@ -1044,6 +1051,7 @@ mv_xor_channel_add(struct mv_xor_device *xordev,
 		mv_chan->op_in_desc = XOR_MODE_IN_DESC;
 
 	dma_dev = &mv_chan->dmadev;
+	dma_dev->dev = &pdev->dev;
 	mv_chan->xordev = xordev;
 
 	/*
@@ -1076,7 +1084,6 @@ mv_xor_channel_add(struct mv_xor_device *xordev,
 	dma_dev->device_free_chan_resources = mv_xor_free_chan_resources;
 	dma_dev->device_tx_status = mv_xor_status;
 	dma_dev->device_issue_pending = mv_xor_issue_pending;
-	dma_dev->dev = &pdev->dev;
 
 	/* set prep routines based on capability */
 	if (dma_has_cap(DMA_INTERRUPT, dma_dev->cap_mask))
@@ -1138,7 +1145,10 @@ mv_xor_channel_add(struct mv_xor_device *xordev,
 		 dma_has_cap(DMA_MEMCPY, dma_dev->cap_mask) ? "cpy " : "",
 		 dma_has_cap(DMA_INTERRUPT, dma_dev->cap_mask) ? "intr " : "");
 
-	dma_async_device_register(dma_dev);
+	ret = dma_async_device_register(dma_dev);
+	if (ret)
+		goto err_free_irq;
+
 	return mv_chan;
 
 err_free_irq:
@@ -1405,11 +1415,6 @@ static int mv_xor_probe(struct platform_device *pdev)
 			int irq;
 
 			cd = &pdata->channels[i];
-			if (!cd) {
-				ret = -ENODEV;
-				goto err_channel_add;
-			}
-
 			irq = platform_get_irq(pdev, i);
 			if (irq < 0) {
 				ret = irq;
@@ -1455,12 +1460,7 @@ static struct platform_driver mv_xor_driver = {
 	},
 };
 
-
-static int __init mv_xor_init(void)
-{
-	return platform_driver_register(&mv_xor_driver);
-}
-device_initcall(mv_xor_init);
+builtin_platform_driver(mv_xor_driver);
 
 /*
 MODULE_AUTHOR("Saeed Bishara <saeed@marvell.com>");

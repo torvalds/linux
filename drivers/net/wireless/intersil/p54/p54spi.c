@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2008 Christian Lamparter <chunkeey@web.de>
  * Copyright 2008       Johannes Berg <johannes@sipsolutions.net>
  *
  * This driver is a port from stlc45xx:
  *	Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
  */
 
 #include <linux/module.h>
@@ -372,9 +359,9 @@ static int p54spi_rx(struct p54s_priv *priv)
 	}
 
 	if (len <= READAHEAD_SZ) {
-		memcpy(skb_put(skb, len), rx_head + 1, len);
+		skb_put_data(skb, rx_head + 1, len);
 	} else {
-		memcpy(skb_put(skb, READAHEAD_SZ), rx_head + 1, READAHEAD_SZ);
+		skb_put_data(skb, rx_head + 1, READAHEAD_SZ);
 		p54spi_spi_read(priv, SPI_ADRS_DMA_DATA,
 				skb_put(skb, len - READAHEAD_SZ),
 				len - READAHEAD_SZ);

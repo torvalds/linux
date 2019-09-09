@@ -1,12 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Register definition file for Samsung MFC V7.x Interface (FIMV) driver
  *
  * Copyright (c) 2013 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef _REGS_MFC_V7_H
@@ -34,7 +31,7 @@
 #define S5P_FIMV_E_VP8_NUM_T_LAYER_V7			0xfdc4
 
 /* MFCv7 variant defines */
-#define MAX_FW_SIZE_V7			(SZ_1M)		/* 1MB */
+#define MAX_FW_SIZE_V7			(SZ_512K)	/* 512KB */
 #define MAX_CPB_SIZE_V7			(3 * SZ_1M)	/* 3MB */
 #define MFC_VERSION_V7			0x72
 #define MFC_NUM_PORTS_V7		1

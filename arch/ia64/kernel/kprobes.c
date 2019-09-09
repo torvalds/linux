@@ -1,20 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Kernel Probes (KProbes)
  *  arch/ia64/kernel/kprobes.c
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * Copyright (C) IBM Corporation, 2002, 2004
  * Copyright (C) Intel Corporation, 2005
@@ -28,14 +15,12 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/preempt.h>
-#include <linux/moduleloader.h>
+#include <linux/extable.h>
 #include <linux/kdebug.h>
 
 #include <asm/pgtable.h>
 #include <asm/sections.h>
-#include <asm/uaccess.h>
-
-extern void jprobe_inst_return(void);
+#include <asm/exception.h>
 
 DEFINE_PER_CPU(struct kprobe *, current_kprobe) = NULL;
 DEFINE_PER_CPU(struct kprobe_ctlblk, kprobe_ctlblk);
@@ -480,12 +465,9 @@ int __kprobes trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
 			 */
 			break;
 	}
-
 	kretprobe_assert(ri, orig_ret_address, trampoline_address);
 
-	reset_current_kprobe();
 	kretprobe_hash_unlock(current, &flags);
-	preempt_enable_no_resched();
 
 	hlist_for_each_entry_safe(ri, tmp, &empty_rp, hlist) {
 		hlist_del(&ri->hlist);
@@ -819,14 +801,6 @@ static int __kprobes pre_kprobes_handler(struct die_args *args)
 			prepare_ss(p, regs);
 			kcb->kprobe_status = KPROBE_REENTER;
 			return 1;
-		} else if (args->err == __IA64_BREAK_JPROBE) {
-			/*
-			 * jprobe instrumented function just completed
-			 */
-			p = __this_cpu_read(current_kprobe);
-			if (p->break_handler && p->break_handler(p, regs)) {
-				goto ss_probe;
-			}
 		} else if (!is_ia64_break_inst(regs)) {
 			/* The breakpoint instruction was removed by
 			 * another cpu right after we hit, no further
@@ -861,15 +835,12 @@ static int __kprobes pre_kprobes_handler(struct die_args *args)
 	set_current_kprobe(p, kcb);
 	kcb->kprobe_status = KPROBE_HIT_ACTIVE;
 
-	if (p->pre_handler && p->pre_handler(p, regs))
-		/*
-		 * Our pre-handler is specifically requesting that we just
-		 * do a return.  This is used for both the jprobe pre-handler
-		 * and the kretprobe trampoline
-		 */
+	if (p->pre_handler && p->pre_handler(p, regs)) {
+		reset_current_kprobe();
+		preempt_enable_no_resched();
 		return 1;
+	}
 
-ss_probe:
 #if !defined(CONFIG_PREEMPT)
 	if (p->ainsn.inst_flag == INST_FLAG_BOOSTABLE && !p->post_handler) {
 		/* Boost up -- we can execute copied instructions directly */
@@ -992,7 +963,6 @@ int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
 	case DIE_BREAK:
 		/* err is break number from ia64_bad_break() */
 		if ((args->err >> 12) == (__IA64_BREAK_KPROBE >> 12)
-			|| args->err == __IA64_BREAK_JPROBE
 			|| args->err == 0)
 			if (pre_kprobes_handler(args))
 				ret = NOTIFY_STOP;
@@ -1038,74 +1008,6 @@ static void ia64_get_bsp_cfm(struct unw_frame_info *info, void *arg)
 unsigned long arch_deref_entry_point(void *entry)
 {
 	return ((struct fnptr *)entry)->ip;
-}
-
-int __kprobes setjmp_pre_handler(struct kprobe *p, struct pt_regs *regs)
-{
-	struct jprobe *jp = container_of(p, struct jprobe, kp);
-	unsigned long addr = arch_deref_entry_point(jp->entry);
-	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
-	struct param_bsp_cfm pa;
-	int bytes;
-
-	/*
-	 * Callee owns the argument space and could overwrite it, eg
-	 * tail call optimization. So to be absolutely safe
-	 * we save the argument space before transferring the control
-	 * to instrumented jprobe function which runs in
-	 * the process context
-	 */
-	pa.ip = regs->cr_iip;
-	unw_init_running(ia64_get_bsp_cfm, &pa);
-	bytes = (char *)ia64_rse_skip_regs(pa.bsp, pa.cfm & 0x3f)
-				- (char *)pa.bsp;
-	memcpy( kcb->jprobes_saved_stacked_regs,
-		pa.bsp,
-		bytes );
-	kcb->bsp = pa.bsp;
-	kcb->cfm = pa.cfm;
-
-	/* save architectural state */
-	kcb->jprobe_saved_regs = *regs;
-
-	/* after rfi, execute the jprobe instrumented function */
-	regs->cr_iip = addr & ~0xFULL;
-	ia64_psr(regs)->ri = addr & 0xf;
-	regs->r1 = ((struct fnptr *)(jp->entry))->gp;
-
-	/*
-	 * fix the return address to our jprobe_inst_return() function
-	 * in the jprobes.S file
-	 */
-	regs->b0 = ((struct fnptr *)(jprobe_inst_return))->ip;
-
-	return 1;
-}
-
-/* ia64 does not need this */
-void __kprobes jprobe_return(void)
-{
-}
-
-int __kprobes longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
-{
-	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
-	int bytes;
-
-	/* restoring architectural state */
-	*regs = kcb->jprobe_saved_regs;
-
-	/* restoring the original argument space */
-	flush_register_stack();
-	bytes = (char *)ia64_rse_skip_regs(kcb->bsp, kcb->cfm & 0x3f)
-				- (char *)kcb->bsp;
-	memcpy( kcb->bsp,
-		kcb->jprobes_saved_stacked_regs,
-		bytes );
-	invalidate_stacked_regs();
-
-	preempt_enable_no_resched();
-	return 1;
 }
 
 static struct kprobe trampoline_p = {

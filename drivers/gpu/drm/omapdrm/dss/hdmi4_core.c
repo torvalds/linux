@@ -1,22 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * ti_hdmi_4xxx_ip.c
- *
  * HDMI TI81xx, TI38xx, TI OMAP4 etc IP driver Library
+ *
  * Copyright (C) 2010-2011 Texas Instruments Incorporated - http://www.ti.com/
  * Authors: Yong Zhi
  *	Mythri pk <mythripk@ti.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #define DSS_SUBSYS_NAME "HDMICORE"
@@ -31,11 +19,11 @@
 #include <linux/platform_device.h>
 #include <linux/string.h>
 #include <linux/seq_file.h>
+#include <linux/sys_soc.h>
 #include <sound/asound.h>
 #include <sound/asoundef.h>
 
 #include "hdmi4_core.h"
-#include "dss_features.h"
 
 #define HDMI_CORE_AV		0x500
 
@@ -208,9 +196,9 @@ static void hdmi_core_init(struct hdmi_core_video_config *video_cfg)
 	video_cfg->tclk_sel_clkmult = HDMI_FPLL10IDCK;
 }
 
-static void hdmi_core_powerdown_disable(struct hdmi_core_data *core)
+void hdmi4_core_powerdown_disable(struct hdmi_core_data *core)
 {
-	DSSDBG("Enter hdmi_core_powerdown_disable\n");
+	DSSDBG("Enter hdmi4_core_powerdown_disable\n");
 	REG_FLD_MOD(core->base, HDMI_CORE_SYS_SYS_CTRL1, 0x1, 0, 0);
 }
 
@@ -310,7 +298,7 @@ void hdmi4_configure(struct hdmi_core_data *core,
 	struct hdmi_wp_data *wp, struct hdmi_config *cfg)
 {
 	/* HDMI */
-	struct omap_video_timings video_timing;
+	struct videomode vm;
 	struct hdmi_video_format video_format;
 	/* HDMI core */
 	struct hdmi_core_video_config v_core_cfg;
@@ -318,25 +306,22 @@ void hdmi4_configure(struct hdmi_core_data *core,
 
 	hdmi_core_init(&v_core_cfg);
 
-	hdmi_wp_init_vid_fmt_timings(&video_format, &video_timing, cfg);
+	hdmi_wp_init_vid_fmt_timings(&video_format, &vm, cfg);
 
-	hdmi_wp_video_config_timing(wp, &video_timing);
+	hdmi_wp_video_config_timing(wp, &vm);
 
 	/* video config */
 	video_format.packing_mode = HDMI_PACK_24b_RGB_YUV444_YUV422;
 
 	hdmi_wp_video_config_format(wp, &video_format);
 
-	hdmi_wp_video_config_interface(wp, &video_timing);
+	hdmi_wp_video_config_interface(wp, &vm);
 
 	/*
 	 * configure core video part
 	 * set software reset in the core
 	 */
 	hdmi_core_swreset_assert(core);
-
-	/* power down off */
-	hdmi_core_powerdown_disable(core);
 
 	v_core_cfg.pkt_mode = HDMI_PACKETMODE24BITPERPIXEL;
 	v_core_cfg.hdmi_dvi = cfg->hdmi_dvi_mode;
@@ -712,7 +697,7 @@ int hdmi4_audio_config(struct hdmi_core_data *core, struct hdmi_wp_data *wp,
 	else
 		acore.i2s_cfg.justification = HDMI_AUDIO_JUSTIFY_RIGHT;
 	/*
-	 * The I2S input word length is twice the lenght given in the IEC-60958
+	 * The I2S input word length is twice the length given in the IEC-60958
 	 * status word. If the word size is greater than
 	 * 20 bits, increment by one.
 	 */
@@ -757,10 +742,10 @@ int hdmi4_audio_config(struct hdmi_core_data *core, struct hdmi_wp_data *wp,
 	/* Audio clock regeneration settings */
 	acore.n = n;
 	acore.cts = cts;
-	if (dss_has_feature(FEAT_HDMI_CTS_SWMODE)) {
+	if (core->cts_swmode) {
 		acore.aud_par_busclk = 0;
 		acore.cts_mode = HDMI_AUDIO_CTS_MODE_SW;
-		acore.use_mclk = dss_has_feature(FEAT_HDMI_AUDIO_USE_MCLK);
+		acore.use_mclk = core->audio_use_mclk;
 	} else {
 		acore.aud_par_busclk = (((128 * 31) - 1) << 8);
 		acore.cts_mode = HDMI_AUDIO_CTS_MODE_HW;
@@ -884,21 +869,62 @@ void hdmi4_audio_stop(struct hdmi_core_data *core, struct hdmi_wp_data *wp)
 	hdmi_wp_audio_core_req_enable(wp, false);
 }
 
+struct hdmi4_features {
+	bool cts_swmode;
+	bool audio_use_mclk;
+};
+
+static const struct hdmi4_features hdmi4430_es1_features = {
+	.cts_swmode = false,
+	.audio_use_mclk = false,
+};
+
+static const struct hdmi4_features hdmi4430_es2_features = {
+	.cts_swmode = true,
+	.audio_use_mclk = false,
+};
+
+static const struct hdmi4_features hdmi4_features = {
+	.cts_swmode = true,
+	.audio_use_mclk = true,
+};
+
+static const struct soc_device_attribute hdmi4_soc_devices[] = {
+	{
+		.machine = "OMAP4430",
+		.revision = "ES1.?",
+		.data = &hdmi4430_es1_features,
+	},
+	{
+		.machine = "OMAP4430",
+		.revision = "ES2.?",
+		.data = &hdmi4430_es2_features,
+	},
+	{
+		.family = "OMAP4",
+		.data = &hdmi4_features,
+	},
+	{ /* sentinel */ }
+};
+
 int hdmi4_core_init(struct platform_device *pdev, struct hdmi_core_data *core)
 {
+	const struct hdmi4_features *features;
 	struct resource *res;
+	const struct soc_device_attribute *soc;
+
+	soc = soc_device_match(hdmi4_soc_devices);
+	if (!soc)
+		return -ENODEV;
+
+	features = soc->data;
+	core->cts_swmode = features->cts_swmode;
+	core->audio_use_mclk = features->audio_use_mclk;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "core");
-	if (!res) {
-		DSSERR("can't get CORE mem resource\n");
-		return -EINVAL;
-	}
-
 	core->base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(core->base)) {
-		DSSERR("can't ioremap CORE\n");
+	if (IS_ERR(core->base))
 		return PTR_ERR(core->base);
-	}
 
 	return 0;
 }

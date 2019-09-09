@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Support for o32 Linux/MIPS ELF binaries.
  * Author: Ralf Baechle (ralf@linux-mips.org)
@@ -58,10 +59,10 @@ struct elf_prstatus32
 	pid_t	pr_ppid;
 	pid_t	pr_pgrp;
 	pid_t	pr_sid;
-	struct compat_timeval pr_utime; /* User time */
-	struct compat_timeval pr_stime; /* System time */
-	struct compat_timeval pr_cutime;/* Cumulative user time */
-	struct compat_timeval pr_cstime;/* Cumulative system time */
+	struct old_timeval32 pr_utime; /* User time */
+	struct old_timeval32 pr_stime; /* System time */
+	struct old_timeval32 pr_cutime;/* Cumulative user time */
+	struct old_timeval32 pr_cstime;/* Cumulative system time */
 	elf_gregset_t pr_reg;	/* GP registers */
 	int pr_fpvalid;		/* True if math co-processor being used.  */
 };
@@ -85,9 +86,9 @@ struct elf_prpsinfo32
 #define elf_caddr_t	u32
 #define init_elf_binfmt init_elf32_binfmt
 
-#define jiffies_to_timeval jiffies_to_compat_timeval
+#define jiffies_to_timeval jiffies_to_old_timeval32
 static inline void
-jiffies_to_compat_timeval(unsigned long jiffies, struct compat_timeval *value)
+jiffies_to_old_timeval32(unsigned long jiffies, struct old_timeval32 *value)
 {
 	/*
 	 * Convert jiffies to nanoseconds and separate with
@@ -102,15 +103,7 @@ jiffies_to_compat_timeval(unsigned long jiffies, struct compat_timeval *value)
 #undef TASK_SIZE
 #define TASK_SIZE TASK_SIZE32
 
-#undef cputime_to_timeval
-#define cputime_to_timeval cputime_to_compat_timeval
-static __inline__ void
-cputime_to_compat_timeval(const cputime_t cputime, struct compat_timeval *value)
-{
-	unsigned long jiffies = cputime_to_jiffies(cputime);
-
-	value->tv_usec = (jiffies % HZ) * (1000000L / HZ);
-	value->tv_sec = jiffies / HZ;
-}
+#undef ns_to_timeval
+#define ns_to_timeval ns_to_old_timeval32
 
 #include "../../../fs/binfmt_elf.c"

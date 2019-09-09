@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * ImgTec IR Decoder setup for Sanyo protocol.
  *
  * Copyright 2012-2014 Imagination Technologies Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
  *
  * From ir-sanyo-decoder.c:
  *
@@ -44,7 +40,7 @@ static int img_ir_sanyo_scancode(int len, u64 raw, u64 enabled_protocols,
 		return -EINVAL;
 
 	/* Normal Sanyo */
-	request->protocol = RC_TYPE_SANYO;
+	request->protocol = RC_PROTO_SANYO;
 	request->scancode = addr << 8 | data;
 	return IMG_IR_SCANCODE;
 }
@@ -80,7 +76,7 @@ static int img_ir_sanyo_filter(const struct rc_scancode_filter *in,
 
 /* Sanyo decoder */
 struct img_ir_decoder img_ir_sanyo = {
-	.type = RC_BIT_SANYO,
+	.type = RC_PROTO_BIT_SANYO,
 	.control = {
 		.decoden = 1,
 		.code_type = IMG_IR_CODETYPE_PULSEDIST,

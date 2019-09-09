@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Watchdog timer for PowerPC Book-E systems
  *
@@ -5,11 +6,6 @@
  * Maintainer: Kumar Gala <galak@kernel.crashing.org>
  *
  * Copyright 2005, 2008, 2010-2011 Freescale Semiconductor Inc.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -25,7 +21,7 @@
 /* If the kernel parameter wdt=1, the watchdog will be enabled at boot.
  * Also, the wdt_period sets the watchdog timer period timeout.
  * For E500 cpus the wdt_period sets which bit changing from 0->1 will
- * trigger a watchog timeout. This watchdog timeout will occur 3 times, the
+ * trigger a watchdog timeout. This watchdog timeout will occur 3 times, the
  * first time nothing will happen, the second time a watchdog exception will
  * occur, and the final time the board will reset.
  */
@@ -192,12 +188,12 @@ static int booke_wdt_set_timeout(struct watchdog_device *wdt_dev,
 	return 0;
 }
 
-static struct watchdog_info booke_wdt_info = {
+static struct watchdog_info booke_wdt_info __ro_after_init = {
 	.options = WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING,
 	.identity = "PowerPC Book-E Watchdog",
 };
 
-static struct watchdog_ops booke_wdt_ops = {
+static const struct watchdog_ops booke_wdt_ops = {
 	.owner = THIS_MODULE,
 	.start = booke_wdt_start,
 	.stop = booke_wdt_stop,

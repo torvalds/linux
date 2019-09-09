@@ -1,7 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * caam - Freescale FSL CAAM support for hw_random
  *
  * Copyright 2011 Freescale Semiconductor, Inc.
+ * Copyright 2018-2019 NXP
  *
  * Based on caamalg.c crypto API driver.
  *
@@ -52,7 +54,7 @@
 
 /* length of descriptors */
 #define DESC_JOB_O_LEN			(CAAM_CMD_SZ * 2 + CAAM_PTR_SZ * 2)
-#define DESC_RNG_LEN			(4 * CAAM_CMD_SZ)
+#define DESC_RNG_LEN			(3 * CAAM_CMD_SZ)
 
 /* Buffer, its dma address and lock */
 struct buf_data {
@@ -100,8 +102,7 @@ static void rng_done(struct device *jrdev, u32 *desc, u32 err, void *context)
 {
 	struct buf_data *bd;
 
-	bd = (struct buf_data *)((char *)desc -
-	      offsetof(struct buf_data, hw_desc));
+	bd = container_of(desc, struct buf_data, hw_desc[0]);
 
 	if (err)
 		caam_jr_strstatus(jrdev, err);
@@ -112,10 +113,8 @@ static void rng_done(struct device *jrdev, u32 *desc, u32 err, void *context)
 	/* Buffer refilled, invalidate cache */
 	dma_sync_single_for_cpu(jrdev, bd->addr, RN_BUF_SIZE, DMA_FROM_DEVICE);
 
-#ifdef DEBUG
-	print_hex_dump(KERN_ERR, "rng refreshed buf@: ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, bd->buf, RN_BUF_SIZE, 1);
-#endif
+	print_hex_dump_debug("rng refreshed buf@: ", DUMP_PREFIX_ADDRESS, 16, 4,
+			     bd->buf, RN_BUF_SIZE, 1);
 }
 
 static inline int submit_job(struct caam_rng_ctx *ctx, int to_current)
@@ -196,9 +195,6 @@ static inline int rng_create_sh_desc(struct caam_rng_ctx *ctx)
 
 	init_sh_desc(desc, HDR_SHARE_SERIAL);
 
-	/* Propagate errors from shared to job descriptor */
-	append_cmd(desc, SET_OK_NO_PROP_ERRORS | CMD_LOAD);
-
 	/* Generate random bytes */
 	append_operation(desc, OP_ALG_ALGSEL_RNG | OP_TYPE_CLASS1_ALG);
 
@@ -211,10 +207,10 @@ static inline int rng_create_sh_desc(struct caam_rng_ctx *ctx)
 		dev_err(jrdev, "unable to map shared descriptor\n");
 		return -ENOMEM;
 	}
-#ifdef DEBUG
-	print_hex_dump(KERN_ERR, "rng shdesc@: ", DUMP_PREFIX_ADDRESS, 16, 4,
-		       desc, desc_bytes(desc), 1);
-#endif
+
+	print_hex_dump_debug("rng shdesc@: ", DUMP_PREFIX_ADDRESS, 16, 4,
+			     desc, desc_bytes(desc), 1);
+
 	return 0;
 }
 
@@ -235,10 +231,10 @@ static inline int rng_create_job_desc(struct caam_rng_ctx *ctx, int buf_id)
 	}
 
 	append_seq_out_ptr_intlen(desc, bd->addr, RN_BUF_SIZE, 0);
-#ifdef DEBUG
-	print_hex_dump(KERN_ERR, "rng job desc@: ", DUMP_PREFIX_ADDRESS, 16, 4,
-		       desc, desc_bytes(desc), 1);
-#endif
+
+	print_hex_dump_debug("rng job desc@: ", DUMP_PREFIX_ADDRESS, 16, 4,
+			     desc, desc_bytes(desc), 1);
+
 	return 0;
 }
 
@@ -289,11 +285,7 @@ static int caam_init_rng(struct caam_rng_ctx *ctx, struct device *jrdev)
 	if (err)
 		return err;
 
-	err = caam_init_buf(ctx, 1);
-	if (err)
-		return err;
-
-	return 0;
+	return caam_init_buf(ctx, 1);
 }
 
 static struct hwrng caam_rng = {
@@ -302,56 +294,36 @@ static struct hwrng caam_rng = {
 	.read		= caam_read,
 };
 
-static void __exit caam_rng_exit(void)
+void caam_rng_exit(void)
 {
 	caam_jr_free(rng_ctx->jrdev);
 	hwrng_unregister(&caam_rng);
 	kfree(rng_ctx);
 }
 
-static int __init caam_rng_init(void)
+int caam_rng_init(struct device *ctrldev)
 {
 	struct device *dev;
-	struct device_node *dev_node;
-	struct platform_device *pdev;
-	struct device *ctrldev;
-	struct caam_drv_private *priv;
+	u32 rng_inst;
+	struct caam_drv_private *priv = dev_get_drvdata(ctrldev);
 	int err;
 
-	dev_node = of_find_compatible_node(NULL, NULL, "fsl,sec-v4.0");
-	if (!dev_node) {
-		dev_node = of_find_compatible_node(NULL, NULL, "fsl,sec4.0");
-		if (!dev_node)
-			return -ENODEV;
-	}
-
-	pdev = of_find_device_by_node(dev_node);
-	if (!pdev) {
-		of_node_put(dev_node);
-		return -ENODEV;
-	}
-
-	ctrldev = &pdev->dev;
-	priv = dev_get_drvdata(ctrldev);
-	of_node_put(dev_node);
-
-	/*
-	 * If priv is NULL, it's probably because the caam driver wasn't
-	 * properly initialized (e.g. RNG4 init failed). Thus, bail out here.
-	 */
-	if (!priv)
-		return -ENODEV;
-
 	/* Check for an instantiated RNG before registration */
-	if (!(rd_reg32(&priv->ctrl->perfmon.cha_num_ls) & CHA_ID_LS_RNG_MASK))
-		return -ENODEV;
+	if (priv->era < 10)
+		rng_inst = (rd_reg32(&priv->ctrl->perfmon.cha_num_ls) &
+			    CHA_ID_LS_RNG_MASK) >> CHA_ID_LS_RNG_SHIFT;
+	else
+		rng_inst = rd_reg32(&priv->ctrl->vreg.rng) & CHA_VER_NUM_MASK;
+
+	if (!rng_inst)
+		return 0;
 
 	dev = caam_jr_alloc();
 	if (IS_ERR(dev)) {
 		pr_err("Job Ring Device allocation for transform failed\n");
 		return PTR_ERR(dev);
 	}
-	rng_ctx = kmalloc(sizeof(*rng_ctx), GFP_DMA);
+	rng_ctx = kmalloc(sizeof(*rng_ctx), GFP_DMA | GFP_KERNEL);
 	if (!rng_ctx) {
 		err = -ENOMEM;
 		goto free_caam_alloc;
@@ -369,10 +341,3 @@ free_caam_alloc:
 	caam_jr_free(dev);
 	return err;
 }
-
-module_init(caam_rng_init);
-module_exit(caam_rng_exit);
-
-MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("FSL CAAM support for hw_random API");
-MODULE_AUTHOR("Freescale Semiconductor - NMG");

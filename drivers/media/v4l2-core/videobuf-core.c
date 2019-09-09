@@ -1,16 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * generic helper functions for handling video4linux capture buffers
  *
- * (c) 2007 Mauro Carvalho Chehab, <mchehab@infradead.org>
+ * (c) 2007 Mauro Carvalho Chehab, <mchehab@kernel.org>
  *
  * Highly based on video-buf written originally by:
  * (c) 2001,02 Gerd Knorr <kraxel@bytesex.org>
- * (c) 2006 Mauro Carvalho Chehab, <mchehab@infradead.org>
+ * (c) 2006 Mauro Carvalho Chehab, <mchehab@kernel.org>
  * (c) 2006 Ted Walther and John Sokol
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2
  */
 
 #include <linux/init.h>
@@ -38,7 +35,7 @@ static int debug;
 module_param(debug, int, 0644);
 
 MODULE_DESCRIPTION("helper module to manage video4linux buffers");
-MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@infradead.org>");
+MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@kernel.org>");
 MODULE_LICENSE("GPL");
 
 #define dprintk(level, fmt, arg...)					\
@@ -214,7 +211,7 @@ int videobuf_queue_is_busy(struct videobuf_queue *q)
 			return 1;
 		}
 		if (q->bufs[i]->state == VIDEOBUF_ACTIVE) {
-			dprintk(1, "busy: buffer #%d avtive\n", i);
+			dprintk(1, "busy: buffer #%d active\n", i);
 			return 1;
 		}
 	}
@@ -222,7 +219,7 @@ int videobuf_queue_is_busy(struct videobuf_queue *q)
 }
 EXPORT_SYMBOL_GPL(videobuf_queue_is_busy);
 
-/**
+/*
  * __videobuf_free() - free all the buffers and their control structures
  *
  * This function can only be called if streaming/reading is off, i.e. no buffers
@@ -367,7 +364,7 @@ static void videobuf_status(struct videobuf_queue *q, struct v4l2_buffer *b,
 	}
 
 	b->field     = vb->field;
-	b->timestamp = vb->ts;
+	b->timestamp = ns_to_timeval(vb->ts);
 	b->bytesused = vb->size;
 	b->sequence  = vb->field_count >> 1;
 }
@@ -572,8 +569,7 @@ int videobuf_qbuf(struct videobuf_queue *q, struct v4l2_buffer *b)
 	switch (b->memory) {
 	case V4L2_MEMORY_MMAP:
 		if (0 == buf->baddr) {
-			dprintk(1, "qbuf: mmap requested "
-				   "but buffer addr is zero!\n");
+			dprintk(1, "qbuf: mmap requested but buffer addr is zero!\n");
 			goto done;
 		}
 		if (q->type == V4L2_BUF_TYPE_VIDEO_OUTPUT
@@ -582,7 +578,7 @@ int videobuf_qbuf(struct videobuf_queue *q, struct v4l2_buffer *b)
 		    || q->type == V4L2_BUF_TYPE_SDR_OUTPUT) {
 			buf->size = b->bytesused;
 			buf->field = b->field;
-			buf->ts = b->timestamp;
+			buf->ts = v4l2_timeval_to_ns(&b->timestamp);
 		}
 		break;
 	case V4L2_MEMORY_USERPTR:
@@ -1119,24 +1115,25 @@ done:
 }
 EXPORT_SYMBOL_GPL(videobuf_read_stream);
 
-unsigned int videobuf_poll_stream(struct file *file,
-				  struct videobuf_queue *q,
-				  poll_table *wait)
+__poll_t videobuf_poll_stream(struct file *file,
+			      struct videobuf_queue *q,
+			      poll_table *wait)
 {
-	unsigned long req_events = poll_requested_events(wait);
+	__poll_t req_events = poll_requested_events(wait);
 	struct videobuf_buffer *buf = NULL;
-	unsigned int rc = 0;
+	__poll_t rc = 0;
 
+	poll_wait(file, &buf->done, wait);
 	videobuf_queue_lock(q);
 	if (q->streaming) {
 		if (!list_empty(&q->stream))
 			buf = list_entry(q->stream.next,
 					 struct videobuf_buffer, stream);
-	} else if (req_events & (POLLIN | POLLRDNORM)) {
+	} else if (req_events & (EPOLLIN | EPOLLRDNORM)) {
 		if (!q->reading)
 			__videobuf_read_start(q);
 		if (!q->reading) {
-			rc = POLLERR;
+			rc = EPOLLERR;
 		} else if (NULL == q->read_buf) {
 			q->read_buf = list_entry(q->stream.next,
 						 struct videobuf_buffer,
@@ -1147,10 +1144,9 @@ unsigned int videobuf_poll_stream(struct file *file,
 		buf = q->read_buf;
 	}
 	if (!buf)
-		rc = POLLERR;
+		rc = EPOLLERR;
 
 	if (0 == rc) {
-		poll_wait(file, &buf->done, wait);
 		if (buf->state == VIDEOBUF_DONE ||
 		    buf->state == VIDEOBUF_ERROR) {
 			switch (q->type) {
@@ -1158,10 +1154,10 @@ unsigned int videobuf_poll_stream(struct file *file,
 			case V4L2_BUF_TYPE_VBI_OUTPUT:
 			case V4L2_BUF_TYPE_SLICED_VBI_OUTPUT:
 			case V4L2_BUF_TYPE_SDR_OUTPUT:
-				rc = POLLOUT | POLLWRNORM;
+				rc = EPOLLOUT | EPOLLWRNORM;
 				break;
 			default:
-				rc = POLLIN | POLLRDNORM;
+				rc = EPOLLIN | EPOLLRDNORM;
 				break;
 			}
 		}

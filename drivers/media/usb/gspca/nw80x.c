@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * DivIO nw80x subdriver
  *
  * Copyright (C) 2011 Jean-François Moine (http://moinejf.free.fr)
  * Copyright (C) 2003 Sylvain Munaut <tnt@246tNt.com>
  *			Kjell Claesson <keyson@users.sourceforge.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -1547,10 +1534,11 @@ static void reg_w(struct gspca_dev *gspca_dev,
 	if (gspca_dev->usb_err < 0)
 		return;
 	if (len == 1)
-		PDEBUG(D_USBO, "SET 00 0000 %04x %02x", index, *data);
+		gspca_dbg(gspca_dev, D_USBO, "SET 00 0000 %04x %02x\n",
+			  index, *data);
 	else
-		PDEBUG(D_USBO, "SET 00 0000 %04x %02x %02x ...",
-				index, *data, data[1]);
+		gspca_dbg(gspca_dev, D_USBO, "SET 00 0000 %04x %02x %02x ...\n",
+			  index, *data, data[1]);
 	memcpy(gspca_dev->usb_buf, data, len);
 	ret = usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
 			0x00,
@@ -1587,12 +1575,12 @@ static void reg_r(struct gspca_dev *gspca_dev,
 		return;
 	}
 	if (len == 1)
-		PDEBUG(D_USBI, "GET 00 0000 %04x %02x",
-				index, gspca_dev->usb_buf[0]);
+		gspca_dbg(gspca_dev, D_USBI, "GET 00 0000 %04x %02x\n",
+			  index, gspca_dev->usb_buf[0]);
 	else
-		PDEBUG(D_USBI, "GET 00 0000 %04x %02x %02x ..",
-				index, gspca_dev->usb_buf[0],
-				gspca_dev->usb_buf[1]);
+		gspca_dbg(gspca_dev, D_USBI, "GET 00 0000 %04x %02x %02x ..\n",
+			  index, gspca_dev->usb_buf[0],
+			  gspca_dev->usb_buf[1]);
 }
 
 static void i2c_w(struct gspca_dev *gspca_dev,
@@ -1766,8 +1754,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 			sd->webcam = P35u;
 	} else if (id->idVendor == 0x06a5 && id->idProduct == 0xd800) {
 		reg_r(gspca_dev, 0x0403, 1);		/* GPIO */
-		PDEBUG(D_PROBE, "et31x110 sensor type %02x",
-				gspca_dev->usb_buf[0]);
+		gspca_dbg(gspca_dev, D_PROBE, "et31x110 sensor type %02x\n",
+			  gspca_dev->usb_buf[0]);
 		switch (gspca_dev->usb_buf[0] >> 1) {
 		case 0x00:				/* ?? */
 			if (sd->webcam == Generic800)
@@ -1789,7 +1777,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		gspca_dev->usb_err = -ENODEV;
 		return gspca_dev->usb_err;
 	}
-	PDEBUG(D_PROBE, "Bridge nw80%d - type: %d", sd->bridge, sd->webcam);
+	gspca_dbg(gspca_dev, D_PROBE, "Bridge nw80%d - type: %d\n",
+		  sd->bridge, sd->webcam);
 
 	if (sd->bridge == BRIDGE_NW800) {
 		switch (sd->webcam) {

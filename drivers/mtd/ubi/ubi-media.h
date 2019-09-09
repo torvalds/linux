@@ -1,28 +1,12 @@
+/* SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause) */
 /*
- * Copyright (c) International Business Machines Corp., 2006
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See
- * the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
+ * Copyright (C) International Business Machines Corp., 2006
  * Authors: Artem Bityutskiy (Битюцкий Артём)
  *          Thomas Gleixner
  *          Frank Haverkamp
  *          Oliver Lohmann
  *          Andreas Arnez
- */
-
-/*
+ *
  * This file defines the layout of UBI headers and all the other UBI on-flash
  * data structures.
  */
@@ -61,6 +45,11 @@ enum {
  * Volume flags used in the volume table record.
  *
  * @UBI_VTBL_AUTORESIZE_FLG: auto-resize this volume
+ * @UBI_VTBL_SKIP_CRC_CHECK_FLG: skip the CRC check done on a static volume at
+ *				 open time. Should only be set on volumes that
+ *				 are used by upper layers doing this kind of
+ *				 check. Main use-case for this flag is
+ *				 boot-time reduction
  *
  * %UBI_VTBL_AUTORESIZE_FLG flag can be set only for one volume in the volume
  * table. UBI automatically re-sizes the volume which has this flag and makes
@@ -92,6 +81,7 @@ enum {
  */
 enum {
 	UBI_VTBL_AUTORESIZE_FLG = 0x01,
+	UBI_VTBL_SKIP_CRC_CHECK_FLG = 0x02,
 };
 
 /*
@@ -229,7 +219,7 @@ struct ubi_ec_hdr {
  * copy. UBI also calculates data CRC when the data is moved and stores it at
  * the @data_crc field of the copy (P1). So when UBI needs to pick one physical
  * eraseblock of two (P or P1), the @copy_flag of the newer one (P1) is
- * examined. If it is cleared, the situation* is simple and the newer one is
+ * examined. If it is cleared, the situation is simple and the newer one is
  * picked. If it is set, the data CRC of the copy (P1) is examined. If the CRC
  * checksum is correct, this physical eraseblock is selected (P1). Otherwise
  * the older one (P) is selected.
@@ -389,7 +379,7 @@ struct ubi_vtbl_record {
 #define UBI_FM_POOL_MAGIC	0x67AF4D08
 #define UBI_FM_EBA_MAGIC	0xf0c040a8
 
-/* A fastmap supber block can be located between PEB 0 and
+/* A fastmap super block can be located between PEB 0 and
  * UBI_FM_MAX_START */
 #define UBI_FM_MAX_START	64
 

@@ -1,8 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * oxfw_pcm.c - a part of driver for OXFW970/971 based devices
  *
  * Copyright (c) Clemens Ladisch <clemens@ladisch.de>
- * Licensed under the terms of the GNU General Public License, version 2.
  */
 
 #include "oxfw.h"
@@ -106,18 +106,6 @@ static void limit_channels_and_rates(struct snd_pcm_hardware *hw, u8 **formats)
 	}
 }
 
-static void limit_period_and_buffer(struct snd_pcm_hardware *hw)
-{
-	hw->periods_min = 2;		/* SNDRV_PCM_INFO_BATCH */
-	hw->periods_max = UINT_MAX;
-
-	hw->period_bytes_min = 4 * hw->channels_max;	/* bytes for a frame */
-
-	/* Just to prevent from allocating much pages. */
-	hw->period_bytes_max = hw->period_bytes_min * 2048;
-	hw->buffer_bytes_max = hw->period_bytes_max * hw->periods_min;
-}
-
 static int init_hw_params(struct snd_oxfw *oxfw,
 			  struct snd_pcm_substream *substream)
 {
@@ -125,13 +113,6 @@ static int init_hw_params(struct snd_oxfw *oxfw,
 	u8 **formats;
 	struct amdtp_stream *stream;
 	int err;
-
-	runtime->hw.info = SNDRV_PCM_INFO_BATCH |
-			   SNDRV_PCM_INFO_BLOCK_TRANSFER |
-			   SNDRV_PCM_INFO_INTERLEAVED |
-			   SNDRV_PCM_INFO_JOINT_DUPLEX |
-			   SNDRV_PCM_INFO_MMAP |
-			   SNDRV_PCM_INFO_MMAP_VALID;
 
 	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
 		runtime->hw.formats = AM824_IN_PCM_FORMAT_BITS;
@@ -144,7 +125,6 @@ static int init_hw_params(struct snd_oxfw *oxfw,
 	}
 
 	limit_channels_and_rates(&runtime->hw, formats);
-	limit_period_and_buffer(&runtime->hw);
 
 	err = snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
 				  hw_rule_channels, formats,
@@ -239,14 +219,18 @@ static int pcm_capture_hw_params(struct snd_pcm_substream *substream,
 		return err;
 
 	if (substream->runtime->status->state == SNDRV_PCM_STATE_OPEN) {
+		unsigned int rate = params_rate(hw_params);
+		unsigned int channels = params_channels(hw_params);
+
 		mutex_lock(&oxfw->mutex);
-		oxfw->capture_substreams++;
+		err = snd_oxfw_stream_reserve_duplex(oxfw, &oxfw->tx_stream,
+						     rate, channels);
+		if (err >= 0)
+			++oxfw->substreams_count;
 		mutex_unlock(&oxfw->mutex);
 	}
 
-	amdtp_am824_set_pcm_format(&oxfw->tx_stream, params_format(hw_params));
-
-	return 0;
+	return err;
 }
 static int pcm_playback_hw_params(struct snd_pcm_substream *substream,
 				  struct snd_pcm_hw_params *hw_params)
@@ -260,12 +244,16 @@ static int pcm_playback_hw_params(struct snd_pcm_substream *substream,
 		return err;
 
 	if (substream->runtime->status->state == SNDRV_PCM_STATE_OPEN) {
+		unsigned int rate = params_rate(hw_params);
+		unsigned int channels = params_channels(hw_params);
+
 		mutex_lock(&oxfw->mutex);
-		oxfw->playback_substreams++;
+		err = snd_oxfw_stream_reserve_duplex(oxfw, &oxfw->rx_stream,
+						     rate, channels);
+		if (err >= 0)
+			++oxfw->substreams_count;
 		mutex_unlock(&oxfw->mutex);
 	}
-
-	amdtp_am824_set_pcm_format(&oxfw->rx_stream, params_format(hw_params));
 
 	return 0;
 }
@@ -277,9 +265,9 @@ static int pcm_capture_hw_free(struct snd_pcm_substream *substream)
 	mutex_lock(&oxfw->mutex);
 
 	if (substream->runtime->status->state != SNDRV_PCM_STATE_OPEN)
-		oxfw->capture_substreams--;
+		--oxfw->substreams_count;
 
-	snd_oxfw_stream_stop_simplex(oxfw, &oxfw->tx_stream);
+	snd_oxfw_stream_stop_duplex(oxfw);
 
 	mutex_unlock(&oxfw->mutex);
 
@@ -292,9 +280,9 @@ static int pcm_playback_hw_free(struct snd_pcm_substream *substream)
 	mutex_lock(&oxfw->mutex);
 
 	if (substream->runtime->status->state != SNDRV_PCM_STATE_OPEN)
-		oxfw->playback_substreams--;
+		--oxfw->substreams_count;
 
-	snd_oxfw_stream_stop_simplex(oxfw, &oxfw->rx_stream);
+	snd_oxfw_stream_stop_duplex(oxfw);
 
 	mutex_unlock(&oxfw->mutex);
 
@@ -304,12 +292,10 @@ static int pcm_playback_hw_free(struct snd_pcm_substream *substream)
 static int pcm_capture_prepare(struct snd_pcm_substream *substream)
 {
 	struct snd_oxfw *oxfw = substream->private_data;
-	struct snd_pcm_runtime *runtime = substream->runtime;
 	int err;
 
 	mutex_lock(&oxfw->mutex);
-	err = snd_oxfw_stream_start_simplex(oxfw, &oxfw->tx_stream,
-					    runtime->rate, runtime->channels);
+	err = snd_oxfw_stream_start_duplex(oxfw);
 	mutex_unlock(&oxfw->mutex);
 	if (err < 0)
 		goto end;
@@ -321,12 +307,10 @@ end:
 static int pcm_playback_prepare(struct snd_pcm_substream *substream)
 {
 	struct snd_oxfw *oxfw = substream->private_data;
-	struct snd_pcm_runtime *runtime = substream->runtime;
 	int err;
 
 	mutex_lock(&oxfw->mutex);
-	err = snd_oxfw_stream_start_simplex(oxfw, &oxfw->rx_stream,
-					    runtime->rate, runtime->channels);
+	err = snd_oxfw_stream_start_duplex(oxfw);
 	mutex_unlock(&oxfw->mutex);
 	if (err < 0)
 		goto end;
@@ -386,6 +370,20 @@ static snd_pcm_uframes_t pcm_playback_pointer(struct snd_pcm_substream *sbstm)
 	return amdtp_stream_pcm_pointer(&oxfw->rx_stream);
 }
 
+static int pcm_capture_ack(struct snd_pcm_substream *substream)
+{
+	struct snd_oxfw *oxfw = substream->private_data;
+
+	return amdtp_stream_pcm_ack(&oxfw->tx_stream);
+}
+
+static int pcm_playback_ack(struct snd_pcm_substream *substream)
+{
+	struct snd_oxfw *oxfw = substream->private_data;
+
+	return amdtp_stream_pcm_ack(&oxfw->rx_stream);
+}
+
 int snd_oxfw_create_pcm(struct snd_oxfw *oxfw)
 {
 	static const struct snd_pcm_ops capture_ops = {
@@ -397,8 +395,8 @@ int snd_oxfw_create_pcm(struct snd_oxfw *oxfw)
 		.prepare   = pcm_capture_prepare,
 		.trigger   = pcm_capture_trigger,
 		.pointer   = pcm_capture_pointer,
+		.ack       = pcm_capture_ack,
 		.page      = snd_pcm_lib_get_vmalloc_page,
-		.mmap      = snd_pcm_lib_mmap_vmalloc,
 	};
 	static const struct snd_pcm_ops playback_ops = {
 		.open      = pcm_open,
@@ -409,8 +407,8 @@ int snd_oxfw_create_pcm(struct snd_oxfw *oxfw)
 		.prepare   = pcm_playback_prepare,
 		.trigger   = pcm_playback_trigger,
 		.pointer   = pcm_playback_pointer,
+		.ack       = pcm_playback_ack,
 		.page      = snd_pcm_lib_get_vmalloc_page,
-		.mmap      = snd_pcm_lib_mmap_vmalloc,
 	};
 	struct snd_pcm *pcm;
 	unsigned int cap = 0;

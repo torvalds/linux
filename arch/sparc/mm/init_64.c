@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  arch/sparc64/mm/init.c
  *
@@ -10,7 +11,7 @@
 #include <linux/sched.h>
 #include <linux/string.h>
 #include <linux/init.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/mm.h>
 #include <linux/hugetlb.h>
 #include <linux/initrd.h>
@@ -24,7 +25,6 @@
 #include <linux/sort.h>
 #include <linux/ioport.h>
 #include <linux/percpu.h>
-#include <linux/memblock.h>
 #include <linux/mmzone.h>
 #include <linux/gfp.h>
 
@@ -35,7 +35,7 @@
 #include <asm/oplib.h>
 #include <asm/iommu.h>
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/mmu_context.h>
 #include <asm/tlbflush.h>
 #include <asm/dma.h>
@@ -205,9 +205,9 @@ inline void flush_dcache_page_impl(struct page *page)
 #ifdef DCACHE_ALIASING_POSSIBLE
 	__flush_dcache_page(page_address(page),
 			    ((tlb_type == spitfire) &&
-			     page_mapping(page) != NULL));
+			     page_mapping_file(page) != NULL));
 #else
-	if (page_mapping(page) != NULL &&
+	if (page_mapping_file(page) != NULL &&
 	    tlb_type == spitfire)
 		__flush_icache_page(__pa(page_address(page)));
 #endif
@@ -324,10 +324,100 @@ static void __update_mmu_tsb_insert(struct mm_struct *mm, unsigned long tsb_inde
 	tsb_insert(tsb, tag, tte);
 }
 
+#ifdef CONFIG_HUGETLB_PAGE
+static void __init add_huge_page_size(unsigned long size)
+{
+	unsigned int order;
+
+	if (size_to_hstate(size))
+		return;
+
+	order = ilog2(size) - PAGE_SHIFT;
+	hugetlb_add_hstate(order);
+}
+
+static int __init hugetlbpage_init(void)
+{
+	add_huge_page_size(1UL << HPAGE_64K_SHIFT);
+	add_huge_page_size(1UL << HPAGE_SHIFT);
+	add_huge_page_size(1UL << HPAGE_256MB_SHIFT);
+	add_huge_page_size(1UL << HPAGE_2GB_SHIFT);
+
+	return 0;
+}
+
+arch_initcall(hugetlbpage_init);
+
+static void __init pud_huge_patch(void)
+{
+	struct pud_huge_patch_entry *p;
+	unsigned long addr;
+
+	p = &__pud_huge_patch;
+	addr = p->addr;
+	*(unsigned int *)addr = p->insn;
+
+	__asm__ __volatile__("flush %0" : : "r" (addr));
+}
+
+static int __init setup_hugepagesz(char *string)
+{
+	unsigned long long hugepage_size;
+	unsigned int hugepage_shift;
+	unsigned short hv_pgsz_idx;
+	unsigned int hv_pgsz_mask;
+	int rc = 0;
+
+	hugepage_size = memparse(string, &string);
+	hugepage_shift = ilog2(hugepage_size);
+
+	switch (hugepage_shift) {
+	case HPAGE_16GB_SHIFT:
+		hv_pgsz_mask = HV_PGSZ_MASK_16GB;
+		hv_pgsz_idx = HV_PGSZ_IDX_16GB;
+		pud_huge_patch();
+		break;
+	case HPAGE_2GB_SHIFT:
+		hv_pgsz_mask = HV_PGSZ_MASK_2GB;
+		hv_pgsz_idx = HV_PGSZ_IDX_2GB;
+		break;
+	case HPAGE_256MB_SHIFT:
+		hv_pgsz_mask = HV_PGSZ_MASK_256MB;
+		hv_pgsz_idx = HV_PGSZ_IDX_256MB;
+		break;
+	case HPAGE_SHIFT:
+		hv_pgsz_mask = HV_PGSZ_MASK_4MB;
+		hv_pgsz_idx = HV_PGSZ_IDX_4MB;
+		break;
+	case HPAGE_64K_SHIFT:
+		hv_pgsz_mask = HV_PGSZ_MASK_64K;
+		hv_pgsz_idx = HV_PGSZ_IDX_64K;
+		break;
+	default:
+		hv_pgsz_mask = 0;
+	}
+
+	if ((hv_pgsz_mask & cpu_pgsz_mask) == 0U) {
+		hugetlb_bad_size();
+		pr_err("hugepagesz=%llu not supported by MMU.\n",
+			hugepage_size);
+		goto out;
+	}
+
+	add_huge_page_size(hugepage_size);
+	rc = 1;
+
+out:
+	return rc;
+}
+__setup("hugepagesz=", setup_hugepagesz);
+#endif	/* CONFIG_HUGETLB_PAGE */
+
 void update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t *ptep)
 {
 	struct mm_struct *mm;
 	unsigned long flags;
+	bool is_huge_tsb;
 	pte_t pte = *ptep;
 
 	if (tlb_type != hypervisor) {
@@ -345,15 +435,37 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t *
 
 	spin_lock_irqsave(&mm->context.lock, flags);
 
+	is_huge_tsb = false;
 #if defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE)
-	if ((mm->context.hugetlb_pte_count || mm->context.thp_pte_count) &&
-	    is_hugetlb_pte(pte)) {
-		/* We are fabricating 8MB pages using 4MB real hw pages.  */
-		pte_val(pte) |= (address & (1UL << REAL_HPAGE_SHIFT));
-		__update_mmu_tsb_insert(mm, MM_TSB_HUGE, REAL_HPAGE_SHIFT,
-					address, pte_val(pte));
-	} else
+	if (mm->context.hugetlb_pte_count || mm->context.thp_pte_count) {
+		unsigned long hugepage_size = PAGE_SIZE;
+
+		if (is_vm_hugetlb_page(vma))
+			hugepage_size = huge_page_size(hstate_vma(vma));
+
+		if (hugepage_size >= PUD_SIZE) {
+			unsigned long mask = 0x1ffc00000UL;
+
+			/* Transfer bits [32:22] from address to resolve
+			 * at 4M granularity.
+			 */
+			pte_val(pte) &= ~mask;
+			pte_val(pte) |= (address & mask);
+		} else if (hugepage_size >= PMD_SIZE) {
+			/* We are fabricating 8MB pages using 4MB
+			 * real hw pages.
+			 */
+			pte_val(pte) |= (address & (1UL << REAL_HPAGE_SHIFT));
+		}
+
+		if (hugepage_size >= PMD_SIZE) {
+			__update_mmu_tsb_insert(mm, MM_TSB_HUGE,
+				REAL_HPAGE_SHIFT, address, pte_val(pte));
+			is_huge_tsb = true;
+		}
+	}
 #endif
+	if (!is_huge_tsb)
 		__update_mmu_tsb_insert(mm, MM_TSB_BASE, PAGE_SHIFT,
 					address, pte_val(pte));
 
@@ -377,7 +489,7 @@ void flush_dcache_page(struct page *page)
 
 	this_cpu = get_cpu();
 
-	mapping = page_mapping(page);
+	mapping = page_mapping_file(page);
 	if (mapping && !mapping_mapped(mapping)) {
 		int dirty = test_bit(PG_dcache_dirty, &page->flags);
 		if (dirty) {
@@ -658,10 +770,58 @@ EXPORT_SYMBOL(__flush_dcache_range);
 
 /* get_new_mmu_context() uses "cache + 1".  */
 DEFINE_SPINLOCK(ctx_alloc_lock);
-unsigned long tlb_context_cache = CTX_FIRST_VERSION - 1;
+unsigned long tlb_context_cache = CTX_FIRST_VERSION;
 #define MAX_CTX_NR	(1UL << CTX_NR_BITS)
 #define CTX_BMAP_SLOTS	BITS_TO_LONGS(MAX_CTX_NR)
 DECLARE_BITMAP(mmu_context_bmap, MAX_CTX_NR);
+DEFINE_PER_CPU(struct mm_struct *, per_cpu_secondary_mm) = {0};
+
+static void mmu_context_wrap(void)
+{
+	unsigned long old_ver = tlb_context_cache & CTX_VERSION_MASK;
+	unsigned long new_ver, new_ctx, old_ctx;
+	struct mm_struct *mm;
+	int cpu;
+
+	bitmap_zero(mmu_context_bmap, 1 << CTX_NR_BITS);
+
+	/* Reserve kernel context */
+	set_bit(0, mmu_context_bmap);
+
+	new_ver = (tlb_context_cache & CTX_VERSION_MASK) + CTX_FIRST_VERSION;
+	if (unlikely(new_ver == 0))
+		new_ver = CTX_FIRST_VERSION;
+	tlb_context_cache = new_ver;
+
+	/*
+	 * Make sure that any new mm that are added into per_cpu_secondary_mm,
+	 * are going to go through get_new_mmu_context() path.
+	 */
+	mb();
+
+	/*
+	 * Updated versions to current on those CPUs that had valid secondary
+	 * contexts
+	 */
+	for_each_online_cpu(cpu) {
+		/*
+		 * If a new mm is stored after we took this mm from the array,
+		 * it will go into get_new_mmu_context() path, because we
+		 * already bumped the version in tlb_context_cache.
+		 */
+		mm = per_cpu(per_cpu_secondary_mm, cpu);
+
+		if (unlikely(!mm || mm == &init_mm))
+			continue;
+
+		old_ctx = mm->context.sparc64_ctx_val;
+		if (likely((old_ctx & CTX_VERSION_MASK) == old_ver)) {
+			new_ctx = (old_ctx & ~CTX_VERSION_MASK) | new_ver;
+			set_bit(new_ctx & CTX_NR_MASK, mmu_context_bmap);
+			mm->context.sparc64_ctx_val = new_ctx;
+		}
+	}
+}
 
 /* Caller does TLB context flushing on local CPU if necessary.
  * The caller also ensures that CTX_VALID(mm->context) is false.
@@ -677,48 +837,30 @@ void get_new_mmu_context(struct mm_struct *mm)
 {
 	unsigned long ctx, new_ctx;
 	unsigned long orig_pgsz_bits;
-	int new_version;
 
 	spin_lock(&ctx_alloc_lock);
+retry:
+	/* wrap might have happened, test again if our context became valid */
+	if (unlikely(CTX_VALID(mm->context)))
+		goto out;
 	orig_pgsz_bits = (mm->context.sparc64_ctx_val & CTX_PGSZ_MASK);
 	ctx = (tlb_context_cache + 1) & CTX_NR_MASK;
 	new_ctx = find_next_zero_bit(mmu_context_bmap, 1 << CTX_NR_BITS, ctx);
-	new_version = 0;
 	if (new_ctx >= (1 << CTX_NR_BITS)) {
 		new_ctx = find_next_zero_bit(mmu_context_bmap, ctx, 1);
 		if (new_ctx >= ctx) {
-			int i;
-			new_ctx = (tlb_context_cache & CTX_VERSION_MASK) +
-				CTX_FIRST_VERSION;
-			if (new_ctx == 1)
-				new_ctx = CTX_FIRST_VERSION;
-
-			/* Don't call memset, for 16 entries that's just
-			 * plain silly...
-			 */
-			mmu_context_bmap[0] = 3;
-			mmu_context_bmap[1] = 0;
-			mmu_context_bmap[2] = 0;
-			mmu_context_bmap[3] = 0;
-			for (i = 4; i < CTX_BMAP_SLOTS; i += 4) {
-				mmu_context_bmap[i + 0] = 0;
-				mmu_context_bmap[i + 1] = 0;
-				mmu_context_bmap[i + 2] = 0;
-				mmu_context_bmap[i + 3] = 0;
-			}
-			new_version = 1;
-			goto out;
+			mmu_context_wrap();
+			goto retry;
 		}
 	}
+	if (mm->context.sparc64_ctx_val)
+		cpumask_clear(mm_cpumask(mm));
 	mmu_context_bmap[new_ctx>>6] |= (1UL << (new_ctx & 63));
 	new_ctx |= (tlb_context_cache & CTX_VERSION_MASK);
-out:
 	tlb_context_cache = new_ctx;
 	mm->context.sparc64_ctx_val = new_ctx | orig_pgsz_bits;
+out:
 	spin_unlock(&ctx_alloc_lock);
-
-	if (unlikely(new_version))
-		smp_new_mmu_context_version();
 }
 
 static int numa_enabled = 1;
@@ -785,12 +927,22 @@ static void __init find_ramdisk(unsigned long phys_base)
 
 struct node_mem_mask {
 	unsigned long mask;
-	unsigned long val;
+	unsigned long match;
 };
 static struct node_mem_mask node_masks[MAX_NUMNODES];
 static int num_node_masks;
 
 #ifdef CONFIG_NEED_MULTIPLE_NODES
+
+struct mdesc_mlgroup {
+	u64	node;
+	u64	latency;
+	u64	match;
+	u64	mask;
+};
+
+static struct mdesc_mlgroup *mlgroups;
+static int num_mlgroups;
 
 int numa_cpu_lookup_table[NR_CPUS];
 cpumask_t numa_cpumask_lookup_table[MAX_NUMNODES];
@@ -803,55 +955,128 @@ struct mdesc_mblock {
 static struct mdesc_mblock *mblocks;
 static int num_mblocks;
 
-static unsigned long ra_to_pa(unsigned long addr)
+static struct mdesc_mblock * __init addr_to_mblock(unsigned long addr)
 {
+	struct mdesc_mblock *m = NULL;
 	int i;
 
 	for (i = 0; i < num_mblocks; i++) {
-		struct mdesc_mblock *m = &mblocks[i];
+		m = &mblocks[i];
 
 		if (addr >= m->base &&
 		    addr < (m->base + m->size)) {
-			addr += m->offset;
 			break;
 		}
 	}
-	return addr;
+
+	return m;
 }
 
-static int find_node(unsigned long addr)
+static u64 __init memblock_nid_range_sun4u(u64 start, u64 end, int *nid)
 {
-	int i;
+	int prev_nid, new_nid;
 
-	addr = ra_to_pa(addr);
-	for (i = 0; i < num_node_masks; i++) {
-		struct node_mem_mask *p = &node_masks[i];
+	prev_nid = NUMA_NO_NODE;
+	for ( ; start < end; start += PAGE_SIZE) {
+		for (new_nid = 0; new_nid < num_node_masks; new_nid++) {
+			struct node_mem_mask *p = &node_masks[new_nid];
 
-		if ((addr & p->mask) == p->val)
-			return i;
-	}
-	/* The following condition has been observed on LDOM guests.*/
-	WARN_ONCE(1, "find_node: A physical address doesn't match a NUMA node"
-		" rule. Some physical memory will be owned by node 0.");
-	return 0;
-}
+			if ((start & p->mask) == p->match) {
+				if (prev_nid == NUMA_NO_NODE)
+					prev_nid = new_nid;
+				break;
+			}
+		}
 
-static u64 memblock_nid_range(u64 start, u64 end, int *nid)
-{
-	*nid = find_node(start);
-	start += PAGE_SIZE;
-	while (start < end) {
-		int n = find_node(start);
-
-		if (n != *nid)
+		if (new_nid == num_node_masks) {
+			prev_nid = 0;
+			WARN_ONCE(1, "addr[%Lx] doesn't match a NUMA node rule. Some memory will be owned by node 0.",
+				  start);
 			break;
-		start += PAGE_SIZE;
+		}
+
+		if (prev_nid != new_nid)
+			break;
+	}
+	*nid = prev_nid;
+
+	return start > end ? end : start;
+}
+
+static u64 __init memblock_nid_range(u64 start, u64 end, int *nid)
+{
+	u64 ret_end, pa_start, m_mask, m_match, m_end;
+	struct mdesc_mblock *mblock;
+	int _nid, i;
+
+	if (tlb_type != hypervisor)
+		return memblock_nid_range_sun4u(start, end, nid);
+
+	mblock = addr_to_mblock(start);
+	if (!mblock) {
+		WARN_ONCE(1, "memblock_nid_range: Can't find mblock addr[%Lx]",
+			  start);
+
+		_nid = 0;
+		ret_end = end;
+		goto done;
 	}
 
-	if (start > end)
-		start = end;
+	pa_start = start + mblock->offset;
+	m_match = 0;
+	m_mask = 0;
 
-	return start;
+	for (_nid = 0; _nid < num_node_masks; _nid++) {
+		struct node_mem_mask *const m = &node_masks[_nid];
+
+		if ((pa_start & m->mask) == m->match) {
+			m_match = m->match;
+			m_mask = m->mask;
+			break;
+		}
+	}
+
+	if (num_node_masks == _nid) {
+		/* We could not find NUMA group, so default to 0, but lets
+		 * search for latency group, so we could calculate the correct
+		 * end address that we return
+		 */
+		_nid = 0;
+
+		for (i = 0; i < num_mlgroups; i++) {
+			struct mdesc_mlgroup *const m = &mlgroups[i];
+
+			if ((pa_start & m->mask) == m->match) {
+				m_match = m->match;
+				m_mask = m->mask;
+				break;
+			}
+		}
+
+		if (i == num_mlgroups) {
+			WARN_ONCE(1, "memblock_nid_range: Can't find latency group addr[%Lx]",
+				  start);
+
+			ret_end = end;
+			goto done;
+		}
+	}
+
+	/*
+	 * Each latency group has match and mask, and each memory block has an
+	 * offset.  An address belongs to a latency group if its address matches
+	 * the following formula: ((addr + offset) & mask) == match
+	 * It is, however, slow to check every single page if it matches a
+	 * particular latency group. As optimization we calculate end value by
+	 * using bit arithmetics.
+	 */
+	m_end = m_match + (1ul << __ffs(m_mask)) - mblock->offset;
+	m_end += pa_start & ~((1ul << fls64(m_mask)) - 1);
+	ret_end = m_end > end ? end : m_end;
+
+done:
+	*nid = _nid;
+	return ret_end;
 }
 #endif
 
@@ -864,15 +1089,13 @@ static void __init allocate_node_data(int nid)
 	struct pglist_data *p;
 	unsigned long start_pfn, end_pfn;
 #ifdef CONFIG_NEED_MULTIPLE_NODES
-	unsigned long paddr;
 
-	paddr = memblock_alloc_try_nid(sizeof(struct pglist_data), SMP_CACHE_BYTES, nid);
-	if (!paddr) {
+	NODE_DATA(nid) = memblock_alloc_node(sizeof(struct pglist_data),
+					     SMP_CACHE_BYTES, nid);
+	if (!NODE_DATA(nid)) {
 		prom_printf("Cannot allocate pglist_data for nid[%d]\n", nid);
 		prom_halt();
 	}
-	NODE_DATA(nid) = __va(paddr);
-	memset(NODE_DATA(nid), 0, sizeof(struct pglist_data));
 
 	NODE_DATA(nid)->node_id = nid;
 #endif
@@ -892,7 +1115,8 @@ static void init_node_masks_nonnuma(void)
 
 	numadbg("Initializing tables for non-numa.\n");
 
-	node_masks[0].mask = node_masks[0].val = 0;
+	node_masks[0].mask = 0;
+	node_masks[0].match = 0;
 	num_node_masks = 1;
 
 #ifdef CONFIG_NEED_MULTIPLE_NODES
@@ -909,15 +1133,6 @@ struct pglist_data *node_data[MAX_NUMNODES];
 EXPORT_SYMBOL(numa_cpu_lookup_table);
 EXPORT_SYMBOL(numa_cpumask_lookup_table);
 EXPORT_SYMBOL(node_data);
-
-struct mdesc_mlgroup {
-	u64	node;
-	u64	latency;
-	u64	match;
-	u64	mask;
-};
-static struct mdesc_mlgroup *mlgroups;
-static int num_mlgroups;
 
 static int scan_pio_for_cfg_handle(struct mdesc_handle *md, u64 pio,
 				   u32 cfg_handle)
@@ -990,7 +1205,7 @@ int of_node_to_nid(struct device_node *dp)
 	md = mdesc_grab();
 
 	count = 0;
-	nid = -1;
+	nid = NUMA_NO_NODE;
 	mdesc_for_each_node_by_name(md, grp, "group") {
 		if (!scan_arcs_for_cfg_handle(md, grp, cfg_handle)) {
 			nid = count;
@@ -1007,6 +1222,10 @@ int of_node_to_nid(struct device_node *dp)
 static void __init add_node_ranges(void)
 {
 	struct memblock_region *reg;
+	unsigned long prev_max;
+
+memblock_resized:
+	prev_max = memblock.memory.max;
 
 	for_each_memblock(memory, reg) {
 		unsigned long size = reg->size;
@@ -1026,6 +1245,8 @@ static void __init add_node_ranges(void)
 
 			memblock_set_node(start, this_end - start,
 					  &memblock.memory, nid);
+			if (memblock.memory.max != prev_max)
+				goto memblock_resized;
 			start = this_end;
 		}
 	}
@@ -1042,8 +1263,8 @@ static int __init grab_mlgroups(struct mdesc_handle *md)
 	if (!count)
 		return -ENOENT;
 
-	paddr = memblock_alloc(count * sizeof(struct mdesc_mlgroup),
-			  SMP_CACHE_BYTES);
+	paddr = memblock_phys_alloc(count * sizeof(struct mdesc_mlgroup),
+				    SMP_CACHE_BYTES);
 	if (!paddr)
 		return -ENOMEM;
 
@@ -1083,8 +1304,8 @@ static int __init grab_mblocks(struct mdesc_handle *md)
 	if (!count)
 		return -ENOENT;
 
-	paddr = memblock_alloc(count * sizeof(struct mdesc_mblock),
-			  SMP_CACHE_BYTES);
+	paddr = memblock_phys_alloc(count * sizeof(struct mdesc_mblock),
+				    SMP_CACHE_BYTES);
 	if (!paddr)
 		return -ENOMEM;
 
@@ -1159,6 +1380,7 @@ int __node_distance(int from, int to)
 	}
 	return numa_latency[from][to];
 }
+EXPORT_SYMBOL(__node_distance);
 
 static int __init find_best_numa_node_for_mlgroup(struct mdesc_mlgroup *grp)
 {
@@ -1167,7 +1389,7 @@ static int __init find_best_numa_node_for_mlgroup(struct mdesc_mlgroup *grp)
 	for (i = 0; i < MAX_NUMNODES; i++) {
 		struct node_mem_mask *n = &node_masks[i];
 
-		if ((grp->mask == n->mask) && (grp->match == n->val))
+		if ((grp->mask == n->mask) && (grp->match == n->match))
 			break;
 	}
 	return i;
@@ -1222,10 +1444,10 @@ static int __init numa_attach_mlgroup(struct mdesc_handle *md, u64 grp,
 	n = &node_masks[num_node_masks++];
 
 	n->mask = candidate->mask;
-	n->val = candidate->match;
+	n->match = candidate->match;
 
-	numadbg("NUMA NODE[%d]: mask[%lx] val[%lx] (latency[%llx])\n",
-		index, n->mask, n->val, candidate->latency);
+	numadbg("NUMA NODE[%d]: mask[%lx] match[%lx] (latency[%llx])\n",
+		index, n->mask, n->match, candidate->latency);
 
 	return 0;
 }
@@ -1322,7 +1544,7 @@ static int __init numa_parse_jbus(void)
 		numa_cpu_lookup_table[cpu] = index;
 		cpumask_copy(&numa_cpumask_lookup_table[index], cpumask_of(cpu));
 		node_masks[index].mask = ~((1UL << 36UL) - 1UL);
-		node_masks[index].val = cpu << 36UL;
+		node_masks[index].match = cpu << 36UL;
 
 		index++;
 	}
@@ -1396,7 +1618,7 @@ static void __init bootmem_init_nonnuma(void)
 	       (top_of_ram - total_ram) >> 20);
 
 	init_node_masks_nonnuma();
-	memblock_set_node(0, (phys_addr_t)ULLONG_MAX, &memblock.memory, 0);
+	memblock_set_node(0, PHYS_ADDR_MAX, &memblock.memory, 0);
 	allocate_node_data(0);
 	node_set_online(0);
 }
@@ -1438,7 +1660,7 @@ bool kern_addr_valid(unsigned long addr)
 	if ((long)addr < 0L) {
 		unsigned long pa = __pa(addr);
 
-		if ((addr >> max_phys_bits) != 0UL)
+		if ((pa >> max_phys_bits) != 0UL)
 			return false;
 
 		return pfn_valid(pa >> PAGE_SHIFT);
@@ -1585,7 +1807,10 @@ static unsigned long __ref kernel_map_range(unsigned long pstart,
 		if (pgd_none(*pgd)) {
 			pud_t *new;
 
-			new = __alloc_bootmem(PAGE_SIZE, PAGE_SIZE, PAGE_SIZE);
+			new = memblock_alloc_from(PAGE_SIZE, PAGE_SIZE,
+						  PAGE_SIZE);
+			if (!new)
+				goto err_alloc;
 			alloc_bytes += PAGE_SIZE;
 			pgd_populate(&init_mm, pgd, new);
 		}
@@ -1597,7 +1822,10 @@ static unsigned long __ref kernel_map_range(unsigned long pstart,
 				vstart = kernel_map_hugepud(vstart, vend, pud);
 				continue;
 			}
-			new = __alloc_bootmem(PAGE_SIZE, PAGE_SIZE, PAGE_SIZE);
+			new = memblock_alloc_from(PAGE_SIZE, PAGE_SIZE,
+						  PAGE_SIZE);
+			if (!new)
+				goto err_alloc;
 			alloc_bytes += PAGE_SIZE;
 			pud_populate(&init_mm, pud, new);
 		}
@@ -1610,7 +1838,10 @@ static unsigned long __ref kernel_map_range(unsigned long pstart,
 				vstart = kernel_map_hugepmd(vstart, vend, pmd);
 				continue;
 			}
-			new = __alloc_bootmem(PAGE_SIZE, PAGE_SIZE, PAGE_SIZE);
+			new = memblock_alloc_from(PAGE_SIZE, PAGE_SIZE,
+						  PAGE_SIZE);
+			if (!new)
+				goto err_alloc;
 			alloc_bytes += PAGE_SIZE;
 			pmd_populate_kernel(&init_mm, pmd, new);
 		}
@@ -1630,6 +1861,11 @@ static unsigned long __ref kernel_map_range(unsigned long pstart,
 	}
 
 	return alloc_bytes;
+
+err_alloc:
+	panic("%s: Failed to allocate %lu bytes align=%lx from=%lx\n",
+	      __func__, PAGE_SIZE, PAGE_SIZE, PAGE_SIZE);
+	return -ENOMEM;
 }
 
 static void __init flush_all_kernel_tsbs(void)
@@ -1761,11 +1997,21 @@ static void __init setup_page_offset(void)
 			break;
 		case SUN4V_CHIP_SPARC_M7:
 		case SUN4V_CHIP_SPARC_SN:
-		default:
 			/* M7 and later support 52-bit virtual addresses.  */
 			sparc64_va_hole_top =    0xfff8000000000000UL;
 			sparc64_va_hole_bottom = 0x0008000000000000UL;
 			max_phys_bits = 49;
+			break;
+		case SUN4V_CHIP_SPARC_M8:
+		default:
+			/* M8 and later support 54-bit virtual addresses.
+			 * However, restricting M8 and above VA bits to 53
+			 * as 4-level page table cannot support more than
+			 * 53 VA bits.
+			 */
+			sparc64_va_hole_top =    0xfff0000000000000UL;
+			sparc64_va_hole_bottom = 0x0010000000000000UL;
+			max_phys_bits = 51;
 			break;
 		}
 	}
@@ -1978,6 +2224,7 @@ static void __init sun4v_linear_pte_xor_finalize(void)
 	 */
 	switch (sun4v_chip_type) {
 	case SUN4V_CHIP_SPARC_M7:
+	case SUN4V_CHIP_SPARC_M8:
 	case SUN4V_CHIP_SPARC_SN:
 		pagecv_flag = 0x00;
 		break;
@@ -2022,19 +2269,6 @@ static unsigned long last_valid_pfn;
 static void sun4u_pgprot_init(void);
 static void sun4v_pgprot_init(void);
 
-static phys_addr_t __init available_memory(void)
-{
-	phys_addr_t available = 0ULL;
-	phys_addr_t pa_start, pa_end;
-	u64 i;
-
-	for_each_free_mem_range(i, NUMA_NO_NODE, MEMBLOCK_NONE, &pa_start,
-				&pa_end, NULL)
-		available = available + (pa_end  - pa_start);
-
-	return available;
-}
-
 #define _PAGE_CACHE_4U	(_PAGE_CP_4U | _PAGE_CV_4U)
 #define _PAGE_CACHE_4V	(_PAGE_CP_4V | _PAGE_CV_4V)
 #define __DIRTY_BITS_4U	 (_PAGE_MODIFIED_4U | _PAGE_WRITE_4U | _PAGE_W_4U)
@@ -2048,33 +2282,8 @@ static phys_addr_t __init available_memory(void)
  */
 static void __init reduce_memory(phys_addr_t limit_ram)
 {
-	phys_addr_t avail_ram = available_memory();
-	phys_addr_t pa_start, pa_end;
-	u64 i;
-
-	if (limit_ram >= avail_ram)
-		return;
-
-	for_each_free_mem_range(i, NUMA_NO_NODE, MEMBLOCK_NONE, &pa_start,
-				&pa_end, NULL) {
-		phys_addr_t region_size = pa_end - pa_start;
-		phys_addr_t clip_start = pa_start;
-
-		avail_ram = avail_ram - region_size;
-		/* Are we consuming too much? */
-		if (avail_ram < limit_ram) {
-			phys_addr_t give_back = limit_ram - avail_ram;
-
-			region_size = region_size - give_back;
-			clip_start = clip_start + give_back;
-		}
-
-		memblock_remove(clip_start, region_size);
-
-		if (avail_ram <= limit_ram)
-			break;
-		i = 0UL;
-	}
+	limit_ram += memblock_reserved_size();
+	memblock_enforce_memory_limit(limit_ram);
 }
 
 void __init paging_init(void)
@@ -2130,6 +2339,7 @@ void __init paging_init(void)
 	 */
 	switch (sun4v_chip_type) {
 	case SUN4V_CHIP_SPARC_M7:
+	case SUN4V_CHIP_SPARC_M8:
 	case SUN4V_CHIP_SPARC_SN:
 		page_cache4v_flag = _PAGE_CP_4V;
 		break;
@@ -2304,8 +2514,15 @@ void __init mem_init(void)
 {
 	high_memory = __va(last_valid_pfn << PAGE_SHIFT);
 
+	memblock_free_all();
+
+	/*
+	 * Must be done after boot memory is put on freelist, because here we
+	 * might set fields in deferred struct pages that have not yet been
+	 * initialized, and memblock_free_all() initializes all the reserved
+	 * deferred pages for us.
+	 */
 	register_page_bootmem_info();
-	free_all_bootmem();
 
 	/*
 	 * Set up the zero page, mark it reserved, so that page count
@@ -2355,14 +2572,6 @@ void free_initmem(void)
 	}
 }
 
-#ifdef CONFIG_BLK_DEV_INITRD
-void free_initrd_mem(unsigned long start, unsigned long end)
-{
-	free_reserved_area((void *)start, (void *)end, POISON_FREE_INITMEM,
-			   "initrd");
-}
-#endif
-
 pgprot_t PAGE_KERNEL __read_mostly;
 EXPORT_SYMBOL(PAGE_KERNEL);
 
@@ -2385,7 +2594,7 @@ EXPORT_SYMBOL(_PAGE_CACHE);
 
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
 int __meminit vmemmap_populate(unsigned long vstart, unsigned long vend,
-			       int node)
+			       int node, struct vmem_altmap *altmap)
 {
 	unsigned long pte_base;
 
@@ -2401,30 +2610,19 @@ int __meminit vmemmap_populate(unsigned long vstart, unsigned long vend,
 	vstart = vstart & PMD_MASK;
 	vend = ALIGN(vend, PMD_SIZE);
 	for (; vstart < vend; vstart += PMD_SIZE) {
-		pgd_t *pgd = pgd_offset_k(vstart);
+		pgd_t *pgd = vmemmap_pgd_populate(vstart, node);
 		unsigned long pte;
 		pud_t *pud;
 		pmd_t *pmd;
 
-		if (pgd_none(*pgd)) {
-			pud_t *new = vmemmap_alloc_block(PAGE_SIZE, node);
+		if (!pgd)
+			return -ENOMEM;
 
-			if (!new)
-				return -ENOMEM;
-			pgd_populate(&init_mm, pgd, new);
-		}
-
-		pud = pud_offset(pgd, vstart);
-		if (pud_none(*pud)) {
-			pmd_t *new = vmemmap_alloc_block(PAGE_SIZE, node);
-
-			if (!new)
-				return -ENOMEM;
-			pud_populate(&init_mm, pud, new);
-		}
+		pud = vmemmap_pud_populate(pgd, vstart, node);
+		if (!pud)
+			return -ENOMEM;
 
 		pmd = pmd_offset(pud, vstart);
-
 		pte = pmd_val(*pmd);
 		if (!(pte & _PAGE_VALID)) {
 			void *block = vmemmap_alloc_block(PMD_SIZE, node);
@@ -2439,7 +2637,8 @@ int __meminit vmemmap_populate(unsigned long vstart, unsigned long vend,
 	return 0;
 }
 
-void vmemmap_free(unsigned long start, unsigned long end)
+void vmemmap_free(unsigned long start, unsigned long end,
+		struct vmem_altmap *altmap)
 {
 }
 #endif /* CONFIG_SPARSEMEM_VMEMMAP */
@@ -2688,10 +2887,9 @@ void __flush_tlb_all(void)
 			     : : "r" (pstate));
 }
 
-pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
-			    unsigned long address)
+pte_t *pte_alloc_one_kernel(struct mm_struct *mm)
 {
-	struct page *page = alloc_page(GFP_KERNEL | __GFP_NOTRACK | __GFP_ZERO);
+	struct page *page = alloc_page(GFP_KERNEL | __GFP_ZERO);
 	pte_t *pte = NULL;
 
 	if (page)
@@ -2700,14 +2898,13 @@ pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
 	return pte;
 }
 
-pgtable_t pte_alloc_one(struct mm_struct *mm,
-			unsigned long address)
+pgtable_t pte_alloc_one(struct mm_struct *mm)
 {
-	struct page *page = alloc_page(GFP_KERNEL | __GFP_NOTRACK | __GFP_ZERO);
+	struct page *page = alloc_page(GFP_KERNEL | __GFP_ZERO);
 	if (!page)
 		return NULL;
 	if (!pgtable_page_ctor(page)) {
-		free_hot_cold_page(page, 0);
+		free_unref_page(page);
 		return NULL;
 	}
 	return (pte_t *) page_address(page);
@@ -2927,3 +3124,72 @@ void flush_tlb_kernel_range(unsigned long start, unsigned long end)
 		do_flush_tlb_kernel_range(start, end);
 	}
 }
+
+void copy_user_highpage(struct page *to, struct page *from,
+	unsigned long vaddr, struct vm_area_struct *vma)
+{
+	char *vfrom, *vto;
+
+	vfrom = kmap_atomic(from);
+	vto = kmap_atomic(to);
+	copy_user_page(vto, vfrom, vaddr, to);
+	kunmap_atomic(vto);
+	kunmap_atomic(vfrom);
+
+	/* If this page has ADI enabled, copy over any ADI tags
+	 * as well
+	 */
+	if (vma->vm_flags & VM_SPARC_ADI) {
+		unsigned long pfrom, pto, i, adi_tag;
+
+		pfrom = page_to_phys(from);
+		pto = page_to_phys(to);
+
+		for (i = pfrom; i < (pfrom + PAGE_SIZE); i += adi_blksize()) {
+			asm volatile("ldxa [%1] %2, %0\n\t"
+					: "=r" (adi_tag)
+					:  "r" (i), "i" (ASI_MCD_REAL));
+			asm volatile("stxa %0, [%1] %2\n\t"
+					:
+					: "r" (adi_tag), "r" (pto),
+					  "i" (ASI_MCD_REAL));
+			pto += adi_blksize();
+		}
+		asm volatile("membar #Sync\n\t");
+	}
+}
+EXPORT_SYMBOL(copy_user_highpage);
+
+void copy_highpage(struct page *to, struct page *from)
+{
+	char *vfrom, *vto;
+
+	vfrom = kmap_atomic(from);
+	vto = kmap_atomic(to);
+	copy_page(vto, vfrom);
+	kunmap_atomic(vto);
+	kunmap_atomic(vfrom);
+
+	/* If this platform is ADI enabled, copy any ADI tags
+	 * as well
+	 */
+	if (adi_capable()) {
+		unsigned long pfrom, pto, i, adi_tag;
+
+		pfrom = page_to_phys(from);
+		pto = page_to_phys(to);
+
+		for (i = pfrom; i < (pfrom + PAGE_SIZE); i += adi_blksize()) {
+			asm volatile("ldxa [%1] %2, %0\n\t"
+					: "=r" (adi_tag)
+					:  "r" (i), "i" (ASI_MCD_REAL));
+			asm volatile("stxa %0, [%1] %2\n\t"
+					:
+					: "r" (adi_tag), "r" (pto),
+					  "i" (ASI_MCD_REAL));
+			pto += adi_blksize();
+		}
+		asm volatile("membar #Sync\n\t");
+	}
+}
+EXPORT_SYMBOL(copy_highpage);

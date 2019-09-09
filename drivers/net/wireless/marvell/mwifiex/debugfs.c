@@ -114,7 +114,8 @@ mwifiex_info_read(struct file *file, char __user *ubuf,
 	if (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_STA) {
 		p += sprintf(p, "multicast_count=\"%d\"\n",
 			     netdev_mc_count(netdev));
-		p += sprintf(p, "essid=\"%s\"\n", info.ssid.ssid);
+		p += sprintf(p, "essid=\"%.*s\"\n", info.ssid.ssid_len,
+			     info.ssid.ssid);
 		p += sprintf(p, "bssid=\"%pM\"\n", info.bssid);
 		p += sprintf(p, "channel=\"%d\"\n", (int) info.bss_chan);
 		p += sprintf(p, "country_code = \"%s\"\n", info.country_code);
@@ -150,29 +151,6 @@ mwifiex_info_read(struct file *file, char __user *ubuf,
 free_and_exit:
 	free_page(page);
 	return ret;
-}
-
-/*
- * Proc device dump read handler.
- *
- * This function is called when the 'device_dump' file is opened for
- * reading.
- * This function dumps driver information and firmware memory segments
- * (ex. DTCM, ITCM, SQRAM etc.) for
- * debugging.
- */
-static ssize_t
-mwifiex_device_dump_read(struct file *file, char __user *ubuf,
-			 size_t count, loff_t *ppos)
-{
-	struct mwifiex_private *priv = file->private_data;
-
-	if (!priv->adapter->if_ops.device_dump)
-		return -EIO;
-
-	priv->adapter->if_ops.device_dump(priv->adapter);
-
-	return 0;
 }
 
 /*
@@ -295,15 +273,13 @@ mwifiex_histogram_read(struct file *file, char __user *ubuf,
 		     "total samples = %d\n",
 		     atomic_read(&phist_data->num_samples));
 
-	p += sprintf(p, "rx rates (in Mbps): 0=1M   1=2M");
-	p += sprintf(p, "2=5.5M  3=11M   4=6M   5=9M  6=12M\n");
-	p += sprintf(p, "7=18M  8=24M  9=36M  10=48M  11=54M");
-	p += sprintf(p, "12-27=MCS0-15(BW20) 28-43=MCS0-15(BW40)\n");
+	p += sprintf(p,
+		     "rx rates (in Mbps): 0=1M   1=2M 2=5.5M  3=11M   4=6M   5=9M  6=12M\n"
+		     "7=18M  8=24M  9=36M  10=48M  11=54M 12-27=MCS0-15(BW20) 28-43=MCS0-15(BW40)\n");
 
 	if (ISSUPP_11ACENABLED(priv->adapter->fw_cap_info)) {
-		p += sprintf(p, "44-53=MCS0-9(VHT:BW20)");
-		p += sprintf(p, "54-63=MCS0-9(VHT:BW40)");
-		p += sprintf(p, "64-73=MCS0-9(VHT:BW80)\n\n");
+		p += sprintf(p,
+			     "44-53=MCS0-9(VHT:BW20) 54-63=MCS0-9(VHT:BW40) 64-73=MCS0-9(VHT:BW80)\n\n");
 	} else {
 		p += sprintf(p, "\n");
 	}
@@ -332,7 +308,7 @@ mwifiex_histogram_read(struct file *file, char __user *ubuf,
 	for (i = 0; i < MWIFIEX_MAX_NOISE_FLR; i++) {
 		value = atomic_read(&phist_data->noise_flr[i]);
 		if (value)
-			p += sprintf(p, "noise_flr[-%02ddBm] = %d\n",
+			p += sprintf(p, "noise_flr[%02ddBm] = %d\n",
 				(int)(i-128), value);
 	}
 	for (i = 0; i < MWIFIEX_MAX_SIG_STRENGTH; i++) {
@@ -835,7 +811,7 @@ mwifiex_hscfg_write(struct file *file, const char __user *ubuf,
 			      MWIFIEX_SYNC_CMD, &hscfg);
 
 	mwifiex_enable_hs(priv->adapter);
-	priv->adapter->hs_enabling = false;
+	clear_bit(MWIFIEX_IS_HS_ENABLING, &priv->adapter->work_flags);
 	ret = count;
 done:
 	kfree(buf);
@@ -939,8 +915,6 @@ mwifiex_reset_write(struct file *file,
 
 	if (adapter->if_ops.card_reset) {
 		dev_info(adapter->dev, "Resetting per request\n");
-		adapter->hw_status = MWIFIEX_HW_STATUS_RESET;
-		mwifiex_cancel_all_pending_cmd(adapter);
 		adapter->if_ops.card_reset(adapter);
 	}
 
@@ -948,9 +922,8 @@ mwifiex_reset_write(struct file *file,
 }
 
 #define MWIFIEX_DFS_ADD_FILE(name) do {                                 \
-	if (!debugfs_create_file(#name, 0644, priv->dfs_dev_dir,        \
-			priv, &mwifiex_dfs_##name##_fops))              \
-		return;                                                 \
+	debugfs_create_file(#name, 0644, priv->dfs_dev_dir, priv,       \
+			    &mwifiex_dfs_##name##_fops);                \
 } while (0);
 
 #define MWIFIEX_DFS_FILE_OPS(name)                                      \
@@ -976,7 +949,6 @@ static const struct file_operations mwifiex_dfs_##name##_fops = {       \
 MWIFIEX_DFS_FILE_READ_OPS(info);
 MWIFIEX_DFS_FILE_READ_OPS(debug);
 MWIFIEX_DFS_FILE_READ_OPS(getlog);
-MWIFIEX_DFS_FILE_READ_OPS(device_dump);
 MWIFIEX_DFS_FILE_OPS(regrdwr);
 MWIFIEX_DFS_FILE_OPS(rdeeprom);
 MWIFIEX_DFS_FILE_OPS(memrw);
@@ -1007,7 +979,7 @@ mwifiex_dev_debugfs_init(struct mwifiex_private *priv)
 	MWIFIEX_DFS_ADD_FILE(getlog);
 	MWIFIEX_DFS_ADD_FILE(regrdwr);
 	MWIFIEX_DFS_ADD_FILE(rdeeprom);
-	MWIFIEX_DFS_ADD_FILE(device_dump);
+
 	MWIFIEX_DFS_ADD_FILE(memrw);
 	MWIFIEX_DFS_ADD_FILE(hscfg);
 	MWIFIEX_DFS_ADD_FILE(histogram);
@@ -1045,6 +1017,5 @@ mwifiex_debugfs_init(void)
 void
 mwifiex_debugfs_remove(void)
 {
-	if (mwifiex_dfs_dir)
-		debugfs_remove(mwifiex_dfs_dir);
+	debugfs_remove(mwifiex_dfs_dir);
 }

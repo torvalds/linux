@@ -1,21 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  PS3 SMP routines.
  *
  *  Copyright (C) 2006 Sony Computer Entertainment Inc.
  *  Copyright 2006 Sony Corp.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; version 2 of the License.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/kernel.h>
@@ -77,7 +65,7 @@ static void __init ps3_smp_probe(void)
 		BUILD_BUG_ON(PPC_MSG_CALL_FUNCTION    != 0);
 		BUILD_BUG_ON(PPC_MSG_RESCHEDULE       != 1);
 		BUILD_BUG_ON(PPC_MSG_TICK_BROADCAST   != 2);
-		BUILD_BUG_ON(PPC_MSG_DEBUGGER_BREAK   != 3);
+		BUILD_BUG_ON(PPC_MSG_NMI_IPI          != 3);
 
 		for (i = 0; i < MSG_COUNT; i++) {
 			result = ps3_event_receive_port_setup(cpu, &virqs[i]);
@@ -96,7 +84,7 @@ static void __init ps3_smp_probe(void)
 				ps3_register_ipi_irq(cpu, virqs[i]);
 		}
 
-		ps3_register_ipi_debug_brk(cpu, virqs[PPC_MSG_DEBUGGER_BREAK]);
+		ps3_register_ipi_debug_brk(cpu, virqs[PPC_MSG_NMI_IPI]);
 
 		DBG(" <- %s:%d: (%d)\n", __func__, __LINE__, cpu);
 	}

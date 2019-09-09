@@ -1,0 +1,68 @@
+* ENETC ethernet device tree bindings
+
+Depending on board design and ENETC port type (internal or
+external) there are two supported link modes specified by
+below device tree bindings.
+
+Required properties:
+
+- reg		: Specifies PCIe Device Number and Function
+		  Number of the ENETC endpoint device, according
+		  to parent node bindings.
+- compatible	: Should be "fsl,enetc".
+
+1) The ENETC external port is connected to a MDIO configurable phy:
+
+In this case, the ENETC node should include a "mdio" sub-node
+that in turn should contain the "ethernet-phy" node describing the
+external phy.  Below properties are required, their bindings
+already defined in Documentation/devicetree/bindings/net/ethernet.txt or
+Documentation/devicetree/bindings/net/phy.txt.
+
+Required:
+
+- phy-handle		: Phandle to a PHY on the MDIO bus.
+			  Defined in ethernet.txt.
+
+- phy-connection-type	: Defined in ethernet.txt.
+
+- mdio			: "mdio" node, defined in mdio.txt.
+
+- ethernet-phy		: "ethernet-phy" node, defined in phy.txt.
+
+Example:
+
+	ethernet@0,0 {
+		compatible = "fsl,enetc";
+		reg = <0x000000 0 0 0 0>;
+		phy-handle = <&sgmii_phy0>;
+		phy-connection-type = "sgmii";
+
+		mdio {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			sgmii_phy0: ethernet-phy@2 {
+				reg = <0x2>;
+			};
+		};
+	};
+
+2) The ENETC port is an internal port or has a fixed-link external
+connection:
+
+In this case, the ENETC port node defines a fixed link connection,
+as specified by Documentation/devicetree/bindings/net/fixed-link.txt.
+
+Required:
+
+- fixed-link	: "fixed-link" node, defined in "fixed-link.txt".
+
+Example:
+	ethernet@0,2 {
+		compatible = "fsl,enetc";
+		reg = <0x000200 0 0 0 0>;
+		fixed-link {
+			speed = <1000>;
+			full-duplex;
+		};
+	};

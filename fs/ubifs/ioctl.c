@@ -1,21 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * This file is part of UBIFS.
  *
  * Copyright (C) 2006-2008 Nokia Corporation.
  * Copyright (C) 2006, 2007 University of Szeged, Hungary
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 51
- * Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  *
  * Authors: Zoltan Sogor
  *          Artem Bityutskiy (Битюцкий Артём)
@@ -28,6 +16,11 @@
 #include <linux/mount.h>
 #include "ubifs.h"
 
+/* Need to be kept consistent with checked flags in ioctl2ubifs() */
+#define UBIFS_SUPPORTED_IOCTL_FLAGS \
+	(FS_COMPR_FL | FS_SYNC_FL | FS_APPEND_FL | \
+	 FS_IMMUTABLE_FL | FS_DIRSYNC_FL)
+
 /**
  * ubifs_set_inode_flags - set VFS inode flags.
  * @inode: VFS inode to set flags for
@@ -38,7 +31,8 @@ void ubifs_set_inode_flags(struct inode *inode)
 {
 	unsigned int flags = ubifs_inode(inode)->flags;
 
-	inode->i_flags &= ~(S_SYNC | S_APPEND | S_IMMUTABLE | S_DIRSYNC);
+	inode->i_flags &= ~(S_SYNC | S_APPEND | S_IMMUTABLE | S_DIRSYNC |
+			    S_ENCRYPTED);
 	if (flags & UBIFS_SYNC_FL)
 		inode->i_flags |= S_SYNC;
 	if (flags & UBIFS_APPEND_FL)
@@ -47,13 +41,15 @@ void ubifs_set_inode_flags(struct inode *inode)
 		inode->i_flags |= S_IMMUTABLE;
 	if (flags & UBIFS_DIRSYNC_FL)
 		inode->i_flags |= S_DIRSYNC;
+	if (flags & UBIFS_CRYPT_FL)
+		inode->i_flags |= S_ENCRYPTED;
 }
 
 /*
  * ioctl2ubifs - convert ioctl inode flags to UBIFS inode flags.
  * @ioctl_flags: flags to convert
  *
- * This function convert ioctl flags (@FS_COMPR_FL, etc) to UBIFS inode flags
+ * This function converts ioctl flags (@FS_COMPR_FL, etc) to UBIFS inode flags
  * (@UBIFS_COMPR_FL, etc).
  */
 static int ioctl2ubifs(int ioctl_flags)
@@ -78,8 +74,8 @@ static int ioctl2ubifs(int ioctl_flags)
  * ubifs2ioctl - convert UBIFS inode flags to ioctl inode flags.
  * @ubifs_flags: flags to convert
  *
- * This function convert UBIFS (@UBIFS_COMPR_FL, etc) to ioctl flags
- * (@FS_COMPR_FL, etc).
+ * This function converts UBIFS inode flags (@UBIFS_COMPR_FL, etc) to ioctl
+ * flags (@FS_COMPR_FL, etc).
  */
 static int ubifs2ioctl(int ubifs_flags)
 {
@@ -111,22 +107,15 @@ static int setflags(struct inode *inode, int flags)
 	if (err)
 		return err;
 
-	/*
-	 * The IMMUTABLE and APPEND_ONLY flags can only be changed by
-	 * the relevant capability.
-	 */
 	mutex_lock(&ui->ui_mutex);
 	oldflags = ubifs2ioctl(ui->flags);
-	if ((flags ^ oldflags) & (FS_APPEND_FL | FS_IMMUTABLE_FL)) {
-		if (!capable(CAP_LINUX_IMMUTABLE)) {
-			err = -EPERM;
-			goto out_unlock;
-		}
-	}
+	err = vfs_ioc_setflags_prepare(inode, oldflags, flags);
+	if (err)
+		goto out_unlock;
 
 	ui->flags = ioctl2ubifs(flags);
 	ubifs_set_inode_flags(inode);
-	inode->i_ctime = ubifs_current_time(inode);
+	inode->i_ctime = current_time(inode);
 	release = ui->dirty;
 	mark_inode_dirty_sync(inode);
 	mutex_unlock(&ui->ui_mutex);
@@ -166,6 +155,9 @@ long ubifs_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (get_user(flags, (int __user *) arg))
 			return -EFAULT;
 
+		if (flags & ~UBIFS_SUPPORTED_IOCTL_FLAGS)
+			return -EOPNOTSUPP;
+
 		if (!S_ISDIR(inode->i_mode))
 			flags &= ~FS_DIRSYNC_FL;
 
@@ -181,6 +173,17 @@ long ubifs_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		mnt_drop_write_file(file);
 		return err;
 	}
+	case FS_IOC_SET_ENCRYPTION_POLICY: {
+		struct ubifs_info *c = inode->i_sb->s_fs_info;
+
+		err = ubifs_enable_encryption(c);
+		if (err)
+			return err;
+
+		return fscrypt_ioctl_set_policy(file, (const void __user *)arg);
+	}
+	case FS_IOC_GET_ENCRYPTION_POLICY:
+		return fscrypt_ioctl_get_policy(file, (void __user *)arg);
 
 	default:
 		return -ENOTTY;
@@ -196,6 +199,9 @@ long ubifs_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 	case FS_IOC32_SETFLAGS:
 		cmd = FS_IOC_SETFLAGS;
+		break;
+	case FS_IOC_SET_ENCRYPTION_POLICY:
+	case FS_IOC_GET_ENCRYPTION_POLICY:
 		break;
 	default:
 		return -ENOIOCTLCMD;

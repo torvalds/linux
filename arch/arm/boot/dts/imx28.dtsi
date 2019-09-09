@@ -1,20 +1,21 @@
-/*
- * Copyright 2012 Freescale Semiconductor, Inc.
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// Copyright 2012 Freescale Semiconductor, Inc.
 
 #include <dt-bindings/gpio/gpio.h>
-#include "skeleton.dtsi"
 #include "imx28-pinfunc.h"
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
+
 	interrupt-parent = <&icoll>;
+	/*
+	 * The decompressor and also some bootloaders rely on a
+	 * pre-existing /chosen node to be available to insert the
+	 * command line and merge other ATAGS info.
+	 */
+	chosen {};
 
 	aliases {
 		ethernet0 = &mac0;
@@ -38,12 +39,13 @@
 	};
 
 	cpus {
-		#address-cells = <0>;
+		#address-cells = <1>;
 		#size-cells = <0>;
 
-		cpu {
+		cpu@0 {
 			compatible = "arm,arm926ej-s";
 			device_type = "cpu";
+			reg = <0>;
 		};
 	};
 
@@ -113,7 +115,7 @@
 				status = "disabled";
 			};
 
-			ssp0: ssp@80010000 {
+			ssp0: spi@80010000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				reg = <0x80010000 0x2000>;
@@ -124,7 +126,7 @@
 				status = "disabled";
 			};
 
-			ssp1: ssp@80012000 {
+			ssp1: spi@80012000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				reg = <0x80012000 0x2000>;
@@ -135,7 +137,7 @@
 				status = "disabled";
 			};
 
-			ssp2: ssp@80014000 {
+			ssp2: spi@80014000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				reg = <0x80014000 0x2000>;
@@ -146,7 +148,7 @@
 				status = "disabled";
 			};
 
-			ssp3: ssp@80016000 {
+			ssp3: spi@80016000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				reg = <0x80016000 0x2000>;
@@ -272,7 +274,8 @@
 					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 
-				gpmi_status_cfg: gpmi-status-cfg {
+				gpmi_status_cfg: gpmi-status-cfg@0 {
+					reg = <0>;
 					fsl,pinmux-ids = <
 						MX28_PAD_GPMI_RDN__GPMI_RDN
 						MX28_PAD_GPMI_WRN__GPMI_WRN
@@ -516,14 +519,16 @@
 					fsl,pull-up = <MXS_PULL_ENABLE>;
 				};
 
-				mmc0_cd_cfg: mmc0-cd-cfg {
+				mmc0_cd_cfg: mmc0-cd-cfg@0 {
+					reg = <0>;
 					fsl,pinmux-ids = <
 						MX28_PAD_SSP0_DETECT__SSP0_CARD_DETECT
 					>;
 					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 
-				mmc0_sck_cfg: mmc0-sck-cfg {
+				mmc0_sck_cfg: mmc0-sck-cfg@0 {
+					reg = <0>;
 					fsl,pinmux-ids = <
 						MX28_PAD_SSP0_SCK__SSP0_SCK
 					>;
@@ -547,14 +552,16 @@
 					fsl,pull-up = <MXS_PULL_ENABLE>;
 				};
 
-				mmc1_cd_cfg: mmc1-cd-cfg {
+				mmc1_cd_cfg: mmc1-cd-cfg@0 {
+					reg = <0>;
 					fsl,pinmux-ids = <
 						MX28_PAD_GPMI_RDY0__SSP1_CARD_DETECT
 					>;
 					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 
-				mmc1_sck_cfg: mmc1-sck-cfg {
+				mmc1_sck_cfg: mmc1-sck-cfg@0 {
+					reg = <0>;
 					fsl,pinmux-ids = <
 						MX28_PAD_GPMI_WRN__SSP1_SCK
 					>;
@@ -579,16 +586,43 @@
 					fsl,pull-up = <MXS_PULL_ENABLE>;
 				};
 
-				mmc2_cd_cfg: mmc2-cd-cfg {
+				mmc2_4bit_pins_b: mmc2-4bit@1 {
+					reg = <1>;
+					fsl,pinmux-ids = <
+						MX28_PAD_SSP2_SCK__SSP2_SCK
+						MX28_PAD_SSP2_MOSI__SSP2_CMD
+						MX28_PAD_SSP2_MISO__SSP2_D0
+						MX28_PAD_SSP2_SS0__SSP2_D3
+						MX28_PAD_SSP2_SS1__SSP2_D1
+						MX28_PAD_SSP2_SS2__SSP2_D2
+						MX28_PAD_AUART1_RX__SSP2_CARD_DETECT
+					>;
+					fsl,drive-strength = <MXS_DRIVE_8mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_ENABLE>;
+				};
+
+				mmc2_cd_cfg: mmc2-cd-cfg@0 {
+					reg = <0>;
 					fsl,pinmux-ids = <
 						MX28_PAD_AUART1_RX__SSP2_CARD_DETECT
 					>;
 					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 
-				mmc2_sck_cfg: mmc2-sck-cfg {
+				mmc2_sck_cfg_a: mmc2-sck-cfg@0 {
+					reg = <0>;
 					fsl,pinmux-ids = <
 						MX28_PAD_SSP0_DATA7__SSP2_SCK
+					>;
+					fsl,drive-strength = <MXS_DRIVE_12mA>;
+					fsl,pull-up = <MXS_PULL_DISABLE>;
+				};
+
+				mmc2_sck_cfg_b: mmc2-sck-cfg@1 {
+					reg = <1>;
+					fsl,pinmux-ids = <
+						MX28_PAD_SSP2_SCK__SSP2_SCK
 					>;
 					fsl,drive-strength = <MXS_DRIVE_12mA>;
 					fsl,pull-up = <MXS_PULL_DISABLE>;
@@ -1001,7 +1035,7 @@
 			};
 
 			can0: can@80032000 {
-				compatible = "fsl,imx28-flexcan", "fsl,p1010-flexcan";
+				compatible = "fsl,imx28-flexcan";
 				reg = <0x80032000 0x2000>;
 				interrupts = <8>;
 				clocks = <&clks 58>, <&clks 58>;
@@ -1010,7 +1044,7 @@
 			};
 
 			can1: can@80034000 {
-				compatible = "fsl,imx28-flexcan", "fsl,p1010-flexcan";
+				compatible = "fsl,imx28-flexcan";
 				reg = <0x80034000 0x2000>;
 				interrupts = <9>;
 				clocks = <&clks 59>, <&clks 59>;
@@ -1068,6 +1102,7 @@
 			};
 
 			saif0: saif@80042000 {
+				#sound-dai-cells = <0>;
 				compatible = "fsl,imx28-saif";
 				reg = <0x80042000 0x2000>;
 				interrupts = <59>;
@@ -1084,6 +1119,7 @@
 			};
 
 			saif1: saif@80046000 {
+				#sound-dai-cells = <0>;
 				compatible = "fsl,imx28-saif";
 				reg = <0x80046000 0x2000>;
 				interrupts = <58>;

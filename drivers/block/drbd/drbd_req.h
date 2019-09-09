@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
    drbd_req.h
 
@@ -7,19 +8,6 @@
    Copyright (C) 2006-2008, Lars Ellenberg <lars.ellenberg@linbit.com>.
    Copyright (C) 2006-2008, Philipp Reisner <philipp.reisner@linbit.com>.
 
-   DRBD is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2, or (at your option)
-   any later version.
-
-   DRBD is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with drbd; see the file COPYING.  If not, write to
-   the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #ifndef _DRBD_REQ_H
@@ -208,9 +196,15 @@ enum drbd_req_state_bits {
 	__RQ_WRITE,
 	__RQ_WSAME,
 	__RQ_UNMAP,
+	__RQ_ZEROES,
 
 	/* Should call drbd_al_complete_io() for this request... */
 	__RQ_IN_ACT_LOG,
+
+	/* This was the most recent request during some blk_finish_plug()
+	 * or its implicit from-schedule equivalent.
+	 * We may use it as hint to send a P_UNPLUG_REMOTE */
+	__RQ_UNPLUG,
 
 	/* The peer has sent a retry ACK */
 	__RQ_POSTPONED,
@@ -248,7 +242,9 @@ enum drbd_req_state_bits {
 #define RQ_WRITE           (1UL << __RQ_WRITE)
 #define RQ_WSAME           (1UL << __RQ_WSAME)
 #define RQ_UNMAP           (1UL << __RQ_UNMAP)
+#define RQ_ZEROES          (1UL << __RQ_ZEROES)
 #define RQ_IN_ACT_LOG      (1UL << __RQ_IN_ACT_LOG)
+#define RQ_UNPLUG          (1UL << __RQ_UNPLUG)
 #define RQ_POSTPONED	   (1UL << __RQ_POSTPONED)
 #define RQ_COMPLETION_SUSP (1UL << __RQ_COMPLETION_SUSP)
 #define RQ_EXP_RECEIVE_ACK (1UL << __RQ_EXP_RECEIVE_ACK)
@@ -263,7 +259,7 @@ enum drbd_req_state_bits {
 static inline void drbd_req_make_private_bio(struct drbd_request *req, struct bio *bio_src)
 {
 	struct bio *bio;
-	bio = bio_clone(bio_src, GFP_NOIO); /* XXX cannot fail?? */
+	bio = bio_clone_fast(bio_src, GFP_NOIO, &drbd_io_bio_set);
 
 	req->private_bio = bio;
 
@@ -288,7 +284,7 @@ extern int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		struct bio_and_error *m);
 extern void complete_master_bio(struct drbd_device *device,
 		struct bio_and_error *m);
-extern void request_timer_fn(unsigned long data);
+extern void request_timer_fn(struct timer_list *t);
 extern void tl_restart(struct drbd_connection *connection, enum drbd_req_event what);
 extern void _tl_restart(struct drbd_connection *connection, enum drbd_req_event what);
 extern void tl_abort_disk_io(struct drbd_device *device);

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * linux/fs/hfsplus/xattr_trusted.c
  *
@@ -11,7 +12,6 @@
 
 #include "hfsplus_fs.h"
 #include "xattr.h"
-#include "acl.h"
 
 static int hfsplus_security_getxattr(const struct xattr_handler *handler,
 				     struct dentry *unused, struct inode *inode,
@@ -69,18 +69,6 @@ int hfsplus_init_security(struct inode *inode, struct inode *dir,
 {
 	return security_inode_init_security(inode, dir, qstr,
 					&hfsplus_initxattrs, NULL);
-}
-
-int hfsplus_init_inode_security(struct inode *inode,
-						struct inode *dir,
-						const struct qstr *qstr)
-{
-	int err;
-
-	err = hfsplus_init_posix_acl(inode, dir);
-	if (!err)
-		err = hfsplus_init_security(inode, dir, qstr);
-	return err;
 }
 
 const struct xattr_handler hfsplus_xattr_security_handler = {

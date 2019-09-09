@@ -1,4 +1,4 @@
-subdir-ccflags-$(CONFIG_PPC_WERROR) := -Werror
+# SPDX-License-Identifier: GPL-2.0
 
 obj-y				+= xics-common.o
 obj-$(CONFIG_PPC_ICP_NATIVE)	+= icp-native.o

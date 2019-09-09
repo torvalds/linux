@@ -1,17 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Earthsoft PT3 driver
  *
  * Copyright (C) 2014 Akihiro Tsukada <tskd08@gmail.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation version 2.
- *
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 #include <linux/delay.h>
 #include <linux/device.h>
@@ -85,7 +76,6 @@ static void put_byte_write(struct pt3_i2cbuf *cbuf, u8 val)
 {
 	u8 mask;
 
-	mask = 0x80;
 	for (mask = 0x80; mask > 0; mask >>= 1)
 		cmdbuf_add(cbuf, (val & mask) ? I_DATA_H_NOP : I_DATA_L_NOP);
 	cmdbuf_add(cbuf, I_DATA_H_ACK0);

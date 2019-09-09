@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *   ALSA driver for ICEnsemble VT1724 (Envy24HT)
  *
@@ -5,28 +6,13 @@
  *
  *	Copyright (c) 2004 Jaroslav Kysela <perex@perex.cz>
  *	              2008 Pavel Hofman <dustin@seznam.cz>
- *
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/slab.h>
+#include <linux/string.h>
 #include <sound/core.h>
 #include <sound/tlv.h>
 
@@ -133,19 +119,19 @@ struct juli_spec {
 /*
  * Initial setup of the conversion array GPIO <-> rate
  */
-static unsigned int juli_rates[] = {
+static const unsigned int juli_rates[] = {
 	16000, 22050, 24000, 32000,
 	44100, 48000, 64000, 88200,
 	96000, 176400, 192000,
 };
 
-static unsigned int gpio_vals[] = {
+static const unsigned int gpio_vals[] = {
 	GPIO_RATE_16000, GPIO_RATE_22050, GPIO_RATE_24000, GPIO_RATE_32000,
 	GPIO_RATE_44100, GPIO_RATE_48000, GPIO_RATE_64000, GPIO_RATE_88200,
 	GPIO_RATE_96000, GPIO_RATE_176400, GPIO_RATE_192000,
 };
 
-static struct snd_pcm_hw_constraint_list juli_rates_info = {
+static const struct snd_pcm_hw_constraint_list juli_rates_info = {
 	.count = ARRAY_SIZE(juli_rates),
 	.list = juli_rates,
 	.mask = 0,
@@ -282,7 +268,7 @@ static const struct snd_akm4xxx_dac_channel juli_dac[] = {
 };
 
 
-static struct snd_akm4xxx akm_juli_dac = {
+static const struct snd_akm4xxx akm_juli_dac = {
 	.type = SND_AK4358,
 	.num_dacs = 8,	/* DAC1 - analog out
 			   DAC2 - analog in monitor
@@ -425,10 +411,9 @@ DECLARE_TLV_DB_SCALE(juli_master_db_scale, -6350, 50, 1);
 static struct snd_kcontrol *ctl_find(struct snd_card *card,
 				     const char *name)
 {
-	struct snd_ctl_elem_id sid;
-	memset(&sid, 0, sizeof(sid));
-	/* FIXME: strcpy is bad. */
-	strcpy(sid.name, name);
+	struct snd_ctl_elem_id sid = {0};
+
+	strlcpy(sid.name, name, sizeof(sid.name));
 	sid.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
 	return snd_ctl_find_id(card, &sid);
 }

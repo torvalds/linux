@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* thread_info.h: PowerPC low-level thread information
  * adapted from the i386 version by Paul Mackerras
  *
@@ -8,39 +9,25 @@
 #ifndef _ASM_POWERPC_THREAD_INFO_H
 #define _ASM_POWERPC_THREAD_INFO_H
 
+#include <asm/asm-const.h>
+
 #ifdef __KERNEL__
 
-/* We have 8k stacks on ppc32 and 16k on ppc64 */
-
-#if defined(CONFIG_PPC64)
-#define THREAD_SHIFT		14
-#elif defined(CONFIG_PPC_256K_PAGES)
-#define THREAD_SHIFT		15
-#else
-#define THREAD_SHIFT		13
-#endif
+#define THREAD_SHIFT		CONFIG_THREAD_SHIFT
 
 #define THREAD_SIZE		(1 << THREAD_SHIFT)
-
-#ifdef CONFIG_PPC64
-#define CURRENT_THREAD_INFO(dest, sp)	stringify_in_c(clrrdi dest, sp, THREAD_SHIFT)
-#else
-#define CURRENT_THREAD_INFO(dest, sp)	stringify_in_c(rlwinm dest, sp, 0, 0, 31-THREAD_SHIFT)
-#endif
 
 #ifndef __ASSEMBLY__
 #include <linux/cache.h>
 #include <asm/processor.h>
 #include <asm/page.h>
-#include <linux/stringify.h>
 #include <asm/accounting.h>
 
+#define SLB_PRELOAD_NR	16U
 /*
  * low level task data.
  */
 struct thread_info {
-	struct task_struct *task;		/* main task structure */
-	int		cpu;			/* cpu we're on */
 	int		preempt_count;		/* 0 => preemptable,
 						   <0 => BUG */
 	unsigned long	local_flags;		/* private flags for thread */
@@ -50,6 +37,10 @@ struct thread_info {
 #if defined(CONFIG_VIRT_CPU_ACCOUNTING_NATIVE) && defined(CONFIG_PPC32)
 	struct cpu_accounting_data accounting;
 #endif
+	unsigned char slb_preload_nr;
+	unsigned char slb_preload_tail;
+	u32 slb_preload_esid[SLB_PRELOAD_NR];
+
 	/* low level flags - has atomic operations done on it */
 	unsigned long	flags ____cacheline_aligned_in_smp;
 };
@@ -59,26 +50,19 @@ struct thread_info {
  */
 #define INIT_THREAD_INFO(tsk)			\
 {						\
-	.task =		&tsk,			\
-	.cpu =		0,			\
 	.preempt_count = INIT_PREEMPT_COUNT,	\
 	.flags =	0,			\
 }
 
-#define init_thread_info	(init_thread_union.thread_info)
-#define init_stack		(init_thread_union.stack)
-
 #define THREAD_SIZE_ORDER	(THREAD_SHIFT - PAGE_SHIFT)
 
 /* how to get the thread information struct from C */
-static inline struct thread_info *current_thread_info(void)
-{
-	unsigned long val;
+extern int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src);
 
-	asm (CURRENT_THREAD_INFO(%0,1) : "=r" (val));
-
-	return (struct thread_info *)val;
-}
+#ifdef CONFIG_PPC_BOOK3S_64
+void arch_setup_new_exec(void);
+#define arch_setup_new_exec arch_setup_new_exec
+#endif
 
 #endif /* __ASSEMBLY__ */
 
@@ -88,10 +72,10 @@ static inline struct thread_info *current_thread_info(void)
 #define TIF_SYSCALL_TRACE	0	/* syscall trace active */
 #define TIF_SIGPENDING		1	/* signal pending */
 #define TIF_NEED_RESCHED	2	/* rescheduling necessary */
-#define TIF_POLLING_NRFLAG	3	/* true if poll_idle() is polling
-					   TIF_NEED_RESCHED */
-#define TIF_32BIT		4	/* 32 bit binary */
+#define TIF_FSCHECK		3	/* Check FS is USER_DS on return */
+#define TIF_SYSCALL_EMU		4	/* syscall emulation active */
 #define TIF_RESTORE_TM		5	/* need to restore TM FP/VEC/VSX */
+#define TIF_PATCH_PENDING	6	/* pending live patching update */
 #define TIF_SYSCALL_AUDIT	7	/* syscall auditing active */
 #define TIF_SINGLESTEP		8	/* singlestepping active */
 #define TIF_NOHZ		9	/* in adaptive nohz mode */
@@ -107,6 +91,8 @@ static inline struct thread_info *current_thread_info(void)
 #if defined(CONFIG_PPC64)
 #define TIF_ELF2ABI		18	/* function descriptors must die! */
 #endif
+#define TIF_POLLING_NRFLAG	19	/* true if poll_idle() is polling TIF_NEED_RESCHED */
+#define TIF_32BIT		20	/* 32 bit binary */
 
 /* as above, but as bit values */
 #define _TIF_SYSCALL_TRACE	(1<<TIF_SYSCALL_TRACE)
@@ -115,6 +101,7 @@ static inline struct thread_info *current_thread_info(void)
 #define _TIF_POLLING_NRFLAG	(1<<TIF_POLLING_NRFLAG)
 #define _TIF_32BIT		(1<<TIF_32BIT)
 #define _TIF_RESTORE_TM		(1<<TIF_RESTORE_TM)
+#define _TIF_PATCH_PENDING	(1<<TIF_PATCH_PENDING)
 #define _TIF_SYSCALL_AUDIT	(1<<TIF_SYSCALL_AUDIT)
 #define _TIF_SINGLESTEP		(1<<TIF_SINGLESTEP)
 #define _TIF_SECCOMP		(1<<TIF_SECCOMP)
@@ -125,13 +112,16 @@ static inline struct thread_info *current_thread_info(void)
 #define _TIF_SYSCALL_TRACEPOINT	(1<<TIF_SYSCALL_TRACEPOINT)
 #define _TIF_EMULATE_STACK_STORE	(1<<TIF_EMULATE_STACK_STORE)
 #define _TIF_NOHZ		(1<<TIF_NOHZ)
+#define _TIF_FSCHECK		(1<<TIF_FSCHECK)
+#define _TIF_SYSCALL_EMU	(1<<TIF_SYSCALL_EMU)
 #define _TIF_SYSCALL_DOTRACE	(_TIF_SYSCALL_TRACE | _TIF_SYSCALL_AUDIT | \
 				 _TIF_SECCOMP | _TIF_SYSCALL_TRACEPOINT | \
-				 _TIF_NOHZ)
+				 _TIF_NOHZ | _TIF_SYSCALL_EMU)
 
 #define _TIF_USER_WORK_MASK	(_TIF_SIGPENDING | _TIF_NEED_RESCHED | \
 				 _TIF_NOTIFY_RESUME | _TIF_UPROBE | \
-				 _TIF_RESTORE_TM)
+				 _TIF_RESTORE_TM | _TIF_PATCH_PENDING | \
+				 _TIF_FSCHECK)
 #define _TIF_PERSYSCALL_MASK	(_TIF_RESTOREALL|_TIF_NOERROR)
 
 /* Bits in local_flags */

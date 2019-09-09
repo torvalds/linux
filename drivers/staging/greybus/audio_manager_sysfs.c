@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Greybus operations
  *
  * Copyright 2015-2016 Google Inc.
- *
- * Released under the GPLv2 only.
  */
 
 #include <linux/string.h>
@@ -12,18 +11,17 @@
 #include "audio_manager.h"
 #include "audio_manager_private.h"
 
-static ssize_t manager_sysfs_add_store(
-	struct kobject *kobj, struct kobj_attribute *attr,
-	const char *buf, size_t count)
+static ssize_t manager_sysfs_add_store(struct kobject *kobj,
+				       struct kobj_attribute *attr,
+				       const char *buf, size_t count)
 {
 	struct gb_audio_manager_module_descriptor desc = { {0} };
 
 	int num = sscanf(buf,
 			"name=%" GB_AUDIO_MANAGER_MODULE_NAME_LEN_SSCANF "s "
-			"slot=%d vid=%d pid=%d cport=%d i/p devices=0x%X"
-			"o/p devices=0x%X",
-			desc.name, &desc.slot, &desc.vid, &desc.pid,
-			&desc.cport, &desc.ip_devices, &desc.op_devices);
+			"vid=%d pid=%d intf_id=%d i/p devices=0x%X o/p devices=0x%X",
+			desc.name, &desc.vid, &desc.pid, &desc.intf_id,
+			&desc.ip_devices, &desc.op_devices);
 
 	if (num != 7)
 		return -EINVAL;
@@ -38,13 +36,13 @@ static ssize_t manager_sysfs_add_store(
 static struct kobj_attribute manager_add_attribute =
 	__ATTR(add, 0664, NULL, manager_sysfs_add_store);
 
-static ssize_t manager_sysfs_remove_store(
-	struct kobject *kobj, struct kobj_attribute *attr,
-	const char *buf, size_t count)
+static ssize_t manager_sysfs_remove_store(struct kobject *kobj,
+					  struct kobj_attribute *attr,
+					  const char *buf, size_t count)
 {
 	int id;
 
-	int num = sscanf(buf, "%d", &id);
+	int num = kstrtoint(buf, 10, &id);
 
 	if (num != 1)
 		return -EINVAL;
@@ -59,22 +57,23 @@ static ssize_t manager_sysfs_remove_store(
 static struct kobj_attribute manager_remove_attribute =
 	__ATTR(remove, 0664, NULL, manager_sysfs_remove_store);
 
-static ssize_t manager_sysfs_dump_store(
-	struct kobject *kobj, struct kobj_attribute *attr,
-	const char *buf, size_t count)
+static ssize_t manager_sysfs_dump_store(struct kobject *kobj,
+					struct kobj_attribute *attr,
+					const char *buf, size_t count)
 {
 	int id;
 
-	int num = sscanf(buf, "%d", &id);
+	int num = kstrtoint(buf, 10, &id);
 
 	if (num == 1) {
 		num = gb_audio_manager_dump_module(id);
 		if (num)
 			return num;
-	} else if (!strncmp("all", buf, 3))
+	} else if (!strncmp("all", buf, 3)) {
 		gb_audio_manager_dump_all();
-	else
+	} else {
 		return -EINVAL;
+	}
 
 	return count;
 }
@@ -82,8 +81,8 @@ static ssize_t manager_sysfs_dump_store(
 static struct kobj_attribute manager_dump_attribute =
 	__ATTR(dump, 0664, NULL, manager_sysfs_dump_store);
 
-static void manager_sysfs_init_attribute(
-		struct kobject *kobj, struct kobj_attribute *kattr)
+static void manager_sysfs_init_attribute(struct kobject *kobj,
+					 struct kobj_attribute *kattr)
 {
 	int err;
 

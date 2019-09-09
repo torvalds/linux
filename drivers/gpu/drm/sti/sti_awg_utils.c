@@ -1,8 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) STMicroelectronics SA 2014
  * Author: Vincent Abriou <vincent.abriou@st.com> for STMicroelectronics.
- * License terms:  GNU General Public License (GPL), version 2
  */
+
+#include <drm/drm_print.h>
 
 #include "sti_awg_utils.h"
 

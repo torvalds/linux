@@ -1,18 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  c 2001 PPC 64 Team, IBM Corp
  *
- *      This program is free software; you can redistribute it and/or
- *      modify it under the terms of the GNU General Public License
- *      as published by the Free Software Foundation; either version
- *      2 of the License, or (at your option) any later version.
- *
  * /dev/nvram driver for PPC64
- *
- * This perhaps should live in drivers/char
- *
- * TODO: Split the /dev/nvram part (that one can use
- *       drivers/char/generic_nvram.c) from the arch & partition
- *       parsing code.
  */
 
 #include <linux/types.h>
@@ -28,7 +18,7 @@
 #include <linux/pagemap.h>
 #include <linux/pstore.h>
 #include <linux/zlib.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/nvram.h>
 #include <asm/rtas.h>
 #include <asm/prom.h>
@@ -207,8 +197,7 @@ int nvram_write_os_partition(struct nvram_os_partition *part,
 
 	tmp_index = part->index;
 
-	rc = ppc_md.nvram_write((char *)&info, sizeof(struct err_log_info),
-				&tmp_index);
+	rc = ppc_md.nvram_write((char *)&info, sizeof(info), &tmp_index);
 	if (rc <= 0) {
 		pr_err("%s: Failed nvram_write (%d)\n", __func__, rc);
 		return rc;
@@ -244,9 +233,7 @@ int nvram_read_partition(struct nvram_os_partition *part, char *buff,
 	tmp_index = part->index;
 
 	if (part->os_partition) {
-		rc = ppc_md.nvram_read((char *)&info,
-					sizeof(struct err_log_info),
-					&tmp_index);
+		rc = ppc_md.nvram_read((char *)&info, sizeof(info), &tmp_index);
 		if (rc <= 0) {
 			pr_err("%s: Failed nvram_read (%d)\n", __func__, rc);
 			return rc;
@@ -389,51 +376,40 @@ static int nvram_pstore_open(struct pstore_info *psi)
 
 /**
  * nvram_pstore_write - pstore write callback for nvram
- * @type:               Type of message logged
- * @reason:             reason behind dump (oops/panic)
- * @id:                 identifier to indicate the write performed
- * @part:               pstore writes data to registered buffer in parts,
- *                      part number will indicate the same.
- * @count:              Indicates oops count
- * @compressed:         Flag to indicate the log is compressed
- * @size:               number of bytes written to the registered buffer
- * @psi:                registered pstore_info structure
+ * @record:             pstore record to write, with @id to be set
  *
  * Called by pstore_dump() when an oops or panic report is logged in the
  * printk buffer.
  * Returns 0 on successful write.
  */
-static int nvram_pstore_write(enum pstore_type_id type,
-				enum kmsg_dump_reason reason,
-				u64 *id, unsigned int part, int count,
-				bool compressed, size_t size,
-				struct pstore_info *psi)
+static int nvram_pstore_write(struct pstore_record *record)
 {
 	int rc;
 	unsigned int err_type = ERR_TYPE_KERNEL_PANIC;
 	struct oops_log_info *oops_hdr = (struct oops_log_info *) oops_buf;
 
 	/* part 1 has the recent messages from printk buffer */
-	if (part > 1 || (type != PSTORE_TYPE_DMESG))
+	if (record->part > 1 || (record->type != PSTORE_TYPE_DMESG))
 		return -1;
 
 	if (clobbering_unread_rtas_event())
 		return -1;
 
 	oops_hdr->version = cpu_to_be16(OOPS_HDR_VERSION);
-	oops_hdr->report_length = cpu_to_be16(size);
+	oops_hdr->report_length = cpu_to_be16(record->size);
 	oops_hdr->timestamp = cpu_to_be64(ktime_get_real_seconds());
 
-	if (compressed)
+	if (record->compressed)
 		err_type = ERR_TYPE_KERNEL_PANIC_GZ;
 
 	rc = nvram_write_os_partition(&oops_log_partition, oops_buf,
-		(int) (sizeof(*oops_hdr) + size), err_type, count);
+		(int) (sizeof(*oops_hdr) + record->size), err_type,
+		record->count);
 
 	if (rc != 0)
 		return rc;
 
-	*id = part;
+	record->id = record->part;
 	return 0;
 }
 
@@ -442,10 +418,7 @@ static int nvram_pstore_write(enum pstore_type_id type,
  * Returns the length of the data we read from each partition.
  * Returns 0 if we've been called before.
  */
-static ssize_t nvram_pstore_read(u64 *id, enum pstore_type_id *type,
-				int *count, struct timespec *time, char **buf,
-				bool *compressed, ssize_t *ecc_notice_size,
-				struct pstore_info *psi)
+static ssize_t nvram_pstore_read(struct pstore_record *record)
 {
 	struct oops_log_info *oops_hdr;
 	unsigned int err_type, id_no, size = 0;
@@ -459,40 +432,40 @@ static ssize_t nvram_pstore_read(u64 *id, enum pstore_type_id *type,
 	switch (nvram_type_ids[read_type]) {
 	case PSTORE_TYPE_DMESG:
 		part = &oops_log_partition;
-		*type = PSTORE_TYPE_DMESG;
+		record->type = PSTORE_TYPE_DMESG;
 		break;
 	case PSTORE_TYPE_PPC_COMMON:
 		sig = NVRAM_SIG_SYS;
 		part = &common_partition;
-		*type = PSTORE_TYPE_PPC_COMMON;
-		*id = PSTORE_TYPE_PPC_COMMON;
-		time->tv_sec = 0;
-		time->tv_nsec = 0;
+		record->type = PSTORE_TYPE_PPC_COMMON;
+		record->id = PSTORE_TYPE_PPC_COMMON;
+		record->time.tv_sec = 0;
+		record->time.tv_nsec = 0;
 		break;
 #ifdef CONFIG_PPC_PSERIES
 	case PSTORE_TYPE_PPC_RTAS:
 		part = &rtas_log_partition;
-		*type = PSTORE_TYPE_PPC_RTAS;
-		time->tv_sec = last_rtas_event;
-		time->tv_nsec = 0;
+		record->type = PSTORE_TYPE_PPC_RTAS;
+		record->time.tv_sec = last_rtas_event;
+		record->time.tv_nsec = 0;
 		break;
 	case PSTORE_TYPE_PPC_OF:
 		sig = NVRAM_SIG_OF;
 		part = &of_config_partition;
-		*type = PSTORE_TYPE_PPC_OF;
-		*id = PSTORE_TYPE_PPC_OF;
-		time->tv_sec = 0;
-		time->tv_nsec = 0;
+		record->type = PSTORE_TYPE_PPC_OF;
+		record->id = PSTORE_TYPE_PPC_OF;
+		record->time.tv_sec = 0;
+		record->time.tv_nsec = 0;
 		break;
 #endif
 #ifdef CONFIG_PPC_POWERNV
 	case PSTORE_TYPE_PPC_OPAL:
 		sig = NVRAM_SIG_FW;
 		part = &skiboot_partition;
-		*type = PSTORE_TYPE_PPC_OPAL;
-		*id = PSTORE_TYPE_PPC_OPAL;
-		time->tv_sec = 0;
-		time->tv_nsec = 0;
+		record->type = PSTORE_TYPE_PPC_OPAL;
+		record->id = PSTORE_TYPE_PPC_OPAL;
+		record->time.tv_sec = 0;
+		record->time.tv_nsec = 0;
 		break;
 #endif
 	default:
@@ -520,10 +493,10 @@ static ssize_t nvram_pstore_read(u64 *id, enum pstore_type_id *type,
 		return 0;
 	}
 
-	*count = 0;
+	record->count = 0;
 
 	if (part->os_partition)
-		*id = id_no;
+		record->id = id_no;
 
 	if (nvram_type_ids[read_type] == PSTORE_TYPE_DMESG) {
 		size_t length, hdr_size;
@@ -533,34 +506,35 @@ static ssize_t nvram_pstore_read(u64 *id, enum pstore_type_id *type,
 			/* Old format oops header had 2-byte record size */
 			hdr_size = sizeof(u16);
 			length = be16_to_cpu(oops_hdr->version);
-			time->tv_sec = 0;
-			time->tv_nsec = 0;
+			record->time.tv_sec = 0;
+			record->time.tv_nsec = 0;
 		} else {
 			hdr_size = sizeof(*oops_hdr);
 			length = be16_to_cpu(oops_hdr->report_length);
-			time->tv_sec = be64_to_cpu(oops_hdr->timestamp);
-			time->tv_nsec = 0;
+			record->time.tv_sec = be64_to_cpu(oops_hdr->timestamp);
+			record->time.tv_nsec = 0;
 		}
-		*buf = kmemdup(buff + hdr_size, length, GFP_KERNEL);
+		record->buf = kmemdup(buff + hdr_size, length, GFP_KERNEL);
 		kfree(buff);
-		if (*buf == NULL)
+		if (record->buf == NULL)
 			return -ENOMEM;
 
-		*ecc_notice_size = 0;
+		record->ecc_notice_size = 0;
 		if (err_type == ERR_TYPE_KERNEL_PANIC_GZ)
-			*compressed = true;
+			record->compressed = true;
 		else
-			*compressed = false;
+			record->compressed = false;
 		return length;
 	}
 
-	*buf = buff;
+	record->buf = buff;
 	return part->size;
 }
 
 static struct pstore_info nvram_pstore_info = {
 	.owner = THIS_MODULE,
 	.name = "nvram",
+	.flags = PSTORE_FLAGS_DMESG,
 	.open = nvram_pstore_open,
 	.read = nvram_pstore_read,
 	.write = nvram_pstore_write,
@@ -578,8 +552,6 @@ static int nvram_pstore_init(void)
 
 	nvram_pstore_info.buf = oops_data;
 	nvram_pstore_info.bufsize = oops_data_sz;
-
-	spin_lock_init(&nvram_pstore_info.buf_lock);
 
 	rc = pstore_register(&nvram_pstore_info);
 	if (rc && (rc != -EPERM))
@@ -732,140 +704,6 @@ static void oops_to_nvram(struct kmsg_dumper *dumper,
 	spin_unlock_irqrestore(&lock, flags);
 }
 
-static loff_t dev_nvram_llseek(struct file *file, loff_t offset, int origin)
-{
-	if (ppc_md.nvram_size == NULL)
-		return -ENODEV;
-	return generic_file_llseek_size(file, offset, origin, MAX_LFS_FILESIZE,
-					ppc_md.nvram_size());
-}
-
-
-static ssize_t dev_nvram_read(struct file *file, char __user *buf,
-			  size_t count, loff_t *ppos)
-{
-	ssize_t ret;
-	char *tmp = NULL;
-	ssize_t size;
-
-	if (!ppc_md.nvram_size) {
-		ret = -ENODEV;
-		goto out;
-	}
-
-	size = ppc_md.nvram_size();
-	if (size < 0) {
-		ret = size;
-		goto out;
-	}
-
-	if (*ppos >= size) {
-		ret = 0;
-		goto out;
-	}
-
-	count = min_t(size_t, count, size - *ppos);
-	count = min(count, PAGE_SIZE);
-
-	tmp = kmalloc(count, GFP_KERNEL);
-	if (!tmp) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	ret = ppc_md.nvram_read(tmp, count, ppos);
-	if (ret <= 0)
-		goto out;
-
-	if (copy_to_user(buf, tmp, ret))
-		ret = -EFAULT;
-
-out:
-	kfree(tmp);
-	return ret;
-
-}
-
-static ssize_t dev_nvram_write(struct file *file, const char __user *buf,
-			  size_t count, loff_t *ppos)
-{
-	ssize_t ret;
-	char *tmp = NULL;
-	ssize_t size;
-
-	ret = -ENODEV;
-	if (!ppc_md.nvram_size)
-		goto out;
-
-	ret = 0;
-	size = ppc_md.nvram_size();
-	if (*ppos >= size || size < 0)
-		goto out;
-
-	count = min_t(size_t, count, size - *ppos);
-	count = min(count, PAGE_SIZE);
-
-	ret = -ENOMEM;
-	tmp = kmalloc(count, GFP_KERNEL);
-	if (!tmp)
-		goto out;
-
-	ret = -EFAULT;
-	if (copy_from_user(tmp, buf, count))
-		goto out;
-
-	ret = ppc_md.nvram_write(tmp, count, ppos);
-
-out:
-	kfree(tmp);
-	return ret;
-
-}
-
-static long dev_nvram_ioctl(struct file *file, unsigned int cmd,
-			    unsigned long arg)
-{
-	switch(cmd) {
-#ifdef CONFIG_PPC_PMAC
-	case OBSOLETE_PMAC_NVRAM_GET_OFFSET:
-		printk(KERN_WARNING "nvram: Using obsolete PMAC_NVRAM_GET_OFFSET ioctl\n");
-	case IOC_NVRAM_GET_OFFSET: {
-		int part, offset;
-
-		if (!machine_is(powermac))
-			return -EINVAL;
-		if (copy_from_user(&part, (void __user*)arg, sizeof(part)) != 0)
-			return -EFAULT;
-		if (part < pmac_nvram_OF || part > pmac_nvram_NR)
-			return -EINVAL;
-		offset = pmac_get_partition(part);
-		if (offset < 0)
-			return offset;
-		if (copy_to_user((void __user*)arg, &offset, sizeof(offset)) != 0)
-			return -EFAULT;
-		return 0;
-	}
-#endif /* CONFIG_PPC_PMAC */
-	default:
-		return -EINVAL;
-	}
-}
-
-static const struct file_operations nvram_fops = {
-	.owner		= THIS_MODULE,
-	.llseek		= dev_nvram_llseek,
-	.read		= dev_nvram_read,
-	.write		= dev_nvram_write,
-	.unlocked_ioctl	= dev_nvram_ioctl,
-};
-
-static struct miscdevice nvram_dev = {
-	NVRAM_MINOR,
-	"nvram",
-	&nvram_fops
-};
-
-
 #ifdef DEBUG_NVRAM
 static void __init nvram_print_partitions(char * label)
 {
@@ -1013,6 +851,8 @@ loff_t __init nvram_create_partition(const char *name, int sig,
 	long size = 0;
 	int rc;
 
+	BUILD_BUG_ON(NVRAM_BLOCK_LEN != 16);
+
 	/* Convert sizes from bytes to blocks */
 	req_size = _ALIGN_UP(req_size, NVRAM_BLOCK_LEN) / NVRAM_BLOCK_LEN;
 	min_size = _ALIGN_UP(min_size, NVRAM_BLOCK_LEN) / NVRAM_BLOCK_LEN;
@@ -1050,7 +890,7 @@ loff_t __init nvram_create_partition(const char *name, int sig,
 		return -ENOSPC;
 	
 	/* Create our OS partition */
-	new_part = kmalloc(sizeof(*new_part), GFP_KERNEL);
+	new_part = kzalloc(sizeof(*new_part), GFP_KERNEL);
 	if (!new_part) {
 		pr_err("%s: kmalloc failed\n", __func__);
 		return -ENOMEM;
@@ -1059,7 +899,7 @@ loff_t __init nvram_create_partition(const char *name, int sig,
 	new_part->index = free_part->index;
 	new_part->header.signature = sig;
 	new_part->header.length = size;
-	strncpy(new_part->header.name, name, 12);
+	memcpy(new_part->header.name, name, strnlen(name, sizeof(new_part->header.name)));
 	new_part->header.checksum = nvram_checksum(&new_part->header);
 
 	rc = nvram_write_header(new_part);
@@ -1190,7 +1030,7 @@ int __init nvram_scan_partitions(void)
 			       "detected: 0-length partition\n");
 			goto out;
 		}
-		tmp_part = kmalloc(sizeof(struct nvram_partition), GFP_KERNEL);
+		tmp_part = kmalloc(sizeof(*tmp_part), GFP_KERNEL);
 		err = -ENOMEM;
 		if (!tmp_part) {
 			printk(KERN_ERR "nvram_scan_partitions: kmalloc failed\n");
@@ -1213,22 +1053,3 @@ int __init nvram_scan_partitions(void)
 	kfree(header);
 	return err;
 }
-
-static int __init nvram_init(void)
-{
-	int rc;
-	
-	BUILD_BUG_ON(NVRAM_BLOCK_LEN != 16);
-
-	if (ppc_md.nvram_size == NULL || ppc_md.nvram_size() <= 0)
-		return  -ENODEV;
-
-  	rc = misc_register(&nvram_dev);
-	if (rc != 0) {
-		printk(KERN_ERR "nvram_init: failed to register device\n");
-		return rc;
-	}
-  	
-  	return rc;
-}
-device_initcall(nvram_init);

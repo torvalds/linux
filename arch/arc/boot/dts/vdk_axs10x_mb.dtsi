@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Support for peripherals on the AXS10x mainboard (VDK version)
  *
  * Copyright (C) 2013-15 Synopsys, Inc. (www.synopsys.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 / {
@@ -23,6 +20,12 @@
 				#clock-cells = <0>;
 			};
 
+			mmcclk: mmcclk {
+				compatible = "fixed-clock";
+				clock-frequency = <50000000>;
+				#clock-cells = <0>;
+			};
+
 			pguclk: pguclk {
 				#clock-cells = <0>;
 				compatible = "fixed-clock";
@@ -30,7 +33,7 @@
 			};
 		};
 
-		ethernet@0x18000 {
+		ethernet@18000 {
 			#interrupt-cells = <1>;
 			compatible = "snps,dwmac";
 			reg = < 0x18000 0x2000 >;
@@ -43,13 +46,13 @@
 			clock-names = "stmmaceth";
 		};
 
-		ehci@0x40000 {
+		ehci@40000 {
 			compatible = "generic-ehci";
 			reg = < 0x40000 0x100 >;
 			interrupts = < 8 >;
 		};
 
-		uart@0x20000 {
+		uart@20000 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x20000 0x100>;
 			clock-frequency = <2403200>;
@@ -59,7 +62,7 @@
 			reg-io-width = <4>;
 		};
 
-		uart@0x21000 {
+		uart@21000 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x21000 0x100>;
 			clock-frequency = <2403200>;
@@ -69,7 +72,7 @@
 			reg-io-width = <4>;
 		};
 
-		uart@0x22000 {
+		uart@22000 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x22000 0x100>;
 			clock-frequency = <2403200>;
@@ -94,5 +97,30 @@
 			interrupts = <5>;
 			interrupt-names = "arc_ps2_irq";
 		};
+
+		mmc@15000 {
+			compatible = "snps,dw-mshc";
+			reg = <0x15000 0x400>;
+			fifo-depth = <1024>;
+			card-detect-delay = <200>;
+			clocks = <&apbclk>, <&mmcclk>;
+			clock-names = "biu", "ciu";
+			interrupts = <7>;
+			bus-width = <4>;
+		};
+	};
+
+	/*
+	 * Embedded Vision subsystem UIO mappings; only relevant for EV VDK
+	 *
+	 * This node is intentionally put outside of MB above becase
+	 * it maps areas outside of MB's 0xez-0xfz.
+	 */
+	uio_ev: uio@d0000000 {
+		compatible = "generic-uio";
+		reg = <0xd0000000 0x2000 0xd1000000 0x2000 0x90000000 0x10000000 0xc0000000 0x10000000>;
+		reg-names = "ev_gsa", "ev_ctrl", "ev_shared_mem", "ev_code_mem";
+		interrupt-parent = <&mb_intc>;
+		interrupts = <23>;
 	};
 };

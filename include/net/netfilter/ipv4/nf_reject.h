@@ -1,9 +1,11 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _IPV4_NF_REJECT_H
 #define _IPV4_NF_REJECT_H
 
 #include <linux/skbuff.h>
 #include <net/ip.h>
 #include <net/icmp.h>
+#include <net/netfilter/nf_reject.h>
 
 void nf_send_unreach(struct sk_buff *skb_in, int code, int hook);
 void nf_send_reset(struct net *net, struct sk_buff *oldskb, int hook);

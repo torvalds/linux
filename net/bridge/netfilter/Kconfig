@@ -1,16 +1,17 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Bridge netfilter configuration
 #
 #
 menuconfig NF_TABLES_BRIDGE
 	depends on BRIDGE && NETFILTER && NF_TABLES
+	select NETFILTER_FAMILY_BRIDGE
 	tristate "Ethernet Bridge nf_tables support"
 
 if NF_TABLES_BRIDGE
 
 config NFT_BRIDGE_META
 	tristate "Netfilter nf_table bridge meta support"
-	depends on NFT_META
 	help
 	  Add support for bridge dedicated meta key.
 
@@ -22,12 +23,28 @@ config NFT_BRIDGE_REJECT
 
 config NF_LOG_BRIDGE
 	tristate "Bridge packet logging"
+	select NF_LOG_COMMON
 
 endif # NF_TABLES_BRIDGE
+
+config NF_CONNTRACK_BRIDGE
+	tristate "IPv4/IPV6 bridge connection tracking support"
+	depends on NF_CONNTRACK
+	default n
+	help
+	  Connection tracking keeps a record of what packets have passed
+	  through your machine, in order to figure out how they are related
+	  into connections. This is used to enhance packet filtering via
+	  stateful policies. Enable this if you want native tracking from
+	  the bridge. This provides a replacement for the `br_netfilter'
+	  infrastructure.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
 
 menuconfig BRIDGE_NF_EBTABLES
 	tristate "Ethernet Bridge tables (ebtables) support"
 	depends on BRIDGE && NETFILTER && NETFILTER_XTABLES
+	select NETFILTER_FAMILY_BRIDGE
 	help
 	  ebtables is a general, extensible frame/packet identification
 	  framework. Say 'Y' or 'M' here if you want to do Ethernet
@@ -117,7 +134,7 @@ config BRIDGE_EBT_LIMIT
 	  equivalent of the iptables limit match.
 
 	  If you want to compile it as a module, say M here and read
-	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
+	  <file:Documentation/kbuild/modules.rst>.  If unsure, say `N'.
 
 config BRIDGE_EBT_MARK
 	tristate "ebt: mark filter support"

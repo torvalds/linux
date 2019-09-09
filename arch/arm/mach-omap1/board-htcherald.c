@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * HTC Herald board configuration
  * Copyright (C) 2009 Cory Maccarrone <darkstar6262@gmail.com>
@@ -6,22 +7,6 @@
  * Based on the board-htcwizard.c file from the linwizard project:
  * Copyright (C) 2006 Unai Uribarri
  * Copyright (C) 2008 linwizard.sourceforge.net
- *
- * This  program is  free  software; you  can  redistribute it  and/or
- * modify  it under the  terms of  the GNU  General Public  License as
- * published by the Free Software  Foundation; either version 2 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT  ANY  WARRANTY;  without   even  the  implied  warranty  of
- * MERCHANTABILITY or  FITNESS FOR A PARTICULAR PURPOSE.   See the GNU
- * General Public License for more details.
- *
- * You should have  received a copy of the  GNU General Public License
- * along  with  this program;  if  not,  write  to the  Free  Software
- * Foundation,  Inc.,  51 Franklin  Street,  Fifth  Floor, Boston,  MA
- * 02110-1301, USA.
- *
  */
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -31,7 +16,7 @@
 #include <linux/gpio.h>
 #include <linux/gpio_keys.h>
 #include <linux/i2c.h>
-#include <linux/i2c-gpio.h>
+#include <linux/platform_data/i2c-gpio.h>
 #include <linux/htcpld.h>
 #include <linux/leds.h>
 #include <linux/spi/spi.h>
@@ -292,7 +277,7 @@ static struct platform_device herald_gpiokeys_device = {
 };
 
 /* LEDs for the Herald.  These connect to the HTCPLD GPIO device. */
-static struct gpio_led gpio_leds[] = {
+static const struct gpio_led gpio_leds[] = {
 	{"dpad",        NULL, HTCPLD_GPIO_LED_DPAD,        0, 0, LEDS_GPIO_DEFSTATE_OFF},
 	{"kbd",         NULL, HTCPLD_GPIO_LED_KBD,         0, 0, LEDS_GPIO_DEFSTATE_OFF},
 	{"vibrate",     NULL, HTCPLD_GPIO_LED_VIBRATE,     0, 0, LEDS_GPIO_DEFSTATE_OFF},
@@ -391,7 +376,7 @@ static struct omap_usb_config htcherald_usb_config __initdata = {
 };
 
 /* LCD Device resources */
-static struct omap_lcd_config htcherald_lcd_config __initdata = {
+static const struct omap_lcd_config htcherald_lcd_config __initconst = {
 	.ctrl_name	= "internal",
 };
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #define pr_fmt(fmt) "xen:" KBUILD_MODNAME ": " fmt
 
 #include <linux/notifier.h>
@@ -18,15 +19,16 @@ static void enable_hotplug_cpu(int cpu)
 
 static void disable_hotplug_cpu(int cpu)
 {
-	if (cpu_online(cpu)) {
-		lock_device_hotplug();
+	if (!cpu_is_hotpluggable(cpu))
+		return;
+	lock_device_hotplug();
+	if (cpu_online(cpu))
 		device_offline(get_cpu_device(cpu));
-		unlock_device_hotplug();
-	}
-	if (cpu_present(cpu))
+	if (!cpu_online(cpu) && cpu_present(cpu)) {
 		xen_arch_unregister_cpu(cpu);
-
-	set_cpu_present(cpu, false);
+		set_cpu_present(cpu, false);
+	}
+	unlock_device_hotplug();
 }
 
 static int vcpu_online(unsigned int cpu)
@@ -52,7 +54,7 @@ static int vcpu_online(unsigned int cpu)
 }
 static void vcpu_hotplug(unsigned int cpu)
 {
-	if (!cpu_possible(cpu))
+	if (cpu >= nr_cpu_ids || !cpu_possible(cpu))
 		return;
 
 	switch (vcpu_online(cpu)) {
@@ -68,13 +70,12 @@ static void vcpu_hotplug(unsigned int cpu)
 }
 
 static void handle_vcpu_hotplug_event(struct xenbus_watch *watch,
-					const char **vec, unsigned int len)
+				      const char *path, const char *token)
 {
 	unsigned int cpu;
 	char *cpustr;
-	const char *node = vec[XS_WATCH_PATH];
 
-	cpustr = strstr(node, "cpu/");
+	cpustr = strstr(path, "cpu/");
 	if (cpustr != NULL) {
 		sscanf(cpustr, "cpu/%u", &cpu);
 		vcpu_hotplug(cpu);
@@ -107,7 +108,7 @@ static int __init setup_vcpu_hotplug_event(void)
 		.notifier_call = setup_cpu_watcher };
 
 #ifdef CONFIG_X86
-	if (!xen_pv_domain())
+	if (!xen_pv_domain() && !xen_pvh_domain())
 #else
 	if (!xen_domain())
 #endif

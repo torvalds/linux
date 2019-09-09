@@ -1,12 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /******************************************************************************
 *******************************************************************************
 **
 **  Copyright (C) Sistina Software, Inc.  1997-2003  All rights reserved.
 **  Copyright (C) 2004-2011 Red Hat, Inc.  All rights reserved.
 **
-**  This copyrighted material is made available to anyone wishing to use,
-**  modify, copy, or redistribute it subject to the terms and conditions
-**  of the GNU General Public License v.2.
 **
 *******************************************************************************
 ******************************************************************************/
@@ -287,11 +285,23 @@ static int dlm_recoverd(void *arg)
 	set_bit(LSFL_RECOVER_LOCK, &ls->ls_flags);
 	wake_up(&ls->ls_recover_lock_wait);
 
-	while (!kthread_should_stop()) {
+	while (1) {
+		/*
+		 * We call kthread_should_stop() after set_current_state().
+		 * This is because it works correctly if kthread_stop() is
+		 * called just before set_current_state().
+		 */
 		set_current_state(TASK_INTERRUPTIBLE);
+		if (kthread_should_stop()) {
+			set_current_state(TASK_RUNNING);
+			break;
+		}
 		if (!test_bit(LSFL_RECOVER_WORK, &ls->ls_flags) &&
-		    !test_bit(LSFL_RECOVER_DOWN, &ls->ls_flags))
+		    !test_bit(LSFL_RECOVER_DOWN, &ls->ls_flags)) {
+			if (kthread_should_stop())
+				break;
 			schedule();
+		}
 		set_current_state(TASK_RUNNING);
 
 		if (test_and_clear_bit(LSFL_RECOVER_DOWN, &ls->ls_flags)) {

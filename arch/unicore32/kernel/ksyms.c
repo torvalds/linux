@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/arch/unicore32/kernel/ksyms.c
  *
  * Code specific to PKUnity SoC and UniCore ISA
  *
  * Copyright (C) 2001-2010 GUAN Xue-tao
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/module.h>
 #include <linux/sched.h>
@@ -46,8 +43,8 @@ EXPORT_SYMBOL(__strncpy_from_user);
 
 EXPORT_SYMBOL(copy_page);
 
-EXPORT_SYMBOL(__copy_from_user);
-EXPORT_SYMBOL(__copy_to_user);
+EXPORT_SYMBOL(raw_copy_from_user);
+EXPORT_SYMBOL(raw_copy_to_user);
 EXPORT_SYMBOL(__clear_user);
 
 EXPORT_SYMBOL(__ashldi3);

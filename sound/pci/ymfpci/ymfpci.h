@@ -1,25 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 #ifndef __SOUND_YMFPCI_H
 #define __SOUND_YMFPCI_H
 
 /*
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *  Definitions for Yahama YMF724/740/744/754 chips
- *
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <sound/pcm.h>
@@ -176,7 +161,7 @@
 #define YMFPCI_LEGACY2_IMOD	(1 << 15)	/* legacy IRQ mode */
 /* SIEN:IMOD 0:0 = legacy irq, 0:1 = INTA, 1:0 = serialized IRQ */
 
-#if defined(CONFIG_GAMEPORT) || (defined(MODULE) && defined(CONFIG_GAMEPORT_MODULE))
+#if IS_REACHABLE(CONFIG_GAMEPORT)
 #define SUPPORT_JOYSTICK
 #endif
 
@@ -185,50 +170,50 @@
  */
 
 struct snd_ymfpci_playback_bank {
-	u32 format;
-	u32 loop_default;
-	u32 base;			/* 32-bit address */
-	u32 loop_start;			/* 32-bit offset */
-	u32 loop_end;			/* 32-bit offset */
-	u32 loop_frac;			/* 8-bit fraction - loop_start */
-	u32 delta_end;			/* pitch delta end */
-	u32 lpfK_end;
-	u32 eg_gain_end;
-	u32 left_gain_end;
-	u32 right_gain_end;
-	u32 eff1_gain_end;
-	u32 eff2_gain_end;
-	u32 eff3_gain_end;
-	u32 lpfQ;
-	u32 status;
-	u32 num_of_frames;
-	u32 loop_count;
-	u32 start;
-	u32 start_frac;
-	u32 delta;
-	u32 lpfK;
-	u32 eg_gain;
-	u32 left_gain;
-	u32 right_gain;
-	u32 eff1_gain;
-	u32 eff2_gain;
-	u32 eff3_gain;
-	u32 lpfD1;
-	u32 lpfD2;
+	__le32 format;
+	__le32 loop_default;
+	__le32 base;			/* 32-bit address */
+	__le32 loop_start;		/* 32-bit offset */
+	__le32 loop_end;		/* 32-bit offset */
+	__le32 loop_frac;		/* 8-bit fraction - loop_start */
+	__le32 delta_end;		/* pitch delta end */
+	__le32 lpfK_end;
+	__le32 eg_gain_end;
+	__le32 left_gain_end;
+	__le32 right_gain_end;
+	__le32 eff1_gain_end;
+	__le32 eff2_gain_end;
+	__le32 eff3_gain_end;
+	__le32 lpfQ;
+	__le32 status;
+	__le32 num_of_frames;
+	__le32 loop_count;
+	__le32 start;
+	__le32 start_frac;
+	__le32 delta;
+	__le32 lpfK;
+	__le32 eg_gain;
+	__le32 left_gain;
+	__le32 right_gain;
+	__le32 eff1_gain;
+	__le32 eff2_gain;
+	__le32 eff3_gain;
+	__le32 lpfD1;
+	__le32 lpfD2;
  };
 
 struct snd_ymfpci_capture_bank {
-	u32 base;			/* 32-bit address */
-	u32 loop_end;			/* 32-bit offset */
-	u32 start;			/* 32-bit offset */
-	u32 num_of_loops;		/* counter */
+	__le32 base;			/* 32-bit address */
+	__le32 loop_end;		/* 32-bit offset */
+	__le32 start;			/* 32-bit offset */
+	__le32 num_of_loops;		/* counter */
 };
 
 struct snd_ymfpci_effect_bank {
-	u32 base;			/* 32-bit address */
-	u32 loop_end;			/* 32-bit offset */
-	u32 start;			/* 32-bit offset */
-	u32 temp;
+	__le32 base;			/* 32-bit address */
+	__le32 loop_end;		/* 32-bit offset */
+	__le32 start;			/* 32-bit offset */
+	__le32 temp;
 };
 
 struct snd_ymfpci_pcm;
@@ -316,7 +301,7 @@ struct snd_ymfpci {
 	dma_addr_t work_base_addr;
 	struct snd_dma_buffer ac3_tmp_base;
 
-	u32 *ctrl_playback;
+	__le32 *ctrl_playback;
 	struct snd_ymfpci_playback_bank *bank_playback[YDSXG_PLAYBACK_VOICES][2];
 	struct snd_ymfpci_capture_bank *bank_capture[YDSXG_CAPTURE_VOICES][2];
 	struct snd_ymfpci_effect_bank *bank_effect[YDSXG_EFFECT_VOICES][2];

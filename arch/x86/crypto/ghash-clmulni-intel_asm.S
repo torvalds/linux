@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Accelerated GHASH implementation with Intel PCLMULQDQ-NI
  * instructions. This file contains accelerated part of ghash
@@ -10,18 +11,13 @@
  *	     Vinodh Gopal
  *	     Erdinc Ozturk
  *	     Deniz Karakoyunlu
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
  */
 
 #include <linux/linkage.h>
 #include <asm/inst.h>
 #include <asm/frame.h>
 
-.data
-
+.section	.rodata.cst16.bswap_mask, "aM", @progbits, 16
 .align 16
 .Lbswap_mask:
 	.octa 0x000102030405060708090a0b0c0d0e0f

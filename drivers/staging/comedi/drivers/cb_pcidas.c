@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * cb_pcidas.c
  * Developed by Ivan Martinez and Frank Mori Hess, with valuable help from
@@ -8,16 +9,6 @@
  *
  * COMEDI - Linux Control and Measurement Device Interface
  * Copyright (C) 1997-8 David A. Schleef <ds@schleef.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 /*
@@ -125,7 +116,7 @@
 #define PCIDAS_TRIG_SEL_ANALOG	PCIDAS_TRIG_SEL(3) /* ext. analog trigger */
 #define PCIDAS_TRIG_SEL_MASK	PCIDAS_TRIG_SEL(3) /* start trigger mask */
 #define PCIDAS_TRIG_POL		BIT(2)	/* invert trigger (1602 only) */
-#define PCIDAS_TRIG_MODE	BIT(3)	/* edge/level trigerred (1602 only) */
+#define PCIDAS_TRIG_MODE	BIT(3)	/* edge/level triggered (1602 only) */
 #define PCIDAS_TRIG_EN		BIT(4)	/* enable external start trigger */
 #define PCIDAS_TRIG_BURSTE	BIT(5)	/* burst mode enable */
 #define PCIDAS_TRIG_CLR		BIT(7)	/* clear external trigger */

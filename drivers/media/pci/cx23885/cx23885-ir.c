@@ -1,26 +1,17 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Driver for the Conexant CX23885/7/8 PCIe bridge
  *
  *  Infrared device support routines - non-input, non-vl42_subdev routines
  *
  *  Copyright (C) 2009  Andy Walls <awalls@md.metrocast.net>
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version 2
- *  of the License, or (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
  */
-
-#include <media/v4l2-device.h>
 
 #include "cx23885.h"
 #include "cx23885-ir.h"
 #include "cx23885-input.h"
+
+#include <media/v4l2-device.h>
 
 #define CX23885_IR_RX_FIFO_SERVICE_REQ		0
 #define CX23885_IR_RX_END_OF_RX_DETECTED	1

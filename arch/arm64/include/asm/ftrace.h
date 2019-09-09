@@ -1,18 +1,16 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * arch/arm64/include/asm/ftrace.h
  *
  * Copyright (C) 2013 Linaro Limited
  * Author: AKASHI Takahiro <takahiro.akashi@linaro.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #ifndef __ASM_FTRACE_H
 #define __ASM_FTRACE_H
 
 #include <asm/insn.h>
 
+#define HAVE_FUNCTION_GRAPH_FP_TEST
 #define MCOUNT_ADDR		((unsigned long)_mcount)
 #define MCOUNT_INSN_SIZE	AARCH64_INSN_SIZE
 
@@ -55,6 +53,19 @@ static inline unsigned long ftrace_call_adjust(unsigned long addr)
 static inline bool arch_trace_is_compat_syscall(struct pt_regs *regs)
 {
 	return is_compat_task();
+}
+
+#define ARCH_HAS_SYSCALL_MATCH_SYM_NAME
+
+static inline bool arch_syscall_match_sym_name(const char *sym,
+					       const char *name)
+{
+	/*
+	 * Since all syscall functions have __arm64_ prefix, we must skip it.
+	 * However, as we described above, we decided to ignore compat
+	 * syscalls, so we don't care about __arm64_compat_ prefix here.
+	 */
+	return !strcmp(sym + 8, name);
 }
 #endif /* ifndef __ASSEMBLY__ */
 

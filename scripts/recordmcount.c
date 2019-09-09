@@ -1,8 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * recordmcount.c: construct a table of the locations of calls to 'mcount'
  * so that ftrace can find them quickly.
  * Copyright 2009 John F. Reiser <jreiser@BitWagon.com>.  All rights reserved.
- * Licensed under the GNU General Public License, version 2 (GPLv2).
  *
  * Restructured to fit Linux format, as well as other updates:
  *  Copyright 2010 Steven Rostedt <srostedt@redhat.com>, Red Hat Inc.
@@ -32,20 +32,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-
-/*
- * glibc synced up and added the metag number but didn't add the relocations.
- * Work around this in a crude manner for now.
- */
-#ifndef EM_METAG
-#define EM_METAG      174
-#endif
-#ifndef R_METAG_ADDR32
-#define R_METAG_ADDR32                   2
-#endif
-#ifndef R_METAG_NONE
-#define R_METAG_NONE                     3
-#endif
 
 #ifndef EM_AARCH64
 #define EM_AARCH64	183
@@ -213,6 +199,59 @@ static int make_nop_x86(void *map, size_t const offset)
 	return 0;
 }
 
+static unsigned char ideal_nop4_arm_le[4] = { 0x00, 0x00, 0xa0, 0xe1 }; /* mov r0, r0 */
+static unsigned char ideal_nop4_arm_be[4] = { 0xe1, 0xa0, 0x00, 0x00 }; /* mov r0, r0 */
+static unsigned char *ideal_nop4_arm;
+
+static unsigned char bl_mcount_arm_le[4] = { 0xfe, 0xff, 0xff, 0xeb }; /* bl */
+static unsigned char bl_mcount_arm_be[4] = { 0xeb, 0xff, 0xff, 0xfe }; /* bl */
+static unsigned char *bl_mcount_arm;
+
+static unsigned char push_arm_le[4] = { 0x04, 0xe0, 0x2d, 0xe5 }; /* push {lr} */
+static unsigned char push_arm_be[4] = { 0xe5, 0x2d, 0xe0, 0x04 }; /* push {lr} */
+static unsigned char *push_arm;
+
+static unsigned char ideal_nop2_thumb_le[2] = { 0x00, 0xbf }; /* nop */
+static unsigned char ideal_nop2_thumb_be[2] = { 0xbf, 0x00 }; /* nop */
+static unsigned char *ideal_nop2_thumb;
+
+static unsigned char push_bl_mcount_thumb_le[6] = { 0x00, 0xb5, 0xff, 0xf7, 0xfe, 0xff }; /* push {lr}, bl */
+static unsigned char push_bl_mcount_thumb_be[6] = { 0xb5, 0x00, 0xf7, 0xff, 0xff, 0xfe }; /* push {lr}, bl */
+static unsigned char *push_bl_mcount_thumb;
+
+static int make_nop_arm(void *map, size_t const offset)
+{
+	char *ptr;
+	int cnt = 1;
+	int nop_size;
+	size_t off = offset;
+
+	ptr = map + offset;
+	if (memcmp(ptr, bl_mcount_arm, 4) == 0) {
+		if (memcmp(ptr - 4, push_arm, 4) == 0) {
+			off -= 4;
+			cnt = 2;
+		}
+		ideal_nop = ideal_nop4_arm;
+		nop_size = 4;
+	} else if (memcmp(ptr - 2, push_bl_mcount_thumb, 6) == 0) {
+		cnt = 3;
+		nop_size = 2;
+		off -= 2;
+		ideal_nop = ideal_nop2_thumb;
+	} else
+		return -1;
+
+	/* Convert to nop */
+	ulseek(fd_map, off, SEEK_SET);
+
+	do {
+		uwrite(fd_map, ideal_nop, nop_size);
+	} while (--cnt > 0);
+
+	return 0;
+}
+
 static unsigned char ideal_nop4_arm64[4] = {0x1f, 0x20, 0x03, 0xd5};
 static int make_nop_arm64(void *map, size_t const offset)
 {
@@ -358,7 +397,8 @@ static uint32_t (*w2)(uint16_t);
 static int
 is_mcounted_section_name(char const *const txtname)
 {
-	return strcmp(".text",           txtname) == 0 ||
+	return strncmp(".text",          txtname, 5) == 0 ||
+		strcmp(".init.text",     txtname) == 0 ||
 		strcmp(".ref.text",      txtname) == 0 ||
 		strcmp(".sched.text",    txtname) == 0 ||
 		strcmp(".spinlock.text", txtname) == 0 ||
@@ -430,6 +470,11 @@ do_file(char const *const fname)
 			w2 = w2rev;
 			w8 = w8rev;
 		}
+		ideal_nop4_arm = ideal_nop4_arm_le;
+		bl_mcount_arm = bl_mcount_arm_le;
+		push_arm = push_arm_le;
+		ideal_nop2_thumb = ideal_nop2_thumb_le;
+		push_bl_mcount_thumb = push_bl_mcount_thumb_le;
 		break;
 	case ELFDATA2MSB:
 		if (*(unsigned char const *)&endian != 0) {
@@ -438,6 +483,11 @@ do_file(char const *const fname)
 			w2 = w2rev;
 			w8 = w8rev;
 		}
+		ideal_nop4_arm = ideal_nop4_arm_be;
+		bl_mcount_arm = bl_mcount_arm_be;
+		push_arm = push_arm_be;
+		ideal_nop2_thumb = ideal_nop2_thumb_be;
+		push_bl_mcount_thumb = push_bl_mcount_thumb_be;
 		break;
 	}  /* end switch */
 	if (memcmp(ELFMAG, ehdr->e_ident, SELFMAG) != 0
@@ -450,7 +500,7 @@ do_file(char const *const fname)
 	gpfx = 0;
 	switch (w2(ehdr->e_machine)) {
 	default:
-		fprintf(stderr, "unrecognized e_machine %d %s\n",
+		fprintf(stderr, "unrecognized e_machine %u %s\n",
 			w2(ehdr->e_machine), fname);
 		fail_file();
 		break;
@@ -463,6 +513,8 @@ do_file(char const *const fname)
 		break;
 	case EM_ARM:	 reltype = R_ARM_ABS32;
 			 altmcount = "__gnu_mcount_nc";
+			 make_nop = make_nop_arm;
+			 rel_type_nop = R_ARM_NONE;
 			 break;
 	case EM_AARCH64:
 			reltype = R_AARCH64_ABS64;
@@ -472,12 +524,6 @@ do_file(char const *const fname)
 			gpfx = '_';
 			break;
 	case EM_IA_64:	 reltype = R_IA64_IMM64;   gpfx = '_'; break;
-	case EM_METAG:	 reltype = R_METAG_ADDR32;
-			 altmcount = "_mcount_wrapper";
-			 rel_type_nop = R_METAG_NONE;
-			 /* We happen to have the same requirement as MIPS */
-			 is_fake_mcount32 = MIPS32_is_fake_mcount;
-			 break;
 	case EM_MIPS:	 /* reltype: e_class    */ gpfx = '_'; break;
 	case EM_PPC:	 reltype = R_PPC_ADDR32;   gpfx = '_'; break;
 	case EM_PPC64:	 reltype = R_PPC64_ADDR64; gpfx = '_'; break;

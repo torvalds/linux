@@ -159,6 +159,7 @@ mxm_dcb_sanitise_entry(struct nvkm_bios *bios, void *data, int idx, u16 pdcb)
 		break;
 	case 0x0e: /* eDP, falls through to DPint */
 		ctx.outp[1] |= 0x00010000;
+		/* fall through */
 	case 0x07: /* DP internal, wtf is this?? HP8670w */
 		ctx.outp[1] |= 0x00000004; /* use_power_scripts? */
 		type = DCB_CONNECTOR_eDP;
@@ -190,8 +191,8 @@ mxm_dcb_sanitise(struct nvkm_mxm *mxm)
 	struct nvkm_bios *bios = subdev->device->bios;
 	u8  ver, hdr, cnt, len;
 	u16 dcb = dcb_table(bios, &ver, &hdr, &cnt, &len);
-	if (dcb == 0x0000 || ver != 0x40) {
-		nvkm_debug(subdev, "unsupported DCB version\n");
+	if (dcb == 0x0000 || (ver != 0x40 && ver != 0x41)) {
+		nvkm_warn(subdev, "unsupported DCB version\n");
 		return;
 	}
 

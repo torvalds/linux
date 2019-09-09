@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _CSS_H
 #define _CSS_H
 
@@ -102,7 +103,8 @@ extern void css_driver_unregister(struct css_driver *);
 
 extern void css_sch_device_unregister(struct subchannel *);
 extern int css_register_subchannel(struct subchannel *);
-extern struct subchannel *css_alloc_subchannel(struct subchannel_id);
+extern struct subchannel *css_alloc_subchannel(struct subchannel_id,
+					       struct schib *schib);
 extern struct subchannel *get_subchannel_by_schid(struct subchannel_id);
 extern int css_init_done;
 extern int max_ssid;
@@ -113,8 +115,7 @@ extern int for_each_subchannel(int(*fn)(struct subchannel_id, void *), void *);
 void css_update_ssd_info(struct subchannel *sch);
 
 struct channel_subsystem {
-	u8 cssid;
-	int valid;
+	int cssid;
 	struct channel_path *chps[__MAX_CHPID + 1];
 	struct device device;
 	struct pgid global_pgid;
@@ -129,6 +130,16 @@ struct channel_subsystem {
 #define to_css(dev) container_of(dev, struct channel_subsystem, device)
 
 extern struct channel_subsystem *channel_subsystems[];
+
+/* Dummy helper which needs to change once we support more than one css. */
+static inline struct channel_subsystem *css_by_id(u8 cssid)
+{
+	return channel_subsystems[0];
+}
+
+/* Dummy iterator which needs to change once we support more than one css. */
+#define for_each_css(css)						\
+	for ((css) = channel_subsystems[0]; (css); (css) = NULL)
 
 /* Helper functions to build lists for the slow path. */
 void css_schedule_eval(struct subchannel_id schid);

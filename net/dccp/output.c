@@ -1,19 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  net/dccp/output.c
  *
  *  An implementation of the DCCP protocol
  *  Arnaldo Carvalho de Melo <acme@conectiva.com.br>
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
  */
 
 #include <linux/dccp.h>
 #include <linux/kernel.h>
 #include <linux/skbuff.h>
 #include <linux/slab.h>
+#include <linux/sched/signal.h>
 
 #include <net/inet_sock.h>
 #include <net/sock.h>

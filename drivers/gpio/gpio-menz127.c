@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * MEN 16Z127 GPIO driver
  *
  * Copyright (C) 2016 MEN Mikroelektronik GmbH (www.men.de)
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; version 2 of the License.
  */
 
 #include <linux/kernel.h>
@@ -56,9 +53,9 @@ static int men_z127_debounce(struct gpio_chip *gc, unsigned gpio,
 		rnd = fls(debounce) - 1;
 
 		if (rnd && (debounce & BIT(rnd - 1)))
-			debounce = round_up(debounce, MEN_Z127_DB_MIN_US);
+			debounce = roundup(debounce, MEN_Z127_DB_MIN_US);
 		else
-			debounce = round_down(debounce, MEN_Z127_DB_MIN_US);
+			debounce = rounddown(debounce, MEN_Z127_DB_MIN_US);
 
 		if (debounce > MEN_Z127_DB_MAX_US)
 			debounce = MEN_Z127_DB_MAX_US;
@@ -89,28 +86,45 @@ static int men_z127_debounce(struct gpio_chip *gc, unsigned gpio,
 
 static int men_z127_set_single_ended(struct gpio_chip *gc,
 				     unsigned offset,
-				     enum single_ended_mode mode)
+				     enum pin_config_param param)
 {
 	struct men_z127_gpio *priv = gpiochip_get_data(gc);
 	u32 od_en;
 
-	if (mode != LINE_MODE_OPEN_DRAIN &&
-	    mode != LINE_MODE_PUSH_PULL)
-		return -ENOTSUPP;
-
 	spin_lock(&gc->bgpio_lock);
 	od_en = readl(priv->reg_base + MEN_Z127_ODER);
 
-	if (mode == LINE_MODE_OPEN_DRAIN)
+	if (param == PIN_CONFIG_DRIVE_OPEN_DRAIN)
 		od_en |= BIT(offset);
 	else
-		/* Implicitly LINE_MODE_PUSH_PULL */
+		/* Implicitly PIN_CONFIG_DRIVE_PUSH_PULL */
 		od_en &= ~BIT(offset);
 
 	writel(od_en, priv->reg_base + MEN_Z127_ODER);
 	spin_unlock(&gc->bgpio_lock);
 
 	return 0;
+}
+
+static int men_z127_set_config(struct gpio_chip *gc, unsigned offset,
+			       unsigned long config)
+{
+	enum pin_config_param param = pinconf_to_config_param(config);
+
+	switch (param) {
+	case PIN_CONFIG_DRIVE_OPEN_DRAIN:
+	case PIN_CONFIG_DRIVE_PUSH_PULL:
+		return men_z127_set_single_ended(gc, offset, param);
+
+	case PIN_CONFIG_INPUT_DEBOUNCE:
+		return men_z127_debounce(gc, offset,
+			pinconf_to_config_argument(config));
+
+	default:
+		break;
+	}
+
+	return -ENOTSUPP;
 }
 
 static int men_z127_probe(struct mcb_device *mdev,
@@ -149,8 +163,7 @@ static int men_z127_probe(struct mcb_device *mdev,
 	if (ret)
 		goto err_unmap;
 
-	men_z127_gpio->gc.set_debounce = men_z127_debounce;
-	men_z127_gpio->gc.set_single_ended = men_z127_set_single_ended;
+	men_z127_gpio->gc.set_config = men_z127_set_config;
 
 	ret = gpiochip_add_data(&men_z127_gpio->gc, men_z127_gpio);
 	if (ret) {

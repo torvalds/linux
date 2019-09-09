@@ -1,16 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
- * intel_soc_pmic_core.h - Intel SoC PMIC MFD Driver
+ * Intel SoC PMIC MFD Driver
  *
  * Copyright (C) 2012-2014 Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  *
  * Author: Yang, Bin <bin.yang@intel.com>
  * Author: Zhu, Lejun <lejun.zhu@linux.intel.com>
@@ -27,6 +19,7 @@ struct intel_soc_pmic_config {
 	const struct regmap_irq_chip *irq_chip;
 };
 
-extern struct intel_soc_pmic_config intel_soc_pmic_config_crc;
+extern struct intel_soc_pmic_config intel_soc_pmic_config_byt_crc;
+extern struct intel_soc_pmic_config intel_soc_pmic_config_cht_crc;
 
 #endif	/* __INTEL_SOC_PMIC_CORE_H__ */

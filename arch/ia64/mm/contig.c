@@ -14,7 +14,6 @@
  * Routines used by ia64 machines with contiguous (or virtually contiguous)
  * memory.
  */
-#include <linux/bootmem.h>
 #include <linux/efi.h>
 #include <linux/memblock.h>
 #include <linux/mm.h>
@@ -33,53 +32,6 @@ static unsigned long max_gap;
 
 /* physical address where the bootmem map is located */
 unsigned long bootmap_start;
-
-/**
- * find_bootmap_location - callback to find a memory area for the bootmap
- * @start: start of region
- * @end: end of region
- * @arg: unused callback data
- *
- * Find a place to put the bootmap and return its starting address in
- * bootmap_start.  This address must be page-aligned.
- */
-static int __init
-find_bootmap_location (u64 start, u64 end, void *arg)
-{
-	u64 needed = *(unsigned long *)arg;
-	u64 range_start, range_end, free_start;
-	int i;
-
-#if IGNORE_PFN0
-	if (start == PAGE_OFFSET) {
-		start += PAGE_SIZE;
-		if (start >= end)
-			return 0;
-	}
-#endif
-
-	free_start = PAGE_OFFSET;
-
-	for (i = 0; i < num_rsvd_regions; i++) {
-		range_start = max(start, free_start);
-		range_end   = min(end, rsvd_region[i].start & PAGE_MASK);
-
-		free_start = PAGE_ALIGN(rsvd_region[i].end);
-
-		if (range_end <= range_start)
-			continue; /* skip over empty range */
-
-		if (range_end - range_start >= needed) {
-			bootmap_start = __pa(range_start);
-			return -1;	/* done */
-		}
-
-		/* nothing more available in this segment */
-		if (range_end == end)
-			return 0;
-	}
-	return 0;
-}
 
 #ifdef CONFIG_SMP
 static void *cpu_data;
@@ -132,8 +84,13 @@ skip:
 static inline void
 alloc_per_cpu_data(void)
 {
-	cpu_data = __alloc_bootmem(PERCPU_PAGE_SIZE * num_possible_cpus(),
-				   PERCPU_PAGE_SIZE, __pa(MAX_DMA_ADDRESS));
+	size_t size = PERCPU_PAGE_SIZE * num_possible_cpus();
+
+	cpu_data = memblock_alloc_from(size, PERCPU_PAGE_SIZE,
+				       __pa(MAX_DMA_ADDRESS));
+	if (!cpu_data)
+		panic("%s: Failed to allocate %lu bytes align=%lx from=%lx\n",
+		      __func__, size, PERCPU_PAGE_SIZE, __pa(MAX_DMA_ADDRESS));
 }
 
 /**
@@ -196,8 +153,6 @@ setup_per_cpu_areas(void)
 void __init
 find_memory (void)
 {
-	unsigned long bootmap_size;
-
 	reserve_memory();
 
 	/* first find highest page frame number */
@@ -205,21 +160,12 @@ find_memory (void)
 	max_low_pfn = 0;
 	efi_memmap_walk(find_max_min_low_pfn, NULL);
 	max_pfn = max_low_pfn;
-	/* how many bytes to cover all the pages */
-	bootmap_size = bootmem_bootmap_pages(max_pfn) << PAGE_SHIFT;
 
-	/* look for a location to hold the bootmap */
-	bootmap_start = ~0UL;
-	efi_memmap_walk(find_bootmap_location, &bootmap_size);
-	if (bootmap_start == ~0UL)
-		panic("Cannot find %ld bytes for bootmap\n", bootmap_size);
-
-	bootmap_size = init_bootmem_node(NODE_DATA(0),
-			(bootmap_start >> PAGE_SHIFT), 0, max_pfn);
-
-	/* Free all available memory, then mark bootmem-map as being in use. */
-	efi_memmap_walk(filter_rsvd_memory, free_bootmem);
-	reserve_bootmem(bootmap_start, bootmap_size, BOOTMEM_DEFAULT);
+#ifdef CONFIG_VIRTUAL_MEM_MAP
+	efi_memmap_walk(filter_memory, register_active_ranges);
+#else
+	memblock_add_node(0, PFN_PHYS(max_low_pfn), 0);
+#endif
 
 	find_initrd();
 
@@ -237,18 +183,16 @@ paging_init (void)
 	unsigned long max_zone_pfns[MAX_NR_ZONES];
 
 	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
-#ifdef CONFIG_ZONE_DMA
+#ifdef CONFIG_ZONE_DMA32
 	max_dma = virt_to_phys((void *) MAX_DMA_ADDRESS) >> PAGE_SHIFT;
-	max_zone_pfns[ZONE_DMA] = max_dma;
+	max_zone_pfns[ZONE_DMA32] = max_dma;
 #endif
 	max_zone_pfns[ZONE_NORMAL] = max_low_pfn;
 
 #ifdef CONFIG_VIRTUAL_MEM_MAP
-	efi_memmap_walk(filter_memory, register_active_ranges);
 	efi_memmap_walk(find_largest_hole, (u64 *)&max_gap);
 	if (max_gap < LARGE_GAP) {
 		vmem_map = (struct page *) 0;
-		free_area_init_nodes(max_zone_pfns);
 	} else {
 		unsigned long map_size;
 
@@ -266,13 +210,10 @@ paging_init (void)
 		 */
 		NODE_DATA(0)->node_mem_map = vmem_map +
 			find_min_pfn_with_active_regions();
-		free_area_init_nodes(max_zone_pfns);
 
 		printk("Virtual mem_map starts at 0x%p\n", mem_map);
 	}
-#else /* !CONFIG_VIRTUAL_MEM_MAP */
-	memblock_add_node(0, PFN_PHYS(max_low_pfn), 0);
-	free_area_init_nodes(max_zone_pfns);
 #endif /* !CONFIG_VIRTUAL_MEM_MAP */
+	free_area_init_nodes(max_zone_pfns);
 	zero_page_memmap_ptr = virt_to_page(ia64_imva(empty_zero_page));
 }

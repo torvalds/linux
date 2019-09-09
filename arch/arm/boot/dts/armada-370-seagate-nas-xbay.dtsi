@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Device Tree common file for the Seagate NAS 2 and 4-bay (Armada 370 SoC).
  *
  * Copyright (C) 2015 Seagate
  *
  * Author: Vincent Donnefort <vdonnefort@gmail.com>
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2.  This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  */
 
 /*
@@ -23,7 +20,7 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	memory {
+	memory@0 {
 		device_type = "memory";
 		reg = <0x00000000 0x20000000>; /* 512 MB */
 	};
@@ -31,15 +28,6 @@
 	soc {
 		ranges = <MBUS_ID(0xf0, 0x01) 0 0xf1000000 0x100000
 			  MBUS_ID(0x01, 0xe0) 0 0xfff00000 0x100000>;
-
-		pcie-controller {
-			status = "okay";
-
-			/* USB 3.0 bridge ASM1042A */
-			pcie@2,0 {
-				status = "okay";
-			};
-		};
 
 		internal-regs {
 			serial@12000 {
@@ -49,15 +37,6 @@
 			sata@a0000 {
 				nr-ports = <2>;
 				status = "okay";
-			};
-
-			mdio {
-				pinctrl-0 = <&mdio_pins>;
-				pinctrl-names = "default";
-
-				phy0: ethernet-phy@0 {
-					reg = <0>;
-				};
 			};
 
 			ethernet@70000 {
@@ -85,33 +64,6 @@
 					compatible = "microchip,mcp7941x";
 					reg = <0x6f>;
 					interrupts = <110>;
-				};
-			};
-
-			nand@d0000 {
-				status = "okay";
-				num-cs = <1>;
-				marvell,nand-keep-config;
-				marvell,nand-enable-arbiter;
-				nand-on-flash-bbt;
-				nand-ecc-strength = <4>;
-				nand-ecc-step-size = <512>;
-
-				partition@0 {
-					label = "u-boot";
-					reg = <0x0 0x300000>;
-				};
-				partition@300000 {
-					label = "device-tree";
-					reg = <0x300000 0x20000>;
-				};
-				partition@320000 {
-					label = "linux";
-					reg = <0x320000 0x2000000>;
-				};
-				partition@2320000 {
-					label = "rootfs";
-					reg = <0x2320000 0xdce0000>;
 				};
 			};
 		};
@@ -159,19 +111,19 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		button@1 {
+		power {
 			label = "Power button";
 			linux,code = <KEY_POWER>;
 			gpios = <&gpio1 19 GPIO_ACTIVE_LOW>;
 			debounce-interval = <100>;
 		};
-		button@2 {
+		backup {
 			label = "Backup button";
 			linux,code = <KEY_OPTION>;
 			gpios = <&gpio0 31 GPIO_ACTIVE_LOW>;
 			debounce-interval = <100>;
 		};
-		button@3 {
+		reset {
 			label = "Reset Button";
 			linux,code = <KEY_RESTART>;
 			gpios = <&gpio1 23 GPIO_ACTIVE_LOW>;
@@ -208,6 +160,25 @@
 	};
 };
 
+&pciec {
+	status = "okay";
+
+	/* USB 3.0 bridge ASM1042A */
+	pcie@2,0 {
+		status = "okay";
+	};
+};
+
+
+&mdio {
+	pinctrl-0 = <&mdio_pins>;
+	pinctrl-names = "default";
+
+	phy0: ethernet-phy@0 {
+		reg = <0>;
+	};
+};
+
 &pinctrl {
 	pinctrl-0 = <&hdd0_led_sata_pin>, <&hdd1_led_sata_pin>;
 	pinctrl-names = "default";
@@ -227,5 +198,42 @@
 	hdd1_led_gpio_pin: hdd1-led-gpio-pin {
 		marvell,pins = "mpp57";
 		marvell,function = "gpio";
+	};
+};
+
+&nand_controller {
+	status = "okay";
+
+	nand@0 {
+		reg = <0>;
+		label = "pxa3xx_nand-0";
+		nand-rb = <0>;
+		marvell,nand-keep-config;
+		nand-on-flash-bbt;
+		nand-ecc-strength = <4>;
+		nand-ecc-step-size = <512>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "u-boot";
+				reg = <0x0 0x300000>;
+			};
+			partition@300000 {
+				label = "device-tree";
+				reg = <0x300000 0x20000>;
+			};
+			partition@320000 {
+				label = "linux";
+				reg = <0x320000 0x2000000>;
+			};
+			partition@2320000 {
+				label = "rootfs";
+				reg = <0x2320000 0xdce0000>;
+			};
+		};
 	};
 };

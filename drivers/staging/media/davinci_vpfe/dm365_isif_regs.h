@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 2012 Texas Instruments Inc
  *
@@ -9,10 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  *
  * Contributors:
  *      Manjunath Hadli <manjunath.hadli@ti.com>
@@ -59,8 +56,8 @@
 #define REC656IF				0x84
 #define CCDCFG					0x88
 /*****************************************************
-* Defect Correction registers
-*****************************************************/
+ * Defect Correction registers
+ *****************************************************/
 #define DFCCTL					0x8c
 #define VDFSATLV				0x90
 #define DFCMEMCTL				0x94
@@ -70,8 +67,8 @@
 #define DFCMEM3					0xa4
 #define DFCMEM4					0xa8
 /****************************************************
-* Black Clamp registers
-****************************************************/
+ * Black Clamp registers
+ ****************************************************/
 #define CLAMPCFG				0xac
 #define CLDCOFST				0xb0
 #define CLSV					0xb4
@@ -84,8 +81,8 @@
 #define CLVWIN2					0xd0
 #define CLVWIN3					0xd4
 /****************************************************
-* Lense Shading Correction
-****************************************************/
+ * Lense Shading Correction
+ ****************************************************/
 #define DATAHOFST				0xd8
 #define DATAVOFST				0xdc
 #define LSCHVAL					0xe0
@@ -102,8 +99,8 @@
 #define TWODLSCIRQEN				0x10c
 #define TWODLSCIRQST				0x110
 /****************************************************
-* Data formatter
-****************************************************/
+ * Data formatter
+ ****************************************************/
 #define FMTCFG					0x114
 #define FMTPLEN					0x118
 #define FMTSPH					0x11c
@@ -128,8 +125,8 @@
 #define FMTPGMAPS6				0x19c
 #define FMTPGMAPS7				0x1a0
 /************************************************
-* Color Space Converter
-************************************************/
+ * Color Space Converter
+ ************************************************/
 #define CSCCTL					0x1a4
 #define CSCM0					0x1a8
 #define CSCM1					0x1ac

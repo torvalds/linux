@@ -1,0 +1,29 @@
+ROHM BD28623MUV Class D speaker amplifier for digital input
+
+This codec does not have any control buses such as I2C, it detect format and
+rate of I2S signal automatically. It has two signals that can be connected
+to GPIOs: reset and mute.
+
+Required properties:
+- compatible      : should be "rohm,bd28623"
+- #sound-dai-cells: should be 0.
+- VCCA-supply     : regulator phandle for the VCCA supply
+- VCCP1-supply    : regulator phandle for the VCCP1 supply
+- VCCP2-supply    : regulator phandle for the VCCP2 supply
+
+Optional properties:
+- reset-gpios     : GPIO specifier for the active low reset line
+- mute-gpios      : GPIO specifier for the active low mute line
+
+Example:
+
+	codec {
+		compatible = "rohm,bd28623";
+		#sound-dai-cells = <0>;
+
+		VCCA-supply = <&vcc_reg>;
+		VCCP1-supply = <&vcc_reg>;
+		VCCP2-supply = <&vcc_reg>;
+		reset-gpios = <&gpio 0 GPIO_ACTIVE_LOW>;
+		mute-gpios = <&gpio 1 GPIO_ACTIVE_LOW>;
+	};

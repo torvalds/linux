@@ -167,14 +167,10 @@ csio_dfs_destroy(struct csio_hw *hw)
  * csio_dfs_init - Debug filesystem initialization for the module.
  *
  */
-static int
+static void
 csio_dfs_init(void)
 {
 	csio_debugfs_root = debugfs_create_dir(KBUILD_MODNAME, NULL);
-	if (!csio_debugfs_root)
-		pr_warn("Could not create debugfs entry, continuing\n");
-
-	return 0;
 }
 
 /*
@@ -210,11 +206,11 @@ csio_pci_init(struct pci_dev *pdev, int *bars)
 	pci_set_master(pdev);
 	pci_try_set_mwi(pdev);
 
-	if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(64))) {
-		pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
-	} else if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) {
-		pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
-	} else {
+	rv = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
+	if (rv)
+		rv = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
+	if (rv) {
+		rv = -ENODEV;
 		dev_err(&pdev->dev, "No suitable DMA available.\n");
 		goto err_release_regions;
 	}
@@ -258,7 +254,6 @@ static void
 csio_hw_exit_workers(struct csio_hw *hw)
 {
 	cancel_work_sync(&hw->evtq_work);
-	flush_scheduled_work();
 }
 
 static int
@@ -485,9 +480,10 @@ csio_resource_alloc(struct csio_hw *hw)
 	if (!hw->rnode_mempool)
 		goto err_free_mb_mempool;
 
-	hw->scsi_pci_pool = pci_pool_create("csio_scsi_pci_pool", hw->pdev,
-					    CSIO_SCSI_RSP_LEN, 8, 0);
-	if (!hw->scsi_pci_pool)
+	hw->scsi_dma_pool = dma_pool_create("csio_scsi_dma_pool",
+					    &hw->pdev->dev, CSIO_SCSI_RSP_LEN,
+					    8, 0);
+	if (!hw->scsi_dma_pool)
 		goto err_free_rn_pool;
 
 	return 0;
@@ -505,8 +501,8 @@ err:
 static void
 csio_resource_free(struct csio_hw *hw)
 {
-	pci_pool_destroy(hw->scsi_pci_pool);
-	hw->scsi_pci_pool = NULL;
+	dma_pool_destroy(hw->scsi_dma_pool);
+	hw->scsi_dma_pool = NULL;
 	mempool_destroy(hw->rnode_mempool);
 	hw->rnode_mempool = NULL;
 	mempool_destroy(hw->mb_mempool);
@@ -648,7 +644,7 @@ csio_shost_init(struct csio_hw *hw, struct device *dev,
 	if (csio_lnode_init(ln, hw, pln))
 		goto err_shost_put;
 
-	if (scsi_add_host(shost, dev))
+	if (scsi_add_host_with_dma(shost, dev, &hw->pdev->dev))
 		goto err_lnode_exit;
 
 	return ln;
@@ -952,8 +948,9 @@ static int csio_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct csio_hw *hw;
 	struct csio_lnode *ln;
 
-	/* probe only T5 cards */
-	if (!csio_is_t5((pdev->device & CSIO_HW_CHIP_MASK)))
+	/* probe only T5 and T6 cards */
+	if (!csio_is_t5((pdev->device & CSIO_HW_CHIP_MASK)) &&
+	    !csio_is_t6((pdev->device & CSIO_HW_CHIP_MASK)))
 		return -ENODEV;
 
 	rv = csio_pci_init(pdev, &bars);
@@ -966,12 +963,19 @@ static int csio_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err_pci_exit;
 	}
 
+	if (!pcie_relaxed_ordering_enabled(pdev))
+		hw->flags |= CSIO_HWF_ROOT_NO_RELAXED_ORDERING;
+
 	pci_set_drvdata(pdev, hw);
 
-	if (csio_hw_start(hw) != 0) {
-		dev_err(&pdev->dev,
-			"Failed to start FW, continuing in debug mode.\n");
-		return 0;
+	rv = csio_hw_start(hw);
+	if (rv) {
+		if (rv == -EINVAL) {
+			dev_err(&pdev->dev,
+				"Failed to start FW, continuing in debug mode.\n");
+			return 0;
+		}
+		goto err_lnode_exit;
 	}
 
 	sprintf(hw->fwrev_str, "%u.%u.%u.%u\n",
@@ -1093,7 +1097,6 @@ csio_pci_slot_reset(struct pci_dev *pdev)
 	pci_set_master(pdev);
 	pci_restore_state(pdev);
 	pci_save_state(pdev);
-	pci_cleanup_aer_uncorrect_error_status(pdev);
 
 	/* Bring HW s/m to ready state.
 	 * but don't resume IOs.
@@ -1249,7 +1252,8 @@ module_init(csio_init);
 module_exit(csio_exit);
 MODULE_AUTHOR(CSIO_DRV_AUTHOR);
 MODULE_DESCRIPTION(CSIO_DRV_DESC);
-MODULE_LICENSE(CSIO_DRV_LICENSE);
+MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DEVICE_TABLE(pci, csio_pci_tbl);
 MODULE_VERSION(CSIO_DRV_VERSION);
 MODULE_FIRMWARE(FW_FNAME_T5);
+MODULE_FIRMWARE(FW_FNAME_T6);

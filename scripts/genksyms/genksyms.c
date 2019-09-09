@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* Generate kernel symbol version hashes.
    Copyright 1996, 1997 Linux International.
 
@@ -7,19 +8,7 @@
    This file was part of the Linux modutils 2.4.22: moved back into the
    kernel sources by Rusty Russell/Kai Germaschewski.
 
-   This program is free software; you can redistribute it and/or modify it
-   under the terms of the GNU General Public License as published by the
-   Free Software Foundation; either version 2 of the License, or (at your
-   option) any later version.
-
-   This program is distributed in the hope that it will be useful, but
-   WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+ */
 
 #include <stdio.h>
 #include <string.h>
@@ -44,8 +33,7 @@ char *cur_filename, *source_file;
 int in_source_file;
 
 static int flag_debug, flag_dump_defs, flag_reference, flag_dump_types,
-	   flag_preserve, flag_warnings;
-static const char *mod_prefix = "";
+	   flag_preserve, flag_warnings, flag_rel_crcs;
 
 static int errors;
 static int nsyms;
@@ -693,7 +681,10 @@ void export_symbol(const char *name)
 			fputs(">\n", debugfile);
 
 		/* Used as a linker script. */
-		printf("%s__crc_%s = 0x%08lx ;\n", mod_prefix, name, crc);
+		printf(!flag_rel_crcs ? "__crc_%s = 0x%08lx;\n" :
+		       "SECTIONS { .rodata : ALIGN(4) { "
+		       "__crc_%s = .; LONG(0x%08lx); } }\n",
+		       name, crc);
 	}
 }
 
@@ -730,7 +721,7 @@ void error_with_pos(const char *fmt, ...)
 
 static void genksyms_usage(void)
 {
-	fputs("Usage:\n" "genksyms [-adDTwqhV] > /path/to/.tmp_obj.ver\n" "\n"
+	fputs("Usage:\n" "genksyms [-adDTwqhVR] > /path/to/.tmp_obj.ver\n" "\n"
 #ifdef __GNU_LIBRARY__
 	      "  -s, --symbol-prefix   Select symbol prefix\n"
 	      "  -d, --debug           Increment the debug level (repeatable)\n"
@@ -742,6 +733,7 @@ static void genksyms_usage(void)
 	      "  -q, --quiet           Disable warnings (default)\n"
 	      "  -h, --help            Print this message\n"
 	      "  -V, --version         Print the release version\n"
+	      "  -R, --relative-crc    Emit section relative symbol CRCs\n"
 #else				/* __GNU_LIBRARY__ */
 	      "  -s                    Select symbol prefix\n"
 	      "  -d                    Increment the debug level (repeatable)\n"
@@ -753,6 +745,7 @@ static void genksyms_usage(void)
 	      "  -q                    Disable warnings (default)\n"
 	      "  -h                    Print this message\n"
 	      "  -V                    Print the release version\n"
+	      "  -R                    Emit section relative symbol CRCs\n"
 #endif				/* __GNU_LIBRARY__ */
 	      , stderr);
 }
@@ -764,7 +757,6 @@ int main(int argc, char **argv)
 
 #ifdef __GNU_LIBRARY__
 	struct option long_opts[] = {
-		{"symbol-prefix", 1, 0, 's'},
 		{"debug", 0, 0, 'd'},
 		{"warnings", 0, 0, 'w'},
 		{"quiet", 0, 0, 'q'},
@@ -774,18 +766,16 @@ int main(int argc, char **argv)
 		{"preserve", 0, 0, 'p'},
 		{"version", 0, 0, 'V'},
 		{"help", 0, 0, 'h'},
+		{"relative-crc", 0, 0, 'R'},
 		{0, 0, 0, 0}
 	};
 
-	while ((o = getopt_long(argc, argv, "s:dwqVDr:T:ph",
+	while ((o = getopt_long(argc, argv, "s:dwqVDr:T:phR",
 				&long_opts[0], NULL)) != EOF)
 #else				/* __GNU_LIBRARY__ */
-	while ((o = getopt(argc, argv, "s:dwqVDr:T:ph")) != EOF)
+	while ((o = getopt(argc, argv, "s:dwqVDr:T:phR")) != EOF)
 #endif				/* __GNU_LIBRARY__ */
 		switch (o) {
-		case 's':
-			mod_prefix = optarg;
-			break;
 		case 'd':
 			flag_debug++;
 			break;
@@ -823,6 +813,9 @@ int main(int argc, char **argv)
 		case 'h':
 			genksyms_usage();
 			return 0;
+		case 'R':
+			flag_rel_crcs = 1;
+			break;
 		default:
 			genksyms_usage();
 			return 1;

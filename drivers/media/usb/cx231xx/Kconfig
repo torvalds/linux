@@ -1,15 +1,14 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config VIDEO_CX231XX
 	tristate "Conexant cx231xx USB video capture support"
-	depends on VIDEO_DEV && I2C
+	depends on VIDEO_DEV && I2C && I2C_MUX
 	select VIDEO_TUNER
 	select VIDEO_TVEEPROM
-	depends on RC_CORE
 	select VIDEOBUF_VMALLOC
 	select VIDEO_CX25840
 	select VIDEO_CX2341X
-	select I2C_MUX
 
-	---help---
+	help
 	  This is a video4linux driver for Conexant 231xx USB based TV cards.
 
 	  To compile this driver as a module, choose M here: the
@@ -17,10 +16,10 @@ config VIDEO_CX231XX
 
 config VIDEO_CX231XX_RC
 	bool "Conexant cx231xx Remote Controller additional support"
-	depends on RC_CORE
+	depends on RC_CORE=y || RC_CORE=VIDEO_CX231XX
 	depends on VIDEO_CX231XX
 	default y
-	---help---
+	help
 	  cx231xx hardware has a builtin RX/TX support. However, a few
 	  designs opted to not use it, but, instead, some other hardware.
 	  This module enables the usage of those other hardware, like the
@@ -33,7 +32,7 @@ config VIDEO_CX231XX_ALSA
 	depends on VIDEO_CX231XX && SND
 	select SND_PCM
 
-	---help---
+	help
 	  This is an ALSA driver for Cx231xx USB based TV cards.
 
 	  To compile this driver as a module, choose M here: the
@@ -42,7 +41,6 @@ config VIDEO_CX231XX_ALSA
 config VIDEO_CX231XX_DVB
 	tristate "DVB/ATSC Support for Cx231xx based TV cards"
 	depends on VIDEO_CX231XX && DVB_CORE
-	select VIDEOBUF_DVB
 	select MEDIA_TUNER_XC5000 if MEDIA_SUBDRV_AUTOSELECT
 	select MEDIA_TUNER_TDA18271 if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_MB86A20S if MEDIA_SUBDRV_AUTOSELECT
@@ -50,8 +48,11 @@ config VIDEO_CX231XX_DVB
 	select DVB_LGDT3306A if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_TDA18271C2DD if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_SI2165 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_SI2168 if MEDIA_SUBDRV_AUTOSELECT
 	select MEDIA_TUNER_SI2157 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_MN88473 if MEDIA_SUBDRV_AUTOSELECT
+	select MEDIA_TUNER_R820T if MEDIA_SUBDRV_AUTOSELECT
 
-	---help---
+	help
 	  This adds support for DVB cards based on the
 	  Conexant cx231xx chips.

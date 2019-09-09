@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Broadcom BCM7038 style Level 1 interrupt controller driver
  *
  * Copyright (C) 2014 Broadcom Corporation
  * Author: Kevin Cernekee
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #define pr_fmt(fmt)	KBUILD_MODNAME	": " fmt
@@ -212,8 +209,37 @@ static int bcm7038_l1_set_affinity(struct irq_data *d,
 		__bcm7038_l1_unmask(d, first_cpu);
 
 	raw_spin_unlock_irqrestore(&intc->lock, flags);
+	irq_data_update_effective_affinity(d, cpumask_of(first_cpu));
+
 	return 0;
 }
+
+#ifdef CONFIG_SMP
+static void bcm7038_l1_cpu_offline(struct irq_data *d)
+{
+	struct cpumask *mask = irq_data_get_affinity_mask(d);
+	int cpu = smp_processor_id();
+	cpumask_t new_affinity;
+
+	/* This CPU was not on the affinity mask */
+	if (!cpumask_test_cpu(cpu, mask))
+		return;
+
+	if (cpumask_weight(mask) > 1) {
+		/*
+		 * Multiple CPU affinity, remove this CPU from the affinity
+		 * mask
+		 */
+		cpumask_copy(&new_affinity, mask);
+		cpumask_clear_cpu(cpu, &new_affinity);
+	} else {
+		/* Only CPU, put on the lowest online CPU */
+		cpumask_clear(&new_affinity);
+		cpumask_set_cpu(cpumask_first(cpu_online_mask), &new_affinity);
+	}
+	irq_set_affinity_locked(d, &new_affinity, false);
+}
+#endif
 
 static int __init bcm7038_l1_init_one(struct device_node *dn,
 				      unsigned int idx,
@@ -266,6 +292,9 @@ static struct irq_chip bcm7038_l1_irq_chip = {
 	.irq_mask		= bcm7038_l1_mask,
 	.irq_unmask		= bcm7038_l1_unmask,
 	.irq_set_affinity	= bcm7038_l1_set_affinity,
+#ifdef CONFIG_SMP
+	.irq_cpu_offline	= bcm7038_l1_cpu_offline,
+#endif
 };
 
 static int bcm7038_l1_map(struct irq_domain *d, unsigned int virq,
@@ -273,6 +302,7 @@ static int bcm7038_l1_map(struct irq_domain *d, unsigned int virq,
 {
 	irq_set_chip_and_handler(virq, &bcm7038_l1_irq_chip, handle_level_irq);
 	irq_set_chip_data(virq, d->host_data);
+	irqd_set_single_target(irq_desc_get_irq_data(irq_to_desc(virq)));
 	return 0;
 }
 
@@ -310,8 +340,8 @@ int __init bcm7038_l1_of_init(struct device_node *dn,
 		goto out_unmap;
 	}
 
-	pr_info("registered BCM7038 L1 intc (mem: 0x%p, IRQs: %d)\n",
-		intc->cpus[0]->map_base, IRQS_PER_WORD * intc->n_words);
+	pr_info("registered BCM7038 L1 intc (%pOF, IRQs: %d)\n",
+		dn, IRQS_PER_WORD * intc->n_words);
 
 	return 0;
 

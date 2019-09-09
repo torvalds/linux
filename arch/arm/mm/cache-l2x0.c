@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * arch/arm/mm/cache-l2x0.c - L210/L220/L310 cache controller support
  *
  * Copyright (C) 2007 ARM Limited
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 #include <linux/cpu.h>
 #include <linux/err.h>
@@ -56,6 +44,9 @@ static u32 l2x0_size;
 static unsigned long sync_reg_offset = L2X0_CACHE_SYNC;
 
 struct l2x0_regs l2x0_saved_regs;
+
+static bool l2x0_bresp_disable;
+static bool l2x0_flz_disable;
 
 /*
  * Common code for all cache controllers.
@@ -620,7 +611,7 @@ static void __init l2c310_enable(void __iomem *base, unsigned num_lock)
 	u32 aux = l2x0_saved_regs.aux_ctrl;
 
 	if (rev >= L310_CACHE_ID_RTL_R2P0) {
-		if (cortex_a9) {
+		if (cortex_a9 && !l2x0_bresp_disable) {
 			aux |= L310_AUX_CTRL_EARLY_BRESP;
 			pr_info("L2C-310 enabling early BRESP for Cortex-A9\n");
 		} else if (aux & L310_AUX_CTRL_EARLY_BRESP) {
@@ -629,7 +620,7 @@ static void __init l2c310_enable(void __iomem *base, unsigned num_lock)
 		}
 	}
 
-	if (cortex_a9) {
+	if (cortex_a9 && !l2x0_flz_disable) {
 		u32 aux_cur = readl_relaxed(base + L2X0_AUX_CTRL);
 		u32 acr = get_auxcr();
 
@@ -683,7 +674,7 @@ static void __init l2c310_enable(void __iomem *base, unsigned num_lock)
 
 	if (aux & L310_AUX_CTRL_FULL_LINE_ZERO)
 		cpuhp_setup_state(CPUHP_AP_ARM_L2X0_STARTING,
-				  "AP_ARM_L2X0_STARTING", l2c310_starting_cpu,
+				  "arm/l2x0:starting", l2c310_starting_cpu,
 				  l2c310_dying_cpu);
 }
 
@@ -1199,6 +1190,12 @@ static void __init l2c310_of_parse(const struct device_node *np,
 		*aux_val &= ~L2C_AUX_CTRL_PARITY_ENABLE;
 		*aux_mask &= ~L2C_AUX_CTRL_PARITY_ENABLE;
 	}
+
+	if (of_property_read_bool(np, "arm,early-bresp-disable"))
+		l2x0_bresp_disable = true;
+
+	if (of_property_read_bool(np, "arm,full-line-zero-disable"))
+		l2x0_flz_disable = true;
 
 	prefetch = l2x0_saved_regs.prefetch_ctrl;
 

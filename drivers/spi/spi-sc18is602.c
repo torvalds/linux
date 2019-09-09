@@ -1,17 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * NXP SC18IS602/603 SPI driver
  *
  * Copyright (C) Guenter Roeck <linux@roeck-us.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/kernel.h>
@@ -21,6 +12,7 @@
 #include <linux/i2c.h>
 #include <linux/delay.h>
 #include <linux/pm_runtime.h>
+#include <linux/of_device.h>
 #include <linux/of.h>
 #include <linux/platform_data/sc18is602.h>
 #include <linux/gpio/consumer.h>
@@ -271,7 +263,10 @@ static int sc18is602_probe(struct i2c_client *client,
 	hw->dev = dev;
 	hw->ctrl = 0xff;
 
-	hw->id = id->driver_data;
+	if (client->dev.of_node)
+		hw->id = (enum chips)of_device_get_match_data(&client->dev);
+	else
+		hw->id = id->driver_data;
 
 	switch (hw->id) {
 	case sc18is602:
@@ -323,9 +318,27 @@ static const struct i2c_device_id sc18is602_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, sc18is602_id);
 
+static const struct of_device_id sc18is602_of_match[] = {
+	{
+		.compatible = "nxp,sc18is602",
+		.data = (void *)sc18is602
+	},
+	{
+		.compatible = "nxp,sc18is602b",
+		.data = (void *)sc18is602b
+	},
+	{
+		.compatible = "nxp,sc18is603",
+		.data = (void *)sc18is603
+	},
+	{ },
+};
+MODULE_DEVICE_TABLE(of, sc18is602_of_match);
+
 static struct i2c_driver sc18is602_driver = {
 	.driver = {
 		.name = "sc18is602",
+		.of_match_table = of_match_ptr(sc18is602_of_match),
 	},
 	.probe = sc18is602_probe,
 	.id_table = sc18is602_id,

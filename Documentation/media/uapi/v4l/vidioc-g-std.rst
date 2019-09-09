@@ -1,15 +1,22 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 .. _VIDIOC_G_STD:
 
-********************************
-ioctl VIDIOC_G_STD, VIDIOC_S_STD
-********************************
+**************************************************************************
+ioctl VIDIOC_G_STD, VIDIOC_S_STD, VIDIOC_SUBDEV_G_STD, VIDIOC_SUBDEV_S_STD
+**************************************************************************
 
 Name
 ====
 
-VIDIOC_G_STD - VIDIOC_S_STD - Query or select the video standard of the current input
+VIDIOC_G_STD - VIDIOC_S_STD - VIDIOC_SUBDEV_G_STD - VIDIOC_SUBDEV_S_STD - Query or select the video standard of the current input
 
 
 Synopsis
@@ -21,6 +28,12 @@ Synopsis
 .. c:function:: int ioctl( int fd, VIDIOC_S_STD, const v4l2_std_id *argp )
     :name: VIDIOC_S_STD
 
+.. c:function:: int ioctl( int fd, VIDIOC_SUBDEV_G_STD, v4l2_std_id *argp )
+    :name: VIDIOC_SUBDEV_G_STD
+
+.. c:function:: int ioctl( int fd, VIDIOC_SUBDEV_S_STD, const v4l2_std_id *argp )
+    :name: VIDIOC_SUBDEV_S_STD
+
 
 Arguments
 =========
@@ -29,6 +42,7 @@ Arguments
     File descriptor returned by :ref:`open() <func-open>`.
 
 ``argp``
+    Pointer to :c:type:`v4l2_std_id`.
 
 
 Description

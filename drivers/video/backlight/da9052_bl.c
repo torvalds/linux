@@ -1,15 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Backlight Driver for Dialog DA9052 PMICs
  *
  * Copyright(c) 2012 Dialog Semiconductor Ltd.
  *
  * Author: David Dajun Chen <dchen@diasemi.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
  */
 
 #include <linux/backlight.h>
@@ -167,6 +162,7 @@ static const struct platform_device_id da9052_wled_ids[] = {
 	},
 	{ },
 };
+MODULE_DEVICE_TABLE(platform, da9052_wled_ids);
 
 static struct platform_driver da9052_wled_driver = {
 	.probe		= da9052_backlight_probe,
@@ -182,4 +178,3 @@ module_platform_driver(da9052_wled_driver);
 MODULE_AUTHOR("David Dajun Chen <dchen@diasemi.com>");
 MODULE_DESCRIPTION("Backlight driver for DA9052 PMIC");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:da9052-backlight");

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  * This file holds Hub protocol constants and data structures that are
  * defined in chapter 11 (Hub Specification) of the USB 2.0 specification.
@@ -21,6 +22,9 @@
  * use 31, so plus one evens out to four bytes.
  */
 #define USB_MAXCHILDREN		31
+
+/* See USB 3.1 spec Table 10-5 */
+#define USB_SS_MAXPORTS		15
 
 /*
  * Hub request types
@@ -192,6 +196,11 @@ struct usb_port_status {
 #define USB_EXT_PORT_STAT_TX_SPEED_ID	0x000000f0
 #define USB_EXT_PORT_STAT_RX_LANES	0x00000f00
 #define USB_EXT_PORT_STAT_TX_LANES	0x0000f000
+
+#define USB_EXT_PORT_RX_LANES(p) \
+			(((p) & USB_EXT_PORT_STAT_RX_LANES) >> 8)
+#define USB_EXT_PORT_TX_LANES(p) \
+			(((p) & USB_EXT_PORT_STAT_TX_LANES) >> 12)
 
 /*
  * wHubCharacteristics (masks)

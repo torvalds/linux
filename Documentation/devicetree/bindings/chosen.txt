@@ -5,12 +5,35 @@ The chosen node does not represent a real device, but serves as a place
 for passing data between firmware and the operating system, like boot
 arguments. Data in the chosen node does not represent the hardware.
 
+The following properties are recognized:
 
-stdout-path property
---------------------
+
+kaslr-seed
+-----------
+
+This property is used when booting with CONFIG_RANDOMIZE_BASE as the
+entropy used to randomize the kernel image base address location. Since
+it is used directly, this value is intended only for KASLR, and should
+not be used for other purposes (as it may leak information about KASLR
+offsets). It is parsed as a u64 value, e.g.
+
+/ {
+	chosen {
+		kaslr-seed = <0xfeedbeef 0xc0def00d>;
+	};
+};
+
+Note that if this property is set from UEFI (or a bootloader in EFI
+mode) when EFI_RNG_PROTOCOL is supported, it will be overwritten by
+the Linux EFI stub (which will populate the property itself, using
+EFI_RNG_PROTOCOL).
+
+stdout-path
+-----------
 
 Device trees may specify the device to be used for boot console output
-with a stdout-path property under /chosen, as described in ePAPR, e.g.
+with a stdout-path property under /chosen, as described in the Devicetree
+Specification, e.g.
 
 / {
 	chosen {
@@ -52,3 +75,63 @@ This property is set (currently only on PowerPC, and only needed on
 book3e) by some versions of kexec-tools to tell the new kernel that it
 is being booted by kexec, as the booting environment may differ (e.g.
 a different secondary CPU release mechanism)
+
+linux,usable-memory-range
+-------------------------
+
+This property (arm64 only) holds a base address and size, describing a
+limited region in which memory may be considered available for use by
+the kernel. Memory outside of this range is not available for use.
+
+This property describes a limitation: memory within this range is only
+valid when also described through another mechanism that the kernel
+would otherwise use to determine available memory (e.g. memory nodes
+or the EFI memory map). Valid memory may be sparse within the range.
+e.g.
+
+/ {
+	chosen {
+		linux,usable-memory-range = <0x9 0xf0000000 0x0 0x10000000>;
+	};
+};
+
+The main usage is for crash dump kernel to identify its own usable
+memory and exclude, at its boot time, any other memory areas that are
+part of the panicked kernel's memory.
+
+While this property does not represent a real hardware, the address
+and the size are expressed in #address-cells and #size-cells,
+respectively, of the root node.
+
+linux,elfcorehdr
+----------------
+
+This property (currently used only on arm64) holds the memory range,
+the address and the size, of the elf core header which mainly describes
+the panicked kernel's memory layout as PT_LOAD segments of elf format.
+e.g.
+
+/ {
+	chosen {
+		linux,elfcorehdr = <0x9 0xfffff000 0x0 0x800>;
+	};
+};
+
+While this property does not represent a real hardware, the address
+and the size are expressed in #address-cells and #size-cells,
+respectively, of the root node.
+
+linux,initrd-start and linux,initrd-end
+---------------------------------------
+
+These properties hold the physical start and end address of an initrd that's
+loaded by the bootloader. Note that linux,initrd-start is inclusive, but
+linux,initrd-end is exclusive.
+e.g.
+
+/ {
+	chosen {
+		linux,initrd-start = <0x82000000>;
+		linux,initrd-end = <0x82800000>;
+	};
+};

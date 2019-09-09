@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * security/tomoyo/util.c
  *
@@ -5,6 +6,8 @@
  */
 
 #include <linux/slab.h>
+#include <linux/rculist.h>
+
 #include "common.h"
 
 /* Lock for protecting policy. */
@@ -84,38 +87,18 @@ const u8 tomoyo_index2category[TOMOYO_MAX_MAC_INDEX] = {
  * @stamp: Pointer to "struct tomoyo_time".
  *
  * Returns nothing.
- *
- * This function does not handle Y2038 problem.
  */
-void tomoyo_convert_time(time_t time, struct tomoyo_time *stamp)
+void tomoyo_convert_time(time64_t time64, struct tomoyo_time *stamp)
 {
-	static const u16 tomoyo_eom[2][12] = {
-		{ 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365 },
-		{ 31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335, 366 }
-	};
-	u16 y;
-	u8 m;
-	bool r;
-	stamp->sec = time % 60;
-	time /= 60;
-	stamp->min = time % 60;
-	time /= 60;
-	stamp->hour = time % 24;
-	time /= 24;
-	for (y = 1970; ; y++) {
-		const unsigned short days = (y & 3) ? 365 : 366;
-		if (time < days)
-			break;
-		time -= days;
-	}
-	r = (y & 3) == 0;
-	for (m = 0; m < 11 && time >= tomoyo_eom[r][m]; m++)
-		;
-	if (m)
-		time -= tomoyo_eom[r][m - 1];
-	stamp->year = y;
-	stamp->month = ++m;
-	stamp->day = ++time;
+	struct tm tm;
+
+	time64_to_tm(time64, 0, &tm);
+	stamp->sec = tm.tm_sec;
+	stamp->min = tm.tm_min;
+	stamp->hour = tm.tm_hour;
+	stamp->day = tm.tm_mday;
+	stamp->month = tm.tm_mon + 1;
+	stamp->year = tm.tm_year + 1900;
 }
 
 /**
@@ -124,13 +107,14 @@ void tomoyo_convert_time(time_t time, struct tomoyo_time *stamp)
  * @string: String representation for permissions in foo/bar/buz format.
  * @keyword: Keyword to find from @string/
  *
- * Returns ture if @keyword was found in @string, false otherwise.
+ * Returns true if @keyword was found in @string, false otherwise.
  *
  * This function assumes that strncmp(w1, w2, strlen(w1)) != 0 if w1 != w2.
  */
 bool tomoyo_permstr(const char *string, const char *keyword)
 {
 	const char *cp = strstr(string, keyword);
+
 	if (cp)
 		return cp == string || *(cp - 1) == '/';
 	return false;
@@ -150,6 +134,7 @@ char *tomoyo_read_token(struct tomoyo_acl_param *param)
 {
 	char *pos = param->data;
 	char *del = strchr(pos, ' ');
+
 	if (del)
 		*del++ = '\0';
 	else
@@ -170,6 +155,7 @@ const struct tomoyo_path_info *tomoyo_get_domainname
 {
 	char *start = param->data;
 	char *pos = start;
+
 	while (*pos) {
 		if (*pos++ != ' ' || *pos++ == '/')
 			continue;
@@ -199,8 +185,10 @@ u8 tomoyo_parse_ulong(unsigned long *result, char **str)
 	const char *cp = *str;
 	char *ep;
 	int base = 10;
+
 	if (*cp == '0') {
 		char c = *(cp + 1);
+
 		if (c == 'x' || c == 'X') {
 			base = 16;
 			cp += 2;
@@ -258,6 +246,7 @@ bool tomoyo_parse_name_union(struct tomoyo_acl_param *param,
 			     struct tomoyo_name_union *ptr)
 {
 	char *filename;
+
 	if (param->data[0] == '@') {
 		param->data++;
 		ptr->group = tomoyo_get_group(param, TOMOYO_PATH_GROUP);
@@ -284,6 +273,7 @@ bool tomoyo_parse_number_union(struct tomoyo_acl_param *param,
 	char *data;
 	u8 type;
 	unsigned long v;
+
 	memset(ptr, 0, sizeof(*ptr));
 	if (param->data[0] == '@') {
 		param->data++;
@@ -447,6 +437,7 @@ static bool tomoyo_correct_word2(const char *string, size_t len)
 	unsigned char c;
 	unsigned char d;
 	unsigned char e;
+
 	if (!len)
 		goto out;
 	while (len--) {
@@ -551,6 +542,7 @@ bool tomoyo_correct_domain(const unsigned char *domainname)
 		return true;
 	while (1) {
 		const unsigned char *cp = strchr(domainname, ' ');
+
 		if (!cp)
 			break;
 		if (*domainname != '/' ||
@@ -572,6 +564,7 @@ bool tomoyo_domain_def(const unsigned char *buffer)
 {
 	const unsigned char *cp;
 	int len;
+
 	if (*buffer != '<')
 		return false;
 	cp = strchr(buffer, ' ');
@@ -686,6 +679,9 @@ static bool tomoyo_file_matches_pattern2(const char *filename,
 {
 	while (filename < filename_end && pattern < pattern_end) {
 		char c;
+		int i;
+		int j;
+
 		if (*pattern != '\\') {
 			if (*filename++ != *pattern++)
 				return false;
@@ -694,8 +690,6 @@ static bool tomoyo_file_matches_pattern2(const char *filename,
 		c = *filename;
 		pattern++;
 		switch (*pattern) {
-			int i;
-			int j;
 		case '?':
 			if (c == '/') {
 				return false;
@@ -1003,6 +997,7 @@ int tomoyo_init_request_info(struct tomoyo_request_info *r,
 			     struct tomoyo_domain_info *domain, const u8 index)
 {
 	u8 profile;
+
 	memset(r, 0, sizeof(*r));
 	if (!domain)
 		domain = tomoyo_domain();
@@ -1036,6 +1031,7 @@ bool tomoyo_domain_quota_is_ok(struct tomoyo_request_info *r)
 	list_for_each_entry_rcu(ptr, &domain->acl_info_list, list) {
 		u16 perm;
 		u8 i;
+
 		if (ptr->is_deleted)
 			continue;
 		switch (ptr->type) {
@@ -1080,9 +1076,10 @@ bool tomoyo_domain_quota_is_ok(struct tomoyo_request_info *r)
 		domain->flags[TOMOYO_DIF_QUOTA_WARNED] = true;
 		/* r->granted = false; */
 		tomoyo_write_log(r, "%s", tomoyo_dif[TOMOYO_DIF_QUOTA_WARNED]);
-		printk(KERN_WARNING "WARNING: "
-		       "Domain '%s' has too many ACLs to hold. "
-		       "Stopped learning mode.\n", domain->domainname->name);
+#ifndef CONFIG_SECURITY_TOMOYO_INSECURE_BUILTIN_SETTING
+		pr_warn("WARNING: Domain '%s' has too many ACLs to hold. Stopped learning mode.\n",
+			domain->domainname->name);
+#endif
 	}
 	return false;
 }

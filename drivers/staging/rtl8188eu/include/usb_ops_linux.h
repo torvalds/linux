@@ -1,15 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  *
  ******************************************************************************/
 #ifndef __USB_OPS_LINUX_H__
@@ -53,7 +45,7 @@ u8 usb_read8(struct adapter *adapter, u32 addr);
 u16 usb_read16(struct adapter *adapter, u32 addr);
 u32 usb_read32(struct adapter *adapter, u32 addr);
 
-u32 usb_read_port(struct adapter *adapter, u32 addr, u32 cnt, u8 *pmem);
+u32 usb_read_port(struct adapter *adapter, u32 addr, struct recv_buf *precvbuf);
 void usb_read_port_cancel(struct adapter *adapter);
 
 int usb_write8(struct adapter *adapter, u32 addr, u8 val);

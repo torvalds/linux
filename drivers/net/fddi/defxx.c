@@ -228,7 +228,7 @@
 #define DRV_VERSION "v1.11"
 #define DRV_RELDATE "2014/07/01"
 
-static char version[] =
+static const char version[] =
 	DRV_NAME ": " DRV_VERSION " " DRV_RELDATE
 	"  Lawrence V. Stefani and others\n";
 
@@ -1139,9 +1139,9 @@ static int dfx_driver_init(struct net_device *dev, const char *print_name,
 #endif
 					sizeof(PI_CONSUMER_BLOCK) +
 					(PI_ALIGN_K_DESC_BLK - 1);
-	bp->kmalloced = top_v = dma_zalloc_coherent(bp->bus_dev, alloc_size,
-						    &bp->kmalloced_dma,
-						    GFP_ATOMIC);
+	bp->kmalloced = top_v = dma_alloc_coherent(bp->bus_dev, alloc_size,
+						   &bp->kmalloced_dma,
+						   GFP_ATOMIC);
 	if (top_v == NULL)
 		return DFX_K_FAILURE;
 
@@ -3512,7 +3512,7 @@ static int dfx_xmt_done(DFX_board_t *bp)
 				 bp->descr_block_virt->xmt_data[comp].long_1,
 				 p_xmt_drv_descr->p_skb->len,
 				 DMA_TO_DEVICE);
-		dev_kfree_skb_irq(p_xmt_drv_descr->p_skb);
+		dev_consume_skb_irq(p_xmt_drv_descr->p_skb);
 
 		/*
 		 * Move to start of next packet by updating completion index
@@ -3767,7 +3767,7 @@ static void dfx_pci_unregister(struct pci_dev *pdev)
 #endif /* CONFIG_PCI */
 
 #ifdef CONFIG_EISA
-static struct eisa_device_id dfx_eisa_table[] = {
+static const struct eisa_device_id dfx_eisa_table[] = {
         { "DEC3001", DEFEA_PROD_ID_1 },
         { "DEC3002", DEFEA_PROD_ID_2 },
         { "DEC3003", DEFEA_PROD_ID_3 },

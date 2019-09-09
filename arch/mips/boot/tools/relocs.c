@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* This is included from relocs_32/64.c */
 
 #define ElfW(type)		_ElfW(ELF_BITS, type)

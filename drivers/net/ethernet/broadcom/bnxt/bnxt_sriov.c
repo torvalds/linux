@@ -1,6 +1,7 @@
 /* Broadcom NetXtreme-C/E network driver.
  *
  * Copyright (c) 2014-2016 Broadcom Corporation
+ * Copyright (c) 2016-2018 Broadcom Limited
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,7 +16,9 @@
 #include <linux/etherdevice.h>
 #include "bnxt_hsi.h"
 #include "bnxt.h"
+#include "bnxt_ulp.h"
 #include "bnxt_sriov.h"
+#include "bnxt_vfr.h"
 #include "bnxt_ethtool.h"
 
 #ifdef CONFIG_BNXT_SRIOV
@@ -34,8 +37,7 @@ static int bnxt_hwrm_fwd_async_event_cmpl(struct bnxt *bp,
 		/* broadcast this async event to all VFs */
 		req.encap_async_event_target_id = cpu_to_le16(0xffff);
 	async_cmpl = (struct hwrm_async_event_cmpl *)req.encap_async_event_cmpl;
-	async_cmpl->type =
-		cpu_to_le16(HWRM_ASYNC_EVENT_CMPL_TYPE_HWRM_ASYNC_EVENT);
+	async_cmpl->type = cpu_to_le16(ASYNC_EVENT_CMPL_TYPE_HWRM_ASYNC_EVENT);
 	async_cmpl->event_id = cpu_to_le16(event_id);
 
 	mutex_lock(&bp->hwrm_cmd_lock);
@@ -68,7 +70,7 @@ static int bnxt_vf_ndo_prep(struct bnxt *bp, int vf_id)
 		netdev_err(bp->dev, "vf ndo called though sriov is disabled\n");
 		return -EINVAL;
 	}
-	if (vf_id >= bp->pf.max_vfs) {
+	if (vf_id >= bp->pf.active_vfs) {
 		netdev_err(bp->dev, "Invalid VF id %d\n", vf_id);
 		return -EINVAL;
 	}
@@ -84,6 +86,9 @@ int bnxt_set_vf_spoofchk(struct net_device *dev, int vf_id, bool setting)
 	u32 func_flags;
 	int rc;
 
+	if (bp->hwrm_spec_code < 0x10701)
+		return -ENOTSUPP;
+
 	rc = bnxt_vf_ndo_prep(bp, vf_id);
 	if (rc)
 		return rc;
@@ -96,9 +101,9 @@ int bnxt_set_vf_spoofchk(struct net_device *dev, int vf_id, bool setting)
 
 	func_flags = vf->func_flags;
 	if (setting)
-		func_flags |= FUNC_CFG_REQ_FLAGS_SRC_MAC_ADDR_CHECK;
+		func_flags |= FUNC_CFG_REQ_FLAGS_SRC_MAC_ADDR_CHECK_ENABLE;
 	else
-		func_flags &= ~FUNC_CFG_REQ_FLAGS_SRC_MAC_ADDR_CHECK;
+		func_flags |= FUNC_CFG_REQ_FLAGS_SRC_MAC_ADDR_CHECK_DISABLE;
 	/*TODO: if the driver supports VLAN filter on guest VLAN,
 	 * the spoof check should also include vlan anti-spoofing
 	 */
@@ -116,6 +121,72 @@ int bnxt_set_vf_spoofchk(struct net_device *dev, int vf_id, bool setting)
 	return rc;
 }
 
+static int bnxt_hwrm_func_qcfg_flags(struct bnxt *bp, struct bnxt_vf_info *vf)
+{
+	struct hwrm_func_qcfg_output *resp = bp->hwrm_cmd_resp_addr;
+	struct hwrm_func_qcfg_input req = {0};
+	int rc;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_QCFG, -1, -1);
+	req.fid = cpu_to_le16(vf->fw_fid);
+	mutex_lock(&bp->hwrm_cmd_lock);
+	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	if (rc) {
+		mutex_unlock(&bp->hwrm_cmd_lock);
+		return -EIO;
+	}
+	vf->func_qcfg_flags = le16_to_cpu(resp->flags);
+	mutex_unlock(&bp->hwrm_cmd_lock);
+	return 0;
+}
+
+static bool bnxt_is_trusted_vf(struct bnxt *bp, struct bnxt_vf_info *vf)
+{
+	if (!(bp->fw_cap & BNXT_FW_CAP_TRUSTED_VF))
+		return !!(vf->flags & BNXT_VF_TRUST);
+
+	bnxt_hwrm_func_qcfg_flags(bp, vf);
+	return !!(vf->func_qcfg_flags & FUNC_QCFG_RESP_FLAGS_TRUSTED_VF);
+}
+
+static int bnxt_hwrm_set_trusted_vf(struct bnxt *bp, struct bnxt_vf_info *vf)
+{
+	struct hwrm_func_cfg_input req = {0};
+	int rc;
+
+	if (!(bp->fw_cap & BNXT_FW_CAP_TRUSTED_VF))
+		return 0;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_CFG, -1, -1);
+	req.fid = cpu_to_le16(vf->fw_fid);
+	if (vf->flags & BNXT_VF_TRUST)
+		req.flags = cpu_to_le32(FUNC_CFG_REQ_FLAGS_TRUSTED_VF_ENABLE);
+	else
+		req.flags = cpu_to_le32(FUNC_CFG_REQ_FLAGS_TRUSTED_VF_DISABLE);
+	rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	if (rc)
+		return -EIO;
+	return 0;
+}
+
+int bnxt_set_vf_trust(struct net_device *dev, int vf_id, bool trusted)
+{
+	struct bnxt *bp = netdev_priv(dev);
+	struct bnxt_vf_info *vf;
+
+	if (bnxt_vf_ndo_prep(bp, vf_id))
+		return -EINVAL;
+
+	vf = &bp->pf.vf[vf_id];
+	if (trusted)
+		vf->flags |= BNXT_VF_TRUST;
+	else
+		vf->flags &= ~BNXT_VF_TRUST;
+
+	bnxt_hwrm_set_trusted_vf(bp, vf);
+	return 0;
+}
+
 int bnxt_get_vf_config(struct net_device *dev, int vf_id,
 		       struct ifla_vf_info *ivi)
 {
@@ -130,12 +201,19 @@ int bnxt_get_vf_config(struct net_device *dev, int vf_id,
 	ivi->vf = vf_id;
 	vf = &bp->pf.vf[vf_id];
 
-	memcpy(&ivi->mac, vf->mac_addr, ETH_ALEN);
+	if (is_valid_ether_addr(vf->mac_addr))
+		memcpy(&ivi->mac, vf->mac_addr, ETH_ALEN);
+	else
+		memcpy(&ivi->mac, vf->vf_mac_addr, ETH_ALEN);
 	ivi->max_tx_rate = vf->max_tx_rate;
 	ivi->min_tx_rate = vf->min_tx_rate;
 	ivi->vlan = vf->vlan;
-	ivi->qos = vf->flags & BNXT_VF_QOS;
-	ivi->spoofchk = vf->flags & BNXT_VF_SPOOFCHK;
+	if (vf->flags & BNXT_VF_QOS)
+		ivi->qos = vf->vlan >> VLAN_PRIO_SHIFT;
+	else
+		ivi->qos = 0;
+	ivi->spoofchk = !!(vf->flags & BNXT_VF_SPOOFCHK);
+	ivi->trusted = bnxt_is_trusted_vf(bp, vf);
 	if (!(vf->flags & BNXT_VF_LINK_FORCED))
 		ivi->linkstate = IFLA_VF_LINK_STATE_AUTO;
 	else if (vf->flags & BNXT_VF_LINK_UP)
@@ -288,7 +366,7 @@ int bnxt_set_vf_link_state(struct net_device *dev, int vf_id, int link)
 	}
 	if (vf->flags & (BNXT_VF_LINK_UP | BNXT_VF_LINK_FORCED))
 		rc = bnxt_hwrm_fwd_async_event_cmpl(bp, vf,
-			HWRM_ASYNC_EVENT_CMPL_EVENT_ID_LINK_STATUS_CHANGE);
+			ASYNC_EVENT_CMPL_EVENT_ID_LINK_STATUS_CHANGE);
 	return rc;
 }
 
@@ -300,7 +378,6 @@ static int bnxt_set_vf_attr(struct bnxt *bp, int num_vfs)
 	for (i = 0; i < num_vfs; i++) {
 		vf = &bp->pf.vf[i];
 		memset(vf, 0, sizeof(*vf));
-		vf->flags = BNXT_VF_QOS | BNXT_VF_LINK_UP;
 	}
 	return 0;
 }
@@ -409,35 +486,139 @@ static int bnxt_hwrm_func_buf_rgtr(struct bnxt *bp)
 	return hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 }
 
-/* only call by PF to reserve resources for VF */
+/* Only called by PF to reserve resources for VFs, returns actual number of
+ * VFs configured, or < 0 on error.
+ */
+static int bnxt_hwrm_func_vf_resc_cfg(struct bnxt *bp, int num_vfs)
+{
+	struct hwrm_func_vf_resource_cfg_input req = {0};
+	struct bnxt_hw_resc *hw_resc = &bp->hw_resc;
+	u16 vf_tx_rings, vf_rx_rings, vf_cp_rings;
+	u16 vf_stat_ctx, vf_vnics, vf_ring_grps;
+	struct bnxt_pf_info *pf = &bp->pf;
+	int i, rc = 0, min = 1;
+	u16 vf_msix = 0;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_VF_RESOURCE_CFG, -1, -1);
+
+	if (bp->flags & BNXT_FLAG_CHIP_P5) {
+		vf_msix = hw_resc->max_nqs - bnxt_nq_rings_in_use(bp);
+		vf_ring_grps = 0;
+	} else {
+		vf_ring_grps = hw_resc->max_hw_ring_grps - bp->rx_nr_rings;
+	}
+	vf_cp_rings = bnxt_get_avail_cp_rings_for_en(bp);
+	vf_stat_ctx = bnxt_get_avail_stat_ctxs_for_en(bp);
+	if (bp->flags & BNXT_FLAG_AGG_RINGS)
+		vf_rx_rings = hw_resc->max_rx_rings - bp->rx_nr_rings * 2;
+	else
+		vf_rx_rings = hw_resc->max_rx_rings - bp->rx_nr_rings;
+	vf_tx_rings = hw_resc->max_tx_rings - bp->tx_nr_rings;
+	vf_vnics = hw_resc->max_vnics - bp->nr_vnics;
+	vf_vnics = min_t(u16, vf_vnics, vf_rx_rings);
+
+	req.min_rsscos_ctx = cpu_to_le16(BNXT_VF_MIN_RSS_CTX);
+	req.max_rsscos_ctx = cpu_to_le16(BNXT_VF_MAX_RSS_CTX);
+	if (pf->vf_resv_strategy == BNXT_VF_RESV_STRATEGY_MINIMAL_STATIC) {
+		min = 0;
+		req.min_rsscos_ctx = cpu_to_le16(min);
+	}
+	if (pf->vf_resv_strategy == BNXT_VF_RESV_STRATEGY_MINIMAL ||
+	    pf->vf_resv_strategy == BNXT_VF_RESV_STRATEGY_MINIMAL_STATIC) {
+		req.min_cmpl_rings = cpu_to_le16(min);
+		req.min_tx_rings = cpu_to_le16(min);
+		req.min_rx_rings = cpu_to_le16(min);
+		req.min_l2_ctxs = cpu_to_le16(min);
+		req.min_vnics = cpu_to_le16(min);
+		req.min_stat_ctx = cpu_to_le16(min);
+		if (!(bp->flags & BNXT_FLAG_CHIP_P5))
+			req.min_hw_ring_grps = cpu_to_le16(min);
+	} else {
+		vf_cp_rings /= num_vfs;
+		vf_tx_rings /= num_vfs;
+		vf_rx_rings /= num_vfs;
+		vf_vnics /= num_vfs;
+		vf_stat_ctx /= num_vfs;
+		vf_ring_grps /= num_vfs;
+
+		req.min_cmpl_rings = cpu_to_le16(vf_cp_rings);
+		req.min_tx_rings = cpu_to_le16(vf_tx_rings);
+		req.min_rx_rings = cpu_to_le16(vf_rx_rings);
+		req.min_l2_ctxs = cpu_to_le16(BNXT_VF_MAX_L2_CTX);
+		req.min_vnics = cpu_to_le16(vf_vnics);
+		req.min_stat_ctx = cpu_to_le16(vf_stat_ctx);
+		req.min_hw_ring_grps = cpu_to_le16(vf_ring_grps);
+	}
+	req.max_cmpl_rings = cpu_to_le16(vf_cp_rings);
+	req.max_tx_rings = cpu_to_le16(vf_tx_rings);
+	req.max_rx_rings = cpu_to_le16(vf_rx_rings);
+	req.max_l2_ctxs = cpu_to_le16(BNXT_VF_MAX_L2_CTX);
+	req.max_vnics = cpu_to_le16(vf_vnics);
+	req.max_stat_ctx = cpu_to_le16(vf_stat_ctx);
+	req.max_hw_ring_grps = cpu_to_le16(vf_ring_grps);
+	if (bp->flags & BNXT_FLAG_CHIP_P5)
+		req.max_msix = cpu_to_le16(vf_msix / num_vfs);
+
+	mutex_lock(&bp->hwrm_cmd_lock);
+	for (i = 0; i < num_vfs; i++) {
+		req.vf_id = cpu_to_le16(pf->first_vf_id + i);
+		rc = _hwrm_send_message(bp, &req, sizeof(req),
+					HWRM_CMD_TIMEOUT);
+		if (rc) {
+			rc = -ENOMEM;
+			break;
+		}
+		pf->active_vfs = i + 1;
+		pf->vf[i].fw_fid = pf->first_vf_id + i;
+	}
+	mutex_unlock(&bp->hwrm_cmd_lock);
+	if (pf->active_vfs) {
+		u16 n = pf->active_vfs;
+
+		hw_resc->max_tx_rings -= le16_to_cpu(req.min_tx_rings) * n;
+		hw_resc->max_rx_rings -= le16_to_cpu(req.min_rx_rings) * n;
+		hw_resc->max_hw_ring_grps -= le16_to_cpu(req.min_hw_ring_grps) *
+					     n;
+		hw_resc->max_cp_rings -= le16_to_cpu(req.min_cmpl_rings) * n;
+		hw_resc->max_rsscos_ctxs -= pf->active_vfs;
+		hw_resc->max_stat_ctxs -= le16_to_cpu(req.min_stat_ctx) * n;
+		hw_resc->max_vnics -= le16_to_cpu(req.min_vnics) * n;
+		if (bp->flags & BNXT_FLAG_CHIP_P5)
+			hw_resc->max_irqs -= vf_msix * n;
+
+		rc = pf->active_vfs;
+	}
+	return rc;
+}
+
+/* Only called by PF to reserve resources for VFs, returns actual number of
+ * VFs configured, or < 0 on error.
+ */
 static int bnxt_hwrm_func_cfg(struct bnxt *bp, int num_vfs)
 {
 	u32 rc = 0, mtu, i;
 	u16 vf_tx_rings, vf_rx_rings, vf_cp_rings, vf_stat_ctx, vf_vnics;
-	u16 vf_ring_grps;
+	struct bnxt_hw_resc *hw_resc = &bp->hw_resc;
 	struct hwrm_func_cfg_input req = {0};
 	struct bnxt_pf_info *pf = &bp->pf;
+	int total_vf_tx_rings = 0;
+	u16 vf_ring_grps;
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_CFG, -1, -1);
 
 	/* Remaining rings are distributed equally amongs VF's for now */
-	/* TODO: the following workaroud is needed to restrict total number
-	 * of vf_cp_rings not exceed number of HW ring groups. This WA should
-	 * be removed once new HWRM provides HW ring groups capability in
-	 * hwrm_func_qcap.
-	 */
-	vf_cp_rings = min_t(u16, pf->max_cp_rings, pf->max_stat_ctxs);
-	vf_cp_rings = (vf_cp_rings - bp->cp_nr_rings) / num_vfs;
-	/* TODO: restore this logic below once the WA above is removed */
-	/* vf_cp_rings = (pf->max_cp_rings - bp->cp_nr_rings) / num_vfs; */
-	vf_stat_ctx = (pf->max_stat_ctxs - bp->num_stat_ctxs) / num_vfs;
+	vf_cp_rings = bnxt_get_avail_cp_rings_for_en(bp) / num_vfs;
+	vf_stat_ctx = bnxt_get_avail_stat_ctxs_for_en(bp) / num_vfs;
 	if (bp->flags & BNXT_FLAG_AGG_RINGS)
-		vf_rx_rings = (pf->max_rx_rings - bp->rx_nr_rings * 2) /
+		vf_rx_rings = (hw_resc->max_rx_rings - bp->rx_nr_rings * 2) /
 			      num_vfs;
 	else
-		vf_rx_rings = (pf->max_rx_rings - bp->rx_nr_rings) / num_vfs;
-	vf_ring_grps = (bp->pf.max_hw_ring_grps - bp->rx_nr_rings) / num_vfs;
-	vf_tx_rings = (pf->max_tx_rings - bp->tx_nr_rings) / num_vfs;
+		vf_rx_rings = (hw_resc->max_rx_rings - bp->rx_nr_rings) /
+			      num_vfs;
+	vf_ring_grps = (hw_resc->max_hw_ring_grps - bp->rx_nr_rings) / num_vfs;
+	vf_tx_rings = (hw_resc->max_tx_rings - bp->tx_nr_rings) / num_vfs;
+	vf_vnics = (hw_resc->max_vnics - bp->nr_vnics) / num_vfs;
+	vf_vnics = min_t(u16, vf_vnics, vf_rx_rings);
 
 	req.enables = cpu_to_le32(FUNC_CFG_REQ_ENABLES_MTU |
 				  FUNC_CFG_REQ_ENABLES_MRU |
@@ -460,7 +641,6 @@ static int bnxt_hwrm_func_cfg(struct bnxt *bp, int num_vfs)
 	req.num_rx_rings = cpu_to_le16(vf_rx_rings);
 	req.num_hw_ring_grps = cpu_to_le16(vf_ring_grps);
 	req.num_l2_ctxs = cpu_to_le16(4);
-	vf_vnics = 1;
 
 	req.num_vnics = cpu_to_le16(vf_vnics);
 	/* FIXME spec currently uses 1 bit for stats ctx */
@@ -468,6 +648,8 @@ static int bnxt_hwrm_func_cfg(struct bnxt *bp, int num_vfs)
 
 	mutex_lock(&bp->hwrm_cmd_lock);
 	for (i = 0; i < num_vfs; i++) {
+		int vf_tx_rsvd = vf_tx_rings;
+
 		req.fid = cpu_to_le16(pf->first_vf_id + i);
 		rc = _hwrm_send_message(bp, &req, sizeof(req),
 					HWRM_CMD_TIMEOUT);
@@ -475,25 +657,43 @@ static int bnxt_hwrm_func_cfg(struct bnxt *bp, int num_vfs)
 			break;
 		pf->active_vfs = i + 1;
 		pf->vf[i].fw_fid = le16_to_cpu(req.fid);
+		rc = __bnxt_hwrm_get_tx_rings(bp, pf->vf[i].fw_fid,
+					      &vf_tx_rsvd);
+		if (rc)
+			break;
+		total_vf_tx_rings += vf_tx_rsvd;
 	}
 	mutex_unlock(&bp->hwrm_cmd_lock);
-	if (!rc) {
-		pf->max_tx_rings -= vf_tx_rings * num_vfs;
-		pf->max_rx_rings -= vf_rx_rings * num_vfs;
-		pf->max_hw_ring_grps -= vf_ring_grps * num_vfs;
-		pf->max_cp_rings -= vf_cp_rings * num_vfs;
-		pf->max_rsscos_ctxs -= num_vfs;
-		pf->max_stat_ctxs -= vf_stat_ctx * num_vfs;
-		pf->max_vnics -= vf_vnics * num_vfs;
+	if (rc)
+		rc = -ENOMEM;
+	if (pf->active_vfs) {
+		hw_resc->max_tx_rings -= total_vf_tx_rings;
+		hw_resc->max_rx_rings -= vf_rx_rings * num_vfs;
+		hw_resc->max_hw_ring_grps -= vf_ring_grps * num_vfs;
+		hw_resc->max_cp_rings -= vf_cp_rings * num_vfs;
+		hw_resc->max_rsscos_ctxs -= num_vfs;
+		hw_resc->max_stat_ctxs -= vf_stat_ctx * num_vfs;
+		hw_resc->max_vnics -= vf_vnics * num_vfs;
+		rc = pf->active_vfs;
 	}
 	return rc;
+}
+
+static int bnxt_func_cfg(struct bnxt *bp, int num_vfs)
+{
+	if (BNXT_NEW_RM(bp))
+		return bnxt_hwrm_func_vf_resc_cfg(bp, num_vfs);
+	else
+		return bnxt_hwrm_func_cfg(bp, num_vfs);
 }
 
 static int bnxt_sriov_enable(struct bnxt *bp, int *num_vfs)
 {
 	int rc = 0, vfs_supported;
 	int min_rx_rings, min_tx_rings, min_rss_ctxs;
+	struct bnxt_hw_resc *hw_resc = &bp->hw_resc;
 	int tx_ok = 0, rx_ok = 0, rss_ok = 0;
+	int avail_cp, avail_stat;
 
 	/* Check if we can enable requested num of vf's. At a mininum
 	 * we require 1 RX 1 TX rings for each VF. In this minimum conf
@@ -501,25 +701,34 @@ static int bnxt_sriov_enable(struct bnxt *bp, int *num_vfs)
 	 */
 	vfs_supported = *num_vfs;
 
+	avail_cp = bnxt_get_avail_cp_rings_for_en(bp);
+	avail_stat = bnxt_get_avail_stat_ctxs_for_en(bp);
+	avail_cp = min_t(int, avail_cp, avail_stat);
+
 	while (vfs_supported) {
 		min_rx_rings = vfs_supported;
 		min_tx_rings = vfs_supported;
 		min_rss_ctxs = vfs_supported;
 
 		if (bp->flags & BNXT_FLAG_AGG_RINGS) {
-			if (bp->pf.max_rx_rings - bp->rx_nr_rings * 2 >=
+			if (hw_resc->max_rx_rings - bp->rx_nr_rings * 2 >=
 			    min_rx_rings)
 				rx_ok = 1;
 		} else {
-			if (bp->pf.max_rx_rings - bp->rx_nr_rings >=
+			if (hw_resc->max_rx_rings - bp->rx_nr_rings >=
 			    min_rx_rings)
 				rx_ok = 1;
 		}
+		if (hw_resc->max_vnics - bp->nr_vnics < min_rx_rings ||
+		    avail_cp < min_rx_rings)
+			rx_ok = 0;
 
-		if (bp->pf.max_tx_rings - bp->tx_nr_rings >= min_tx_rings)
+		if (hw_resc->max_tx_rings - bp->tx_nr_rings >= min_tx_rings &&
+		    avail_cp >= min_tx_rings)
 			tx_ok = 1;
 
-		if (bp->pf.max_rsscos_ctxs - bp->rsscos_nr_ctxs >= min_rss_ctxs)
+		if (hw_resc->max_rsscos_ctxs - bp->rsscos_nr_ctxs >=
+		    min_rss_ctxs)
 			rss_ok = 1;
 
 		if (tx_ok && rx_ok && rss_ok)
@@ -544,14 +753,23 @@ static int bnxt_sriov_enable(struct bnxt *bp, int *num_vfs)
 		goto err_out1;
 
 	/* Reserve resources for VFs */
-	rc = bnxt_hwrm_func_cfg(bp, *num_vfs);
-	if (rc)
-		goto err_out2;
+	rc = bnxt_func_cfg(bp, *num_vfs);
+	if (rc != *num_vfs) {
+		if (rc <= 0) {
+			netdev_warn(bp->dev, "Unable to reserve resources for SRIOV.\n");
+			*num_vfs = 0;
+			goto err_out2;
+		}
+		netdev_warn(bp->dev, "Only able to reserve resources for %d VFs.\n", rc);
+		*num_vfs = rc;
+	}
 
 	/* Register buffers for VFs */
 	rc = bnxt_hwrm_func_buf_rgtr(bp);
 	if (rc)
 		goto err_out2;
+
+	bnxt_ulp_sriov_cfg(bp, *num_vfs);
 
 	rc = pci_enable_sriov(bp->pdev, *num_vfs);
 	if (rc)
@@ -576,10 +794,13 @@ void bnxt_sriov_disable(struct bnxt *bp)
 	if (!num_vfs)
 		return;
 
+	/* synchronize VF and VF-rep create and destroy */
+	mutex_lock(&bp->sriov_lock);
+	bnxt_vf_reps_destroy(bp);
+
 	if (pci_vfs_assigned(bp->pdev)) {
 		bnxt_hwrm_fwd_async_event_cmpl(
-			bp, NULL,
-			HWRM_ASYNC_EVENT_CMPL_EVENT_ID_PF_DRVR_UNLOAD);
+			bp, NULL, ASYNC_EVENT_CMPL_EVENT_ID_PF_DRVR_UNLOAD);
 		netdev_warn(bp->dev, "Unable to free %d VFs because some are assigned to VMs.\n",
 			    num_vfs);
 	} else {
@@ -587,12 +808,17 @@ void bnxt_sriov_disable(struct bnxt *bp)
 		/* Free the HW resources reserved for various VF's */
 		bnxt_hwrm_func_vf_resource_free(bp, num_vfs);
 	}
+	mutex_unlock(&bp->sriov_lock);
 
 	bnxt_free_vf_resources(bp);
 
 	bp->pf.active_vfs = 0;
 	/* Reclaim all resources for the PF. */
-	bnxt_hwrm_func_qcaps(bp);
+	rtnl_lock();
+	bnxt_restore_pf_fw_resources(bp);
+	rtnl_unlock();
+
+	bnxt_ulp_sriov_cfg(bp, 0);
 }
 
 int bnxt_sriov_configure(struct pci_dev *pdev, int num_vfs)
@@ -646,6 +872,9 @@ static int bnxt_hwrm_fwd_resp(struct bnxt *bp, struct bnxt_vf_info *vf,
 	struct hwrm_fwd_resp_input req = {0};
 	struct hwrm_fwd_resp_output *resp = bp->hwrm_cmd_resp_addr;
 
+	if (BNXT_FWD_RESP_SIZE_ERR(msg_size))
+		return -EINVAL;
+
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FWD_RESP, -1, -1);
 
 	/* Set the new target id */
@@ -682,6 +911,9 @@ static int bnxt_hwrm_fwd_err_resp(struct bnxt *bp, struct bnxt_vf_info *vf,
 	struct hwrm_reject_fwd_resp_input req = {0};
 	struct hwrm_reject_fwd_resp_output *resp = bp->hwrm_cmd_resp_addr;
 
+	if (BNXT_REJ_FWD_RESP_SIZE_ERR(msg_size))
+		return -EINVAL;
+
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_REJECT_FWD_RESP, -1, -1);
 	/* Set the new target id */
 	req.target_id = cpu_to_le16(vf->fw_fid);
@@ -714,6 +946,9 @@ static int bnxt_hwrm_exec_fwd_resp(struct bnxt *bp, struct bnxt_vf_info *vf,
 	struct hwrm_exec_fwd_resp_input req = {0};
 	struct hwrm_exec_fwd_resp_output *resp = bp->hwrm_cmd_resp_addr;
 
+	if (BNXT_EXEC_FWD_RESP_SIZE_ERR(msg_size))
+		return -EINVAL;
+
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_EXEC_FWD_RESP, -1, -1);
 	/* Set the new target id */
 	req.target_id = cpu_to_le16(vf->fw_fid);
@@ -739,17 +974,64 @@ exec_fwd_resp_exit:
 	return rc;
 }
 
+static int bnxt_vf_configure_mac(struct bnxt *bp, struct bnxt_vf_info *vf)
+{
+	u32 msg_size = sizeof(struct hwrm_func_vf_cfg_input);
+	struct hwrm_func_vf_cfg_input *req =
+		(struct hwrm_func_vf_cfg_input *)vf->hwrm_cmd_req_addr;
+
+	/* Allow VF to set a valid MAC address, if trust is set to on or
+	 * if the PF assigned MAC address is zero
+	 */
+	if (req->enables & cpu_to_le32(FUNC_VF_CFG_REQ_ENABLES_DFLT_MAC_ADDR)) {
+		bool trust = bnxt_is_trusted_vf(bp, vf);
+
+		if (is_valid_ether_addr(req->dflt_mac_addr) &&
+		    (trust || !is_valid_ether_addr(vf->mac_addr) ||
+		     ether_addr_equal(req->dflt_mac_addr, vf->mac_addr))) {
+			ether_addr_copy(vf->vf_mac_addr, req->dflt_mac_addr);
+			return bnxt_hwrm_exec_fwd_resp(bp, vf, msg_size);
+		}
+		return bnxt_hwrm_fwd_err_resp(bp, vf, msg_size);
+	}
+	return bnxt_hwrm_exec_fwd_resp(bp, vf, msg_size);
+}
+
 static int bnxt_vf_validate_set_mac(struct bnxt *bp, struct bnxt_vf_info *vf)
 {
 	u32 msg_size = sizeof(struct hwrm_cfa_l2_filter_alloc_input);
 	struct hwrm_cfa_l2_filter_alloc_input *req =
 		(struct hwrm_cfa_l2_filter_alloc_input *)vf->hwrm_cmd_req_addr;
+	bool mac_ok = false;
 
-	if (!is_valid_ether_addr(vf->mac_addr) ||
-	    ether_addr_equal((const u8 *)req->l2_addr, vf->mac_addr))
-		return bnxt_hwrm_exec_fwd_resp(bp, vf, msg_size);
-	else
+	if (!is_valid_ether_addr((const u8 *)req->l2_addr))
 		return bnxt_hwrm_fwd_err_resp(bp, vf, msg_size);
+
+	/* Allow VF to set a valid MAC address, if trust is set to on.
+	 * Or VF MAC address must first match MAC address in PF's context.
+	 * Otherwise, it must match the VF MAC address if firmware spec >=
+	 * 1.2.2
+	 */
+	if (bnxt_is_trusted_vf(bp, vf)) {
+		mac_ok = true;
+	} else if (is_valid_ether_addr(vf->mac_addr)) {
+		if (ether_addr_equal((const u8 *)req->l2_addr, vf->mac_addr))
+			mac_ok = true;
+	} else if (is_valid_ether_addr(vf->vf_mac_addr)) {
+		if (ether_addr_equal((const u8 *)req->l2_addr, vf->vf_mac_addr))
+			mac_ok = true;
+	} else {
+		/* There are two cases:
+		 * 1.If firmware spec < 0x10202,VF MAC address is not forwarded
+		 *   to the PF and so it doesn't have to match
+		 * 2.Allow VF to modify it's own MAC when PF has not assigned a
+		 *   valid MAC address and firmware spec >= 0x10202
+		 */
+		mac_ok = true;
+	}
+	if (mac_ok)
+		return bnxt_hwrm_exec_fwd_resp(bp, vf, msg_size);
+	return bnxt_hwrm_fwd_err_resp(bp, vf, msg_size);
 }
 
 static int bnxt_vf_set_link(struct bnxt *bp, struct bnxt_vf_info *vf)
@@ -770,18 +1052,22 @@ static int bnxt_vf_set_link(struct bnxt *bp, struct bnxt_vf_info *vf)
 		memcpy(&phy_qcfg_resp, &bp->link_info.phy_qcfg_resp,
 		       sizeof(phy_qcfg_resp));
 		mutex_unlock(&bp->hwrm_cmd_lock);
+		phy_qcfg_resp.resp_len = cpu_to_le16(sizeof(phy_qcfg_resp));
 		phy_qcfg_resp.seq_id = phy_qcfg_req->seq_id;
+		phy_qcfg_resp.valid = 1;
 
 		if (vf->flags & BNXT_VF_LINK_UP) {
 			/* if physical link is down, force link up on VF */
-			if (phy_qcfg_resp.link ==
-			    PORT_PHY_QCFG_RESP_LINK_NO_LINK) {
+			if (phy_qcfg_resp.link !=
+			    PORT_PHY_QCFG_RESP_LINK_LINK) {
 				phy_qcfg_resp.link =
 					PORT_PHY_QCFG_RESP_LINK_LINK;
 				phy_qcfg_resp.link_speed = cpu_to_le16(
 					PORT_PHY_QCFG_RESP_LINK_SPEED_10GB);
-				phy_qcfg_resp.duplex =
-					PORT_PHY_QCFG_RESP_DUPLEX_FULL;
+				phy_qcfg_resp.duplex_cfg =
+					PORT_PHY_QCFG_RESP_DUPLEX_CFG_FULL;
+				phy_qcfg_resp.duplex_state =
+					PORT_PHY_QCFG_RESP_DUPLEX_STATE_FULL;
 				phy_qcfg_resp.pause =
 					(PORT_PHY_QCFG_RESP_PAUSE_TX |
 					 PORT_PHY_QCFG_RESP_PAUSE_RX);
@@ -790,7 +1076,8 @@ static int bnxt_vf_set_link(struct bnxt *bp, struct bnxt_vf_info *vf)
 			/* force link down */
 			phy_qcfg_resp.link = PORT_PHY_QCFG_RESP_LINK_NO_LINK;
 			phy_qcfg_resp.link_speed = 0;
-			phy_qcfg_resp.duplex = PORT_PHY_QCFG_RESP_DUPLEX_HALF;
+			phy_qcfg_resp.duplex_state =
+				PORT_PHY_QCFG_RESP_DUPLEX_STATE_HALF;
 			phy_qcfg_resp.pause = 0;
 		}
 		rc = bnxt_hwrm_fwd_resp(bp, vf, &phy_qcfg_resp,
@@ -808,6 +1095,9 @@ static int bnxt_vf_req_validate_snd(struct bnxt *bp, struct bnxt_vf_info *vf)
 	u32 req_type = le16_to_cpu(encap_req->req_type);
 
 	switch (req_type) {
+	case HWRM_FUNC_VF_CFG:
+		rc = bnxt_vf_configure_mac(bp, vf);
+		break;
 	case HWRM_CFA_L2_FILTER_ALLOC:
 		rc = bnxt_vf_validate_set_mac(bp, vf);
 		break;
@@ -872,7 +1162,7 @@ update_vf_mac_exit:
 	mutex_unlock(&bp->hwrm_cmd_lock);
 }
 
-int bnxt_approve_mac(struct bnxt *bp, u8 *mac)
+int bnxt_approve_mac(struct bnxt *bp, u8 *mac, bool strict)
 {
 	struct hwrm_func_vf_cfg_input req = {0};
 	int rc = 0;
@@ -890,12 +1180,13 @@ int bnxt_approve_mac(struct bnxt *bp, u8 *mac)
 	memcpy(req.dflt_mac_addr, mac, ETH_ALEN);
 	rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 mac_done:
-	if (rc) {
+	if (rc && strict) {
 		rc = -EADDRNOTAVAIL;
 		netdev_warn(bp->dev, "VF MAC address %pM not approved by the PF\n",
 			    mac);
+		return rc;
 	}
-	return rc;
+	return 0;
 }
 #else
 
@@ -912,7 +1203,7 @@ void bnxt_update_vf_mac(struct bnxt *bp)
 {
 }
 
-int bnxt_approve_mac(struct bnxt *bp, u8 *mac)
+int bnxt_approve_mac(struct bnxt *bp, u8 *mac, bool strict)
 {
 	return 0;
 }

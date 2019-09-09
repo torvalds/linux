@@ -1,8 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Toppoly TD028TTEC1 panel support
  *
  * Copyright (C) 2008 Nokia Corporation
- * Author: Tomi Valkeinen <tomi.valkeinen@nokia.com>
+ * Author: Tomi Valkeinen <tomi.valkeinen@ti.com>
  *
  * Neo 1973 code (jbt6k74.c):
  * Copyright (C) 2006-2007 by OpenMoko, Inc.
@@ -10,55 +11,36 @@
  *
  * Ported and adapted from Neo 1973 U-Boot by:
  * H. Nikolaus Schaller <hns@goldelico.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/spi/spi.h>
-#include <linux/gpio.h>
 
 #include "../dss/omapdss.h"
 
 struct panel_drv_data {
 	struct omap_dss_device dssdev;
-	struct omap_dss_device *in;
 
-	int data_lines;
+	struct videomode vm;
 
-	struct omap_video_timings videomode;
+	struct backlight_device *backlight;
 
 	struct spi_device *spi_dev;
 };
 
-static struct omap_video_timings td028ttec1_panel_timings = {
-	.x_res		= 480,
-	.y_res		= 640,
+static const struct videomode td028ttec1_panel_vm = {
+	.hactive	= 480,
+	.vactive	= 640,
 	.pixelclock	= 22153000,
-	.hfp		= 24,
-	.hsw		= 8,
-	.hbp		= 8,
-	.vfp		= 4,
-	.vsw		= 2,
-	.vbp		= 2,
+	.hfront_porch	= 24,
+	.hsync_len	= 8,
+	.hback_porch	= 8,
+	.vfront_porch	= 4,
+	.vsync_len	= 2,
+	.vback_porch	= 2,
 
-	.vsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
-	.hsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
-
-	.data_pclk_edge	= OMAPDSS_DRIVE_SIG_FALLING_EDGE,
-	.de_level	= OMAPDSS_SIG_ACTIVE_HIGH,
-	.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_RISING_EDGE,
+	.flags		= DISPLAY_FLAGS_HSYNC_LOW | DISPLAY_FLAGS_VSYNC_LOW,
 };
 
 #define JBT_COMMAND	0x000
@@ -167,55 +149,23 @@ enum jbt_register {
 
 #define to_panel_data(p) container_of(p, struct panel_drv_data, dssdev)
 
-static int td028ttec1_panel_connect(struct omap_dss_device *dssdev)
+static int td028ttec1_panel_connect(struct omap_dss_device *src,
+				    struct omap_dss_device *dst)
 {
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
-	int r;
-
-	if (omapdss_device_is_connected(dssdev))
-		return 0;
-
-	r = in->ops.dpi->connect(in, dssdev);
-	if (r)
-		return r;
-
 	return 0;
 }
 
-static void td028ttec1_panel_disconnect(struct omap_dss_device *dssdev)
+static void td028ttec1_panel_disconnect(struct omap_dss_device *src,
+					struct omap_dss_device *dst)
 {
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
-
-	if (!omapdss_device_is_connected(dssdev))
-		return;
-
-	in->ops.dpi->disconnect(in, dssdev);
 }
 
-static int td028ttec1_panel_enable(struct omap_dss_device *dssdev)
+static void td028ttec1_panel_enable(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
-	int r;
+	int r = 0;
 
-	if (!omapdss_device_is_connected(dssdev))
-		return -ENODEV;
-
-	if (omapdss_device_is_enabled(dssdev))
-		return 0;
-
-	if (ddata->data_lines)
-		in->ops.dpi->set_data_lines(in, ddata->data_lines);
-	in->ops.dpi->set_timings(in, &ddata->videomode);
-
-	r = in->ops.dpi->enable(in);
-	if (r)
-		return r;
-
-	dev_dbg(dssdev->dev, "td028ttec1_panel_enable() - state %d\n",
-		dssdev->state);
+	dev_dbg(dssdev->dev, "%s: state %d\n", __func__, dssdev->state);
 
 	/* three times command zero */
 	r |= jbt_ret_write_0(ddata, 0x00);
@@ -226,8 +176,8 @@ static int td028ttec1_panel_enable(struct omap_dss_device *dssdev)
 	usleep_range(1000, 2000);
 
 	if (r) {
-		dev_warn(dssdev->dev, "transfer error\n");
-		goto transfer_err;
+		dev_warn(dssdev->dev, "%s: transfer error\n", __func__);
+		return;
 	}
 
 	/* deep standby out */
@@ -297,20 +247,17 @@ static int td028ttec1_panel_enable(struct omap_dss_device *dssdev)
 
 	r |= jbt_ret_write_0(ddata, JBT_REG_DISPLAY_ON);
 
-	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
+	if (r)
+		dev_err(dssdev->dev, "%s: write error\n", __func__);
 
-transfer_err:
-
-	return r ? -EIO : 0;
+	backlight_enable(ddata->backlight);
 }
 
 static void td028ttec1_panel_disable(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
 
-	if (!omapdss_device_is_enabled(dssdev))
-		return;
+	backlight_disable(ddata->backlight);
 
 	dev_dbg(dssdev->dev, "td028ttec1_panel_disable()\n");
 
@@ -318,69 +265,25 @@ static void td028ttec1_panel_disable(struct omap_dss_device *dssdev)
 	jbt_reg_write_2(ddata, JBT_REG_OUTPUT_CONTROL, 0x8002);
 	jbt_ret_write_0(ddata, JBT_REG_SLEEP_IN);
 	jbt_reg_write_1(ddata, JBT_REG_POWER_ON_OFF, 0x00);
-
-	in->ops.dpi->disable(in);
-
-	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 }
 
-static void td028ttec1_panel_set_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
-{
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
-
-	ddata->videomode = *timings;
-	dssdev->panel.timings = *timings;
-
-	in->ops.dpi->set_timings(in, timings);
-}
-
-static void td028ttec1_panel_get_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+static int td028ttec1_panel_get_modes(struct omap_dss_device *dssdev,
+				      struct drm_connector *connector)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 
-	*timings = ddata->videomode;
+	return omapdss_display_get_modes(connector, &ddata->vm);
 }
 
-static int td028ttec1_panel_check_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
-{
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
-
-	return in->ops.dpi->check_timings(in, timings);
-}
-
-static struct omap_dss_driver td028ttec1_ops = {
+static const struct omap_dss_device_ops td028ttec1_ops = {
 	.connect	= td028ttec1_panel_connect,
 	.disconnect	= td028ttec1_panel_disconnect,
 
 	.enable		= td028ttec1_panel_enable,
 	.disable	= td028ttec1_panel_disable,
 
-	.set_timings	= td028ttec1_panel_set_timings,
-	.get_timings	= td028ttec1_panel_get_timings,
-	.check_timings	= td028ttec1_panel_check_timings,
+	.get_modes	= td028ttec1_panel_get_modes,
 };
-
-static int td028ttec1_probe_of(struct spi_device *spi)
-{
-	struct device_node *node = spi->dev.of_node;
-	struct panel_drv_data *ddata = dev_get_drvdata(&spi->dev);
-	struct omap_dss_device *in;
-
-	in = omapdss_of_find_source_for_first_ep(node);
-	if (IS_ERR(in)) {
-		dev_err(&spi->dev, "failed to find video source\n");
-		return PTR_ERR(in);
-	}
-
-	ddata->in = in;
-
-	return 0;
-}
 
 static int td028ttec1_panel_probe(struct spi_device *spi)
 {
@@ -403,68 +306,75 @@ static int td028ttec1_panel_probe(struct spi_device *spi)
 	if (ddata == NULL)
 		return -ENOMEM;
 
+	ddata->backlight = devm_of_find_backlight(&spi->dev);
+	if (IS_ERR(ddata->backlight))
+		return PTR_ERR(ddata->backlight);
+
 	dev_set_drvdata(&spi->dev, ddata);
 
 	ddata->spi_dev = spi;
 
-	if (!spi->dev.of_node)
-		return -ENODEV;
-
-	r = td028ttec1_probe_of(spi);
-	if (r)
-		return r;
-
-	ddata->videomode = td028ttec1_panel_timings;
+	ddata->vm = td028ttec1_panel_vm;
 
 	dssdev = &ddata->dssdev;
 	dssdev->dev = &spi->dev;
-	dssdev->driver = &td028ttec1_ops;
+	dssdev->ops = &td028ttec1_ops;
 	dssdev->type = OMAP_DISPLAY_TYPE_DPI;
+	dssdev->display = true;
 	dssdev->owner = THIS_MODULE;
-	dssdev->panel.timings = ddata->videomode;
-	dssdev->phy.dpi.data_lines = ddata->data_lines;
+	dssdev->of_ports = BIT(0);
+	dssdev->ops_flags = OMAP_DSS_DEVICE_OP_MODES;
 
-	r = omapdss_register_display(dssdev);
-	if (r) {
-		dev_err(&spi->dev, "Failed to register panel\n");
-		goto err_reg;
-	}
+	/*
+	 * Note: According to the panel documentation:
+	 * SYNC needs to be driven on the FALLING edge
+	 */
+	dssdev->bus_flags = DRM_BUS_FLAG_DE_HIGH
+			  | DRM_BUS_FLAG_SYNC_DRIVE_POSEDGE
+			  | DRM_BUS_FLAG_PIXDATA_DRIVE_NEGEDGE;
+
+	omapdss_display_init(dssdev);
+	omapdss_device_register(dssdev);
 
 	return 0;
-
-err_reg:
-	omap_dss_put_device(ddata->in);
-	return r;
 }
 
 static int td028ttec1_panel_remove(struct spi_device *spi)
 {
 	struct panel_drv_data *ddata = dev_get_drvdata(&spi->dev);
 	struct omap_dss_device *dssdev = &ddata->dssdev;
-	struct omap_dss_device *in = ddata->in;
 
 	dev_dbg(&ddata->spi_dev->dev, "%s\n", __func__);
 
-	omapdss_unregister_display(dssdev);
+	omapdss_device_unregister(dssdev);
 
 	td028ttec1_panel_disable(dssdev);
-	td028ttec1_panel_disconnect(dssdev);
-
-	omap_dss_put_device(in);
 
 	return 0;
 }
 
 static const struct of_device_id td028ttec1_of_match[] = {
+	{ .compatible = "omapdss,tpo,td028ttec1", },
+	/* keep to not break older DTB */
 	{ .compatible = "omapdss,toppoly,td028ttec1", },
 	{},
 };
 
 MODULE_DEVICE_TABLE(of, td028ttec1_of_match);
 
+static const struct spi_device_id td028ttec1_ids[] = {
+	{ "toppoly,td028ttec1", 0 },
+	{ "tpo,td028ttec1", 0},
+	{ /* sentinel */ }
+};
+
+MODULE_DEVICE_TABLE(spi, td028ttec1_ids);
+
+
 static struct spi_driver td028ttec1_spi_driver = {
 	.probe		= td028ttec1_panel_probe,
 	.remove		= td028ttec1_panel_remove,
+	.id_table	= td028ttec1_ids,
 
 	.driver         = {
 		.name   = "panel-tpo-td028ttec1",
@@ -475,7 +385,6 @@ static struct spi_driver td028ttec1_spi_driver = {
 
 module_spi_driver(td028ttec1_spi_driver);
 
-MODULE_ALIAS("spi:toppoly,td028ttec1");
 MODULE_AUTHOR("H. Nikolaus Schaller <hns@goldelico.com>");
 MODULE_DESCRIPTION("Toppoly TD028TTEC1 panel driver");
 MODULE_LICENSE("GPL");

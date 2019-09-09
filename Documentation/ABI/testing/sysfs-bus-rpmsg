@@ -73,3 +73,23 @@ Description:
 		This sysfs entry tells us whether the channel is a local
 		server channel that is announced (values are either
 		true or false).
+
+What:		/sys/bus/rpmsg/devices/.../driver_override
+Date:		April 2018
+KernelVersion:	4.18
+Contact:	Bjorn Andersson <bjorn.andersson@linaro.org>
+Description:
+		Every rpmsg device is a communication channel with a remote
+		processor. Channels are identified by a textual name (see
+		/sys/bus/rpmsg/devices/.../name above) and have a local
+		("source") rpmsg address, and remote ("destination") rpmsg
+		address.
+
+		The listening entity (or client) which communicates with a
+		remote processor is referred as rpmsg driver. The rpmsg device
+		and rpmsg driver are matched based on rpmsg device name and
+		rpmsg driver ID table.
+
+		This sysfs entry allows the rpmsg driver for a rpmsg device
+		to be specified which will override standard OF, ID table
+		and name matching.

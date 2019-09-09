@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * fs/sysfs/symlink.c - operations for initializing and mounting sysfs
  *
@@ -5,45 +6,77 @@
  * Copyright (c) 2007 SUSE Linux Products GmbH
  * Copyright (c) 2007 Tejun Heo <teheo@suse.de>
  *
- * This file is released under the GPLv2.
- *
  * Please see Documentation/filesystems/sysfs.txt for more information.
  */
-
-#define DEBUG
 
 #include <linux/fs.h>
 #include <linux/magic.h>
 #include <linux/mount.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/user_namespace.h>
+#include <linux/fs_context.h>
+#include <net/net_namespace.h>
 
 #include "sysfs.h"
 
 static struct kernfs_root *sysfs_root;
 struct kernfs_node *sysfs_root_kn;
 
-static struct dentry *sysfs_mount(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data)
+static int sysfs_get_tree(struct fs_context *fc)
 {
-	struct dentry *root;
-	void *ns;
-	bool new_sb;
+	struct kernfs_fs_context *kfc = fc->fs_private;
+	int ret;
 
-	if (!(flags & MS_KERNMOUNT)) {
+	ret = kernfs_get_tree(fc);
+	if (ret)
+		return ret;
+
+	if (kfc->new_sb_created)
+		fc->root->d_sb->s_iflags |= SB_I_USERNS_VISIBLE;
+	return 0;
+}
+
+static void sysfs_fs_context_free(struct fs_context *fc)
+{
+	struct kernfs_fs_context *kfc = fc->fs_private;
+
+	if (kfc->ns_tag)
+		kobj_ns_drop(KOBJ_NS_TYPE_NET, kfc->ns_tag);
+	kernfs_free_fs_context(fc);
+	kfree(kfc);
+}
+
+static const struct fs_context_operations sysfs_fs_context_ops = {
+	.free		= sysfs_fs_context_free,
+	.get_tree	= sysfs_get_tree,
+};
+
+static int sysfs_init_fs_context(struct fs_context *fc)
+{
+	struct kernfs_fs_context *kfc;
+	struct net *netns;
+
+	if (!(fc->sb_flags & SB_KERNMOUNT)) {
 		if (!kobj_ns_current_may_mount(KOBJ_NS_TYPE_NET))
-			return ERR_PTR(-EPERM);
+			return -EPERM;
 	}
 
-	ns = kobj_ns_grab_current(KOBJ_NS_TYPE_NET);
-	root = kernfs_mount_ns(fs_type, flags, sysfs_root,
-				SYSFS_MAGIC, &new_sb, ns);
-	if (IS_ERR(root) || !new_sb)
-		kobj_ns_drop(KOBJ_NS_TYPE_NET, ns);
-	else if (new_sb)
-		root->d_sb->s_iflags |= SB_I_USERNS_VISIBLE;
+	kfc = kzalloc(sizeof(struct kernfs_fs_context), GFP_KERNEL);
+	if (!kfc)
+		return -ENOMEM;
 
-	return root;
+	kfc->ns_tag = netns = kobj_ns_grab_current(KOBJ_NS_TYPE_NET);
+	kfc->root = sysfs_root;
+	kfc->magic = SYSFS_MAGIC;
+	fc->fs_private = kfc;
+	fc->ops = &sysfs_fs_context_ops;
+	if (netns) {
+		put_user_ns(fc->user_ns);
+		fc->user_ns = get_user_ns(netns->user_ns);
+	}
+	fc->global = true;
+	return 0;
 }
 
 static void sysfs_kill_sb(struct super_block *sb)
@@ -55,10 +88,10 @@ static void sysfs_kill_sb(struct super_block *sb)
 }
 
 static struct file_system_type sysfs_fs_type = {
-	.name		= "sysfs",
-	.mount		= sysfs_mount,
-	.kill_sb	= sysfs_kill_sb,
-	.fs_flags	= FS_USERNS_MOUNT,
+	.name			= "sysfs",
+	.init_fs_context	= sysfs_init_fs_context,
+	.kill_sb		= sysfs_kill_sb,
+	.fs_flags		= FS_USERNS_MOUNT,
 };
 
 int __init sysfs_init(void)

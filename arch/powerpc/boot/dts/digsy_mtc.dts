@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Digsy MTC board Device Tree Source
  *
  * Copyright (C) 2009 Semihalf
  *
  * Based on the CM5200 by M. Balakowicz
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 /include/ "mpc5200b.dtsi"
@@ -73,12 +69,12 @@
 
 		i2c@3d00 {
 			eeprom@50 {
-				compatible = "at,24c08";
+				compatible = "atmel,24c08";
 				reg = <0x50>;
 			};
 
 			rtc@56 {
-				compatible = "mc,rv3029c2";
+				compatible = "microcrystal,rv3029";
 				reg = <0x56>;
 			};
 

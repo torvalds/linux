@@ -55,8 +55,8 @@ PROPERTIES
            triplet that includes the child address, parent address, &
            length.
 
-   Note: All other standard properties (see the ePAPR) are allowed
-   but are optional.
+   Note: All other standard properties (see the Devicetree Specification)
+   are allowed but are optional.
 
 EXAMPLE
 	crypto@a0000 {

@@ -1,17 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *  TW5864 driver - registers description
  *
  *  Copyright (C) 2016 Bluecherry, LLC <maintainers@bluecherrydvr.com>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
  */
 
 /* According to TW5864_datasheet_0.6d.pdf, tw5864b1-ds.pdf */
@@ -1879,6 +1870,14 @@
 #define TW5864_INDIR_IN_PIC_HEIGHT(channel) (0x201 + 4 * channel)
 #define TW5864_INDIR_OUT_PIC_WIDTH(channel) (0x202 + 4 * channel)
 #define TW5864_INDIR_OUT_PIC_HEIGHT(channel) (0x203 + 4 * channel)
+
+/* Some registers skipped */
+
+#define TW5864_INDIR_CROP_ETC 0x260
+/* Define controls in register TW5864_INDIR_CROP_ETC */
+/* Enable cropping from 720 to 704 */
+#define TW5864_INDIR_CROP_ETC_CROP_EN 0x4
+
 /*
  * Interrupt status register from the front-end. Write "1" to each bit to clear
  * the interrupt

@@ -1,14 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Embedded Artists LPC3250 board
  *
  * Copyright 2012 Roland Stigge <stigge@antcom.de>
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
  */
 
 /dts-v1/;
@@ -17,64 +11,70 @@
 / {
 	model = "Embedded Artists LPC3250 board based on NXP LPC3250";
 	compatible = "ea,ea3250", "nxp,lpc3250";
-	#address-cells = <1>;
-	#size-cells = <1>;
 
-	memory {
+	memory@80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x4000000>;
 	};
 
-	gpio_keys {
+	gpio-keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 		autorepeat;
-		button@21 {
+
+		button {
 			label = "Interrupt Key";
 			linux,code = <103>;
 			gpios = <&gpio 4 1 0>; /* GPI_P3 1 */
 		};
+
 		key1 {
 			label = "KEY1";
 			linux,code = <1>;
 			gpios = <&pca9532 0 0>;
 		};
+
 		key2 {
 			label = "KEY2";
 			linux,code = <2>;
 			gpios = <&pca9532 1 0>;
 		};
+
 		key3 {
 			label = "KEY3";
 			linux,code = <3>;
 			gpios = <&pca9532 2 0>;
 		};
+
 		key4 {
 			label = "KEY4";
 			linux,code = <4>;
 			gpios = <&pca9532 3 0>;
 		};
+
 		joy0 {
 			label = "Joystick Key 0";
 			linux,code = <10>;
 			gpios = <&gpio 2 0 0>; /* P2.0 */
 		};
+
 		joy1 {
 			label = "Joystick Key 1";
 			linux,code = <11>;
 			gpios = <&gpio 2 1 0>; /* P2.1 */
 		};
+
 		joy2 {
 			label = "Joystick Key 2";
 			linux,code = <12>;
 			gpios = <&gpio 2 2 0>; /* P2.2 */
 		};
+
 		joy3 {
 			label = "Joystick Key 3";
 			linux,code = <13>;
 			gpios = <&gpio 2 3 0>; /* P2.3 */
 		};
+
 		joy4 {
 			label = "Joystick Key 4";
 			linux,code = <14>;
@@ -156,8 +156,8 @@
 	uda1380: uda1380@18 {
 		compatible = "nxp,uda1380";
 		reg = <0x18>;
-		power-gpio = <&gpio 0x59 0>;
-		reset-gpio = <&gpio 0x51 0>;
+		power-gpio = <&gpio 3 10 0>;
+		reset-gpio = <&gpio 3 2 0>;
 		dac-clk = "wspll";
 	};
 
@@ -195,6 +195,7 @@
 &mac {
 	phy-mode = "rmii";
 	use-iram;
+	status = "okay";
 };
 
 /* Here, choose exactly one from: ohci, usbd */
@@ -231,24 +232,24 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 
-		mtd0@00000000 {
+		mtd0@0 {
 			label = "ea3250-boot";
 			reg = <0x00000000 0x00080000>;
 			read-only;
 		};
 
-		mtd1@00080000 {
+		mtd1@80000 {
 			label = "ea3250-uboot";
 			reg = <0x00080000 0x000c0000>;
 			read-only;
 		};
 
-		mtd2@00140000 {
+		mtd2@140000 {
 			label = "ea3250-kernel";
 			reg = <0x00140000 0x00400000>;
 		};
 
-		mtd3@00540000 {
+		mtd3@540000 {
 			label = "ea3250-rootfs";
 			reg = <0x00540000 0x07ac0000>;
 		};

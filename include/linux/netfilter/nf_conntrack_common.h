@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _NF_CONNTRACK_COMMON_H
 #define _NF_CONNTRACK_COMMON_H
 
@@ -17,8 +18,5 @@ struct ip_conntrack_stat {
 	unsigned int expect_delete;
 	unsigned int search_restart;
 };
-
-/* call to create an explicit dependency on nf_conntrack. */
-void need_conntrack(void);
 
 #endif /* _NF_CONNTRACK_COMMON_H */

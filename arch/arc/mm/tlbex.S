@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * TLB Exception Handling for ARC
  *
  * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Vineetg: April 2011 :
  *  -MMU v1: moved out legacy code into a seperate file
@@ -274,6 +271,13 @@ ex_saved_reg1:
 .macro COMMIT_ENTRY_TO_MMU
 #if (CONFIG_ARC_MMU_VER < 4)
 
+#ifdef CONFIG_EZNPS_MTM_EXT
+	/* verify if entry for this vaddr+ASID already exists */
+	sr    TLBProbe, [ARC_REG_TLBCOMMAND]
+	lr    r0, [ARC_REG_TLBINDEX]
+	bbit0 r0, 31, 88f
+#endif
+
 	/* Get free TLB slot: Set = computed from vaddr, way = random */
 	sr  TLBGetIndex, [ARC_REG_TLBCOMMAND]
 
@@ -287,6 +291,8 @@ ex_saved_reg1:
 #else
 	sr TLBInsertEntry, [ARC_REG_TLBCOMMAND]
 #endif
+
+88:
 .endm
 
 
@@ -386,6 +392,17 @@ EV_TLBMissD_fast_ret:	; additional label for VDK OS-kit instrumentation
 
 ;-------- Common routine to call Linux Page Fault Handler -----------
 do_slow_path_pf:
+
+#ifdef CONFIG_ISA_ARCV2
+	; Set Z flag if exception in U mode. Hardware micro-ops do this on any
+	; taken interrupt/exception, and thus is already the case at the entry
+	; above, but ensuing code would have already clobbered.
+	; EXCEPTION_PROLOGUE called in slow path, relies on correct Z flag set
+
+	lr	r2, [erstatus]
+	and	r2, r2, STATUS_U_MASK
+	bxor.f	0, r2, STATUS_U_BIT
+#endif
 
 	; Restore the 4-scratch regs saved by fast path miss handler
 	TLBMISS_RESTORE_REGS

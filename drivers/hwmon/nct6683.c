@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * nct6683 - Driver for the hardware monitoring functionality of
  *	     Nuvoton NCT6683D eSIO
@@ -6,16 +7,6 @@
  *
  * Derived from nct6775 driver
  * Copyright (C) 2012, 2013  Guenter Roeck <linux@roeck-us.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  *
  * Supports the following chips:
  *
@@ -426,12 +417,12 @@ nct6683_create_attr_group(struct device *dev,
 	if (group == NULL)
 		return ERR_PTR(-ENOMEM);
 
-	attrs = devm_kzalloc(dev, sizeof(*attrs) * (repeat * count + 1),
+	attrs = devm_kcalloc(dev, repeat * count + 1, sizeof(*attrs),
 			     GFP_KERNEL);
 	if (attrs == NULL)
 		return ERR_PTR(-ENOMEM);
 
-	su = devm_kzalloc(dev, sizeof(*su) * repeat * count,
+	su = devm_kzalloc(dev, array3_size(repeat, count, sizeof(*su)),
 			  GFP_KERNEL);
 	if (su == NULL)
 		return ERR_PTR(-ENOMEM);
@@ -979,7 +970,7 @@ static const struct sensor_template_group nct6683_pwm_template_group = {
 };
 
 static ssize_t
-show_global_beep(struct device *dev, struct device_attribute *attr, char *buf)
+beep_enable_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct nct6683_data *data = dev_get_drvdata(dev);
 	int ret;
@@ -1004,7 +995,7 @@ error:
 }
 
 static ssize_t
-store_global_beep(struct device *dev, struct device_attribute *attr,
+beep_enable_store(struct device *dev, struct device_attribute *attr,
 		  const char *buf, size_t count)
 {
 	struct nct6683_data *data = dev_get_drvdata(dev);
@@ -1039,7 +1030,8 @@ error:
 /* Case open detection */
 
 static ssize_t
-show_caseopen(struct device *dev, struct device_attribute *attr, char *buf)
+intrusion0_alarm_show(struct device *dev, struct device_attribute *attr,
+		      char *buf)
 {
 	struct nct6683_data *data = dev_get_drvdata(dev);
 	int ret;
@@ -1064,8 +1056,8 @@ error:
 }
 
 static ssize_t
-clear_caseopen(struct device *dev, struct device_attribute *attr,
-	       const char *buf, size_t count)
+intrusion0_alarm_store(struct device *dev, struct device_attribute *attr,
+		       const char *buf, size_t count)
 {
 	struct nct6683_data *data = dev_get_drvdata(dev);
 	unsigned long val;
@@ -1102,10 +1094,8 @@ error:
 	return count;
 }
 
-static DEVICE_ATTR(intrusion0_alarm, S_IWUSR | S_IRUGO, show_caseopen,
-		   clear_caseopen);
-static DEVICE_ATTR(beep_enable, S_IWUSR | S_IRUGO, show_global_beep,
-		   store_global_beep);
+static DEVICE_ATTR_RW(intrusion0_alarm);
+static DEVICE_ATTR_RW(beep_enable);
 
 static struct attribute *nct6683_attributes_other[] = {
 	&dev_attr_intrusion0_alarm.attr,
@@ -1381,8 +1371,8 @@ static int __init nct6683_find(int sioaddr, struct nct6683_sio_data *sio_data)
 	/* Activate logical device if needed */
 	val = superio_inb(sioaddr, SIO_REG_ENABLE);
 	if (!(val & 0x01)) {
-		pr_err("EC is disabled\n");
-		goto fail;
+		pr_warn("Forcibly enabling EC access. Data may be unusable.\n");
+		superio_outb(sioaddr, SIO_REG_ENABLE, val | 0x01);
 	}
 
 	superio_exit(sioaddr);

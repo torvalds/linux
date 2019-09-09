@@ -1,29 +1,24 @@
-/* nebula.h - Keytable for nebula Remote Controller
- *
- * keymap imported from ir-keymaps.c
- *
- * Copyright (c) 2010 by Mauro Carvalho Chehab
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- */
+// SPDX-License-Identifier: GPL-2.0+
+// nebula.h - Keytable for nebula Remote Controller
+//
+// keymap imported from ir-keymaps.c
+//
+// Copyright (c) 2010 by Mauro Carvalho Chehab
 
 #include <media/rc-map.h>
 #include <linux/module.h>
 
 static struct rc_map_table nebula[] = {
-	{ 0x0000, KEY_0 },
-	{ 0x0001, KEY_1 },
-	{ 0x0002, KEY_2 },
-	{ 0x0003, KEY_3 },
-	{ 0x0004, KEY_4 },
-	{ 0x0005, KEY_5 },
-	{ 0x0006, KEY_6 },
-	{ 0x0007, KEY_7 },
-	{ 0x0008, KEY_8 },
-	{ 0x0009, KEY_9 },
+	{ 0x0000, KEY_NUMERIC_0 },
+	{ 0x0001, KEY_NUMERIC_1 },
+	{ 0x0002, KEY_NUMERIC_2 },
+	{ 0x0003, KEY_NUMERIC_3 },
+	{ 0x0004, KEY_NUMERIC_4 },
+	{ 0x0005, KEY_NUMERIC_5 },
+	{ 0x0006, KEY_NUMERIC_6 },
+	{ 0x0007, KEY_NUMERIC_7 },
+	{ 0x0008, KEY_NUMERIC_8 },
+	{ 0x0009, KEY_NUMERIC_9 },
 	{ 0x000a, KEY_TV },
 	{ 0x000b, KEY_AUX },
 	{ 0x000c, KEY_DVD },
@@ -73,10 +68,10 @@ static struct rc_map_table nebula[] = {
 
 static struct rc_map_list nebula_map = {
 	.map = {
-		.scan    = nebula,
-		.size    = ARRAY_SIZE(nebula),
-		.rc_type = RC_TYPE_RC5,
-		.name    = RC_MAP_NEBULA,
+		.scan     = nebula,
+		.size     = ARRAY_SIZE(nebula),
+		.rc_proto = RC_PROTO_RC5,
+		.name     = RC_MAP_NEBULA,
 	}
 };
 

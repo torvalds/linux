@@ -1,9 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2015 Broadcom
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #if !defined(_VC4_TRACE_H_) || defined(TRACE_HEADER_MULTI_READ)
@@ -59,5 +56,5 @@ TRACE_EVENT(vc4_wait_for_seqno_end,
 
 /* This part must be outside protection */
 #undef TRACE_INCLUDE_PATH
-#define TRACE_INCLUDE_PATH .
+#define TRACE_INCLUDE_PATH ../../drivers/gpu/drm/vc4
 #include <trace/define_trace.h>

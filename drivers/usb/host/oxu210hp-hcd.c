@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 2008 Rodolfo Giometti <giometti@linux.it>
  * Copyright (c) 2008 Eurotech S.p.A. <info@eurtech.it>
  *
  * This code is *strongly* based on EHCI-HCD code by David Brownell since
  * the chip is a quasi-EHCI compatible.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
@@ -1336,7 +1323,7 @@ static struct list_head *qh_urb_transaction(struct oxu_hcd *oxu,
 	}
 
 	/* by default, enable interrupt on urb completion */
-		qtd->hw_token |= cpu_to_le32(QTD_IOC);
+	qtd->hw_token |= cpu_to_le32(QTD_IOC);
 	return head;
 
 cleanup:
@@ -2266,16 +2253,12 @@ static void scan_periodic(struct oxu_hcd *oxu)
 	for (;;) {
 		union ehci_shadow	q, *q_p;
 		__le32			type, *hw_p;
-		unsigned		uframes;
 
 		/* don't scan past the live uframe */
 		frame = now_uframe >> 3;
-		if (frame == (clock >> 3))
-			uframes = now_uframe & 0x07;
-		else {
+		if (frame != (clock >> 3)) {
 			/* safe to scan the whole frame at once */
 			now_uframe |= 0x07;
-			uframes = 8;
 		}
 
 restart:
@@ -2288,9 +2271,7 @@ restart:
 
 		while (q.ptr != NULL) {
 			union ehci_shadow temp;
-			int live;
 
-			live = HC_IS_RUNNING(oxu_to_hcd(oxu)->state);
 			switch (type) {
 			case Q_TYPE_QH:
 				/* handle any completions */
@@ -2554,9 +2535,9 @@ static irqreturn_t oxu_irq(struct usb_hcd *hcd)
 	return ret;
 }
 
-static void oxu_watchdog(unsigned long param)
+static void oxu_watchdog(struct timer_list *t)
 {
-	struct oxu_hcd	*oxu = (struct oxu_hcd *) param;
+	struct oxu_hcd	*oxu = from_timer(oxu, t, watchdog);
 	unsigned long flags;
 
 	spin_lock_irqsave(&oxu->lock, flags);
@@ -2592,7 +2573,7 @@ static int oxu_hcd_init(struct usb_hcd *hcd)
 
 	spin_lock_init(&oxu->lock);
 
-	setup_timer(&oxu->watchdog, oxu_watchdog, (unsigned long)oxu);
+	timer_setup(&oxu->watchdog, oxu_watchdog, 0);
 
 	/*
 	 * hw default: 1K periodic list heads, one per frame.
@@ -2710,7 +2691,7 @@ static int oxu_run(struct usb_hcd *hcd)
 
 	/* hcc_params controls whether oxu->regs->segment must (!!!)
 	 * be used; it constrains QH/ITD/SITD and QTD locations.
-	 * pci_pool consistent memory always uses segment zero.
+	 * dma_pool consistent memory always uses segment zero.
 	 * streaming mappings for I/O buffers, like pci_map_single(),
 	 * can return segments above 4GB, if the device allows.
 	 *
@@ -2847,7 +2828,6 @@ static int oxu_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 {
 	struct oxu_hcd *oxu = hcd_to_oxu(hcd);
 	int num, rem;
-	int transfer_buffer_length;
 	void *transfer_buffer;
 	struct urb *murb;
 	int i, ret;
@@ -2858,7 +2838,6 @@ static int oxu_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 
 	/* Otherwise we should verify the USB transfer buffer size! */
 	transfer_buffer = urb->transfer_buffer;
-	transfer_buffer_length = urb->transfer_buffer_length;
 
 	num = urb->transfer_buffer_length / 4096;
 	rem = urb->transfer_buffer_length % 4096;
@@ -3042,7 +3021,7 @@ idle_timeout:
 			qh_put(qh);
 			break;
 		}
-		/* else FALL THROUGH */
+		/* fall through */
 	default:
 nogood:
 		/* caller was supposed to have unlinked any requests;

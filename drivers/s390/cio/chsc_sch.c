@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Driver for s390 chsc subchannels
  *
@@ -15,7 +16,6 @@
 #include <linux/miscdevice.h>
 #include <linux/kernel_stat.h>
 
-#include <asm/compat.h>
 #include <asm/cio.h>
 #include <asm/chsc.h>
 #include <asm/isc.h>
@@ -43,11 +43,7 @@ static DEFINE_MUTEX(on_close_mutex);
 
 static void CHSC_LOG_HEX(int level, void *data, int length)
 {
-	while (length > 0) {
-		debug_event(chsc_debug_log_id, level, data, length);
-		length -= chsc_debug_log_id->buf_size;
-		data += chsc_debug_log_id->buf_size;
-	}
+	debug_event(chsc_debug_log_id, level, data, length);
 }
 
 MODULE_AUTHOR("IBM Corporation");
@@ -207,7 +203,7 @@ static void chsc_cleanup_sch_driver(void)
 
 static DEFINE_SPINLOCK(chsc_lock);
 
-static int chsc_subchannel_match_next_free(struct device *dev, void *data)
+static int chsc_subchannel_match_next_free(struct device *dev, const void *data)
 {
 	struct subchannel *sch = to_subchannel(dev);
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* drivers/atm/atmtcp.c - ATM over TCP "device" driver */
 
 /* Written 1997-2000 by Werner Almesberger, EPFL LRC/ICA */
@@ -10,7 +11,7 @@
 #include <linux/bitops.h>
 #include <linux/init.h>
 #include <linux/slab.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/atomic.h>
 
 
@@ -60,7 +61,7 @@ static int atmtcp_send_control(struct atm_vcc *vcc,int type,
 		return -EUNATCH;
 	}
 	atm_force_charge(out_vcc,skb->truesize);
-	new_msg = (struct atmtcp_control *) skb_put(skb,sizeof(*new_msg));
+	new_msg = skb_put(skb, sizeof(*new_msg));
 	*new_msg = *msg;
 	new_msg->hdr.length = ATMTCP_HDR_MAGIC;
 	new_msg->type = type;
@@ -217,7 +218,7 @@ static int atmtcp_v_send(struct atm_vcc *vcc,struct sk_buff *skb)
 		atomic_inc(&vcc->stats->tx_err);
 		return -ENOBUFS;
 	}
-	hdr = (void *) skb_put(new_skb,sizeof(struct atmtcp_hdr));
+	hdr = skb_put(new_skb, sizeof(struct atmtcp_hdr));
 	hdr->vpi = htons(vcc->vpi);
 	hdr->vci = htons(vcc->vci);
 	hdr->length = htonl(skb->len);
@@ -342,7 +343,7 @@ static struct atmdev_ops atmtcp_v_dev_ops = {
  */
 
 
-static struct atmdev_ops atmtcp_c_dev_ops = {
+static const struct atmdev_ops atmtcp_c_dev_ops = {
 	.close		= atmtcp_c_close,
 	.send		= atmtcp_c_send
 };

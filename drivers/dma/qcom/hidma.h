@@ -1,16 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Qualcomm Technologies HIDMA data structures
  *
  * Copyright (c) 2014-2016, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef QCOM_HIDMA_H
@@ -27,6 +19,11 @@
 #define HIDMA_TRE_SRC_HI_IDX		3
 #define HIDMA_TRE_DEST_LOW_IDX		4
 #define HIDMA_TRE_DEST_HI_IDX		5
+
+enum tre_type {
+	HIDMA_TRE_MEMCPY = 3,
+	HIDMA_TRE_MEMSET = 4,
+};
 
 struct hidma_tre {
 	atomic_t allocated;		/* if this channel is allocated	    */
@@ -46,6 +43,7 @@ struct hidma_tre {
 };
 
 struct hidma_lldev {
+	bool msi_support;		/* flag indicating MSI support    */
 	bool initialized;		/* initialized flag               */
 	u8 trch_state;			/* trch_state of the device	  */
 	u8 evch_state;			/* evch_state of the device	  */
@@ -58,7 +56,7 @@ struct hidma_lldev {
 	void __iomem *evca;		/* Event Channel address          */
 	struct hidma_tre
 		**pending_tre_list;	/* Pointers to pending TREs	  */
-	s32 pending_tre_count;		/* Number of TREs pending	  */
+	atomic_t pending_tre_count;	/* Number of TREs pending	  */
 
 	void *tre_ring;			/* TRE ring			  */
 	dma_addr_t tre_dma;		/* TRE ring to be shared with HW  */
@@ -95,14 +93,13 @@ struct hidma_chan {
 	 * It is used by the DMA complete notification to
 	 * locate the descriptor that initiated the transfer.
 	 */
-	struct dentry			*debugfs;
-	struct dentry			*stats;
 	struct hidma_dev		*dmadev;
 	struct hidma_desc		*running;
 
 	struct dma_chan			chan;
 	struct list_head		free;
 	struct list_head		prepared;
+	struct list_head		queued;
 	struct list_head		active;
 	struct list_head		completed;
 
@@ -114,6 +111,7 @@ struct hidma_dev {
 	int				irq;
 	int				chidx;
 	u32				nr_descriptors;
+	int				msi_virqbase;
 
 	struct hidma_lldev		*lldev;
 	void				__iomem *dev_trca;
@@ -126,7 +124,9 @@ struct hidma_dev {
 	struct dma_device		ddev;
 
 	struct dentry			*debugfs;
-	struct dentry			*stats;
+
+	/* sysfs entry for the channel id */
+	struct device_attribute		*chid_attrs;
 
 	/* Task delivering issue_pending */
 	struct tasklet_struct		task;
@@ -144,15 +144,17 @@ void hidma_ll_start(struct hidma_lldev *llhndl);
 int hidma_ll_disable(struct hidma_lldev *lldev);
 int hidma_ll_enable(struct hidma_lldev *llhndl);
 void hidma_ll_set_transfer_params(struct hidma_lldev *llhndl, u32 tre_ch,
-	dma_addr_t src, dma_addr_t dest, u32 len, u32 flags);
+	dma_addr_t src, dma_addr_t dest, u32 len, u32 flags, u32 txntype);
+void hidma_ll_setup_irq(struct hidma_lldev *lldev, bool msi);
 int hidma_ll_setup(struct hidma_lldev *lldev);
 struct hidma_lldev *hidma_ll_init(struct device *dev, u32 max_channels,
 			void __iomem *trca, void __iomem *evca,
 			u8 chidx);
 int hidma_ll_uninit(struct hidma_lldev *llhndl);
 irqreturn_t hidma_ll_inthandler(int irq, void *arg);
+irqreturn_t hidma_ll_inthandler_msi(int irq, void *arg, int cause);
 void hidma_cleanup_pending_tre(struct hidma_lldev *llhndl, u8 err_info,
 				u8 err_code);
-int hidma_debug_init(struct hidma_dev *dmadev);
+void hidma_debug_init(struct hidma_dev *dmadev);
 void hidma_debug_uninit(struct hidma_dev *dmadev);
 #endif

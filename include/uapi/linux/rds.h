@@ -1,5 +1,6 @@
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR Linux-OpenIB) */
 /*
- * Copyright (c) 2008 Oracle.  All rights reserved.
+ * Copyright (c) 2008, 2018 Oracle and/or its affiliates. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -35,6 +36,8 @@
 #define _LINUX_RDS_H
 
 #include <linux/types.h>
+#include <linux/socket.h>		/* For __kernel_sockaddr_storage. */
+#include <linux/in6.h>			/* For struct in6_addr. */
 
 #define RDS_IB_ABI_VERSION		0x301
 
@@ -52,12 +55,25 @@
 #define RDS_GET_MR_FOR_DEST		7
 #define SO_RDS_TRANSPORT		8
 
+/* Socket option to tap receive path latency
+ *	SO_RDS: SO_RDS_MSG_RXPATH_LATENCY
+ *	Format used struct rds_rx_trace_so
+ */
+#define SO_RDS_MSG_RXPATH_LATENCY	10
+
+
 /* supported values for SO_RDS_TRANSPORT */
 #define	RDS_TRANS_IB	0
 #define	RDS_TRANS_IWARP	1
 #define	RDS_TRANS_TCP	2
 #define RDS_TRANS_COUNT	3
 #define	RDS_TRANS_NONE	(~0)
+
+/* IOCTLS commands for SOL_RDS */
+#define SIOCRDSSETTOS		(SIOCPROTOPRIVATE)
+#define SIOCRDSGETTOS		(SIOCPROTOPRIVATE + 1)
+
+typedef __u8	rds_tos_t;
 
 /*
  * Control message types for SOL_RDS.
@@ -77,6 +93,12 @@
  *	the same as for the GET_MR setsockopt.
  * RDS_CMSG_RDMA_STATUS (recvmsg)
  *	Returns the status of a completed RDMA operation.
+ * RDS_CMSG_RXPATH_LATENCY(recvmsg)
+ *	Returns rds message latencies in various stages of receive
+ *	path in nS. Its set per socket using SO_RDS_MSG_RXPATH_LATENCY
+ *	socket option. Legitimate points are defined in
+ *	enum rds_message_rxpath_latency. More points can be added in
+ *	future. CSMG format is struct rds_cmsg_rx_trace.
  */
 #define RDS_CMSG_RDMA_ARGS		1
 #define RDS_CMSG_RDMA_DEST		2
@@ -87,6 +109,9 @@
 #define RDS_CMSG_ATOMIC_CSWP		7
 #define RDS_CMSG_MASKED_ATOMIC_FADD	8
 #define RDS_CMSG_MASKED_ATOMIC_CSWP	9
+#define RDS_CMSG_RXPATH_LATENCY		11
+#define	RDS_CMSG_ZCOPY_COOKIE		12
+#define	RDS_CMSG_ZCOPY_COMPLETION	13
 
 #define RDS_INFO_FIRST			10000
 #define RDS_INFO_COUNTERS		10000
@@ -100,11 +125,21 @@
 #define RDS_INFO_IB_CONNECTIONS		10008
 #define RDS_INFO_CONNECTION_STATS	10009
 #define RDS_INFO_IWARP_CONNECTIONS	10010
-#define RDS_INFO_LAST			10010
+
+/* PF_RDS6 options */
+#define RDS6_INFO_CONNECTIONS		10011
+#define RDS6_INFO_SEND_MESSAGES		10012
+#define RDS6_INFO_RETRANS_MESSAGES	10013
+#define RDS6_INFO_RECV_MESSAGES		10014
+#define RDS6_INFO_SOCKETS		10015
+#define RDS6_INFO_TCP_SOCKETS		10016
+#define RDS6_INFO_IB_CONNECTIONS	10017
+
+#define RDS_INFO_LAST			10017
 
 struct rds_info_counter {
-	uint8_t	name[32];
-	uint64_t	value;
+	__u8	name[32];
+	__u64	value;
 } __attribute__((packed));
 
 #define RDS_INFO_CONNECTION_FLAG_SENDING	0x01
@@ -114,35 +149,67 @@ struct rds_info_counter {
 #define TRANSNAMSIZ	16
 
 struct rds_info_connection {
-	uint64_t	next_tx_seq;
-	uint64_t	next_rx_seq;
+	__u64		next_tx_seq;
+	__u64		next_rx_seq;
 	__be32		laddr;
 	__be32		faddr;
-	uint8_t	transport[TRANSNAMSIZ];		/* null term ascii */
-	uint8_t	flags;
+	__u8		transport[TRANSNAMSIZ];		/* null term ascii */
+	__u8		flags;
+	__u8		tos;
+} __attribute__((packed));
+
+struct rds6_info_connection {
+	__u64		next_tx_seq;
+	__u64		next_rx_seq;
+	struct in6_addr	laddr;
+	struct in6_addr	faddr;
+	__u8		transport[TRANSNAMSIZ];		/* null term ascii */
+	__u8		flags;
 } __attribute__((packed));
 
 #define RDS_INFO_MESSAGE_FLAG_ACK               0x01
 #define RDS_INFO_MESSAGE_FLAG_FAST_ACK          0x02
 
 struct rds_info_message {
-	uint64_t	seq;
-	uint32_t	len;
+	__u64		seq;
+	__u32		len;
 	__be32		laddr;
 	__be32		faddr;
 	__be16		lport;
 	__be16		fport;
-	uint8_t	flags;
+	__u8		flags;
+	__u8		tos;
+} __attribute__((packed));
+
+struct rds6_info_message {
+	__u64	seq;
+	__u32	len;
+	struct in6_addr	laddr;
+	struct in6_addr	faddr;
+	__be16		lport;
+	__be16		fport;
+	__u8		flags;
+	__u8		tos;
 } __attribute__((packed));
 
 struct rds_info_socket {
-	uint32_t	sndbuf;
+	__u32		sndbuf;
 	__be32		bound_addr;
 	__be32		connected_addr;
 	__be16		bound_port;
 	__be16		connected_port;
-	uint32_t	rcvbuf;
-	uint64_t	inum;
+	__u32		rcvbuf;
+	__u64		inum;
+} __attribute__((packed));
+
+struct rds6_info_socket {
+	__u32		sndbuf;
+	struct in6_addr	bound_addr;
+	struct in6_addr	connected_addr;
+	__be16		bound_port;
+	__be16		connected_port;
+	__u32		rcvbuf;
+	__u64		inum;
 } __attribute__((packed));
 
 struct rds_info_tcp_socket {
@@ -150,25 +217,76 @@ struct rds_info_tcp_socket {
 	__be16          local_port;
 	__be32          peer_addr;
 	__be16          peer_port;
-	uint64_t       hdr_rem;
-	uint64_t       data_rem;
-	uint32_t       last_sent_nxt;
-	uint32_t       last_expected_una;
-	uint32_t       last_seen_una;
+	__u64           hdr_rem;
+	__u64           data_rem;
+	__u32           last_sent_nxt;
+	__u32           last_expected_una;
+	__u32           last_seen_una;
+	__u8		tos;
+} __attribute__((packed));
+
+struct rds6_info_tcp_socket {
+	struct in6_addr	local_addr;
+	__be16		local_port;
+	struct in6_addr	peer_addr;
+	__be16		peer_port;
+	__u64		hdr_rem;
+	__u64		data_rem;
+	__u32		last_sent_nxt;
+	__u32		last_expected_una;
+	__u32		last_seen_una;
 } __attribute__((packed));
 
 #define RDS_IB_GID_LEN	16
 struct rds_info_rdma_connection {
 	__be32		src_addr;
 	__be32		dst_addr;
-	uint8_t		src_gid[RDS_IB_GID_LEN];
-	uint8_t		dst_gid[RDS_IB_GID_LEN];
+	__u8		src_gid[RDS_IB_GID_LEN];
+	__u8		dst_gid[RDS_IB_GID_LEN];
 
-	uint32_t	max_send_wr;
-	uint32_t	max_recv_wr;
-	uint32_t	max_send_sge;
-	uint32_t	rdma_mr_max;
-	uint32_t	rdma_mr_size;
+	__u32		max_send_wr;
+	__u32		max_recv_wr;
+	__u32		max_send_sge;
+	__u32		rdma_mr_max;
+	__u32		rdma_mr_size;
+	__u8		tos;
+	__u8		sl;
+	__u32		cache_allocs;
+};
+
+struct rds6_info_rdma_connection {
+	struct in6_addr	src_addr;
+	struct in6_addr	dst_addr;
+	__u8		src_gid[RDS_IB_GID_LEN];
+	__u8		dst_gid[RDS_IB_GID_LEN];
+
+	__u32		max_send_wr;
+	__u32		max_recv_wr;
+	__u32		max_send_sge;
+	__u32		rdma_mr_max;
+	__u32		rdma_mr_size;
+	__u8		tos;
+	__u8		sl;
+	__u32		cache_allocs;
+};
+
+/* RDS message Receive Path Latency points */
+enum rds_message_rxpath_latency {
+	RDS_MSG_RX_HDR_TO_DGRAM_START = 0,
+	RDS_MSG_RX_DGRAM_REASSEMBLE,
+	RDS_MSG_RX_DGRAM_DELIVERED,
+	RDS_MSG_RX_DGRAM_TRACE_MAX
+};
+
+struct rds_rx_trace_so {
+	__u8 rx_traces;
+	__u8 rx_trace_pos[RDS_MSG_RX_DGRAM_TRACE_MAX];
+};
+
+struct rds_cmsg_rx_trace {
+	__u8 rx_traces;
+	__u8 rx_trace_pos[RDS_MSG_RX_DGRAM_TRACE_MAX];
+	__u64 rx_trace[RDS_MSG_RX_DGRAM_TRACE_MAX];
 };
 
 /*
@@ -209,70 +327,70 @@ struct rds_info_rdma_connection {
  * (so that the application does not have to worry about
  * alignment).
  */
-typedef uint64_t	rds_rdma_cookie_t;
+typedef __u64		rds_rdma_cookie_t;
 
 struct rds_iovec {
-	uint64_t	addr;
-	uint64_t	bytes;
+	__u64		addr;
+	__u64		bytes;
 };
 
 struct rds_get_mr_args {
 	struct rds_iovec vec;
-	uint64_t	cookie_addr;
-	uint64_t	flags;
+	__u64		cookie_addr;
+	__u64		flags;
 };
 
 struct rds_get_mr_for_dest_args {
-	struct sockaddr_storage	dest_addr;
+	struct __kernel_sockaddr_storage dest_addr;
 	struct rds_iovec 	vec;
-	uint64_t		cookie_addr;
-	uint64_t		flags;
+	__u64			cookie_addr;
+	__u64			flags;
 };
 
 struct rds_free_mr_args {
 	rds_rdma_cookie_t cookie;
-	uint64_t	flags;
+	__u64		flags;
 };
 
 struct rds_rdma_args {
 	rds_rdma_cookie_t cookie;
 	struct rds_iovec remote_vec;
-	uint64_t	local_vec_addr;
-	uint64_t	nr_local;
-	uint64_t	flags;
-	uint64_t	user_token;
+	__u64		local_vec_addr;
+	__u64		nr_local;
+	__u64		flags;
+	__u64		user_token;
 };
 
 struct rds_atomic_args {
 	rds_rdma_cookie_t cookie;
-	uint64_t 	local_addr;
-	uint64_t 	remote_addr;
+	__u64		local_addr;
+	__u64		remote_addr;
 	union {
 		struct {
-			uint64_t	compare;
-			uint64_t	swap;
+			__u64		compare;
+			__u64		swap;
 		} cswp;
 		struct {
-			uint64_t	add;
+			__u64		add;
 		} fadd;
 		struct {
-			uint64_t	compare;
-			uint64_t	swap;
-			uint64_t	compare_mask;
-			uint64_t	swap_mask;
+			__u64		compare;
+			__u64		swap;
+			__u64		compare_mask;
+			__u64		swap_mask;
 		} m_cswp;
 		struct {
-			uint64_t	add;
-			uint64_t	nocarry_mask;
+			__u64		add;
+			__u64		nocarry_mask;
 		} m_fadd;
 	};
-	uint64_t	flags;
-	uint64_t	user_token;
+	__u64		flags;
+	__u64		user_token;
 };
 
 struct rds_rdma_notify {
-	uint64_t	user_token;
-	int32_t		status;
+	__u64		user_token;
+	__s32		status;
 };
 
 #define RDS_RDMA_SUCCESS	0
@@ -280,6 +398,12 @@ struct rds_rdma_notify {
 #define RDS_RDMA_CANCELED	2
 #define RDS_RDMA_DROPPED	3
 #define RDS_RDMA_OTHER_ERROR	4
+
+#define	RDS_MAX_ZCOOKIES	8
+struct rds_zcopy_cookies {
+	__u32 num;
+	__u32 cookies[RDS_MAX_ZCOOKIES];
+};
 
 /*
  * Common set of flags for all RDMA related structs

@@ -1,16 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2014, Fuzhou Rockchip Electronics Co., Ltd
  * Author: Tony Xie <tony.xie@rock-chips.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
  */
 
 #include <linux/linkage.h>
@@ -23,7 +14,7 @@
  * ddr to sram for system resumeing.
  * so it is ".data section".
  */
-.align
+	.align	2
 
 ENTRY(rockchip_slp_cpu_resume)
 	setmode	PSR_I_BIT | PSR_F_BIT | SVC_MODE, r1  @ set svc, irqs off

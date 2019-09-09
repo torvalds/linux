@@ -1,45 +1,9 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /*******************************************************************************
  *
  * Module Name: rsdumpinfo - Tables used to display resource descriptors.
  *
  ******************************************************************************/
-
-/*
- * Copyright (C) 2000 - 2016, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
 
 #include <acpi/acpi.h>
 #include "accommon.h"
@@ -68,7 +32,7 @@ struct acpi_rsdump_info acpi_rs_dump_irq[7] = {
 	 acpi_gbl_he_decode},
 	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(irq.polarity), "Polarity",
 	 acpi_gbl_ll_decode},
-	{ACPI_RSD_2BITFLAG, ACPI_RSD_OFFSET(irq.sharable), "Sharing",
+	{ACPI_RSD_2BITFLAG, ACPI_RSD_OFFSET(irq.shareable), "Sharing",
 	 acpi_gbl_shr_decode},
 	{ACPI_RSD_UINT8, ACPI_RSD_OFFSET(irq.interrupt_count),
 	 "Interrupt Count", NULL},
@@ -258,7 +222,7 @@ struct acpi_rsdump_info acpi_rs_dump_ext_irq[8] = {
 	 "Triggering", acpi_gbl_he_decode},
 	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(extended_irq.polarity), "Polarity",
 	 acpi_gbl_ll_decode},
-	{ACPI_RSD_2BITFLAG, ACPI_RSD_OFFSET(extended_irq.sharable), "Sharing",
+	{ACPI_RSD_2BITFLAG, ACPI_RSD_OFFSET(extended_irq.shareable), "Sharing",
 	 acpi_gbl_shr_decode},
 	{ACPI_RSD_SOURCE, ACPI_RSD_OFFSET(extended_irq.resource_source), NULL,
 	 NULL},
@@ -291,7 +255,7 @@ struct acpi_rsdump_info acpi_rs_dump_gpio[16] = {
 	 "ProducerConsumer", acpi_gbl_consume_decode},
 	{ACPI_RSD_UINT8, ACPI_RSD_OFFSET(gpio.pin_config), "PinConfig",
 	 acpi_gbl_ppc_decode},
-	{ACPI_RSD_2BITFLAG, ACPI_RSD_OFFSET(gpio.sharable), "Sharing",
+	{ACPI_RSD_2BITFLAG, ACPI_RSD_OFFSET(gpio.shareable), "Sharing",
 	 acpi_gbl_shr_decode},
 	{ACPI_RSD_2BITFLAG, ACPI_RSD_OFFSET(gpio.io_restriction),
 	 "IoRestriction", acpi_gbl_ior_decode},
@@ -312,6 +276,120 @@ struct acpi_rsdump_info acpi_rs_dump_gpio[16] = {
 	 NULL},
 	{ACPI_RSD_SHORTLISTX, ACPI_RSD_OFFSET(gpio.vendor_data), "VendorData",
 	 NULL},
+};
+
+struct acpi_rsdump_info acpi_rs_dump_pin_function[10] = {
+	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_pin_function),
+	 "PinFunction", NULL},
+	{ACPI_RSD_UINT8, ACPI_RSD_OFFSET(pin_function.revision_id),
+	 "RevisionId", NULL},
+	{ACPI_RSD_UINT8, ACPI_RSD_OFFSET(pin_function.pin_config), "PinConfig",
+	 acpi_gbl_ppc_decode},
+	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(pin_function.shareable), "Sharing",
+	 acpi_gbl_shr_decode},
+	{ACPI_RSD_UINT16, ACPI_RSD_OFFSET(pin_function.function_number),
+	 "FunctionNumber", NULL},
+	{ACPI_RSD_SOURCE, ACPI_RSD_OFFSET(pin_function.resource_source),
+	 "ResourceSource", NULL},
+	{ACPI_RSD_UINT16, ACPI_RSD_OFFSET(pin_function.pin_table_length),
+	 "PinTableLength", NULL},
+	{ACPI_RSD_WORDLIST, ACPI_RSD_OFFSET(pin_function.pin_table), "PinTable",
+	 NULL},
+	{ACPI_RSD_UINT16, ACPI_RSD_OFFSET(pin_function.vendor_length),
+	 "VendorLength", NULL},
+	{ACPI_RSD_SHORTLISTX, ACPI_RSD_OFFSET(pin_function.vendor_data),
+	 "VendorData", NULL},
+};
+
+struct acpi_rsdump_info acpi_rs_dump_pin_config[11] = {
+	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_pin_config),
+	 "PinConfig", NULL},
+	{ACPI_RSD_UINT8, ACPI_RSD_OFFSET(pin_config.revision_id), "RevisionId",
+	 NULL},
+	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(pin_config.producer_consumer),
+	 "ProducerConsumer", acpi_gbl_consume_decode},
+	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(pin_config.shareable), "Sharing",
+	 acpi_gbl_shr_decode},
+	{ACPI_RSD_UINT8, ACPI_RSD_OFFSET(pin_config.pin_config_type),
+	 "PinConfigType", NULL},
+	{ACPI_RSD_UINT32, ACPI_RSD_OFFSET(pin_config.pin_config_value),
+	 "PinConfigValue", NULL},
+	{ACPI_RSD_SOURCE, ACPI_RSD_OFFSET(pin_config.resource_source),
+	 "ResourceSource", NULL},
+	{ACPI_RSD_UINT16, ACPI_RSD_OFFSET(pin_config.pin_table_length),
+	 "PinTableLength", NULL},
+	{ACPI_RSD_WORDLIST, ACPI_RSD_OFFSET(pin_config.pin_table), "PinTable",
+	 NULL},
+	{ACPI_RSD_UINT16, ACPI_RSD_OFFSET(pin_config.vendor_length),
+	 "VendorLength", NULL},
+	{ACPI_RSD_SHORTLISTX, ACPI_RSD_OFFSET(pin_config.vendor_data),
+	 "VendorData", NULL},
+};
+
+struct acpi_rsdump_info acpi_rs_dump_pin_group[8] = {
+	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_pin_group),
+	 "PinGroup", NULL},
+	{ACPI_RSD_UINT8, ACPI_RSD_OFFSET(pin_group.revision_id), "RevisionId",
+	 NULL},
+	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(pin_group.producer_consumer),
+	 "ProducerConsumer", acpi_gbl_consume_decode},
+	{ACPI_RSD_UINT16, ACPI_RSD_OFFSET(pin_group.pin_table_length),
+	 "PinTableLength", NULL},
+	{ACPI_RSD_WORDLIST, ACPI_RSD_OFFSET(pin_group.pin_table), "PinTable",
+	 NULL},
+	{ACPI_RSD_LABEL, ACPI_RSD_OFFSET(pin_group.resource_label),
+	 "ResourceLabel", NULL},
+	{ACPI_RSD_UINT16, ACPI_RSD_OFFSET(pin_group.vendor_length),
+	 "VendorLength", NULL},
+	{ACPI_RSD_SHORTLISTX, ACPI_RSD_OFFSET(pin_group.vendor_data),
+	 "VendorData", NULL},
+};
+
+struct acpi_rsdump_info acpi_rs_dump_pin_group_function[9] = {
+	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_pin_group_function),
+	 "PinGroupFunction", NULL},
+	{ACPI_RSD_UINT8, ACPI_RSD_OFFSET(pin_group_function.revision_id),
+	 "RevisionId", NULL},
+	{ACPI_RSD_1BITFLAG,
+	 ACPI_RSD_OFFSET(pin_group_function.producer_consumer),
+	 "ProducerConsumer", acpi_gbl_consume_decode},
+	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(pin_group_function.shareable),
+	 "Sharing", acpi_gbl_shr_decode},
+	{ACPI_RSD_UINT16, ACPI_RSD_OFFSET(pin_group_function.function_number),
+	 "FunctionNumber", NULL},
+	{ACPI_RSD_SOURCE_LABEL,
+	 ACPI_RSD_OFFSET(pin_group_function.resource_source_label),
+	 "ResourceSourceLabel", NULL},
+	{ACPI_RSD_SOURCE, ACPI_RSD_OFFSET(pin_group_function.resource_source),
+	 "ResourceSource", NULL},
+	{ACPI_RSD_UINT16, ACPI_RSD_OFFSET(pin_group_function.vendor_length),
+	 "VendorLength", NULL},
+	{ACPI_RSD_SHORTLISTX, ACPI_RSD_OFFSET(pin_group_function.vendor_data),
+	 "VendorData", NULL},
+};
+
+struct acpi_rsdump_info acpi_rs_dump_pin_group_config[10] = {
+	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_pin_group_config),
+	 "PinGroupConfig", NULL},
+	{ACPI_RSD_UINT8, ACPI_RSD_OFFSET(pin_group_config.revision_id),
+	 "RevisionId", NULL},
+	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(pin_group_config.producer_consumer),
+	 "ProducerConsumer", acpi_gbl_consume_decode},
+	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(pin_group_config.shareable),
+	 "Sharing", acpi_gbl_shr_decode},
+	{ACPI_RSD_UINT8, ACPI_RSD_OFFSET(pin_group_config.pin_config_type),
+	 "PinConfigType", NULL},
+	{ACPI_RSD_UINT32, ACPI_RSD_OFFSET(pin_group_config.pin_config_value),
+	 "PinConfigValue", NULL},
+	{ACPI_RSD_SOURCE_LABEL,
+	 ACPI_RSD_OFFSET(pin_group_config.resource_source_label),
+	 "ResourceSourceLabel", NULL},
+	{ACPI_RSD_SOURCE, ACPI_RSD_OFFSET(pin_group_config.resource_source),
+	 "ResourceSource", NULL},
+	{ACPI_RSD_UINT16, ACPI_RSD_OFFSET(pin_group_config.vendor_length),
+	 "VendorLength", NULL},
+	{ACPI_RSD_SHORTLISTX, ACPI_RSD_OFFSET(pin_group_config.vendor_data),
+	 "VendorData", NULL},
 };
 
 struct acpi_rsdump_info acpi_rs_dump_fixed_dma[4] = {

@@ -19,6 +19,14 @@ core regulatory domain all wireless devices should adhere to.
 How to get regulatory domains to the kernel
 -------------------------------------------
 
+When the regulatory domain is first set up, the kernel will request a
+database file (regulatory.db) containing all the regulatory rules. It
+will then use that database when it needs to look up the rules for a
+given country.
+
+How to get regulatory domains to the kernel (old CRDA solution)
+---------------------------------------------------------------
+
 Userspace gets a regulatory domain in the kernel by having
 a userspace agent build it and send it via nl80211. Only
 expected regulatory domains will be respected by the kernel.
@@ -156,12 +164,12 @@ struct ieee80211_regdomain mydriver_jp_regdom = {
 	//.alpha2 =  "99", /* If I have no alpha2 to map it to */
 	.reg_rules = {
 		/* IEEE 802.11b/g, channels 1..14 */
-		REG_RULE(2412-20, 2484+20, 40, 6, 20, 0),
+		REG_RULE(2412-10, 2484+10, 40, 6, 20, 0),
 		/* IEEE 802.11a, channels 34..48 */
-		REG_RULE(5170-20, 5240+20, 40, 6, 20,
+		REG_RULE(5170-10, 5240+10, 40, 6, 20,
 			NL80211_RRF_NO_IR),
 		/* IEEE 802.11a, channels 52..64 */
-		REG_RULE(5260-20, 5320+20, 40, 6, 20,
+		REG_RULE(5260-10, 5320+10, 40, 6, 20,
 			NL80211_RRF_NO_IR|
 			NL80211_RRF_DFS),
 	}
@@ -192,23 +200,5 @@ Then in some part of your code after your wiphy has been registered:
 Statically compiled regulatory database
 ---------------------------------------
 
-In most situations the userland solution using CRDA as described
-above is the preferred solution.  However in some cases a set of
-rules built into the kernel itself may be desirable.  To account
-for this situation, a configuration option has been provided
-(i.e. CONFIG_CFG80211_INTERNAL_REGDB).  With this option enabled,
-the wireless database information contained in net/wireless/db.txt is
-used to generate a data structure encoded in net/wireless/regdb.c.
-That option also enables code in net/wireless/reg.c which queries
-the data in regdb.c as an alternative to using CRDA.
-
-The file net/wireless/db.txt should be kept up-to-date with the db.txt
-file available in the git repository here:
-
-    git://git.kernel.org/pub/scm/linux/kernel/git/linville/wireless-regdb.git
-
-Again, most users in most situations should be using the CRDA package
-provided with their distribution, and in most other situations users
-should be building and using CRDA on their own rather than using
-this option.  If you are not absolutely sure that you should be using
-CONFIG_CFG80211_INTERNAL_REGDB then _DO_NOT_USE_IT_.
+When a database should be fixed into the kernel, it can be provided as a
+firmware file at build time that is then linked into the kernel.

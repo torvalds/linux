@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Kconfig for uClinux(non-paged MM) depend configurations
 # Hyok S. Choi <hyok.choi@samsung.com>
@@ -19,10 +20,12 @@ config DRAM_SIZE
 
 config FLASH_MEM_BASE
 	hex 'FLASH Base Address' if SET_MEM_PARAM
+	depends on CPU_ARM740T || CPU_ARM946E || CPU_ARM940T
 	default 0x00400000
 
 config FLASH_SIZE
 	hex 'FLASH Size' if SET_MEM_PARAM
+	depends on CPU_ARM740T || CPU_ARM946E || CPU_ARM940T
 	default 0x00400000
 
 config PROCESSOR_ID
@@ -34,8 +37,7 @@ config PROCESSOR_ID
 	  used instead of the auto-probing which utilizes the register.
 
 config REMAP_VECTORS_TO_RAM
-	bool 'Install vectors to the beginning of RAM' if DRAM_BASE
-	depends on DRAM_BASE
+	bool 'Install vectors to the beginning of RAM'
 	help
 	  The kernel needs to change the hardware exception vectors.
 	  In nommu mode, the hardware exception vectors are normally
@@ -53,8 +55,8 @@ config REMAP_VECTORS_TO_RAM
 
 config ARM_MPU
        bool 'Use the ARM v7 PMSA Compliant MPU'
-       depends on CPU_V7
-       default y
+       depends on CPU_V7 || CPU_V7M
+       default y if CPU_V7
        help
          Some ARM systems without an MMU have instead a Memory Protection
          Unit (MPU) that defines the type and permissions for regions of

@@ -84,7 +84,7 @@
 #define PUT_USER(error,value,addr) error = put_user(value,addr)
 #define COPY_TO_USER(error,dest,src,size) error = copy_to_user(dest,src,size) ? -EFAULT : 0
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 static MGSL_PARAMS default_params = {
 	MGSL_MODE_HDLC,			/* unsigned long mode */
@@ -375,7 +375,7 @@ static void reset_device(MGSLPC_INFO *info);
 static void hdlc_mode(MGSLPC_INFO *info);
 static void async_mode(MGSLPC_INFO *info);
 
-static void tx_timeout(unsigned long context);
+static void tx_timeout(struct timer_list *t);
 
 static int carrier_raised(struct tty_port *port);
 static void dtr_rts(struct tty_port *port, int onoff);
@@ -1289,7 +1289,7 @@ static int startup(MGSLPC_INFO * info, struct tty_struct *tty)
 
 	memset(&info->icount, 0, sizeof(info->icount));
 
-	setup_timer(&info->tx_timer, tx_timeout, (unsigned long)info);
+	timer_setup(&info->tx_timer, tx_timeout, 0);
 
 	/* Allocate and claim adapter resources */
 	retval = claim_resources(info);
@@ -2237,8 +2237,7 @@ static int mgslpc_ioctl(struct tty_struct *tty,
 	if (mgslpc_paranoia_check(info, tty->name, "mgslpc_ioctl"))
 		return -ENODEV;
 
-	if ((cmd != TIOCGSERIAL) && (cmd != TIOCSSERIAL) &&
-	    (cmd != TIOCMIWAIT)) {
+	if (cmd != TIOCMIWAIT) {
 		if (tty_io_error(tty))
 		    return -EIO;
 	}
@@ -2616,19 +2615,6 @@ static int mgslpc_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int mgslpc_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, mgslpc_proc_show, NULL);
-}
-
-static const struct file_operations mgslpc_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= mgslpc_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 static int rx_alloc_buffers(MGSLPC_INFO *info)
 {
 	/* each buffer has header and data */
@@ -2815,7 +2801,7 @@ static const struct tty_operations mgslpc_ops = {
 	.tiocmget = tiocmget,
 	.tiocmset = tiocmset,
 	.get_icount = mgslpc_get_icount,
-	.proc_fops = &mgslpc_proc_fops,
+	.proc_show = mgslpc_proc_show,
 };
 
 static int __init synclink_cs_init(void)
@@ -3846,9 +3832,9 @@ static void trace_block(MGSLPC_INFO *info,const char* data, int count, int xmit)
 /* HDLC frame time out
  * update stats and do tx completion processing
  */
-static void tx_timeout(unsigned long context)
+static void tx_timeout(struct timer_list *t)
 {
-	MGSLPC_INFO *info = (MGSLPC_INFO*)context;
+	MGSLPC_INFO *info = from_timer(info, t, tx_timer);
 	unsigned long flags;
 
 	if (debug_level >= DEBUG_LEVEL_INFO)
@@ -4235,7 +4221,7 @@ static void hdlcdev_rx(MGSLPC_INFO *info, char *buf, int size)
 		return;
 	}
 
-	memcpy(skb_put(skb, size), buf, size);
+	skb_put_data(skb, buf, size);
 
 	skb->protocol = hdlc_type_trans(skb, dev);
 
@@ -4248,7 +4234,6 @@ static void hdlcdev_rx(MGSLPC_INFO *info, char *buf, int size)
 static const struct net_device_ops hdlcdev_ops = {
 	.ndo_open       = hdlcdev_open,
 	.ndo_stop       = hdlcdev_close,
-	.ndo_change_mtu = hdlc_change_mtu,
 	.ndo_start_xmit = hdlc_start_xmit,
 	.ndo_do_ioctl   = hdlcdev_ioctl,
 	.ndo_tx_timeout = hdlcdev_tx_timeout,

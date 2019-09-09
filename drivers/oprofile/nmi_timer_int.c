@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /**
  * @file nmi_timer_int.c
  *
@@ -59,25 +60,16 @@ static void nmi_timer_stop_cpu(int cpu)
 		perf_event_disable(event);
 }
 
-static int nmi_timer_cpu_notifier(struct notifier_block *b, unsigned long action,
-				  void *data)
+static int nmi_timer_cpu_online(unsigned int cpu)
 {
-	int cpu = (unsigned long)data;
-	switch (action) {
-	case CPU_DOWN_FAILED:
-	case CPU_ONLINE:
-		nmi_timer_start_cpu(cpu);
-		break;
-	case CPU_DOWN_PREPARE:
-		nmi_timer_stop_cpu(cpu);
-		break;
-	}
-	return NOTIFY_DONE;
+	nmi_timer_start_cpu(cpu);
+	return 0;
 }
-
-static struct notifier_block nmi_timer_cpu_nb = {
-	.notifier_call = nmi_timer_cpu_notifier
-};
+static int nmi_timer_cpu_predown(unsigned int cpu)
+{
+	nmi_timer_stop_cpu(cpu);
+	return 0;
+}
 
 static int nmi_timer_start(void)
 {
@@ -103,13 +95,14 @@ static void nmi_timer_stop(void)
 	put_online_cpus();
 }
 
+static enum cpuhp_state hp_online;
+
 static void nmi_timer_shutdown(void)
 {
 	struct perf_event *event;
 	int cpu;
 
-	cpu_notifier_register_begin();
-	__unregister_cpu_notifier(&nmi_timer_cpu_nb);
+	cpuhp_remove_state(hp_online);
 	for_each_possible_cpu(cpu) {
 		event = per_cpu(nmi_timer_events, cpu);
 		if (!event)
@@ -118,13 +111,11 @@ static void nmi_timer_shutdown(void)
 		per_cpu(nmi_timer_events, cpu) = NULL;
 		perf_event_release_kernel(event);
 	}
-
-	cpu_notifier_register_done();
 }
 
 static int nmi_timer_setup(void)
 {
-	int cpu, err;
+	int err;
 	u64 period;
 
 	/* clock cycles per tick: */
@@ -132,24 +123,14 @@ static int nmi_timer_setup(void)
 	do_div(period, HZ);
 	nmi_timer_attr.sample_period = period;
 
-	cpu_notifier_register_begin();
-	err = __register_cpu_notifier(&nmi_timer_cpu_nb);
-	if (err)
-		goto out;
-
-	/* can't attach events to offline cpus: */
-	for_each_online_cpu(cpu) {
-		err = nmi_timer_start_cpu(cpu);
-		if (err) {
-			cpu_notifier_register_done();
-			nmi_timer_shutdown();
-			return err;
-		}
+	err = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "oprofile/nmi:online",
+				nmi_timer_cpu_online, nmi_timer_cpu_predown);
+	if (err < 0) {
+		nmi_timer_shutdown();
+		return err;
 	}
-
-out:
-	cpu_notifier_register_done();
-	return err;
+	hp_online = err;
+	return 0;
 }
 
 int __init op_nmi_timer_init(struct oprofile_operations *ops)

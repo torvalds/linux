@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Fitipower FC0012 tuner driver
  *
  * Copyright (C) 2012 Hans-Frieder Vogt <hfvogt@gmx.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include "fc0012.h"
@@ -55,11 +42,10 @@ static int fc0012_readreg(struct fc0012_priv *priv, u8 reg, u8 *val)
 	return 0;
 }
 
-static int fc0012_release(struct dvb_frontend *fe)
+static void fc0012_release(struct dvb_frontend *fe)
 {
 	kfree(fe->tuner_priv);
 	fe->tuner_priv = NULL;
-	return 0;
 }
 
 static int fc0012_init(struct dvb_frontend *fe)
@@ -356,7 +342,7 @@ static int fc0012_get_rf_strength(struct dvb_frontend *fe, u16 *strength)
 	int ret;
 	unsigned char tmp;
 	int int_temp, lna_gain, int_lna, tot_agc_gain, power;
-	const int fc0012_lna_gain_table[] = {
+	static const int fc0012_lna_gain_table[] = {
 		/* low gain */
 		-63, -58, -99, -73,
 		-63, -65, -54, -60,
@@ -420,11 +406,10 @@ exit:
 
 static const struct dvb_tuner_ops fc0012_tuner_ops = {
 	.info = {
-		.name           = "Fitipower FC0012",
+		.name              = "Fitipower FC0012",
 
-		.frequency_min  = 37000000,	/* estimate */
-		.frequency_max  = 862000000,	/* estimate */
-		.frequency_step = 0,
+		.frequency_min_hz  =  37 * MHz,	/* estimate */
+		.frequency_max_hz  = 862 * MHz,	/* estimate */
 	},
 
 	.release	= fc0012_release,

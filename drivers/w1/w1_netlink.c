@@ -1,22 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * w1_netlink.c
- *
  * Copyright (c) 2003 Evgeniy Polyakov <zbr@ioremap.net>
- *
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #include <linux/slab.h>
@@ -24,13 +8,10 @@
 #include <linux/netlink.h>
 #include <linux/connector.h>
 
-#include "w1.h"
-#include "w1_log.h"
+#include "w1_internal.h"
 #include "w1_netlink.h"
 
 #if defined(CONFIG_W1_CON) && (defined(CONFIG_CONNECTOR) || (defined(CONFIG_CONNECTOR_MODULE) && defined(CONFIG_W1_MODULE)))
-
-#define MIN(a, b)                   (((a) < (b)) ? (a) : (b))
 
 /* Bundle together everything required to process a request in one memory
  * allocation.
@@ -605,7 +586,7 @@ static void w1_cn_callback(struct cn_msg *cn, struct netlink_skb_parms *nsp)
 				sizeof(struct w1_netlink_msg) +
 				sizeof(struct w1_netlink_cmd));
 		}
-		reply_size = MIN(CONNECTOR_MAX_MSG_SIZE, reply_size);
+		reply_size = min(CONNECTOR_MAX_MSG_SIZE, reply_size);
 
 		/* allocate space for the block, a copy of the original message,
 		 * one node per cmd to point into the original message,

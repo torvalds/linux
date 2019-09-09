@@ -1,10 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright 2009 Freescale Semiconductor, Inc.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  *
  * provides masks and opcode images for use by code generation, emulation
  * and for instructions that older assemblers might not know about
@@ -16,7 +12,7 @@
 #include <linux/threads.h>
 
 #include <asm/ppc-opcode.h>
-#include <asm/cpu_has_feature.h>
+#include <asm/feature-fixups.h>
 
 #define PPC_DBELL_MSG_BRDCAST	(0x04000000)
 #define PPC_DBELL_TYPE(x)	(((x) & 0xf) << (63-36))
@@ -35,33 +31,66 @@ enum ppc_dbell {
 #ifdef CONFIG_PPC_BOOK3S
 
 #define PPC_DBELL_MSGTYPE		PPC_DBELL_SERVER
-#define SPRN_DOORBELL_CPUTAG		SPRN_TIR
-#define PPC_DBELL_TAG_MASK		0x7f
 
 static inline void _ppc_msgsnd(u32 msg)
 {
-	if (cpu_has_feature(CPU_FTR_HVMODE))
-		__asm__ __volatile__ (PPC_MSGSND(%0) : : "r" (msg));
-	else
-		__asm__ __volatile__ (PPC_MSGSNDP(%0) : : "r" (msg));
+	__asm__ __volatile__ (ASM_FTR_IFSET(PPC_MSGSND(%1), PPC_MSGSNDP(%1), %0)
+				: : "i" (CPU_FTR_HVMODE), "r" (msg));
+}
+
+/* sync before sending message */
+static inline void ppc_msgsnd_sync(void)
+{
+	__asm__ __volatile__ ("sync" : : : "memory");
+}
+
+/* sync after taking message interrupt */
+static inline void ppc_msgsync(void)
+{
+	/* sync is not required when taking messages from the same core */
+	__asm__ __volatile__ (ASM_FTR_IFSET(PPC_MSGSYNC " ; lwsync", "", %0)
+				: : "i" (CPU_FTR_HVMODE|CPU_FTR_ARCH_300));
+}
+
+static inline void _ppc_msgclr(u32 msg)
+{
+	__asm__ __volatile__ (ASM_FTR_IFSET(PPC_MSGCLR(%1), PPC_MSGCLRP(%1), %0)
+				: : "i" (CPU_FTR_HVMODE), "r" (msg));
+}
+
+static inline void ppc_msgclr(enum ppc_dbell type)
+{
+	u32 msg = PPC_DBELL_TYPE(type);
+
+	_ppc_msgclr(msg);
 }
 
 #else /* CONFIG_PPC_BOOK3S */
 
 #define PPC_DBELL_MSGTYPE		PPC_DBELL
-#define SPRN_DOORBELL_CPUTAG		SPRN_PIR
-#define PPC_DBELL_TAG_MASK		0x3fff
 
 static inline void _ppc_msgsnd(u32 msg)
 {
 	__asm__ __volatile__ (PPC_MSGSND(%0) : : "r" (msg));
 }
 
+/* sync before sending message */
+static inline void ppc_msgsnd_sync(void)
+{
+	__asm__ __volatile__ ("sync" : : : "memory");
+}
+
+/* sync after taking message interrupt */
+static inline void ppc_msgsync(void)
+{
+}
+
 #endif /* CONFIG_PPC_BOOK3S */
 
-extern void doorbell_cause_ipi(int cpu, unsigned long data);
+extern void doorbell_global_ipi(int cpu);
+extern void doorbell_core_ipi(int cpu);
+extern int doorbell_try_core_ipi(int cpu);
 extern void doorbell_exception(struct pt_regs *regs);
-extern void doorbell_setup_this_cpu(void);
 
 static inline void ppc_msgsnd(enum ppc_dbell type, u32 flags, u32 tag)
 {

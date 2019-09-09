@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * STMicroelectronics pressures driver
  *
  * Copyright 2013 STMicroelectronics Inc.
  *
  * Denis Ciocca <denis.ciocca@st.com>
- *
- * Licensed under the GPL-2.
  */
 
 #include <linux/kernel.h>
@@ -112,114 +111,23 @@
 #define ST_PRESS_1_OUT_XL_ADDR			0x28
 #define ST_TEMP_1_OUT_L_ADDR			0x2b
 
-/*
- * CUSTOM VALUES FOR LPS331AP SENSOR
- * See LPS331AP datasheet:
- * http://www2.st.com/resource/en/datasheet/lps331ap.pdf
- */
-#define ST_PRESS_LPS331AP_WAI_EXP		0xbb
-#define ST_PRESS_LPS331AP_ODR_ADDR		0x20
-#define ST_PRESS_LPS331AP_ODR_MASK		0x70
-#define ST_PRESS_LPS331AP_ODR_AVL_1HZ_VAL	0x01
-#define ST_PRESS_LPS331AP_ODR_AVL_7HZ_VAL	0x05
-#define ST_PRESS_LPS331AP_ODR_AVL_13HZ_VAL	0x06
-#define ST_PRESS_LPS331AP_ODR_AVL_25HZ_VAL	0x07
-#define ST_PRESS_LPS331AP_PW_ADDR		0x20
-#define ST_PRESS_LPS331AP_PW_MASK		0x80
-#define ST_PRESS_LPS331AP_FS_ADDR		0x23
-#define ST_PRESS_LPS331AP_FS_MASK		0x30
-#define ST_PRESS_LPS331AP_BDU_ADDR		0x20
-#define ST_PRESS_LPS331AP_BDU_MASK		0x04
-#define ST_PRESS_LPS331AP_DRDY_IRQ_ADDR		0x22
-#define ST_PRESS_LPS331AP_DRDY_IRQ_INT1_MASK	0x04
-#define ST_PRESS_LPS331AP_DRDY_IRQ_INT2_MASK	0x20
-#define ST_PRESS_LPS331AP_IHL_IRQ_ADDR		0x22
-#define ST_PRESS_LPS331AP_IHL_IRQ_MASK		0x80
-#define ST_PRESS_LPS331AP_OD_IRQ_ADDR		0x22
-#define ST_PRESS_LPS331AP_OD_IRQ_MASK		0x40
-#define ST_PRESS_LPS331AP_MULTIREAD_BIT		true
-
-/*
- * CUSTOM VALUES FOR THE OBSOLETE LPS001WP SENSOR
- */
-
 /* LPS001WP pressure resolution */
 #define ST_PRESS_LPS001WP_LSB_PER_MBAR		16UL
 /* LPS001WP temperature resolution */
 #define ST_PRESS_LPS001WP_LSB_PER_CELSIUS	64UL
-
-#define ST_PRESS_LPS001WP_WAI_EXP		0xba
-#define ST_PRESS_LPS001WP_ODR_ADDR		0x20
-#define ST_PRESS_LPS001WP_ODR_MASK		0x30
-#define ST_PRESS_LPS001WP_ODR_AVL_1HZ_VAL	0x01
-#define ST_PRESS_LPS001WP_ODR_AVL_7HZ_VAL	0x02
-#define ST_PRESS_LPS001WP_ODR_AVL_13HZ_VAL	0x03
-#define ST_PRESS_LPS001WP_PW_ADDR		0x20
-#define ST_PRESS_LPS001WP_PW_MASK		0x40
+/* LPS001WP pressure gain */
 #define ST_PRESS_LPS001WP_FS_AVL_PRESS_GAIN \
 	(100000000UL / ST_PRESS_LPS001WP_LSB_PER_MBAR)
-#define ST_PRESS_LPS001WP_BDU_ADDR		0x20
-#define ST_PRESS_LPS001WP_BDU_MASK		0x04
-#define ST_PRESS_LPS001WP_MULTIREAD_BIT		true
+/* LPS001WP pressure and temp L addresses */
 #define ST_PRESS_LPS001WP_OUT_L_ADDR		0x28
 #define ST_TEMP_LPS001WP_OUT_L_ADDR		0x2a
 
-/*
- * CUSTOM VALUES FOR LPS25H SENSOR
- * See LPS25H datasheet:
- * http://www2.st.com/resource/en/datasheet/lps25h.pdf
- */
-#define ST_PRESS_LPS25H_WAI_EXP			0xbd
-#define ST_PRESS_LPS25H_ODR_ADDR		0x20
-#define ST_PRESS_LPS25H_ODR_MASK		0x70
-#define ST_PRESS_LPS25H_ODR_AVL_1HZ_VAL		0x01
-#define ST_PRESS_LPS25H_ODR_AVL_7HZ_VAL		0x02
-#define ST_PRESS_LPS25H_ODR_AVL_13HZ_VAL	0x03
-#define ST_PRESS_LPS25H_ODR_AVL_25HZ_VAL	0x04
-#define ST_PRESS_LPS25H_PW_ADDR			0x20
-#define ST_PRESS_LPS25H_PW_MASK			0x80
-#define ST_PRESS_LPS25H_BDU_ADDR		0x20
-#define ST_PRESS_LPS25H_BDU_MASK		0x04
-#define ST_PRESS_LPS25H_DRDY_IRQ_ADDR		0x23
-#define ST_PRESS_LPS25H_DRDY_IRQ_INT1_MASK	0x01
-#define ST_PRESS_LPS25H_DRDY_IRQ_INT2_MASK	0x10
-#define ST_PRESS_LPS25H_IHL_IRQ_ADDR		0x22
-#define ST_PRESS_LPS25H_IHL_IRQ_MASK		0x80
-#define ST_PRESS_LPS25H_OD_IRQ_ADDR		0x22
-#define ST_PRESS_LPS25H_OD_IRQ_MASK		0x40
-#define ST_PRESS_LPS25H_MULTIREAD_BIT		true
+/* LPS25H pressure and temp L addresses */
 #define ST_PRESS_LPS25H_OUT_XL_ADDR		0x28
 #define ST_TEMP_LPS25H_OUT_L_ADDR		0x2b
 
-/*
- * CUSTOM VALUES FOR LPS22HB SENSOR
- * See LPS22HB datasheet:
- * http://www2.st.com/resource/en/datasheet/lps22hb.pdf
- */
-
 /* LPS22HB temperature sensitivity */
 #define ST_PRESS_LPS22HB_LSB_PER_CELSIUS	100UL
-
-#define ST_PRESS_LPS22HB_WAI_EXP		0xb1
-#define ST_PRESS_LPS22HB_ODR_ADDR		0x10
-#define ST_PRESS_LPS22HB_ODR_MASK		0x70
-#define ST_PRESS_LPS22HB_ODR_AVL_1HZ_VAL	0x01
-#define ST_PRESS_LPS22HB_ODR_AVL_10HZ_VAL	0x02
-#define ST_PRESS_LPS22HB_ODR_AVL_25HZ_VAL	0x03
-#define ST_PRESS_LPS22HB_ODR_AVL_50HZ_VAL	0x04
-#define ST_PRESS_LPS22HB_ODR_AVL_75HZ_VAL	0x05
-#define ST_PRESS_LPS22HB_PW_ADDR		0x10
-#define ST_PRESS_LPS22HB_PW_MASK		0x70
-#define ST_PRESS_LPS22HB_BDU_ADDR		0x10
-#define ST_PRESS_LPS22HB_BDU_MASK		0x02
-#define ST_PRESS_LPS22HB_DRDY_IRQ_ADDR		0x12
-#define ST_PRESS_LPS22HB_DRDY_IRQ_INT1_MASK	0x04
-#define ST_PRESS_LPS22HB_DRDY_IRQ_INT2_MASK	0x08
-#define ST_PRESS_LPS22HB_IHL_IRQ_ADDR		0x12
-#define ST_PRESS_LPS22HB_IHL_IRQ_MASK		0x80
-#define ST_PRESS_LPS22HB_OD_IRQ_ADDR		0x12
-#define ST_PRESS_LPS22HB_OD_IRQ_MASK		0x40
-#define ST_PRESS_LPS22HB_MULTIREAD_BIT		true
 
 static const struct iio_chan_spec st_press_1_channels[] = {
 	{
@@ -227,20 +135,21 @@ static const struct iio_chan_spec st_press_1_channels[] = {
 		.address = ST_PRESS_1_OUT_XL_ADDR,
 		.scan_index = 0,
 		.scan_type = {
-			.sign = 'u',
+			.sign = 's',
 			.realbits = 24,
 			.storagebits = 32,
 			.endianness = IIO_LE,
 		},
 		.info_mask_separate =
 			BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
+		.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_SAMP_FREQ),
 	},
 	{
 		.type = IIO_TEMP,
 		.address = ST_TEMP_1_OUT_L_ADDR,
 		.scan_index = 1,
 		.scan_type = {
-			.sign = 'u',
+			.sign = 's',
 			.realbits = 16,
 			.storagebits = 16,
 			.endianness = IIO_LE,
@@ -249,6 +158,7 @@ static const struct iio_chan_spec st_press_1_channels[] = {
 			BIT(IIO_CHAN_INFO_RAW) |
 			BIT(IIO_CHAN_INFO_SCALE) |
 			BIT(IIO_CHAN_INFO_OFFSET),
+		.info_mask_shared_by_all = BIT(IIO_CHAN_INFO_SAMP_FREQ),
 	},
 	IIO_CHAN_SOFT_TIMESTAMP(2)
 };
@@ -259,7 +169,7 @@ static const struct iio_chan_spec st_press_lps001wp_channels[] = {
 		.address = ST_PRESS_LPS001WP_OUT_L_ADDR,
 		.scan_index = 0,
 		.scan_type = {
-			.sign = 'u',
+			.sign = 's',
 			.realbits = 16,
 			.storagebits = 16,
 			.endianness = IIO_LE,
@@ -273,7 +183,7 @@ static const struct iio_chan_spec st_press_lps001wp_channels[] = {
 		.address = ST_TEMP_LPS001WP_OUT_L_ADDR,
 		.scan_index = 1,
 		.scan_type = {
-			.sign = 'u',
+			.sign = 's',
 			.realbits = 16,
 			.storagebits = 16,
 			.endianness = IIO_LE,
@@ -291,7 +201,7 @@ static const struct iio_chan_spec st_press_lps22hb_channels[] = {
 		.address = ST_PRESS_1_OUT_XL_ADDR,
 		.scan_index = 0,
 		.scan_type = {
-			.sign = 'u',
+			.sign = 's',
 			.realbits = 24,
 			.storagebits = 32,
 			.endianness = IIO_LE,
@@ -321,7 +231,12 @@ static const struct iio_chan_spec st_press_lps22hb_channels[] = {
 
 static const struct st_sensor_settings st_press_sensors_settings[] = {
 	{
-		.wai = ST_PRESS_LPS331AP_WAI_EXP,
+		/*
+		 * CUSTOM VALUES FOR LPS331AP SENSOR
+		 * See LPS331AP datasheet:
+		 * http://www2.st.com/resource/en/datasheet/lps331ap.pdf
+		 */
+		.wai = 0xbb,
 		.wai_addr = ST_SENSORS_DEFAULT_WAI_ADDRESS,
 		.sensors_supported = {
 			[0] = LPS331AP_PRESS_DEV_NAME,
@@ -329,24 +244,24 @@ static const struct st_sensor_settings st_press_sensors_settings[] = {
 		.ch = (struct iio_chan_spec *)st_press_1_channels,
 		.num_ch = ARRAY_SIZE(st_press_1_channels),
 		.odr = {
-			.addr = ST_PRESS_LPS331AP_ODR_ADDR,
-			.mask = ST_PRESS_LPS331AP_ODR_MASK,
+			.addr = 0x20,
+			.mask = 0x70,
 			.odr_avl = {
-				{ 1, ST_PRESS_LPS331AP_ODR_AVL_1HZ_VAL, },
-				{ 7, ST_PRESS_LPS331AP_ODR_AVL_7HZ_VAL, },
-				{ 13, ST_PRESS_LPS331AP_ODR_AVL_13HZ_VAL, },
-				{ 25, ST_PRESS_LPS331AP_ODR_AVL_25HZ_VAL, },
+				{ .hz = 1, .value = 0x01 },
+				{ .hz = 7, .value = 0x05 },
+				{ .hz = 13, .value = 0x06 },
+				{ .hz = 25, .value = 0x07 },
 			},
 		},
 		.pw = {
-			.addr = ST_PRESS_LPS331AP_PW_ADDR,
-			.mask = ST_PRESS_LPS331AP_PW_MASK,
+			.addr = 0x20,
+			.mask = 0x80,
 			.value_on = ST_SENSORS_DEFAULT_POWER_ON_VALUE,
 			.value_off = ST_SENSORS_DEFAULT_POWER_OFF_VALUE,
 		},
 		.fs = {
-			.addr = ST_PRESS_LPS331AP_FS_ADDR,
-			.mask = ST_PRESS_LPS331AP_FS_MASK,
+			.addr = 0x23,
+			.mask = 0x30,
 			.fs_avl = {
 				/*
 				 * Pressure and temperature sensitivity values
@@ -360,24 +275,41 @@ static const struct st_sensor_settings st_press_sensors_settings[] = {
 			},
 		},
 		.bdu = {
-			.addr = ST_PRESS_LPS331AP_BDU_ADDR,
-			.mask = ST_PRESS_LPS331AP_BDU_MASK,
+			.addr = 0x20,
+			.mask = 0x04,
 		},
 		.drdy_irq = {
-			.addr = ST_PRESS_LPS331AP_DRDY_IRQ_ADDR,
-			.mask_int1 = ST_PRESS_LPS331AP_DRDY_IRQ_INT1_MASK,
-			.mask_int2 = ST_PRESS_LPS331AP_DRDY_IRQ_INT2_MASK,
-			.addr_ihl = ST_PRESS_LPS331AP_IHL_IRQ_ADDR,
-			.mask_ihl = ST_PRESS_LPS331AP_IHL_IRQ_MASK,
-			.addr_od = ST_PRESS_LPS331AP_OD_IRQ_ADDR,
-			.mask_od = ST_PRESS_LPS331AP_OD_IRQ_MASK,
-			.addr_stat_drdy = ST_SENSORS_DEFAULT_STAT_ADDR,
+			.int1 = {
+				.addr = 0x22,
+				.mask = 0x04,
+				.addr_od = 0x22,
+				.mask_od = 0x40,
+			},
+			.int2 = {
+				.addr = 0x22,
+				.mask = 0x20,
+				.addr_od = 0x22,
+				.mask_od = 0x40,
+			},
+			.addr_ihl = 0x22,
+			.mask_ihl = 0x80,
+			.stat_drdy = {
+				.addr = ST_SENSORS_DEFAULT_STAT_ADDR,
+				.mask = 0x03,
+			},
 		},
-		.multi_read_bit = ST_PRESS_LPS331AP_MULTIREAD_BIT,
+		.sim = {
+			.addr = 0x20,
+			.value = BIT(0),
+		},
+		.multi_read_bit = true,
 		.bootime = 2,
 	},
 	{
-		.wai = ST_PRESS_LPS001WP_WAI_EXP,
+		/*
+		 * CUSTOM VALUES FOR LPS001WP SENSOR
+		 */
+		.wai = 0xba,
 		.wai_addr = ST_SENSORS_DEFAULT_WAI_ADDRESS,
 		.sensors_supported = {
 			[0] = LPS001WP_PRESS_DEV_NAME,
@@ -385,17 +317,17 @@ static const struct st_sensor_settings st_press_sensors_settings[] = {
 		.ch = (struct iio_chan_spec *)st_press_lps001wp_channels,
 		.num_ch = ARRAY_SIZE(st_press_lps001wp_channels),
 		.odr = {
-			.addr = ST_PRESS_LPS001WP_ODR_ADDR,
-			.mask = ST_PRESS_LPS001WP_ODR_MASK,
+			.addr = 0x20,
+			.mask = 0x30,
 			.odr_avl = {
-				{ 1, ST_PRESS_LPS001WP_ODR_AVL_1HZ_VAL, },
-				{ 7, ST_PRESS_LPS001WP_ODR_AVL_7HZ_VAL, },
-				{ 13, ST_PRESS_LPS001WP_ODR_AVL_13HZ_VAL, },
+				{ .hz = 1, .value = 0x01 },
+				{ .hz = 7, .value = 0x02 },
+				{ .hz = 13, .value = 0x03 },
 			},
 		},
 		.pw = {
-			.addr = ST_PRESS_LPS001WP_PW_ADDR,
-			.mask = ST_PRESS_LPS001WP_PW_MASK,
+			.addr = 0x20,
+			.mask = 0x40,
 			.value_on = ST_SENSORS_DEFAULT_POWER_ON_VALUE,
 			.value_off = ST_SENSORS_DEFAULT_POWER_OFF_VALUE,
 		},
@@ -413,17 +345,23 @@ static const struct st_sensor_settings st_press_sensors_settings[] = {
 			},
 		},
 		.bdu = {
-			.addr = ST_PRESS_LPS001WP_BDU_ADDR,
-			.mask = ST_PRESS_LPS001WP_BDU_MASK,
+			.addr = 0x20,
+			.mask = 0x04,
 		},
-		.drdy_irq = {
-			.addr = 0,
+		.sim = {
+			.addr = 0x20,
+			.value = BIT(0),
 		},
-		.multi_read_bit = ST_PRESS_LPS001WP_MULTIREAD_BIT,
+		.multi_read_bit = true,
 		.bootime = 2,
 	},
 	{
-		.wai = ST_PRESS_LPS25H_WAI_EXP,
+		/*
+		 * CUSTOM VALUES FOR LPS25H SENSOR
+		 * See LPS25H datasheet:
+		 * http://www2.st.com/resource/en/datasheet/lps25h.pdf
+		 */
+		.wai = 0xbd,
 		.wai_addr = ST_SENSORS_DEFAULT_WAI_ADDRESS,
 		.sensors_supported = {
 			[0] = LPS25H_PRESS_DEV_NAME,
@@ -431,18 +369,18 @@ static const struct st_sensor_settings st_press_sensors_settings[] = {
 		.ch = (struct iio_chan_spec *)st_press_1_channels,
 		.num_ch = ARRAY_SIZE(st_press_1_channels),
 		.odr = {
-			.addr = ST_PRESS_LPS25H_ODR_ADDR,
-			.mask = ST_PRESS_LPS25H_ODR_MASK,
+			.addr = 0x20,
+			.mask = 0x70,
 			.odr_avl = {
-				{ 1, ST_PRESS_LPS25H_ODR_AVL_1HZ_VAL, },
-				{ 7, ST_PRESS_LPS25H_ODR_AVL_7HZ_VAL, },
-				{ 13, ST_PRESS_LPS25H_ODR_AVL_13HZ_VAL, },
-				{ 25, ST_PRESS_LPS25H_ODR_AVL_25HZ_VAL, },
+				{ .hz = 1, .value = 0x01 },
+				{ .hz = 7, .value = 0x02 },
+				{ .hz = 13, .value = 0x03 },
+				{ .hz = 25, .value = 0x04 },
 			},
 		},
 		.pw = {
-			.addr = ST_PRESS_LPS25H_PW_ADDR,
-			.mask = ST_PRESS_LPS25H_PW_MASK,
+			.addr = 0x20,
+			.mask = 0x80,
 			.value_on = ST_SENSORS_DEFAULT_POWER_ON_VALUE,
 			.value_off = ST_SENSORS_DEFAULT_POWER_OFF_VALUE,
 		},
@@ -460,44 +398,59 @@ static const struct st_sensor_settings st_press_sensors_settings[] = {
 			},
 		},
 		.bdu = {
-			.addr = ST_PRESS_LPS25H_BDU_ADDR,
-			.mask = ST_PRESS_LPS25H_BDU_MASK,
+			.addr = 0x20,
+			.mask = 0x04,
 		},
 		.drdy_irq = {
-			.addr = ST_PRESS_LPS25H_DRDY_IRQ_ADDR,
-			.mask_int1 = ST_PRESS_LPS25H_DRDY_IRQ_INT1_MASK,
-			.mask_int2 = ST_PRESS_LPS25H_DRDY_IRQ_INT2_MASK,
-			.addr_ihl = ST_PRESS_LPS25H_IHL_IRQ_ADDR,
-			.mask_ihl = ST_PRESS_LPS25H_IHL_IRQ_MASK,
-			.addr_od = ST_PRESS_LPS25H_OD_IRQ_ADDR,
-			.mask_od = ST_PRESS_LPS25H_OD_IRQ_MASK,
-			.addr_stat_drdy = ST_SENSORS_DEFAULT_STAT_ADDR,
+			.int1 = {
+				.addr = 0x23,
+				.mask = 0x01,
+				.addr_od = 0x22,
+				.mask_od = 0x40,
+			},
+			.addr_ihl = 0x22,
+			.mask_ihl = 0x80,
+			.stat_drdy = {
+				.addr = ST_SENSORS_DEFAULT_STAT_ADDR,
+				.mask = 0x03,
+			},
 		},
-		.multi_read_bit = ST_PRESS_LPS25H_MULTIREAD_BIT,
+		.sim = {
+			.addr = 0x20,
+			.value = BIT(0),
+		},
+		.multi_read_bit = true,
 		.bootime = 2,
 	},
 	{
-		.wai = ST_PRESS_LPS22HB_WAI_EXP,
+		/*
+		 * CUSTOM VALUES FOR LPS22HB SENSOR
+		 * See LPS22HB datasheet:
+		 * http://www2.st.com/resource/en/datasheet/lps22hb.pdf
+		 */
+		.wai = 0xb1,
 		.wai_addr = ST_SENSORS_DEFAULT_WAI_ADDRESS,
 		.sensors_supported = {
 			[0] = LPS22HB_PRESS_DEV_NAME,
+			[1] = LPS33HW_PRESS_DEV_NAME,
+			[2] = LPS35HW_PRESS_DEV_NAME,
 		},
 		.ch = (struct iio_chan_spec *)st_press_lps22hb_channels,
 		.num_ch = ARRAY_SIZE(st_press_lps22hb_channels),
 		.odr = {
-			.addr = ST_PRESS_LPS22HB_ODR_ADDR,
-			.mask = ST_PRESS_LPS22HB_ODR_MASK,
+			.addr = 0x10,
+			.mask = 0x70,
 			.odr_avl = {
-				{ 1, ST_PRESS_LPS22HB_ODR_AVL_1HZ_VAL, },
-				{ 10, ST_PRESS_LPS22HB_ODR_AVL_10HZ_VAL, },
-				{ 25, ST_PRESS_LPS22HB_ODR_AVL_25HZ_VAL, },
-				{ 50, ST_PRESS_LPS22HB_ODR_AVL_50HZ_VAL, },
-				{ 75, ST_PRESS_LPS22HB_ODR_AVL_75HZ_VAL, },
+				{ .hz = 1, .value = 0x01 },
+				{ .hz = 10, .value = 0x02 },
+				{ .hz = 25, .value = 0x03 },
+				{ .hz = 50, .value = 0x04 },
+				{ .hz = 75, .value = 0x05 },
 			},
 		},
 		.pw = {
-			.addr = ST_PRESS_LPS22HB_PW_ADDR,
-			.mask = ST_PRESS_LPS22HB_PW_MASK,
+			.addr = 0x10,
+			.mask = 0x70,
 			.value_off = ST_SENSORS_DEFAULT_POWER_OFF_VALUE,
 		},
 		.fs = {
@@ -514,20 +467,98 @@ static const struct st_sensor_settings st_press_sensors_settings[] = {
 			},
 		},
 		.bdu = {
-			.addr = ST_PRESS_LPS22HB_BDU_ADDR,
-			.mask = ST_PRESS_LPS22HB_BDU_MASK,
+			.addr = 0x10,
+			.mask = 0x02,
 		},
 		.drdy_irq = {
-			.addr = ST_PRESS_LPS22HB_DRDY_IRQ_ADDR,
-			.mask_int1 = ST_PRESS_LPS22HB_DRDY_IRQ_INT1_MASK,
-			.mask_int2 = ST_PRESS_LPS22HB_DRDY_IRQ_INT2_MASK,
-			.addr_ihl = ST_PRESS_LPS22HB_IHL_IRQ_ADDR,
-			.mask_ihl = ST_PRESS_LPS22HB_IHL_IRQ_MASK,
-			.addr_od = ST_PRESS_LPS22HB_OD_IRQ_ADDR,
-			.mask_od = ST_PRESS_LPS22HB_OD_IRQ_MASK,
-			.addr_stat_drdy = ST_SENSORS_DEFAULT_STAT_ADDR,
+			.int1 = {
+				.addr = 0x12,
+				.mask = 0x04,
+				.addr_od = 0x12,
+				.mask_od = 0x40,
+			},
+			.addr_ihl = 0x12,
+			.mask_ihl = 0x80,
+			.stat_drdy = {
+				.addr = ST_SENSORS_DEFAULT_STAT_ADDR,
+				.mask = 0x03,
+			},
 		},
-		.multi_read_bit = ST_PRESS_LPS22HB_MULTIREAD_BIT,
+		.sim = {
+			.addr = 0x10,
+			.value = BIT(0),
+		},
+		.multi_read_bit = false,
+		.bootime = 2,
+	},
+	{
+		/*
+		 * CUSTOM VALUES FOR LPS22HH SENSOR
+		 * See LPS22HH datasheet:
+		 * http://www2.st.com/resource/en/datasheet/lps22hh.pdf
+		 */
+		.wai = 0xb3,
+		.wai_addr = ST_SENSORS_DEFAULT_WAI_ADDRESS,
+		.sensors_supported = {
+			[0] = LPS22HH_PRESS_DEV_NAME,
+		},
+		.ch = (struct iio_chan_spec *)st_press_lps22hb_channels,
+		.num_ch = ARRAY_SIZE(st_press_lps22hb_channels),
+		.odr = {
+			.addr = 0x10,
+			.mask = 0x70,
+			.odr_avl = {
+				{ .hz = 1, .value = 0x01 },
+				{ .hz = 10, .value = 0x02 },
+				{ .hz = 25, .value = 0x03 },
+				{ .hz = 50, .value = 0x04 },
+				{ .hz = 75, .value = 0x05 },
+				{ .hz = 100, .value = 0x06 },
+				{ .hz = 200, .value = 0x07 },
+			},
+		},
+		.pw = {
+			.addr = 0x10,
+			.mask = 0x70,
+			.value_off = ST_SENSORS_DEFAULT_POWER_OFF_VALUE,
+		},
+		.fs = {
+			.fs_avl = {
+				/*
+				 * Pressure and temperature sensitivity values
+				 * as defined in table 3 of LPS22HH datasheet.
+				 */
+				[0] = {
+					.num = ST_PRESS_FS_AVL_1260MB,
+					.gain = ST_PRESS_KPASCAL_NANO_SCALE,
+					.gain2 = ST_PRESS_LPS22HB_LSB_PER_CELSIUS,
+				},
+			},
+		},
+		.bdu = {
+			.addr = 0x10,
+			.mask = BIT(1),
+		},
+		.drdy_irq = {
+			.int1 = {
+				.addr = 0x12,
+				.mask = BIT(2),
+				.addr_od = 0x11,
+				.mask_od = BIT(5),
+			},
+			.addr_ihl = 0x11,
+			.mask_ihl = BIT(6),
+			.stat_drdy = {
+				.addr = ST_SENSORS_DEFAULT_STAT_ADDR,
+				.mask = 0x03,
+			},
+		},
+		.sim = {
+			.addr = 0x10,
+			.value = BIT(0),
+		},
+		.multi_read_bit = false,
+		.bootime = 2,
 	},
 };
 
@@ -617,7 +648,6 @@ static const struct attribute_group st_press_attribute_group = {
 };
 
 static const struct iio_info press_info = {
-	.driver_module = THIS_MODULE,
 	.attrs = &st_press_attribute_group,
 	.read_raw = &st_press_read_raw,
 	.write_raw = &st_press_write_raw,
@@ -626,7 +656,6 @@ static const struct iio_info press_info = {
 
 #ifdef CONFIG_IIO_TRIGGER
 static const struct iio_trigger_ops st_press_trigger_ops = {
-	.owner = THIS_MODULE,
 	.set_trigger_state = ST_PRESS_TRIGGER_SET_STATE,
 	.validate_device = st_sensors_validate_device,
 };
@@ -638,6 +667,8 @@ static const struct iio_trigger_ops st_press_trigger_ops = {
 int st_press_common_probe(struct iio_dev *indio_dev)
 {
 	struct st_sensor_data *press_data = iio_priv(indio_dev);
+	struct st_sensors_platform_data *pdata =
+		(struct st_sensors_platform_data *)press_data->dev->platform_data;
 	int irq = press_data->get_irq_data_ready(indio_dev);
 	int err;
 
@@ -673,12 +704,11 @@ int st_press_common_probe(struct iio_dev *indio_dev)
 	press_data->odr = press_data->sensor_settings->odr.odr_avl[0].hz;
 
 	/* Some devices don't support a data ready pin. */
-	if (!press_data->dev->platform_data &&
-				press_data->sensor_settings->drdy_irq.addr)
-		press_data->dev->platform_data =
-			(struct st_sensors_platform_data *)&default_press_pdata;
+	if (!pdata && (press_data->sensor_settings->drdy_irq.int1.addr ||
+		       press_data->sensor_settings->drdy_irq.int2.addr))
+		pdata =	(struct st_sensors_platform_data *)&default_press_pdata;
 
-	err = st_sensors_init_sensor(indio_dev, press_data->dev->platform_data);
+	err = st_sensors_init_sensor(indio_dev, pdata);
 	if (err < 0)
 		goto st_press_power_off;
 

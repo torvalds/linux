@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/kthread.h>
@@ -5,6 +9,7 @@
 #include <linux/memblock.h>
 
 #include <asm/proto.h>
+#include <asm/setup.h>
 
 /*
  * Some BIOSes seem to corrupt the low 64k of memory during events
@@ -30,11 +35,17 @@ static __init int set_corruption_check(char *arg)
 	ssize_t ret;
 	unsigned long val;
 
+	if (!arg) {
+		pr_err("memory_corruption_check config string not provided\n");
+		return -EINVAL;
+	}
+
 	ret = kstrtoul(arg, 10, &val);
 	if (ret)
 		return ret;
 
 	memory_corruption_check = val;
+
 	return 0;
 }
 early_param("memory_corruption_check", set_corruption_check);
@@ -43,6 +54,11 @@ static __init int set_corruption_check_period(char *arg)
 {
 	ssize_t ret;
 	unsigned long val;
+
+	if (!arg) {
+		pr_err("memory_corruption_check_period config string not provided\n");
+		return -EINVAL;
+	}
 
 	ret = kstrtoul(arg, 10, &val);
 	if (ret)
@@ -57,6 +73,11 @@ static __init int set_corruption_check_size(char *arg)
 {
 	char *end;
 	unsigned size;
+
+	if (!arg) {
+		pr_err("memory_corruption_check_size config string not provided\n");
+		return -EINVAL;
+	}
 
 	size = memparse(arg, &end);
 
@@ -112,11 +133,11 @@ void __init setup_bios_corruption_check(void)
 	}
 
 	if (num_scan_areas)
-		printk(KERN_INFO "Scanning %d areas for low memory corruption\n", num_scan_areas);
+		pr_info("Scanning %d areas for low memory corruption\n", num_scan_areas);
 }
 
 
-void check_for_bios_corruption(void)
+static void check_for_bios_corruption(void)
 {
 	int i;
 	int corruption = 0;
@@ -131,8 +152,7 @@ void check_for_bios_corruption(void)
 		for (; size; addr++, size -= sizeof(unsigned long)) {
 			if (!*addr)
 				continue;
-			printk(KERN_ERR "Corrupted low memory at %p (%lx phys) = %08lx\n",
-			       addr, __pa(addr), *addr);
+			pr_err("Corrupted low memory at %p (%lx phys) = %08lx\n", addr, __pa(addr), *addr);
 			corruption = 1;
 			*addr = 0;
 		}
@@ -156,11 +176,11 @@ static int start_periodic_check_for_corruption(void)
 	if (!num_scan_areas || !memory_corruption_check || corruption_check_period == 0)
 		return 0;
 
-	printk(KERN_INFO "Scanning for low memory corruption every %d seconds\n",
-	       corruption_check_period);
+	pr_info("Scanning for low memory corruption every %d seconds\n", corruption_check_period);
 
 	/* First time we run the checks right away */
 	schedule_delayed_work(&bios_check_work, 0);
+
 	return 0;
 }
 device_initcall(start_periodic_check_for_corruption);

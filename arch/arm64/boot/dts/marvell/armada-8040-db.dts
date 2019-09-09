@@ -1,49 +1,11 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
  * Copyright (C) 2016 Marvell Technology Group Ltd.
  *
- * This file is dual-licensed: you can use it either under the terms
- * of the GPLv2 or the X11 license, at your option. Note that this dual
- * licensing only applies to this file, and not this project as a
- * whole.
- *
- *  a) This library is free software; you can redistribute it and/or
- *     modify it under the terms of the GNU General Public License as
- *     published by the Free Software Foundation; either version 2 of the
- *     License, or (at your option) any later version.
- *
- *     This library is distributed in the hope that it will be useful,
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU General Public License for more details.
- *
- * Or, alternatively,
- *
- *  b) Permission is hereby granted, free of charge, to any person
- *     obtaining a copy of this software and associated documentation
- *     files (the "Software"), to deal in the Software without
- *     restriction, including without limitation the rights to use,
- *     copy, modify, merge, publish, distribute, sublicense, and/or
- *     sell copies of the Software, and to permit persons to whom the
- *     Software is furnished to do so, subject to the following
- *     conditions:
- *
- *     The above copyright notice and this permission notice shall be
- *     included in all copies or substantial portions of the Software.
- *
- *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- *     OTHER DEALINGS IN THE SOFTWARE.
- */
-
-/*
  * Device Tree file for Marvell Armada 8040 Development board platform
  */
 
+#include <dt-bindings/gpio/gpio.h>
 #include "armada-8040.dtsi"
 
 / {
@@ -55,23 +17,67 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	memory@00000000 {
+	memory@0 {
 		device_type = "memory";
 		reg = <0x0 0x0 0x0 0x80000000>;
 	};
-};
 
-&i2c0 {
-	status = "okay";
-	clock-frequency = <100000>;
+	aliases {
+		ethernet0 = &cp0_eth0;
+		ethernet1 = &cp0_eth2;
+		ethernet2 = &cp1_eth0;
+		ethernet3 = &cp1_eth1;
+		i2c1 = &cp0_i2c0;
+		i2c2 = &cp1_i2c0;
+	};
+
+	cp0_reg_usb3_0_vbus: cp0-usb3-0-vbus {
+		compatible = "regulator-fixed";
+		regulator-name = "cp0-usb3h0-vbus";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		gpio = <&expander0 0 GPIO_ACTIVE_HIGH>;
+	};
+
+	cp0_reg_usb3_1_vbus: cp0-usb3-1-vbus {
+		compatible = "regulator-fixed";
+		regulator-name = "cp0-usb3h1-vbus";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		gpio = <&expander0 1 GPIO_ACTIVE_HIGH>;
+	};
+
+	cp0_usb3_0_phy: cp0-usb3-0-phy {
+		compatible = "usb-nop-xceiv";
+		vcc-supply = <&cp0_reg_usb3_0_vbus>;
+	};
+
+	cp0_usb3_1_phy: cp0-usb3-1-phy {
+		compatible = "usb-nop-xceiv";
+		vcc-supply = <&cp0_reg_usb3_1_vbus>;
+	};
+
+	cp1_reg_usb3_0_vbus: cp1-usb3-0-vbus {
+		compatible = "regulator-fixed";
+		regulator-name = "cp1-usb3h0-vbus";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		gpio = <&expander1 0 GPIO_ACTIVE_HIGH>;
+	};
+
+	cp1_usb3_0_phy: cp1-usb3-0-phy {
+		compatible = "usb-nop-xceiv";
+		vcc-supply = <&cp1_reg_usb3_0_vbus>;
+	};
 };
 
 &spi0 {
 	status = "okay";
 
 	spi-flash@0 {
-		#address-cells = <1>;
-		#size-cells = <1>;
 		compatible = "jedec,spi-nor";
 		reg = <0>;
 		spi-max-frequency = <10000000>;
@@ -96,55 +102,226 @@
 /* Accessible over the mini-USB CON9 connector on the main board */
 &uart0 {
 	status = "okay";
+	pinctrl-0 = <&uart0_pins>;
+	pinctrl-names = "default";
 };
 
+/* CON6 on CP0 expansion */
+&cp0_pcie0 {
+	status = "okay";
+};
 
 /* CON5 on CP0 expansion */
-&cpm_pcie2 {
+&cp0_pcie2 {
 	status = "okay";
 };
 
-&cpm_i2c0 {
+&cp0_i2c0 {
 	status = "okay";
 	clock-frequency = <100000>;
+
+	/* U31 */
+	expander0: pca9555@21 {
+		compatible = "nxp,pca9555";
+		pinctrl-names = "default";
+		gpio-controller;
+		#gpio-cells = <2>;
+		reg = <0x21>;
+	};
+
+	/* U25 */
+	expander1: pca9555@25 {
+		compatible = "nxp,pca9555";
+		pinctrl-names = "default";
+		gpio-controller;
+		#gpio-cells = <2>;
+		reg = <0x25>;
+	};
+
 };
 
 /* CON4 on CP0 expansion */
-&cpm_sata0 {
+&cp0_sata0 {
 	status = "okay";
 };
 
 /* CON9 on CP0 expansion */
-&cpm_usb3_0 {
+&cp0_usb3_0 {
+	usb-phy = <&cp0_usb3_0_phy>;
 	status = "okay";
 };
 
 /* CON10 on CP0 expansion */
-&cpm_usb3_1 {
+&cp0_usb3_1 {
+	usb-phy = <&cp0_usb3_1_phy>;
+	status = "okay";
+};
+
+&cp0_mdio {
+	status = "okay";
+
+	phy1: ethernet-phy@1 {
+		reg = <1>;
+	};
+};
+
+&cp0_ethernet {
+	status = "okay";
+};
+
+&cp0_eth0 {
+	status = "okay";
+	phy-mode = "10gbase-kr";
+
+	fixed-link {
+		speed = <10000>;
+		full-duplex;
+	};
+};
+
+&cp0_eth2 {
+	status = "okay";
+	phy = <&phy1>;
+	phy-mode = "rgmii-id";
+};
+
+/* CON6 on CP1 expansion */
+&cp1_pcie0 {
+	status = "okay";
+};
+
+/* CON7 on CP1 expansion */
+&cp1_pcie1 {
 	status = "okay";
 };
 
 /* CON5 on CP1 expansion */
-&cps_pcie2 {
+&cp1_pcie2 {
 	status = "okay";
 };
 
-&cps_i2c0 {
+&cp1_i2c0 {
 	status = "okay";
 	clock-frequency = <100000>;
 };
 
+&cp1_spi1 {
+	status = "okay";
+
+	spi-flash@0 {
+		compatible = "jedec,spi-nor";
+		reg = <0x0>;
+		spi-max-frequency = <20000000>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "Boot";
+				reg = <0x0 0x200000>;
+			};
+			partition@200000 {
+				label = "Filesystem";
+				reg = <0x200000 0xd00000>;
+			};
+			partition@f00000 {
+				label = "Boot_2nd";
+				reg = <0xf00000 0x100000>;
+			};
+		};
+	};
+};
+
+/*
+ * Proper NAND usage will require DPR-76 to be in position 1-2, which disables
+ * MDIO signal of CP1.
+ */
+&cp1_nand_controller {
+	pinctrl-0 = <&nand_pins>, <&nand_rb>;
+	pinctrl-names = "default";
+
+	nand@0 {
+		reg = <0>;
+		nand-rb = <0>;
+		nand-on-flash-bbt;
+		nand-ecc-strength = <4>;
+		nand-ecc-step-size = <512>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "U-Boot";
+				reg = <0 0x200000>;
+			};
+			partition@200000 {
+				label = "Linux";
+				reg = <0x200000 0xe00000>;
+			};
+			partition@1000000 {
+				label = "Filesystem";
+				reg = <0x1000000 0x3f000000>;
+			};
+		};
+	};
+};
+
 /* CON4 on CP1 expansion */
-&cps_sata0 {
+&cp1_sata0 {
 	status = "okay";
 };
 
 /* CON9 on CP1 expansion */
-&cps_usb3_0 {
+&cp1_usb3_0 {
+	usb-phy = <&cp1_usb3_0_phy>;
 	status = "okay";
 };
 
 /* CON10 on CP1 expansion */
-&cps_usb3_1 {
+&cp1_usb3_1 {
 	status = "okay";
+};
+
+&cp1_mdio {
+	status = "okay";
+
+	phy0: ethernet-phy@0 {
+		reg = <0>;
+	};
+};
+
+&cp1_ethernet {
+	status = "okay";
+};
+
+&cp1_eth0 {
+	status = "okay";
+	phy-mode = "10gbase-kr";
+
+	fixed-link {
+		speed = <10000>;
+		full-duplex;
+	};
+};
+
+&cp1_eth1 {
+	status = "okay";
+	phy = <&phy0>;
+	phy-mode = "rgmii-id";
+};
+
+&ap_sdhci0 {
+	status = "okay";
+	bus-width = <4>;
+	non-removable;
+};
+
+&cp0_sdhci0 {
+	status = "okay";
+	bus-width = <8>;
+	non-removable;
 };

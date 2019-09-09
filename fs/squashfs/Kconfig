@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config SQUASHFS
 	tristate "SquashFS 4.0 - Squashed file system support"
 	depends on BLOCK
@@ -161,6 +162,20 @@ config SQUASHFS_XZ
 	  memory overhead.
 
 	  XZ is not the standard compression used in Squashfs and so most
+	  file systems will be readable without selecting this option.
+
+	  If unsure, say N.
+
+config SQUASHFS_ZSTD
+	bool "Include support for ZSTD compressed file systems"
+	depends on SQUASHFS
+	select ZSTD_DECOMPRESS
+	help
+	  Saying Y here includes support for reading Squashfs file systems
+	  compressed with ZSTD compression.  ZSTD gives better compression than
+	  the default ZLIB compression, while using less CPU.
+
+	  ZSTD is not the standard compression used in Squashfs and so most
 	  file systems will be readable without selecting this option.
 
 	  If unsure, say N.

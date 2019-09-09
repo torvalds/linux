@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config DRM_OMAP
 	tristate "OMAP DRM"
 	depends on DRM
@@ -9,15 +10,6 @@ config DRM_OMAP
 	  DRM display driver for OMAP2/3/4 based boards.
 
 if DRM_OMAP
-
-config DRM_OMAP_NUM_CRTCS
-	int "Number of CRTCs"
-	range 1 10
-	default 1  if ARCH_OMAP2 || ARCH_OMAP3
-	default 2  if ARCH_OMAP4
-	help
-	  Select the number of video overlays which can be used as framebuffers.
-	  The remaining overlays are reserved for video.
 
 source "drivers/gpu/drm/omapdrm/dss/Kconfig"
 source "drivers/gpu/drm/omapdrm/displays/Kconfig"

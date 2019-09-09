@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * CS5536 General timer functions
  *
@@ -8,16 +9,11 @@
  * Author: Wu zhangjin, wuzhangjin@gmail.com
  *
  * Reference: AMD Geode(TM) CS5536 Companion Device Data Book
- *
- *  This program is free software; you can redistribute	 it and/or modify it
- *  under  the terms of	 the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the	License, or (at your
- *  option) any later version.
  */
 
 #include <linux/io.h>
 #include <linux/init.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/jiffies.h>
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
@@ -123,7 +119,9 @@ void __init setup_mfgpt0_timer(void)
 	cd->cpumask = cpumask_of(cpu);
 	clockevent_set_clock(cd, MFGPT_TICK_RATE);
 	cd->max_delta_ns = clockevent_delta2ns(0xffff, cd);
+	cd->max_delta_ticks = 0xffff;
 	cd->min_delta_ns = clockevent_delta2ns(0xf, cd);
+	cd->min_delta_ticks = 0xf;
 
 	/* Enable MFGPT0 Comparator 2 Output to the Interrupt Mapper */
 	_wrmsr(DIVIL_MSR_REG(MFGPT_IRQ), 0, 0x100);
@@ -144,7 +142,7 @@ void __init setup_mfgpt0_timer(void)
  * to just read by itself. So use jiffies to emulate a free
  * running counter:
  */
-static cycle_t mfgpt_read(struct clocksource *cs)
+static u64 mfgpt_read(struct clocksource *cs)
 {
 	unsigned long flags;
 	int count;
@@ -188,7 +186,7 @@ static cycle_t mfgpt_read(struct clocksource *cs)
 
 	raw_spin_unlock_irqrestore(&mfgpt_lock, flags);
 
-	return (cycle_t) (jifs * COMPARE) + count;
+	return (u64) (jifs * COMPARE) + count;
 }
 
 static struct clocksource clocksource_mfgpt = {

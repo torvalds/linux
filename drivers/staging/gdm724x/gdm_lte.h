@@ -1,15 +1,5 @@
-/*
- * Copyright (c) 2012 GCT Semiconductor, Inc. All rights reserved.
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0 */
+/* Copyright (c) 2012 GCT Semiconductor, Inc. All rights reserved. */
 
 #ifndef _GDM_LTE_H_
 #define _GDM_LTE_H_
@@ -47,16 +37,16 @@ struct phy_dev {
 	void	*priv_dev;
 	struct net_device *dev[MAX_NIC_TYPE];
 	int	(*send_hci_func)(void *priv_dev, void *data, int len,
-			void (*cb)(void *cb_data), void *cb_data);
+				 void (*cb)(void *cb_data), void *cb_data);
 	int	(*send_sdu_func)(void *priv_dev, void *data, int len,
-			unsigned int dftEpsId, unsigned int epsId,
-			void (*cb)(void *cb_data), void *cb_data,
-			int dev_idx, int nic_type);
+				 unsigned int dft_eps_id, unsigned int eps_id,
+				 void (*cb)(void *cb_data), void *cb_data,
+				 int dev_idx, int nic_type);
 	int	(*rcv_func)(void *priv_dev,
-			int (*cb)(void *cb_data, void *data, int len,
-				  int context),
-			void *cb_data, int context);
-	struct gdm_endian * (*get_endian)(void *priv_dev);
+			    int (*cb)(void *cb_data, void *data, int len,
+				      int context),
+			    void *cb_data, int context);
+	u8 (*get_endian)(void *priv_dev);
 };
 
 struct nic {

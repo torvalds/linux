@@ -55,8 +55,7 @@ of heat dissipation). For example a fan's cooling states correspond to
 the different fan speeds possible. Cooling states are referred to by
 single unsigned integers, where larger numbers mean greater heat
 dissipation. The precise set of cooling states associated with a device
-(as referred to by the cooling-min-level and cooling-max-level
-properties) should be defined in a particular device's binding.
+should be defined in a particular device's binding.
 For more examples of cooling devices, refer to the example sections below.
 
 Required properties:
@@ -68,15 +67,6 @@ Required properties:
 			the maximum cooling state requested in the reference.
 			See Cooling device maps section below for more details
 			on how consumers refer to cooling devices.
-
-Optional properties:
-- cooling-min-level:	An integer indicating the smallest
-  Type: unsigned	cooling state accepted. Typically 0.
-  Size: one cell
-
-- cooling-max-level:	An integer indicating the largest
-  Type: unsigned	cooling state accepted.
-  Size: one cell
 
 * Trip points
 
@@ -107,8 +97,8 @@ get assigned to trip points of the zone. The cooling devices are expected
 to be loaded in the target system.
 
 Required properties:
-- cooling-device:	A phandle of a cooling device with its specifier,
-  Type: phandle +	referring to which cooling device is used in this
+- cooling-device:	A list of phandles of cooling devices with their specifiers,
+  Type: phandle +	referring to which cooling devices are used in this
     cooling specifier	binding. In the cooling specifier, the first cell
 			is the minimum cooling state and the second cell
 			is the maximum cooling state used in this map.
@@ -162,7 +152,7 @@ Optional property:
   Elem size: one cell	the sensors listed in the thermal-sensors property.
   Elem type: signed	Coefficients defaults to 1, in case this property
 			is not specified. A simple linear polynomial is used:
-			Z = c0 * x0 + c1 + x1 + ... + c(n-1) * x(n-1) + cn.
+			Z = c0 * x0 + c1 * x1 + ... + c(n-1) * x(n-1) + cn.
 
 			The coefficients are ordered and they match with sensors
 			by means of sensor ID. Additional coefficients are
@@ -226,8 +216,6 @@ cpus {
 			396000  950000
 			198000  850000
 		>;
-		cooling-min-level = <0>;
-		cooling-max-level = <3>;
 		#cooling-cells = <2>; /* min followed by max */
 	};
 	...
@@ -239,10 +227,8 @@ cpus {
 	 * A simple fan controller which supports 10 speeds of operation
 	 * (represented as 0-9).
 	 */
-	fan0: fan@0x48 {
+	fan0: fan@48 {
 		...
-		cooling-min-level = <0>;
-		cooling-max-level = <9>;
 		#cooling-cells = <2>; /* min followed by max */
 	};
 };
@@ -252,7 +238,7 @@ ocp {
 	/*
 	 * A simple IC with a single bandgap temperature sensor.
 	 */
-	bandgap0: bandgap@0x0000ED00 {
+	bandgap0: bandgap@0000ed00 {
 		...
 		#thermal-sensor-cells = <0>;
 	};
@@ -290,12 +276,7 @@ thermal-zones {
 			};
 			map1 {
 				trip = <&cpu_alert1>;
-				cooling-device = <&fan0 5 THERMAL_NO_LIMIT>;
-			};
-			map2 {
-				trip = <&cpu_alert1>;
-				cooling-device =
-				    <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				cooling-device = <&fan0 5 THERMAL_NO_LIMIT>, <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 			};
 		};
 	};
@@ -330,7 +311,7 @@ ocp {
 	/*
 	 * A simple IC with several bandgap temperature sensors.
 	 */
-	bandgap0: bandgap@0x0000ED00 {
+	bandgap0: bandgap@0000ed00 {
 		...
 		#thermal-sensor-cells = <1>;
 	};
@@ -447,7 +428,7 @@ one thermal zone.
 	/*
 	 * A simple IC with a single temperature sensor.
 	 */
-	adc: sensor@0x49 {
+	adc: sensor@49 {
 		...
 		#thermal-sensor-cells = <0>;
 	};
@@ -458,7 +439,7 @@ ocp {
 	/*
 	 * A simple IC with a single bandgap temperature sensor.
 	 */
-	bandgap0: bandgap@0x0000ED00 {
+	bandgap0: bandgap@0000ed00 {
 		...
 		#thermal-sensor-cells = <0>;
 	};
@@ -516,7 +497,7 @@ with many sensors and many cooling devices.
 	/*
 	 * An IC with several temperature sensor.
 	 */
-	adc_dummy: sensor@0x50 {
+	adc_dummy: sensor@50 {
 		...
 		#thermal-sensor-cells = <1>; /* sensor internal ID */
 	};

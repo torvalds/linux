@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: GPL-2.0
+config MTK_HSDMA
+	tristate "MTK HSDMA support"
+	depends on RALINK && SOC_MT7621
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+

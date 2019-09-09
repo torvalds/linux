@@ -1,18 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 #ifndef _NET_DN_ROUTE_H
 #define _NET_DN_ROUTE_H
 
 /******************************************************************************
     (c) 1995-1998 E.M. Serrat		emserrat@geocities.com
     
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
 *******************************************************************************/
 
 struct sk_buff *dn_alloc_skb(struct sock *sk, int size, gfp_t pri);
@@ -69,6 +61,7 @@ int dn_route_rcv(struct sk_buff *skb, struct net_device *dev,
  */
 struct dn_route {
 	struct dst_entry dst;
+	struct dn_route __rcu *dn_next;
 
 	struct neighbour *n;
 

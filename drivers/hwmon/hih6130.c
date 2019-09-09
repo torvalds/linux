@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* Honeywell HIH-6130/HIH-6131 humidity and temperature sensor driver
  *
  * Copyright (C) 2012 Iain Paton <ipaton0@gmail.com>
  *
  * heavily based on the sht21 driver
  * Copyright (C) 2010 Urs Fleisch <urs.fleisch@sensirion.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA
  *
  * Data sheets available (2012-06-22) at
  * http://sensing.honeywell.com/index.php?ci_id=3106&la_id=1&defId=44872
@@ -37,7 +24,7 @@
 
 /**
  * struct hih6130 - HIH-6130 device specific data
- * @hwmon_dev: device registered with hwmon
+ * @client: pointer to I2C client device
  * @lock: mutex to protect measurement values
  * @valid: only false before first measurement is taken
  * @last_update: time of last update (jiffies)
@@ -171,7 +158,7 @@ out:
  * Will be called on read access to temp1_input sysfs attribute.
  * Returns number of bytes written into buffer, negative errno on error.
  */
-static ssize_t hih6130_show_temperature(struct device *dev,
+static ssize_t hih6130_temperature_show(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
 {
@@ -193,7 +180,7 @@ static ssize_t hih6130_show_temperature(struct device *dev,
  * Will be called on read access to humidity1_input sysfs attribute.
  * Returns number of bytes written into buffer, negative errno on error.
  */
-static ssize_t hih6130_show_humidity(struct device *dev,
+static ssize_t hih6130_humidity_show(struct device *dev,
 				     struct device_attribute *attr, char *buf)
 {
 	struct hih6130 *hih6130 = dev_get_drvdata(dev);
@@ -206,10 +193,8 @@ static ssize_t hih6130_show_humidity(struct device *dev,
 }
 
 /* sysfs attributes */
-static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, hih6130_show_temperature,
-	NULL, 0);
-static SENSOR_DEVICE_ATTR(humidity1_input, S_IRUGO, hih6130_show_humidity,
-	NULL, 0);
+static SENSOR_DEVICE_ATTR_RO(temp1_input, hih6130_temperature, 0);
+static SENSOR_DEVICE_ATTR_RO(humidity1_input, hih6130_humidity, 0);
 
 static struct attribute *hih6130_attrs[] = {
 	&sensor_dev_attr_temp1_input.dev_attr.attr,
@@ -254,8 +239,17 @@ static const struct i2c_device_id hih6130_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, hih6130_id);
 
+static const struct of_device_id __maybe_unused hih6130_of_match[] = {
+	{ .compatible = "honeywell,hih6130", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, hih6130_of_match);
+
 static struct i2c_driver hih6130_driver = {
-	.driver.name = "hih6130",
+	.driver = {
+		.name = "hih6130",
+		.of_match_table = of_match_ptr(hih6130_of_match),
+	},
 	.probe       = hih6130_probe,
 	.id_table    = hih6130_id,
 };

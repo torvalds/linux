@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * AD5421 Digital to analog converters  driver
  *
  * Copyright 2011 Analog Devices Inc.
- *
- * Licensed under the GPL-2.
  */
 
 #include <linux/device.h>
@@ -465,7 +464,6 @@ static const struct iio_info ad5421_info = {
 	.read_event_config =	ad5421_read_event_config,
 	.write_event_config =	ad5421_write_event_config,
 	.read_event_value =	ad5421_read_event_value,
-	.driver_module =	THIS_MODULE,
 };
 
 static int ad5421_probe(struct spi_device *spi)

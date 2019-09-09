@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * 8250_moxa.c - MOXA Smartio/Industio MUE multiport serial driver.
  *
  * Author: Mathieu OTHACEHE <m.othacehe@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -68,6 +65,7 @@ static int moxa8250_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			   sizeof(unsigned int) * nr_ports, GFP_KERNEL);
 	if (!brd)
 		return -ENOMEM;
+	brd->num_ports = nr_ports;
 
 	memset(&uart, 0, sizeof(struct uart_8250_port));
 

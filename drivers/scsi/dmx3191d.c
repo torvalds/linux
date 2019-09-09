@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
     dmx3191d.c - driver for the Domex DMX3191D SCSI card.
     Copyright (C) 2000 by Massimo Piccioni <dafastidio@libero.it>
@@ -5,19 +6,6 @@
 
     Based on the generic NCR5380 driver by Drew Eckhardt et al.
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
 #include <linux/init.h>
@@ -34,13 +22,13 @@
  * Definitions for the generic 5380 driver.
  */
 
-#define NCR5380_read(reg)		inb(instance->io_port + reg)
-#define NCR5380_write(reg, value)	outb(value, instance->io_port + reg)
+#define NCR5380_read(reg)		inb(hostdata->base + (reg))
+#define NCR5380_write(reg, value)	outb(value, hostdata->base + (reg))
 
-#define NCR5380_dma_xfer_len(instance, cmd, phase)	(0)
-#define NCR5380_dma_recv_setup(instance, dst, len)	(0)
-#define NCR5380_dma_send_setup(instance, src, len)	(0)
-#define NCR5380_dma_residual(instance)			(0)
+#define NCR5380_dma_xfer_len		NCR5380_dma_xfer_none
+#define NCR5380_dma_recv_setup		NCR5380_dma_setup_none
+#define NCR5380_dma_send_setup		NCR5380_dma_setup_none
+#define NCR5380_dma_residual		NCR5380_dma_residual_none
 
 #define NCR5380_implementation_fields	/* none */
 
@@ -58,12 +46,12 @@ static struct scsi_host_template dmx3191d_driver_template = {
 	.info			= NCR5380_info,
 	.queuecommand		= NCR5380_queue_command,
 	.eh_abort_handler	= NCR5380_abort,
-	.eh_bus_reset_handler	= NCR5380_bus_reset,
+	.eh_host_reset_handler	= NCR5380_host_reset,
 	.can_queue		= 32,
 	.this_id		= 7,
 	.sg_tablesize		= SG_ALL,
 	.cmd_per_lun		= 2,
-	.use_clustering		= DISABLE_CLUSTERING,
+	.dma_boundary		= PAGE_SIZE - 1,
 	.cmd_size		= NCR5380_CMD_SIZE,
 };
 
@@ -71,6 +59,7 @@ static int dmx3191d_probe_one(struct pci_dev *pdev,
 			      const struct pci_device_id *id)
 {
 	struct Scsi_Host *shost;
+	struct NCR5380_hostdata *hostdata;
 	unsigned long io;
 	int error = -ENODEV;
 
@@ -88,7 +77,9 @@ static int dmx3191d_probe_one(struct pci_dev *pdev,
 			sizeof(struct NCR5380_hostdata));
 	if (!shost)
 		goto out_release_region;       
-	shost->io_port = io;
+
+	hostdata = shost_priv(shost);
+	hostdata->base = io;
 
 	/* This card does not seem to raise an interrupt on pdev->irq.
 	 * Steam-powered SCSI controllers run without an IRQ anyway.
@@ -125,7 +116,8 @@ out_host_put:
 static void dmx3191d_remove_one(struct pci_dev *pdev)
 {
 	struct Scsi_Host *shost = pci_get_drvdata(pdev);
-	unsigned long io = shost->io_port;
+	struct NCR5380_hostdata *hostdata = shost_priv(shost);
+	unsigned long io = hostdata->base;
 
 	scsi_remove_host(shost);
 
@@ -149,18 +141,7 @@ static struct pci_driver dmx3191d_pci_driver = {
 	.remove		= dmx3191d_remove_one,
 };
 
-static int __init dmx3191d_init(void)
-{
-	return pci_register_driver(&dmx3191d_pci_driver);
-}
-
-static void __exit dmx3191d_exit(void)
-{
-	pci_unregister_driver(&dmx3191d_pci_driver);
-}
-
-module_init(dmx3191d_init);
-module_exit(dmx3191d_exit);
+module_pci_driver(dmx3191d_pci_driver);
 
 MODULE_AUTHOR("Massimo Piccioni <dafastidio@libero.it>");
 MODULE_DESCRIPTION("Domex DMX3191D SCSI driver");

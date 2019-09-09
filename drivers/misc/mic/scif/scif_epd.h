@@ -1,19 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Intel MIC Platform Software Stack (MPSS)
  *
  * Copyright(c) 2014 Intel Corporation.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
  * Intel SCIF driver.
- *
  */
 #ifndef SCIF_EPD_H
 #define SCIF_EPD_H
@@ -203,7 +194,7 @@ void scif_clientrcvd(struct scif_dev *scifdev, struct scifmsg *msg);
 int __scif_connect(scif_epd_t epd, struct scif_port_id *dst, bool non_block);
 int __scif_flush(scif_epd_t epd);
 int scif_mmap(struct vm_area_struct *vma, scif_epd_t epd);
-unsigned int __scif_pollfd(struct file *f, poll_table *wait,
+__poll_t __scif_pollfd(struct file *f, poll_table *wait,
 			   struct scif_endpt *ep);
 int __scif_pin_pages(void *addr, size_t len, int *out_prot,
 		     int map_flags, scif_pinned_pages_t *pages);

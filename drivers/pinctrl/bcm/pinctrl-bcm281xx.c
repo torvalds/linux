@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 Broadcom Corporation
+ * Copyright (C) 2013-2017 Broadcom
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -10,9 +10,10 @@
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
+
 #include <linux/err.h>
 #include <linux/io.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pinctrl/pinctrl.h>
@@ -1106,7 +1107,7 @@ static int bcm281xx_std_pin_update(struct pinctrl_dev *pctldev,
 	struct bcm281xx_pinctrl_data *pdata = pinctrl_dev_get_drvdata(pctldev);
 	int i;
 	enum pin_config_param param;
-	u16 arg;
+	u32 arg;
 
 	for (i = 0; i < num_configs; i++) {
 		param = pinconf_to_config_param(configs[i]);
@@ -1222,7 +1223,7 @@ static int bcm281xx_i2c_pin_update(struct pinctrl_dev *pctldev,
 	struct bcm281xx_pinctrl_data *pdata = pinctrl_dev_get_drvdata(pctldev);
 	int i, j;
 	enum pin_config_param param;
-	u16 arg;
+	u32 arg;
 
 	for (i = 0; i < num_configs; i++) {
 		param = pinconf_to_config_param(configs[i]);
@@ -1292,7 +1293,7 @@ static int bcm281xx_hdmi_pin_update(struct pinctrl_dev *pctldev,
 	struct bcm281xx_pinctrl_data *pdata = pinctrl_dev_get_drvdata(pctldev);
 	int i;
 	enum pin_config_param param;
-	u16 arg;
+	u32 arg;
 
 	for (i = 0; i < num_configs; i++) {
 		param = pinconf_to_config_param(configs[i]);
@@ -1383,7 +1384,7 @@ static int bcm281xx_pinctrl_pin_config_set(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static struct pinconf_ops bcm281xx_pinctrl_pinconf_ops = {
+static const struct pinconf_ops bcm281xx_pinctrl_pinconf_ops = {
 	.pin_config_get = bcm281xx_pinctrl_pin_config_get,
 	.pin_config_set = bcm281xx_pinctrl_pin_config_set,
 };
@@ -1444,10 +1445,4 @@ static struct platform_driver bcm281xx_pinctrl_driver = {
 		.of_match_table = bcm281xx_pinctrl_of_match,
 	},
 };
-
-module_platform_driver_probe(bcm281xx_pinctrl_driver, bcm281xx_pinctrl_probe);
-
-MODULE_AUTHOR("Broadcom Corporation <bcm-kernel-feedback-list@broadcom.com>");
-MODULE_AUTHOR("Sherman Yin <syin@broadcom.com>");
-MODULE_DESCRIPTION("Broadcom BCM281xx pinctrl driver");
-MODULE_LICENSE("GPL v2");
+builtin_platform_driver_probe(bcm281xx_pinctrl_driver, bcm281xx_pinctrl_probe);

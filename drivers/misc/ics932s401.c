@@ -1,22 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * A driver for the Integrated Circuits ICS932S401
  * Copyright (C) 2008 IBM
  *
  * Author: Darrick J. Wong <darrick.wong@oracle.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/module.h>
@@ -33,7 +20,7 @@ static const unsigned short normal_i2c[] = { 0x69, I2C_CLIENT_END };
 
 /* ICS932S401 registers */
 #define ICS932S401_REG_CFG2			0x01
-#define 	ICS932S401_CFG1_SPREAD		0x01
+#define		ICS932S401_CFG1_SPREAD		0x01
 #define ICS932S401_REG_CFG7			0x06
 #define		ICS932S401_FS_MASK		0x07
 #define	ICS932S401_REG_VENDOR_REV		0x07
@@ -58,7 +45,7 @@ static const unsigned short normal_i2c[] = { 0x69, I2C_CLIENT_END };
 #define	ICS932S401_REG_SRC_SPREAD1		0x11
 #define ICS932S401_REG_SRC_SPREAD2		0x12
 #define ICS932S401_REG_CPU_DIVISOR		0x13
-#define 	ICS932S401_CPU_DIVISOR_SHIFT	4
+#define		ICS932S401_CPU_DIVISOR_SHIFT	4
 #define ICS932S401_REG_PCISRC_DIVISOR		0x14
 #define		ICS932S401_SRC_DIVISOR_MASK	0x0F
 #define		ICS932S401_PCI_DIVISOR_SHIFT	4
@@ -146,6 +133,8 @@ static struct ics932s401_data *ics932s401_update_device(struct device *dev)
 	 */
 	for (i = 0; i < NUM_MIRRORED_REGS; i++) {
 		temp = i2c_smbus_read_word_data(client, regs_to_copy[i]);
+		if (temp < 0)
+			data->regs[regs_to_copy[i]] = 0;
 		data->regs[regs_to_copy[i]] = temp >> 8;
 	}
 
@@ -225,6 +214,7 @@ static ssize_t show_cpu_clock_sel(struct device *dev,
 	else {
 		/* Freq is neatly wrapped up for us */
 		int fid = data->regs[ICS932S401_REG_CFG7] & ICS932S401_FS_MASK;
+
 		freq = fs_speeds[fid];
 		if (data->regs[ICS932S401_REG_CTRL] & ICS932S401_CPU_ALT) {
 			switch (freq) {
@@ -352,8 +342,7 @@ static DEVICE_ATTR(ref_clock, S_IRUGO, show_value, NULL);
 static DEVICE_ATTR(cpu_spread, S_IRUGO, show_spread, NULL);
 static DEVICE_ATTR(src_spread, S_IRUGO, show_spread, NULL);
 
-static struct attribute *ics932s401_attr[] =
-{
+static struct attribute *ics932s401_attr[] = {
 	&dev_attr_spread_enabled.attr,
 	&dev_attr_cpu_clock_selection.attr,
 	&dev_attr_cpu_clock.attr,

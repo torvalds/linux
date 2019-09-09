@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* Nehalem-EX/Westmere-EX uncore support */
 #include "uncore.h"
 
@@ -245,7 +246,7 @@ static void nhmex_uncore_msr_enable_event(struct intel_uncore_box *box, struct p
 {
 	struct hw_perf_event *hwc = &event->hw;
 
-	if (hwc->idx >= UNCORE_PMC_IDX_FIXED)
+	if (hwc->idx == UNCORE_PMC_IDX_FIXED)
 		wrmsrl(hwc->config_base, NHMEX_PMON_CTL_EN_BIT0);
 	else if (box->pmu->type->event_mask & NHMEX_PMON_CTL_EN_BIT0)
 		wrmsrl(hwc->config_base, hwc->config | NHMEX_PMON_CTL_EN_BIT22);
@@ -272,7 +273,7 @@ static struct attribute *nhmex_uncore_ubox_formats_attr[] = {
 	NULL,
 };
 
-static struct attribute_group nhmex_uncore_ubox_format_group = {
+static const struct attribute_group nhmex_uncore_ubox_format_group = {
 	.name		= "format",
 	.attrs		= nhmex_uncore_ubox_formats_attr,
 };
@@ -299,7 +300,7 @@ static struct attribute *nhmex_uncore_cbox_formats_attr[] = {
 	NULL,
 };
 
-static struct attribute_group nhmex_uncore_cbox_format_group = {
+static const struct attribute_group nhmex_uncore_cbox_format_group = {
 	.name = "format",
 	.attrs = nhmex_uncore_cbox_formats_attr,
 };
@@ -407,7 +408,7 @@ static struct attribute *nhmex_uncore_bbox_formats_attr[] = {
 	NULL,
 };
 
-static struct attribute_group nhmex_uncore_bbox_format_group = {
+static const struct attribute_group nhmex_uncore_bbox_format_group = {
 	.name = "format",
 	.attrs = nhmex_uncore_bbox_formats_attr,
 };
@@ -484,7 +485,7 @@ static struct attribute *nhmex_uncore_sbox_formats_attr[] = {
 	NULL,
 };
 
-static struct attribute_group nhmex_uncore_sbox_format_group = {
+static const struct attribute_group nhmex_uncore_sbox_format_group = {
 	.name			= "format",
 	.attrs			= nhmex_uncore_sbox_formats_attr,
 };
@@ -898,7 +899,7 @@ static struct attribute *nhmex_uncore_mbox_formats_attr[] = {
 	NULL,
 };
 
-static struct attribute_group nhmex_uncore_mbox_format_group = {
+static const struct attribute_group nhmex_uncore_mbox_format_group = {
 	.name		= "format",
 	.attrs		= nhmex_uncore_mbox_formats_attr,
 };
@@ -1163,7 +1164,7 @@ static struct attribute *nhmex_uncore_rbox_formats_attr[] = {
 	NULL,
 };
 
-static struct attribute_group nhmex_uncore_rbox_format_group = {
+static const struct attribute_group nhmex_uncore_rbox_format_group = {
 	.name = "format",
 	.attrs = nhmex_uncore_rbox_formats_attr,
 };

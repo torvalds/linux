@@ -1,20 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Device Tree support for Mediatek SoCs
  *
  * Copyright (c) 2014 MundoReader S.L.
  * Author: Matthias Brugger <matthias.bgg@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 #include <linux/init.h>
+#include <linux/io.h>
 #include <asm/mach/arch.h>
 #include <linux/of.h>
 #include <linux/clk-provider.h>
@@ -41,7 +33,7 @@ static void __init mediatek_timer_init(void)
 	}
 
 	of_clk_init(NULL);
-	clocksource_probe();
+	timer_probe();
 };
 
 static const char * const mediatek_board_dt_compat[] = {
@@ -49,6 +41,7 @@ static const char * const mediatek_board_dt_compat[] = {
 	"mediatek,mt6589",
 	"mediatek,mt6592",
 	"mediatek,mt7623",
+	"mediatek,mt7629",
 	"mediatek,mt8127",
 	"mediatek,mt8135",
 	NULL,

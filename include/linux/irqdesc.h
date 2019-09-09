@@ -1,8 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_IRQDESC_H
 #define _LINUX_IRQDESC_H
 
 #include <linux/rcupdate.h>
 #include <linux/kobject.h>
+#include <linux/mutex.h>
 
 /*
  * Core internal functions to deal with irq descriptors
@@ -26,6 +28,7 @@ struct pt_regs;
  * @core_internal_state__do_not_mess_with_it: core internal status information
  * @depth:		disable-depth, for nested irq_disable() calls
  * @wake_depth:		enable depth, for multiple irq_set_irq_wake() callers
+ * @tot_count:		stats field for non-percpu irqs
  * @irq_count:		stats field to detect stalled irqs
  * @last_unhandled:	aging timer for unhandled count
  * @irqs_unhandled:	stats field for spurious unhandled interrupts
@@ -45,7 +48,9 @@ struct pt_regs;
  *			IRQF_FORCE_RESUME set
  * @rcu:		rcu head for delayed free
  * @kobj:		kobject used to represent this struct in sysfs
+ * @request_mutex:	mutex to protect request/free before locking desc->lock
  * @dir:		/proc/irq/ procfs entry
+ * @debugfs_file:	dentry for the debugfs file
  * @name:		flow handler name for /proc/interrupts output
  */
 struct irq_desc {
@@ -61,6 +66,7 @@ struct irq_desc {
 	unsigned int		core_internal_state__do_not_mess_with_it;
 	unsigned int		depth;		/* nested irq disables */
 	unsigned int		wake_depth;	/* nested wake enables */
+	unsigned int		tot_count;
 	unsigned int		irq_count;	/* For detecting broken IRQs */
 	unsigned long		last_unhandled;	/* Aging timer for unhandled count */
 	unsigned int		irqs_unhandled;
@@ -88,10 +94,15 @@ struct irq_desc {
 #ifdef CONFIG_PROC_FS
 	struct proc_dir_entry	*dir;
 #endif
+#ifdef CONFIG_GENERIC_IRQ_DEBUGFS
+	struct dentry		*debugfs_file;
+	const char		*dev_name;
+#endif
 #ifdef CONFIG_SPARSE_IRQ
 	struct rcu_head		rcu;
 	struct kobject		kobj;
 #endif
+	struct mutex		request_mutex;
 	int			parent_irq;
 	struct module		*owner;
 	const char		*name;
@@ -136,11 +147,6 @@ static inline void *irq_desc_get_handler_data(struct irq_desc *desc)
 	return desc->irq_common_data.handler_data;
 }
 
-static inline struct msi_desc *irq_desc_get_msi_desc(struct irq_desc *desc)
-{
-	return desc->irq_common_data.msi_desc;
-}
-
 /*
  * Architectures call this to let the generic IRQ layer
  * handle an interrupt.
@@ -167,6 +173,11 @@ static inline int handle_domain_irq(struct irq_domain *domain,
 {
 	return __handle_domain_irq(domain, hwirq, true, regs);
 }
+
+#ifdef CONFIG_IRQ_DOMAIN
+int handle_domain_nmi(struct irq_domain *domain, unsigned int hwirq,
+		      struct pt_regs *regs);
+#endif
 #endif
 
 /* Test to see if a driver has successfully requested an irq */
@@ -221,7 +232,7 @@ irq_set_chip_handler_name_locked(struct irq_data *data, struct irq_chip *chip,
 	data->chip = chip;
 }
 
-static inline int irq_balancing_disabled(unsigned int irq)
+static inline bool irq_balancing_disabled(unsigned int irq)
 {
 	struct irq_desc *desc;
 
@@ -229,7 +240,7 @@ static inline int irq_balancing_disabled(unsigned int irq)
 	return desc->status_use_accessors & IRQ_NO_BALANCING_MASK;
 }
 
-static inline int irq_is_percpu(unsigned int irq)
+static inline bool irq_is_percpu(unsigned int irq)
 {
 	struct irq_desc *desc;
 
@@ -237,13 +248,24 @@ static inline int irq_is_percpu(unsigned int irq)
 	return desc->status_use_accessors & IRQ_PER_CPU;
 }
 
+static inline bool irq_is_percpu_devid(unsigned int irq)
+{
+	struct irq_desc *desc;
+
+	desc = irq_to_desc(irq);
+	return desc->status_use_accessors & IRQ_PER_CPU_DEVID;
+}
+
 static inline void
-irq_set_lockdep_class(unsigned int irq, struct lock_class_key *class)
+irq_set_lockdep_class(unsigned int irq, struct lock_class_key *lock_class,
+		      struct lock_class_key *request_class)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
 
-	if (desc)
-		lockdep_set_class(&desc->lock, class);
+	if (desc) {
+		lockdep_set_class(&desc->lock, lock_class);
+		lockdep_set_class(&desc->request_mutex, request_class);
+	}
 }
 
 #ifdef CONFIG_IRQ_PREFLOW_FASTEOI

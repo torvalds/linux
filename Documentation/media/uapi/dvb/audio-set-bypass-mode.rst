@@ -1,4 +1,11 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 .. _AUDIO_SET_BYPASS_MODE:
 
@@ -38,7 +45,7 @@ Arguments
        -  boolean mode
 
        -  Enables or disables the decoding of the current Audio stream in
-	  the DVB subsystem.
+	  the Digital TV subsystem.
 
           TRUE: Bypass is disabled
 
@@ -50,8 +57,8 @@ Description
 
 This ioctl call asks the Audio Device to bypass the Audio decoder and
 forward the stream without decoding. This mode shall be used if streams
-that can’t be handled by the DVB system shall be decoded. Dolby
-DigitalTM streams are automatically forwarded by the DVB subsystem if
+that can’t be handled by the Digital TV system shall be decoded. Dolby
+DigitalTM streams are automatically forwarded by the Digital TV subsystem if
 the hardware can handle it.
 
 

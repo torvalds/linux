@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * comedi/drivers/comedi_test.c
  *
@@ -11,16 +12,6 @@
  *
  * COMEDI - Linux Control and Measurement Device Interface
  * Copyright (C) 2000 David A. Schleef <ds@schleef.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 /*
@@ -36,7 +27,15 @@
  * generate sample waveforms on systems that don't have data acquisition
  * hardware.
  *
- * Configuration options:
+ * Auto-configuration is the default mode if no parameter is supplied during
+ * module loading. Manual configuration requires COMEDI userspace tool.
+ * To disable auto-configuration mode, pass "noauto=1" parameter for module
+ * loading. Refer modinfo or MODULE_PARM_DESC description below for details.
+ *
+ * Auto-configuration options:
+ *   Refer modinfo or MODULE_PARM_DESC description below for details.
+ *
+ * Manual configuration options:
  *   [0] - Amplitude in microvolts for fake waveforms (default 1 volt)
  *   [1] - Period in microseconds for fake waveforms (default 0.1 sec)
  *
@@ -53,8 +52,27 @@
 #include <linux/timer.h>
 #include <linux/ktime.h>
 #include <linux/jiffies.h>
+#include <linux/device.h>
+#include <linux/kdev_t.h>
 
 #define N_CHANS 8
+#define DEV_NAME "comedi_testd"
+#define CLASS_NAME "comedi_test"
+
+static bool config_mode;
+static unsigned int set_amplitude;
+static unsigned int set_period;
+static struct class *ctcls;
+static struct device *ctdev;
+
+module_param_named(noauto, config_mode, bool, 0444);
+MODULE_PARM_DESC(noauto, "Disable auto-configuration: (1=disable [defaults to enable])");
+
+module_param_named(amplitude, set_amplitude, uint, 0444);
+MODULE_PARM_DESC(amplitude, "Set auto mode wave amplitude in microvolts: (defaults to 1 volt)");
+
+module_param_named(period, set_period, uint, 0444);
+MODULE_PARM_DESC(period, "Set auto mode wave period in microseconds: (defaults to 0.1 sec)");
 
 /* Data unique to this driver */
 struct waveform_private {
@@ -66,6 +84,7 @@ struct waveform_private {
 	unsigned int ai_scan_period;	/* AI scan period in usec */
 	unsigned int ai_convert_period;	/* AI conversion period in usec */
 	struct timer_list ao_timer;	/* timer for AO commands */
+	struct comedi_device *dev;	/* parent comedi device */
 	u64 ao_last_scan_time;		/* time of previous AO scan in usec */
 	unsigned int ao_scan_period;	/* AO scan period in usec */
 	unsigned short ao_loopbacks[N_CHANS];
@@ -174,10 +193,10 @@ static unsigned short fake_waveform(struct comedi_device *dev,
  * It should run in the background; therefore it is scheduled by
  * a timer mechanism.
  */
-static void waveform_ai_timer(unsigned long arg)
+static void waveform_ai_timer(struct timer_list *t)
 {
-	struct comedi_device *dev = (struct comedi_device *)arg;
-	struct waveform_private *devpriv = dev->private;
+	struct waveform_private *devpriv = from_timer(devpriv, t, ai_timer);
+	struct comedi_device *dev = devpriv->dev;
 	struct comedi_subdevice *s = dev->read_subdev;
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
@@ -411,10 +430,10 @@ static int waveform_ai_insn_read(struct comedi_device *dev,
  * This is the background routine to handle AO commands, scheduled by
  * a timer mechanism.
  */
-static void waveform_ao_timer(unsigned long arg)
+static void waveform_ao_timer(struct timer_list *t)
 {
-	struct comedi_device *dev = (struct comedi_device *)arg;
-	struct waveform_private *devpriv = dev->private;
+	struct waveform_private *devpriv = from_timer(devpriv, t, ao_timer);
+	struct comedi_device *dev = devpriv->dev;
 	struct comedi_subdevice *s = dev->write_subdev;
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
@@ -453,11 +472,11 @@ static void waveform_ao_timer(unsigned long arg)
 			/* output the last scan */
 			for (i = 0; i < cmd->scan_end_arg; i++) {
 				unsigned int chan = CR_CHAN(cmd->chanlist[i]);
+				unsigned short *pd;
 
-				if (comedi_buf_read_samples(s,
-							    &devpriv->
-							     ao_loopbacks[chan],
-							    1) == 0) {
+				pd = &devpriv->ao_loopbacks[chan];
+
+				if (!comedi_buf_read_samples(s, pd, 1)) {
 					/* unexpected underrun! (cancelled?) */
 					async->events |= COMEDI_CB_OVERFLOW;
 					goto underrun;
@@ -607,25 +626,59 @@ static int waveform_ao_insn_write(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int waveform_attach(struct comedi_device *dev,
-			   struct comedi_devconfig *it)
+static int waveform_ai_insn_config(struct comedi_device *dev,
+				   struct comedi_subdevice *s,
+				   struct comedi_insn *insn,
+				   unsigned int *data)
+{
+	if (data[0] == INSN_CONFIG_GET_CMD_TIMING_CONSTRAINTS) {
+		/*
+		 * input:  data[1], data[2] : scan_begin_src, convert_src
+		 * output: data[1], data[2] : scan_begin_min, convert_min
+		 */
+		if (data[1] == TRIG_FOLLOW) {
+			/* exactly TRIG_FOLLOW case */
+			data[1] = 0;
+			data[2] = NSEC_PER_USEC;
+		} else {
+			data[1] = NSEC_PER_USEC;
+			if (data[2] & TRIG_TIMER)
+				data[2] = NSEC_PER_USEC;
+			else
+				data[2] = 0;
+		}
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
+static int waveform_ao_insn_config(struct comedi_device *dev,
+				   struct comedi_subdevice *s,
+				   struct comedi_insn *insn,
+				   unsigned int *data)
+{
+	if (data[0] == INSN_CONFIG_GET_CMD_TIMING_CONSTRAINTS) {
+		/* we don't care about actual channels */
+		data[1] = NSEC_PER_USEC; /* scan_begin_min */
+		data[2] = 0;		 /* convert_min */
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
+static int waveform_common_attach(struct comedi_device *dev,
+				  int amplitude, int period)
 {
 	struct waveform_private *devpriv;
 	struct comedi_subdevice *s;
-	int amplitude = it->options[0];
-	int period = it->options[1];
 	int i;
 	int ret;
 
 	devpriv = comedi_alloc_devpriv(dev, sizeof(*devpriv));
 	if (!devpriv)
 		return -ENOMEM;
-
-	/* set default amplitude and period */
-	if (amplitude <= 0)
-		amplitude = 1000000;	/* 1 volt */
-	if (period <= 0)
-		period = 100000;	/* 0.1 sec */
 
 	devpriv->wf_amplitude = amplitude;
 	devpriv->wf_period = period;
@@ -647,6 +700,7 @@ static int waveform_attach(struct comedi_device *dev,
 	s->do_cmd = waveform_ai_cmd;
 	s->do_cmdtest = waveform_ai_cmdtest;
 	s->cancel = waveform_ai_cancel;
+	s->insn_config = waveform_ai_insn_config;
 
 	s = &dev->subdevices[1];
 	dev->write_subdev = s;
@@ -662,13 +716,15 @@ static int waveform_attach(struct comedi_device *dev,
 	s->do_cmd = waveform_ao_cmd;
 	s->do_cmdtest = waveform_ao_cmdtest;
 	s->cancel = waveform_ao_cancel;
+	s->insn_config = waveform_ao_insn_config;
 
 	/* Our default loopback value is just a 0V flatline */
 	for (i = 0; i < s->n_chan; i++)
 		devpriv->ao_loopbacks[i] = s->maxdata / 2;
 
-	setup_timer(&devpriv->ai_timer, waveform_ai_timer, (unsigned long)dev);
-	setup_timer(&devpriv->ao_timer, waveform_ao_timer, (unsigned long)dev);
+	devpriv->dev = dev;
+	timer_setup(&devpriv->ai_timer, waveform_ai_timer, 0);
+	timer_setup(&devpriv->ao_timer, waveform_ao_timer, 0);
 
 	dev_info(dev->class_dev,
 		 "%s: %u microvolt, %u microsecond waveform attached\n",
@@ -676,6 +732,36 @@ static int waveform_attach(struct comedi_device *dev,
 		 devpriv->wf_amplitude, devpriv->wf_period);
 
 	return 0;
+}
+
+static int waveform_attach(struct comedi_device *dev,
+			   struct comedi_devconfig *it)
+{
+	int amplitude = it->options[0];
+	int period = it->options[1];
+
+	/* set default amplitude and period */
+	if (amplitude <= 0)
+		amplitude = 1000000;	/* 1 volt */
+	if (period <= 0)
+		period = 100000;	/* 0.1 sec */
+
+	return waveform_common_attach(dev, amplitude, period);
+}
+
+static int waveform_auto_attach(struct comedi_device *dev,
+				unsigned long context_unused)
+{
+	int amplitude = set_amplitude;
+	int period = set_period;
+
+	/* set default amplitude and period */
+	if (!amplitude)
+		amplitude = 1000000;	/* 1 volt */
+	if (!period)
+		period = 100000;	/* 0.1 sec */
+
+	return waveform_common_attach(dev, amplitude, period);
 }
 
 static void waveform_detach(struct comedi_device *dev)
@@ -692,9 +778,71 @@ static struct comedi_driver waveform_driver = {
 	.driver_name	= "comedi_test",
 	.module		= THIS_MODULE,
 	.attach		= waveform_attach,
+	.auto_attach	= waveform_auto_attach,
 	.detach		= waveform_detach,
 };
-module_comedi_driver(waveform_driver);
+
+/*
+ * For auto-configuration, a device is created to stand in for a
+ * real hardware device.
+ */
+static int __init comedi_test_init(void)
+{
+	int ret;
+
+	ret = comedi_driver_register(&waveform_driver);
+	if (ret) {
+		pr_err("comedi_test: unable to register driver\n");
+		return ret;
+	}
+
+	if (!config_mode) {
+		ctcls = class_create(THIS_MODULE, CLASS_NAME);
+		if (IS_ERR(ctcls)) {
+			pr_warn("comedi_test: unable to create class\n");
+			goto clean3;
+		}
+
+		ctdev = device_create(ctcls, NULL, MKDEV(0, 0), NULL, DEV_NAME);
+		if (IS_ERR(ctdev)) {
+			pr_warn("comedi_test: unable to create device\n");
+			goto clean2;
+		}
+
+		ret = comedi_auto_config(ctdev, &waveform_driver, 0);
+		if (ret) {
+			pr_warn("comedi_test: unable to auto-configure device\n");
+			goto clean;
+		}
+	}
+
+	return 0;
+
+clean:
+	device_destroy(ctcls, MKDEV(0, 0));
+clean2:
+	class_destroy(ctcls);
+	ctdev = NULL;
+clean3:
+	ctcls = NULL;
+
+	return 0;
+}
+module_init(comedi_test_init);
+
+static void __exit comedi_test_exit(void)
+{
+	if (ctdev)
+		comedi_auto_unconfig(ctdev);
+
+	if (ctcls) {
+		device_destroy(ctcls, MKDEV(0, 0));
+		class_destroy(ctcls);
+	}
+
+	comedi_driver_unregister(&waveform_driver);
+}
+module_exit(comedi_test_exit);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-only
+
+/dts-v1/;
+
+#include "omap34xx.dtsi"
+#include "logicpd-som-lv.dtsi"
+#include "logicpd-som-lv-baseboard.dtsi"
+#include "omap-gpmc-smsc9221.dtsi"
+
+/ {
+	model = "LogicPD Zoom OMAP35xx SOM-LV Development Kit";
+	compatible = "logicpd,dm3730-som-lv-devkit", "ti,omap3";
+};

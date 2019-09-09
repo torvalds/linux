@@ -37,12 +37,9 @@ static int smsc_i2c_probe(struct i2c_client *i2c,
 	int devid, rev, venid_l, venid_h;
 	int ret;
 
-	smsc = devm_kzalloc(&i2c->dev, sizeof(struct smsc),
-				GFP_KERNEL);
-	if (!smsc) {
-		dev_err(&i2c->dev, "smsc mfd driver memory allocation failed\n");
+	smsc = devm_kzalloc(&i2c->dev, sizeof(*smsc), GFP_KERNEL);
+	if (!smsc)
 		return -ENOMEM;
-	}
 
 	smsc->regmap = devm_regmap_init_i2c(i2c, &smsc_regmap_config);
 	if (IS_ERR(smsc->regmap))
@@ -69,8 +66,7 @@ static int smsc_i2c_probe(struct i2c_client *i2c,
 
 #ifdef CONFIG_OF
 	if (i2c->dev.of_node)
-		ret = of_platform_populate(i2c->dev.of_node,
-					   NULL, NULL, &i2c->dev);
+		ret = devm_of_platform_populate(&i2c->dev);
 #endif
 
 	return ret;

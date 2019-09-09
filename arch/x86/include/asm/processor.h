@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_PROCESSOR_H
 #define _ASM_X86_PROCESSOR_H
 
@@ -22,6 +23,7 @@ struct vm86;
 #include <asm/nops.h>
 #include <asm/special_insns.h>
 #include <asm/fpu/types.h>
+#include <asm/unwind_hints.h>
 
 #include <linux/personality.h>
 #include <linux/cache.h>
@@ -29,6 +31,7 @@ struct vm86;
 #include <linux/math64.h>
 #include <linux/err.h>
 #include <linux/irqflags.h>
+#include <linux/mem_encrypt.h>
 
 /*
  * We handle most unaligned accesses in hardware.  On the other hand
@@ -39,18 +42,6 @@ struct vm86;
 #define NET_IP_ALIGN	0
 
 #define HBP_NUM 4
-/*
- * Default implementation of macro that returns current
- * instruction pointer ("program counter").
- */
-static inline void *current_text_addr(void)
-{
-	void *pc;
-
-	asm volatile("mov $1f, %0; 1:":"=r" (pc));
-
-	return pc;
-}
 
 /*
  * These alignment constraints are for performance in the vSMP case,
@@ -80,7 +71,7 @@ extern u16 __read_mostly tlb_lld_1g[NR_INFO];
 
 /*
  *  CPU type and hardware bug flags. Kept separately for each CPU.
- *  Members of this structure are referenced in head.S, so think twice
+ *  Members of this structure are referenced in head_32.S, so think twice
  *  before touching them. [mj]
  */
 
@@ -88,15 +79,8 @@ struct cpuinfo_x86 {
 	__u8			x86;		/* CPU family */
 	__u8			x86_vendor;	/* CPU vendor */
 	__u8			x86_model;
-	__u8			x86_mask;
-#ifdef CONFIG_X86_32
-	char			wp_works_ok;	/* It doesn't on 386's */
-
-	/* Problems on some 486Dx4's and old 386's: */
-	char			rfu;
-	char			pad0;
-	char			pad1;
-#else
+	__u8			x86_stepping;
+#ifdef CONFIG_X86_64
 	/* Number of 4K pages in DTLB/ITLB combined(in pages): */
 	int			x86_tlbsize;
 #endif
@@ -104,6 +88,7 @@ struct cpuinfo_x86 {
 	__u8			x86_phys_bits;
 	/* CPUID returned core id bits: */
 	__u8			x86_coreid_bits;
+	__u8			cu_id;
 	/* Max extended CPUID function supported: */
 	__u32			extended_cpuid_level;
 	/* Maximum supported CPUID level, -1=no CPUID: */
@@ -112,7 +97,7 @@ struct cpuinfo_x86 {
 	char			x86_vendor_id[16];
 	char			x86_model_id[64];
 	/* in KB - valid for CPUS which support this call: */
-	int			x86_cache_size;
+	unsigned int		x86_cache_size;
 	int			x86_cache_alignment;	/* In bytes */
 	/* Cache QoS architectural values: */
 	int			x86_cache_max_rmid;	/* max index */
@@ -120,7 +105,7 @@ struct cpuinfo_x86 {
 	int			x86_power;
 	unsigned long		loops_per_jiffy;
 	/* cpuid returned max cores value: */
-	u16			 x86_max_cores;
+	u16			x86_max_cores;
 	u16			apicid;
 	u16			initial_apicid;
 	u16			x86_clflush_size;
@@ -132,9 +117,25 @@ struct cpuinfo_x86 {
 	u16			logical_proc_id;
 	/* Core id: */
 	u16			cpu_core_id;
+	u16			cpu_die_id;
+	u16			logical_die_id;
 	/* Index into per_cpu list: */
 	u16			cpu_index;
 	u32			microcode;
+	/* Address space bits used by the cache internally */
+	u8			x86_cache_bits;
+	unsigned		initialized : 1;
+} __randomize_layout;
+
+struct cpuid_regs {
+	u32 eax, ebx, ecx, edx;
+};
+
+enum cpuid_regs_idx {
+	CPUID_EAX = 0,
+	CPUID_EBX,
+	CPUID_ECX,
+	CPUID_EDX,
 };
 
 #define X86_VENDOR_INTEL	0
@@ -144,7 +145,9 @@ struct cpuinfo_x86 {
 #define X86_VENDOR_CENTAUR	5
 #define X86_VENDOR_TRANSMETA	7
 #define X86_VENDOR_NSC		8
-#define X86_VENDOR_NUM		9
+#define X86_VENDOR_HYGON	9
+#define X86_VENDOR_ZHAOXIN	10
+#define X86_VENDOR_NUM		11
 
 #define X86_VENDOR_UNKNOWN	0xff
 
@@ -154,9 +157,9 @@ struct cpuinfo_x86 {
 extern struct cpuinfo_x86	boot_cpu_data;
 extern struct cpuinfo_x86	new_cpu_data;
 
-extern struct tss_struct	doublefault_tss;
-extern __u32			cpu_caps_cleared[NCAPINTS];
-extern __u32			cpu_caps_set[NCAPINTS];
+extern struct x86_hw_tss	doublefault_tss;
+extern __u32			cpu_caps_cleared[NCAPINTS + NBUGINTS];
+extern __u32			cpu_caps_set[NCAPINTS + NBUGINTS];
 
 #ifdef CONFIG_SMP
 DECLARE_PER_CPU_READ_MOSTLY(struct cpuinfo_x86, cpu_info);
@@ -172,17 +175,16 @@ extern const struct seq_operations cpuinfo_op;
 
 extern void cpu_detect(struct cpuinfo_x86 *c);
 
+static inline unsigned long long l1tf_pfn_limit(void)
+{
+	return BIT_ULL(boot_cpu_data.x86_cache_bits - 1 - PAGE_SHIFT);
+}
+
 extern void early_cpu_init(void);
 extern void identify_boot_cpu(void);
 extern void identify_secondary_cpu(struct cpuinfo_x86 *);
 extern void print_cpu_info(struct cpuinfo_x86 *);
 void print_cpu_msr(struct cpuinfo_x86 *);
-extern void init_scattered_cpuid_features(struct cpuinfo_x86 *c);
-extern unsigned int init_intel_cacheinfo(struct cpuinfo_x86 *c);
-extern void init_amd_cacheinfo(struct cpuinfo_x86 *c);
-
-extern void detect_extended_topology(struct cpuinfo_x86 *c);
-extern void detect_ht(struct cpuinfo_x86 *c);
 
 #ifdef CONFIG_X86_32
 extern int have_cpuid_p(void);
@@ -205,11 +207,47 @@ static inline void native_cpuid(unsigned int *eax, unsigned int *ebx,
 	    : "memory");
 }
 
-static inline void load_cr3(pgd_t *pgdir)
-{
-	write_cr3(__pa(pgdir));
+#define native_cpuid_reg(reg)					\
+static inline unsigned int native_cpuid_##reg(unsigned int op)	\
+{								\
+	unsigned int eax = op, ebx, ecx = 0, edx;		\
+								\
+	native_cpuid(&eax, &ebx, &ecx, &edx);			\
+								\
+	return reg;						\
 }
 
+/*
+ * Native CPUID functions returning a single datum.
+ */
+native_cpuid_reg(eax)
+native_cpuid_reg(ebx)
+native_cpuid_reg(ecx)
+native_cpuid_reg(edx)
+
+/*
+ * Friendlier CR3 helpers.
+ */
+static inline unsigned long read_cr3_pa(void)
+{
+	return __read_cr3() & CR3_ADDR_MASK;
+}
+
+static inline unsigned long native_read_cr3_pa(void)
+{
+	return __native_read_cr3() & CR3_ADDR_MASK;
+}
+
+static inline void load_cr3(pgd_t *pgdir)
+{
+	write_cr3(__sme_pa(pgdir));
+}
+
+/*
+ * Note that while the legacy 'TSS' name comes from 'Task State Segment',
+ * on modern x86 CPUs the TSS also holds information important to 64-bit mode,
+ * unrelated to the task-switch mechanism:
+ */
 #ifdef CONFIG_X86_32
 /* This is the TSS defined by the hardware. */
 struct x86_hw_tss {
@@ -262,8 +300,20 @@ struct x86_hw_tss {
 struct x86_hw_tss {
 	u32			reserved1;
 	u64			sp0;
+
+	/*
+	 * We store cpu_current_top_of_stack in sp1 so it's always accessible.
+	 * Linux does not use ring 1, so sp1 is not otherwise needed.
+	 */
 	u64			sp1;
+
+	/*
+	 * Since Linux does not use ring 2, the 'sp2' slot is unused by
+	 * hardware.  entry_SYSCALL_64 uses it as scratch space to stash
+	 * the user RSP value.
+	 */
 	u64			sp2;
+
 	u64			reserved2;
 	u64			ist[7];
 	u32			reserved3;
@@ -271,7 +321,7 @@ struct x86_hw_tss {
 	u16			reserved5;
 	u16			io_bitmap_base;
 
-} __attribute__((packed)) ____cacheline_aligned;
+} __attribute__((packed));
 #endif
 
 /*
@@ -280,12 +330,22 @@ struct x86_hw_tss {
 #define IO_BITMAP_BITS			65536
 #define IO_BITMAP_BYTES			(IO_BITMAP_BITS/8)
 #define IO_BITMAP_LONGS			(IO_BITMAP_BYTES/sizeof(long))
-#define IO_BITMAP_OFFSET		offsetof(struct tss_struct, io_bitmap)
+#define IO_BITMAP_OFFSET		(offsetof(struct tss_struct, io_bitmap) - offsetof(struct tss_struct, x86_tss))
 #define INVALID_IO_BITMAP_OFFSET	0x8000
+
+struct entry_stack {
+	unsigned long		words[64];
+};
+
+struct entry_stack_page {
+	struct entry_stack stack;
+} __aligned(PAGE_SIZE);
 
 struct tss_struct {
 	/*
-	 * The hardware state:
+	 * The fixed hardware portion.  This must not cross a page boundary
+	 * at risk of violating the SDM's advice and potentially triggering
+	 * errata.
 	 */
 	struct x86_hw_tss	x86_tss;
 
@@ -296,54 +356,62 @@ struct tss_struct {
 	 * be within the limit.
 	 */
 	unsigned long		io_bitmap[IO_BITMAP_LONGS + 1];
+} __aligned(PAGE_SIZE);
 
-#ifdef CONFIG_X86_32
-	/*
-	 * Space for the temporary SYSENTER stack.
-	 */
-	unsigned long		SYSENTER_stack_canary;
-	unsigned long		SYSENTER_stack[64];
-#endif
+DECLARE_PER_CPU_PAGE_ALIGNED(struct tss_struct, cpu_tss_rw);
 
-} ____cacheline_aligned;
+/*
+ * sizeof(unsigned long) coming from an extra "long" at the end
+ * of the iobitmap.
+ *
+ * -1? seg base+limit should be pointing to the address of the
+ * last valid byte
+ */
+#define __KERNEL_TSS_LIMIT	\
+	(IO_BITMAP_OFFSET + IO_BITMAP_BYTES + sizeof(unsigned long) - 1)
 
-DECLARE_PER_CPU_SHARED_ALIGNED(struct tss_struct, cpu_tss);
+/* Per CPU interrupt stacks */
+struct irq_stack {
+	char		stack[IRQ_STACK_SIZE];
+} __aligned(IRQ_STACK_SIZE);
+
+DECLARE_PER_CPU(struct irq_stack *, hardirq_stack_ptr);
 
 #ifdef CONFIG_X86_32
 DECLARE_PER_CPU(unsigned long, cpu_current_top_of_stack);
+#else
+/* The RO copy can't be accessed with this_cpu_xyz(), so use the RW copy. */
+#define cpu_current_top_of_stack cpu_tss_rw.x86_tss.sp1
 #endif
 
-/*
- * Save the original ist values for checking stack pointers during debugging
- */
-struct orig_ist {
-	unsigned long		ist[7];
-};
-
 #ifdef CONFIG_X86_64
-DECLARE_PER_CPU(struct orig_ist, orig_ist);
-
-union irq_stack_union {
-	char irq_stack[IRQ_STACK_SIZE];
+struct fixed_percpu_data {
 	/*
 	 * GCC hardcodes the stack canary as %gs:40.  Since the
 	 * irq_stack is the object at %gs:0, we reserve the bottom
 	 * 48 bytes of the irq stack for the canary.
 	 */
-	struct {
-		char gs_base[40];
-		unsigned long stack_canary;
-	};
+	char		gs_base[40];
+	unsigned long	stack_canary;
 };
 
-DECLARE_PER_CPU_FIRST(union irq_stack_union, irq_stack_union) __visible;
-DECLARE_INIT_PER_CPU(irq_stack_union);
+DECLARE_PER_CPU_FIRST(struct fixed_percpu_data, fixed_percpu_data) __visible;
+DECLARE_INIT_PER_CPU(fixed_percpu_data);
 
-DECLARE_PER_CPU(char *, irq_stack_ptr);
+static inline unsigned long cpu_kernelmode_gs_base(int cpu)
+{
+	return (unsigned long)per_cpu(fixed_percpu_data.gs_base, cpu);
+}
+
 DECLARE_PER_CPU(unsigned int, irq_count);
 extern asmlinkage void ignore_sysret(void);
+
+#if IS_ENABLED(CONFIG_KVM)
+/* Save actual FS/GS selectors and bases to current->thread */
+void save_fsgs_for_kvm(void);
+#endif
 #else	/* X86_64 */
-#ifdef CONFIG_CC_STACKPROTECTOR
+#ifdef CONFIG_STACKPROTECTOR
 /*
  * Make sure stack canary segment base is cached-aligned:
  *   "For Intel Atom processors, avoid non zero segment base address
@@ -356,15 +424,8 @@ struct stack_canary {
 };
 DECLARE_PER_CPU_ALIGNED(struct stack_canary, stack_canary);
 #endif
-/*
- * per-CPU IRQ handling stacks
- */
-struct irq_stack {
-	u32                     stack[THREAD_SIZE/sizeof(u32)];
-} __aligned(THREAD_SIZE);
-
-DECLARE_PER_CPU(struct irq_stack *, hardirq_stack);
-DECLARE_PER_CPU(struct irq_stack *, softirq_stack);
+/* Per CPU softirq stack pointer */
+DECLARE_PER_CPU(struct irq_stack *, softirq_stack_ptr);
 #endif	/* X86_64 */
 
 extern unsigned int fpu_kernel_xstate_size;
@@ -379,7 +440,9 @@ typedef struct {
 struct thread_struct {
 	/* Cached TLS descriptors: */
 	struct desc_struct	tls_array[GDT_ENTRY_TLS_ENTRIES];
+#ifdef CONFIG_X86_32
 	unsigned long		sp0;
+#endif
 	unsigned long		sp;
 #ifdef CONFIG_X86_32
 	unsigned long		sysenter_cs;
@@ -389,8 +452,6 @@ struct thread_struct {
 	unsigned short		fsindex;
 	unsigned short		gsindex;
 #endif
-
-	u32			status;		/* thread synchronous flags */
 
 #ifdef CONFIG_X86_64
 	unsigned long		fsbase;
@@ -437,6 +498,14 @@ struct thread_struct {
 	 */
 };
 
+/* Whitelist the FPU state from the task_struct for hardened usercopy. */
+static inline void arch_thread_struct_whitelist(unsigned long *offset,
+						unsigned long *size)
+{
+	*offset = offsetof(struct thread_struct, fpu.state);
+	*size = fpu_kernel_xstate_size;
+}
+
 /*
  * Thread-synchronous status.
  *
@@ -466,16 +535,9 @@ static inline void native_set_iopl_mask(unsigned mask)
 }
 
 static inline void
-native_load_sp0(struct tss_struct *tss, struct thread_struct *thread)
+native_load_sp0(unsigned long sp0)
 {
-	tss->x86_tss.sp0 = thread->sp0;
-#ifdef CONFIG_X86_32
-	/* Only happens when SEP is enabled, no need to test "SEP"arately: */
-	if (unlikely(tss->x86_tss.ss1 != thread->sysenter_cs)) {
-		tss->x86_tss.ss1 = thread->sysenter_cs;
-		wrmsr(MSR_IA32_SYSENTER_CS, thread->sysenter_cs, 0);
-	}
-#endif
+	this_cpu_write(cpu_tss_rw.x86_tss.sp0, sp0);
 }
 
 static inline void native_swapgs(void)
@@ -487,27 +549,32 @@ static inline void native_swapgs(void)
 
 static inline unsigned long current_top_of_stack(void)
 {
-#ifdef CONFIG_X86_64
-	return this_cpu_read_stable(cpu_tss.x86_tss.sp0);
-#else
-	/* sp0 on x86_32 is special in and around vm86 mode. */
+	/*
+	 *  We can't read directly from tss.sp0: sp0 on x86_32 is special in
+	 *  and around vm86 mode and sp0 on x86_64 is special because of the
+	 *  entry trampoline.
+	 */
 	return this_cpu_read_stable(cpu_current_top_of_stack);
-#endif
 }
 
-#ifdef CONFIG_PARAVIRT
+static inline bool on_thread_stack(void)
+{
+	return (unsigned long)(current_top_of_stack() -
+			       current_stack_pointer) < THREAD_SIZE;
+}
+
+#ifdef CONFIG_PARAVIRT_XXL
 #include <asm/paravirt.h>
 #else
 #define __cpuid			native_cpuid
 
-static inline void load_sp0(struct tss_struct *tss,
-			    struct thread_struct *thread)
+static inline void load_sp0(unsigned long sp0)
 {
-	native_load_sp0(tss, thread);
+	native_load_sp0(sp0);
 }
 
 #define set_iopl_mask native_set_iopl_mask
-#endif /* CONFIG_PARAVIRT */
+#endif /* CONFIG_PARAVIRT_XXL */
 
 /* Free all resources held by a thread. */
 extern void release_thread(struct task_struct *);
@@ -588,43 +655,76 @@ static __always_inline void cpu_relax(void)
 	rep_nop();
 }
 
-#define cpu_relax_lowlatency() cpu_relax()
-
-/* Stop speculative execution and prefetching of modified code. */
+/*
+ * This function forces the icache and prefetched instruction stream to
+ * catch up with reality in two very specific cases:
+ *
+ *  a) Text was modified using one virtual address and is about to be executed
+ *     from the same physical page at a different virtual address.
+ *
+ *  b) Text was modified on a different CPU, may subsequently be
+ *     executed on this CPU, and you want to make sure the new version
+ *     gets executed.  This generally means you're calling this in a IPI.
+ *
+ * If you're calling this for a different reason, you're probably doing
+ * it wrong.
+ */
 static inline void sync_core(void)
 {
-	int tmp;
-
-#ifdef CONFIG_M486
 	/*
-	 * Do a CPUID if available, otherwise do a jump.  The jump
-	 * can conveniently enough be the jump around CPUID.
+	 * There are quite a few ways to do this.  IRET-to-self is nice
+	 * because it works on every CPU, at any CPL (so it's compatible
+	 * with paravirtualization), and it never exits to a hypervisor.
+	 * The only down sides are that it's a bit slow (it seems to be
+	 * a bit more than 2x slower than the fastest options) and that
+	 * it unmasks NMIs.  The "push %cs" is needed because, in
+	 * paravirtual environments, __KERNEL_CS may not be a valid CS
+	 * value when we do IRET directly.
+	 *
+	 * In case NMI unmasking or performance ever becomes a problem,
+	 * the next best option appears to be MOV-to-CR2 and an
+	 * unconditional jump.  That sequence also works on all CPUs,
+	 * but it will fault at CPL3 (i.e. Xen PV).
+	 *
+	 * CPUID is the conventional way, but it's nasty: it doesn't
+	 * exist on some 486-like CPUs, and it usually exits to a
+	 * hypervisor.
+	 *
+	 * Like all of Linux's memory ordering operations, this is a
+	 * compiler barrier as well.
 	 */
-	asm volatile("cmpl %2,%1\n\t"
-		     "jl 1f\n\t"
-		     "cpuid\n"
-		     "1:"
-		     : "=a" (tmp)
-		     : "rm" (boot_cpu_data.cpuid_level), "ri" (0), "0" (1)
-		     : "ebx", "ecx", "edx", "memory");
+#ifdef CONFIG_X86_32
+	asm volatile (
+		"pushfl\n\t"
+		"pushl %%cs\n\t"
+		"pushl $1f\n\t"
+		"iret\n\t"
+		"1:"
+		: ASM_CALL_CONSTRAINT : : "memory");
 #else
-	/*
-	 * CPUID is a barrier to speculative execution.
-	 * Prefetched instructions are automatically
-	 * invalidated when modified.
-	 */
-	asm volatile("cpuid"
-		     : "=a" (tmp)
-		     : "0" (1)
-		     : "ebx", "ecx", "edx", "memory");
+	unsigned int tmp;
+
+	asm volatile (
+		UNWIND_HINT_SAVE
+		"mov %%ss, %0\n\t"
+		"pushq %q0\n\t"
+		"pushq %%rsp\n\t"
+		"addq $8, (%%rsp)\n\t"
+		"pushfq\n\t"
+		"mov %%cs, %0\n\t"
+		"pushq %q0\n\t"
+		"pushq $1f\n\t"
+		"iretq\n\t"
+		UNWIND_HINT_RESTORE
+		"1:"
+		: "=&r" (tmp), ASM_CALL_CONSTRAINT : : "cc", "memory");
 #endif
 }
 
 extern void select_idle_routine(const struct cpuinfo_x86 *c);
-extern void init_amd_e400_c1e_mask(void);
+extern void amd_e400_c1e_apic_setup(void);
 
 extern unsigned long		boot_option_idle_override;
-extern bool			amd_e400_c1e_detected;
 
 enum idle_boot_override {IDLE_NO_OVERRIDE=0, IDLE_HALT, IDLE_NOMWAIT,
 			 IDLE_POLL};
@@ -632,16 +732,16 @@ enum idle_boot_override {IDLE_NO_OVERRIDE=0, IDLE_HALT, IDLE_NOMWAIT,
 extern void enable_sep_cpu(void);
 extern int sysenter_setup(void);
 
-extern void early_trap_init(void);
-void early_trap_pf_init(void);
 
 /* Defined in head.S */
 extern struct desc_ptr		early_gdt_descr;
 
-extern void cpu_set_gdt(int);
 extern void switch_to_new_gdt(int);
+extern void load_direct_gdt(int);
+extern void load_fixmap_gdt(int);
 extern void load_percpu_segment(int);
 extern void cpu_init(void);
+extern void cr4_init(void);
 
 static inline unsigned long get_debugctlmsr(void)
 {
@@ -717,12 +817,24 @@ static inline void spin_lock_prefetch(const void *x)
 #define TOP_OF_INIT_STACK ((unsigned long)&init_stack + sizeof(init_stack) - \
 			   TOP_OF_KERNEL_STACK_PADDING)
 
+#define task_top_of_stack(task) ((unsigned long)(task_pt_regs(task) + 1))
+
+#define task_pt_regs(task) \
+({									\
+	unsigned long __ptr = (unsigned long)task_stack_page(task);	\
+	__ptr += THREAD_SIZE - TOP_OF_KERNEL_STACK_PADDING;		\
+	((struct pt_regs *)__ptr) - 1;					\
+})
+
 #ifdef CONFIG_X86_32
 /*
  * User space process size: 3GB (default).
  */
+#define IA32_PAGE_OFFSET	PAGE_OFFSET
 #define TASK_SIZE		PAGE_OFFSET
+#define TASK_SIZE_LOW		TASK_SIZE
 #define TASK_SIZE_MAX		TASK_SIZE
+#define DEFAULT_MAP_WINDOW	TASK_SIZE
 #define STACK_TOP		TASK_SIZE
 #define STACK_TOP_MAX		STACK_TOP
 
@@ -733,36 +845,30 @@ static inline void spin_lock_prefetch(const void *x)
 	.addr_limit		= KERNEL_DS,				  \
 }
 
-/*
- * TOP_OF_KERNEL_STACK_PADDING reserves 8 bytes on top of the ring0 stack.
- * This is necessary to guarantee that the entire "struct pt_regs"
- * is accessible even if the CPU haven't stored the SS/ESP registers
- * on the stack (interrupt gate does not save these registers
- * when switching to the same priv ring).
- * Therefore beware: accessing the ss/esp fields of the
- * "struct pt_regs" is possible, but they may contain the
- * completely wrong values.
- */
-#define task_pt_regs(task) \
-({									\
-	unsigned long __ptr = (unsigned long)task_stack_page(task);	\
-	__ptr += THREAD_SIZE - TOP_OF_KERNEL_STACK_PADDING;		\
-	((struct pt_regs *)__ptr) - 1;					\
-})
-
 #define KSTK_ESP(task)		(task_pt_regs(task)->sp)
 
 #else
 /*
- * User space process size. 47bits minus one guard page.  The guard
- * page is necessary on Intel CPUs: if a SYSCALL instruction is at
- * the highest possible canonical userspace address, then that
- * syscall will enter the kernel with a non-canonical return
- * address, and SYSRET will explode dangerously.  We avoid this
- * particular problem by preventing anything from being mapped
- * at the maximum canonical address.
+ * User space process size.  This is the first address outside the user range.
+ * There are a few constraints that determine this:
+ *
+ * On Intel CPUs, if a SYSCALL instruction is at the highest canonical
+ * address, then that syscall will enter the kernel with a
+ * non-canonical return address, and SYSRET will explode dangerously.
+ * We avoid this particular problem by preventing anything executable
+ * from being mapped at the maximum canonical address.
+ *
+ * On AMD CPUs in the Ryzen family, there's a nasty bug in which the
+ * CPUs malfunction if they execute code from the highest canonical page.
+ * They'll speculate right off the end of the canonical space, and
+ * bad things happen.  This is worked around in the same way as the
+ * Intel problem.
+ *
+ * With page table isolation enabled, we map the LDT in ... [stay tuned]
  */
-#define TASK_SIZE_MAX	((1UL << 47) - PAGE_SIZE)
+#define TASK_SIZE_MAX	((1UL << __VIRTUAL_MASK_SHIFT) - PAGE_SIZE)
+
+#define DEFAULT_MAP_WINDOW	((1UL << 47) - PAGE_SIZE)
 
 /* This decides where the kernel will search for a free chunk of vm
  * space during mmap's.
@@ -770,25 +876,23 @@ static inline void spin_lock_prefetch(const void *x)
 #define IA32_PAGE_OFFSET	((current->personality & ADDR_LIMIT_3GB) ? \
 					0xc0000000 : 0xFFFFe000)
 
+#define TASK_SIZE_LOW		(test_thread_flag(TIF_ADDR32) ? \
+					IA32_PAGE_OFFSET : DEFAULT_MAP_WINDOW)
 #define TASK_SIZE		(test_thread_flag(TIF_ADDR32) ? \
 					IA32_PAGE_OFFSET : TASK_SIZE_MAX)
 #define TASK_SIZE_OF(child)	((test_tsk_thread_flag(child, TIF_ADDR32)) ? \
 					IA32_PAGE_OFFSET : TASK_SIZE_MAX)
 
-#define STACK_TOP		TASK_SIZE
+#define STACK_TOP		TASK_SIZE_LOW
 #define STACK_TOP_MAX		TASK_SIZE_MAX
 
 #define INIT_THREAD  {						\
-	.sp0			= TOP_OF_INIT_STACK,		\
 	.addr_limit		= KERNEL_DS,			\
 }
 
-#define task_pt_regs(tsk)	((struct pt_regs *)(tsk)->thread.sp0 - 1)
 extern unsigned long KSTK_ESP(struct task_struct *task);
 
 #endif /* CONFIG_X86_64 */
-
-extern unsigned long thread_saved_pc(struct task_struct *tsk);
 
 extern void start_thread(struct pt_regs *regs, unsigned long new_ip,
 					       unsigned long new_sp);
@@ -797,7 +901,8 @@ extern void start_thread(struct pt_regs *regs, unsigned long new_ip,
  * This decides where the kernel will search for a free chunk of vm
  * space during mmap's.
  */
-#define TASK_UNMAPPED_BASE	(PAGE_ALIGN(TASK_SIZE / 3))
+#define __TASK_UNMAPPED_BASE(task_size)	(PAGE_ALIGN(task_size / 3))
+#define TASK_UNMAPPED_BASE		__TASK_UNMAPPED_BASE(TASK_SIZE_LOW)
 
 #define KSTK_EIP(task)		(task_pt_regs(task)->ip)
 
@@ -807,6 +912,8 @@ extern void start_thread(struct pt_regs *regs, unsigned long new_ip,
 
 extern int get_tsc_mode(unsigned long adr);
 extern int set_tsc_mode(unsigned int val);
+
+DECLARE_PER_CPU(u64, msr_misc_features_shadow);
 
 /* Register/unregister a process' MPX related resource */
 #define MPX_ENABLE_MANAGEMENT()	mpx_enable_management()
@@ -826,8 +933,13 @@ static inline int mpx_disable_management(void)
 }
 #endif /* CONFIG_X86_INTEL_MPX */
 
+#ifdef CONFIG_CPU_SUP_AMD
 extern u16 amd_get_nb_id(int cpu);
 extern u32 amd_get_nodes_per_socket(void);
+#else
+static inline u16 amd_get_nb_id(int cpu)		{ return 0; }
+static inline u32 amd_get_nodes_per_socket(void)	{ return 0; }
+#endif
 
 static inline uint32_t hypervisor_cpuid_base(const char *sig, uint32_t leaves)
 {
@@ -845,7 +957,8 @@ static inline uint32_t hypervisor_cpuid_base(const char *sig, uint32_t leaves)
 }
 
 extern unsigned long arch_align_stack(unsigned long sp);
-extern void free_init_pages(char *what, unsigned long begin, unsigned long end);
+void free_init_pages(const char *what, unsigned long begin, unsigned long end);
+extern void free_kernel_image_pages(void *begin, void *end);
 
 void default_idle(void);
 #ifdef	CONFIG_XEN
@@ -856,4 +969,23 @@ bool xen_set_default_idle(void);
 
 void stop_this_cpu(void *dummy);
 void df_debug(struct pt_regs *regs, long error_code);
+void microcode_check(void);
+
+enum l1tf_mitigations {
+	L1TF_MITIGATION_OFF,
+	L1TF_MITIGATION_FLUSH_NOWARN,
+	L1TF_MITIGATION_FLUSH,
+	L1TF_MITIGATION_FLUSH_NOSMT,
+	L1TF_MITIGATION_FULL,
+	L1TF_MITIGATION_FULL_FORCE
+};
+
+extern enum l1tf_mitigations l1tf_mitigation;
+
+enum mds_mitigations {
+	MDS_MITIGATION_OFF,
+	MDS_MITIGATION_FULL,
+	MDS_MITIGATION_VMWERV,
+};
+
 #endif /* _ASM_X86_PROCESSOR_H */

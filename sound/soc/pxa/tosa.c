@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * tosa.c  --  SoC audio for Tosa
  *
@@ -7,15 +8,9 @@
  * Authors: Liam Girdwood <lrg@slimlogic.co.uk>
  *          Richard Purdie <richard@openedhand.com>
  *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
- *
  * GPIO's
  *  1 - Jack Insertion
  *  5 - Hookswitch (headset answer/hang up switch)
- *
  */
 
 #include <linux/module.h>
@@ -30,9 +25,6 @@
 #include <asm/mach-types.h>
 #include <mach/tosa.h>
 #include <mach/audio.h>
-
-#include "../codecs/wm9712.h"
-#include "pxa2xx-ac97.h"
 
 #define TOSA_HP        0
 #define TOSA_MIC_INT   1
@@ -88,7 +80,7 @@ static int tosa_startup(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static struct snd_soc_ops tosa_ops = {
+static const struct snd_soc_ops tosa_ops = {
 	.startup = tosa_startup,
 };
 
@@ -136,7 +128,7 @@ static int tosa_set_spk(struct snd_kcontrol *kcontrol,
 static int tosa_hp_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *k, int event)
 {
-	gpio_set_value(TOSA_GPIO_L_MUTE, SND_SOC_DAPM_EVENT_ON(event) ? 1 :0);
+	gpio_set_value(TOSA_GPIO_L_MUTE, SND_SOC_DAPM_EVENT_ON(event) ? 1 : 0);
 	return 0;
 }
 
@@ -170,9 +162,9 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"Mic Bias", NULL, "Headset Jack"},
 };
 
-static const char *jack_function[] = {"Headphone", "Mic", "Line", "Headset",
-	"Off"};
-static const char *spk_function[] = {"On", "Off"};
+static const char * const jack_function[] = {"Headphone", "Mic", "Line",
+	"Headset", "Off"};
+static const char * const spk_function[] = {"On", "Off"};
 static const struct soc_enum tosa_enum[] = {
 	SOC_ENUM_SINGLE_EXT(5, jack_function),
 	SOC_ENUM_SINGLE_EXT(2, spk_function),
@@ -185,24 +177,28 @@ static const struct snd_kcontrol_new tosa_controls[] = {
 		tosa_set_spk),
 };
 
+SND_SOC_DAILINK_DEFS(ac97,
+	DAILINK_COMP_ARRAY(COMP_CPU("pxa2xx-ac97")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("wm9712-codec", "wm9712-hifi")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("pxa-pcm-audio")));
+
+SND_SOC_DAILINK_DEFS(ac97_aux,
+	DAILINK_COMP_ARRAY(COMP_CPU("pxa2xx-ac97-aux")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("wm9712-codec", "wm9712-aux")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("pxa-pcm-audio")));
+
 static struct snd_soc_dai_link tosa_dai[] = {
 {
 	.name = "AC97",
 	.stream_name = "AC97 HiFi",
-	.cpu_dai_name = "pxa2xx-ac97",
-	.codec_dai_name = "wm9712-hifi",
-	.platform_name = "pxa-pcm-audio",
-	.codec_name = "wm9712-codec",
 	.ops = &tosa_ops,
+	SND_SOC_DAILINK_REG(ac97),
 },
 {
 	.name = "AC97 Aux",
 	.stream_name = "AC97 Aux",
-	.cpu_dai_name = "pxa2xx-ac97-aux",
-	.codec_dai_name = "wm9712-aux",
-	.platform_name = "pxa-pcm-audio",
-	.codec_name = "wm9712-codec",
 	.ops = &tosa_ops,
+	SND_SOC_DAILINK_REG(ac97_aux),
 },
 };
 

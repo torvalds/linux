@@ -31,13 +31,7 @@
 #define MAP_NAME "ram"
 #endif
 
-/*
- * Blackfin uses uclinux_ram_map during startup, so it must not be static.
- * Provide a dummy declaration to make sparse happy.
- */
-extern struct map_info uclinux_ram_map;
-
-struct map_info uclinux_ram_map = {
+static struct map_info uclinux_ram_map = {
 	.name = MAP_NAME,
 	.size = 0,
 };
@@ -49,7 +43,7 @@ static struct mtd_info *uclinux_ram_mtdinfo;
 
 /****************************************************************************/
 
-static struct mtd_partition uclinux_romfs[] = {
+static const struct mtd_partition uclinux_romfs[] = {
 	{ .name = "ROMfs" }
 };
 

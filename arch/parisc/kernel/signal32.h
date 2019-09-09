@@ -1,20 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /* 
  *    Copyright (C) 2001 Matthew Wilcox <willy at parisc-linux.org>
  *    Copyright (C) 2003 Carlos O'Donell <carlos at parisc-linux.org>
- *
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation; either version 2 of the License, or
- *    (at your option) any later version.
- *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
- *
- *    You should have received a copy of the GNU General Public License
- *    along with this program; if not, write to the Free Software
- *    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 #ifndef _PARISC64_KERNEL_SIGNAL32_H
 #define _PARISC64_KERNEL_SIGNAL32_H
@@ -33,9 +20,6 @@ struct compat_ucontext {
 };
 
 /* ELF32 signal handling */
-
-int copy_siginfo_to_user32 (compat_siginfo_t __user *to, const siginfo_t *from);
-int copy_siginfo_from_user32 (siginfo_t *to, compat_siginfo_t __user *from);
 
 /* In a deft move of uber-hackery, we decide to carry the top half of all
  * 64-bit registers in a non-portable, non-ABI, hidden structure.
@@ -79,8 +63,6 @@ struct compat_rt_sigframe {
 #define FUNCTIONCALLFRAME32     48
 #define PARISC_RT_SIGFRAME_SIZE32 (((sizeof(struct compat_rt_sigframe) + FUNCTIONCALLFRAME32) + SIGFRAME32) & -SIGFRAME32)
 
-void sigset_32to64(sigset_t *s64, compat_sigset_t *s32);
-void sigset_64to32(compat_sigset_t *s32, sigset_t *s64);
 long restore_sigcontext32(struct compat_sigcontext __user *sc, 
 		struct compat_regfile __user *rf,
 		struct pt_regs *regs);

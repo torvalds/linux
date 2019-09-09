@@ -11,8 +11,8 @@ All fields are in native-endian of the machine that generated the perf.data.
 
 When perf is writing to a pipe it uses a special version of the file
 format that does not rely on seeking to adjust data offsets.  This
-format is not described here. The pipe version can be converted to
-normal perf.data with perf inject.
+format is described in "Pipe-mode data" section. The pipe data version can be
+augmented with additional events using perf inject.
 
 The file starts with a perf_header:
 
@@ -43,11 +43,10 @@ struct perf_file_section {
 
 Flags section:
 
-The header is followed by different optional headers, described by the bits set
-in flags. Only headers for which the bit is set are included. Each header
-consists of a perf_file_section located after the initial header.
-The respective perf_file_section points to the data of the additional
-header and defines its size.
+For each of the optional features a perf_file_section it placed after the data
+section if the feature bit is set in the perf_header flags bitset. The
+respective perf_file_section points to the data of the additional header and
+defines its size.
 
 Some headers consist of strings, which are defined like this:
 
@@ -111,8 +110,8 @@ A perf_header_string with the CPU architecture (uname -m)
 A structure defining the number of CPUs.
 
 struct nr_cpus {
-       uint32_t nr_cpus_online;
        uint32_t nr_cpus_available; /* CPUs not yet onlined */
+       uint32_t nr_cpus_online;
 };
 
 	HEADER_CPUDESC = 8,
@@ -127,11 +126,11 @@ vendor,family,model,stepping. For example: GenuineIntel,6,69,1
 
 	HEADER_TOTAL_MEM = 10,
 
-An uint64_t with the total memory in bytes.
+An uint64_t with the total memory in kilobytes.
 
 	HEADER_CMDLINE = 11,
 
-A perf_header_string with the perf command line used to collect the data.
+A perf_header_string_list with the perf arg-vector used to collect the data.
 
 	HEADER_EVENT_DESC = 12,
 
@@ -152,17 +151,45 @@ struct {
 
 	HEADER_CPU_TOPOLOGY = 13,
 
-String lists defining the core and CPU threads topology.
-
 struct {
+	/*
+	 * First revision of HEADER_CPU_TOPOLOGY
+	 *
+	 * See 'struct perf_header_string_list' definition earlier
+	 * in this file.
+	 */
+
        struct perf_header_string_list cores; /* Variable length */
        struct perf_header_string_list threads; /* Variable length */
+
+       /*
+        * Second revision of HEADER_CPU_TOPOLOGY, older tools
+        * will not consider what comes next
+        */
+
+       struct {
+	      uint32_t core_id;
+	      uint32_t socket_id;
+       } cpus[nr]; /* Variable length records */
+       /* 'nr' comes from previously processed HEADER_NRCPUS's nr_cpu_avail */
+
+        /*
+	 * Third revision of HEADER_CPU_TOPOLOGY, older tools
+	 * will not consider what comes next
+	 */
+
+	struct perf_header_string_list dies; /* Variable length */
+	uint32_t die_id[nr_cpus_avail]; /* from previously processed HEADER_NR_CPUS, VLA */
 };
 
 Example:
-	sibling cores   : 0-3
+	sibling sockets : 0-8
+	sibling dies	: 0-3
+	sibling dies	: 4-7
 	sibling threads : 0-1
 	sibling threads : 2-3
+	sibling threads : 4-5
+	sibling threads : 6-7
 
 	HEADER_NUMA_TOPOLOGY = 14,
 
@@ -238,6 +265,109 @@ struct auxtrace_index {
 	struct auxtrace_index_entry entries[PERF_AUXTRACE_INDEX_ENTRY_COUNT];
 };
 
+	HEADER_STAT = 19,
+
+This is merely a flag signifying that the data section contains data
+recorded from perf stat record.
+
+	HEADER_CACHE = 20,
+
+Description of the cache hierarchy. Based on the Linux sysfs format
+in /sys/devices/system/cpu/cpu*/cache/
+
+	u32 version	Currently always 1
+	u32 number_of_cache_levels
+
+struct {
+	u32	level;
+	u32	line_size;
+	u32	sets;
+	u32	ways;
+	struct perf_header_string type;
+	struct perf_header_string size;
+	struct perf_header_string map;
+}[number_of_cache_levels];
+
+	HEADER_SAMPLE_TIME = 21,
+
+Two uint64_t for the time of first sample and the time of last sample.
+
+	HEADER_SAMPLE_TOPOLOGY = 22,
+
+Physical memory map and its node assignments.
+
+The format of data in MEM_TOPOLOGY is as follows:
+
+   0 - version          | for future changes
+   8 - block_size_bytes | /sys/devices/system/memory/block_size_bytes
+  16 - count            | number of nodes
+
+For each node we store map of physical indexes:
+
+  32 - node id          | node index
+  40 - size             | size of bitmap
+  48 - bitmap           | bitmap of memory indexes that belongs to node
+                        | /sys/devices/system/node/node<NODE>/memory<INDEX>
+
+The MEM_TOPOLOGY can be displayed with following command:
+
+$ perf report --header-only -I
+...
+# memory nodes (nr 1, block size 0x8000000):
+#    0 [7G]: 0-23,32-69
+
+	HEADER_CLOCKID = 23,
+
+One uint64_t for the clockid frequency, specified, for instance, via 'perf
+record -k' (see clock_gettime()), to enable timestamps derived metrics
+conversion into wall clock time on the reporting stage.
+
+	HEADER_DIR_FORMAT = 24,
+
+The data files layout is described by HEADER_DIR_FORMAT feature.  Currently it
+holds only version number (1):
+
+  uint64_t version;
+
+The current version holds only version value (1) means that data files:
+
+- Follow the 'data.*' name format.
+
+- Contain raw events data in standard perf format as read from kernel (and need
+  to be sorted)
+
+Future versions are expected to describe different data files layout according
+to special needs.
+
+        HEADER_BPF_PROG_INFO = 25,
+
+struct bpf_prog_info_linear, which contains detailed information about
+a BPF program, including type, id, tag, jited/xlated instructions, etc.
+
+        HEADER_BPF_BTF = 26,
+
+Contains BPF Type Format (BTF). For more information about BTF, please
+refer to Documentation/bpf/btf.rst.
+
+struct {
+	u32	id;
+	u32	data_size;
+	char	data[];
+};
+
+        HEADER_COMPRESSED = 27,
+
+struct {
+	u32	version;
+	u32	type;
+	u32	level;
+	u32	ratio;
+	u32	mmap_len;
+};
+
+Indicates that trace contains records of PERF_RECORD_COMPRESSED type
+that have perf_events records in compressed form.
+
 	other bits are reserved and should ignored for now
 	HEADER_FEAT_BITS	= 256,
 
@@ -270,7 +400,7 @@ When the event stream contains multiple events each event is identified
 by an ID. This can be either through the PERF_SAMPLE_ID or the
 PERF_SAMPLE_IDENTIFIER header. The PERF_SAMPLE_IDENTIFIER header is
 at a fixed offset from the event header, which allows reliable
-parsing of the header. Relying on ID may be ambigious.
+parsing of the header. Relying on ID may be ambiguous.
 IDENTIFIER is only supported by newer Linux kernels.
 
 Perf record specific events:
@@ -288,7 +418,7 @@ struct attr_event {
 	uint64_t id[];
 };
 
-	PERF_RECORD_HEADER_EVENT_TYPE		= 65, /* depreceated */
+	PERF_RECORD_HEADER_EVENT_TYPE		= 65, /* deprecated */
 
 #define MAX_EVENT_NAME 64
 
@@ -398,6 +528,22 @@ struct auxtrace_error_event {
 	char msg[MAX_AUXTRACE_ERROR_MSG];
 };
 
+	PERF_RECORD_HEADER_FEATURE		= 80,
+
+Describes a header feature. These are records used in pipe-mode that
+contain information that otherwise would be in perf.data file's header.
+
+	PERF_RECORD_COMPRESSED 			= 81,
+
+struct compressed_event {
+	struct perf_event_header	header;
+	char				data[];
+};
+
+The header is followed by compressed data frame that can be decompressed
+into array of perf trace records. The size of the entire compressed event
+record including the header is limited by the max value of header.size.
+
 Event types
 
 Define the event attributes with their IDs.
@@ -410,6 +556,22 @@ An array bound by the perf_file_section size.
 	}
 
 ids points to a array of uint64_t defining the ids for event attr attr.
+
+Pipe-mode data
+
+Pipe-mode avoid seeks in the file by removing the perf_file_section and flags
+from the struct perf_header. The trimmed header is:
+
+struct perf_pipe_file_header {
+	u64				magic;
+	u64				size;
+};
+
+The information about attrs, data, and event_types is instead in the
+synthesized events PERF_RECORD_ATTR, PERF_RECORD_HEADER_TRACING_DATA,
+PERF_RECORD_HEADER_EVENT_TYPE, and PERF_RECORD_HEADER_FEATURE
+that are generated by perf record in pipe-mode.
+
 
 References:
 
@@ -437,10 +599,5 @@ in pmu-tools parser. This allows to read perf.data from python and dump it.
 quipper
 
 The quipper C++ parser is available at
-https://chromium.googlesource.com/chromiumos/platform2
+http://github.com/google/perf_data_converter/tree/master/src/quipper
 
-It is under the chromiumos-wide-profiling/ subdirectory. This library can
-convert a perf data file to a protobuf and vice versa.
-
-Unfortunately this parser tends to be many versions behind and may not be able
-to parse data files generated by recent perf.

@@ -1,29 +1,13 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 
 /*
  *  Copyright 2003-2004 Red Hat, Inc.  All rights reserved.
  *  Copyright 2003-2004 Jeff Garzik
  *
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2, or (at your option)
- *  any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
- *
- *
  *  libata documentation is available via 'make {ps|pdf}docs',
- *  as Documentation/DocBook/libata.*
+ *  as Documentation/driver-api/libata.rst
  *
  *  Hardware documentation available from http://www.t13.org/
- *
  */
 
 #ifndef __LINUX_ATA_H__
@@ -60,7 +44,8 @@ enum {
 	ATA_ID_FW_REV		= 23,
 	ATA_ID_PROD		= 27,
 	ATA_ID_MAX_MULTSECT	= 47,
-	ATA_ID_DWORD_IO		= 48,
+	ATA_ID_DWORD_IO		= 48,	/* before ATA-8 */
+	ATA_ID_TRUSTED		= 48,	/* ATA-8 and later */
 	ATA_ID_CAPABILITY	= 49,
 	ATA_ID_OLD_PIO_MODES	= 51,
 	ATA_ID_OLD_DMA_MODES	= 52,
@@ -336,11 +321,16 @@ enum {
 	/* READ_LOG_EXT pages */
 	ATA_LOG_DIRECTORY	= 0x0,
 	ATA_LOG_SATA_NCQ	= 0x10,
-	ATA_LOG_NCQ_NON_DATA	  = 0x12,
-	ATA_LOG_NCQ_SEND_RECV	  = 0x13,
-	ATA_LOG_SATA_ID_DEV_DATA  = 0x30,
+	ATA_LOG_NCQ_NON_DATA	= 0x12,
+	ATA_LOG_NCQ_SEND_RECV	= 0x13,
+	ATA_LOG_IDENTIFY_DEVICE	= 0x30,
+
+	/* Identify device log pages: */
+	ATA_LOG_SECURITY	  = 0x06,
 	ATA_LOG_SATA_SETTINGS	  = 0x08,
 	ATA_LOG_ZONED_INFORMATION = 0x09,
+
+	/* Identify device SATA settings log:*/
 	ATA_LOG_DEVSLP_OFFSET	  = 0x30,
 	ATA_LOG_DEVSLP_SIZE	  = 0x08,
 	ATA_LOG_DEVSLP_MDAT	  = 0x00,
@@ -348,6 +338,7 @@ enum {
 	ATA_LOG_DEVSLP_DETO	  = 0x01,
 	ATA_LOG_DEVSLP_VALID	  = 0x07,
 	ATA_LOG_DEVSLP_VALID_MASK = 0x80,
+	ATA_LOG_NCQ_PRIO_OFFSET   = 0x09,
 
 	/* NCQ send and receive log */
 	ATA_LOG_NCQ_SEND_RECV_SUBCMDS_OFFSET	= 0x00,
@@ -441,6 +432,8 @@ enum {
 	ATA_SET_MAX_LOCK	= 0x02,
 	ATA_SET_MAX_UNLOCK	= 0x03,
 	ATA_SET_MAX_FREEZE_LOCK	= 0x04,
+	ATA_SET_MAX_PASSWD_DMA	= 0x05,
+	ATA_SET_MAX_UNLOCK_DMA	= 0x06,
 
 	/* feature values for DEVICE CONFIGURATION OVERLAY */
 	ATA_DCO_RESTORE		= 0xC0,
@@ -816,11 +809,6 @@ static inline bool ata_id_sct_error_recovery_ctrl(const u16 *id)
 	return id[ATA_ID_SCT_CMD_XPORT] & (1 << 3) ? true : false;
 }
 
-static inline bool ata_id_sct_write_same(const u16 *id)
-{
-	return id[ATA_ID_SCT_CMD_XPORT] & (1 << 2) ? true : false;
-}
-
 static inline bool ata_id_sct_long_sector_access(const u16 *id)
 {
 	return id[ATA_ID_SCT_CMD_XPORT] & (1 << 1) ? true : false;
@@ -888,6 +876,13 @@ static inline bool ata_id_has_dword_io(const u16 *id)
 	return id[ATA_ID_DWORD_IO] & (1 << 0);
 }
 
+static inline bool ata_id_has_trusted(const u16 *id)
+{
+	if (ata_id_major_version(id) <= 7)
+		return false;
+	return id[ATA_ID_TRUSTED] & (1 << 0);
+}
+
 static inline bool ata_id_has_unload(const u16 *id)
 {
 	if (ata_id_major_version(id) >= 7 &&
@@ -938,6 +933,11 @@ static inline bool ata_id_has_ncq_send_and_recv(const u16 *id)
 static inline bool ata_id_has_ncq_non_data(const u16 *id)
 {
 	return id[ATA_ID_SATA_CAPABILITY_2] & BIT(5);
+}
+
+static inline bool ata_id_has_ncq_prio(const u16 *id)
+{
+	return id[ATA_ID_SATA_CAPABILITY] & BIT(12);
 }
 
 static inline bool ata_id_has_trim(const u16 *id)

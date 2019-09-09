@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * PISMO memory driver - http://www.pismoworld.org/
  *
  * For ARM Realview and Versatile platforms
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License.
  */
 #include <linux/init.h>
 #include <linux/module.h>
@@ -265,7 +262,6 @@ MODULE_DEVICE_TABLE(i2c, pismo_id);
 static struct i2c_driver pismo_driver = {
 	.driver	= {
 		.name	= "pismo",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= pismo_probe,
 	.remove		= pismo_remove,

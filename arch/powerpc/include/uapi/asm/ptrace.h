@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
 /*
  * Copyright (C) 2001 PPC64 Team, IBM Corp
  *
@@ -28,7 +29,12 @@
 
 #ifndef __ASSEMBLY__
 
-struct pt_regs {
+#ifdef __KERNEL__
+struct user_pt_regs
+#else
+struct pt_regs
+#endif
+{
 	unsigned long gpr[32];
 	unsigned long nip;
 	unsigned long msr;
@@ -158,6 +164,10 @@ struct pt_regs {
 /* Get the first 32 128bit VSX registers */
 #define PTRACE_GETVSRREGS	0x1b
 #define PTRACE_SETVSRREGS	0x1c
+
+/* Syscall emulation defines */
+#define PTRACE_SYSEMU			0x1d
+#define PTRACE_SYSEMU_SINGLESTEP	0x1e
 
 /*
  * Get or set a debug register. The first 16 are DABR registers and the

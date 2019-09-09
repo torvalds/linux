@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * f_acm.c -- USB CDC serial (ACM) function driver
  *
@@ -6,10 +7,6 @@
  * Copyright (C) 2008 by Nokia Corporation
  * Copyright (C) 2009 by Samsung Electronics
  * Author: Michal Nazarewicz (mina86@mina86.com)
- *
- * This software is distributed under the terms of the GNU General
- * Public License ("GPL") as published by the Free Software Foundation,
- * either version 2 of that License or (at your option) any later version.
  */
 
 /* #define VERBOSE_DEBUG */
@@ -535,13 +532,15 @@ static int acm_notify_serial_state(struct f_acm *acm)
 {
 	struct usb_composite_dev *cdev = acm->port.func.config->cdev;
 	int			status;
+	__le16			serial_state;
 
 	spin_lock(&acm->lock);
 	if (acm->notify_req) {
 		dev_dbg(&cdev->gadget->dev, "acm ttyGS%d serial state %04x\n",
 			acm->port_num, acm->serial_state);
+		serial_state = cpu_to_le16(acm->serial_state);
 		status = acm_cdc_notify(acm, USB_CDC_NOTIFY_SERIAL_STATE,
-				0, &acm->serial_state, sizeof(acm->serial_state));
+				0, &serial_state, sizeof(acm->serial_state));
 	} else {
 		acm->pending = true;
 		status = 0;
@@ -784,7 +783,7 @@ static struct configfs_attribute *acm_attrs[] = {
 	NULL,
 };
 
-static struct config_item_type acm_func_type = {
+static const struct config_item_type acm_func_type = {
 	.ct_item_ops    = &acm_item_ops,
 	.ct_attrs	= acm_attrs,
 	.ct_owner       = THIS_MODULE,

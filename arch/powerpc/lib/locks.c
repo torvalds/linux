@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Spin and read/write lock operations.
  *
@@ -5,17 +6,11 @@
  * Copyright (C) 2001 Anton Blanchard <anton@au.ibm.com>, IBM
  * Copyright (C) 2002 Dave Engebretsen <engebret@us.ibm.com>, IBM
  *   Rework to support virtual processors
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
 #include <linux/export.h>
-#include <linux/stringify.h>
 #include <linux/smp.h>
 
 /* waiting for a spinlock... */

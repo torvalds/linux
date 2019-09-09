@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for USB webcams based on Konica chipset. This
  * chipset is used in Intel YC76 camera.
@@ -12,20 +13,6 @@
  * taken from the benq gspca subdriver which is:
  *
  * Copyright (C) 2009 Jean-Francois Moine (http://moinejf.free.fr)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -188,6 +175,9 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		return -EIO;
 	}
 
+	if (alt->desc.bNumEndpoints < 2)
+		return -ENODEV;
+
 	packet_size = le16_to_cpu(alt->endpoint[0].desc.wMaxPacketSize);
 
 	n = gspca_dev->cam.cam_mode[gspca_dev->curr_mode].priv;
@@ -264,7 +254,7 @@ static void sd_isoc_irq(struct urb *urb)
 	u8 *data;
 	int i, st;
 
-	PDEBUG(D_PACK, "sd isoc irq");
+	gspca_dbg(gspca_dev, D_PACK, "sd isoc irq\n");
 	if (!gspca_dev->streaming)
 		return;
 
@@ -275,7 +265,7 @@ static void sd_isoc_irq(struct urb *urb)
 		if (gspca_dev->frozen)
 			return;
 #endif
-		PERR("urb status: %d", urb->status);
+		gspca_err(gspca_dev, "urb status: %d\n", urb->status);
 		st = usb_submit_urb(urb, GFP_ATOMIC);
 		if (st < 0)
 			pr_err("resubmit urb error %d\n", st);
@@ -293,30 +283,31 @@ static void sd_isoc_irq(struct urb *urb)
 	sd->last_data_urb = NULL;
 
 	if (!data_urb || data_urb->start_frame != status_urb->start_frame) {
-		PERR("lost sync on frames");
+		gspca_err(gspca_dev, "lost sync on frames\n");
 		goto resubmit;
 	}
 
 	if (data_urb->number_of_packets != status_urb->number_of_packets) {
-		PERR("no packets does not match, data: %d, status: %d",
-		     data_urb->number_of_packets,
-		     status_urb->number_of_packets);
+		gspca_err(gspca_dev, "no packets does not match, data: %d, status: %d\n",
+			  data_urb->number_of_packets,
+			  status_urb->number_of_packets);
 		goto resubmit;
 	}
 
 	for (i = 0; i < status_urb->number_of_packets; i++) {
 		if (data_urb->iso_frame_desc[i].status ||
 		    status_urb->iso_frame_desc[i].status) {
-			PERR("pkt %d data-status %d, status-status %d", i,
-			     data_urb->iso_frame_desc[i].status,
-			     status_urb->iso_frame_desc[i].status);
+			gspca_err(gspca_dev, "pkt %d data-status %d, status-status %d\n",
+				  i,
+				  data_urb->iso_frame_desc[i].status,
+				  status_urb->iso_frame_desc[i].status);
 			gspca_dev->last_packet_type = DISCARD_PACKET;
 			continue;
 		}
 
 		if (status_urb->iso_frame_desc[i].actual_length != 1) {
-			PERR("bad status packet length %d",
-			     status_urb->iso_frame_desc[i].actual_length);
+			gspca_err(gspca_dev, "bad status packet length %d\n",
+				  status_urb->iso_frame_desc[i].actual_length);
 			gspca_dev->last_packet_type = DISCARD_PACKET;
 			continue;
 		}
@@ -361,11 +352,12 @@ resubmit:
 	if (data_urb) {
 		st = usb_submit_urb(data_urb, GFP_ATOMIC);
 		if (st < 0)
-			PERR("usb_submit_urb(data_urb) ret %d", st);
+			gspca_err(gspca_dev, "usb_submit_urb(data_urb) ret %d\n",
+				  st);
 	}
 	st = usb_submit_urb(status_urb, GFP_ATOMIC);
 	if (st < 0)
-		PERR("usb_submit_urb(status_urb) ret %d\n", st);
+		gspca_err(gspca_dev, "usb_submit_urb(status_urb) ret %d\n", st);
 }
 
 static int sd_s_ctrl(struct v4l2_ctrl *ctrl)

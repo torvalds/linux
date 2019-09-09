@@ -1,10 +1,14 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __UNWIND_H
 #define __UNWIND_H
 
+#include <linux/compiler.h>
 #include <linux/types.h>
-#include "event.h"
-#include "symbol.h"
-#include "thread.h"
+
+struct map;
+struct perf_sample;
+struct symbol;
+struct thread;
 
 struct unwind_entry {
 	struct map	*map;

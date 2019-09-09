@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	Spanning tree protocol; generic parts
  *	Linux ethernet bridge
  *
  *	Authors:
  *	Lennert Buytenhek		<buytenh@gnu.org>
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
  */
 #include <linux/kernel.h>
 #include <linux/rculist.h>
@@ -123,7 +119,7 @@ static void br_root_port_block(const struct net_bridge *br,
 		  (unsigned int) p->port_no, p->dev->name);
 
 	br_set_state(p, BR_STATE_LISTENING);
-	br_ifinfo_notify(RTM_NEWLINK, p);
+	br_ifinfo_notify(RTM_NEWLINK, NULL, p);
 
 	if (br->forward_delay > 0)
 		mod_timer(&p->forward_delay_timer, jiffies + br->forward_delay);
@@ -234,7 +230,7 @@ static void br_record_config_timeout_values(struct net_bridge *br,
 	br->max_age = bpdu->max_age;
 	br->hello_time = bpdu->hello_time;
 	br->forward_delay = bpdu->forward_delay;
-	br->topology_change = bpdu->topology_change;
+	__br_set_topology_change(br, bpdu->topology_change);
 }
 
 /* called under bridge lock */
@@ -344,7 +340,7 @@ void br_topology_change_detection(struct net_bridge *br)
 		isroot ? "propagating" : "sending tcn bpdu");
 
 	if (isroot) {
-		br->topology_change = 1;
+		__br_set_topology_change(br, 1);
 		mod_timer(&br->topology_change_timer, jiffies
 			  + br->bridge_forward_delay + br->bridge_max_age);
 	} else if (!br->topology_change_detected) {
@@ -403,7 +399,7 @@ static void br_make_blocking(struct net_bridge_port *p)
 			br_topology_change_detection(p->br);
 
 		br_set_state(p, BR_STATE_BLOCKING);
-		br_ifinfo_notify(RTM_NEWLINK, p);
+		br_ifinfo_notify(RTM_NEWLINK, NULL, p);
 
 		del_timer(&p->forward_delay_timer);
 	}
@@ -426,7 +422,7 @@ static void br_make_forwarding(struct net_bridge_port *p)
 	else
 		br_set_state(p, BR_STATE_LEARNING);
 
-	br_ifinfo_notify(RTM_NEWLINK, p);
+	br_ifinfo_notify(RTM_NEWLINK, NULL, p);
 
 	if (br->forward_delay != 0)
 		mod_timer(&p->forward_delay_timer, jiffies + br->forward_delay);
@@ -562,6 +558,24 @@ int br_set_max_age(struct net_bridge *br, unsigned long val)
 
 }
 
+/* called under bridge lock */
+int __set_ageing_time(struct net_device *dev, unsigned long t)
+{
+	struct switchdev_attr attr = {
+		.orig_dev = dev,
+		.id = SWITCHDEV_ATTR_ID_BRIDGE_AGEING_TIME,
+		.flags = SWITCHDEV_F_SKIP_EOPNOTSUPP | SWITCHDEV_F_DEFER,
+		.u.ageing_time = jiffies_to_clock_t(t),
+	};
+	int err;
+
+	err = switchdev_port_attr_set(dev, &attr);
+	if (err && err != -EOPNOTSUPP)
+		return err;
+
+	return 0;
+}
+
 /* Set time interval that dynamic forwarding entries live
  * For pure software bridge, allow values outside the 802.1
  * standard specification for special cases:
@@ -572,23 +586,50 @@ int br_set_max_age(struct net_bridge *br, unsigned long val)
  */
 int br_set_ageing_time(struct net_bridge *br, clock_t ageing_time)
 {
-	struct switchdev_attr attr = {
-		.orig_dev = br->dev,
-		.id = SWITCHDEV_ATTR_ID_BRIDGE_AGEING_TIME,
-		.flags = SWITCHDEV_F_SKIP_EOPNOTSUPP,
-		.u.ageing_time = ageing_time,
-	};
 	unsigned long t = clock_t_to_jiffies(ageing_time);
 	int err;
 
-	err = switchdev_port_attr_set(br->dev, &attr);
-	if (err && err != -EOPNOTSUPP)
+	err = __set_ageing_time(br->dev, t);
+	if (err)
 		return err;
 
+	spin_lock_bh(&br->lock);
+	br->bridge_ageing_time = t;
 	br->ageing_time = t;
-	mod_timer(&br->gc_timer, jiffies);
+	spin_unlock_bh(&br->lock);
+
+	mod_delayed_work(system_long_wq, &br->gc_work, 0);
 
 	return 0;
+}
+
+/* called under bridge lock */
+void __br_set_topology_change(struct net_bridge *br, unsigned char val)
+{
+	unsigned long t;
+	int err;
+
+	if (br->stp_enabled == BR_KERNEL_STP && br->topology_change != val) {
+		/* On topology change, set the bridge ageing time to twice the
+		 * forward delay. Otherwise, restore its default ageing time.
+		 */
+
+		if (val) {
+			t = 2 * br->forward_delay;
+			br_debug(br, "decreasing ageing time to %lu\n", t);
+		} else {
+			t = br->bridge_ageing_time;
+			br_debug(br, "restoring ageing time to %lu\n", t);
+		}
+
+		err = __set_ageing_time(br->dev, t);
+		if (err)
+			br_warn(br, "error offloading ageing time\n");
+		else
+			br->ageing_time = t;
+	}
+
+	br->topology_change = val;
 }
 
 void __br_set_forward_delay(struct net_bridge *br, unsigned long t)

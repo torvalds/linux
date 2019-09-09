@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Processor capabilities determination functions.
  *
@@ -5,11 +6,6 @@
  * Copyright (C) 1994 - 2006 Ralf Baechle
  * Copyright (C) 2003, 2004  Maciej W. Rozycki
  * Copyright (C) 2001, 2004, 2011, 2012	 MIPS Technologies, Inc.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -30,10 +26,13 @@
 #include <asm/elf.h>
 #include <asm/pgtable-bits.h>
 #include <asm/spram.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /* Hardware capabilities */
 unsigned int elf_hwcap __read_mostly;
+EXPORT_SYMBOL_GPL(elf_hwcap);
+
+#ifdef CONFIG_MIPS_FP_SUPPORT
 
 /*
  * Get the FPU Implementation/Revision.
@@ -55,19 +54,6 @@ static inline unsigned long cpu_get_fpu_id(void)
 static inline int __cpu_has_fpu(void)
 {
 	return (cpu_get_fpu_id() & FPIR_IMP_MASK) != FPIR_IMP_NONE;
-}
-
-static inline unsigned long cpu_get_msa_id(void)
-{
-	unsigned long status, msa_id;
-
-	status = read_c0_status();
-	__enable_fpu(FPU_64BIT);
-	enable_msa();
-	msa_id = read_msa_ir();
-	disable_msa();
-	write_c0_status(status);
-	return msa_id;
 }
 
 /*
@@ -289,6 +275,8 @@ static void cpu_set_fpu_opts(struct cpuinfo_mips *c)
 			    MIPS_CPU_ISA_M32R6 | MIPS_CPU_ISA_M64R6)) {
 		if (c->fpu_id & MIPS_FPIR_3D)
 			c->ases |= MIPS_ASE_MIPS3D;
+		if (c->fpu_id & MIPS_FPIR_UFRP)
+			c->options |= MIPS_CPU_UFR;
 		if (c->fpu_id & MIPS_FPIR_FREP)
 			c->options |= MIPS_CPU_FRE;
 	}
@@ -323,7 +311,46 @@ static int __init fpu_disable(char *s)
 
 __setup("nofpu", fpu_disable);
 
-int mips_dsp_disabled;
+#else /* !CONFIG_MIPS_FP_SUPPORT */
+
+#define mips_fpu_disabled 1
+
+static inline unsigned long cpu_get_fpu_id(void)
+{
+	return FPIR_IMP_NONE;
+}
+
+static inline int __cpu_has_fpu(void)
+{
+	return 0;
+}
+
+static void cpu_set_fpu_opts(struct cpuinfo_mips *c)
+{
+	/* no-op */
+}
+
+static void cpu_set_nofpu_opts(struct cpuinfo_mips *c)
+{
+	/* no-op */
+}
+
+#endif /* CONFIG_MIPS_FP_SUPPORT */
+
+static inline unsigned long cpu_get_msa_id(void)
+{
+	unsigned long status, msa_id;
+
+	status = read_c0_status();
+	__enable_fpu(FPU_64BIT);
+	enable_msa();
+	msa_id = read_msa_ir();
+	disable_msa();
+	write_c0_status(status);
+	return msa_id;
+}
+
+static int mips_dsp_disabled;
 
 static int __init dsp_disable(char *s)
 {
@@ -411,6 +438,14 @@ static int __init ftlb_disable(char *s)
 
 __setup("noftlb", ftlb_disable);
 
+/*
+ * Check if the CPU has per tc perf counters
+ */
+static inline void cpu_set_mt_per_tc_perf(struct cpuinfo_mips *c)
+{
+	if (read_c0_config7() & MTI_CONF7_PTC)
+		c->options |= MIPS_CPU_MT_PER_TC_PERF_COUNTERS;
+}
 
 static inline void check_errata(void)
 {
@@ -478,12 +513,16 @@ static void set_isa(struct cpuinfo_mips *c, unsigned int isa)
 	switch (isa) {
 	case MIPS_CPU_ISA_M64R2:
 		c->isa_level |= MIPS_CPU_ISA_M32R2 | MIPS_CPU_ISA_M64R2;
+		/* fall through */
 	case MIPS_CPU_ISA_M64R1:
 		c->isa_level |= MIPS_CPU_ISA_M32R1 | MIPS_CPU_ISA_M64R1;
+		/* fall through */
 	case MIPS_CPU_ISA_V:
 		c->isa_level |= MIPS_CPU_ISA_V;
+		/* fall through */
 	case MIPS_CPU_ISA_IV:
 		c->isa_level |= MIPS_CPU_ISA_IV;
+		/* fall through */
 	case MIPS_CPU_ISA_III:
 		c->isa_level |= MIPS_CPU_ISA_II | MIPS_CPU_ISA_III;
 		break;
@@ -491,14 +530,17 @@ static void set_isa(struct cpuinfo_mips *c, unsigned int isa)
 	/* R6 incompatible with everything else */
 	case MIPS_CPU_ISA_M64R6:
 		c->isa_level |= MIPS_CPU_ISA_M32R6 | MIPS_CPU_ISA_M64R6;
+		/* fall through */
 	case MIPS_CPU_ISA_M32R6:
 		c->isa_level |= MIPS_CPU_ISA_M32R6;
 		/* Break here so we don't add incompatible ISAs */
 		break;
 	case MIPS_CPU_ISA_M32R2:
 		c->isa_level |= MIPS_CPU_ISA_M32R2;
+		/* fall through */
 	case MIPS_CPU_ISA_M32R1:
 		c->isa_level |= MIPS_CPU_ISA_M32R1;
+		/* fall through */
 	case MIPS_CPU_ISA_II:
 		c->isa_level |= MIPS_CPU_ISA_II;
 		break;
@@ -561,6 +603,7 @@ static int set_ftlb_enable(struct cpuinfo_mips *c, enum ftlb_flags flags)
 		back_to_back_c0_hazard();
 		break;
 	case CPU_I6400:
+	case CPU_I6500:
 		/* There's no way to disable the FTLB */
 		if (!(flags & FTLB_EN))
 			return 1;
@@ -825,10 +868,19 @@ static inline unsigned int decode_config4(struct cpuinfo_mips *c)
 
 static inline unsigned int decode_config5(struct cpuinfo_mips *c)
 {
-	unsigned int config5;
+	unsigned int config5, max_mmid_width;
+	unsigned long asid_mask;
 
 	config5 = read_c0_config5();
 	config5 &= ~(MIPS_CONF5_UFR | MIPS_CONF5_UFE);
+
+	if (cpu_has_mips_r6) {
+		if (!__builtin_constant_p(cpu_has_mmid) || cpu_has_mmid)
+			config5 |= MIPS_CONF5_MI;
+		else
+			config5 &= ~MIPS_CONF5_MI;
+	}
+
 	write_c0_config5(config5);
 
 	if (config5 & MIPS_CONF5_EVA)
@@ -841,6 +893,55 @@ static inline unsigned int decode_config5(struct cpuinfo_mips *c)
 		c->options |= MIPS_CPU_MVH;
 	if (cpu_has_mips_r6 && (config5 & MIPS_CONF5_VP))
 		c->options |= MIPS_CPU_VP;
+	if (config5 & MIPS_CONF5_CA2)
+		c->ases |= MIPS_ASE_MIPS16E2;
+
+	if (config5 & MIPS_CONF5_CRCP)
+		elf_hwcap |= HWCAP_MIPS_CRC32;
+
+	if (cpu_has_mips_r6) {
+		/* Ensure the write to config5 above takes effect */
+		back_to_back_c0_hazard();
+
+		/* Check whether we successfully enabled MMID support */
+		config5 = read_c0_config5();
+		if (config5 & MIPS_CONF5_MI)
+			c->options |= MIPS_CPU_MMID;
+
+		/*
+		 * Warn if we've hardcoded cpu_has_mmid to a value unsuitable
+		 * for the CPU we're running on, or if CPUs in an SMP system
+		 * have inconsistent MMID support.
+		 */
+		WARN_ON(!!cpu_has_mmid != !!(config5 & MIPS_CONF5_MI));
+
+		if (cpu_has_mmid) {
+			write_c0_memorymapid(~0ul);
+			back_to_back_c0_hazard();
+			asid_mask = read_c0_memorymapid();
+
+			/*
+			 * We maintain a bitmap to track MMID allocation, and
+			 * need a sensible upper bound on the size of that
+			 * bitmap. The initial CPU with MMID support (I6500)
+			 * supports 16 bit MMIDs, which gives us an 8KiB
+			 * bitmap. The architecture recommends that hardware
+			 * support 32 bit MMIDs, which would give us a 512MiB
+			 * bitmap - that's too big in most cases.
+			 *
+			 * Cap MMID width at 16 bits for now & we can revisit
+			 * this if & when hardware supports anything wider.
+			 */
+			max_mmid_width = 16;
+			if (asid_mask > GENMASK(max_mmid_width - 1, 0)) {
+				pr_info("Capping MMID width at %d bits",
+					max_mmid_width);
+				asid_mask = GENMASK(max_mmid_width - 1, 0);
+			}
+
+			set_cpu_asid_mask(c, asid_mask);
+		}
+	}
 
 	return config5 & MIPS_CONF_M;
 }
@@ -913,9 +1014,12 @@ static void decode_configs(struct cpuinfo_mips *c)
 
 #ifndef CONFIG_MIPS_CPS
 	if (cpu_has_mips_r2_r6) {
-		c->core = get_ebase_cpunum();
+		unsigned int core;
+
+		core = get_ebase_cpunum();
 		if (cpu_has_mipsmt)
-			c->core >>= fls(core_nvpes()) - 1;
+			core >>= fls(core_nvpes()) - 1;
+		cpu_set_core(c, core);
 	}
 #endif
 }
@@ -1003,7 +1107,8 @@ static inline unsigned int decode_guest_config3(struct cpuinfo_mips *c)
 	unsigned int config3, config3_dyn;
 
 	probe_gc0_config_dyn(config3, config3, config3_dyn,
-			     MIPS_CONF_M | MIPS_CONF3_MSA | MIPS_CONF3_CTXTC);
+			     MIPS_CONF_M | MIPS_CONF3_MSA | MIPS_CONF3_ULRI |
+			     MIPS_CONF3_CTXTC);
 
 	if (config3 & MIPS_CONF3_CTXTC)
 		c->guest.options |= MIPS_CPU_CTXTC;
@@ -1012,6 +1117,9 @@ static inline unsigned int decode_guest_config3(struct cpuinfo_mips *c)
 
 	if (config3 & MIPS_CONF3_PW)
 		c->guest.options |= MIPS_CPU_HTW;
+
+	if (config3 & MIPS_CONF3_ULRI)
+		c->guest.options |= MIPS_CPU_ULRI;
 
 	if (config3 & MIPS_CONF3_SC)
 		c->guest.options |= MIPS_CPU_SEGMENTS;
@@ -1051,7 +1159,7 @@ static inline unsigned int decode_guest_config5(struct cpuinfo_mips *c)
 	unsigned int config5, config5_dyn;
 
 	probe_gc0_config_dyn(config5, config5, config5_dyn,
-			 MIPS_CONF_M | MIPS_CONF5_MRP);
+			 MIPS_CONF_M | MIPS_CONF5_MVH | MIPS_CONF5_MRP);
 
 	if (config5 & MIPS_CONF5_MRP)
 		c->guest.options |= MIPS_CPU_MAAR;
@@ -1060,6 +1168,9 @@ static inline unsigned int decode_guest_config5(struct cpuinfo_mips *c)
 
 	if (config5 & MIPS_CONF5_LLB)
 		c->guest.options |= MIPS_CPU_RW_LLB;
+
+	if (config5 & MIPS_CONF5_MVH)
+		c->guest.options |= MIPS_CPU_MVH;
 
 	if (config5 & MIPS_CONF_M)
 		c->guest.conf |= BIT(6);
@@ -1381,24 +1492,6 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 			     MIPS_CPU_DIVEC | MIPS_CPU_LLSC;
 		c->tlbsize = 48;
 		break;
-	case PRID_IMP_R6000:
-		c->cputype = CPU_R6000;
-		__cpu_name[cpu] = "R6000";
-		set_isa(c, MIPS_CPU_ISA_II);
-		c->fpu_msk31 |= FPU_CSR_CONDX | FPU_CSR_FS;
-		c->options = MIPS_CPU_TLB | MIPS_CPU_FPU |
-			     MIPS_CPU_LLSC;
-		c->tlbsize = 32;
-		break;
-	case PRID_IMP_R6000A:
-		c->cputype = CPU_R6000A;
-		__cpu_name[cpu] = "R6000A";
-		set_isa(c, MIPS_CPU_ISA_II);
-		c->fpu_msk31 |= FPU_CSR_CONDX | FPU_CSR_FS;
-		c->options = MIPS_CPU_TLB | MIPS_CPU_FPU |
-			     MIPS_CPU_LLSC;
-		c->tlbsize = 32;
-		break;
 	case PRID_IMP_RM7000:
 		c->cputype = CPU_RM7000;
 		__cpu_name[cpu] = "RM7000";
@@ -1571,6 +1664,7 @@ static inline void cpu_probe_mips(struct cpuinfo_mips *c, unsigned int cpu)
 		c->cputype = CPU_34K;
 		c->writecombine = _CACHE_UNCACHED;
 		__cpu_name[cpu] = "MIPS 34Kc";
+		cpu_set_mt_per_tc_perf(c);
 		break;
 	case PRID_IMP_74K:
 		c->cputype = CPU_74K;
@@ -1591,6 +1685,7 @@ static inline void cpu_probe_mips(struct cpuinfo_mips *c, unsigned int cpu)
 		c->cputype = CPU_1004K;
 		c->writecombine = _CACHE_UNCACHED;
 		__cpu_name[cpu] = "MIPS 1004Kc";
+		cpu_set_mt_per_tc_perf(c);
 		break;
 	case PRID_IMP_1074K:
 		c->cputype = CPU_1074K;
@@ -1600,10 +1695,12 @@ static inline void cpu_probe_mips(struct cpuinfo_mips *c, unsigned int cpu)
 	case PRID_IMP_INTERAPTIV_UP:
 		c->cputype = CPU_INTERAPTIV;
 		__cpu_name[cpu] = "MIPS interAptiv";
+		cpu_set_mt_per_tc_perf(c);
 		break;
 	case PRID_IMP_INTERAPTIV_MP:
 		c->cputype = CPU_INTERAPTIV;
 		__cpu_name[cpu] = "MIPS interAptiv (multi)";
+		cpu_set_mt_per_tc_perf(c);
 		break;
 	case PRID_IMP_PROAPTIV_UP:
 		c->cputype = CPU_PROAPTIV;
@@ -1625,6 +1722,10 @@ static inline void cpu_probe_mips(struct cpuinfo_mips *c, unsigned int cpu)
 		c->cputype = CPU_I6400;
 		__cpu_name[cpu] = "MIPS I6400";
 		break;
+	case PRID_IMP_I6500:
+		c->cputype = CPU_I6500;
+		__cpu_name[cpu] = "MIPS I6500";
+		break;
 	case PRID_IMP_M5150:
 		c->cputype = CPU_M5150;
 		__cpu_name[cpu] = "MIPS M5150";
@@ -1638,6 +1739,17 @@ static inline void cpu_probe_mips(struct cpuinfo_mips *c, unsigned int cpu)
 	decode_configs(c);
 
 	spram_config();
+
+	switch (__get_cpu_type(c->cputype)) {
+	case CPU_I6500:
+		c->options |= MIPS_CPU_SHARED_FTLB_ENTRIES;
+		/* fall-through */
+	case CPU_I6400:
+		c->options |= MIPS_CPU_SHARED_FTLB_RAM;
+		/* fall-through */
+	default:
+		break;
+	}
 }
 
 static inline void cpu_probe_alchemy(struct cpuinfo_mips *c, unsigned int cpu)
@@ -1815,7 +1927,15 @@ static inline void cpu_probe_loongson(struct cpuinfo_mips *c, unsigned int cpu)
 	switch (c->processor_id & PRID_IMP_MASK) {
 	case PRID_IMP_LOONGSON_64:  /* Loongson-2/3 */
 		switch (c->processor_id & PRID_REV_MASK) {
-		case PRID_REV_LOONGSON3A_R2:
+		case PRID_REV_LOONGSON3A_R2_0:
+		case PRID_REV_LOONGSON3A_R2_1:
+			c->cputype = CPU_LOONGSON3;
+			__cpu_name[cpu] = "ICT Loongson-3";
+			set_elf_platform(cpu, "loongson3a");
+			set_isa(c, MIPS_CPU_ISA_M64R2);
+			break;
+		case PRID_REV_LOONGSON3A_R3_0:
+		case PRID_REV_LOONGSON3A_R3_1:
 			c->cputype = CPU_LOONGSON3;
 			__cpu_name[cpu] = "ICT Loongson-3";
 			set_elf_platform(cpu, "loongson3a");
@@ -1824,7 +1944,7 @@ static inline void cpu_probe_loongson(struct cpuinfo_mips *c, unsigned int cpu)
 		}
 
 		decode_configs(c);
-		c->options |= MIPS_CPU_TLBINV | MIPS_CPU_LDPTE;
+		c->options |= MIPS_CPU_FTLB | MIPS_CPU_TLBINV | MIPS_CPU_LDPTE;
 		c->writecombine = _CACHE_UNCACHED_ACCELERATED;
 		break;
 	default:
@@ -1849,6 +1969,14 @@ static inline void cpu_probe_ingenic(struct cpuinfo_mips *c, unsigned int cpu)
 		panic("Unknown Ingenic Processor ID!");
 		break;
 	}
+
+	/*
+	 * The config0 register in the Xburst CPUs with a processor ID of
+	 * PRID_COMP_INGENIC_D0 report themselves as MIPS32r2 compatible,
+	 * but they don't actually support this ISA.
+	 */
+	if ((c->processor_id & PRID_COMP_MASK) == PRID_COMP_INGENIC_D0)
+		c->isa_level &= ~MIPS_CPU_ISA_M32R2;
 }
 
 static inline void cpu_probe_netlogic(struct cpuinfo_mips *c, int cpu)
@@ -1945,6 +2073,12 @@ void cpu_probe(void)
 {
 	struct cpuinfo_mips *c = &current_cpu_data;
 	unsigned int cpu = smp_processor_id();
+
+	/*
+	 * Set a default elf platform, cpu probe may later
+	 * overwrite it with a more precise value
+	 */
+	set_elf_platform(cpu, "mips");
 
 	c->processor_id = PRID_IMP_UNKNOWN;
 	c->fpu_id	= FPIR_IMP_NONE;
@@ -2072,4 +2206,36 @@ void cpu_report(void)
 		printk(KERN_INFO "FPU revision is: %08x\n", c->fpu_id);
 	if (cpu_has_msa)
 		pr_info("MSA revision is: %08x\n", c->msa_id);
+}
+
+void cpu_set_cluster(struct cpuinfo_mips *cpuinfo, unsigned int cluster)
+{
+	/* Ensure the core number fits in the field */
+	WARN_ON(cluster > (MIPS_GLOBALNUMBER_CLUSTER >>
+			   MIPS_GLOBALNUMBER_CLUSTER_SHF));
+
+	cpuinfo->globalnumber &= ~MIPS_GLOBALNUMBER_CLUSTER;
+	cpuinfo->globalnumber |= cluster << MIPS_GLOBALNUMBER_CLUSTER_SHF;
+}
+
+void cpu_set_core(struct cpuinfo_mips *cpuinfo, unsigned int core)
+{
+	/* Ensure the core number fits in the field */
+	WARN_ON(core > (MIPS_GLOBALNUMBER_CORE >> MIPS_GLOBALNUMBER_CORE_SHF));
+
+	cpuinfo->globalnumber &= ~MIPS_GLOBALNUMBER_CORE;
+	cpuinfo->globalnumber |= core << MIPS_GLOBALNUMBER_CORE_SHF;
+}
+
+void cpu_set_vpe_id(struct cpuinfo_mips *cpuinfo, unsigned int vpe)
+{
+	/* Ensure the VP(E) ID fits in the field */
+	WARN_ON(vpe > (MIPS_GLOBALNUMBER_VP >> MIPS_GLOBALNUMBER_VP_SHF));
+
+	/* Ensure we're not using VP(E)s without support */
+	WARN_ON(vpe && !IS_ENABLED(CONFIG_MIPS_MT_SMP) &&
+		!IS_ENABLED(CONFIG_CPU_MIPSR6));
+
+	cpuinfo->globalnumber &= ~MIPS_GLOBALNUMBER_VP;
+	cpuinfo->globalnumber |= vpe << MIPS_GLOBALNUMBER_VP_SHF;
 }

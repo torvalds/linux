@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (c) 2013 Broadcom Corporation
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
- * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
- * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
- * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 #include <linux/slab.h>
 #include <linux/netdevice.h>
@@ -280,9 +269,9 @@ static void brcmf_btcoex_restore_part1(struct brcmf_btcoex_info *btci)
 /**
  * brcmf_btcoex_timerfunc() - BT coex timer callback
  */
-static void brcmf_btcoex_timerfunc(ulong data)
+static void brcmf_btcoex_timerfunc(struct timer_list *t)
 {
-	struct brcmf_btcoex_info *bt_local = (struct brcmf_btcoex_info *)data;
+	struct brcmf_btcoex_info *bt_local = from_timer(bt_local, t, timer);
 	brcmf_dbg(TRACE, "enter\n");
 
 	bt_local->timer_on = false;
@@ -380,9 +369,7 @@ int brcmf_btcoex_attach(struct brcmf_cfg80211_info *cfg)
 	/* Set up timer for BT  */
 	btci->timer_on = false;
 	btci->timeout = BRCMF_BTCOEX_OPPR_WIN_TIME;
-	init_timer(&btci->timer);
-	btci->timer.data = (ulong)btci;
-	btci->timer.function = brcmf_btcoex_timerfunc;
+	timer_setup(&btci->timer, brcmf_btcoex_timerfunc, 0);
 	btci->cfg = cfg;
 	btci->saved_regs_part1 = false;
 	btci->saved_regs_part2 = false;
@@ -464,7 +451,7 @@ static void brcmf_btcoex_dhcp_end(struct brcmf_btcoex_info *btci)
 int brcmf_btcoex_set_mode(struct brcmf_cfg80211_vif *vif,
 			  enum brcmf_btcoex_mode mode, u16 duration)
 {
-	struct brcmf_cfg80211_info *cfg = wiphy_priv(vif->wdev.wiphy);
+	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(vif->wdev.wiphy);
 	struct brcmf_btcoex_info *btci = cfg->btcoex;
 	struct brcmf_if *ifp = brcmf_get_ifp(cfg->pub, 0);
 

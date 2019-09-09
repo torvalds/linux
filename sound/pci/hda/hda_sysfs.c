@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * sysfs interface for HD-audio codec
  *
@@ -14,7 +15,7 @@
 #include <linux/string.h>
 #include <linux/export.h>
 #include <sound/core.h>
-#include "hda_codec.h"
+#include <sound/hda_codec.h>
 #include "hda_local.h"
 #include <sound/hda_hwdep.h>
 #include <sound/minors.h>
@@ -80,10 +81,10 @@ static ssize_t pin_configs_show(struct hda_codec *codec,
 				struct snd_array *list,
 				char *buf)
 {
+	const struct hda_pincfg *pin;
 	int i, len = 0;
 	mutex_lock(&codec->user_mutex);
-	for (i = 0; i < list->used; i++) {
-		struct hda_pincfg *pin = snd_array_elem(list, i);
+	snd_array_for_each(list, i, pin) {
 		len += sprintf(buf + len, "0x%02x 0x%08x\n",
 			       pin->nid, pin->cfg);
 	}
@@ -217,10 +218,10 @@ static ssize_t init_verbs_show(struct device *dev,
 			       char *buf)
 {
 	struct hda_codec *codec = dev_get_drvdata(dev);
+	const struct hda_verb *v;
 	int i, len = 0;
 	mutex_lock(&codec->user_mutex);
-	for (i = 0; i < codec->init_verbs.used; i++) {
-		struct hda_verb *v = snd_array_elem(&codec->init_verbs, i);
+	snd_array_for_each(&codec->init_verbs, i, v) {
 		len += snprintf(buf + len, PAGE_SIZE - len,
 				"0x%02x 0x%03x 0x%04x\n",
 				v->nid, v->verb, v->param);
@@ -267,10 +268,10 @@ static ssize_t hints_show(struct device *dev,
 			  char *buf)
 {
 	struct hda_codec *codec = dev_get_drvdata(dev);
+	const struct hda_hint *hint;
 	int i, len = 0;
 	mutex_lock(&codec->user_mutex);
-	for (i = 0; i < codec->hints.used; i++) {
-		struct hda_hint *hint = snd_array_elem(&codec->hints, i);
+	snd_array_for_each(&codec->hints, i, hint) {
 		len += snprintf(buf + len, PAGE_SIZE - len,
 				"%s = %s\n", hint->key, hint->val);
 	}
@@ -280,10 +281,10 @@ static ssize_t hints_show(struct device *dev,
 
 static struct hda_hint *get_hint(struct hda_codec *codec, const char *key)
 {
+	struct hda_hint *hint;
 	int i;
 
-	for (i = 0; i < codec->hints.used; i++) {
-		struct hda_hint *hint = snd_array_elem(&codec->hints, i);
+	snd_array_for_each(&codec->hints, i, hint) {
 		if (!strcmp(hint->key, key))
 			return hint;
 	}
@@ -761,7 +762,7 @@ static struct attribute *hda_dev_attrs[] = {
 	NULL
 };
 
-static struct attribute_group hda_dev_attr_group = {
+static const struct attribute_group hda_dev_attr_group = {
 	.attrs	= hda_dev_attrs,
 };
 
@@ -783,13 +784,13 @@ void snd_hda_sysfs_init(struct hda_codec *codec)
 void snd_hda_sysfs_clear(struct hda_codec *codec)
 {
 #ifdef CONFIG_SND_HDA_RECONFIG
+	struct hda_hint *hint;
 	int i;
 
 	/* clear init verbs */
 	snd_array_free(&codec->init_verbs);
 	/* clear hints */
-	for (i = 0; i < codec->hints.used; i++) {
-		struct hda_hint *hint = snd_array_elem(&codec->hints, i);
+	snd_array_for_each(&codec->hints, i, hint) {
 		kfree(hint->key); /* we don't need to free hint->val */
 	}
 	snd_array_free(&codec->hints);

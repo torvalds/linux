@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
 
 TARGET=$1
 ARCH=$2
@@ -27,12 +28,7 @@ LC_ALL=C
 export LC_ALL
 
 if [ -z "$KBUILD_BUILD_VERSION" ]; then
-	if [ -r .version ]; then
-		VERSION=`cat .version`
-	else
-		VERSION=0
-		echo 0 > .version
-	fi
+	VERSION=$(cat .version 2>/dev/null || echo 1)
 else
 	VERSION=$KBUILD_BUILD_VERSION
 fi
@@ -66,7 +62,7 @@ UTS_TRUNCATE="cut -b -$UTS_LEN"
 
 # Generate a temporary compile.h
 
-( echo /\* This file is auto generated, version $VERSION \*/
+{ echo /\* This file is auto generated, version $VERSION \*/
   if [ -n "$CONFIG_FLAGS" ] ; then echo "/* $CONFIG_FLAGS */"; fi
 
   echo \#define UTS_MACHINE \"$ARCH\"
@@ -76,8 +72,8 @@ UTS_TRUNCATE="cut -b -$UTS_LEN"
   echo \#define LINUX_COMPILE_BY \"`echo $LINUX_COMPILE_BY | $UTS_TRUNCATE`\"
   echo \#define LINUX_COMPILE_HOST \"`echo $LINUX_COMPILE_HOST | $UTS_TRUNCATE`\"
 
-  echo \#define LINUX_COMPILER \"`$CC -v 2>&1 | grep ' version '`\"
-) > .tmpcompile
+  echo \#define LINUX_COMPILER \"`$CC -v 2>&1 | grep ' version ' | sed 's/[[:space:]]*$//'`\"
+} > .tmpcompile
 
 # Only replace the real compile.h if the new one is different,
 # in order to preserve the timestamp and avoid unnecessary

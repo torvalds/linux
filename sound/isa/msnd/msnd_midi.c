@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *  Copyright (c) 2009 by Krzysztof Helt
@@ -6,22 +7,6 @@
  *  MPU-401 supports UART mode which is not capable generate transmit
  *  interrupts thus output is done via polling. Also, if irq < 0, then
  *  input is done also via polling. Do not expect good performance.
- *
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <linux/io.h>
@@ -119,30 +104,30 @@ void snd_msndmidi_input_read(void *mpuv)
 {
 	unsigned long flags;
 	struct snd_msndmidi *mpu = mpuv;
-	void *pwMIDQData = mpu->dev->mappedbase + MIDQ_DATA_BUFF;
+	void __iomem *pwMIDQData = mpu->dev->mappedbase + MIDQ_DATA_BUFF;
+	u16 head, tail, size;
 
 	spin_lock_irqsave(&mpu->input_lock, flags);
-	while (readw(mpu->dev->MIDQ + JQS_wTail) !=
-	       readw(mpu->dev->MIDQ + JQS_wHead)) {
-		u16 wTmp, val;
-		val = readw(pwMIDQData + 2 * readw(mpu->dev->MIDQ + JQS_wHead));
+	head = readw(mpu->dev->MIDQ + JQS_wHead);
+	tail = readw(mpu->dev->MIDQ + JQS_wTail);
+	size = readw(mpu->dev->MIDQ + JQS_wSize);
+	if (head > size || tail > size)
+		goto out;
+	while (head != tail) {
+		unsigned char val = readw(pwMIDQData + 2 * head);
 
-			if (test_bit(MSNDMIDI_MODE_BIT_INPUT_TRIGGER,
-				     &mpu->mode))
-				snd_rawmidi_receive(mpu->substream_input,
-						    (unsigned char *)&val, 1);
-
-		wTmp = readw(mpu->dev->MIDQ + JQS_wHead) + 1;
-		if (wTmp > readw(mpu->dev->MIDQ + JQS_wSize))
-			writew(0,  mpu->dev->MIDQ + JQS_wHead);
-		else
-			writew(wTmp,  mpu->dev->MIDQ + JQS_wHead);
+		if (test_bit(MSNDMIDI_MODE_BIT_INPUT_TRIGGER, &mpu->mode))
+			snd_rawmidi_receive(mpu->substream_input, &val, 1);
+		if (++head > size)
+			head = 0;
+		writew(head, mpu->dev->MIDQ + JQS_wHead);
 	}
+ out:
 	spin_unlock_irqrestore(&mpu->input_lock, flags);
 }
 EXPORT_SYMBOL(snd_msndmidi_input_read);
 
-static struct snd_rawmidi_ops snd_msndmidi_input = {
+static const struct snd_rawmidi_ops snd_msndmidi_input = {
 	.open =		snd_msndmidi_input_open,
 	.close =	snd_msndmidi_input_close,
 	.trigger =	snd_msndmidi_input_trigger,

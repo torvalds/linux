@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * A driver for the I2C members of the Abracon AB x8xx RTC family,
  * and compatible: AB 1805 and AB 0805
@@ -5,11 +6,7 @@
  * Copyright 2014-2015 Macq S.A.
  *
  * Author: Philippe De Muyter <phdm@macqel.be>
- * Author: Alexandre Belloni <alexandre.belloni@free-electrons.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * Author: Alexandre Belloni <alexandre.belloni@bootlin.com>
  *
  */
 
@@ -17,6 +14,7 @@
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/rtc.h>
+#include <linux/watchdog.h>
 
 #define ABX8XX_REG_HTH		0x00
 #define ABX8XX_REG_SC		0x01
@@ -37,11 +35,16 @@
 
 #define ABX8XX_REG_STATUS	0x0f
 #define ABX8XX_STATUS_AF	BIT(2)
+#define ABX8XX_STATUS_BLF	BIT(4)
+#define ABX8XX_STATUS_WDT	BIT(6)
 
 #define ABX8XX_REG_CTRL1	0x10
 #define ABX8XX_CTRL_WRITE	BIT(0)
 #define ABX8XX_CTRL_ARST	BIT(2)
 #define ABX8XX_CTRL_12_24	BIT(6)
+
+#define ABX8XX_REG_CTRL2	0x11
+#define ABX8XX_CTRL2_RSVD	BIT(5)
 
 #define ABX8XX_REG_IRQ		0x12
 #define ABX8XX_IRQ_AIE		BIT(2)
@@ -61,11 +64,22 @@
 #define ABX8XX_OSS_OF		BIT(1)
 #define ABX8XX_OSS_OMODE	BIT(4)
 
+#define ABX8XX_REG_WDT		0x1b
+#define ABX8XX_WDT_WDS		BIT(7)
+#define ABX8XX_WDT_BMB_MASK	0x7c
+#define ABX8XX_WDT_BMB_SHIFT	2
+#define ABX8XX_WDT_MAX_TIME	(ABX8XX_WDT_BMB_MASK >> ABX8XX_WDT_BMB_SHIFT)
+#define ABX8XX_WDT_WRB_MASK	0x03
+#define ABX8XX_WDT_WRB_1HZ	0x02
+
 #define ABX8XX_REG_CFG_KEY	0x1f
 #define ABX8XX_CFG_KEY_OSC	0xa1
 #define ABX8XX_CFG_KEY_MISC	0x9d
 
 #define ABX8XX_REG_ID0		0x28
+
+#define ABX8XX_REG_OUT_CTRL	0x30
+#define ABX8XX_OUT_CTRL_EXDS	BIT(4)
 
 #define ABX8XX_REG_TRICKLE	0x20
 #define ABX8XX_TRICKLE_CHARGE_ENABLE	0xa0
@@ -75,23 +89,31 @@
 static u8 trickle_resistors[] = {0, 3, 6, 11};
 
 enum abx80x_chip {AB0801, AB0803, AB0804, AB0805,
-	AB1801, AB1803, AB1804, AB1805, ABX80X};
+	AB1801, AB1803, AB1804, AB1805, RV1805, ABX80X};
 
 struct abx80x_cap {
 	u16 pn;
 	bool has_tc;
+	bool has_wdog;
 };
 
 static struct abx80x_cap abx80x_caps[] = {
 	[AB0801] = {.pn = 0x0801},
 	[AB0803] = {.pn = 0x0803},
-	[AB0804] = {.pn = 0x0804, .has_tc = true},
-	[AB0805] = {.pn = 0x0805, .has_tc = true},
+	[AB0804] = {.pn = 0x0804, .has_tc = true, .has_wdog = true},
+	[AB0805] = {.pn = 0x0805, .has_tc = true, .has_wdog = true},
 	[AB1801] = {.pn = 0x1801},
 	[AB1803] = {.pn = 0x1803},
-	[AB1804] = {.pn = 0x1804, .has_tc = true},
-	[AB1805] = {.pn = 0x1805, .has_tc = true},
+	[AB1804] = {.pn = 0x1804, .has_tc = true, .has_wdog = true},
+	[AB1805] = {.pn = 0x1805, .has_tc = true, .has_wdog = true},
+	[RV1805] = {.pn = 0x1805, .has_tc = true, .has_wdog = true},
 	[ABX80X] = {.pn = 0}
+};
+
+struct abx80x_priv {
+	struct rtc_device *rtc;
+	struct i2c_client *client;
+	struct watchdog_device wdog;
 };
 
 static int abx80x_is_rc_mode(struct i2c_client *client)
@@ -172,11 +194,7 @@ static int abx80x_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	tm->tm_mon = bcd2bin(buf[ABX8XX_REG_MO] & 0x1F) - 1;
 	tm->tm_year = bcd2bin(buf[ABX8XX_REG_YR]) + 100;
 
-	err = rtc_valid_tm(tm);
-	if (err < 0)
-		dev_err(&client->dev, "retrieved date/time is not valid.\n");
-
-	return err;
+	return 0;
 }
 
 static int abx80x_rtc_set_time(struct device *dev, struct rtc_time *tm)
@@ -222,7 +240,8 @@ static int abx80x_rtc_set_time(struct device *dev, struct rtc_time *tm)
 static irqreturn_t abx80x_handle_irq(int irq, void *dev_id)
 {
 	struct i2c_client *client = dev_id;
-	struct rtc_device *rtc = i2c_get_clientdata(client);
+	struct abx80x_priv *priv = i2c_get_clientdata(client);
+	struct rtc_device *rtc = priv->rtc;
 	int status;
 
 	status = i2c_smbus_read_byte_data(client, ABX8XX_REG_STATUS);
@@ -231,6 +250,13 @@ static irqreturn_t abx80x_handle_irq(int irq, void *dev_id)
 
 	if (status & ABX8XX_STATUS_AF)
 		rtc_update_irq(rtc, 1, RTC_AF | RTC_IRQF);
+
+	/*
+	 * It is unclear if we'll get an interrupt before the external
+	 * reset kicks in.
+	 */
+	if (status & ABX8XX_STATUS_WDT)
+		dev_alert(&client->dev, "watchdog timeout interrupt.\n");
 
 	i2c_smbus_write_byte_data(client, ABX8XX_REG_STATUS, 0);
 
@@ -375,7 +401,7 @@ static ssize_t autocalibration_store(struct device *dev,
 		return -EINVAL;
 	}
 
-	retval = abx80x_rtc_set_autocalibration(dev, autocalibration);
+	retval = abx80x_rtc_set_autocalibration(dev->parent, autocalibration);
 
 	return retval ? retval : count;
 }
@@ -385,7 +411,7 @@ static ssize_t autocalibration_show(struct device *dev,
 {
 	int autocalibration = 0;
 
-	autocalibration = abx80x_rtc_get_autocalibration(dev);
+	autocalibration = abx80x_rtc_get_autocalibration(dev->parent);
 	if (autocalibration < 0) {
 		dev_err(dev, "Failed to read RTC autocalibration\n");
 		sprintf(buf, "0\n");
@@ -401,7 +427,7 @@ static ssize_t oscillator_store(struct device *dev,
 				struct device_attribute *attr,
 				const char *buf, size_t count)
 {
-	struct i2c_client *client = to_i2c_client(dev);
+	struct i2c_client *client = to_i2c_client(dev->parent);
 	int retval, flags, rc_mode = 0;
 
 	if (strncmp(buf, "rc", 2) == 0) {
@@ -443,7 +469,7 @@ static ssize_t oscillator_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)
 {
 	int rc_mode = 0;
-	struct i2c_client *client = to_i2c_client(dev);
+	struct i2c_client *client = to_i2c_client(dev->parent);
 
 	rc_mode = abx80x_is_rc_mode(client);
 
@@ -486,12 +512,49 @@ static int abx80x_alarm_irq_enable(struct device *dev, unsigned int enabled)
 	return err;
 }
 
+static int abx80x_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	int status, tmp;
+
+	switch (cmd) {
+	case RTC_VL_READ:
+		status = i2c_smbus_read_byte_data(client, ABX8XX_REG_STATUS);
+		if (status < 0)
+			return status;
+
+		tmp = !!(status & ABX8XX_STATUS_BLF);
+
+		if (copy_to_user((void __user *)arg, &tmp, sizeof(int)))
+			return -EFAULT;
+
+		return 0;
+
+	case RTC_VL_CLR:
+		status = i2c_smbus_read_byte_data(client, ABX8XX_REG_STATUS);
+		if (status < 0)
+			return status;
+
+		status &= ~ABX8XX_STATUS_BLF;
+
+		tmp = i2c_smbus_write_byte_data(client, ABX8XX_REG_STATUS, 0);
+		if (tmp < 0)
+			return tmp;
+
+		return 0;
+
+	default:
+		return -ENOIOCTLCMD;
+	}
+}
+
 static const struct rtc_class_ops abx80x_rtc_ops = {
 	.read_time	= abx80x_rtc_read_time,
 	.set_time	= abx80x_rtc_set_time,
 	.read_alarm	= abx80x_read_alarm,
 	.set_alarm	= abx80x_set_alarm,
 	.alarm_irq_enable = abx80x_alarm_irq_enable,
+	.ioctl		= abx80x_ioctl,
 };
 
 static int abx80x_dt_trickle_cfg(struct device_node *np)
@@ -526,18 +589,94 @@ static int abx80x_dt_trickle_cfg(struct device_node *np)
 	return (trickle_cfg | i);
 }
 
-static void rtc_calib_remove_sysfs_group(void *_dev)
-{
-	struct device *dev = _dev;
+#ifdef CONFIG_WATCHDOG
 
-	sysfs_remove_group(&dev->kobj, &rtc_calib_attr_group);
+static inline u8 timeout_bits(unsigned int timeout)
+{
+	return ((timeout << ABX8XX_WDT_BMB_SHIFT) & ABX8XX_WDT_BMB_MASK) |
+		 ABX8XX_WDT_WRB_1HZ;
 }
+
+static int __abx80x_wdog_set_timeout(struct watchdog_device *wdog,
+				     unsigned int timeout)
+{
+	struct abx80x_priv *priv = watchdog_get_drvdata(wdog);
+	u8 val = ABX8XX_WDT_WDS | timeout_bits(timeout);
+
+	/*
+	 * Writing any timeout to the WDT register resets the watchdog timer.
+	 * Writing 0 disables it.
+	 */
+	return i2c_smbus_write_byte_data(priv->client, ABX8XX_REG_WDT, val);
+}
+
+static int abx80x_wdog_set_timeout(struct watchdog_device *wdog,
+				   unsigned int new_timeout)
+{
+	int err = 0;
+
+	if (watchdog_hw_running(wdog))
+		err = __abx80x_wdog_set_timeout(wdog, new_timeout);
+
+	if (err == 0)
+		wdog->timeout = new_timeout;
+
+	return err;
+}
+
+static int abx80x_wdog_ping(struct watchdog_device *wdog)
+{
+	return __abx80x_wdog_set_timeout(wdog, wdog->timeout);
+}
+
+static int abx80x_wdog_start(struct watchdog_device *wdog)
+{
+	return __abx80x_wdog_set_timeout(wdog, wdog->timeout);
+}
+
+static int abx80x_wdog_stop(struct watchdog_device *wdog)
+{
+	return __abx80x_wdog_set_timeout(wdog, 0);
+}
+
+static const struct watchdog_info abx80x_wdog_info = {
+	.identity = "abx80x watchdog",
+	.options = WDIOF_KEEPALIVEPING | WDIOF_SETTIMEOUT | WDIOF_MAGICCLOSE,
+};
+
+static const struct watchdog_ops abx80x_wdog_ops = {
+	.owner = THIS_MODULE,
+	.start = abx80x_wdog_start,
+	.stop = abx80x_wdog_stop,
+	.ping = abx80x_wdog_ping,
+	.set_timeout = abx80x_wdog_set_timeout,
+};
+
+static int abx80x_setup_watchdog(struct abx80x_priv *priv)
+{
+	priv->wdog.parent = &priv->client->dev;
+	priv->wdog.ops = &abx80x_wdog_ops;
+	priv->wdog.info = &abx80x_wdog_info;
+	priv->wdog.min_timeout = 1;
+	priv->wdog.max_timeout = ABX8XX_WDT_MAX_TIME;
+	priv->wdog.timeout = ABX8XX_WDT_MAX_TIME;
+
+	watchdog_set_drvdata(&priv->wdog, priv);
+
+	return devm_watchdog_register_device(&priv->client->dev, &priv->wdog);
+}
+#else
+static int abx80x_setup_watchdog(struct abx80x_priv *priv)
+{
+	return 0;
+}
+#endif
 
 static int abx80x_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	struct device_node *np = client->dev.of_node;
-	struct rtc_device *rtc;
+	struct abx80x_priv *priv;
 	int i, data, err, trickle_cfg = -EINVAL;
 	char buf[7];
 	unsigned int part = id->driver_data;
@@ -581,6 +720,62 @@ static int abx80x_probe(struct i2c_client *client,
 		return -EIO;
 	}
 
+	/* Configure RV1805 specifics */
+	if (part == RV1805) {
+		/*
+		 * Avoid accidentally entering test mode. This can happen
+		 * on the RV1805 in case the reserved bit 5 in control2
+		 * register is set. RV-1805-C3 datasheet indicates that
+		 * the bit should be cleared in section 11h - Control2.
+		 */
+		data = i2c_smbus_read_byte_data(client, ABX8XX_REG_CTRL2);
+		if (data < 0) {
+			dev_err(&client->dev,
+				"Unable to read control2 register\n");
+			return -EIO;
+		}
+
+		err = i2c_smbus_write_byte_data(client, ABX8XX_REG_CTRL2,
+						data & ~ABX8XX_CTRL2_RSVD);
+		if (err < 0) {
+			dev_err(&client->dev,
+				"Unable to write control2 register\n");
+			return -EIO;
+		}
+
+		/*
+		 * Avoid extra power leakage. The RV1805 uses smaller
+		 * 10pin package and the EXTI input is not present.
+		 * Disable it to avoid leakage.
+		 */
+		data = i2c_smbus_read_byte_data(client, ABX8XX_REG_OUT_CTRL);
+		if (data < 0) {
+			dev_err(&client->dev,
+				"Unable to read output control register\n");
+			return -EIO;
+		}
+
+		/*
+		 * Write the configuration key register to enable access to
+		 * the config2 register
+		 */
+		err = i2c_smbus_write_byte_data(client, ABX8XX_REG_CFG_KEY,
+						ABX8XX_CFG_KEY_MISC);
+		if (err < 0) {
+			dev_err(&client->dev,
+				"Unable to write configuration key\n");
+			return -EIO;
+		}
+
+		err = i2c_smbus_write_byte_data(client, ABX8XX_REG_OUT_CTRL,
+						data | ABX8XX_OUT_CTRL_EXDS);
+		if (err < 0) {
+			dev_err(&client->dev,
+				"Unable to write output control register\n");
+			return -EIO;
+		}
+	}
+
 	/* part autodetection */
 	if (part == ABX80X) {
 		for (i = 0; abx80x_caps[i].pn; i++)
@@ -614,13 +809,24 @@ static int abx80x_probe(struct i2c_client *client,
 	if (err)
 		return err;
 
-	rtc = devm_rtc_device_register(&client->dev, "abx8xx",
-				       &abx80x_rtc_ops, THIS_MODULE);
+	priv = devm_kzalloc(&client->dev, sizeof(*priv), GFP_KERNEL);
+	if (priv == NULL)
+		return -ENOMEM;
 
-	if (IS_ERR(rtc))
-		return PTR_ERR(rtc);
+	priv->rtc = devm_rtc_allocate_device(&client->dev);
+	if (IS_ERR(priv->rtc))
+		return PTR_ERR(priv->rtc);
 
-	i2c_set_clientdata(client, rtc);
+	priv->rtc->ops = &abx80x_rtc_ops;
+	priv->client = client;
+
+	i2c_set_clientdata(client, priv);
+
+	if (abx80x_caps[part].has_wdog) {
+		err = abx80x_setup_watchdog(priv);
+		if (err)
+			return err;
+	}
 
 	if (client->irq > 0) {
 		dev_info(&client->dev, "IRQ %d supplied\n", client->irq);
@@ -635,28 +841,14 @@ static int abx80x_probe(struct i2c_client *client,
 		}
 	}
 
-	/* Export sysfs entries */
-	err = sysfs_create_group(&(&client->dev)->kobj, &rtc_calib_attr_group);
+	err = rtc_add_group(priv->rtc, &rtc_calib_attr_group);
 	if (err) {
 		dev_err(&client->dev, "Failed to create sysfs group: %d\n",
 			err);
 		return err;
 	}
 
-	err = devm_add_action_or_reset(&client->dev,
-				       rtc_calib_remove_sysfs_group,
-				       &client->dev);
-	if (err)
-		dev_err(&client->dev,
-			"Failed to add sysfs cleanup action: %d\n",
-			err);
-
-	return err;
-}
-
-static int abx80x_remove(struct i2c_client *client)
-{
-	return 0;
+	return rtc_register_device(priv->rtc);
 }
 
 static const struct i2c_device_id abx80x_id[] = {
@@ -669,7 +861,7 @@ static const struct i2c_device_id abx80x_id[] = {
 	{ "ab1803", AB1803 },
 	{ "ab1804", AB1804 },
 	{ "ab1805", AB1805 },
-	{ "rv1805", AB1805 },
+	{ "rv1805", RV1805 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, abx80x_id);
@@ -679,13 +871,12 @@ static struct i2c_driver abx80x_driver = {
 		.name	= "rtc-abx80x",
 	},
 	.probe		= abx80x_probe,
-	.remove		= abx80x_remove,
 	.id_table	= abx80x_id,
 };
 
 module_i2c_driver(abx80x_driver);
 
 MODULE_AUTHOR("Philippe De Muyter <phdm@macqel.be>");
-MODULE_AUTHOR("Alexandre Belloni <alexandre.belloni@free-electrons.com>");
+MODULE_AUTHOR("Alexandre Belloni <alexandre.belloni@bootlin.com>");
 MODULE_DESCRIPTION("Abracon ABX80X RTC driver");
 MODULE_LICENSE("GPL v2");

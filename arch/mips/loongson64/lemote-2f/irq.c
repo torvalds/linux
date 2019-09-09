@@ -1,15 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2007 Lemote Inc.
  * Author: Fuxin Zhang, zhangfx@lemote.com
- *
- *  This program is free software; you can redistribute	 it and/or modify it
- *  under  the terms of	 the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the	License, or (at your
- *  option) any later version.
  */
 
+#include <linux/export.h>
+#include <linux/init.h>
 #include <linux/interrupt.h>
-#include <linux/module.h>
 
 #include <asm/irq_cpu.h>
 #include <asm/i8259.h>
@@ -102,7 +99,7 @@ static struct irqaction ip6_irqaction = {
 static struct irqaction cascade_irqaction = {
 	.handler = no_action,
 	.name = "cascade",
-	.flags = IRQF_NO_THREAD,
+	.flags = IRQF_NO_THREAD | IRQF_NO_SUSPEND,
 };
 
 void __init mach_init_irq(void)

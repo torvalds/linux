@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2014 Christoph Hellwig.
  */
@@ -132,27 +133,20 @@ void nfsd4_setup_layout_type(struct svc_export *exp)
 	if (!(exp->ex_flags & NFSEXP_PNFS))
 		return;
 
-	/*
-	 * If flex file is configured, use it by default. Otherwise
-	 * check if the file system supports exporting a block-like layout.
-	 * If the block device supports reservations prefer the SCSI layout,
-	 * otherwise advertise the block layout.
-	 */
 #ifdef CONFIG_NFSD_FLEXFILELAYOUT
 	exp->ex_layout_types |= 1 << LAYOUT_FLEX_FILES;
 #endif
 #ifdef CONFIG_NFSD_BLOCKLAYOUT
-	/* overwrite flex file layout selection if needed */
 	if (sb->s_export_op->get_uuid &&
 	    sb->s_export_op->map_blocks &&
 	    sb->s_export_op->commit_blocks)
 		exp->ex_layout_types |= 1 << LAYOUT_BLOCK_VOLUME;
 #endif
 #ifdef CONFIG_NFSD_SCSILAYOUT
-	/* overwrite block layout selection if needed */
 	if (sb->s_export_op->map_blocks &&
 	    sb->s_export_op->commit_blocks &&
-	    sb->s_bdev && sb->s_bdev->bd_disk->fops->pr_ops)
+	    sb->s_bdev && sb->s_bdev->bd_disk->fops->pr_ops &&
+		blk_queue_scsi_passthrough(sb->s_bdev->bd_disk->queue))
 		exp->ex_layout_types |= 1 << LAYOUT_SCSI;
 #endif
 }
@@ -164,7 +158,7 @@ nfsd4_free_layout_stateid(struct nfs4_stid *stid)
 	struct nfs4_client *clp = ls->ls_stid.sc_client;
 	struct nfs4_file *fp = ls->ls_stid.sc_file;
 
-	trace_layoutstate_free(&ls->ls_stid.sc_stateid);
+	trace_nfsd_layoutstate_free(&ls->ls_stid.sc_stateid);
 
 	spin_lock(&clp->cl_lock);
 	list_del_init(&ls->ls_perclnt);
@@ -223,10 +217,11 @@ nfsd4_alloc_layout_stateid(struct nfsd4_compound_state *cstate,
 	struct nfs4_layout_stateid *ls;
 	struct nfs4_stid *stp;
 
-	stp = nfs4_alloc_stid(cstate->clp, nfs4_layout_stateid_cache);
+	stp = nfs4_alloc_stid(cstate->clp, nfs4_layout_stateid_cache,
+					nfsd4_free_layout_stateid);
 	if (!stp)
 		return NULL;
-	stp->sc_free = nfsd4_free_layout_stateid;
+
 	get_nfs4_file(fp);
 	stp->sc_file = fp;
 
@@ -262,7 +257,7 @@ nfsd4_alloc_layout_stateid(struct nfsd4_compound_state *cstate,
 	list_add(&ls->ls_perfile, &fp->fi_lo_states);
 	spin_unlock(&fp->fi_lock);
 
-	trace_layoutstate_alloc(&ls->ls_stid.sc_stateid);
+	trace_nfsd_layoutstate_alloc(&ls->ls_stid.sc_stateid);
 	return ls;
 }
 
@@ -332,9 +327,9 @@ nfsd4_recall_file_layout(struct nfs4_layout_stateid *ls)
 	if (list_empty(&ls->ls_layouts))
 		goto out_unlock;
 
-	trace_layout_recall(&ls->ls_stid.sc_stateid);
+	trace_nfsd_layout_recall(&ls->ls_stid.sc_stateid);
 
-	atomic_inc(&ls->ls_stid.sc_count);
+	refcount_inc(&ls->ls_stid.sc_count);
 	nfsd4_run_cb(&ls->ls_recall);
 
 out_unlock:
@@ -439,7 +434,7 @@ nfsd4_insert_layout(struct nfsd4_layoutget *lgp, struct nfs4_layout_stateid *ls)
 			goto done;
 	}
 
-	atomic_inc(&ls->ls_stid.sc_count);
+	refcount_inc(&ls->ls_stid.sc_count);
 	list_add_tail(&new->lo_perstate, &ls->ls_layouts);
 	new = NULL;
 done:
@@ -505,7 +500,7 @@ nfsd4_return_file_layouts(struct svc_rqst *rqstp,
 						false, lrp->lr_layout_type,
 						&ls);
 	if (nfserr) {
-		trace_layout_return_lookup_fail(&lrp->lr_sid);
+		trace_nfsd_layout_return_lookup_fail(&lrp->lr_sid);
 		return nfserr;
 	}
 
@@ -521,7 +516,7 @@ nfsd4_return_file_layouts(struct svc_rqst *rqstp,
 			nfs4_inc_and_copy_stateid(&lrp->lr_sid, &ls->ls_stid);
 		lrp->lrs_present = 1;
 	} else {
-		trace_layoutstate_unhash(&ls->ls_stid.sc_stateid);
+		trace_nfsd_layoutstate_unhash(&ls->ls_stid.sc_stateid);
 		nfs4_unhash_stid(&ls->ls_stid);
 		lrp->lrs_present = 0;
 	}
@@ -613,6 +608,7 @@ nfsd4_cb_layout_fail(struct nfs4_layout_stateid *ls)
 {
 	struct nfs4_client *clp = ls->ls_stid.sc_client;
 	char addr_str[INET6_ADDRSTRLEN];
+	static char const nfsd_recall_failed[] = "/sbin/nfsd-recall-failed";
 	static char *envp[] = {
 		"HOME=/",
 		"TERM=linux",
@@ -628,12 +624,13 @@ nfsd4_cb_layout_fail(struct nfs4_layout_stateid *ls)
 		"nfsd: client %s failed to respond to layout recall. "
 		"  Fencing..\n", addr_str);
 
-	argv[0] = "/sbin/nfsd-recall-failed";
+	argv[0] = (char *)nfsd_recall_failed;
 	argv[1] = addr_str;
 	argv[2] = ls->ls_file->f_path.mnt->mnt_sb->s_id;
 	argv[3] = NULL;
 
-	error = call_usermodehelper(argv[0], argv, envp, UMH_WAIT_PROC);
+	error = call_usermodehelper(nfsd_recall_failed, argv, envp,
+				    UMH_WAIT_PROC);
 	if (error) {
 		printk(KERN_ERR "nfsd: fence failed for client %s: %d!\n",
 			addr_str, error);
@@ -659,7 +656,6 @@ nfsd4_cb_layout_done(struct nfsd4_callback *cb, struct rpc_task *task)
 	struct nfsd_net *nn;
 	ktime_t now, cutoff;
 	const struct nfsd4_layout_ops *ops;
-	LIST_HEAD(reaplist);
 
 
 	switch (task->tk_status) {
@@ -686,22 +682,22 @@ nfsd4_cb_layout_done(struct nfsd4_callback *cb, struct rpc_task *task)
 			return 0;
 		}
 		/* Fallthrough */
-	case -NFS4ERR_NOMATCHING_LAYOUT:
-		trace_layout_recall_done(&ls->ls_stid.sc_stateid);
-		task->tk_status = 0;
-		return 1;
 	default:
 		/*
 		 * Unknown error or non-responding client, we'll need to fence.
 		 */
-		trace_layout_recall_fail(&ls->ls_stid.sc_stateid);
+		trace_nfsd_layout_recall_fail(&ls->ls_stid.sc_stateid);
 
 		ops = nfsd4_layout_ops[ls->ls_layout_type];
 		if (ops->fence_client)
 			ops->fence_client(ls);
 		else
 			nfsd4_cb_layout_fail(ls);
-		return -1;
+		return 1;
+	case -NFS4ERR_NOMATCHING_LAYOUT:
+		trace_nfsd_layout_recall_done(&ls->ls_stid.sc_stateid);
+		task->tk_status = 0;
+		return 1;
 	}
 }
 
@@ -712,7 +708,7 @@ nfsd4_cb_layout_release(struct nfsd4_callback *cb)
 		container_of(cb, struct nfs4_layout_stateid, ls_recall);
 	LIST_HEAD(reaplist);
 
-	trace_layout_recall_release(&ls->ls_stid.sc_stateid);
+	trace_nfsd_layout_recall_release(&ls->ls_stid.sc_stateid);
 
 	nfsd4_return_all_layouts(ls, &reaplist);
 	nfsd4_free_layouts(&reaplist);

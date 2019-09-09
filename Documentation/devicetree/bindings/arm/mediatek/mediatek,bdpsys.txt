@@ -7,6 +7,8 @@ Required Properties:
 
 - compatible: Should be:
 	- "mediatek,mt2701-bdpsys", "syscon"
+	- "mediatek,mt2712-bdpsys", "syscon"
+	- "mediatek,mt7623-bdpsys", "mediatek,mt2701-bdpsys", "syscon"
 - #clock-cells: Must be 1
 
 The bdpsys controller uses the common clk binding from

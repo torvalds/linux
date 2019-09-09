@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  arch/arm/mach-pxa/pcm990-baseboard.c
  *  Support for the Phytec phyCORE-PXA270 Development Platform (PCM-990).
@@ -14,16 +15,12 @@
  *  based on Intel Mainstone Board
  *
  *  Copyright 2007 Juergen Beisert @ Pengutronix (j.beisert@pengutronix.de)
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
  */
 #include <linux/gpio.h>
 #include <linux/irq.h>
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
-#include <linux/i2c/pxa-i2c.h>
+#include <linux/platform_data/i2c-pxa.h>
 #include <linux/pwm.h>
 #include <linux/pwm_backlight.h>
 
@@ -370,9 +367,6 @@ static struct pxamci_platform_data pcm990_mci_platform_data = {
 	.init 			= pcm990_mci_init,
 	.setpower 		= pcm990_mci_setpower,
 	.exit			= pcm990_mci_exit,
-	.gpio_card_detect	= -1,
-	.gpio_card_ro		= -1,
-	.gpio_power		= -1,
 };
 
 static struct pxaohci_platform_data pcm990_ohci_platform_data = {

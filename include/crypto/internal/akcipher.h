@@ -1,14 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Public Key Encryption
  *
  * Copyright (c) 2015, Intel Corporation
  * Authors: Tadeusz Struk <tadeusz.struk@intel.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
- *
  */
 #ifndef _CRYPTO_AKCIPHER_INT_H
 #define _CRYPTO_AKCIPHER_INT_H
@@ -36,6 +31,12 @@ struct crypto_akcipher_spawn {
 static inline void *akcipher_request_ctx(struct akcipher_request *req)
 {
 	return req->__ctx;
+}
+
+static inline void akcipher_set_reqsize(struct crypto_akcipher *akcipher,
+					unsigned int reqsize)
+{
+	crypto_akcipher_alg(akcipher)->reqsize = reqsize;
 }
 
 static inline void *akcipher_tfm_ctx(struct crypto_akcipher *tfm)

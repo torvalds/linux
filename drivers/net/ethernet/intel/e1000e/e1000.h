@@ -1,23 +1,5 @@
-/* Intel PRO/1000 Linux driver
- * Copyright(c) 1999 - 2015 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in
- * the file called "COPYING".
- *
- * Contact Information:
- * Linux NICS <linux.nics@intel.com>
- * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- */
+/* SPDX-License-Identifier: GPL-2.0 */
+/* Copyright(c) 1999 - 2018 Intel Corporation. */
 
 /* Linux PRO/1000 Ethernet Driver main header file */
 
@@ -94,10 +76,6 @@ struct e1000_info;
  */
 #define E1000_CHECK_RESET_COUNT		25
 
-#define DEFAULT_RDTR			0
-#define DEFAULT_RADV			8
-#define BURST_RDTR			0x20
-#define BURST_RADV			0x20
 #define PCICFG_DESC_RING_STATUS		0xe4
 #define FLUSH_DESC_REQUIRED		0x100
 
@@ -135,7 +113,8 @@ enum e1000_boards {
 	board_pchlan,
 	board_pch2lan,
 	board_pch_lpt,
-	board_pch_spt
+	board_pch_spt,
+	board_pch_cnp
 };
 
 struct e1000_ps_page {
@@ -207,12 +186,13 @@ struct e1000_phy_regs {
 
 /* board specific private data structure */
 struct e1000_adapter {
-	struct timer_list watchdog_timer;
 	struct timer_list phy_info_timer;
 	struct timer_list blink_timer;
 
 	struct work_struct reset_task;
-	struct work_struct watchdog_task;
+	struct delayed_work watchdog_task;
+
+	struct workqueue_struct *e1000_workqueue;
 
 	const struct e1000_info *ei;
 
@@ -267,6 +247,7 @@ struct e1000_adapter {
 	u32 tx_fifo_size;
 	u32 tx_dma_failed;
 	u32 tx_hwtstamp_timeouts;
+	u32 tx_hwtstamp_skipped;
 
 	/* Rx */
 	bool (*clean_rx)(struct e1000_ring *ring, int *work_done,
@@ -378,18 +359,22 @@ s32 e1000e_get_base_timinca(struct e1000_adapter *adapter, u32 *timinca);
  * INCVALUE_n into the TIMINCA register allowing 32+8+(24-INCVALUE_SHIFT_n)
  * bits to count nanoseconds leaving the rest for fractional nonseconds.
  */
-#define INCVALUE_96MHz		125
-#define INCVALUE_SHIFT_96MHz	17
-#define INCPERIOD_SHIFT_96MHz	2
-#define INCPERIOD_96MHz		(12 >> INCPERIOD_SHIFT_96MHz)
+#define INCVALUE_96MHZ		125
+#define INCVALUE_SHIFT_96MHZ	17
+#define INCPERIOD_SHIFT_96MHZ	2
+#define INCPERIOD_96MHZ		(12 >> INCPERIOD_SHIFT_96MHZ)
 
-#define INCVALUE_25MHz		40
-#define INCVALUE_SHIFT_25MHz	18
-#define INCPERIOD_25MHz		1
+#define INCVALUE_25MHZ		40
+#define INCVALUE_SHIFT_25MHZ	18
+#define INCPERIOD_25MHZ		1
 
-#define INCVALUE_24MHz		125
-#define INCVALUE_SHIFT_24MHz	14
-#define INCPERIOD_24MHz		3
+#define INCVALUE_24MHZ		125
+#define INCVALUE_SHIFT_24MHZ	14
+#define INCPERIOD_24MHZ		3
+
+#define INCVALUE_38400KHZ	26
+#define INCVALUE_SHIFT_38400KHZ	19
+#define INCPERIOD_38400KHZ	1
 
 /* Another drawback of scaling the incvalue by a large factor is the
  * 64-bit SYSTIM register overflows more quickly.  This is dealt with
@@ -493,8 +478,8 @@ int e1000e_setup_rx_resources(struct e1000_ring *ring);
 int e1000e_setup_tx_resources(struct e1000_ring *ring);
 void e1000e_free_rx_resources(struct e1000_ring *ring);
 void e1000e_free_tx_resources(struct e1000_ring *ring);
-struct rtnl_link_stats64 *e1000e_get_stats64(struct net_device *netdev,
-					     struct rtnl_link_stats64 *stats);
+void e1000e_get_stats64(struct net_device *netdev,
+			struct rtnl_link_stats64 *stats);
 void e1000e_set_interrupt_capability(struct e1000_adapter *adapter);
 void e1000e_reset_interrupt_capability(struct e1000_adapter *adapter);
 void e1000e_get_hw_control(struct e1000_adapter *adapter);
@@ -515,10 +500,14 @@ extern const struct e1000_info e1000_pch_info;
 extern const struct e1000_info e1000_pch2_info;
 extern const struct e1000_info e1000_pch_lpt_info;
 extern const struct e1000_info e1000_pch_spt_info;
+extern const struct e1000_info e1000_pch_cnp_info;
 extern const struct e1000_info e1000_es2_info;
 
 void e1000e_ptp_init(struct e1000_adapter *adapter);
 void e1000e_ptp_remove(struct e1000_adapter *adapter);
+
+u64 e1000e_read_systim(struct e1000_adapter *adapter,
+		       struct ptp_system_timestamp *sts);
 
 static inline s32 e1000_phy_hw_reset(struct e1000_hw *hw)
 {

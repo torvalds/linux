@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2001 Dave Engebretsen, IBM Corporation
  * Copyright (C) 2003 Anton Blanchard <anton@au.ibm.com>, IBM
@@ -5,20 +6,6 @@
  * RTAS specific routines for PCI.
  *
  * Based on code from pci.c, chrp_pci.c and pSeries_pci.c
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 #include <linux/kernel.h>
@@ -91,26 +78,14 @@ static int rtas_pci_read_config(struct pci_bus *bus,
 				unsigned int devfn,
 				int where, int size, u32 *val)
 {
-	struct device_node *busdn, *dn;
 	struct pci_dn *pdn;
-	bool found = false;
 	int ret;
 
-	/* Search only direct children of the bus */
 	*val = 0xFFFFFFFF;
-	busdn = pci_bus_to_OF_node(bus);
-	for (dn = busdn->child; dn; dn = dn->sibling) {
-		pdn = PCI_DN(dn);
-		if (pdn && pdn->devfn == devfn
-		    && of_device_is_available(dn)) {
-			found = true;
-			break;
-		}
-	}
 
-	if (!found)
-		return PCIBIOS_DEVICE_NOT_FOUND;
+	pdn = pci_get_pdn_by_devfn(bus, devfn);
 
+	/* Validity of pdn is checked in here */
 	ret = rtas_read_config(pdn, where, size, val);
 	if (*val == EEH_IO_ERROR_VALUE(size) &&
 	    eeh_dev_check_failure(pdn_to_eeh_dev(pdn)))
@@ -153,24 +128,11 @@ static int rtas_pci_write_config(struct pci_bus *bus,
 				 unsigned int devfn,
 				 int where, int size, u32 val)
 {
-	struct device_node *busdn, *dn;
 	struct pci_dn *pdn;
-	bool found = false;
 
-	/* Search only direct children of the bus */
-	busdn = pci_bus_to_OF_node(bus);
-	for (dn = busdn->child; dn; dn = dn->sibling) {
-		pdn = PCI_DN(dn);
-		if (pdn && pdn->devfn == devfn
-		    && of_device_is_available(dn)) {
-			found = true;
-			break;
-		}
-	}
+	pdn = pci_get_pdn_by_devfn(bus, devfn);
 
-	if (!found)
-		return PCIBIOS_DEVICE_NOT_FOUND;
-
+	/* Validity of pdn is checked in here. */
 	return rtas_write_config(pdn, where, size, val);
 }
 

@@ -31,12 +31,6 @@
 #include <engine/gr.h>
 #include <engine/mpeg.h>
 
-bool
-nvkm_fb_memtype_valid(struct nvkm_fb *fb, u32 memtype)
-{
-	return fb->func->memtype_valid(fb, memtype);
-}
-
 void
 nvkm_fb_tile_fini(struct nvkm_fb *fb, int region, struct nvkm_fb_tile *tile)
 {
@@ -74,10 +68,13 @@ nvkm_fb_bios_memtype(struct nvkm_bios *bios)
 
 	if (nvbios_M0203Em(bios, ramcfg, &ver, &hdr, &M0203E)) {
 		switch (M0203E.type) {
-		case M0203E_TYPE_DDR2 : return NVKM_RAM_TYPE_DDR2;
-		case M0203E_TYPE_DDR3 : return NVKM_RAM_TYPE_DDR3;
-		case M0203E_TYPE_GDDR3: return NVKM_RAM_TYPE_GDDR3;
-		case M0203E_TYPE_GDDR5: return NVKM_RAM_TYPE_GDDR5;
+		case M0203E_TYPE_DDR2  : return NVKM_RAM_TYPE_DDR2;
+		case M0203E_TYPE_DDR3  : return NVKM_RAM_TYPE_DDR3;
+		case M0203E_TYPE_GDDR3 : return NVKM_RAM_TYPE_GDDR3;
+		case M0203E_TYPE_GDDR5 : return NVKM_RAM_TYPE_GDDR5;
+		case M0203E_TYPE_GDDR5X: return NVKM_RAM_TYPE_GDDR5X;
+		case M0203E_TYPE_GDDR6 : return NVKM_RAM_TYPE_GDDR6;
+		case M0203E_TYPE_HBM2  : return NVKM_RAM_TYPE_HBM2;
 		default:
 			nvkm_warn(subdev, "M0203E type %02x\n", M0203E.type);
 			return NVKM_RAM_TYPE_UNKNOWN;
@@ -100,6 +97,7 @@ static int
 nvkm_fb_oneinit(struct nvkm_subdev *subdev)
 {
 	struct nvkm_fb *fb = nvkm_fb(subdev);
+	u32 tags = 0;
 
 	if (fb->func->ram_new) {
 		int ret = fb->func->ram_new(fb, &fb->ram);
@@ -115,7 +113,16 @@ nvkm_fb_oneinit(struct nvkm_subdev *subdev)
 			return ret;
 	}
 
-	return 0;
+	/* Initialise compression tag allocator.
+	 *
+	 * LTC oneinit() will override this on Fermi and newer.
+	 */
+	if (fb->func->tags) {
+		tags = fb->func->tags(fb);
+		nvkm_debug(subdev, "%d comptags\n", tags);
+	}
+
+	return nvkm_mm_init(&fb->tags, 0, 0, tags, 1);
 }
 
 static int
@@ -135,8 +142,16 @@ nvkm_fb_init(struct nvkm_subdev *subdev)
 
 	if (fb->func->init)
 		fb->func->init(fb);
-	if (fb->func->init_page)
-		fb->func->init_page(fb);
+
+	if (fb->func->init_remapper)
+		fb->func->init_remapper(fb);
+
+	if (fb->func->init_page) {
+		ret = fb->func->init_page(fb);
+		if (WARN_ON(ret))
+			return ret;
+	}
+
 	if (fb->func->init_unkn)
 		fb->func->init_unkn(fb);
 	return 0;
@@ -148,12 +163,13 @@ nvkm_fb_dtor(struct nvkm_subdev *subdev)
 	struct nvkm_fb *fb = nvkm_fb(subdev);
 	int i;
 
-	nvkm_memory_del(&fb->mmu_wr);
-	nvkm_memory_del(&fb->mmu_rd);
+	nvkm_memory_unref(&fb->mmu_wr);
+	nvkm_memory_unref(&fb->mmu_rd);
 
 	for (i = 0; i < fb->tile.regions; i++)
 		fb->func->tile.fini(fb, i, &fb->tile.region[i]);
 
+	nvkm_mm_fini(&fb->tags);
 	nvkm_ram_del(&fb->ram);
 
 	if (fb->func->dtor)
@@ -176,7 +192,8 @@ nvkm_fb_ctor(const struct nvkm_fb_func *func, struct nvkm_device *device,
 	nvkm_subdev_ctor(&nvkm_fb, device, index, &fb->subdev);
 	fb->func = func;
 	fb->tile.regions = fb->func->tile.regions;
-	fb->page = nvkm_longopt(device->cfgopt, "NvFbBigPage", 0);
+	fb->page = nvkm_longopt(device->cfgopt, "NvFbBigPage",
+				fb->func->default_bigpage);
 }
 
 int

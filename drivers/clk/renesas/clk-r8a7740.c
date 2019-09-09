@@ -1,16 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * r8a7740 Core CPG Clocks
  *
  * Copyright (C) 2014  Ulrich Hecht
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
  */
 
 #include <linux/clk-provider.h>
 #include <linux/clk/renesas.h>
 #include <linux/init.h>
+#include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/of.h>
@@ -98,20 +96,20 @@ r8a7740_cpg_register_clock(struct device_node *np, struct r8a7740_cpg *cpg,
 		 * clock implementation and we currently have no need to change
 		 * the multiplier value.
 		 */
-		u32 value = clk_readl(cpg->reg + CPG_FRQCRC);
+		u32 value = readl(cpg->reg + CPG_FRQCRC);
 		parent_name = "system";
 		mult = ((value >> 24) & 0x7f) + 1;
 	} else if (!strcmp(name, "pllc1")) {
-		u32 value = clk_readl(cpg->reg + CPG_FRQCRA);
+		u32 value = readl(cpg->reg + CPG_FRQCRA);
 		parent_name = "system";
 		mult = ((value >> 24) & 0x7f) + 1;
 		div = 2;
 	} else if (!strcmp(name, "pllc2")) {
-		u32 value = clk_readl(cpg->reg + CPG_PLLC2CR);
+		u32 value = readl(cpg->reg + CPG_PLLC2CR);
 		parent_name = "system";
 		mult = ((value >> 24) & 0x3f) + 1;
 	} else if (!strcmp(name, "usb24s")) {
-		u32 value = clk_readl(cpg->reg + CPG_USBCKCR);
+		u32 value = readl(cpg->reg + CPG_USBCKCR);
 		if (value & BIT(7))
 			/* extal2 */
 			parent_name = of_clk_get_parent_name(np, 1);
@@ -161,7 +159,7 @@ static void __init r8a7740_cpg_clocks_init(struct device_node *np)
 	}
 
 	cpg = kzalloc(sizeof(*cpg), GFP_KERNEL);
-	clks = kzalloc(num_clks * sizeof(*clks), GFP_KERNEL);
+	clks = kcalloc(num_clks, sizeof(*clks), GFP_KERNEL);
 	if (cpg == NULL || clks == NULL) {
 		/* We're leaking memory on purpose, there's no point in cleaning
 		 * up as the system won't boot anyway.
@@ -187,8 +185,8 @@ static void __init r8a7740_cpg_clocks_init(struct device_node *np)
 
 		clk = r8a7740_cpg_register_clock(np, cpg, name);
 		if (IS_ERR(clk))
-			pr_err("%s: failed to register %s %s clock (%ld)\n",
-			       __func__, np->name, name, PTR_ERR(clk));
+			pr_err("%s: failed to register %pOFn %s clock (%ld)\n",
+			       __func__, np, name, PTR_ERR(clk));
 		else
 			cpg->data.clks[i] = clk;
 	}

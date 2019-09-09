@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 dvb-usb-objs += dvb-usb-firmware.o dvb-usb-init.o dvb-usb-urb.o dvb-usb-i2c.o
 dvb-usb-objs += dvb-usb-dvb.o dvb-usb-remote.o usb-urb.o
 obj-$(CONFIG_DVB_USB) += dvb-usb.o
@@ -8,7 +9,7 @@ obj-$(CONFIG_DVB_USB_VP7045) += dvb-usb-vp7045.o
 dvb-usb-vp702x-objs := vp702x.o vp702x-fe.o
 obj-$(CONFIG_DVB_USB_VP702X) += dvb-usb-vp702x.o
 
-dvb-usb-gp8psk-objs := gp8psk.o gp8psk-fe.o
+dvb-usb-gp8psk-objs := gp8psk.o
 obj-$(CONFIG_DVB_USB_GP8PSK) += dvb-usb-gp8psk.o
 
 dvb-usb-dtt200u-objs := dtt200u.o dtt200u-fe.o
@@ -41,6 +42,9 @@ dvb-usb-digitv-objs := digitv.o
 obj-$(CONFIG_DVB_USB_DIGITV) += dvb-usb-digitv.o
 
 dvb-usb-cxusb-objs := cxusb.o
+ifeq ($(CONFIG_DVB_USB_CXUSB_ANALOG),y)
+dvb-usb-cxusb-objs += cxusb-analog.o
+endif
 obj-$(CONFIG_DVB_USB_CXUSB) += dvb-usb-cxusb.o
 
 dvb-usb-ttusb2-objs := ttusb2.o
@@ -70,16 +74,12 @@ obj-$(CONFIG_DVB_USB_DTV5100) += dvb-usb-dtv5100.o
 dvb-usb-cinergyT2-objs := cinergyT2-core.o cinergyT2-fe.o
 obj-$(CONFIG_DVB_USB_CINERGY_T2) += dvb-usb-cinergyT2.o
 
-dvb-usb-friio-objs := friio.o friio-fe.o
-obj-$(CONFIG_DVB_USB_FRIIO) += dvb-usb-friio.o
-
 dvb-usb-az6027-objs := az6027.o
 obj-$(CONFIG_DVB_USB_AZ6027) += dvb-usb-az6027.o
 
 dvb-usb-technisat-usb2-objs := technisat-usb2.o
 obj-$(CONFIG_DVB_USB_TECHNISAT_USB2) += dvb-usb-technisat-usb2.o
 
-ccflags-y += -I$(srctree)/drivers/media/dvb-core
 ccflags-y += -I$(srctree)/drivers/media/dvb-frontends/
 # due to tuner-xc3028
 ccflags-y += -I$(srctree)/drivers/media/tuners

@@ -1,15 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Cryptographic API for the 842 software compression algorithm.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  *
  * Copyright (C) IBM Corporation, 2011-2015
  *
@@ -31,10 +22,45 @@
 #include <linux/module.h>
 #include <linux/crypto.h>
 #include <linux/sw842.h>
+#include <crypto/internal/scompress.h>
 
 struct crypto842_ctx {
-	char wmem[SW842_MEM_COMPRESS];	/* working memory for compress */
+	void *wmem;	/* working memory for compress */
 };
+
+static void *crypto842_alloc_ctx(struct crypto_scomp *tfm)
+{
+	void *ctx;
+
+	ctx = kmalloc(SW842_MEM_COMPRESS, GFP_KERNEL);
+	if (!ctx)
+		return ERR_PTR(-ENOMEM);
+
+	return ctx;
+}
+
+static int crypto842_init(struct crypto_tfm *tfm)
+{
+	struct crypto842_ctx *ctx = crypto_tfm_ctx(tfm);
+
+	ctx->wmem = crypto842_alloc_ctx(NULL);
+	if (IS_ERR(ctx->wmem))
+		return -ENOMEM;
+
+	return 0;
+}
+
+static void crypto842_free_ctx(struct crypto_scomp *tfm, void *ctx)
+{
+	kfree(ctx);
+}
+
+static void crypto842_exit(struct crypto_tfm *tfm)
+{
+	struct crypto842_ctx *ctx = crypto_tfm_ctx(tfm);
+
+	crypto842_free_ctx(NULL, ctx->wmem);
+}
 
 static int crypto842_compress(struct crypto_tfm *tfm,
 			      const u8 *src, unsigned int slen,
@@ -45,9 +71,23 @@ static int crypto842_compress(struct crypto_tfm *tfm,
 	return sw842_compress(src, slen, dst, dlen, ctx->wmem);
 }
 
+static int crypto842_scompress(struct crypto_scomp *tfm,
+			       const u8 *src, unsigned int slen,
+			       u8 *dst, unsigned int *dlen, void *ctx)
+{
+	return sw842_compress(src, slen, dst, dlen, ctx);
+}
+
 static int crypto842_decompress(struct crypto_tfm *tfm,
 				const u8 *src, unsigned int slen,
 				u8 *dst, unsigned int *dlen)
+{
+	return sw842_decompress(src, slen, dst, dlen);
+}
+
+static int crypto842_sdecompress(struct crypto_scomp *tfm,
+				 const u8 *src, unsigned int slen,
+				 u8 *dst, unsigned int *dlen, void *ctx)
 {
 	return sw842_decompress(src, slen, dst, dlen);
 }
@@ -59,20 +99,48 @@ static struct crypto_alg alg = {
 	.cra_flags		= CRYPTO_ALG_TYPE_COMPRESS,
 	.cra_ctxsize		= sizeof(struct crypto842_ctx),
 	.cra_module		= THIS_MODULE,
+	.cra_init		= crypto842_init,
+	.cra_exit		= crypto842_exit,
 	.cra_u			= { .compress = {
 	.coa_compress		= crypto842_compress,
 	.coa_decompress		= crypto842_decompress } }
 };
 
+static struct scomp_alg scomp = {
+	.alloc_ctx		= crypto842_alloc_ctx,
+	.free_ctx		= crypto842_free_ctx,
+	.compress		= crypto842_scompress,
+	.decompress		= crypto842_sdecompress,
+	.base			= {
+		.cra_name	= "842",
+		.cra_driver_name = "842-scomp",
+		.cra_priority	 = 100,
+		.cra_module	 = THIS_MODULE,
+	}
+};
+
 static int __init crypto842_mod_init(void)
 {
-	return crypto_register_alg(&alg);
+	int ret;
+
+	ret = crypto_register_alg(&alg);
+	if (ret)
+		return ret;
+
+	ret = crypto_register_scomp(&scomp);
+	if (ret) {
+		crypto_unregister_alg(&alg);
+		return ret;
+	}
+
+	return ret;
 }
-module_init(crypto842_mod_init);
+subsys_initcall(crypto842_mod_init);
 
 static void __exit crypto842_mod_exit(void)
 {
 	crypto_unregister_alg(&alg);
+	crypto_unregister_scomp(&scomp);
 }
 module_exit(crypto842_mod_exit);
 

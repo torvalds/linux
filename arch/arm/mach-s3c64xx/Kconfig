@@ -1,7 +1,8 @@
+# SPDX-License-Identifier: GPL-2.0
+#
 # Copyright 2008 Openmoko, Inc.
 #	Simtec Electronics, Ben Dooks <ben@simtec.co.uk>
-#
-# Licensed under GPLv2
+
 menuconfig ARCH_S3C64XX
 	bool "Samsung S3C64XX"
 	depends on ARCH_MULTI_V6
@@ -40,7 +41,6 @@ config CPU_S3C6410
 
 config S3C64XX_PL080
 	def_bool DMADEVICES
-	select ARM_AMBA
 	select AMBA_PL08X
 
 config S3C64XX_SETUP_SDHCI
@@ -336,7 +336,7 @@ config MACH_WLF_CRAGG_6410
 
 config MACH_S3C64XX_DT
 	bool "Samsung S3C6400/S3C6410 machine using Device Tree"
-	select CLKSRC_OF
+	select TIMER_OF
 	select CPU_S3C6400
 	select CPU_S3C6410
 	select PINCTRL

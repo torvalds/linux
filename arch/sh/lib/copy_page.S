@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * copy_page, __copy_user_page, __copy_user implementation of SuperH
  *

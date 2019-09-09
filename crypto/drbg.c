@@ -220,6 +220,57 @@ static inline unsigned short drbg_sec_strength(drbg_flag_t flags)
 }
 
 /*
+ * FIPS 140-2 continuous self test for the noise source
+ * The test is performed on the noise source input data. Thus, the function
+ * implicitly knows the size of the buffer to be equal to the security
+ * strength.
+ *
+ * Note, this function disregards the nonce trailing the entropy data during
+ * initial seeding.
+ *
+ * drbg->drbg_mutex must have been taken.
+ *
+ * @drbg DRBG handle
+ * @entropy buffer of seed data to be checked
+ *
+ * return:
+ *	0 on success
+ *	-EAGAIN on when the CTRNG is not yet primed
+ *	< 0 on error
+ */
+static int drbg_fips_continuous_test(struct drbg_state *drbg,
+				     const unsigned char *entropy)
+{
+	unsigned short entropylen = drbg_sec_strength(drbg->core->flags);
+	int ret = 0;
+
+	if (!IS_ENABLED(CONFIG_CRYPTO_FIPS))
+		return 0;
+
+	/* skip test if we test the overall system */
+	if (list_empty(&drbg->test_data.list))
+		return 0;
+	/* only perform test in FIPS mode */
+	if (!fips_enabled)
+		return 0;
+
+	if (!drbg->fips_primed) {
+		/* Priming of FIPS test */
+		memcpy(drbg->prev, entropy, entropylen);
+		drbg->fips_primed = true;
+		/* priming: another round is needed */
+		return -EAGAIN;
+	}
+	ret = memcmp(drbg->prev, entropy, entropylen);
+	if (!ret)
+		panic("DRBG continuous self test failed\n");
+	memcpy(drbg->prev, entropy, entropylen);
+
+	/* the test shall pass when the two values are not equal */
+	return 0;
+}
+
+/*
  * Convert an integer into a byte representation of this integer.
  * The byte representation is big-endian
  *
@@ -261,7 +312,7 @@ static int drbg_fini_sym_kernel(struct drbg_state *drbg);
 static int drbg_kcapi_sym_ctr(struct drbg_state *drbg,
 			      u8 *inbuf, u32 inbuflen,
 			      u8 *outbuf, u32 outlen);
-#define DRBG_CTR_NULL_LEN 128
+#define DRBG_OUTSCRATCHLEN 256
 
 /* BCC function for CTR DRBG as defined in 10.4.3 */
 static int drbg_ctr_bcc(struct drbg_state *drbg,
@@ -554,8 +605,7 @@ static int drbg_ctr_generate(struct drbg_state *drbg,
 	}
 
 	/* 10.2.1.5.2 step 4.1 */
-	ret = drbg_kcapi_sym_ctr(drbg, drbg->ctr_null_value, DRBG_CTR_NULL_LEN,
-				 buf, len);
+	ret = drbg_kcapi_sym_ctr(drbg, NULL, 0, buf, len);
 	if (ret)
 		return ret;
 
@@ -999,6 +1049,22 @@ static inline int __drbg_seed(struct drbg_state *drbg, struct list_head *seed,
 	return ret;
 }
 
+static inline int drbg_get_random_bytes(struct drbg_state *drbg,
+					unsigned char *entropy,
+					unsigned int entropylen)
+{
+	int ret;
+
+	do {
+		get_random_bytes(entropy, entropylen);
+		ret = drbg_fips_continuous_test(drbg, entropy);
+		if (ret && ret != -EAGAIN)
+			return ret;
+	} while (ret);
+
+	return 0;
+}
+
 static void drbg_async_seed(struct work_struct *work)
 {
 	struct drbg_string data;
@@ -1007,15 +1073,19 @@ static void drbg_async_seed(struct work_struct *work)
 					       seed_work);
 	unsigned int entropylen = drbg_sec_strength(drbg->core->flags);
 	unsigned char entropy[32];
+	int ret;
 
 	BUG_ON(!entropylen);
 	BUG_ON(entropylen > sizeof(entropy));
-	get_random_bytes(entropy, entropylen);
 
 	drbg_string_fill(&data, entropy, entropylen);
 	list_add_tail(&data.list, &seedlist);
 
 	mutex_lock(&drbg->drbg_mutex);
+
+	ret = drbg_get_random_bytes(drbg, entropy, entropylen);
+	if (ret)
+		goto unlock;
 
 	/* If nonblocking pool is initialized, deactivate Jitter RNG */
 	crypto_free_rng(drbg->jent);
@@ -1031,6 +1101,7 @@ static void drbg_async_seed(struct work_struct *work)
 	if (drbg->seeded)
 		drbg->reseed_threshold = drbg_max_requests(drbg);
 
+unlock:
 	mutex_unlock(&drbg->drbg_mutex);
 
 	memzero_explicit(entropy, entropylen);
@@ -1082,7 +1153,9 @@ static int drbg_seed(struct drbg_state *drbg, struct drbg_string *pers,
 		BUG_ON((entropylen * 2) > sizeof(entropy));
 
 		/* Get seed from in-kernel /dev/urandom */
-		get_random_bytes(entropy, entropylen);
+		ret = drbg_get_random_bytes(drbg, entropy, entropylen);
+		if (ret)
+			goto out;
 
 		if (!drbg->jent) {
 			drbg_string_fill(&data1, entropy, entropylen);
@@ -1095,7 +1168,7 @@ static int drbg_seed(struct drbg_state *drbg, struct drbg_string *pers,
 						   entropylen);
 			if (ret) {
 				pr_devel("DRBG: jent failed with %d\n", ret);
-				return ret;
+				goto out;
 			}
 
 			drbg_string_fill(&data1, entropy, entropylen * 2);
@@ -1122,6 +1195,7 @@ static int drbg_seed(struct drbg_state *drbg, struct drbg_string *pers,
 
 	ret = __drbg_seed(drbg, &seedlist, reseed);
 
+out:
 	memzero_explicit(entropy, entropylen * 2);
 
 	return ret;
@@ -1132,15 +1206,22 @@ static inline void drbg_dealloc_state(struct drbg_state *drbg)
 {
 	if (!drbg)
 		return;
-	kzfree(drbg->V);
+	kzfree(drbg->Vbuf);
 	drbg->Vbuf = NULL;
-	kzfree(drbg->C);
+	drbg->V = NULL;
+	kzfree(drbg->Cbuf);
 	drbg->Cbuf = NULL;
+	drbg->C = NULL;
 	kzfree(drbg->scratchpadbuf);
 	drbg->scratchpadbuf = NULL;
 	drbg->reseed_ctr = 0;
 	drbg->d_ops = NULL;
 	drbg->core = NULL;
+	if (IS_ENABLED(CONFIG_CRYPTO_FIPS)) {
+		kzfree(drbg->prev);
+		drbg->prev = NULL;
+		drbg->fips_primed = false;
+	}
 }
 
 /*
@@ -1208,6 +1289,14 @@ static inline int drbg_alloc_state(struct drbg_state *drbg)
 			goto fini;
 		}
 		drbg->scratchpad = PTR_ALIGN(drbg->scratchpadbuf, ret + 1);
+	}
+
+	if (IS_ENABLED(CONFIG_CRYPTO_FIPS)) {
+		drbg->prev = kzalloc(drbg_sec_strength(drbg->core->flags),
+				     GFP_KERNEL);
+		if (!drbg->prev)
+			goto fini;
+		drbg->fips_primed = false;
 	}
 
 	return 0;
@@ -1586,7 +1675,6 @@ static int drbg_init_hash_kernel(struct drbg_state *drbg)
 	}
 
 	sdesc->shash.tfm = tfm;
-	sdesc->shash.flags = 0;
 	drbg->priv_data = sdesc;
 
 	return crypto_shash_alignmask(tfm);
@@ -1641,20 +1729,10 @@ static int drbg_fini_sym_kernel(struct drbg_state *drbg)
 		skcipher_request_free(drbg->ctr_req);
 	drbg->ctr_req = NULL;
 
-	kfree(drbg->ctr_null_value_buf);
-	drbg->ctr_null_value = NULL;
+	kfree(drbg->outscratchpadbuf);
+	drbg->outscratchpadbuf = NULL;
 
 	return 0;
-}
-
-static void drbg_skcipher_cb(struct crypto_async_request *req, int error)
-{
-	struct drbg_state *drbg = req->data;
-
-	if (error == -EINPROGRESS)
-		return;
-	drbg->ctr_async_err = error;
-	complete(&drbg->ctr_completion);
 }
 
 static int drbg_init_sym_kernel(struct drbg_state *drbg)
@@ -1687,6 +1765,7 @@ static int drbg_init_sym_kernel(struct drbg_state *drbg)
 		return PTR_ERR(sk_tfm);
 	}
 	drbg->ctr_handle = sk_tfm;
+	crypto_init_wait(&drbg->ctr_wait);
 
 	req = skcipher_request_alloc(sk_tfm, GFP_KERNEL);
 	if (!req) {
@@ -1695,18 +1774,22 @@ static int drbg_init_sym_kernel(struct drbg_state *drbg)
 		return -ENOMEM;
 	}
 	drbg->ctr_req = req;
-	skcipher_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
-					drbg_skcipher_cb, drbg);
+	skcipher_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG |
+						CRYPTO_TFM_REQ_MAY_SLEEP,
+					crypto_req_done, &drbg->ctr_wait);
 
 	alignmask = crypto_skcipher_alignmask(sk_tfm);
-	drbg->ctr_null_value_buf = kzalloc(DRBG_CTR_NULL_LEN + alignmask,
-					   GFP_KERNEL);
-	if (!drbg->ctr_null_value_buf) {
+	drbg->outscratchpadbuf = kmalloc(DRBG_OUTSCRATCHLEN + alignmask,
+					 GFP_KERNEL);
+	if (!drbg->outscratchpadbuf) {
 		drbg_fini_sym_kernel(drbg);
 		return -ENOMEM;
 	}
-	drbg->ctr_null_value = (u8 *)PTR_ALIGN(drbg->ctr_null_value_buf,
-					       alignmask + 1);
+	drbg->outscratchpad = (u8 *)PTR_ALIGN(drbg->outscratchpadbuf,
+					      alignmask + 1);
+
+	sg_init_table(&drbg->sg_in, 1);
+	sg_init_one(&drbg->sg_out, drbg->outscratchpad, DRBG_OUTSCRATCHLEN);
 
 	return alignmask;
 }
@@ -1736,39 +1819,43 @@ static int drbg_kcapi_sym_ctr(struct drbg_state *drbg,
 			      u8 *inbuf, u32 inlen,
 			      u8 *outbuf, u32 outlen)
 {
-	struct scatterlist sg_in;
+	struct scatterlist *sg_in = &drbg->sg_in, *sg_out = &drbg->sg_out;
+	u32 scratchpad_use = min_t(u32, outlen, DRBG_OUTSCRATCHLEN);
+	int ret;
 
-	sg_init_one(&sg_in, inbuf, inlen);
-
-	while (outlen) {
-		u32 cryptlen = min_t(u32, inlen, outlen);
-		struct scatterlist sg_out;
-		int ret;
-
-		sg_init_one(&sg_out, outbuf, cryptlen);
-		skcipher_request_set_crypt(drbg->ctr_req, &sg_in, &sg_out,
-					   cryptlen, drbg->V);
-		ret = crypto_skcipher_encrypt(drbg->ctr_req);
-		switch (ret) {
-		case 0:
-			break;
-		case -EINPROGRESS:
-		case -EBUSY:
-			ret = wait_for_completion_interruptible(
-				&drbg->ctr_completion);
-			if (!ret && !drbg->ctr_async_err) {
-				reinit_completion(&drbg->ctr_completion);
-				break;
-			}
-		default:
-			return ret;
-		}
-		init_completion(&drbg->ctr_completion);
-
-		outlen -= cryptlen;
+	if (inbuf) {
+		/* Use caller-provided input buffer */
+		sg_set_buf(sg_in, inbuf, inlen);
+	} else {
+		/* Use scratchpad for in-place operation */
+		inlen = scratchpad_use;
+		memset(drbg->outscratchpad, 0, scratchpad_use);
+		sg_set_buf(sg_in, drbg->outscratchpad, scratchpad_use);
 	}
 
-	return 0;
+	while (outlen) {
+		u32 cryptlen = min3(inlen, outlen, (u32)DRBG_OUTSCRATCHLEN);
+
+		/* Output buffer may not be valid for SGL, use scratchpad */
+		skcipher_request_set_crypt(drbg->ctr_req, sg_in, sg_out,
+					   cryptlen, drbg->V);
+		ret = crypto_wait_req(crypto_skcipher_encrypt(drbg->ctr_req),
+					&drbg->ctr_wait);
+		if (ret)
+			goto out;
+
+		crypto_init_wait(&drbg->ctr_wait);
+
+		memcpy(outbuf, drbg->outscratchpad, cryptlen);
+		memzero_explicit(drbg->outscratchpad, cryptlen);
+
+		outlen -= cryptlen;
+		outbuf += cryptlen;
+	}
+	ret = 0;
+
+out:
+	return ret;
 }
 #endif /* CONFIG_CRYPTO_DRBG_CTR */
 
@@ -2039,7 +2126,7 @@ static void __exit drbg_exit(void)
 	crypto_unregister_rngs(drbg_algs, (ARRAY_SIZE(drbg_cores) * 2));
 }
 
-module_init(drbg_init);
+subsys_initcall(drbg_init);
 module_exit(drbg_exit);
 #ifndef CRYPTO_DRBG_HASH_STRING
 #define CRYPTO_DRBG_HASH_STRING ""

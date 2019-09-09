@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * PCAP2 Regulator Driver
  *
  * Copyright (c) 2009 Daniel Ribeiro <drwyrm@gmail.com>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -210,7 +206,7 @@ static int pcap_regulator_is_enabled(struct regulator_dev *rdev)
 	return (tmp >> vreg->en) & 1;
 }
 
-static struct regulator_ops pcap_regulator_ops = {
+static const struct regulator_ops pcap_regulator_ops = {
 	.list_voltage	= regulator_list_voltage_table,
 	.set_voltage_sel = pcap_regulator_set_voltage_sel,
 	.get_voltage_sel = pcap_regulator_get_voltage_sel,

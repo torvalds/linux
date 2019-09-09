@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <dt-bindings/clock/tegra124-car.h>
 #include <dt-bindings/gpio/tegra-gpio.h>
 #include <dt-bindings/memory/tegra124-mc.h>
@@ -6,15 +7,18 @@
 #include <dt-bindings/reset/tegra124-car.h>
 #include <dt-bindings/thermal/tegra124-soctherm.h>
 
-#include "skeleton.dtsi"
-
 / {
 	compatible = "nvidia,tegra124";
 	interrupt-parent = <&lic>;
 	#address-cells = <2>;
 	#size-cells = <2>;
 
-	pcie-controller@01003000 {
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x0 0x80000000 0x0 0x0>;
+	};
+
+	pcie@1003000 {
 		compatible = "nvidia,tegra124-pcie";
 		device_type = "pci";
 		reg = <0x0 0x01003000 0x0 0x00000800   /* PADS registers */
@@ -54,6 +58,7 @@
 			device_type = "pci";
 			assigned-addresses = <0x82000800 0 0x01000000 0 0x1000>;
 			reg = <0x000800 0 0 0 0>;
+			bus-range = <0x00 0xff>;
 			status = "disabled";
 
 			#address-cells = <3>;
@@ -67,6 +72,7 @@
 			device_type = "pci";
 			assigned-addresses = <0x82001000 0 0x01001000 0 0x1000>;
 			reg = <0x001000 0 0 0 0>;
+			bus-range = <0x00 0xff>;
 			status = "disabled";
 
 			#address-cells = <3>;
@@ -85,6 +91,7 @@
 		clocks = <&tegra_car TEGRA124_CLK_HOST1X>;
 		resets = <&tegra_car 28>;
 		reset-names = "host1x";
+		iommus = <&mc TEGRA_SWGROUP_HC>;
 
 		#address-cells = <2>;
 		#size-cells = <2>;
@@ -121,7 +128,7 @@
 			nvidia,head = <1>;
 		};
 
-		hdmi@54280000 {
+		hdmi: hdmi@54280000 {
 			compatible = "nvidia,tegra124-hdmi";
 			reg = <0x0 0x54280000 0x0 0x00040000>;
 			interrupts = <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>;
@@ -131,6 +138,18 @@
 			resets = <&tegra_car 51>;
 			reset-names = "hdmi";
 			status = "disabled";
+		};
+
+		vic@54340000 {
+			compatible = "nvidia,tegra124-vic";
+			reg = <0x0 0x54340000 0x0 0x00040000>;
+			interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&tegra_car TEGRA124_CLK_VIC03>;
+			clock-names = "vic";
+			resets = <&tegra_car 178>;
+			reset-names = "vic";
+
+			iommus = <&mc TEGRA_SWGROUP_VIC>;
 		};
 
 		sor@54540000 {
@@ -847,6 +866,16 @@
 		resets = <&tegra_car 15>;
 		reset-names = "sdhci";
 		status = "disabled";
+	};
+
+	cec@70015000 {
+		compatible = "nvidia,tegra124-cec";
+		reg = <0x0 0x70015000 0x0 0x00001000>;
+		interrupts = <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&tegra_car TEGRA124_CLK_CEC>;
+		clock-names = "cec";
+		status = "disabled";
+		hdmi-phandle = <&hdmi>;
 	};
 
 	soctherm: thermal-sensor@700e2000 {

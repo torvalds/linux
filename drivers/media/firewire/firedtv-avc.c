@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * FireDTV driver (formerly known as FireSAT)
  *
  * Copyright (C) 2004 Andreas Monitzer <andy@monitzer.com>
  * Copyright (C) 2008 Ben Backx <ben@bbackx.com>
  * Copyright (C) 2008 Henrik Kurelid <henrik@kurelid.se>
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License as
- *	published by the Free Software Foundation; either version 2 of
- *	the License, or (at your option) any later version.
  */
 
 #include <linux/bug.h>
@@ -24,7 +20,7 @@
 #include <linux/wait.h>
 #include <linux/workqueue.h>
 
-#include <dvb_frontend.h>
+#include <media/dvb_frontend.h>
 
 #include "firedtv.h"
 
@@ -47,7 +43,7 @@
 #define AVC_OPCODE_DSIT			0xc8
 #define AVC_OPCODE_DSD			0xcb
 
-#define DESCRIPTOR_TUNER_STATUS 	0x80
+#define DESCRIPTOR_TUNER_STATUS		0x80
 #define DESCRIPTOR_SUBUNIT_IDENTIFIER	0x00
 
 #define SFE_VENDOR_DE_COMPANYID_0	0x00 /* OUI of Digital Everywhere */
@@ -688,7 +684,7 @@ int avc_tuner_get_ts(struct firedtv *fdtv)
 	c->operand[2] = 0xff;	/* status */
 	c->operand[3] = 0x20;	/* system id = DVB */
 	c->operand[4] = 0x00;	/* antenna number */
-	c->operand[5] = 0x0; 	/* system_specific_search_flags */
+	c->operand[5] = 0x0;	/* system_specific_search_flags */
 	c->operand[6] = sl;	/* system_specific_multiplex selection_length */
 	/*
 	 * operand[7]: valid_flags[0]
@@ -968,7 +964,8 @@ static int get_ca_object_length(struct avc_response_frame *r)
 	return r->operand[7];
 }
 
-int avc_ca_app_info(struct firedtv *fdtv, char *app_info, unsigned int *len)
+int avc_ca_app_info(struct firedtv *fdtv, unsigned char *app_info,
+		    unsigned int *len)
 {
 	struct avc_command_frame *c = (void *)fdtv->avc_data;
 	struct avc_response_frame *r = (void *)fdtv->avc_data;
@@ -1009,7 +1006,8 @@ out:
 	return ret;
 }
 
-int avc_ca_info(struct firedtv *fdtv, char *app_info, unsigned int *len)
+int avc_ca_info(struct firedtv *fdtv, unsigned char *app_info,
+		unsigned int *len)
 {
 	struct avc_command_frame *c = (void *)fdtv->avc_data;
 	struct avc_response_frame *r = (void *)fdtv->avc_data;
@@ -1181,8 +1179,8 @@ int avc_ca_pmt(struct firedtv *fdtv, char *msg, int length)
 		if (es_info_length > 0) {
 			pmt_cmd_id = msg[read_pos++];
 			if (pmt_cmd_id != 1 && pmt_cmd_id != 4)
-				dev_err(fdtv->device, "invalid pmt_cmd_id %d "
-					"at stream level\n", pmt_cmd_id);
+				dev_err(fdtv->device, "invalid pmt_cmd_id %d at stream level\n",
+					pmt_cmd_id);
 
 			if (es_info_length > sizeof(c->operand) - 4 -
 					     write_pos) {

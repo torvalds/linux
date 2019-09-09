@@ -1,8 +1,11 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *	Low-Level PCI Access for i386 machines.
  *
  *	(c) 1999 Martin Mares <mj@ucw.cz>
  */
+
+#include <linux/ioport.h>
 
 #undef DEBUG
 
@@ -35,6 +38,7 @@ do {						\
 #define PCI_NOASSIGN_ROMS	0x80000
 #define PCI_ROOT_NO_CRS		0x100000
 #define PCI_NOASSIGN_BARS	0x200000
+#define PCI_BIG_ROOT_WINDOW	0x400000
 
 extern unsigned int pci_probe;
 extern unsigned long pirq_table_addr;
@@ -117,7 +121,14 @@ extern void __init dmi_check_pciprobe(void);
 extern void __init dmi_check_skip_isa_align(void);
 
 /* some common used subsys_initcalls */
+#ifdef CONFIG_PCI
 extern int __init pci_acpi_init(void);
+#else
+static inline int  __init pci_acpi_init(void)
+{
+	return -EINVAL;
+}
+#endif
 extern void __init pcibios_irq_init(void);
 extern int __init pcibios_init(void);
 extern int pci_legacy_init(void);
@@ -147,6 +158,8 @@ extern int pci_mmconfig_insert(struct device *dev, u16 seg, u8 start, u8 end,
 			       phys_addr_t addr);
 extern int pci_mmconfig_delete(u16 seg, u8 start, u8 end);
 extern struct pci_mmcfg_region *pci_mmconfig_lookup(int segment, int bus);
+extern struct pci_mmcfg_region *__init pci_mmconfig_add(int segment, int start,
+							int end, u64 addr);
 
 extern struct list_head pci_mmcfg_list;
 

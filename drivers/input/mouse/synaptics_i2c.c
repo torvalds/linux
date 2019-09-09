@@ -29,7 +29,7 @@
  * after soft reset, we should wait for 1 ms
  * before the device becomes operational
  */
-#define SOFT_RESET_DELAY_MS	3
+#define SOFT_RESET_DELAY_US	3000
 /* and after hard reset, we should wait for max 500ms */
 #define HARD_RESET_DELAY_MS	500
 
@@ -219,7 +219,6 @@ struct synaptics_i2c {
 	struct i2c_client	*client;
 	struct input_dev	*input;
 	struct delayed_work	dwork;
-	spinlock_t		lock;
 	int			no_data_count;
 	int			no_decel_param;
 	int			reduce_report_param;
@@ -311,7 +310,7 @@ static int synaptics_i2c_reset_config(struct i2c_client *client)
 	if (ret) {
 		dev_err(&client->dev, "Unable to reset device\n");
 	} else {
-		msleep(SOFT_RESET_DELAY_MS);
+		usleep_range(SOFT_RESET_DELAY_US, SOFT_RESET_DELAY_US + 100);
 		ret = synaptics_i2c_config(client);
 		if (ret)
 			dev_err(&client->dev, "Unable to config device\n");
@@ -369,23 +368,11 @@ static bool synaptics_i2c_get_input(struct synaptics_i2c *touch)
 	return xy_delta || gesture;
 }
 
-static void synaptics_i2c_reschedule_work(struct synaptics_i2c *touch,
-					  unsigned long delay)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&touch->lock, flags);
-
-	mod_delayed_work(system_wq, &touch->dwork, delay);
-
-	spin_unlock_irqrestore(&touch->lock, flags);
-}
-
 static irqreturn_t synaptics_i2c_irq(int irq, void *dev_id)
 {
 	struct synaptics_i2c *touch = dev_id;
 
-	synaptics_i2c_reschedule_work(touch, 0);
+	mod_delayed_work(system_wq, &touch->dwork, 0);
 
 	return IRQ_HANDLED;
 }
@@ -461,7 +448,7 @@ static void synaptics_i2c_work_handler(struct work_struct *work)
 	 * We poll the device once in THREAD_IRQ_SLEEP_SECS and
 	 * if error is detected, we try to reset and reconfigure the touchpad.
 	 */
-	synaptics_i2c_reschedule_work(touch, delay);
+	mod_delayed_work(system_wq, &touch->dwork, delay);
 }
 
 static int synaptics_i2c_open(struct input_dev *input)
@@ -474,7 +461,7 @@ static int synaptics_i2c_open(struct input_dev *input)
 		return ret;
 
 	if (polling_req)
-		synaptics_i2c_reschedule_work(touch,
+		mod_delayed_work(system_wq, &touch->dwork,
 				msecs_to_jiffies(NO_DATA_SLEEP_MSECS));
 
 	return 0;
@@ -530,7 +517,6 @@ static struct synaptics_i2c *synaptics_i2c_touch_create(struct i2c_client *clien
 	touch->scan_rate_param = scan_rate;
 	set_scan_rate(touch, scan_rate);
 	INIT_DELAYED_WORK(&touch->dwork, synaptics_i2c_work_handler);
-	spin_lock_init(&touch->lock);
 
 	return touch;
 }
@@ -637,7 +623,7 @@ static int __maybe_unused synaptics_i2c_resume(struct device *dev)
 	if (ret)
 		return ret;
 
-	synaptics_i2c_reschedule_work(touch,
+	mod_delayed_work(system_wq, &touch->dwork,
 				msecs_to_jiffies(NO_DATA_SLEEP_MSECS));
 
 	return 0;
@@ -652,9 +638,18 @@ static const struct i2c_device_id synaptics_i2c_id_table[] = {
 };
 MODULE_DEVICE_TABLE(i2c, synaptics_i2c_id_table);
 
+#ifdef CONFIG_OF
+static const struct of_device_id synaptics_i2c_of_match[] = {
+	{ .compatible = "synaptics,synaptics_i2c", },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, synaptics_i2c_of_match);
+#endif
+
 static struct i2c_driver synaptics_i2c_driver = {
 	.driver = {
 		.name	= DRIVER_NAME,
+		.of_match_table = of_match_ptr(synaptics_i2c_of_match),
 		.pm	= &synaptics_i2c_pm,
 	},
 

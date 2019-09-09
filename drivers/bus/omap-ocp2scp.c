@@ -1,19 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * omap-ocp2scp.c - transform ocp interface protocol to scp protocol
  *
  * Copyright (C) 2012 Texas Instruments Incorporated - http://www.ti.com
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
  * Author: Kishon Vijay Abraham I <kishon@ti.com>
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/io.h>
@@ -70,8 +60,10 @@ static int omap_ocp2scp_probe(struct platform_device *pdev)
 	if (!of_device_is_compatible(np, "ti,am437x-ocp2scp")) {
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 		regs = devm_ioremap_resource(&pdev->dev, res);
-		if (IS_ERR(regs))
-			goto err0;
+		if (IS_ERR(regs)) {
+			ret = PTR_ERR(regs);
+			goto err1;
+		}
 
 		pm_runtime_get_sync(&pdev->dev);
 		reg = readl_relaxed(regs + OCP2SCP_TIMING);
@@ -82,6 +74,9 @@ static int omap_ocp2scp_probe(struct platform_device *pdev)
 	}
 
 	return 0;
+
+err1:
+	pm_runtime_disable(&pdev->dev);
 
 err0:
 	device_for_each_child(&pdev->dev, NULL, ocp2scp_remove_devices);

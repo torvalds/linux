@@ -74,6 +74,7 @@
 #include <linux/highmem.h>
 #include <linux/pagemap.h>
 #include <linux/uaccess.h>
+#include <linux/major.h>
 #include "internal.h"
 
 static struct kmem_cache *romfs_inode_cachep;
@@ -212,7 +213,7 @@ static struct dentry *romfs_lookup(struct inode *dir, struct dentry *dentry,
 				   unsigned int flags)
 {
 	unsigned long offset, maxoff;
-	struct inode *inode;
+	struct inode *inode = NULL;
 	struct romfs_inode ri;
 	const char *name;		/* got from dentry */
 	int len, ret;
@@ -232,7 +233,7 @@ static struct dentry *romfs_lookup(struct inode *dir, struct dentry *dentry,
 
 	for (;;) {
 		if (!offset || offset >= maxoff)
-			goto out0;
+			break;
 
 		ret = romfs_dev_read(dir->i_sb, offset, &ri, sizeof(ri));
 		if (ret < 0)
@@ -243,37 +244,19 @@ static struct dentry *romfs_lookup(struct inode *dir, struct dentry *dentry,
 				       len);
 		if (ret < 0)
 			goto error;
-		if (ret == 1)
+		if (ret == 1) {
+			/* Hard link handling */
+			if ((be32_to_cpu(ri.next) & ROMFH_TYPE) == ROMFH_HRD)
+				offset = be32_to_cpu(ri.spec) & ROMFH_MASK;
+			inode = romfs_iget(dir->i_sb, offset);
 			break;
+		}
 
 		/* next entry */
 		offset = be32_to_cpu(ri.next) & ROMFH_MASK;
 	}
 
-	/* Hard link handling */
-	if ((be32_to_cpu(ri.next) & ROMFH_TYPE) == ROMFH_HRD)
-		offset = be32_to_cpu(ri.spec) & ROMFH_MASK;
-
-	inode = romfs_iget(dir->i_sb, offset);
-	if (IS_ERR(inode)) {
-		ret = PTR_ERR(inode);
-		goto error;
-	}
-	goto outi;
-
-	/*
-	 * it's a bit funky, _lookup needs to return an error code
-	 * (negative) or a NULL, both as a dentry.  ENOENT should not
-	 * be returned, instead we need to create a negative dentry by
-	 * d_add(dentry, NULL); and return 0 as no error.
-	 * (Although as I see, it only matters on writable file
-	 * systems).
-	 */
-out0:
-	inode = NULL;
-outi:
-	d_add(dentry, inode);
-	ret = 0;
+	return d_splice_alias(inode, dentry);
 error:
 	return ERR_PTR(ret);
 }
@@ -398,16 +381,9 @@ static struct inode *romfs_alloc_inode(struct super_block *sb)
 /*
  * return a spent inode to the slab cache
  */
-static void romfs_i_callback(struct rcu_head *head)
+static void romfs_free_inode(struct inode *inode)
 {
-	struct inode *inode = container_of(head, struct inode, i_rcu);
-
 	kmem_cache_free(romfs_inode_cachep, ROMFS_I(inode));
-}
-
-static void romfs_destroy_inode(struct inode *inode)
-{
-	call_rcu(&inode->i_rcu, romfs_i_callback);
 }
 
 /*
@@ -416,7 +392,22 @@ static void romfs_destroy_inode(struct inode *inode)
 static int romfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	struct super_block *sb = dentry->d_sb;
-	u64 id = huge_encode_dev(sb->s_bdev->bd_dev);
+	u64 id = 0;
+
+	/* When calling huge_encode_dev(),
+	 * use sb->s_bdev->bd_dev when,
+	 *   - CONFIG_ROMFS_ON_BLOCK defined
+	 * use sb->s_dev when,
+	 *   - CONFIG_ROMFS_ON_BLOCK undefined and
+	 *   - CONFIG_ROMFS_ON_MTD defined
+	 * leave id as 0 when,
+	 *   - CONFIG_ROMFS_ON_BLOCK undefined and
+	 *   - CONFIG_ROMFS_ON_MTD undefined
+	 */
+	if (sb->s_bdev)
+		id = huge_encode_dev(sb->s_bdev->bd_dev);
+	else if (sb->s_dev)
+		id = huge_encode_dev(sb->s_dev);
 
 	buf->f_type = ROMFS_MAGIC;
 	buf->f_namelen = ROMFS_MAXFN;
@@ -435,13 +426,13 @@ static int romfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 static int romfs_remount(struct super_block *sb, int *flags, char *data)
 {
 	sync_filesystem(sb);
-	*flags |= MS_RDONLY;
+	*flags |= SB_RDONLY;
 	return 0;
 }
 
 static const struct super_operations romfs_super_ops = {
 	.alloc_inode	= romfs_alloc_inode,
-	.destroy_inode	= romfs_destroy_inode,
+	.free_inode	= romfs_free_inode,
 	.statfs		= romfs_statfs,
 	.remount_fs	= romfs_remount,
 };
@@ -486,9 +477,14 @@ static int romfs_fill_super(struct super_block *sb, void *data, int silent)
 
 	sb->s_maxbytes = 0xFFFFFFFF;
 	sb->s_magic = ROMFS_MAGIC;
-	sb->s_flags |= MS_RDONLY | MS_NOATIME;
+	sb->s_flags |= SB_RDONLY | SB_NOATIME;
 	sb->s_op = &romfs_super_ops;
 
+#ifdef CONFIG_ROMFS_ON_MTD
+	/* Use same dev ID from the underlying mtdblock device */
+	if (sb->s_mtd)
+		sb->s_dev = MKDEV(MTD_BLOCK_MAJOR, sb->s_mtd->index);
+#endif
 	/* read the image superblock and check it */
 	rsb = kmalloc(512, GFP_KERNEL);
 	if (!rsb)

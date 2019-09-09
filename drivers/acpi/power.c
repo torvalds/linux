@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * drivers/acpi/power.c - ACPI Power Resources management.
  *
@@ -5,20 +6,6 @@
  * Author: Andy Grover <andrew.grover@intel.com>
  * Author: Paul Diefenbaugh <paul.s.diefenbaugh@intel.com>
  * Author: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
- *
- * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or (at
- *  your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful, but
- *  WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  General Public License for more details.
- *
- * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
 
 /*
@@ -55,6 +42,11 @@ ACPI_MODULE_NAME("power");
 #define ACPI_POWER_RESOURCE_STATE_ON	0x01
 #define ACPI_POWER_RESOURCE_STATE_UNKNOWN 0xFF
 
+struct acpi_power_dependent_device {
+	struct device *dev;
+	struct list_head node;
+};
+
 struct acpi_power_resource {
 	struct acpi_device device;
 	struct list_head list_node;
@@ -64,6 +56,7 @@ struct acpi_power_resource {
 	unsigned int ref_count;
 	bool wakeup_enabled;
 	struct mutex resource_lock;
+	struct list_head dependents;
 };
 
 struct acpi_power_resource_entry {
@@ -131,6 +124,23 @@ void acpi_power_resources_list_free(struct list_head *list)
 	}
 }
 
+static bool acpi_power_resource_is_dup(union acpi_object *package,
+				       unsigned int start, unsigned int i)
+{
+	acpi_handle rhandle, dup;
+	unsigned int j;
+
+	/* The caller is expected to check the package element types */
+	rhandle = package->package.elements[i].reference.handle;
+	for (j = start; j < i; j++) {
+		dup = package->package.elements[j].reference.handle;
+		if (dup == rhandle)
+			return true;
+	}
+
+	return false;
+}
+
 int acpi_extract_power_resources(union acpi_object *package, unsigned int start,
 				 struct list_head *list)
 {
@@ -150,6 +160,11 @@ int acpi_extract_power_resources(union acpi_object *package, unsigned int start,
 			err = -ENODEV;
 			break;
 		}
+
+		/* Some ACPI tables contain duplicate power resource references */
+		if (acpi_power_resource_is_dup(package, start, i))
+			continue;
+
 		err = acpi_add_power_resource(rhandle);
 		if (err)
 			break;
@@ -200,6 +215,7 @@ static int acpi_power_get_list_state(struct list_head *list, int *state)
 		return -EINVAL;
 
 	/* The state of the list is 'on' IFF all resources are 'on'. */
+	cur_state = 0;
 	list_for_each_entry(entry, list, node) {
 		struct acpi_power_resource *resource = entry->resource;
 		acpi_handle handle = resource->device.handle;
@@ -222,8 +238,121 @@ static int acpi_power_get_list_state(struct list_head *list, int *state)
 	return 0;
 }
 
+static int
+acpi_power_resource_add_dependent(struct acpi_power_resource *resource,
+				  struct device *dev)
+{
+	struct acpi_power_dependent_device *dep;
+	int ret = 0;
+
+	mutex_lock(&resource->resource_lock);
+	list_for_each_entry(dep, &resource->dependents, node) {
+		/* Only add it once */
+		if (dep->dev == dev)
+			goto unlock;
+	}
+
+	dep = kzalloc(sizeof(*dep), GFP_KERNEL);
+	if (!dep) {
+		ret = -ENOMEM;
+		goto unlock;
+	}
+
+	dep->dev = dev;
+	list_add_tail(&dep->node, &resource->dependents);
+	dev_dbg(dev, "added power dependency to [%s]\n", resource->name);
+
+unlock:
+	mutex_unlock(&resource->resource_lock);
+	return ret;
+}
+
+static void
+acpi_power_resource_remove_dependent(struct acpi_power_resource *resource,
+				     struct device *dev)
+{
+	struct acpi_power_dependent_device *dep;
+
+	mutex_lock(&resource->resource_lock);
+	list_for_each_entry(dep, &resource->dependents, node) {
+		if (dep->dev == dev) {
+			list_del(&dep->node);
+			kfree(dep);
+			dev_dbg(dev, "removed power dependency to [%s]\n",
+				resource->name);
+			break;
+		}
+	}
+	mutex_unlock(&resource->resource_lock);
+}
+
+/**
+ * acpi_device_power_add_dependent - Add dependent device of this ACPI device
+ * @adev: ACPI device pointer
+ * @dev: Dependent device
+ *
+ * If @adev has non-empty _PR0 the @dev is added as dependent device to all
+ * power resources returned by it. This means that whenever these power
+ * resources are turned _ON the dependent devices get runtime resumed. This
+ * is needed for devices such as PCI to allow its driver to re-initialize
+ * it after it went to D0uninitialized.
+ *
+ * If @adev does not have _PR0 this does nothing.
+ *
+ * Returns %0 in case of success and negative errno otherwise.
+ */
+int acpi_device_power_add_dependent(struct acpi_device *adev,
+				    struct device *dev)
+{
+	struct acpi_power_resource_entry *entry;
+	struct list_head *resources;
+	int ret;
+
+	if (!adev->flags.power_manageable)
+		return 0;
+
+	resources = &adev->power.states[ACPI_STATE_D0].resources;
+	list_for_each_entry(entry, resources, node) {
+		ret = acpi_power_resource_add_dependent(entry->resource, dev);
+		if (ret)
+			goto err;
+	}
+
+	return 0;
+
+err:
+	list_for_each_entry(entry, resources, node)
+		acpi_power_resource_remove_dependent(entry->resource, dev);
+
+	return ret;
+}
+
+/**
+ * acpi_device_power_remove_dependent - Remove dependent device
+ * @adev: ACPI device pointer
+ * @dev: Dependent device
+ *
+ * Does the opposite of acpi_device_power_add_dependent() and removes the
+ * dependent device if it is found. Can be called to @adev that does not
+ * have _PR0 as well.
+ */
+void acpi_device_power_remove_dependent(struct acpi_device *adev,
+					struct device *dev)
+{
+	struct acpi_power_resource_entry *entry;
+	struct list_head *resources;
+
+	if (!adev->flags.power_manageable)
+		return;
+
+	resources = &adev->power.states[ACPI_STATE_D0].resources;
+	list_for_each_entry_reverse(entry, resources, node)
+		acpi_power_resource_remove_dependent(entry->resource, dev);
+}
+
 static int __acpi_power_on(struct acpi_power_resource *resource)
 {
+	struct acpi_power_dependent_device *dep;
 	acpi_status status = AE_OK;
 
 	status = acpi_evaluate_object(resource->device.handle, "_ON", NULL, NULL);
@@ -232,6 +361,21 @@ static int __acpi_power_on(struct acpi_power_resource *resource)
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Power resource [%s] turned on\n",
 			  resource->name));
+
+	/*
+	 * If there are other dependents on this power resource we need to
+	 * resume them now so that their drivers can re-initialize the
+	 * hardware properly after it went back to D0.
+	 */
+	if (list_empty(&resource->dependents) ||
+	    list_is_singular(&resource->dependents))
+		return 0;
+
+	list_for_each_entry(dep, &resource->dependents, node) {
+		dev_dbg(dep->dev, "runtime resuming because [%s] turned on\n",
+			resource->name);
+		pm_request_resume(dep->dev);
+	}
 
 	return 0;
 }
@@ -351,7 +495,7 @@ static struct attribute *attrs[] = {
 	NULL,
 };
 
-static struct attribute_group attr_groups[] = {
+static const struct attribute_group attr_groups[] = {
 	[ACPI_STATE_D0] = {
 		.name = "power_resources_D0",
 		.attrs = attrs,
@@ -370,14 +514,14 @@ static struct attribute_group attr_groups[] = {
 	},
 };
 
-static struct attribute_group wakeup_attr_group = {
+static const struct attribute_group wakeup_attr_group = {
 	.name = "power_resources_wakeup",
 	.attrs = attrs,
 };
 
 static void acpi_power_hide_list(struct acpi_device *adev,
 				 struct list_head *resources,
-				 struct attribute_group *attr_group)
+				 const struct attribute_group *attr_group)
 {
 	struct acpi_power_resource_entry *entry;
 
@@ -396,7 +540,7 @@ static void acpi_power_hide_list(struct acpi_device *adev,
 
 static void acpi_power_expose_list(struct acpi_device *adev,
 				   struct list_head *resources,
-				   struct attribute_group *attr_group)
+				   const struct attribute_group *attr_group)
 {
 	struct acpi_power_resource_entry *entry;
 	int ret;
@@ -424,7 +568,7 @@ static void acpi_power_expose_list(struct acpi_device *adev,
 
 static void acpi_power_expose_hide(struct acpi_device *adev,
 				   struct list_head *resources,
-				   struct attribute_group *attr_group,
+				   const struct attribute_group *attr_group,
 				   bool expose)
 {
 	if (expose)
@@ -512,12 +656,12 @@ int acpi_device_sleep_wake(struct acpi_device *dev,
 	/*
 	 * Try to execute _DSW first.
 	 *
-	 * Three agruments are needed for the _DSW object:
+	 * Three arguments are needed for the _DSW object:
 	 * Argument 0: enable/disable the wake capabilities
 	 * Argument 1: target system state
 	 * Argument 2: target device state
 	 * When _DSW object is called to disable the wake capabilities, maybe
-	 * the first argument is filled. The values of the other two agruments
+	 * the first argument is filled. The values of the other two arguments
 	 * are meaningless.
 	 */
 	in_arg[0].type = ACPI_TYPE_INTEGER;
@@ -800,6 +944,7 @@ int acpi_add_power_resource(acpi_handle handle)
 				ACPI_STA_DEFAULT);
 	mutex_init(&resource->resource_lock);
 	INIT_LIST_HEAD(&resource->list_node);
+	INIT_LIST_HEAD(&resource->dependents);
 	resource->name = device->pnp.bus_id;
 	strcpy(acpi_device_name(device), ACPI_POWER_DEVICE_NAME);
 	strcpy(acpi_device_class(device), ACPI_POWER_CLASS);
@@ -863,6 +1008,16 @@ void acpi_resume_power_resources(void)
 
 		mutex_unlock(&resource->resource_lock);
 	}
+
+	mutex_unlock(&power_resource_list_lock);
+}
+
+void acpi_turn_off_unused_power_resources(void)
+{
+	struct acpi_power_resource *resource;
+
+	mutex_lock(&power_resource_list_lock);
+
 	list_for_each_entry_reverse(resource, &acpi_power_resource_list, list_node) {
 		int result, state;
 

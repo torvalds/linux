@@ -1,18 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2013-2014, NVIDIA CORPORATION.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
  */
 
 #include <linux/device.h>
@@ -46,9 +34,13 @@
     defined(CONFIG_ARCH_TEGRA_114_SOC) || \
     defined(CONFIG_ARCH_TEGRA_124_SOC) || \
     defined(CONFIG_ARCH_TEGRA_132_SOC) || \
-    defined(CONFIG_ARCH_TEGRA_210_SOC)
+    defined(CONFIG_ARCH_TEGRA_210_SOC) || \
+    defined(CONFIG_ARCH_TEGRA_186_SOC)
 static u32 tegra30_fuse_read_early(struct tegra_fuse *fuse, unsigned int offset)
 {
+	if (WARN_ON(!fuse->base))
+		return 0;
+
 	return readl_relaxed(fuse->base + FUSE_BEGIN + offset);
 }
 
@@ -98,7 +90,10 @@ static void __init tegra30_fuse_init(struct tegra_fuse *fuse)
 	fuse->read = tegra30_fuse_read;
 
 	tegra_init_revision();
-	fuse->soc->speedo_init(&tegra_sku_info);
+
+	if (fuse->soc->speedo_init)
+		fuse->soc->speedo_init(&tegra_sku_info);
+
 	tegra30_fuse_add_randomness();
 }
 #endif
@@ -156,5 +151,18 @@ const struct tegra_fuse_soc tegra210_fuse_soc = {
 	.init = tegra30_fuse_init,
 	.speedo_init = tegra210_init_speedo_data,
 	.info = &tegra210_fuse_info,
+};
+#endif
+
+#if defined(CONFIG_ARCH_TEGRA_186_SOC)
+static const struct tegra_fuse_info tegra186_fuse_info = {
+	.read = tegra30_fuse_read,
+	.size = 0x300,
+	.spare = 0x280,
+};
+
+const struct tegra_fuse_soc tegra186_fuse_soc = {
+	.init = tegra30_fuse_init,
+	.info = &tegra186_fuse_info,
 };
 #endif

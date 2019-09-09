@@ -1,32 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Helper module for board specific I2C bus registration
  *
  * Copyright (C) 2009 Nokia Corporation.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
- *
  */
 
 #include "soc.h"
 #include "omap_hwmod.h"
 #include "omap_device.h"
-#include "omap-pm.h"
 
 #include "prm.h"
 #include "common.h"
-#include "mux.h"
 #include "i2c.h"
 
 /* In register I2C_CON, Bit 15 is the I2C enable bit */
@@ -35,20 +19,6 @@
 #define OMAP4_I2C_CON_OFFSET			0xA4
 
 #define MAX_OMAP_I2C_HWMOD_NAME_LEN	16
-
-static void __init omap2_i2c_mux_pins(int bus_id)
-{
-	char mux_name[sizeof("i2c2_scl.i2c2_scl")];
-
-	/* First I2C bus is not muxable */
-	if (bus_id == 1)
-		return;
-
-	sprintf(mux_name, "i2c%i_scl.i2c%i_scl", bus_id, bus_id);
-	omap_mux_init_signal(mux_name, OMAP_PIN_INPUT);
-	sprintf(mux_name, "i2c%i_sda.i2c%i_sda", bus_id, bus_id);
-	omap_mux_init_signal(mux_name, OMAP_PIN_INPUT);
-}
 
 /**
  * omap_i2c_reset - reset the omap i2c module.
@@ -69,15 +39,10 @@ int omap_i2c_reset(struct omap_hwmod *oh)
 	u16 i2c_con;
 	int c = 0;
 
-	if (oh->class->rev == OMAP_I2C_IP_VERSION_2) {
-		i2c_con = OMAP4_I2C_CON_OFFSET;
-	} else if (oh->class->rev == OMAP_I2C_IP_VERSION_1) {
+	if (soc_is_omap24xx() || soc_is_omap34xx() || soc_is_am35xx())
 		i2c_con = OMAP2_I2C_CON_OFFSET;
-	} else {
-		WARN(1, "Cannot reset I2C block %s: unsupported revision\n",
-		     oh->name);
-		return -EINVAL;
-	}
+	else
+		i2c_con = OMAP4_I2C_CON_OFFSET;
 
 	/* Disable I2C */
 	v = omap_hwmod_read(oh, i2c_con);
@@ -107,85 +72,3 @@ int omap_i2c_reset(struct omap_hwmod *oh)
 
 	return 0;
 }
-
-static int __init omap_i2c_nr_ports(void)
-{
-	int ports = 0;
-
-	if (cpu_is_omap24xx())
-		ports = 2;
-	else if (cpu_is_omap34xx())
-		ports = 3;
-	else if (cpu_is_omap44xx())
-		ports = 4;
-	return ports;
-}
-
-/*
- * XXX This function is a temporary compatibility wrapper - only
- * needed until the I2C driver can be converted to call
- * omap_pm_set_max_dev_wakeup_lat() and handle a return code.
- */
-static void omap_pm_set_max_mpu_wakeup_lat_compat(struct device *dev, long t)
-{
-	omap_pm_set_max_mpu_wakeup_lat(dev, t);
-}
-
-static const char name[] = "omap_i2c";
-
-int __init omap_i2c_add_bus(struct omap_i2c_bus_platform_data *i2c_pdata,
-				int bus_id)
-{
-	int l;
-	struct omap_hwmod *oh;
-	struct platform_device *pdev;
-	char oh_name[MAX_OMAP_I2C_HWMOD_NAME_LEN];
-	struct omap_i2c_bus_platform_data *pdata;
-	struct omap_i2c_dev_attr *dev_attr;
-
-	if (bus_id > omap_i2c_nr_ports())
-		return -EINVAL;
-
-	omap2_i2c_mux_pins(bus_id);
-
-	l = snprintf(oh_name, MAX_OMAP_I2C_HWMOD_NAME_LEN, "i2c%d", bus_id);
-	WARN(l >= MAX_OMAP_I2C_HWMOD_NAME_LEN,
-		"String buffer overflow in I2C%d device setup\n", bus_id);
-	oh = omap_hwmod_lookup(oh_name);
-	if (!oh) {
-			pr_err("Could not look up %s\n", oh_name);
-			return -EEXIST;
-	}
-
-	pdata = i2c_pdata;
-	/*
-	 * pass the hwmod class's CPU-specific knowledge of I2C IP revision in
-	 * use, and functionality implementation flags, up to the OMAP I2C
-	 * driver via platform data
-	 */
-	pdata->rev = oh->class->rev;
-
-	dev_attr = (struct omap_i2c_dev_attr *)oh->dev_attr;
-	pdata->flags = dev_attr->flags;
-
-	/*
-	 * When waiting for completion of a i2c transfer, we need to
-	 * set a wake up latency constraint for the MPU. This is to
-	 * ensure quick enough wakeup from idle, when transfer
-	 * completes.
-	 * Only omap3 has support for constraints
-	 */
-	if (cpu_is_omap34xx())
-		pdata->set_mpu_wkup_lat = omap_pm_set_max_mpu_wakeup_lat_compat;
-	pdev = omap_device_build(name, bus_id, oh, pdata,
-				 sizeof(struct omap_i2c_bus_platform_data));
-	WARN(IS_ERR(pdev), "Could not build omap_device for %s\n", name);
-
-	return PTR_ERR_OR_ZERO(pdev);
-}
-
-static  int __init omap_i2c_cmdline(void)
-{
-	return omap_register_i2c_bus_cmdline();
-}
-omap_subsys_initcall(omap_i2c_cmdline);

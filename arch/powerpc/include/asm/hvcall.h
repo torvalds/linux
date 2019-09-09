@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_POWERPC_HVCALL_H
 #define _ASM_POWERPC_HVCALL_H
 #ifdef __KERNEL__
@@ -87,6 +88,7 @@
 #define H_P8		-61
 #define H_P9		-62
 #define H_TOO_BIG	-64
+#define H_UNSUPPORTED	-67
 #define H_OVERLAP	-68
 #define H_INTERRUPT	-69
 #define H_BAD_DATA	-70
@@ -240,6 +242,7 @@
 #define H_GET_HCA_INFO          0x1B8
 #define H_GET_PERF_COUNT        0x1BC
 #define H_MANAGE_TRACE          0x1C0
+#define H_GET_CPU_CHARACTERISTICS 0x1C8
 #define H_FREE_LOGICAL_LAN_BUFFER 0x1D4
 #define H_QUERY_INT_STATE       0x1E4
 #define H_POLL_PENDING		0x1D8
@@ -275,7 +278,38 @@
 #define H_COP			0x304
 #define H_GET_MPP_X		0x314
 #define H_SET_MODE		0x31C
-#define MAX_HCALL_OPCODE	H_SET_MODE
+#define H_BLOCK_REMOVE		0x328
+#define H_CLEAR_HPT		0x358
+#define H_REQUEST_VMC		0x360
+#define H_RESIZE_HPT_PREPARE	0x36C
+#define H_RESIZE_HPT_COMMIT	0x370
+#define H_REGISTER_PROC_TBL	0x37C
+#define H_SIGNAL_SYS_RESET	0x380
+#define H_INT_GET_SOURCE_INFO   0x3A8
+#define H_INT_SET_SOURCE_CONFIG 0x3AC
+#define H_INT_GET_SOURCE_CONFIG 0x3B0
+#define H_INT_GET_QUEUE_INFO    0x3B4
+#define H_INT_SET_QUEUE_CONFIG  0x3B8
+#define H_INT_GET_QUEUE_CONFIG  0x3BC
+#define H_INT_SET_OS_REPORTING_LINE 0x3C0
+#define H_INT_GET_OS_REPORTING_LINE 0x3C4
+#define H_INT_ESB               0x3C8
+#define H_INT_SYNC              0x3CC
+#define H_INT_RESET             0x3D0
+#define H_SCM_READ_METADATA     0x3E4
+#define H_SCM_WRITE_METADATA    0x3E8
+#define H_SCM_BIND_MEM          0x3EC
+#define H_SCM_UNBIND_MEM        0x3F0
+#define H_SCM_QUERY_BLOCK_MEM_BINDING 0x3F4
+#define H_SCM_QUERY_LOGICAL_MEM_BINDING 0x3F8
+#define H_SCM_UNBIND_ALL        0x3FC
+#define H_SCM_HEALTH            0x400
+#define H_SCM_PERFORMANCE_STATS 0x418
+#define MAX_HCALL_OPCODE	H_SCM_PERFORMANCE_STATS
+
+/* Scope args for H_SCM_UNBIND_ALL */
+#define H_UNBIND_SCOPE_ALL (0x1)
+#define H_UNBIND_SCOPE_DRC (0x2)
 
 /* H_VIOCTL functions */
 #define H_GET_VIOA_DUMP_SIZE	0x01
@@ -290,6 +324,8 @@
 #define H_DISABLE_ALL_VIO_INTS	0x0A
 #define H_DISABLE_VIO_INTERRUPT	0x0B
 #define H_ENABLE_VIO_INTERRUPT	0x0C
+#define H_GET_SESSION_TOKEN	0x19
+#define H_SESSION_ERR_DETECTED	0x1A
 
 
 /* Platform specific hcalls, used by KVM */
@@ -300,13 +336,51 @@
 #define H_GET_24X7_DATA		0xF07C
 #define H_GET_PERF_COUNTER_INFO	0xF080
 
+/* Platform-specific hcalls used for nested HV KVM */
+#define H_SET_PARTITION_TABLE	0xF800
+#define H_ENTER_NESTED		0xF804
+#define H_TLB_INVALIDATE	0xF808
+#define H_COPY_TOFROM_GUEST	0xF80C
+
 /* Values for 2nd argument to H_SET_MODE */
 #define H_SET_MODE_RESOURCE_SET_CIABR		1
 #define H_SET_MODE_RESOURCE_SET_DAWR		2
 #define H_SET_MODE_RESOURCE_ADDR_TRANS_MODE	3
 #define H_SET_MODE_RESOURCE_LE			4
 
+/* Values for argument to H_SIGNAL_SYS_RESET */
+#define H_SIGNAL_SYS_RESET_ALL			-1
+#define H_SIGNAL_SYS_RESET_ALL_OTHERS		-2
+/* >= 0 values are CPU number */
+
+/* H_GET_CPU_CHARACTERISTICS return values */
+#define H_CPU_CHAR_SPEC_BAR_ORI31	(1ull << 63) // IBM bit 0
+#define H_CPU_CHAR_BCCTRL_SERIALISED	(1ull << 62) // IBM bit 1
+#define H_CPU_CHAR_L1D_FLUSH_ORI30	(1ull << 61) // IBM bit 2
+#define H_CPU_CHAR_L1D_FLUSH_TRIG2	(1ull << 60) // IBM bit 3
+#define H_CPU_CHAR_L1D_THREAD_PRIV	(1ull << 59) // IBM bit 4
+#define H_CPU_CHAR_BRANCH_HINTS_HONORED	(1ull << 58) // IBM bit 5
+#define H_CPU_CHAR_THREAD_RECONFIG_CTRL	(1ull << 57) // IBM bit 6
+#define H_CPU_CHAR_COUNT_CACHE_DISABLED	(1ull << 56) // IBM bit 7
+#define H_CPU_CHAR_BCCTR_FLUSH_ASSIST	(1ull << 54) // IBM bit 9
+
+#define H_CPU_BEHAV_FAVOUR_SECURITY	(1ull << 63) // IBM bit 0
+#define H_CPU_BEHAV_L1D_FLUSH_PR	(1ull << 62) // IBM bit 1
+#define H_CPU_BEHAV_BNDS_CHK_SPEC_BAR	(1ull << 61) // IBM bit 2
+#define H_CPU_BEHAV_FLUSH_COUNT_CACHE	(1ull << 58) // IBM bit 5
+
+/* Flag values used in H_REGISTER_PROC_TBL hcall */
+#define PROC_TABLE_OP_MASK	0x18
+#define PROC_TABLE_DEREG	0x10
+#define PROC_TABLE_NEW		0x18
+#define PROC_TABLE_TYPE_MASK	0x06
+#define PROC_TABLE_HPT_SLB	0x00
+#define PROC_TABLE_HPT_PT	0x02
+#define PROC_TABLE_RADIX	0x04
+#define PROC_TABLE_GTSE		0x01
+
 #ifndef __ASSEMBLY__
+#include <linux/types.h>
 
 /**
  * plpar_hcall_norets: - Make a pseries hypervisor call with no return arguments
@@ -357,16 +431,6 @@ long plpar_hcall_raw(unsigned long opcode, unsigned long *retbuf, ...);
 long plpar_hcall9(unsigned long opcode, unsigned long *retbuf, ...);
 long plpar_hcall9_raw(unsigned long opcode, unsigned long *retbuf, ...);
 
-/* For hcall instrumentation.  One structure per-hcall, per-CPU */
-struct hcall_stats {
-	unsigned long	num_calls;	/* number of calls (on this CPU) */
-	unsigned long	tb_total;	/* total wall time (mftb) of calls. */
-	unsigned long	purr_total;	/* total cpu time (PURR) of calls. */
-	unsigned long	tb_start;
-	unsigned long	purr_start;
-};
-#define HCALL_STAT_ARRAY_SIZE	((MAX_HCALL_OPCODE >> 2) + 1)
-
 struct hvcall_mpp_data {
 	unsigned long entitled_mem;
 	unsigned long mapped_mem;
@@ -412,26 +476,46 @@ static inline unsigned int get_longbusy_msecs(int longbusy_rc)
 	}
 }
 
-#ifdef CONFIG_PPC_PSERIES
-extern int CMO_PrPSP;
-extern int CMO_SecPSP;
-extern unsigned long CMO_PageSize;
+struct h_cpu_char_result {
+	u64 character;
+	u64 behaviour;
+};
 
-static inline int cmo_get_primary_psp(void)
-{
-	return CMO_PrPSP;
-}
+/* Register state for entering a nested guest with H_ENTER_NESTED */
+struct hv_guest_state {
+	u64 version;		/* version of this structure layout */
+	u32 lpid;
+	u32 vcpu_token;
+	/* These registers are hypervisor privileged (at least for writing) */
+	u64 lpcr;
+	u64 pcr;
+	u64 amor;
+	u64 dpdes;
+	u64 hfscr;
+	s64 tb_offset;
+	u64 dawr0;
+	u64 dawrx0;
+	u64 ciabr;
+	u64 hdec_expiry;
+	u64 purr;
+	u64 spurr;
+	u64 ic;
+	u64 vtb;
+	u64 hdar;
+	u64 hdsisr;
+	u64 heir;
+	u64 asdr;
+	/* These are OS privileged but need to be set late in guest entry */
+	u64 srr0;
+	u64 srr1;
+	u64 sprg[4];
+	u64 pidr;
+	u64 cfar;
+	u64 ppr;
+};
 
-static inline int cmo_get_secondary_psp(void)
-{
-	return CMO_SecPSP;
-}
-
-static inline unsigned long cmo_get_page_size(void)
-{
-	return CMO_PageSize;
-}
-#endif /* CONFIG_PPC_PSERIES */
+/* Latest version of hv_guest_state structure */
+#define HV_GUEST_STATE_VERSION	1
 
 #endif /* __ASSEMBLY__ */
 #endif /* __KERNEL__ */

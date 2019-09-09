@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #if defined(__i386__) || defined(__x86_64__)
 #include <unistd.h>
 #include <errno.h>
@@ -26,6 +27,15 @@ union msr_pstate {
 		unsigned res3:21;
 		unsigned en:1;
 	} bits;
+	struct {
+		unsigned fid:8;
+		unsigned did:6;
+		unsigned vid:8;
+		unsigned iddval:8;
+		unsigned idddiv:2;
+		unsigned res1:31;
+		unsigned en:1;
+	} fam17h_bits;
 	unsigned long long val;
 };
 
@@ -35,6 +45,8 @@ static int get_did(int family, union msr_pstate pstate)
 
 	if (family == 0x12)
 		t = pstate.val & 0xf;
+	else if (family == 0x17 || family == 0x18)
+		t = pstate.fam17h_bits.did;
 	else
 		t = pstate.bits.did;
 
@@ -44,16 +56,20 @@ static int get_did(int family, union msr_pstate pstate)
 static int get_cof(int family, union msr_pstate pstate)
 {
 	int t;
-	int fid, did;
+	int fid, did, cof;
 
 	did = get_did(family, pstate);
-
-	t = 0x10;
-	fid = pstate.bits.fid;
-	if (family == 0x11)
-		t = 0x8;
-
-	return (100 * (fid + t)) >> did;
+	if (family == 0x17 || family == 0x18) {
+		fid = pstate.fam17h_bits.fid;
+		cof = 200 * fid / did;
+	} else {
+		t = 0x10;
+		fid = pstate.bits.fid;
+		if (family == 0x11)
+			t = 0x8;
+		cof = (100 * (fid + t)) >> did;
+	}
+	return cof;
 }
 
 /* Needs:
@@ -103,6 +119,11 @@ int decode_pstates(unsigned int cpu, unsigned int cpu_family,
 		}
 		if (read_msr(cpu, MSR_AMD_PSTATE + i, &pstate.val))
 			return -1;
+		if ((cpu_family == 0x17) && (!pstate.fam17h_bits.en))
+			continue;
+		else if (!pstate.bits.en)
+			continue;
+
 		pstates[i] = get_cof(cpu_family, pstate);
 	}
 	*no = i;

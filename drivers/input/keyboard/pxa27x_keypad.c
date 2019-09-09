@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/drivers/input/keyboard/pxa27x_keypad.c
  *
@@ -9,10 +10,6 @@
  * Based on a previous implementations by Kevin O'Connor
  * <kevin_at_koconnor.net> and Alex Osborne <bobofdoom@gmail.com> and
  * on some suggestions by Nicolas Pitre <nico@fluxnic.net>.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 
@@ -126,7 +123,7 @@ static int pxa27x_keypad_matrix_key_parse_dt(struct pxa27x_keypad *keypad,
 	u32 rows, cols;
 	int error;
 
-	error = matrix_keypad_parse_of_params(dev, &rows, &cols);
+	error = matrix_keypad_parse_properties(dev, &rows, &cols);
 	if (error)
 		return error;
 
@@ -316,7 +313,7 @@ static int pxa27x_keypad_build_keycode_from_dt(struct pxa27x_keypad *keypad)
 	error = of_property_read_u32(np, "marvell,debounce-interval",
 				     &pdata->debounce_interval);
 	if (error) {
-		dev_err(dev, "failed to parse debpunce-interval\n");
+		dev_err(dev, "failed to parse debounce-interval\n");
 		return error;
 	}
 
@@ -644,9 +641,12 @@ static void pxa27x_keypad_config(struct pxa27x_keypad *keypad)
 static int pxa27x_keypad_open(struct input_dev *dev)
 {
 	struct pxa27x_keypad *keypad = input_get_drvdata(dev);
-
+	int ret;
 	/* Enable unit clock */
-	clk_prepare_enable(keypad->clk);
+	ret = clk_prepare_enable(keypad->clk);
+	if (ret)
+		return ret;
+
 	pxa27x_keypad_config(keypad);
 
 	return 0;
@@ -683,6 +683,7 @@ static int pxa27x_keypad_resume(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct pxa27x_keypad *keypad = platform_get_drvdata(pdev);
 	struct input_dev *input_dev = keypad->input_dev;
+	int ret = 0;
 
 	/*
 	 * If the keypad is used as wake up source, the clock is not turned
@@ -695,14 +696,15 @@ static int pxa27x_keypad_resume(struct device *dev)
 
 		if (input_dev->users) {
 			/* Enable unit clock */
-			clk_prepare_enable(keypad->clk);
-			pxa27x_keypad_config(keypad);
+			ret = clk_prepare_enable(keypad->clk);
+			if (!ret)
+				pxa27x_keypad_config(keypad);
 		}
 
 		mutex_unlock(&input_dev->mutex);
 	}
 
-	return 0;
+	return ret;
 }
 #endif
 

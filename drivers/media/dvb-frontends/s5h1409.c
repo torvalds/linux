@@ -1,21 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
     Samsung S5H1409 VSB/QAM demodulator driver
 
     Copyright (C) 2006 Steven Toth <stoth@linuxtv.org>
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 */
 
@@ -25,7 +13,7 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "s5h1409.h"
 
 struct s5h1409_state {
@@ -321,8 +309,8 @@ static int s5h1409_writereg(struct s5h1409_state *state, u8 reg, u16 data)
 	ret = i2c_transfer(state->i2c, &msg, 1);
 
 	if (ret != 1)
-		printk(KERN_ERR "%s: error (reg == 0x%02x, val == 0x%04x, "
-		       "ret == %i)\n", __func__, reg, data, ret);
+		printk(KERN_ERR "%s: error (reg == 0x%02x, val == 0x%04x, ret == %i)\n",
+		       __func__, reg, data, ret);
 
 	return (ret != 1) ? -1 : 0;
 }
@@ -490,7 +478,7 @@ static void s5h1409_set_qam_amhum_mode(struct dvb_frontend *fe)
 
 	if (state->qam_state == QAM_STATE_QAM_OPTIMIZED_L3) {
 		/* We've already reached the maximum optimization level, so
-		   dont bother banging on the status registers */
+		   don't bother banging on the status registers */
 		return;
 	}
 
@@ -682,17 +670,17 @@ static int s5h1409_set_mpeg_timing(struct dvb_frontend *fe, int mode)
 
 	val = s5h1409_readreg(state, 0xac) & 0xcfff;
 	switch (mode) {
-	case S5H1409_MPEGTIMING_CONTINOUS_INVERTING_CLOCK:
+	case S5H1409_MPEGTIMING_CONTINUOUS_INVERTING_CLOCK:
 		val |= 0x0000;
 		break;
-	case S5H1409_MPEGTIMING_CONTINOUS_NONINVERTING_CLOCK:
+	case S5H1409_MPEGTIMING_CONTINUOUS_NONINVERTING_CLOCK:
 		dprintk("%s(%d) Mode1 or Defaulting\n", __func__, mode);
 		val |= 0x1000;
 		break;
-	case S5H1409_MPEGTIMING_NONCONTINOUS_INVERTING_CLOCK:
+	case S5H1409_MPEGTIMING_NONCONTINUOUS_INVERTING_CLOCK:
 		val |= 0x2000;
 		break;
-	case S5H1409_MPEGTIMING_NONCONTINOUS_NONINVERTING_CLOCK:
+	case S5H1409_MPEGTIMING_NONCONTINUOUS_NONINVERTING_CLOCK:
 		val |= 0x3000;
 		break;
 	default:
@@ -949,7 +937,7 @@ static void s5h1409_release(struct dvb_frontend *fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops s5h1409_ops;
+static const struct dvb_frontend_ops s5h1409_ops;
 
 struct dvb_frontend *s5h1409_attach(const struct s5h1409_config *config,
 				    struct i2c_adapter *i2c)
@@ -995,13 +983,13 @@ error:
 }
 EXPORT_SYMBOL(s5h1409_attach);
 
-static struct dvb_frontend_ops s5h1409_ops = {
+static const struct dvb_frontend_ops s5h1409_ops = {
 	.delsys = { SYS_ATSC, SYS_DVBC_ANNEX_B },
 	.info = {
 		.name			= "Samsung S5H1409 QAM/8VSB Frontend",
-		.frequency_min		= 54000000,
-		.frequency_max		= 858000000,
-		.frequency_stepsize	= 62500,
+		.frequency_min_hz	=  54 * MHz,
+		.frequency_max_hz	= 858 * MHz,
+		.frequency_stepsize_hz	= 62500,
 		.caps = FE_CAN_QAM_64 | FE_CAN_QAM_256 | FE_CAN_8VSB
 	},
 

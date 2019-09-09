@@ -1,16 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (C) 2016 Socionext Inc.
  *   Author: Masahiro Yamada <yamada.masahiro@socionext.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef __CLK_UNIPHIER_H__
@@ -20,13 +11,22 @@ struct clk_hw;
 struct device;
 struct regmap;
 
-#define UNIPHIER_CLK_MUX_MAX_PARENTS	8
+#define UNIPHIER_CLK_CPUGEAR_MAX_PARENTS	16
+#define UNIPHIER_CLK_MUX_MAX_PARENTS		8
 
 enum uniphier_clk_type {
+	UNIPHIER_CLK_TYPE_CPUGEAR,
 	UNIPHIER_CLK_TYPE_FIXED_FACTOR,
 	UNIPHIER_CLK_TYPE_FIXED_RATE,
 	UNIPHIER_CLK_TYPE_GATE,
 	UNIPHIER_CLK_TYPE_MUX,
+};
+
+struct uniphier_clk_cpugear_data {
+	const char *parent_names[UNIPHIER_CLK_CPUGEAR_MAX_PARENTS];
+	unsigned int num_parents;
+	unsigned int regbase;
+	unsigned int mask;
 };
 
 struct uniphier_clk_fixed_factor_data {
@@ -58,12 +58,27 @@ struct uniphier_clk_data {
 	enum uniphier_clk_type type;
 	int idx;
 	union {
+		struct uniphier_clk_cpugear_data cpugear;
 		struct uniphier_clk_fixed_factor_data factor;
 		struct uniphier_clk_fixed_rate_data rate;
 		struct uniphier_clk_gate_data gate;
 		struct uniphier_clk_mux_data mux;
 	} data;
 };
+
+#define UNIPHIER_CLK_CPUGEAR(_name, _idx, _regbase, _mask,	\
+			     _num_parents, ...)			\
+	{							\
+		.name = (_name),				\
+		.type = UNIPHIER_CLK_TYPE_CPUGEAR,		\
+		.idx = (_idx),					\
+		.data.cpugear = {				\
+			.parent_names = { __VA_ARGS__ },	\
+			.num_parents = (_num_parents),		\
+			.regbase = (_regbase),			\
+			.mask = (_mask)				\
+		 },						\
+	}
 
 #define UNIPHIER_CLK_FACTOR(_name, _idx, _parent, _mult, _div)	\
 	{							\
@@ -77,7 +92,6 @@ struct uniphier_clk_data {
 		},						\
 	}
 
-
 #define UNIPHIER_CLK_GATE(_name, _idx, _parent, _reg, _bit)	\
 	{							\
 		.name = (_name),				\
@@ -90,7 +104,25 @@ struct uniphier_clk_data {
 		},						\
 	}
 
+#define UNIPHIER_CLK_DIV(parent, div)				\
+	UNIPHIER_CLK_FACTOR(parent "/" #div, -1, parent, 1, div)
 
+#define UNIPHIER_CLK_DIV2(parent, div0, div1)			\
+	UNIPHIER_CLK_DIV(parent, div0),				\
+	UNIPHIER_CLK_DIV(parent, div1)
+
+#define UNIPHIER_CLK_DIV3(parent, div0, div1, div2)		\
+	UNIPHIER_CLK_DIV2(parent, div0, div1),			\
+	UNIPHIER_CLK_DIV(parent, div2)
+
+#define UNIPHIER_CLK_DIV4(parent, div0, div1, div2, div3)	\
+	UNIPHIER_CLK_DIV2(parent, div0, div1),			\
+	UNIPHIER_CLK_DIV2(parent, div2, div3)
+
+struct clk_hw *uniphier_clk_register_cpugear(struct device *dev,
+					     struct regmap *regmap,
+					     const char *name,
+				const struct uniphier_clk_cpugear_data *data);
 struct clk_hw *uniphier_clk_register_fixed_factor(struct device *dev,
 						  const char *name,
 			const struct uniphier_clk_fixed_factor_data *data);
@@ -106,7 +138,6 @@ struct clk_hw *uniphier_clk_register_mux(struct device *dev,
 					 const char *name,
 				const struct uniphier_clk_mux_data *data);
 
-extern const struct uniphier_clk_data uniphier_sld3_sys_clk_data[];
 extern const struct uniphier_clk_data uniphier_ld4_sys_clk_data[];
 extern const struct uniphier_clk_data uniphier_pro4_sys_clk_data[];
 extern const struct uniphier_clk_data uniphier_sld8_sys_clk_data[];
@@ -114,7 +145,8 @@ extern const struct uniphier_clk_data uniphier_pro5_sys_clk_data[];
 extern const struct uniphier_clk_data uniphier_pxs2_sys_clk_data[];
 extern const struct uniphier_clk_data uniphier_ld11_sys_clk_data[];
 extern const struct uniphier_clk_data uniphier_ld20_sys_clk_data[];
-extern const struct uniphier_clk_data uniphier_sld3_mio_clk_data[];
+extern const struct uniphier_clk_data uniphier_pxs3_sys_clk_data[];
+extern const struct uniphier_clk_data uniphier_ld4_mio_clk_data[];
 extern const struct uniphier_clk_data uniphier_pro5_sd_clk_data[];
 extern const struct uniphier_clk_data uniphier_ld4_peri_clk_data[];
 extern const struct uniphier_clk_data uniphier_pro4_peri_clk_data[];

@@ -18,8 +18,7 @@
 #ifndef _XTENSA_VECTORS_H
 #define _XTENSA_VECTORS_H
 
-#include <variant/core.h>
-#include <platform/hardware.h>
+#include <asm/core.h>
 #include <asm/kmem_layout.h>
 
 #if XCHAL_HAVE_PTP_MMU
@@ -67,7 +66,11 @@ static inline unsigned long xtensa_get_kio_paddr(void)
 #endif /* CONFIG_MMU */
 
 #define RESET_VECTOR1_VADDR		(XCHAL_RESET_VECTOR1_VADDR)
+#ifdef CONFIG_VECTORS_OFFSET
 #define VECBASE_VADDR			(KERNELOFFSET - CONFIG_VECTORS_OFFSET)
+#else
+#define VECBASE_VADDR			_vecbase
+#endif
 
 #if defined(XCHAL_HAVE_VECBASE) && XCHAL_HAVE_VECBASE
 

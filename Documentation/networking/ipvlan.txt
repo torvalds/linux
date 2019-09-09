@@ -22,9 +22,21 @@ The driver can be built into the kernel (CONFIG_IPVLAN=y) or as a module
 	There are no module parameters for this driver and it can be configured
 using IProute2/ip utility.
 
-	ip link add link <master-dev> <slave-dev> type ipvlan mode { l2 | l3 | l3s }
+    ip link add link <master> name <slave> type ipvlan [ mode MODE ] [ FLAGS ]
+       where
+         MODE: l3 (default) | l3s | l2
+         FLAGS: bridge (default) | private | vepa
 
-	e.g. ip link add link ipvl0 eth0 type ipvlan mode l2
+    e.g.
+    (a) Following will create IPvlan link with eth0 as master in
+        L3 bridge mode
+          bash# ip link add link eth0 name ipvl0 type ipvlan
+    (b) This command will create IPvlan link in L2 bridge mode.
+          bash# ip link add link eth0 name ipvl0 type ipvlan mode l2 bridge
+    (c) This command will create an IPvlan device in L2 private mode.
+          bash# ip link add link eth0 name ipvlan type ipvlan mode l2 private
+    (d) This command will create an IPvlan device in L2 vepa mode.
+          bash# ip link add link eth0 name ipvlan type ipvlan mode l2 vepa
 
 
 4. Operating modes:
@@ -54,7 +66,29 @@ works in this mode and hence it is L3-symmetric (L3s). This will have slightly l
 performance but that shouldn't matter since you are choosing this mode over plain-L3
 mode to make conn-tracking work.
 
-5. What to choose (macvlan vs. ipvlan)?
+5. Mode flags:
+	At this time following mode flags are available
+
+5.1 bridge:
+	This is the default option. To configure the IPvlan port in this mode,
+user can choose to either add this option on the command-line or don't specify
+anything. This is the traditional mode where slaves can cross-talk among
+themselves apart from talking through the master device.
+
+5.2 private:
+	If this option is added to the command-line, the port is set in private
+mode. i.e. port won't allow cross communication between slaves.
+
+5.3 vepa:
+	If this is added to the command-line, the port is set in VEPA mode.
+i.e. port will offload switching functionality to the external entity as
+described in 802.1Qbg
+Note: VEPA mode in IPvlan has limitations. IPvlan uses the mac-address of the
+master-device, so the packets which are emitted in this mode for the adjacent
+neighbor will have source and destination mac same. This will make the switch /
+router send the redirect message.
+
+6. What to choose (macvlan vs. ipvlan)?
 	These two devices are very similar in many regards and the specific use
 case could very well define which device to choose. if one of the following
 situations defines your use case then you can choose to use ipvlan -

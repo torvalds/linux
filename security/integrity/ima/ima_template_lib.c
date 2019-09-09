@@ -1,17 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2013 Politecnico di Torino, Italy
  *                    TORSEC group -- http://security.polito.it
  *
  * Author: Roberto Sassu <roberto.sassu@polito.it>
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation, version 2 of the
- * License.
- *
  * File: ima_template_lib.c
  *      Library of supported template fields.
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include "ima_template_lib.h"
 
@@ -81,6 +79,7 @@ static void ima_show_template_data_ascii(struct seq_file *m,
 		/* skip ':' and '\0' */
 		buf_ptr += 2;
 		buflen -= buf_ptr - field_data->data;
+		/* fall through */
 	case DATA_FMT_DIGEST:
 	case DATA_FMT_HEX:
 		if (!buflen)
@@ -103,8 +102,11 @@ static void ima_show_template_data_binary(struct seq_file *m,
 	u32 len = (show == IMA_SHOW_BINARY_OLD_STRING_FMT) ?
 	    strlen(field_data->data) : field_data->len;
 
-	if (show != IMA_SHOW_BINARY_NO_FIELD_LEN)
-		ima_putc(m, &len, sizeof(len));
+	if (show != IMA_SHOW_BINARY_NO_FIELD_LEN) {
+		u32 field_len = !ima_canonical_fmt ? len : cpu_to_le32(len);
+
+		ima_putc(m, &field_len, sizeof(field_len));
+	}
 
 	if (!len)
 		return;
@@ -154,6 +156,73 @@ void ima_show_template_sig(struct seq_file *m, enum ima_show_type show,
 			   struct ima_field_data *field_data)
 {
 	ima_show_template_field_data(m, show, DATA_FMT_HEX, field_data);
+}
+
+void ima_show_template_buf(struct seq_file *m, enum ima_show_type show,
+			   struct ima_field_data *field_data)
+{
+	ima_show_template_field_data(m, show, DATA_FMT_HEX, field_data);
+}
+
+/**
+ * ima_parse_buf() - Parses lengths and data from an input buffer
+ * @bufstartp:       Buffer start address.
+ * @bufendp:         Buffer end address.
+ * @bufcurp:         Pointer to remaining (non-parsed) data.
+ * @maxfields:       Length of fields array.
+ * @fields:          Array containing lengths and pointers of parsed data.
+ * @curfields:       Number of array items containing parsed data.
+ * @len_mask:        Bitmap (if bit is set, data length should not be parsed).
+ * @enforce_mask:    Check if curfields == maxfields and/or bufcurp == bufendp.
+ * @bufname:         String identifier of the input buffer.
+ *
+ * Return: 0 on success, -EINVAL on error.
+ */
+int ima_parse_buf(void *bufstartp, void *bufendp, void **bufcurp,
+		  int maxfields, struct ima_field_data *fields, int *curfields,
+		  unsigned long *len_mask, int enforce_mask, char *bufname)
+{
+	void *bufp = bufstartp;
+	int i;
+
+	for (i = 0; i < maxfields; i++) {
+		if (len_mask == NULL || !test_bit(i, len_mask)) {
+			if (bufp > (bufendp - sizeof(u32)))
+				break;
+
+			fields[i].len = *(u32 *)bufp;
+			if (ima_canonical_fmt)
+				fields[i].len = le32_to_cpu(fields[i].len);
+
+			bufp += sizeof(u32);
+		}
+
+		if (bufp > (bufendp - fields[i].len))
+			break;
+
+		fields[i].data = bufp;
+		bufp += fields[i].len;
+	}
+
+	if ((enforce_mask & ENFORCE_FIELDS) && i != maxfields) {
+		pr_err("%s: nr of fields mismatch: expected: %d, current: %d\n",
+		       bufname, maxfields, i);
+		return -EINVAL;
+	}
+
+	if ((enforce_mask & ENFORCE_BUFEND) && bufp != bufendp) {
+		pr_err("%s: buf end mismatch: expected: %p, current: %p\n",
+		       bufname, bufendp, bufp);
+		return -EINVAL;
+	}
+
+	if (curfields)
+		*curfields = i;
+
+	if (bufcurp)
+		*bufcurp = bufp;
+
+	return 0;
 }
 
 static int ima_eventdigest_init_common(u8 *digest, u32 digestsize, u8 hash_algo,
@@ -314,16 +383,26 @@ int ima_eventname_ng_init(struct ima_event_data *event_data,
 int ima_eventsig_init(struct ima_event_data *event_data,
 		      struct ima_field_data *field_data)
 {
-	enum data_formats fmt = DATA_FMT_HEX;
 	struct evm_ima_xattr_data *xattr_value = event_data->xattr_value;
-	int xattr_len = event_data->xattr_len;
-	int rc = 0;
 
 	if ((!xattr_value) || (xattr_value->type != EVM_IMA_XATTR_DIGSIG))
-		goto out;
+		return 0;
 
-	rc = ima_write_template_field_data(xattr_value, xattr_len, fmt,
-					   field_data);
-out:
-	return rc;
+	return ima_write_template_field_data(xattr_value, event_data->xattr_len,
+					     DATA_FMT_HEX, field_data);
+}
+
+/*
+ *  ima_eventbuf_init - include the buffer(kexec-cmldine) as part of the
+ *  template data.
+ */
+int ima_eventbuf_init(struct ima_event_data *event_data,
+		      struct ima_field_data *field_data)
+{
+	if ((!event_data->buf) || (event_data->buf_len == 0))
+		return 0;
+
+	return ima_write_template_field_data(event_data->buf,
+					     event_data->buf_len, DATA_FMT_HEX,
+					     field_data);
 }

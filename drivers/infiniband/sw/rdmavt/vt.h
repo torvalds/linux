@@ -50,7 +50,6 @@
 
 #include <rdma/rdma_vt.h>
 #include <linux/pci.h>
-#include "dma.h"
 #include "pd.h"
 #include "qp.h"
 #include "ah.h"
@@ -60,25 +59,30 @@
 #include "mmap.h"
 #include "cq.h"
 #include "mad.h"
-#include "mmap.h"
 
 #define rvt_pr_info(rdi, fmt, ...) \
 	__rvt_pr_info(rdi->driver_f.get_pci_dev(rdi), \
-		      rdi->driver_f.get_card_name(rdi), \
+		      rvt_get_ibdev_name(rdi), \
 		      fmt, \
 		      ##__VA_ARGS__)
 
 #define rvt_pr_warn(rdi, fmt, ...) \
 	__rvt_pr_warn(rdi->driver_f.get_pci_dev(rdi), \
-		      rdi->driver_f.get_card_name(rdi), \
+		      rvt_get_ibdev_name(rdi), \
 		      fmt, \
 		      ##__VA_ARGS__)
 
 #define rvt_pr_err(rdi, fmt, ...) \
 	__rvt_pr_err(rdi->driver_f.get_pci_dev(rdi), \
-		     rdi->driver_f.get_card_name(rdi), \
+		     rvt_get_ibdev_name(rdi), \
 		     fmt, \
 		     ##__VA_ARGS__)
+
+#define rvt_pr_err_ratelimited(rdi, fmt, ...) \
+	__rvt_pr_err_ratelimited((rdi)->driver_f.get_pci_dev(rdi), \
+				 rvt_get_ibdev_name(rdi), \
+				 fmt, \
+				 ##__VA_ARGS__)
 
 #define __rvt_pr_info(pdev, name, fmt, ...) \
 	dev_info(&pdev->dev, "%s: " fmt, name, ##__VA_ARGS__)
@@ -88,6 +92,9 @@
 
 #define __rvt_pr_err(pdev, name, fmt, ...) \
 	dev_err(&pdev->dev, "%s: " fmt, name, ##__VA_ARGS__)
+
+#define __rvt_pr_err_ratelimited(pdev, name, fmt, ...) \
+	dev_err_ratelimited(&(pdev)->dev, "%s: " fmt, name, ##__VA_ARGS__)
 
 static inline int ibport_num_to_idx(struct ib_device *ibdev, u8 port_num)
 {

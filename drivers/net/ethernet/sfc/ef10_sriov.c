@@ -1,11 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /****************************************************************************
  * Driver for Solarflare network controllers and boards
  * Copyright 2015 Solarflare Communications Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation, incorporated herein by reference.
  */
+#include <linux/etherdevice.h>
 #include <linux/pci.h>
 #include <linux/module.h>
 #include "net_driver.h"
@@ -198,7 +196,7 @@ static int efx_ef10_sriov_alloc_vf_vswitching(struct efx_nic *efx)
 		return -ENOMEM;
 
 	for (i = 0; i < efx->vf_count; i++) {
-		random_ether_addr(nic_data->vf[i].mac);
+		eth_random_addr(nic_data->vf[i].mac);
 		nic_data->vf[i].efx = NULL;
 		nic_data->vf[i].vlan = EFX_EF10_NO_VLAN;
 
@@ -548,13 +546,13 @@ int efx_ef10_sriov_set_vf_mac(struct efx_nic *efx, int vf_i, u8 *mac)
 		vf->efx->type->filter_table_probe(vf->efx);
 		up_write(&vf->efx->filter_sem);
 		efx_net_open(vf->efx->net_dev);
-		netif_device_attach(vf->efx->net_dev);
+		efx_device_attach_if_not_resetting(vf->efx);
 	}
 
 	return 0;
 
 fail:
-	memset(vf->mac, 0, ETH_ALEN);
+	eth_zero_addr(vf->mac);
 	return rc;
 }
 
@@ -563,7 +561,7 @@ int efx_ef10_sriov_set_vf_vlan(struct efx_nic *efx, int vf_i, u16 vlan,
 {
 	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 	struct ef10_vf *vf;
-	u16 old_vlan, new_vlan;
+	u16 new_vlan;
 	int rc = 0, rc2 = 0;
 
 	if (vf_i >= efx->vf_count)
@@ -618,7 +616,6 @@ int efx_ef10_sriov_set_vf_vlan(struct efx_nic *efx, int vf_i, u16 vlan,
 	}
 
 	/* Do the actual vlan change */
-	old_vlan = vf->vlan;
 	vf->vlan = new_vlan;
 
 	/* Restore everything in reverse order */
@@ -660,13 +657,11 @@ restore_filters:
 		up_write(&vf->efx->filter_sem);
 		mutex_unlock(&vf->efx->mac_lock);
 
-		up_write(&vf->efx->filter_sem);
-
 		rc2 = efx_net_open(vf->efx->net_dev);
 		if (rc2)
 			goto reset_nic;
 
-		netif_device_attach(vf->efx->net_dev);
+		efx_device_attach_if_not_resetting(vf->efx);
 	}
 	return rc;
 
@@ -757,20 +752,6 @@ int efx_ef10_sriov_get_vf_config(struct efx_nic *efx, int vf_i,
 	if (outlen < MC_CMD_LINK_STATE_MODE_OUT_LEN)
 		return -EIO;
 	ivf->linkstate = MCDI_DWORD(outbuf, LINK_STATE_MODE_OUT_OLD_MODE);
-
-	return 0;
-}
-
-int efx_ef10_sriov_get_phys_port_id(struct efx_nic *efx,
-				    struct netdev_phys_item_id *ppid)
-{
-	struct efx_ef10_nic_data *nic_data = efx->nic_data;
-
-	if (!is_valid_ether_addr(nic_data->port_id))
-		return -EOPNOTSUPP;
-
-	ppid->id_len = ETH_ALEN;
-	memcpy(ppid->id, nic_data->port_id, ppid->id_len);
 
 	return 0;
 }

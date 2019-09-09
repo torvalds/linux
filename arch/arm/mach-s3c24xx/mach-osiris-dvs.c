@@ -1,15 +1,10 @@
-/* linux/arch/arm/mach-s3c2440/mach-osiris-dvs.c
- *
- * Copyright (c) 2009 Simtec Electronics
- *	http://armlinux.simtec.co.uk/
- *	Ben Dooks <ben@simtec.co.uk>
- *
- * Simtec Osiris Dynamic Voltage Scaling support.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
-*/
+// SPDX-License-Identifier: GPL-2.0
+//
+// Copyright (c) 2009 Simtec Electronics
+//	http://armlinux.simtec.co.uk/
+//	Ben Dooks <ben@simtec.co.uk>
+//
+// Simtec Osiris Dynamic Voltage Scaling support.
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -17,7 +12,7 @@
 #include <linux/cpufreq.h>
 #include <linux/gpio.h>
 
-#include <linux/i2c/tps65010.h>
+#include <linux/mfd/tps65010.h>
 
 #include <plat/cpu-freq.h>
 #include <mach/gpio-samsung.h>
@@ -70,16 +65,16 @@ static int osiris_dvs_notify(struct notifier_block *nb,
 
 	switch (val) {
 	case CPUFREQ_PRECHANGE:
-		if (old_dvs & !new_dvs ||
-		    cur_dvs & !new_dvs) {
+		if ((old_dvs && !new_dvs) ||
+		    (cur_dvs && !new_dvs)) {
 			pr_debug("%s: exiting dvs\n", __func__);
 			cur_dvs = false;
 			gpio_set_value(OSIRIS_GPIO_DVS, 1);
 		}
 		break;
 	case CPUFREQ_POSTCHANGE:
-		if (!old_dvs & new_dvs ||
-		    !cur_dvs & new_dvs) {
+		if ((!old_dvs && new_dvs) ||
+		    (!cur_dvs && new_dvs)) {
 			pr_debug("entering dvs\n");
 			cur_dvs = true;
 			gpio_set_value(OSIRIS_GPIO_DVS, 0);

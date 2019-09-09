@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * MPC8569E MDS Device Tree Source
  *
  * Copyright (C) 2009 Freescale Semiconductor Inc.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 /include/ "mpc8569si-pre.dtsi"
@@ -55,7 +51,7 @@
 				label = "kernel";
 				reg = <0x01c00000 0x002e0000>;
 			};
-			partiton@1ee0000 {
+			partition@1ee0000 {
 				label = "dtb";
 				reg = <0x01ee0000 0x00020000>;
 			};
@@ -141,7 +137,7 @@
 				gpio-controller;
 			};
 
-			pio1: ucc_pin@01 {
+			pio1: ucc_pin@1 {
 				pio-map = <
 			/* port  pin  dir  open_drain  assignment  has_irq */
 					0x2  0x1f 0x1  0x0  0x1  0x0	/* QE_MUX_MDC */
@@ -161,7 +157,7 @@
 					0x2  0x14 0x1  0x0  0x2  0x0>;	/* ENET1_GTXCLK	*/
 			};
 
-			pio2: ucc_pin@02 {
+			pio2: ucc_pin@2 {
 				pio-map = <
 			/* port  pin  dir  open_drain  assignment  has_irq */
 					0x2  0x1f 0x1  0x0  0x1  0x0	/* QE_MUX_MDC */
@@ -181,7 +177,7 @@
 					0x2  0x2 0x1  0x0  0x2  0x0>;	/* ENET2_GTXCLK	*/
 			};
 
-			pio3: ucc_pin@03 {
+			pio3: ucc_pin@3 {
 				pio-map = <
 			/* port  pin  dir  open_drain  assignment  has_irq */
 					0x2  0x1f 0x1  0x0  0x1  0x0	/* QE_MUX_MDC */
@@ -201,7 +197,7 @@
 					0x2  0x19 0x1  0x0  0x2  0x0>;	/* ENET3_GTXCLK	*/
 			};
 
-			pio4: ucc_pin@04 {
+			pio4: ucc_pin@4 {
 				pio-map = <
 			/* port  pin  dir  open_drain  assignment  has_irq */
 					0x2  0x1f 0x1  0x0  0x1  0x0	/* QE_MUX_MDC */
@@ -272,30 +268,30 @@
 			reg = <0x2120 0x18>;
 			compatible = "fsl,ucc-mdio";
 
-			qe_phy0: ethernet-phy@07 {
+			qe_phy0: ethernet-phy@7 {
 				interrupt-parent = <&mpic>;
 				interrupts = <1 1 0 0>;
 				reg = <0x7>;
 			};
-			qe_phy1: ethernet-phy@01 {
+			qe_phy1: ethernet-phy@1 {
 				interrupt-parent = <&mpic>;
 				interrupts = <2 1 0 0>;
 				reg = <0x1>;
 			};
-			qe_phy2: ethernet-phy@02 {
+			qe_phy2: ethernet-phy@2 {
 				interrupt-parent = <&mpic>;
 				interrupts = <3 1 0 0>;
 				reg = <0x2>;
 			};
-			qe_phy3: ethernet-phy@03 {
+			qe_phy3: ethernet-phy@3 {
 				interrupt-parent = <&mpic>;
 				interrupts = <4 1 0 0>;
 				reg = <0x3>;
 			};
-			qe_phy5: ethernet-phy@04 {
+			qe_phy5: ethernet-phy@4 {
 				reg = <0x04>;
 			};
-			qe_phy7: ethernet-phy@06 {
+			qe_phy7: ethernet-phy@6 {
 				reg = <0x6>;
 			};
 			tbi1: tbi-phy@11 {

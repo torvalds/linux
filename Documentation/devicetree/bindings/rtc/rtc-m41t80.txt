@@ -1,0 +1,30 @@
+ST M41T80 family of RTC and compatible
+
+Required properties:
+- compatible: should be one of:
+	"st,m41t62",
+	"st,m41t65",
+	"st,m41t80",
+	"st,m41t81",
+	"st,m41t81s",
+	"st,m41t82",
+	"st,m41t83",
+	"st,m41t84",
+	"st,m41t85",
+	"st,m41t87",
+	"microcrystal,rv4162",
+- reg: I2C bus address of the device
+
+Optional properties:
+- interrupts: rtc alarm interrupt.
+- clock-output-names: From common clock binding to override the default output
+                      clock name
+- wakeup-source: Enables wake up of host system on alarm
+
+Example:
+	rtc@68 {
+		compatible = "st,m41t80";
+		reg = <0x68>;
+		interrupt-parent = <&UIC0>;
+		interrupts = <0x9 0x8>;
+	};

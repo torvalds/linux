@@ -10,6 +10,7 @@
  * qla24xx_calc_iocbs() - Determine number of Command Type 3 and
  * Continuation Type 1 IOCBs to allocate.
  *
+ * @vha: HA context
  * @dsds: number of data segment decriptors needed
  *
  * Returns the number of IOCB entries needed to store @dsds.
@@ -57,14 +58,12 @@ qla2x00_debounce_register(volatile uint16_t __iomem *addr)
 static inline void
 qla2x00_poll(struct rsp_que *rsp)
 {
-	unsigned long flags;
 	struct qla_hw_data *ha = rsp->hw;
-	local_irq_save(flags);
+
 	if (IS_P3P_TYPE(ha))
 		qla82xx_poll(0, rsp);
 	else
 		ha->isp_ops->intr_handler(0, rsp);
-	local_irq_restore(flags);
 }
 
 static inline uint8_t *
@@ -92,86 +91,18 @@ host_to_adap(uint8_t *src, uint8_t *dst, uint32_t bsize)
 }
 
 static inline void
-qla2x00_set_reserved_loop_ids(struct qla_hw_data *ha)
+qla2x00_clean_dsd_pool(struct qla_hw_data *ha, struct crc_context *ctx)
 {
-	int i;
-
-	if (IS_FWI2_CAPABLE(ha))
-		return;
-
-	for (i = 0; i < SNS_FIRST_LOOP_ID; i++)
-		set_bit(i, ha->loop_id_map);
-	set_bit(MANAGEMENT_SERVER, ha->loop_id_map);
-	set_bit(BROADCAST, ha->loop_id_map);
-}
-
-static inline int
-qla2x00_is_reserved_id(scsi_qla_host_t *vha, uint16_t loop_id)
-{
-	struct qla_hw_data *ha = vha->hw;
-	if (IS_FWI2_CAPABLE(ha))
-		return (loop_id > NPH_LAST_HANDLE);
-
-	return ((loop_id > ha->max_loop_id && loop_id < SNS_FIRST_LOOP_ID) ||
-	    loop_id == MANAGEMENT_SERVER || loop_id == BROADCAST);
-}
-
-static inline void
-qla2x00_clear_loop_id(fc_port_t *fcport) {
-	struct qla_hw_data *ha = fcport->vha->hw;
-
-	if (fcport->loop_id == FC_NO_LOOP_ID ||
-	    qla2x00_is_reserved_id(fcport->vha, fcport->loop_id))
-		return;
-
-	clear_bit(fcport->loop_id, ha->loop_id_map);
-	fcport->loop_id = FC_NO_LOOP_ID;
-}
-
-static inline void
-qla2x00_clean_dsd_pool(struct qla_hw_data *ha, srb_t *sp,
-	struct qla_tgt_cmd *tc)
-{
-	struct dsd_dma *dsd_ptr, *tdsd_ptr;
-	struct crc_context *ctx;
-
-	if (sp)
-		ctx = (struct crc_context *)GET_CMD_CTX_SP(sp);
-	else if (tc)
-		ctx = (struct crc_context *)tc->ctx;
-	else {
-		BUG();
-		return;
-	}
+	struct dsd_dma *dsd, *tdsd;
 
 	/* clean up allocated prev pool */
-	list_for_each_entry_safe(dsd_ptr, tdsd_ptr,
-	    &ctx->dsd_list, list) {
-		dma_pool_free(ha->dl_dma_pool, dsd_ptr->dsd_addr,
-		    dsd_ptr->dsd_list_dma);
-		list_del(&dsd_ptr->list);
-		kfree(dsd_ptr);
+	list_for_each_entry_safe(dsd, tdsd, &ctx->dsd_list, list) {
+		dma_pool_free(ha->dl_dma_pool, dsd->dsd_addr,
+		    dsd->dsd_list_dma);
+		list_del(&dsd->list);
+		kfree(dsd);
 	}
 	INIT_LIST_HEAD(&ctx->dsd_list);
-}
-
-static inline void
-qla2x00_set_fcport_state(fc_port_t *fcport, int state)
-{
-	int old_state;
-
-	old_state = atomic_read(&fcport->state);
-	atomic_set(&fcport->state, state);
-
-	/* Don't print state transitions during initial allocation of fcport */
-	if (old_state && old_state != state) {
-		ql_dbg(ql_dbg_disc, fcport->vha, 0x207d,
-		    "FCPort state transitioned from %s to %s - "
-		    "portid=%02x%02x%02x.\n",
-		    port_state_str[old_state], port_state_str[state],
-		    fcport->d_id.b.domain, fcport->d_id.b.area,
-		    fcport->d_id.b.al_pa);
-	}
 }
 
 static inline int
@@ -215,24 +146,66 @@ qla2x00_reset_active(scsi_qla_host_t *vha)
 	    test_bit(ABORT_ISP_ACTIVE, &vha->dpc_flags);
 }
 
+static inline int
+qla2x00_chip_is_down(scsi_qla_host_t *vha)
+{
+	return (qla2x00_reset_active(vha) || !vha->hw->flags.fw_started);
+}
+
 static inline srb_t *
-qla2x00_get_sp(scsi_qla_host_t *vha, fc_port_t *fcport, gfp_t flag)
+qla2xxx_get_qpair_sp(scsi_qla_host_t *vha, struct qla_qpair *qpair,
+    fc_port_t *fcport, gfp_t flag)
 {
 	srb_t *sp = NULL;
-	struct qla_hw_data *ha = vha->hw;
 	uint8_t bail;
 
-	QLA_VHA_MARK_BUSY(vha, bail);
+	QLA_QPAIR_MARK_BUSY(qpair, bail);
 	if (unlikely(bail))
 		return NULL;
 
-	sp = mempool_alloc(ha->srb_mempool, flag);
+	sp = mempool_alloc(qpair->srb_mempool, flag);
 	if (!sp)
 		goto done;
 
 	memset(sp, 0, sizeof(*sp));
 	sp->fcport = fcport;
 	sp->iocbs = 1;
+	sp->vha = vha;
+	sp->qpair = qpair;
+	sp->cmd_type = TYPE_SRB;
+	INIT_LIST_HEAD(&sp->elem);
+
+done:
+	if (!sp)
+		QLA_QPAIR_MARK_NOT_BUSY(qpair);
+	return sp;
+}
+
+static inline void
+qla2xxx_rel_qpair_sp(struct qla_qpair *qpair, srb_t *sp)
+{
+	sp->qpair = NULL;
+	mempool_free(sp, qpair->srb_mempool);
+	QLA_QPAIR_MARK_NOT_BUSY(qpair);
+}
+
+static inline srb_t *
+qla2x00_get_sp(scsi_qla_host_t *vha, fc_port_t *fcport, gfp_t flag)
+{
+	srb_t *sp = NULL;
+	uint8_t bail;
+	struct qla_qpair *qpair;
+
+	QLA_VHA_MARK_BUSY(vha, bail);
+	if (unlikely(bail))
+		return NULL;
+
+	qpair = vha->hw->base_qpair;
+	sp = qla2xxx_get_qpair_sp(vha, qpair, fcport, flag);
+	if (!sp)
+		goto done;
+
+	sp->vha = vha;
 done:
 	if (!sp)
 		QLA_VHA_MARK_NOT_BUSY(vha);
@@ -240,26 +213,10 @@ done:
 }
 
 static inline void
-qla2x00_rel_sp(scsi_qla_host_t *vha, srb_t *sp)
+qla2x00_rel_sp(srb_t *sp)
 {
-	mempool_free(sp, vha->hw->srb_mempool);
-	QLA_VHA_MARK_NOT_BUSY(vha);
-}
-
-static inline void
-qla2x00_init_timer(srb_t *sp, unsigned long tmo)
-{
-	init_timer(&sp->u.iocb_cmd.timer);
-	sp->u.iocb_cmd.timer.expires = jiffies + tmo * HZ;
-	sp->u.iocb_cmd.timer.data = (unsigned long)sp;
-	sp->u.iocb_cmd.timer.function = qla2x00_sp_timeout;
-	add_timer(&sp->u.iocb_cmd.timer);
-	sp->free = qla2x00_sp_free;
-	if ((IS_QLAFX00(sp->fcport->vha->hw)) &&
-	    (sp->type == SRB_FXIOCB_DCMD))
-		init_completion(&sp->u.iocb_cmd.u.fxiocb.fxiocb_comp);
-	if (sp->type == SRB_ELS_DCMD)
-		init_completion(&sp->u.iocb_cmd.u.els_logo.comp);
+	QLA_VHA_MARK_NOT_BUSY(sp->vha);
+	qla2xxx_rel_qpair_sp(sp->qpair, sp);
 }
 
 static inline int
@@ -288,4 +245,63 @@ qla2x00_set_retry_delay_timestamp(fc_port_t *fcport, uint16_t retry_delay)
 	if (retry_delay)
 		fcport->retry_delay_timestamp = jiffies +
 		    (retry_delay * HZ / 10);
+}
+
+static inline bool
+qla_is_exch_offld_enabled(struct scsi_qla_host *vha)
+{
+	if (qla_ini_mode_enabled(vha) &&
+	    (vha->ql2xiniexchg > FW_DEF_EXCHANGES_CNT))
+		return true;
+	else if (qla_tgt_mode_enabled(vha) &&
+	    (vha->ql2xexchoffld > FW_DEF_EXCHANGES_CNT))
+		return true;
+	else if (qla_dual_mode_enabled(vha) &&
+	    ((vha->ql2xiniexchg + vha->ql2xexchoffld) > FW_DEF_EXCHANGES_CNT))
+		return true;
+	else
+		return false;
+}
+
+static inline void
+qla_cpu_update(struct qla_qpair *qpair, uint16_t cpuid)
+{
+	qpair->cpuid = cpuid;
+
+	if (!list_empty(&qpair->hints_list)) {
+		struct qla_qpair_hint *h;
+
+		list_for_each_entry(h, &qpair->hints_list, hint_elem)
+			h->cpuid = qpair->cpuid;
+	}
+}
+
+static inline struct qla_qpair_hint *
+qla_qpair_to_hint(struct qla_tgt *tgt, struct qla_qpair *qpair)
+{
+	struct qla_qpair_hint *h;
+	u16 i;
+
+	for (i = 0; i < tgt->ha->max_qpairs + 1; i++) {
+		h = &tgt->qphints[i];
+		if (h->qpair == qpair)
+			return h;
+	}
+
+	return NULL;
+}
+
+static inline void
+qla_83xx_start_iocbs(struct qla_qpair *qpair)
+{
+	struct req_que *req = qpair->req;
+
+	req->ring_index++;
+	if (req->ring_index == req->length) {
+		req->ring_index = 0;
+		req->ring_ptr = req->ring;
+	} else
+		req->ring_ptr++;
+
+	WRT_REG_DWORD(req->req_q_in, req->ring_index);
 }

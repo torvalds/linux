@@ -49,7 +49,7 @@
 
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/unaligned.h>
 
 /* These identify the driver base version and may not be removed. */
@@ -312,8 +312,6 @@ struct de_private {
 
 	u32			msg_enable;
 
-	struct net_device_stats net_stats;
-
 	struct pci_dev		*pdev;
 
 	u16			setup_frame[DE_SETUP_FRAME_WORDS];
@@ -335,8 +333,8 @@ static void de_set_rx_mode (struct net_device *dev);
 static void de_tx (struct de_private *de);
 static void de_clean_rings (struct de_private *de);
 static void de_media_interrupt (struct de_private *de, u32 status);
-static void de21040_media_timer (unsigned long data);
-static void de21041_media_timer (unsigned long data);
+static void de21040_media_timer (struct timer_list *t);
+static void de21041_media_timer (struct timer_list *t);
 static unsigned int de_ok_to_advertise (struct de_private *de, u32 new_media);
 
 
@@ -388,14 +386,14 @@ static void de_rx_err_acct (struct de_private *de, unsigned rx_tail,
 			netif_warn(de, rx_err, de->dev,
 				   "Oversized Ethernet frame spanned multiple buffers, status %08x!\n",
 				   status);
-			de->net_stats.rx_length_errors++;
+			de->dev->stats.rx_length_errors++;
 		}
 	} else if (status & RxError) {
 		/* There was a fatal error. */
-		de->net_stats.rx_errors++; /* end of a packet.*/
-		if (status & 0x0890) de->net_stats.rx_length_errors++;
-		if (status & RxErrCRC) de->net_stats.rx_crc_errors++;
-		if (status & RxErrFIFO) de->net_stats.rx_fifo_errors++;
+		de->dev->stats.rx_errors++; /* end of a packet.*/
+		if (status & 0x0890) de->dev->stats.rx_length_errors++;
+		if (status & RxErrCRC) de->dev->stats.rx_crc_errors++;
+		if (status & RxErrFIFO) de->dev->stats.rx_fifo_errors++;
 	}
 }
 
@@ -423,7 +421,7 @@ static void de_rx (struct de_private *de)
 		mapping = de->rx_skb[rx_tail].mapping;
 
 		if (unlikely(drop)) {
-			de->net_stats.rx_dropped++;
+			de->dev->stats.rx_dropped++;
 			goto rx_next;
 		}
 
@@ -441,7 +439,7 @@ static void de_rx (struct de_private *de)
 		buflen = copying_skb ? (len + RX_OFFSET) : de->rx_buf_sz;
 		copy_skb = netdev_alloc_skb(de->dev, buflen);
 		if (unlikely(!copy_skb)) {
-			de->net_stats.rx_dropped++;
+			de->dev->stats.rx_dropped++;
 			drop = 1;
 			rx_work = 100;
 			goto rx_next;
@@ -470,8 +468,8 @@ static void de_rx (struct de_private *de)
 
 		skb->protocol = eth_type_trans (skb, de->dev);
 
-		de->net_stats.rx_packets++;
-		de->net_stats.rx_bytes += skb->len;
+		de->dev->stats.rx_packets++;
+		de->dev->stats.rx_bytes += skb->len;
 		rc = netif_rx (skb);
 		if (rc == NET_RX_DROP)
 			drop = 1;
@@ -572,22 +570,22 @@ static void de_tx (struct de_private *de)
 				netif_dbg(de, tx_err, de->dev,
 					  "tx err, status 0x%x\n",
 					  status);
-				de->net_stats.tx_errors++;
+				de->dev->stats.tx_errors++;
 				if (status & TxOWC)
-					de->net_stats.tx_window_errors++;
+					de->dev->stats.tx_window_errors++;
 				if (status & TxMaxCol)
-					de->net_stats.tx_aborted_errors++;
+					de->dev->stats.tx_aborted_errors++;
 				if (status & TxLinkFail)
-					de->net_stats.tx_carrier_errors++;
+					de->dev->stats.tx_carrier_errors++;
 				if (status & TxFIFOUnder)
-					de->net_stats.tx_fifo_errors++;
+					de->dev->stats.tx_fifo_errors++;
 			} else {
-				de->net_stats.tx_packets++;
-				de->net_stats.tx_bytes += skb->len;
+				de->dev->stats.tx_packets++;
+				de->dev->stats.tx_bytes += skb->len;
 				netif_dbg(de, tx_done, de->dev,
 					  "tx done, slot %d\n", tx_tail);
 			}
-			dev_kfree_skb_irq(skb);
+			dev_consume_skb_irq(skb);
 		}
 
 next:
@@ -814,9 +812,9 @@ static void de_set_rx_mode (struct net_device *dev)
 static inline void de_rx_missed(struct de_private *de, u32 rx_missed)
 {
 	if (unlikely(rx_missed & RxMissedOver))
-		de->net_stats.rx_missed_errors += RxMissedMask;
+		de->dev->stats.rx_missed_errors += RxMissedMask;
 	else
-		de->net_stats.rx_missed_errors += (rx_missed & RxMissedMask);
+		de->dev->stats.rx_missed_errors += (rx_missed & RxMissedMask);
 }
 
 static void __de_get_stats(struct de_private *de)
@@ -836,7 +834,7 @@ static struct net_device_stats *de_get_stats(struct net_device *dev)
  		__de_get_stats(de);
 	spin_unlock_irq(&de->lock);
 
-	return &de->net_stats;
+	return &dev->stats;
 }
 
 static inline int de_is_running (struct de_private *de)
@@ -961,9 +959,9 @@ static void de_next_media (struct de_private *de, const u32 *media,
 	}
 }
 
-static void de21040_media_timer (unsigned long data)
+static void de21040_media_timer (struct timer_list *t)
 {
-	struct de_private *de = (struct de_private *) data;
+	struct de_private *de = from_timer(de, t, media_timer);
 	struct net_device *dev = de->dev;
 	u32 status = dr32(SIAStatus);
 	unsigned int carrier;
@@ -1042,9 +1040,9 @@ static unsigned int de_ok_to_advertise (struct de_private *de, u32 new_media)
 	return 1;
 }
 
-static void de21041_media_timer (unsigned long data)
+static void de21041_media_timer (struct timer_list *t)
 {
-	struct de_private *de = (struct de_private *) data;
+	struct de_private *de = from_timer(de, t, media_timer);
 	struct net_device *dev = de->dev;
 	u32 status = dr32(SIAStatus);
 	unsigned int carrier;
@@ -1348,7 +1346,7 @@ static void de_clean_rings (struct de_private *de)
 		struct sk_buff *skb = de->tx_skb[i].skb;
 		if ((skb) && (skb != DE_DUMMY_SKB)) {
 			if (skb != DE_SETUP_SKB) {
-				de->net_stats.tx_dropped++;
+				de->dev->stats.tx_dropped++;
 				pci_unmap_single(de->pdev,
 					de->tx_skb[i].mapping,
 					skb->len, PCI_DMA_TODEVICE);
@@ -1485,95 +1483,102 @@ static void __de_get_regs(struct de_private *de, u8 *buf)
 	de_rx_missed(de, rbuf[8]);
 }
 
-static int __de_get_settings(struct de_private *de, struct ethtool_cmd *ecmd)
+static void __de_get_link_ksettings(struct de_private *de,
+				    struct ethtool_link_ksettings *cmd)
 {
-	ecmd->supported = de->media_supported;
-	ecmd->transceiver = XCVR_INTERNAL;
-	ecmd->phy_address = 0;
-	ecmd->advertising = de->media_advertise;
+	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.supported,
+						de->media_supported);
+	cmd->base.phy_address = 0;
+	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.advertising,
+						de->media_advertise);
 
 	switch (de->media_type) {
 	case DE_MEDIA_AUI:
-		ecmd->port = PORT_AUI;
+		cmd->base.port = PORT_AUI;
 		break;
 	case DE_MEDIA_BNC:
-		ecmd->port = PORT_BNC;
+		cmd->base.port = PORT_BNC;
 		break;
 	default:
-		ecmd->port = PORT_TP;
+		cmd->base.port = PORT_TP;
 		break;
 	}
 
-	ethtool_cmd_speed_set(ecmd, 10);
+	cmd->base.speed = 10;
 
 	if (dr32(MacMode) & FullDuplex)
-		ecmd->duplex = DUPLEX_FULL;
+		cmd->base.duplex = DUPLEX_FULL;
 	else
-		ecmd->duplex = DUPLEX_HALF;
+		cmd->base.duplex = DUPLEX_HALF;
 
 	if (de->media_lock)
-		ecmd->autoneg = AUTONEG_DISABLE;
+		cmd->base.autoneg = AUTONEG_DISABLE;
 	else
-		ecmd->autoneg = AUTONEG_ENABLE;
+		cmd->base.autoneg = AUTONEG_ENABLE;
 
 	/* ignore maxtxpkt, maxrxpkt for now */
-
-	return 0;
 }
 
-static int __de_set_settings(struct de_private *de, struct ethtool_cmd *ecmd)
+static int __de_set_link_ksettings(struct de_private *de,
+				   const struct ethtool_link_ksettings *cmd)
 {
 	u32 new_media;
 	unsigned int media_lock;
+	u8 duplex = cmd->base.duplex;
+	u8 port = cmd->base.port;
+	u8 autoneg = cmd->base.autoneg;
+	u32 advertising;
 
-	if (ethtool_cmd_speed(ecmd) != 10)
+	ethtool_convert_link_mode_to_legacy_u32(&advertising,
+						cmd->link_modes.advertising);
+
+	if (cmd->base.speed != 10)
 		return -EINVAL;
-	if (ecmd->duplex != DUPLEX_HALF && ecmd->duplex != DUPLEX_FULL)
+	if (duplex != DUPLEX_HALF && duplex != DUPLEX_FULL)
 		return -EINVAL;
-	if (ecmd->port != PORT_TP && ecmd->port != PORT_AUI && ecmd->port != PORT_BNC)
+	if (port != PORT_TP && port != PORT_AUI && port != PORT_BNC)
 		return -EINVAL;
-	if (de->de21040 && ecmd->port == PORT_BNC)
+	if (de->de21040 && port == PORT_BNC)
 		return -EINVAL;
-	if (ecmd->transceiver != XCVR_INTERNAL)
+	if (autoneg != AUTONEG_DISABLE && autoneg != AUTONEG_ENABLE)
 		return -EINVAL;
-	if (ecmd->autoneg != AUTONEG_DISABLE && ecmd->autoneg != AUTONEG_ENABLE)
+	if (advertising & ~de->media_supported)
 		return -EINVAL;
-	if (ecmd->advertising & ~de->media_supported)
-		return -EINVAL;
-	if (ecmd->autoneg == AUTONEG_ENABLE &&
-	    (!(ecmd->advertising & ADVERTISED_Autoneg)))
+	if (autoneg == AUTONEG_ENABLE &&
+	    (!(advertising & ADVERTISED_Autoneg)))
 		return -EINVAL;
 
-	switch (ecmd->port) {
+	switch (port) {
 	case PORT_AUI:
 		new_media = DE_MEDIA_AUI;
-		if (!(ecmd->advertising & ADVERTISED_AUI))
+		if (!(advertising & ADVERTISED_AUI))
 			return -EINVAL;
 		break;
 	case PORT_BNC:
 		new_media = DE_MEDIA_BNC;
-		if (!(ecmd->advertising & ADVERTISED_BNC))
+		if (!(advertising & ADVERTISED_BNC))
 			return -EINVAL;
 		break;
 	default:
-		if (ecmd->autoneg == AUTONEG_ENABLE)
+		if (autoneg == AUTONEG_ENABLE)
 			new_media = DE_MEDIA_TP_AUTO;
-		else if (ecmd->duplex == DUPLEX_FULL)
+		else if (duplex == DUPLEX_FULL)
 			new_media = DE_MEDIA_TP_FD;
 		else
 			new_media = DE_MEDIA_TP;
-		if (!(ecmd->advertising & ADVERTISED_TP))
+		if (!(advertising & ADVERTISED_TP))
 			return -EINVAL;
-		if (!(ecmd->advertising & (ADVERTISED_10baseT_Full | ADVERTISED_10baseT_Half)))
+		if (!(advertising & (ADVERTISED_10baseT_Full |
+				     ADVERTISED_10baseT_Half)))
 			return -EINVAL;
 		break;
 	}
 
-	media_lock = (ecmd->autoneg == AUTONEG_ENABLE) ? 0 : 1;
+	media_lock = (autoneg == AUTONEG_ENABLE) ? 0 : 1;
 
 	if ((new_media == de->media_type) &&
 	    (media_lock == de->media_lock) &&
-	    (ecmd->advertising == de->media_advertise))
+	    (advertising == de->media_advertise))
 		return 0; /* nothing to change */
 
 	de_link_down(de);
@@ -1582,7 +1587,7 @@ static int __de_set_settings(struct de_private *de, struct ethtool_cmd *ecmd)
 
 	de->media_type = new_media;
 	de->media_lock = media_lock;
-	de->media_advertise = ecmd->advertising;
+	de->media_advertise = advertising;
 	de_set_media(de);
 	if (netif_running(de->dev))
 		de_start_rxtx(de);
@@ -1604,25 +1609,26 @@ static int de_get_regs_len(struct net_device *dev)
 	return DE_REGS_SIZE;
 }
 
-static int de_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
+static int de_get_link_ksettings(struct net_device *dev,
+				 struct ethtool_link_ksettings *cmd)
 {
 	struct de_private *de = netdev_priv(dev);
-	int rc;
 
 	spin_lock_irq(&de->lock);
-	rc = __de_get_settings(de, ecmd);
+	__de_get_link_ksettings(de, cmd);
 	spin_unlock_irq(&de->lock);
 
-	return rc;
+	return 0;
 }
 
-static int de_set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
+static int de_set_link_ksettings(struct net_device *dev,
+				 const struct ethtool_link_ksettings *cmd)
 {
 	struct de_private *de = netdev_priv(dev);
 	int rc;
 
 	spin_lock_irq(&de->lock);
-	rc = __de_set_settings(de, ecmd);
+	rc = __de_set_link_ksettings(de, cmd);
 	spin_unlock_irq(&de->lock);
 
 	return rc;
@@ -1690,13 +1696,13 @@ static const struct ethtool_ops de_ethtool_ops = {
 	.get_link		= ethtool_op_get_link,
 	.get_drvinfo		= de_get_drvinfo,
 	.get_regs_len		= de_get_regs_len,
-	.get_settings		= de_get_settings,
-	.set_settings		= de_set_settings,
 	.get_msglevel		= de_get_msglevel,
 	.set_msglevel		= de_set_msglevel,
 	.get_eeprom		= de_get_eeprom,
 	.nway_reset		= de_nway_reset,
 	.get_regs		= de_get_regs,
+	.get_link_ksettings	= de_get_link_ksettings,
+	.set_link_ksettings	= de_set_link_ksettings,
 };
 
 static void de21040_get_mac_address(struct de_private *de)
@@ -1956,7 +1962,6 @@ static const struct net_device_ops de_netdev_ops = {
 	.ndo_start_xmit		= de_start_xmit,
 	.ndo_get_stats		= de_get_stats,
 	.ndo_tx_timeout 	= de_tx_timeout,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 };
@@ -1994,12 +1999,9 @@ static int de_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	de->msg_enable = (debug < 0 ? DE_DEF_MSG_ENABLE : debug);
 	de->board_idx = board_idx;
 	spin_lock_init (&de->lock);
-	init_timer(&de->media_timer);
-	if (de->de21040)
-		de->media_timer.function = de21040_media_timer;
-	else
-		de->media_timer.function = de21041_media_timer;
-	de->media_timer.data = (unsigned long) de;
+	timer_setup(&de->media_timer,
+		    de->de21040 ? de21040_media_timer : de21041_media_timer,
+		    0);
 
 	netif_carrier_off(dev);
 

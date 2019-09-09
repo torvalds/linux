@@ -1,14 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * bebob_terratec.c - a part of driver for BeBoB based devices
  *
  * Copyright (c) 2013-2014 Takashi Sakamoto
- *
- * Licensed under the terms of the GNU General Public License, version 2.
  */
 
 #include "./bebob.h"
 
-static enum snd_bebob_clock_type phase88_rack_clk_src_types[] = {
+static const enum snd_bebob_clock_type phase88_rack_clk_src_types[] = {
 	SND_BEBOB_CLOCK_TYPE_INTERNAL,
 	SND_BEBOB_CLOCK_TYPE_EXTERNAL,	/* S/PDIF */
 	SND_BEBOB_CLOCK_TYPE_EXTERNAL,	/* Word Clock */

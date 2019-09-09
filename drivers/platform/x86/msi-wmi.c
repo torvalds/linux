@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * MSI WMI hotkeys
  *
  * Copyright (C) 2009 Novell <trenn@suse.de>
  *
  * Most stuff taken over from hp-wmi
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -184,7 +171,7 @@ static const struct backlight_ops msi_backlight_ops = {
 static void msi_wmi_notify(u32 value, void *context)
 {
 	struct acpi_buffer response = { ACPI_ALLOCATE_BUFFER, NULL };
-	static struct key_entry *key;
+	struct key_entry *key;
 	union acpi_object *obj;
 	acpi_status status;
 
@@ -281,14 +268,12 @@ static int __init msi_wmi_input_setup(void)
 	err = input_register_device(msi_wmi_input_dev);
 
 	if (err)
-		goto err_free_keymap;
+		goto err_free_dev;
 
-	last_pressed = ktime_set(0, 0);
+	last_pressed = 0;
 
 	return 0;
 
-err_free_keymap:
-	sparse_keymap_free(msi_wmi_input_dev);
 err_free_dev:
 	input_free_device(msi_wmi_input_dev);
 	return err;
@@ -342,10 +327,8 @@ err_uninstall_handler:
 	if (event_wmi)
 		wmi_remove_notify_handler(event_wmi->guid);
 err_free_input:
-	if (event_wmi) {
-		sparse_keymap_free(msi_wmi_input_dev);
+	if (event_wmi)
 		input_unregister_device(msi_wmi_input_dev);
-	}
 	return err;
 }
 
@@ -353,7 +336,6 @@ static void __exit msi_wmi_exit(void)
 {
 	if (event_wmi) {
 		wmi_remove_notify_handler(event_wmi->guid);
-		sparse_keymap_free(msi_wmi_input_dev);
 		input_unregister_device(msi_wmi_input_dev);
 	}
 	backlight_device_unregister(backlight);

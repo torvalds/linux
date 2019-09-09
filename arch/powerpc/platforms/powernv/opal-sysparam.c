@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * PowerNV system parameter code
  *
  * Copyright (C) 2013 IBM
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/kobject.h>
@@ -194,25 +181,25 @@ void __init opal_sys_param_init(void)
 	count = of_property_count_strings(sysparam, "param-name");
 	if (count < 0) {
 		pr_err("SYSPARAM: No string found of property param-name in "
-				"the node %s\n", sysparam->name);
+				"the node %pOFn\n", sysparam);
 		goto out_param_buf;
 	}
 
-	id = kzalloc(sizeof(*id) * count, GFP_KERNEL);
+	id = kcalloc(count, sizeof(*id), GFP_KERNEL);
 	if (!id) {
 		pr_err("SYSPARAM: Failed to allocate memory to read parameter "
 				"id\n");
 		goto out_param_buf;
 	}
 
-	size = kzalloc(sizeof(*size) * count, GFP_KERNEL);
+	size = kcalloc(count, sizeof(*size), GFP_KERNEL);
 	if (!size) {
 		pr_err("SYSPARAM: Failed to allocate memory to read parameter "
 				"size\n");
 		goto out_free_id;
 	}
 
-	perm = kzalloc(sizeof(*perm) * count, GFP_KERNEL);
+	perm = kcalloc(count, sizeof(*perm), GFP_KERNEL);
 	if (!perm) {
 		pr_err("SYSPARAM: Failed to allocate memory to read supported "
 				"action on the parameter");
@@ -235,7 +222,7 @@ void __init opal_sys_param_init(void)
 		goto out_free_perm;
 	}
 
-	attr = kzalloc(sizeof(*attr) * count, GFP_KERNEL);
+	attr = kcalloc(count, sizeof(*attr), GFP_KERNEL);
 	if (!attr) {
 		pr_err("SYSPARAM: Failed to allocate memory for parameter "
 				"attributes\n");
@@ -260,13 +247,13 @@ void __init opal_sys_param_init(void)
 		/* If the parameter is read-only or read-write */
 		switch (perm[i] & 3) {
 		case OPAL_SYSPARAM_READ:
-			attr[i].kobj_attr.attr.mode = S_IRUGO;
+			attr[i].kobj_attr.attr.mode = 0444;
 			break;
 		case OPAL_SYSPARAM_WRITE:
-			attr[i].kobj_attr.attr.mode = S_IWUSR;
+			attr[i].kobj_attr.attr.mode = 0200;
 			break;
 		case OPAL_SYSPARAM_RW:
-			attr[i].kobj_attr.attr.mode = S_IRUGO | S_IWUSR;
+			attr[i].kobj_attr.attr.mode = 0644;
 			break;
 		default:
 			break;

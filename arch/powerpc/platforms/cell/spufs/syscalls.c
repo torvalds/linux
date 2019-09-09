@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/file.h>
 #include <linux/fs.h>
 #include <linux/export.h>
@@ -5,7 +6,7 @@
 #include <linux/namei.h>
 #include <linux/slab.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "spufs.h"
 

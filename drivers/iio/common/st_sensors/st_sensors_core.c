@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * STMicroelectronics sensors core library driver
  *
  * Copyright 2012-2013 STMicroelectronics Inc.
  *
  * Denis Ciocca <denis.ciocca@st.com>
- *
- * Licensed under the GPL-2.
  */
 
 #include <linux/kernel.h>
@@ -15,6 +14,7 @@
 #include <linux/iio/iio.h>
 #include <linux/regulator/consumer.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <asm/unaligned.h>
 #include <linux/iio/common/st_sensors.h>
 
@@ -92,6 +92,9 @@ int st_sensors_set_odr(struct iio_dev *indio_dev, unsigned int odr)
 	struct st_sensor_odr_avl odr_out = {0, 0};
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
 
+	if (!sdata->sensor_settings->odr.addr)
+		return 0;
+
 	err = st_sensors_match_odr(sdata->sensor_settings, odr, &odr_out);
 	if (err < 0)
 		goto st_sensors_match_odr_error;
@@ -129,7 +132,7 @@ static int st_sensors_match_fs(struct st_sensor_settings *sensor_settings,
 
 	for (i = 0; i < ST_SENSORS_FULLSCALE_AVL_MAX; i++) {
 		if (sensor_settings->fs.fs_avl[i].num == 0)
-			goto st_sensors_match_odr_error;
+			return ret;
 
 		if (sensor_settings->fs.fs_avl[i].num == fs) {
 			*index_fs_avl = i;
@@ -138,7 +141,6 @@ static int st_sensors_match_fs(struct st_sensor_settings *sensor_settings,
 		}
 	}
 
-st_sensors_match_odr_error:
 	return ret;
 }
 
@@ -220,11 +222,14 @@ EXPORT_SYMBOL(st_sensors_set_enable);
 int st_sensors_set_axis_enable(struct iio_dev *indio_dev, u8 axis_enable)
 {
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
+	int err = 0;
 
-	return st_sensors_write_data_with_mask(indio_dev,
+	if (sdata->sensor_settings->enable_axis.addr)
+		err = st_sensors_write_data_with_mask(indio_dev,
 				sdata->sensor_settings->enable_axis.addr,
 				sdata->sensor_settings->enable_axis.mask,
 				axis_enable);
+	return err;
 }
 EXPORT_SYMBOL(st_sensors_set_axis_enable);
 
@@ -282,7 +287,8 @@ static int st_sensors_set_drdy_int_pin(struct iio_dev *indio_dev,
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
 
 	/* Sensor does not support interrupts */
-	if (sdata->sensor_settings->drdy_irq.addr == 0) {
+	if (!sdata->sensor_settings->drdy_irq.int1.addr &&
+	    !sdata->sensor_settings->drdy_irq.int2.addr) {
 		if (pdata->drdy_int_pin)
 			dev_info(&indio_dev->dev,
 				 "DRDY on pin INT%d specified, but sensor "
@@ -293,7 +299,7 @@ static int st_sensors_set_drdy_int_pin(struct iio_dev *indio_dev,
 
 	switch (pdata->drdy_int_pin) {
 	case 1:
-		if (sdata->sensor_settings->drdy_irq.mask_int1 == 0) {
+		if (!sdata->sensor_settings->drdy_irq.int1.mask) {
 			dev_err(&indio_dev->dev,
 					"DRDY on INT1 not available.\n");
 			return -EINVAL;
@@ -301,7 +307,7 @@ static int st_sensors_set_drdy_int_pin(struct iio_dev *indio_dev,
 		sdata->drdy_int_pin = 1;
 		break;
 	case 2:
-		if (sdata->sensor_settings->drdy_irq.mask_int2 == 0) {
+		if (!sdata->sensor_settings->drdy_irq.int2.mask) {
 			dev_err(&indio_dev->dev,
 					"DRDY on INT2 not available.\n");
 			return -EINVAL;
@@ -314,7 +320,8 @@ static int st_sensors_set_drdy_int_pin(struct iio_dev *indio_dev,
 	}
 
 	if (pdata->open_drain) {
-		if (!sdata->sensor_settings->drdy_irq.addr_od)
+		if (!sdata->sensor_settings->drdy_irq.int1.addr_od &&
+		    !sdata->sensor_settings->drdy_irq.int2.addr_od)
 			dev_err(&indio_dev->dev,
 				"open drain requested but unsupported.\n");
 		else
@@ -345,6 +352,35 @@ static struct st_sensors_platform_data *st_sensors_of_probe(struct device *dev,
 
 	return pdata;
 }
+
+/**
+ * st_sensors_of_name_probe() - device tree probe for ST sensor name
+ * @dev: driver model representation of the device.
+ * @match: the OF match table for the device, containing compatible strings
+ *	but also a .data field with the corresponding internal kernel name
+ *	used by this sensor.
+ * @name: device name buffer reference.
+ * @len: device name buffer length.
+ *
+ * In effect this function matches a compatible string to an internal kernel
+ * name for a certain sensor device, so that the rest of the autodetection can
+ * rely on that name from this point on. I2C/SPI devices will be renamed
+ * to match the internal kernel convention.
+ */
+void st_sensors_of_name_probe(struct device *dev,
+			      const struct of_device_id *match,
+			      char *name, int len)
+{
+	const struct of_device_id *of_id;
+
+	of_id = of_match_device(match, dev);
+	if (!of_id || !of_id->data)
+		return;
+
+	/* The name from the OF match takes precedence if present */
+	strlcpy(name, of_id->data, len);
+}
+EXPORT_SYMBOL(st_sensors_of_name_probe);
 #else
 static struct st_sensors_platform_data *st_sensors_of_probe(struct device *dev,
 		struct st_sensors_platform_data *defdata)
@@ -401,12 +437,31 @@ int st_sensors_init_sensor(struct iio_dev *indio_dev,
 			return err;
 	}
 
-	if (sdata->int_pin_open_drain) {
-		dev_info(&indio_dev->dev,
-			 "set interrupt line to open drain mode\n");
+	/* set DAS */
+	if (sdata->sensor_settings->das.addr) {
 		err = st_sensors_write_data_with_mask(indio_dev,
-				sdata->sensor_settings->drdy_irq.addr_od,
-				sdata->sensor_settings->drdy_irq.mask_od, 1);
+					sdata->sensor_settings->das.addr,
+					sdata->sensor_settings->das.mask, 1);
+		if (err < 0)
+			return err;
+	}
+
+	if (sdata->int_pin_open_drain) {
+		u8 addr, mask;
+
+		if (sdata->drdy_int_pin == 1) {
+			addr = sdata->sensor_settings->drdy_irq.int1.addr_od;
+			mask = sdata->sensor_settings->drdy_irq.int1.mask_od;
+		} else {
+			addr = sdata->sensor_settings->drdy_irq.int2.addr_od;
+			mask = sdata->sensor_settings->drdy_irq.int2.mask_od;
+		}
+
+		dev_info(&indio_dev->dev,
+			 "set interrupt line to open drain mode on pin %d\n",
+			 sdata->drdy_int_pin);
+		err = st_sensors_write_data_with_mask(indio_dev, addr,
+						      mask, 1);
 		if (err < 0)
 			return err;
 	}
@@ -420,11 +475,21 @@ EXPORT_SYMBOL(st_sensors_init_sensor);
 int st_sensors_set_dataready_irq(struct iio_dev *indio_dev, bool enable)
 {
 	int err;
-	u8 drdy_mask;
+	u8 drdy_addr, drdy_mask;
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
 
-	if (!sdata->sensor_settings->drdy_irq.addr)
+	if (!sdata->sensor_settings->drdy_irq.int1.addr &&
+	    !sdata->sensor_settings->drdy_irq.int2.addr) {
+		/*
+		 * there are some devices (e.g. LIS3MDL) where drdy line is
+		 * routed to a given pin and it is not possible to select a
+		 * different one. Take into account irq status register
+		 * to understand if irq trigger can be properly supported
+		 */
+		if (sdata->sensor_settings->drdy_irq.stat_drdy.addr)
+			sdata->hw_irq_trigger = enable;
 		return 0;
+	}
 
 	/* Enable/Disable the interrupt generator 1. */
 	if (sdata->sensor_settings->drdy_irq.ig1.en_addr > 0) {
@@ -436,18 +501,20 @@ int st_sensors_set_dataready_irq(struct iio_dev *indio_dev, bool enable)
 			goto st_accel_set_dataready_irq_error;
 	}
 
-	if (sdata->drdy_int_pin == 1)
-		drdy_mask = sdata->sensor_settings->drdy_irq.mask_int1;
-	else
-		drdy_mask = sdata->sensor_settings->drdy_irq.mask_int2;
+	if (sdata->drdy_int_pin == 1) {
+		drdy_addr = sdata->sensor_settings->drdy_irq.int1.addr;
+		drdy_mask = sdata->sensor_settings->drdy_irq.int1.mask;
+	} else {
+		drdy_addr = sdata->sensor_settings->drdy_irq.int2.addr;
+		drdy_mask = sdata->sensor_settings->drdy_irq.int2.mask;
+	}
 
 	/* Flag to the poll function that the hardware trigger is in use */
 	sdata->hw_irq_trigger = enable;
 
 	/* Enable/Disable the interrupt generator for data ready. */
-	err = st_sensors_write_data_with_mask(indio_dev,
-					sdata->sensor_settings->drdy_irq.addr,
-					drdy_mask, (int)enable);
+	err = st_sensors_write_data_with_mask(indio_dev, drdy_addr,
+					      drdy_mask, (int)enable);
 
 st_accel_set_dataready_irq_error:
 	return err;
@@ -483,8 +550,10 @@ static int st_sensors_read_axis_data(struct iio_dev *indio_dev,
 	int err;
 	u8 *outdata;
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
-	unsigned int byte_for_channel = ch->scan_type.realbits >> 3;
+	unsigned int byte_for_channel;
 
+	byte_for_channel = DIV_ROUND_UP(ch->scan_type.realbits +
+					ch->scan_type.shift, 8);
 	outdata = kmalloc(byte_for_channel, GFP_KERNEL);
 	if (!outdata)
 		return -ENOMEM;
@@ -539,6 +608,31 @@ out:
 }
 EXPORT_SYMBOL(st_sensors_read_info_raw);
 
+static int st_sensors_init_interface_mode(struct iio_dev *indio_dev,
+			const struct st_sensor_settings *sensor_settings)
+{
+	struct st_sensor_data *sdata = iio_priv(indio_dev);
+	struct device_node *np = sdata->dev->of_node;
+	struct st_sensors_platform_data *pdata;
+
+	pdata = (struct st_sensors_platform_data *)sdata->dev->platform_data;
+	if (((np && of_property_read_bool(np, "spi-3wire")) ||
+	     (pdata && pdata->spi_3wire)) && sensor_settings->sim.addr) {
+		int err;
+
+		err = sdata->tf->write_byte(&sdata->tb, sdata->dev,
+					    sensor_settings->sim.addr,
+					    sensor_settings->sim.value);
+		if (err < 0) {
+			dev_err(&indio_dev->dev,
+				"failed to init interface mode\n");
+			return err;
+		}
+	}
+
+	return 0;
+}
+
 int st_sensors_check_device_support(struct iio_dev *indio_dev,
 			int num_sensors_list,
 			const struct st_sensor_settings *sensor_settings)
@@ -562,6 +656,10 @@ int st_sensors_check_device_support(struct iio_dev *indio_dev,
 							indio_dev->name);
 		return -ENODEV;
 	}
+
+	err = st_sensors_init_interface_mode(indio_dev, &sensor_settings[i]);
+	if (err < 0)
+		return err;
 
 	if (sensor_settings[i].wai_addr) {
 		err = sdata->tf->read_byte(&sdata->tb, sdata->dev,
@@ -612,7 +710,7 @@ EXPORT_SYMBOL(st_sensors_sysfs_sampling_frequency_avail);
 ssize_t st_sensors_sysfs_scale_avail(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	int i, len = 0;
+	int i, len = 0, q, r;
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
 
@@ -621,8 +719,10 @@ ssize_t st_sensors_sysfs_scale_avail(struct device *dev,
 		if (sdata->sensor_settings->fs.fs_avl[i].num == 0)
 			break;
 
-		len += scnprintf(buf + len, PAGE_SIZE - len, "0.%06u ",
-				sdata->sensor_settings->fs.fs_avl[i].gain);
+		q = sdata->sensor_settings->fs.fs_avl[i].gain / 1000000;
+		r = sdata->sensor_settings->fs.fs_avl[i].gain % 1000000;
+
+		len += scnprintf(buf + len, PAGE_SIZE - len, "%u.%06u ", q, r);
 	}
 	mutex_unlock(&indio_dev->mlock);
 	buf[len - 1] = '\n';

@@ -1,20 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * adv7183 - Analog Devices ADV7183 video decoder registers
  *
  * Copyright (c) 2011 Analog Devices Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #ifndef _ADV7183_REGS_H_
@@ -87,7 +75,7 @@
 #define ADV7183_LETTERBOX_3        0x9D /* Letterbox 3 */
 #define ADV7183_CRC_EN             0xB2 /* CRC enable */
 #define ADV7183_ADC_SWITCH_1       0xC3 /* ADC switch 1 */
-#define ADV7183_ADC_SWITCH_2       0xC4 /* ADC swithc 2 */
+#define ADV7183_ADC_SWITCH_2       0xC4 /* ADC switch 2 */
 #define ADV7183_LETTERBOX_CTRL_1   0xDC /* Letterbox control 1 */
 #define ADV7183_LETTERBOX_CTRL_2   0xDD /* Letterbox control 2 */
 #define ADV7183_SD_OFFSET_CB       0xE1 /* SD offset Cb */

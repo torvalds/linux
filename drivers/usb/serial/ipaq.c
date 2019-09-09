@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * USB Compaq iPAQ driver
  *
  *	Copyright (C) 2001 - 2002
  *	    Ganesh Varadarajan <ganesh@veritas.com>
- *
- *	This program is free software; you can redistribute it and/or modify
- *	it under the terms of the GNU General Public License as published by
- *	the Free Software Foundation; either version 2 of the License, or
- *	(at your option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -33,7 +29,8 @@ static int initial_wait;
 /* Function prototypes for an ipaq */
 static int  ipaq_open(struct tty_struct *tty,
 			struct usb_serial_port *port);
-static int  ipaq_calc_num_ports(struct usb_serial *serial);
+static int ipaq_calc_num_ports(struct usb_serial *serial,
+					struct usb_serial_endpoints *epds);
 static int  ipaq_startup(struct usb_serial *serial);
 
 static const struct usb_device_id ipaq_id_table[] = {
@@ -550,42 +547,38 @@ static int ipaq_open(struct tty_struct *tty,
 	return usb_serial_generic_open(tty, port);
 }
 
-static int ipaq_calc_num_ports(struct usb_serial *serial)
+static int ipaq_calc_num_ports(struct usb_serial *serial,
+					struct usb_serial_endpoints *epds)
 {
 	/*
-	 * some devices have 3 endpoints, the 3rd of which
-	 * must be ignored as it would make the core
-	 * create a second port which oopses when used
+	 * Some of the devices in ipaq_id_table[] are composite, and we
+	 * shouldn't bind to all the interfaces. This test will rule out
+	 * some obviously invalid possibilities.
 	 */
-	int ipaq_num_ports = 1;
-
-	dev_dbg(&serial->dev->dev, "%s - numberofendpoints: %d\n", __func__,
-		(int)serial->interface->cur_altsetting->desc.bNumEndpoints);
+	if (epds->num_bulk_in == 0 || epds->num_bulk_out == 0)
+		return -ENODEV;
 
 	/*
-	 * a few devices have 4 endpoints, seemingly Yakuma devices,
-	 * and we need the second pair, so let them have 2 ports
-	 *
-	 * TODO: can we drop port 1 ?
+	 * A few devices have four endpoints, seemingly Yakuma devices, and
+	 * we need the second pair.
 	 */
-	if (serial->interface->cur_altsetting->desc.bNumEndpoints > 3) {
-		ipaq_num_ports = 2;
+	if (epds->num_bulk_in > 1 && epds->num_bulk_out > 1) {
+		epds->bulk_in[0] = epds->bulk_in[1];
+		epds->bulk_out[0] = epds->bulk_out[1];
 	}
 
-	return ipaq_num_ports;
-}
+	/*
+	 * Other devices have 3 endpoints, but we only use the first bulk in
+	 * and out endpoints.
+	 */
+	epds->num_bulk_in = 1;
+	epds->num_bulk_out = 1;
 
+	return 1;
+}
 
 static int ipaq_startup(struct usb_serial *serial)
 {
-	/* Some of the devices in ipaq_id_table[] are composite, and we
-	 * shouldn't bind to all the interfaces.  This test will rule out
-	 * some obviously invalid possibilities.
-	 */
-	if (serial->num_bulk_in < serial->num_ports ||
-			serial->num_bulk_out < serial->num_ports)
-		return -ENODEV;
-
 	if (serial->dev->actconfig->desc.bConfigurationValue != 1) {
 		/*
 		 * FIXME: HP iPaq rx3715, possibly others, have 1 config that
@@ -596,10 +589,6 @@ static int ipaq_startup(struct usb_serial *serial)
 			serial->dev->actconfig->desc.bConfigurationValue);
 		return -ENODEV;
 	}
-
-	dev_dbg(&serial->dev->dev,
-		"%s - iPAQ module configured for %d ports\n", __func__,
-		serial->num_ports);
 
 	return usb_reset_configuration(serial->dev);
 }

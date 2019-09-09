@@ -1,20 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Functions for accessing OPL4 devices
  * Copyright (c) 2003 by Clemens Ladisch <clemens@ladisch.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 #include "opl4_local.h"
@@ -29,7 +16,7 @@ MODULE_AUTHOR("Clemens Ladisch <clemens@ladisch.de>");
 MODULE_DESCRIPTION("OPL4 driver");
 MODULE_LICENSE("GPL");
 
-static void inline snd_opl4_wait(struct snd_opl4 *opl4)
+static inline void snd_opl4_wait(struct snd_opl4 *opl4)
 {
 	int timeout = 10;
 	while ((inb(opl4->fm_port) & OPL4_STATUS_BUSY) && --timeout > 0)
@@ -153,7 +140,7 @@ static int snd_opl4_detect(struct snd_opl4 *opl4)
 	return 0;
 }
 
-#if defined(CONFIG_SND_SEQUENCER) || (defined(MODULE) && defined(CONFIG_SND_SEQUENCER_MODULE))
+#if IS_ENABLED(CONFIG_SND_SEQUENCER)
 static void snd_opl4_seq_dev_free(struct snd_seq_device *seq_dev)
 {
 	struct snd_opl4 *opl4 = seq_dev->private_data;
@@ -249,7 +236,7 @@ int snd_opl4_create(struct snd_card *card,
 	snd_opl4_create_mixer(opl4);
 	snd_opl4_create_proc(opl4);
 
-#if defined(CONFIG_SND_SEQUENCER) || (defined(MODULE) && defined(CONFIG_SND_SEQUENCER_MODULE))
+#if IS_ENABLED(CONFIG_SND_SEQUENCER)
 	opl4->seq_client = -1;
 	if (opl4->hardware < OPL3_HW_OPL4_ML)
 		snd_opl4_create_seq_dev(opl4, seq_device);
@@ -263,15 +250,3 @@ int snd_opl4_create(struct snd_card *card,
 }
 
 EXPORT_SYMBOL(snd_opl4_create);
-
-static int __init alsa_opl4_init(void)
-{
-	return 0;
-}
-
-static void __exit alsa_opl4_exit(void)
-{
-}
-
-module_init(alsa_opl4_init)
-module_exit(alsa_opl4_exit)

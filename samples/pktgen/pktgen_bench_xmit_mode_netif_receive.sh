@@ -1,4 +1,5 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-2.0
 #
 # Benchmark script:
 #  - developed for benchmarking ingress qdisc path
@@ -39,16 +40,20 @@ if [ -z "$DEST_IP" ]; then
 fi
 [ -z "$DST_MAC" ] && DST_MAC="90:e2:ba:ff:ff:ff"
 [ -z "$BURST" ] && BURST=1024
+[ -z "$COUNT" ] && COUNT="10000000" # Zero means indefinitely
+if [ -n "$DST_PORT" ]; then
+    read -r DST_MIN DST_MAX <<< $(parse_ports $DST_PORT)
+    validate_ports $DST_MIN $DST_MAX
+fi
 
 # Base Config
 DELAY="0"        # Zero means max speed
-COUNT="10000000" # Zero means indefinitely
 
 # General cleanup everything since last run
 pg_ctrl "reset"
 
 # Threads are specified with parameter -t value in $THREADS
-for ((thread = 0; thread < $THREADS; thread++)); do
+for ((thread = $F_THREAD; thread <= $L_THREAD; thread++)); do
     # The device name is extended with @name, using thread number to
     # make then unique, but any name will do.
     dev=${DEV}@${thread}
@@ -68,6 +73,13 @@ for ((thread = 0; thread < $THREADS; thread++)); do
     pg_set $dev "dst_mac $DST_MAC"
     pg_set $dev "dst$IP6 $DEST_IP"
 
+    if [ -n "$DST_PORT" ]; then
+	# Single destination port or random port range
+	pg_set $dev "flag UDPDST_RND"
+	pg_set $dev "udp_dst_min $DST_MIN"
+	pg_set $dev "udp_dst_max $DST_MAX"
+    fi
+
     # Inject packet into RX path of stack
     pg_set $dev "xmit_mode netif_receive"
 
@@ -81,7 +93,7 @@ pg_ctrl "start"
 echo "Done" >&2
 
 # Print results
-for ((thread = 0; thread < $THREADS; thread++)); do
+for ((thread = $F_THREAD; thread <= $L_THREAD; thread++)); do
     dev=${DEV}@${thread}
     echo "Device: $dev"
     cat /proc/net/pktgen/$dev | grep -A2 "Result:"

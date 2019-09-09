@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for the ov7660 sensor
  *
@@ -9,11 +10,6 @@
  * Copyright (c) 2006 Willem Duinker
  * v4l2 interface modeled after the V4L2 driver
  * for SN9C10x PC Camera Controllers
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation, version 2.
- *
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -330,7 +326,7 @@ static int ov7660_set_gain(struct gspca_dev *gspca_dev, __s32 val)
 	u8 i2c_data = val;
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	PDEBUG(D_CONF, "Setting gain to %d", val);
+	gspca_dbg(gspca_dev, D_CONF, "Setting gain to %d\n", val);
 
 	err = m5602_write_sensor(sd, OV7660_GAIN, &i2c_data, 1);
 	return err;
@@ -343,7 +339,7 @@ static int ov7660_set_auto_white_balance(struct gspca_dev *gspca_dev,
 	u8 i2c_data;
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	PDEBUG(D_CONF, "Set auto white balance to %d", val);
+	gspca_dbg(gspca_dev, D_CONF, "Set auto white balance to %d\n", val);
 
 	err = m5602_read_sensor(sd, OV7660_COM8, &i2c_data, 1);
 	if (err < 0)
@@ -361,7 +357,7 @@ static int ov7660_set_auto_gain(struct gspca_dev *gspca_dev, __s32 val)
 	u8 i2c_data;
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	PDEBUG(D_CONF, "Set auto gain control to %d", val);
+	gspca_dbg(gspca_dev, D_CONF, "Set auto gain control to %d\n", val);
 
 	err = m5602_read_sensor(sd, OV7660_COM8, &i2c_data, 1);
 	if (err < 0)
@@ -379,7 +375,7 @@ static int ov7660_set_auto_exposure(struct gspca_dev *gspca_dev,
 	u8 i2c_data;
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	PDEBUG(D_CONF, "Set auto exposure control to %d", val);
+	gspca_dbg(gspca_dev, D_CONF, "Set auto exposure control to %d\n", val);
 
 	err = m5602_read_sensor(sd, OV7660_COM8, &i2c_data, 1);
 	if (err < 0)
@@ -397,7 +393,8 @@ static int ov7660_set_hvflip(struct gspca_dev *gspca_dev)
 	u8 i2c_data;
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	PDEBUG(D_CONF, "Set hvflip to %d, %d", sd->hflip->val, sd->vflip->val);
+	gspca_dbg(gspca_dev, D_CONF, "Set hvflip to %d, %d\n",
+		  sd->hflip->val, sd->vflip->val);
 
 	i2c_data = (sd->hflip->val << 5) | (sd->vflip->val << 4);
 

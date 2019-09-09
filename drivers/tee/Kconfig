@@ -1,0 +1,20 @@
+# SPDX-License-Identifier: GPL-2.0-only
+# Generic Trusted Execution Environment Configuration
+config TEE
+	tristate "Trusted Execution Environment support"
+	depends on HAVE_ARM_SMCCC || COMPILE_TEST
+	select DMA_SHARED_BUFFER
+	select GENERIC_ALLOCATOR
+	help
+	  This implements a generic interface towards a Trusted Execution
+	  Environment (TEE).
+
+if TEE
+
+menu "TEE drivers"
+
+source "drivers/tee/optee/Kconfig"
+
+endmenu
+
+endif

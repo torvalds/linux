@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	X.25 Packet Layer release 002
  *
@@ -6,12 +7,6 @@
  *	screw up. It might even work.
  *
  *	This code REQUIRES 2.1.15 or higher
- *
- *	This module:
- *		This module is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  *
  *	History
  *	X.25 001	Jonathan Naylor	Started coding.
@@ -26,18 +21,17 @@
 #include <net/tcp_states.h>
 #include <net/x25.h>
 
-static void x25_heartbeat_expiry(unsigned long);
-static void x25_timer_expiry(unsigned long);
+static void x25_heartbeat_expiry(struct timer_list *t);
+static void x25_timer_expiry(struct timer_list *t);
 
 void x25_init_timers(struct sock *sk)
 {
 	struct x25_sock *x25 = x25_sk(sk);
 
-	setup_timer(&x25->timer, x25_timer_expiry, (unsigned long)sk);
+	timer_setup(&x25->timer, x25_timer_expiry, 0);
 
 	/* initialized by sock_init_data */
-	sk->sk_timer.data     = (unsigned long)sk;
-	sk->sk_timer.function = &x25_heartbeat_expiry;
+	sk->sk_timer.function = x25_heartbeat_expiry;
 }
 
 void x25_start_heartbeat(struct sock *sk)
@@ -93,9 +87,9 @@ unsigned long x25_display_timer(struct sock *sk)
 	return x25->timer.expires - jiffies;
 }
 
-static void x25_heartbeat_expiry(unsigned long param)
+static void x25_heartbeat_expiry(struct timer_list *t)
 {
-	struct sock *sk = (struct sock *)param;
+	struct sock *sk = from_timer(sk, t, sk_timer);
 
 	bh_lock_sock(sk);
 	if (sock_owned_by_user(sk)) /* can currently only occur in state 3 */
@@ -160,9 +154,10 @@ static inline void x25_do_timer_expiry(struct sock * sk)
 	}
 }
 
-static void x25_timer_expiry(unsigned long param)
+static void x25_timer_expiry(struct timer_list *t)
 {
-	struct sock *sk = (struct sock *)param;
+	struct x25_sock *x25 = from_timer(x25, t, timer);
+	struct sock *sk = &x25->sk;
 
 	bh_lock_sock(sk);
 	if (sock_owned_by_user(sk)) { /* can currently only occur in state 3 */

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
     On Screen Display cx23415 Framebuffer driver
 
@@ -23,32 +24,7 @@
 
     Copyright (C) 2006  Ian Armstrong <ian@iarmst.demon.co.uk>
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/fb.h>
-#include <linux/ivtvfb.h>
-#include <linux/slab.h>
-
-#ifdef CONFIG_X86_64
-#include <asm/pat.h>
-#endif
 
 #include "ivtv-driver.h"
 #include "ivtv-cards.h"
@@ -57,9 +33,17 @@
 #include "ivtv-mailbox.h"
 #include "ivtv-firmware.h"
 
+#include <linux/fb.h>
+#include <linux/ivtvfb.h>
+
+#ifdef CONFIG_X86_64
+#include <asm/pat.h>
+#endif
+
 /* card parameters */
 static int ivtvfb_card_id = -1;
 static int ivtvfb_debug = 0;
+static bool ivtvfb_force_pat = IS_ENABLED(CONFIG_VIDEO_FB_IVTV_FORCE_PAT);
 static bool osd_laced;
 static int osd_depth;
 static int osd_upper;
@@ -69,6 +53,7 @@ static int osd_xres;
 
 module_param(ivtvfb_card_id, int, 0444);
 module_param_named(debug,ivtvfb_debug, int, 0644);
+module_param_named(force_pat, ivtvfb_force_pat, bool, 0644);
 module_param(osd_laced, bool, 0444);
 module_param(osd_depth, int, 0444);
 module_param(osd_upper, int, 0444);
@@ -83,6 +68,9 @@ MODULE_PARM_DESC(ivtvfb_card_id,
 MODULE_PARM_DESC(debug,
 		 "Debug level (bitmask). Default: errors only\n"
 		 "\t\t\t(debug = 3 gives full debugging)");
+
+MODULE_PARM_DESC(force_pat,
+		 "Force initialization on x86 PAT-enabled systems (bool).\n");
 
 /* Why upper, left, xres, yres, depth, laced ? To match terminology used
    by fbset.
@@ -293,8 +281,7 @@ static int ivtvfb_prep_dec_dma_to_device(struct ivtv *itv,
 	/* Map User DMA */
 	if (ivtv_udma_setup(itv, ivtv_dest_addr, userbuf, size_in_bytes) <= 0) {
 		mutex_unlock(&itv->udma.lock);
-		IVTVFB_WARN("ivtvfb_prep_dec_dma_to_device, "
-			       "Error with get_user_pages: %d bytes, %d pages returned\n",
+		IVTVFB_WARN("ivtvfb_prep_dec_dma_to_device, Error with get_user_pages: %d bytes, %d pages returned\n",
 			       size_in_bytes, itv->udma.page_count);
 
 		/* get_user_pages must have failed completely */
@@ -352,8 +339,8 @@ static int ivtvfb_prep_frame(struct ivtv *itv, int cmd, void __user *source,
 
 	/* Not fatal, but will have undesirable results */
 	if ((unsigned long)source & 3)
-		IVTVFB_WARN("ivtvfb_prep_frame: Source address not 32 bit aligned (0x%08lx)\n",
-			(unsigned long)source);
+		IVTVFB_WARN("ivtvfb_prep_frame: Source address not 32 bit aligned (%p)\n",
+			    source);
 
 	if (dest_offset & 3)
 		IVTVFB_WARN("ivtvfb_prep_frame: Dest offset not 32 bit aligned (%ld)\n", dest_offset);
@@ -362,13 +349,11 @@ static int ivtvfb_prep_frame(struct ivtv *itv, int cmd, void __user *source,
 		IVTVFB_WARN("ivtvfb_prep_frame: Count not a multiple of 4 (%d)\n", count);
 
 	/* Check Source */
-	if (!access_ok(VERIFY_READ, source + dest_offset, count)) {
-		IVTVFB_WARN("Invalid userspace pointer 0x%08lx\n",
-			(unsigned long)source);
+	if (!access_ok(source + dest_offset, count)) {
+		IVTVFB_WARN("Invalid userspace pointer %p\n", source);
 
-		IVTVFB_DEBUG_WARN("access_ok() failed for offset 0x%08lx source 0x%08lx count %d\n",
-			dest_offset, (unsigned long)source,
-			count);
+		IVTVFB_DEBUG_WARN("access_ok() failed for offset 0x%08lx source %p count %d\n",
+				  dest_offset, source, count);
 		return -EINVAL;
 	}
 
@@ -632,7 +617,7 @@ static int ivtvfb_get_fix(struct ivtv *itv, struct fb_fix_screeninfo *fix)
 
 	IVTVFB_DEBUG_INFO("ivtvfb_get_fix\n");
 	memset(fix, 0, sizeof(struct fb_fix_screeninfo));
-	strlcpy(fix->id, "cx23415 TV out", sizeof(fix->id));
+	strscpy(fix->id, "cx23415 TV out", sizeof(fix->id));
 	fix->smem_start = oi->video_pbase;
 	fix->smem_len = oi->video_buffer_size;
 	fix->type = FB_TYPE_PACKED_PIXELS;
@@ -1085,7 +1070,7 @@ static int ivtvfb_init_vidmode(struct ivtv *itv)
 
 	/* Allocate the pseudo palette */
 	oi->ivtvfb_info.pseudo_palette =
-		kmalloc(sizeof(u32) * 16, GFP_KERNEL|__GFP_NOWARN);
+		kmalloc_array(16, sizeof(u32), GFP_KERNEL|__GFP_NOWARN);
 
 	if (!oi->ivtvfb_info.pseudo_palette) {
 		IVTVFB_ERR("abort, unable to alloc pseudo palette\n");
@@ -1175,8 +1160,15 @@ static int ivtvfb_init_card(struct ivtv *itv)
 
 #ifdef CONFIG_X86_64
 	if (pat_enabled()) {
-		pr_warn("ivtvfb needs PAT disabled, boot with nopat kernel parameter\n");
-		return -ENODEV;
+		if (ivtvfb_force_pat) {
+			pr_info("PAT is enabled. Write-combined framebuffer caching will be disabled.\n");
+			pr_info("To enable caching, boot with nopat kernel parameter\n");
+		} else {
+			pr_warn("ivtvfb needs PAT disabled for write-combined framebuffer caching.\n");
+			pr_warn("Boot with nopat kernel parameter to use caching, or use the\n");
+			pr_warn("force_pat module parameter to run with caching disabled\n");
+			return -ENODEV;
+		}
 	}
 #endif
 
@@ -1186,7 +1178,7 @@ static int ivtvfb_init_card(struct ivtv *itv)
 	}
 
 	itv->osd_info = kzalloc(sizeof(struct osd_info),
-					GFP_ATOMIC|__GFP_NOWARN);
+					GFP_KERNEL|__GFP_NOWARN);
 	if (itv->osd_info == NULL) {
 		IVTVFB_ERR("Failed to allocate memory for osd_info\n");
 		return -ENOMEM;
@@ -1228,6 +1220,11 @@ static int ivtvfb_init_card(struct ivtv *itv)
 
 	/* Allocate DMA */
 	ivtv_udma_alloc(itv);
+	itv->streams[IVTV_DEC_STREAM_TYPE_YUV].vdev.device_caps |=
+		V4L2_CAP_VIDEO_OUTPUT_OVERLAY;
+	itv->streams[IVTV_DEC_STREAM_TYPE_MPG].vdev.device_caps |=
+		V4L2_CAP_VIDEO_OUTPUT_OVERLAY;
+	itv->v4l2_cap |= V4L2_CAP_VIDEO_OUTPUT_OVERLAY;
 	return 0;
 
 }
@@ -1254,11 +1251,12 @@ static int ivtvfb_callback_cleanup(struct device *dev, void *p)
 	struct osd_info *oi = itv->osd_info;
 
 	if (itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT) {
-		if (unregister_framebuffer(&itv->osd_info->ivtvfb_info)) {
-			IVTVFB_WARN("Framebuffer %d is in use, cannot unload\n",
-				       itv->instance);
-			return 0;
-		}
+		itv->streams[IVTV_DEC_STREAM_TYPE_YUV].vdev.device_caps &=
+			~V4L2_CAP_VIDEO_OUTPUT_OVERLAY;
+		itv->streams[IVTV_DEC_STREAM_TYPE_MPG].vdev.device_caps &=
+			~V4L2_CAP_VIDEO_OUTPUT_OVERLAY;
+		itv->v4l2_cap &= ~V4L2_CAP_VIDEO_OUTPUT_OVERLAY;
+		unregister_framebuffer(&itv->osd_info->ivtvfb_info);
 		IVTVFB_INFO("Unregister framebuffer %d\n", itv->instance);
 		itv->ivtvfb_restore = NULL;
 		ivtvfb_blank(FB_BLANK_VSYNC_SUSPEND, &oi->ivtvfb_info);
@@ -1276,7 +1274,7 @@ static int __init ivtvfb_init(void)
 
 
 	if (ivtvfb_card_id < -1 || ivtvfb_card_id >= IVTV_MAX_CARDS) {
-		printk(KERN_ERR "ivtvfb:  ivtvfb_card_id parameter is out of range (valid range: -1 - %d)\n",
+		pr_err("ivtvfb_card_id parameter is out of range (valid range: -1 - %d)\n",
 		     IVTV_MAX_CARDS - 1);
 		return -EINVAL;
 	}
@@ -1285,7 +1283,7 @@ static int __init ivtvfb_init(void)
 	err = driver_for_each_device(drv, NULL, &registered, ivtvfb_callback_init);
 	(void)err;	/* suppress compiler warning */
 	if (!registered) {
-		printk(KERN_ERR "ivtvfb:  no cards found\n");
+		pr_err("no cards found\n");
 		return -ENODEV;
 	}
 	return 0;
@@ -1296,7 +1294,7 @@ static void ivtvfb_cleanup(void)
 	struct device_driver *drv;
 	int err;
 
-	printk(KERN_INFO "ivtvfb:  Unloading framebuffer module\n");
+	pr_info("Unloading framebuffer module\n");
 
 	drv = driver_find("ivtv", &pci_bus_type);
 	err = driver_for_each_device(drv, NULL, NULL, ivtvfb_callback_cleanup);

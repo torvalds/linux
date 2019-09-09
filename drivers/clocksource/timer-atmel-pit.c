@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * at91sam926x_time.c - Periodic Interval Timer (PIT) for at91sam926x
  *
  * Copyright (C) 2005-2006 M. Amine SAYA, ATMEL Rousset, France
  * Revision	 2005 M. Nicolas Diremdjian, ATMEL Rousset, France
  * Converted to ClockSource/ClockEvents by David Brownell.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #define pr_fmt(fmt)	"AT91: PIT: " fmt
@@ -73,7 +70,7 @@ static inline void pit_write(void __iomem *base, unsigned int reg_offset, unsign
  * Clocksource:  just a monotonic counter of MCK/16 cycles.
  * We don't care whether or not PIT irqs are enabled.
  */
-static cycle_t read_pit_clk(struct clocksource *cs)
+static u64 read_pit_clk(struct clocksource *cs)
 {
 	struct pit_data *data = clksrc_to_pit_data(cs);
 	unsigned long flags;
@@ -180,26 +177,29 @@ static int __init at91sam926x_pit_dt_init(struct device_node *node)
 	data->base = of_iomap(node, 0);
 	if (!data->base) {
 		pr_err("Could not map PIT address\n");
-		return -ENXIO;
+		ret = -ENXIO;
+		goto exit;
 	}
 
 	data->mck = of_clk_get(node, 0);
 	if (IS_ERR(data->mck)) {
 		pr_err("Unable to get mck clk\n");
-		return PTR_ERR(data->mck);
+		ret = PTR_ERR(data->mck);
+		goto exit;
 	}
 
 	ret = clk_prepare_enable(data->mck);
 	if (ret) {
 		pr_err("Unable to enable mck\n");
-		return ret;
+		goto exit;
 	}
 
 	/* Get the interrupts property */
 	data->irq = irq_of_parse_and_map(node, 0);
 	if (!data->irq) {
 		pr_err("Unable to get IRQ from DT\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto exit;
 	}
 
 	/*
@@ -226,8 +226,8 @@ static int __init at91sam926x_pit_dt_init(struct device_node *node)
 	
 	ret = clocksource_register_hz(&data->clksrc, pit_rate);
 	if (ret) {
-		pr_err("Failed to register clocksource");
-		return ret;
+		pr_err("Failed to register clocksource\n");
+		goto exit;
 	}
 
 	/* Set up irq handler */
@@ -236,7 +236,8 @@ static int __init at91sam926x_pit_dt_init(struct device_node *node)
 			  "at91_tick", data);
 	if (ret) {
 		pr_err("Unable to setup IRQ\n");
-		return ret;
+		clocksource_unregister(&data->clksrc);
+		goto exit;
 	}
 
 	/* Set up and register clockevents */
@@ -254,6 +255,10 @@ static int __init at91sam926x_pit_dt_init(struct device_node *node)
 	clockevents_register_device(&data->clkevt);
 
 	return 0;
+
+exit:
+	kfree(data);
+	return ret;
 }
-CLOCKSOURCE_OF_DECLARE(at91sam926x_pit, "atmel,at91sam9260-pit",
+TIMER_OF_DECLARE(at91sam926x_pit, "atmel,at91sam9260-pit",
 		       at91sam926x_pit_dt_init);

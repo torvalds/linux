@@ -1,13 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Create default crypto algorithm instances.
  *
  * Copyright (c) 2006 Herbert Xu <herbert@gondor.apana.org.au>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
- *
  */
 
 #include <crypto/internal/aead.h>
@@ -19,7 +14,7 @@
 #include <linux/module.h>
 #include <linux/notifier.h>
 #include <linux/rtnetlink.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 
@@ -122,7 +117,6 @@ static int cryptomgr_schedule_probe(struct crypto_larval *larval)
 		int notnum = 0;
 
 		name = ++p;
-		len = 0;
 
 		for (; isalnum(*p) || *p == '-' || *p == '_'; p++)
 			notnum |= !isdigit(*p);
@@ -247,12 +241,8 @@ static int cryptomgr_schedule_test(struct crypto_alg *alg)
 	memcpy(param->alg, alg->cra_name, sizeof(param->alg));
 	type = alg->cra_flags;
 
-	/* This piece of crap needs to disappear into per-type test hooks. */
-	if (!((type ^ CRYPTO_ALG_TYPE_BLKCIPHER) &
-	      CRYPTO_ALG_TYPE_BLKCIPHER_MASK) && !(type & CRYPTO_ALG_GENIV) &&
-	    ((alg->cra_flags & CRYPTO_ALG_TYPE_MASK) ==
-	     CRYPTO_ALG_TYPE_BLKCIPHER ? alg->cra_blkcipher.ivsize :
-					 alg->cra_ablkcipher.ivsize))
+	/* Do not test internal algorithms. */
+	if (type & CRYPTO_ALG_INTERNAL)
 		type |= CRYPTO_ALG_TESTED;
 
 	param->type = type;
@@ -279,6 +269,8 @@ static int cryptomgr_notify(struct notifier_block *this, unsigned long msg,
 		return cryptomgr_schedule_probe(data);
 	case CRYPTO_MSG_ALG_REGISTER:
 		return cryptomgr_schedule_test(data);
+	case CRYPTO_MSG_ALG_LOADED:
+		break;
 	}
 
 	return NOTIFY_DONE;
@@ -299,7 +291,13 @@ static void __exit cryptomgr_exit(void)
 	BUG_ON(err);
 }
 
-subsys_initcall(cryptomgr_init);
+/*
+ * This is arch_initcall() so that the crypto self-tests are run on algorithms
+ * registered early by subsys_initcall().  subsys_initcall() is needed for
+ * generic implementations so that they're available for comparison tests when
+ * other implementations are registered later by module_init().
+ */
+arch_initcall(cryptomgr_init);
 module_exit(cryptomgr_exit);
 
 MODULE_LICENSE("GPL");

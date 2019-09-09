@@ -1,13 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *  Serial Port driver for Open Firmware platform devices
  *
  *    Copyright (C) 2006 Arnd Bergmann <arnd@arndb.de>, IBM Corp.
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version
- *  2 of the License, or (at your option) any later version.
- *
  */
 #include <linux/console.h>
 #include <linux/module.h>
@@ -18,12 +13,15 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
+#include <linux/pm_runtime.h>
 #include <linux/clk.h>
+#include <linux/reset.h>
 
 #include "8250.h"
 
 struct of_serial_info {
 	struct clk *clk;
+	struct reset_control *rst;
 	int type;
 	int line;
 };
@@ -60,22 +58,28 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 	struct resource resource;
 	struct device_node *np = ofdev->dev.of_node;
 	u32 clk, spd, prop;
-	int ret;
+	int ret, irq;
 
 	memset(port, 0, sizeof *port);
+
+	pm_runtime_enable(&ofdev->dev);
+	pm_runtime_get_sync(&ofdev->dev);
+
 	if (of_property_read_u32(np, "clock-frequency", &clk)) {
 
 		/* Get clk rate through clk driver if present */
 		info->clk = devm_clk_get(&ofdev->dev, NULL);
 		if (IS_ERR(info->clk)) {
-			dev_warn(&ofdev->dev,
-				"clk or clock-frequency not defined\n");
-			return PTR_ERR(info->clk);
+			ret = PTR_ERR(info->clk);
+			if (ret != -EPROBE_DEFER)
+				dev_warn(&ofdev->dev,
+					 "failed to get clock: %d\n", ret);
+			goto err_pmruntime;
 		}
 
 		ret = clk_prepare_enable(info->clk);
 		if (ret < 0)
-			return ret;
+			goto err_pmruntime;
 
 		clk = clk_get_rate(info->clk);
 	}
@@ -86,16 +90,50 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 	ret = of_address_to_resource(np, 0, &resource);
 	if (ret) {
 		dev_warn(&ofdev->dev, "invalid address\n");
-		goto out;
+		goto err_unprepare;
 	}
 
+	port->flags = UPF_SHARE_IRQ | UPF_BOOT_AUTOCONF | UPF_FIXED_PORT |
+				  UPF_FIXED_TYPE;
 	spin_lock_init(&port->lock);
-	port->mapbase = resource.start;
-	port->mapsize = resource_size(&resource);
 
-	/* Check for shifted address mapping */
-	if (of_property_read_u32(np, "reg-offset", &prop) == 0)
-		port->mapbase += prop;
+	if (resource_type(&resource) == IORESOURCE_IO) {
+		port->iotype = UPIO_PORT;
+		port->iobase = resource.start;
+	} else {
+		port->mapbase = resource.start;
+		port->mapsize = resource_size(&resource);
+
+		/* Check for shifted address mapping */
+		if (of_property_read_u32(np, "reg-offset", &prop) == 0)
+			port->mapbase += prop;
+
+		port->iotype = UPIO_MEM;
+		if (of_property_read_u32(np, "reg-io-width", &prop) == 0) {
+			switch (prop) {
+			case 1:
+				port->iotype = UPIO_MEM;
+				break;
+			case 2:
+				port->iotype = UPIO_MEM16;
+				break;
+			case 4:
+				port->iotype = of_device_is_big_endian(np) ?
+					       UPIO_MEM32BE : UPIO_MEM32;
+				break;
+			default:
+				dev_warn(&ofdev->dev, "unsupported reg-io-width (%d)\n",
+					 prop);
+				ret = -EINVAL;
+				goto err_unprepare;
+			}
+		}
+		port->flags |= UPF_IOREMAP;
+	}
+
+	/* Compatibility with the deprecated pxa driver and 8250_pxa drivers. */
+	if (of_device_is_compatible(np, "mrvl,mmp-uart"))
+		port->regshift = 2;
 
 	/* Check for registers offset within the devices address range */
 	if (of_property_read_u32(np, "reg-shift", &prop) == 0)
@@ -110,34 +148,33 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 	if (ret >= 0)
 		port->line = ret;
 
-	port->irq = irq_of_parse_and_map(np, 0);
-	port->iotype = UPIO_MEM;
-	if (of_property_read_u32(np, "reg-io-width", &prop) == 0) {
-		switch (prop) {
-		case 1:
-			port->iotype = UPIO_MEM;
-			break;
-		case 2:
-			port->iotype = UPIO_MEM16;
-			break;
-		case 4:
-			port->iotype = of_device_is_big_endian(np) ?
-				       UPIO_MEM32BE : UPIO_MEM32;
-			break;
-		default:
-			dev_warn(&ofdev->dev, "unsupported reg-io-width (%d)\n",
-				 prop);
-			ret = -EINVAL;
-			goto out;
+	irq = of_irq_get(np, 0);
+	if (irq < 0) {
+		if (irq == -EPROBE_DEFER) {
+			ret = -EPROBE_DEFER;
+			goto err_unprepare;
 		}
+		/* IRQ support not mandatory */
+		irq = 0;
 	}
+
+	port->irq = irq;
+
+	info->rst = devm_reset_control_get_optional_shared(&ofdev->dev, NULL);
+	if (IS_ERR(info->rst)) {
+		ret = PTR_ERR(info->rst);
+		goto err_unprepare;
+	}
+
+	ret = reset_control_deassert(info->rst);
+	if (ret)
+		goto err_unprepare;
 
 	port->type = type;
 	port->uartclk = clk;
-	port->flags = UPF_SHARE_IRQ | UPF_BOOT_AUTOCONF | UPF_IOREMAP
-		| UPF_FIXED_PORT | UPF_FIXED_TYPE;
+	port->irqflags |= IRQF_SHARED;
 
-	if (of_find_property(np, "no-loopback-test", NULL))
+	if (of_property_read_bool(np, "no-loopback-test"))
 		port->flags |= UPF_SKIP_TEST;
 
 	port->dev = &ofdev->dev;
@@ -158,81 +195,73 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 		port->handle_irq = fsl8250_handle_irq;
 
 	return 0;
-out:
-	if (info->clk)
-		clk_disable_unprepare(info->clk);
+err_unprepare:
+	clk_disable_unprepare(info->clk);
+err_pmruntime:
+	pm_runtime_put_sync(&ofdev->dev);
+	pm_runtime_disable(&ofdev->dev);
 	return ret;
 }
 
 /*
  * Try to register a serial port
  */
-static const struct of_device_id of_platform_serial_table[];
 static int of_platform_serial_probe(struct platform_device *ofdev)
 {
-	const struct of_device_id *match;
 	struct of_serial_info *info;
-	struct uart_port port;
-	int port_type;
+	struct uart_8250_port port8250;
+	unsigned int port_type;
+	u32 tx_threshold;
 	int ret;
 
-	match = of_match_device(of_platform_serial_table, &ofdev->dev);
-	if (!match)
+	port_type = (unsigned long)of_device_get_match_data(&ofdev->dev);
+	if (port_type == PORT_UNKNOWN)
 		return -EINVAL;
 
-	if (of_find_property(ofdev->dev.of_node, "used-by-rtas", NULL))
+	if (of_property_read_bool(ofdev->dev.of_node, "used-by-rtas"))
 		return -EBUSY;
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (info == NULL)
 		return -ENOMEM;
 
-	port_type = (unsigned long)match->data;
-	ret = of_platform_serial_setup(ofdev, port_type, &port, info);
+	memset(&port8250, 0, sizeof(port8250));
+	ret = of_platform_serial_setup(ofdev, port_type, &port8250.port, info);
 	if (ret)
-		goto out;
+		goto err_free;
 
-	switch (port_type) {
-	case PORT_8250 ... PORT_MAX_8250:
-	{
-		u32 tx_threshold;
-		struct uart_8250_port port8250;
-		memset(&port8250, 0, sizeof(port8250));
-		port8250.port = port;
+	if (port8250.port.fifosize)
+		port8250.capabilities = UART_CAP_FIFO;
 
-		if (port.fifosize)
-			port8250.capabilities = UART_CAP_FIFO;
+	/* Check for TX FIFO threshold & set tx_loadsz */
+	if ((of_property_read_u32(ofdev->dev.of_node, "tx-threshold",
+				  &tx_threshold) == 0) &&
+	    (tx_threshold < port8250.port.fifosize))
+		port8250.tx_loadsz = port8250.port.fifosize - tx_threshold;
 
-		/* Check for TX FIFO threshold & set tx_loadsz */
-		if ((of_property_read_u32(ofdev->dev.of_node, "tx-threshold",
-					  &tx_threshold) == 0) &&
-		    (tx_threshold < port.fifosize))
-			port8250.tx_loadsz = port.fifosize - tx_threshold;
+	if (of_property_read_bool(ofdev->dev.of_node, "auto-flow-control"))
+		port8250.capabilities |= UART_CAP_AFE;
 
-		if (of_property_read_bool(ofdev->dev.of_node,
-					  "auto-flow-control"))
-			port8250.capabilities |= UART_CAP_AFE;
+	if (of_property_read_u32(ofdev->dev.of_node,
+			"overrun-throttle-ms",
+			&port8250.overrun_backoff_time_ms) != 0)
+		port8250.overrun_backoff_time_ms = 0;
 
-		ret = serial8250_register_8250_port(&port8250);
-		break;
-	}
-	default:
-		/* need to add code for these */
-	case PORT_UNKNOWN:
-		dev_info(&ofdev->dev, "Unknown serial port found, ignored\n");
-		ret = -ENODEV;
-		break;
-	}
+	ret = serial8250_register_8250_port(&port8250);
 	if (ret < 0)
-		goto out;
+		goto err_dispose;
 
 	info->type = port_type;
 	info->line = ret;
 	platform_set_drvdata(ofdev, info);
 	return 0;
-out:
+err_dispose:
+	irq_dispose_mapping(port8250.port.irq);
+	pm_runtime_put_sync(&ofdev->dev);
+	pm_runtime_disable(&ofdev->dev);
+	clk_disable_unprepare(info->clk);
+err_free:
 	kfree(info);
-	irq_dispose_mapping(port.irq);
 	return ret;
 }
 
@@ -242,69 +271,45 @@ out:
 static int of_platform_serial_remove(struct platform_device *ofdev)
 {
 	struct of_serial_info *info = platform_get_drvdata(ofdev);
-	switch (info->type) {
-	case PORT_8250 ... PORT_MAX_8250:
-		serial8250_unregister_port(info->line);
-		break;
-	default:
-		/* need to add code for these */
-		break;
-	}
 
-	if (info->clk)
-		clk_disable_unprepare(info->clk);
+	serial8250_unregister_port(info->line);
+
+	reset_control_assert(info->rst);
+	pm_runtime_put_sync(&ofdev->dev);
+	pm_runtime_disable(&ofdev->dev);
+	clk_disable_unprepare(info->clk);
 	kfree(info);
 	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
-static void of_serial_suspend_8250(struct of_serial_info *info)
+static int of_serial_suspend(struct device *dev)
 {
+	struct of_serial_info *info = dev_get_drvdata(dev);
 	struct uart_8250_port *port8250 = serial8250_get_port(info->line);
 	struct uart_port *port = &port8250->port;
 
 	serial8250_suspend_port(info->line);
-	if (info->clk && (!uart_console(port) || console_suspend_enabled))
+
+	if (!uart_console(port) || console_suspend_enabled) {
+		pm_runtime_put_sync(dev);
 		clk_disable_unprepare(info->clk);
-}
-
-static void of_serial_resume_8250(struct of_serial_info *info)
-{
-	struct uart_8250_port *port8250 = serial8250_get_port(info->line);
-	struct uart_port *port = &port8250->port;
-
-	if (info->clk && (!uart_console(port) || console_suspend_enabled))
-		clk_prepare_enable(info->clk);
-
-	serial8250_resume_port(info->line);
-}
-
-static int of_serial_suspend(struct device *dev)
-{
-	struct of_serial_info *info = dev_get_drvdata(dev);
-
-	switch (info->type) {
-	case PORT_8250 ... PORT_MAX_8250:
-		of_serial_suspend_8250(info);
-		break;
-	default:
-		break;
 	}
-
 	return 0;
 }
 
 static int of_serial_resume(struct device *dev)
 {
 	struct of_serial_info *info = dev_get_drvdata(dev);
+	struct uart_8250_port *port8250 = serial8250_get_port(info->line);
+	struct uart_port *port = &port8250->port;
 
-	switch (info->type) {
-	case PORT_8250 ... PORT_MAX_8250:
-		of_serial_resume_8250(info);
-		break;
-	default:
-		break;
+	if (!uart_console(port) || console_suspend_enabled) {
+		pm_runtime_get_sync(dev);
+		clk_prepare_enable(info->clk);
 	}
+
+	serial8250_resume_port(info->line);
 
 	return 0;
 }
@@ -324,16 +329,19 @@ static const struct of_device_id of_platform_serial_table[] = {
 	{ .compatible = "nvidia,tegra20-uart", .data = (void *)PORT_TEGRA, },
 	{ .compatible = "nxp,lpc3220-uart", .data = (void *)PORT_LPC3220, },
 	{ .compatible = "ralink,rt2880-uart", .data = (void *)PORT_RT2880, },
+	{ .compatible = "intel,xscale-uart", .data = (void *)PORT_XSCALE, },
 	{ .compatible = "altr,16550-FIFO32",
 		.data = (void *)PORT_ALTR_16550_F32, },
 	{ .compatible = "altr,16550-FIFO64",
 		.data = (void *)PORT_ALTR_16550_F64, },
 	{ .compatible = "altr,16550-FIFO128",
 		.data = (void *)PORT_ALTR_16550_F128, },
+	{ .compatible = "mediatek,mtk-btif",
+		.data = (void *)PORT_MTK_BTIF, },
 	{ .compatible = "mrvl,mmp-uart",
 		.data = (void *)PORT_XSCALE, },
-	{ .compatible = "mrvl,pxa-uart",
-		.data = (void *)PORT_XSCALE, },
+	{ .compatible = "ti,da830-uart", .data = (void *)PORT_DA830, },
+	{ .compatible = "nuvoton,npcm750-uart", .data = (void *)PORT_NPCM, },
 	{ /* end of list */ },
 };
 MODULE_DEVICE_TABLE(of, of_platform_serial_table);

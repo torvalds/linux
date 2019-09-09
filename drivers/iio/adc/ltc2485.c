@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ltc2485.c - Driver for Linear Technology LTC2485 ADC
  *
  * Copyright (C) 2016 Alison Schofield <amsfield22@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Datasheet: http://cds.linear.com/docs/en/datasheet/2485fd.pdf
  */
@@ -90,7 +87,6 @@ static const struct iio_chan_spec ltc2485_channel[] = {
 
 static const struct iio_info ltc2485_info = {
 	.read_raw = ltc2485_read_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static int ltc2485_probe(struct i2c_client *client,

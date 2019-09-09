@@ -10,11 +10,13 @@ Linux GPU Driver Developer's Guide
    drm-kms
    drm-kms-helpers
    drm-uapi
-   i915
+   drm-client
+   drivers
    vga-switcheroo
    vgaarbiter
+   todo
 
-.. only::  subproject
+.. only::  subproject and html
 
    Indices
    =======

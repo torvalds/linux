@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for the Nuvoton NAU7802 ADC
  *
  * Copyright 2013 Free Electrons
- *
- * Licensed under the GPLv2 or later.
  */
 
 #include <linux/delay.h>
@@ -402,7 +401,6 @@ static int nau7802_write_raw_get_fmt(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info nau7802_info = {
-	.driver_module = THIS_MODULE,
 	.read_raw = &nau7802_read_raw,
 	.write_raw = &nau7802_write_raw,
 	.write_raw_get_fmt = nau7802_write_raw_get_fmt,

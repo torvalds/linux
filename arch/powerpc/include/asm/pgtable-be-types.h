@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_POWERPC_PGTABLE_BE_TYPES_H
 #define _ASM_POWERPC_PGTABLE_BE_TYPES_H
 
@@ -32,11 +33,7 @@ static inline __be64 pmd_raw(pmd_t x)
 	return x.pmd;
 }
 
-/*
- * 64 bit hash always use 4 level table. Everybody else use 4 level
- * only for 4K page size.
- */
-#if defined(CONFIG_PPC_BOOK3S_64) || !defined(CONFIG_PPC_64K_PAGES)
+/* 64 bit always use 4 level table. */
 typedef struct { __be64 pud; } pud_t;
 #define __pud(x)	((pud_t) { cpu_to_be64(x) })
 #define __pud_raw(x)	((pud_t) { (x) })
@@ -50,7 +47,6 @@ static inline __be64 pud_raw(pud_t x)
 	return x.pud;
 }
 
-#endif /* CONFIG_PPC_BOOK3S_64 || !CONFIG_PPC_64K_PAGES */
 #endif /* CONFIG_PPC64 */
 
 /* PGD level */
@@ -76,7 +72,7 @@ typedef struct { unsigned long pgprot; } pgprot_t;
  * With hash config 64k pages additionally define a bigger "real PTE" type that
  * gathers the "second half" part of the PTE for pseudo 64k pages
  */
-#if defined(CONFIG_PPC_64K_PAGES) && defined(CONFIG_PPC_STD_MMU_64)
+#ifdef CONFIG_PPC_64K_PAGES
 typedef struct { pte_t pte; unsigned long hidx; } real_pte_t;
 #else
 typedef struct { pte_t pte; } real_pte_t;
@@ -87,6 +83,7 @@ static inline bool pte_xchg(pte_t *ptep, pte_t old, pte_t new)
 	unsigned long *p = (unsigned long *)ptep;
 	__be64 prev;
 
+	/* See comment in switch_mm_irqs_off() */
 	prev = (__force __be64)__cmpxchg_u64(p, (__force unsigned long)pte_raw(old),
 					     (__force unsigned long)pte_raw(new));
 
@@ -102,6 +99,14 @@ static inline bool pmd_xchg(pmd_t *pmdp, pmd_t old, pmd_t new)
 					     (__force unsigned long)pmd_raw(new));
 
 	return pmd_raw(old) == prev;
+}
+
+typedef struct { __be64 pdbe; } hugepd_t;
+#define __hugepd(x) ((hugepd_t) { cpu_to_be64(x) })
+
+static inline unsigned long hpd_val(hugepd_t x)
+{
+	return be64_to_cpu(x.pdbe);
 }
 
 #endif /* _ASM_POWERPC_PGTABLE_BE_TYPES_H */

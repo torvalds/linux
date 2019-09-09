@@ -1,5 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /**
- * OMAP and TWL PMIC specific intializations.
+ * OMAP and TWL PMIC specific initializations.
  *
  * Copyright (C) 2010 Texas Instruments Incorporated.
  * Thara Gopinath
@@ -7,16 +8,12 @@
  * Nishanth Menon
  * Copyright (C) 2009 Nokia Corporation
  * Paul Walmsley
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
-#include <linux/i2c/twl.h>
+#include <linux/mfd/twl.h>
 
 #include "soc.h"
 #include "voltage.h"

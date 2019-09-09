@@ -1,16 +1,18 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "builtin.h"
 #include "perf.h"
 
 #include "util/evlist.h"
 #include "util/evsel.h"
-#include "util/util.h"
 #include "util/config.h"
+#include "util/map.h"
 #include "util/symbol.h"
 #include "util/thread.h"
 #include "util/header.h"
 #include "util/session.h"
 #include "util/tool.h"
 #include "util/callchain.h"
+#include "util/time-utils.h"
 
 #include <subcmd/parse-options.h>
 #include "util/trace-event.h"
@@ -18,11 +20,18 @@
 #include "util/cpumap.h"
 
 #include "util/debug.h"
+#include "util/string2.h"
 
+#include <linux/kernel.h>
 #include <linux/rbtree.h>
 #include <linux/string.h>
+#include <linux/zalloc.h>
+#include <errno.h>
+#include <inttypes.h>
 #include <locale.h>
 #include <regex.h>
+
+#include <linux/ctype.h>
 
 static int	kmem_slab;
 static int	kmem_page;
@@ -49,6 +58,7 @@ struct alloc_stat {
 	u64	ptr;
 	u64	bytes_req;
 	u64	bytes_alloc;
+	u64	last_alloc;
 	u32	hit;
 	u32	pingpong;
 
@@ -62,8 +72,12 @@ static struct rb_root root_alloc_sorted;
 static struct rb_root root_caller_stat;
 static struct rb_root root_caller_sorted;
 
-static unsigned long total_requested, total_allocated;
+static unsigned long total_requested, total_allocated, total_freed;
 static unsigned long nr_allocs, nr_cross_allocs;
+
+/* filters for controlling start and stop of time of analysis */
+static struct perf_time_interval ptime;
+const char *time_str;
 
 static int insert_alloc_stat(unsigned long call_site, unsigned long ptr,
 			     int bytes_req, int bytes_alloc, int cpu)
@@ -105,6 +119,8 @@ static int insert_alloc_stat(unsigned long call_site, unsigned long ptr,
 	}
 	data->call_site = call_site;
 	data->alloc_cpu = cpu;
+	data->last_alloc = bytes_alloc;
+
 	return 0;
 }
 
@@ -223,6 +239,8 @@ static int perf_evsel__process_free_event(struct perf_evsel *evsel,
 	if (!s_alloc)
 		return 0;
 
+	total_freed += s_alloc->last_alloc;
+
 	if ((short)sample->cpu != s_alloc->alloc_cpu) {
 		s_alloc->pingpong++;
 
@@ -318,7 +336,7 @@ static int build_alloc_func_list(void)
 	struct alloc_func *func;
 	struct machine *machine = &kmem_session->machines.host;
 	regex_t alloc_func_regex;
-	const char pattern[] = "^_?_?(alloc|get_free|get_zeroed)_pages?";
+	static const char pattern[] = "^_?_?(alloc|get_free|get_zeroed)_pages?";
 
 	ret = regcomp(&alloc_func_regex, pattern, REG_EXTENDED);
 	if (ret) {
@@ -612,7 +630,6 @@ static const struct {
 	{ "GFP_HIGHUSER_MOVABLE",	"HUM" },
 	{ "GFP_HIGHUSER",		"HU" },
 	{ "GFP_USER",			"U" },
-	{ "GFP_TEMPORARY",		"TMP" },
 	{ "GFP_KERNEL_ACCOUNT",		"KAC" },
 	{ "GFP_KERNEL",			"K" },
 	{ "GFP_NOFS",			"NF" },
@@ -626,9 +643,8 @@ static const struct {
 	{ "__GFP_ATOMIC",		"_A" },
 	{ "__GFP_IO",			"I" },
 	{ "__GFP_FS",			"F" },
-	{ "__GFP_COLD",			"CO" },
 	{ "__GFP_NOWARN",		"NWR" },
-	{ "__GFP_REPEAT",		"R" },
+	{ "__GFP_RETRY_MAYFAIL",	"R" },
 	{ "__GFP_NOFAIL",		"NF" },
 	{ "__GFP_NORETRY",		"NR" },
 	{ "__GFP_COMP",			"C" },
@@ -640,12 +656,10 @@ static const struct {
 	{ "__GFP_RECLAIMABLE",		"RC" },
 	{ "__GFP_MOVABLE",		"M" },
 	{ "__GFP_ACCOUNT",		"AC" },
-	{ "__GFP_NOTRACK",		"NT" },
 	{ "__GFP_WRITE",		"WR" },
 	{ "__GFP_RECLAIM",		"R" },
 	{ "__GFP_DIRECT_RECLAIM",	"DR" },
 	{ "__GFP_KSWAPD_RECLAIM",	"KR" },
-	{ "__GFP_OTHER_NODE",		"ON" },
 };
 
 static size_t max_gfp_len;
@@ -717,7 +731,7 @@ static char *compact_gfp_string(unsigned long gfp_flags)
 static int parse_gfp_flags(struct perf_evsel *evsel, struct perf_sample *sample,
 			   unsigned int gfp_flags)
 {
-	struct pevent_record record = {
+	struct tep_record record = {
 		.cpu = sample->cpu,
 		.data = sample->raw_data,
 		.size = sample->raw_size,
@@ -735,7 +749,7 @@ static int parse_gfp_flags(struct perf_evsel *evsel, struct perf_sample *sample,
 	}
 
 	trace_seq_init(&seq);
-	pevent_event_info(&seq, evsel->tp_format, &record);
+	tep_event_info(&seq, evsel->tp_format, &record);
 
 	str = strtok_r(seq.buffer, " ", &pos);
 	while (str) {
@@ -907,6 +921,15 @@ static int perf_evsel__process_page_free_event(struct perf_evsel *evsel,
 	return 0;
 }
 
+static bool perf_kmem__skip_sample(struct perf_sample *sample)
+{
+	/* skip sample based on time? */
+	if (perf_time__skip_sample(&ptime, sample->time))
+		return true;
+
+	return false;
+}
+
 typedef int (*tracepoint_handler)(struct perf_evsel *evsel,
 				  struct perf_sample *sample);
 
@@ -926,6 +949,9 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 		return -1;
 	}
 
+	if (perf_kmem__skip_sample(sample))
+		return 0;
+
 	dump_printf(" ... thread: %s:%d\n", thread__comm_str(thread), thread->tid);
 
 	if (evsel->handler != NULL) {
@@ -943,6 +969,7 @@ static struct perf_tool perf_kmem = {
 	.comm		 = perf_event__process_comm,
 	.mmap		 = perf_event__process_mmap,
 	.mmap2		 = perf_event__process_mmap2,
+	.namespaces	 = perf_event__process_namespaces,
 	.ordered_events	 = true,
 };
 
@@ -979,7 +1006,7 @@ static void __print_slab_result(struct rb_root *root,
 		if (is_caller) {
 			addr = data->call_site;
 			if (!raw_ip)
-				sym = machine__find_kernel_function(machine, addr, &map);
+				sym = machine__find_kernel_symbol(machine, addr, &map);
 		} else
 			addr = data->ptr;
 
@@ -1043,8 +1070,8 @@ static void __print_page_alloc_result(struct perf_session *session, int n_lines)
 		char *caller = buf;
 
 		data = rb_entry(next, struct page_stat, node);
-		sym = machine__find_kernel_function(machine, data->callsite, &map);
-		if (sym && sym->name)
+		sym = machine__find_kernel_symbol(machine, data->callsite, &map);
+		if (sym)
 			caller = sym->name;
 		else
 			scnprintf(buf, sizeof(buf), "%"PRIx64, data->callsite);
@@ -1085,8 +1112,8 @@ static void __print_page_caller_result(struct perf_session *session, int n_lines
 		char *caller = buf;
 
 		data = rb_entry(next, struct page_stat, node);
-		sym = machine__find_kernel_function(machine, data->callsite, &map);
-		if (sym && sym->name)
+		sym = machine__find_kernel_symbol(machine, data->callsite, &map);
+		if (sym)
 			caller = sym->name;
 		else
 			scnprintf(buf, sizeof(buf), "%"PRIx64, data->callsite);
@@ -1128,6 +1155,11 @@ static void print_slab_summary(void)
 	printf("\n========================\n");
 	printf("Total bytes requested: %'lu\n", total_requested);
 	printf("Total bytes allocated: %'lu\n", total_allocated);
+	printf("Total bytes freed:     %'lu\n", total_freed);
+	if (total_allocated > total_freed) {
+		printf("Net total bytes allocated: %'lu\n",
+		total_allocated - total_freed);
+	}
 	printf("Total bytes wasted on internal fragmentation: %'lu\n",
 	       total_allocated - total_requested);
 	printf("Internal fragmentation: %f%%\n",
@@ -1683,7 +1715,7 @@ static int setup_slab_sorting(struct list_head *sort_list, const char *arg)
 		if (!tok)
 			break;
 		if (slab_sort_dimension__add(tok, sort_list) < 0) {
-			error("Unknown slab --sort key: '%s'", tok);
+			pr_err("Unknown slab --sort key: '%s'", tok);
 			free(str);
 			return -1;
 		}
@@ -1709,7 +1741,7 @@ static int setup_page_sorting(struct list_head *sort_list, const char *arg)
 		if (!tok)
 			break;
 		if (page_sort_dimension__add(tok, sort_list) < 0) {
-			error("Unknown page --sort key: '%s'", tok);
+			pr_err("Unknown page --sort key: '%s'", tok);
 			free(str);
 			return -1;
 		}
@@ -1839,7 +1871,7 @@ static int __cmd_record(int argc, const char **argv)
 	for (j = 1; j < (unsigned int)argc; j++, i++)
 		rec_argv[i] = argv[j];
 
-	return cmd_record(i, rec_argv, NULL);
+	return cmd_record(i, rec_argv);
 }
 
 static int kmem_config(const char *var, const char *value, void *cb __maybe_unused)
@@ -1858,11 +1890,11 @@ static int kmem_config(const char *var, const char *value, void *cb __maybe_unus
 	return 0;
 }
 
-int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)
+int cmd_kmem(int argc, const char **argv)
 {
 	const char * const default_slab_sort = "frag,hit,bytes";
 	const char * const default_page_sort = "bytes,hit";
-	struct perf_data_file file = {
+	struct perf_data data = {
 		.mode = PERF_DATA_MODE_READ,
 	};
 	const struct option kmem_options[] = {
@@ -1878,12 +1910,14 @@ int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)
 		     "page, order, migtype, gfp", parse_sort_opt),
 	OPT_CALLBACK('l', "line", NULL, "num", "show n lines", parse_line_opt),
 	OPT_BOOLEAN(0, "raw-ip", &raw_ip, "show raw ip instead of symbol"),
-	OPT_BOOLEAN('f', "force", &file.force, "don't complain, do it"),
+	OPT_BOOLEAN('f', "force", &data.force, "don't complain, do it"),
 	OPT_CALLBACK_NOOPT(0, "slab", NULL, NULL, "Analyze slab allocator",
 			   parse_slab_opt),
 	OPT_CALLBACK_NOOPT(0, "page", NULL, NULL, "Analyze page allocator",
 			   parse_page_opt),
 	OPT_BOOLEAN(0, "live", &live_page, "Show live page stat"),
+	OPT_STRING(0, "time", &time_str, "str",
+		   "Time span of interest (start,stop)"),
 	OPT_END()
 	};
 	const char *const kmem_subcommands[] = { "record", "stat", NULL };
@@ -1892,10 +1926,12 @@ int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)
 		NULL
 	};
 	struct perf_session *session;
-	int ret = -1;
-	const char errmsg[] = "No %s allocation events found.  Have you run 'perf kmem record --%s'?\n";
+	static const char errmsg[] = "No %s allocation events found.  Have you run 'perf kmem record --%s'?\n";
+	int ret = perf_config(kmem_config, NULL);
 
-	perf_config(kmem_config, NULL);
+	if (ret)
+		return ret;
+
 	argc = parse_options_subcommand(argc, argv, kmem_options,
 					kmem_subcommands, kmem_usage, 0);
 
@@ -1914,11 +1950,13 @@ int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)
 		return __cmd_record(argc, argv);
 	}
 
-	file.path = input_name;
+	data.path = input_name;
 
-	kmem_session = session = perf_session__new(&file, false, &perf_kmem);
+	kmem_session = session = perf_session__new(&data, false, &perf_kmem);
 	if (session == NULL)
 		return -1;
+
+	ret = -1;
 
 	if (kmem_slab) {
 		if (!perf_evlist__find_tracepoint_by_name(session->evlist,
@@ -1938,11 +1976,17 @@ int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)
 			goto out_delete;
 		}
 
-		kmem_page_size = pevent_get_page_size(evsel->tp_format->pevent);
+		kmem_page_size = tep_get_page_size(evsel->tp_format->tep);
 		symbol_conf.use_callchain = true;
 	}
 
 	symbol__init(&session->header.env);
+
+	if (perf_time__parse_str(&ptime, time_str) != 0) {
+		pr_err("Invalid time string\n");
+		ret = -EINVAL;
+		goto out_delete;
+	}
 
 	if (!strcmp(argv[0], "stat")) {
 		setlocale(LC_ALL, "");

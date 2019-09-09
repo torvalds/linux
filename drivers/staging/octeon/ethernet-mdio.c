@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * This file is based on code from OCTEON SDK by Cavium Networks.
  *
  * Copyright (c) 2003-2007 Cavium Networks
- *
- * This file is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, Version 2, as
- * published by the Free Software Foundation.
  */
 
 #include <linux/kernel.h>
@@ -24,7 +21,6 @@
 #include "ethernet-util.h"
 
 #include <asm/octeon/cvmx-gmxx-defs.h>
-#include <asm/octeon/cvmx-smix-defs.h>
 
 static void cvm_oct_get_drvinfo(struct net_device *dev,
 				struct ethtool_drvinfo *info)
@@ -167,14 +163,14 @@ int cvm_oct_phy_setup_device(struct net_device *dev)
 		goto no_phy;
 
 	phydev = of_phy_connect(dev, phy_node, cvm_oct_adjust_link, 0,
-				PHY_INTERFACE_MODE_GMII);
+				priv->phy_mode);
 	of_node_put(phy_node);
 
 	if (!phydev)
 		return -ENODEV;
 
 	priv->last_link = 0;
-	phy_start_aneg(phydev);
+	phy_start(phydev);
 
 	return 0;
 no_phy:

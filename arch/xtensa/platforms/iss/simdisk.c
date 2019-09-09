@@ -17,11 +17,10 @@
 #include <linux/blkdev.h>
 #include <linux/bio.h>
 #include <linux/proc_fs.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <platform/simcall.h>
 
 #define SIMDISK_MAJOR 240
-#define SECTOR_SHIFT 9
 #define SIMDISK_MINORS 1
 #define MAX_SIMDISK_COUNT 10
 
@@ -110,13 +109,13 @@ static blk_qc_t simdisk_make_request(struct request_queue *q, struct bio *bio)
 	sector_t sector = bio->bi_iter.bi_sector;
 
 	bio_for_each_segment(bvec, bio, iter) {
-		char *buffer = __bio_kmap_atomic(bio, iter);
+		char *buffer = kmap_atomic(bvec.bv_page) + bvec.bv_offset;
 		unsigned len = bvec.bv_len >> SECTOR_SHIFT;
 
 		simdisk_transfer(dev, sector, len, buffer,
 				bio_data_dir(bio) == WRITE);
 		sector += len;
-		__bio_kunmap_atomic(buffer);
+		kunmap_atomic(buffer);
 	}
 
 	bio_endio(bio);
@@ -298,8 +297,7 @@ out_alloc_disk:
 	blk_cleanup_queue(dev->queue);
 	dev->queue = NULL;
 out_alloc_queue:
-	simc_close(dev->fd);
-	return -EIO;
+	return -ENOMEM;
 }
 
 static int __init simdisk_init(void)
@@ -317,8 +315,7 @@ static int __init simdisk_init(void)
 	if (simdisk_count > MAX_SIMDISK_COUNT)
 		simdisk_count = MAX_SIMDISK_COUNT;
 
-	sddev = kmalloc(simdisk_count * sizeof(struct simdisk),
-			GFP_KERNEL);
+	sddev = kmalloc_array(simdisk_count, sizeof(*sddev), GFP_KERNEL);
 	if (sddev == NULL)
 		goto out_unregister;
 

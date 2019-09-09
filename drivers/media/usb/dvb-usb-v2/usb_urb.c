@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* usb-urb.c is part of the DVB USB library.
  *
  * Copyright (C) 2004-6 Patrick Boettcher (patrick.boettcher@posteo.de)
@@ -39,7 +40,7 @@ static void usb_urb_complete(struct urb *urb)
 		return;
 	default:        /* error */
 		dev_dbg_ratelimited(&stream->udev->dev,
-				"%s: urb completition failed=%d\n",
+				"%s: urb completion failed=%d\n",
 				__func__, urb->status);
 		break;
 	}
@@ -68,7 +69,7 @@ static void usb_urb_complete(struct urb *urb)
 		break;
 	default:
 		dev_err(&stream->udev->dev,
-				"%s: unknown endpoint type in completition handler\n",
+				"%s: unknown endpoint type in completion handler\n",
 				KBUILD_MODNAME);
 		return;
 	}
@@ -154,8 +155,6 @@ static int usb_urb_alloc_bulk_urbs(struct usb_data_stream *stream)
 				stream->props.u.bulk.buffersize,
 				usb_urb_complete, stream);
 
-		stream->urb_list[i]->transfer_flags = URB_NO_TRANSFER_DMA_MAP;
-		stream->urb_list[i]->transfer_dma = stream->dma_addr[i];
 		stream->urbs_initialized++;
 	}
 	return 0;
@@ -186,13 +185,12 @@ static int usb_urb_alloc_isoc_urbs(struct usb_data_stream *stream)
 		urb->complete = usb_urb_complete;
 		urb->pipe = usb_rcvisocpipe(stream->udev,
 				stream->props.endpoint);
-		urb->transfer_flags = URB_ISO_ASAP | URB_NO_TRANSFER_DMA_MAP;
+		urb->transfer_flags = URB_ISO_ASAP;
 		urb->interval = stream->props.u.isoc.interval;
 		urb->number_of_packets = stream->props.u.isoc.framesperurb;
 		urb->transfer_buffer_length = stream->props.u.isoc.framesize *
 				stream->props.u.isoc.framesperurb;
 		urb->transfer_buffer = stream->buf_list[i];
-		urb->transfer_dma = stream->dma_addr[i];
 
 		for (j = 0; j < stream->props.u.isoc.framesperurb; j++) {
 			urb->iso_frame_desc[j].offset = frame_offset;
@@ -211,11 +209,7 @@ static int usb_free_stream_buffers(struct usb_data_stream *stream)
 	if (stream->state & USB_STATE_URB_BUF) {
 		while (stream->buf_num) {
 			stream->buf_num--;
-			dev_dbg(&stream->udev->dev, "%s: free buf=%d\n",
-				__func__, stream->buf_num);
-			usb_free_coherent(stream->udev, stream->buf_size,
-					  stream->buf_list[stream->buf_num],
-					  stream->dma_addr[stream->buf_num]);
+			kfree(stream->buf_list[stream->buf_num]);
 		}
 	}
 
@@ -235,9 +229,7 @@ static int usb_alloc_stream_buffers(struct usb_data_stream *stream, int num,
 			__func__,  num * size);
 
 	for (stream->buf_num = 0; stream->buf_num < num; stream->buf_num++) {
-		stream->buf_list[stream->buf_num] = usb_alloc_coherent(
-				stream->udev, size, GFP_ATOMIC,
-				&stream->dma_addr[stream->buf_num]);
+		stream->buf_list[stream->buf_num] = kzalloc(size, GFP_ATOMIC);
 		if (!stream->buf_list[stream->buf_num]) {
 			dev_dbg(&stream->udev->dev, "%s: alloc buf=%d failed\n",
 					__func__, stream->buf_num);
@@ -249,7 +241,6 @@ static int usb_alloc_stream_buffers(struct usb_data_stream *stream, int num,
 				__func__, stream->buf_num,
 				stream->buf_list[stream->buf_num],
 				(long long)stream->dma_addr[stream->buf_num]);
-		memset(stream->buf_list[stream->buf_num], 0, size);
 		stream->state |= USB_STATE_URB_BUF;
 	}
 

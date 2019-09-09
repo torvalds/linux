@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_POISON_H
 #define _LINUX_POISON_H
 
@@ -14,6 +15,10 @@
 # define POISON_POINTER_DELTA 0
 #endif
 
+#ifdef __cplusplus
+#define LIST_POISON1  NULL
+#define LIST_POISON2  NULL
+#else
 /*
  * These are non-NULL pointers that will result in page faults
  * under normal circumstances, used to verify that nobody uses
@@ -21,6 +26,7 @@
  */
 #define LIST_POISON1  ((void *) 0x100 + POISON_POINTER_DELTA)
 #define LIST_POISON2  ((void *) 0x200 + POISON_POINTER_DELTA)
+#endif
 
 /********** include/linux/timer.h **********/
 /*
@@ -80,9 +86,6 @@
 /********** kernel/mutexes **********/
 #define MUTEX_DEBUG_INIT	0x11
 #define MUTEX_DEBUG_FREE	0x22
-
-/********** lib/flex_array.c **********/
-#define FLEX_ARRAY_FREE	0x6c	/* for use-after-free poisoning */
 
 /********** security/ **********/
 #define KEY_DESTROY		0xbd

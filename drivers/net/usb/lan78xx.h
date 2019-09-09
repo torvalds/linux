@@ -1,18 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (C) 2015 Microchip Technology
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 #ifndef _LAN78XX_H
 #define _LAN78XX_H
@@ -108,6 +96,7 @@
 #define ID_REV_CHIP_REV_MASK_		(0x0000FFFF)
 #define ID_REV_CHIP_ID_7800_		(0x7800)
 #define ID_REV_CHIP_ID_7850_		(0x7850)
+#define ID_REV_CHIP_ID_7801_		(0x7801)
 
 #define FPGA_REV			(0x04)
 #define FPGA_REV_MINOR_MASK_		(0x0000FF00)
@@ -550,6 +539,7 @@
 #define LTM_INACTIVE1_TIMER10_		(0x0000FFFF)
 
 #define MAC_CR				(0x100)
+#define MAC_CR_GMII_EN_			(0x00080000)
 #define MAC_CR_EEE_TX_CLK_STOP_EN_	(0x00040000)
 #define MAC_CR_EEE_EN_			(0x00020000)
 #define MAC_CR_EEE_TLAR_EN_		(0x00010000)
@@ -786,6 +776,18 @@
 #define PHY_DEV_ID_MODEL_SHIFT_		(22)
 #define PHY_DEV_ID_MODEL_MASK_		(0x0FC00000)
 #define PHY_DEV_ID_OUI_MASK_		(0x003FFFFF)
+
+#define RGMII_TX_BYP_DLL		(0x708)
+#define RGMII_TX_BYP_DLL_TX_TUNE_ADJ_MASK_	(0x000FC00)
+#define RGMII_TX_BYP_DLL_TX_TUNE_SEL_MASK_	(0x00003F0)
+#define RGMII_TX_BYP_DLL_TX_DLL_RESET_		(0x0000002)
+#define RGMII_TX_BYP_DLL_TX_DLL_BYPASS_		(0x0000001)
+
+#define RGMII_RX_BYP_DLL		(0x70C)
+#define RGMII_RX_BYP_DLL_RX_TUNE_ADJ_MASK_	(0x000FC00)
+#define RGMII_RX_BYP_DLL_RX_TUNE_SEL_MASK_	(0x00003F0)
+#define RGMII_RX_BYP_DLL_RX_DLL_RESET_		(0x0000002)
+#define RGMII_RX_BYP_DLL_RX_DLL_BYPASS_		(0x0000001)
 
 #define OTP_BASE_ADDR			(0x00001000)
 #define OTP_ADDR_RANGE_			(0x1FF)

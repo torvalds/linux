@@ -25,7 +25,6 @@ and also the generic series names
   The first cell is the IRQ number.
   The second cell is the flags, encoded as the trigger masks from
   Documentation/devicetree/bindings/interrupt-controller/interrupts.txt
-- interrupt-parent : The parent interrupt controller.
 
 Optional properties:
   ti,mux-padX : set the pad register X (1-2) to the correct muxing for the

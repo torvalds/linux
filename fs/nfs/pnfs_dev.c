@@ -43,7 +43,6 @@
 #define NFS4_DEVICE_ID_HASH_SIZE	(1 << NFS4_DEVICE_ID_HASH_BITS)
 #define NFS4_DEVICE_ID_HASH_MASK	(NFS4_DEVICE_ID_HASH_SIZE - 1)
 
-#define PNFS_DEVICE_RETRY_TIMEOUT (120*HZ)
 
 static struct hlist_head nfs4_deviceid_cache[NFS4_DEVICE_ID_HASH_SIZE];
 static DEFINE_SPINLOCK(nfs4_deviceid_lock);
@@ -95,7 +94,7 @@ _lookup_deviceid(const struct pnfs_layoutdriver_type *ld,
 static struct nfs4_deviceid_node *
 nfs4_get_device_info(struct nfs_server *server,
 		const struct nfs4_deviceid *dev_id,
-		struct rpc_cred *cred, gfp_t gfp_flags)
+		const struct cred *cred, gfp_t gfp_flags)
 {
 	struct nfs4_deviceid_node *d = NULL;
 	struct pnfs_device *pdev = NULL;
@@ -185,7 +184,7 @@ __nfs4_find_get_deviceid(struct nfs_server *server,
 
 struct nfs4_deviceid_node *
 nfs4_find_get_deviceid(struct nfs_server *server,
-		const struct nfs4_deviceid *id, struct rpc_cred *cred,
+		const struct nfs4_deviceid *id, const struct cred *cred,
 		gfp_t gfp_mask)
 {
 	long hash = nfs4_deviceid_hash(id);
@@ -285,10 +284,22 @@ nfs4_put_deviceid_node(struct nfs4_deviceid_node *d)
 EXPORT_SYMBOL_GPL(nfs4_put_deviceid_node);
 
 void
+nfs4_mark_deviceid_available(struct nfs4_deviceid_node *node)
+{
+	if (test_bit(NFS_DEVICEID_UNAVAILABLE, &node->flags)) {
+		clear_bit(NFS_DEVICEID_UNAVAILABLE, &node->flags);
+		smp_mb__after_atomic();
+	}
+}
+EXPORT_SYMBOL_GPL(nfs4_mark_deviceid_available);
+
+void
 nfs4_mark_deviceid_unavailable(struct nfs4_deviceid_node *node)
 {
 	node->timestamp_unavailable = jiffies;
+	smp_mb__before_atomic();
 	set_bit(NFS_DEVICEID_UNAVAILABLE, &node->flags);
+	smp_mb__after_atomic();
 }
 EXPORT_SYMBOL_GPL(nfs4_mark_deviceid_unavailable);
 
@@ -303,6 +314,7 @@ nfs4_test_deviceid_unavailable(struct nfs4_deviceid_node *node)
 		if (time_in_range(node->timestamp_unavailable, start, end))
 			return true;
 		clear_bit(NFS_DEVICEID_UNAVAILABLE, &node->flags);
+		smp_mb__after_atomic();
 	}
 	return false;
 }

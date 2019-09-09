@@ -8,8 +8,6 @@ Required properties:
 - compatible : Should be "dlg,da7219"
 - reg: Specifies the I2C slave address
 
-- interrupt-parent : Specifies the phandle of the interrupt controller to which
-  the IRQs from DA7219 are delivered to.
 - interrupts : IRQ line info for DA7219.
   (See Documentation/devicetree/bindings/interrupt-controller/interrupts.txt for
    further information relating to interrupt properties)
@@ -24,6 +22,9 @@ Optional properties:
 - interrupt-names : Name associated with interrupt line. Should be "wakeup" if
   interrupt is to be used to wake system, otherwise "irq" should be used.
 - wakeup-source: Flag to indicate this device can wake system (suspend/resume).
+
+- #clock-cells :  Should be set to '<1>', two clock sources provided;
+- clock-output-names : Names given for DAI clock outputs (WCLK & BCLK);
 
 - clocks : phandle and clock specifier for codec MCLK.
 - clock-names : Clock name string for 'clocks' attribute, should be "mclk".
@@ -77,11 +78,14 @@ Example:
 		reg = <0x1a>;
 
 		interrupt-parent = <&gpio6>;
-		interrupts = <11 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <11 IRQ_TYPE_LEVEL_LOW>;
 
 		VDD-supply = <&reg_audio>;
 		VDDMIC-supply = <&reg_audio>;
 		VDDIO-supply = <&reg_audio>;
+
+		#clock-cells = <1>;
+		clock-output-names = "dai-wclk", "dai-bclk";
 
 		clocks = <&clks 201>;
 		clock-names = "mclk";

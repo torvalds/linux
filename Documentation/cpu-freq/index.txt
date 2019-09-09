@@ -18,26 +18,28 @@
 
 Documents in this directory:
 ----------------------------
+
+amd-powernow.txt -	AMD powernow driver specific file.
+
 core.txt	-	General description of the CPUFreq core and
-			of CPUFreq notifiers
+			of CPUFreq notifiers.
 
-cpu-drivers.txt -	How to implement a new cpufreq processor driver
+cpu-drivers.txt -	How to implement a new cpufreq processor driver.
 
-governors.txt	-	What are cpufreq governors and how to
-			implement them?
+cpufreq-nforce2.txt -	nVidia nForce2 platform specific file.
+
+cpufreq-stats.txt -	General description of sysfs cpufreq stats.
 
 index.txt	-	File index, Mailing list and Links (this document)
 
-user-guide.txt	-	User Guide to CPUFreq
+pcc-cpufreq.txt -	PCC cpufreq driver specific file.
 
 
 Mailing List
 ------------
 There is a CPU frequency changing CVS commit and general list where
 you can report bugs, problems or submit patches. To post a message,
-send an email to linux-pm@vger.kernel.org, to subscribe go to
-http://vger.kernel.org/vger-lists.html#linux-pm and follow the
-instructions there.
+send an email to linux-pm@vger.kernel.org.
 
 Links
 -----
@@ -48,7 +50,7 @@ how to access the CVS repository:
 * http://cvs.arm.linux.org.uk/
 
 the CPUFreq Mailing list:
-* http://vger.kernel.org/vger-lists.html#cpufreq
+* http://vger.kernel.org/vger-lists.html#linux-pm
 
 Clock and voltage scaling for the SA-1100:
 * http://www.lartmaker.nl/projects/scaling

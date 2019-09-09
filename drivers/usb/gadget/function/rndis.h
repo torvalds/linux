@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * RNDIS	Definitions for Remote NDIS
  *
  * Authors:	Benedikt Spranger, Pengutronix
  *		Robert Schwebel, Pengutronix
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		version 2, as published by the Free Software Foundation.
  *
  *		This software was originally developed in conformance with
  *		Microsoft's Remote NDIS Specification License Agreement.
@@ -22,8 +19,7 @@
 #define RNDIS_MAXIMUM_FRAME_SIZE	1518
 #define RNDIS_MAX_TOTAL_SIZE		1558
 
-typedef struct rndis_init_msg_type
-{
+typedef struct rndis_init_msg_type {
 	__le32	MessageType;
 	__le32	MessageLength;
 	__le32	RequestID;
@@ -32,8 +28,7 @@ typedef struct rndis_init_msg_type
 	__le32	MaxTransferSize;
 } rndis_init_msg_type;
 
-typedef struct rndis_init_cmplt_type
-{
+typedef struct rndis_init_cmplt_type {
 	__le32	MessageType;
 	__le32	MessageLength;
 	__le32	RequestID;
@@ -49,15 +44,13 @@ typedef struct rndis_init_cmplt_type
 	__le32	AFListSize;
 } rndis_init_cmplt_type;
 
-typedef struct rndis_halt_msg_type
-{
+typedef struct rndis_halt_msg_type {
 	__le32	MessageType;
 	__le32	MessageLength;
 	__le32	RequestID;
 } rndis_halt_msg_type;
 
-typedef struct rndis_query_msg_type
-{
+typedef struct rndis_query_msg_type {
 	__le32	MessageType;
 	__le32	MessageLength;
 	__le32	RequestID;
@@ -67,8 +60,7 @@ typedef struct rndis_query_msg_type
 	__le32	DeviceVcHandle;
 } rndis_query_msg_type;
 
-typedef struct rndis_query_cmplt_type
-{
+typedef struct rndis_query_cmplt_type {
 	__le32	MessageType;
 	__le32	MessageLength;
 	__le32	RequestID;
@@ -77,8 +69,7 @@ typedef struct rndis_query_cmplt_type
 	__le32	InformationBufferOffset;
 } rndis_query_cmplt_type;
 
-typedef struct rndis_set_msg_type
-{
+typedef struct rndis_set_msg_type {
 	__le32	MessageType;
 	__le32	MessageLength;
 	__le32	RequestID;
@@ -88,31 +79,27 @@ typedef struct rndis_set_msg_type
 	__le32	DeviceVcHandle;
 } rndis_set_msg_type;
 
-typedef struct rndis_set_cmplt_type
-{
+typedef struct rndis_set_cmplt_type {
 	__le32	MessageType;
 	__le32	MessageLength;
 	__le32	RequestID;
 	__le32	Status;
 } rndis_set_cmplt_type;
 
-typedef struct rndis_reset_msg_type
-{
+typedef struct rndis_reset_msg_type {
 	__le32	MessageType;
 	__le32	MessageLength;
 	__le32	Reserved;
 } rndis_reset_msg_type;
 
-typedef struct rndis_reset_cmplt_type
-{
+typedef struct rndis_reset_cmplt_type {
 	__le32	MessageType;
 	__le32	MessageLength;
 	__le32	Status;
 	__le32	AddressingReset;
 } rndis_reset_cmplt_type;
 
-typedef struct rndis_indicate_status_msg_type
-{
+typedef struct rndis_indicate_status_msg_type {
 	__le32	MessageType;
 	__le32	MessageLength;
 	__le32	Status;
@@ -120,23 +107,20 @@ typedef struct rndis_indicate_status_msg_type
 	__le32	StatusBufferOffset;
 } rndis_indicate_status_msg_type;
 
-typedef struct rndis_keepalive_msg_type
-{
+typedef struct rndis_keepalive_msg_type {
 	__le32	MessageType;
 	__le32	MessageLength;
 	__le32	RequestID;
 } rndis_keepalive_msg_type;
 
-typedef struct rndis_keepalive_cmplt_type
-{
+typedef struct rndis_keepalive_cmplt_type {
 	__le32	MessageType;
 	__le32	MessageLength;
 	__le32	RequestID;
 	__le32	Status;
 } rndis_keepalive_cmplt_type;
 
-struct rndis_packet_msg_type
-{
+struct rndis_packet_msg_type {
 	__le32	MessageType;
 	__le32	MessageLength;
 	__le32	DataOffset;
@@ -150,8 +134,7 @@ struct rndis_packet_msg_type
 	__le32	Reserved;
 } __attribute__ ((packed));
 
-struct rndis_config_parameter
-{
+struct rndis_config_parameter {
 	__le32	ParameterNameOffset;
 	__le32	ParameterNameLength;
 	__le32	ParameterType;
@@ -160,23 +143,20 @@ struct rndis_config_parameter
 };
 
 /* implementation specific */
-enum rndis_state
-{
+enum rndis_state {
 	RNDIS_UNINITIALIZED,
 	RNDIS_INITIALIZED,
 	RNDIS_DATA_INITIALIZED,
 };
 
-typedef struct rndis_resp_t
-{
+typedef struct rndis_resp_t {
 	struct list_head	list;
 	u8			*buf;
 	u32			length;
 	int			send;
 } rndis_resp_t;
 
-typedef struct rndis_params
-{
+typedef struct rndis_params {
 	int			confignr;
 	u8			used;
 	u16			saved_filter;

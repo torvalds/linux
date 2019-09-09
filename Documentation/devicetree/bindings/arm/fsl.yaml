@@ -1,0 +1,312 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/bindings/arm/fsl.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Freescale i.MX Platforms Device Tree Bindings
+
+maintainers:
+  - Shawn Guo <shawnguo@kernel.org>
+  - Li Yang <leoyang.li@nxp.com>
+
+properties:
+  $nodename:
+    const: '/'
+  compatible:
+    oneOf:
+      - description: i.MX1 based Boards
+        items:
+          - enum:
+              - armadeus,imx1-apf9328
+              - fsl,imx1ads
+          - const: fsl,imx1
+
+      - description: i.MX23 based Boards
+        items:
+          - enum:
+              - fsl,imx23-evk
+              - olimex,imx23-olinuxino
+          - const: fsl,imx23
+
+      - description: i.MX25 Product Development Kit
+        items:
+          - enum:
+              - fsl,imx25-pdk
+          - const: fsl,imx25
+
+      - description: i.MX27 Product Development Kit
+        items:
+          - enum:
+              - fsl,imx27-pdk
+          - const: fsl,imx27
+
+      - description: i.MX28 based Boards
+        items:
+          - enum:
+              - fsl,imx28-evk
+              - i2se,duckbill
+              - i2se,duckbill-2
+              - technologic,imx28-ts4600
+          - const: fsl,imx28
+      - description: i.MX28 Duckbill 2 based Boards
+        items:
+          - enum:
+              - i2se,duckbill-2-485
+              - i2se,duckbill-2-enocean
+              - i2se,duckbill-2-spi
+          - const: i2se,duckbill-2
+          - const: fsl,imx28
+
+      - description: i.MX31 based Boards
+        items:
+          - enum:
+              - buglabs,imx31-bug
+              - logicpd,imx31-lite
+          - const: fsl,imx31
+
+      - description: i.MX35 based Boards
+        items:
+          - enum:
+              - fsl,imx35-pdk
+          - const: fsl,imx35
+
+      - description: i.MX35 Eukrea CPUIMX35 Board
+        items:
+          - const: eukrea,mbimxsd35-baseboard
+          - const: eukrea,cpuimx35
+          - const: fsl,imx35
+
+      - description: i.MX50 based Boards
+        items:
+          - enum:
+              - fsl,imx50-evk
+              - kobo,aura
+          - const: fsl,imx50
+
+      - description: i.MX51 Babbage Board
+        items:
+          - enum:
+              - armadeus,imx51-apf51
+              - fsl,imx51-babbage
+              - technologic,imx51-ts4800
+          - const: fsl,imx51
+
+      - description: i.MX53 based Boards
+        items:
+          - enum:
+              - bhf,cx9020
+              - fsl,imx53-ard
+              - fsl,imx53-evk
+              - fsl,imx53-qsb
+              - fsl,imx53-smd
+              - menlo,m53menlo
+          - const: fsl,imx53
+
+      - description: i.MX6Q based Boards
+        items:
+          - enum:
+              - emtrion,emcon-mx6         # emCON-MX6D or emCON-MX6Q SoM
+              - emtrion,emcon-mx6-avari   # emCON-MX6D or emCON-MX6Q SoM on Avari Base
+              - fsl,imx6q-arm2
+              - fsl,imx6q-sabreauto
+              - fsl,imx6q-sabrelite
+              - fsl,imx6q-sabresd
+              - technologic,imx6q-ts4900
+              - technologic,imx6q-ts7970
+          - const: fsl,imx6q
+
+      - description: i.MX6QP based Boards
+        items:
+          - enum:
+              - fsl,imx6qp-sabreauto      # i.MX6 Quad Plus SABRE Automotive Board
+              - fsl,imx6qp-sabresd        # i.MX6 Quad Plus SABRE Smart Device Board
+          - const: fsl,imx6qp
+
+      - description: i.MX6DL based Boards
+        items:
+          - enum:
+              - eckelmann,imx6dl-ci4x10
+              - emtrion,emcon-mx6         # emCON-MX6S or emCON-MX6DL SoM
+              - emtrion,emcon-mx6-avari   # emCON-MX6S or emCON-MX6DL SoM on Avari Base
+              - fsl,imx6dl-sabreauto      # i.MX6 DualLite/Solo SABRE Automotive Board
+              - fsl,imx6dl-sabresd        # i.MX6 DualLite SABRE Smart Device Board
+              - technologic,imx6dl-ts4900
+              - technologic,imx6dl-ts7970
+              - ysoft,imx6dl-yapp4-draco  # i.MX6 DualLite Y Soft IOTA Draco board
+              - ysoft,imx6dl-yapp4-hydra  # i.MX6 DualLite Y Soft IOTA Hydra board
+              - ysoft,imx6dl-yapp4-ursa   # i.MX6 Solo Y Soft IOTA Ursa board
+          - const: fsl,imx6dl
+
+      - description: i.MX6SL based Boards
+        items:
+          - enum:
+              - fsl,imx6sl-evk            # i.MX6 SoloLite EVK Board
+          - const: fsl,imx6sl
+
+      - description: i.MX6SLL based Boards
+        items:
+          - enum:
+              - fsl,imx6sll-evk
+          - const: fsl,imx6sll
+
+      - description: i.MX6SX based Boards
+        items:
+          - enum:
+              - fsl,imx6sx-sabreauto      # i.MX6 SoloX Sabre Auto Board
+              - fsl,imx6sx-sdb            # i.MX6 SoloX SDB Board
+          - const: fsl,imx6sx
+
+      - description: i.MX6UL based Boards
+        items:
+          - enum:
+              - fsl,imx6ul-14x14-evk      # i.MX6 UltraLite 14x14 EVK Board
+          - const: fsl,imx6ul
+
+      - description: i.MX6ULL based Boards
+        items:
+          - enum:
+              - fsl,imx6ull-14x14-evk     # i.MX6 UltraLiteLite 14x14 EVK Board
+          - const: fsl,imx6ull
+
+      - description: i.MX6ULZ based Boards
+        items:
+          - enum:
+              - fsl,imx6ulz-14x14-evk     # i.MX6 ULZ 14x14 EVK Board
+          - const: fsl,imx6ull # This seems odd. Should be last?
+          - const: fsl,imx6ulz
+
+      - description: i.MX7S based Boards
+        items:
+          - enum:
+              - tq,imx7s-mba7             # i.MX7S TQ MBa7 with TQMa7S SoM
+          - const: fsl,imx7s
+
+      - description: i.MX7D based Boards
+        items:
+          - enum:
+              - fsl,imx7d-sdb             # i.MX7 SabreSD Board
+              - novtech,imx7d-meerkat96   # i.MX7 Meerkat96 Board
+              - tq,imx7d-mba7             # i.MX7D TQ MBa7 with TQMa7D SoM
+              - zii,imx7d-rpu2            # ZII RPU2 Board
+          - const: fsl,imx7d
+
+      - description:
+          Compulab SBC-iMX7 is a single board computer based on the
+          Freescale i.MX7 system-on-chip. SBC-iMX7 is implemented with
+          the CL-SOM-iMX7 System-on-Module providing most of the functions,
+          and SB-SOM-iMX7 carrier board providing additional peripheral
+          functions and connectors.
+        items:
+          - const: compulab,sbc-imx7
+          - const: compulab,cl-som-imx7
+          - const: fsl,imx7d
+
+      - description: i.MX7ULP based Boards
+        items:
+          - enum:
+              - fsl,imx7ulp-evk           # i.MX7ULP Evaluation Kit
+          - const: fsl,imx7ulp
+
+      - description: i.MX8MM based Boards
+        items:
+          - enum:
+              - fsl,imx8mm-evk            # i.MX8MM EVK Board
+          - const: fsl,imx8mm
+
+      - description: i.MX8MQ based Boards
+        items:
+          - enum:
+              - fsl,imx8mq-evk            # i.MX8MQ EVK Board
+              - purism,librem5-devkit     # Purism Librem5 devkit
+          - const: fsl,imx8mq
+
+      - description: i.MX8QXP based Boards
+        items:
+          - enum:
+              - fsl,imx8qxp-mek           # i.MX8QXP MEK Board
+          - const: fsl,imx8qxp
+
+      - description:
+          Freescale Vybrid Platform Device Tree Bindings
+
+          For the Vybrid SoC familiy all variants with DDR controller are supported,
+          which is the VF5xx and VF6xx series. Out of historical reasons, in most
+          places the kernel uses vf610 to refer to the whole familiy.
+          The compatible string "fsl,vf610m4" is used for the secondary Cortex-M4
+          core support.
+        items:
+          - enum:
+              - fsl,vf500
+              - fsl,vf510
+              - fsl,vf600
+              - fsl,vf610
+              - fsl,vf610m4
+
+      - description: ZII's VF610 based Boards
+        items:
+          - enum:
+              - zii,vf610cfu1      # ZII VF610 CFU1 Board
+              - zii,vf610dev-c     # ZII VF610 Development Board, Rev C
+              - zii,vf610dev-b     # ZII VF610 Development Board, Rev B
+              - zii,vf610scu4-aib  # ZII VF610 SCU4 AIB
+              - zii,vf610dtu       # ZII VF610 SSMB DTU Board
+              - zii,vf610spu3      # ZII VF610 SSMB SPU3 Board
+              - zii,vf610spb4      # ZII VF610 SPB4 Board
+          - const: zii,vf610dev
+          - const: fsl,vf610
+
+      - description: LS1012A based Boards
+        items:
+          - enum:
+              - ebs-systart,oxalis
+              - fsl,ls1012a-rdb
+              - fsl,ls1012a-frdm
+              - fsl,ls1012a-qds
+          - const: fsl,ls1012a
+
+      - description: LS1021A based Boards
+        items:
+          - enum:
+              - fsl,ls1021a-moxa-uc-8410a
+              - fsl,ls1021a-qds
+              - fsl,ls1021a-twr
+          - const: fsl,ls1021a
+
+      - description: LS1043A based Boards
+        items:
+          - enum:
+              - fsl,ls1043a-rdb
+              - fsl,ls1043a-qds
+          - const: fsl,ls1043a
+
+      - description: LS1046A based Boards
+        items:
+          - enum:
+              - fsl,ls1046a-qds
+              - fsl,ls1046a-rdb
+          - const: fsl,ls1046a
+
+      - description: LS1088A based Boards
+        items:
+          - enum:
+              - fsl,ls1088a-qds
+              - fsl,ls1088a-rdb
+          - const: fsl,ls1088a
+
+      - description: LS2080A based Boards
+        items:
+          - enum:
+              - fsl,ls2080a-simu
+              - fsl,ls2080a-qds
+              - fsl,ls2080a-rdb
+          - const: fsl,ls2080a
+
+      - description: LS2088A based Boards
+        items:
+          - enum:
+              - fsl,ls2088a-qds
+              - fsl,ls2088a-rdb
+          - const: fsl,ls2088a
+
+...

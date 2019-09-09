@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * USB block power/access management abstraction.
  *
@@ -10,9 +11,9 @@
  */
 
 #include <linux/clk.h>
+#include <linux/export.h>
 #include <linux/init.h>
 #include <linux/io.h>
-#include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/syscore_ops.h>
 #include <asm/cpu.h>

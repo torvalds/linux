@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * drivers/media/i2c/smiapp-pll.c
  *
@@ -5,15 +6,6 @@
  *
  * Copyright (C) 2011--2012 Nokia Corporation
  * Contact: Sakari Ailus <sakari.ailus@iki.fi>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 
 #include <linux/device.h>
@@ -479,7 +471,8 @@ int smiapp_pll_calculate(struct device *dev,
 		return 0;
 	}
 
-	dev_info(dev, "unable to compute pre_pll divisor\n");
+	dev_dbg(dev, "unable to compute pre_pll divisor\n");
+
 	return rval;
 }
 EXPORT_SYMBOL_GPL(smiapp_pll_calculate);

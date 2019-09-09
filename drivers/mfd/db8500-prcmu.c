@@ -1,16 +1,18 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
+ * DB8500 PRCM Unit driver
+ *
  * Copyright (C) STMicroelectronics 2009
  * Copyright (C) ST-Ericsson SA 2010
  *
- * License Terms: GNU General Public License v2
  * Author: Kumar Sanghvi <kumar.sanghvi@stericsson.com>
  * Author: Sundar Iyer <sundar.iyer@stericsson.com>
  * Author: Mattias Nilsson <mattias.i.nilsson@stericsson.com>
  *
  * U8500 PRCM Unit interface driver
- *
  */
-#include <linux/module.h>
+#include <linux/init.h>
+#include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
@@ -33,7 +35,6 @@
 #include <linux/mfd/abx500/ab8500.h>
 #include <linux/regulator/db8500-prcmu.h>
 #include <linux/regulator/machine.h>
-#include <linux/cpufreq.h>
 #include <linux/platform_data/ux500_wdt.h>
 #include <linux/platform_data/db8500_thermal.h>
 #include "dbx500-prcmu-regs.h"
@@ -1589,8 +1590,10 @@ static unsigned long dsiclk_rate(u8 n)
 	switch (divsel) {
 	case PRCM_DSI_PLLOUT_SEL_PHI_4:
 		div *= 2;
+		/* Fall through */
 	case PRCM_DSI_PLLOUT_SEL_PHI_2:
 		div *= 2;
+		/* Fall through */
 	case PRCM_DSI_PLLOUT_SEL_PHI:
 		return pll_rate(PRCM_PLLDSI_FREQ, clock_rate(PRCMU_HDMICLK),
 			PLL_RAW) / div;
@@ -1692,32 +1695,27 @@ static long round_clock_rate(u8 clock, unsigned long rate)
 	return rounded_rate;
 }
 
-/* CPU FREQ table, may be changed due to if MAX_OPP is supported. */
-static struct cpufreq_frequency_table db8500_cpufreq_table[] = {
-	{ .frequency = 200000, .driver_data = ARM_EXTCLK,},
-	{ .frequency = 400000, .driver_data = ARM_50_OPP,},
-	{ .frequency = 800000, .driver_data = ARM_100_OPP,},
-	{ .frequency = CPUFREQ_TABLE_END,}, /* To be used for MAX_OPP. */
-	{ .frequency = CPUFREQ_TABLE_END,},
+static const unsigned long armss_freqs[] = {
+	200000000,
+	400000000,
+	800000000,
+	998400000
 };
 
 static long round_armss_rate(unsigned long rate)
 {
-	struct cpufreq_frequency_table *pos;
-	long freq = 0;
-
-	/* cpufreq table frequencies is in KHz. */
-	rate = rate / 1000;
+	unsigned long freq = 0;
+	int i;
 
 	/* Find the corresponding arm opp from the cpufreq table. */
-	cpufreq_for_each_entry(pos, db8500_cpufreq_table) {
-		freq = pos->frequency;
-		if (freq == rate)
+	for (i = 0; i < ARRAY_SIZE(armss_freqs); i++) {
+		freq = armss_freqs[i];
+		if (rate <= freq)
 			break;
 	}
 
 	/* Return the last valid value, even if a match was not found. */
-	return freq * 1000;
+	return freq;
 }
 
 #define MIN_PLL_VCO_RATE 600000000ULL
@@ -1854,21 +1852,23 @@ static void set_clock_rate(u8 clock, unsigned long rate)
 
 static int set_armss_rate(unsigned long rate)
 {
-	struct cpufreq_frequency_table *pos;
-
-	/* cpufreq table frequencies is in KHz. */
-	rate = rate / 1000;
+	unsigned long freq;
+	u8 opps[] = { ARM_EXTCLK, ARM_50_OPP, ARM_100_OPP, ARM_MAX_OPP };
+	int i;
 
 	/* Find the corresponding arm opp from the cpufreq table. */
-	cpufreq_for_each_entry(pos, db8500_cpufreq_table)
-		if (pos->frequency == rate)
+	for (i = 0; i < ARRAY_SIZE(armss_freqs); i++) {
+		freq = armss_freqs[i];
+		if (rate == freq)
 			break;
+	}
 
-	if (pos->frequency != rate)
+	if (rate != freq)
 		return -EINVAL;
 
 	/* Set the new arm opp. */
-	return db8500_prcmu_set_arm_opp(pos->driver_data);
+	pr_debug("SET ARM OPP 0x%02x\n", opps[i]);
+	return db8500_prcmu_set_arm_opp(opps[i]);
 }
 
 static int set_plldsi_rate(unsigned long rate)
@@ -2377,7 +2377,7 @@ static void ack_dbb_wakeup(void)
 
 static inline void print_unknown_header_warning(u8 n, u8 header)
 {
-	pr_warning("prcmu: Unknown message header (%d) in mailbox %d.\n",
+	pr_warn("prcmu: Unknown message header (%d) in mailbox %d\n",
 		header, n);
 }
 
@@ -2588,7 +2588,7 @@ static struct irq_chip prcmu_irq_chip = {
 	.irq_unmask	= prcmu_irq_unmask,
 };
 
-static __init char *fw_project_name(u32 project)
+static char *fw_project_name(u32 project)
 {
 	switch (project) {
 	case PRCMU_FW_PROJECT_U8500:
@@ -2736,7 +2736,7 @@ void __init db8500_prcmu_early_init(u32 phy_base, u32 size)
 	INIT_WORK(&mb0_transfer.mask_work, prcmu_mask_work);
 }
 
-static void __init init_prcm_registers(void)
+static void init_prcm_registers(void)
 {
 	u32 val;
 
@@ -3049,12 +3049,6 @@ static const struct mfd_cell db8500_prcmu_devs[] = {
 		.pdata_size = sizeof(db8500_regulators),
 	},
 	{
-		.name = "cpufreq-ux500",
-		.of_compatible = "stericsson,cpufreq-ux500",
-		.platform_data = &db8500_cpufreq_table,
-		.pdata_size = sizeof(db8500_cpufreq_table),
-	},
-	{
 		.name = "cpuidle-dbx500",
 		.of_compatible = "stericsson,cpuidle-dbx500",
 	},
@@ -3066,14 +3060,6 @@ static const struct mfd_cell db8500_prcmu_devs[] = {
 		.pdata_size = sizeof(db8500_thsens_data),
 	},
 };
-
-static void db8500_prcmu_update_cpufreq(void)
-{
-	if (prcmu_has_arm_maxopp()) {
-		db8500_cpufreq_table[3].frequency = 1000000;
-		db8500_cpufreq_table[3].driver_data = ARM_MAX_OPP;
-	}
-}
 
 static int db8500_prcmu_register_ab8500(struct device *parent)
 {
@@ -3160,8 +3146,6 @@ static int db8500_prcmu_probe(struct platform_device *pdev)
 
 	prcmu_config_esram0_deep_sleep(ESRAM0_DEEP_SLEEP_STATE_RET);
 
-	db8500_prcmu_update_cpufreq();
-
 	err = mfd_add_devices(&pdev->dev, 0, common_prcmu_devs,
 			      ARRAY_SIZE(common_prcmu_devs), NULL, 0, db8500_irq_domain);
 	if (err) {
@@ -3208,9 +3192,4 @@ static int __init db8500_prcmu_init(void)
 {
 	return platform_driver_register(&db8500_prcmu_driver);
 }
-
 core_initcall(db8500_prcmu_init);
-
-MODULE_AUTHOR("Mattias Nilsson <mattias.i.nilsson@stericsson.com>");
-MODULE_DESCRIPTION("DB8500 PRCM Unit driver");
-MODULE_LICENSE("GPL v2");

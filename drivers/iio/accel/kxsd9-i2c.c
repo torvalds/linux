@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -62,3 +63,6 @@ static struct i2c_driver kxsd9_i2c_driver = {
 	.id_table	= kxsd9_i2c_id,
 };
 module_i2c_driver(kxsd9_i2c_driver);
+
+MODULE_LICENSE("GPL v2");
+MODULE_DESCRIPTION("KXSD9 accelerometer I2C interface");

@@ -1,17 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Earthsoft PT3 driver
  *
  * Copyright (C) 2014 Akihiro Tsukada <tskd08@gmail.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation version 2.
- *
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef PT3_H
@@ -20,9 +11,9 @@
 #include <linux/atomic.h>
 #include <linux/types.h>
 
-#include "dvb_demux.h"
-#include "dvb_frontend.h"
-#include "dmxdev.h"
+#include <media/dvb_demux.h>
+#include <media/dvb_frontend.h>
+#include <media/dmxdev.h>
 
 #include "tc90522.h"
 #include "mxl301rf.h"
@@ -85,7 +76,7 @@ struct xfer_desc {
 	u32 addr_l; /* bus address of target data buffer */
 	u32 addr_h;
 	u32 size;
-	u32 next_l; /* bus adddress of the next xfer_desc */
+	u32 next_l; /* bus address of the next xfer_desc */
 	u32 next_h;
 };
 

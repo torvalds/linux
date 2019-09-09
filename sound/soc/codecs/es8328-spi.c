@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * es8328.c  --  ES8328 ALSA SoC SPI Audio driver
  *
  * Copyright 2014 Sutajio Ko-Usagi PTE LTD
  *
  * Author: Sean Cross <xobs@kosagi.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -28,19 +25,12 @@ static int es8328_spi_probe(struct spi_device *spi)
 			devm_regmap_init_spi(spi, &es8328_regmap_config));
 }
 
-static int es8328_spi_remove(struct spi_device *spi)
-{
-	snd_soc_unregister_codec(&spi->dev);
-	return 0;
-}
-
 static struct spi_driver es8328_spi_driver = {
 	.driver = {
 		.name		= "es8328",
 		.of_match_table	= es8328_of_match,
 	},
 	.probe	= es8328_spi_probe,
-	.remove	= es8328_spi_remove,
 };
 
 module_spi_driver(es8328_spi_driver);

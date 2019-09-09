@@ -1,9 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Device Tree for the ST-Ericsson U300 Machine and SoC
  */
 
 /dts-v1/;
-/include/ "skeleton.dtsi"
 
 / {
 	model = "ST-Ericsson U300";
@@ -21,6 +21,7 @@
         };
 
 	memory {
+		device_type = "memory";
 		reg = <0x48000000 0x03c00000>;
 	};
 
@@ -441,7 +442,7 @@
 			dma-names = "rx";
 		};
 
-		spi: ssp@c0006000 {
+		spi: spi@c0006000 {
 			compatible = "arm,pl022", "arm,primecell";
 			reg = <0xc0006000 0x1000>;
 			interrupt-parent = <&vica>;

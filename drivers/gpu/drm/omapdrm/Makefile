@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Makefile for the drm device driver.  This driver provides support for the
 # Direct Rendering Infrastructure (DRI)
@@ -6,7 +7,6 @@
 obj-y += dss/
 obj-y += displays/
 
-ccflags-y := -Iinclude/drm
 omapdrm-y := omap_drv.o \
 	omap_irq.o \
 	omap_debugfs.o \

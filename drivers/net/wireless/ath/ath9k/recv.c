@@ -815,6 +815,7 @@ static int ath9k_rx_skb_preprocess(struct ath_softc *sc,
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ieee80211_hdr *hdr;
 	bool discard_current = sc->rx.discard_next;
+	bool is_phyerr;
 
 	/*
 	 * Discard corrupt descriptors which are marked in
@@ -826,10 +827,13 @@ static int ath9k_rx_skb_preprocess(struct ath_softc *sc,
 	sc->rx.discard_next = false;
 
 	/*
-	 * Discard zero-length packets.
+	 * Discard zero-length packets and packets smaller than an ACK
+	 * which are not PHY_ERROR (short radar pulses have a length of 3)
 	 */
-	if (!rx_stats->rs_datalen) {
-		RX_STAT_INC(rx_len_err);
+	is_phyerr = rx_stats->rs_status & ATH9K_RXERR_PHY;
+	if (!rx_stats->rs_datalen ||
+	    (rx_stats->rs_datalen < 10 && !is_phyerr)) {
+		RX_STAT_INC(sc, rx_len_err);
 		goto corrupt;
 	}
 
@@ -839,7 +843,7 @@ static int ath9k_rx_skb_preprocess(struct ath_softc *sc,
 	 * those frames.
 	 */
 	if (rx_stats->rs_datalen > (common->rx_bufsize - ah->caps.rx_status_len)) {
-		RX_STAT_INC(rx_len_err);
+		RX_STAT_INC(sc, rx_len_err);
 		goto corrupt;
 	}
 
@@ -867,10 +871,21 @@ static int ath9k_rx_skb_preprocess(struct ath_softc *sc,
 	 * can be dropped.
 	 */
 	if (rx_stats->rs_status & ATH9K_RXERR_PHY) {
-		ath9k_dfs_process_phyerr(sc, hdr, rx_stats, rx_status->mactime);
-		if (ath_cmn_process_fft(&sc->spec_priv, hdr, rx_stats, rx_status->mactime))
-			RX_STAT_INC(rx_spectral);
-
+		/*
+		 * DFS and spectral are mutually exclusive
+		 *
+		 * Since some chips use PHYERR_RADAR as indication for both, we
+		 * need to double check which feature is enabled to prevent
+		 * feeding spectral or dfs-detector with wrong frames.
+		 */
+		if (hw->conf.radar_enabled) {
+			ath9k_dfs_process_phyerr(sc, hdr, rx_stats,
+						 rx_status->mactime);
+		} else if (sc->spec_priv.spectral_mode != SPECTRAL_DISABLED &&
+			   ath_cmn_process_fft(&sc->spec_priv, hdr, rx_stats,
+					       rx_status->mactime)) {
+			RX_STAT_INC(sc, rx_spectral);
+		}
 		return -EINVAL;
 	}
 
@@ -887,7 +902,7 @@ static int ath9k_rx_skb_preprocess(struct ath_softc *sc,
 	spin_unlock_bh(&sc->chan_lock);
 
 	if (ath_is_mybeacon(common, hdr)) {
-		RX_STAT_INC(rx_beacons);
+		RX_STAT_INC(sc, rx_beacons);
 		rx_stats->is_mybeacon = true;
 	}
 
@@ -904,7 +919,7 @@ static int ath9k_rx_skb_preprocess(struct ath_softc *sc,
 		 */
 		ath_dbg(common, ANY, "unsupported hw bitrate detected 0x%02x using 1 Mbit\n",
 			rx_stats->rs_rate);
-		RX_STAT_INC(rx_rate_err);
+		RX_STAT_INC(sc, rx_rate_err);
 		return -EINVAL;
 	}
 
@@ -991,6 +1006,56 @@ static void ath9k_apply_ampdu_details(struct ath_softc *sc,
 	}
 }
 
+static void ath_rx_count_airtime(struct ath_softc *sc,
+				 struct ath_rx_status *rs,
+				 struct sk_buff *skb)
+{
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
+	struct ieee80211_sta *sta;
+	struct ieee80211_rx_status *rxs;
+	const struct ieee80211_rate *rate;
+	bool is_sgi, is_40, is_sp;
+	int phy;
+	u16 len = rs->rs_datalen;
+	u32 airtime = 0;
+	u8 tidno;
+
+	if (!ieee80211_is_data(hdr->frame_control))
+		return;
+
+	rcu_read_lock();
+
+	sta = ieee80211_find_sta_by_ifaddr(sc->hw, hdr->addr2, NULL);
+	if (!sta)
+		goto exit;
+	tidno = skb->priority & IEEE80211_QOS_CTL_TID_MASK;
+
+	rxs = IEEE80211_SKB_RXCB(skb);
+
+	is_sgi = !!(rxs->enc_flags & RX_ENC_FLAG_SHORT_GI);
+	is_40 = !!(rxs->bw == RATE_INFO_BW_40);
+	is_sp = !!(rxs->enc_flags & RX_ENC_FLAG_SHORTPRE);
+
+	if (!!(rxs->encoding == RX_ENC_HT)) {
+		/* MCS rates */
+
+		airtime += ath_pkt_duration(sc, rxs->rate_idx, len,
+					is_40, is_sgi, is_sp);
+	} else {
+
+		phy = IS_CCK_RATE(rs->rs_rate) ? WLAN_RC_PHY_CCK : WLAN_RC_PHY_OFDM;
+		rate = &common->sbands[rxs->band].bitrates[rxs->rate_idx];
+		airtime += ath9k_hw_computetxtime(ah, phy, rate->bitrate * 100,
+						len, rxs->rate_idx, is_sp);
+	}
+
+	ieee80211_sta_register_airtime(sta, tidno, 0, airtime);
+exit:
+	rcu_read_unlock();
+}
+
 int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 {
 	struct ath_rxbuf *bf;
@@ -1061,7 +1126,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 		 * skb and put it at the tail of the sc->rx.rxbuf list for
 		 * processing. */
 		if (!requeue_skb) {
-			RX_STAT_INC(rx_oom_err);
+			RX_STAT_INC(sc, rx_oom_err);
 			goto requeue_drop_frag;
 		}
 
@@ -1089,7 +1154,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 						     rxs, decrypt_error);
 
 		if (rs.rs_more) {
-			RX_STAT_INC(rx_frags);
+			RX_STAT_INC(sc, rx_frags);
 			/*
 			 * rs_more indicates chained descriptors which can be
 			 * used to link buffers together for a sort of
@@ -1099,7 +1164,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 				/* too many fragments - cannot handle frame */
 				dev_kfree_skb_any(sc->rx.frag);
 				dev_kfree_skb_any(skb);
-				RX_STAT_INC(rx_too_many_frags_err);
+				RX_STAT_INC(sc, rx_too_many_frags_err);
 				skb = NULL;
 			}
 			sc->rx.frag = skb;
@@ -1111,7 +1176,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 
 			if (pskb_expand_head(hdr_skb, 0, space, GFP_ATOMIC) < 0) {
 				dev_kfree_skb(skb);
-				RX_STAT_INC(rx_oom_err);
+				RX_STAT_INC(sc, rx_oom_err);
 				goto requeue_drop_frag;
 			}
 
@@ -1137,6 +1202,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 		ath9k_antenna_check(sc, &rs);
 		ath9k_apply_ampdu_details(sc, &rs, rxs);
 		ath_debug_rate_stats(sc, &rs, skb);
+		ath_rx_count_airtime(sc, &rs, skb);
 
 		hdr = (struct ieee80211_hdr *)skb->data;
 		if (ieee80211_is_ack(hdr->frame_control))

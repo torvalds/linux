@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
 ** SMP Support
 **
@@ -11,17 +12,13 @@
 ** Thanks to John Curry and Ullas Ponnadi. I learned a lot from their work.
 ** -grant (1/12/2001)
 **
-**	This program is free software; you can redistribute it and/or modify
-**	it under the terms of the GNU General Public License as published by
-**      the Free Software Foundation; either version 2 of the License, or
-**      (at your option) any later version.
 */
 #include <linux/types.h>
 #include <linux/spinlock.h>
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/sched.h>
+#include <linux/sched/mm.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/smp.h>
@@ -155,6 +152,7 @@ ipi_interrupt(int irq, void *dev_id)
 
 			case IPI_CALL_FUNC:
 				smp_debug(100, KERN_DEBUG "CPU%d IPI_CALL_FUNC\n", this_cpu);
+				inc_irq_stat(irq_call_count);
 				generic_smp_call_function_interrupt();
 				break;
 
@@ -255,12 +253,11 @@ void arch_send_call_function_single_ipi(int cpu)
 static void __init
 smp_cpu_init(int cpunum)
 {
-	extern int init_per_cpu(int);  /* arch/parisc/kernel/processor.c */
 	extern void init_IRQ(void);    /* arch/parisc/kernel/irq.c */
 	extern void start_cpu_itimer(void); /* arch/parisc/kernel/time.c */
 
 	/* Set modes and Enable floating point coprocessor */
-	(void) init_per_cpu(cpunum);
+	init_per_cpu(cpunum);
 
 	disable_sr_hashing();
 
@@ -279,7 +276,7 @@ smp_cpu_init(int cpunum)
 	set_cpu_online(cpunum, true);
 
 	/* Initialise the idle task for this CPU */
-	atomic_inc(&init_mm.mm_count);
+	mmgrab(&init_mm);
 	current->active_mm = &init_mm;
 	BUG_ON(current->mm);
 	enter_lazy_tlb(&init_mm, current);
@@ -293,9 +290,14 @@ smp_cpu_init(int cpunum)
  * Slaves start using C here. Indirectly called from smp_slave_stext.
  * Do what start_kernel() and main() do for boot strap processor (aka monarch)
  */
-void __init smp_callin(void)
+void __init smp_callin(unsigned long pdce_proc)
 {
 	int slave_id = cpu_now_booting;
+
+#ifdef CONFIG_64BIT
+	WARN_ON(((unsigned long)(PAGE0->mem_pdc_hi) << 32
+			| PAGE0->mem_pdc) != pdce_proc);
+#endif
 
 	smp_cpu_init(slave_id);
 	preempt_disable();
@@ -419,8 +421,7 @@ int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 }
 
 #ifdef CONFIG_PROC_FS
-int __init
-setup_profiling_timer(unsigned int multiplier)
+int setup_profiling_timer(unsigned int multiplier)
 {
 	return -EINVAL;
 }

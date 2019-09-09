@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_DIV64_H
 #define _ASM_X86_DIV64_H
 
@@ -58,6 +59,17 @@ static inline u64 div_u64_rem(u64 dividend, u32 divisor, u32 *remainder)
 	return d.v64;
 }
 #define div_u64_rem	div_u64_rem
+
+static inline u64 mul_u32_u32(u32 a, u32 b)
+{
+	u32 high, low;
+
+	asm ("mull %[b]" : "=a" (low), "=d" (high)
+			 : [a] "a" (a), [b] "rm" (b) );
+
+	return low | ((u64)high) << 32;
+}
+#define mul_u32_u32 mul_u32_u32
 
 #else
 # include <asm-generic/div64.h>

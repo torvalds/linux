@@ -1,13 +1,13 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) STMicroelectronics SA 2014
  * Author: Vincent Abriou <vincent.abriou@st.com> for STMicroelectronics.
- * License terms:  GNU General Public License (GPL), version 2
  */
 
 #ifndef _STI_AWG_UTILS_H_
 #define _STI_AWG_UTILS_H_
 
-#include <drm/drmP.h>
+#include <linux/types.h>
 
 #define AWG_MAX_INST 64
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * saa7127 - Philips SAA7127/SAA7129 video encoder driver
  *
@@ -31,20 +32,6 @@
  * macrovision anti-taping support. This driver will almost certainly
  * work fine for those chips, except of course for the missing anti-taping
  * support.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 
@@ -136,109 +123,109 @@ struct i2c_reg_value {
 };
 
 static const struct i2c_reg_value saa7129_init_config_extra[] = {
-	{ SAA7127_REG_OUTPUT_PORT_CONTROL, 		0x38 },
-	{ SAA7127_REG_VTRIG, 				0xfa },
+	{ SAA7127_REG_OUTPUT_PORT_CONTROL,		0x38 },
+	{ SAA7127_REG_VTRIG,				0xfa },
 	{ 0, 0 }
 };
 
 static const struct i2c_reg_value saa7127_init_config_common[] = {
-	{ SAA7127_REG_WIDESCREEN_CONFIG, 		0x0d },
-	{ SAA7127_REG_WIDESCREEN_ENABLE, 		0x00 },
-	{ SAA7127_REG_COPYGEN_0, 			0x77 },
-	{ SAA7127_REG_COPYGEN_1, 			0x41 },
-	{ SAA7127_REG_COPYGEN_2, 			0x00 },	/* Macrovision enable/disable */
-	{ SAA7127_REG_OUTPUT_PORT_CONTROL, 		0xbf },
-	{ SAA7127_REG_GAIN_LUMINANCE_RGB, 		0x00 },
-	{ SAA7127_REG_GAIN_COLORDIFF_RGB, 		0x00 },
-	{ SAA7127_REG_INPUT_PORT_CONTROL_1, 		0x80 },	/* for color bars */
-	{ SAA7127_REG_LINE_21_ODD_0, 			0x77 },
-	{ SAA7127_REG_LINE_21_ODD_1, 			0x41 },
-	{ SAA7127_REG_LINE_21_EVEN_0, 			0x88 },
-	{ SAA7127_REG_LINE_21_EVEN_1, 			0x41 },
-	{ SAA7127_REG_RCV_PORT_CONTROL, 		0x12 },
-	{ SAA7127_REG_VTRIG, 				0xf9 },
-	{ SAA7127_REG_HTRIG_HI, 			0x00 },
-	{ SAA7127_REG_RCV2_OUTPUT_START, 		0x41 },
-	{ SAA7127_REG_RCV2_OUTPUT_END, 			0xc3 },
-	{ SAA7127_REG_RCV2_OUTPUT_MSBS, 		0x00 },
-	{ SAA7127_REG_TTX_REQUEST_H_START, 		0x3e },
-	{ SAA7127_REG_TTX_REQUEST_H_DELAY_LENGTH, 	0xb8 },
-	{ SAA7127_REG_CSYNC_ADVANCE_VSYNC_SHIFT,  	0x03 },
-	{ SAA7127_REG_TTX_ODD_REQ_VERT_START, 		0x15 },
-	{ SAA7127_REG_TTX_ODD_REQ_VERT_END, 		0x16 },
-	{ SAA7127_REG_TTX_EVEN_REQ_VERT_START, 		0x15 },
-	{ SAA7127_REG_TTX_EVEN_REQ_VERT_END, 		0x16 },
-	{ SAA7127_REG_FIRST_ACTIVE, 			0x1a },
-	{ SAA7127_REG_LAST_ACTIVE, 			0x01 },
-	{ SAA7127_REG_MSB_VERTICAL, 			0xc0 },
-	{ SAA7127_REG_DISABLE_TTX_LINE_LO_0, 		0x00 },
-	{ SAA7127_REG_DISABLE_TTX_LINE_LO_1, 		0x00 },
+	{ SAA7127_REG_WIDESCREEN_CONFIG,		0x0d },
+	{ SAA7127_REG_WIDESCREEN_ENABLE,		0x00 },
+	{ SAA7127_REG_COPYGEN_0,			0x77 },
+	{ SAA7127_REG_COPYGEN_1,			0x41 },
+	{ SAA7127_REG_COPYGEN_2,			0x00 },	/* Macrovision enable/disable */
+	{ SAA7127_REG_OUTPUT_PORT_CONTROL,		0xbf },
+	{ SAA7127_REG_GAIN_LUMINANCE_RGB,		0x00 },
+	{ SAA7127_REG_GAIN_COLORDIFF_RGB,		0x00 },
+	{ SAA7127_REG_INPUT_PORT_CONTROL_1,		0x80 },	/* for color bars */
+	{ SAA7127_REG_LINE_21_ODD_0,			0x77 },
+	{ SAA7127_REG_LINE_21_ODD_1,			0x41 },
+	{ SAA7127_REG_LINE_21_EVEN_0,			0x88 },
+	{ SAA7127_REG_LINE_21_EVEN_1,			0x41 },
+	{ SAA7127_REG_RCV_PORT_CONTROL,			0x12 },
+	{ SAA7127_REG_VTRIG,				0xf9 },
+	{ SAA7127_REG_HTRIG_HI,				0x00 },
+	{ SAA7127_REG_RCV2_OUTPUT_START,		0x41 },
+	{ SAA7127_REG_RCV2_OUTPUT_END,			0xc3 },
+	{ SAA7127_REG_RCV2_OUTPUT_MSBS,			0x00 },
+	{ SAA7127_REG_TTX_REQUEST_H_START,		0x3e },
+	{ SAA7127_REG_TTX_REQUEST_H_DELAY_LENGTH,	0xb8 },
+	{ SAA7127_REG_CSYNC_ADVANCE_VSYNC_SHIFT,	0x03 },
+	{ SAA7127_REG_TTX_ODD_REQ_VERT_START,		0x15 },
+	{ SAA7127_REG_TTX_ODD_REQ_VERT_END,		0x16 },
+	{ SAA7127_REG_TTX_EVEN_REQ_VERT_START,		0x15 },
+	{ SAA7127_REG_TTX_EVEN_REQ_VERT_END,		0x16 },
+	{ SAA7127_REG_FIRST_ACTIVE,			0x1a },
+	{ SAA7127_REG_LAST_ACTIVE,			0x01 },
+	{ SAA7127_REG_MSB_VERTICAL,			0xc0 },
+	{ SAA7127_REG_DISABLE_TTX_LINE_LO_0,		0x00 },
+	{ SAA7127_REG_DISABLE_TTX_LINE_LO_1,		0x00 },
 	{ 0, 0 }
 };
 
 #define SAA7127_60HZ_DAC_CONTROL 0x15
 static const struct i2c_reg_value saa7127_init_config_60hz[] = {
-	{ SAA7127_REG_BURST_START, 			0x19 },
+	{ SAA7127_REG_BURST_START,			0x19 },
 	/* BURST_END is also used as a chip ID in saa7127_probe */
-	{ SAA7127_REG_BURST_END, 			0x1d },
-	{ SAA7127_REG_CHROMA_PHASE, 			0xa3 },
-	{ SAA7127_REG_GAINU, 				0x98 },
-	{ SAA7127_REG_GAINV, 				0xd3 },
-	{ SAA7127_REG_BLACK_LEVEL, 			0x39 },
-	{ SAA7127_REG_BLANKING_LEVEL, 			0x2e },
-	{ SAA7127_REG_VBI_BLANKING, 			0x2e },
-	{ SAA7127_REG_DAC_CONTROL, 			0x15 },
-	{ SAA7127_REG_BURST_AMP, 			0x4d },
-	{ SAA7127_REG_SUBC3, 				0x1f },
-	{ SAA7127_REG_SUBC2, 				0x7c },
-	{ SAA7127_REG_SUBC1, 				0xf0 },
-	{ SAA7127_REG_SUBC0, 				0x21 },
-	{ SAA7127_REG_MULTI, 				0x90 },
-	{ SAA7127_REG_CLOSED_CAPTION, 			0x11 },
+	{ SAA7127_REG_BURST_END,			0x1d },
+	{ SAA7127_REG_CHROMA_PHASE,			0xa3 },
+	{ SAA7127_REG_GAINU,				0x98 },
+	{ SAA7127_REG_GAINV,				0xd3 },
+	{ SAA7127_REG_BLACK_LEVEL,			0x39 },
+	{ SAA7127_REG_BLANKING_LEVEL,			0x2e },
+	{ SAA7127_REG_VBI_BLANKING,			0x2e },
+	{ SAA7127_REG_DAC_CONTROL,			0x15 },
+	{ SAA7127_REG_BURST_AMP,			0x4d },
+	{ SAA7127_REG_SUBC3,				0x1f },
+	{ SAA7127_REG_SUBC2,				0x7c },
+	{ SAA7127_REG_SUBC1,				0xf0 },
+	{ SAA7127_REG_SUBC0,				0x21 },
+	{ SAA7127_REG_MULTI,				0x90 },
+	{ SAA7127_REG_CLOSED_CAPTION,			0x11 },
 	{ 0, 0 }
 };
 
 #define SAA7127_50HZ_PAL_DAC_CONTROL 0x02
 static struct i2c_reg_value saa7127_init_config_50hz_pal[] = {
-	{ SAA7127_REG_BURST_START, 			0x21 },
+	{ SAA7127_REG_BURST_START,			0x21 },
 	/* BURST_END is also used as a chip ID in saa7127_probe */
-	{ SAA7127_REG_BURST_END, 			0x1d },
-	{ SAA7127_REG_CHROMA_PHASE, 			0x3f },
-	{ SAA7127_REG_GAINU, 				0x7d },
-	{ SAA7127_REG_GAINV, 				0xaf },
-	{ SAA7127_REG_BLACK_LEVEL, 			0x33 },
-	{ SAA7127_REG_BLANKING_LEVEL, 			0x35 },
-	{ SAA7127_REG_VBI_BLANKING, 			0x35 },
-	{ SAA7127_REG_DAC_CONTROL, 			0x02 },
-	{ SAA7127_REG_BURST_AMP, 			0x2f },
-	{ SAA7127_REG_SUBC3, 				0xcb },
-	{ SAA7127_REG_SUBC2, 				0x8a },
-	{ SAA7127_REG_SUBC1, 				0x09 },
-	{ SAA7127_REG_SUBC0, 				0x2a },
-	{ SAA7127_REG_MULTI, 				0xa0 },
-	{ SAA7127_REG_CLOSED_CAPTION, 			0x00 },
+	{ SAA7127_REG_BURST_END,			0x1d },
+	{ SAA7127_REG_CHROMA_PHASE,			0x3f },
+	{ SAA7127_REG_GAINU,				0x7d },
+	{ SAA7127_REG_GAINV,				0xaf },
+	{ SAA7127_REG_BLACK_LEVEL,			0x33 },
+	{ SAA7127_REG_BLANKING_LEVEL,			0x35 },
+	{ SAA7127_REG_VBI_BLANKING,			0x35 },
+	{ SAA7127_REG_DAC_CONTROL,			0x02 },
+	{ SAA7127_REG_BURST_AMP,			0x2f },
+	{ SAA7127_REG_SUBC3,				0xcb },
+	{ SAA7127_REG_SUBC2,				0x8a },
+	{ SAA7127_REG_SUBC1,				0x09 },
+	{ SAA7127_REG_SUBC0,				0x2a },
+	{ SAA7127_REG_MULTI,				0xa0 },
+	{ SAA7127_REG_CLOSED_CAPTION,			0x00 },
 	{ 0, 0 }
 };
 
 #define SAA7127_50HZ_SECAM_DAC_CONTROL 0x08
 static struct i2c_reg_value saa7127_init_config_50hz_secam[] = {
-	{ SAA7127_REG_BURST_START, 			0x21 },
+	{ SAA7127_REG_BURST_START,			0x21 },
 	/* BURST_END is also used as a chip ID in saa7127_probe */
-	{ SAA7127_REG_BURST_END, 			0x1d },
-	{ SAA7127_REG_CHROMA_PHASE, 			0x3f },
-	{ SAA7127_REG_GAINU, 				0x6a },
-	{ SAA7127_REG_GAINV, 				0x81 },
-	{ SAA7127_REG_BLACK_LEVEL, 			0x33 },
-	{ SAA7127_REG_BLANKING_LEVEL, 			0x35 },
-	{ SAA7127_REG_VBI_BLANKING, 			0x35 },
-	{ SAA7127_REG_DAC_CONTROL, 			0x08 },
-	{ SAA7127_REG_BURST_AMP, 			0x2f },
-	{ SAA7127_REG_SUBC3, 				0xb2 },
-	{ SAA7127_REG_SUBC2, 				0x3b },
-	{ SAA7127_REG_SUBC1, 				0xa3 },
-	{ SAA7127_REG_SUBC0, 				0x28 },
-	{ SAA7127_REG_MULTI, 				0x90 },
-	{ SAA7127_REG_CLOSED_CAPTION, 			0x00 },
+	{ SAA7127_REG_BURST_END,			0x1d },
+	{ SAA7127_REG_CHROMA_PHASE,			0x3f },
+	{ SAA7127_REG_GAINU,				0x6a },
+	{ SAA7127_REG_GAINV,				0x81 },
+	{ SAA7127_REG_BLACK_LEVEL,			0x33 },
+	{ SAA7127_REG_BLANKING_LEVEL,			0x35 },
+	{ SAA7127_REG_VBI_BLANKING,			0x35 },
+	{ SAA7127_REG_DAC_CONTROL,			0x08 },
+	{ SAA7127_REG_BURST_AMP,			0x2f },
+	{ SAA7127_REG_SUBC3,				0xb2 },
+	{ SAA7127_REG_SUBC2,				0x3b },
+	{ SAA7127_REG_SUBC1,				0xa3 },
+	{ SAA7127_REG_SUBC0,				0x28 },
+	{ SAA7127_REG_MULTI,				0x90 },
+	{ SAA7127_REG_CLOSED_CAPTION,			0x00 },
 	{ 0, 0 }
 };
 
@@ -765,10 +752,10 @@ static int saa7127_probe(struct i2c_client *client,
 			saa7127_write(sd, SAA7129_REG_FADE_KEY_COL2,
 					read_result);
 			state->ident = SAA7129;
-			strlcpy(client->name, "saa7129", I2C_NAME_SIZE);
+			strscpy(client->name, "saa7129", I2C_NAME_SIZE);
 		} else {
 			state->ident = SAA7127;
-			strlcpy(client->name, "saa7127", I2C_NAME_SIZE);
+			strscpy(client->name, "saa7127", I2C_NAME_SIZE);
 		}
 	}
 
@@ -810,7 +797,7 @@ static int saa7127_remove(struct i2c_client *client)
 
 /* ----------------------------------------------------------------------- */
 
-static struct i2c_device_id saa7127_id[] = {
+static const struct i2c_device_id saa7127_id[] = {
 	{ "saa7127_auto", 0 },	/* auto-detection */
 	{ "saa7126", SAA7127 },
 	{ "saa7127", SAA7127 },

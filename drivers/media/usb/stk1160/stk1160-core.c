@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * STK1160 driver
  *
@@ -8,21 +9,9 @@
  *	Copyright (C) 2010 R.M. Thomas
  *	<rmthomas--a.t--sciolus.org>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  * TODO:
  *
- * 1. (Try to) detect if we must register ac97 mixer
- * 2. Support stream at lower speed: lower frame rate or lower frame size.
- *
+ * 1. Support stream at lower speed: lower frame rate or lower frame size.
  */
 
 #include <linux/module.h>
@@ -48,7 +37,7 @@ MODULE_AUTHOR("Ezequiel Garcia");
 MODULE_DESCRIPTION("STK1160 driver");
 
 /* Devices supported by this driver */
-static struct usb_device_id stk1160_id_table[] = {
+static const struct usb_device_id stk1160_id_table[] = {
 	{ USB_DEVICE(0x05e1, 0x0408) },
 	{ }
 };
@@ -168,6 +157,8 @@ static void stk1160_release(struct v4l2_device *v4l2_dev)
 
 	v4l2_ctrl_handler_free(&dev->ctrl_handler);
 	v4l2_device_unregister(&dev->v4l2_dev);
+	mutex_destroy(&dev->v4l_lock);
+	mutex_destroy(&dev->vb_queue_lock);
 	kfree(dev->alt_max_pkt_size);
 	kfree(dev);
 }
@@ -289,13 +280,14 @@ static int stk1160_probe(struct usb_interface *interface,
 		return -ENODEV;
 
 	/* Alloc an array for all possible max_pkt_size */
-	alt_max_pkt_size = kmalloc(sizeof(alt_max_pkt_size[0]) *
-			interface->num_altsetting, GFP_KERNEL);
+	alt_max_pkt_size = kmalloc_array(interface->num_altsetting,
+					 sizeof(alt_max_pkt_size[0]),
+					 GFP_KERNEL);
 	if (alt_max_pkt_size == NULL)
 		return -ENOMEM;
 
 	/*
-	 * Scan usb posibilities and populate alt_max_pkt_size array.
+	 * Scan usb possibilities and populate alt_max_pkt_size array.
 	 * Also, check if device speed is fast enough.
 	 */
 	rc = stk1160_scan_usb(interface, udev, alt_max_pkt_size);
@@ -373,7 +365,7 @@ static int stk1160_probe(struct usb_interface *interface,
 	/* select default input */
 	stk1160_select_input(dev);
 
-	stk1160_ac97_register(dev);
+	stk1160_ac97_setup(dev);
 
 	rc = stk1160_video_register(dev);
 	if (rc < 0)
@@ -411,9 +403,6 @@ static void stk1160_disconnect(struct usb_interface *interface)
 	/* Here is the only place where isoc get released */
 	stk1160_uninit_isoc(dev);
 
-	/* ac97 unregister needs to be done before usb_device is cleared */
-	stk1160_ac97_unregister(dev);
-
 	stk1160_clear_queue(dev);
 
 	video_unregister_device(&dev->vdev);
@@ -427,7 +416,7 @@ static void stk1160_disconnect(struct usb_interface *interface)
 
 	/*
 	 * This calls stk1160_release if it's the last reference.
-	 * therwise, release is posponed until there are no users left.
+	 * Otherwise, release is postponed until there are no users left.
 	 */
 	v4l2_device_put(&dev->v4l2_dev);
 }

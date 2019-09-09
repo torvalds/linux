@@ -1,22 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (c) 2001 Jean-Fredric Clere, Nikolas Zimmermann, Georg Acher
  *		      Mark Cave-Ayland, Carlo E Prelz, Dick Streefland
  * Copyright (c) 2002, 2003 Tuukka Toivonen
  * Copyright (c) 2008 Erik Andrén
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  * P/N 861037:      Sensor HDCS1000        ASIC STV0600
  * P/N 861050-0010: Sensor HDCS1000        ASIC STV0600
@@ -120,9 +107,6 @@ static int vv6410_init(struct sd *sd)
 	for (i = 0; i < ARRAY_SIZE(stv_bridge_init); i++)
 		stv06xx_write_bridge(sd, stv_bridge_init[i].addr, stv_bridge_init[i].data);
 
-	if (err < 0)
-		return err;
-
 	err = stv06xx_write_sensor_bytes(sd, (u8 *) vv6410_sensor_init,
 					 ARRAY_SIZE(vv6410_sensor_init));
 	return (err < 0) ? err : 0;
@@ -136,7 +120,7 @@ static int vv6410_start(struct sd *sd)
 	u32 priv = cam->cam_mode[sd->gspca_dev.curr_mode].priv;
 
 	if (priv & VV6410_SUBSAMPLE) {
-		PDEBUG(D_CONF, "Enabling subsampling");
+		gspca_dbg(gspca_dev, D_CONF, "Enabling subsampling\n");
 		stv06xx_write_bridge(sd, STV_Y_CTRL, 0x02);
 		stv06xx_write_bridge(sd, STV_X_CTRL, 0x06);
 
@@ -157,7 +141,7 @@ static int vv6410_start(struct sd *sd)
 	if (err < 0)
 		return err;
 
-	PDEBUG(D_STREAM, "Starting stream");
+	gspca_dbg(gspca_dev, D_STREAM, "Starting stream\n");
 
 	return 0;
 }
@@ -176,7 +160,7 @@ static int vv6410_stop(struct sd *sd)
 	if (err < 0)
 		return err;
 
-	PDEBUG(D_STREAM, "Halting stream");
+	gspca_dbg(gspca_dev, D_STREAM, "Halting stream\n");
 
 	return 0;
 }
@@ -210,7 +194,7 @@ static int vv6410_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
 	else
 		i2c_data &= ~VV6410_HFLIP;
 
-	PDEBUG(D_CONF, "Set horizontal flip to %d", val);
+	gspca_dbg(gspca_dev, D_CONF, "Set horizontal flip to %d\n", val);
 	err = stv06xx_write_sensor(sd, VV6410_DATAFORMAT, i2c_data);
 
 	return (err < 0) ? err : 0;
@@ -231,7 +215,7 @@ static int vv6410_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
 	else
 		i2c_data &= ~VV6410_VFLIP;
 
-	PDEBUG(D_CONF, "Set vertical flip to %d", val);
+	gspca_dbg(gspca_dev, D_CONF, "Set vertical flip to %d\n", val);
 	err = stv06xx_write_sensor(sd, VV6410_DATAFORMAT, i2c_data);
 
 	return (err < 0) ? err : 0;
@@ -242,7 +226,7 @@ static int vv6410_set_analog_gain(struct gspca_dev *gspca_dev, __s32 val)
 	int err;
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	PDEBUG(D_CONF, "Set analog gain to %d", val);
+	gspca_dbg(gspca_dev, D_CONF, "Set analog gain to %d\n", val);
 	err = stv06xx_write_sensor(sd, VV6410_ANALOGGAIN, 0xf0 | (val & 0xf));
 
 	return (err < 0) ? err : 0;
@@ -259,8 +243,8 @@ static int vv6410_set_exposure(struct gspca_dev *gspca_dev, __s32 val)
 	fine = val % VV6410_CIF_LINELENGTH;
 	coarse = min(512, val / VV6410_CIF_LINELENGTH);
 
-	PDEBUG(D_CONF, "Set coarse exposure to %d, fine exposure to %d",
-	       coarse, fine);
+	gspca_dbg(gspca_dev, D_CONF, "Set coarse exposure to %d, fine exposure to %d\n",
+		  coarse, fine);
 
 	err = stv06xx_write_sensor(sd, VV6410_FINEH, fine >> 8);
 	if (err < 0)

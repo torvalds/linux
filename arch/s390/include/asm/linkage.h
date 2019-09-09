@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ASM_LINKAGE_H
 #define __ASM_LINKAGE_H
 
@@ -22,6 +23,13 @@
 
 #define EX_TABLE(_fault, _target)	\
 	.section __ex_table,"a"	;	\
+	.align	4 ;			\
+	.long	(_fault) - . ;		\
+	.long	(_target) - . ;		\
+	.previous
+
+#define EX_TABLE_DMA(_fault, _target)	\
+	.section .dma.ex_table, "a" ;	\
 	.align	4 ;			\
 	.long	(_fault) - . ;		\
 	.long	(_target) - . ;		\

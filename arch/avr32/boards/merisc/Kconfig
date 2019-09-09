@@ -1,5 +1,0 @@
-# Merisc customization
-
-if BOARD_MERISC
-
-endif	# BOARD_MERISC

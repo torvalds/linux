@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2013 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
  *
  * Author: Jacek Anaszewski <j.anaszewski@samsung.com>
  *
  * Register interface file for JPEG driver on Exynos4x12.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/io.h>
 #include <linux/delay.h>
@@ -19,6 +16,10 @@
 void exynos4_jpeg_sw_reset(void __iomem *base)
 {
 	unsigned int reg;
+
+	reg = readl(base + EXYNOS4_JPEG_CNTL_REG);
+	writel(reg & ~(EXYNOS4_DEC_MODE | EXYNOS4_ENC_MODE),
+				base + EXYNOS4_JPEG_CNTL_REG);
 
 	reg = readl(base + EXYNOS4_JPEG_CNTL_REG);
 	writel(reg & ~EXYNOS4_SOFT_RESET_HI, base + EXYNOS4_JPEG_CNTL_REG);
@@ -38,9 +39,12 @@ void exynos4_jpeg_set_enc_dec_mode(void __iomem *base, unsigned int mode)
 		writel((reg & EXYNOS4_ENC_DEC_MODE_MASK) |
 					EXYNOS4_DEC_MODE,
 			base + EXYNOS4_JPEG_CNTL_REG);
-	} else {/* encode */
+	} else if (mode == S5P_JPEG_ENCODE) {/* encode */
 		writel((reg & EXYNOS4_ENC_DEC_MODE_MASK) |
 					EXYNOS4_ENC_MODE,
+			base + EXYNOS4_JPEG_CNTL_REG);
+	} else { /* disable both */
+		writel(reg & EXYNOS4_ENC_DEC_MODE_MASK,
 			base + EXYNOS4_JPEG_CNTL_REG);
 	}
 }
@@ -178,20 +182,12 @@ void exynos4_jpeg_set_interrupt(void __iomem *base, unsigned int version)
 
 unsigned int exynos4_jpeg_get_int_status(void __iomem *base)
 {
-	unsigned int	int_status;
-
-	int_status = readl(base + EXYNOS4_INT_STATUS_REG);
-
-	return int_status;
+	return readl(base + EXYNOS4_INT_STATUS_REG);
 }
 
 unsigned int exynos4_jpeg_get_fifo_status(void __iomem *base)
 {
-	unsigned int fifo_status;
-
-	fifo_status = readl(base + EXYNOS4_FIFO_STATUS_REG);
-
-	return fifo_status;
+	return readl(base + EXYNOS4_FIFO_STATUS_REG);
 }
 
 void exynos4_jpeg_set_huf_table_enable(void __iomem *base, int value)
@@ -296,10 +292,7 @@ void exynos4_jpeg_set_encode_hoff_cnt(void __iomem *base, unsigned int fmt)
 
 unsigned int exynos4_jpeg_get_stream_size(void __iomem *base)
 {
-	unsigned int size;
-
-	size = readl(base + EXYNOS4_BITSTREAM_SIZE_REG);
-	return size;
+	return readl(base + EXYNOS4_BITSTREAM_SIZE_REG);
 }
 
 void exynos4_jpeg_set_dec_bitstream_size(void __iomem *base, unsigned int size)

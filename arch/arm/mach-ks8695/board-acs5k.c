@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * arch/arm/mach-ks8695/board-acs5k.c
  *
@@ -5,10 +6,6 @@
  *
  * Copyright 2008 Simtec Electronics
  *		  Daniel Silverstone <dsilvers@simtec.co.uk>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/gpio.h>
 #include <linux/kernel.h>
@@ -16,10 +13,10 @@
 #include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
-
+#include <linux/gpio/machine.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
-#include <linux/i2c-gpio.h>
+#include <linux/platform_data/i2c-gpio.h>
 #include <linux/platform_data/pca953x.h>
 
 #include <linux/mtd/mtd.h>
@@ -38,9 +35,17 @@
 
 #include "generic.h"
 
+static struct gpiod_lookup_table acs5k_i2c_gpiod_table = {
+	.dev_id		= "i2c-gpio",
+	.table		= {
+		GPIO_LOOKUP_IDX("KS8695", 4, NULL, 0,
+				GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN),
+		GPIO_LOOKUP_IDX("KS8695", 5, NULL, 1,
+				GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN),
+	},
+};
+
 static struct i2c_gpio_platform_data acs5k_i2c_device_platdata = {
-	.sda_pin	= 4,
-	.scl_pin	= 5,
 	.udelay		= 10,
 };
 
@@ -92,9 +97,10 @@ static struct i2c_board_info acs5k_i2c_devs[] __initdata = {
 	},
 };
 
-static void acs5k_i2c_init(void)
+static void __init acs5k_i2c_init(void)
 {
 	/* The gpio interface */
+	gpiod_add_lookup_table(&acs5k_i2c_gpiod_table);
 	platform_device_register(&acs5k_i2c_device);
 	/* I2C devices */
 	i2c_register_board_info(0, acs5k_i2c_devs,

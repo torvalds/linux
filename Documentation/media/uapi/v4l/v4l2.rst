@@ -1,4 +1,11 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 .. include:: <isonum.txt>
 .. _v4l2spec:
@@ -11,7 +18,9 @@ This part describes the Video for Linux API version 2 (V4L2 API) specification.
 
 **Revision 4.5**
 
-.. class:: toc-title
+.. only:: html
+
+   .. class:: toc-title
 
         Table of Contents
 
@@ -23,7 +32,6 @@ This part describes the Video for Linux API version 2 (V4L2 API) specification.
     pixfmt
     io
     devices
-    driver
     libv4l
     compat
     user-func
@@ -44,7 +52,7 @@ Authors, in alphabetical order:
 
   - Subdev selections API.
 
-- Carvalho Chehab, Mauro <m.chehab@kernel.org>
+- Carvalho Chehab, Mauro <mchehab+samsung@kernel.org>
 
   - Documented libv4l, designed and added v4l2grab example, Remote Controller chapter.
 
@@ -68,6 +76,10 @@ Authors, in alphabetical order:
 
   - SDR API.
 
+- Ribalda, Ricardo
+
+  - Introduce HSV formats and other minor changes.
+
 - Rubli, Martin
 
   - Designed and documented the VIDIOC_ENUM_FRAMESIZES and VIDIOC_ENUM_FRAMEINTERVALS ioctls.
@@ -88,6 +100,11 @@ part can be used and distributed without restrictions.
 ****************
 Revision History
 ****************
+
+:revision: 4.10 / 2016-07-15 (*rr*)
+
+Introduce HSV formats.
+
 
 :revision: 4.5 / 2015-10-29 (*rr*)
 

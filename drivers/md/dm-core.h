@@ -29,8 +29,10 @@ struct dm_kobject_holder {
  * DM targets must _not_ deference a mapped_device to directly access its members!
  */
 struct mapped_device {
-	struct srcu_struct io_barrier;
 	struct mutex suspend_lock;
+
+	struct mutex table_devices_lock;
+	struct list_head table_devices;
 
 	/*
 	 * The current mapping (struct dm_table *).
@@ -39,17 +41,14 @@ struct mapped_device {
 	 */
 	void __rcu *map;
 
-	struct list_head table_devices;
-	struct mutex table_devices_lock;
-
 	unsigned long flags;
 
-	struct request_queue *queue;
-	int numa_node_id;
-
-	unsigned type;
 	/* Protect queue and type against concurrent access. */
 	struct mutex type_lock;
+	enum dm_queue_mode type;
+
+	int numa_node_id;
+	struct request_queue *queue;
 
 	atomic_t holders;
 	atomic_t open_count;
@@ -57,19 +56,19 @@ struct mapped_device {
 	struct dm_target *immutable_target;
 	struct target_type *immutable_target_type;
 
-	struct gendisk *disk;
 	char name[16];
-
-	void *interface_ptr;
+	struct gendisk *disk;
+	struct dax_device *dax_dev;
 
 	/*
 	 * A list of ios that arrived while we were suspended.
 	 */
-	atomic_t pending[2];
-	wait_queue_head_t wait;
 	struct work_struct work;
+	wait_queue_head_t wait;
 	spinlock_t deferred_lock;
 	struct bio_list deferred;
+
+	void *interface_ptr;
 
 	/*
 	 * Event handling.
@@ -84,17 +83,15 @@ struct mapped_device {
 	unsigned internal_suspend_count;
 
 	/*
+	 * io objects are allocated from here.
+	 */
+	struct bio_set io_bs;
+	struct bio_set bs;
+
+	/*
 	 * Processing queue (flush)
 	 */
 	struct workqueue_struct *wq;
-
-	/*
-	 * io objects are allocated from here.
-	 */
-	mempool_t *io_pool;
-	mempool_t *rq_pool;
-
-	struct bio_set *bs;
 
 	/*
 	 * freeze/thaw support require holding onto a super block
@@ -104,35 +101,23 @@ struct mapped_device {
 	/* forced geometry settings */
 	struct hd_geometry geometry;
 
-	struct block_device *bdev;
-
 	/* kobject and completion */
 	struct dm_kobject_holder kobj_holder;
 
-	/* zero-length flush that will be cloned and submitted to targets */
-	struct bio flush_bio;
+	struct block_device *bdev;
 
 	struct dm_stats stats;
 
-	struct kthread_worker kworker;
-	struct task_struct *kworker_task;
-
-	/* for request-based merge heuristic in dm_request_fn() */
-	unsigned seq_rq_merge_deadline_usecs;
-	int last_rq_rw;
-	sector_t last_rq_pos;
-	ktime_t last_rq_start_time;
-
 	/* for blk-mq request-based DM support */
 	struct blk_mq_tag_set *tag_set;
-	bool use_blk_mq:1;
 	bool init_tio_pdu:1;
+
+	struct srcu_struct io_barrier;
 };
 
-void dm_init_md_queue(struct mapped_device *md);
-void dm_init_normal_md_queue(struct mapped_device *md);
-int md_in_flight(struct mapped_device *md);
+void disable_discard(struct mapped_device *md);
 void disable_write_same(struct mapped_device *md);
+void disable_write_zeroes(struct mapped_device *md);
 
 static inline struct completion *dm_get_completion_from_kobject(struct kobject *kobj)
 {
@@ -145,5 +130,9 @@ static inline bool dm_message_test_buffer_overflow(char *result, unsigned maxlen
 {
 	return !maxlen || strlen(result) + 1 >= maxlen;
 }
+
+extern atomic_t dm_global_event_nr;
+extern wait_queue_head_t dm_global_eventq;
+void dm_issue_global_event(void);
 
 #endif

@@ -8,9 +8,13 @@
  */
 #include <linux/init.h>
 #include <linux/sched.h>
+#include <linux/sched/task_stack.h>
+#include <linux/topology.h>
 #include <linux/nodemask.h>
+
 #include <asm/page.h>
 #include <asm/processor.h>
+#include <asm/ptrace.h>
 #include <asm/sn/arch.h>
 #include <asm/sn/gda.h>
 #include <asm/sn/intr.h>
@@ -173,7 +177,7 @@ static void ip27_send_ipi_mask(const struct cpumask *mask, unsigned int action)
 		ip27_send_ipi_single(i, action);
 }
 
-static void ip27_init_secondary(void)
+static void ip27_init_cpu(void)
 {
 	per_cpu_init();
 }
@@ -191,7 +195,7 @@ static void ip27_smp_finish(void)
  * set sp to the kernel stack of the newly created idle process, gp to the proc
  * struct so that current_thread_info() will work.
  */
-static void ip27_boot_secondary(int cpu, struct task_struct *idle)
+static int ip27_boot_secondary(int cpu, struct task_struct *idle)
 {
 	unsigned long gp = (unsigned long)task_thread_info(idle);
 	unsigned long sp = __KSTK_TOS(idle);
@@ -199,6 +203,7 @@ static void ip27_boot_secondary(int cpu, struct task_struct *idle)
 	LAUNCH_SLAVE(cputonasid(cpu), cputoslice(cpu),
 		(launch_proc_t)MAPPED_KERN_RW_TO_K0(smp_bootstrap),
 		0, (void *) sp, (void *) gp);
+	return 0;
 }
 
 static void __init ip27_smp_setup(void)
@@ -227,12 +232,13 @@ static void __init ip27_prepare_cpus(unsigned int max_cpus)
 	/* We already did everything necessary earlier */
 }
 
-struct plat_smp_ops ip27_smp_ops = {
+const struct plat_smp_ops ip27_smp_ops = {
 	.send_ipi_single	= ip27_send_ipi_single,
 	.send_ipi_mask		= ip27_send_ipi_mask,
-	.init_secondary		= ip27_init_secondary,
+	.init_secondary		= ip27_init_cpu,
 	.smp_finish		= ip27_smp_finish,
 	.boot_secondary		= ip27_boot_secondary,
 	.smp_setup		= ip27_smp_setup,
 	.prepare_cpus		= ip27_prepare_cpus,
+	.prepare_boot_cpu	= ip27_init_cpu,
 };

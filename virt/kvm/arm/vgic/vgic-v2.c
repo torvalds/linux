@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2015, 2016 ARM Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/irqchip/arm-gic.h>
@@ -22,50 +11,19 @@
 
 #include "vgic.h"
 
-/*
- * Call this function to convert a u64 value to an unsigned long * bitmask
- * in a way that works on both 32-bit and 64-bit LE and BE platforms.
- *
- * Warning: Calling this function may modify *val.
- */
-static unsigned long *u64_to_bitmask(u64 *val)
+static inline void vgic_v2_write_lr(int lr, u32 val)
 {
-#if defined(CONFIG_CPU_BIG_ENDIAN) && BITS_PER_LONG == 32
-	*val = (*val >> 32) | (*val << 32);
-#endif
-	return (unsigned long *)val;
+	void __iomem *base = kvm_vgic_global_state.vctrl_base;
+
+	writel_relaxed(val, base + GICH_LR0 + (lr * 4));
 }
 
-void vgic_v2_process_maintenance(struct kvm_vcpu *vcpu)
+void vgic_v2_init_lrs(void)
 {
-	struct vgic_v2_cpu_if *cpuif = &vcpu->arch.vgic_cpu.vgic_v2;
+	int i;
 
-	if (cpuif->vgic_misr & GICH_MISR_EOI) {
-		u64 eisr = cpuif->vgic_eisr;
-		unsigned long *eisr_bmap = u64_to_bitmask(&eisr);
-		int lr;
-
-		for_each_set_bit(lr, eisr_bmap, kvm_vgic_global_state.nr_lr) {
-			u32 intid = cpuif->vgic_lr[lr] & GICH_LR_VIRTUALID;
-
-			WARN_ON(cpuif->vgic_lr[lr] & GICH_LR_STATE);
-
-			kvm_notify_acked_irq(vcpu->kvm, 0,
-					     intid - VGIC_NR_PRIVATE_IRQS);
-		}
-	}
-
-	/* check and disable underflow maintenance IRQ */
-	cpuif->vgic_hcr &= ~GICH_HCR_UIE;
-
-	/*
-	 * In the next iterations of the vcpu loop, if we sync the
-	 * vgic state after flushing it, but before entering the guest
-	 * (this happens for pending signals and vmid rollovers), then
-	 * make sure we don't pick up any old maintenance interrupts
-	 * here.
-	 */
-	cpuif->vgic_eisr = 0;
+	for (i = 0; i < kvm_vgic_global_state.nr_lr; i++)
+		vgic_v2_write_lr(i, 0);
 }
 
 void vgic_v2_set_underflow(struct kvm_vcpu *vcpu)
@@ -73,6 +31,12 @@ void vgic_v2_set_underflow(struct kvm_vcpu *vcpu)
 	struct vgic_v2_cpu_if *cpuif = &vcpu->arch.vgic_cpu.vgic_v2;
 
 	cpuif->vgic_hcr |= GICH_HCR_UIE;
+}
+
+static bool lr_signals_eoi_mi(u32 lr_val)
+{
+	return !(lr_val & GICH_LR_STATE) && (lr_val & GICH_LR_EOI) &&
+	       !(lr_val & GICH_LR_HW);
 }
 
 /*
@@ -84,48 +48,79 @@ void vgic_v2_set_underflow(struct kvm_vcpu *vcpu)
  */
 void vgic_v2_fold_lr_state(struct kvm_vcpu *vcpu)
 {
-	struct vgic_v2_cpu_if *cpuif = &vcpu->arch.vgic_cpu.vgic_v2;
+	struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
+	struct vgic_v2_cpu_if *cpuif = &vgic_cpu->vgic_v2;
 	int lr;
 
-	for (lr = 0; lr < vcpu->arch.vgic_cpu.used_lrs; lr++) {
+	DEBUG_SPINLOCK_BUG_ON(!irqs_disabled());
+
+	cpuif->vgic_hcr &= ~GICH_HCR_UIE;
+
+	for (lr = 0; lr < vgic_cpu->used_lrs; lr++) {
 		u32 val = cpuif->vgic_lr[lr];
-		u32 intid = val & GICH_LR_VIRTUALID;
+		u32 cpuid, intid = val & GICH_LR_VIRTUALID;
 		struct vgic_irq *irq;
+
+		/* Extract the source vCPU id from the LR */
+		cpuid = val & GICH_LR_PHYSID_CPUID;
+		cpuid >>= GICH_LR_PHYSID_CPUID_SHIFT;
+		cpuid &= 7;
+
+		/* Notify fds when the guest EOI'ed a level-triggered SPI */
+		if (lr_signals_eoi_mi(val) && vgic_valid_spi(vcpu->kvm, intid))
+			kvm_notify_acked_irq(vcpu->kvm, 0,
+					     intid - VGIC_NR_PRIVATE_IRQS);
 
 		irq = vgic_get_irq(vcpu->kvm, vcpu, intid);
 
-		spin_lock(&irq->irq_lock);
+		raw_spin_lock(&irq->irq_lock);
 
 		/* Always preserve the active bit */
 		irq->active = !!(val & GICH_LR_ACTIVE_BIT);
 
+		if (irq->active && vgic_irq_is_sgi(intid))
+			irq->active_source = cpuid;
+
 		/* Edge is the only case where we preserve the pending bit */
 		if (irq->config == VGIC_CONFIG_EDGE &&
 		    (val & GICH_LR_PENDING_BIT)) {
-			irq->pending = true;
+			irq->pending_latch = true;
 
-			if (vgic_irq_is_sgi(intid)) {
-				u32 cpuid = val & GICH_LR_PHYSID_CPUID;
-
-				cpuid >>= GICH_LR_PHYSID_CPUID_SHIFT;
+			if (vgic_irq_is_sgi(intid))
 				irq->source |= (1 << cpuid);
-			}
 		}
 
 		/*
 		 * Clear soft pending state when level irqs have been acked.
-		 * Always regenerate the pending state.
 		 */
-		if (irq->config == VGIC_CONFIG_LEVEL) {
-			if (!(val & GICH_LR_PENDING_BIT))
-				irq->soft_pending = false;
+		if (irq->config == VGIC_CONFIG_LEVEL && !(val & GICH_LR_STATE))
+			irq->pending_latch = false;
 
-			irq->pending = irq->line_level || irq->soft_pending;
+		/*
+		 * Level-triggered mapped IRQs are special because we only
+		 * observe rising edges as input to the VGIC.
+		 *
+		 * If the guest never acked the interrupt we have to sample
+		 * the physical line and set the line level, because the
+		 * device state could have changed or we simply need to
+		 * process the still pending interrupt later.
+		 *
+		 * If this causes us to lower the level, we have to also clear
+		 * the physical active state, since we will otherwise never be
+		 * told when the interrupt becomes asserted again.
+		 */
+		if (vgic_irq_is_mapped_level(irq) && (val & GICH_LR_PENDING_BIT)) {
+			irq->line_level = vgic_get_phys_line_level(irq);
+
+			if (!irq->line_level)
+				vgic_irq_set_phys_active(irq, false);
 		}
 
-		spin_unlock(&irq->irq_lock);
+		raw_spin_unlock(&irq->irq_lock);
 		vgic_put_irq(vcpu->kvm, irq);
 	}
+
+	vgic_cpu->used_lrs = 0;
 }
 
 /*
@@ -142,34 +137,74 @@ void vgic_v2_fold_lr_state(struct kvm_vcpu *vcpu)
 void vgic_v2_populate_lr(struct kvm_vcpu *vcpu, struct vgic_irq *irq, int lr)
 {
 	u32 val = irq->intid;
+	bool allow_pending = true;
 
-	if (irq->pending) {
-		val |= GICH_LR_PENDING_BIT;
-
-		if (irq->config == VGIC_CONFIG_EDGE)
-			irq->pending = false;
-
-		if (vgic_irq_is_sgi(irq->intid)) {
-			u32 src = ffs(irq->source);
-
-			BUG_ON(!src);
-			val |= (src - 1) << GICH_LR_PHYSID_CPUID_SHIFT;
-			irq->source &= ~(1 << (src - 1));
-			if (irq->source)
-				irq->pending = true;
+	if (irq->active) {
+		val |= GICH_LR_ACTIVE_BIT;
+		if (vgic_irq_is_sgi(irq->intid))
+			val |= irq->active_source << GICH_LR_PHYSID_CPUID_SHIFT;
+		if (vgic_irq_is_multi_sgi(irq)) {
+			allow_pending = false;
+			val |= GICH_LR_EOI;
 		}
 	}
 
-	if (irq->active)
-		val |= GICH_LR_ACTIVE_BIT;
+	if (irq->group)
+		val |= GICH_LR_GROUP1;
 
 	if (irq->hw) {
 		val |= GICH_LR_HW;
 		val |= irq->hwintid << GICH_LR_PHYSID_CPUID_SHIFT;
+		/*
+		 * Never set pending+active on a HW interrupt, as the
+		 * pending state is kept at the physical distributor
+		 * level.
+		 */
+		if (irq->active)
+			allow_pending = false;
 	} else {
-		if (irq->config == VGIC_CONFIG_LEVEL)
+		if (irq->config == VGIC_CONFIG_LEVEL) {
 			val |= GICH_LR_EOI;
+
+			/*
+			 * Software resampling doesn't work very well
+			 * if we allow P+A, so let's not do that.
+			 */
+			if (irq->active)
+				allow_pending = false;
+		}
 	}
+
+	if (allow_pending && irq_is_pending(irq)) {
+		val |= GICH_LR_PENDING_BIT;
+
+		if (irq->config == VGIC_CONFIG_EDGE)
+			irq->pending_latch = false;
+
+		if (vgic_irq_is_sgi(irq->intid)) {
+			u32 src = ffs(irq->source);
+
+			if (WARN_RATELIMIT(!src, "No SGI source for INTID %d\n",
+					   irq->intid))
+				return;
+
+			val |= (src - 1) << GICH_LR_PHYSID_CPUID_SHIFT;
+			irq->source &= ~(1 << (src - 1));
+			if (irq->source) {
+				irq->pending_latch = true;
+				val |= GICH_LR_EOI;
+			}
+		}
+	}
+
+	/*
+	 * Level-triggered mapped IRQs are special because we only observe
+	 * rising edges as input to the VGIC.  We therefore lower the line
+	 * level here, so that we can take new virtual IRQs.  See
+	 * vgic_v2_fold_lr_state for more info.
+	 */
+	if (vgic_irq_is_mapped_level(irq) && (val & GICH_LR_PENDING_BIT))
+		irq->line_level = false;
 
 	/* The GICv2 LR only holds five bits of priority. */
 	val |= (irq->priority >> 3) << GICH_LR_PRIORITY_SHIFT;
@@ -184,31 +219,57 @@ void vgic_v2_clear_lr(struct kvm_vcpu *vcpu, int lr)
 
 void vgic_v2_set_vmcr(struct kvm_vcpu *vcpu, struct vgic_vmcr *vmcrp)
 {
+	struct vgic_v2_cpu_if *cpu_if = &vcpu->arch.vgic_cpu.vgic_v2;
 	u32 vmcr;
 
-	vmcr  = (vmcrp->ctlr << GICH_VMCR_CTRL_SHIFT) & GICH_VMCR_CTRL_MASK;
+	vmcr = (vmcrp->grpen0 << GICH_VMCR_ENABLE_GRP0_SHIFT) &
+		GICH_VMCR_ENABLE_GRP0_MASK;
+	vmcr |= (vmcrp->grpen1 << GICH_VMCR_ENABLE_GRP1_SHIFT) &
+		GICH_VMCR_ENABLE_GRP1_MASK;
+	vmcr |= (vmcrp->ackctl << GICH_VMCR_ACK_CTL_SHIFT) &
+		GICH_VMCR_ACK_CTL_MASK;
+	vmcr |= (vmcrp->fiqen << GICH_VMCR_FIQ_EN_SHIFT) &
+		GICH_VMCR_FIQ_EN_MASK;
+	vmcr |= (vmcrp->cbpr << GICH_VMCR_CBPR_SHIFT) &
+		GICH_VMCR_CBPR_MASK;
+	vmcr |= (vmcrp->eoim << GICH_VMCR_EOI_MODE_SHIFT) &
+		GICH_VMCR_EOI_MODE_MASK;
 	vmcr |= (vmcrp->abpr << GICH_VMCR_ALIAS_BINPOINT_SHIFT) &
 		GICH_VMCR_ALIAS_BINPOINT_MASK;
 	vmcr |= (vmcrp->bpr << GICH_VMCR_BINPOINT_SHIFT) &
 		GICH_VMCR_BINPOINT_MASK;
-	vmcr |= (vmcrp->pmr << GICH_VMCR_PRIMASK_SHIFT) &
-		GICH_VMCR_PRIMASK_MASK;
+	vmcr |= ((vmcrp->pmr >> GICV_PMR_PRIORITY_SHIFT) <<
+		 GICH_VMCR_PRIMASK_SHIFT) & GICH_VMCR_PRIMASK_MASK;
 
-	vcpu->arch.vgic_cpu.vgic_v2.vgic_vmcr = vmcr;
+	cpu_if->vgic_vmcr = vmcr;
 }
 
 void vgic_v2_get_vmcr(struct kvm_vcpu *vcpu, struct vgic_vmcr *vmcrp)
 {
-	u32 vmcr = vcpu->arch.vgic_cpu.vgic_v2.vgic_vmcr;
+	struct vgic_v2_cpu_if *cpu_if = &vcpu->arch.vgic_cpu.vgic_v2;
+	u32 vmcr;
 
-	vmcrp->ctlr = (vmcr & GICH_VMCR_CTRL_MASK) >>
-			GICH_VMCR_CTRL_SHIFT;
+	vmcr = cpu_if->vgic_vmcr;
+
+	vmcrp->grpen0 = (vmcr & GICH_VMCR_ENABLE_GRP0_MASK) >>
+		GICH_VMCR_ENABLE_GRP0_SHIFT;
+	vmcrp->grpen1 = (vmcr & GICH_VMCR_ENABLE_GRP1_MASK) >>
+		GICH_VMCR_ENABLE_GRP1_SHIFT;
+	vmcrp->ackctl = (vmcr & GICH_VMCR_ACK_CTL_MASK) >>
+		GICH_VMCR_ACK_CTL_SHIFT;
+	vmcrp->fiqen = (vmcr & GICH_VMCR_FIQ_EN_MASK) >>
+		GICH_VMCR_FIQ_EN_SHIFT;
+	vmcrp->cbpr = (vmcr & GICH_VMCR_CBPR_MASK) >>
+		GICH_VMCR_CBPR_SHIFT;
+	vmcrp->eoim = (vmcr & GICH_VMCR_EOI_MODE_MASK) >>
+		GICH_VMCR_EOI_MODE_SHIFT;
+
 	vmcrp->abpr = (vmcr & GICH_VMCR_ALIAS_BINPOINT_MASK) >>
 			GICH_VMCR_ALIAS_BINPOINT_SHIFT;
 	vmcrp->bpr  = (vmcr & GICH_VMCR_BINPOINT_MASK) >>
 			GICH_VMCR_BINPOINT_SHIFT;
-	vmcrp->pmr  = (vmcr & GICH_VMCR_PRIMASK_MASK) >>
-			GICH_VMCR_PRIMASK_SHIFT;
+	vmcrp->pmr  = ((vmcr & GICH_VMCR_PRIMASK_MASK) >>
+			GICH_VMCR_PRIMASK_SHIFT) << GICV_PMR_PRIORITY_SHIFT;
 }
 
 void vgic_v2_enable(struct kvm_vcpu *vcpu)
@@ -219,7 +280,6 @@ void vgic_v2_enable(struct kvm_vcpu *vcpu)
 	 * anyway.
 	 */
 	vcpu->arch.vgic_cpu.vgic_v2.vgic_vmcr = 0;
-	vcpu->arch.vgic_cpu.vgic_v2.vgic_elrsr = ~0;
 
 	/* Get the show on the road... */
 	vcpu->arch.vgic_cpu.vgic_v2.vgic_hcr = GICH_HCR_EN;
@@ -291,8 +351,6 @@ int vgic_v2_map_resources(struct kvm *kvm)
 	dist->ready = true;
 
 out:
-	if (ret)
-		kvm_vgic_destroy(kvm);
 	return ret;
 }
 
@@ -317,16 +375,11 @@ int vgic_v2_probe(const struct gic_kvm_info *info)
 	if (!PAGE_ALIGNED(info->vcpu.start) ||
 	    !PAGE_ALIGNED(resource_size(&info->vcpu))) {
 		kvm_info("GICV region size/alignment is unsafe, using trapping (reduced performance)\n");
-		kvm_vgic_global_state.vcpu_base_va = ioremap(info->vcpu.start,
-							     resource_size(&info->vcpu));
-		if (!kvm_vgic_global_state.vcpu_base_va) {
-			kvm_err("Cannot ioremap GICV\n");
-			return -ENOMEM;
-		}
 
-		ret = create_hyp_io_mappings(kvm_vgic_global_state.vcpu_base_va,
-					     kvm_vgic_global_state.vcpu_base_va + resource_size(&info->vcpu),
-					     info->vcpu.start);
+		ret = create_hyp_io_mappings(info->vcpu.start,
+					     resource_size(&info->vcpu),
+					     &kvm_vgic_global_state.vcpu_base_va,
+					     &kvm_vgic_global_state.vcpu_hyp_va);
 		if (ret) {
 			kvm_err("Cannot map GICV into hyp\n");
 			goto out;
@@ -335,25 +388,17 @@ int vgic_v2_probe(const struct gic_kvm_info *info)
 		static_branch_enable(&vgic_v2_cpuif_trap);
 	}
 
-	kvm_vgic_global_state.vctrl_base = ioremap(info->vctrl.start,
-						   resource_size(&info->vctrl));
-	if (!kvm_vgic_global_state.vctrl_base) {
-		kvm_err("Cannot ioremap GICH\n");
-		ret = -ENOMEM;
+	ret = create_hyp_io_mappings(info->vctrl.start,
+				     resource_size(&info->vctrl),
+				     &kvm_vgic_global_state.vctrl_base,
+				     &kvm_vgic_global_state.vctrl_hyp);
+	if (ret) {
+		kvm_err("Cannot map VCTRL into hyp\n");
 		goto out;
 	}
 
 	vtr = readl_relaxed(kvm_vgic_global_state.vctrl_base + GICH_VTR);
 	kvm_vgic_global_state.nr_lr = (vtr & 0x3f) + 1;
-
-	ret = create_hyp_io_mappings(kvm_vgic_global_state.vctrl_base,
-				     kvm_vgic_global_state.vctrl_base +
-					 resource_size(&info->vctrl),
-				     info->vctrl.start);
-	if (ret) {
-		kvm_err("Cannot map VCTRL into hyp\n");
-		goto out;
-	}
 
 	ret = kvm_register_vgic_device(KVM_DEV_TYPE_ARM_VGIC_V2);
 	if (ret) {
@@ -366,7 +411,7 @@ int vgic_v2_probe(const struct gic_kvm_info *info)
 	kvm_vgic_global_state.type = VGIC_V2;
 	kvm_vgic_global_state.max_gic_vcpus = VGIC_V2_MAX_CPUS;
 
-	kvm_info("vgic-v2@%llx\n", info->vctrl.start);
+	kvm_debug("vgic-v2@%llx\n", info->vctrl.start);
 
 	return 0;
 out:
@@ -376,4 +421,83 @@ out:
 		iounmap(kvm_vgic_global_state.vcpu_base_va);
 
 	return ret;
+}
+
+static void save_lrs(struct kvm_vcpu *vcpu, void __iomem *base)
+{
+	struct vgic_v2_cpu_if *cpu_if = &vcpu->arch.vgic_cpu.vgic_v2;
+	u64 used_lrs = vcpu->arch.vgic_cpu.used_lrs;
+	u64 elrsr;
+	int i;
+
+	elrsr = readl_relaxed(base + GICH_ELRSR0);
+	if (unlikely(used_lrs > 32))
+		elrsr |= ((u64)readl_relaxed(base + GICH_ELRSR1)) << 32;
+
+	for (i = 0; i < used_lrs; i++) {
+		if (elrsr & (1UL << i))
+			cpu_if->vgic_lr[i] &= ~GICH_LR_STATE;
+		else
+			cpu_if->vgic_lr[i] = readl_relaxed(base + GICH_LR0 + (i * 4));
+
+		writel_relaxed(0, base + GICH_LR0 + (i * 4));
+	}
+}
+
+void vgic_v2_save_state(struct kvm_vcpu *vcpu)
+{
+	void __iomem *base = kvm_vgic_global_state.vctrl_base;
+	u64 used_lrs = vcpu->arch.vgic_cpu.used_lrs;
+
+	if (!base)
+		return;
+
+	if (used_lrs) {
+		save_lrs(vcpu, base);
+		writel_relaxed(0, base + GICH_HCR);
+	}
+}
+
+void vgic_v2_restore_state(struct kvm_vcpu *vcpu)
+{
+	struct vgic_v2_cpu_if *cpu_if = &vcpu->arch.vgic_cpu.vgic_v2;
+	void __iomem *base = kvm_vgic_global_state.vctrl_base;
+	u64 used_lrs = vcpu->arch.vgic_cpu.used_lrs;
+	int i;
+
+	if (!base)
+		return;
+
+	if (used_lrs) {
+		writel_relaxed(cpu_if->vgic_hcr, base + GICH_HCR);
+		for (i = 0; i < used_lrs; i++) {
+			writel_relaxed(cpu_if->vgic_lr[i],
+				       base + GICH_LR0 + (i * 4));
+		}
+	}
+}
+
+void vgic_v2_load(struct kvm_vcpu *vcpu)
+{
+	struct vgic_v2_cpu_if *cpu_if = &vcpu->arch.vgic_cpu.vgic_v2;
+
+	writel_relaxed(cpu_if->vgic_vmcr,
+		       kvm_vgic_global_state.vctrl_base + GICH_VMCR);
+	writel_relaxed(cpu_if->vgic_apr,
+		       kvm_vgic_global_state.vctrl_base + GICH_APR);
+}
+
+void vgic_v2_vmcr_sync(struct kvm_vcpu *vcpu)
+{
+	struct vgic_v2_cpu_if *cpu_if = &vcpu->arch.vgic_cpu.vgic_v2;
+
+	cpu_if->vgic_vmcr = readl_relaxed(kvm_vgic_global_state.vctrl_base + GICH_VMCR);
+}
+
+void vgic_v2_put(struct kvm_vcpu *vcpu)
+{
+	struct vgic_v2_cpu_if *cpu_if = &vcpu->arch.vgic_cpu.vgic_v2;
+
+	vgic_v2_vmcr_sync(vcpu);
+	cpu_if->vgic_apr = readl_relaxed(kvm_vgic_global_state.vctrl_base + GICH_APR);
 }

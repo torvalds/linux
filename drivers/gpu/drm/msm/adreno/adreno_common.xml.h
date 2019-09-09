@@ -8,16 +8,19 @@ http://github.com/freedreno/envytools/
 git clone https://github.com/freedreno/envytools.git
 
 The rules-ng-ng source files this header was generated from are:
-- /home/robclark/src/freedreno/envytools/rnndb/adreno.xml               (    398 bytes, from 2015-09-24 17:25:31)
-- /home/robclark/src/freedreno/envytools/rnndb/freedreno_copyright.xml  (   1572 bytes, from 2016-02-10 17:07:21)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/a2xx.xml          (  32901 bytes, from 2015-05-20 20:03:14)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/adreno_common.xml (  11518 bytes, from 2016-02-10 21:03:25)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/adreno_pm4.xml    (  16166 bytes, from 2016-02-11 21:20:31)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/a3xx.xml          (  83967 bytes, from 2016-02-10 17:07:21)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/a4xx.xml          ( 109916 bytes, from 2016-02-20 18:44:48)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/ocmem.xml         (   1773 bytes, from 2015-09-24 17:30:00)
+- /home/robclark/src/envytools/rnndb/adreno.xml               (    501 bytes, from 2018-07-03 19:37:13)
+- /home/robclark/src/envytools/rnndb/freedreno_copyright.xml  (   1572 bytes, from 2018-07-03 19:37:13)
+- /home/robclark/src/envytools/rnndb/adreno/a2xx.xml          (  42463 bytes, from 2018-11-19 13:44:03)
+- /home/robclark/src/envytools/rnndb/adreno/adreno_common.xml (  14201 bytes, from 2018-12-02 17:29:54)
+- /home/robclark/src/envytools/rnndb/adreno/adreno_pm4.xml    (  43052 bytes, from 2018-12-02 17:29:54)
+- /home/robclark/src/envytools/rnndb/adreno/a3xx.xml          (  83840 bytes, from 2018-07-03 19:37:13)
+- /home/robclark/src/envytools/rnndb/adreno/a4xx.xml          ( 112086 bytes, from 2018-07-03 19:37:13)
+- /home/robclark/src/envytools/rnndb/adreno/a5xx.xml          ( 147240 bytes, from 2018-12-02 17:29:54)
+- /home/robclark/src/envytools/rnndb/adreno/a6xx.xml          ( 140790 bytes, from 2018-12-02 17:29:54)
+- /home/robclark/src/envytools/rnndb/adreno/a6xx_gmu.xml      (  10431 bytes, from 2018-09-14 13:03:07)
+- /home/robclark/src/envytools/rnndb/adreno/ocmem.xml         (   1773 bytes, from 2018-07-03 19:37:13)
 
-Copyright (C) 2013-2016 by the following authors:
+Copyright (C) 2013-2018 by the following authors:
 - Rob Clark <robdclark@gmail.com> (robclark)
 - Ilia Mirkin <imirkin@alum.mit.edu> (imirkin)
 
@@ -42,6 +45,14 @@ OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
+
+enum chip {
+	A2XX = 0,
+	A3XX = 0,
+	A4XX = 0,
+	A5XX = 0,
+	A6XX = 0,
+};
 
 enum adreno_pa_su_sc_draw {
 	PC_DRAW_POINTS = 0,
@@ -170,6 +181,20 @@ enum a3xx_color_swap {
 	WXYZ = 1,
 	ZYXW = 2,
 	XYZW = 3,
+};
+
+enum a3xx_rb_blend_opcode {
+	BLEND_DST_PLUS_SRC = 0,
+	BLEND_SRC_MINUS_DST = 1,
+	BLEND_DST_MINUS_SRC = 2,
+	BLEND_MIN_DST_SRC = 3,
+	BLEND_MAX_DST_SRC = 4,
+};
+
+enum a4xx_tess_spacing {
+	EQUAL_SPACING = 0,
+	ODD_SPACING = 2,
+	EVEN_SPACING = 3,
 };
 
 #define REG_AXXX_CP_RB_BASE					0x000001c0
@@ -314,6 +339,15 @@ static inline uint32_t AXXX_SCRATCH_UMSK_SWAP(uint32_t val)
 #define REG_AXXX_CP_STATE_DEBUG_DATA				0x000001ed
 
 #define REG_AXXX_CP_INT_CNTL					0x000001f2
+#define AXXX_CP_INT_CNTL_SW_INT_MASK				0x00080000
+#define AXXX_CP_INT_CNTL_T0_PACKET_IN_IB_MASK			0x00800000
+#define AXXX_CP_INT_CNTL_OPCODE_ERROR_MASK			0x01000000
+#define AXXX_CP_INT_CNTL_PROTECTED_MODE_ERROR_MASK		0x02000000
+#define AXXX_CP_INT_CNTL_RESERVED_BIT_ERROR_MASK		0x04000000
+#define AXXX_CP_INT_CNTL_IB_ERROR_MASK				0x08000000
+#define AXXX_CP_INT_CNTL_IB2_INT_MASK				0x20000000
+#define AXXX_CP_INT_CNTL_IB1_INT_MASK				0x40000000
+#define AXXX_CP_INT_CNTL_RB_INT_MASK				0x80000000
 
 #define REG_AXXX_CP_INT_STATUS					0x000001f3
 
@@ -412,6 +446,35 @@ static inline uint32_t AXXX_CP_CSQ_IB2_STAT_WPTR(uint32_t val)
 #define REG_AXXX_CP_IB2_BUFSZ					0x0000045b
 
 #define REG_AXXX_CP_STAT					0x0000047f
+#define AXXX_CP_STAT_CP_BUSY					0x80000000
+#define AXXX_CP_STAT_VS_EVENT_FIFO_BUSY				0x40000000
+#define AXXX_CP_STAT_PS_EVENT_FIFO_BUSY				0x20000000
+#define AXXX_CP_STAT_CF_EVENT_FIFO_BUSY				0x10000000
+#define AXXX_CP_STAT_RB_EVENT_FIFO_BUSY				0x08000000
+#define AXXX_CP_STAT_ME_BUSY					0x04000000
+#define AXXX_CP_STAT_MIU_WR_C_BUSY				0x02000000
+#define AXXX_CP_STAT_CP_3D_BUSY					0x00800000
+#define AXXX_CP_STAT_CP_NRT_BUSY				0x00400000
+#define AXXX_CP_STAT_RBIU_SCRATCH_BUSY				0x00200000
+#define AXXX_CP_STAT_RCIU_ME_BUSY				0x00100000
+#define AXXX_CP_STAT_RCIU_PFP_BUSY				0x00080000
+#define AXXX_CP_STAT_MEQ_RING_BUSY				0x00040000
+#define AXXX_CP_STAT_PFP_BUSY					0x00020000
+#define AXXX_CP_STAT_ST_QUEUE_BUSY				0x00010000
+#define AXXX_CP_STAT_INDIRECT2_QUEUE_BUSY			0x00002000
+#define AXXX_CP_STAT_INDIRECTS_QUEUE_BUSY			0x00001000
+#define AXXX_CP_STAT_RING_QUEUE_BUSY				0x00000800
+#define AXXX_CP_STAT_CSF_BUSY					0x00000400
+#define AXXX_CP_STAT_CSF_ST_BUSY				0x00000200
+#define AXXX_CP_STAT_EVENT_BUSY					0x00000100
+#define AXXX_CP_STAT_CSF_INDIRECT2_BUSY				0x00000080
+#define AXXX_CP_STAT_CSF_INDIRECTS_BUSY				0x00000040
+#define AXXX_CP_STAT_CSF_RING_BUSY				0x00000020
+#define AXXX_CP_STAT_RCIU_BUSY					0x00000010
+#define AXXX_CP_STAT_RBIU_BUSY					0x00000008
+#define AXXX_CP_STAT_MIU_RD_RETURN_BUSY				0x00000004
+#define AXXX_CP_STAT_MIU_RD_REQ_BUSY				0x00000002
+#define AXXX_CP_STAT_MIU_WR_BUSY				0x00000001
 
 #define REG_AXXX_CP_SCRATCH_REG0				0x00000578
 

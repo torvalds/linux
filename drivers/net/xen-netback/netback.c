@@ -67,6 +67,7 @@ module_param(rx_drain_timeout_msecs, uint, 0444);
 unsigned int rx_stall_timeout_msecs = 60000;
 module_param(rx_stall_timeout_msecs, uint, 0444);
 
+#define MAX_QUEUES_DEFAULT 8
 unsigned int xenvif_max_queues;
 module_param_named(max_queues, xenvif_max_queues, uint, 0644);
 MODULE_PARM_DESC(max_queues,
@@ -179,11 +180,12 @@ static void tx_add_credit(struct xenvif_queue *queue)
 		max_credit = ULONG_MAX; /* wrapped: clamp to ULONG_MAX */
 
 	queue->remaining_credit = min(max_credit, max_burst);
+	queue->rate_limited = false;
 }
 
-void xenvif_tx_credit_callback(unsigned long data)
+void xenvif_tx_credit_callback(struct timer_list *t)
 {
-	struct xenvif_queue *queue = (struct xenvif_queue *)data;
+	struct xenvif_queue *queue = from_timer(queue, t, credit_timeout);
 	tx_add_credit(queue);
 	xenvif_napi_schedule_or_enable_events(queue);
 }
@@ -213,7 +215,7 @@ static void xenvif_fatal_tx_err(struct xenvif *vif)
 	netdev_err(vif->dev, "fatal error; disabling device\n");
 	vif->disabled = true;
 	/* Disable the vif from queue 0's kthread */
-	if (vif->queues)
+	if (vif->num_queues)
 		xenvif_kick_thread(&vif->queues[0]);
 }
 
@@ -685,8 +687,10 @@ static bool tx_credit_exceeded(struct xenvif_queue *queue, unsigned size)
 		msecs_to_jiffies(queue->credit_usec / 1000);
 
 	/* Timer could already be pending in rare cases. */
-	if (timer_pending(&queue->credit_timeout))
+	if (timer_pending(&queue->credit_timeout)) {
+		queue->rate_limited = true;
 		return true;
+	}
 
 	/* Passed the point where we can replenish credit? */
 	if (time_after_eq64(now, next_credit)) {
@@ -696,11 +700,10 @@ static bool tx_credit_exceeded(struct xenvif_queue *queue, unsigned size)
 
 	/* Still too big to send right now? Set a callback. */
 	if (size > queue->remaining_credit) {
-		queue->credit_timeout.data     =
-			(unsigned long)queue;
 		mod_timer(&queue->credit_timeout,
 			  next_credit);
 		queue->credit_window_start = next_credit;
+		queue->rate_limited = true;
 
 		return true;
 	}
@@ -922,6 +925,7 @@ static void xenvif_tx_build_gops(struct xenvif_queue *queue,
 			skb_shinfo(skb)->nr_frags = MAX_SKB_FRAGS;
 			nskb = xenvif_alloc_skb(0);
 			if (unlikely(nskb == NULL)) {
+				skb_shinfo(skb)->nr_frags = 0;
 				kfree_skb(skb);
 				xenvif_tx_err(queue, &txreq, extra_count, idx);
 				if (net_ratelimit())
@@ -937,6 +941,7 @@ static void xenvif_tx_build_gops(struct xenvif_queue *queue,
 
 			if (xenvif_set_skb_gso(queue->vif, skb, gso)) {
 				/* Failure in xenvif_set_skb_gso is fatal. */
+				skb_shinfo(skb)->nr_frags = 0;
 				kfree_skb(skb);
 				kfree_skb(nskb);
 				break;
@@ -1069,11 +1074,6 @@ static int xenvif_handle_frag_list(struct xenvif_queue *queue, struct sk_buff *s
 		skb_frag_size_set(&frags[i], len);
 	}
 
-	/* Copied all the bits from the frag list -- free it. */
-	skb_frag_list_init(skb);
-	xenvif_skb_zerocopy_prepare(queue, nskb);
-	kfree_skb(nskb);
-
 	/* Release all the original (foreign) frags. */
 	for (f = 0; f < skb_shinfo(skb)->nr_frags; f++)
 		skb_frag_unref(skb, f);
@@ -1142,6 +1142,8 @@ static int xenvif_tx_submit(struct xenvif_queue *queue)
 		xenvif_fill_frags(queue, skb);
 
 		if (unlikely(skb_has_frag_list(skb))) {
+			struct sk_buff *nskb = skb_shinfo(skb)->frag_list;
+			xenvif_skb_zerocopy_prepare(queue, nskb);
 			if (xenvif_handle_frag_list(queue, skb)) {
 				if (net_ratelimit())
 					netdev_err(queue->vif->dev,
@@ -1150,6 +1152,9 @@ static int xenvif_tx_submit(struct xenvif_queue *queue)
 				kfree_skb(skb);
 				continue;
 			}
+			/* Copied all the bits from the frag list -- free it. */
+			skb_frag_list_init(skb);
+			kfree_skb(nskb);
 		}
 
 		skb->dev      = queue->vif->dev;
@@ -1166,15 +1171,24 @@ static int xenvif_tx_submit(struct xenvif_queue *queue)
 			continue;
 		}
 
-		skb_probe_transport_header(skb, 0);
+		skb_probe_transport_header(skb);
 
 		/* If the packet is GSO then we will have just set up the
 		 * transport header offset in checksum_setup so it's now
 		 * straightforward to calculate gso_segs.
 		 */
 		if (skb_is_gso(skb)) {
-			int mss = skb_shinfo(skb)->gso_size;
-			int hdrlen = skb_transport_header(skb) -
+			int mss, hdrlen;
+
+			/* GSO implies having the L4 header. */
+			WARN_ON_ONCE(!skb_transport_header_was_set(skb));
+			if (unlikely(!skb_transport_header_was_set(skb))) {
+				kfree_skb(skb);
+				continue;
+			}
+
+			mss = skb_shinfo(skb)->gso_size;
+			hdrlen = skb_transport_header(skb) -
 				skb_mac_header(skb) +
 				tcp_hdrlen(skb);
 
@@ -1600,9 +1614,9 @@ static void xenvif_ctrl_action(struct xenvif *vif)
 static bool xenvif_ctrl_work_todo(struct xenvif *vif)
 {
 	if (likely(RING_HAS_UNCONSUMED_REQUESTS(&vif->ctrl)))
-		return 1;
+		return true;
 
-	return 0;
+	return false;
 }
 
 irqreturn_t xenvif_ctrl_irq_fn(int irq, void *data)
@@ -1622,11 +1636,12 @@ static int __init netback_init(void)
 	if (!xen_domain())
 		return -ENODEV;
 
-	/* Allow as many queues as there are CPUs if user has not
+	/* Allow as many queues as there are CPUs but max. 8 if user has not
 	 * specified a value.
 	 */
 	if (xenvif_max_queues == 0)
-		xenvif_max_queues = num_online_cpus();
+		xenvif_max_queues = min_t(unsigned int, MAX_QUEUES_DEFAULT,
+					  num_online_cpus());
 
 	if (fatal_skb_slots < XEN_NETBK_LEGACY_SLOTS_MAX) {
 		pr_info("fatal_skb_slots too small (%d), bump it to XEN_NETBK_LEGACY_SLOTS_MAX (%d)\n",
@@ -1656,8 +1671,7 @@ module_init(netback_init);
 static void __exit netback_fini(void)
 {
 #ifdef CONFIG_DEBUG_FS
-	if (!IS_ERR_OR_NULL(xen_netback_dbg_root))
-		debugfs_remove_recursive(xen_netback_dbg_root);
+	debugfs_remove_recursive(xen_netback_dbg_root);
 #endif /* CONFIG_DEBUG_FS */
 	xenvif_xenbus_fini();
 }

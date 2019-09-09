@@ -1,9 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Intel OnChip System Fabric MailBox access support
  */
 
 #ifndef IOSF_MBI_SYMS_H
 #define IOSF_MBI_SYMS_H
+
+#include <linux/notifier.h>
 
 #define MBI_MCR_OFFSET		0xD0
 #define MBI_MDR_OFFSET		0xD4
@@ -47,6 +50,10 @@
 #define QRK_MBI_UNIT_MM		0x05
 #define QRK_MBI_UNIT_SOC	0x31
 
+/* Action values for the pmic_bus_access_notifier functions */
+#define MBI_PMIC_BUS_ACCESS_BEGIN	1
+#define MBI_PMIC_BUS_ACCESS_END		2
+
 #if IS_ENABLED(CONFIG_IOSF_MBI)
 
 bool iosf_mbi_available(void);
@@ -88,6 +95,101 @@ int iosf_mbi_write(u8 port, u8 opcode, u32 offset, u32 mdr);
  */
 int iosf_mbi_modify(u8 port, u8 opcode, u32 offset, u32 mdr, u32 mask);
 
+/**
+ * iosf_mbi_punit_acquire() - Acquire access to the P-Unit
+ *
+ * One some systems the P-Unit accesses the PMIC to change various voltages
+ * through the same bus as other kernel drivers use for e.g. battery monitoring.
+ *
+ * If a driver sends requests to the P-Unit which require the P-Unit to access
+ * the PMIC bus while another driver is also accessing the PMIC bus various bad
+ * things happen.
+ *
+ * Call this function before sending requests to the P-Unit which may make it
+ * access the PMIC, be it through iosf_mbi* functions or through other means.
+ * This function will block all kernel access to the PMIC I2C bus, so that the
+ * P-Unit can safely access the PMIC over the shared I2C bus.
+ *
+ * Note on these systems the i2c-bus driver will request a sempahore from the
+ * P-Unit for exclusive access to the PMIC bus when i2c drivers are accessing
+ * it, but this does not appear to be sufficient, we still need to avoid making
+ * certain P-Unit requests during the access window to avoid problems.
+ *
+ * This function locks a mutex, as such it may sleep.
+ */
+void iosf_mbi_punit_acquire(void);
+
+/**
+ * iosf_mbi_punit_release() - Release access to the P-Unit
+ */
+void iosf_mbi_punit_release(void);
+
+/**
+ * iosf_mbi_block_punit_i2c_access() - Block P-Unit accesses to the PMIC bus
+ *
+ * Call this function to block P-Unit access to the PMIC I2C bus, so that the
+ * kernel can safely access the PMIC over the shared I2C bus.
+ *
+ * This function acquires the P-Unit bus semaphore and notifies
+ * pmic_bus_access_notifier listeners that they may no longer access the
+ * P-Unit in a way which may cause it to access the shared I2C bus.
+ *
+ * Note this function may be called multiple times and the bus will not
+ * be released until iosf_mbi_unblock_punit_i2c_access() has been called the
+ * same amount of times.
+ *
+ * Return: Nonzero on error
+ */
+int iosf_mbi_block_punit_i2c_access(void);
+
+/*
+ * iosf_mbi_unblock_punit_i2c_access() - Release PMIC I2C bus block
+ *
+ * Release i2c access block gotten through iosf_mbi_block_punit_i2c_access().
+ */
+void iosf_mbi_unblock_punit_i2c_access(void);
+
+/**
+ * iosf_mbi_register_pmic_bus_access_notifier - Register PMIC bus notifier
+ *
+ * This function can be used by drivers which may need to acquire P-Unit
+ * managed resources from interrupt context, where iosf_mbi_punit_acquire()
+ * can not be used.
+ *
+ * This function allows a driver to register a notifier to get notified (in a
+ * process context) before other drivers start accessing the PMIC bus.
+ *
+ * This allows the driver to acquire any resources, which it may need during
+ * the window the other driver is accessing the PMIC, before hand.
+ *
+ * @nb: notifier_block to register
+ */
+int iosf_mbi_register_pmic_bus_access_notifier(struct notifier_block *nb);
+
+/**
+ * iosf_mbi_register_pmic_bus_access_notifier - Unregister PMIC bus notifier
+ *
+ * @nb: notifier_block to unregister
+ */
+int iosf_mbi_unregister_pmic_bus_access_notifier(struct notifier_block *nb);
+
+/**
+ * iosf_mbi_unregister_pmic_bus_access_notifier_unlocked - Unregister PMIC bus
+ *                                                         notifier, unlocked
+ *
+ * Like iosf_mbi_unregister_pmic_bus_access_notifier(), but for use when the
+ * caller has already called iosf_mbi_punit_acquire() itself.
+ *
+ * @nb: notifier_block to unregister
+ */
+int iosf_mbi_unregister_pmic_bus_access_notifier_unlocked(
+	struct notifier_block *nb);
+
+/**
+ * iosf_mbi_assert_punit_acquired - Assert that the P-Unit has been acquired.
+ */
+void iosf_mbi_assert_punit_acquired(void);
+
 #else /* CONFIG_IOSF_MBI is not enabled */
 static inline
 bool iosf_mbi_available(void)
@@ -115,6 +217,36 @@ int iosf_mbi_modify(u8 port, u8 opcode, u32 offset, u32 mdr, u32 mask)
 	WARN(1, "IOSF_MBI driver not available");
 	return -EPERM;
 }
+
+static inline void iosf_mbi_punit_acquire(void) {}
+static inline void iosf_mbi_punit_release(void) {}
+
+static inline
+int iosf_mbi_register_pmic_bus_access_notifier(struct notifier_block *nb)
+{
+	return 0;
+}
+
+static inline
+int iosf_mbi_unregister_pmic_bus_access_notifier(struct notifier_block *nb)
+{
+	return 0;
+}
+
+static inline int
+iosf_mbi_unregister_pmic_bus_access_notifier_unlocked(struct notifier_block *nb)
+{
+	return 0;
+}
+
+static inline
+int iosf_mbi_call_pmic_bus_access_notifier_chain(unsigned long val, void *v)
+{
+	return 0;
+}
+
+static inline void iosf_mbi_assert_punit_acquired(void) {}
+
 #endif /* CONFIG_IOSF_MBI */
 
 #endif /* IOSF_MBI_SYMS_H */

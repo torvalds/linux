@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * PCI driver for the Synopsys DesignWare DMA Controller
  *
  * Copyright (C) 2013 Intel Corporation
  * Author: Andy Shevchenko <andriy.shevchenko@linux.intel.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -15,9 +12,38 @@
 
 #include "internal.h"
 
+struct dw_dma_pci_data {
+	const struct dw_dma_platform_data *pdata;
+	int (*probe)(struct dw_dma_chip *chip);
+	int (*remove)(struct dw_dma_chip *chip);
+	struct dw_dma_chip *chip;
+};
+
+static const struct dw_dma_pci_data dw_pci_data = {
+	.probe = dw_dma_probe,
+	.remove = dw_dma_remove,
+};
+
+static const struct dw_dma_platform_data idma32_pdata = {
+	.nr_channels = 8,
+	.chan_allocation_order = CHAN_ALLOCATION_ASCENDING,
+	.chan_priority = CHAN_PRIORITY_ASCENDING,
+	.block_size = 131071,
+	.nr_masters = 1,
+	.data_width = {4},
+	.multi_block = {1, 1, 1, 1, 1, 1, 1, 1},
+};
+
+static const struct dw_dma_pci_data idma32_pci_data = {
+	.pdata = &idma32_pdata,
+	.probe = idma32_dma_probe,
+	.remove = idma32_dma_remove,
+};
+
 static int dw_pci_probe(struct pci_dev *pdev, const struct pci_device_id *pid)
 {
-	const struct dw_dma_platform_data *pdata = (void *)pid->driver_data;
+	const struct dw_dma_pci_data *drv_data = (void *)pid->driver_data;
+	struct dw_dma_pci_data *data;
 	struct dw_dma_chip *chip;
 	int ret;
 
@@ -42,30 +68,38 @@ static int dw_pci_probe(struct pci_dev *pdev, const struct pci_device_id *pid)
 	if (ret)
 		return ret;
 
+	data = devm_kmemdup(&pdev->dev, drv_data, sizeof(*drv_data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
 	chip = devm_kzalloc(&pdev->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
 		return -ENOMEM;
 
 	chip->dev = &pdev->dev;
+	chip->id = pdev->devfn;
 	chip->regs = pcim_iomap_table(pdev)[0];
 	chip->irq = pdev->irq;
-	chip->pdata = pdata;
+	chip->pdata = data->pdata;
 
-	ret = dw_dma_probe(chip);
+	data->chip = chip;
+
+	ret = data->probe(chip);
 	if (ret)
 		return ret;
 
-	pci_set_drvdata(pdev, chip);
+	pci_set_drvdata(pdev, data);
 
 	return 0;
 }
 
 static void dw_pci_remove(struct pci_dev *pdev)
 {
-	struct dw_dma_chip *chip = pci_get_drvdata(pdev);
+	struct dw_dma_pci_data *data = pci_get_drvdata(pdev);
+	struct dw_dma_chip *chip = data->chip;
 	int ret;
 
-	ret = dw_dma_remove(chip);
+	ret = data->remove(chip);
 	if (ret)
 		dev_warn(&pdev->dev, "can't remove device properly: %d\n", ret);
 }
@@ -74,18 +108,18 @@ static void dw_pci_remove(struct pci_dev *pdev)
 
 static int dw_pci_suspend_late(struct device *dev)
 {
-	struct pci_dev *pci = to_pci_dev(dev);
-	struct dw_dma_chip *chip = pci_get_drvdata(pci);
+	struct dw_dma_pci_data *data = dev_get_drvdata(dev);
+	struct dw_dma_chip *chip = data->chip;
 
-	return dw_dma_disable(chip);
+	return do_dw_dma_disable(chip);
 };
 
 static int dw_pci_resume_early(struct device *dev)
 {
-	struct pci_dev *pci = to_pci_dev(dev);
-	struct dw_dma_chip *chip = pci_get_drvdata(pci);
+	struct dw_dma_pci_data *data = dev_get_drvdata(dev);
+	struct dw_dma_chip *chip = data->chip;
 
-	return dw_dma_enable(chip);
+	return do_dw_dma_enable(chip);
 };
 
 #endif /* CONFIG_PM_SLEEP */
@@ -95,23 +129,30 @@ static const struct dev_pm_ops dw_pci_dev_pm_ops = {
 };
 
 static const struct pci_device_id dw_pci_id_table[] = {
-	/* Medfield */
-	{ PCI_VDEVICE(INTEL, 0x0827) },
-	{ PCI_VDEVICE(INTEL, 0x0830) },
+	/* Medfield (GPDMA) */
+	{ PCI_VDEVICE(INTEL, 0x0827), (kernel_ulong_t)&dw_pci_data },
 
 	/* BayTrail */
-	{ PCI_VDEVICE(INTEL, 0x0f06) },
-	{ PCI_VDEVICE(INTEL, 0x0f40) },
+	{ PCI_VDEVICE(INTEL, 0x0f06), (kernel_ulong_t)&dw_pci_data },
+	{ PCI_VDEVICE(INTEL, 0x0f40), (kernel_ulong_t)&dw_pci_data },
+
+	/* Merrifield */
+	{ PCI_VDEVICE(INTEL, 0x11a2), (kernel_ulong_t)&idma32_pci_data },
 
 	/* Braswell */
-	{ PCI_VDEVICE(INTEL, 0x2286) },
-	{ PCI_VDEVICE(INTEL, 0x22c0) },
+	{ PCI_VDEVICE(INTEL, 0x2286), (kernel_ulong_t)&dw_pci_data },
+	{ PCI_VDEVICE(INTEL, 0x22c0), (kernel_ulong_t)&dw_pci_data },
+
+	/* Elkhart Lake iDMA 32-bit (OSE DMA) */
+	{ PCI_VDEVICE(INTEL, 0x4bb4), (kernel_ulong_t)&idma32_pci_data },
+	{ PCI_VDEVICE(INTEL, 0x4bb5), (kernel_ulong_t)&idma32_pci_data },
+	{ PCI_VDEVICE(INTEL, 0x4bb6), (kernel_ulong_t)&idma32_pci_data },
 
 	/* Haswell */
-	{ PCI_VDEVICE(INTEL, 0x9c60) },
+	{ PCI_VDEVICE(INTEL, 0x9c60), (kernel_ulong_t)&dw_pci_data },
 
 	/* Broadwell */
-	{ PCI_VDEVICE(INTEL, 0x9ce0) },
+	{ PCI_VDEVICE(INTEL, 0x9ce0), (kernel_ulong_t)&dw_pci_data },
 
 	{ }
 };

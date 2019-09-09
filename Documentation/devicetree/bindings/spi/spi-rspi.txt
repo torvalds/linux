@@ -3,13 +3,19 @@ Device tree configuration for Renesas RSPI/QSPI driver
 Required properties:
 - compatible       : For Renesas Serial Peripheral Interface on legacy SH:
 		     "renesas,rspi-<soctype>", "renesas,rspi" as fallback.
-		     For Renesas Serial Peripheral Interface on RZ/A1H:
+		     For Renesas Serial Peripheral Interface on RZ/A:
 		     "renesas,rspi-<soctype>", "renesas,rspi-rz" as fallback.
-		     For Quad Serial Peripheral Interface on R-Car Gen2:
+		     For Quad Serial Peripheral Interface on R-Car Gen2 and
+		     RZ/G1 devices:
 		     "renesas,qspi-<soctype>", "renesas,qspi" as fallback.
 		     Examples with soctypes are:
 		        - "renesas,rspi-sh7757" (SH)
 			- "renesas,rspi-r7s72100" (RZ/A1H)
+			- "renesas,rspi-r7s9210" (RZ/A2)
+			- "renesas,qspi-r8a7743" (RZ/G1M)
+			- "renesas,qspi-r8a7744" (RZ/G1N)
+			- "renesas,qspi-r8a7745" (RZ/G1E)
+			- "renesas,qspi-r8a77470" (RZ/G1C)
 			- "renesas,qspi-r8a7790" (R-Car H2)
 			- "renesas,qspi-r8a7791" (R-Car M2-W)
 			- "renesas,qspi-r8a7792" (R-Car V2H)
@@ -25,8 +31,6 @@ Required properties:
 		       - "rx" for SPRI,
 		       - "tx" to SPTI,
 		       - "mux" for a single muxed interrupt.
-- interrupt-parent : The phandle for the interrupt controller that
-		     services interrupts for this device.
 - num-cs	   : Number of chip selects. Some RSPI cores have more than 1.
 - #address-cells   : Must be <1>
 - #size-cells      : Must be <0>

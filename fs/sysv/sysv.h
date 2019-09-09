@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _SYSV_H
 #define _SYSV_H
 
@@ -22,8 +23,6 @@ struct sysv_sb_info {
 	struct super_block *s_sb;	/* VFS superblock */
 	int	       s_type;		/* file system type: FSTYPE_{XENIX|SYSV|COH} */
 	char	       s_bytesex;	/* bytesex (le/be/pdp) */
-	char	       s_truncate;	/* if 1: names > SYSV_NAMELEN chars are truncated */
-					/* if 0: they are disallowed (ENAMETOOLONG) */
 	unsigned int   s_inodes_per_block;	/* number of inodes per block */
 	unsigned int   s_inodes_per_block_1;	/* inodes_per_block - 1 */
 	unsigned int   s_inodes_per_block_bits;	/* log2(inodes_per_block) */
@@ -142,7 +141,7 @@ extern struct inode *sysv_iget(struct super_block *, unsigned int);
 extern int sysv_write_inode(struct inode *, struct writeback_control *wbc);
 extern int sysv_sync_inode(struct inode *);
 extern void sysv_set_inode(struct inode *, dev_t);
-extern int sysv_getattr(struct vfsmount *, struct dentry *, struct kstat *);
+extern int sysv_getattr(const struct path *, struct kstat *, u32, unsigned int);
 extern int sysv_init_icache(void);
 extern void sysv_destroy_icache(void);
 
@@ -165,7 +164,6 @@ extern const struct file_operations sysv_file_operations;
 extern const struct file_operations sysv_dir_operations;
 extern const struct address_space_operations sysv_aops;
 extern const struct super_operations sysv_sops;
-extern const struct dentry_operations sysv_dentry_operations;
 
 
 enum {

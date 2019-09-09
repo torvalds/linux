@@ -71,7 +71,7 @@
 #include <linux/slab.h>
 #include <asm/io.h>
 #include <asm/byteorder.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <linux/atmdev.h>
 #include <linux/atm.h>
@@ -161,7 +161,7 @@ static unsigned int clocktab[] = {
 	CLK_LOW
 };     
 
-static struct atmdev_ops he_ops =
+static const struct atmdev_ops he_ops =
 {
 	.open =		he_open,
 	.close =	he_close,	
@@ -533,9 +533,10 @@ static void he_init_tx_lbfp(struct he_dev *he_dev)
 
 static int he_init_tpdrq(struct he_dev *he_dev)
 {
-	he_dev->tpdrq_base = dma_zalloc_coherent(&he_dev->pci_dev->dev,
-						 CONFIG_TPDRQ_SIZE * sizeof(struct he_tpdrq),
-						 &he_dev->tpdrq_phys, GFP_KERNEL);
+	he_dev->tpdrq_base = dma_alloc_coherent(&he_dev->pci_dev->dev,
+						CONFIG_TPDRQ_SIZE * sizeof(struct he_tpdrq),
+						&he_dev->tpdrq_phys,
+						GFP_KERNEL);
 	if (he_dev->tpdrq_base == NULL) {
 		hprintk("failed to alloc tpdrq\n");
 		return -ENOMEM;
@@ -717,7 +718,7 @@ static int he_init_cs_block_rcm(struct he_dev *he_dev)
 			instead of '/ 512', use '>> 9' to prevent a call
 			to divdu3 on x86 platforms
 		*/
-		rate_cps = (unsigned long long) (1 << exp) * (man + 512) >> 9;
+		rate_cps = (unsigned long long) (1UL << exp) * (man + 512) >> 9;
 
 		if (rate_cps < 10)
 			rate_cps = 10;	/* 2.2.1 minimum payload rate is 10 cps */
@@ -738,13 +739,13 @@ static int he_init_cs_block_rcm(struct he_dev *he_dev)
 #else
 		/* this is pretty, but avoids _divdu3 and is mostly correct */
 		mult = he_dev->atm_dev->link_rate / ATM_OC3_PCR;
-		if (rate_cps > (272 * mult))
+		if (rate_cps > (272ULL * mult))
 			buf = 4;
-		else if (rate_cps > (204 * mult))
+		else if (rate_cps > (204ULL * mult))
 			buf = 3;
-		else if (rate_cps > (136 * mult))
+		else if (rate_cps > (136ULL * mult))
 			buf = 2;
-		else if (rate_cps > (68 * mult))
+		else if (rate_cps > (68ULL * mult))
 			buf = 1;
 		else
 			buf = 0;
@@ -805,9 +806,9 @@ static int he_init_group(struct he_dev *he_dev, int group)
 		goto out_free_rbpl_virt;
 	}
 
-	he_dev->rbpl_base = dma_zalloc_coherent(&he_dev->pci_dev->dev,
-						CONFIG_RBPL_SIZE * sizeof(struct he_rbp),
-						&he_dev->rbpl_phys, GFP_KERNEL);
+	he_dev->rbpl_base = dma_alloc_coherent(&he_dev->pci_dev->dev,
+					       CONFIG_RBPL_SIZE * sizeof(struct he_rbp),
+					       &he_dev->rbpl_phys, GFP_KERNEL);
 	if (he_dev->rbpl_base == NULL) {
 		hprintk("failed to alloc rbpl_base\n");
 		goto out_destroy_rbpl_pool;
@@ -844,9 +845,9 @@ static int he_init_group(struct he_dev *he_dev, int group)
 
 	/* rx buffer ready queue */
 
-	he_dev->rbrq_base = dma_zalloc_coherent(&he_dev->pci_dev->dev,
-						CONFIG_RBRQ_SIZE * sizeof(struct he_rbrq),
-						&he_dev->rbrq_phys, GFP_KERNEL);
+	he_dev->rbrq_base = dma_alloc_coherent(&he_dev->pci_dev->dev,
+					       CONFIG_RBRQ_SIZE * sizeof(struct he_rbrq),
+					       &he_dev->rbrq_phys, GFP_KERNEL);
 	if (he_dev->rbrq_base == NULL) {
 		hprintk("failed to allocate rbrq\n");
 		goto out_free_rbpl;
@@ -868,9 +869,9 @@ static int he_init_group(struct he_dev *he_dev, int group)
 
 	/* tx buffer ready queue */
 
-	he_dev->tbrq_base = dma_zalloc_coherent(&he_dev->pci_dev->dev,
-						CONFIG_TBRQ_SIZE * sizeof(struct he_tbrq),
-						&he_dev->tbrq_phys, GFP_KERNEL);
+	he_dev->tbrq_base = dma_alloc_coherent(&he_dev->pci_dev->dev,
+					       CONFIG_TBRQ_SIZE * sizeof(struct he_tbrq),
+					       &he_dev->tbrq_phys, GFP_KERNEL);
 	if (he_dev->tbrq_base == NULL) {
 		hprintk("failed to allocate tbrq\n");
 		goto out_free_rbpq_base;
@@ -913,11 +914,9 @@ static int he_init_irq(struct he_dev *he_dev)
 	/* 2.9.3.5  tail offset for each interrupt queue is located after the
 		    end of the interrupt queue */
 
-	he_dev->irq_base = dma_zalloc_coherent(&he_dev->pci_dev->dev,
-					       (CONFIG_IRQ_SIZE + 1)
-					       * sizeof(struct he_irq),
-					       &he_dev->irq_phys,
-					       GFP_KERNEL);
+	he_dev->irq_base = dma_alloc_coherent(&he_dev->pci_dev->dev,
+					      (CONFIG_IRQ_SIZE + 1) * sizeof(struct he_irq),
+					      &he_dev->irq_phys, GFP_KERNEL);
 	if (he_dev->irq_base == NULL) {
 		hprintk("failed to allocate irq\n");
 		return -ENOMEM;
@@ -1464,9 +1463,9 @@ static int he_start(struct atm_dev *dev)
 
 	/* host status page */
 
-	he_dev->hsp = dma_zalloc_coherent(&he_dev->pci_dev->dev,
-					  sizeof(struct he_hsp),
-					  &he_dev->hsp_phys, GFP_KERNEL);
+	he_dev->hsp = dma_alloc_coherent(&he_dev->pci_dev->dev,
+					 sizeof(struct he_hsp),
+					 &he_dev->hsp_phys, GFP_KERNEL);
 	if (he_dev->hsp == NULL) {
 		hprintk("failed to allocate host status page\n");
 		return -ENOMEM;
@@ -1735,7 +1734,7 @@ he_service_rbrq(struct he_dev *he_dev, int group)
 		__net_timestamp(skb);
 
 		list_for_each_entry(heb, &he_vcc->buffers, entry)
-			memcpy(skb_put(skb, heb->len), &heb->data, heb->len);
+			skb_put_data(skb, &heb->data, heb->len);
 
 		switch (vcc->qos.aal) {
 			case ATM_AAL0:
@@ -2395,7 +2394,7 @@ he_close(struct atm_vcc *vcc)
 		 * TBRQ, the host issues the close command to the adapter.
 		 */
 
-		while (((tx_inuse = atomic_read(&sk_atm(vcc)->sk_wmem_alloc)) > 1) &&
+		while (((tx_inuse = refcount_read(&sk_atm(vcc)->sk_wmem_alloc)) > 1) &&
 		       (retry < MAX_RETRY)) {
 			msleep(sleep);
 			if (sleep < 250)
@@ -2851,7 +2850,7 @@ MODULE_PARM_DESC(irq_coalesce, "use interrupt coalescing (default 1)");
 module_param(sdh, bool, 0);
 MODULE_PARM_DESC(sdh, "use SDH framing (default 0)");
 
-static struct pci_device_id he_pci_tbl[] = {
+static const struct pci_device_id he_pci_tbl[] = {
 	{ PCI_VDEVICE(FORE, PCI_DEVICE_ID_FORE_HE), 0 },
 	{ 0, }
 };

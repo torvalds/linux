@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /dts-v1/;
 
 #include <dt-bindings/interrupt-controller/irq.h>
@@ -84,12 +85,18 @@
 	fpga_regs: system-controller@1f000000 {
 		compatible = "mti,malta-fpga", "syscon", "simple-mfd";
 		reg = <0x1f000000 0x1000>;
+		native-endian;
+
+		lcd@410 {
+			compatible = "mti,malta-lcd";
+			offset = <0x410>;
+		};
 
 		reboot {
 			compatible = "syscon-reboot";
 			regmap = <&fpga_regs>;
 			offset = <0x500>;
-			mask = <0x4d>;
+			mask = <0x42>;
 		};
 	};
 

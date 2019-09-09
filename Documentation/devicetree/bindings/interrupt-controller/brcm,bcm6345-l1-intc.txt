@@ -29,8 +29,6 @@ Required properties:
 - interrupt-controller: identifies the node as an interrupt controller
 - #interrupt-cells: specifies the number of cells needed to encode an interrupt
   source, should be 1.
-- interrupt-parent: specifies the phandle to the parent interrupt controller(s)
-  this one is cascaded from
 - interrupts: specifies the interrupt line(s) in the interrupt-parent controller
   node; valid values depend on the type of parent interrupt controller
 

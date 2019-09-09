@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Broadcom BCM6345 style Level 1 interrupt controller driver
  *
  * Copyright (C) 2014 Broadcom Corporation
  * Copyright 2015 Simon Arlott
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * This is based on the BCM7038 (which supports SMP) but with a single
  * enable register instead of separate mask/set/clear registers.
@@ -231,6 +228,8 @@ static int bcm6345_l1_set_affinity(struct irq_data *d,
 	}
 	raw_spin_unlock_irqrestore(&intc->lock, flags);
 
+	irq_data_update_effective_affinity(d, cpumask_of(new_cpu));
+
 	return IRQ_SET_MASK_OK_NOCOPY;
 }
 
@@ -291,6 +290,7 @@ static int bcm6345_l1_map(struct irq_domain *d, unsigned int virq,
 	irq_set_chip_and_handler(virq,
 		&bcm6345_l1_irq_chip, handle_percpu_irq);
 	irq_set_chip_data(virq, d->host_data);
+	irqd_set_single_target(irq_desc_get_irq_data(irq_to_desc(virq)));
 	return 0;
 }
 

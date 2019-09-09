@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2016 Red Hat, Inc.
  * Author: Michael S. Tsirkin <mst@redhat.com>
- * This work is licensed under the terms of the GNU GPL, version 2.
  *
  * Command line processing and common functions for ring benchmarking.
  */
@@ -20,6 +20,7 @@
 int runcycles = 10000000;
 int max_outstanding = INT_MAX;
 int batch = 1;
+int param = 0;
 
 bool do_sleep = false;
 bool do_relax = false;
@@ -86,7 +87,7 @@ void set_affinity(const char *arg)
 	cpu = strtol(arg, &endptr, 0);
 	assert(!*endptr);
 
-	assert(cpu >= 0 || cpu < CPU_SETSIZE);
+	assert(cpu >= 0 && cpu < CPU_SETSIZE);
 
 	self = pthread_self();
 	CPU_ZERO(&cpuset);
@@ -96,7 +97,13 @@ void set_affinity(const char *arg)
 	assert(!ret);
 }
 
-static void run_guest(void)
+void poll_used(void)
+{
+	while (used_empty())
+		busy_wait();
+}
+
+static void __attribute__((__flatten__)) run_guest(void)
 {
 	int completed_before;
 	int completed = 0;
@@ -141,7 +148,7 @@ static void run_guest(void)
 		assert(completed <= bufs);
 		assert(started <= bufs);
 		if (do_sleep) {
-			if (enable_call())
+			if (used_empty() && enable_call())
 				wait_for_call();
 		} else {
 			poll_used();
@@ -149,7 +156,13 @@ static void run_guest(void)
 	}
 }
 
-static void run_host(void)
+void poll_avail(void)
+{
+	while (avail_empty())
+		busy_wait();
+}
+
+static void __attribute__((__flatten__)) run_host(void)
 {
 	int completed_before;
 	int completed = 0;
@@ -160,7 +173,7 @@ static void run_host(void)
 
 	for (;;) {
 		if (do_sleep) {
-			if (enable_kick())
+			if (avail_empty() && enable_kick())
 				wait_for_kick();
 		} else {
 			poll_avail();
@@ -235,6 +248,11 @@ static const struct option longopts[] = {
 		.val = 'b',
 	},
 	{
+		.name = "param",
+		.has_arg = required_argument,
+		.val = 'p',
+	},
+	{
 		.name = "sleep",
 		.has_arg = no_argument,
 		.val = 's',
@@ -262,6 +280,7 @@ static void help(void)
 		" [--run-cycles C (default: %d)]"
 		" [--batch b]"
 		" [--outstanding o]"
+		" [--param p]"
 		" [--sleep]"
 		" [--relax]"
 		" [--exit]"
@@ -315,6 +334,12 @@ int main(int argc, char **argv)
 			assert(!*endptr);
 			assert(c > 0 && c < INT_MAX);
 			max_outstanding = c;
+			break;
+		case 'p':
+			c = strtol(optarg, &endptr, 0);
+			assert(!*endptr);
+			assert(c > 0 && c < INT_MAX);
+			param = c;
 			break;
 		case 'b':
 			c = strtol(optarg, &endptr, 0);

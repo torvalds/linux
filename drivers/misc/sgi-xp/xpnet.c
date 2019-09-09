@@ -118,6 +118,8 @@ static DEFINE_SPINLOCK(xpnet_broadcast_lock);
  * now, the default is 64KB.
  */
 #define XPNET_MAX_MTU (0x800000UL - L1_CACHE_BYTES)
+/* 68 comes from min TCP+IP+MAC header */
+#define XPNET_MIN_MTU 68
 /* 32KB has been determined to be the ideal */
 #define XPNET_DEF_MTU (0x8000UL)
 
@@ -330,22 +332,6 @@ xpnet_dev_stop(struct net_device *dev)
 	return 0;
 }
 
-static int
-xpnet_dev_change_mtu(struct net_device *dev, int new_mtu)
-{
-	/* 68 comes from min TCP+IP+MAC header */
-	if ((new_mtu < 68) || (new_mtu > XPNET_MAX_MTU)) {
-		dev_err(xpnet, "ifconfig %s mtu %d failed; value must be "
-			"between 68 and %ld\n", dev->name, new_mtu,
-			XPNET_MAX_MTU);
-		return -EINVAL;
-	}
-
-	dev->mtu = new_mtu;
-	dev_dbg(xpnet, "ifconfig %s mtu set to %d\n", dev->name, new_mtu);
-	return 0;
-}
-
 /*
  * Notification that the other end has received the message and
  * DMA'd the skb information.  At this point, they are done with
@@ -421,7 +407,7 @@ xpnet_send(struct sk_buff *skb, struct xpnet_pending_msg *queued_msg,
  * destination partid.  If the destination partid octets are 0xffff,
  * this packet is to be broadcast to all connected partitions.
  */
-static int
+static netdev_tx_t
 xpnet_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct xpnet_pending_msg *queued_msg;
@@ -519,7 +505,6 @@ static const struct net_device_ops xpnet_netdev_ops = {
 	.ndo_open		= xpnet_dev_open,
 	.ndo_stop		= xpnet_dev_stop,
 	.ndo_start_xmit		= xpnet_dev_hard_start_xmit,
-	.ndo_change_mtu		= xpnet_dev_change_mtu,
 	.ndo_tx_timeout		= xpnet_dev_tx_timeout,
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
@@ -535,8 +520,9 @@ xpnet_init(void)
 
 	dev_info(xpnet, "registering network device %s\n", XPNET_DEVICE_NAME);
 
-	xpnet_broadcast_partitions = kzalloc(BITS_TO_LONGS(xp_max_npartitions) *
-					     sizeof(long), GFP_KERNEL);
+	xpnet_broadcast_partitions = kcalloc(BITS_TO_LONGS(xp_max_npartitions),
+					     sizeof(long),
+					     GFP_KERNEL);
 	if (xpnet_broadcast_partitions == NULL)
 		return -ENOMEM;
 
@@ -555,6 +541,8 @@ xpnet_init(void)
 
 	xpnet_device->netdev_ops = &xpnet_netdev_ops;
 	xpnet_device->mtu = XPNET_DEF_MTU;
+	xpnet_device->min_mtu = XPNET_MIN_MTU;
+	xpnet_device->max_mtu = XPNET_MAX_MTU;
 
 	/*
 	 * Multicast assumes the LSB of the first octet is set for multicast

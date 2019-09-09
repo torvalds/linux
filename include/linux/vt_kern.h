@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _VT_KERN_H
 #define _VT_KERN_H
 
@@ -134,13 +135,6 @@ extern int do_unbind_con_driver(const struct consw *csw, int first, int last,
 			     int deflt);
 int vty_init(const struct file_operations *console_fops);
 
-static inline bool vt_force_oops_output(struct vc_data *vc)
-{
-	if (oops_in_progress && vc->vc_panic_force_write  && panic_timeout >= 0)
-		return true;
-	return false;
-}
-
 extern char vt_dont_switch;
 extern int default_utf8;
 extern int global_cursor_default;
@@ -191,5 +185,7 @@ extern void vt_set_led_state(int console, int leds);
 extern void vt_kbd_con_start(int console);
 extern void vt_kbd_con_stop(int console);
 
+void vc_scrolldelta_helper(struct vc_data *c, int lines,
+		unsigned int rolled_over, void *_base, unsigned int size);
 
 #endif /* _VT_KERN_H */

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __LINUX_PERCPU_H
 #define __LINUX_PERCPU_H
 
@@ -20,6 +21,19 @@
 
 /* minimum unit size, also is the maximum supported allocation size */
 #define PCPU_MIN_UNIT_SIZE		PFN_ALIGN(32 << 10)
+
+/* minimum allocation size and shift in bytes */
+#define PCPU_MIN_ALLOC_SHIFT		2
+#define PCPU_MIN_ALLOC_SIZE		(1 << PCPU_MIN_ALLOC_SHIFT)
+
+/*
+ * The PCPU_BITMAP_BLOCK_SIZE must be the same size as PAGE_SIZE as the
+ * updating of hints is used to manage the nr_empty_pop_pages in both
+ * the chunk and globally.
+ */
+#define PCPU_BITMAP_BLOCK_SIZE		PAGE_SIZE
+#define PCPU_BITMAP_BLOCK_BITS		(PCPU_BITMAP_BLOCK_SIZE >>	\
+					 PCPU_MIN_ALLOC_SHIFT)
 
 /*
  * Percpu allocator can serve percpu allocations before slab is
@@ -110,12 +124,12 @@ extern int __init pcpu_page_first_chunk(size_t reserved_size,
 #endif
 
 extern void __percpu *__alloc_reserved_percpu(size_t size, size_t align);
+extern bool __is_kernel_percpu_address(unsigned long addr, unsigned long *can_addr);
 extern bool is_kernel_percpu_address(unsigned long addr);
 
 #if !defined(CONFIG_SMP) || !defined(CONFIG_HAVE_SETUP_PER_CPU_AREA)
 extern void __init setup_per_cpu_areas(void);
 #endif
-extern void __init percpu_init_late(void);
 
 extern void __percpu *__alloc_percpu_gfp(size_t size, size_t align, gfp_t gfp);
 extern void __percpu *__alloc_percpu(size_t size, size_t align);
@@ -128,5 +142,7 @@ extern phys_addr_t per_cpu_ptr_to_phys(void *addr);
 #define alloc_percpu(type)						\
 	(typeof(type) __percpu *)__alloc_percpu(sizeof(type),		\
 						__alignof__(type))
+
+extern unsigned long pcpu_nr_pages(void);
 
 #endif /* __LINUX_PERCPU_H */

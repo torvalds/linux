@@ -1,16 +1,8 @@
-/*
+/* SPDX-License-Identifier: GPL-2.0
+ *
  * r8a7793 clock definition
  *
  * Copyright (C) 2014  Renesas Electronics Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef __DT_BINDINGS_CLOCK_R8A7793_H__
@@ -77,10 +69,11 @@
 
 /* MSTP4 */
 #define R8A7793_CLK_IRQC		7
+#define R8A7793_CLK_INTC_SYS		8
 
 /* MSTP5 */
-#define R8A7793_CLK_AUDIO_DMAC1         1
-#define R8A7793_CLK_AUDIO_DMAC0         2
+#define R8A7793_CLK_AUDIO_DMAC1		1
+#define R8A7793_CLK_AUDIO_DMAC0		2
 #define R8A7793_CLK_ADSP_MOD		6
 #define R8A7793_CLK_THERMAL		22
 #define R8A7793_CLK_PWM			23

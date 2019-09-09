@@ -1,20 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Abilis Systems Single DVB-T Receiver
  * Copyright (C) 2008 Pierrick Hascoet <pierrick.hascoet@abilis.com>
  * Copyright (C) 2010 Devin Heitmueller <dheitmueller@kernellabs.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
-#include <dvb_frontend.h>
+#include <media/dvb_frontend.h>
 
 #include "as102_fe.h"
 
@@ -415,13 +406,13 @@ static void as102_fe_release(struct dvb_frontend *fe)
 }
 
 
-static struct dvb_frontend_ops as102_fe_ops = {
+static const struct dvb_frontend_ops as102_fe_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		.name			= "Abilis AS102 DVB-T",
-		.frequency_min		= 174000000,
-		.frequency_max		= 862000000,
-		.frequency_stepsize	= 166667,
+		.frequency_min_hz	= 174 * MHz,
+		.frequency_max_hz	= 862 * MHz,
+		.frequency_stepsize_hz	= 166667,
 		.caps = FE_CAN_INVERSION_AUTO
 			| FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 | FE_CAN_FEC_3_4
 			| FE_CAN_FEC_5_6 | FE_CAN_FEC_7_8 | FE_CAN_FEC_AUTO
@@ -455,11 +446,10 @@ struct dvb_frontend *as102_attach(const char *name,
 	struct as102_state *state;
 	struct dvb_frontend *fe;
 
-	state = kzalloc(sizeof(struct as102_state), GFP_KERNEL);
-	if (state == NULL) {
-		pr_err("%s: unable to allocate memory for state\n", __func__);
+	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	if (!state)
 		return NULL;
-	}
+
 	fe = &state->frontend;
 	fe->demodulator_priv = state;
 	state->ops = ops;
@@ -468,7 +458,7 @@ struct dvb_frontend *as102_attach(const char *name,
 
 	/* init frontend callback ops */
 	memcpy(&fe->ops, &as102_fe_ops, sizeof(struct dvb_frontend_ops));
-	strncpy(fe->ops.info.name, name, sizeof(fe->ops.info.name));
+	strscpy(fe->ops.info.name, name, sizeof(fe->ops.info.name));
 
 	return fe;
 

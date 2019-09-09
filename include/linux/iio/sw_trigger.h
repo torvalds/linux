@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Industrial I/O software trigger interface
  *
  * Copyright (c) 2015 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 
 #ifndef __IIO_SW_TRIGGER
@@ -60,7 +57,7 @@ void iio_sw_trigger_type_configfs_unregister(struct iio_sw_trigger_type *tt);
 static inline
 void iio_swt_group_init_type_name(struct iio_sw_trigger *t,
 				  const char *name,
-				  struct config_item_type *type)
+				  const struct config_item_type *type)
 {
 #if IS_ENABLED(CONFIG_CONFIGFS_FS)
 	config_group_init_type_name(&t->group, name, type);

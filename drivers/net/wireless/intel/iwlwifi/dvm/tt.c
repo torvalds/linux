@@ -1,25 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2014 Intel Corporation. All rights reserved.
+ * Copyright (C) 2018 Intel Corporation
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
  *
  * Contact Information:
  *  Intel Linux Wireless <linuxwifi@intel.com>
@@ -164,9 +150,10 @@ enum iwl_antenna_ok iwl_rx_ant_restriction(struct iwl_priv *priv)
  * without doing anything, driver should continue the 5 seconds timer
  * to wake up uCode for temperature check until temperature drop below CT
  */
-static void iwl_tt_check_exit_ct_kill(unsigned long data)
+static void iwl_tt_check_exit_ct_kill(struct timer_list *t)
 {
-	struct iwl_priv *priv = (struct iwl_priv *)data;
+	struct iwl_priv *priv = from_timer(priv, t,
+					   thermal_throttle.ct_kill_exit_tm);
 	struct iwl_tt_mgmt *tt = &priv->thermal_throttle;
 	unsigned long flags;
 
@@ -214,9 +201,10 @@ static void iwl_perform_ct_kill_task(struct iwl_priv *priv,
 	}
 }
 
-static void iwl_tt_ready_for_ct_kill(unsigned long data)
+static void iwl_tt_ready_for_ct_kill(struct timer_list *t)
 {
-	struct iwl_priv *priv = (struct iwl_priv *)data;
+	struct iwl_priv *priv = from_timer(priv, t,
+					   thermal_throttle.ct_kill_waiting_tm);
 	struct iwl_tt_mgmt *tt = &priv->thermal_throttle;
 
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
@@ -327,9 +315,9 @@ static void iwl_legacy_tt_handler(struct iwl_priv *priv, s32 temp, bool force)
 					iwl_prepare_ct_kill_task(priv);
 					tt->state = old_state;
 				}
-			} else if (old_state == IWL_TI_CT_KILL &&
-				 tt->state != IWL_TI_CT_KILL)
+			} else if (old_state == IWL_TI_CT_KILL) {
 				iwl_perform_ct_kill_task(priv, false);
+			}
 			IWL_DEBUG_TEMP(priv, "Temperature state changed %u\n",
 					tt->state);
 			IWL_DEBUG_TEMP(priv, "Power Index change to %u\n",
@@ -612,10 +600,10 @@ void iwl_tt_initialize(struct iwl_priv *priv)
 	memset(tt, 0, sizeof(struct iwl_tt_mgmt));
 
 	tt->state = IWL_TI_0;
-	setup_timer(&priv->thermal_throttle.ct_kill_exit_tm,
-		    iwl_tt_check_exit_ct_kill, (unsigned long)priv);
-	setup_timer(&priv->thermal_throttle.ct_kill_waiting_tm,
-		    iwl_tt_ready_for_ct_kill, (unsigned long)priv);
+	timer_setup(&priv->thermal_throttle.ct_kill_exit_tm,
+		    iwl_tt_check_exit_ct_kill, 0);
+	timer_setup(&priv->thermal_throttle.ct_kill_waiting_tm,
+		    iwl_tt_ready_for_ct_kill, 0);
 	/* setup deferred ct kill work */
 	INIT_WORK(&priv->tt_work, iwl_bg_tt_work);
 	INIT_WORK(&priv->ct_enter, iwl_bg_ct_enter);

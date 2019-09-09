@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Sahara TouchIT-213 serial touchscreen driver
  *
@@ -9,11 +10,6 @@
  * and Dan Streetman <ddstreet@ieee.org>
  */
 
-/*
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
- */
 
 #include <linux/errno.h>
 #include <linux/kernel.h>
@@ -192,7 +188,7 @@ static int touchit213_connect(struct serio *serio, struct serio_driver *drv)
  * The serio driver structure.
  */
 
-static struct serio_device_id touchit213_serio_ids[] = {
+static const struct serio_device_id touchit213_serio_ids[] = {
 	{
 		.type	= SERIO_RS232,
 		.proto	= SERIO_TOUCHIT213,

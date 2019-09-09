@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config TEGRA_MC
 	bool "NVIDIA Tegra Memory Controller support"
 	default y
@@ -5,6 +6,16 @@ config TEGRA_MC
 	help
 	  This driver supports the Memory Controller (MC) hardware found on
 	  NVIDIA Tegra SoCs.
+
+config TEGRA20_EMC
+	bool "NVIDIA Tegra20 External Memory Controller driver"
+	default y
+	depends on ARCH_TEGRA_2x_SOC
+	help
+	  This driver is for the External Memory Controller (EMC) found on
+	  Tegra20 chips. The EMC controls the external DRAM on the board.
+	  This driver is required to change memory timings / clock rate for
+	  external memory.
 
 config TEGRA124_EMC
 	bool "NVIDIA Tegra124 External Memory Controller driver"

@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * IDT CPS Gen.2 Serial RapidIO switch family support
  *
  * Copyright 2010 Integrated Device Technology, Inc.
  * Alexandre Bounine <alexandre.bounine@idt.com>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/stat.h>
@@ -458,7 +454,7 @@ static void idtg2_remove(struct rio_dev *rdev)
 	idtg2_sysfs(rdev, false);
 }
 
-static struct rio_device_id idtg2_id_table[] = {
+static const struct rio_device_id idtg2_id_table[] = {
 	{RIO_DEVICE(RIO_DID_IDTCPS1848, RIO_VID_IDT)},
 	{RIO_DEVICE(RIO_DID_IDTCPS1616, RIO_VID_IDT)},
 	{RIO_DEVICE(RIO_DID_IDTVPS1616, RIO_VID_IDT)},

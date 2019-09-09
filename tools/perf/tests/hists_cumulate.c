@@ -1,5 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "perf.h"
 #include "util/debug.h"
+#include "util/event.h"
+#include "util/map.h"
 #include "util/symbol.h"
 #include "util/sort.h"
 #include "util/evsel.h"
@@ -9,6 +12,7 @@
 #include "util/parse-events.h"
 #include "tests/tests.h"
 #include "tests/hists_common.h"
+#include <linux/kernel.h>
 
 struct sample {
 	u32 pid;
@@ -122,8 +126,8 @@ out:
 static void del_hist_entries(struct hists *hists)
 {
 	struct hist_entry *he;
-	struct rb_root *root_in;
-	struct rb_root *root_out;
+	struct rb_root_cached *root_in;
+	struct rb_root_cached *root_out;
 	struct rb_node *node;
 
 	if (hists__has(hists, need_collapse))
@@ -133,12 +137,12 @@ static void del_hist_entries(struct hists *hists)
 
 	root_out = &hists->entries;
 
-	while (!RB_EMPTY_ROOT(root_out)) {
-		node = rb_first(root_out);
+	while (!RB_EMPTY_ROOT(&root_out->rb_root)) {
+		node = rb_first_cached(root_out);
 
 		he = rb_entry(node, struct hist_entry, rb_node);
-		rb_erase(node, root_out);
-		rb_erase(&he->rb_node_in, root_in);
+		rb_erase_cached(node, root_out);
+		rb_erase_cached(&he->rb_node_in, root_in);
 		hist_entry__delete(he);
 	}
 }
@@ -195,7 +199,7 @@ static int do_test(struct hists *hists, struct result *expected, size_t nr_expec
 		print_hists_out(hists);
 	}
 
-	root = &hists->entries;
+	root = &hists->entries.rb_root;
 	for (node = rb_first(root), i = 0;
 	     node && (he = rb_entry(node, struct hist_entry, rb_node));
 	     node = rb_next(node), i++) {
@@ -685,7 +689,7 @@ out:
 	return err;
 }
 
-int test__hists_cumulate(int subtest __maybe_unused)
+int test__hists_cumulate(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	int err = TEST_FAIL;
 	struct machines machines;

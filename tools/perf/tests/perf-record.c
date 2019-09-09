@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
+#include <errno.h>
+#include <inttypes.h>
 /* For the CLR_() macros */
 #include <pthread.h>
 
@@ -35,7 +38,7 @@ realloc:
 	return cpu;
 }
 
-int test__PERF_RECORD(int subtest __maybe_unused)
+int test__PERF_RECORD(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	struct record_opts opts = {
 		.target = {
@@ -55,6 +58,7 @@ int test__PERF_RECORD(int subtest __maybe_unused)
 	char *bname, *mmap_filename;
 	u64 prev_time = 0;
 	bool found_cmd_mmap = false,
+	     found_coreutils_mmap = false,
 	     found_libc_mmap = false,
 	     found_vdso_mmap = false,
 	     found_ld_mmap = false;
@@ -66,7 +70,7 @@ int test__PERF_RECORD(int subtest __maybe_unused)
 	if (evlist == NULL) /* Fallback for kernels lacking PERF_COUNT_SW_DUMMY */
 		evlist = perf_evlist__new_default();
 
-	if (evlist == NULL || argv == NULL) {
+	if (evlist == NULL) {
 		pr_debug("Not enough memory to create evlist\n");
 		goto out;
 	}
@@ -138,7 +142,7 @@ int test__PERF_RECORD(int subtest __maybe_unused)
 	 * fds in the same CPU to be injected in the same mmap ring buffer
 	 * (using ioctl(PERF_EVENT_IOC_SET_OUTPUT)).
 	 */
-	err = perf_evlist__mmap(evlist, opts.mmap_pages, false);
+	err = perf_evlist__mmap(evlist, opts.mmap_pages);
 	if (err < 0) {
 		pr_debug("perf_evlist__mmap: %s\n",
 			 str_error_r(errno, sbuf, sizeof(sbuf)));
@@ -161,8 +165,13 @@ int test__PERF_RECORD(int subtest __maybe_unused)
 
 		for (i = 0; i < evlist->nr_mmaps; i++) {
 			union perf_event *event;
+			struct perf_mmap *md;
 
-			while ((event = perf_evlist__mmap_read(evlist, i)) != NULL) {
+			md = &evlist->mmap[i];
+			if (perf_mmap__read_init(md) < 0)
+				continue;
+
+			while ((event = perf_mmap__read_event(md)) != NULL) {
 				const u32 type = event->header.type;
 				const char *name = perf_event__name(type);
 
@@ -172,13 +181,13 @@ int test__PERF_RECORD(int subtest __maybe_unused)
 
 				err = perf_evlist__parse_sample(evlist, event, &sample);
 				if (err < 0) {
-					if (verbose)
+					if (verbose > 0)
 						perf_event__fprintf(event, stderr);
 					pr_debug("Couldn't parse sample\n");
 					goto out_delete_evlist;
 				}
 
-				if (verbose) {
+				if (verbose > 0) {
 					pr_info("%" PRIu64" %d ", sample.time, sample.cpu);
 					perf_event__fprintf(event, stderr);
 				}
@@ -246,6 +255,8 @@ int test__PERF_RECORD(int subtest __maybe_unused)
 					if (bname != NULL) {
 						if (!found_cmd_mmap)
 							found_cmd_mmap = !strcmp(bname + 1, cmd);
+						if (!found_coreutils_mmap)
+							found_coreutils_mmap = !strcmp(bname + 1, "coreutils");
 						if (!found_libc_mmap)
 							found_libc_mmap = !strncmp(bname + 1, "libc", 4);
 						if (!found_ld_mmap)
@@ -263,8 +274,9 @@ int test__PERF_RECORD(int subtest __maybe_unused)
 					++errs;
 				}
 
-				perf_evlist__mmap_consume(evlist, i);
+				perf_mmap__consume(md);
 			}
+			perf_mmap__read_done(md);
 		}
 
 		/*
@@ -283,7 +295,7 @@ int test__PERF_RECORD(int subtest __maybe_unused)
 	}
 
 found_exit:
-	if (nr_events[PERF_RECORD_COMM] > 1) {
+	if (nr_events[PERF_RECORD_COMM] > 1 + !!found_coreutils_mmap) {
 		pr_debug("Excessive number of PERF_RECORD_COMM events!\n");
 		++errs;
 	}
@@ -293,7 +305,7 @@ found_exit:
 		++errs;
 	}
 
-	if (!found_cmd_mmap) {
+	if (!found_cmd_mmap && !found_coreutils_mmap) {
 		pr_debug("PERF_RECORD_MMAP for %s missing!\n", cmd);
 		++errs;
 	}

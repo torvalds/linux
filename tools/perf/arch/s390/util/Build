@@ -1,6 +1,9 @@
-libperf-y += header.o
-libperf-y += kvm-stat.o
+perf-y += header.o
+perf-y += kvm-stat.o
 
-libperf-$(CONFIG_DWARF) += dwarf-regs.o
+perf-$(CONFIG_DWARF) += dwarf-regs.o
+perf-$(CONFIG_LIBDW_DWARF_UNWIND) += unwind-libdw.o
 
-libperf-y += machine.o
+perf-y += machine.o
+
+perf-$(CONFIG_AUXTRACE) += auxtrace.o

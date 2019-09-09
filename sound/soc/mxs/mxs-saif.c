@@ -1,19 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2011 Freescale Semiconductor, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 #include <linux/module.h>
@@ -26,6 +13,7 @@
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/delay.h>
+#include <linux/io.h>
 #include <linux/time.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -119,23 +107,35 @@ static int mxs_saif_set_clk(struct mxs_saif *saif,
 	 * Set SAIF clock
 	 *
 	 * The SAIF clock should be either 384*fs or 512*fs.
-	 * If MCLK is used, the SAIF clk ratio need to match mclk ratio.
-	 *  For 32x mclk, set saif clk as 512*fs.
-	 *  For 48x mclk, set saif clk as 384*fs.
+	 * If MCLK is used, the SAIF clk ratio needs to match mclk ratio.
+	 *  For 256x, 128x, 64x, and 32x sub-rates, set saif clk as 512*fs.
+	 *  For 192x, 96x, and 48x sub-rates, set saif clk as 384*fs.
 	 *
 	 * If MCLK is not used, we just set saif clk to 512*fs.
 	 */
-	clk_prepare_enable(master_saif->clk);
+	ret = clk_prepare_enable(master_saif->clk);
+	if (ret)
+		return ret;
 
 	if (master_saif->mclk_in_use) {
-		if (mclk % 32 == 0) {
+		switch (mclk / rate) {
+		case 32:
+		case 64:
+		case 128:
+		case 256:
+		case 512:
 			scr &= ~BM_SAIF_CTRL_BITCLK_BASE_RATE;
 			ret = clk_set_rate(master_saif->clk, 512 * rate);
-		} else if (mclk % 48 == 0) {
+			break;
+		case 48:
+		case 96:
+		case 192:
+		case 384:
 			scr |= BM_SAIF_CTRL_BITCLK_BASE_RATE;
 			ret = clk_set_rate(master_saif->clk, 384 * rate);
-		} else {
-			/* SAIF MCLK should be either 32x or 48x */
+			break;
+		default:
+			/* SAIF MCLK should be a sub-rate of 512x or 384x */
 			clk_disable_unprepare(master_saif->clk);
 			return -EINVAL;
 		}
@@ -299,6 +299,16 @@ static int mxs_saif_set_dai_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 		return -EBUSY;
 	}
 
+	/* If SAIF1 is configured as slave, the clk gate needs to be cleared
+	 * before the register can be written.
+	 */
+	if (saif->id != saif->master_id) {
+		__raw_writel(BM_SAIF_CTRL_SFTRST,
+			saif->base + SAIF_CTRL + MXS_CLR_ADDR);
+		__raw_writel(BM_SAIF_CTRL_CLKGATE,
+			saif->base + SAIF_CTRL + MXS_CLR_ADDR);
+	}
+
 	scr0 = __raw_readl(saif->base + SAIF_CTRL);
 	scr0 = scr0 & ~BM_SAIF_CTRL_BITCLK_EDGE & ~BM_SAIF_CTRL_LRCLK_POLARITY \
 		& ~BM_SAIF_CTRL_JUSTIFY & ~BM_SAIF_CTRL_DELAY;
@@ -368,6 +378,7 @@ static int mxs_saif_startup(struct snd_pcm_substream *substream,
 			   struct snd_soc_dai *cpu_dai)
 {
 	struct mxs_saif *saif = snd_soc_dai_get_drvdata(cpu_dai);
+	int ret;
 
 	/* clear error status to 0 for each re-open */
 	saif->fifo_underrun = 0;
@@ -381,7 +392,9 @@ static int mxs_saif_startup(struct snd_pcm_substream *substream,
 	__raw_writel(BM_SAIF_CTRL_CLKGATE,
 		saif->base + SAIF_CTRL + MXS_CLR_ADDR);
 
-	clk_prepare(saif->clk);
+	ret = clk_prepare(saif->clk);
+	if (ret)
+		return ret;
 
 	return 0;
 }
@@ -448,7 +461,9 @@ static int mxs_saif_hw_params(struct snd_pcm_substream *substream,
 		if (ret)
 			return ret;
 
-		clk_prepare(master_saif->clk);
+		ret = clk_prepare(master_saif->clk);
+		if (ret)
+			return ret;
 	}
 
 	scr = __raw_readl(saif->base + SAIF_CTRL);
@@ -735,6 +750,11 @@ static int mxs_saif_probe(struct platform_device *pdev)
 	else
 		saif->id = ret;
 
+	if (saif->id >= ARRAY_SIZE(mxs_saif)) {
+		dev_err(&pdev->dev, "get wrong saif id\n");
+		return -EINVAL;
+	}
+
 	/*
 	 * If there is no "fsl,saif-master" phandle, it's a saif
 	 * master.  Otherwise, it's a slave and its phandle points
@@ -749,11 +769,11 @@ static int mxs_saif_probe(struct platform_device *pdev)
 			return ret;
 		else
 			saif->master_id = ret;
-	}
 
-	if (saif->master_id >= ARRAY_SIZE(mxs_saif)) {
-		dev_err(&pdev->dev, "get wrong master id\n");
-		return -EINVAL;
+		if (saif->master_id >= ARRAY_SIZE(mxs_saif)) {
+			dev_err(&pdev->dev, "get wrong master id\n");
+			return -EINVAL;
+		}
 	}
 
 	mxs_saif[saif->id] = saif;

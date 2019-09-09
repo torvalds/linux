@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * FireDTV driver (formerly known as FireSAT)
  *
  * Copyright (C) 2004 Andreas Monitzer <andy@monitzer.com>
  * Copyright (C) 2008 Henrik Kurelid <henrik@kurelid.se>
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License as
- *	published by the Free Software Foundation; either version 2 of
- *	the License, or (at your option) any later version.
  */
 
 #include <linux/device.h>
@@ -16,7 +12,7 @@
 #include <linux/string.h>
 #include <linux/types.h>
 
-#include <dvb_frontend.h>
+#include <media/dvb_frontend.h>
 
 #include "firedtv.h"
 
@@ -152,7 +148,7 @@ static int fdtv_set_frontend(struct dvb_frontend *fe)
 void fdtv_frontend_init(struct firedtv *fdtv, const char *name)
 {
 	struct dvb_frontend_ops *ops = &fdtv->fe.ops;
-	struct dvb_frontend_info *fi = &ops->info;
+	struct dvb_frontend_internal_info *fi = &ops->info;
 
 	ops->init			= fdtv_dvb_init;
 	ops->sleep			= fdtv_sleep;
@@ -165,7 +161,7 @@ void fdtv_frontend_init(struct firedtv *fdtv, const char *name)
 	ops->read_snr			= fdtv_read_snr;
 	ops->read_ucblocks		= fdtv_read_uncorrected_blocks;
 
-	ops->diseqc_send_master_cmd 	= fdtv_diseqc_send_master_cmd;
+	ops->diseqc_send_master_cmd	= fdtv_diseqc_send_master_cmd;
 	ops->diseqc_send_burst		= fdtv_diseqc_send_burst;
 	ops->set_tone			= fdtv_set_tone;
 	ops->set_voltage		= fdtv_set_voltage;
@@ -174,9 +170,9 @@ void fdtv_frontend_init(struct firedtv *fdtv, const char *name)
 	case FIREDTV_DVB_S:
 		ops->delsys[0]		= SYS_DVBS;
 
-		fi->frequency_min	= 950000;
-		fi->frequency_max	= 2150000;
-		fi->frequency_stepsize	= 125;
+		fi->frequency_min_hz	=   950 * MHz;
+		fi->frequency_max_hz	=  2150 * MHz;
+		fi->frequency_stepsize_hz = 125 * kHz;
 		fi->symbol_rate_min	= 1000000;
 		fi->symbol_rate_max	= 40000000;
 
@@ -194,9 +190,9 @@ void fdtv_frontend_init(struct firedtv *fdtv, const char *name)
 		ops->delsys[0]		= SYS_DVBS;
 		ops->delsys[1]		= SYS_DVBS2;
 
-		fi->frequency_min	= 950000;
-		fi->frequency_max	= 2150000;
-		fi->frequency_stepsize	= 125;
+		fi->frequency_min_hz	=   950 * MHz;
+		fi->frequency_max_hz	=  2150 * MHz;
+		fi->frequency_stepsize_hz = 125 * kHz;
 		fi->symbol_rate_min	= 1000000;
 		fi->symbol_rate_max	= 40000000;
 
@@ -214,13 +210,13 @@ void fdtv_frontend_init(struct firedtv *fdtv, const char *name)
 	case FIREDTV_DVB_C:
 		ops->delsys[0]		= SYS_DVBC_ANNEX_A;
 
-		fi->frequency_min	= 47000000;
-		fi->frequency_max	= 866000000;
-		fi->frequency_stepsize	= 62500;
+		fi->frequency_min_hz	=      47 * MHz;
+		fi->frequency_max_hz	=     866 * MHz;
+		fi->frequency_stepsize_hz = 62500;
 		fi->symbol_rate_min	= 870000;
 		fi->symbol_rate_max	= 6900000;
 
-		fi->caps 		= FE_CAN_INVERSION_AUTO |
+		fi->caps		= FE_CAN_INVERSION_AUTO |
 					  FE_CAN_QAM_16		|
 					  FE_CAN_QAM_32		|
 					  FE_CAN_QAM_64		|
@@ -232,11 +228,11 @@ void fdtv_frontend_init(struct firedtv *fdtv, const char *name)
 	case FIREDTV_DVB_T:
 		ops->delsys[0]		= SYS_DVBT;
 
-		fi->frequency_min	= 49000000;
-		fi->frequency_max	= 861000000;
-		fi->frequency_stepsize	= 62500;
+		fi->frequency_min_hz	=  49 * MHz;
+		fi->frequency_max_hz	= 861 * MHz;
+		fi->frequency_stepsize_hz = 62500;
 
-		fi->caps 		= FE_CAN_INVERSION_AUTO		|
+		fi->caps		= FE_CAN_INVERSION_AUTO		|
 					  FE_CAN_FEC_2_3		|
 					  FE_CAN_TRANSMISSION_MODE_AUTO |
 					  FE_CAN_GUARD_INTERVAL_AUTO	|
@@ -247,7 +243,7 @@ void fdtv_frontend_init(struct firedtv *fdtv, const char *name)
 		dev_err(fdtv->device, "no frontend for model type %d\n",
 			fdtv->type);
 	}
-	strcpy(fi->name, name);
+	strscpy(fi->name, name, sizeof(fi->name));
 
 	fdtv->fe.dvb = &fdtv->adapter;
 	fdtv->fe.sec_priv = fdtv;

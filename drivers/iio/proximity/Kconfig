@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Proximity sensors
 #
@@ -18,7 +19,20 @@ config AS3935
 
 endmenu
 
-menu "Proximity sensors"
+menu "Proximity and distance sensors"
+
+config ISL29501
+	tristate "Intersil ISL29501 Time Of Flight sensor"
+	depends on I2C
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	select IIO_KFIFO_BUF
+	help
+	  Say Y here if you want to build a driver for the Intersil ISL29501
+	  Time of Flight sensor.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called isl29501.
 
 config LIDAR_LITE_V2
 	tristate "PulsedLight LIDAR sensor"
@@ -32,6 +46,46 @@ config LIDAR_LITE_V2
 	  To compile this driver as a module, choose M here: the
 	  module will be called pulsedlight-lite-v2
 
+config MB1232
+	tristate "MaxSonar I2CXL family ultrasonic sensors"
+	depends on I2C
+	help
+	  Say Y to build a driver for the ultrasonic sensors I2CXL of
+	  MaxBotix which have an i2c interface. It can be used to measure
+	  the distance of objects. Supported types are mb1202, mb1212,
+	  mb1222, mb1232, mb1242, mb7040, mb7137
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mb1232.
+
+config RFD77402
+	tristate "RFD77402 ToF sensor"
+	depends on I2C
+	help
+	  Say Y to build a driver for the RFD77420 Time-of-Flight (distance)
+	  sensor module with I2C interface.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rfd77402.
+
+config SRF04
+	tristate "GPIO bitbanged ultrasonic ranger sensor (SRF04, MB1000)"
+	depends on GPIOLIB
+	help
+	  Say Y here to build a driver for GPIO bitbanged ultrasonic
+	  ranger sensor. This driver can be used to measure the distance
+	  of objects. It is using two GPIOs.
+	  Actually Supported types are:
+	  - Devantech SRF04
+	  - Maxbotix mb1000
+	  - Maxbotix mb1010
+	  - Maxbotix mb1020
+	  - Maxbotix mb1030
+	  - Maxbotix mb1040
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called srf04.
+
 config SX9500
 	tristate "SX9500 Semtech proximity sensor"
 	select IIO_BUFFER
@@ -44,5 +98,29 @@ config SX9500
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called sx9500.
+
+config SRF08
+	tristate "Devantech SRF02/SRF08/SRF10 ultrasonic ranger sensor"
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	depends on I2C
+	help
+	  Say Y here to build a driver for Devantech SRF02/SRF08/SRF10
+	  ultrasonic ranger sensors with i2c interface.
+	  This driver can be used to measure the distance of objects.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called srf08.
+
+config VL53L0X_I2C
+	tristate "STMicroelectronics VL53L0X ToF ranger sensor (I2C)"
+	depends on I2C
+	help
+	  Say Y here to build a driver for STMicroelectronics VL53L0X
+	  ToF ranger sensors with i2c interface.
+	  This driver can be used to measure the distance of objects.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called vl53l0x-i2c.
 
 endmenu

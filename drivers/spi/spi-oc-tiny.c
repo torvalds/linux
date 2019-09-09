@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * OpenCores tiny SPI master driver
  *
@@ -9,10 +10,6 @@
  * Copyright (c) 2006 Ben Dooks
  * Copyright (c) 2006 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/interrupt.h>
@@ -213,8 +210,8 @@ static int tiny_spi_of_probe(struct platform_device *pdev)
 		return 0;
 	hw->gpio_cs_count = of_gpio_count(np);
 	if (hw->gpio_cs_count > 0) {
-		hw->gpio_cs = devm_kzalloc(&pdev->dev,
-				hw->gpio_cs_count * sizeof(unsigned int),
+		hw->gpio_cs = devm_kcalloc(&pdev->dev,
+				hw->gpio_cs_count, sizeof(unsigned int),
 				GFP_KERNEL);
 		if (!hw->gpio_cs)
 			return -ENOMEM;

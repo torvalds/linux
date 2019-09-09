@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright 2012 Steffen Trumtrar <s.trumtrar@pengutronix.de>
  *
  * description of display timings
- *
- * This file is released under the GPLv2
  */
 
 #ifndef __LINUX_DISPLAY_TIMING_H
@@ -28,6 +27,10 @@ enum display_flags {
 	DISPLAY_FLAGS_INTERLACED	= BIT(8),
 	DISPLAY_FLAGS_DOUBLESCAN	= BIT(9),
 	DISPLAY_FLAGS_DOUBLECLK		= BIT(10),
+	/* drive sync on pos. edge */
+	DISPLAY_FLAGS_SYNC_POSEDGE	= BIT(11),
+	/* drive sync on neg. edge */
+	DISPLAY_FLAGS_SYNC_NEGEDGE	= BIT(12),
 };
 
 /*

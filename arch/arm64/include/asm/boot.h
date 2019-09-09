@@ -1,8 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 
 #ifndef __ASM_BOOT_H
 #define __ASM_BOOT_H
 
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 
 /*
  * arm64 requires the DTB to be 8 byte aligned and

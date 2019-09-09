@@ -71,27 +71,6 @@ csio_t5_set_mem_win(struct csio_hw *hw, uint32_t win)
 static void
 csio_t5_pcie_intr_handler(struct csio_hw *hw)
 {
-	static struct intr_info sysbus_intr_info[] = {
-		{ RNPP_F, "RXNP array parity error", -1, 1 },
-		{ RPCP_F, "RXPC array parity error", -1, 1 },
-		{ RCIP_F, "RXCIF array parity error", -1, 1 },
-		{ RCCP_F, "Rx completions control array parity error", -1, 1 },
-		{ RFTP_F, "RXFT array parity error", -1, 1 },
-		{ 0, NULL, 0, 0 }
-	};
-	static struct intr_info pcie_port_intr_info[] = {
-		{ TPCP_F, "TXPC array parity error", -1, 1 },
-		{ TNPP_F, "TXNP array parity error", -1, 1 },
-		{ TFTP_F, "TXFT array parity error", -1, 1 },
-		{ TCAP_F, "TXCA array parity error", -1, 1 },
-		{ TCIP_F, "TXCIF array parity error", -1, 1 },
-		{ RCAP_F, "RXCA array parity error", -1, 1 },
-		{ OTDD_F, "outbound request TLP discarded", -1, 1 },
-		{ RDPE_F, "Rx data parity error", -1, 1 },
-		{ TDUE_F, "Tx uncorrectable data error", -1, 1 },
-		{ 0, NULL, 0, 0 }
-	};
-
 	static struct intr_info pcie_intr_info[] = {
 		{ MSTGRPPERR_F, "Master Response Read Queue parity error",
 		-1, 1 },
@@ -133,13 +112,7 @@ csio_t5_pcie_intr_handler(struct csio_hw *hw)
 	};
 
 	int fat;
-	fat = csio_handle_intr_status(hw,
-				      PCIE_CORE_UTL_SYSTEM_BUS_AGENT_STATUS_A,
-				      sysbus_intr_info) +
-	      csio_handle_intr_status(hw,
-				      PCIE_CORE_UTL_PCI_EXPRESS_PORT_STATUS_A,
-				      pcie_port_intr_info) +
-	      csio_handle_intr_status(hw, PCIE_INT_CAUSE_A, pcie_intr_info);
+	fat = csio_handle_intr_status(hw, PCIE_INT_CAUSE_A, pcie_intr_info);
 	if (fat)
 		csio_hw_fatal_err(hw);
 }

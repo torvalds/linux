@@ -1,20 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2015 Broadcom
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
-#include <linux/clk/bcm2835.h>
+#include <linux/io.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <dt-bindings/clock/bcm2835-aux.h>
@@ -41,8 +32,10 @@ static int bcm2835_aux_clk_probe(struct platform_device *pdev)
 	if (IS_ERR(reg))
 		return PTR_ERR(reg);
 
-	onecell = devm_kmalloc(dev, sizeof(*onecell) + sizeof(*onecell->hws) *
-			       BCM2835_AUX_CLOCK_COUNT, GFP_KERNEL);
+	onecell = devm_kmalloc(dev,
+			       struct_size(onecell, hws,
+					   BCM2835_AUX_CLOCK_COUNT),
+			       GFP_KERNEL);
 	if (!onecell)
 		return -ENOMEM;
 	onecell->num = BCM2835_AUX_CLOCK_COUNT;
@@ -78,4 +71,4 @@ builtin_platform_driver(bcm2835_aux_clk_driver);
 
 MODULE_AUTHOR("Eric Anholt <eric@anholt.net>");
 MODULE_DESCRIPTION("BCM2835 auxiliary peripheral clock driver");
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL");

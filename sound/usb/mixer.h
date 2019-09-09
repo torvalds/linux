@@ -1,7 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __USBMIXER_H
 #define __USBMIXER_H
 
 #include <sound/info.h>
+
+struct media_mixer_ctl;
 
 struct usb_mixer_interface {
 	struct snd_usb_audio *chip;
@@ -22,6 +25,9 @@ struct usb_mixer_interface {
 	struct urb *rc_urb;
 	struct usb_ctrlrequest *rc_setup_packet;
 	u8 rc_buffer[6];
+	struct media_mixer_ctl *media_mixer_ctl;
+
+	bool disconnected;
 };
 
 #define MAX_CHANNELS	16	/* max logical channels */
@@ -50,6 +56,12 @@ struct usb_mixer_elem_list {
 	usb_mixer_elem_resume_func_t resume;
 };
 
+/* iterate over mixer element list of the given unit id */
+#define for_each_mixer_elem(list, mixer, id)	\
+	for ((list) = (mixer)->id_elems[id]; (list); (list) = (list)->next_id_elem)
+#define mixer_elem_list_to_info(list) \
+	container_of(list, struct usb_mixer_elem_info, head)
+
 struct usb_mixer_elem_info {
 	struct usb_mixer_elem_list head;
 	unsigned int control;	/* CS or ICN (high byte) */
@@ -64,6 +76,7 @@ struct usb_mixer_elem_info {
 	int cached;
 	int cache_val[MAX_CHANNELS];
 	u8 initialized;
+	u8 min_mute;
 	void *private_data;
 };
 
@@ -98,5 +111,7 @@ int snd_usb_get_cur_mix_value(struct usb_mixer_elem_info *cval,
                              int channel, int index, int *value);
 
 extern void snd_usb_mixer_elem_free(struct snd_kcontrol *kctl);
+
+extern struct snd_kcontrol_new *snd_usb_feature_unit_ctl;
 
 #endif /* __USBMIXER_H */

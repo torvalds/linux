@@ -1,14 +1,9 @@
-/* sound/soc/samsung/spdif.c
- *
- * ALSA SoC Audio Layer - Samsung S/PDIF Controller driver
- *
- * Copyright (c) 2010 Samsung Electronics Co. Ltd
- *		http://www.samsung.com/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// ALSA SoC Audio Layer - Samsung S/PDIF Controller driver
+//
+// Copyright (c) 2010 Samsung Electronics Co. Ltd
+//		http://www.samsung.com/
 
 #include <linux/clk.h>
 #include <linux/io.h>
@@ -391,7 +386,9 @@ static int spdif_probe(struct platform_device *pdev)
 		ret = -ENOENT;
 		goto err0;
 	}
-	clk_prepare_enable(spdif->pclk);
+	ret = clk_prepare_enable(spdif->pclk);
+	if (ret)
+		goto err0;
 
 	spdif->sclk = devm_clk_get(&pdev->dev, "sclk_spdif");
 	if (IS_ERR(spdif->sclk)) {
@@ -399,7 +396,9 @@ static int spdif_probe(struct platform_device *pdev)
 		ret = -ENOENT;
 		goto err1;
 	}
-	clk_prepare_enable(spdif->sclk);
+	ret = clk_prepare_enable(spdif->sclk);
+	if (ret)
+		goto err1;
 
 	/* Request S/PDIF Register's memory region */
 	if (!request_mem_region(mem_res->start,
@@ -416,15 +415,6 @@ static int spdif_probe(struct platform_device *pdev)
 		goto err3;
 	}
 
-	dev_set_drvdata(&pdev->dev, spdif);
-
-	ret = devm_snd_soc_register_component(&pdev->dev,
-			&samsung_spdif_component, &samsung_spdif_dai, 1);
-	if (ret != 0) {
-		dev_err(&pdev->dev, "fail to register dai\n");
-		goto err4;
-	}
-
 	spdif_stereo_out.addr_width = 2;
 	spdif_stereo_out.addr = mem_res->start + DATA_OUTBUF;
 	filter = NULL;
@@ -432,13 +422,21 @@ static int spdif_probe(struct platform_device *pdev)
 		spdif_stereo_out.filter_data = spdif_pdata->dma_playback;
 		filter = spdif_pdata->dma_filter;
 	}
-
 	spdif->dma_playback = &spdif_stereo_out;
 
 	ret = samsung_asoc_dma_platform_register(&pdev->dev, filter,
-						 NULL, NULL);
+						 NULL, NULL, NULL);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register DMA: %d\n", ret);
+		goto err4;
+	}
+
+	dev_set_drvdata(&pdev->dev, spdif);
+
+	ret = devm_snd_soc_register_component(&pdev->dev,
+			&samsung_spdif_component, &samsung_spdif_dai, 1);
+	if (ret != 0) {
+		dev_err(&pdev->dev, "fail to register dai\n");
 		goto err4;
 	}
 

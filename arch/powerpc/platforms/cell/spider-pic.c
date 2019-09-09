@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * External Interrupt Controller on Spider South Bridge
  *
  * (C) Copyright IBM Deutschland Entwicklung GmbH 2005
  *
  * Author: Arnd Bergmann <arndb@de.ibm.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/interrupt.h>
@@ -323,8 +310,8 @@ static void __init spider_init_one(struct device_node *of_node, int chip,
 	irq_set_handler_data(virq, pic);
 	irq_set_chained_handler(virq, spider_irq_cascade);
 
-	printk(KERN_INFO "spider_pic: node %d, addr: 0x%lx %s\n",
-	       pic->node_id, addr, of_node->full_name);
+	printk(KERN_INFO "spider_pic: node %d, addr: 0x%lx %pOF\n",
+	       pic->node_id, addr, of_node);
 
 	/* Enable the interrupt detection enable bit. Do this last! */
 	out_be32(pic->regs + TIR_DEN, in_be32(pic->regs + TIR_DEN) | 0x1);
@@ -343,8 +330,7 @@ void __init spider_init_IRQ(void)
 	 * device-tree is bogus anyway) so all we can do is pray or maybe test
 	 * the address and deduce the node-id
 	 */
-	for (dn = NULL;
-	     (dn = of_find_node_by_name(dn, "interrupt-controller"));) {
+	for_each_node_by_name(dn, "interrupt-controller") {
 		if (of_device_is_compatible(dn, "CBEA,platform-spider-pic")) {
 			if (of_address_to_resource(dn, 0, &r)) {
 				printk(KERN_WARNING "spider-pic: Failed\n");

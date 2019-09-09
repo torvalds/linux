@@ -11,7 +11,6 @@
 #ifndef _XTENSA_IO_H
 #define _XTENSA_IO_H
 
-#ifdef __KERNEL__
 #include <asm/byteorder.h>
 #include <asm/page.h>
 #include <asm/vectors.h>
@@ -52,6 +51,7 @@ static inline void __iomem *ioremap_cache(unsigned long offset,
 		return xtensa_ioremap_cache(offset, size);
 }
 #define ioremap_cache ioremap_cache
+#define ioremap_nocache ioremap_nocache
 
 #define ioremap_wc ioremap_nocache
 #define ioremap_wt ioremap_nocache
@@ -76,8 +76,6 @@ static inline void iounmap(volatile void __iomem *addr)
 #define bus_to_virt     phys_to_virt
 
 #endif /* CONFIG_MMU */
-
-#endif	/* __KERNEL__ */
 
 #include <asm-generic/io.h>
 

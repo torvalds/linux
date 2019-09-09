@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Linux driver for digital TV devices equipped with B2C2 FlexcopII(b)/III
  * flexcop-fe-tuner.c - methods for frontend attachment and DiSEqC controlling
@@ -24,8 +25,7 @@
 
 /* Can we use the specified front-end?  Remember that if we are compiled
  * into the kernel we can't call code that's in modules.  */
-#define FE_SUPPORTED(fe) (defined(CONFIG_DVB_##fe) || \
-	(defined(CONFIG_DVB_##fe##_MODULE) && defined(MODULE)))
+#define FE_SUPPORTED(fe) IS_REACHABLE(CONFIG_DVB_ ## fe)
 
 #if FE_SUPPORTED(BCM3510) || (FE_SUPPORTED(CX24120) && FE_SUPPORTED(ISL6421))
 static int flexcop_fe_request_firmware(struct dvb_frontend *fe,
@@ -474,7 +474,7 @@ static int airstar_atsc1_attach(struct flexcop_device *fc,
 
 /* AirStar ATSC 2nd generation */
 #if FE_SUPPORTED(NXT200X) && FE_SUPPORTED(PLL)
-static struct nxt200x_config samsung_tbmv_config = {
+static const struct nxt200x_config samsung_tbmv_config = {
 	.demod_address = 0x0a,
 };
 
@@ -495,7 +495,6 @@ static int airstar_atsc2_attach(struct flexcop_device *fc,
 /* AirStar ATSC 3rd generation */
 #if FE_SUPPORTED(LGDT330X)
 static struct lgdt330x_config air2pc_atsc_hd5000_config = {
-	.demod_address       = 0x59,
 	.demod_chip          = LGDT3303,
 	.serial_mpeg         = 0x04,
 	.clock_polarity_flip = 1,
@@ -504,7 +503,8 @@ static struct lgdt330x_config air2pc_atsc_hd5000_config = {
 static int airstar_atsc3_attach(struct flexcop_device *fc,
 	struct i2c_adapter *i2c)
 {
-	fc->fe = dvb_attach(lgdt330x_attach, &air2pc_atsc_hd5000_config, i2c);
+	fc->fe = dvb_attach(lgdt330x_attach, &air2pc_atsc_hd5000_config,
+			    0x59, i2c);
 	if (!fc->fe)
 		return 0;
 

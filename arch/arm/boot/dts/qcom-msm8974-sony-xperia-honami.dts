@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "qcom-msm8974.dtsi"
 #include "qcom-pm8841.dtsi"
 #include "qcom-pm8941.dtsi"
@@ -92,7 +93,6 @@
 					vdd_l9_l10_l17_l22-supply = <&vreg_boost>;
 					vdd_l13_l20_l23_l24-supply = <&vreg_boost>;
 					vdd_l21-supply = <&vreg_boost>;
-					vin_5vs-supply = <&pm8941_5v>;
 
 					s1 {
 						regulator-min-microvolt = <1300000>;

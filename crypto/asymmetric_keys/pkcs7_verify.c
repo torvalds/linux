@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* Verify the signature on a PKCS#7 message.
  *
  * Copyright (C) 2012 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public Licence
- * as published by the Free Software Foundation; either version
- * 2 of the Licence, or (at your option) any later version.
  */
 
 #define pr_fmt(fmt) "PKCS7: "fmt
@@ -56,14 +52,10 @@ static int pkcs7_digest(struct pkcs7_message *pkcs7,
 		goto error_no_desc;
 
 	desc->tfm   = tfm;
-	desc->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
 
 	/* Digest the message [RFC2315 9.3] */
-	ret = crypto_shash_init(desc);
-	if (ret < 0)
-		goto error;
-	ret = crypto_shash_finup(desc, pkcs7->data, pkcs7->data_len,
-				 sig->digest);
+	ret = crypto_shash_digest(desc, pkcs7->data, pkcs7->data_len,
+				  sig->digest);
 	if (ret < 0)
 		goto error;
 	pr_devel("MsgDigest = [%*ph]\n", 8, sig->digest);
@@ -150,7 +142,7 @@ static int pkcs7_find_key(struct pkcs7_message *pkcs7,
 		pr_devel("Sig %u: Found cert serial match X.509[%u]\n",
 			 sinfo->index, certix);
 
-		if (x509->pub->pkey_algo != sinfo->sig->pkey_algo) {
+		if (strcmp(x509->pub->pkey_algo, sinfo->sig->pkey_algo) != 0) {
 			pr_warn("Sig %u: X.509 algo and PKCS#7 sig algo don't match\n",
 				sinfo->index);
 			continue;
@@ -190,6 +182,18 @@ static int pkcs7_verify_sig_chain(struct pkcs7_message *pkcs7,
 			 x509->subject,
 			 x509->raw_serial_size, x509->raw_serial);
 		x509->seen = true;
+
+		if (x509->blacklisted) {
+			/* If this cert is blacklisted, then mark everything
+			 * that depends on this as blacklisted too.
+			 */
+			sinfo->blacklisted = true;
+			for (p = sinfo->signer; p != x509; p = p->signer)
+				p->blacklisted = true;
+			pr_debug("- blacklisted\n");
+			return 0;
+		}
+
 		if (x509->unsupported_key)
 			goto unsupported_crypto_in_x509;
 
@@ -261,7 +265,7 @@ static int pkcs7_verify_sig_chain(struct pkcs7_message *pkcs7,
 				sinfo->index);
 			return 0;
 		}
-		ret = public_key_verify_signature(p->pub, p->sig);
+		ret = public_key_verify_signature(p->pub, x509->sig);
 		if (ret < 0)
 			return ret;
 		x509->signer = p;
@@ -357,17 +361,18 @@ static int pkcs7_verify_one(struct pkcs7_message *pkcs7,
  *
  *  (*) -EBADMSG if some part of the message was invalid, or:
  *
- *  (*) -ENOPKG if none of the signature chains are verifiable because suitable
- *	crypto modules couldn't be found, or:
+ *  (*) 0 if a signature chain passed verification, or:
  *
- *  (*) 0 if all the signature chains that don't incur -ENOPKG can be verified
- *	(note that a signature chain may be of zero length), or:
+ *  (*) -EKEYREJECTED if a blacklisted key was encountered, or:
+ *
+ *  (*) -ENOPKG if none of the signature chains are verifiable because suitable
+ *	crypto modules couldn't be found.
  */
 int pkcs7_verify(struct pkcs7_message *pkcs7,
 		 enum key_being_used_for usage)
 {
 	struct pkcs7_signed_info *sinfo;
-	int enopkg = -ENOPKG;
+	int actual_ret = -ENOPKG;
 	int ret;
 
 	kenter("");
@@ -412,6 +417,11 @@ int pkcs7_verify(struct pkcs7_message *pkcs7,
 
 	for (sinfo = pkcs7->signed_infos; sinfo; sinfo = sinfo->next) {
 		ret = pkcs7_verify_one(pkcs7, sinfo);
+		if (sinfo->blacklisted) {
+			if (actual_ret == -ENOPKG)
+				actual_ret = -EKEYREJECTED;
+			continue;
+		}
 		if (ret < 0) {
 			if (ret == -ENOPKG) {
 				sinfo->unsupported_crypto = true;
@@ -420,11 +430,11 @@ int pkcs7_verify(struct pkcs7_message *pkcs7,
 			kleave(" = %d", ret);
 			return ret;
 		}
-		enopkg = 0;
+		actual_ret = 0;
 	}
 
-	kleave(" = %d", enopkg);
-	return enopkg;
+	kleave(" = %d", actual_ret);
+	return actual_ret;
 }
 EXPORT_SYMBOL_GPL(pkcs7_verify);
 

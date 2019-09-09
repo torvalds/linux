@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 #ifndef __NVBIOS_BIT_H__
 #define __NVBIOS_BIT_H__
 struct bit_entry {

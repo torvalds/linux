@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * FB driver for the HX8340BN LCD Controller
  *
@@ -7,16 +8,6 @@
  * This is done by transferring eight 9-bit words in 9 bytes.
  *
  * Copyright (C) 2013 Noralf Tronnes
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/module.h>
@@ -37,7 +28,7 @@
 			"3 3 17 8 4 7 05 7 6 0 3 1 6 0 0 "
 
 static bool emulate;
-module_param(emulate, bool, 0);
+module_param(emulate, bool, 0000);
 MODULE_PARM_DESC(emulate, "Force emulation in 9-bit mode");
 
 static int init_display(struct fbtft_par *par)
@@ -157,8 +148,8 @@ static int set_var(struct fbtft_par *par)
  *   OP0 OP1 CP0 CP1 CP2 CP3 CP4 MP0 MP1 MP2 MP3 MP4 MP5 CGM0 CGM1
  *   ON0 ON1 CN0 CN1 CN2 CN3 CN4 MN0 MN1 MN2 MN3 MN4 MN5 XXXX  GC
  */
-#define CURVE(num, idx)  curves[num * par->gamma.num_values + idx]
-static int set_gamma(struct fbtft_par *par, unsigned long *curves)
+#define CURVE(num, idx)  curves[(num) * par->gamma.num_values + (idx)]
+static int set_gamma(struct fbtft_par *par, u32 *curves)
 {
 	unsigned long mask[] = {
 		0x0f, 0x0f, 0x1f, 0x0f, 0x0f, 0x0f, 0x1f, 0x07, 0x07, 0x07,

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_IA64_PGALLOC_H
 #define _ASM_IA64_PGALLOC_H
 
@@ -82,7 +83,7 @@ pmd_populate_kernel(struct mm_struct *mm, pmd_t * pmd_entry, pte_t * pte)
 	pmd_val(*pmd_entry) = __pa(pte);
 }
 
-static inline pgtable_t pte_alloc_one(struct mm_struct *mm, unsigned long addr)
+static inline pgtable_t pte_alloc_one(struct mm_struct *mm)
 {
 	struct page *page;
 	void *pg;
@@ -98,8 +99,7 @@ static inline pgtable_t pte_alloc_one(struct mm_struct *mm, unsigned long addr)
 	return page;
 }
 
-static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
-					  unsigned long addr)
+static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm)
 {
 	return quicklist_alloc(0, GFP_KERNEL, NULL);
 }

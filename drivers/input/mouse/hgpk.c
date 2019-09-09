@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * OLPC HGPK (XO-1) touchpad PS/2 mouse driver
  *
@@ -12,10 +13,6 @@
  * Copyright (c) 2003-2005 Peter Osterlund <petero2@telia.com>
  * Copyright (c) 2004 Dmitry Torokhov <dtor@mail.ru>
  * Copyright (c) 2005 Vojtech Pavlik <vojtech@suse.cz>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 /*
@@ -713,8 +710,7 @@ static int hgpk_toggle_powersave(struct psmouse *psmouse, int enable)
 		 * the upper bound. (in practice, it takes about 3 loops.)
 		 */
 		for (timeo = 20; timeo > 0; timeo--) {
-			if (!ps2_sendbyte(&psmouse->ps2dev,
-					PSMOUSE_CMD_DISABLE, 20))
+			if (!ps2_sendbyte(ps2dev, PSMOUSE_CMD_DISABLE, 20))
 				break;
 			msleep(25);
 		}
@@ -740,7 +736,7 @@ static int hgpk_toggle_powersave(struct psmouse *psmouse, int enable)
 		psmouse_set_state(psmouse, PSMOUSE_IGNORE);
 
 		/* probably won't see an ACK, the touchpad will be off */
-		ps2_sendbyte(&psmouse->ps2dev, 0xec, 20);
+		ps2_sendbyte(ps2dev, 0xec, 20);
 	}
 
 	return 0;

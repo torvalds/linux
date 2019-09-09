@@ -43,7 +43,7 @@ haptics: haptics@5a {
 	mode = <DRV260X_LRA_MODE>;
 	library-sel = <DRV260X_LIB_LRA>;
 	vib-rated-mv = <3200>;
-	vib-overdriver-mv = <3200>;
+	vib-overdrive-mv = <3200>;
 }
 
 For more product information please see the link below:

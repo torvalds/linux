@@ -1,8 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
  *
  *	(c) Copyright 1998 Alan Cox <alan@lxorguk.ukuu.org.uk>
  *	(c) Copyright 2000, 2001 Red Hat Inc
@@ -483,11 +480,10 @@ static void z8530_status(struct z8530_channel *chan)
 	write_zsctrl(chan, RES_H_IUS);
 }
 
-struct z8530_irqhandler z8530_sync =
-{
-	z8530_rx,
-	z8530_tx,
-	z8530_status
+struct z8530_irqhandler z8530_sync = {
+	.rx = z8530_rx,
+	.tx = z8530_tx,
+	.status = z8530_status,
 };
 
 EXPORT_SYMBOL(z8530_sync);
@@ -605,15 +601,15 @@ static void z8530_dma_status(struct z8530_channel *chan)
 }
 
 static struct z8530_irqhandler z8530_dma_sync = {
-	z8530_dma_rx,
-	z8530_dma_tx,
-	z8530_dma_status
+	.rx = z8530_dma_rx,
+	.tx = z8530_dma_tx,
+	.status = z8530_dma_status,
 };
 
 static struct z8530_irqhandler z8530_txdma_sync = {
-	z8530_rx,
-	z8530_dma_tx,
-	z8530_dma_status
+	.rx = z8530_rx,
+	.tx = z8530_dma_tx,
+	.status = z8530_dma_status,
 };
 
 /**
@@ -678,11 +674,10 @@ static void z8530_status_clear(struct z8530_channel *chan)
 	write_zsctrl(chan, RES_H_IUS);
 }
 
-struct z8530_irqhandler z8530_nop=
-{
-	z8530_rx_clear,
-	z8530_tx_clear,
-	z8530_status_clear
+struct z8530_irqhandler z8530_nop = {
+	.rx = z8530_rx_clear,
+	.tx = z8530_tx_clear,
+	.status = z8530_status_clear,
 };
 
 
@@ -1538,7 +1533,7 @@ static void z8530_tx_done(struct z8530_channel *c)
 	z8530_tx_begin(c);
 	c->netdevice->stats.tx_packets++;
 	c->netdevice->stats.tx_bytes += skb->len;
-	dev_kfree_skb_irq(skb);
+	dev_consume_skb_irq(skb);
 }
 
 /**

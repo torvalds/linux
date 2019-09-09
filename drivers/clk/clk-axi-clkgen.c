@@ -1,11 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * AXI clkgen driver
  *
  * Copyright 2012-2013 Analog Devices Inc.
  *  Author: Lars-Peter Clausen <lars@metafoo.de>
- *
- * Licensed under the GPL-2.
- *
  */
 
 #include <linux/platform_device.h>
@@ -39,6 +37,10 @@
 #define MMCM_REG_LOCK3		0x1a
 #define MMCM_REG_FILTER1	0x4e
 #define MMCM_REG_FILTER2	0x4f
+
+#define MMCM_CLKOUT_NOCOUNT	BIT(6)
+
+#define MMCM_CLK_DIV_NOCOUNT	BIT(12)
 
 struct axi_clkgen {
 	void __iomem *base;
@@ -298,13 +300,17 @@ static long axi_clkgen_round_rate(struct clk_hw *hw, unsigned long rate,
 	unsigned long *parent_rate)
 {
 	unsigned int d, m, dout;
+	unsigned long long tmp;
 
 	axi_clkgen_calc_params(*parent_rate, rate, &d, &m, &dout);
 
 	if (d == 0 || dout == 0 || m == 0)
 		return -EINVAL;
 
-	return *parent_rate / d * m / dout;
+	tmp = (unsigned long long)*parent_rate * m;
+	tmp = DIV_ROUND_CLOSEST_ULL(tmp, dout * d);
+
+	return min_t(unsigned long long, tmp, LONG_MAX);
 }
 
 static unsigned long axi_clkgen_recalc_rate(struct clk_hw *clk_hw,
@@ -315,18 +321,33 @@ static unsigned long axi_clkgen_recalc_rate(struct clk_hw *clk_hw,
 	unsigned int reg;
 	unsigned long long tmp;
 
-	axi_clkgen_mmcm_read(axi_clkgen, MMCM_REG_CLKOUT0_1, &reg);
-	dout = (reg & 0x3f) + ((reg >> 6) & 0x3f);
+	axi_clkgen_mmcm_read(axi_clkgen, MMCM_REG_CLKOUT0_2, &reg);
+	if (reg & MMCM_CLKOUT_NOCOUNT) {
+		dout = 1;
+	} else {
+		axi_clkgen_mmcm_read(axi_clkgen, MMCM_REG_CLKOUT0_1, &reg);
+		dout = (reg & 0x3f) + ((reg >> 6) & 0x3f);
+	}
+
 	axi_clkgen_mmcm_read(axi_clkgen, MMCM_REG_CLK_DIV, &reg);
-	d = (reg & 0x3f) + ((reg >> 6) & 0x3f);
-	axi_clkgen_mmcm_read(axi_clkgen, MMCM_REG_CLK_FB1, &reg);
-	m = (reg & 0x3f) + ((reg >> 6) & 0x3f);
+	if (reg & MMCM_CLK_DIV_NOCOUNT)
+		d = 1;
+	else
+		d = (reg & 0x3f) + ((reg >> 6) & 0x3f);
+
+	axi_clkgen_mmcm_read(axi_clkgen, MMCM_REG_CLK_FB2, &reg);
+	if (reg & MMCM_CLKOUT_NOCOUNT) {
+		m = 1;
+	} else {
+		axi_clkgen_mmcm_read(axi_clkgen, MMCM_REG_CLK_FB1, &reg);
+		m = (reg & 0x3f) + ((reg >> 6) & 0x3f);
+	}
 
 	if (d == 0 || dout == 0)
 		return 0;
 
-	tmp = (unsigned long long)(parent_rate / d) * m;
-	do_div(tmp, dout);
+	tmp = (unsigned long long)parent_rate * m;
+	tmp = DIV_ROUND_CLOSEST_ULL(tmp, dout * d);
 
 	return min_t(unsigned long long, tmp, ULONG_MAX);
 }

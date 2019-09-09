@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2008-2009 Patrick McHardy <kaber@trash.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Development of this code funded by Astaro AG (http://www.astaro.com/)
  */
@@ -26,9 +23,9 @@ struct nft_byteorder {
 	u8			size;
 };
 
-static void nft_byteorder_eval(const struct nft_expr *expr,
-			       struct nft_regs *regs,
-			       const struct nft_pktinfo *pkt)
+void nft_byteorder_eval(const struct nft_expr *expr,
+			struct nft_regs *regs,
+			const struct nft_pktinfo *pkt)
 {
 	const struct nft_byteorder *priv = nft_expr_priv(expr);
 	u32 *src = &regs->data[priv->sreg];
@@ -169,7 +166,6 @@ nla_put_failure:
 	return -1;
 }
 
-static struct nft_expr_type nft_byteorder_type;
 static const struct nft_expr_ops nft_byteorder_ops = {
 	.type		= &nft_byteorder_type,
 	.size		= NFT_EXPR_SIZE(sizeof(struct nft_byteorder)),
@@ -178,20 +174,10 @@ static const struct nft_expr_ops nft_byteorder_ops = {
 	.dump		= nft_byteorder_dump,
 };
 
-static struct nft_expr_type nft_byteorder_type __read_mostly = {
+struct nft_expr_type nft_byteorder_type __read_mostly = {
 	.name		= "byteorder",
 	.ops		= &nft_byteorder_ops,
 	.policy		= nft_byteorder_policy,
 	.maxattr	= NFTA_BYTEORDER_MAX,
 	.owner		= THIS_MODULE,
 };
-
-int __init nft_byteorder_module_init(void)
-{
-	return nft_register_expr(&nft_byteorder_type);
-}
-
-void nft_byteorder_module_exit(void)
-{
-	nft_unregister_expr(&nft_byteorder_type);
-}

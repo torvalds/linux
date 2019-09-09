@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2016 IBM Corp.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/mfd/syscon.h>
@@ -18,7 +14,7 @@ int aspeed_pinctrl_get_groups_count(struct pinctrl_dev *pctldev)
 {
 	struct aspeed_pinctrl_data *pdata = pinctrl_dev_get_drvdata(pctldev);
 
-	return pdata->ngroups;
+	return pdata->pinmux.ngroups;
 }
 
 const char *aspeed_pinctrl_get_group_name(struct pinctrl_dev *pctldev,
@@ -26,7 +22,7 @@ const char *aspeed_pinctrl_get_group_name(struct pinctrl_dev *pctldev,
 {
 	struct aspeed_pinctrl_data *pdata = pinctrl_dev_get_drvdata(pctldev);
 
-	return pdata->groups[group].name;
+	return pdata->pinmux.groups[group].name;
 }
 
 int aspeed_pinctrl_get_group_pins(struct pinctrl_dev *pctldev,
@@ -35,8 +31,8 @@ int aspeed_pinctrl_get_group_pins(struct pinctrl_dev *pctldev,
 {
 	struct aspeed_pinctrl_data *pdata = pinctrl_dev_get_drvdata(pctldev);
 
-	*pins = &pdata->groups[group].pins[0];
-	*npins = pdata->groups[group].npins;
+	*pins = &pdata->pinmux.groups[group].pins[0];
+	*npins = pdata->pinmux.groups[group].npins;
 
 	return 0;
 }
@@ -51,7 +47,7 @@ int aspeed_pinmux_get_fn_count(struct pinctrl_dev *pctldev)
 {
 	struct aspeed_pinctrl_data *pdata = pinctrl_dev_get_drvdata(pctldev);
 
-	return pdata->nfunctions;
+	return pdata->pinmux.nfunctions;
 }
 
 const char *aspeed_pinmux_get_fn_name(struct pinctrl_dev *pctldev,
@@ -59,7 +55,7 @@ const char *aspeed_pinmux_get_fn_name(struct pinctrl_dev *pctldev,
 {
 	struct aspeed_pinctrl_data *pdata = pinctrl_dev_get_drvdata(pctldev);
 
-	return pdata->functions[function].name;
+	return pdata->pinmux.functions[function].name;
 }
 
 int aspeed_pinmux_get_fn_groups(struct pinctrl_dev *pctldev,
@@ -69,174 +65,64 @@ int aspeed_pinmux_get_fn_groups(struct pinctrl_dev *pctldev,
 {
 	struct aspeed_pinctrl_data *pdata = pinctrl_dev_get_drvdata(pctldev);
 
-	*groups = pdata->functions[function].groups;
-	*num_groups = pdata->functions[function].ngroups;
+	*groups = pdata->pinmux.functions[function].groups;
+	*num_groups = pdata->pinmux.functions[function].ngroups;
 
 	return 0;
 }
 
-static inline void aspeed_sig_desc_print_val(
-		const struct aspeed_sig_desc *desc, bool enable, u32 rv)
+static int aspeed_sig_expr_enable(struct aspeed_pinmux_data *ctx,
+				  const struct aspeed_sig_expr *expr)
 {
-	pr_debug("SCU%x[0x%08x]=0x%x, got 0x%x from 0x%08x\n", desc->reg,
-			desc->mask, enable ? desc->enable : desc->disable,
-			(rv & desc->mask) >> __ffs(desc->mask), rv);
+	int ret;
+
+	ret = aspeed_sig_expr_eval(ctx, expr, true);
+	if (ret < 0)
+		return ret;
+
+	if (!ret)
+		return aspeed_sig_expr_set(ctx, expr, true);
+
+	return 0;
 }
 
-/**
- * Query the enabled or disabled state of a signal descriptor
- *
- * @desc: The signal descriptor of interest
- * @enabled: True to query the enabled state, false to query disabled state
- * @regmap: The SCU regmap instance
- *
- * @return True if the descriptor's bitfield is configured to the state
- * selected by @enabled, false otherwise
- *
- * Evaluation of descriptor state is non-trivial in that it is not a binary
- * outcome: The bitfields can be greater than one bit in size and thus can take
- * a value that is neither the enabled nor disabled state recorded in the
- * descriptor (typically this means a different function to the one of interest
- * is enabled). Thus we must explicitly test for either condition as required.
- */
-static bool aspeed_sig_desc_eval(const struct aspeed_sig_desc *desc,
-				 bool enabled, struct regmap *map)
+static int aspeed_sig_expr_disable(struct aspeed_pinmux_data *ctx,
+				   const struct aspeed_sig_expr *expr)
 {
-	unsigned int raw;
-	u32 want;
+	int ret;
 
-	if (regmap_read(map, desc->reg, &raw) < 0)
-		return false;
+	ret = aspeed_sig_expr_eval(ctx, expr, true);
+	if (ret < 0)
+		return ret;
 
-	aspeed_sig_desc_print_val(desc, enabled, raw);
-	want = enabled ? desc->enable : desc->disable;
+	if (ret)
+		return aspeed_sig_expr_set(ctx, expr, false);
 
-	return ((raw & desc->mask) >> __ffs(desc->mask)) == want;
-}
-
-/**
- * Query the enabled or disabled state for a mux function's signal on a pin
- *
- * @expr: An expression controlling the signal for a mux function on a pin
- * @enabled: True to query the enabled state, false to query disabled state
- * @regmap: The SCU regmap instance
- *
- * @return True if the expression composed by @enabled evaluates true, false
- * otherwise
- *
- * A mux function is enabled or disabled if the function's signal expression
- * for each pin in the function's pin group evaluates true for the desired
- * state. An signal expression evaluates true if all of its associated signal
- * descriptors evaluate true for the desired state.
- *
- * If an expression's state is described by more than one bit, either through
- * multi-bit bitfields in a single signal descriptor or through multiple signal
- * descriptors of a single bit then it is possible for the expression to be in
- * neither the enabled nor disabled state. Thus we must explicitly test for
- * either condition as required.
- */
-static bool aspeed_sig_expr_eval(const struct aspeed_sig_expr *expr,
-				 bool enabled, struct regmap *map)
-{
-	int i;
-
-	for (i = 0; i < expr->ndescs; i++) {
-		const struct aspeed_sig_desc *desc = &expr->descs[i];
-
-		if (!aspeed_sig_desc_eval(desc, enabled, map))
-			return false;
-	}
-
-	return true;
-}
-
-/**
- * Configure a pin's signal by applying an expression's descriptor state for
- * all descriptors in the expression.
- *
- * @expr: The expression associated with the function whose signal is to be
- *        configured
- * @enable: true to enable an function's signal through a pin's signal
- *          expression, false to disable the function's signal
- * @map: The SCU's regmap instance for pinmux register access.
- *
- * @return true if the expression is configured as requested, false otherwise
- */
-static bool aspeed_sig_expr_set(const struct aspeed_sig_expr *expr,
-				bool enable, struct regmap *map)
-{
-	int i;
-
-	for (i = 0; i < expr->ndescs; i++) {
-		bool ret;
-		const struct aspeed_sig_desc *desc = &expr->descs[i];
-		u32 pattern = enable ? desc->enable : desc->disable;
-
-		/*
-		 * Strap registers are configured in hardware or by early-boot
-		 * firmware. Treat them as read-only despite that we can write
-		 * them. This may mean that certain functions cannot be
-		 * deconfigured and is the reason we re-evaluate after writing
-		 * all descriptor bits.
-		 */
-		if (desc->reg == HW_STRAP1 || desc->reg == HW_STRAP2)
-			continue;
-
-		ret = regmap_update_bits(map, desc->reg, desc->mask,
-				pattern << __ffs(desc->mask)) == 0;
-
-		if (!ret)
-			return ret;
-	}
-
-	return aspeed_sig_expr_eval(expr, enable, map);
-}
-
-static bool aspeed_sig_expr_enable(const struct aspeed_sig_expr *expr,
-				   struct regmap *map)
-{
-	if (aspeed_sig_expr_eval(expr, true, map))
-		return true;
-
-	return aspeed_sig_expr_set(expr, true, map);
-}
-
-static bool aspeed_sig_expr_disable(const struct aspeed_sig_expr *expr,
-				    struct regmap *map)
-{
-	if (!aspeed_sig_expr_eval(expr, true, map))
-		return true;
-
-	return aspeed_sig_expr_set(expr, false, map);
+	return 0;
 }
 
 /**
  * Disable a signal on a pin by disabling all provided signal expressions.
  *
+ * @ctx: The pinmux context
  * @exprs: The list of signal expressions (from a priority level on a pin)
- * @map: The SCU's regmap instance for pinmux register access.
  *
- * @return true if all expressions in the list are successfully disabled, false
- * otherwise
+ * Return: 0 if all expressions are disabled, otherwise a negative error code
  */
-static bool aspeed_disable_sig(const struct aspeed_sig_expr **exprs,
-			       struct regmap *map)
+static int aspeed_disable_sig(struct aspeed_pinmux_data *ctx,
+			      const struct aspeed_sig_expr **exprs)
 {
-	bool disabled = true;
+	int ret = 0;
 
 	if (!exprs)
 		return true;
 
-	while (*exprs) {
-		bool ret;
-
-		ret = aspeed_sig_expr_disable(*exprs, map);
-		disabled = disabled && ret;
-
+	while (*exprs && !ret) {
+		ret = aspeed_sig_expr_disable(ctx, *exprs);
 		exprs++;
 	}
 
-	return disabled;
+	return ret;
 }
 
 /**
@@ -246,8 +132,8 @@ static bool aspeed_disable_sig(const struct aspeed_sig_expr **exprs,
  * @exprs: List of signal expressions (haystack)
  * @name: The name of the requested function (needle)
  *
- * @return A pointer to the signal expression whose function tag matches the
- *         provided name, otherwise NULL.
+ * Return: A pointer to the signal expression whose function tag matches the
+ * provided name, otherwise NULL.
  *
  */
 static const struct aspeed_sig_expr *aspeed_find_expr_by_name(
@@ -330,11 +216,11 @@ int aspeed_pinmux_set_mux(struct pinctrl_dev *pctldev, unsigned int function,
 			  unsigned int group)
 {
 	int i;
-	const struct aspeed_pinctrl_data *pdata =
-		pinctrl_dev_get_drvdata(pctldev);
-	const struct aspeed_pin_group *pgroup = &pdata->groups[group];
+	int ret;
+	struct aspeed_pinctrl_data *pdata = pinctrl_dev_get_drvdata(pctldev);
+	const struct aspeed_pin_group *pgroup = &pdata->pinmux.groups[group];
 	const struct aspeed_pin_function *pfunc =
-		&pdata->functions[function];
+		&pdata->pinmux.functions[function];
 
 	for (i = 0; i < pgroup->npins; i++) {
 		int pin = pgroup->pins[i];
@@ -342,6 +228,8 @@ int aspeed_pinmux_set_mux(struct pinctrl_dev *pctldev, unsigned int function,
 		const struct aspeed_sig_expr *expr = NULL;
 		const struct aspeed_sig_expr **funcs;
 		const struct aspeed_sig_expr ***prios;
+
+		pr_debug("Muxing pin %d for %s\n", pin, pfunc->name);
 
 		if (!pdesc)
 			return -EINVAL;
@@ -358,8 +246,9 @@ int aspeed_pinmux_set_mux(struct pinctrl_dev *pctldev, unsigned int function,
 			if (expr)
 				break;
 
-			if (!aspeed_disable_sig(funcs, pdata->map))
-				return -EPERM;
+			ret = aspeed_disable_sig(&pdata->pinmux, funcs);
+			if (ret)
+				return ret;
 
 			prios++;
 		}
@@ -377,8 +266,9 @@ int aspeed_pinmux_set_mux(struct pinctrl_dev *pctldev, unsigned int function,
 			return -ENXIO;
 		}
 
-		if (!aspeed_sig_expr_enable(expr, pdata->map))
-			return -EPERM;
+		ret = aspeed_sig_expr_enable(&pdata->pinmux, expr);
+		if (ret)
+			return ret;
 	}
 
 	return 0;
@@ -414,8 +304,8 @@ int aspeed_gpio_request_enable(struct pinctrl_dev *pctldev,
 			       struct pinctrl_gpio_range *range,
 			       unsigned int offset)
 {
-	const struct aspeed_pinctrl_data *pdata =
-		pinctrl_dev_get_drvdata(pctldev);
+	int ret;
+	struct aspeed_pinctrl_data *pdata = pinctrl_dev_get_drvdata(pctldev);
 	const struct aspeed_pin_desc *pdesc = pdata->pins[offset].drv_data;
 	const struct aspeed_sig_expr ***prios, **funcs, *expr;
 
@@ -432,8 +322,9 @@ int aspeed_gpio_request_enable(struct pinctrl_dev *pctldev,
 		if (aspeed_gpio_in_exprs(funcs))
 			break;
 
-		if (!aspeed_disable_sig(funcs, pdata->map))
-			return -EPERM;
+		ret = aspeed_disable_sig(&pdata->pinmux, funcs);
+		if (ret)
+			return ret;
 
 		prios++;
 	}
@@ -462,10 +353,7 @@ int aspeed_gpio_request_enable(struct pinctrl_dev *pctldev,
 	 * If GPIO is not the lowest priority signal type, assume there is only
 	 * one expression defined to enable the GPIO function
 	 */
-	if (!aspeed_sig_expr_enable(expr, pdata->map))
-		return -EPERM;
-
-	return 0;
+	return aspeed_sig_expr_enable(&pdata->pinmux, expr);
 }
 
 int aspeed_pinctrl_probe(struct platform_device *pdev,
@@ -481,11 +369,13 @@ int aspeed_pinctrl_probe(struct platform_device *pdev,
 		return -ENODEV;
 	}
 
-	pdata->map = syscon_node_to_regmap(parent->of_node);
-	if (IS_ERR(pdata->map)) {
+	pdata->scu = syscon_node_to_regmap(parent->of_node);
+	if (IS_ERR(pdata->scu)) {
 		dev_err(&pdev->dev, "No regmap for syscon pincontroller parent\n");
-		return PTR_ERR(pdata->map);
+		return PTR_ERR(pdata->scu);
 	}
+
+	pdata->pinmux.maps[ASPEED_IP_SCU] = pdata->scu;
 
 	pctl = pinctrl_register(pdesc, &pdev->dev, pdata);
 
@@ -495,6 +385,219 @@ int aspeed_pinctrl_probe(struct platform_device *pdev,
 	}
 
 	platform_set_drvdata(pdev, pdata);
+
+	return 0;
+}
+
+static inline bool pin_in_config_range(unsigned int offset,
+		const struct aspeed_pin_config *config)
+{
+	return offset >= config->pins[0] && offset <= config->pins[1];
+}
+
+static inline const struct aspeed_pin_config *find_pinconf_config(
+		const struct aspeed_pinctrl_data *pdata,
+		unsigned int offset,
+		enum pin_config_param param)
+{
+	unsigned int i;
+
+	for (i = 0; i < pdata->nconfigs; i++) {
+		if (param == pdata->configs[i].param &&
+				pin_in_config_range(offset, &pdata->configs[i]))
+			return &pdata->configs[i];
+	}
+
+	return NULL;
+}
+
+/*
+ * Aspeed pin configuration description.
+ *
+ * @param: pinconf configuration parameter
+ * @arg: The supported argument for @param, or -1 if any value is supported
+ * @val: The register value to write to configure @arg for @param
+ *
+ * The map is to be used in conjunction with the configuration array supplied
+ * by the driver implementation.
+ */
+struct aspeed_pin_config_map {
+	enum pin_config_param param;
+	s32 arg;
+	u32 val;
+};
+
+enum aspeed_pin_config_map_type { MAP_TYPE_ARG, MAP_TYPE_VAL };
+
+/* Aspeed consistently both:
+ *
+ * 1. Defines "disable bits" for internal pull-downs
+ * 2. Uses 8mA or 16mA drive strengths
+ */
+static const struct aspeed_pin_config_map pin_config_map[] = {
+	{ PIN_CONFIG_BIAS_PULL_DOWN,  0, 1 },
+	{ PIN_CONFIG_BIAS_PULL_DOWN, -1, 0 },
+	{ PIN_CONFIG_BIAS_DISABLE,   -1, 1 },
+	{ PIN_CONFIG_DRIVE_STRENGTH,  8, 0 },
+	{ PIN_CONFIG_DRIVE_STRENGTH, 16, 1 },
+};
+
+static const struct aspeed_pin_config_map *find_pinconf_map(
+		enum pin_config_param param,
+		enum aspeed_pin_config_map_type type,
+		s64 value)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(pin_config_map); i++) {
+		const struct aspeed_pin_config_map *elem;
+		bool match;
+
+		elem = &pin_config_map[i];
+
+		switch (type) {
+		case MAP_TYPE_ARG:
+			match = (elem->arg == -1 || elem->arg == value);
+			break;
+		case MAP_TYPE_VAL:
+			match = (elem->val == value);
+			break;
+		}
+
+		if (param == elem->param && match)
+			return elem;
+	}
+
+	return NULL;
+}
+
+int aspeed_pin_config_get(struct pinctrl_dev *pctldev, unsigned int offset,
+		unsigned long *config)
+{
+	const enum pin_config_param param = pinconf_to_config_param(*config);
+	const struct aspeed_pin_config_map *pmap;
+	const struct aspeed_pinctrl_data *pdata;
+	const struct aspeed_pin_config *pconf;
+	unsigned int val;
+	int rc = 0;
+	u32 arg;
+
+	pdata = pinctrl_dev_get_drvdata(pctldev);
+	pconf = find_pinconf_config(pdata, offset, param);
+	if (!pconf)
+		return -ENOTSUPP;
+
+	rc = regmap_read(pdata->scu, pconf->reg, &val);
+	if (rc < 0)
+		return rc;
+
+	pmap = find_pinconf_map(param, MAP_TYPE_VAL,
+			(val & BIT(pconf->bit)) >> pconf->bit);
+
+	if (!pmap)
+		return -EINVAL;
+
+	if (param == PIN_CONFIG_DRIVE_STRENGTH)
+		arg = (u32) pmap->arg;
+	else if (param == PIN_CONFIG_BIAS_PULL_DOWN)
+		arg = !!pmap->arg;
+	else
+		arg = 1;
+
+	if (!arg)
+		return -EINVAL;
+
+	*config = pinconf_to_config_packed(param, arg);
+
+	return 0;
+}
+
+int aspeed_pin_config_set(struct pinctrl_dev *pctldev, unsigned int offset,
+		unsigned long *configs, unsigned int num_configs)
+{
+	const struct aspeed_pinctrl_data *pdata;
+	unsigned int i;
+	int rc = 0;
+
+	pdata = pinctrl_dev_get_drvdata(pctldev);
+
+	for (i = 0; i < num_configs; i++) {
+		const struct aspeed_pin_config_map *pmap;
+		const struct aspeed_pin_config *pconf;
+		enum pin_config_param param;
+		unsigned int val;
+		u32 arg;
+
+		param = pinconf_to_config_param(configs[i]);
+		arg = pinconf_to_config_argument(configs[i]);
+
+		pconf = find_pinconf_config(pdata, offset, param);
+		if (!pconf)
+			return -ENOTSUPP;
+
+		pmap = find_pinconf_map(param, MAP_TYPE_ARG, arg);
+
+		if (WARN_ON(!pmap))
+			return -EINVAL;
+
+		val = pmap->val << pconf->bit;
+
+		rc = regmap_update_bits(pdata->scu, pconf->reg,
+					BIT(pconf->bit), val);
+
+		if (rc < 0)
+			return rc;
+
+		pr_debug("%s: Set SCU%02X[%d]=%d for param %d(=%d) on pin %d\n",
+				__func__, pconf->reg, pconf->bit, pmap->val,
+				param, arg, offset);
+	}
+
+	return 0;
+}
+
+int aspeed_pin_config_group_get(struct pinctrl_dev *pctldev,
+		unsigned int selector,
+		unsigned long *config)
+{
+	const unsigned int *pins;
+	unsigned int npins;
+	int rc;
+
+	rc = aspeed_pinctrl_get_group_pins(pctldev, selector, &pins, &npins);
+	if (rc < 0)
+		return rc;
+
+	if (!npins)
+		return -ENODEV;
+
+	rc = aspeed_pin_config_get(pctldev, pins[0], config);
+
+	return rc;
+}
+
+int aspeed_pin_config_group_set(struct pinctrl_dev *pctldev,
+		unsigned int selector,
+		unsigned long *configs,
+		unsigned int num_configs)
+{
+	const unsigned int *pins;
+	unsigned int npins;
+	int rc;
+	int i;
+
+	pr_debug("%s: Fetching pins for group selector %d\n",
+			__func__, selector);
+	rc = aspeed_pinctrl_get_group_pins(pctldev, selector, &pins, &npins);
+	if (rc < 0)
+		return rc;
+
+	for (i = 0; i < npins; i++) {
+		rc = aspeed_pin_config_set(pctldev, pins[i], configs,
+				num_configs);
+		if (rc < 0)
+			return rc;
+	}
 
 	return 0;
 }

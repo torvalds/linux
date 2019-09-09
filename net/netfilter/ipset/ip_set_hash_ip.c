@@ -1,9 +1,5 @@
-/* Copyright (C) 2003-2013 Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0-only
+/* Copyright (C) 2003-2013 Jozsef Kadlecsik <kadlec@netfilter.org> */
 
 /* Kernel module implementing an IP set type: the hash:ip type */
 
@@ -30,7 +26,7 @@
 #define IPSET_TYPE_REV_MAX	4	/* skbinfo support  */
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>");
+MODULE_AUTHOR("Jozsef Kadlecsik <kadlec@netfilter.org>");
 IP_SET_MODULE_DESC("hash:ip", IPSET_TYPE_REV_MIN, IPSET_TYPE_REV_MAX);
 MODULE_ALIAS("ip_set_hash:ip");
 
@@ -82,7 +78,7 @@ hash_ip4_kadt(struct ip_set *set, const struct sk_buff *skb,
 	      const struct xt_action_param *par,
 	      enum ipset_adt adt, struct ip_set_adt_opt *opt)
 {
-	const struct hash_ip *h = set->data;
+	const struct hash_ip4 *h = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct hash_ip4_elem e = { 0 };
 	struct ip_set_ext ext = IP_SET_INIT_KEXT(skb, opt, set);
@@ -101,7 +97,7 @@ static int
 hash_ip4_uadt(struct ip_set *set, struct nlattr *tb[],
 	      enum ipset_adt adt, u32 *lineno, u32 flags, bool retried)
 {
-	const struct hash_ip *h = set->data;
+	const struct hash_ip4 *h = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct hash_ip4_elem e = { 0 };
 	struct ip_set_ext ext = IP_SET_INIT_UEXT(set);
@@ -123,13 +119,12 @@ hash_ip4_uadt(struct ip_set *set, struct nlattr *tb[],
 		return ret;
 
 	ip &= ip_set_hostmask(h->netmask);
+	e.ip = htonl(ip);
+	if (e.ip == 0)
+		return -IPSET_ERR_HASH_ELEM;
 
-	if (adt == IPSET_TEST) {
-		e.ip = htonl(ip);
-		if (e.ip == 0)
-			return -IPSET_ERR_HASH_ELEM;
+	if (adt == IPSET_TEST)
 		return adtfn(set, &e, &ext, &ext, flags);
-	}
 
 	ip_to = ip;
 	if (tb[IPSET_ATTR_IP_TO]) {
@@ -148,16 +143,19 @@ hash_ip4_uadt(struct ip_set *set, struct nlattr *tb[],
 
 	hosts = h->netmask == 32 ? 1 : 2 << (32 - h->netmask - 1);
 
-	if (retried)
+	if (retried) {
 		ip = ntohl(h->next.ip);
-	for (; !before(ip_to, ip); ip += hosts) {
 		e.ip = htonl(ip);
-		if (e.ip == 0)
-			return -IPSET_ERR_HASH_ELEM;
+	}
+	for (; ip <= ip_to;) {
 		ret = adtfn(set, &e, &ext, &ext, flags);
-
 		if (ret && !ip_set_eexist(ret, flags))
 			return ret;
+
+		ip += hosts;
+		e.ip = htonl(ip);
+		if (e.ip == 0)
+			return 0;
 
 		ret = 0;
 	}
@@ -199,7 +197,7 @@ nla_put_failure:
 }
 
 static inline void
-hash_ip6_data_next(struct hash_ip4_elem *next, const struct hash_ip6_elem *e)
+hash_ip6_data_next(struct hash_ip6_elem *next, const struct hash_ip6_elem *e)
 {
 }
 
@@ -217,7 +215,7 @@ hash_ip6_kadt(struct ip_set *set, const struct sk_buff *skb,
 	      const struct xt_action_param *par,
 	      enum ipset_adt adt, struct ip_set_adt_opt *opt)
 {
-	const struct hash_ip *h = set->data;
+	const struct hash_ip6 *h = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct hash_ip6_elem e = { { .all = { 0 } } };
 	struct ip_set_ext ext = IP_SET_INIT_KEXT(skb, opt, set);
@@ -234,7 +232,7 @@ static int
 hash_ip6_uadt(struct ip_set *set, struct nlattr *tb[],
 	      enum ipset_adt adt, u32 *lineno, u32 flags, bool retried)
 {
-	const struct hash_ip *h = set->data;
+	const struct hash_ip6 *h = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct hash_ip6_elem e = { { .all = { 0 } } };
 	struct ip_set_ext ext = IP_SET_INIT_UEXT(set);

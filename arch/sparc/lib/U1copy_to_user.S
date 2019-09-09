@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* U1copy_to_user.S: UltraSparc-I/II/IIi/IIe optimized copy to userspace.
  *
  * Copyright (C) 1999, 2000, 2004 David S. Miller (davem@redhat.com)
@@ -19,7 +20,7 @@
 	.text;			\
 	.align 4;
 
-#define FUNC_NAME		___copy_to_user
+#define FUNC_NAME		raw_copy_to_user
 #define STORE(type,src,addr)	type##a src, [addr] ASI_AIUS
 #define STORE_BLK(src,addr)	stda src, [addr] ASI_BLK_AIUS
 #define EX_RETVAL(x)		0
@@ -31,7 +32,7 @@
 #define PREAMBLE					\
 	rd		%asi, %g1;			\
 	cmp		%g1, ASI_AIUS;			\
-	bne,pn		%icc, ___copy_in_user;		\
+	bne,pn		%icc, raw_copy_in_user;		\
 	 nop;						\
 
 #include "U1memcpy.S"

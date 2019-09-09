@@ -1,19 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
 	Copyright (C) 2004 - 2009 Ivo van Doorn <IvDoorn@gmail.com>
 	<http://rt2x00.serialmonkey.com>
 
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 2 of the License, or
-	(at your option) any later version.
-
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-	GNU General Public License for more details.
-
-	You should have received a copy of the GNU General Public License
-	along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -249,6 +238,22 @@ void rt2x00lib_config(struct rt2x00_dev *rt2x00dev,
 	 */
 	rt2x00dev->ops->lib->config(rt2x00dev, &libconf, ieee80211_flags);
 
+	if (conf->flags & IEEE80211_CONF_PS)
+		set_bit(CONFIG_POWERSAVING, &rt2x00dev->flags);
+	else
+		clear_bit(CONFIG_POWERSAVING, &rt2x00dev->flags);
+
+	if (conf->flags & IEEE80211_CONF_MONITOR)
+		set_bit(CONFIG_MONITORING, &rt2x00dev->flags);
+	else
+		clear_bit(CONFIG_MONITORING, &rt2x00dev->flags);
+
+	rt2x00dev->curr_band = conf->chandef.chan->band;
+	rt2x00dev->curr_freq = conf->chandef.chan->center_freq;
+	rt2x00dev->tx_power = conf->power_level;
+	rt2x00dev->short_retry = conf->short_frame_max_tx_count;
+	rt2x00dev->long_retry = conf->long_frame_max_tx_count;
+
 	/*
 	 * Some configuration changes affect the link quality
 	 * which means we need to reset the link tuner.
@@ -271,20 +276,4 @@ void rt2x00lib_config(struct rt2x00_dev *rt2x00dev,
 				   &rt2x00dev->autowakeup_work,
 				   autowake_timeout - 15);
 	}
-
-	if (conf->flags & IEEE80211_CONF_PS)
-		set_bit(CONFIG_POWERSAVING, &rt2x00dev->flags);
-	else
-		clear_bit(CONFIG_POWERSAVING, &rt2x00dev->flags);
-
-	if (conf->flags & IEEE80211_CONF_MONITOR)
-		set_bit(CONFIG_MONITORING, &rt2x00dev->flags);
-	else
-		clear_bit(CONFIG_MONITORING, &rt2x00dev->flags);
-
-	rt2x00dev->curr_band = conf->chandef.chan->band;
-	rt2x00dev->curr_freq = conf->chandef.chan->center_freq;
-	rt2x00dev->tx_power = conf->power_level;
-	rt2x00dev->short_retry = conf->short_frame_max_tx_count;
-	rt2x00dev->long_retry = conf->long_frame_max_tx_count;
 }

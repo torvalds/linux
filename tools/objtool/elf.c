@@ -1,22 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * elf.c - ELF access library
  *
  * Adapted from kpatch (https://github.com/dynup/kpatch):
  * Copyright (C) 2013-2015 Josh Poimboeuf <jpoimboe@redhat.com>
  * Copyright (C) 2014 Seth Jennings <sjenning@redhat.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <sys/types.h>
@@ -26,16 +14,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <errno.h>
 
 #include "elf.h"
 #include "warn.h"
 
-/*
- * Fallback for systems without this "read, mmaping if possible" cmd.
- */
-#ifndef ELF_C_READ_MMAP
-#define ELF_C_READ_MMAP ELF_C_READ
-#endif
+#define MAX_NAME_LEN 128
 
 struct section *find_section_by_name(struct elf *elf, const char *name)
 {
@@ -85,6 +69,31 @@ struct symbol *find_symbol_by_offset(struct section *sec, unsigned long offset)
 	return NULL;
 }
 
+struct symbol *find_symbol_by_name(struct elf *elf, const char *name)
+{
+	struct section *sec;
+	struct symbol *sym;
+
+	list_for_each_entry(sec, &elf->sections, list)
+		list_for_each_entry(sym, &sec->symbol_list, list)
+			if (!strcmp(sym->name, name))
+				return sym;
+
+	return NULL;
+}
+
+struct symbol *find_symbol_containing(struct section *sec, unsigned long offset)
+{
+	struct symbol *sym;
+
+	list_for_each_entry(sym, &sec->symbol_list, list)
+		if (sym->type != STT_SECTION &&
+		    offset >= sym->offset && offset < sym->offset + sym->len)
+			return sym;
+
+	return NULL;
+}
+
 struct rela *find_rela_by_dest_range(struct section *sec, unsigned long offset,
 				     unsigned int len)
 {
@@ -127,12 +136,12 @@ static int read_sections(struct elf *elf)
 	int i;
 
 	if (elf_getshdrnum(elf->elf, &sections_nr)) {
-		perror("elf_getshdrnum");
+		WARN_ELF("elf_getshdrnum");
 		return -1;
 	}
 
 	if (elf_getshdrstrndx(elf->elf, &shstrndx)) {
-		perror("elf_getshdrstrndx");
+		WARN_ELF("elf_getshdrstrndx");
 		return -1;
 	}
 
@@ -153,37 +162,37 @@ static int read_sections(struct elf *elf)
 
 		s = elf_getscn(elf->elf, i);
 		if (!s) {
-			perror("elf_getscn");
+			WARN_ELF("elf_getscn");
 			return -1;
 		}
 
 		sec->idx = elf_ndxscn(s);
 
 		if (!gelf_getshdr(s, &sec->sh)) {
-			perror("gelf_getshdr");
+			WARN_ELF("gelf_getshdr");
 			return -1;
 		}
 
 		sec->name = elf_strptr(elf->elf, shstrndx, sec->sh.sh_name);
 		if (!sec->name) {
-			perror("elf_strptr");
+			WARN_ELF("elf_strptr");
 			return -1;
 		}
 
-		sec->elf_data = elf_getdata(s, NULL);
-		if (!sec->elf_data) {
-			perror("elf_getdata");
-			return -1;
+		if (sec->sh.sh_size != 0) {
+			sec->data = elf_getdata(s, NULL);
+			if (!sec->data) {
+				WARN_ELF("elf_getdata");
+				return -1;
+			}
+			if (sec->data->d_off != 0 ||
+			    sec->data->d_size != sec->sh.sh_size) {
+				WARN("unexpected data attributes for %s",
+				     sec->name);
+				return -1;
+			}
 		}
-
-		if (sec->elf_data->d_off != 0 ||
-		    sec->elf_data->d_size != sec->sh.sh_size) {
-			WARN("unexpected data attributes for %s", sec->name);
-			return -1;
-		}
-
-		sec->data = (unsigned long)sec->elf_data->d_buf;
-		sec->len = sec->elf_data->d_size;
+		sec->len = sec->sh.sh_size;
 	}
 
 	/* sanity check, one more call to elf_nextscn() should return NULL */
@@ -197,10 +206,11 @@ static int read_sections(struct elf *elf)
 
 static int read_symbols(struct elf *elf)
 {
-	struct section *symtab;
-	struct symbol *sym;
+	struct section *symtab, *sec;
+	struct symbol *sym, *pfunc, *alias;
 	struct list_head *entry, *tmp;
 	int symbols_nr, i;
+	char *coldstr;
 
 	symtab = find_section_by_name(elf, ".symtab");
 	if (!symtab) {
@@ -217,18 +227,19 @@ static int read_symbols(struct elf *elf)
 			return -1;
 		}
 		memset(sym, 0, sizeof(*sym));
+		alias = sym;
 
 		sym->idx = i;
 
-		if (!gelf_getsym(symtab->elf_data, i, &sym->sym)) {
-			perror("gelf_getsym");
+		if (!gelf_getsym(symtab->data, i, &sym->sym)) {
+			WARN_ELF("gelf_getsym");
 			goto err;
 		}
 
 		sym->name = elf_strptr(elf->elf, symtab->sh.sh_link,
 				       sym->sym.st_name);
 		if (!sym->name) {
-			perror("elf_strptr");
+			WARN_ELF("elf_strptr");
 			goto err;
 		}
 
@@ -266,13 +277,67 @@ static int read_symbols(struct elf *elf)
 				break;
 			}
 
-			if (sym->offset == s->offset && sym->len >= s->len) {
-				entry = tmp;
-				break;
+			if (sym->offset == s->offset) {
+				if (sym->len && sym->len == s->len && alias == sym)
+					alias = s;
+
+				if (sym->len >= s->len) {
+					entry = tmp;
+					break;
+				}
 			}
 		}
+		sym->alias = alias;
 		list_add(&sym->list, entry);
 		hash_add(sym->sec->symbol_hash, &sym->hash, sym->idx);
+	}
+
+	/* Create parent/child links for any cold subfunctions */
+	list_for_each_entry(sec, &elf->sections, list) {
+		list_for_each_entry(sym, &sec->symbol_list, list) {
+			char pname[MAX_NAME_LEN + 1];
+			size_t pnamelen;
+			if (sym->type != STT_FUNC)
+				continue;
+			sym->pfunc = sym->cfunc = sym;
+			coldstr = strstr(sym->name, ".cold");
+			if (!coldstr)
+				continue;
+
+			pnamelen = coldstr - sym->name;
+			if (pnamelen > MAX_NAME_LEN) {
+				WARN("%s(): parent function name exceeds maximum length of %d characters",
+				     sym->name, MAX_NAME_LEN);
+				return -1;
+			}
+
+			strncpy(pname, sym->name, pnamelen);
+			pname[pnamelen] = '\0';
+			pfunc = find_symbol_by_name(elf, pname);
+
+			if (!pfunc) {
+				WARN("%s(): can't find parent function",
+				     sym->name);
+				return -1;
+			}
+
+			sym->pfunc = pfunc;
+			pfunc->cfunc = sym;
+
+			/*
+			 * Unfortunately, -fnoreorder-functions puts the child
+			 * inside the parent.  Remove the overlap so we can
+			 * have sane assumptions.
+			 *
+			 * Note that pfunc->len now no longer matches
+			 * pfunc->sym.st_size.
+			 */
+			if (sym->sec == pfunc->sec &&
+			    sym->offset >= pfunc->offset &&
+			    sym->offset + sym->len == pfunc->offset + pfunc->len) {
+				pfunc->len -= sym->len;
+			}
+		}
 	}
 
 	return 0;
@@ -310,8 +375,8 @@ static int read_relas(struct elf *elf)
 			}
 			memset(rela, 0, sizeof(*rela));
 
-			if (!gelf_getrela(sec->elf_data, i, &rela->rela)) {
-				perror("gelf_getrela");
+			if (!gelf_getrela(sec->data, i, &rela->rela)) {
+				WARN_ELF("gelf_getrela");
 				return -1;
 			}
 
@@ -320,6 +385,7 @@ static int read_relas(struct elf *elf)
 			rela->offset = rela->rela.r_offset;
 			symndx = GELF_R_SYM(rela->rela.r_info);
 			rela->sym = find_symbol_by_index(elf, symndx);
+			rela->sec = sec;
 			if (!rela->sym) {
 				WARN("can't find rela entry symbol %d for %s",
 				     symndx, sec->name);
@@ -335,9 +401,10 @@ static int read_relas(struct elf *elf)
 	return 0;
 }
 
-struct elf *elf_open(const char *name)
+struct elf *elf_read(const char *name, int flags)
 {
 	struct elf *elf;
+	Elf_Cmd cmd;
 
 	elf_version(EV_CURRENT);
 
@@ -350,26 +417,28 @@ struct elf *elf_open(const char *name)
 
 	INIT_LIST_HEAD(&elf->sections);
 
-	elf->name = strdup(name);
-	if (!elf->name) {
-		perror("strdup");
-		goto err;
-	}
-
-	elf->fd = open(name, O_RDONLY);
+	elf->fd = open(name, flags);
 	if (elf->fd == -1) {
-		perror("open");
+		fprintf(stderr, "objtool: Can't open '%s': %s\n",
+			name, strerror(errno));
 		goto err;
 	}
 
-	elf->elf = elf_begin(elf->fd, ELF_C_READ_MMAP, NULL);
+	if ((flags & O_ACCMODE) == O_RDONLY)
+		cmd = ELF_C_READ_MMAP;
+	else if ((flags & O_ACCMODE) == O_RDWR)
+		cmd = ELF_C_RDWR;
+	else /* O_WRONLY */
+		cmd = ELF_C_WRITE;
+
+	elf->elf = elf_begin(elf->fd, cmd, NULL);
 	if (!elf->elf) {
-		perror("elf_begin");
+		WARN_ELF("elf_begin");
 		goto err;
 	}
 
 	if (!gelf_getehdr(elf->elf, &elf->ehdr)) {
-		perror("gelf_getehdr");
+		WARN_ELF("gelf_getehdr");
 		goto err;
 	}
 
@@ -389,11 +458,213 @@ err:
 	return NULL;
 }
 
+struct section *elf_create_section(struct elf *elf, const char *name,
+				   size_t entsize, int nr)
+{
+	struct section *sec, *shstrtab;
+	size_t size = entsize * nr;
+	Elf_Scn *s;
+	Elf_Data *data;
+
+	sec = malloc(sizeof(*sec));
+	if (!sec) {
+		perror("malloc");
+		return NULL;
+	}
+	memset(sec, 0, sizeof(*sec));
+
+	INIT_LIST_HEAD(&sec->symbol_list);
+	INIT_LIST_HEAD(&sec->rela_list);
+	hash_init(sec->rela_hash);
+	hash_init(sec->symbol_hash);
+
+	list_add_tail(&sec->list, &elf->sections);
+
+	s = elf_newscn(elf->elf);
+	if (!s) {
+		WARN_ELF("elf_newscn");
+		return NULL;
+	}
+
+	sec->name = strdup(name);
+	if (!sec->name) {
+		perror("strdup");
+		return NULL;
+	}
+
+	sec->idx = elf_ndxscn(s);
+	sec->len = size;
+	sec->changed = true;
+
+	sec->data = elf_newdata(s);
+	if (!sec->data) {
+		WARN_ELF("elf_newdata");
+		return NULL;
+	}
+
+	sec->data->d_size = size;
+	sec->data->d_align = 1;
+
+	if (size) {
+		sec->data->d_buf = malloc(size);
+		if (!sec->data->d_buf) {
+			perror("malloc");
+			return NULL;
+		}
+		memset(sec->data->d_buf, 0, size);
+	}
+
+	if (!gelf_getshdr(s, &sec->sh)) {
+		WARN_ELF("gelf_getshdr");
+		return NULL;
+	}
+
+	sec->sh.sh_size = size;
+	sec->sh.sh_entsize = entsize;
+	sec->sh.sh_type = SHT_PROGBITS;
+	sec->sh.sh_addralign = 1;
+	sec->sh.sh_flags = SHF_ALLOC;
+
+
+	/* Add section name to .shstrtab (or .strtab for Clang) */
+	shstrtab = find_section_by_name(elf, ".shstrtab");
+	if (!shstrtab)
+		shstrtab = find_section_by_name(elf, ".strtab");
+	if (!shstrtab) {
+		WARN("can't find .shstrtab or .strtab section");
+		return NULL;
+	}
+
+	s = elf_getscn(elf->elf, shstrtab->idx);
+	if (!s) {
+		WARN_ELF("elf_getscn");
+		return NULL;
+	}
+
+	data = elf_newdata(s);
+	if (!data) {
+		WARN_ELF("elf_newdata");
+		return NULL;
+	}
+
+	data->d_buf = sec->name;
+	data->d_size = strlen(name) + 1;
+	data->d_align = 1;
+
+	sec->sh.sh_name = shstrtab->len;
+
+	shstrtab->len += strlen(name) + 1;
+	shstrtab->changed = true;
+
+	return sec;
+}
+
+struct section *elf_create_rela_section(struct elf *elf, struct section *base)
+{
+	char *relaname;
+	struct section *sec;
+
+	relaname = malloc(strlen(base->name) + strlen(".rela") + 1);
+	if (!relaname) {
+		perror("malloc");
+		return NULL;
+	}
+	strcpy(relaname, ".rela");
+	strcat(relaname, base->name);
+
+	sec = elf_create_section(elf, relaname, sizeof(GElf_Rela), 0);
+	free(relaname);
+	if (!sec)
+		return NULL;
+
+	base->rela = sec;
+	sec->base = base;
+
+	sec->sh.sh_type = SHT_RELA;
+	sec->sh.sh_addralign = 8;
+	sec->sh.sh_link = find_section_by_name(elf, ".symtab")->idx;
+	sec->sh.sh_info = base->idx;
+	sec->sh.sh_flags = SHF_INFO_LINK;
+
+	return sec;
+}
+
+int elf_rebuild_rela_section(struct section *sec)
+{
+	struct rela *rela;
+	int nr, idx = 0, size;
+	GElf_Rela *relas;
+
+	nr = 0;
+	list_for_each_entry(rela, &sec->rela_list, list)
+		nr++;
+
+	size = nr * sizeof(*relas);
+	relas = malloc(size);
+	if (!relas) {
+		perror("malloc");
+		return -1;
+	}
+
+	sec->data->d_buf = relas;
+	sec->data->d_size = size;
+
+	sec->sh.sh_size = size;
+
+	idx = 0;
+	list_for_each_entry(rela, &sec->rela_list, list) {
+		relas[idx].r_offset = rela->offset;
+		relas[idx].r_addend = rela->addend;
+		relas[idx].r_info = GELF_R_INFO(rela->sym->idx, rela->type);
+		idx++;
+	}
+
+	return 0;
+}
+
+int elf_write(struct elf *elf)
+{
+	struct section *sec;
+	Elf_Scn *s;
+
+	/* Update section headers for changed sections: */
+	list_for_each_entry(sec, &elf->sections, list) {
+		if (sec->changed) {
+			s = elf_getscn(elf->elf, sec->idx);
+			if (!s) {
+				WARN_ELF("elf_getscn");
+				return -1;
+			}
+			if (!gelf_update_shdr(s, &sec->sh)) {
+				WARN_ELF("gelf_update_shdr");
+				return -1;
+			}
+		}
+	}
+
+	/* Make sure the new section header entries get updated properly. */
+	elf_flagelf(elf->elf, ELF_C_SET, ELF_F_DIRTY);
+
+	/* Write all changes to the file. */
+	if (elf_update(elf->elf, ELF_C_WRITE) < 0) {
+		WARN_ELF("elf_update");
+		return -1;
+	}
+
+	return 0;
+}
+
 void elf_close(struct elf *elf)
 {
 	struct section *sec, *tmpsec;
 	struct symbol *sym, *tmpsym;
 	struct rela *rela, *tmprela;
+
+	if (elf->elf)
+		elf_end(elf->elf);
+
+	if (elf->fd > 0)
+		close(elf->fd);
 
 	list_for_each_entry_safe(sec, tmpsec, &elf->sections, list) {
 		list_for_each_entry_safe(sym, tmpsym, &sec->symbol_list, list) {
@@ -409,11 +680,6 @@ void elf_close(struct elf *elf)
 		list_del(&sec->list);
 		free(sec);
 	}
-	if (elf->name)
-		free(elf->name);
-	if (elf->fd > 0)
-		close(elf->fd);
-	if (elf->elf)
-		elf_end(elf->elf);
+
 	free(elf);
 }

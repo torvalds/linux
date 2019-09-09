@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2014, NVIDIA CORPORATION.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #include <linux/delay.h>
@@ -1483,7 +1475,6 @@ static int tegra124_usb3_port_enable(struct tegra_xusb_port *port)
 	struct tegra_xusb_padctl *padctl = port->padctl;
 	struct tegra_xusb_lane *lane = usb3->base.lane;
 	unsigned int index = port->index, offset;
-	int ret = 0;
 	u32 value;
 
 	value = padctl_readl(padctl, XUSB_PADCTL_SS_PORT_MAP);
@@ -1612,7 +1603,7 @@ static int tegra124_usb3_port_enable(struct tegra_xusb_port *port)
 	value &= ~XUSB_PADCTL_ELPG_PROGRAM_SSPX_ELPG_CLAMP_EN(index);
 	padctl_writel(padctl, value, XUSB_PADCTL_ELPG_PROGRAM);
 
-	return ret;
+	return 0;
 }
 
 static void tegra124_usb3_port_disable(struct tegra_xusb_port *port)
@@ -1722,6 +1713,13 @@ static const struct tegra_xusb_padctl_ops tegra124_xusb_padctl_ops = {
 	.hsic_set_idle = tegra124_hsic_set_idle,
 };
 
+static const char * const tegra124_xusb_padctl_supply_names[] = {
+	"avdd-pll-utmip",
+	"avdd-pll-erefe",
+	"avdd-pex-pll",
+	"hvdd-pex-pll-e",
+};
+
 const struct tegra_xusb_padctl_soc tegra124_xusb_padctl_soc = {
 	.num_pads = ARRAY_SIZE(tegra124_pads),
 	.pads = tegra124_pads,
@@ -1744,6 +1742,8 @@ const struct tegra_xusb_padctl_soc tegra124_xusb_padctl_soc = {
 		},
 	},
 	.ops = &tegra124_xusb_padctl_ops,
+	.supply_names = tegra124_xusb_padctl_supply_names,
+	.num_supplies = ARRAY_SIZE(tegra124_xusb_padctl_supply_names),
 };
 EXPORT_SYMBOL_GPL(tegra124_xusb_padctl_soc);
 

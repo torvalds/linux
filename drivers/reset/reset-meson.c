@@ -1,4 +1,6 @@
 /*
+ * Amlogic Meson Reset Controller driver
+ *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
  *
@@ -53,20 +55,23 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include <linux/err.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/reset-controller.h>
 #include <linux/slab.h>
 #include <linux/types.h>
+#include <linux/of_device.h>
 
 #define REG_COUNT	8
 #define BITS_PER_REG	32
+#define LEVEL_OFFSET	0x7c
 
 struct meson_reset {
 	void __iomem *reg_base;
 	struct reset_controller_dev rcdev;
+	spinlock_t lock;
 };
 
 static int meson_reset_reset(struct reset_controller_dev *rcdev,
@@ -78,24 +83,59 @@ static int meson_reset_reset(struct reset_controller_dev *rcdev,
 	unsigned int offset = id % BITS_PER_REG;
 	void __iomem *reg_addr = data->reg_base + (bank << 2);
 
-	if (bank >= REG_COUNT)
-		return -EINVAL;
-
 	writel(BIT(offset), reg_addr);
 
 	return 0;
 }
 
+static int meson_reset_level(struct reset_controller_dev *rcdev,
+			    unsigned long id, bool assert)
+{
+	struct meson_reset *data =
+		container_of(rcdev, struct meson_reset, rcdev);
+	unsigned int bank = id / BITS_PER_REG;
+	unsigned int offset = id % BITS_PER_REG;
+	void __iomem *reg_addr = data->reg_base + LEVEL_OFFSET + (bank << 2);
+	unsigned long flags;
+	u32 reg;
+
+	spin_lock_irqsave(&data->lock, flags);
+
+	reg = readl(reg_addr);
+	if (assert)
+		writel(reg & ~BIT(offset), reg_addr);
+	else
+		writel(reg | BIT(offset), reg_addr);
+
+	spin_unlock_irqrestore(&data->lock, flags);
+
+	return 0;
+}
+
+static int meson_reset_assert(struct reset_controller_dev *rcdev,
+			      unsigned long id)
+{
+	return meson_reset_level(rcdev, id, true);
+}
+
+static int meson_reset_deassert(struct reset_controller_dev *rcdev,
+				unsigned long id)
+{
+	return meson_reset_level(rcdev, id, false);
+}
+
 static const struct reset_control_ops meson_reset_ops = {
 	.reset		= meson_reset_reset,
+	.assert		= meson_reset_assert,
+	.deassert	= meson_reset_deassert,
 };
 
 static const struct of_device_id meson_reset_dt_ids[] = {
-	 { .compatible = "amlogic,meson8b-reset", },
-	 { .compatible = "amlogic,meson-gxbb-reset", },
+	 { .compatible = "amlogic,meson8b-reset" },
+	 { .compatible = "amlogic,meson-gxbb-reset" },
+	 { .compatible = "amlogic,meson-axg-reset" },
 	 { /* sentinel */ },
 };
-MODULE_DEVICE_TABLE(of, meson_reset_dt_ids);
 
 static int meson_reset_probe(struct platform_device *pdev)
 {
@@ -113,6 +153,8 @@ static int meson_reset_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, data);
 
+	spin_lock_init(&data->lock);
+
 	data->rcdev.owner = THIS_MODULE;
 	data->rcdev.nr_resets = REG_COUNT * BITS_PER_REG;
 	data->rcdev.ops = &meson_reset_ops;
@@ -128,9 +170,4 @@ static struct platform_driver meson_reset_driver = {
 		.of_match_table	= meson_reset_dt_ids,
 	},
 };
-
-module_platform_driver(meson_reset_driver);
-
-MODULE_AUTHOR("Neil Armstrong <narmstrong@baylibre.com>");
-MODULE_DESCRIPTION("Amlogic Meson Reset Controller driver");
-MODULE_LICENSE("Dual BSD/GPL");
+builtin_platform_driver(meson_reset_driver);

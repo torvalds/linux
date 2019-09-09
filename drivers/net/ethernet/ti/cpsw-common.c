@@ -1,14 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+// SPDX-License-Identifier: GPL-2.0+
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -90,13 +80,13 @@ int ti_cm_get_macid(struct device *dev, int slave, u8 *mac_addr)
 	if (of_device_is_compatible(dev->of_node, "ti,dm816-emac"))
 		return cpsw_am33xx_cm_get_macid(dev, 0x30, slave, mac_addr);
 
-	if (of_machine_is_compatible("ti,am4372"))
+	if (of_machine_is_compatible("ti,am43"))
 		return cpsw_am33xx_cm_get_macid(dev, 0x630, slave, mac_addr);
 
 	if (of_machine_is_compatible("ti,dra7"))
 		return davinci_emac_3517_get_macid(dev, 0x514, slave, mac_addr);
 
-	dev_err(dev, "incompatible machine/device type for reading mac address\n");
+	dev_info(dev, "incompatible machine/device type for reading mac address\n");
 	return -ENOENT;
 }
 EXPORT_SYMBOL_GPL(ti_cm_get_macid);

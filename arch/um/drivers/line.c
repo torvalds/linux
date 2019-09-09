@@ -5,8 +5,9 @@
 
 #include <linux/irqreturn.h>
 #include <linux/kd.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/slab.h>
+
 #include "chan.h"
 #include <irq_kern.h>
 #include <irq_user.h>
@@ -234,14 +235,6 @@ void line_unthrottle(struct tty_struct *tty)
 
 	line->throttled = 0;
 	chan_interrupt(line, line->driver->read_irq);
-
-	/*
-	 * Maybe there is enough stuff pending that calling the interrupt
-	 * throttles us again.  In this case, line->throttled will be 1
-	 * again and we shouldn't turn the interrupt back on.
-	 */
-	if (!line->throttled)
-		reactivate_chan(line->chan_in, line->driver->read_irq);
 }
 
 static irqreturn_t line_write_interrupt(int irq, void *data)
@@ -260,7 +253,7 @@ static irqreturn_t line_write_interrupt(int irq, void *data)
 	if (err == 0) {
 		spin_unlock(&line->lock);
 		return IRQ_NONE;
-	} else if (err < 0) {
+	} else if ((err < 0) && (err != -EAGAIN)) {
 		line->head = line->buffer;
 		line->tail = line->buffer;
 	}
@@ -666,8 +659,6 @@ static irqreturn_t winch_interrupt(int irq, void *data)
 		tty_kref_put(tty);
 	}
  out:
-	if (winch->fd != -1)
-		reactivate_fd(winch->fd, WINCH_IRQ);
 	return IRQ_HANDLED;
 }
 

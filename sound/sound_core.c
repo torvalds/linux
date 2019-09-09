@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	Sound core.  This file is composed of two parts.  sound_class
  *	which is common to both OSS and ALSA and OSS sound core which
@@ -73,12 +74,6 @@ module_exit(cleanup_soundcore);
  *
  *	Fixes:
  *
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
- *
  *                         --------------------
  * 
  *	Top level handler for the sound subsystem. Various devices can
@@ -118,13 +113,6 @@ struct sound_unit
 	struct sound_unit *next;
 	char name[32];
 };
-
-#ifdef CONFIG_SOUND_MSNDCLAS
-extern int msnd_classic_init(void);
-#endif
-#ifdef CONFIG_SOUND_MSNDPIN
-extern int msnd_pinnacle_init(void);
-#endif
 
 /*
  * By default, OSS sound_core claims full legacy minor range (0-255)
@@ -287,7 +275,8 @@ retry:
 				goto retry;
 			}
 			spin_unlock(&sound_loader_lock);
-			return -EBUSY;
+			r = -EBUSY;
+			goto fail;
 		}
 	}
 
@@ -420,7 +409,7 @@ int register_sound_special_device(const struct file_operations *fops, int unit,
 		break;
 	}
 	return sound_insert_unit(&chains[chain], fops, -1, unit, max_unit,
-				 name, S_IRUSR | S_IWUSR, dev);
+				 name, 0600, dev);
 }
  
 EXPORT_SYMBOL(register_sound_special_device);
@@ -447,30 +436,10 @@ EXPORT_SYMBOL(register_sound_special);
 int register_sound_mixer(const struct file_operations *fops, int dev)
 {
 	return sound_insert_unit(&chains[0], fops, dev, 0, 128,
-				 "mixer", S_IRUSR | S_IWUSR, NULL);
+				 "mixer", 0600, NULL);
 }
 
 EXPORT_SYMBOL(register_sound_mixer);
-
-/**
- *	register_sound_midi - register a midi device
- *	@fops: File operations for the driver
- *	@dev: Unit number to allocate
- *
- *	Allocate a midi device. Unit is the number of the midi device requested.
- *	Pass -1 to request the next free midi unit.
- *
- *	Return: On success, the allocated number is returned. On failure,
- *	a negative error code is returned.
- */
-
-int register_sound_midi(const struct file_operations *fops, int dev)
-{
-	return sound_insert_unit(&chains[2], fops, dev, 2, 130,
-				 "midi", S_IRUSR | S_IWUSR, NULL);
-}
-
-EXPORT_SYMBOL(register_sound_midi);
 
 /*
  *	DSP's are registered as a triple. Register only one and cheat
@@ -495,7 +464,7 @@ EXPORT_SYMBOL(register_sound_midi);
 int register_sound_dsp(const struct file_operations *fops, int dev)
 {
 	return sound_insert_unit(&chains[3], fops, dev, 3, 131,
-				 "dsp", S_IWUSR | S_IRUSR, NULL);
+				 "dsp", 0600, NULL);
 }
 
 EXPORT_SYMBOL(register_sound_dsp);
@@ -531,21 +500,6 @@ void unregister_sound_mixer(int unit)
 }
 
 EXPORT_SYMBOL(unregister_sound_mixer);
-
-/**
- *	unregister_sound_midi - unregister a midi device
- *	@unit: unit number to allocate
- *
- *	Release a sound device that was allocated with register_sound_midi().
- *	The unit passed is the return value from the register function.
- */
-
-void unregister_sound_midi(int unit)
-{
-	sound_remove_unit(&chains[2], unit);
-}
-
-EXPORT_SYMBOL(unregister_sound_midi);
 
 /**
  *	unregister_sound_dsp - unregister a DSP device

@@ -1,21 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
     Driver for SAA6588 RDS decoder
 
     (c) 2005 Hans J. Koch
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
 
@@ -29,7 +17,7 @@
 #include <linux/slab.h>
 #include <linux/poll.h>
 #include <linux/wait.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <media/i2c/saa6588.h>
 #include <media/v4l2-device.h>
@@ -411,9 +399,9 @@ static long saa6588_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		break;
 		/* --- poll() for /dev/radio --- */
 	case SAA6588_CMD_POLL:
-		a->result = 0;
+		a->poll_mask = 0;
 		if (s->data_available_for_read)
-			a->result |= POLLIN | POLLRDNORM;
+			a->poll_mask |= EPOLLIN | EPOLLRDNORM;
 		poll_wait(a->instance, &s->read_queue, a->event_list);
 		break;
 

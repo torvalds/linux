@@ -1,27 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Aic94xx Task Management Functions
  *
  * Copyright (C) 2005 Adaptec, Inc.  All rights reserved.
  * Copyright (C) 2005 Luben Tuikov <luben_tuikov@adaptec.com>
- *
- * This file is licensed under GPLv2.
- *
- * This file is part of the aic94xx driver.
- *
- * The aic94xx driver is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of the
- * License.
- *
- * The aic94xx driver is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with the aic94xx driver; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
- *
  */
 
 #include <linux/spinlock.h>
@@ -35,14 +17,13 @@
 static int asd_enqueue_internal(struct asd_ascb *ascb,
 		void (*tasklet_complete)(struct asd_ascb *,
 					 struct done_list_struct *),
-				void (*timed_out)(unsigned long))
+				void (*timed_out)(struct timer_list *t))
 {
 	int res;
 
 	ascb->tasklet_complete = tasklet_complete;
 	ascb->uldd_timer = 1;
 
-	ascb->timer.data = (unsigned long) ascb;
 	ascb->timer.function = timed_out;
 	ascb->timer.expires = jiffies + AIC94XX_SCB_TIMEOUT;
 
@@ -87,9 +68,9 @@ static void asd_clear_nexus_tasklet_complete(struct asd_ascb *ascb,
 	asd_ascb_free(ascb);
 }
 
-static void asd_clear_nexus_timedout(unsigned long data)
+static void asd_clear_nexus_timedout(struct timer_list *t)
 {
-	struct asd_ascb *ascb = (void *)data;
+	struct asd_ascb *ascb = from_timer(ascb, t, timer);
 	struct tasklet_completion_status *tcs = ascb->uldd_task;
 
 	ASD_DPRINTK("%s: here\n", __func__);
@@ -261,9 +242,9 @@ static int asd_clear_nexus_index(struct sas_task *task)
 
 /* ---------- TMFs ---------- */
 
-static void asd_tmf_timedout(unsigned long data)
+static void asd_tmf_timedout(struct timer_list *t)
 {
-	struct asd_ascb *ascb = (void *) data;
+	struct asd_ascb *ascb = from_timer(ascb, t, timer);
 	struct tasklet_completion_status *tcs = ascb->uldd_task;
 
 	ASD_DPRINTK("tmf timed out\n");

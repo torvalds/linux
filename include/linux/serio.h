@@ -1,9 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 1999-2002 Vojtech Pavlik
-*
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 #ifndef _SERIO_H
 #define _SERIO_H
@@ -77,6 +74,7 @@ struct serio_driver {
 	irqreturn_t (*interrupt)(struct serio *, unsigned char, unsigned int);
 	int  (*connect)(struct serio *, struct serio_driver *drv);
 	int  (*reconnect)(struct serio *);
+	int  (*fast_reconnect)(struct serio *);
 	void (*disconnect)(struct serio *);
 	void (*cleanup)(struct serio *);
 

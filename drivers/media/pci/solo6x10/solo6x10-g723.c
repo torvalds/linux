@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2010-2013 Bluecherry, LLC <http://www.bluecherrydvr.com>
  *
@@ -6,16 +7,6 @@
  *
  * Additional work by:
  * John Brooks <john.brooks@bluecherry.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/kernel.h>
@@ -223,9 +214,9 @@ static snd_pcm_uframes_t snd_solo_pcm_pointer(struct snd_pcm_substream *ss)
 	return idx * G723_FRAMES_PER_PAGE;
 }
 
-static int snd_solo_pcm_copy(struct snd_pcm_substream *ss, int channel,
-			     snd_pcm_uframes_t pos, void __user *dst,
-			     snd_pcm_uframes_t count)
+static int snd_solo_pcm_copy_user(struct snd_pcm_substream *ss, int channel,
+				  unsigned long pos, void __user *dst,
+				  unsigned long count)
 {
 	struct solo_snd_pcm *solo_pcm = snd_pcm_substream_chip(ss);
 	struct solo_dev *solo_dev = solo_pcm->solo_dev;
@@ -242,11 +233,35 @@ static int snd_solo_pcm_copy(struct snd_pcm_substream *ss, int channel,
 		if (err)
 			return err;
 
-		err = copy_to_user(dst + (i * G723_PERIOD_BYTES),
-				   solo_pcm->g723_buf, G723_PERIOD_BYTES);
-
-		if (err)
+		if (copy_to_user(dst, solo_pcm->g723_buf, G723_PERIOD_BYTES))
 			return -EFAULT;
+		dst += G723_PERIOD_BYTES;
+	}
+
+	return 0;
+}
+
+static int snd_solo_pcm_copy_kernel(struct snd_pcm_substream *ss, int channel,
+				    unsigned long pos, void *dst,
+				    unsigned long count)
+{
+	struct solo_snd_pcm *solo_pcm = snd_pcm_substream_chip(ss);
+	struct solo_dev *solo_dev = solo_pcm->solo_dev;
+	int err, i;
+
+	for (i = 0; i < (count / G723_FRAMES_PER_PAGE); i++) {
+		int page = (pos / G723_FRAMES_PER_PAGE) + i;
+
+		err = solo_p2m_dma_t(solo_dev, 0, solo_pcm->g723_dma,
+				     SOLO_G723_EXT_ADDR(solo_dev) +
+				     (page * G723_PERIOD_BLOCK) +
+				     (ss->number * G723_PERIOD_BYTES),
+				     G723_PERIOD_BYTES, 0, 0);
+		if (err)
+			return err;
+
+		memcpy(dst, solo_pcm->g723_buf, G723_PERIOD_BYTES);
+		dst += G723_PERIOD_BYTES;
 	}
 
 	return 0;
@@ -261,7 +276,8 @@ static const struct snd_pcm_ops snd_solo_pcm_ops = {
 	.prepare = snd_solo_pcm_prepare,
 	.trigger = snd_solo_pcm_trigger,
 	.pointer = snd_solo_pcm_pointer,
-	.copy = snd_solo_pcm_copy,
+	.copy_user = snd_solo_pcm_copy_user,
+	.copy_kernel = snd_solo_pcm_copy_kernel,
 };
 
 static int snd_solo_capture_volume_info(struct snd_kcontrol *kcontrol,
@@ -303,7 +319,7 @@ static int snd_solo_capture_volume_put(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
-static struct snd_kcontrol_new snd_solo_capture_volume = {
+static const struct snd_kcontrol_new snd_solo_capture_volume = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Capture Volume",
 	.info = snd_solo_capture_volume_info,
@@ -329,19 +345,17 @@ static int solo_snd_pcm_init(struct solo_dev *solo_dev)
 
 	snd_pcm_chip(pcm) = solo_dev;
 	pcm->info_flags = 0;
-	strcpy(pcm->name, card->shortname);
+	strscpy(pcm->name, card->shortname, sizeof(pcm->name));
 
 	for (i = 0, ss = pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream;
 	     ss; ss = ss->next, i++)
 		sprintf(ss->name, "Camera #%d Audio", i);
 
-	ret = snd_pcm_lib_preallocate_pages_for_all(pcm,
+	snd_pcm_lib_preallocate_pages_for_all(pcm,
 					SNDRV_DMA_TYPE_CONTINUOUS,
 					snd_dma_continuous_data(GFP_KERNEL),
 					G723_PERIOD_BYTES * PERIODS,
 					G723_PERIOD_BYTES * PERIODS);
-	if (ret < 0)
-		return ret;
 
 	solo_dev->snd_pcm = pcm;
 
@@ -350,7 +364,7 @@ static int solo_snd_pcm_init(struct solo_dev *solo_dev)
 
 int solo_g723_init(struct solo_dev *solo_dev)
 {
-	static struct snd_device_ops ops = { NULL };
+	static struct snd_device_ops ops = { };
 	struct snd_card *card;
 	struct snd_kcontrol_new kctl;
 	char name[32];
@@ -369,8 +383,8 @@ int solo_g723_init(struct solo_dev *solo_dev)
 
 	card = solo_dev->snd_card;
 
-	strcpy(card->driver, SOLO6X10_NAME);
-	strcpy(card->shortname, "SOLO-6x10 Audio");
+	strscpy(card->driver, SOLO6X10_NAME, sizeof(card->driver));
+	strscpy(card->shortname, "SOLO-6x10 Audio", sizeof(card->shortname));
 	sprintf(card->longname, "%s on %s IRQ %d", card->shortname,
 		pci_name(solo_dev->pdev), solo_dev->pdev->irq);
 
@@ -379,7 +393,7 @@ int solo_g723_init(struct solo_dev *solo_dev)
 		goto snd_error;
 
 	/* Mixer controls */
-	strcpy(card->mixername, "SOLO-6x10");
+	strscpy(card->mixername, "SOLO-6x10", sizeof(card->mixername));
 	kctl = snd_solo_capture_volume;
 	kctl.count = solo_dev->nr_chans;
 

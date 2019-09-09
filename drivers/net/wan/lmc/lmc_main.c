@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
  /*
   * Copyright (c) 1997-2000 LAN Media Corporation (LMC)
   * All rights reserved.  www.lanmedia.com
@@ -13,9 +14,6 @@
   * David Boggs
   * Ron Crane
   * Alan Cox
-  *
-  * This software may be used and distributed according to the terms
-  * of the GNU General Public License version 2, incorporated herein by reference.
   *
   * Driver for the LanMedia LMC5200, LMC5245, LMC1000, LMC1200 cards.
   *
@@ -34,7 +32,6 @@
   * we still have link, and that the timing source is what we expected
   * it to be.  If link is lost, the interface is marked down, and
   * we no longer can transmit.
-  *
   */
 
 #include <linux/kernel.h>
@@ -59,7 +56,7 @@
 #include <asm/processor.h>             /* Processor type for cache alignment. */
 #include <asm/io.h>
 #include <asm/dma.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 //#include <asm/spinlock.h>
 
 #define DRIVER_MAJOR_VERSION     1
@@ -99,7 +96,7 @@ static void lmc_initcsrs(lmc_softc_t * const sc, lmc_csrptr_t csr_base, size_t c
 static void lmc_softreset(lmc_softc_t * const);
 static void lmc_running_reset(struct net_device *dev);
 static int lmc_ifdown(struct net_device * const);
-static void lmc_watchdog(unsigned long data);
+static void lmc_watchdog(struct timer_list *t);
 static void lmc_reset(lmc_softc_t * const sc);
 static void lmc_dec_reset(lmc_softc_t * const sc);
 static void lmc_driver_timeout(struct net_device *dev);
@@ -494,17 +491,10 @@ int lmc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd) /*fold00*/
                             break;
                     }
 
-                    data = kmalloc(xc.len, GFP_KERNEL);
-                    if (!data) {
-                            ret = -ENOMEM;
+                    data = memdup_user(xc.data, xc.len);
+                    if (IS_ERR(data)) {
+                            ret = PTR_ERR(data);
                             break;
-                    }
-                    
-                    if(copy_from_user(data, xc.data, xc.len))
-                    {
-                    	kfree(data);
-                    	ret = -ENOMEM;
-                    	break;
                     }
 
                     printk("%s: Starting load of data Len: %d at 0x%p == 0x%p\n", dev->name, xc.len, xc.data, data);
@@ -636,10 +626,10 @@ int lmc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd) /*fold00*/
 
 
 /* the watchdog process that cruises around */
-static void lmc_watchdog (unsigned long data) /*fold00*/
+static void lmc_watchdog(struct timer_list *t) /*fold00*/
 {
-    struct net_device *dev = (struct net_device *)data;
-    lmc_softc_t *sc = dev_to_sc(dev);
+    lmc_softc_t *sc = from_timer(sc, t, timer);
+    struct net_device *dev = sc->lmc_device;
     int link_status;
     u32 ticks;
     unsigned long flags;
@@ -808,7 +798,6 @@ static int lmc_attach(struct net_device *dev, unsigned short encoding,
 static const struct net_device_ops lmc_ops = {
 	.ndo_open       = lmc_open,
 	.ndo_stop       = lmc_close,
-	.ndo_change_mtu = hdlc_change_mtu,
 	.ndo_start_xmit = hdlc_start_xmit,
 	.ndo_do_ioctl   = lmc_ioctl,
 	.ndo_tx_timeout = lmc_driver_timeout,
@@ -1085,10 +1074,8 @@ static int lmc_open(struct net_device *dev)
      * Setup a timer for the watchdog on probe, and start it running.
      * Since lmc_ok == 0, it will be a NOP for now.
      */
-    init_timer (&sc->timer);
+    timer_setup(&sc->timer, lmc_watchdog, 0);
     sc->timer.expires = jiffies + HZ;
-    sc->timer.data = (unsigned long) dev;
-    sc->timer.function = lmc_watchdog;
     add_timer (&sc->timer);
 
     lmc_trace(dev, "lmc_open out");
@@ -1330,8 +1317,7 @@ static irqreturn_t lmc_interrupt (int irq, void *dev_instance) /*fold00*/
 			sc->lmc_device->stats.tx_packets++;
                 }
 
-                //                dev_kfree_skb(sc->lmc_txq[i]);
-                dev_kfree_skb_irq(sc->lmc_txq[i]);
+		dev_consume_skb_irq(sc->lmc_txq[i]);
                 sc->lmc_txq[i] = NULL;
 
                 badtx++;
@@ -1372,7 +1358,7 @@ static irqreturn_t lmc_interrupt (int irq, void *dev_instance) /*fold00*/
             case 0x001:
                 printk(KERN_WARNING "%s: Master Abort (naughty)\n", dev->name);
                 break;
-            case 0x010:
+            case 0x002:
                 printk(KERN_WARNING "%s: Target Abort (not so naughty)\n", dev->name);
                 break;
             default:
@@ -1501,7 +1487,6 @@ static int lmc_rx(struct net_device *dev)
     lmc_softc_t *sc = dev_to_sc(dev);
     int i;
     int rx_work_limit = LMC_RXDESCS;
-    unsigned int next_rx;
     int rxIntLoopCnt;		/* debug -baz */
     int localLengthErrCnt = 0;
     long stat;
@@ -1515,7 +1500,6 @@ static int lmc_rx(struct net_device *dev)
     rxIntLoopCnt = 0;		/* debug -baz */
 
     i = sc->lmc_next_rx % LMC_RXDESCS;
-    next_rx = sc->lmc_next_rx;
 
     while (((stat = sc->lmc_rxring[i].status) & LMC_RDES_OWN_BIT) != DESC_OWNED_BY_DC21X4)
     {

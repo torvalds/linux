@@ -1,0 +1,61 @@
+STMicroelectronics Flexible Memory Controller 2 (FMC2)
+NAND Interface
+
+Required properties:
+- compatible: Should be one of:
+              * st,stm32mp15-fmc2
+- reg: NAND flash controller memory areas.
+       First region contains the register location.
+       Regions 2 to 4 respectively contain the data, command,
+       and address space for CS0.
+       Regions 5 to 7 contain the same areas for CS1.
+- interrupts: The interrupt number
+- pinctrl-0: Standard Pinctrl phandle (see: pinctrl/pinctrl-bindings.txt)
+- clocks: The clock needed by the NAND flash controller
+
+Optional properties:
+- resets: Reference to a reset controller asserting the FMC controller
+- dmas: DMA specifiers (see: dma/stm32-mdma.txt)
+- dma-names: Must be "tx", "rx" and "ecc"
+
+* NAND device bindings:
+
+Required properties:
+- reg: describes the CS lines assigned to the NAND device.
+
+Optional properties:
+- nand-on-flash-bbt: see nand-controller.yaml
+- nand-ecc-strength: see nand-controller.yaml
+- nand-ecc-step-size: see nand-controller.yaml
+
+The following ECC strength and step size are currently supported:
+ - nand-ecc-strength = <1>, nand-ecc-step-size = <512> (Hamming)
+ - nand-ecc-strength = <4>, nand-ecc-step-size = <512> (BCH4)
+ - nand-ecc-strength = <8>, nand-ecc-step-size = <512> (BCH8) (default)
+
+Example:
+
+	fmc: nand-controller@58002000 {
+		compatible = "st,stm32mp15-fmc2";
+		reg = <0x58002000 0x1000>,
+		      <0x80000000 0x1000>,
+		      <0x88010000 0x1000>,
+		      <0x88020000 0x1000>,
+		      <0x81000000 0x1000>,
+		      <0x89010000 0x1000>,
+		      <0x89020000 0x1000>;
+		interrupts = <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&rcc FMC_K>;
+		resets = <&rcc FMC_R>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&fmc_pins_a>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		nand@0 {
+			reg = <0>;
+			nand-on-flash-bbt;
+			#address-cells = <1>;
+			#size-cells = <1>;
+		};
+	};

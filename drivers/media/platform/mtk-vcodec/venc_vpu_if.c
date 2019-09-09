@@ -1,16 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2016 MediaTek Inc.
  * Author: PoChun Lin <pochun.lin@mediatek.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include "mtk_vpu.h"
@@ -79,10 +70,8 @@ static int vpu_enc_send_msg(struct venc_vpu_inst *vpu, void *msg,
 
 	status = vpu_ipi_send(vpu->dev, vpu->id, msg, len);
 	if (status) {
-		uint32_t msg_id = *(uint32_t *)msg;
-
 		mtk_vcodec_err(vpu, "vpu_ipi_send msg_id %x len %d fail %d",
-			       msg_id, len, status);
+			       *(uint32_t *)msg, len, status);
 		return -EINVAL;
 	}
 	if (vpu->failure)

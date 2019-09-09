@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "tests/tests.h"
 #include "perf.h"
 #include "cloexec.h"
@@ -5,8 +6,12 @@
 #include "evlist.h"
 #include "evsel.h"
 #include "arch-tests.h"
+#include "util.h"
 
+#include <signal.h>
 #include <sys/mman.h>
+#include <sys/wait.h>
+#include <errno.h>
 #include <string.h>
 
 static pid_t spawn(void)
@@ -33,7 +38,7 @@ static pid_t spawn(void)
  * the last read counter value to avoid triggering a WARN_ON_ONCE() in
  * smp_call_function_many() caused by sending IPIs from NMI context.
  */
-int test__intel_cqm_count_nmi_context(int subtest __maybe_unused)
+int test__intel_cqm_count_nmi_context(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	struct perf_evlist *evlist = NULL;
 	struct perf_evsel *evsel = NULL;

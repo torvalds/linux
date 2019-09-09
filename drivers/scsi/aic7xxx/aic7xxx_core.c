@@ -40,15 +40,9 @@
  * $Id: //depot/aic7xxx/aic7xxx/aic7xxx.c#155 $
  */
 
-#ifdef __linux__
 #include "aic7xxx_osm.h"
 #include "aic7xxx_inline.h"
 #include "aicasm/aicasm_insformat.h"
-#else
-#include <dev/aic7xxx/aic7xxx_osm.h>
-#include <dev/aic7xxx/aic7xxx_inline.h>
-#include <dev/aic7xxx/aicasm/aicasm_insformat.h>
-#endif
 
 /***************************** Lookup Tables **********************************/
 static const char *const ahc_chip_names[] = {
@@ -67,7 +61,6 @@ static const char *const ahc_chip_names[] = {
 	"aic7892",
 	"aic7899"
 };
-static const u_int num_chip_names = ARRAY_SIZE(ahc_chip_names);
 
 /*
  * Hardware error codes.
@@ -1673,7 +1666,7 @@ ahc_handle_scsiint(struct ahc_softc *ahc, u_int intstat)
 					printk("\tCRC Value Mismatch\n");
 				if ((sstat2 & CRCENDERR) != 0)
 					printk("\tNo terminal CRC packet "
-					       "recevied\n");
+					       "received\n");
 				if ((sstat2 & CRCREQERR) != 0)
 					printk("\tIllegal CRC packet "
 					       "request\n");
@@ -2212,7 +2205,7 @@ ahc_free_tstate(struct ahc_softc *ahc, u_int scsi_id, char channel, int force)
  * by the capabilities of the bus connectivity of and sync settings for
  * the target.
  */
-const struct ahc_syncrate *
+static const struct ahc_syncrate *
 ahc_devlimited_syncrate(struct ahc_softc *ahc,
 			struct ahc_initiator_tinfo *tinfo,
 			u_int *period, u_int *ppr_options, role_t role)
@@ -4509,17 +4502,11 @@ ahc_free(struct ahc_softc *ahc)
 	case 2:
 		ahc_dma_tag_destroy(ahc, ahc->shared_data_dmat);
 	case 1:
-#ifndef __linux__
-		ahc_dma_tag_destroy(ahc, ahc->buffer_dmat);
-#endif
 		break;
 	case 0:
 		break;
 	}
 
-#ifndef __linux__
-	ahc_dma_tag_destroy(ahc, ahc->parent_dmat);
-#endif
 	ahc_platform_free(ahc);
 	ahc_fini_scbdata(ahc);
 	for (i = 0; i < AHC_NUM_TARGETS; i++) {
@@ -4779,8 +4766,8 @@ ahc_init_scbdata(struct ahc_softc *ahc)
 	SLIST_INIT(&scb_data->sg_maps);
 
 	/* Allocate SCB resources */
-	scb_data->scbarray = kzalloc(sizeof(struct scb) * AHC_SCB_MAX_ALLOC,
-				GFP_ATOMIC);
+	scb_data->scbarray = kcalloc(AHC_SCB_MAX_ALLOC, sizeof(struct scb),
+				     GFP_ATOMIC);
 	if (scb_data->scbarray == NULL)
 		return (ENOMEM);
 
@@ -4933,24 +4920,30 @@ ahc_fini_scbdata(struct ahc_softc *ahc)
 		}
 		ahc_dma_tag_destroy(ahc, scb_data->sg_dmat);
 	}
+		/* fall through */
 	case 6:
 		ahc_dmamap_unload(ahc, scb_data->sense_dmat,
 				  scb_data->sense_dmamap);
+		/* fall through */
 	case 5:
 		ahc_dmamem_free(ahc, scb_data->sense_dmat, scb_data->sense,
 				scb_data->sense_dmamap);
 		ahc_dmamap_destroy(ahc, scb_data->sense_dmat,
 				   scb_data->sense_dmamap);
+		/* fall through */
 	case 4:
 		ahc_dma_tag_destroy(ahc, scb_data->sense_dmat);
+		/* fall through */
 	case 3:
 		ahc_dmamap_unload(ahc, scb_data->hscb_dmat,
 				  scb_data->hscb_dmamap);
+		/* fall through */
 	case 2:
 		ahc_dmamem_free(ahc, scb_data->hscb_dmat, scb_data->hscbs,
 				scb_data->hscb_dmamap);
 		ahc_dmamap_destroy(ahc, scb_data->hscb_dmat,
 				   scb_data->hscb_dmamap);
+		/* fall through */
 	case 1:
 		ahc_dma_tag_destroy(ahc, scb_data->hscb_dmat);
 		break;
@@ -5005,9 +4998,7 @@ ahc_alloc_scbs(struct ahc_softc *ahc)
 	newcount = min(newcount, (AHC_SCB_MAX_ALLOC - scb_data->numscbs));
 	for (i = 0; i < newcount; i++) {
 		struct scb_platform_data *pdata;
-#ifndef __linux__
-		int error;
-#endif
+
 		pdata = kmalloc(sizeof(*pdata), GFP_ATOMIC);
 		if (pdata == NULL)
 			break;
@@ -5021,12 +5012,6 @@ ahc_alloc_scbs(struct ahc_softc *ahc)
 		next_scb->sg_list_phys = physaddr + sizeof(struct ahc_dma_seg);
 		next_scb->ahc_softc = ahc;
 		next_scb->flags = SCB_FREE;
-#ifndef __linux__
-		error = ahc_dmamap_create(ahc, ahc->buffer_dmat, /*flags*/0,
-					  &next_scb->dmamap);
-		if (error != 0)
-			break;
-#endif
 		next_scb->hscb = &scb_data->hscbs[scb_data->numscbs];
 		next_scb->hscb->tag = ahc->scb_data->numscbs;
 		SLIST_INSERT_HEAD(&ahc->scb_data->free_scbs,
@@ -5324,24 +5309,6 @@ ahc_init(struct ahc_softc *ahc)
 	 */
 	if ((AHC_TMODE_ENABLE & (0x1 << ahc->unit)) == 0)
 		ahc->features &= ~AHC_TARGETMODE;
-
-#ifndef __linux__
-	/* DMA tag for mapping buffers into device visible space. */
-	if (ahc_dma_tag_create(ahc, ahc->parent_dmat, /*alignment*/1,
-			       /*boundary*/BUS_SPACE_MAXADDR_32BIT + 1,
-			       /*lowaddr*/ahc->flags & AHC_39BIT_ADDRESSING
-					? (dma_addr_t)0x7FFFFFFFFFULL
-					: BUS_SPACE_MAXADDR_32BIT,
-			       /*highaddr*/BUS_SPACE_MAXADDR,
-			       /*filter*/NULL, /*filterarg*/NULL,
-			       /*maxsize*/(AHC_NSEG - 1) * PAGE_SIZE,
-			       /*nsegments*/AHC_NSEG,
-			       /*maxsegsz*/AHC_MAXTRANSFER_SIZE,
-			       /*flags*/BUS_DMA_ALLOCNOW,
-			       &ahc->buffer_dmat) != 0) {
-		return (ENOMEM);
-	}
-#endif
 
 	ahc->init_level++;
 
@@ -6041,8 +6008,8 @@ ahc_search_qinfifo(struct ahc_softc *ahc, int target, char channel,
 				if ((scb->flags & SCB_ACTIVE) == 0)
 					printk("Inactive SCB in Waiting List\n");
 				ahc_done(ahc, scb);
-				/* FALLTHROUGH */
 			}
+				/* fall through */
 			case SEARCH_REMOVE:
 				next = ahc_rem_wscb(ahc, next, prev);
 				break;
@@ -6848,9 +6815,9 @@ ahc_dumpseq(struct ahc_softc* ahc)
 static int
 ahc_loadseq(struct ahc_softc *ahc)
 {
-	struct	cs cs_table[num_critical_sections];
-	u_int	begin_set[num_critical_sections];
-	u_int	end_set[num_critical_sections];
+	struct	cs cs_table[NUM_CRITICAL_SECTIONS];
+	u_int	begin_set[NUM_CRITICAL_SECTIONS];
+	u_int	end_set[NUM_CRITICAL_SECTIONS];
 	const struct patch *cur_patch;
 	u_int	cs_count;
 	u_int	cur_cs;
@@ -6915,7 +6882,7 @@ ahc_loadseq(struct ahc_softc *ahc)
 		 * Move through the CS table until we find a CS
 		 * that might apply to this instruction.
 		 */
-		for (; cur_cs < num_critical_sections; cur_cs++) {
+		for (; cur_cs < NUM_CRITICAL_SECTIONS; cur_cs++) {
 			if (critical_sections[cur_cs].end <= i) {
 				if (begin_set[cs_count] == TRUE
 				 && end_set[cs_count] == FALSE) {
@@ -7047,8 +7014,8 @@ ahc_download_instr(struct ahc_softc *ahc, u_int instrptr, uint8_t *dconsts)
 		}
 		address -= address_offset;
 		fmt3_ins->address = address;
-		/* FALLTHROUGH */
 	}
+		/* fall through */
 	case AIC_OP_OR:
 	case AIC_OP_AND:
 	case AIC_OP_XOR:
@@ -7074,7 +7041,7 @@ ahc_download_instr(struct ahc_softc *ahc, u_int instrptr, uint8_t *dconsts)
 			fmt1_ins->opcode = AIC_OP_AND;
 			fmt1_ins->immediate = 0xff;
 		}
-		/* FALLTHROUGH */
+		/* fall through */
 	case AIC_OP_ROL:
 		if ((ahc->features & AHC_ULTRA2) != 0) {
 			int i, count;
@@ -7340,7 +7307,6 @@ ahc_dump_card_state(struct ahc_softc *ahc)
 		printk("\n");
 	}
 
-	ahc_platform_dump_card_state(ahc);
 	printk("\n<<<<<<<<<<<<<<<<< Dump Card State Ends >>>>>>>>>>>>>>>>>>\n");
 	ahc_outb(ahc, SCBPTR, saved_scbptr);
 	if (paused == 0)

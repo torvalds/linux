@@ -1,7 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/init.h>
 #include <linux/if_ether.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
+#include <linux/dma-mapping.h>
 
 #include <asm/paccess.h>
 #include <asm/sgi/ip22.h>
@@ -24,6 +26,8 @@ static struct sgiwd93_platform_data sgiwd93_0_pd = {
 	.irq	= SGI_WD93_0_IRQ,
 };
 
+static u64 sgiwd93_0_dma_mask = DMA_BIT_MASK(32);
+
 static struct platform_device sgiwd93_0_device = {
 	.name		= "sgiwd93",
 	.id		= 0,
@@ -31,6 +35,8 @@ static struct platform_device sgiwd93_0_device = {
 	.resource	= sgiwd93_0_resources,
 	.dev = {
 		.platform_data = &sgiwd93_0_pd,
+		.dma_mask = &sgiwd93_0_dma_mask,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
 	},
 };
 
@@ -48,6 +54,8 @@ static struct sgiwd93_platform_data sgiwd93_1_pd = {
 	.irq	= SGI_WD93_1_IRQ,
 };
 
+static u64 sgiwd93_1_dma_mask = DMA_BIT_MASK(32);
+
 static struct platform_device sgiwd93_1_device = {
 	.name		= "sgiwd93",
 	.id		= 1,
@@ -55,6 +63,8 @@ static struct platform_device sgiwd93_1_device = {
 	.resource	= sgiwd93_1_resources,
 	.dev = {
 		.platform_data = &sgiwd93_1_pd,
+		.dma_mask = &sgiwd93_1_dma_mask,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
 	},
 };
 
@@ -95,6 +105,8 @@ static struct resource sgiseeq_0_resources[] = {
 
 static struct sgiseeq_platform_data eth0_pd;
 
+static u64 sgiseeq_dma_mask = DMA_BIT_MASK(32);
+
 static struct platform_device eth0_device = {
 	.name		= "sgiseeq",
 	.id		= 0,
@@ -102,6 +114,8 @@ static struct platform_device eth0_device = {
 	.resource	= sgiseeq_0_resources,
 	.dev = {
 		.platform_data = &eth0_pd,
+		.dma_mask = &sgiseeq_dma_mask,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
 	},
 };
 

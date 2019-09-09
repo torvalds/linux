@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifdef CONFIG_KGDB
 	.globl		arch_kgdb_breakpoint
 	.type		arch_kgdb_breakpoint,#function
@@ -82,6 +83,7 @@ do_stdfmna:
 	call		handle_stdfmna
 	 add		%sp, PTREGS_OFF, %o0
 	ba,a,pt		%xcc, rtrap
+	 nop
 	.size		do_stdfmna,.-do_stdfmna
 
 	.type		breakpoint_trap,#function

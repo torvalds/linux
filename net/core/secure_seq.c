@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright (C) 2016 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
+ */
+
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/cryptohash.h>
@@ -8,17 +13,24 @@
 #include <linux/ktime.h>
 #include <linux/string.h>
 #include <linux/net.h>
-
+#include <linux/siphash.h>
 #include <net/secure_seq.h>
 
 #if IS_ENABLED(CONFIG_IPV6) || IS_ENABLED(CONFIG_INET)
-#define NET_SECRET_SIZE (MD5_MESSAGE_BYTES / 4)
+#include <linux/in6.h>
+#include <net/tcp.h>
 
-static u32 net_secret[NET_SECRET_SIZE] ____cacheline_aligned;
+static siphash_key_t net_secret __read_mostly;
+static siphash_key_t ts_secret __read_mostly;
 
 static __always_inline void net_secret_init(void)
 {
-	net_get_random_once(net_secret, sizeof(net_secret));
+	net_get_random_once(&net_secret, sizeof(net_secret));
+}
+
+static __always_inline void ts_secret_init(void)
+{
+	net_get_random_once(&ts_secret, sizeof(ts_secret));
 }
 #endif
 
@@ -40,81 +52,102 @@ static u32 seq_scale(u32 seq)
 #endif
 
 #if IS_ENABLED(CONFIG_IPV6)
-__u32 secure_tcpv6_sequence_number(const __be32 *saddr, const __be32 *daddr,
-				   __be16 sport, __be16 dport)
+u32 secure_tcpv6_ts_off(const struct net *net,
+			const __be32 *saddr, const __be32 *daddr)
 {
-	u32 secret[MD5_MESSAGE_BYTES / 4];
-	u32 hash[MD5_DIGEST_WORDS];
-	u32 i;
+	const struct {
+		struct in6_addr saddr;
+		struct in6_addr daddr;
+	} __aligned(SIPHASH_ALIGNMENT) combined = {
+		.saddr = *(struct in6_addr *)saddr,
+		.daddr = *(struct in6_addr *)daddr,
+	};
+
+	if (net->ipv4.sysctl_tcp_timestamps != 1)
+		return 0;
+
+	ts_secret_init();
+	return siphash(&combined, offsetofend(typeof(combined), daddr),
+		       &ts_secret);
+}
+EXPORT_SYMBOL(secure_tcpv6_ts_off);
+
+u32 secure_tcpv6_seq(const __be32 *saddr, const __be32 *daddr,
+		     __be16 sport, __be16 dport)
+{
+	const struct {
+		struct in6_addr saddr;
+		struct in6_addr daddr;
+		__be16 sport;
+		__be16 dport;
+	} __aligned(SIPHASH_ALIGNMENT) combined = {
+		.saddr = *(struct in6_addr *)saddr,
+		.daddr = *(struct in6_addr *)daddr,
+		.sport = sport,
+		.dport = dport
+	};
+	u32 hash;
 
 	net_secret_init();
-	memcpy(hash, saddr, 16);
-	for (i = 0; i < 4; i++)
-		secret[i] = net_secret[i] + (__force u32)daddr[i];
-	secret[4] = net_secret[4] +
-		(((__force u16)sport << 16) + (__force u16)dport);
-	for (i = 5; i < MD5_MESSAGE_BYTES / 4; i++)
-		secret[i] = net_secret[i];
-
-	md5_transform(hash, secret);
-
-	return seq_scale(hash[0]);
+	hash = siphash(&combined, offsetofend(typeof(combined), dport),
+		       &net_secret);
+	return seq_scale(hash);
 }
-EXPORT_SYMBOL(secure_tcpv6_sequence_number);
+EXPORT_SYMBOL(secure_tcpv6_seq);
 
 u32 secure_ipv6_port_ephemeral(const __be32 *saddr, const __be32 *daddr,
 			       __be16 dport)
 {
-	u32 secret[MD5_MESSAGE_BYTES / 4];
-	u32 hash[MD5_DIGEST_WORDS];
-	u32 i;
-
+	const struct {
+		struct in6_addr saddr;
+		struct in6_addr daddr;
+		__be16 dport;
+	} __aligned(SIPHASH_ALIGNMENT) combined = {
+		.saddr = *(struct in6_addr *)saddr,
+		.daddr = *(struct in6_addr *)daddr,
+		.dport = dport
+	};
 	net_secret_init();
-	memcpy(hash, saddr, 16);
-	for (i = 0; i < 4; i++)
-		secret[i] = net_secret[i] + (__force u32) daddr[i];
-	secret[4] = net_secret[4] + (__force u32)dport;
-	for (i = 5; i < MD5_MESSAGE_BYTES / 4; i++)
-		secret[i] = net_secret[i];
-
-	md5_transform(hash, secret);
-
-	return hash[0];
+	return siphash(&combined, offsetofend(typeof(combined), dport),
+		       &net_secret);
 }
 EXPORT_SYMBOL(secure_ipv6_port_ephemeral);
 #endif
 
 #ifdef CONFIG_INET
-
-__u32 secure_tcp_sequence_number(__be32 saddr, __be32 daddr,
-				 __be16 sport, __be16 dport)
+u32 secure_tcp_ts_off(const struct net *net, __be32 saddr, __be32 daddr)
 {
-	u32 hash[MD5_DIGEST_WORDS];
+	if (net->ipv4.sysctl_tcp_timestamps != 1)
+		return 0;
+
+	ts_secret_init();
+	return siphash_2u32((__force u32)saddr, (__force u32)daddr,
+			    &ts_secret);
+}
+
+/* secure_tcp_seq_and_tsoff(a, b, 0, d) == secure_ipv4_port_ephemeral(a, b, d),
+ * but fortunately, `sport' cannot be 0 in any circumstances. If this changes,
+ * it would be easy enough to have the former function use siphash_4u32, passing
+ * the arguments as separate u32.
+ */
+u32 secure_tcp_seq(__be32 saddr, __be32 daddr,
+		   __be16 sport, __be16 dport)
+{
+	u32 hash;
 
 	net_secret_init();
-	hash[0] = (__force u32)saddr;
-	hash[1] = (__force u32)daddr;
-	hash[2] = ((__force u16)sport << 16) + (__force u16)dport;
-	hash[3] = net_secret[15];
-
-	md5_transform(hash, net_secret);
-
-	return seq_scale(hash[0]);
+	hash = siphash_3u32((__force u32)saddr, (__force u32)daddr,
+			    (__force u32)sport << 16 | (__force u32)dport,
+			    &net_secret);
+	return seq_scale(hash);
 }
+EXPORT_SYMBOL_GPL(secure_tcp_seq);
 
 u32 secure_ipv4_port_ephemeral(__be32 saddr, __be32 daddr, __be16 dport)
 {
-	u32 hash[MD5_DIGEST_WORDS];
-
 	net_secret_init();
-	hash[0] = (__force u32)saddr;
-	hash[1] = (__force u32)daddr;
-	hash[2] = (__force u32)dport ^ net_secret[14];
-	hash[3] = net_secret[15];
-
-	md5_transform(hash, net_secret);
-
-	return hash[0];
+	return siphash_3u32((__force u32)saddr, (__force u32)daddr,
+			    (__force u16)dport, &net_secret);
 }
 EXPORT_SYMBOL_GPL(secure_ipv4_port_ephemeral);
 #endif
@@ -123,21 +156,13 @@ EXPORT_SYMBOL_GPL(secure_ipv4_port_ephemeral);
 u64 secure_dccp_sequence_number(__be32 saddr, __be32 daddr,
 				__be16 sport, __be16 dport)
 {
-	u32 hash[MD5_DIGEST_WORDS];
 	u64 seq;
-
 	net_secret_init();
-	hash[0] = (__force u32)saddr;
-	hash[1] = (__force u32)daddr;
-	hash[2] = ((__force u16)sport << 16) + (__force u16)dport;
-	hash[3] = net_secret[15];
-
-	md5_transform(hash, net_secret);
-
-	seq = hash[0] | (((u64)hash[1]) << 32);
+	seq = siphash_3u32((__force u32)saddr, (__force u32)daddr,
+			   (__force u32)sport << 16 | (__force u32)dport,
+			   &net_secret);
 	seq += ktime_get_real_ns();
 	seq &= (1ull << 48) - 1;
-
 	return seq;
 }
 EXPORT_SYMBOL(secure_dccp_sequence_number);
@@ -146,26 +171,23 @@ EXPORT_SYMBOL(secure_dccp_sequence_number);
 u64 secure_dccpv6_sequence_number(__be32 *saddr, __be32 *daddr,
 				  __be16 sport, __be16 dport)
 {
-	u32 secret[MD5_MESSAGE_BYTES / 4];
-	u32 hash[MD5_DIGEST_WORDS];
+	const struct {
+		struct in6_addr saddr;
+		struct in6_addr daddr;
+		__be16 sport;
+		__be16 dport;
+	} __aligned(SIPHASH_ALIGNMENT) combined = {
+		.saddr = *(struct in6_addr *)saddr,
+		.daddr = *(struct in6_addr *)daddr,
+		.sport = sport,
+		.dport = dport
+	};
 	u64 seq;
-	u32 i;
-
 	net_secret_init();
-	memcpy(hash, saddr, 16);
-	for (i = 0; i < 4; i++)
-		secret[i] = net_secret[i] + (__force u32)daddr[i];
-	secret[4] = net_secret[4] +
-		(((__force u16)sport << 16) + (__force u16)dport);
-	for (i = 5; i < MD5_MESSAGE_BYTES / 4; i++)
-		secret[i] = net_secret[i];
-
-	md5_transform(hash, secret);
-
-	seq = hash[0] | (((u64)hash[1]) << 32);
+	seq = siphash(&combined, offsetofend(typeof(combined), dport),
+		      &net_secret);
 	seq += ktime_get_real_ns();
 	seq &= (1ull << 48) - 1;
-
 	return seq;
 }
 EXPORT_SYMBOL(secure_dccpv6_sequence_number);

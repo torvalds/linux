@@ -1,9 +1,7 @@
-menu "Kernel hacking"
+# SPDX-License-Identifier: GPL-2.0
 
 config TRACE_IRQFLAGS_SUPPORT
 	def_bool y
-
-source "lib/Kconfig.debug"
 
 config SH_STANDARD_BIOS
 	bool "Use LinuxSH standard BIOS"
@@ -87,5 +85,3 @@ config MCOUNT
 	def_bool y
 	depends on SUPERH32
 	depends on STACK_DEBUG || FUNCTION_TRACER
-
-endmenu

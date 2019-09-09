@@ -1,14 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * DTS file for all SPEAr1310 SoCs
  *
  * Copyright 2012 Viresh Kumar <vireshk@kernel.org>
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
  */
 
 /include/ "spear13xx.dtsi"
@@ -98,6 +92,7 @@
 			device_type = "pci";
 			ranges = <0x81000000 0 0	 0x80020000 0 0x00010000   /* downstream I/O */
 				0x82000000 0 0x80030000 0xc0030000 0 0x0ffd0000>; /* non-prefetchable memory */
+			bus-range = <0x00 0xff>;
 			status = "disabled";
 		};
 
@@ -116,6 +111,7 @@
 			device_type = "pci";
 			ranges = <0x81000000 0 0  0x90020000 0 0x00010000   /* downstream I/O */
 				0x82000000 0 0x90030000 0x90030000 0 0x0ffd0000>; /* non-prefetchable memory */
+			bus-range = <0x00 0xff>;
 			status = "disabled";
 		};
 
@@ -134,6 +130,7 @@
 			device_type = "pci";
 			ranges = <0x81000000 0 0	 0xc0020000 0 0x00010000   /* downstream I/O */
 				0x82000000 0 0xc0030000 0xc0030000 0 0x0ffd0000>; /* non-prefetchable memory */
+			bus-range = <0x00 0xff>;
 			status = "disabled";
 		};
 

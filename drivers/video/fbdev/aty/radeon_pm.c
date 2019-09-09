@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *	drivers/video/aty/radeon_pm.c
  *
@@ -1207,9 +1208,11 @@ static void radeon_pm_enable_dll_m10(struct radeonfb_info *rinfo)
 	case 1:
 		if (mc & 0x4)
 			break;
+		/* fall through */
 	case 2:
 		dll_sleep_mask |= MDLL_R300_RDCK__MRDCKB_SLEEP;
 		dll_reset_mask |= MDLL_R300_RDCK__MRDCKB_RESET;
+		/* fall through */
 	case 0:
 		dll_sleep_mask |= MDLL_R300_RDCK__MRDCKA_SLEEP;
 		dll_reset_mask |= MDLL_R300_RDCK__MRDCKA_RESET;
@@ -1218,6 +1221,7 @@ static void radeon_pm_enable_dll_m10(struct radeonfb_info *rinfo)
 	case 1:
 		if (!(mc & 0x4))
 			break;
+		/* fall through */
 	case 2:
 		dll_sleep_mask |= MDLL_R300_RDCK__MRDCKD_SLEEP;
 		dll_reset_mask |= MDLL_R300_RDCK__MRDCKD_RESET;
@@ -2674,17 +2678,17 @@ int radeonfb_pci_suspend(struct pci_dev *pdev, pm_message_t mesg)
 		 * it, we'll restore the dynamic clocks state on wakeup
 		 */
 		radeon_pm_disable_dynamic_mode(rinfo);
-		mdelay(50);
+		msleep(50);
 		radeon_pm_save_regs(rinfo, 1);
 
 		if (rinfo->is_mobility && !(rinfo->pm_mode & radeon_pm_d2)) {
 			/* Switch off LVDS interface */
-			mdelay(1);
+			usleep_range(1000, 2000);
 			OUTREG(LVDS_GEN_CNTL, INREG(LVDS_GEN_CNTL) & ~(LVDS_BL_MOD_EN));
-			mdelay(1);
+			usleep_range(1000, 2000);
 			OUTREG(LVDS_GEN_CNTL, INREG(LVDS_GEN_CNTL) & ~(LVDS_EN | LVDS_ON));
 			OUTREG(LVDS_PLL_CNTL, (INREG(LVDS_PLL_CNTL) & ~30000) | 0x20000);
-			mdelay(20);
+			msleep(20);
 			OUTREG(LVDS_GEN_CNTL, INREG(LVDS_GEN_CNTL) & ~(LVDS_DIGON));
 		}
 		pci_disable_device(pdev);
@@ -2840,8 +2844,8 @@ void radeonfb_pm_init(struct radeonfb_info *rinfo, int dynclk, int ignore_devlis
 		 * in some desktop G4s), Via (M9+ chip on iBook G4) and
 		 * Snowy (M11 chip on iBook G4 manufactured after July 2005)
 		 */
-		if (!strcmp(rinfo->of_node->name, "ATY,JasperParent") ||
-		    !strcmp(rinfo->of_node->name, "ATY,SnowyParent")) {
+		if (of_node_name_eq(rinfo->of_node, "ATY,JasperParent") ||
+		    of_node_name_eq(rinfo->of_node, "ATY,SnowyParent")) {
 			rinfo->reinit_func = radeon_reinitialize_M10;
 			rinfo->pm_mode |= radeon_pm_off;
 		}
@@ -2851,7 +2855,7 @@ void radeonfb_pm_init(struct radeonfb_info *rinfo, int dynclk, int ignore_devlis
 			rinfo->pm_mode |= radeon_pm_off;
 		}
 #endif
-		if (!strcmp(rinfo->of_node->name, "ATY,ViaParent")) {
+		if (of_node_name_eq(rinfo->of_node, "ATY,ViaParent")) {
 			rinfo->reinit_func = radeon_reinitialize_M9P;
 			rinfo->pm_mode |= radeon_pm_off;
 		}

@@ -1,13 +1,10 @@
-/*
- * Renesas R-Car CMD support
- *
- * Copyright (C) 2015 Renesas Solutions Corp.
- * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Renesas R-Car CMD support
+//
+// Copyright (C) 2015 Renesas Solutions Corp.
+// Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+
 #include "rsnd.h"
 
 struct rsnd_cmd {
@@ -31,23 +28,24 @@ static int rsnd_cmd_init(struct rsnd_mod *mod,
 	struct rsnd_mod *mix = rsnd_io_to_mod_mix(io);
 	struct device *dev = rsnd_priv_to_dev(priv);
 	u32 data;
+	static const u32 path[] = {
+		[1] = 1 << 0,
+		[5] = 1 << 8,
+		[6] = 1 << 12,
+		[9] = 1 << 15,
+	};
 
 	if (!mix && !dvc)
 		return 0;
+
+	if (ARRAY_SIZE(path) < rsnd_mod_id(mod) + 1)
+		return -ENXIO;
 
 	if (mix) {
 		struct rsnd_dai *rdai;
 		struct rsnd_mod *src;
 		struct rsnd_dai_stream *tio;
 		int i;
-		u32 path[] = {
-			[0] = 0,
-			[1] = 1 << 0,
-			[2] = 0,
-			[3] = 0,
-			[4] = 0,
-			[5] = 1 << 8
-		};
 
 		/*
 		 * it is assuming that integrater is well understanding about
@@ -70,21 +68,28 @@ static int rsnd_cmd_init(struct rsnd_mod *mod,
 	} else {
 		struct rsnd_mod *src = rsnd_io_to_mod_src(io);
 
-		u32 path[] = {
-			[0] = 0x30000,
-			[1] = 0x30001,
-			[2] = 0x40000,
-			[3] = 0x10000,
-			[4] = 0x20000,
-			[5] = 0x40100
+		static const u8 cmd_case[] = {
+			[0] = 0x3,
+			[1] = 0x3,
+			[2] = 0x4,
+			[3] = 0x1,
+			[4] = 0x2,
+			[5] = 0x4,
+			[6] = 0x1,
+			[9] = 0x2,
 		};
 
-		data = path[rsnd_mod_id(src)];
+		if (unlikely(!src))
+			return -EIO;
+
+		data = path[rsnd_mod_id(src)] |
+			cmd_case[rsnd_mod_id(src)] << 16;
 	}
 
-	dev_dbg(dev, "ctu/mix path = 0x%08x", data);
+	dev_dbg(dev, "ctu/mix path = 0x%08x\n", data);
 
 	rsnd_mod_write(mod, CMD_ROUTE_SLCT, data);
+	rsnd_mod_write(mod, CMD_BUSIF_MODE, rsnd_get_busif_shift(io, mod) | 1);
 	rsnd_mod_write(mod, CMD_BUSIF_DALIGN, rsnd_get_dalign(mod, io));
 
 	rsnd_adg_set_cmd_timsel_gen2(mod, io);
@@ -111,26 +116,26 @@ static int rsnd_cmd_stop(struct rsnd_mod *mod,
 }
 
 static struct rsnd_mod_ops rsnd_cmd_ops = {
-	.name	= CMD_NAME,
-	.init	= rsnd_cmd_init,
-	.start	= rsnd_cmd_start,
-	.stop	= rsnd_cmd_stop,
+	.name		= CMD_NAME,
+	.init		= rsnd_cmd_init,
+	.start		= rsnd_cmd_start,
+	.stop		= rsnd_cmd_stop,
+	.get_status	= rsnd_mod_get_status,
 };
 
+static struct rsnd_mod *rsnd_cmd_mod_get(struct rsnd_priv *priv, int id)
+{
+	if (WARN_ON(id < 0 || id >= rsnd_cmd_nr(priv)))
+		id = 0;
+
+	return rsnd_mod_get((struct rsnd_cmd *)(priv->cmd) + id);
+}
 int rsnd_cmd_attach(struct rsnd_dai_stream *io, int id)
 {
 	struct rsnd_priv *priv = rsnd_io_to_priv(io);
 	struct rsnd_mod *mod = rsnd_cmd_mod_get(priv, id);
 
 	return rsnd_dai_connect(mod, io, mod->type);
-}
-
-struct rsnd_mod *rsnd_cmd_mod_get(struct rsnd_priv *priv, int id)
-{
-	if (WARN_ON(id < 0 || id >= rsnd_cmd_nr(priv)))
-		id = 0;
-
-	return rsnd_mod_get((struct rsnd_cmd *)(priv->cmd) + id);
 }
 
 int rsnd_cmd_probe(struct rsnd_priv *priv)
@@ -148,7 +153,7 @@ int rsnd_cmd_probe(struct rsnd_priv *priv)
 	if (!nr)
 		return 0;
 
-	cmd = devm_kzalloc(dev, sizeof(*cmd) * nr, GFP_KERNEL);
+	cmd = devm_kcalloc(dev, nr, sizeof(*cmd), GFP_KERNEL);
 	if (!cmd)
 		return -ENOMEM;
 
@@ -158,7 +163,7 @@ int rsnd_cmd_probe(struct rsnd_priv *priv)
 	for_each_rsnd_cmd(cmd, priv, i) {
 		ret = rsnd_mod_init(priv, rsnd_mod_get(cmd),
 				    &rsnd_cmd_ops, NULL,
-				    rsnd_mod_get_status, RSND_MOD_CMD, i);
+				    RSND_MOD_CMD, i);
 		if (ret)
 			return ret;
 	}

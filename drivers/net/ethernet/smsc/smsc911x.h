@@ -1,24 +1,28 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /***************************************************************************
  *
  * Copyright (C) 2004-2008 SMSC
  * Copyright (C) 2005-2008 ARM
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
- *
  ***************************************************************************/
 #ifndef __SMSC911X_H__
 #define __SMSC911X_H__
+
+/*Chip ID*/
+#define LAN9115	0x01150000
+#define LAN9116	0x01160000
+#define LAN9117	0x01170000
+#define LAN9118	0x01180000
+#define LAN9215	0x115A0000
+#define LAN9216	0x116A0000
+#define LAN9217	0x117A0000
+#define LAN9218	0x118A0000
+#define LAN9210	0x92100000
+#define LAN9211	0x92110000
+#define LAN9220	0x92200000
+#define LAN9221	0x92210000
+#define LAN9250	0x92500000
+#define LAN89218	0x218A0000
 
 #define TX_FIFO_LOW_THRESHOLD	((u32)1600)
 #define SMSC911X_EEPROM_SIZE	((u32)128)
@@ -51,7 +55,7 @@
 
 #ifdef CONFIG_DEBUG_SPINLOCK
 #define SMSC_ASSERT_MAC_LOCK(pdata) \
-		WARN_ON_SMP(!spin_is_locked(&pdata->mac_lock))
+		lockdep_assert_held(&pdata->mac_lock)
 #else
 #define SMSC_ASSERT_MAC_LOCK(pdata) do {} while (0)
 #endif				/* CONFIG_DEBUG_SPINLOCK */
@@ -302,6 +306,9 @@
 #define E2P_DATA			0xB4
 #define E2P_DATA_EEPROM_DATA_		0x000000FF
 #define LAN_REGISTER_EXTENT		0x00000100
+
+#define RESET_CTL			0x1F8
+#define RESET_CTL_DIGITAL_RST_		0x00000001
 
 /*
  * MAC Control and Status Register (Indirect Address)

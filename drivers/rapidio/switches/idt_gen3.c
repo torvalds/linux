@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * IDT RXS Gen.3 Serial RapidIO switch family support
  *
  * Copyright 2016 Integrated Device Technology, Inc.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/stat.h>
@@ -348,7 +344,7 @@ static void idtg3_shutdown(struct rio_dev *rdev)
 	}
 }
 
-static struct rio_device_id idtg3_id_table[] = {
+static const struct rio_device_id idtg3_id_table[] = {
 	{RIO_DEVICE(RIO_DID_IDTRXS1632, RIO_VID_IDT)},
 	{RIO_DEVICE(RIO_DID_IDTRXS2448, RIO_VID_IDT)},
 	{ 0, }	/* terminate list */

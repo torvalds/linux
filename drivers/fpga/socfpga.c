@@ -1,19 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * FPGA Manager Driver for Altera SOCFPGA
  *
  *  Copyright (C) 2013-2015 Altera Corporation
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <linux/completion.h>
 #include <linux/delay.h>
@@ -407,13 +396,14 @@ static int socfpga_fpga_reset(struct fpga_manager *mgr)
 /*
  * Prepare the FPGA to receive the configuration data.
  */
-static int socfpga_fpga_ops_configure_init(struct fpga_manager *mgr, u32 flags,
+static int socfpga_fpga_ops_configure_init(struct fpga_manager *mgr,
+					   struct fpga_image_info *info,
 					   const char *buf, size_t count)
 {
 	struct socfpga_fpga_priv *priv = mgr->priv;
 	int ret;
 
-	if (flags & FPGA_MGR_PARTIAL_RECONFIG) {
+	if (info->flags & FPGA_MGR_PARTIAL_RECONFIG) {
 		dev_err(&mgr->dev, "Partial reconfiguration not supported.\n");
 		return -EINVAL;
 	}
@@ -478,7 +468,7 @@ static int socfpga_fpga_ops_configure_write(struct fpga_manager *mgr,
 }
 
 static int socfpga_fpga_ops_configure_complete(struct fpga_manager *mgr,
-					       u32 flags)
+					       struct fpga_image_info *info)
 {
 	struct socfpga_fpga_priv *priv = mgr->priv;
 	u32 status;
@@ -554,6 +544,7 @@ static int socfpga_fpga_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct socfpga_fpga_priv *priv;
+	struct fpga_manager *mgr;
 	struct resource *res;
 	int ret;
 
@@ -580,13 +571,21 @@ static int socfpga_fpga_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	return fpga_mgr_register(dev, "Altera SOCFPGA FPGA Manager",
-				 &socfpga_fpga_ops, priv);
+	mgr = devm_fpga_mgr_create(dev, "Altera SOCFPGA FPGA Manager",
+				   &socfpga_fpga_ops, priv);
+	if (!mgr)
+		return -ENOMEM;
+
+	platform_set_drvdata(pdev, mgr);
+
+	return fpga_mgr_register(mgr);
 }
 
 static int socfpga_fpga_remove(struct platform_device *pdev)
 {
-	fpga_mgr_unregister(&pdev->dev);
+	struct fpga_manager *mgr = platform_get_drvdata(pdev);
+
+	fpga_mgr_unregister(mgr);
 
 	return 0;
 }

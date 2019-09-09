@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2008-2009 Patrick McHardy <kaber@trash.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Development of this code funded by Astaro AG (http://www.astaro.com/)
  */
@@ -15,6 +12,7 @@
 #include <linux/netfilter.h>
 #include <linux/netfilter/nf_tables.h>
 #include <net/netfilter/nf_tables_core.h>
+#include <net/netfilter/nf_tables_offload.h>
 #include <net/netfilter/nf_tables.h>
 
 struct nft_cmp_expr {
@@ -24,9 +22,9 @@ struct nft_cmp_expr {
 	enum nft_cmp_ops	op:8;
 };
 
-static void nft_cmp_eval(const struct nft_expr *expr,
-			 struct nft_regs *regs,
-			 const struct nft_pktinfo *pkt)
+void nft_cmp_eval(const struct nft_expr *expr,
+		  struct nft_regs *regs,
+		  const struct nft_pktinfo *pkt)
 {
 	const struct nft_cmp_expr *priv = nft_expr_priv(expr);
 	int d;
@@ -44,6 +42,7 @@ static void nft_cmp_eval(const struct nft_expr *expr,
 	case NFT_CMP_LT:
 		if (d == 0)
 			goto mismatch;
+		/* fall through */
 	case NFT_CMP_LTE:
 		if (d > 0)
 			goto mismatch;
@@ -51,6 +50,7 @@ static void nft_cmp_eval(const struct nft_expr *expr,
 	case NFT_CMP_GT:
 		if (d == 0)
 			goto mismatch;
+		/* fall through */
 	case NFT_CMP_GTE:
 		if (d < 0)
 			goto mismatch;
@@ -77,15 +77,13 @@ static int nft_cmp_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 
 	err = nft_data_init(NULL, &priv->data, sizeof(priv->data), &desc,
 			    tb[NFTA_CMP_DATA]);
-	BUG_ON(err < 0);
+	if (err < 0)
+		return err;
 
 	priv->sreg = nft_parse_register(tb[NFTA_CMP_SREG]);
 	err = nft_validate_register_load(priv->sreg, desc.len);
 	if (err < 0)
 		return err;
-
-	if (desc.len > U8_MAX)
-		return -ERANGE;
 
 	priv->op  = ntohl(nla_get_be32(tb[NFTA_CMP_OP]));
 	priv->len = desc.len;
@@ -110,13 +108,44 @@ nla_put_failure:
 	return -1;
 }
 
-static struct nft_expr_type nft_cmp_type;
+static int __nft_cmp_offload(struct nft_offload_ctx *ctx,
+			     struct nft_flow_rule *flow,
+			     const struct nft_cmp_expr *priv)
+{
+	struct nft_offload_reg *reg = &ctx->regs[priv->sreg];
+	u8 *mask = (u8 *)&flow->match.mask;
+	u8 *key = (u8 *)&flow->match.key;
+
+	if (priv->op != NFT_CMP_EQ)
+		return -EOPNOTSUPP;
+
+	memcpy(key + reg->offset, &priv->data, priv->len);
+	memcpy(mask + reg->offset, &reg->mask, priv->len);
+
+	flow->match.dissector.used_keys |= BIT(reg->key);
+	flow->match.dissector.offset[reg->key] = reg->base_offset;
+
+	nft_offload_update_dependency(ctx, &priv->data, priv->len);
+
+	return 0;
+}
+
+static int nft_cmp_offload(struct nft_offload_ctx *ctx,
+			   struct nft_flow_rule *flow,
+			   const struct nft_expr *expr)
+{
+	const struct nft_cmp_expr *priv = nft_expr_priv(expr);
+
+	return __nft_cmp_offload(ctx, flow, priv);
+}
+
 static const struct nft_expr_ops nft_cmp_ops = {
 	.type		= &nft_cmp_type,
 	.size		= NFT_EXPR_SIZE(sizeof(struct nft_cmp_expr)),
 	.eval		= nft_cmp_eval,
 	.init		= nft_cmp_init,
 	.dump		= nft_cmp_dump,
+	.offload	= nft_cmp_offload,
 };
 
 static int nft_cmp_fast_init(const struct nft_ctx *ctx,
@@ -131,7 +160,8 @@ static int nft_cmp_fast_init(const struct nft_ctx *ctx,
 
 	err = nft_data_init(NULL, &data, sizeof(data), &desc,
 			    tb[NFTA_CMP_DATA]);
-	BUG_ON(err < 0);
+	if (err < 0)
+		return err;
 
 	priv->sreg = nft_parse_register(tb[NFTA_CMP_SREG]);
 	err = nft_validate_register_load(priv->sreg, desc.len);
@@ -144,6 +174,25 @@ static int nft_cmp_fast_init(const struct nft_ctx *ctx,
 	priv->data = data.data[0] & mask;
 	priv->len  = desc.len;
 	return 0;
+}
+
+static int nft_cmp_fast_offload(struct nft_offload_ctx *ctx,
+				struct nft_flow_rule *flow,
+				const struct nft_expr *expr)
+{
+	const struct nft_cmp_fast_expr *priv = nft_expr_priv(expr);
+	struct nft_cmp_expr cmp = {
+		.data	= {
+			.data	= {
+				[0] = priv->data,
+			},
+		},
+		.sreg	= priv->sreg,
+		.len	= priv->len / BITS_PER_BYTE,
+		.op	= NFT_CMP_EQ,
+	};
+
+	return __nft_cmp_offload(ctx, flow, &cmp);
 }
 
 static int nft_cmp_fast_dump(struct sk_buff *skb, const struct nft_expr *expr)
@@ -172,6 +221,7 @@ const struct nft_expr_ops nft_cmp_fast_ops = {
 	.eval		= NULL,	/* inlined */
 	.init		= nft_cmp_fast_init,
 	.dump		= nft_cmp_fast_dump,
+	.offload	= nft_cmp_fast_offload,
 };
 
 static const struct nft_expr_ops *
@@ -205,26 +255,24 @@ nft_cmp_select_ops(const struct nft_ctx *ctx, const struct nlattr * const tb[])
 	if (err < 0)
 		return ERR_PTR(err);
 
+	if (desc.type != NFT_DATA_VALUE) {
+		err = -EINVAL;
+		goto err1;
+	}
+
 	if (desc.len <= sizeof(u32) && op == NFT_CMP_EQ)
 		return &nft_cmp_fast_ops;
-	else
-		return &nft_cmp_ops;
+
+	return &nft_cmp_ops;
+err1:
+	nft_data_release(&data, desc.type);
+	return ERR_PTR(-EINVAL);
 }
 
-static struct nft_expr_type nft_cmp_type __read_mostly = {
+struct nft_expr_type nft_cmp_type __read_mostly = {
 	.name		= "cmp",
 	.select_ops	= nft_cmp_select_ops,
 	.policy		= nft_cmp_policy,
 	.maxattr	= NFTA_CMP_MAX,
 	.owner		= THIS_MODULE,
 };
-
-int __init nft_cmp_module_init(void)
-{
-	return nft_register_expr(&nft_cmp_type);
-}
-
-void nft_cmp_module_exit(void)
-{
-	nft_unregister_expr(&nft_cmp_type);
-}

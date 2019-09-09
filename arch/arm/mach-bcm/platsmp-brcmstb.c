@@ -151,7 +151,7 @@ static void brcmstb_cpu_boot(u32 cpu)
 	 * Set the reset vector to point to the secondary_startup
 	 * routine
 	 */
-	cpu_set_boot_addr(cpu, virt_to_phys(secondary_startup));
+	cpu_set_boot_addr(cpu, __pa_symbol(secondary_startup));
 
 	/* Unhalt the cpu */
 	cpu_rst_cfg_set(cpu, 0);
@@ -334,11 +334,14 @@ static void __init brcmstb_cpu_ctrl_setup(unsigned int max_cpus)
 
 	rc = setup_hifcpubiuctrl_regs(np);
 	if (rc)
-		return;
+		goto out_put_node;
 
 	rc = setup_hifcont_regs(np);
 	if (rc)
-		return;
+		goto out_put_node;
+
+out_put_node:
+	of_node_put(np);
 }
 
 static int brcmstb_boot_secondary(unsigned int cpu, struct task_struct *idle)

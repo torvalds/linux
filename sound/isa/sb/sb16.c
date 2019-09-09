@@ -1,22 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Driver for SoundBlaster 16/AWE32/AWE64 soundcards
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
- *
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <asm/dma.h>
@@ -62,7 +47,7 @@ MODULE_SUPPORTED_DEVICE("{{Creative Labs,SB AWE 32},"
 #define SNDRV_DEBUG_IRQ
 #endif
 
-#if defined(SNDRV_SBAWE) && (defined(CONFIG_SND_SEQUENCER) || (defined(MODULE) && defined(CONFIG_SND_SEQUENCER_MODULE)))
+#if defined(SNDRV_SBAWE) && IS_ENABLED(CONFIG_SND_SEQUENCER)
 #define SNDRV_SBAWE_EMU8000
 #endif
 
@@ -99,21 +84,21 @@ MODULE_PARM_DESC(enable, "Enable SoundBlaster 16 soundcard.");
 module_param_array(isapnp, bool, NULL, 0444);
 MODULE_PARM_DESC(isapnp, "PnP detection for specified soundcard.");
 #endif
-module_param_array(port, long, NULL, 0444);
+module_param_hw_array(port, long, ioport, NULL, 0444);
 MODULE_PARM_DESC(port, "Port # for SB16 driver.");
-module_param_array(mpu_port, long, NULL, 0444);
+module_param_hw_array(mpu_port, long, ioport, NULL, 0444);
 MODULE_PARM_DESC(mpu_port, "MPU-401 port # for SB16 driver.");
-module_param_array(fm_port, long, NULL, 0444);
+module_param_hw_array(fm_port, long, ioport, NULL, 0444);
 MODULE_PARM_DESC(fm_port, "FM port # for SB16 PnP driver.");
 #ifdef SNDRV_SBAWE_EMU8000
-module_param_array(awe_port, long, NULL, 0444);
+module_param_hw_array(awe_port, long, ioport, NULL, 0444);
 MODULE_PARM_DESC(awe_port, "AWE port # for SB16 PnP driver.");
 #endif
-module_param_array(irq, int, NULL, 0444);
+module_param_hw_array(irq, int, irq, NULL, 0444);
 MODULE_PARM_DESC(irq, "IRQ # for SB16 driver.");
-module_param_array(dma8, int, NULL, 0444);
+module_param_hw_array(dma8, int, dma, NULL, 0444);
 MODULE_PARM_DESC(dma8, "8-bit DMA # for SB16 driver.");
-module_param_array(dma16, int, NULL, 0444);
+module_param_hw_array(dma16, int, dma, NULL, 0444);
 MODULE_PARM_DESC(dma16, "16-bit DMA # for SB16 driver.");
 module_param_array(mic_agc, int, NULL, 0444);
 MODULE_PARM_DESC(mic_agc, "Mic Auto-Gain-Control switch.");
@@ -145,7 +130,7 @@ struct snd_card_sb16 {
 
 #ifdef CONFIG_PNP
 
-static struct pnp_card_device_id snd_sb16_pnpids[] = {
+static const struct pnp_card_device_id snd_sb16_pnpids[] = {
 #ifndef SNDRV_SBAWE
 	/* Sound Blaster 16 PnP */
 	{ .id = "CTL0024", .devs = { { "CTL0031" } } },
@@ -471,7 +456,6 @@ static int snd_sb16_suspend(struct snd_card *card, pm_message_t state)
 	struct snd_sb *chip = acard->chip;
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
-	snd_pcm_suspend_all(chip->pcm);
 	snd_sbmixer_suspend(chip);
 	return 0;
 }

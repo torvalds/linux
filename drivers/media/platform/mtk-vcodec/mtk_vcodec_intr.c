@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
 * Copyright (c) 2016 MediaTek Inc.
 * Author: Tiffany Lin <tiffany.lin@mediatek.com>
-*
-* This program is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License version 2 as
-* published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU General Public License for more details.
 */
 
 #include <linux/errno.h>
@@ -30,8 +22,7 @@ int mtk_vcodec_wait_for_done_ctx(struct mtk_vcodec_ctx  *ctx, int command,
 	timeout_jiff = msecs_to_jiffies(timeout_ms);
 
 	ret = wait_event_interruptible_timeout(*waitqueue,
-				(ctx->int_cond &&
-				(ctx->int_type == command)),
+				ctx->int_cond,
 				timeout_jiff);
 
 	if (!ret) {

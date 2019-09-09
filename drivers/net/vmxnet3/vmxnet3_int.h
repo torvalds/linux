@@ -69,10 +69,12 @@
 /*
  * Version numbers
  */
-#define VMXNET3_DRIVER_VERSION_STRING   "1.4.a.0-k"
+#define VMXNET3_DRIVER_VERSION_STRING   "1.4.17.0-k"
 
-/* a 32-bit int, each byte encode a verion number in VMXNET3_DRIVER_VERSION */
-#define VMXNET3_DRIVER_VERSION_NUM      0x01040a00
+/* Each byte of this 32-bit integer encodes a version number in
+ * VMXNET3_DRIVER_VERSION_STRING.
+ */
+#define VMXNET3_DRIVER_VERSION_NUM      0x01041100
 
 #if defined(CONFIG_PCI_MSI)
 	/* RSS only makes sense if MSI-X is supported. */
@@ -119,9 +121,8 @@ enum {
 };
 
 /*
- * PCI vendor and device IDs.
+ * Maximum devices supported.
  */
-#define PCI_DEVICE_ID_VMWARE_VMXNET3    0x07B0
 #define MAX_ETHERNET_CARDS		10
 #define MAX_PCI_PASSTHRU_DEVICE		6
 
@@ -312,7 +313,7 @@ struct vmxnet3_intr {
 	u8  num_intrs;			/* # of intr vectors */
 	u8  event_intr_idx;		/* idx of the intr vector for event */
 	u8  mod_levels[VMXNET3_LINUX_MAX_MSIX_VECT]; /* moderation level */
-	char	event_msi_vector_name[IFNAMSIZ+11];
+	char	event_msi_vector_name[IFNAMSIZ+17];
 #ifdef CONFIG_PCI_MSI
 	struct msix_entry msix_entries[VMXNET3_LINUX_MAX_MSIX_VECT];
 #endif
@@ -342,9 +343,6 @@ struct vmxnet3_adapter {
 	u8			__iomem *hw_addr0; /* for BAR 0 */
 	u8			__iomem *hw_addr1; /* for BAR 1 */
 	u8                              version;
-
-	bool				rxcsum;
-	bool				lro;
 
 #ifdef VMXNET3_RSS
 	struct UPT1_RSSConf		*rss_conf;
@@ -417,8 +415,8 @@ struct vmxnet3_adapter {
 
 /* must be a multiple of VMXNET3_RING_SIZE_ALIGN */
 #define VMXNET3_DEF_TX_RING_SIZE    512
-#define VMXNET3_DEF_RX_RING_SIZE    256
-#define VMXNET3_DEF_RX_RING2_SIZE   128
+#define VMXNET3_DEF_RX_RING_SIZE    1024
+#define VMXNET3_DEF_RX_RING2_SIZE   256
 
 #define VMXNET3_DEF_RXDATA_DESC_SIZE 128
 
@@ -456,6 +454,9 @@ vmxnet3_tq_destroy_all(struct vmxnet3_adapter *adapter);
 void
 vmxnet3_rq_destroy_all(struct vmxnet3_adapter *adapter);
 
+netdev_features_t
+vmxnet3_fix_features(struct net_device *netdev, netdev_features_t features);
+
 int
 vmxnet3_set_features(struct net_device *netdev, netdev_features_t features);
 
@@ -466,8 +467,8 @@ vmxnet3_create_queues(struct vmxnet3_adapter *adapter,
 
 void vmxnet3_set_ethtool_ops(struct net_device *netdev);
 
-struct rtnl_link_stats64 *
-vmxnet3_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats);
+void vmxnet3_get_stats64(struct net_device *dev,
+			 struct rtnl_link_stats64 *stats);
 
 extern char vmxnet3_driver_name[];
 #endif

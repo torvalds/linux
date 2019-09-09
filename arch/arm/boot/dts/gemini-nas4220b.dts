@@ -1,0 +1,216 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Device Tree file for the Gemini-based Raidsonic NAS IB-4220-B
+ */
+
+/dts-v1/;
+
+#include "gemini.dtsi"
+#include <dt-bindings/input/input.h>
+
+/ {
+	model = "Raidsonic NAS IB-4220-B";
+	compatible = "raidsonic,ib-4220-b", "cortina,gemini";
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	memory@0 { /* 128 MB */
+		device_type = "memory";
+		reg = <0x00000000 0x8000000>;
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,19200n8";
+		stdout-path = &uart0;
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+
+		button-setup {
+			debounce-interval = <100>;
+			wakeup-source;
+			linux,code = <KEY_SETUP>;
+			label = "Backup button";
+			/* Conflict with TVC */
+			gpios = <&gpio1 29 GPIO_ACTIVE_LOW>;
+		};
+		button-restart {
+			debounce-interval = <100>;
+			wakeup-source;
+			linux,code = <KEY_RESTART>;
+			label = "Softreset button";
+			/* Conflict with TVC */
+			gpios = <&gpio1 31 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		led-orange-hdd {
+			label = "nas4220b:orange:hdd";
+			/* Conflict with TVC */
+			gpios = <&gpio1 28 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+		};
+		led-green-os {
+			label = "nas4220b:green:os";
+			/* Conflict with TVC */
+			gpios = <&gpio1 30 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+			linux,default-trigger = "heartbeat";
+		};
+	};
+
+	mdio0: ethernet-phy {
+		compatible = "virtual,mdio-gpio";
+		gpios = <&gpio0 22 GPIO_ACTIVE_HIGH>, /* MDC */
+			<&gpio0 21 GPIO_ACTIVE_HIGH>; /* MDIO */
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		phy0: ethernet-phy@1 {
+			reg = <1>;
+			device_type = "ethernet-phy";
+		};
+	};
+
+	soc {
+		flash@30000000 {
+			status = "okay";
+			/* 16MB of flash */
+			reg = <0x30000000 0x01000000>;
+
+			partition@0 {
+				label = "RedBoot";
+				reg = <0x00000000 0x00020000>;
+				read-only;
+			};
+			partition@20000 {
+				label = "Kernel";
+				reg = <0x00020000 0x00300000>;
+			};
+			partition@320000 {
+				label = "Ramdisk";
+				reg = <0x00320000 0x00600000>;
+			};
+			partition@920000 {
+				label = "Application";
+				reg = <0x00920000 0x00600000>;
+			};
+			partition@f20000 {
+				label = "VCTL";
+				reg = <0x00f20000 0x00020000>;
+				read-only;
+			};
+			partition@f40000 {
+				label = "CurConf";
+				reg = <0x00f40000 0x000a0000>;
+				read-only;
+			};
+			partition@fe0000 {
+				label = "FIS directory";
+				reg = <0x00fe0000 0x00020000>;
+				read-only;
+			};
+		};
+
+		syscon: syscon@40000000 {
+			pinctrl {
+				/*
+				 * gpio1dgrp cover line 28-31 otherwise used
+				 * by TVC.
+				 */
+				gpio1_default_pins: pinctrl-gpio1 {
+					mux {
+						function = "gpio1";
+						groups = "gpio1dgrp";
+					};
+				};
+				pinctrl-gmii {
+					mux {
+						function = "gmii";
+						groups = "gmii_gmac0_grp";
+					};
+					/* Settings come from OpenWRT, pins on SL3516 */
+					conf0 {
+						pins = "V8 GMAC0 RXDV", "T10 GMAC1 RXDV";
+						skew-delay = <0>;
+					};
+					conf1 {
+						pins = "Y7 GMAC0 RXC", "Y11 GMAC1 RXC";
+						skew-delay = <15>;
+					};
+					conf2 {
+						pins = "T8 GMAC0 TXEN", "W11 GMAC1 TXEN";
+						skew-delay = <7>;
+					};
+					conf3 {
+						pins = "U8 GMAC0 TXC";
+						skew-delay = <11>;
+					};
+					conf4 {
+						pins = "V11 GMAC1 TXC";
+						skew-delay = <10>;
+					};
+					conf5 {
+						/* The data lines all have default skew */
+						pins = "W8 GMAC0 RXD0", "V9 GMAC0 RXD1",
+						       "Y8 GMAC0 RXD2", "U9 GMAC0 RXD3",
+						       "T7 GMAC0 TXD0", "U6 GMAC0 TXD1",
+						       "V7 GMAC0 TXD2", "U7 GMAC0 TXD3",
+						       "Y12 GMAC1 RXD0", "V12 GMAC1 RXD1",
+						       "T11 GMAC1 RXD2", "W12 GMAC1 RXD3",
+						       "U10 GMAC1 TXD0", "Y10 GMAC1 TXD1",
+						       "W10 GMAC1 TXD2", "T9 GMAC1 TXD3";
+						skew-delay = <7>;
+					};
+					/* Set up drive strength on GMAC0 to 16 mA */
+					conf6 {
+						groups = "gmii_gmac0_grp";
+						drive-strength = <16>;
+					};
+				};
+			};
+		};
+
+		sata: sata@46000000 {
+			cortina,gemini-ata-muxmode = <0>;
+			cortina,gemini-enable-sata-bridge;
+			status = "okay";
+		};
+
+		gpio1: gpio@4e000000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&gpio1_default_pins>;
+		};
+
+		ethernet@60000000 {
+			status = "okay";
+
+			ethernet-port@0 {
+				phy-mode = "rgmii";
+				phy-handle = <&phy0>;
+			};
+			ethernet-port@1 {
+				/* Not used in this platform */
+			};
+		};
+
+		ata@63000000 {
+			status = "okay";
+		};
+
+		ata@63400000 {
+			status = "okay";
+		};
+
+		usb@68000000 {
+			status = "okay";
+		};
+
+		usb@69000000 {
+			status = "okay";
+		};
+	};
+};

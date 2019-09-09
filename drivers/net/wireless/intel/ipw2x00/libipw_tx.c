@@ -1,22 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /******************************************************************************
 
   Copyright(c) 2003 - 2005 Intel Corporation. All rights reserved.
 
-  This program is free software; you can redistribute it and/or modify it
-  under the terms of version 2 of the GNU General Public License as
-  published by the Free Software Foundation.
-
-  This program is distributed in the hope that it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details.
-
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc., 59
-  Temple Place - Suite 330, Boston, MA  02111-1307, USA.
-
-  The full GNU General Public License is included in this distribution in the
-  file called LICENSE.
 
   Contact Information:
   Intel Linux Wireless <ilw@linux.intel.com>
@@ -39,7 +25,7 @@
 #include <linux/types.h>
 #include <linux/wireless.h>
 #include <linux/etherdevice.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "libipw.h"
 
@@ -359,7 +345,7 @@ netdev_tx_t libipw_xmit(struct sk_buff *skb, struct net_device *dev)
 			goto failed;
 
 		skb_reserve(skb_new, crypt->ops->extra_msdu_prefix_len);
-		memcpy(skb_put(skb_new, hdr_len), &header, hdr_len);
+		skb_put_data(skb_new, &header, hdr_len);
 		snapped = 1;
 		libipw_copy_snap(skb_put(skb_new, SNAP_SIZE + sizeof(u16)),
 				    ether_type);
@@ -439,8 +425,7 @@ netdev_tx_t libipw_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (rts_required) {
 		skb_frag = txb->fragments[0];
-		frag_hdr =
-		    (struct libipw_hdr_3addrqos *)skb_put(skb_frag, hdr_len);
+		frag_hdr = skb_put(skb_frag, hdr_len);
 
 		/*
 		 * Set header frame_ctl to the RTS.
@@ -470,9 +455,7 @@ netdev_tx_t libipw_xmit(struct sk_buff *skb, struct net_device *dev)
 			skb_reserve(skb_frag,
 				    crypt->ops->extra_mpdu_prefix_len);
 
-		frag_hdr =
-		    (struct libipw_hdr_3addrqos *)skb_put(skb_frag, hdr_len);
-		memcpy(frag_hdr, &header, hdr_len);
+		frag_hdr = skb_put_data(skb_frag, &header, hdr_len);
 
 		/* If this is not the last fragment, then add the MOREFRAGS
 		 * bit to the frame control */

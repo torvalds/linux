@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Intel MIC Platform Software Stack (MPSS)
  *
  * Copyright(c) 2015 Intel Corporation.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
  * Intel SCIF driver.
- *
  */
 
 #include "scif_main.h"
@@ -195,10 +186,11 @@ static inline void *scif_get_local_va(off_t off, struct scif_window *window)
 
 static void scif_prog_signal_cb(void *arg)
 {
-	struct scif_status *status = arg;
+	struct scif_cb_arg *cb_arg = arg;
 
-	dma_pool_free(status->ep->remote_dev->signal_pool, status,
-		      status->src_dma_addr);
+	dma_pool_free(cb_arg->ep->remote_dev->signal_pool, cb_arg->status,
+		      cb_arg->src_dma_addr);
+	kfree(cb_arg);
 }
 
 static int _scif_prog_signal(scif_epd_t epd, dma_addr_t dst, u64 val)
@@ -209,6 +201,7 @@ static int _scif_prog_signal(scif_epd_t epd, dma_addr_t dst, u64 val)
 	bool x100 = !is_dma_copy_aligned(chan->device, 1, 1, 1);
 	struct dma_async_tx_descriptor *tx;
 	struct scif_status *status = NULL;
+	struct scif_cb_arg *cb_arg = NULL;
 	dma_addr_t src;
 	dma_cookie_t cookie;
 	int err;
@@ -257,8 +250,16 @@ static int _scif_prog_signal(scif_epd_t epd, dma_addr_t dst, u64 val)
 		goto dma_fail;
 	}
 	if (!x100) {
+		cb_arg = kmalloc(sizeof(*cb_arg), GFP_KERNEL);
+		if (!cb_arg) {
+			err = -ENOMEM;
+			goto dma_fail;
+		}
+		cb_arg->src_dma_addr = src;
+		cb_arg->status = status;
+		cb_arg->ep = ep;
 		tx->callback = scif_prog_signal_cb;
-		tx->callback_param = status;
+		tx->callback_param = cb_arg;
 	}
 	cookie = tx->tx_submit(tx);
 	if (dma_submit_error(cookie)) {
@@ -270,9 +271,11 @@ static int _scif_prog_signal(scif_epd_t epd, dma_addr_t dst, u64 val)
 	dma_async_issue_pending(chan);
 	return 0;
 dma_fail:
-	if (!x100)
+	if (!x100) {
 		dma_pool_free(ep->remote_dev->signal_pool, status,
-			      status->src_dma_addr);
+			      src - offsetof(struct scif_status, val));
+		kfree(cb_arg);
+	}
 alloc_fail:
 	return err;
 }

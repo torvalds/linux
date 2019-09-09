@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for Digigram VX222 V2/Mic PCI soundcards
  *
  * Copyright (c) 2002 by Takashi Iwai <tiwai@suse.de>
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 #include <linux/init.h>
@@ -116,7 +103,7 @@ static struct snd_vx_hardware vx222_mic_hw = {
  */
 static int snd_vx222_free(struct vx_core *chip)
 {
-	struct snd_vx222 *vx = (struct snd_vx222 *)chip;
+	struct snd_vx222 *vx = to_vx222(chip);
 
 	if (chip->irq >= 0)
 		free_irq(chip->irq, (void*)chip);
@@ -158,7 +145,7 @@ static int snd_vx222_create(struct snd_card *card, struct pci_dev *pci,
 		pci_disable_device(pci);
 		return -ENOMEM;
 	}
-	vx = (struct snd_vx222 *)chip;
+	vx = to_vx222(chip);
 	vx->pci = pci;
 
 	if ((err = pci_request_regions(pci, CARD_NAME)) < 0) {

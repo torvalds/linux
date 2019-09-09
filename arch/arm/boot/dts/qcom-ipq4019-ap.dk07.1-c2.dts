@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: GPL-2.0
+// Copyright (c) 2018, The Linux Foundation. All rights reserved.
+
+#include "qcom-ipq4019-ap.dk07.1.dtsi"
+
+/ {
+	model = "Qualcomm Technologies, Inc. IPQ4019/AP-DK07.1-C2";
+	compatible = "qcom,ipq4019-ap-dk07.1-c2";
+
+	soc {
+		pinctrl@1000000 {
+			serial_1_pins: serial1-pinmux {
+				pins = "gpio8", "gpio9";
+				function = "blsp_uart1";
+				bias-disable;
+			};
+		};
+
+		serial@78b0000 {
+			pinctrl-0 = <&serial_1_pins>;
+			pinctrl-names = "default";
+			status = "ok";
+		};
+	};
+};

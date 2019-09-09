@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2014 FEDEVEL, Inc.
  *
  * Author: Robert Nelson <robertcnelson@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <dt-bindings/gpio/gpio.h>
@@ -89,7 +85,6 @@
 };
 
 &ecspi2 {
-	fsl,spi-num-chipselects = <1>;
 	cs-gpios = <&gpio5 12 GPIO_ACTIVE_LOW>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi2>;
@@ -97,7 +92,6 @@
 };
 
 &ecspi3 {
-	fsl,spi-num-chipselects = <1>;
 	cs-gpios = <&gpio4 26 GPIO_ACTIVE_LOW>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi3>;
@@ -123,7 +117,7 @@
 	pinctrl-0 = <&pinctrl_i2c1>;
 	status = "okay";
 
-	codec: sgtl5000@0a {
+	codec: sgtl5000@a {
 		compatible = "fsl,sgtl5000";
 		reg = <0x0a>;
 		clocks = <&clks IMX6QDL_CLK_CKO>;
@@ -139,7 +133,7 @@
 	status = "okay";
 
 	eeprom@57 {
-		compatible = "at,24c02";
+		compatible = "atmel,24c02";
 		reg = <0x57>;
 	};
 };

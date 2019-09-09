@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Derived from many drivers using generic_serial interface,
  * especially serial_tx3912.c by Steven J. Hill and r39xx_serial.c
@@ -7,10 +8,6 @@
  *  Copyright (C) 2000 Jim Pick <jim@jimpick.com>
  *  Copyright (C) 2001 Steven J. Hill (sjhill@realitydiluted.com)
  *  Copyright (C) 2000-2002 Toshiba Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  *  Serial driver for TX3927/TX4927/TX4925/TX4938 internal SIO controller
  */
@@ -251,7 +248,6 @@ static void serial_txx9_initialize(struct uart_port *port)
 	sio_out(up, TXX9_SIFCR, TXX9_SIFCR_SWRST);
 	/* TX4925 BUG WORKAROUND.  Accessing SIOC register
 	 * immediately after soft reset causes bus error. */
-	mmiowb();
 	udelay(1);
 	while ((sio_in(up, TXX9_SIFCR) & TXX9_SIFCR_SWRST) && --tmout)
 		udelay(1);
@@ -845,7 +841,7 @@ serial_txx9_type(struct uart_port *port)
 	return "txx9";
 }
 
-static struct uart_ops serial_txx9_pops = {
+static const struct uart_ops serial_txx9_pops = {
 	.tx_empty	= serial_txx9_tx_empty,
 	.set_mctrl	= serial_txx9_set_mctrl,
 	.get_mctrl	= serial_txx9_get_mctrl,

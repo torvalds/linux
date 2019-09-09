@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Synopsys DesignWare I2C adapter driver (master only).
  *
@@ -7,22 +8,7 @@
  * Copyright (C) 2007 MontaVista Software Inc.
  * Copyright (C) 2009 Provigent Ltd.
  * Copyright (C) 2011, 2015, 2016 Intel Corporation.
- *
- * ----------------------------------------------------------------------------
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- * ----------------------------------------------------------------------------
- *
  */
-
 #include <linux/acpi.h>
 #include <linux/delay.h>
 #include <linux/err.h>
@@ -45,6 +31,7 @@ enum dw_pci_ctl_id_t {
 	medfield,
 	merrifield,
 	baytrail,
+	cherrytrail,
 	haswell,
 };
 
@@ -63,6 +50,7 @@ struct dw_pci_controller {
 	u32 rx_fifo_depth;
 	u32 clk_khz;
 	u32 functionality;
+	u32 flags;
 	struct dw_scl_sda_cfg *scl_sda_cfg;
 	int (*setup)(struct pci_dev *pdev, struct dw_pci_controller *c);
 };
@@ -70,12 +58,6 @@ struct dw_pci_controller {
 #define INTEL_MID_STD_CFG  (DW_IC_CON_MASTER |			\
 				DW_IC_CON_SLAVE_DISABLE |	\
 				DW_IC_CON_RESTART_EN)
-
-#define DW_DEFAULT_FUNCTIONALITY (I2C_FUNC_I2C |			\
-					I2C_FUNC_SMBUS_BYTE |		\
-					I2C_FUNC_SMBUS_BYTE_DATA |	\
-					I2C_FUNC_SMBUS_WORD_DATA |	\
-					I2C_FUNC_SMBUS_I2C_BLOCK)
 
 /* Merrifield HCNT/LCNT/SDA hold time */
 static struct dw_scl_sda_cfg mrfld_config = {
@@ -109,6 +91,7 @@ static int mfld_setup(struct pci_dev *pdev, struct dw_pci_controller *c)
 	case 0x0817:
 		c->bus_cfg &= ~DW_IC_CON_SPEED_MASK;
 		c->bus_cfg |= DW_IC_CON_SPEED_STD;
+		/* fall through */
 	case 0x0818:
 	case 0x0819:
 		c->bus_num = pdev->device - 0x817 + 3;
@@ -147,6 +130,7 @@ static struct dw_pci_controller dw_pci_controllers[] = {
 		.bus_cfg   = INTEL_MID_STD_CFG | DW_IC_CON_SPEED_FAST,
 		.tx_fifo_depth = 32,
 		.rx_fifo_depth = 32,
+		.functionality = I2C_FUNC_10BIT_ADDR,
 		.clk_khz      = 25000,
 		.setup = mfld_setup,
 	},
@@ -155,6 +139,7 @@ static struct dw_pci_controller dw_pci_controllers[] = {
 		.bus_cfg = INTEL_MID_STD_CFG | DW_IC_CON_SPEED_FAST,
 		.tx_fifo_depth = 64,
 		.rx_fifo_depth = 64,
+		.functionality = I2C_FUNC_10BIT_ADDR,
 		.scl_sda_cfg = &mrfld_config,
 		.setup = mrfld_setup,
 	},
@@ -174,22 +159,39 @@ static struct dw_pci_controller dw_pci_controllers[] = {
 		.functionality = I2C_FUNC_10BIT_ADDR,
 		.scl_sda_cfg = &hsw_config,
 	},
+	[cherrytrail] = {
+		.bus_num = -1,
+		.bus_cfg = INTEL_MID_STD_CFG | DW_IC_CON_SPEED_FAST,
+		.tx_fifo_depth = 32,
+		.rx_fifo_depth = 32,
+		.functionality = I2C_FUNC_10BIT_ADDR,
+		.flags = MODEL_CHERRYTRAIL,
+		.scl_sda_cfg = &byt_config,
+	},
 };
 
 #ifdef CONFIG_PM
 static int i2c_dw_pci_suspend(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
+	struct dw_i2c_dev *i_dev = pci_get_drvdata(pdev);
 
-	i2c_dw_disable(pci_get_drvdata(pdev));
+	i_dev->suspended = true;
+	i_dev->disable(i_dev);
+
 	return 0;
 }
 
 static int i2c_dw_pci_resume(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
+	struct dw_i2c_dev *i_dev = pci_get_drvdata(pdev);
+	int ret;
 
-	return i2c_dw_init(pci_get_drvdata(pdev));
+	ret = i_dev->init(i_dev);
+	i_dev->suspended = false;
+
+	return ret;
 }
 #endif
 
@@ -241,6 +243,7 @@ static int i2c_dw_pci_probe(struct pci_dev *pdev,
 	dev->base = pcim_iomap_table(pdev)[0];
 	dev->dev = &pdev->dev;
 	dev->irq = pdev->irq;
+	dev->flags |= controller->flags;
 
 	if (controller->setup) {
 		r = controller->setup(pdev, controller);
@@ -249,7 +252,7 @@ static int i2c_dw_pci_probe(struct pci_dev *pdev,
 	}
 
 	dev->functionality = controller->functionality |
-				DW_DEFAULT_FUNCTIONALITY;
+				DW_IC_DEFAULT_FUNCTIONALITY;
 
 	dev->master_cfg = controller->bus_cfg;
 	if (controller->scl_sda_cfg) {
@@ -288,7 +291,7 @@ static void i2c_dw_pci_remove(struct pci_dev *pdev)
 {
 	struct dw_i2c_dev *dev = pci_get_drvdata(pdev);
 
-	i2c_dw_disable(dev);
+	dev->disable(dev);
 	pm_runtime_forbid(&pdev->dev);
 	pm_runtime_get_noresume(&pdev->dev);
 
@@ -321,13 +324,13 @@ static const struct pci_device_id i2_designware_pci_ids[] = {
 	{ PCI_VDEVICE(INTEL, 0x9c61), haswell },
 	{ PCI_VDEVICE(INTEL, 0x9c62), haswell },
 	/* Braswell / Cherrytrail */
-	{ PCI_VDEVICE(INTEL, 0x22C1), baytrail },
-	{ PCI_VDEVICE(INTEL, 0x22C2), baytrail },
-	{ PCI_VDEVICE(INTEL, 0x22C3), baytrail },
-	{ PCI_VDEVICE(INTEL, 0x22C4), baytrail },
-	{ PCI_VDEVICE(INTEL, 0x22C5), baytrail },
-	{ PCI_VDEVICE(INTEL, 0x22C6), baytrail },
-	{ PCI_VDEVICE(INTEL, 0x22C7), baytrail },
+	{ PCI_VDEVICE(INTEL, 0x22C1), cherrytrail },
+	{ PCI_VDEVICE(INTEL, 0x22C2), cherrytrail },
+	{ PCI_VDEVICE(INTEL, 0x22C3), cherrytrail },
+	{ PCI_VDEVICE(INTEL, 0x22C4), cherrytrail },
+	{ PCI_VDEVICE(INTEL, 0x22C5), cherrytrail },
+	{ PCI_VDEVICE(INTEL, 0x22C6), cherrytrail },
+	{ PCI_VDEVICE(INTEL, 0x22C7), cherrytrail },
 	{ 0,}
 };
 MODULE_DEVICE_TABLE(pci, i2_designware_pci_ids);

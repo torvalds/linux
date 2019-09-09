@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ADAV803 audio driver
  *
  * Copyright 2014 Analog Devices Inc.
- *
- * Licensed under the GPL-2.
  */
 
 #include <linux/module.h>
@@ -27,18 +26,11 @@ static int adav803_probe(struct i2c_client *client,
 		devm_regmap_init_i2c(client, &adav80x_regmap_config));
 }
 
-static int adav803_remove(struct i2c_client *client)
-{
-	snd_soc_unregister_codec(&client->dev);
-	return 0;
-}
-
 static struct i2c_driver adav803_driver = {
 	.driver = {
 		.name = "adav803",
 	},
 	.probe = adav803_probe,
-	.remove = adav803_remove,
 	.id_table = adav803_id,
 };
 module_i2c_driver(adav803_driver);

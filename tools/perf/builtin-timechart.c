@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * builtin-timechart.c - make an svg timechart of system activity
  *
@@ -5,29 +6,25 @@
  *
  * Authors:
  *     Arjan van de Ven <arjan@linux.intel.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; version 2
- * of the License.
  */
 
+#include <errno.h>
+#include <inttypes.h>
 #include <traceevent/event-parse.h>
 
 #include "builtin.h"
-
-#include "util/util.h"
-
 #include "util/color.h"
 #include <linux/list.h>
 #include "util/cache.h"
 #include "util/evlist.h"
 #include "util/evsel.h"
+#include <linux/kernel.h>
 #include <linux/rbtree.h>
 #include <linux/time64.h>
+#include <linux/zalloc.h>
 #include "util/symbol.h"
+#include "util/thread.h"
 #include "util/callchain.h"
-#include "util/strlist.h"
 
 #include "perf.h"
 #include "util/header.h"
@@ -39,6 +36,10 @@
 #include "util/tool.h"
 #include "util/data.h"
 #include "util/debug.h"
+
+#ifdef LACKS_OPEN_MEMSTREAM_PROTOTYPE
+FILE *open_memstream(char **ptr, size_t *sizeloc);
+#endif
 
 #define SUPPORT_OLD_POWER_EVENTS 1
 #define PWR_EVENT_EXIT -1
@@ -530,12 +531,8 @@ static const char *cat_backtrace(union perf_event *event,
 		}
 
 		tal.filtered = 0;
-		thread__find_addr_location(al.thread, cpumode,
-					   MAP__FUNCTION, ip, &tal);
-
-		if (tal.sym)
-			fprintf(f, "..... %016" PRIx64 " %s\n", ip,
-				tal.sym->name);
+		if (thread__find_symbol(al.thread, cpumode, ip, &tal))
+			fprintf(f, "..... %016" PRIx64 " %s\n", ip, tal.sym->name);
 		else
 			fprintf(f, "..... %016" PRIx64 "\n", ip);
 	}
@@ -1598,13 +1595,13 @@ static int __cmd_timechart(struct timechart *tchart, const char *output_name)
 		{ "syscalls:sys_exit_pselect6",		process_exit_poll },
 		{ "syscalls:sys_exit_select",		process_exit_poll },
 	};
-	struct perf_data_file file = {
-		.path = input_name,
-		.mode = PERF_DATA_MODE_READ,
+	struct perf_data data = {
+		.path  = input_name,
+		.mode  = PERF_DATA_MODE_READ,
 		.force = tchart->force,
 	};
 
-	struct perf_session *session = perf_session__new(&file, false,
+	struct perf_session *session = perf_session__new(&data, false,
 							 &tchart->tool);
 	int ret = -EINVAL;
 
@@ -1614,7 +1611,7 @@ static int __cmd_timechart(struct timechart *tchart, const char *output_name)
 	symbol__init(&session->header.env);
 
 	(void)perf_header__process_sections(&session->header,
-					    perf_data_file__fd(session->file),
+					    perf_data__fd(session->data),
 					    tchart,
 					    process_header);
 
@@ -1729,8 +1726,10 @@ static int timechart__io_record(int argc, const char **argv)
 	if (rec_argv == NULL)
 		return -ENOMEM;
 
-	if (asprintf(&filter, "common_pid != %d", getpid()) < 0)
+	if (asprintf(&filter, "common_pid != %d", getpid()) < 0) {
+		free(rec_argv);
 		return -ENOMEM;
+	}
 
 	p = rec_argv;
 	for (i = 0; i < common_args_nr; i++)
@@ -1773,7 +1772,7 @@ static int timechart__io_record(int argc, const char **argv)
 	for (i = 0; i < (unsigned int)argc; i++)
 		*p++ = argv[i];
 
-	return cmd_record(rec_argc, rec_argv, NULL);
+	return cmd_record(rec_argc, rec_argv);
 }
 
 
@@ -1864,7 +1863,7 @@ static int timechart__record(struct timechart *tchart, int argc, const char **ar
 	for (j = 0; j < (unsigned int)argc; j++)
 		*p++ = argv[j];
 
-	return cmd_record(rec_argc, rec_argv, NULL);
+	return cmd_record(rec_argc, rec_argv);
 }
 
 static int
@@ -1917,8 +1916,7 @@ parse_time(const struct option *opt, const char *arg, int __maybe_unused unset)
 	return 0;
 }
 
-int cmd_timechart(int argc, const char **argv,
-		  const char *prefix __maybe_unused)
+int cmd_timechart(int argc, const char **argv)
 {
 	struct timechart tchart = {
 		.tool = {
@@ -1933,6 +1931,11 @@ int cmd_timechart(int argc, const char **argv,
 		.merge_dist = 1000,
 	};
 	const char *output_name = "output.svg";
+	const struct option timechart_common_options[] = {
+	OPT_BOOLEAN('P', "power-only", &tchart.power_only, "output power data only"),
+	OPT_BOOLEAN('T', "tasks-only", &tchart.tasks_only, "output processes data only"),
+	OPT_END()
+	};
 	const struct option timechart_options[] = {
 	OPT_STRING('i', "input", &input_name, "file", "input file name"),
 	OPT_STRING('o', "output", &output_name, "file", "output file name"),
@@ -1940,9 +1943,6 @@ int cmd_timechart(int argc, const char **argv,
 	OPT_CALLBACK(0, "highlight", NULL, "duration or task name",
 		      "highlight tasks. Pass duration in ns or process name.",
 		       parse_highlight),
-	OPT_BOOLEAN('P', "power-only", &tchart.power_only, "output power data only"),
-	OPT_BOOLEAN('T', "tasks-only", &tchart.tasks_only,
-		    "output processes data only"),
 	OPT_CALLBACK('p', "process", NULL, "process",
 		      "process selector. Pass a pid or process name.",
 		       parse_process),
@@ -1962,22 +1962,18 @@ int cmd_timechart(int argc, const char **argv,
 		     "merge events that are merge-dist us apart",
 		     parse_time),
 	OPT_BOOLEAN('f', "force", &tchart.force, "don't complain, do it"),
-	OPT_END()
+	OPT_PARENT(timechart_common_options),
 	};
 	const char * const timechart_subcommands[] = { "record", NULL };
 	const char *timechart_usage[] = {
 		"perf timechart [<options>] {record}",
 		NULL
 	};
-
 	const struct option timechart_record_options[] = {
-	OPT_BOOLEAN('P', "power-only", &tchart.power_only, "output power data only"),
-	OPT_BOOLEAN('T', "tasks-only", &tchart.tasks_only,
-		    "output processes data only"),
 	OPT_BOOLEAN('I', "io-only", &tchart.io_only,
 		    "record only IO data"),
 	OPT_BOOLEAN('g', "callchain", &tchart.with_backtrace, "record callchain"),
-	OPT_END()
+	OPT_PARENT(timechart_common_options),
 	};
 	const char * const timechart_record_usage[] = {
 		"perf timechart record [<options>]",

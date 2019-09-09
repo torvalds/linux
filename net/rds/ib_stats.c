@@ -55,6 +55,8 @@ static const char *const rds_ib_stat_names[] = {
 	"ib_rx_refill_from_cq",
 	"ib_rx_refill_from_thread",
 	"ib_rx_alloc_limit",
+	"ib_rx_total_frags",
+	"ib_rx_total_incs",
 	"ib_rx_credit_updates",
 	"ib_ack_sent",
 	"ib_ack_send_failure",

@@ -1,21 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* sbc_gxx.c -- MTD map driver for Arcom Control Systems SBC-MediaGX,
                 SBC-GXm and SBC-GX1 series boards.
 
    Copyright (C) 2001 Arcom Control System Ltd
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
-   (at your option) any later version.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
 
 The SBC-MediaGX / SBC-GXx has up to 16 MiB of
 Intel StrataFlash (28F320/28F640) in x8 mode.
@@ -87,7 +75,7 @@ static DEFINE_SPINLOCK(sbc_gxx_spin);
 /* partition_info gives details on the logical partitions that the split the
  * single flash device into. If the size if zero we use up to the end of the
  * device. */
-static struct mtd_partition partition_info[]={
+static const struct mtd_partition partition_info[] = {
     { .name = "SBC-GXx flash boot partition",
       .offset = 0,
       .size =   BOOT_PARTITION_SIZE_KiB*1024 },

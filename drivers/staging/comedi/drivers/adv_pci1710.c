@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * adv_pci1710.c
  * Comedi driver for Advantech PCI-1710 series boards
@@ -316,7 +317,7 @@ static int pci1710_ai_read_sample(struct comedi_device *dev,
 		chan = sample >> 12;
 		if (chan != devpriv->act_chanlist[cur_chan]) {
 			dev_err(dev->class_dev,
-				"A/D data droput: received from channel %d, expected %d\n",
+				"A/D data dropout: received from channel %d, expected %d\n",
 				chan, devpriv->act_chanlist[cur_chan]);
 			return -ENODATA;
 		}

@@ -1,17 +1,26 @@
-config ZX296702_SPDIF
-	tristate "ZX296702 spdif"
-	depends on SOC_ZX296702 || COMPILE_TEST
+# SPDX-License-Identifier: GPL-2.0-only
+config ZX_SPDIF
+	tristate "ZTE ZX SPDIF Driver Support"
+	depends on ARCH_ZX || COMPILE_TEST
 	depends on COMMON_CLK
 	select SND_SOC_GENERIC_DMAENGINE_PCM
 	help
 	  Say Y or M if you want to add support for codecs attached to the
-	  zx296702 spdif interface
+	  ZTE ZX SPDIF interface
 
-config ZX296702_I2S
-	tristate "ZX296702 i2s"
-	depends on SOC_ZX296702 || COMPILE_TEST
+config ZX_I2S
+	tristate "ZTE ZX I2S Driver Support"
+	depends on ARCH_ZX || COMPILE_TEST
 	depends on COMMON_CLK
 	select SND_SOC_GENERIC_DMAENGINE_PCM
 	help
 	  Say Y or M if you want to add support for codecs attached to the
-	  zx296702 i2s interface
+	  ZTE ZX I2S interface
+
+config ZX_TDM
+        tristate "ZTE ZX TDM Driver Support"
+        depends on COMMON_CLK
+        select SND_SOC_GENERIC_DMAENGINE_PCM
+        help
+          Say Y or M if you want to add support for codecs attached to the
+          ZTE ZX TDM interface

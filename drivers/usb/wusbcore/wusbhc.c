@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Wireless USB Host Controller
  * sysfs glue, wusbcore module support and life cycle management
@@ -5,21 +6,6 @@
  *
  * Copyright (C) 2005-2006 Intel Corporation
  * Inaky Perez-Gonzalez <inaky.perez-gonzalez@intel.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
- *
  *
  * Creation/destruction of wusbhc is split in two parts; that that
  * doesn't require the HCD to be added (wusbhc_{create,destroy}) and
@@ -84,8 +70,7 @@ static ssize_t wusb_trust_timeout_store(struct device *dev,
 out:
 	return result < 0 ? result : size;
 }
-static DEVICE_ATTR(wusb_trust_timeout, 0644, wusb_trust_timeout_show,
-					     wusb_trust_timeout_store);
+static DEVICE_ATTR_RW(wusb_trust_timeout);
 
 /*
  * Show the current WUSB CHID.
@@ -95,17 +80,13 @@ static ssize_t wusb_chid_show(struct device *dev,
 {
 	struct wusbhc *wusbhc = usbhc_dev_to_wusbhc(dev);
 	const struct wusb_ckhdid *chid;
-	ssize_t result = 0;
 
 	if (wusbhc->wuie_host_info != NULL)
 		chid = &wusbhc->wuie_host_info->CHID;
 	else
 		chid = &wusb_ckhdid_zero;
 
-	result += ckhdid_printf(buf, PAGE_SIZE, chid);
-	result += sprintf(buf + result, "\n");
-
-	return result;
+	return sprintf(buf, "%16ph\n", chid->data);
 }
 
 /*
@@ -145,7 +126,7 @@ static ssize_t wusb_chid_store(struct device *dev,
 	result = wusbhc_chid_set(wusbhc, &chid);
 	return result < 0 ? result : size;
 }
-static DEVICE_ATTR(wusb_chid, 0644, wusb_chid_show, wusb_chid_store);
+static DEVICE_ATTR_RW(wusb_chid);
 
 
 static ssize_t wusb_phy_rate_show(struct device *dev,
@@ -174,8 +155,7 @@ static ssize_t wusb_phy_rate_store(struct device *dev,
 	wusbhc->phy_rate = phy_rate;
 	return size;
 }
-static DEVICE_ATTR(wusb_phy_rate, 0644, wusb_phy_rate_show,
-			wusb_phy_rate_store);
+static DEVICE_ATTR_RW(wusb_phy_rate);
 
 static ssize_t wusb_dnts_show(struct device *dev,
 				  struct device_attribute *attr,
@@ -205,7 +185,7 @@ static ssize_t wusb_dnts_store(struct device *dev,
 
 	return size;
 }
-static DEVICE_ATTR(wusb_dnts, 0644, wusb_dnts_show, wusb_dnts_store);
+static DEVICE_ATTR_RW(wusb_dnts);
 
 static ssize_t wusb_retry_count_show(struct device *dev,
 				  struct device_attribute *attr,
@@ -234,8 +214,7 @@ static ssize_t wusb_retry_count_store(struct device *dev,
 
 	return size;
 }
-static DEVICE_ATTR(wusb_retry_count, 0644, wusb_retry_count_show,
-	wusb_retry_count_store);
+static DEVICE_ATTR_RW(wusb_retry_count);
 
 /* Group all the WUSBHC attributes */
 static struct attribute *wusbhc_attrs[] = {
@@ -247,7 +226,7 @@ static struct attribute *wusbhc_attrs[] = {
 		NULL,
 };
 
-static struct attribute_group wusbhc_attr_group = {
+static const struct attribute_group wusbhc_attr_group = {
 	.name = NULL,	/* we want them in the same directory */
 	.attrs = wusbhc_attrs,
 };

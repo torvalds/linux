@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/mm.h>
@@ -97,6 +98,7 @@ cyrix_get_free_region(unsigned long base, unsigned long size, int replace_reg)
 	case 7:
 		if (size < 0x40)
 			break;
+		/* Else, fall through */
 	case 6:
 	case 5:
 	case 4:

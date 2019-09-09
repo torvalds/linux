@@ -4,10 +4,15 @@ This file provides information on what the device node for the R-Car generation
 2 USB PHY contains.
 
 Required properties:
-- compatible: "renesas,usb-phy-r8a7790" if the device is a part of R8A7790 SoC.
+- compatible: "renesas,usb-phy-r8a7743" if the device is a part of R8A7743 SoC.
+	      "renesas,usb-phy-r8a7744" if the device is a part of R8A7744 SoC.
+	      "renesas,usb-phy-r8a7745" if the device is a part of R8A7745 SoC.
+	      "renesas,usb-phy-r8a77470" if the device is a part of R8A77470 SoC.
+	      "renesas,usb-phy-r8a7790" if the device is a part of R8A7790 SoC.
 	      "renesas,usb-phy-r8a7791" if the device is a part of R8A7791 SoC.
 	      "renesas,usb-phy-r8a7794" if the device is a part of R8A7794 SoC.
-	      "renesas,rcar-gen2-usb-phy" for a generic R-Car Gen2 compatible device.
+	      "renesas,rcar-gen2-usb-phy" for a generic R-Car Gen2 or
+					  RZ/G1 compatible device.
 
 	      When compatible with the generic version, nodes must list the
 	      SoC-specific version corresponding to the platform first
@@ -26,7 +31,7 @@ channels. These subnodes must contain the following properties:
 - #phy-cells: see phy-bindings.txt in the same directory, must be <1>.
 
 The phandle's argument in the PHY specifier is the USB controller selector for
-the USB channel; see the selector meanings below:
+the USB channel other than r8a77470 SoC; see the selector meanings below:
 
 +-----------+---------------+---------------+
 |\ Selector |               |               |
@@ -37,6 +42,16 @@ the USB channel; see the selector meanings below:
 | 2         | PCI EHCI/OHCI | xHCI          |
 +-----------+---------------+---------------+
 
+For r8a77470 SoC;see the selector meaning below:
+
++-----------+---------------+---------------+
+|\ Selector |               |               |
++ --------- +       0       |       1       |
+| Channel  \|               |               |
++-----------+---------------+---------------+
+| 0         | EHCI/OHCI     | HS-USB        |
++-----------+---------------+---------------+
+
 Example (Lager board):
 
 	usb-phy@e6590100 {
@@ -44,15 +59,53 @@ Example (Lager board):
 		reg = <0 0xe6590100 0 0x100>;
 		#address-cells = <1>;
 		#size-cells = <0>;
-		clocks = <&mstp7_clks R8A7790_CLK_HSUSB>;
+		clocks = <&cpg CPG_MOD 704>;
 		clock-names = "usbhs";
+		power-domains = <&sysc R8A7790_PD_ALWAYS_ON>;
+		resets = <&cpg 704>;
 
-		usb-channel@0 {
+		usb0: usb-channel@0 {
 			reg = <0>;
 			#phy-cells = <1>;
 		};
-		usb-channel@2 {
+		usb2: usb-channel@2 {
 			reg = <2>;
+			#phy-cells = <1>;
+		};
+	};
+
+Example (iWave RZ/G1C sbc):
+
+	usbphy0: usb-phy0@e6590100 {
+		compatible = "renesas,usb-phy-r8a77470",
+			     "renesas,rcar-gen2-usb-phy";
+		reg = <0 0xe6590100 0 0x100>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		clocks = <&cpg CPG_MOD 704>;
+		clock-names = "usbhs";
+		power-domains = <&sysc R8A77470_PD_ALWAYS_ON>;
+		resets = <&cpg 704>;
+
+		usb0: usb-channel@0 {
+			reg = <0>;
+			#phy-cells = <1>;
+		};
+	};
+
+	usbphy1: usb-phy@e6598100 {
+		compatible = "renesas,usb-phy-r8a77470",
+			     "renesas,rcar-gen2-usb-phy";
+		reg = <0 0xe6598100 0 0x100>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		clocks = <&cpg CPG_MOD 706>;
+		clock-names = "usbhs";
+		power-domains = <&sysc R8A77470_PD_ALWAYS_ON>;
+		resets = <&cpg 706>;
+
+		usb1: usb-channel@0 {
+			reg = <0>;
 			#phy-cells = <1>;
 		};
 	};

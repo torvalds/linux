@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * usbvision_i2c.c
  *  i2c algorithm for USB-I2C Bridges
@@ -7,20 +8,6 @@
  *
  * This module is part of usbvision driver project.
  * Updates to driver completed by Dwaine P. Garden
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 
@@ -167,7 +154,7 @@ static u32 functionality(struct i2c_adapter *adap)
 
 /* -----exported algorithm data: -------------------------------------	*/
 
-static struct i2c_algorithm usbvision_algo = {
+static const struct i2c_algorithm usbvision_algo = {
 	.master_xfer   = usbvision_i2c_xfer,
 	.smbus_xfer    = NULL,
 	.functionality = functionality,
@@ -177,7 +164,7 @@ static struct i2c_algorithm usbvision_algo = {
 /* ----------------------------------------------------------------------- */
 /* usbvision specific I2C functions                                        */
 /* ----------------------------------------------------------------------- */
-static struct i2c_adapter i2c_adap_template;
+static const struct i2c_adapter i2c_adap_template;
 
 int usbvision_i2c_register(struct usb_usbvision *usbvision)
 {
@@ -191,8 +178,9 @@ int usbvision_i2c_register(struct usb_usbvision *usbvision)
 
 	usbvision->i2c_adap = i2c_adap_template;
 
-	sprintf(usbvision->i2c_adap.name, "%s-%d-%s", i2c_adap_template.name,
-		usbvision->dev->bus->busnum, usbvision->dev->devpath);
+	snprintf(usbvision->i2c_adap.name, sizeof(usbvision->i2c_adap.name),
+		 "usbvision-%d-%s",
+		 usbvision->dev->bus->busnum, usbvision->dev->devpath);
 	PDEBUG(DBG_I2C, "Adaptername: %s", usbvision->i2c_adap.name);
 	usbvision->i2c_adap.dev.parent = &usbvision->dev->dev;
 
@@ -315,10 +303,13 @@ usbvision_i2c_read_max4(struct usb_usbvision *usbvision, unsigned char addr,
 	switch (len) {
 	case 4:
 		buf[3] = usbvision_read_reg(usbvision, USBVISION_SER_DAT4);
+		/* fall through */
 	case 3:
 		buf[2] = usbvision_read_reg(usbvision, USBVISION_SER_DAT3);
+		/* fall through */
 	case 2:
 		buf[1] = usbvision_read_reg(usbvision, USBVISION_SER_DAT2);
+		/* fall through */
 	case 1:
 		buf[0] = usbvision_read_reg(usbvision, USBVISION_SER_DAT1);
 		break;
@@ -441,7 +432,7 @@ static int usbvision_i2c_read(struct usb_usbvision *usbvision, unsigned char add
 	return rdcount;
 }
 
-static struct i2c_adapter i2c_adap_template = {
+static const struct i2c_adapter i2c_adap_template = {
 	.owner = THIS_MODULE,
 	.name              = "usbvision",
 };

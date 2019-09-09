@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/err.h>
@@ -117,9 +118,9 @@ static const struct of_device_id omap_control_usb_id_table[] = {
 MODULE_DEVICE_TABLE(of, omap_control_usb_id_table);
 
 static struct platform_driver am335x_control_driver;
-static int match(struct device *dev, void *data)
+static int match(struct device *dev, const void *data)
 {
-	struct device_node *node = (struct device_node *)data;
+	const struct device_node *node = (const struct device_node *)data;
 	return dev->of_node == node &&
 		dev->driver == &am335x_control_driver.driver;
 }
@@ -134,10 +135,12 @@ struct phy_control *am335x_get_phy_control(struct device *dev)
 		return NULL;
 
 	dev = bus_find_device(&platform_bus_type, NULL, node, match);
+	of_node_put(node);
 	if (!dev)
 		return NULL;
 
 	ctrl_usb = dev_get_drvdata(dev);
+	put_device(dev);
 	if (!ctrl_usb)
 		return NULL;
 	return &ctrl_usb->phy_ctrl;

@@ -1,14 +1,21 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __LINUX_KCONFIG_H
 #define __LINUX_KCONFIG_H
 
 #include <generated/autoconf.h>
+
+#ifdef CONFIG_CPU_BIG_ENDIAN
+#define __BIG_ENDIAN 4321
+#else
+#define __LITTLE_ENDIAN 1234
+#endif
 
 #define __ARG_PLACEHOLDER_1 0,
 #define __take_second_arg(__ignored, val, ...) val
 
 /*
  * The use of "&&" / "||" is limited in certain expressions.
- * The followings enable to calculate "and" / "or" with macro expansion only.
+ * The following enable to calculate "and" / "or" with macro expansion only.
  */
 #define __and(x, y)			___and(x, y)
 #define ___and(x, y)			____and(__ARG_PLACEHOLDER_##x, y)

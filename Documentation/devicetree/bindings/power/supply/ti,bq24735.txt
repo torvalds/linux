@@ -8,8 +8,10 @@ Optional properties :
  - interrupts : Specify the interrupt to be used to trigger when the AC
    adapter is either plugged in or removed.
  - ti,ac-detect-gpios : This GPIO is optionally used to read the AC adapter
-   presence. This is a Host GPIO that is configured as an input and
-   connected to the bq24735.
+   status. This is a Host GPIO that is configured as an input and connected
+   to the ACOK pin on the bq24735. Note: for backwards compatibility reasons,
+   the GPIO must be active on AC adapter absence despite ACOK being active
+   (high) on AC adapter presence.
  - ti,charge-current : Used to control and set the charging current. This value
    must be between 128mA and 8.128A with a 64mA step resolution. The POR value
    is 0x0000h. This number is in mA (e.g. 8192), see spec for more information
@@ -25,6 +27,8 @@ Optional properties :
  - ti,external-control : Indicates that the charger is configured externally
    and that the host should not attempt to enable/disable charging or set the
    charge voltage/current.
+ - poll-interval : In case 'interrupts' is not specified, poll AC adapter
+   presence with this interval (milliseconds).
 
 Example:
 

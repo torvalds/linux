@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #if !defined(_TRACE_KVM_BOOK3S_H)
 #define _TRACE_KVM_BOOK3S_H
 
@@ -13,7 +14,6 @@
 	{0x400, "INST_STORAGE"}, \
 	{0x480, "INST_SEGMENT"}, \
 	{0x500, "EXTERNAL"}, \
-	{0x501, "EXTERNAL_LEVEL"}, \
 	{0x502, "EXTERNAL_HV"}, \
 	{0x600, "ALIGNMENT"}, \
 	{0x700, "PROGRAM"}, \

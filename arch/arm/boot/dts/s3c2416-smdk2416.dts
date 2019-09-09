@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * SAMSUNG SMDK2416 board device tree source
  *
  * Copyright (c) 2013 Heiko Stuebner <heiko@sntech.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 /dts-v1/;
@@ -15,17 +12,19 @@
 	model = "SMDK2416";
 	compatible = "samsung,s3c2416";
 
-	memory {
+	memory@30000000 {
+		device_type = "memory";
 		reg =  <0x30000000 0x4000000>;
 	};
 
 	clocks {
 		compatible = "simple-bus";
 		#address-cells = <1>;
-		#size-cells = <1>;
+		#size-cells = <0>;
 
-		xti: xti {
+		xti: xti@0 {
 			compatible = "fixed-clock";
+			reg = <0>;
 			clock-frequency = <12000000>;
 			clock-output-names = "xti";
 			#clock-cells = <0>;

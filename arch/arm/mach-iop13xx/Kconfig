@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 if ARCH_IOP13XX
 
 menu "IOP13XX Implementation Options"

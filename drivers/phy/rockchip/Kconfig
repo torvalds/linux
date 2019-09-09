@@ -1,0 +1,61 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Phy drivers for Rockchip platforms
+#
+config PHY_ROCKCHIP_DP
+	tristate "Rockchip Display Port PHY Driver"
+	depends on ARCH_ROCKCHIP && OF
+	select GENERIC_PHY
+	help
+	  Enable this to support the Rockchip Display Port PHY.
+
+config PHY_ROCKCHIP_EMMC
+	tristate "Rockchip EMMC PHY Driver"
+	depends on ARCH_ROCKCHIP && OF
+	select GENERIC_PHY
+	help
+	  Enable this to support the Rockchip EMMC PHY.
+
+config PHY_ROCKCHIP_INNO_HDMI
+	tristate "Rockchip INNO HDMI PHY Driver"
+	depends on (ARCH_ROCKCHIP || COMPILE_TEST) && OF
+	depends on COMMON_CLK
+	select GENERIC_PHY
+	help
+	  Enable this to support the Rockchip Innosilicon HDMI PHY.
+
+config PHY_ROCKCHIP_INNO_USB2
+	tristate "Rockchip INNO USB2PHY Driver"
+	depends on (ARCH_ROCKCHIP || COMPILE_TEST) && OF
+	depends on COMMON_CLK
+	depends on EXTCON
+	depends on USB_SUPPORT
+	select GENERIC_PHY
+	select USB_COMMON
+	help
+	  Support for Rockchip USB2.0 PHY with Innosilicon IP block.
+
+config PHY_ROCKCHIP_PCIE
+	tristate "Rockchip PCIe PHY Driver"
+	depends on (ARCH_ROCKCHIP && OF) || COMPILE_TEST
+	depends on HAS_IOMEM
+	select GENERIC_PHY
+	select MFD_SYSCON
+	help
+	  Enable this to support the Rockchip PCIe PHY.
+
+config PHY_ROCKCHIP_TYPEC
+	tristate "Rockchip TYPEC PHY Driver"
+	depends on OF && (ARCH_ROCKCHIP || COMPILE_TEST)
+	select EXTCON
+	select GENERIC_PHY
+	select RESET_CONTROLLER
+	help
+	  Enable this to support the Rockchip USB TYPEC PHY.
+
+config PHY_ROCKCHIP_USB
+	tristate "Rockchip USB2 PHY Driver"
+	depends on ARCH_ROCKCHIP && OF
+	select GENERIC_PHY
+	help
+	  Enable this to support the Rockchip USB 2.0 PHY.

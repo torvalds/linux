@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2008
  * Guennadi Liakhovetski, DENX Software Engineering, <lg@denx.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/init.h>
@@ -272,7 +269,7 @@ static void ipu_irq_handler(struct irq_desc *desc)
 	u32 status;
 	int i, line;
 
-	for (i = IPU_IRQ_NR_FN_BANKS; i < IPU_IRQ_NR_BANKS; i++) {
+	for (i = 0; i < IPU_IRQ_NR_BANKS; i++) {
 		struct ipu_irq_bank *bank = irq_bank + i;
 
 		raw_spin_lock(&bank_lock);

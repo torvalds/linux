@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  linux/arch/arm/lib/copypage.S
  *
  *  Copyright (C) 1995-1999 Russell King
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  *  ASM optimised string functions
  */
@@ -13,7 +10,6 @@
 #include <asm/assembler.h>
 #include <asm/asm-offsets.h>
 #include <asm/cache.h>
-#include <asm/export.h>
 
 #define COPY_COUNT (PAGE_SZ / (2 * L1_CACHE_BYTES) PLD( -1 ))
 
@@ -40,10 +36,9 @@ ENTRY(copy_page)
 	.endr
 		subs	r2, r2, #1			@	1
 		stmia	r0!, {r3, r4, ip, lr}		@	4
-		ldmgtia	r1!, {r3, r4, ip, lr}		@	4
+		ldmiagt	r1!, {r3, r4, ip, lr}		@	4
 		bgt	1b				@	1
-	PLD(	ldmeqia r1!, {r3, r4, ip, lr}	)
+	PLD(	ldmiaeq r1!, {r3, r4, ip, lr}	)
 	PLD(	beq	2b			)
 		ldmfd	sp!, {r4, pc}			@	3
 ENDPROC(copy_page)
-EXPORT_SYMBOL(copy_page)

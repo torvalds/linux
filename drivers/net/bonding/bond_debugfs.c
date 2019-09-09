@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/device.h>
@@ -44,19 +45,7 @@ static int bond_debug_rlb_hash_show(struct seq_file *m, void *v)
 
 	return 0;
 }
-
-static int bond_debug_rlb_hash_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, bond_debug_rlb_hash_show, inode->i_private);
-}
-
-static const struct file_operations bond_debug_rlb_hash_fops = {
-	.owner		= THIS_MODULE,
-	.open		= bond_debug_rlb_hash_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(bond_debug_rlb_hash);
 
 void bond_debug_register(struct bonding *bond)
 {

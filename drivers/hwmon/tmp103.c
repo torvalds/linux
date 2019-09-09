@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Texas Instruments TMP103 SMBus temperature sensor driver
  * Copyright (C) 2014 Heiko Schocher <hs@denx.de>
@@ -6,17 +7,6 @@
  * Texas Instruments TMP102 SMBus temperature sensor driver
  *
  * Copyright (C) 2010 Steven King <sfking@fdwdc.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/module.h>
@@ -61,9 +51,8 @@ static inline u8 tmp103_mc_to_reg(int val)
 	return DIV_ROUND_CLOSEST(val, 1000);
 }
 
-static ssize_t tmp103_show_temp(struct device *dev,
-				struct device_attribute *attr,
-				char *buf)
+static ssize_t tmp103_temp_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
 {
 	struct sensor_device_attribute *sda = to_sensor_dev_attr(attr);
 	struct regmap *regmap = dev_get_drvdata(dev);
@@ -77,9 +66,9 @@ static ssize_t tmp103_show_temp(struct device *dev,
 	return sprintf(buf, "%d\n", tmp103_reg_to_mc(regval));
 }
 
-static ssize_t tmp103_set_temp(struct device *dev,
-			       struct device_attribute *attr,
-			       const char *buf, size_t count)
+static ssize_t tmp103_temp_store(struct device *dev,
+				 struct device_attribute *attr,
+				 const char *buf, size_t count)
 {
 	struct sensor_device_attribute *sda = to_sensor_dev_attr(attr);
 	struct regmap *regmap = dev_get_drvdata(dev);
@@ -94,14 +83,11 @@ static ssize_t tmp103_set_temp(struct device *dev,
 	return ret ? ret : count;
 }
 
-static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, tmp103_show_temp, NULL ,
-			  TMP103_TEMP_REG);
+static SENSOR_DEVICE_ATTR_RO(temp1_input, tmp103_temp, TMP103_TEMP_REG);
 
-static SENSOR_DEVICE_ATTR(temp1_min, S_IWUSR | S_IRUGO, tmp103_show_temp,
-			  tmp103_set_temp, TMP103_TLOW_REG);
+static SENSOR_DEVICE_ATTR_RW(temp1_min, tmp103_temp, TMP103_TLOW_REG);
 
-static SENSOR_DEVICE_ATTR(temp1_max, S_IWUSR | S_IRUGO, tmp103_show_temp,
-			  tmp103_set_temp, TMP103_THIGH_REG);
+static SENSOR_DEVICE_ATTR_RW(temp1_max, tmp103_temp, TMP103_THIGH_REG);
 
 static struct attribute *tmp103_attrs[] = {
 	&sensor_dev_attr_temp1_input.dev_attr.attr,
@@ -150,8 +136,7 @@ static int tmp103_probe(struct i2c_client *client,
 	return PTR_ERR_OR_ZERO(hwmon_dev);
 }
 
-#ifdef CONFIG_PM
-static int tmp103_suspend(struct device *dev)
+static int __maybe_unused tmp103_suspend(struct device *dev)
 {
 	struct regmap *regmap = dev_get_drvdata(dev);
 
@@ -159,7 +144,7 @@ static int tmp103_suspend(struct device *dev)
 				  TMP103_CONF_SD_MASK, 0);
 }
 
-static int tmp103_resume(struct device *dev)
+static int __maybe_unused tmp103_resume(struct device *dev)
 {
 	struct regmap *regmap = dev_get_drvdata(dev);
 
@@ -167,15 +152,7 @@ static int tmp103_resume(struct device *dev)
 				  TMP103_CONF_SD_MASK, TMP103_CONF_SD);
 }
 
-static const struct dev_pm_ops tmp103_dev_pm_ops = {
-	.suspend	= tmp103_suspend,
-	.resume		= tmp103_resume,
-};
-
-#define TMP103_DEV_PM_OPS (&tmp103_dev_pm_ops)
-#else
-#define	TMP103_DEV_PM_OPS NULL
-#endif /* CONFIG_PM */
+static SIMPLE_DEV_PM_OPS(tmp103_dev_pm_ops, tmp103_suspend, tmp103_resume);
 
 static const struct i2c_device_id tmp103_id[] = {
 	{ "tmp103", 0 },
@@ -183,10 +160,17 @@ static const struct i2c_device_id tmp103_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, tmp103_id);
 
+static const struct of_device_id __maybe_unused tmp103_of_match[] = {
+	{ .compatible = "ti,tmp103" },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, tmp103_of_match);
+
 static struct i2c_driver tmp103_driver = {
 	.driver = {
 		.name	= "tmp103",
-		.pm	= TMP103_DEV_PM_OPS,
+		.of_match_table = of_match_ptr(tmp103_of_match),
+		.pm	= &tmp103_dev_pm_ops,
 	},
 	.probe		= tmp103_probe,
 	.id_table	= tmp103_id,

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * drivers/char/watchdog/davinci_wdt.c
  *
@@ -5,14 +6,12 @@
  *
  * Copyright (C) 2006-2013 Texas Instruments.
  *
- * 2007 (c) MontaVista Software, Inc. This file is licensed under
- * the terms of the GNU General Public License version 2. This program
- * is licensed "as is" without any warranty of any kind, whether express
- * or implied.
+ * 2007 (c) MontaVista Software, Inc.
  */
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/mod_devicetable.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/watchdog.h>
@@ -140,6 +139,42 @@ static unsigned int davinci_wdt_get_timeleft(struct watchdog_device *wdd)
 	return wdd->timeout - timer_counter;
 }
 
+static int davinci_wdt_restart(struct watchdog_device *wdd,
+			       unsigned long action, void *data)
+{
+	struct davinci_wdt_device *davinci_wdt = watchdog_get_drvdata(wdd);
+	u32 tgcr, wdtcr;
+
+	/* disable, internal clock source */
+	iowrite32(0, davinci_wdt->base + TCR);
+
+	/* reset timer, set mode to 64-bit watchdog, and unreset */
+	tgcr = 0;
+	iowrite32(tgcr, davinci_wdt->base + TGCR);
+	tgcr = TIMMODE_64BIT_WDOG | TIM12RS_UNRESET | TIM34RS_UNRESET;
+	iowrite32(tgcr, davinci_wdt->base + TGCR);
+
+	/* clear counter and period regs */
+	iowrite32(0, davinci_wdt->base + TIM12);
+	iowrite32(0, davinci_wdt->base + TIM34);
+	iowrite32(0, davinci_wdt->base + PRD12);
+	iowrite32(0, davinci_wdt->base + PRD34);
+
+	/* put watchdog in pre-active state */
+	wdtcr = WDKEY_SEQ0 | WDEN;
+	iowrite32(wdtcr, davinci_wdt->base + WDTCR);
+
+	/* put watchdog in active state */
+	wdtcr = WDKEY_SEQ1 | WDEN;
+	iowrite32(wdtcr, davinci_wdt->base + WDTCR);
+
+	/* write an invalid value to the WDKEY field to trigger a restart */
+	wdtcr = 0x00004000;
+	iowrite32(wdtcr, davinci_wdt->base + WDTCR);
+
+	return 0;
+}
+
 static const struct watchdog_info davinci_wdt_info = {
 	.options = WDIOF_KEEPALIVEPING,
 	.identity = "DaVinci/Keystone Watchdog",
@@ -151,13 +186,18 @@ static const struct watchdog_ops davinci_wdt_ops = {
 	.stop		= davinci_wdt_ping,
 	.ping		= davinci_wdt_ping,
 	.get_timeleft	= davinci_wdt_get_timeleft,
+	.restart	= davinci_wdt_restart,
 };
+
+static void davinci_clk_disable_unprepare(void *data)
+{
+	clk_disable_unprepare(data);
+}
 
 static int davinci_wdt_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	struct device *dev = &pdev->dev;
-	struct resource  *wdt_mem;
 	struct watchdog_device *wdd;
 	struct davinci_wdt_device *davinci_wdt;
 
@@ -166,10 +206,22 @@ static int davinci_wdt_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	davinci_wdt->clk = devm_clk_get(dev, NULL);
-	if (WARN_ON(IS_ERR(davinci_wdt->clk)))
-		return PTR_ERR(davinci_wdt->clk);
 
-	clk_prepare_enable(davinci_wdt->clk);
+	if (IS_ERR(davinci_wdt->clk)) {
+		if (PTR_ERR(davinci_wdt->clk) != -EPROBE_DEFER)
+			dev_err(dev, "failed to get clock node\n");
+		return PTR_ERR(davinci_wdt->clk);
+	}
+
+	ret = clk_prepare_enable(davinci_wdt->clk);
+	if (ret) {
+		dev_err(dev, "failed to prepare clock\n");
+		return ret;
+	}
+	ret = devm_add_action_or_reset(dev, davinci_clk_disable_unprepare,
+				       davinci_wdt->clk);
+	if (ret)
+		return ret;
 
 	platform_set_drvdata(pdev, davinci_wdt);
 
@@ -179,7 +231,7 @@ static int davinci_wdt_probe(struct platform_device *pdev)
 	wdd->min_timeout	= 1;
 	wdd->max_timeout	= MAX_HEARTBEAT;
 	wdd->timeout		= DEFAULT_HEARTBEAT;
-	wdd->parent		= &pdev->dev;
+	wdd->parent		= dev;
 
 	watchdog_init_timeout(wdd, heartbeat, dev);
 
@@ -187,27 +239,13 @@ static int davinci_wdt_probe(struct platform_device *pdev)
 
 	watchdog_set_drvdata(wdd, davinci_wdt);
 	watchdog_set_nowayout(wdd, 1);
+	watchdog_set_restart_priority(wdd, 128);
 
-	wdt_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	davinci_wdt->base = devm_ioremap_resource(dev, wdt_mem);
+	davinci_wdt->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(davinci_wdt->base))
 		return PTR_ERR(davinci_wdt->base);
 
-	ret = watchdog_register_device(wdd);
-	if (ret < 0)
-		dev_err(dev, "cannot register watchdog device\n");
-
-	return ret;
-}
-
-static int davinci_wdt_remove(struct platform_device *pdev)
-{
-	struct davinci_wdt_device *davinci_wdt = platform_get_drvdata(pdev);
-
-	watchdog_unregister_device(&davinci_wdt->wdd);
-	clk_disable_unprepare(davinci_wdt->clk);
-
-	return 0;
+	return devm_watchdog_register_device(dev, wdd);
 }
 
 static const struct of_device_id davinci_wdt_of_match[] = {
@@ -222,7 +260,6 @@ static struct platform_driver platform_wdt_driver = {
 		.of_match_table = davinci_wdt_of_match,
 	},
 	.probe = davinci_wdt_probe,
-	.remove = davinci_wdt_remove,
 };
 
 module_platform_driver(platform_wdt_driver);

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 export srctree := $(abspath ../../../..)
 export CC      := gcc
 export LD      := ld
@@ -8,7 +9,7 @@ ex:
 include $(srctree)/tools/build/Makefile.include
 
 ex: ex-in.o libex-in.o
-	gcc -o $@ $^
+	$(CC) -o $@ $^
 
 ex.%: fixdep FORCE
 	make -f $(srctree)/tools/build/Makefile.build dir=. $@

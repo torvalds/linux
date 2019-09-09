@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  linux/arch/m68knommu/kernel/setup.c
  *
@@ -26,7 +27,7 @@
 #include <linux/console.h>
 #include <linux/errno.h>
 #include <linux/string.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/seq_file.h>
 #include <linux/init.h>
 #include <linux/initrd.h>
@@ -50,7 +51,6 @@ char __initdata command_line[COMMAND_LINE_SIZE];
 
 /* machine dependent timer functions */
 void (*mach_sched_init)(irq_handler_t handler) __initdata = NULL;
-int (*mach_set_clock_mmss)(unsigned long);
 int (*mach_hwclk) (int, struct rtc_time*);
 
 /* machine dependent reboot functions */
@@ -85,8 +85,6 @@ void (*mach_power_off)(void);
 
 void __init setup_arch(char **cmdline_p)
 {
-	int bootmap_size;
-
 	memory_start = PAGE_ALIGN(_ramstart);
 	memory_end = _ramend;
 
@@ -141,6 +139,8 @@ void __init setup_arch(char **cmdline_p)
 	pr_debug("MEMORY -> ROMFS=0x%p-0x%06lx MEM=0x%06lx-0x%06lx\n ",
 		 __bss_stop, memory_start, memory_start, memory_end);
 
+	memblock_add(memory_start, memory_end - memory_start);
+
 	/* Keep a copy of command line */
 	*cmdline_p = &command_line[0];
 	memcpy(boot_command_line, command_line, COMMAND_LINE_SIZE);
@@ -157,23 +157,10 @@ void __init setup_arch(char **cmdline_p)
 	min_low_pfn = PFN_DOWN(memory_start);
 	max_pfn = max_low_pfn = PFN_DOWN(memory_end);
 
-	bootmap_size = init_bootmem_node(
-			NODE_DATA(0),
-			min_low_pfn,		/* map goes here */
-			PFN_DOWN(PAGE_OFFSET),
-			max_pfn);
-	/*
-	 * Free the usable memory, we have to make sure we do not free
-	 * the bootmem bitmap so we then reserve it after freeing it :-)
-	 */
-	free_bootmem(memory_start, memory_end - memory_start);
-	reserve_bootmem(memory_start, bootmap_size, BOOTMEM_DEFAULT);
-
 #if defined(CONFIG_UBOOT) && defined(CONFIG_BLK_DEV_INITRD)
 	if ((initrd_start > 0) && (initrd_start < initrd_end) &&
 			(initrd_end < memory_end))
-		reserve_bootmem(initrd_start, initrd_end - initrd_start,
-				 BOOTMEM_DEFAULT);
+		memblock_reserve(initrd_start, initrd_end - initrd_start);
 #endif /* if defined(CONFIG_BLK_DEV_INITRD) */
 
 	/*

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *
  * Hardware accelerated Matrox Millennium I, II, Mystique, G100, G200, G400 and G450.
@@ -1088,14 +1089,20 @@ static void MGAG100_restore(struct matrox_fb_info *minfo)
 
 #ifdef CONFIG_FB_MATROX_MYSTIQUE
 struct matrox_switch matrox_mystique = {
-	MGA1064_preinit, MGA1064_reset, MGA1064_init, MGA1064_restore,
+	.preinit	= MGA1064_preinit,
+	.reset		= MGA1064_reset,
+	.init		= MGA1064_init,
+	.restore	= MGA1064_restore,
 };
 EXPORT_SYMBOL(matrox_mystique);
 #endif
 
 #ifdef CONFIG_FB_MATROX_G
 struct matrox_switch matrox_G100 = {
-	MGAG100_preinit, MGAG100_reset, MGAG100_init, MGAG100_restore,
+	.preinit	= MGAG100_preinit,
+	.reset		= MGAG100_reset,
+	.init		= MGAG100_init,
+	.restore	= MGAG100_restore,
 };
 EXPORT_SYMBOL(matrox_G100);
 #endif

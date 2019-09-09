@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * wm8995.c  --  WM8995 ALSA SoC Audio driver
  *
@@ -6,10 +7,6 @@
  * Author: Dimitris Papastamos <dp@opensource.wolfsonmicro.com>
  *
  * Based on wm8994.c and wm_hubs.c by Mark Brown
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -385,7 +382,7 @@ struct wm8995_priv {
 	struct fll_config fll[2], fll_suspend[2];
 	struct regulator_bulk_data supplies[WM8995_NUM_SUPPLIES];
 	struct notifier_block disable_nb[WM8995_NUM_SUPPLIES];
-	struct snd_soc_codec *codec;
+	struct snd_soc_component *component;
 };
 
 /*
@@ -485,48 +482,48 @@ static const struct snd_kcontrol_new wm8995_snd_controls[] = {
 		WM8995_AIF2_ADC_RIGHT_VOLUME, 0, 96, 0, digital_tlv)
 };
 
-static void wm8995_update_class_w(struct snd_soc_codec *codec)
+static void wm8995_update_class_w(struct snd_soc_component *component)
 {
 	int enable = 1;
 	int source = 0;  /* GCC flow analysis can't track enable */
 	int reg, reg_r;
 
 	/* We also need the same setting for L/R and only one path */
-	reg = snd_soc_read(codec, WM8995_DAC1_LEFT_MIXER_ROUTING);
+	reg = snd_soc_component_read32(component, WM8995_DAC1_LEFT_MIXER_ROUTING);
 	switch (reg) {
 	case WM8995_AIF2DACL_TO_DAC1L:
-		dev_dbg(codec->dev, "Class W source AIF2DAC\n");
+		dev_dbg(component->dev, "Class W source AIF2DAC\n");
 		source = 2 << WM8995_CP_DYN_SRC_SEL_SHIFT;
 		break;
 	case WM8995_AIF1DAC2L_TO_DAC1L:
-		dev_dbg(codec->dev, "Class W source AIF1DAC2\n");
+		dev_dbg(component->dev, "Class W source AIF1DAC2\n");
 		source = 1 << WM8995_CP_DYN_SRC_SEL_SHIFT;
 		break;
 	case WM8995_AIF1DAC1L_TO_DAC1L:
-		dev_dbg(codec->dev, "Class W source AIF1DAC1\n");
+		dev_dbg(component->dev, "Class W source AIF1DAC1\n");
 		source = 0 << WM8995_CP_DYN_SRC_SEL_SHIFT;
 		break;
 	default:
-		dev_dbg(codec->dev, "DAC mixer setting: %x\n", reg);
+		dev_dbg(component->dev, "DAC mixer setting: %x\n", reg);
 		enable = 0;
 		break;
 	}
 
-	reg_r = snd_soc_read(codec, WM8995_DAC1_RIGHT_MIXER_ROUTING);
+	reg_r = snd_soc_component_read32(component, WM8995_DAC1_RIGHT_MIXER_ROUTING);
 	if (reg_r != reg) {
-		dev_dbg(codec->dev, "Left and right DAC mixers different\n");
+		dev_dbg(component->dev, "Left and right DAC mixers different\n");
 		enable = 0;
 	}
 
 	if (enable) {
-		dev_dbg(codec->dev, "Class W enabled\n");
-		snd_soc_update_bits(codec, WM8995_CLASS_W_1,
+		dev_dbg(component->dev, "Class W enabled\n");
+		snd_soc_component_update_bits(component, WM8995_CLASS_W_1,
 				    WM8995_CP_DYN_PWR_MASK |
 				    WM8995_CP_DYN_SRC_SEL_MASK,
 				    source | WM8995_CP_DYN_PWR);
 	} else {
-		dev_dbg(codec->dev, "Class W disabled\n");
-		snd_soc_update_bits(codec, WM8995_CLASS_W_1,
+		dev_dbg(component->dev, "Class W disabled\n");
+		snd_soc_component_update_bits(component, WM8995_CLASS_W_1,
 				    WM8995_CP_DYN_PWR_MASK, 0);
 	}
 }
@@ -534,11 +531,11 @@ static void wm8995_update_class_w(struct snd_soc_codec *codec)
 static int check_clk_sys(struct snd_soc_dapm_widget *source,
 			 struct snd_soc_dapm_widget *sink)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(source->dapm);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(source->dapm);
 	unsigned int reg;
 	const char *clk;
 
-	reg = snd_soc_read(codec, WM8995_CLOCKING_1);
+	reg = snd_soc_component_read32(component, WM8995_CLOCKING_1);
 	/* Check what we're currently using for CLK_SYS */
 	if (reg & WM8995_SYSCLK_SRC)
 		clk = "AIF2CLK";
@@ -550,37 +547,37 @@ static int check_clk_sys(struct snd_soc_dapm_widget *source,
 static int wm8995_put_class_w(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_kcontrol_codec(kcontrol);
+	struct snd_soc_component *component = snd_soc_dapm_kcontrol_component(kcontrol);
 	int ret;
 
 	ret = snd_soc_dapm_put_volsw(kcontrol, ucontrol);
-	wm8995_update_class_w(codec);
+	wm8995_update_class_w(component);
 	return ret;
 }
 
 static int hp_supply_event(struct snd_soc_dapm_widget *w,
 			   struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
 		/* Enable the headphone amp */
-		snd_soc_update_bits(codec, WM8995_POWER_MANAGEMENT_1,
+		snd_soc_component_update_bits(component, WM8995_POWER_MANAGEMENT_1,
 				    WM8995_HPOUT1L_ENA_MASK |
 				    WM8995_HPOUT1R_ENA_MASK,
 				    WM8995_HPOUT1L_ENA |
 				    WM8995_HPOUT1R_ENA);
 
 		/* Enable the second stage */
-		snd_soc_update_bits(codec, WM8995_ANALOGUE_HP_1,
+		snd_soc_component_update_bits(component, WM8995_ANALOGUE_HP_1,
 				    WM8995_HPOUT1L_DLY_MASK |
 				    WM8995_HPOUT1R_DLY_MASK,
 				    WM8995_HPOUT1L_DLY |
 				    WM8995_HPOUT1R_DLY);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
-		snd_soc_update_bits(codec, WM8995_CHARGE_PUMP_1,
+		snd_soc_component_update_bits(component, WM8995_CHARGE_PUMP_1,
 				    WM8995_CP_ENA_MASK, 0);
 		break;
 	}
@@ -588,41 +585,41 @@ static int hp_supply_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
-static void dc_servo_cmd(struct snd_soc_codec *codec,
+static void dc_servo_cmd(struct snd_soc_component *component,
 			 unsigned int reg, unsigned int val, unsigned int mask)
 {
 	int timeout = 10;
 
-	dev_dbg(codec->dev, "%s: reg = %#x, val = %#x, mask = %#x\n",
+	dev_dbg(component->dev, "%s: reg = %#x, val = %#x, mask = %#x\n",
 		__func__, reg, val, mask);
 
-	snd_soc_write(codec, reg, val);
+	snd_soc_component_write(component, reg, val);
 	while (timeout--) {
 		msleep(10);
-		val = snd_soc_read(codec, WM8995_DC_SERVO_READBACK_0);
+		val = snd_soc_component_read32(component, WM8995_DC_SERVO_READBACK_0);
 		if ((val & mask) == mask)
 			return;
 	}
 
-	dev_err(codec->dev, "Timed out waiting for DC Servo\n");
+	dev_err(component->dev, "Timed out waiting for DC Servo\n");
 }
 
 static int hp_event(struct snd_soc_dapm_widget *w,
 		    struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 	unsigned int reg;
 
-	reg = snd_soc_read(codec, WM8995_ANALOGUE_HP_1);
+	reg = snd_soc_component_read32(component, WM8995_ANALOGUE_HP_1);
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		snd_soc_update_bits(codec, WM8995_CHARGE_PUMP_1,
+		snd_soc_component_update_bits(component, WM8995_CHARGE_PUMP_1,
 				    WM8995_CP_ENA_MASK, WM8995_CP_ENA);
 
 		msleep(5);
 
-		snd_soc_update_bits(codec, WM8995_POWER_MANAGEMENT_1,
+		snd_soc_component_update_bits(component, WM8995_POWER_MANAGEMENT_1,
 				    WM8995_HPOUT1L_ENA_MASK |
 				    WM8995_HPOUT1R_ENA_MASK,
 				    WM8995_HPOUT1L_ENA | WM8995_HPOUT1R_ENA);
@@ -630,12 +627,12 @@ static int hp_event(struct snd_soc_dapm_widget *w,
 		udelay(20);
 
 		reg |= WM8995_HPOUT1L_DLY | WM8995_HPOUT1R_DLY;
-		snd_soc_write(codec, WM8995_ANALOGUE_HP_1, reg);
+		snd_soc_component_write(component, WM8995_ANALOGUE_HP_1, reg);
 
-		snd_soc_write(codec, WM8995_DC_SERVO_1, WM8995_DCS_ENA_CHAN_0 |
+		snd_soc_component_write(component, WM8995_DC_SERVO_1, WM8995_DCS_ENA_CHAN_0 |
 			      WM8995_DCS_ENA_CHAN_1);
 
-		dc_servo_cmd(codec, WM8995_DC_SERVO_2,
+		dc_servo_cmd(component, WM8995_DC_SERVO_2,
 			     WM8995_DCS_TRIG_STARTUP_0 |
 			     WM8995_DCS_TRIG_STARTUP_1,
 			     WM8995_DCS_TRIG_DAC_WR_0 |
@@ -643,23 +640,23 @@ static int hp_event(struct snd_soc_dapm_widget *w,
 
 		reg |= WM8995_HPOUT1R_OUTP | WM8995_HPOUT1R_RMV_SHORT |
 		       WM8995_HPOUT1L_OUTP | WM8995_HPOUT1L_RMV_SHORT;
-		snd_soc_write(codec, WM8995_ANALOGUE_HP_1, reg);
+		snd_soc_component_write(component, WM8995_ANALOGUE_HP_1, reg);
 
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
-		snd_soc_update_bits(codec, WM8995_ANALOGUE_HP_1,
+		snd_soc_component_update_bits(component, WM8995_ANALOGUE_HP_1,
 				    WM8995_HPOUT1L_OUTP_MASK |
 				    WM8995_HPOUT1R_OUTP_MASK |
 				    WM8995_HPOUT1L_RMV_SHORT_MASK |
 				    WM8995_HPOUT1R_RMV_SHORT_MASK, 0);
 
-		snd_soc_update_bits(codec, WM8995_ANALOGUE_HP_1,
+		snd_soc_component_update_bits(component, WM8995_ANALOGUE_HP_1,
 				    WM8995_HPOUT1L_DLY_MASK |
 				    WM8995_HPOUT1R_DLY_MASK, 0);
 
-		snd_soc_write(codec, WM8995_DC_SERVO_1, 0);
+		snd_soc_component_write(component, WM8995_DC_SERVO_1, 0);
 
-		snd_soc_update_bits(codec, WM8995_POWER_MANAGEMENT_1,
+		snd_soc_component_update_bits(component, WM8995_POWER_MANAGEMENT_1,
 				    WM8995_HPOUT1L_ENA_MASK |
 				    WM8995_HPOUT1R_ENA_MASK,
 				    0);
@@ -669,14 +666,14 @@ static int hp_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
-static int configure_aif_clock(struct snd_soc_codec *codec, int aif)
+static int configure_aif_clock(struct snd_soc_component *component, int aif)
 {
 	struct wm8995_priv *wm8995;
 	int rate;
 	int reg1 = 0;
 	int offset;
 
-	wm8995 = snd_soc_codec_get_drvdata(codec);
+	wm8995 = snd_soc_component_get_drvdata(component);
 
 	if (aif)
 		offset = 4;
@@ -707,29 +704,29 @@ static int configure_aif_clock(struct snd_soc_codec *codec, int aif)
 		rate /= 2;
 		reg1 |= WM8995_AIF1CLK_DIV;
 
-		dev_dbg(codec->dev, "Dividing AIF%d clock to %dHz\n",
+		dev_dbg(component->dev, "Dividing AIF%d clock to %dHz\n",
 			aif + 1, rate);
 	}
 
 	wm8995->aifclk[aif] = rate;
 
-	snd_soc_update_bits(codec, WM8995_AIF1_CLOCKING_1 + offset,
+	snd_soc_component_update_bits(component, WM8995_AIF1_CLOCKING_1 + offset,
 			    WM8995_AIF1CLK_SRC_MASK | WM8995_AIF1CLK_DIV_MASK,
 			    reg1);
 	return 0;
 }
 
-static int configure_clock(struct snd_soc_codec *codec)
+static int configure_clock(struct snd_soc_component *component)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
 	struct wm8995_priv *wm8995;
 	int change, new;
 
-	wm8995 = snd_soc_codec_get_drvdata(codec);
+	wm8995 = snd_soc_component_get_drvdata(component);
 
 	/* Bring up the AIF clocks first */
-	configure_aif_clock(codec, 0);
-	configure_aif_clock(codec, 1);
+	configure_aif_clock(component, 0);
+	configure_aif_clock(component, 1);
 
 	/*
 	 * Then switch CLK_SYS over to the higher of them; a change
@@ -747,7 +744,7 @@ static int configure_clock(struct snd_soc_codec *codec)
 	else
 		new = 0;
 
-	change = snd_soc_update_bits(codec, WM8995_CLOCKING_1,
+	change = snd_soc_component_update_bits(component, WM8995_CLOCKING_1,
 				     WM8995_SYSCLK_SRC_MASK, new);
 	if (!change)
 		return 0;
@@ -760,14 +757,14 @@ static int configure_clock(struct snd_soc_codec *codec)
 static int clk_sys_event(struct snd_soc_dapm_widget *w,
 			 struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
-		return configure_clock(codec);
+		return configure_clock(component);
 
 	case SND_SOC_DAPM_POST_PMD:
-		configure_clock(codec);
+		configure_clock(component);
 		break;
 	}
 
@@ -1422,7 +1419,7 @@ static bool wm8995_volatile(struct device *dev, unsigned int reg)
 
 static int wm8995_aif_mute(struct snd_soc_dai *dai, int mute)
 {
-	struct snd_soc_codec *codec = dai->codec;
+	struct snd_soc_component *component = dai->component;
 	int mute_reg;
 
 	switch (dai->id) {
@@ -1436,18 +1433,18 @@ static int wm8995_aif_mute(struct snd_soc_dai *dai, int mute)
 		return -EINVAL;
 	}
 
-	snd_soc_update_bits(codec, mute_reg, WM8995_AIF1DAC1_MUTE_MASK,
+	snd_soc_component_update_bits(component, mute_reg, WM8995_AIF1DAC1_MUTE_MASK,
 			    !!mute << WM8995_AIF1DAC1_MUTE_SHIFT);
 	return 0;
 }
 
 static int wm8995_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
-	struct snd_soc_codec *codec;
+	struct snd_soc_component *component;
 	int master;
 	int aif;
 
-	codec = dai->codec;
+	component = dai->component;
 
 	master = 0;
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
@@ -1465,6 +1462,7 @@ static int wm8995_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_DSP_B:
 		aif |= WM8995_AIF1_LRCLK_INV;
+		/* fall through */
 	case SND_SOC_DAIFMT_DSP_A:
 		aif |= (0x3 << WM8995_AIF1_FMT_SHIFT);
 		break;
@@ -1519,11 +1517,11 @@ static int wm8995_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		return -EINVAL;
 	}
 
-	snd_soc_update_bits(codec, WM8995_AIF1_CONTROL_1,
+	snd_soc_component_update_bits(component, WM8995_AIF1_CONTROL_1,
 			    WM8995_AIF1_BCLK_INV_MASK |
 			    WM8995_AIF1_LRCLK_INV_MASK |
 			    WM8995_AIF1_FMT_MASK, aif);
-	snd_soc_update_bits(codec, WM8995_AIF1_MASTER_SLAVE,
+	snd_soc_component_update_bits(component, WM8995_AIF1_MASTER_SLAVE,
 			    WM8995_AIF1_MSTR_MASK, master);
 	return 0;
 }
@@ -1546,7 +1544,7 @@ static int wm8995_hw_params(struct snd_pcm_substream *substream,
 			    struct snd_pcm_hw_params *params,
 			    struct snd_soc_dai *dai)
 {
-	struct snd_soc_codec *codec;
+	struct snd_soc_component *component;
 	struct wm8995_priv *wm8995;
 	int aif1_reg;
 	int bclk_reg;
@@ -1557,8 +1555,8 @@ static int wm8995_hw_params(struct snd_pcm_substream *substream,
 	int lrclk, bclk;
 	int i, rate_val, best, best_val, cur_val;
 
-	codec = dai->codec;
-	wm8995 = snd_soc_codec_get_drvdata(codec);
+	component = dai->component;
+	wm8995 = snd_soc_component_get_drvdata(component);
 
 	switch (dai->id) {
 	case 0:
@@ -1570,7 +1568,7 @@ static int wm8995_hw_params(struct snd_pcm_substream *substream,
 			lrclk_reg = WM8995_AIF1DAC_LRCLK;
 		} else {
 			lrclk_reg = WM8995_AIF1ADC_LRCLK;
-			dev_dbg(codec->dev, "AIF1 using split LRCLK\n");
+			dev_dbg(component->dev, "AIF1 using split LRCLK\n");
 		}
 		break;
 	case 1:
@@ -1582,7 +1580,7 @@ static int wm8995_hw_params(struct snd_pcm_substream *substream,
 			lrclk_reg = WM8995_AIF2DAC_LRCLK;
 		} else {
 			lrclk_reg = WM8995_AIF2ADC_LRCLK;
-			dev_dbg(codec->dev, "AIF2 using split LRCLK\n");
+			dev_dbg(component->dev, "AIF2 using split LRCLK\n");
 		}
 		break;
 	default:
@@ -1668,13 +1666,13 @@ static int wm8995_hw_params(struct snd_pcm_substream *substream,
 	dev_dbg(dai->dev, "Using LRCLK rate %d for actual LRCLK %dHz\n",
 		lrclk, bclk_rate / lrclk);
 
-	snd_soc_update_bits(codec, aif1_reg,
+	snd_soc_component_update_bits(component, aif1_reg,
 			    WM8995_AIF1_WL_MASK, aif1);
-	snd_soc_update_bits(codec, bclk_reg,
+	snd_soc_component_update_bits(component, bclk_reg,
 			    WM8995_AIF1_BCLK_DIV_MASK, bclk);
-	snd_soc_update_bits(codec, lrclk_reg,
+	snd_soc_component_update_bits(component, lrclk_reg,
 			    WM8995_AIF1DAC_RATE_MASK, lrclk);
-	snd_soc_update_bits(codec, rate_reg,
+	snd_soc_component_update_bits(component, rate_reg,
 			    WM8995_AIF1_SR_MASK |
 			    WM8995_AIF1CLK_RATE_MASK, rate_val);
 	return 0;
@@ -1682,7 +1680,7 @@ static int wm8995_hw_params(struct snd_pcm_substream *substream,
 
 static int wm8995_set_tristate(struct snd_soc_dai *codec_dai, int tristate)
 {
-	struct snd_soc_codec *codec = codec_dai->codec;
+	struct snd_soc_component *component = codec_dai->component;
 	int reg, val, mask;
 
 	switch (codec_dai->id) {
@@ -1707,7 +1705,7 @@ static int wm8995_set_tristate(struct snd_soc_dai *codec_dai, int tristate)
 	else
 		val = 0;
 
-	return snd_soc_update_bits(codec, reg, mask, val);
+	return snd_soc_component_update_bits(component, reg, mask, val);
 }
 
 /* The size in bits of the FLL divide multiplied by 10
@@ -1797,19 +1795,19 @@ static int wm8995_set_fll(struct snd_soc_dai *dai, int id,
 			  int src, unsigned int freq_in,
 			  unsigned int freq_out)
 {
-	struct snd_soc_codec *codec;
+	struct snd_soc_component *component;
 	struct wm8995_priv *wm8995;
 	int reg_offset, ret;
 	struct fll_div fll;
 	u16 reg, aif1, aif2;
 
-	codec = dai->codec;
-	wm8995 = snd_soc_codec_get_drvdata(codec);
+	component = dai->component;
+	wm8995 = snd_soc_component_get_drvdata(component);
 
-	aif1 = snd_soc_read(codec, WM8995_AIF1_CLOCKING_1)
+	aif1 = snd_soc_component_read32(component, WM8995_AIF1_CLOCKING_1)
 	       & WM8995_AIF1CLK_ENA;
 
-	aif2 = snd_soc_read(codec, WM8995_AIF2_CLOCKING_1)
+	aif2 = snd_soc_component_read32(component, WM8995_AIF2_CLOCKING_1)
 	       & WM8995_AIF2CLK_ENA;
 
 	switch (id) {
@@ -1858,35 +1856,35 @@ static int wm8995_set_fll(struct snd_soc_dai *dai, int id,
 		return ret;
 
 	/* Gate the AIF clocks while we reclock */
-	snd_soc_update_bits(codec, WM8995_AIF1_CLOCKING_1,
+	snd_soc_component_update_bits(component, WM8995_AIF1_CLOCKING_1,
 			    WM8995_AIF1CLK_ENA_MASK, 0);
-	snd_soc_update_bits(codec, WM8995_AIF2_CLOCKING_1,
+	snd_soc_component_update_bits(component, WM8995_AIF2_CLOCKING_1,
 			    WM8995_AIF2CLK_ENA_MASK, 0);
 
 	/* We always need to disable the FLL while reconfiguring */
-	snd_soc_update_bits(codec, WM8995_FLL1_CONTROL_1 + reg_offset,
+	snd_soc_component_update_bits(component, WM8995_FLL1_CONTROL_1 + reg_offset,
 			    WM8995_FLL1_ENA_MASK, 0);
 
 	reg = (fll.outdiv << WM8995_FLL1_OUTDIV_SHIFT) |
 	      (fll.fll_fratio << WM8995_FLL1_FRATIO_SHIFT);
-	snd_soc_update_bits(codec, WM8995_FLL1_CONTROL_2 + reg_offset,
+	snd_soc_component_update_bits(component, WM8995_FLL1_CONTROL_2 + reg_offset,
 			    WM8995_FLL1_OUTDIV_MASK |
 			    WM8995_FLL1_FRATIO_MASK, reg);
 
-	snd_soc_write(codec, WM8995_FLL1_CONTROL_3 + reg_offset, fll.k);
+	snd_soc_component_write(component, WM8995_FLL1_CONTROL_3 + reg_offset, fll.k);
 
-	snd_soc_update_bits(codec, WM8995_FLL1_CONTROL_4 + reg_offset,
+	snd_soc_component_update_bits(component, WM8995_FLL1_CONTROL_4 + reg_offset,
 			    WM8995_FLL1_N_MASK,
 			    fll.n << WM8995_FLL1_N_SHIFT);
 
-	snd_soc_update_bits(codec, WM8995_FLL1_CONTROL_5 + reg_offset,
+	snd_soc_component_update_bits(component, WM8995_FLL1_CONTROL_5 + reg_offset,
 			    WM8995_FLL1_REFCLK_DIV_MASK |
 			    WM8995_FLL1_REFCLK_SRC_MASK,
 			    (fll.clk_ref_div << WM8995_FLL1_REFCLK_DIV_SHIFT) |
 			    (src - 1));
 
 	if (freq_out)
-		snd_soc_update_bits(codec, WM8995_FLL1_CONTROL_1 + reg_offset,
+		snd_soc_component_update_bits(component, WM8995_FLL1_CONTROL_1 + reg_offset,
 				    WM8995_FLL1_ENA_MASK, WM8995_FLL1_ENA);
 
 	wm8995->fll[id].in = freq_in;
@@ -1894,12 +1892,12 @@ static int wm8995_set_fll(struct snd_soc_dai *dai, int id,
 	wm8995->fll[id].src = src;
 
 	/* Enable any gated AIF clocks */
-	snd_soc_update_bits(codec, WM8995_AIF1_CLOCKING_1,
+	snd_soc_component_update_bits(component, WM8995_AIF1_CLOCKING_1,
 			    WM8995_AIF1CLK_ENA_MASK, aif1);
-	snd_soc_update_bits(codec, WM8995_AIF2_CLOCKING_1,
+	snd_soc_component_update_bits(component, WM8995_AIF2_CLOCKING_1,
 			    WM8995_AIF2CLK_ENA_MASK, aif2);
 
-	configure_clock(codec);
+	configure_clock(component);
 
 	return 0;
 }
@@ -1907,11 +1905,11 @@ static int wm8995_set_fll(struct snd_soc_dai *dai, int id,
 static int wm8995_set_dai_sysclk(struct snd_soc_dai *dai,
 				 int clk_id, unsigned int freq, int dir)
 {
-	struct snd_soc_codec *codec;
+	struct snd_soc_component *component;
 	struct wm8995_priv *wm8995;
 
-	codec = dai->codec;
-	wm8995 = snd_soc_codec_get_drvdata(codec);
+	component = dai->component;
+	wm8995 = snd_soc_component_get_drvdata(component);
 
 	switch (dai->id) {
 	case 0:
@@ -1949,24 +1947,24 @@ static int wm8995_set_dai_sysclk(struct snd_soc_dai *dai,
 		return -EINVAL;
 	}
 
-	configure_clock(codec);
+	configure_clock(component);
 
 	return 0;
 }
 
-static int wm8995_set_bias_level(struct snd_soc_codec *codec,
+static int wm8995_set_bias_level(struct snd_soc_component *component,
 				 enum snd_soc_bias_level level)
 {
 	struct wm8995_priv *wm8995;
 	int ret;
 
-	wm8995 = snd_soc_codec_get_drvdata(codec);
+	wm8995 = snd_soc_component_get_drvdata(component);
 	switch (level) {
 	case SND_SOC_BIAS_ON:
 	case SND_SOC_BIAS_PREPARE:
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
+		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_OFF) {
 			ret = regulator_bulk_enable(ARRAY_SIZE(wm8995->supplies),
 						    wm8995->supplies);
 			if (ret)
@@ -1974,17 +1972,17 @@ static int wm8995_set_bias_level(struct snd_soc_codec *codec,
 
 			ret = regcache_sync(wm8995->regmap);
 			if (ret) {
-				dev_err(codec->dev,
+				dev_err(component->dev,
 					"Failed to sync cache: %d\n", ret);
 				return ret;
 			}
 
-			snd_soc_update_bits(codec, WM8995_POWER_MANAGEMENT_1,
+			snd_soc_component_update_bits(component, WM8995_POWER_MANAGEMENT_1,
 					    WM8995_BG_ENA_MASK, WM8995_BG_ENA);
 		}
 		break;
 	case SND_SOC_BIAS_OFF:
-		snd_soc_update_bits(codec, WM8995_POWER_MANAGEMENT_1,
+		snd_soc_component_update_bits(component, WM8995_POWER_MANAGEMENT_1,
 				    WM8995_BG_ENA_MASK, 0);
 		regulator_bulk_disable(ARRAY_SIZE(wm8995->supplies),
 				       wm8995->supplies);
@@ -1994,37 +1992,23 @@ static int wm8995_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
-static int wm8995_remove(struct snd_soc_codec *codec)
-{
-	struct wm8995_priv *wm8995;
-	int i;
-
-	wm8995 = snd_soc_codec_get_drvdata(codec);
-
-	for (i = 0; i < ARRAY_SIZE(wm8995->supplies); ++i)
-		regulator_unregister_notifier(wm8995->supplies[i].consumer,
-					      &wm8995->disable_nb[i]);
-
-	regulator_bulk_free(ARRAY_SIZE(wm8995->supplies), wm8995->supplies);
-	return 0;
-}
-
-static int wm8995_probe(struct snd_soc_codec *codec)
+static int wm8995_probe(struct snd_soc_component *component)
 {
 	struct wm8995_priv *wm8995;
 	int i;
 	int ret;
 
-	wm8995 = snd_soc_codec_get_drvdata(codec);
-	wm8995->codec = codec;
+	wm8995 = snd_soc_component_get_drvdata(component);
+	wm8995->component = component;
 
 	for (i = 0; i < ARRAY_SIZE(wm8995->supplies); i++)
 		wm8995->supplies[i].supply = wm8995_supply_names[i];
 
-	ret = regulator_bulk_get(codec->dev, ARRAY_SIZE(wm8995->supplies),
-				 wm8995->supplies);
+	ret = devm_regulator_bulk_get(component->dev,
+				      ARRAY_SIZE(wm8995->supplies),
+				      wm8995->supplies);
 	if (ret) {
-		dev_err(codec->dev, "Failed to request supplies: %d\n", ret);
+		dev_err(component->dev, "Failed to request supplies: %d\n", ret);
 		return ret;
 	}
 
@@ -2039,10 +2023,11 @@ static int wm8995_probe(struct snd_soc_codec *codec)
 
 	/* This should really be moved into the regulator core */
 	for (i = 0; i < ARRAY_SIZE(wm8995->supplies); i++) {
-		ret = regulator_register_notifier(wm8995->supplies[i].consumer,
-						  &wm8995->disable_nb[i]);
+		ret = devm_regulator_register_notifier(
+						wm8995->supplies[i].consumer,
+						&wm8995->disable_nb[i]);
 		if (ret) {
-			dev_err(codec->dev,
+			dev_err(component->dev,
 				"Failed to register regulator notifier: %d\n",
 				ret);
 		}
@@ -2051,56 +2036,54 @@ static int wm8995_probe(struct snd_soc_codec *codec)
 	ret = regulator_bulk_enable(ARRAY_SIZE(wm8995->supplies),
 				    wm8995->supplies);
 	if (ret) {
-		dev_err(codec->dev, "Failed to enable supplies: %d\n", ret);
-		goto err_reg_get;
+		dev_err(component->dev, "Failed to enable supplies: %d\n", ret);
+		return ret;
 	}
 
-	ret = snd_soc_read(codec, WM8995_SOFTWARE_RESET);
+	ret = snd_soc_component_read32(component, WM8995_SOFTWARE_RESET);
 	if (ret < 0) {
-		dev_err(codec->dev, "Failed to read device ID: %d\n", ret);
+		dev_err(component->dev, "Failed to read device ID: %d\n", ret);
 		goto err_reg_enable;
 	}
 
 	if (ret != 0x8995) {
-		dev_err(codec->dev, "Invalid device ID: %#x\n", ret);
+		dev_err(component->dev, "Invalid device ID: %#x\n", ret);
 		ret = -EINVAL;
 		goto err_reg_enable;
 	}
 
-	ret = snd_soc_write(codec, WM8995_SOFTWARE_RESET, 0);
+	ret = snd_soc_component_write(component, WM8995_SOFTWARE_RESET, 0);
 	if (ret < 0) {
-		dev_err(codec->dev, "Failed to issue reset: %d\n", ret);
+		dev_err(component->dev, "Failed to issue reset: %d\n", ret);
 		goto err_reg_enable;
 	}
 
 	/* Latch volume updates (right only; we always do left then right). */
-	snd_soc_update_bits(codec, WM8995_AIF1_DAC1_RIGHT_VOLUME,
+	snd_soc_component_update_bits(component, WM8995_AIF1_DAC1_RIGHT_VOLUME,
 			    WM8995_AIF1DAC1_VU_MASK, WM8995_AIF1DAC1_VU);
-	snd_soc_update_bits(codec, WM8995_AIF1_DAC2_RIGHT_VOLUME,
+	snd_soc_component_update_bits(component, WM8995_AIF1_DAC2_RIGHT_VOLUME,
 			    WM8995_AIF1DAC2_VU_MASK, WM8995_AIF1DAC2_VU);
-	snd_soc_update_bits(codec, WM8995_AIF2_DAC_RIGHT_VOLUME,
+	snd_soc_component_update_bits(component, WM8995_AIF2_DAC_RIGHT_VOLUME,
 			    WM8995_AIF2DAC_VU_MASK, WM8995_AIF2DAC_VU);
-	snd_soc_update_bits(codec, WM8995_AIF1_ADC1_RIGHT_VOLUME,
+	snd_soc_component_update_bits(component, WM8995_AIF1_ADC1_RIGHT_VOLUME,
 			    WM8995_AIF1ADC1_VU_MASK, WM8995_AIF1ADC1_VU);
-	snd_soc_update_bits(codec, WM8995_AIF1_ADC2_RIGHT_VOLUME,
+	snd_soc_component_update_bits(component, WM8995_AIF1_ADC2_RIGHT_VOLUME,
 			    WM8995_AIF1ADC2_VU_MASK, WM8995_AIF1ADC2_VU);
-	snd_soc_update_bits(codec, WM8995_AIF2_ADC_RIGHT_VOLUME,
+	snd_soc_component_update_bits(component, WM8995_AIF2_ADC_RIGHT_VOLUME,
 			    WM8995_AIF2ADC_VU_MASK, WM8995_AIF1ADC2_VU);
-	snd_soc_update_bits(codec, WM8995_DAC1_RIGHT_VOLUME,
+	snd_soc_component_update_bits(component, WM8995_DAC1_RIGHT_VOLUME,
 			    WM8995_DAC1_VU_MASK, WM8995_DAC1_VU);
-	snd_soc_update_bits(codec, WM8995_DAC2_RIGHT_VOLUME,
+	snd_soc_component_update_bits(component, WM8995_DAC2_RIGHT_VOLUME,
 			    WM8995_DAC2_VU_MASK, WM8995_DAC2_VU);
-	snd_soc_update_bits(codec, WM8995_RIGHT_LINE_INPUT_1_VOLUME,
+	snd_soc_component_update_bits(component, WM8995_RIGHT_LINE_INPUT_1_VOLUME,
 			    WM8995_IN1_VU_MASK, WM8995_IN1_VU);
 
-	wm8995_update_class_w(codec);
+	wm8995_update_class_w(component);
 
 	return 0;
 
 err_reg_enable:
 	regulator_bulk_disable(ARRAY_SIZE(wm8995->supplies), wm8995->supplies);
-err_reg_get:
-	regulator_bulk_free(ARRAY_SIZE(wm8995->supplies), wm8995->supplies);
 	return ret;
 }
 
@@ -2186,20 +2169,18 @@ static struct snd_soc_dai_driver wm8995_dai[] = {
 	}
 };
 
-static const struct snd_soc_codec_driver soc_codec_dev_wm8995 = {
-	.probe = wm8995_probe,
-	.remove = wm8995_remove,
-	.set_bias_level = wm8995_set_bias_level,
-	.idle_bias_off = true,
-
-	.component_driver = {
-		.controls		= wm8995_snd_controls,
-		.num_controls		= ARRAY_SIZE(wm8995_snd_controls),
-		.dapm_widgets		= wm8995_dapm_widgets,
-		.num_dapm_widgets	= ARRAY_SIZE(wm8995_dapm_widgets),
-		.dapm_routes		= wm8995_intercon,
-		.num_dapm_routes	= ARRAY_SIZE(wm8995_intercon),
-	},
+static const struct snd_soc_component_driver soc_component_dev_wm8995 = {
+	.probe			= wm8995_probe,
+	.set_bias_level		= wm8995_set_bias_level,
+	.controls		= wm8995_snd_controls,
+	.num_controls		= ARRAY_SIZE(wm8995_snd_controls),
+	.dapm_widgets		= wm8995_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(wm8995_dapm_widgets),
+	.dapm_routes		= wm8995_intercon,
+	.num_dapm_routes	= ARRAY_SIZE(wm8995_intercon),
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config wm8995_regmap = {
@@ -2233,16 +2214,10 @@ static int wm8995_spi_probe(struct spi_device *spi)
 		return ret;
 	}
 
-	ret = snd_soc_register_codec(&spi->dev,
-				     &soc_codec_dev_wm8995, wm8995_dai,
+	ret = devm_snd_soc_register_component(&spi->dev,
+				     &soc_component_dev_wm8995, wm8995_dai,
 				     ARRAY_SIZE(wm8995_dai));
 	return ret;
-}
-
-static int wm8995_spi_remove(struct spi_device *spi)
-{
-	snd_soc_unregister_codec(&spi->dev);
-	return 0;
 }
 
 static struct spi_driver wm8995_spi_driver = {
@@ -2250,7 +2225,6 @@ static struct spi_driver wm8995_spi_driver = {
 		.name = "wm8995",
 	},
 	.probe = wm8995_spi_probe,
-	.remove = wm8995_spi_remove
 };
 #endif
 
@@ -2274,19 +2248,13 @@ static int wm8995_i2c_probe(struct i2c_client *i2c,
 		return ret;
 	}
 
-	ret = snd_soc_register_codec(&i2c->dev,
-				     &soc_codec_dev_wm8995, wm8995_dai,
+	ret = devm_snd_soc_register_component(&i2c->dev,
+				     &soc_component_dev_wm8995, wm8995_dai,
 				     ARRAY_SIZE(wm8995_dai));
 	if (ret < 0)
 		dev_err(&i2c->dev, "Failed to register CODEC: %d\n", ret);
 
 	return ret;
-}
-
-static int wm8995_i2c_remove(struct i2c_client *client)
-{
-	snd_soc_unregister_codec(&client->dev);
-	return 0;
 }
 
 static const struct i2c_device_id wm8995_i2c_id[] = {
@@ -2301,7 +2269,6 @@ static struct i2c_driver wm8995_i2c_driver = {
 		.name = "wm8995",
 	},
 	.probe = wm8995_i2c_probe,
-	.remove = wm8995_i2c_remove,
 	.id_table = wm8995_i2c_id
 };
 #endif

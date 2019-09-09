@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Unix Domain Sockets
 #
@@ -18,6 +19,11 @@ config UNIX
 	  correctly if you say M here and then neglect to load the module.
 
 	  Say Y unless you know what you are doing.
+
+config UNIX_SCM
+	bool
+	depends on UNIX
+	default y
 
 config UNIX_DIAG
 	tristate "UNIX: socket monitoring interface"

@@ -98,6 +98,12 @@ The property below is dependent on fsl,tdm-interface:
 	usage: optional for tdm interface
 	value type: <empty>
 	Definition : Internal loopback connecting on TDM layer.
+- fsl,hmask
+	usage: optional
+	Value type: <u16>
+	Definition: HDLC address recognition. Set to zero to disable
+		    address filtering of packets:
+		    fsl,hmask = /bits/ 16 <0x0000>;
 
 Example for tdm interface:
 

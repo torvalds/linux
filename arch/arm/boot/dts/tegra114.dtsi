@@ -1,14 +1,20 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <dt-bindings/clock/tegra114-car.h>
 #include <dt-bindings/gpio/tegra-gpio.h>
 #include <dt-bindings/memory/tegra114-mc.h>
 #include <dt-bindings/pinctrl/pinctrl-tegra.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 
-#include "skeleton.dtsi"
-
 / {
 	compatible = "nvidia,tegra114";
 	interrupt-parent = <&lic>;
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x80000000 0x0>;
+	};
 
 	host1x@50000000 {
 		compatible = "nvidia,tegra114-host1x", "simple-bus";
@@ -18,6 +24,7 @@
 		clocks = <&tegra_car TEGRA114_CLK_HOST1X>;
 		resets = <&tegra_car 28>;
 		reset-names = "host1x";
+		iommus = <&mc TEGRA_SWGROUP_HC>;
 
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -31,6 +38,8 @@
 			clocks = <&tegra_car TEGRA114_CLK_GR2D>;
 			resets = <&tegra_car 21>;
 			reset-names = "2d";
+
+			iommus = <&mc TEGRA_SWGROUP_G2>;
 		};
 
 		gr3d@54180000 {
@@ -39,6 +48,8 @@
 			clocks = <&tegra_car TEGRA114_CLK_GR3D>;
 			resets = <&tegra_car 24>;
 			reset-names = "3d";
+
+			iommus = <&mc TEGRA_SWGROUP_NV>;
 		};
 
 		dc@54200000 {

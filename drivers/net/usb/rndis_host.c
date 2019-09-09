@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Host Side support for RNDIS Networking Links
  * Copyright (C) 2005 by David Brownell
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 #include <linux/module.h>
 #include <linux/netdevice.h>
@@ -291,6 +279,7 @@ static const struct net_device_ops rndis_netdev_ops = {
 	.ndo_stop		= usbnet_stop,
 	.ndo_start_xmit		= usbnet_start_xmit,
 	.ndo_tx_timeout		= usbnet_tx_timeout,
+	.ndo_get_stats64	= usbnet_get_stats64,
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 };
@@ -383,7 +372,7 @@ generic_rndis_bind(struct usbnet *dev, struct usb_interface *intf, int flags)
 
 	/* REVISIT:  peripheral "alignment" request is ignored ... */
 	dev_dbg(&intf->dev,
-		"hard mtu %u (%u from dev), rx buflen %Zu, align %d\n",
+		"hard mtu %u (%u from dev), rx buflen %zu, align %d\n",
 		dev->hard_mtu, tmp, dev->rx_urb_size,
 		1 << le32_to_cpu(u.init_c->packet_alignment));
 
@@ -577,7 +566,7 @@ rndis_tx_fixup(struct usbnet *dev, struct sk_buff *skb, gfp_t flags)
 	 * packets; Linux minimizes wasted bandwidth through tx queues.
 	 */
 fill:
-	hdr = (void *) __skb_push(skb, sizeof *hdr);
+	hdr = __skb_push(skb, sizeof *hdr);
 	memset(hdr, 0, sizeof *hdr);
 	hdr->msg_type = cpu_to_le32(RNDIS_MSG_PACKET);
 	hdr->msg_len = cpu_to_le32(skb->len);
@@ -630,6 +619,10 @@ static const struct usb_device_id	products [] = {
 }, {
 	/* RNDIS for tethering */
 	USB_INTERFACE_INFO(USB_CLASS_WIRELESS_CONTROLLER, 1, 3),
+	.driver_info = (unsigned long) &rndis_info,
+}, {
+	/* Novatel Verizon USB730L */
+	USB_INTERFACE_INFO(USB_CLASS_MISC, 4, 1),
 	.driver_info = (unsigned long) &rndis_info,
 },
 	{ },		// END

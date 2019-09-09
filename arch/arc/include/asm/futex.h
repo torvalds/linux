@@ -1,9 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Vineetg: August 2010: From Android kernel work
  */
@@ -73,19 +70,10 @@
 
 #endif
 
-static inline int futex_atomic_op_inuser(int encoded_op, u32 __user *uaddr)
+static inline int arch_futex_atomic_op_inuser(int op, int oparg, int *oval,
+		u32 __user *uaddr)
 {
-	int op = (encoded_op >> 28) & 7;
-	int cmp = (encoded_op >> 24) & 15;
-	int oparg = (encoded_op << 8) >> 20;
-	int cmparg = (encoded_op << 20) >> 20;
 	int oldval = 0, ret;
-
-	if (encoded_op & (FUTEX_OP_OPARG_SHIFT << 28))
-		oparg = 1 << oparg;
-
-	if (!access_ok(VERIFY_WRITE, uaddr, sizeof(int)))
-		return -EFAULT;
 
 #ifndef CONFIG_ARC_HAS_LLSC
 	preempt_disable();	/* to guarantee atomic r-m-w of futex op */
@@ -118,30 +106,9 @@ static inline int futex_atomic_op_inuser(int encoded_op, u32 __user *uaddr)
 	preempt_enable();
 #endif
 
-	if (!ret) {
-		switch (cmp) {
-		case FUTEX_OP_CMP_EQ:
-			ret = (oldval == cmparg);
-			break;
-		case FUTEX_OP_CMP_NE:
-			ret = (oldval != cmparg);
-			break;
-		case FUTEX_OP_CMP_LT:
-			ret = (oldval < cmparg);
-			break;
-		case FUTEX_OP_CMP_GE:
-			ret = (oldval >= cmparg);
-			break;
-		case FUTEX_OP_CMP_LE:
-			ret = (oldval <= cmparg);
-			break;
-		case FUTEX_OP_CMP_GT:
-			ret = (oldval > cmparg);
-			break;
-		default:
-			ret = -ENOSYS;
-		}
-	}
+	if (!ret)
+		*oval = oldval;
+
 	return ret;
 }
 
@@ -156,7 +123,7 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr, u32 expval,
 	int ret = 0;
 	u32 existval;
 
-	if (!access_ok(VERIFY_WRITE, uaddr, sizeof(u32)))
+	if (!access_ok(uaddr, sizeof(u32)))
 		return -EFAULT;
 
 #ifndef CONFIG_ARC_HAS_LLSC

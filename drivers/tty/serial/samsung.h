@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #ifndef __SAMSUNG_H
 #define __SAMSUNG_H
 
@@ -6,10 +7,6 @@
  *
  * Ben Dooks, Copyright (c) 2003-2008 Simtec Electronics
  *	http://armlinux.simtec.co.uk/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
 */
 
 #include <linux/dmaengine.h>
@@ -44,10 +41,6 @@ struct s3c24xx_serial_drv_data {
 };
 
 struct s3c24xx_uart_dma {
-	dma_filter_fn			fn;
-	void				*rx_param;
-	void				*tx_param;
-
 	unsigned int			rx_chan_id;
 	unsigned int			tx_chan_id;
 

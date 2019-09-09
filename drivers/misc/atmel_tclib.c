@@ -1,4 +1,4 @@
-#include <linux/atmel_tc.h>
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/init.h>
@@ -10,6 +10,7 @@
 #include <linux/slab.h>
 #include <linux/export.h>
 #include <linux/of.h>
+#include <soc/at91/atmel_tcb.h>
 
 /*
  * This is a thin library to solve the problem of how to portably allocate
@@ -110,6 +111,9 @@ static int __init tc_probe(struct platform_device *pdev)
 	int		irq;
 	struct resource	*r;
 	unsigned int	i;
+
+	if (of_get_child_count(pdev->dev.of_node))
+		return -EBUSY;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)

@@ -1,22 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Driver for the NXP SAA7164 PCIe bridge
  *
  *  Copyright (c) 2010-2015 Steven Toth <stoth@kernellabs.com>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include "saa7164.h"
@@ -110,8 +96,7 @@ static int saa7164_vbi_buffers_alloc(struct saa7164_port *port)
 			params->pitch);
 
 		if (!buf) {
-			printk(KERN_ERR "%s() failed "
-			       "(errno = %d), unable to allocate buffer\n",
+			printk(KERN_ERR "%s() failed (errno = %d), unable to allocate buffer\n",
 				__func__, result);
 			result = -ENOMEM;
 			goto failed;
@@ -213,20 +198,13 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	struct saa7164_port *port = fh->port;
 	struct saa7164_dev *dev = port->dev;
 
-	strcpy(cap->driver, dev->name);
-	strlcpy(cap->card, saa7164_boards[dev->board].name,
+	strscpy(cap->driver, dev->name, sizeof(cap->driver));
+	strscpy(cap->card, saa7164_boards[dev->board].name,
 		sizeof(cap->card));
 	sprintf(cap->bus_info, "PCI:%s", pci_name(dev->pci));
-
-	cap->device_caps =
-		V4L2_CAP_VBI_CAPTURE |
-		V4L2_CAP_READWRITE |
-		V4L2_CAP_TUNER;
-
-	cap->capabilities = cap->device_caps |
-		V4L2_CAP_VIDEO_CAPTURE |
-		V4L2_CAP_DEVICE_CAPS;
-
+	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_READWRITE |
+			    V4L2_CAP_TUNER | V4L2_CAP_VBI_CAPTURE |
+			    V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -384,8 +362,8 @@ static int saa7164_vbi_start_streaming(struct saa7164_port *port)
 		/* Stop the hardware, regardless */
 		result = saa7164_vbi_stop_port(port);
 		if (result != SAA_OK) {
-			printk(KERN_ERR "%s() pause/forced stop transition "
-				"failed, res = 0x%x\n", __func__, result);
+			printk(KERN_ERR "%s() pause/forced stop transition failed, res = 0x%x\n",
+			       __func__, result);
 		}
 
 		ret = -EIO;
@@ -403,8 +381,8 @@ static int saa7164_vbi_start_streaming(struct saa7164_port *port)
 		result = saa7164_vbi_acquire_port(port);
 		result = saa7164_vbi_stop_port(port);
 		if (result != SAA_OK) {
-			printk(KERN_ERR "%s() run/forced stop transition "
-				"failed, res = 0x%x\n", __func__, result);
+			printk(KERN_ERR "%s() run/forced stop transition failed, res = 0x%x\n",
+			       __func__, result);
 		}
 
 		ret = -EIO;
@@ -619,11 +597,11 @@ err:
 	return ret;
 }
 
-static unsigned int fops_poll(struct file *file, poll_table *wait)
+static __poll_t fops_poll(struct file *file, poll_table *wait)
 {
 	struct saa7164_vbi_fh *fh = (struct saa7164_vbi_fh *)file->private_data;
 	struct saa7164_port *port = fh->port;
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 
 	port->last_poll_msecs_diff = port->last_poll_msecs;
 	port->last_poll_msecs = jiffies_to_msecs(jiffies);
@@ -634,12 +612,12 @@ static unsigned int fops_poll(struct file *file, poll_table *wait)
 		port->last_poll_msecs_diff);
 
 	if (!video_is_registered(port->v4l_device))
-		return -EIO;
+		return EPOLLERR;
 
 	if (atomic_cmpxchg(&fh->v4l_reading, 0, 1) == 0) {
 		if (atomic_inc_return(&port->v4l_reader_count) == 1) {
 			if (saa7164_vbi_initialize(port) < 0)
-				return -EINVAL;
+				return EPOLLERR;
 			saa7164_vbi_start_streaming(port);
 			msleep(200);
 		}
@@ -649,13 +627,13 @@ static unsigned int fops_poll(struct file *file, poll_table *wait)
 	if ((file->f_flags & O_NONBLOCK) == 0) {
 		if (wait_event_interruptible(port->wait_read,
 			saa7164_vbi_next_buf(port))) {
-				return -ERESTARTSYS;
+				return EPOLLERR;
 		}
 	}
 
 	/* Pull the first buffer from the used list */
 	if (!list_empty(&port->list_buf_used.list))
-		mask |= POLLIN | POLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDNORM;
 
 	return mask;
 }
@@ -690,6 +668,8 @@ static struct video_device saa7164_vbi_template = {
 	.ioctl_ops     = &vbi_ioctl_ops,
 	.minor         = -1,
 	.tvnorms       = SAA7164_NORMS,
+	.device_caps   = V4L2_CAP_VBI_CAPTURE | V4L2_CAP_READWRITE |
+			 V4L2_CAP_TUNER,
 };
 
 static struct video_device *saa7164_vbi_alloc(
@@ -728,8 +708,7 @@ int saa7164_vbi_register(struct saa7164_port *port)
 
 	/* Sanity check that the PCI configuration space is active */
 	if (port->hwcfg.BARLocation == 0) {
-		printk(KERN_ERR "%s() failed "
-		       "(errno = %d), NO PCI configuration\n",
+		printk(KERN_ERR "%s() failed (errno = %d), NO PCI configuration\n",
 			__func__, result);
 		result = -ENOMEM;
 		goto failed;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * usbusy2y.c - ALSA USB US-428 Driver
  *
@@ -114,20 +115,6 @@
 	The firmware has been sniffed from win2k us-428 driver 3.09.
 
  *   Copyright (c) 2002 - 2004 Karsten Wiese
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 */
 
 #include <linux/init.h>
@@ -266,7 +253,9 @@ int usX2Y_AsyncSeq04_init(struct usX2Ydev *usX2Y)
 	int	err = 0,
 		i;
 
-	if (NULL == (usX2Y->AS04.buffer = kmalloc(URB_DataLen_AsyncSeq*URBS_AsyncSeq, GFP_KERNEL))) {
+	usX2Y->AS04.buffer = kmalloc_array(URBS_AsyncSeq,
+					   URB_DataLen_AsyncSeq, GFP_KERNEL);
+	if (NULL == usX2Y->AS04.buffer) {
 		err = -ENOMEM;
 	} else
 		for (i = 0; i < URBS_AsyncSeq; ++i) {
@@ -279,6 +268,9 @@ int usX2Y_AsyncSeq04_init(struct usX2Ydev *usX2Y)
 						usX2Y->AS04.buffer + URB_DataLen_AsyncSeq*i, 0,
 						i_usX2Y_Out04Int, usX2Y
 				);
+			err = usb_urb_ep_type_check(usX2Y->AS04.urb[i]);
+			if (err < 0)
+				break;
 		}
 	return err;
 }
@@ -288,16 +280,16 @@ int usX2Y_In04_init(struct usX2Ydev *usX2Y)
 	if (! (usX2Y->In04urb = usb_alloc_urb(0, GFP_KERNEL)))
 		return -ENOMEM;
 
-	if (! (usX2Y->In04Buf = kmalloc(21, GFP_KERNEL))) {
-		usb_free_urb(usX2Y->In04urb);
+	if (! (usX2Y->In04Buf = kmalloc(21, GFP_KERNEL)))
 		return -ENOMEM;
-	}
 	 
 	init_waitqueue_head(&usX2Y->In04WaitQueue);
 	usb_fill_int_urb(usX2Y->In04urb, usX2Y->dev, usb_rcvintpipe(usX2Y->dev, 0x4),
 			 usX2Y->In04Buf, 21,
 			 i_usX2Y_In04Int, usX2Y,
 			 10);
+	if (usb_urb_ep_type_check(usX2Y->In04urb))
+		return -EINVAL;
 	return usb_submit_urb(usX2Y->In04urb, GFP_KERNEL);
 }
 
@@ -313,7 +305,7 @@ static void usX2Y_unlinkSeq(struct snd_usX2Y_AsyncSeq *S)
 }
 
 
-static struct usb_device_id snd_usX2Y_usb_id_table[] = {
+static const struct usb_device_id snd_usX2Y_usb_id_table[] = {
 	{
 		.match_flags =	USB_DEVICE_ID_MATCH_DEVICE,
 		.idVendor =	0x1604,
@@ -430,7 +422,8 @@ static void snd_usX2Y_card_private_free(struct snd_card *card)
 	kfree(usX2Y(card)->In04Buf);
 	usb_free_urb(usX2Y(card)->In04urb);
 	if (usX2Y(card)->us428ctls_sharedmem)
-		snd_free_pages(usX2Y(card)->us428ctls_sharedmem, sizeof(*usX2Y(card)->us428ctls_sharedmem));
+		free_pages_exact(usX2Y(card)->us428ctls_sharedmem,
+				 sizeof(*usX2Y(card)->us428ctls_sharedmem));
 	if (usX2Y(card)->card_index >= 0  &&  usX2Y(card)->card_index < SNDRV_CARDS)
 		snd_usX2Y_card_used[usX2Y(card)->card_index] = 0;
 }

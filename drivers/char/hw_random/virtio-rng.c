@@ -1,20 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Randomness driver for virtio
  *  Copyright (C) 2007, 2008 Rusty Russell IBM Corporation
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  */
 
 #include <linux/err.h>
@@ -73,7 +60,7 @@ static int virtio_read(struct hwrng *rng, void *buf, size_t size, bool wait)
 
 	if (!vi->busy) {
 		vi->busy = true;
-		init_completion(&vi->have_data);
+		reinit_completion(&vi->have_data);
 		register_buffer(vi, buf, size);
 	}
 
@@ -184,7 +171,26 @@ static int virtrng_freeze(struct virtio_device *vdev)
 
 static int virtrng_restore(struct virtio_device *vdev)
 {
-	return probe_common(vdev);
+	int err;
+
+	err = probe_common(vdev);
+	if (!err) {
+		struct virtrng_info *vi = vdev->priv;
+
+		/*
+		 * Set hwrng_removed to ensure that virtio_read()
+		 * does not block waiting for data before the
+		 * registration is complete.
+		 */
+		vi->hwrng_removed = true;
+		err = hwrng_register(&vi->hwrng);
+		if (!err) {
+			vi->hwrng_register_done = true;
+			vi->hwrng_removed = false;
+		}
+	}
+
+	return err;
 }
 #endif
 

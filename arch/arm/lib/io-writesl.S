@@ -1,15 +1,11 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  linux/arch/arm/lib/io-writesl.S
  *
  *  Copyright (C) 1995-2000 Russell King
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/linkage.h>
 #include <asm/assembler.h>
-#include <asm/export.h>
 
 ENTRY(__raw_writesl)
 		teq	r2, #0		@ do we have to check for the zero len?
@@ -29,7 +25,7 @@ ENTRY(__raw_writesl)
 		bpl	1b
 		ldmfd	sp!, {r4, lr}
 2:		movs	r2, r2, lsl #31
-		ldmcsia	r1!, {r3, ip}
+		ldmiacs	r1!, {r3, ip}
 		strcs	r3, [r0, #0]
 		ldrne	r3, [r1, #0]
 		strcs	ip, [r0, #0]
@@ -66,4 +62,3 @@ ENTRY(__raw_writesl)
 		bne	6b
 		ret	lr
 ENDPROC(__raw_writesl)
-EXPORT_SYMBOL(__raw_writesl)

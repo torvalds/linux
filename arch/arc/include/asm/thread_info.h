@@ -1,9 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Vineetg: Oct 2009
  *  No need for ARC specific thread_info allocator (kmalloc/free). This is
@@ -61,9 +58,6 @@ struct thread_info {
 	.preempt_count  = INIT_PREEMPT_COUNT,	\
 	.addr_limit = KERNEL_DS,		\
 }
-
-#define init_thread_info    (init_thread_union.thread_info)
-#define init_stack          (init_thread_union.stack)
 
 static inline __attribute_const__ struct thread_info *current_thread_info(void)
 {

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for MT9P031 CMOS Image Sensor from Aptina
  *
@@ -6,10 +7,6 @@
  * Copyright (C) 2011, Guennadi Liakhovetski <g.liakhovetski@gmx.de>
  *
  * Based on the MT9V032 driver and Bastian Hecht's code.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/clk.h>
@@ -972,15 +969,15 @@ static int mt9p031_close(struct v4l2_subdev *subdev, struct v4l2_subdev_fh *fh)
 	return mt9p031_set_power(subdev, 0);
 }
 
-static struct v4l2_subdev_core_ops mt9p031_subdev_core_ops = {
+static const struct v4l2_subdev_core_ops mt9p031_subdev_core_ops = {
 	.s_power        = mt9p031_set_power,
 };
 
-static struct v4l2_subdev_video_ops mt9p031_subdev_video_ops = {
+static const struct v4l2_subdev_video_ops mt9p031_subdev_video_ops = {
 	.s_stream       = mt9p031_s_stream,
 };
 
-static struct v4l2_subdev_pad_ops mt9p031_subdev_pad_ops = {
+static const struct v4l2_subdev_pad_ops mt9p031_subdev_pad_ops = {
 	.enum_mbus_code = mt9p031_enum_mbus_code,
 	.enum_frame_size = mt9p031_enum_frame_size,
 	.get_fmt = mt9p031_get_format,
@@ -989,7 +986,7 @@ static struct v4l2_subdev_pad_ops mt9p031_subdev_pad_ops = {
 	.set_selection = mt9p031_set_selection,
 };
 
-static struct v4l2_subdev_ops mt9p031_subdev_ops = {
+static const struct v4l2_subdev_ops mt9p031_subdev_ops = {
 	.core   = &mt9p031_subdev_core_ops,
 	.video  = &mt9p031_subdev_video_ops,
 	.pad    = &mt9p031_subdev_pad_ops,
@@ -1034,7 +1031,7 @@ static int mt9p031_probe(struct i2c_client *client,
 			 const struct i2c_device_id *did)
 {
 	struct mt9p031_platform_data *pdata = mt9p031_get_pdata(client);
-	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
+	struct i2c_adapter *adapter = client->adapter;
 	struct mt9p031 *mt9p031;
 	unsigned int i;
 	int ret;
@@ -1111,6 +1108,7 @@ static int mt9p031_probe(struct i2c_client *client,
 	v4l2_i2c_subdev_init(&mt9p031->subdev, client, &mt9p031_subdev_ops);
 	mt9p031->subdev.internal_ops = &mt9p031_subdev_internal_ops;
 
+	mt9p031->subdev.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 	mt9p031->pad.flags = MEDIA_PAD_FL_SOURCE;
 	ret = media_entity_pads_init(&mt9p031->subdev.entity, 1, &mt9p031->pad);
 	if (ret < 0)

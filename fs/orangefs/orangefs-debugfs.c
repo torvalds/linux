@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * What:		/sys/kernel/debug/orangefs/debug-help
  * Date:		June 2015
@@ -63,7 +64,7 @@ struct client_debug_mask {
 	__u64 mask2;
 };
 
-static int orangefs_kernel_debug_init(void);
+static void orangefs_kernel_debug_init(void);
 
 static int orangefs_debug_help_open(struct inode *, struct file *);
 static void *help_start(struct seq_file *, loff_t *);
@@ -98,7 +99,6 @@ static char *debug_help_string;
 static char client_debug_string[ORANGEFS_MAX_DEBUG_STRING_LEN];
 static char client_debug_array_string[ORANGEFS_MAX_DEBUG_STRING_LEN];
 
-static struct dentry *help_file_dentry;
 static struct dentry *client_debug_dentry;
 static struct dentry *debug_dir;
 
@@ -113,7 +113,8 @@ static const struct seq_operations help_debug_ops = {
 	.show	= help_show,
 };
 
-const struct file_operations debug_help_fops = {
+static const struct file_operations debug_help_fops = {
+	.owner		= THIS_MODULE,
 	.open           = orangefs_debug_help_open,
 	.read           = seq_read,
 	.release        = seq_release,
@@ -121,6 +122,7 @@ const struct file_operations debug_help_fops = {
 };
 
 static const struct file_operations kernel_debug_fops = {
+	.owner		= THIS_MODULE,
 	.open           = orangefs_debug_open,
 	.read           = orangefs_debug_read,
 	.write		= orangefs_debug_write,
@@ -141,14 +143,15 @@ static struct client_debug_mask client_debug_mask;
  */
 static DEFINE_MUTEX(orangefs_debug_lock);
 
+/* Used to protect data in ORANGEFS_KMOD_DEBUG_HELP_FILE */
+static DEFINE_MUTEX(orangefs_help_file_lock);
+
 /*
  * initialize kmod debug operations, create orangefs debugfs dir and
  * ORANGEFS_KMOD_DEBUG_HELP_FILE.
  */
-int orangefs_debugfs_init(int debug_mask)
+void orangefs_debugfs_init(int debug_mask)
 {
-	int rc = -ENOMEM;
-
 	/* convert input debug mask to a 64-bit unsigned integer */
         orangefs_gossip_debug_mask = (unsigned long long)debug_mask;
 
@@ -177,37 +180,21 @@ int orangefs_debugfs_init(int debug_mask)
 		(unsigned long long)orangefs_gossip_debug_mask);
 
 	debug_dir = debugfs_create_dir("orangefs", NULL);
-	if (!debug_dir) {
-		pr_info("%s: debugfs_create_dir failed.\n", __func__);
-		goto out;
-	}
 
-	help_file_dentry = debugfs_create_file(ORANGEFS_KMOD_DEBUG_HELP_FILE,
-				  0444,
-				  debug_dir,
-				  debug_help_string,
-				  &debug_help_fops);
-	if (!help_file_dentry) {
-		pr_info("%s: debugfs_create_file failed.\n", __func__);
-		goto out;
-	}
+	debugfs_create_file(ORANGEFS_KMOD_DEBUG_HELP_FILE, 0444, debug_dir,
+			    debug_help_string, &debug_help_fops);
 
 	orangefs_debug_disabled = 0;
 
-	rc = orangefs_kernel_debug_init();
-
-out:
-
-	return rc;
+	orangefs_kernel_debug_init();
 }
 
 /*
  * initialize the kernel-debug file.
  */
-static int orangefs_kernel_debug_init(void)
+static void orangefs_kernel_debug_init(void)
 {
 	int rc = -ENOMEM;
-	struct dentry *ret;
 	char *k_buffer = NULL;
 
 	gossip_debug(GOSSIP_DEBUGFS_DEBUG, "%s: start\n", __func__);
@@ -224,24 +211,11 @@ static int orangefs_kernel_debug_init(void)
 		pr_info("%s: overflow 1!\n", __func__);
 	}
 
-	ret = debugfs_create_file(ORANGEFS_KMOD_DEBUG_FILE,
-				  0444,
-				  debug_dir,
-				  k_buffer,
-				  &kernel_debug_fops);
-	if (!ret) {
-		pr_info("%s: failed to create %s.\n",
-			__func__,
-			ORANGEFS_KMOD_DEBUG_FILE);
-		goto out;
-	}
-
-	rc = 0;
+	debugfs_create_file(ORANGEFS_KMOD_DEBUG_FILE, 0444, debug_dir, k_buffer,
+			    &kernel_debug_fops);
 
 out:
-
 	gossip_debug(GOSSIP_DEBUGFS_DEBUG, "%s: rc:%d:\n", __func__, rc);
-	return rc;
 }
 
 
@@ -289,6 +263,8 @@ static void *help_start(struct seq_file *m, loff_t *pos)
 
 	gossip_debug(GOSSIP_DEBUGFS_DEBUG, "help_start: start\n");
 
+	mutex_lock(&orangefs_help_file_lock);
+
 	if (*pos == 0)
 		payload = m->private;
 
@@ -305,6 +281,7 @@ static void *help_next(struct seq_file *m, void *v, loff_t *pos)
 static void help_stop(struct seq_file *m, void *p)
 {
 	gossip_debug(GOSSIP_DEBUGFS_DEBUG, "help_stop: start\n");
+	mutex_unlock(&orangefs_help_file_lock);
 }
 
 static int help_show(struct seq_file *m, void *v)
@@ -319,7 +296,7 @@ static int help_show(struct seq_file *m, void *v)
 /*
  * initialize the client-debug file.
  */
-int orangefs_client_debug_init(void)
+static int orangefs_client_debug_init(void)
 {
 
 	int rc = -ENOMEM;
@@ -344,12 +321,6 @@ int orangefs_client_debug_init(void)
 						  debug_dir,
 						  c_buffer,
 						  &kernel_debug_fops);
-	if (!client_debug_dentry) {
-		pr_info("%s: failed to create updated %s.\n",
-			__func__,
-			ORANGEFS_CLIENT_DEBUG_FILE);
-		goto out;
-	}
 
 	rc = 0;
 
@@ -426,10 +397,14 @@ static ssize_t orangefs_debug_write(struct file *file,
 	char *debug_string;
 	struct orangefs_kernel_op_s *new_op = NULL;
 	struct client_debug_mask c_mask = { NULL, 0, 0 };
+	char *s;
 
 	gossip_debug(GOSSIP_DEBUGFS_DEBUG,
 		"orangefs_debug_write: %pD\n",
 		file);
+
+	if (count == 0)
+		return 0;
 
 	/*
 	 * Thwart users who try to jamb a ridiculous number
@@ -513,8 +488,9 @@ static ssize_t orangefs_debug_write(struct file *file,
 	}
 
 	mutex_lock(&orangefs_debug_lock);
-	memset(file->f_inode->i_private, 0, ORANGEFS_MAX_DEBUG_STRING_LEN);
-	sprintf((char *)file->f_inode->i_private, "%s\n", debug_string);
+	s = file_inode(file)->i_private;
+	memset(s, 0, ORANGEFS_MAX_DEBUG_STRING_LEN);
+	sprintf(s, "%s\n", debug_string);
 	mutex_unlock(&orangefs_debug_lock);
 
 	*ppos += count;
@@ -558,11 +534,8 @@ static int orangefs_prepare_cdm_array(char *debug_array_string)
 		goto out;
 	}
 
-	cdm_array =
-		kzalloc(cdm_element_count * sizeof(struct client_debug_mask),
-			GFP_KERNEL);
+	cdm_array = kcalloc(cdm_element_count, sizeof(*cdm_array), GFP_KERNEL);
 	if (!cdm_array) {
-		pr_info("malloc failed for cdm_array!\n");
 		rc = -ENOMEM;
 		goto out;
 	}
@@ -610,98 +583,98 @@ out:
  * /sys/kernel/debug/orangefs/debug-help can be catted to
  * see all the available kernel and client debug keywords.
  *
- * When the kernel boots, we have no idea what keywords the
+ * When orangefs.ko initializes, we have no idea what keywords the
  * client supports, nor their associated masks.
  *
- * We pass through this function once at boot and stamp a
+ * We pass through this function once at module-load and stamp a
  * boilerplate "we don't know" message for the client in the
  * debug-help file. We pass through here again when the client
  * starts and then we can fill out the debug-help file fully.
  *
  * The client might be restarted any number of times between
- * reboots, we only build the debug-help file the first time.
+ * module reloads, we only build the debug-help file the first time.
  */
 int orangefs_prepare_debugfs_help_string(int at_boot)
 {
-	int rc = -EINVAL;
-	int i;
-	int byte_count = 0;
 	char *client_title = "Client Debug Keywords:\n";
 	char *kernel_title = "Kernel Debug Keywords:\n";
+	size_t string_size =  DEBUG_HELP_STRING_SIZE;
+	size_t result_size;
+	size_t i;
+	char *new;
+	int rc = -EINVAL;
 
 	gossip_debug(GOSSIP_UTILS_DEBUG, "%s: start\n", __func__);
 
-	if (at_boot) {
-		byte_count += strlen(HELP_STRING_UNINITIALIZED);
+	if (at_boot)
 		client_title = HELP_STRING_UNINITIALIZED;
-	} else {
-		/*
+
+	/* build a new debug_help_string. */
+	new = kzalloc(DEBUG_HELP_STRING_SIZE, GFP_KERNEL);
+	if (!new) {
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	/*
+	 * strlcat(dst, src, size) will append at most
+	 * "size - strlen(dst) - 1" bytes of src onto dst,
+	 * null terminating the result, and return the total
+	 * length of the string it tried to create.
+	 *
+	 * We'll just plow through here building our new debug
+	 * help string and let strlcat take care of assuring that
+	 * dst doesn't overflow.
+	 */
+	strlcat(new, client_title, string_size);
+
+	if (!at_boot) {
+
+                /*
 		 * fill the client keyword/mask array and remember
 		 * how many elements there were.
 		 */
 		cdm_element_count =
 			orangefs_prepare_cdm_array(client_debug_array_string);
-		if (cdm_element_count <= 0)
+		if (cdm_element_count <= 0) {
+			kfree(new);
 			goto out;
-
-		/* Count the bytes destined for debug_help_string. */
-		byte_count += strlen(client_title);
+		}
 
 		for (i = 0; i < cdm_element_count; i++) {
-			byte_count += strlen(cdm_array[i].keyword + 2);
-			if (byte_count >= DEBUG_HELP_STRING_SIZE) {
-				pr_info("%s: overflow 1!\n", __func__);
-				goto out;
-			}
+			strlcat(new, "\t", string_size);
+			strlcat(new, cdm_array[i].keyword, string_size);
+			strlcat(new, "\n", string_size);
 		}
-
-		gossip_debug(GOSSIP_UTILS_DEBUG,
-			     "%s: cdm_element_count:%d:\n",
-			     __func__,
-			     cdm_element_count);
 	}
 
-	byte_count += strlen(kernel_title);
+	strlcat(new, "\n", string_size);
+	strlcat(new, kernel_title, string_size);
+
 	for (i = 0; i < num_kmod_keyword_mask_map; i++) {
-		byte_count +=
-			strlen(s_kmod_keyword_mask_map[i].keyword + 2);
-		if (byte_count >= DEBUG_HELP_STRING_SIZE) {
-			pr_info("%s: overflow 2!\n", __func__);
-			goto out;
-		}
+		strlcat(new, "\t", string_size);
+		strlcat(new, s_kmod_keyword_mask_map[i].keyword, string_size);
+		result_size = strlcat(new, "\n", string_size);
 	}
 
-	/* build debug_help_string. */
-	debug_help_string = kzalloc(DEBUG_HELP_STRING_SIZE, GFP_KERNEL);
-	if (!debug_help_string) {
-		rc = -ENOMEM;
+	/* See if we tried to put too many bytes into "new"... */
+	if (result_size >= string_size) {
+		kfree(new);
 		goto out;
 	}
 
-	strcat(debug_help_string, client_title);
-
-	if (!at_boot) {
-		for (i = 0; i < cdm_element_count; i++) {
-			strcat(debug_help_string, "\t");
-			strcat(debug_help_string, cdm_array[i].keyword);
-			strcat(debug_help_string, "\n");
-		}
-	}
-
-	strcat(debug_help_string, "\n");
-	strcat(debug_help_string, kernel_title);
-
-	for (i = 0; i < num_kmod_keyword_mask_map; i++) {
-		strcat(debug_help_string, "\t");
-		strcat(debug_help_string, s_kmod_keyword_mask_map[i].keyword);
-		strcat(debug_help_string, "\n");
+	if (at_boot) {
+		debug_help_string = new;
+	} else {
+		mutex_lock(&orangefs_help_file_lock);
+		memset(debug_help_string, 0, DEBUG_HELP_STRING_SIZE);
+		strlcat(debug_help_string, new, string_size);
+		mutex_unlock(&orangefs_help_file_lock);
 	}
 
 	rc = 0;
 
-out:
-
-	return rc;
+out:	return rc;
 
 }
 
@@ -952,15 +925,19 @@ int orangefs_debugfs_new_client_mask(void __user *arg)
 	return ret;
 }
 
-int orangefs_debugfs_new_client_string(void __user *arg) 
+int orangefs_debugfs_new_client_string(void __user *arg)
 {
 	int ret;
 
 	ret = copy_from_user(&client_debug_array_string,
-                                     (void __user *)arg,
-                                     ORANGEFS_MAX_DEBUG_STRING_LEN);
-	if (ret != 0)
-		return -EIO;
+			     (void __user *)arg,
+			     ORANGEFS_MAX_DEBUG_STRING_LEN);
+
+	if (ret != 0) {
+		pr_info("%s: CLIENT_STRING: copy_from_user failed\n",
+			__func__);
+		return -EFAULT;
+	}
 
 	/*
 	 * The real client-core makes an effort to ensure
@@ -974,46 +951,20 @@ int orangefs_debugfs_new_client_string(void __user *arg)
 	 */
 	client_debug_array_string[ORANGEFS_MAX_DEBUG_STRING_LEN - 1] =
 		'\0';
-	
-	if (ret != 0) {
-		pr_info("%s: CLIENT_STRING: copy_from_user failed\n",
-			__func__);
-		return -EIO;
-	}
 
 	pr_info("%s: client debug array string has been received.\n",
 		__func__);
 
 	if (!help_string_initialized) {
 
-		/* Free the "we don't know yet" default string... */
-		kfree(debug_help_string);
-
-		/* build a proper debug help string */
-		if (orangefs_prepare_debugfs_help_string(0)) {
+		/* Build a proper debug help string. */
+		ret = orangefs_prepare_debugfs_help_string(0);
+		if (ret) {
 			gossip_err("%s: no debug help string \n",
 				   __func__);
-			return -EIO;
+			return ret;
 		}
 
-		/* Replace the boilerplate boot-time debug-help file. */
-		debugfs_remove(help_file_dentry);
-
-		help_file_dentry =
-			debugfs_create_file(
-				ORANGEFS_KMOD_DEBUG_HELP_FILE,
-				0444,
-				debug_dir,
-				debug_help_string,
-				&debug_help_fops);
-
-		if (!help_file_dentry) {
-			gossip_err("%s: debugfs_create_file failed for"
-				   " :%s:!\n",
-				   __func__,
-				   ORANGEFS_KMOD_DEBUG_HELP_FILE);
-			return -EIO;
-		}
 	}
 
 	debug_mask_to_string(&client_debug_mask, 1);
@@ -1024,10 +975,10 @@ int orangefs_debugfs_new_client_string(void __user *arg)
 
 	help_string_initialized++;
 
-	return ret;
+	return 0;
 }
 
-int orangefs_debugfs_new_debug(void __user *arg) 
+int orangefs_debugfs_new_debug(void __user *arg)
 {
 	struct dev_mask_info_s mask_info = {0};
 	int ret;
@@ -1067,7 +1018,7 @@ int orangefs_debugfs_new_debug(void __user *arg)
 			client_debug_string,
 			llu(mask_info.mask_value));
 	} else {
-		gossip_lerr("Invalid mask type....\n");
+		gossip_err("Invalid mask type....\n");
 		return -EINVAL;
 	}
 

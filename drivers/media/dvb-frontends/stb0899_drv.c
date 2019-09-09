@@ -1,22 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
 	STB0899 Multistandard Frontend driver
 	Copyright (C) Manu Abraham (abraham.manu@gmail.com)
 
 	Copyright (C) ST Microelectronics
 
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 2 of the License, or
-	(at your option) any later version.
-
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU General Public License for more details.
-
-	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the Free Software
-	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
 #include <linux/init.h>
@@ -27,7 +15,7 @@
 #include <linux/string.h>
 
 #include <linux/dvb/frontend.h>
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 #include "stb0899_drv.h"
 #include "stb0899_priv.h"
@@ -485,15 +473,8 @@ int stb0899_read_regs(struct stb0899_state *state, unsigned int reg, u8 *buf, u3
 	    (((reg & 0xff00) == 0xf200) || ((reg & 0xff00) == 0xf600)))
 		_stb0899_read_reg(state, (reg | 0x00ff));
 
-	if (unlikely(*state->verbose >= FE_DEBUGREG)) {
-		int i;
-
-		printk(KERN_DEBUG "%s [0x%04x]:", __func__, reg);
-		for (i = 0; i < count; i++) {
-			printk(" %02x", buf[i]);
-		}
-		printk("\n");
-	}
+	dprintk(state->verbose, FE_DEBUGREG, 1,
+		"%s [0x%04x]: %*ph", __func__, reg, count, buf);
 
 	return 0;
 err:
@@ -522,14 +503,8 @@ int stb0899_write_regs(struct stb0899_state *state, unsigned int reg, u8 *data, 
 	buf[1] = reg & 0xff;
 	memcpy(&buf[2], data, count);
 
-	if (unlikely(*state->verbose >= FE_DEBUGREG)) {
-		int i;
-
-		printk(KERN_DEBUG "%s [0x%04x]:", __func__, reg);
-		for (i = 0; i < count; i++)
-			printk(" %02x", data[i]);
-		printk("\n");
-	}
+	dprintk(state->verbose, FE_DEBUGREG, 1,
+		"%s [0x%04x]: %*ph", __func__, reg, count, data);
 	ret = i2c_transfer(state->i2c, &i2c_msg, 1);
 
 	/*
@@ -552,7 +527,8 @@ int stb0899_write_regs(struct stb0899_state *state, unsigned int reg, u8 *data, 
 
 int stb0899_write_reg(struct stb0899_state *state, unsigned int reg, u8 data)
 {
-	return stb0899_write_regs(state, reg, &data, 1);
+	u8 tmp = data;
+	return stb0899_write_regs(state, reg, &tmp, 1);
 }
 
 /*
@@ -614,13 +590,19 @@ static int stb0899_postproc(struct stb0899_state *state, u8 ctl, int enable)
 	return 0;
 }
 
+static void stb0899_detach(struct dvb_frontend *fe)
+{
+	struct stb0899_state *state = fe->demodulator_priv;
+
+	/* post process event */
+	stb0899_postproc(state, STB0899_POSTPROC_GPIO_POWER, 0);
+}
+
 static void stb0899_release(struct dvb_frontend *fe)
 {
 	struct stb0899_state *state = fe->demodulator_priv;
 
 	dprintk(state->verbose, FE_DEBUG, 1, "Release Frontend");
-	/* post process event */
-	stb0899_postproc(state, STB0899_POSTPROC_GPIO_POWER, 0);
 	kfree(state);
 }
 
@@ -1586,23 +1568,22 @@ static enum dvbfe_algo stb0899_frontend_algo(struct dvb_frontend *fe)
 	return DVBFE_ALGO_CUSTOM;
 }
 
-static struct dvb_frontend_ops stb0899_ops = {
+static const struct dvb_frontend_ops stb0899_ops = {
 	.delsys = { SYS_DVBS, SYS_DVBS2, SYS_DSS },
 	.info = {
-		.name 			= "STB0899 Multistandard",
-		.frequency_min		= 950000,
-		.frequency_max 		= 2150000,
-		.frequency_stepsize	= 0,
-		.frequency_tolerance	= 0,
-		.symbol_rate_min 	=  5000000,
-		.symbol_rate_max 	= 45000000,
+		.name			= "STB0899 Multistandard",
+		.frequency_min_hz	=  950 * MHz,
+		.frequency_max_hz	= 2150 * MHz,
+		.symbol_rate_min	=  5000000,
+		.symbol_rate_max	= 45000000,
 
-		.caps 			= FE_CAN_INVERSION_AUTO	|
+		.caps			= FE_CAN_INVERSION_AUTO	|
 					  FE_CAN_FEC_AUTO	|
 					  FE_CAN_2G_MODULATION	|
 					  FE_CAN_QPSK
 	},
 
+	.detach				= stb0899_detach,
 	.release			= stb0899_release,
 	.init				= stb0899_init,
 	.sleep				= stb0899_sleep,

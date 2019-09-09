@@ -1,7 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2016 Qualcomm Atheros, Inc
- *
- * GPL v2
  *
  * Based on net/sched/sch_fq_codel.c
  */
@@ -12,24 +11,22 @@
 
 /* functions that are embedded into includer */
 
-static struct sk_buff *fq_flow_dequeue(struct fq *fq,
-				       struct fq_flow *flow)
+static void fq_adjust_removal(struct fq *fq,
+			      struct fq_flow *flow,
+			      struct sk_buff *skb)
 {
 	struct fq_tin *tin = flow->tin;
-	struct fq_flow *i;
-	struct sk_buff *skb;
-
-	lockdep_assert_held(&fq->lock);
-
-	skb = __skb_dequeue(&flow->queue);
-	if (!skb)
-		return NULL;
 
 	tin->backlog_bytes -= skb->len;
 	tin->backlog_packets--;
 	flow->backlog -= skb->len;
 	fq->backlog--;
 	fq->memory_usage -= skb->truesize;
+}
+
+static void fq_rejigger_backlog(struct fq *fq, struct fq_flow *flow)
+{
+	struct fq_flow *i;
 
 	if (flow->backlog == 0) {
 		list_del_init(&flow->backlogchain);
@@ -43,6 +40,21 @@ static struct sk_buff *fq_flow_dequeue(struct fq *fq,
 		list_move_tail(&flow->backlogchain,
 			       &i->backlogchain);
 	}
+}
+
+static struct sk_buff *fq_flow_dequeue(struct fq *fq,
+				       struct fq_flow *flow)
+{
+	struct sk_buff *skb;
+
+	lockdep_assert_held(&fq->lock);
+
+	skb = __skb_dequeue(&flow->queue);
+	if (!skb)
+		return NULL;
+
+	fq_adjust_removal(fq, flow, skb);
+	fq_rejigger_backlog(fq, flow);
 
 	return skb;
 }
@@ -94,21 +106,23 @@ begin:
 	return skb;
 }
 
+static u32 fq_flow_idx(struct fq *fq, struct sk_buff *skb)
+{
+	u32 hash = skb_get_hash_perturb(skb, fq->perturbation);
+
+	return reciprocal_scale(hash, fq->flows_cnt);
+}
+
 static struct fq_flow *fq_flow_classify(struct fq *fq,
-					struct fq_tin *tin,
+					struct fq_tin *tin, u32 idx,
 					struct sk_buff *skb,
 					fq_flow_get_default_t get_default_func)
 {
 	struct fq_flow *flow;
-	u32 hash;
-	u32 idx;
 
 	lockdep_assert_held(&fq->lock);
 
-	hash = skb_get_hash_perturb(skb, fq->perturbation);
-	idx = reciprocal_scale(hash, fq->flows_cnt);
 	flow = &fq->flows[idx];
-
 	if (flow->tin && flow->tin != tin) {
 		flow = get_default_func(fq, tin, idx, skb);
 		tin->collisions++;
@@ -140,16 +154,17 @@ static void fq_recalc_backlog(struct fq *fq,
 }
 
 static void fq_tin_enqueue(struct fq *fq,
-			   struct fq_tin *tin,
+			   struct fq_tin *tin, u32 idx,
 			   struct sk_buff *skb,
 			   fq_skb_free_t free_func,
 			   fq_flow_get_default_t get_default_func)
 {
 	struct fq_flow *flow;
+	bool oom;
 
 	lockdep_assert_held(&fq->lock);
 
-	flow = fq_flow_classify(fq, tin, skb, get_default_func);
+	flow = fq_flow_classify(fq, tin, idx, skb, get_default_func);
 
 	flow->tin = tin;
 	flow->backlog += skb->len;
@@ -167,8 +182,8 @@ static void fq_tin_enqueue(struct fq *fq,
 	}
 
 	__skb_queue_tail(&flow->queue, skb);
-
-	if (fq->backlog > fq->limit || fq->memory_usage > fq->memory_limit) {
+	oom = (fq->memory_usage > fq->memory_limit);
+	while (fq->backlog > fq->limit || oom) {
 		flow = list_first_entry_or_null(&fq->backlogs,
 						struct fq_flow,
 						backlogchain);
@@ -183,9 +198,50 @@ static void fq_tin_enqueue(struct fq *fq,
 
 		flow->tin->overlimit++;
 		fq->overlimit++;
-		if (fq->memory_usage > fq->memory_limit)
+		if (oom) {
 			fq->overmemory++;
+			oom = (fq->memory_usage > fq->memory_limit);
+		}
 	}
+}
+
+static void fq_flow_filter(struct fq *fq,
+			   struct fq_flow *flow,
+			   fq_skb_filter_t filter_func,
+			   void *filter_data,
+			   fq_skb_free_t free_func)
+{
+	struct fq_tin *tin = flow->tin;
+	struct sk_buff *skb, *tmp;
+
+	lockdep_assert_held(&fq->lock);
+
+	skb_queue_walk_safe(&flow->queue, skb, tmp) {
+		if (!filter_func(fq, tin, flow, skb, filter_data))
+			continue;
+
+		__skb_unlink(skb, &flow->queue);
+		fq_adjust_removal(fq, flow, skb);
+		free_func(fq, tin, flow, skb);
+	}
+
+	fq_rejigger_backlog(fq, flow);
+}
+
+static void fq_tin_filter(struct fq *fq,
+			  struct fq_tin *tin,
+			  fq_skb_filter_t filter_func,
+			  void *filter_data,
+			  fq_skb_free_t free_func)
+{
+	struct fq_flow *flow;
+
+	lockdep_assert_held(&fq->lock);
+
+	list_for_each_entry(flow, &tin->new_flows, flowchain)
+		fq_flow_filter(fq, flow, filter_func, filter_data, free_func);
+	list_for_each_entry(flow, &tin->old_flows, flowchain)
+		fq_flow_filter(fq, flow, filter_func, filter_data, free_func);
 }
 
 static void fq_flow_reset(struct fq *fq,

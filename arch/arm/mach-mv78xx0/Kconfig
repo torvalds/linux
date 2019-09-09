@@ -1,10 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menuconfig ARCH_MV78XX0
 	bool "Marvell MV78xx0"
 	depends on ARCH_MULTI_V5
 	select CPU_FEROCEON
 	select GPIOLIB
 	select MVEBU_MBUS
-	select PCI
+	select FORCE_PCI
 	select PLAT_ORION_LEGACY
 	help
 	  Support for the following Marvell MV78xx0 series SoCs:

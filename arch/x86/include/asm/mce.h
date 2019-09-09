@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_MCE_H
 #define _ASM_X86_MCE_H
 
@@ -9,41 +10,45 @@
 
 /* MCG_CAP register defines */
 #define MCG_BANKCNT_MASK	0xff         /* Number of Banks */
-#define MCG_CTL_P		(1ULL<<8)    /* MCG_CTL register available */
-#define MCG_EXT_P		(1ULL<<9)    /* Extended registers available */
-#define MCG_CMCI_P		(1ULL<<10)   /* CMCI supported */
+#define MCG_CTL_P		BIT_ULL(8)   /* MCG_CTL register available */
+#define MCG_EXT_P		BIT_ULL(9)   /* Extended registers available */
+#define MCG_CMCI_P		BIT_ULL(10)  /* CMCI supported */
 #define MCG_EXT_CNT_MASK	0xff0000     /* Number of Extended registers */
 #define MCG_EXT_CNT_SHIFT	16
 #define MCG_EXT_CNT(c)		(((c) & MCG_EXT_CNT_MASK) >> MCG_EXT_CNT_SHIFT)
-#define MCG_SER_P		(1ULL<<24)   /* MCA recovery/new status bits */
-#define MCG_ELOG_P		(1ULL<<26)   /* Extended error log supported */
-#define MCG_LMCE_P		(1ULL<<27)   /* Local machine check supported */
+#define MCG_SER_P		BIT_ULL(24)  /* MCA recovery/new status bits */
+#define MCG_ELOG_P		BIT_ULL(26)  /* Extended error log supported */
+#define MCG_LMCE_P		BIT_ULL(27)  /* Local machine check supported */
 
 /* MCG_STATUS register defines */
-#define MCG_STATUS_RIPV  (1ULL<<0)   /* restart ip valid */
-#define MCG_STATUS_EIPV  (1ULL<<1)   /* ip points to correct instruction */
-#define MCG_STATUS_MCIP  (1ULL<<2)   /* machine check in progress */
-#define MCG_STATUS_LMCES (1ULL<<3)   /* LMCE signaled */
+#define MCG_STATUS_RIPV		BIT_ULL(0)   /* restart ip valid */
+#define MCG_STATUS_EIPV		BIT_ULL(1)   /* ip points to correct instruction */
+#define MCG_STATUS_MCIP		BIT_ULL(2)   /* machine check in progress */
+#define MCG_STATUS_LMCES	BIT_ULL(3)   /* LMCE signaled */
 
 /* MCG_EXT_CTL register defines */
-#define MCG_EXT_CTL_LMCE_EN (1ULL<<0) /* Enable LMCE */
+#define MCG_EXT_CTL_LMCE_EN	BIT_ULL(0) /* Enable LMCE */
 
 /* MCi_STATUS register defines */
-#define MCI_STATUS_VAL   (1ULL<<63)  /* valid error */
-#define MCI_STATUS_OVER  (1ULL<<62)  /* previous errors lost */
-#define MCI_STATUS_UC    (1ULL<<61)  /* uncorrected error */
-#define MCI_STATUS_EN    (1ULL<<60)  /* error enabled */
-#define MCI_STATUS_MISCV (1ULL<<59)  /* misc error reg. valid */
-#define MCI_STATUS_ADDRV (1ULL<<58)  /* addr reg. valid */
-#define MCI_STATUS_PCC   (1ULL<<57)  /* processor context corrupt */
-#define MCI_STATUS_S	 (1ULL<<56)  /* Signaled machine check */
-#define MCI_STATUS_AR	 (1ULL<<55)  /* Action required */
+#define MCI_STATUS_VAL		BIT_ULL(63)  /* valid error */
+#define MCI_STATUS_OVER		BIT_ULL(62)  /* previous errors lost */
+#define MCI_STATUS_UC		BIT_ULL(61)  /* uncorrected error */
+#define MCI_STATUS_EN		BIT_ULL(60)  /* error enabled */
+#define MCI_STATUS_MISCV	BIT_ULL(59)  /* misc error reg. valid */
+#define MCI_STATUS_ADDRV	BIT_ULL(58)  /* addr reg. valid */
+#define MCI_STATUS_PCC		BIT_ULL(57)  /* processor context corrupt */
+#define MCI_STATUS_S		BIT_ULL(56)  /* Signaled machine check */
+#define MCI_STATUS_AR		BIT_ULL(55)  /* Action required */
+#define MCI_STATUS_CEC_SHIFT	38           /* Corrected Error Count */
+#define MCI_STATUS_CEC_MASK	GENMASK_ULL(52,38)
+#define MCI_STATUS_CEC(c)	(((c) & MCI_STATUS_CEC_MASK) >> MCI_STATUS_CEC_SHIFT)
 
 /* AMD-specific bits */
-#define MCI_STATUS_TCC		(1ULL<<55)  /* Task context corrupt */
-#define MCI_STATUS_SYNDV	(1ULL<<53)  /* synd reg. valid */
-#define MCI_STATUS_DEFERRED	(1ULL<<44)  /* uncorrected error, deferred exception */
-#define MCI_STATUS_POISON	(1ULL<<43)  /* access poisonous data */
+#define MCI_STATUS_TCC		BIT_ULL(55)  /* Task context corrupt */
+#define MCI_STATUS_SYNDV	BIT_ULL(53)  /* synd reg. valid */
+#define MCI_STATUS_DEFERRED	BIT_ULL(44)  /* uncorrected error, deferred exception */
+#define MCI_STATUS_POISON	BIT_ULL(43)  /* access poisonous data */
+#define MCI_STATUS_SCRUB	BIT_ULL(40)  /* Error detected during scrub operation */
 
 /*
  * McaX field if set indicates a given bank supports MCA extensions:
@@ -83,7 +88,7 @@
 #define  MCI_MISC_ADDR_GENERIC	7	/* generic */
 
 /* CTL2 register defines */
-#define MCI_CTL2_CMCI_EN		(1ULL << 30)
+#define MCI_CTL2_CMCI_EN		BIT_ULL(30)
 #define MCI_CTL2_CMCI_THRESHOLD_MASK	0x7fffULL
 
 #define MCJ_CTX_MASK		3
@@ -96,10 +101,6 @@
 #define MCJ_IRQ_BROADCAST	0x10 /* do IRQ broadcasting */
 
 #define MCE_OVERFLOW 0		/* bit 0 in flags means overflow */
-
-/* Software defined banks */
-#define MCE_EXTENDED_BANK	128
-#define MCE_THERMAL_BANK	(MCE_EXTENDED_BANK + 0)
 
 #define MCE_LOG_LEN 32
 #define MCE_LOG_SIGNATURE	"MACHINECHECK"
@@ -132,7 +133,7 @@
  * debugging tools.  Each entry is only valid when its finished flag
  * is set.
  */
-struct mce_log {
+struct mce_log_buffer {
 	char signature[12]; /* "MACHINECHECK" */
 	unsigned len;	    /* = MCE_LOG_LEN */
 	unsigned next;
@@ -141,58 +142,17 @@ struct mce_log {
 	struct mce entry[MCE_LOG_LEN];
 };
 
-struct mca_config {
-	bool dont_log_ce;
-	bool cmci_disabled;
-	bool lmce_disabled;
-	bool ignore_ce;
-	bool disabled;
-	bool ser;
-	bool recovery;
-	bool bios_cmci_threshold;
-	u8 banks;
-	s8 bootlog;
-	int tolerant;
-	int monarch_timeout;
-	int panic_timeout;
-	u32 rip_msr;
+enum mce_notifier_prios {
+	MCE_PRIO_FIRST		= INT_MAX,
+	MCE_PRIO_SRAO		= INT_MAX - 1,
+	MCE_PRIO_EXTLOG		= INT_MAX - 2,
+	MCE_PRIO_NFIT		= INT_MAX - 3,
+	MCE_PRIO_EDAC		= INT_MAX - 4,
+	MCE_PRIO_MCELOG		= 1,
+	MCE_PRIO_LOWEST		= 0,
 };
 
-struct mce_vendor_flags {
-	/*
-	 * Indicates that overflow conditions are not fatal, when set.
-	 */
-	__u64 overflow_recov	: 1,
-
-	/*
-	 * (AMD) SUCCOR stands for S/W UnCorrectable error COntainment and
-	 * Recovery. It indicates support for data poisoning in HW and deferred
-	 * error interrupts.
-	 */
-	      succor		: 1,
-
-	/*
-	 * (AMD) SMCA: This bit indicates support for Scalable MCA which expands
-	 * the register space for each MCA bank and also increases number of
-	 * banks. Also, to accommodate the new banks and registers, the MCA
-	 * register space is moved to a new MSR range.
-	 */
-	      smca		: 1,
-
-	      __reserved_0	: 61;
-};
-
-struct mca_msr_regs {
-	u32 (*ctl)	(int bank);
-	u32 (*status)	(int bank);
-	u32 (*addr)	(int bank);
-	u32 (*misc)	(int bank);
-};
-
-extern struct mce_vendor_flags mce_flags;
-
-extern struct mca_config mca_cfg;
-extern struct mca_msr_regs msr_ops;
+struct notifier_block;
 extern void mce_register_decode_chain(struct notifier_block *nb);
 extern void mce_unregister_decode_chain(struct notifier_block *nb);
 
@@ -250,13 +210,10 @@ static inline void cmci_rediscover(void) {}
 static inline void cmci_recheck(void) {}
 #endif
 
-#ifdef CONFIG_X86_MCE_AMD
-void mce_amd_feature_init(struct cpuinfo_x86 *c);
-#else
-static inline void mce_amd_feature_init(struct cpuinfo_x86 *c) { }
-#endif
-
 int mce_available(struct cpuinfo_x86 *c);
+bool mce_is_memory_error(struct mce *m);
+bool mce_is_correctable(struct mce *m);
+int mce_usable_address(struct mce *m);
 
 DECLARE_PER_CPU(unsigned, mce_exception_count);
 DECLARE_PER_CPU(unsigned, mce_poll_count);
@@ -275,10 +232,6 @@ int mce_notify_irq(void);
 
 DECLARE_PER_CPU(struct mce, injectm);
 
-extern void register_mce_write_callback(ssize_t (*)(struct file *filp,
-				    const char __user *ubuf,
-				    size_t usize, loff_t *off));
-
 /* Disable CMCI/polling for MCA bank claimed by firmware */
 extern void mce_disable_bank(int bank);
 
@@ -293,9 +246,7 @@ void do_machine_check(struct pt_regs *, long);
 /*
  * Threshold handler
  */
-
 extern void (*mce_threshold_vector)(void);
-extern void (*threshold_cpu_callback)(unsigned long action, unsigned int cpu);
 
 /* Deferred error interrupt handler */
 extern void (*deferred_error_int_vector)(void);
@@ -305,8 +256,6 @@ extern void (*deferred_error_int_vector)(void);
  */
 
 void intel_init_thermal(struct cpuinfo_x86 *c);
-
-void mce_log_therm_throt_event(__u64 status);
 
 /* Interrupt Handler for core thermal thresholds */
 extern int (*platform_thermal_notify)(__u64 msr_val);
@@ -344,40 +293,61 @@ enum smca_bank_types {
 	SMCA_IF,	/* Instruction Fetch */
 	SMCA_L2_CACHE,	/* L2 Cache */
 	SMCA_DE,	/* Decoder Unit */
+	SMCA_RESERVED,	/* Reserved */
 	SMCA_EX,	/* Execution Unit */
 	SMCA_FP,	/* Floating Point */
 	SMCA_L3_CACHE,	/* L3 Cache */
 	SMCA_CS,	/* Coherent Slave */
+	SMCA_CS_V2,	/* Coherent Slave */
 	SMCA_PIE,	/* Power, Interrupts, etc. */
 	SMCA_UMC,	/* Unified Memory Controller */
 	SMCA_PB,	/* Parameter Block */
 	SMCA_PSP,	/* Platform Security Processor */
+	SMCA_PSP_V2,	/* Platform Security Processor */
 	SMCA_SMU,	/* System Management Unit */
+	SMCA_SMU_V2,	/* System Management Unit */
+	SMCA_MP5,	/* Microprocessor 5 Unit */
+	SMCA_NBIO,	/* Northbridge IO Unit */
+	SMCA_PCIE,	/* PCI Express Unit */
 	N_SMCA_BANK_TYPES
 };
 
-struct smca_bank_name {
-	const char *name;	/* Short name for sysfs */
-	const char *long_name;	/* Long name for pretty-printing */
-};
+#define HWID_MCATYPE(hwid, mcatype) (((hwid) << 16) | (mcatype))
 
-extern struct smca_bank_name smca_bank_names[N_SMCA_BANK_TYPES];
-
-#define HWID_MCATYPE(hwid, mcatype) ((hwid << 16) | mcatype)
-
-struct smca_hwid_mcatype {
+struct smca_hwid {
 	unsigned int bank_type;	/* Use with smca_bank_types for easy indexing. */
 	u32 hwid_mcatype;	/* (hwid,mcatype) tuple */
 	u32 xec_bitmap;		/* Bitmap of valid ExtErrorCodes; current max is 21. */
+	u8 count;		/* Number of instances. */
 };
 
-struct smca_bank_info {
-	struct smca_hwid_mcatype *type;
-	u32 type_instance;
+struct smca_bank {
+	struct smca_hwid *hwid;
+	u32 id;			/* Value of MCA_IPID[InstanceId]. */
+	u8 sysfs_id;		/* Value used for sysfs name. */
 };
 
-extern struct smca_bank_info smca_banks[MAX_NR_BANKS];
+extern struct smca_bank smca_banks[MAX_NR_BANKS];
 
+extern const char *smca_get_long_name(enum smca_bank_types t);
+extern bool amd_mce_is_memory_error(struct mce *m);
+
+extern int mce_threshold_create_device(unsigned int cpu);
+extern int mce_threshold_remove_device(unsigned int cpu);
+
+void mce_amd_feature_init(struct cpuinfo_x86 *c);
+int umc_normaddr_to_sysaddr(u64 norm_addr, u16 nid, u8 umc, u64 *sys_addr);
+
+#else
+
+static inline int mce_threshold_create_device(unsigned int cpu)		{ return 0; };
+static inline int mce_threshold_remove_device(unsigned int cpu)		{ return 0; };
+static inline bool amd_mce_is_memory_error(struct mce *m)		{ return false; };
+static inline void mce_amd_feature_init(struct cpuinfo_x86 *c)		{ }
+static inline int
+umc_normaddr_to_sysaddr(u64 norm_addr, u16 nid, u8 umc, u64 *sys_addr)	{ return -EINVAL; };
 #endif
+
+static inline void mce_hygon_feature_init(struct cpuinfo_x86 *c)	{ return mce_amd_feature_init(c); }
 
 #endif /* _ASM_X86_MCE_H */

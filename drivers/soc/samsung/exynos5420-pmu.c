@@ -1,13 +1,9 @@
-/*
- * Copyright (c) 2011-2015 Samsung Electronics Co., Ltd.
- *		http://www.samsung.com/
- *
- * EXYNOS5420 - CPU PMU (Power Management Unit) support
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Copyright (c) 2011-2015 Samsung Electronics Co., Ltd.
+//		http://www.samsung.com/
+//
+// EXYNOS5420 - CPU PMU (Power Management Unit) support
 
 #include <linux/pm.h>
 #include <linux/soc/samsung/exynos-regs-pmu.h>
@@ -230,11 +226,11 @@ static void exynos5420_pmu_init(void)
 	pmu_raw_writel(EXYNOS5420_USE_STANDBY_WFI_ALL, S5P_CENTRAL_SEQ_OPTION);
 
 	value  = pmu_raw_readl(EXYNOS_L2_OPTION(0));
-	value &= ~EXYNOS5_USE_RETENTION;
+	value &= ~EXYNOS_L2_USE_RETENTION;
 	pmu_raw_writel(value, EXYNOS_L2_OPTION(0));
 
 	value = pmu_raw_readl(EXYNOS_L2_OPTION(1));
-	value &= ~EXYNOS5_USE_RETENTION;
+	value &= ~EXYNOS_L2_USE_RETENTION;
 	pmu_raw_writel(value, EXYNOS_L2_OPTION(1));
 
 	/*

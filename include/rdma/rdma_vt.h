@@ -2,7 +2,7 @@
 #define DEF_RDMA_VT_H
 
 /*
- * Copyright(c) 2016 Intel Corporation.
+ * Copyright(c) 2016 - 2019 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -57,11 +57,22 @@
 #include <linux/list.h>
 #include <linux/hash.h>
 #include <rdma/ib_verbs.h>
+#include <rdma/ib_mad.h>
 #include <rdma/rdmavt_mr.h>
-#include <rdma/rdmavt_qp.h>
 
 #define RVT_MAX_PKEY_VALUES 16
 
+#define RVT_MAX_TRAP_LEN 100 /* Limit pending trap list */
+#define RVT_MAX_TRAP_LISTS 5 /*((IB_NOTICE_TYPE_INFO & 0x0F) + 1)*/
+#define RVT_TRAP_TIMEOUT 4096 /* 4.096 usec */
+
+struct trap_list {
+	u32 list_len;
+	struct list_head list;
+};
+
+struct rvt_qp;
+struct rvt_qpn_table;
 struct rvt_ibport {
 	struct rvt_qp __rcu *qp[2];
 	struct ib_mad_agent *send_agent;	/* agent for SMI (traps) */
@@ -75,12 +86,13 @@ struct rvt_ibport {
 	__be64 mkey;
 	u64 tid;
 	u32 port_cap_flags;
+	u16 port_cap3_flags;
 	u32 pma_sample_start;
 	u32 pma_sample_interval;
 	__be16 pma_counter_select[5];
 	u16 pma_tag;
 	u16 mkey_lease_period;
-	u16 sm_lid;
+	u32 sm_lid;
 	u8 sm_sl;
 	u8 mkeyprot;
 	u8 subnet_timeout;
@@ -127,9 +139,20 @@ struct rvt_ibport {
 	u16 *pkey_table;
 
 	struct rvt_ah *sm_ah;
+
+	/*
+	 * Keep a list of traps that have not been repressed.  They will be
+	 * resent based on trap_timer.
+	 */
+	struct trap_list trap_lists[RVT_MAX_TRAP_LISTS];
+	struct timer_list trap_timer;
 };
 
 #define RVT_CQN_MAX 16 /* maximum length of cq name */
+
+#define RVT_SGE_COPY_MEMCPY	0
+#define RVT_SGE_COPY_CACHELESS	1
+#define RVT_SGE_COPY_ADAPTIVE	2
 
 /*
  * Things that are driver specific, module parameters in hfi1 and qib
@@ -143,13 +166,15 @@ struct rvt_driver_params {
 	 */
 	unsigned int lkey_table_size;
 	unsigned int qp_table_size;
+	unsigned int sge_copy_mode;
+	unsigned int wss_threshold;
+	unsigned int wss_clean_period;
 	int qpn_start;
 	int qpn_inc;
 	int qpn_res_start;
 	int qpn_res_end;
 	int nports;
 	int npkeys;
-	char cq_name[RVT_CQN_MAX];
 	int node;
 	int psn_mask;
 	int psn_shift;
@@ -158,22 +183,54 @@ struct rvt_driver_params {
 	u32 max_mad_size;
 	u8 qos_shift;
 	u8 max_rdma_atomic;
+	u8 extra_rdma_atomic;
 	u8 reserved_operations;
+};
+
+/* User context */
+struct rvt_ucontext {
+	struct ib_ucontext ibucontext;
 };
 
 /* Protection domain */
 struct rvt_pd {
 	struct ib_pd ibpd;
-	int user;               /* non-zero if created from user space */
+	bool user;
 };
 
 /* Address handle */
 struct rvt_ah {
 	struct ib_ah ibah;
-	struct ib_ah_attr attr;
-	atomic_t refcount;
+	struct rdma_ah_attr attr;
 	u8 vl;
 	u8 log_pmtu;
+};
+
+/*
+ * This structure is used by rvt_mmap() to validate an offset
+ * when an mmap() request is made.  The vm_area_struct then uses
+ * this as its vm_private_data.
+ */
+struct rvt_mmap_info {
+	struct list_head pending_mmaps;
+	struct ib_ucontext *context;
+	void *obj;
+	__u64 offset;
+	struct kref ref;
+	u32 size;
+};
+
+/* memory working set size */
+struct rvt_wss {
+	unsigned long *entries;
+	atomic_t total_count;
+	atomic_t clean_counter;
+	atomic_t clean_entry;
+
+	int threshold;
+	int num_entries;
+	long pages_mask;
+	unsigned int clean_period;
 };
 
 struct rvt_dev_info;
@@ -185,15 +242,33 @@ struct rvt_driver_provided {
 	 * check_support() for details.
 	 */
 
-	/* Passed to ib core registration. Callback to create syfs files */
-	int (*port_callback)(struct ib_device *, u8, struct kobject *);
+	/* hot path calldowns in a single cacheline */
 
 	/*
-	 * Returns a string to represent the device for which is being
-	 * registered. This is primarily used for error and debug messages on
-	 * the console.
+	 * Give the driver a notice that there is send work to do. It is up to
+	 * the driver to generally push the packets out, this just queues the
+	 * work with the driver. There are two variants here. The no_lock
+	 * version requires the s_lock not to be held. The other assumes the
+	 * s_lock is held.
 	 */
-	const char * (*get_card_name)(struct rvt_dev_info *rdi);
+	bool (*schedule_send)(struct rvt_qp *qp);
+	bool (*schedule_send_no_lock)(struct rvt_qp *qp);
+
+	/*
+	 * Driver specific work request setup and checking.
+	 * This function is allowed to perform any setup, checks, or
+	 * adjustments required to the SWQE in order to be usable by
+	 * underlying protocols. This includes private data structure
+	 * allocations.
+	 */
+	int (*setup_wqe)(struct rvt_qp *qp, struct rvt_swqe *wqe,
+			 bool *call_send);
+
+	/*
+	 * Sometimes rdmavt needs to kick the driver's send progress. That is
+	 * done by this call back.
+	 */
+	void (*do_send)(struct rvt_qp *qp);
 
 	/*
 	 * Returns a pointer to the undelying hardware's PCI device. This is
@@ -208,8 +283,14 @@ struct rvt_driver_provided {
 	 * ERR_PTR(err).  The driver is free to return NULL or a valid
 	 * pointer.
 	 */
-	void * (*qp_priv_alloc)(struct rvt_dev_info *rdi, struct rvt_qp *qp,
-				gfp_t gfp);
+	void * (*qp_priv_alloc)(struct rvt_dev_info *rdi, struct rvt_qp *qp);
+
+	/*
+	 * Init a struture allocated with qp_priv_alloc(). This should be
+	 * called after all qp fields have been initialized in rdmavt.
+	 */
+	int (*qp_priv_init)(struct rvt_dev_info *rdi, struct rvt_qp *qp,
+			    struct ib_qp_init_attr *init_attr);
 
 	/*
 	 * Free the driver's private qp structure.
@@ -221,22 +302,6 @@ struct rvt_driver_provided {
 	 * that it can clean up anything it needs to.
 	 */
 	void (*notify_qp_reset)(struct rvt_qp *qp);
-
-	/*
-	 * Give the driver a notice that there is send work to do. It is up to
-	 * the driver to generally push the packets out, this just queues the
-	 * work with the driver. There are two variants here. The no_lock
-	 * version requires the s_lock not to be held. The other assumes the
-	 * s_lock is held.
-	 */
-	void (*schedule_send)(struct rvt_qp *qp);
-	void (*schedule_send_no_lock)(struct rvt_qp *qp);
-
-	/*
-	 * Sometimes rdmavt needs to kick the driver's send progress. That is
-	 * done by this call back.
-	 */
-	void (*do_send)(struct rvt_qp *qp);
 
 	/*
 	 * Get a path mtu from the driver based on qp attributes.
@@ -306,15 +371,15 @@ struct rvt_driver_provided {
 	unsigned (*free_all_qps)(struct rvt_dev_info *rdi);
 
 	/* Driver specific AH validation */
-	int (*check_ah)(struct ib_device *, struct ib_ah_attr *);
+	int (*check_ah)(struct ib_device *, struct rdma_ah_attr *);
 
 	/* Inform the driver a new AH has been created */
-	void (*notify_new_ah)(struct ib_device *, struct ib_ah_attr *,
+	void (*notify_new_ah)(struct ib_device *, struct rdma_ah_attr *,
 			      struct rvt_ah *);
 
 	/* Let the driver pick the next queue pair number*/
 	int (*alloc_qpn)(struct rvt_dev_info *rdi, struct rvt_qpn_table *qpt,
-			 enum ib_qp_type type, u8 port_num, gfp_t gfp);
+			 enum ib_qp_type type, u8 port_num);
 
 	/* Determine if its safe or allowed to modify the qp */
 	int (*check_modify_qp)(struct rvt_qp *qp, struct ib_qp_attr *attr,
@@ -324,15 +389,17 @@ struct rvt_driver_provided {
 	void (*modify_qp)(struct rvt_qp *qp, struct ib_qp_attr *attr,
 			  int attr_mask, struct ib_udata *udata);
 
-	/* Driver specific work request checking */
-	int (*check_send_wqe)(struct rvt_qp *qp, struct rvt_swqe *wqe);
-
 	/* Notify driver a mad agent has been created */
 	void (*notify_create_mad_agent)(struct rvt_dev_info *rdi, int port_idx);
 
 	/* Notify driver a mad agent has been removed */
 	void (*notify_free_mad_agent)(struct rvt_dev_info *rdi, int port_idx);
 
+	/* Notify driver to restart rc */
+	void (*notify_restart_rc)(struct rvt_qp *qp, u32 psn, int wait);
+
+	/* Get and return CPU to pin CQ processing thread */
+	int (*comp_vect_cpu_lookup)(struct rvt_dev_info *rdi, int comp_vect);
 };
 
 struct rvt_dev_info {
@@ -355,11 +422,14 @@ struct rvt_dev_info {
 	/* post send table */
 	const struct rvt_operation_params *post_parms;
 
-	struct rvt_mregion __rcu *dma_mr;
-	struct rvt_lkey_table lkey_table;
+	/* opcode translation table */
+	const enum ib_wc_opcode *wc_opcode;
 
 	/* Driver specific helper functions */
 	struct rvt_driver_provided driver_f;
+
+	struct rvt_mregion __rcu *dma_mr;
+	struct rvt_lkey_table lkey_table;
 
 	/* Internal use */
 	int n_pds_allocated;
@@ -388,7 +458,6 @@ struct rvt_dev_info {
 	spinlock_t pending_lock; /* protect pending mmap list */
 
 	/* CQ */
-	struct kthread_worker *worker; /* per device cq worker */
 	u32 n_cqs_allocated;    /* number of CQs allocated for device */
 	spinlock_t n_cqs_lock; /* protect count of in use cqs */
 
@@ -396,7 +465,40 @@ struct rvt_dev_info {
 	u32 n_mcast_grps_allocated; /* number of mcast groups allocated */
 	spinlock_t n_mcast_grps_lock;
 
+	/* Memory Working Set Size */
+	struct rvt_wss *wss;
 };
+
+/**
+ * rvt_set_ibdev_name - Craft an IB device name from client info
+ * @rdi: pointer to the client rvt_dev_info structure
+ * @name: client specific name
+ * @unit: client specific unit number.
+ */
+static inline void rvt_set_ibdev_name(struct rvt_dev_info *rdi,
+				      const char *fmt, const char *name,
+				      const int unit)
+{
+	/*
+	 * FIXME: rvt and its users want to touch the ibdev before
+	 * registration and have things like the name work. We don't have the
+	 * infrastructure in the core to support this directly today, hack it
+	 * to work by setting the name manually here.
+	 */
+	dev_set_name(&rdi->ibdev.dev, fmt, name, unit);
+	strlcpy(rdi->ibdev.name, dev_name(&rdi->ibdev.dev), IB_DEVICE_NAME_MAX);
+}
+
+/**
+ * rvt_get_ibdev_name - return the IB name
+ * @rdi: rdmavt device
+ *
+ * Return the registered name of the device.
+ */
+static inline const char *rvt_get_ibdev_name(const struct rvt_dev_info *rdi)
+{
+	return dev_name(&rdi->ibdev.dev);
+}
 
 static inline struct rvt_pd *ibpd_to_rvtpd(struct ib_pd *ibpd)
 {
@@ -413,16 +515,6 @@ static inline struct rvt_dev_info *ib_to_rvt(struct ib_device *ibdev)
 	return  container_of(ibdev, struct rvt_dev_info, ibdev);
 }
 
-static inline struct rvt_srq *ibsrq_to_rvtsrq(struct ib_srq *ibsrq)
-{
-	return container_of(ibsrq, struct rvt_srq, ibsrq);
-}
-
-static inline struct rvt_qp *ibqp_to_rvtqp(struct ib_qp *ibqp)
-{
-	return container_of(ibqp, struct rvt_qp, ibqp);
-}
-
 static inline unsigned rvt_get_npkeys(struct rvt_dev_info *rdi)
 {
 	/*
@@ -437,7 +529,14 @@ static inline unsigned rvt_get_npkeys(struct rvt_dev_info *rdi)
  */
 static inline unsigned int rvt_max_atomic(struct rvt_dev_info *rdi)
 {
-	return rdi->dparms.max_rdma_atomic + 1;
+	return rdi->dparms.max_rdma_atomic +
+		rdi->dparms.extra_rdma_atomic + 1;
+}
+
+static inline unsigned int rvt_size_atomic(struct rvt_dev_info *rdi)
+{
+	return rdi->dparms.max_rdma_atomic +
+		rdi->dparms.extra_rdma_atomic;
 }
 
 /*
@@ -453,39 +552,11 @@ static inline u16 rvt_get_pkey(struct rvt_dev_info *rdi,
 		return rdi->ports[port_index]->pkey_table[index];
 }
 
-/**
- * rvt_lookup_qpn - return the QP with the given QPN
- * @ibp: the ibport
- * @qpn: the QP number to look up
- *
- * The caller must hold the rcu_read_lock(), and keep the lock until
- * the returned qp is no longer in use.
- */
-/* TODO: Remove this and put in rdmavt/qp.h when no longer needed by drivers */
-static inline struct rvt_qp *rvt_lookup_qpn(struct rvt_dev_info *rdi,
-					    struct rvt_ibport *rvp,
-					    u32 qpn) __must_hold(RCU)
-{
-	struct rvt_qp *qp = NULL;
-
-	if (unlikely(qpn <= 1)) {
-		qp = rcu_dereference(rvp->qp[qpn]);
-	} else {
-		u32 n = hash_32(qpn, rdi->qp_dev->qp_table_bits);
-
-		for (qp = rcu_dereference(rdi->qp_dev->qp_table[n]); qp;
-			qp = rcu_dereference(qp->next))
-			if (qp->ibqp.qp_num == qpn)
-				break;
-	}
-	return qp;
-}
-
 struct rvt_dev_info *rvt_alloc_device(size_t size, int nports);
 void rvt_dealloc_device(struct rvt_dev_info *rdi);
 int rvt_register_device(struct rvt_dev_info *rvd);
 void rvt_unregister_device(struct rvt_dev_info *rvd);
-int rvt_check_ah(struct ib_device *ibdev, struct ib_ah_attr *ah_attr);
+int rvt_check_ah(struct ib_device *ibdev, struct rdma_ah_attr *ah_attr);
 int rvt_init_port(struct rvt_dev_info *rdi, struct rvt_ibport *port,
 		  int port_index, u16 *pkey_table);
 int rvt_fast_reg_mr(struct rvt_qp *qp, struct ib_mr *ibmr, u32 key,
@@ -494,7 +565,9 @@ int rvt_invalidate_rkey(struct rvt_qp *qp, u32 rkey);
 int rvt_rkey_ok(struct rvt_qp *qp, struct rvt_sge *sge,
 		u32 len, u64 vaddr, u32 rkey, int acc);
 int rvt_lkey_ok(struct rvt_lkey_table *rkt, struct rvt_pd *pd,
-		struct rvt_sge *isge, struct ib_sge *sge, int acc);
-struct rvt_mcast *rvt_mcast_find(struct rvt_ibport *ibp, union ib_gid *mgid);
+		struct rvt_sge *isge, struct rvt_sge *last_sge,
+		struct ib_sge *sge, int acc);
+struct rvt_mcast *rvt_mcast_find(struct rvt_ibport *ibp, union ib_gid *mgid,
+				 u16 lid);
 
 #endif          /* DEF_RDMA_VT_H */

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * File: pn_dev.c
  *
@@ -7,20 +8,6 @@
  *
  * Authors: Sakari Ailus <sakari.ailus@nokia.com>
  *          Rémi Denis-Courmont
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
  */
 
 #include <linux/kernel.h>
@@ -44,7 +31,7 @@ struct phonet_net {
 	struct phonet_routes routes;
 };
 
-static int phonet_net_id __read_mostly;
+static unsigned int phonet_net_id __read_mostly;
 
 static struct phonet_net *phonet_pernet(struct net *net)
 {
@@ -320,7 +307,8 @@ static int __net_init phonet_init_net(struct net *net)
 {
 	struct phonet_net *pnn = phonet_pernet(net);
 
-	if (!proc_create("phonet", 0, net->proc_net, &pn_sock_seq_fops))
+	if (!proc_create_net("phonet", 0, net->proc_net, &pn_sock_seq_ops,
+			sizeof(struct seq_net_private)))
 		return -ENOMEM;
 
 	INIT_LIST_HEAD(&pnn->pndevs.list);
@@ -331,7 +319,10 @@ static int __net_init phonet_init_net(struct net *net)
 
 static void __net_exit phonet_exit_net(struct net *net)
 {
+	struct phonet_net *pnn = phonet_pernet(net);
+
 	remove_proc_entry("phonet", net->proc_net);
+	WARN_ON_ONCE(!list_empty(&pnn->pndevs.list));
 }
 
 static struct pernet_operations phonet_net_ops = {
@@ -348,7 +339,8 @@ int __init phonet_device_init(void)
 	if (err)
 		return err;
 
-	proc_create("pnresource", 0, init_net.proc_net, &pn_res_seq_fops);
+	proc_create_net("pnresource", 0, init_net.proc_net, &pn_res_seq_ops,
+			sizeof(struct seq_net_private));
 	register_netdevice_notifier(&phonet_device_notifier);
 	err = phonet_netlink_register();
 	if (err)

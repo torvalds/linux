@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	W83877F Computer Watchdog Timer driver
  *
  *      Based on acquirewdt.c by Alan Cox,
  *           and sbc60xxwdt.c by Jakob Oestergaard <jakob@unthought.net>
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
  *
  *	The authors do NOT admit liability nor provide warranty for
  *	any of this software. This material is provided "AS-IS" in
@@ -97,8 +93,8 @@ MODULE_PARM_DESC(nowayout,
 		"Watchdog cannot be stopped once started (default="
 				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
-static void wdt_timer_ping(unsigned long);
-static DEFINE_TIMER(timer, wdt_timer_ping, 0, 0);
+static void wdt_timer_ping(struct timer_list *);
+static DEFINE_TIMER(timer, wdt_timer_ping);
 static unsigned long next_heartbeat;
 static unsigned long wdt_is_open;
 static char wdt_expect_close;
@@ -108,7 +104,7 @@ static DEFINE_SPINLOCK(wdt_spinlock);
  *	Whack the dog
  */
 
-static void wdt_timer_ping(unsigned long data)
+static void wdt_timer_ping(struct timer_list *unused)
 {
 	/* If we got a heartbeat pulse within the WDT_US_INTERVAL
 	 * we agree to ping the WDT
@@ -224,7 +220,7 @@ static int fop_open(struct inode *inode, struct file *file)
 
 	/* Good, fire up the show */
 	wdt_startup();
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 static int fop_close(struct inode *inode, struct file *file)
@@ -292,8 +288,8 @@ static long fop_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		timeout = new_timeout;
 		wdt_keepalive();
-		/* Fall through */
 	}
+		/* Fall through */
 	case WDIOC_GETTIMEOUT:
 		return put_user(timeout, p);
 	default:

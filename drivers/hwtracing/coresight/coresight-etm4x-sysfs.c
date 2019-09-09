@@ -1,20 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright(C) 2015 Linaro Limited. All rights reserved.
  * Author: Mathieu Poirier <mathieu.poirier@linaro.org>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/pid_namespace.h>
 #include <linux/pm_runtime.h>
 #include <linux/sysfs.h>
 #include "coresight-etm4x.h"
@@ -261,10 +251,8 @@ static ssize_t reset_store(struct device *dev,
 	}
 
 	config->ctxid_idx = 0x0;
-	for (i = 0; i < drvdata->numcidc; i++) {
+	for (i = 0; i < drvdata->numcidc; i++)
 		config->ctxid_pid[i] = 0x0;
-		config->ctxid_vpid[i] = 0x0;
-	}
 
 	config->ctxid_mask0 = 0x0;
 	config->ctxid_mask1 = 0x0;
@@ -1648,9 +1636,16 @@ static ssize_t ctxid_pid_show(struct device *dev,
 	struct etmv4_drvdata *drvdata = dev_get_drvdata(dev->parent);
 	struct etmv4_config *config = &drvdata->config;
 
+	/*
+	 * Don't use contextID tracing if coming from a PID namespace.  See
+	 * comment in ctxid_pid_store().
+	 */
+	if (task_active_pid_ns(current) != &init_pid_ns)
+		return -EINVAL;
+
 	spin_lock(&drvdata->spinlock);
 	idx = config->ctxid_idx;
-	val = (unsigned long)config->ctxid_vpid[idx];
+	val = (unsigned long)config->ctxid_pid[idx];
 	spin_unlock(&drvdata->spinlock);
 	return scnprintf(buf, PAGE_SIZE, "%#lx\n", val);
 }
@@ -1660,9 +1655,21 @@ static ssize_t ctxid_pid_store(struct device *dev,
 			       const char *buf, size_t size)
 {
 	u8 idx;
-	unsigned long vpid, pid;
+	unsigned long pid;
 	struct etmv4_drvdata *drvdata = dev_get_drvdata(dev->parent);
 	struct etmv4_config *config = &drvdata->config;
+
+	/*
+	 * When contextID tracing is enabled the tracers will insert the
+	 * value found in the contextID register in the trace stream.  But if
+	 * a process is in a namespace the PID of that process as seen from the
+	 * namespace won't be what the kernel sees, something that makes the
+	 * feature confusing and can potentially leak kernel only information.
+	 * As such refuse to use the feature if @current is not in the initial
+	 * PID namespace.
+	 */
+	if (task_active_pid_ns(current) != &init_pid_ns)
+		return -EINVAL;
 
 	/*
 	 * only implemented when ctxid tracing is enabled, i.e. at least one
@@ -1671,15 +1678,12 @@ static ssize_t ctxid_pid_store(struct device *dev,
 	 */
 	if (!drvdata->ctxid_size || !drvdata->numcidc)
 		return -EINVAL;
-	if (kstrtoul(buf, 16, &vpid))
+	if (kstrtoul(buf, 16, &pid))
 		return -EINVAL;
-
-	pid = coresight_vpid_to_pid(vpid);
 
 	spin_lock(&drvdata->spinlock);
 	idx = config->ctxid_idx;
 	config->ctxid_pid[idx] = (u64)pid;
-	config->ctxid_vpid[idx] = (u64)vpid;
 	spin_unlock(&drvdata->spinlock);
 	return size;
 }
@@ -1692,6 +1696,13 @@ static ssize_t ctxid_masks_show(struct device *dev,
 	unsigned long val1, val2;
 	struct etmv4_drvdata *drvdata = dev_get_drvdata(dev->parent);
 	struct etmv4_config *config = &drvdata->config;
+
+	/*
+	 * Don't use contextID tracing if coming from a PID namespace.  See
+	 * comment in ctxid_pid_store().
+	 */
+	if (task_active_pid_ns(current) != &init_pid_ns)
+		return -EINVAL;
 
 	spin_lock(&drvdata->spinlock);
 	val1 = config->ctxid_mask0;
@@ -1708,6 +1719,13 @@ static ssize_t ctxid_masks_store(struct device *dev,
 	unsigned long val1, val2, mask;
 	struct etmv4_drvdata *drvdata = dev_get_drvdata(dev->parent);
 	struct etmv4_config *config = &drvdata->config;
+
+	/*
+	 * Don't use contextID tracing if coming from a PID namespace.  See
+	 * comment in ctxid_pid_store().
+	 */
+	if (task_active_pid_ns(current) != &init_pid_ns)
+		return -EINVAL;
 
 	/*
 	 * only implemented when ctxid tracing is enabled, i.e. at least one
@@ -1780,7 +1798,7 @@ static ssize_t ctxid_masks_store(struct device *dev,
 		 */
 		for (j = 0; j < 8; j++) {
 			if (maskbyte & 1)
-				config->ctxid_pid[i] &= ~(0xFF << (j * 8));
+				config->ctxid_pid[i] &= ~(0xFFUL << (j * 8));
 			maskbyte >>= 1;
 		}
 		/* Select the next ctxid comparator mask value */
@@ -1963,7 +1981,7 @@ static ssize_t vmid_masks_store(struct device *dev,
 		 */
 		for (j = 0; j < 8; j++) {
 			if (maskbyte & 1)
-				config->vmid_val[i] &= ~(0xFF << (j * 8));
+				config->vmid_val[i] &= ~(0xFFUL << (j * 8));
 			maskbyte >>= 1;
 		}
 		/* Select the next vmid comparator mask value */
@@ -2066,23 +2084,23 @@ static u32 etmv4_cross_read(const struct device *dev, u32 offset)
 	return reg.data;
 }
 
-#define coresight_etm4x_simple_func(name, offset)			\
-	coresight_simple_func(struct etmv4_drvdata, NULL, name, offset)
+#define coresight_etm4x_reg(name, offset)			\
+	coresight_simple_reg32(struct etmv4_drvdata, name, offset)
 
 #define coresight_etm4x_cross_read(name, offset)			\
 	coresight_simple_func(struct etmv4_drvdata, etmv4_cross_read,	\
 			      name, offset)
 
-coresight_etm4x_simple_func(trcpdcr, TRCPDCR);
-coresight_etm4x_simple_func(trcpdsr, TRCPDSR);
-coresight_etm4x_simple_func(trclsr, TRCLSR);
-coresight_etm4x_simple_func(trcauthstatus, TRCAUTHSTATUS);
-coresight_etm4x_simple_func(trcdevid, TRCDEVID);
-coresight_etm4x_simple_func(trcdevtype, TRCDEVTYPE);
-coresight_etm4x_simple_func(trcpidr0, TRCPIDR0);
-coresight_etm4x_simple_func(trcpidr1, TRCPIDR1);
-coresight_etm4x_simple_func(trcpidr2, TRCPIDR2);
-coresight_etm4x_simple_func(trcpidr3, TRCPIDR3);
+coresight_etm4x_reg(trcpdcr, TRCPDCR);
+coresight_etm4x_reg(trcpdsr, TRCPDSR);
+coresight_etm4x_reg(trclsr, TRCLSR);
+coresight_etm4x_reg(trcauthstatus, TRCAUTHSTATUS);
+coresight_etm4x_reg(trcdevid, TRCDEVID);
+coresight_etm4x_reg(trcdevtype, TRCDEVTYPE);
+coresight_etm4x_reg(trcpidr0, TRCPIDR0);
+coresight_etm4x_reg(trcpidr1, TRCPIDR1);
+coresight_etm4x_reg(trcpidr2, TRCPIDR2);
+coresight_etm4x_reg(trcpidr3, TRCPIDR3);
 coresight_etm4x_cross_read(trcoslsr, TRCOSLSR);
 coresight_etm4x_cross_read(trcconfig, TRCCONFIGR);
 coresight_etm4x_cross_read(trctraceid, TRCTRACEIDR);

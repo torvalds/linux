@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Chelsio device configuration
 #
@@ -24,7 +25,8 @@ config CHELSIO_T1
 	---help---
 	  This driver supports Chelsio gigabit and 10-gigabit
 	  Ethernet cards. More information about adapter features and
-	  performance tuning is in <file:Documentation/networking/cxgb.txt>.
+	  performance tuning is in
+	  <file:Documentation/networking/device_drivers/chelsio/cxgb.txt>.
 
 	  For general information about Chelsio and our products, visit
 	  our website at <http://www.chelsio.com>.
@@ -69,6 +71,7 @@ config CHELSIO_T4
 	depends on PCI && (IPV6 || IPV6=n)
 	select FW_LOADER
 	select MDIO
+	select ZLIB_DEFLATE
 	---help---
 	  This driver supports Chelsio T4, T5 & T6 based gigabit, 10Gb Ethernet
 	  adapter and T5/T6 based 40Gb and T6 based 25Gb, 50Gb and 100Gb

@@ -1,54 +1,27 @@
+# SPDX-License-Identifier: GPL-2.0
 menuconfig ION
 	bool "Ion Memory Manager"
-	depends on HAVE_MEMBLOCK && HAS_DMA && MMU
+	depends on HAS_DMA && MMU
 	select GENERIC_ALLOCATOR
 	select DMA_SHARED_BUFFER
-	---help---
-	  Chose this option to enable the ION Memory Manager,
+	help
+	  Choose this option to enable the ION Memory Manager,
 	  used by Android to efficiently allocate buffers
 	  from userspace that can be shared between drivers.
 	  If you're not using Android its probably safe to
 	  say N here.
 
-config ION_TEST
-	tristate "Ion Test Device"
+config ION_SYSTEM_HEAP
+	bool "Ion system heap"
 	depends on ION
 	help
-	  Choose this option to create a device that can be used to test the
-	  kernel and device side ION functions.
+	  Choose this option to enable the Ion system heap. The system heap
+	  is backed by pages from the buddy allocator. If in doubt, say Y.
 
-config ION_DUMMY
-	bool "Dummy Ion driver"
-	depends on ION
+config ION_CMA_HEAP
+	bool "Ion CMA heap support"
+	depends on ION && DMA_CMA
 	help
-	  Provides a dummy ION driver that registers the
-	  /dev/ion device and some basic heaps. This can
-	  be used for testing the ION infrastructure if
-	  one doesn't have access to hardware drivers that
-	  use ION.
-
-config ION_TEGRA
-	tristate "Ion for Tegra"
-	depends on ARCH_TEGRA && ION
-	help
-	  Choose this option if you wish to use ion on an nVidia Tegra.
-
-config ION_HISI
-	tristate "Ion for Hisilicon"
-	depends on ARCH_HISI && ION
-	select ION_OF
-	help
-	  Choose this option if you wish to use ion on Hisilicon Platform.
-
-source "drivers/staging/android/ion/hisilicon/Kconfig"
-
-config ION_OF
-	bool "Devicetree support for Ion"
-	depends on ION && OF_ADDRESS
-	help
-	  Provides base support for defining Ion heaps in devicetree
-	  and setting them up. Also includes functions for platforms
-	  to parse the devicetree and expand for their own custom
-	  extensions
-
-	  If using Ion and devicetree, you should say Y here
+	  Choose this option to enable CMA heaps with Ion. This heap is backed
+	  by the Contiguous Memory Allocator (CMA). If your system has these
+	  regions, you should say Y here.

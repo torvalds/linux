@@ -1,30 +1,20 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Afatech AF9033 demodulator driver
  *
  * Copyright (C) 2009 Antti Palosaari <crope@iki.fi>
  * Copyright (C) 2012 Antti Palosaari <crope@iki.fi>
- *
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation; either version 2 of the License, or
- *    (at your option) any later version.
- *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
- *
- *    You should have received a copy of the GNU General Public License along
- *    with this program; if not, write to the Free Software Foundation, Inc.,
- *    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 #ifndef AF9033_PRIV_H
 #define AF9033_PRIV_H
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "af9033.h"
 #include <linux/math64.h>
+#include <linux/regmap.h>
+#include <linux/kernel.h>
+#include <media/dvb_math.h>
 
 struct reg_val {
 	u32 reg;
@@ -68,7 +58,7 @@ static const struct clock_adc clock_adc_lut[] = {
 	{ 12000000, 20250000 },
 };
 
-/* pre-calculated coeff lookup table */
+/* Pre-calculated coeff lookup table */
 static const struct coeff coeff_lut[] = {
 	/* 12.000 MHz */
 	{ 12000000, 8000000, {
@@ -91,102 +81,9 @@ static const struct coeff coeff_lut[] = {
 	},
 };
 
-/* QPSK SNR lookup table */
-static const struct val_snr qpsk_snr_lut[] = {
-	{ 0x0b4771,  0 },
-	{ 0x0c1aed,  1 },
-	{ 0x0d0d27,  2 },
-	{ 0x0e4d19,  3 },
-	{ 0x0e5da8,  4 },
-	{ 0x107097,  5 },
-	{ 0x116975,  6 },
-	{ 0x1252d9,  7 },
-	{ 0x131fa4,  8 },
-	{ 0x13d5e1,  9 },
-	{ 0x148e53, 10 },
-	{ 0x15358b, 11 },
-	{ 0x15dd29, 12 },
-	{ 0x168112, 13 },
-	{ 0x170b61, 14 },
-	{ 0x17a532, 15 },
-	{ 0x180f94, 16 },
-	{ 0x186ed2, 17 },
-	{ 0x18b271, 18 },
-	{ 0x18e118, 19 },
-	{ 0x18ff4b, 20 },
-	{ 0x190af1, 21 },
-	{ 0x191451, 22 },
-	{ 0xffffff, 23 },
-};
-
-/* QAM16 SNR lookup table */
-static const struct val_snr qam16_snr_lut[] = {
-	{ 0x04f0d5,  0 },
-	{ 0x05387a,  1 },
-	{ 0x0573a4,  2 },
-	{ 0x05a99e,  3 },
-	{ 0x05cc80,  4 },
-	{ 0x05eb62,  5 },
-	{ 0x05fecf,  6 },
-	{ 0x060b80,  7 },
-	{ 0x062501,  8 },
-	{ 0x064865,  9 },
-	{ 0x069604, 10 },
-	{ 0x06f356, 11 },
-	{ 0x07706a, 12 },
-	{ 0x0804d3, 13 },
-	{ 0x089d1a, 14 },
-	{ 0x093e3d, 15 },
-	{ 0x09e35d, 16 },
-	{ 0x0a7c3c, 17 },
-	{ 0x0afaf8, 18 },
-	{ 0x0b719d, 19 },
-	{ 0x0bda6a, 20 },
-	{ 0x0c0c75, 21 },
-	{ 0x0c3f7d, 22 },
-	{ 0x0c5e62, 23 },
-	{ 0x0c6c31, 24 },
-	{ 0x0c7925, 25 },
-	{ 0xffffff, 26 },
-};
-
-/* QAM64 SNR lookup table */
-static const struct val_snr qam64_snr_lut[] = {
-	{ 0x0256d0,  0 },
-	{ 0x027a65,  1 },
-	{ 0x029873,  2 },
-	{ 0x02b7fe,  3 },
-	{ 0x02cf1e,  4 },
-	{ 0x02e234,  5 },
-	{ 0x02f409,  6 },
-	{ 0x030046,  7 },
-	{ 0x030844,  8 },
-	{ 0x030a02,  9 },
-	{ 0x030cde, 10 },
-	{ 0x031031, 11 },
-	{ 0x03144c, 12 },
-	{ 0x0315dd, 13 },
-	{ 0x031920, 14 },
-	{ 0x0322d0, 15 },
-	{ 0x0339fc, 16 },
-	{ 0x0364a1, 17 },
-	{ 0x038bcc, 18 },
-	{ 0x03c7d3, 19 },
-	{ 0x0408cc, 20 },
-	{ 0x043bed, 21 },
-	{ 0x048061, 22 },
-	{ 0x04be95, 23 },
-	{ 0x04fa7d, 24 },
-	{ 0x052405, 25 },
-	{ 0x05570d, 26 },
-	{ 0x059feb, 27 },
-	{ 0x05bf38, 28 },
-	{ 0x05f78f, 29 },
-	{ 0x0612c3, 30 },
-	{ 0x0626be, 31 },
-	{ 0xffffff, 32 },
-};
-
+/*
+ * Afatech AF9033 demod init
+ */
 static const struct reg_val ofsm_init[] = {
 	{ 0x800051, 0x01 },
 	{ 0x800070, 0x0a },
@@ -298,8 +195,10 @@ static const struct reg_val ofsm_init[] = {
 	{ 0x80fd8b, 0x00 },
 };
 
-/* Infineon TUA 9001 tuner init
-   AF9033_TUNER_TUA9001    = 0x27 */
+/*
+ * Infineon TUA 9001 tuner init
+ * AF9033_TUNER_TUA9001    = 0x27
+ */
 static const struct reg_val tuner_init_tua9001[] = {
 	{ 0x800046, 0x27 },
 	{ 0x800057, 0x00 },
@@ -340,8 +239,10 @@ static const struct reg_val tuner_init_tua9001[] = {
 	{ 0x80f1e6, 0x00 },
 };
 
-/* Fitipower fc0011 tuner init
-   AF9033_TUNER_FC0011    = 0x28 */
+/*
+ * Fitipower FC0011 tuner init
+ * AF9033_TUNER_FC0011    = 0x28
+ */
 static const struct reg_val tuner_init_fc0011[] = {
 	{ 0x800046, 0x28 },
 	{ 0x800057, 0x00 },
@@ -401,8 +302,10 @@ static const struct reg_val tuner_init_fc0011[] = {
 	{ 0x80f1e6, 0x00 },
 };
 
-/* Fitipower FC0012 tuner init
-   AF9033_TUNER_FC0012    = 0x2e */
+/*
+ * Fitipower FC0012 tuner init
+ * AF9033_TUNER_FC0012    = 0x2e
+ */
 static const struct reg_val tuner_init_fc0012[] = {
 	{ 0x800046, 0x2e },
 	{ 0x800057, 0x00 },
@@ -444,8 +347,10 @@ static const struct reg_val tuner_init_fc0012[] = {
 	{ 0x80f1e6, 0x00 },
 };
 
-/* MaxLinear MxL5007T tuner init
-   AF9033_TUNER_MXL5007T    = 0xa0 */
+/*
+ * MaxLinear MxL5007T tuner init
+ * AF9033_TUNER_MXL5007T    = 0xa0
+ */
 static const struct reg_val tuner_init_mxl5007t[] = {
 	{ 0x800046, 0x1b },
 	{ 0x800057, 0x01 },
@@ -479,8 +384,10 @@ static const struct reg_val tuner_init_mxl5007t[] = {
 	{ 0x80f1e6, 0x00 },
 };
 
-/* NXP TDA 18218HN tuner init
-   AF9033_TUNER_TDA18218    = 0xa1 */
+/*
+ * NXP TDA18218HN tuner init
+ * AF9033_TUNER_TDA18218    = 0xa1
+ */
 static const struct reg_val tuner_init_tda18218[] = {
 	{0x800046, 0xa1},
 	{0x800057, 0x01},
@@ -513,7 +420,10 @@ static const struct reg_val tuner_init_tda18218[] = {
 	{0x80f1e6, 0x00},
 };
 
-/* FCI FC2580 tuner init */
+/*
+ * FCI FC2580 tuner init
+ * AF9033_TUNER_FC2580      = 0x32
+ */
 static const struct reg_val tuner_init_fc2580[] = {
 	{ 0x800046, 0x32 },
 	{ 0x800057, 0x01 },
@@ -551,6 +461,9 @@ static const struct reg_val tuner_init_fc2580[] = {
 	{ 0x80f1e6, 0x01 },
 };
 
+/*
+ * IT9133 AX demod init
+ */
 static const struct reg_val ofsm_init_it9135_v1[] = {
 	{ 0x800051, 0x01 },
 	{ 0x800070, 0x0a },
@@ -662,8 +575,10 @@ static const struct reg_val ofsm_init_it9135_v1[] = {
 	{ 0x80fd8b, 0x00 },
 };
 
-/* ITE Tech IT9135 Omega tuner init
-   AF9033_TUNER_IT9135_38   = 0x38 */
+/*
+ * ITE Tech IT9133 AX Omega tuner init
+ * AF9033_TUNER_IT9135_38   = 0x38
+ */
 static const struct reg_val tuner_init_it9135_38[] = {
 	{ 0x800043, 0x00 },
 	{ 0x800046, 0x38 },
@@ -879,8 +794,10 @@ static const struct reg_val tuner_init_it9135_38[] = {
 	{ 0x80fd8b, 0x00 },
 };
 
-/* ITE Tech IT9135 Omega LNA config 1 tuner init
-   AF9033_TUNER_IT9135_51   = 0x51 */
+/*
+ * ITE Tech IT9133 AX Omega LNA config 1 tuner init
+ * AF9033_TUNER_IT9135_51   = 0x51
+ */
 static const struct reg_val tuner_init_it9135_51[] = {
 	{ 0x800043, 0x00 },
 	{ 0x800046, 0x51 },
@@ -1096,8 +1013,10 @@ static const struct reg_val tuner_init_it9135_51[] = {
 	{ 0x80fd8b, 0x00 },
 };
 
-/* ITE Tech IT9135 Omega LNA config 2 tuner init
-   AF9033_TUNER_IT9135_52   = 0x52 */
+/*
+ * ITE Tech IT9133 AX Omega LNA config 2 tuner init
+ * AF9033_TUNER_IT9135_52   = 0x52
+ */
 static const struct reg_val tuner_init_it9135_52[] = {
 	{ 0x800043, 0x00 },
 	{ 0x800046, 0x52 },
@@ -1313,6 +1232,9 @@ static const struct reg_val tuner_init_it9135_52[] = {
 	{ 0x80fd8b, 0x00 },
 };
 
+/*
+ * ITE Tech IT9133 BX demod init
+ */
 static const struct reg_val ofsm_init_it9135_v2[] = {
 	{ 0x800051, 0x01 },
 	{ 0x800070, 0x0a },
@@ -1411,8 +1333,10 @@ static const struct reg_val ofsm_init_it9135_v2[] = {
 	{ 0x80fd8b, 0x00 },
 };
 
-/* ITE Tech IT9135 Omega v2 tuner init
-   AF9033_TUNER_IT9135_60   = 0x60 */
+/*
+ * ITE Tech IT9133 BX Omega tuner init
+ * AF9033_TUNER_IT9135_60   = 0x60
+ */
 static const struct reg_val tuner_init_it9135_60[] = {
 	{ 0x800043, 0x00 },
 	{ 0x800046, 0x60 },
@@ -1625,8 +1549,10 @@ static const struct reg_val tuner_init_it9135_60[] = {
 	{ 0x80fd8b, 0x00 },
 };
 
-/* ITE Tech IT9135 Omega v2 LNA config 1 tuner init
-   AF9033_TUNER_IT9135_61   = 0x61 */
+/*
+ * ITE Tech IT9133 BX Omega LNA config 1 tuner init
+ * AF9033_TUNER_IT9135_61   = 0x61
+ */
 static const struct reg_val tuner_init_it9135_61[] = {
 	{ 0x800043, 0x00 },
 	{ 0x800046, 0x61 },
@@ -1839,8 +1765,10 @@ static const struct reg_val tuner_init_it9135_61[] = {
 	{ 0x80fd8b, 0x00 },
 };
 
-/* ITE Tech IT9135 Omega v2 LNA config 2 tuner init
-   AF9033_TUNER_IT9135_62   = 0x62 */
+/*
+ * ITE Tech IT9133 BX Omega LNA config 2 tuner init
+ * AF9033_TUNER_IT9135_62   = 0x62
+ */
 static const struct reg_val tuner_init_it9135_62[] = {
 	{ 0x800043, 0x00 },
 	{ 0x800046, 0x62 },

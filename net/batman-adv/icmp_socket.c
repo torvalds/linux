@@ -1,18 +1,7 @@
-/* Copyright (C) 2007-2016  B.A.T.M.A.N. contributors:
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright (C) 2007-2019  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "icmp_socket.h"
@@ -23,9 +12,11 @@
 #include <linux/debugfs.h>
 #include <linux/errno.h>
 #include <linux/etherdevice.h>
+#include <linux/eventpoll.h>
 #include <linux/export.h>
 #include <linux/fcntl.h>
 #include <linux/fs.h>
+#include <linux/gfp.h>
 #include <linux/if_ether.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
@@ -38,16 +29,16 @@
 #include <linux/skbuff.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-#include <linux/stat.h>
 #include <linux/stddef.h>
 #include <linux/string.h>
 #include <linux/uaccess.h>
 #include <linux/wait.h>
+#include <uapi/linux/batadv_packet.h>
 
+#include "debugfs.h"
 #include "hard-interface.h"
 #include "log.h"
 #include "originator.h"
-#include "packet.h"
 #include "send.h"
 
 static struct batadv_socket_client *batadv_socket_client_hash[256];
@@ -56,6 +47,9 @@ static void batadv_socket_add_packet(struct batadv_socket_client *socket_client,
 				     struct batadv_icmp_header *icmph,
 				     size_t icmp_len);
 
+/**
+ * batadv_socket_init() - Initialize soft interface independent socket data
+ */
 void batadv_socket_init(void)
 {
 	memset(batadv_socket_client_hash, 0, sizeof(batadv_socket_client_hash));
@@ -69,7 +63,9 @@ static int batadv_socket_open(struct inode *inode, struct file *file)
 	if (!try_module_get(THIS_MODULE))
 		return -EBUSY;
 
-	nonseekable_open(inode, file);
+	batadv_debugfs_deprecated(file, "");
+
+	stream_open(inode, file);
 
 	socket_client = kmalloc(sizeof(*socket_client), GFP_KERNEL);
 	if (!socket_client) {
@@ -133,13 +129,13 @@ static ssize_t batadv_socket_read(struct file *file, char __user *buf,
 	size_t packet_len;
 	int error;
 
-	if ((file->f_flags & O_NONBLOCK) && (socket_client->queue_len == 0))
+	if ((file->f_flags & O_NONBLOCK) && socket_client->queue_len == 0)
 		return -EAGAIN;
 
-	if ((!buf) || (count < sizeof(struct batadv_icmp_packet)))
+	if (!buf || count < sizeof(struct batadv_icmp_packet))
 		return -EINVAL;
 
-	if (!access_ok(VERIFY_WRITE, buf, count))
+	if (!access_ok(buf, count))
 		return -EFAULT;
 
 	error = wait_event_interruptible(socket_client->queue_wait,
@@ -208,7 +204,7 @@ static ssize_t batadv_socket_write(struct file *file, const char __user *buff,
 
 	skb->priority = TC_PRIO_CONTROL;
 	skb_reserve(skb, ETH_HLEN);
-	icmp_header = (struct batadv_icmp_header *)skb_put(skb, packet_len);
+	icmp_header = skb_put(skb, packet_len);
 
 	if (copy_from_user(icmp_header, buff, packet_len)) {
 		len = -EFAULT;
@@ -293,14 +289,14 @@ out:
 	return len;
 }
 
-static unsigned int batadv_socket_poll(struct file *file, poll_table *wait)
+static __poll_t batadv_socket_poll(struct file *file, poll_table *wait)
 {
 	struct batadv_socket_client *socket_client = file->private_data;
 
 	poll_wait(file, &socket_client->queue_wait, wait);
 
 	if (socket_client->queue_len > 0)
-		return POLLIN | POLLRDNORM;
+		return EPOLLIN | EPOLLRDNORM;
 
 	return 0;
 }
@@ -315,26 +311,18 @@ static const struct file_operations batadv_fops = {
 	.llseek = no_llseek,
 };
 
-int batadv_socket_setup(struct batadv_priv *bat_priv)
+/**
+ * batadv_socket_setup() - Create debugfs "socket" file
+ * @bat_priv: the bat priv with all the soft interface information
+ */
+void batadv_socket_setup(struct batadv_priv *bat_priv)
 {
-	struct dentry *d;
-
-	if (!bat_priv->debug_dir)
-		goto err;
-
-	d = debugfs_create_file(BATADV_ICMP_SOCKET, S_IFREG | S_IWUSR | S_IRUSR,
-				bat_priv->debug_dir, bat_priv, &batadv_fops);
-	if (!d)
-		goto err;
-
-	return 0;
-
-err:
-	return -ENOMEM;
+	debugfs_create_file(BATADV_ICMP_SOCKET, 0600, bat_priv->debug_dir,
+			    bat_priv, &batadv_fops);
 }
 
 /**
- * batadv_socket_add_packet - schedule an icmp packet to be sent to
+ * batadv_socket_add_packet() - schedule an icmp packet to be sent to
  *  userspace on an icmp socket.
  * @socket_client: the socket this packet belongs to
  * @icmph: pointer to the header of the icmp packet
@@ -391,7 +379,7 @@ static void batadv_socket_add_packet(struct batadv_socket_client *socket_client,
 }
 
 /**
- * batadv_socket_receive_packet - schedule an icmp packet to be received
+ * batadv_socket_receive_packet() - schedule an icmp packet to be received
  *  locally and sent to userspace.
  * @icmph: pointer to the header of the icmp packet
  * @icmp_len: total length of the icmp packet

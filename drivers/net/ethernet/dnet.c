@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Dave DNET Ethernet Controller driver
  *
  * Copyright (C) 2008 Dave S.r.l. <www.dave.eu>
  * Copyright (C) 2009 Ilya Yanok, Emcraft Systems Ltd, <yanok@emcraft.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/io.h>
 #include <linux/module.h>
@@ -284,13 +281,11 @@ static int dnet_mii_probe(struct net_device *dev)
 
 	/* mask with MAC supported features */
 	if (bp->capabilities & DNET_HAS_GIGABIT)
-		phydev->supported &= PHY_GBIT_FEATURES;
+		phy_set_max_speed(phydev, SPEED_1000);
 	else
-		phydev->supported &= PHY_BASIC_FEATURES;
+		phy_set_max_speed(phydev, SPEED_100);
 
-	phydev->supported |= SUPPORTED_Asym_Pause | SUPPORTED_Pause;
-
-	phydev->advertising = phydev->supported;
+	phy_support_asym_pause(phydev);
 
 	bp->link = 0;
 	bp->speed = 0;
@@ -399,7 +394,7 @@ static int dnet_poll(struct napi_struct *napi, int budget)
 			 * 'skb_put()' points to the start of sk_buff
 			 * data area.
 			 */
-			data_ptr = (unsigned int *)skb_put(skb, pkt_len);
+			data_ptr = skb_put(skb, pkt_len);
 			for (i = 0; i < (pkt_len + 3) >> 2; i++)
 				*data_ptr++ = dnet_readl(bp, RX_DATA_FIFO);
 			skb->protocol = eth_type_trans(skb, dev);
@@ -415,7 +410,7 @@ static int dnet_poll(struct napi_struct *napi, int budget)
 		/* We processed all packets available.  Tell NAPI it can
 		 * stop polling then re-enable rx interrupts.
 		 */
-		napi_complete(napi);
+		napi_complete_done(napi, npackets);
 		int_enable = dnet_readl(bp, INTR_ENB);
 		int_enable |= DNET_INTR_SRC_RX_CMDFIFOAF;
 		dnet_writel(bp, int_enable, INTR_ENB);
@@ -767,7 +762,6 @@ static const struct net_device_ops dnet_netdev_ops = {
 	.ndo_do_ioctl		= dnet_ioctl,
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_change_mtu		= eth_change_mtu,
 };
 
 static int dnet_probe(struct platform_device *pdev)

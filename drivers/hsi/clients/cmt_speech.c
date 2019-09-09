@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * cmt_speech.c - HSI CMT speech driver
  *
@@ -5,20 +6,6 @@
  *
  * Contact: Kai Vehmanen <kai.vehmanen@nokia.com>
  * Original author: Peter Ujfalusi <peter.ujfalusi@nokia.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
  */
 
 #include <linux/errno.h>
@@ -31,7 +18,7 @@
 #include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/poll.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/ioctl.h>
 #include <linux/uaccess.h>
 #include <linux/pm_qos.h>
@@ -451,11 +438,11 @@ static void cs_hsi_read_on_control_complete(struct hsi_msg *msg)
 	dev_dbg(&hi->cl->device, "Read on control: %08X\n", cmd);
 	cs_release_cmd(msg);
 	if (hi->flags & CS_FEAT_TSTAMP_RX_CTRL) {
-		struct timespec tspec;
+		struct timespec64 tspec;
 		struct cs_timestamp *tstamp =
 			&hi->mmap_cfg->tstamp_rx_ctrl;
 
-		ktime_get_ts(&tspec);
+		ktime_get_ts64(&tspec);
 
 		tstamp->tv_sec = (__u32) tspec.tv_sec;
 		tstamp->tv_nsec = (__u32) tspec.tv_nsec;
@@ -1098,9 +1085,9 @@ static void cs_hsi_stop(struct cs_hsi_iface *hi)
 	kfree(hi);
 }
 
-static int cs_char_vma_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+static vm_fault_t cs_char_vma_fault(struct vm_fault *vmf)
 {
-	struct cs_char *csdata = vma->vm_private_data;
+	struct cs_char *csdata = vmf->vma->vm_private_data;
 	struct page *page;
 
 	page = virt_to_page(csdata->mmap_base);
@@ -1124,17 +1111,17 @@ static int cs_char_fasync(int fd, struct file *file, int on)
 	return 0;
 }
 
-static unsigned int cs_char_poll(struct file *file, poll_table *wait)
+static __poll_t cs_char_poll(struct file *file, poll_table *wait)
 {
 	struct cs_char *csdata = file->private_data;
-	unsigned int ret = 0;
+	__poll_t ret = 0;
 
 	poll_wait(file, &cs_char_data.wait, wait);
 	spin_lock_bh(&csdata->lock);
 	if (!list_empty(&csdata->chardev_queue))
-		ret = POLLIN | POLLRDNORM;
+		ret = EPOLLIN | EPOLLRDNORM;
 	else if (!list_empty(&csdata->dataind_queue))
-		ret = POLLIN | POLLRDNORM;
+		ret = EPOLLIN | EPOLLRDNORM;
 	spin_unlock_bh(&csdata->lock);
 
 	return ret;

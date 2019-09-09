@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2009-2011, Frederic Weisbecker <fweisbec@gmail.com>
  *
@@ -9,19 +10,47 @@
  *
  */
 
+#include <inttypes.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <errno.h>
 #include <math.h>
+#include <linux/zalloc.h>
 
 #include "asm/bug.h"
 
 #include "hist.h"
-#include "util.h"
 #include "sort.h"
 #include "machine.h"
+#include "map.h"
 #include "callchain.h"
+#include "branch.h"
+#include "symbol.h"
+
+#define CALLCHAIN_PARAM_DEFAULT			\
+	.mode		= CHAIN_GRAPH_ABS,	\
+	.min_percent	= 0.5,			\
+	.order		= ORDER_CALLEE,		\
+	.key		= CCKEY_FUNCTION,	\
+	.value		= CCVAL_PERCENT,	\
+
+struct callchain_param callchain_param = {
+	CALLCHAIN_PARAM_DEFAULT
+};
+
+/*
+ * Are there any events usind DWARF callchains?
+ *
+ * I.e.
+ *
+ * -e cycles/call-graph=dwarf/
+ */
+bool dwarf_callchain_users;
+
+struct callchain_param callchain_param_default = {
+	CALLCHAIN_PARAM_DEFAULT
+};
 
 __thread struct callchain_cursor callchain_cursor;
 
@@ -76,6 +105,10 @@ static int parse_callchain_sort_key(const char *value)
 		callchain_param.key = CCKEY_ADDRESS;
 		return 0;
 	}
+	if (!strncmp(value, "srcline", strlen(value))) {
+		callchain_param.key = CCKEY_SRCLINE;
+		return 0;
+	}
 	if (!strncmp(value, "branch", strlen(value))) {
 		callchain_param.branch_callstack = 1;
 		return 0;
@@ -100,11 +133,37 @@ static int parse_callchain_value(const char *value)
 	return -1;
 }
 
+static int get_stack_size(const char *str, unsigned long *_size)
+{
+	char *endptr;
+	unsigned long size;
+	unsigned long max_size = round_down(USHRT_MAX, sizeof(u64));
+
+	size = strtoul(str, &endptr, 0);
+
+	do {
+		if (*endptr)
+			break;
+
+		size = round_up(size, sizeof(u64));
+		if (!size || size > max_size)
+			break;
+
+		*_size = size;
+		return 0;
+
+	} while (0);
+
+	pr_err("callchain: Incorrect stack dump size (max %ld): %s\n",
+	       max_size, str);
+	return -1;
+}
+
 static int
 __parse_callchain_report_opt(const char *arg, bool allow_record_opt)
 {
 	char *tok;
-	char *endptr;
+	char *endptr, *saveptr = NULL;
 	bool minpcnt_set = false;
 	bool record_opt_set = false;
 	bool try_stack_size = false;
@@ -115,7 +174,7 @@ __parse_callchain_report_opt(const char *arg, bool allow_record_opt)
 	if (!arg)
 		return 0;
 
-	while ((tok = strtok((char *)arg, ",")) != NULL) {
+	while ((tok = strtok_r((char *)arg, ",", &saveptr)) != NULL) {
 		if (!strncmp(tok, "none", strlen(tok))) {
 			callchain_param.mode = CHAIN_NONE;
 			callchain_param.enabled = false;
@@ -183,17 +242,79 @@ int parse_callchain_top_opt(const char *arg)
 	return __parse_callchain_report_opt(arg, true);
 }
 
+int parse_callchain_record(const char *arg, struct callchain_param *param)
+{
+	char *tok, *name, *saveptr = NULL;
+	char *buf;
+	int ret = -1;
+
+	/* We need buffer that we know we can write to. */
+	buf = malloc(strlen(arg) + 1);
+	if (!buf)
+		return -ENOMEM;
+
+	strcpy(buf, arg);
+
+	tok = strtok_r((char *)buf, ",", &saveptr);
+	name = tok ? : (char *)buf;
+
+	do {
+		/* Framepointer style */
+		if (!strncmp(name, "fp", sizeof("fp"))) {
+			if (!strtok_r(NULL, ",", &saveptr)) {
+				param->record_mode = CALLCHAIN_FP;
+				ret = 0;
+			} else
+				pr_err("callchain: No more arguments "
+				       "needed for --call-graph fp\n");
+			break;
+
+		/* Dwarf style */
+		} else if (!strncmp(name, "dwarf", sizeof("dwarf"))) {
+			const unsigned long default_stack_dump_size = 8192;
+
+			ret = 0;
+			param->record_mode = CALLCHAIN_DWARF;
+			param->dump_size = default_stack_dump_size;
+			dwarf_callchain_users = true;
+
+			tok = strtok_r(NULL, ",", &saveptr);
+			if (tok) {
+				unsigned long size = 0;
+
+				ret = get_stack_size(tok, &size);
+				param->dump_size = size;
+			}
+		} else if (!strncmp(name, "lbr", sizeof("lbr"))) {
+			if (!strtok_r(NULL, ",", &saveptr)) {
+				param->record_mode = CALLCHAIN_LBR;
+				ret = 0;
+			} else
+				pr_err("callchain: No more arguments "
+					"needed for --call-graph lbr\n");
+			break;
+		} else {
+			pr_err("callchain: Unknown --call-graph option "
+			       "value: %s\n", arg);
+			break;
+		}
+
+	} while (0);
+
+	free(buf);
+	return ret;
+}
+
 int perf_callchain_config(const char *var, const char *value)
 {
 	char *endptr;
 
-	if (prefixcmp(var, "call-graph."))
+	if (!strstarts(var, "call-graph."))
 		return 0;
 	var += sizeof("call-graph.") - 1;
 
 	if (!strcmp(var, "record-mode"))
 		return parse_callchain_record_opt(value, &callchain_param);
-#ifdef HAVE_DWARF_UNWIND_SUPPORT
 	if (!strcmp(var, "dump-size")) {
 		unsigned long size = 0;
 		int ret;
@@ -203,22 +324,40 @@ int perf_callchain_config(const char *var, const char *value)
 
 		return ret;
 	}
-#endif
-	if (!strcmp(var, "print-type"))
-		return parse_callchain_mode(value);
-	if (!strcmp(var, "order"))
-		return parse_callchain_order(value);
-	if (!strcmp(var, "sort-key"))
-		return parse_callchain_sort_key(value);
+	if (!strcmp(var, "print-type")){
+		int ret;
+		ret = parse_callchain_mode(value);
+		if (ret == -1)
+			pr_err("Invalid callchain mode: %s\n", value);
+		return ret;
+	}
+	if (!strcmp(var, "order")){
+		int ret;
+		ret = parse_callchain_order(value);
+		if (ret == -1)
+			pr_err("Invalid callchain order: %s\n", value);
+		return ret;
+	}
+	if (!strcmp(var, "sort-key")){
+		int ret;
+		ret = parse_callchain_sort_key(value);
+		if (ret == -1)
+			pr_err("Invalid callchain sort key: %s\n", value);
+		return ret;
+	}
 	if (!strcmp(var, "threshold")) {
 		callchain_param.min_percent = strtod(value, &endptr);
-		if (value == endptr)
+		if (value == endptr) {
+			pr_err("Invalid callchain threshold: %s\n", value);
 			return -1;
+		}
 	}
 	if (!strcmp(var, "print-limit")) {
 		callchain_param.print_limit = strtod(value, &endptr);
-		if (value == endptr)
+		if (value == endptr) {
+			pr_err("Invalid callchain print limit: %s\n", value);
 			return -1;
+		}
 	}
 
 	return 0;
@@ -439,7 +578,41 @@ fill_node(struct callchain_node *node, struct callchain_cursor *cursor)
 		}
 		call->ip = cursor_node->ip;
 		call->ms.sym = cursor_node->sym;
-		call->ms.map = cursor_node->map;
+		call->ms.map = map__get(cursor_node->map);
+		call->srcline = cursor_node->srcline;
+
+		if (cursor_node->branch) {
+			call->branch_count = 1;
+
+			if (cursor_node->branch_from) {
+				/*
+				 * branch_from is set with value somewhere else
+				 * to imply it's "to" of a branch.
+				 */
+				call->brtype_stat.branch_to = true;
+
+				if (cursor_node->branch_flags.predicted)
+					call->predicted_count = 1;
+
+				if (cursor_node->branch_flags.abort)
+					call->abort_count = 1;
+
+				branch_type_count(&call->brtype_stat,
+						  &cursor_node->branch_flags,
+						  cursor_node->branch_from,
+						  cursor_node->ip);
+			} else {
+				/*
+				 * It's "from" of a branch
+				 */
+				call->brtype_stat.branch_to = false;
+				call->cycles_count =
+					cursor_node->branch_flags.cycles;
+				call->iter_count = cursor_node->nr_loop_iter;
+				call->iter_cycles = cursor_node->iter_cycles;
+			}
+		}
+
 		list_add_tail(&call->list, &node->val);
 
 		callchain_cursor_advance(cursor);
@@ -463,7 +636,8 @@ add_child(struct callchain_node *parent,
 		struct callchain_list *call, *tmp;
 
 		list_for_each_entry_safe(call, tmp, &new->val, list) {
-			list_del(&call->list);
+			list_del_init(&call->list);
+			map__zput(call->ms.map);
 			free(call);
 		}
 		free(new);
@@ -484,25 +658,121 @@ enum match_result {
 	MATCH_GT,
 };
 
+static enum match_result match_chain_strings(const char *left,
+					     const char *right)
+{
+	enum match_result ret = MATCH_EQ;
+	int cmp;
+
+	if (left && right)
+		cmp = strcmp(left, right);
+	else if (!left && right)
+		cmp = 1;
+	else if (left && !right)
+		cmp = -1;
+	else
+		return MATCH_ERROR;
+
+	if (cmp != 0)
+		ret = cmp < 0 ? MATCH_LT : MATCH_GT;
+
+	return ret;
+}
+
+/*
+ * We need to always use relative addresses because we're aggregating
+ * callchains from multiple threads, i.e. different address spaces, so
+ * comparing absolute addresses make no sense as a symbol in a DSO may end up
+ * in a different address when used in a different binary or even the same
+ * binary but with some sort of address randomization technique, thus we need
+ * to compare just relative addresses. -acme
+ */
+static enum match_result match_chain_dso_addresses(struct map *left_map, u64 left_ip,
+						   struct map *right_map, u64 right_ip)
+{
+	struct dso *left_dso = left_map ? left_map->dso : NULL;
+	struct dso *right_dso = right_map ? right_map->dso : NULL;
+
+	if (left_dso != right_dso)
+		return left_dso < right_dso ? MATCH_LT : MATCH_GT;
+
+	if (left_ip != right_ip)
+ 		return left_ip < right_ip ? MATCH_LT : MATCH_GT;
+
+	return MATCH_EQ;
+}
+
 static enum match_result match_chain(struct callchain_cursor_node *node,
 				     struct callchain_list *cnode)
 {
-	struct symbol *sym = node->sym;
-	u64 left, right;
+	enum match_result match = MATCH_ERROR;
 
-	if (cnode->ms.sym && sym &&
-	    callchain_param.key == CCKEY_FUNCTION) {
-		left = cnode->ms.sym->start;
-		right = sym->start;
-	} else {
-		left = cnode->ip;
-		right = node->ip;
+	switch (callchain_param.key) {
+	case CCKEY_SRCLINE:
+		match = match_chain_strings(cnode->srcline, node->srcline);
+		if (match != MATCH_ERROR)
+			break;
+		/* otherwise fall-back to symbol-based comparison below */
+		__fallthrough;
+	case CCKEY_FUNCTION:
+		if (node->sym && cnode->ms.sym) {
+			/*
+			 * Compare inlined frames based on their symbol name
+			 * because different inlined frames will have the same
+			 * symbol start. Otherwise do a faster comparison based
+			 * on the symbol start address.
+			 */
+			if (cnode->ms.sym->inlined || node->sym->inlined) {
+				match = match_chain_strings(cnode->ms.sym->name,
+							    node->sym->name);
+				if (match != MATCH_ERROR)
+					break;
+			} else {
+				match = match_chain_dso_addresses(cnode->ms.map, cnode->ms.sym->start,
+								  node->map, node->sym->start);
+				break;
+			}
+		}
+		/* otherwise fall-back to IP-based comparison below */
+		__fallthrough;
+	case CCKEY_ADDRESS:
+	default:
+		match = match_chain_dso_addresses(cnode->ms.map, cnode->ip, node->map, node->ip);
+		break;
 	}
 
-	if (left == right)
-		return MATCH_EQ;
+	if (match == MATCH_EQ && node->branch) {
+		cnode->branch_count++;
 
-	return left > right ? MATCH_GT : MATCH_LT;
+		if (node->branch_from) {
+			/*
+			 * It's "to" of a branch
+			 */
+			cnode->brtype_stat.branch_to = true;
+
+			if (node->branch_flags.predicted)
+				cnode->predicted_count++;
+
+			if (node->branch_flags.abort)
+				cnode->abort_count++;
+
+			branch_type_count(&cnode->brtype_stat,
+					  &node->branch_flags,
+					  node->branch_from,
+					  node->ip);
+		} else {
+			/*
+			 * It's "from" of a branch
+			 */
+			cnode->brtype_stat.branch_to = false;
+			cnode->cycles_count += node->branch_flags.cycles;
+			cnode->iter_count += node->nr_loop_iter;
+			cnode->iter_cycles += node->iter_cycles;
+			cnode->from_count++;
+		}
+	}
+
+	return match;
 }
 
 /*
@@ -730,8 +1000,10 @@ merge_chain_branch(struct callchain_cursor *cursor,
 
 	list_for_each_entry_safe(list, next_list, &src->val, list) {
 		callchain_cursor_append(cursor, list->ip,
-					list->ms.map, list->ms.sym);
-		list_del(&list->list);
+					list->ms.map, list->ms.sym,
+					false, NULL, 0, 0, 0, list->srcline);
+		list_del_init(&list->list);
+		map__zput(list->ms.map);
 		free(list);
 	}
 
@@ -767,7 +1039,10 @@ int callchain_merge(struct callchain_cursor *cursor,
 }
 
 int callchain_cursor_append(struct callchain_cursor *cursor,
-			    u64 ip, struct map *map, struct symbol *sym)
+			    u64 ip, struct map *map, struct symbol *sym,
+			    bool branch, struct branch_flags *flags,
+			    int nr_loop_iter, u64 iter_cycles, u64 branch_from,
+			    const char *srcline)
 {
 	struct callchain_cursor_node *node = *cursor->last;
 
@@ -780,9 +1055,19 @@ int callchain_cursor_append(struct callchain_cursor *cursor,
 	}
 
 	node->ip = ip;
-	node->map = map;
+	map__zput(node->map);
+	node->map = map__get(map);
 	node->sym = sym;
+	node->branch = branch;
+	node->nr_loop_iter = nr_loop_iter;
+	node->iter_cycles = iter_cycles;
+	node->srcline = srcline;
 
+	if (flags)
+		memcpy(&node->branch_flags, flags,
+			sizeof(struct branch_flags));
+
+	node->branch_from = branch_from;
 	cursor->nr++;
 
 	cursor->last = &node->next;
@@ -795,11 +1080,11 @@ int sample__resolve_callchain(struct perf_sample *sample,
 			      struct perf_evsel *evsel, struct addr_location *al,
 			      int max_stack)
 {
-	if (sample->callchain == NULL)
+	if (sample->callchain == NULL && !symbol_conf.show_branchflag_count)
 		return 0;
 
 	if (symbol_conf.use_callchain || symbol_conf.cumulate_callchain ||
-	    perf_hpp_list.parent) {
+	    perf_hpp_list.parent || symbol_conf.show_branchflag_count) {
 		return thread__resolve_callchain(al->thread, cursor, evsel, sample,
 						 parent, al, max_stack);
 	}
@@ -808,7 +1093,8 @@ int sample__resolve_callchain(struct perf_sample *sample,
 
 int hist_entry__append_callchain(struct hist_entry *he, struct perf_sample *sample)
 {
-	if (!symbol_conf.use_callchain || sample->callchain == NULL)
+	if ((!symbol_conf.use_callchain || sample->callchain == NULL) &&
+		!symbol_conf.show_branchflag_count)
 		return 0;
 	return callchain_append(he->callchain, &callchain_cursor, sample->period);
 }
@@ -818,10 +1104,8 @@ int fill_callchain_info(struct addr_location *al, struct callchain_cursor_node *
 {
 	al->map = node->map;
 	al->sym = node->sym;
-	if (node->map)
-		al->addr = node->map->map_ip(node->map, node->ip);
-	else
-		al->addr = node->ip;
+	al->srcline = node->srcline;
+	al->addr = node->ip;
 
 	if (al->sym == NULL) {
 		if (hide_unresolved)
@@ -858,20 +1142,20 @@ out:
 char *callchain_list__sym_name(struct callchain_list *cl,
 			       char *bf, size_t bfsize, bool show_dso)
 {
+	bool show_addr = callchain_param.key == CCKEY_ADDRESS;
+	bool show_srcline = show_addr || callchain_param.key == CCKEY_SRCLINE;
 	int printed;
 
 	if (cl->ms.sym) {
-		if (callchain_param.key == CCKEY_ADDRESS &&
-		    cl->ms.map && !cl->srcline)
-			cl->srcline = get_srcline(cl->ms.map->dso,
-						  map__rip_2objdump(cl->ms.map,
-								    cl->ip),
-						  cl->ms.sym, false);
-		if (cl->srcline)
-			printed = scnprintf(bf, bfsize, "%s %s",
-					cl->ms.sym->name, cl->srcline);
+		const char *inlined = cl->ms.sym->inlined ? " (inlined)" : "";
+
+		if (show_srcline && cl->srcline)
+			printed = scnprintf(bf, bfsize, "%s %s%s",
+					    cl->ms.sym->name, cl->srcline,
+					    inlined);
 		else
-			printed = scnprintf(bf, bfsize, "%s", cl->ms.sym->name);
+			printed = scnprintf(bf, bfsize, "%s%s",
+					    cl->ms.sym->name, inlined);
 	} else
 		printed = scnprintf(bf, bfsize, "%#" PRIx64, cl->ip);
 
@@ -939,6 +1223,229 @@ int callchain_node__fprintf_value(struct callchain_node *node,
 	return 0;
 }
 
+static void callchain_counts_value(struct callchain_node *node,
+				   u64 *branch_count, u64 *predicted_count,
+				   u64 *abort_count, u64 *cycles_count)
+{
+	struct callchain_list *clist;
+
+	list_for_each_entry(clist, &node->val, list) {
+		if (branch_count)
+			*branch_count += clist->branch_count;
+
+		if (predicted_count)
+			*predicted_count += clist->predicted_count;
+
+		if (abort_count)
+			*abort_count += clist->abort_count;
+
+		if (cycles_count)
+			*cycles_count += clist->cycles_count;
+	}
+}
+
+static int callchain_node_branch_counts_cumul(struct callchain_node *node,
+					      u64 *branch_count,
+					      u64 *predicted_count,
+					      u64 *abort_count,
+					      u64 *cycles_count)
+{
+	struct callchain_node *child;
+	struct rb_node *n;
+
+	n = rb_first(&node->rb_root_in);
+	while (n) {
+		child = rb_entry(n, struct callchain_node, rb_node_in);
+		n = rb_next(n);
+
+		callchain_node_branch_counts_cumul(child, branch_count,
+						   predicted_count,
+						   abort_count,
+						   cycles_count);
+
+		callchain_counts_value(child, branch_count,
+				       predicted_count, abort_count,
+				       cycles_count);
+	}
+
+	return 0;
+}
+
+int callchain_branch_counts(struct callchain_root *root,
+			    u64 *branch_count, u64 *predicted_count,
+			    u64 *abort_count, u64 *cycles_count)
+{
+	if (branch_count)
+		*branch_count = 0;
+
+	if (predicted_count)
+		*predicted_count = 0;
+
+	if (abort_count)
+		*abort_count = 0;
+
+	if (cycles_count)
+		*cycles_count = 0;
+
+	return callchain_node_branch_counts_cumul(&root->node,
+						  branch_count,
+						  predicted_count,
+						  abort_count,
+						  cycles_count);
+}
+
+static int count_pri64_printf(int idx, const char *str, u64 value, char *bf, int bfsize)
+{
+	int printed;
+
+	printed = scnprintf(bf, bfsize, "%s%s:%" PRId64 "", (idx) ? " " : " (", str, value);
+
+	return printed;
+}
+
+static int count_float_printf(int idx, const char *str, float value,
+			      char *bf, int bfsize, float threshold)
+{
+	int printed;
+
+	if (threshold != 0.0 && value < threshold)
+		return 0;
+
+	printed = scnprintf(bf, bfsize, "%s%s:%.1f%%", (idx) ? " " : " (", str, value);
+
+	return printed;
+}
+
+static int branch_to_str(char *bf, int bfsize,
+			 u64 branch_count, u64 predicted_count,
+			 u64 abort_count,
+			 struct branch_type_stat *brtype_stat)
+{
+	int printed, i = 0;
+
+	printed = branch_type_str(brtype_stat, bf, bfsize);
+	if (printed)
+		i++;
+
+	if (predicted_count < branch_count) {
+		printed += count_float_printf(i++, "predicted",
+				predicted_count * 100.0 / branch_count,
+				bf + printed, bfsize - printed, 0.0);
+	}
+
+	if (abort_count) {
+		printed += count_float_printf(i++, "abort",
+				abort_count * 100.0 / branch_count,
+				bf + printed, bfsize - printed, 0.1);
+	}
+
+	if (i)
+		printed += scnprintf(bf + printed, bfsize - printed, ")");
+
+	return printed;
+}
+
+static int branch_from_str(char *bf, int bfsize,
+			   u64 branch_count,
+			   u64 cycles_count, u64 iter_count,
+			   u64 iter_cycles, u64 from_count)
+{
+	int printed = 0, i = 0;
+	u64 cycles, v = 0;
+
+	cycles = cycles_count / branch_count;
+	if (cycles) {
+		printed += count_pri64_printf(i++, "cycles",
+				cycles,
+				bf + printed, bfsize - printed);
+	}
+
+	if (iter_count && from_count) {
+		v = iter_count / from_count;
+		if (v) {
+			printed += count_pri64_printf(i++, "iter",
+					v, bf + printed, bfsize - printed);
+
+			printed += count_pri64_printf(i++, "avg_cycles",
+					iter_cycles / iter_count,
+					bf + printed, bfsize - printed);
+		}
+	}
+
+	if (i)
+		printed += scnprintf(bf + printed, bfsize - printed, ")");
+
+	return printed;
+}
+
+static int counts_str_build(char *bf, int bfsize,
+			     u64 branch_count, u64 predicted_count,
+			     u64 abort_count, u64 cycles_count,
+			     u64 iter_count, u64 iter_cycles,
+			     u64 from_count,
+			     struct branch_type_stat *brtype_stat)
+{
+	int printed;
+
+	if (branch_count == 0)
+		return scnprintf(bf, bfsize, " (calltrace)");
+
+	if (brtype_stat->branch_to) {
+		printed = branch_to_str(bf, bfsize, branch_count,
+				predicted_count, abort_count, brtype_stat);
+	} else {
+		printed = branch_from_str(bf, bfsize, branch_count,
+				cycles_count, iter_count, iter_cycles,
+				from_count);
+	}
+
+	if (!printed)
+		bf[0] = 0;
+
+	return printed;
+}
+
+static int callchain_counts_printf(FILE *fp, char *bf, int bfsize,
+				   u64 branch_count, u64 predicted_count,
+				   u64 abort_count, u64 cycles_count,
+				   u64 iter_count, u64 iter_cycles,
+				   u64 from_count,
+				   struct branch_type_stat *brtype_stat)
+{
+	char str[256];
+
+	counts_str_build(str, sizeof(str), branch_count,
+			 predicted_count, abort_count, cycles_count,
+			 iter_count, iter_cycles, from_count, brtype_stat);
+
+	if (fp)
+		return fprintf(fp, "%s", str);
+
+	return scnprintf(bf, bfsize, "%s", str);
+}
+
+int callchain_list_counts__printf_value(struct callchain_list *clist,
+					FILE *fp, char *bf, int bfsize)
+{
+	u64 branch_count, predicted_count;
+	u64 abort_count, cycles_count;
+	u64 iter_count, iter_cycles;
+	u64 from_count;
+
+	branch_count = clist->branch_count;
+	predicted_count = clist->predicted_count;
+	abort_count = clist->abort_count;
+	cycles_count = clist->cycles_count;
+	iter_count = clist->iter_count;
+	iter_cycles = clist->iter_cycles;
+	from_count = clist->from_count;
+
+	return callchain_counts_printf(fp, bf, bfsize, branch_count,
+				       predicted_count, abort_count,
+				       cycles_count, iter_count, iter_cycles,
+				       from_count, &clist->brtype_stat);
+}
+
 static void free_callchain_node(struct callchain_node *node)
 {
 	struct callchain_list *list, *tmp;
@@ -946,12 +1453,14 @@ static void free_callchain_node(struct callchain_node *node)
 	struct rb_node *n;
 
 	list_for_each_entry_safe(list, tmp, &node->parent_val, list) {
-		list_del(&list->list);
+		list_del_init(&list->list);
+		map__zput(list->ms.map);
 		free(list);
 	}
 
 	list_for_each_entry_safe(list, tmp, &node->val, list) {
-		list_del(&list->list);
+		list_del_init(&list->list);
+		map__zput(list->ms.map);
 		free(list);
 	}
 
@@ -1015,6 +1524,7 @@ int callchain_node__make_parent_list(struct callchain_node *node)
 				goto out;
 			*new = *chain;
 			new->has_children = false;
+			map__get(new->ms.map);
 			list_add_tail(&new->list, &head);
 		}
 		parent = parent->parent;
@@ -1034,8 +1544,53 @@ int callchain_node__make_parent_list(struct callchain_node *node)
 
 out:
 	list_for_each_entry_safe(chain, new, &head, list) {
-		list_del(&chain->list);
+		list_del_init(&chain->list);
+		map__zput(chain->ms.map);
 		free(chain);
 	}
 	return -ENOMEM;
+}
+
+int callchain_cursor__copy(struct callchain_cursor *dst,
+			   struct callchain_cursor *src)
+{
+	int rc = 0;
+
+	callchain_cursor_reset(dst);
+	callchain_cursor_commit(src);
+
+	while (true) {
+		struct callchain_cursor_node *node;
+
+		node = callchain_cursor_current(src);
+		if (node == NULL)
+			break;
+
+		rc = callchain_cursor_append(dst, node->ip, node->map, node->sym,
+					     node->branch, &node->branch_flags,
+					     node->nr_loop_iter,
+					     node->iter_cycles,
+					     node->branch_from, node->srcline);
+		if (rc)
+			break;
+
+		callchain_cursor_advance(src);
+	}
+
+	return rc;
+}
+
+/*
+ * Initialize a cursor before adding entries inside, but keep
+ * the previously allocated entries as a cache.
+ */
+void callchain_cursor_reset(struct callchain_cursor *cursor)
+{
+	struct callchain_cursor_node *node;
+
+	cursor->nr = 0;
+	cursor->last = &cursor->first;
+
+	for (node = cursor->first; node != NULL; node = node->next)
+		map__zput(node->map);
 }

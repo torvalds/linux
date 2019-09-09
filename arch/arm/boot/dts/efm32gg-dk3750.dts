@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Device tree for EFM32GG-DK3750 development board.
  *
@@ -36,7 +37,7 @@
 			};
 
 			eeprom@50 {
-				compatible = "microchip,24c02";
+				compatible = "microchip,24c02", "atmel,24c02";
 				reg = <0x50>;
 				pagesize = <16>;
 			};

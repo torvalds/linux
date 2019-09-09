@@ -1,12 +1,16 @@
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
+
 .. _cec-intro:
 
 Introduction
 ============
-
-.. note::
-
-   This documents the proposed CEC API. This API is not yet finalized
-   and is currently only available as a staging kernel module.
 
 HDMI connectors provide a single pin for use by the Consumer Electronics
 Control protocol. This protocol allows different devices connected by an
@@ -31,3 +35,15 @@ control just the CEC pin.
 Drivers that support CEC will create a CEC device node (/dev/cecX) to
 give userspace access to the CEC adapter. The
 :ref:`CEC_ADAP_G_CAPS` ioctl will tell userspace what it is allowed to do.
+
+In order to check the support and test it, it is suggested to download
+the `v4l-utils <https://git.linuxtv.org/v4l-utils.git/>`_ package. It
+provides three tools to handle CEC:
+
+- cec-ctl: the Swiss army knife of CEC. Allows you to configure, transmit
+  and monitor CEC messages.
+
+- cec-compliance: does a CEC compliance test of a remote CEC device to
+  determine how compliant the CEC implementation is.
+
+- cec-follower: emulates a CEC follower.

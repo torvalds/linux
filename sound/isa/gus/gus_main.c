@@ -1,22 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Routines for Gravis UltraSound soundcards
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
- *
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <linux/init.h>
@@ -82,7 +67,7 @@ static int snd_gus_joystick_put(struct snd_kcontrol *kcontrol, struct snd_ctl_el
 	return change;
 }
 
-static struct snd_kcontrol_new snd_gus_joystick_control = {
+static const struct snd_kcontrol_new snd_gus_joystick_control = {
 	.iface = SNDRV_CTL_ELEM_IFACE_CARD,
 	.name = "Joystick Speed",
 	.info = snd_gus_joystick_info,
@@ -92,8 +77,17 @@ static struct snd_kcontrol_new snd_gus_joystick_control = {
 
 static void snd_gus_init_control(struct snd_gus_card *gus)
 {
-	if (!gus->ace_flag)
-		snd_ctl_add(gus->card, snd_ctl_new1(&snd_gus_joystick_control, gus));
+	int ret;
+
+	if (!gus->ace_flag) {
+		ret =
+			snd_ctl_add(gus->card,
+					snd_ctl_new1(&snd_gus_joystick_control,
+						gus));
+		if (ret)
+			snd_printk(KERN_ERR "gus: snd_ctl_add failed: %d\n",
+					ret);
+	}
 }
 
 /*
@@ -465,19 +459,3 @@ EXPORT_SYMBOL(snd_gf1_mem_alloc);
 EXPORT_SYMBOL(snd_gf1_mem_xfree);
 EXPORT_SYMBOL(snd_gf1_mem_free);
 EXPORT_SYMBOL(snd_gf1_mem_lock);
-
-/*
- *  INIT part
- */
-
-static int __init alsa_gus_init(void)
-{
-	return 0;
-}
-
-static void __exit alsa_gus_exit(void)
-{
-}
-
-module_init(alsa_gus_init)
-module_exit(alsa_gus_exit)

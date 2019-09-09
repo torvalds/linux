@@ -1,9 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * ip22-nvram.c: NVRAM and serial EEPROM handling.
  *
  * Copyright (C) 2003 Ladislav Michl (ladis@linux-mips.org)
  */
-#include <linux/module.h>
+#include <linux/export.h>
 
 #include <asm/sgi/hpc3.h>
 #include <asm/sgi/ip22.h>

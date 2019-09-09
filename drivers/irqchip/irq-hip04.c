@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Hisilicon HiP04 INTC
  *
  * Copyright (C) 2002-2014 ARM Limited.
  * Copyright (c) 2013-2014 Hisilicon Ltd.
  * Copyright (c) 2013-2014 Linaro Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Interrupt architecture for the HIP04 INTC:
  *
@@ -165,6 +162,8 @@ static int hip04_irq_set_affinity(struct irq_data *d,
 	writel_relaxed(val | bit, reg);
 	raw_spin_unlock(&irq_controller_lock);
 
+	irq_data_update_effective_affinity(d, cpumask_of(cpu));
+
 	return IRQ_SET_MASK_OK;
 }
 #endif
@@ -312,6 +311,7 @@ static int hip04_irq_domain_map(struct irq_domain *d, unsigned int irq,
 		irq_set_chip_and_handler(irq, &hip04_irq_chip,
 					 handle_fasteoi_irq);
 		irq_set_probe(irq);
+		irqd_set_single_target(irq_desc_get_irq_data(irq_to_desc(irq)));
 	}
 	irq_set_chip_data(irq, d->host_data);
 	return 0;
@@ -407,7 +407,7 @@ hip04_of_init(struct device_node *node, struct device_node *parent)
 	set_handle_irq(hip04_handle_irq);
 
 	hip04_irq_dist_init(&hip04_data);
-	cpuhp_setup_state(CPUHP_AP_IRQ_HIP04_STARTING, "AP_IRQ_HIP04_STARTING",
+	cpuhp_setup_state(CPUHP_AP_IRQ_HIP04_STARTING, "irqchip/hip04:starting",
 			  hip04_irq_starting_cpu, NULL);
 	return 0;
 }

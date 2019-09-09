@@ -1,14 +1,7 @@
+// SPDX-License-Identifier: LGPL-2.1
 /*
  * Copyright IBM Corporation, 2007
  * Author Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2.1 of the GNU Lesser General Public License
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *
  */
 
@@ -123,9 +116,9 @@ static int update_ind_extent_range(handle_t *handle, struct inode *inode,
 	int i, retval = 0;
 	unsigned long max_entries = inode->i_sb->s_blocksize >> 2;
 
-	bh = sb_bread(inode->i_sb, pblock);
-	if (!bh)
-		return -EIO;
+	bh = ext4_sb_bread(inode->i_sb, pblock, 0);
+	if (IS_ERR(bh))
+		return PTR_ERR(bh);
 
 	i_data = (__le32 *)bh->b_data;
 	for (i = 0; i < max_entries; i++) {
@@ -152,9 +145,9 @@ static int update_dind_extent_range(handle_t *handle, struct inode *inode,
 	int i, retval = 0;
 	unsigned long max_entries = inode->i_sb->s_blocksize >> 2;
 
-	bh = sb_bread(inode->i_sb, pblock);
-	if (!bh)
-		return -EIO;
+	bh = ext4_sb_bread(inode->i_sb, pblock, 0);
+	if (IS_ERR(bh))
+		return PTR_ERR(bh);
 
 	i_data = (__le32 *)bh->b_data;
 	for (i = 0; i < max_entries; i++) {
@@ -182,9 +175,9 @@ static int update_tind_extent_range(handle_t *handle, struct inode *inode,
 	int i, retval = 0;
 	unsigned long max_entries = inode->i_sb->s_blocksize >> 2;
 
-	bh = sb_bread(inode->i_sb, pblock);
-	if (!bh)
-		return -EIO;
+	bh = ext4_sb_bread(inode->i_sb, pblock, 0);
+	if (IS_ERR(bh))
+		return PTR_ERR(bh);
 
 	i_data = (__le32 *)bh->b_data;
 	for (i = 0; i < max_entries; i++) {
@@ -231,9 +224,9 @@ static int free_dind_blocks(handle_t *handle,
 	struct buffer_head *bh;
 	unsigned long max_entries = inode->i_sb->s_blocksize >> 2;
 
-	bh = sb_bread(inode->i_sb, le32_to_cpu(i_data));
-	if (!bh)
-		return -EIO;
+	bh = ext4_sb_bread(inode->i_sb, le32_to_cpu(i_data), 0);
+	if (IS_ERR(bh))
+		return PTR_ERR(bh);
 
 	tmp_idata = (__le32 *)bh->b_data;
 	for (i = 0; i < max_entries; i++) {
@@ -261,9 +254,9 @@ static int free_tind_blocks(handle_t *handle,
 	struct buffer_head *bh;
 	unsigned long max_entries = inode->i_sb->s_blocksize >> 2;
 
-	bh = sb_bread(inode->i_sb, le32_to_cpu(i_data));
-	if (!bh)
-		return -EIO;
+	bh = ext4_sb_bread(inode->i_sb, le32_to_cpu(i_data), 0);
+	if (IS_ERR(bh))
+		return PTR_ERR(bh);
 
 	tmp_idata = (__le32 *)bh->b_data;
 	for (i = 0; i < max_entries; i++) {
@@ -389,9 +382,9 @@ static int free_ext_idx(handle_t *handle, struct inode *inode,
 	struct ext4_extent_header *eh;
 
 	block = ext4_idx_pblock(ix);
-	bh = sb_bread(inode->i_sb, block);
-	if (!bh)
-		return -EIO;
+	bh = ext4_sb_bread(inode->i_sb, block, 0);
+	if (IS_ERR(bh))
+		return PTR_ERR(bh);
 
 	eh = (struct ext4_extent_header *)bh->b_data;
 	if (eh->eh_depth != 0) {
@@ -475,7 +468,7 @@ int ext4_ext_migrate(struct inode *inode)
 	owner[0] = i_uid_read(inode);
 	owner[1] = i_gid_read(inode);
 	tmp_inode = ext4_new_inode(handle, d_inode(inode->i_sb->s_root),
-				   S_IFREG, NULL, goal, owner);
+				   S_IFREG, NULL, goal, owner, 0);
 	if (IS_ERR(tmp_inode)) {
 		retval = PTR_ERR(tmp_inode);
 		ext4_journal_stop(handle);
@@ -542,22 +535,22 @@ int ext4_ext_migrate(struct inode *inode)
 	if (i_data[EXT4_IND_BLOCK]) {
 		retval = update_ind_extent_range(handle, tmp_inode,
 				le32_to_cpu(i_data[EXT4_IND_BLOCK]), &lb);
-			if (retval)
-				goto err_out;
+		if (retval)
+			goto err_out;
 	} else
 		lb.curr_block += max_entries;
 	if (i_data[EXT4_DIND_BLOCK]) {
 		retval = update_dind_extent_range(handle, tmp_inode,
 				le32_to_cpu(i_data[EXT4_DIND_BLOCK]), &lb);
-			if (retval)
-				goto err_out;
+		if (retval)
+			goto err_out;
 	} else
 		lb.curr_block += max_entries * max_entries;
 	if (i_data[EXT4_TIND_BLOCK]) {
 		retval = update_tind_extent_range(handle, tmp_inode,
 				le32_to_cpu(i_data[EXT4_TIND_BLOCK]), &lb);
-			if (retval)
-				goto err_out;
+		if (retval)
+			goto err_out;
 	}
 	/*
 	 * Build the last extent

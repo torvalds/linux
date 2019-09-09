@@ -1,14 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2012 Freescale Semiconductor, Inc.
  *
  * Author: Fabio Estevam <fabio.estevam@freescale.com>
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
  */
 
 /dts-v1/;
@@ -19,13 +13,14 @@
 	model = "i.MX23 Olinuxino Low Cost Board";
 	compatible = "olimex,imx23-olinuxino", "fsl,imx23";
 
-	memory {
+	memory@40000000 {
+		device_type = "memory";
 		reg = <0x40000000 0x04000000>;
 	};
 
 	apb@80000000 {
 		apbh@80000000 {
-			ssp0: ssp@80010000 {
+			ssp0: spi@80010000 {
 				compatible = "fsl,imx23-mmc";
 				pinctrl-names = "default";
 				pinctrl-0 = <&mmc0_4bit_pins_a &mmc0_pins_fixup>;
@@ -59,7 +54,7 @@
 				};
 			};
 
-			ssp1: ssp@80034000 {
+			ssp1: spi@80034000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx23-spi";

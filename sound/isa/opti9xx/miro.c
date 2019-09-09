@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *   ALSA soundcard driver for Miro miroSOUND PCM1 pro
  *                                  miroSOUND PCM12
@@ -6,20 +7,6 @@
  *   Copyright (C) 2004-2005 Martin Langer <martin-langer@gmx.de>
  *
  *   Based on OSS ACI and ALSA OPTi9xx drivers
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 #include <linux/init.h>
@@ -69,19 +56,19 @@ module_param(index, int, 0444);
 MODULE_PARM_DESC(index, "Index value for miro soundcard.");
 module_param(id, charp, 0444);
 MODULE_PARM_DESC(id, "ID string for miro soundcard.");
-module_param(port, long, 0444);
+module_param_hw(port, long, ioport, 0444);
 MODULE_PARM_DESC(port, "WSS port # for miro driver.");
-module_param(mpu_port, long, 0444);
+module_param_hw(mpu_port, long, ioport, 0444);
 MODULE_PARM_DESC(mpu_port, "MPU-401 port # for miro driver.");
-module_param(fm_port, long, 0444);
+module_param_hw(fm_port, long, ioport, 0444);
 MODULE_PARM_DESC(fm_port, "FM Port # for miro driver.");
-module_param(irq, int, 0444);
+module_param_hw(irq, int, irq, 0444);
 MODULE_PARM_DESC(irq, "WSS irq # for miro driver.");
-module_param(mpu_irq, int, 0444);
+module_param_hw(mpu_irq, int, irq, 0444);
 MODULE_PARM_DESC(mpu_irq, "MPU-401 irq # for miro driver.");
-module_param(dma1, int, 0444);
+module_param_hw(dma1, int, dma, 0444);
 MODULE_PARM_DESC(dma1, "1st dma # for miro driver.");
-module_param(dma2, int, 0444);
+module_param_hw(dma2, int, dma, 0444);
 MODULE_PARM_DESC(dma2, "2nd dma # for miro driver.");
 module_param(wss, int, 0444);
 MODULE_PARM_DESC(wss, "wss mode");
@@ -143,7 +130,7 @@ static int snd_miro_pnp_is_probed;
 
 #ifdef CONFIG_PNP
 
-static struct pnp_card_device_id snd_miro_pnpids[] = {
+static const struct pnp_card_device_id snd_miro_pnpids[] = {
 	/* PCM20 and PCM12 in PnP mode */
 	{ .id = "MIR0924",
 	  .devs = { { "MIR0000" }, { "MIR0002" }, { "MIR0005" } }, },
@@ -176,10 +163,13 @@ static int aci_busy_wait(struct snd_miro_aci *aci)
 			switch (timeout-ACI_MINTIME) {
 			case 0 ... 9:
 				out /= 10;
+				/* fall through */
 			case 10 ... 19:
 				out /= 10;
+				/* fall through */
 			case 20 ... 30:
 				out /= 10;
+				/* fall through */
 			default:
 				set_current_state(TASK_UNINTERRUPTIBLE);
 				schedule_timeout(out);
@@ -834,6 +824,7 @@ static unsigned char snd_miro_read(struct snd_miro *chip,
 			retval = inb(chip->mc_base + 9);
 			break;
 		}
+		/* fall through */
 
 	case OPTi9XX_HW_82C929:
 		retval = inb(chip->mc_base + reg);
@@ -863,6 +854,7 @@ static void snd_miro_write(struct snd_miro *chip, unsigned char reg,
 			outb(value, chip->mc_base + 9);
 			break;
 		}
+		/* fall through */
 
 	case OPTi9XX_HW_82C929:
 		outb(value, chip->mc_base + reg);
@@ -992,10 +984,7 @@ static void snd_miro_proc_read(struct snd_info_entry * entry,
 static void snd_miro_proc_init(struct snd_card *card,
 			       struct snd_miro *miro)
 {
-	struct snd_info_entry *entry;
-
-	if (!snd_card_proc_new(card, "miro", &entry))
-		snd_info_set_text_ops(entry, miro, snd_miro_proc_read);
+	snd_card_ro_proc_new(card, "miro", miro, snd_miro_proc_read);
 }
 
 /*
@@ -1353,9 +1342,10 @@ static int snd_miro_probe(struct snd_card *card)
 	}
 
 	strcpy(card->driver, "miro");
-	sprintf(card->longname, "%s: OPTi%s, %s at 0x%lx, irq %d, dma %d&%d",
-		card->shortname, miro->name, codec->pcm->name,
-		miro->wss_base + 4, miro->irq, miro->dma1, miro->dma2);
+	snprintf(card->longname, sizeof(card->longname),
+		 "%s: OPTi%s, %s at 0x%lx, irq %d, dma %d&%d",
+		 card->shortname, miro->name, codec->pcm->name,
+		 miro->wss_base + 4, miro->irq, miro->dma1, miro->dma2);
 
 	if (mpu_port <= 0 || mpu_port == SNDRV_AUTO_PORT)
 		rmidi = NULL;

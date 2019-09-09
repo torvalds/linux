@@ -1,23 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *  drivers/media/radio/si470x/radio-si470x.h
  *
  *  Driver for radios with Silicon Labs Si470x FM Radio Receivers
  *
  *  Copyright (c) 2009 Tobias Lorenz <tobias.lorenz@gmx.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 
@@ -83,6 +70,8 @@
 #define SYSCONFIG1_BLNDADJ	0x00c0	/* bits 07..06: Stereo/Mono Blend Level Adjustment */
 #define SYSCONFIG1_GPIO3	0x0030	/* bits 05..04: General Purpose I/O 3 */
 #define SYSCONFIG1_GPIO2	0x000c	/* bits 03..02: General Purpose I/O 2 */
+#define SYSCONFIG1_GPIO2_DIS	0x0000	/* Disable GPIO 2 interrupt */
+#define SYSCONFIG1_GPIO2_INT	0x0004	/* Enable STC/RDS interrupt */
 #define SYSCONFIG1_GPIO1	0x0003	/* bits 01..00: General Purpose I/O 1 */
 
 #define SYSCONFIG2		5	/* System Configuration 2 */
@@ -163,6 +152,15 @@ struct si470x_device {
 	struct completion completion;
 	bool status_rssi_auto_update;	/* Does RSSI get updated automatic? */
 
+	/* si470x ops */
+
+	int (*get_register)(struct si470x_device *radio, int regnr);
+	int (*set_register)(struct si470x_device *radio, int regnr);
+	int (*fops_open)(struct file *file);
+	int (*fops_release)(struct file *file);
+	int (*vidioc_querycap)(struct file *file, void *priv,
+			       struct v4l2_capability *capability);
+
 #if IS_ENABLED(CONFIG_USB_SI470X)
 	/* reference to USB and video device */
 	struct usb_device *usbdev;
@@ -182,6 +180,7 @@ struct si470x_device {
 
 #if IS_ENABLED(CONFIG_I2C_SI470X)
 	struct i2c_client *client;
+	struct gpio_desc *gpio_reset;
 #endif
 };
 
@@ -213,15 +212,9 @@ struct si470x_device {
 /**************************************************************************
  * Common Functions
  **************************************************************************/
-extern struct video_device si470x_viddev_template;
+extern const struct video_device si470x_viddev_template;
 extern const struct v4l2_ctrl_ops si470x_ctrl_ops;
-int si470x_get_register(struct si470x_device *radio, int regnr);
-int si470x_set_register(struct si470x_device *radio, int regnr);
 int si470x_disconnect_check(struct si470x_device *radio);
 int si470x_set_freq(struct si470x_device *radio, unsigned int freq);
 int si470x_start(struct si470x_device *radio);
 int si470x_stop(struct si470x_device *radio);
-int si470x_fops_open(struct file *file);
-int si470x_fops_release(struct file *file);
-int si470x_vidioc_querycap(struct file *file, void *priv,
-		struct v4l2_capability *capability);

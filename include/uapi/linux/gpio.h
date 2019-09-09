@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  * <linux/gpio.h> - userspace ABI for the GPIO character devices
  *
@@ -64,7 +65,7 @@ struct gpioline_info {
 
 /**
  * struct gpiohandle_request - Information about a GPIO handle request
- * @lineoffsets: an array desired lines, specified by offset index for the
+ * @lineoffsets: an array of desired lines, specified by offset index for the
  * associated GPIO device
  * @flags: desired flags for the desired GPIO lines, such as
  * GPIOHANDLE_REQUEST_OUTPUT, GPIOHANDLE_REQUEST_ACTIVE_LOW etc, OR:ed

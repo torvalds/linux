@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Controller Area Network (CAN) network layer core configuration
 #
@@ -11,7 +12,7 @@ menuconfig CAN
 	  1991, mainly for automotive, but now widely used in marine
 	  (NMEA2000), industrial, and medical applications.
 	  More information on the CAN network protocol family PF_CAN
-	  is contained in <Documentation/networking/can.txt>.
+	  is contained in <Documentation/networking/can.rst>.
 
 	  If you want CAN support you should say Y here and also to the
 	  specific driver for your controller(s) below.

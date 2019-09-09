@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * User-mode machine state access
  *
  * Copyright (C) 2007 Red Hat, Inc.  All rights reserved.
- *
- * This copyrighted material is made available to anyone wishing to use,
- * modify, copy, or redistribute it subject to the terms and conditions
- * of the GNU General Public License v.2.
  *
  * Red Hat Author: Roland McGrath.
  */
@@ -107,6 +104,28 @@ typedef int user_regset_writeback_fn(struct task_struct *target,
 				     int immediate);
 
 /**
+ * user_regset_get_size_fn - type of @get_size function in &struct user_regset
+ * @target:	thread being examined
+ * @regset:	regset being examined
+ *
+ * This call is optional; usually the pointer is %NULL.
+ *
+ * When provided, this function must return the current size of regset
+ * data, as observed by the @get function in &struct user_regset.  The
+ * value returned must be a multiple of @size.  The returned size is
+ * required to be valid only until the next time (if any) @regset is
+ * modified for @target.
+ *
+ * This function is intended for dynamically sized regsets.  A regset
+ * that is statically sized does not need to implement it.
+ *
+ * This function should not be called directly: instead, callers should
+ * call regset_size() to determine the current size of a regset.
+ */
+typedef unsigned int user_regset_get_size_fn(struct task_struct *target,
+					     const struct user_regset *regset);
+
+/**
  * struct user_regset - accessible thread CPU state
  * @n:			Number of slots (registers).
  * @size:		Size in bytes of a slot (register).
@@ -117,19 +136,33 @@ typedef int user_regset_writeback_fn(struct task_struct *target,
  * @set:		Function to store values.
  * @active:		Function to report if regset is active, or %NULL.
  * @writeback:		Function to write data back to user memory, or %NULL.
+ * @get_size:		Function to return the regset's size, or %NULL.
  *
  * This data structure describes a machine resource we call a register set.
  * This is part of the state of an individual thread, not necessarily
  * actual CPU registers per se.  A register set consists of a number of
  * similar slots, given by @n.  Each slot is @size bytes, and aligned to
- * @align bytes (which is at least @size).
+ * @align bytes (which is at least @size).  For dynamically-sized
+ * regsets, @n must contain the maximum possible number of slots for the
+ * regset, and @get_size must point to a function that returns the
+ * current regset size.
  *
- * These functions must be called only on the current thread or on a
- * thread that is in %TASK_STOPPED or %TASK_TRACED state, that we are
- * guaranteed will not be woken up and return to user mode, and that we
- * have called wait_task_inactive() on.  (The target thread always might
- * wake up for SIGKILL while these functions are working, in which case
- * that thread's user_regset state might be scrambled.)
+ * Callers that need to know only the current size of the regset and do
+ * not care about its internal structure should call regset_size()
+ * instead of inspecting @n or calling @get_size.
+ *
+ * For backward compatibility, the @get and @set methods must pad to, or
+ * accept, @n * @size bytes, even if the current regset size is smaller.
+ * The precise semantics of these operations depend on the regset being
+ * accessed.
+ *
+ * The functions to which &struct user_regset members point must be
+ * called only on the current thread or on a thread that is in
+ * %TASK_STOPPED or %TASK_TRACED state, that we are guaranteed will not
+ * be woken up and return to user mode, and that we have called
+ * wait_task_inactive() on.  (The target thread always might wake up for
+ * SIGKILL while these functions are working, in which case that
+ * thread's user_regset state might be scrambled.)
  *
  * The @pos argument must be aligned according to @align; the @count
  * argument must be a multiple of @size.  These functions are not
@@ -156,6 +189,7 @@ struct user_regset {
 	user_regset_set_fn		*set;
 	user_regset_active_fn		*active;
 	user_regset_writeback_fn	*writeback;
+	user_regset_get_size_fn		*get_size;
 	unsigned int			n;
 	unsigned int 			size;
 	unsigned int 			align;
@@ -339,7 +373,7 @@ static inline int copy_regset_to_user(struct task_struct *target,
 	if (!regset->get)
 		return -EOPNOTSUPP;
 
-	if (!access_ok(VERIFY_WRITE, data, size))
+	if (!access_ok(data, size))
 		return -EFAULT;
 
 	return regset->get(target, regset, offset, size, NULL, data);
@@ -365,11 +399,27 @@ static inline int copy_regset_from_user(struct task_struct *target,
 	if (!regset->set)
 		return -EOPNOTSUPP;
 
-	if (!access_ok(VERIFY_READ, data, size))
+	if (!access_ok(data, size))
 		return -EFAULT;
 
 	return regset->set(target, regset, offset, size, NULL, data);
 }
 
+/**
+ * regset_size - determine the current size of a regset
+ * @target:	thread to be examined
+ * @regset:	regset to be examined
+ *
+ * Note that the returned size is valid only until the next time
+ * (if any) @regset is modified for @target.
+ */
+static inline unsigned int regset_size(struct task_struct *target,
+				       const struct user_regset *regset)
+{
+	if (!regset->get_size)
+		return regset->n * regset->size;
+	else
+		return regset->get_size(target, regset);
+}
 
 #endif	/* <linux/regset.h> */

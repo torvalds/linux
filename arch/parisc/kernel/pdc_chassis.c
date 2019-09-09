@@ -1,21 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* 
  *    interfaces to Chassis Codes via PDC (firmware)
  *
  *    Copyright (C) 2002 Laurent Canet <canetl@esiee.fr>
  *    Copyright (C) 2002-2006 Thibaut VARENE <varenet@parisc-linux.org>
- *
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License, version 2, as
- *    published by the Free Software Foundation.
- *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
- *
- *    You should have received a copy of the GNU General Public License
- *    along with this program; if not, write to the Free Software
- *    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  *    TODO: poll chassis warns, trigger (configurable) machine shutdown when
  *    		needed.
@@ -266,18 +254,6 @@ static int pdc_chassis_warn_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int pdc_chassis_warn_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, pdc_chassis_warn_show, NULL);
-}
-
-static const struct file_operations pdc_chassis_warn_fops = {
-	.open		= pdc_chassis_warn_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 static int __init pdc_chassis_create_procfs(void)
 {
 	unsigned long test;
@@ -292,7 +268,7 @@ static int __init pdc_chassis_create_procfs(void)
 
 	printk(KERN_INFO "Enabling PDC chassis warnings support v%s\n",
 			PDC_CHASSIS_VER);
-	proc_create("chassis", 0400, NULL, &pdc_chassis_warn_fops);
+	proc_create_single("chassis", 0400, NULL, pdc_chassis_warn_show);
 	return 0;
 }
 

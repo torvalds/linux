@@ -1,13 +1,8 @@
-/*
- * Littlemill audio support
- *
- * Copyright 2011 Wolfson Microelectronics
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// Littlemill audio support
+//
+// Copyright 2011 Wolfson Microelectronics
 
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
@@ -147,28 +142,33 @@ static const struct snd_soc_pcm_stream baseband_params = {
 	.channels_max = 2,
 };
 
+SND_SOC_DAILINK_DEFS(cpu,
+	DAILINK_COMP_ARRAY(COMP_CPU("samsung-i2s.0")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("wm8994-codec", "wm8994-aif1")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("samsung-i2s.0")));
+
+SND_SOC_DAILINK_DEFS(baseband,
+	DAILINK_COMP_ARRAY(COMP_CPU("wm8994-aif2")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("wm1250-ev1.1-0027",
+				      "wm1250-ev1")));
+
 static struct snd_soc_dai_link littlemill_dai[] = {
 	{
 		.name = "CPU",
 		.stream_name = "CPU",
-		.cpu_dai_name = "samsung-i2s.0",
-		.codec_dai_name = "wm8994-aif1",
-		.platform_name = "samsung-i2s.0",
-		.codec_name = "wm8994-codec",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
 				| SND_SOC_DAIFMT_CBM_CFM,
 		.ops = &littlemill_ops,
+		SND_SOC_DAILINK_REG(cpu),
 	},
 	{
 		.name = "Baseband",
 		.stream_name = "Baseband",
-		.cpu_dai_name = "wm8994-aif2",
-		.codec_dai_name = "wm1250-ev1",
-		.codec_name = "wm1250-ev1.1-0027",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
 				| SND_SOC_DAIFMT_CBM_CFM,
 		.ignore_suspend = 1,
 		.params = &baseband_params,
+		SND_SOC_DAILINK_REG(baseband),
 	},
 };
 
@@ -258,13 +258,13 @@ static struct snd_soc_jack littlemill_headset;
 static int littlemill_late_probe(struct snd_soc_card *card)
 {
 	struct snd_soc_pcm_runtime *rtd;
-	struct snd_soc_codec *codec;
+	struct snd_soc_component *component;
 	struct snd_soc_dai *aif1_dai;
 	struct snd_soc_dai *aif2_dai;
 	int ret;
 
 	rtd = snd_soc_get_pcm_runtime(card, card->dai_link[0].name);
-	codec = rtd->codec;
+	component = rtd->codec_dai->component;
 	aif1_dai = rtd->codec_dai;
 
 	rtd = snd_soc_get_pcm_runtime(card, card->dai_link[1].name);
@@ -290,10 +290,10 @@ static int littlemill_late_probe(struct snd_soc_card *card)
 		return ret;
 
 	/* This will check device compatibility itself */
-	wm8958_mic_detect(codec, &littlemill_headset, NULL, NULL, NULL, NULL);
+	wm8958_mic_detect(component, &littlemill_headset, NULL, NULL, NULL, NULL);
 
 	/* As will this */
-	wm8994_mic_detect(codec, &littlemill_headset, 1);
+	wm8994_mic_detect(component, &littlemill_headset, 1);
 
 	return 0;
 }

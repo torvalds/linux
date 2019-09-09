@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * INET		An implementation of the TCP/IP protocol suite for the LINUX
  *		operating system.  INET is implemented using the  BSD Socket
@@ -13,11 +14,6 @@
  *		Florian  La Roche, <rzsfl@rz.uni-sb.de>
  *		Alan Cox, <gw4pts@gw4pts.ampr.org>
  *		Jes Sorensen, <Jes.Sorensen@cern.ch>
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  */
 
 #include <linux/module.h>
@@ -34,7 +30,7 @@
 #include <linux/errno.h>
 #include <net/arp.h>
 #include <net/sock.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /*
  * Create the HIPPI MAC header for an arbitrary protocol layer
@@ -47,7 +43,7 @@ static int hippi_header(struct sk_buff *skb, struct net_device *dev,
 			unsigned short type,
 			const void *daddr, const void *saddr, unsigned int len)
 {
-	struct hippi_hdr *hip = (struct hippi_hdr *)skb_push(skb, HIPPI_HLEN);
+	struct hippi_hdr *hip = skb_push(skb, HIPPI_HLEN);
 	struct hippi_cb *hcb = (struct hippi_cb *) skb->cb;
 
 	if (!len){
@@ -116,18 +112,6 @@ __be16 hippi_type_trans(struct sk_buff *skb, struct net_device *dev)
 
 EXPORT_SYMBOL(hippi_type_trans);
 
-int hippi_change_mtu(struct net_device *dev, int new_mtu)
-{
-	/*
-	 * HIPPI's got these nice large MTUs.
-	 */
-	if ((new_mtu < 68) || (new_mtu > 65280))
-		return -EINVAL;
-	dev->mtu = new_mtu;
-	return 0;
-}
-EXPORT_SYMBOL(hippi_change_mtu);
-
 /*
  * For HIPPI we will actually use the lower 4 bytes of the hardware
  * address as the I-FIELD rather than the actual hardware address.
@@ -174,6 +158,8 @@ static void hippi_setup(struct net_device *dev)
 	dev->type		= ARPHRD_HIPPI;
 	dev->hard_header_len 	= HIPPI_HLEN;
 	dev->mtu		= 65280;
+	dev->min_mtu		= 68;
+	dev->max_mtu		= 65280;
 	dev->addr_len		= HIPPI_ALEN;
 	dev->tx_queue_len	= 25 /* 5 */;
 	memset(dev->broadcast, 0xFF, HIPPI_ALEN);

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (C) 2006 Freescale Semiconductor, Inc. All rights reserved.
  *
@@ -6,11 +7,6 @@
  *
  * Description:
  * QUICC Engine (QE) external definitions and structure.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 #ifndef _ASM_POWERPC_QE_H
 #define _ASM_POWERPC_QE_H
@@ -243,6 +239,7 @@ static inline int qe_alive_during_sleep(void)
 #define qe_muram_free cpm_muram_free
 #define qe_muram_addr cpm_muram_addr
 #define qe_muram_offset cpm_muram_offset
+#define qe_muram_dma cpm_muram_dma
 
 #define qe_setbits32(_addr, _v) iowrite32be(ioread32be(_addr) |  (_v), (_addr))
 #define qe_clrbits32(_addr, _v) iowrite32be(ioread32be(_addr) & ~(_v), (_addr))
@@ -262,7 +259,7 @@ static inline int qe_alive_during_sleep(void)
 
 /* Structure that defines QE firmware binary files.
  *
- * See Documentation/powerpc/qe_firmware.txt for a description of these
+ * See Documentation/powerpc/qe_firmware.rst for a description of these
  * fields.
  */
 struct qe_firmware {
@@ -667,6 +664,10 @@ struct ucc_slow_pram {
 #define UCC_FAST_GUMR_CTSS	0x00800000
 #define UCC_FAST_GUMR_TXSY	0x00020000
 #define UCC_FAST_GUMR_RSYN	0x00010000
+#define UCC_FAST_GUMR_SYNL_MASK	0x0000C000
+#define UCC_FAST_GUMR_SYNL_16	0x0000C000
+#define UCC_FAST_GUMR_SYNL_8	0x00008000
+#define UCC_FAST_GUMR_SYNL_AUTO	0x00004000
 #define UCC_FAST_GUMR_RTSM	0x00002000
 #define UCC_FAST_GUMR_REVD	0x00000400
 #define UCC_FAST_GUMR_ENR	0x00000020
@@ -783,6 +784,11 @@ struct ucc_slow_pram {
 #define UCC_GETH_UPSMR_BRO      0x00000200
 #define UCC_GETH_UPSMR_SMM	0x00000080
 #define UCC_GETH_UPSMR_SGMM	0x00000020
+
+/* UCC Protocol Specific Mode Register (UPSMR), when used for HDLC */
+#define UCC_HDLC_UPSMR_RTE	0x02000000
+#define UCC_HDLC_UPSMR_BUS	0x00200000
+#define UCC_HDLC_UPSMR_CW8	0x00007000
 
 /* UCC Transmit On Demand Register (UTODR) */
 #define UCC_SLOW_TOD	0x8000

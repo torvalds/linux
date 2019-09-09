@@ -1,18 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2011 LAPIS Semiconductor Co., Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307, USA.
  */
 
 #include <linux/module.h>
@@ -64,7 +52,6 @@
 #define CLKCFG_UARTCLKSEL			(1 << 18)
 
 /* Macros for ML7213 */
-#define PCI_VENDOR_ID_ROHM			0x10db
 #define PCI_DEVICE_ID_ROHM_ML7213_PHUB		0x801A
 
 /* Macros for ML7223 */
@@ -659,7 +646,7 @@ static ssize_t store_pch_mac(struct device *dev, struct device_attribute *attr,
 
 static DEVICE_ATTR(pch_mac, S_IRUGO | S_IWUSR, show_pch_mac, store_pch_mac);
 
-static struct bin_attribute pch_bin_attr = {
+static const struct bin_attribute pch_bin_attr = {
 	.attr = {
 		.name = "pch_firmware",
 		.mode = S_IRUGO | S_IWUSR,
@@ -891,7 +878,7 @@ static int pch_phub_resume(struct pci_dev *pdev)
 #define pch_phub_resume NULL
 #endif /* CONFIG_PM */
 
-static struct pci_device_id pch_phub_pcidev_id[] = {
+static const struct pci_device_id pch_phub_pcidev_id[] = {
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_PCH1_PHUB),       1,  },
 	{ PCI_VDEVICE(ROHM, PCI_DEVICE_ID_ROHM_ML7213_PHUB), 2,  },
 	{ PCI_VDEVICE(ROHM, PCI_DEVICE_ID_ROHM_ML7223_mPHUB), 3,  },

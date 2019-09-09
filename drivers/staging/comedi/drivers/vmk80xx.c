@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * vmk80xx.c
  * Velleman USB Board Low-Level Driver
@@ -6,16 +7,6 @@
  *
  * COMEDI - Linux Control and Measurement Device Interface
  * Copyright (C) 2000 David A. Schleef <ds@schleef.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 /*
@@ -691,10 +682,8 @@ static int vmk80xx_alloc_usb_buffers(struct comedi_device *dev)
 
 	size = usb_endpoint_maxp(devpriv->ep_tx);
 	devpriv->usb_tx_buf = kzalloc(size, GFP_KERNEL);
-	if (!devpriv->usb_tx_buf) {
-		kfree(devpriv->usb_rx_buf);
+	if (!devpriv->usb_tx_buf)
 		return -ENOMEM;
-	}
 
 	return 0;
 }
@@ -809,6 +798,8 @@ static int vmk80xx_auto_attach(struct comedi_device *dev,
 
 	devpriv->model = board->model;
 
+	sema_init(&devpriv->limit_sem, 8);
+
 	ret = vmk80xx_find_usb_endpoints(dev);
 	if (ret)
 		return ret;
@@ -816,8 +807,6 @@ static int vmk80xx_auto_attach(struct comedi_device *dev,
 	ret = vmk80xx_alloc_usb_buffers(dev);
 	if (ret)
 		return ret;
-
-	sema_init(&devpriv->limit_sem, 8);
 
 	usb_set_intfdata(intf, devpriv);
 

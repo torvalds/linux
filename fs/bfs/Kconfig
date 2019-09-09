@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config BFS_FS
 	tristate "BFS file system support"
 	depends on BLOCK

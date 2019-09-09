@@ -1,15 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * arch/powerpc/platforms/embedded6xx/wii.c
  *
  * Nintendo Wii board-specific support
  * Copyright (C) 2008-2009 The GameCube Linux Team
  * Copyright (C) 2008,2009 Albert Herranz
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
  */
 #define DRV_MODULE_NAME "wii"
 #define pr_fmt(fmt) DRV_MODULE_NAME ": " fmt
@@ -44,6 +39,7 @@
 #define HW_GPIO_BASE(idx)	(idx * 0x20)
 #define HW_GPIO_OUT(idx)	(HW_GPIO_BASE(idx) + 0)
 #define HW_GPIO_DIR(idx)	(HW_GPIO_BASE(idx) + 4)
+#define HW_GPIO_OWNER		(HW_GPIO_BASE(1) + 0x1c)
 
 #define HW_GPIO_SHUTDOWN	(1<<1)
 #define HW_GPIO_SLOT_LED	(1<<5)
@@ -52,10 +48,6 @@
 
 static void __iomem *hw_ctrl;
 static void __iomem *hw_gpio;
-
-unsigned long wii_hole_start;
-unsigned long wii_hole_size;
-
 
 static int __init page_aligned(unsigned long x)
 {
@@ -66,50 +58,8 @@ void __init wii_memory_fixups(void)
 {
 	struct memblock_region *p = memblock.memory.regions;
 
-	/*
-	 * This is part of a workaround to allow the use of two
-	 * discontinuous RAM ranges on the Wii, even if this is
-	 * currently unsupported on 32-bit PowerPC Linux.
-	 *
-	 * We coalesce the two memory ranges of the Wii into a
-	 * single range, then create a reservation for the "hole"
-	 * between both ranges.
-	 */
-
 	BUG_ON(memblock.memory.cnt != 2);
 	BUG_ON(!page_aligned(p[0].base) || !page_aligned(p[1].base));
-
-	/* trim unaligned tail */
-	memblock_remove(ALIGN(p[1].base + p[1].size, PAGE_SIZE),
-			(phys_addr_t)ULLONG_MAX);
-
-	/* determine hole, add & reserve them */
-	wii_hole_start = ALIGN(p[0].base + p[0].size, PAGE_SIZE);
-	wii_hole_size = p[1].base - wii_hole_start;
-	memblock_add(wii_hole_start, wii_hole_size);
-	memblock_reserve(wii_hole_start, wii_hole_size);
-
-	BUG_ON(memblock.memory.cnt != 1);
-	__memblock_dump_all();
-
-	/* allow ioremapping the address space in the hole */
-	__allow_ioremap_reserved = 1;
-}
-
-unsigned long __init wii_mmu_mapin_mem2(unsigned long top)
-{
-	unsigned long delta, size, bl;
-	unsigned long max_size = (256<<20);
-
-	/* MEM2 64MB@0x10000000 */
-	delta = wii_hole_start + wii_hole_size;
-	size = top - delta;
-	for (bl = 128<<10; bl < max_size; bl <<= 1) {
-		if (bl * 2 > size)
-			break;
-	}
-	setbat(4, PAGE_OFFSET+delta, delta, bl, PAGE_KERNEL_X);
-	return delta + bl;
 }
 
 static void __noreturn wii_spin(void)
@@ -133,7 +83,7 @@ static void __iomem *wii_ioremap_hw_regs(char *name, char *compatible)
 	}
 	error = of_address_to_resource(np, 0, &res);
 	if (error) {
-		pr_err("no valid reg found for %s\n", np->name);
+		pr_err("no valid reg found for %pOFn\n", np);
 		goto out_put;
 	}
 
@@ -176,6 +126,12 @@ static void wii_power_off(void)
 	local_irq_disable();
 
 	if (hw_gpio) {
+		/*
+		 * set the owner of the shutdown pin to ARM, because it is
+		 * accessed through the registers for the ARM, below
+		 */
+		clrbits32(hw_gpio + HW_GPIO_OWNER, HW_GPIO_SHUTDOWN);
+
 		/* make sure that the poweroff GPIO is configured as output */
 		setbits32(hw_gpio + HW_GPIO_DIR(1), HW_GPIO_SHUTDOWN);
 
@@ -239,7 +195,7 @@ static int __init wii_device_probe(void)
 	if (!machine_is(wii))
 		return 0;
 
-	of_platform_bus_probe(NULL, wii_of_bus, NULL);
+	of_platform_populate(NULL, wii_of_bus, NULL, NULL);
 	return 0;
 }
 device_initcall(wii_device_probe);

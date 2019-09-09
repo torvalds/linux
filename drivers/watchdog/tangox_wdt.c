@@ -1,11 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *  Copyright (C) 2015 Mans Rullgard <mans@mansr.com>
  *  SMP86xx/SMP87xx Watchdog driver
- *
- *  This program is free software; you can redistribute it and/or modify it
- *  under  the terms of the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the License, or (at your
- *  option) any later version.
  */
 
 #include <linux/bitops.h>
@@ -15,9 +11,8 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
-#include <linux/notifier.h>
+#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
-#include <linux/reboot.h>
 #include <linux/watchdog.h>
 
 #define DEFAULT_TIMEOUT 30
@@ -47,7 +42,6 @@ struct tangox_wdt_device {
 	void __iomem *base;
 	unsigned long clk_rate;
 	struct clk *clk;
-	struct notifier_block restart;
 };
 
 static int tangox_wdt_set_timeout(struct watchdog_device *wdt,
@@ -96,28 +90,32 @@ static const struct watchdog_info tangox_wdt_info = {
 	.identity = "tangox watchdog",
 };
 
+static int tangox_wdt_restart(struct watchdog_device *wdt,
+			      unsigned long action, void *data)
+{
+	struct tangox_wdt_device *dev = watchdog_get_drvdata(wdt);
+
+	writel(1, dev->base + WD_COUNTER);
+
+	return 0;
+}
+
 static const struct watchdog_ops tangox_wdt_ops = {
 	.start		= tangox_wdt_start,
 	.stop		= tangox_wdt_stop,
 	.set_timeout	= tangox_wdt_set_timeout,
 	.get_timeleft	= tangox_wdt_get_timeleft,
+	.restart	= tangox_wdt_restart,
 };
 
-static int tangox_wdt_restart(struct notifier_block *nb, unsigned long action,
-			      void *data)
+static void tangox_clk_disable_unprepare(void *data)
 {
-	struct tangox_wdt_device *dev =
-		container_of(nb, struct tangox_wdt_device, restart);
-
-	writel(1, dev->base + WD_COUNTER);
-
-	return NOTIFY_DONE;
+	clk_disable_unprepare(data);
 }
 
 static int tangox_wdt_probe(struct platform_device *pdev)
 {
 	struct tangox_wdt_device *dev;
-	struct resource *res;
 	u32 config;
 	int err;
 
@@ -125,8 +123,7 @@ static int tangox_wdt_probe(struct platform_device *pdev)
 	if (!dev)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	dev->base = devm_ioremap_resource(&pdev->dev, res);
+	dev->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(dev->base))
 		return PTR_ERR(dev->base);
 
@@ -137,12 +134,14 @@ static int tangox_wdt_probe(struct platform_device *pdev)
 	err = clk_prepare_enable(dev->clk);
 	if (err)
 		return err;
+	err = devm_add_action_or_reset(&pdev->dev,
+				       tangox_clk_disable_unprepare, dev->clk);
+	if (err)
+		return err;
 
 	dev->clk_rate = clk_get_rate(dev->clk);
-	if (!dev->clk_rate) {
-		err = -EINVAL;
-		goto err;
-	}
+	if (!dev->clk_rate)
+		return -EINVAL;
 
 	dev->wdt.parent = &pdev->dev;
 	dev->wdt.info = &tangox_wdt_info;
@@ -174,36 +173,16 @@ static int tangox_wdt_probe(struct platform_device *pdev)
 		tangox_wdt_start(&dev->wdt);
 	}
 
-	err = watchdog_register_device(&dev->wdt);
+	watchdog_set_restart_priority(&dev->wdt, 128);
+
+	watchdog_stop_on_unregister(&dev->wdt);
+	err = devm_watchdog_register_device(&pdev->dev, &dev->wdt);
 	if (err)
-		goto err;
+		return err;
 
 	platform_set_drvdata(pdev, dev);
 
-	dev->restart.notifier_call = tangox_wdt_restart;
-	dev->restart.priority = 128;
-	err = register_restart_handler(&dev->restart);
-	if (err)
-		dev_warn(&pdev->dev, "failed to register restart handler\n");
-
 	dev_info(&pdev->dev, "SMP86xx/SMP87xx watchdog registered\n");
-
-	return 0;
-
- err:
-	clk_disable_unprepare(dev->clk);
-	return err;
-}
-
-static int tangox_wdt_remove(struct platform_device *pdev)
-{
-	struct tangox_wdt_device *dev = platform_get_drvdata(pdev);
-
-	tangox_wdt_stop(&dev->wdt);
-	clk_disable_unprepare(dev->clk);
-
-	unregister_restart_handler(&dev->restart);
-	watchdog_unregister_device(&dev->wdt);
 
 	return 0;
 }
@@ -217,7 +196,6 @@ MODULE_DEVICE_TABLE(of, tangox_wdt_dt_ids);
 
 static struct platform_driver tangox_wdt_driver = {
 	.probe	= tangox_wdt_probe,
-	.remove	= tangox_wdt_remove,
 	.driver	= {
 		.name		= "tangox-wdt",
 		.of_match_table	= tangox_wdt_dt_ids,

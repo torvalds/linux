@@ -1,21 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /******************************************************************************
 **  Device driver for the PCI-SCSI NCR538XX controller family.
 **
 **  Copyright (C) 1994  Wolfgang Stanglmeier
 **
-**  This program is free software; you can redistribute it and/or modify
-**  it under the terms of the GNU General Public License as published by
-**  the Free Software Foundation; either version 2 of the License, or
-**  (at your option) any later version.
-**
-**  This program is distributed in the hope that it will be useful,
-**  but WITHOUT ANY WARRANTY; without even the implied warranty of
-**  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-**  GNU General Public License for more details.
-**
-**  You should have received a copy of the GNU General Public License
-**  along with this program; if not, write to the Free Software
-**  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 **
 **-----------------------------------------------------------------------------
 **
@@ -4611,7 +4599,7 @@ static int ncr_reset_bus (struct ncb *np, struct scsi_cmnd *cmd, int sync_reset)
  * in order to keep it alive.
  */
 	if (!found && sync_reset && !retrieve_from_waiting_list(0, np, cmd)) {
-		cmd->result = ScsiResult(DID_RESET, 0);
+		cmd->result = DID_RESET << 16;
 		ncr_queue_done_cmd(np, cmd);
 	}
 
@@ -4957,7 +4945,7 @@ void ncr_complete (struct ncb *np, struct ccb *cp)
 		/*
 		**   Check condition code
 		*/
-		cmd->result = ScsiResult(DID_OK, S_CHECK_COND);
+		cmd->result = DID_OK << 16 | S_CHECK_COND;
 
 		/*
 		**	Copy back sense data to caller's buffer.
@@ -4978,7 +4966,7 @@ void ncr_complete (struct ncb *np, struct ccb *cp)
 		/*
 		**   Reservation Conflict condition code
 		*/
-		cmd->result = ScsiResult(DID_OK, S_CONFLICT);
+		cmd->result = DID_OK << 16 | S_CONFLICT;
 	
 	} else if ((cp->host_status == HS_COMPLETE)
 		&& (cp->scsi_status == S_BUSY ||
@@ -8043,7 +8031,7 @@ printk("ncr53c8xx_queue_command\n");
      spin_lock_irqsave(&np->smp_lock, flags);
 
      if ((sts = ncr_queue_command(np, cmd)) != DID_OK) {
-	  cmd->result = ScsiResult(sts, 0);
+	  cmd->result = sts << 16;
 #ifdef DEBUG_NCR53C8XX
 printk("ncr53c8xx : command not queued - result=%d\n", sts);
 #endif
@@ -8093,9 +8081,9 @@ irqreturn_t ncr53c8xx_intr(int irq, void *dev_id)
      return IRQ_HANDLED;
 }
 
-static void ncr53c8xx_timeout(unsigned long npref)
+static void ncr53c8xx_timeout(struct timer_list *t)
 {
-	struct ncb *np = (struct ncb *) npref;
+	struct ncb *np = from_timer(np, t, timer);
 	unsigned long flags;
 	struct scsi_cmnd *done_list;
 
@@ -8234,7 +8222,7 @@ static void process_waiting_list(struct ncb *np, int sts)
 #ifdef DEBUG_WAITING_LIST
 	printk("%s: cmd %lx done forced sts=%d\n", ncr_name(np), (u_long) wcmd, sts);
 #endif
-			wcmd->result = ScsiResult(sts, 0);
+			wcmd->result = sts << 16;
 			ncr_queue_done_cmd(np, wcmd);
 		}
 	}
@@ -8313,7 +8301,6 @@ struct Scsi_Host * __init ncr_attach(struct scsi_host_template *tpnt,
 	tpnt->this_id		= 7;
 	tpnt->sg_tablesize	= SCSI_NCR_SG_TABLESIZE;
 	tpnt->cmd_per_lun	= SCSI_NCR_CMD_PER_LUN;
-	tpnt->use_clustering	= ENABLE_CLUSTERING;
 
 	if (device->differential)
 		driver_setup.diff_support = device->differential;
@@ -8357,9 +8344,7 @@ struct Scsi_Host * __init ncr_attach(struct scsi_host_template *tpnt,
 	if (!np->scripth0)
 		goto attach_error;
 
-	init_timer(&np->timer);
-	np->timer.data     = (unsigned long) np;
-	np->timer.function = ncr53c8xx_timeout;
+	timer_setup(&np->timer, ncr53c8xx_timeout, 0);
 
 	/* Try to map the controller chip to virtual and physical memory. */
 

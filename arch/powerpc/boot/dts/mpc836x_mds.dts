@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * MPC8360E EMDS Device Tree Source
  *
  * Copyright 2006 Freescale Semiconductor Inc.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 
@@ -228,7 +224,7 @@
 				gpio-controller;
 			};
 
-			pio1: ucc_pin@01 {
+			pio1: ucc_pin@1 {
 				pio-map = <
 			/* port  pin  dir  open_drain  assignment  has_irq */
 					0  3  1  0  1  0 	/* TxD0 */
@@ -255,7 +251,7 @@
 					2  9  1  0  3  0 	/* GTX_CLK - CLK10 */
 					2  8  2  0  1  0>;	/* GTX125 - CLK9 */
 			};
-			pio2: ucc_pin@02 {
+			pio2: ucc_pin@2 {
 				pio-map = <
 			/* port  pin  dir  open_drain  assignment  has_irq */
 					0  17 1  0  1  0   /* TxD0 */
@@ -393,12 +389,12 @@
 			reg = <0x2120 0x18>;
 			compatible = "fsl,ucc-mdio";
 
-			phy0: ethernet-phy@00 {
+			phy0: ethernet-phy@0 {
 				interrupt-parent = <&ipic>;
 				interrupts = <17 0x8>;
 				reg = <0x0>;
 			};
-			phy1: ethernet-phy@01 {
+			phy1: ethernet-phy@1 {
 				interrupt-parent = <&ipic>;
 				interrupts = <18 0x8>;
 				reg = <0x1>;

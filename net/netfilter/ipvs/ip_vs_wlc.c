@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * IPVS:        Weighted Least-Connection Scheduling module
  *
  * Authors:     Wensong Zhang <wensong@linuxvirtualserver.org>
  *              Peter Kese <peter.kese@ijs.si>
- *
- *              This program is free software; you can redistribute it and/or
- *              modify it under the terms of the GNU General Public License
- *              as published by the Free Software Foundation; either version
- *              2 of the License, or (at your option) any later version.
  *
  * Changes:
  *     Wensong Zhang            :     changed the ip_vs_wlc_schedule to return dest
@@ -16,7 +12,6 @@
  *     Wensong Zhang            :     changed for the d-linked destination list
  *     Wensong Zhang            :     added the ip_vs_wlc_update_svc
  *     Wensong Zhang            :     added any dest with weight=0 is quiesced
- *
  */
 
 #define KMSG_COMPONENT "IPVS"
@@ -83,7 +78,7 @@ ip_vs_wlc_schedule(struct ip_vs_service *svc, const struct sk_buff *skb,
 		      IP_VS_DBG_ADDR(least->af, &least->addr),
 		      ntohs(least->port),
 		      atomic_read(&least->activeconns),
-		      atomic_read(&least->refcnt),
+		      refcount_read(&least->refcnt),
 		      atomic_read(&least->weight), loh);
 
 	return least;

@@ -1,17 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * segbuf.c - NILFS segment buffer
  *
  * Copyright (C) 2005-2008 Nippon Telegraph and Telephone Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  *
  * Written by Ryusuke Konishi.
  *
@@ -130,7 +121,7 @@ int nilfs_segbuf_extend_payload(struct nilfs_segment_buffer *segbuf,
 }
 
 int nilfs_segbuf_reset(struct nilfs_segment_buffer *segbuf, unsigned int flags,
-		       time_t ctime, __u64 cno)
+		       time64_t ctime, __u64 cno)
 {
 	int err;
 
@@ -338,7 +329,7 @@ static void nilfs_end_bio_write(struct bio *bio)
 {
 	struct nilfs_segment_buffer *segbuf = bio->bi_private;
 
-	if (bio->bi_error)
+	if (bio->bi_status)
 		atomic_inc(&segbuf->sb_err);
 
 	bio_put(bio);
@@ -400,7 +391,7 @@ static struct bio *nilfs_alloc_seg_bio(struct the_nilfs *nilfs, sector_t start,
 			bio = bio_alloc(GFP_NOIO, nr_vecs);
 	}
 	if (likely(bio)) {
-		bio->bi_bdev = nilfs->ns_bdev;
+		bio_set_dev(bio, nilfs->ns_bdev);
 		bio->bi_iter.bi_sector =
 			start << (nilfs->ns_blocksize_bits - 9);
 	}

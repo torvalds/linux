@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 ###
 # Main build makefile.
 #
@@ -17,6 +18,10 @@ ifeq ($(V),1)
 else
   quiet=quiet_
   Q=@
+endif
+
+ifneq ($(findstring s,$(filter-out --%,$(MAKEFLAGS))),)
+  quiet=silent_
 endif
 
 build-dir := $(srctree)/tools/build

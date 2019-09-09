@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Asus Wireless Radio Control Driver
  *
  * Copyright (C) 2015-2016 Endless Mobile, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/kernel.h>
@@ -17,26 +14,47 @@
 #include <linux/pci_ids.h>
 #include <linux/leds.h>
 
-#define ASUS_WIRELESS_LED_STATUS 0x2
-#define ASUS_WIRELESS_LED_OFF 0x4
-#define ASUS_WIRELESS_LED_ON 0x5
+struct hswc_params {
+	u8 on;
+	u8 off;
+	u8 status;
+};
 
 struct asus_wireless_data {
 	struct input_dev *idev;
 	struct acpi_device *adev;
+	const struct hswc_params *hswc_params;
 	struct workqueue_struct *wq;
 	struct work_struct led_work;
 	struct led_classdev led;
 	int led_state;
 };
 
-static u64 asus_wireless_method(acpi_handle handle, const char *method,
-				int param)
+static const struct hswc_params atk4001_id_params = {
+	.on = 0x0,
+	.off = 0x1,
+	.status = 0x2,
+};
+
+static const struct hswc_params atk4002_id_params = {
+	.on = 0x5,
+	.off = 0x4,
+	.status = 0x2,
+};
+
+static const struct acpi_device_id device_ids[] = {
+	{"ATK4001", (kernel_ulong_t)&atk4001_id_params},
+	{"ATK4002", (kernel_ulong_t)&atk4002_id_params},
+	{"", 0},
+};
+MODULE_DEVICE_TABLE(acpi, device_ids);
+
+static acpi_status asus_wireless_method(acpi_handle handle, const char *method,
+					int param, u64 *ret)
 {
 	struct acpi_object_list p;
 	union acpi_object obj;
 	acpi_status s;
-	u64 ret;
 
 	acpi_handle_debug(handle, "Evaluating method %s, parameter %#x\n",
 			  method, param);
@@ -45,24 +63,27 @@ static u64 asus_wireless_method(acpi_handle handle, const char *method,
 	p.count = 1;
 	p.pointer = &obj;
 
-	s = acpi_evaluate_integer(handle, (acpi_string) method, &p, &ret);
+	s = acpi_evaluate_integer(handle, (acpi_string) method, &p, ret);
 	if (ACPI_FAILURE(s))
 		acpi_handle_err(handle,
 				"Failed to eval method %s, param %#x (%d)\n",
 				method, param, s);
-	acpi_handle_debug(handle, "%s returned %#x\n", method, (uint) ret);
-	return ret;
+	else
+		acpi_handle_debug(handle, "%s returned %#llx\n", method, *ret);
+
+	return s;
 }
 
 static enum led_brightness led_state_get(struct led_classdev *led)
 {
 	struct asus_wireless_data *data;
-	int s;
+	acpi_status s;
+	u64 ret;
 
 	data = container_of(led, struct asus_wireless_data, led);
 	s = asus_wireless_method(acpi_device_handle(data->adev), "HSWC",
-				 ASUS_WIRELESS_LED_STATUS);
-	if (s == ASUS_WIRELESS_LED_ON)
+				 data->hswc_params->status, &ret);
+	if (ACPI_SUCCESS(s) && ret == data->hswc_params->on)
 		return LED_FULL;
 	return LED_OFF;
 }
@@ -70,20 +91,20 @@ static enum led_brightness led_state_get(struct led_classdev *led)
 static void led_state_update(struct work_struct *work)
 {
 	struct asus_wireless_data *data;
+	u64 ret;
 
 	data = container_of(work, struct asus_wireless_data, led_work);
 	asus_wireless_method(acpi_device_handle(data->adev), "HSWC",
-			     data->led_state);
+			     data->led_state, &ret);
 }
 
-static void led_state_set(struct led_classdev *led,
-				  enum led_brightness value)
+static void led_state_set(struct led_classdev *led, enum led_brightness value)
 {
 	struct asus_wireless_data *data;
 
 	data = container_of(led, struct asus_wireless_data, led);
-	data->led_state = value == LED_OFF ? ASUS_WIRELESS_LED_OFF :
-					     ASUS_WIRELESS_LED_ON;
+	data->led_state = value == LED_OFF ? data->hswc_params->off :
+					     data->hswc_params->on;
 	queue_work(data->wq, &data->led_work);
 }
 
@@ -97,6 +118,7 @@ static void asus_wireless_notify(struct acpi_device *adev, u32 event)
 		return;
 	}
 	input_report_key(data->idev, KEY_RFKILL, 1);
+	input_sync(data->idev);
 	input_report_key(data->idev, KEY_RFKILL, 0);
 	input_sync(data->idev);
 }
@@ -104,12 +126,14 @@ static void asus_wireless_notify(struct acpi_device *adev, u32 event)
 static int asus_wireless_add(struct acpi_device *adev)
 {
 	struct asus_wireless_data *data;
+	const struct acpi_device_id *id;
 	int err;
 
 	data = devm_kzalloc(&adev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 	adev->driver_data = data;
+	data->adev = adev;
 
 	data->idev = devm_input_allocate_device(&adev->dev);
 	if (!data->idev)
@@ -124,7 +148,16 @@ static int asus_wireless_add(struct acpi_device *adev)
 	if (err)
 		return err;
 
-	data->adev = adev;
+	for (id = device_ids; id->id[0]; id++) {
+		if (!strcmp((char *) id->id, acpi_device_hid(adev))) {
+			data->hswc_params =
+				(const struct hswc_params *)id->driver_data;
+			break;
+		}
+	}
+	if (!data->hswc_params)
+		return 0;
+
 	data->wq = create_singlethread_workqueue("asus_wireless_workqueue");
 	if (!data->wq)
 		return -ENOMEM;
@@ -134,9 +167,11 @@ static int asus_wireless_add(struct acpi_device *adev)
 	data->led.brightness_get = led_state_get;
 	data->led.flags = LED_CORE_SUSPENDRESUME;
 	data->led.max_brightness = 1;
+	data->led.default_trigger = "rfkill-none";
 	err = devm_led_classdev_register(&adev->dev, &data->led);
 	if (err)
 		destroy_workqueue(data->wq);
+
 	return err;
 }
 
@@ -144,17 +179,12 @@ static int asus_wireless_remove(struct acpi_device *adev)
 {
 	struct asus_wireless_data *data = acpi_driver_data(adev);
 
-	if (data->wq)
+	if (data->wq) {
+		devm_led_classdev_unregister(&adev->dev, &data->led);
 		destroy_workqueue(data->wq);
+	}
 	return 0;
 }
-
-static const struct acpi_device_id device_ids[] = {
-	{"ATK4001", 0},
-	{"ATK4002", 0},
-	{"", 0},
-};
-MODULE_DEVICE_TABLE(acpi, device_ids);
 
 static struct acpi_driver asus_wireless_driver = {
 	.name = "Asus Wireless Radio Control Driver",

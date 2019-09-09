@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * H/W layer of ISHTP provider device (ISH)
  *
  * Copyright (c) 2014-2016, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  */
 
 #include <linux/sched.h>
@@ -19,7 +11,6 @@
 #include <linux/jiffies.h>
 #include "client.h"
 #include "hw-ish.h"
-#include "utils.h"
 #include "hbm.h"
 
 /* For FW reset flow */
@@ -92,7 +83,10 @@ static bool check_generated_interrupt(struct ishtp_device *dev)
 			IPC_INT_FROM_ISH_TO_HOST_CHV_AB(pisr_val);
 	} else {
 		pisr_val = ish_reg_read(dev, IPC_REG_PISR_BXT);
-		interrupt_generated = IPC_INT_FROM_ISH_TO_HOST_BXT(pisr_val);
+		interrupt_generated = !!pisr_val;
+		/* only busy-clear bit is RW, others are RO */
+		if (pisr_val)
+			ish_reg_write(dev, IPC_REG_PISR_BXT, pisr_val);
 	}
 
 	return interrupt_generated;
@@ -257,38 +251,27 @@ static int write_ipc_from_queue(struct ishtp_device *dev)
 	int	i;
 	void	(*ipc_send_compl)(void *);
 	void	*ipc_send_compl_prm;
-	static int	out_ipc_locked;
-	unsigned long	out_ipc_flags;
 
 	if (dev->dev_state == ISHTP_DEV_DISABLED)
-		return	-EINVAL;
-
-	spin_lock_irqsave(&dev->out_ipc_spinlock, out_ipc_flags);
-	if (out_ipc_locked) {
-		spin_unlock_irqrestore(&dev->out_ipc_spinlock, out_ipc_flags);
-		return -EBUSY;
-	}
-	out_ipc_locked = 1;
-	if (!ish_is_input_ready(dev)) {
-		out_ipc_locked = 0;
-		spin_unlock_irqrestore(&dev->out_ipc_spinlock, out_ipc_flags);
-		return -EBUSY;
-	}
-	spin_unlock_irqrestore(&dev->out_ipc_spinlock, out_ipc_flags);
+		return -EINVAL;
 
 	spin_lock_irqsave(&dev->wr_processing_spinlock, flags);
+	if (!ish_is_input_ready(dev)) {
+		spin_unlock_irqrestore(&dev->wr_processing_spinlock, flags);
+		return -EBUSY;
+	}
+
 	/*
 	 * if tx send list is empty - return 0;
 	 * may happen, as RX_COMPLETE handler doesn't check list emptiness.
 	 */
-	if (list_empty(&dev->wr_processing_list_head.link)) {
+	if (list_empty(&dev->wr_processing_list)) {
 		spin_unlock_irqrestore(&dev->wr_processing_spinlock, flags);
-		out_ipc_locked = 0;
 		return	0;
 	}
 
-	ipc_link = list_entry(dev->wr_processing_list_head.link.next,
-			      struct wr_msg_ctl_info, link);
+	ipc_link = list_first_entry(&dev->wr_processing_list,
+				    struct wr_msg_ctl_info, link);
 	/* first 4 bytes of the data is the doorbell value (IPC header) */
 	length = ipc_link->length - sizeof(uint32_t);
 	doorbell_val = *(uint32_t *)ipc_link->inline_data;
@@ -297,19 +280,15 @@ static int write_ipc_from_queue(struct ishtp_device *dev)
 	/* If sending MNG_SYNC_FW_CLOCK, update clock again */
 	if (IPC_HEADER_GET_PROTOCOL(doorbell_val) == IPC_PROTOCOL_MNG &&
 		IPC_HEADER_GET_MNG_CMD(doorbell_val) == MNG_SYNC_FW_CLOCK) {
-		struct timespec ts_system;
-		struct timeval tv_utc;
-		uint64_t        usec_system, usec_utc;
+		uint64_t usec_system, usec_utc;
 		struct ipc_time_update_msg time_update;
 		struct time_sync_format ts_format;
 
-		get_monotonic_boottime(&ts_system);
-		do_gettimeofday(&tv_utc);
-		usec_system = (timespec_to_ns(&ts_system)) / NSEC_PER_USEC;
-		usec_utc = (uint64_t)tv_utc.tv_sec * 1000000 +
-						((uint32_t)tv_utc.tv_usec);
+		usec_system = ktime_to_us(ktime_get_boottime());
+		usec_utc = ktime_to_us(ktime_get_real());
 		ts_format.ts1_source = HOST_SYSTEM_TIME_USEC;
 		ts_format.ts2_source = HOST_UTC_TIME_USEC;
+		ts_format.reserved = 0;
 
 		time_update.primary_host_time = usec_system;
 		time_update.secondary_host_time = usec_utc;
@@ -330,6 +309,8 @@ static int write_ipc_from_queue(struct ishtp_device *dev)
 		memcpy(&reg, &r_buf[length >> 2], rem);
 		ish_reg_write(dev, reg_addr, reg);
 	}
+	ish_reg_write(dev, IPC_REG_HOST2ISH_DRBL, doorbell_val);
+
 	/* Flush writes to msg registers and doorbell */
 	ish_reg_read(dev, IPC_REG_ISH_HOST_FWSTS);
 
@@ -337,13 +318,10 @@ static int write_ipc_from_queue(struct ishtp_device *dev)
 	++dev->ipc_tx_cnt;
 	dev->ipc_tx_bytes_cnt += IPC_HEADER_GET_LENGTH(doorbell_val);
 
-	ish_reg_write(dev, IPC_REG_HOST2ISH_DRBL, doorbell_val);
-	out_ipc_locked = 0;
-
 	ipc_send_compl = ipc_link->ipc_send_compl;
 	ipc_send_compl_prm = ipc_link->ipc_send_compl_prm;
 	list_del_init(&ipc_link->link);
-	list_add_tail(&ipc_link->link, &dev->wr_free_list_head.link);
+	list_add(&ipc_link->link, &dev->wr_free_list);
 	spin_unlock_irqrestore(&dev->wr_processing_spinlock, flags);
 
 	/*
@@ -377,18 +355,18 @@ static int write_ipc_to_queue(struct ishtp_device *dev,
 	unsigned char *msg, int length)
 {
 	struct wr_msg_ctl_info *ipc_link;
-	unsigned long	flags;
+	unsigned long flags;
 
 	if (length > IPC_FULL_MSG_SIZE)
 		return -EMSGSIZE;
 
 	spin_lock_irqsave(&dev->wr_processing_spinlock, flags);
-	if (list_empty(&dev->wr_free_list_head.link)) {
+	if (list_empty(&dev->wr_free_list)) {
 		spin_unlock_irqrestore(&dev->wr_processing_spinlock, flags);
 		return -ENOMEM;
 	}
-	ipc_link = list_entry(dev->wr_free_list_head.link.next,
-		struct wr_msg_ctl_info, link);
+	ipc_link = list_first_entry(&dev->wr_free_list,
+				    struct wr_msg_ctl_info, link);
 	list_del_init(&ipc_link->link);
 
 	ipc_link->ipc_send_compl = ipc_send_compl;
@@ -396,7 +374,7 @@ static int write_ipc_to_queue(struct ishtp_device *dev,
 	ipc_link->length = length;
 	memcpy(ipc_link->inline_data, msg, length);
 
-	list_add_tail(&ipc_link->link, &dev->wr_processing_list_head.link);
+	list_add_tail(&ipc_link->link, &dev->wr_processing_list);
 	spin_unlock_irqrestore(&dev->wr_processing_spinlock, flags);
 
 	write_ipc_from_queue(dev);
@@ -427,6 +405,59 @@ static int ipc_send_mng_msg(struct ishtp_device *dev, uint32_t msg_code,
 		sizeof(uint32_t) + size);
 }
 
+#define WAIT_FOR_FW_RDY			0x1
+#define WAIT_FOR_INPUT_RDY		0x2
+
+/**
+ * timed_wait_for_timeout() - wait special event with timeout
+ * @dev: ISHTP device pointer
+ * @condition: indicate the condition for waiting
+ * @timeinc: time slice for every wait cycle, in ms
+ * @timeout: time in ms for timeout
+ *
+ * This function will check special event to be ready in a loop, the loop
+ * period is specificd in timeinc. Wait timeout will causes failure.
+ *
+ * Return: 0 for success else failure code
+ */
+static int timed_wait_for_timeout(struct ishtp_device *dev, int condition,
+				unsigned int timeinc, unsigned int timeout)
+{
+	bool complete = false;
+	int ret;
+
+	do {
+		if (condition == WAIT_FOR_FW_RDY) {
+			complete = ishtp_fw_is_ready(dev);
+		} else if (condition == WAIT_FOR_INPUT_RDY) {
+			complete = ish_is_input_ready(dev);
+		} else {
+			ret = -EINVAL;
+			goto out;
+		}
+
+		if (!complete) {
+			unsigned long left_time;
+
+			left_time = msleep_interruptible(timeinc);
+			timeout -= (timeinc - left_time);
+		}
+	} while (!complete && timeout > 0);
+
+	if (complete)
+		ret = 0;
+	else
+		ret = -EBUSY;
+
+out:
+	return ret;
+}
+
+#define TIME_SLICE_FOR_FW_RDY_MS		100
+#define TIME_SLICE_FOR_INPUT_RDY_MS		100
+#define TIMEOUT_FOR_FW_RDY_MS			2000
+#define TIMEOUT_FOR_INPUT_RDY_MS		2000
+
 /**
  * ish_fw_reset_handler() - FW reset handler
  * @dev: ishtp device pointer
@@ -439,25 +470,21 @@ static int ish_fw_reset_handler(struct ishtp_device *dev)
 {
 	uint32_t	reset_id;
 	unsigned long	flags;
-	struct wr_msg_ctl_info *processing, *next;
 
 	/* Read reset ID */
 	reset_id = ish_reg_read(dev, IPC_REG_ISH2HOST_MSG) & 0xFFFF;
 
 	/* Clear IPC output queue */
 	spin_lock_irqsave(&dev->wr_processing_spinlock, flags);
-	list_for_each_entry_safe(processing, next,
-			&dev->wr_processing_list_head.link, link) {
-		list_move_tail(&processing->link, &dev->wr_free_list_head.link);
-	}
+	list_splice_init(&dev->wr_processing_list, &dev->wr_free_list);
 	spin_unlock_irqrestore(&dev->wr_processing_spinlock, flags);
 
 	/* ISHTP notification in IPC_RESET */
 	ishtp_reset_handler(dev);
 
 	if (!ish_is_input_ready(dev))
-		timed_wait_for_timeout(WAIT_FOR_SEND_SLICE,
-			ish_is_input_ready(dev), (2 * HZ));
+		timed_wait_for_timeout(dev, WAIT_FOR_INPUT_RDY,
+			TIME_SLICE_FOR_INPUT_RDY_MS, TIMEOUT_FOR_INPUT_RDY_MS);
 
 	/* ISH FW is dead */
 	if (!ish_is_input_ready(dev))
@@ -472,8 +499,8 @@ static int ish_fw_reset_handler(struct ishtp_device *dev)
 			 sizeof(uint32_t));
 
 	/* Wait for ISH FW'es ILUP and ISHTP_READY */
-	timed_wait_for_timeout(WAIT_FOR_SEND_SLICE, ishtp_fw_is_ready(dev),
-		(2 * HZ));
+	timed_wait_for_timeout(dev, WAIT_FOR_FW_RDY,
+			TIME_SLICE_FOR_FW_RDY_MS, TIMEOUT_FOR_FW_RDY_MS);
 	if (!ishtp_fw_is_ready(dev)) {
 		/* ISH FW is dead */
 		uint32_t	ish_status;
@@ -486,6 +513,8 @@ static int ish_fw_reset_handler(struct ishtp_device *dev)
 	}
 	return	0;
 }
+
+#define TIMEOUT_FOR_HW_RDY_MS			300
 
 /**
  * ish_fw_reset_work_fn() - FW reset worker function
@@ -500,7 +529,7 @@ static void fw_reset_work_fn(struct work_struct *unused)
 	rv = ish_fw_reset_handler(ishtp_dev);
 	if (!rv) {
 		/* ISH is ILUP & ISHTP-ready. Restart ISHTP */
-		schedule_timeout(HZ / 3);
+		msleep_interruptible(TIMEOUT_FOR_HW_RDY_MS);
 		ishtp_dev->recvd_hw_ready = 1;
 		wake_up_interruptible(&ishtp_dev->wait_hw_ready);
 
@@ -520,15 +549,13 @@ static void fw_reset_work_fn(struct work_struct *unused)
 static void _ish_sync_fw_clock(struct ishtp_device *dev)
 {
 	static unsigned long	prev_sync;
-	struct timespec	ts;
 	uint64_t	usec;
 
 	if (prev_sync && jiffies - prev_sync < 20 * HZ)
 		return;
 
 	prev_sync = jiffies;
-	get_monotonic_boottime(&ts);
-	usec = (timespec_to_ns(&ts)) / NSEC_PER_USEC;
+	usec = ktime_to_us(ktime_get_boottime());
 	ipc_send_mng_msg(dev, MNG_SYNC_FW_CLOCK, &usec, sizeof(uint64_t));
 }
 
@@ -638,6 +665,58 @@ eoi:
 }
 
 /**
+ * ish_disable_dma() - disable dma communication between host and ISHFW
+ * @dev: ishtp device pointer
+ *
+ * Clear the dma enable bit and wait for dma inactive.
+ *
+ * Return: 0 for success else error code.
+ */
+static int ish_disable_dma(struct ishtp_device *dev)
+{
+	unsigned int	dma_delay;
+
+	/* Clear the dma enable bit */
+	ish_reg_write(dev, IPC_REG_ISH_RMP2, 0);
+
+	/* wait for dma inactive */
+	for (dma_delay = 0; dma_delay < MAX_DMA_DELAY &&
+		_ish_read_fw_sts_reg(dev) & (IPC_ISH_IN_DMA);
+		dma_delay += 5)
+		mdelay(5);
+
+	if (dma_delay >= MAX_DMA_DELAY) {
+		dev_err(dev->devc,
+			"Wait for DMA inactive timeout\n");
+		return	-EBUSY;
+	}
+
+	return 0;
+}
+
+/**
+ * ish_wakeup() - wakeup ishfw from waiting-for-host state
+ * @dev: ishtp device pointer
+ *
+ * Set the dma enable bit and send a void message to FW,
+ * it wil wakeup FW from waiting-for-host state.
+ */
+static void ish_wakeup(struct ishtp_device *dev)
+{
+	/* Set dma enable bit */
+	ish_reg_write(dev, IPC_REG_ISH_RMP2, IPC_RMP2_DMA_ENABLED);
+
+	/*
+	 * Send 0 IPC message so that ISH FW wakes up if it was already
+	 * asleep.
+	 */
+	ish_reg_write(dev, IPC_REG_HOST2ISH_DRBL, IPC_DRBL_BUSY_BIT);
+
+	/* Flush writes to doorbell and REMAP2 */
+	ish_reg_read(dev, IPC_REG_ISH_HOST_FWSTS);
+}
+
+/**
  * _ish_hw_reset() - HW reset
  * @dev: ishtp device pointer
  *
@@ -649,7 +728,6 @@ static int _ish_hw_reset(struct ishtp_device *dev)
 {
 	struct pci_dev *pdev = dev->pdev;
 	int	rv;
-	unsigned int	dma_delay;
 	uint16_t csr;
 
 	if (!pdev)
@@ -664,15 +742,8 @@ static int _ish_hw_reset(struct ishtp_device *dev)
 		return	-EINVAL;
 	}
 
-	/* Now trigger reset to FW */
-	ish_reg_write(dev, IPC_REG_ISH_RMP2, 0);
-
-	for (dma_delay = 0; dma_delay < MAX_DMA_DELAY &&
-		_ish_read_fw_sts_reg(dev) & (IPC_ISH_IN_DMA);
-		dma_delay += 5)
-		mdelay(5);
-
-	if (dma_delay >= MAX_DMA_DELAY) {
+	/* Disable dma communication between FW and host */
+	if (ish_disable_dma(dev)) {
 		dev_err(&pdev->dev,
 			"Can't reset - stuck with DMA in-progress\n");
 		return	-EBUSY;
@@ -690,16 +761,8 @@ static int _ish_hw_reset(struct ishtp_device *dev)
 	csr |= PCI_D0;
 	pci_write_config_word(pdev, pdev->pm_cap + PCI_PM_CTRL, csr);
 
-	ish_reg_write(dev, IPC_REG_ISH_RMP2, IPC_RMP2_DMA_ENABLED);
-
-	/*
-	 * Send 0 IPC message so that ISH FW wakes up if it was already
-	 * asleep
-	 */
-	ish_reg_write(dev, IPC_REG_HOST2ISH_DRBL, IPC_DRBL_BUSY_BIT);
-
-	/* Flush writes to doorbell and REMAP2 */
-	ish_reg_read(dev, IPC_REG_ISH_HOST_FWSTS);
+	/* Now we can enable ISH DMA operation and wakeup ISHFW */
+	ish_wakeup(dev);
 
 	return	0;
 }
@@ -758,18 +821,11 @@ static int _ish_ipc_reset(struct ishtp_device *dev)
 int ish_hw_start(struct ishtp_device *dev)
 {
 	ish_set_host_rdy(dev);
-	/* After that we can enable ISH DMA operation */
-	ish_reg_write(dev, IPC_REG_ISH_RMP2, IPC_RMP2_DMA_ENABLED);
-
-	/*
-	 * Send 0 IPC message so that ISH FW wakes up if it was already
-	 * asleep
-	 */
-	ish_reg_write(dev, IPC_REG_HOST2ISH_DRBL, IPC_DRBL_BUSY_BIT);
-	/* Flush write to doorbell */
-	ish_reg_read(dev, IPC_REG_ISH_HOST_FWSTS);
 
 	set_host_ready(dev);
+
+	/* After that we can enable ISH DMA operation and wakeup ISHFW */
+	ish_wakeup(dev);
 
 	/* wait for FW-initiated reset flow */
 	if (!dev->recvd_hw_ready)
@@ -830,8 +886,9 @@ struct ishtp_device *ish_dev_init(struct pci_dev *pdev)
 	struct ishtp_device *dev;
 	int	i;
 
-	dev = kzalloc(sizeof(struct ishtp_device) + sizeof(struct ish_hw),
-		GFP_KERNEL);
+	dev = devm_kzalloc(&pdev->dev,
+			   sizeof(struct ishtp_device) + sizeof(struct ish_hw),
+			   GFP_KERNEL);
 	if (!dev)
 		return NULL;
 
@@ -840,15 +897,16 @@ struct ishtp_device *ish_dev_init(struct pci_dev *pdev)
 	init_waitqueue_head(&dev->wait_hw_ready);
 
 	spin_lock_init(&dev->wr_processing_spinlock);
-	spin_lock_init(&dev->out_ipc_spinlock);
 
 	/* Init IPC processing and free lists */
-	INIT_LIST_HEAD(&dev->wr_processing_list_head.link);
-	INIT_LIST_HEAD(&dev->wr_free_list_head.link);
-	for (i = 0; i < IPC_TX_FIFO_SIZE; ++i) {
+	INIT_LIST_HEAD(&dev->wr_processing_list);
+	INIT_LIST_HEAD(&dev->wr_free_list);
+	for (i = 0; i < IPC_TX_FIFO_SIZE; i++) {
 		struct wr_msg_ctl_info	*tx_buf;
 
-		tx_buf = kzalloc(sizeof(struct wr_msg_ctl_info), GFP_KERNEL);
+		tx_buf = devm_kzalloc(&pdev->dev,
+				      sizeof(struct wr_msg_ctl_info),
+				      GFP_KERNEL);
 		if (!tx_buf) {
 			/*
 			 * IPC buffers may be limited or not available
@@ -859,7 +917,7 @@ struct ishtp_device *ish_dev_init(struct pci_dev *pdev)
 				i);
 			break;
 		}
-		list_add_tail(&tx_buf->link, &dev->wr_free_list_head.link);
+		list_add_tail(&tx_buf->link, &dev->wr_free_list);
 	}
 
 	dev->ops = &ish_hw_ops;
@@ -876,6 +934,21 @@ struct ishtp_device *ish_dev_init(struct pci_dev *pdev)
  */
 void	ish_device_disable(struct ishtp_device *dev)
 {
+	struct pci_dev *pdev = dev->pdev;
+
+	if (!pdev)
+		return;
+
+	/* Disable dma communication between FW and host */
+	if (ish_disable_dma(dev)) {
+		dev_err(&pdev->dev,
+			"Can't reset - stuck with DMA in-progress\n");
+		return;
+	}
+
+	/* Put ISH to D3hot state for power saving */
+	pci_set_power_state(pdev, PCI_D3hot);
+
 	dev->dev_state = ISHTP_DEV_DISABLED;
 	ish_clr_host_rdy(dev);
 }

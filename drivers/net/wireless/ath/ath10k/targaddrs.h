@@ -1,18 +1,7 @@
+/* SPDX-License-Identifier: ISC */
 /*
  * Copyright (c) 2005-2011 Atheros Communications Inc.
- * Copyright (c) 2011-2013 Qualcomm Atheros, Inc.
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ * Copyright (c) 2011-2016 Qualcomm Atheros, Inc.
  */
 
 #ifndef __TARGADDRS_H__
@@ -205,6 +194,24 @@ struct host_interest {
 	 */
 	/* Bit 1 - unused */
 	u32 hi_fw_swap;					/* 0x104 */
+
+	/* global arenas pointer address, used by host driver debug */
+	u32 hi_dynamic_mem_arenas_addr;			/* 0x108 */
+
+	/* allocated bytes of DRAM use by allocated */
+	u32 hi_dynamic_mem_allocated;			/* 0x10C */
+
+	/* remaining bytes of DRAM */
+	u32 hi_dynamic_mem_remaining;			/* 0x110 */
+
+	/* memory track count, configured by host */
+	u32 hi_dynamic_mem_track_max;			/* 0x114 */
+
+	/* minidump buffer */
+	u32 hi_minidump;				/* 0x118 */
+
+	/* bdata's sig and key addr */
+	u32 hi_bd_sig_key;				/* 0x11c */
 } __packed;
 
 #define HI_ITEM(item)  offsetof(struct host_interest, item)
@@ -268,13 +275,13 @@ struct host_interest {
 #define HI_OPTION_FW_BRIDGE_SHIFT 0x04
 
 /*
-Fw Mode/SubMode Mask
-|-----------------------------------------------------------------------------|
-|  SUB   |   SUB   |   SUB   |  SUB    |         |         |         |        |
-|MODE[3] | MODE[2] | MODE[1] | MODE[0] | MODE[3] | MODE[2] | MODE[1] | MODE[0]|
-|  (2)   |   (2)   |   (2)   |   (2)   |   (2)   |   (2)   |   (2)   |   (2)  |
-|-----------------------------------------------------------------------------|
-*/
+ * Fw Mode/SubMode Mask
+ *-----------------------------------------------------------------------------
+ *  SUB   |   SUB   |   SUB   |  SUB    |         |         |         |
+ *MODE[3] | MODE[2] | MODE[1] | MODE[0] | MODE[3] | MODE[2] | MODE[1] | MODE[0]
+ *  (2)   |   (2)   |   (2)   |   (2)   |   (2)   |   (2)   |   (2)   |   (2)
+ *-----------------------------------------------------------------------------
+ */
 #define HI_OPTION_FW_MODE_BITS         0x2
 #define HI_OPTION_FW_MODE_MASK         0x3
 #define HI_OPTION_FW_MODE_SHIFT        0xC
@@ -319,6 +326,12 @@ Fw Mode/SubMode Mask
 #define HI_ACS_FLAGS_USE_WWAN       (1 << 1)
 /* Use test VAP */
 #define HI_ACS_FLAGS_TEST_VAP       (1 << 2)
+/* SDIO/mailbox ACS flag definitions */
+#define HI_ACS_FLAGS_SDIO_SWAP_MAILBOX_SET       (1 << 0)
+#define HI_ACS_FLAGS_SDIO_REDUCE_TX_COMPL_SET    (1 << 1)
+#define HI_ACS_FLAGS_ALT_DATA_CREDIT_SIZE        (1 << 2)
+#define HI_ACS_FLAGS_SDIO_SWAP_MAILBOX_FW_ACK    (1 << 16)
+#define HI_ACS_FLAGS_SDIO_REDUCE_TX_COMPL_FW_ACK (1 << 17)
 
 /*
  * CONSOLE FLAGS
@@ -428,8 +441,9 @@ Fw Mode/SubMode Mask
 #define HI_PWR_SAVE_LPL_ENABLED   0x1
 /*b1-b3 reserved*/
 /*b4-b5 : dev0 LPL type : 0 - none
-			  1- Reduce Pwr Search
-			  2- Reduce Pwr Listen*/
+ *			  1- Reduce Pwr Search
+ *			  2- Reduce Pwr Listen
+ */
 /*b6-b7 : dev1 LPL type and so on for Max 8 devices*/
 #define HI_PWR_SAVE_LPL_DEV0_LSB   4
 #define HI_PWR_SAVE_LPL_DEV_MASK   0x3
@@ -458,6 +472,10 @@ Fw Mode/SubMode Mask
 
 #define QCA99X0_BOARD_DATA_SZ	  12288
 #define QCA99X0_BOARD_EXT_DATA_SZ 0
+
+/* Dual band extended board data */
+#define QCA99X0_EXT_BOARD_DATA_SZ 2048
+#define EXT_BOARD_ADDRESS_OFFSET 0x3000
 
 #define QCA4019_BOARD_DATA_SZ	  12064
 #define QCA4019_BOARD_EXT_DATA_SZ 0

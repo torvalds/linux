@@ -87,7 +87,7 @@ addressed with 16 direct blocks.
 For more than 16 blocks an indirect addressing in form of another tree is
 used. (scheme is the same as the one used for the superblock root nodes)
 
-The filesize is stored 64bit. Inode counting starts with 1. (whilst long
+The filesize is stored 64bit. Inode counting starts with 1. (while long
 filename inodes start with 0)
 
 Directories
@@ -155,7 +155,7 @@ Then userspace.
 The requirement for a static, fixed preallocated system area comes from how
 qnx6fs deals with writes.
 Each superblock got it's own half of the system area. So superblock #1
-always uses blocks from the lower half whilst superblock #2 just writes to
+always uses blocks from the lower half while superblock #2 just writes to
 blocks represented by the upper half bitmap system area bits.
 
 Bitmap blocks, Inode blocks and indirect addressing blocks for those two

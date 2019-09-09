@@ -1,11 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Tehuti Networks(R) Network Driver
  * Copyright (C) 2007 Tehuti Networks Ltd. All rights reserved
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #ifndef _TEHUTI_H
@@ -73,6 +69,9 @@
 /* netdev tx queue len for Luxor. default value is, btw, 1000
  * ifcontig eth1 txqueuelen 3000 - to change it at runtime */
 #define BDX_NDEV_TXQ_LEN 3000
+
+/* Max MTU for Jumbo Frame mode, per tehutinetworks.net Features FAQ is 16k */
+#define BDX_MAX_MTU	(16 * 1024)
 
 #define FIFO_SIZE  4096
 #define FIFO_EXTRA_SPACE            1024

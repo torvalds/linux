@@ -1,18 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Kernel/userspace transport abstraction for Hyper-V util driver.
  *
  * Copyright (C) 2015, Vitaly Kuznetsov <vkuznets@redhat.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
- * NON INFRINGEMENT.  See the GNU General Public License for more
- * details.
- *
  */
 
 #include <linux/slab.h>
@@ -104,7 +94,7 @@ static ssize_t hvt_op_write(struct file *file, const char __user *buf,
 	return ret ? ret : count;
 }
 
-static unsigned int hvt_op_poll(struct file *file, poll_table *wait)
+static __poll_t hvt_op_poll(struct file *file, poll_table *wait)
 {
 	struct hvutil_transport *hvt;
 
@@ -113,10 +103,10 @@ static unsigned int hvt_op_poll(struct file *file, poll_table *wait)
 	poll_wait(file, &hvt->outmsg_q, wait);
 
 	if (hvt->mode == HVUTIL_TRANSPORT_DESTROY)
-		return POLLERR | POLLHUP;
+		return EPOLLERR | EPOLLHUP;
 
 	if (hvt->outmsg_len > 0)
-		return POLLIN | POLLRDNORM;
+		return EPOLLIN | EPOLLRDNORM;
 
 	return 0;
 }
@@ -182,10 +172,11 @@ static int hvt_op_release(struct inode *inode, struct file *file)
 	 * connects back.
 	 */
 	hvt_reset(hvt);
-	mutex_unlock(&hvt->lock);
 
 	if (mode_old == HVUTIL_TRANSPORT_DESTROY)
-		hvt_transport_free(hvt);
+		complete(&hvt->release);
+
+	mutex_unlock(&hvt->lock);
 
 	return 0;
 }
@@ -304,6 +295,7 @@ struct hvutil_transport *hvutil_transport_init(const char *name,
 
 	init_waitqueue_head(&hvt->outmsg_q);
 	mutex_init(&hvt->lock);
+	init_completion(&hvt->release);
 
 	spin_lock(&hvt_list_lock);
 	list_add(&hvt->list, &hvt_list);
@@ -351,6 +343,8 @@ void hvutil_transport_destroy(struct hvutil_transport *hvt)
 	if (hvt->cn_id.idx > 0 && hvt->cn_id.val > 0)
 		cn_del_callback(&hvt->cn_id);
 
-	if (mode_old != HVUTIL_TRANSPORT_CHARDEV)
-		hvt_transport_free(hvt);
+	if (mode_old == HVUTIL_TRANSPORT_CHARDEV)
+		wait_for_completion(&hvt->release);
+
+	hvt_transport_free(hvt);
 }

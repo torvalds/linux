@@ -1,24 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Intel Wireless WiMAX Connection 2400m
  * Sysfs interfaces to show driver and device information
  *
- *
  * Copyright (C) 2007 Intel Corporation <linux-wimax@intel.com>
  * Inaky Perez-Gonzalez <inaky.perez-gonzalez@intel.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
  */
 
 #include <linux/netdevice.h>
@@ -65,8 +51,7 @@ error_bad_value:
 }
 
 static
-DEVICE_ATTR(i2400m_idle_timeout, S_IWUSR,
-	    NULL, i2400m_idle_timeout_store);
+DEVICE_ATTR_WO(i2400m_idle_timeout);
 
 static
 struct attribute *i2400m_dev_attrs[] = {

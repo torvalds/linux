@@ -1,15 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (C) 2010, Lars-Peter Clausen <lars@metafoo.de>
- *
- *  This program is free software; you can redistribute it and/or modify it
- *  under  the terms of the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the License, or (at your
- *  option) any later version.
- *
- *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
 #include <linux/init.h>
@@ -133,6 +124,7 @@ static int jz4740_i2s_startup(struct snd_pcm_substream *substream,
 {
 	struct jz4740_i2s *i2s = snd_soc_dai_get_drvdata(dai);
 	uint32_t conf, ctrl;
+	int ret;
 
 	if (dai->active)
 		return 0;
@@ -141,7 +133,9 @@ static int jz4740_i2s_startup(struct snd_pcm_substream *substream,
 	ctrl |= JZ_AIC_CTRL_FLUSH;
 	jz4740_i2s_write(i2s, JZ_REG_AIC_CTRL, ctrl);
 
-	clk_prepare_enable(i2s->clk_i2s);
+	ret = clk_prepare_enable(i2s->clk_i2s);
+	if (ret)
+		return ret;
 
 	conf = jz4740_i2s_read(i2s, JZ_REG_AIC_CONF);
 	conf |= JZ_AIC_CONF_ENABLE;
@@ -352,11 +346,18 @@ static int jz4740_i2s_resume(struct snd_soc_dai *dai)
 {
 	struct jz4740_i2s *i2s = snd_soc_dai_get_drvdata(dai);
 	uint32_t conf;
+	int ret;
 
-	clk_prepare_enable(i2s->clk_aic);
+	ret = clk_prepare_enable(i2s->clk_aic);
+	if (ret)
+		return ret;
 
 	if (dai->active) {
-		clk_prepare_enable(i2s->clk_i2s);
+		ret = clk_prepare_enable(i2s->clk_i2s);
+		if (ret) {
+			clk_disable_unprepare(i2s->clk_aic);
+			return ret;
+		}
 
 		conf = jz4740_i2s_read(i2s, JZ_REG_AIC_CONF);
 		conf |= JZ_AIC_CONF_ENABLE;
@@ -387,8 +388,11 @@ static int jz4740_i2s_dai_probe(struct snd_soc_dai *dai)
 {
 	struct jz4740_i2s *i2s = snd_soc_dai_get_drvdata(dai);
 	uint32_t conf;
+	int ret;
 
-	clk_prepare_enable(i2s->clk_aic);
+	ret = clk_prepare_enable(i2s->clk_aic);
+	if (ret)
+		return ret;
 
 	jz4740_i2c_init_pcm_config(i2s);
 	snd_soc_dai_init_dma_data(dai, &i2s->playback_dma_data,

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Driver for Freecom USB/IDE adaptor
  *
@@ -7,20 +8,6 @@
  *
  * Current development and maintenance by:
  *   (C) 2000 David Brown <usb-storage@davidb.org>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2, or (at your option) any
- * later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  * This driver was developed with information provided in FREECOM's USB
  * Programmers Reference Guide.  For further information contact Freecom
@@ -477,7 +464,7 @@ static int init_freecom(struct us_data *us)
 	usb_stor_dbg(us, "result from activate reset is %d\n", result);
 
 	/* wait 250ms */
-	mdelay(250);
+	msleep(250);
 
 	/* clear reset */
 	result = usb_stor_control_msg(us, us->send_ctrl_pipe,
@@ -485,7 +472,7 @@ static int init_freecom(struct us_data *us)
 	usb_stor_dbg(us, "result from clear reset is %d\n", result);
 
 	/* wait 3 seconds */
-	mdelay(3 * 1000);
+	msleep(3 * 1000);
 
 	return USB_STOR_TRANSPORT_GOOD;
 }

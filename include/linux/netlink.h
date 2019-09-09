@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __LINUX_NETLINK_H
 #define __LINUX_NETLINK_H
 
@@ -16,9 +17,6 @@ static inline struct nlmsghdr *nlmsg_hdr(const struct sk_buff *skb)
 }
 
 enum netlink_skb_flags {
-	NETLINK_SKB_MMAPED	= 0x1,	/* Packet data is mmaped */
-	NETLINK_SKB_TX		= 0x2,	/* Packet was sent by userspace */
-	NETLINK_SKB_DELIVERED	= 0x4,	/* Packet was delivered */
 	NETLINK_SKB_DST		= 0x8,	/* Dst set in sendto or sendmsg */
 };
 
@@ -36,8 +34,8 @@ struct netlink_skb_parms {
 #define NETLINK_CREDS(skb)	(&NETLINK_CB((skb)).creds)
 
 
-extern void netlink_table_grab(void);
-extern void netlink_table_ungrab(void);
+void netlink_table_grab(void);
+void netlink_table_ungrab(void);
 
 #define NL_CFG_F_NONROOT_RECV	(1 << 0)
 #define NL_CFG_F_NONROOT_SEND	(1 << 1)
@@ -53,7 +51,7 @@ struct netlink_kernel_cfg {
 	bool		(*compare)(struct net *net, struct sock *sk);
 };
 
-extern struct sock *__netlink_kernel_create(struct net *net, int unit,
+struct sock *__netlink_kernel_create(struct net *net, int unit,
 					    struct module *module,
 					    struct netlink_kernel_cfg *cfg);
 static inline struct sock *
@@ -62,23 +60,84 @@ netlink_kernel_create(struct net *net, int unit, struct netlink_kernel_cfg *cfg)
 	return __netlink_kernel_create(net, unit, THIS_MODULE, cfg);
 }
 
-extern void netlink_kernel_release(struct sock *sk);
-extern int __netlink_change_ngroups(struct sock *sk, unsigned int groups);
-extern int netlink_change_ngroups(struct sock *sk, unsigned int groups);
-extern void __netlink_clear_multicast_users(struct sock *sk, unsigned int group);
-extern void netlink_ack(struct sk_buff *in_skb, struct nlmsghdr *nlh, int err);
-extern int netlink_has_listeners(struct sock *sk, unsigned int group);
+/* this can be increased when necessary - don't expose to userland */
+#define NETLINK_MAX_COOKIE_LEN	20
 
-extern int netlink_unicast(struct sock *ssk, struct sk_buff *skb, __u32 portid, int nonblock);
-extern int netlink_broadcast(struct sock *ssk, struct sk_buff *skb, __u32 portid,
-			     __u32 group, gfp_t allocation);
-extern int netlink_broadcast_filtered(struct sock *ssk, struct sk_buff *skb,
-	__u32 portid, __u32 group, gfp_t allocation,
-	int (*filter)(struct sock *dsk, struct sk_buff *skb, void *data),
-	void *filter_data);
-extern int netlink_set_err(struct sock *ssk, __u32 portid, __u32 group, int code);
-extern int netlink_register_notifier(struct notifier_block *nb);
-extern int netlink_unregister_notifier(struct notifier_block *nb);
+/**
+ * struct netlink_ext_ack - netlink extended ACK report struct
+ * @_msg: message string to report - don't access directly, use
+ *	%NL_SET_ERR_MSG
+ * @bad_attr: attribute with error
+ * @cookie: cookie data to return to userspace (for success)
+ * @cookie_len: actual cookie data length
+ */
+struct netlink_ext_ack {
+	const char *_msg;
+	const struct nlattr *bad_attr;
+	u8 cookie[NETLINK_MAX_COOKIE_LEN];
+	u8 cookie_len;
+};
+
+/* Always use this macro, this allows later putting the
+ * message into a separate section or such for things
+ * like translation or listing all possible messages.
+ * Currently string formatting is not supported (due
+ * to the lack of an output buffer.)
+ */
+#define NL_SET_ERR_MSG(extack, msg) do {		\
+	static const char __msg[] = msg;		\
+	struct netlink_ext_ack *__extack = (extack);	\
+							\
+	if (__extack)					\
+		__extack->_msg = __msg;			\
+} while (0)
+
+#define NL_SET_ERR_MSG_MOD(extack, msg)			\
+	NL_SET_ERR_MSG((extack), KBUILD_MODNAME ": " msg)
+
+#define NL_SET_BAD_ATTR(extack, attr) do {		\
+	if ((extack))					\
+		(extack)->bad_attr = (attr);		\
+} while (0)
+
+#define NL_SET_ERR_MSG_ATTR(extack, attr, msg) do {	\
+	static const char __msg[] = msg;		\
+	struct netlink_ext_ack *__extack = (extack);	\
+							\
+	if (__extack) {					\
+		__extack->_msg = __msg;			\
+		__extack->bad_attr = (attr);		\
+	}						\
+} while (0)
+
+static inline void nl_set_extack_cookie_u64(struct netlink_ext_ack *extack,
+					    u64 cookie)
+{
+	u64 __cookie = cookie;
+
+	memcpy(extack->cookie, &__cookie, sizeof(__cookie));
+	extack->cookie_len = sizeof(__cookie);
+}
+
+void netlink_kernel_release(struct sock *sk);
+int __netlink_change_ngroups(struct sock *sk, unsigned int groups);
+int netlink_change_ngroups(struct sock *sk, unsigned int groups);
+void __netlink_clear_multicast_users(struct sock *sk, unsigned int group);
+void netlink_ack(struct sk_buff *in_skb, struct nlmsghdr *nlh, int err,
+		 const struct netlink_ext_ack *extack);
+int netlink_has_listeners(struct sock *sk, unsigned int group);
+bool netlink_strict_get_check(struct sk_buff *skb);
+
+int netlink_unicast(struct sock *ssk, struct sk_buff *skb, __u32 portid, int nonblock);
+int netlink_broadcast(struct sock *ssk, struct sk_buff *skb, __u32 portid,
+		      __u32 group, gfp_t allocation);
+int netlink_broadcast_filtered(struct sock *ssk, struct sk_buff *skb,
+			       __u32 portid, __u32 group, gfp_t allocation,
+			       int (*filter)(struct sock *dsk, struct sk_buff *skb, void *data),
+			       void *filter_data);
+int netlink_set_err(struct sock *ssk, __u32 portid, __u32 group, int code);
+int netlink_register_notifier(struct notifier_block *nb);
+int netlink_unregister_notifier(struct notifier_block *nb);
 
 /* finegrained unicast helpers: */
 struct sock *netlink_getsockbyfilp(struct file *filp);
@@ -121,17 +180,26 @@ netlink_skb_clone(struct sk_buff *skb, gfp_t gfp_mask)
 struct netlink_callback {
 	struct sk_buff		*skb;
 	const struct nlmsghdr	*nlh;
-	int			(*start)(struct netlink_callback *);
 	int			(*dump)(struct sk_buff * skb,
 					struct netlink_callback *cb);
 	int			(*done)(struct netlink_callback *cb);
 	void			*data;
 	/* the module that dump function belong to */
 	struct module		*module;
+	struct netlink_ext_ack	*extack;
 	u16			family;
 	u16			min_dump_alloc;
+	bool			strict_check;
+	u16			answer_flags;
 	unsigned int		prev_seq, seq;
-	long			args[6];
+	union {
+		u8		ctx[48];
+
+		/* args is deprecated. Cast a struct over ctx instead
+		 * for proper type safety.
+		 */
+		long		args[6];
+	};
 };
 
 struct netlink_notify {
@@ -152,7 +220,7 @@ struct netlink_dump_control {
 	u16 min_dump_alloc;
 };
 
-extern int __netlink_dump_start(struct sock *ssk, struct sk_buff *skb,
+int __netlink_dump_start(struct sock *ssk, struct sk_buff *skb,
 				const struct nlmsghdr *nlh,
 				struct netlink_dump_control *control);
 static inline int netlink_dump_start(struct sock *ssk, struct sk_buff *skb,
@@ -171,8 +239,8 @@ struct netlink_tap {
 	struct list_head list;
 };
 
-extern int netlink_add_tap(struct netlink_tap *nt);
-extern int netlink_remove_tap(struct netlink_tap *nt);
+int netlink_add_tap(struct netlink_tap *nt);
+int netlink_remove_tap(struct netlink_tap *nt);
 
 bool __netlink_ns_capable(const struct netlink_skb_parms *nsp,
 			  struct user_namespace *ns, int cap);

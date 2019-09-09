@@ -1,10 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2011-2016 Synaptics Incorporated
  * Copyright (c) 2011 Unixphere
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 
 #ifndef _RMI_2D_SENSOR_H
@@ -67,6 +64,8 @@ struct rmi_2d_sensor {
 	u8 report_rel;
 	u8 x_mm;
 	u8 y_mm;
+	enum rmi_reg_state dribble;
+	enum rmi_reg_state palm_detect;
 };
 
 int rmi_2d_sensor_of_probe(struct device *dev,

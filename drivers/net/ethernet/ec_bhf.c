@@ -1,17 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
  /*
  * drivers/net/ethernet/ec_bhf.c
  *
  * Copyright (C) 2014 Darek Marcinkiewicz <reksio@newterm.pl>
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 /* This is a driver for EtherCAT master module present on CCAT FPGA.
@@ -73,7 +64,7 @@
 
 #define ETHERCAT_MASTER_ID	0x14
 
-static struct pci_device_id ids[] = {
+static const struct pci_device_id ids[] = {
 	{ PCI_DEVICE(0x15ec, 0x5000), },
 	{ 0, }
 };
@@ -223,7 +214,7 @@ static void ec_bhf_process_rx(struct ec_bhf_priv *priv)
 
 		skb = netdev_alloc_skb_ip_align(priv->net_dev, pkt_size);
 		if (skb) {
-			memcpy(skb_put(skb, pkt_size), data, pkt_size);
+			skb_put_data(skb, data, pkt_size);
 			skb->protocol = eth_type_trans(skb, priv->net_dev);
 			priv->stat_rx_bytes += pkt_size;
 
@@ -253,7 +244,7 @@ static enum hrtimer_restart ec_bhf_timer_fun(struct hrtimer *timer)
 	if (!netif_running(priv->net_dev))
 		return HRTIMER_NORESTART;
 
-	hrtimer_forward_now(timer, ktime_set(0, polling_frequency));
+	hrtimer_forward_now(timer, polling_frequency);
 	return HRTIMER_RESTART;
 }
 
@@ -427,8 +418,7 @@ static int ec_bhf_open(struct net_device *net_dev)
 
 	hrtimer_init(&priv->hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	priv->hrtimer.function = ec_bhf_timer_fun;
-	hrtimer_start(&priv->hrtimer, ktime_set(0, polling_frequency),
-		      HRTIMER_MODE_REL);
+	hrtimer_start(&priv->hrtimer, polling_frequency, HRTIMER_MODE_REL);
 
 	return 0;
 
@@ -458,7 +448,7 @@ static int ec_bhf_stop(struct net_device *net_dev)
 	return 0;
 }
 
-static struct rtnl_link_stats64 *
+static void
 ec_bhf_get_stats(struct net_device *net_dev,
 		 struct rtnl_link_stats64 *stats)
 {
@@ -473,8 +463,6 @@ ec_bhf_get_stats(struct net_device *net_dev,
 
 	stats->tx_bytes = priv->stat_tx_bytes;
 	stats->rx_bytes = priv->stat_rx_bytes;
-
-	return stats;
 }
 
 static const struct net_device_ops ec_bhf_netdev_ops = {
@@ -482,7 +470,6 @@ static const struct net_device_ops ec_bhf_netdev_ops = {
 	.ndo_open		= ec_bhf_open,
 	.ndo_stop		= ec_bhf_stop,
 	.ndo_get_stats64	= ec_bhf_get_stats,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= eth_mac_addr
 };
@@ -606,7 +593,7 @@ static struct pci_driver pci_driver = {
 };
 module_pci_driver(pci_driver);
 
-module_param(polling_frequency, long, S_IRUGO);
+module_param(polling_frequency, long, 0444);
 MODULE_PARM_DESC(polling_frequency, "Polling timer frequency in ns");
 
 MODULE_LICENSE("GPL");

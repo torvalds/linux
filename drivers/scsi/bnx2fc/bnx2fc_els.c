@@ -4,7 +4,8 @@
  * and responses.
  *
  * Copyright (c) 2008-2013 Broadcom Corporation
- * Copyright (c) 2014-2015 QLogic Corporation
+ * Copyright (c) 2014-2016 QLogic Corporation
+ * Copyright (c) 2016-2017 Cavium Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -61,12 +62,19 @@ int bnx2fc_send_rrq(struct bnx2fc_cmd *aborted_io_req)
 
 	struct fc_els_rrq rrq;
 	struct bnx2fc_rport *tgt = aborted_io_req->tgt;
-	struct fc_lport *lport = tgt->rdata->local_port;
+	struct fc_lport *lport = NULL;
 	struct bnx2fc_els_cb_arg *cb_arg = NULL;
-	u32 sid = tgt->sid;
-	u32 r_a_tov = lport->r_a_tov;
+	u32 sid = 0;
+	u32 r_a_tov = 0;
 	unsigned long start = jiffies;
 	int rc;
+
+	if (!test_bit(BNX2FC_FLAG_SESSION_READY, &tgt->flags))
+		return -EINVAL;
+
+	lport = tgt->rdata->local_port;
+	sid = tgt->sid;
+	r_a_tov = lport->r_a_tov;
 
 	BNX2FC_ELS_DBG("Sending RRQ orig_xid = 0x%x\n",
 		   aborted_io_req->xid);
@@ -602,7 +610,6 @@ int bnx2fc_send_rec(struct bnx2fc_cmd *orig_io_req)
 	rc = bnx2fc_initiate_els(tgt, ELS_REC, &rec, sizeof(rec),
 				 bnx2fc_rec_compl, cb_arg,
 				 r_a_tov);
-rec_err:
 	if (rc) {
 		BNX2FC_IO_DBG(orig_io_req, "REC failed - release\n");
 		spin_lock_bh(&tgt->tgt_lock);
@@ -610,6 +617,7 @@ rec_err:
 		spin_unlock_bh(&tgt->tgt_lock);
 		kfree(cb_arg);
 	}
+rec_err:
 	return rc;
 }
 
@@ -646,7 +654,6 @@ int bnx2fc_send_srr(struct bnx2fc_cmd *orig_io_req, u32 offset, u8 r_ctl)
 	rc = bnx2fc_initiate_els(tgt, ELS_SRR, &srr, sizeof(srr),
 				 bnx2fc_srr_compl, cb_arg,
 				 r_a_tov);
-srr_err:
 	if (rc) {
 		BNX2FC_IO_DBG(orig_io_req, "SRR failed - release\n");
 		spin_lock_bh(&tgt->tgt_lock);
@@ -656,6 +663,7 @@ srr_err:
 	} else
 		set_bit(BNX2FC_FLAG_SRR_SENT, &orig_io_req->req_flags);
 
+srr_err:
 	return rc;
 }
 
@@ -846,33 +854,57 @@ void bnx2fc_process_els_compl(struct bnx2fc_cmd *els_req,
 	kref_put(&els_req->refcount, bnx2fc_cmd_release);
 }
 
+#define		BNX2FC_FCOE_MAC_METHOD_GRANGED_MAC	1
+#define		BNX2FC_FCOE_MAC_METHOD_FCF_MAP		2
+#define		BNX2FC_FCOE_MAC_METHOD_FCOE_SET_MAC	3
 static void bnx2fc_flogi_resp(struct fc_seq *seq, struct fc_frame *fp,
 			      void *arg)
 {
 	struct fcoe_ctlr *fip = arg;
 	struct fc_exch *exch = fc_seq_exch(seq);
 	struct fc_lport *lport = exch->lp;
-	u8 *mac;
-	u8 op;
+
+	struct fc_frame_header *fh;
+	u8 *granted_mac;
+	u8 fcoe_mac[6];
+	u8 fc_map[3];
+	int method;
 
 	if (IS_ERR(fp))
 		goto done;
 
-	mac = fr_cb(fp)->granted_mac;
-	if (is_zero_ether_addr(mac)) {
-		op = fc_frame_payload_op(fp);
-		if (lport->vport) {
-			if (op == ELS_LS_RJT) {
-				printk(KERN_ERR PFX "bnx2fc_flogi_resp is LS_RJT\n");
-				fc_vport_terminate(lport->vport);
-				fc_frame_free(fp);
-				return;
-			}
-		}
-		fcoe_ctlr_recv_flogi(fip, lport, fp);
+	fh = fc_frame_header_get(fp);
+	granted_mac = fr_cb(fp)->granted_mac;
+
+	/*
+	 * We set the source MAC for FCoE traffic based on the Granted MAC
+	 * address from the switch.
+	 *
+	 * If granted_mac is non-zero, we use that.
+	 * If the granted_mac is zeroed out, create the FCoE MAC based on
+	 * the sel_fcf->fc_map and the d_id fo the FLOGI frame.
+	 * If sel_fcf->fc_map is 0, then we use the default FCF-MAC plus the
+	 * d_id of the FLOGI frame.
+	 */
+	if (!is_zero_ether_addr(granted_mac)) {
+		ether_addr_copy(fcoe_mac, granted_mac);
+		method = BNX2FC_FCOE_MAC_METHOD_GRANGED_MAC;
+	} else if (fip->sel_fcf && fip->sel_fcf->fc_map != 0) {
+		hton24(fc_map, fip->sel_fcf->fc_map);
+		fcoe_mac[0] = fc_map[0];
+		fcoe_mac[1] = fc_map[1];
+		fcoe_mac[2] = fc_map[2];
+		fcoe_mac[3] = fh->fh_d_id[0];
+		fcoe_mac[4] = fh->fh_d_id[1];
+		fcoe_mac[5] = fh->fh_d_id[2];
+		method = BNX2FC_FCOE_MAC_METHOD_FCF_MAP;
+	} else {
+		fc_fcoe_set_mac(fcoe_mac, fh->fh_d_id);
+		method = BNX2FC_FCOE_MAC_METHOD_FCOE_SET_MAC;
 	}
-	if (!is_zero_ether_addr(mac))
-		fip->update_mac(lport, mac);
+
+	BNX2FC_HBA_DBG(lport, "fcoe_mac=%pM method=%d\n", fcoe_mac, method);
+	fip->update_mac(lport, fcoe_mac);
 done:
 	fc_lport_flogi_resp(seq, fp, lport);
 }

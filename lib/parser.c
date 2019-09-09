@@ -1,8 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * lib/parser.c - simple parser for mount, etc. options.
- *
- * This source code is licensed under the GNU General Public License,
- * Version 2.  See the file COPYING for more details.
  */
 
 #include <linux/ctype.h>
@@ -131,13 +129,10 @@ static int match_number(substring_t *s, int *result, int base)
 	char *buf;
 	int ret;
 	long val;
-	size_t len = s->to - s->from;
 
-	buf = kmalloc(len + 1, GFP_KERNEL);
+	buf = match_strdup(s);
 	if (!buf)
 		return -ENOMEM;
-	memcpy(buf, s->from, len);
-	buf[len] = '\0';
 
 	ret = 0;
 	val = simple_strtol(buf, &endp, base);
@@ -147,6 +142,33 @@ static int match_number(substring_t *s, int *result, int base)
 		ret = -ERANGE;
 	else
 		*result = (int) val;
+	kfree(buf);
+	return ret;
+}
+
+/**
+ * match_u64int: scan a number in the given base from a substring_t
+ * @s: substring to be scanned
+ * @result: resulting u64 on success
+ * @base: base to use when converting string
+ *
+ * Description: Given a &substring_t and a base, attempts to parse the substring
+ * as a number in that base. On success, sets @result to the integer represented
+ * by the string and returns 0. Returns -ENOMEM, -EINVAL, or -ERANGE on failure.
+ */
+static int match_u64int(substring_t *s, u64 *result, int base)
+{
+	char *buf;
+	int ret;
+	u64 val;
+
+	buf = match_strdup(s);
+	if (!buf)
+		return -ENOMEM;
+
+	ret = kstrtoull(buf, base, &val);
+	if (!ret)
+		*result = val;
 	kfree(buf);
 	return ret;
 }
@@ -165,6 +187,23 @@ int match_int(substring_t *s, int *result)
 	return match_number(s, result, 0);
 }
 EXPORT_SYMBOL(match_int);
+
+/**
+ * match_u64: - scan a decimal representation of a u64 from
+ *                  a substring_t
+ * @s: substring_t to be scanned
+ * @result: resulting unsigned long long on success
+ *
+ * Description: Attempts to parse the &substring_t @s as a long decimal
+ * integer. On success, sets @result to the integer represented by the
+ * string and returns 0.
+ * Returns -ENOMEM, -EINVAL, or -ERANGE on failure.
+ */
+int match_u64(substring_t *s, u64 *result)
+{
+	return match_u64int(s, result, 0);
+}
+EXPORT_SYMBOL(match_u64);
 
 /**
  * match_octal: - scan an octal representation of an integer from a substring_t
@@ -280,10 +319,6 @@ EXPORT_SYMBOL(match_strlcpy);
  */
 char *match_strdup(const substring_t *s)
 {
-	size_t sz = s->to - s->from + 1;
-	char *p = kmalloc(sz, GFP_KERNEL);
-	if (p)
-		match_strlcpy(p, s, sz);
-	return p;
+	return kmemdup_nul(s->from, s->to - s->from, GFP_KERNEL);
 }
 EXPORT_SYMBOL(match_strdup);

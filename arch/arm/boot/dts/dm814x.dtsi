@@ -12,6 +12,7 @@
 	interrupt-parent = <&intc>;
 	#address-cells = <1>;
 	#size-cells = <1>;
+	chosen { };
 
 	aliases {
 		i2c0 = &i2c1;
@@ -74,6 +75,7 @@
 				reg = <0x47401300 0x100>;
 				reg-names = "phy";
 				ti,ctrl_mod = <&usb_ctrl_mod>;
+				#phy-cells = <0>;
 			};
 
 			usb0: usb@47401000 {
@@ -220,6 +222,30 @@
 				#interrupt-cells = <2>;
 			};
 
+			gpio3: gpio@1ac000 {
+				compatible = "ti,omap4-gpio";
+				ti,hwmods = "gpio3";
+				ti,gpio-always-on;
+				reg = <0x1ac000 0x2000>;
+				interrupts = <32>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+			};
+
+			gpio4: gpio@1ae000 {
+				compatible = "ti,omap4-gpio";
+				ti,hwmods = "gpio4";
+				ti,gpio-always-on;
+				reg = <0x1ae000 0x2000>;
+				interrupts = <62>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+			};
+
 			i2c2: i2c@2a000 {
 				compatible = "ti,omap4-i2c";
 				#address-cells = <1>;
@@ -238,8 +264,46 @@
 				ti,spi-num-cs = <4>;
 				ti,hwmods = "mcspi1";
 				dmas = <&edma 16 0 &edma 17 0
-					&edma 18 0 &edma 19 0>;
+					&edma 18 0 &edma 19 0
+					&edma 20 0 &edma 21 0
+					&edma 22 0 &edma 23 0>;
+
+				dma-names = "tx0", "rx0", "tx1", "rx1",
+					"tx2", "rx2", "tx3", "rx3";
+			};
+
+			mcspi2: spi@1a0000 {
+				compatible = "ti,omap4-mcspi";
+				reg = <0x1a0000 0x1000>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				interrupts = <125>;
+				ti,spi-num-cs = <4>;
+				ti,hwmods = "mcspi2";
+				dmas = <&edma 42 0 &edma 43 0
+					&edma 44 0 &edma 45 0>;
 				dma-names = "tx0", "rx0", "tx1", "rx1";
+			};
+
+			/* Board must configure dmas with edma_xbar for EDMA */
+			mcspi3: spi@1a2000 {
+				compatible = "ti,omap4-mcspi";
+				reg = <0x1a2000 0x1000>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				interrupts = <126>;
+				ti,spi-num-cs = <4>;
+				ti,hwmods = "mcspi3";
+			};
+
+			mcspi4: spi@1a4000 {
+				compatible = "ti,omap4-mcspi";
+				reg = <0x1a4000 0x1000>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				interrupts = <127>;
+				ti,spi-num-cs = <4>;
+				ti,hwmods = "mcspi4";
 			};
 
 			timer1: timer@2e000 {
@@ -248,10 +312,12 @@
 				interrupts = <67>;
 				ti,hwmods = "timer1";
 				ti,timer-alwon;
+				clocks = <&timer1_fck>;
+				clock-names = "fck";
 			};
 
 			uart1: uart@20000 {
-				compatible = "ti,omap3-uart";
+				compatible = "ti,am3352-uart", "ti,omap3-uart";
 				ti,hwmods = "uart1";
 				reg = <0x20000 0x2000>;
 				clock-frequency = <48000000>;
@@ -261,7 +327,7 @@
 			};
 
 			uart2: uart@22000 {
-				compatible = "ti,omap3-uart";
+				compatible = "ti,am3352-uart", "ti,omap3-uart";
 				ti,hwmods = "uart2";
 				reg = <0x22000 0x2000>;
 				clock-frequency = <48000000>;
@@ -271,7 +337,7 @@
 			};
 
 			uart3: uart@24000 {
-				compatible = "ti,omap3-uart";
+				compatible = "ti,am3352-uart", "ti,omap3-uart";
 				ti,hwmods = "uart3";
 				reg = <0x24000 0x2000>;
 				clock-frequency = <48000000>;
@@ -285,6 +351,8 @@
 				reg = <0x40000 0x2000>;
 				interrupts = <68>;
 				ti,hwmods = "timer2";
+				clocks = <&timer2_fck>;
+				clock-names = "fck";
 			};
 
 			timer3: timer@42000 {
@@ -331,10 +399,17 @@
 				ranges = <0 0x140000 0x20000>;
 
 				scm_conf: scm_conf@0 {
-					compatible = "syscon";
+					compatible = "syscon", "simple-bus";
 					reg = <0x0 0x800>;
 					#address-cells = <1>;
 					#size-cells = <1>;
+					ranges = <0 0 0x800>;
+
+					phy_gmii_sel: phy-gmii-sel {
+						compatible = "ti,dm814-phy-gmii-sel";
+						reg = <0x650 0x4>;
+						#phy-cells = <1>;
+					};
 
 					scm_clocks: clocks {
 						#address-cells = <1>;
@@ -373,6 +448,7 @@
 					reg = <0x800 0x438>;
 					#address-cells = <1>;
 					#size-cells = <0>;
+					#pinctrl-cells = <1>;
 					pinctrl-single,register-width = <32>;
 					pinctrl-single,function-mask = <0x307ff>;
 				};
@@ -382,6 +458,7 @@
 					reg = <0x1b00 0x100>;
 					reg-names = "phy";
 					ti,ctrl_mod = <&usb_ctrl_mod>;
+					#phy-cells = <0>;
 				};
 			};
 
@@ -508,7 +585,6 @@
 			cpdma_channels = <8>;
 			ale_entries = <1024>;
 			bd_ram_size = <0x2000>;
-			no_bd_ram = <0>;
 			mac_control = <0x20>;
 			slaves = <2>;
 			active_slave = <0>;
@@ -541,17 +617,14 @@
 			cpsw_emac0: slave@4a100200 {
 				/* Filled in by U-Boot */
 				mac-address = [ 00 00 00 00 00 00 ];
+				phys = <&phy_gmii_sel 1>;
+
 			};
 
 			cpsw_emac1: slave@4a100300 {
 				/* Filled in by U-Boot */
 				mac-address = [ 00 00 00 00 00 00 ];
-			};
-
-			phy_sel: cpsw-phy-sel@48140650 {
-				compatible = "ti,am3352-cpsw-phy-sel";
-				reg= <0x48140650 0x4>;
-				reg-names = "gmii-sel";
+				phys = <&phy_gmii_sel 2>;
 			};
 		};
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *      FarSync WAN driver for Linux (2.6.x kernel version)
  *
@@ -5,11 +6,6 @@
  *
  *      Copyright (C) 2001-2004 FarSite Communications Ltd.
  *      www.farsite.co.uk
- *
- *      This program is free software; you can redistribute it and/or
- *      modify it under the terms of the GNU General Public License
- *      as published by the Free Software Foundation; either version
- *      2 of the License, or (at your option) any later version.
  *
  *      Author:      R.J.Dunlop    <bob.dunlop@farsite.co.uk>
  *      Maintainer:  Kevin Curtis  <kevin.curtis@farsite.co.uk>
@@ -30,7 +26,7 @@
 #include <linux/if.h>
 #include <linux/hdlc.h>
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "farsync.h"
 
@@ -857,7 +853,7 @@ fst_rx_dma_complete(struct fst_card_info *card, struct fst_port_info *port,
 
 	dbg(DBG_TX, "fst_rx_dma_complete\n");
 	pi = port->index;
-	memcpy(skb_put(skb, len), card->rx_dma_handle_host, len);
+	skb_put_data(skb, card->rx_dma_handle_host, len);
 
 	/* Reset buffer descriptor */
 	FST_WRB(card, rxDescrRing[pi][rxp].bits, DMA_OWN);
@@ -2134,7 +2130,6 @@ static void
 fst_openport(struct fst_port_info *port)
 {
 	int signals;
-	int txq_length;
 
 	/* Only init things if card is actually running. This allows open to
 	 * succeed for downloads etc.
@@ -2161,7 +2156,6 @@ fst_openport(struct fst_port_info *port)
 		else
 			netif_carrier_off(port_to_dev(port));
 
-		txq_length = port->txqe - port->txqs;
 		port->txqe = 0;
 		port->txqs = 0;
 	}
@@ -2394,7 +2388,6 @@ fst_init_card(struct fst_card_info *card)
 static const struct net_device_ops fst_ops = {
 	.ndo_open       = fst_open,
 	.ndo_stop       = fst_close,
-	.ndo_change_mtu = hdlc_change_mtu,
 	.ndo_start_xmit = hdlc_start_xmit,
 	.ndo_do_ioctl   = fst_ioctl,
 	.ndo_tx_timeout = fst_tx_timeout,

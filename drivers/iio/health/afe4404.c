@@ -1,17 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * AFE4404 Heart Rate Monitors and Low-Cost Pulse Oximeters
  *
  * Copyright (C) 2015-2016 Texas Instruments Incorporated - http://www.ti.com/
  *	Andrew F. Davis <afd@ti.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 
 #include <linux/device.h>
@@ -328,7 +320,6 @@ static const struct iio_info afe4404_iio_info = {
 	.attrs = &afe440x_attribute_group,
 	.read_raw = afe4404_read_raw,
 	.write_raw = afe4404_write_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static irqreturn_t afe4404_trigger_handler(int irq, void *private)
@@ -355,7 +346,6 @@ err:
 }
 
 static const struct iio_trigger_ops afe4404_trigger_ops = {
-	.owner = THIS_MODULE,
 };
 
 /* Default timings from data-sheet */
@@ -428,7 +418,7 @@ MODULE_DEVICE_TABLE(of, afe4404_of_match);
 
 static int __maybe_unused afe4404_suspend(struct device *dev)
 {
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
 	struct afe4404_data *afe = iio_priv(indio_dev);
 	int ret;
 
@@ -449,7 +439,7 @@ static int __maybe_unused afe4404_suspend(struct device *dev)
 
 static int __maybe_unused afe4404_resume(struct device *dev)
 {
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
 	struct afe4404_data *afe = iio_priv(indio_dev);
 	int ret;
 

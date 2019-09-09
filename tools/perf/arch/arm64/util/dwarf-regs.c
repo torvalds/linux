@@ -1,26 +1,29 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Mapping of DWARF debug register numbers into register names.
  *
  * Copyright (C) 2010 Will Deacon, ARM Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
+#include <errno.h>
 #include <stddef.h>
+#include <string.h>
 #include <dwarf-regs.h>
+#include <linux/ptrace.h> /* for struct user_pt_regs */
+#include <linux/stringify.h>
+#include "util.h"
 
 struct pt_regs_dwarfnum {
 	const char *name;
 	unsigned int dwarfnum;
 };
 
-#define STR(s) #s
 #define REG_DWARFNUM_NAME(r, num) {.name = r, .dwarfnum = num}
 #define GPR_DWARFNUM_NAME(num) \
-	{.name = STR(%x##num), .dwarfnum = num}
+	{.name = __stringify(%x##num), .dwarfnum = num}
 #define REG_DWARFNUM_END {.name = NULL, .dwarfnum = 0}
+#define DWARFNUM2OFFSET(index) \
+	(index * sizeof((struct user_pt_regs *)0)->regs[0])
 
 /*
  * Reference:
@@ -77,4 +80,14 @@ const char *get_arch_regstr(unsigned int n)
 		if (roff->dwarfnum == n)
 			return roff->name;
 	return NULL;
+}
+
+int regs_query_register_offset(const char *name)
+{
+	const struct pt_regs_dwarfnum *roff;
+
+	for (roff = regdwarfnum_table; roff->name != NULL; roff++)
+		if (!strcmp(roff->name, name))
+			return DWARFNUM2OFFSET(roff->dwarfnum);
+	return -EINVAL;
 }

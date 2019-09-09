@@ -747,8 +747,8 @@ static void parse_dacl(struct cifs_acl *pdacl, char *end_of_acl,
 
 		if (num_aces > ULONG_MAX / sizeof(struct cifs_ace *))
 			return;
-		ppace = kmalloc(num_aces * sizeof(struct cifs_ace *),
-				GFP_KERNEL);
+		ppace = kmalloc_array(num_aces, sizeof(struct cifs_ace *),
+				      GFP_KERNEL);
 		if (!ppace)
 			return;
 
@@ -1125,7 +1125,7 @@ out:
 	return rc;
 }
 
-/* Translate the CIFS ACL (simlar to NTFS ACL) for a file into mode bits */
+/* Translate the CIFS ACL (similar to NTFS ACL) for a file into mode bits */
 int
 cifs_acl_to_fattr(struct cifs_sb_info *cifs_sb, struct cifs_fattr *fattr,
 		  struct inode *inode, const char *path,
@@ -1135,20 +1135,19 @@ cifs_acl_to_fattr(struct cifs_sb_info *cifs_sb, struct cifs_fattr *fattr,
 	u32 acllen = 0;
 	int rc = 0;
 	struct tcon_link *tlink = cifs_sb_tlink(cifs_sb);
-	struct cifs_tcon *tcon;
+	struct smb_version_operations *ops;
 
 	cifs_dbg(NOISY, "converting ACL to mode for %s\n", path);
 
 	if (IS_ERR(tlink))
 		return PTR_ERR(tlink);
-	tcon = tlink_tcon(tlink);
 
-	if (pfid && (tcon->ses->server->ops->get_acl_by_fid))
-		pntsd = tcon->ses->server->ops->get_acl_by_fid(cifs_sb, pfid,
-							  &acllen);
-	else if (tcon->ses->server->ops->get_acl)
-		pntsd = tcon->ses->server->ops->get_acl(cifs_sb, inode, path,
-							&acllen);
+	ops = tlink_tcon(tlink)->ses->server->ops;
+
+	if (pfid && (ops->get_acl_by_fid))
+		pntsd = ops->get_acl_by_fid(cifs_sb, pfid, &acllen);
+	else if (ops->get_acl)
+		pntsd = ops->get_acl(cifs_sb, inode, path, &acllen);
 	else {
 		cifs_put_tlink(tlink);
 		return -EOPNOTSUPP;
@@ -1181,23 +1180,23 @@ id_mode_to_cifs_acl(struct inode *inode, const char *path, __u64 nmode,
 	struct cifs_ntsd *pnntsd = NULL; /* modified acl to be sent to server */
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	struct tcon_link *tlink = cifs_sb_tlink(cifs_sb);
-	struct cifs_tcon *tcon;
+	struct smb_version_operations *ops;
 
 	if (IS_ERR(tlink))
 		return PTR_ERR(tlink);
-	tcon = tlink_tcon(tlink);
+
+	ops = tlink_tcon(tlink)->ses->server->ops;
 
 	cifs_dbg(NOISY, "set ACL from mode for %s\n", path);
 
 	/* Get the security descriptor */
 
-	if (tcon->ses->server->ops->get_acl == NULL) {
+	if (ops->get_acl == NULL) {
 		cifs_put_tlink(tlink);
 		return -EOPNOTSUPP;
 	}
 
-	pntsd = tcon->ses->server->ops->get_acl(cifs_sb, inode, path,
-						&secdesclen);
+	pntsd = ops->get_acl(cifs_sb, inode, path, &secdesclen);
 	if (IS_ERR(pntsd)) {
 		rc = PTR_ERR(pntsd);
 		cifs_dbg(VFS, "%s: error %d getting sec desc\n", __func__, rc);
@@ -1224,13 +1223,12 @@ id_mode_to_cifs_acl(struct inode *inode, const char *path, __u64 nmode,
 
 	cifs_dbg(NOISY, "build_sec_desc rc: %d\n", rc);
 
-	if (tcon->ses->server->ops->set_acl == NULL)
+	if (ops->set_acl == NULL)
 		rc = -EOPNOTSUPP;
 
 	if (!rc) {
 		/* Set the security descriptor */
-		rc = tcon->ses->server->ops->set_acl(pnntsd, secdesclen, inode,
-						     path, aclflag);
+		rc = ops->set_acl(pnntsd, secdesclen, inode, path, aclflag);
 		cifs_dbg(NOISY, "set_cifs_acl rc: %d\n", rc);
 	}
 	cifs_put_tlink(tlink);

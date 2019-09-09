@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * include/asm-alpha/processor.h
  *
@@ -8,12 +9,6 @@
 #define __ASM_ALPHA_PROCESSOR_H
 
 #include <linux/personality.h>	/* for ADDR_LIMIT_32BIT */
-
-/*
- * Returns current instruction pointer ("program counter").
- */
-#define current_text_addr() \
-  ({ void *__pc; __asm__ ("br %0,.+4" : "=r"(__pc)); __pc; })
 
 /*
  * We have a 42-bit user address space: 4TB user VM...
@@ -39,15 +34,12 @@ typedef struct {
 struct thread_struct { };
 #define INIT_THREAD  { }
 
-/* Return saved PC of a blocked thread.  */
-struct task_struct;
-extern unsigned long thread_saved_pc(struct task_struct *);
-
 /* Do necessary setup to start up a newly executed thread.  */
 struct pt_regs;
 extern void start_thread(struct pt_regs *, unsigned long, unsigned long);
 
 /* Free all resources held by a thread. */
+struct task_struct;
 extern void release_thread(struct task_struct *);
 
 unsigned long get_wchan(struct task_struct *p);
@@ -58,7 +50,6 @@ unsigned long get_wchan(struct task_struct *p);
   ((tsk) == current ? rdusp() : task_thread_info(tsk)->pcb.usp)
 
 #define cpu_relax()	barrier()
-#define cpu_relax_lowlatency() cpu_relax()
 
 #define ARCH_HAS_PREFETCH
 #define ARCH_HAS_PREFETCHW

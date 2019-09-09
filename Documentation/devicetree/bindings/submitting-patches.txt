@@ -3,10 +3,17 @@
 
 I. For patch submitters
 
-  0) Normal patch submission rules from Documentation/SubmittingPatches
+  0) Normal patch submission rules from Documentation/process/submitting-patches.rst
      applies.
 
-  1) The Documentation/ portion of the patch should be a separate patch.
+  1) The Documentation/ and include/dt-bindings/ portion of the patch should
+     be a separate patch. The preferred subject prefix for binding patches is:
+
+       "dt-bindings: <binding dir>: ..."
+
+     The 80 characters of the subject are precious. It is recommended to not
+     use "Documentation" or "doc" because that is implied. All bindings are
+     docs. Repeating "binding" again should also be avoided.
 
   2) Submit the entire series to the devicetree mailinglist at
 

@@ -1,25 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* OMAP SSI port driver.
  *
  * Copyright (C) 2010 Nokia Corporation. All rights reserved.
  * Copyright (C) 2014 Sebastian Reichel <sre@kernel.org>
  *
  * Contact: Carlos Chinea <carlos.chinea@nokia.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
  */
 
+#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/pm_runtime.h>
@@ -56,7 +44,7 @@ static void ssi_debug_remove_port(struct hsi_port *port)
 	debugfs_remove_recursive(omap_port->dir);
 }
 
-static int ssi_debug_port_show(struct seq_file *m, void *p __maybe_unused)
+static int ssi_port_regs_show(struct seq_file *m, void *p __maybe_unused)
 {
 	struct hsi_port *port = m->private;
 	struct omap_ssi_port *omap_port = hsi_port_drvdata(port);
@@ -131,17 +119,7 @@ static int ssi_debug_port_show(struct seq_file *m, void *p __maybe_unused)
 	return 0;
 }
 
-static int ssi_port_regs_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, ssi_debug_port_show, inode->i_private);
-}
-
-static const struct file_operations ssi_port_regs_fops = {
-	.open		= ssi_port_regs_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(ssi_port_regs);
 
 static int ssi_div_get(void *data, u64 *val)
 {
@@ -171,7 +149,7 @@ static int ssi_div_set(void *data, u64 val)
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(ssi_sst_div_fops, ssi_div_get, ssi_div_set, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(ssi_sst_div_fops, ssi_div_get, ssi_div_set, "%llu\n");
 
 static int ssi_debug_add_port(struct omap_ssi_port *omap_port,
 				     struct dentry *dir)
@@ -186,8 +164,8 @@ static int ssi_debug_add_port(struct omap_ssi_port *omap_port,
 	dir = debugfs_create_dir("sst", dir);
 	if (!dir)
 		return -ENOMEM;
-	debugfs_create_file("divisor", S_IRUGO | S_IWUSR, dir, port,
-			    &ssi_sst_div_fops);
+	debugfs_create_file_unsafe("divisor", 0644, dir, port,
+				   &ssi_sst_div_fops);
 
 	return 0;
 }

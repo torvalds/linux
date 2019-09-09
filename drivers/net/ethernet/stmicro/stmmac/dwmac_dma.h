@@ -1,23 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*******************************************************************************
   DWMAC DMA Header file.
 
   Copyright (C) 2007-2009  STMicroelectronics Ltd
 
-  This program is free software; you can redistribute it and/or modify it
-  under the terms and conditions of the GNU General Public License,
-  version 2, as published by the Free Software Foundation.
-
-  This program is distributed in the hope it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details.
-
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-
-  The full GNU General Public License is included in this distribution in
-  the file called "COPYING".
 
   Author: Giuseppe Cavallaro <peppe.cavallaro@st.com>
 *******************************************************************************/
@@ -140,14 +126,18 @@
 #define DMA_STATUS_TI	0x00000001	/* Transmit Interrupt */
 #define DMA_CONTROL_FTF		0x00100000	/* Flush transmit FIFO */
 
+#define NUM_DWMAC100_DMA_REGS	9
+#define NUM_DWMAC1000_DMA_REGS	23
+
 void dwmac_enable_dma_transmission(void __iomem *ioaddr);
-void dwmac_enable_dma_irq(void __iomem *ioaddr);
-void dwmac_disable_dma_irq(void __iomem *ioaddr);
-void dwmac_dma_start_tx(void __iomem *ioaddr);
-void dwmac_dma_stop_tx(void __iomem *ioaddr);
-void dwmac_dma_start_rx(void __iomem *ioaddr);
-void dwmac_dma_stop_rx(void __iomem *ioaddr);
-int dwmac_dma_interrupt(void __iomem *ioaddr, struct stmmac_extra_stats *x);
+void dwmac_enable_dma_irq(void __iomem *ioaddr, u32 chan);
+void dwmac_disable_dma_irq(void __iomem *ioaddr, u32 chan);
+void dwmac_dma_start_tx(void __iomem *ioaddr, u32 chan);
+void dwmac_dma_stop_tx(void __iomem *ioaddr, u32 chan);
+void dwmac_dma_start_rx(void __iomem *ioaddr, u32 chan);
+void dwmac_dma_stop_rx(void __iomem *ioaddr, u32 chan);
+int dwmac_dma_interrupt(void __iomem *ioaddr, struct stmmac_extra_stats *x,
+			u32 chan);
 int dwmac_dma_reset(void __iomem *ioaddr);
 
 #endif /* __DWMAC_DMA_H__ */

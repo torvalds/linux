@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	sun4v watchdog timer
  *	(c) Copyright 2016 Oracle Corporation
@@ -5,11 +6,6 @@
  *	Implement a simple watchdog driver using the built-in sun4v hypervisor
  *	watchdog support. If time expires, the hypervisor stops or bounces
  *	the guest domain.
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -77,7 +73,7 @@ static const struct watchdog_info sun4v_wdt_ident = {
 	.firmware_version = 0,
 };
 
-static struct watchdog_ops sun4v_wdt_ops = {
+static const struct watchdog_ops sun4v_wdt_ops = {
 	.owner =	THIS_MODULE,
 	.start =	sun4v_wdt_ping,
 	.stop =		sun4v_wdt_stop,

@@ -1,21 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *   32bit -> 64bit ioctl wrapper for PCM API
  *   Copyright (c) by Takashi Iwai <tiwai@suse.de>
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 /* This file included from pcm_native.c */
@@ -27,17 +13,14 @@ static int snd_pcm_ioctl_delay_compat(struct snd_pcm_substream *substream,
 				      s32 __user *src)
 {
 	snd_pcm_sframes_t delay;
-	mm_segment_t fs;
 	int err;
 
-	fs = snd_enter_user();
 	err = snd_pcm_delay(substream, &delay);
-	snd_leave_user(fs);
-	if (err < 0)
+	if (err)
 		return err;
 	if (put_user(delay, src))
 		return -EFAULT;
-	return err;
+	return 0;
 }
 
 static int snd_pcm_ioctl_rewind_compat(struct snd_pcm_substream *substream,
@@ -48,10 +31,7 @@ static int snd_pcm_ioctl_rewind_compat(struct snd_pcm_substream *substream,
 
 	if (get_user(frames, src))
 		return -EFAULT;
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		err = snd_pcm_playback_rewind(substream, frames);
-	else
-		err = snd_pcm_capture_rewind(substream, frames);
+	err = snd_pcm_rewind(substream, frames);
 	if (put_user(err, src))
 		return -EFAULT;
 	return err < 0 ? err : 0;
@@ -65,10 +45,7 @@ static int snd_pcm_ioctl_forward_compat(struct snd_pcm_substream *substream,
 
 	if (get_user(frames, src))
 		return -EFAULT;
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		err = snd_pcm_playback_forward(substream, frames);
-	else
-		err = snd_pcm_capture_forward(substream, frames);
+	err = snd_pcm_forward(substream, frames);
 	if (put_user(err, src))
 		return -EFAULT;
 	return err < 0 ? err : 0;
@@ -426,6 +403,8 @@ static int snd_pcm_ioctl_xfern_compat(struct snd_pcm_substream *substream,
 		return -ENOTTY;
 	if (substream->stream != dir)
 		return -EINVAL;
+	if (substream->runtime->status->state == SNDRV_PCM_STATE_OPEN)
+		return -EBADFD;
 
 	if ((ch = substream->runtime->channels) > 128)
 		return -EINVAL;
@@ -433,7 +412,7 @@ static int snd_pcm_ioctl_xfern_compat(struct snd_pcm_substream *substream,
 	    get_user(frames, &data32->frames))
 		return -EFAULT;
 	bufptr = compat_ptr(buf);
-	bufs = kmalloc(sizeof(void __user *) * ch, GFP_KERNEL);
+	bufs = kmalloc_array(ch, sizeof(void __user *), GFP_KERNEL);
 	if (bufs == NULL)
 		return -ENOMEM;
 	for (i = 0; i < ch; i++) {
@@ -551,6 +530,7 @@ struct snd_pcm_mmap_status_x32 {
 	u32 pad2; /* alignment */
 	struct timespec tstamp;
 	s32 suspended_state;
+	s32 pad3;
 	struct timespec audio_tstamp;
 } __packed;
 
@@ -680,6 +660,7 @@ static long snd_pcm_ioctl_compat(struct file *file, unsigned int cmd, unsigned l
 	case SNDRV_PCM_IOCTL_INFO:
 	case SNDRV_PCM_IOCTL_TSTAMP:
 	case SNDRV_PCM_IOCTL_TTSTAMP:
+	case SNDRV_PCM_IOCTL_USER_PVERSION:
 	case SNDRV_PCM_IOCTL_HWSYNC:
 	case SNDRV_PCM_IOCTL_PREPARE:
 	case SNDRV_PCM_IOCTL_RESET:
@@ -692,10 +673,7 @@ static long snd_pcm_ioctl_compat(struct file *file, unsigned int cmd, unsigned l
 	case SNDRV_PCM_IOCTL_XRUN:
 	case SNDRV_PCM_IOCTL_LINK:
 	case SNDRV_PCM_IOCTL_UNLINK:
-		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-			return snd_pcm_playback_ioctl1(file, substream, cmd, argp);
-		else
-			return snd_pcm_capture_ioctl1(file, substream, cmd, argp);
+		return snd_pcm_common_ioctl(file, substream, cmd, argp);
 	case SNDRV_PCM_IOCTL_HW_REFINE32:
 		return snd_pcm_ioctl_hw_params_compat(substream, 1, argp);
 	case SNDRV_PCM_IOCTL_HW_PARAMS32:

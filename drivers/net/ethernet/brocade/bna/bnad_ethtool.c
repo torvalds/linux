@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Linux network driver for QLogic BR-series Converged Network Adapter.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License (GPL) Version 2 as
- * published by the Free Software Foundation
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 /*
  * Copyright (c) 2005-2014 Brocade Communications Systems, Inc.
@@ -240,40 +232,46 @@ static const char *bnad_net_stats_strings[] = {
 #define BNAD_ETHTOOL_STATS_NUM	ARRAY_SIZE(bnad_net_stats_strings)
 
 static int
-bnad_get_settings(struct net_device *netdev, struct ethtool_cmd *cmd)
+bnad_get_link_ksettings(struct net_device *netdev,
+			struct ethtool_link_ksettings *cmd)
 {
-	cmd->supported = SUPPORTED_10000baseT_Full;
-	cmd->advertising = ADVERTISED_10000baseT_Full;
-	cmd->autoneg = AUTONEG_DISABLE;
-	cmd->supported |= SUPPORTED_FIBRE;
-	cmd->advertising |= ADVERTISED_FIBRE;
-	cmd->port = PORT_FIBRE;
-	cmd->phy_address = 0;
+	u32 supported, advertising;
+
+	supported = SUPPORTED_10000baseT_Full;
+	advertising = ADVERTISED_10000baseT_Full;
+	cmd->base.autoneg = AUTONEG_DISABLE;
+	supported |= SUPPORTED_FIBRE;
+	advertising |= ADVERTISED_FIBRE;
+	cmd->base.port = PORT_FIBRE;
+	cmd->base.phy_address = 0;
 
 	if (netif_carrier_ok(netdev)) {
-		ethtool_cmd_speed_set(cmd, SPEED_10000);
-		cmd->duplex = DUPLEX_FULL;
+		cmd->base.speed = SPEED_10000;
+		cmd->base.duplex = DUPLEX_FULL;
 	} else {
-		ethtool_cmd_speed_set(cmd, SPEED_UNKNOWN);
-		cmd->duplex = DUPLEX_UNKNOWN;
+		cmd->base.speed = SPEED_UNKNOWN;
+		cmd->base.duplex = DUPLEX_UNKNOWN;
 	}
-	cmd->transceiver = XCVR_EXTERNAL;
-	cmd->maxtxpkt = 0;
-	cmd->maxrxpkt = 0;
+
+	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.supported,
+						supported);
+	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.advertising,
+						advertising);
 
 	return 0;
 }
 
 static int
-bnad_set_settings(struct net_device *netdev, struct ethtool_cmd *cmd)
+bnad_set_link_ksettings(struct net_device *netdev,
+			const struct ethtool_link_ksettings *cmd)
 {
 	/* 10G full duplex setting supported only */
-	if (cmd->autoneg == AUTONEG_ENABLE)
-		return -EOPNOTSUPP; else {
-		if ((ethtool_cmd_speed(cmd) == SPEED_10000)
-		    && (cmd->duplex == DUPLEX_FULL))
-			return 0;
-	}
+	if (cmd->base.autoneg == AUTONEG_ENABLE)
+		return -EOPNOTSUPP;
+
+	if ((cmd->base.speed == SPEED_10000) &&
+	    (cmd->base.duplex == DUPLEX_FULL))
+		return 0;
 
 	return -EOPNOTSUPP;
 }
@@ -541,8 +539,8 @@ bnad_get_strings(struct net_device *netdev, u32 stringset, u8 *string)
 		for (i = 0; i < BNAD_ETHTOOL_STATS_NUM; i++) {
 			BUG_ON(!(strlen(bnad_net_stats_strings[i]) <
 				   ETH_GSTRING_LEN));
-			memcpy(string, bnad_net_stats_strings[i],
-			       ETH_GSTRING_LEN);
+			strncpy(string, bnad_net_stats_strings[i],
+				ETH_GSTRING_LEN);
 			string += ETH_GSTRING_LEN;
 		}
 		bmap = bna_tx_rid_mask(&bnad->bna);
@@ -1118,8 +1116,6 @@ out:
 }
 
 static const struct ethtool_ops bnad_ethtool_ops = {
-	.get_settings = bnad_get_settings,
-	.set_settings = bnad_set_settings,
 	.get_drvinfo = bnad_get_drvinfo,
 	.get_wol = bnad_get_wol,
 	.get_link = ethtool_op_get_link,
@@ -1137,6 +1133,8 @@ static const struct ethtool_ops bnad_ethtool_ops = {
 	.set_eeprom = bnad_set_eeprom,
 	.flash_device = bnad_flash_device,
 	.get_ts_info = ethtool_op_get_ts_info,
+	.get_link_ksettings = bnad_get_link_ksettings,
+	.set_link_ksettings = bnad_set_link_ksettings,
 };
 
 void

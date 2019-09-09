@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Backlight Driver for Intel-based Apples
  *
@@ -6,10 +7,6 @@
  *  Copyright (C) 2006 Nicolas Boichat <nicolas @boichat.ch>
  *  Copyright (C) 2006 Felipe Alfaro Solana <felipe_alfaro @linuxmail.org>
  *  Copyright (C) 2007 Julien BLACHE <jb@jblache.org>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
  *
  *  This driver triggers SMIs which cause the firmware to change the
  *  backlight brightness. This is icky in many ways, but it's impractical to
@@ -143,7 +140,7 @@ static int apple_bl_add(struct acpi_device *dev)
 	struct pci_dev *host;
 	int intensity;
 
-	host = pci_get_bus_and_slot(0, 0);
+	host = pci_get_domain_bus_and_slot(0, 0, 0);
 
 	if (!host) {
 		pr_err("unable to find PCI host\n");

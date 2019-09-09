@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * File:	mca.c
  * Purpose:	Generic MCA handling layer
@@ -72,10 +73,12 @@
 #include <linux/jiffies.h>
 #include <linux/types.h>
 #include <linux/init.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
+#include <linux/sched/debug.h>
+#include <linux/sched/task.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/acpi.h>
 #include <linux/timer.h>
 #include <linux/module.h>
@@ -332,7 +335,7 @@ static void ia64_mlogbuf_dump_from_init(void)
 	ia64_mlogbuf_dump();
 }
 
-static void inline
+static inline void
 ia64_mca_spin(const char *func)
 {
 	if (monarch_cpu == smp_processor_id())
@@ -357,11 +360,6 @@ typedef struct ia64_state_log_s
 
 static ia64_state_log_t ia64_state_log[IA64_MAX_LOG_TYPES];
 
-#define IA64_LOG_ALLOCATE(it, size) \
-	{ia64_state_log[it].isl_log[IA64_LOG_CURR_INDEX(it)] = \
-		(ia64_err_rec_t *)alloc_bootmem(size); \
-	ia64_state_log[it].isl_log[IA64_LOG_NEXT_INDEX(it)] = \
-		(ia64_err_rec_t *)alloc_bootmem(size);}
 #define IA64_LOG_LOCK_INIT(it) spin_lock_init(&ia64_state_log[it].isl_lock)
 #define IA64_LOG_LOCK(it)      spin_lock_irqsave(&ia64_state_log[it].isl_lock, s)
 #define IA64_LOG_UNLOCK(it)    spin_unlock_irqrestore(&ia64_state_log[it].isl_lock,s)
@@ -375,6 +373,19 @@ static ia64_state_log_t ia64_state_log[IA64_MAX_LOG_TYPES];
 #define IA64_LOG_NEXT_BUFFER(it)   (void *)((ia64_state_log[it].isl_log[IA64_LOG_NEXT_INDEX(it)]))
 #define IA64_LOG_CURR_BUFFER(it)   (void *)((ia64_state_log[it].isl_log[IA64_LOG_CURR_INDEX(it)]))
 #define IA64_LOG_COUNT(it)         ia64_state_log[it].isl_count
+
+static inline void ia64_log_allocate(int it, u64 size)
+{
+	ia64_state_log[it].isl_log[IA64_LOG_CURR_INDEX(it)] =
+		(ia64_err_rec_t *)memblock_alloc(size, SMP_CACHE_BYTES);
+	if (!ia64_state_log[it].isl_log[IA64_LOG_CURR_INDEX(it)])
+		panic("%s: Failed to allocate %llu bytes\n", __func__, size);
+
+	ia64_state_log[it].isl_log[IA64_LOG_NEXT_INDEX(it)] =
+		(ia64_err_rec_t *)memblock_alloc(size, SMP_CACHE_BYTES);
+	if (!ia64_state_log[it].isl_log[IA64_LOG_NEXT_INDEX(it)])
+		panic("%s: Failed to allocate %llu bytes\n", __func__, size);
+}
 
 /*
  * ia64_log_init
@@ -397,9 +408,7 @@ ia64_log_init(int sal_info_type)
 		return;
 
 	// set up OS data structures to hold error info
-	IA64_LOG_ALLOCATE(sal_info_type, max_size);
-	memset(IA64_LOG_CURR_BUFFER(sal_info_type), 0, max_size);
-	memset(IA64_LOG_NEXT_BUFFER(sal_info_type), 0, max_size);
+	ia64_log_allocate(sal_info_type, max_size);
 }
 
 /*
@@ -1511,7 +1520,7 @@ ia64_mca_cmc_int_caller(int cmc_irq, void *arg)
  *
  */
 static void
-ia64_mca_cmc_poll (unsigned long dummy)
+ia64_mca_cmc_poll (struct timer_list *unused)
 {
 	/* Trigger a CMC interrupt cascade  */
 	platform_send_ipi(cpumask_first(cpu_online_mask), IA64_CMCP_VECTOR,
@@ -1588,7 +1597,7 @@ ia64_mca_cpe_int_caller(int cpe_irq, void *arg)
  *
  */
 static void
-ia64_mca_cpe_poll (unsigned long dummy)
+ia64_mca_cpe_poll (struct timer_list *unused)
 {
 	/* Trigger a CPE interrupt cascade  */
 	platform_send_ipi(cpumask_first(cpu_online_mask), IA64_CPEP_VECTOR,
@@ -1822,7 +1831,7 @@ format_mca_init_stack(void *mca_data, unsigned long offset,
 	ti->cpu = cpu;
 	p->stack = ti;
 	p->state = TASK_UNINTERRUPTIBLE;
-	cpumask_set_cpu(cpu, &p->cpus_allowed);
+	cpumask_set_cpu(cpu, &p->cpus_mask);
 	INIT_LIST_HEAD(&p->tasks);
 	p->parent = p->real_parent = p->group_leader = p;
 	INIT_LIST_HEAD(&p->children);
@@ -1833,8 +1842,7 @@ format_mca_init_stack(void *mca_data, unsigned long offset,
 /* Caller prevents this from being called after init */
 static void * __ref mca_bootmem(void)
 {
-	return __alloc_bootmem(sizeof(struct ia64_mca_cpu),
-	                    KERNEL_STACK_SIZE, 0);
+	return memblock_alloc(sizeof(struct ia64_mca_cpu), KERNEL_STACK_SIZE);
 }
 
 /* Do per-CPU MCA-related initialization.  */
@@ -2096,7 +2104,7 @@ ia64_mca_late_init(void)
 		return 0;
 
 	/* Setup the CMCI/P vector and handler */
-	setup_timer(&cmc_poll_timer, ia64_mca_cmc_poll, 0UL);
+	timer_setup(&cmc_poll_timer, ia64_mca_cmc_poll, 0);
 
 	/* Unmask/enable the vector */
 	cmc_polling_enabled = 0;
@@ -2107,7 +2115,7 @@ ia64_mca_late_init(void)
 #ifdef CONFIG_ACPI
 	/* Setup the CPEI/P vector and handler */
 	cpe_vector = acpi_request_vector(ACPI_INTERRUPT_CPEI);
-	setup_timer(&cpe_poll_timer, ia64_mca_cpe_poll, 0UL);
+	timer_setup(&cpe_poll_timer, ia64_mca_cpe_poll, 0);
 
 	{
 		unsigned int irq;

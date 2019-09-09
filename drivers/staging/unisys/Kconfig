@@ -1,17 +1,14 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Unisys SPAR driver configuration
 #
 menuconfig UNISYSSPAR
 	bool "Unisys SPAR driver support"
-	depends on X86_64 && !UML
-	select PCI
-	select ACPI
-	---help---
-	Support for the Unisys SPAR drivers
+	help
+	  Support for the Unisys SPAR drivers
 
 if UNISYSSPAR
 
-source "drivers/staging/unisys/visorbus/Kconfig"
 source "drivers/staging/unisys/visornic/Kconfig"
 source "drivers/staging/unisys/visorinput/Kconfig"
 source "drivers/staging/unisys/visorhba/Kconfig"

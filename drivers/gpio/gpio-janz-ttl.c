@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Janz MODULbus VMOD-TTL GPIO Driver
  *
  * Copyright (c) 2010 Ira W. Snyder <iws@ovro.caltech.edu>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -16,8 +12,9 @@
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/slab.h>
+#include <linux/bitops.h>
 
 #include <linux/mfd/janz.h>
 
@@ -33,9 +30,9 @@
 #define MASTER_INT_CTL		0x00
 #define MASTER_CONF_CTL		0x01
 
-#define CONF_PAE		(1 << 2)
-#define CONF_PBE		(1 << 7)
-#define CONF_PCE		(1 << 4)
+#define CONF_PAE		BIT(2)
+#define CONF_PBE		BIT(7)
+#define CONF_PCE		BIT(4)
 
 struct ttl_control_regs {
 	__be16 portc;
@@ -74,7 +71,7 @@ static int ttl_get_value(struct gpio_chip *gpio, unsigned offset)
 	}
 
 	spin_lock(&mod->lock);
-	ret = *shadow & (1 << offset);
+	ret = *shadow & BIT(offset);
 	spin_unlock(&mod->lock);
 	return !!ret;
 }
@@ -100,9 +97,9 @@ static void ttl_set_value(struct gpio_chip *gpio, unsigned offset, int value)
 
 	spin_lock(&mod->lock);
 	if (value)
-		*shadow |= (1 << offset);
+		*shadow |= BIT(offset);
 	else
-		*shadow &= ~(1 << offset);
+		*shadow &= ~BIT(offset);
 
 	iowrite16be(*shadow, port);
 	spin_unlock(&mod->lock);
@@ -143,19 +140,17 @@ static void ttl_setup_device(struct ttl_module *mod)
 static int ttl_probe(struct platform_device *pdev)
 {
 	struct janz_platform_data *pdata;
-	struct device *dev = &pdev->dev;
 	struct ttl_module *mod;
 	struct gpio_chip *gpio;
-	struct resource *res;
 	int ret;
 
 	pdata = dev_get_platdata(&pdev->dev);
 	if (!pdata) {
-		dev_err(dev, "no platform data\n");
+		dev_err(&pdev->dev, "no platform data\n");
 		return -ENXIO;
 	}
 
-	mod = devm_kzalloc(dev, sizeof(*mod), GFP_KERNEL);
+	mod = devm_kzalloc(&pdev->dev, sizeof(*mod), GFP_KERNEL);
 	if (!mod)
 		return -ENOMEM;
 
@@ -163,8 +158,7 @@ static int ttl_probe(struct platform_device *pdev)
 	spin_lock_init(&mod->lock);
 
 	/* get access to the MODULbus registers for this module */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	mod->regs = devm_ioremap_resource(dev, res);
+	mod->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(mod->regs))
 		return PTR_ERR(mod->regs);
 
@@ -182,9 +176,9 @@ static int ttl_probe(struct platform_device *pdev)
 	gpio->base = -1;
 	gpio->ngpio = 20;
 
-	ret = devm_gpiochip_add_data(dev, gpio, NULL);
+	ret = devm_gpiochip_add_data(&pdev->dev, gpio, NULL);
 	if (ret) {
-		dev_err(dev, "unable to add GPIO chip\n");
+		dev_err(&pdev->dev, "unable to add GPIO chip\n");
 		return ret;
 	}
 

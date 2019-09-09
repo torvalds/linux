@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2011 NXP Semiconductors
  *
@@ -9,12 +10,6 @@
  * Anton Protopopov, Emcraft Systems, antonp@emcraft.com
  *
  * Copyright (C) 2015 Joachim Eastwood <manabian@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
  */
 
 #include <linux/clk.h>
@@ -457,8 +452,7 @@ static int i2c_lpc2k_remove(struct platform_device *dev)
 #ifdef CONFIG_PM
 static int i2c_lpc2k_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct lpc2k_i2c *i2c = platform_get_drvdata(pdev);
+	struct lpc2k_i2c *i2c = dev_get_drvdata(dev);
 
 	clk_disable(i2c->clk);
 
@@ -467,8 +461,7 @@ static int i2c_lpc2k_suspend(struct device *dev)
 
 static int i2c_lpc2k_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct lpc2k_i2c *i2c = platform_get_drvdata(pdev);
+	struct lpc2k_i2c *i2c = dev_get_drvdata(dev);
 
 	clk_enable(i2c->clk);
 	i2c_lpc2k_reset(i2c);

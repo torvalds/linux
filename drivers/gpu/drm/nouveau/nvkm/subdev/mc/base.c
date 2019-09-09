@@ -108,6 +108,9 @@ nvkm_mc_intr(struct nvkm_device *device, bool *handled)
 	if (stat)
 		nvkm_error(&mc->subdev, "intr %08x\n", stat);
 	*handled = intr != 0;
+
+	if (mc->func->intr_hack)
+		mc->func->intr_hack(mc, handled);
 }
 
 static u32
@@ -160,6 +163,16 @@ nvkm_mc_enable(struct nvkm_device *device, enum nvkm_devidx devidx)
 		nvkm_rd32(device, 0x000200);
 	}
 }
+
+bool
+nvkm_mc_enabled(struct nvkm_device *device, enum nvkm_devidx devidx)
+{
+	u64 pmc_enable = nvkm_mc_reset_mask(device, false, devidx);
+
+	return (pmc_enable != 0) &&
+	       ((nvkm_rd32(device, 0x000200) & pmc_enable) == pmc_enable);
+}
+
 
 static int
 nvkm_mc_fini(struct nvkm_subdev *subdev, bool suspend)

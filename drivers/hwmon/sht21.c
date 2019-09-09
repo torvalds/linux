@@ -1,23 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* Sensirion SHT21 humidity and temperature sensor driver
  *
  * Copyright (C) 2010 Urs Fleisch <urs.fleisch@sensirion.com>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA
- *
- * Data sheet available (5/2010) at
- * http://www.sensirion.com/en/pdf/product_information/Datasheet-humidity-sensor-SHT21.pdf
+ * Data sheet available at http://www.sensirion.com/file/datasheet_sht21
  */
 
 #include <linux/module.h>
@@ -34,23 +20,29 @@
 /* I2C command bytes */
 #define SHT21_TRIG_T_MEASUREMENT_HM  0xe3
 #define SHT21_TRIG_RH_MEASUREMENT_HM 0xe5
+#define SHT21_READ_SNB_CMD1 0xFA
+#define SHT21_READ_SNB_CMD2 0x0F
+#define SHT21_READ_SNAC_CMD1 0xFC
+#define SHT21_READ_SNAC_CMD2 0xC9
 
 /**
  * struct sht21 - SHT21 device specific data
- * @hwmon_dev: device registered with hwmon
+ * @client: I2C client device
  * @lock: mutex to protect measurement values
- * @valid: only 0 before first measurement is taken
  * @last_update: time of last update (jiffies)
  * @temperature: cached temperature measurement value
  * @humidity: cached humidity measurement value
+ * @valid: only 0 before first measurement is taken
+ * @eic: cached electronic identification code text
  */
 struct sht21 {
 	struct i2c_client *client;
 	struct mutex lock;
-	char valid;
 	unsigned long last_update;
 	int temperature;
 	int humidity;
+	char valid;
+	char eic[18];
 };
 
 /**
@@ -130,9 +122,9 @@ out:
  * Will be called on read access to temp1_input sysfs attribute.
  * Returns number of bytes written into buffer, negative errno on error.
  */
-static ssize_t sht21_show_temperature(struct device *dev,
-	struct device_attribute *attr,
-	char *buf)
+static ssize_t sht21_temperature_show(struct device *dev,
+				      struct device_attribute *attr,
+				      char *buf)
 {
 	struct sht21 *sht21 = dev_get_drvdata(dev);
 	int ret;
@@ -152,9 +144,8 @@ static ssize_t sht21_show_temperature(struct device *dev,
  * Will be called on read access to humidity1_input sysfs attribute.
  * Returns number of bytes written into buffer, negative errno on error.
  */
-static ssize_t sht21_show_humidity(struct device *dev,
-	struct device_attribute *attr,
-	char *buf)
+static ssize_t sht21_humidity_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
 {
 	struct sht21 *sht21 = dev_get_drvdata(dev);
 	int ret;
@@ -165,15 +156,95 @@ static ssize_t sht21_show_humidity(struct device *dev,
 	return sprintf(buf, "%d\n", sht21->humidity);
 }
 
+static ssize_t eic_read(struct sht21 *sht21)
+{
+	struct i2c_client *client = sht21->client;
+	u8 tx[2];
+	u8 rx[8];
+	u8 eic[8];
+	struct i2c_msg msgs[2] = {
+		{
+			.addr = client->addr,
+			.flags = 0,
+			.len = 2,
+			.buf = tx,
+		},
+		{
+			.addr = client->addr,
+			.flags = I2C_M_RD,
+			.len = 8,
+			.buf = rx,
+		},
+	};
+	int ret;
+
+	tx[0] = SHT21_READ_SNB_CMD1;
+	tx[1] = SHT21_READ_SNB_CMD2;
+	ret = i2c_transfer(client->adapter, msgs, 2);
+	if (ret < 0)
+		goto out;
+	eic[2] = rx[0];
+	eic[3] = rx[2];
+	eic[4] = rx[4];
+	eic[5] = rx[6];
+
+	tx[0] = SHT21_READ_SNAC_CMD1;
+	tx[1] = SHT21_READ_SNAC_CMD2;
+	msgs[1].len = 6;
+	ret = i2c_transfer(client->adapter, msgs, 2);
+	if (ret < 0)
+		goto out;
+	eic[0] = rx[3];
+	eic[1] = rx[4];
+	eic[6] = rx[0];
+	eic[7] = rx[1];
+
+	ret = snprintf(sht21->eic, sizeof(sht21->eic),
+		       "%02x%02x%02x%02x%02x%02x%02x%02x\n",
+		       eic[0], eic[1], eic[2], eic[3],
+		       eic[4], eic[5], eic[6], eic[7]);
+out:
+	if (ret < 0)
+		sht21->eic[0] = 0;
+
+	return ret;
+}
+
+/**
+ * eic_show() - show Electronic Identification Code in sysfs
+ * @dev: device
+ * @attr: device attribute
+ * @buf: sysfs buffer (PAGE_SIZE) where EIC is written
+ *
+ * Will be called on read access to eic sysfs attribute.
+ * Returns number of bytes written into buffer, negative errno on error.
+ */
+static ssize_t eic_show(struct device *dev,
+	struct device_attribute *attr,
+	char *buf)
+{
+	struct sht21 *sht21 = dev_get_drvdata(dev);
+	int ret;
+
+	ret = sizeof(sht21->eic) - 1;
+	mutex_lock(&sht21->lock);
+	if (!sht21->eic[0])
+		ret = eic_read(sht21);
+	if (ret > 0)
+		memcpy(buf, sht21->eic, ret);
+	mutex_unlock(&sht21->lock);
+	return ret;
+}
+
 /* sysfs attributes */
-static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, sht21_show_temperature,
-	NULL, 0);
-static SENSOR_DEVICE_ATTR(humidity1_input, S_IRUGO, sht21_show_humidity,
-	NULL, 0);
+static SENSOR_DEVICE_ATTR_RO(temp1_input, sht21_temperature, 0);
+static SENSOR_DEVICE_ATTR_RO(humidity1_input, sht21_humidity, 0);
+static DEVICE_ATTR_RO(eic);
 
 static struct attribute *sht21_attrs[] = {
 	&sensor_dev_attr_temp1_input.dev_attr.attr,
 	&sensor_dev_attr_humidity1_input.dev_attr.attr,
+	&dev_attr_eic.attr,
 	NULL
 };
 

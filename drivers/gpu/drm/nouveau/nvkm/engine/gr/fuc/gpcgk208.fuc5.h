@@ -1,4 +1,5 @@
-uint32_t gk208_grgpc_data[] = {
+/* SPDX-License-Identifier: MIT */
+static uint32_t gk208_grgpc_data[] = {
 /* 0x0000: gpc_mmio_list_head */
 	0x0000006c,
 /* 0x0004: gpc_mmio_list_tail */
@@ -40,7 +41,7 @@ uint32_t gk208_grgpc_data[] = {
 	0x00000000,
 };
 
-uint32_t gk208_grgpc_code[] = {
+static uint32_t gk208_grgpc_code[] = {
 	0x03140ef5,
 /* 0x0004: queue_put */
 	0x9800d898,

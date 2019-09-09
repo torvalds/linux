@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* U3copy_to_user.S: UltraSparc-III optimized copy to userspace.
  *
  * Copyright (C) 1999, 2000, 2004 David S. Miller (davem@redhat.com)
@@ -31,7 +32,7 @@
 #define PREAMBLE					\
 	rd		%asi, %g1;			\
 	cmp		%g1, ASI_AIUS;			\
-	bne,pn		%icc, ___copy_in_user;		\
+	bne,pn		%icc, raw_copy_in_user;		\
 	 nop;						\
 
 #include "U3memcpy.S"

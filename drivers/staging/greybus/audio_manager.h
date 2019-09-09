@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Greybus operations
  *
  * Copyright 2015-2016 Google Inc.
- *
- * Released under the GPLv2 only.
  */
 
 #ifndef _GB_AUDIO_MANAGER_H_
@@ -18,10 +17,9 @@
 
 struct gb_audio_manager_module_descriptor {
 	char name[GB_AUDIO_MANAGER_MODULE_NAME_LEN];
-	int slot;
 	int vid;
 	int pid;
-	int cport;
+	int intf_id;
 	unsigned int ip_devices;
 	unsigned int op_devices;
 };

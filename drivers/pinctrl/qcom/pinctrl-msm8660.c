@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2015, Sony Mobile Communications AB.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/module.h>
@@ -193,9 +185,9 @@ static const struct pinctrl_pin_desc msm8660_pins[] = {
 	PINCTRL_PIN(171, "GPIO_171"),
 	PINCTRL_PIN(172, "GPIO_172"),
 
-	PINCTRL_PIN(173, "SDC1_CLK"),
-	PINCTRL_PIN(174, "SDC1_CMD"),
-	PINCTRL_PIN(175, "SDC1_DATA"),
+	PINCTRL_PIN(173, "SDC4_CLK"),
+	PINCTRL_PIN(174, "SDC4_CMD"),
+	PINCTRL_PIN(175, "SDC4_DATA"),
 	PINCTRL_PIN(176, "SDC3_CLK"),
 	PINCTRL_PIN(177, "SDC3_CMD"),
 	PINCTRL_PIN(178, "SDC3_DATA"),

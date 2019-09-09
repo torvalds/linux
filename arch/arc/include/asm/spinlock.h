@@ -1,9 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef __ASM_SPINLOCK_H
@@ -14,20 +11,12 @@
 #include <asm/barrier.h>
 
 #define arch_spin_is_locked(x)	((x)->slock != __ARCH_SPIN_LOCK_UNLOCKED__)
-#define arch_spin_lock_flags(lock, flags)	arch_spin_lock(lock)
-
-static inline void arch_spin_unlock_wait(arch_spinlock_t *lock)
-{
-	smp_cond_load_acquire(&lock->slock, !VAL);
-}
 
 #ifdef CONFIG_ARC_HAS_LLSC
 
 static inline void arch_spin_lock(arch_spinlock_t *lock)
 {
 	unsigned int val;
-
-	smp_mb();
 
 	__asm__ __volatile__(
 	"1:	llock	%[val], [%[slock]]	\n"
@@ -40,6 +29,14 @@ static inline void arch_spin_lock(arch_spinlock_t *lock)
 	  [LOCKED]	"r"	(__ARCH_SPIN_LOCK_LOCKED__)
 	: "memory", "cc");
 
+	/*
+	 * ACQUIRE barrier to ensure load/store after taking the lock
+	 * don't "bleed-up" out of the critical section (leak-in is allowed)
+	 * http://www.spinics.net/lists/kernel/msg2010409.html
+	 *
+	 * ARCv2 only has load-load, store-store and all-all barrier
+	 * thus need the full all-all barrier
+	 */
 	smp_mb();
 }
 
@@ -47,8 +44,6 @@ static inline void arch_spin_lock(arch_spinlock_t *lock)
 static inline int arch_spin_trylock(arch_spinlock_t *lock)
 {
 	unsigned int val, got_it = 0;
-
-	smp_mb();
 
 	__asm__ __volatile__(
 	"1:	llock	%[val], [%[slock]]	\n"
@@ -73,9 +68,7 @@ static inline void arch_spin_unlock(arch_spinlock_t *lock)
 {
 	smp_mb();
 
-	lock->slock = __ARCH_SPIN_LOCK_UNLOCKED__;
-
-	smp_mb();
+	WRITE_ONCE(lock->slock, __ARCH_SPIN_LOCK_UNLOCKED__);
 }
 
 /*
@@ -86,8 +79,6 @@ static inline void arch_spin_unlock(arch_spinlock_t *lock)
 static inline void arch_read_lock(arch_rwlock_t *rw)
 {
 	unsigned int val;
-
-	smp_mb();
 
 	/*
 	 * zero means writer holds the lock exclusively, deny Reader.
@@ -119,8 +110,6 @@ static inline int arch_read_trylock(arch_rwlock_t *rw)
 {
 	unsigned int val, got_it = 0;
 
-	smp_mb();
-
 	__asm__ __volatile__(
 	"1:	llock	%[val], [%[rwlock]]	\n"
 	"	brls	%[val], %[WR_LOCKED], 4f\n"	/* <= 0: already write locked, bail */
@@ -145,8 +134,6 @@ static inline int arch_read_trylock(arch_rwlock_t *rw)
 static inline void arch_write_lock(arch_rwlock_t *rw)
 {
 	unsigned int val;
-
-	smp_mb();
 
 	/*
 	 * If reader(s) hold lock (lock < __ARCH_RW_LOCK_UNLOCKED__),
@@ -180,8 +167,6 @@ static inline void arch_write_lock(arch_rwlock_t *rw)
 static inline int arch_write_trylock(arch_rwlock_t *rw)
 {
 	unsigned int val, got_it = 0;
-
-	smp_mb();
 
 	__asm__ __volatile__(
 	"1:	llock	%[val], [%[rwlock]]	\n"
@@ -223,17 +208,13 @@ static inline void arch_read_unlock(arch_rwlock_t *rw)
 	: [val]		"=&r"	(val)
 	: [rwlock]	"r"	(&(rw->counter))
 	: "memory", "cc");
-
-	smp_mb();
 }
 
 static inline void arch_write_unlock(arch_rwlock_t *rw)
 {
 	smp_mb();
 
-	rw->counter = __ARCH_RW_LOCK_UNLOCKED__;
-
-	smp_mb();
+	WRITE_ONCE(rw->counter, __ARCH_RW_LOCK_UNLOCKED__);
 }
 
 #else	/* !CONFIG_ARC_HAS_LLSC */
@@ -243,28 +224,25 @@ static inline void arch_spin_lock(arch_spinlock_t *lock)
 	unsigned int val = __ARCH_SPIN_LOCK_LOCKED__;
 
 	/*
-	 * This smp_mb() is technically superfluous, we only need the one
-	 * after the lock for providing the ACQUIRE semantics.
-	 * However doing the "right" thing was regressing hackbench
-	 * so keeping this, pending further investigation
+	 * Per lkmm, smp_mb() is only required after _lock (and before_unlock)
+	 * for ACQ and REL semantics respectively. However EX based spinlocks
+	 * need the extra smp_mb to workaround a hardware quirk.
 	 */
 	smp_mb();
 
 	__asm__ __volatile__(
 	"1:	ex  %0, [%1]		\n"
+#ifdef CONFIG_EZNPS_MTM_EXT
+	"	.word %3		\n"
+#endif
 	"	breq  %0, %2, 1b	\n"
 	: "+&r" (val)
 	: "r"(&(lock->slock)), "ir"(__ARCH_SPIN_LOCK_LOCKED__)
+#ifdef CONFIG_EZNPS_MTM_EXT
+	, "i"(CTOP_INST_SCHD_RW)
+#endif
 	: "memory");
 
-	/*
-	 * ACQUIRE barrier to ensure load/store after taking the lock
-	 * don't "bleed-up" out of the critical section (leak-in is allowed)
-	 * http://www.spinics.net/lists/kernel/msg2010409.html
-	 *
-	 * ARCv2 only has load-load, store-store and all-all barrier
-	 * thus need the full all-all barrier
-	 */
 	smp_mb();
 }
 
@@ -296,6 +274,12 @@ static inline void arch_spin_unlock(arch_spinlock_t *lock)
 	 */
 	smp_mb();
 
+	/*
+	 * EX is not really required here, a simple STore of 0 suffices.
+	 * However this causes tasklist livelocks in SystemC based SMP virtual
+	 * platforms where the systemc core scheduler uses EX as a cue for
+	 * moving to next core. Do a git log of this file for details
+	 */
 	__asm__ __volatile__(
 	"	ex  %0, [%1]		\n"
 	: "+r" (val)
@@ -303,8 +287,7 @@ static inline void arch_spin_unlock(arch_spinlock_t *lock)
 	: "memory");
 
 	/*
-	 * superfluous, but keeping for now - see pairing version in
-	 * arch_spin_lock above
+	 * see pairing version/comment in arch_spin_lock above
 	 */
 	smp_mb();
 }
@@ -338,7 +321,6 @@ static inline int arch_read_trylock(arch_rwlock_t *rw)
 	arch_spin_unlock(&(rw->lock_mutex));
 	local_irq_restore(flags);
 
-	smp_mb();
 	return ret;
 }
 
@@ -402,15 +384,5 @@ static inline void arch_write_unlock(arch_rwlock_t *rw)
 }
 
 #endif
-
-#define arch_read_can_lock(x)	((x)->counter > 0)
-#define arch_write_can_lock(x)	((x)->counter == __ARCH_RW_LOCK_UNLOCKED__)
-
-#define arch_read_lock_flags(lock, flags)	arch_read_lock(lock)
-#define arch_write_lock_flags(lock, flags)	arch_write_lock(lock)
-
-#define arch_spin_relax(lock)	cpu_relax()
-#define arch_read_relax(lock)	cpu_relax()
-#define arch_write_relax(lock)	cpu_relax()
 
 #endif /* __ASM_SPINLOCK_H */

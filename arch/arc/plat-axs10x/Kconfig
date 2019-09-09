@@ -1,9 +1,6 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Copyright (C) 2013-15 Synopsys, Inc. (www.synopsys.com)
-#
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation.
 #
 
 menuconfig ARC_PLAT_AXS10X
@@ -11,9 +8,11 @@ menuconfig ARC_PLAT_AXS10X
 	select DW_APB_ICTL
 	select GPIO_DWAPB
 	select OF_GPIO
-	select MIGHT_HAVE_PCI
+	select HAVE_PCI
 	select GENERIC_IRQ_CHIP
 	select GPIOLIB
+	select AXS101 if ISA_ARCOMPACT
+	select AXS103 if ISA_ARCV2
 	help
 	  Support for the ARC AXS10x Software Development Platforms.
 

@@ -1,21 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
     saa7115.h - definition for saa7111/3/4/5 inputs and frequency flags
 
     Copyright (C) 2006 Hans Verkuil (hverkuil@xs4all.nl)
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
 #ifndef _SAA7115_H_
@@ -36,15 +24,15 @@
 #define SAA7115_SVIDEO3    9
 
 /* outputs */
-#define SAA7115_IPORT_ON    	1
-#define SAA7115_IPORT_OFF   	0
+#define SAA7115_IPORT_ON	1
+#define SAA7115_IPORT_OFF	0
 
 /* SAA7111 specific outputs. */
-#define SAA7111_VBI_BYPASS 	2
+#define SAA7111_VBI_BYPASS	2
 #define SAA7111_FMT_YUV422      0x00
-#define SAA7111_FMT_RGB 	0x40
-#define SAA7111_FMT_CCIR 	0x80
-#define SAA7111_FMT_YUV411 	0xc0
+#define SAA7111_FMT_RGB		0x40
+#define SAA7111_FMT_CCIR	0x80
+#define SAA7111_FMT_YUV411	0xc0
 
 /* config flags */
 /*

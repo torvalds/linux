@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * SPCA508 chip based cameras subdriver
  *
  * Copyright (C) 2009 Jean-Francois Moine <http://moinejf.free.fr>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -1251,8 +1238,8 @@ static int reg_write(struct gspca_dev *gspca_dev, u16 index, u16 value)
 			0,		/* request */
 			USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			value, index, NULL, 0, 500);
-	PDEBUG(D_USBO, "reg write i:0x%04x = 0x%02x",
-		index, value);
+	gspca_dbg(gspca_dev, D_USBO, "reg write i:0x%04x = 0x%02x\n",
+		  index, value);
 	if (ret < 0)
 		pr_err("reg write: error %d\n", ret);
 	return ret;
@@ -1273,8 +1260,8 @@ static int reg_read(struct gspca_dev *gspca_dev,
 			index,
 			gspca_dev->usb_buf, 1,
 			500);			/* timeout */
-	PDEBUG(D_USBI, "reg read i:%04x --> %02x",
-		index, gspca_dev->usb_buf[0]);
+	gspca_dbg(gspca_dev, D_USBI, "reg read i:%04x --> %02x\n",
+		  index, gspca_dev->usb_buf[0]);
 	if (ret < 0) {
 		pr_err("reg_read err %d\n", ret);
 		return ret;
@@ -1313,7 +1300,8 @@ static int ssi_w(struct gspca_dev *gspca_dev,
 		if (gspca_dev->usb_buf[0] == 0)
 			break;
 		if (--retry <= 0) {
-			PERR("ssi_w busy %02x", gspca_dev->usb_buf[0]);
+			gspca_err(gspca_dev, "ssi_w busy %02x\n",
+				  gspca_dev->usb_buf[0]);
 			ret = -1;
 			break;
 		}
@@ -1369,14 +1357,17 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	 * is a 508. */
 	data1 = reg_read(gspca_dev, 0x8104);
 	data2 = reg_read(gspca_dev, 0x8105);
-	PDEBUG(D_PROBE, "Webcam Vendor ID: 0x%02x%02x", data2, data1);
+	gspca_dbg(gspca_dev, D_PROBE, "Webcam Vendor ID: 0x%02x%02x\n",
+		  data2, data1);
 
 	data1 = reg_read(gspca_dev, 0x8106);
 	data2 = reg_read(gspca_dev, 0x8107);
-	PDEBUG(D_PROBE, "Webcam Product ID: 0x%02x%02x", data2, data1);
+	gspca_dbg(gspca_dev, D_PROBE, "Webcam Product ID: 0x%02x%02x\n",
+		  data2, data1);
 
 	data1 = reg_read(gspca_dev, 0x8621);
-	PDEBUG(D_PROBE, "Window 1 average luminance: %d", data1);
+	gspca_dbg(gspca_dev, D_PROBE, "Window 1 average luminance: %d\n",
+		  data1);
 
 	cam = &gspca_dev->cam;
 	cam->cam_mode = sif_mode;

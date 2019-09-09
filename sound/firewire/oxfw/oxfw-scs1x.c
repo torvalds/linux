@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * oxfw-scs1x.c - a part of driver for OXFW970/971 based devices
  *
  * Copyright (c) Clemens Ladisch <clemens@ladisch.de>
  * Copyright (c) 2015 Takashi Sakamoto <o-takashi@sakamocchi.jp>
- *
- * Licensed under the terms of the GNU General Public License, version 2.
  */
 
 #include "oxfw.h"
@@ -112,7 +111,7 @@ static void handle_hss(struct fw_card *card, struct fw_request *request,
 	}
 
 	if (length >= 1) {
-		stream = ACCESS_ONCE(scs->input);
+		stream = READ_ONCE(scs->input);
 		if (stream)
 			midi_input_packet(scs, stream, data, length);
 	}
@@ -183,7 +182,7 @@ static void scs_output_work(struct work_struct *work)
 	if (scs->transaction_running)
 		return;
 
-	stream = ACCESS_ONCE(scs->output);
+	stream = READ_ONCE(scs->output);
 	if (!stream || scs->error) {
 		scs->output_idle = true;
 		wake_up(&scs->idle_wait);
@@ -291,17 +290,11 @@ static void midi_capture_trigger(struct snd_rawmidi_substream *stream, int up)
 
 	if (up) {
 		scs->input_escape_count = 0;
-		ACCESS_ONCE(scs->input) = stream;
+		WRITE_ONCE(scs->input, stream);
 	} else {
-		ACCESS_ONCE(scs->input) = NULL;
+		WRITE_ONCE(scs->input, NULL);
 	}
 }
-
-static struct snd_rawmidi_ops midi_capture_ops = {
-	.open    = midi_capture_open,
-	.close   = midi_capture_close,
-	.trigger = midi_capture_trigger,
-};
 
 static int midi_playback_open(struct snd_rawmidi_substream *stream)
 {
@@ -325,10 +318,10 @@ static void midi_playback_trigger(struct snd_rawmidi_substream *stream, int up)
 		scs->transaction_bytes = 0;
 		scs->error = false;
 
-		ACCESS_ONCE(scs->output) = stream;
+		WRITE_ONCE(scs->output, stream);
 		schedule_work(&scs->work);
 	} else {
-		ACCESS_ONCE(scs->output) = NULL;
+		WRITE_ONCE(scs->output, NULL);
 	}
 }
 static void midi_playback_drain(struct snd_rawmidi_substream *stream)
@@ -338,12 +331,6 @@ static void midi_playback_drain(struct snd_rawmidi_substream *stream)
 	wait_event(scs->idle_wait, scs->output_idle);
 }
 
-static struct snd_rawmidi_ops midi_playback_ops = {
-	.open    = midi_playback_open,
-	.close   = midi_playback_close,
-	.trigger = midi_playback_trigger,
-	.drain   = midi_playback_drain,
-};
 static int register_address(struct snd_oxfw *oxfw)
 {
 	struct fw_scs1x *scs = oxfw->spec;
@@ -369,12 +356,24 @@ void snd_oxfw_scs1x_update(struct snd_oxfw *oxfw)
 
 int snd_oxfw_scs1x_add(struct snd_oxfw *oxfw)
 {
+	static const struct snd_rawmidi_ops midi_capture_ops = {
+		.open    = midi_capture_open,
+		.close   = midi_capture_close,
+		.trigger = midi_capture_trigger,
+	};
+	static const struct snd_rawmidi_ops midi_playback_ops = {
+		.open    = midi_playback_open,
+		.close   = midi_playback_close,
+		.trigger = midi_playback_trigger,
+		.drain   = midi_playback_drain,
+	};
 	struct snd_rawmidi *rmidi;
 	struct fw_scs1x *scs;
 	int err;
 
-	scs = kzalloc(sizeof(struct fw_scs1x), GFP_KERNEL);
-	if (scs == NULL)
+	scs = devm_kzalloc(&oxfw->card->card_dev, sizeof(struct fw_scs1x),
+			   GFP_KERNEL);
+	if (!scs)
 		return -ENOMEM;
 	scs->fw_dev = fw_parent_device(oxfw->unit);
 	oxfw->spec = scs;

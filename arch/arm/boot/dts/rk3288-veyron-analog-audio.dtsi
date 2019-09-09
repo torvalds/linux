@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Google Veyron (and derivatives) fragment for the  max98090 audio
  * codec and analog headphone jack.
  *
  * Copyright 2016 Google, Inc
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 / {
@@ -17,8 +14,8 @@
 		rockchip,model = "VEYRON-I2S";
 		rockchip,i2s-controller = <&i2s>;
 		rockchip,audio-codec = <&max98090>;
-		rockchip,hp-det-gpios = <&gpio6 5 GPIO_ACTIVE_HIGH>;
-		rockchip,mic-det-gpios = <&gpio6 11 GPIO_ACTIVE_LOW>;
+		rockchip,hp-det-gpios = <&gpio6 RK_PA5 GPIO_ACTIVE_HIGH>;
+		rockchip,mic-det-gpios = <&gpio6 RK_PB3 GPIO_ACTIVE_LOW>;
 		rockchip,headset-codec = <&headsetcodec>;
 	};
 };
@@ -28,7 +25,7 @@
 		compatible = "maxim,max98090";
 		reg = <0x10>;
 		interrupt-parent = <&gpio6>;
-		interrupts = <7 IRQ_TYPE_EDGE_FALLING>;
+		interrupts = <RK_PA7 IRQ_TYPE_EDGE_FALLING>;
 		clock-names = "mclk";
 		clocks = <&cru SCLK_I2S0_OUT>;
 		pinctrl-names = "default";
@@ -41,7 +38,7 @@
 		compatible = "ti,ts3a227e";
 		reg = <0x3b>;
 		interrupt-parent = <&gpio0>;
-		interrupts = <3 IRQ_TYPE_LEVEL_LOW>;
+		interrupts = <RK_PA3 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&ts3a227e_int_l>;
 		ti,micbias = <7>;		/* MICBIAS = 2.8V */
@@ -76,7 +73,7 @@
 &pinctrl {
 	codec {
 		hp_det: hp-det {
-			rockchip,pins = <6 5 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <6 RK_PA5 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 
 		/*
@@ -85,17 +82,17 @@
 		 * we've got a ts3a227e chip but the driver requires it.
 		 */
 		int_codec: int-codec {
-			rockchip,pins = <6 7 RK_FUNC_GPIO &pcfg_pull_down>;
+			rockchip,pins = <6 RK_PA7 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 
 		mic_det: mic-det {
-			rockchip,pins = <6 11 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <6 RK_PB3 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
 	headset {
 		ts3a227e_int_l: ts3a227e-int-l {
-			rockchip,pins = <0 3 RK_FUNC_GPIO &pcfg_pull_up>;
+			rockchip,pins = <0 RK_PA3 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 };

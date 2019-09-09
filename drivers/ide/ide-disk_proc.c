@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/kernel.h>
 #include <linux/ide.h>
 #include <linux/slab.h>
@@ -51,19 +52,6 @@ static int idedisk_cache_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int idedisk_cache_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, idedisk_cache_proc_show, PDE_DATA(inode));
-}
-
-static const struct file_operations idedisk_cache_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= idedisk_cache_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 static int idedisk_capacity_proc_show(struct seq_file *m, void *v)
 {
 	ide_drive_t*drive = (ide_drive_t *)m->private;
@@ -71,19 +59,6 @@ static int idedisk_capacity_proc_show(struct seq_file *m, void *v)
 	seq_printf(m, "%llu\n", (long long)ide_gd_capacity(drive));
 	return 0;
 }
-
-static int idedisk_capacity_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, idedisk_capacity_proc_show, PDE_DATA(inode));
-}
-
-static const struct file_operations idedisk_capacity_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= idedisk_capacity_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
 
 static int __idedisk_proc_show(struct seq_file *m, ide_drive_t *drive, u8 sub_cmd)
 {
@@ -113,43 +88,17 @@ static int idedisk_sv_proc_show(struct seq_file *m, void *v)
 	return __idedisk_proc_show(m, m->private, ATA_SMART_READ_VALUES);
 }
 
-static int idedisk_sv_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, idedisk_sv_proc_show, PDE_DATA(inode));
-}
-
-static const struct file_operations idedisk_sv_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= idedisk_sv_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 static int idedisk_st_proc_show(struct seq_file *m, void *v)
 {
 	return __idedisk_proc_show(m, m->private, ATA_SMART_READ_THRESHOLDS);
 }
 
-static int idedisk_st_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, idedisk_st_proc_show, PDE_DATA(inode));
-}
-
-static const struct file_operations idedisk_st_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= idedisk_st_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 ide_proc_entry_t ide_disk_proc[] = {
-	{ "cache",	  S_IFREG|S_IRUGO, &idedisk_cache_proc_fops	},
-	{ "capacity",	  S_IFREG|S_IRUGO, &idedisk_capacity_proc_fops	},
-	{ "geometry",	  S_IFREG|S_IRUGO, &ide_geometry_proc_fops	},
-	{ "smart_values", S_IFREG|S_IRUSR, &idedisk_sv_proc_fops	},
-	{ "smart_thresholds", S_IFREG|S_IRUSR, &idedisk_st_proc_fops	},
+	{ "cache",	  S_IFREG|S_IRUGO, idedisk_cache_proc_show	},
+	{ "capacity",	  S_IFREG|S_IRUGO, idedisk_capacity_proc_show	},
+	{ "geometry",	  S_IFREG|S_IRUGO, ide_geometry_proc_show	},
+	{ "smart_values", S_IFREG|S_IRUSR, idedisk_sv_proc_show		},
+	{ "smart_thresholds", S_IFREG|S_IRUSR, idedisk_st_proc_show	},
 	{}
 };
 

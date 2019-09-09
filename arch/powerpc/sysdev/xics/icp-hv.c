@@ -1,11 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2011 IBM Corporation.
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version
- *  2 of the License, or (at your option) any later version.
- *
  */
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -138,7 +133,7 @@ static void icp_hv_set_cpu_priority(unsigned char cppr)
 
 #ifdef CONFIG_SMP
 
-static void icp_hv_cause_ipi(int cpu, unsigned long data)
+static void icp_hv_cause_ipi(int cpu)
 {
 	icp_hv_set_qirr(cpu, IPI_PRIORITY);
 }

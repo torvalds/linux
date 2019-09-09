@@ -1,20 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * I2C Link Layer for Samsung S3FWRN5 NCI based Driver
  *
  * Copyright (C) 2015 Samsung Electrnoics
  * Robert Baldyga <r.baldyga@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2 or later, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/i2c.h>
@@ -157,7 +146,7 @@ static int s3fwrn5_i2c_read(struct s3fwrn5_i2c_phy *phy)
 	if (!skb)
 		return -ENOMEM;
 
-	memcpy(skb_put(skb, hdr_size), hdr, hdr_size);
+	skb_put_data(skb, hdr, hdr_size);
 
 	if (data_len == 0)
 		goto out;
@@ -276,7 +265,7 @@ static int s3fwrn5_i2c_remove(struct i2c_client *client)
 	return 0;
 }
 
-static struct i2c_device_id s3fwrn5_i2c_id_table[] = {
+static const struct i2c_device_id s3fwrn5_i2c_id_table[] = {
 	{S3FWRN5_I2C_DRIVER_NAME, 0},
 	{}
 };

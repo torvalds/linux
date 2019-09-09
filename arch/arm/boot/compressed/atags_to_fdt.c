@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <asm/setup.h>
 #include <libfdt.h>
 
@@ -97,6 +98,24 @@ static void merge_fdt_bootargs(void *fdt, const char *fdt_cmdline)
 	setprop_string(fdt, "/chosen", "bootargs", cmdline);
 }
 
+static void hex_str(char *out, uint32_t value)
+{
+	uint32_t digit;
+	int idx;
+
+	for (idx = 7; idx >= 0; idx--) {
+		digit = value >> 28;
+		value <<= 4;
+		digit &= 0xf;
+		if (digit < 10)
+			digit += '0';
+		else
+			digit += 'A'-10;
+		*out++ = digit;
+	}
+	*out = '\0';
+}
+
 /*
  * Convert and fold provided ATAGs into the provided FDT.
  *
@@ -179,6 +198,11 @@ int atags_to_fdt(void *atag_list, void *fdt, int total_space)
 					initrd_start);
 			setprop_cell(fdt, "/chosen", "linux,initrd-end",
 					initrd_start + initrd_size);
+		} else if (atag->hdr.tag == ATAG_SERIAL) {
+			char serno[16+2];
+			hex_str(serno, atag->u.serialnr.high);
+			hex_str(serno+8, atag->u.serialnr.low);
+			setprop_string(fdt, "/", "serial-number", serno);
 		}
 	}
 

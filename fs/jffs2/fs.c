@@ -15,6 +15,7 @@
 #include <linux/capability.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/cred.h>
 #include <linux/fs.h>
 #include <linux/list.h>
 #include <linux/mtd/mtd.h>
@@ -339,6 +340,7 @@ struct inode *jffs2_iget(struct super_block *sb, unsigned long ino)
 			rdev = old_decode_dev(je16_to_cpu(jdev.old_id));
 		else
 			rdev = new_decode_dev(je32_to_cpu(jdev.new_id));
+		/* fall through */
 
 	case S_IFSOCK:
 	case S_IFIFO:
@@ -361,7 +363,6 @@ error_io:
 	ret = -EIO;
 error:
 	mutex_unlock(&f->sem);
-	jffs2_do_clear_inode(c, f);
 	iget_failed(inode);
 	return ERR_PTR(ret);
 }
@@ -394,24 +395,24 @@ int jffs2_do_remount_fs(struct super_block *sb, int *flags, char *data)
 {
 	struct jffs2_sb_info *c = JFFS2_SB_INFO(sb);
 
-	if (c->flags & JFFS2_SB_FLAG_RO && !(sb->s_flags & MS_RDONLY))
+	if (c->flags & JFFS2_SB_FLAG_RO && !sb_rdonly(sb))
 		return -EROFS;
 
 	/* We stop if it was running, then restart if it needs to.
 	   This also catches the case where it was stopped and this
 	   is just a remount to restart it.
 	   Flush the writebuffer, if neccecary, else we loose it */
-	if (!(sb->s_flags & MS_RDONLY)) {
+	if (!sb_rdonly(sb)) {
 		jffs2_stop_garbage_collect_thread(c);
 		mutex_lock(&c->alloc_sem);
 		jffs2_flush_wbuf_pad(c);
 		mutex_unlock(&c->alloc_sem);
 	}
 
-	if (!(*flags & MS_RDONLY))
+	if (!(*flags & SB_RDONLY))
 		jffs2_start_garbage_collect_thread(c);
 
-	*flags |= MS_NOATIME;
+	*flags |= SB_NOATIME;
 	return 0;
 }
 
@@ -589,7 +590,7 @@ int jffs2_do_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_blocksize = PAGE_SIZE;
 	sb->s_blocksize_bits = PAGE_SHIFT;
 	sb->s_magic = JFFS2_SUPER_MAGIC;
-	if (!(sb->s_flags & MS_RDONLY))
+	if (!sb_rdonly(sb))
 		jffs2_start_garbage_collect_thread(c);
 	return 0;
 
@@ -686,7 +687,7 @@ unsigned char *jffs2_gc_fetch_page(struct jffs2_sb_info *c,
 	struct page *pg;
 
 	pg = read_cache_page(inode->i_mapping, offset >> PAGE_SHIFT,
-			     (void *)jffs2_do_readpage_unlock, inode);
+			     jffs2_do_readpage_unlock, inode);
 	if (IS_ERR(pg))
 		return (void *)pg;
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Pioctl operations for Coda.
  * Original version: (C) 1996 Peter Braam
@@ -19,8 +20,7 @@
 #include <linux/uaccess.h>
 
 #include <linux/coda.h>
-#include <linux/coda_psdev.h>
-
+#include "coda_psdev.h"
 #include "coda_linux.h"
 
 /* pioctl ops */

@@ -1,14 +1,9 @@
-/* real-audio-220-32-keys.h - Keytable for real_audio_220_32_keys Remote Controller
- *
- * keymap imported from ir-keymaps.c
- *
- * Copyright (c) 2010 by Mauro Carvalho Chehab
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- */
+// SPDX-License-Identifier: GPL-2.0+
+// real-audio-220-32-keys.h - Keytable for real_audio_220_32_keys Remote Controller
+//
+// keymap imported from ir-keymaps.c
+//
+// Copyright (c) 2010 by Mauro Carvalho Chehab
 
 #include <media/rc-map.h>
 #include <linux/module.h>
@@ -19,16 +14,16 @@ static struct rc_map_table real_audio_220_32_keys[] = {
 	{ 0x1c, KEY_RADIO},
 	{ 0x12, KEY_POWER2},
 
-	{ 0x01, KEY_1},
-	{ 0x02, KEY_2},
-	{ 0x03, KEY_3},
-	{ 0x04, KEY_4},
-	{ 0x05, KEY_5},
-	{ 0x06, KEY_6},
-	{ 0x07, KEY_7},
-	{ 0x08, KEY_8},
-	{ 0x09, KEY_9},
-	{ 0x00, KEY_0},
+	{ 0x01, KEY_NUMERIC_1},
+	{ 0x02, KEY_NUMERIC_2},
+	{ 0x03, KEY_NUMERIC_3},
+	{ 0x04, KEY_NUMERIC_4},
+	{ 0x05, KEY_NUMERIC_5},
+	{ 0x06, KEY_NUMERIC_6},
+	{ 0x07, KEY_NUMERIC_7},
+	{ 0x08, KEY_NUMERIC_8},
+	{ 0x09, KEY_NUMERIC_9},
+	{ 0x00, KEY_NUMERIC_0},
 
 	{ 0x0c, KEY_VOLUMEUP},
 	{ 0x18, KEY_VOLUMEDOWN},
@@ -55,10 +50,10 @@ static struct rc_map_table real_audio_220_32_keys[] = {
 
 static struct rc_map_list real_audio_220_32_keys_map = {
 	.map = {
-		.scan    = real_audio_220_32_keys,
-		.size    = ARRAY_SIZE(real_audio_220_32_keys),
-		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
-		.name    = RC_MAP_REAL_AUDIO_220_32_KEYS,
+		.scan     = real_audio_220_32_keys,
+		.size     = ARRAY_SIZE(real_audio_220_32_keys),
+		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.name     = RC_MAP_REAL_AUDIO_220_32_KEYS,
 	}
 };
 

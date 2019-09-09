@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Copyright (C) 2000-2002	   Michael Cornwell <cornwell@acm.org>
  *  Copyright (C) 2000-2002	   Andre Hedrick <andre@linux-ide.org>
@@ -19,6 +20,7 @@
 #include <linux/delay.h>
 #include <linux/hdreg.h>
 #include <linux/ide.h>
+#include <linux/nmi.h>
 #include <linux/scatterlist.h>
 #include <linux/uaccess.h>
 
@@ -127,7 +129,7 @@ ide_startstop_t do_rw_taskfile(ide_drive_t *drive, struct ide_cmd *orig_cmd)
 			return pre_task_out_intr(drive, cmd);
 		}
 		handler = task_pio_intr;
-		/* fall-through */
+		/* fall through */
 	case ATA_PROT_NODATA:
 		if (handler == NULL)
 			handler = task_no_data_intr;
@@ -139,6 +141,7 @@ ide_startstop_t do_rw_taskfile(ide_drive_t *drive, struct ide_cmd *orig_cmd)
 		hwif->expiry = dma_ops->dma_timer_expiry;
 		ide_execute_command(drive, cmd, ide_dma_intr, 2 * WAIT_CMD);
 		dma_ops->dma_start(drive);
+		/* fall through */
 	default:
 		return ide_started;
 	}
@@ -231,13 +234,11 @@ void ide_pio_bytes(ide_drive_t *drive, struct ide_cmd *cmd,
 	unsigned int offset;
 	u8 *buf;
 
-	cursg = cmd->cursg;
 	if (cursg == NULL)
 		cursg = cmd->cursg = sg;
 
 	while (len) {
 		unsigned nr_bytes = min(len, cursg->length - cmd->cursg_ofs);
-		int page_is_high;
 
 		page = sg_page(cursg);
 		offset = cursg->offset + cmd->cursg_ofs;
@@ -247,10 +248,6 @@ void ide_pio_bytes(ide_drive_t *drive, struct ide_cmd *cmd,
 		offset %= PAGE_SIZE;
 
 		nr_bytes = min_t(unsigned, nr_bytes, (PAGE_SIZE - offset));
-
-		page_is_high = PageHighMem(page);
-		if (page_is_high)
-			local_irq_save(flags);
 
 		buf = kmap_atomic(page) + offset;
 
@@ -270,9 +267,6 @@ void ide_pio_bytes(ide_drive_t *drive, struct ide_cmd *cmd,
 
 		kunmap_atomic(buf);
 
-		if (page_is_high)
-			local_irq_restore(flags);
-
 		len -= nr_bytes;
 	}
 }
@@ -286,7 +280,7 @@ static void ide_pio_datablock(ide_drive_t *drive, struct ide_cmd *cmd,
 	u8 saved_io_32bit = drive->io_32bit;
 
 	if (cmd->tf_flags & IDE_TFLAG_FS)
-		cmd->rq->errors = 0;
+		scsi_req(cmd->rq)->result = 0;
 
 	if (cmd->tf_flags & IDE_TFLAG_IO_16BIT)
 		drive->io_32bit = 0;
@@ -317,7 +311,7 @@ static void ide_error_cmd(ide_drive_t *drive, struct ide_cmd *cmd)
 		}
 
 		if (nr_bytes > 0)
-			ide_complete_rq(drive, 0, nr_bytes);
+			ide_complete_rq(drive, BLK_STS_OK, nr_bytes);
 	}
 }
 
@@ -328,14 +322,14 @@ void ide_finish_cmd(ide_drive_t *drive, struct ide_cmd *cmd, u8 stat)
 	u8 set_xfer = !!(cmd->tf_flags & IDE_TFLAG_SET_XFER);
 
 	ide_complete_cmd(drive, cmd, stat, err);
-	rq->errors = err;
+	scsi_req(rq)->result = err;
 
 	if (err == 0 && set_xfer) {
 		ide_set_xfer_rate(drive, nsect);
 		ide_driveid_update(drive);
 	}
 
-	ide_complete_rq(drive, err ? -EIO : 0, blk_rq_bytes(rq));
+	ide_complete_rq(drive, err ? BLK_STS_IOERR : BLK_STS_OK, blk_rq_bytes(rq));
 }
 
 /*
@@ -393,7 +387,7 @@ out_end:
 	if ((cmd->tf_flags & IDE_TFLAG_FS) == 0)
 		ide_finish_cmd(drive, cmd, stat);
 	else
-		ide_complete_rq(drive, 0, blk_rq_sectors(cmd->rq) << 9);
+		ide_complete_rq(drive, BLK_STS_OK, blk_rq_sectors(cmd->rq) << 9);
 	return ide_stopped;
 out_err:
 	ide_error_cmd(drive, cmd);
@@ -413,7 +407,7 @@ static ide_startstop_t pre_task_out_intr(ide_drive_t *drive,
 		return startstop;
 	}
 
-	if ((drive->dev_flags & IDE_DFLAG_UNMASK) == 0)
+	if (!force_irqthreads && (drive->dev_flags & IDE_DFLAG_UNMASK) == 0)
 		local_irq_disable();
 
 	ide_set_handler(drive, &task_pio_intr, WAIT_WORSTCASE);
@@ -428,10 +422,11 @@ int ide_raw_taskfile(ide_drive_t *drive, struct ide_cmd *cmd, u8 *buf,
 {
 	struct request *rq;
 	int error;
-	int rw = !(cmd->tf_flags & IDE_TFLAG_WRITE) ? READ : WRITE;
 
-	rq = blk_get_request(drive->queue, rw, __GFP_RECLAIM);
-	rq->cmd_type = REQ_TYPE_ATA_TASKFILE;
+	rq = blk_get_request(drive->queue,
+		(cmd->tf_flags & IDE_TFLAG_WRITE) ?
+			REQ_OP_DRV_OUT : REQ_OP_DRV_IN, 0);
+	ide_req(rq)->type = ATA_PRIV_TASKFILE;
 
 	/*
 	 * (ks) We transfer currently only whole sectors.
@@ -441,16 +436,16 @@ int ide_raw_taskfile(ide_drive_t *drive, struct ide_cmd *cmd, u8 *buf,
 	 */
 	if (nsect) {
 		error = blk_rq_map_kern(drive->queue, rq, buf,
-					nsect * SECTOR_SIZE, __GFP_RECLAIM);
+					nsect * SECTOR_SIZE, GFP_NOIO);
 		if (error)
 			goto put_req;
 	}
 
-	rq->special = cmd;
+	ide_req(rq)->special = cmd;
 	cmd->rq = rq;
 
-	error = blk_execute_rq(drive->queue, NULL, rq, 0);
-
+	blk_execute_rq(drive->queue, NULL, rq, 0);
+	error = scsi_req(rq)->result ? -EIO : 0;
 put_req:
 	blk_put_request(rq);
 	return error;

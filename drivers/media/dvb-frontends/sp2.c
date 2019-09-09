@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * CIMaX SP2/SP2HF (Atmel T90FJR) CI driver
  *
@@ -9,16 +10,6 @@
  *  Copyright (C) 2009 NetUP Inc.
  *  Copyright (C) 2009 Igor M. Liplianin <liplianin@netup.ru>
  *  Copyright (C) 2009 Abylay Ospan <aospan@netup.ru>
- *
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation; either version 2 of the License, or
- *    (at your option) any later version.
- *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
  */
 
 #include "sp2_priv.h"
@@ -357,14 +348,14 @@ static int sp2_exit(struct i2c_client *client)
 
 	dev_dbg(&client->dev, "\n");
 
-	if (client == NULL)
+	if (!client)
 		return 0;
 
 	s = i2c_get_clientdata(client);
-	if (s == NULL)
+	if (!s)
 		return 0;
 
-	if (s->ca.data == NULL)
+	if (!s->ca.data)
 		return 0;
 
 	dvb_ca_en50221_release(&s->ca);
@@ -381,10 +372,9 @@ static int sp2_probe(struct i2c_client *client,
 
 	dev_dbg(&client->dev, "\n");
 
-	s = kzalloc(sizeof(struct sp2), GFP_KERNEL);
+	s = kzalloc(sizeof(*s), GFP_KERNEL);
 	if (!s) {
 		ret = -ENOMEM;
-		dev_err(&client->dev, "kzalloc() failed\n");
 		goto err;
 	}
 

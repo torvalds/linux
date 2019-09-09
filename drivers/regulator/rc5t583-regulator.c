@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Regulator driver for RICOH RC5T583 power management chip.
  *
@@ -6,20 +7,6 @@
  *
  * based on code
  *      Copyright (C) 2011 RICOH COMPANY,LTD
- *
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
  */
 
 #include <linux/module.h>
@@ -47,21 +34,16 @@ struct rc5t583_regulator_info {
 	struct regulator_desc	desc;
 };
 
-struct rc5t583_regulator {
-	struct rc5t583_regulator_info *reg_info;
-	struct regulator_dev	*rdev;
-};
-
 static int rc5t583_regulator_enable_time(struct regulator_dev *rdev)
 {
-	struct rc5t583_regulator *reg = rdev_get_drvdata(rdev);
+	struct rc5t583_regulator_info *reg_info = rdev_get_drvdata(rdev);
 	int vsel = regulator_get_voltage_sel_regmap(rdev);
 	int curr_uV = regulator_list_voltage_linear(rdev, vsel);
 
-	return DIV_ROUND_UP(curr_uV, reg->reg_info->enable_uv_per_us);
+	return DIV_ROUND_UP(curr_uV, reg_info->enable_uv_per_us);
 }
 
-static struct regulator_ops rc5t583_ops = {
+static const struct regulator_ops rc5t583_ops = {
 	.is_enabled		= regulator_is_enabled_regmap,
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
@@ -120,8 +102,6 @@ static int rc5t583_regulator_probe(struct platform_device *pdev)
 	struct rc5t583 *rc5t583 = dev_get_drvdata(pdev->dev.parent);
 	struct rc5t583_platform_data *pdata = dev_get_platdata(rc5t583->dev);
 	struct regulator_config config = { };
-	struct rc5t583_regulator *reg = NULL;
-	struct rc5t583_regulator *regs;
 	struct regulator_dev *rdev;
 	struct rc5t583_regulator_info *ri;
 	int ret;
@@ -132,16 +112,8 @@ static int rc5t583_regulator_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	regs = devm_kzalloc(&pdev->dev, RC5T583_REGULATOR_MAX *
-			sizeof(struct rc5t583_regulator), GFP_KERNEL);
-	if (!regs)
-		return -ENOMEM;
-
-
 	for (id = 0; id < RC5T583_REGULATOR_MAX; ++id) {
-		reg = &regs[id];
 		ri = &rc5t583_reg_info[id];
-		reg->reg_info = ri;
 
 		if (ri->deepsleep_id == RC5T583_DS_NONE)
 			goto skip_ext_pwr_config;
@@ -161,7 +133,7 @@ static int rc5t583_regulator_probe(struct platform_device *pdev)
 skip_ext_pwr_config:
 		config.dev = &pdev->dev;
 		config.init_data = pdata->reg_init_data[id];
-		config.driver_data = reg;
+		config.driver_data = ri;
 		config.regmap = rc5t583->regmap;
 
 		rdev = devm_regulator_register(&pdev->dev, &ri->desc, &config);
@@ -170,9 +142,7 @@ skip_ext_pwr_config:
 						ri->desc.name);
 			return PTR_ERR(rdev);
 		}
-		reg->rdev = rdev;
 	}
-	platform_set_drvdata(pdev, regs);
 	return 0;
 }
 

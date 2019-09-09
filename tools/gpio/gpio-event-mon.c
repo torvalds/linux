@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * gpio-event-mon - monitor GPIO line events from userspace
  *
  * Copyright (C) 2016 Linus Walleij
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  *
  * Usage:
  *	gpio-event-mon -n <device-name> -o <offset>
@@ -14,6 +11,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <dirent.h>
 #include <errno.h>
@@ -23,12 +21,13 @@
 #include <getopt.h>
 #include <inttypes.h>
 #include <sys/ioctl.h>
+#include <sys/types.h>
 #include <linux/gpio.h>
 
 int monitor_device(const char *device_name,
 		   unsigned int line,
-		   u_int32_t handleflags,
-		   u_int32_t eventflags,
+		   uint32_t handleflags,
+		   uint32_t eventflags,
 		   unsigned int loops)
 {
 	struct gpioevent_request req;
@@ -97,7 +96,7 @@ int monitor_device(const char *device_name,
 			ret = -EIO;
 			break;
 		}
-		fprintf(stdout, "GPIO EVENT %" PRIu64 ": ", event.timestamp);
+		fprintf(stdout, "GPIO EVENT %llu: ", event.timestamp);
 		switch (event.id) {
 		case GPIOEVENT_EVENT_RISING_EDGE:
 			fprintf(stdout, "rising edge");
@@ -145,8 +144,8 @@ int main(int argc, char **argv)
 	const char *device_name = NULL;
 	unsigned int line = -1;
 	unsigned int loops = 0;
-	u_int32_t handleflags = GPIOHANDLE_REQUEST_INPUT;
-	u_int32_t eventflags = 0;
+	uint32_t handleflags = GPIOHANDLE_REQUEST_INPUT;
+	uint32_t eventflags = 0;
 	int c;
 
 	while ((c = getopt(argc, argv, "c:n:o:dsrf?")) != -1) {

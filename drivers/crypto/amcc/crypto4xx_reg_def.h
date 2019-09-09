@@ -1,18 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /**
  * AMCC SoC PPC4xx Crypto Driver
  *
  * Copyright (c) 2008 Applied Micro Circuits Corporation.
  * All rights reserved. James Hsiao <jhsiao@amcc.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  *
  * This filr defines the register set for Security Subsystem
  */
@@ -100,6 +91,7 @@
 #define CRYPTO4XX_ENDIAN_CFG			0x000600d8
 
 #define CRYPTO4XX_PRNG_STAT			0x00070000
+#define CRYPTO4XX_PRNG_STAT_BUSY		0x1
 #define CRYPTO4XX_PRNG_CTRL			0x00070004
 #define CRYPTO4XX_PRNG_SEED_L			0x00070008
 #define CRYPTO4XX_PRNG_SEED_H			0x0007000c
@@ -121,13 +113,15 @@
 #define PPC4XX_PD_SIZE				6
 #define PPC4XX_CTX_DONE_INT			0x2000
 #define PPC4XX_PD_DONE_INT			0x8000
+#define PPC4XX_TMO_ERR_INT			0x40000
 #define PPC4XX_BYTE_ORDER			0x22222
 #define PPC4XX_INTERRUPT_CLR			0x3ffff
 #define PPC4XX_PRNG_CTRL_AUTO_EN		0x3
 #define PPC4XX_DC_3DES_EN			1
 #define PPC4XX_TRNG_EN				0x00020000
-#define PPC4XX_INT_DESCR_CNT			4
+#define PPC4XX_INT_DESCR_CNT			7
 #define PPC4XX_INT_TIMEOUT_CNT			0
+#define PPC4XX_INT_TIMEOUT_CNT_REVB		0x3FF
 #define PPC4XX_INT_CFG				1
 /**
  * all follow define are ad hoc
@@ -180,7 +174,7 @@ union ce_ring_size {
 } __attribute__((packed));
 
 #define CRYPTO4XX_RING_CONTROL_OFFSET		0x54
-union ce_ring_contol {
+union ce_ring_control {
 	struct {
 		u32 continuous:1;
 		u32 rsv:5;
@@ -261,6 +255,9 @@ union ce_pd_ctl {
 	} bf;
 	u32 w;
 } __attribute__((packed));
+#define PD_CTL_HASH_FINAL	BIT(4)
+#define PD_CTL_PE_DONE		BIT(1)
+#define PD_CTL_HOST_READY	BIT(0)
 
 union ce_pd_ctl_len {
 	struct {

@@ -1,11 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * w1_ds2406.c - w1 family 12 (DS2406) driver
  * based on w1_ds2413.c by Mariusz Bialonczyk <manio@skyboo.net>
  *
  * Copyright (c) 2014 Scott Alfter <scott@alfter.us>
- *
- * This source code is licensed under the GNU General Public License,
- * Version 2. See the file COPYING for more details.
  */
 
 #include <linux/kernel.h>
@@ -17,13 +15,9 @@
 #include <linux/slab.h>
 #include <linux/crc16.h>
 
-#include "../w1.h"
-#include "../w1_int.h"
-#include "../w1_family.h"
+#include <linux/w1.h>
 
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Scott Alfter <scott@alfter.us>");
-MODULE_DESCRIPTION("w1 family 12 driver for DS2406 2 Pin IO");
+#define W1_FAMILY_DS2406	0x12
 
 #define W1_F12_FUNC_READ_STATUS		   0xAA
 #define W1_F12_FUNC_WRITE_STATUS	   0x55
@@ -154,3 +148,7 @@ static struct w1_family w1_family_12 = {
 	.fops = &w1_f12_fops,
 };
 module_w1_family(w1_family_12);
+
+MODULE_AUTHOR("Scott Alfter <scott@alfter.us>");
+MODULE_DESCRIPTION("w1 family 12 driver for DS2406 2 Pin IO");
+MODULE_LICENSE("GPL");

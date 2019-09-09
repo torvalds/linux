@@ -1,19 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (C) 2008-2009 Texas Instruments Inc
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  * ccdc device API
  */
@@ -46,16 +33,6 @@ struct ccdc_hw_ops {
 	int (*set_hw_if_params) (struct vpfe_hw_if_param *param);
 	/* get interface parameters */
 	int (*get_hw_if_params) (struct vpfe_hw_if_param *param);
-	/*
-	 * Pointer to function to set parameters. Used
-	 * for implementing VPFE_S_CCDC_PARAMS
-	 */
-	int (*set_params) (void *params);
-	/*
-	 * Pointer to function to get parameter. Used
-	 * for implementing VPFE_G_CCDC_PARAMS
-	 */
-	int (*get_params) (void *params);
 	/* Pointer to function to configure ccdc */
 	int (*configure) (void);
 
@@ -96,8 +73,8 @@ struct ccdc_hw_device {
 };
 
 /* Used by CCDC module to register & unregister with vpfe capture driver */
-int vpfe_register_ccdc_device(struct ccdc_hw_device *dev);
-void vpfe_unregister_ccdc_device(struct ccdc_hw_device *dev);
+int vpfe_register_ccdc_device(const struct ccdc_hw_device *dev);
+void vpfe_unregister_ccdc_device(const struct ccdc_hw_device *dev);
 
 #endif
 #endif

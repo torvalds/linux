@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  acpi_ipmi.c - ACPI IPMI opregion
  *
  *  Copyright (C) 2010, 2013 Intel Corporation
  *    Author: Zhao Yakui <yakui.zhao@intel.com>
  *            Lv Zheng <lv.zheng@intel.com>
- *
- * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or (at
- *  your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful, but
- *  WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  General Public License for more details.
- *
- * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
 
 #include <linux/module.h>
@@ -46,7 +33,7 @@ struct acpi_ipmi_device {
 	spinlock_t tx_msg_lock;
 	acpi_handle handle;
 	struct device *dev;
-	ipmi_user_t user_interface;
+	struct ipmi_user *user_interface;
 	int ipmi_ifnum; /* IPMI interface number */
 	long curr_msgid;
 	bool dead;
@@ -56,7 +43,7 @@ struct acpi_ipmi_device {
 struct ipmi_driver_data {
 	struct list_head ipmi_devices;
 	struct ipmi_smi_watcher bmc_events;
-	struct ipmi_user_hndl ipmi_hndlrs;
+	const struct ipmi_user_hndl ipmi_hndlrs;
 	struct mutex ipmi_lock;
 
 	/*
@@ -125,7 +112,7 @@ ipmi_dev_alloc(int iface, struct device *dev, acpi_handle handle)
 {
 	struct acpi_ipmi_device *ipmi_device;
 	int err;
-	ipmi_user_t user;
+	struct ipmi_user *user;
 
 	ipmi_device = kzalloc(sizeof(*ipmi_device), GFP_KERNEL);
 	if (!ipmi_device)
@@ -429,8 +416,7 @@ static void ipmi_msg_handler(struct ipmi_recv_msg *msg, void *user_msg_data)
 	if (msg->recv_type == IPMI_RESPONSE_RECV_TYPE &&
 	    msg->msg.data_len == 1) {
 		if (msg->msg.data[0] == IPMI_TIMEOUT_COMPLETION_CODE) {
-			dev_WARN_ONCE(dev, true,
-				      "Unexpected response (timeout).\n");
+			dev_dbg_once(dev, "Unexpected response (timeout).\n");
 			tx_msg->msg_done = ACPI_IPMI_TIMEOUT;
 		}
 		goto out_comp;

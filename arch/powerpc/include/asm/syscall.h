@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Access to user system call parameters and results
  *
  * Copyright (C) 2008 Red Hat, Inc.  All rights reserved.
- *
- * This copyrighted material is made available to anyone wishing to use,
- * modify, copy, or redistribute it subject to the terms and conditions
- * of the GNU General Public License v.2.
  *
  * See asm-generic/syscall.h for descriptions of what we must do here.
  */
@@ -18,9 +15,8 @@
 #include <linux/thread_info.h>
 
 /* ftrace syscalls requires exporting the sys_call_table */
-#ifdef CONFIG_FTRACE_SYSCALLS
 extern const unsigned long sys_call_table[];
-#endif /* CONFIG_FTRACE_SYSCALLS */
+extern const unsigned long compat_sys_call_table[];
 
 static inline int syscall_get_nr(struct task_struct *task, struct pt_regs *regs)
 {
@@ -37,6 +33,16 @@ static inline void syscall_rollback(struct task_struct *task,
 				    struct pt_regs *regs)
 {
 	regs->gpr[3] = regs->orig_gpr3;
+}
+
+static inline long syscall_get_error(struct task_struct *task,
+				     struct pt_regs *regs)
+{
+	/*
+	 * If the system call failed,
+	 * regs->gpr[3] contains a positive ERRORCODE.
+	 */
+	return (regs->ccr & 0x10000000UL) ? -regs->gpr[3] : 0;
 }
 
 static inline long syscall_get_return_value(struct task_struct *task,
@@ -66,22 +72,20 @@ static inline void syscall_set_return_value(struct task_struct *task,
 
 static inline void syscall_get_arguments(struct task_struct *task,
 					 struct pt_regs *regs,
-					 unsigned int i, unsigned int n,
 					 unsigned long *args)
 {
 	unsigned long val, mask = -1UL;
-
-	BUG_ON(i + n > 6);
+	unsigned int n = 6;
 
 #ifdef CONFIG_COMPAT
 	if (test_tsk_thread_flag(task, TIF_32BIT))
 		mask = 0xffffffff;
 #endif
 	while (n--) {
-		if (n == 0 && i == 0)
+		if (n == 0)
 			val = regs->orig_gpr3;
 		else
-			val = regs->gpr[3 + i + n];
+			val = regs->gpr[3 + n];
 
 		args[n] = val & mask;
 	}
@@ -89,20 +93,23 @@ static inline void syscall_get_arguments(struct task_struct *task,
 
 static inline void syscall_set_arguments(struct task_struct *task,
 					 struct pt_regs *regs,
-					 unsigned int i, unsigned int n,
 					 const unsigned long *args)
 {
-	BUG_ON(i + n > 6);
-	memcpy(&regs->gpr[3 + i], args, n * sizeof(args[0]));
+	memcpy(&regs->gpr[3], args, 6 * sizeof(args[0]));
 
 	/* Also copy the first argument into orig_gpr3 */
-	if (i == 0 && n > 0)
-		regs->orig_gpr3 = args[0];
+	regs->orig_gpr3 = args[0];
 }
 
-static inline int syscall_get_arch(void)
+static inline int syscall_get_arch(struct task_struct *task)
 {
-	int arch = is_32bit_task() ? AUDIT_ARCH_PPC : AUDIT_ARCH_PPC64;
+	int arch;
+
+	if (IS_ENABLED(CONFIG_PPC64) && !test_tsk_thread_flag(task, TIF_32BIT))
+		arch = AUDIT_ARCH_PPC64;
+	else
+		arch = AUDIT_ARCH_PPC;
+
 #ifdef __LITTLE_ENDIAN__
 	arch |= __AUDIT_ARCH_LE;
 #endif

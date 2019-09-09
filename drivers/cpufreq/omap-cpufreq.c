@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  CPU frequency scaling for OMAP using OPP information
  *
@@ -8,10 +9,6 @@
  *
  * Copyright (C) 2007-2011 Texas Instruments, Inc.
  * - OMAP3/4 support by Rajendra Nayak, Santosh Shilimkar
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -63,16 +60,14 @@ static int omap_target(struct cpufreq_policy *policy, unsigned int index)
 	freq = ret;
 
 	if (mpu_reg) {
-		rcu_read_lock();
 		opp = dev_pm_opp_find_freq_ceil(mpu_dev, &freq);
 		if (IS_ERR(opp)) {
-			rcu_read_unlock();
 			dev_err(mpu_dev, "%s: unable to find MPU OPP for %d\n",
 				__func__, new_freq);
 			return -EINVAL;
 		}
 		volt = dev_pm_opp_get_voltage(opp);
-		rcu_read_unlock();
+		dev_pm_opp_put(opp);
 		tol = volt * OPP_TOLERANCE / 100;
 		volt_old = regulator_get_voltage(mpu_reg);
 	}
@@ -127,21 +122,18 @@ static int omap_cpu_init(struct cpufreq_policy *policy)
 			dev_err(mpu_dev,
 				"%s: cpu%d: failed creating freq table[%d]\n",
 				__func__, policy->cpu, result);
-			goto fail;
+			clk_put(policy->clk);
+			return result;
 		}
 	}
 
 	atomic_inc_return(&freq_table_users);
 
 	/* FIXME: what's the actual transition time? */
-	result = cpufreq_generic_init(policy, freq_table, 300 * 1000);
-	if (!result)
-		return 0;
+	cpufreq_generic_init(policy, freq_table, 300 * 1000);
+	dev_pm_opp_of_register_em(policy->cpus);
 
-	freq_table_free();
-fail:
-	clk_put(policy->clk);
-	return result;
+	return 0;
 }
 
 static int omap_cpu_exit(struct cpufreq_policy *policy)

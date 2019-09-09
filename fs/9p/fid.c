@@ -1,24 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * V9FS FID Management
  *
  *  Copyright (C) 2007 by Latchesar Ionkov <lucho@ionkov.net>
  *  Copyright (C) 2005, 2006 by Eric Van Hensbergen <ericvh@gmail.com>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2
- *  as published by the Free Software Foundation.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to:
- *  Free Software Foundation
- *  51 Franklin Street, Fifth Floor
- *  Boston, MA  02111-1301  USA
- *
  */
 
 #include <linux/module.h>
@@ -91,21 +76,21 @@ static struct p9_fid *v9fs_fid_find(struct dentry *dentry, kuid_t uid, int any)
  * dentry names.
  */
 static int build_path_from_dentry(struct v9fs_session_info *v9ses,
-				  struct dentry *dentry, char ***names)
+				  struct dentry *dentry, const unsigned char ***names)
 {
 	int n = 0, i;
-	char **wnames;
+	const unsigned char **wnames;
 	struct dentry *ds;
 
 	for (ds = dentry; !IS_ROOT(ds); ds = ds->d_parent)
 		n++;
 
-	wnames = kmalloc(sizeof(char *) * n, GFP_KERNEL);
+	wnames = kmalloc_array(n, sizeof(char *), GFP_KERNEL);
 	if (!wnames)
 		goto err_out;
 
 	for (ds = dentry, i = (n-1); i >= 0; i--, ds = ds->d_parent)
-		wnames[i] = (char  *)ds->d_name.name;
+		wnames[i] = ds->d_name.name;
 
 	*names = wnames;
 	return n;
@@ -117,7 +102,7 @@ static struct p9_fid *v9fs_fid_lookup_with_uid(struct dentry *dentry,
 					       kuid_t uid, int any)
 {
 	struct dentry *ds;
-	char **wnames, *uname;
+	const unsigned char **wnames, *uname;
 	int i, n, l, clone, access;
 	struct v9fs_session_info *v9ses;
 	struct p9_fid *fid, *old_fid = NULL;
@@ -137,7 +122,7 @@ static struct p9_fid *v9fs_fid_lookup_with_uid(struct dentry *dentry,
 	fid = v9fs_fid_find(ds, uid, any);
 	if (fid) {
 		/* Found the parent fid do a lookup with that */
-		fid = p9_client_walk(fid, 1, (char **)&dentry->d_name.name, 1);
+		fid = p9_client_walk(fid, 1, &dentry->d_name.name, 1);
 		goto fid_out;
 	}
 	up_read(&v9ses->rename_sem);

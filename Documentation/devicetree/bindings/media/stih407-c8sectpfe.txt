@@ -28,7 +28,7 @@ See: Documentation/devicetree/bindings/clock/clock-bindings.txt
 - pinctrl-names	: a pinctrl state named tsin%d-serial or tsin%d-parallel (where %d is tsin-num)
 		   must be defined for each tsin child node.
 - pinctrl-0	: phandle referencing pin configuration for this tsin configuration
-See: Documentation/devicetree/bindings/pinctrl/pinctrl-binding.txt
+See: Documentation/devicetree/bindings/pinctrl/pinctrl-bindings.txt
 
 
 Required properties (tsin (child) node):
@@ -50,9 +50,8 @@ Example:
 
 /* stih410 SoC b2120 + b2004a + stv0367-pll(NIMB) + stv0367-tda18212 (NIMA) DT example) */
 
-	c8sectpfe@08a20000 {
+	c8sectpfe@8a20000 {
 		compatible = "st,stih407-c8sectpfe";
-		status = "okay";
 		reg = <0x08a20000 0x10000>, <0x08a00000 0x4000>;
 		reg-names = "stfe", "stfe-ram";
 		interrupts = <GIC_SPI 34 IRQ_TYPE_NONE>, <GIC_SPI 35 IRQ_TYPE_NONE>;

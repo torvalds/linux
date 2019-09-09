@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * jc42.c - driver for Jedec JC42.4 compliant temperature sensors
  *
@@ -6,22 +7,9 @@
  * Derived from lm77.c by Andras BALI <drewie@freemail.hu>.
  *
  * JC42.4 compliant temperature sensors are typically used on memory modules.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include <linux/bitops.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -45,6 +33,7 @@ static const unsigned short normal_i2c[] = {
 #define JC42_REG_TEMP		0x05
 #define JC42_REG_MANID		0x06
 #define JC42_REG_DEVICEID	0x07
+#define JC42_REG_SMBUS		0x22 /* NXP and Atmel, possibly others? */
 
 /* Status bits in temperature register */
 #define JC42_ALARM_CRIT_BIT	15
@@ -72,6 +61,11 @@ static const unsigned short normal_i2c[] = {
 #define NXP_MANID		0x1131  /* NXP Semiconductors */
 #define ONS_MANID		0x1b09  /* ON Semiconductor */
 #define STM_MANID		0x104a  /* ST Microelectronics */
+#define GT_MANID		0x1c68	/* Giantec */
+#define GT_MANID2		0x132d	/* Giantec, 2nd mfg ID */
+
+/* SMBUS register */
+#define SMBUS_STMOUT		BIT(7)  /* SMBus time-out, active low */
 
 /* Supported chips */
 
@@ -85,6 +79,13 @@ static const unsigned short normal_i2c[] = {
 
 #define AT30TSE004_DEVID	0x2200
 #define AT30TSE004_DEVID_MASK	0xffff
+
+/* Giantec */
+#define GT30TS00_DEVID		0x2200
+#define GT30TS00_DEVID_MASK	0xff00
+
+#define GT34TS02_DEVID		0x3300
+#define GT34TS02_DEVID_MASK	0xff00
 
 /* IDT */
 #define TSE2004_DEVID		0x2200
@@ -130,6 +131,12 @@ static const unsigned short normal_i2c[] = {
 #define CAT6095_DEVID		0x0800	/* Also matches CAT34TS02 */
 #define CAT6095_DEVID_MASK	0xffe0
 
+#define CAT34TS02C_DEVID	0x0a00
+#define CAT34TS02C_DEVID_MASK	0xfff0
+
+#define CAT34TS04_DEVID		0x2200
+#define CAT34TS04_DEVID_MASK	0xfff0
+
 /* ST Microelectronics */
 #define STTS424_DEVID		0x0101
 #define STTS424_DEVID_MASK	0xffff
@@ -158,6 +165,8 @@ static struct jc42_chips jc42_chips[] = {
 	{ ADT_MANID, ADT7408_DEVID, ADT7408_DEVID_MASK },
 	{ ATMEL_MANID, AT30TS00_DEVID, AT30TS00_DEVID_MASK },
 	{ ATMEL_MANID2, AT30TSE004_DEVID, AT30TSE004_DEVID_MASK },
+	{ GT_MANID, GT30TS00_DEVID, GT30TS00_DEVID_MASK },
+	{ GT_MANID2, GT34TS02_DEVID, GT34TS02_DEVID_MASK },
 	{ IDT_MANID, TSE2004_DEVID, TSE2004_DEVID_MASK },
 	{ IDT_MANID, TS3000_DEVID, TS3000_DEVID_MASK },
 	{ IDT_MANID, TS3001_DEVID, TS3001_DEVID_MASK },
@@ -170,6 +179,8 @@ static struct jc42_chips jc42_chips[] = {
 	{ MCP_MANID, MCP9843_DEVID, MCP9843_DEVID_MASK },
 	{ NXP_MANID, SE97_DEVID, SE97_DEVID_MASK },
 	{ ONS_MANID, CAT6095_DEVID, CAT6095_DEVID_MASK },
+	{ ONS_MANID, CAT34TS02C_DEVID, CAT34TS02C_DEVID_MASK },
+	{ ONS_MANID, CAT34TS04_DEVID, CAT34TS04_DEVID_MASK },
 	{ NXP_MANID, SE98_DEVID, SE98_DEVID_MASK },
 	{ STM_MANID, STTS424_DEVID, STTS424_DEVID_MASK },
 	{ STM_MANID, STTS424E_DEVID, STTS424E_DEVID_MASK },
@@ -366,21 +377,21 @@ static umode_t jc42_is_visible(const void *_data, enum hwmon_sensor_types type,
 {
 	const struct jc42_data *data = _data;
 	unsigned int config = data->config;
-	umode_t mode = S_IRUGO;
+	umode_t mode = 0444;
 
 	switch (attr) {
 	case hwmon_temp_min:
 	case hwmon_temp_max:
 		if (!(config & JC42_CFG_EVENT_LOCK))
-			mode |= S_IWUSR;
+			mode |= 0200;
 		break;
 	case hwmon_temp_crit:
 		if (!(config & JC42_CFG_TCRIT_LOCK))
-			mode |= S_IWUSR;
+			mode |= 0200;
 		break;
 	case hwmon_temp_crit_hyst:
 		if (!(config & (JC42_CFG_EVENT_LOCK | JC42_CFG_TCRIT_LOCK)))
-			mode |= S_IWUSR;
+			mode |= 0200;
 		break;
 	case hwmon_temp_input:
 	case hwmon_temp_max_hyst:
@@ -427,20 +438,12 @@ static int jc42_detect(struct i2c_client *client, struct i2c_board_info *info)
 	return -ENODEV;
 }
 
-static const u32 jc42_temp_config[] = {
-	HWMON_T_INPUT | HWMON_T_MIN | HWMON_T_MAX | HWMON_T_CRIT |
-	HWMON_T_MAX_HYST | HWMON_T_CRIT_HYST |
-	HWMON_T_MIN_ALARM | HWMON_T_MAX_ALARM | HWMON_T_CRIT_ALARM,
-	0
-};
-
-static const struct hwmon_channel_info jc42_temp = {
-	.type = hwmon_temp,
-	.config = jc42_temp_config,
-};
-
 static const struct hwmon_channel_info *jc42_info[] = {
-	&jc42_temp,
+	HWMON_CHANNEL_INFO(temp,
+			   HWMON_T_INPUT | HWMON_T_MIN | HWMON_T_MAX |
+			   HWMON_T_CRIT | HWMON_T_MAX_HYST |
+			   HWMON_T_CRIT_HYST | HWMON_T_MIN_ALARM |
+			   HWMON_T_MAX_ALARM | HWMON_T_CRIT_ALARM),
 	NULL
 };
 
@@ -475,6 +478,22 @@ static int jc42_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		return cap;
 
 	data->extended = !!(cap & JC42_CAP_RANGE);
+
+	if (device_property_read_bool(dev, "smbus-timeout-disable")) {
+		int smbus;
+
+		/*
+		 * Not all chips support this register, but from a
+		 * quick read of various datasheets no chip appears
+		 * incompatible with the below attempt to disable
+		 * the timeout. And the whole thing is opt-in...
+		 */
+		smbus = i2c_smbus_read_word_swapped(client, JC42_REG_SMBUS);
+		if (smbus < 0)
+			return smbus;
+		i2c_smbus_write_word_swapped(client, JC42_REG_SMBUS,
+					     smbus | SMBUS_STMOUT);
+	}
 
 	config = i2c_smbus_read_word_swapped(client, JC42_REG_CONFIG);
 	if (config < 0)

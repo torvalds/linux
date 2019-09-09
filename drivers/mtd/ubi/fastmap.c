@@ -1,17 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2012 Linutronix GmbH
  * Copyright (c) 2014 sigma star gmbh
  * Author: Richard Weinberger <richard@nod.at>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See
- * the GNU General Public License for more details.
- *
  */
 
 #include <linux/crc32.h>
@@ -214,9 +205,8 @@ static void assign_aeb_to_av(struct ubi_attach_info *ai,
 			     struct ubi_ainf_volume *av)
 {
 	struct ubi_ainf_peb *tmp_aeb;
-	struct rb_node **p = &ai->volumes.rb_node, *parent = NULL;
+	struct rb_node **p = &av->root.rb_node, *parent = NULL;
 
-	p = &av->root.rb_node;
 	while (*p) {
 		parent = *p;
 
@@ -828,6 +818,24 @@ static int find_fm_anchor(struct ubi_attach_info *ai)
 	return ret;
 }
 
+static struct ubi_ainf_peb *clone_aeb(struct ubi_attach_info *ai,
+				      struct ubi_ainf_peb *old)
+{
+	struct ubi_ainf_peb *new;
+
+	new = ubi_alloc_aeb(ai, old->pnum, old->ec);
+	if (!new)
+		return NULL;
+
+	new->vol_id = old->vol_id;
+	new->sqnum = old->sqnum;
+	new->lnum = old->lnum;
+	new->scrub = old->scrub;
+	new->copy_flag = old->copy_flag;
+
+	return new;
+}
+
 /**
  * ubi_scan_fastmap - scan the fastmap.
  * @ubi: UBI device object
@@ -847,7 +855,7 @@ int ubi_scan_fastmap(struct ubi_device *ubi, struct ubi_attach_info *ai,
 	struct ubi_vid_hdr *vh;
 	struct ubi_ec_hdr *ech;
 	struct ubi_fastmap_layout *fm;
-	struct ubi_ainf_peb *tmp_aeb, *aeb;
+	struct ubi_ainf_peb *aeb;
 	int i, used_blocks, pnum, fm_anchor, ret = 0;
 	size_t fm_size;
 	__be32 crc, tmp_crc;
@@ -857,9 +865,16 @@ int ubi_scan_fastmap(struct ubi_device *ubi, struct ubi_attach_info *ai,
 	if (fm_anchor < 0)
 		return UBI_NO_FASTMAP;
 
-	/* Move all (possible) fastmap blocks into our new attach structure. */
-	list_for_each_entry_safe(aeb, tmp_aeb, &scan_ai->fastmap, u.list)
-		list_move_tail(&aeb->u.list, &ai->fastmap);
+	/* Copy all (possible) fastmap blocks into our new attach structure. */
+	list_for_each_entry(aeb, &scan_ai->fastmap, u.list) {
+		struct ubi_ainf_peb *new;
+
+		new = clone_aeb(ai, aeb);
+		if (!new)
+			return -ENOMEM;
+
+		list_add(&new->u.list, &ai->fastmap);
+	}
 
 	down_write(&ubi->fm_protect);
 	memset(ubi->fm_buf, 0, ubi->fm_size);
@@ -1038,7 +1053,7 @@ int ubi_scan_fastmap(struct ubi_device *ubi, struct ubi_attach_info *ai,
 		e = kmem_cache_alloc(ubi_wl_entry_slab, GFP_KERNEL);
 		if (!e) {
 			while (i--)
-				kfree(fm->e[i]);
+				kmem_cache_free(ubi_wl_entry_slab, fm->e[i]);
 
 			ret = -ENOMEM;
 			goto free_hdr;
@@ -1074,6 +1089,26 @@ free_fm_sb:
 	kfree(fmsb);
 	kfree(fm);
 	goto out;
+}
+
+int ubi_fastmap_init_checkmap(struct ubi_volume *vol, int leb_count)
+{
+	struct ubi_device *ubi = vol->ubi;
+
+	if (!ubi->fast_attach)
+		return 0;
+
+	vol->checkmap = kcalloc(BITS_TO_LONGS(leb_count), sizeof(unsigned long),
+				GFP_KERNEL);
+	if (!vol->checkmap)
+		return -ENOMEM;
+
+	return 0;
+}
+
+void ubi_fastmap_destroy_checkmap(struct ubi_volume *vol)
+{
+	kfree(vol->checkmap);
 }
 
 /**
@@ -1642,7 +1677,7 @@ err:
 
 	ret = invalidate_fastmap(ubi);
 	if (ret < 0) {
-		ubi_err(ubi, "Unable to invalidiate current fastmap!");
+		ubi_err(ubi, "Unable to invalidate current fastmap!");
 		ubi_ro_mode(ubi);
 	} else {
 		return_fm_pebs(ubi, old_fm);

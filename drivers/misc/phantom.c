@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (C) 2005-2007 Jiri Slaby <jirislaby@gmail.com>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
  *
  *  You need a userspace library to cooperate with this driver. It (and other
  *  info) may be obtained here:
@@ -256,18 +252,18 @@ static int phantom_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static unsigned int phantom_poll(struct file *file, poll_table *wait)
+static __poll_t phantom_poll(struct file *file, poll_table *wait)
 {
 	struct phantom_device *dev = file->private_data;
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 
 	pr_debug("phantom_poll: %d\n", atomic_read(&dev->counter));
 	poll_wait(file, &dev->wait, wait);
 
 	if (!(dev->status & PHB_RUNNING))
-		mask = POLLERR;
+		mask = EPOLLERR;
 	else if (atomic_read(&dev->counter))
-		mask = POLLIN | POLLRDNORM;
+		mask = EPOLLIN | EPOLLRDNORM;
 
 	pr_debug("phantom_poll end: %x/%d\n", mask, atomic_read(&dev->counter));
 

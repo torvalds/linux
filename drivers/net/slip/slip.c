@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * slip.c	This module implements the SLIP protocol for kernel-based
  *		devices like TTY.  It interfaces between a raw TTY, and the
@@ -64,9 +65,9 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/bitops.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/interrupt.h>
@@ -79,7 +80,6 @@
 #include <linux/rtnetlink.h>
 #include <linux/if_arp.h>
 #include <linux/if_slip.h>
-#include <linux/compat.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -106,8 +106,8 @@ static int slip_esc6(unsigned char *p, unsigned char *d, int len);
 static void slip_unesc6(struct slip *sl, unsigned char c);
 #endif
 #ifdef CONFIG_SLIP_SMART
-static void sl_keepalive(unsigned long sls);
-static void sl_outfill(unsigned long sls);
+static void sl_keepalive(struct timer_list *t);
+static void sl_outfill(struct timer_list *t);
 static int sl_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 #endif
 
@@ -364,7 +364,7 @@ static void sl_bump(struct slip *sl)
 		return;
 	}
 	skb->dev = dev;
-	memcpy(skb_put(skb, count), sl->rbuff, count);
+	skb_put_data(skb, sl->rbuff, count);
 	skb_reset_mac_header(skb);
 	skb->protocol = htons(ETH_P_IP);
 	netif_rx_ni(skb);
@@ -561,17 +561,12 @@ static int sl_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct slip *sl = netdev_priv(dev);
 
-	if (new_mtu < 68 || new_mtu > 65534)
-		return -EINVAL;
-
-	if (new_mtu != dev->mtu)
-		return sl_realloc_bufs(sl, new_mtu);
-	return 0;
+	return sl_realloc_bufs(sl, new_mtu);
 }
 
 /* Netdevice get statistics request */
 
-static struct rtnl_link_stats64 *
+static void
 sl_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 {
 	struct net_device_stats *devstats = &dev->stats;
@@ -602,7 +597,6 @@ sl_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 		stats->collisions     += comp->sls_o_misses;
 	}
 #endif
-	return stats;
 }
 
 /* Netdevice register callback */
@@ -635,7 +629,7 @@ static void sl_uninit(struct net_device *dev)
 static void sl_free_netdev(struct net_device *dev)
 {
 	int i = dev->base_addr;
-	free_netdev(dev);
+
 	slip_devs[i] = NULL;
 }
 
@@ -657,11 +651,16 @@ static const struct net_device_ops sl_netdev_ops = {
 static void sl_setup(struct net_device *dev)
 {
 	dev->netdev_ops		= &sl_netdev_ops;
-	dev->destructor		= sl_free_netdev;
+	dev->needs_free_netdev	= true;
+	dev->priv_destructor	= sl_free_netdev;
 
 	dev->hard_header_len	= 0;
 	dev->addr_len		= 0;
 	dev->tx_queue_len	= 10;
+
+	/* MTU range: 68 - 65534 */
+	dev->min_mtu = 68;
+	dev->max_mtu = 65534;
 
 	/* New-style flags. */
 	dev->flags		= IFF_NOARP|IFF_POINTOPOINT|IFF_MULTICAST;
@@ -732,7 +731,7 @@ static void sl_sync(void)
 
 
 /* Find a free SLIP channel, and link in this `tty' line. */
-static struct slip *sl_alloc(dev_t line)
+static struct slip *sl_alloc(void)
 {
 	int i;
 	char name[IFNAMSIZ];
@@ -764,12 +763,8 @@ static struct slip *sl_alloc(dev_t line)
 	sl->mode        = SL_MODE_DEFAULT;
 #ifdef CONFIG_SLIP_SMART
 	/* initialize timer_list struct */
-	init_timer(&sl->keepalive_timer);
-	sl->keepalive_timer.data = (unsigned long)sl;
-	sl->keepalive_timer.function = sl_keepalive;
-	init_timer(&sl->outfill_timer);
-	sl->outfill_timer.data = (unsigned long)sl;
-	sl->outfill_timer.function = sl_outfill;
+	timer_setup(&sl->keepalive_timer, sl_keepalive, 0);
+	timer_setup(&sl->outfill_timer, sl_outfill, 0);
 #endif
 	slip_devs[i] = dev;
 	return sl;
@@ -814,7 +809,7 @@ static int slip_open(struct tty_struct *tty)
 
 	/* OK.  Find a free SLIP channel to use. */
 	err = -ENFILE;
-	sl = sl_alloc(tty_devnum(tty));
+	sl = sl_alloc();
 	if (sl == NULL)
 		goto err_exit;
 
@@ -1172,27 +1167,6 @@ static int slip_ioctl(struct tty_struct *tty, struct file *file,
 	}
 }
 
-#ifdef CONFIG_COMPAT
-static long slip_compat_ioctl(struct tty_struct *tty, struct file *file,
-					unsigned int cmd, unsigned long arg)
-{
-	switch (cmd) {
-	case SIOCGIFNAME:
-	case SIOCGIFENCAP:
-	case SIOCSIFENCAP:
-	case SIOCSIFHWADDR:
-	case SIOCSKEEPALIVE:
-	case SIOCGKEEPALIVE:
-	case SIOCSOUTFILL:
-	case SIOCGOUTFILL:
-		return slip_ioctl(tty, file, cmd,
-				  (unsigned long)compat_ptr(arg));
-	}
-
-	return -ENOIOCTLCMD;
-}
-#endif
-
 /* VSV changes start here */
 #ifdef CONFIG_SLIP_SMART
 /* function do_ioctl called from net/core/dev.c
@@ -1285,9 +1259,6 @@ static struct tty_ldisc_ops sl_ldisc = {
 	.close	 	= slip_close,
 	.hangup	 	= slip_hangup,
 	.ioctl		= slip_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl	= slip_compat_ioctl,
-#endif
 	.receive_buf	= slip_receive_buf,
 	.write_wakeup	= slip_write_wakeup,
 };
@@ -1312,7 +1283,7 @@ static int __init slip_init(void)
 	printk(KERN_INFO "SLIP linefill/keepalive option.\n");
 #endif
 
-	slip_devs = kzalloc(sizeof(struct net_device *)*slip_maxdev,
+	slip_devs = kcalloc(slip_maxdev, sizeof(struct net_device *),
 								GFP_KERNEL);
 	if (!slip_devs)
 		return -ENOMEM;
@@ -1371,8 +1342,6 @@ static void __exit slip_exit(void)
 		if (sl->tty) {
 			printk(KERN_ERR "%s: tty discipline still running\n",
 			       dev->name);
-			/* Intentionally leak the control block. */
-			dev->destructor = NULL;
 		}
 
 		unregister_netdev(dev);
@@ -1395,9 +1364,9 @@ module_exit(slip_exit);
  * added by Stanislav Voronyi. All changes before marked VSV
  */
 
-static void sl_outfill(unsigned long sls)
+static void sl_outfill(struct timer_list *t)
 {
-	struct slip *sl = (struct slip *)sls;
+	struct slip *sl = from_timer(sl, t, outfill_timer);
 
 	spin_lock(&sl->lock);
 
@@ -1426,9 +1395,9 @@ out:
 	spin_unlock(&sl->lock);
 }
 
-static void sl_keepalive(unsigned long sls)
+static void sl_keepalive(struct timer_list *t)
 {
-	struct slip *sl = (struct slip *)sls;
+	struct slip *sl = from_timer(sl, t, keepalive_timer);
 
 	spin_lock(&sl->lock);
 

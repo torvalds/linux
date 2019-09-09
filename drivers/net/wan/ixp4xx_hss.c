@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Intel IXP4xx HSS (synchronous serial port) driver for Linux
  *
  * Copyright (C) 2007-2008 Krzysztof Hałasa <khc@pm.waw.pl>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License
- * as published by the Free Software Foundation.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -22,8 +19,8 @@
 #include <linux/platform_device.h>
 #include <linux/poll.h>
 #include <linux/slab.h>
-#include <mach/npe.h>
-#include <mach/qmgr.h>
+#include <linux/soc/ixp4xx/npe.h>
+#include <linux/soc/ixp4xx/qmgr.h>
 
 #define DEBUG_DESC		0
 #define DEBUG_RX		0
@@ -246,7 +243,7 @@
 #ifdef __ARMEB__
 typedef struct sk_buff buffer_t;
 #define free_buffer dev_kfree_skb
-#define free_buffer_irq dev_kfree_skb_irq
+#define free_buffer_irq dev_consume_skb_irq
 #else
 typedef void buffer_t;
 #define free_buffer kfree
@@ -1321,7 +1318,6 @@ static int hss_hdlc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 static const struct net_device_ops hss_hdlc_ops = {
 	.ndo_open       = hss_hdlc_open,
 	.ndo_stop       = hss_hdlc_close,
-	.ndo_change_mtu = hdlc_change_mtu,
 	.ndo_start_xmit = hdlc_start_xmit,
 	.ndo_do_ioctl   = hss_hdlc_ioctl,
 };

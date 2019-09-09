@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2013 - 2014 Texas Instruments Incorporated - http://www.ti.com
  *
@@ -5,19 +6,13 @@
  *    Jyri Sarha <jsarha@ti.com>
  *    Sergej Sawazki <ce3a@gmx.de>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  * Gpio controlled clock implementation
  */
 
 #include <linux/clk-provider.h>
 #include <linux/export.h>
 #include <linux/slab.h>
-#include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
-#include <linux/of_gpio.h>
 #include <linux/err.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
@@ -63,6 +58,35 @@ const struct clk_ops clk_gpio_gate_ops = {
 };
 EXPORT_SYMBOL_GPL(clk_gpio_gate_ops);
 
+static int clk_sleeping_gpio_gate_prepare(struct clk_hw *hw)
+{
+	struct clk_gpio *clk = to_clk_gpio(hw);
+
+	gpiod_set_value_cansleep(clk->gpiod, 1);
+
+	return 0;
+}
+
+static void clk_sleeping_gpio_gate_unprepare(struct clk_hw *hw)
+{
+	struct clk_gpio *clk = to_clk_gpio(hw);
+
+	gpiod_set_value_cansleep(clk->gpiod, 0);
+}
+
+static int clk_sleeping_gpio_gate_is_prepared(struct clk_hw *hw)
+{
+	struct clk_gpio *clk = to_clk_gpio(hw);
+
+	return gpiod_get_value_cansleep(clk->gpiod);
+}
+
+static const struct clk_ops clk_sleeping_gpio_gate_ops = {
+	.prepare = clk_sleeping_gpio_gate_prepare,
+	.unprepare = clk_sleeping_gpio_gate_unprepare,
+	.is_prepared = clk_sleeping_gpio_gate_is_prepared,
+};
+
 /**
  * DOC: basic clock multiplexer which can be controlled with a gpio output
  * Traits of this clock:
@@ -75,14 +99,14 @@ static u8 clk_gpio_mux_get_parent(struct clk_hw *hw)
 {
 	struct clk_gpio *clk = to_clk_gpio(hw);
 
-	return gpiod_get_value(clk->gpiod);
+	return gpiod_get_value_cansleep(clk->gpiod);
 }
 
 static int clk_gpio_mux_set_parent(struct clk_hw *hw, u8 index)
 {
 	struct clk_gpio *clk = to_clk_gpio(hw);
 
-	gpiod_set_value(clk->gpiod, index);
+	gpiod_set_value_cansleep(clk->gpiod, index);
 
 	return 0;
 }
@@ -95,14 +119,12 @@ const struct clk_ops clk_gpio_mux_ops = {
 EXPORT_SYMBOL_GPL(clk_gpio_mux_ops);
 
 static struct clk_hw *clk_register_gpio(struct device *dev, const char *name,
-		const char * const *parent_names, u8 num_parents, unsigned gpio,
-		bool active_low, unsigned long flags,
-		const struct clk_ops *clk_gpio_ops)
+		const char * const *parent_names, u8 num_parents, struct gpio_desc *gpiod,
+		unsigned long flags, const struct clk_ops *clk_gpio_ops)
 {
 	struct clk_gpio *clk_gpio;
 	struct clk_hw *hw;
 	struct clk_init_data init = {};
-	unsigned long gpio_flags;
 	int err;
 
 	if (dev)
@@ -113,32 +135,13 @@ static struct clk_hw *clk_register_gpio(struct device *dev, const char *name,
 	if (!clk_gpio)
 		return ERR_PTR(-ENOMEM);
 
-	if (active_low)
-		gpio_flags = GPIOF_ACTIVE_LOW | GPIOF_OUT_INIT_HIGH;
-	else
-		gpio_flags = GPIOF_OUT_INIT_LOW;
-
-	if (dev)
-		err = devm_gpio_request_one(dev, gpio, gpio_flags, name);
-	else
-		err = gpio_request_one(gpio, gpio_flags, name);
-	if (err) {
-		if (err != -EPROBE_DEFER)
-			pr_err("%s: %s: Error requesting clock control gpio %u\n",
-					__func__, name, gpio);
-		if (!dev)
-			kfree(clk_gpio);
-
-		return ERR_PTR(err);
-	}
-
 	init.name = name;
 	init.ops = clk_gpio_ops;
-	init.flags = flags | CLK_IS_BASIC;
+	init.flags = flags;
 	init.parent_names = parent_names;
 	init.num_parents = num_parents;
 
-	clk_gpio->gpiod = gpio_to_desc(gpio);
+	clk_gpio->gpiod = gpiod;
 	clk_gpio->hw.init = &init;
 
 	hw = &clk_gpio->hw;
@@ -151,7 +154,6 @@ static struct clk_hw *clk_register_gpio(struct device *dev, const char *name,
 		return hw;
 
 	if (!dev) {
-		gpiod_put(clk_gpio->gpiod);
 		kfree(clk_gpio);
 	}
 
@@ -164,29 +166,33 @@ static struct clk_hw *clk_register_gpio(struct device *dev, const char *name,
  * @dev: device that is registering this clock
  * @name: name of this clock
  * @parent_name: name of this clock's parent
- * @gpio: gpio number to gate this clock
- * @active_low: true if gpio should be set to 0 to enable clock
+ * @gpiod: gpio descriptor to gate this clock
  * @flags: clock flags
  */
 struct clk_hw *clk_hw_register_gpio_gate(struct device *dev, const char *name,
-		const char *parent_name, unsigned gpio, bool active_low,
+		const char *parent_name, struct gpio_desc *gpiod,
 		unsigned long flags)
 {
+	const struct clk_ops *ops;
+
+	if (gpiod_cansleep(gpiod))
+		ops = &clk_sleeping_gpio_gate_ops;
+	else
+		ops = &clk_gpio_gate_ops;
+
 	return clk_register_gpio(dev, name,
 			(parent_name ? &parent_name : NULL),
-			(parent_name ? 1 : 0), gpio, active_low, flags,
-			&clk_gpio_gate_ops);
+			(parent_name ? 1 : 0), gpiod, flags, ops);
 }
 EXPORT_SYMBOL_GPL(clk_hw_register_gpio_gate);
 
 struct clk *clk_register_gpio_gate(struct device *dev, const char *name,
-		const char *parent_name, unsigned gpio, bool active_low,
+		const char *parent_name, struct gpio_desc *gpiod,
 		unsigned long flags)
 {
 	struct clk_hw *hw;
 
-	hw = clk_hw_register_gpio_gate(dev, name, parent_name, gpio, active_low,
-				       flags);
+	hw = clk_hw_register_gpio_gate(dev, name, parent_name, gpiod, flags);
 	if (IS_ERR(hw))
 		return ERR_CAST(hw);
 	return hw->clk;
@@ -199,13 +205,12 @@ EXPORT_SYMBOL_GPL(clk_register_gpio_gate);
  * @name: name of this clock
  * @parent_names: names of this clock's parents
  * @num_parents: number of parents listed in @parent_names
- * @gpio: gpio number to gate this clock
- * @active_low: true if gpio should be set to 0 to enable clock
+ * @gpiod: gpio descriptor to gate this clock
  * @flags: clock flags
  */
 struct clk_hw *clk_hw_register_gpio_mux(struct device *dev, const char *name,
-		const char * const *parent_names, u8 num_parents, unsigned gpio,
-		bool active_low, unsigned long flags)
+		const char * const *parent_names, u8 num_parents, struct gpio_desc *gpiod,
+		unsigned long flags)
 {
 	if (num_parents != 2) {
 		pr_err("mux-clock %s must have 2 parents\n", name);
@@ -213,18 +218,18 @@ struct clk_hw *clk_hw_register_gpio_mux(struct device *dev, const char *name,
 	}
 
 	return clk_register_gpio(dev, name, parent_names, num_parents,
-			gpio, active_low, flags, &clk_gpio_mux_ops);
+			gpiod, flags, &clk_gpio_mux_ops);
 }
 EXPORT_SYMBOL_GPL(clk_hw_register_gpio_mux);
 
 struct clk *clk_register_gpio_mux(struct device *dev, const char *name,
-		const char * const *parent_names, u8 num_parents, unsigned gpio,
-		bool active_low, unsigned long flags)
+		const char * const *parent_names, u8 num_parents, struct gpio_desc *gpiod,
+		unsigned long flags)
 {
 	struct clk_hw *hw;
 
 	hw = clk_hw_register_gpio_mux(dev, name, parent_names, num_parents,
-			gpio, active_low, flags);
+			gpiod, flags);
 	if (IS_ERR(hw))
 		return ERR_CAST(hw);
 	return hw->clk;
@@ -236,10 +241,10 @@ static int gpio_clk_driver_probe(struct platform_device *pdev)
 	struct device_node *node = pdev->dev.of_node;
 	const char **parent_names, *gpio_name;
 	unsigned int num_parents;
-	int gpio;
-	enum of_gpio_flags of_flags;
+	struct gpio_desc *gpiod;
 	struct clk *clk;
-	bool active_low, is_mux;
+	bool is_mux;
+	int ret;
 
 	num_parents = of_clk_get_parent_count(node);
 	if (num_parents) {
@@ -255,28 +260,27 @@ static int gpio_clk_driver_probe(struct platform_device *pdev)
 
 	is_mux = of_device_is_compatible(node, "gpio-mux-clock");
 
-	gpio_name = is_mux ? "select-gpios" : "enable-gpios";
-	gpio = of_get_named_gpio_flags(node, gpio_name, 0, &of_flags);
-	if (gpio < 0) {
-		if (gpio == -EPROBE_DEFER)
-			pr_debug("%s: %s: GPIOs not yet available, retry later\n",
-					node->name, __func__);
+	gpio_name = is_mux ? "select" : "enable";
+	gpiod = devm_gpiod_get(&pdev->dev, gpio_name, GPIOD_OUT_LOW);
+	if (IS_ERR(gpiod)) {
+		ret = PTR_ERR(gpiod);
+		if (ret == -EPROBE_DEFER)
+			pr_debug("%pOFn: %s: GPIOs not yet available, retry later\n",
+					node, __func__);
 		else
-			pr_err("%s: %s: Can't get '%s' DT property\n",
-					node->name, __func__,
+			pr_err("%pOFn: %s: Can't get '%s' named GPIO property\n",
+					node, __func__,
 					gpio_name);
-		return gpio;
+		return ret;
 	}
-
-	active_low = of_flags & OF_GPIO_ACTIVE_LOW;
 
 	if (is_mux)
 		clk = clk_register_gpio_mux(&pdev->dev, node->name,
-				parent_names, num_parents, gpio, active_low, 0);
+				parent_names, num_parents, gpiod, 0);
 	else
 		clk = clk_register_gpio_gate(&pdev->dev, node->name,
-				parent_names ?  parent_names[0] : NULL, gpio,
-				active_low, 0);
+				parent_names ?  parent_names[0] : NULL, gpiod,
+				0);
 	if (IS_ERR(clk))
 		return PTR_ERR(clk);
 

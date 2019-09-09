@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/arch/arm/mach-omap2/board-n8x0.c
  *
@@ -5,10 +6,6 @@
  * Author: Juha Yrjola <juha.yrjola@nokia.com>
  *
  * Modified from mach-omap2/board-generic.c
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/clk.h>
@@ -53,14 +50,12 @@ static u32 board_caps;
 
 static void board_check_revision(void)
 {
-	if (of_have_populated_dt()) {
-		if (of_machine_is_compatible("nokia,n800"))
-			board_caps = NOKIA_N800;
-		else if (of_machine_is_compatible("nokia,n810"))
-			board_caps = NOKIA_N810;
-		else if (of_machine_is_compatible("nokia,n810-wimax"))
-			board_caps = NOKIA_N810_WIMAX;
-	}
+	if (of_machine_is_compatible("nokia,n800"))
+		board_caps = NOKIA_N800;
+	else if (of_machine_is_compatible("nokia,n810"))
+		board_caps = NOKIA_N810;
+	else if (of_machine_is_compatible("nokia,n810-wimax"))
+		board_caps = NOKIA_N810_WIMAX;
 
 	if (!board_caps)
 		pr_err("Unknown board\n");
@@ -117,7 +112,7 @@ static struct musb_hdrc_platform_data tusb_data = {
 static void __init n8x0_usb_init(void)
 {
 	int ret = 0;
-	static char	announce[] __initdata = KERN_INFO "TUSB 6010\n";
+	static const char announce[] __initconst = KERN_INFO "TUSB 6010\n";
 
 	/* PM companion chip power control pin */
 	ret = gpio_request_one(TUSB6010_GPIO_ENABLE, GPIOF_OUT_INIT_LOW,
@@ -568,11 +563,11 @@ static int n8x0_menelaus_late_init(struct device *dev)
 }
 #endif
 
-struct menelaus_platform_data n8x0_menelaus_platform_data __initdata = {
+struct menelaus_platform_data n8x0_menelaus_platform_data = {
 	.late_init = n8x0_menelaus_late_init,
 };
 
-struct aic3x_pdata n810_aic33_data __initdata = {
+struct aic3x_pdata n810_aic33_data = {
 	.gpio_reset = 118,
 };
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /dts-v1/;
 
 #include <dt-bindings/input/input.h>
@@ -17,7 +18,7 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	memory {
+	memory@0 {
 		reg = <0x00000000 0x40000000>;
 	};
 
@@ -286,7 +287,7 @@
 		status = "okay";
 		spi-max-frequency = <48000000>;
 		spi-flash@0 {
-			compatible = "winbond,w25q80bl";
+			compatible = "winbond,w25q80bl", "jedec,spi-nor";
 			reg = <0>;
 			spi-max-frequency = <48000000>;
 		};
@@ -321,7 +322,7 @@
 		nvidia,sys-clock-req-active-high;
 	};
 
-	pcie-controller@80003000 {
+	pcie@80003000 {
 		status = "okay";
 
 		avdd-pex-supply = <&pci_vdd_reg>;
@@ -366,6 +367,7 @@
 
 	sdhci@c8000000 {
 		status = "okay";
+		broken-cd;
 		bus-width = <4>;
 	};
 

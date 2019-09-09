@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Ethernet driver for the WIZnet W5100 chip.
  *
  * Copyright (C) 2006-2008 WIZnet Co.,Ltd.
  * Copyright (C) 2012 Mike Sinkovsky <msink@permonline.ru>
- *
- * Licensed under the GPL-2 or later.
  */
 
 #include <linux/kernel.h>
@@ -219,7 +218,6 @@ static inline int __w5100_write_direct(struct net_device *ndev, u32 addr,
 static inline int w5100_write_direct(struct net_device *ndev, u32 addr, u8 data)
 {
 	__w5100_write_direct(ndev, addr, data);
-	mmiowb();
 
 	return 0;
 }
@@ -236,7 +234,6 @@ static int w5100_write16_direct(struct net_device *ndev, u32 addr, u16 data)
 {
 	__w5100_write_direct(ndev, addr, data >> 8);
 	__w5100_write_direct(ndev, addr + 1, data);
-	mmiowb();
 
 	return 0;
 }
@@ -259,8 +256,6 @@ static int w5100_writebulk_direct(struct net_device *ndev, u32 addr,
 
 	for (i = 0; i < len; i++, addr++)
 		__w5100_write_direct(ndev, addr, *buf++);
-
-	mmiowb();
 
 	return 0;
 }
@@ -375,7 +370,6 @@ static int w5100_readbulk_indirect(struct net_device *ndev, u32 addr, u8 *buf,
 	for (i = 0; i < len; i++)
 		*buf++ = w5100_read_direct(ndev, W5100_IDM_DR);
 
-	mmiowb();
 	spin_unlock_irqrestore(&mmio_priv->reg_lock, flags);
 
 	return 0;
@@ -394,7 +388,6 @@ static int w5100_writebulk_indirect(struct net_device *ndev, u32 addr,
 	for (i = 0; i < len; i++)
 		__w5100_write_direct(ndev, W5100_IDM_DR, *buf++);
 
-	mmiowb();
 	spin_unlock_irqrestore(&mmio_priv->reg_lock, flags);
 
 	return 0;
@@ -835,7 +828,7 @@ static void w5100_tx_work(struct work_struct *work)
 	w5100_tx_skb(priv->ndev, skb);
 }
 
-static int w5100_start_tx(struct sk_buff *skb, struct net_device *ndev)
+static netdev_tx_t w5100_start_tx(struct sk_buff *skb, struct net_device *ndev)
 {
 	struct w5100_priv *priv = netdev_priv(ndev);
 
@@ -915,7 +908,7 @@ static int w5100_napi_poll(struct napi_struct *napi, int budget)
 	}
 
 	if (rx_count < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, rx_count);
 		w5100_enable_intr(priv);
 	}
 
@@ -1045,7 +1038,6 @@ static const struct net_device_ops w5100_netdev_ops = {
 	.ndo_set_rx_mode	= w5100_set_rx_mode,
 	.ndo_set_mac_address	= w5100_set_macaddr,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_change_mtu		= eth_change_mtu,
 };
 
 static int w5100_mmio_probe(struct platform_device *pdev)
@@ -1153,7 +1145,8 @@ int w5100_probe(struct device *dev, const struct w5100_ops *ops,
 	if (err < 0)
 		goto err_register;
 
-	priv->xfer_wq = alloc_workqueue(netdev_name(ndev), WQ_MEM_RECLAIM, 0);
+	priv->xfer_wq = alloc_workqueue("%s", WQ_MEM_RECLAIM, 0,
+					netdev_name(ndev));
 	if (!priv->xfer_wq) {
 		err = -ENOMEM;
 		goto err_wq;
@@ -1164,7 +1157,7 @@ int w5100_probe(struct device *dev, const struct w5100_ops *ops,
 	INIT_WORK(&priv->setrx_work, w5100_setrx_work);
 	INIT_WORK(&priv->restart_work, w5100_restart_work);
 
-	if (mac_addr)
+	if (!IS_ERR_OR_NULL(mac_addr))
 		memcpy(ndev->dev_addr, mac_addr, ETH_ALEN);
 	else
 		eth_hw_addr_random(ndev);

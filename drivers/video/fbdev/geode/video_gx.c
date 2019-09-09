@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Geode GX video processor device.
  *
@@ -5,11 +6,6 @@
  *
  *   Portions from AMD's original 2.4 driver:
  *     Copyright (C) 2004 Advanced Micro Devices, Inc.
- *
- *   This program is free software; you can redistribute it and/or modify it
- *   under the terms of the GNU General Public License as published by the
- *   Free Software Foundation; either version 2 of the License, or (at your
- *   option) any later version.
  */
 #include <linux/fb.h>
 #include <linux/delay.h>
@@ -127,7 +123,7 @@ void gx_set_dclk_frequency(struct fb_info *info)
 	int timeout = 1000;
 
 	/* Rev. 1 Geode GXs use a 14 MHz reference clock instead of 48 MHz. */
-	if (cpu_data(0).x86_mask == 1) {
+	if (cpu_data(0).x86_stepping == 1) {
 		pll_table = gx_pll_table_14MHz;
 		pll_table_len = ARRAY_SIZE(gx_pll_table_14MHz);
 	} else {

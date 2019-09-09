@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0
+
 # Ignore header name
 ignore define _DVBCA_H_
 
@@ -16,7 +18,6 @@ replace define CA_NDS :c:type:`ca_descr_info`
 replace define CA_DSS :c:type:`ca_descr_info`
 
 # some typedefs should point to struct/enums
-replace typedef ca_pid_t :c:type:`ca_pid`
 replace typedef ca_slot_info_t :c:type:`ca_slot_info`
 replace typedef ca_descr_info_t :c:type:`ca_descr_info`
 replace typedef ca_caps_t :c:type:`ca_caps`

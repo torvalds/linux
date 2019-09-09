@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2014 Red Hat, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -22,21 +10,16 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_bit.h"
-#include "xfs_sb.h"
 #include "xfs_mount.h"
 #include "xfs_defer.h"
-#include "xfs_da_format.h"
-#include "xfs_da_btree.h"
 #include "xfs_btree.h"
 #include "xfs_trans.h"
 #include "xfs_alloc.h"
 #include "xfs_rmap.h"
 #include "xfs_rmap_btree.h"
-#include "xfs_trans_space.h"
 #include "xfs_trace.h"
+#include "xfs_errortag.h"
 #include "xfs_error.h"
-#include "xfs_extent_busy.h"
-#include "xfs_bmap.h"
 #include "xfs_inode.h"
 
 /*
@@ -179,7 +162,8 @@ done:
 	return error;
 }
 
-static int
+/* Convert an internal btree record to an rmap record. */
+int
 xfs_rmap_btrec_to_irec(
 	union xfs_btree_rec	*rec,
 	struct xfs_rmap_irec	*irec)
@@ -201,6 +185,8 @@ xfs_rmap_get_rec(
 	struct xfs_rmap_irec	*irec,
 	int			*stat)
 {
+	struct xfs_mount	*mp = cur->bc_mp;
+	xfs_agnumber_t		agno = cur->bc_private.a.agno;
 	union xfs_btree_rec	*rec;
 	int			error;
 
@@ -208,7 +194,43 @@ xfs_rmap_get_rec(
 	if (error || !*stat)
 		return error;
 
-	return xfs_rmap_btrec_to_irec(rec, irec);
+	if (xfs_rmap_btrec_to_irec(rec, irec))
+		goto out_bad_rec;
+
+	if (irec->rm_blockcount == 0)
+		goto out_bad_rec;
+	if (irec->rm_startblock <= XFS_AGFL_BLOCK(mp)) {
+		if (irec->rm_owner != XFS_RMAP_OWN_FS)
+			goto out_bad_rec;
+		if (irec->rm_blockcount != XFS_AGFL_BLOCK(mp) + 1)
+			goto out_bad_rec;
+	} else {
+		/* check for valid extent range, including overflow */
+		if (!xfs_verify_agbno(mp, agno, irec->rm_startblock))
+			goto out_bad_rec;
+		if (irec->rm_startblock >
+				irec->rm_startblock + irec->rm_blockcount)
+			goto out_bad_rec;
+		if (!xfs_verify_agbno(mp, agno,
+				irec->rm_startblock + irec->rm_blockcount - 1))
+			goto out_bad_rec;
+	}
+
+	if (!(xfs_verify_ino(mp, irec->rm_owner) ||
+	      (irec->rm_owner <= XFS_RMAP_OWN_FS &&
+	       irec->rm_owner >= XFS_RMAP_OWN_MIN)))
+		goto out_bad_rec;
+
+	return 0;
+out_bad_rec:
+	xfs_warn(mp,
+		"Reverse Mapping BTree record corruption in AG %d detected!",
+		agno);
+	xfs_warn(mp,
+		"Owner 0x%llx, flags 0x%x, start block 0x%x block count 0x%x",
+		irec->rm_owner, irec->rm_flags, irec->rm_startblock,
+		irec->rm_blockcount);
+	return -EFSCORRUPTED;
 }
 
 struct xfs_find_left_neighbor_info {
@@ -366,6 +388,50 @@ xfs_rmap_lookup_le_range(
 }
 
 /*
+ * Perform all the relevant owner checks for a removal op.  If we're doing an
+ * unknown-owner removal then we have no owner information to check.
+ */
+static int
+xfs_rmap_free_check_owner(
+	struct xfs_mount	*mp,
+	uint64_t		ltoff,
+	struct xfs_rmap_irec	*rec,
+	xfs_filblks_t		len,
+	uint64_t		owner,
+	uint64_t		offset,
+	unsigned int		flags)
+{
+	int			error = 0;
+
+	if (owner == XFS_RMAP_OWN_UNKNOWN)
+		return 0;
+
+	/* Make sure the unwritten flag matches. */
+	XFS_WANT_CORRUPTED_GOTO(mp, (flags & XFS_RMAP_UNWRITTEN) ==
+			(rec->rm_flags & XFS_RMAP_UNWRITTEN), out);
+
+	/* Make sure the owner matches what we expect to find in the tree. */
+	XFS_WANT_CORRUPTED_GOTO(mp, owner == rec->rm_owner, out);
+
+	/* Check the offset, if necessary. */
+	if (XFS_RMAP_NON_INODE_OWNER(owner))
+		goto out;
+
+	if (flags & XFS_RMAP_BMBT_BLOCK) {
+		XFS_WANT_CORRUPTED_GOTO(mp, rec->rm_flags & XFS_RMAP_BMBT_BLOCK,
+				out);
+	} else {
+		XFS_WANT_CORRUPTED_GOTO(mp, rec->rm_offset <= offset, out);
+		XFS_WANT_CORRUPTED_GOTO(mp,
+				ltoff + rec->rm_blockcount >= offset + len,
+				out);
+	}
+
+out:
+	return error;
+}
+
+/*
  * Find the extent in the rmap btree and remove it.
  *
  * The record we find should always be an exact match for the extent that we're
@@ -385,21 +451,21 @@ xfs_rmap_lookup_le_range(
  */
 STATIC int
 xfs_rmap_unmap(
-	struct xfs_btree_cur	*cur,
-	xfs_agblock_t		bno,
-	xfs_extlen_t		len,
-	bool			unwritten,
-	struct xfs_owner_info	*oinfo)
+	struct xfs_btree_cur		*cur,
+	xfs_agblock_t			bno,
+	xfs_extlen_t			len,
+	bool				unwritten,
+	const struct xfs_owner_info	*oinfo)
 {
-	struct xfs_mount	*mp = cur->bc_mp;
-	struct xfs_rmap_irec	ltrec;
-	uint64_t		ltoff;
-	int			error = 0;
-	int			i;
-	uint64_t		owner;
-	uint64_t		offset;
-	unsigned int		flags;
-	bool			ignore_off;
+	struct xfs_mount		*mp = cur->bc_mp;
+	struct xfs_rmap_irec		ltrec;
+	uint64_t			ltoff;
+	int				error = 0;
+	int				i;
+	uint64_t			owner;
+	uint64_t			offset;
+	unsigned int			flags;
+	bool				ignore_off;
 
 	xfs_owner_info_unpack(oinfo, &owner, &offset, &flags);
 	ignore_off = XFS_RMAP_NON_INODE_OWNER(owner) ||
@@ -442,33 +508,40 @@ xfs_rmap_unmap(
 		goto out_done;
 	}
 
-	/* Make sure the unwritten flag matches. */
-	XFS_WANT_CORRUPTED_GOTO(mp, (flags & XFS_RMAP_UNWRITTEN) ==
-			(ltrec.rm_flags & XFS_RMAP_UNWRITTEN), out_error);
+	/*
+	 * If we're doing an unknown-owner removal for EFI recovery, we expect
+	 * to find the full range in the rmapbt or nothing at all.  If we
+	 * don't find any rmaps overlapping either end of the range, we're
+	 * done.  Hopefully this means that the EFI creator already queued
+	 * (and finished) a RUI to remove the rmap.
+	 */
+	if (owner == XFS_RMAP_OWN_UNKNOWN &&
+	    ltrec.rm_startblock + ltrec.rm_blockcount <= bno) {
+		struct xfs_rmap_irec    rtrec;
+
+		error = xfs_btree_increment(cur, 0, &i);
+		if (error)
+			goto out_error;
+		if (i == 0)
+			goto out_done;
+		error = xfs_rmap_get_rec(cur, &rtrec, &i);
+		if (error)
+			goto out_error;
+		XFS_WANT_CORRUPTED_GOTO(mp, i == 1, out_error);
+		if (rtrec.rm_startblock >= bno + len)
+			goto out_done;
+	}
 
 	/* Make sure the extent we found covers the entire freeing range. */
 	XFS_WANT_CORRUPTED_GOTO(mp, ltrec.rm_startblock <= bno &&
-		ltrec.rm_startblock + ltrec.rm_blockcount >=
-		bno + len, out_error);
+			ltrec.rm_startblock + ltrec.rm_blockcount >=
+			bno + len, out_error);
 
-	/* Make sure the owner matches what we expect to find in the tree. */
-	XFS_WANT_CORRUPTED_GOTO(mp, owner == ltrec.rm_owner ||
-				    XFS_RMAP_NON_INODE_OWNER(owner), out_error);
-
-	/* Check the offset, if necessary. */
-	if (!XFS_RMAP_NON_INODE_OWNER(owner)) {
-		if (flags & XFS_RMAP_BMBT_BLOCK) {
-			XFS_WANT_CORRUPTED_GOTO(mp,
-					ltrec.rm_flags & XFS_RMAP_BMBT_BLOCK,
-					out_error);
-		} else {
-			XFS_WANT_CORRUPTED_GOTO(mp,
-					ltrec.rm_offset <= offset, out_error);
-			XFS_WANT_CORRUPTED_GOTO(mp,
-					ltoff + ltrec.rm_blockcount >= offset + len,
-					out_error);
-		}
-	}
+	/* Check owner information. */
+	error = xfs_rmap_free_check_owner(mp, ltoff, &ltrec, len, owner,
+			offset, flags);
+	if (error)
+		goto out_error;
 
 	if (ltrec.rm_startblock == bno && ltrec.rm_blockcount == len) {
 		/* exact match, simply remove the record from rmap tree */
@@ -573,16 +646,16 @@ out_error:
  */
 int
 xfs_rmap_free(
-	struct xfs_trans	*tp,
-	struct xfs_buf		*agbp,
-	xfs_agnumber_t		agno,
-	xfs_agblock_t		bno,
-	xfs_extlen_t		len,
-	struct xfs_owner_info	*oinfo)
+	struct xfs_trans		*tp,
+	struct xfs_buf			*agbp,
+	xfs_agnumber_t			agno,
+	xfs_agblock_t			bno,
+	xfs_extlen_t			len,
+	const struct xfs_owner_info	*oinfo)
 {
-	struct xfs_mount	*mp = tp->t_mountp;
-	struct xfs_btree_cur	*cur;
-	int			error;
+	struct xfs_mount		*mp = tp->t_mountp;
+	struct xfs_btree_cur		*cur;
+	int				error;
 
 	if (!xfs_sb_version_hasrmapbt(&mp->m_sb))
 		return 0;
@@ -590,14 +663,8 @@ xfs_rmap_free(
 	cur = xfs_rmapbt_init_cursor(mp, tp, agbp, agno);
 
 	error = xfs_rmap_unmap(cur, bno, len, false, oinfo);
-	if (error)
-		goto out_error;
 
-	xfs_btree_del_cursor(cur, XFS_BTREE_NOERROR);
-	return 0;
-
-out_error:
-	xfs_btree_del_cursor(cur, XFS_BTREE_ERROR);
+	xfs_btree_del_cursor(cur, error);
 	return error;
 }
 
@@ -636,23 +703,23 @@ xfs_rmap_is_mergeable(
  */
 STATIC int
 xfs_rmap_map(
-	struct xfs_btree_cur	*cur,
-	xfs_agblock_t		bno,
-	xfs_extlen_t		len,
-	bool			unwritten,
-	struct xfs_owner_info	*oinfo)
+	struct xfs_btree_cur		*cur,
+	xfs_agblock_t			bno,
+	xfs_extlen_t			len,
+	bool				unwritten,
+	const struct xfs_owner_info	*oinfo)
 {
-	struct xfs_mount	*mp = cur->bc_mp;
-	struct xfs_rmap_irec	ltrec;
-	struct xfs_rmap_irec	gtrec;
-	int			have_gt;
-	int			have_lt;
-	int			error = 0;
-	int			i;
-	uint64_t		owner;
-	uint64_t		offset;
-	unsigned int		flags = 0;
-	bool			ignore_off;
+	struct xfs_mount		*mp = cur->bc_mp;
+	struct xfs_rmap_irec		ltrec;
+	struct xfs_rmap_irec		gtrec;
+	int				have_gt;
+	int				have_lt;
+	int				error = 0;
+	int				i;
+	uint64_t			owner;
+	uint64_t			offset;
+	unsigned int			flags = 0;
+	bool				ignore_off;
 
 	xfs_owner_info_unpack(oinfo, &owner, &offset, &flags);
 	ASSERT(owner != 0);
@@ -662,6 +729,7 @@ xfs_rmap_map(
 		flags |= XFS_RMAP_UNWRITTEN;
 	trace_xfs_rmap_map(mp, cur->bc_private.a.agno, bno, len,
 			unwritten, oinfo);
+	ASSERT(!xfs_rmap_should_skip_owner_update(oinfo));
 
 	/*
 	 * For the initial lookup, look for an exact match or the left-adjacent
@@ -672,19 +740,19 @@ xfs_rmap_map(
 			&have_lt);
 	if (error)
 		goto out_error;
-	XFS_WANT_CORRUPTED_GOTO(mp, have_lt == 1, out_error);
+	if (have_lt) {
+		error = xfs_rmap_get_rec(cur, &ltrec, &have_lt);
+		if (error)
+			goto out_error;
+		XFS_WANT_CORRUPTED_GOTO(mp, have_lt == 1, out_error);
+		trace_xfs_rmap_lookup_le_range_result(cur->bc_mp,
+				cur->bc_private.a.agno, ltrec.rm_startblock,
+				ltrec.rm_blockcount, ltrec.rm_owner,
+				ltrec.rm_offset, ltrec.rm_flags);
 
-	error = xfs_rmap_get_rec(cur, &ltrec, &have_lt);
-	if (error)
-		goto out_error;
-	XFS_WANT_CORRUPTED_GOTO(mp, have_lt == 1, out_error);
-	trace_xfs_rmap_lookup_le_range_result(cur->bc_mp,
-			cur->bc_private.a.agno, ltrec.rm_startblock,
-			ltrec.rm_blockcount, ltrec.rm_owner,
-			ltrec.rm_offset, ltrec.rm_flags);
-
-	if (!xfs_rmap_is_mergeable(&ltrec, owner, flags))
-		have_lt = 0;
+		if (!xfs_rmap_is_mergeable(&ltrec, owner, flags))
+			have_lt = 0;
+	}
 
 	XFS_WANT_CORRUPTED_GOTO(mp,
 		have_lt == 0 ||
@@ -815,30 +883,24 @@ out_error:
  */
 int
 xfs_rmap_alloc(
-	struct xfs_trans	*tp,
-	struct xfs_buf		*agbp,
-	xfs_agnumber_t		agno,
-	xfs_agblock_t		bno,
-	xfs_extlen_t		len,
-	struct xfs_owner_info	*oinfo)
+	struct xfs_trans		*tp,
+	struct xfs_buf			*agbp,
+	xfs_agnumber_t			agno,
+	xfs_agblock_t			bno,
+	xfs_extlen_t			len,
+	const struct xfs_owner_info	*oinfo)
 {
-	struct xfs_mount	*mp = tp->t_mountp;
-	struct xfs_btree_cur	*cur;
-	int			error;
+	struct xfs_mount		*mp = tp->t_mountp;
+	struct xfs_btree_cur		*cur;
+	int				error;
 
 	if (!xfs_sb_version_hasrmapbt(&mp->m_sb))
 		return 0;
 
 	cur = xfs_rmapbt_init_cursor(mp, tp, agbp, agno);
 	error = xfs_rmap_map(cur, bno, len, false, oinfo);
-	if (error)
-		goto out_error;
 
-	xfs_btree_del_cursor(cur, XFS_BTREE_NOERROR);
-	return 0;
-
-out_error:
-	xfs_btree_del_cursor(cur, XFS_BTREE_ERROR);
+	xfs_btree_del_cursor(cur, error);
 	return error;
 }
 
@@ -860,16 +922,16 @@ out_error:
  */
 STATIC int
 xfs_rmap_convert(
-	struct xfs_btree_cur	*cur,
-	xfs_agblock_t		bno,
-	xfs_extlen_t		len,
-	bool			unwritten,
-	struct xfs_owner_info	*oinfo)
+	struct xfs_btree_cur		*cur,
+	xfs_agblock_t			bno,
+	xfs_extlen_t			len,
+	bool				unwritten,
+	const struct xfs_owner_info	*oinfo)
 {
-	struct xfs_mount	*mp = cur->bc_mp;
-	struct xfs_rmap_irec	r[4];	/* neighbor extent entries */
-					/* left is 0, right is 1, prev is 2 */
-					/* new is 3 */
+	struct xfs_mount		*mp = cur->bc_mp;
+	struct xfs_rmap_irec		r[4];	/* neighbor extent entries */
+						/* left is 0, right is 1, */
+						/* prev is 2, new is 3 */
 	uint64_t		owner;
 	uint64_t		offset;
 	uint64_t		new_endoff;
@@ -1285,16 +1347,16 @@ done:
  */
 STATIC int
 xfs_rmap_convert_shared(
-	struct xfs_btree_cur	*cur,
-	xfs_agblock_t		bno,
-	xfs_extlen_t		len,
-	bool			unwritten,
-	struct xfs_owner_info	*oinfo)
+	struct xfs_btree_cur		*cur,
+	xfs_agblock_t			bno,
+	xfs_extlen_t			len,
+	bool				unwritten,
+	const struct xfs_owner_info	*oinfo)
 {
-	struct xfs_mount	*mp = cur->bc_mp;
-	struct xfs_rmap_irec	r[4];	/* neighbor extent entries */
-					/* left is 0, right is 1, prev is 2 */
-					/* new is 3 */
+	struct xfs_mount		*mp = cur->bc_mp;
+	struct xfs_rmap_irec		r[4];	/* neighbor extent entries */
+						/* left is 0, right is 1, */
+						/* prev is 2, new is 3 */
 	uint64_t		owner;
 	uint64_t		offset;
 	uint64_t		new_endoff;
@@ -1320,6 +1382,8 @@ xfs_rmap_convert_shared(
 	 */
 	error = xfs_rmap_lookup_le_range(cur, bno, owner, offset, flags,
 			&PREV, &i);
+	if (error)
+		goto done;
 	XFS_WANT_CORRUPTED_GOTO(mp, i == 1, done);
 
 	ASSERT(PREV.rm_offset <= offset);
@@ -1672,20 +1736,20 @@ done:
  */
 STATIC int
 xfs_rmap_unmap_shared(
-	struct xfs_btree_cur	*cur,
-	xfs_agblock_t		bno,
-	xfs_extlen_t		len,
-	bool			unwritten,
-	struct xfs_owner_info	*oinfo)
+	struct xfs_btree_cur		*cur,
+	xfs_agblock_t			bno,
+	xfs_extlen_t			len,
+	bool				unwritten,
+	const struct xfs_owner_info	*oinfo)
 {
-	struct xfs_mount	*mp = cur->bc_mp;
-	struct xfs_rmap_irec	ltrec;
-	uint64_t		ltoff;
-	int			error = 0;
-	int			i;
-	uint64_t		owner;
-	uint64_t		offset;
-	unsigned int		flags;
+	struct xfs_mount		*mp = cur->bc_mp;
+	struct xfs_rmap_irec		ltrec;
+	uint64_t			ltoff;
+	int				error = 0;
+	int				i;
+	uint64_t			owner;
+	uint64_t			offset;
+	unsigned int			flags;
 
 	xfs_owner_info_unpack(oinfo, &owner, &offset, &flags);
 	if (unwritten)
@@ -1834,22 +1898,22 @@ out_error:
  */
 STATIC int
 xfs_rmap_map_shared(
-	struct xfs_btree_cur	*cur,
-	xfs_agblock_t		bno,
-	xfs_extlen_t		len,
-	bool			unwritten,
-	struct xfs_owner_info	*oinfo)
+	struct xfs_btree_cur		*cur,
+	xfs_agblock_t			bno,
+	xfs_extlen_t			len,
+	bool				unwritten,
+	const struct xfs_owner_info	*oinfo)
 {
-	struct xfs_mount	*mp = cur->bc_mp;
-	struct xfs_rmap_irec	ltrec;
-	struct xfs_rmap_irec	gtrec;
-	int			have_gt;
-	int			have_lt;
-	int			error = 0;
-	int			i;
-	uint64_t		owner;
-	uint64_t		offset;
-	unsigned int		flags = 0;
+	struct xfs_mount		*mp = cur->bc_mp;
+	struct xfs_rmap_irec		ltrec;
+	struct xfs_rmap_irec		gtrec;
+	int				have_gt;
+	int				have_lt;
+	int				error = 0;
+	int				i;
+	uint64_t			owner;
+	uint64_t			offset;
+	unsigned int			flags = 0;
 
 	xfs_owner_info_unpack(oinfo, &owner, &offset, &flags);
 	if (unwritten)
@@ -1976,6 +2040,34 @@ out_error:
 	return error;
 }
 
+/* Insert a raw rmap into the rmapbt. */
+int
+xfs_rmap_map_raw(
+	struct xfs_btree_cur	*cur,
+	struct xfs_rmap_irec	*rmap)
+{
+	struct xfs_owner_info	oinfo;
+
+	oinfo.oi_owner = rmap->rm_owner;
+	oinfo.oi_offset = rmap->rm_offset;
+	oinfo.oi_flags = 0;
+	if (rmap->rm_flags & XFS_RMAP_ATTR_FORK)
+		oinfo.oi_flags |= XFS_OWNER_INFO_ATTR_FORK;
+	if (rmap->rm_flags & XFS_RMAP_BMBT_BLOCK)
+		oinfo.oi_flags |= XFS_OWNER_INFO_BMBT_BLOCK;
+
+	if (rmap->rm_flags || XFS_RMAP_NON_INODE_OWNER(rmap->rm_owner))
+		return xfs_rmap_map(cur, rmap->rm_startblock,
+				rmap->rm_blockcount,
+				rmap->rm_flags & XFS_RMAP_UNWRITTEN,
+				&oinfo);
+
+	return xfs_rmap_map_shared(cur, rmap->rm_startblock,
+			rmap->rm_blockcount,
+			rmap->rm_flags & XFS_RMAP_UNWRITTEN,
+			&oinfo);
+}
+
 struct xfs_rmap_query_range_info {
 	xfs_rmap_query_range_fn	fn;
 	void				*priv;
@@ -2001,14 +2093,14 @@ xfs_rmap_query_range_helper(
 /* Find all rmaps between two keys. */
 int
 xfs_rmap_query_range(
-	struct xfs_btree_cur		*cur,
-	struct xfs_rmap_irec		*low_rec,
-	struct xfs_rmap_irec		*high_rec,
-	xfs_rmap_query_range_fn	fn,
-	void				*priv)
+	struct xfs_btree_cur			*cur,
+	struct xfs_rmap_irec			*low_rec,
+	struct xfs_rmap_irec			*high_rec,
+	xfs_rmap_query_range_fn			fn,
+	void					*priv)
 {
-	union xfs_btree_irec		low_brec;
-	union xfs_btree_irec		high_brec;
+	union xfs_btree_irec			low_brec;
+	union xfs_btree_irec			high_brec;
 	struct xfs_rmap_query_range_info	query;
 
 	low_brec.r = *low_rec;
@@ -2017,6 +2109,20 @@ xfs_rmap_query_range(
 	query.fn = fn;
 	return xfs_btree_query_range(cur, &low_brec, &high_brec,
 			xfs_rmap_query_range_helper, &query);
+}
+
+/* Find all rmaps. */
+int
+xfs_rmap_query_all(
+	struct xfs_btree_cur			*cur,
+	xfs_rmap_query_range_fn			fn,
+	void					*priv)
+{
+	struct xfs_rmap_query_range_info	query;
+
+	query.priv = priv;
+	query.fn = fn;
+	return xfs_btree_query_all(cur, xfs_rmap_query_range_helper, &query);
 }
 
 /* Clean up after calling xfs_rmap_finish_one. */
@@ -2031,7 +2137,7 @@ xfs_rmap_finish_one_cleanup(
 	if (rcur == NULL)
 		return;
 	agbp = rcur->bc_private.a.agbp;
-	xfs_btree_del_cursor(rcur, error ? XFS_BTREE_ERROR : XFS_BTREE_NOERROR);
+	xfs_btree_del_cursor(rcur, error);
 	if (error)
 		xfs_trans_brelse(tp, agbp);
 }
@@ -2047,7 +2153,7 @@ int
 xfs_rmap_finish_one(
 	struct xfs_trans		*tp,
 	enum xfs_rmap_intent_type	type,
-	__uint64_t			owner,
+	uint64_t			owner,
 	int				whichfork,
 	xfs_fileoff_t			startoff,
 	xfs_fsblock_t			startblock,
@@ -2072,8 +2178,7 @@ xfs_rmap_finish_one(
 			startoff, blockcount, state);
 
 	if (XFS_TEST_ERROR(false, mp,
-			XFS_ERRTAG_RMAP_FINISH_ONE,
-			XFS_RANDOM_RMAP_FINISH_ONE))
+			XFS_ERRTAG_RMAP_FINISH_ONE))
 		return -EIO;
 
 	/*
@@ -2165,18 +2270,18 @@ xfs_rmap_update_is_needed(
  */
 static int
 __xfs_rmap_add(
-	struct xfs_mount		*mp,
-	struct xfs_defer_ops		*dfops,
+	struct xfs_trans		*tp,
 	enum xfs_rmap_intent_type	type,
-	__uint64_t			owner,
+	uint64_t			owner,
 	int				whichfork,
 	struct xfs_bmbt_irec		*bmap)
 {
-	struct xfs_rmap_intent	*ri;
+	struct xfs_rmap_intent		*ri;
 
-	trace_xfs_rmap_defer(mp, XFS_FSB_TO_AGNO(mp, bmap->br_startblock),
+	trace_xfs_rmap_defer(tp->t_mountp,
+			XFS_FSB_TO_AGNO(tp->t_mountp, bmap->br_startblock),
 			type,
-			XFS_FSB_TO_AGBNO(mp, bmap->br_startblock),
+			XFS_FSB_TO_AGBNO(tp->t_mountp, bmap->br_startblock),
 			owner, whichfork,
 			bmap->br_startoff,
 			bmap->br_blockcount,
@@ -2189,23 +2294,22 @@ __xfs_rmap_add(
 	ri->ri_whichfork = whichfork;
 	ri->ri_bmap = *bmap;
 
-	xfs_defer_add(dfops, XFS_DEFER_OPS_TYPE_RMAP, &ri->ri_list);
+	xfs_defer_add(tp, XFS_DEFER_OPS_TYPE_RMAP, &ri->ri_list);
 	return 0;
 }
 
 /* Map an extent into a file. */
 int
 xfs_rmap_map_extent(
-	struct xfs_mount	*mp,
-	struct xfs_defer_ops	*dfops,
+	struct xfs_trans	*tp,
 	struct xfs_inode	*ip,
 	int			whichfork,
 	struct xfs_bmbt_irec	*PREV)
 {
-	if (!xfs_rmap_update_is_needed(mp, whichfork))
+	if (!xfs_rmap_update_is_needed(tp->t_mountp, whichfork))
 		return 0;
 
-	return __xfs_rmap_add(mp, dfops, xfs_is_reflink_inode(ip) ?
+	return __xfs_rmap_add(tp, xfs_is_reflink_inode(ip) ?
 			XFS_RMAP_MAP_SHARED : XFS_RMAP_MAP, ip->i_ino,
 			whichfork, PREV);
 }
@@ -2213,25 +2317,29 @@ xfs_rmap_map_extent(
 /* Unmap an extent out of a file. */
 int
 xfs_rmap_unmap_extent(
-	struct xfs_mount	*mp,
-	struct xfs_defer_ops	*dfops,
+	struct xfs_trans	*tp,
 	struct xfs_inode	*ip,
 	int			whichfork,
 	struct xfs_bmbt_irec	*PREV)
 {
-	if (!xfs_rmap_update_is_needed(mp, whichfork))
+	if (!xfs_rmap_update_is_needed(tp->t_mountp, whichfork))
 		return 0;
 
-	return __xfs_rmap_add(mp, dfops, xfs_is_reflink_inode(ip) ?
+	return __xfs_rmap_add(tp, xfs_is_reflink_inode(ip) ?
 			XFS_RMAP_UNMAP_SHARED : XFS_RMAP_UNMAP, ip->i_ino,
 			whichfork, PREV);
 }
 
-/* Convert a data fork extent from unwritten to real or vice versa. */
+/*
+ * Convert a data fork extent from unwritten to real or vice versa.
+ *
+ * Note that tp can be NULL here as no transaction is used for COW fork
+ * unwritten conversion.
+ */
 int
 xfs_rmap_convert_extent(
 	struct xfs_mount	*mp,
-	struct xfs_defer_ops	*dfops,
+	struct xfs_trans	*tp,
 	struct xfs_inode	*ip,
 	int			whichfork,
 	struct xfs_bmbt_irec	*PREV)
@@ -2239,7 +2347,7 @@ xfs_rmap_convert_extent(
 	if (!xfs_rmap_update_is_needed(mp, whichfork))
 		return 0;
 
-	return __xfs_rmap_add(mp, dfops, xfs_is_reflink_inode(ip) ?
+	return __xfs_rmap_add(tp, xfs_is_reflink_inode(ip) ?
 			XFS_RMAP_CONVERT_SHARED : XFS_RMAP_CONVERT, ip->i_ino,
 			whichfork, PREV);
 }
@@ -2247,47 +2355,219 @@ xfs_rmap_convert_extent(
 /* Schedule the creation of an rmap for non-file data. */
 int
 xfs_rmap_alloc_extent(
-	struct xfs_mount	*mp,
-	struct xfs_defer_ops	*dfops,
+	struct xfs_trans	*tp,
 	xfs_agnumber_t		agno,
 	xfs_agblock_t		bno,
 	xfs_extlen_t		len,
-	__uint64_t		owner)
+	uint64_t		owner)
 {
 	struct xfs_bmbt_irec	bmap;
 
-	if (!xfs_rmap_update_is_needed(mp, XFS_DATA_FORK))
+	if (!xfs_rmap_update_is_needed(tp->t_mountp, XFS_DATA_FORK))
 		return 0;
 
-	bmap.br_startblock = XFS_AGB_TO_FSB(mp, agno, bno);
+	bmap.br_startblock = XFS_AGB_TO_FSB(tp->t_mountp, agno, bno);
 	bmap.br_blockcount = len;
 	bmap.br_startoff = 0;
 	bmap.br_state = XFS_EXT_NORM;
 
-	return __xfs_rmap_add(mp, dfops, XFS_RMAP_ALLOC, owner,
-			XFS_DATA_FORK, &bmap);
+	return __xfs_rmap_add(tp, XFS_RMAP_ALLOC, owner, XFS_DATA_FORK, &bmap);
 }
 
 /* Schedule the deletion of an rmap for non-file data. */
 int
 xfs_rmap_free_extent(
-	struct xfs_mount	*mp,
-	struct xfs_defer_ops	*dfops,
+	struct xfs_trans	*tp,
 	xfs_agnumber_t		agno,
 	xfs_agblock_t		bno,
 	xfs_extlen_t		len,
-	__uint64_t		owner)
+	uint64_t		owner)
 {
 	struct xfs_bmbt_irec	bmap;
 
-	if (!xfs_rmap_update_is_needed(mp, XFS_DATA_FORK))
+	if (!xfs_rmap_update_is_needed(tp->t_mountp, XFS_DATA_FORK))
 		return 0;
 
-	bmap.br_startblock = XFS_AGB_TO_FSB(mp, agno, bno);
+	bmap.br_startblock = XFS_AGB_TO_FSB(tp->t_mountp, agno, bno);
 	bmap.br_blockcount = len;
 	bmap.br_startoff = 0;
 	bmap.br_state = XFS_EXT_NORM;
 
-	return __xfs_rmap_add(mp, dfops, XFS_RMAP_FREE, owner,
-			XFS_DATA_FORK, &bmap);
+	return __xfs_rmap_add(tp, XFS_RMAP_FREE, owner, XFS_DATA_FORK, &bmap);
 }
+
+/* Compare rmap records.  Returns -1 if a < b, 1 if a > b, and 0 if equal. */
+int
+xfs_rmap_compare(
+	const struct xfs_rmap_irec	*a,
+	const struct xfs_rmap_irec	*b)
+{
+	__u64				oa;
+	__u64				ob;
+
+	oa = xfs_rmap_irec_offset_pack(a);
+	ob = xfs_rmap_irec_offset_pack(b);
+
+	if (a->rm_startblock < b->rm_startblock)
+		return -1;
+	else if (a->rm_startblock > b->rm_startblock)
+		return 1;
+	else if (a->rm_owner < b->rm_owner)
+		return -1;
+	else if (a->rm_owner > b->rm_owner)
+		return 1;
+	else if (oa < ob)
+		return -1;
+	else if (oa > ob)
+		return 1;
+	else
+		return 0;
+}
+
+/* Is there a record covering a given extent? */
+int
+xfs_rmap_has_record(
+	struct xfs_btree_cur	*cur,
+	xfs_agblock_t		bno,
+	xfs_extlen_t		len,
+	bool			*exists)
+{
+	union xfs_btree_irec	low;
+	union xfs_btree_irec	high;
+
+	memset(&low, 0, sizeof(low));
+	low.r.rm_startblock = bno;
+	memset(&high, 0xFF, sizeof(high));
+	high.r.rm_startblock = bno + len - 1;
+
+	return xfs_btree_has_record(cur, &low, &high, exists);
+}
+
+/*
+ * Is there a record for this owner completely covering a given physical
+ * extent?  If so, *has_rmap will be set to true.  If there is no record
+ * or the record only covers part of the range, we set *has_rmap to false.
+ * This function doesn't perform range lookups or offset checks, so it is
+ * not suitable for checking data fork blocks.
+ */
+int
+xfs_rmap_record_exists(
+	struct xfs_btree_cur		*cur,
+	xfs_agblock_t			bno,
+	xfs_extlen_t			len,
+	const struct xfs_owner_info	*oinfo,
+	bool				*has_rmap)
+{
+	uint64_t			owner;
+	uint64_t			offset;
+	unsigned int			flags;
+	int				has_record;
+	struct xfs_rmap_irec		irec;
+	int				error;
+
+	xfs_owner_info_unpack(oinfo, &owner, &offset, &flags);
+	ASSERT(XFS_RMAP_NON_INODE_OWNER(owner) ||
+	       (flags & XFS_RMAP_BMBT_BLOCK));
+
+	error = xfs_rmap_lookup_le(cur, bno, len, owner, offset, flags,
+			&has_record);
+	if (error)
+		return error;
+	if (!has_record) {
+		*has_rmap = false;
+		return 0;
+	}
+
+	error = xfs_rmap_get_rec(cur, &irec, &has_record);
+	if (error)
+		return error;
+	if (!has_record) {
+		*has_rmap = false;
+		return 0;
+	}
+
+	*has_rmap = (irec.rm_owner == owner && irec.rm_startblock <= bno &&
+		     irec.rm_startblock + irec.rm_blockcount >= bno + len);
+	return 0;
+}
+
+struct xfs_rmap_key_state {
+	uint64_t			owner;
+	uint64_t			offset;
+	unsigned int			flags;
+	bool				has_rmap;
+};
+
+/* For each rmap given, figure out if it doesn't match the key we want. */
+STATIC int
+xfs_rmap_has_other_keys_helper(
+	struct xfs_btree_cur		*cur,
+	struct xfs_rmap_irec		*rec,
+	void				*priv)
+{
+	struct xfs_rmap_key_state	*rks = priv;
+
+	if (rks->owner == rec->rm_owner && rks->offset == rec->rm_offset &&
+	    ((rks->flags & rec->rm_flags) & XFS_RMAP_KEY_FLAGS) == rks->flags)
+		return 0;
+	rks->has_rmap = true;
+	return XFS_BTREE_QUERY_RANGE_ABORT;
+}
+
+/*
+ * Given an extent and some owner info, can we find records overlapping
+ * the extent whose owner info does not match the given owner?
+ */
+int
+xfs_rmap_has_other_keys(
+	struct xfs_btree_cur		*cur,
+	xfs_agblock_t			bno,
+	xfs_extlen_t			len,
+	const struct xfs_owner_info	*oinfo,
+	bool				*has_rmap)
+{
+	struct xfs_rmap_irec		low = {0};
+	struct xfs_rmap_irec		high;
+	struct xfs_rmap_key_state	rks;
+	int				error;
+
+	xfs_owner_info_unpack(oinfo, &rks.owner, &rks.offset, &rks.flags);
+	rks.has_rmap = false;
+
+	low.rm_startblock = bno;
+	memset(&high, 0xFF, sizeof(high));
+	high.rm_startblock = bno + len - 1;
+
+	error = xfs_rmap_query_range(cur, &low, &high,
+			xfs_rmap_has_other_keys_helper, &rks);
+	*has_rmap = rks.has_rmap;
+	return error;
+}
+
+const struct xfs_owner_info XFS_RMAP_OINFO_SKIP_UPDATE = {
+	.oi_owner = XFS_RMAP_OWN_NULL,
+};
+const struct xfs_owner_info XFS_RMAP_OINFO_ANY_OWNER = {
+	.oi_owner = XFS_RMAP_OWN_UNKNOWN,
+};
+const struct xfs_owner_info XFS_RMAP_OINFO_FS = {
+	.oi_owner = XFS_RMAP_OWN_FS,
+};
+const struct xfs_owner_info XFS_RMAP_OINFO_LOG = {
+	.oi_owner = XFS_RMAP_OWN_LOG,
+};
+const struct xfs_owner_info XFS_RMAP_OINFO_AG = {
+	.oi_owner = XFS_RMAP_OWN_AG,
+};
+const struct xfs_owner_info XFS_RMAP_OINFO_INOBT = {
+	.oi_owner = XFS_RMAP_OWN_INOBT,
+};
+const struct xfs_owner_info XFS_RMAP_OINFO_INODES = {
+	.oi_owner = XFS_RMAP_OWN_INODES,
+};
+const struct xfs_owner_info XFS_RMAP_OINFO_REFC = {
+	.oi_owner = XFS_RMAP_OWN_REFC,
+};
+const struct xfs_owner_info XFS_RMAP_OINFO_COW = {
+	.oi_owner = XFS_RMAP_OWN_COW,
+};

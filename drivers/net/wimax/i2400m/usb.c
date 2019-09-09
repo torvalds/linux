@@ -1,26 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Intel Wireless WiMAX Connection 2400m
  * Linux driver model glue for USB device, reset & fw upload
  *
- *
  * Copyright (C) 2007-2008 Intel Corporation <linux-wimax@intel.com>
  * Inaky Perez-Gonzalez <inaky.perez-gonzalez@intel.com>
  * Yanir Lubetkin <yanirx.lubetkin@intel.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
- *
  *
  * See i2400m-usb.h for a general description of this driver.
  *
@@ -210,6 +195,7 @@ retry:
 			msleep(10);	/* give the device some time */
 			goto retry;
 		}
+		/* fall through */
 	case -EINVAL:			/* while removing driver */
 	case -ENODEV:			/* dev disconnect ... */
 	case -ENOENT:			/* just ignore it */
@@ -466,6 +452,9 @@ int i2400mu_probe(struct usb_interface *iface,
 	struct i2400m *i2400m;
 	struct i2400mu *i2400mu;
 	struct usb_device *usb_dev = interface_to_usbdev(iface);
+
+	if (iface->cur_altsetting->desc.bNumEndpoints < 4)
+		return -ENODEV;
 
 	if (usb_dev->speed != USB_SPEED_HIGH)
 		dev_err(dev, "device not connected as high speed\n");

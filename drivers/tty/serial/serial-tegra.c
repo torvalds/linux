@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * serial_tegra.c
  *
@@ -6,18 +7,6 @@
  * Copyright (c) 2012-2013, NVIDIA CORPORATION.  All rights reserved.
  *
  * Author: Laxman Dewangan <ldewangan@nvidia.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/clk.h>
@@ -757,7 +746,7 @@ static void tegra_uart_stop_rx(struct uart_port *u)
 	if (!tup->rx_in_progress)
 		return;
 
-	tegra_uart_wait_sym_time(tup, 1); /* wait a character interval */
+	tegra_uart_wait_sym_time(tup, 1); /* wait one character interval */
 
 	ier = tup->ier_shadow;
 	ier &= ~(UART_IER_RDI | UART_IER_RLSI | UART_IER_RTOIE |
@@ -898,7 +887,7 @@ static int tegra_uart_hw_init(struct tegra_uart_port *tup)
 	 *
 	 * EORD is different interrupt than RX_TIMEOUT - RX_TIMEOUT occurs when
 	 * the DATA is sitting in the FIFO and couldn't be transferred to the
-	 * DMA as the DMA size alignment(4 bytes) is not met. EORD will be
+	 * DMA as the DMA size alignment (4 bytes) is not met. EORD will be
 	 * triggered when there is a pause of the incomming data stream for 4
 	 * characters long.
 	 *
@@ -1090,7 +1079,7 @@ static void tegra_uart_set_termios(struct uart_port *u,
 	if (tup->rts_active)
 		set_rts(tup, false);
 
-	/* Clear all interrupts as configuration is going to be change */
+	/* Clear all interrupts as configuration is going to be changed */
 	tegra_uart_write(tup, tup->ier_shadow | UART_IER_RDI, UART_IER);
 	tegra_uart_read(tup, UART_IER);
 	tegra_uart_write(tup, 0, UART_IER);
@@ -1176,10 +1165,10 @@ static void tegra_uart_set_termios(struct uart_port *u,
 	/* update the port timeout based on new settings */
 	uart_update_timeout(u, termios->c_cflag, baud);
 
-	/* Make sure all write has completed */
+	/* Make sure all writes have completed */
 	tegra_uart_read(tup, UART_IER);
 
-	/* Reenable interrupt */
+	/* Re-enable interrupt */
 	tegra_uart_write(tup, tup->ier_shadow, UART_IER);
 	tegra_uart_read(tup, UART_IER);
 
@@ -1191,7 +1180,7 @@ static const char *tegra_uart_type(struct uart_port *u)
 	return TEGRA_UART_TYPE;
 }
 
-static struct uart_ops tegra_uart_ops = {
+static const struct uart_ops tegra_uart_ops = {
 	.tx_empty	= tegra_uart_tx_empty,
 	.set_mctrl	= tegra_uart_set_mctrl,
 	.get_mctrl	= tegra_uart_get_mctrl,
@@ -1310,7 +1299,7 @@ static int tegra_uart_probe(struct platform_device *pdev)
 		return PTR_ERR(tup->uart_clk);
 	}
 
-	tup->rst = devm_reset_control_get(&pdev->dev, "serial");
+	tup->rst = devm_reset_control_get_exclusive(&pdev->dev, "serial");
 	if (IS_ERR(tup->rst)) {
 		dev_err(&pdev->dev, "Couldn't get the reset\n");
 		return PTR_ERR(tup->rst);

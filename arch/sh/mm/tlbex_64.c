@@ -36,7 +36,7 @@
 #include <linux/kprobes.h>
 #include <asm/tlb.h>
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/pgalloc.h>
 #include <asm/mmu_context.h>
 

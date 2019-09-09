@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * This file is based on code from OCTEON SDK by Cavium Networks.
  *
  * Copyright (c) 2003-2010 Cavium Networks
- *
- * This file is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, Version 2, as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -23,6 +20,7 @@
 #endif /* CONFIG_XFRM */
 
 #include <linux/atomic.h>
+#include <net/sch_generic.h>
 
 #include <asm/octeon/octeon.h>
 
@@ -216,8 +214,10 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 				 * Get the number of skbuffs in use
 				 * by the hardware
 				 */
-				skb_to_free = cvmx_fau_fetch_and_add32(
-					priv->fau + qos * 4, MAX_SKB_TO_FREE);
+				skb_to_free =
+				     cvmx_fau_fetch_and_add32(priv->fau +
+							      qos * 4,
+							      MAX_SKB_TO_FREE);
 			}
 			skb_to_free = cvm_oct_adjust_skb_to_free(skb_to_free,
 								 priv->fau +
@@ -250,8 +250,7 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 
 				if ((skb_tail_pointer(skb) + add_bytes) <=
 				    skb_end_pointer(skb))
-					memset(__skb_put(skb, add_bytes), 0,
-					       add_bytes);
+					__skb_put_zero(skb, add_bytes);
 			}
 		}
 	}
@@ -283,9 +282,9 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 			struct skb_frag_struct *fs = skb_shinfo(skb)->frags + i;
 
-			hw_buffer.s.addr = XKPHYS_TO_PHYS(
-				(u64)(page_address(fs->page.p) +
-				fs->page_offset));
+			hw_buffer.s.addr =
+				XKPHYS_TO_PHYS((u64)(page_address(fs->page.p) +
+					       fs->page_offset));
 			hw_buffer.s.size = fs->size;
 			CVM_OCT_SKB_CB(skb)[i + 1] = hw_buffer.u64;
 		}
@@ -362,16 +361,13 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 	dst_release(skb_dst(skb));
 	skb_dst_set(skb, NULL);
 #ifdef CONFIG_XFRM
-	secpath_put(skb->sp);
-	skb->sp = NULL;
+	secpath_reset(skb);
 #endif
 	nf_reset(skb);
 
 #ifdef CONFIG_NET_SCHED
 	skb->tc_index = 0;
-#ifdef CONFIG_NET_CLS_ACT
-	skb->tc_verd = 0;
-#endif /* CONFIG_NET_CLS_ACT */
+	skb_reset_tc(skb);
 #endif /* CONFIG_NET_SCHED */
 #endif /* REUSE_SKBUFFS_WITHOUT_FREE */
 
@@ -419,8 +415,8 @@ dont_put_skbuff_in_hw:
 		queue_type = QUEUE_HW;
 	}
 	if (USE_ASYNC_IOBDMA)
-		cvmx_fau_async_fetch_and_add32(
-				CVMX_SCR_SCRATCH, FAU_TOTAL_TX_TO_CLEAN, 1);
+		cvmx_fau_async_fetch_and_add32(CVMX_SCR_SCRATCH,
+					       FAU_TOTAL_TX_TO_CLEAN, 1);
 
 	spin_lock_irqsave(&priv->tx_free_list[qos].lock, flags);
 
@@ -460,7 +456,7 @@ skip_xmit:
 	case QUEUE_DROP:
 		skb->next = to_free_list;
 		to_free_list = skb;
-		priv->stats.tx_dropped++;
+		dev->stats.tx_dropped++;
 		break;
 	case QUEUE_HW:
 		cvmx_fau_atomic_add32(FAU_NUM_PACKET_BUFFERS_TO_FREE, -1);
@@ -497,8 +493,8 @@ skip_xmit:
 		cvmx_scratch_write64(CVMX_SCR_SCRATCH, old_scratch);
 		cvmx_scratch_write64(CVMX_SCR_SCRATCH + 8, old_scratch2);
 	} else {
-		total_to_clean = cvmx_fau_fetch_and_add32(
-						FAU_TOTAL_TX_TO_CLEAN, 1);
+		total_to_clean =
+			cvmx_fau_fetch_and_add32(FAU_TOTAL_TX_TO_CLEAN, 1);
 	}
 
 	if (total_to_clean & 0x3ff) {
@@ -535,7 +531,7 @@ int cvm_oct_xmit_pow(struct sk_buff *skb, struct net_device *dev)
 	if (unlikely(!work)) {
 		printk_ratelimited("%s: Failed to allocate a work queue entry\n",
 				   dev->name);
-		priv->stats.tx_dropped++;
+		dev->stats.tx_dropped++;
 		dev_kfree_skb_any(skb);
 		return 0;
 	}
@@ -546,7 +542,7 @@ int cvm_oct_xmit_pow(struct sk_buff *skb, struct net_device *dev)
 		printk_ratelimited("%s: Failed to allocate a packet buffer\n",
 				   dev->name);
 		cvmx_fpa_free(work, CVMX_FPA_WQE_POOL, 1);
-		priv->stats.tx_dropped++;
+		dev->stats.tx_dropped++;
 		dev_kfree_skb_any(skb);
 		return 0;
 	}
@@ -663,8 +659,8 @@ int cvm_oct_xmit_pow(struct sk_buff *skb, struct net_device *dev)
 	/* Submit the packet to the POW */
 	cvmx_pow_work_submit(work, work->word1.tag, work->word1.tag_type,
 			     cvmx_wqe_get_qos(work), cvmx_wqe_get_grp(work));
-	priv->stats.tx_packets++;
-	priv->stats.tx_bytes += skb->len;
+	dev->stats.tx_packets++;
+	dev->stats.tx_bytes += skb->len;
 	dev_consume_skb_any(skb);
 	return 0;
 }

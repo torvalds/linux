@@ -1,16 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (C) 2014, Samsung Electronics Co. Ltd. All Rights Reserved.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
  */
 
 #include "ssp.h"
@@ -277,11 +267,8 @@ static int ssp_handle_big_data(struct ssp_data *data, char *dataframe, int *idx)
 static int ssp_parse_dataframe(struct ssp_data *data, char *dataframe, int len)
 {
 	int idx, sd;
-	struct timespec ts;
 	struct ssp_sensor_data *spd;
 	struct iio_dev **indio_devs = data->sensor_devs;
-
-	getnstimeofday(&ts);
 
 	for (idx = 0; idx < len;) {
 		switch (dataframe[idx++]) {
@@ -329,7 +316,7 @@ static int ssp_parse_dataframe(struct ssp_data *data, char *dataframe, int len)
 	}
 
 	if (data->time_syncing)
-		data->timestamp = ts.tv_sec * 1000000000ULL + ts.tv_nsec;
+		data->timestamp = ktime_get_real_ns();
 
 	return 0;
 }

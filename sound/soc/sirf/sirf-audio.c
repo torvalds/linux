@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * SiRF audio card driver
  *
  * Copyright (c) 2011 Cambridge Silicon Radio Limited, a CSR plc group company.
- *
- * Licensed under GPLv2 or later.
  */
 
 #include <linux/platform_device.h>
@@ -27,6 +26,7 @@ static int sirf_audio_hp_event(struct snd_soc_dapm_widget *w,
 	struct snd_soc_card *card = dapm->card;
 	struct sirf_audio_card *sirf_audio_card = snd_soc_card_get_drvdata(card);
 	int on = !SND_SOC_DAPM_EVENT_OFF(event);
+
 	if (gpio_is_valid(sirf_audio_card->gpio_hp_pa))
 		gpio_set_value(sirf_audio_card->gpio_hp_pa, on);
 	return 0;
@@ -60,11 +60,16 @@ static const struct snd_soc_dapm_route intercon[] = {
 };
 
 /* Digital audio interface glue - connects codec <--> CPU */
+SND_SOC_DAILINK_DEFS(sirf,
+	DAILINK_COMP_ARRAY(COMP_EMPTY()),
+	DAILINK_COMP_ARRAY(COMP_CODEC(NULL, "sirf-audio-codec")),
+	DAILINK_COMP_ARRAY(COMP_EMPTY()));
+
 static struct snd_soc_dai_link sirf_audio_dai_link[] = {
 	{
 		.name = "SiRF audio card",
 		.stream_name = "SiRF audio HiFi",
-		.codec_dai_name = "sirf-audio-codec",
+		SND_SOC_DAILINK_REG(sirf),
 	},
 };
 
@@ -91,11 +96,11 @@ static int sirf_audio_probe(struct platform_device *pdev)
 	if (sirf_audio_card == NULL)
 		return -ENOMEM;
 
-	sirf_audio_dai_link[0].cpu_of_node =
+	sirf_audio_dai_link[0].cpus->of_node =
 		of_parse_phandle(pdev->dev.of_node, "sirf,audio-platform", 0);
-	sirf_audio_dai_link[0].platform_of_node =
+	sirf_audio_dai_link[0].platforms->of_node =
 		of_parse_phandle(pdev->dev.of_node, "sirf,audio-platform", 0);
-	sirf_audio_dai_link[0].codec_of_node =
+	sirf_audio_dai_link[0].codecs->of_node =
 		of_parse_phandle(pdev->dev.of_node, "sirf,audio-codec", 0);
 	sirf_audio_card->gpio_spk_pa = of_get_named_gpio(pdev->dev.of_node,
 			"spk-pa-gpios", 0);

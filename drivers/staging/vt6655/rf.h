@@ -1,21 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
  * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
- *
  *
  * File: rf.h
  *
@@ -35,7 +21,7 @@
 /*---------------------  Export Definitions -------------------------*/
 /*
  * Baseband RF pair definition in eeprom (Bits 6..0)
-*/
+ */
 #define RF_RFMD2959             0x01
 #define RF_MAXIMAG              0x02
 #define RF_AIROHA               0x03
@@ -73,28 +59,28 @@
 
 /*---------------------  Export Functions  --------------------------*/
 
-bool IFRFbWriteEmbedded(struct vnt_private *, unsigned long dwData);
-bool RFbSelectChannel(struct vnt_private *, unsigned char byRFType, u16);
+bool IFRFbWriteEmbedded(struct vnt_private *priv, unsigned long dwData);
+bool RFbSelectChannel(struct vnt_private *priv, unsigned char byRFType, u16 byChannel);
 bool RFbInit(
-	struct vnt_private *
+	struct vnt_private *priv
 );
-bool RFvWriteWakeProgSyn(struct vnt_private *, unsigned char byRFType, u16);
-bool RFbSetPower(struct vnt_private *, unsigned int rate, u16);
+bool RFvWriteWakeProgSyn(struct vnt_private *priv, unsigned char byRFType, u16 uChannel);
+bool RFbSetPower(struct vnt_private *priv, unsigned int rate, u16 uCH);
 bool RFbRawSetPower(
-	struct vnt_private *,
+	struct vnt_private *priv,
 	unsigned char byPwr,
 	unsigned int rate
 );
 
 void
 RFvRSSITodBm(
-	struct vnt_private *,
+	struct vnt_private *priv,
 	unsigned char byCurrRSSI,
 	long    *pldBm
 );
 
 /* {{ RobertYu: 20050104 */
-bool RFbAL7230SelectChannelPostProcess(struct vnt_private *, u16, u16);
+bool RFbAL7230SelectChannelPostProcess(struct vnt_private *priv, u16 byOldChannel, u16 byNewChannel);
 /* }} RobertYu */
 
 #endif /* __RF_H__ */

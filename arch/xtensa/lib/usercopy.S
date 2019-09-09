@@ -53,31 +53,14 @@
  *	a11/ original length
  */
 
-#include <variant/core.h>
-
-#ifdef __XTENSA_EB__
-#define ALIGN(R, W0, W1) src	R, W0, W1
-#define SSA8(R)	ssa8b R
-#else
-#define ALIGN(R, W0, W1) src	R, W1, W0
-#define SSA8(R)	ssa8l R
-#endif
-
-/* Load or store instructions that may cause exceptions use the EX macro. */
-
-#define EX(insn,reg1,reg2,offset,handler)	\
-9:	insn	reg1, reg2, offset;		\
-	.section __ex_table, "a";		\
-	.word	9b, handler;			\
-	.previous
-
+#include <linux/linkage.h>
+#include <asm/asmmacro.h>
+#include <asm/core.h>
 
 	.text
-	.align	4
-	.global	__xtensa_copy_user
-	.type	__xtensa_copy_user,@function
-__xtensa_copy_user:
-	entry	sp, 16		# minimal stack frame
+ENTRY(__xtensa_copy_user)
+
+	abi_entry_default
 	# a2/ dst, a3/ src, a4/ len
 	mov	a5, a2		# copy dst so that a2 is return value
 	mov	a11, a4		# preserve original len for error case
@@ -89,10 +72,10 @@ __xtensa_copy_user:
 				# per iteration
 	movi	a8, 3		  # if source is also aligned,
 	bnone	a3, a8, .Laligned # then use word copy
-	SSA8(	a3)		# set shift amount from byte offset
+	__ssa8	a3		# set shift amount from byte offset
 	bnez	a4, .Lsrcunaligned
 	movi	a2, 0		# return success for len==0
-	retw
+	abi_ret_default
 
 /*
  * Destination is unaligned
@@ -102,9 +85,9 @@ __xtensa_copy_user:
 	bltui	a4, 7, .Lbytecopy	# do short copies byte by byte
 
 	# copy 1 byte
-	EX(l8ui, a6, a3, 0, l_fixup)
+EX(10f)	l8ui	a6, a3, 0
 	addi	a3, a3,  1
-	EX(s8i, a6, a5,  0, s_fixup)
+EX(10f)	s8i	a6, a5,  0
 	addi	a5, a5,  1
 	addi	a4, a4, -1
 	bbci.l	a5, 1, .Ldstaligned	# if dst is now aligned, then
@@ -112,11 +95,11 @@ __xtensa_copy_user:
 .Ldst2mod4:	# dst 16-bit aligned
 	# copy 2 bytes
 	bltui	a4, 6, .Lbytecopy	# do short copies byte by byte
-	EX(l8ui, a6, a3, 0, l_fixup)
-	EX(l8ui, a7, a3, 1, l_fixup)
+EX(10f)	l8ui	a6, a3, 0
+EX(10f)	l8ui	a7, a3, 1
 	addi	a3, a3,  2
-	EX(s8i, a6, a5,  0, s_fixup)
-	EX(s8i, a7, a5,  1, s_fixup)
+EX(10f)	s8i	a6, a5,  0
+EX(10f)	s8i	a7, a5,  1
 	addi	a5, a5,  2
 	addi	a4, a4, -2
 	j	.Ldstaligned	# dst is now aligned, return to main algorithm
@@ -135,16 +118,16 @@ __xtensa_copy_user:
 	add	a7, a3, a4	# a7 = end address for source
 #endif /* !XCHAL_HAVE_LOOPS */
 .Lnextbyte:
-	EX(l8ui, a6, a3, 0, l_fixup)
+EX(10f)	l8ui	a6, a3, 0
 	addi	a3, a3, 1
-	EX(s8i, a6, a5, 0, s_fixup)
+EX(10f)	s8i	a6, a5, 0
 	addi	a5, a5, 1
 #if !XCHAL_HAVE_LOOPS
 	blt	a3, a7, .Lnextbyte
 #endif /* !XCHAL_HAVE_LOOPS */
 .Lbytecopydone:
 	movi	a2, 0		# return success for len bytes copied
-	retw
+	abi_ret_default
 
 /*
  * Destination and source are word-aligned.
@@ -161,15 +144,15 @@ __xtensa_copy_user:
 	add	a8, a8, a3	# a8 = end of last 16B source chunk
 #endif /* !XCHAL_HAVE_LOOPS */
 .Loop1:
-	EX(l32i, a6, a3,  0, l_fixup)
-	EX(l32i, a7, a3,  4, l_fixup)
-	EX(s32i, a6, a5,  0, s_fixup)
-	EX(l32i, a6, a3,  8, l_fixup)
-	EX(s32i, a7, a5,  4, s_fixup)
-	EX(l32i, a7, a3, 12, l_fixup)
-	EX(s32i, a6, a5,  8, s_fixup)
+EX(10f)	l32i	a6, a3,  0
+EX(10f)	l32i	a7, a3,  4
+EX(10f)	s32i	a6, a5,  0
+EX(10f)	l32i	a6, a3,  8
+EX(10f)	s32i	a7, a5,  4
+EX(10f)	l32i	a7, a3, 12
+EX(10f)	s32i	a6, a5,  8
 	addi	a3, a3, 16
-	EX(s32i, a7, a5, 12, s_fixup)
+EX(10f)	s32i	a7, a5, 12
 	addi	a5, a5, 16
 #if !XCHAL_HAVE_LOOPS
 	blt	a3, a8, .Loop1
@@ -177,34 +160,34 @@ __xtensa_copy_user:
 .Loop1done:
 	bbci.l	a4, 3, .L2
 	# copy 8 bytes
-	EX(l32i, a6, a3,  0, l_fixup)
-	EX(l32i, a7, a3,  4, l_fixup)
+EX(10f)	l32i	a6, a3,  0
+EX(10f)	l32i	a7, a3,  4
 	addi	a3, a3,  8
-	EX(s32i, a6, a5,  0, s_fixup)
-	EX(s32i, a7, a5,  4, s_fixup)
+EX(10f)	s32i	a6, a5,  0
+EX(10f)	s32i	a7, a5,  4
 	addi	a5, a5,  8
 .L2:
 	bbci.l	a4, 2, .L3
 	# copy 4 bytes
-	EX(l32i, a6, a3,  0, l_fixup)
+EX(10f)	l32i	a6, a3,  0
 	addi	a3, a3,  4
-	EX(s32i, a6, a5,  0, s_fixup)
+EX(10f)	s32i	a6, a5,  0
 	addi	a5, a5,  4
 .L3:
 	bbci.l	a4, 1, .L4
 	# copy 2 bytes
-	EX(l16ui, a6, a3,  0, l_fixup)
+EX(10f)	l16ui	a6, a3,  0
 	addi	a3, a3,  2
-	EX(s16i,  a6, a5,  0, s_fixup)
+EX(10f)	s16i	a6, a5,  0
 	addi	a5, a5,  2
 .L4:
 	bbci.l	a4, 0, .L5
 	# copy 1 byte
-	EX(l8ui, a6, a3,  0, l_fixup)
-	EX(s8i,  a6, a5,  0, s_fixup)
+EX(10f)	l8ui	a6, a3,  0
+EX(10f)	s8i	a6, a5,  0
 .L5:
 	movi	a2, 0		# return success for len bytes copied
-	retw
+	abi_ret_default
 
 /*
  * Destination is aligned, Source is unaligned
@@ -217,7 +200,7 @@ __xtensa_copy_user:
 	# copy 16 bytes per iteration for word-aligned dst and unaligned src
 	and	a10, a3, a8	# save unalignment offset for below
 	sub	a3, a3, a10	# align a3 (to avoid sim warnings only; not needed for hardware)
-	EX(l32i, a6, a3, 0, l_fixup)	# load first word
+EX(10f)	l32i	a6, a3, 0	# load first word
 #if XCHAL_HAVE_LOOPS
 	loopnez	a7, .Loop2done
 #else /* !XCHAL_HAVE_LOOPS */
@@ -226,19 +209,19 @@ __xtensa_copy_user:
 	add	a12, a12, a3	# a12 = end of last 16B source chunk
 #endif /* !XCHAL_HAVE_LOOPS */
 .Loop2:
-	EX(l32i, a7, a3,  4, l_fixup)
-	EX(l32i, a8, a3,  8, l_fixup)
-	ALIGN(	a6, a6, a7)
-	EX(s32i, a6, a5,  0, s_fixup)
-	EX(l32i, a9, a3, 12, l_fixup)
-	ALIGN(	a7, a7, a8)
-	EX(s32i, a7, a5,  4, s_fixup)
-	EX(l32i, a6, a3, 16, l_fixup)
-	ALIGN(	a8, a8, a9)
-	EX(s32i, a8, a5,  8, s_fixup)
+EX(10f)	l32i	a7, a3,  4
+EX(10f)	l32i	a8, a3,  8
+	__src_b	a6, a6, a7
+EX(10f)	s32i	a6, a5,  0
+EX(10f)	l32i	a9, a3, 12
+	__src_b	a7, a7, a8
+EX(10f)	s32i	a7, a5,  4
+EX(10f)	l32i	a6, a3, 16
+	__src_b	a8, a8, a9
+EX(10f)	s32i	a8, a5,  8
 	addi	a3, a3, 16
-	ALIGN(	a9, a9, a6)
-	EX(s32i, a9, a5, 12, s_fixup)
+	__src_b	a9, a9, a6
+EX(10f)	s32i	a9, a5, 12
 	addi	a5, a5, 16
 #if !XCHAL_HAVE_LOOPS
 	blt	a3, a12, .Loop2
@@ -246,43 +229,44 @@ __xtensa_copy_user:
 .Loop2done:
 	bbci.l	a4, 3, .L12
 	# copy 8 bytes
-	EX(l32i, a7, a3,  4, l_fixup)
-	EX(l32i, a8, a3,  8, l_fixup)
-	ALIGN(	a6, a6, a7)
-	EX(s32i, a6, a5,  0, s_fixup)
+EX(10f)	l32i	a7, a3,  4
+EX(10f)	l32i	a8, a3,  8
+	__src_b	a6, a6, a7
+EX(10f)	s32i	a6, a5,  0
 	addi	a3, a3,  8
-	ALIGN(	a7, a7, a8)
-	EX(s32i, a7, a5,  4, s_fixup)
+	__src_b	a7, a7, a8
+EX(10f)	s32i	a7, a5,  4
 	addi	a5, a5,  8
 	mov	a6, a8
 .L12:
 	bbci.l	a4, 2, .L13
 	# copy 4 bytes
-	EX(l32i, a7, a3,  4, l_fixup)
+EX(10f)	l32i	a7, a3,  4
 	addi	a3, a3,  4
-	ALIGN(	a6, a6, a7)
-	EX(s32i, a6, a5,  0, s_fixup)
+	__src_b	a6, a6, a7
+EX(10f)	s32i	a6, a5,  0
 	addi	a5, a5,  4
 	mov	a6, a7
 .L13:
 	add	a3, a3, a10	# readjust a3 with correct misalignment
 	bbci.l	a4, 1, .L14
 	# copy 2 bytes
-	EX(l8ui, a6, a3,  0, l_fixup)
-	EX(l8ui, a7, a3,  1, l_fixup)
+EX(10f)	l8ui	a6, a3,  0
+EX(10f)	l8ui	a7, a3,  1
 	addi	a3, a3,  2
-	EX(s8i, a6, a5,  0, s_fixup)
-	EX(s8i, a7, a5,  1, s_fixup)
+EX(10f)	s8i	a6, a5,  0
+EX(10f)	s8i	a7, a5,  1
 	addi	a5, a5,  2
 .L14:
 	bbci.l	a4, 0, .L15
 	# copy 1 byte
-	EX(l8ui, a6, a3,  0, l_fixup)
-	EX(s8i,  a6, a5,  0, s_fixup)
+EX(10f)	l8ui	a6, a3,  0
+EX(10f)	s8i	a6, a5,  0
 .L15:
 	movi	a2, 0		# return success for len bytes copied
-	retw
+	abi_ret_default
 
+ENDPROC(__xtensa_copy_user)
 
 	.section .fixup, "ax"
 	.align	4
@@ -291,30 +275,10 @@ __xtensa_copy_user:
  * bytes_copied = a5 - a2
  * retval = bytes_not_copied = original len - bytes_copied
  * retval = a11 - (a5 - a2)
- *
- * Clearing the remaining pieces of kernel memory plugs security
- * holes.  This functionality is the equivalent of the *_zeroing
- * functions that some architectures provide.
  */
 
-.Lmemset:
-	.word	memset
 
-s_fixup:
+10:
 	sub	a2, a5, a2	/* a2 <-- bytes copied */
 	sub	a2, a11, a2	/* a2 <-- bytes not copied */
-	retw
-
-l_fixup:
-	sub	a2, a5, a2	/* a2 <-- bytes copied */
-	sub	a2, a11, a2	/* a2 <-- bytes not copied == return value */
-
-	/* void *memset(void *s, int c, size_t n); */
-	mov	a6, a5		/* s */
-	movi	a7, 0		/* c */
-	mov	a8, a2		/* n */
-	l32r	a4, .Lmemset
-	callx4	a4
-	/* Ignore memset return value in a6. */
-	/* a2 still contains bytes not copied. */
-	retw
+	abi_ret_default

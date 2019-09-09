@@ -6,13 +6,14 @@
  * This software may be used and distributed according to the terms
  * of the GNU General Public License, incorporated herein by reference.
  */
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/interrupt.h>
 #include <linux/miscdevice.h>
 #include <linux/delay.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
+#include <init.h>
 #include <irq_kern.h>
 #include <os.h>
 
@@ -72,11 +73,10 @@ static ssize_t rng_dev_read (struct file *filp, char __user *buf, size_t size,
 				return ret ? : -EAGAIN;
 
 			atomic_inc(&host_sleep_count);
-			reactivate_fd(random_fd, RANDOM_IRQ);
 			add_sigio_fd(random_fd);
 
 			add_wait_queue(&host_read_wait, &wait);
-			set_task_state(current, TASK_INTERRUPTIBLE);
+			set_current_state(TASK_INTERRUPTIBLE);
 
 			schedule();
 			remove_wait_queue(&host_read_wait, &wait);
@@ -154,7 +154,14 @@ err_out_cleanup_hw:
 /*
  * rng_cleanup - shutdown RNG module
  */
-static void __exit rng_cleanup (void)
+
+static void cleanup(void)
+{
+	free_irq_by_fd(random_fd);
+	os_close_file(random_fd);
+}
+
+static void __exit rng_cleanup(void)
 {
 	os_close_file(random_fd);
 	misc_deregister (&rng_miscdev);
@@ -162,6 +169,7 @@ static void __exit rng_cleanup (void)
 
 module_init (rng_init);
 module_exit (rng_cleanup);
+__uml_exitcall(cleanup);
 
 MODULE_DESCRIPTION("UML Host Random Number Generator (RNG) driver");
 MODULE_LICENSE("GPL");

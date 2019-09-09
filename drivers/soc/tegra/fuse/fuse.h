@@ -1,19 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2010 Google, Inc.
  * Copyright (c) 2013, NVIDIA CORPORATION.  All rights reserved.
  *
  * Author:
  *	Colin Cross <ccross@android.com>
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #ifndef __DRIVERS_MISC_TEGRA_FUSE_H
@@ -103,6 +94,10 @@ extern const struct tegra_fuse_soc tegra124_fuse_soc;
 
 #ifdef CONFIG_ARCH_TEGRA_210_SOC
 extern const struct tegra_fuse_soc tegra210_fuse_soc;
+#endif
+
+#ifdef CONFIG_ARCH_TEGRA_186_SOC
+extern const struct tegra_fuse_soc tegra186_fuse_soc;
 #endif
 
 #endif

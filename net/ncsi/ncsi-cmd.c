@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright Gavin Shan, IBM Corporation 2016.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/module.h>
@@ -17,6 +13,7 @@
 #include <net/ncsi.h>
 #include <net/net_namespace.h>
 #include <net/sock.h>
+#include <net/genetlink.h>
 
 #include "internal.h"
 #include "ncsi-pkt.h"
@@ -57,7 +54,7 @@ static void ncsi_cmd_build_header(struct ncsi_pkt_hdr *h,
 	checksum = ncsi_calculate_checksum((unsigned char *)h,
 					   sizeof(*h) + nca->payload);
 	pchecksum = (__be32 *)((void *)h + sizeof(struct ncsi_pkt_hdr) +
-		    nca->payload);
+		    ALIGN(nca->payload, 4));
 	*pchecksum = htonl(checksum);
 }
 
@@ -66,8 +63,7 @@ static int ncsi_cmd_handler_default(struct sk_buff *skb,
 {
 	struct ncsi_cmd_pkt *cmd;
 
-	cmd = (struct ncsi_cmd_pkt *)skb_put(skb, sizeof(*cmd));
-	memset(cmd, 0, sizeof(*cmd));
+	cmd = skb_put_zero(skb, sizeof(*cmd));
 	ncsi_cmd_build_header(&cmd->cmd.common, nca);
 
 	return 0;
@@ -78,8 +74,7 @@ static int ncsi_cmd_handler_sp(struct sk_buff *skb,
 {
 	struct ncsi_cmd_sp_pkt *cmd;
 
-	cmd = (struct ncsi_cmd_sp_pkt *)skb_put(skb, sizeof(*cmd));
-	memset(cmd, 0, sizeof(*cmd));
+	cmd = skb_put_zero(skb, sizeof(*cmd));
 	cmd->hw_arbitration = nca->bytes[0];
 	ncsi_cmd_build_header(&cmd->cmd.common, nca);
 
@@ -91,8 +86,7 @@ static int ncsi_cmd_handler_dc(struct sk_buff *skb,
 {
 	struct ncsi_cmd_dc_pkt *cmd;
 
-	cmd = (struct ncsi_cmd_dc_pkt *)skb_put(skb, sizeof(*cmd));
-	memset(cmd, 0, sizeof(*cmd));
+	cmd = skb_put_zero(skb, sizeof(*cmd));
 	cmd->ald = nca->bytes[0];
 	ncsi_cmd_build_header(&cmd->cmd.common, nca);
 
@@ -104,8 +98,7 @@ static int ncsi_cmd_handler_rc(struct sk_buff *skb,
 {
 	struct ncsi_cmd_rc_pkt *cmd;
 
-	cmd = (struct ncsi_cmd_rc_pkt *)skb_put(skb, sizeof(*cmd));
-	memset(cmd, 0, sizeof(*cmd));
+	cmd = skb_put_zero(skb, sizeof(*cmd));
 	ncsi_cmd_build_header(&cmd->cmd.common, nca);
 
 	return 0;
@@ -116,8 +109,7 @@ static int ncsi_cmd_handler_ae(struct sk_buff *skb,
 {
 	struct ncsi_cmd_ae_pkt *cmd;
 
-	cmd = (struct ncsi_cmd_ae_pkt *)skb_put(skb, sizeof(*cmd));
-	memset(cmd, 0, sizeof(*cmd));
+	cmd = skb_put_zero(skb, sizeof(*cmd));
 	cmd->mc_id = nca->bytes[0];
 	cmd->mode = htonl(nca->dwords[1]);
 	ncsi_cmd_build_header(&cmd->cmd.common, nca);
@@ -130,8 +122,7 @@ static int ncsi_cmd_handler_sl(struct sk_buff *skb,
 {
 	struct ncsi_cmd_sl_pkt *cmd;
 
-	cmd = (struct ncsi_cmd_sl_pkt *)skb_put(skb, sizeof(*cmd));
-	memset(cmd, 0, sizeof(*cmd));
+	cmd = skb_put_zero(skb, sizeof(*cmd));
 	cmd->mode = htonl(nca->dwords[0]);
 	cmd->oem_mode = htonl(nca->dwords[1]);
 	ncsi_cmd_build_header(&cmd->cmd.common, nca);
@@ -144,11 +135,10 @@ static int ncsi_cmd_handler_svf(struct sk_buff *skb,
 {
 	struct ncsi_cmd_svf_pkt *cmd;
 
-	cmd = (struct ncsi_cmd_svf_pkt *)skb_put(skb, sizeof(*cmd));
-	memset(cmd, 0, sizeof(*cmd));
-	cmd->vlan = htons(nca->words[0]);
-	cmd->index = nca->bytes[2];
-	cmd->enable = nca->bytes[3];
+	cmd = skb_put_zero(skb, sizeof(*cmd));
+	cmd->vlan = htons(nca->words[1]);
+	cmd->index = nca->bytes[6];
+	cmd->enable = nca->bytes[7];
 	ncsi_cmd_build_header(&cmd->cmd.common, nca);
 
 	return 0;
@@ -159,9 +149,8 @@ static int ncsi_cmd_handler_ev(struct sk_buff *skb,
 {
 	struct ncsi_cmd_ev_pkt *cmd;
 
-	cmd = (struct ncsi_cmd_ev_pkt *)skb_put(skb, sizeof(*cmd));
-	memset(cmd, 0, sizeof(*cmd));
-	cmd->mode = nca->bytes[0];
+	cmd = skb_put_zero(skb, sizeof(*cmd));
+	cmd->mode = nca->bytes[3];
 	ncsi_cmd_build_header(&cmd->cmd.common, nca);
 
 	return 0;
@@ -173,8 +162,7 @@ static int ncsi_cmd_handler_sma(struct sk_buff *skb,
 	struct ncsi_cmd_sma_pkt *cmd;
 	int i;
 
-	cmd = (struct ncsi_cmd_sma_pkt *)skb_put(skb, sizeof(*cmd));
-	memset(cmd, 0, sizeof(*cmd));
+	cmd = skb_put_zero(skb, sizeof(*cmd));
 	for (i = 0; i < 6; i++)
 		cmd->mac[i] = nca->bytes[i];
 	cmd->index = nca->bytes[6];
@@ -189,8 +177,7 @@ static int ncsi_cmd_handler_ebf(struct sk_buff *skb,
 {
 	struct ncsi_cmd_ebf_pkt *cmd;
 
-	cmd = (struct ncsi_cmd_ebf_pkt *)skb_put(skb, sizeof(*cmd));
-	memset(cmd, 0, sizeof(*cmd));
+	cmd = skb_put_zero(skb, sizeof(*cmd));
 	cmd->mode = htonl(nca->dwords[0]);
 	ncsi_cmd_build_header(&cmd->cmd.common, nca);
 
@@ -202,8 +189,7 @@ static int ncsi_cmd_handler_egmf(struct sk_buff *skb,
 {
 	struct ncsi_cmd_egmf_pkt *cmd;
 
-	cmd = (struct ncsi_cmd_egmf_pkt *)skb_put(skb, sizeof(*cmd));
-	memset(cmd, 0, sizeof(*cmd));
+	cmd = skb_put_zero(skb, sizeof(*cmd));
 	cmd->mode = htonl(nca->dwords[0]);
 	ncsi_cmd_build_header(&cmd->cmd.common, nca);
 
@@ -215,9 +201,27 @@ static int ncsi_cmd_handler_snfc(struct sk_buff *skb,
 {
 	struct ncsi_cmd_snfc_pkt *cmd;
 
-	cmd = (struct ncsi_cmd_snfc_pkt *)skb_put(skb, sizeof(*cmd));
-	memset(cmd, 0, sizeof(*cmd));
+	cmd = skb_put_zero(skb, sizeof(*cmd));
 	cmd->mode = nca->bytes[0];
+	ncsi_cmd_build_header(&cmd->cmd.common, nca);
+
+	return 0;
+}
+
+static int ncsi_cmd_handler_oem(struct sk_buff *skb,
+				struct ncsi_cmd_arg *nca)
+{
+	struct ncsi_cmd_oem_pkt *cmd;
+	unsigned int len;
+
+	len = sizeof(struct ncsi_cmd_pkt_hdr) + 4;
+	if (nca->payload < 26)
+		len += 26;
+	else
+		len += nca->payload;
+
+	cmd = skb_put_zero(skb, len);
+	memcpy(&cmd->mfr_id, nca->data, nca->payload);
 	ncsi_cmd_build_header(&cmd->cmd.common, nca);
 
 	return 0;
@@ -240,7 +244,7 @@ static struct ncsi_cmd_handler {
 	{ NCSI_PKT_CMD_AE,     8, ncsi_cmd_handler_ae      },
 	{ NCSI_PKT_CMD_SL,     8, ncsi_cmd_handler_sl      },
 	{ NCSI_PKT_CMD_GLS,    0, ncsi_cmd_handler_default },
-	{ NCSI_PKT_CMD_SVF,    4, ncsi_cmd_handler_svf     },
+	{ NCSI_PKT_CMD_SVF,    8, ncsi_cmd_handler_svf     },
 	{ NCSI_PKT_CMD_EV,     4, ncsi_cmd_handler_ev      },
 	{ NCSI_PKT_CMD_DV,     0, ncsi_cmd_handler_default },
 	{ NCSI_PKT_CMD_SMA,    8, ncsi_cmd_handler_sma     },
@@ -256,7 +260,7 @@ static struct ncsi_cmd_handler {
 	{ NCSI_PKT_CMD_GNS,    0, ncsi_cmd_handler_default },
 	{ NCSI_PKT_CMD_GNPTS,  0, ncsi_cmd_handler_default },
 	{ NCSI_PKT_CMD_GPS,    0, ncsi_cmd_handler_default },
-	{ NCSI_PKT_CMD_OEM,    0, NULL                     },
+	{ NCSI_PKT_CMD_OEM,   -1, ncsi_cmd_handler_oem     },
 	{ NCSI_PKT_CMD_PLDM,   0, NULL                     },
 	{ NCSI_PKT_CMD_GPUUID, 0, ncsi_cmd_handler_default }
 };
@@ -305,14 +309,21 @@ static struct ncsi_request *ncsi_alloc_command(struct ncsi_cmd_arg *nca)
 
 int ncsi_xmit_cmd(struct ncsi_cmd_arg *nca)
 {
-	struct ncsi_request *nr;
-	struct ethhdr *eh;
 	struct ncsi_cmd_handler *nch = NULL;
+	struct ncsi_request *nr;
+	unsigned char type;
+	struct ethhdr *eh;
 	int i, ret;
+
+	/* Use OEM generic handler for Netlink request */
+	if (nca->req_flags == NCSI_REQ_FLAG_NETLINK_DRIVEN)
+		type = NCSI_PKT_CMD_OEM;
+	else
+		type = nca->type;
 
 	/* Search for the handler */
 	for (i = 0; i < ARRAY_SIZE(ncsi_cmd_handlers); i++) {
-		if (ncsi_cmd_handlers[i].type == nca->type) {
+		if (ncsi_cmd_handlers[i].type == type) {
 			if (ncsi_cmd_handlers[i].handler)
 				nch = &ncsi_cmd_handlers[i];
 			else
@@ -328,11 +339,23 @@ int ncsi_xmit_cmd(struct ncsi_cmd_arg *nca)
 		return -ENOENT;
 	}
 
-	/* Get packet payload length and allocate the request */
-	nca->payload = nch->payload;
+	/* Get packet payload length and allocate the request
+	 * It is expected that if length set as negative in
+	 * handler structure means caller is initializing it
+	 * and setting length in nca before calling xmit function
+	 */
+	if (nch->payload >= 0)
+		nca->payload = nch->payload;
 	nr = ncsi_alloc_command(nca);
 	if (!nr)
 		return -ENOMEM;
+
+	/* track netlink information */
+	if (nca->req_flags == NCSI_REQ_FLAG_NETLINK_DRIVEN) {
+		nr->snd_seq = nca->info->snd_seq;
+		nr->snd_portid = nca->info->snd_portid;
+		nr->nlhdr = *nca->info->nlhdr;
+	}
 
 	/* Prepare the packet */
 	nca->id = nr->id;
@@ -343,7 +366,7 @@ int ncsi_xmit_cmd(struct ncsi_cmd_arg *nca)
 	}
 
 	/* Fill the ethernet header */
-	eh = (struct ethhdr *)skb_push(nr->cmd, sizeof(*eh));
+	eh = skb_push(nr->cmd, sizeof(*eh));
 	eh->h_proto = htons(ETH_P_NCSI);
 	eth_broadcast_addr(eh->h_dest);
 	eth_broadcast_addr(eh->h_source);

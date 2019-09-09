@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Makefile for most of the non-PCI devices in PA-RISC machines
 #
@@ -7,9 +8,6 @@
 obj-$(CONFIG_IOSAPIC)		+= iosapic.o
 obj-$(CONFIG_IOMMU_SBA)		+= sba_iommu.o
 obj-$(CONFIG_PCI_LBA)		+= lba_pci.o
-
-# Only use one of them: ccio-rm-dma is for PCX-W systems *only*
-# obj-$(CONFIG_IOMMU_CCIO)	+= ccio-rm-dma.o
 obj-$(CONFIG_IOMMU_CCIO)	+= ccio-dma.o
 
 obj-$(CONFIG_GSC)		+= gsc.o

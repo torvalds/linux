@@ -140,11 +140,11 @@ int via_mem_alloc(struct drm_device *dev, void *data,
 	if (mem->type == VIA_MEM_AGP)
 		retval = drm_mm_insert_node(&dev_priv->agp_mm,
 					    &item->mm_node,
-					    tmpSize, 0, DRM_MM_SEARCH_DEFAULT);
+					    tmpSize);
 	else
 		retval = drm_mm_insert_node(&dev_priv->vram_mm,
 					    &item->mm_node,
-					    tmpSize, 0, DRM_MM_SEARCH_DEFAULT);
+					    tmpSize);
 	if (retval)
 		goto fail_alloc;
 

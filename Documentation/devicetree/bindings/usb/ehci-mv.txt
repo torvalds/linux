@@ -1,0 +1,23 @@
+* Marvell PXA/MMP EHCI controller.
+
+Required properties:
+
+- compatible: must be "marvell,pxau2o-ehci"
+- reg: physical base addresses of the controller and length of memory mapped region
+- interrupts: one EHCI controller interrupt should be described here
+- clocks: phandle list of usb clocks
+- clock-names: should be "USBCLK"
+- phys: phandle for the PHY device
+- phy-names: should be "usb"
+
+Example:
+
+	ehci0: usb-ehci@d4208000 {
+		compatible = "marvell,pxau2o-ehci";
+		reg = <0xd4208000 0x200>;
+		interrupts = <44>;
+		clocks = <&soc_clocks MMP2_CLK_USB>;
+		clock-names = "USBCLK";
+		phys = <&usb_otg_phy>;
+		phy-names = "usb";
+	};

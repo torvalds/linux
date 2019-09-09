@@ -1,22 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /**
  * eCryptfs: Linux filesystem encryption layer
  *
  * Copyright (C) 2008 International Business Machines Corp.
  *   Author(s): Michael A. Halcrow <mhalcrow@us.ibm.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
  */
 
 #include <linux/fs.h>
@@ -38,11 +25,11 @@ static atomic_t ecryptfs_num_miscdev_opens;
  *
  * Returns the poll mask
  */
-static unsigned int
+static __poll_t
 ecryptfs_miscdev_poll(struct file *file, poll_table *pt)
 {
 	struct ecryptfs_daemon *daemon = file->private_data;
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 
 	mutex_lock(&daemon->mux);
 	if (daemon->flags & ECRYPTFS_DAEMON_ZOMBIE) {
@@ -59,7 +46,7 @@ ecryptfs_miscdev_poll(struct file *file, poll_table *pt)
 	poll_wait(file, &daemon->wait, pt);
 	mutex_lock(&daemon->mux);
 	if (!list_empty(&daemon->msg_ctx_out_queue))
-		mask |= POLLIN | POLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDNORM;
 out_unlock_daemon:
 	daemon->flags &= ~ECRYPTFS_DAEMON_IN_POLL;
 	mutex_unlock(&daemon->mux);
@@ -163,12 +150,8 @@ int ecryptfs_send_miscdev(char *data, size_t data_size,
 	struct ecryptfs_message *msg;
 
 	msg = kmalloc((sizeof(*msg) + data_size), GFP_KERNEL);
-	if (!msg) {
-		printk(KERN_ERR "%s: Out of memory whilst attempting "
-		       "to kmalloc(%zd, GFP_KERNEL)\n", __func__,
-		       (sizeof(*msg) + data_size));
+	if (!msg)
 		return -ENOMEM;
-	}
 
 	mutex_lock(&msg_ctx->mux);
 	msg_ctx->msg = msg;
@@ -383,7 +366,7 @@ ecryptfs_miscdev_write(struct file *file, const char __user *buf,
 		goto memdup;
 	} else if (count < MIN_MSG_PKT_SIZE || count > MAX_MSG_PKT_SIZE) {
 		printk(KERN_WARNING "%s: Acceptable packet size range is "
-		       "[%d-%zu], but amount of data written is [%zu].",
+		       "[%d-%zu], but amount of data written is [%zu].\n",
 		       __func__, MIN_MSG_PKT_SIZE, MAX_MSG_PKT_SIZE, count);
 		return -EINVAL;
 	}

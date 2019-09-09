@@ -1,15 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* Key permission checking
  *
  * Copyright (C) 2005 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/security.h>
 #include "internal.h"
 
@@ -88,7 +84,8 @@ EXPORT_SYMBOL(key_task_permission);
  */
 int key_validate(const struct key *key)
 {
-	unsigned long flags = key->flags;
+	unsigned long flags = READ_ONCE(key->flags);
+	time64_t expiry = READ_ONCE(key->expiry);
 
 	if (flags & (1 << KEY_FLAG_INVALIDATED))
 		return -ENOKEY;
@@ -99,9 +96,8 @@ int key_validate(const struct key *key)
 		return -EKEYREVOKED;
 
 	/* check it hasn't expired */
-	if (key->expiry) {
-		struct timespec now = current_kernel_time();
-		if (now.tv_sec >= key->expiry)
+	if (expiry) {
+		if (ktime_get_real_seconds() >= expiry)
 			return -EKEYEXPIRED;
 	}
 

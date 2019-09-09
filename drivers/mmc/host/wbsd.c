@@ -1,13 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  linux/drivers/mmc/host/wbsd.c - Winbond W83L51xD SD/MMC driver
  *
  *  Copyright (C) 2004-2007 Pierre Ossman, All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or (at
- * your option) any later version.
- *
  *
  * Warning!
  *
@@ -268,43 +263,29 @@ static inline int wbsd_next_sg(struct wbsd_host *host)
 	return host->num_sg;
 }
 
-static inline char *wbsd_sg_to_buffer(struct wbsd_host *host)
+static inline char *wbsd_map_sg(struct wbsd_host *host)
 {
-	return sg_virt(host->cur_sg);
+	return kmap_atomic(sg_page(host->cur_sg)) + host->cur_sg->offset;
 }
 
 static inline void wbsd_sg_to_dma(struct wbsd_host *host, struct mmc_data *data)
 {
-	unsigned int len, i;
-	struct scatterlist *sg;
-	char *dmabuf = host->dma_buffer;
-	char *sgbuf;
+	size_t len = 0;
+	int i;
 
-	sg = data->sg;
-	len = data->sg_len;
-
-	for (i = 0; i < len; i++) {
-		sgbuf = sg_virt(&sg[i]);
-		memcpy(dmabuf, sgbuf, sg[i].length);
-		dmabuf += sg[i].length;
-	}
+	for (i = 0; i < data->sg_len; i++)
+		len += data->sg[i].length;
+	sg_copy_to_buffer(data->sg, data->sg_len, host->dma_buffer, len);
 }
 
 static inline void wbsd_dma_to_sg(struct wbsd_host *host, struct mmc_data *data)
 {
-	unsigned int len, i;
-	struct scatterlist *sg;
-	char *dmabuf = host->dma_buffer;
-	char *sgbuf;
+	size_t len = 0;
+	int i;
 
-	sg = data->sg;
-	len = data->sg_len;
-
-	for (i = 0; i < len; i++) {
-		sgbuf = sg_virt(&sg[i]);
-		memcpy(sgbuf, dmabuf, sg[i].length);
-		dmabuf += sg[i].length;
-	}
+	for (i = 0; i < data->sg_len; i++)
+		len += data->sg[i].length;
+	sg_copy_from_buffer(data->sg, data->sg_len, host->dma_buffer, len);
 }
 
 /*
@@ -418,7 +399,7 @@ static void wbsd_empty_fifo(struct wbsd_host *host)
 {
 	struct mmc_data *data = host->mrq->cmd->data;
 	char *buffer;
-	int i, fsr, fifo;
+	int i, idx, fsr, fifo;
 
 	/*
 	 * Handle excessive data.
@@ -426,7 +407,8 @@ static void wbsd_empty_fifo(struct wbsd_host *host)
 	if (host->num_sg == 0)
 		return;
 
-	buffer = wbsd_sg_to_buffer(host) + host->offset;
+	buffer = wbsd_map_sg(host) + host->offset;
+	idx = 0;
 
 	/*
 	 * Drain the fifo. This has a tendency to loop longer
@@ -445,8 +427,7 @@ static void wbsd_empty_fifo(struct wbsd_host *host)
 			fifo = 1;
 
 		for (i = 0; i < fifo; i++) {
-			*buffer = inb(host->base + WBSD_DFR);
-			buffer++;
+			buffer[idx++] = inb(host->base + WBSD_DFR);
 			host->offset++;
 			host->remain--;
 
@@ -456,16 +437,19 @@ static void wbsd_empty_fifo(struct wbsd_host *host)
 			 * End of scatter list entry?
 			 */
 			if (host->remain == 0) {
+				kunmap_atomic(buffer);
 				/*
 				 * Get next entry. Check if last.
 				 */
 				if (!wbsd_next_sg(host))
 					return;
 
-				buffer = wbsd_sg_to_buffer(host);
+				buffer = wbsd_map_sg(host);
+				idx = 0;
 			}
 		}
 	}
+	kunmap_atomic(buffer);
 
 	/*
 	 * This is a very dirty hack to solve a
@@ -480,7 +464,7 @@ static void wbsd_fill_fifo(struct wbsd_host *host)
 {
 	struct mmc_data *data = host->mrq->cmd->data;
 	char *buffer;
-	int i, fsr, fifo;
+	int i, idx, fsr, fifo;
 
 	/*
 	 * Check that we aren't being called after the
@@ -489,7 +473,8 @@ static void wbsd_fill_fifo(struct wbsd_host *host)
 	if (host->num_sg == 0)
 		return;
 
-	buffer = wbsd_sg_to_buffer(host) + host->offset;
+	buffer = wbsd_map_sg(host) + host->offset;
+	idx = 0;
 
 	/*
 	 * Fill the fifo. This has a tendency to loop longer
@@ -508,8 +493,7 @@ static void wbsd_fill_fifo(struct wbsd_host *host)
 			fifo = 15;
 
 		for (i = 16; i > fifo; i--) {
-			outb(*buffer, host->base + WBSD_DFR);
-			buffer++;
+			outb(buffer[idx], host->base + WBSD_DFR);
 			host->offset++;
 			host->remain--;
 
@@ -519,16 +503,19 @@ static void wbsd_fill_fifo(struct wbsd_host *host)
 			 * End of scatter list entry?
 			 */
 			if (host->remain == 0) {
+				kunmap_atomic(buffer);
 				/*
 				 * Get next entry. Check if last.
 				 */
 				if (!wbsd_next_sg(host))
 					return;
 
-				buffer = wbsd_sg_to_buffer(host);
+				buffer = wbsd_map_sg(host);
+				idx = 0;
 			}
 		}
 	}
+	kunmap_atomic(buffer);
 
 	/*
 	 * The controller stops sending interrupts for
@@ -802,10 +789,8 @@ static void wbsd_request(struct mmc_host *mmc, struct mmc_request *mrq)
 			break;
 
 		default:
-#ifdef CONFIG_MMC_DEBUG
 			pr_warn("%s: Data command %d is not supported by this controller\n",
 				mmc_hostname(host->mmc), cmd->opcode);
-#endif
 			cmd->error = -EINVAL;
 
 			goto done;
@@ -958,9 +943,9 @@ static const struct mmc_host_ops wbsd_ops = {
  * Helper function to reset detection ignore
  */
 
-static void wbsd_reset_ignore(unsigned long data)
+static void wbsd_reset_ignore(struct timer_list *t)
 {
-	struct wbsd_host *host = (struct wbsd_host *)data;
+	struct wbsd_host *host = from_timer(host, t, ignore_timer);
 
 	BUG_ON(host == NULL);
 
@@ -1226,9 +1211,7 @@ static int wbsd_alloc_mmc(struct device *dev)
 	/*
 	 * Set up timers
 	 */
-	init_timer(&host->ignore_timer);
-	host->ignore_timer.data = (unsigned long)host;
-	host->ignore_timer.function = wbsd_reset_ignore;
+	timer_setup(&host->ignore_timer, wbsd_reset_ignore, 0);
 
 	/*
 	 * Maximum number of segments. Worst case is one sector per segment
@@ -1386,7 +1369,7 @@ static void wbsd_request_dma(struct wbsd_host *host, int dma)
 	 * order for ISA to be able to DMA to it.
 	 */
 	host->dma_buffer = kmalloc(WBSD_DMA_SIZE,
-		GFP_NOIO | GFP_DMA | __GFP_REPEAT | __GFP_NOWARN);
+		GFP_NOIO | GFP_DMA | __GFP_RETRY_MAYFAIL | __GFP_NOWARN);
 	if (!host->dma_buffer)
 		goto free;
 
@@ -1395,23 +1378,25 @@ static void wbsd_request_dma(struct wbsd_host *host, int dma)
 	 */
 	host->dma_addr = dma_map_single(mmc_dev(host->mmc), host->dma_buffer,
 		WBSD_DMA_SIZE, DMA_BIDIRECTIONAL);
+	if (dma_mapping_error(mmc_dev(host->mmc), host->dma_addr))
+		goto kfree;
 
 	/*
 	 * ISA DMA must be aligned on a 64k basis.
 	 */
 	if ((host->dma_addr & 0xffff) != 0)
-		goto kfree;
+		goto unmap;
 	/*
 	 * ISA cannot access memory above 16 MB.
 	 */
 	else if (host->dma_addr >= 0x1000000)
-		goto kfree;
+		goto unmap;
 
 	host->dma = dma;
 
 	return;
 
-kfree:
+unmap:
 	/*
 	 * If we've gotten here then there is some kind of alignment bug
 	 */
@@ -1421,6 +1406,7 @@ kfree:
 		WBSD_DMA_SIZE, DMA_BIDIRECTIONAL);
 	host->dma_addr = 0;
 
+kfree:
 	kfree(host->dma_buffer);
 	host->dma_buffer = NULL;
 
@@ -1434,11 +1420,14 @@ err:
 
 static void wbsd_release_dma(struct wbsd_host *host)
 {
-	if (host->dma_addr) {
+	/*
+	 * host->dma_addr is valid here iff host->dma_buffer is not NULL.
+	 */
+	if (host->dma_buffer) {
 		dma_unmap_single(mmc_dev(host->mmc), host->dma_addr,
 			WBSD_DMA_SIZE, DMA_BIDIRECTIONAL);
+		kfree(host->dma_buffer);
 	}
-	kfree(host->dma_buffer);
 	if (host->dma >= 0)
 		free_dma(host->dma);
 
@@ -1995,11 +1984,11 @@ static void __exit wbsd_drv_exit(void)
 module_init(wbsd_drv_init);
 module_exit(wbsd_drv_exit);
 #ifdef CONFIG_PNP
-module_param_named(nopnp, param_nopnp, uint, 0444);
+module_param_hw_named(nopnp, param_nopnp, uint, other, 0444);
 #endif
-module_param_named(io, param_io, uint, 0444);
-module_param_named(irq, param_irq, uint, 0444);
-module_param_named(dma, param_dma, int, 0444);
+module_param_hw_named(io, param_io, uint, ioport, 0444);
+module_param_hw_named(irq, param_irq, uint, irq, 0444);
+module_param_hw_named(dma, param_dma, int, dma, 0444);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Pierre Ossman <pierre@ossman.eu>");

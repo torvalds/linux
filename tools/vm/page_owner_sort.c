@@ -1,10 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * User-space helper to sort the output of /sys/kernel/debug/page_owner
  *
  * Example use:
  * cat /sys/kernel/debug/page_owner > page_owner_full.txt
  * grep -v ^PFN page_owner_full.txt > page_owner.txt
- * ./sort page_owner.txt sorted_page_owner.txt
+ * ./page_owner_sort page_owner.txt sorted_page_owner.txt
+ *
+ * See Documentation/vm/page_owner.rst
 */
 
 #include <stdio.h>

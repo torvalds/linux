@@ -1,0 +1,24 @@
+* Renesas R-Car generation 3 PCIe PHY
+
+This file provides information on what the device node for the R-Car
+generation 3 PCIe PHY contains.
+
+Required properties:
+- compatible: "renesas,r8a77980-pcie-phy" if the device is a part of the
+	      R8A77980 SoC.
+- reg: offset and length of the register block.
+- clocks: clock phandle and specifier pair.
+- power-domains: power domain phandle and specifier pair.
+- resets: reset phandle and specifier pair.
+- #phy-cells: see phy-bindings.txt in the same directory, must be <0>.
+
+Example (R-Car V3H):
+
+	pcie-phy@e65d0000 {
+		compatible = "renesas,r8a77980-pcie-phy";
+		reg = <0 0xe65d0000 0 0x8000>;
+		#phy-cells = <0>;
+		clocks = <&cpg CPG_MOD 319>;
+		power-domains = <&sysc 32>;
+		resets = <&cpg 319>;
+	};

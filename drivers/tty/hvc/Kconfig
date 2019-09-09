@@ -1,10 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0
 if TTY
 
 config HVC_DRIVER
 	bool
 	help
 	  Generic "hypervisor virtual console" infrastructure for various
-	  hypervisors (pSeries, iSeries, Xen, lguest).
+	  hypervisors (pSeries, iSeries, Xen).
 	  It will automatically be selected if one of the back-end console drivers
 	  is selected.
 
@@ -24,7 +25,6 @@ config HVC_CONSOLE
 config HVC_OLD_HVSI
 	bool "Old driver for pSeries serial port (/dev/hvsi*)"
 	depends on HVC_CONSOLE
-	default n
 
 config HVC_OPAL
 	bool "OPAL Console support"
@@ -44,7 +44,7 @@ config HVC_RTAS
 
 config HVC_IUCV
 	bool "z/VM IUCV Hypervisor console support (VM only)"
-	depends on S390
+	depends on S390 && NET
 	select HVC_DRIVER
 	select IUCV
 	default y
@@ -73,7 +73,6 @@ config HVC_UDBG
        bool "udbg based fake hypervisor console"
        depends on PPC
        select HVC_DRIVER
-       default n
        help
          This is meant to be used during HW bring up or debugging when
 	 no other console mechanism exist but udbg, to get you a quick
@@ -88,14 +87,15 @@ config HVC_DCC
 	 driver. This console is used through a JTAG only on ARM. If you don't have
 	 a JTAG then you probably don't want this option.
 
-config HVC_BFIN_JTAG
-	bool "Blackfin JTAG console"
-	depends on BLACKFIN
+config HVC_RISCV_SBI
+	bool "RISC-V SBI console support"
+	depends on RISCV
 	select HVC_DRIVER
 	help
-	 This console uses the Blackfin JTAG to create a console under the
-	 the HVC driver.  If you don't have JTAG, then you probably don't
-	 want this option.
+	  This enables support for console output via RISC-V SBI calls, which
+	  is normally used only during boot to output printk.
+
+	  If you don't know what do to here, say Y.
 
 config HVCS
 	tristate "IBM Hypervisor Virtual Console Server support"

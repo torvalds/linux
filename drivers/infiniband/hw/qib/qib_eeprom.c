@@ -163,8 +163,7 @@ void qib_get_eeprom_info(struct qib_devdata *dd)
 			if (bguid[6] == 0xff) {
 				if (bguid[5] == 0xff) {
 					qib_dev_err(dd,
-						"Can't set %s GUID from base, wraps to OUI!\n",
-						qib_get_unit_name(t));
+						    "Can't set GUID from base, wraps to OUI!\n");
 					dd->base_guid = 0;
 					goto bail;
 				}
@@ -182,12 +181,8 @@ void qib_get_eeprom_info(struct qib_devdata *dd)
 	 * */
 	len = sizeof(struct qib_flash);
 	buf = vmalloc(len);
-	if (!buf) {
-		qib_dev_err(dd,
-			"Couldn't allocate memory to read %u bytes from eeprom for GUID\n",
-			len);
+	if (!buf)
 		goto bail;
-	}
 
 	/*
 	 * Use "public" eeprom read function, which does locking and

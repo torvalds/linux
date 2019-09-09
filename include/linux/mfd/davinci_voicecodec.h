@@ -1,23 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * DaVinci Voice Codec Core Interface for TI platforms
  *
  * Copyright (C) 2010 Texas Instruments, Inc
  *
  * Author: Miguel Aguilar <miguel.aguilar@ridgerun.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #ifndef __LINUX_MFD_DAVINCI_VOICECODEC_H_
@@ -27,8 +14,6 @@
 #include <linux/platform_device.h>
 #include <linux/mfd/core.h>
 #include <linux/platform_data/edma.h>
-
-#include <mach/hardware.h>
 
 struct regmap;
 
@@ -98,8 +83,6 @@ struct davinci_vcif {
 	dma_addr_t dma_tx_addr;
 	dma_addr_t dma_rx_addr;
 };
-
-struct davinci_vc;
 
 struct davinci_vc {
 	/* Device data */

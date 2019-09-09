@@ -7,10 +7,12 @@ Required properties :
 
  - reg : Offset and length of the register set for the device
  - compatible: should be one of the following:
+   - "rockchip,rv1108-i2c": for rv1108
    - "rockchip,rk3066-i2c": for rk3066
    - "rockchip,rk3188-i2c": for rk3188
    - "rockchip,rk3228-i2c": for rk3228
    - "rockchip,rk3288-i2c": for rk3288
+   - "rockchip,rk3328-i2c", "rockchip,rk3399-i2c": for rk3328
    - "rockchip,rk3399-i2c": for rk3399
  - interrupts : interrupt number
  - clocks: See ../clock/clock-bindings.txt

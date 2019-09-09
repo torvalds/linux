@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *  ebtables
  *
@@ -19,6 +20,7 @@
 #define EBT_TABLE_MAXNAMELEN 32
 #define EBT_CHAIN_MAXNAMELEN EBT_TABLE_MAXNAMELEN
 #define EBT_FUNCTION_MAXNAMELEN EBT_TABLE_MAXNAMELEN
+#define EBT_EXTENSION_MAXNAMELEN 31
 
 /* verdicts >0 are "branches" */
 #define EBT_ACCEPT   -1
@@ -119,7 +121,10 @@ struct ebt_entries {
 
 struct ebt_entry_match {
 	union {
-		char name[EBT_FUNCTION_MAXNAMELEN];
+		struct {
+			char name[EBT_EXTENSION_MAXNAMELEN];
+			uint8_t revision;
+		};
 		struct xt_match *match;
 	} u;
 	/* size of data */
@@ -129,7 +134,10 @@ struct ebt_entry_match {
 
 struct ebt_entry_watcher {
 	union {
-		char name[EBT_FUNCTION_MAXNAMELEN];
+		struct {
+			char name[EBT_EXTENSION_MAXNAMELEN];
+			uint8_t revision;
+		};
 		struct xt_target *watcher;
 	} u;
 	/* size of data */
@@ -139,7 +147,10 @@ struct ebt_entry_watcher {
 
 struct ebt_entry_target {
 	union {
-		char name[EBT_FUNCTION_MAXNAMELEN];
+		struct {
+			char name[EBT_EXTENSION_MAXNAMELEN];
+			uint8_t revision;
+		};
 		struct xt_target *target;
 	} u;
 	/* size of data */
@@ -179,6 +190,12 @@ struct ebt_entry {
 	unsigned int next_offset;
 	unsigned char elems[0] __attribute__ ((aligned (__alignof__(struct ebt_replace))));
 };
+
+static __inline__ struct ebt_entry_target *
+ebt_get_target(struct ebt_entry *e)
+{
+	return (void *)e + e->target_offset;
+}
 
 /* {g,s}etsockopt numbers */
 #define EBT_BASE_CTL            128

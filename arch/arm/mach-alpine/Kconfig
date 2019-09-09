@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config ARCH_ALPINE
 	bool "Annapurna Labs Alpine platform"
 	depends on ARCH_MULTI_V7
@@ -8,7 +9,7 @@ config ARCH_ALPINE
 	select HAVE_ARM_ARCH_TIMER
 	select HAVE_SMP
 	select MFD_SYSCON
-	select PCI
+	select FORCE_PCI
 	select PCI_HOST_GENERIC
 	help
 	  This enables support for the Annapurna Labs Alpine V1 boards.

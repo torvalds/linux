@@ -40,9 +40,11 @@
 #include <linux/random.h>
 #include <linux/io-mapping.h>
 #include <linux/mlx5/driver.h>
+#include <linux/mlx5/eq.h>
 #include <linux/debugfs.h>
 
 #include "mlx5_core.h"
+#include "lib/eq.h"
 
 enum {
 	CMD_IF_REV = 5,
@@ -51,14 +53,6 @@ enum {
 enum {
 	CMD_MODE_POLLING,
 	CMD_MODE_EVENTS
-};
-
-enum {
-	NUM_LONG_LISTS	  = 2,
-	NUM_MED_LISTS	  = 64,
-	LONG_LIST_SIZE	  = (2ULL * 1024 * 1024 * 1024 / PAGE_SIZE) * 8 + 16 +
-				MLX5_CMD_DATA_BLOCK_SIZE,
-	MED_LIST_SIZE	  = 16 + MLX5_CMD_DATA_BLOCK_SIZE,
 };
 
 enum {
@@ -143,6 +137,14 @@ static struct mlx5_cmd_layout *get_inst(struct mlx5_cmd *cmd, int idx)
 	return cmd->cmd_buf + (idx << cmd->log_stride);
 }
 
+static int mlx5_calc_cmd_blocks(struct mlx5_cmd_msg *msg)
+{
+	int size = msg->len;
+	int blen = size - min_t(int, sizeof(msg->first.data), size);
+
+	return DIV_ROUND_UP(blen, MLX5_CMD_DATA_BLOCK_SIZE);
+}
+
 static u8 xor8_buf(void *buf, size_t offset, int len)
 {
 	u8 *ptr = buf;
@@ -182,10 +184,7 @@ static void calc_block_sig(struct mlx5_cmd_prot_block *block)
 static void calc_chain_sig(struct mlx5_cmd_msg *msg)
 {
 	struct mlx5_cmd_mailbox *next = msg->next;
-	int size = msg->len;
-	int blen = size - min_t(int, sizeof(msg->first.data), size);
-	int n = (blen + MLX5_CMD_DATA_BLOCK_SIZE - 1)
-		/ MLX5_CMD_DATA_BLOCK_SIZE;
+	int n = mlx5_calc_cmd_blocks(msg);
 	int i = 0;
 
 	for (i = 0; i < n && next; i++)  {
@@ -209,12 +208,12 @@ static void poll_timeout(struct mlx5_cmd_work_ent *ent)
 	u8 own;
 
 	do {
-		own = ent->lay->status_own;
+		own = READ_ONCE(ent->lay->status_own);
 		if (!(own & CMD_OWNER_HW)) {
 			ent->ret = 0;
 			return;
 		}
-		usleep_range(5000, 10000);
+		cond_resched();
 	} while (time_before(jiffies, poll_end));
 
 	ent->ret = -ETIMEDOUT;
@@ -225,16 +224,12 @@ static void free_cmd(struct mlx5_cmd_work_ent *ent)
 	kfree(ent);
 }
 
-
 static int verify_signature(struct mlx5_cmd_work_ent *ent)
 {
 	struct mlx5_cmd_mailbox *next = ent->out->next;
+	int n = mlx5_calc_cmd_blocks(ent->out);
 	int err;
 	u8 sig;
-	int size = ent->out->len;
-	int blen = size - min_t(int, sizeof(ent->out->first.data), size);
-	int n = (blen + MLX5_CMD_DATA_BLOCK_SIZE - 1)
-		/ MLX5_CMD_DATA_BLOCK_SIZE;
 	int i = 0;
 
 	sig = xor8_buf(ent->lay, 0, sizeof(*ent->lay));
@@ -268,11 +263,6 @@ static void dump_buf(void *buf, int size, int data_only, int offset)
 		pr_debug("\n");
 }
 
-enum {
-	MLX5_DRIVER_STATUS_ABORTED = 0xfe,
-	MLX5_DRIVER_SYND = 0xbadd00de,
-};
-
 static int mlx5_internal_err_ret_value(struct mlx5_core_dev *dev, u16 op,
 				       u32 *synd, u8 *status)
 {
@@ -290,8 +280,11 @@ static int mlx5_internal_err_ret_value(struct mlx5_core_dev *dev, u16 op,
 	case MLX5_CMD_OP_DESTROY_PSV:
 	case MLX5_CMD_OP_DESTROY_SRQ:
 	case MLX5_CMD_OP_DESTROY_XRC_SRQ:
+	case MLX5_CMD_OP_DESTROY_XRQ:
 	case MLX5_CMD_OP_DESTROY_DCT:
 	case MLX5_CMD_OP_DEALLOC_Q_COUNTER:
+	case MLX5_CMD_OP_DESTROY_SCHEDULING_ELEMENT:
+	case MLX5_CMD_OP_DESTROY_QOS_PARA_VPORT:
 	case MLX5_CMD_OP_DEALLOC_PD:
 	case MLX5_CMD_OP_DEALLOC_UAR:
 	case MLX5_CMD_OP_DETACH_FROM_MCG:
@@ -317,7 +310,13 @@ static int mlx5_internal_err_ret_value(struct mlx5_core_dev *dev, u16 op,
 	case MLX5_CMD_OP_MODIFY_FLOW_TABLE:
 	case MLX5_CMD_OP_SET_FLOW_TABLE_ENTRY:
 	case MLX5_CMD_OP_SET_FLOW_TABLE_ROOT:
-	case MLX5_CMD_OP_DEALLOC_ENCAP_HEADER:
+	case MLX5_CMD_OP_DEALLOC_PACKET_REFORMAT_CONTEXT:
+	case MLX5_CMD_OP_DEALLOC_MODIFY_HEADER_CONTEXT:
+	case MLX5_CMD_OP_FPGA_DESTROY_QP:
+	case MLX5_CMD_OP_DESTROY_GENERAL_OBJECT:
+	case MLX5_CMD_OP_DEALLOC_MEMIC:
+	case MLX5_CMD_OP_PAGE_FAULT_RESUME:
+	case MLX5_CMD_OP_QUERY_ESW_FUNCTIONS:
 		return MLX5_CMD_STAT_OK;
 
 	case MLX5_CMD_OP_QUERY_HCA_CAP:
@@ -331,7 +330,6 @@ static int mlx5_internal_err_ret_value(struct mlx5_core_dev *dev, u16 op,
 	case MLX5_CMD_OP_CREATE_MKEY:
 	case MLX5_CMD_OP_QUERY_MKEY:
 	case MLX5_CMD_OP_QUERY_SPECIAL_CONTEXTS:
-	case MLX5_CMD_OP_PAGE_FAULT_RESUME:
 	case MLX5_CMD_OP_CREATE_EQ:
 	case MLX5_CMD_OP_QUERY_EQ:
 	case MLX5_CMD_OP_GEN_EQE:
@@ -354,6 +352,9 @@ static int mlx5_internal_err_ret_value(struct mlx5_core_dev *dev, u16 op,
 	case MLX5_CMD_OP_CREATE_XRC_SRQ:
 	case MLX5_CMD_OP_QUERY_XRC_SRQ:
 	case MLX5_CMD_OP_ARM_XRC_SRQ:
+	case MLX5_CMD_OP_CREATE_XRQ:
+	case MLX5_CMD_OP_QUERY_XRQ:
+	case MLX5_CMD_OP_ARM_XRQ:
 	case MLX5_CMD_OP_CREATE_DCT:
 	case MLX5_CMD_OP_DRAIN_DCT:
 	case MLX5_CMD_OP_QUERY_DCT:
@@ -369,9 +370,18 @@ static int mlx5_internal_err_ret_value(struct mlx5_core_dev *dev, u16 op,
 	case MLX5_CMD_OP_MODIFY_HCA_VPORT_CONTEXT:
 	case MLX5_CMD_OP_QUERY_HCA_VPORT_GID:
 	case MLX5_CMD_OP_QUERY_HCA_VPORT_PKEY:
+	case MLX5_CMD_OP_QUERY_VNIC_ENV:
 	case MLX5_CMD_OP_QUERY_VPORT_COUNTER:
 	case MLX5_CMD_OP_ALLOC_Q_COUNTER:
 	case MLX5_CMD_OP_QUERY_Q_COUNTER:
+	case MLX5_CMD_OP_SET_MONITOR_COUNTER:
+	case MLX5_CMD_OP_ARM_MONITOR_COUNTER:
+	case MLX5_CMD_OP_SET_PP_RATE_LIMIT:
+	case MLX5_CMD_OP_QUERY_RATE_LIMIT:
+	case MLX5_CMD_OP_CREATE_SCHEDULING_ELEMENT:
+	case MLX5_CMD_OP_QUERY_SCHEDULING_ELEMENT:
+	case MLX5_CMD_OP_MODIFY_SCHEDULING_ELEMENT:
+	case MLX5_CMD_OP_CREATE_QOS_PARA_VPORT:
 	case MLX5_CMD_OP_ALLOC_PD:
 	case MLX5_CMD_OP_ALLOC_UAR:
 	case MLX5_CMD_OP_CONFIG_INT_MODERATION:
@@ -419,11 +429,23 @@ static int mlx5_internal_err_ret_value(struct mlx5_core_dev *dev, u16 op,
 	case MLX5_CMD_OP_QUERY_FLOW_TABLE:
 	case MLX5_CMD_OP_CREATE_FLOW_GROUP:
 	case MLX5_CMD_OP_QUERY_FLOW_GROUP:
-
 	case MLX5_CMD_OP_QUERY_FLOW_TABLE_ENTRY:
 	case MLX5_CMD_OP_ALLOC_FLOW_COUNTER:
 	case MLX5_CMD_OP_QUERY_FLOW_COUNTER:
-	case MLX5_CMD_OP_ALLOC_ENCAP_HEADER:
+	case MLX5_CMD_OP_ALLOC_PACKET_REFORMAT_CONTEXT:
+	case MLX5_CMD_OP_ALLOC_MODIFY_HEADER_CONTEXT:
+	case MLX5_CMD_OP_FPGA_CREATE_QP:
+	case MLX5_CMD_OP_FPGA_MODIFY_QP:
+	case MLX5_CMD_OP_FPGA_QUERY_QP:
+	case MLX5_CMD_OP_FPGA_QUERY_QP_COUNTERS:
+	case MLX5_CMD_OP_CREATE_GENERAL_OBJECT:
+	case MLX5_CMD_OP_MODIFY_GENERAL_OBJECT:
+	case MLX5_CMD_OP_QUERY_GENERAL_OBJECT:
+	case MLX5_CMD_OP_CREATE_UCTX:
+	case MLX5_CMD_OP_DESTROY_UCTX:
+	case MLX5_CMD_OP_CREATE_UMEM:
+	case MLX5_CMD_OP_DESTROY_UMEM:
+	case MLX5_CMD_OP_ALLOC_MEMIC:
 		*status = MLX5_DRIVER_STATUS_ABORTED;
 		*synd = MLX5_DRIVER_SYND;
 		return -EIO;
@@ -449,6 +471,7 @@ const char *mlx5_command_str(int command)
 	MLX5_COMMAND_STR_CASE(SET_HCA_CAP);
 	MLX5_COMMAND_STR_CASE(QUERY_ISSI);
 	MLX5_COMMAND_STR_CASE(SET_ISSI);
+	MLX5_COMMAND_STR_CASE(SET_DRIVER_VERSION);
 	MLX5_COMMAND_STR_CASE(CREATE_MKEY);
 	MLX5_COMMAND_STR_CASE(QUERY_MKEY);
 	MLX5_COMMAND_STR_CASE(DESTROY_MKEY);
@@ -501,10 +524,21 @@ const char *mlx5_command_str(int command)
 	MLX5_COMMAND_STR_CASE(MODIFY_HCA_VPORT_CONTEXT);
 	MLX5_COMMAND_STR_CASE(QUERY_HCA_VPORT_GID);
 	MLX5_COMMAND_STR_CASE(QUERY_HCA_VPORT_PKEY);
+	MLX5_COMMAND_STR_CASE(QUERY_VNIC_ENV);
 	MLX5_COMMAND_STR_CASE(QUERY_VPORT_COUNTER);
 	MLX5_COMMAND_STR_CASE(ALLOC_Q_COUNTER);
 	MLX5_COMMAND_STR_CASE(DEALLOC_Q_COUNTER);
 	MLX5_COMMAND_STR_CASE(QUERY_Q_COUNTER);
+	MLX5_COMMAND_STR_CASE(SET_MONITOR_COUNTER);
+	MLX5_COMMAND_STR_CASE(ARM_MONITOR_COUNTER);
+	MLX5_COMMAND_STR_CASE(SET_PP_RATE_LIMIT);
+	MLX5_COMMAND_STR_CASE(QUERY_RATE_LIMIT);
+	MLX5_COMMAND_STR_CASE(CREATE_SCHEDULING_ELEMENT);
+	MLX5_COMMAND_STR_CASE(DESTROY_SCHEDULING_ELEMENT);
+	MLX5_COMMAND_STR_CASE(QUERY_SCHEDULING_ELEMENT);
+	MLX5_COMMAND_STR_CASE(MODIFY_SCHEDULING_ELEMENT);
+	MLX5_COMMAND_STR_CASE(CREATE_QOS_PARA_VPORT);
+	MLX5_COMMAND_STR_CASE(DESTROY_QOS_PARA_VPORT);
 	MLX5_COMMAND_STR_CASE(ALLOC_PD);
 	MLX5_COMMAND_STR_CASE(DEALLOC_PD);
 	MLX5_COMMAND_STR_CASE(ALLOC_UAR);
@@ -578,8 +612,31 @@ const char *mlx5_command_str(int command)
 	MLX5_COMMAND_STR_CASE(DEALLOC_FLOW_COUNTER);
 	MLX5_COMMAND_STR_CASE(QUERY_FLOW_COUNTER);
 	MLX5_COMMAND_STR_CASE(MODIFY_FLOW_TABLE);
-	MLX5_COMMAND_STR_CASE(ALLOC_ENCAP_HEADER);
-	MLX5_COMMAND_STR_CASE(DEALLOC_ENCAP_HEADER);
+	MLX5_COMMAND_STR_CASE(ALLOC_PACKET_REFORMAT_CONTEXT);
+	MLX5_COMMAND_STR_CASE(DEALLOC_PACKET_REFORMAT_CONTEXT);
+	MLX5_COMMAND_STR_CASE(ALLOC_MODIFY_HEADER_CONTEXT);
+	MLX5_COMMAND_STR_CASE(DEALLOC_MODIFY_HEADER_CONTEXT);
+	MLX5_COMMAND_STR_CASE(FPGA_CREATE_QP);
+	MLX5_COMMAND_STR_CASE(FPGA_MODIFY_QP);
+	MLX5_COMMAND_STR_CASE(FPGA_QUERY_QP);
+	MLX5_COMMAND_STR_CASE(FPGA_QUERY_QP_COUNTERS);
+	MLX5_COMMAND_STR_CASE(FPGA_DESTROY_QP);
+	MLX5_COMMAND_STR_CASE(CREATE_XRQ);
+	MLX5_COMMAND_STR_CASE(DESTROY_XRQ);
+	MLX5_COMMAND_STR_CASE(QUERY_XRQ);
+	MLX5_COMMAND_STR_CASE(ARM_XRQ);
+	MLX5_COMMAND_STR_CASE(CREATE_GENERAL_OBJECT);
+	MLX5_COMMAND_STR_CASE(DESTROY_GENERAL_OBJECT);
+	MLX5_COMMAND_STR_CASE(MODIFY_GENERAL_OBJECT);
+	MLX5_COMMAND_STR_CASE(QUERY_GENERAL_OBJECT);
+	MLX5_COMMAND_STR_CASE(QUERY_MODIFY_HEADER_CONTEXT);
+	MLX5_COMMAND_STR_CASE(ALLOC_MEMIC);
+	MLX5_COMMAND_STR_CASE(DEALLOC_MEMIC);
+	MLX5_COMMAND_STR_CASE(QUERY_ESW_FUNCTIONS);
+	MLX5_COMMAND_STR_CASE(CREATE_UCTX);
+	MLX5_COMMAND_STR_CASE(DESTROY_UCTX);
+	MLX5_COMMAND_STR_CASE(CREATE_UMEM);
+	MLX5_COMMAND_STR_CASE(DESTROY_UMEM);
 	default: return "unknown command opcode";
 	}
 }
@@ -658,7 +715,7 @@ struct mlx5_ifc_mbox_out_bits {
 
 struct mlx5_ifc_mbox_in_bits {
 	u8         opcode[0x10];
-	u8         reserved_at_10[0x10];
+	u8         uid[0x10];
 
 	u8         reserved_at_20[0x10];
 	u8         op_mod[0x10];
@@ -678,6 +735,7 @@ static int mlx5_cmd_check(struct mlx5_core_dev *dev, void *in, void *out)
 	u8  status;
 	u16 opcode;
 	u16 op_mod;
+	u16 uid;
 
 	mlx5_cmd_mbox_status(out, &status, &syndrome);
 	if (!status)
@@ -685,8 +743,15 @@ static int mlx5_cmd_check(struct mlx5_core_dev *dev, void *in, void *out)
 
 	opcode = MLX5_GET(mbox_in, in, opcode);
 	op_mod = MLX5_GET(mbox_in, in, op_mod);
+	uid    = MLX5_GET(mbox_in, in, uid);
 
-	mlx5_core_err(dev,
+	if (!uid && opcode != MLX5_CMD_OP_DESTROY_MKEY)
+		mlx5_core_err_rl(dev,
+			"%s(0x%x) op_mod(0x%x) failed, status %s(0x%x), syndrome (0x%x)\n",
+			mlx5_command_str(opcode), opcode, op_mod,
+			cmd_status_str(status), status, syndrome);
+	else
+		mlx5_core_dbg(dev,
 		      "%s(0x%x) op_mod(0x%x) failed, status %s(0x%x), syndrome (0x%x)\n",
 		      mlx5_command_str(opcode),
 		      opcode, op_mod,
@@ -703,9 +768,11 @@ static void dump_command(struct mlx5_core_dev *dev,
 	struct mlx5_cmd_msg *msg = input ? ent->in : ent->out;
 	u16 op = MLX5_GET(mbox_in, ent->lay->in, opcode);
 	struct mlx5_cmd_mailbox *next = msg->next;
+	int n = mlx5_calc_cmd_blocks(msg);
 	int data_only;
 	u32 offset = 0;
 	int dump_len;
+	int i;
 
 	data_only = !!(mlx5_core_debug_mask & (1 << MLX5_CMD_DATA));
 
@@ -732,7 +799,7 @@ static void dump_command(struct mlx5_core_dev *dev,
 		offset += sizeof(*ent->lay);
 	}
 
-	while (next && offset < msg->len) {
+	for (i = 0; i < n && next; i++)  {
 		if (data_only) {
 			dump_len = min_t(int, MLX5_CMD_DATA_BLOCK_SIZE, msg->len - offset);
 			dump_buf(next->buf, dump_len, 1, offset);
@@ -754,6 +821,8 @@ static u16 msg_to_opcode(struct mlx5_cmd_msg *in)
 	return MLX5_GET(mbox_in, in->first.data, opcode);
 }
 
+static void mlx5_cmd_comp_handler(struct mlx5_core_dev *dev, u64 vec, bool forced);
+
 static void cb_timeout_handler(struct work_struct *work)
 {
 	struct delayed_work *dwork = container_of(work, struct delayed_work,
@@ -768,8 +837,12 @@ static void cb_timeout_handler(struct work_struct *work)
 	mlx5_core_warn(dev, "%s(0x%x) timeout. Will cause a leak of a command resource\n",
 		       mlx5_command_str(msg_to_opcode(ent->in)),
 		       msg_to_opcode(ent->in));
-	mlx5_cmd_comp_handler(dev, 1UL << ent->idx);
+	mlx5_cmd_comp_handler(dev, 1UL << ent->idx, true);
 }
+
+static void free_msg(struct mlx5_core_dev *dev, struct mlx5_cmd_msg *msg);
+static void mlx5_free_cmd_msg(struct mlx5_core_dev *dev,
+			      struct mlx5_cmd_msg *msg);
 
 static void cmd_work_handler(struct work_struct *work)
 {
@@ -780,16 +853,29 @@ static void cmd_work_handler(struct work_struct *work)
 	struct mlx5_cmd_layout *lay;
 	struct semaphore *sem;
 	unsigned long flags;
+	bool poll_cmd = ent->polling;
+	int alloc_ret;
+	int cmd_mode;
 
 	sem = ent->page_queue ? &cmd->pages_sem : &cmd->sem;
 	down(sem);
 	if (!ent->page_queue) {
-		ent->idx = alloc_ent(cmd);
-		if (ent->idx < 0) {
+		alloc_ret = alloc_ent(cmd);
+		if (alloc_ret < 0) {
 			mlx5_core_err(dev, "failed to allocate command entry\n");
+			if (ent->callback) {
+				ent->callback(-EAGAIN, ent->context);
+				mlx5_free_cmd_msg(dev, ent->out);
+				free_msg(dev, ent->in);
+				free_cmd(ent);
+			} else {
+				ent->ret = -EAGAIN;
+				complete(&ent->done);
+			}
 			up(sem);
 			return;
 		}
+		ent->idx = alloc_ret;
 	} else {
 		ent->idx = cmd->max_reg_cmds;
 		spin_lock_irqsave(&cmd->alloc_lock, flags);
@@ -798,6 +884,7 @@ static void cmd_work_handler(struct work_struct *work)
 	}
 
 	cmd->ent_arr[ent->idx] = ent;
+	set_bit(MLX5_CMD_ENT_STATE_PENDING_COMP, &ent->state);
 	lay = get_inst(cmd, ent->idx);
 	ent->lay = lay;
 	memset(lay, 0, sizeof(*lay));
@@ -815,21 +902,35 @@ static void cmd_work_handler(struct work_struct *work)
 	set_signature(ent, !cmd->checksum_disabled);
 	dump_command(dev, ent, 1);
 	ent->ts1 = ktime_get_ns();
+	cmd_mode = cmd->mode;
 
 	if (ent->callback)
 		schedule_delayed_work(&ent->cb_timeout_work, cb_timeout);
+
+	/* Skip sending command to fw if internal error */
+	if (pci_channel_offline(dev->pdev) ||
+	    dev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR) {
+		u8 status = 0;
+		u32 drv_synd;
+
+		ent->ret = mlx5_internal_err_ret_value(dev, msg_to_opcode(ent->in), &drv_synd, &status);
+		MLX5_SET(mbox_out, ent->out, status, status);
+		MLX5_SET(mbox_out, ent->out, syndrome, drv_synd);
+
+		mlx5_cmd_comp_handler(dev, 1UL << ent->idx, true);
+		return;
+	}
 
 	/* ring doorbell after the descriptor is valid */
 	mlx5_core_dbg(dev, "writing 0x%x to command doorbell\n", 1 << ent->idx);
 	wmb();
 	iowrite32be(1 << ent->idx, &dev->iseg->cmd_dbell);
-	mmiowb();
 	/* if not in polling don't use ent after this point */
-	if (cmd->mode == CMD_MODE_POLLING) {
+	if (cmd_mode == CMD_MODE_POLLING || poll_cmd) {
 		poll_timeout(ent);
 		/* make sure we read the descriptor after ownership is SW */
 		rmb();
-		mlx5_cmd_comp_handler(dev, 1UL << ent->idx);
+		mlx5_cmd_comp_handler(dev, 1UL << ent->idx, (ent->ret == -ETIMEDOUT));
 	}
 }
 
@@ -853,7 +954,7 @@ static const char *deliv_status_to_str(u8 status)
 	case MLX5_CMD_DELIVERY_STAT_IN_LENGTH_ERR:
 		return "command input length error";
 	case MLX5_CMD_DELIVERY_STAT_OUT_LENGTH_ERR:
-		return "command ouput length error";
+		return "command output length error";
 	case MLX5_CMD_DELIVERY_STAT_RES_FLD_NOT_CLR_ERR:
 		return "reserved fields not cleared";
 	case MLX5_CMD_DELIVERY_STAT_CMD_DESCR_ERR:
@@ -869,11 +970,11 @@ static int wait_func(struct mlx5_core_dev *dev, struct mlx5_cmd_work_ent *ent)
 	struct mlx5_cmd *cmd = &dev->cmd;
 	int err;
 
-	if (cmd->mode == CMD_MODE_POLLING) {
+	if (cmd->mode == CMD_MODE_POLLING || ent->polling) {
 		wait_for_completion(&ent->done);
 	} else if (!wait_for_completion_timeout(&ent->done, timeout)) {
 		ent->ret = -ETIMEDOUT;
-		mlx5_cmd_comp_handler(dev, 1UL << ent->idx);
+		mlx5_cmd_comp_handler(dev, 1UL << ent->idx, true);
 	}
 
 	err = ent->ret;
@@ -897,7 +998,7 @@ static int mlx5_cmd_invoke(struct mlx5_core_dev *dev, struct mlx5_cmd_msg *in,
 			   struct mlx5_cmd_msg *out, void *uout, int uout_size,
 			   mlx5_cmd_cbk_t callback,
 			   void *context, int page_queue, u8 *status,
-			   u8 token)
+			   u8 token, bool force_polling)
 {
 	struct mlx5_cmd *cmd = &dev->cmd;
 	struct mlx5_cmd_work_ent *ent;
@@ -915,6 +1016,7 @@ static int mlx5_cmd_invoke(struct mlx5_core_dev *dev, struct mlx5_cmd_msg *in,
 		return PTR_ERR(ent);
 
 	ent->token = token;
+	ent->polling = force_polling;
 
 	if (!callback)
 		init_completion(&ent->done);
@@ -934,7 +1036,7 @@ static int mlx5_cmd_invoke(struct mlx5_core_dev *dev, struct mlx5_cmd_msg *in,
 
 	err = wait_func(dev, ent);
 	if (err == -ETIMEDOUT)
-		goto out_free;
+		goto out;
 
 	ds = ent->ts2 - ent->ts1;
 	op = MLX5_GET(mbox_in, in->first.data, opcode);
@@ -967,7 +1069,10 @@ static ssize_t dbg_write(struct file *filp, const char __user *buf,
 	if (!dbg->in_msg || !dbg->out_msg)
 		return -ENOMEM;
 
-	if (copy_from_user(lbuf, buf, sizeof(lbuf)))
+	if (count < sizeof(lbuf) - 1)
+		return -EINVAL;
+
+	if (copy_from_user(lbuf, buf, sizeof(lbuf) - 1))
 		return -EFAULT;
 
 	lbuf[sizeof(lbuf) - 1] = 0;
@@ -979,7 +1084,6 @@ static ssize_t dbg_write(struct file *filp, const char __user *buf,
 
 	return err ? err : count;
 }
-
 
 static const struct file_operations fops = {
 	.owner	= THIS_MODULE,
@@ -1063,14 +1167,13 @@ static struct mlx5_cmd_mailbox *alloc_cmd_box(struct mlx5_core_dev *dev,
 	if (!mailbox)
 		return ERR_PTR(-ENOMEM);
 
-	mailbox->buf = pci_pool_alloc(dev->cmd.pool, flags,
-				      &mailbox->dma);
+	mailbox->buf = dma_pool_zalloc(dev->cmd.pool, flags,
+				       &mailbox->dma);
 	if (!mailbox->buf) {
 		mlx5_core_dbg(dev, "failed allocation\n");
 		kfree(mailbox);
 		return ERR_PTR(-ENOMEM);
 	}
-	memset(mailbox->buf, 0, sizeof(struct mlx5_cmd_prot_block));
 	mailbox->next = NULL;
 
 	return mailbox;
@@ -1079,7 +1182,7 @@ static struct mlx5_cmd_mailbox *alloc_cmd_box(struct mlx5_core_dev *dev,
 static void free_cmd_box(struct mlx5_core_dev *dev,
 			 struct mlx5_cmd_mailbox *mailbox)
 {
-	pci_pool_free(dev->cmd.pool, mailbox->buf, mailbox->dma);
+	dma_pool_free(dev->cmd.pool, mailbox->buf, mailbox->dma);
 	kfree(mailbox);
 }
 
@@ -1090,7 +1193,6 @@ static struct mlx5_cmd_msg *mlx5_alloc_cmd_msg(struct mlx5_core_dev *dev,
 	struct mlx5_cmd_mailbox *tmp, *head = NULL;
 	struct mlx5_cmd_prot_block *block;
 	struct mlx5_cmd_msg *msg;
-	int blen;
 	int err;
 	int n;
 	int i;
@@ -1099,8 +1201,8 @@ static struct mlx5_cmd_msg *mlx5_alloc_cmd_msg(struct mlx5_core_dev *dev,
 	if (!msg)
 		return ERR_PTR(-ENOMEM);
 
-	blen = size - min_t(int, sizeof(msg->first.data), size);
-	n = (blen + MLX5_CMD_DATA_BLOCK_SIZE - 1) / MLX5_CMD_DATA_BLOCK_SIZE;
+	msg->len = size;
+	n = mlx5_calc_cmd_blocks(msg);
 
 	for (i = 0; i < n; i++) {
 		tmp = alloc_cmd_box(dev, flags);
@@ -1118,7 +1220,6 @@ static struct mlx5_cmd_msg *mlx5_alloc_cmd_msg(struct mlx5_core_dev *dev,
 		head = tmp;
 	}
 	msg->next = head;
-	msg->len = size;
 	return msg;
 
 err_alloc:
@@ -1133,7 +1234,7 @@ err_alloc:
 }
 
 static void mlx5_free_cmd_msg(struct mlx5_core_dev *dev,
-				  struct mlx5_cmd_msg *msg)
+			      struct mlx5_cmd_msg *msg)
 {
 	struct mlx5_cmd_mailbox *head = msg->next;
 	struct mlx5_cmd_mailbox *next;
@@ -1175,21 +1276,12 @@ static ssize_t data_read(struct file *filp, char __user *buf, size_t count,
 {
 	struct mlx5_core_dev *dev = filp->private_data;
 	struct mlx5_cmd_debug *dbg = &dev->cmd.dbg;
-	int copy;
-
-	if (*pos)
-		return 0;
 
 	if (!dbg->out_msg)
 		return -ENOMEM;
 
-	copy = min_t(int, count, dbg->outlen);
-	if (copy_to_user(buf, dbg->out_msg, copy))
-		return -EFAULT;
-
-	*pos += copy;
-
-	return copy;
+	return simple_read_from_buffer(buf, count, pos, dbg->out_msg,
+				       dbg->outlen);
 }
 
 static const struct file_operations dfops = {
@@ -1207,19 +1299,11 @@ static ssize_t outlen_read(struct file *filp, char __user *buf, size_t count,
 	char outlen[8];
 	int err;
 
-	if (*pos)
-		return 0;
-
 	err = snprintf(outlen, sizeof(outlen), "%d", dbg->outlen);
 	if (err < 0)
 		return err;
 
-	if (copy_to_user(buf, &outlen, err))
-		return -EFAULT;
-
-	*pos += err;
-
-	return err;
+	return simple_read_from_buffer(buf, count, pos, outlen, err);
 }
 
 static ssize_t outlen_write(struct file *filp, const char __user *buf,
@@ -1227,7 +1311,7 @@ static ssize_t outlen_write(struct file *filp, const char __user *buf,
 {
 	struct mlx5_core_dev *dev = filp->private_data;
 	struct mlx5_cmd_debug *dbg = &dev->cmd.dbg;
-	char outlen_str[8];
+	char outlen_str[8] = {0};
 	int outlen;
 	void *ptr;
 	int err;
@@ -1241,8 +1325,6 @@ static ssize_t outlen_write(struct file *filp, const char __user *buf,
 
 	if (copy_from_user(outlen_str, buf, count))
 		return -EFAULT;
-
-	outlen_str[7] = 0;
 
 	err = sscanf(outlen_str, "%d", &outlen);
 	if (err < 0)
@@ -1272,7 +1354,7 @@ static void set_wqname(struct mlx5_core_dev *dev)
 	struct mlx5_cmd *cmd = &dev->cmd;
 
 	snprintf(cmd->wq_name, sizeof(cmd->wq_name), "mlx5_cmd_%s",
-		 dev_name(&dev->pdev->dev));
+		 dev_name(dev->device));
 }
 
 static void clean_debug_files(struct mlx5_core_dev *dev)
@@ -1347,30 +1429,48 @@ static void mlx5_cmd_change_mod(struct mlx5_core_dev *dev, int mode)
 		up(&cmd->sem);
 }
 
+static int cmd_comp_notifier(struct notifier_block *nb,
+			     unsigned long type, void *data)
+{
+	struct mlx5_core_dev *dev;
+	struct mlx5_cmd *cmd;
+	struct mlx5_eqe *eqe;
+
+	cmd = mlx5_nb_cof(nb, struct mlx5_cmd, nb);
+	dev = container_of(cmd, struct mlx5_core_dev, cmd);
+	eqe = data;
+
+	mlx5_cmd_comp_handler(dev, be32_to_cpu(eqe->data.cmd.vector), false);
+
+	return NOTIFY_OK;
+}
 void mlx5_cmd_use_events(struct mlx5_core_dev *dev)
 {
+	MLX5_NB_INIT(&dev->cmd.nb, cmd_comp_notifier, CMD);
+	mlx5_eq_notifier_register(dev, &dev->cmd.nb);
 	mlx5_cmd_change_mod(dev, CMD_MODE_EVENTS);
 }
 
 void mlx5_cmd_use_polling(struct mlx5_core_dev *dev)
 {
 	mlx5_cmd_change_mod(dev, CMD_MODE_POLLING);
+	mlx5_eq_notifier_unregister(dev, &dev->cmd.nb);
 }
 
 static void free_msg(struct mlx5_core_dev *dev, struct mlx5_cmd_msg *msg)
 {
 	unsigned long flags;
 
-	if (msg->cache) {
-		spin_lock_irqsave(&msg->cache->lock, flags);
-		list_add_tail(&msg->list, &msg->cache->head);
-		spin_unlock_irqrestore(&msg->cache->lock, flags);
+	if (msg->parent) {
+		spin_lock_irqsave(&msg->parent->lock, flags);
+		list_add_tail(&msg->list, &msg->parent->head);
+		spin_unlock_irqrestore(&msg->parent->lock, flags);
 	} else {
 		mlx5_free_cmd_msg(dev, msg);
 	}
 }
 
-void mlx5_cmd_comp_handler(struct mlx5_core_dev *dev, u64 vec)
+static void mlx5_cmd_comp_handler(struct mlx5_core_dev *dev, u64 vec, bool forced)
 {
 	struct mlx5_cmd *cmd = &dev->cmd;
 	struct mlx5_cmd_work_ent *ent;
@@ -1390,6 +1490,20 @@ void mlx5_cmd_comp_handler(struct mlx5_core_dev *dev, u64 vec)
 			struct semaphore *sem;
 
 			ent = cmd->ent_arr[i];
+
+			/* if we already completed the command, ignore it */
+			if (!test_and_clear_bit(MLX5_CMD_ENT_STATE_PENDING_COMP,
+						&ent->state)) {
+				/* only real completion can free the cmd slot */
+				if (!forced) {
+					mlx5_core_err(dev, "Command completion arrived after timeout (entry idx = %d).\n",
+						      ent->idx);
+					free_ent(cmd, ent->idx);
+					free_cmd(ent);
+				}
+				continue;
+			}
+
 			if (ent->callback)
 				cancel_delayed_work(&ent->cb_timeout_work);
 			if (ent->page_queue)
@@ -1412,7 +1526,10 @@ void mlx5_cmd_comp_handler(struct mlx5_core_dev *dev, u64 vec)
 				mlx5_core_dbg(dev, "command completed. ret 0x%x, delivery status %s(0x%x)\n",
 					      ent->ret, deliv_status_to_str(ent->status), ent->status);
 			}
-			free_ent(cmd, ent->idx);
+
+			/* only real completion will free the entry slot */
+			if (!forced)
+				free_ent(cmd, ent->idx);
 
 			if (ent->callback) {
 				ds = ent->ts2 - ent->ts1;
@@ -1441,7 +1558,8 @@ void mlx5_cmd_comp_handler(struct mlx5_core_dev *dev, u64 vec)
 				free_msg(dev, ent->in);
 
 				err = err ? err : ent->status;
-				free_cmd(ent);
+				if (!forced)
+					free_cmd(ent);
 				callback(err, context);
 			} else {
 				complete(&ent->done);
@@ -1450,41 +1568,108 @@ void mlx5_cmd_comp_handler(struct mlx5_core_dev *dev, u64 vec)
 		}
 	}
 }
-EXPORT_SYMBOL(mlx5_cmd_comp_handler);
+
+void mlx5_cmd_trigger_completions(struct mlx5_core_dev *dev)
+{
+	unsigned long flags;
+	u64 vector;
+
+	/* wait for pending handlers to complete */
+	mlx5_eq_synchronize_cmd_irq(dev);
+	spin_lock_irqsave(&dev->cmd.alloc_lock, flags);
+	vector = ~dev->cmd.bitmask & ((1ul << (1 << dev->cmd.log_sz)) - 1);
+	if (!vector)
+		goto no_trig;
+
+	vector |= MLX5_TRIGGERED_CMD_COMP;
+	spin_unlock_irqrestore(&dev->cmd.alloc_lock, flags);
+
+	mlx5_core_dbg(dev, "vector 0x%llx\n", vector);
+	mlx5_cmd_comp_handler(dev, vector, true);
+	return;
+
+no_trig:
+	spin_unlock_irqrestore(&dev->cmd.alloc_lock, flags);
+}
+
+void mlx5_cmd_flush(struct mlx5_core_dev *dev)
+{
+	struct mlx5_cmd *cmd = &dev->cmd;
+	int i;
+
+	for (i = 0; i < cmd->max_reg_cmds; i++)
+		while (down_trylock(&cmd->sem))
+			mlx5_cmd_trigger_completions(dev);
+
+	while (down_trylock(&cmd->pages_sem))
+		mlx5_cmd_trigger_completions(dev);
+
+	/* Unlock cmdif */
+	up(&cmd->pages_sem);
+	for (i = 0; i < cmd->max_reg_cmds; i++)
+		up(&cmd->sem);
+}
 
 static int status_to_err(u8 status)
 {
-	return status ? -1 : 0; /* TBD more meaningful codes */
+	switch (status) {
+	case MLX5_CMD_DELIVERY_STAT_OK:
+	case MLX5_DRIVER_STATUS_ABORTED:
+		return 0;
+	case MLX5_CMD_DELIVERY_STAT_SIGNAT_ERR:
+	case MLX5_CMD_DELIVERY_STAT_TOK_ERR:
+		return -EBADR;
+	case MLX5_CMD_DELIVERY_STAT_BAD_BLK_NUM_ERR:
+	case MLX5_CMD_DELIVERY_STAT_OUT_PTR_ALIGN_ERR:
+	case MLX5_CMD_DELIVERY_STAT_IN_PTR_ALIGN_ERR:
+		return -EFAULT; /* Bad address */
+	case MLX5_CMD_DELIVERY_STAT_IN_LENGTH_ERR:
+	case MLX5_CMD_DELIVERY_STAT_OUT_LENGTH_ERR:
+	case MLX5_CMD_DELIVERY_STAT_CMD_DESCR_ERR:
+	case MLX5_CMD_DELIVERY_STAT_RES_FLD_NOT_CLR_ERR:
+		return -ENOMSG;
+	case MLX5_CMD_DELIVERY_STAT_FW_ERR:
+		return -EIO;
+	default:
+		return -EINVAL;
+	}
 }
 
 static struct mlx5_cmd_msg *alloc_msg(struct mlx5_core_dev *dev, int in_size,
 				      gfp_t gfp)
 {
 	struct mlx5_cmd_msg *msg = ERR_PTR(-ENOMEM);
+	struct cmd_msg_cache *ch = NULL;
 	struct mlx5_cmd *cmd = &dev->cmd;
-	struct cache_ent *ent = NULL;
+	int i;
 
-	if (in_size > MED_LIST_SIZE && in_size <= LONG_LIST_SIZE)
-		ent = &cmd->cache.large;
-	else if (in_size > 16 && in_size <= MED_LIST_SIZE)
-		ent = &cmd->cache.med;
+	if (in_size <= 16)
+		goto cache_miss;
 
-	if (ent) {
-		spin_lock_irq(&ent->lock);
-		if (!list_empty(&ent->head)) {
-			msg = list_entry(ent->head.next, typeof(*msg), list);
-			/* For cached lists, we must explicitly state what is
-			 * the real size
-			 */
-			msg->len = in_size;
-			list_del(&msg->list);
+	for (i = 0; i < MLX5_NUM_COMMAND_CACHES; i++) {
+		ch = &cmd->cache[i];
+		if (in_size > ch->max_inbox_size)
+			continue;
+		spin_lock_irq(&ch->lock);
+		if (list_empty(&ch->head)) {
+			spin_unlock_irq(&ch->lock);
+			continue;
 		}
-		spin_unlock_irq(&ent->lock);
+		msg = list_entry(ch->head.next, typeof(*msg), list);
+		/* For cached lists, we must explicitly state what is
+		 * the real size
+		 */
+		msg->len = in_size;
+		list_del(&msg->list);
+		spin_unlock_irq(&ch->lock);
+		break;
 	}
 
-	if (IS_ERR(msg))
-		msg = mlx5_alloc_cmd_msg(dev, gfp, in_size, 0);
+	if (!IS_ERR(msg))
+		return msg;
 
+cache_miss:
+	msg = mlx5_alloc_cmd_msg(dev, gfp, in_size, 0);
 	return msg;
 }
 
@@ -1494,7 +1679,8 @@ static int is_manage_pages(void *in)
 }
 
 static int cmd_exec(struct mlx5_core_dev *dev, void *in, int in_size, void *out,
-		    int out_size, mlx5_cmd_cbk_t callback, void *context)
+		    int out_size, mlx5_cmd_cbk_t callback, void *context,
+		    bool force_polling)
 {
 	struct mlx5_cmd_msg *inb;
 	struct mlx5_cmd_msg *outb;
@@ -1539,7 +1725,7 @@ static int cmd_exec(struct mlx5_core_dev *dev, void *in, int in_size, void *out,
 	}
 
 	err = mlx5_cmd_invoke(dev, inb, outb, out, out_size, callback, context,
-			      pages_queue, &status, token);
+			      pages_queue, &status, token, force_polling);
 	if (err)
 		goto out_out;
 
@@ -1567,81 +1753,136 @@ int mlx5_cmd_exec(struct mlx5_core_dev *dev, void *in, int in_size, void *out,
 {
 	int err;
 
-	err = cmd_exec(dev, in, in_size, out, out_size, NULL, NULL);
+	err = cmd_exec(dev, in, in_size, out, out_size, NULL, NULL, false);
 	return err ? : mlx5_cmd_check(dev, in, out);
 }
 EXPORT_SYMBOL(mlx5_cmd_exec);
 
-int mlx5_cmd_exec_cb(struct mlx5_core_dev *dev, void *in, int in_size,
-		     void *out, int out_size, mlx5_cmd_cbk_t callback,
-		     void *context)
+void mlx5_cmd_init_async_ctx(struct mlx5_core_dev *dev,
+			     struct mlx5_async_ctx *ctx)
 {
-	return cmd_exec(dev, in, in_size, out, out_size, callback, context);
+	ctx->dev = dev;
+	/* Starts at 1 to avoid doing wake_up if we are not cleaning up */
+	atomic_set(&ctx->num_inflight, 1);
+	init_waitqueue_head(&ctx->wait);
+}
+EXPORT_SYMBOL(mlx5_cmd_init_async_ctx);
+
+/**
+ * mlx5_cmd_cleanup_async_ctx - Clean up an async_ctx
+ * @ctx: The ctx to clean
+ *
+ * Upon return all callbacks given to mlx5_cmd_exec_cb() have been called. The
+ * caller must ensure that mlx5_cmd_exec_cb() is not called during or after
+ * the call mlx5_cleanup_async_ctx().
+ */
+void mlx5_cmd_cleanup_async_ctx(struct mlx5_async_ctx *ctx)
+{
+	atomic_dec(&ctx->num_inflight);
+	wait_event(ctx->wait, atomic_read(&ctx->num_inflight) == 0);
+}
+EXPORT_SYMBOL(mlx5_cmd_cleanup_async_ctx);
+
+static void mlx5_cmd_exec_cb_handler(int status, void *_work)
+{
+	struct mlx5_async_work *work = _work;
+	struct mlx5_async_ctx *ctx = work->ctx;
+
+	work->user_callback(status, work);
+	if (atomic_dec_and_test(&ctx->num_inflight))
+		wake_up(&ctx->wait);
+}
+
+int mlx5_cmd_exec_cb(struct mlx5_async_ctx *ctx, void *in, int in_size,
+		     void *out, int out_size, mlx5_async_cbk_t callback,
+		     struct mlx5_async_work *work)
+{
+	int ret;
+
+	work->ctx = ctx;
+	work->user_callback = callback;
+	if (WARN_ON(!atomic_inc_not_zero(&ctx->num_inflight)))
+		return -EIO;
+	ret = cmd_exec(ctx->dev, in, in_size, out, out_size,
+		       mlx5_cmd_exec_cb_handler, work, false);
+	if (ret && atomic_dec_and_test(&ctx->num_inflight))
+		wake_up(&ctx->wait);
+
+	return ret;
 }
 EXPORT_SYMBOL(mlx5_cmd_exec_cb);
 
+int mlx5_cmd_exec_polling(struct mlx5_core_dev *dev, void *in, int in_size,
+			  void *out, int out_size)
+{
+	int err;
+
+	err = cmd_exec(dev, in, in_size, out, out_size, NULL, NULL, true);
+
+	return err ? : mlx5_cmd_check(dev, in, out);
+}
+EXPORT_SYMBOL(mlx5_cmd_exec_polling);
+
 static void destroy_msg_cache(struct mlx5_core_dev *dev)
 {
-	struct mlx5_cmd *cmd = &dev->cmd;
+	struct cmd_msg_cache *ch;
 	struct mlx5_cmd_msg *msg;
 	struct mlx5_cmd_msg *n;
+	int i;
 
-	list_for_each_entry_safe(msg, n, &cmd->cache.large.head, list) {
-		list_del(&msg->list);
-		mlx5_free_cmd_msg(dev, msg);
-	}
-
-	list_for_each_entry_safe(msg, n, &cmd->cache.med.head, list) {
-		list_del(&msg->list);
-		mlx5_free_cmd_msg(dev, msg);
+	for (i = 0; i < MLX5_NUM_COMMAND_CACHES; i++) {
+		ch = &dev->cmd.cache[i];
+		list_for_each_entry_safe(msg, n, &ch->head, list) {
+			list_del(&msg->list);
+			mlx5_free_cmd_msg(dev, msg);
+		}
 	}
 }
 
-static int create_msg_cache(struct mlx5_core_dev *dev)
+static unsigned cmd_cache_num_ent[MLX5_NUM_COMMAND_CACHES] = {
+	512, 32, 16, 8, 2
+};
+
+static unsigned cmd_cache_ent_size[MLX5_NUM_COMMAND_CACHES] = {
+	16 + MLX5_CMD_DATA_BLOCK_SIZE,
+	16 + MLX5_CMD_DATA_BLOCK_SIZE * 2,
+	16 + MLX5_CMD_DATA_BLOCK_SIZE * 16,
+	16 + MLX5_CMD_DATA_BLOCK_SIZE * 256,
+	16 + MLX5_CMD_DATA_BLOCK_SIZE * 512,
+};
+
+static void create_msg_cache(struct mlx5_core_dev *dev)
 {
 	struct mlx5_cmd *cmd = &dev->cmd;
+	struct cmd_msg_cache *ch;
 	struct mlx5_cmd_msg *msg;
-	int err;
 	int i;
+	int k;
 
-	spin_lock_init(&cmd->cache.large.lock);
-	INIT_LIST_HEAD(&cmd->cache.large.head);
-	spin_lock_init(&cmd->cache.med.lock);
-	INIT_LIST_HEAD(&cmd->cache.med.head);
-
-	for (i = 0; i < NUM_LONG_LISTS; i++) {
-		msg = mlx5_alloc_cmd_msg(dev, GFP_KERNEL, LONG_LIST_SIZE, 0);
-		if (IS_ERR(msg)) {
-			err = PTR_ERR(msg);
-			goto ex_err;
+	/* Initialize and fill the caches with initial entries */
+	for (k = 0; k < MLX5_NUM_COMMAND_CACHES; k++) {
+		ch = &cmd->cache[k];
+		spin_lock_init(&ch->lock);
+		INIT_LIST_HEAD(&ch->head);
+		ch->num_ent = cmd_cache_num_ent[k];
+		ch->max_inbox_size = cmd_cache_ent_size[k];
+		for (i = 0; i < ch->num_ent; i++) {
+			msg = mlx5_alloc_cmd_msg(dev, GFP_KERNEL | __GFP_NOWARN,
+						 ch->max_inbox_size, 0);
+			if (IS_ERR(msg))
+				break;
+			msg->parent = ch;
+			list_add_tail(&msg->list, &ch->head);
 		}
-		msg->cache = &cmd->cache.large;
-		list_add_tail(&msg->list, &cmd->cache.large.head);
 	}
-
-	for (i = 0; i < NUM_MED_LISTS; i++) {
-		msg = mlx5_alloc_cmd_msg(dev, GFP_KERNEL, MED_LIST_SIZE, 0);
-		if (IS_ERR(msg)) {
-			err = PTR_ERR(msg);
-			goto ex_err;
-		}
-		msg->cache = &cmd->cache.med;
-		list_add_tail(&msg->list, &cmd->cache.med.head);
-	}
-
-	return 0;
-
-ex_err:
-	destroy_msg_cache(dev);
-	return err;
 }
 
 static int alloc_cmd_page(struct mlx5_core_dev *dev, struct mlx5_cmd *cmd)
 {
-	struct device *ddev = &dev->pdev->dev;
+	struct device *ddev = dev->device;
 
-	cmd->cmd_alloc_buf = dma_zalloc_coherent(ddev, MLX5_ADAPTER_PAGE_SIZE,
-						 &cmd->alloc_dma, GFP_KERNEL);
+	cmd->cmd_alloc_buf = dma_alloc_coherent(ddev, MLX5_ADAPTER_PAGE_SIZE,
+						&cmd->alloc_dma, GFP_KERNEL);
 	if (!cmd->cmd_alloc_buf)
 		return -ENOMEM;
 
@@ -1655,9 +1896,9 @@ static int alloc_cmd_page(struct mlx5_core_dev *dev, struct mlx5_cmd *cmd)
 
 	dma_free_coherent(ddev, MLX5_ADAPTER_PAGE_SIZE, cmd->cmd_alloc_buf,
 			  cmd->alloc_dma);
-	cmd->cmd_alloc_buf = dma_zalloc_coherent(ddev,
-						 2 * MLX5_ADAPTER_PAGE_SIZE - 1,
-						 &cmd->alloc_dma, GFP_KERNEL);
+	cmd->cmd_alloc_buf = dma_alloc_coherent(ddev,
+						2 * MLX5_ADAPTER_PAGE_SIZE - 1,
+						&cmd->alloc_dma, GFP_KERNEL);
 	if (!cmd->cmd_alloc_buf)
 		return -ENOMEM;
 
@@ -1669,7 +1910,7 @@ static int alloc_cmd_page(struct mlx5_core_dev *dev, struct mlx5_cmd *cmd)
 
 static void free_cmd_page(struct mlx5_core_dev *dev, struct mlx5_cmd *cmd)
 {
-	struct device *ddev = &dev->pdev->dev;
+	struct device *ddev = dev->device;
 
 	dma_free_coherent(ddev, cmd->alloc_size, cmd->cmd_alloc_buf,
 			  cmd->alloc_dma);
@@ -1688,13 +1929,13 @@ int mlx5_cmd_init(struct mlx5_core_dev *dev)
 	memset(cmd, 0, sizeof(*cmd));
 	cmd_if_rev = cmdif_rev(dev);
 	if (cmd_if_rev != CMD_IF_REV) {
-		dev_err(&dev->pdev->dev,
-			"Driver cmdif rev(%d) differs from firmware's(%d)\n",
-			CMD_IF_REV, cmd_if_rev);
+		mlx5_core_err(dev,
+			      "Driver cmdif rev(%d) differs from firmware's(%d)\n",
+			      CMD_IF_REV, cmd_if_rev);
 		return -EINVAL;
 	}
 
-	cmd->pool = pci_pool_create("mlx5_cmd", dev->pdev, size, align, 0);
+	cmd->pool = dma_pool_create("mlx5_cmd", dev->device, size, align, 0);
 	if (!cmd->pool)
 		return -ENOMEM;
 
@@ -1706,27 +1947,27 @@ int mlx5_cmd_init(struct mlx5_core_dev *dev)
 	cmd->log_sz = cmd_l >> 4 & 0xf;
 	cmd->log_stride = cmd_l & 0xf;
 	if (1 << cmd->log_sz > MLX5_MAX_COMMANDS) {
-		dev_err(&dev->pdev->dev, "firmware reports too many outstanding commands %d\n",
-			1 << cmd->log_sz);
+		mlx5_core_err(dev, "firmware reports too many outstanding commands %d\n",
+			      1 << cmd->log_sz);
 		err = -EINVAL;
 		goto err_free_page;
 	}
 
 	if (cmd->log_sz + cmd->log_stride > MLX5_ADAPTER_PAGE_SHIFT) {
-		dev_err(&dev->pdev->dev, "command queue size overflow\n");
+		mlx5_core_err(dev, "command queue size overflow\n");
 		err = -EINVAL;
 		goto err_free_page;
 	}
 
 	cmd->checksum_disabled = 1;
 	cmd->max_reg_cmds = (1 << cmd->log_sz) - 1;
-	cmd->bitmask = (1 << cmd->max_reg_cmds) - 1;
+	cmd->bitmask = (1UL << cmd->max_reg_cmds) - 1;
 
 	cmd->cmdif_rev = ioread32be(&dev->iseg->cmdif_rev_fw_sub) >> 16;
 	if (cmd->cmdif_rev > CMD_IF_REV) {
-		dev_err(&dev->pdev->dev, "driver does not support command interface version. driver %d, firmware %d\n",
-			CMD_IF_REV, cmd->cmdif_rev);
-		err = -ENOTSUPP;
+		mlx5_core_err(dev, "driver does not support command interface version. driver %d, firmware %d\n",
+			      CMD_IF_REV, cmd->cmdif_rev);
+		err = -EOPNOTSUPP;
 		goto err_free_page;
 	}
 
@@ -1741,7 +1982,7 @@ int mlx5_cmd_init(struct mlx5_core_dev *dev)
 	cmd_h = (u32)((u64)(cmd->dma) >> 32);
 	cmd_l = (u32)(cmd->dma);
 	if (cmd_l & 0xfff) {
-		dev_err(&dev->pdev->dev, "invalid command queue address\n");
+		mlx5_core_err(dev, "invalid command queue address\n");
 		err = -ENOMEM;
 		goto err_free_page;
 	}
@@ -1756,16 +1997,12 @@ int mlx5_cmd_init(struct mlx5_core_dev *dev)
 
 	cmd->mode = CMD_MODE_POLLING;
 
-	err = create_msg_cache(dev);
-	if (err) {
-		dev_err(&dev->pdev->dev, "failed to create command cache\n");
-		goto err_free_page;
-	}
+	create_msg_cache(dev);
 
 	set_wqname(dev);
 	cmd->wq = create_singlethread_workqueue(cmd->wq_name);
 	if (!cmd->wq) {
-		dev_err(&dev->pdev->dev, "failed to create command workqueue\n");
+		mlx5_core_err(dev, "failed to create command workqueue\n");
 		err = -ENOMEM;
 		goto err_cache;
 	}
@@ -1788,7 +2025,7 @@ err_free_page:
 	free_cmd_page(dev, cmd);
 
 err_free_pool:
-	pci_pool_destroy(cmd->pool);
+	dma_pool_destroy(cmd->pool);
 
 	return err;
 }
@@ -1802,6 +2039,6 @@ void mlx5_cmd_cleanup(struct mlx5_core_dev *dev)
 	destroy_workqueue(cmd->wq);
 	destroy_msg_cache(dev);
 	free_cmd_page(dev, cmd);
-	pci_pool_destroy(cmd->pool);
+	dma_pool_destroy(cmd->pool);
 }
 EXPORT_SYMBOL(mlx5_cmd_cleanup);

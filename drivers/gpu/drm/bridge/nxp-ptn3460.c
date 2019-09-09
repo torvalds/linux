@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * NXP PTN3460 DP/LVDS bridge driver
  *
  * Copyright (C) 2013 Google, Inc.
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/delay.h>
@@ -20,15 +12,14 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_gpio.h>
-#include <linux/of_graph.h>
 
+#include <drm/drm_atomic_helper.h>
+#include <drm/drm_crtc.h>
+#include <drm/drm_edid.h>
+#include <drm/drm_of.h>
 #include <drm/drm_panel.h>
-
-#include "drm_crtc.h"
-#include "drm_crtc_helper.h"
-#include "drm_atomic_helper.h"
-#include "drm_edid.h"
-#include "drmP.h"
+#include <drm/drm_print.h>
+#include <drm/drm_probe_helper.h>
 
 #define PTN3460_EDID_ADDR			0x0
 #define PTN3460_EDID_EMULATION_ADDR		0x84
@@ -224,7 +215,7 @@ static int ptn3460_get_modes(struct drm_connector *connector)
 	}
 
 	ptn_bridge->edid = (struct edid *)edid;
-	drm_mode_connector_update_edid_property(connector, ptn_bridge->edid);
+	drm_connector_update_edid_property(connector, ptn_bridge->edid);
 
 	num_modes = drm_add_edid_modes(connector, ptn_bridge->edid);
 
@@ -239,16 +230,8 @@ static const struct drm_connector_helper_funcs ptn3460_connector_helper_funcs = 
 	.get_modes = ptn3460_get_modes,
 };
 
-static enum drm_connector_status ptn3460_detect(struct drm_connector *connector,
-		bool force)
-{
-	return connector_status_connected;
-}
-
 static const struct drm_connector_funcs ptn3460_connector_funcs = {
-	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
-	.detect = ptn3460_detect,
 	.destroy = drm_connector_cleanup,
 	.reset = drm_atomic_helper_connector_reset,
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
@@ -275,7 +258,7 @@ static int ptn3460_bridge_attach(struct drm_bridge *bridge)
 	drm_connector_helper_add(&ptn_bridge->connector,
 					&ptn3460_connector_helper_funcs);
 	drm_connector_register(&ptn_bridge->connector);
-	drm_mode_connector_attach_encoder(&ptn_bridge->connector,
+	drm_connector_attach_encoder(&ptn_bridge->connector,
 							bridge->encoder);
 
 	if (ptn_bridge->panel)
@@ -299,7 +282,6 @@ static int ptn3460_probe(struct i2c_client *client,
 {
 	struct device *dev = &client->dev;
 	struct ptn3460_bridge *ptn_bridge;
-	struct device_node *endpoint, *panel_node;
 	int ret;
 
 	ptn_bridge = devm_kzalloc(dev, sizeof(*ptn_bridge), GFP_KERNEL);
@@ -307,16 +289,9 @@ static int ptn3460_probe(struct i2c_client *client,
 		return -ENOMEM;
 	}
 
-	endpoint = of_graph_get_next_endpoint(dev->of_node, NULL);
-	if (endpoint) {
-		panel_node = of_graph_get_remote_port_parent(endpoint);
-		if (panel_node) {
-			ptn_bridge->panel = of_drm_find_panel(panel_node);
-			of_node_put(panel_node);
-			if (!ptn_bridge->panel)
-				return -EPROBE_DEFER;
-		}
-	}
+	ret = drm_of_find_panel_or_bridge(dev->of_node, 0, 0, &ptn_bridge->panel, NULL);
+	if (ret)
+		return ret;
 
 	ptn_bridge->client = client;
 
@@ -349,11 +324,7 @@ static int ptn3460_probe(struct i2c_client *client,
 
 	ptn_bridge->bridge.funcs = &ptn3460_bridge_funcs;
 	ptn_bridge->bridge.of_node = dev->of_node;
-	ret = drm_bridge_add(&ptn_bridge->bridge);
-	if (ret) {
-		DRM_ERROR("Failed to add bridge\n");
-		return ret;
-	}
+	drm_bridge_add(&ptn_bridge->bridge);
 
 	i2c_set_clientdata(client, ptn_bridge);
 

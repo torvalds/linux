@@ -1,22 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /* Applied Micro X-Gene SoC Ethernet Classifier structures
  *
  * Copyright (c) 2016, Applied Micro Circuits Corporation
  * Authors: Khuong Dinh <kdinh@apm.com>
  *          Tanmay Inamdar <tinamdar@apm.com>
  *          Iyappan Subramanian <isubramanian@apm.com>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef __XGENE_ENET_CLE_H__
@@ -91,6 +79,8 @@
 #define CLE_DSTQIDH_LEN		5
 #define CLE_FPSEL_POS		21
 #define CLE_FPSEL_LEN		4
+#define CLE_NFPSEL_POS		17
+#define CLE_NFPSEL_LEN		4
 #define CLE_PRIORITY_POS	5
 #define CLE_PRIORITY_LEN	3
 
@@ -104,6 +94,7 @@ enum xgene_cle_ptree_nodes {
 	PKT_PROT_NODE,
 	RSS_IPV4_TCP_NODE,
 	RSS_IPV4_UDP_NODE,
+	RSS_IPV4_OTHERS_NODE,
 	LAST_NODE,
 	MAX_NODES
 };
@@ -275,10 +266,8 @@ struct xgene_cle_dbptr {
 };
 
 struct xgene_cle_ptree {
-	struct xgene_cle_ptree_ewdn *dn;
 	struct xgene_cle_ptree_kn *kn;
 	struct xgene_cle_dbptr *dbptr;
-	u32 num_dn;
 	u32 num_kn;
 	u32 num_dbptr;
 	u32 start_node;

@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Analog Devices ADV7511 HDMI transmitter driver
  *
  * Copyright 2012 Analog Devices Inc.
- *
- * Licensed under the GPL-2.
  */
 
 #ifndef __DRM_I2C_ADV7511_H__
@@ -12,9 +11,12 @@
 #include <linux/hdmi.h>
 #include <linux/i2c.h>
 #include <linux/regmap.h>
+#include <linux/regulator/consumer.h>
 
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_bridge.h>
+#include <drm/drm_connector.h>
 #include <drm/drm_mipi_dsi.h>
+#include <drm/drm_modes.h>
 
 #define ADV7511_REG_CHIP_REVISION		0x00
 #define ADV7511_REG_N0				0x01
@@ -91,6 +93,11 @@
 #define ADV7511_REG_CEC_CTRL			0xe2
 #define ADV7511_REG_CHIP_ID_HIGH		0xf5
 #define ADV7511_REG_CHIP_ID_LOW			0xf6
+
+/* Hardware defined default addresses for I2C register maps */
+#define ADV7511_CEC_I2C_ADDR_DEFAULT		0x3c
+#define ADV7511_EDID_I2C_ADDR_DEFAULT		0x3f
+#define ADV7511_PACKET_I2C_ADDR_DEFAULT		0x38
 
 #define ADV7511_CSC_ENABLE			BIT(7)
 #define ADV7511_CSC_UPDATE_MODE			BIT(5)
@@ -194,6 +201,25 @@
 #define ADV7511_PACKET_GM(x)	    ADV7511_PACKET(5, x)
 #define ADV7511_PACKET_SPARE(x)	    ADV7511_PACKET(6, x)
 
+#define ADV7511_REG_CEC_TX_FRAME_HDR	0x00
+#define ADV7511_REG_CEC_TX_FRAME_DATA0	0x01
+#define ADV7511_REG_CEC_TX_FRAME_LEN	0x10
+#define ADV7511_REG_CEC_TX_ENABLE	0x11
+#define ADV7511_REG_CEC_TX_RETRY	0x12
+#define ADV7511_REG_CEC_TX_LOW_DRV_CNT	0x14
+#define ADV7511_REG_CEC_RX_FRAME_HDR	0x15
+#define ADV7511_REG_CEC_RX_FRAME_DATA0	0x16
+#define ADV7511_REG_CEC_RX_FRAME_LEN	0x25
+#define ADV7511_REG_CEC_RX_ENABLE	0x26
+#define ADV7511_REG_CEC_RX_BUFFERS	0x4a
+#define ADV7511_REG_CEC_LOG_ADDR_MASK	0x4b
+#define ADV7511_REG_CEC_LOG_ADDR_0_1	0x4c
+#define ADV7511_REG_CEC_LOG_ADDR_2	0x4d
+#define ADV7511_REG_CEC_CLK_DIV		0x4e
+#define ADV7511_REG_CEC_SOFT_RESET	0x50
+
+#define ADV7533_REG_CEC_OFFSET		0x70
+
 enum adv7511_input_clock {
 	ADV7511_INPUT_CLOCK_1X,
 	ADV7511_INPUT_CLOCK_2X,
@@ -296,9 +322,12 @@ enum adv7511_type {
 	ADV7533,
 };
 
+#define ADV7511_MAX_ADDRS 3
+
 struct adv7511 {
 	struct i2c_client *i2c_main;
 	struct i2c_client *i2c_edid;
+	struct i2c_client *i2c_packet;
 	struct i2c_client *i2c_cec;
 
 	struct regmap *regmap;
@@ -309,12 +338,16 @@ struct adv7511 {
 	struct drm_display_mode curr_mode;
 
 	unsigned int f_tmds;
+	unsigned int f_audio;
+	unsigned int audio_source;
 
 	unsigned int current_edid_segment;
 	uint8_t edid_buf[256];
 	bool edid_read;
 
 	wait_queue_head_t wq;
+	struct work_struct hpd_work;
+
 	struct drm_bridge bridge;
 	struct drm_connector connector;
 
@@ -323,9 +356,10 @@ struct adv7511 {
 	enum adv7511_sync_polarity hsync_polarity;
 	bool rgb;
 
-	struct edid *edid;
-
 	struct gpio_desc *gpio_pd;
+
+	struct regulator_bulk_data *supplies;
+	unsigned int num_supplies;
 
 	/* ADV7533 DSI RX related params */
 	struct device_node *host_node;
@@ -334,15 +368,37 @@ struct adv7511 {
 	bool use_timing_gen;
 
 	enum adv7511_type type;
+	struct platform_device *audio_pdev;
+
+	struct cec_adapter *cec_adap;
+	u8   cec_addr[ADV7511_MAX_ADDRS];
+	u8   cec_valid_addrs;
+	bool cec_enabled_adap;
+	struct clk *cec_clk;
+	u32 cec_clk_freq;
 };
+
+#ifdef CONFIG_DRM_I2C_ADV7511_CEC
+int adv7511_cec_init(struct device *dev, struct adv7511 *adv7511);
+void adv7511_cec_irq_process(struct adv7511 *adv7511, unsigned int irq1);
+#else
+static inline int adv7511_cec_init(struct device *dev, struct adv7511 *adv7511)
+{
+	unsigned int offset = adv7511->type == ADV7533 ?
+						ADV7533_REG_CEC_OFFSET : 0;
+
+	regmap_write(adv7511->regmap, ADV7511_REG_CEC_CTRL + offset,
+		     ADV7511_CEC_CTRL_POWER_DOWN);
+	return 0;
+}
+#endif
 
 #ifdef CONFIG_DRM_I2C_ADV7533
 void adv7533_dsi_power_on(struct adv7511 *adv);
 void adv7533_dsi_power_off(struct adv7511 *adv);
-void adv7533_mode_set(struct adv7511 *adv, struct drm_display_mode *mode);
+void adv7533_mode_set(struct adv7511 *adv, const struct drm_display_mode *mode);
 int adv7533_patch_registers(struct adv7511 *adv);
-void adv7533_uninit_cec(struct adv7511 *adv);
-int adv7533_init_cec(struct adv7511 *adv);
+int adv7533_patch_cec_registers(struct adv7511 *adv);
 int adv7533_attach_dsi(struct adv7511 *adv);
 void adv7533_detach_dsi(struct adv7511 *adv);
 int adv7533_parse_dt(struct device_node *np, struct adv7511 *adv);
@@ -356,7 +412,7 @@ static inline void adv7533_dsi_power_off(struct adv7511 *adv)
 }
 
 static inline void adv7533_mode_set(struct adv7511 *adv,
-				    struct drm_display_mode *mode)
+				    const struct drm_display_mode *mode)
 {
 }
 
@@ -365,11 +421,7 @@ static inline int adv7533_patch_registers(struct adv7511 *adv)
 	return -ENODEV;
 }
 
-static inline void adv7533_uninit_cec(struct adv7511 *adv)
-{
-}
-
-static inline int adv7533_init_cec(struct adv7511 *adv)
+static inline int adv7533_patch_cec_registers(struct adv7511 *adv)
 {
 	return -ENODEV;
 }
@@ -388,5 +440,18 @@ static inline int adv7533_parse_dt(struct device_node *np, struct adv7511 *adv)
 	return -ENODEV;
 }
 #endif
+
+#ifdef CONFIG_DRM_I2C_ADV7511_AUDIO
+int adv7511_audio_init(struct device *dev, struct adv7511 *adv7511);
+void adv7511_audio_exit(struct adv7511 *adv7511);
+#else /*CONFIG_DRM_I2C_ADV7511_AUDIO */
+static inline int adv7511_audio_init(struct device *dev, struct adv7511 *adv7511)
+{
+	return 0;
+}
+static inline void adv7511_audio_exit(struct adv7511 *adv7511)
+{
+}
+#endif /* CONFIG_DRM_I2C_ADV7511_AUDIO */
 
 #endif /* __DRM_I2C_ADV7511_H__ */

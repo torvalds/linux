@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * HD-audio stream operations
  */
@@ -11,6 +12,40 @@
 #include <sound/hdaudio.h>
 #include <sound/hda_register.h>
 #include "trace.h"
+
+/**
+ * snd_hdac_get_stream_stripe_ctl - get stripe control value
+ * @bus: HD-audio core bus
+ * @substream: PCM substream
+ */
+int snd_hdac_get_stream_stripe_ctl(struct hdac_bus *bus,
+				   struct snd_pcm_substream *substream)
+{
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	unsigned int channels = runtime->channels,
+		     rate = runtime->rate,
+		     bits_per_sample = runtime->sample_bits,
+		     max_sdo_lines, value, sdo_line;
+
+	/* T_AZA_GCAP_NSDO is 1:2 bitfields in GCAP */
+	max_sdo_lines = snd_hdac_chip_readl(bus, GCAP) & AZX_GCAP_NSDO;
+
+	/* following is from HD audio spec */
+	for (sdo_line = max_sdo_lines; sdo_line > 0; sdo_line >>= 1) {
+		if (rate > 48000)
+			value = (channels * bits_per_sample *
+					(rate / 48000)) / sdo_line;
+		else
+			value = (channels * bits_per_sample) / sdo_line;
+
+		if (value >= 8)
+			break;
+	}
+
+	/* stripe value: 0 for 1SDO, 1 for 2SDO, 2 for 4SDO lines */
+	return sdo_line >> 1;
+}
+EXPORT_SYMBOL_GPL(snd_hdac_get_stream_stripe_ctl);
 
 /**
  * snd_hdac_stream_init - initialize each stream (aka device)
@@ -48,6 +83,7 @@ EXPORT_SYMBOL_GPL(snd_hdac_stream_init);
 void snd_hdac_stream_start(struct hdac_stream *azx_dev, bool fresh_start)
 {
 	struct hdac_bus *bus = azx_dev->bus;
+	int stripe_ctl;
 
 	trace_snd_hdac_stream_start(bus, azx_dev);
 
@@ -56,7 +92,16 @@ void snd_hdac_stream_start(struct hdac_stream *azx_dev, bool fresh_start)
 		azx_dev->start_wallclk -= azx_dev->period_wallclk;
 
 	/* enable SIE */
-	snd_hdac_chip_updatel(bus, INTCTL, 0, 1 << azx_dev->index);
+	snd_hdac_chip_updatel(bus, INTCTL,
+			      1 << azx_dev->index,
+			      1 << azx_dev->index);
+	/* set stripe control */
+	if (azx_dev->substream)
+		stripe_ctl = snd_hdac_get_stream_stripe_ctl(bus, azx_dev->substream);
+	else
+		stripe_ctl = 0;
+	snd_hdac_stream_updateb(azx_dev, SD_CTL_3B, SD_CTL_STRIPE_MASK,
+				stripe_ctl);
 	/* set DMA start and interrupt mask */
 	snd_hdac_stream_updateb(azx_dev, SD_CTL,
 				0, SD_CTL_DMA_START | SD_INT_MASK);
@@ -73,6 +118,7 @@ void snd_hdac_stream_clear(struct hdac_stream *azx_dev)
 	snd_hdac_stream_updateb(azx_dev, SD_CTL,
 				SD_CTL_DMA_START | SD_INT_MASK, 0);
 	snd_hdac_stream_writeb(azx_dev, SD_STS, SD_INT_MASK); /* to be sure */
+	snd_hdac_stream_updateb(azx_dev, SD_CTL_3B, SD_CTL_STRIPE_MASK, 0);
 	azx_dev->running = false;
 }
 EXPORT_SYMBOL_GPL(snd_hdac_stream_clear);
@@ -465,7 +511,7 @@ int snd_hdac_stream_set_params(struct hdac_stream *azx_dev,
 }
 EXPORT_SYMBOL_GPL(snd_hdac_stream_set_params);
 
-static cycle_t azx_cc_read(const struct cyclecounter *cc)
+static u64 azx_cc_read(const struct cyclecounter *cc)
 {
 	struct hdac_stream *azx_dev = container_of(cc, struct hdac_stream, cc);
 
@@ -473,7 +519,7 @@ static cycle_t azx_cc_read(const struct cyclecounter *cc)
 }
 
 static void azx_timecounter_init(struct hdac_stream *azx_dev,
-				 bool force, cycle_t last)
+				 bool force, u64 last)
 {
 	struct timecounter *tc = &azx_dev->tc;
 	struct cyclecounter *cc = &azx_dev->cc;
@@ -523,7 +569,7 @@ void snd_hdac_stream_timecounter_init(struct hdac_stream *azx_dev,
 	struct snd_pcm_runtime *runtime = azx_dev->substream->runtime;
 	struct hdac_stream *s;
 	bool inited = false;
-	cycle_t cycle_last = 0;
+	u64 cycle_last = 0;
 	int i = 0;
 
 	list_for_each_entry(s, &bus->stream_list, list) {
@@ -555,12 +601,12 @@ void snd_hdac_stream_sync_trigger(struct hdac_stream *azx_dev, bool set,
 
 	if (!reg)
 		reg = AZX_REG_SSYNC;
-	val = _snd_hdac_chip_read(l, bus, reg);
+	val = _snd_hdac_chip_readl(bus, reg);
 	if (set)
 		val |= streams;
 	else
 		val &= ~streams;
-	_snd_hdac_chip_write(l, bus, reg, val);
+	_snd_hdac_chip_writel(bus, reg, val);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_stream_sync_trigger);
 
@@ -621,7 +667,7 @@ int snd_hdac_dsp_prepare(struct hdac_stream *azx_dev, unsigned int format,
 			 unsigned int byte_size, struct snd_dma_buffer *bufp)
 {
 	struct hdac_bus *bus = azx_dev->bus;
-	u32 *bdl;
+	__le32 *bdl;
 	int err;
 
 	snd_hdac_dsp_lock(azx_dev);
@@ -651,7 +697,7 @@ int snd_hdac_dsp_prepare(struct hdac_stream *azx_dev, unsigned int format,
 	snd_hdac_stream_writel(azx_dev, SD_BDLPU, 0);
 
 	azx_dev->frags = 0;
-	bdl = (u32 *)azx_dev->bdl.area;
+	bdl = (__le32 *)azx_dev->bdl.area;
 	err = setup_bdle(bus, bufp, azx_dev, &bdl, 0, byte_size, 0);
 	if (err < 0)
 		goto error;

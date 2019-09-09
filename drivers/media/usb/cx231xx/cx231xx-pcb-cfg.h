@@ -1,22 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
    cx231xx-pcb-cfg.h - driver for Conexant
 		Cx23100/101/102 USB video capture devices
 
    Copyright (C) 2008 <srinivasa.deevi at conexant dot com>
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
-   (at your option) any later version.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #ifndef _PCB_CONFIG_H_
@@ -86,7 +74,7 @@ enum TS_PORT{
 #define EAVP_MASK       0x8
 enum EAV_PRESENT{
 	NO_EXTERNAL_AV = 0x0,	/* 0: No External A/V inputs
-						(no need for i2s blcok),
+						(no need for i2s block),
 						Analog Tuner must be present */
 	EXTERNAL_AV = 0x8	/* 1: External A/V inputs
 						present (requires i2s blk) */
@@ -144,7 +132,7 @@ enum AVDEC_STATUS{
 #define SOURCE_EXTERNAL         0x8
 #define SOURCE_TS_BDA			0x10
 #define SOURCE_TS_ENCODE		0x20
-#define SOURCE_TS_EXTERNAL   	0x40
+#define SOURCE_TS_EXTERNAL	0x40
 
 /***************************************************************************
 				* interface information define *

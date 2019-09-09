@@ -1,18 +1,26 @@
 General Touchscreen Properties:
 
 Optional properties for Touchscreens:
+ - touchscreen-min-x		: minimum x coordinate reported (0 if not set)
+ - touchscreen-min-y		: minimum y coordinate reported (0 if not set)
  - touchscreen-size-x		: horizontal resolution of touchscreen
-				  (in pixels)
+				  (maximum x coordinate reported + 1)
  - touchscreen-size-y		: vertical resolution of touchscreen
-				  (in pixels)
+				  (maximum y coordinate reported + 1)
  - touchscreen-max-pressure	: maximum reported pressure (arbitrary range
 				  dependent on the controller)
+ - touchscreen-min-pressure	: minimum pressure on the touchscreen to be
+				  achieved in order for the touchscreen
+				  driver to report a touch event.
  - touchscreen-fuzz-x		: horizontal noise value of the absolute input
 				  device (in pixels)
  - touchscreen-fuzz-y		: vertical noise value of the absolute input
 				  device (in pixels)
  - touchscreen-fuzz-pressure	: pressure noise value of the absolute input
 				  device (arbitrary range dependent on the
+				  controller)
+ - touchscreen-average-samples : Number of data samples which are averaged
+				  for each read (valid values dependent on the
 				  controller)
  - touchscreen-inverted-x	: X axis is inverted (boolean)
  - touchscreen-inverted-y	: Y axis is inverted (boolean)

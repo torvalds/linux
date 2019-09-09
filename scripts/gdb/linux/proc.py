@@ -16,6 +16,7 @@ from linux import constants
 from linux import utils
 from linux import tasks
 from linux import lists
+from struct import *
 
 
 class LxCmdLine(gdb.Command):
@@ -27,6 +28,7 @@ class LxCmdLine(gdb.Command):
 
     def invoke(self, arg, from_tty):
         gdb.write(gdb.parse_and_eval("saved_command_line").string() + "\n")
+
 
 LxCmdLine()
 
@@ -40,7 +42,8 @@ class LxVersion(gdb.Command):
 
     def invoke(self, arg, from_tty):
         # linux_banner should contain a newline
-        gdb.write(gdb.parse_and_eval("linux_banner").string())
+        gdb.write(gdb.parse_and_eval("(char *)linux_banner").string())
+
 
 LxVersion()
 
@@ -85,6 +88,7 @@ Equivalent to cat /proc/iomem on a running target"""
     def invoke(self, arg, from_tty):
         return show_lx_resources("iomem_resource")
 
+
 LxIOMem()
 
 
@@ -98,6 +102,7 @@ Equivalent to cat /proc/ioports on a running target"""
 
     def invoke(self, arg, from_tty):
         return show_lx_resources("ioport_resource")
+
 
 LxIOPorts()
 
@@ -113,11 +118,11 @@ def info_opts(lst, opt):
     return opts
 
 
-FS_INFO = {constants.LX_MS_SYNCHRONOUS: ",sync",
-           constants.LX_MS_MANDLOCK: ",mand",
-           constants.LX_MS_DIRSYNC: ",dirsync",
-           constants.LX_MS_NOATIME: ",noatime",
-           constants.LX_MS_NODIRATIME: ",nodiratime"}
+FS_INFO = {constants.LX_SB_SYNCHRONOUS: ",sync",
+           constants.LX_SB_MANDLOCK: ",mand",
+           constants.LX_SB_DIRSYNC: ",dirsync",
+           constants.LX_SB_NOATIME: ",noatime",
+           constants.LX_SB_NODIRATIME: ",nodiratime"}
 
 MNT_INFO = {constants.LX_MNT_NOSUID: ",nosuid",
             constants.LX_MNT_NODEV: ",nodev",
@@ -148,7 +153,7 @@ values of that process namespace"""
         if len(argv) >= 1:
             try:
                 pid = int(argv[0])
-            except:
+            except gdb.error:
                 raise gdb.GdbError("Provide a PID as integer value")
         else:
             pid = 1
@@ -183,7 +188,7 @@ values of that process namespace"""
             fstype = superblock['s_type']['name'].string()
             s_flags = int(superblock['s_flags'])
             m_flags = int(vfs['mnt']['mnt_flags'])
-            rd = "ro" if (s_flags & constants.LX_MS_RDONLY) else "rw"
+            rd = "ro" if (s_flags & constants.LX_SB_RDONLY) else "rw"
 
             gdb.write(
                 "{} {} {} {}{}{} 0 0\n"
@@ -194,4 +199,78 @@ values of that process namespace"""
                         info_opts(FS_INFO, s_flags),
                         info_opts(MNT_INFO, m_flags)))
 
+
 LxMounts()
+
+
+class LxFdtDump(gdb.Command):
+    """Output Flattened Device Tree header and dump FDT blob to the filename
+       specified as the command argument. Equivalent to
+       'cat /proc/fdt > fdtdump.dtb' on a running target"""
+
+    def __init__(self):
+        super(LxFdtDump, self).__init__("lx-fdtdump", gdb.COMMAND_DATA,
+                                        gdb.COMPLETE_FILENAME)
+
+    def fdthdr_to_cpu(self, fdt_header):
+
+        fdt_header_be = ">IIIIIII"
+        fdt_header_le = "<IIIIIII"
+
+        if utils.get_target_endianness() == 1:
+            output_fmt = fdt_header_le
+        else:
+            output_fmt = fdt_header_be
+
+        return unpack(output_fmt, pack(fdt_header_be,
+                                       fdt_header['magic'],
+                                       fdt_header['totalsize'],
+                                       fdt_header['off_dt_struct'],
+                                       fdt_header['off_dt_strings'],
+                                       fdt_header['off_mem_rsvmap'],
+                                       fdt_header['version'],
+                                       fdt_header['last_comp_version']))
+
+    def invoke(self, arg, from_tty):
+
+        if not constants.LX_CONFIG_OF:
+            raise gdb.GdbError("Kernel not compiled with CONFIG_OF\n")
+
+        if len(arg) == 0:
+            filename = "fdtdump.dtb"
+        else:
+            filename = arg
+
+        py_fdt_header_ptr = gdb.parse_and_eval(
+            "(const struct fdt_header *) initial_boot_params")
+        py_fdt_header = py_fdt_header_ptr.dereference()
+
+        fdt_header = self.fdthdr_to_cpu(py_fdt_header)
+
+        if fdt_header[0] != constants.LX_OF_DT_HEADER:
+            raise gdb.GdbError("No flattened device tree magic found\n")
+
+        gdb.write("fdt_magic:         0x{:02X}\n".format(fdt_header[0]))
+        gdb.write("fdt_totalsize:     0x{:02X}\n".format(fdt_header[1]))
+        gdb.write("off_dt_struct:     0x{:02X}\n".format(fdt_header[2]))
+        gdb.write("off_dt_strings:    0x{:02X}\n".format(fdt_header[3]))
+        gdb.write("off_mem_rsvmap:    0x{:02X}\n".format(fdt_header[4]))
+        gdb.write("version:           {}\n".format(fdt_header[5]))
+        gdb.write("last_comp_version: {}\n".format(fdt_header[6]))
+
+        inf = gdb.inferiors()[0]
+        fdt_buf = utils.read_memoryview(inf, py_fdt_header_ptr,
+                                        fdt_header[1]).tobytes()
+
+        try:
+            f = open(filename, 'wb')
+        except gdb.error:
+            raise gdb.GdbError("Could not open file to dump fdt")
+
+        f.write(fdt_buf)
+        f.close()
+
+        gdb.write("Dumped fdt blob to " + filename + "\n")
+
+
+LxFdtDump()

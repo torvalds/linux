@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * dm355evm_keys.c - support buttons and IR remote on DM355 EVM board
  *
  * Copyright (c) 2008 by David Brownell
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -15,7 +11,7 @@
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 
-#include <linux/i2c/dm355evm_msp.h>
+#include <linux/mfd/dm355evm_msp.h>
 #include <linux/module.h>
 
 
@@ -32,7 +28,6 @@
 struct dm355evm_keys {
 	struct input_dev	*input;
 	struct device		*dev;
-	int			irq;
 };
 
 /* These initial keycodes can be remapped */
@@ -176,76 +171,49 @@ static int dm355evm_keys_probe(struct platform_device *pdev)
 {
 	struct dm355evm_keys	*keys;
 	struct input_dev	*input;
-	int			status;
+	int			irq;
+	int			error;
 
-	/* allocate instance struct and input dev */
-	keys = kzalloc(sizeof *keys, GFP_KERNEL);
-	input = input_allocate_device();
-	if (!keys || !input) {
-		status = -ENOMEM;
-		goto fail1;
-	}
+	keys = devm_kzalloc(&pdev->dev, sizeof (*keys), GFP_KERNEL);
+	if (!keys)
+		return -ENOMEM;
+
+	input = devm_input_allocate_device(&pdev->dev);
+	if (!input)
+		return -ENOMEM;
 
 	keys->dev = &pdev->dev;
 	keys->input = input;
 
-	/* set up "threaded IRQ handler" */
-	status = platform_get_irq(pdev, 0);
-	if (status < 0)
-		goto fail1;
-	keys->irq = status;
-
-	input_set_drvdata(input, keys);
-
 	input->name = "DM355 EVM Controls";
 	input->phys = "dm355evm/input0";
-	input->dev.parent = &pdev->dev;
 
 	input->id.bustype = BUS_I2C;
 	input->id.product = 0x0355;
 	input->id.version = dm355evm_msp_read(DM355EVM_MSP_FIRMREV);
 
-	status = sparse_keymap_setup(input, dm355evm_keys, NULL);
-	if (status)
-		goto fail1;
+	error = sparse_keymap_setup(input, dm355evm_keys, NULL);
+	if (error)
+		return error;
 
 	/* REVISIT:  flush the event queue? */
 
-	status = request_threaded_irq(keys->irq, NULL, dm355evm_keys_irq,
-				      IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
-				      dev_name(&pdev->dev), keys);
-	if (status < 0)
-		goto fail2;
+	/* set up "threaded IRQ handler" */
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return irq;
+
+	error = devm_request_threaded_irq(&pdev->dev, irq,
+					  NULL, dm355evm_keys_irq,
+					  IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
+					  dev_name(&pdev->dev), keys);
+	if (error)
+		return error;
 
 	/* register */
-	status = input_register_device(input);
-	if (status < 0)
-		goto fail3;
-
-	platform_set_drvdata(pdev, keys);
-
-	return 0;
-
-fail3:
-	free_irq(keys->irq, keys);
-fail2:
-	sparse_keymap_free(input);
-fail1:
-	input_free_device(input);
-	kfree(keys);
-	dev_err(&pdev->dev, "can't register, err %d\n", status);
-
-	return status;
-}
-
-static int dm355evm_keys_remove(struct platform_device *pdev)
-{
-	struct dm355evm_keys	*keys = platform_get_drvdata(pdev);
-
-	free_irq(keys->irq, keys);
-	sparse_keymap_free(keys->input);
-	input_unregister_device(keys->input);
-	kfree(keys);
+	error = input_register_device(input);
+	if (error)
+		return error;
 
 	return 0;
 }
@@ -261,7 +229,6 @@ static int dm355evm_keys_remove(struct platform_device *pdev)
  */
 static struct platform_driver dm355evm_keys_driver = {
 	.probe		= dm355evm_keys_probe,
-	.remove		= dm355evm_keys_remove,
 	.driver		= {
 		.name	= "dm355evm_keys",
 	},

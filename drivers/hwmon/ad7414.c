@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * An hwmon driver for the Analog Devices AD7414
  *
@@ -12,11 +13,6 @@
  *
  * Based on ad7418.c
  * Copyright 2006 Tower Technologies, Alessandro Zummo <a.zummo at towertech.it>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/module.h>
@@ -107,25 +103,25 @@ static struct ad7414_data *ad7414_update_device(struct device *dev)
 	return data;
 }
 
-static ssize_t show_temp_input(struct device *dev,
+static ssize_t temp_input_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)
 {
 	struct ad7414_data *data = ad7414_update_device(dev);
 	return sprintf(buf, "%d\n", ad7414_temp_from_reg(data->temp_input));
 }
-static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, show_temp_input, NULL, 0);
+static SENSOR_DEVICE_ATTR_RO(temp1_input, temp_input, 0);
 
-static ssize_t show_max_min(struct device *dev, struct device_attribute *attr,
-			  char *buf)
+static ssize_t max_min_show(struct device *dev, struct device_attribute *attr,
+			    char *buf)
 {
 	int index = to_sensor_dev_attr(attr)->index;
 	struct ad7414_data *data = ad7414_update_device(dev);
 	return sprintf(buf, "%d\n", data->temps[index] * 1000);
 }
 
-static ssize_t set_max_min(struct device *dev,
-			   struct device_attribute *attr,
-			   const char *buf, size_t count)
+static ssize_t max_min_store(struct device *dev,
+			     struct device_attribute *attr, const char *buf,
+			     size_t count)
 {
 	struct ad7414_data *data = dev_get_drvdata(dev);
 	struct i2c_client *client = data->client;
@@ -147,12 +143,10 @@ static ssize_t set_max_min(struct device *dev,
 	return count;
 }
 
-static SENSOR_DEVICE_ATTR(temp1_max, S_IWUSR | S_IRUGO,
-			  show_max_min, set_max_min, 0);
-static SENSOR_DEVICE_ATTR(temp1_min, S_IWUSR | S_IRUGO,
-			  show_max_min, set_max_min, 1);
+static SENSOR_DEVICE_ATTR_RW(temp1_max, max_min, 0);
+static SENSOR_DEVICE_ATTR_RW(temp1_min, max_min, 1);
 
-static ssize_t show_alarm(struct device *dev, struct device_attribute *attr,
+static ssize_t alarm_show(struct device *dev, struct device_attribute *attr,
 			  char *buf)
 {
 	int bitnr = to_sensor_dev_attr(attr)->index;
@@ -161,8 +155,8 @@ static ssize_t show_alarm(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%d\n", value);
 }
 
-static SENSOR_DEVICE_ATTR(temp1_min_alarm, S_IRUGO, show_alarm, NULL, 3);
-static SENSOR_DEVICE_ATTR(temp1_max_alarm, S_IRUGO, show_alarm, NULL, 4);
+static SENSOR_DEVICE_ATTR_RO(temp1_min_alarm, alarm, 3);
+static SENSOR_DEVICE_ATTR_RO(temp1_max_alarm, alarm, 4);
 
 static struct attribute *ad7414_attrs[] = {
 	&sensor_dev_attr_temp1_input.dev_attr.attr,
@@ -217,9 +211,16 @@ static const struct i2c_device_id ad7414_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, ad7414_id);
 
+static const struct of_device_id __maybe_unused ad7414_of_match[] = {
+	{ .compatible = "ad,ad7414" },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, ad7414_of_match);
+
 static struct i2c_driver ad7414_driver = {
 	.driver = {
 		.name	= "ad7414",
+		.of_match_table = of_match_ptr(ad7414_of_match),
 	},
 	.probe	= ad7414_probe,
 	.id_table = ad7414_id,

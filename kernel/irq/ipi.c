@@ -1,6 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * linux/kernel/irq/ipi.c
- *
  * Copyright (C) 2015 Imagination Technologies Ltd
  * Author: Qais Yousef <qais.yousef@imgtec.com>
  *
@@ -57,7 +56,7 @@ int irq_reserve_ipi(struct irq_domain *domain,
 		unsigned int next;
 
 		/*
-		 * The IPI requires a seperate HW irq on each CPU. We require
+		 * The IPI requires a separate HW irq on each CPU. We require
 		 * that the destination mask is consecutive. If an
 		 * implementation needs to support holes, it can reserve
 		 * several IPI ranges.
@@ -165,7 +164,7 @@ irq_hw_number_t ipi_get_hwirq(unsigned int irq, unsigned int cpu)
 	struct irq_data *data = irq_get_irq_data(irq);
 	struct cpumask *ipimask = data ? irq_data_get_affinity_mask(data) : NULL;
 
-	if (!data || !ipimask || cpu > nr_cpu_ids)
+	if (!data || !ipimask || cpu >= nr_cpu_ids)
 		return INVALID_HWIRQ;
 
 	if (!cpumask_test_cpu(cpu, ipimask))
@@ -173,7 +172,7 @@ irq_hw_number_t ipi_get_hwirq(unsigned int irq, unsigned int cpu)
 
 	/*
 	 * Get the real hardware irq number if the underlying implementation
-	 * uses a seperate irq per cpu. If the underlying implementation uses
+	 * uses a separate irq per cpu. If the underlying implementation uses
 	 * a single hardware irq for all cpus then the IPI send mechanism
 	 * needs to take care of the cpu destinations.
 	 */
@@ -195,7 +194,7 @@ static int ipi_send_verify(struct irq_chip *chip, struct irq_data *data,
 	if (!chip->ipi_send_single && !chip->ipi_send_mask)
 		return -EINVAL;
 
-	if (cpu > nr_cpu_ids)
+	if (cpu >= nr_cpu_ids)
 		return -EINVAL;
 
 	if (dest) {

@@ -1,35 +1,25 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /**************************************************************************
  * Copyright (c) 2011, Intel Corporation.
  * All Rights Reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
- *
  **************************************************************************/
 
 #include <linux/backlight.h>
-#include <linux/module.h>
+#include <linux/delay.h>
 #include <linux/dmi.h>
-#include <drm/drmP.h>
-#include <drm/drm.h>
-#include <drm/gma_drm.h>
-#include "psb_drv.h"
-#include "psb_reg.h"
-#include "psb_intel_reg.h"
+#include <linux/module.h>
+
 #include <asm/intel-mid.h>
 #include <asm/intel_scu_ipc.h>
-#include "mid_bios.h"
+
+#include <drm/drm.h>
+
 #include "intel_bios.h"
+#include "mid_bios.h"
+#include "psb_drv.h"
+#include "psb_intel_reg.h"
+#include "psb_reg.h"
 
 static int oaktrail_output_init(struct drm_device *dev)
 {
@@ -327,7 +317,7 @@ static int oaktrail_restore_display_registers(struct drm_device *dev)
 
 	/* Actually enable it */
 	PSB_WVDC32(p->dpll, MRST_DPLL_A);
-	DRM_UDELAY(150);
+	udelay(150);
 
 	/* Restore mode */
 	PSB_WVDC32(p->htotal, HTOTAL_A);

@@ -1,12 +1,8 @@
-/* mach-hmt.c - Platform code for Airgoo HMT
- *
- * Copyright 2009 Peter Korsgaard <jacmet@sunsite.dk>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
-*/
+// SPDX-License-Identifier: GPL-2.0
+//
+// mach-hmt.c - Platform code for Airgoo HMT
+//
+// Copyright 2009 Peter Korsgaard <jacmet@sunsite.dk>
 
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -204,6 +200,7 @@ static struct s3c2410_platform_nand hmt_nand_info = {
 	.twrph1		= 40,
 	.nr_sets	= ARRAY_SIZE(hmt_nand_sets),
 	.sets		= hmt_nand_sets,
+	.ecc_mode       = NAND_ECC_SOFT,
 };
 
 static struct gpio_led hmt_leds[] = {

@@ -1,15 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * AEAD: Authenticated Encryption with Associated Data
  *
  * This file provides API support for AEAD algorithms.
  *
  * Copyright (c) 2007-2015 Herbert Xu <herbert@gondor.apana.org.au>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
- *
  */
 
 #include <crypto/internal/geniv.h>
@@ -24,6 +19,7 @@
 #include <linux/slab.h>
 #include <linux/seq_file.h>
 #include <linux/cryptouser.h>
+#include <linux/compiler.h>
 #include <net/netlink.h>
 
 #include "internal.h"
@@ -53,11 +49,20 @@ int crypto_aead_setkey(struct crypto_aead *tfm,
 		       const u8 *key, unsigned int keylen)
 {
 	unsigned long alignmask = crypto_aead_alignmask(tfm);
+	int err;
 
 	if ((unsigned long)key & alignmask)
-		return setkey_unaligned(tfm, key, keylen);
+		err = setkey_unaligned(tfm, key, keylen);
+	else
+		err = crypto_aead_alg(tfm)->setkey(tfm, key, keylen);
 
-	return crypto_aead_alg(tfm)->setkey(tfm, key, keylen);
+	if (unlikely(err)) {
+		crypto_aead_set_flags(tfm, CRYPTO_TFM_NEED_KEY);
+		return err;
+	}
+
+	crypto_aead_clear_flags(tfm, CRYPTO_TFM_NEED_KEY);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(crypto_aead_setkey);
 
@@ -79,6 +84,42 @@ int crypto_aead_setauthsize(struct crypto_aead *tfm, unsigned int authsize)
 }
 EXPORT_SYMBOL_GPL(crypto_aead_setauthsize);
 
+int crypto_aead_encrypt(struct aead_request *req)
+{
+	struct crypto_aead *aead = crypto_aead_reqtfm(req);
+	struct crypto_alg *alg = aead->base.__crt_alg;
+	unsigned int cryptlen = req->cryptlen;
+	int ret;
+
+	crypto_stats_get(alg);
+	if (crypto_aead_get_flags(aead) & CRYPTO_TFM_NEED_KEY)
+		ret = -ENOKEY;
+	else
+		ret = crypto_aead_alg(aead)->encrypt(req);
+	crypto_stats_aead_encrypt(cryptlen, alg, ret);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(crypto_aead_encrypt);
+
+int crypto_aead_decrypt(struct aead_request *req)
+{
+	struct crypto_aead *aead = crypto_aead_reqtfm(req);
+	struct crypto_alg *alg = aead->base.__crt_alg;
+	unsigned int cryptlen = req->cryptlen;
+	int ret;
+
+	crypto_stats_get(alg);
+	if (crypto_aead_get_flags(aead) & CRYPTO_TFM_NEED_KEY)
+		ret = -ENOKEY;
+	else if (req->cryptlen < crypto_aead_authsize(aead))
+		ret = -EINVAL;
+	else
+		ret = crypto_aead_alg(aead)->decrypt(req);
+	crypto_stats_aead_decrypt(cryptlen, alg, ret);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(crypto_aead_decrypt);
+
 static void crypto_aead_exit_tfm(struct crypto_tfm *tfm)
 {
 	struct crypto_aead *aead = __crypto_aead_cast(tfm);
@@ -91,6 +132,8 @@ static int crypto_aead_init_tfm(struct crypto_tfm *tfm)
 {
 	struct crypto_aead *aead = __crypto_aead_cast(tfm);
 	struct aead_alg *alg = crypto_aead_alg(aead);
+
+	crypto_aead_set_flags(aead, CRYPTO_TFM_NEED_KEY);
 
 	aead->authsize = alg->maxauthsize;
 
@@ -109,20 +152,16 @@ static int crypto_aead_report(struct sk_buff *skb, struct crypto_alg *alg)
 	struct crypto_report_aead raead;
 	struct aead_alg *aead = container_of(alg, struct aead_alg, base);
 
-	strncpy(raead.type, "aead", sizeof(raead.type));
-	strncpy(raead.geniv, "<none>", sizeof(raead.geniv));
+	memset(&raead, 0, sizeof(raead));
+
+	strscpy(raead.type, "aead", sizeof(raead.type));
+	strscpy(raead.geniv, "<none>", sizeof(raead.geniv));
 
 	raead.blocksize = alg->cra_blocksize;
 	raead.maxauthsize = aead->maxauthsize;
 	raead.ivsize = aead->ivsize;
 
-	if (nla_put(skb, CRYPTOCFGA_REPORT_AEAD,
-		    sizeof(struct crypto_report_aead), &raead))
-		goto nla_put_failure;
-	return 0;
-
-nla_put_failure:
-	return -EMSGSIZE;
+	return nla_put(skb, CRYPTOCFGA_REPORT_AEAD, sizeof(raead), &raead);
 }
 #else
 static int crypto_aead_report(struct sk_buff *skb, struct crypto_alg *alg)
@@ -132,7 +171,7 @@ static int crypto_aead_report(struct sk_buff *skb, struct crypto_alg *alg)
 #endif
 
 static void crypto_aead_show(struct seq_file *m, struct crypto_alg *alg)
-	__attribute__ ((unused));
+	__maybe_unused;
 static void crypto_aead_show(struct seq_file *m, struct crypto_alg *alg)
 {
 	struct aead_alg *aead = container_of(alg, struct aead_alg, base);
@@ -294,7 +333,7 @@ int aead_init_geniv(struct crypto_aead *aead)
 	if (err)
 		goto out;
 
-	ctx->sknull = crypto_get_default_null_skcipher2();
+	ctx->sknull = crypto_get_default_null_skcipher();
 	err = PTR_ERR(ctx->sknull);
 	if (IS_ERR(ctx->sknull))
 		goto out;
@@ -314,7 +353,7 @@ out:
 	return err;
 
 drop_null:
-	crypto_put_default_null_skcipher2();
+	crypto_put_default_null_skcipher();
 	goto out;
 }
 EXPORT_SYMBOL_GPL(aead_init_geniv);
@@ -324,7 +363,7 @@ void aead_exit_geniv(struct crypto_aead *tfm)
 	struct aead_geniv_ctx *ctx = crypto_aead_ctx(tfm);
 
 	crypto_free_aead(ctx->child);
-	crypto_put_default_null_skcipher2();
+	crypto_put_default_null_skcipher();
 }
 EXPORT_SYMBOL_GPL(aead_exit_geniv);
 

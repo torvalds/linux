@@ -27,7 +27,7 @@
 #include <linux/range.h>
 
 #include <asm/processor.h>
-#include <asm/e820.h>
+#include <asm/e820/api.h>
 #include <asm/mtrr.h>
 #include <asm/msr.h>
 
@@ -296,7 +296,7 @@ range_to_mtrr_with_hole(struct var_mtrr_state *state, unsigned long basek,
 			unsigned long sizek)
 {
 	unsigned long hole_basek, hole_sizek;
-	unsigned long second_basek, second_sizek;
+	unsigned long second_sizek;
 	unsigned long range0_basek, range0_sizek;
 	unsigned long range_basek, range_sizek;
 	unsigned long chunk_sizek;
@@ -304,7 +304,6 @@ range_to_mtrr_with_hole(struct var_mtrr_state *state, unsigned long basek,
 
 	hole_basek = 0;
 	hole_sizek = 0;
-	second_basek = 0;
 	second_sizek = 0;
 	chunk_sizek = state->chunk_sizek;
 	gran_sizek = state->gran_sizek;
@@ -831,7 +830,8 @@ int __init amd_special_default_mtrr(void)
 {
 	u32 l, h;
 
-	if (boot_cpu_data.x86_vendor != X86_VENDOR_AMD)
+	if (boot_cpu_data.x86_vendor != X86_VENDOR_AMD &&
+	    boot_cpu_data.x86_vendor != X86_VENDOR_HYGON)
 		return 0;
 	if (boot_cpu_data.x86 < 0xf)
 		return 0;
@@ -860,7 +860,7 @@ real_trim_memory(unsigned long start_pfn, unsigned long limit_pfn)
 	trim_size <<= PAGE_SHIFT;
 	trim_size -= trim_start;
 
-	return e820_update_range(trim_start, trim_size, E820_RAM, E820_RESERVED);
+	return e820__range_update(trim_start, trim_size, E820_TYPE_RAM, E820_TYPE_RESERVED);
 }
 
 /**
@@ -978,7 +978,7 @@ int __init mtrr_trim_uncached_memory(unsigned long end_pfn)
 			WARN_ON(1);
 
 		pr_info("update e820 for mtrr\n");
-		update_e820();
+		e820__update_table_print();
 
 		return 1;
 	}

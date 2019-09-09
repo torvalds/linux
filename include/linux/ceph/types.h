@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _FS_CEPH_TYPES_H
 #define _FS_CEPH_TYPES_H
 
@@ -23,6 +24,7 @@ struct ceph_vino {
 /* context for the caps reservation mechanism */
 struct ceph_cap_reservation {
 	int count;
+	int used;
 };
 
 

@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2011 Sony Ericsson Mobile Communications Inc.
  *
  * Author: Courtney Cavin <courtney.cavin@sonyericsson.com>
  * Prepared for up-stream by: Oskar Andero <oskar.andero@sonyericsson.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2, as
- * published by the Free Software Foundation.
  */
 
 #include <linux/i2c.h>
@@ -209,8 +206,6 @@ static int gp2a_remove(struct i2c_client *client)
 {
 	struct gp2a_data *dt = i2c_get_clientdata(client);
 	const struct gp2a_platform_data *pdata = dt->pdata;
-
-	device_init_wakeup(&client->dev, false);
 
 	free_irq(client->irq, dt);
 

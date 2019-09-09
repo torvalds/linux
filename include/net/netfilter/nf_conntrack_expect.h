@@ -1,9 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * connection tracking expectations.
  */
 
 #ifndef _NF_CONNTRACK_EXPECT_H
 #define _NF_CONNTRACK_EXPECT_H
+
+#include <linux/refcount.h>
 
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_zones.h>
@@ -37,7 +40,7 @@ struct nf_conntrack_expect {
 	struct timer_list timeout;
 
 	/* Usage count. */
-	atomic_t use;
+	refcount_t use;
 
 	/* Flags */
 	unsigned int flags;
@@ -45,7 +48,7 @@ struct nf_conntrack_expect {
 	/* Expectation class */
 	unsigned int class;
 
-#ifdef CONFIG_NF_NAT_NEEDED
+#if IS_ENABLED(CONFIG_NF_NAT)
 	union nf_inet_addr saved_addr;
 	/* This is the original per-proto part, used to map the
 	 * expected connection the way the recipient expects. */
@@ -71,6 +74,12 @@ struct nf_conntrack_expect_policy {
 };
 
 #define NF_CT_EXPECT_CLASS_DEFAULT	0
+#define NF_CT_EXPECT_MAX_CNT		255
+
+/* Allow to reuse expectations with the same tuples from different master
+ * conntracks.
+ */
+#define NF_CT_EXP_F_SKIP_MASTER	0x1
 
 int nf_conntrack_expect_pernet_init(struct net *net);
 void nf_conntrack_expect_pernet_fini(struct net *net);
@@ -102,6 +111,12 @@ static inline void nf_ct_unlink_expect(struct nf_conntrack_expect *exp)
 
 void nf_ct_remove_expectations(struct nf_conn *ct);
 void nf_ct_unexpect_related(struct nf_conntrack_expect *exp);
+bool nf_ct_remove_expect(struct nf_conntrack_expect *exp);
+
+void nf_ct_expect_iterate_destroy(bool (*iter)(struct nf_conntrack_expect *e, void *data), void *data);
+void nf_ct_expect_iterate_net(struct net *net,
+			      bool (*iter)(struct nf_conntrack_expect *e, void *data),
+                              void *data, u32 portid, int report);
 
 /* Allocate space for an expectation: this is mandatory before calling
    nf_ct_expect_related.  You will have to call put afterwards. */
@@ -112,10 +127,11 @@ void nf_ct_expect_init(struct nf_conntrack_expect *, unsigned int, u_int8_t,
 		       u_int8_t, const __be16 *, const __be16 *);
 void nf_ct_expect_put(struct nf_conntrack_expect *exp);
 int nf_ct_expect_related_report(struct nf_conntrack_expect *expect, 
-				u32 portid, int report);
-static inline int nf_ct_expect_related(struct nf_conntrack_expect *expect)
+				u32 portid, int report, unsigned int flags);
+static inline int nf_ct_expect_related(struct nf_conntrack_expect *expect,
+				       unsigned int flags)
 {
-	return nf_ct_expect_related_report(expect, 0, 0);
+	return nf_ct_expect_related_report(expect, 0, 0, flags);
 }
 
 #endif /*_NF_CONNTRACK_EXPECT_H*/

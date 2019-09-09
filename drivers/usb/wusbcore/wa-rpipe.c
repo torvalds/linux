@@ -1,24 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * WUSB Wire Adapter
  * rpipe management
  *
  * Copyright (C) 2005-2006 Intel Corporation
  * Inaky Perez-Gonzalez <inaky.perez-gonzalez@intel.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
- *
  *
  * FIXME: docs
  *
@@ -484,8 +470,7 @@ error:
 int wa_rpipes_create(struct wahc *wa)
 {
 	wa->rpipes = le16_to_cpu(wa->wa_descr->wNumRPipes);
-	wa->rpipe_bm = kzalloc(BITS_TO_LONGS(wa->rpipes)*sizeof(unsigned long),
-			       GFP_KERNEL);
+	wa->rpipe_bm = bitmap_zalloc(wa->rpipes, GFP_KERNEL);
 	if (wa->rpipe_bm == NULL)
 		return -ENOMEM;
 	return 0;
@@ -500,7 +485,7 @@ void wa_rpipes_destroy(struct wahc *wa)
 		dev_err(dev, "BUG: pipes not released on exit: %*pb\n",
 			wa->rpipes, wa->rpipe_bm);
 	}
-	kfree(wa->rpipe_bm);
+	bitmap_free(wa->rpipe_bm);
 }
 
 /*

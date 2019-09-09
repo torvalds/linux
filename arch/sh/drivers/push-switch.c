@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Generic push-switch framework
  *
  * Copyright (C) 2006  Paul Mundt
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -24,11 +21,11 @@ static ssize_t switch_show(struct device *dev,
 	struct push_switch_platform_info *psw_info = dev->platform_data;
 	return sprintf(buf, "%s\n", psw_info->name);
 }
-static DEVICE_ATTR(switch, S_IRUGO, switch_show, NULL);
+static DEVICE_ATTR_RO(switch);
 
-static void switch_timer(unsigned long data)
+static void switch_timer(struct timer_list *t)
 {
-	struct push_switch *psw = (struct push_switch *)data;
+	struct push_switch *psw = from_timer(psw, t, debounce);
 
 	schedule_work(&psw->work);
 }
@@ -78,10 +75,7 @@ static int switch_drv_probe(struct platform_device *pdev)
 	}
 
 	INIT_WORK(&psw->work, switch_work_handler);
-	init_timer(&psw->debounce);
-
-	psw->debounce.function = switch_timer;
-	psw->debounce.data = (unsigned long)psw;
+	timer_setup(&psw->debounce, switch_timer, 0);
 
 	/* Workqueue API brain-damage */
 	psw->pdev = pdev;

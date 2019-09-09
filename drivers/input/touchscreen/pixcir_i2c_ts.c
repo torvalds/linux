@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for Pixcir I2C touchscreen controllers.
  *
  * Copyright (C) 2010-2011 Pixcir, Inc.
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/delay.h>
@@ -461,7 +453,7 @@ static int pixcir_i2c_ts_probe(struct i2c_client *client,
 		if (error)
 			return error;
 	} else {
-		dev_err(&client->dev, "platform data not defined\n");
+		dev_err(dev, "platform data not defined\n");
 		return -EINVAL;
 	}
 
@@ -483,7 +475,7 @@ static int pixcir_i2c_ts_probe(struct i2c_client *client,
 	input->id.bustype = BUS_I2C;
 	input->open = pixcir_input_open;
 	input->close = pixcir_input_close;
-	input->dev.parent = &client->dev;
+	input->dev.parent = dev;
 
 	if (pdata) {
 		input_set_abs_params(input, ABS_MT_POSITION_X, 0, pdata->x_max, 0, 0);

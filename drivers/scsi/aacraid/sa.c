@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	Adaptec AAC series RAID controller driver
  *	(c) Copyright 2001 Red Hat Inc.
@@ -6,27 +7,13 @@
  * Adaptec aacraid device driver for Linux.
  *
  * Copyright (c) 2000-2010 Adaptec, Inc.
- *               2010 PMC-Sierra, Inc. (aacraid@pmc-sierra.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; see the file COPYING.  If not, write to
- * the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+ *               2010-2015 PMC-Sierra, Inc. (aacraid@pmc-sierra.com)
+ *		 2016-2017 Microsemi Corp. (aacraid@microsemi.com)
  *
  * Module Name:
  *  sa.c
  *
  * Abstract: Drawbridge specific support functions
- *
  */
 
 #include <linux/kernel.h>
@@ -245,19 +232,19 @@ static void aac_sa_interrupt_adapter (struct aac_dev *dev)
 
 static void aac_sa_start_adapter(struct aac_dev *dev)
 {
-	struct aac_init *init;
+	union aac_init *init;
 	/*
 	 * Fill in the remaining pieces of the init.
 	 */
 	init = dev->init;
-	init->HostElapsedSeconds = cpu_to_le32(get_seconds());
+	init->r7.host_elapsed_seconds = cpu_to_le32(ktime_get_real_seconds());
 	/* We can only use a 32 bit address here */
 	sa_sync_cmd(dev, INIT_STRUCT_BASE_ADDRESS, 
 			(u32)(ulong)dev->init_pa, 0, 0, 0, 0, 0,
 			NULL, NULL, NULL, NULL, NULL);
 }
 
-static int aac_sa_restart_adapter(struct aac_dev *dev, int bled)
+static int aac_sa_restart_adapter(struct aac_dev *dev, int bled, u8 reset_type)
 {
 	return -EINVAL;
 }
@@ -328,6 +315,22 @@ int aac_sa_init(struct aac_dev *dev)
 	instance = dev->id;
 	name     = dev->name;
 
+	/*
+	 *	Fill in the function dispatch table.
+	 */
+
+	dev->a_ops.adapter_interrupt = aac_sa_interrupt_adapter;
+	dev->a_ops.adapter_disable_int = aac_sa_disable_interrupt;
+	dev->a_ops.adapter_enable_int = aac_sa_enable_interrupt;
+	dev->a_ops.adapter_notify = aac_sa_notify_adapter;
+	dev->a_ops.adapter_sync_cmd = sa_sync_cmd;
+	dev->a_ops.adapter_check_health = aac_sa_check_health;
+	dev->a_ops.adapter_restart = aac_sa_restart_adapter;
+	dev->a_ops.adapter_start = aac_sa_start_adapter;
+	dev->a_ops.adapter_intr = aac_sa_intr;
+	dev->a_ops.adapter_deliver = aac_rx_deliver_producer;
+	dev->a_ops.adapter_ioremap = aac_sa_ioremap;
+
 	if (aac_sa_ioremap(dev, dev->base_size)) {
 		printk(KERN_WARNING "%s: unable to map adapter.\n", name);
 		goto error_iounmap;
@@ -360,22 +363,6 @@ int aac_sa_init(struct aac_dev *dev)
 		}
 		msleep(1);
 	}
-
-	/*
-	 *	Fill in the function dispatch table.
-	 */
-
-	dev->a_ops.adapter_interrupt = aac_sa_interrupt_adapter;
-	dev->a_ops.adapter_disable_int = aac_sa_disable_interrupt;
-	dev->a_ops.adapter_enable_int = aac_sa_enable_interrupt;
-	dev->a_ops.adapter_notify = aac_sa_notify_adapter;
-	dev->a_ops.adapter_sync_cmd = sa_sync_cmd;
-	dev->a_ops.adapter_check_health = aac_sa_check_health;
-	dev->a_ops.adapter_restart = aac_sa_restart_adapter;
-	dev->a_ops.adapter_start = aac_sa_start_adapter;
-	dev->a_ops.adapter_intr = aac_sa_intr;
-	dev->a_ops.adapter_deliver = aac_rx_deliver_producer;
-	dev->a_ops.adapter_ioremap = aac_sa_ioremap;
 
 	/*
 	 *	First clear out all interrupts.  Then enable the one's that 

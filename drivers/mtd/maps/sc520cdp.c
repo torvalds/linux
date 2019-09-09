@@ -1,21 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* sc520cdp.c -- MTD map driver for AMD SC520 Customer Development Platform
  *
  * Copyright (C) 2001 Sysgo Real-Time Solutions GmbH
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA
- *
  *
  * The SC520CDP is an evaluation board for the Elan SC520 processor available
  * from AMD. It has two banks of 32-bit Flash ROM, each 8 Megabytes in size,
@@ -227,7 +213,7 @@ static void sc520cdp_setup_par(void)
 
 static int __init init_sc520cdp(void)
 {
-	int i, devices_found = 0;
+	int i, j, devices_found = 0;
 
 #ifdef REPROGRAM_PAR
 	/* reprogram PAR registers so flash appears at the desired addresses */
@@ -243,6 +229,12 @@ static int __init init_sc520cdp(void)
 
 		if (!sc520cdp_map[i].virt) {
 			printk("Failed to ioremap_nocache\n");
+			for (j = 0; j < i; j++) {
+				if (mymtd[j]) {
+					map_destroy(mymtd[j]);
+					iounmap(sc520cdp_map[j].virt);
+				}
+			}
 			return -EIO;
 		}
 

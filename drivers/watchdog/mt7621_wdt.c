@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Ralink MT7621/MT7628 built-in hardware watchdog timer
  *
- * Copyright (C) 2014 John Crispin <blogic@openwrt.org>
+ * Copyright (C) 2014 John Crispin <john@phrozen.org>
  *
  * This driver was based on: drivers/watchdog/rt2880_wdt.c
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
  */
 
 #include <linux/clk.h>
@@ -17,6 +14,7 @@
 #include <linux/watchdog.h>
 #include <linux/moduleparam.h>
 #include <linux/platform_device.h>
+#include <linux/mod_devicetable.h>
 
 #include <asm/mach-ralink/ralink_regs.h>
 
@@ -105,12 +103,17 @@ static int mt7621_wdt_bootcause(void)
 	return 0;
 }
 
-static struct watchdog_info mt7621_wdt_info = {
+static int mt7621_wdt_is_running(struct watchdog_device *w)
+{
+	return !!(rt_wdt_r32(TIMER_REG_TMR1CTL) & TMR1CTL_ENABLE);
+}
+
+static const struct watchdog_info mt7621_wdt_info = {
 	.identity = "Mediatek Watchdog",
 	.options = WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING | WDIOF_MAGICCLOSE,
 };
 
-static struct watchdog_ops mt7621_wdt_ops = {
+static const struct watchdog_ops mt7621_wdt_ops = {
 	.owner = THIS_MODULE,
 	.start = mt7621_wdt_start,
 	.stop = mt7621_wdt_stop,
@@ -127,34 +130,36 @@ static struct watchdog_device mt7621_wdt_dev = {
 
 static int mt7621_wdt_probe(struct platform_device *pdev)
 {
-	struct resource *res;
-	int ret;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	mt7621_wdt_base = devm_ioremap_resource(&pdev->dev, res);
+	struct device *dev = &pdev->dev;
+	mt7621_wdt_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(mt7621_wdt_base))
 		return PTR_ERR(mt7621_wdt_base);
 
-	mt7621_wdt_reset = devm_reset_control_get(&pdev->dev, NULL);
+	mt7621_wdt_reset = devm_reset_control_get_exclusive(dev, NULL);
 	if (!IS_ERR(mt7621_wdt_reset))
 		reset_control_deassert(mt7621_wdt_reset);
 
 	mt7621_wdt_dev.bootstatus = mt7621_wdt_bootcause();
 
 	watchdog_init_timeout(&mt7621_wdt_dev, mt7621_wdt_dev.max_timeout,
-			      &pdev->dev);
+			      dev);
 	watchdog_set_nowayout(&mt7621_wdt_dev, nowayout);
+	if (mt7621_wdt_is_running(&mt7621_wdt_dev)) {
+		/*
+		 * Make sure to apply timeout from watchdog core, taking
+		 * the prescaler of this driver here into account (the
+		 * boot loader might be using a different prescaler).
+		 *
+		 * To avoid spurious resets because of different scaling,
+		 * we first disable the watchdog, set the new prescaler
+		 * and timeout, and then re-enable the watchdog.
+		 */
+		mt7621_wdt_stop(&mt7621_wdt_dev);
+		mt7621_wdt_start(&mt7621_wdt_dev);
+		set_bit(WDOG_HW_RUNNING, &mt7621_wdt_dev.status);
+	}
 
-	ret = watchdog_register_device(&mt7621_wdt_dev);
-
-	return 0;
-}
-
-static int mt7621_wdt_remove(struct platform_device *pdev)
-{
-	watchdog_unregister_device(&mt7621_wdt_dev);
-
-	return 0;
+	return devm_watchdog_register_device(dev, &mt7621_wdt_dev);
 }
 
 static void mt7621_wdt_shutdown(struct platform_device *pdev)
@@ -170,7 +175,6 @@ MODULE_DEVICE_TABLE(of, mt7621_wdt_match);
 
 static struct platform_driver mt7621_wdt_driver = {
 	.probe		= mt7621_wdt_probe,
-	.remove		= mt7621_wdt_remove,
 	.shutdown	= mt7621_wdt_shutdown,
 	.driver		= {
 		.name		= KBUILD_MODNAME,
@@ -181,5 +185,5 @@ static struct platform_driver mt7621_wdt_driver = {
 module_platform_driver(mt7621_wdt_driver);
 
 MODULE_DESCRIPTION("MediaTek MT762x hardware watchdog driver");
-MODULE_AUTHOR("John Crispin <blogic@openwrt.org");
+MODULE_AUTHOR("John Crispin <john@phrozen.org");
 MODULE_LICENSE("GPL v2");

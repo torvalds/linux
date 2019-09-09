@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_MODULELOADER_H
 #define _LINUX_MODULELOADER_H
 /* The stuff needed for archs to support modules. */
@@ -27,6 +28,11 @@ void *module_alloc(unsigned long size);
 
 /* Free memory returned from module_alloc. */
 void module_memfree(void *module_region);
+
+/* Determines if the section name is an exit section (that is only used during
+ * module unloading)
+ */
+bool module_exit_section(const char *name);
 
 /*
  * Apply the given relocation to the (simplified) ELF.  Return -error

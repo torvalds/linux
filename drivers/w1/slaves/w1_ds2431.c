@@ -1,12 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * w1_ds2431.c - w1 family 2d (DS2431) driver
  *
  * Copyright (c) 2008 Bernhard Weirich <bernhard.weirich@riedel.net>
  *
  * Heavily inspired by w1_DS2433 driver from Ben Gardner <bgardner@wabtec.com>
- *
- * This source code is licensed under the GNU General Public License,
- * Version 2. See the file COPYING for more details.
  */
 
 #include <linux/kernel.h>
@@ -16,9 +14,9 @@
 #include <linux/types.h>
 #include <linux/delay.h>
 
-#include "../w1.h"
-#include "../w1_int.h"
-#include "../w1_family.h"
+#include <linux/w1.h>
+
+#define W1_EEPROM_DS2431	0x2D
 
 #define W1_F2D_EEPROM_SIZE		128
 #define W1_F2D_PAGE_COUNT		4
@@ -290,7 +288,7 @@ static struct w1_family w1_family_2d = {
 };
 module_w1_family(w1_family_2d);
 
-MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Bernhard Weirich <bernhard.weirich@riedel.net>");
 MODULE_DESCRIPTION("w1 family 2d driver for DS2431, 1kb EEPROM");
+MODULE_LICENSE("GPL");
 MODULE_ALIAS("w1-family-" __stringify(W1_EEPROM_DS2431));

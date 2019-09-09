@@ -40,6 +40,14 @@ MSM8996 platform.
 	Definition: must be 2. Specifying the pin number and flags, as defined
 		    in <dt-bindings/gpio/gpio.h>
 
+- gpio-ranges:
+	Usage: required
+	Definition:  see ../gpio/gpio.txt
+
+- gpio-reserved-ranges:
+	Usage: optional
+	Definition: see ../gpio/gpio.txt
+
 Please refer to ../gpio/gpio.txt and ../interrupt-controller/interrupts.txt for
 a general description of GPIO and interrupt bindings.
 
@@ -141,17 +149,17 @@ to specify in a pin configuration subnode:
 - bias-disable:
 	Usage: optional
 	Value type: <none>
-	Definition: The specified pins should be configued as no pull.
+	Definition: The specified pins should be configured as no pull.
 
 - bias-pull-down:
 	Usage: optional
 	Value type: <none>
-	Definition: The specified pins should be configued as pull down.
+	Definition: The specified pins should be configured as pull down.
 
 - bias-pull-up:
 	Usage: optional
 	Value type: <none>
-	Definition: The specified pins should be configued as pull up.
+	Definition: The specified pins should be configured as pull up.
 
 - output-high:
 	Usage: optional
@@ -175,11 +183,12 @@ to specify in a pin configuration subnode:
 
 Example:
 
-	tlmm: pinctrl@01010000 {
+	tlmm: pinctrl@1010000 {
 		compatible = "qcom,msm8996-pinctrl";
 		reg = <0x01010000 0x300000>;
 		interrupts = <0 208 0>;
 		gpio-controller;
+		gpio-ranges = <&tlmm 0 0 150>;
 		#gpio-cells = <2>;
 		interrupt-controller;
 		#interrupt-cells = <2>;

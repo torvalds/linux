@@ -1,0 +1,20 @@
+Clock bindings for ST-Ericsson ABx500 clocks
+
+Required properties :
+- compatible : shall contain the following:
+  "stericsson,ab8500-clk"
+- #clock-cells should be <1>
+
+The ABx500 clocks need to be placed as a subnode of an AB8500
+device node, see mfd/ab8500.txt
+
+All available clocks are defined as preprocessor macros in
+dt-bindings/clock/ste-ab8500.h header and can be used in device
+tree sources.
+
+Example:
+
+clock-controller {
+	compatible = "stericsson,ab8500-clk";
+	#clock-cells = <1>;
+};

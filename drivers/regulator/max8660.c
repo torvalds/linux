@@ -1,22 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * max8660.c  --  Voltage regulation for the Maxim 8660/8661
  *
  * based on max1586.c and wm8400-regulator.c
  *
  * Copyright (C) 2009 Wolfram Sang, Pengutronix e.K.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 59 Temple
- * Place, Suite 330, Boston, MA  02111-1307  USA
  *
  * Some info:
  *
@@ -34,7 +22,6 @@
  * If the driver is feature complete, it might be worth to check if one set of
  * functions for V3-V7 is sufficient. For maximum flexibility during
  * development, they are separated for now.
- *
  */
 
 #include <linux/module.h>
@@ -194,7 +181,7 @@ static int max8660_ldo5_set_voltage_sel(struct regulator_dev *rdev,
 	return max8660_write(max8660, MAX8660_VCC1, 0xff, 0xc0);
 }
 
-static struct regulator_ops max8660_ldo5_ops = {
+static const struct regulator_ops max8660_ldo5_ops = {
 	.list_voltage = regulator_list_voltage_linear,
 	.map_voltage = regulator_map_voltage_linear,
 	.set_voltage_sel = max8660_ldo5_set_voltage_sel,
@@ -252,7 +239,7 @@ static int max8660_ldo67_set_voltage_sel(struct regulator_dev *rdev,
 				     selector << 4);
 }
 
-static struct regulator_ops max8660_ldo67_ops = {
+static const struct regulator_ops max8660_ldo67_ops = {
 	.is_enabled = max8660_ldo67_is_enabled,
 	.enable = max8660_ldo67_enable,
 	.disable = max8660_ldo67_disable,
@@ -351,8 +338,10 @@ static int max8660_pdata_from_dt(struct device *dev,
 	if (matched <= 0)
 		return matched;
 
-	pdata->subdevs = devm_kzalloc(dev, sizeof(struct max8660_subdev_data) *
-						matched, GFP_KERNEL);
+	pdata->subdevs = devm_kcalloc(dev,
+				      matched,
+				      sizeof(struct max8660_subdev_data),
+				      GFP_KERNEL);
 	if (!pdata->subdevs)
 		return -ENOMEM;
 

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 if ARCH_EP93XX
 
 menu "Cirrus EP93xx Implementation Options"
@@ -20,6 +21,13 @@ config MACH_ADSSPHERE
 	help
 	  Say 'Y' here if you want your kernel to support the ADS
 	  Sphere board.
+
+config MACH_BK3
+	bool "Support Liebherr BK3.1"
+	select MACH_TS72XX
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Liebherr controller BK3.1.
 
 config MACH_EDB93XX
 	bool

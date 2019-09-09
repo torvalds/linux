@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Common values for AES algorithms
  */
@@ -27,10 +28,10 @@ struct crypto_aes_ctx {
 	u32 key_length;
 };
 
-extern const u32 crypto_ft_tab[4][256];
-extern const u32 crypto_fl_tab[4][256];
-extern const u32 crypto_it_tab[4][256];
-extern const u32 crypto_il_tab[4][256];
+extern const u32 crypto_ft_tab[4][256] ____cacheline_aligned;
+extern const u32 crypto_fl_tab[4][256] ____cacheline_aligned;
+extern const u32 crypto_it_tab[4][256] ____cacheline_aligned;
+extern const u32 crypto_il_tab[4][256] ____cacheline_aligned;
 
 int crypto_aes_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 		unsigned int key_len);

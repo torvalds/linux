@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/module.h>
@@ -248,8 +249,8 @@ static void ql_update_stats(struct ql_adapter *qdev)
 
 	spin_lock(&qdev->stats_lock);
 	if (ql_sem_spinlock(qdev, qdev->xg_sem_mask)) {
-			netif_err(qdev, drv, qdev->ndev,
-				  "Couldn't get xgmac sem.\n");
+		netif_err(qdev, drv, qdev->ndev,
+			  "Couldn't get xgmac sem.\n");
 		goto quit;
 	}
 	/*
@@ -375,28 +376,34 @@ ql_get_ethtool_stats(struct net_device *ndev,
 	}
 }
 
-static int ql_get_settings(struct net_device *ndev,
-			      struct ethtool_cmd *ecmd)
+static int ql_get_link_ksettings(struct net_device *ndev,
+				 struct ethtool_link_ksettings *ecmd)
 {
 	struct ql_adapter *qdev = netdev_priv(ndev);
+	u32 supported, advertising;
 
-	ecmd->supported = SUPPORTED_10000baseT_Full;
-	ecmd->advertising = ADVERTISED_10000baseT_Full;
-	ecmd->transceiver = XCVR_EXTERNAL;
+	supported = SUPPORTED_10000baseT_Full;
+	advertising = ADVERTISED_10000baseT_Full;
+
 	if ((qdev->link_status & STS_LINK_TYPE_MASK) ==
 				STS_LINK_TYPE_10GBASET) {
-		ecmd->supported |= (SUPPORTED_TP | SUPPORTED_Autoneg);
-		ecmd->advertising |= (ADVERTISED_TP | ADVERTISED_Autoneg);
-		ecmd->port = PORT_TP;
-		ecmd->autoneg = AUTONEG_ENABLE;
+		supported |= (SUPPORTED_TP | SUPPORTED_Autoneg);
+		advertising |= (ADVERTISED_TP | ADVERTISED_Autoneg);
+		ecmd->base.port = PORT_TP;
+		ecmd->base.autoneg = AUTONEG_ENABLE;
 	} else {
-		ecmd->supported |= SUPPORTED_FIBRE;
-		ecmd->advertising |= ADVERTISED_FIBRE;
-		ecmd->port = PORT_FIBRE;
+		supported |= SUPPORTED_FIBRE;
+		advertising |= ADVERTISED_FIBRE;
+		ecmd->base.port = PORT_FIBRE;
 	}
 
-	ethtool_cmd_speed_set(ecmd, SPEED_10000);
-	ecmd->duplex = DUPLEX_FULL;
+	ecmd->base.speed = SPEED_10000;
+	ecmd->base.duplex = DUPLEX_FULL;
+
+	ethtool_convert_legacy_u32_to_link_mode(ecmd->link_modes.supported,
+						supported);
+	ethtool_convert_legacy_u32_to_link_mode(ecmd->link_modes.advertising,
+						advertising);
 
 	return 0;
 }
@@ -706,7 +713,6 @@ static void ql_set_msglevel(struct net_device *ndev, u32 value)
 }
 
 const struct ethtool_ops qlge_ethtool_ops = {
-	.get_settings = ql_get_settings,
 	.get_drvinfo = ql_get_drvinfo,
 	.get_wol = ql_get_wol,
 	.set_wol = ql_set_wol,
@@ -724,5 +730,6 @@ const struct ethtool_ops qlge_ethtool_ops = {
 	.get_sset_count = ql_get_sset_count,
 	.get_strings = ql_get_strings,
 	.get_ethtool_stats = ql_get_ethtool_stats,
+	.get_link_ksettings = ql_get_link_ksettings,
 };
 

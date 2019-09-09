@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Line 6 Linux USB driver
  *
  * Copyright (C) 2004-2010 Markus Grabner (grabner@icg.tugraz.at)
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License as
- *	published by the Free Software Foundation, version 2.
- *
  */
 
 #include <linux/slab.h>
@@ -393,7 +389,7 @@ static int snd_line6_playback_close(struct snd_pcm_substream *substream)
 }
 
 /* playback operators */
-struct snd_pcm_ops snd_line6_playback_ops = {
+const struct snd_pcm_ops snd_line6_playback_ops = {
 	.open = snd_line6_playback_open,
 	.close = snd_line6_playback_close,
 	.ioctl = snd_pcm_lib_ioctl,
@@ -409,8 +405,8 @@ int line6_create_audio_out_urbs(struct snd_line6_pcm *line6pcm)
 	struct usb_line6 *line6 = line6pcm->line6;
 	int i;
 
-	line6pcm->out.urbs = kzalloc(
-		sizeof(struct urb *) * line6->iso_buffers, GFP_KERNEL);
+	line6pcm->out.urbs = kcalloc(line6->iso_buffers, sizeof(struct urb *),
+				     GFP_KERNEL);
 	if (line6pcm->out.urbs == NULL)
 		return -ENOMEM;
 

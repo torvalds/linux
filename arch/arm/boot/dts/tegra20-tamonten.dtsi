@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "tegra20.dtsi"
 
 / {
@@ -14,7 +15,7 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	memory {
+	memory@0 {
 		reg = <0x00000000 0x20000000>;
 	};
 
@@ -478,7 +479,7 @@
 		nvidia,sys-clock-req-active-high;
 	};
 
-	pcie-controller@80003000 {
+	pcie@80003000 {
 		avdd-pex-supply = <&pci_vdd_reg>;
 		vdd-pex-supply = <&pci_vdd_reg>;
 		avdd-pex-pll-supply = <&pci_vdd_reg>;

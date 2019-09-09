@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * HDMI Channel map support helpers
  */
@@ -746,7 +747,7 @@ static int hdmi_chmap_ctl_get(struct snd_kcontrol *kcontrol,
 	memset(pcm_chmap, 0, sizeof(pcm_chmap));
 	chmap->ops.get_chmap(chmap->hdac, pcm_idx, pcm_chmap);
 
-	for (i = 0; i < sizeof(chmap); i++)
+	for (i = 0; i < ARRAY_SIZE(pcm_chmap); i++)
 		ucontrol->value.integer.value[i] = pcm_chmap[i];
 
 	return 0;

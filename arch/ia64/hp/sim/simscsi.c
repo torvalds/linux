@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Simulated SCSI driver.
  *
@@ -104,7 +105,8 @@ simscsi_interrupt (unsigned long val)
 		atomic_dec(&num_reqs);
 		queue[rd].sc = NULL;
 		if (DBG)
-			printk("simscsi_interrupt: done with %ld\n", sc->serial_number);
+			printk("simscsi_interrupt: done with %u\n",
+			       sc->request->tag);
 		(*sc->scsi_done)(sc);
 		rd = (rd + 1) % SIMSCSI_REQ_QUEUE_LEN;
 	}
@@ -213,8 +215,8 @@ simscsi_queuecommand_lck (struct scsi_cmnd *sc, void (*done)(struct scsi_cmnd *)
 	register long sp asm ("sp");
 
 	if (DBG)
-		printk("simscsi_queuecommand: target=%d,cmnd=%u,sc=%lu,sp=%lx,done=%p\n",
-		       target_id, sc->cmnd[0], sc->serial_number, sp, done);
+		printk("simscsi_queuecommand: target=%d,cmnd=%u,sc=%u,sp=%lx,done=%p\n",
+		       target_id, sc->cmnd[0], sc->request->tag, sp, done);
 #endif
 
 	sc->result = DID_BAD_TARGET << 16;
@@ -346,7 +348,7 @@ static struct scsi_host_template driver_template = {
 	.sg_tablesize		= SG_ALL,
 	.max_sectors		= 1024,
 	.cmd_per_lun		= SIMSCSI_REQ_QUEUE_LEN,
-	.use_clustering		= DISABLE_CLUSTERING,
+	.dma_boundary		= PAGE_SIZE - 1,
 };
 
 static int __init

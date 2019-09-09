@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2014 Felix Fietkau <nbd@openwrt.org>
  * Copyright (C) 2015 Jakub Kicinski <kubakici@wp.pl>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2
- * as published by the Free Software Foundation
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/debugfs.h>
@@ -160,13 +152,11 @@ void mt7601u_init_debugfs(struct mt7601u_dev *dev)
 	if (!dir)
 		return;
 
-	debugfs_create_u8("temperature", S_IRUSR, dir, &dev->raw_temp);
-	debugfs_create_u32("temp_mode", S_IRUSR, dir, &dev->temp_mode);
+	debugfs_create_u8("temperature", 0400, dir, &dev->raw_temp);
+	debugfs_create_u32("temp_mode", 0400, dir, &dev->temp_mode);
 
-	debugfs_create_u32("regidx", S_IRUSR | S_IWUSR, dir, &dev->debugfs_reg);
-	debugfs_create_file("regval", S_IRUSR | S_IWUSR, dir, dev,
-			    &fops_regval);
-	debugfs_create_file("ampdu_stat", S_IRUSR, dir, dev, &fops_ampdu_stat);
-	debugfs_create_file("eeprom_param", S_IRUSR, dir, dev,
-			    &fops_eeprom_param);
+	debugfs_create_u32("regidx", 0600, dir, &dev->debugfs_reg);
+	debugfs_create_file("regval", 0600, dir, dev, &fops_regval);
+	debugfs_create_file("ampdu_stat", 0400, dir, dev, &fops_ampdu_stat);
+	debugfs_create_file("eeprom_param", 0400, dir, dev, &fops_eeprom_param);
 }

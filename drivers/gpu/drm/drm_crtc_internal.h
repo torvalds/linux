@@ -31,6 +31,32 @@
  * and are not exported to drivers.
  */
 
+#include <linux/types.h>
+
+enum drm_color_encoding;
+enum drm_color_range;
+enum drm_connector_force;
+enum drm_mode_status;
+
+struct drm_atomic_state;
+struct drm_bridge;
+struct drm_connector;
+struct drm_crtc;
+struct drm_device;
+struct drm_display_mode;
+struct drm_file;
+struct drm_framebuffer;
+struct drm_mode_create_dumb;
+struct drm_mode_fb_cmd2;
+struct drm_mode_fb_cmd;
+struct drm_mode_object;
+struct drm_mode_set;
+struct drm_plane;
+struct drm_plane_state;
+struct drm_property;
+struct edid;
+struct kref;
+struct work_struct;
 
 /* drm_crtc.c */
 int drm_mode_crtc_set_obj_prop(struct drm_mode_object *obj,
@@ -40,10 +66,39 @@ int drm_crtc_check_viewport(const struct drm_crtc *crtc,
 			    int x, int y,
 			    const struct drm_display_mode *mode,
 			    const struct drm_framebuffer *fb);
+int drm_crtc_register_all(struct drm_device *dev);
+void drm_crtc_unregister_all(struct drm_device *dev);
+int drm_crtc_force_disable(struct drm_crtc *crtc);
 
-void drm_fb_release(struct drm_file *file_priv);
+struct dma_fence *drm_crtc_create_fence(struct drm_crtc *crtc);
 
-/* dumb buffer support IOCTLs */
+/* IOCTLs */
+int drm_mode_getcrtc(struct drm_device *dev,
+		     void *data, struct drm_file *file_priv);
+int drm_mode_setcrtc(struct drm_device *dev,
+		     void *data, struct drm_file *file_priv);
+
+
+/* drm_mode_config.c */
+int drm_modeset_register_all(struct drm_device *dev);
+void drm_modeset_unregister_all(struct drm_device *dev);
+
+/* drm_modes.c */
+const char *drm_get_mode_status_name(enum drm_mode_status status);
+
+/* IOCTLs */
+int drm_mode_getresources(struct drm_device *dev,
+			  void *data, struct drm_file *file_priv);
+
+
+/* drm_dumb_buffers.c */
+int drm_mode_create_dumb(struct drm_device *dev,
+			 struct drm_mode_create_dumb *args,
+			 struct drm_file *file_priv);
+int drm_mode_destroy_dumb(struct drm_device *dev, u32 handle,
+			  struct drm_file *file_priv);
+
+/* IOCTLs */
 int drm_mode_create_dumb_ioctl(struct drm_device *dev,
 			       void *data, struct drm_file *file_priv);
 int drm_mode_mmap_dumb_ioctl(struct drm_device *dev,
@@ -51,15 +106,9 @@ int drm_mode_mmap_dumb_ioctl(struct drm_device *dev,
 int drm_mode_destroy_dumb_ioctl(struct drm_device *dev,
 				void *data, struct drm_file *file_priv);
 
-/* IOCTLs */
-int drm_mode_getresources(struct drm_device *dev,
-			  void *data, struct drm_file *file_priv);
-int drm_mode_getcrtc(struct drm_device *dev,
-		     void *data, struct drm_file *file_priv);
-int drm_mode_setcrtc(struct drm_device *dev,
-		     void *data, struct drm_file *file_priv);
-
 /* drm_color_mgmt.c */
+const char *drm_get_color_encoding_name(enum drm_color_encoding encoding);
+const char *drm_get_color_range_name(enum drm_color_range range);
 
 /* IOCTLs */
 int drm_mode_gamma_get_ioctl(struct drm_device *dev,
@@ -87,16 +136,15 @@ int drm_mode_destroyblob_ioctl(struct drm_device *dev,
 			       void *data, struct drm_file *file_priv);
 
 /* drm_mode_object.c */
-int drm_mode_object_get_reg(struct drm_device *dev,
-			    struct drm_mode_object *obj,
-			    uint32_t obj_type,
-			    bool register_obj,
-			    void (*obj_free_cb)(struct kref *kref));
+int __drm_mode_object_add(struct drm_device *dev, struct drm_mode_object *obj,
+			  uint32_t obj_type, bool register_obj,
+			  void (*obj_free_cb)(struct kref *kref));
+int drm_mode_object_add(struct drm_device *dev, struct drm_mode_object *obj,
+			uint32_t obj_type);
 void drm_mode_object_register(struct drm_device *dev,
 			      struct drm_mode_object *obj);
-int drm_mode_object_get(struct drm_device *dev,
-			struct drm_mode_object *obj, uint32_t obj_type);
 struct drm_mode_object *__drm_mode_object_find(struct drm_device *dev,
+					       struct drm_file *file_priv,
 					       uint32_t id, uint32_t type);
 void drm_mode_object_unregister(struct drm_device *dev,
 				struct drm_mode_object *object);
@@ -127,14 +175,16 @@ void drm_connector_ida_init(void);
 void drm_connector_ida_destroy(void);
 void drm_connector_unregister_all(struct drm_device *dev);
 int drm_connector_register_all(struct drm_device *dev);
-int drm_mode_connector_set_obj_prop(struct drm_mode_object *obj,
+int drm_connector_set_obj_prop(struct drm_mode_object *obj,
 				    struct drm_property *property,
 				    uint64_t value);
 int drm_connector_create_standard_properties(struct drm_device *dev);
+const char *drm_get_connector_force_name(enum drm_connector_force force);
+void drm_connector_free_work_fn(struct work_struct *work);
 
 /* IOCTL */
-int drm_mode_connector_property_set_ioctl(struct drm_device *dev,
-					  void *data, struct drm_file *file_priv);
+int drm_connector_property_set_ioctl(struct drm_device *dev,
+				     void *data, struct drm_file *file_priv);
 int drm_mode_getconnector(struct drm_device *dev,
 			  void *data, struct drm_file *file_priv);
 
@@ -147,34 +197,66 @@ void drm_framebuffer_free(struct kref *kref);
 int drm_framebuffer_check_src_coords(uint32_t src_x, uint32_t src_y,
 				     uint32_t src_w, uint32_t src_h,
 				     const struct drm_framebuffer *fb);
+void drm_fb_release(struct drm_file *file_priv);
 
-/* IOCTL */
-int drm_mode_addfb(struct drm_device *dev,
-		   void *data, struct drm_file *file_priv);
+int drm_mode_addfb(struct drm_device *dev, struct drm_mode_fb_cmd *or,
+		   struct drm_file *file_priv);
 int drm_mode_addfb2(struct drm_device *dev,
 		    void *data, struct drm_file *file_priv);
-int drm_mode_rmfb(struct drm_device *dev,
-		  void *data, struct drm_file *file_priv);
+int drm_mode_rmfb(struct drm_device *dev, u32 fb_id,
+		  struct drm_file *file_priv);
+
+
+/* IOCTL */
+int drm_mode_addfb_ioctl(struct drm_device *dev,
+			 void *data, struct drm_file *file_priv);
+int drm_mode_addfb2_ioctl(struct drm_device *dev,
+			  void *data, struct drm_file *file_priv);
+int drm_mode_rmfb_ioctl(struct drm_device *dev,
+			void *data, struct drm_file *file_priv);
 int drm_mode_getfb(struct drm_device *dev,
 		   void *data, struct drm_file *file_priv);
 int drm_mode_dirtyfb_ioctl(struct drm_device *dev,
 			   void *data, struct drm_file *file_priv);
 
 /* drm_atomic.c */
+#ifdef CONFIG_DEBUG_FS
+struct drm_minor;
+int drm_atomic_debugfs_init(struct drm_minor *minor);
+#endif
+
+int __drm_atomic_helper_disable_plane(struct drm_plane *plane,
+				      struct drm_plane_state *plane_state);
+int __drm_atomic_helper_set_config(struct drm_mode_set *set,
+				   struct drm_atomic_state *state);
+
+void drm_atomic_print_state(const struct drm_atomic_state *state);
+
+/* drm_atomic_uapi.c */
+int drm_atomic_connector_commit_dpms(struct drm_atomic_state *state,
+				     struct drm_connector *connector,
+				     int mode);
+int drm_atomic_set_property(struct drm_atomic_state *state,
+			    struct drm_file *file_priv,
+			    struct drm_mode_object *obj,
+			    struct drm_property *prop,
+			    uint64_t prop_value);
 int drm_atomic_get_property(struct drm_mode_object *obj,
 			    struct drm_property *property, uint64_t *val);
+
+/* IOCTL */
 int drm_mode_atomic_ioctl(struct drm_device *dev,
 			  void *data, struct drm_file *file_priv);
-
-int drm_modeset_register_all(struct drm_device *dev);
-void drm_modeset_unregister_all(struct drm_device *dev);
 
 
 /* drm_plane.c */
 int drm_plane_register_all(struct drm_device *dev);
 void drm_plane_unregister_all(struct drm_device *dev);
-int drm_plane_check_pixel_format(const struct drm_plane *plane,
-				 u32 format);
+int drm_plane_check_pixel_format(struct drm_plane *plane,
+				 u32 format, u64 modifier);
+
+/* drm_bridge.c */
+void drm_bridge_detach(struct drm_bridge *bridge);
 
 /* IOCTL */
 int drm_mode_getplane_res(struct drm_device *dev, void *data,
@@ -189,3 +271,8 @@ int drm_mode_cursor2_ioctl(struct drm_device *dev,
 			   void *data, struct drm_file *file_priv);
 int drm_mode_page_flip_ioctl(struct drm_device *dev,
 			     void *data, struct drm_file *file_priv);
+
+/* drm_edid.c */
+void drm_mode_fixup_1366x768(struct drm_display_mode *mode);
+void drm_reset_display_info(struct drm_connector *connector);
+u32 drm_add_display_info(struct drm_connector *connector, const struct edid *edid);

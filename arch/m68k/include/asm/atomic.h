@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ARCH_M68K_ATOMIC__
 #define __ARCH_M68K_ATOMIC__
 
@@ -125,11 +126,13 @@ static inline void atomic_inc(atomic_t *v)
 {
 	__asm__ __volatile__("addql #1,%0" : "+m" (*v));
 }
+#define atomic_inc atomic_inc
 
 static inline void atomic_dec(atomic_t *v)
 {
 	__asm__ __volatile__("subql #1,%0" : "+m" (*v));
 }
+#define atomic_dec atomic_dec
 
 static inline int atomic_dec_and_test(atomic_t *v)
 {
@@ -137,6 +140,7 @@ static inline int atomic_dec_and_test(atomic_t *v)
 	__asm__ __volatile__("subql #1,%1; seq %0" : "=d" (c), "+m" (*v));
 	return c != 0;
 }
+#define atomic_dec_and_test atomic_dec_and_test
 
 static inline int atomic_dec_and_test_lt(atomic_t *v)
 {
@@ -154,6 +158,7 @@ static inline int atomic_inc_and_test(atomic_t *v)
 	__asm__ __volatile__("addql #1,%1; seq %0" : "=d" (c), "+m" (*v));
 	return c != 0;
 }
+#define atomic_inc_and_test atomic_inc_and_test
 
 #ifdef CONFIG_RMW_INSNS
 
@@ -189,9 +194,6 @@ static inline int atomic_xchg(atomic_t *v, int new)
 
 #endif /* !CONFIG_RMW_INSNS */
 
-#define atomic_dec_return(v)	atomic_sub_return(1, (v))
-#define atomic_inc_return(v)	atomic_add_return(1, (v))
-
 static inline int atomic_sub_and_test(int i, atomic_t *v)
 {
 	char c;
@@ -200,6 +202,7 @@ static inline int atomic_sub_and_test(int i, atomic_t *v)
 			     : ASM_DI (i));
 	return c != 0;
 }
+#define atomic_sub_and_test atomic_sub_and_test
 
 static inline int atomic_add_negative(int i, atomic_t *v)
 {
@@ -209,20 +212,6 @@ static inline int atomic_add_negative(int i, atomic_t *v)
 			     : ASM_DI (i));
 	return c != 0;
 }
-
-static __inline__ int __atomic_add_unless(atomic_t *v, int a, int u)
-{
-	int c, old;
-	c = atomic_read(v);
-	for (;;) {
-		if (unlikely(c == (u)))
-			break;
-		old = atomic_cmpxchg((v), c, c + (a));
-		if (likely(old == c))
-			break;
-		c = old;
-	}
-	return c;
-}
+#define atomic_add_negative atomic_add_negative
 
 #endif /* __ARCH_M68K_ATOMIC __ */

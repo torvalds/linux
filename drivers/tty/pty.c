@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  Copyright (C) 1991, 1992  Linus Torvalds
  *
@@ -12,7 +13,7 @@
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 #include <linux/fcntl.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/string.h>
 #include <linux/major.h>
 #include <linux/mm.h>
@@ -24,6 +25,10 @@
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/poll.h>
+#include <linux/mount.h>
+#include <linux/file.h>
+#include <linux/ioctl.h>
+#include <linux/compat.h>
 
 #undef TTY_DEBUG_HANGUP
 #ifdef TTY_DEBUG_HANGUP
@@ -106,16 +111,19 @@ static void pty_unthrottle(struct tty_struct *tty)
 static int pty_write(struct tty_struct *tty, const unsigned char *buf, int c)
 {
 	struct tty_struct *to = tty->link;
+	unsigned long flags;
 
 	if (tty->stopped)
 		return 0;
 
 	if (c > 0) {
+		spin_lock_irqsave(&to->port->lock, flags);
 		/* Stuff the data into the input queue of the other end */
 		c = tty_insert_flip_string(to->port, buf, c);
 		/* And shovel */
 		if (c)
 			tty_flip_buffer_push(to->port);
+		spin_unlock_irqrestore(&to->port->lock, flags);
 	}
 	return c;
 }
@@ -216,16 +224,11 @@ static int pty_signal(struct tty_struct *tty, int sig)
 static void pty_flush_buffer(struct tty_struct *tty)
 {
 	struct tty_struct *to = tty->link;
-	struct tty_ldisc *ld;
 
 	if (!to)
 		return;
 
-	ld = tty_ldisc_ref(to);
-	tty_buffer_flush(to, ld);
-	if (ld)
-		tty_ldisc_deref(ld);
-
+	tty_buffer_flush(to, NULL);
 	if (to->packet) {
 		spin_lock_irq(&tty->ctrl_lock);
 		tty->ctrl_status |= TIOCPKT_FLUSHWRITE;
@@ -345,7 +348,7 @@ static void pty_start(struct tty_struct *tty)
 		tty->ctrl_status &= ~TIOCPKT_STOP;
 		tty->ctrl_status |= TIOCPKT_START;
 		spin_unlock_irqrestore(&tty->ctrl_lock, flags);
-		wake_up_interruptible_poll(&tty->link->read_wait, POLLIN);
+		wake_up_interruptible_poll(&tty->link->read_wait, EPOLLIN);
 	}
 }
 
@@ -358,7 +361,7 @@ static void pty_stop(struct tty_struct *tty)
 		tty->ctrl_status &= ~TIOCPKT_START;
 		tty->ctrl_status |= TIOCPKT_STOP;
 		spin_unlock_irqrestore(&tty->ctrl_lock, flags);
-		wake_up_interruptible_poll(&tty->link->read_wait, POLLIN);
+		wake_up_interruptible_poll(&tty->link->read_wait, EPOLLIN);
 	}
 }
 
@@ -486,6 +489,20 @@ static int pty_bsd_ioctl(struct tty_struct *tty,
 	return -ENOIOCTLCMD;
 }
 
+#ifdef CONFIG_COMPAT
+static long pty_bsd_compat_ioctl(struct tty_struct *tty,
+				 unsigned int cmd, unsigned long arg)
+{
+	/*
+	 * PTY ioctls don't require any special translation between 32-bit and
+	 * 64-bit userspace, they are already compatible.
+	 */
+	return pty_bsd_ioctl(tty, cmd, (unsigned long)compat_ptr(arg));
+}
+#else
+#define pty_bsd_compat_ioctl NULL
+#endif
+
 static int legacy_count = CONFIG_LEGACY_PTY_COUNT;
 /*
  * not really modular, but the easiest way to keep compat with existing
@@ -507,6 +524,7 @@ static const struct tty_operations master_pty_ops_bsd = {
 	.chars_in_buffer = pty_chars_in_buffer,
 	.unthrottle = pty_unthrottle,
 	.ioctl = pty_bsd_ioctl,
+	.compat_ioctl = pty_bsd_compat_ioctl,
 	.cleanup = pty_cleanup,
 	.resize = pty_resize,
 	.remove = pty_remove
@@ -590,8 +608,57 @@ static inline void legacy_pty_init(void) { }
 
 /* Unix98 devices */
 #ifdef CONFIG_UNIX98_PTYS
-
 static struct cdev ptmx_cdev;
+
+/**
+ *	ptm_open_peer - open the peer of a pty
+ *	@master: the open struct file of the ptmx device node
+ *	@tty: the master of the pty being opened
+ *	@flags: the flags for open
+ *
+ *	Provide a race free way for userspace to open the slave end of a pty
+ *	(where they have the master fd and cannot access or trust the mount
+ *	namespace /dev/pts was mounted inside).
+ */
+int ptm_open_peer(struct file *master, struct tty_struct *tty, int flags)
+{
+	int fd = -1;
+	struct file *filp;
+	int retval = -EINVAL;
+	struct path path;
+
+	if (tty->driver != ptm_driver)
+		return -EIO;
+
+	fd = get_unused_fd_flags(flags);
+	if (fd < 0) {
+		retval = fd;
+		goto err;
+	}
+
+	/* Compute the slave's path */
+	path.mnt = devpts_mntget(master, tty->driver_data);
+	if (IS_ERR(path.mnt)) {
+		retval = PTR_ERR(path.mnt);
+		goto err_put;
+	}
+	path.dentry = tty->link->driver_data;
+
+	filp = dentry_open(&path, flags, current_cred());
+	mntput(path.mnt);
+	if (IS_ERR(filp)) {
+		retval = PTR_ERR(filp);
+		goto err_put;
+	}
+
+	fd_install(fd, filp);
+	return fd;
+
+err_put:
+	put_unused_fd(fd);
+err:
+	return retval;
+}
 
 static int pty_unix98_ioctl(struct tty_struct *tty,
 			    unsigned int cmd, unsigned long arg)
@@ -613,6 +680,21 @@ static int pty_unix98_ioctl(struct tty_struct *tty,
 
 	return -ENOIOCTLCMD;
 }
+
+#ifdef CONFIG_COMPAT
+static long pty_unix98_compat_ioctl(struct tty_struct *tty,
+				 unsigned int cmd, unsigned long arg)
+{
+	/*
+	 * PTY ioctls don't require any special translation between 32-bit and
+	 * 64-bit userspace, they are already compatible.
+	 */
+	return pty_unix98_ioctl(tty, cmd,
+		cmd == TIOCSIG ? arg : (unsigned long)compat_ptr(arg));
+}
+#else
+#define pty_unix98_compat_ioctl NULL
+#endif
 
 /**
  *	ptm_unix98_lookup	-	find a pty master
@@ -674,6 +756,11 @@ static void pty_unix98_remove(struct tty_driver *driver, struct tty_struct *tty)
 	}
 }
 
+static void pty_show_fdinfo(struct tty_struct *tty, struct seq_file *m)
+{
+	seq_printf(m, "tty-index:\t%d\n", tty->index);
+}
+
 static const struct tty_operations ptm_unix98_ops = {
 	.lookup = ptm_unix98_lookup,
 	.install = pty_unix98_install,
@@ -686,8 +773,10 @@ static const struct tty_operations ptm_unix98_ops = {
 	.chars_in_buffer = pty_chars_in_buffer,
 	.unthrottle = pty_unthrottle,
 	.ioctl = pty_unix98_ioctl,
+	.compat_ioctl = pty_unix98_compat_ioctl,
 	.resize = pty_resize,
-	.cleanup = pty_cleanup
+	.cleanup = pty_cleanup,
+	.show_fdinfo = pty_show_fdinfo,
 };
 
 static const struct tty_operations pty_unix98_ops = {

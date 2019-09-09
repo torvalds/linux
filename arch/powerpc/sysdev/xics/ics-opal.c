@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * ICS backend for OPAL managed interrupts.
  *
  * Copyright 2011 IBM Corp.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #undef DEBUG
@@ -131,8 +127,8 @@ static int ics_opal_set_affinity(struct irq_data *d,
 
 	wanted_server = xics_get_irq_server(d->irq, cpumask, 1);
 	if (wanted_server < 0) {
-		pr_warning("%s: No online cpus in the mask %*pb for irq %d\n",
-			   __func__, cpumask_pr_args(cpumask), d->irq);
+		pr_warn("%s: No online cpus in the mask %*pb for irq %d\n",
+			__func__, cpumask_pr_args(cpumask), d->irq);
 		return -1;
 	}
 	server = ics_opal_mangle_server(wanted_server);

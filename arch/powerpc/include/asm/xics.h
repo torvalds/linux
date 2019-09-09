@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Common definitions across all variants of ICP and ICS interrupt
  * controllers.
@@ -44,6 +45,7 @@ static inline int icp_hv_init(void) { return -ENODEV; }
 
 #ifdef CONFIG_PPC_POWERNV
 extern int icp_opal_init(void);
+extern void icp_opal_flush_interrupt(void);
 #else
 static inline int icp_opal_init(void) { return -ENODEV; }
 #endif
@@ -56,7 +58,7 @@ struct icp_ops {
 	void (*teardown_cpu)(void);
 	void (*flush_ipi)(void);
 #ifdef CONFIG_SMP
-	void (*cause_ipi)(int cpu, unsigned long data);
+	void (*cause_ipi)(int cpu);
 	irq_handler_t ipi_action;
 #endif
 };

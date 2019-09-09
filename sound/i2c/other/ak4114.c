@@ -1,23 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Routines for control of the AK4114 via I2C and 4-wire serial interface
  *  IEC958 (S/PDIF) receiver by Asahi Kasei
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
- *
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <linux/slab.h>
@@ -194,12 +179,11 @@ static int snd_ak4114_in_error_get(struct snd_kcontrol *kcontrol,
 				   struct snd_ctl_elem_value *ucontrol)
 {
 	struct ak4114 *chip = snd_kcontrol_chip(kcontrol);
-	long *ptr;
 
 	spin_lock_irq(&chip->lock);
-	ptr = (long *)(((char *)chip) + kcontrol->private_value);
-	ucontrol->value.integer.value[0] = *ptr;
-	*ptr = 0;
+	ucontrol->value.integer.value[0] =
+		chip->errors[kcontrol->private_value];
+	chip->errors[kcontrol->private_value] = 0;
 	spin_unlock_irq(&chip->lock);
 	return 0;
 }
@@ -341,7 +325,7 @@ static struct snd_kcontrol_new snd_ak4114_iec958_controls[] = {
 	.access =	SNDRV_CTL_ELEM_ACCESS_READ | SNDRV_CTL_ELEM_ACCESS_VOLATILE,
 	.info =		snd_ak4114_in_error_info,
 	.get =		snd_ak4114_in_error_get,
-	.private_value = offsetof(struct ak4114, parity_errors),
+	.private_value = AK4114_PARITY_ERRORS,
 },
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
@@ -349,7 +333,7 @@ static struct snd_kcontrol_new snd_ak4114_iec958_controls[] = {
 	.access =	SNDRV_CTL_ELEM_ACCESS_READ | SNDRV_CTL_ELEM_ACCESS_VOLATILE,
 	.info =		snd_ak4114_in_error_info,
 	.get =		snd_ak4114_in_error_get,
-	.private_value = offsetof(struct ak4114, v_bit_errors),
+	.private_value = AK4114_V_BIT_ERRORS,
 },
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
@@ -357,7 +341,7 @@ static struct snd_kcontrol_new snd_ak4114_iec958_controls[] = {
 	.access =	SNDRV_CTL_ELEM_ACCESS_READ | SNDRV_CTL_ELEM_ACCESS_VOLATILE,
 	.info =		snd_ak4114_in_error_info,
 	.get =		snd_ak4114_in_error_get,
-	.private_value = offsetof(struct ak4114, ccrc_errors),
+	.private_value = AK4114_CCRC_ERRORS,
 },
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
@@ -365,7 +349,7 @@ static struct snd_kcontrol_new snd_ak4114_iec958_controls[] = {
 	.access =	SNDRV_CTL_ELEM_ACCESS_READ | SNDRV_CTL_ELEM_ACCESS_VOLATILE,
 	.info =		snd_ak4114_in_error_info,
 	.get =		snd_ak4114_in_error_get,
-	.private_value = offsetof(struct ak4114, qcrc_errors),
+	.private_value = AK4114_QCRC_ERRORS,
 },
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
@@ -466,9 +450,8 @@ static void snd_ak4114_proc_regs_read(struct snd_info_entry *entry,
 
 static void snd_ak4114_proc_init(struct ak4114 *ak4114)
 {
-	struct snd_info_entry *entry;
-	if (!snd_card_proc_new(ak4114->card, "ak4114", &entry))
-		snd_info_set_text_ops(entry, ak4114, snd_ak4114_proc_regs_read);
+	snd_card_ro_proc_new(ak4114->card, "ak4114", ak4114,
+			     snd_ak4114_proc_regs_read);
 }
 
 int snd_ak4114_build(struct ak4114 *ak4114,
@@ -581,13 +564,13 @@ int snd_ak4114_check_rate_and_errors(struct ak4114 *ak4114, unsigned int flags)
 	rcs0 = reg_read(ak4114, AK4114_REG_RCS0);
 	spin_lock_irqsave(&ak4114->lock, _flags);
 	if (rcs0 & AK4114_PAR)
-		ak4114->parity_errors++;
+		ak4114->errors[AK4114_PARITY_ERRORS]++;
 	if (rcs1 & AK4114_V)
-		ak4114->v_bit_errors++;
+		ak4114->errors[AK4114_V_BIT_ERRORS]++;
 	if (rcs1 & AK4114_CCRC)
-		ak4114->ccrc_errors++;
+		ak4114->errors[AK4114_CCRC_ERRORS]++;
 	if (rcs1 & AK4114_QCRC)
-		ak4114->qcrc_errors++;
+		ak4114->errors[AK4114_QCRC_ERRORS]++;
 	c0 = (ak4114->rcs0 & (AK4114_QINT | AK4114_CINT | AK4114_PEM | AK4114_AUDION | AK4114_AUTO | AK4114_UNLCK)) ^
                      (rcs0 & (AK4114_QINT | AK4114_CINT | AK4114_PEM | AK4114_AUDION | AK4114_AUTO | AK4114_UNLCK));
 	c1 = (ak4114->rcs1 & 0xf0) ^ (rcs1 & 0xf0);

@@ -1,7 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) Maxime Coquelin 2015
+ * Copyright (C) STMicroelectronics 2017
  * Author:  Maxime Coquelin <mcoquelin.stm32@gmail.com>
- * License terms:  GNU General Public License (GPL), version 2
  */
 #include <linux/init.h>
 #include <linux/of.h>
@@ -1678,4 +1679,9 @@ static struct platform_driver stm32f746_pinctrl_driver = {
 		.of_match_table = stm32f746_pctrl_match,
 	},
 };
-builtin_platform_driver(stm32f746_pinctrl_driver);
+
+static int __init stm32f746_pinctrl_init(void)
+{
+	return platform_driver_register(&stm32f746_pinctrl_driver);
+}
+arch_initcall(stm32f746_pinctrl_init);

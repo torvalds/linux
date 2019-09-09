@@ -178,7 +178,7 @@ static void rfcomm_reparent_device(struct rfcomm_dev *dev)
 	struct hci_dev *hdev;
 	struct hci_conn *conn;
 
-	hdev = hci_get_route(&dev->dst, &dev->src);
+	hdev = hci_get_route(&dev->dst, &dev->src, BDADDR_BREDR);
 	if (!hdev)
 		return;
 
@@ -210,8 +210,8 @@ static ssize_t show_channel(struct device *tty_dev, struct device_attribute *att
 	return sprintf(buf, "%d\n", dev->channel);
 }
 
-static DEVICE_ATTR(address, S_IRUGO, show_address, NULL);
-static DEVICE_ATTR(channel, S_IRUGO, show_channel, NULL);
+static DEVICE_ATTR(address, 0444, show_address, NULL);
+static DEVICE_ATTR(channel, 0444, show_channel, NULL);
 
 static struct rfcomm_dev *__rfcomm_dev_add(struct rfcomm_dev_req *req,
 					   struct rfcomm_dlc *dlc)
@@ -798,7 +798,7 @@ static int rfcomm_tty_write(struct tty_struct *tty, const unsigned char *buf, in
 
 		skb_reserve(skb, RFCOMM_SKB_HEAD_RESERVE);
 
-		memcpy(skb_put(skb, size), buf + sent, size);
+		skb_put_data(skb, buf + sent, size);
 
 		rfcomm_dlc_send_noerror(dlc, skb);
 
@@ -838,18 +838,6 @@ static int rfcomm_tty_ioctl(struct tty_struct *tty, unsigned int cmd, unsigned l
 	case TIOCMIWAIT:
 		BT_DBG("TIOCMIWAIT");
 		break;
-
-	case TIOCGSERIAL:
-		BT_ERR("TIOCGSERIAL is not supported");
-		return -ENOIOCTLCMD;
-
-	case TIOCSSERIAL:
-		BT_ERR("TIOCSSERIAL is not supported");
-		return -ENOIOCTLCMD;
-
-	case TIOCSERGSTRUCT:
-		BT_ERR("TIOCSERGSTRUCT is not supported");
-		return -ENOIOCTLCMD;
 
 	case TIOCSERGETLSR:
 		BT_ERR("TIOCSERGETLSR is not supported");

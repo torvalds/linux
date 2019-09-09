@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Linux network driver for QLogic BR-series Converged Network Adapter.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License (GPL) Version 2 as
- * published by the Free Software Foundation
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 /*
  * Copyright (c) 2005-2014 Brocade Communications Systems, Inc.
@@ -325,7 +317,7 @@ bnad_debugfs_write_regrd(struct file *file, const char __user *buf,
 		return PTR_ERR(kern_buf);
 
 	rc = sscanf(kern_buf, "%x:%x", &addr, &len);
-	if (rc < 2) {
+	if (rc < 2 || len > UINT_MAX >> 2) {
 		netdev_warn(bnad->netdev, "failed to read user buffer\n");
 		kfree(kern_buf);
 		return -EINVAL;
@@ -486,11 +478,11 @@ struct bnad_debugfs_entry {
 };
 
 static const struct bnad_debugfs_entry bnad_debugfs_files[] = {
-	{ "fwtrc",  S_IFREG|S_IRUGO, &bnad_debugfs_op_fwtrc, },
-	{ "fwsave", S_IFREG|S_IRUGO, &bnad_debugfs_op_fwsave, },
-	{ "regrd",  S_IFREG|S_IRUGO|S_IWUSR, &bnad_debugfs_op_regrd, },
-	{ "regwr",  S_IFREG|S_IWUSR, &bnad_debugfs_op_regwr, },
-	{ "drvinfo", S_IFREG|S_IRUGO, &bnad_debugfs_op_drvinfo, },
+	{ "fwtrc",  S_IFREG | 0444, &bnad_debugfs_op_fwtrc, },
+	{ "fwsave", S_IFREG | 0444, &bnad_debugfs_op_fwsave, },
+	{ "regrd",  S_IFREG | 0644, &bnad_debugfs_op_regrd, },
+	{ "regwr",  S_IFREG | 0200, &bnad_debugfs_op_regwr, },
+	{ "drvinfo", S_IFREG | 0444, &bnad_debugfs_op_drvinfo, },
 };
 
 static struct dentry *bna_debugfs_root;

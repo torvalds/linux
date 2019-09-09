@@ -1,14 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/arch/arm/kernel/smp_tlb.c
  *
  *  Copyright (C) 2002 ARM Limited, All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/preempt.h>
 #include <linux/smp.h>
+#include <linux/uaccess.h>
 
 #include <asm/smp_plat.h>
 #include <asm/tlbflush.h>
@@ -40,8 +38,11 @@ static inline void ipi_flush_tlb_mm(void *arg)
 static inline void ipi_flush_tlb_page(void *arg)
 {
 	struct tlb_args *ta = (struct tlb_args *)arg;
+	unsigned int __ua_flags = uaccess_save_and_enable();
 
 	local_flush_tlb_page(ta->ta_vma, ta->ta_start);
+
+	uaccess_restore(__ua_flags);
 }
 
 static inline void ipi_flush_tlb_kernel_page(void *arg)
@@ -54,8 +55,11 @@ static inline void ipi_flush_tlb_kernel_page(void *arg)
 static inline void ipi_flush_tlb_range(void *arg)
 {
 	struct tlb_args *ta = (struct tlb_args *)arg;
+	unsigned int __ua_flags = uaccess_save_and_enable();
 
 	local_flush_tlb_range(ta->ta_vma, ta->ta_start, ta->ta_end);
+
+	uaccess_restore(__ua_flags);
 }
 
 static inline void ipi_flush_tlb_kernel_range(void *arg)

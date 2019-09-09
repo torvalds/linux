@@ -29,7 +29,6 @@ Required properties:
 - reg: should contain the address and the length of the FPGA register set.
 
 Optional properties:
-- interrupt-parent: should specify phandle for the interrupt controller.
 - interrupts: should specify event (wakeup) IRQ.
 
 Example (P1022DS):

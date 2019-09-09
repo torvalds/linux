@@ -1,30 +1,5 @@
-/*******************************************************************************
-
-  Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2014 Intel Corporation.
-
-  This program is free software; you can redistribute it and/or modify it
-  under the terms and conditions of the GNU General Public License,
-  version 2, as published by the Free Software Foundation.
-
-  This program is distributed in the hope it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details.
-
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-
-  The full GNU General Public License is included in this distribution in
-  the file called "COPYING".
-
-  Contact Information:
-  Linux NICS <linux.nics@intel.com>
-  e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
-  Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
-
-*******************************************************************************/
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright(c) 1999 - 2018 Intel Corporation. */
 
 #include "ixgbe.h"
 #include <linux/if_ether.h>
@@ -150,6 +125,7 @@ skip_ddpinv:
  * @xid: the exchange id requesting ddp
  * @sgl: the scatter-gather list for this request
  * @sgc: the number of scatter-gather items
+ * @target_mode: 1 to setup target mode, 0 to setup initiator mode
  *
  * Returns : 1 for success and 0 for no ddp
  */
@@ -216,7 +192,7 @@ static int ixgbe_fcoe_ddp_setup(struct net_device *netdev, u16 xid,
 	}
 
 	/* alloc the udl from per cpu ddp pool */
-	ddp->udl = dma_pool_alloc(ddp_pool->pool, GFP_ATOMIC, &ddp->udp);
+	ddp->udl = dma_pool_alloc(ddp_pool->pool, GFP_KERNEL, &ddp->udp);
 	if (!ddp->udl) {
 		e_err(drv, "failed allocated ddp context\n");
 		goto out_noddp_unmap;
@@ -464,7 +440,7 @@ int ixgbe_fcoe_ddp(struct ixgbe_adapter *adapter,
 	case cpu_to_le32(IXGBE_RXDADV_STAT_FCSTAT_FCPRSP):
 		dma_unmap_sg(&adapter->pdev->dev, ddp->sgl,
 			     ddp->sgc, DMA_FROM_DEVICE);
-		ddp->err = ddp_err;
+		ddp->err = (__force u32)ddp_err;
 		ddp->sgl = NULL;
 		ddp->sgc = 0;
 		/* fall through */
@@ -491,7 +467,7 @@ int ixgbe_fcoe_ddp(struct ixgbe_adapter *adapter,
 	if ((fh->fh_r_ctl == FC_RCTL_DD_SOL_DATA) &&
 	    (fctl & FC_FC_END_SEQ)) {
 		skb_linearize(skb);
-		crc = (struct fcoe_crc_eof *)skb_put(skb, sizeof(*crc));
+		crc = skb_put(skb, sizeof(*crc));
 		crc->fcoe_eof = FC_EOF_T;
 	}
 
@@ -784,7 +760,7 @@ int ixgbe_setup_fcoe_ddp_resources(struct ixgbe_adapter *adapter)
 		return 0;
 
 	/* Extra buffer to be shared by all DDPs for HW work around */
-	buffer = kmalloc(IXGBE_FCBUFF_MIN, GFP_ATOMIC);
+	buffer = kmalloc(IXGBE_FCBUFF_MIN, GFP_KERNEL);
 	if (!buffer)
 		return -ENOMEM;
 
@@ -1034,11 +1010,8 @@ int ixgbe_fcoe_get_hbainfo(struct net_device *netdev,
 		 ixgbe_driver_name,
 		 ixgbe_driver_version);
 	/* Firmware Version */
-	snprintf(info->firmware_version,
-		 sizeof(info->firmware_version),
-		 "0x%08x",
-		 (adapter->eeprom_verh << 16) |
-		  adapter->eeprom_verl);
+	strlcpy(info->firmware_version, adapter->eeprom_id,
+		sizeof(info->firmware_version));
 
 	/* Model */
 	if (hw->mac.type == ixgbe_mac_82599EB) {
@@ -1066,7 +1039,7 @@ int ixgbe_fcoe_get_hbainfo(struct net_device *netdev,
 
 /**
  * ixgbe_fcoe_get_tc - get the current TC that fcoe is mapped to
- * @adapter - pointer to the device adapter structure
+ * @adapter: pointer to the device adapter structure
  *
  * Return : TC that FCoE is mapped to
  */

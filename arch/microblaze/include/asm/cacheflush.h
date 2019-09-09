@@ -19,7 +19,7 @@
 #include <linux/mm.h>
 #include <linux/io.h>
 
-/* Look at Documentation/cachetlb.txt */
+/* Look at Documentation/core-api/cachetlb.rst */
 
 /*
  * Cache handling functions.

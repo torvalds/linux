@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: ISC
 ath5k-y				+= caps.o
 ath5k-y				+= initvals.o
 ath5k-y				+= eeprom.o

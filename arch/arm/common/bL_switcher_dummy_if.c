@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * arch/arm/common/bL_switcher_dummy_if.c -- b.L switcher dummy interface
  *
@@ -5,17 +6,13 @@
  * Copyright:	(C) 2012-2013  Linaro Limited
  *
  * Dummy interface to user space for debugging purpose only.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/bL_switcher.h>
 
 static ssize_t bL_switcher_write(struct file *file, const char __user *buf,
@@ -57,3 +54,7 @@ static struct miscdevice bL_switcher_device = {
 	&bL_switcher_fops
 };
 module_misc_device(bL_switcher_device);
+
+MODULE_AUTHOR("Nicolas Pitre <nico@linaro.org>");
+MODULE_LICENSE("GPL v2");
+MODULE_DESCRIPTION("big.LITTLE switcher dummy user interface");

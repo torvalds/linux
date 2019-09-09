@@ -1,8 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2013-2015 PLUMgrid, http://plumgrid.com
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -11,22 +8,23 @@
 #include <stdbool.h>
 #include <string.h>
 #include <linux/bpf.h>
-#include "libbpf.h"
-#include "bpf_load.h"
+#include <sys/resource.h>
 
-#define ARRAY_SIZE(x) (sizeof(x) / sizeof(*(x)))
+#include <bpf/bpf.h>
+#include "bpf_load.h"
+#include "bpf_util.h"
 
 #define SLOTS 100
 
 static void clear_stats(int fd)
 {
-	unsigned int nr_cpus = sysconf(_SC_NPROCESSORS_CONF);
+	unsigned int nr_cpus = bpf_num_possible_cpus();
 	__u64 values[nr_cpus];
 	__u32 key;
 
 	memset(values, 0, sizeof(values));
 	for (key = 0; key < SLOTS; key++)
-		bpf_update_elem(fd, &key, values, BPF_ANY);
+		bpf_map_update_elem(fd, &key, values, BPF_ANY);
 }
 
 const char *color[] = {
@@ -77,7 +75,7 @@ static void print_banner(void)
 
 static void print_hist(int fd)
 {
-	unsigned int nr_cpus = sysconf(_SC_NPROCESSORS_CONF);
+	unsigned int nr_cpus = bpf_num_possible_cpus();
 	__u64 total_events = 0;
 	long values[nr_cpus];
 	__u64 max_cnt = 0;
@@ -87,7 +85,7 @@ static void print_hist(int fd)
 	int i;
 
 	for (key = 0; key < SLOTS; key++) {
-		bpf_lookup_elem(fd, &key, values);
+		bpf_map_lookup_elem(fd, &key, values);
 		value = 0;
 		for (i = 0; i < nr_cpus; i++)
 			value += values[i];
@@ -110,10 +108,16 @@ static void print_hist(int fd)
 
 int main(int ac, char **argv)
 {
+	struct rlimit r = {1024*1024, RLIM_INFINITY};
 	char filename[256];
 	int i;
 
 	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
+
+	if (setrlimit(RLIMIT_MEMLOCK, &r)) {
+		perror("setrlimit(RLIMIT_MEMLOCK)");
+		return 1;
+	}
 
 	if (load_bpf_file(filename)) {
 		printf("%s", bpf_log_buf);

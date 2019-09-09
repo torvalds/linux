@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/kernel.h>
 #include <linux/mm.h>
-#include <linux/bootmem.h>
 #include <linux/memblock.h>
 #ifdef CONFIG_BLK_DEV_INITRD
 #include <linux/initrd.h>
@@ -26,7 +22,7 @@ pgd_t swapper_pg_dir[PTRS_PER_PGD] __aligned(PAGE_SIZE);
 char empty_zero_page[PAGE_SIZE] __aligned(PAGE_SIZE);
 EXPORT_SYMBOL(empty_zero_page);
 
-static const unsigned long low_mem_start = CONFIG_LINUX_LINK_BASE;
+static const unsigned long low_mem_start = CONFIG_LINUX_RAM_BASE;
 static unsigned long low_mem_sz;
 
 #ifdef CONFIG_HIGHMEM
@@ -39,6 +35,11 @@ static u64 high_mem_sz;
 struct pglist_data node_data[MAX_NUMNODES] __read_mostly;
 EXPORT_SYMBOL(node_data);
 #endif
+
+long __init arc_get_mem_sz(void)
+{
+	return low_mem_sz;
+}
 
 /* User can over-ride above with "mem=nnn[KkMm]" in cmdline */
 static int __init setup_mem_sz(char *str)
@@ -58,7 +59,7 @@ void __init early_init_dt_add_memory_arch(u64 base, u64 size)
 
 	if (!low_mem_sz) {
 		if (base != low_mem_start)
-			panic("CONFIG_LINUX_LINK_BASE != DT memory { }");
+			panic("CONFIG_LINUX_RAM_BASE != DT memory { }");
 
 		low_mem_sz = size;
 		in_use = 1;
@@ -73,24 +74,6 @@ void __init early_init_dt_add_memory_arch(u64 base, u64 size)
 	pr_info("Memory @ %llx [%lldM] %s\n",
 		base, TO_MB(size), !in_use ? "Not used":"");
 }
-
-#ifdef CONFIG_BLK_DEV_INITRD
-static int __init early_initrd(char *p)
-{
-	unsigned long start, size;
-	char *endp;
-
-	start = memparse(p, &endp);
-	if (*endp == ',') {
-		size = memparse(endp + 1, NULL);
-
-		initrd_start = (unsigned long)__va(start);
-		initrd_end = (unsigned long)__va(start + size);
-	}
-	return 0;
-}
-early_param("initrd", early_initrd);
-#endif
 
 /*
  * First memory setup routine called from setup_arch()
@@ -133,11 +116,15 @@ void __init setup_arch_memory(void)
 	 */
 
 	memblock_add_node(low_mem_start, low_mem_sz, 0);
-	memblock_reserve(low_mem_start, __pa(_end) - low_mem_start);
+	memblock_reserve(CONFIG_LINUX_LINK_BASE,
+			 __pa(_end) - CONFIG_LINUX_LINK_BASE);
 
 #ifdef CONFIG_BLK_DEV_INITRD
-	if (initrd_start)
-		memblock_reserve(__pa(initrd_start), initrd_end - initrd_start);
+	if (phys_initrd_size) {
+		memblock_reserve(phys_initrd_start, phys_initrd_size);
+		initrd_start = (unsigned long)__va(phys_initrd_start);
+		initrd_end = initrd_start + phys_initrd_size;
+	}
 #endif
 
 	early_init_fdt_reserve_self();
@@ -156,7 +143,7 @@ void __init setup_arch_memory(void)
 	 * We can't use the helper free_area_init(zones[]) because it uses
 	 * PAGE_OFFSET to compute the @min_low_pfn which would be wrong
 	 * when our kernel doesn't start at PAGE_OFFSET, i.e.
-	 * PAGE_OFFSET != CONFIG_LINUX_LINK_BASE
+	 * PAGE_OFFSET != CONFIG_LINUX_RAM_BASE
 	 */
 	free_area_init_node(0,			/* node-id */
 			    zones_size,		/* num pages per zone */
@@ -213,21 +200,6 @@ void __init mem_init(void)
 		free_highmem_page(pfn_to_page(tmp));
 #endif
 
-	free_all_bootmem();
+	memblock_free_all();
 	mem_init_print_info(NULL);
 }
-
-/*
- * free_initmem: Free all the __init memory.
- */
-void __ref free_initmem(void)
-{
-	free_initmem_default(-1);
-}
-
-#ifdef CONFIG_BLK_DEV_INITRD
-void __init free_initrd_mem(unsigned long start, unsigned long end)
-{
-	free_reserved_area((void *)start, (void *)end, -1, "initrd");
-}
-#endif

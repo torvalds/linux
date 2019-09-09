@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * (C) 2001 Clemson University and The University of Chicago
  *
@@ -46,8 +47,8 @@ static void run_down(struct slot_map *m)
 	spin_lock(&m->q.lock);
 	if (m->c != -1) {
 		for (;;) {
-			if (likely(list_empty(&wait.task_list)))
-				__add_wait_queue_tail(&m->q, &wait);
+			if (likely(list_empty(&wait.entry)))
+				__add_wait_queue_entry_tail(&m->q, &wait);
 			set_current_state(TASK_UNINTERRUPTIBLE);
 
 			if (m->c == -1)
@@ -70,9 +71,9 @@ static void put(struct slot_map *m, int slot)
 	spin_lock(&m->q.lock);
 	__clear_bit(slot, m->map);
 	v = ++m->c;
-	if (unlikely(v == 1))	/* no free slots -> one free slot */
+	if (v > 0)
 		wake_up_locked(&m->q);
-	else if (unlikely(v == -1))	/* finished dying */
+	if (unlikely(v == -1))     /* finished dying */
 		wake_up_all_locked(&m->q);
 	spin_unlock(&m->q.lock);
 }
@@ -84,8 +85,8 @@ static int wait_for_free(struct slot_map *m)
 
 	do {
 		long n = left, t;
-		if (likely(list_empty(&wait.task_list)))
-			__add_wait_queue_tail_exclusive(&m->q, &wait);
+		if (likely(list_empty(&wait.entry)))
+			__add_wait_queue_entry_tail_exclusive(&m->q, &wait);
 		set_current_state(TASK_INTERRUPTIBLE);
 
 		if (m->c > 0)
@@ -104,12 +105,12 @@ static int wait_for_free(struct slot_map *m)
 			left = t;
 		else
 			left = t + (left - n);
-		if (unlikely(signal_pending(current)))
+		if (signal_pending(current))
 			left = -EINTR;
 	} while (left > 0);
 
-	if (!list_empty(&wait.task_list))
-		list_del(&wait.task_list);
+	if (!list_empty(&wait.entry))
+		list_del(&wait.entry);
 	else if (left <= 0 && waitqueue_active(&m->q))
 		__wake_up_locked_key(&m->q, TASK_INTERRUPTIBLE, NULL);
 	__set_current_state(TASK_RUNNING);
@@ -137,7 +138,7 @@ static int get(struct slot_map *m)
 
 /* used to describe mapped buffers */
 struct orangefs_bufmap_desc {
-	void *uaddr;			/* user space address pointer */
+	void __user *uaddr;		/* user space address pointer */
 	struct page **page_array;	/* array of mapped pages */
 	int array_count;		/* size of above arrays */
 	struct list_head list_link;
@@ -183,7 +184,7 @@ orangefs_bufmap_free(struct orangefs_bufmap *bufmap)
 }
 
 /*
- * XXX: Can the size and shift change while the caller gives up the 
+ * XXX: Can the size and shift change while the caller gives up the
  * XXX: lock between calling this and doing something useful?
  */
 
@@ -214,20 +215,6 @@ int orangefs_bufmap_shift_query(void)
 static DECLARE_WAIT_QUEUE_HEAD(bufmap_waitq);
 static DECLARE_WAIT_QUEUE_HEAD(readdir_waitq);
 
-/*
- * orangefs_get_bufmap_init
- *
- * If bufmap_init is 1, then the shared memory system, including the
- * buffer_index_array, is available.  Otherwise, it is not.
- *
- * returns the value of bufmap_init
- */
-int orangefs_get_bufmap_init(void)
-{
-	return __orangefs_bufmap ? 1 : 0;
-}
-
-
 static struct orangefs_bufmap *
 orangefs_bufmap_alloc(struct ORANGEFS_dev_map_desc *user_desc)
 {
@@ -244,20 +231,14 @@ orangefs_bufmap_alloc(struct ORANGEFS_dev_map_desc *user_desc)
 
 	bufmap->buffer_index_array =
 		kzalloc(DIV_ROUND_UP(bufmap->desc_count, BITS_PER_LONG), GFP_KERNEL);
-	if (!bufmap->buffer_index_array) {
-		gossip_err("orangefs: could not allocate %d buffer indices\n",
-				bufmap->desc_count);
+	if (!bufmap->buffer_index_array)
 		goto out_free_bufmap;
-	}
 
 	bufmap->desc_array =
 		kcalloc(bufmap->desc_count, sizeof(struct orangefs_bufmap_desc),
 			GFP_KERNEL);
-	if (!bufmap->desc_array) {
-		gossip_err("orangefs: could not allocate %d descriptors\n",
-				bufmap->desc_count);
+	if (!bufmap->desc_array)
 		goto out_free_index_array;
-	}
 
 	bufmap->page_count = bufmap->total_size / PAGE_SIZE;
 
@@ -288,7 +269,7 @@ orangefs_bufmap_map(struct orangefs_bufmap *bufmap,
 
 	/* map the pages */
 	ret = get_user_pages_fast((unsigned long)user_desc->ptr,
-			     bufmap->page_count, 1, bufmap->page_array);
+			     bufmap->page_count, FOLL_WRITE, bufmap->page_array);
 
 	if (ret < 0)
 		return ret;
@@ -343,6 +324,11 @@ int orangefs_bufmap_initialize(struct ORANGEFS_dev_map_desc *user_desc)
 		     user_desc->ptr,
 		     user_desc->size,
 		     user_desc->count);
+
+	if (user_desc->total_size < 0 ||
+	    user_desc->size < 0 ||
+	    user_desc->count < 0)
+		goto out;
 
 	/*
 	 * sanity check alignment and size of buffer that caller wants to
@@ -496,7 +482,7 @@ void orangefs_readdir_index_put(int buffer_index)
 }
 
 /*
- * we've been handed an iovec, we need to copy it to 
+ * we've been handed an iovec, we need to copy it to
  * the shared memory descriptor at "buffer_index".
  */
 int orangefs_bufmap_copy_from_iovec(struct iov_iter *iter,
@@ -516,13 +502,11 @@ int orangefs_bufmap_copy_from_iovec(struct iov_iter *iter,
 		size_t n = size;
 		if (n > PAGE_SIZE)
 			n = PAGE_SIZE;
-		n = copy_page_from_iter(page, 0, n, iter);
-		if (!n)
+		if (copy_page_from_iter(page, 0, n, iter) != n)
 			return -EFAULT;
 		size -= n;
 	}
 	return 0;
-
 }
 
 /*
@@ -553,4 +537,17 @@ int orangefs_bufmap_copy_to_iovec(struct iov_iter *iter,
 		size -= n;
 	}
 	return 0;
+}
+
+void orangefs_bufmap_page_fill(void *page_to,
+				int buffer_index,
+				int slot_index)
+{
+	struct orangefs_bufmap_desc *from;
+	void *page_from;
+
+	from = &__orangefs_bufmap->desc_array[buffer_index];
+	page_from = kmap_atomic(from->page_array[slot_index]);
+	memcpy(page_to, page_from, PAGE_SIZE);
+	kunmap_atomic(page_from);
 }

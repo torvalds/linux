@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2005 Silicon Graphics, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -23,17 +11,11 @@
 #include "xfs_trans_resv.h"
 #include "xfs_bit.h"
 #include "xfs_mount.h"
-#include "xfs_defer.h"
 #include "xfs_inode.h"
 #include "xfs_bmap.h"
-#include "xfs_bmap_util.h"
 #include "xfs_bmap_btree.h"
-#include "xfs_alloc.h"
-#include "xfs_error.h"
 #include "xfs_trans.h"
 #include "xfs_trans_space.h"
-#include "xfs_trace.h"
-#include "xfs_buf.h"
 #include "xfs_icache.h"
 #include "xfs_rtalloc.h"
 
@@ -76,8 +58,12 @@ xfs_rtany_summary(
 	int		log;		/* loop counter, log2 of ext. size */
 	xfs_suminfo_t	sum;		/* summary data */
 
+	/* There are no extents at levels < m_rsum_cache[bbno]. */
+	if (mp->m_rsum_cache && low < mp->m_rsum_cache[bbno])
+		low = mp->m_rsum_cache[bbno];
+
 	/*
-	 * Loop over logs of extent sizes.  Order is irrelevant.
+	 * Loop over logs of extent sizes.
 	 */
 	for (log = low; log <= high; log++) {
 		/*
@@ -92,13 +78,17 @@ xfs_rtany_summary(
 		 */
 		if (sum) {
 			*stat = 1;
-			return 0;
+			goto out;
 		}
 	}
 	/*
 	 * Found nothing, return failure.
 	 */
 	*stat = 0;
+out:
+	/* There were no extents at levels < log. */
+	if (mp->m_rsum_cache && log > mp->m_rsum_cache[bbno])
+		mp->m_rsum_cache[bbno] = log;
 	return 0;
 }
 
@@ -313,8 +303,12 @@ xfs_rtallocate_extent_block(
 		/*
 		 * If size should be a multiple of prod, make that so.
 		 */
-		if (prod > 1 && (p = do_mod(bestlen, prod)))
-			bestlen -= p;
+		if (prod > 1) {
+			div_u64_rem(bestlen, prod, &p);
+			if (p)
+				bestlen -= p;
+		}
+
 		/*
 		 * Allocate besti for bestlen & return that.
 		 */
@@ -769,8 +763,6 @@ xfs_growfs_rt_alloc(
 	struct xfs_buf		*bp;	/* temporary buffer for zeroing */
 	xfs_daddr_t		d;		/* disk block address */
 	int			error;		/* error return value */
-	xfs_fsblock_t		firstblock;/* first block allocated in xaction */
-	struct xfs_defer_ops	dfops;		/* list of freed blocks */
 	xfs_fsblock_t		fsbno;		/* filesystem block for bno */
 	struct xfs_bmbt_irec	map;		/* block map output */
 	int			nmap;		/* number of block maps */
@@ -795,24 +787,20 @@ xfs_growfs_rt_alloc(
 		xfs_ilock(ip, XFS_ILOCK_EXCL);
 		xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
 
-		xfs_defer_init(&dfops, &firstblock);
 		/*
 		 * Allocate blocks to the bitmap file.
 		 */
 		nmap = 1;
 		error = xfs_bmapi_write(tp, ip, oblocks, nblocks - oblocks,
-					XFS_BMAPI_METADATA, &firstblock,
-					resblks, &map, &nmap, &dfops);
+					XFS_BMAPI_METADATA, resblks, &map,
+					&nmap);
 		if (!error && nmap < 1)
 			error = -ENOSPC;
 		if (error)
-			goto out_bmap_cancel;
+			goto out_trans_cancel;
 		/*
 		 * Free any blocks freed up in the transaction, then commit.
 		 */
-		error = xfs_defer_finish(&tp, &dfops, NULL);
-		if (error)
-			goto out_bmap_cancel;
 		error = xfs_trans_commit(tp);
 		if (error)
 			return error;
@@ -862,11 +850,24 @@ xfs_growfs_rt_alloc(
 
 	return 0;
 
-out_bmap_cancel:
-	xfs_defer_cancel(&dfops);
 out_trans_cancel:
 	xfs_trans_cancel(tp);
 	return error;
+}
+
+static void
+xfs_alloc_rsum_cache(
+	xfs_mount_t	*mp,		/* file system mount structure */
+	xfs_extlen_t	rbmblocks)	/* number of rt bitmap blocks */
+{
+	/*
+	 * The rsum cache is initialized to all zeroes, which is trivially a
+	 * lower bound on the minimum level with any free extents. We can
+	 * continue without the cache if it couldn't be allocated.
+	 */
+	mp->m_rsum_cache = kmem_zalloc_large(rbmblocks, KM_SLEEP);
+	if (!mp->m_rsum_cache)
+		xfs_warn(mp, "could not allocate realtime summary cache");
 }
 
 /*
@@ -897,6 +898,7 @@ xfs_growfs_rt(
 	xfs_extlen_t	rsumblocks;	/* current number of rt summary blks */
 	xfs_sb_t	*sbp;		/* old superblock */
 	xfs_fsblock_t	sumbno;		/* summary block number */
+	uint8_t		*rsum_cache;	/* old summary cache */
 
 	sbp = &mp->m_sb;
 	/*
@@ -953,6 +955,11 @@ xfs_growfs_rt(
 	error = xfs_growfs_rt_alloc(mp, rsumblocks, nrsumblocks, mp->m_rsumip);
 	if (error)
 		return error;
+
+	rsum_cache = mp->m_rsum_cache;
+	if (nrbmblocks != sbp->sb_rbmblocks)
+		xfs_alloc_rsum_cache(mp, nrbmblocks);
+
 	/*
 	 * Allocate a new (fake) mount/sb.
 	 */
@@ -1078,6 +1085,20 @@ error_cancel:
 	 */
 	kmem_free(nmp);
 
+	/*
+	 * If we had to allocate a new rsum_cache, we either need to free the
+	 * old one (if we succeeded) or free the new one and restore the old one
+	 * (if there was an error).
+	 */
+	if (rsum_cache != mp->m_rsum_cache) {
+		if (error) {
+			kmem_free(mp->m_rsum_cache);
+			mp->m_rsum_cache = rsum_cache;
+		} else {
+			kmem_free(rsum_cache);
+		}
+	}
+
 	return error;
 }
 
@@ -1093,7 +1114,6 @@ xfs_rtallocate_extent(
 	xfs_extlen_t	minlen,		/* minimum length to allocate */
 	xfs_extlen_t	maxlen,		/* maximum length to allocate */
 	xfs_extlen_t	*len,		/* out: actual length allocated */
-	xfs_alloctype_t	type,		/* allocation type XFS_ALLOCTYPE... */
 	int		wasdel,		/* was a delayed allocation extent */
 	xfs_extlen_t	prod,		/* extent product factor */
 	xfs_rtblock_t	*rtblock)	/* out: start block allocated */
@@ -1123,27 +1143,16 @@ xfs_rtallocate_extent(
 		}
 	}
 
+retry:
 	sumbp = NULL;
-	/*
-	 * Allocate by size, or near another block, or exactly at some block.
-	 */
-	switch (type) {
-	case XFS_ALLOCTYPE_ANY_AG:
+	if (bno == 0) {
 		error = xfs_rtallocate_extent_size(mp, tp, minlen, maxlen, len,
 				&sumbp,	&sb, prod, &r);
-		break;
-	case XFS_ALLOCTYPE_NEAR_BNO:
+	} else {
 		error = xfs_rtallocate_extent_near(mp, tp, bno, minlen, maxlen,
 				len, &sumbp, &sb, prod, &r);
-		break;
-	case XFS_ALLOCTYPE_THIS_BNO:
-		error = xfs_rtallocate_extent_exact(mp, tp, bno, minlen, maxlen,
-				len, &sumbp, &sb, prod, &r);
-		break;
-	default:
-		error = -EIO;
-		ASSERT(0);
 	}
+
 	if (error)
 		return error;
 
@@ -1158,7 +1167,11 @@ xfs_rtallocate_extent(
 			xfs_trans_mod_sb(tp, XFS_TRANS_SB_RES_FREXTENTS, -slen);
 		else
 			xfs_trans_mod_sb(tp, XFS_TRANS_SB_FREXTENTS, -slen);
+	} else if (prod > 1) {
+		prod = 1;
+		goto retry;
 	}
+
 	*rtblock = r;
 	return 0;
 }
@@ -1211,8 +1224,8 @@ xfs_rtmount_init(
 }
 
 /*
- * Get the bitmap and summary inodes into the mount structure
- * at mount time.
+ * Get the bitmap and summary inodes and the summary cache into the mount
+ * structure at mount time.
  */
 int					/* error */
 xfs_rtmount_inodes(
@@ -1222,19 +1235,18 @@ xfs_rtmount_inodes(
 	xfs_sb_t	*sbp;
 
 	sbp = &mp->m_sb;
-	if (sbp->sb_rbmino == NULLFSINO)
-		return 0;
 	error = xfs_iget(mp, NULL, sbp->sb_rbmino, 0, 0, &mp->m_rbmip);
 	if (error)
 		return error;
 	ASSERT(mp->m_rbmip != NULL);
-	ASSERT(sbp->sb_rsumino != NULLFSINO);
+
 	error = xfs_iget(mp, NULL, sbp->sb_rsumino, 0, 0, &mp->m_rsumip);
 	if (error) {
-		IRELE(mp->m_rbmip);
+		xfs_irele(mp->m_rbmip);
 		return error;
 	}
 	ASSERT(mp->m_rsumip != NULL);
+	xfs_alloc_rsum_cache(mp, sbp->sb_rbmblocks);
 	return 0;
 }
 
@@ -1242,10 +1254,11 @@ void
 xfs_rtunmount_inodes(
 	struct xfs_mount	*mp)
 {
+	kmem_free(mp->m_rsum_cache);
 	if (mp->m_rbmip)
-		IRELE(mp->m_rbmip);
+		xfs_irele(mp->m_rbmip);
 	if (mp->m_rsumip)
-		IRELE(mp->m_rsumip);
+		xfs_irele(mp->m_rsumip);
 }
 
 /*
@@ -1264,13 +1277,13 @@ xfs_rtpick_extent(
 {
 	xfs_rtblock_t	b;		/* result block */
 	int		log2;		/* log of sequence number */
-	__uint64_t	resid;		/* residual after log removed */
-	__uint64_t	seq;		/* sequence number of file creation */
-	__uint64_t	*seqp;		/* pointer to seqno in inode */
+	uint64_t	resid;		/* residual after log removed */
+	uint64_t	seq;		/* sequence number of file creation */
+	uint64_t	*seqp;		/* pointer to seqno in inode */
 
 	ASSERT(xfs_isilocked(mp->m_rbmip, XFS_ILOCK_EXCL));
 
-	seqp = (__uint64_t *)&VFS_I(mp->m_rbmip)->i_atime;
+	seqp = (uint64_t *)&VFS_I(mp->m_rbmip)->i_atime;
 	if (!(mp->m_rbmip->i_d.di_flags & XFS_DIFLAG_NEWRTBM)) {
 		mp->m_rbmip->i_d.di_flags |= XFS_DIFLAG_NEWRTBM;
 		*seqp = 0;
@@ -1283,7 +1296,7 @@ xfs_rtpick_extent(
 		b = (mp->m_sb.sb_rextents * ((resid << 1) + 1ULL)) >>
 		    (log2 + 1);
 		if (b >= mp->m_sb.sb_rextents)
-			b = do_mod(b, mp->m_sb.sb_rextents);
+			div64_u64_rem(b, mp->m_sb.sb_rextents, &b);
 		if (b + len > mp->m_sb.sb_rextents)
 			b = mp->m_sb.sb_rextents - len;
 	}

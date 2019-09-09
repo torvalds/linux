@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* -*- mode: c; c-basic-offset: 8; -*-
  * vim: noexpandtab sw=8 ts=8 sts=0:
  *
@@ -6,21 +7,6 @@
  * vfs' aops, fops, dops and iops
  *
  * Copyright (C) 2002, 2004 Oracle.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public
- * License as published by the Free Software Foundation; either
- * version 2 of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public
- * License along with this program; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 021110-1307, USA.
  */
 
 #include <linux/fs.h>
@@ -28,6 +14,7 @@
 #include <linux/highmem.h>
 #include <linux/pagemap.h>
 #include <linux/quotaops.h>
+#include <linux/iversion.h>
 
 #include <asm/byteorder.h>
 
@@ -136,7 +123,7 @@ struct inode *ocfs2_ilookup(struct super_block *sb, u64 blkno)
 struct inode *ocfs2_iget(struct ocfs2_super *osb, u64 blkno, unsigned flags,
 			 int sysfile_type)
 {
-	int rc = 0;
+	int rc = -ESTALE;
 	struct inode *inode = NULL;
 	struct super_block *sb = osb->sb;
 	struct ocfs2_find_inode_args args;
@@ -302,7 +289,7 @@ void ocfs2_populate_inode(struct inode *inode, struct ocfs2_dinode *fe,
 	OCFS2_I(inode)->ip_attr = le32_to_cpu(fe->i_attr);
 	OCFS2_I(inode)->ip_dyn_features = le16_to_cpu(fe->i_dyn_features);
 
-	inode->i_version = 1;
+	inode_set_iversion(inode, 1);
 	inode->i_generation = le32_to_cpu(fe->i_generation);
 	inode->i_rdev = huge_decode_dev(le64_to_cpu(fe->id1.dev1.i_rdev));
 	inode->i_mode = le16_to_cpu(fe->i_mode);
@@ -636,10 +623,8 @@ static int ocfs2_truncate_for_delete(struct ocfs2_super *osb,
 		handle = NULL;
 
 		status = ocfs2_commit_truncate(osb, inode, fe_bh);
-		if (status < 0) {
+		if (status < 0)
 			mlog_errno(status);
-			goto out;
-		}
 	}
 
 out:
@@ -703,7 +688,7 @@ static int ocfs2_remove_inode(struct inode *inode,
 		goto bail_commit;
 	}
 
-	di->i_dtime = cpu_to_le64(CURRENT_TIME.tv_sec);
+	di->i_dtime = cpu_to_le64(ktime_get_real_seconds());
 	di->i_flags &= cpu_to_le32(~(OCFS2_VALID_FL | OCFS2_ORPHANED_FL));
 	ocfs2_journal_dirty(handle, di_bh);
 
@@ -1134,7 +1119,7 @@ static void ocfs2_clear_inode(struct inode *inode)
 	trace_ocfs2_clear_inode((unsigned long long)oi->ip_blkno,
 				inode->i_nlink);
 
-	mlog_bug_on_msg(OCFS2_SB(inode->i_sb) == NULL,
+	mlog_bug_on_msg(osb == NULL,
 			"Inode=%lu\n", inode->i_ino);
 
 	dquot_drop(inode);
@@ -1149,7 +1134,7 @@ static void ocfs2_clear_inode(struct inode *inode)
 	ocfs2_mark_lockres_freeing(osb, &oi->ip_inode_lockres);
 	ocfs2_mark_lockres_freeing(osb, &oi->ip_open_lockres);
 
-	ocfs2_resv_discard(&OCFS2_SB(inode->i_sb)->osb_la_resmap,
+	ocfs2_resv_discard(&osb->osb_la_resmap,
 			   &oi->ip_la_data_resv);
 	ocfs2_resv_init_once(&oi->ip_la_data_resv);
 
@@ -1159,7 +1144,7 @@ static void ocfs2_clear_inode(struct inode *inode)
 	 * exception here are successfully wiped inodes - their
 	 * metadata can now be considered to be part of the system
 	 * inodes from which it came. */
-	if (!(OCFS2_I(inode)->ip_flags & OCFS2_INODE_DELETED))
+	if (!(oi->ip_flags & OCFS2_INODE_DELETED))
 		ocfs2_checkpoint_inode(inode);
 
 	mlog_bug_on_msg(!list_empty(&oi->ip_io_markers),
@@ -1222,7 +1207,7 @@ static void ocfs2_clear_inode(struct inode *inode)
 	 * the journal is flushed before journal shutdown. Thus it is safe to
 	 * have inodes get cleaned up after journal shutdown.
 	 */
-	jbd2_journal_release_jbd_inode(OCFS2_SB(inode->i_sb)->journal->j_journal,
+	jbd2_journal_release_jbd_inode(osb->journal->j_journal,
 				       &oi->ip_jinode);
 }
 
@@ -1498,7 +1483,6 @@ static int ocfs2_filecheck_validate_inode_block(struct super_block *sb,
 		     (unsigned long long)bh->b_blocknr,
 		     le32_to_cpu(di->i_fs_generation));
 		rc = -OCFS2_FILECHECK_ERR_GENERATION;
-		goto bail;
 	}
 
 bail:

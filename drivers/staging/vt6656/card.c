@@ -1,17 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
  * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  *
  * File: card.c
  * Purpose: Provide functions to setup NIC operation mode
@@ -176,7 +166,7 @@ static void vnt_calculate_ofdm_rate(u16 rate, u8 bb_type,
 			*tx_rate = 0x8b;
 			*rsv_time = 30;
 		}
-			break;
+		break;
 	case RATE_9M:
 		if (bb_type == BB_TYPE_11A) {
 			*tx_rate = 0x9f;
@@ -359,35 +349,18 @@ void vnt_update_ifs(struct vnt_private *priv)
 		priv->sifs = C_SIFS_A;
 		priv->difs = C_SIFS_A + 2 * C_SLOT_SHORT;
 		max_min = 4;
-	} else if (priv->packet_type == PK_TYPE_11B) {
-		priv->slot = C_SLOT_LONG;
-		priv->sifs = C_SIFS_BG;
-		priv->difs = C_SIFS_BG + 2 * C_SLOT_LONG;
-		max_min = 5;
-	} else {/* PK_TYPE_11GA & PK_TYPE_11GB */
-		bool ofdm_rate = false;
-		unsigned int ii = 0;
-
+	} else {
 		priv->sifs = C_SIFS_BG;
 
-		if (priv->short_slot_time)
+		if (priv->short_slot_time) {
 			priv->slot = C_SLOT_SHORT;
-		else
+			max_min = 4;
+		} else {
 			priv->slot = C_SLOT_LONG;
-
-		priv->difs = C_SIFS_BG + 2 * priv->slot;
-
-		for (ii = RATE_54M; ii >= RATE_6M; ii--) {
-			if (priv->basic_rates & ((u32)(0x1 << ii))) {
-				ofdm_rate = true;
-				break;
-			}
+			max_min = 5;
 		}
 
-		if (ofdm_rate)
-			max_min = 4;
-		else
-			max_min = 5;
+		priv->difs = C_SIFS_BG + 2 * priv->slot;
 	}
 
 	priv->eifs = C_EIFS;
@@ -399,11 +372,13 @@ void vnt_update_ifs(struct vnt_private *priv)
 			priv->difs -= 1;
 			break;
 		}
+		/* fall through */
 	case RF_AIROHA7230:
 	case RF_AL2230:
 	case RF_AL2230S:
 		if (priv->bb_type != BB_TYPE_11B)
 			break;
+		/* fall through */
 	case RF_RFMD2959:
 	case RF_VT3226:
 	case RF_VT3342A0:
@@ -501,16 +476,7 @@ u8 vnt_get_pkt_type(struct vnt_private *priv)
  */
 u64 vnt_get_tsf_offset(u8 rx_rate, u64 tsf1, u64 tsf2)
 {
-	u64 tsf_offset = 0;
-	u16 rx_bcn_offset;
-
-	rx_bcn_offset = cw_rxbcntsf_off[rx_rate % MAX_RATE];
-
-	tsf2 += (u64)rx_bcn_offset;
-
-	tsf_offset = tsf1 - tsf2;
-
-	return tsf_offset;
+	return tsf1 - tsf2 - (u64)cw_rxbcntsf_off[rx_rate % MAX_RATE];
 }
 
 /*
@@ -610,8 +576,8 @@ u64 vnt_get_next_tbtt(u64 tsf, u16 beacon_interval)
 	beacon_int = beacon_interval * 1024;
 
 	/* Next TBTT =
-	*	((local_current_TSF / beacon_interval) + 1) * beacon_interval
-	*/
+	 *	((local_current_TSF / beacon_interval) + 1) * beacon_interval
+	 */
 	if (beacon_int) {
 		do_div(tsf, beacon_int);
 		tsf += 1;
@@ -708,7 +674,7 @@ void vnt_update_next_tbtt(struct vnt_private *priv, u64 tsf,
  */
 int vnt_radio_power_off(struct vnt_private *priv)
 {
-	int ret = true;
+	int ret = 0;
 
 	switch (priv->rf_type) {
 	case RF_AL2230:
@@ -717,17 +683,25 @@ int vnt_radio_power_off(struct vnt_private *priv)
 	case RF_VT3226:
 	case RF_VT3226D0:
 	case RF_VT3342A0:
-		vnt_mac_reg_bits_off(priv, MAC_REG_SOFTPWRCTL,
-				     (SOFTPWRCTL_SWPE2 | SOFTPWRCTL_SWPE3));
+		ret = vnt_mac_reg_bits_off(priv, MAC_REG_SOFTPWRCTL,
+					(SOFTPWRCTL_SWPE2 | SOFTPWRCTL_SWPE3));
 		break;
 	}
 
-	vnt_mac_reg_bits_off(priv, MAC_REG_HOSTCR, HOSTCR_RXON);
+	if (ret)
+		goto end;
 
-	vnt_set_deep_sleep(priv);
+	ret = vnt_mac_reg_bits_off(priv, MAC_REG_HOSTCR, HOSTCR_RXON);
+	if (ret)
+		goto end;
 
-	vnt_mac_reg_bits_on(priv, MAC_REG_GPIOCTL1, GPIO3_INTMD);
+	ret = vnt_set_deep_sleep(priv);
+	if (ret)
+		goto end;
 
+	ret = vnt_mac_reg_bits_on(priv, MAC_REG_GPIOCTL1, GPIO3_INTMD);
+
+end:
 	return ret;
 }
 

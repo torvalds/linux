@@ -1,37 +1,31 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
+
 /*
-    cx25840.h - definition for cx25840/1/2/3 inputs
-
-    Copyright (C) 2006 Hans Verkuil (hverkuil@xs4all.nl)
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-*/
+ *   cx25840.h - definition for cx25840/1/2/3 inputs
+ *
+ *   Copyright (C) 2006 Hans Verkuil (hverkuil@xs4all.nl)
+ */
 
 #ifndef _CX25840_H_
 #define _CX25840_H_
 
-/* Note that the cx25840 driver requires that the bridge driver calls the
-   v4l2_subdev's init operation in order to load the driver's firmware.
-   Without this the audio standard detection will fail and you will
-   only get mono.
-
-   Since loading the firmware is often problematic when the driver is
-   compiled into the kernel I recommend postponing calling this function
-   until the first open of the video device. Another reason for
-   postponing it is that loading this firmware takes a long time (seconds)
-   due to the slow i2c bus speed. So it will speed up the boot process if
-   you can avoid loading the fw as long as the video device isn't used. */
+/*
+ * Note that the cx25840 driver requires that the bridge driver calls the
+ * v4l2_subdev's load_fw operation in order to load the driver's firmware.
+ * This will load the firmware on the first invocation (further ones are NOP).
+ * Without this the audio standard detection will fail and you will
+ * only get mono.
+ * Alternatively, you can call the reset operation (this can be done
+ * multiple times if needed, each invocation will fully reinitialize
+ * the device).
+ *
+ * Since loading the firmware is often problematic when the driver is
+ * compiled into the kernel I recommend postponing calling this function
+ * until the first open of the video device. Another reason for
+ * postponing it is that loading this firmware takes a long time (seconds)
+ * due to the slow i2c bus speed. So it will speed up the boot process if
+ * you can avoid loading the fw as long as the video device isn't used.
+ */
 
 enum cx25840_video_input {
 	/* Composite video inputs In1-In8 */
@@ -44,8 +38,10 @@ enum cx25840_video_input {
 	CX25840_COMPOSITE7,
 	CX25840_COMPOSITE8,
 
-	/* S-Video inputs consist of one luma input (In1-In8) ORed with one
-	   chroma input (In5-In8) */
+	/*
+	 * S-Video inputs consist of one luma input (In1-In8) ORed with one
+	 * chroma input (In5-In8)
+	 */
 	CX25840_SVIDEO_LUMA1 = 0x10,
 	CX25840_SVIDEO_LUMA2 = 0x20,
 	CX25840_SVIDEO_LUMA3 = 0x30,
@@ -88,6 +84,81 @@ enum cx25840_video_input {
 	CX25840_DIF_ON = 0x80000400,
 };
 
+/*
+ * The defines below are used to set the chip video output settings
+ * in the generic mode that can be enabled by calling the subdevice
+ * init core op.
+ *
+ * The requested settings can be passed to the init core op as
+ * @val parameter and to the s_routing video op as @config parameter.
+ *
+ * For details please refer to the section 3.7 Video Output Formatting and
+ * to Video Out Control 1 to 4 registers in the section 5.6 Video Decoder Core
+ * of the chip datasheet.
+ */
+#define CX25840_VCONFIG_FMT_SHIFT 0
+#define CX25840_VCONFIG_FMT_MASK GENMASK(2, 0)
+#define CX25840_VCONFIG_FMT_BT601 BIT(0)
+#define CX25840_VCONFIG_FMT_BT656 BIT(1)
+#define CX25840_VCONFIG_FMT_VIP11 GENMASK(1, 0)
+#define CX25840_VCONFIG_FMT_VIP2 BIT(2)
+
+#define CX25840_VCONFIG_RES_SHIFT 3
+#define CX25840_VCONFIG_RES_MASK GENMASK(4, 3)
+#define CX25840_VCONFIG_RES_8BIT BIT(3)
+#define CX25840_VCONFIG_RES_10BIT BIT(4)
+
+#define CX25840_VCONFIG_VBIRAW_SHIFT 5
+#define CX25840_VCONFIG_VBIRAW_MASK GENMASK(6, 5)
+#define CX25840_VCONFIG_VBIRAW_DISABLED BIT(5)
+#define CX25840_VCONFIG_VBIRAW_ENABLED BIT(6)
+
+#define CX25840_VCONFIG_ANCDATA_SHIFT 7
+#define CX25840_VCONFIG_ANCDATA_MASK GENMASK(8, 7)
+#define CX25840_VCONFIG_ANCDATA_DISABLED BIT(7)
+#define CX25840_VCONFIG_ANCDATA_ENABLED BIT(8)
+
+#define CX25840_VCONFIG_TASKBIT_SHIFT 9
+#define CX25840_VCONFIG_TASKBIT_MASK GENMASK(10, 9)
+#define CX25840_VCONFIG_TASKBIT_ZERO BIT(9)
+#define CX25840_VCONFIG_TASKBIT_ONE BIT(10)
+
+#define CX25840_VCONFIG_ACTIVE_SHIFT 11
+#define CX25840_VCONFIG_ACTIVE_MASK GENMASK(12, 11)
+#define CX25840_VCONFIG_ACTIVE_COMPOSITE BIT(11)
+#define CX25840_VCONFIG_ACTIVE_HORIZONTAL BIT(12)
+
+#define CX25840_VCONFIG_VALID_SHIFT 13
+#define CX25840_VCONFIG_VALID_MASK GENMASK(14, 13)
+#define CX25840_VCONFIG_VALID_NORMAL BIT(13)
+#define CX25840_VCONFIG_VALID_ANDACTIVE BIT(14)
+
+#define CX25840_VCONFIG_HRESETW_SHIFT 15
+#define CX25840_VCONFIG_HRESETW_MASK GENMASK(16, 15)
+#define CX25840_VCONFIG_HRESETW_NORMAL BIT(15)
+#define CX25840_VCONFIG_HRESETW_PIXCLK BIT(16)
+
+#define CX25840_VCONFIG_CLKGATE_SHIFT 17
+#define CX25840_VCONFIG_CLKGATE_MASK GENMASK(18, 17)
+#define CX25840_VCONFIG_CLKGATE_NONE BIT(17)
+#define CX25840_VCONFIG_CLKGATE_VALID BIT(18)
+#define CX25840_VCONFIG_CLKGATE_VALIDACTIVE GENMASK(18, 17)
+
+#define CX25840_VCONFIG_DCMODE_SHIFT 19
+#define CX25840_VCONFIG_DCMODE_MASK GENMASK(20, 19)
+#define CX25840_VCONFIG_DCMODE_DWORDS BIT(19)
+#define CX25840_VCONFIG_DCMODE_BYTES BIT(20)
+
+#define CX25840_VCONFIG_IDID0S_SHIFT 21
+#define CX25840_VCONFIG_IDID0S_MASK GENMASK(22, 21)
+#define CX25840_VCONFIG_IDID0S_NORMAL BIT(21)
+#define CX25840_VCONFIG_IDID0S_LINECNT BIT(22)
+
+#define CX25840_VCONFIG_VIPCLAMP_SHIFT 23
+#define CX25840_VCONFIG_VIPCLAMP_MASK GENMASK(24, 23)
+#define CX25840_VCONFIG_VIPCLAMP_ENABLED BIT(23)
+#define CX25840_VCONFIG_VIPCLAMP_DISABLED BIT(24)
+
 enum cx25840_audio_input {
 	/* Audio inputs: serial or In4-In8 */
 	CX25840_AUDIO_SERIAL,
@@ -115,7 +186,7 @@ enum cx25840_io_pin {
 };
 
 enum cx25840_io_pad {
-	/* Output pads */
+	/* Output pads, these must match the actual chip register values */
 	CX25840_PAD_DEFAULT = 0,
 	CX25840_PAD_ACTIVE,
 	CX25840_PAD_VACTIVE,
@@ -174,13 +245,16 @@ enum cx23885_io_pad {
 	CX23885_PAD_GPIO16,
 };
 
-/* pvr150_workaround activates a workaround for a hardware bug that is
-   present in Hauppauge PVR-150 (and possibly PVR-500) cards that have
-   certain NTSC tuners (tveeprom tuner model numbers 85, 99 and 112). The
-   audio autodetect fails on some channels for these models and the workaround
-   is to select the audio standard explicitly. Many thanks to Hauppauge for
-   providing this information.
-   This platform data only needs to be supplied by the ivtv driver. */
+/*
+ * pvr150_workaround activates a workaround for a hardware bug that is
+ * present in Hauppauge PVR-150 (and possibly PVR-500) cards that have
+ * certain NTSC tuners (tveeprom tuner model numbers 85, 99 and 112). The
+ * audio autodetect fails on some channels for these models and the workaround
+ * is to select the audio standard explicitly. Many thanks to Hauppauge for
+ * providing this information.
+ *
+ * This platform data only needs to be supplied by the ivtv driver.
+ */
 struct cx25840_platform_data {
 	int pvr150_workaround;
 };

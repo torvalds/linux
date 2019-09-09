@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause) */
 /*
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -73,7 +74,6 @@ struct arpc_response_message {
 	__le16	id;		/* RPC unique id */
 	__u8	result;		/* Result of RPC */
 } __packed;
-
 
 /* ARPC requests */
 #define ARPC_TYPE_CPORT_CONNECTED		0x01

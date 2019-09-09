@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Syntek STK1135 subdriver
  *
@@ -5,20 +6,6 @@
  *
  * Based on Syntekdriver (stk11xx) by Nicolas VIVIEN:
  *   http://syntekdriver.sourceforge.net
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -71,7 +58,8 @@ static u8 reg_r(struct gspca_dev *gspca_dev, u16 index)
 			gspca_dev->usb_buf, 1,
 			500);
 
-	PDEBUG(D_USBI, "reg_r 0x%x=0x%02x", index, gspca_dev->usb_buf[0]);
+	gspca_dbg(gspca_dev, D_USBI, "reg_r 0x%x=0x%02x\n",
+		  index, gspca_dev->usb_buf[0]);
 	if (ret < 0) {
 		pr_err("reg_r 0x%x err %d\n", index, ret);
 		gspca_dev->usb_err = ret;
@@ -97,7 +85,7 @@ static void reg_w(struct gspca_dev *gspca_dev, u16 index, u8 val)
 			NULL,
 			0,
 			500);
-	PDEBUG(D_USBO, "reg_w 0x%x:=0x%02x", index, val);
+	gspca_dbg(gspca_dev, D_USBO, "reg_w 0x%x:=0x%02x\n", index, val);
 	if (ret < 0) {
 		pr_err("reg_w 0x%x err %d\n", index, ret);
 		gspca_dev->usb_err = ret;
@@ -472,8 +460,8 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	reg_w_mask(gspca_dev, STK1135_REG_SCTRL, 0x80, 0x80);
 
 	if (gspca_dev->usb_err >= 0)
-		PDEBUG(D_STREAM, "camera started alt: 0x%02x",
-				gspca_dev->alt);
+		gspca_dbg(gspca_dev, D_STREAM, "camera started alt: 0x%02x\n",
+			  gspca_dev->alt);
 
 	sd->pkt_seq = 0;
 
@@ -488,7 +476,7 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 
 	stk1135_camera_disable(gspca_dev);
 
-	PDEBUG(D_STREAM, "camera stopped");
+	gspca_dbg(gspca_dev, D_STREAM, "camera stopped\n");
 }
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
@@ -503,7 +491,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	u8 seq;
 
 	if (len < 4) {
-		PDEBUG(D_PACK, "received short packet (less than 4 bytes)");
+		gspca_dbg(gspca_dev, D_PACK, "received short packet (less than 4 bytes)\n");
 		return;
 	}
 
@@ -519,7 +507,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	if (!(hdr->flags & STK1135_HDR_FRAME_START)) {
 		seq = hdr->seq & STK1135_HDR_SEQ_MASK;
 		if (seq != sd->pkt_seq) {
-			PDEBUG(D_PACK, "received out-of-sequence packet");
+			gspca_dbg(gspca_dev, D_PACK, "received out-of-sequence packet\n");
 			/* resync sequence and discard packet */
 			sd->pkt_seq = seq;
 			gspca_dev->last_packet_type = DISCARD_PACKET;

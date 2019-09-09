@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Windfarm PowerMac thermal control.  SMU "satellite" controller sensors.
  *
  * Copyright (C) 2005 Paul Mackerras, IBM Corp. <paulus@samba.org>
- *
- * Released under the terms of the GNU GPL v2.
  */
 
 #include <linux/types.h>
@@ -21,14 +20,6 @@
 #include "windfarm.h"
 
 #define VERSION "1.0"
-
-#define DEBUG
-
-#ifdef DEBUG
-#define DBG(args...)	printk(args)
-#else
-#define DBG(args...)	do { } while(0)
-#endif
 
 /* If the cache is older than 800ms we'll refetch it */
 #define MAX_AGE		msecs_to_jiffies(800)
@@ -106,13 +97,10 @@ struct smu_sdbp_header *smu_sat_get_sdb_partition(unsigned int sat_id, int id,
 		buf[i+2] = data[3];
 		buf[i+3] = data[2];
 	}
-#ifdef DEBUG
-	DBG(KERN_DEBUG "sat %d partition %x:", sat_id, id);
-	for (i = 0; i < len; ++i)
-		DBG(" %x", buf[i]);
-	DBG("\n");
-#endif
 
+	printk(KERN_DEBUG "sat %d partition %x:", sat_id, id);
+	print_hex_dump(KERN_DEBUG, "  ", DUMP_PREFIX_OFFSET,
+		       16, 1, buf, len, false);
 	if (size)
 		*size = len;
 	return (struct smu_sdbp_header *) buf;
@@ -132,13 +120,13 @@ static int wf_sat_read_cache(struct wf_sat *sat)
 	if (err < 0)
 		return err;
 	sat->last_read = jiffies;
+
 #ifdef LOTSA_DEBUG
 	{
 		int i;
-		DBG(KERN_DEBUG "wf_sat_get: data is");
-		for (i = 0; i < 16; ++i)
-			DBG(" %.2x", sat->cache[i]);
-		DBG("\n");
+		printk(KERN_DEBUG "wf_sat_get: data is");
+		print_hex_dump(KERN_DEBUG, "  ", DUMP_PREFIX_OFFSET,
+			       16, 1, sat->cache, 16, false);
 	}
 #endif
 	return 0;
@@ -195,7 +183,7 @@ static void wf_sat_sensor_release(struct wf_sensor *sr)
 	kref_put(&sat->ref, wf_sat_release);
 }
 
-static struct wf_sensor_ops wf_sat_ops = {
+static const struct wf_sensor_ops wf_sat_ops = {
 	.get_value	= wf_sat_sensor_get,
 	.release	= wf_sat_sensor_release,
 	.owner		= THIS_MODULE,
@@ -208,7 +196,7 @@ static int wf_sat_probe(struct i2c_client *client,
 	struct wf_sat *sat;
 	struct wf_sat_sensor *sens;
 	const u32 *reg;
-	const char *loc, *type;
+	const char *loc;
 	u8 chip, core;
 	struct device_node *child;
 	int shift, cpu, index;
@@ -231,7 +219,6 @@ static int wf_sat_probe(struct i2c_client *client,
 	child = NULL;
 	while ((child = of_get_next_child(dev, child)) != NULL) {
 		reg = of_get_property(child, "reg", NULL);
-		type = of_get_property(child, "device_type", NULL);
 		loc = of_get_property(child, "location", NULL);
 		if (reg == NULL || loc == NULL)
 			continue;
@@ -248,7 +235,7 @@ static int wf_sat_probe(struct i2c_client *client,
 		core = loc[5] - '0';
 		if (chip > 1 || core > 1) {
 			printk(KERN_ERR "wf_sat_create: don't understand "
-			       "location %s for %s\n", loc, child->full_name);
+			       "location %s for %pOF\n", loc, child);
 			continue;
 		}
 		cpu = 2 * chip + core;
@@ -260,15 +247,15 @@ static int wf_sat_probe(struct i2c_client *client,
 			continue;
 		}
 
-		if (strcmp(type, "voltage-sensor") == 0) {
+		if (of_node_is_type(child, "voltage-sensor")) {
 			name = "cpu-voltage";
 			shift = 4;
 			vsens[core] = index;
-		} else if (strcmp(type, "current-sensor") == 0) {
+		} else if (of_node_is_type(child, "current-sensor")) {
 			name = "cpu-current";
 			shift = 8;
 			isens[core] = index;
-		} else if (strcmp(type, "temp-sensor") == 0) {
+		} else if (of_node_is_type(child, "temp-sensor")) {
 			name = "cpu-temp";
 			shift = 10;
 		} else

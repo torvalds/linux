@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Fusb300 UDC (USB gadget)
  *
  * Copyright (C) 2010 Faraday Technology Corp.
  *
  * Author : Yuan-hsin Chen <yhchen@faraday-tech.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
  */
 #include <linux/dma-mapping.h>
 #include <linux/err.h>
@@ -218,7 +215,7 @@ static int config_ep(struct fusb300_ep *ep,
 	   (info.type == USB_ENDPOINT_XFER_ISOC)) {
 		info.interval = desc->bInterval;
 		if (info.type == USB_ENDPOINT_XFER_ISOC)
-			info.bw_num = ((desc->wMaxPacketSize & 0x1800) >> 11);
+			info.bw_num = usb_endpoint_maxp_mult(desc);
 	}
 
 	ep_fifo_setting(fusb300, info);
@@ -518,7 +515,7 @@ static void fusb300_fifo_flush(struct usb_ep *_ep)
 {
 }
 
-static struct usb_ep_ops fusb300_ep_ops = {
+static const struct usb_ep_ops fusb300_ep_ops = {
 	.enable		= fusb300_enable,
 	.disable	= fusb300_disable,
 
@@ -1345,12 +1342,15 @@ static const struct usb_gadget_ops fusb300_gadget_ops = {
 static int fusb300_remove(struct platform_device *pdev)
 {
 	struct fusb300 *fusb300 = platform_get_drvdata(pdev);
+	int i;
 
 	usb_del_gadget_udc(&fusb300->gadget);
 	iounmap(fusb300->reg);
 	free_irq(platform_get_irq(pdev, 0), fusb300);
 
 	fusb300_free_request(&fusb300->ep[0]->ep, fusb300->ep0_req);
+	for (i = 0; i < FUSB300_MAX_NUM_EP; i++)
+		kfree(fusb300->ep[i]);
 	kfree(fusb300);
 
 	return 0;
@@ -1494,6 +1494,8 @@ clean_up:
 		if (fusb300->ep0_req)
 			fusb300_free_request(&fusb300->ep[0]->ep,
 				fusb300->ep0_req);
+		for (i = 0; i < FUSB300_MAX_NUM_EP; i++)
+			kfree(fusb300->ep[i]);
 		kfree(fusb300);
 	}
 	if (reg)

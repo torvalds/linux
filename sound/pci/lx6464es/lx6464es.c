@@ -1,25 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* -*- linux-c -*- *
  *
  * ALSA driver for the digigram lx6464es interface
  *
  * Copyright (c) 2008, 2009 Tim Blechmann <tim@klingt.org>
- *
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; see the file COPYING.  If not, write to
- * the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
- *
  */
 
 #include <linux/module.h>
@@ -77,7 +61,7 @@ MODULE_DEVICE_TABLE(pci, snd_lx6464es_ids);
 
 
 /* alsa callbacks */
-static struct snd_pcm_hardware lx_caps = {
+static const struct snd_pcm_hardware lx_caps = {
 	.info             = (SNDRV_PCM_INFO_MMAP |
 			     SNDRV_PCM_INFO_INTERLEAVED |
 			     SNDRV_PCM_INFO_MMAP_VALID |
@@ -269,9 +253,8 @@ exit:
 
 static int lx_pcm_close(struct snd_pcm_substream *substream)
 {
-	int err = 0;
 	dev_dbg(substream->pcm->card->dev, "->lx_pcm_close\n");
-	return err;
+	return 0;
 }
 
 static snd_pcm_uframes_t lx_pcm_stream_pointer(struct snd_pcm_substream
@@ -854,11 +837,9 @@ static int lx_pcm_create(struct lx6464es *chip)
 	pcm->nonatomic = true;
 	strcpy(pcm->name, card_name);
 
-	err = snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-						    snd_dma_pci_data(chip->pci),
-						    size, size);
-	if (err < 0)
-		return err;
+	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
+					      snd_dma_pci_data(chip->pci),
+					      size, size);
 
 	chip->pcm = pcm;
 	chip->capture_stream.is_capture = 1;
@@ -899,7 +880,7 @@ static int lx_control_playback_put(struct snd_kcontrol *kcontrol,
 	return changed;
 }
 
-static struct snd_kcontrol_new lx_control_playback_switch = {
+static const struct snd_kcontrol_new lx_control_playback_switch = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "PCM Playback Switch",
 	.index = 0,
@@ -948,13 +929,7 @@ static void lx_proc_levels_read(struct snd_info_entry *entry,
 
 static int lx_proc_create(struct snd_card *card, struct lx6464es *chip)
 {
-	struct snd_info_entry *entry;
-	int err = snd_card_proc_new(card, "levels", &entry);
-	if (err < 0)
-		return err;
-
-	snd_info_set_text_ops(entry, chip, lx_proc_levels_read);
-	return 0;
+	return snd_card_ro_proc_new(card, "levels", chip, lx_proc_levels_read);
 }
 
 
@@ -1016,6 +991,11 @@ static int snd_lx6464es_create(struct snd_card *card,
 
 	/* dsp port */
 	chip->port_dsp_bar = pci_ioremap_bar(pci, 2);
+	if (!chip->port_dsp_bar) {
+		dev_err(card->dev, "cannot remap PCI memory region\n");
+		err = -ENOMEM;
+		goto remap_pci_failed;
+	}
 
 	err = request_threaded_irq(pci->irq, lx_interrupt, lx_threaded_irq,
 				   IRQF_SHARED, KBUILD_MODNAME, chip);
@@ -1055,6 +1035,9 @@ device_new_failed:
 	free_irq(pci->irq, chip);
 
 request_irq_failed:
+	iounmap(chip->port_dsp_bar);
+
+remap_pci_failed:
 	pci_release_regions(pci);
 
 request_regions_failed:

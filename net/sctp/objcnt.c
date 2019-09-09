@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* SCTP kernel implementation
  * (C) Copyright IBM Corp. 2001, 2004
  *
@@ -6,22 +7,6 @@
  * Support for memory object debugging.  This allows one to monitor the
  * object allocations/deallocations for types instrumented for this
  * via the proc fs.
- *
- * This SCTP implementation is free software;
- * you can redistribute it and/or modify it under the terms of
- * the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This SCTP implementation is distributed in the hope that it
- * will be useful, but WITHOUT ANY WARRANTY; without even the implied
- *                 ************************
- * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- * See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with GNU CC; see the file COPYING.  If not, see
- * <http://www.gnu.org/licenses/>.
  *
  * Please send any bug reports or fixes you make to the
  * email address(es):
@@ -51,14 +36,13 @@ SCTP_DBG_OBJCNT(bind_addr);
 SCTP_DBG_OBJCNT(bind_bucket);
 SCTP_DBG_OBJCNT(chunk);
 SCTP_DBG_OBJCNT(addr);
-SCTP_DBG_OBJCNT(ssnmap);
 SCTP_DBG_OBJCNT(datamsg);
 SCTP_DBG_OBJCNT(keys);
 
 /* An array to make it easy to pretty print the debug information
  * to the proc fs.
  */
-static sctp_dbg_objcnt_entry_t sctp_dbg_objcnt[] = {
+static struct sctp_dbg_objcnt_entry sctp_dbg_objcnt[] = {
 	SCTP_DBG_OBJCNT_ENTRY(sock),
 	SCTP_DBG_OBJCNT_ENTRY(ep),
 	SCTP_DBG_OBJCNT_ENTRY(assoc),
@@ -67,7 +51,6 @@ static sctp_dbg_objcnt_entry_t sctp_dbg_objcnt[] = {
 	SCTP_DBG_OBJCNT_ENTRY(bind_addr),
 	SCTP_DBG_OBJCNT_ENTRY(bind_bucket),
 	SCTP_DBG_OBJCNT_ENTRY(addr),
-	SCTP_DBG_OBJCNT_ENTRY(ssnmap),
 	SCTP_DBG_OBJCNT_ENTRY(datamsg),
 	SCTP_DBG_OBJCNT_ENTRY(keys),
 };
@@ -110,33 +93,13 @@ static const struct seq_operations sctp_objcnt_seq_ops = {
 	.show  = sctp_objcnt_seq_show,
 };
 
-static int sctp_objcnt_seq_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &sctp_objcnt_seq_ops);
-}
-
-static const struct file_operations sctp_objcnt_ops = {
-	.open	 = sctp_objcnt_seq_open,
-	.read	 = seq_read,
-	.llseek	 = seq_lseek,
-	.release = seq_release,
-};
-
 /* Initialize the objcount in the proc filesystem.  */
 void sctp_dbg_objcnt_init(struct net *net)
 {
 	struct proc_dir_entry *ent;
 
-	ent = proc_create("sctp_dbg_objcnt", 0,
-			  net->sctp.proc_net_sctp, &sctp_objcnt_ops);
+	ent = proc_create_seq("sctp_dbg_objcnt", 0,
+			  net->sctp.proc_net_sctp, &sctp_objcnt_seq_ops);
 	if (!ent)
 		pr_warn("sctp_dbg_objcnt: Unable to create /proc entry.\n");
 }
-
-/* Cleanup the objcount entry in the proc filesystem.  */
-void sctp_dbg_objcnt_exit(struct net *net)
-{
-	remove_proc_entry("sctp_dbg_objcnt", net->sctp.proc_net_sctp);
-}
-
-

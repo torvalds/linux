@@ -1,19 +1,14 @@
-/* rc-dvb0700-big.c - Keytable for devices in dvb0700
- *
- * Copyright (c) 2010 by Mauro Carvalho Chehab
- *
- * TODO: This table is a real mess, as it merges RC codes from several
- * devices into a big table. It also has both RC-5 and NEC codes inside.
- * It should be broken into small tables, and the protocols should properly
- * be identificated.
- *
- * The table were imported from dib0700_devices.c.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- */
+// SPDX-License-Identifier: GPL-2.0+
+// rc-dvb0700-big.c - Keytable for devices in dvb0700
+//
+// Copyright (c) 2010 by Mauro Carvalho Chehab
+//
+// TODO: This table is a real mess, as it merges RC codes from several
+// devices into a big table. It also has both RC-5 and NEC codes inside.
+// It should be broken into small tables, and the protocols should properly
+// be identificated.
+//
+// The table were imported from dib0700_devices.c.
 
 #include <media/rc-map.h>
 #include <linux/module.h>
@@ -22,16 +17,16 @@ static struct rc_map_table dib0700_nec_table[] = {
 	/* Key codes for the Pixelview SBTVD remote */
 	{ 0x866b13, KEY_MUTE },
 	{ 0x866b12, KEY_POWER },
-	{ 0x866b01, KEY_1 },
-	{ 0x866b02, KEY_2 },
-	{ 0x866b03, KEY_3 },
-	{ 0x866b04, KEY_4 },
-	{ 0x866b05, KEY_5 },
-	{ 0x866b06, KEY_6 },
-	{ 0x866b07, KEY_7 },
-	{ 0x866b08, KEY_8 },
-	{ 0x866b09, KEY_9 },
-	{ 0x866b00, KEY_0 },
+	{ 0x866b01, KEY_NUMERIC_1 },
+	{ 0x866b02, KEY_NUMERIC_2 },
+	{ 0x866b03, KEY_NUMERIC_3 },
+	{ 0x866b04, KEY_NUMERIC_4 },
+	{ 0x866b05, KEY_NUMERIC_5 },
+	{ 0x866b06, KEY_NUMERIC_6 },
+	{ 0x866b07, KEY_NUMERIC_7 },
+	{ 0x866b08, KEY_NUMERIC_8 },
+	{ 0x866b09, KEY_NUMERIC_9 },
+	{ 0x866b00, KEY_NUMERIC_0 },
 	{ 0x866b0d, KEY_CHANNELUP },
 	{ 0x866b19, KEY_CHANNELDOWN },
 	{ 0x866b10, KEY_VOLUMEUP },
@@ -65,17 +60,17 @@ static struct rc_map_table dib0700_nec_table[] = {
 	/* Key codes for the Elgato EyeTV Diversity silver remote */
 	{ 0x4501, KEY_POWER },
 	{ 0x4502, KEY_MUTE },
-	{ 0x4503, KEY_1 },
-	{ 0x4504, KEY_2 },
-	{ 0x4505, KEY_3 },
-	{ 0x4506, KEY_4 },
-	{ 0x4507, KEY_5 },
-	{ 0x4508, KEY_6 },
-	{ 0x4509, KEY_7 },
-	{ 0x450a, KEY_8 },
-	{ 0x450b, KEY_9 },
+	{ 0x4503, KEY_NUMERIC_1 },
+	{ 0x4504, KEY_NUMERIC_2 },
+	{ 0x4505, KEY_NUMERIC_3 },
+	{ 0x4506, KEY_NUMERIC_4 },
+	{ 0x4507, KEY_NUMERIC_5 },
+	{ 0x4508, KEY_NUMERIC_6 },
+	{ 0x4509, KEY_NUMERIC_7 },
+	{ 0x450a, KEY_NUMERIC_8 },
+	{ 0x450b, KEY_NUMERIC_9 },
 	{ 0x450c, KEY_LAST },
-	{ 0x450d, KEY_0 },
+	{ 0x450d, KEY_NUMERIC_0 },
 	{ 0x450e, KEY_ENTER },
 	{ 0x450f, KEY_RED },
 	{ 0x4510, KEY_CHANNELUP },
@@ -101,10 +96,10 @@ static struct rc_map_table dib0700_nec_table[] = {
 
 static struct rc_map_list dib0700_nec_map = {
 	.map = {
-		.scan    = dib0700_nec_table,
-		.size    = ARRAY_SIZE(dib0700_nec_table),
-		.rc_type = RC_TYPE_NEC,
-		.name    = RC_MAP_DIB0700_NEC_TABLE,
+		.scan     = dib0700_nec_table,
+		.size     = ARRAY_SIZE(dib0700_nec_table),
+		.rc_proto = RC_PROTO_NEC,
+		.name     = RC_MAP_DIB0700_NEC_TABLE,
 	}
 };
 

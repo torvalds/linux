@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2015, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include "msm_kms.h"
@@ -72,11 +64,12 @@ static int dsi_mgr_parse_dual_dsi(struct device_node *np, int id)
 	return 0;
 }
 
-static int dsi_mgr_host_register(int id)
+static int dsi_mgr_setup_components(int id)
 {
 	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
 	struct msm_dsi *other_dsi = dsi_mgr_get_other_dsi(id);
 	struct msm_dsi *clk_master_dsi = dsi_mgr_get_dsi(DSI_CLOCK_MASTER);
+	struct msm_dsi *clk_slave_dsi = dsi_mgr_get_dsi(DSI_CLOCK_SLAVE);
 	struct msm_dsi_pll *src_pll;
 	int ret;
 
@@ -85,15 +78,18 @@ static int dsi_mgr_host_register(int id)
 		if (ret)
 			return ret;
 
+		msm_dsi_phy_set_usecase(msm_dsi->phy, MSM_DSI_PHY_STANDALONE);
 		src_pll = msm_dsi_phy_get_pll(msm_dsi->phy);
+		if (IS_ERR(src_pll))
+			return PTR_ERR(src_pll);
 		ret = msm_dsi_host_set_src_pll(msm_dsi->host, src_pll);
 	} else if (!other_dsi) {
 		ret = 0;
 	} else {
-		struct msm_dsi *mdsi = IS_MASTER_DSI_LINK(id) ?
-					msm_dsi : other_dsi;
-		struct msm_dsi *sdsi = IS_MASTER_DSI_LINK(id) ?
-					other_dsi : msm_dsi;
+		struct msm_dsi *master_link_dsi = IS_MASTER_DSI_LINK(id) ?
+							msm_dsi : other_dsi;
+		struct msm_dsi *slave_link_dsi = IS_MASTER_DSI_LINK(id) ?
+							other_dsi : msm_dsi;
 		/* Register slave host first, so that slave DSI device
 		 * has a chance to probe, and do not block the master
 		 * DSI device's probe.
@@ -101,15 +97,21 @@ static int dsi_mgr_host_register(int id)
 		 * because only master DSI device adds the panel to global
 		 * panel list. The panel's device is the master DSI device.
 		 */
-		ret = msm_dsi_host_register(sdsi->host, false);
+		ret = msm_dsi_host_register(slave_link_dsi->host, false);
 		if (ret)
 			return ret;
-		ret = msm_dsi_host_register(mdsi->host, true);
+		ret = msm_dsi_host_register(master_link_dsi->host, true);
 		if (ret)
 			return ret;
 
 		/* PLL0 is to drive both 2 DSI link clocks in Dual DSI mode. */
+		msm_dsi_phy_set_usecase(clk_master_dsi->phy,
+					MSM_DSI_PHY_MASTER);
+		msm_dsi_phy_set_usecase(clk_slave_dsi->phy,
+					MSM_DSI_PHY_SLAVE);
 		src_pll = msm_dsi_phy_get_pll(clk_master_dsi->phy);
+		if (IS_ERR(src_pll))
+			return PTR_ERR(src_pll);
 		ret = msm_dsi_host_set_src_pll(msm_dsi->host, src_pll);
 		if (ret)
 			return ret;
@@ -117,6 +119,85 @@ static int dsi_mgr_host_register(int id)
 	}
 
 	return ret;
+}
+
+static int enable_phy(struct msm_dsi *msm_dsi, int src_pll_id,
+		      struct msm_dsi_phy_shared_timings *shared_timings)
+{
+	struct msm_dsi_phy_clk_request clk_req;
+	int ret;
+	bool is_dual_dsi = IS_DUAL_DSI();
+
+	msm_dsi_host_get_phy_clk_req(msm_dsi->host, &clk_req, is_dual_dsi);
+
+	ret = msm_dsi_phy_enable(msm_dsi->phy, src_pll_id, &clk_req);
+	msm_dsi_phy_get_shared_timings(msm_dsi->phy, shared_timings);
+
+	return ret;
+}
+
+static int
+dsi_mgr_phy_enable(int id,
+		   struct msm_dsi_phy_shared_timings shared_timings[DSI_MAX])
+{
+	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
+	struct msm_dsi *mdsi = dsi_mgr_get_dsi(DSI_CLOCK_MASTER);
+	struct msm_dsi *sdsi = dsi_mgr_get_dsi(DSI_CLOCK_SLAVE);
+	int src_pll_id = IS_DUAL_DSI() ? DSI_CLOCK_MASTER : id;
+	int ret;
+
+	/* In case of dual DSI, some registers in PHY1 have been programmed
+	 * during PLL0 clock's set_rate. The PHY1 reset called by host1 here
+	 * will silently reset those PHY1 registers. Therefore we need to reset
+	 * and enable both PHYs before any PLL clock operation.
+	 */
+	if (IS_DUAL_DSI() && mdsi && sdsi) {
+		if (!mdsi->phy_enabled && !sdsi->phy_enabled) {
+			msm_dsi_host_reset_phy(mdsi->host);
+			msm_dsi_host_reset_phy(sdsi->host);
+
+			ret = enable_phy(mdsi, src_pll_id,
+					 &shared_timings[DSI_CLOCK_MASTER]);
+			if (ret)
+				return ret;
+			ret = enable_phy(sdsi, src_pll_id,
+					 &shared_timings[DSI_CLOCK_SLAVE]);
+			if (ret) {
+				msm_dsi_phy_disable(mdsi->phy);
+				return ret;
+			}
+		}
+	} else {
+		msm_dsi_host_reset_phy(msm_dsi->host);
+		ret = enable_phy(msm_dsi, src_pll_id, &shared_timings[id]);
+		if (ret)
+			return ret;
+	}
+
+	msm_dsi->phy_enabled = true;
+
+	return 0;
+}
+
+static void dsi_mgr_phy_disable(int id)
+{
+	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
+	struct msm_dsi *mdsi = dsi_mgr_get_dsi(DSI_CLOCK_MASTER);
+	struct msm_dsi *sdsi = dsi_mgr_get_dsi(DSI_CLOCK_SLAVE);
+
+	/* disable DSI phy
+	 * In dual-dsi configuration, the phy should be disabled for the
+	 * first controller only when the second controller is disabled.
+	 */
+	msm_dsi->phy_enabled = false;
+	if (IS_DUAL_DSI() && mdsi && sdsi) {
+		if (!mdsi->phy_enabled && !sdsi->phy_enabled) {
+			msm_dsi_phy_disable(sdsi->phy);
+			msm_dsi_phy_disable(mdsi->phy);
+		}
+	} else {
+		msm_dsi_phy_disable(msm_dsi->phy);
+	}
 }
 
 struct dsi_connector {
@@ -144,53 +225,79 @@ static int dsi_mgr_bridge_get_id(struct drm_bridge *bridge)
 	return dsi_bridge->id;
 }
 
+static bool dsi_mgr_is_cmd_mode(struct msm_dsi *msm_dsi)
+{
+	unsigned long host_flags = msm_dsi_host_get_mode_flags(msm_dsi->host);
+	return !(host_flags & MIPI_DSI_MODE_VIDEO);
+}
+
+void msm_dsi_manager_setup_encoder(int id)
+{
+	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
+	struct msm_drm_private *priv = msm_dsi->dev->dev_private;
+	struct msm_kms *kms = priv->kms;
+	struct drm_encoder *encoder = msm_dsi_get_encoder(msm_dsi);
+
+	if (encoder && kms->funcs->set_encoder_mode)
+		kms->funcs->set_encoder_mode(kms, encoder,
+					     dsi_mgr_is_cmd_mode(msm_dsi));
+}
+
+static int msm_dsi_manager_panel_init(struct drm_connector *conn, u8 id)
+{
+	struct msm_drm_private *priv = conn->dev->dev_private;
+	struct msm_kms *kms = priv->kms;
+	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
+	struct msm_dsi *other_dsi = dsi_mgr_get_other_dsi(id);
+	struct msm_dsi *master_dsi, *slave_dsi;
+	struct drm_panel *panel;
+
+	if (IS_DUAL_DSI() && !IS_MASTER_DSI_LINK(id)) {
+		master_dsi = other_dsi;
+		slave_dsi = msm_dsi;
+	} else {
+		master_dsi = msm_dsi;
+		slave_dsi = other_dsi;
+	}
+
+	/*
+	 * There is only 1 panel in the global panel list for dual DSI mode.
+	 * Therefore slave dsi should get the drm_panel instance from master
+	 * dsi.
+	 */
+	panel = msm_dsi_host_get_panel(master_dsi->host);
+	if (IS_ERR(panel)) {
+		DRM_ERROR("Could not find panel for %u (%ld)\n", msm_dsi->id,
+			  PTR_ERR(panel));
+		return PTR_ERR(panel);
+	}
+
+	if (!panel || !IS_DUAL_DSI())
+		goto out;
+
+	drm_object_attach_property(&conn->base,
+				   conn->dev->mode_config.tile_property, 0);
+
+	/*
+	 * Set split display info to kms once dual DSI panel is connected to
+	 * both hosts.
+	 */
+	if (other_dsi && other_dsi->panel && kms->funcs->set_split_display) {
+		kms->funcs->set_split_display(kms, master_dsi->encoder,
+					      slave_dsi->encoder,
+					      dsi_mgr_is_cmd_mode(msm_dsi));
+	}
+
+out:
+	msm_dsi->panel = panel;
+	return 0;
+}
+
 static enum drm_connector_status dsi_mgr_connector_detect(
 		struct drm_connector *connector, bool force)
 {
 	int id = dsi_mgr_connector_get_id(connector);
 	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
-	struct msm_dsi *other_dsi = dsi_mgr_get_other_dsi(id);
-	struct msm_drm_private *priv = connector->dev->dev_private;
-	struct msm_kms *kms = priv->kms;
-
-	DBG("id=%d", id);
-	if (!msm_dsi->panel) {
-		msm_dsi->panel = msm_dsi_host_get_panel(msm_dsi->host,
-						&msm_dsi->device_flags);
-
-		/* There is only 1 panel in the global panel list
-		 * for dual DSI mode. Therefore slave dsi should get
-		 * the drm_panel instance from master dsi, and
-		 * keep using the panel flags got from the current DSI link.
-		 */
-		if (!msm_dsi->panel && IS_DUAL_DSI() &&
-			!IS_MASTER_DSI_LINK(id) && other_dsi)
-			msm_dsi->panel = msm_dsi_host_get_panel(
-					other_dsi->host, NULL);
-
-		if (msm_dsi->panel && IS_DUAL_DSI())
-			drm_object_attach_property(&connector->base,
-				connector->dev->mode_config.tile_property, 0);
-
-		/* Set split display info to kms once dual DSI panel is
-		 * connected to both hosts.
-		 */
-		if (msm_dsi->panel && IS_DUAL_DSI() &&
-			other_dsi && other_dsi->panel) {
-			bool cmd_mode = !(msm_dsi->device_flags &
-						MIPI_DSI_MODE_VIDEO);
-			struct drm_encoder *encoder = msm_dsi_get_encoder(
-					dsi_mgr_get_dsi(DSI_ENCODER_MASTER));
-			struct drm_encoder *slave_enc = msm_dsi_get_encoder(
-					dsi_mgr_get_dsi(DSI_ENCODER_SLAVE));
-
-			if (kms->funcs->set_split_display)
-				kms->funcs->set_split_display(kms, encoder,
-							slave_enc, cmd_mode);
-			else
-				pr_err("mdp does not support dual DSI\n");
-		}
-	}
 
 	return msm_dsi->panel ? connector_status_connected :
 		connector_status_disconnected;
@@ -207,101 +314,24 @@ static void dsi_mgr_connector_destroy(struct drm_connector *connector)
 	kfree(dsi_connector);
 }
 
-static void dsi_dual_connector_fix_modes(struct drm_connector *connector)
-{
-	struct drm_display_mode *mode, *m;
-
-	/* Only support left-right mode */
-	list_for_each_entry_safe(mode, m, &connector->probed_modes, head) {
-		mode->clock >>= 1;
-		mode->hdisplay >>= 1;
-		mode->hsync_start >>= 1;
-		mode->hsync_end >>= 1;
-		mode->htotal >>= 1;
-		drm_mode_set_name(mode);
-	}
-}
-
-static int dsi_dual_connector_tile_init(
-			struct drm_connector *connector, int id)
-{
-	struct drm_display_mode *mode;
-	/* Fake topology id */
-	char topo_id[8] = {'M', 'S', 'M', 'D', 'U', 'D', 'S', 'I'};
-
-	if (connector->tile_group) {
-		DBG("Tile property has been initialized");
-		return 0;
-	}
-
-	/* Use the first mode only for now */
-	mode = list_first_entry(&connector->probed_modes,
-				struct drm_display_mode,
-				head);
-	if (!mode)
-		return -EINVAL;
-
-	connector->tile_group = drm_mode_get_tile_group(
-					connector->dev, topo_id);
-	if (!connector->tile_group)
-		connector->tile_group = drm_mode_create_tile_group(
-					connector->dev, topo_id);
-	if (!connector->tile_group) {
-		pr_err("%s: failed to create tile group\n", __func__);
-		return -ENOMEM;
-	}
-
-	connector->has_tile = true;
-	connector->tile_is_single_monitor = true;
-
-	/* mode has been fixed */
-	connector->tile_h_size = mode->hdisplay;
-	connector->tile_v_size = mode->vdisplay;
-
-	/* Only support left-right mode */
-	connector->num_h_tile = 2;
-	connector->num_v_tile = 1;
-
-	connector->tile_v_loc = 0;
-	connector->tile_h_loc = (id == DSI_RIGHT) ? 1 : 0;
-
-	return 0;
-}
-
 static int dsi_mgr_connector_get_modes(struct drm_connector *connector)
 {
 	int id = dsi_mgr_connector_get_id(connector);
 	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
 	struct drm_panel *panel = msm_dsi->panel;
-	int ret, num;
+	int num;
 
 	if (!panel)
 		return 0;
 
-	/* Since we have 2 connectors, but only 1 drm_panel in dual DSI mode,
-	 * panel should not attach to any connector.
-	 * Only temporarily attach panel to the current connector here,
-	 * to let panel set mode to this connector.
+	/*
+	 * In dual DSI mode, we have one connector that can be
+	 * attached to the drm_panel.
 	 */
 	drm_panel_attach(panel, connector);
 	num = drm_panel_get_modes(panel);
-	drm_panel_detach(panel);
 	if (!num)
 		return 0;
-
-	if (IS_DUAL_DSI()) {
-		/* report half resolution to user */
-		dsi_dual_connector_fix_modes(connector);
-		ret = dsi_dual_connector_tile_init(connector, id);
-		if (ret)
-			return ret;
-		ret = drm_mode_connector_set_tile_property(connector);
-		if (ret) {
-			pr_err("%s: set tile property failed, %d\n",
-					__func__, ret);
-			return ret;
-		}
-	}
 
 	return num;
 }
@@ -344,22 +374,31 @@ static void dsi_mgr_bridge_pre_enable(struct drm_bridge *bridge)
 	struct msm_dsi *msm_dsi1 = dsi_mgr_get_dsi(DSI_1);
 	struct mipi_dsi_host *host = msm_dsi->host;
 	struct drm_panel *panel = msm_dsi->panel;
+	struct msm_dsi_phy_shared_timings phy_shared_timings[DSI_MAX];
 	bool is_dual_dsi = IS_DUAL_DSI();
 	int ret;
 
 	DBG("id=%d", id);
-	if (!msm_dsi_device_connected(msm_dsi) ||
-			(is_dual_dsi && (DSI_1 == id)))
+	if (!msm_dsi_device_connected(msm_dsi))
 		return;
 
-	ret = msm_dsi_host_power_on(host);
+	ret = dsi_mgr_phy_enable(id, phy_shared_timings);
+	if (ret)
+		goto phy_en_fail;
+
+	/* Do nothing with the host if it is slave-DSI in case of dual DSI */
+	if (is_dual_dsi && !IS_MASTER_DSI_LINK(id))
+		return;
+
+	ret = msm_dsi_host_power_on(host, &phy_shared_timings[id], is_dual_dsi);
 	if (ret) {
 		pr_err("%s: power on host %d failed, %d\n", __func__, id, ret);
 		goto host_on_fail;
 	}
 
 	if (is_dual_dsi && msm_dsi1) {
-		ret = msm_dsi_host_power_on(msm_dsi1->host);
+		ret = msm_dsi_host_power_on(msm_dsi1->host,
+				&phy_shared_timings[DSI_1], is_dual_dsi);
 		if (ret) {
 			pr_err("%s: power on host1 failed, %d\n",
 							__func__, ret);
@@ -418,6 +457,8 @@ panel_prep_fail:
 host1_on_fail:
 	msm_dsi_host_power_off(host);
 host_on_fail:
+	dsi_mgr_phy_disable(id);
+phy_en_fail:
 	return;
 }
 
@@ -443,9 +484,16 @@ static void dsi_mgr_bridge_post_disable(struct drm_bridge *bridge)
 
 	DBG("id=%d", id);
 
-	if (!msm_dsi_device_connected(msm_dsi) ||
-			(is_dual_dsi && (DSI_1 == id)))
+	if (!msm_dsi_device_connected(msm_dsi))
 		return;
+
+	/*
+	 * Do nothing with the host if it is slave-DSI in case of dual DSI.
+	 * It is safe to call dsi_mgr_phy_disable() here because a single PHY
+	 * won't be diabled until both PHYs request disable.
+	 */
+	if (is_dual_dsi && !IS_MASTER_DSI_LINK(id))
+		goto disable_phy;
 
 	if (panel) {
 		ret = drm_panel_disable(panel);
@@ -481,11 +529,14 @@ static void dsi_mgr_bridge_post_disable(struct drm_bridge *bridge)
 			pr_err("%s: host1 power off failed, %d\n",
 								__func__, ret);
 	}
+
+disable_phy:
+	dsi_mgr_phy_disable(id);
 }
 
 static void dsi_mgr_bridge_mode_set(struct drm_bridge *bridge,
-		struct drm_display_mode *mode,
-		struct drm_display_mode *adjusted_mode)
+		const struct drm_display_mode *mode,
+		const struct drm_display_mode *adjusted_mode)
 {
 	int id = dsi_mgr_bridge_get_id(bridge);
 	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
@@ -493,16 +544,9 @@ static void dsi_mgr_bridge_mode_set(struct drm_bridge *bridge,
 	struct mipi_dsi_host *host = msm_dsi->host;
 	bool is_dual_dsi = IS_DUAL_DSI();
 
-	DBG("set mode: %d:\"%s\" %d %d %d %d %d %d %d %d %d %d 0x%x 0x%x",
-			mode->base.id, mode->name,
-			mode->vrefresh, mode->clock,
-			mode->hdisplay, mode->hsync_start,
-			mode->hsync_end, mode->htotal,
-			mode->vdisplay, mode->vsync_start,
-			mode->vsync_end, mode->vtotal,
-			mode->type, mode->flags);
+	DBG("set mode: " DRM_MODE_FMT, DRM_MODE_ARG(mode));
 
-	if (is_dual_dsi && (DSI_1 == id))
+	if (is_dual_dsi && !IS_MASTER_DSI_LINK(id))
 		return;
 
 	msm_dsi_host_set_display_mode(host, adjusted_mode);
@@ -511,7 +555,6 @@ static void dsi_mgr_bridge_mode_set(struct drm_bridge *bridge,
 }
 
 static const struct drm_connector_funcs dsi_mgr_connector_funcs = {
-	.dpms = drm_atomic_helper_connector_dpms,
 	.detect = dsi_mgr_connector_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = dsi_mgr_connector_destroy,
@@ -540,7 +583,7 @@ struct drm_connector *msm_dsi_manager_connector_init(u8 id)
 	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
 	struct drm_connector *connector = NULL;
 	struct dsi_connector *dsi_connector;
-	int ret, i;
+	int ret;
 
 	dsi_connector = kzalloc(sizeof(*dsi_connector), GFP_KERNEL);
 	if (!dsi_connector)
@@ -566,11 +609,36 @@ struct drm_connector *msm_dsi_manager_connector_init(u8 id)
 	connector->interlace_allowed = 0;
 	connector->doublescan_allowed = 0;
 
-	for (i = 0; i < MSM_DSI_ENCODER_NUM; i++)
-		drm_mode_connector_attach_encoder(connector,
-						msm_dsi->encoders[i]);
+	drm_connector_attach_encoder(connector, msm_dsi->encoder);
+
+	ret = msm_dsi_manager_panel_init(connector, id);
+	if (ret) {
+		DRM_DEV_ERROR(msm_dsi->dev->dev, "init panel failed %d\n", ret);
+		goto fail;
+	}
 
 	return connector;
+
+fail:
+	connector->funcs->destroy(msm_dsi->connector);
+	return ERR_PTR(ret);
+}
+
+bool msm_dsi_manager_validate_current_config(u8 id)
+{
+	bool is_dual_dsi = IS_DUAL_DSI();
+
+	/*
+	 * For dual DSI, we only have one drm panel. For this
+	 * use case, we register only one bridge/connector.
+	 * Skip bridge/connector initialisation if it is
+	 * slave-DSI for dual DSI configuration.
+	 */
+	if (is_dual_dsi && !IS_MASTER_DSI_LINK(id)) {
+		DBG("Skip bridge registration for slave DSI->id: %d\n", id);
+		return false;
+	}
+	return true;
 }
 
 /* initialize bridge */
@@ -579,6 +647,7 @@ struct drm_bridge *msm_dsi_manager_bridge_init(u8 id)
 	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
 	struct drm_bridge *bridge = NULL;
 	struct dsi_bridge *dsi_bridge;
+	struct drm_encoder *encoder;
 	int ret;
 
 	dsi_bridge = devm_kzalloc(msm_dsi->dev->dev,
@@ -590,10 +659,12 @@ struct drm_bridge *msm_dsi_manager_bridge_init(u8 id)
 
 	dsi_bridge->id = id;
 
+	encoder = msm_dsi->encoder;
+
 	bridge = &dsi_bridge->base;
 	bridge->funcs = &dsi_mgr_bridge_funcs;
 
-	ret = drm_bridge_attach(msm_dsi->dev, bridge);
+	ret = drm_bridge_attach(encoder, bridge, NULL);
 	if (ret)
 		goto fail;
 
@@ -619,20 +690,10 @@ struct drm_connector *msm_dsi_manager_ext_bridge_init(u8 id)
 	ext_bridge = msm_dsi->external_bridge =
 			msm_dsi_host_get_bridge(msm_dsi->host);
 
-	/*
-	 * HACK: we may not know the external DSI bridge device's mode
-	 * flags here. We'll get to know them only when the device
-	 * attaches to the dsi host. For now, assume the bridge supports
-	 * DSI video mode
-	 */
-	encoder = msm_dsi->encoders[MSM_DSI_VIDEO_ENCODER_ID];
+	encoder = msm_dsi->encoder;
 
 	/* link the internal dsi bridge to the external bridge */
-	int_bridge->next = ext_bridge;
-	/* set the external bridge's encoder as dsi's encoder */
-	ext_bridge->encoder = encoder;
-
-	drm_bridge_attach(dev, ext_bridge);
+	drm_bridge_attach(encoder, ext_bridge, int_bridge);
 
 	/*
 	 * we need the drm_connector created by the external bridge
@@ -642,12 +703,8 @@ struct drm_connector *msm_dsi_manager_ext_bridge_init(u8 id)
 	connector_list = &dev->mode_config.connector_list;
 
 	list_for_each_entry(connector, connector_list, head) {
-		int i;
-
-		for (i = 0; i < DRM_CONNECTOR_MAX_ENCODER; i++) {
-			if (connector->encoder_ids[i] == encoder->base.id)
-				return connector;
-		}
+		if (drm_connector_has_possible_encoder(connector, encoder))
+			return connector;
 	}
 
 	return ERR_PTR(-ENODEV);
@@ -655,68 +712,6 @@ struct drm_connector *msm_dsi_manager_ext_bridge_init(u8 id)
 
 void msm_dsi_manager_bridge_destroy(struct drm_bridge *bridge)
 {
-}
-
-int msm_dsi_manager_phy_enable(int id,
-		const unsigned long bit_rate, const unsigned long esc_rate,
-		u32 *clk_pre, u32 *clk_post)
-{
-	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
-	struct msm_dsi_phy *phy = msm_dsi->phy;
-	int src_pll_id = IS_DUAL_DSI() ? DSI_CLOCK_MASTER : id;
-	struct msm_dsi_pll *pll = msm_dsi_phy_get_pll(msm_dsi->phy);
-	int ret;
-
-	ret = msm_dsi_phy_enable(phy, src_pll_id, bit_rate, esc_rate);
-	if (ret)
-		return ret;
-
-	/*
-	 * Reset DSI PHY silently changes its PLL registers to reset status,
-	 * which will confuse clock driver and result in wrong output rate of
-	 * link clocks. Restore PLL status if its PLL is being used as clock
-	 * source.
-	 */
-	if (!IS_DUAL_DSI() || (id == DSI_CLOCK_MASTER)) {
-		ret = msm_dsi_pll_restore_state(pll);
-		if (ret) {
-			pr_err("%s: failed to restore pll state\n", __func__);
-			msm_dsi_phy_disable(phy);
-			return ret;
-		}
-	}
-
-	msm_dsi->phy_enabled = true;
-	msm_dsi_phy_get_clk_pre_post(phy, clk_pre, clk_post);
-
-	return 0;
-}
-
-void msm_dsi_manager_phy_disable(int id)
-{
-	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
-	struct msm_dsi *mdsi = dsi_mgr_get_dsi(DSI_CLOCK_MASTER);
-	struct msm_dsi *sdsi = dsi_mgr_get_dsi(DSI_CLOCK_SLAVE);
-	struct msm_dsi_phy *phy = msm_dsi->phy;
-	struct msm_dsi_pll *pll = msm_dsi_phy_get_pll(msm_dsi->phy);
-
-	/* Save PLL status if it is a clock source */
-	if (!IS_DUAL_DSI() || (id == DSI_CLOCK_MASTER))
-		msm_dsi_pll_save_state(pll);
-
-	/* disable DSI phy
-	 * In dual-dsi configuration, the phy should be disabled for the
-	 * first controller only when the second controller is disabled.
-	 */
-	msm_dsi->phy_enabled = false;
-	if (IS_DUAL_DSI() && mdsi && sdsi) {
-		if (!mdsi->phy_enabled && !sdsi->phy_enabled) {
-			msm_dsi_phy_disable(sdsi->phy);
-			msm_dsi_phy_disable(mdsi->phy);
-		}
-	} else {
-		msm_dsi_phy_disable(phy);
-	}
 }
 
 int msm_dsi_manager_cmd_xfer(int id, const struct mipi_dsi_msg *msg)
@@ -788,7 +783,7 @@ int msm_dsi_manager_register(struct msm_dsi *msm_dsi)
 	int id = msm_dsi->id;
 	int ret;
 
-	if (id > DSI_MAX) {
+	if (id >= DSI_MAX) {
 		pr_err("%s: invalid id %d\n", __func__, id);
 		return -EINVAL;
 	}
@@ -806,7 +801,7 @@ int msm_dsi_manager_register(struct msm_dsi *msm_dsi)
 		goto fail;
 	}
 
-	ret = dsi_mgr_host_register(id);
+	ret = dsi_mgr_setup_components(id);
 	if (ret) {
 		pr_err("%s: failed to register mipi dsi host for DSI %d\n",
 			__func__, id);
@@ -826,6 +821,8 @@ void msm_dsi_manager_unregister(struct msm_dsi *msm_dsi)
 
 	if (msm_dsi->host)
 		msm_dsi_host_unregister(msm_dsi->host);
-	msm_dsim->dsi[msm_dsi->id] = NULL;
+
+	if (msm_dsi->id >= 0)
+		msm_dsim->dsi[msm_dsi->id] = NULL;
 }
 

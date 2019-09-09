@@ -15,13 +15,11 @@
 
 #include <linux/clk.h>
 #include <linux/delay.h>
-#include <linux/gpio.h>
 #include <linux/highmem.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/slab.h>
@@ -32,7 +30,6 @@
 
 struct spear_sdhci {
 	struct clk *clk;
-	int card_int_gpio;
 };
 
 /* sdhci ops */
@@ -42,18 +39,6 @@ static const struct sdhci_ops sdhci_pltfm_ops = {
 	.reset = sdhci_reset,
 	.set_uhs_signaling = sdhci_set_uhs_signaling,
 };
-
-static void sdhci_probe_config_dt(struct device_node *np,
-				struct spear_sdhci *host)
-{
-	int cd_gpio;
-
-	cd_gpio = of_get_named_gpio(np, "cd-gpios", 0);
-	if (!gpio_is_valid(cd_gpio))
-		cd_gpio = -1;
-
-	host->card_int_gpio = cd_gpio;
-}
 
 static int sdhci_probe(struct platform_device *pdev)
 {
@@ -82,6 +67,10 @@ static int sdhci_probe(struct platform_device *pdev)
 	host->hw_name = "sdhci";
 	host->ops = &sdhci_pltfm_ops;
 	host->irq = platform_get_irq(pdev, 0);
+	if (host->irq <= 0) {
+		ret = -EINVAL;
+		goto err_host;
+	}
 	host->quirks = SDHCI_QUIRK_BROKEN_ADMA;
 
 	sdhci = sdhci_priv(host);
@@ -105,27 +94,17 @@ static int sdhci_probe(struct platform_device *pdev)
 		dev_dbg(&pdev->dev, "Error setting desired clk, clk=%lu\n",
 				clk_get_rate(sdhci->clk));
 
-	sdhci_probe_config_dt(pdev->dev.of_node, sdhci);
 	/*
-	 * It is optional to use GPIOs for sdhci card detection. If
-	 * sdhci->card_int_gpio < 0, then use original sdhci lines otherwise
-	 * GPIO lines. We use the built-in GPIO support for this.
+	 * It is optional to use GPIOs for sdhci card detection. If we
+	 * find a descriptor using slot GPIO, we use it.
 	 */
-	if (sdhci->card_int_gpio >= 0) {
-		ret = mmc_gpio_request_cd(host->mmc, sdhci->card_int_gpio, 0);
-		if (ret < 0) {
-			dev_dbg(&pdev->dev,
-				"failed to request card-detect gpio%d\n",
-				sdhci->card_int_gpio);
-			goto disable_clk;
-		}
-	}
+	ret = mmc_gpiod_request_cd(host->mmc, "cd", 0, false, 0, NULL);
+	if (ret == -EPROBE_DEFER)
+		goto disable_clk;
 
 	ret = sdhci_add_host(host);
-	if (ret) {
-		dev_dbg(&pdev->dev, "error adding host\n");
+	if (ret)
 		goto disable_clk;
-	}
 
 	platform_set_drvdata(pdev, host);
 
@@ -164,6 +143,9 @@ static int sdhci_suspend(struct device *dev)
 	struct sdhci_host *host = dev_get_drvdata(dev);
 	struct spear_sdhci *sdhci = sdhci_priv(host);
 	int ret;
+
+	if (host->tuning_mode != SDHCI_TUNING_MODE_3)
+		mmc_retune_needed(host->mmc);
 
 	ret = sdhci_suspend_host(host);
 	if (!ret)

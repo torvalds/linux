@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/arch/unicore32/kernel/time.c
  *
@@ -5,10 +6,6 @@
  *
  *	Maintained by GUAN Xue-tao <gxt@mprc.pku.edu.cn>
  *	Copyright (C) 2001-2010 Guan Xuetao
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/init.h>
 #include <linux/errno.h>
@@ -62,7 +59,7 @@ static struct clock_event_device ckevt_puv3_osmr0 = {
 	.set_state_oneshot	= puv3_osmr0_shutdown,
 };
 
-static cycle_t puv3_read_oscr(struct clocksource *cs)
+static u64 puv3_read_oscr(struct clocksource *cs)
 {
 	return readl(OST_OSCR);
 }
@@ -91,8 +88,10 @@ void __init time_init(void)
 
 	ckevt_puv3_osmr0.max_delta_ns =
 		clockevent_delta2ns(0x7fffffff, &ckevt_puv3_osmr0);
+	ckevt_puv3_osmr0.max_delta_ticks = 0x7fffffff;
 	ckevt_puv3_osmr0.min_delta_ns =
 		clockevent_delta2ns(MIN_OSCR_DELTA * 2, &ckevt_puv3_osmr0) + 1;
+	ckevt_puv3_osmr0.min_delta_ticks = MIN_OSCR_DELTA * 2;
 	ckevt_puv3_osmr0.cpumask = cpumask_of(0);
 
 	setup_irq(IRQ_TIMER0, &puv3_timer_irq);

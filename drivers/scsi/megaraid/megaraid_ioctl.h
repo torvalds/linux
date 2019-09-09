@@ -1,13 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *
  *			Linux MegaRAID device driver
  *
  * Copyright (c) 2003-2004  LSI Logic Corporation.
- *
- *	   This program is free software; you can redistribute it and/or
- *	   modify it under the terms of the GNU General Public License
- *	   as published by the Free Software Foundation; either version
- *	   2 of the License, or (at your option) any later version.
  *
  * FILE		: megaraid_ioctl.h
  *
@@ -19,6 +15,7 @@
 
 #include <linux/types.h>
 #include <linux/semaphore.h>
+#include <linux/timer.h>
 
 #include "mbox_defs.h"
 
@@ -153,6 +150,11 @@ typedef struct uioc {
 
 } __attribute__ ((aligned(1024),packed)) uioc_t;
 
+/* For on-stack uioc timers. */
+struct uioc_timeout {
+	struct timer_list timer;
+	uioc_t		  *uioc;
+};
 
 /**
  * struct mraid_hba_info - information about the controller

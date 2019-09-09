@@ -1,73 +1,99 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * arch/arm64/include/asm/arch_timer.h
  *
  * Copyright (C) 2012 ARM Ltd.
  * Author: Marc Zyngier <marc.zyngier@arm.com>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #ifndef __ASM_ARCH_TIMER_H
 #define __ASM_ARCH_TIMER_H
 
 #include <asm/barrier.h>
+#include <asm/hwcap.h>
 #include <asm/sysreg.h>
 
 #include <linux/bug.h>
 #include <linux/init.h>
 #include <linux/jump_label.h>
+#include <linux/smp.h>
 #include <linux/types.h>
 
 #include <clocksource/arm_arch_timer.h>
 
-#if IS_ENABLED(CONFIG_FSL_ERRATUM_A008585)
-extern struct static_key_false arch_timer_read_ool_enabled;
-#define needs_fsl_a008585_workaround() \
-	static_branch_unlikely(&arch_timer_read_ool_enabled)
+#if IS_ENABLED(CONFIG_ARM_ARCH_TIMER_OOL_WORKAROUND)
+#define has_erratum_handler(h)						\
+	({								\
+		const struct arch_timer_erratum_workaround *__wa;	\
+		__wa = __this_cpu_read(timer_unstable_counter_workaround); \
+		(__wa && __wa->h);					\
+	})
+
+#define erratum_handler(h)						\
+	({								\
+		const struct arch_timer_erratum_workaround *__wa;	\
+		__wa = __this_cpu_read(timer_unstable_counter_workaround); \
+		(__wa && __wa->h) ? __wa->h : arch_timer_##h;		\
+	})
+
 #else
-#define needs_fsl_a008585_workaround()  false
+#define has_erratum_handler(h)			   false
+#define erratum_handler(h)			   (arch_timer_##h)
 #endif
 
-u32 __fsl_a008585_read_cntp_tval_el0(void);
-u32 __fsl_a008585_read_cntv_tval_el0(void);
-u64 __fsl_a008585_read_cntvct_el0(void);
+enum arch_timer_erratum_match_type {
+	ate_match_dt,
+	ate_match_local_cap_id,
+	ate_match_acpi_oem_info,
+};
 
-/*
- * The number of retries is an arbitrary value well beyond the highest number
- * of iterations the loop has been observed to take.
- */
-#define __fsl_a008585_read_reg(reg) ({			\
-	u64 _old, _new;					\
-	int _retries = 200;				\
-							\
-	do {						\
-		_old = read_sysreg(reg);		\
-		_new = read_sysreg(reg);		\
-		_retries--;				\
-	} while (unlikely(_old != _new) && _retries);	\
-							\
-	WARN_ON_ONCE(!_retries);			\
-	_new;						\
-})
+struct clock_event_device;
 
-#define arch_timer_reg_read_stable(reg) 		\
-({							\
-	u64 _val;					\
-	if (needs_fsl_a008585_workaround())		\
-		_val = __fsl_a008585_read_##reg();	\
-	else						\
-		_val = read_sysreg(reg);		\
-	_val;						\
-})
+struct arch_timer_erratum_workaround {
+	enum arch_timer_erratum_match_type match_type;
+	const void *id;
+	const char *desc;
+	u32 (*read_cntp_tval_el0)(void);
+	u32 (*read_cntv_tval_el0)(void);
+	u64 (*read_cntpct_el0)(void);
+	u64 (*read_cntvct_el0)(void);
+	int (*set_next_event_phys)(unsigned long, struct clock_event_device *);
+	int (*set_next_event_virt)(unsigned long, struct clock_event_device *);
+};
+
+DECLARE_PER_CPU(const struct arch_timer_erratum_workaround *,
+		timer_unstable_counter_workaround);
+
+/* inline sysreg accessors that make erratum_handler() work */
+static inline notrace u32 arch_timer_read_cntp_tval_el0(void)
+{
+	return read_sysreg(cntp_tval_el0);
+}
+
+static inline notrace u32 arch_timer_read_cntv_tval_el0(void)
+{
+	return read_sysreg(cntv_tval_el0);
+}
+
+static inline notrace u64 arch_timer_read_cntpct_el0(void)
+{
+	return read_sysreg(cntpct_el0);
+}
+
+static inline notrace u64 arch_timer_read_cntvct_el0(void)
+{
+	return read_sysreg(cntvct_el0);
+}
+
+#define arch_timer_reg_read_stable(reg)					\
+	({								\
+		u64 _val;						\
+									\
+		preempt_disable_notrace();				\
+		_val = erratum_handler(read_ ## reg)();			\
+		preempt_enable_notrace();				\
+									\
+		_val;							\
+	})
 
 /*
  * These register accessors are marked inline so the compiler can
@@ -135,26 +161,85 @@ static inline u32 arch_timer_get_cntkctl(void)
 static inline void arch_timer_set_cntkctl(u32 cntkctl)
 {
 	write_sysreg(cntkctl, cntkctl_el1);
-}
-
-static inline u64 arch_counter_get_cntpct(void)
-{
-	/*
-	 * AArch64 kernel and user space mandate the use of CNTVCT.
-	 */
-	BUG();
-	return 0;
-}
-
-static inline u64 arch_counter_get_cntvct(void)
-{
 	isb();
-	return arch_timer_reg_read_stable(cntvct_el0);
 }
+
+/*
+ * Ensure that reads of the counter are treated the same as memory reads
+ * for the purposes of ordering by subsequent memory barriers.
+ *
+ * This insanity brought to you by speculative system register reads,
+ * out-of-order memory accesses, sequence locks and Thomas Gleixner.
+ *
+ * http://lists.infradead.org/pipermail/linux-arm-kernel/2019-February/631195.html
+ */
+#define arch_counter_enforce_ordering(val) do {				\
+	u64 tmp, _val = (val);						\
+									\
+	asm volatile(							\
+	"	eor	%0, %1, %1\n"					\
+	"	add	%0, sp, %0\n"					\
+	"	ldr	xzr, [%0]"					\
+	: "=r" (tmp) : "r" (_val));					\
+} while (0)
+
+static __always_inline u64 __arch_counter_get_cntpct_stable(void)
+{
+	u64 cnt;
+
+	isb();
+	cnt = arch_timer_reg_read_stable(cntpct_el0);
+	arch_counter_enforce_ordering(cnt);
+	return cnt;
+}
+
+static __always_inline u64 __arch_counter_get_cntpct(void)
+{
+	u64 cnt;
+
+	isb();
+	cnt = read_sysreg(cntpct_el0);
+	arch_counter_enforce_ordering(cnt);
+	return cnt;
+}
+
+static __always_inline u64 __arch_counter_get_cntvct_stable(void)
+{
+	u64 cnt;
+
+	isb();
+	cnt = arch_timer_reg_read_stable(cntvct_el0);
+	arch_counter_enforce_ordering(cnt);
+	return cnt;
+}
+
+static __always_inline u64 __arch_counter_get_cntvct(void)
+{
+	u64 cnt;
+
+	isb();
+	cnt = read_sysreg(cntvct_el0);
+	arch_counter_enforce_ordering(cnt);
+	return cnt;
+}
+
+#undef arch_counter_enforce_ordering
 
 static inline int arch_timer_arch_init(void)
 {
 	return 0;
 }
 
+static inline void arch_timer_set_evtstrm_feature(void)
+{
+	cpu_set_named_feature(EVTSTRM);
+#ifdef CONFIG_COMPAT
+	compat_elf_hwcap |= COMPAT_HWCAP_EVTSTRM;
+#endif
+}
+
+static inline bool arch_timer_have_evtstrm_feature(void)
+{
+	return cpu_have_named_feature(EVTSTRM);
+}
 #endif

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _UAPI_ASM_SPARC_IOCTLS_H
 #define _UAPI_ASM_SPARC_IOCTLS_H
 
@@ -26,8 +27,10 @@
 #define TIOCGEXCL	_IOR('T', 0x40, int) /* Get exclusive mode state */
 #define TIOCGRS485	_IOR('T', 0x41, struct serial_rs485)
 #define TIOCSRS485	_IOWR('T', 0x42, struct serial_rs485)
+#define TIOCGISO7816	_IOR('T', 0x43, struct serial_iso7816)
+#define TIOCSISO7816	_IOWR('T', 0x44, struct serial_iso7816)
 
-/* Note that all the ioctls that are not available in Linux have a 
+/* Note that all the ioctls that are not available in Linux have a
  * double underscore on the front to: a) avoid some programs to
  * think we support some ioctls under Linux (autoconfiguration stuff)
  */
@@ -88,6 +91,7 @@
 #define TIOCGPTN	_IOR('t', 134, unsigned int) /* Get Pty Number */
 #define TIOCSPTLCK	_IOW('t', 135, int) /* Lock/unlock PTY */
 #define TIOCSIG		_IOW('t', 136, int) /* Generate signal on Pty slave */
+#define TIOCGPTPEER	_IO('t', 137) /* Safely open the slave */
 
 /* Little f */
 #define FIOCLEX		_IO('f', 1)

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Freescale QUICC Engine USB Host Controller Driver
  *
@@ -8,11 +9,6 @@
  *               Peter Barada <peterb@logicpd.com>
  * Copyright (c) MontaVista Software, Inc. 2008.
  *               Anton Vorontsov <avorontsov@ru.mvista.com>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -731,8 +727,7 @@ void fhci_queue_urb(struct fhci_hcd *fhci, struct urb *urb)
 		}
 		ed->speed = (urb->dev->speed == USB_SPEED_LOW) ?
 			FHCI_LOW_SPEED : FHCI_FULL_SPEED;
-		ed->max_pkt_size = usb_maxpacket(urb->dev,
-			urb->pipe, usb_pipeout(urb->pipe));
+		ed->max_pkt_size = usb_endpoint_maxp(&urb->ep->desc);
 		urb->ep->hcpriv = ed;
 		fhci_dbg(fhci, "new ep speed=%d max_pkt_size=%d\n",
 			 ed->speed, ed->max_pkt_size);
@@ -772,8 +767,7 @@ void fhci_queue_urb(struct fhci_hcd *fhci, struct urb *urb)
 		if (urb->transfer_flags & URB_ZERO_PACKET &&
 				urb->transfer_buffer_length > 0 &&
 				((urb->transfer_buffer_length %
-				usb_maxpacket(urb->dev, urb->pipe,
-				usb_pipeout(urb->pipe))) == 0))
+				usb_endpoint_maxp(&urb->ep->desc)) == 0))
 			urb_state = US_BULK0;
 		while (data_len > 4096) {
 			td = fhci_td_fill(fhci, urb, urb_priv, ed, cnt,
@@ -811,8 +805,8 @@ void fhci_queue_urb(struct fhci_hcd *fhci, struct urb *urb)
 		break;
 	case FHCI_TF_CTRL:
 		ed->dev_addr = usb_pipedevice(urb->pipe);
-		ed->max_pkt_size = usb_maxpacket(urb->dev, urb->pipe,
-			usb_pipeout(urb->pipe));
+		ed->max_pkt_size = usb_endpoint_maxp(&urb->ep->desc);
+
 		/* setup stage */
 		td = fhci_td_fill(fhci, urb, urb_priv, ed, cnt++, FHCI_TA_SETUP,
 			USB_TD_TOGGLE_DATA0, urb->setup_packet, 8, 0, 0, true);

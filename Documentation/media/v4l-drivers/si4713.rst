@@ -1,3 +1,5 @@
+.. SPDX-License-Identifier: GPL-2.0
+
 .. include:: <isonum.txt>
 
 The Silicon Labs Si4713 FM Radio Transmitter Driver

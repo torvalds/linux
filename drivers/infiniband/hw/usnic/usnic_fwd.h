@@ -36,6 +36,7 @@
 
 #include <linux/if.h>
 #include <linux/netdevice.h>
+#include <linux/if_ether.h>
 #include <linux/pci.h>
 #include <linux/in.h>
 
@@ -56,7 +57,7 @@ struct usnic_fwd_dev {
 	char				mac[ETH_ALEN];
 	unsigned int			mtu;
 	__be32				inaddr;
-	char				name[IFNAMSIZ+1];
+	char				name[IFNAMSIZ];
 };
 
 struct usnic_fwd_flow {
@@ -74,7 +75,7 @@ struct usnic_fwd_dev *usnic_fwd_dev_alloc(struct pci_dev *pdev);
 void usnic_fwd_dev_free(struct usnic_fwd_dev *ufdev);
 
 void usnic_fwd_set_mac(struct usnic_fwd_dev *ufdev, char mac[ETH_ALEN]);
-int usnic_fwd_add_ipaddr(struct usnic_fwd_dev *ufdev, __be32 inaddr);
+void usnic_fwd_add_ipaddr(struct usnic_fwd_dev *ufdev, __be32 inaddr);
 void usnic_fwd_del_ipaddr(struct usnic_fwd_dev *ufdev);
 void usnic_fwd_carrier_up(struct usnic_fwd_dev *ufdev);
 void usnic_fwd_carrier_down(struct usnic_fwd_dev *ufdev);
@@ -97,7 +98,7 @@ static inline void usnic_fwd_init_usnic_filter(struct filter *filter,
 						uint32_t usnic_id)
 {
 	filter->type = FILTER_USNIC_ID;
-	filter->u.usnic.ethtype = USNIC_ROCE_ETHERTYPE;
+	filter->u.usnic.ethtype = ETH_P_IBOE;
 	filter->u.usnic.flags = FILTER_FIELD_USNIC_ETHTYPE |
 				FILTER_FIELD_USNIC_ID |
 				FILTER_FIELD_USNIC_PROTO;

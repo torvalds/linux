@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * pgtable.h: SpitFire page table operations.
  *
@@ -12,11 +13,13 @@
  * the SpitFire page tables.
  */
 
+#include <asm-generic/5level-fixup.h>
 #include <linux/compiler.h>
 #include <linux/const.h>
 #include <asm/types.h>
 #include <asm/spitfire.h>
 #include <asm/asi.h>
+#include <asm/adi.h>
 #include <asm/page.h>
 #include <asm/processor.h>
 
@@ -114,9 +117,6 @@ bool kern_addr_valid(unsigned long addr);
 #define _PAGE_PMD_HUGE    _AC(0x0100000000000000,UL) /* Huge page            */
 #define _PAGE_PUD_HUGE    _PAGE_PMD_HUGE
 
-/* Advertise support for _PAGE_SPECIAL */
-#define __HAVE_ARCH_PTE_SPECIAL
-
 /* SUN4U pte bits... */
 #define _PAGE_SZ4MB_4U	  _AC(0x6000000000000000,UL) /* 4MB Page             */
 #define _PAGE_SZ512K_4U	  _AC(0x4000000000000000,UL) /* 512K Page            */
@@ -162,6 +162,8 @@ bool kern_addr_valid(unsigned long addr);
 #define _PAGE_E_4V	  _AC(0x0000000000000800,UL) /* side-Effect          */
 #define _PAGE_CP_4V	  _AC(0x0000000000000400,UL) /* Cacheable in P-Cache */
 #define _PAGE_CV_4V	  _AC(0x0000000000000200,UL) /* Cacheable in V-Cache */
+/* Bit 9 is used to enable MCD corruption detection instead on M7 */
+#define _PAGE_MCD_4V      _AC(0x0000000000000200,UL) /* Memory Corruption    */
 #define _PAGE_P_4V	  _AC(0x0000000000000100,UL) /* Privileged Page      */
 #define _PAGE_EXEC_4V	  _AC(0x0000000000000080,UL) /* Executable Page      */
 #define _PAGE_W_4V	  _AC(0x0000000000000040,UL) /* Writable             */
@@ -375,7 +377,10 @@ static inline pgprot_t pgprot_noncached(pgprot_t prot)
 #define pgprot_noncached pgprot_noncached
 
 #if defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE)
-static inline unsigned long __pte_huge_mask(void)
+extern pte_t arch_make_huge_pte(pte_t entry, struct vm_area_struct *vma,
+				struct page *page, int writable);
+#define arch_make_huge_pte arch_make_huge_pte
+static inline unsigned long __pte_default_huge_mask(void)
 {
 	unsigned long mask;
 
@@ -395,17 +400,24 @@ static inline unsigned long __pte_huge_mask(void)
 
 static inline pte_t pte_mkhuge(pte_t pte)
 {
-	return __pte(pte_val(pte) | _PAGE_PMD_HUGE | __pte_huge_mask());
+	return __pte(pte_val(pte) | __pte_default_huge_mask());
 }
 
-static inline bool is_hugetlb_pte(pte_t pte)
+static inline bool is_default_hugetlb_pte(pte_t pte)
 {
-	return !!(pte_val(pte) & __pte_huge_mask());
+	unsigned long mask = __pte_default_huge_mask();
+
+	return (pte_val(pte) & mask) == mask;
 }
 
 static inline bool is_hugetlb_pmd(pmd_t pmd)
 {
 	return !!(pmd_val(pmd) & _PAGE_PMD_HUGE);
+}
+
+static inline bool is_hugetlb_pud(pud_t pud)
+{
+	return !!(pud_val(pud) & _PAGE_PUD_HUGE);
 }
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
@@ -562,6 +574,18 @@ static inline pte_t pte_mkspecial(pte_t pte)
 	return pte;
 }
 
+static inline pte_t pte_mkmcd(pte_t pte)
+{
+	pte_val(pte) |= _PAGE_MCD_4V;
+	return pte;
+}
+
+static inline pte_t pte_mknotmcd(pte_t pte)
+{
+	pte_val(pte) &= ~_PAGE_MCD_4V;
+	return pte;
+}
+
 static inline unsigned long pte_young(pte_t pte)
 {
 	unsigned long mask;
@@ -673,6 +697,16 @@ static inline unsigned long pmd_pfn(pmd_t pmd)
 	return pte_pfn(pte);
 }
 
+#define pmd_write pmd_write
+static inline unsigned long pmd_write(pmd_t pmd)
+{
+	pte_t pte = __pte(pmd_val(pmd));
+
+	return pte_write(pte);
+}
+
+#define pud_write(pud)	pte_write(__pte(pud_val(pud)))
+
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 static inline unsigned long pmd_dirty(pmd_t pmd)
 {
@@ -686,13 +720,6 @@ static inline unsigned long pmd_young(pmd_t pmd)
 	pte_t pte = __pte(pmd_val(pmd));
 
 	return pte_young(pte);
-}
-
-static inline unsigned long pmd_write(pmd_t pmd)
-{
-	pte_t pte = __pte(pmd_val(pmd));
-
-	return pte_write(pte);
 }
 
 static inline unsigned long pmd_trans_huge(pmd_t pmd)
@@ -816,9 +843,18 @@ static inline unsigned long __pmd_page(pmd_t pmd)
 
 	return ((unsigned long) __va(pfn << PAGE_SHIFT));
 }
+
+static inline unsigned long pud_page_vaddr(pud_t pud)
+{
+	pte_t pte = __pte(pud_val(pud));
+	unsigned long pfn;
+
+	pfn = pte_pfn(pte);
+
+	return ((unsigned long) __va(pfn << PAGE_SHIFT));
+}
+
 #define pmd_page(pmd) 			virt_to_page((void *)__pmd_page(pmd))
-#define pud_page_vaddr(pud)		\
-	((unsigned long) __va(pud_val(pud)))
 #define pud_page(pud) 			virt_to_page((void *)pud_page_vaddr(pud))
 #define pmd_clear(pmdp)			(pmd_val(*(pmdp)) = 0UL)
 #define pud_present(pud)		(pud_val(pud) != 0U)
@@ -826,7 +862,10 @@ static inline unsigned long __pmd_page(pmd_t pmd)
 #define pgd_page_vaddr(pgd)		\
 	((unsigned long) __va(pgd_val(pgd)))
 #define pgd_present(pgd)		(pgd_val(pgd) != 0U)
-#define pgd_clear(pgdp)			(pgd_val(*(pgd)) = 0UL)
+#define pgd_clear(pgdp)			(pgd_val(*(pgdp)) = 0UL)
+
+/* only used by the stubbed out hugetlb gup code, should never be called */
+#define pgd_page(pgd)			NULL
 
 static inline unsigned long pud_large(pud_t pud)
 {
@@ -873,12 +912,17 @@ static inline unsigned long pud_pfn(pud_t pud)
 #define pte_offset_map			pte_index
 #define pte_unmap(pte)			do { } while (0)
 
+/* We cannot include <linux/mm_types.h> at this point yet: */
+extern struct mm_struct init_mm;
+
 /* Actual page table PTE updates.  */
 void tlb_batch_add(struct mm_struct *mm, unsigned long vaddr,
-		   pte_t *ptep, pte_t orig, int fullmm);
+		   pte_t *ptep, pte_t orig, int fullmm,
+		   unsigned int hugepage_shift);
 
 static void maybe_tlb_batch_add(struct mm_struct *mm, unsigned long vaddr,
-				pte_t *ptep, pte_t orig, int fullmm)
+				pte_t *ptep, pte_t orig, int fullmm,
+				unsigned int hugepage_shift)
 {
 	/* It is more efficient to let flush_tlb_kernel_range()
 	 * handle init_mm tlb flushes.
@@ -887,7 +931,7 @@ static void maybe_tlb_batch_add(struct mm_struct *mm, unsigned long vaddr,
 	 *             and SUN4V pte layout, so this inline test is fine.
 	 */
 	if (likely(mm != &init_mm) && pte_accessible(mm, orig))
-		tlb_batch_add(mm, vaddr, ptep, orig, fullmm);
+		tlb_batch_add(mm, vaddr, ptep, orig, fullmm, hugepage_shift);
 }
 
 #define __HAVE_ARCH_PMDP_HUGE_GET_AND_CLEAR
@@ -906,7 +950,7 @@ static inline void __set_pte_at(struct mm_struct *mm, unsigned long addr,
 	pte_t orig = *ptep;
 
 	*ptep = pte;
-	maybe_tlb_batch_add(mm, addr, ptep, orig, fullmm);
+	maybe_tlb_batch_add(mm, addr, ptep, orig, fullmm, PAGE_SHIFT);
 }
 
 #define set_pte_at(mm,addr,ptep,pte)	\
@@ -951,7 +995,7 @@ void update_mmu_cache_pmd(struct vm_area_struct *vma, unsigned long addr,
 			  pmd_t *pmd);
 
 #define __HAVE_ARCH_PMDP_INVALIDATE
-extern void pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
+extern pmd_t pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
 			    pmd_t *pmdp);
 
 #define __HAVE_ARCH_PGTABLE_DEPOSIT
@@ -987,6 +1031,39 @@ int page_in_phys_avail(unsigned long paddr);
 int remap_pfn_range(struct vm_area_struct *, unsigned long, unsigned long,
 		    unsigned long, pgprot_t);
 
+void adi_restore_tags(struct mm_struct *mm, struct vm_area_struct *vma,
+		      unsigned long addr, pte_t pte);
+
+int adi_save_tags(struct mm_struct *mm, struct vm_area_struct *vma,
+		  unsigned long addr, pte_t oldpte);
+
+#define __HAVE_ARCH_DO_SWAP_PAGE
+static inline void arch_do_swap_page(struct mm_struct *mm,
+				     struct vm_area_struct *vma,
+				     unsigned long addr,
+				     pte_t pte, pte_t oldpte)
+{
+	/* If this is a new page being mapped in, there can be no
+	 * ADI tags stored away for this page. Skip looking for
+	 * stored tags
+	 */
+	if (pte_none(oldpte))
+		return;
+
+	if (adi_state.enabled && (pte_val(pte) & _PAGE_MCD_4V))
+		adi_restore_tags(mm, vma, addr, pte);
+}
+
+#define __HAVE_ARCH_UNMAP_ONE
+static inline int arch_unmap_one(struct mm_struct *mm,
+				 struct vm_area_struct *vma,
+				 unsigned long addr, pte_t oldpte)
+{
+	if (adi_state.enabled && (pte_val(oldpte) & _PAGE_MCD_4V))
+		return adi_save_tags(mm, vma, addr, oldpte);
+	return 0;
+}
+
 static inline int io_remap_pfn_range(struct vm_area_struct *vma,
 				     unsigned long from, unsigned long pfn,
 				     unsigned long size, pgprot_t prot)
@@ -1000,6 +1077,46 @@ static inline int io_remap_pfn_range(struct vm_area_struct *vma,
 	return remap_pfn_range(vma, from, phys_base >> PAGE_SHIFT, size, prot);
 }
 #define io_remap_pfn_range io_remap_pfn_range 
+
+static inline unsigned long untagged_addr(unsigned long start)
+{
+	if (adi_capable()) {
+		long addr = start;
+
+		/* If userspace has passed a versioned address, kernel
+		 * will not find it in the VMAs since it does not store
+		 * the version tags in the list of VMAs. Storing version
+		 * tags in list of VMAs is impractical since they can be
+		 * changed any time from userspace without dropping into
+		 * kernel. Any address search in VMAs will be done with
+		 * non-versioned addresses. Ensure the ADI version bits
+		 * are dropped here by sign extending the last bit before
+		 * ADI bits. IOMMU does not implement version tags.
+		 */
+		return (addr << (long)adi_nbits()) >> (long)adi_nbits();
+	}
+
+	return start;
+}
+#define untagged_addr untagged_addr
+
+static inline bool pte_access_permitted(pte_t pte, bool write)
+{
+	u64 prot;
+
+	if (tlb_type == hypervisor) {
+		prot = _PAGE_PRESENT_4V | _PAGE_P_4V;
+		if (write)
+			prot |= _PAGE_WRITE_4V;
+	} else {
+		prot = _PAGE_PRESENT_4U | _PAGE_P_4U;
+		if (write)
+			prot |= _PAGE_WRITE_4U;
+	}
+
+	return (pte_val(pte) & (prot | _PAGE_SPECIAL)) == prot;
+}
+#define pte_access_permitted pte_access_permitted
 
 #include <asm/tlbflush.h>
 #include <asm-generic/pgtable.h>

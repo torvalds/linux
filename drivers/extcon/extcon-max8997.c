@@ -1,19 +1,9 @@
-/*
- * extcon-max8997.c - MAX8997 extcon driver to support MAX8997 MUIC
- *
- *  Copyright (C) 2012 Samsung Electronics
- *  Donggeun Kim <dg77.kim@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// extcon-max8997.c - MAX8997 extcon driver to support MAX8997 MUIC
+//
+//  Copyright (C) 2012 Samsung Electronics
+//  Donggeun Kim <dg77.kim@samsung.com>
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -25,7 +15,7 @@
 #include <linux/kobject.h>
 #include <linux/mfd/max8997.h>
 #include <linux/mfd/max8997-private.h>
-#include <linux/extcon.h>
+#include <linux/extcon-provider.h>
 #include <linux/irqdomain.h>
 
 #define	DEV_NAME			"max8997-muic"
@@ -204,7 +194,7 @@ static int max8997_muic_set_debounce_time(struct max8997_muic_info *info,
 static int max8997_muic_set_path(struct max8997_muic_info *info,
 		u8 val, bool attached)
 {
-	int ret = 0;
+	int ret;
 	u8 ctrl1, ctrl2 = 0;
 
 	if (attached)
@@ -321,12 +311,10 @@ static int max8997_muic_handle_usb(struct max8997_muic_info *info,
 {
 	int ret = 0;
 
-	if (usb_type == MAX8997_USB_HOST) {
-		ret = max8997_muic_set_path(info, info->path_usb, attached);
-		if (ret < 0) {
-			dev_err(info->dev, "failed to update muic register\n");
-			return ret;
-		}
+	ret = max8997_muic_set_path(info, info->path_usb, attached);
+	if (ret < 0) {
+		dev_err(info->dev, "failed to update muic register\n");
+		return ret;
 	}
 
 	switch (usb_type) {
@@ -642,6 +630,8 @@ static int max8997_muic_probe(struct platform_device *pdev)
 	struct max8997_platform_data *pdata = dev_get_platdata(max8997->dev);
 	struct max8997_muic_info *info;
 	int delay_jiffies;
+	int cable_type;
+	bool attached;
 	int ret, i;
 
 	info = devm_kzalloc(&pdev->dev, sizeof(struct max8997_muic_info),
@@ -734,8 +724,17 @@ static int max8997_muic_probe(struct platform_device *pdev)
 		delay_jiffies = msecs_to_jiffies(DELAY_MS_DEFAULT);
 	}
 
-	/* Set initial path for UART */
-	 max8997_muic_set_path(info, info->path_uart, true);
+	/* Set initial path for UART when JIG is connected to get serial logs */
+	ret = max8997_bulk_read(info->muic, MAX8997_MUIC_REG_STATUS1,
+				2, info->status);
+	if (ret) {
+		dev_err(info->dev, "failed to read MUIC register\n");
+		return ret;
+	}
+	cable_type = max8997_muic_get_cable_type(info,
+					   MAX8997_CABLE_GROUP_ADC, &attached);
+	if (attached && cable_type == MAX8997_MUIC_ADC_FACTORY_MODE_UART_OFF)
+		max8997_muic_set_path(info, info->path_uart, true);
 
 	/* Set ADC debounce time */
 	max8997_muic_set_debounce_time(info, ADC_DEBOUNCE_TIME_25MS);

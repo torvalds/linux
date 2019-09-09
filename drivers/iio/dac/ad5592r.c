@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * AD5592R Digital <-> Analog converters driver
  *
  * Copyright 2015-2016 Analog Devices Inc.
  * Author: Paul Cercueil <paul.cercueil@analog.com>
- *
- * Licensed under the GPL-2.
  */
 
 #include "ad5592r-base.h"
@@ -13,11 +12,12 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/spi/spi.h>
+#include <linux/acpi.h>
 
 #define AD5592R_GPIO_READBACK_EN	BIT(10)
 #define AD5592R_LDAC_READBACK_EN	BIT(6)
 
-static int ad5592r_spi_wnop_r16(struct ad5592r_state *st, u16 *buf)
+static int ad5592r_spi_wnop_r16(struct ad5592r_state *st, __be16 *buf)
 {
 	struct spi_device *spi = container_of(st->dev, struct spi_device, dev);
 	struct spi_transfer t = {
@@ -148,10 +148,17 @@ static const struct of_device_id ad5592r_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, ad5592r_of_match);
 
+static const struct acpi_device_id ad5592r_acpi_match[] = {
+	{"ADS5592", },
+	{ },
+};
+MODULE_DEVICE_TABLE(acpi, ad5592r_acpi_match);
+
 static struct spi_driver ad5592r_spi_driver = {
 	.driver = {
 		.name = "ad5592r",
 		.of_match_table = of_match_ptr(ad5592r_of_match),
+		.acpi_match_table = ACPI_PTR(ad5592r_acpi_match),
 	},
 	.probe = ad5592r_spi_probe,
 	.remove = ad5592r_spi_remove,

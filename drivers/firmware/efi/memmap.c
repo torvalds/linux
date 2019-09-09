@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Common EFI memory map functions.
  */
@@ -9,6 +10,44 @@
 #include <linux/efi.h>
 #include <linux/io.h>
 #include <asm/early_ioremap.h>
+#include <linux/memblock.h>
+#include <linux/slab.h>
+
+static phys_addr_t __init __efi_memmap_alloc_early(unsigned long size)
+{
+	return memblock_phys_alloc(size, SMP_CACHE_BYTES);
+}
+
+static phys_addr_t __init __efi_memmap_alloc_late(unsigned long size)
+{
+	unsigned int order = get_order(size);
+	struct page *p = alloc_pages(GFP_KERNEL, order);
+
+	if (!p)
+		return 0;
+
+	return PFN_PHYS(page_to_pfn(p));
+}
+
+/**
+ * efi_memmap_alloc - Allocate memory for the EFI memory map
+ * @num_entries: Number of entries in the allocated map.
+ *
+ * Depending on whether mm_init() has already been invoked or not,
+ * either memblock or "normal" page allocation is used.
+ *
+ * Returns the physical address of the allocated memory map on
+ * success, zero on failure.
+ */
+phys_addr_t __init efi_memmap_alloc(unsigned int num_entries)
+{
+	unsigned long size = num_entries * efi.memmap.desc_size;
+
+	if (slab_is_available())
+		return __efi_memmap_alloc_late(size);
+
+	return __efi_memmap_alloc_early(size);
+}
 
 /**
  * __efi_memmap_init - Common code for mapping the EFI memory map
@@ -79,6 +118,9 @@ int __init efi_memmap_init_early(struct efi_memory_map_data *data)
 
 void __init efi_memmap_unmap(void)
 {
+	if (!efi_enabled(EFI_MEMMAP))
+		return;
+
 	if (!efi.memmap.late) {
 		unsigned long size;
 

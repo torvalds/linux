@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * bt878.c: part of the driver for the Pinnacle PCTV Sat DVB PCI card
  *
@@ -7,24 +8,6 @@
  * Copyright (C) 1996,97,98 Ralph  Metzler (rjkm@metzlerbros.de)
  *                        & Marcus Metzler (mocm@metzlerbros.de)
  * (c) 1999,2000 Gerd Knorr <kraxel@goldbach.in-berlin.de>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
-
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
-
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
- * Or, point your browser to http://www.gnu.org/copyleft/gpl.html
- *
  */
 
 #include <linux/module.h>
@@ -40,8 +23,8 @@
 #include <linux/vmalloc.h>
 #include <linux/init.h>
 
-#include "dmxdev.h"
-#include "dvbdev.h"
+#include <media/dmxdev.h>
+#include <media/dvbdev.h>
 #include "bt878.h"
 #include "dst_priv.h"
 
@@ -383,7 +366,7 @@ EXPORT_SYMBOL(bt878_device_control);
 		.driver_data = (unsigned long) name \
 	}
 
-static struct pci_device_id bt878_pci_tbl[] = {
+static const struct pci_device_id bt878_pci_tbl[] = {
 	BROOKTREE_878_DEVICE(0x0071, 0x0101, "Nebula Electronics DigiTV"),
 	BROOKTREE_878_DEVICE(0x1461, 0x0761, "AverMedia AverTV DVB-T 761"),
 	BROOKTREE_878_DEVICE(0x11bd, 0x001c, "Pinnacle PCTV Sat"),
@@ -422,8 +405,7 @@ static int bt878_probe(struct pci_dev *dev, const struct pci_device_id *pci_id)
 	       bt878_num);
 	if (bt878_num >= BT878_MAX) {
 		printk(KERN_ERR "bt878: Too many devices inserted\n");
-		result = -ENOMEM;
-		goto fail0;
+		return -ENOMEM;
 	}
 	if (pci_enable_device(dev))
 		return -EIO;

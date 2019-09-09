@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * asm-offsets.c: Calculate pt_regs and task_struct offsets.
  *
@@ -82,7 +83,7 @@ void output_task_defines(void)
 	OFFSET(TASK_FLAGS, task_struct, flags);
 	OFFSET(TASK_MM, task_struct, mm);
 	OFFSET(TASK_PID, task_struct, pid);
-#if defined(CONFIG_CC_STACKPROTECTOR)
+#if defined(CONFIG_STACKPROTECTOR)
 	OFFSET(TASK_STACK_CANARY, task_struct, stack_canary);
 #endif
 	DEFINE(TASK_STRUCT_SIZE, sizeof(struct task_struct));
@@ -97,11 +98,12 @@ void output_thread_info_defines(void)
 	OFFSET(TI_TP_VALUE, thread_info, tp_value);
 	OFFSET(TI_CPU, thread_info, cpu);
 	OFFSET(TI_PRE_COUNT, thread_info, preempt_count);
-	OFFSET(TI_R2_EMUL_RET, thread_info, r2_emul_return);
 	OFFSET(TI_ADDR_LIMIT, thread_info, addr_limit);
 	OFFSET(TI_REGS, thread_info, regs);
 	DEFINE(_THREAD_SIZE, THREAD_SIZE);
 	DEFINE(_THREAD_MASK, THREAD_MASK);
+	DEFINE(_IRQ_STACK_SIZE, IRQ_STACK_SIZE);
+	DEFINE(_IRQ_STACK_START, IRQ_STACK_START);
 	BLANK();
 }
 
@@ -121,7 +123,6 @@ void output_thread_defines(void)
 	OFFSET(THREAD_REG31, task_struct, thread.reg31);
 	OFFSET(THREAD_STATUS, task_struct,
 	       thread.cp0_status);
-	OFFSET(THREAD_FPU, task_struct, thread.fpu);
 
 	OFFSET(THREAD_BVADDR, task_struct, \
 	       thread.cp0_badvaddr);
@@ -133,8 +134,11 @@ void output_thread_defines(void)
 	BLANK();
 }
 
+#ifdef CONFIG_MIPS_FP_SUPPORT
 void output_thread_fpu_defines(void)
 {
+	OFFSET(THREAD_FPU, task_struct, thread.fpu);
+
 	OFFSET(THREAD_FPR0, task_struct, thread.fpu.fpr[0]);
 	OFFSET(THREAD_FPR1, task_struct, thread.fpu.fpr[1]);
 	OFFSET(THREAD_FPR2, task_struct, thread.fpu.fpr[2]);
@@ -172,6 +176,7 @@ void output_thread_fpu_defines(void)
 	OFFSET(THREAD_MSA_CSR, task_struct, thread.fpu.msacsr);
 	BLANK();
 }
+#endif
 
 void output_mm_defines(void)
 {
@@ -339,9 +344,10 @@ void output_pm_defines(void)
 }
 #endif
 
+#ifdef CONFIG_MIPS_FP_SUPPORT
 void output_kvm_defines(void)
 {
-	COMMENT(" KVM/MIPS Specfic offsets. ");
+	COMMENT(" KVM/MIPS Specific offsets. ");
 
 	OFFSET(VCPU_FPR0, kvm_vcpu_arch, fpu.fpr[0]);
 	OFFSET(VCPU_FPR1, kvm_vcpu_arch, fpu.fpr[1]);
@@ -380,6 +386,7 @@ void output_kvm_defines(void)
 	OFFSET(VCPU_MSA_CSR, kvm_vcpu_arch, fpu.msacsr);
 	BLANK();
 }
+#endif
 
 #ifdef CONFIG_MIPS_CPS
 void output_cps_defines(void)

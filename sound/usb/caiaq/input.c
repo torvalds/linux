@@ -1,19 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *   Copyright (c) 2006,2007 Daniel Mack, Tim Ruetz
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 */
 
 #include <linux/device.h>
@@ -718,6 +705,9 @@ int snd_usb_caiaq_input_init(struct snd_usb_caiaqdev *cdev)
 				  usb_rcvbulkpipe(usb_dev, 0x4),
 				  cdev->ep4_in_buf, EP4_BUFSIZE,
 				  snd_usb_caiaq_ep4_reply_dispatch, cdev);
+		ret = usb_urb_ep_type_check(cdev->ep4_in_urb);
+		if (ret < 0)
+			goto exit_free_idev;
 
 		snd_usb_caiaq_set_auto_msg(cdev, 1, 10, 5);
 
@@ -757,6 +747,9 @@ int snd_usb_caiaq_input_init(struct snd_usb_caiaqdev *cdev)
 				  usb_rcvbulkpipe(usb_dev, 0x4),
 				  cdev->ep4_in_buf, EP4_BUFSIZE,
 				  snd_usb_caiaq_ep4_reply_dispatch, cdev);
+		ret = usb_urb_ep_type_check(cdev->ep4_in_urb);
+		if (ret < 0)
+			goto exit_free_idev;
 
 		snd_usb_caiaq_set_auto_msg(cdev, 1, 10, 5);
 
@@ -802,6 +795,9 @@ int snd_usb_caiaq_input_init(struct snd_usb_caiaqdev *cdev)
 				  usb_rcvbulkpipe(usb_dev, 0x4),
 				  cdev->ep4_in_buf, EP4_BUFSIZE,
 				  snd_usb_caiaq_ep4_reply_dispatch, cdev);
+		ret = usb_urb_ep_type_check(cdev->ep4_in_urb);
+		if (ret < 0)
+			goto exit_free_idev;
 
 		snd_usb_caiaq_set_auto_msg(cdev, 1, 10, 5);
 		break;

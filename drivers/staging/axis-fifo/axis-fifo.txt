@@ -1,0 +1,89 @@
+Xilinx AXI-Stream FIFO v4.1 IP core
+
+This IP core has read and write AXI-Stream FIFOs, the contents of which can
+be accessed from the AXI4 memory-mapped interface. This is useful for
+transferring data from a processor into the FPGA fabric. The driver creates
+a character device that can be read/written to with standard
+open/read/write/close.
+
+See Xilinx PG080 document for IP details.
+
+Currently supports only store-forward mode with a 32-bit
+AXI4-Lite interface. DOES NOT support:
+	- cut-through mode
+	- AXI4 (non-lite)
+
+Required properties:
+- compatible: Should be "xlnx,axi-fifo-mm-s-4.1"
+- interrupt-names: Should be "interrupt"
+- interrupt-parent: Should be <&intc>
+- interrupts: Should contain interrupts lines.
+- reg: Should contain registers location and length.
+- xlnx,axi-str-rxd-protocol: Should be "XIL_AXI_STREAM_ETH_DATA"
+- xlnx,axi-str-rxd-tdata-width: Should be <0x20>
+- xlnx,axi-str-txc-protocol: Should be "XIL_AXI_STREAM_ETH_CTRL"
+- xlnx,axi-str-txc-tdata-width: Should be <0x20>
+- xlnx,axi-str-txd-protocol: Should be "XIL_AXI_STREAM_ETH_DATA"
+- xlnx,axi-str-txd-tdata-width: Should be <0x20>
+- xlnx,axis-tdest-width: AXI-Stream TDEST width
+- xlnx,axis-tid-width: AXI-Stream TID width
+- xlnx,axis-tuser-width: AXI-Stream TUSER width
+- xlnx,data-interface-type: Should be <0x0>
+- xlnx,has-axis-tdest: Should be <0x0> (this feature isn't supported)
+- xlnx,has-axis-tid: Should be <0x0> (this feature isn't supported)
+- xlnx,has-axis-tkeep: Should be <0x0> (this feature isn't supported)
+- xlnx,has-axis-tstrb: Should be <0x0> (this feature isn't supported)
+- xlnx,has-axis-tuser: Should be <0x0> (this feature isn't supported)
+- xlnx,rx-fifo-depth: Depth of RX FIFO in words
+- xlnx,rx-fifo-pe-threshold: RX programmable empty interrupt threshold
+- xlnx,rx-fifo-pf-threshold: RX programmable full interrupt threshold
+- xlnx,s-axi-id-width: Should be <0x4>
+- xlnx,s-axi4-data-width: Should be <0x20>
+- xlnx,select-xpm: Should be <0x0>
+- xlnx,tx-fifo-depth: Depth of TX FIFO in words
+- xlnx,tx-fifo-pe-threshold: TX programmable empty interrupt threshold
+- xlnx,tx-fifo-pf-threshold: TX programmable full interrupt threshold
+- xlnx,use-rx-cut-through: Should be <0x0> (this feature isn't supported)
+- xlnx,use-rx-data: <0x1> if RX FIFO is enabled, <0x0> otherwise
+- xlnx,use-tx-ctrl: Should be <0x0> (this feature isn't supported)
+- xlnx,use-tx-cut-through: Should be <0x0> (this feature isn't supported)
+- xlnx,use-tx-data: <0x1> if TX FIFO is enabled, <0x0> otherwise
+
+Example:
+
+axi_fifo_mm_s_0: axi_fifo_mm_s@43c00000 {
+	compatible = "xlnx,axi-fifo-mm-s-4.1";
+	interrupt-names = "interrupt";
+	interrupt-parent = <&intc>;
+	interrupts = <0 29 4>;
+	reg = <0x43c00000 0x10000>;
+	xlnx,axi-str-rxd-protocol = "XIL_AXI_STREAM_ETH_DATA";
+	xlnx,axi-str-rxd-tdata-width = <0x20>;
+	xlnx,axi-str-txc-protocol = "XIL_AXI_STREAM_ETH_CTRL";
+	xlnx,axi-str-txc-tdata-width = <0x20>;
+	xlnx,axi-str-txd-protocol = "XIL_AXI_STREAM_ETH_DATA";
+	xlnx,axi-str-txd-tdata-width = <0x20>;
+	xlnx,axis-tdest-width = <0x4>;
+	xlnx,axis-tid-width = <0x4>;
+	xlnx,axis-tuser-width = <0x4>;
+	xlnx,data-interface-type = <0x0>;
+	xlnx,has-axis-tdest = <0x0>;
+	xlnx,has-axis-tid = <0x0>;
+	xlnx,has-axis-tkeep = <0x0>;
+	xlnx,has-axis-tstrb = <0x0>;
+	xlnx,has-axis-tuser = <0x0>;
+	xlnx,rx-fifo-depth = <0x200>;
+	xlnx,rx-fifo-pe-threshold = <0x2>;
+	xlnx,rx-fifo-pf-threshold = <0x1fb>;
+	xlnx,s-axi-id-width = <0x4>;
+	xlnx,s-axi4-data-width = <0x20>;
+	xlnx,select-xpm = <0x0>;
+	xlnx,tx-fifo-depth = <0x8000>;
+	xlnx,tx-fifo-pe-threshold = <0x200>;
+	xlnx,tx-fifo-pf-threshold = <0x7ffb>;
+	xlnx,use-rx-cut-through = <0x0>;
+	xlnx,use-rx-data = <0x0>;
+	xlnx,use-tx-ctrl = <0x0>;
+	xlnx,use-tx-cut-through = <0x0>;
+	xlnx,use-tx-data = <0x1>;
+};

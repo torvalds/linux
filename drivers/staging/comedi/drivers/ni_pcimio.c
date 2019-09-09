@@ -1,18 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Comedi driver for NI PCI-MIO E series cards
  *
  * COMEDI - Linux Control and Measurement Device Interface
  * Copyright (C) 1997-8 David A. Schleef <ds@schleef.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 /*
@@ -25,17 +16,16 @@
  *   PCI-MIO-16XE-10, PXI-6030E, PCI-MIO-16E-1, PCI-MIO-16E-4, PCI-6014,
  *   PCI-6040E, PXI-6040E, PCI-6030E, PCI-6031E, PCI-6032E, PCI-6033E,
  *   PCI-6071E, PCI-6023E, PCI-6024E, PCI-6025E, PXI-6025E, PCI-6034E,
- *   PCI-6035E, PCI-6052E,
- *   PCI-6110, PCI-6111, PCI-6220, PCI-6221, PCI-6224, PXI-6224,
- *   PCI-6225, PXI-6225, PCI-6229, PCI-6250,
- *   PCI-6251, PXI-6251, PCIe-6251, PXIe-6251,
- *   PCI-6254, PCI-6259, PCIe-6259,
- *   PCI-6280, PCI-6281, PXI-6281, PCI-6284, PCI-6289,
- *   PCI-6711, PXI-6711, PCI-6713, PXI-6713,
- *   PXI-6071E, PCI-6070E, PXI-6070E,
+ *   PCI-6035E, PCI-6052E, PCI-6110, PCI-6111, PCI-6220, PXI-6220,
+ *   PCI-6221, PXI-6221, PCI-6224, PXI-6224, PCI-6225, PXI-6225,
+ *   PCI-6229, PXI-6229, PCI-6250, PXI-6250, PCI-6251, PXI-6251,
+ *   PCIe-6251, PXIe-6251, PCI-6254, PXI-6254, PCI-6259, PXI-6259,
+ *   PCIe-6259, PXIe-6259, PCI-6280, PXI-6280, PCI-6281, PXI-6281,
+ *   PCI-6284, PXI-6284, PCI-6289, PXI-6289, PCI-6711, PXI-6711,
+ *   PCI-6713, PXI-6713, PXI-6071E, PCI-6070E, PXI-6070E,
  *   PXI-6052E, PCI-6036E, PCI-6731, PCI-6733, PXI-6733,
  *   PCI-6143, PXI-6143
- * Updated: Mon, 09 Jan 2012 14:52:48 +0000
+ * Updated: Mon, 16 Jan 2017 12:56:04 +0000
  *
  * These boards are almost identical to the AT-MIO E series, except that
  * they use the PCI bus instead of ISA (i.e., AT). See the notes for the
@@ -181,26 +171,36 @@ enum ni_pcimio_boardid {
 	BOARD_PXI6031E,
 	BOARD_PCI6036E,
 	BOARD_PCI6220,
+	BOARD_PXI6220,
 	BOARD_PCI6221,
 	BOARD_PCI6221_37PIN,
+	BOARD_PXI6221,
 	BOARD_PCI6224,
 	BOARD_PXI6224,
 	BOARD_PCI6225,
 	BOARD_PXI6225,
 	BOARD_PCI6229,
+	BOARD_PXI6229,
 	BOARD_PCI6250,
+	BOARD_PXI6250,
 	BOARD_PCI6251,
 	BOARD_PXI6251,
 	BOARD_PCIE6251,
 	BOARD_PXIE6251,
 	BOARD_PCI6254,
+	BOARD_PXI6254,
 	BOARD_PCI6259,
+	BOARD_PXI6259,
 	BOARD_PCIE6259,
+	BOARD_PXIE6259,
 	BOARD_PCI6280,
+	BOARD_PXI6280,
 	BOARD_PCI6281,
 	BOARD_PXI6281,
 	BOARD_PCI6284,
+	BOARD_PXI6284,
 	BOARD_PCI6289,
+	BOARD_PXI6289,
 	BOARD_PCI6143,
 	BOARD_PXI6143,
 };
@@ -684,6 +684,17 @@ static const struct ni_board_struct ni_boards[] = {
 		.reg_type	= ni_reg_622x,
 		.caldac		= { caldac_none },
 	},
+	[BOARD_PXI6220] = {
+		.name		= "pxi-6220",
+		.n_adchan	= 16,
+		.ai_maxdata	= 0xffff,
+		.ai_fifo_depth	= 512,		/* FIXME: guess */
+		.gainlkup	= ai_gain_622x,
+		.ai_speed	= 4000,
+		.reg_type	= ni_reg_622x,
+		.caldac		= { caldac_none },
+		.dio_speed	= 1000,
+	},
 	[BOARD_PCI6221] = {
 		.name		= "pci-6221",
 		.n_adchan	= 16,
@@ -698,6 +709,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.reg_type	= ni_reg_622x,
 		.ao_speed	= 1200,
 		.caldac		= { caldac_none },
+		.dio_speed	= 1000,
 	},
 	[BOARD_PCI6221_37PIN] = {
 		.name		= "pci-6221_37pin",
@@ -714,6 +726,22 @@ static const struct ni_board_struct ni_boards[] = {
 		.ao_speed	= 1200,
 		.caldac		= { caldac_none },
 	},
+	[BOARD_PXI6221] = {
+		.name		= "pxi-6221",
+		.n_adchan	= 16,
+		.ai_maxdata	= 0xffff,
+		.ai_fifo_depth	= 4095,
+		.gainlkup	= ai_gain_622x,
+		.ai_speed	= 4000,
+		.n_aochan	= 2,
+		.ao_maxdata	= 0xffff,
+		.ao_fifo_depth	= 8191,
+		.ao_range_table	= &range_bipolar10,
+		.reg_type	= ni_reg_622x,
+		.ao_speed	= 1200,
+		.caldac		= { caldac_none },
+		.dio_speed	= 1000,
+	},
 	[BOARD_PCI6224] = {
 		.name		= "pci-6224",
 		.n_adchan	= 32,
@@ -724,6 +752,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.reg_type	= ni_reg_622x,
 		.has_32dio_chan	= 1,
 		.caldac		= { caldac_none },
+		.dio_speed	= 1000,
 	},
 	[BOARD_PXI6224] = {
 		.name		= "pxi-6224",
@@ -735,6 +764,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.reg_type	= ni_reg_622x,
 		.has_32dio_chan	= 1,
 		.caldac		= { caldac_none },
+		.dio_speed	= 1000,
 	},
 	[BOARD_PCI6225] = {
 		.name		= "pci-6225",
@@ -751,6 +781,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.ao_speed	= 1200,
 		.has_32dio_chan	= 1,
 		.caldac		= { caldac_none },
+		.dio_speed	= 1000,
 	},
 	[BOARD_PXI6225] = {
 		.name		= "pxi-6225",
@@ -767,6 +798,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.ao_speed	= 1200,
 		.has_32dio_chan	= 1,
 		.caldac		= { caldac_none },
+		.dio_speed	= 1000,
 	},
 	[BOARD_PCI6229] = {
 		.name		= "pci-6229",
@@ -784,6 +816,23 @@ static const struct ni_board_struct ni_boards[] = {
 		.has_32dio_chan	= 1,
 		.caldac		= { caldac_none },
 	},
+	[BOARD_PXI6229] = {
+		.name		= "pxi-6229",
+		.n_adchan	= 32,
+		.ai_maxdata	= 0xffff,
+		.ai_fifo_depth	= 4095,
+		.gainlkup	= ai_gain_622x,
+		.ai_speed	= 4000,
+		.n_aochan	= 4,
+		.ao_maxdata	= 0xffff,
+		.ao_fifo_depth	= 8191,
+		.ao_range_table	= &range_bipolar10,
+		.reg_type	= ni_reg_622x,
+		.ao_speed	= 1200,
+		.has_32dio_chan	= 1,
+		.caldac		= { caldac_none },
+		.dio_speed	= 1000,
+	},
 	[BOARD_PCI6250] = {
 		.name		= "pci-6250",
 		.n_adchan	= 16,
@@ -793,6 +842,17 @@ static const struct ni_board_struct ni_boards[] = {
 		.ai_speed	= 800,
 		.reg_type	= ni_reg_625x,
 		.caldac		= { caldac_none },
+	},
+	[BOARD_PXI6250] = {
+		.name		= "pxi-6250",
+		.n_adchan	= 16,
+		.ai_maxdata	= 0xffff,
+		.ai_fifo_depth	= 4095,
+		.gainlkup	= ai_gain_628x,
+		.ai_speed	= 800,
+		.reg_type	= ni_reg_625x,
+		.caldac		= { caldac_none },
+		.dio_speed	= 100,
 	},
 	[BOARD_PCI6251] = {
 		.name		= "pci-6251",
@@ -808,6 +868,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.reg_type	= ni_reg_625x,
 		.ao_speed	= 350,
 		.caldac		= { caldac_none },
+		.dio_speed	= 100,
 	},
 	[BOARD_PXI6251] = {
 		.name		= "pxi-6251",
@@ -823,6 +884,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.reg_type	= ni_reg_625x,
 		.ao_speed	= 350,
 		.caldac		= { caldac_none },
+		.dio_speed	= 100,
 	},
 	[BOARD_PCIE6251] = {
 		.name		= "pcie-6251",
@@ -838,6 +900,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.reg_type	= ni_reg_625x,
 		.ao_speed	= 350,
 		.caldac		= { caldac_none },
+		.dio_speed	= 100,
 	},
 	[BOARD_PXIE6251] = {
 		.name		= "pxie-6251",
@@ -853,6 +916,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.reg_type	= ni_reg_625x,
 		.ao_speed	= 350,
 		.caldac		= { caldac_none },
+		.dio_speed	= 100,
 	},
 	[BOARD_PCI6254] = {
 		.name		= "pci-6254",
@@ -864,6 +928,18 @@ static const struct ni_board_struct ni_boards[] = {
 		.reg_type	= ni_reg_625x,
 		.has_32dio_chan	= 1,
 		.caldac		= { caldac_none },
+	},
+	[BOARD_PXI6254] = {
+		.name		= "pxi-6254",
+		.n_adchan	= 32,
+		.ai_maxdata	= 0xffff,
+		.ai_fifo_depth	= 4095,
+		.gainlkup	= ai_gain_628x,
+		.ai_speed	= 800,
+		.reg_type	= ni_reg_625x,
+		.has_32dio_chan	= 1,
+		.caldac		= { caldac_none },
+		.dio_speed	= 100,
 	},
 	[BOARD_PCI6259] = {
 		.name		= "pci-6259",
@@ -881,6 +957,23 @@ static const struct ni_board_struct ni_boards[] = {
 		.has_32dio_chan	= 1,
 		.caldac		= { caldac_none },
 	},
+	[BOARD_PXI6259] = {
+		.name		= "pxi-6259",
+		.n_adchan	= 32,
+		.ai_maxdata	= 0xffff,
+		.ai_fifo_depth	= 4095,
+		.gainlkup	= ai_gain_628x,
+		.ai_speed	= 800,
+		.n_aochan	= 4,
+		.ao_maxdata	= 0xffff,
+		.ao_fifo_depth	= 8191,
+		.ao_range_table	= &range_ni_M_625x_ao,
+		.reg_type	= ni_reg_625x,
+		.ao_speed	= 350,
+		.has_32dio_chan	= 1,
+		.caldac		= { caldac_none },
+		.dio_speed	= 100,
+	},
 	[BOARD_PCIE6259] = {
 		.name		= "pcie-6259",
 		.n_adchan	= 32,
@@ -897,6 +990,23 @@ static const struct ni_board_struct ni_boards[] = {
 		.has_32dio_chan	= 1,
 		.caldac		= { caldac_none },
 	},
+	[BOARD_PXIE6259] = {
+		.name		= "pxie-6259",
+		.n_adchan	= 32,
+		.ai_maxdata	= 0xffff,
+		.ai_fifo_depth	= 4095,
+		.gainlkup	= ai_gain_628x,
+		.ai_speed	= 800,
+		.n_aochan	= 4,
+		.ao_maxdata	= 0xffff,
+		.ao_fifo_depth	= 8191,
+		.ao_range_table	= &range_ni_M_625x_ao,
+		.reg_type	= ni_reg_625x,
+		.ao_speed	= 350,
+		.has_32dio_chan	= 1,
+		.caldac		= { caldac_none },
+		.dio_speed	= 100,
+	},
 	[BOARD_PCI6280] = {
 		.name		= "pci-6280",
 		.n_adchan	= 16,
@@ -907,6 +1017,18 @@ static const struct ni_board_struct ni_boards[] = {
 		.ao_fifo_depth	= 8191,
 		.reg_type	= ni_reg_628x,
 		.caldac		= { caldac_none },
+	},
+	[BOARD_PXI6280] = {
+		.name		= "pxi-6280",
+		.n_adchan	= 16,
+		.ai_maxdata	= 0x3ffff,
+		.ai_fifo_depth	= 2047,
+		.gainlkup	= ai_gain_628x,
+		.ai_speed	= 1600,
+		.ao_fifo_depth	= 8191,
+		.reg_type	= ni_reg_628x,
+		.caldac		= { caldac_none },
+		.dio_speed	= 100,
 	},
 	[BOARD_PCI6281] = {
 		.name		= "pci-6281",
@@ -922,6 +1044,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.reg_type	= ni_reg_628x,
 		.ao_speed	= 350,
 		.caldac		= { caldac_none },
+		.dio_speed	= 100,
 	},
 	[BOARD_PXI6281] = {
 		.name		= "pxi-6281",
@@ -937,6 +1060,7 @@ static const struct ni_board_struct ni_boards[] = {
 		.reg_type	= ni_reg_628x,
 		.ao_speed	= 350,
 		.caldac		= { caldac_none },
+		.dio_speed	= 100,
 	},
 	[BOARD_PCI6284] = {
 		.name		= "pci-6284",
@@ -948,6 +1072,18 @@ static const struct ni_board_struct ni_boards[] = {
 		.reg_type	= ni_reg_628x,
 		.has_32dio_chan	= 1,
 		.caldac		= { caldac_none },
+	},
+	[BOARD_PXI6284] = {
+		.name		= "pxi-6284",
+		.n_adchan	= 32,
+		.ai_maxdata	= 0x3ffff,
+		.ai_fifo_depth	= 2047,
+		.gainlkup	= ai_gain_628x,
+		.ai_speed	= 1600,
+		.reg_type	= ni_reg_628x,
+		.has_32dio_chan	= 1,
+		.caldac		= { caldac_none },
+		.dio_speed	= 100,
 	},
 	[BOARD_PCI6289] = {
 		.name		= "pci-6289",
@@ -964,6 +1100,23 @@ static const struct ni_board_struct ni_boards[] = {
 		.ao_speed	= 350,
 		.has_32dio_chan	= 1,
 		.caldac		= { caldac_none },
+	},
+	[BOARD_PXI6289] = {
+		.name		= "pxi-6289",
+		.n_adchan	= 32,
+		.ai_maxdata	= 0x3ffff,
+		.ai_fifo_depth	= 2047,
+		.gainlkup	= ai_gain_628x,
+		.ai_speed	= 1600,
+		.n_aochan	= 4,
+		.ao_maxdata	= 0xffff,
+		.ao_fifo_depth	= 8191,
+		.ao_range_table	= &range_ni_M_628x_ao,
+		.reg_type	= ni_reg_628x,
+		.ao_speed	= 350,
+		.has_32dio_chan	= 1,
+		.caldac		= { caldac_none },
+		.dio_speed	= 100,
 	},
 	[BOARD_PCI6143] = {
 		.name		= "pci-6143",
@@ -1061,8 +1214,6 @@ static void m_series_init_eeprom_buffer(struct comedi_device *dev)
 	resource_size_t daq_phys_addr;
 	static const int Start_Cal_EEPROM = 0x400;
 	static const unsigned int window_size = 10;
-	static const int serial_number_eeprom_offset = 0x4;
-	static const int serial_number_eeprom_length = 0x4;
 	unsigned int old_iodwbsr_bits;
 	unsigned int old_iodwbsr1_bits;
 	unsigned int old_iodwcr1_bits;
@@ -1079,13 +1230,6 @@ static void m_series_init_eeprom_buffer(struct comedi_device *dev)
 	       mite->mmio + MITE_IODWBSR_1);
 	writel(0x1 | old_iodwcr1_bits, mite->mmio + MITE_IODWCR_1);
 	writel(0xf, mite->mmio + 0x30);
-
-	BUG_ON(serial_number_eeprom_length > sizeof(devpriv->serial_number));
-	for (i = 0; i < serial_number_eeprom_length; ++i) {
-		char *byte_ptr = (char *)&devpriv->serial_number + i;
-		*byte_ptr = ni_readb(dev, serial_number_eeprom_offset + i);
-	}
-	devpriv->serial_number = be32_to_cpu(devpriv->serial_number);
 
 	for (i = 0; i < M_SERIES_EEPROM_SIZE; ++i)
 		devpriv->eeprom_buffer[i] = ni_readb(dev, Start_Cal_EEPROM + i);
@@ -1284,14 +1428,24 @@ static const struct pci_device_id ni_pcimio_pci_table[] = {
 	{ PCI_VDEVICE(NI, 0x70aa), BOARD_PCI6229 },
 	{ PCI_VDEVICE(NI, 0x70ab), BOARD_PCI6259 },
 	{ PCI_VDEVICE(NI, 0x70ac), BOARD_PCI6289 },
+	{ PCI_VDEVICE(NI, 0x70ad), BOARD_PXI6251 },
+	{ PCI_VDEVICE(NI, 0x70ae), BOARD_PXI6220 },
 	{ PCI_VDEVICE(NI, 0x70af), BOARD_PCI6221 },
 	{ PCI_VDEVICE(NI, 0x70b0), BOARD_PCI6220 },
+	{ PCI_VDEVICE(NI, 0x70b1), BOARD_PXI6229 },
+	{ PCI_VDEVICE(NI, 0x70b2), BOARD_PXI6259 },
+	{ PCI_VDEVICE(NI, 0x70b3), BOARD_PXI6289 },
 	{ PCI_VDEVICE(NI, 0x70b4), BOARD_PCI6250 },
+	{ PCI_VDEVICE(NI, 0x70b5), BOARD_PXI6221 },
 	{ PCI_VDEVICE(NI, 0x70b6), BOARD_PCI6280 },
 	{ PCI_VDEVICE(NI, 0x70b7), BOARD_PCI6254 },
 	{ PCI_VDEVICE(NI, 0x70b8), BOARD_PCI6251 },
+	{ PCI_VDEVICE(NI, 0x70b9), BOARD_PXI6250 },
+	{ PCI_VDEVICE(NI, 0x70ba), BOARD_PXI6254 },
+	{ PCI_VDEVICE(NI, 0x70bb), BOARD_PXI6280 },
 	{ PCI_VDEVICE(NI, 0x70bc), BOARD_PCI6284 },
 	{ PCI_VDEVICE(NI, 0x70bd), BOARD_PCI6281 },
+	{ PCI_VDEVICE(NI, 0x70be), BOARD_PXI6284 },
 	{ PCI_VDEVICE(NI, 0x70bf), BOARD_PXI6281 },
 	{ PCI_VDEVICE(NI, 0x70c0), BOARD_PCI6143 },
 	{ PCI_VDEVICE(NI, 0x70f2), BOARD_PCI6224 },
@@ -1299,11 +1453,11 @@ static const struct pci_device_id ni_pcimio_pci_table[] = {
 	{ PCI_VDEVICE(NI, 0x710d), BOARD_PXI6143 },
 	{ PCI_VDEVICE(NI, 0x716c), BOARD_PCI6225 },
 	{ PCI_VDEVICE(NI, 0x716d), BOARD_PXI6225 },
+	{ PCI_VDEVICE(NI, 0x717d), BOARD_PCIE6251 },
 	{ PCI_VDEVICE(NI, 0x717f), BOARD_PCIE6259 },
 	{ PCI_VDEVICE(NI, 0x71bc), BOARD_PCI6221_37PIN },
-	{ PCI_VDEVICE(NI, 0x717d), BOARD_PCIE6251 },
 	{ PCI_VDEVICE(NI, 0x72e8), BOARD_PXIE6251 },
-	{ PCI_VDEVICE(NI, 0x70ad), BOARD_PXI6251 },
+	{ PCI_VDEVICE(NI, 0x72e9), BOARD_PXIE6259 },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, ni_pcimio_pci_table);

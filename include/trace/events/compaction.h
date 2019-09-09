@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM compaction
 
@@ -9,62 +10,6 @@
 #include <linux/tracepoint.h>
 #include <trace/events/mmflags.h>
 
-#define COMPACTION_STATUS					\
-	EM( COMPACT_SKIPPED,		"skipped")		\
-	EM( COMPACT_DEFERRED,		"deferred")		\
-	EM( COMPACT_CONTINUE,		"continue")		\
-	EM( COMPACT_SUCCESS,		"success")		\
-	EM( COMPACT_PARTIAL_SKIPPED,	"partial_skipped")	\
-	EM( COMPACT_COMPLETE,		"complete")		\
-	EM( COMPACT_NO_SUITABLE_PAGE,	"no_suitable_page")	\
-	EM( COMPACT_NOT_SUITABLE_ZONE,	"not_suitable_zone")	\
-	EMe(COMPACT_CONTENDED,		"contended")
-
-#ifdef CONFIG_ZONE_DMA
-#define IFDEF_ZONE_DMA(X) X
-#else
-#define IFDEF_ZONE_DMA(X)
-#endif
-
-#ifdef CONFIG_ZONE_DMA32
-#define IFDEF_ZONE_DMA32(X) X
-#else
-#define IFDEF_ZONE_DMA32(X)
-#endif
-
-#ifdef CONFIG_HIGHMEM
-#define IFDEF_ZONE_HIGHMEM(X) X
-#else
-#define IFDEF_ZONE_HIGHMEM(X)
-#endif
-
-#define ZONE_TYPE						\
-	IFDEF_ZONE_DMA(		EM (ZONE_DMA,	 "DMA"))	\
-	IFDEF_ZONE_DMA32(	EM (ZONE_DMA32,	 "DMA32"))	\
-				EM (ZONE_NORMAL, "Normal")	\
-	IFDEF_ZONE_HIGHMEM(	EM (ZONE_HIGHMEM,"HighMem"))	\
-				EMe(ZONE_MOVABLE,"Movable")
-
-/*
- * First define the enums in the above macros to be exported to userspace
- * via TRACE_DEFINE_ENUM().
- */
-#undef EM
-#undef EMe
-#define EM(a, b)	TRACE_DEFINE_ENUM(a);
-#define EMe(a, b)	TRACE_DEFINE_ENUM(a);
-
-COMPACTION_STATUS
-ZONE_TYPE
-
-/*
- * Now redefine the EM() and EMe() macros to map the enums to the strings
- * that will be printed in the output.
- */
-#undef EM
-#undef EMe
-#define EM(a, b)	{a, b},
-#define EMe(a, b)	{a, b}
 
 DECLARE_EVENT_CLASS(mm_compaction_isolate_template,
 
@@ -119,6 +64,7 @@ DEFINE_EVENT(mm_compaction_isolate_template, mm_compaction_isolate_freepages,
 	TP_ARGS(start_pfn, end_pfn, nr_scanned, nr_taken)
 );
 
+#ifdef CONFIG_COMPACTION
 TRACE_EVENT(mm_compaction_migratepages,
 
 	TP_PROTO(unsigned long nr_all,
@@ -242,9 +188,9 @@ TRACE_EVENT(mm_compaction_try_to_compact_pages,
 		__entry->prio = prio;
 	),
 
-	TP_printk("order=%d gfp_mask=0x%x priority=%d",
+	TP_printk("order=%d gfp_mask=%s priority=%d",
 		__entry->order,
-		__entry->gfp_mask,
+		show_gfp_flags(__entry->gfp_mask),
 		__entry->prio)
 );
 
@@ -295,7 +241,6 @@ DEFINE_EVENT(mm_compaction_suitable_template, mm_compaction_suitable,
 	TP_ARGS(zone, order, ret)
 );
 
-#ifdef CONFIG_COMPACTION
 DECLARE_EVENT_CLASS(mm_compaction_defer_template,
 
 	TP_PROTO(struct zone *zone, int order),
@@ -349,7 +294,6 @@ DEFINE_EVENT(mm_compaction_defer_template, mm_compaction_defer_reset,
 
 	TP_ARGS(zone, order)
 );
-#endif
 
 TRACE_EVENT(mm_compaction_kcompactd_sleep,
 
@@ -405,6 +349,7 @@ DEFINE_EVENT(kcompactd_wake_template, mm_compaction_kcompactd_wake,
 
 	TP_ARGS(nid, order, classzone_idx)
 );
+#endif
 
 #endif /* _TRACE_COMPACTION_H */
 

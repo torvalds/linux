@@ -1,4 +1,5 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-2.0
 #
 # Script example for many flows testing
 #
@@ -15,6 +16,11 @@ source ${basedir}/parameters.sh
 [ -z "$DEST_IP" ]   && DEST_IP="198.18.0.42"
 [ -z "$DST_MAC" ]   && DST_MAC="90:e2:ba:ff:ff:ff"
 [ -z "$CLONE_SKB" ] && CLONE_SKB="0"
+[ -z "$COUNT" ]     && COUNT="0" # Zero means indefinitely
+if [ -n "$DST_PORT" ]; then
+    read -r DST_MIN DST_MAX <<< $(parse_ports $DST_PORT)
+    validate_ports $DST_MIN $DST_MAX
+fi
 
 # NOTICE:  Script specific settings
 # =======
@@ -26,7 +32,6 @@ source ${basedir}/parameters.sh
 
 # Base Config
 DELAY="0"  # Zero means max speed
-COUNT="0"  # Zero means indefinitely
 
 if [[ -n "$BURST" ]]; then
     err 1 "Bursting not supported for this mode"
@@ -36,7 +41,7 @@ fi
 pg_ctrl "reset"
 
 # Threads are specified with parameter -t value in $THREADS
-for ((thread = 0; thread < $THREADS; thread++)); do
+for ((thread = $F_THREAD; thread <= $L_THREAD; thread++)); do
     dev=${DEV}@${thread}
 
     # Add remove all other devices and add_device $dev to thread
@@ -54,6 +59,13 @@ for ((thread = 0; thread < $THREADS; thread++)); do
     # Single destination
     pg_set $dev "dst_mac $DST_MAC"
     pg_set $dev "dst $DEST_IP"
+
+    if [ -n "$DST_PORT" ]; then
+	# Single destination port or random port range
+	pg_set $dev "flag UDPDST_RND"
+	pg_set $dev "udp_dst_min $DST_MIN"
+	pg_set $dev "udp_dst_max $DST_MAX"
+    fi
 
     # Randomize source IP-addresses
     pg_set $dev "flag IPSRC_RND"
@@ -78,7 +90,7 @@ done
 # Run if user hits control-c
 function print_result() {
     # Print results
-    for ((thread = 0; thread < $THREADS; thread++)); do
+    for ((thread = $F_THREAD; thread <= $L_THREAD; thread++)); do
 	dev=${DEV}@${thread}
 	echo "Device: $dev"
 	cat /proc/net/pktgen/$dev | grep -A2 "Result:"

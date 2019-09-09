@@ -1,16 +1,10 @@
-/* linux/arch/arm/mach-s3c64xx/mach-real6410.c
- *
- * Copyright 2010 Darius Augulis <augulis.darius@gmail.com>
- * Copyright 2008 Openmoko, Inc.
- * Copyright 2008 Simtec Electronics
- *	Ben Dooks <ben@simtec.co.uk>
- *	http://armlinux.simtec.co.uk/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
-*/
+// SPDX-License-Identifier: GPL-2.0
+//
+// Copyright 2010 Darius Augulis <augulis.darius@gmail.com>
+// Copyright 2008 Openmoko, Inc.
+// Copyright 2008 Simtec Electronics
+//	Ben Dooks <ben@simtec.co.uk>
+//	http://armlinux.simtec.co.uk/
 
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -194,6 +188,7 @@ static struct s3c2410_platform_nand real6410_nand_info = {
 	.twrph1		= 40,
 	.nr_sets	= ARRAY_SIZE(real6410_nand_sets),
 	.sets		= real6410_nand_sets,
+	.ecc_mode       = NAND_ECC_SOFT,
 };
 
 static struct platform_device *real6410_devices[] __initdata = {

@@ -7,8 +7,9 @@ called VPU (Video Processing Unit).
 Required properties:
 - compatible : should be "fsl,<chip>-src" for i.MX SoCs:
   (a) "fsl,imx27-vpu" for CodaDx6 present in i.MX27
-  (b) "fsl,imx53-vpu" for CODA7541 present in i.MX53
-  (c) "fsl,imx6q-vpu" for CODA960 present in i.MX6q
+  (b) "fsl,imx51-vpu" for CodaHx4 present in i.MX51
+  (c) "fsl,imx53-vpu" for CODA7541 present in i.MX53
+  (d) "fsl,imx6q-vpu" for CODA960 present in i.MX6q
 - reg: should be register base and length as documented in the
   SoC reference manual
 - interrupts : Should contain the VPU interrupt. For CODA960,

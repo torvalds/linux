@@ -13,6 +13,7 @@
 #include <linux/clk-provider.h>
 #include <linux/delay.h>
 #include <linux/err.h>
+#include <linux/io.h>
 #include <linux/math64.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -268,7 +269,7 @@ static int ti_fapll_set_rate(struct clk_hw *hw, unsigned long rate,
 	return 0;
 }
 
-static struct clk_ops ti_fapll_ops = {
+static const struct clk_ops ti_fapll_ops = {
 	.enable = ti_fapll_enable,
 	.disable = ti_fapll_disable,
 	.is_enabled = ti_fapll_is_enabled,
@@ -478,7 +479,7 @@ static int ti_fapll_synth_set_rate(struct clk_hw *hw, unsigned long rate,
 	return 0;
 }
 
-static struct clk_ops ti_fapll_synt_ops = {
+static const struct clk_ops ti_fapll_synt_ops = {
 	.enable = ti_fapll_synth_enable,
 	.disable = ti_fapll_synth_disable,
 	.is_enabled = ti_fapll_synth_is_enabled,
@@ -555,7 +556,7 @@ static void __init ti_fapll_setup(struct device_node *node)
 
 	init->num_parents = of_clk_get_parent_count(node);
 	if (init->num_parents != 2) {
-		pr_err("%s must have two parents\n", node->name);
+		pr_err("%pOFn must have two parents\n", node);
 		goto free;
 	}
 
@@ -564,19 +565,19 @@ static void __init ti_fapll_setup(struct device_node *node)
 
 	fd->clk_ref = of_clk_get(node, 0);
 	if (IS_ERR(fd->clk_ref)) {
-		pr_err("%s could not get clk_ref\n", node->name);
+		pr_err("%pOFn could not get clk_ref\n", node);
 		goto free;
 	}
 
 	fd->clk_bypass = of_clk_get(node, 1);
 	if (IS_ERR(fd->clk_bypass)) {
-		pr_err("%s could not get clk_bypass\n", node->name);
+		pr_err("%pOFn could not get clk_bypass\n", node);
 		goto free;
 	}
 
 	fd->base = of_iomap(node, 0);
 	if (!fd->base) {
-		pr_err("%s could not get IO base\n", node->name);
+		pr_err("%pOFn could not get IO base\n", node);
 		goto free;
 	}
 

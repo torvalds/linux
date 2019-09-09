@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * JMicron JMC2x0 series PCIe Ethernet Linux Device Driver
  *
@@ -6,20 +7,6 @@
  * Copyright (c) 2009 - 2010 Guo-Fu Tseng <cooldavid@cooldavid.org>
  *
  * Author: Guo-Fu Tseng <cooldavid@cooldavid.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
 #ifndef __JME_H_INCLUDED__
@@ -447,7 +434,7 @@ struct jme_adapter {
 	u8			chip_sub_rev;
 	u8			pcirev;
 	u32			msg_enable;
-	struct ethtool_cmd	old_ecmd;
+	struct ethtool_link_ksettings old_cmd;
 	unsigned int		old_mtu;
 	struct dynpcc_info	dpi;
 	atomic_t		intr_sem;
@@ -1270,8 +1257,8 @@ static inline int new_phy_power_ctrl(u8 chip_main_rev)
 /*
  * Function prototypes
  */
-static int jme_set_settings(struct net_device *netdev,
-				struct ethtool_cmd *ecmd);
+static int jme_set_link_ksettings(struct net_device *netdev,
+				  const struct ethtool_link_ksettings *cmd);
 static void jme_set_unicastaddr(struct net_device *netdev);
 static void jme_set_multi(struct net_device *netdev);
 

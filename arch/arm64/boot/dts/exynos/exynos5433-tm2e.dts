@@ -1,0 +1,80 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * SAMSUNG Exynos5433 TM2E board device tree source
+ *
+ * Copyright (c) 2016 Samsung Electronics Co., Ltd.
+ *
+ * Device tree source file for Samsung's TM2E(TM2 EDGE) board which is based on
+ * Samsung Exynos5433 SoC.
+ */
+
+#include "exynos5433-tm2-common.dtsi"
+
+/ {
+	model = "Samsung TM2E board";
+	compatible = "samsung,tm2e", "samsung,exynos5433";
+};
+
+&cmu_disp {
+	/*
+	 * TM2 and TM2e differ only by DISP_PLL rate, but define all assigned
+	 * clocks properties for DISP CMU for each board to keep them together
+	 * for easier review and maintenance.
+	 */
+	assigned-clocks = <&cmu_disp CLK_FOUT_DISP_PLL>,
+			  <&cmu_mif CLK_DIV_SCLK_DECON_TV_ECLK>,
+			  <&cmu_disp CLK_MOUT_ACLK_DISP_333_USER>,
+			  <&cmu_disp CLK_MOUT_SCLK_DSIM0_USER>,
+			  <&cmu_disp CLK_MOUT_SCLK_DSIM0>,
+			  <&cmu_disp CLK_MOUT_SCLK_DECON_ECLK_USER>,
+			  <&cmu_disp CLK_MOUT_SCLK_DECON_ECLK>,
+			  <&cmu_disp CLK_MOUT_PHYCLK_MIPIDPHY0_RXCLKESC0_USER>,
+			  <&cmu_disp CLK_MOUT_PHYCLK_MIPIDPHY0_BITCLKDIV8_USER>,
+			  <&cmu_disp CLK_MOUT_DISP_PLL>,
+			  <&cmu_mif CLK_MOUT_SCLK_DECON_TV_ECLK_A>,
+			  <&cmu_disp CLK_MOUT_SCLK_DECON_TV_ECLK_USER>,
+			  <&cmu_disp CLK_MOUT_SCLK_DECON_TV_ECLK>;
+	assigned-clock-parents = <0>, <0>,
+				 <&cmu_mif CLK_ACLK_DISP_333>,
+				 <&cmu_mif CLK_SCLK_DSIM0_DISP>,
+				 <&cmu_disp CLK_MOUT_SCLK_DSIM0_USER>,
+				 <&cmu_mif CLK_SCLK_DECON_ECLK_DISP>,
+				 <&cmu_disp CLK_MOUT_SCLK_DECON_ECLK_USER>,
+				 <&cmu_disp CLK_PHYCLK_MIPIDPHY0_RXCLKESC0_PHY>,
+				 <&cmu_disp CLK_PHYCLK_MIPIDPHY0_BITCLKDIV8_PHY>,
+				 <&cmu_disp CLK_FOUT_DISP_PLL>,
+				 <&cmu_mif CLK_MOUT_BUS_PLL_DIV2>,
+				 <&cmu_mif CLK_SCLK_DECON_TV_ECLK_DISP>,
+				 <&cmu_disp CLK_MOUT_SCLK_DECON_TV_ECLK_USER>;
+	assigned-clock-rates = <278000000>, <400000000>;
+};
+
+&dsi {
+	panel@0 {
+		compatible = "samsung,s6e3hf2";
+		reg = <0>;
+		vdd3-supply = <&ldo27_reg>;
+		vci-supply = <&ldo28_reg>;
+		reset-gpios = <&gpg0 0 GPIO_ACTIVE_LOW>;
+		enable-gpios = <&gpf1 5 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+&ldo31_reg {
+	regulator-name = "TSP_VDD_1.8V_AP";
+	regulator-min-microvolt = <1800000>;
+	regulator-max-microvolt = <1800000>;
+};
+
+&ldo38_reg {
+	regulator-name = "VCC_3.3V_MOTOR_AP";
+	regulator-min-microvolt = <3300000>;
+	regulator-max-microvolt = <3300000>;
+};
+
+&stmfts {
+	touchscreen-size-x = <1599>;
+	touchscreen-size-y = <2559>;
+	touch-key-connected;
+	ledvdd-supply = <&ldo33_reg>;
+};

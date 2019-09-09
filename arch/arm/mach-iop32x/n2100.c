@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * arch/arm/mach-iop32x/n2100.c
  *
@@ -7,11 +8,6 @@
  * Copyright (C) 2002 Rory Bolt
  * Copyright 2003 (c) MontaVista, Software, Inc.
  * Copyright (C) 2004 Intel Corp.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
  */
 
 #include <linux/mm.h>
@@ -31,6 +27,7 @@
 #include <linux/reboot.h>
 #include <linux/io.h>
 #include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/mach/arch.h>
@@ -75,8 +72,7 @@ void __init n2100_map_io(void)
 /*
  * N2100 PCI.
  */
-static int __init
-n2100_pci_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
+static int n2100_pci_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	int irq;
 
@@ -305,7 +301,7 @@ static void n2100_restart(enum reboot_mode mode, const char *cmd)
 
 static struct timer_list power_button_poll_timer;
 
-static void power_button_poll(unsigned long dummy)
+static void power_button_poll(struct timer_list *unused)
 {
 	if (gpio_get_value(N2100_POWER_BUTTON) == 0) {
 		ctrl_alt_del();
@@ -336,8 +332,7 @@ static int __init n2100_request_gpios(void)
 			pr_err("could not set power GPIO as input\n");
 	}
 	/* Set up power button poll timer */
-	init_timer(&power_button_poll_timer);
-	power_button_poll_timer.function = power_button_poll;
+	timer_setup(&power_button_poll_timer, power_button_poll, 0);
 	power_button_poll_timer.expires = jiffies + (HZ / 10);
 	add_timer(&power_button_poll_timer);
 	return 0;
@@ -347,6 +342,7 @@ device_initcall(n2100_request_gpios);
 static void __init n2100_init_machine(void)
 {
 	register_iop32x_gpio();
+	gpiod_add_lookup_table(&iop3xx_i2c0_gpio_lookup);
 	platform_device_register(&iop3xx_i2c0_device);
 	platform_device_register(&n2100_flash_device);
 	platform_device_register(&n2100_serial_device);

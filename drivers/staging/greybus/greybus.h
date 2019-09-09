@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Greybus driver and device API
  *
  * Copyright 2014-2015 Google Inc.
  * Copyright 2014-2015 Linaro Ltd.
- *
- * Released under the GPLv2 only.
  */
 
 #ifndef __LINUX_GREYBUS_H
@@ -33,7 +32,6 @@
 #include "bundle.h"
 #include "connection.h"
 #include "operation.h"
-#include "timesync.h"
 
 /* Matches up with the Greybus Protocol specification document */
 #define GREYBUS_VERSION_MAJOR	0x00

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *	Apple Peripheral System Controller (PSC)
  *
@@ -42,7 +43,7 @@ static void psc_debug_dump(void)
 		return;
 
 	for (i = 0x30 ; i < 0x70 ; i += 0x10) {
-		printk("PSC #%d:  IFR = 0x%02X IER = 0x%02X\n",
+		printk(KERN_DEBUG "PSC #%d:  IFR = 0x%02X IER = 0x%02X\n",
 			i >> 4,
 			(int) psc_read_byte(pIFRbase + i),
 			(int) psc_read_byte(pIERbase + i));
@@ -59,14 +60,12 @@ static __init void psc_dma_die_die_die(void)
 {
 	int i;
 
-	printk("Killing all PSC DMA channels...");
 	for (i = 0 ; i < 9 ; i++) {
 		psc_write_word(PSC_CTL_BASE + (i << 4), 0x8800);
 		psc_write_word(PSC_CTL_BASE + (i << 4), 0x1000);
 		psc_write_word(PSC_CMD_BASE + (i << 5), 0x1100);
 		psc_write_word(PSC_CMD_BASE + (i << 5) + 0x10, 0x1100);
 	}
-	printk("done!\n");
 }
 
 /*
@@ -92,7 +91,7 @@ void __init psc_init(void)
 
 	psc = (void *) PSC_BASE;
 
-	printk("PSC detected at %p\n", psc);
+	pr_debug("PSC detected at %p\n", psc);
 
 	psc_dma_die_die_die();
 
@@ -121,11 +120,6 @@ static void psc_irq(struct irq_desc *desc)
 	int pIER	= pIERbase + offset;
 	int irq_num;
 	unsigned char irq_bit, events;
-
-#ifdef DEBUG_IRQS
-	printk("psc_irq: irq %u pIFR = 0x%02X pIER = 0x%02X\n",
-		irq, (int) psc_read_byte(pIFR), (int) psc_read_byte(pIER));
-#endif
 
 	events = psc_read_byte(pIFR) & psc_read_byte(pIER) & 0xF;
 	if (!events)
@@ -160,9 +154,6 @@ void psc_irq_enable(int irq) {
 	int irq_idx	= IRQ_IDX(irq);
 	int pIER	= pIERbase + (irq_src << 4);
 
-#ifdef DEBUG_IRQUSE
-	printk("psc_irq_enable(%d)\n", irq);
-#endif
 	psc_write_byte(pIER, (1 << irq_idx) | 0x80);
 }
 
@@ -171,8 +162,5 @@ void psc_irq_disable(int irq) {
 	int irq_idx	= IRQ_IDX(irq);
 	int pIER	= pIERbase + (irq_src << 4);
 
-#ifdef DEBUG_IRQUSE
-	printk("psc_irq_disable(%d)\n", irq);
-#endif
 	psc_write_byte(pIER, 1 << irq_idx);
 }

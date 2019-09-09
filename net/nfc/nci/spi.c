@@ -1,19 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2013  Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
- *
  */
 
 #define pr_fmt(fmt) "nci_spi: %s: " fmt, __func__
@@ -86,8 +73,8 @@ int nci_spi_send(struct nci_spi *nspi,
 		u16 crc;
 
 		crc = crc_ccitt(CRC_INIT, skb->data, skb->len);
-		*skb_put(skb, 1) = crc >> 8;
-		*skb_put(skb, 1) = crc & 0xFF;
+		skb_put_u8(skb, crc >> 8);
+		skb_put_u8(skb, crc & 0xFF);
 	}
 
 	if (write_handshake_completion)	{
@@ -172,8 +159,8 @@ static int send_acknowledge(struct nci_spi *nspi, u8 acknowledge)
 	hdr[3] = 0;
 
 	crc = crc_ccitt(CRC_INIT, skb->data, skb->len);
-	*skb_put(skb, 1) = crc >> 8;
-	*skb_put(skb, 1) = crc & 0xFF;
+	skb_put_u8(skb, crc >> 8);
+	skb_put_u8(skb, crc & 0xFF);
 
 	ret = __nci_spi_send(nspi, skb, 0);
 
@@ -238,8 +225,8 @@ static struct sk_buff *__nci_spi_read(struct nci_spi *nspi)
 		goto receive_error;
 
 	if (nspi->acknowledge_mode == NCI_SPI_CRC_ENABLED) {
-		*skb_push(skb, 1) = resp_hdr[1];
-		*skb_push(skb, 1) = resp_hdr[0];
+		*(u8 *)skb_push(skb, 1) = resp_hdr[1];
+		*(u8 *)skb_push(skb, 1) = resp_hdr[0];
 	}
 
 	return skb;

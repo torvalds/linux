@@ -26,7 +26,7 @@
 
 #include <core/gpuobj.h>
 #include <subdev/fb.h>
-#include <subdev/mmu/nv04.h>
+#include <subdev/mmu/vmm.h>
 
 #include <nvif/class.h>
 
@@ -49,8 +49,8 @@ nv04_dmaobj_bind(struct nvkm_dmaobj *base, struct nvkm_gpuobj *parent,
 	int ret;
 
 	if (dmaobj->clone) {
-		struct nv04_mmu *mmu = nv04_mmu(device->mmu);
-		struct nvkm_memory *pgt = mmu->vm->pgt[0].mem[0];
+		struct nvkm_memory *pgt =
+			device->mmu->vmm->pd->pt[0]->memory;
 		if (!dmaobj->base.start)
 			return nvkm_gpuobj_wrap(pgt, pgpuobj);
 		nvkm_kmap(pgt);
@@ -122,6 +122,7 @@ nv04_dmaobj_new(struct nvkm_dma *dma, const struct nvkm_oclass *oclass,
 		break;
 	case NV_MEM_ACCESS_WO:
 		dmaobj->flags0 |= 0x00008000;
+		/* fall through */
 	case NV_MEM_ACCESS_RW:
 		dmaobj->flags2 |= 0x00000002;
 		break;

@@ -11,21 +11,14 @@
 #ifndef _ASM_MICROBLAZE_UACCESS_H
 #define _ASM_MICROBLAZE_UACCESS_H
 
-#ifdef __KERNEL__
-#ifndef __ASSEMBLY__
-
 #include <linux/kernel.h>
-#include <linux/errno.h>
-#include <linux/sched.h> /* RLIMIT_FSIZE */
 #include <linux/mm.h>
 
 #include <asm/mmu.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
+#include <asm/extable.h>
 #include <linux/string.h>
-
-#define VERIFY_READ	0
-#define VERIFY_WRITE	1
 
 /*
  * On Microblaze the fs value is actually the top of the corresponding
@@ -49,27 +42,10 @@
 #  define USER_DS	MAKE_MM_SEG(TASK_SIZE - 1)
 #  endif
 
-# define get_ds()	(KERNEL_DS)
 # define get_fs()	(current_thread_info()->addr_limit)
 # define set_fs(val)	(current_thread_info()->addr_limit = (val))
 
 # define segment_eq(a, b)	((a).seg == (b).seg)
-
-/*
- * The exception table consists of pairs of addresses: the first is the
- * address of an instruction that is allowed to fault, and the second is
- * the address at which the program should continue. No registers are
- * modified, so it is entirely up to the continuation code to figure out
- * what to do.
- *
- * All the routines below use bits of fixup code that are out of line
- * with the main instruction path. This means when everything is well,
- * we don't even have to jump over them. Further, they do not intrude
- * on our cache or tlb entries.
- */
-struct exception_table_entry {
-	unsigned long insn, fixup;
-};
 
 #ifndef CONFIG_MMU
 
@@ -83,26 +59,25 @@ static inline int ___range_ok(unsigned long addr, unsigned long size)
 #define __range_ok(addr, size) \
 		___range_ok((unsigned long)(addr), (unsigned long)(size))
 
-#define access_ok(type, addr, size) (__range_ok((addr), (size)) == 0)
+#define access_ok(addr, size) (__range_ok((addr), (size)) == 0)
 
 #else
 
-static inline int access_ok(int type, const void __user *addr,
-							unsigned long size)
+static inline int access_ok(const void __user *addr, unsigned long size)
 {
 	if (!size)
 		goto ok;
 
 	if ((get_fs().seg < ((unsigned long)addr)) ||
 			(get_fs().seg < ((unsigned long)addr + size - 1))) {
-		pr_devel("ACCESS fail: %s at 0x%08x (size 0x%x), seg 0x%08x\n",
-			type ? "WRITE" : "READ ", (__force u32)addr, (u32)size,
+		pr_devel("ACCESS fail at 0x%08x (size 0x%x), seg 0x%08x\n",
+			(__force u32)addr, (u32)size,
 			(u32)get_fs().seg);
 		return 0;
 	}
 ok:
-	pr_devel("ACCESS OK: %s at 0x%08x (size 0x%x), seg 0x%08x\n",
-			type ? "WRITE" : "READ ", (__force u32)addr, (u32)size,
+	pr_devel("ACCESS OK at 0x%08x (size 0x%x), seg 0x%08x\n",
+			(__force u32)addr, (u32)size,
 			(u32)get_fs().seg);
 	return 1;
 }
@@ -143,7 +118,7 @@ static inline unsigned long __must_check clear_user(void __user *to,
 							unsigned long n)
 {
 	might_fault();
-	if (unlikely(!access_ok(VERIFY_WRITE, to, n)))
+	if (unlikely(!access_ok(to, n)))
 		return n;
 
 	return __clear_user(to, n);
@@ -197,7 +172,7 @@ extern long __user_bad(void);
 	const typeof(*(ptr)) __user *__gu_addr = (ptr);			\
 	int __gu_err = 0;						\
 									\
-	if (access_ok(VERIFY_READ, __gu_addr, size)) {			\
+	if (access_ok(__gu_addr, size)) {			\
 		switch (size) {						\
 		case 1:							\
 			__get_user_asm("lbu", __gu_addr, __gu_val,	\
@@ -309,7 +284,7 @@ extern long __user_bad(void);
 	typeof(*(ptr)) __user *__pu_addr = (ptr);			\
 	int __pu_err = 0;						\
 									\
-	if (access_ok(VERIFY_WRITE, __pu_addr, size)) {			\
+	if (access_ok(__pu_addr, size)) {			\
 		switch (size) {						\
 		case 1:							\
 			__put_user_asm("sb", __pu_addr, __pu_val,	\
@@ -359,53 +334,31 @@ extern long __user_bad(void);
 	__gu_err;							\
 })
 
-
-/* copy_to_from_user */
-#define __copy_from_user(to, from, n)	\
-	__copy_tofrom_user((__force void __user *)(to), \
-				(void __user *)(from), (n))
-#define __copy_from_user_inatomic(to, from, n) \
-		__copy_from_user((to), (from), (n))
-
-static inline long copy_from_user(void *to,
-		const void __user *from, unsigned long n)
+static inline unsigned long
+raw_copy_from_user(void *to, const void __user *from, unsigned long n)
 {
-	unsigned long res = n;
-	might_fault();
-	if (likely(access_ok(VERIFY_READ, from, n)))
-		res = __copy_from_user(to, from, n);
-	if (unlikely(res))
-		memset(to + (n - res), 0, res);
-	return res;
+	return __copy_tofrom_user((__force void __user *)to, from, n);
 }
 
-#define __copy_to_user(to, from, n)	\
-		__copy_tofrom_user((void __user *)(to), \
-			(__force const void __user *)(from), (n))
-#define __copy_to_user_inatomic(to, from, n) __copy_to_user((to), (from), (n))
-
-static inline long copy_to_user(void __user *to,
-		const void *from, unsigned long n)
+static inline unsigned long
+raw_copy_to_user(void __user *to, const void *from, unsigned long n)
 {
-	might_fault();
-	if (access_ok(VERIFY_WRITE, to, n))
-		return __copy_to_user(to, from, n);
-	return n;
+	return __copy_tofrom_user(to, (__force const void __user *)from, n);
 }
+#define INLINE_COPY_FROM_USER
+#define INLINE_COPY_TO_USER
 
 /*
  * Copy a null terminated string from userspace.
  */
 extern int __strncpy_user(char *to, const char __user *from, int len);
 
-#define __strncpy_from_user	__strncpy_user
-
 static inline long
 strncpy_from_user(char *dst, const char __user *src, long count)
 {
-	if (!access_ok(VERIFY_READ, src, 1))
+	if (!access_ok(src, 1))
 		return -EFAULT;
-	return __strncpy_from_user(dst, src, count);
+	return __strncpy_user(dst, src, count);
 }
 
 /*
@@ -417,12 +370,9 @@ extern int __strnlen_user(const char __user *sstr, int len);
 
 static inline long strnlen_user(const char __user *src, long n)
 {
-	if (!access_ok(VERIFY_READ, src, 1))
+	if (!access_ok(src, 1))
 		return 0;
 	return __strnlen_user(src, n);
 }
-
-#endif  /* __ASSEMBLY__ */
-#endif /* __KERNEL__ */
 
 #endif /* _ASM_MICROBLAZE_UACCESS_H */

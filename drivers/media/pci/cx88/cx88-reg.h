@@ -1,32 +1,19 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
-
-    cx88x-hw.h - CX2388x register offsets
-
-    Copyright (C) 1996,97,98 Ralph Metzler (rjkm@thp.uni-koeln.de)
-		  2001 Michael Eskin
-		  2002 Yurij Sysoev <yurij@naturesoft.net>
-		  2003 Gerd Knorr <kraxel@bytesex.org>
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-*/
+ * cx88x-hw.h - CX2388x register offsets
+ *
+ * Copyright (C) 1996,97,98 Ralph Metzler (rjkm@thp.uni-koeln.de)
+ *		  2001 Michael Eskin
+ *		  2002 Yurij Sysoev <yurij@naturesoft.net>
+ *		  2003 Gerd Knorr <kraxel@bytesex.org>
+ */
 
 #ifndef _CX88_REG_H_
 #define _CX88_REG_H_
 
-/* ---------------------------------------------------------------------- */
-/* PCI IDs and config space                                               */
+/*
+ * PCI IDs and config space
+ */
 
 #ifndef PCI_VENDOR_ID_CONEXANT
 # define PCI_VENDOR_ID_CONEXANT		0x14F1
@@ -39,8 +26,9 @@
 #define CX88X_EN_TBFX 0x02
 #define CX88X_EN_VSFX 0x04
 
-/* ---------------------------------------------------------------------- */
-/* PCI controller registers                                               */
+/*
+ * PCI controller registers
+ */
 
 /* Command and Status Register */
 #define F0_CMD_STAT_MM      0x2f0004
@@ -63,8 +51,9 @@
 #define F3_BAR0_MM          0x2f0310
 #define F4_BAR0_MM          0x2f0410
 
-/* ---------------------------------------------------------------------- */
-/* DMA Controller registers                                               */
+/*
+ * DMA Controller registers
+ */
 
 #define MO_PDMA_STHRSH      0x200000 // Source threshold
 #define MO_PDMA_STADRS      0x200004 // Source target address
@@ -157,9 +146,9 @@
 #define MO_DMA31_CNT2       0x300168 // {11}RW* DMA Table Size : Ch#31
 #define MO_DMA32_CNT2       0x30016C // {11}RW* DMA Table Size : Ch#32
 
-
-/* ---------------------------------------------------------------------- */
-/* Video registers                                                        */
+/*
+ * Video registers
+ */
 
 #define MO_VIDY_DMA         0x310000 // {64}RWp Video Y
 #define MO_VIDU_DMA         0x310008 // {64}RWp Video U
@@ -217,9 +206,9 @@
 #define MO_VID_DMACNTRL     0x31C040 // {8}RW Video DMA control
 #define MO_VID_XFR_STAT     0x31C044 // {1}RO Video transfer status
 
-
-/* ---------------------------------------------------------------------- */
-/* audio registers                                                        */
+/*
+ * audio registers
+ */
 
 #define MO_AUDD_DMA         0x320000 // {64}RWp Audio downstream
 #define MO_AUDU_DMA         0x320008 // {64}RWp Audio upstream
@@ -437,9 +426,9 @@
 #define AUD_PHACC_FREQ_8LSB      0x320d2b
 #define AUD_QAM_MODE             0x320d04
 
-
-/* ---------------------------------------------------------------------- */
-/* transport stream registers                                             */
+/*
+ * transport stream registers
+ */
 
 #define MO_TS_DMA           0x330000 // {64}RWp Transport stream downstream
 #define MO_TS_GPCNT         0x33C020 // {16}RO TS general purpose counter
@@ -455,9 +444,9 @@
 #define TS_FIFO_OVFL_STAT   0x33C05C
 #define TS_VALERR_CNTRL     0x33C060
 
-
-/* ---------------------------------------------------------------------- */
-/* VIP registers                                                          */
+/*
+ * VIP registers
+ */
 
 #define MO_VIPD_DMA         0x340000 // {64}RWp VIP downstream
 #define MO_VIPU_DMA         0x340008 // {64}RWp VIP upstream
@@ -475,9 +464,9 @@
 #define MO_VIP_INTCNTRL     0x34C05C // VIP Interrupt Control
 #define MO_VIP_XFTERM       0x340060 // VIP transfer terminate
 
-
-/* ---------------------------------------------------------------------- */
-/* misc registers                                                         */
+/*
+ * misc registers
+ */
 
 #define MO_M2M_DMA          0x350000 // {64}RWp Mem2Mem DMA Bfr
 #define MO_GP0_IO           0x350010 // {32}RW* GPIOoutput enablesdata I/O
@@ -509,9 +498,9 @@
 #define MO_INT1_STAT        0x35C064 // DMA RISC interrupt status
 #define MO_INT1_MSTAT       0x35C068 // DMA RISC interrupt masked status
 
-
-/* ---------------------------------------------------------------------- */
-/* i2c bus registers                                                      */
+/*
+ * i2c bus registers
+ */
 
 #define MO_I2C              0x368000 // I2C data/control
 #define MO_I2C_DIV          (0xf<<4)
@@ -521,9 +510,11 @@
 #define MO_I2C_SDA          (1<<0)
 
 
-/* ---------------------------------------------------------------------- */
-/* general purpose host registers                                         */
-/* FIXME: tyops?  s/0x35/0x38/ ??                                         */
+/*
+ * general purpose host registers
+ *
+ * FIXME: tyops?  s/0x35/0x38/ ??
+ */
 
 #define MO_GPHSTD_DMA       0x350000 // {64}RWp Host downstream
 #define MO_GPHSTU_DMA       0x350008 // {64}RWp Host upstream
@@ -545,9 +536,9 @@
 #define MO_GPHST_XFR_STAT   0x38C044 // Host transfer status
 #define MO_GPHST_SOFT_RST   0x38C06C // Host software reset
 
-
-/* ---------------------------------------------------------------------- */
-/* RISC instructions                                                      */
+/*
+ * RISC instructions
+ */
 
 #define RISC_SYNC		 0x80000000
 #define RISC_SYNC_ODD		 0x80000000
@@ -576,11 +567,11 @@
 #define RISC_CNT_INC		 0x00010000
 #define RISC_CNT_RSVR		 0x00020000
 #define RISC_CNT_RESET		 0x00030000
-#define RISC_JMP_SRP         	 0x01
+#define RISC_JMP_SRP		 0x01
 
-
-/* ---------------------------------------------------------------------- */
-/* various constants                                                      */
+/*
+ * various constants
+ */
 
 // DMA
 /* Interrupt mask/status */
@@ -821,16 +812,5 @@
 #define DEFAULT_CONTRAST_NTSC			0x39
 #define DEFAULT_SAT_U_NTSC			0x7F
 #define DEFAULT_SAT_V_NTSC			0x5A
-
-typedef enum
-{
-	SOURCE_TUNER = 0,
-	SOURCE_COMPOSITE,
-	SOURCE_SVIDEO,
-	SOURCE_OTHER1,
-	SOURCE_OTHER2,
-	SOURCE_COMPVIASVIDEO,
-	SOURCE_CCIR656
-} VIDEOSOURCETYPE;
 
 #endif /* _CX88_REG_H_ */

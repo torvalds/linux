@@ -51,7 +51,7 @@ Required properties:
 - compatible: should be one of:
   "qcom,msm8660-ebi2"
   "qcom,apq8060-ebi2"
-- #address-cells: shoule be <2>: the first cell is the chipselect,
+- #address-cells: should be <2>: the first cell is the chipselect,
   the second cell is the offset inside the memory range
 - #size-cells: should be <1>
 - ranges: should be set to:
@@ -64,7 +64,7 @@ Required properties:
 - reg: two ranges of registers: EBI2 config and XMEM config areas
 - reg-names: should be "ebi2", "xmem"
 - clocks: two clocks, EBI_2X and EBI
-- clock-names: shoule be "ebi2x", "ebi2"
+- clock-names: should be "ebi2x", "ebi2"
 
 Optional subnodes:
 - Nodes inside the EBI2 will be considered device nodes.
@@ -100,7 +100,7 @@ Optional properties arrays for FAST chip selects:
   assertion, with respect to the cycle where ADV (address valid) is asserted.
   2 means 2 cycles between ADV and OE. Valid values 0, 1, 2 or 3.
 - qcom,xmem-read-hold-cycles: the length in cycles of the first segment of a
-  read transfer. For a single read trandfer this will be the time from CS
+  read transfer. For a single read transfer this will be the time from CS
   assertion to OE assertion. Valid values 0 thru 15.
 
 

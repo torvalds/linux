@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Samsung's S3C2416 SoC device tree source
  *
  * Copyright (c) 2013 Heiko Stuebner <heiko@sntech.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <dt-bindings/clock/s3c2443.h>
@@ -21,9 +18,6 @@
 	};
 
 	cpus {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
 		cpu {
 			compatible = "arm,arm926ej-s";
 		};
@@ -33,7 +27,7 @@
 		compatible = "samsung,s3c2416-irq";
 	};
 
-	clocks: clock-controller@0x4c000000 {
+	clocks: clock-controller@4c000000 {
 		compatible = "samsung,s3c2416-clock";
 		reg = <0x4c000000 0x40>;
 		#clock-cells = <1>;
@@ -72,7 +66,7 @@
 				<&clocks SCLK_UART>;
 	};
 
-	uart_3: serial@5000C000 {
+	uart_3: serial@5000c000 {
 		compatible = "samsung,s3c2440-uart";
 		reg = <0x5000C000 0x4000>;
 		interrupts = <1 18 24 4>, <1 18 25 4>;
@@ -83,7 +77,7 @@
 		status = "disabled";
 	};
 
-	sdhci_1: sdhci@4AC00000 {
+	sdhci_1: sdhci@4ac00000 {
 		compatible = "samsung,s3c6410-sdhci";
 		reg = <0x4AC00000 0x100>;
 		interrupts = <0 0 21 3>;
@@ -94,7 +88,7 @@
 		status = "disabled";
 	};
 
-	sdhci_0: sdhci@4A800000 {
+	sdhci_0: sdhci@4a800000 {
 		compatible = "samsung,s3c6410-sdhci";
 		reg = <0x4A800000 0x100>;
 		interrupts = <0 0 20 3>;

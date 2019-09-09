@@ -22,9 +22,10 @@
 
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/gpio/gpio.h>
-#include "skeleton.dtsi"
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
 	compatible = "arm,realview-eb";
 
 	chosen { };
@@ -38,6 +39,7 @@
 	};
 
 	memory {
+		device_type = "memory";
 		/* 128 MiB memory @ 0x0 */
 		reg = <0x00000000 0x08000000>;
 	};
@@ -117,6 +119,9 @@
 		compatible = "arm,versatile-flash", "cfi-flash";
 		reg = <0x40000000 0x04000000>;
 		bank-width = <4>;
+		partitions {
+			compatible = "arm,arm-firmware-suite";
+		};
 	};
 
 	flash1@44000000 {
@@ -124,6 +129,9 @@
 		compatible = "arm,versatile-flash", "cfi-flash";
 		reg = <0x44000000 0x04000000>;
 		bank-width = <4>;
+		partitions {
+			compatible = "arm,arm-firmware-suite";
+		};
 	};
 
 	/* SMSC LAN91C111 ethernet with PHY and EEPROM */
@@ -141,6 +149,43 @@
 		compatible = "nxp,usb-isp1761";
 		reg = <0x4f000000 0x20000>;
 		port1-otg;
+	};
+
+	bridge {
+		compatible = "ti,ths8134a", "ti,ths8134";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				vga_bridge_in: endpoint {
+					remote-endpoint = <&clcd_pads>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				vga_bridge_out: endpoint {
+					remote-endpoint = <&vga_con_in>;
+				};
+			};
+		};
+	};
+
+	vga {
+		compatible = "vga-connector";
+
+		port {
+			vga_con_in: endpoint {
+				remote-endpoint = <&vga_bridge_out>;
+			};
+		};
 	};
 
 	/* These peripherals are inside the FPGA */
@@ -334,7 +379,7 @@
 			clock-names = "uartclk", "apb_pclk";
 		};
 
-		ssp: ssp@1000d000 {
+		ssp: spi@1000d000 {
 			compatible = "arm,pl022", "arm,primecell";
 			reg = <0x1000d000 0x1000>;
 			clocks = <&sspclk>, <&pclk>;
@@ -409,34 +454,13 @@
 			interrupt-names = "combined";
 			clocks = <&oscclk0>, <&pclk>;
 			clock-names = "clcdclk", "apb_pclk";
+			/* 1024x768 16bpp @65MHz works fine */
+			max-memory-bandwidth = <95000000>;
 
 			port {
 				clcd_pads: endpoint {
-					remote-endpoint = <&clcd_panel>;
+					remote-endpoint = <&vga_bridge_in>;
 					arm,pl11x,tft-r0g0b0-pads = <0 8 16>;
-				};
-			};
-
-			panel {
-				compatible = "panel-dpi";
-
-				port {
-					clcd_panel: endpoint {
-						remote-endpoint = <&clcd_pads>;
-					};
-				};
-
-				/* Standard 640x480 VGA timings */
-				panel-timing {
-					clock-frequency = <25175000>;
-					hactive = <640>;
-					hback-porch = <48>;
-					hfront-porch = <16>;
-					hsync-len = <96>;
-					vactive = <480>;
-					vback-porch = <33>;
-					vfront-porch = <10>;
-					vsync-len = <2>;
 				};
 			};
 		};

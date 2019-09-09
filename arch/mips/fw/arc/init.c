@@ -51,7 +51,7 @@ void __init prom_init(void)
 #endif
 #ifdef CONFIG_SGI_IP27
 	{
-		extern struct plat_smp_ops ip27_smp_ops;
+		extern const struct plat_smp_ops ip27_smp_ops;
 
 		register_smp_ops(&ip27_smp_ops);
 	}

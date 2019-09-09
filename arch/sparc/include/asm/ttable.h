@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _SPARC64_TTABLE_H
 #define _SPARC64_TTABLE_H
 
@@ -186,6 +187,12 @@
 #define KPROBES_TRAP(lvl) TRAP_ARG(bad_trap, lvl)
 #endif
 
+#ifdef CONFIG_UPROBES
+#define UPROBES_TRAP(lvl) TRAP_ARG(uprobe_trap, lvl)
+#else
+#define UPROBES_TRAP(lvl) TRAP_ARG(bad_trap, lvl)
+#endif
+
 #ifdef CONFIG_KGDB
 #define KGDB_TRAP(lvl) TRAP_IRQ(kgdb_trap, lvl)
 #else
@@ -210,6 +217,16 @@
 	ba,pt	%xcc, sun4v_dtsb_miss;			\
 	 nop;						\
 	nop;						\
+	nop;
+
+#define SUN4V_MCD_PRECISE				\
+	ldxa	[%g0] ASI_SCRATCHPAD, %g2;		\
+	ldx	[%g2 + HV_FAULT_D_ADDR_OFFSET], %g4;	\
+	ldx	[%g2 + HV_FAULT_D_CTX_OFFSET], %g5;	\
+	ba,pt	%xcc, etrap;				\
+	 rd	%pc, %g7;				\
+	ba,pt	%xcc, sun4v_mcd_detect_precise;		\
+	 nop;						\
 	nop;
 
 /* Before touching these macros, you owe it to yourself to go and

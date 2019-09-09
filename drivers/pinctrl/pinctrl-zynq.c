@@ -1,22 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Zynq pin controller
  *
  *  Copyright (C) 2014 Xilinx
  *
  *  Sören Brinkmann <soren.brinkmann@xilinx.com>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <linux/io.h>
 #include <linux/mfd/syscon.h>
@@ -45,7 +33,7 @@
  * @syscon:		Syscon regmap
  * @pctrl_offset:	Offset for pinctrl into the @syscon space
  * @groups:		Pingroups
- * @ngroupos:		Number of @groups
+ * @ngroups:		Number of @groups
  * @funcs:		Pinmux functions
  * @nfuncs:		Number of @funcs
  */
@@ -62,7 +50,7 @@ struct zynq_pinctrl {
 struct zynq_pctrl_group {
 	const char *name;
 	const unsigned int *pins;
-	const unsigned npins;
+	const unsigned int npins;
 };
 
 /**
@@ -247,6 +235,8 @@ static const unsigned int smc0_nor_addr25_pins[] = {1};
 static const unsigned int smc0_nand_pins[] = {0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
 					      12, 13, 14, 16, 17, 18, 19, 20,
 					      21, 22, 23};
+static const unsigned int smc0_nand8_pins[] = {0, 2, 3,  4,  5,  6,  7,
+					       8, 9, 10, 11, 12, 13, 14};
 /* Note: CAN MIO clock inputs are modeled in the clock framework */
 static const unsigned int can0_0_pins[] = {10, 11};
 static const unsigned int can0_1_pins[] = {14, 15};
@@ -445,6 +435,7 @@ static const struct zynq_pctrl_group zynq_pctrl_groups[] = {
 	DEFINE_ZYNQ_PINCTRL_GRP(smc0_nor_cs1),
 	DEFINE_ZYNQ_PINCTRL_GRP(smc0_nor_addr25),
 	DEFINE_ZYNQ_PINCTRL_GRP(smc0_nand),
+	DEFINE_ZYNQ_PINCTRL_GRP(smc0_nand8),
 	DEFINE_ZYNQ_PINCTRL_GRP(can0_0),
 	DEFINE_ZYNQ_PINCTRL_GRP(can0_1),
 	DEFINE_ZYNQ_PINCTRL_GRP(can0_2),
@@ -709,7 +700,8 @@ static const char * const sdio1_wp_groups[] = {"gpio0_0_grp",
 static const char * const smc0_nor_groups[] = {"smc0_nor_grp"};
 static const char * const smc0_nor_cs1_groups[] = {"smc0_nor_cs1_grp"};
 static const char * const smc0_nor_addr25_groups[] = {"smc0_nor_addr25_grp"};
-static const char * const smc0_nand_groups[] = {"smc0_nand_grp"};
+static const char * const smc0_nand_groups[] = {"smc0_nand_grp",
+		"smc0_nand8_grp"};
 static const char * const can0_groups[] = {"can0_0_grp", "can0_1_grp",
 		"can0_2_grp", "can0_3_grp", "can0_4_grp", "can0_5_grp",
 		"can0_6_grp", "can0_7_grp", "can0_8_grp", "can0_9_grp",
@@ -837,7 +829,7 @@ static int zynq_pctrl_get_groups_count(struct pinctrl_dev *pctldev)
 }
 
 static const char *zynq_pctrl_get_group_name(struct pinctrl_dev *pctldev,
-					     unsigned selector)
+					     unsigned int selector)
 {
 	struct zynq_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
 
@@ -845,9 +837,9 @@ static const char *zynq_pctrl_get_group_name(struct pinctrl_dev *pctldev,
 }
 
 static int zynq_pctrl_get_group_pins(struct pinctrl_dev *pctldev,
-				     unsigned selector,
-				     const unsigned **pins,
-				     unsigned *num_pins)
+				     unsigned int selector,
+				     const unsigned int **pins,
+				     unsigned int *num_pins)
 {
 	struct zynq_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
 
@@ -874,7 +866,7 @@ static int zynq_pmux_get_functions_count(struct pinctrl_dev *pctldev)
 }
 
 static const char *zynq_pmux_get_function_name(struct pinctrl_dev *pctldev,
-					       unsigned selector)
+					       unsigned int selector)
 {
 	struct zynq_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
 
@@ -882,7 +874,7 @@ static const char *zynq_pmux_get_function_name(struct pinctrl_dev *pctldev,
 }
 
 static int zynq_pmux_get_function_groups(struct pinctrl_dev *pctldev,
-					 unsigned selector,
+					 unsigned int selector,
 					 const char * const **groups,
 					 unsigned * const num_groups)
 {
@@ -894,8 +886,8 @@ static int zynq_pmux_get_function_groups(struct pinctrl_dev *pctldev,
 }
 
 static int zynq_pinmux_set_mux(struct pinctrl_dev *pctldev,
-			       unsigned function,
-			       unsigned group)
+			       unsigned int function,
+			       unsigned int  group)
 {
 	int i, ret;
 	struct zynq_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
@@ -967,23 +959,20 @@ enum zynq_io_standards {
 	zynq_iostd_max
 };
 
-/**
- * enum zynq_pin_config_param - possible pin configuration parameters
- * @PIN_CONFIG_IOSTANDARD: if the pin can select an IO standard, the argument to
+/*
+ * PIN_CONFIG_IOSTANDARD: if the pin can select an IO standard, the argument to
  *	this parameter (on a custom format) tells the driver which alternative
  *	IO standard to use.
  */
-enum zynq_pin_config_param {
-	PIN_CONFIG_IOSTANDARD = PIN_CONFIG_END + 1,
-};
+#define PIN_CONFIG_IOSTANDARD		(PIN_CONFIG_END + 1)
 
 static const struct pinconf_generic_params zynq_dt_params[] = {
 	{"io-standard", PIN_CONFIG_IOSTANDARD, zynq_iostd_lvcmos18},
 };
 
 #ifdef CONFIG_DEBUG_FS
-static const struct pin_config_item zynq_conf_items[ARRAY_SIZE(zynq_dt_params)] = {
-	PCONFDUMP(PIN_CONFIG_IOSTANDARD, "IO-standard", NULL, true),
+static const struct pin_config_item zynq_conf_items[ARRAY_SIZE(zynq_dt_params)]
+	= { PCONFDUMP(PIN_CONFIG_IOSTANDARD, "IO-standard", NULL, true),
 };
 #endif
 
@@ -993,7 +982,7 @@ static unsigned int zynq_pinconf_iostd_get(u32 reg)
 }
 
 static int zynq_pinconf_cfg_get(struct pinctrl_dev *pctldev,
-				unsigned pin,
+				unsigned int pin,
 				unsigned long *config)
 {
 	u32 reg;
@@ -1050,9 +1039,9 @@ static int zynq_pinconf_cfg_get(struct pinctrl_dev *pctldev,
 }
 
 static int zynq_pinconf_cfg_set(struct pinctrl_dev *pctldev,
-				unsigned pin,
+				unsigned int pin,
 				unsigned long *configs,
-				unsigned num_configs)
+				unsigned int num_configs)
 {
 	int i, ret;
 	u32 reg;
@@ -1126,9 +1115,9 @@ static int zynq_pinconf_cfg_set(struct pinctrl_dev *pctldev,
 }
 
 static int zynq_pinconf_group_set(struct pinctrl_dev *pctldev,
-				  unsigned selector,
+				  unsigned int selector,
 				  unsigned long *configs,
-				  unsigned num_configs)
+				  unsigned int  num_configs)
 {
 	int i, ret;
 	struct zynq_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);

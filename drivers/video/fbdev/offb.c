@@ -141,6 +141,7 @@ static int offb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 		/* Clear PALETTE_ACCESS_CNTL in DAC_CNTL */
 		out_le32(par->cmap_adr + 0x58,
 			 in_le32(par->cmap_adr + 0x58) & ~0x20);
+		/* fall through */
 	case cmap_r128:
 		/* Set palette index & data */
 		out_8(par->cmap_adr + 0xb0, regno);
@@ -210,6 +211,7 @@ static int offb_blank(int blank, struct fb_info *info)
 				/* Clear PALETTE_ACCESS_CNTL in DAC_CNTL */
 				out_le32(par->cmap_adr + 0x58,
 					 in_le32(par->cmap_adr + 0x58) & ~0x20);
+				/* fall through */
 			case cmap_r128:
 				/* Set palette index & data */
 				out_8(par->cmap_adr + 0xb0, i);
@@ -280,6 +282,7 @@ static void offb_destroy(struct fb_info *info)
 	if (info->screen_base)
 		iounmap(info->screen_base);
 	release_mem_region(info->apertures->ranges[0].base, info->apertures->ranges[0].size);
+	fb_dealloc_cmap(&info->cmap);
 	framebuffer_release(info);
 }
 
@@ -317,28 +320,28 @@ static void __iomem *offb_map_reg(struct device_node *np, int index,
 }
 
 static void offb_init_palette_hacks(struct fb_info *info, struct device_node *dp,
-				    const char *name, unsigned long address)
+				    unsigned long address)
 {
 	struct offb_par *par = (struct offb_par *) info->par;
 
-	if (dp && !strncmp(name, "ATY,Rage128", 11)) {
+	if (of_node_name_prefix(dp, "ATY,Rage128")) {
 		par->cmap_adr = offb_map_reg(dp, 2, 0, 0x1fff);
 		if (par->cmap_adr)
 			par->cmap_type = cmap_r128;
-	} else if (dp && (!strncmp(name, "ATY,RageM3pA", 12)
-			  || !strncmp(name, "ATY,RageM3p12A", 14))) {
+	} else if (of_node_name_prefix(dp, "ATY,RageM3pA") ||
+		   of_node_name_prefix(dp, "ATY,RageM3p12A")) {
 		par->cmap_adr = offb_map_reg(dp, 2, 0, 0x1fff);
 		if (par->cmap_adr)
 			par->cmap_type = cmap_M3A;
-	} else if (dp && !strncmp(name, "ATY,RageM3pB", 12)) {
+	} else if (of_node_name_prefix(dp, "ATY,RageM3pB")) {
 		par->cmap_adr = offb_map_reg(dp, 2, 0, 0x1fff);
 		if (par->cmap_adr)
 			par->cmap_type = cmap_M3B;
-	} else if (dp && !strncmp(name, "ATY,Rage6", 9)) {
+	} else if (of_node_name_prefix(dp, "ATY,Rage6")) {
 		par->cmap_adr = offb_map_reg(dp, 1, 0, 0x1fff);
 		if (par->cmap_adr)
 			par->cmap_type = cmap_radeon;
-	} else if (!strncmp(name, "ATY,", 4)) {
+	} else if (of_node_name_prefix(dp, "ATY,")) {
 		unsigned long base = address & 0xff000000UL;
 		par->cmap_adr =
 			ioremap(base + 0x7ff000, 0x1000) + 0xcc0;
@@ -349,7 +352,7 @@ static void offb_init_palette_hacks(struct fb_info *info, struct device_node *dp
 		par->cmap_adr = offb_map_reg(dp, 0, 0x6000, 0x1000);
 		if (par->cmap_adr)
 			par->cmap_type = cmap_gxt2000;
-	} else if (dp && !strncmp(name, "vga,Display-", 12)) {
+	} else if (of_node_name_prefix(dp, "vga,Display-")) {
 		/* Look for AVIVO initialized by SLOF */
 		struct device_node *pciparent = of_get_parent(dp);
 		const u32 *vid, *did;
@@ -383,7 +386,7 @@ static void offb_init_palette_hacks(struct fb_info *info, struct device_node *dp
 		FB_VISUAL_PSEUDOCOLOR : FB_VISUAL_STATIC_PSEUDOCOLOR;
 }
 
-static void __init offb_init_fb(const char *name, const char *full_name,
+static void __init offb_init_fb(const char *name,
 				int width, int height, int depth,
 				int pitch, unsigned long address,
 				int foreign_endian, struct device_node *dp)
@@ -402,14 +405,13 @@ static void __init offb_init_fb(const char *name, const char *full_name,
 	       "Using unsupported %dx%d %s at %lx, depth=%d, pitch=%d\n",
 	       width, height, name, address, depth, pitch);
 	if (depth != 8 && depth != 15 && depth != 16 && depth != 32) {
-		printk(KERN_ERR "%s: can't use depth = %d\n", full_name,
-		       depth);
+		printk(KERN_ERR "%pOF: can't use depth = %d\n", dp, depth);
 		release_mem_region(res_start, res_size);
 		return;
 	}
 
 	info = framebuffer_alloc(sizeof(u32) * 16, NULL);
-	
+
 	if (info == 0) {
 		release_mem_region(res_start, res_size);
 		return;
@@ -419,9 +421,13 @@ static void __init offb_init_fb(const char *name, const char *full_name,
 	var = &info->var;
 	info->par = par;
 
-	strcpy(fix->id, "OFfb ");
-	strncat(fix->id, name, sizeof(fix->id) - sizeof("OFfb "));
-	fix->id[sizeof(fix->id) - 1] = '\0';
+	if (name) {
+		strcpy(fix->id, "OFfb ");
+		strncat(fix->id, name, sizeof(fix->id) - sizeof("OFfb "));
+		fix->id[sizeof(fix->id) - 1] = '\0';
+	} else
+		snprintf(fix->id, sizeof(fix->id), "OFfb %pOFn", dp);
+
 
 	var->xres = var->xres_virtual = width;
 	var->yres = var->yres_virtual = height;
@@ -434,7 +440,7 @@ static void __init offb_init_fb(const char *name, const char *full_name,
 
 	par->cmap_type = cmap_unknown;
 	if (depth == 8)
-		offb_init_palette_hacks(info, dp, name, address);
+		offb_init_palette_hacks(info, dp, address);
 	else
 		fix->visual = FB_VISUAL_TRUECOLOR;
 
@@ -515,10 +521,11 @@ static void __init offb_init_fb(const char *name, const char *full_name,
 	if (register_framebuffer(info) < 0)
 		goto out_err;
 
-	fb_info(info, "Open Firmware frame buffer device on %s\n", full_name);
+	fb_info(info, "Open Firmware frame buffer device on %pOF\n", dp);
 	return;
 
 out_err:
+	fb_dealloc_cmap(&info->cmap);
 	iounmap(info->screen_base);
 out_aper:
 	iounmap(par->cmap_adr);
@@ -641,10 +648,9 @@ static void __init offb_init_nodriver(struct device_node *dp, int no_real_node)
 		}
 #endif
 		/* kludge for valkyrie */
-		if (strcmp(dp->name, "valkyrie") == 0)
+		if (of_node_name_eq(dp, "valkyrie"))
 			address += 0x1000;
-		offb_init_fb(no_real_node ? "bootx" : dp->name,
-			     no_real_node ? "display" : dp->full_name,
+		offb_init_fb(no_real_node ? "bootx" : NULL,
 			     width, height, depth, pitch, address,
 			     foreign_endian, no_real_node ? NULL : dp);
 	}
@@ -668,14 +674,14 @@ static int __init offb_init(void)
 		offb_init_nodriver(of_chosen, 1);
 	}
 
-	for (dp = NULL; (dp = of_find_node_by_type(dp, "display"));) {
+	for_each_node_by_type(dp, "display") {
 		if (of_get_property(dp, "linux,opened", NULL) &&
 		    of_get_property(dp, "linux,boot-display", NULL)) {
 			boot_disp = dp;
 			offb_init_nodriver(dp, 0);
 		}
 	}
-	for (dp = NULL; (dp = of_find_node_by_type(dp, "display"));) {
+	for_each_node_by_type(dp, "display") {
 		if (of_get_property(dp, "linux,opened", NULL) &&
 		    dp != boot_disp)
 			offb_init_nodriver(dp, 0);

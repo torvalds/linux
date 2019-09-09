@@ -1,22 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *   Generic MIDI synth driver for ALSA sequencer
  *   Copyright (c) 1998 by Frank van de Pol <fvdpol@coil.demon.nl>
  *                         Jaroslav Kysela <perex@perex.cz>
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
  
 /* 
@@ -78,7 +64,7 @@ static void snd_midi_input_event(struct snd_rawmidi_substream *substream)
 	struct seq_midisynth *msynth;
 	struct snd_seq_event ev;
 	char buf[16], *pbuf;
-	long res, count;
+	long res;
 
 	if (substream == NULL)
 		return;
@@ -94,19 +80,15 @@ static void snd_midi_input_event(struct snd_rawmidi_substream *substream)
 		if (msynth->parser == NULL)
 			continue;
 		pbuf = buf;
-		while (res > 0) {
-			count = snd_midi_event_encode(msynth->parser, pbuf, res, &ev);
-			if (count < 0)
-				break;
-			pbuf += count;
-			res -= count;
-			if (ev.type != SNDRV_SEQ_EVENT_NONE) {
-				ev.source.port = msynth->seq_port;
-				ev.dest.client = SNDRV_SEQ_ADDRESS_SUBSCRIBERS;
-				snd_seq_kernel_client_dispatch(msynth->seq_client, &ev, 1, 0);
-				/* clear event and reset header */
-				memset(&ev, 0, sizeof(ev));
-			}
+		while (res-- > 0) {
+			if (!snd_midi_event_encode_byte(msynth->parser,
+							*pbuf++, &ev))
+				continue;
+			ev.source.port = msynth->seq_port;
+			ev.dest.client = SNDRV_SEQ_ADDRESS_SUBSCRIBERS;
+			snd_seq_kernel_client_dispatch(msynth->seq_client, &ev, 1, 0);
+			/* clear event and reset header */
+			memset(&ev, 0, sizeof(ev));
 		}
 	}
 }

@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * leds-netxbig.c - Driver for the 2Big and 5Big Network series LEDs
  *
  * Copyright (C) 2010 LaCie
  *
  * Author: Simon Guinot <sguinot@lacie.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/module.h>
@@ -335,7 +322,7 @@ static int gpio_ext_get_of_pdata(struct device *dev, struct device_node *np,
 		return ret;
 	}
 	num_addr = ret;
-	addr = devm_kzalloc(dev, num_addr * sizeof(*addr), GFP_KERNEL);
+	addr = devm_kcalloc(dev, num_addr, sizeof(*addr), GFP_KERNEL);
 	if (!addr)
 		return -ENOMEM;
 
@@ -355,7 +342,7 @@ static int gpio_ext_get_of_pdata(struct device *dev, struct device_node *np,
 		return ret;
 	}
 	num_data = ret;
-	data = devm_kzalloc(dev, num_data * sizeof(*data), GFP_KERNEL);
+	data = devm_kcalloc(dev, num_data, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
@@ -415,7 +402,7 @@ static int netxbig_leds_get_of_pdata(struct device *dev,
 		if (ret % 3)
 			return -EINVAL;
 		num_timers = ret / 3;
-		timers = devm_kzalloc(dev, num_timers * sizeof(*timers),
+		timers = devm_kcalloc(dev, num_timers, sizeof(*timers),
 				      GFP_KERNEL);
 		if (!timers)
 			return -ENOMEM;
@@ -444,7 +431,7 @@ static int netxbig_leds_get_of_pdata(struct device *dev,
 		return -ENODEV;
 	}
 
-	leds = devm_kzalloc(dev, num_leds * sizeof(*leds), GFP_KERNEL);
+	leds = devm_kcalloc(dev, num_leds, sizeof(*leds), GFP_KERNEL);
 	if (!leds)
 		return -ENOMEM;
 
@@ -470,8 +457,8 @@ static int netxbig_leds_get_of_pdata(struct device *dev,
 			goto err_node_put;
 
 		mode_val =
-			devm_kzalloc(dev,
-				     NETXBIG_LED_MODE_NUM * sizeof(*mode_val),
+			devm_kcalloc(dev,
+				     NETXBIG_LED_MODE_NUM, sizeof(*mode_val),
 				     GFP_KERNEL);
 		if (!mode_val) {
 			ret = -ENOMEM;
@@ -534,6 +521,7 @@ static const struct of_device_id of_netxbig_leds_match[] = {
 	{ .compatible = "lacie,netxbig-leds", },
 	{},
 };
+MODULE_DEVICE_TABLE(of, of_netxbig_leds_match);
 #else
 static inline int
 netxbig_leds_get_of_pdata(struct device *dev,
@@ -559,8 +547,8 @@ static int netxbig_led_probe(struct platform_device *pdev)
 			return ret;
 	}
 
-	leds_data = devm_kzalloc(&pdev->dev,
-				 pdata->num_leds * sizeof(*leds_data),
+	leds_data = devm_kcalloc(&pdev->dev,
+				 pdata->num_leds, sizeof(*leds_data),
 				 GFP_KERNEL);
 	if (!leds_data)
 		return -ENOMEM;

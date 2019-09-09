@@ -1,14 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2016 HGST, a Western Digital Company.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 #ifndef _RDMA_RW_H
 #define _RDMA_RW_H
@@ -47,15 +39,6 @@ struct rdma_rw_ctx {
 			struct ib_send_wr	inv_wr;
 			struct ib_mr		*mr;
 		} *reg;
-
-		struct {
-			struct rdma_rw_reg_ctx	data;
-			struct rdma_rw_reg_ctx	prot;
-			struct ib_send_wr	sig_inv_wr;
-			struct ib_mr		*sig_mr;
-			struct ib_sge		sig_sge;
-			struct ib_sig_handover_wr sig_wr;
-		} *sig;
 	};
 };
 
@@ -81,6 +64,8 @@ struct ib_send_wr *rdma_rw_ctx_wrs(struct rdma_rw_ctx *ctx, struct ib_qp *qp,
 int rdma_rw_ctx_post(struct rdma_rw_ctx *ctx, struct ib_qp *qp, u8 port_num,
 		struct ib_cqe *cqe, struct ib_send_wr *chain_wr);
 
+unsigned int rdma_rw_mr_factor(struct ib_device *device, u8 port_num,
+		unsigned int maxpages);
 void rdma_rw_init_qp(struct ib_device *dev, struct ib_qp_init_attr *attr);
 int rdma_rw_init_mrs(struct ib_qp *qp, struct ib_qp_init_attr *attr);
 void rdma_rw_cleanup_mrs(struct ib_qp *qp);

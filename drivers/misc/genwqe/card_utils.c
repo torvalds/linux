@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /**
  * IBM Accelerator Family 'GenWQE'
  *
@@ -7,15 +8,6 @@
  * Author: Joerg-Stephan Vogt <jsvogt@de.ibm.com>
  * Author: Michael Jung <mijung@gmx.net>
  * Author: Michael Ruettger <michael@ibmra.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License (version 2 only)
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
  */
 
 /*
@@ -23,14 +15,12 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/dma-mapping.h>
 #include <linux/sched.h>
 #include <linux/vmalloc.h>
 #include <linux/page-flags.h>
 #include <linux/scatterlist.h>
 #include <linux/hugetlb.h>
 #include <linux/iommu.h>
-#include <linux/delay.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
 #include <linux/ctype.h>
@@ -217,11 +207,11 @@ u32 genwqe_crc32(u8 *buff, size_t len, u32 init)
 void *__genwqe_alloc_consistent(struct genwqe_dev *cd, size_t size,
 			       dma_addr_t *dma_handle)
 {
-	if (get_order(size) > MAX_ORDER)
+	if (get_order(size) >= MAX_ORDER)
 		return NULL;
 
-	return dma_zalloc_coherent(&cd->pci_dev->dev, size, dma_handle,
-				   GFP_KERNEL);
+	return dma_alloc_coherent(&cd->pci_dev->dev, size, dma_handle,
+				  GFP_KERNEL);
 }
 
 void __genwqe_free_consistent(struct genwqe_dev *cd, size_t size,
@@ -296,9 +286,9 @@ static int genwqe_sgl_size(int num_pages)
  * from user-space into the cached pages.
  */
 int genwqe_alloc_sync_sgl(struct genwqe_dev *cd, struct genwqe_sgl *sgl,
-			  void __user *user_addr, size_t user_size)
+			  void __user *user_addr, size_t user_size, int write)
 {
-	int rc;
+	int ret = -ENOMEM;
 	struct pci_dev *pci_dev = cd->pci_dev;
 
 	sgl->fpage_offs = offset_in_page((unsigned long)user_addr);
@@ -312,12 +302,13 @@ int genwqe_alloc_sync_sgl(struct genwqe_dev *cd, struct genwqe_sgl *sgl,
 
 	sgl->user_addr = user_addr;
 	sgl->user_size = user_size;
+	sgl->write = write;
 	sgl->sgl_size = genwqe_sgl_size(sgl->nr_pages);
 
 	if (get_order(sgl->sgl_size) > MAX_ORDER) {
 		dev_err(&pci_dev->dev,
 			"[%s] err: too much memory requested!\n", __func__);
-		return -ENOMEM;
+		return ret;
 	}
 
 	sgl->sgl = __genwqe_alloc_consistent(cd, sgl->sgl_size,
@@ -325,7 +316,7 @@ int genwqe_alloc_sync_sgl(struct genwqe_dev *cd, struct genwqe_sgl *sgl,
 	if (sgl->sgl == NULL) {
 		dev_err(&pci_dev->dev,
 			"[%s] err: no memory available!\n", __func__);
-		return -ENOMEM;
+		return ret;
 	}
 
 	/* Only use buffering on incomplete pages */
@@ -338,7 +329,7 @@ int genwqe_alloc_sync_sgl(struct genwqe_dev *cd, struct genwqe_sgl *sgl,
 		/* Sync with user memory */
 		if (copy_from_user(sgl->fpage + sgl->fpage_offs,
 				   user_addr, sgl->fpage_size)) {
-			rc = -EFAULT;
+			ret = -EFAULT;
 			goto err_out;
 		}
 	}
@@ -351,7 +342,7 @@ int genwqe_alloc_sync_sgl(struct genwqe_dev *cd, struct genwqe_sgl *sgl,
 		/* Sync with user memory */
 		if (copy_from_user(sgl->lpage, user_addr + user_size -
 				   sgl->lpage_size, sgl->lpage_size)) {
-			rc = -EFAULT;
+			ret = -EFAULT;
 			goto err_out2;
 		}
 	}
@@ -373,7 +364,8 @@ int genwqe_alloc_sync_sgl(struct genwqe_dev *cd, struct genwqe_sgl *sgl,
 	sgl->sgl = NULL;
 	sgl->sgl_dma_addr = 0;
 	sgl->sgl_size = 0;
-	return -ENOMEM;
+
+	return ret;
 }
 
 int genwqe_setup_sgl(struct genwqe_dev *cd, struct genwqe_sgl *sgl,
@@ -452,7 +444,7 @@ int genwqe_setup_sgl(struct genwqe_dev *cd, struct genwqe_sgl *sgl,
 		s += 8;		/* continue 8 elements further */
 	}
  fixup:
-	if (j == 1) {		/* combining happend on last entry! */
+	if (j == 1) {		/* combining happened on last entry! */
 		s -= 8;		/* full shift needed on previous sgl block */
 		j =  7;		/* shift all elements */
 	}
@@ -470,20 +462,26 @@ int genwqe_setup_sgl(struct genwqe_dev *cd, struct genwqe_sgl *sgl,
  * genwqe_free_sync_sgl() - Free memory for sgl and overlapping pages
  *
  * After the DMA transfer has been completed we free the memory for
- * the sgl and the cached pages. Data is being transfered from cached
+ * the sgl and the cached pages. Data is being transferred from cached
  * pages into user-space buffers.
  */
 int genwqe_free_sync_sgl(struct genwqe_dev *cd, struct genwqe_sgl *sgl)
 {
 	int rc = 0;
+	size_t offset;
+	unsigned long res;
 	struct pci_dev *pci_dev = cd->pci_dev;
 
 	if (sgl->fpage) {
-		if (copy_to_user(sgl->user_addr, sgl->fpage + sgl->fpage_offs,
-				 sgl->fpage_size)) {
-			dev_err(&pci_dev->dev, "[%s] err: copying fpage!\n",
-				__func__);
-			rc = -EFAULT;
+		if (sgl->write) {
+			res = copy_to_user(sgl->user_addr,
+				sgl->fpage + sgl->fpage_offs, sgl->fpage_size);
+			if (res) {
+				dev_err(&pci_dev->dev,
+					"[%s] err: copying fpage! (res=%lu)\n",
+					__func__, res);
+				rc = -EFAULT;
+			}
 		}
 		__genwqe_free_consistent(cd, PAGE_SIZE, sgl->fpage,
 					 sgl->fpage_dma_addr);
@@ -491,12 +489,16 @@ int genwqe_free_sync_sgl(struct genwqe_dev *cd, struct genwqe_sgl *sgl)
 		sgl->fpage_dma_addr = 0;
 	}
 	if (sgl->lpage) {
-		if (copy_to_user(sgl->user_addr + sgl->user_size -
-				 sgl->lpage_size, sgl->lpage,
-				 sgl->lpage_size)) {
-			dev_err(&pci_dev->dev, "[%s] err: copying lpage!\n",
-				__func__);
-			rc = -EFAULT;
+		if (sgl->write) {
+			offset = sgl->user_size - sgl->lpage_size;
+			res = copy_to_user(sgl->user_addr + offset, sgl->lpage,
+					   sgl->lpage_size);
+			if (res) {
+				dev_err(&pci_dev->dev,
+					"[%s] err: copying lpage! (res=%lu)\n",
+					__func__, res);
+				rc = -EFAULT;
+			}
 		}
 		__genwqe_free_consistent(cd, PAGE_SIZE, sgl->lpage,
 					 sgl->lpage_dma_addr);
@@ -513,22 +515,16 @@ int genwqe_free_sync_sgl(struct genwqe_dev *cd, struct genwqe_sgl *sgl)
 }
 
 /**
- * free_user_pages() - Give pinned pages back
+ * genwqe_free_user_pages() - Give pinned pages back
  *
- * Documentation of get_user_pages is in mm/memory.c:
+ * Documentation of get_user_pages is in mm/gup.c:
  *
  * If the page is written to, set_page_dirty (or set_page_dirty_lock,
  * as appropriate) must be called after the page is finished with, and
  * before put_page is called.
- *
- * FIXME Could be of use to others and might belong in the generic
- * code, if others agree. E.g.
- *    ll_free_user_pages in drivers/staging/lustre/lustre/llite/rw26.c
- *    ceph_put_page_vector in net/ceph/pagevec.c
- *    maybe more?
  */
-static int free_user_pages(struct page **page_list, unsigned int nr_pages,
-			   int dirty)
+static int genwqe_free_user_pages(struct page **page_list,
+			unsigned int nr_pages, int dirty)
 {
 	unsigned int i;
 
@@ -566,7 +562,7 @@ static int free_user_pages(struct page **page_list, unsigned int nr_pages,
  * Return: 0 if success
  */
 int genwqe_user_vmap(struct genwqe_dev *cd, struct dma_mapping *m, void *uaddr,
-		     unsigned long size, struct ddcb_requ *req)
+		     unsigned long size)
 {
 	int rc = -EINVAL;
 	unsigned long data, offs;
@@ -582,6 +578,10 @@ int genwqe_user_vmap(struct genwqe_dev *cd, struct dma_mapping *m, void *uaddr,
 	/* determine space needed for page_list. */
 	data = (unsigned long)uaddr;
 	offs = offset_in_page(data);
+	if (size > ULONG_MAX - PAGE_SIZE - offs) {
+		m->size = 0;	/* mark unused and not added */
+		return -EINVAL;
+	}
 	m->nr_pages = DIV_ROUND_UP(offs + size, PAGE_SIZE);
 
 	m->page_list = kcalloc(m->nr_pages,
@@ -599,14 +599,14 @@ int genwqe_user_vmap(struct genwqe_dev *cd, struct dma_mapping *m, void *uaddr,
 	/* pin user pages in memory */
 	rc = get_user_pages_fast(data & PAGE_MASK, /* page aligned addr */
 				 m->nr_pages,
-				 1,		/* write by caller */
+				 m->write ? FOLL_WRITE : 0,	/* readable/writable */
 				 m->page_list);	/* ptrs to pages */
 	if (rc < 0)
 		goto fail_get_user_pages;
 
 	/* assumption: get_user_pages can be killed by signals. */
 	if (rc < m->nr_pages) {
-		free_user_pages(m->page_list, rc, 0);
+		genwqe_free_user_pages(m->page_list, rc, m->write);
 		rc = -EFAULT;
 		goto fail_get_user_pages;
 	}
@@ -618,7 +618,7 @@ int genwqe_user_vmap(struct genwqe_dev *cd, struct dma_mapping *m, void *uaddr,
 	return 0;
 
  fail_free_user_pages:
-	free_user_pages(m->page_list, m->nr_pages, 0);
+	genwqe_free_user_pages(m->page_list, m->nr_pages, m->write);
 
  fail_get_user_pages:
 	kfree(m->page_list);
@@ -636,8 +636,7 @@ int genwqe_user_vmap(struct genwqe_dev *cd, struct dma_mapping *m, void *uaddr,
  * @cd:         pointer to genwqe device
  * @m:          mapping params
  */
-int genwqe_user_vunmap(struct genwqe_dev *cd, struct dma_mapping *m,
-		       struct ddcb_requ *req)
+int genwqe_user_vunmap(struct genwqe_dev *cd, struct dma_mapping *m)
 {
 	struct pci_dev *pci_dev = cd->pci_dev;
 
@@ -651,7 +650,7 @@ int genwqe_user_vunmap(struct genwqe_dev *cd, struct dma_mapping *m,
 		genwqe_unmap_pages(cd, m->dma_list, m->nr_pages);
 
 	if (m->page_list) {
-		free_user_pages(m->page_list, m->nr_pages, 1);
+		genwqe_free_user_pages(m->page_list, m->nr_pages, m->write);
 
 		kfree(m->page_list);
 		m->page_list = NULL;
@@ -740,13 +739,10 @@ int genwqe_read_softreset(struct genwqe_dev *cd)
 int genwqe_set_interrupt_capability(struct genwqe_dev *cd, int count)
 {
 	int rc;
-	struct pci_dev *pci_dev = cd->pci_dev;
 
-	rc = pci_enable_msi_range(pci_dev, 1, count);
+	rc = pci_alloc_irq_vectors(cd->pci_dev, 1, count, PCI_IRQ_MSI);
 	if (rc < 0)
 		return rc;
-
-	cd->flags |= GENWQE_FLAG_MSI_ENABLED;
 	return 0;
 }
 
@@ -756,12 +752,7 @@ int genwqe_set_interrupt_capability(struct genwqe_dev *cd, int count)
  */
 void genwqe_reset_interrupt_capability(struct genwqe_dev *cd)
 {
-	struct pci_dev *pci_dev = cd->pci_dev;
-
-	if (cd->flags & GENWQE_FLAG_MSI_ENABLED) {
-		pci_disable_msi(pci_dev);
-		cd->flags &= ~GENWQE_FLAG_MSI_ENABLED;
-	}
+	pci_free_irq_vectors(cd->pci_dev);
 }
 
 /**

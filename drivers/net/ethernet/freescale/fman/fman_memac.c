@@ -38,6 +38,7 @@
 #include <linux/slab.h>
 #include <linux/io.h>
 #include <linux/phy.h>
+#include <linux/phy_fixed.h>
 #include <linux/of_mdio.h>
 
 /* PCS registers */
@@ -349,6 +350,7 @@ struct fman_mac {
 	struct fman_rev_info fm_rev_info;
 	bool basex_if;
 	struct phy_device *pcsphy;
+	bool allmulti_enabled;
 };
 
 static void add_addr_in_paddr(struct memac_regs __iomem *regs, u8 *adr,
@@ -442,7 +444,10 @@ static int init(struct memac_regs __iomem *regs, struct memac_cfg *cfg,
 		break;
 	default:
 		tmp |= IF_MODE_GMII;
-		if (phy_if == PHY_INTERFACE_MODE_RGMII)
+		if (phy_if == PHY_INTERFACE_MODE_RGMII ||
+		    phy_if == PHY_INTERFACE_MODE_RGMII_ID ||
+		    phy_if == PHY_INTERFACE_MODE_RGMII_RXID ||
+		    phy_if == PHY_INTERFACE_MODE_RGMII_TXID)
 			tmp |= IF_MODE_RGMII | IF_MODE_RGMII_AUTO;
 	}
 	iowrite32be(tmp, &regs->if_mode);
@@ -923,7 +928,7 @@ int memac_add_hash_mac_address(struct fman_mac *memac, enet_addr_t *eth_addr)
 	hash = get_mac_addr_hash_code(addr) & HASH_CTRL_ADDR_MASK;
 
 	/* Create element to be added to the driver hash table */
-	hash_entry = kmalloc(sizeof(*hash_entry), GFP_KERNEL);
+	hash_entry = kmalloc(sizeof(*hash_entry), GFP_ATOMIC);
 	if (!hash_entry)
 		return -ENOMEM;
 	hash_entry->addr = addr;
@@ -934,6 +939,34 @@ int memac_add_hash_mac_address(struct fman_mac *memac, enet_addr_t *eth_addr)
 	iowrite32be(hash | HASH_CTRL_MCAST_EN, &regs->hashtable_ctrl);
 
 	return 0;
+}
+
+int memac_set_allmulti(struct fman_mac *memac, bool enable)
+{
+	u32 entry;
+	struct memac_regs __iomem *regs = memac->regs;
+
+	if (!is_init_done(memac->memac_drv_param))
+		return -EINVAL;
+
+	if (enable) {
+		for (entry = 0; entry < HASH_TABLE_SIZE; entry++)
+			iowrite32be(entry | HASH_CTRL_MCAST_EN,
+				    &regs->hashtable_ctrl);
+	} else {
+		for (entry = 0; entry < HASH_TABLE_SIZE; entry++)
+			iowrite32be(entry & ~HASH_CTRL_MCAST_EN,
+				    &regs->hashtable_ctrl);
+	}
+
+	memac->allmulti_enabled = enable;
+
+	return 0;
+}
+
+int memac_set_tstamp(struct fman_mac *memac, bool enable)
+{
+	return 0; /* Always enabled. */
 }
 
 int memac_del_hash_mac_address(struct fman_mac *memac, enet_addr_t *eth_addr)
@@ -959,8 +992,12 @@ int memac_del_hash_mac_address(struct fman_mac *memac, enet_addr_t *eth_addr)
 			break;
 		}
 	}
-	if (list_empty(&memac->multicast_addr_hash->lsts[hash]))
-		iowrite32be(hash & ~HASH_CTRL_MCAST_EN, &regs->hashtable_ctrl);
+
+	if (!memac->allmulti_enabled) {
+		if (list_empty(&memac->multicast_addr_hash->lsts[hash]))
+			iowrite32be(hash & ~HASH_CTRL_MCAST_EN,
+				    &regs->hashtable_ctrl);
+	}
 
 	return 0;
 }
@@ -1106,6 +1143,9 @@ int memac_init(struct fman_mac *memac)
 int memac_free(struct fman_mac *memac)
 {
 	free_init_resources(memac);
+
+	if (memac->pcsphy)
+		put_device(&memac->pcsphy->mdio.dev);
 
 	kfree(memac->memac_drv_param);
 	kfree(memac);

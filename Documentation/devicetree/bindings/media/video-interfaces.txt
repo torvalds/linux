@@ -55,6 +55,15 @@ divided into two separate ITU-R BT.656 8-bit busses.  In such case bus-width
 and data-shift properties can be used to assign physical data lines to each
 endpoint node (logical bus).
 
+Documenting bindings for devices
+--------------------------------
+
+All required and optional bindings the device supports shall be explicitly
+documented in device DT binding documentation. This also includes port and
+endpoint nodes for the device, including unit-addresses and reg properties where
+relevant.
+
+Please also see Documentation/devicetree/bindings/graph.txt .
 
 Required properties
 -------------------
@@ -67,6 +76,20 @@ are required in a relevant parent node:
 		    identifier, should be 1.
  - #size-cells    : should be zero.
 
+
+Optional properties
+-------------------
+
+- flash-leds: An array of phandles, each referring to a flash LED, a sub-node
+  of the LED driver device node.
+
+- lens-focus: A phandle to the node of the focus lens controller.
+
+- rotation: The device, typically an image sensor, is not mounted upright,
+  but a number of degrees counter clockwise. Typical values are 0 and 180
+  (upside down).
+
+
 Optional endpoint properties
 ----------------------------
 
@@ -76,6 +99,13 @@ Optional endpoint properties
   mode horizontal and vertical synchronization signals are provided to the
   slave device (data source) by the master device (data sink). In the master
   mode the data source device is also the source of the synchronization signals.
+- bus-type: data bus type. Possible values are:
+  1 - MIPI CSI-2 C-PHY
+  2 - MIPI CSI1
+  3 - CCP2
+  4 - MIPI CSI-2 D-PHY
+  5 - Parallel
+  6 - Bt.656
 - bus-width: number of data lines actively used, valid for the parallel busses.
 - data-shift: on the parallel data busses, if bus-width is used to specify the
   number of data lines, data-shift can be used to specify which data lines are
@@ -85,6 +115,8 @@ Optional endpoint properties
   Note, that if HSYNC and VSYNC polarities are not specified, embedded
   synchronization may be required, where supported.
 - data-active: similar to HSYNC and VSYNC, specifies data line polarity.
+- data-enable-active: similar to HSYNC and VSYNC, specifies the data enable
+  signal polarity.
 - field-even-active: field signal level during the even field data transmission.
 - pclk-sample: sample data on rising (1) or falling (0) edge of the pixel clock
   signal.
@@ -94,7 +126,10 @@ Optional endpoint properties
   determines the logical lane number, while the value of an entry indicates
   physical lane, e.g. for 2-lane MIPI CSI-2 bus we could have
   "data-lanes = <1 2>;", assuming the clock lane is on hardware lane 0.
-  This property is valid for serial busses only (e.g. MIPI CSI-2).
+  If the hardware does not support lane reordering, monotonically
+  incremented values shall be used from 0 or 1 onwards, depending on
+  whether or not there is also a clock lane. This property is valid for
+  serial busses only (e.g. MIPI CSI-2).
 - clock-lanes: an array of physical clock lane indexes. Position of an entry
   determines the logical lane number, while the value of an entry indicates
   physical lane, e.g. for a MIPI CSI-2 bus we could have "clock-lanes = <0>;",
@@ -112,7 +147,8 @@ Optional endpoint properties
   should be the combined length of data-lanes and clock-lanes properties.
   If the lane-polarities property is omitted, the value must be interpreted
   as 0 (normal). This property is valid for serial busses only.
-
+- strobe: Whether the clock signal is used as clock (0) or strobe (1). Used
+  with CCP2, for instance.
 
 Example
 -------
@@ -126,7 +162,7 @@ imx074 is linked to ceu0 through the MIPI CSI-2 receiver (csi2). ceu0 has a
 'port' node which may indicate that at any time only one of the following data
 pipelines can be active: ov772x -> ceu0 or imx074 -> csi2 -> ceu0.
 
-	ceu0: ceu@0xfe910000 {
+	ceu0: ceu@fe910000 {
 		compatible = "renesas,sh-mobile-ceu";
 		reg = <0xfe910000 0xa0>;
 		interrupts = <0x880>;
@@ -165,9 +201,9 @@ pipelines can be active: ov772x -> ceu0 or imx074 -> csi2 -> ceu0.
 		};
 	};
 
-	i2c0: i2c@0xfff20000 {
+	i2c0: i2c@fff20000 {
 		...
-		ov772x_1: camera@0x21 {
+		ov772x_1: camera@21 {
 			compatible = "ovti,ov772x";
 			reg = <0x21>;
 			vddio-supply = <&regulator1>;
@@ -191,7 +227,7 @@ pipelines can be active: ov772x -> ceu0 or imx074 -> csi2 -> ceu0.
 			};
 		};
 
-		imx074: camera@0x1a {
+		imx074: camera@1a {
 			compatible = "sony,imx074";
 			reg = <0x1a>;
 			vddio-supply = <&regulator1>;
@@ -211,7 +247,7 @@ pipelines can be active: ov772x -> ceu0 or imx074 -> csi2 -> ceu0.
 		};
 	};
 
-	csi2: csi2@0xffc90000 {
+	csi2: csi2@ffc90000 {
 		compatible = "renesas,sh-mobile-csi2";
 		reg = <0xffc90000 0x1000>;
 		interrupts = <0x17a0>;

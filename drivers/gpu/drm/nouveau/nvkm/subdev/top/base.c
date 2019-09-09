@@ -41,6 +41,22 @@ nvkm_top_device_new(struct nvkm_top *top)
 }
 
 u32
+nvkm_top_addr(struct nvkm_device *device, enum nvkm_devidx index)
+{
+	struct nvkm_top *top = device->top;
+	struct nvkm_top_device *info;
+
+	if (top) {
+		list_for_each_entry(info, &top->device, head) {
+			if (info->index == index)
+				return info->addr;
+		}
+	}
+
+	return 0;
+}
+
+u32
 nvkm_top_reset(struct nvkm_device *device, enum nvkm_devidx index)
 {
 	struct nvkm_top *top = device->top;
@@ -93,6 +109,20 @@ nvkm_top_intr(struct nvkm_device *device, u32 intr, u64 *psubdevs)
 
 	*psubdevs = subdevs;
 	return intr & ~handled;
+}
+
+int
+nvkm_top_fault_id(struct nvkm_device *device, enum nvkm_devidx devidx)
+{
+	struct nvkm_top *top = device->top;
+	struct nvkm_top_device *info;
+
+	list_for_each_entry(info, &top->device, head) {
+		if (info->index == devidx && info->fault >= 0)
+			return info->fault;
+	}
+
+	return -ENOENT;
 }
 
 enum nvkm_devidx

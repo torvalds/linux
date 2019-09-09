@@ -1,16 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
- *
  *
  ******************************************************************************/
 #ifndef __RTW_LED_H_
@@ -58,7 +49,8 @@ struct LED_871x {
 
 	enum LED_STATE_871x	CurrLedState; /*  Current LED state. */
 	enum LED_STATE_871x	BlinkingLedState; /*  Next state for blinking,
-				   * either RTW_LED_ON or RTW_LED_OFF are. */
+						   * either RTW_LED_ON or RTW_LED_OFF are.
+						   */
 
 	u8 bLedOn; /*  true if LED is ON, false if LED is OFF. */
 
@@ -70,15 +62,13 @@ struct LED_871x {
 
 	struct timer_list BlinkTimer; /*  Timer object for led blinking. */
 
-	u8 bSWLedCtrl;
-
 	/*  ALPHA, added by chiyoko, 20090106 */
 	u8 bLedNoLinkBlinkInProgress;
 	u8 bLedLinkBlinkInProgress;
-	u8 bLedStartToLinkBlinkInProgress;
 	u8 bLedScanBlinkInProgress;
 	struct work_struct BlinkWorkItem; /* Workitem used by BlinkTimer to
-					   * manipulate H/W to blink LED. */
+					   * manipulate H/W to blink LED.
+					   */
 };
 
 #define IS_LED_WPS_BLINKING(_LED_871x)					\
@@ -86,24 +76,12 @@ struct LED_871x {
 	((struct LED_871x *)_LED_871x)->CurrLedState == LED_BLINK_WPS_STOP || \
 	((struct LED_871x *)_LED_871x)->bLedWPSBlinkInProgress)
 
-void LedControl8188eu(struct adapter *padapter, enum LED_CTL_MODE	LedAction);
+void led_control_8188eu(struct adapter *padapter, enum LED_CTL_MODE LedAction);
 
 struct led_priv {
-	/* add for led control */
-	struct LED_871x			SwLed0;
-	u8	bRegUseLed;
-	void (*LedControlHandler)(struct adapter *padapter,
-				  enum LED_CTL_MODE LedAction);
-	/* add for led control */
+	struct LED_871x sw_led;
 };
 
-#define rtw_led_control(adapt, action) \
-	do { \
-		if ((adapt)->ledpriv.LedControlHandler) \
-			(adapt)->ledpriv.LedControlHandler((adapt), (action)); \
-	} while (0)
-
-void BlinkTimerCallback(unsigned long data);
 void BlinkWorkItemCallback(struct work_struct *work);
 
 void ResetLedStatus(struct LED_871x *pLed);
@@ -113,8 +91,8 @@ void InitLed871x(struct adapter *padapter, struct LED_871x *pLed);
 void DeInitLed871x(struct LED_871x *pLed);
 
 /* hal... */
-void BlinkHandler(struct LED_871x *pLed);
-void SwLedOn(struct adapter *padapter, struct LED_871x *pLed);
-void SwLedOff(struct adapter *padapter, struct LED_871x *pLed);
+void blink_handler(struct LED_871x *pLed);
+void sw_led_on(struct adapter *padapter, struct LED_871x *pLed);
+void sw_led_off(struct adapter *padapter, struct LED_871x *pLed);
 
 #endif /* __RTW_LED_H_ */

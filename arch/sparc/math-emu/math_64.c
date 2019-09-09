@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * arch/sparc64/math-emu/math.c
  *
@@ -15,7 +16,7 @@
 
 #include <asm/fpumacro.h>
 #include <asm/ptrace.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/cacheflush.h>
 
 #include "sfp-util_64.h"

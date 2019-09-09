@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Common methods for dibusb-based-receivers.
  *
  * Copyright (C) 2004-5 Patrick Boettcher (patrick.boettcher@posteo.de)
  *
- *	This program is free software; you can redistribute it and/or modify it
- *	under the terms of the GNU General Public License as published by the Free
- *	Software Foundation, version 2.
- *
- * see Documentation/dvb/README.dvb-usb for more information
+ * see Documentation/media/dvb-drivers/dvb-usb.rst for more information
  */
 
 #include "dibusb.h"
@@ -62,72 +59,117 @@ EXPORT_SYMBOL(dibusb_pid_filter_ctrl);
 
 int dibusb_power_ctrl(struct dvb_usb_device *d, int onoff)
 {
-	u8 b[3];
+	u8 *b;
 	int ret;
+
+	b = kmalloc(3, GFP_KERNEL);
+	if (!b)
+		return -ENOMEM;
+
 	b[0] = DIBUSB_REQ_SET_IOCTL;
 	b[1] = DIBUSB_IOCTL_CMD_POWER_MODE;
 	b[2] = onoff ? DIBUSB_IOCTL_POWER_WAKEUP : DIBUSB_IOCTL_POWER_SLEEP;
-	ret = dvb_usb_generic_write(d,b,3);
+
+	ret = dvb_usb_generic_write(d, b, 3);
+
+	kfree(b);
+
 	msleep(10);
+
 	return ret;
 }
 EXPORT_SYMBOL(dibusb_power_ctrl);
 
 int dibusb2_0_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 {
-	u8 b[3] = { 0 };
 	int ret;
+	u8 *b;
+
+	b = kmalloc(3, GFP_KERNEL);
+	if (!b)
+		return -ENOMEM;
 
 	if ((ret = dibusb_streaming_ctrl(adap,onoff)) < 0)
-		return ret;
+		goto ret;
 
 	if (onoff) {
 		b[0] = DIBUSB_REQ_SET_STREAMING_MODE;
 		b[1] = 0x00;
-		if ((ret = dvb_usb_generic_write(adap->dev,b,2)) < 0)
-			return ret;
+		ret = dvb_usb_generic_write(adap->dev, b, 2);
+		if (ret  < 0)
+			goto ret;
 	}
 
 	b[0] = DIBUSB_REQ_SET_IOCTL;
 	b[1] = onoff ? DIBUSB_IOCTL_CMD_ENABLE_STREAM : DIBUSB_IOCTL_CMD_DISABLE_STREAM;
-	return dvb_usb_generic_write(adap->dev,b,3);
+	ret = dvb_usb_generic_write(adap->dev, b, 3);
+
+ret:
+	kfree(b);
+	return ret;
 }
 EXPORT_SYMBOL(dibusb2_0_streaming_ctrl);
 
 int dibusb2_0_power_ctrl(struct dvb_usb_device *d, int onoff)
 {
-	if (onoff) {
-		u8 b[3] = { DIBUSB_REQ_SET_IOCTL, DIBUSB_IOCTL_CMD_POWER_MODE, DIBUSB_IOCTL_POWER_WAKEUP };
-		return dvb_usb_generic_write(d,b,3);
-	} else
+	u8 *b;
+	int ret;
+
+	if (!onoff)
 		return 0;
+
+	b = kmalloc(3, GFP_KERNEL);
+	if (!b)
+		return -ENOMEM;
+
+	b[0] = DIBUSB_REQ_SET_IOCTL;
+	b[1] = DIBUSB_IOCTL_CMD_POWER_MODE;
+	b[2] = DIBUSB_IOCTL_POWER_WAKEUP;
+
+	ret = dvb_usb_generic_write(d, b, 3);
+
+	kfree(b);
+
+	return ret;
 }
 EXPORT_SYMBOL(dibusb2_0_power_ctrl);
 
 static int dibusb_i2c_msg(struct dvb_usb_device *d, u8 addr,
 			  u8 *wbuf, u16 wlen, u8 *rbuf, u16 rlen)
 {
-	u8 sndbuf[MAX_XFER_SIZE]; /* lead(1) devaddr,direction(1) addr(2) data(wlen) (len(2) (when reading)) */
-	/* write only ? */
-	int wo = (rbuf == NULL || rlen == 0),
-		len = 2 + wlen + (wo ? 0 : 2);
+	u8 *sndbuf;
+	int ret, wo, len;
 
-	if (4 + wlen > sizeof(sndbuf)) {
+	/* write only ? */
+	wo = (rbuf == NULL || rlen == 0);
+
+	len = 2 + wlen + (wo ? 0 : 2);
+
+	sndbuf = kmalloc(MAX_XFER_SIZE, GFP_KERNEL);
+	if (!sndbuf)
+		return -ENOMEM;
+
+	if (4 + wlen > MAX_XFER_SIZE) {
 		warn("i2c wr: len=%d is too big!\n", wlen);
-		return -EOPNOTSUPP;
+		ret = -EOPNOTSUPP;
+		goto ret;
 	}
 
 	sndbuf[0] = wo ? DIBUSB_REQ_I2C_WRITE : DIBUSB_REQ_I2C_READ;
 	sndbuf[1] = (addr << 1) | (wo ? 0 : 1);
 
-	memcpy(&sndbuf[2],wbuf,wlen);
+	memcpy(&sndbuf[2], wbuf, wlen);
 
 	if (!wo) {
-		sndbuf[wlen+2] = (rlen >> 8) & 0xff;
-		sndbuf[wlen+3] = rlen & 0xff;
+		sndbuf[wlen + 2] = (rlen >> 8) & 0xff;
+		sndbuf[wlen + 3] = rlen & 0xff;
 	}
 
-	return dvb_usb_generic_rw(d,sndbuf,len,rbuf,rlen,0);
+	ret = dvb_usb_generic_rw(d, sndbuf, len, rbuf, rlen, 0);
+
+ret:
+	kfree(sndbuf);
+	return ret;
 }
 
 /*
@@ -178,8 +220,20 @@ EXPORT_SYMBOL(dibusb_i2c_algo);
 
 int dibusb_read_eeprom_byte(struct dvb_usb_device *d, u8 offs, u8 *val)
 {
-	u8 wbuf[1] = { offs };
-	return dibusb_i2c_msg(d, 0x50, wbuf, 1, val, 1);
+	u8 *buf;
+	int rc;
+
+	buf = kmalloc(2, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	buf[0] = offs;
+
+	rc = dibusb_i2c_msg(d, 0x50, &buf[0], 1, &buf[1], 1);
+	*val = buf[1];
+	kfree(buf);
+
+	return rc;
 }
 EXPORT_SYMBOL(dibusb_read_eeprom_byte);
 
@@ -319,11 +373,27 @@ EXPORT_SYMBOL(rc_map_dibusb_table);
 
 int dibusb_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 {
-	u8 key[5],cmd = DIBUSB_REQ_POLL_REMOTE;
-	dvb_usb_generic_rw(d,&cmd,1,key,5,0);
-	dvb_usb_nec_rc_key_to_event(d,key,event,state);
-	if (key[0] != 0)
-		deb_info("key: %*ph\n", 5, key);
-	return 0;
+	u8 *buf;
+	int ret;
+
+	buf = kmalloc(5, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	buf[0] = DIBUSB_REQ_POLL_REMOTE;
+
+	ret = dvb_usb_generic_rw(d, buf, 1, buf, 5, 0);
+	if (ret < 0)
+		goto ret;
+
+	dvb_usb_nec_rc_key_to_event(d, buf, event, state);
+
+	if (buf[0] != 0)
+		deb_info("key: %*ph\n", 5, buf);
+
+ret:
+	kfree(buf);
+
+	return ret;
 }
 EXPORT_SYMBOL(dibusb_rc_query);

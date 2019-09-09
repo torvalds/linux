@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * (C) 2001 Clemson University and The University of Chicago
  * (C) 2011 Omnibond Systems
@@ -16,8 +17,12 @@
 #include "orangefs-kernel.h"
 #include "orangefs-bufmap.h"
 
-static int wait_for_matching_downcall(struct orangefs_kernel_op_s *, long, bool);
-static void orangefs_clean_up_interrupted_operation(struct orangefs_kernel_op_s *);
+static int wait_for_matching_downcall(struct orangefs_kernel_op_s *op,
+		long timeout,
+		int flags)
+			__acquires(op->lock);
+static void orangefs_clean_up_interrupted_operation(struct orangefs_kernel_op_s *op)
+	__releases(op->lock);
 
 /*
  * What we do in this function is to walk the list of operations that are
@@ -28,10 +33,10 @@ static void orangefs_clean_up_interrupted_operation(struct orangefs_kernel_op_s 
  */
 void purge_waiting_ops(void)
 {
-	struct orangefs_kernel_op_s *op;
+	struct orangefs_kernel_op_s *op, *tmp;
 
 	spin_lock(&orangefs_request_list_lock);
-	list_for_each_entry(op, &orangefs_request_list, list) {
+	list_for_each_entry_safe(op, tmp, &orangefs_request_list, list) {
 		gossip_debug(GOSSIP_WAIT_DEBUG,
 			     "pvfs2-client-core: purging op tag %llu %s\n",
 			     llu(op->tag),
@@ -124,16 +129,21 @@ retry_servicing:
 		gossip_debug(GOSSIP_WAIT_DEBUG,
 			     "%s:client core is NOT in service.\n",
 			     __func__);
-		timeout = op_timeout_secs * HZ;
+		/*
+		 * Don't wait for the userspace component to return if
+		 * the filesystem is being umounted anyway.
+		 */
+		if (op->upcall.type == ORANGEFS_VFS_OP_FS_UMOUNT)
+			timeout = 0;
+		else
+			timeout = op_timeout_secs * HZ;
 	}
 	spin_unlock(&orangefs_request_list_lock);
 
 	if (!(flags & ORANGEFS_OP_NO_MUTEX))
 		mutex_unlock(&orangefs_request_mutex);
 
-	ret = wait_for_matching_downcall(op, timeout,
-					 flags & ORANGEFS_OP_INTERRUPTIBLE);
-
+	ret = wait_for_matching_downcall(op, timeout, flags);
 	gossip_debug(GOSSIP_WAIT_DEBUG,
 		     "%s: wait_for_matching_downcall returned %d for %p\n",
 		     __func__,
@@ -238,6 +248,7 @@ bool orangefs_cancel_op_in_progress(struct orangefs_kernel_op_s *op)
  */
 static void
 	orangefs_clean_up_interrupted_operation(struct orangefs_kernel_op_s *op)
+		__releases(op->lock)
 {
 	/*
 	 * handle interrupted cases depending on what state we were in when
@@ -305,10 +316,13 @@ static void
  * Returns with op->lock taken.
  */
 static int wait_for_matching_downcall(struct orangefs_kernel_op_s *op,
-				      long timeout,
-				      bool interruptible)
+		long timeout,
+		int flags)
+			__acquires(op->lock)
 {
 	long n;
+	int writeback = flags & ORANGEFS_OP_WRITEBACK,
+	    interruptible = flags & ORANGEFS_OP_INTERRUPTIBLE;
 
 	/*
 	 * There's a "schedule_timeout" inside of these wait
@@ -316,10 +330,12 @@ static int wait_for_matching_downcall(struct orangefs_kernel_op_s *op,
 	 * user process that needs something done and is being
 	 * manipulated by the client-core process.
 	 */
-	if (interruptible)
+	if (writeback)
+		n = wait_for_completion_io_timeout(&op->waitq, timeout);
+	else if (!writeback && interruptible)
 		n = wait_for_completion_interruptible_timeout(&op->waitq,
-							      timeout);
-	else
+								      timeout);
+	else /* !writeback && !interruptible but compiler complains */
 		n = wait_for_completion_killable_timeout(&op->waitq, timeout);
 
 	spin_lock(&op->lock);

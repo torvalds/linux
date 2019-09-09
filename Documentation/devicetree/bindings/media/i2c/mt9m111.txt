@@ -6,9 +6,17 @@ interface.
 
 Required Properties:
 - compatible: value should be "micron,mt9m111"
+- clocks: reference to the master clock.
+- clock-names: shall be "mclk".
 
-For further reading on port node refer to
-Documentation/devicetree/bindings/media/video-interfaces.txt.
+The device node must contain one 'port' child node with one 'endpoint' child
+sub-node for its digital output video port, in accordance with the video
+interface bindings defined in:
+Documentation/devicetree/bindings/media/video-interfaces.txt
+
+Optional endpoint properties:
+- pclk-sample: For information see ../video-interfaces.txt. The value is set to
+  0 if it isn't specified.
 
 Example:
 
@@ -16,12 +24,13 @@ Example:
 		mt9m111@5d {
 			compatible = "micron,mt9m111";
 			reg = <0x5d>;
+			clocks = <&mclk>;
+			clock-names = "mclk";
 
-			remote = <&pxa_camera>;
 			port {
 				mt9m111_1: endpoint {
-					bus-width = <8>;
 					remote-endpoint = <&pxa_camera>;
+					pclk-sample = <1>;
 				};
 			};
 		};

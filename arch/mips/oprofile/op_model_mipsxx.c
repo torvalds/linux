@@ -15,25 +15,11 @@
 
 #include "op_impl.h"
 
-#define M_PERFCTL_EXL			(1UL	  <<  0)
-#define M_PERFCTL_KERNEL		(1UL	  <<  1)
-#define M_PERFCTL_SUPERVISOR		(1UL	  <<  2)
-#define M_PERFCTL_USER			(1UL	  <<  3)
-#define M_PERFCTL_INTERRUPT_ENABLE	(1UL	  <<  4)
-#define M_PERFCTL_EVENT(event)		(((event) & 0x3ff)  << 5)
-#define M_PERFCTL_VPEID(vpe)		((vpe)	  << 16)
-#define M_PERFCTL_MT_EN(filter)		((filter) << 20)
-#define	   M_TC_EN_ALL			M_PERFCTL_MT_EN(0)
-#define	   M_TC_EN_VPE			M_PERFCTL_MT_EN(1)
-#define	   M_TC_EN_TC			M_PERFCTL_MT_EN(2)
-#define M_PERFCTL_TCID(tcid)		((tcid)	  << 22)
-#define M_PERFCTL_WIDE			(1UL	  << 30)
-#define M_PERFCTL_MORE			(1UL	  << 31)
+#define M_PERFCTL_EVENT(event)		(((event) << MIPS_PERFCTRL_EVENT_S) & \
+					 MIPS_PERFCTRL_EVENT)
+#define M_PERFCTL_VPEID(vpe)		((vpe)	  << MIPS_PERFCTRL_VPEID_S)
 
 #define M_COUNTER_OVERFLOW		(1UL	  << 31)
-
-/* Netlogic XLR specific, count events in all threads in a core */
-#define M_PERFCTL_COUNT_ALL_THREADS	(1UL	  << 13)
 
 static int (*save_perf_irq)(void);
 static int perfcount_irq;
@@ -50,11 +36,10 @@ static int perfcount_irq;
 #endif
 
 #ifdef CONFIG_MIPS_MT_SMP
-static int cpu_has_mipsmt_pertccounters;
-#define WHAT		(M_TC_EN_VPE | \
-			 M_PERFCTL_VPEID(cpu_data[smp_processor_id()].vpe_id))
+#define WHAT		(MIPS_PERFCTRL_MT_EN_VPE | \
+			 M_PERFCTL_VPEID(cpu_vpe_id(&current_cpu_data)))
 #define vpe_id()	(cpu_has_mipsmt_pertccounters ? \
-			0 : cpu_data[smp_processor_id()].vpe_id)
+			0 : cpu_vpe_id(&current_cpu_data))
 
 /*
  * The number of bits to shift to convert between counters per core and
@@ -161,15 +146,15 @@ static void mipsxx_reg_setup(struct op_counter_config *ctr)
 			continue;
 
 		reg.control[i] = M_PERFCTL_EVENT(ctr[i].event) |
-				 M_PERFCTL_INTERRUPT_ENABLE;
+				 MIPS_PERFCTRL_IE;
 		if (ctr[i].kernel)
-			reg.control[i] |= M_PERFCTL_KERNEL;
+			reg.control[i] |= MIPS_PERFCTRL_K;
 		if (ctr[i].user)
-			reg.control[i] |= M_PERFCTL_USER;
+			reg.control[i] |= MIPS_PERFCTRL_U;
 		if (ctr[i].exl)
-			reg.control[i] |= M_PERFCTL_EXL;
+			reg.control[i] |= MIPS_PERFCTRL_EXL;
 		if (boot_cpu_type() == CPU_XLR)
-			reg.control[i] |= M_PERFCTL_COUNT_ALL_THREADS;
+			reg.control[i] |= XLR_PERFCTRL_ALLTHREADS;
 		reg.counter[i] = 0x80000000 - ctr[i].count;
 	}
 }
@@ -187,12 +172,15 @@ static void mipsxx_cpu_setup(void *args)
 	case 4:
 		w_c0_perfctrl3(0);
 		w_c0_perfcntr3(reg.counter[3]);
+		/* fall through */
 	case 3:
 		w_c0_perfctrl2(0);
 		w_c0_perfcntr2(reg.counter[2]);
+		/* fall through */
 	case 2:
 		w_c0_perfctrl1(0);
 		w_c0_perfcntr1(reg.counter[1]);
+		/* fall through */
 	case 1:
 		w_c0_perfctrl0(0);
 		w_c0_perfcntr0(reg.counter[0]);
@@ -210,10 +198,13 @@ static void mipsxx_cpu_start(void *args)
 	switch (counters) {
 	case 4:
 		w_c0_perfctrl3(WHAT | reg.control[3]);
+		/* fall through */
 	case 3:
 		w_c0_perfctrl2(WHAT | reg.control[2]);
+		/* fall through */
 	case 2:
 		w_c0_perfctrl1(WHAT | reg.control[1]);
+		/* fall through */
 	case 1:
 		w_c0_perfctrl0(WHAT | reg.control[0]);
 	}
@@ -230,10 +221,13 @@ static void mipsxx_cpu_stop(void *args)
 	switch (counters) {
 	case 4:
 		w_c0_perfctrl3(0);
+		/* fall through */
 	case 3:
 		w_c0_perfctrl2(0);
+		/* fall through */
 	case 2:
 		w_c0_perfctrl1(0);
+		/* fall through */
 	case 1:
 		w_c0_perfctrl0(0);
 	}
@@ -251,10 +245,11 @@ static int mipsxx_perfcount_handler(void)
 
 	switch (counters) {
 #define HANDLE_COUNTER(n)						\
+	/* fall through */						\
 	case n + 1:							\
 		control = r_c0_perfctrl ## n();				\
 		counter = r_c0_perfcntr ## n();				\
-		if ((control & M_PERFCTL_INTERRUPT_ENABLE) &&		\
+		if ((control & MIPS_PERFCTRL_IE) &&			\
 		    (counter & M_COUNTER_OVERFLOW)) {			\
 			oprofile_add_sample(get_irq_regs(), n);		\
 			w_c0_perfcntr ## n(reg.counter[n]);		\
@@ -273,11 +268,11 @@ static inline int __n_counters(void)
 {
 	if (!cpu_has_perf)
 		return 0;
-	if (!(read_c0_perfctrl0() & M_PERFCTL_MORE))
+	if (!(read_c0_perfctrl0() & MIPS_PERFCTRL_M))
 		return 1;
-	if (!(read_c0_perfctrl1() & M_PERFCTL_MORE))
+	if (!(read_c0_perfctrl1() & MIPS_PERFCTRL_M))
 		return 2;
-	if (!(read_c0_perfctrl2() & M_PERFCTL_MORE))
+	if (!(read_c0_perfctrl2() & MIPS_PERFCTRL_M))
 		return 3;
 
 	return 4;
@@ -312,12 +307,15 @@ static void reset_counters(void *arg)
 	case 4:
 		w_c0_perfctrl3(0);
 		w_c0_perfcntr3(0);
+		/* fall through */
 	case 3:
 		w_c0_perfctrl2(0);
 		w_c0_perfcntr2(0);
+		/* fall through */
 	case 2:
 		w_c0_perfctrl1(0);
 		w_c0_perfcntr1(0);
+		/* fall through */
 	case 1:
 		w_c0_perfctrl0(0);
 		w_c0_perfcntr0(0);
@@ -340,7 +338,6 @@ static int __init mipsxx_init(void)
 	}
 
 #ifdef CONFIG_MIPS_MT_SMP
-	cpu_has_mipsmt_pertccounters = read_c0_config7() & (1<<19);
 	if (!cpu_has_mipsmt_pertccounters)
 		counters = counters_total_to_per_cpu(counters);
 #endif

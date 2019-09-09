@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Network interface table.
  *
@@ -9,10 +10,6 @@
  * Copyright (C) 2003 Red Hat, Inc., James Morris <jmorris@redhat.com>
  * Copyright (C) 2007 Hewlett-Packard Development Company, L.P.
  *		      Paul Moore <paul@paul-moore.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2,
- * as published by the Free Software Foundation.
  */
 #include <linux/init.h>
 #include <linux/types.h>
@@ -145,9 +142,8 @@ static int sel_netif_sid_slow(struct net *ns, int ifindex, u32 *sid)
 
 	dev = dev_get_by_index(ns, ifindex);
 	if (unlikely(dev == NULL)) {
-		printk(KERN_WARNING
-		       "SELinux: failure in sel_netif_sid_slow(),"
-		       " invalid network interface (%d)\n", ifindex);
+		pr_warn("SELinux: failure in %s(), invalid network interface (%d)\n",
+			__func__, ifindex);
 		return -ENOENT;
 	}
 
@@ -163,7 +159,7 @@ static int sel_netif_sid_slow(struct net *ns, int ifindex, u32 *sid)
 		ret = -ENOMEM;
 		goto out;
 	}
-	ret = security_netif_sid(dev->name, &new->nsec.sid);
+	ret = security_netif_sid(&selinux_state, dev->name, &new->nsec.sid);
 	if (ret != 0)
 		goto out;
 	new->nsec.ns = ns;
@@ -177,10 +173,8 @@ out:
 	spin_unlock_bh(&sel_netif_lock);
 	dev_put(dev);
 	if (unlikely(ret)) {
-		printk(KERN_WARNING
-		       "SELinux: failure in sel_netif_sid_slow(),"
-		       " unable to determine network interface label (%d)\n",
-		       ifindex);
+		pr_warn("SELinux: failure in %s(), unable to determine network interface label (%d)\n",
+			__func__, ifindex);
 		kfree(new);
 	}
 	return ret;

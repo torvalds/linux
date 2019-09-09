@@ -1,14 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (c) 2015 Mellanox Technologies. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #ifndef _LINUX_NVME_RDMA_H
@@ -28,6 +20,30 @@ enum nvme_rdma_cm_status {
 	NVME_RDMA_CM_INVALID_IRD	= 0x07,
 	NVME_RDMA_CM_INVALID_ORD	= 0x08,
 };
+
+static inline const char *nvme_rdma_cm_msg(enum nvme_rdma_cm_status status)
+{
+	switch (status) {
+	case NVME_RDMA_CM_INVALID_LEN:
+		return "invalid length";
+	case NVME_RDMA_CM_INVALID_RECFMT:
+		return "invalid record format";
+	case NVME_RDMA_CM_INVALID_QID:
+		return "invalid queue ID";
+	case NVME_RDMA_CM_INVALID_HSQSIZE:
+		return "invalid host SQ size";
+	case NVME_RDMA_CM_INVALID_HRQSIZE:
+		return "invalid host RQ size";
+	case NVME_RDMA_CM_NO_RSC:
+		return "resource not found";
+	case NVME_RDMA_CM_INVALID_IRD:
+		return "invalid IRD";
+	case NVME_RDMA_CM_INVALID_ORD:
+		return "Invalid ORD";
+	default:
+		return "unrecognized reason";
+	}
+}
 
 /**
  * struct nvme_rdma_cm_req - rdma connect request
@@ -61,7 +77,7 @@ struct nvme_rdma_cm_rep {
  * struct nvme_rdma_cm_rej - rdma connect reject
  *
  * @recfmt:        format of the RDMA Private Data
- * @fsts:          error status for the associated connect request
+ * @sts:           error status for the associated connect request
  */
 struct nvme_rdma_cm_rej {
 	__le16		recfmt;

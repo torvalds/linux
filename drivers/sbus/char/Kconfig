@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 
 menu "Misc Linux/SPARC drivers"
 
@@ -27,13 +28,6 @@ config TADPOLE_TS102_UCTRL
 	  on the Tadpole Sparcbook 3.  This device handles power-management
 	  events, and can also notice the attachment/detachment of external
 	  monitors and mice.
-
-config SUN_JSFLASH
-	tristate "JavaStation OS Flash SIMM"
-	depends on SPARC32
-	help
-	  If you say Y here, you will be able to boot from your JavaStation's
-	  Flash memory.
 
 config BBC_I2C
 	tristate "UltraSPARC-III bootbus i2c controller driver"
@@ -69,6 +63,15 @@ config DISPLAY7SEG
 	  If you do not have a CompactPCI model CP1400 or CP1500, or
 	  another UltraSPARC-IIi-cEngine boardset with a 7-segment display,
 	  you should say N to this option.
+
+config ORACLE_DAX
+	tristate "Oracle Data Analytics Accelerator"
+	depends on SPARC64
+	default m
+	help
+	 Driver for Oracle Data Analytics Accelerator, which is
+	 a coprocessor that performs database operations in hardware.
+	 It is available on M7 and M8 based systems only.
 
 endmenu
 

@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Input driver to ExplorerPS/2 device driver module.
  *
  * Copyright (c) 1999-2002 Vojtech Pavlik
  * Copyright (c) 2004      Dmitry Torokhov
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -15,6 +12,7 @@
 #define MOUSEDEV_MINORS		31
 #define MOUSEDEV_MIX		63
 
+#include <linux/bitops.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/poll.h>
@@ -103,7 +101,7 @@ struct mousedev_client {
 	spinlock_t packet_lock;
 	int pos_x, pos_y;
 
-	signed char ps2[6];
+	u8 ps2[6];
 	unsigned char ready, buffer, bufsiz;
 	unsigned char imexseq, impsseq;
 	enum mousedev_emul mode;
@@ -291,11 +289,10 @@ static void mousedev_notify_readers(struct mousedev *mousedev,
 		}
 
 		client->pos_x += packet->dx;
-		client->pos_x = client->pos_x < 0 ?
-			0 : (client->pos_x >= xres ? xres : client->pos_x);
+		client->pos_x = clamp_val(client->pos_x, 0, xres);
+
 		client->pos_y += packet->dy;
-		client->pos_y = client->pos_y < 0 ?
-			0 : (client->pos_y >= yres ? yres : client->pos_y);
+		client->pos_y = clamp_val(client->pos_y, 0, yres);
 
 		p->dx += packet->dx;
 		p->dy += packet->dy;
@@ -561,7 +558,7 @@ static int mousedev_open(struct inode *inode, struct file *file)
 		goto err_free_client;
 
 	file->private_data = client;
-	nonseekable_open(inode, file);
+	stream_open(inode, file);
 
 	return 0;
 
@@ -571,44 +568,50 @@ static int mousedev_open(struct inode *inode, struct file *file)
 	return error;
 }
 
-static inline int mousedev_limit_delta(int delta, int limit)
-{
-	return delta > limit ? limit : (delta < -limit ? -limit : delta);
-}
-
-static void mousedev_packet(struct mousedev_client *client,
-			    signed char *ps2_data)
+static void mousedev_packet(struct mousedev_client *client, u8 *ps2_data)
 {
 	struct mousedev_motion *p = &client->packets[client->tail];
+	s8 dx, dy, dz;
 
-	ps2_data[0] = 0x08 |
-		((p->dx < 0) << 4) | ((p->dy < 0) << 5) | (p->buttons & 0x07);
-	ps2_data[1] = mousedev_limit_delta(p->dx, 127);
-	ps2_data[2] = mousedev_limit_delta(p->dy, 127);
-	p->dx -= ps2_data[1];
-	p->dy -= ps2_data[2];
+	dx = clamp_val(p->dx, -127, 127);
+	p->dx -= dx;
+
+	dy = clamp_val(p->dy, -127, 127);
+	p->dy -= dy;
+
+	ps2_data[0] = BIT(3);
+	ps2_data[0] |= ((dx & BIT(7)) >> 3) | ((dy & BIT(7)) >> 2);
+	ps2_data[0] |= p->buttons & 0x07;
+	ps2_data[1] = dx;
+	ps2_data[2] = dy;
 
 	switch (client->mode) {
 	case MOUSEDEV_EMUL_EXPS:
-		ps2_data[3] = mousedev_limit_delta(p->dz, 7);
-		p->dz -= ps2_data[3];
-		ps2_data[3] = (ps2_data[3] & 0x0f) | ((p->buttons & 0x18) << 1);
+		dz = clamp_val(p->dz, -7, 7);
+		p->dz -= dz;
+
+		ps2_data[3] = (dz & 0x0f) | ((p->buttons & 0x18) << 1);
 		client->bufsiz = 4;
 		break;
 
 	case MOUSEDEV_EMUL_IMPS:
-		ps2_data[0] |=
-			((p->buttons & 0x10) >> 3) | ((p->buttons & 0x08) >> 1);
-		ps2_data[3] = mousedev_limit_delta(p->dz, 127);
-		p->dz -= ps2_data[3];
+		dz = clamp_val(p->dz, -127, 127);
+		p->dz -= dz;
+
+		ps2_data[0] |= ((p->buttons & 0x10) >> 3) |
+			       ((p->buttons & 0x08) >> 1);
+		ps2_data[3] = dz;
+
 		client->bufsiz = 4;
 		break;
 
 	case MOUSEDEV_EMUL_PS2:
 	default:
-		ps2_data[0] |=
-			((p->buttons & 0x10) >> 3) | ((p->buttons & 0x08) >> 1);
 		p->dz = 0;
+
+		ps2_data[0] |= ((p->buttons & 0x10) >> 3) |
+			       ((p->buttons & 0x08) >> 1);
+
 		client->bufsiz = 3;
 		break;
 	}
@@ -701,6 +704,7 @@ static ssize_t mousedev_write(struct file *file, const char __user *buffer,
 		mousedev_generate_response(client, c);
 
 		spin_unlock_irq(&client->packet_lock);
+		cond_resched();
 	}
 
 	kill_fasync(&client->fasync, SIGIO, POLL_IN);
@@ -714,7 +718,7 @@ static ssize_t mousedev_read(struct file *file, char __user *buffer,
 {
 	struct mousedev_client *client = file->private_data;
 	struct mousedev *mousedev = client->mousedev;
-	signed char data[sizeof(client->ps2)];
+	u8 data[sizeof(client->ps2)];
 	int retval = 0;
 
 	if (!client->ready && !client->buffer && mousedev->exist &&
@@ -751,17 +755,17 @@ static ssize_t mousedev_read(struct file *file, char __user *buffer,
 }
 
 /* No kernel lock - fine */
-static unsigned int mousedev_poll(struct file *file, poll_table *wait)
+static __poll_t mousedev_poll(struct file *file, poll_table *wait)
 {
 	struct mousedev_client *client = file->private_data;
 	struct mousedev *mousedev = client->mousedev;
-	unsigned int mask;
+	__poll_t mask;
 
 	poll_wait(file, &mousedev->wait, wait);
 
-	mask = mousedev->exist ? POLLOUT | POLLWRNORM : POLLHUP | POLLERR;
+	mask = mousedev->exist ? EPOLLOUT | EPOLLWRNORM : EPOLLHUP | EPOLLERR;
 	if (client->ready || client->buffer)
-		mask |= POLLIN | POLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDNORM;
 
 	return mask;
 }
@@ -811,8 +815,6 @@ static void mousedev_cleanup(struct mousedev *mousedev)
 
 	mousedev_mark_dead(mousedev);
 	mousedev_hangup(mousedev);
-
-	cdev_del(&mousedev->cdev);
 
 	/* mousedev is marked dead so no one else accesses mousedev->open */
 	if (mousedev->open)
@@ -901,12 +903,8 @@ static struct mousedev *mousedev_create(struct input_dev *dev,
 	}
 
 	cdev_init(&mousedev->cdev, &mousedev_fops);
-	mousedev->cdev.kobj.parent = &mousedev->dev.kobj;
-	error = cdev_add(&mousedev->cdev, mousedev->dev.devt, 1);
-	if (error)
-		goto err_unregister_handle;
 
-	error = device_add(&mousedev->dev);
+	error = cdev_device_add(&mousedev->cdev, &mousedev->dev);
 	if (error)
 		goto err_cleanup_mousedev;
 
@@ -914,7 +912,6 @@ static struct mousedev *mousedev_create(struct input_dev *dev,
 
  err_cleanup_mousedev:
 	mousedev_cleanup(mousedev);
- err_unregister_handle:
 	if (!mixdev)
 		input_unregister_handle(&mousedev->handle);
  err_free_mousedev:
@@ -927,7 +924,7 @@ static struct mousedev *mousedev_create(struct input_dev *dev,
 
 static void mousedev_destroy(struct mousedev *mousedev)
 {
-	device_del(&mousedev->dev);
+	cdev_device_del(&mousedev->cdev, &mousedev->dev);
 	mousedev_cleanup(mousedev);
 	input_free_minor(MINOR(mousedev->dev.devt));
 	if (mousedev != mousedev_mix)

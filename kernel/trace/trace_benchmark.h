@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM benchmark
 
@@ -6,7 +7,7 @@
 
 #include <linux/tracepoint.h>
 
-extern void trace_benchmark_reg(void);
+extern int trace_benchmark_reg(void);
 extern void trace_benchmark_unreg(void);
 
 #define BENCHMARK_EVENT_STRLEN		128

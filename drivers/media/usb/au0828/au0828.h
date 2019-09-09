@@ -1,22 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *  Driver for the Auvitek AU0828 USB bridge
  *
  *  Copyright (c) 2008 Steven Toth <stoth@linuxtv.org>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -35,14 +21,15 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-fh.h>
 #include <media/media-device.h>
+#include <media/media-dev-allocator.h>
 
 /* DVB */
-#include "demux.h"
-#include "dmxdev.h"
-#include "dvb_demux.h"
-#include "dvb_frontend.h"
-#include "dvb_net.h"
-#include "dvbdev.h"
+#include <media/demux.h>
+#include <media/dmxdev.h>
+#include <media/dvb_demux.h>
+#include <media/dvb_frontend.h>
+#include <media/dvb_net.h>
+#include <media/dvbdev.h>
 
 #include "au0828-reg.h"
 #include "au0828-cards.h"
@@ -56,7 +43,7 @@
 
 #define AU0828_INTERLACED_DEFAULT       1
 
-/* Defination for AU0828 USB transfer */
+/* Definition for AU0828 USB transfer */
 #define AU0828_MAX_ISO_BUFS    12  /* maybe resize this value in the future */
 #define AU0828_ISO_PACKETS_PER_URB      128
 
@@ -194,11 +181,13 @@ struct au0828_dev {
 	struct i2c_adapter		i2c_adap;
 	struct i2c_algorithm		i2c_algo;
 	struct i2c_client		i2c_client;
-	u32 				i2c_rc;
+	u32				i2c_rc;
 
 	/* Digital */
 	struct au0828_dvb		dvb;
 	struct work_struct              restart_streaming;
+	struct timer_list               bulk_timeout;
+	int                             bulk_timeout_running;
 
 #ifdef CONFIG_VIDEO_AU0828_V4L2
 	/* Analog */
@@ -285,9 +274,12 @@ struct au0828_dev {
 	struct media_entity_notify entity_notify;
 	struct media_entity *tuner;
 	struct media_link *active_link;
-	struct media_entity *active_link_owner;
 	struct media_entity *active_source;
 	struct media_entity *active_sink;
+	struct media_entity *active_link_owner;
+	struct media_entity *active_link_user;
+	struct media_pipeline *active_link_user_pipe;
+	bool active_link_shared;
 #endif
 };
 
@@ -295,8 +287,8 @@ struct au0828_dev {
 /* ----------------------------------------------------------- */
 #define au0828_read(dev, reg) au0828_readreg(dev, reg)
 #define au0828_write(dev, reg, value) au0828_writereg(dev, reg, value)
-#define au0828_andor(dev, reg, mask, value) 				\
-	 au0828_writereg(dev, reg, 					\
+#define au0828_andor(dev, reg, mask, value)				\
+	 au0828_writereg(dev, reg,					\
 	(au0828_readreg(dev, reg) & ~(mask)) | ((value) & (mask)))
 
 #define au0828_set(dev, reg, bit) au0828_andor(dev, (reg), (bit), (bit))
@@ -360,7 +352,7 @@ void au0828_dvb_suspend(struct au0828_dev *dev);
 void au0828_dvb_resume(struct au0828_dev *dev);
 
 /* au0828-vbi.c */
-extern struct vb2_ops au0828_vbi_qops;
+extern const struct vb2_ops au0828_vbi_qops;
 
 #define dprintk(level, fmt, arg...)\
 	do { if (au0828_debug & level)\

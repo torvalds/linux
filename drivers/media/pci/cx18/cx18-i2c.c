@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  cx18 I2C functions
  *
@@ -5,21 +6,6 @@
  *
  *  Copyright (C) 2007  Hans Verkuil <hverkuil@xs4all.nl>
  *  Copyright (C) 2008  Andy Walls <awalls@md.metrocast.net>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
- *  02111-1307  USA
  */
 
 #include "cx18-driver.h"
@@ -52,8 +38,7 @@ static const u8 hw_addrs[] = {
 	0,				/* CX18_HW_418_AV */
 	0,				/* CX18_HW_GPIO_MUX */
 	0,				/* CX18_HW_GPIO_RESET_CTRL */
-	CX18_Z8F0811_IR_TX_I2C_ADDR,	/* CX18_HW_Z8F0811_IR_TX_HAUP */
-	CX18_Z8F0811_IR_RX_I2C_ADDR,	/* CX18_HW_Z8F0811_IR_RX_HAUP */
+	CX18_Z8F0811_IR_RX_I2C_ADDR,	/* CX18_HW_Z8F0811_IR_HAUP */
 };
 
 /* This array should match the CX18_HW_ defines */
@@ -66,8 +51,7 @@ static const u8 hw_bus[] = {
 	0,	/* CX18_HW_418_AV */
 	0,	/* CX18_HW_GPIO_MUX */
 	0,	/* CX18_HW_GPIO_RESET_CTRL */
-	0,	/* CX18_HW_Z8F0811_IR_TX_HAUP */
-	0,	/* CX18_HW_Z8F0811_IR_RX_HAUP */
+	0,	/* CX18_HW_Z8F0811_IR_HAUP */
 };
 
 /* This array should match the CX18_HW_ defines */
@@ -79,8 +63,7 @@ static const char * const hw_devicenames[] = {
 	"cx23418_AV",
 	"gpio_mux",
 	"gpio_reset_ctrl",
-	"ir_tx_z8f0811_haup",
-	"ir_rx_z8f0811_haup",
+	"ir_z8f0811_haup",
 };
 
 static int cx18_i2c_new_ir(struct cx18 *cx, struct i2c_adapter *adap, u32 hw,
@@ -91,15 +74,15 @@ static int cx18_i2c_new_ir(struct cx18 *cx, struct i2c_adapter *adap, u32 hw,
 	unsigned short addr_list[2] = { addr, I2C_CLIENT_END };
 
 	memset(&info, 0, sizeof(struct i2c_board_info));
-	strlcpy(info.type, type, I2C_NAME_SIZE);
+	strscpy(info.type, type, I2C_NAME_SIZE);
 
 	/* Our default information for ir-kbd-i2c.c to use */
 	switch (hw) {
-	case CX18_HW_Z8F0811_IR_RX_HAUP:
+	case CX18_HW_Z8F0811_IR_HAUP:
 		init_data->ir_codes = RC_MAP_HAUPPAUGE;
 		init_data->internal_get_key_func = IR_KBD_GET_KEY_HAUP_XVR;
-		init_data->type = RC_BIT_RC5 | RC_BIT_RC6_MCE |
-							RC_BIT_RC6_6A_32;
+		init_data->type = RC_PROTO_BIT_RC5 | RC_PROTO_BIT_RC6_MCE |
+							RC_PROTO_BIT_RC6_6A_32;
 		init_data->name = cx->card_name;
 		info.platform_data = init_data;
 		break;
@@ -134,7 +117,7 @@ int cx18_i2c_register(struct cx18 *cx, unsigned idx)
 		return sd != NULL ? 0 : -1;
 	}
 
-	if (hw & CX18_HW_IR_ANY)
+	if (hw == CX18_HW_Z8F0811_IR_HAUP)
 		return cx18_i2c_new_ir(cx, adap, hw, type, hw_addrs[idx]);
 
 	/* Is it not an I2C device or one we do not wish to register? */
@@ -211,7 +194,7 @@ static int cx18_getsda(void *data)
 }
 
 /* template for i2c-bit-algo */
-static struct i2c_adapter cx18_i2c_adap_template = {
+static const struct i2c_adapter cx18_i2c_adap_template = {
 	.name = "cx18 i2c driver",
 	.algo = NULL,                   /* set by i2c-algo-bit */
 	.algo_data = NULL,              /* filled from template */
@@ -221,7 +204,7 @@ static struct i2c_adapter cx18_i2c_adap_template = {
 #define CX18_SCL_PERIOD (10) /* usecs. 10 usec is period for a 100 KHz clock */
 #define CX18_ALGO_BIT_TIMEOUT (2) /* seconds */
 
-static struct i2c_algo_bit_data cx18_i2c_algo_template = {
+static const struct i2c_algo_bit_data cx18_i2c_algo_template = {
 	.setsda		= cx18_setsda,
 	.setscl		= cx18_setscl,
 	.getsda		= cx18_getsda,

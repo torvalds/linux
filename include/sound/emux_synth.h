@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 #ifndef __SOUND_EMUX_SYNTH_H
 #define __SOUND_EMUX_SYNTH_H
 
@@ -5,29 +6,13 @@
  *  Defines for the Emu-series WaveTable chip
  *
  *  Copyright (C) 2000 Takashi Iwai <tiwai@suse.de>
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 #include <sound/seq_kernel.h>
 #include <sound/seq_device.h>
 #include <sound/soundfont.h>
 #include <sound/seq_midi_emul.h>
-#ifdef CONFIG_SND_SEQUENCER_OSS
 #include <sound/seq_oss.h>
-#endif
 #include <sound/emux_legacy.h>
 #include <sound/seq_virmidi.h>
 
@@ -66,7 +51,7 @@ struct snd_emux_operators {
 		       const void __user *data, long count);
 	void (*sysex)(struct snd_emux *emu, char *buf, int len, int parsed,
 		      struct snd_midi_channel_set *chset);
-#ifdef CONFIG_SND_SEQUENCER_OSS
+#if IS_ENABLED(CONFIG_SND_SEQUENCER_OSS)
 	int (*oss_ioctl)(struct snd_emux *emu, int cmd, int p1, int p2);
 #endif
 };
@@ -129,7 +114,7 @@ struct snd_emux {
 	struct snd_info_entry *proc;
 #endif
 
-#ifdef CONFIG_SND_SEQUENCER_OSS
+#if IS_ENABLED(CONFIG_SND_SEQUENCER_OSS)
 	struct snd_seq_device *oss_synth;
 #endif
 };
@@ -150,7 +135,7 @@ struct snd_emux_port {
 #ifdef SNDRV_EMUX_USE_RAW_EFFECT
 	struct snd_emux_effect_table *effect;
 #endif
-#ifdef CONFIG_SND_SEQUENCER_OSS
+#if IS_ENABLED(CONFIG_SND_SEQUENCER_OSS)
 	struct snd_seq_oss_arg *oss_arg;
 #endif
 };

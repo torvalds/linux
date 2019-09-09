@@ -1,3 +1,5 @@
+.. SPDX-License-Identifier: GPL-2.0
+
 How to get the bt8xx cards working
 ==================================
 
@@ -18,7 +20,7 @@ General information
 
 This class of cards has a bt878a as the PCI interface, and require the bttv driver
 for accessing the i2c bus and the gpio pins of the bt8xx chipset.
-Please see Documentation/dvb/cards.txt => o Cards based on the Conexant Bt8xx PCI bridge:
+Please see Documentation/media/dvb-drivers/cards.rst => o Cards based on the Conexant Bt8xx PCI bridge:
 
 Compiling kernel please enable:
 
@@ -45,7 +47,7 @@ Loading Modules
 Regular case: If the bttv driver detects a bt8xx-based DVB card, all frontend and backend modules will be loaded automatically.
 Exceptions are:
 - Old TwinHan DST cards or clones with or without CA slot and not containing an Eeprom.
-People running udev please see Documentation/dvb/udev.txt.
+People running udev please see Documentation/media/dvb-drivers/udev.rst.
 
 In the following cases overriding the PCI type detection for dvb-bt8xx might be necessary:
 
@@ -72,7 +74,7 @@ Useful parameters for verbosity level and debugging the dst module:
 The autodetected values are determined by the cards' "response string".
 In your logs see f. ex.: dst_get_device_id: Recognize [DSTMCI].
 For bug reports please send in a complete log with verbose=4 activated.
-Please also see Documentation/dvb/ci.txt.
+Please also see Documentation/media/dvb-drivers/ci.rst.
 
 Running multiple cards
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -100,7 +102,7 @@ Examples of card ID's:
 
 	$ modprobe bttv card=113 card=135
 
-For a full list of card ID's please see Documentation/video4linux/CARDLIST.bttv.
+For a full list of card ID's please see Documentation/media/v4l-drivers/bttv-cardlist.rst.
 In case of further problems please subscribe and send questions to the mailing list: linux-dvb@linuxtv.org.
 
 Probing the cards with broken PCI subsystem ID

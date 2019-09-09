@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * OSS compatible sequencer driver
  *
  * seq_oss_readq.c - MIDI input queue
  *
  * Copyright (C) 1998,99 Takashi Iwai <tiwai@suse.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 #include "seq_oss_readq.h"
@@ -115,6 +102,35 @@ snd_seq_oss_readq_puts(struct seq_oss_readq *q, int dev, unsigned char *data, in
 			return result;
 	}
 	return 0;
+}
+
+/*
+ * put MIDI sysex bytes; the event buffer may be chained, thus it has
+ * to be expanded via snd_seq_dump_var_event().
+ */
+struct readq_sysex_ctx {
+	struct seq_oss_readq *readq;
+	int dev;
+};
+
+static int readq_dump_sysex(void *ptr, void *buf, int count)
+{
+	struct readq_sysex_ctx *ctx = ptr;
+
+	return snd_seq_oss_readq_puts(ctx->readq, ctx->dev, buf, count);
+}
+
+int snd_seq_oss_readq_sysex(struct seq_oss_readq *q, int dev,
+			    struct snd_seq_event *ev)
+{
+	struct readq_sysex_ctx ctx = {
+		.readq = q,
+		.dev = dev
+	};
+
+	if ((ev->flags & SNDRV_SEQ_EVENT_LENGTH_MASK) != SNDRV_SEQ_EVENT_LENGTH_VARIABLE)
+		return 0;
+	return snd_seq_dump_var_event(ev, readq_dump_sysex, &ctx);
 }
 
 /*

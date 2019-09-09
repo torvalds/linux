@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * This is a module which is used for queueing packets and communicating with
  * userspace via nfnetlink.
@@ -8,12 +9,10 @@
  * Based on the old ipv4-only ip_queue.c:
  * (C) 2000-2002 James Morris <jmorris@intercode.com.au>
  * (C) 2003-2005 Netfilter Core Team <coreteam@netfilter.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/init.h>
@@ -39,6 +38,10 @@
 
 #if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 #include "../bridge/br_private.h"
+#endif
+
+#if IS_ENABLED(CONFIG_NF_CONNTRACK)
+#include <net/netfilter/nf_conntrack.h>
 #endif
 
 #define NFQNL_QMAX_DEFAULT 1024
@@ -69,7 +72,7 @@ struct nfqnl_instance {
  * Following fields are dirtied for each queued packet,
  * keep them in same cache line if possible.
  */
-	spinlock_t	lock;
+	spinlock_t	lock	____cacheline_aligned_in_smp;
 	unsigned int	queue_total;
 	unsigned int	id_sequence;		/* 'sequence' of pkt ids */
 	struct list_head queue_list;		/* packets in queue */
@@ -77,7 +80,7 @@ struct nfqnl_instance {
 
 typedef int (*nfqnl_cmpfn)(struct nf_queue_entry *, unsigned long);
 
-static int nfnl_queue_net_id __read_mostly;
+static unsigned int nfnl_queue_net_id __read_mostly;
 
 #define INSTANCE_BUCKETS	16
 struct nfnl_queue_net {
@@ -220,6 +223,26 @@ find_dequeue_entry(struct nfqnl_instance *queue, unsigned int id)
 	return entry;
 }
 
+static void nfqnl_reinject(struct nf_queue_entry *entry, unsigned int verdict)
+{
+	struct nf_ct_hook *ct_hook;
+	int err;
+
+	if (verdict == NF_ACCEPT ||
+	    verdict == NF_REPEAT ||
+	    verdict == NF_STOP) {
+		rcu_read_lock();
+		ct_hook = rcu_dereference(nf_ct_hook);
+		if (ct_hook) {
+			err = ct_hook->update(entry->state.net, entry->skb);
+			if (err < 0)
+				verdict = NF_DROP;
+		}
+		rcu_read_unlock();
+	}
+	nf_reinject(entry, verdict);
+}
+
 static void
 nfqnl_flush(struct nfqnl_instance *queue, nfqnl_cmpfn cmpfn, unsigned long data)
 {
@@ -230,7 +253,7 @@ nfqnl_flush(struct nfqnl_instance *queue, nfqnl_cmpfn cmpfn, unsigned long data)
 		if (!cmpfn || cmpfn(entry, data)) {
 			list_del(&entry->list);
 			queue->queue_total--;
-			nf_reinject(entry, NF_DROP);
+			nfqnl_reinject(entry, NF_DROP);
 		}
 	}
 	spin_unlock_bh(&queue->lock);
@@ -324,7 +347,7 @@ static int nfqnl_put_bridge(struct nf_queue_entry *entry, struct sk_buff *skb)
 	if (skb_vlan_tag_present(entskb)) {
 		struct nlattr *nest;
 
-		nest = nla_nest_start(skb, NFQA_VLAN | NLA_F_NESTED);
+		nest = nla_nest_start(skb, NFQA_VLAN);
 		if (!nest)
 			goto nla_put_failure;
 
@@ -384,7 +407,7 @@ nfqnl_build_packet_message(struct net *net, struct nfqnl_instance *queue,
 		+ nla_total_size(sizeof(u_int32_t))	/* skbinfo */
 		+ nla_total_size(sizeof(u_int32_t));	/* cap_len */
 
-	if (entskb->tstamp.tv64)
+	if (entskb->tstamp)
 		size += nla_total_size(sizeof(struct nfqnl_msg_packet_timestamp));
 
 	size += nfqnl_get_bridge_size(entry);
@@ -397,7 +420,7 @@ nfqnl_build_packet_message(struct net *net, struct nfqnl_instance *queue,
 
 	outdev = entry->state.out;
 
-	switch ((enum nfqnl_config_mode)ACCESS_ONCE(queue->copy_mode)) {
+	switch ((enum nfqnl_config_mode)READ_ONCE(queue->copy_mode)) {
 	case NFQNL_COPY_META:
 	case NFQNL_COPY_NONE:
 		break;
@@ -408,7 +431,7 @@ nfqnl_build_packet_message(struct net *net, struct nfqnl_instance *queue,
 		    skb_checksum_help(entskb))
 			return NULL;
 
-		data_len = ACCESS_ONCE(queue->copy_range);
+		data_len = READ_ONCE(queue->copy_range);
 		if (data_len > entskb->len)
 			data_len = entskb->len;
 
@@ -443,16 +466,16 @@ nfqnl_build_packet_message(struct net *net, struct nfqnl_instance *queue,
 	skb = alloc_skb(size, GFP_ATOMIC);
 	if (!skb) {
 		skb_tx_error(entskb);
-		return NULL;
+		goto nlmsg_failure;
 	}
 
 	nlh = nlmsg_put(skb, 0, 0,
-			NFNL_SUBSYS_QUEUE << 8 | NFQNL_MSG_PACKET,
+			nfnl_msg_type(NFNL_SUBSYS_QUEUE, NFQNL_MSG_PACKET),
 			sizeof(struct nfgenmsg), 0);
 	if (!nlh) {
 		skb_tx_error(entskb);
 		kfree_skb(skb);
-		return NULL;
+		goto nlmsg_failure;
 	}
 	nfmsg = nlmsg_data(nlh);
 	nfmsg->nfgen_family = entry->state.pf;
@@ -555,7 +578,7 @@ nfqnl_build_packet_message(struct net *net, struct nfqnl_instance *queue,
 	if (nfqnl_put_bridge(entry, skb) < 0)
 		goto nla_put_failure;
 
-	if (entskb->tstamp.tv64) {
+	if (entry->state.hook <= NF_INET_FORWARD && entskb->tstamp) {
 		struct nfqnl_msg_packet_timestamp ts;
 		struct timespec64 kts = ktime_to_timespec64(entskb->tstamp);
 
@@ -589,7 +612,7 @@ nfqnl_build_packet_message(struct net *net, struct nfqnl_instance *queue,
 		if (skb_tailroom(skb) < sizeof(*nla) + hlen)
 			goto nla_put_failure;
 
-		nla = (struct nlattr *)skb_put(skb, sizeof(*nla));
+		nla = skb_put(skb, sizeof(*nla));
 		nla->nla_type = NFQA_PAYLOAD;
 		nla->nla_len = nla_attr_size(data_len);
 
@@ -598,13 +621,30 @@ nfqnl_build_packet_message(struct net *net, struct nfqnl_instance *queue,
 	}
 
 	nlh->nlmsg_len = skb->len;
+	if (seclen)
+		security_release_secctx(secdata, seclen);
 	return skb;
 
 nla_put_failure:
 	skb_tx_error(entskb);
 	kfree_skb(skb);
 	net_err_ratelimited("nf_queue: error creating packet message\n");
+nlmsg_failure:
+	if (seclen)
+		security_release_secctx(secdata, seclen);
 	return NULL;
+}
+
+static bool nf_ct_drop_unconfirmed(const struct nf_queue_entry *entry)
+{
+#if IS_ENABLED(CONFIG_NF_CONNTRACK)
+	static const unsigned long flags = IPS_CONFIRMED | IPS_DYING;
+	const struct nf_conn *ct = (void *)skb_nfct(entry->skb);
+
+	if (ct && ((ct->status & flags) == IPS_DYING))
+		return true;
+#endif
+	return false;
 }
 
 static int
@@ -622,6 +662,9 @@ __nfqnl_enqueue_packet(struct net *net, struct nfqnl_instance *queue,
 		goto err_out;
 	}
 	spin_lock_bh(&queue->lock);
+
+	if (nf_ct_drop_unconfirmed(entry))
+		goto err_out_free_nskb;
 
 	if (queue->queue_total >= queue->queue_maxlen) {
 		if (queue->flags & NFQA_CFG_F_FAIL_OPEN) {
@@ -659,7 +702,7 @@ err_out_free_nskb:
 err_out_unlock:
 	spin_unlock_bh(&queue->lock);
 	if (failopen)
-		nf_reinject(entry, NF_ACCEPT);
+		nfqnl_reinject(entry, NF_ACCEPT);
 err_out:
 	return err;
 }
@@ -680,13 +723,13 @@ nf_queue_entry_dup(struct nf_queue_entry *e)
  */
 static void nf_bridge_adjust_skb_data(struct sk_buff *skb)
 {
-	if (skb->nf_bridge)
+	if (nf_bridge_info_get(skb))
 		__skb_push(skb, skb->network_header - skb->mac_header);
 }
 
 static void nf_bridge_adjust_segmented_data(struct sk_buff *skb)
 {
-	if (skb->nf_bridge)
+	if (nf_bridge_info_get(skb))
 		__skb_pull(skb, skb->network_header - skb->mac_header);
 }
 #else
@@ -718,7 +761,7 @@ __nfqnl_enqueue_packet_gso(struct net *net, struct nfqnl_instance *queue,
 		return ret;
 	}
 
-	skb->next = NULL;
+	skb_mark_not_on_list(skb);
 
 	entry_seg = nf_queue_entry_dup(entry);
 	if (entry_seg) {
@@ -809,17 +852,14 @@ nfqnl_mangle(void *data, int data_len, struct nf_queue_entry *e, int diff)
 		if (diff > skb_tailroom(e->skb)) {
 			nskb = skb_copy_expand(e->skb, skb_headroom(e->skb),
 					       diff, GFP_ATOMIC);
-			if (!nskb) {
-				printk(KERN_WARNING "nf_queue: OOM "
-				      "in mangle, dropping packet\n");
+			if (!nskb)
 				return -ENOMEM;
-			}
 			kfree_skb(e->skb);
 			e->skb = nskb;
 		}
 		skb_put(e->skb, diff);
 	}
-	if (!skb_make_writable(e->skb, data_len))
+	if (skb_ensure_writable(e->skb, data_len))
 		return -ENOMEM;
 	skb_copy_to_linear_data(e->skb, data, data_len);
 	e->skb->ip_summed = CHECKSUM_NONE;
@@ -860,23 +900,22 @@ nfqnl_set_mode(struct nfqnl_instance *queue,
 static int
 dev_cmp(struct nf_queue_entry *entry, unsigned long ifindex)
 {
+#if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
+	int physinif, physoutif;
+
+	physinif = nf_bridge_get_physinif(entry->skb);
+	physoutif = nf_bridge_get_physoutif(entry->skb);
+
+	if (physinif == ifindex || physoutif == ifindex)
+		return 1;
+#endif
 	if (entry->state.in)
 		if (entry->state.in->ifindex == ifindex)
 			return 1;
 	if (entry->state.out)
 		if (entry->state.out->ifindex == ifindex)
 			return 1;
-#if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
-	if (entry->skb->nf_bridge) {
-		int physinif, physoutif;
 
-		physinif = nf_bridge_get_physinif(entry->skb);
-		physoutif = nf_bridge_get_physoutif(entry->skb);
-
-		if (physinif == ifindex || physoutif == ifindex)
-			return 1;
-	}
-#endif
 	return 0;
 }
 
@@ -917,27 +956,18 @@ static struct notifier_block nfqnl_dev_notifier = {
 	.notifier_call	= nfqnl_rcv_dev_event,
 };
 
-static int nf_hook_cmp(struct nf_queue_entry *entry, unsigned long entry_ptr)
-{
-	return rcu_access_pointer(entry->state.hook_entries) ==
-		(struct nf_hook_entry *)entry_ptr;
-}
-
-static void nfqnl_nf_hook_drop(struct net *net,
-			       const struct nf_hook_entry *hook)
+static void nfqnl_nf_hook_drop(struct net *net)
 {
 	struct nfnl_queue_net *q = nfnl_queue_pernet(net);
 	int i;
 
-	rcu_read_lock();
 	for (i = 0; i < INSTANCE_BUCKETS; i++) {
 		struct nfqnl_instance *inst;
 		struct hlist_head *head = &q->instance_table[i];
 
 		hlist_for_each_entry_rcu(inst, head, hlist)
-			nfqnl_flush(inst, nf_hook_cmp, (unsigned long)hook);
+			nfqnl_flush(inst, NULL, 0);
 	}
-	rcu_read_unlock();
 }
 
 static int
@@ -1029,7 +1059,8 @@ static int nfq_id_after(unsigned int id, unsigned int max)
 static int nfqnl_recv_verdict_batch(struct net *net, struct sock *ctnl,
 				    struct sk_buff *skb,
 				    const struct nlmsghdr *nlh,
-			            const struct nlattr * const nfqa[])
+			            const struct nlattr * const nfqa[],
+				    struct netlink_ext_ack *extack)
 {
 	struct nfgenmsg *nfmsg = nlmsg_data(nlh);
 	struct nf_queue_entry *entry, *tmp;
@@ -1069,7 +1100,8 @@ static int nfqnl_recv_verdict_batch(struct net *net, struct sock *ctnl,
 	list_for_each_entry_safe(entry, tmp, &batch_list, list) {
 		if (nfqa[NFQA_MARK])
 			entry->skb->mark = ntohl(nla_get_be32(nfqa[NFQA_MARK]));
-		nf_reinject(entry, verdict);
+
+		nfqnl_reinject(entry, verdict);
 	}
 	return 0;
 }
@@ -1103,16 +1135,18 @@ static int nfqa_parse_bridge(struct nf_queue_entry *entry,
 		struct nlattr *tb[NFQA_VLAN_MAX + 1];
 		int err;
 
-		err = nla_parse_nested(tb, NFQA_VLAN_MAX, nfqa[NFQA_VLAN],
-				       nfqa_vlan_policy);
+		err = nla_parse_nested_deprecated(tb, NFQA_VLAN_MAX,
+						  nfqa[NFQA_VLAN],
+						  nfqa_vlan_policy, NULL);
 		if (err < 0)
 			return err;
 
 		if (!tb[NFQA_VLAN_TCI] || !tb[NFQA_VLAN_PROTO])
 			return -EINVAL;
 
-		entry->skb->vlan_tci = ntohs(nla_get_be16(tb[NFQA_VLAN_TCI]));
-		entry->skb->vlan_proto = nla_get_be16(tb[NFQA_VLAN_PROTO]);
+		__vlan_hwaccel_put_tag(entry->skb,
+			nla_get_be16(tb[NFQA_VLAN_PROTO]),
+			ntohs(nla_get_be16(tb[NFQA_VLAN_TCI])));
 	}
 
 	if (nfqa[NFQA_L2HDR]) {
@@ -1133,7 +1167,8 @@ static int nfqa_parse_bridge(struct nf_queue_entry *entry,
 static int nfqnl_recv_verdict(struct net *net, struct sock *ctnl,
 			      struct sk_buff *skb,
 			      const struct nlmsghdr *nlh,
-			      const struct nlattr * const nfqa[])
+			      const struct nlattr * const nfqa[],
+			      struct netlink_ext_ack *extack)
 {
 	struct nfgenmsg *nfmsg = nlmsg_data(nlh);
 	u_int16_t queue_num = ntohs(nfmsg->res_id);
@@ -1191,13 +1226,14 @@ static int nfqnl_recv_verdict(struct net *net, struct sock *ctnl,
 	if (nfqa[NFQA_MARK])
 		entry->skb->mark = ntohl(nla_get_be32(nfqa[NFQA_MARK]));
 
-	nf_reinject(entry, verdict);
+	nfqnl_reinject(entry, verdict);
 	return 0;
 }
 
 static int nfqnl_recv_unsupp(struct net *net, struct sock *ctnl,
 			     struct sk_buff *skb, const struct nlmsghdr *nlh,
-			     const struct nlattr * const nfqa[])
+			     const struct nlattr * const nfqa[],
+			     struct netlink_ext_ack *extack)
 {
 	return -ENOTSUPP;
 }
@@ -1205,16 +1241,20 @@ static int nfqnl_recv_unsupp(struct net *net, struct sock *ctnl,
 static const struct nla_policy nfqa_cfg_policy[NFQA_CFG_MAX+1] = {
 	[NFQA_CFG_CMD]		= { .len = sizeof(struct nfqnl_msg_config_cmd) },
 	[NFQA_CFG_PARAMS]	= { .len = sizeof(struct nfqnl_msg_config_params) },
+	[NFQA_CFG_QUEUE_MAXLEN]	= { .type = NLA_U32 },
+	[NFQA_CFG_MASK]		= { .type = NLA_U32 },
+	[NFQA_CFG_FLAGS]	= { .type = NLA_U32 },
 };
 
 static const struct nf_queue_handler nfqh = {
-	.outfn		= &nfqnl_enqueue_packet,
-	.nf_hook_drop	= &nfqnl_nf_hook_drop,
+	.outfn		= nfqnl_enqueue_packet,
+	.nf_hook_drop	= nfqnl_nf_hook_drop,
 };
 
 static int nfqnl_recv_config(struct net *net, struct sock *ctnl,
 			     struct sk_buff *skb, const struct nlmsghdr *nlh,
-			     const struct nlattr * const nfqa[])
+			     const struct nlattr * const nfqa[],
+			     struct netlink_ext_ack *extack)
 {
 	struct nfgenmsg *nfmsg = nlmsg_data(nlh);
 	u_int16_t queue_num = ntohs(nfmsg->res_id);
@@ -1450,21 +1490,6 @@ static const struct seq_operations nfqnl_seq_ops = {
 	.stop	= seq_stop,
 	.show	= seq_show,
 };
-
-static int nfqnl_open(struct inode *inode, struct file *file)
-{
-	return seq_open_net(inode, file, &nfqnl_seq_ops,
-			sizeof(struct iter_state));
-}
-
-static const struct file_operations nfqnl_file_ops = {
-	.owner	 = THIS_MODULE,
-	.open	 = nfqnl_open,
-	.read	 = seq_read,
-	.llseek	 = seq_lseek,
-	.release = seq_release_net,
-};
-
 #endif /* PROC_FS */
 
 static int __net_init nfnl_queue_net_init(struct net *net)
@@ -1478,8 +1503,8 @@ static int __net_init nfnl_queue_net_init(struct net *net)
 	spin_lock_init(&q->instances_lock);
 
 #ifdef CONFIG_PROC_FS
-	if (!proc_create("nfnetlink_queue", 0440,
-			 net->nf.proc_netfilter, &nfqnl_file_ops))
+	if (!proc_create_net("nfnetlink_queue", 0440, net->nf.proc_netfilter,
+			&nfqnl_seq_ops, sizeof(struct iter_state)))
 		return -ENOMEM;
 #endif
 	nf_register_queue_handler(net, &nfqh);
@@ -1488,10 +1513,15 @@ static int __net_init nfnl_queue_net_init(struct net *net)
 
 static void __net_exit nfnl_queue_net_exit(struct net *net)
 {
+	struct nfnl_queue_net *q = nfnl_queue_pernet(net);
+	unsigned int i;
+
 	nf_unregister_queue_handler(net);
 #ifdef CONFIG_PROC_FS
 	remove_proc_entry("nfnetlink_queue", net->nf.proc_netfilter);
 #endif
+	for (i = 0; i < INSTANCE_BUCKETS; i++)
+		WARN_ON_ONCE(!hlist_empty(&q->instance_table[i]));
 }
 
 static void nfnl_queue_net_exit_batch(struct list_head *net_exit_list)
@@ -1513,20 +1543,20 @@ static int __init nfnetlink_queue_init(void)
 
 	status = register_pernet_subsys(&nfnl_queue_net_ops);
 	if (status < 0) {
-		pr_err("nf_queue: failed to register pernet ops\n");
+		pr_err("failed to register pernet ops\n");
 		goto out;
 	}
 
 	netlink_register_notifier(&nfqnl_rtnl_notifier);
 	status = nfnetlink_subsys_register(&nfqnl_subsys);
 	if (status < 0) {
-		pr_err("nf_queue: failed to create netlink socket\n");
+		pr_err("failed to create netlink socket\n");
 		goto cleanup_netlink_notifier;
 	}
 
 	status = register_netdevice_notifier(&nfqnl_dev_notifier);
 	if (status < 0) {
-		pr_err("nf_queue: failed to register netdevice notifier\n");
+		pr_err("failed to register netdevice notifier\n");
 		goto cleanup_netlink_subsys;
 	}
 

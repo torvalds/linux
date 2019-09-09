@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * drivers/hwmon/nsa320-hwmon.c
  *
@@ -7,15 +8,6 @@
  * Copyright (C) 2016 Adam Baker <linux@baker-net.org.uk>
  * based on a board file driver
  * Copyright (C) 2012 Peter Schildmann <linux@schildmann.info>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License v2 as published by the
- * Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #include <linux/bitops.h>
@@ -114,16 +106,16 @@ static s32 nsa320_hwmon_update(struct device *dev)
 	return mcu_data;
 }
 
-static ssize_t show_label(struct device *dev,
-			  struct device_attribute *attr, char *buf)
+static ssize_t label_show(struct device *dev, struct device_attribute *attr,
+			  char *buf)
 {
 	int channel = to_sensor_dev_attr(attr)->index;
 
 	return sprintf(buf, "%s\n", nsa320_input_names[channel]);
 }
 
-static ssize_t show_temp(struct device *dev, struct device_attribute *attr,
-			 char *buf)
+static ssize_t temp1_input_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
 {
 	s32 mcu_data = nsa320_hwmon_update(dev);
 
@@ -133,8 +125,8 @@ static ssize_t show_temp(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%d\n", (mcu_data & 0xffff) * 100);
 }
 
-static ssize_t show_fan(struct device *dev, struct device_attribute *attr,
-			char *buf)
+static ssize_t fan1_input_show(struct device *dev,
+			       struct device_attribute *attr, char *buf)
 {
 	s32 mcu_data = nsa320_hwmon_update(dev);
 
@@ -144,10 +136,10 @@ static ssize_t show_fan(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%d\n", ((mcu_data & 0xff0000) >> 16) * 100);
 }
 
-static SENSOR_DEVICE_ATTR(temp1_label, S_IRUGO, show_label, NULL, NSA320_TEMP);
-static DEVICE_ATTR(temp1_input, S_IRUGO, show_temp, NULL);
-static SENSOR_DEVICE_ATTR(fan1_label, S_IRUGO, show_label, NULL, NSA320_FAN);
-static DEVICE_ATTR(fan1_input, S_IRUGO, show_fan, NULL);
+static SENSOR_DEVICE_ATTR_RO(temp1_label, label, NSA320_TEMP);
+static DEVICE_ATTR_RO(temp1_input);
+static SENSOR_DEVICE_ATTR_RO(fan1_label, label, NSA320_FAN);
+static DEVICE_ATTR_RO(fan1_input);
 
 static struct attribute *nsa320_attrs[] = {
 	&sensor_dev_attr_temp1_label.dev_attr.attr,

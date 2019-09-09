@@ -86,12 +86,27 @@ gf110_gr_pack_mmio[] = {
 
 static const struct gf100_gr_func
 gf110_gr = {
+	.oneinit_tiles = gf100_gr_oneinit_tiles,
+	.oneinit_sm_id = gf100_gr_oneinit_sm_id,
 	.init = gf100_gr_init,
+	.init_gpc_mmu = gf100_gr_init_gpc_mmu,
+	.init_vsc_stream_master = gf100_gr_init_vsc_stream_master,
+	.init_zcull = gf100_gr_init_zcull,
+	.init_num_active_ltcs = gf100_gr_init_num_active_ltcs,
+	.init_fecs_exceptions = gf100_gr_init_fecs_exceptions,
+	.init_40601c = gf100_gr_init_40601c,
+	.init_419cc0 = gf100_gr_init_419cc0,
+	.init_419eb4 = gf100_gr_init_419eb4,
+	.init_tex_hww_esr = gf100_gr_init_tex_hww_esr,
+	.init_shader_exceptions = gf100_gr_init_shader_exceptions,
+	.init_400054 = gf100_gr_init_400054,
+	.trap_mp = gf100_gr_trap_mp,
 	.mmio = gf110_gr_pack_mmio,
 	.fecs.ucode = &gf100_gr_fecs_ucode,
 	.gpccs.ucode = &gf100_gr_gpccs_ucode,
 	.rops = gf100_gr_rops,
 	.grctx = &gf110_grctx,
+	.zbc = &gf100_gr_zbc,
 	.sclass = {
 		{ -1, -1, FERMI_TWOD_A },
 		{ -1, -1, FERMI_MEMORY_TO_MEMORY_FORMAT_A },

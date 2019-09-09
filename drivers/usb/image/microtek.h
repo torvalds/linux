@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
  /*
  * Driver for Microtek Scanmaker X6 USB scanner and possibly others.
  * 
@@ -20,7 +21,7 @@ struct mts_transfer_context
 	void *data;
 	unsigned data_length;
 	int data_pipe;
-	int fragment;
+	struct scatterlist *curr_sg;
 
 	u8 *scsi_status; /* status returned from ep_response after command completion */
 };

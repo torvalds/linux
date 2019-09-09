@@ -1,22 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * pmbus.h - Common defines and structures for PMBus devices
  *
  * Copyright (c) 2010, 2011 Ericsson AB.
  * Copyright (c) 2012 Guenter Roeck
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #ifndef PMBUS_H
@@ -190,6 +177,47 @@ enum pmbus_regs {
 	PMBUS_VIRT_VMON_UV_FAULT_LIMIT,
 	PMBUS_VIRT_VMON_OV_FAULT_LIMIT,
 	PMBUS_VIRT_STATUS_VMON,
+
+	/*
+	 * RPM and PWM Fan control
+	 *
+	 * Drivers wanting to expose PWM control must define the behaviour of
+	 * PMBUS_VIRT_PWM_[1-4] and PMBUS_VIRT_PWM_ENABLE_[1-4] in the
+	 * {read,write}_word_data callback.
+	 *
+	 * pmbus core provides a default implementation for
+	 * PMBUS_VIRT_FAN_TARGET_[1-4].
+	 *
+	 * TARGET, PWM and PWM_ENABLE members must be defined sequentially;
+	 * pmbus core uses the difference between the provided register and
+	 * it's _1 counterpart to calculate the FAN/PWM ID.
+	 */
+	PMBUS_VIRT_FAN_TARGET_1,
+	PMBUS_VIRT_FAN_TARGET_2,
+	PMBUS_VIRT_FAN_TARGET_3,
+	PMBUS_VIRT_FAN_TARGET_4,
+	PMBUS_VIRT_PWM_1,
+	PMBUS_VIRT_PWM_2,
+	PMBUS_VIRT_PWM_3,
+	PMBUS_VIRT_PWM_4,
+	PMBUS_VIRT_PWM_ENABLE_1,
+	PMBUS_VIRT_PWM_ENABLE_2,
+	PMBUS_VIRT_PWM_ENABLE_3,
+	PMBUS_VIRT_PWM_ENABLE_4,
+
+	/* Samples for average
+	 *
+	 * Drivers wanting to expose functionality for changing the number of
+	 * samples used for average values should implement support in
+	 * {read,write}_word_data callback for either PMBUS_VIRT_SAMPLES if it
+	 * applies to all types of measurements, or any number of specific
+	 * PMBUS_VIRT_*_SAMPLES registers to allow for individual control.
+	 */
+	PMBUS_VIRT_SAMPLES,
+	PMBUS_VIRT_IN_SAMPLES,
+	PMBUS_VIRT_CURR_SAMPLES,
+	PMBUS_VIRT_POWER_SAMPLES,
+	PMBUS_VIRT_TEMP_SAMPLES,
 };
 
 /*
@@ -222,6 +250,8 @@ enum pmbus_regs {
 #define PB_FAN_1_PULSE_MASK		(BIT(4) | BIT(5))
 #define PB_FAN_1_RPM			BIT(6)
 #define PB_FAN_1_INSTALLED		BIT(7)
+
+enum pmbus_fan_mode { percent = 0, rpm };
 
 /*
  * STATUS_BYTE, STATUS_WORD (lower)
@@ -313,6 +343,7 @@ enum pmbus_sensor_classes {
 	PSC_POWER,
 	PSC_TEMPERATURE,
 	PSC_FAN,
+	PSC_PWM,
 	PSC_NUM_CLASSES		/* Number of power sensor classes */
 };
 
@@ -339,9 +370,14 @@ enum pmbus_sensor_classes {
 #define PMBUS_HAVE_STATUS_FAN34	BIT(17)
 #define PMBUS_HAVE_VMON		BIT(18)
 #define PMBUS_HAVE_STATUS_VMON	BIT(19)
+#define PMBUS_HAVE_PWM12	BIT(20)
+#define PMBUS_HAVE_PWM34	BIT(21)
+#define PMBUS_HAVE_SAMPLES	BIT(22)
+
+#define PMBUS_PAGE_VIRTUAL	BIT(31)
 
 enum pmbus_data_format { linear = 0, direct, vid };
-enum vrm_version { vr11 = 0, vr12 };
+enum vrm_version { vr11 = 0, vr12, vr13 };
 
 struct pmbus_driver_info {
 	int pages;		/* Total number of pages */
@@ -383,6 +419,9 @@ struct pmbus_driver_info {
 	/* Regulator functionality, if supported by this chip driver. */
 	int num_regulators;
 	const struct regulator_desc *reg_desc;
+
+	/* custom attributes */
+	const struct attribute_group **groups;
 };
 
 /* Regulator ops */
@@ -404,9 +443,9 @@ extern const struct regulator_ops pmbus_regulator_ops;
 /* Function declarations */
 
 void pmbus_clear_cache(struct i2c_client *client);
-int pmbus_set_page(struct i2c_client *client, u8 page);
-int pmbus_read_word_data(struct i2c_client *client, u8 page, u8 reg);
-int pmbus_write_word_data(struct i2c_client *client, u8 page, u8 reg, u16 word);
+int pmbus_set_page(struct i2c_client *client, int page);
+int pmbus_read_word_data(struct i2c_client *client, int page, u8 reg);
+int pmbus_write_word_data(struct i2c_client *client, int page, u8 reg, u16 word);
 int pmbus_read_byte_data(struct i2c_client *client, int page, u8 reg);
 int pmbus_write_byte(struct i2c_client *client, int page, u8 value);
 int pmbus_write_byte_data(struct i2c_client *client, int page, u8 reg,
@@ -421,5 +460,12 @@ int pmbus_do_probe(struct i2c_client *client, const struct i2c_device_id *id,
 int pmbus_do_remove(struct i2c_client *client);
 const struct pmbus_driver_info *pmbus_get_driver_info(struct i2c_client
 						      *client);
+int pmbus_get_fan_rate_device(struct i2c_client *client, int page, int id,
+			      enum pmbus_fan_mode mode);
+int pmbus_get_fan_rate_cached(struct i2c_client *client, int page, int id,
+			      enum pmbus_fan_mode mode);
+int pmbus_update_fan(struct i2c_client *client, int page, int id,
+		     u8 config, u8 mask, u16 command);
+struct dentry *pmbus_get_debugfs_dir(struct i2c_client *client);
 
 #endif /* PMBUS_H */

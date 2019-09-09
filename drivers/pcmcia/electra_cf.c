@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2007 PA Semi, Inc
  *
  * Maintained by: Olof Johansson <olof@lixom.net>
  *
  * Based on drivers/pcmcia/omap_cf.c
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 #include <linux/module.h>
@@ -79,9 +66,9 @@ static int electra_cf_ss_init(struct pcmcia_socket *s)
 }
 
 /* the timer is primarily to kick this socket's pccardd */
-static void electra_cf_timer(unsigned long _cf)
+static void electra_cf_timer(struct timer_list *t)
 {
-	struct electra_cf_socket *cf = (void *) _cf;
+	struct electra_cf_socket *cf = from_timer(cf, t, timer);
 	int present = electra_cf_present(cf);
 
 	if (present != cf->present) {
@@ -95,7 +82,9 @@ static void electra_cf_timer(unsigned long _cf)
 
 static irqreturn_t electra_cf_irq(int irq, void *_cf)
 {
-	electra_cf_timer((unsigned long)_cf);
+	struct electra_cf_socket *cf = _cf;
+
+	electra_cf_timer(&cf->timer);
 	return IRQ_HANDLED;
 }
 
@@ -206,8 +195,8 @@ static int electra_cf_probe(struct platform_device *ofdev)
 	if (!cf)
 		return -ENOMEM;
 
-	setup_timer(&cf->timer, electra_cf_timer, (unsigned long)cf);
-	cf->irq = NO_IRQ;
+	timer_setup(&cf->timer, electra_cf_timer, 0);
+	cf->irq = 0;
 
 	cf->ofdev = ofdev;
 	cf->mem_phys = mem.start;
@@ -228,7 +217,7 @@ static int electra_cf_probe(struct platform_device *ofdev)
 
 	if (!cf->mem_base || !cf->io_virt || !cf->gpio_base ||
 	    (__ioremap_at(io.start, cf->io_virt, cf->io_size,
-		  pgprot_val(pgprot_noncached(__pgprot(0)))) == NULL)) {
+			  pgprot_noncached(PAGE_KERNEL)) == NULL)) {
 		dev_err(device, "can't ioremap ranges\n");
 		status = -ENOMEM;
 		goto fail1;
@@ -305,7 +294,7 @@ static int electra_cf_probe(struct platform_device *ofdev)
 		 cf->mem_phys, io.start, cf->irq);
 
 	cf->active = 1;
-	electra_cf_timer((unsigned long)cf);
+	electra_cf_timer(&cf->timer);
 	return 0;
 
 fail3:
@@ -313,7 +302,7 @@ fail3:
 fail2:
 	release_mem_region(cf->mem_phys, cf->mem_size);
 fail1:
-	if (cf->irq != NO_IRQ)
+	if (cf->irq)
 		free_irq(cf->irq, cf);
 
 	if (cf->io_virt)

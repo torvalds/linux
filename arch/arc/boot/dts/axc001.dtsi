@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2013-15 Synopsys, Inc. (www.synopsys.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 /*
@@ -15,15 +12,15 @@
 
 / {
 	compatible = "snps,arc";
-	#address-cells = <1>;
-	#size-cells = <1>;
+	#address-cells = <2>;
+	#size-cells = <2>;
 
 	cpu_card {
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
 
-		ranges = <0x00000000 0xf0000000 0x10000000>;
+		ranges = <0x00000000 0x0 0xf0000000 0x10000000>;
 
 		core_clk: core_clk {
 			#clock-cells = <0>;
@@ -41,7 +38,7 @@
 		 * this GPIO block ORs all interrupts on CPU card (creg,..)
 		 * to uplink only 1 IRQ to ARC core intc
 		 */
-		dw-apb-gpio@0x2000 {
+		dw-apb-gpio@2000 {
 			compatible = "snps,dw-apb-gpio";
 			reg = < 0x2000 0x80 >;
 			#address-cells = <1>;
@@ -60,7 +57,7 @@
 			};
 		};
 
-		debug_uart: dw-apb-uart@0x5000 {
+		debug_uart: dw-apb-uart@5000 {
 			compatible = "snps,dw-apb-uart";
 			reg = <0x5000 0x100>;
 			clock-frequency = <33333000>;
@@ -71,7 +68,7 @@
 			reg-io-width = <4>;
 		};
 
-		arcpmu0: pmu {
+		arcpct0: pct {
 			compatible = "snps,arc700-pct";
 		};
 	};
@@ -88,26 +85,24 @@
 	 * avoid duplicating the MB dtsi file given that IRQ from
 	 * this intc to cpu intc are different for axs101 and axs103
 	 */
-	mb_intc: dw-apb-ictl@0xe0012000 {
+	mb_intc: dw-apb-ictl@e0012000 {
 		#interrupt-cells = <1>;
 		compatible = "snps,dw-apb-ictl";
-		reg = < 0xe0012000 0x200 >;
+		reg = < 0x0 0xe0012000 0x0 0x200 >;
 		interrupt-controller;
 		interrupt-parent = <&core_intc>;
 		interrupts = < 7 >;
 	};
 
 	memory {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		ranges = <0x00000000 0x80000000 0x20000000>;
 		device_type = "memory";
-		reg = <0x80000000 0x1b000000>;	/* (512 - 32) MiB */
+		/* CONFIG_LINUX_RAM_BASE needs to match low mem start */
+		reg = <0x0 0x80000000 0x0 0x1b000000>;	/* (512 - 32) MiB */
 	};
 
 	reserved-memory {
-		#address-cells = <1>;
-		#size-cells = <1>;
+		#address-cells = <2>;
+		#size-cells = <2>;
 		ranges;
 		/*
 		 * We just move frame buffer area to the very end of
@@ -118,7 +113,7 @@
 		 */
 		frame_buffer: frame_buffer@9e000000 {
 			compatible = "shared-dma-pool";
-			reg = <0x9e000000 0x2000000>;
+			reg = <0x0 0x9e000000 0x0 0x2000000>;
 			no-map;
 		};
 	};

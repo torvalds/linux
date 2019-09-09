@@ -1,18 +1,18 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/arch/unicore32/kernel/process.c
  *
  * Code specific to PKUnity SoC and UniCore ISA
  *
  * Copyright (C) 2001-2010 GUAN Xue-tao
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <stdarg.h>
 
 #include <linux/module.h>
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
+#include <linux/sched/task.h>
+#include <linux/sched/task_stack.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/stddef.h>
@@ -20,7 +20,6 @@
 #include <linux/delay.h>
 #include <linux/reboot.h>
 #include <linux/interrupt.h>
-#include <linux/kallsyms.h>
 #include <linux/init.h>
 #include <linux/cpu.h>
 #include <linux/elfcore.h>
@@ -136,8 +135,8 @@ void __show_regs(struct pt_regs *regs)
 	char buf[64];
 
 	show_regs_print_info(KERN_DEFAULT);
-	print_symbol("PC is at %s\n", instruction_pointer(regs));
-	print_symbol("LR is at %s\n", regs->UCreg_lr);
+	printk("PC is at %pS\n", (void *)instruction_pointer(regs));
+	printk("LR is at %pS\n", (void *)regs->UCreg_lr);
 	printk(KERN_DEFAULT "pc : [<%08lx>]    lr : [<%08lx>]    psr: %08lx\n"
 	       "sp : %08lx  ip : %08lx  fp : %08lx\n",
 		regs->UCreg_pc, regs->UCreg_lr, regs->UCreg_asr,
@@ -175,7 +174,7 @@ void __show_regs(struct pt_regs *regs)
 		buf, interrupts_enabled(regs) ? "n" : "ff",
 		fast_interrupts_enabled(regs) ? "n" : "ff",
 		processor_modes[processor_mode(regs)],
-		segment_eq(get_fs(), get_ds()) ? "kernel" : "user");
+		uaccess_kernel() ? "kernel" : "user");
 	{
 		unsigned int ctrl;
 

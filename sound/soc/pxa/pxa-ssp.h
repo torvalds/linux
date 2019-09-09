@@ -1,19 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * ASoC PXA SSP port support
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef _PXA_SSP_H
 #define _PXA_SSP_H
-
-/* pxa DAI SSP IDs */
-#define PXA_DAI_SSP1			0
-#define PXA_DAI_SSP2			1
-#define PXA_DAI_SSP3			2
-#define PXA_DAI_SSP4			3
 
 /* SSP clock sources */
 #define PXA_SSP_CLK_PLL	0

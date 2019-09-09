@@ -1,6 +1,8 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config INFINIBAND_QIB
 	tristate "Intel PCIe HCA support"
 	depends on 64BIT && INFINIBAND_RDMAVT
+	depends on PCI
 	---help---
 	This is a low-level driver for Intel PCIe QLE InfiniBand host
 	channel adapters.  This driver does not support the Intel

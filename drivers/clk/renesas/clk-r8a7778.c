@@ -1,17 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * r8a7778 Core CPG Clocks
  *
  * Copyright (C) 2014  Ulrich Hecht
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
  */
 
 #include <linux/clk-provider.h>
 #include <linux/clk/renesas.h>
 #include <linux/of_address.h>
 #include <linux/slab.h>
+#include <linux/soc/renesas/rcar-rst.h>
 
 struct r8a7778_cpg {
 	struct clk_onecell_data data;
@@ -83,6 +81,18 @@ static void __init r8a7778_cpg_clocks_init(struct device_node *np)
 	struct clk **clks;
 	unsigned int i;
 	int num_clks;
+	u32 mode;
+
+	if (rcar_rst_read_mode_pins(&mode))
+		return;
+
+	BUG_ON(!(mode & BIT(19)));
+
+	cpg_mode_rates = (!!(mode & BIT(18)) << 2) |
+			 (!!(mode & BIT(12)) << 1) |
+			 (!!(mode & BIT(11)));
+	cpg_mode_divs = (!!(mode & BIT(2)) << 1) |
+			(!!(mode & BIT(1)));
 
 	num_clks = of_property_count_strings(np, "clock-output-names");
 	if (num_clks < 0) {
@@ -117,8 +127,8 @@ static void __init r8a7778_cpg_clocks_init(struct device_node *np)
 
 		clk = r8a7778_cpg_register_clock(np, cpg, name);
 		if (IS_ERR(clk))
-			pr_err("%s: failed to register %s %s clock (%ld)\n",
-			       __func__, np->name, name, PTR_ERR(clk));
+			pr_err("%s: failed to register %pOFn %s clock (%ld)\n",
+			       __func__, np, name, PTR_ERR(clk));
 		else
 			cpg->data.clks[i] = clk;
 	}
@@ -130,16 +140,3 @@ static void __init r8a7778_cpg_clocks_init(struct device_node *np)
 
 CLK_OF_DECLARE(r8a7778_cpg_clks, "renesas,r8a7778-cpg-clocks",
 	       r8a7778_cpg_clocks_init);
-
-void __init r8a7778_clocks_init(u32 mode)
-{
-	BUG_ON(!(mode & BIT(19)));
-
-	cpg_mode_rates = (!!(mode & BIT(18)) << 2) |
-			 (!!(mode & BIT(12)) << 1) |
-			 (!!(mode & BIT(11)));
-	cpg_mode_divs = (!!(mode & BIT(2)) << 1) |
-			(!!(mode & BIT(1)));
-
-	of_clk_init(NULL);
-}

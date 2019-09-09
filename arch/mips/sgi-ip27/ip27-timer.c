@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copytight (C) 1999, 2000, 05, 06 Ralf Baechle (ralf@linux-mips.org)
  * Copytight (C) 1999, 2000 Silicon Graphics, Inc.
@@ -37,20 +38,6 @@
 #include <asm/sn/sn0/hubio.h>
 #include <asm/pci/bridge.h>
 
-static void enable_rt_irq(struct irq_data *d)
-{
-}
-
-static void disable_rt_irq(struct irq_data *d)
-{
-}
-
-static struct irq_chip rt_irq_type = {
-	.name		= "SN HUB RT timer",
-	.irq_mask	= disable_rt_irq,
-	.irq_unmask	= enable_rt_irq,
-};
-
 static int rt_next_event(unsigned long delta, struct clock_event_device *evt)
 {
 	unsigned int cpu = smp_processor_id();
@@ -63,8 +50,6 @@ static int rt_next_event(unsigned long delta, struct clock_event_device *evt)
 
 	return LOCAL_HUB_L(PI_RT_COUNT) >= cnt ? -ETIME : 0;
 }
-
-unsigned int rt_timer_irq;
 
 static DEFINE_PER_CPU(struct clock_event_device, hub_rt_clockevent);
 static DEFINE_PER_CPU(char [11], hub_rt_name);
@@ -86,6 +71,7 @@ static irqreturn_t hub_rt_counter_handler(int irq, void *dev_id)
 
 struct irqaction hub_rt_irqaction = {
 	.handler	= hub_rt_counter_handler,
+	.percpu_dev_id	= &hub_rt_clockevent,
 	.flags		= IRQF_PERCPU | IRQF_TIMER,
 	.name		= "hub-rt",
 };
@@ -106,41 +92,32 @@ void hub_rt_clock_event_init(void)
 	unsigned int cpu = smp_processor_id();
 	struct clock_event_device *cd = &per_cpu(hub_rt_clockevent, cpu);
 	unsigned char *name = per_cpu(hub_rt_name, cpu);
-	int irq = rt_timer_irq;
 
 	sprintf(name, "hub-rt %d", cpu);
 	cd->name		= name;
 	cd->features		= CLOCK_EVT_FEAT_ONESHOT;
 	clockevent_set_clock(cd, CYCLES_PER_SEC);
 	cd->max_delta_ns	= clockevent_delta2ns(0xfffffffffffff, cd);
+	cd->max_delta_ticks	= 0xfffffffffffff;
 	cd->min_delta_ns	= clockevent_delta2ns(0x300, cd);
+	cd->min_delta_ticks	= 0x300;
 	cd->rating		= 200;
-	cd->irq			= irq;
+	cd->irq			= IP27_RT_TIMER_IRQ;
 	cd->cpumask		= cpumask_of(cpu);
 	cd->set_next_event	= rt_next_event;
 	clockevents_register_device(cd);
+
+	enable_percpu_irq(IP27_RT_TIMER_IRQ, IRQ_TYPE_NONE);
 }
 
 static void __init hub_rt_clock_event_global_init(void)
 {
-	int irq;
-
-	do {
-		smp_wmb();
-		irq = rt_timer_irq;
-		if (irq)
-			break;
-
-		irq = allocate_irqno();
-		if (irq < 0)
-			panic("Allocation of irq number for timer failed");
-	} while (xchg(&rt_timer_irq, irq));
-
-	irq_set_chip_and_handler(irq, &rt_irq_type, handle_percpu_irq);
-	setup_irq(irq, &hub_rt_irqaction);
+	irq_set_handler(IP27_RT_TIMER_IRQ, handle_percpu_devid_irq);
+	irq_set_percpu_devid(IP27_RT_TIMER_IRQ);
+	setup_percpu_irq(IP27_RT_TIMER_IRQ, &hub_rt_irqaction);
 }
 
-static cycle_t hub_rt_read(struct clocksource *cs)
+static u64 hub_rt_read(struct clocksource *cs)
 {
 	return REMOTE_HUB_L(cputonasid(0), PI_RT_COUNT);
 }
@@ -191,8 +168,6 @@ void cpu_time_init(void)
 		panic("No information about myself?");
 
 	printk("CPU %d clock is %dMHz.\n", smp_processor_id(), cpu->cpu_speed);
-
-	set_c0_status(SRB_TIMOCLK);
 }
 
 void hub_rtc_init(cnodeid_t cnode)

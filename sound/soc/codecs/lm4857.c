@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * LM4857 AMP driver
  *
@@ -5,12 +6,6 @@
  * Author: Graeme Gregory
  *         graeme.gregory@wolfsonmicro.com
  * Copyright 2011 Lars-Peter Clausen <lars@metafoo.de>
- *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
- *
  */
 
 #include <linux/init.h>
@@ -100,7 +95,7 @@ static const struct snd_soc_dapm_route lm4857_routes[] = {
 	{ "EP", "Earpiece", "Mode" },
 };
 
-static struct snd_soc_component_driver lm4857_component_driver = {
+static const struct snd_soc_component_driver lm4857_component_driver = {
 	.controls = lm4857_controls,
 	.num_controls = ARRAY_SIZE(lm4857_controls),
 	.dapm_widgets = lm4857_dapm_widgets,

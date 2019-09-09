@@ -5,7 +5,6 @@ Required properties:
 - reg: physical base address of the controller and length of the register range
 
 Optional properties:
-- interrupt-parent: phandle to the INTC device node
 - interrupts: Specify the INTC interrupt number
 
 Example:

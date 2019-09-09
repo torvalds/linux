@@ -1,18 +1,7 @@
-/* Copyright (C) 2007-2016  B.A.T.M.A.N. contributors:
+/* SPDX-License-Identifier: GPL-2.0 */
+/* Copyright (C) 2007-2019  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef _NET_BATMAN_ADV_MAIN_H_
@@ -24,7 +13,7 @@
 #define BATADV_DRIVER_DEVICE "batman-adv"
 
 #ifndef BATADV_SOURCE_VERSION
-#define BATADV_SOURCE_VERSION "2016.4"
+#define BATADV_SOURCE_VERSION "2019.3"
 #endif
 
 /* B.A.T.M.A.N. parameters */
@@ -48,6 +37,7 @@
 #define BATADV_TT_CLIENT_TEMP_TIMEOUT 600000 /* in milliseconds */
 #define BATADV_TT_WORK_PERIOD 5000 /* 5 seconds */
 #define BATADV_ORIG_WORK_PERIOD 1000 /* 1 second */
+#define BATADV_MCAST_WORK_PERIOD 500 /* 0.5 seconds */
 #define BATADV_DAT_ENTRY_TIMEOUT (5 * 60000) /* 5 mins in milliseconds */
 /* sliding packet range of received originator messages in sequence numbers
  * (should be a multiple of our word size)
@@ -139,24 +129,56 @@
  */
 #define BATADV_TP_MAX_NUM 5
 
+/**
+ * enum batadv_mesh_state - State of a soft interface
+ */
 enum batadv_mesh_state {
+	/** @BATADV_MESH_INACTIVE: soft interface is not yet running */
 	BATADV_MESH_INACTIVE,
+
+	/** @BATADV_MESH_ACTIVE: interface is up and running */
 	BATADV_MESH_ACTIVE,
+
+	/** @BATADV_MESH_DEACTIVATING: interface is getting shut down */
 	BATADV_MESH_DEACTIVATING,
 };
 
 #define BATADV_BCAST_QUEUE_LEN		256
 #define BATADV_BATMAN_QUEUE_LEN	256
 
+/**
+ * enum batadv_uev_action - action type of uevent
+ */
 enum batadv_uev_action {
+	/** @BATADV_UEV_ADD: gateway was selected (after none was selected) */
 	BATADV_UEV_ADD = 0,
+
+	/**
+	 * @BATADV_UEV_DEL: selected gateway was removed and none is selected
+	 * anymore
+	 */
 	BATADV_UEV_DEL,
+
+	/**
+	 * @BATADV_UEV_CHANGE: a different gateway was selected as based gateway
+	 */
 	BATADV_UEV_CHANGE,
+
+	/**
+	 * @BATADV_UEV_LOOPDETECT: loop was detected which cannot be handled by
+	 * bridge loop avoidance
+	 */
 	BATADV_UEV_LOOPDETECT,
 };
 
+/**
+ * enum batadv_uev_type - Type of uevent
+ */
 enum batadv_uev_type {
+	/** @BATADV_UEV_GW: selected gateway was modified */
 	BATADV_UEV_GW = 0,
+
+	/** @BATADV_UEV_BLA: bridge loop avoidance event */
 	BATADV_UEV_BLA,
 };
 
@@ -167,7 +189,7 @@ enum batadv_uev_type {
 /* Maximum number of fragments for one packet */
 #define BATADV_FRAG_MAX_FRAGMENTS 16
 /* Maxumim size of each fragment */
-#define BATADV_FRAG_MAX_FRAG_SIZE 1400
+#define BATADV_FRAG_MAX_FRAG_SIZE 1280
 /* Time to keep fragments while waiting for rest of the fragments */
 #define BATADV_FRAG_TIMEOUT 10000
 
@@ -183,27 +205,37 @@ enum batadv_uev_type {
 
 /* Kernel headers */
 
-#include <linux/bitops.h> /* for packet.h */
+#include <linux/atomic.h>
 #include <linux/compiler.h>
-#include <linux/cpumask.h>
 #include <linux/etherdevice.h>
-#include <linux/if_ether.h> /* for packet.h */
 #include <linux/if_vlan.h>
 #include <linux/jiffies.h>
+#include <linux/netdevice.h>
 #include <linux/percpu.h>
+#include <linux/seq_file.h>
+#include <linux/skbuff.h>
 #include <linux/types.h>
+#include <uapi/linux/batadv_packet.h>
 
 #include "types.h"
+#include "main.h"
 
-struct net_device;
-struct packet_type;
-struct seq_file;
-struct sk_buff;
-
-#define BATADV_PRINT_VID(vid) ((vid & BATADV_VLAN_HAS_TAG) ? \
-			       (int)(vid & VLAN_VID_MASK) : -1)
+/**
+ * batadv_print_vid() - return printable version of vid information
+ * @vid: the VLAN identifier
+ *
+ * Return: -1 when no VLAN is used, VLAN id otherwise
+ */
+static inline int batadv_print_vid(unsigned short vid)
+{
+	if (vid & BATADV_VLAN_HAS_TAG)
+		return (int)(vid & VLAN_VID_MASK);
+	else
+		return -1;
+}
 
 extern struct list_head batadv_hardif_list;
+extern unsigned int batadv_hardif_generation;
 
 extern unsigned char batadv_broadcast_addr[];
 extern struct workqueue_struct *batadv_event_workqueue;
@@ -226,7 +258,7 @@ void batadv_recv_handler_unregister(u8 packet_type);
 __be32 batadv_skb_crc32(struct sk_buff *skb, u8 *payload_ptr);
 
 /**
- * batadv_compare_eth - Compare two not u16 aligned Ethernet addresses
+ * batadv_compare_eth() - Compare two not u16 aligned Ethernet addresses
  * @data1: Pointer to a six-byte array containing the Ethernet address
  * @data2: Pointer other six-byte array containing the Ethernet address
  *
@@ -240,7 +272,7 @@ static inline bool batadv_compare_eth(const void *data1, const void *data2)
 }
 
 /**
- * batadv_has_timed_out - compares current time (jiffies) and timestamp +
+ * batadv_has_timed_out() - compares current time (jiffies) and timestamp +
  *  timeout
  * @timestamp:		base value to compare with (in jiffies)
  * @timeout:		added to base value before comparing (in milliseconds)
@@ -253,64 +285,104 @@ static inline bool batadv_has_timed_out(unsigned long timestamp,
 	return time_is_before_jiffies(timestamp + msecs_to_jiffies(timeout));
 }
 
+/**
+ * batadv_atomic_dec_not_zero() - Decrease unless the number is 0
+ * @v: pointer of type atomic_t
+ *
+ * Return: non-zero if v was not 0, and zero otherwise.
+ */
 #define batadv_atomic_dec_not_zero(v)	atomic_add_unless((v), -1, 0)
 
-/* Returns the smallest signed integer in two's complement with the sizeof x */
+/**
+ * batadv_smallest_signed_int() - Returns the smallest signed integer in two's
+ *  complement with the sizeof x
+ * @x: type of integer
+ *
+ * Return: smallest signed integer of type
+ */
 #define batadv_smallest_signed_int(x) (1u << (7u + 8u * (sizeof(x) - 1u)))
 
-/* Checks if a sequence number x is a predecessor/successor of y.
- * they handle overflows/underflows and can correctly check for a
- * predecessor/successor unless the variable sequence number has grown by
- * more then 2**(bitwidth(x)-1)-1.
+/**
+ * batadv_seq_before() - Checks if a sequence number x is a predecessor of y
+ * @x: potential predecessor of @y
+ * @y: value to compare @x against
+ *
+ * It handles overflows/underflows and can correctly check for a predecessor
+ * unless the variable sequence number has grown by more then
+ * 2**(bitwidth(x)-1)-1.
+ *
  * This means that for a u8 with the maximum value 255, it would think:
- *  - when adding nothing - it is neither a predecessor nor a successor
- *  - before adding more than 127 to the starting value - it is a predecessor,
- *  - when adding 128 - it is neither a predecessor nor a successor,
- *  - after adding more than 127 to the starting value - it is a successor
+ *
+ * * when adding nothing - it is neither a predecessor nor a successor
+ * * before adding more than 127 to the starting value - it is a predecessor,
+ * * when adding 128 - it is neither a predecessor nor a successor,
+ * * after adding more than 127 to the starting value - it is a successor
+ *
+ * Return: true when x is a predecessor of y, false otherwise
  */
-#define batadv_seq_before(x, y) ({typeof(x)_d1 = (x); \
-				 typeof(y)_d2 = (y); \
-				 typeof(x)_dummy = (_d1 - _d2); \
-				 (void)(&_d1 == &_d2); \
-				 _dummy > batadv_smallest_signed_int(_dummy); })
+#define batadv_seq_before(x, y) ({ \
+	typeof(x)_d1 = (x); \
+	typeof(y)_d2 = (y); \
+	typeof(x)_dummy = (_d1 - _d2); \
+	(void)(&_d1 == &_d2); \
+	_dummy > batadv_smallest_signed_int(_dummy); \
+})
+
+/**
+ * batadv_seq_after() - Checks if a sequence number x is a successor of y
+ * @x: potential sucessor of @y
+ * @y: value to compare @x against
+ *
+ * It handles overflows/underflows and can correctly check for a successor
+ * unless the variable sequence number has grown by more then
+ * 2**(bitwidth(x)-1)-1.
+ *
+ * This means that for a u8 with the maximum value 255, it would think:
+ *
+ * * when adding nothing - it is neither a predecessor nor a successor
+ * * before adding more than 127 to the starting value - it is a predecessor,
+ * * when adding 128 - it is neither a predecessor nor a successor,
+ * * after adding more than 127 to the starting value - it is a successor
+ *
+ * Return: true when x is a successor of y, false otherwise
+ */
 #define batadv_seq_after(x, y) batadv_seq_before(y, x)
 
-/* Stop preemption on local cpu while incrementing the counter */
+/**
+ * batadv_add_counter() - Add to per cpu statistics counter of soft interface
+ * @bat_priv: the bat priv with all the soft interface information
+ * @idx: counter index which should be modified
+ * @count: value to increase counter by
+ *
+ * Stop preemption on local cpu while incrementing the counter
+ */
 static inline void batadv_add_counter(struct batadv_priv *bat_priv, size_t idx,
 				      size_t count)
 {
 	this_cpu_add(bat_priv->bat_counters[idx], count);
 }
 
+/**
+ * batadv_inc_counter() - Increase per cpu statistics counter of soft interface
+ * @b: the bat priv with all the soft interface information
+ * @i: counter index which should be modified
+ */
 #define batadv_inc_counter(b, i) batadv_add_counter(b, i, 1)
 
 /**
- * batadv_sum_counter - Sum the cpu-local counters for index 'idx'
- * @bat_priv: the bat priv with all the soft interface information
- * @idx: index of counter to sum up
+ * BATADV_SKB_CB() - Get batadv_skb_cb from skb control buffer
+ * @__skb: skb holding the control buffer
  *
- * Return: sum of all cpu-local counters
- */
-static inline u64 batadv_sum_counter(struct batadv_priv *bat_priv,  size_t idx)
-{
-	u64 *counters, sum = 0;
-	int cpu;
-
-	for_each_possible_cpu(cpu) {
-		counters = per_cpu_ptr(bat_priv->bat_counters, cpu);
-		sum += counters[idx];
-	}
-
-	return sum;
-}
-
-/* Define a macro to reach the control buffer of the skb. The members of the
- * control buffer are defined in struct batadv_skb_cb in types.h.
- * The macro is inspired by the similar macro TCP_SKB_CB() in tcp.h.
+ * The members of the control buffer are defined in struct batadv_skb_cb in
+ * types.h. The macro is inspired by the similar macro TCP_SKB_CB() in tcp.h.
+ *
+ * Return: pointer to the batadv_skb_cb of the skb
  */
 #define BATADV_SKB_CB(__skb)       ((struct batadv_skb_cb *)&((__skb)->cb[0]))
 
 unsigned short batadv_get_vid(struct sk_buff *skb, size_t header_len);
 bool batadv_vlan_ap_isola_get(struct batadv_priv *bat_priv, unsigned short vid);
+int batadv_throw_uevent(struct batadv_priv *bat_priv, enum batadv_uev_type type,
+			enum batadv_uev_action action, const char *data);
 
 #endif /* _NET_BATMAN_ADV_MAIN_H_ */

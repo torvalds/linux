@@ -1,16 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Copyright (C) 2012 Marvell Technology Group Ltd.
  *  Author: Haojian Zhuang <haojian.zhuang@marvell.com>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  publishhed by the Free Software Foundation.
  */
 
-#include "skeleton.dtsi"
 #include <dt-bindings/clock/marvell,mmp2.h>
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
+
 	aliases {
 		serial0 = &uart1;
 		serial1 = &uart2;
@@ -117,6 +116,60 @@
 				reg-names = "mux status", "mux mask";
 				mrvl,intc-nr-irqs = <2>;
 			};
+
+			usb_otg_phy0: usb-otg-phy@d4207000 {
+				compatible = "marvell,mmp2-usb-phy";
+				reg = <0xd4207000 0x40>;
+				#phy-cells = <0>;
+				status = "disabled";
+			};
+
+			usb_otg0: usb-otg@d4208000 {
+				compatible = "marvell,pxau2o-ehci";
+				reg = <0xd4208000 0x200>;
+				interrupts = <44>;
+				clocks = <&soc_clocks MMP2_CLK_USB>;
+				clock-names = "USBCLK";
+				phys = <&usb_otg_phy0>;
+				phy-names = "usb";
+				status = "disabled";
+			};
+
+			mmc1: mmc@d4280000 {
+				compatible = "mrvl,pxav3-mmc";
+				reg = <0xd4280000 0x120>;
+				clocks = <&soc_clocks MMP2_CLK_SDH0>;
+				clock-names = "io";
+				interrupts = <39>;
+				status = "disabled";
+			};
+
+			mmc2: mmc@d4280800 {
+				compatible = "mrvl,pxav3-mmc";
+				reg = <0xd4280800 0x120>;
+				clocks = <&soc_clocks MMP2_CLK_SDH1>;
+				clock-names = "io";
+				interrupts = <52>;
+				status = "disabled";
+			};
+
+			mmc3: mmc@d4281000 {
+				compatible = "mrvl,pxav3-mmc";
+				reg = <0xd4281000 0x120>;
+				clocks = <&soc_clocks MMP2_CLK_SDH2>;
+				clock-names = "io";
+				interrupts = <53>;
+				status = "disabled";
+			};
+
+			mmc4: mmc@d4281800 {
+				compatible = "mrvl,pxav3-mmc";
+				reg = <0xd4281800 0x120>;
+				clocks = <&soc_clocks MMP2_CLK_SDH3>;
+				clock-names = "io";
+				interrupts = <54>;
+				status = "disabled";
+			};
 		};
 
 		apb@d4000000 {	/* APB */
@@ -130,6 +183,7 @@
 				compatible = "mrvl,mmp-timer";
 				reg = <0xd4014000 0x100>;
 				interrupts = <13>;
+				clocks = <&soc_clocks MMP2_CLK_TIMER>;
 			};
 
 			uart1: uart@d4030000 {
@@ -168,7 +222,7 @@
 				status = "disabled";
 			};
 
-			gpio@d4019000 {
+			gpio: gpio@d4019000 {
 				compatible = "marvell,mmp2-gpio";
 				#address-cells = <1>;
 				#size-cells = <1>;
@@ -180,7 +234,7 @@
 				clocks = <&soc_clocks MMP2_CLK_GPIO>;
 				resets = <&soc_clocks MMP2_CLK_GPIO>;
 				interrupt-controller;
-				#interrupt-cells = <1>;
+				#interrupt-cells = <2>;
 				ranges;
 
 				gcb0: gpio@d4019000 {
@@ -220,12 +274,64 @@
 				status = "disabled";
 			};
 
-			twsi2: i2c@d4025000 {
+			twsi2: i2c@d4031000 {
 				compatible = "mrvl,mmp-twsi";
-				reg = <0xd4025000 0x1000>;
-				interrupts = <58>;
+				reg = <0xd4031000 0x1000>;
+				interrupt-parent = <&intcmux17>;
+				interrupts = <0>;
 				clocks = <&soc_clocks MMP2_CLK_TWSI1>;
 				resets = <&soc_clocks MMP2_CLK_TWSI1>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+
+			twsi3: i2c@d4032000 {
+				compatible = "mrvl,mmp-twsi";
+				reg = <0xd4032000 0x1000>;
+				interrupt-parent = <&intcmux17>;
+				interrupts = <1>;
+				clocks = <&soc_clocks MMP2_CLK_TWSI2>;
+				resets = <&soc_clocks MMP2_CLK_TWSI2>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+
+			twsi4: i2c@d4033000 {
+				compatible = "mrvl,mmp-twsi";
+				reg = <0xd4033000 0x1000>;
+				interrupt-parent = <&intcmux17>;
+				interrupts = <2>;
+				clocks = <&soc_clocks MMP2_CLK_TWSI3>;
+				resets = <&soc_clocks MMP2_CLK_TWSI3>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+
+
+			twsi5: i2c@d4033800 {
+				compatible = "mrvl,mmp-twsi";
+				reg = <0xd4033800 0x1000>;
+				interrupt-parent = <&intcmux17>;
+				interrupts = <3>;
+				clocks = <&soc_clocks MMP2_CLK_TWSI4>;
+				resets = <&soc_clocks MMP2_CLK_TWSI4>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+
+			twsi6: i2c@d4034000 {
+				compatible = "mrvl,mmp-twsi";
+				reg = <0xd4034000 0x1000>;
+				interrupt-parent = <&intcmux17>;
+				interrupts = <4>;
+				clocks = <&soc_clocks MMP2_CLK_TWSI5>;
+				resets = <&soc_clocks MMP2_CLK_TWSI5>;
+				#address-cells = <1>;
+				#size-cells = <0>;
 				status = "disabled";
 			};
 
@@ -237,6 +343,38 @@
 				interrupt-parent = <&intcmux5>;
 				clocks = <&soc_clocks MMP2_CLK_RTC>;
 				resets = <&soc_clocks MMP2_CLK_RTC>;
+				status = "disabled";
+			};
+
+			ssp1: ssp@d4035000 {
+				compatible = "marvell,mmp2-ssp";
+				reg = <0xd4035000 0x1000>;
+				clocks = <&soc_clocks MMP2_CLK_SSP0>;
+				interrupts = <0>;
+				status = "disabled";
+			};
+
+			ssp2: ssp@d4036000 {
+				compatible = "marvell,mmp2-ssp";
+				reg = <0xd4036000 0x1000>;
+				clocks = <&soc_clocks MMP2_CLK_SSP1>;
+				interrupts = <1>;
+				status = "disabled";
+			};
+
+			ssp3: ssp@d4037000 {
+				compatible = "marvell,mmp2-ssp";
+				reg = <0xd4037000 0x1000>;
+				clocks = <&soc_clocks MMP2_CLK_SSP2>;
+				interrupts = <20>;
+				status = "disabled";
+			};
+
+			ssp4: ssp@d4039000 {
+				compatible = "marvell,mmp2-ssp";
+				reg = <0xd4039000 0x1000>;
+				clocks = <&soc_clocks MMP2_CLK_SSP3>;
+				interrupts = <21>;
 				status = "disabled";
 			};
 		};

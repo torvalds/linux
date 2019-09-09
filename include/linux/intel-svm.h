@@ -1,16 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright © 2015 Intel Corporation.
  *
  * Authors: David Woodhouse <David.Woodhouse@intel.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #ifndef __INTEL_SVM_H__
@@ -20,7 +12,7 @@ struct device;
 
 struct svm_dev_ops {
 	void (*fault_cb)(struct device *dev, int pasid, u64 address,
-			 u32 private, int rwxp, int response);
+			 void *private, int rwxp, int response);
 };
 
 /* Values for rxwp in fault_cb callback */
@@ -57,7 +49,7 @@ struct svm_dev_ops {
 
 /**
  * intel_svm_bind_mm() - Bind the current process to a PASID
- * @dev:	Device to be granted acccess
+ * @dev:	Device to be granted access
  * @pasid:	Address for allocated PASID
  * @flags:	Flags. Later for requesting supervisor mode, etc.
  * @ops:	Callbacks to device driver
@@ -102,6 +94,21 @@ extern int intel_svm_bind_mm(struct device *dev, int *pasid, int flags,
  */
 extern int intel_svm_unbind_mm(struct device *dev, int pasid);
 
+/**
+ * intel_svm_is_pasid_valid() - check if pasid is valid
+ * @dev:	Device for which PASID was allocated
+ * @pasid:	PASID value to be checked
+ *
+ * This function checks if the specified pasid is still valid. A
+ * valid pasid means the backing mm is still having a valid user.
+ * For kernel callers init_mm is always valid. for other mm, if mm->mm_users
+ * is non-zero, it is valid.
+ *
+ * returns -EINVAL if invalid pasid, 0 if pasid ref count is invalid
+ * 1 if pasid is valid.
+ */
+extern int intel_svm_is_pasid_valid(struct device *dev, int pasid);
+
 #else /* CONFIG_INTEL_IOMMU_SVM */
 
 static inline int intel_svm_bind_mm(struct device *dev, int *pasid,
@@ -113,6 +120,11 @@ static inline int intel_svm_bind_mm(struct device *dev, int *pasid,
 static inline int intel_svm_unbind_mm(struct device *dev, int pasid)
 {
 	BUG();
+}
+
+static int intel_svm_is_pasid_valid(struct device *dev, int pasid)
+{
+	return -EINVAL;
 }
 #endif /* CONFIG_INTEL_IOMMU_SVM */
 

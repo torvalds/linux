@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config SECURITY_YAMA
 	bool "Yama support"
 	depends on SECURITY
@@ -7,6 +8,7 @@ config SECURITY_YAMA
 	  system-wide security settings beyond regular Linux discretionary
 	  access controls. Currently available is ptrace scope restriction.
 	  Like capabilities, this security module stacks with other LSMs.
-	  Further information can be found in Documentation/security/Yama.txt.
+	  Further information can be found in
+	  Documentation/admin-guide/LSM/Yama.rst.
 
 	  If you are unsure how to answer this question, answer N.

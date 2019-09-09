@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2013 Capella Microsystems Inc.
  * Author: Kevin Tsai <ktsai@capellamicro.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2, as published
- * by the Free Software Foundation.
  */
 
 #include <linux/delay.h>
@@ -292,7 +289,6 @@ static const struct attribute_group cm32181_attribute_group = {
 };
 
 static const struct iio_info cm32181_info = {
-	.driver_module		= THIS_MODULE,
 	.read_raw		= &cm32181_read_raw,
 	.write_raw		= &cm32181_write_raw,
 	.attrs			= &cm32181_attribute_group,

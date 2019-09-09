@@ -330,14 +330,7 @@ static int parse_source_files(const char *objfile, struct md4_ctx *md)
 		goto out;
 	}
 
-	/* There will be a line like so:
-		deps_drivers/net/dummy.o := \
-		  drivers/net/dummy.c \
-		    $(wildcard include/config/net/fastroute.h) \
-		  include/linux/module.h \
-
-	   Sum all files in the same dir or subdirs.
-	*/
+	/* Sum all files in the same dir or subdirs. */
 	while ((line = get_next_line(&pos, file, flen)) != NULL) {
 		char* p = line;
 
@@ -403,34 +396,19 @@ void get_src_version(const char *modname, char sum[], unsigned sumlen)
 	unsigned long len;
 	struct md4_ctx md;
 	char *sources, *end, *fname;
-	const char *basename;
 	char filelist[PATH_MAX + 1];
-	char *modverdir = getenv("MODVERDIR");
 
-	if (!modverdir)
-		modverdir = ".";
-
-	/* Source files for module are in .tmp_versions/modname.mod,
-	   after the first line. */
-	if (strrchr(modname, '/'))
-		basename = strrchr(modname, '/') + 1;
-	else
-		basename = modname;
-	snprintf(filelist, sizeof(filelist), "%s/%.*s.mod", modverdir,
-		(int) strlen(basename) - 2, basename);
+	/* objects for a module are listed in the first line of *.mod file. */
+	snprintf(filelist, sizeof(filelist), "%.*smod",
+		 (int)strlen(modname) - 1, modname);
 
 	file = grab_file(filelist, &len);
 	if (!file)
 		/* not a module or .mod file missing - ignore */
 		return;
 
-	sources = strchr(file, '\n');
-	if (!sources) {
-		warn("malformed versions file for %s\n", modname);
-		goto release;
-	}
+	sources = file;
 
-	sources++;
 	end = strchr(sources, '\n');
 	if (!end) {
 		warn("bad ending versions file for %s\n", modname);

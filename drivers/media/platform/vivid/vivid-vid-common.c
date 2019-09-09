@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * vivid-vid-common.c - common video support functions.
  *
  * Copyright 2014 Cisco Systems, Inc. and/or its affiliates. All rights reserved.
- *
- * This program is free software; you may redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
  */
 
 #include <linux/errno.h>
@@ -33,7 +21,7 @@ const struct v4l2_dv_timings_cap vivid_dv_timings_cap = {
 	.type = V4L2_DV_BT_656_1120,
 	/* keep this initialization for compatibility with GCC < 4.4.6 */
 	.reserved = { 0 },
-	V4L2_INIT_BT_TIMINGS(0, MAX_WIDTH, 0, MAX_HEIGHT, 14000000, 775000000,
+	V4L2_INIT_BT_TIMINGS(16, MAX_WIDTH, 16, MAX_HEIGHT, 14000000, 775000000,
 		V4L2_DV_BT_STD_CEA861 | V4L2_DV_BT_STD_DMT |
 		V4L2_DV_BT_STD_CVT | V4L2_DV_BT_STD_GTF,
 		V4L2_DV_BT_CAP_PROGRESSIVE | V4L2_DV_BT_CAP_INTERLACED)
@@ -48,7 +36,7 @@ struct vivid_fmt vivid_formats[] = {
 		.fourcc   = V4L2_PIX_FMT_YUYV,
 		.vdownsampling = { 1 },
 		.bit_depth = { 16 },
-		.is_yuv   = true,
+		.color_enc = TGP_COLOR_ENC_YCBCR,
 		.planes   = 1,
 		.buffers = 1,
 		.data_offset = { PLANE0_DATA_OFFSET },
@@ -57,7 +45,7 @@ struct vivid_fmt vivid_formats[] = {
 		.fourcc   = V4L2_PIX_FMT_UYVY,
 		.vdownsampling = { 1 },
 		.bit_depth = { 16 },
-		.is_yuv   = true,
+		.color_enc = TGP_COLOR_ENC_YCBCR,
 		.planes   = 1,
 		.buffers = 1,
 	},
@@ -65,7 +53,7 @@ struct vivid_fmt vivid_formats[] = {
 		.fourcc   = V4L2_PIX_FMT_YVYU,
 		.vdownsampling = { 1 },
 		.bit_depth = { 16 },
-		.is_yuv   = true,
+		.color_enc = TGP_COLOR_ENC_YCBCR,
 		.planes   = 1,
 		.buffers = 1,
 	},
@@ -73,7 +61,7 @@ struct vivid_fmt vivid_formats[] = {
 		.fourcc   = V4L2_PIX_FMT_VYUY,
 		.vdownsampling = { 1 },
 		.bit_depth = { 16 },
-		.is_yuv   = true,
+		.color_enc = TGP_COLOR_ENC_YCBCR,
 		.planes   = 1,
 		.buffers = 1,
 	},
@@ -81,7 +69,7 @@ struct vivid_fmt vivid_formats[] = {
 		.fourcc   = V4L2_PIX_FMT_YUV422P,
 		.vdownsampling = { 1, 1, 1 },
 		.bit_depth = { 8, 4, 4 },
-		.is_yuv   = true,
+		.color_enc = TGP_COLOR_ENC_YCBCR,
 		.planes   = 3,
 		.buffers = 1,
 	},
@@ -89,7 +77,7 @@ struct vivid_fmt vivid_formats[] = {
 		.fourcc   = V4L2_PIX_FMT_YUV420,
 		.vdownsampling = { 1, 2, 2 },
 		.bit_depth = { 8, 4, 4 },
-		.is_yuv   = true,
+		.color_enc = TGP_COLOR_ENC_YCBCR,
 		.planes   = 3,
 		.buffers = 1,
 	},
@@ -97,7 +85,7 @@ struct vivid_fmt vivid_formats[] = {
 		.fourcc   = V4L2_PIX_FMT_YVU420,
 		.vdownsampling = { 1, 2, 2 },
 		.bit_depth = { 8, 4, 4 },
-		.is_yuv   = true,
+		.color_enc = TGP_COLOR_ENC_YCBCR,
 		.planes   = 3,
 		.buffers = 1,
 	},
@@ -105,7 +93,7 @@ struct vivid_fmt vivid_formats[] = {
 		.fourcc   = V4L2_PIX_FMT_NV12,
 		.vdownsampling = { 1, 2 },
 		.bit_depth = { 8, 8 },
-		.is_yuv   = true,
+		.color_enc = TGP_COLOR_ENC_YCBCR,
 		.planes   = 2,
 		.buffers = 1,
 	},
@@ -113,7 +101,7 @@ struct vivid_fmt vivid_formats[] = {
 		.fourcc   = V4L2_PIX_FMT_NV21,
 		.vdownsampling = { 1, 2 },
 		.bit_depth = { 8, 8 },
-		.is_yuv   = true,
+		.color_enc = TGP_COLOR_ENC_YCBCR,
 		.planes   = 2,
 		.buffers = 1,
 	},
@@ -121,7 +109,7 @@ struct vivid_fmt vivid_formats[] = {
 		.fourcc   = V4L2_PIX_FMT_NV16,
 		.vdownsampling = { 1, 1 },
 		.bit_depth = { 8, 8 },
-		.is_yuv   = true,
+		.color_enc = TGP_COLOR_ENC_YCBCR,
 		.planes   = 2,
 		.buffers = 1,
 	},
@@ -129,7 +117,7 @@ struct vivid_fmt vivid_formats[] = {
 		.fourcc   = V4L2_PIX_FMT_NV61,
 		.vdownsampling = { 1, 1 },
 		.bit_depth = { 8, 8 },
-		.is_yuv   = true,
+		.color_enc = TGP_COLOR_ENC_YCBCR,
 		.planes   = 2,
 		.buffers = 1,
 	},
@@ -137,7 +125,7 @@ struct vivid_fmt vivid_formats[] = {
 		.fourcc   = V4L2_PIX_FMT_NV24,
 		.vdownsampling = { 1, 1 },
 		.bit_depth = { 8, 16 },
-		.is_yuv   = true,
+		.color_enc = TGP_COLOR_ENC_YCBCR,
 		.planes   = 2,
 		.buffers = 1,
 	},
@@ -145,7 +133,7 @@ struct vivid_fmt vivid_formats[] = {
 		.fourcc   = V4L2_PIX_FMT_NV42,
 		.vdownsampling = { 1, 1 },
 		.bit_depth = { 8, 16 },
-		.is_yuv   = true,
+		.color_enc = TGP_COLOR_ENC_YCBCR,
 		.planes   = 2,
 		.buffers = 1,
 	},
@@ -181,10 +169,56 @@ struct vivid_fmt vivid_formats[] = {
 		.alpha_mask = 0x000000ff,
 	},
 	{
+		.fourcc   = V4L2_PIX_FMT_AYUV32,
+		.vdownsampling = { 1 },
+		.bit_depth = { 32 },
+		.planes   = 1,
+		.buffers = 1,
+		.alpha_mask = 0x000000ff,
+	},
+	{
+		.fourcc   = V4L2_PIX_FMT_XYUV32,
+		.vdownsampling = { 1 },
+		.bit_depth = { 32 },
+		.planes   = 1,
+		.buffers = 1,
+	},
+	{
+		.fourcc   = V4L2_PIX_FMT_VUYA32,
+		.vdownsampling = { 1 },
+		.bit_depth = { 32 },
+		.planes   = 1,
+		.buffers = 1,
+		.alpha_mask = 0xff000000,
+	},
+	{
+		.fourcc   = V4L2_PIX_FMT_VUYX32,
+		.vdownsampling = { 1 },
+		.bit_depth = { 32 },
+		.planes   = 1,
+		.buffers = 1,
+	},
+	{
 		.fourcc   = V4L2_PIX_FMT_GREY,
 		.vdownsampling = { 1 },
 		.bit_depth = { 8 },
-		.is_yuv   = true,
+		.color_enc = TGP_COLOR_ENC_LUMA,
+		.planes   = 1,
+		.buffers = 1,
+	},
+	{
+		.fourcc   = V4L2_PIX_FMT_Y10,
+		.vdownsampling = { 1 },
+		.bit_depth = { 16 },
+		.color_enc = TGP_COLOR_ENC_LUMA,
+		.planes   = 1,
+		.buffers = 1,
+	},
+	{
+		.fourcc   = V4L2_PIX_FMT_Y12,
+		.vdownsampling = { 1 },
+		.bit_depth = { 16 },
+		.color_enc = TGP_COLOR_ENC_LUMA,
 		.planes   = 1,
 		.buffers = 1,
 	},
@@ -192,7 +226,7 @@ struct vivid_fmt vivid_formats[] = {
 		.fourcc   = V4L2_PIX_FMT_Y16,
 		.vdownsampling = { 1 },
 		.bit_depth = { 16 },
-		.is_yuv   = true,
+		.color_enc = TGP_COLOR_ENC_LUMA,
 		.planes   = 1,
 		.buffers = 1,
 	},
@@ -200,7 +234,7 @@ struct vivid_fmt vivid_formats[] = {
 		.fourcc   = V4L2_PIX_FMT_Y16_BE,
 		.vdownsampling = { 1 },
 		.bit_depth = { 16 },
-		.is_yuv   = true,
+		.color_enc = TGP_COLOR_ENC_LUMA,
 		.planes   = 1,
 		.buffers = 1,
 	},
@@ -445,6 +479,50 @@ struct vivid_fmt vivid_formats[] = {
 		.planes   = 1,
 		.buffers = 1,
 	},
+	{
+		.fourcc   = V4L2_PIX_FMT_SBGGR16, /* Bayer BG/GR */
+		.vdownsampling = { 1 },
+		.bit_depth = { 16 },
+		.planes   = 1,
+		.buffers = 1,
+	},
+	{
+		.fourcc   = V4L2_PIX_FMT_SGBRG16, /* Bayer GB/RG */
+		.vdownsampling = { 1 },
+		.bit_depth = { 16 },
+		.planes   = 1,
+		.buffers = 1,
+	},
+	{
+		.fourcc   = V4L2_PIX_FMT_SGRBG16, /* Bayer GR/BG */
+		.vdownsampling = { 1 },
+		.bit_depth = { 16 },
+		.planes   = 1,
+		.buffers = 1,
+	},
+	{
+		.fourcc   = V4L2_PIX_FMT_SRGGB16, /* Bayer RG/GB */
+		.vdownsampling = { 1 },
+		.bit_depth = { 16 },
+		.planes   = 1,
+		.buffers = 1,
+	},
+	{
+		.fourcc   = V4L2_PIX_FMT_HSV24, /* HSV 24bits */
+		.color_enc = TGP_COLOR_ENC_HSV,
+		.vdownsampling = { 1 },
+		.bit_depth = { 24 },
+		.planes   = 1,
+		.buffers = 1,
+	},
+	{
+		.fourcc   = V4L2_PIX_FMT_HSV32, /* HSV 32bits */
+		.color_enc = TGP_COLOR_ENC_HSV,
+		.vdownsampling = { 1 },
+		.bit_depth = { 32 },
+		.planes   = 1,
+		.buffers = 1,
+	},
 
 	/* Multiplanar formats */
 
@@ -452,7 +530,7 @@ struct vivid_fmt vivid_formats[] = {
 		.fourcc   = V4L2_PIX_FMT_NV16M,
 		.vdownsampling = { 1, 1 },
 		.bit_depth = { 8, 8 },
-		.is_yuv   = true,
+		.color_enc = TGP_COLOR_ENC_YCBCR,
 		.planes   = 2,
 		.buffers = 2,
 		.data_offset = { PLANE0_DATA_OFFSET, 0 },
@@ -461,7 +539,7 @@ struct vivid_fmt vivid_formats[] = {
 		.fourcc   = V4L2_PIX_FMT_NV61M,
 		.vdownsampling = { 1, 1 },
 		.bit_depth = { 8, 8 },
-		.is_yuv   = true,
+		.color_enc = TGP_COLOR_ENC_YCBCR,
 		.planes   = 2,
 		.buffers = 2,
 		.data_offset = { 0, PLANE0_DATA_OFFSET },
@@ -470,7 +548,7 @@ struct vivid_fmt vivid_formats[] = {
 		.fourcc   = V4L2_PIX_FMT_YUV420M,
 		.vdownsampling = { 1, 2, 2 },
 		.bit_depth = { 8, 4, 4 },
-		.is_yuv   = true,
+		.color_enc = TGP_COLOR_ENC_YCBCR,
 		.planes   = 3,
 		.buffers = 3,
 	},
@@ -478,7 +556,7 @@ struct vivid_fmt vivid_formats[] = {
 		.fourcc   = V4L2_PIX_FMT_YVU420M,
 		.vdownsampling = { 1, 2, 2 },
 		.bit_depth = { 8, 4, 4 },
-		.is_yuv   = true,
+		.color_enc = TGP_COLOR_ENC_YCBCR,
 		.planes   = 3,
 		.buffers = 3,
 	},
@@ -486,7 +564,7 @@ struct vivid_fmt vivid_formats[] = {
 		.fourcc   = V4L2_PIX_FMT_NV12M,
 		.vdownsampling = { 1, 2 },
 		.bit_depth = { 8, 8 },
-		.is_yuv   = true,
+		.color_enc = TGP_COLOR_ENC_YCBCR,
 		.planes   = 2,
 		.buffers = 2,
 	},
@@ -494,7 +572,7 @@ struct vivid_fmt vivid_formats[] = {
 		.fourcc   = V4L2_PIX_FMT_NV21M,
 		.vdownsampling = { 1, 2 },
 		.bit_depth = { 8, 8 },
-		.is_yuv   = true,
+		.color_enc = TGP_COLOR_ENC_YCBCR,
 		.planes   = 2,
 		.buffers = 2,
 	},
@@ -502,7 +580,7 @@ struct vivid_fmt vivid_formats[] = {
 		.fourcc   = V4L2_PIX_FMT_YUV422M,
 		.vdownsampling = { 1, 1, 1 },
 		.bit_depth = { 8, 4, 4 },
-		.is_yuv   = true,
+		.color_enc = TGP_COLOR_ENC_YCBCR,
 		.planes   = 3,
 		.buffers = 3,
 	},
@@ -510,7 +588,7 @@ struct vivid_fmt vivid_formats[] = {
 		.fourcc   = V4L2_PIX_FMT_YVU422M,
 		.vdownsampling = { 1, 1, 1 },
 		.bit_depth = { 8, 4, 4 },
-		.is_yuv   = true,
+		.color_enc = TGP_COLOR_ENC_YCBCR,
 		.planes   = 3,
 		.buffers = 3,
 	},
@@ -518,7 +596,7 @@ struct vivid_fmt vivid_formats[] = {
 		.fourcc   = V4L2_PIX_FMT_YUV444M,
 		.vdownsampling = { 1, 1, 1 },
 		.bit_depth = { 8, 8, 8 },
-		.is_yuv   = true,
+		.color_enc = TGP_COLOR_ENC_YCBCR,
 		.planes   = 3,
 		.buffers = 3,
 	},
@@ -526,7 +604,7 @@ struct vivid_fmt vivid_formats[] = {
 		.fourcc   = V4L2_PIX_FMT_YVU444M,
 		.vdownsampling = { 1, 1, 1 },
 		.bit_depth = { 8, 8, 8 },
-		.is_yuv   = true,
+		.color_enc = TGP_COLOR_ENC_YCBCR,
 		.planes   = 3,
 		.buffers = 3,
 	},
@@ -567,7 +645,7 @@ bool vivid_vid_can_loop(struct vivid_dev *dev)
 	    dev->field_cap == V4L2_FIELD_SEQ_BT)
 		return false;
 	if (vivid_is_svid_cap(dev) && vivid_is_svid_out(dev)) {
-		if (!(dev->std_cap & V4L2_STD_525_60) !=
+		if (!(dev->std_cap[dev->input] & V4L2_STD_525_60) !=
 		    !(dev->std_out & V4L2_STD_525_60))
 			return false;
 		return true;
@@ -616,6 +694,7 @@ void fmt_sp2mp(const struct v4l2_format *sp_fmt, struct v4l2_format *mp_fmt)
 	mp->field = pix->field;
 	mp->colorspace = pix->colorspace;
 	mp->xfer_func = pix->xfer_func;
+	/* Also copies hsv_enc */
 	mp->ycbcr_enc = pix->ycbcr_enc;
 	mp->quantization = pix->quantization;
 	mp->num_planes = 1;
@@ -645,6 +724,7 @@ int fmt_sp2mp_func(struct file *file, void *priv,
 	pix->field = mp->field;
 	pix->colorspace = mp->colorspace;
 	pix->xfer_func = mp->xfer_func;
+	/* Also copies hsv_enc */
 	pix->ycbcr_enc = mp->ycbcr_enc;
 	pix->quantization = mp->quantization;
 	pix->sizeimage = ppix->sizeimage;
@@ -717,26 +797,6 @@ int vivid_enum_fmt_vid(struct file *file, void  *priv,
 	return 0;
 }
 
-int vidioc_enum_fmt_vid_mplane(struct file *file, void  *priv,
-					struct v4l2_fmtdesc *f)
-{
-	struct vivid_dev *dev = video_drvdata(file);
-
-	if (!dev->multiplanar)
-		return -ENOTTY;
-	return vivid_enum_fmt_vid(file, priv, f);
-}
-
-int vidioc_enum_fmt_vid(struct file *file, void  *priv,
-					struct v4l2_fmtdesc *f)
-{
-	struct vivid_dev *dev = video_drvdata(file);
-
-	if (dev->multiplanar)
-		return -ENOTTY;
-	return vivid_enum_fmt_vid(file, priv, f);
-}
-
 int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *id)
 {
 	struct vivid_dev *dev = video_drvdata(file);
@@ -745,7 +805,7 @@ int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *id)
 	if (vdev->vfl_dir == VFL_DIR_RX) {
 		if (!vivid_is_sdtv_cap(dev))
 			return -ENODATA;
-		*id = dev->std_cap;
+		*id = dev->std_cap[dev->input];
 	} else {
 		if (!vivid_is_svid_out(dev))
 			return -ENODATA;
@@ -763,7 +823,7 @@ int vidioc_g_dv_timings(struct file *file, void *_fh,
 	if (vdev->vfl_dir == VFL_DIR_RX) {
 		if (!vivid_is_hdmi_cap(dev))
 			return -ENODATA;
-		*timings = dev->dv_timings_cap;
+		*timings = dev->dv_timings_cap[dev->input];
 	} else {
 		if (!vivid_is_hdmi_out(dev))
 			return -ENODATA;
@@ -827,6 +887,8 @@ int vidioc_g_edid(struct file *file, void *_fh,
 			return -EINVAL;
 		if (dev->output_type[edid->pad] != HDMI)
 			return -EINVAL;
+		if (!dev->display_present[edid->pad])
+			return -ENODATA;
 		bus_idx = dev->cec_output2bus_map[edid->pad];
 		adap = dev->cec_tx_adap[bus_idx];
 	}
@@ -838,9 +900,10 @@ int vidioc_g_edid(struct file *file, void *_fh,
 		return -ENODATA;
 	if (edid->start_block >= dev->edid_blocks)
 		return -EINVAL;
-	if (edid->start_block + edid->blocks > dev->edid_blocks)
+	if (edid->blocks > dev->edid_blocks - edid->start_block)
 		edid->blocks = dev->edid_blocks - edid->start_block;
-	memcpy(edid->edid, dev->edid, edid->blocks * 128);
-	cec_set_edid_phys_addr(edid->edid, edid->blocks * 128, adap->phys_addr);
+	if (adap)
+		v4l2_set_edid_phys_addr(dev->edid, dev->edid_blocks * 128, adap->phys_addr);
+	memcpy(edid->edid, dev->edid + edid->start_block * 128, edid->blocks * 128);
 	return 0;
 }

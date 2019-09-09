@@ -1,21 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
 	Mantis PCI bridge driver
 
 	Copyright (C) Manu Abraham (abraham.manu@gmail.com)
 
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 2 of the License, or
-	(at your option) any later version.
-
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU General Public License for more details.
-
-	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the Free Software
-	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
 #include <linux/kernel.h>
@@ -27,11 +15,11 @@
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 
-#include "dmxdev.h"
-#include "dvbdev.h"
-#include "dvb_demux.h"
-#include "dvb_frontend.h"
-#include "dvb_net.h"
+#include <media/dmxdev.h>
+#include <media/dvbdev.h>
+#include <media/dvb_demux.h>
+#include <media/dvb_frontend.h>
+#include <media/dvb_net.h>
 
 #include "mantis_common.h"
 #include "mantis_reg.h"
@@ -92,6 +80,7 @@ static void mantis_uart_work(struct work_struct *work)
 {
 	struct mantis_pci *mantis = container_of(work, struct mantis_pci, uart_work);
 	u32 stat;
+	unsigned long timeout;
 
 	stat = mmread(MANTIS_UART_STAT);
 
@@ -102,9 +91,15 @@ static void mantis_uart_work(struct work_struct *work)
 	 * MANTIS_UART_RXFIFO_DATA is only set if at least
 	 * config->bytes + 1 bytes are in the FIFO.
 	 */
+
+	/* FIXME: is 10ms good enough ? */
+	timeout = jiffies +  msecs_to_jiffies(10);
 	while (stat & MANTIS_UART_RXFIFO_DATA) {
 		mantis_uart_read(mantis);
 		stat = mmread(MANTIS_UART_STAT);
+
+		if (!time_is_after_jiffies(timeout))
+			break;
 	}
 
 	/* re-enable UART (RX) interrupt */

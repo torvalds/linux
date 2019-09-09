@@ -30,8 +30,6 @@
 #define CIK_RB_BITMAP_WIDTH_PER_SH     2
 #define HAWAII_RB_BITMAP_WIDTH_PER_SH  4
 
-#define RADEON_NUM_OF_VMIDS	8
-
 /* DIDT IND registers */
 #define DIDT_SQ_CTRL0                                     0x0
 #       define DIDT_CTRL_EN                               (1 << 0)
@@ -2016,7 +2014,7 @@
 #       define SDMA_COPY_SUB_OPCODE_T2T_SUB_WINDOW        6
 #define	SDMA_OPCODE_WRITE				  2
 #       define SDMA_WRITE_SUB_OPCODE_LINEAR               0
-#       define SDMA_WRTIE_SUB_OPCODE_TILED                1
+#       define SDMA_WRITE_SUB_OPCODE_TILED                1
 #define	SDMA_OPCODE_INDIRECT_BUFFER			  4
 #define	SDMA_OPCODE_FENCE				  5
 #define	SDMA_OPCODE_TRAP				  6

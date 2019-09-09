@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * si1145.c - Support for Silabs SI1132 and SI1141/2/3/5/6/7 combined ambient
  * light, UV index and proximity sensors
  *
  * Copyright 2014-16 Peter Meerwald-Stadler <pmeerw@pmeerw.net>
  * Copyright 2016 Crestez Dan Leonard <leonard.crestez@intel.com>
- *
- * This file is subject to the terms and conditions of version 2 of
- * the GNU General Public License.  See the file COPYING in the main
- * directory of this archive for more details.
  *
  * SI1132 (7-bit I2C slave address 0x60)
  * SI1141/2/3 (7-bit I2C slave address 0x5a)
@@ -989,14 +986,12 @@ static const struct attribute_group si114x_attribute_group = {
 static const struct iio_info si1132_info = {
 	.read_raw = si1145_read_raw,
 	.write_raw = si1145_write_raw,
-	.driver_module = THIS_MODULE,
 	.attrs = &si1132_attribute_group,
 };
 
 static const struct iio_info si114x_info = {
 	.read_raw = si1145_read_raw,
 	.write_raw = si1145_write_raw,
-	.driver_module = THIS_MODULE,
 	.attrs = &si114x_attribute_group,
 };
 
@@ -1237,7 +1232,6 @@ disable:
 }
 
 static const struct iio_trigger_ops si1145_trigger_ops = {
-	.owner = THIS_MODULE,
 	.set_trigger_state = si1145_trigger_set_state,
 };
 

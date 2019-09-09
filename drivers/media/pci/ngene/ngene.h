@@ -1,24 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * ngene.h: nGene PCIe bridge driver
  *
  * Copyright (C) 2005-2007 Micronas
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 only, as published by the Free Software Foundation.
- *
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA
- * Or, point your browser to http://www.gnu.org/copyleft/gpl.html
  */
 
 #ifndef _NGENE_H_
@@ -33,13 +17,13 @@
 
 #include <linux/dvb/frontend.h>
 
-#include "dmxdev.h"
-#include "dvbdev.h"
-#include "dvb_demux.h"
-#include "dvb_ca_en50221.h"
-#include "dvb_frontend.h"
-#include "dvb_ringbuffer.h"
-#include "dvb_net.h"
+#include <media/dmxdev.h>
+#include <media/dvbdev.h>
+#include <media/dvb_demux.h>
+#include <media/dvb_ca_en50221.h>
+#include <media/dvb_frontend.h>
+#include <media/dvb_ringbuffer.h>
+#include <media/dvb_net.h>
 #include "cxd2099.h"
 
 #define DEVICE_NAME "ngene"
@@ -54,6 +38,22 @@
 #define VIDEO_CAP_WMV9  256
 #define VIDEO_CAP_MPEG4 512
 #endif
+
+#define DEMOD_TYPE_STV090X	0
+#define DEMOD_TYPE_DRXK		1
+#define DEMOD_TYPE_STV0367	2
+
+#define DEMOD_TYPE_XO2		32
+#define DEMOD_TYPE_STV0910	(DEMOD_TYPE_XO2 + 0)
+#define DEMOD_TYPE_SONY_CT2	(DEMOD_TYPE_XO2 + 1)
+#define DEMOD_TYPE_SONY_ISDBT	(DEMOD_TYPE_XO2 + 2)
+#define DEMOD_TYPE_SONY_C2T2	(DEMOD_TYPE_XO2 + 3)
+#define DEMOD_TYPE_ST_ATSC	(DEMOD_TYPE_XO2 + 4)
+#define DEMOD_TYPE_SONY_C2T2I	(DEMOD_TYPE_XO2 + 5)
+
+#define NGENE_XO2_TYPE_NONE	0
+#define NGENE_XO2_TYPE_DUOFLEX	1
+#define NGENE_XO2_TYPE_CI	2
 
 enum STREAM {
 	STREAM_VIDEOIN1 = 0,        /* ITU656 or TS Input */
@@ -634,6 +634,8 @@ struct ngene_vopen {
 struct ngene_channel {
 	struct device         device;
 	struct i2c_adapter    i2c_adapter;
+	struct i2c_client    *i2c_client[1];
+	int                   i2c_client_fe;
 
 	struct ngene         *dev;
 	int                   number;
@@ -718,6 +720,9 @@ struct ngene_channel {
 #endif
 
 	int running;
+
+	int tsin_offset;
+	u8  tsin_buffer[188];
 };
 
 
@@ -766,10 +771,10 @@ struct ngene {
 
 	wait_queue_head_t     cmd_wq;
 	int                   cmd_done;
-	struct semaphore      cmd_mutex;
-	struct semaphore      stream_mutex;
+	struct mutex          cmd_mutex;
+	struct mutex          stream_mutex;
 	struct semaphore      pll_mutex;
-	struct semaphore      i2c_switch_mutex;
+	struct mutex          i2c_switch_mutex;
 	int                   i2c_current_channel;
 	int                   i2c_current_bus;
 	spinlock_t            cmd_lock;
@@ -894,6 +899,9 @@ int ngene_command(struct ngene *dev, struct ngene_command *com);
 int ngene_command_gpio_set(struct ngene *dev, u8 select, u8 level);
 void set_transfer(struct ngene_channel *chan, int state);
 void FillTSBuffer(void *Buffer, int Length, u32 Flags);
+
+/* Provided by ngene-cards.c */
+int ngene_port_has_cxd2099(struct i2c_adapter *i2c, u8 *type);
 
 /* Provided by ngene-i2c.c */
 int ngene_i2c_init(struct ngene *dev, int dev_nr);

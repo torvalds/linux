@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright(c) 2015 EZchip Technologies.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in
- * the file called "COPYING".
  */
 
 #include <linux/smp.h>
@@ -140,16 +129,10 @@ static void eznps_init_per_cpu(int cpu)
 	mtm_enable_core(cpu);
 }
 
-static void eznps_ipi_clear(int irq)
-{
-	write_aux_reg(CTOP_AUX_IACK, 1 << irq);
-}
-
 struct plat_smp_ops plat_smp_ops = {
 	.info		= smp_cpuinfo_buf,
 	.init_early_smp	= eznps_init_cpumasks,
 	.cpu_kick	= eznps_smp_wakeup_cpu,
 	.ipi_send	= eznps_ipi_send,
 	.init_per_cpu	= eznps_init_per_cpu,
-	.ipi_clear	= eznps_ipi_clear,
 };

@@ -1,4 +1,11 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 .. _V4L2-PIX-FMT-SRGGB10P:
 .. _v4l2-pix-fmt-sbggr10p:
@@ -28,16 +35,12 @@ bits of each pixel, in the same order.
 Each n-pixel row contains n/2 green samples and n/2 blue or red samples,
 with alternating green-red and green-blue rows. They are conventionally
 described as GRGR... BGBG..., RGRG... GBGB..., etc. Below is an example
-of one of these formats:
+of a small V4L2_PIX_FMT_SBGGR10P image:
 
 **Byte Order.**
 Each cell is one byte.
 
-.. raw:: latex
-
-    \newline\newline\begin{adjustbox}{width=\columnwidth}
-
-.. tabularcolumns:: |p{2.0cm}|p{1.3cm}|p{1.3cm}|p{1.3cm}|p{1.3cm}|p{10.9cm}|
+.. tabularcolumns:: |p{2.4cm}|p{1.4cm}|p{1.2cm}|p{1.2cm}|p{1.2cm}|p{6.4cm}|
 
 .. flat-table::
     :header-rows:  0
@@ -50,6 +53,7 @@ Each cell is one byte.
       - B\ :sub:`02high`
       - G\ :sub:`03high`
       - G\ :sub:`03low`\ (bits 7--6) B\ :sub:`02low`\ (bits 5--4)
+
 	G\ :sub:`01low`\ (bits 3--2) B\ :sub:`00low`\ (bits 1--0)
     * - start + 5:
       - G\ :sub:`10high`
@@ -57,6 +61,7 @@ Each cell is one byte.
       - G\ :sub:`12high`
       - R\ :sub:`13high`
       - R\ :sub:`13low`\ (bits 7--6) G\ :sub:`12low`\ (bits 5--4)
+
 	R\ :sub:`11low`\ (bits 3--2) G\ :sub:`10low`\ (bits 1--0)
     * - start + 10:
       - B\ :sub:`20high`
@@ -64,6 +69,7 @@ Each cell is one byte.
       - B\ :sub:`22high`
       - G\ :sub:`23high`
       - G\ :sub:`23low`\ (bits 7--6) B\ :sub:`22low`\ (bits 5--4)
+
 	G\ :sub:`21low`\ (bits 3--2) B\ :sub:`20low`\ (bits 1--0)
     * - start + 15:
       - G\ :sub:`30high`
@@ -71,8 +77,5 @@ Each cell is one byte.
       - G\ :sub:`32high`
       - R\ :sub:`33high`
       - R\ :sub:`33low`\ (bits 7--6) G\ :sub:`32low`\ (bits 5--4)
+
 	R\ :sub:`31low`\ (bits 3--2) G\ :sub:`30low`\ (bits 1--0)
-
-.. raw:: latex
-
-    \end{adjustbox}\newline\newline

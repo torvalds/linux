@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2002 ARM Ltd.
  * Copyright (C) 2008 STMicroelctronics.
@@ -5,10 +6,6 @@
  * Author: Srinidhi Kasagar <srinidhi.kasagar@stericsson.com>
  *
  * This file is based on arm realview platform
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/init.h>
 #include <linux/errno.h>
@@ -23,18 +20,20 @@
 #include <asm/smp_plat.h>
 #include <asm/smp_scu.h>
 
-#include "setup.h"
-
 #include "db8500-regs.h"
 
 /* Magic triggers in backup RAM */
 #define UX500_CPU1_JUMPADDR_OFFSET 0x1FF4
 #define UX500_CPU1_WAKEMAGIC_OFFSET 0x1FF0
 
-static void wakeup_secondary(void)
+static void __iomem *backupram;
+
+static void __init ux500_smp_prepare_cpus(unsigned int max_cpus)
 {
 	struct device_node *np;
-	static void __iomem *backupram;
+	static void __iomem *scu_base;
+	unsigned int ncores;
+	int i;
 
 	np = of_find_compatible_node(NULL, NULL, "ste,dbx500-backupram");
 	if (!np) {
@@ -47,29 +46,6 @@ static void wakeup_secondary(void)
 		pr_err("No backupram remap\n");
 		return;
 	}
-
-	/*
-	 * write the address of secondary startup into the backup ram register
-	 * at offset 0x1FF4, then write the magic number 0xA1FEED01 to the
-	 * backup ram register at offset 0x1FF0, which is what boot rom code
-	 * is waiting for. This will wake up the secondary core from WFE.
-	 */
-	writel(virt_to_phys(secondary_startup),
-	       backupram + UX500_CPU1_JUMPADDR_OFFSET);
-	writel(0xA1FEED01,
-	       backupram + UX500_CPU1_WAKEMAGIC_OFFSET);
-
-	/* make sure write buffer is drained */
-	mb();
-	iounmap(backupram);
-}
-
-static void __init ux500_smp_prepare_cpus(unsigned int max_cpus)
-{
-	struct device_node *np;
-	static void __iomem *scu_base;
-	unsigned int ncores;
-	int i;
 
 	np = of_find_compatible_node(NULL, NULL, "arm,cortex-a9-scu");
 	if (!np) {
@@ -92,10 +68,29 @@ static void __init ux500_smp_prepare_cpus(unsigned int max_cpus)
 
 static int ux500_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
-	wakeup_secondary();
+	/*
+	 * write the address of secondary startup into the backup ram register
+	 * at offset 0x1FF4, then write the magic number 0xA1FEED01 to the
+	 * backup ram register at offset 0x1FF0, which is what boot rom code
+	 * is waiting for. This will wake up the secondary core from WFE.
+	 */
+	writel(__pa_symbol(secondary_startup),
+	       backupram + UX500_CPU1_JUMPADDR_OFFSET);
+	writel(0xA1FEED01,
+	       backupram + UX500_CPU1_WAKEMAGIC_OFFSET);
+
+	/* make sure write buffer is drained */
+	mb();
 	arch_send_wakeup_ipi_mask(cpumask_of(cpu));
 	return 0;
 }
+
+#ifdef CONFIG_HOTPLUG_CPU
+void ux500_cpu_die(unsigned int cpu)
+{
+	wfi();
+}
+#endif
 
 static const struct smp_operations ux500_smp_ops __initconst = {
 	.smp_prepare_cpus	= ux500_smp_prepare_cpus,

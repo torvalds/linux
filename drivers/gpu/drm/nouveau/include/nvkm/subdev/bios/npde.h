@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 #ifndef __NVBIOS_NPDE_H__
 #define __NVBIOS_NPDE_H__
 struct nvbios_npdeT {

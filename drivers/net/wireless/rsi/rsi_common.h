@@ -20,8 +20,7 @@
 #include <linux/kthread.h>
 
 #define EVENT_WAIT_FOREVER              0
-#define TA_LOAD_ADDRESS                 0x00
-#define FIRMWARE_RSI9113                "rsi_91x.fw"
+#define FIRMWARE_RSI9113                "rs9113_wlan_qspi.rps"
 #define QUEUE_NOT_FULL                  1
 #define QUEUE_FULL                      0
 
@@ -63,6 +62,7 @@ static inline int rsi_create_kthread(struct rsi_common *common,
 				     u8 *name)
 {
 	init_completion(&thread->completion);
+	atomic_set(&thread->thread_done, 0);
 	thread->task = kthread_run(func_ptr, common, "%s", name);
 	if (IS_ERR(thread->task))
 		return (int)PTR_ERR(thread->task);
@@ -75,13 +75,18 @@ static inline int rsi_kill_thread(struct rsi_thread *handle)
 	atomic_inc(&handle->thread_done);
 	rsi_set_event(&handle->event);
 
-	wait_for_completion(&handle->completion);
 	return kthread_stop(handle->task);
 }
 
 void rsi_mac80211_detach(struct rsi_hw *hw);
-u16 rsi_get_connected_channel(struct rsi_hw *adapter);
-struct rsi_hw *rsi_91x_init(void);
+u16 rsi_get_connected_channel(struct ieee80211_vif *vif);
+struct rsi_hw *rsi_91x_init(u16 oper_mode);
 void rsi_91x_deinit(struct rsi_hw *adapter);
-int rsi_read_pkt(struct rsi_common *common, s32 rcv_pkt_len);
+int rsi_read_pkt(struct rsi_common *common, u8 *rx_pkt, s32 rcv_pkt_len);
+#ifdef CONFIG_PM
+int rsi_config_wowlan(struct rsi_hw *adapter, struct cfg80211_wowlan *wowlan);
+#endif
+struct rsi_sta *rsi_find_sta(struct rsi_common *common, u8 *mac_addr);
+struct ieee80211_vif *rsi_get_vif(struct rsi_hw *adapter, u8 *mac);
+void rsi_roc_timeout(struct timer_list *t);
 #endif

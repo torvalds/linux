@@ -16,9 +16,9 @@
 
 #include "dt-bindings/clock/bcm281xx.h"
 
-#include "skeleton.dtsi"
-
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
 	model = "BCM11351 SoC";
 	compatible = "brcm,bcm11351";
 	interrupt-parent = <&gic>;
@@ -55,7 +55,7 @@
 		      <0x3ff00100 0x100>;
 	};
 
-	smc@0x3404c000 {
+	smc@3404c000 {
 		compatible = "brcm,bcm11351-smc", "brcm,kona-smc";
 		reg = <0x3404c000 0x400>; /* 1 KiB in SRAM */
 	};
@@ -100,7 +100,7 @@
 		reg-io-width = <4>;
 	};
 
-	L2: l2-cache {
+	L2: l2-cache@3ff20000 {
 		compatible = "brcm,bcm11351-a2-pl310-cache";
 		reg = <0x3ff20000 0x1000>;
 		cache-unified;
@@ -225,21 +225,21 @@
 		#size-cells = <1>;
 		ranges;
 
-		root_ccu: root_ccu {
+		root_ccu: root_ccu@35001000 {
 			compatible = "brcm,bcm11351-root-ccu";
 			reg = <0x35001000 0x0f00>;
 			#clock-cells = <1>;
 			clock-output-names = "frac_1m";
 		};
 
-		hub_ccu: hub_ccu {
+		hub_ccu: hub_ccu@34000000 {
 			compatible = "brcm,bcm11351-hub-ccu";
 			reg = <0x34000000 0x0f00>;
 			#clock-cells = <1>;
 			clock-output-names = "tmon_1m";
 		};
 
-		aon_ccu: aon_ccu {
+		aon_ccu: aon_ccu@35002000 {
 			compatible = "brcm,bcm11351-aon-ccu";
 			reg = <0x35002000 0x0f00>;
 			#clock-cells = <1>;
@@ -248,7 +248,7 @@
 					     "pmu_bsc_var";
 		};
 
-		master_ccu: master_ccu {
+		master_ccu: master_ccu@3f001000 {
 			compatible = "brcm,bcm11351-master-ccu";
 			reg = <0x3f001000 0x0f00>;
 			#clock-cells = <1>;
@@ -261,7 +261,7 @@
 					     "hsic2_12m";
 		};
 
-		slave_ccu: slave_ccu {
+		slave_ccu: slave_ccu@3e011000 {
 			compatible = "brcm,bcm11351-slave-ccu";
 			reg = <0x3e011000 0x0f00>;
 			#clock-cells = <1>;

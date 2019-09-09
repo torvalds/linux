@@ -6,7 +6,8 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
+ * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -16,11 +17,6 @@
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110,
- * USA
  *
  * The full GNU General Public License is included in this distribution
  * in the file called COPYING.
@@ -32,7 +28,8 @@
  * BSD LICENSE
  *
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
+ * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -66,6 +63,9 @@
 #define __iwl_fh_h__
 
 #include <linux/types.h>
+#include <linux/bitfield.h>
+
+#include "iwl-trans.h"
 
 /****************************/
 /* Flow Handler Definitions */
@@ -77,6 +77,8 @@
  */
 #define FH_MEM_LOWER_BOUND                   (0x1000)
 #define FH_MEM_UPPER_BOUND                   (0x2000)
+#define FH_MEM_LOWER_BOUND_GEN2              (0xa06000)
+#define FH_MEM_UPPER_BOUND_GEN2              (0xa08000)
 
 /**
  * Keep-Warm (KW) buffer base address.
@@ -118,7 +120,7 @@
 #define FH_MEM_CBBC_16_19_UPPER_BOUND		(FH_MEM_LOWER_BOUND + 0xC00)
 #define FH_MEM_CBBC_20_31_LOWER_BOUND		(FH_MEM_LOWER_BOUND + 0xB20)
 #define FH_MEM_CBBC_20_31_UPPER_BOUND		(FH_MEM_LOWER_BOUND + 0xB80)
-/* a000 TFD table address, 64 bit */
+/* 22000 TFD table address, 64 bit */
 #define TFH_TFDQ_CBB_TABLE			(0x1C00)
 
 /* Find TFD CB base pointer for given queue */
@@ -137,7 +139,7 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(struct iwl_trans *trans,
 	return FH_MEM_CBBC_20_31_LOWER_BOUND + 4 * (chnl - 20);
 }
 
-/* a000 configuration registers */
+/* 22000 configuration registers */
 
 /*
  * TFH Configuration register.
@@ -431,13 +433,15 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(struct iwl_trans *trans,
  * RXF to DRAM.
  * Once the RXF-to-DRAM DMA is active, this flag is immediately turned off.
  */
-#define RFH_GEN_STATUS 0xA09808
+#define RFH_GEN_STATUS		0xA09808
+#define RFH_GEN_STATUS_GEN3	0xA07824
 #define RBD_FETCH_IDLE	BIT(29)
 #define SRAM_DMA_IDLE	BIT(30)
 #define RXF_DMA_IDLE	BIT(31)
 
 /* DMA configuration */
-#define RFH_RXF_DMA_CFG 0xA09820
+#define RFH_RXF_DMA_CFG		0xA09820
+#define RFH_RXF_DMA_CFG_GEN3	0xA07880
 /* RB size */
 #define RFH_RXF_DMA_RB_SIZE_MASK (0x000F0000) /* bits 16-19 */
 #define RFH_RXF_DMA_RB_SIZE_POS 16
@@ -476,13 +480,12 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(struct iwl_trans *trans,
 #define RFH_GEN_CFG	0xA09800
 #define RFH_GEN_CFG_SERVICE_DMA_SNOOP	BIT(0)
 #define RFH_GEN_CFG_RFH_DMA_SNOOP	BIT(1)
-#define RFH_GEN_CFG_RB_CHUNK_SIZE_POS	4
+#define RFH_GEN_CFG_RB_CHUNK_SIZE	BIT(4)
 #define RFH_GEN_CFG_RB_CHUNK_SIZE_128	1
 #define RFH_GEN_CFG_RB_CHUNK_SIZE_64	0
-#define RFH_GEN_CFG_DEFAULT_RXQ_NUM_MASK 0xF00
-#define RFH_GEN_CFG_DEFAULT_RXQ_NUM_POS 8
-
-#define DEFAULT_RXQ_NUM			0
+/* the driver assumes everywhere that the default RXQ is 0 */
+#define RFH_GEN_CFG_DEFAULT_RXQ_NUM	0xF00
+#define RFH_GEN_CFG_VAL(_n, _v)		FIELD_PREP(RFH_GEN_CFG_ ## _n, _v)
 
 /* end of 9000 rx series registers */
 
@@ -614,6 +617,8 @@ static inline unsigned int FH_MEM_CBBC_QUEUE(struct iwl_trans *trans,
 #define RX_POOL_SIZE		(MQ_RX_NUM_RBDS +	\
 				 IWL_MAX_RX_HW_QUEUES *	\
 				 (RX_CLAIM_REQ_ALLOC - RX_POST_REQ_ALLOC))
+/* cb size is the exponent */
+#define RX_QUEUE_CB_SIZE(x)	ilog2(x)
 
 #define RX_QUEUE_SIZE                         256
 #define RX_QUEUE_MASK                         255
@@ -639,16 +644,32 @@ struct iwl_rb_status {
 
 
 #define TFD_QUEUE_SIZE_MAX      (256)
+#define TFD_QUEUE_SIZE_MAX_GEN3 (65536)
+/* cb size is the exponent - 3 */
+#define TFD_QUEUE_CB_SIZE(x)	(ilog2(x) - 3)
 #define TFD_QUEUE_SIZE_BC_DUP	(64)
 #define TFD_QUEUE_BC_SIZE	(TFD_QUEUE_SIZE_MAX + TFD_QUEUE_SIZE_BC_DUP)
+#define TFD_QUEUE_BC_SIZE_GEN3	(TFD_QUEUE_SIZE_MAX_GEN3 + \
+				 TFD_QUEUE_SIZE_BC_DUP)
 #define IWL_TX_DMA_MASK        DMA_BIT_MASK(36)
 #define IWL_NUM_OF_TBS		20
 #define IWL_TFH_NUM_TBS		25
 
 static inline u8 iwl_get_dma_hi_addr(dma_addr_t addr)
 {
-	return (sizeof(addr) > sizeof(u32) ? (addr >> 16) >> 16 : 0) & 0xF;
+	return (sizeof(addr) > sizeof(u32) ? upper_32_bits(addr) : 0) & 0xF;
 }
+
+/**
+ * enum iwl_tfd_tb_hi_n_len - TB hi_n_len bits
+ * @TB_HI_N_LEN_ADDR_HI_MSK: high 4 bits (to make it 36) of DMA address
+ * @TB_HI_N_LEN_LEN_MSK: length of the TB
+ */
+enum iwl_tfd_tb_hi_n_len {
+	TB_HI_N_LEN_ADDR_HI_MSK	= 0xf,
+	TB_HI_N_LEN_LEN_MSK	= 0xfff0,
+};
+
 /**
  * struct iwl_tfd_tb transmit buffer descriptor within transmit frame descriptor
  *
@@ -656,8 +677,7 @@ static inline u8 iwl_get_dma_hi_addr(dma_addr_t addr)
  *
  * @lo: low [31:0] portion of the dma address of TX buffer
  * 	every even is unaligned on 16 bit boundary
- * @hi_n_len 0-3 [35:32] portion of dma
- *	     4-15 length of the tx buffer
+ * @hi_n_len: &enum iwl_tfd_tb_hi_n_len
  */
 struct iwl_tfd_tb {
 	__le32 lo;
@@ -681,8 +701,8 @@ struct iwl_tfh_tb {
  * Each Tx queue uses a circular buffer of 256 TFDs stored in host DRAM.
  * Both driver and device share these circular buffers, each of which must be
  * contiguous 256 TFDs.
- * For pre a000 HW it is 256 x 128 bytes-per-TFD = 32 KBytes
- * For a000 HW and on it is 256 x 256 bytes-per-TFD = 65 KBytes
+ * For pre 22000 HW it is 256 x 128 bytes-per-TFD = 32 KBytes
+ * For 22000 HW and on it is 256 x 256 bytes-per-TFD = 65 KBytes
  *
  * Driver must indicate the physical address of the base of each
  * circular buffer via the FH_MEM_CBBC_QUEUE registers.
@@ -734,16 +754,27 @@ struct iwl_tfh_tfd {
 /**
  * struct iwlagn_schedq_bc_tbl scheduler byte count table
  *	base physical address provided by SCD_DRAM_BASE_ADDR
- * For devices up to a000:
+ * For devices up to 22000:
  * @tfd_offset  0-12 - tx command byte count
  *		12-16 - station index
- * For a000 and on:
+ * For 22000:
  * @tfd_offset  0-12 - tx command byte count
  *		12-13 - number of 64 byte chunks
  *		14-16 - reserved
  */
 struct iwlagn_scd_bc_tbl {
 	__le16 tfd_offset[TFD_QUEUE_BC_SIZE];
+} __packed;
+
+/**
+ * struct iwl_gen3_bc_tbl scheduler byte count table gen3
+ * For 22560 and on:
+ * @tfd_offset: 0-12 - tx command byte count
+ *		12-13 - number of 64 byte chunks
+ *		14-16 - reserved
+ */
+struct iwl_gen3_bc_tbl {
+	__le16 tfd_offset[TFD_QUEUE_BC_SIZE_GEN3];
 } __packed;
 
 #endif /* !__iwl_fh_h__ */

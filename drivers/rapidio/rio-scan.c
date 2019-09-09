@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * RapidIO enumeration and discovery support
  *
@@ -11,11 +12,6 @@
  * Copyright 2009 Sysgo AG
  * Thomas Moll <thomas.moll@sysgo.com>
  * - Added Input- Output- enable functionality, to allow full communication
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/types.h>
@@ -76,7 +72,7 @@ static u16 rio_destid_alloc(struct rio_net *net)
 }
 
 /**
- * rio_destid_reserve - Reserve the specivied destID
+ * rio_destid_reserve - Reserve the specified destID
  * @net: RIO network
  * @destid: destID to reserve
  *
@@ -425,9 +421,9 @@ static struct rio_dev *rio_setup_device(struct rio_net *net,
 		rswitch = rdev->rswitch;
 		rswitch->port_ok = 0;
 		spin_lock_init(&rswitch->lock);
-		rswitch->route_table = kzalloc(sizeof(u8)*
-					RIO_MAX_ROUTE_ENTRIES(port->sys_size),
-					GFP_KERNEL);
+		rswitch->route_table =
+			kzalloc(RIO_MAX_ROUTE_ENTRIES(port->sys_size),
+				GFP_KERNEL);
 		if (!rswitch->route_table)
 			goto cleanup;
 		/* Initialize switch route table */
@@ -885,7 +881,7 @@ static struct rio_net *rio_scan_alloc_net(struct rio_mport *mport,
  *
  * For each enumerated device, ensure that each switch in a system
  * has correct routing entries. Add routes for devices that where
- * unknown dirung the first enumeration pass through the switch.
+ * unknown during the first enumeration pass through the switch.
  */
 static void rio_update_route_tables(struct rio_net *net)
 {
@@ -983,7 +979,7 @@ static int rio_enum_mport(struct rio_mport *mport, u32 flags)
 		/* reserve mport destID in new net */
 		rio_destid_reserve(net, mport->host_deviceid);
 
-		/* Enable Input Output Port (transmitter reviever) */
+		/* Enable Input Output Port (transmitter receiver) */
 		rio_enable_rx_tx_port(mport, 1, 0, 0, 0);
 
 		/* Set component tag for host */

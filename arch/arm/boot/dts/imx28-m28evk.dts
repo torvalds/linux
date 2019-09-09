@@ -1,24 +1,19 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
+
  * Copyright (C) 2012 Marek Vasut <marex@denx.de>
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
  */
 
 /dts-v1/;
 #include "imx28-m28.dtsi"
 
 / {
-	model = "DENX M28EVK";
-	compatible = "denx,m28evk", "fsl,imx28";
+	model = "Aries/DENX M28EVK";
+	compatible = "aries,m28evk", "denx,m28evk", "fsl,imx28";
 
 	apb@80000000 {
 		apbh@80000000 {
-			ssp0: ssp@80010000 {
+			ssp0: spi@80010000 {
 				compatible = "fsl,imx28-mmc";
 				pinctrl-names = "default";
 				pinctrl-0 = <&mmc0_8bit_pins_a
@@ -30,7 +25,7 @@
 				status = "okay";
 			};
 
-			ssp2: ssp@80014000 {
+			ssp2: spi@80014000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx28-spi";
@@ -137,9 +132,10 @@
 			};
 
 			i2c0: i2c@80058000 {
-				sgtl5000: codec@0a {
+				sgtl5000: codec@a {
 					compatible = "fsl,sgtl5000";
 					reg = <0x0a>;
+					#sound-dai-cells = <0>;
 					VDDA-supply = <&reg_3p3v>;
 					VDDIO-supply = <&reg_3p3v>;
 					clocks = <&saif0>;

@@ -1,31 +1,8 @@
+/* SPDX-License-Identifier: BSD-3-Clause */
 /*
  * Freescale SEC (talitos) device register and descriptor header defines
  *
  * Copyright (c) 2006-2011 Freescale Semiconductor, Inc.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
- * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
  */
 
 #define TALITOS_TIMEOUT 100000
@@ -52,8 +29,6 @@ struct talitos_ptr {
 	__be32 ptr;     /* address */
 };
 
-static const struct talitos_ptr zero_entry;
-
 /* descriptor */
 struct talitos_desc {
 	__be32 hdr;                     /* header high bits */
@@ -66,6 +41,34 @@ struct talitos_desc {
 };
 
 #define TALITOS_DESC_SIZE	(sizeof(struct talitos_desc) - sizeof(__be32))
+
+/*
+ * talitos_edesc - s/w-extended descriptor
+ * @src_nents: number of segments in input scatterlist
+ * @dst_nents: number of segments in output scatterlist
+ * @iv_dma: dma address of iv for checking continuity and link table
+ * @dma_len: length of dma mapped link_tbl space
+ * @dma_link_tbl: bus physical address of link_tbl/buf
+ * @desc: h/w descriptor
+ * @link_tbl: input and output h/w link tables (if {src,dst}_nents > 1) (SEC2)
+ * @buf: input and output buffeur (if {src,dst}_nents > 1) (SEC1)
+ *
+ * if decrypting (with authcheck), or either one of src_nents or dst_nents
+ * is greater than 1, an integrity check value is concatenated to the end
+ * of link_tbl data
+ */
+struct talitos_edesc {
+	int src_nents;
+	int dst_nents;
+	dma_addr_t iv_dma;
+	int dma_len;
+	dma_addr_t dma_link_tbl;
+	struct talitos_desc desc;
+	union {
+		struct talitos_ptr link_tbl[0];
+		u8 buf[0];
+	};
+};
 
 /**
  * talitos_request - descriptor submission request
@@ -152,12 +155,6 @@ struct talitos_private {
 	bool rng_registered;
 };
 
-extern int talitos_submit(struct device *dev, int ch, struct talitos_desc *desc,
-			  void (*callback)(struct device *dev,
-					   struct talitos_desc *desc,
-					   void *context, int error),
-			  void *context);
-
 /* .features flag */
 #define TALITOS_FTR_SRC_LINK_TBL_LEN_INCLUDES_EXTENT 0x00000001
 #define TALITOS_FTR_HW_AUTH_CHECK 0x00000002
@@ -172,13 +169,11 @@ extern int talitos_submit(struct device *dev, int ch, struct talitos_desc *desc,
  */
 static inline bool has_ftr_sec1(struct talitos_private *priv)
 {
-#if defined(CONFIG_CRYPTO_DEV_TALITOS1) && defined(CONFIG_CRYPTO_DEV_TALITOS2)
-	return priv->features & TALITOS_FTR_SEC1 ? true : false;
-#elif defined(CONFIG_CRYPTO_DEV_TALITOS1)
-	return true;
-#else
-	return false;
-#endif
+	if (IS_ENABLED(CONFIG_CRYPTO_DEV_TALITOS1) &&
+	    IS_ENABLED(CONFIG_CRYPTO_DEV_TALITOS2))
+		return priv->features & TALITOS_FTR_SEC1;
+
+	return IS_ENABLED(CONFIG_CRYPTO_DEV_TALITOS1);
 }
 
 /*
@@ -210,9 +205,13 @@ static inline bool has_ftr_sec1(struct talitos_private *priv)
 #define TALITOS_ISR			0x1010  /* interrupt status register */
 #define   TALITOS1_ISR_4CHERR		ISR1_FORMAT(0xa) /* 4 ch errors mask */
 #define   TALITOS1_ISR_4CHDONE		ISR1_FORMAT(0x5) /* 4 ch done mask */
+#define   TALITOS1_ISR_CH_0_ERR		(2 << 28) /* ch 0 errors mask */
+#define   TALITOS1_ISR_CH_0_DONE	(1 << 28) /* ch 0 done mask */
 #define   TALITOS1_ISR_TEA_ERR		0x00000040
 #define   TALITOS2_ISR_4CHERR		ISR2_FORMAT(0xa) /* 4 ch errors mask */
 #define   TALITOS2_ISR_4CHDONE		ISR2_FORMAT(0x5) /* 4 ch done mask */
+#define   TALITOS2_ISR_CH_0_ERR		2 /* ch 0 errors mask */
+#define   TALITOS2_ISR_CH_0_DONE	1 /* ch 0 done mask */
 #define   TALITOS2_ISR_CH_0_2_ERR	ISR2_FORMAT(0x2) /* ch 0, 2 err mask */
 #define   TALITOS2_ISR_CH_0_2_DONE	ISR2_FORMAT(0x1) /* ch 0, 2 done mask */
 #define   TALITOS2_ISR_CH_1_3_ERR	ISR2_FORMAT(0x8) /* ch 1, 3 err mask */
@@ -234,6 +233,7 @@ static inline bool has_ftr_sec1(struct talitos_private *priv)
 #define   TALITOS_CCCR_LO_IWSE		0x80   /* chan. ICCR writeback enab. */
 #define   TALITOS_CCCR_LO_EAE		0x20   /* extended address enable */
 #define   TALITOS_CCCR_LO_CDWE		0x10   /* chan. done writeback enab. */
+#define   TALITOS_CCCR_LO_NE		0x8    /* fetch next descriptor enab. */
 #define   TALITOS_CCCR_LO_NT		0x4    /* notification type */
 #define   TALITOS_CCCR_LO_CDIE		0x2    /* channel done IRQ enable */
 #define   TALITOS1_CCCR_LO_RESET	0x1    /* channel reset on SEC1 */
@@ -409,5 +409,5 @@ static inline bool has_ftr_sec1(struct talitos_private *priv)
 
 /* link table extent field bits */
 #define DESC_PTR_LNKTBL_JUMP			0x80
-#define DESC_PTR_LNKTBL_RETURN			0x02
+#define DESC_PTR_LNKTBL_RET			0x02
 #define DESC_PTR_LNKTBL_NEXT			0x01

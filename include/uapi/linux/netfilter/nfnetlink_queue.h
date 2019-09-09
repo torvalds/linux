@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _NFNETLINK_QUEUE_H
 #define _NFNETLINK_QUEUE_H
 
@@ -36,7 +37,7 @@ enum nfqnl_vlan_attr {
 	NFQA_VLAN_TCI,			/* __be16 skb htons(vlan_tci) */
 	__NFQA_VLAN_MAX,
 };
-#define NFQA_VLAN_MAX (__NFQA_VLAN_MAX + 1)
+#define NFQA_VLAN_MAX (__NFQA_VLAN_MAX - 1)
 
 enum nfqnl_attr_type {
 	NFQA_UNSPEC,

@@ -1,12 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /* AFS Volume Location Service client interface
  *
  * Copyright (C) 2002, 2007 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #ifndef AFS_VL_H
@@ -16,11 +12,17 @@
 
 #define AFS_VL_PORT		7003	/* volume location service port */
 #define VL_SERVICE		52	/* RxRPC service ID for the Volume Location service */
+#define YFS_VL_SERVICE		2503	/* Service ID for AuriStor upgraded VL service */
 
 enum AFSVL_Operations {
-	VLGETENTRYBYID		= 503,	/* AFS Get Cache Entry By ID operation ID */
-	VLGETENTRYBYNAME	= 504,	/* AFS Get Cache Entry By Name operation ID */
-	VLPROBE			= 514,	/* AFS Probe Volume Location Service operation ID */
+	VLGETENTRYBYID		= 503,	/* AFS Get VLDB entry by ID */
+	VLGETENTRYBYNAME	= 504,	/* AFS Get VLDB entry by name */
+	VLPROBE			= 514,	/* AFS probe VL service */
+	VLGETENTRYBYIDU		= 526,	/* AFS Get VLDB entry by ID (UUID-variant) */
+	VLGETENTRYBYNAMEU	= 527,	/* AFS Get VLDB entry by name (UUID-variant) */
+	VLGETADDRSU		= 533,	/* AFS Get addrs for fileserver */
+	YVLGETENDPOINTS		= 64002, /* YFS Get endpoints for file/volume server */
+	VLGETCAPABILITIES	= 65537, /* AFS Get server capabilities */
 };
 
 enum AFSVL_Errors {
@@ -54,6 +56,19 @@ enum AFSVL_Errors {
 	AFSVL_NOMEM 		= 363547,	/* malloc/realloc failed to alloc enough memory */
 };
 
+enum {
+	YFS_SERVER_INDEX	= 0,
+	YFS_SERVER_UUID		= 1,
+	YFS_SERVER_ENDPOINT	= 2,
+};
+
+enum {
+	YFS_ENDPOINT_IPV4	= 0,
+	YFS_ENDPOINT_IPV6	= 1,
+};
+
+#define YFS_MAXENDPOINTS	16
+
 /*
  * maps to "struct vldbentry" in vvl-spec.pdf
  */
@@ -74,11 +89,57 @@ struct afs_vldbentry {
 		struct in_addr	addr;		/* server address */
 		unsigned	partition;	/* partition ID on this server */
 		unsigned	flags;		/* server specific flags */
-#define AFS_VLSF_NEWREPSITE	0x0001	/* unused */
+#define AFS_VLSF_NEWREPSITE	0x0001	/* Ignore all 'non-new' servers */
 #define AFS_VLSF_ROVOL		0x0002	/* this server holds a R/O instance of the volume */
 #define AFS_VLSF_RWVOL		0x0004	/* this server holds a R/W instance of the volume */
 #define AFS_VLSF_BACKVOL	0x0008	/* this server holds a backup instance of the volume */
+#define AFS_VLSF_UUID		0x0010	/* This server is referred to by its UUID */
+#define AFS_VLSF_DONTUSE	0x0020	/* This server ref should be ignored */
 	} servers[8];
 };
+
+#define AFS_VLDB_MAXNAMELEN 65
+
+
+struct afs_ListAddrByAttributes__xdr {
+	__be32			Mask;
+#define AFS_VLADDR_IPADDR	0x1	/* Match by ->ipaddr */
+#define AFS_VLADDR_INDEX	0x2	/* Match by ->index */
+#define AFS_VLADDR_UUID		0x4	/* Match by ->uuid */
+	__be32			ipaddr;
+	__be32			index;
+	__be32			spare;
+	struct afs_uuid__xdr	uuid;
+};
+
+struct afs_uvldbentry__xdr {
+	__be32			name[AFS_VLDB_MAXNAMELEN];
+	__be32			nServers;
+	struct afs_uuid__xdr	serverNumber[AFS_NMAXNSERVERS];
+	__be32			serverUnique[AFS_NMAXNSERVERS];
+	__be32			serverPartition[AFS_NMAXNSERVERS];
+	__be32			serverFlags[AFS_NMAXNSERVERS];
+	__be32			volumeId[AFS_MAXTYPES];
+	__be32			cloneId;
+	__be32			flags;
+	__be32			spares1;
+	__be32			spares2;
+	__be32			spares3;
+	__be32			spares4;
+	__be32			spares5;
+	__be32			spares6;
+	__be32			spares7;
+	__be32			spares8;
+	__be32			spares9;
+};
+
+struct afs_address_list {
+	refcount_t		usage;
+	unsigned int		version;
+	unsigned int		nr_addrs;
+	struct sockaddr_rxrpc	addrs[];
+};
+
+extern void afs_put_address_list(struct afs_address_list *alist);
 
 #endif /* AFS_VL_H */

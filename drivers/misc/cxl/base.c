@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2014 IBM Corp.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/module.h>
@@ -105,89 +101,6 @@ int cxl_update_properties(struct device_node *dn,
 	return of_update_property(dn, new_prop);
 }
 EXPORT_SYMBOL_GPL(cxl_update_properties);
-
-/*
- * API calls into the driver that may be called from the PHB code and must be
- * built in.
- */
-bool cxl_pci_associate_default_context(struct pci_dev *dev, struct cxl_afu *afu)
-{
-	bool ret;
-	struct cxl_calls *calls;
-
-	calls = cxl_calls_get();
-	if (!calls)
-		return false;
-
-	ret = calls->cxl_pci_associate_default_context(dev, afu);
-
-	cxl_calls_put(calls);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(cxl_pci_associate_default_context);
-
-void cxl_pci_disable_device(struct pci_dev *dev)
-{
-	struct cxl_calls *calls;
-
-	calls = cxl_calls_get();
-	if (!calls)
-		return;
-
-	calls->cxl_pci_disable_device(dev);
-
-	cxl_calls_put(calls);
-}
-EXPORT_SYMBOL_GPL(cxl_pci_disable_device);
-
-int cxl_next_msi_hwirq(struct pci_dev *pdev, struct cxl_context **ctx, int *afu_irq)
-{
-	int ret;
-	struct cxl_calls *calls;
-
-	calls = cxl_calls_get();
-	if (!calls)
-		return -EBUSY;
-
-	ret = calls->cxl_next_msi_hwirq(pdev, ctx, afu_irq);
-
-	cxl_calls_put(calls);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(cxl_next_msi_hwirq);
-
-int cxl_cx4_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
-{
-	int ret;
-	struct cxl_calls *calls;
-
-	calls = cxl_calls_get();
-	if (!calls)
-		return false;
-
-	ret = calls->cxl_cx4_setup_msi_irqs(pdev, nvec, type);
-
-	cxl_calls_put(calls);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(cxl_cx4_setup_msi_irqs);
-
-void cxl_cx4_teardown_msi_irqs(struct pci_dev *pdev)
-{
-	struct cxl_calls *calls;
-
-	calls = cxl_calls_get();
-	if (!calls)
-		return;
-
-	calls->cxl_cx4_teardown_msi_irqs(pdev);
-
-	cxl_calls_put(calls);
-}
-EXPORT_SYMBOL_GPL(cxl_cx4_teardown_msi_irqs);
 
 static int __init cxl_base_init(void)
 {

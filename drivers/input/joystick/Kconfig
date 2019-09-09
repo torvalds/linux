@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Joystick driver configuration
 #
@@ -9,7 +10,7 @@ menuconfig INPUT_JOYSTICK
 	  and the list of supported devices will be displayed. This option
 	  doesn't affect the kernel.
 
-	  Please read the file <file:Documentation/input/joystick.txt> which
+	  Please read the file <file:Documentation/input/joydev/joystick.rst> which
 	  contains more information.
 
 if INPUT_JOYSTICK
@@ -25,7 +26,7 @@ config JOYSTICK_ANALOG
 	  Flightstick Pro, ThrustMaster FCS, 6 and 8 button gamepads, or
 	  Saitek Cyborg joysticks.
 
-	  Please read the file <file:Documentation/input/joystick.txt> which
+	  Please read the file <file:Documentation/input/joydev/joystick.rst> which
 	  contains more information.
 
 	  To compile this driver as a module, choose M here: the
@@ -214,7 +215,7 @@ config JOYSTICK_DB9
 	  gamepad, Sega Saturn gamepad, or a Multisystem -- Atari, Amiga,
 	  Commodore, Amstrad CPC joystick connected to your parallel port.
 	  For more information on how to use the driver please read
-	  <file:Documentation/input/joystick-parport.txt>.
+	  <file:Documentation/input/devices/joystick-parport.rst>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called db9.
@@ -229,7 +230,7 @@ config JOYSTICK_GAMECON
 	  Sony PlayStation gamepad or a Multisystem -- Atari, Amiga,
 	  Commodore, Amstrad CPC joystick connected to your parallel port.
 	  For more information on how to use the driver please read
-	  <file:Documentation/input/joystick-parport.txt>.
+	  <file:Documentation/input/devices/joystick-parport.rst>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called gamecon.
@@ -241,7 +242,7 @@ config JOYSTICK_TURBOGRAFX
 	  Say Y here if you have the TurboGraFX interface by Steffen Schwenke,
 	  and want to use it with Multisystem -- Atari, Amiga, Commodore,
 	  Amstrad CPC joystick. For more information on how to use the driver
-	  please read <file:Documentation/input/joystick-parport.txt>.
+	  please read <file:Documentation/input/devices/joystick-parport.rst>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called turbografx.
@@ -287,7 +288,7 @@ config JOYSTICK_XPAD
 	  and/or "Event interface support" (CONFIG_INPUT_EVDEV) as well.
 
 	  For information about how to connect the X-Box pad to USB, see
-	  <file:Documentation/input/xpad.txt>.
+	  <file:Documentation/input/devices/xpad.rst>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called xpad.
@@ -313,7 +314,7 @@ config JOYSTICK_WALKERA0701
 	  Say Y or M here if you have a Walkera WK-0701 transmitter which is
 	  supplied with a ready to fly Walkera helicopters such as HM36,
 	  HM37, HM60 and want to use it via parport as a joystick. More
-	  information is available: <file:Documentation/input/walkera0701.txt>
+	  information is available: <file:Documentation/input/devices/walkera0701.rst>
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called walkera0701.
@@ -329,5 +330,36 @@ config JOYSTICK_MAPLE
 
 	  To compile this as a module choose M here: the module will be called
 	  maplecontrol.
+
+config JOYSTICK_PSXPAD_SPI
+	tristate "PlayStation 1/2 joypads via SPI interface"
+	depends on SPI
+	select INPUT_POLLDEV
+	help
+	  Say Y here if you wish to connect PlayStation 1/2 joypads
+	  via SPI interface.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called psxpad-spi.
+
+config JOYSTICK_PSXPAD_SPI_FF
+	bool "PlayStation 1/2 joypads force feedback (rumble) support"
+	depends on JOYSTICK_PSXPAD_SPI
+	select INPUT_FF_MEMLESS
+	help
+	  Say Y here if you want to take advantage of PlayStation 1/2
+	  joypads rumble features.
+
+	  To drive rumble motor a dedicated power supply is required.
+
+config JOYSTICK_PXRC
+	tristate "PhoenixRC Flight Controller Adapter"
+	depends on USB_ARCH_HAS_HCD
+	select USB
+	help
+	  Say Y here if you want to use the PhoenixRC Flight Controller Adapter.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called pxrc.
 
 endif

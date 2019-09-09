@@ -1,14 +1,12 @@
 #
 # Generated files
 #
+bin2c
 conmakehash
 kallsyms
 pnmtologo
 unifdef
-ihex2fw
 recordmcount
-docproc
-check-lc_ctype
 sortextable
 asn1_compiler
 extract-cert

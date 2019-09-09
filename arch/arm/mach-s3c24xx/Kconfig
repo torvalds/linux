@@ -1,11 +1,9 @@
-# arch/arm/mach-s3c24xx/Kconfig
+# SPDX-License-Identifier: GPL-2.0
 #
 # Copyright (c) 2012 Samsung Electronics Co., Ltd.
 #		http://www.samsung.com/
 #
 # Copyright 2007 Simtec Electronics
-#
-# Licensed under GPLv2
 
 if ARCH_S3C24XX
 
@@ -229,7 +227,7 @@ config ARCH_H1940
 config H1940BT
 	tristate "Control the state of H1940 bluetooth chip"
 	depends on ARCH_H1940
-	select RFKILL
+	depends on RFKILL
 	help
 	  This is a simple driver that is able to control
 	  the state of built in bluetooth chip on h1940.
@@ -394,7 +392,7 @@ config MACH_SMDK2416
 
 config MACH_S3C2416_DT
 	bool "Samsung S3C2416 machine using devicetree"
-	select CLKSRC_OF
+	select TIMER_OF
 	select USE_OF
 	select PINCTRL
 	select PINCTRL_S3C24XX

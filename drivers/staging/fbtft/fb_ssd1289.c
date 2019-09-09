@@ -1,25 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * FB driver for the SSD1289 LCD Controller
  *
  * Copyright (C) 2013 Noralf Tronnes
  *
  * Init sequence taken from ITDB02_Graph16.cpp - (C)2010-2011 Henning Karlsen
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 
 #include "fbtft.h"
 
@@ -30,15 +21,15 @@
 			"02 03 2 5 7 5 4 2 4 2"
 
 static unsigned int reg11 = 0x6040;
-module_param(reg11, uint, 0);
+module_param(reg11, uint, 0000);
 MODULE_PARM_DESC(reg11, "Register 11h value");
 
 static int init_display(struct fbtft_par *par)
 {
 	par->fbtftops.reset(par);
 
-	if (par->gpio.cs != -1)
-		gpio_set_value(par->gpio.cs, 0);  /* Activate chip */
+	if (par->gpio.cs)
+		gpiod_set_value(par->gpio.cs, 0);  /* Activate chip */
 
 	write_reg(par, 0x00, 0x0001);
 	write_reg(par, 0x03, 0xA8A4);
@@ -47,7 +38,7 @@ static int init_display(struct fbtft_par *par)
 	write_reg(par, 0x0E, 0x2B00);
 	write_reg(par, 0x1E, 0x00B7);
 	write_reg(par, 0x01,
-		(1 << 13) | (par->bgr << 11) | (1 << 9) | (HEIGHT - 1));
+		  BIT(13) | (par->bgr << 11) | BIT(9) | (HEIGHT - 1));
 	write_reg(par, 0x02, 0x0600);
 	write_reg(par, 0x10, 0x0000);
 	write_reg(par, 0x05, 0x0000);
@@ -107,8 +98,8 @@ static int set_var(struct fbtft_par *par)
 	if (par->fbtftops.init_display != init_display) {
 		/* don't risk messing up register 11h */
 		fbtft_par_dbg(DEBUG_INIT_DISPLAY, par,
-			"%s: skipping since custom init_display() is used\n",
-			__func__);
+			      "%s: skipping since custom init_display() is used\n",
+			      __func__);
 		return 0;
 	}
 
@@ -135,8 +126,8 @@ static int set_var(struct fbtft_par *par)
  * VRP0 VRP1 PRP0 PRP1 PKP0 PKP1 PKP2 PKP3 PKP4 PKP5
  * VRN0 VRN1 PRN0 PRN1 PKN0 PKN1 PKN2 PKN3 PKN4 PKN5
  */
-#define CURVE(num, idx)  curves[num * par->gamma.num_values + idx]
-static int set_gamma(struct fbtft_par *par, unsigned long *curves)
+#define CURVE(num, idx)  curves[(num) * par->gamma.num_values + (idx)]
+static int set_gamma(struct fbtft_par *par, u32 *curves)
 {
 	unsigned long mask[] = {
 		0x1f, 0x1f, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07, 0x07,
@@ -162,6 +153,7 @@ static int set_gamma(struct fbtft_par *par, unsigned long *curves)
 
 	return 0;
 }
+
 #undef CURVE
 
 static struct fbtft_display display = {

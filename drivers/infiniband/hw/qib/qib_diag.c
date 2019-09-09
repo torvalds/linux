@@ -609,14 +609,12 @@ static ssize_t qib_diagpkt_write(struct file *fp,
 
 	tmpbuf = vmalloc(plen);
 	if (!tmpbuf) {
-		qib_devinfo(dd->pcidev,
-			"Unable to allocate tmp buffer, failing\n");
 		ret = -ENOMEM;
 		goto bail;
 	}
 
 	if (copy_from_user(tmpbuf,
-			   (const void __user *) (unsigned long) dp.data,
+			   u64_to_user_ptr(dp.data),
 			   dp.len)) {
 		ret = -EFAULT;
 		goto bail;
@@ -702,10 +700,8 @@ int qib_register_observer(struct qib_devdata *dd,
 	if (!dd || !op)
 		return -EINVAL;
 	olp = vmalloc(sizeof(*olp));
-	if (!olp) {
-		pr_err("vmalloc for observer failed\n");
+	if (!olp)
 		return -ENOMEM;
-	}
 
 	spin_lock_irqsave(&dd->qib_diag_trans_lock, flags);
 	olp->op = op;
@@ -765,15 +761,12 @@ static ssize_t qib_diag_read(struct file *fp, char __user *data,
 {
 	struct qib_diag_client *dc = fp->private_data;
 	struct qib_devdata *dd = dc->dd;
-	void __iomem *kreg_base;
 	ssize_t ret;
 
 	if (dc->pid != current->pid) {
 		ret = -EPERM;
 		goto bail;
 	}
-
-	kreg_base = dd->kregbase;
 
 	if (count == 0)
 		ret = 0;
@@ -842,15 +835,12 @@ static ssize_t qib_diag_write(struct file *fp, const char __user *data,
 {
 	struct qib_diag_client *dc = fp->private_data;
 	struct qib_devdata *dd = dc->dd;
-	void __iomem *kreg_base;
 	ssize_t ret;
 
 	if (dc->pid != current->pid) {
 		ret = -EPERM;
 		goto bail;
 	}
-
-	kreg_base = dd->kregbase;
 
 	if (count == 0)
 		ret = 0;

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *	Description of Z8530 Z85C30 and Z85230 communications chips
  *

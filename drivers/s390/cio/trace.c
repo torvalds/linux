@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Tracepoint definitions for s390_cio
  *
@@ -20,5 +21,4 @@ EXPORT_TRACEPOINT_SYMBOL(s390_cio_csch);
 EXPORT_TRACEPOINT_SYMBOL(s390_cio_hsch);
 EXPORT_TRACEPOINT_SYMBOL(s390_cio_xsch);
 EXPORT_TRACEPOINT_SYMBOL(s390_cio_rsch);
-EXPORT_TRACEPOINT_SYMBOL(s390_cio_rchp);
 EXPORT_TRACEPOINT_SYMBOL(s390_cio_chsc);

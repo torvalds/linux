@@ -48,7 +48,6 @@
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
-#include <dt-bindings/pinctrl/sun4i-a10.h>
 
 / {
 	model = "Olimex A10s-Olinuxino Micro";
@@ -64,6 +63,17 @@
 		stdout-path = "serial0:115200n8";
 	};
 
+	connector {
+		compatible = "hdmi-connector";
+		type = "a";
+
+		port {
+			hdmi_con_in: endpoint {
+				remote-endpoint = <&hdmi_out_con>;
+			};
+		};
+	};
+
 	leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
@@ -77,13 +87,17 @@
 	};
 };
 
+&be0 {
+	status = "okay";
+};
+
 &ehci0 {
 	status = "okay";
 };
 
 &emac {
 	pinctrl-names = "default";
-	pinctrl-0 = <&emac_pins_a>;
+	pinctrl-0 = <&emac_pa_pins>;
 	phy = <&phy1>;
 	status = "okay";
 };
@@ -92,9 +106,17 @@
 	status = "okay";
 };
 
+&hdmi {
+	status = "okay";
+};
+
+&hdmi_out {
+	hdmi_out_con: endpoint {
+		remote-endpoint = <&hdmi_con_in>;
+	};
+};
+
 &i2c0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c0_pins_a>;
 	status = "okay";
 
 	axp152: pmic@30 {
@@ -106,8 +128,6 @@
 #include "axp152.dtsi"
 
 &i2c1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c1_pins_a>;
 	status = "okay";
 
 	at24@50 {
@@ -119,8 +139,6 @@
 };
 
 &i2c2 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c2_pins_a>;
 	status = "okay";
 };
 
@@ -128,35 +146,35 @@
 	vref-supply = <&reg_vcc3v0>;
 	status = "okay";
 
-	button@191 {
+	button-191 {
 		label = "Volume Up";
 		linux,code = <KEY_VOLUMEUP>;
 		channel = <0>;
 		voltage = <191274>;
 	};
 
-	button@392 {
+	button-392 {
 		label = "Volume Down";
 		linux,code = <KEY_VOLUMEDOWN>;
 		channel = <0>;
 		voltage = <392644>;
 	};
 
-	button@601 {
+	button-601 {
 		label = "Menu";
 		linux,code = <KEY_MENU>;
 		channel = <0>;
 		voltage = <601151>;
 	};
 
-	button@795 {
+	button-795 {
 		label = "Enter";
 		linux,code = <KEY_ENTER>;
 		channel = <0>;
 		voltage = <795090>;
 	};
 
-	button@987 {
+	button-987 {
 		label = "Home";
 		linux,code = <KEY_HOMEPAGE>;
 		channel = <0>;
@@ -173,22 +191,16 @@
 };
 
 &mmc0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_olinuxino_micro>;
 	vmmc-supply = <&reg_vcc3v3>;
 	bus-width = <4>;
-	cd-gpios = <&pio 6 1 GPIO_ACTIVE_HIGH>; /* PG1 */
-	cd-inverted;
+	cd-gpios = <&pio 6 1 GPIO_ACTIVE_LOW>; /* PG1 */
 	status = "okay";
 };
 
 &mmc1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc1_pins_a>, <&mmc1_cd_pin_olinuxino_micro>;
 	vmmc-supply = <&reg_vcc3v3>;
 	bus-width = <4>;
-	cd-gpios = <&pio 6 13 GPIO_ACTIVE_HIGH>; /* PG13 */
-	cd-inverted;
+	cd-gpios = <&pio 6 13 GPIO_ACTIVE_LOW>; /* PG13 */
 	status = "okay";
 };
 
@@ -201,39 +213,10 @@
 };
 
 &pio {
-	mmc0_cd_pin_olinuxino_micro: mmc0_cd_pin@0 {
-		allwinner,pins = "PG1";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
-	};
-
-	mmc1_cd_pin_olinuxino_micro: mmc1_cd_pin@0 {
-		allwinner,pins = "PG13";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
-	};
-
-	led_pins_olinuxino: led_pins@0 {
-		allwinner,pins = "PE3";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_20_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
-	};
-
-	usb1_vbus_pin_olinuxino_m: usb1_vbus_pin@0 {
-		allwinner,pins = "PB10";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
-	};
-
-	usb0_id_detect_pin: usb0_id_detect_pin@0 {
-		allwinner,pins = "PG12";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+	led_pins_olinuxino: led-pin {
+		pins = "PE3";
+		function = "gpio_out";
+		drive-strength = <20>;
 	};
 };
 
@@ -243,33 +226,36 @@
 };
 
 &reg_usb1_vbus {
-	pinctrl-0 = <&usb1_vbus_pin_olinuxino_m>;
 	gpio = <&pio 1 10 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
 
 &spi2 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&spi2_pins_a>,
-		    <&spi2_cs0_pins_a>;
+	pinctrl-0 = <&spi2_pb_pins>,
+		    <&spi2_cs0_pb_pin>;
+	status = "okay";
+};
+
+&tcon0 {
 	status = "okay";
 };
 
 &uart0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_pins_a>;
+	pinctrl-0 = <&uart0_pb_pins>;
 	status = "okay";
 };
 
 &uart2 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart2_pins_a>;
+	pinctrl-0 = <&uart2_pc_pins>;
 	status = "okay";
 };
 
 &uart3 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart3_pins_a>;
+	pinctrl-0 = <&uart3_pg_pins>;
 	status = "okay";
 };
 
@@ -278,14 +264,8 @@
 	status = "okay";
 };
 
-&usb0_vbus_pin_a {
-	allwinner,pins = "PG11";
-};
-
 &usbphy {
-	pinctrl-names = "default";
-	pinctrl-0 = <&usb0_id_detect_pin>;
-	usb0_id_det-gpio = <&pio 6 12 GPIO_ACTIVE_HIGH>; /* PG12 */
+	usb0_id_det-gpios = <&pio 6 12 (GPIO_ACTIVE_HIGH | GPIO_PULL_UP)>; /* PG12 */
 	usb0_vbus-supply = <&reg_usb0_vbus>;
 	usb1_vbus-supply = <&reg_usb1_vbus>;
 	status = "okay";

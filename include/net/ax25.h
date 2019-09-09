@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *	Declarations of AX.25 type objects.
  *
@@ -11,9 +12,10 @@
 #include <linux/timer.h>
 #include <linux/list.h>
 #include <linux/slab.h>
-#include <linux/atomic.h>
+#include <linux/refcount.h>
 #include <net/neighbour.h>
 #include <net/sock.h>
+#include <linux/seq_file.h>
 
 #define	AX25_T1CLAMPLO  		1
 #define	AX25_T1CLAMPHI 			(30 * HZ)
@@ -158,7 +160,7 @@ enum {
 
 typedef struct ax25_uid_assoc {
 	struct hlist_node	uid_node;
-	atomic_t		refcount;
+	refcount_t		refcount;
 	kuid_t			uid;
 	ax25_address		call;
 } ax25_uid_assoc;
@@ -167,11 +169,11 @@ typedef struct ax25_uid_assoc {
 	hlist_for_each_entry(__ax25, list, uid_node)
 
 #define ax25_uid_hold(ax25) \
-	atomic_inc(&((ax25)->refcount))
+	refcount_inc(&((ax25)->refcount))
 
 static inline void ax25_uid_put(ax25_uid_assoc *assoc)
 {
-	if (atomic_dec_and_test(&assoc->refcount)) {
+	if (refcount_dec_and_test(&assoc->refcount)) {
 		kfree(assoc);
 	}
 }
@@ -185,7 +187,7 @@ typedef struct {
 
 typedef struct ax25_route {
 	struct ax25_route	*next;
-	atomic_t		refcount;
+	refcount_t		refcount;
 	ax25_address		callsign;
 	struct net_device	*dev;
 	ax25_digi		*digipeat;
@@ -194,14 +196,26 @@ typedef struct ax25_route {
 
 static inline void ax25_hold_route(ax25_route *ax25_rt)
 {
-	atomic_inc(&ax25_rt->refcount);
+	refcount_inc(&ax25_rt->refcount);
 }
 
 void __ax25_put_route(ax25_route *ax25_rt);
 
+extern rwlock_t ax25_route_lock;
+
+static inline void ax25_route_lock_use(void)
+{
+	read_lock(&ax25_route_lock);
+}
+
+static inline void ax25_route_lock_unuse(void)
+{
+	read_unlock(&ax25_route_lock);
+}
+
 static inline void ax25_put_route(ax25_route *ax25_rt)
 {
-	if (atomic_dec_and_test(&ax25_rt->refcount))
+	if (refcount_dec_and_test(&ax25_rt->refcount))
 		__ax25_put_route(ax25_rt);
 }
 
@@ -244,7 +258,7 @@ typedef struct ax25_cb {
 	unsigned char		window;
 	struct timer_list	timer, dtimer;
 	struct sock		*sk;		/* Backlink to socket */
-	atomic_t		refcount;
+	refcount_t		refcount;
 } ax25_cb;
 
 struct ax25_sock {
@@ -266,11 +280,11 @@ static inline struct ax25_cb *sk_to_ax25(const struct sock *sk)
 	hlist_for_each_entry(__ax25, list, ax25_node)
 
 #define ax25_cb_hold(__ax25) \
-	atomic_inc(&((__ax25)->refcount))
+	refcount_inc(&((__ax25)->refcount))
 
 static __inline__ void ax25_cb_put(ax25_cb *ax25)
 {
-	if (atomic_dec_and_test(&ax25->refcount)) {
+	if (refcount_dec_and_test(&ax25->refcount)) {
 		kfree(ax25->digipeat);
 		kfree(ax25);
 	}
@@ -317,10 +331,12 @@ void ax25_digi_invert(const ax25_digi *, ax25_digi *);
 extern ax25_dev *ax25_dev_list;
 extern spinlock_t ax25_dev_lock;
 
+#if IS_ENABLED(CONFIG_AX25)
 static inline ax25_dev *ax25_dev_ax25dev(struct net_device *dev)
 {
 	return dev->ax25_ptr;
 }
+#endif
 
 ax25_dev *ax25_addr_ax25dev(ax25_address *);
 void ax25_dev_device_up(struct net_device *);
@@ -396,7 +412,7 @@ int ax25_check_iframes_acked(ax25_cb *, unsigned short);
 /* ax25_route.c */
 void ax25_rt_device_down(struct net_device *);
 int ax25_rt_ioctl(unsigned int, void __user *);
-extern const struct file_operations ax25_route_fops;
+extern const struct seq_operations ax25_rt_seqops;
 ax25_route *ax25_get_route(ax25_address *addr, struct net_device *dev);
 int ax25_rt_autobind(ax25_cb *, ax25_address *);
 struct sk_buff *ax25_rt_build_path(struct sk_buff *, ax25_address *,
@@ -452,7 +468,7 @@ unsigned long ax25_display_timer(struct timer_list *);
 extern int  ax25_uid_policy;
 ax25_uid_assoc *ax25_findbyuid(kuid_t);
 int __must_check ax25_uid_ioctl(int, struct sockaddr_ax25 *);
-extern const struct file_operations ax25_uid_fops;
+extern const struct seq_operations ax25_uid_seqops;
 void ax25_uid_free(void);
 
 /* sysctl_net_ax25.c */

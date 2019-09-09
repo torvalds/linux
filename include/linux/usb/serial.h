@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * USB Serial Converter stuff
  *
@@ -20,13 +21,11 @@
 #include <linux/kfifo.h>
 
 /* The maximum number of ports one device can grab at once */
-#define MAX_NUM_PORTS		8
-
-/* parity check flag */
-#define RELEVANT_IFLAG(iflag)	(iflag & (IGNBRK|BRKINT|IGNPAR|PARMRK|INPCK))
+#define MAX_NUM_PORTS		16
 
 /* USB serial flags */
 #define USB_SERIAL_WRITE_BUSY	0
+#define USB_SERIAL_THROTTLED	1
 
 /**
  * usb_serial_port: structure for the specific ports of a device.
@@ -66,8 +65,6 @@
  * @flags: usb serial port flags
  * @write_wait: a wait_queue_head_t used by the port.
  * @work: work queue entry for the line discipline waking up.
- * @throttled: nonzero if the read urb is inactive to throttle the device
- * @throttle_req: nonzero if the tty wants to throttle us
  * @dev: pointer to the serial device
  *
  * This structure is used by the usb-serial core and drivers for the specific
@@ -114,8 +111,6 @@ struct usb_serial_port {
 	unsigned long		flags;
 	wait_queue_head_t	write_wait;
 	struct work_struct	work;
-	char			throttled;
-	char			throttle_req;
 	unsigned long		sysrq; /* sysrq timeout */
 	struct device		dev;
 };
@@ -159,10 +154,10 @@ struct usb_serial {
 	unsigned char			minors_reserved:1;
 	unsigned char			num_ports;
 	unsigned char			num_port_pointers;
-	char				num_interrupt_in;
-	char				num_interrupt_out;
-	char				num_bulk_in;
-	char				num_bulk_out;
+	unsigned char			num_interrupt_in;
+	unsigned char			num_interrupt_out;
+	unsigned char			num_bulk_in;
+	unsigned char			num_bulk_out;
 	struct usb_serial_port		*port[MAX_NUM_PORTS];
 	struct kref			kref;
 	struct mutex			disc_mutex;
@@ -181,6 +176,17 @@ static inline void usb_set_serial_data(struct usb_serial *serial, void *data)
 	serial->private = data;
 }
 
+struct usb_serial_endpoints {
+	unsigned char num_bulk_in;
+	unsigned char num_bulk_out;
+	unsigned char num_interrupt_in;
+	unsigned char num_interrupt_out;
+	struct usb_endpoint_descriptor *bulk_in[MAX_NUM_PORTS];
+	struct usb_endpoint_descriptor *bulk_out[MAX_NUM_PORTS];
+	struct usb_endpoint_descriptor *interrupt_in[MAX_NUM_PORTS];
+	struct usb_endpoint_descriptor *interrupt_out[MAX_NUM_PORTS];
+};
+
 /**
  * usb_serial_driver - describes a usb serial driver
  * @description: pointer to a string that describes this driver.  This string
@@ -188,12 +194,17 @@ static inline void usb_set_serial_data(struct usb_serial *serial, void *data)
  * @id_table: pointer to a list of usb_device_id structures that define all
  *	of the devices this structure can support.
  * @num_ports: the number of different ports this device will have.
+ * @num_bulk_in: minimum number of bulk-in endpoints
+ * @num_bulk_out: minimum number of bulk-out endpoints
+ * @num_interrupt_in: minimum number of interrupt-in endpoints
+ * @num_interrupt_out: minimum number of interrupt-out endpoints
  * @bulk_in_size: minimum number of bytes to allocate for bulk-in buffer
  *	(0 = end-point size)
  * @bulk_out_size: bytes to allocate for bulk-out buffer (0 = end-point size)
  * @calc_num_ports: pointer to a function to determine how many ports this
- *	device has dynamically.  It will be called after the probe()
- *	callback is called, but before attach()
+ *	device has dynamically. It can also be used to verify the number of
+ *	endpoints or to modify the port-endpoint mapping. It will be called
+ *	after the probe() callback is called, but before attach().
  * @probe: pointer to the driver's probe function.
  *	This will be called when the device is inserted into the system,
  *	but before the device has been fully initialized by the usb_serial
@@ -227,19 +238,26 @@ static inline void usb_set_serial_data(struct usb_serial *serial, void *data)
 struct usb_serial_driver {
 	const char *description;
 	const struct usb_device_id *id_table;
-	char	num_ports;
 
 	struct list_head	driver_list;
 	struct device_driver	driver;
 	struct usb_driver	*usb_driver;
 	struct usb_dynids	dynids;
 
+	unsigned char		num_ports;
+
+	unsigned char		num_bulk_in;
+	unsigned char		num_bulk_out;
+	unsigned char		num_interrupt_in;
+	unsigned char		num_interrupt_out;
+
 	size_t			bulk_in_size;
 	size_t			bulk_out_size;
 
 	int (*probe)(struct usb_serial *serial, const struct usb_device_id *id);
 	int (*attach)(struct usb_serial *serial);
-	int (*calc_num_ports) (struct usb_serial *serial);
+	int (*calc_num_ports)(struct usb_serial *serial,
+			struct usb_serial_endpoints *epds);
 
 	void (*disconnect)(struct usb_serial *serial);
 	void (*release)(struct usb_serial *serial);
@@ -261,6 +279,8 @@ struct usb_serial_driver {
 	int  (*write_room)(struct tty_struct *tty);
 	int  (*ioctl)(struct tty_struct *tty,
 		      unsigned int cmd, unsigned long arg);
+	int  (*get_serial)(struct tty_struct *tty, struct serial_struct *ss);
+	int  (*set_serial)(struct tty_struct *tty, struct serial_struct *ss);
 	void (*set_termios)(struct tty_struct *tty,
 			struct usb_serial_port *port, struct ktermios *old);
 	void (*break_ctl)(struct tty_struct *tty, int break_state);
@@ -356,7 +376,6 @@ extern void usb_serial_handle_dcd_change(struct usb_serial_port *usb_port,
 extern int usb_serial_bus_register(struct usb_serial_driver *device);
 extern void usb_serial_bus_deregister(struct usb_serial_driver *device);
 
-extern struct usb_serial_driver usb_serial_generic_device;
 extern struct bus_type usb_serial_bus_type;
 extern struct tty_driver *usb_serial_tty_driver;
 

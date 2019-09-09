@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef __LINUX_GEN_STATS_H
 #define __LINUX_GEN_STATS_H
 
@@ -11,6 +12,7 @@ enum {
 	TCA_STATS_APP,
 	TCA_STATS_RATE_EST64,
 	TCA_STATS_PAD,
+	TCA_STATS_BASIC_HW,
 	__TCA_STATS_MAX,
 };
 #define TCA_STATS_MAX (__TCA_STATS_MAX - 1)

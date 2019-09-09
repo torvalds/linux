@@ -111,7 +111,7 @@ int fnic_get_trace_data(fnic_dbgfs_t *fnic_dbgfs_prt)
 	int len = 0;
 	unsigned long flags;
 	char str[KSYM_SYMBOL_LEN];
-	struct timespec val;
+	struct timespec64 val;
 	fnic_trace_data_t *tbp;
 
 	spin_lock_irqsave(&fnic_trace_lock, flags);
@@ -129,10 +129,10 @@ int fnic_get_trace_data(fnic_dbgfs_t *fnic_dbgfs_prt)
 			/* Convert function pointer to function name */
 			if (sizeof(unsigned long) < 8) {
 				sprint_symbol(str, tbp->fnaddr.low);
-				jiffies_to_timespec(tbp->timestamp.low, &val);
+				jiffies_to_timespec64(tbp->timestamp.low, &val);
 			} else {
 				sprint_symbol(str, tbp->fnaddr.val);
-				jiffies_to_timespec(tbp->timestamp.val, &val);
+				jiffies_to_timespec64(tbp->timestamp.val, &val);
 			}
 			/*
 			 * Dump trace buffer entry to memory file
@@ -140,8 +140,8 @@ int fnic_get_trace_data(fnic_dbgfs_t *fnic_dbgfs_prt)
 			 */
 			len += snprintf(fnic_dbgfs_prt->buffer + len,
 				  (trace_max_pages * PAGE_SIZE * 3) - len,
-				  "%16lu.%16lu %-50s %8x %8x %16llx %16llx "
-				  "%16llx %16llx %16llx\n", val.tv_sec,
+				  "%16llu.%09lu %-50s %8x %8x %16llx %16llx "
+				  "%16llx %16llx %16llx\n", (u64)val.tv_sec,
 				  val.tv_nsec, str, tbp->host_no, tbp->tag,
 				  tbp->data[0], tbp->data[1], tbp->data[2],
 				  tbp->data[3], tbp->data[4]);
@@ -171,10 +171,10 @@ int fnic_get_trace_data(fnic_dbgfs_t *fnic_dbgfs_prt)
 			/* Convert function pointer to function name */
 			if (sizeof(unsigned long) < 8) {
 				sprint_symbol(str, tbp->fnaddr.low);
-				jiffies_to_timespec(tbp->timestamp.low, &val);
+				jiffies_to_timespec64(tbp->timestamp.low, &val);
 			} else {
 				sprint_symbol(str, tbp->fnaddr.val);
-				jiffies_to_timespec(tbp->timestamp.val, &val);
+				jiffies_to_timespec64(tbp->timestamp.val, &val);
 			}
 			/*
 			 * Dump trace buffer entry to memory file
@@ -182,8 +182,8 @@ int fnic_get_trace_data(fnic_dbgfs_t *fnic_dbgfs_prt)
 			 */
 			len += snprintf(fnic_dbgfs_prt->buffer + len,
 				  (trace_max_pages * PAGE_SIZE * 3) - len,
-				  "%16lu.%16lu %-50s %8x %8x %16llx %16llx "
-				  "%16llx %16llx %16llx\n", val.tv_sec,
+				  "%16llu.%09lu %-50s %8x %8x %16llx %16llx "
+				  "%16llx %16llx %16llx\n", (u64)val.tv_sec,
 				  val.tv_nsec, str, tbp->host_no, tbp->tag,
 				  tbp->data[0], tbp->data[1], tbp->data[2],
 				  tbp->data[3], tbp->data[4]);
@@ -217,9 +217,33 @@ int fnic_get_stats_data(struct stats_debug_info *debug,
 {
 	int len = 0;
 	int buf_size = debug->buf_size;
-	struct timespec val1, val2;
+	struct timespec64 val1, val2;
 
+	ktime_get_real_ts64(&val1);
 	len = snprintf(debug->debug_buffer + len, buf_size - len,
+		"------------------------------------------\n"
+		 "\t\tTime\n"
+		"------------------------------------------\n");
+
+	len += snprintf(debug->debug_buffer + len, buf_size - len,
+		"Current time :          [%lld:%ld]\n"
+		"Last stats reset time:  [%lld:%09ld]\n"
+		"Last stats read time:   [%lld:%ld]\n"
+		"delta since last reset: [%lld:%ld]\n"
+		"delta since last read:  [%lld:%ld]\n",
+	(s64)val1.tv_sec, val1.tv_nsec,
+	(s64)stats->stats_timestamps.last_reset_time.tv_sec,
+	stats->stats_timestamps.last_reset_time.tv_nsec,
+	(s64)stats->stats_timestamps.last_read_time.tv_sec,
+	stats->stats_timestamps.last_read_time.tv_nsec,
+	(s64)timespec64_sub(val1, stats->stats_timestamps.last_reset_time).tv_sec,
+	timespec64_sub(val1, stats->stats_timestamps.last_reset_time).tv_nsec,
+	(s64)timespec64_sub(val1, stats->stats_timestamps.last_read_time).tv_sec,
+	timespec64_sub(val1, stats->stats_timestamps.last_read_time).tv_nsec);
+
+	stats->stats_timestamps.last_read_time = val1;
+
+	len += snprintf(debug->debug_buffer + len, buf_size - len,
 		  "------------------------------------------\n"
 		  "\t\tIO Statistics\n"
 		  "------------------------------------------\n");
@@ -229,7 +253,16 @@ int fnic_get_stats_data(struct stats_debug_info *debug,
 		  "Number of IO Failures: %lld\nNumber of IO NOT Found: %lld\n"
 		  "Number of Memory alloc Failures: %lld\n"
 		  "Number of IOREQ Null: %lld\n"
-		  "Number of SCSI cmd pointer Null: %lld\n",
+		  "Number of SCSI cmd pointer Null: %lld\n"
+
+		  "\nIO completion times: \n"
+		  "            < 10 ms : %lld\n"
+		  "     10 ms - 100 ms : %lld\n"
+		  "    100 ms - 500 ms : %lld\n"
+		  "    500 ms -   5 sec: %lld\n"
+		  "     5 sec -  10 sec: %lld\n"
+		  "    10 sec -  30 sec: %lld\n"
+		  "            > 30 sec: %lld\n",
 		  (u64)atomic64_read(&stats->io_stats.active_ios),
 		  (u64)atomic64_read(&stats->io_stats.max_active_ios),
 		  (u64)atomic64_read(&stats->io_stats.num_ios),
@@ -238,28 +271,58 @@ int fnic_get_stats_data(struct stats_debug_info *debug,
 		  (u64)atomic64_read(&stats->io_stats.io_not_found),
 		  (u64)atomic64_read(&stats->io_stats.alloc_failures),
 		  (u64)atomic64_read(&stats->io_stats.ioreq_null),
-		  (u64)atomic64_read(&stats->io_stats.sc_null));
+		  (u64)atomic64_read(&stats->io_stats.sc_null),
+		  (u64)atomic64_read(&stats->io_stats.io_btw_0_to_10_msec),
+		  (u64)atomic64_read(&stats->io_stats.io_btw_10_to_100_msec),
+		  (u64)atomic64_read(&stats->io_stats.io_btw_100_to_500_msec),
+		  (u64)atomic64_read(&stats->io_stats.io_btw_500_to_5000_msec),
+		  (u64)atomic64_read(&stats->io_stats.io_btw_5000_to_10000_msec),
+		  (u64)atomic64_read(&stats->io_stats.io_btw_10000_to_30000_msec),
+		  (u64)atomic64_read(&stats->io_stats.io_greater_than_30000_msec));
+
+	len += snprintf(debug->debug_buffer + len, buf_size - len,
+		  "\nCurrent Max IO time : %lld\n",
+		  (u64)atomic64_read(&stats->io_stats.current_max_io_time));
 
 	len += snprintf(debug->debug_buffer + len, buf_size - len,
 		  "\n------------------------------------------\n"
 		  "\t\tAbort Statistics\n"
 		  "------------------------------------------\n");
+
 	len += snprintf(debug->debug_buffer + len, buf_size - len,
 		  "Number of Aborts: %lld\n"
 		  "Number of Abort Failures: %lld\n"
 		  "Number of Abort Driver Timeouts: %lld\n"
 		  "Number of Abort FW Timeouts: %lld\n"
-		  "Number of Abort IO NOT Found: %lld\n",
+		  "Number of Abort IO NOT Found: %lld\n"
+
+		  "Abort issued times: \n"
+		  "            < 6 sec : %lld\n"
+		  "     6 sec - 20 sec : %lld\n"
+		  "    20 sec - 30 sec : %lld\n"
+		  "    30 sec - 40 sec : %lld\n"
+		  "    40 sec - 50 sec : %lld\n"
+		  "    50 sec - 60 sec : %lld\n"
+		  "            > 60 sec: %lld\n",
+
 		  (u64)atomic64_read(&stats->abts_stats.aborts),
 		  (u64)atomic64_read(&stats->abts_stats.abort_failures),
 		  (u64)atomic64_read(&stats->abts_stats.abort_drv_timeouts),
 		  (u64)atomic64_read(&stats->abts_stats.abort_fw_timeouts),
-		  (u64)atomic64_read(&stats->abts_stats.abort_io_not_found));
+		  (u64)atomic64_read(&stats->abts_stats.abort_io_not_found),
+		  (u64)atomic64_read(&stats->abts_stats.abort_issued_btw_0_to_6_sec),
+		  (u64)atomic64_read(&stats->abts_stats.abort_issued_btw_6_to_20_sec),
+		  (u64)atomic64_read(&stats->abts_stats.abort_issued_btw_20_to_30_sec),
+		  (u64)atomic64_read(&stats->abts_stats.abort_issued_btw_30_to_40_sec),
+		  (u64)atomic64_read(&stats->abts_stats.abort_issued_btw_40_to_50_sec),
+		  (u64)atomic64_read(&stats->abts_stats.abort_issued_btw_50_to_60_sec),
+		  (u64)atomic64_read(&stats->abts_stats.abort_issued_greater_than_60_sec));
 
 	len += snprintf(debug->debug_buffer + len, buf_size - len,
 		  "\n------------------------------------------\n"
 		  "\t\tTerminate Statistics\n"
 		  "------------------------------------------\n");
+
 	len += snprintf(debug->debug_buffer + len, buf_size - len,
 		  "Number of Terminates: %lld\n"
 		  "Maximum Terminates: %lld\n"
@@ -340,12 +403,15 @@ int fnic_get_stats_data(struct stats_debug_info *debug,
 		  "\t\tOther Important Statistics\n"
 		  "------------------------------------------\n");
 
-	jiffies_to_timespec(stats->misc_stats.last_isr_time, &val1);
-	jiffies_to_timespec(stats->misc_stats.last_ack_time, &val2);
+	jiffies_to_timespec64(stats->misc_stats.last_isr_time, &val1);
+	jiffies_to_timespec64(stats->misc_stats.last_ack_time, &val2);
 
 	len += snprintf(debug->debug_buffer + len, buf_size - len,
-		  "Last ISR time: %llu (%8lu.%8lu)\n"
-		  "Last ACK time: %llu (%8lu.%8lu)\n"
+		  "Last ISR time: %llu (%8llu.%09lu)\n"
+		  "Last ACK time: %llu (%8llu.%09lu)\n"
+		  "Max ISR jiffies: %llu\n"
+		  "Max ISR time (ms) (0 denotes < 1 ms): %llu\n"
+		  "Corr. work done: %llu\n"
 		  "Number of ISRs: %lld\n"
 		  "Maximum CQ Entries: %lld\n"
 		  "Number of ACK index out of range: %lld\n"
@@ -357,13 +423,17 @@ int fnic_get_stats_data(struct stats_debug_info *debug,
 		  "Number of Copy WQ Alloc Failures for Device Reset: %lld\n"
 		  "Number of Copy WQ Alloc Failures for IOs: %lld\n"
 		  "Number of no icmnd itmf Completions: %lld\n"
+		  "Number of Check Conditions encountered: %lld\n"
 		  "Number of QUEUE Fulls: %lld\n"
 		  "Number of rport not ready: %lld\n"
 		  "Number of receive frame errors: %lld\n",
 		  (u64)stats->misc_stats.last_isr_time,
-		  val1.tv_sec, val1.tv_nsec,
+		  (s64)val1.tv_sec, val1.tv_nsec,
 		  (u64)stats->misc_stats.last_ack_time,
-		  val2.tv_sec, val2.tv_nsec,
+		  (s64)val2.tv_sec, val2.tv_nsec,
+		  (u64)atomic64_read(&stats->misc_stats.max_isr_jiffies),
+		  (u64)atomic64_read(&stats->misc_stats.max_isr_time_ms),
+		  (u64)atomic64_read(&stats->misc_stats.corr_work_done),
 		  (u64)atomic64_read(&stats->misc_stats.isr_count),
 		  (u64)atomic64_read(&stats->misc_stats.max_cq_entries),
 		  (u64)atomic64_read(&stats->misc_stats.ack_index_out_of_range),
@@ -377,9 +447,15 @@ int fnic_get_stats_data(struct stats_debug_info *debug,
 			  &stats->misc_stats.devrst_cpwq_alloc_failures),
 		  (u64)atomic64_read(&stats->misc_stats.io_cpwq_alloc_failures),
 		  (u64)atomic64_read(&stats->misc_stats.no_icmnd_itmf_cmpls),
+		  (u64)atomic64_read(&stats->misc_stats.check_condition),
 		  (u64)atomic64_read(&stats->misc_stats.queue_fulls),
 		  (u64)atomic64_read(&stats->misc_stats.rport_not_ready),
 		  (u64)atomic64_read(&stats->misc_stats.frame_errors));
+
+	len += snprintf(debug->debug_buffer + len, buf_size - len,
+			"Firmware reported port seed: %llu\n",
+			(u64)atomic64_read(
+				&stats->misc_stats.current_port_speed));
 
 	return len;
 
@@ -403,17 +479,17 @@ int fnic_trace_buf_init(void)
 	fnic_max_trace_entries = (trace_max_pages * PAGE_SIZE)/
 					  FNIC_ENTRY_SIZE_BYTES;
 
-	fnic_trace_buf_p = (unsigned long)vmalloc((trace_max_pages * PAGE_SIZE));
+	fnic_trace_buf_p = (unsigned long)vzalloc(trace_max_pages * PAGE_SIZE);
 	if (!fnic_trace_buf_p) {
 		printk(KERN_ERR PFX "Failed to allocate memory "
 				  "for fnic_trace_buf_p\n");
 		err = -ENOMEM;
 		goto err_fnic_trace_buf_init;
 	}
-	memset((void *)fnic_trace_buf_p, 0, (trace_max_pages * PAGE_SIZE));
 
-	fnic_trace_entries.page_offset = vmalloc(fnic_max_trace_entries *
-						  sizeof(unsigned long));
+	fnic_trace_entries.page_offset =
+		vmalloc(array_size(fnic_max_trace_entries,
+				   sizeof(unsigned long)));
 	if (!fnic_trace_entries.page_offset) {
 		printk(KERN_ERR PFX "Failed to allocate memory for"
 				  " page_offset\n");
@@ -438,15 +514,10 @@ int fnic_trace_buf_init(void)
 		fnic_trace_entries.page_offset[i] = fnic_buf_head;
 		fnic_buf_head += FNIC_ENTRY_SIZE_BYTES;
 	}
-	err = fnic_trace_debugfs_init();
-	if (err < 0) {
-		pr_err("fnic: Failed to initialize debugfs for tracing\n");
-		goto err_fnic_trace_debugfs_init;
-	}
+	fnic_trace_debugfs_init();
 	pr_info("fnic: Successfully Initialized Trace Buffer\n");
 	return err;
-err_fnic_trace_debugfs_init:
-	fnic_trace_free();
+
 err_fnic_trace_buf_init:
 	return err;
 }
@@ -490,8 +561,9 @@ int fnic_fc_trace_init(void)
 
 	fc_trace_max_entries = (fnic_fc_trace_max_pages * PAGE_SIZE)/
 				FC_TRC_SIZE_BYTES;
-	fnic_fc_ctlr_trace_buf_p = (unsigned long)vmalloc(
-					fnic_fc_trace_max_pages * PAGE_SIZE);
+	fnic_fc_ctlr_trace_buf_p =
+		(unsigned long)vmalloc(array_size(PAGE_SIZE,
+						  fnic_fc_trace_max_pages));
 	if (!fnic_fc_ctlr_trace_buf_p) {
 		pr_err("fnic: Failed to allocate memory for "
 		       "FC Control Trace Buf\n");
@@ -503,8 +575,9 @@ int fnic_fc_trace_init(void)
 			fnic_fc_trace_max_pages * PAGE_SIZE);
 
 	/* Allocate memory for page offset */
-	fc_trace_entries.page_offset = vmalloc(fc_trace_max_entries *
-						sizeof(unsigned long));
+	fc_trace_entries.page_offset =
+		vmalloc(array_size(fc_trace_max_entries,
+				   sizeof(unsigned long)));
 	if (!fc_trace_entries.page_offset) {
 		pr_err("fnic:Failed to allocate memory for page_offset\n");
 		if (fnic_fc_ctlr_trace_buf_p) {
@@ -529,16 +602,10 @@ int fnic_fc_trace_init(void)
 		fc_trace_entries.page_offset[i] = fc_trace_buf_head;
 		fc_trace_buf_head += FC_TRC_SIZE_BYTES;
 	}
-	err = fnic_fc_trace_debugfs_init();
-	if (err < 0) {
-		pr_err("fnic: Failed to initialize FC_CTLR tracing.\n");
-		goto err_fnic_fc_ctlr_trace_debugfs_init;
-	}
+	fnic_fc_trace_debugfs_init();
 	pr_info("fnic: Successfully Initialized FC_CTLR Trace Buffer\n");
 	return err;
 
-err_fnic_fc_ctlr_trace_debugfs_init:
-	fnic_fc_trace_free();
 err_fnic_fc_ctlr_trace_buf_init:
 	return err;
 }
@@ -613,7 +680,7 @@ int fnic_fc_trace_set_data(u32 host_no, u8 frame_type,
 			fc_trace_entries.rd_idx = 0;
 	}
 
-	fc_buf->time_stamp = CURRENT_TIME;
+	ktime_get_real_ts64(&fc_buf->time_stamp);
 	fc_buf->host_no = host_no;
 	fc_buf->frame_type = frame_type;
 
@@ -740,7 +807,7 @@ void copy_and_format_trace_data(struct fc_trace_hdr *tdata,
 
 	len = *orig_len;
 
-	time_to_tm(tdata->time_stamp.tv_sec, 0, &tm);
+	time64_to_tm(tdata->time_stamp.tv_sec, 0, &tm);
 
 	fmt = "%02d:%02d:%04ld %02d:%02d:%02d.%09lu ns%8x       %c%8x\t";
 	len += snprintf(fnic_dbgfs_prt->buffer + len,

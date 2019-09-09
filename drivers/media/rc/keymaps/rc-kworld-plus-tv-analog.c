@@ -1,20 +1,15 @@
-/* kworld-plus-tv-analog.h - Keytable for kworld_plus_tv_analog Remote Controller
- *
- * keymap imported from ir-keymaps.c
- *
- * Copyright (c) 2010 by Mauro Carvalho Chehab
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- */
+// SPDX-License-Identifier: GPL-2.0+
+// kworld-plus-tv-analog.h - Keytable for kworld_plus_tv_analog Remote Controller
+//
+// keymap imported from ir-keymaps.c
+//
+// Copyright (c) 2010 by Mauro Carvalho Chehab
 
 #include <media/rc-map.h>
 #include <linux/module.h>
 
 /* Kworld Plus TV Analog Lite PCI IR
-   Mauro Carvalho Chehab <mchehab@infradead.org>
+   Mauro Carvalho Chehab <mchehab@kernel.org>
  */
 
 static struct rc_map_table kworld_plus_tv_analog[] = {
@@ -22,16 +17,20 @@ static struct rc_map_table kworld_plus_tv_analog[] = {
 	{ 0x16, KEY_CLOSECD },		/* -> ) */
 	{ 0x1d, KEY_POWER2 },
 
-	{ 0x00, KEY_1 },
-	{ 0x01, KEY_2 },
-	{ 0x02, KEY_3 },		/* Two keys have the same code: 3 and left */
-	{ 0x03, KEY_4 },		/* Two keys have the same code: 3 and right */
-	{ 0x04, KEY_5 },
-	{ 0x05, KEY_6 },
-	{ 0x06, KEY_7 },
-	{ 0x07, KEY_8 },
-	{ 0x08, KEY_9 },
-	{ 0x0a, KEY_0 },
+	{ 0x00, KEY_NUMERIC_1 },
+	{ 0x01, KEY_NUMERIC_2 },
+
+	/* Two keys have the same code: 3 and left */
+	{ 0x02, KEY_NUMERIC_3 },
+
+	/* Two keys have the same code: 4 and right */
+	{ 0x03, KEY_NUMERIC_4 },
+	{ 0x04, KEY_NUMERIC_5 },
+	{ 0x05, KEY_NUMERIC_6 },
+	{ 0x06, KEY_NUMERIC_7 },
+	{ 0x07, KEY_NUMERIC_8 },
+	{ 0x08, KEY_NUMERIC_9 },
+	{ 0x0a, KEY_NUMERIC_0 },
 
 	{ 0x09, KEY_AGAIN },
 	{ 0x14, KEY_MUTE },
@@ -76,10 +75,10 @@ static struct rc_map_table kworld_plus_tv_analog[] = {
 
 static struct rc_map_list kworld_plus_tv_analog_map = {
 	.map = {
-		.scan    = kworld_plus_tv_analog,
-		.size    = ARRAY_SIZE(kworld_plus_tv_analog),
-		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
-		.name    = RC_MAP_KWORLD_PLUS_TV_ANALOG,
+		.scan     = kworld_plus_tv_analog,
+		.size     = ARRAY_SIZE(kworld_plus_tv_analog),
+		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.name     = RC_MAP_KWORLD_PLUS_TV_ANALOG,
 	}
 };
 

@@ -1,16 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Intel(R) Trace Hub Memory Storage Unit (MSU) data structures
  *
  * Copyright (C) 2014-2015 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #ifndef __INTEL_TH_MSU_H__
@@ -19,6 +11,7 @@
 enum {
 	REG_MSU_MSUPARAMS	= 0x0000,
 	REG_MSU_MSUSTS		= 0x0008,
+	REG_MSU_MINTCTL		= 0x0004, /* MSU-global interrupt control */
 	REG_MSU_MSC0CTL		= 0x0100, /* MSC0 control */
 	REG_MSU_MSC0STS		= 0x0104, /* MSC0 status */
 	REG_MSU_MSC0BAR		= 0x0108, /* MSC0 output base address */
@@ -36,6 +29,8 @@ enum {
 
 /* MSUSTS bits */
 #define MSUSTS_MSU_INT	BIT(0)
+#define MSUSTS_MSC0BLAST	BIT(16)
+#define MSUSTS_MSC1BLAST	BIT(24)
 
 /* MSCnCTL bits */
 #define MSC_EN		BIT(0)
@@ -43,6 +38,11 @@ enum {
 #define MSC_RD_HDR_OVRD	BIT(2)
 #define MSC_MODE	(BIT(4) | BIT(5))
 #define MSC_LEN		(BIT(8) | BIT(9) | BIT(10))
+
+/* MINTCTL bits */
+#define MICDE		BIT(0)
+#define M0BLIE		BIT(16)
+#define M1BLIE		BIT(24)
 
 /* MSC operating modes (MSC_MODE) */
 enum {
@@ -95,7 +95,7 @@ static inline unsigned long msc_data_sz(struct msc_block_desc *bdesc)
 
 static inline bool msc_block_wrapped(struct msc_block_desc *bdesc)
 {
-	if (bdesc->hw_tag & MSC_HW_TAG_BLOCKWRAP)
+	if (bdesc->hw_tag & (MSC_HW_TAG_BLOCKWRAP | MSC_HW_TAG_WINWRAP))
 		return true;
 
 	return false;

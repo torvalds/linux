@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * cistpl.c -- 16-bit PCMCIA Card Information Structure parser
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * The initial developer of the original code is David A. Hinds
  * <dahinds@users.sourceforge.net>.  Portions created by David A. Hinds
@@ -1481,11 +1478,11 @@ static ssize_t pccard_extract_cis(struct pcmcia_socket *s, char *buf,
 	u_char *tuplebuffer;
 	u_char *tempbuffer;
 
-	tuplebuffer = kmalloc(sizeof(u_char) * 256, GFP_KERNEL);
+	tuplebuffer = kmalloc_array(256, sizeof(u_char), GFP_KERNEL);
 	if (!tuplebuffer)
 		return -ENOMEM;
 
-	tempbuffer = kmalloc(sizeof(u_char) * 258, GFP_KERNEL);
+	tempbuffer = kmalloc_array(258, sizeof(u_char), GFP_KERNEL);
 	if (!tempbuffer) {
 		ret = -ENOMEM;
 		goto free_tuple;
@@ -1599,7 +1596,7 @@ static ssize_t pccard_store_cis(struct file *filp, struct kobject *kobj,
 }
 
 
-struct bin_attribute pccard_cis_attr = {
+const struct bin_attribute pccard_cis_attr = {
 	.attr = { .name = "cis", .mode = S_IRUGO | S_IWUSR },
 	.size = 0x200,
 	.read = pccard_show_cis,

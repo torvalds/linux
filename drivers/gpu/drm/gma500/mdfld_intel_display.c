@@ -1,32 +1,23 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright Â© 2006-2007 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  *
  * Authors:
  *	Eric Anholt <eric@anholt.net>
  */
 
+#include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/pm_runtime.h>
 
-#include <drm/drmP.h>
-#include "psb_intel_reg.h"
-#include "gma_display.h"
+#include <drm/drm_crtc.h>
+#include <drm/drm_fourcc.h>
+
 #include "framebuffer.h"
-#include "mdfld_output.h"
+#include "gma_display.h"
 #include "mdfld_dsi_output.h"
+#include "mdfld_output.h"
+#include "psb_intel_reg.h"
 
 /* Hardcoded currently */
 static int ksel = KSEL_CRYSTAL_19;
@@ -99,7 +90,7 @@ void mdfldWaitForPipeEnable(struct drm_device *dev, int pipe)
 	/* Wait for for the pipe enable to take effect. */
 	for (count = 0; count < COUNT_MAX; count++) {
 		temp = REG_READ(map->conf);
-		if ((temp & PIPEACONF_PIPE_STATE) == 1)
+		if (temp & PIPEACONF_PIPE_STATE)
 			break;
 	}
 }
@@ -148,7 +139,7 @@ static int check_fb(struct drm_framebuffer *fb)
 	if (!fb)
 		return 0;
 
-	switch (fb->bits_per_pixel) {
+	switch (fb->format->cpp[0] * 8) {
 	case 8:
 	case 16:
 	case 24:
@@ -165,8 +156,8 @@ static int mdfld__intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_framebuffer *fb = crtc->primary->fb;
 	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
-	struct psb_framebuffer *psbfb = to_psb_fb(crtc->primary->fb);
 	int pipe = gma_crtc->pipe;
 	const struct psb_offset *map = &dev_priv->regmap[pipe];
 	unsigned long start, offset;
@@ -178,12 +169,12 @@ static int mdfld__intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	dev_dbg(dev->dev, "pipe = 0x%x.\n", pipe);
 
 	/* no fb bound */
-	if (!crtc->primary->fb) {
+	if (!fb) {
 		dev_dbg(dev->dev, "No FB bound\n");
 		return 0;
 	}
 
-	ret = check_fb(crtc->primary->fb);
+	ret = check_fb(fb);
 	if (ret)
 		return ret;
 
@@ -195,19 +186,19 @@ static int mdfld__intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	if (!gma_power_begin(dev, true))
 		return 0;
 
-	start = psbfb->gtt->offset;
-	offset = y * crtc->primary->fb->pitches[0] + x * (crtc->primary->fb->bits_per_pixel / 8);
+	start = to_gtt_range(fb->obj[0])->offset;
+	offset = y * fb->pitches[0] + x * fb->format->cpp[0];
 
-	REG_WRITE(map->stride, crtc->primary->fb->pitches[0]);
+	REG_WRITE(map->stride, fb->pitches[0]);
 	dspcntr = REG_READ(map->cntr);
 	dspcntr &= ~DISPPLANE_PIXFORMAT_MASK;
 
-	switch (crtc->primary->fb->bits_per_pixel) {
+	switch (fb->format->cpp[0] * 8) {
 	case 8:
 		dspcntr |= DISPPLANE_8BPP;
 		break;
 	case 16:
-		if (crtc->primary->fb->depth == 15)
+		if (fb->format->depth == 15)
 			dspcntr |= DISPPLANE_15_16BPP;
 		else
 			dspcntr |= DISPPLANE_16BPP;
@@ -736,11 +727,7 @@ static int mdfld_crtc_mode_set(struct drm_crtc *crtc,
 					sizeof(struct drm_display_mode));
 
 	list_for_each_entry(connector, &mode_config->connector_list, head) {
-		if (!connector)
-			continue;
-
 		encoder = connector->encoder;
-
 		if (!encoder)
 			continue;
 

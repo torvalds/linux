@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * PARISC64 Huge TLB page support.
  *
@@ -8,6 +9,7 @@
 
 #include <linux/fs.h>
 #include <linux/mm.h>
+#include <linux/sched/mm.h>
 #include <linux/hugetlb.h>
 #include <linux/pagemap.h>
 #include <linux/sysctl.h>
@@ -68,7 +70,8 @@ pte_t *huge_pte_alloc(struct mm_struct *mm,
 	return pte;
 }
 
-pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
+pte_t *huge_pte_offset(struct mm_struct *mm,
+		       unsigned long addr, unsigned long sz)
 {
 	pgd_t *pgd;
 	pud_t *pud;
@@ -136,9 +139,9 @@ void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
 {
 	unsigned long flags;
 
-	purge_tlb_start(flags);
+	spin_lock_irqsave(pgd_spinlock((mm)->pgd), flags);
 	__set_huge_pte_at(mm, addr, ptep, entry);
-	purge_tlb_end(flags);
+	spin_unlock_irqrestore(pgd_spinlock((mm)->pgd), flags);
 }
 
 
@@ -148,10 +151,10 @@ pte_t huge_ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
 	unsigned long flags;
 	pte_t entry;
 
-	purge_tlb_start(flags);
+	spin_lock_irqsave(pgd_spinlock((mm)->pgd), flags);
 	entry = *ptep;
 	__set_huge_pte_at(mm, addr, ptep, __pte(0));
-	purge_tlb_end(flags);
+	spin_unlock_irqrestore(pgd_spinlock((mm)->pgd), flags);
 
 	return entry;
 }
@@ -163,10 +166,10 @@ void huge_ptep_set_wrprotect(struct mm_struct *mm,
 	unsigned long flags;
 	pte_t old_pte;
 
-	purge_tlb_start(flags);
+	spin_lock_irqsave(pgd_spinlock((mm)->pgd), flags);
 	old_pte = *ptep;
 	__set_huge_pte_at(mm, addr, ptep, pte_wrprotect(old_pte));
-	purge_tlb_end(flags);
+	spin_unlock_irqrestore(pgd_spinlock((mm)->pgd), flags);
 }
 
 int huge_ptep_set_access_flags(struct vm_area_struct *vma,
@@ -175,13 +178,14 @@ int huge_ptep_set_access_flags(struct vm_area_struct *vma,
 {
 	unsigned long flags;
 	int changed;
+	struct mm_struct *mm = vma->vm_mm;
 
-	purge_tlb_start(flags);
+	spin_lock_irqsave(pgd_spinlock((mm)->pgd), flags);
 	changed = !pte_same(*ptep, pte);
 	if (changed) {
-		__set_huge_pte_at(vma->vm_mm, addr, ptep, pte);
+		__set_huge_pte_at(mm, addr, ptep, pte);
 	}
-	purge_tlb_end(flags);
+	spin_unlock_irqrestore(pgd_spinlock((mm)->pgd), flags);
 	return changed;
 }
 

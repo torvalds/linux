@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *	Declarations of NET/ROM type objects.
  *
@@ -11,6 +12,8 @@
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <net/sock.h>
+#include <linux/refcount.h>
+#include <linux/seq_file.h>
 
 #define	NR_NETWORK_LEN			15
 #define	NR_TRANSPORT_LEN		5
@@ -93,7 +96,7 @@ struct nr_neigh {
 	unsigned short		count;
 	unsigned int		number;
 	unsigned char		failed;
-	atomic_t		refcount;
+	refcount_t		refcount;
 };
 
 struct nr_route {
@@ -109,7 +112,7 @@ struct nr_node {
 	unsigned char		which;
 	unsigned char		count;
 	struct nr_route		routes[3];
-	atomic_t		refcount;
+	refcount_t		refcount;
 	spinlock_t		node_lock;
 };
 
@@ -118,21 +121,21 @@ struct nr_node {
  *********************************************************************/
 
 #define nr_node_hold(__nr_node) \
-	atomic_inc(&((__nr_node)->refcount))
+	refcount_inc(&((__nr_node)->refcount))
 
 static __inline__ void nr_node_put(struct nr_node *nr_node)
 {
-	if (atomic_dec_and_test(&nr_node->refcount)) {
+	if (refcount_dec_and_test(&nr_node->refcount)) {
 		kfree(nr_node);
 	}
 }
 
 #define nr_neigh_hold(__nr_neigh) \
-	atomic_inc(&((__nr_neigh)->refcount))
+	refcount_inc(&((__nr_neigh)->refcount))
 
 static __inline__ void nr_neigh_put(struct nr_neigh *nr_neigh)
 {
-	if (atomic_dec_and_test(&nr_neigh->refcount)) {
+	if (refcount_dec_and_test(&nr_neigh->refcount)) {
 		if (nr_neigh->ax25)
 			ax25_cb_put(nr_neigh->ax25);
 		kfree(nr_neigh->digipeat);
@@ -214,8 +217,8 @@ struct net_device *nr_dev_get(ax25_address *);
 int nr_rt_ioctl(unsigned int, void __user *);
 void nr_link_failed(ax25_cb *, int);
 int nr_route_frame(struct sk_buff *, ax25_cb *);
-extern const struct file_operations nr_nodes_fops;
-extern const struct file_operations nr_neigh_fops;
+extern const struct seq_operations nr_node_seqops;
+extern const struct seq_operations nr_neigh_seqops;
 void nr_rt_free(void);
 
 /* nr_subr.c */
@@ -263,7 +266,7 @@ void nr_stop_idletimer(struct sock *);
 int nr_t1timer_running(struct sock *);
 
 /* sysctl_net_netrom.c */
-void nr_register_sysctl(void);
+int nr_register_sysctl(void);
 void nr_unregister_sysctl(void);
 
 #endif

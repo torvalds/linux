@@ -1,19 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (C) 2008-2009 Texas Instruments Inc
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 #ifndef _ISIF_REGS_H
 #define _ISIF_REGS_H
@@ -39,7 +26,7 @@
 #define LINCFG0					0x44
 #define LINCFG1					0x48
 #define CCOLP					0x4c
-#define CRGAIN 					0x50
+#define CRGAIN					0x50
 #define CGRGAIN					0x54
 #define CGBGAIN					0x58
 #define CBGAIN					0x5c
@@ -50,7 +37,7 @@
 #define VDINT0					0x70
 #define VDINT1					0x74
 #define VDINT2					0x78
-#define MISC 					0x7c
+#define MISC					0x7c
 #define CGAMMAWD				0x80
 #define REC656IF				0x84
 #define CCDCFG					0x88
@@ -195,7 +182,7 @@
 #define ISIF_VD_POL_SHIFT			2
 #define ISIF_DATAPOL_NORMAL			0
 #define ISIF_DATAPOL_SHIFT			6
-#define ISIF_EXWEN_DISABLE 			0
+#define ISIF_EXWEN_DISABLE			0
 #define ISIF_EXWEN_SHIFT			5
 #define ISIF_FRM_FMT_SHIFT			7
 #define ISIF_DATASFT_SHIFT			8

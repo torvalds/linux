@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for the Texas Instruments / Burr Brown INA209
  * Bidirectional Current/Power Monitor
@@ -11,10 +12,6 @@
  * Aligned with ina2xx driver
  *	Copyright (C) 2012 Lothar Felten <l-felten@ti.com>
  *	Thanks to Jan Volkering
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
  *
  * Datasheet:
  * http://www.ti.com/lit/gpn/ina209
@@ -117,7 +114,7 @@ static long ina209_from_reg(const u8 reg, const u16 val)
 	case INA209_SHUNT_VOLTAGE_POS_WARN:
 	case INA209_SHUNT_VOLTAGE_NEG_WARN:
 		/* LSB=10 uV. Convert to mV. */
-		return DIV_ROUND_CLOSEST(val, 100);
+		return DIV_ROUND_CLOSEST((s16)val, 100);
 
 	case INA209_BUS_VOLTAGE:
 	case INA209_BUS_VOLTAGE_MAX_PEAK:
@@ -146,7 +143,7 @@ static long ina209_from_reg(const u8 reg, const u16 val)
 
 	case INA209_CURRENT:
 		/* LSB=1 mA (selected). Is in mA */
-		return val;
+		return (s16)val;
 	}
 
 	/* programmer goofed */
@@ -230,9 +227,9 @@ static u16 ina209_reg_from_interval(u16 config, long interval)
 	return (config & 0xf807) | (adc << 3) | (adc << 7);
 }
 
-static ssize_t ina209_set_interval(struct device *dev,
-				   struct device_attribute *da,
-				   const char *buf, size_t count)
+static ssize_t ina209_interval_store(struct device *dev,
+				     struct device_attribute *da,
+				     const char *buf, size_t count)
 {
 	struct ina209_data *data = ina209_update_device(dev);
 	long val;
@@ -257,7 +254,7 @@ static ssize_t ina209_set_interval(struct device *dev,
 	return count;
 }
 
-static ssize_t ina209_show_interval(struct device *dev,
+static ssize_t ina209_interval_show(struct device *dev,
 				    struct device_attribute *da, char *buf)
 {
 	struct ina209_data *data = dev_get_drvdata(dev);
@@ -279,10 +276,9 @@ static u16 ina209_reset_history_regs[] = {
 	INA209_POWER_PEAK
 };
 
-static ssize_t ina209_reset_history(struct device *dev,
+static ssize_t ina209_history_store(struct device *dev,
 				    struct device_attribute *da,
-				    const char *buf,
-				    size_t count)
+				    const char *buf, size_t count)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
 	struct ina209_data *data = dev_get_drvdata(dev);
@@ -306,10 +302,9 @@ static ssize_t ina209_reset_history(struct device *dev,
 	return count;
 }
 
-static ssize_t ina209_set_value(struct device *dev,
-				struct device_attribute *da,
-				const char *buf,
-				size_t count)
+static ssize_t ina209_value_store(struct device *dev,
+				  struct device_attribute *da,
+				  const char *buf, size_t count)
 {
 	struct ina209_data *data = ina209_update_device(dev);
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
@@ -337,9 +332,8 @@ abort:
 	return count;
 }
 
-static ssize_t ina209_show_value(struct device *dev,
-				 struct device_attribute *da,
-				 char *buf)
+static ssize_t ina209_value_show(struct device *dev,
+				 struct device_attribute *da, char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
 	struct ina209_data *data = ina209_update_device(dev);
@@ -352,9 +346,8 @@ static ssize_t ina209_show_value(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%ld\n", val);
 }
 
-static ssize_t ina209_show_alarm(struct device *dev,
-				 struct device_attribute *da,
-				 char *buf)
+static ssize_t ina209_alarm_show(struct device *dev,
+				 struct device_attribute *da, char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
 	struct ina209_data *data = ina209_update_device(dev);
@@ -374,82 +367,65 @@ static ssize_t ina209_show_alarm(struct device *dev,
 }
 
 /* Shunt voltage, history, limits, alarms */
-static SENSOR_DEVICE_ATTR(in0_input, S_IRUGO, ina209_show_value, NULL,
-			  INA209_SHUNT_VOLTAGE);
-static SENSOR_DEVICE_ATTR(in0_input_highest, S_IRUGO, ina209_show_value, NULL,
-			  INA209_SHUNT_VOLTAGE_POS_PEAK);
-static SENSOR_DEVICE_ATTR(in0_input_lowest, S_IRUGO, ina209_show_value, NULL,
-			  INA209_SHUNT_VOLTAGE_NEG_PEAK);
-static SENSOR_DEVICE_ATTR(in0_reset_history, S_IWUSR, NULL,
-			  ina209_reset_history, (1 << 0) | (1 << 1));
-static SENSOR_DEVICE_ATTR(in0_max, S_IRUGO | S_IWUSR, ina209_show_value,
-			  ina209_set_value, INA209_SHUNT_VOLTAGE_POS_WARN);
-static SENSOR_DEVICE_ATTR(in0_min, S_IRUGO | S_IWUSR, ina209_show_value,
-			  ina209_set_value, INA209_SHUNT_VOLTAGE_NEG_WARN);
-static SENSOR_DEVICE_ATTR(in0_crit_max, S_IRUGO | S_IWUSR, ina209_show_value,
-			  ina209_set_value, INA209_CRITICAL_DAC_POS);
-static SENSOR_DEVICE_ATTR(in0_crit_min, S_IRUGO | S_IWUSR, ina209_show_value,
-			  ina209_set_value, INA209_CRITICAL_DAC_NEG);
+static SENSOR_DEVICE_ATTR_RO(in0_input, ina209_value, INA209_SHUNT_VOLTAGE);
+static SENSOR_DEVICE_ATTR_RO(in0_input_highest, ina209_value,
+			     INA209_SHUNT_VOLTAGE_POS_PEAK);
+static SENSOR_DEVICE_ATTR_RO(in0_input_lowest, ina209_value,
+			     INA209_SHUNT_VOLTAGE_NEG_PEAK);
+static SENSOR_DEVICE_ATTR_WO(in0_reset_history, ina209_history,
+			     (1 << 0) | (1 << 1));
+static SENSOR_DEVICE_ATTR_RW(in0_max, ina209_value,
+			     INA209_SHUNT_VOLTAGE_POS_WARN);
+static SENSOR_DEVICE_ATTR_RW(in0_min, ina209_value,
+			     INA209_SHUNT_VOLTAGE_NEG_WARN);
+static SENSOR_DEVICE_ATTR_RW(in0_crit_max, ina209_value,
+			     INA209_CRITICAL_DAC_POS);
+static SENSOR_DEVICE_ATTR_RW(in0_crit_min, ina209_value,
+			     INA209_CRITICAL_DAC_NEG);
 
-static SENSOR_DEVICE_ATTR(in0_min_alarm,  S_IRUGO, ina209_show_alarm, NULL,
-			  1 << 11);
-static SENSOR_DEVICE_ATTR(in0_max_alarm, S_IRUGO, ina209_show_alarm, NULL,
-			  1 << 12);
-static SENSOR_DEVICE_ATTR(in0_crit_min_alarm, S_IRUGO, ina209_show_alarm, NULL,
-			  1 << 6);
-static SENSOR_DEVICE_ATTR(in0_crit_max_alarm, S_IRUGO, ina209_show_alarm, NULL,
-			  1 << 7);
+static SENSOR_DEVICE_ATTR_RO(in0_min_alarm, ina209_alarm, 1 << 11);
+static SENSOR_DEVICE_ATTR_RO(in0_max_alarm, ina209_alarm, 1 << 12);
+static SENSOR_DEVICE_ATTR_RO(in0_crit_min_alarm, ina209_alarm, 1 << 6);
+static SENSOR_DEVICE_ATTR_RO(in0_crit_max_alarm, ina209_alarm, 1 << 7);
 
 /* Bus voltage, history, limits, alarms */
-static SENSOR_DEVICE_ATTR(in1_input, S_IRUGO, ina209_show_value, NULL,
-			  INA209_BUS_VOLTAGE);
-static SENSOR_DEVICE_ATTR(in1_input_highest, S_IRUGO, ina209_show_value, NULL,
-			  INA209_BUS_VOLTAGE_MAX_PEAK);
-static SENSOR_DEVICE_ATTR(in1_input_lowest, S_IRUGO, ina209_show_value, NULL,
-			  INA209_BUS_VOLTAGE_MIN_PEAK);
-static SENSOR_DEVICE_ATTR(in1_reset_history, S_IWUSR, NULL,
-			  ina209_reset_history, (1 << 2) | (1 << 3));
-static SENSOR_DEVICE_ATTR(in1_max, S_IRUGO | S_IWUSR, ina209_show_value,
-			  ina209_set_value, INA209_BUS_VOLTAGE_OVER_WARN);
-static SENSOR_DEVICE_ATTR(in1_min, S_IRUGO | S_IWUSR, ina209_show_value,
-			  ina209_set_value, INA209_BUS_VOLTAGE_UNDER_WARN);
-static SENSOR_DEVICE_ATTR(in1_crit_max, S_IRUGO | S_IWUSR, ina209_show_value,
-			  ina209_set_value, INA209_BUS_VOLTAGE_OVER_LIMIT);
-static SENSOR_DEVICE_ATTR(in1_crit_min, S_IRUGO | S_IWUSR, ina209_show_value,
-			  ina209_set_value, INA209_BUS_VOLTAGE_UNDER_LIMIT);
+static SENSOR_DEVICE_ATTR_RO(in1_input, ina209_value, INA209_BUS_VOLTAGE);
+static SENSOR_DEVICE_ATTR_RO(in1_input_highest, ina209_value,
+			     INA209_BUS_VOLTAGE_MAX_PEAK);
+static SENSOR_DEVICE_ATTR_RO(in1_input_lowest, ina209_value,
+			     INA209_BUS_VOLTAGE_MIN_PEAK);
+static SENSOR_DEVICE_ATTR_WO(in1_reset_history, ina209_history,
+			     (1 << 2) | (1 << 3));
+static SENSOR_DEVICE_ATTR_RW(in1_max, ina209_value,
+			     INA209_BUS_VOLTAGE_OVER_WARN);
+static SENSOR_DEVICE_ATTR_RW(in1_min, ina209_value,
+			     INA209_BUS_VOLTAGE_UNDER_WARN);
+static SENSOR_DEVICE_ATTR_RW(in1_crit_max, ina209_value,
+			     INA209_BUS_VOLTAGE_OVER_LIMIT);
+static SENSOR_DEVICE_ATTR_RW(in1_crit_min, ina209_value,
+			     INA209_BUS_VOLTAGE_UNDER_LIMIT);
 
-static SENSOR_DEVICE_ATTR(in1_min_alarm, S_IRUGO, ina209_show_alarm, NULL,
-			  1 << 14);
-static SENSOR_DEVICE_ATTR(in1_max_alarm, S_IRUGO, ina209_show_alarm, NULL,
-			  1 << 15);
-static SENSOR_DEVICE_ATTR(in1_crit_min_alarm, S_IRUGO, ina209_show_alarm, NULL,
-			  1 << 9);
-static SENSOR_DEVICE_ATTR(in1_crit_max_alarm, S_IRUGO, ina209_show_alarm, NULL,
-			  1 << 10);
+static SENSOR_DEVICE_ATTR_RO(in1_min_alarm, ina209_alarm, 1 << 14);
+static SENSOR_DEVICE_ATTR_RO(in1_max_alarm, ina209_alarm, 1 << 15);
+static SENSOR_DEVICE_ATTR_RO(in1_crit_min_alarm, ina209_alarm, 1 << 9);
+static SENSOR_DEVICE_ATTR_RO(in1_crit_max_alarm, ina209_alarm, 1 << 10);
 
 /* Power */
-static SENSOR_DEVICE_ATTR(power1_input, S_IRUGO, ina209_show_value, NULL,
-			  INA209_POWER);
-static SENSOR_DEVICE_ATTR(power1_input_highest, S_IRUGO, ina209_show_value,
-			  NULL, INA209_POWER_PEAK);
-static SENSOR_DEVICE_ATTR(power1_reset_history, S_IWUSR, NULL,
-			  ina209_reset_history, 1 << 4);
-static SENSOR_DEVICE_ATTR(power1_max, S_IRUGO | S_IWUSR, ina209_show_value,
-			  ina209_set_value, INA209_POWER_WARN);
-static SENSOR_DEVICE_ATTR(power1_crit, S_IRUGO | S_IWUSR, ina209_show_value,
-			  ina209_set_value, INA209_POWER_OVER_LIMIT);
+static SENSOR_DEVICE_ATTR_RO(power1_input, ina209_value, INA209_POWER);
+static SENSOR_DEVICE_ATTR_RO(power1_input_highest, ina209_value,
+			     INA209_POWER_PEAK);
+static SENSOR_DEVICE_ATTR_WO(power1_reset_history, ina209_history, 1 << 4);
+static SENSOR_DEVICE_ATTR_RW(power1_max, ina209_value, INA209_POWER_WARN);
+static SENSOR_DEVICE_ATTR_RW(power1_crit, ina209_value,
+			     INA209_POWER_OVER_LIMIT);
 
-static SENSOR_DEVICE_ATTR(power1_max_alarm, S_IRUGO, ina209_show_alarm, NULL,
-			  1 << 13);
-static SENSOR_DEVICE_ATTR(power1_crit_alarm, S_IRUGO, ina209_show_alarm, NULL,
-			  1 << 8);
+static SENSOR_DEVICE_ATTR_RO(power1_max_alarm, ina209_alarm, 1 << 13);
+static SENSOR_DEVICE_ATTR_RO(power1_crit_alarm, ina209_alarm, 1 << 8);
 
 /* Current */
-static SENSOR_DEVICE_ATTR(curr1_input, S_IRUGO, ina209_show_value, NULL,
-			  INA209_CURRENT);
+static SENSOR_DEVICE_ATTR_RO(curr1_input, ina209_value, INA209_CURRENT);
 
-static SENSOR_DEVICE_ATTR(update_interval, S_IRUGO | S_IWUSR,
-			  ina209_show_interval, ina209_set_interval, 0);
+static SENSOR_DEVICE_ATTR_RW(update_interval, ina209_interval, 0);
 
 /*
  * Finally, construct an array of pointers to members of the above objects,
@@ -608,11 +584,18 @@ static const struct i2c_device_id ina209_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, ina209_id);
 
+static const struct of_device_id __maybe_unused ina209_of_match[] = {
+	{ .compatible = "ti,ina209" },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, ina209_of_match);
+
 /* This is the driver that will be inserted */
 static struct i2c_driver ina209_driver = {
 	.class		= I2C_CLASS_HWMON,
 	.driver = {
 		.name	= "ina209",
+		.of_match_table = of_match_ptr(ina209_of_match),
 	},
 	.probe		= ina209_probe,
 	.remove		= ina209_remove,

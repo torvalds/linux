@@ -2,8 +2,9 @@
 
 Required properties:
 - compatible: should one from "brcm,genet-mdio-v1", "brcm,genet-mdio-v2",
-  "brcm,genet-mdio-v3", "brcm,genet-mdio-v4" or "brcm,unimac-mdio"
-- reg: address and length of the regsiter set for the device, first one is the
+  "brcm,genet-mdio-v3", "brcm,genet-mdio-v4", "brcm,genet-mdio-v5" or
+  "brcm,unimac-mdio"
+- reg: address and length of the register set for the device, first one is the
   base register, and the second one is optional and for indirect accesses to
   larger than 16-bits MDIO transactions
 - reg-names: name(s) of the register must be "mdio" and optional "mdio_indir_rw"
@@ -18,6 +19,9 @@ Optional properties:
 - interrupt-names: must be "mdio_done_error" when there is a share interrupt fed
   to this hardware block, or must be "mdio_done" for the first interrupt and
   "mdio_error" for the second when there are separate interrupts
+- clocks: A reference to the clock supplying the MDIO bus controller
+- clock-frequency: the MDIO bus clock that must be output by the MDIO bus
+  hardware, if absent, the default hardware values are used
 
 Child nodes of this MDIO bus controller node are standard Ethernet PHY device
 nodes as described in Documentation/devicetree/bindings/net/phy.txt

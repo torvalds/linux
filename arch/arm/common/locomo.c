@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/arch/arm/common/locomo.c
  *
  * Sharp LoCoMo support
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * This file contains all generic LoCoMo support.
  *
@@ -826,28 +823,6 @@ static int locomo_match(struct device *_dev, struct device_driver *_drv)
 	return dev->devid == drv->devid;
 }
 
-static int locomo_bus_suspend(struct device *dev, pm_message_t state)
-{
-	struct locomo_dev *ldev = LOCOMO_DEV(dev);
-	struct locomo_driver *drv = LOCOMO_DRV(dev->driver);
-	int ret = 0;
-
-	if (drv && drv->suspend)
-		ret = drv->suspend(ldev, state);
-	return ret;
-}
-
-static int locomo_bus_resume(struct device *dev)
-{
-	struct locomo_dev *ldev = LOCOMO_DEV(dev);
-	struct locomo_driver *drv = LOCOMO_DRV(dev->driver);
-	int ret = 0;
-
-	if (drv && drv->resume)
-		ret = drv->resume(ldev);
-	return ret;
-}
-
 static int locomo_bus_probe(struct device *dev)
 {
 	struct locomo_dev *ldev = LOCOMO_DEV(dev);
@@ -875,8 +850,6 @@ struct bus_type locomo_bus_type = {
 	.match		= locomo_match,
 	.probe		= locomo_bus_probe,
 	.remove		= locomo_bus_remove,
-	.suspend	= locomo_bus_suspend,
-	.resume		= locomo_bus_resume,
 };
 
 int locomo_driver_register(struct locomo_driver *driver)

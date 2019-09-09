@@ -1,11 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * HTC simple EGPIO irq and gpio extender
  */
 
 #ifndef __HTC_EGPIO_H__
 #define __HTC_EGPIO_H__
-
-#include <linux/gpio.h>
 
 /* Descriptive values for all-in or all-out htc_egpio_chip descriptors. */
 #define HTC_EGPIO_OUTPUT (~0)

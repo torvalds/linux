@@ -1,25 +1,37 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-2.0
 #please run as root
 
-#we need 256M, below is the size in kB
-needmem=262144
+# Kselftest framework requirement - SKIP code is 4.
+ksft_skip=4
+
 mnt=./huge
 exitcode=0
 
-#get pagesize and freepages from /proc/meminfo
+#get huge pagesize and freepages from /proc/meminfo
 while read name size unit; do
 	if [ "$name" = "HugePages_Free:" ]; then
 		freepgs=$size
 	fi
 	if [ "$name" = "Hugepagesize:" ]; then
-		pgsize=$size
+		hpgsize_KB=$size
 	fi
 done < /proc/meminfo
 
+# Simple hugetlbfs tests have a hardcoded minimum requirement of
+# huge pages totaling 256MB (262144KB) in size.  The userfaultfd
+# hugetlb test requires a minimum of 2 * nr_cpus huge pages.  Take
+# both of these requirements into account and attempt to increase
+# number of huge pages available.
+nr_cpus=$(nproc)
+hpgsize_MB=$((hpgsize_KB / 1024))
+half_ufd_size_MB=$((((nr_cpus * hpgsize_MB + 127) / 128) * 128))
+needmem_KB=$((half_ufd_size_MB * 2 * 1024))
+
 #set proper nr_hugepages
-if [ -n "$freepgs" ] && [ -n "$pgsize" ]; then
+if [ -n "$freepgs" ] && [ -n "$hpgsize_KB" ]; then
 	nr_hugepgs=`cat /proc/sys/vm/nr_hugepages`
-	needpgs=`expr $needmem / $pgsize`
+	needpgs=$((needmem_KB / hpgsize_KB))
 	tries=2
 	while [ $tries -gt 0 ] && [ $freepgs -lt $needpgs ]; do
 		lackpgs=$(( $needpgs - $freepgs ))
@@ -27,7 +39,7 @@ if [ -n "$freepgs" ] && [ -n "$pgsize" ]; then
 		echo $(( $lackpgs + $nr_hugepgs )) > /proc/sys/vm/nr_hugepages
 		if [ $? -ne 0 ]; then
 			echo "Please run this test as root"
-			exit 1
+			exit $ksft_skip
 		fi
 		while read name size unit; do
 			if [ "$name" = "HugePages_Free:" ]; then
@@ -49,9 +61,9 @@ fi
 mkdir $mnt
 mount -t hugetlbfs none $mnt
 
-echo "--------------------"
+echo "---------------------"
 echo "running hugepage-mmap"
-echo "--------------------"
+echo "---------------------"
 ./hugepage-mmap
 if [ $? -ne 0 ]; then
 	echo "[FAIL]"
@@ -77,9 +89,9 @@ fi
 echo $shmmax > /proc/sys/kernel/shmmax
 echo $shmall > /proc/sys/kernel/shmall
 
-echo "--------------------"
+echo "-------------------"
 echo "running map_hugetlb"
-echo "--------------------"
+echo "-------------------"
 ./map_hugetlb
 if [ $? -ne 0 ]; then
 	echo "[FAIL]"
@@ -92,10 +104,35 @@ echo "NOTE: The above hugetlb tests provide minimal coverage.  Use"
 echo "      https://github.com/libhugetlbfs/libhugetlbfs.git for"
 echo "      hugetlb regression testing."
 
-echo "--------------------"
+echo "-------------------"
 echo "running userfaultfd"
-echo "--------------------"
-./userfaultfd 128 32
+echo "-------------------"
+./userfaultfd anon 128 32
+if [ $? -ne 0 ]; then
+	echo "[FAIL]"
+	exitcode=1
+else
+	echo "[PASS]"
+fi
+
+echo "---------------------------"
+echo "running userfaultfd_hugetlb"
+echo "---------------------------"
+# Test requires source and destination huge pages.  Size of source
+# (half_ufd_size_MB) is passed as argument to test.
+./userfaultfd hugetlb $half_ufd_size_MB 32 $mnt/ufd_test_file
+if [ $? -ne 0 ]; then
+	echo "[FAIL]"
+	exitcode=1
+else
+	echo "[PASS]"
+fi
+rm -f $mnt/ufd_test_file
+
+echo "-------------------------"
+echo "running userfaultfd_shmem"
+echo "-------------------------"
+./userfaultfd shmem 128 32
 if [ $? -ne 0 ]; then
 	echo "[FAIL]"
 	exitcode=1
@@ -119,10 +156,21 @@ else
 	echo "[PASS]"
 fi
 
-echo "--------------------"
+echo "----------------------"
 echo "running on-fault-limit"
-echo "--------------------"
+echo "----------------------"
 sudo -u nobody ./on-fault-limit
+if [ $? -ne 0 ]; then
+	echo "[FAIL]"
+	exitcode=1
+else
+	echo "[PASS]"
+fi
+
+echo "--------------------"
+echo "running map_populate"
+echo "--------------------"
+./map_populate
 if [ $? -ne 0 ]; then
 	echo "[FAIL]"
 	exitcode=1
@@ -139,6 +187,44 @@ if [ $? -ne 0 ]; then
 	exitcode=1
 else
 	echo "[PASS]"
+fi
+
+echo "-----------------------------"
+echo "running virtual_address_range"
+echo "-----------------------------"
+./virtual_address_range
+if [ $? -ne 0 ]; then
+	echo "[FAIL]"
+	exitcode=1
+else
+	echo "[PASS]"
+fi
+
+echo "-----------------------------"
+echo "running virtual address 128TB switch test"
+echo "-----------------------------"
+./va_128TBswitch
+if [ $? -ne 0 ]; then
+    echo "[FAIL]"
+    exitcode=1
+else
+    echo "[PASS]"
+fi
+
+echo "------------------------------------"
+echo "running vmalloc stability smoke test"
+echo "------------------------------------"
+./test_vmalloc.sh smoke
+ret_val=$?
+
+if [ $ret_val -eq 0 ]; then
+	echo "[PASS]"
+elif [ $ret_val -eq $ksft_skip ]; then
+	 echo "[SKIP]"
+	 exitcode=$ksft_skip
+else
+	echo "[FAIL]"
+	exitcode=1
 fi
 
 exit $exitcode

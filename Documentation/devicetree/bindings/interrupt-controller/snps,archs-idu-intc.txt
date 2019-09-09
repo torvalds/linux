@@ -1,22 +1,30 @@
 * ARC-HS Interrupt Distribution Unit
 
-  This optional 2nd level interrupt controller can be used in SMP configurations for
-  dynamic IRQ routing, load balancing of common/external IRQs towards core intc.
+  This optional 2nd level interrupt controller can be used in SMP configurations
+  for dynamic IRQ routing, load balancing of common/external IRQs towards core
+  intc.
 
 Properties:
 
 - compatible: "snps,archs-idu-intc"
 - interrupt-controller: This is an interrupt controller.
-- interrupt-parent: <reference to parent core intc>
-- #interrupt-cells: Must be <2>.
-- interrupts: <...> specifies the upstream core irqs
+- #interrupt-cells: Must be <1> or <2>.
 
-  First cell specifies the "common" IRQ from peripheral to IDU
-  Second cell specifies the irq distribution mode to cores
-     0=Round Robin; 1=cpu0, 2=cpu1, 4=cpu2, 8=cpu3
+  Value of the first cell specifies the "common" IRQ from peripheral to IDU.
+  Number N of the particular interrupt line of IDU corresponds to the line N+24
+  of the core interrupt controller.
 
-  intc accessed via the special ARC AUX register interface, hence "reg" property
-  is not specified.
+  The (optional) second cell specifies any of the following flags:
+    - bits[3:0] trigger type and level flags
+        1 = low-to-high edge triggered
+        2 = NOT SUPPORTED (high-to-low edge triggered)
+        4 = active high level-sensitive <<< DEFAULT
+        8 = NOT SUPPORTED (active low level-sensitive)
+  When no second cell is specified, the interrupt is assumed to be level
+  sensitive.
+
+  The interrupt controller is accessed via the special ARC AUX register
+  interface, hence "reg" property is not specified.
 
 Example:
 	core_intc: core-interrupt-controller {
@@ -29,18 +37,10 @@ Example:
 		compatible = "snps,archs-idu-intc";
 		interrupt-controller;
 		interrupt-parent = <&core_intc>;
-
-		/*
-		 * <hwirq  distribution>
-		 * distribution: 0=RR; 1=cpu0, 2=cpu1, 4=cpu2, 8=cpu3
-		 */
-		#interrupt-cells = <2>;
-
-		/* upstream core irqs: downstream these are "COMMON" irq 0,1..  */
-		interrupts = <24 25 26 27 28 29 30 31>;
+		#interrupt-cells = <1>;
 	};
 
 	some_device: serial@c0fc1000 {
 		interrupt-parent = <&idu_intc>;
-		interrupts = <0 0>;	/* upstream idu IRQ #24, Round Robin */
+		interrupts = <0>;	/* upstream idu IRQ #24 */
 	};

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * apds9802als.c - apds9802  ALS Driver
  *
@@ -5,20 +6,7 @@
  *
  *  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA.
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- *
  */
 
 #include <linux/module.h>
@@ -197,7 +185,7 @@ static struct attribute *mid_att_als[] = {
 	NULL
 };
 
-static struct attribute_group m_als_gr = {
+static const struct attribute_group m_als_gr = {
 	.name = "apds9802als",
 	.attrs = mid_att_als
 };
@@ -298,7 +286,7 @@ static UNIVERSAL_DEV_PM_OPS(apds9802als_pm_ops, apds9802als_suspend,
 #define APDS9802ALS_PM_OPS NULL
 #endif	/* CONFIG_PM */
 
-static struct i2c_device_id apds9802als_id[] = {
+static const struct i2c_device_id apds9802als_id[] = {
 	{ DRIVER_NAME, 0 },
 	{ }
 };

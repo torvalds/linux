@@ -1,30 +1,16 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Afatech AF9033 demodulator driver
  *
  * Copyright (C) 2009 Antti Palosaari <crope@iki.fi>
  * Copyright (C) 2012 Antti Palosaari <crope@iki.fi>
- *
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation; either version 2 of the License, or
- *    (at your option) any later version.
- *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
- *
- *    You should have received a copy of the GNU General Public License along
- *    with this program; if not, write to the Free Software Foundation, Inc.,
- *    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 #ifndef AF9033_H
 #define AF9033_H
 
 /*
- * I2C address (TODO: are these in 8-bit format?)
- * 0x38, 0x3a, 0x3c, 0x3e
+ * I2C address: 0x1c, 0x1d, 0x1e, 0x1f
  */
 struct af9033_config {
 	/*
@@ -88,6 +74,12 @@ struct af9033_config {
 	 * returned by that driver
 	 */
 	struct dvb_frontend **fe;
+
+	/*
+	 * regmap for IT913x integrated tuner driver
+	 * returned by that driver
+	 */
+	struct regmap *regmap;
 };
 
 struct af9033_ops {

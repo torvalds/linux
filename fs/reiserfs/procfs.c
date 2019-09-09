@@ -297,6 +297,13 @@ static int show_oidmap(struct seq_file *m, void *unused)
 	return 0;
 }
 
+static time64_t ktime_mono_to_real_seconds(time64_t mono)
+{
+	ktime_t kt = ktime_set(mono, NSEC_PER_SEC/2);
+
+	return ktime_divns(ktime_mono_to_real(kt), NSEC_PER_SEC);
+}
+
 static int show_journal(struct seq_file *m, void *unused)
 {
 	struct super_block *sb = m->private;
@@ -325,7 +332,7 @@ static int show_journal(struct seq_file *m, void *unused)
 		   "j_bcount: \t%lu\n"
 		   "j_first_unflushed_offset: \t%lu\n"
 		   "j_last_flush_trans_id: \t%u\n"
-		   "j_trans_start_time: \t%li\n"
+		   "j_trans_start_time: \t%lli\n"
 		   "j_list_bitmap_index: \t%i\n"
 		   "j_must_wait: \t%i\n"
 		   "j_next_full_flush: \t%i\n"
@@ -366,7 +373,7 @@ static int show_journal(struct seq_file *m, void *unused)
 		   JF(j_bcount),
 		   JF(j_first_unflushed_offset),
 		   JF(j_last_flush_trans_id),
-		   JF(j_trans_start_time),
+		   ktime_mono_to_real_seconds(JF(j_trans_start_time)),
 		   JF(j_list_bitmap_index),
 		   JF(j_must_wait),
 		   JF(j_next_full_flush),
@@ -389,27 +396,13 @@ static int show_journal(struct seq_file *m, void *unused)
 	return 0;
 }
 
-static int r_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, PDE_DATA(inode), 
-				proc_get_parent_data(inode));
-}
-
-static const struct file_operations r_file_operations = {
-	.open = r_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
-
 static struct proc_dir_entry *proc_info_root = NULL;
 static const char proc_info_root_name[] = "fs/reiserfs";
 
 static void add_file(struct super_block *sb, char *name,
 		     int (*func) (struct seq_file *, void *))
 {
-	proc_create_data(name, 0, REISERFS_SB(sb)->procdir,
-			 &r_file_operations, func);
+	proc_create_single_data(name, 0, REISERFS_SB(sb)->procdir, func, sb);
 }
 
 int reiserfs_proc_info_init(struct super_block *sb)

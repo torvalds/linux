@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Qualcomm External Bus Interface 2 (EBI2) driver
  * an older version of the Qualcomm Parallel Interface Controller (QPIC)
@@ -5,10 +6,6 @@
  * Copyright (C) 2016 Linaro Ltd.
  *
  * Author: Linus Walleij <linus.walleij@linaro.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2, as
- * published by the Free Software Foundation.
  *
  * See the device tree bindings for this block for more details on the
  * hardware.
@@ -21,7 +18,6 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/init.h>
-#include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/platform_device.h>
 #include <linux/bitops.h>

@@ -1,25 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 #ifndef __SOUND_CORE_H
 #define __SOUND_CORE_H
 
 /*
  *  Main header file for the ALSA driver
  *  Copyright (c) 1994-2001 by Jaroslav Kysela <perex@perex.cz>
- *
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <linux/device.h>
@@ -51,7 +36,6 @@ struct completion;
  */
 enum snd_device_type {
 	SNDRV_DEV_LOWLEVEL,
-	SNDRV_DEV_CONTROL,
 	SNDRV_DEV_INFO,
 	SNDRV_DEV_BUS,
 	SNDRV_DEV_CODEC,
@@ -62,6 +46,7 @@ enum snd_device_type {
 	SNDRV_DEV_SEQUENCER,
 	SNDRV_DEV_HWDEP,
 	SNDRV_DEV_JACK,
+	SNDRV_DEV_CONTROL,	/* NOTE: this must be the last one */
 };
 
 enum snd_device_state {
@@ -118,11 +103,8 @@ struct snd_card {
 	int user_ctl_count;		/* count of all user controls */
 	struct list_head controls;	/* all controls for this card */
 	struct list_head ctl_files;	/* active control files */
-	struct mutex user_ctl_lock;	/* protects user controls against
-					   concurrent access */
 
 	struct snd_info_entry *proc_root;	/* root for soundcard specific files */
-	struct snd_info_entry *proc_id;	/* the card id */
 	struct proc_dir_entry *proc_root_link;	/* number link to real id */
 
 	struct list_head files_list;	/* all files associated to this card */
@@ -135,14 +117,14 @@ struct snd_card {
 	struct device card_dev;		/* cardX object for sysfs */
 	const struct attribute_group *dev_groups[4]; /* assigned sysfs attr */
 	bool registered;		/* card_dev is registered? */
+	wait_queue_head_t remove_sleep;
 
 #ifdef CONFIG_PM
 	unsigned int power_state;	/* power state */
-	struct mutex power_lock;	/* power lock */
 	wait_queue_head_t power_sleep;
 #endif
 
-#if defined(CONFIG_SND_MIXER_OSS) || defined(CONFIG_SND_MIXER_OSS_MODULE)
+#if IS_ENABLED(CONFIG_SND_MIXER_OSS)
 	struct snd_mixer_oss *mixer_oss;
 	int mixer_oss_change_count;
 #endif
@@ -151,16 +133,6 @@ struct snd_card {
 #define dev_to_snd_card(p)	container_of(p, struct snd_card, card_dev)
 
 #ifdef CONFIG_PM
-static inline void snd_power_lock(struct snd_card *card)
-{
-	mutex_lock(&card->power_lock);
-}
-
-static inline void snd_power_unlock(struct snd_card *card)
-{
-	mutex_unlock(&card->power_lock);
-}
-
 static inline unsigned int snd_power_get_state(struct snd_card *card)
 {
 	return card->power_state;
@@ -177,8 +149,6 @@ int snd_power_wait(struct snd_card *card, unsigned int power_state);
 
 #else /* ! CONFIG_PM */
 
-#define snd_power_lock(card)		do { (void)(card); } while (0)
-#define snd_power_unlock(card)		do { (void)(card); } while (0)
 static inline int snd_power_wait(struct snd_card *card, unsigned int state) { return 0; }
 #define snd_power_get_state(card)	({ (void)(card); SNDRV_CTL_POWER_D0; })
 #define snd_power_change_state(card, state)	do { (void)(card); } while (0)
@@ -241,9 +211,8 @@ int copy_from_user_toio(volatile void __iomem *dst, const void __user *src, size
 
 /* init.c */
 
-extern struct snd_card *snd_cards[SNDRV_CARDS];
 int snd_card_locked(int card);
-#if defined(CONFIG_SND_MIXER_OSS) || defined(CONFIG_SND_MIXER_OSS_MODULE)
+#if IS_ENABLED(CONFIG_SND_MIXER_OSS)
 #define SND_MIXER_OSS_NOTIFY_REGISTER	0
 #define SND_MIXER_OSS_NOTIFY_DISCONNECT	1
 #define SND_MIXER_OSS_NOTIFY_FREE	2
@@ -255,6 +224,7 @@ int snd_card_new(struct device *parent, int idx, const char *xid,
 		 struct snd_card **card_ret);
 
 int snd_card_disconnect(struct snd_card *card);
+void snd_card_disconnect_sync(struct snd_card *card);
 int snd_card_free(struct snd_card *card);
 int snd_card_free_when_closed(struct snd_card *card);
 void snd_card_set_id(struct snd_card *card, const char *id);
@@ -265,7 +235,20 @@ int snd_card_add_dev_attr(struct snd_card *card,
 int snd_component_add(struct snd_card *card, const char *component);
 int snd_card_file_add(struct snd_card *card, struct file *file);
 int snd_card_file_remove(struct snd_card *card, struct file *file);
-#define snd_card_unref(card)	put_device(&(card)->card_dev)
+
+struct snd_card *snd_card_ref(int card);
+
+/**
+ * snd_card_unref - Unreference the card object
+ * @card: the card object to unreference
+ *
+ * Call this function for the card object that was obtained via snd_card_ref()
+ * or snd_lookup_minor_data().
+ */
+static inline void snd_card_unref(struct snd_card *card)
+{
+	put_device(&card->card_dev);
+}
 
 #define snd_card_set_dev(card, devptr) ((card)->dev = (devptr))
 
@@ -308,8 +291,8 @@ __printf(4, 5)
 void __snd_printk(unsigned int level, const char *file, int line,
 		  const char *format, ...);
 #else
-#define __snd_printk(level, file, line, format, args...) \
-	printk(format, ##args)
+#define __snd_printk(level, file, line, format, ...) \
+	printk(format, ##__VA_ARGS__)
 #endif
 
 /**
@@ -319,8 +302,8 @@ void __snd_printk(unsigned int level, const char *file, int line,
  * Works like printk() but prints the file and the line of the caller
  * when configured with CONFIG_SND_VERBOSE_PRINTK.
  */
-#define snd_printk(fmt, args...) \
-	__snd_printk(0, __FILE__, __LINE__, fmt, ##args)
+#define snd_printk(fmt, ...) \
+	__snd_printk(0, __FILE__, __LINE__, fmt, ##__VA_ARGS__)
 
 #ifdef CONFIG_SND_DEBUG
 /**
@@ -330,10 +313,10 @@ void __snd_printk(unsigned int level, const char *file, int line,
  * Works like snd_printk() for debugging purposes.
  * Ignored when CONFIG_SND_DEBUG is not set.
  */
-#define snd_printd(fmt, args...) \
-	__snd_printk(1, __FILE__, __LINE__, fmt, ##args)
-#define _snd_printd(level, fmt, args...) \
-	__snd_printk(level, __FILE__, __LINE__, fmt, ##args)
+#define snd_printd(fmt, ...) \
+	__snd_printk(1, __FILE__, __LINE__, fmt, ##__VA_ARGS__)
+#define _snd_printd(level, fmt, ...) \
+	__snd_printk(level, __FILE__, __LINE__, fmt, ##__VA_ARGS__)
 
 /**
  * snd_BUG - give a BUG warning message and stack trace
@@ -383,8 +366,8 @@ static inline bool snd_printd_ratelimit(void) { return false; }
  * Works like snd_printk() for debugging purposes.
  * Ignored when CONFIG_SND_DEBUG_VERBOSE is not set.
  */
-#define snd_printdd(format, args...) \
-	__snd_printk(2, __FILE__, __LINE__, format, ##args)
+#define snd_printdd(format, ...) \
+	__snd_printk(2, __FILE__, __LINE__, format, ##__VA_ARGS__)
 #else
 __printf(1, 2)
 static inline void snd_printdd(const char *format, ...) {}
@@ -394,7 +377,7 @@ static inline void snd_printdd(const char *format, ...) {}
 #define SNDRV_OSS_VERSION         ((3<<16)|(8<<8)|(1<<4)|(0))	/* 3.8.1a */
 
 /* for easier backward-porting */
-#if defined(CONFIG_GAMEPORT) || defined(CONFIG_GAMEPORT_MODULE)
+#if IS_ENABLED(CONFIG_GAMEPORT)
 #define gameport_set_dev_parent(gp,xdev) ((gp)->dev.parent = (xdev))
 #define gameport_set_port_data(gp,r) ((gp)->port_data = (r))
 #define gameport_get_port_data(gp) (gp)->port_data

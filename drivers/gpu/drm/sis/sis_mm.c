@@ -31,11 +31,14 @@
  *    Thomas Hellström <thomas-at-tungstengraphics-dot-com>
  */
 
-#include <drm/drmP.h>
+#include <video/sisfb.h>
+
+#include <drm/drm_device.h>
+#include <drm/drm_file.h>
 #include <drm/sis_drm.h>
+
 #include "sis_drv.h"
 
-#include <video/sisfb.h>
 
 #define VIDEO_TYPE 0
 #define AGP_TYPE 1
@@ -109,8 +112,7 @@ static int sis_drm_alloc(struct drm_device *dev, struct drm_file *file,
 	if (pool == AGP_TYPE) {
 		retval = drm_mm_insert_node(&dev_priv->agp_mm,
 					    &item->mm_node,
-					    mem->size, 0,
-					    DRM_MM_SEARCH_DEFAULT);
+					    mem->size);
 		offset = item->mm_node.start;
 	} else {
 #if defined(CONFIG_FB_SIS) || defined(CONFIG_FB_SIS_MODULE)
@@ -122,8 +124,7 @@ static int sis_drm_alloc(struct drm_device *dev, struct drm_file *file,
 #else
 		retval = drm_mm_insert_node(&dev_priv->vram_mm,
 					    &item->mm_node,
-					    mem->size, 0,
-					    DRM_MM_SEARCH_DEFAULT);
+					    mem->size);
 		offset = item->mm_node.start;
 #endif
 	}

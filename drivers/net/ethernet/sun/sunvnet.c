@@ -1,7 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /* sunvnet.c: Sun LDOM Virtual Network Driver.
  *
  * Copyright (C) 2007, 2008 David S. Miller <davem@davemloft.net>
- * Copyright (C) 2016 Oracle. All rights reserved.
+ * Copyright (C) 2016-2017 Oracle. All rights reserved.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -38,11 +39,11 @@
 #define VNET_TX_TIMEOUT			(5 * HZ)
 
 #define DRV_MODULE_NAME		"sunvnet"
-#define DRV_MODULE_VERSION	"1.0"
-#define DRV_MODULE_RELDATE	"June 25, 2007"
+#define DRV_MODULE_VERSION	"2.0"
+#define DRV_MODULE_RELDATE	"February 3, 2017"
 
 static char version[] =
-	DRV_MODULE_NAME ".c:v" DRV_MODULE_VERSION " (" DRV_MODULE_RELDATE ")\n";
+	DRV_MODULE_NAME " " DRV_MODULE_VERSION " (" DRV_MODULE_RELDATE ")";
 MODULE_AUTHOR("David S. Miller (davem@davemloft.net)");
 MODULE_DESCRIPTION("Sun LDOM virtual network driver");
 MODULE_LICENSE("GPL");
@@ -77,11 +78,125 @@ static void vnet_set_msglevel(struct net_device *dev, u32 value)
 	vp->msg_enable = value;
 }
 
+static const struct {
+	const char string[ETH_GSTRING_LEN];
+} ethtool_stats_keys[] = {
+	{ "rx_packets" },
+	{ "tx_packets" },
+	{ "rx_bytes" },
+	{ "tx_bytes" },
+	{ "rx_errors" },
+	{ "tx_errors" },
+	{ "rx_dropped" },
+	{ "tx_dropped" },
+	{ "multicast" },
+	{ "rx_length_errors" },
+	{ "rx_frame_errors" },
+	{ "rx_missed_errors" },
+	{ "tx_carrier_errors" },
+	{ "nports" },
+};
+
+static int vnet_get_sset_count(struct net_device *dev, int sset)
+{
+	struct vnet *vp = (struct vnet *)netdev_priv(dev);
+
+	switch (sset) {
+	case ETH_SS_STATS:
+		return ARRAY_SIZE(ethtool_stats_keys)
+			+ (NUM_VNET_PORT_STATS * vp->nports);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static void vnet_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
+{
+	struct vnet *vp = (struct vnet *)netdev_priv(dev);
+	struct vnet_port *port;
+	char *p = (char *)buf;
+
+	switch (stringset) {
+	case ETH_SS_STATS:
+		memcpy(buf, &ethtool_stats_keys, sizeof(ethtool_stats_keys));
+		p += sizeof(ethtool_stats_keys);
+
+		rcu_read_lock();
+		list_for_each_entry_rcu(port, &vp->port_list, list) {
+			snprintf(p, ETH_GSTRING_LEN, "p%u.%s-%pM",
+				 port->q_index, port->switch_port ? "s" : "q",
+				 port->raddr);
+			p += ETH_GSTRING_LEN;
+			snprintf(p, ETH_GSTRING_LEN, "p%u.rx_packets",
+				 port->q_index);
+			p += ETH_GSTRING_LEN;
+			snprintf(p, ETH_GSTRING_LEN, "p%u.tx_packets",
+				 port->q_index);
+			p += ETH_GSTRING_LEN;
+			snprintf(p, ETH_GSTRING_LEN, "p%u.rx_bytes",
+				 port->q_index);
+			p += ETH_GSTRING_LEN;
+			snprintf(p, ETH_GSTRING_LEN, "p%u.tx_bytes",
+				 port->q_index);
+			p += ETH_GSTRING_LEN;
+			snprintf(p, ETH_GSTRING_LEN, "p%u.event_up",
+				 port->q_index);
+			p += ETH_GSTRING_LEN;
+			snprintf(p, ETH_GSTRING_LEN, "p%u.event_reset",
+				 port->q_index);
+			p += ETH_GSTRING_LEN;
+		}
+		rcu_read_unlock();
+		break;
+	default:
+		WARN_ON(1);
+		break;
+	}
+}
+
+static void vnet_get_ethtool_stats(struct net_device *dev,
+				   struct ethtool_stats *estats, u64 *data)
+{
+	struct vnet *vp = (struct vnet *)netdev_priv(dev);
+	struct vnet_port *port;
+	int i = 0;
+
+	data[i++] = dev->stats.rx_packets;
+	data[i++] = dev->stats.tx_packets;
+	data[i++] = dev->stats.rx_bytes;
+	data[i++] = dev->stats.tx_bytes;
+	data[i++] = dev->stats.rx_errors;
+	data[i++] = dev->stats.tx_errors;
+	data[i++] = dev->stats.rx_dropped;
+	data[i++] = dev->stats.tx_dropped;
+	data[i++] = dev->stats.multicast;
+	data[i++] = dev->stats.rx_length_errors;
+	data[i++] = dev->stats.rx_frame_errors;
+	data[i++] = dev->stats.rx_missed_errors;
+	data[i++] = dev->stats.tx_carrier_errors;
+	data[i++] = vp->nports;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(port, &vp->port_list, list) {
+		data[i++] = port->q_index;
+		data[i++] = port->stats.rx_packets;
+		data[i++] = port->stats.tx_packets;
+		data[i++] = port->stats.rx_bytes;
+		data[i++] = port->stats.tx_bytes;
+		data[i++] = port->stats.event_up;
+		data[i++] = port->stats.event_reset;
+	}
+	rcu_read_unlock();
+}
+
 static const struct ethtool_ops vnet_ethtool_ops = {
 	.get_drvinfo		= vnet_get_drvinfo,
 	.get_msglevel		= vnet_get_msglevel,
 	.set_msglevel		= vnet_set_msglevel,
 	.get_link		= ethtool_op_get_link,
+	.get_sset_count		= vnet_get_sset_count,
+	.get_strings		= vnet_get_strings,
+	.get_ethtool_stats	= vnet_get_ethtool_stats,
 };
 
 static LIST_HEAD(vnet_list);
@@ -119,7 +234,7 @@ static struct vnet_port *vnet_tx_port_find(struct sk_buff *skb,
 }
 
 static u16 vnet_select_queue(struct net_device *dev, struct sk_buff *skb,
-			     void *accel_priv, select_queue_fallback_t fallback)
+			     struct net_device *sb_dev)
 {
 	struct vnet *vp = netdev_priv(dev);
 	struct vnet_port *port = __tx_port_find(vp, skb);
@@ -131,7 +246,7 @@ static u16 vnet_select_queue(struct net_device *dev, struct sk_buff *skb,
 }
 
 /* Wrappers to common functions */
-static int vnet_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t vnet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	return sunvnet_start_xmit_common(skb, dev, vnet_tx_port_find);
 }
@@ -159,7 +274,6 @@ static const struct net_device_ops vnet_ops = {
 	.ndo_set_mac_address	= sunvnet_set_mac_addr_common,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_tx_timeout		= sunvnet_tx_timeout_common,
-	.ndo_change_mtu		= sunvnet_change_mtu_common,
 	.ndo_start_xmit		= vnet_start_xmit,
 	.ndo_select_queue	= vnet_select_queue,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -198,9 +312,13 @@ static struct vnet *vnet_new(const u64 *local_mac,
 	dev->ethtool_ops = &vnet_ethtool_ops;
 	dev->watchdog_timeo = VNET_TX_TIMEOUT;
 
-	dev->hw_features = NETIF_F_TSO | NETIF_F_GSO | NETIF_F_GSO_SOFTWARE |
+	dev->hw_features = NETIF_F_TSO | NETIF_F_GSO | NETIF_F_ALL_TSO |
 			   NETIF_F_HW_CSUM | NETIF_F_SG;
 	dev->features = dev->hw_features;
+
+	/* MTU range: 68 - 65535 */
+	dev->min_mtu = ETH_MIN_MTU;
+	dev->max_mtu = VNET_MAX_MTU;
 
 	SET_NETDEV_DEV(dev, &vdev->dev);
 
@@ -300,11 +418,6 @@ static struct vio_driver_ops vnet_vio_ops = {
 	.handshake_complete	= sunvnet_handshake_complete_common,
 };
 
-static void print_version(void)
-{
-	printk_once(KERN_INFO "%s", version);
-}
-
 const char *remote_macaddr_prop = "remote-mac-address";
 
 static int vnet_port_probe(struct vio_dev *vdev, const struct vio_device_id *id)
@@ -315,8 +428,6 @@ static int vnet_port_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	struct vnet *vp;
 	const u64 *rmac;
 	int len, i, err, switch_port;
-
-	print_version();
 
 	hp = mdesc_grab();
 
@@ -382,8 +493,7 @@ static int vnet_port_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	pr_info("%s: PORT ( remote-mac %pM%s )\n",
 		vp->dev->name, port->raddr, switch_port ? " switch-port" : "");
 
-	setup_timer(&port->clean_timer, sunvnet_clean_timer_expire_common,
-		    (unsigned long)port);
+	timer_setup(&port->clean_timer, sunvnet_clean_timer_expire_common, 0);
 
 	napi_enable(&port->napi);
 	vio_port_up(&port->vio);
@@ -443,6 +553,7 @@ static struct vio_driver vnet_port_driver = {
 
 static int __init vnet_init(void)
 {
+	pr_info("%s\n", version);
 	return vio_register_driver(&vnet_port_driver);
 }
 

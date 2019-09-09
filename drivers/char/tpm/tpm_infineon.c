@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Description:
  * Device Driver for the Infineon Technologies
@@ -8,11 +9,6 @@
  * Sirrix AG - security technologies <tpmdd@sirrix.com> and
  * Applied Data Security Group, Ruhr-University Bochum, Germany
  * Project-Homepage: http://www.trust.rub.de/projects/linux-device-driver-infineon-tpm/ 
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation, version 2 of the
- * License.
  */
 
 #include <linux/init.h>
@@ -191,7 +187,7 @@ static int wait(struct tpm_chip *chip, int wait_for_bit)
 		/* check the status-register if wait_for_bit is set */
 		if (status & 1 << wait_for_bit)
 			break;
-		msleep(TPM_MSLEEP_TIME);
+		tpm_msleep(TPM_MSLEEP_TIME);
 	}
 	if (i == TPM_MAX_TRIES) {	/* timeout occurs */
 		if (wait_for_bit == STAT_XFE)
@@ -226,7 +222,7 @@ static void tpm_wtx(struct tpm_chip *chip)
 	wait_and_send(chip, TPM_CTRL_WTX);
 	wait_and_send(chip, 0x00);
 	wait_and_send(chip, 0x00);
-	msleep(TPM_WTX_MSLEEP_TIME);
+	tpm_msleep(TPM_WTX_MSLEEP_TIME);
 }
 
 static void tpm_wtx_abort(struct tpm_chip *chip)
@@ -237,7 +233,7 @@ static void tpm_wtx_abort(struct tpm_chip *chip)
 	wait_and_send(chip, 0x00);
 	wait_and_send(chip, 0x00);
 	number_of_wtx = 0;
-	msleep(TPM_WTX_MSLEEP_TIME);
+	tpm_msleep(TPM_WTX_MSLEEP_TIME);
 }
 
 static int tpm_inf_recv(struct tpm_chip *chip, u8 * buf, size_t count)
@@ -354,7 +350,7 @@ static int tpm_inf_send(struct tpm_chip *chip, u8 * buf, size_t count)
 	for (i = 0; i < count; i++) {
 		wait_and_send(chip, buf[i]);
 	}
-	return count;
+	return 0;
 }
 
 static void tpm_inf_cancel(struct tpm_chip *chip)
@@ -397,7 +393,7 @@ static int tpm_inf_pnp_probe(struct pnp_dev *dev,
 	int vendorid[2];
 	int version[2];
 	int productid[2];
-	char chipname[20];
+	const char *chipname;
 	struct tpm_chip *chip;
 
 	/* read IO-ports through PnP */
@@ -488,13 +484,13 @@ static int tpm_inf_pnp_probe(struct pnp_dev *dev,
 
 	switch ((productid[0] << 8) | productid[1]) {
 	case 6:
-		snprintf(chipname, sizeof(chipname), " (SLD 9630 TT 1.1)");
+		chipname = " (SLD 9630 TT 1.1)";
 		break;
 	case 11:
-		snprintf(chipname, sizeof(chipname), " (SLB 9635 TT 1.2)");
+		chipname = " (SLB 9635 TT 1.2)";
 		break;
 	default:
-		snprintf(chipname, sizeof(chipname), " (unknown chip)");
+		chipname = " (unknown chip)";
 		break;
 	}
 

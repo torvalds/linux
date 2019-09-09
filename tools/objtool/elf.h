@@ -1,18 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (C) 2015 Josh Poimboeuf <jpoimboe@redhat.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef _OBJTOOL_ELF_H
@@ -28,6 +16,13 @@
 # define elf_getshdrstrndx elf_getshstrndx
 #endif
 
+/*
+ * Fallback for systems without this "read, mmaping if possible" cmd.
+ */
+#ifndef ELF_C_READ_MMAP
+#define ELF_C_READ_MMAP ELF_C_READ
+#endif
+
 struct section {
 	struct list_head list;
 	GElf_Shdr sh;
@@ -37,11 +32,11 @@ struct section {
 	DECLARE_HASHTABLE(rela_hash, 16);
 	struct section *base, *rela;
 	struct symbol *sym;
-	Elf_Data *elf_data;
+	Elf_Data *data;
 	char *name;
 	int idx;
-	unsigned long data;
 	unsigned int len;
+	bool changed, text, rodata;
 };
 
 struct symbol {
@@ -54,16 +49,20 @@ struct symbol {
 	unsigned char bind, type;
 	unsigned long offset;
 	unsigned int len;
+	struct symbol *pfunc, *cfunc, *alias;
+	bool uaccess_safe;
 };
 
 struct rela {
 	struct list_head list;
 	struct hlist_node hash;
 	GElf_Rela rela;
+	struct section *sec;
 	struct symbol *sym;
 	unsigned int type;
 	unsigned long offset;
 	int addend;
+	bool jump_table_start;
 };
 
 struct elf {
@@ -76,15 +75,23 @@ struct elf {
 };
 
 
-struct elf *elf_open(const char *name);
+struct elf *elf_read(const char *name, int flags);
 struct section *find_section_by_name(struct elf *elf, const char *name);
 struct symbol *find_symbol_by_offset(struct section *sec, unsigned long offset);
+struct symbol *find_symbol_by_name(struct elf *elf, const char *name);
+struct symbol *find_symbol_containing(struct section *sec, unsigned long offset);
 struct rela *find_rela_by_dest(struct section *sec, unsigned long offset);
 struct rela *find_rela_by_dest_range(struct section *sec, unsigned long offset,
 				     unsigned int len);
 struct symbol *find_containing_func(struct section *sec, unsigned long offset);
+struct section *elf_create_section(struct elf *elf, const char *name, size_t
+				   entsize, int nr);
+struct section *elf_create_rela_section(struct elf *elf, struct section *base);
+int elf_rebuild_rela_section(struct section *sec);
+int elf_write(struct elf *elf);
 void elf_close(struct elf *elf);
 
-
+#define for_each_sec(file, sec)						\
+	list_for_each_entry(sec, &file->elf->sections, list)
 
 #endif /* _OBJTOOL_ELF_H */

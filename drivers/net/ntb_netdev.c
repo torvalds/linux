@@ -71,7 +71,6 @@ static unsigned int tx_start = 10;
 static unsigned int tx_stop = 5;
 
 struct ntb_netdev {
-	struct list_head list;
 	struct pci_dev *pdev;
 	struct net_device *ndev;
 	struct ntb_transport_qp *qp;
@@ -80,8 +79,6 @@ struct ntb_netdev {
 
 #define	NTB_TX_TIMEOUT_MS	1000
 #define	NTB_RXQ_SIZE		100
-
-static LIST_HEAD(dev_list);
 
 static void ntb_netdev_event_handler(void *data, int link_is_up)
 {
@@ -230,13 +227,13 @@ err:
 	return NETDEV_TX_BUSY;
 }
 
-static void ntb_netdev_tx_timer(unsigned long data)
+static void ntb_netdev_tx_timer(struct timer_list *t)
 {
-	struct net_device *ndev = (struct net_device *)data;
-	struct ntb_netdev *dev = netdev_priv(ndev);
+	struct ntb_netdev *dev = from_timer(dev, t, tx_timer);
+	struct net_device *ndev = dev->ndev;
 
 	if (ntb_transport_tx_free_entry(dev->qp) < tx_stop) {
-		mod_timer(&dev->tx_timer, jiffies + msecs_to_jiffies(tx_time));
+		mod_timer(&dev->tx_timer, jiffies + usecs_to_jiffies(tx_time));
 	} else {
 		/* Make sure anybody stopping the queue after this sees the new
 		 * value of ntb_transport_tx_free_entry()
@@ -269,7 +266,7 @@ static int ntb_netdev_open(struct net_device *ndev)
 		}
 	}
 
-	setup_timer(&dev->tx_timer, ntb_netdev_tx_timer, (unsigned long)ndev);
+	timer_setup(&dev->tx_timer, ntb_netdev_tx_timer, 0);
 
 	netif_carrier_off(ndev);
 	ntb_transport_link_up(dev->qp);
@@ -372,18 +369,19 @@ static void ntb_get_drvinfo(struct net_device *ndev,
 	strlcpy(info->bus_info, pci_name(dev->pdev), sizeof(info->bus_info));
 }
 
-static int ntb_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int ntb_get_link_ksettings(struct net_device *dev,
+				  struct ethtool_link_ksettings *cmd)
 {
-	cmd->supported = SUPPORTED_Backplane;
-	cmd->advertising = ADVERTISED_Backplane;
-	ethtool_cmd_speed_set(cmd, SPEED_UNKNOWN);
-	cmd->duplex = DUPLEX_FULL;
-	cmd->port = PORT_OTHER;
-	cmd->phy_address = 0;
-	cmd->transceiver = XCVR_DUMMY1;
-	cmd->autoneg = AUTONEG_ENABLE;
-	cmd->maxtxpkt = 0;
-	cmd->maxrxpkt = 0;
+	ethtool_link_ksettings_zero_link_mode(cmd, supported);
+	ethtool_link_ksettings_add_link_mode(cmd, supported, Backplane);
+	ethtool_link_ksettings_zero_link_mode(cmd, advertising);
+	ethtool_link_ksettings_add_link_mode(cmd, advertising, Backplane);
+
+	cmd->base.speed = SPEED_UNKNOWN;
+	cmd->base.duplex = DUPLEX_FULL;
+	cmd->base.port = PORT_OTHER;
+	cmd->base.phy_address = 0;
+	cmd->base.autoneg = AUTONEG_ENABLE;
 
 	return 0;
 }
@@ -391,7 +389,7 @@ static int ntb_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 static const struct ethtool_ops ntb_ethtool_ops = {
 	.get_drvinfo = ntb_get_drvinfo,
 	.get_link = ethtool_op_get_link,
-	.get_settings = ntb_get_settings,
+	.get_link_ksettings = ntb_get_link_ksettings,
 };
 
 static const struct ntb_queue_handlers ntb_netdev_handlers = {
@@ -417,6 +415,8 @@ static int ntb_netdev_probe(struct device *client_dev)
 	if (!ndev)
 		return -ENOMEM;
 
+	SET_NETDEV_DEV(ndev, client_dev);
+
 	dev = netdev_priv(ndev);
 	dev->ndev = ndev;
 	dev->pdev = pdev;
@@ -427,11 +427,14 @@ static int ntb_netdev_probe(struct device *client_dev)
 	ndev->hw_features = ndev->features;
 	ndev->watchdog_timeo = msecs_to_jiffies(NTB_TX_TIMEOUT_MS);
 
-	random_ether_addr(ndev->perm_addr);
+	eth_random_addr(ndev->perm_addr);
 	memcpy(ndev->dev_addr, ndev->perm_addr, ndev->addr_len);
 
 	ndev->netdev_ops = &ntb_netdev_ops;
 	ndev->ethtool_ops = &ntb_ethtool_ops;
+
+	ndev->min_mtu = 0;
+	ndev->max_mtu = ETH_MAX_MTU;
 
 	dev->qp = ntb_transport_create_queue(ndev, client_dev,
 					     &ntb_netdev_handlers);
@@ -446,7 +449,7 @@ static int ntb_netdev_probe(struct device *client_dev)
 	if (rc)
 		goto err1;
 
-	list_add(&dev->list, &dev_list);
+	dev_set_drvdata(client_dev, ndev);
 	dev_info(&pdev->dev, "%s created\n", ndev->name);
 	return 0;
 
@@ -459,27 +462,8 @@ err:
 
 static void ntb_netdev_remove(struct device *client_dev)
 {
-	struct ntb_dev *ntb;
-	struct net_device *ndev;
-	struct pci_dev *pdev;
-	struct ntb_netdev *dev;
-	bool found = false;
-
-	ntb = dev_ntb(client_dev->parent);
-	pdev = ntb->pdev;
-
-	list_for_each_entry(dev, &dev_list, list) {
-		if (dev->pdev == pdev) {
-			found = true;
-			break;
-		}
-	}
-	if (!found)
-		return;
-
-	list_del(&dev->list);
-
-	ndev = dev->ndev;
+	struct net_device *ndev = dev_get_drvdata(client_dev);
+	struct ntb_netdev *dev = netdev_priv(ndev);
 
 	unregister_netdev(ndev);
 	ntb_transport_free_queue(dev->qp);

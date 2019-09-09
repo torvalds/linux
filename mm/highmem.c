@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * High memory handling common code and variables.
  *
@@ -104,9 +105,8 @@ static inline wait_queue_head_t *get_pkmap_wait_queue_head(unsigned int color)
 }
 #endif
 
-unsigned long totalhigh_pages __read_mostly;
-EXPORT_SYMBOL(totalhigh_pages);
-
+atomic_long_t _totalhigh_pages __read_mostly;
+EXPORT_SYMBOL(_totalhigh_pages);
 
 EXPORT_PER_CPU_SYMBOL(__kmap_atomic_idx);
 

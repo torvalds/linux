@@ -1,27 +1,19 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
 	Mantis PCI bridge driver
 
 	Copyright (C) Manu Abraham (abraham.manu@gmail.com)
 
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 2 of the License, or
-	(at your option) any later version.
-
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU General Public License for more details.
 */
 
 #include <media/rc-core.h>
 #include <linux/pci.h>
 
-#include "dmxdev.h"
-#include "dvbdev.h"
-#include "dvb_demux.h"
-#include "dvb_frontend.h"
-#include "dvb_net.h"
+#include <media/dmxdev.h>
+#include <media/dvbdev.h>
+#include <media/dvb_demux.h>
+#include <media/dvb_frontend.h>
+#include <media/dvb_net.h>
 
 #include "mantis_common.h"
 #include "mantis_input.h"
@@ -31,7 +23,7 @@
 void mantis_input_process(struct mantis_pci *mantis, int scancode)
 {
 	if (mantis->rc)
-		rc_keydown(mantis->rc, RC_TYPE_UNKNOWN, scancode, 0);
+		rc_keydown(mantis->rc, RC_PROTO_UNKNOWN, scancode, 0);
 }
 
 int mantis_input_init(struct mantis_pci *mantis)
@@ -39,19 +31,19 @@ int mantis_input_init(struct mantis_pci *mantis)
 	struct rc_dev *dev;
 	int err;
 
-	dev = rc_allocate_device();
+	dev = rc_allocate_device(RC_DRIVER_SCANCODE);
 	if (!dev) {
 		dprintk(MANTIS_ERROR, 1, "Remote device allocation failed");
 		err = -ENOMEM;
 		goto out;
 	}
 
-	snprintf(mantis->input_name, sizeof(mantis->input_name),
+	snprintf(mantis->device_name, sizeof(mantis->device_name),
 		 "Mantis %s IR receiver", mantis->hwconfig->model_name);
 	snprintf(mantis->input_phys, sizeof(mantis->input_phys),
 		 "pci-%s/ir0", pci_name(mantis->pdev));
 
-	dev->input_name         = mantis->input_name;
+	dev->device_name        = mantis->device_name;
 	dev->input_phys         = mantis->input_phys;
 	dev->input_id.bustype   = BUS_PCI;
 	dev->input_id.vendor    = mantis->vendor_id;

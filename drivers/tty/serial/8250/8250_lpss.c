@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * 8250_lpss.c - Driver for UART on Intel Braswell and various other Intel SoCs
  *
  * Copyright (C) 2016 Intel Corporation
  * Author: Andy Shevchenko <andriy.shevchenko@linux.intel.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/bitops.h>
@@ -156,13 +153,12 @@ static int byt_serial_setup(struct lpss8250 *lpss, struct uart_port *port)
 #ifdef CONFIG_SERIAL_8250_DMA
 static const struct dw_dma_platform_data qrk_serial_dma_pdata = {
 	.nr_channels = 2,
-	.is_private = true,
-	.is_nollp = true,
 	.chan_allocation_order = CHAN_ALLOCATION_ASCENDING,
 	.chan_priority = CHAN_PRIORITY_ASCENDING,
 	.block_size = 4095,
 	.nr_masters = 1,
 	.data_width = {4},
+	.multi_block = {0},
 };
 
 static void qrk_serial_setup_dma(struct lpss8250 *lpss, struct uart_port *port)
@@ -174,7 +170,7 @@ static void qrk_serial_setup_dma(struct lpss8250 *lpss, struct uart_port *port)
 	int ret;
 
 	chip->dev = &pdev->dev;
-	chip->irq = pdev->irq;
+	chip->irq = pci_irq_vector(pdev, 0);
 	chip->regs = pci_ioremap_bar(pdev, 1);
 	chip->pdata = &qrk_serial_dma_pdata;
 
@@ -182,6 +178,8 @@ static void qrk_serial_setup_dma(struct lpss8250 *lpss, struct uart_port *port)
 	ret = dw_dma_probe(chip);
 	if (ret)
 		return;
+
+	pci_try_set_mwi(pdev);
 
 	/* Special DMA address for UART */
 	dma->rx_dma_addr = 0xfffff000;
@@ -212,6 +210,8 @@ static int qrk_serial_setup(struct lpss8250 *lpss, struct uart_port *port)
 {
 	struct pci_dev *pdev = to_pci_dev(port->dev);
 	int ret;
+
+	pci_set_master(pdev);
 
 	ret = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_ALL_TYPES);
 	if (ret < 0)
@@ -280,8 +280,6 @@ static int lpss8250_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (ret)
 		return ret;
 
-	pci_set_master(pdev);
-
 	lpss = devm_kzalloc(&pdev->dev, sizeof(*lpss), GFP_KERNEL);
 	if (!lpss)
 		return -ENOMEM;
@@ -331,10 +329,10 @@ static void lpss8250_remove(struct pci_dev *pdev)
 {
 	struct lpss8250 *lpss = pci_get_drvdata(pdev);
 
+	serial8250_unregister_port(lpss->line);
+
 	if (lpss->board->exit)
 		lpss->board->exit(lpss);
-
-	serial8250_unregister_port(lpss->line);
 }
 
 static const struct lpss8250_board byt_board = {

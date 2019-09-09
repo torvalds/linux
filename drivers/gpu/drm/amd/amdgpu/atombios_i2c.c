@@ -22,7 +22,7 @@
  * Authors: Alex Deucher
  *
  */
-#include <drm/drmP.h>
+
 #include <drm/amdgpu_drm.h>
 #include "amdgpu.h"
 #include "atom.h"
@@ -65,8 +65,15 @@ static int amdgpu_atombios_i2c_process_i2c_ch(struct amdgpu_i2c_chan *chan,
 			args.ucRegIndex = buf[0];
 		if (num)
 			num--;
-		if (num)
-			memcpy(&out, &buf[1], num);
+		if (num) {
+			if (buf) {
+				memcpy(&out, &buf[1], num);
+			} else {
+				DRM_ERROR("hw i2c: missing buf with num > 1\n");
+				r = -EINVAL;
+				goto done;
+			}
+		}
 		args.lpI2CDataOut = cpu_to_le16(out);
 	} else {
 		if (num > ATOM_MAX_HW_I2C_READ) {

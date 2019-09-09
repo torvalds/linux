@@ -1,28 +1,23 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 /* For debugging crashes, userspace can:
  *
  *   tail -f /sys/kernel/debug/dri/<minor>/rd > logfile.rd
  *
- * To log the cmdstream in a format that is understood by freedreno/cffdump
+ * to log the cmdstream in a format that is understood by freedreno/cffdump
  * utility.  By comparing the last successfully completed fence #, to the
  * cmdstream for the next fence, you can narrow down which process and submit
  * caused the gpu crash/lockup.
+ *
+ * Additionally:
+ *
+ *   tail -f /sys/kernel/debug/dri/<minor>/hangrd > logfile.rd
+ *
+ * will capture just the cmdstream from submits which triggered a GPU hang.
  *
  * This bypasses drm_debugfs_create_files() mainly because we need to use
  * our own fops for a bit more control.  In particular, we don't want to
@@ -84,9 +79,6 @@ struct msm_rd_state {
 
 	bool open;
 
-	struct dentry *ent;
-	struct drm_info_node *node;
-
 	/* current submit to read out: */
 	struct msm_gem_submit *submit;
 
@@ -112,12 +104,18 @@ static void rd_write(struct msm_rd_state *rd, const void *buf, int sz)
 		char *fptr = &fifo->buf[fifo->head];
 		int n;
 
-		wait_event(rd->fifo_event, circ_space(&rd->fifo) > 0);
+		wait_event(rd->fifo_event, circ_space(&rd->fifo) > 0 || !rd->open);
+		if (!rd->open)
+			return;
 
+		/* Note that smp_load_acquire() is not strictly required
+		 * as CIRC_SPACE_TO_END() does not access the tail more
+		 * than once.
+		 */
 		n = min(sz, circ_space_to_end(&rd->fifo));
 		memcpy(fptr, ptr, n);
 
-		fifo->head = (fifo->head + n) & (BUF_SZ - 1);
+		smp_store_release(&fifo->head, (fifo->head + n) & (BUF_SZ - 1));
 		sz  -= n;
 		ptr += n;
 
@@ -148,13 +146,17 @@ static ssize_t rd_read(struct file *file, char __user *buf,
 	if (ret)
 		goto out;
 
+	/* Note that smp_load_acquire() is not strictly required
+	 * as CIRC_CNT_TO_END() does not access the head more than
+	 * once.
+	 */
 	n = min_t(int, sz, circ_count_to_end(&rd->fifo));
 	if (copy_to_user(buf, fptr, n)) {
 		ret = -EFAULT;
 		goto out;
 	}
 
-	fifo->tail = (fifo->tail + n) & (BUF_SZ - 1);
+	smp_store_release(&fifo->tail, (fifo->tail + n) & (BUF_SZ - 1));
 	*ppos += n;
 
 	wake_up_all(&rd->fifo_event);
@@ -202,7 +204,10 @@ out:
 static int rd_release(struct inode *inode, struct file *file)
 {
 	struct msm_rd_state *rd = inode->i_private;
+
 	rd->open = false;
+	wake_up_all(&rd->fifo_event);
+
 	return 0;
 }
 
@@ -215,110 +220,129 @@ static const struct file_operations rd_debugfs_fops = {
 	.release = rd_release,
 };
 
-int msm_rd_debugfs_init(struct drm_minor *minor)
-{
-	struct msm_drm_private *priv = minor->dev->dev_private;
-	struct msm_rd_state *rd;
 
-	/* only create on first minor: */
-	if (priv->rd)
-		return 0;
+static void rd_cleanup(struct msm_rd_state *rd)
+{
+	if (!rd)
+		return;
+
+	mutex_destroy(&rd->read_lock);
+	kfree(rd);
+}
+
+static struct msm_rd_state *rd_init(struct drm_minor *minor, const char *name)
+{
+	struct msm_rd_state *rd;
 
 	rd = kzalloc(sizeof(*rd), GFP_KERNEL);
 	if (!rd)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	rd->dev = minor->dev;
 	rd->fifo.buf = rd->buf;
 
 	mutex_init(&rd->read_lock);
-	priv->rd = rd;
 
 	init_waitqueue_head(&rd->fifo_event);
 
-	rd->node = kzalloc(sizeof(*rd->node), GFP_KERNEL);
-	if (!rd->node)
-		goto fail;
+	debugfs_create_file(name, S_IFREG | S_IRUGO, minor->debugfs_root, rd,
+			    &rd_debugfs_fops);
 
-	rd->ent = debugfs_create_file("rd", S_IFREG | S_IRUGO,
-			minor->debugfs_root, rd, &rd_debugfs_fops);
-	if (!rd->ent) {
-		DRM_ERROR("Cannot create /sys/kernel/debug/dri/%pd/rd\n",
-				minor->debugfs_root);
+	return rd;
+}
+
+int msm_rd_debugfs_init(struct drm_minor *minor)
+{
+	struct msm_drm_private *priv = minor->dev->dev_private;
+	struct msm_rd_state *rd;
+	int ret;
+
+	/* only create on first minor: */
+	if (priv->rd)
+		return 0;
+
+	rd = rd_init(minor, "rd");
+	if (IS_ERR(rd)) {
+		ret = PTR_ERR(rd);
 		goto fail;
 	}
 
-	rd->node->minor = minor;
-	rd->node->dent  = rd->ent;
-	rd->node->info_ent = NULL;
+	priv->rd = rd;
 
-	mutex_lock(&minor->debugfs_lock);
-	list_add(&rd->node->list, &minor->debugfs_list);
-	mutex_unlock(&minor->debugfs_lock);
+	rd = rd_init(minor, "hangrd");
+	if (IS_ERR(rd)) {
+		ret = PTR_ERR(rd);
+		goto fail;
+	}
+
+	priv->hangrd = rd;
 
 	return 0;
 
 fail:
-	msm_rd_debugfs_cleanup(minor);
-	return -1;
+	msm_rd_debugfs_cleanup(priv);
+	return ret;
 }
 
-void msm_rd_debugfs_cleanup(struct drm_minor *minor)
+void msm_rd_debugfs_cleanup(struct msm_drm_private *priv)
 {
-	struct msm_drm_private *priv = minor->dev->dev_private;
-	struct msm_rd_state *rd = priv->rd;
-
-	if (!rd)
-		return;
-
+	rd_cleanup(priv->rd);
 	priv->rd = NULL;
 
-	debugfs_remove(rd->ent);
-
-	if (rd->node) {
-		mutex_lock(&minor->debugfs_lock);
-		list_del(&rd->node->list);
-		mutex_unlock(&minor->debugfs_lock);
-		kfree(rd->node);
-	}
-
-	mutex_destroy(&rd->read_lock);
-
-	kfree(rd);
+	rd_cleanup(priv->hangrd);
+	priv->hangrd = NULL;
 }
 
 static void snapshot_buf(struct msm_rd_state *rd,
 		struct msm_gem_submit *submit, int idx,
-		uint32_t iova, uint32_t size)
+		uint64_t iova, uint32_t size)
 {
 	struct msm_gem_object *obj = submit->bos[idx].obj;
+	unsigned offset = 0;
 	const char *buf;
 
-	buf = msm_gem_get_vaddr_locked(&obj->base);
-	if (IS_ERR(buf))
-		return;
-
 	if (iova) {
-		buf += iova - submit->bos[idx].iova;
+		offset = iova - submit->bos[idx].iova;
 	} else {
 		iova = submit->bos[idx].iova;
 		size = obj->base.size;
 	}
 
+	/*
+	 * Always write the GPUADDR header so can get a complete list of all the
+	 * buffers in the cmd
+	 */
 	rd_write_section(rd, RD_GPUADDR,
-			(uint32_t[2]){ iova, size }, 8);
+			(uint32_t[3]){ iova, size, iova >> 32 }, 12);
+
+	/* But only dump the contents of buffers marked READ */
+	if (!(submit->bos[idx].flags & MSM_SUBMIT_BO_READ))
+		return;
+
+	buf = msm_gem_get_vaddr_active(&obj->base);
+	if (IS_ERR(buf))
+		return;
+
+	buf += offset;
+
 	rd_write_section(rd, RD_BUFFER_CONTENTS, buf, size);
 
-	msm_gem_put_vaddr_locked(&obj->base);
+	msm_gem_put_vaddr(&obj->base);
+}
+
+static bool
+should_dump(struct msm_gem_submit *submit, int idx)
+{
+	return rd_full || (submit->bos[idx].flags & MSM_SUBMIT_BO_DUMP);
 }
 
 /* called under struct_mutex */
-void msm_rd_dump_submit(struct msm_gem_submit *submit)
+void msm_rd_dump_submit(struct msm_rd_state *rd, struct msm_gem_submit *submit,
+		const char *fmt, ...)
 {
 	struct drm_device *dev = submit->dev;
-	struct msm_drm_private *priv = dev->dev_private;
-	struct msm_rd_state *rd = priv->rd;
-	char msg[128];
+	struct task_struct *task;
+	char msg[256];
 	int i, n;
 
 	if (!rd->open)
@@ -329,30 +353,40 @@ void msm_rd_dump_submit(struct msm_gem_submit *submit)
 	 */
 	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
 
-	n = snprintf(msg, sizeof(msg), "%.*s/%d: fence=%u",
-			TASK_COMM_LEN, current->comm, task_pid_nr(current),
-			submit->fence->seqno);
+	if (fmt) {
+		va_list args;
+
+		va_start(args, fmt);
+		n = vscnprintf(msg, sizeof(msg), fmt, args);
+		va_end(args);
+
+		rd_write_section(rd, RD_CMD, msg, ALIGN(n, 4));
+	}
+
+	rcu_read_lock();
+	task = pid_task(submit->pid, PIDTYPE_PID);
+	if (task) {
+		n = scnprintf(msg, sizeof(msg), "%.*s/%d: fence=%u",
+				TASK_COMM_LEN, task->comm,
+				pid_nr(submit->pid), submit->seqno);
+	} else {
+		n = scnprintf(msg, sizeof(msg), "???/%d: fence=%u",
+				pid_nr(submit->pid), submit->seqno);
+	}
+	rcu_read_unlock();
 
 	rd_write_section(rd, RD_CMD, msg, ALIGN(n, 4));
 
-	if (rd_full) {
-		for (i = 0; i < submit->nr_bos; i++) {
-			/* buffers that are written to probably don't start out
-			 * with anything interesting:
-			 */
-			if (submit->bos[i].flags & MSM_SUBMIT_BO_WRITE)
-				continue;
-
+	for (i = 0; i < submit->nr_bos; i++)
+		if (should_dump(submit, i))
 			snapshot_buf(rd, submit, i, 0, 0);
-		}
-	}
 
 	for (i = 0; i < submit->nr_cmds; i++) {
-		uint32_t iova = submit->cmd[i].iova;
+		uint64_t iova = submit->cmd[i].iova;
 		uint32_t szd  = submit->cmd[i].size; /* in dwords */
 
 		/* snapshot cmdstream bo's (if we haven't already): */
-		if (!rd_full) {
+		if (!should_dump(submit, i)) {
 			snapshot_buf(rd, submit, submit->cmd[i].idx,
 					submit->cmd[i].iova, szd * 4);
 		}
@@ -367,7 +401,7 @@ void msm_rd_dump_submit(struct msm_gem_submit *submit)
 		case MSM_SUBMIT_CMD_CTX_RESTORE_BUF:
 		case MSM_SUBMIT_CMD_BUF:
 			rd_write_section(rd, RD_CMDSTREAM_ADDR,
-					(uint32_t[2]){ iova, szd }, 8);
+				(uint32_t[3]){ iova, szd, iova >> 32 }, 12);
 			break;
 		}
 	}

@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Toradex Colibri VF50 Touchscreen driver
  *
  * Copyright 2015 Toradex AG
  *
  * Originally authored by Stefan Agner for 3.0 kernel
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/delay.h>
@@ -28,7 +24,6 @@
 #include <linux/types.h>
 
 #define DRIVER_NAME			"colibri-vf50-ts"
-#define DRV_VERSION			"1.0"
 
 #define VF_ADC_MAX			((1 << 12) - 1)
 
@@ -311,8 +306,6 @@ static int vf50_ts_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	platform_set_drvdata(pdev, touchdev);
-
 	input->name = DRIVER_NAME;
 	input->id.bustype = BUS_HOST;
 	input->dev.parent = dev;
@@ -384,4 +377,3 @@ module_platform_driver(vf50_touch_driver);
 MODULE_AUTHOR("Sanchayan Maity");
 MODULE_DESCRIPTION("Colibri VF50 Touchscreen driver");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRV_VERSION);

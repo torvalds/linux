@@ -1,19 +1,11 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Pinctrl driver for the Wondermedia SoC's
  *
  * Copyright (c) 2013 Tony Prisk <linux@prisktech.co.nz>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 
 /* VT8500 has no enable register in the extgpio bank. */
 #define NO_REG	0xFFFF
@@ -76,4 +68,3 @@ struct wmt_pinctrl_data {
 
 int wmt_pinctrl_probe(struct platform_device *pdev,
 		      struct wmt_pinctrl_data *data);
-int wmt_pinctrl_remove(struct platform_device *pdev);

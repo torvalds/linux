@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* drivers/atm/idt77105.c - IDT77105 (PHY) driver */
  
 /* Written 1999 by Greg Banks, NEC Australia <gnb@linuxfan.com>. Based on suni.c */
@@ -17,7 +18,7 @@
 #include <linux/spinlock.h>
 #include <linux/slab.h>
 #include <asm/param.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "idt77105.h"
 
@@ -45,12 +46,12 @@ static DEFINE_SPINLOCK(idt77105_priv_lock);
 #define PUT(val,reg) dev->ops->phy_put(dev,val,IDT77105_##reg)
 #define GET(reg) dev->ops->phy_get(dev,IDT77105_##reg)
 
-static void idt77105_stats_timer_func(unsigned long);
-static void idt77105_restart_timer_func(unsigned long);
+static void idt77105_stats_timer_func(struct timer_list *);
+static void idt77105_restart_timer_func(struct timer_list *);
 
 
-static DEFINE_TIMER(stats_timer, idt77105_stats_timer_func, 0, 0);
-static DEFINE_TIMER(restart_timer, idt77105_restart_timer_func, 0, 0);
+static DEFINE_TIMER(stats_timer, idt77105_stats_timer_func);
+static DEFINE_TIMER(restart_timer, idt77105_restart_timer_func);
 static int start_timer = 1;
 static struct idt77105_priv *idt77105_all = NULL;
 
@@ -80,7 +81,7 @@ static u16 get_counter(struct atm_dev *dev, int counter)
  * a separate copy of the stats allows implementation of
  * an ioctl which gathers the stats *without* zero'ing them.
  */
-static void idt77105_stats_timer_func(unsigned long dummy)
+static void idt77105_stats_timer_func(struct timer_list *unused)
 {
 	struct idt77105_priv *walk;
 	struct atm_dev *dev;
@@ -109,7 +110,7 @@ static void idt77105_stats_timer_func(unsigned long dummy)
  * interrupts need to be disabled when the cable is pulled out
  * to avoid lots of spurious cell error interrupts.
  */
-static void idt77105_restart_timer_func(unsigned long dummy)
+static void idt77105_restart_timer_func(struct timer_list *unused)
 {
 	struct idt77105_priv *walk;
 	struct atm_dev *dev;
@@ -306,11 +307,9 @@ static int idt77105_start(struct atm_dev *dev)
 	if (start_timer) {
 		start_timer = 0;
                 
-		setup_timer(&stats_timer, idt77105_stats_timer_func, 0UL);
 		stats_timer.expires = jiffies+IDT77105_STATS_TIMER_PERIOD;
 		add_timer(&stats_timer);
                 
-		setup_timer(&restart_timer, idt77105_restart_timer_func, 0UL);
 		restart_timer.expires = jiffies+IDT77105_RESTART_TIMER_PERIOD;
 		add_timer(&restart_timer);
 	}

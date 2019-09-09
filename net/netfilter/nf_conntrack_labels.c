@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * test/set flag bits stored in conntrack extension area.
  *
  * (C) 2013 Astaro GmbH & Co KG
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/export.h>
@@ -82,7 +79,7 @@ void nf_connlabels_put(struct net *net)
 }
 EXPORT_SYMBOL_GPL(nf_connlabels_put);
 
-static struct nf_ct_ext_type labels_extend __read_mostly = {
+static const struct nf_ct_ext_type labels_extend = {
 	.len    = sizeof(struct nf_conn_labels),
 	.align  = __alignof__(struct nf_conn_labels),
 	.id     = NF_CT_EXT_LABELS,

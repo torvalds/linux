@@ -1,10 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2005 Stephen Street / StreetFire Sound Labs
  * Copyright (C) 2013, Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef SPI_PXA2XX_H
@@ -31,14 +28,14 @@ struct driver_data {
 
 	/* SPI framework hookup */
 	enum pxa_ssp_type ssp_type;
-	struct spi_master *master;
+	struct spi_controller *controller;
 
 	/* PXA hookup */
-	struct pxa2xx_spi_master *master_info;
+	struct pxa2xx_spi_controller *controller_info;
 
 	/* SSP register addresses */
 	void __iomem *ioaddr;
-	u32 ssdr_physical;
+	phys_addr_t ssdr_physical;
 
 	/* SSP masks*/
 	u32 dma_cr1;
@@ -46,15 +43,10 @@ struct driver_data {
 	u32 clear_sr;
 	u32 mask_sr;
 
-	/* Message Transfer pump */
-	struct tasklet_struct pump_transfers;
-
 	/* DMA engine support */
 	atomic_t dma_running;
 
-	/* Current message transfer state info */
-	struct spi_transfer *cur_transfer;
-	size_t len;
+	/* Current transfer state info */
 	void *tx;
 	void *tx_end;
 	void *rx;
@@ -69,6 +61,9 @@ struct driver_data {
 
 	/* GPIOs for chip selects */
 	struct gpio_desc **cs_gpiods;
+
+	/* Optional slave FIFO ready signal */
+	struct gpio_desc *gpiod_ready;
 };
 
 struct chip_data {
@@ -83,7 +78,7 @@ struct chip_data {
 	u16 lpss_tx_threshold;
 	u8 enable_dma;
 	union {
-		int gpio_cs;
+		struct gpio_desc *gpiod_cs;
 		unsigned int frm;
 	};
 	int gpio_cs_inverted;
@@ -104,12 +99,6 @@ static  inline void pxa2xx_spi_write(const struct driver_data *drv_data,
 	__raw_writel(val, drv_data->ioaddr + reg);
 }
 
-#define START_STATE ((void *)0)
-#define RUNNING_STATE ((void *)1)
-#define DONE_STATE ((void *)2)
-#define ERROR_STATE ((void *)-1)
-
-#define IS_DMA_ALIGNED(x)	IS_ALIGNED((unsigned long)(x), DMA_ALIGNMENT)
 #define DMA_ALIGNMENT		8
 
 static inline int pxa25x_ssp_comp(struct driver_data *drv_data)
@@ -134,14 +123,15 @@ static inline void write_SSSR_CS(struct driver_data *drv_data, u32 val)
 }
 
 extern int pxa2xx_spi_flush(struct driver_data *drv_data);
-extern void *pxa2xx_spi_next_transfer(struct driver_data *drv_data);
 
 #define MAX_DMA_LEN		SZ_64K
 #define DEFAULT_DMA_CR1		(SSCR1_TSRE | SSCR1_RSRE | SSCR1_TRAIL)
 
 extern irqreturn_t pxa2xx_spi_dma_transfer(struct driver_data *drv_data);
-extern int pxa2xx_spi_dma_prepare(struct driver_data *drv_data, u32 dma_burst);
+extern int pxa2xx_spi_dma_prepare(struct driver_data *drv_data,
+				  struct spi_transfer *xfer);
 extern void pxa2xx_spi_dma_start(struct driver_data *drv_data);
+extern void pxa2xx_spi_dma_stop(struct driver_data *drv_data);
 extern int pxa2xx_spi_dma_setup(struct driver_data *drv_data);
 extern void pxa2xx_spi_dma_release(struct driver_data *drv_data);
 extern int pxa2xx_spi_set_dma_burst_and_threshold(struct chip_data *chip,

@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* (C) 1999-2001 Paul `Rusty' Russell
  * (C) 2002-2004 Netfilter Core Team <coreteam@netfilter.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -95,7 +92,7 @@ void nf_reject_ip6_tcphdr_put(struct sk_buff *nskb,
 	int needs_ack;
 
 	skb_reset_transport_header(nskb);
-	tcph = (struct tcphdr *)skb_put(nskb, sizeof(struct tcphdr));
+	tcph = skb_put(nskb, sizeof(struct tcphdr));
 	/* Truncate to length (no data) */
 	tcph->doff = sizeof(struct tcphdr)/4;
 	tcph->source = oth->dest;
@@ -131,6 +128,7 @@ EXPORT_SYMBOL_GPL(nf_reject_ip6_tcphdr_put);
 
 void nf_send_reset6(struct net *net, struct sk_buff *oldskb, int hook)
 {
+	struct net_device *br_indev __maybe_unused;
 	struct sk_buff *nskb;
 	struct tcphdr _otcph;
 	const struct tcphdr *otcph;
@@ -156,6 +154,8 @@ void nf_send_reset6(struct net *net, struct sk_buff *oldskb, int hook)
 	fl6.daddr = oip6h->saddr;
 	fl6.fl6_sport = otcph->dest;
 	fl6.fl6_dport = otcph->source;
+	fl6.flowi6_oif = l3mdev_master_ifindex(skb_dst(oldskb)->dev);
+	fl6.flowi6_mark = IP6_REPLY_MARK(net, oldskb->mark);
 	security_skb_classify_flow(oldskb, flowi6_to_flowi(&fl6));
 	dst = ip6_route_output(net, NULL, &fl6);
 	if (dst->error) {
@@ -179,6 +179,8 @@ void nf_send_reset6(struct net *net, struct sk_buff *oldskb, int hook)
 
 	skb_dst_set(nskb, dst);
 
+	nskb->mark = fl6.flowi6_mark;
+
 	skb_reserve(nskb, hh_len + dst->header_len);
 	ip6h = nf_reject_ip6hdr_put(nskb, oldskb, IPPROTO_TCP,
 				    ip6_dst_hoplimit(dst));
@@ -193,15 +195,18 @@ void nf_send_reset6(struct net *net, struct sk_buff *oldskb, int hook)
 	 * build the eth header using the original destination's MAC as the
 	 * source, and send the RST packet directly.
 	 */
-	if (oldskb->nf_bridge) {
+	br_indev = nf_bridge_get_physindev(oldskb);
+	if (br_indev) {
 		struct ethhdr *oeth = eth_hdr(oldskb);
 
-		nskb->dev = nf_bridge_get_physindev(oldskb);
+		nskb->dev = br_indev;
 		nskb->protocol = htons(ETH_P_IPV6);
 		ip6h->payload_len = htons(sizeof(struct tcphdr));
 		if (dev_hard_header(nskb, nskb->dev, ntohs(nskb->protocol),
-				    oeth->h_source, oeth->h_dest, nskb->len) < 0)
+				    oeth->h_source, oeth->h_dest, nskb->len) < 0) {
+			kfree_skb(nskb);
 			return;
+		}
 		dev_queue_xmit(nskb);
 	} else
 #endif
@@ -216,9 +221,6 @@ static bool reject6_csum_ok(struct sk_buff *skb, int hook)
 	__be16 fo;
 	u8 proto;
 
-	if (skb->csum_bad)
-		return false;
-
 	if (skb_csum_unnecessary(skb))
 		return true;
 
@@ -227,6 +229,9 @@ static bool reject6_csum_ok(struct sk_buff *skb, int hook)
 
 	if (thoff < 0 || thoff >= skb->len || (fo & htons(~0x7)) != 0)
 		return false;
+
+	if (!nf_reject_verify_csum(proto))
+		return true;
 
 	return nf_ip6_checksum(skb, hook, thoff, proto) == 0;
 }

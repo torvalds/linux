@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Support for Sharp SL-C7xx PDAs
  * Models: SL-C700 (Corgi), SL-C750 (Shepherd), SL-C760 (Husky)
@@ -5,11 +6,6 @@
  * Copyright (c) 2004-2005 Richard Purdie
  *
  * Based on Sharp's 2.4 kernel patches/lubbock.c
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/kernel.h>
@@ -19,13 +15,15 @@
 #include <linux/major.h>
 #include <linux/fs.h>
 #include <linux/interrupt.h>
+#include <linux/leds.h>
 #include <linux/mmc/host.h>
 #include <linux/mtd/physmap.h>
 #include <linux/pm.h>
 #include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/backlight.h>
 #include <linux/i2c.h>
-#include <linux/i2c/pxa-i2c.h>
+#include <linux/platform_data/i2c-pxa.h>
 #include <linux/io.h>
 #include <linux/regulator/machine.h>
 #include <linux/spi/spi.h>
@@ -35,7 +33,6 @@
 #include <linux/mtd/sharpsl.h>
 #include <linux/input/matrix_keypad.h>
 #include <linux/gpio_keys.h>
-#include <linux/module.h>
 #include <linux/memblock.h>
 #include <video/w100fb.h>
 
@@ -493,11 +490,23 @@ static struct platform_device corgi_audio_device = {
 static struct pxamci_platform_data corgi_mci_platform_data = {
 	.detect_delay_ms	= 250,
 	.ocr_mask		= MMC_VDD_32_33|MMC_VDD_33_34,
-	.gpio_card_detect	= CORGI_GPIO_nSD_DETECT,
-	.gpio_card_ro		= CORGI_GPIO_nSD_WP,
-	.gpio_power		= CORGI_GPIO_SD_PWR,
 };
 
+static struct gpiod_lookup_table corgi_mci_gpio_table = {
+	.dev_id = "pxa2xx-mci.0",
+	.table = {
+		/* Card detect on GPIO 9 */
+		GPIO_LOOKUP("gpio-pxa", CORGI_GPIO_nSD_DETECT,
+			    "cd", GPIO_ACTIVE_LOW),
+		/* Write protect on GPIO 7 */
+		GPIO_LOOKUP("gpio-pxa", CORGI_GPIO_nSD_WP,
+			    "wp", GPIO_ACTIVE_LOW),
+		/* Power on GPIO 33 */
+		GPIO_LOOKUP("gpio-pxa", CORGI_GPIO_SD_PWR,
+			    "power", GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
 
 /*
  * Irda
@@ -517,7 +526,7 @@ static struct pxa2xx_udc_mach_info udc_info __initdata = {
 };
 
 #if IS_ENABLED(CONFIG_SPI_PXA2XX)
-static struct pxa2xx_spi_master corgi_spi_info = {
+static struct pxa2xx_spi_controller corgi_spi_info = {
 	.num_chipselect	= 3,
 };
 
@@ -606,24 +615,6 @@ static void __init corgi_init_spi(void)
 static inline void corgi_init_spi(void) {}
 #endif
 
-static struct mtd_partition sharpsl_nand_partitions[] = {
-	{
-		.name = "System Area",
-		.offset = 0,
-		.size = 7 * 1024 * 1024,
-	},
-	{
-		.name = "Root Filesystem",
-		.offset = 7 * 1024 * 1024,
-		.size = 25 * 1024 * 1024,
-	},
-	{
-		.name = "Home Filesystem",
-		.offset = MTDPART_OFS_APPEND,
-		.size = MTDPART_SIZ_FULL,
-	},
-};
-
 static uint8_t scan_ff_pattern[] = { 0xff, 0xff };
 
 static struct nand_bbt_descr sharpsl_bbt = {
@@ -633,10 +624,16 @@ static struct nand_bbt_descr sharpsl_bbt = {
 	.pattern = scan_ff_pattern
 };
 
+static const char * const probes[] = {
+	"cmdlinepart",
+	"ofpart",
+	"sharpslpart",
+	NULL,
+};
+
 static struct sharpsl_nand_platform_data sharpsl_nand_platform_data = {
 	.badblock_pattern	= &sharpsl_bbt,
-	.partitions		= sharpsl_nand_partitions,
-	.nr_partitions		= ARRAY_SIZE(sharpsl_nand_partitions),
+	.part_parsers		= probes,
 };
 
 static struct resource sharpsl_nand_resources[] = {
@@ -743,15 +740,13 @@ static void __init corgi_init(void)
 	corgi_init_spi();
 
  	pxa_set_udc_info(&udc_info);
+	gpiod_add_lookup_table(&corgi_mci_gpio_table);
 	pxa_set_mci_info(&corgi_mci_platform_data);
 	pxa_set_ficp_info(&corgi_ficp_platform_data);
 	pxa_set_i2c_info(NULL);
 	i2c_register_board_info(0, ARRAY_AND_SIZE(corgi_i2c_devices));
 
 	platform_scoop_config = &corgi_pcmcia_config;
-
-	if (machine_is_husky())
-		sharpsl_nand_partitions[1].size = 53 * 1024 * 1024;
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 

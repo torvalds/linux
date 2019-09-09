@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * OMAP4 thermal driver.
  *
  * Copyright (C) 2011-2012 Texas Instruments Inc.
  * Contact:
  *	Eduardo Valentin <eduardo.valentin@ti.com>
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
  */
 
 #include "ti-thermal.h"
@@ -42,9 +33,6 @@ omap4430_mpu_temp_sensor_registers = {
 static struct temp_sensor_data omap4430_mpu_temp_sensor_data = {
 	.min_freq = OMAP4430_MIN_FREQ,
 	.max_freq = OMAP4430_MAX_FREQ,
-	.max_temp = OMAP4430_MAX_TEMP,
-	.min_temp = OMAP4430_MIN_TEMP,
-	.hyst_val = OMAP4430_HYST_VAL,
 };
 
 /*
@@ -82,8 +70,6 @@ const struct ti_bandgap_data omap4430_data = {
 		.registers = &omap4430_mpu_temp_sensor_registers,
 		.ts_data = &omap4430_mpu_temp_sensor_data,
 		.domain = "cpu",
-		.slope = OMAP_GRADIENT_SLOPE_4430,
-		.constant = OMAP_GRADIENT_CONST_4430,
 		.slope_pcb = OMAP_GRADIENT_SLOPE_W_PCB_4430,
 		.constant_pcb = OMAP_GRADIENT_CONST_W_PCB_4430,
 		.register_cooling = ti_thermal_register_cpu_cooling,
@@ -123,8 +109,6 @@ omap4460_mpu_temp_sensor_registers = {
 	.tshut_cold_mask = OMAP4460_TSHUT_COLD_MASK,
 
 	.bgap_status = OMAP4460_BGAP_STATUS_OFFSET,
-	.status_clean_stop_mask = OMAP4460_CLEAN_STOP_MASK,
-	.status_bgap_alert_mask = OMAP4460_BGAP_ALERT_MASK,
 	.status_hot_mask = OMAP4460_HOT_FLAG_MASK,
 	.status_cold_mask = OMAP4460_COLD_FLAG_MASK,
 
@@ -139,11 +123,6 @@ static struct temp_sensor_data omap4460_mpu_temp_sensor_data = {
 	.t_cold = OMAP4460_T_COLD,
 	.min_freq = OMAP4460_MIN_FREQ,
 	.max_freq = OMAP4460_MAX_FREQ,
-	.max_temp = OMAP4460_MAX_TEMP,
-	.min_temp = OMAP4460_MIN_TEMP,
-	.hyst_val = OMAP4460_HYST_VAL,
-	.update_int1 = 1000,
-	.update_int2 = 2000,
 };
 
 /*
@@ -222,8 +201,6 @@ const struct ti_bandgap_data omap4460_data = {
 		.registers = &omap4460_mpu_temp_sensor_registers,
 		.ts_data = &omap4460_mpu_temp_sensor_data,
 		.domain = "cpu",
-		.slope = OMAP_GRADIENT_SLOPE_4460,
-		.constant = OMAP_GRADIENT_CONST_4460,
 		.slope_pcb = OMAP_GRADIENT_SLOPE_W_PCB_4460,
 		.constant_pcb = OMAP_GRADIENT_CONST_W_PCB_4460,
 		.register_cooling = ti_thermal_register_cpu_cooling,
@@ -255,8 +232,6 @@ const struct ti_bandgap_data omap4470_data = {
 		.registers = &omap4460_mpu_temp_sensor_registers,
 		.ts_data = &omap4460_mpu_temp_sensor_data,
 		.domain = "cpu",
-		.slope = OMAP_GRADIENT_SLOPE_4470,
-		.constant = OMAP_GRADIENT_CONST_4470,
 		.slope_pcb = OMAP_GRADIENT_SLOPE_W_PCB_4470,
 		.constant_pcb = OMAP_GRADIENT_CONST_W_PCB_4470,
 		.register_cooling = ti_thermal_register_cpu_cooling,

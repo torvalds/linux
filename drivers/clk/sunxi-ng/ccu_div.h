@@ -1,14 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2016 Maxime Ripard. All rights reserved.
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef _CCU_DIV_H_
@@ -20,7 +12,7 @@
 #include "ccu_mux.h"
 
 /**
- * struct _ccu_div - Internal divider description
+ * struct ccu_div_internal - Internal divider description
  * @shift: Bit offset of the divider in its register
  * @width: Width of the divider field in its register
  * @max: Maximum value allowed for that divider. This is the
@@ -36,11 +28,12 @@
  * It is basically a wrapper around the clk_divider functions
  * arguments.
  */
-struct _ccu_div {
+struct ccu_div_internal {
 	u8			shift;
 	u8			width;
 
 	u32			max;
+	u32			offset;
 
 	u32			flags;
 
@@ -58,13 +51,17 @@ struct _ccu_div {
 #define _SUNXI_CCU_DIV_TABLE(_shift, _width, _table)			\
 	_SUNXI_CCU_DIV_TABLE_FLAGS(_shift, _width, _table, 0)
 
-#define _SUNXI_CCU_DIV_MAX_FLAGS(_shift, _width, _max, _flags) \
+#define _SUNXI_CCU_DIV_OFFSET_MAX_FLAGS(_shift, _width, _off, _max, _flags) \
 	{								\
 		.shift	= _shift,					\
 		.width	= _width,					\
 		.flags	= _flags,					\
 		.max	= _max,						\
+		.offset	= _off,						\
 	}
+
+#define _SUNXI_CCU_DIV_MAX_FLAGS(_shift, _width, _max, _flags)		\
+	_SUNXI_CCU_DIV_OFFSET_MAX_FLAGS(_shift, _width, 1, _max, _flags)
 
 #define _SUNXI_CCU_DIV_FLAGS(_shift, _width, _flags)			\
 	_SUNXI_CCU_DIV_MAX_FLAGS(_shift, _width, 0, _flags)
@@ -72,15 +69,19 @@ struct _ccu_div {
 #define _SUNXI_CCU_DIV_MAX(_shift, _width, _max)			\
 	_SUNXI_CCU_DIV_MAX_FLAGS(_shift, _width, _max, 0)
 
+#define _SUNXI_CCU_DIV_OFFSET(_shift, _width, _offset)			\
+	_SUNXI_CCU_DIV_OFFSET_MAX_FLAGS(_shift, _width, _offset, 0, 0)
+
 #define _SUNXI_CCU_DIV(_shift, _width)					\
 	_SUNXI_CCU_DIV_FLAGS(_shift, _width, 0)
 
 struct ccu_div {
 	u32			enable;
 
-	struct _ccu_div		div;
+	struct ccu_div_internal	div;
 	struct ccu_mux_internal	mux;
 	struct ccu_common	common;
+	unsigned int		fixed_post_div;
 };
 
 #define SUNXI_CCU_DIV_TABLE_WITH_GATE(_struct, _name, _parent, _reg,	\

@@ -1,21 +1,25 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) STMicroelectronics SA 2014
  * Authors: Benjamin Gaignard <benjamin.gaignard@st.com>
  *          Vincent Abriou <vincent.abriou@st.com>
  *          for STMicroelectronics.
- * License terms:  GNU General Public License (GPL), version 2
  */
 
 #include <linux/clk.h>
 #include <linux/component.h>
+#include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/reset.h>
 #include <linux/seq_file.h>
 
-#include <drm/drmP.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_atomic_helper.h>
+#include <drm/drm_debugfs.h>
+#include <drm/drm_device.h>
+#include <drm/drm_file.h>
+#include <drm/drm_print.h>
 
 #include "sti_crtc.h"
 #include "sti_drv.h"
@@ -459,7 +463,7 @@ static void tvout_dbg_vip(struct seq_file *s, int val)
 				   "Aux (color matrix by-passed)",
 				   "", "", "", "", "", "Force value"};
 
-	seq_puts(s, "\t");
+	seq_putc(s, '\t');
 	mask = TVO_VIP_REORDER_MASK << TVO_VIP_REORDER_R_SHIFT;
 	r = (val & mask) >> TVO_VIP_REORDER_R_SHIFT;
 	mask = TVO_VIP_REORDER_MASK << TVO_VIP_REORDER_G_SHIFT;
@@ -558,21 +562,13 @@ static int tvout_dbg_show(struct seq_file *s, void *data)
 	DBGFS_DUMP(TVO_CSC_AUX_M6);
 	DBGFS_DUMP(TVO_CSC_AUX_M7);
 	DBGFS_DUMP(TVO_AUX_IN_VID_FORMAT);
-	seq_puts(s, "\n");
-
+	seq_putc(s, '\n');
 	return 0;
 }
 
 static struct drm_info_list tvout_debugfs_files[] = {
 	{ "tvout", tvout_dbg_show, 0, NULL },
 };
-
-static void tvout_debugfs_exit(struct sti_tvout *tvout, struct drm_minor *minor)
-{
-	drm_debugfs_remove_files(tvout_debugfs_files,
-				 ARRAY_SIZE(tvout_debugfs_files),
-				 minor);
-}
 
 static int tvout_debugfs_init(struct sti_tvout *tvout, struct drm_minor *minor)
 {
@@ -627,7 +623,6 @@ static void sti_tvout_early_unregister(struct drm_encoder *encoder)
 	if (!tvout->debugfs_registered)
 		return;
 
-	tvout_debugfs_exit(tvout, encoder->dev->primary);
 	tvout->debugfs_registered = false;
 }
 
@@ -855,7 +850,7 @@ static int sti_tvout_probe(struct platform_device *pdev)
 
 	tvout->dev = dev;
 
-	/* get Memory ressources */
+	/* get memory resources */
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "tvout-reg");
 	if (!res) {
 		DRM_ERROR("Invalid glue resource\n");

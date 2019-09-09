@@ -175,6 +175,7 @@ extern int os_fchange_dir(int fd);
 extern unsigned os_major(unsigned long long dev);
 extern unsigned os_minor(unsigned long long dev);
 extern unsigned long long os_makedev(unsigned major, unsigned minor);
+extern int os_falloc_punch(int fd, unsigned long long offset, int count);
 
 /* start_up.c */
 extern void os_early_checks(void);
@@ -242,18 +243,20 @@ extern void setup_hostinfo(char *buf, int len);
 extern void os_dump_core(void) __attribute__ ((noreturn));
 extern void um_early_printk(const char *s, unsigned int n);
 extern void os_fix_helper_signals(void);
+extern void os_info(const char *fmt, ...)
+	__attribute__ ((format (printf, 1, 2)));
+extern void os_warn(const char *fmt, ...)
+	__attribute__ ((format (printf, 1, 2)));
 
 /* time.c */
 extern void os_idle_sleep(unsigned long long nsecs);
-extern int os_timer_create(void* timer);
-extern int os_timer_set_interval(void* timer, void* its);
-extern int os_timer_one_shot(int ticks);
-extern long long os_timer_disable(void);
-extern long os_timer_remain(void* timer);
+extern int os_timer_create(void);
+extern int os_timer_set_interval(unsigned long long nsecs);
+extern int os_timer_one_shot(unsigned long long nsecs);
+extern void os_timer_disable(void);
 extern void uml_idle_timer(void);
 extern long long os_persistent_clock_emulation(void);
 extern long long os_nsecs(void);
-extern long long os_vnsecs(void);
 
 /* skas/mem.c */
 extern long run_syscall_stub(struct mm_id * mm_idp,
@@ -274,7 +277,7 @@ extern int protect(struct mm_id * mm_idp, unsigned long addr,
 extern int is_skas_winch(int pid, int fd, void *data);
 extern int start_userspace(unsigned long stub_stack);
 extern int copy_context_skas0(unsigned long stack, int pid);
-extern void userspace(struct uml_pt_regs *regs);
+extern void userspace(struct uml_pt_regs *regs, unsigned long *aux_fp_regs);
 extern int map_stub_pages(int fd, unsigned long code, unsigned long data,
 			  unsigned long stack);
 extern void new_thread(void *stack, jmp_buf *buf, void (*handler)(void));
@@ -286,15 +289,16 @@ extern void halt_skas(void);
 extern void reboot_skas(void);
 
 /* irq.c */
-extern int os_waiting_for_events(struct irq_fd *active_fds);
-extern int os_create_pollfd(int fd, int events, void *tmp_pfd, int size_tmpfds);
-extern void os_free_irq_by_cb(int (*test)(struct irq_fd *, void *), void *arg,
-		struct irq_fd *active_fds, struct irq_fd ***last_irq_ptr2);
-extern void os_free_irq_later(struct irq_fd *active_fds,
-		int irq, void *dev_id);
-extern int os_get_pollfd(int i);
-extern void os_set_pollfd(int i, int fd);
+extern int os_waiting_for_events_epoll(void);
+extern void *os_epoll_get_data_pointer(int index);
+extern int os_epoll_triggered(int index, int events);
+extern int os_event_mask(int irq_type);
+extern int os_setup_epoll(void);
+extern int os_add_epoll_fd(int events, int fd, void *data);
+extern int os_mod_epoll_fd(int events, int fd, void *data);
+extern int os_del_epoll_fd(int fd);
 extern void os_set_ioignore(void);
+extern void os_close_epoll_fd(void);
 
 /* sigio.c */
 extern int add_sigio_fd(int fd);
@@ -302,8 +306,8 @@ extern int ignore_sigio_fd(int fd);
 extern void maybe_sigio_broken(int fd, int read);
 extern void sigio_broken(int fd, int read);
 
-/* sys-x86_64/prctl.c */
-extern int os_arch_prctl(int pid, int code, unsigned long *addr);
+/* prctl.c */
+extern int os_arch_prctl(int pid, int option, unsigned long *arg2);
 
 /* tty.c */
 extern int get_pty(void);

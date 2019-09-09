@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
 /*
  * INET		An implementation of the TCP/IP protocol suite for the LINUX
  *		operating system.  INET is implemented using the  BSD Socket
@@ -59,6 +60,7 @@
 #define ARPHRD_LAPB	516		/* LAPB				*/
 #define ARPHRD_DDCMP    517		/* Digital's DDCMP protocol     */
 #define ARPHRD_RAWHDLC	518		/* Raw HDLC			*/
+#define ARPHRD_RAWIP    519		/* Raw IP                       */
 
 #define ARPHRD_TUNNEL	768		/* IPIP tunnel			*/
 #define ARPHRD_TUNNEL6	769		/* IP6IP6 tunnel       		*/
@@ -95,6 +97,7 @@
 #define ARPHRD_IP6GRE	823		/* GRE over IPv6		*/
 #define ARPHRD_NETLINK	824		/* Netlink header		*/
 #define ARPHRD_6LOWPAN	825		/* IPv6 over LoWPAN             */
+#define ARPHRD_VSOCKMON	826		/* Vsock monitor header		*/
 
 #define ARPHRD_VOID	  0xFFFF	/* Void type, nothing is known */
 #define ARPHRD_NONE	  0xFFFE	/* zero header length */
@@ -111,18 +114,18 @@
 
 /* ARP ioctl request. */
 struct arpreq {
-  struct sockaddr	arp_pa;		/* protocol address		*/
-  struct sockaddr	arp_ha;		/* hardware address		*/
-  int			arp_flags;	/* flags			*/
-  struct sockaddr       arp_netmask;    /* netmask (only for proxy arps) */
-  char			arp_dev[16];
+	struct sockaddr	arp_pa;		/* protocol address		 */
+	struct sockaddr	arp_ha;		/* hardware address		 */
+	int		arp_flags;	/* flags			 */
+	struct sockaddr arp_netmask;    /* netmask (only for proxy arps) */
+	char		arp_dev[IFNAMSIZ];
 };
 
 struct arpreq_old {
-  struct sockaddr	arp_pa;		/* protocol address		*/
-  struct sockaddr	arp_ha;		/* hardware address		*/
-  int			arp_flags;	/* flags			*/
-  struct sockaddr       arp_netmask;    /* netmask (only for proxy arps) */
+	struct sockaddr	arp_pa;		/* protocol address		 */
+	struct sockaddr	arp_ha;		/* hardware address		 */
+	int		arp_flags;	/* flags			 */
+	struct sockaddr	arp_netmask;    /* netmask (only for proxy arps) */
 };
 
 /* ARP Flag values. */

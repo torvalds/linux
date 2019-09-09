@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Samsung S5K6A3 image sensor driver
  *
  * Copyright (C) 2013 Samsung Electronics Co., Ltd.
  * Author: Sylwester Nawrocki <s.nawrocki@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/clk.h>
@@ -53,6 +50,9 @@ enum {
  * @gpio_reset: GPIO connected to the sensor's reset pin
  * @lock: mutex protecting the structure's members below
  * @format: media bus format at the sensor's source pad
+ * @clock: pointer to &struct clk.
+ * @clock_frequency: clock frequency
+ * @power_count: stores state if device is powered
  */
 struct s5k6a3 {
 	struct device *dev;
@@ -165,7 +165,7 @@ static int s5k6a3_get_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static struct v4l2_subdev_pad_ops s5k6a3_pad_ops = {
+static const struct v4l2_subdev_pad_ops s5k6a3_pad_ops = {
 	.enum_mbus_code	= s5k6a3_enum_mbus_code,
 	.get_fmt	= s5k6a3_get_fmt,
 	.set_fmt	= s5k6a3_set_fmt,
@@ -266,11 +266,11 @@ static int s5k6a3_s_power(struct v4l2_subdev *sd, int on)
 	return ret;
 }
 
-static struct v4l2_subdev_core_ops s5k6a3_core_ops = {
+static const struct v4l2_subdev_core_ops s5k6a3_core_ops = {
 	.s_power = s5k6a3_s_power,
 };
 
-static struct v4l2_subdev_ops s5k6a3_subdev_ops = {
+static const struct v4l2_subdev_ops s5k6a3_subdev_ops = {
 	.core = &s5k6a3_core_ops,
 	.pad = &s5k6a3_pad_ops,
 };

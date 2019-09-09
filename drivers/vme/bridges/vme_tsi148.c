@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Support for the Tundra TSI148 VME-PCI Bridge Chip
  *
@@ -6,11 +7,6 @@
  *
  * Based on work by Tom Armistead and Ajit Prem
  * Copyright 2004 Motorola Inc.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/module.h>
@@ -741,18 +737,16 @@ static int tsi148_alloc_resource(struct vme_master_resource *image,
 		image->kern_base = NULL;
 		kfree(image->bus_resource.name);
 		release_resource(&image->bus_resource);
-		memset(&image->bus_resource, 0, sizeof(struct resource));
+		memset(&image->bus_resource, 0, sizeof(image->bus_resource));
 	}
 
 	/* Exit here if size is zero */
 	if (size == 0)
 		return 0;
 
-	if (image->bus_resource.name == NULL) {
+	if (!image->bus_resource.name) {
 		image->bus_resource.name = kmalloc(VMENAMSIZ+3, GFP_ATOMIC);
-		if (image->bus_resource.name == NULL) {
-			dev_err(tsi148_bridge->parent, "Unable to allocate "
-				"memory for resource name\n");
+		if (!image->bus_resource.name) {
 			retval = -ENOMEM;
 			goto err_name;
 		}
@@ -778,7 +772,7 @@ static int tsi148_alloc_resource(struct vme_master_resource *image,
 
 	image->kern_base = ioremap_nocache(
 		image->bus_resource.start, size);
-	if (image->kern_base == NULL) {
+	if (!image->kern_base) {
 		dev_err(tsi148_bridge->parent, "Failed to remap resource\n");
 		retval = -ENOMEM;
 		goto err_remap;
@@ -790,7 +784,7 @@ err_remap:
 	release_resource(&image->bus_resource);
 err_resource:
 	kfree(image->bus_resource.name);
-	memset(&image->bus_resource, 0, sizeof(struct resource));
+	memset(&image->bus_resource, 0, sizeof(image->bus_resource));
 err_name:
 	return retval;
 }
@@ -804,7 +798,7 @@ static void tsi148_free_resource(struct vme_master_resource *image)
 	image->kern_base = NULL;
 	release_resource(&image->bus_resource);
 	kfree(image->bus_resource.name);
-	memset(&image->bus_resource, 0, sizeof(struct resource));
+	memset(&image->bus_resource, 0, sizeof(image->bus_resource));
 }
 
 /*
@@ -1641,10 +1635,8 @@ static int tsi148_dma_list_add(struct vme_dma_list *list,
 	tsi148_bridge = list->parent->parent;
 
 	/* Descriptor must be aligned on 64-bit boundaries */
-	entry = kmalloc(sizeof(struct tsi148_dma_entry), GFP_KERNEL);
-	if (entry == NULL) {
-		dev_err(tsi148_bridge->parent, "Failed to allocate memory for "
-			"dma resource structure\n");
+	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+	if (!entry) {
 		retval = -ENOMEM;
 		goto err_mem;
 	}
@@ -1661,7 +1653,7 @@ static int tsi148_dma_list_add(struct vme_dma_list *list,
 	/* Given we are going to fill out the structure, we probably don't
 	 * need to zero it, but better safe than sorry for now.
 	 */
-	memset(&entry->descriptor, 0, sizeof(struct tsi148_dma_descriptor));
+	memset(&entry->descriptor, 0, sizeof(entry->descriptor));
 
 	/* Fill out source part */
 	switch (src->type) {
@@ -1756,8 +1748,9 @@ static int tsi148_dma_list_add(struct vme_dma_list *list,
 	list_add_tail(&entry->list, &list->entries);
 
 	entry->dma_handle = dma_map_single(tsi148_bridge->parent,
-		&entry->descriptor,
-		sizeof(struct tsi148_dma_descriptor), DMA_TO_DEVICE);
+					   &entry->descriptor,
+					   sizeof(entry->descriptor),
+					   DMA_TO_DEVICE);
 	if (dma_mapping_error(tsi148_bridge->parent, entry->dma_handle)) {
 		dev_err(tsi148_bridge->parent, "DMA mapping error\n");
 		retval = -EINVAL;
@@ -1946,7 +1939,7 @@ static int tsi148_lm_set(struct vme_lm_resource *lm, unsigned long long lm_base,
 
 	/* If we already have a callback attached, we can't move it! */
 	for (i = 0; i < lm->monitors; i++) {
-		if (bridge->lm_callback[i] != NULL) {
+		if (bridge->lm_callback[i]) {
 			mutex_unlock(&lm->mtx);
 			dev_err(tsi148_bridge->parent, "Location monitor "
 				"callback attached, can't reset\n");
@@ -2071,7 +2064,7 @@ static int tsi148_lm_attach(struct vme_lm_resource *lm, int monitor,
 	}
 
 	/* Check that a callback isn't already attached */
-	if (bridge->lm_callback[monitor] != NULL) {
+	if (bridge->lm_callback[monitor]) {
 		mutex_unlock(&lm->mtx);
 		dev_err(tsi148_bridge->parent, "Existing callback attached\n");
 		return -EBUSY;
@@ -2208,7 +2201,7 @@ static int tsi148_crcsr_init(struct vme_bridge *tsi148_bridge,
 	/* Allocate mem for CR/CSR image */
 	bridge->crcsr_kernel = pci_zalloc_consistent(pdev, VME_CRCSR_BUF_SIZE,
 						     &bridge->crcsr_bus);
-	if (bridge->crcsr_kernel == NULL) {
+	if (!bridge->crcsr_kernel) {
 		dev_err(tsi148_bridge->parent, "Failed to allocate memory for "
 			"CR/CSR image\n");
 		return -ENOMEM;
@@ -2294,19 +2287,15 @@ static int tsi148_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* If we want to support more than one of each bridge, we need to
 	 * dynamically generate this so we get one per device
 	 */
-	tsi148_bridge = kzalloc(sizeof(struct vme_bridge), GFP_KERNEL);
-	if (tsi148_bridge == NULL) {
-		dev_err(&pdev->dev, "Failed to allocate memory for device "
-			"structure\n");
+	tsi148_bridge = kzalloc(sizeof(*tsi148_bridge), GFP_KERNEL);
+	if (!tsi148_bridge) {
 		retval = -ENOMEM;
 		goto err_struct;
 	}
 	vme_init_bridge(tsi148_bridge);
 
-	tsi148_device = kzalloc(sizeof(struct tsi148_driver), GFP_KERNEL);
-	if (tsi148_device == NULL) {
-		dev_err(&pdev->dev, "Failed to allocate memory for device "
-			"structure\n");
+	tsi148_device = kzalloc(sizeof(*tsi148_device), GFP_KERNEL);
+	if (!tsi148_device) {
 		retval = -ENOMEM;
 		goto err_driver;
 	}
@@ -2371,10 +2360,9 @@ static int tsi148_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		master_num--;
 
 		tsi148_device->flush_image =
-			kmalloc(sizeof(struct vme_master_resource), GFP_KERNEL);
-		if (tsi148_device->flush_image == NULL) {
-			dev_err(&pdev->dev, "Failed to allocate memory for "
-			"flush resource structure\n");
+			kmalloc(sizeof(*tsi148_device->flush_image),
+				GFP_KERNEL);
+		if (!tsi148_device->flush_image) {
 			retval = -ENOMEM;
 			goto err_master;
 		}
@@ -2383,17 +2371,14 @@ static int tsi148_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		tsi148_device->flush_image->locked = 1;
 		tsi148_device->flush_image->number = master_num;
 		memset(&tsi148_device->flush_image->bus_resource, 0,
-			sizeof(struct resource));
+		       sizeof(tsi148_device->flush_image->bus_resource));
 		tsi148_device->flush_image->kern_base  = NULL;
 	}
 
 	/* Add master windows to list */
 	for (i = 0; i < master_num; i++) {
-		master_image = kmalloc(sizeof(struct vme_master_resource),
-			GFP_KERNEL);
-		if (master_image == NULL) {
-			dev_err(&pdev->dev, "Failed to allocate memory for "
-			"master resource structure\n");
+		master_image = kmalloc(sizeof(*master_image), GFP_KERNEL);
+		if (!master_image) {
 			retval = -ENOMEM;
 			goto err_master;
 		}
@@ -2410,7 +2395,7 @@ static int tsi148_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			VME_PROG | VME_DATA;
 		master_image->width_attr = VME_D16 | VME_D32;
 		memset(&master_image->bus_resource, 0,
-			sizeof(struct resource));
+		       sizeof(master_image->bus_resource));
 		master_image->kern_base  = NULL;
 		list_add_tail(&master_image->list,
 			&tsi148_bridge->master_resources);
@@ -2418,11 +2403,8 @@ static int tsi148_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	/* Add slave windows to list */
 	for (i = 0; i < TSI148_MAX_SLAVE; i++) {
-		slave_image = kmalloc(sizeof(struct vme_slave_resource),
-			GFP_KERNEL);
-		if (slave_image == NULL) {
-			dev_err(&pdev->dev, "Failed to allocate memory for "
-			"slave resource structure\n");
+		slave_image = kmalloc(sizeof(*slave_image), GFP_KERNEL);
+		if (!slave_image) {
 			retval = -ENOMEM;
 			goto err_slave;
 		}
@@ -2442,11 +2424,8 @@ static int tsi148_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	/* Add dma engines to list */
 	for (i = 0; i < TSI148_MAX_DMA; i++) {
-		dma_ctrlr = kmalloc(sizeof(struct vme_dma_resource),
-			GFP_KERNEL);
-		if (dma_ctrlr == NULL) {
-			dev_err(&pdev->dev, "Failed to allocate memory for "
-			"dma resource structure\n");
+		dma_ctrlr = kmalloc(sizeof(*dma_ctrlr), GFP_KERNEL);
+		if (!dma_ctrlr) {
 			retval = -ENOMEM;
 			goto err_dma;
 		}
@@ -2465,10 +2444,8 @@ static int tsi148_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	/* Add location monitor to list */
-	lm = kmalloc(sizeof(struct vme_lm_resource), GFP_KERNEL);
-	if (lm == NULL) {
-		dev_err(&pdev->dev, "Failed to allocate memory for "
-		"location monitor resource structure\n");
+	lm = kmalloc(sizeof(*lm), GFP_KERNEL);
+	if (!lm) {
 		retval = -ENOMEM;
 		goto err_lm;
 	}

@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2010 Werner Fink, Jiri Slaby
- *
- * Licensed under GPLv2
  */
 
 #include <linux/console.h>
@@ -55,8 +54,7 @@ static int show_console_dev(struct seq_file *m, void *v)
 	if (dev)
 		seq_printf(m, " %4d:%d", MAJOR(dev), MINOR(dev));
 
-	seq_printf(m, "\n");
-
+	seq_putc(m, '\n');
 	return 0;
 }
 
@@ -92,21 +90,9 @@ static const struct seq_operations consoles_op = {
 	.show	= show_console_dev
 };
 
-static int consoles_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &consoles_op);
-}
-
-static const struct file_operations proc_consoles_operations = {
-	.open		= consoles_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
-};
-
 static int __init proc_consoles_init(void)
 {
-	proc_create("consoles", 0, NULL, &proc_consoles_operations);
+	proc_create_seq("consoles", 0, NULL, &consoles_op);
 	return 0;
 }
 fs_initcall(proc_consoles_init);

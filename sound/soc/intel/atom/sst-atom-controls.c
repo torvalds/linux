@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
  /*
  *  sst-atom-controls.c - Intel MID Platform driver DPCM ALSA controls for Mrfld
  *
@@ -5,15 +6,6 @@
  *  Author: Omair Mohammed Abdullah <omair.m.abdullah@intel.com>
  *	Vinod Koul <vinod.koul@intel.com>
  *  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; version 2 of the License.
- *
- *  This program is distributed in the hope that it will be useful, but
- *  WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  General Public License for more details.
  *
  *  In the dpcm driver modelling when a particular FE/BE/Mixer/Pipe is active
  *  we forward the settings and parameters, rest we keep the values  in
@@ -647,7 +639,7 @@ static int sst_swm_mixer_event(struct snd_soc_dapm_widget *w,
 		set_mixer = false;
 	}
 
-	if (set_mixer == false)
+	if (!set_mixer)
 		return 0;
 
 	if (SND_SOC_DAPM_EVENT_ON(event) ||
@@ -801,13 +793,11 @@ static int sst_get_frame_sync_polarity(struct snd_soc_dai *dai,
 
 	switch (format) {
 	case SND_SOC_DAIFMT_NB_NF:
-		return SSP_FS_ACTIVE_LOW;
-	case SND_SOC_DAIFMT_NB_IF:
-		return SSP_FS_ACTIVE_HIGH;
-	case SND_SOC_DAIFMT_IB_IF:
-		return SSP_FS_ACTIVE_LOW;
 	case SND_SOC_DAIFMT_IB_NF:
 		return SSP_FS_ACTIVE_HIGH;
+	case SND_SOC_DAIFMT_NB_IF:
+	case SND_SOC_DAIFMT_IB_IF:
+		return SSP_FS_ACTIVE_LOW;
 	default:
 		dev_err(dai->dev, "Invalid frame sync polarity %d\n", format);
 	}
@@ -937,7 +927,7 @@ int send_ssp_cmd(struct snd_soc_dai *dai, const char *id, bool enable)
 	struct sst_data *drv = snd_soc_dai_get_drvdata(dai);
 	int ssp_id;
 
-	dev_info(dai->dev, "Enter: enable=%d port_name=%s\n", enable, id);
+	dev_dbg(dai->dev, "Enter: enable=%d port_name=%s\n", enable, id);
 
 	if (strcmp(id, "ssp0-port") == 0)
 		ssp_id = SSP_MODEM;
@@ -1087,8 +1077,8 @@ static const struct snd_soc_dapm_widget sst_dapm_widgets[] = {
 	SST_PATH_INPUT("sprot_loop_in", SST_TASK_SBA, SST_SWM_IN_SPROT_LOOP, NULL),
 	SST_PATH_INPUT("media_loop1_in", SST_TASK_SBA, SST_SWM_IN_MEDIA_LOOP1, NULL),
 	SST_PATH_INPUT("media_loop2_in", SST_TASK_SBA, SST_SWM_IN_MEDIA_LOOP2, NULL),
-	SST_PATH_MEDIA_LOOP_OUTPUT("sprot_loop_out", SST_TASK_SBA, SST_SWM_OUT_SPROT_LOOP, SST_FMT_MONO, sst_set_media_loop),
-	SST_PATH_MEDIA_LOOP_OUTPUT("media_loop1_out", SST_TASK_SBA, SST_SWM_OUT_MEDIA_LOOP1, SST_FMT_MONO, sst_set_media_loop),
+	SST_PATH_MEDIA_LOOP_OUTPUT("sprot_loop_out", SST_TASK_SBA, SST_SWM_OUT_SPROT_LOOP, SST_FMT_STEREO, sst_set_media_loop),
+	SST_PATH_MEDIA_LOOP_OUTPUT("media_loop1_out", SST_TASK_SBA, SST_SWM_OUT_MEDIA_LOOP1, SST_FMT_STEREO, sst_set_media_loop),
 	SST_PATH_MEDIA_LOOP_OUTPUT("media_loop2_out", SST_TASK_SBA, SST_SWM_OUT_MEDIA_LOOP2, SST_FMT_STEREO, sst_set_media_loop),
 
 	/* Media Mixers */
@@ -1416,11 +1406,11 @@ static int sst_fill_module_list(struct snd_kcontrol *kctl,
  * name. First part of control name contains the pipe name (widget name).
  */
 static int sst_fill_widget_module_info(struct snd_soc_dapm_widget *w,
-	struct snd_soc_platform *platform)
+	struct snd_soc_component *component)
 {
 	struct snd_kcontrol *kctl;
 	int index, ret = 0;
-	struct snd_card *card = platform->component.card->snd_card;
+	struct snd_card *card = component->card->snd_card;
 	char *idx;
 
 	down_read(&card->controls_rwsem);
@@ -1470,13 +1460,13 @@ static int sst_fill_widget_module_info(struct snd_soc_dapm_widget *w,
 /**
  * sst_fill_linked_widgets - fill the parent pointer for the linked widget
  */
-static void sst_fill_linked_widgets(struct snd_soc_platform *platform,
+static void sst_fill_linked_widgets(struct snd_soc_component *component,
 						struct sst_ids *ids)
 {
 	struct snd_soc_dapm_widget *w;
 	unsigned int len = strlen(ids->parent_wname);
 
-	list_for_each_entry(w, &platform->component.card->widgets, list) {
+	list_for_each_entry(w, &component->card->widgets, list) {
 		if (!strncmp(ids->parent_wname, w->name, len)) {
 			ids->parent_w = w;
 			break;
@@ -1487,41 +1477,41 @@ static void sst_fill_linked_widgets(struct snd_soc_platform *platform,
 /**
  * sst_map_modules_to_pipe - fill algo/gains list for all pipes
  */
-static int sst_map_modules_to_pipe(struct snd_soc_platform *platform)
+static int sst_map_modules_to_pipe(struct snd_soc_component *component)
 {
 	struct snd_soc_dapm_widget *w;
 	int ret = 0;
 
-	list_for_each_entry(w, &platform->component.card->widgets, list) {
+	list_for_each_entry(w, &component->card->widgets, list) {
 		if (is_sst_dapm_widget(w) && (w->priv)) {
 			struct sst_ids *ids = w->priv;
 
-			dev_dbg(platform->dev, "widget type=%d name=%s\n",
+			dev_dbg(component->dev, "widget type=%d name=%s\n",
 					w->id, w->name);
 			INIT_LIST_HEAD(&ids->algo_list);
 			INIT_LIST_HEAD(&ids->gain_list);
-			ret = sst_fill_widget_module_info(w, platform);
+			ret = sst_fill_widget_module_info(w, component);
 
 			if (ret < 0)
 				return ret;
 
 			/* fill linked widgets */
 			if (ids->parent_wname !=  NULL)
-				sst_fill_linked_widgets(platform, ids);
+				sst_fill_linked_widgets(component, ids);
 		}
 	}
 	return 0;
 }
 
-int sst_dsp_init_v2_dpcm(struct snd_soc_platform *platform)
+int sst_dsp_init_v2_dpcm(struct snd_soc_component *component)
 {
 	int i, ret = 0;
 	struct snd_soc_dapm_context *dapm =
-			snd_soc_component_get_dapm(&platform->component);
-	struct sst_data *drv = snd_soc_platform_get_drvdata(platform);
+			snd_soc_component_get_dapm(component);
+	struct sst_data *drv = snd_soc_component_get_drvdata(component);
 	unsigned int gains = ARRAY_SIZE(sst_gain_controls)/3;
 
-	drv->byte_stream = devm_kzalloc(platform->dev,
+	drv->byte_stream = devm_kzalloc(component->dev,
 					SST_MAX_BIN_BYTES, GFP_KERNEL);
 	if (!drv->byte_stream)
 		return -ENOMEM;
@@ -1539,26 +1529,26 @@ int sst_dsp_init_v2_dpcm(struct snd_soc_platform *platform)
 		sst_gains[i].ramp_duration = SST_GAIN_RAMP_DURATION_DEFAULT;
 	}
 
-	ret = snd_soc_add_platform_controls(platform, sst_gain_controls,
+	ret = snd_soc_add_component_controls(component, sst_gain_controls,
 			ARRAY_SIZE(sst_gain_controls));
 	if (ret)
 		return ret;
 
 	/* Initialize algo control params */
-	ret = sst_algo_control_init(platform->dev);
+	ret = sst_algo_control_init(component->dev);
 	if (ret)
 		return ret;
-	ret = snd_soc_add_platform_controls(platform, sst_algo_controls,
+	ret = snd_soc_add_component_controls(component, sst_algo_controls,
 			ARRAY_SIZE(sst_algo_controls));
 	if (ret)
 		return ret;
 
-	ret = snd_soc_add_platform_controls(platform, sst_slot_controls,
+	ret = snd_soc_add_component_controls(component, sst_slot_controls,
 			ARRAY_SIZE(sst_slot_controls));
 	if (ret)
 		return ret;
 
-	ret = sst_map_modules_to_pipe(platform);
+	ret = sst_map_modules_to_pipe(component);
 
 	return ret;
 }

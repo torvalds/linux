@@ -1,12 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2011 - 2012 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
  * header file for Samsung EXYNOS5 SoC series G-Scaler driver
 
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef GSC_CORE_H_
@@ -33,6 +31,7 @@
 
 #define GSC_SHUTDOWN_TIMEOUT		((100*HZ)/1000)
 #define GSC_MAX_DEVS			4
+#define GSC_MAX_CLOCKS			4
 #define GSC_M2M_BUF_NUM			0
 #define GSC_MAX_CTRL_NUM		10
 #define GSC_SC_ALIGN_4			4
@@ -48,9 +47,6 @@
 #define	GSC_CTX_ABORT			(1 << 7)
 
 enum gsc_dev_flags {
-	/* for global */
-	ST_SUSPEND,
-
 	/* for m2m node */
 	ST_M2M_OPEN,
 	ST_M2M_RUN,
@@ -306,12 +302,12 @@ struct gsc_variant {
  * struct gsc_driverdata - per device type driver data for init time.
  *
  * @variant: the variant information for this driver.
- * @lclk_frequency: G-Scaler clock frequency
  * @num_entities: the number of g-scalers
  */
 struct gsc_driverdata {
 	struct gsc_variant *variant[GSC_MAX_DEVS];
-	unsigned long	lclk_frequency;
+	const char	*clk_names[GSC_MAX_CLOCKS];
+	int		num_clocks;
 	int		num_entities;
 };
 
@@ -335,7 +331,8 @@ struct gsc_dev {
 	struct platform_device		*pdev;
 	struct gsc_variant		*variant;
 	u16				id;
-	struct clk			*clock;
+	int				num_clocks;
+	struct clk			*clock[GSC_MAX_CLOCKS];
 	void __iomem			*regs;
 	wait_queue_head_t		irq_queue;
 	struct gsc_m2m_device		m2m;
@@ -377,6 +374,7 @@ struct gsc_ctx {
 	struct v4l2_ctrl_handler ctrl_handler;
 	struct gsc_ctrls	gsc_ctrls;
 	bool			ctrls_rdy;
+	enum v4l2_colorspace out_colorspace;
 };
 
 void gsc_set_prefbuf(struct gsc_dev *gsc, struct gsc_frame *frm);
@@ -387,13 +385,12 @@ void gsc_m2m_job_finish(struct gsc_ctx *ctx, int vb_state);
 u32 get_plane_size(struct gsc_frame *fr, unsigned int plane);
 const struct gsc_fmt *get_format(int index);
 const struct gsc_fmt *find_fmt(u32 *pixelformat, u32 *mbus_code, u32 index);
-int gsc_enum_fmt_mplane(struct v4l2_fmtdesc *f);
+int gsc_enum_fmt(struct v4l2_fmtdesc *f);
 int gsc_try_fmt_mplane(struct gsc_ctx *ctx, struct v4l2_format *f);
 void gsc_set_frame_size(struct gsc_frame *frame, int width, int height);
 int gsc_g_fmt_mplane(struct gsc_ctx *ctx, struct v4l2_format *f);
 void gsc_check_crop_change(u32 tmp_w, u32 tmp_h, u32 *w, u32 *h);
-int gsc_g_crop(struct gsc_ctx *ctx, struct v4l2_crop *cr);
-int gsc_try_crop(struct gsc_ctx *ctx, struct v4l2_crop *cr);
+int gsc_try_selection(struct gsc_ctx *ctx, struct v4l2_selection *s);
 int gsc_cal_prescaler_ratio(struct gsc_variant *var, u32 src, u32 dst,
 							u32 *ratio);
 void gsc_get_prescaler_shfactor(u32 hratio, u32 vratio, u32 *sh);

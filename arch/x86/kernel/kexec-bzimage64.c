@@ -1,12 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Kexec bzImage loader
  *
  * Copyright (C) 2014 Red Hat Inc.
  * Authors:
  *      Vivek Goyal <vgoyal@redhat.com>
- *
- * This source code is licensed under the GNU General Public License,
- * Version 2.  See the file COPYING for more details.
  */
 
 #define pr_fmt(fmt)	"kexec-bzImage64: " fmt
@@ -25,6 +23,7 @@
 #include <asm/setup.h>
 #include <asm/crash.h>
 #include <asm/efi.h>
+#include <asm/e820/api.h>
 #include <asm/kexec-bzimage64.h>
 
 #define MAX_ELFCOREHDR_STR_LEN	30	/* elfcorehdr=0x<64bit-value> */
@@ -99,15 +98,14 @@ static int setup_e820_entries(struct boot_params *params)
 {
 	unsigned int nr_e820_entries;
 
-	nr_e820_entries = e820_saved->nr_map;
+	nr_e820_entries = e820_table_kexec->nr_entries;
 
-	/* TODO: Pass entries more than E820MAX in bootparams setup data */
-	if (nr_e820_entries > E820MAX)
-		nr_e820_entries = E820MAX;
+	/* TODO: Pass entries more than E820_MAX_ENTRIES_ZEROPAGE in bootparams setup data */
+	if (nr_e820_entries > E820_MAX_ENTRIES_ZEROPAGE)
+		nr_e820_entries = E820_MAX_ENTRIES_ZEROPAGE;
 
 	params->e820_entries = nr_e820_entries;
-	memcpy(&params->e820_map, &e820_saved->map,
-	       nr_e820_entries * sizeof(struct e820entry));
+	memcpy(&params->e820_table, &e820_table_kexec->entries, nr_e820_entries*sizeof(struct e820_entry));
 
 	return 0;
 }
@@ -167,6 +165,9 @@ setup_efi_state(struct boot_params *params, unsigned long params_load_addr,
 	struct efi_info *current_ei = &boot_params.efi_info;
 	struct efi_info *ei = &params->efi_info;
 
+	if (!efi_enabled(EFI_RUNTIME_SERVICES))
+		return 0;
+
 	if (!current_ei->efi_memmap_size)
 		return 0;
 
@@ -215,6 +216,9 @@ setup_boot_parameters(struct kimage *image, struct boot_params *params,
 	params->screen_info.ext_mem_k = 0;
 	params->alt_mem_k = 0;
 
+	/* Always fill in RSDP: it is either 0 or a valid value */
+	params->acpi_rsdp_addr = boot_params.acpi_rsdp_addr;
+
 	/* Default APM info */
 	memset(&params->apm_bios_info, 0, sizeof(params->apm_bios_info));
 
@@ -232,10 +236,10 @@ setup_boot_parameters(struct kimage *image, struct boot_params *params,
 	nr_e820_entries = params->e820_entries;
 
 	for (i = 0; i < nr_e820_entries; i++) {
-		if (params->e820_map[i].type != E820_RAM)
+		if (params->e820_table[i].type != E820_TYPE_RAM)
 			continue;
-		start = params->e820_map[i].addr;
-		end = params->e820_map[i].addr + params->e820_map[i].size - 1;
+		start = params->e820_table[i].addr;
+		end = params->e820_table[i].addr + params->e820_table[i].size - 1;
 
 		if ((start <= 0x100000) && end > 0x100000) {
 			mem_k = (end >> 10) - (0x100000 >> 10);
@@ -253,7 +257,6 @@ setup_boot_parameters(struct kimage *image, struct boot_params *params,
 	setup_efi_state(params, params_load_addr, efi_map_offset, efi_map_sz,
 			efi_setup_data_offset);
 #endif
-
 	/* Setup EDD info */
 	memcpy(params->eddbuf, boot_params.eddbuf,
 				EDDMAXNR * sizeof(struct edd_info));
@@ -316,6 +319,11 @@ static int bzImage64_probe(const char *buf, unsigned long len)
 		return ret;
 	}
 
+	if (!(header->xloadflags & XLF_5LEVEL) && pgtable_l5_enabled()) {
+		pr_err("bzImage cannot handle 5-level paging mode.\n");
+		return ret;
+	}
+
 	/* I've got a bzImage */
 	pr_debug("It's a relocatable bzImage64\n");
 	ret = 0;
@@ -331,17 +339,18 @@ static void *bzImage64_load(struct kimage *image, char *kernel,
 
 	struct setup_header *header;
 	int setup_sects, kern16_size, ret = 0;
-	unsigned long setup_header_size, params_cmdline_sz, params_misc_sz;
+	unsigned long setup_header_size, params_cmdline_sz;
 	struct boot_params *params;
 	unsigned long bootparam_load_addr, kernel_load_addr, initrd_load_addr;
-	unsigned long purgatory_load_addr;
-	unsigned long kernel_bufsz, kernel_memsz, kernel_align;
-	char *kernel_buf;
 	struct bzimage64_data *ldata;
 	struct kexec_entry64_regs regs64;
 	void *stack;
 	unsigned int setup_hdr_offset = offsetof(struct boot_params, hdr);
 	unsigned int efi_map_offset, efi_map_sz, efi_setup_data_offset;
+	struct kexec_buf kbuf = { .image = image, .buf_max = ULONG_MAX,
+				  .top_down = true };
+	struct kexec_buf pbuf = { .image = image, .buf_min = MIN_PURGATORY_ADDR,
+				  .buf_max = ULONG_MAX, .top_down = true };
 
 	header = (struct setup_header *)(kernel + setup_hdr_offset);
 	setup_sects = header->setup_sects;
@@ -379,14 +388,13 @@ static void *bzImage64_load(struct kimage *image, char *kernel,
 	 * Load purgatory. For 64bit entry point, purgatory  code can be
 	 * anywhere.
 	 */
-	ret = kexec_load_purgatory(image, MIN_PURGATORY_ADDR, ULONG_MAX, 1,
-				   &purgatory_load_addr);
+	ret = kexec_load_purgatory(image, &pbuf);
 	if (ret) {
 		pr_err("Loading purgatory failed\n");
 		return ERR_PTR(ret);
 	}
 
-	pr_debug("Loaded purgatory at 0x%lx\n", purgatory_load_addr);
+	pr_debug("Loaded purgatory at 0x%lx\n", pbuf.mem);
 
 
 	/*
@@ -398,57 +406,62 @@ static void *bzImage64_load(struct kimage *image, char *kernel,
 	 * little bit simple
 	 */
 	efi_map_sz = efi_get_runtime_map_size();
-	efi_map_sz = ALIGN(efi_map_sz, 16);
 	params_cmdline_sz = sizeof(struct boot_params) + cmdline_len +
 				MAX_ELFCOREHDR_STR_LEN;
 	params_cmdline_sz = ALIGN(params_cmdline_sz, 16);
-	params_misc_sz = params_cmdline_sz + efi_map_sz +
+	kbuf.bufsz = params_cmdline_sz + ALIGN(efi_map_sz, 16) +
 				sizeof(struct setup_data) +
 				sizeof(struct efi_setup_data);
 
-	params = kzalloc(params_misc_sz, GFP_KERNEL);
+	params = kzalloc(kbuf.bufsz, GFP_KERNEL);
 	if (!params)
 		return ERR_PTR(-ENOMEM);
 	efi_map_offset = params_cmdline_sz;
-	efi_setup_data_offset = efi_map_offset + efi_map_sz;
+	efi_setup_data_offset = efi_map_offset + ALIGN(efi_map_sz, 16);
 
-	/* Copy setup header onto bootparams. Documentation/x86/boot.txt */
+	/* Copy setup header onto bootparams. Documentation/x86/boot.rst */
 	setup_header_size = 0x0202 + kernel[0x0201] - setup_hdr_offset;
 
 	/* Is there a limit on setup header size? */
 	memcpy(&params->hdr, (kernel + setup_hdr_offset), setup_header_size);
 
-	ret = kexec_add_buffer(image, (char *)params, params_misc_sz,
-			       params_misc_sz, 16, MIN_BOOTPARAM_ADDR,
-			       ULONG_MAX, 1, &bootparam_load_addr);
+	kbuf.buffer = params;
+	kbuf.memsz = kbuf.bufsz;
+	kbuf.buf_align = 16;
+	kbuf.buf_min = MIN_BOOTPARAM_ADDR;
+	ret = kexec_add_buffer(&kbuf);
 	if (ret)
 		goto out_free_params;
+	bootparam_load_addr = kbuf.mem;
 	pr_debug("Loaded boot_param, command line and misc at 0x%lx bufsz=0x%lx memsz=0x%lx\n",
-		 bootparam_load_addr, params_misc_sz, params_misc_sz);
+		 bootparam_load_addr, kbuf.bufsz, kbuf.bufsz);
 
 	/* Load kernel */
-	kernel_buf = kernel + kern16_size;
-	kernel_bufsz =  kernel_len - kern16_size;
-	kernel_memsz = PAGE_ALIGN(header->init_size);
-	kernel_align = header->kernel_alignment;
-
-	ret = kexec_add_buffer(image, kernel_buf,
-			       kernel_bufsz, kernel_memsz, kernel_align,
-			       MIN_KERNEL_LOAD_ADDR, ULONG_MAX, 1,
-			       &kernel_load_addr);
+	kbuf.buffer = kernel + kern16_size;
+	kbuf.bufsz =  kernel_len - kern16_size;
+	kbuf.memsz = PAGE_ALIGN(header->init_size);
+	kbuf.buf_align = header->kernel_alignment;
+	kbuf.buf_min = MIN_KERNEL_LOAD_ADDR;
+	kbuf.mem = KEXEC_BUF_MEM_UNKNOWN;
+	ret = kexec_add_buffer(&kbuf);
 	if (ret)
 		goto out_free_params;
+	kernel_load_addr = kbuf.mem;
 
 	pr_debug("Loaded 64bit kernel at 0x%lx bufsz=0x%lx memsz=0x%lx\n",
-		 kernel_load_addr, kernel_memsz, kernel_memsz);
+		 kernel_load_addr, kbuf.bufsz, kbuf.memsz);
 
 	/* Load initrd high */
 	if (initrd) {
-		ret = kexec_add_buffer(image, initrd, initrd_len, initrd_len,
-				       PAGE_SIZE, MIN_INITRD_LOAD_ADDR,
-				       ULONG_MAX, 1, &initrd_load_addr);
+		kbuf.buffer = initrd;
+		kbuf.bufsz = kbuf.memsz = initrd_len;
+		kbuf.buf_align = PAGE_SIZE;
+		kbuf.buf_min = MIN_INITRD_LOAD_ADDR;
+		kbuf.mem = KEXEC_BUF_MEM_UNKNOWN;
+		ret = kexec_add_buffer(&kbuf);
 		if (ret)
 			goto out_free_params;
+		initrd_load_addr = kbuf.mem;
 
 		pr_debug("Loaded initrd at 0x%lx bufsz=0x%lx memsz=0x%lx\n",
 				initrd_load_addr, initrd_len, initrd_len);
@@ -528,13 +541,21 @@ static int bzImage64_cleanup(void *loader_data)
 #ifdef CONFIG_KEXEC_BZIMAGE_VERIFY_SIG
 static int bzImage64_verify_sig(const char *kernel, unsigned long kernel_len)
 {
-	return verify_pefile_signature(kernel, kernel_len,
-				       NULL,
-				       VERIFYING_KEXEC_PE_SIGNATURE);
+	int ret;
+
+	ret = verify_pefile_signature(kernel, kernel_len,
+				      VERIFY_USE_SECONDARY_KEYRING,
+				      VERIFYING_KEXEC_PE_SIGNATURE);
+	if (ret == -ENOKEY && IS_ENABLED(CONFIG_INTEGRITY_PLATFORM_KEYRING)) {
+		ret = verify_pefile_signature(kernel, kernel_len,
+					      VERIFY_USE_PLATFORM_KEYRING,
+					      VERIFYING_KEXEC_PE_SIGNATURE);
+	}
+	return ret;
 }
 #endif
 
-struct kexec_file_ops kexec_bzImage64_ops = {
+const struct kexec_file_ops kexec_bzImage64_ops = {
 	.probe = bzImage64_probe,
 	.load = bzImage64_load,
 	.cleanup = bzImage64_cleanup,

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2015 - 2016 Samsung Electronics Co., Ltd.
  *
@@ -8,21 +9,19 @@
  *
  * This module provides regmap for the Top SFR region and instantiates
  * devices for IP blocks like DMAC, I2S, UART.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
  */
 
+#include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/mfd/syscon.h>
-#include <linux/mfd/syscon/exynos5-pmu.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/regmap.h>
+#include <linux/soc/samsung/exynos-regs-pmu.h>
 #include <linux/types.h>
 
 /* LPASS Top register definitions */
@@ -51,10 +50,9 @@
 #define  LPASS_INTR_SFR			BIT(0)
 
 struct exynos_lpass {
-	/* pointer to the Power Management Unit regmap */
-	struct regmap *pmu;
 	/* pointer to the LPASS TOP regmap */
 	struct regmap *top;
+	struct clk *sfr0_clk;
 };
 
 static void exynos_lpass_core_sw_reset(struct exynos_lpass *lpass, int mask)
@@ -74,20 +72,20 @@ static void exynos_lpass_core_sw_reset(struct exynos_lpass *lpass, int mask)
 
 static void exynos_lpass_enable(struct exynos_lpass *lpass)
 {
+	clk_prepare_enable(lpass->sfr0_clk);
+
 	/* Unmask SFR, DMA and I2S interrupt */
 	regmap_write(lpass->top, SFR_LPASS_INTR_CA5_MASK,
 		     LPASS_INTR_SFR | LPASS_INTR_DMA | LPASS_INTR_I2S);
 
 	regmap_write(lpass->top, SFR_LPASS_INTR_CPU_MASK,
-		     LPASS_INTR_SFR | LPASS_INTR_DMA | LPASS_INTR_I2S);
-
-	/* Activate related PADs from retention state */
-	regmap_write(lpass->pmu, EXYNOS5433_PAD_RETENTION_AUD_OPTION,
-		     EXYNOS5433_PAD_INITIATE_WAKEUP_FROM_LOWPWR);
+		     LPASS_INTR_SFR | LPASS_INTR_DMA | LPASS_INTR_I2S |
+		     LPASS_INTR_UART);
 
 	exynos_lpass_core_sw_reset(lpass, LPASS_I2S_SW_RESET);
 	exynos_lpass_core_sw_reset(lpass, LPASS_DMA_SW_RESET);
 	exynos_lpass_core_sw_reset(lpass, LPASS_MEM_SW_RESET);
+	exynos_lpass_core_sw_reset(lpass, LPASS_UART_SW_RESET);
 }
 
 static void exynos_lpass_disable(struct exynos_lpass *lpass)
@@ -96,8 +94,7 @@ static void exynos_lpass_disable(struct exynos_lpass *lpass)
 	regmap_write(lpass->top, SFR_LPASS_INTR_CPU_MASK, 0);
 	regmap_write(lpass->top, SFR_LPASS_INTR_CA5_MASK, 0);
 
-	/* Deactivate related PADs from retention state */
-	regmap_write(lpass->pmu, EXYNOS5433_PAD_RETENTION_AUD_OPTION, 0);
+	clk_disable_unprepare(lpass->sfr0_clk);
 }
 
 static const struct regmap_config exynos_lpass_reg_conf = {
@@ -124,6 +121,10 @@ static int exynos_lpass_probe(struct platform_device *pdev)
 	if (IS_ERR(base_top))
 		return PTR_ERR(base_top);
 
+	lpass->sfr0_clk = devm_clk_get(dev, "sfr0_ctrl");
+	if (IS_ERR(lpass->sfr0_clk))
+		return PTR_ERR(lpass->sfr0_clk);
+
 	lpass->top = regmap_init_mmio(dev, base_top,
 					&exynos_lpass_reg_conf);
 	if (IS_ERR(lpass->top)) {
@@ -131,17 +132,25 @@ static int exynos_lpass_probe(struct platform_device *pdev)
 		return PTR_ERR(lpass->top);
 	}
 
-	lpass->pmu = syscon_regmap_lookup_by_phandle(dev->of_node,
-						"samsung,pmu-syscon");
-	if (IS_ERR(lpass->pmu)) {
-		dev_err(dev, "Failed to lookup PMU regmap\n");
-		return PTR_ERR(lpass->pmu);
-	}
-
 	platform_set_drvdata(pdev, lpass);
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
 	exynos_lpass_enable(lpass);
 
-	return of_platform_populate(dev->of_node, NULL, NULL, dev);
+	return devm_of_platform_populate(dev);
+}
+
+static int exynos_lpass_remove(struct platform_device *pdev)
+{
+	struct exynos_lpass *lpass = platform_get_drvdata(pdev);
+
+	exynos_lpass_disable(lpass);
+	pm_runtime_disable(&pdev->dev);
+	if (!pm_runtime_status_suspended(&pdev->dev))
+		exynos_lpass_disable(lpass);
+	regmap_exit(lpass->top);
+
+	return 0;
 }
 
 static int __maybe_unused exynos_lpass_suspend(struct device *dev)
@@ -162,8 +171,11 @@ static int __maybe_unused exynos_lpass_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(lpass_pm_ops, exynos_lpass_suspend,
-					exynos_lpass_resume);
+static const struct dev_pm_ops lpass_pm_ops = {
+	SET_RUNTIME_PM_OPS(exynos_lpass_suspend, exynos_lpass_resume, NULL)
+	SET_LATE_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				     pm_runtime_force_resume)
+};
 
 static const struct of_device_id exynos_lpass_of_match[] = {
 	{ .compatible = "samsung,exynos5433-lpass" },
@@ -178,6 +190,7 @@ static struct platform_driver exynos_lpass_driver = {
 		.of_match_table	= exynos_lpass_of_match,
 	},
 	.probe	= exynos_lpass_probe,
+	.remove	= exynos_lpass_remove,
 };
 module_platform_driver(exynos_lpass_driver);
 

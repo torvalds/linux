@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * This file is part of UBIFS.
  *
  * Copyright (C) 2006-2008 Nokia Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 51
- * Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  *
  * Authors: Artem Bityutskiy (Битюцкий Артём)
  *          Adrian Hunter
@@ -132,7 +120,7 @@ void ubifs_add_bud(struct ubifs_info *c, struct ubifs_bud *bud)
 	while (*p) {
 		parent = *p;
 		b = rb_entry(parent, struct ubifs_bud, rb);
-		ubifs_assert(bud->lnum != b->lnum);
+		ubifs_assert(c, bud->lnum != b->lnum);
 		if (bud->lnum < b->lnum)
 			p = &(*p)->rb_left;
 		else
@@ -145,7 +133,7 @@ void ubifs_add_bud(struct ubifs_info *c, struct ubifs_bud *bud)
 		jhead = &c->jheads[bud->jhead];
 		list_add_tail(&bud->list, &jhead->buds_list);
 	} else
-		ubifs_assert(c->replaying && c->ro_mount);
+		ubifs_assert(c, c->replaying && c->ro_mount);
 
 	/*
 	 * Note, although this is a new bud, we anyway account this space now,
@@ -167,10 +155,10 @@ void ubifs_add_bud(struct ubifs_info *c, struct ubifs_bud *bud)
  * @lnum: LEB number of the bud
  * @offs: starting offset of the bud
  *
- * This function writes reference node for the new bud LEB @lnum it to the log,
- * and adds it to the buds tress. It also makes sure that log size does not
+ * This function writes a reference node for the new bud LEB @lnum to the log,
+ * and adds it to the buds trees. It also makes sure that log size does not
  * exceed the 'c->max_bud_bytes' limit. Returns zero in case of success,
- * %-EAGAIN if commit is required, and a negative error codes in case of
+ * %-EAGAIN if commit is required, and a negative error code in case of
  * failure.
  */
 int ubifs_add_bud_to_log(struct ubifs_info *c, int jhead, int lnum, int offs)
@@ -189,7 +177,7 @@ int ubifs_add_bud_to_log(struct ubifs_info *c, int jhead, int lnum, int offs)
 	}
 
 	mutex_lock(&c->log_mutex);
-	ubifs_assert(!c->ro_media && !c->ro_mount);
+	ubifs_assert(c, !c->ro_media && !c->ro_mount);
 	if (c->ro_error) {
 		err = -EROFS;
 		goto out_unlock;
@@ -236,6 +224,7 @@ int ubifs_add_bud_to_log(struct ubifs_info *c, int jhead, int lnum, int offs)
 	bud->lnum = lnum;
 	bud->start = offs;
 	bud->jhead = jhead;
+	bud->log_hash = NULL;
 
 	ref->ch.node_type = UBIFS_REF_NODE;
 	ref->lnum = cpu_to_le32(bud->lnum);
@@ -244,7 +233,7 @@ int ubifs_add_bud_to_log(struct ubifs_info *c, int jhead, int lnum, int offs)
 
 	if (c->lhead_offs > c->leb_size - c->ref_node_alsz) {
 		c->lhead_lnum = ubifs_next_log_lnum(c, c->lhead_lnum);
-		ubifs_assert(c->lhead_lnum != c->ltail_lnum);
+		ubifs_assert(c, c->lhead_lnum != c->ltail_lnum);
 		c->lhead_offs = 0;
 	}
 
@@ -275,6 +264,14 @@ int ubifs_add_bud_to_log(struct ubifs_info *c, int jhead, int lnum, int offs)
 	if (err)
 		goto out_unlock;
 
+	err = ubifs_shash_update(c, c->log_hash, ref, UBIFS_REF_NODE_SZ);
+	if (err)
+		goto out_unlock;
+
+	err = ubifs_shash_copy_state(c, c->log_hash, c->jheads[jhead].log_hash);
+	if (err)
+		goto out_unlock;
+
 	c->lhead_offs += c->ref_node_alsz;
 
 	ubifs_add_bud(c, bud);
@@ -301,7 +298,7 @@ static void remove_buds(struct ubifs_info *c)
 {
 	struct rb_node *p;
 
-	ubifs_assert(list_empty(&c->old_buds));
+	ubifs_assert(c, list_empty(&c->old_buds));
 	c->cmt_bud_bytes = 0;
 	spin_lock(&c->buds_lock);
 	p = rb_first(&c->buds);
@@ -377,6 +374,14 @@ int ubifs_log_start_commit(struct ubifs_info *c, int *ltail_lnum)
 	cs->cmt_no = cpu_to_le64(c->cmt_no);
 	ubifs_prepare_node(c, cs, UBIFS_CS_NODE_SZ, 0);
 
+	err = ubifs_shash_init(c, c->log_hash);
+	if (err)
+		goto out;
+
+	err = ubifs_shash_update(c, c->log_hash, cs, UBIFS_CS_NODE_SZ);
+	if (err < 0)
+		goto out;
+
 	/*
 	 * Note, we do not lock 'c->log_mutex' because this is the commit start
 	 * phase and we are exclusively using the log. And we do not lock
@@ -402,6 +407,12 @@ int ubifs_log_start_commit(struct ubifs_info *c, int *ltail_lnum)
 
 		ubifs_prepare_node(c, ref, UBIFS_REF_NODE_SZ, 0);
 		len += UBIFS_REF_NODE_SZ;
+
+		err = ubifs_shash_update(c, c->log_hash, ref,
+					 UBIFS_REF_NODE_SZ);
+		if (err)
+			goto out;
+		ubifs_shash_copy_state(c, c->log_hash, c->jheads[i].log_hash);
 	}
 
 	ubifs_pad(c, buf + len, ALIGN(len, c->min_io_size) - len);
@@ -409,7 +420,7 @@ int ubifs_log_start_commit(struct ubifs_info *c, int *ltail_lnum)
 	/* Switch to the next log LEB */
 	if (c->lhead_offs) {
 		c->lhead_lnum = ubifs_next_log_lnum(c, c->lhead_lnum);
-		ubifs_assert(c->lhead_lnum != c->ltail_lnum);
+		ubifs_assert(c, c->lhead_lnum != c->ltail_lnum);
 		c->lhead_offs = 0;
 	}
 
@@ -427,10 +438,7 @@ int ubifs_log_start_commit(struct ubifs_info *c, int *ltail_lnum)
 	*ltail_lnum = c->lhead_lnum;
 
 	c->lhead_offs += len;
-	if (c->lhead_offs == c->leb_size) {
-		c->lhead_lnum = ubifs_next_log_lnum(c, c->lhead_lnum);
-		c->lhead_offs = 0;
-	}
+	ubifs_assert(c, c->lhead_offs < c->leb_size);
 
 	remove_buds(c);
 
@@ -516,6 +524,7 @@ int ubifs_log_post_commit(struct ubifs_info *c, int old_ltail_lnum)
 		if (err)
 			return err;
 		list_del(&bud->list);
+		kfree(bud->log_hash);
 		kfree(bud);
 	}
 	mutex_lock(&c->log_mutex);

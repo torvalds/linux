@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 #ifndef __NV04_DISPLAY_H__
 #define __NV04_DISPLAY_H__
 #include <subdev/bios.h>
@@ -81,6 +82,7 @@ struct nv04_display {
 	uint32_t saved_vga_font[4][16384];
 	uint32_t dac_users[4];
 	struct nouveau_bo *image[2];
+	struct nvif_notify flip;
 };
 
 static inline struct nv04_display *
@@ -91,9 +93,6 @@ nv04_display(struct drm_device *dev)
 
 /* nv04_display.c */
 int nv04_display_create(struct drm_device *);
-void nv04_display_destroy(struct drm_device *);
-int nv04_display_init(struct drm_device *);
-void nv04_display_fini(struct drm_device *);
 
 /* nv04_crtc.c */
 int nv04_crtc_create(struct drm_device *, int index);
@@ -129,7 +128,7 @@ nv_two_heads(struct drm_device *dev)
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	const int impl = dev->pdev->device & 0x0ff0;
 
-	if (drm->device.info.family >= NV_DEVICE_INFO_V0_CELSIUS && impl != 0x0100 &&
+	if (drm->client.device.info.family >= NV_DEVICE_INFO_V0_CELSIUS && impl != 0x0100 &&
 	    impl != 0x0150 && impl != 0x01a0 && impl != 0x0200)
 		return true;
 
@@ -148,7 +147,7 @@ nv_two_reg_pll(struct drm_device *dev)
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	const int impl = dev->pdev->device & 0x0ff0;
 
-	if (impl == 0x0310 || impl == 0x0340 || drm->device.info.family >= NV_DEVICE_INFO_V0_CURIE)
+	if (impl == 0x0310 || impl == 0x0340 || drm->client.device.info.family >= NV_DEVICE_INFO_V0_CURIE)
 		return true;
 	return false;
 }
@@ -169,18 +168,11 @@ static inline void
 nouveau_bios_run_init_table(struct drm_device *dev, u16 table,
 			    struct dcb_output *outp, int crtc)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nvkm_bios *bios = nvxx_bios(&drm->device);
-	struct nvbios_init init = {
-		.subdev = &bios->subdev,
-		.bios = bios,
-		.offset = table,
-		.outp = outp,
-		.crtc = crtc,
-		.execute = 1,
-	};
-
-	nvbios_exec(&init);
+	nvbios_init(&nvxx_bios(&nouveau_drm(dev)->client.device)->subdev, table,
+		init.outp = outp;
+		init.head = crtc;
+	);
 }
 
+int nv04_flip_complete(struct nvif_notify *);
 #endif

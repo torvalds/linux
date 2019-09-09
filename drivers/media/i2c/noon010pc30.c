@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for SiliconFile NOON010PC30 CIF (1/11") Image Sensor with ISP
  *
@@ -6,11 +7,6 @@
  *
  * Initial register configuration based on a driver authored by
  * HeungJun Kim <riverful.kim@samsung.com>.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/delay.h>
@@ -664,13 +660,13 @@ static const struct v4l2_subdev_core_ops noon010_core_ops = {
 	.log_status	= noon010_log_status,
 };
 
-static struct v4l2_subdev_pad_ops noon010_pad_ops = {
+static const struct v4l2_subdev_pad_ops noon010_pad_ops = {
 	.enum_mbus_code	= noon010_enum_mbus_code,
 	.get_fmt	= noon010_get_fmt,
 	.set_fmt	= noon010_set_fmt,
 };
 
-static struct v4l2_subdev_video_ops noon010_video_ops = {
+static const struct v4l2_subdev_video_ops noon010_video_ops = {
 	.s_stream	= noon010_s_stream,
 };
 
@@ -720,7 +716,8 @@ static int noon010_probe(struct i2c_client *client,
 	mutex_init(&info->lock);
 	sd = &info->sd;
 	v4l2_i2c_subdev_init(sd, client, &noon010_ops);
-	strlcpy(sd->name, MODULE_NAME, sizeof(sd->name));
+	/* Static name; NEVER use in new drivers! */
+	strscpy(sd->name, MODULE_NAME, sizeof(sd->name));
 
 	sd->internal_ops = &noon010_subdev_internal_ops;
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;

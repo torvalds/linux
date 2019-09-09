@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for ISSI IS31FL32xx family of I2C LED controllers
  *
  * Copyright 2015 Allworx Corp.
- *
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Datasheets:
  *   http://www.issi.com/US/product-analog-fxled-driver.shtml
@@ -348,8 +344,8 @@ static int is31fl32xx_parse_child_dt(const struct device *dev,
 	ret = of_property_read_u32(child, "reg", &reg);
 	if (ret || reg < 1 || reg > led_data->priv->cdef->channels) {
 		dev_err(dev,
-			"Child node %s does not have a valid reg property\n",
-			child->full_name);
+			"Child node %pOF does not have a valid reg property\n",
+			child);
 		return -EINVAL;
 	}
 	led_data->channel = reg;

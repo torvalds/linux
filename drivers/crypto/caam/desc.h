@@ -1,8 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * CAAM descriptor composition header
  * Definitions to support CAAM descriptor instruction generation
  *
  * Copyright 2008-2011 Freescale Semiconductor, Inc.
+ * Copyright 2018 NXP
  */
 
 #ifndef DESC_H
@@ -21,12 +23,6 @@
 #define SEC4_SG_BPID_SHIFT	16
 #define SEC4_SG_LEN_MASK	0x3fffffff	/* Excludes EXT and FINAL */
 #define SEC4_SG_OFFSET_MASK	0x00001fff
-
-struct sec4_sg_entry {
-	u64 ptr;
-	u32 len;
-	u32 bpid_offset;
-};
 
 /* Max size of any CAAM descriptor in 32-bit words, inclusive of header */
 #define MAX_CAAM_DESCSIZE	64
@@ -90,8 +86,8 @@ struct sec4_sg_entry {
 #define HDR_ZRO			0x00008000
 
 /* Start Index or SharedDesc Length */
-#define HDR_START_IDX_MASK	0x3f
 #define HDR_START_IDX_SHIFT	16
+#define HDR_START_IDX_MASK	(0x3f << HDR_START_IDX_SHIFT)
 
 /* If shared descriptor header, 6-bit length */
 #define HDR_DESCLEN_SHR_MASK	0x3f
@@ -121,10 +117,10 @@ struct sec4_sg_entry {
 #define HDR_PROP_DNR		0x00000800
 
 /* JobDesc/SharedDesc share property */
-#define HDR_SD_SHARE_MASK	0x03
 #define HDR_SD_SHARE_SHIFT	8
-#define HDR_JD_SHARE_MASK	0x07
+#define HDR_SD_SHARE_MASK	(0x03 << HDR_SD_SHARE_SHIFT)
 #define HDR_JD_SHARE_SHIFT	8
+#define HDR_JD_SHARE_MASK	(0x07 << HDR_JD_SHARE_SHIFT)
 
 #define HDR_SHARE_NEVER		(0x00 << HDR_SD_SHARE_SHIFT)
 #define HDR_SHARE_WAIT		(0x01 << HDR_SD_SHARE_SHIFT)
@@ -235,7 +231,7 @@ struct sec4_sg_entry {
 #define LDST_SRCDST_WORD_DECO_MATH2	(0x0a << LDST_SRCDST_SHIFT)
 #define LDST_SRCDST_WORD_DECO_AAD_SZ	(0x0b << LDST_SRCDST_SHIFT)
 #define LDST_SRCDST_WORD_DECO_MATH3	(0x0b << LDST_SRCDST_SHIFT)
-#define LDST_SRCDST_WORD_CLASS1_ICV_SZ	(0x0c << LDST_SRCDST_SHIFT)
+#define LDST_SRCDST_WORD_CLASS1_IV_SZ	(0x0c << LDST_SRCDST_SHIFT)
 #define LDST_SRCDST_WORD_ALTDS_CLASS1	(0x0f << LDST_SRCDST_SHIFT)
 #define LDST_SRCDST_WORD_PKHA_A_SZ	(0x10 << LDST_SRCDST_SHIFT)
 #define LDST_SRCDST_WORD_PKHA_B_SZ	(0x11 << LDST_SRCDST_SHIFT)
@@ -247,6 +243,7 @@ struct sec4_sg_entry {
 #define LDST_SRCDST_WORD_DESCBUF_SHARED	(0x42 << LDST_SRCDST_SHIFT)
 #define LDST_SRCDST_WORD_DESCBUF_JOB_WE	(0x45 << LDST_SRCDST_SHIFT)
 #define LDST_SRCDST_WORD_DESCBUF_SHARED_WE (0x46 << LDST_SRCDST_SHIFT)
+#define LDST_SRCDST_WORD_INFO_FIFO_SM	(0x71 << LDST_SRCDST_SHIFT)
 #define LDST_SRCDST_WORD_INFO_FIFO	(0x7a << LDST_SRCDST_SHIFT)
 
 /* Offset in source/destination */
@@ -288,6 +285,12 @@ struct sec4_sg_entry {
 #define LDLEN_SET_OFIFO_OFF_RSVD	(1 << 3)
 #define LDLEN_SET_OFIFO_OFFSET_SHIFT	0
 #define LDLEN_SET_OFIFO_OFFSET_MASK	(3 << LDLEN_SET_OFIFO_OFFSET_SHIFT)
+
+/* Special Length definitions when dst=sm, nfifo-{sm,m} */
+#define LDLEN_MATH0			0
+#define LDLEN_MATH1			1
+#define LDLEN_MATH2			2
+#define LDLEN_MATH3			3
 
 /*
  * FIFO_LOAD/FIFO_STORE/SEQ_FIFO_LOAD/SEQ_FIFO_STORE
@@ -400,7 +403,7 @@ struct sec4_sg_entry {
 #define FIFOST_TYPE_PKHA_N	 (0x08 << FIFOST_TYPE_SHIFT)
 #define FIFOST_TYPE_PKHA_A	 (0x0c << FIFOST_TYPE_SHIFT)
 #define FIFOST_TYPE_PKHA_B	 (0x0d << FIFOST_TYPE_SHIFT)
-#define FIFOST_TYPE_AF_SBOX_JKEK (0x10 << FIFOST_TYPE_SHIFT)
+#define FIFOST_TYPE_AF_SBOX_JKEK (0x20 << FIFOST_TYPE_SHIFT)
 #define FIFOST_TYPE_AF_SBOX_TKEK (0x21 << FIFOST_TYPE_SHIFT)
 #define FIFOST_TYPE_PKHA_E_JKEK	 (0x22 << FIFOST_TYPE_SHIFT)
 #define FIFOST_TYPE_PKHA_E_TKEK	 (0x23 << FIFOST_TYPE_SHIFT)
@@ -413,6 +416,7 @@ struct sec4_sg_entry {
 #define FIFOST_TYPE_MESSAGE_DATA (0x30 << FIFOST_TYPE_SHIFT)
 #define FIFOST_TYPE_RNGSTORE	 (0x34 << FIFOST_TYPE_SHIFT)
 #define FIFOST_TYPE_RNGFIFO	 (0x35 << FIFOST_TYPE_SHIFT)
+#define FIFOST_TYPE_METADATA	 (0x3e << FIFOST_TYPE_SHIFT)
 #define FIFOST_TYPE_SKIP	 (0x3f << FIFOST_TYPE_SHIFT)
 
 /*
@@ -449,6 +453,18 @@ struct sec4_sg_entry {
 #define OP_PCLID_DSAVERIFY	(0x16 << OP_PCLID_SHIFT)
 #define OP_PCLID_RSAENC_PUBKEY  (0x18 << OP_PCLID_SHIFT)
 #define OP_PCLID_RSADEC_PRVKEY  (0x19 << OP_PCLID_SHIFT)
+#define OP_PCLID_DKP_MD5	(0x20 << OP_PCLID_SHIFT)
+#define OP_PCLID_DKP_SHA1	(0x21 << OP_PCLID_SHIFT)
+#define OP_PCLID_DKP_SHA224	(0x22 << OP_PCLID_SHIFT)
+#define OP_PCLID_DKP_SHA256	(0x23 << OP_PCLID_SHIFT)
+#define OP_PCLID_DKP_SHA384	(0x24 << OP_PCLID_SHIFT)
+#define OP_PCLID_DKP_SHA512	(0x25 << OP_PCLID_SHIFT)
+#define OP_PCLID_DKP_RIF_MD5	(0x60 << OP_PCLID_SHIFT)
+#define OP_PCLID_DKP_RIF_SHA1	(0x61 << OP_PCLID_SHIFT)
+#define OP_PCLID_DKP_RIF_SHA224	(0x62 << OP_PCLID_SHIFT)
+#define OP_PCLID_DKP_RIF_SHA256	(0x63 << OP_PCLID_SHIFT)
+#define OP_PCLID_DKP_RIF_SHA384	(0x64 << OP_PCLID_SHIFT)
+#define OP_PCLID_DKP_RIF_SHA512	(0x65 << OP_PCLID_SHIFT)
 
 /* Assuming OP_TYPE = OP_TYPE_DECAP_PROTOCOL/ENCAP_PROTOCOL */
 #define OP_PCLID_IPSEC		(0x01 << OP_PCLID_SHIFT)
@@ -1098,6 +1114,22 @@ struct sec4_sg_entry {
 /* MacSec protinfos */
 #define OP_PCL_MACSEC				 0x0001
 
+/* Derived Key Protocol (DKP) Protinfo */
+#define OP_PCL_DKP_SRC_SHIFT	14
+#define OP_PCL_DKP_SRC_MASK	(3 << OP_PCL_DKP_SRC_SHIFT)
+#define OP_PCL_DKP_SRC_IMM	(0 << OP_PCL_DKP_SRC_SHIFT)
+#define OP_PCL_DKP_SRC_SEQ	(1 << OP_PCL_DKP_SRC_SHIFT)
+#define OP_PCL_DKP_SRC_PTR	(2 << OP_PCL_DKP_SRC_SHIFT)
+#define OP_PCL_DKP_SRC_SGF	(3 << OP_PCL_DKP_SRC_SHIFT)
+#define OP_PCL_DKP_DST_SHIFT	12
+#define OP_PCL_DKP_DST_MASK	(3 << OP_PCL_DKP_DST_SHIFT)
+#define OP_PCL_DKP_DST_IMM	(0 << OP_PCL_DKP_DST_SHIFT)
+#define OP_PCL_DKP_DST_SEQ	(1 << OP_PCL_DKP_DST_SHIFT)
+#define OP_PCL_DKP_DST_PTR	(2 << OP_PCL_DKP_DST_SHIFT)
+#define OP_PCL_DKP_DST_SGF	(3 << OP_PCL_DKP_DST_SHIFT)
+#define OP_PCL_DKP_KEY_SHIFT	0
+#define OP_PCL_DKP_KEY_MASK	(0xfff << OP_PCL_DKP_KEY_SHIFT)
+
 /* PKI unidirectional protocol protinfo bits */
 #define OP_PCL_PKPROT_TEST			 0x0008
 #define OP_PCL_PKPROT_DECRYPT			 0x0004
@@ -1107,8 +1139,14 @@ struct sec4_sg_entry {
 /* For non-protocol/alg-only op commands */
 #define OP_ALG_TYPE_SHIFT	24
 #define OP_ALG_TYPE_MASK	(0x7 << OP_ALG_TYPE_SHIFT)
-#define OP_ALG_TYPE_CLASS1	2
-#define OP_ALG_TYPE_CLASS2	4
+#define OP_ALG_TYPE_CLASS1	(2 << OP_ALG_TYPE_SHIFT)
+#define OP_ALG_TYPE_CLASS2	(4 << OP_ALG_TYPE_SHIFT)
+
+/* version register fields */
+#define OP_VER_CCHA_NUM  0x000000ff /* Number CCHAs instantiated */
+#define OP_VER_CCHA_MISC 0x0000ff00 /* CCHA Miscellaneous Information */
+#define OP_VER_CCHA_REV  0x00ff0000 /* CCHA Revision Number */
+#define OP_VER_CCHA_VID  0xff000000 /* CCHA Version ID */
 
 #define OP_ALG_ALGSEL_SHIFT	16
 #define OP_ALG_ALGSEL_MASK	(0xff << OP_ALG_ALGSEL_SHIFT)
@@ -1117,6 +1155,7 @@ struct sec4_sg_entry {
 #define OP_ALG_ALGSEL_DES	(0x20 << OP_ALG_ALGSEL_SHIFT)
 #define OP_ALG_ALGSEL_3DES	(0x21 << OP_ALG_ALGSEL_SHIFT)
 #define OP_ALG_ALGSEL_ARC4	(0x30 << OP_ALG_ALGSEL_SHIFT)
+#define OP_ALG_CHA_MDHA		(0x40 << OP_ALG_ALGSEL_SHIFT)
 #define OP_ALG_ALGSEL_MD5	(0x40 << OP_ALG_ALGSEL_SHIFT)
 #define OP_ALG_ALGSEL_SHA1	(0x41 << OP_ALG_ALGSEL_SHIFT)
 #define OP_ALG_ALGSEL_SHA224	(0x42 << OP_ALG_ALGSEL_SHIFT)
@@ -1129,6 +1168,8 @@ struct sec4_sg_entry {
 #define OP_ALG_ALGSEL_KASUMI	(0x70 << OP_ALG_ALGSEL_SHIFT)
 #define OP_ALG_ALGSEL_CRC	(0x90 << OP_ALG_ALGSEL_SHIFT)
 #define OP_ALG_ALGSEL_SNOW_F9	(0xA0 << OP_ALG_ALGSEL_SHIFT)
+#define OP_ALG_ALGSEL_CHACHA20	(0xD0 << OP_ALG_ALGSEL_SHIFT)
+#define OP_ALG_ALGSEL_POLY1305	(0xE0 << OP_ALG_ALGSEL_SHIFT)
 
 #define OP_ALG_AAI_SHIFT	4
 #define OP_ALG_AAI_MASK		(0x1ff << OP_ALG_AAI_SHIFT)
@@ -1175,6 +1216,11 @@ struct sec4_sg_entry {
 #define OP_ALG_AAI_RNG4_PS	(0x40 << OP_ALG_AAI_SHIFT)
 #define OP_ALG_AAI_RNG4_AI	(0x80 << OP_ALG_AAI_SHIFT)
 #define OP_ALG_AAI_RNG4_SK	(0x100 << OP_ALG_AAI_SHIFT)
+
+/* Chacha20 AAI set */
+#define OP_ALG_AAI_AEAD	(0x002 << OP_ALG_AAI_SHIFT)
+#define OP_ALG_AAI_KEYSTREAM	(0x001 << OP_ALG_AAI_SHIFT)
+#define OP_ALG_AAI_BC8		(0x008 << OP_ALG_AAI_SHIFT)
 
 /* hmac/smac AAI set */
 #define OP_ALG_AAI_HASH		(0x00 << OP_ALG_AAI_SHIFT)
@@ -1249,7 +1295,7 @@ struct sec4_sg_entry {
 #define OP_ALG_PKMODE_MOD_PRIMALITY	0x00f
 
 /* PKHA mode copy-memory functions */
-#define OP_ALG_PKMODE_SRC_REG_SHIFT	13
+#define OP_ALG_PKMODE_SRC_REG_SHIFT	17
 #define OP_ALG_PKMODE_SRC_REG_MASK	(7 << OP_ALG_PKMODE_SRC_REG_SHIFT)
 #define OP_ALG_PKMODE_DST_REG_SHIFT	10
 #define OP_ALG_PKMODE_DST_REG_MASK	(7 << OP_ALG_PKMODE_DST_REG_SHIFT)
@@ -1364,6 +1410,7 @@ struct sec4_sg_entry {
 #define MOVE_SRC_MATH3		(0x07 << MOVE_SRC_SHIFT)
 #define MOVE_SRC_INFIFO		(0x08 << MOVE_SRC_SHIFT)
 #define MOVE_SRC_INFIFO_CL	(0x09 << MOVE_SRC_SHIFT)
+#define MOVE_SRC_AUX_ABLK	(0x0a << MOVE_SRC_SHIFT)
 
 #define MOVE_DEST_SHIFT		16
 #define MOVE_DEST_MASK		(0x0f << MOVE_DEST_SHIFT)
@@ -1390,6 +1437,10 @@ struct sec4_sg_entry {
 
 #define MOVELEN_MRSEL_SHIFT	0
 #define MOVELEN_MRSEL_MASK	(0x3 << MOVE_LEN_SHIFT)
+#define MOVELEN_MRSEL_MATH0	(0 << MOVELEN_MRSEL_SHIFT)
+#define MOVELEN_MRSEL_MATH1	(1 << MOVELEN_MRSEL_SHIFT)
+#define MOVELEN_MRSEL_MATH2	(2 << MOVELEN_MRSEL_SHIFT)
+#define MOVELEN_MRSEL_MATH3	(3 << MOVELEN_MRSEL_SHIFT)
 
 /*
  * MATH Command Constructs
@@ -1445,7 +1496,7 @@ struct sec4_sg_entry {
 #define MATH_SRC1_REG2		(0x02 << MATH_SRC1_SHIFT)
 #define MATH_SRC1_REG3		(0x03 << MATH_SRC1_SHIFT)
 #define MATH_SRC1_IMM		(0x04 << MATH_SRC1_SHIFT)
-#define MATH_SRC1_DPOVRD	(0x07 << MATH_SRC0_SHIFT)
+#define MATH_SRC1_DPOVRD	(0x07 << MATH_SRC1_SHIFT)
 #define MATH_SRC1_INFIFO	(0x0a << MATH_SRC1_SHIFT)
 #define MATH_SRC1_OUTFIFO	(0x0b << MATH_SRC1_SHIFT)
 #define MATH_SRC1_ONE		(0x0c << MATH_SRC1_SHIFT)
@@ -1457,6 +1508,7 @@ struct sec4_sg_entry {
 #define MATH_DEST_REG1		(0x01 << MATH_DEST_SHIFT)
 #define MATH_DEST_REG2		(0x02 << MATH_DEST_SHIFT)
 #define MATH_DEST_REG3		(0x03 << MATH_DEST_SHIFT)
+#define MATH_DEST_DPOVRD	(0x07 << MATH_DEST_SHIFT)
 #define MATH_DEST_SEQINLEN	(0x08 << MATH_DEST_SHIFT)
 #define MATH_DEST_SEQOUTLEN	(0x09 << MATH_DEST_SHIFT)
 #define MATH_DEST_VARSEQINLEN	(0x0a << MATH_DEST_SHIFT)
@@ -1565,6 +1617,7 @@ struct sec4_sg_entry {
 #define NFIFOENTRY_DTYPE_IV	(0x2 << NFIFOENTRY_DTYPE_SHIFT)
 #define NFIFOENTRY_DTYPE_SAD	(0x3 << NFIFOENTRY_DTYPE_SHIFT)
 #define NFIFOENTRY_DTYPE_ICV	(0xA << NFIFOENTRY_DTYPE_SHIFT)
+#define NFIFOENTRY_DTYPE_POLY	(0xB << NFIFOENTRY_DTYPE_SHIFT)
 #define NFIFOENTRY_DTYPE_SKIP	(0xE << NFIFOENTRY_DTYPE_SHIFT)
 #define NFIFOENTRY_DTYPE_MSG	(0xF << NFIFOENTRY_DTYPE_SHIFT)
 

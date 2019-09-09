@@ -1,24 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  GM/GS/XG midi module.
  *
  *  Copyright (C) 1999 Steve Ratcliffe
  *
  *  Based on awe_wave.c by Takashi Iwai
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 /*
  * This module is used to keep track of the current midi state.
@@ -236,6 +222,7 @@ snd_midi_process_event(struct snd_midi_op *ops,
 		break;
 	}
 }
+EXPORT_SYMBOL(snd_midi_process_event);
 
 
 /*
@@ -317,7 +304,7 @@ do_control(struct snd_midi_op *ops, void *drv, struct snd_midi_channel_set *chse
 		break;
 	case MIDI_CTL_MSB_DATA_ENTRY:
 		chan->control[MIDI_CTL_LSB_DATA_ENTRY] = 0;
-		/* go through here */
+		/* fall through */
 	case MIDI_CTL_LSB_DATA_ENTRY:
 		if (chan->param_type == SNDRV_MIDI_PARAM_TYPE_REGISTERED)
 			rpn(ops, drv, chan, chset);
@@ -409,6 +396,7 @@ snd_midi_channel_set_clear(struct snd_midi_channel_set *chset)
 			chan->drum_channel = 0;
 	}
 }
+EXPORT_SYMBOL(snd_midi_channel_set_clear);
 
 /*
  * Process a rpn message.
@@ -655,7 +643,7 @@ static struct snd_midi_channel *snd_midi_channel_init_set(int n)
 	struct snd_midi_channel *chan;
 	int  i;
 
-	chan = kmalloc(n * sizeof(struct snd_midi_channel), GFP_KERNEL);
+	chan = kmalloc_array(n, sizeof(struct snd_midi_channel), GFP_KERNEL);
 	if (chan) {
 		for (i = 0; i < n; i++)
 			snd_midi_channel_init(chan+i, i);
@@ -701,6 +689,7 @@ struct snd_midi_channel_set *snd_midi_channel_alloc_set(int n)
 	}
 	return chset;
 }
+EXPORT_SYMBOL(snd_midi_channel_alloc_set);
 
 /*
  * Reset the midi controllers on a particular channel to default values.
@@ -724,20 +713,4 @@ void snd_midi_channel_free_set(struct snd_midi_channel_set *chset)
 	kfree(chset->channels);
 	kfree(chset);
 }
-
-static int __init alsa_seq_midi_emul_init(void)
-{
-	return 0;
-}
-
-static void __exit alsa_seq_midi_emul_exit(void)
-{
-}
-
-module_init(alsa_seq_midi_emul_init)
-module_exit(alsa_seq_midi_emul_exit)
-
-EXPORT_SYMBOL(snd_midi_process_event);
-EXPORT_SYMBOL(snd_midi_channel_set_clear);
-EXPORT_SYMBOL(snd_midi_channel_alloc_set);
 EXPORT_SYMBOL(snd_midi_channel_free_set);

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * IP6 tables REJECT target module
  * Linux INET6 implementation
@@ -10,11 +11,6 @@
  * Copyright (c) 2005-2007 Patrick McHardy <kaber@trash.net>
  *
  * Based on net/ipv4/netfilter/ipt_REJECT.c
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -39,35 +35,40 @@ static unsigned int
 reject_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct ip6t_reject_info *reject = par->targinfo;
-	struct net *net = par->net;
+	struct net *net = xt_net(par);
 
 	switch (reject->with) {
 	case IP6T_ICMP6_NO_ROUTE:
-		nf_send_unreach6(net, skb, ICMPV6_NOROUTE, par->hooknum);
+		nf_send_unreach6(net, skb, ICMPV6_NOROUTE, xt_hooknum(par));
 		break;
 	case IP6T_ICMP6_ADM_PROHIBITED:
-		nf_send_unreach6(net, skb, ICMPV6_ADM_PROHIBITED, par->hooknum);
+		nf_send_unreach6(net, skb, ICMPV6_ADM_PROHIBITED,
+				 xt_hooknum(par));
 		break;
 	case IP6T_ICMP6_NOT_NEIGHBOUR:
-		nf_send_unreach6(net, skb, ICMPV6_NOT_NEIGHBOUR, par->hooknum);
+		nf_send_unreach6(net, skb, ICMPV6_NOT_NEIGHBOUR,
+				 xt_hooknum(par));
 		break;
 	case IP6T_ICMP6_ADDR_UNREACH:
-		nf_send_unreach6(net, skb, ICMPV6_ADDR_UNREACH, par->hooknum);
+		nf_send_unreach6(net, skb, ICMPV6_ADDR_UNREACH,
+				 xt_hooknum(par));
 		break;
 	case IP6T_ICMP6_PORT_UNREACH:
-		nf_send_unreach6(net, skb, ICMPV6_PORT_UNREACH, par->hooknum);
+		nf_send_unreach6(net, skb, ICMPV6_PORT_UNREACH,
+				 xt_hooknum(par));
 		break;
 	case IP6T_ICMP6_ECHOREPLY:
 		/* Do nothing */
 		break;
 	case IP6T_TCP_RESET:
-		nf_send_reset6(net, skb, par->hooknum);
+		nf_send_reset6(net, skb, xt_hooknum(par));
 		break;
 	case IP6T_ICMP6_POLICY_FAIL:
-		nf_send_unreach6(net, skb, ICMPV6_POLICY_FAIL, par->hooknum);
+		nf_send_unreach6(net, skb, ICMPV6_POLICY_FAIL, xt_hooknum(par));
 		break;
 	case IP6T_ICMP6_REJECT_ROUTE:
-		nf_send_unreach6(net, skb, ICMPV6_REJECT_ROUTE, par->hooknum);
+		nf_send_unreach6(net, skb, ICMPV6_REJECT_ROUTE,
+				 xt_hooknum(par));
 		break;
 	}
 
@@ -80,14 +81,14 @@ static int reject_tg6_check(const struct xt_tgchk_param *par)
 	const struct ip6t_entry *e = par->entryinfo;
 
 	if (rejinfo->with == IP6T_ICMP6_ECHOREPLY) {
-		pr_info("ECHOREPLY is not supported.\n");
+		pr_info_ratelimited("ECHOREPLY is not supported\n");
 		return -EINVAL;
 	} else if (rejinfo->with == IP6T_TCP_RESET) {
 		/* Must specify that it's a TCP packet */
 		if (!(e->ipv6.flags & IP6T_F_PROTO) ||
 		    e->ipv6.proto != IPPROTO_TCP ||
 		    (e->ipv6.invflags & XT_INV_PROTO)) {
-			pr_info("TCP_RESET illegal for non-tcp\n");
+			pr_info_ratelimited("TCP_RESET illegal for non-tcp\n");
 			return -EINVAL;
 		}
 	}

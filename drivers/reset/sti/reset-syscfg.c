@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2013 STMicroelectronics Limited
  * Author: Stephen Gallimore <stephen.gallimore@st.com>
  *
  * Inspired by mach-imx/src.c
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
@@ -145,16 +141,14 @@ static int syscfg_reset_controller_register(struct device *dev,
 				const struct syscfg_reset_controller_data *data)
 {
 	struct syscfg_reset_controller *rc;
-	size_t size;
 	int i, err;
 
 	rc = devm_kzalloc(dev, sizeof(*rc), GFP_KERNEL);
 	if (!rc)
 		return -ENOMEM;
 
-	size = sizeof(struct syscfg_reset_channel) * data->nr_channels;
-
-	rc->channels = devm_kzalloc(dev, size, GFP_KERNEL);
+	rc->channels = devm_kcalloc(dev, data->nr_channels,
+				    sizeof(*rc->channels), GFP_KERNEL);
 	if (!rc->channels)
 		return -ENOMEM;
 

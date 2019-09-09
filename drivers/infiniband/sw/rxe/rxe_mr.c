@@ -59,9 +59,11 @@ int mem_check_range(struct rxe_mem *mem, u64 iova, size_t length)
 
 	case RXE_MEM_TYPE_MR:
 	case RXE_MEM_TYPE_FMR:
-		return ((iova < mem->iova) ||
-			((iova + length) > (mem->iova + mem->length))) ?
-			-EFAULT : 0;
+		if (iova < mem->iova ||
+		    length > mem->length ||
+		    iova > mem->iova + mem->length - length)
+			return -EFAULT;
+		return 0;
 
 	default:
 		return -EFAULT;
@@ -89,13 +91,12 @@ static void rxe_mem_init(int access, struct rxe_mem *mem)
 	mem->map_shift		= ilog2(RXE_BUF_PER_MAP);
 }
 
-void rxe_mem_cleanup(void *arg)
+void rxe_mem_cleanup(struct rxe_pool_entry *arg)
 {
-	struct rxe_mem *mem = arg;
+	struct rxe_mem *mem = container_of(arg, typeof(*mem), pelem);
 	int i;
 
-	if (mem->umem)
-		ib_umem_release(mem->umem);
+	ib_umem_release(mem->umem);
 
 	if (mem->map) {
 		for (i = 0; i < mem->num_map; i++)
@@ -105,7 +106,7 @@ void rxe_mem_cleanup(void *arg)
 	}
 }
 
-static int rxe_mem_alloc(struct rxe_dev *rxe, struct rxe_mem *mem, int num_buf)
+static int rxe_mem_alloc(struct rxe_mem *mem, int num_buf)
 {
 	int i;
 	int num_map;
@@ -123,7 +124,7 @@ static int rxe_mem_alloc(struct rxe_dev *rxe, struct rxe_mem *mem, int num_buf)
 			goto err2;
 	}
 
-	WARN_ON(!is_power_of_2(RXE_BUF_PER_MAP));
+	BUILD_BUG_ON(!is_power_of_2(RXE_BUF_PER_MAP));
 
 	mem->map_shift	= ilog2(RXE_BUF_PER_MAP);
 	mem->map_mask	= RXE_BUF_PER_MAP - 1;
@@ -143,7 +144,7 @@ err1:
 	return -ENOMEM;
 }
 
-int rxe_mem_init_dma(struct rxe_dev *rxe, struct rxe_pd *pd,
+int rxe_mem_init_dma(struct rxe_pd *pd,
 		     int access, struct rxe_mem *mem)
 {
 	rxe_mem_init(access, mem);
@@ -156,20 +157,19 @@ int rxe_mem_init_dma(struct rxe_dev *rxe, struct rxe_pd *pd,
 	return 0;
 }
 
-int rxe_mem_init_user(struct rxe_dev *rxe, struct rxe_pd *pd, u64 start,
+int rxe_mem_init_user(struct rxe_pd *pd, u64 start,
 		      u64 length, u64 iova, int access, struct ib_udata *udata,
 		      struct rxe_mem *mem)
 {
-	int			entry;
 	struct rxe_map		**map;
 	struct rxe_phys_buf	*buf = NULL;
 	struct ib_umem		*umem;
-	struct scatterlist	*sg;
+	struct sg_page_iter	sg_iter;
 	int			num_buf;
 	void			*vaddr;
 	int err;
 
-	umem = ib_umem_get(pd->ibpd.uobject->context, start, length, access, 0);
+	umem = ib_umem_get(udata, start, length, access, 0);
 	if (IS_ERR(umem)) {
 		pr_warn("err %d from rxe_umem_get\n",
 			(int)PTR_ERR(umem));
@@ -178,29 +178,33 @@ int rxe_mem_init_user(struct rxe_dev *rxe, struct rxe_pd *pd, u64 start,
 	}
 
 	mem->umem = umem;
-	num_buf = umem->nmap;
+	num_buf = ib_umem_num_pages(umem);
 
 	rxe_mem_init(access, mem);
 
-	err = rxe_mem_alloc(rxe, mem, num_buf);
+	err = rxe_mem_alloc(mem, num_buf);
 	if (err) {
 		pr_warn("err %d from rxe_mem_alloc\n", err);
 		ib_umem_release(umem);
 		goto err1;
 	}
 
-	WARN_ON(!is_power_of_2(umem->page_size));
-
-	mem->page_shift		= ilog2(umem->page_size);
-	mem->page_mask		= umem->page_size - 1;
+	mem->page_shift		= PAGE_SHIFT;
+	mem->page_mask = PAGE_SIZE - 1;
 
 	num_buf			= 0;
 	map			= mem->map;
 	if (length > 0) {
 		buf = map[0]->buf;
 
-		for_each_sg(umem->sg_head.sgl, sg, umem->nmap, entry) {
-			vaddr = page_address(sg_page(sg));
+		for_each_sg_page(umem->sg_head.sgl, &sg_iter, umem->nmap, 0) {
+			if (num_buf >= RXE_BUF_PER_MAP) {
+				map++;
+				buf = map[0]->buf;
+				num_buf = 0;
+			}
+
+			vaddr = page_address(sg_page_iter_page(&sg_iter));
 			if (!vaddr) {
 				pr_warn("null vaddr\n");
 				err = -ENOMEM;
@@ -208,15 +212,10 @@ int rxe_mem_init_user(struct rxe_dev *rxe, struct rxe_pd *pd, u64 start,
 			}
 
 			buf->addr = (uintptr_t)vaddr;
-			buf->size = umem->page_size;
+			buf->size = PAGE_SIZE;
 			num_buf++;
 			buf++;
 
-			if (num_buf >= RXE_BUF_PER_MAP) {
-				map++;
-				buf = map[0]->buf;
-				num_buf = 0;
-			}
 		}
 	}
 
@@ -236,7 +235,7 @@ err1:
 	return err;
 }
 
-int rxe_mem_init_fast(struct rxe_dev *rxe, struct rxe_pd *pd,
+int rxe_mem_init_fast(struct rxe_pd *pd,
 		      int max_pages, struct rxe_mem *mem)
 {
 	int err;
@@ -246,7 +245,7 @@ int rxe_mem_init_fast(struct rxe_dev *rxe, struct rxe_pd *pd,
 	/* In fastreg, we also set the rkey */
 	mem->ibmr.rkey = mem->ibmr.lkey;
 
-	err = rxe_mem_alloc(rxe, mem, max_pages);
+	err = rxe_mem_alloc(mem, max_pages);
 	if (err)
 		goto err1;
 
@@ -355,6 +354,9 @@ int rxe_mem_copy(struct rxe_mem *mem, u64 iova, void *addr, int length,
 	size_t			offset;
 	u32			crc = crcp ? (*crcp) : 0;
 
+	if (length == 0)
+		return 0;
+
 	if (mem->type == RXE_MEM_TYPE_DMA) {
 		u8 *src, *dest;
 
@@ -364,15 +366,16 @@ int rxe_mem_copy(struct rxe_mem *mem, u64 iova, void *addr, int length,
 		dest = (dir == to_mem_obj) ?
 			((void *)(uintptr_t)iova) : addr;
 
-		if (crcp)
-			*crcp = crc32_le(*crcp, src, length);
-
 		memcpy(dest, src, length);
+
+		if (crcp)
+			*crcp = rxe_crc32(to_rdev(mem->pd->ibpd.device),
+					*crcp, dest, length);
 
 		return 0;
 	}
 
-	WARN_ON(!mem->map);
+	WARN_ON_ONCE(!mem->map);
 
 	err = mem_check_range(mem, iova, length);
 	if (err) {
@@ -397,10 +400,11 @@ int rxe_mem_copy(struct rxe_mem *mem, u64 iova, void *addr, int length,
 		if (bytes > length)
 			bytes = length;
 
-		if (crcp)
-			crc = crc32_le(crc, src, bytes);
-
 		memcpy(dest, src, bytes);
+
+		if (crcp)
+			crc = rxe_crc32(to_rdev(mem->pd->ibpd.device),
+					crc, dest, bytes);
 
 		length	-= bytes;
 		addr	+= bytes;
@@ -429,7 +433,6 @@ err1:
  * under the control of a dma descriptor
  */
 int copy_data(
-	struct rxe_dev		*rxe,
 	struct rxe_pd		*pd,
 	int			access,
 	struct rxe_dma_info	*dma,
@@ -569,33 +572,20 @@ struct rxe_mem *lookup_mem(struct rxe_pd *pd, int access, u32 key,
 	struct rxe_dev *rxe = to_rdev(pd->ibpd.device);
 	int index = key >> 8;
 
-	if (index >= RXE_MIN_MR_INDEX && index <= RXE_MAX_MR_INDEX) {
-		mem = rxe_pool_get_index(&rxe->mr_pool, index);
-		if (!mem)
-			goto err1;
-	} else {
-		goto err1;
+	mem = rxe_pool_get_index(&rxe->mr_pool, index);
+	if (!mem)
+		return NULL;
+
+	if (unlikely((type == lookup_local && mem->lkey != key) ||
+		     (type == lookup_remote && mem->rkey != key) ||
+		     mem->pd != pd ||
+		     (access && !(access & mem->access)) ||
+		     mem->state != RXE_MEM_STATE_VALID)) {
+		rxe_drop_ref(mem);
+		mem = NULL;
 	}
 
-	if ((type == lookup_local && mem->lkey != key) ||
-	    (type == lookup_remote && mem->rkey != key))
-		goto err2;
-
-	if (mem->pd != pd)
-		goto err2;
-
-	if (access && !(access & mem->access))
-		goto err2;
-
-	if (mem->state != RXE_MEM_STATE_VALID)
-		goto err2;
-
 	return mem;
-
-err2:
-	rxe_drop_ref(mem);
-err1:
-	return NULL;
 }
 
 int rxe_mem_map_pages(struct rxe_dev *rxe, struct rxe_mem *mem,

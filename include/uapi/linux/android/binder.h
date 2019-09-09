@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  * Copyright (C) 2008 Google, Inc.
  *
@@ -33,11 +34,21 @@ enum {
 	BINDER_TYPE_HANDLE	= B_PACK_CHARS('s', 'h', '*', B_TYPE_LARGE),
 	BINDER_TYPE_WEAK_HANDLE	= B_PACK_CHARS('w', 'h', '*', B_TYPE_LARGE),
 	BINDER_TYPE_FD		= B_PACK_CHARS('f', 'd', '*', B_TYPE_LARGE),
+	BINDER_TYPE_FDA		= B_PACK_CHARS('f', 'd', 'a', B_TYPE_LARGE),
+	BINDER_TYPE_PTR		= B_PACK_CHARS('p', 't', '*', B_TYPE_LARGE),
 };
 
 enum {
 	FLAT_BINDER_FLAG_PRIORITY_MASK = 0xff,
 	FLAT_BINDER_FLAG_ACCEPTS_FDS = 0x100,
+
+	/**
+	 * @FLAT_BINDER_FLAG_TXN_SECURITY_CTX: request security contexts
+	 *
+	 * Only when set, causes senders to include their security
+	 * context
+	 */
+	FLAT_BINDER_FLAG_TXN_SECURITY_CTX = 0x1000,
 };
 
 #ifdef BINDER_IPC_32BIT
@@ -48,6 +59,14 @@ typedef __u64 binder_size_t;
 typedef __u64 binder_uintptr_t;
 #endif
 
+/**
+ * struct binder_object_header - header shared by all binder metadata objects.
+ * @type:	type of the object
+ */
+struct binder_object_header {
+	__u32        type;
+};
+
 /*
  * This is the flattened representation of a Binder object for transfer
  * between processes.  The 'offsets' supplied as part of a binder transaction
@@ -56,9 +75,8 @@ typedef __u64 binder_uintptr_t;
  * between processes.
  */
 struct flat_binder_object {
-	/* 8 bytes for large_flat_header. */
-	__u32		type;
-	__u32		flags;
+	struct binder_object_header	hdr;
+	__u32				flags;
 
 	/* 8 bytes of data. */
 	union {
@@ -68,6 +86,86 @@ struct flat_binder_object {
 
 	/* extra data associated with local object */
 	binder_uintptr_t	cookie;
+};
+
+/**
+ * struct binder_fd_object - describes a filedescriptor to be fixed up.
+ * @hdr:	common header structure
+ * @pad_flags:	padding to remain compatible with old userspace code
+ * @pad_binder:	padding to remain compatible with old userspace code
+ * @fd:		file descriptor
+ * @cookie:	opaque data, used by user-space
+ */
+struct binder_fd_object {
+	struct binder_object_header	hdr;
+	__u32				pad_flags;
+	union {
+		binder_uintptr_t	pad_binder;
+		__u32			fd;
+	};
+
+	binder_uintptr_t		cookie;
+};
+
+/* struct binder_buffer_object - object describing a userspace buffer
+ * @hdr:		common header structure
+ * @flags:		one or more BINDER_BUFFER_* flags
+ * @buffer:		address of the buffer
+ * @length:		length of the buffer
+ * @parent:		index in offset array pointing to parent buffer
+ * @parent_offset:	offset in @parent pointing to this buffer
+ *
+ * A binder_buffer object represents an object that the
+ * binder kernel driver can copy verbatim to the target
+ * address space. A buffer itself may be pointed to from
+ * within another buffer, meaning that the pointer inside
+ * that other buffer needs to be fixed up as well. This
+ * can be done by setting the BINDER_BUFFER_FLAG_HAS_PARENT
+ * flag in @flags, by setting @parent buffer to the index
+ * in the offset array pointing to the parent binder_buffer_object,
+ * and by setting @parent_offset to the offset in the parent buffer
+ * at which the pointer to this buffer is located.
+ */
+struct binder_buffer_object {
+	struct binder_object_header	hdr;
+	__u32				flags;
+	binder_uintptr_t		buffer;
+	binder_size_t			length;
+	binder_size_t			parent;
+	binder_size_t			parent_offset;
+};
+
+enum {
+	BINDER_BUFFER_FLAG_HAS_PARENT = 0x01,
+};
+
+/* struct binder_fd_array_object - object describing an array of fds in a buffer
+ * @hdr:		common header structure
+ * @pad:		padding to ensure correct alignment
+ * @num_fds:		number of file descriptors in the buffer
+ * @parent:		index in offset array to buffer holding the fd array
+ * @parent_offset:	start offset of fd array in the buffer
+ *
+ * A binder_fd_array object represents an array of file
+ * descriptors embedded in a binder_buffer_object. It is
+ * different from a regular binder_buffer_object because it
+ * describes a list of file descriptors to fix up, not an opaque
+ * blob of memory, and hence the kernel needs to treat it differently.
+ *
+ * An example of how this would be used is with Android's
+ * native_handle_t object, which is a struct with a list of integers
+ * and a list of file descriptors. The native_handle_t struct itself
+ * will be represented by a struct binder_buffer_objct, whereas the
+ * embedded list of file descriptors is represented by a
+ * struct binder_fd_array_object with that binder_buffer_object as
+ * a parent.
+ */
+struct binder_fd_array_object {
+	struct binder_object_header	hdr;
+	__u32				pad;
+	binder_size_t			num_fds;
+	binder_size_t			parent;
+	binder_size_t			parent_offset;
 };
 
 /*
@@ -97,6 +195,28 @@ struct binder_version {
 #define BINDER_CURRENT_PROTOCOL_VERSION 8
 #endif
 
+/*
+ * Use with BINDER_GET_NODE_DEBUG_INFO, driver reads ptr, writes to all fields.
+ * Set ptr to NULL for the first call to get the info for the first node, and
+ * then repeat the call passing the previously returned value to get the next
+ * nodes.  ptr will be 0 when there are no more nodes.
+ */
+struct binder_node_debug_info {
+	binder_uintptr_t ptr;
+	binder_uintptr_t cookie;
+	__u32            has_strong_ref;
+	__u32            has_weak_ref;
+};
+
+struct binder_node_info_for_ref {
+	__u32            handle;
+	__u32            strong_count;
+	__u32            weak_count;
+	__u32            reserved1;
+	__u32            reserved2;
+	__u32            reserved3;
+};
+
 #define BINDER_WRITE_READ		_IOWR('b', 1, struct binder_write_read)
 #define BINDER_SET_IDLE_TIMEOUT		_IOW('b', 3, __s64)
 #define BINDER_SET_MAX_THREADS		_IOW('b', 5, __u32)
@@ -104,6 +224,9 @@ struct binder_version {
 #define BINDER_SET_CONTEXT_MGR		_IOW('b', 7, __s32)
 #define BINDER_THREAD_EXIT		_IOW('b', 8, __s32)
 #define BINDER_VERSION			_IOWR('b', 9, struct binder_version)
+#define BINDER_GET_NODE_DEBUG_INFO	_IOWR('b', 11, struct binder_node_debug_info)
+#define BINDER_GET_NODE_INFO_FOR_REF	_IOWR('b', 12, struct binder_node_info_for_ref)
+#define BINDER_SET_CONTEXT_MGR_EXT	_IOW('b', 13, struct flat_binder_object)
 
 /*
  * NOTE: Two special error codes you should check for when calling
@@ -162,6 +285,16 @@ struct binder_transaction_data {
 	} data;
 };
 
+struct binder_transaction_data_secctx {
+	struct binder_transaction_data transaction_data;
+	binder_uintptr_t secctx;
+};
+
+struct binder_transaction_data_sg {
+	struct binder_transaction_data transaction_data;
+	binder_size_t buffers_size;
+};
+
 struct binder_ptr_cookie {
 	binder_uintptr_t ptr;
 	binder_uintptr_t cookie;
@@ -192,6 +325,11 @@ enum binder_driver_return_protocol {
 	BR_OK = _IO('r', 1),
 	/* No parameters! */
 
+	BR_TRANSACTION_SEC_CTX = _IOR('r', 2,
+				      struct binder_transaction_data_secctx),
+	/*
+	 * binder_transaction_data_secctx: the received command.
+	 */
 	BR_TRANSACTION = _IOR('r', 2, struct binder_transaction_data),
 	BR_REPLY = _IOR('r', 3, struct binder_transaction_data),
 	/*
@@ -345,6 +483,12 @@ enum binder_driver_command_protocol {
 	BC_DEAD_BINDER_DONE = _IOW('c', 16, binder_uintptr_t),
 	/*
 	 * void *: cookie
+	 */
+
+	BC_TRANSACTION_SG = _IOW('c', 17, struct binder_transaction_data_sg),
+	BC_REPLY_SG = _IOW('c', 18, struct binder_transaction_data_sg),
+	/*
+	 * binder_transaction_data_sg: the sent command.
 	 */
 };
 

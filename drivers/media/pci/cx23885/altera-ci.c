@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * altera-ci.c
  *
@@ -5,17 +6,6 @@
  *
  * Copyright (C) 2010,2011 NetUP Inc.
  * Copyright (C) 2010,2011 Igor M. Liplianin <liplianin@netup.ru>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *
- * GNU General Public License for more details.
  */
 
 /*
@@ -48,10 +38,13 @@
  * |  DATA7|  DATA6|  DATA5|  DATA4|  DATA3|  DATA2|  DATA1|  DATA0|
  * +-------+-------+-------+-------+-------+-------+-------+-------+
  */
-#include <dvb_demux.h>
-#include <dvb_frontend.h>
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
+#include <media/dvb_demux.h>
+#include <media/dvb_frontend.h>
 #include "altera-ci.h"
-#include "dvb_ca_en50221.h"
+#include <media/dvb_ca_en50221.h>
 
 /* FPGA regs */
 #define NETUP_CI_INT_CTRL	0x00
@@ -84,16 +77,18 @@ MODULE_DESCRIPTION("altera FPGA CI module");
 MODULE_AUTHOR("Igor M. Liplianin  <liplianin@netup.ru>");
 MODULE_LICENSE("GPL");
 
-#define ci_dbg_print(args...) \
+#define ci_dbg_print(fmt, args...) \
 	do { \
 		if (ci_dbg) \
-			printk(KERN_DEBUG args); \
+			printk(KERN_DEBUG pr_fmt("%s: " fmt), \
+			       __func__, ##args); \
 	} while (0)
 
-#define pid_dbg_print(args...) \
+#define pid_dbg_print(fmt, args...) \
 	do { \
 		if (pid_dbg) \
-			printk(KERN_DEBUG args); \
+			printk(KERN_DEBUG pr_fmt("%s: " fmt), \
+			       __func__, ##args); \
 	} while (0)
 
 struct altera_ci_state;
@@ -341,7 +336,7 @@ static int altera_ci_slot_reset(struct dvb_ca_en50221 *en50221, int slot)
 	mutex_unlock(&inter->fpga_mutex);
 
 	for (;;) {
-		mdelay(50);
+		msleep(50);
 
 		mutex_lock(&inter->fpga_mutex);
 
@@ -660,6 +655,10 @@ static int altera_hw_filt_init(struct altera_ci_config *config, int hw_filt_nr)
 		}
 
 		temp_int = append_internal(inter);
+		if (!temp_int) {
+			ret = -ENOMEM;
+			goto err;
+		}
 		inter->filts_used = 1;
 		inter->dev = config->dev;
 		inter->fpga_rw = config->fpga_rw;
@@ -694,6 +693,7 @@ err:
 		     __func__, ret);
 
 	kfree(pid_filt);
+	kfree(inter);
 
 	return ret;
 }
@@ -718,7 +718,7 @@ int altera_ci_init(struct altera_ci_config *config, int ci_nr)
 	if (temp_int != NULL) {
 		inter = temp_int->internal;
 		(inter->cis_used)++;
-                inter->fpga_rw = config->fpga_rw;
+		inter->fpga_rw = config->fpga_rw;
 		ci_dbg_print("%s: Find Internal Structure!\n", __func__);
 	} else {
 		inter = kzalloc(sizeof(struct fpga_internal), GFP_KERNEL);
@@ -728,6 +728,10 @@ int altera_ci_init(struct altera_ci_config *config, int ci_nr)
 		}
 
 		temp_int = append_internal(inter);
+		if (!temp_int) {
+			ret = -ENOMEM;
+			goto err;
+		}
 		inter->cis_used = 1;
 		inter->dev = config->dev;
 		inter->fpga_rw = config->fpga_rw;
@@ -796,6 +800,7 @@ err:
 	ci_dbg_print("%s: Cannot initialize CI: Error %d.\n", __func__, ret);
 
 	kfree(state);
+	kfree(inter);
 
 	return ret;
 }

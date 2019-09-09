@@ -1,7 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASMARM_UCONTEXT_H
 #define _ASMARM_UCONTEXT_H
 
 #include <asm/fpstate.h>
+#include <asm/user.h>
 
 /*
  * struct sigcontext only has room for the basic registers, but struct
@@ -34,6 +36,12 @@ struct ucontext {
  * these should be a multiple of eight bytes and aligned to eight
  * bytes, to prevent unpredictable padding in the signal frame.
  */
+
+/*
+ * Dummy padding block: if this magic is encountered, the block should
+ * be skipped using the corresponding size field.
+ */
+#define DUMMY_MAGIC		0xb0d9ed01
 
 #ifdef CONFIG_CRUNCH
 #define CRUNCH_MAGIC		0x5065cf03

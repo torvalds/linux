@@ -2,17 +2,28 @@ DT bindings for the R-Mobile/R-Car/RZ/G interrupt controller
 
 Required properties:
 
-- compatible: has to be "renesas,irqc-<soctype>", "renesas,irqc" as fallback.
+- compatible: must be "renesas,irqc-<soctype>" or "renesas,intc-ex-<soctype>",
+	      and "renesas,irqc" as fallback.
   Examples with soctypes are:
     - "renesas,irqc-r8a73a4" (R-Mobile APE6)
     - "renesas,irqc-r8a7743" (RZ/G1M)
+    - "renesas,irqc-r8a7744" (RZ/G1N)
     - "renesas,irqc-r8a7745" (RZ/G1E)
+    - "renesas,irqc-r8a77470" (RZ/G1C)
     - "renesas,irqc-r8a7790" (R-Car H2)
     - "renesas,irqc-r8a7791" (R-Car M2-W)
     - "renesas,irqc-r8a7792" (R-Car V2H)
     - "renesas,irqc-r8a7793" (R-Car M2-N)
     - "renesas,irqc-r8a7794" (R-Car E2)
+    - "renesas,intc-ex-r8a774a1" (RZ/G2M)
+    - "renesas,intc-ex-r8a774c0" (RZ/G2E)
     - "renesas,intc-ex-r8a7795" (R-Car H3)
+    - "renesas,intc-ex-r8a7796" (R-Car M3-W)
+    - "renesas,intc-ex-r8a77965" (R-Car M3-N)
+    - "renesas,intc-ex-r8a77970" (R-Car V3M)
+    - "renesas,intc-ex-r8a77980" (R-Car V3H)
+    - "renesas,intc-ex-r8a77990" (R-Car E3)
+    - "renesas,intc-ex-r8a77995" (R-Car D3)
 - #interrupt-cells: has to be <2>: an interrupt index and flags, as defined in
   interrupts.txt in this directory
 - clocks: Must contain a reference to the functional clock.

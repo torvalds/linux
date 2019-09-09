@@ -4,7 +4,7 @@ SP810 System Controller
 Required properties:
 
 - compatible:	standard compatible string for a Primecell peripheral,
-		see Documentation/devicetree/bindings/arm/primecell.txt
+		see Documentation/devicetree/bindings/arm/primecell.yaml
 		for more details
 		should be: "arm,sp810", "arm,primecell"
 
@@ -33,7 +33,7 @@ Required properties:
 		property with the highest frequency
 
 Example:
-	v2m_sysctl: sysctl@020000 {
+	v2m_sysctl: sysctl@20000 {
 		compatible = "arm,sp810", "arm,primecell";
 		reg = <0x020000 0x1000>;
 		clocks = <&v2m_refclk32khz>, <&v2m_refclk1mhz>, <&smbclk>;

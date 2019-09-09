@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for IMS Passenger Control Unit Devices
  *
  * Copyright (C) 2013 The IMS Company
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2
- * as published by the Free Software Foundation.
  */
 
 #include <linux/completion.h>
@@ -39,8 +36,6 @@ struct ims_pcu_gamepad {
 
 struct ims_pcu_backlight {
 	struct led_classdev cdev;
-	struct work_struct work;
-	enum led_brightness desired_brightness;
 	char name[32];
 };
 
@@ -949,14 +944,14 @@ out:
 
 #define IMS_PCU_MAX_BRIGHTNESS		31998
 
-static void ims_pcu_backlight_work(struct work_struct *work)
+static int ims_pcu_backlight_set_brightness(struct led_classdev *cdev,
+					    enum led_brightness value)
 {
 	struct ims_pcu_backlight *backlight =
-			container_of(work, struct ims_pcu_backlight, work);
+			container_of(cdev, struct ims_pcu_backlight, cdev);
 	struct ims_pcu *pcu =
 			container_of(backlight, struct ims_pcu, backlight);
-	int desired_brightness = backlight->desired_brightness;
-	__le16 br_val = cpu_to_le16(desired_brightness);
+	__le16 br_val = cpu_to_le16(value);
 	int error;
 
 	mutex_lock(&pcu->cmd_mutex);
@@ -966,19 +961,11 @@ static void ims_pcu_backlight_work(struct work_struct *work)
 	if (error && error != -ENODEV)
 		dev_warn(pcu->dev,
 			 "Failed to set desired brightness %u, error: %d\n",
-			 desired_brightness, error);
+			 value, error);
 
 	mutex_unlock(&pcu->cmd_mutex);
-}
 
-static void ims_pcu_backlight_set_brightness(struct led_classdev *cdev,
-					     enum led_brightness value)
-{
-	struct ims_pcu_backlight *backlight =
-			container_of(cdev, struct ims_pcu_backlight, cdev);
-
-	backlight->desired_brightness = value;
-	schedule_work(&backlight->work);
+	return error;
 }
 
 static enum led_brightness
@@ -1015,14 +1002,14 @@ static int ims_pcu_setup_backlight(struct ims_pcu *pcu)
 	struct ims_pcu_backlight *backlight = &pcu->backlight;
 	int error;
 
-	INIT_WORK(&backlight->work, ims_pcu_backlight_work);
 	snprintf(backlight->name, sizeof(backlight->name),
 		 "pcu%d::kbd_backlight", pcu->device_no);
 
 	backlight->cdev.name = backlight->name;
 	backlight->cdev.max_brightness = IMS_PCU_MAX_BRIGHTNESS;
 	backlight->cdev.brightness_get = ims_pcu_backlight_get_brightness;
-	backlight->cdev.brightness_set = ims_pcu_backlight_set_brightness;
+	backlight->cdev.brightness_set_blocking =
+					 ims_pcu_backlight_set_brightness;
 
 	error = led_classdev_register(pcu->dev, &backlight->cdev);
 	if (error) {
@@ -1040,7 +1027,6 @@ static void ims_pcu_destroy_backlight(struct ims_pcu *pcu)
 	struct ims_pcu_backlight *backlight = &pcu->backlight;
 
 	led_classdev_unregister(&backlight->cdev);
-	cancel_work_sync(&backlight->work);
 }
 
 
@@ -1261,7 +1247,7 @@ static umode_t ims_pcu_is_attr_visible(struct kobject *kobj,
 	return mode;
 }
 
-static struct attribute_group ims_pcu_attr_group = {
+static const struct attribute_group ims_pcu_attr_group = {
 	.is_visible	= ims_pcu_is_attr_visible,
 	.attrs		= ims_pcu_attrs,
 };
@@ -1480,7 +1466,7 @@ static struct attribute *ims_pcu_ofn_attrs[] = {
 	NULL
 };
 
-static struct attribute_group ims_pcu_ofn_attr_group = {
+static const struct attribute_group ims_pcu_ofn_attr_group = {
 	.name	= "ofn",
 	.attrs	= ims_pcu_ofn_attrs,
 };
@@ -1635,13 +1621,25 @@ ims_pcu_get_cdc_union_desc(struct usb_interface *intf)
 		return NULL;
 	}
 
-	while (buflen > 0) {
+	while (buflen >= sizeof(*union_desc)) {
 		union_desc = (struct usb_cdc_union_desc *)buf;
+
+		if (union_desc->bLength > buflen) {
+			dev_err(&intf->dev, "Too large descriptor\n");
+			return NULL;
+		}
 
 		if (union_desc->bDescriptorType == USB_DT_CS_INTERFACE &&
 		    union_desc->bDescriptorSubType == USB_CDC_UNION_TYPE) {
 			dev_dbg(&intf->dev, "Found union header\n");
-			return union_desc;
+
+			if (union_desc->bLength >= sizeof(*union_desc))
+				return union_desc;
+
+			dev_err(&intf->dev,
+				"Union descriptor too short (%d vs %zd)\n",
+				union_desc->bLength, sizeof(*union_desc));
+			return NULL;
 		}
 
 		buflen -= union_desc->bLength;
@@ -1667,6 +1665,10 @@ static int ims_pcu_parse_cdc_data(struct usb_interface *intf, struct ims_pcu *pc
 		return -EINVAL;
 
 	alt = pcu->ctrl_intf->cur_altsetting;
+
+	if (alt->desc.bNumEndpoints < 1)
+		return -ENODEV;
+
 	pcu->ep_ctrl = &alt->endpoint[0].desc;
 	pcu->max_ctrl_size = usb_endpoint_maxp(pcu->ep_ctrl);
 

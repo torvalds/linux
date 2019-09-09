@@ -10,7 +10,7 @@ Optional properties:
 
 Example:
 
-	watchdog@4003C000 {
+	watchdog@4003c000 {
 		compatible = "nxp,pnx4008-wdt";
 		reg = <0x4003C000 0x1000>;
 		timeout-sec = <10>;

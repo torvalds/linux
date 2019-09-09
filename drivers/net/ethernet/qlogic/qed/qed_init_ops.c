@@ -1,9 +1,33 @@
 /* QLogic qed NIC Driver
- * Copyright (c) 2015 QLogic Corporation
+ * Copyright (c) 2015-2017  QLogic Corporation
  *
- * This software is available under the terms of the GNU General Public License
- * (GPL) Version 2, available from the file COPYING in the main directory of
- * this source tree.
+ * This software is available to you under a choice of one of two
+ * licenses.  You may choose to be licensed under the terms of the GNU
+ * General Public License (GPL) Version 2, available from the file
+ * COPYING in the main directory of this source tree, or the
+ * OpenIB.org BSD license below:
+ *
+ *     Redistribution and use in source and binary forms, with or
+ *     without modification, are permitted provided that the following
+ *     conditions are met:
+ *
+ *      - Redistributions of source code must retain the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer.
+ *
+ *      - Redistributions in binary form must reproduce the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer in the documentation and /or other materials
+ *        provided with the distribution.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  */
 
 #include <linux/types.h>
@@ -107,7 +131,7 @@ static int qed_init_rt(struct qed_hwfn	*p_hwfn,
 
 		rc = qed_dmae_host2grc(p_hwfn, p_ptt,
 				       (uintptr_t)(p_init_val + i),
-				       addr + (i << 2), segment, 0);
+				       addr + (i << 2), segment, NULL);
 		if (rc)
 			return rc;
 
@@ -125,15 +149,16 @@ int qed_init_alloc(struct qed_hwfn *p_hwfn)
 	if (IS_VF(p_hwfn->cdev))
 		return 0;
 
-	rt_data->b_valid = kzalloc(sizeof(bool) * RUNTIME_ARRAY_SIZE,
+	rt_data->b_valid = kcalloc(RUNTIME_ARRAY_SIZE, sizeof(bool),
 				   GFP_KERNEL);
 	if (!rt_data->b_valid)
 		return -ENOMEM;
 
-	rt_data->init_val = kzalloc(sizeof(u32) * RUNTIME_ARRAY_SIZE,
+	rt_data->init_val = kcalloc(RUNTIME_ARRAY_SIZE, sizeof(u32),
 				    GFP_KERNEL);
 	if (!rt_data->init_val) {
 		kfree(rt_data->b_valid);
+		rt_data->b_valid = NULL;
 		return -ENOMEM;
 	}
 
@@ -143,7 +168,9 @@ int qed_init_alloc(struct qed_hwfn *p_hwfn)
 void qed_init_free(struct qed_hwfn *p_hwfn)
 {
 	kfree(p_hwfn->rt_data.init_val);
+	p_hwfn->rt_data.init_val = NULL;
 	kfree(p_hwfn->rt_data.b_valid);
+	p_hwfn->rt_data.b_valid = NULL;
 }
 
 static int qed_init_array_dmae(struct qed_hwfn *p_hwfn,
@@ -167,7 +194,7 @@ static int qed_init_array_dmae(struct qed_hwfn *p_hwfn,
 	} else {
 		rc = qed_dmae_host2grc(p_hwfn, p_ptt,
 				       (uintptr_t)(buf + dmae_data_offset),
-				       addr, size, 0);
+				       addr, size, NULL);
 	}
 
 	return rc;
@@ -178,6 +205,7 @@ static int qed_init_fill_dmae(struct qed_hwfn *p_hwfn,
 			      u32 addr, u32 fill, u32 fill_count)
 {
 	static u32 zero_buffer[DMAE_MAX_RW_SIZE];
+	struct qed_dmae_params params = {};
 
 	memset(zero_buffer, 0, sizeof(u32) * DMAE_MAX_RW_SIZE);
 
@@ -187,10 +215,10 @@ static int qed_init_fill_dmae(struct qed_hwfn *p_hwfn,
 	 * 3. p_hwfb->temp_data,
 	 * 4. fill_count
 	 */
-
+	params.flags = QED_DMAE_FLAG_RW_REPL_SRC;
 	return qed_dmae_host2grc(p_hwfn, p_ptt,
 				 (uintptr_t)(&zero_buffer[0]),
-				 addr, fill_count, QED_DMAE_FLAG_RW_REPL_SRC);
+				 addr, fill_count, &params);
 }
 
 static void qed_init_fill(struct qed_hwfn *p_hwfn,
@@ -380,18 +408,30 @@ static void qed_init_cmd_rd(struct qed_hwfn *p_hwfn,
 
 	if (i == QED_INIT_MAX_POLL_COUNT) {
 		DP_ERR(p_hwfn,
-		       "Timeout when polling reg: 0x%08x [ Waiting-for: %08x Got: %08x (comparsion %08x)]\n",
+		       "Timeout when polling reg: 0x%08x [ Waiting-for: %08x Got: %08x (comparison %08x)]\n",
 		       addr, le32_to_cpu(cmd->expected_val),
 		       val, le32_to_cpu(cmd->op_data));
 	}
 }
 
 /* init_ops callbacks entry point */
-static void qed_init_cmd_cb(struct qed_hwfn *p_hwfn,
-			    struct qed_ptt *p_ptt,
-			    struct init_callback_op *p_cmd)
+static int qed_init_cmd_cb(struct qed_hwfn *p_hwfn,
+			   struct qed_ptt *p_ptt,
+			   struct init_callback_op *p_cmd)
 {
-	DP_NOTICE(p_hwfn, "Currently init values have no need of callbacks\n");
+	int rc;
+
+	switch (p_cmd->callback_id) {
+	case DMAE_READY_CB:
+		rc = qed_dmae_sanity(p_hwfn, p_ptt, "engine_phase");
+		break;
+	default:
+		DP_NOTICE(p_hwfn, "Unexpected init op callback ID %d\n",
+			  p_cmd->callback_id);
+		return -EINVAL;
+	}
+
+	return rc;
 }
 
 static u8 qed_init_cmd_mode_match(struct qed_hwfn *p_hwfn,
@@ -492,7 +532,7 @@ int qed_init_run(struct qed_hwfn *p_hwfn,
 			break;
 
 		case INIT_OP_CALLBACK:
-			qed_init_cmd_cb(p_hwfn, p_ptt, &cmd->callback);
+			rc = qed_init_cmd_cb(p_hwfn, p_ptt, &cmd->callback);
 			break;
 		}
 
@@ -501,6 +541,7 @@ int qed_init_run(struct qed_hwfn *p_hwfn,
 	}
 
 	kfree(p_hwfn->unzip_buf);
+	p_hwfn->unzip_buf = NULL;
 	return rc;
 }
 
@@ -530,7 +571,7 @@ int qed_init_fw_data(struct qed_dev *cdev, const u8 *data)
 	}
 
 	/* First Dword contains metadata and should be skipped */
-	buf_hdr = (struct bin_buffer_hdr *)(data + sizeof(u32));
+	buf_hdr = (struct bin_buffer_hdr *)data;
 
 	offset = buf_hdr[BIN_BUF_INIT_FW_VER_INFO].offset;
 	fw->fw_ver_info = (struct fw_ver_info *)(data + offset);

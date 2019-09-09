@@ -195,9 +195,11 @@ static void t4_report_fw_error(struct adapter *adap)
 	u32 pcie_fw;
 
 	pcie_fw = t4_read_reg(adap, PCIE_FW_A);
-	if (pcie_fw & PCIE_FW_ERR_F)
+	if (pcie_fw & PCIE_FW_ERR_F) {
 		dev_err(adap->pdev_dev, "Firmware reports adapter error: %s\n",
 			reason[PCIE_FW_EVAL_G(pcie_fw)]);
+		adap->flags &= ~CXGB4_FW_OK;
+	}
 }
 
 /*
@@ -284,6 +286,7 @@ int t4_wr_mbox_meat_timeout(struct adapter *adap, int mbox, const void *cmd,
 		1, 1, 3, 5, 10, 10, 20, 50, 100, 200
 	};
 
+	struct mbox_list entry;
 	u16 access = 0;
 	u16 execute = 0;
 	u32 v;
@@ -311,18 +314,69 @@ int t4_wr_mbox_meat_timeout(struct adapter *adap, int mbox, const void *cmd,
 		timeout = -timeout;
 	}
 
+	/* Queue ourselves onto the mailbox access list.  When our entry is at
+	 * the front of the list, we have rights to access the mailbox.  So we
+	 * wait [for a while] till we're at the front [or bail out with an
+	 * EBUSY] ...
+	 */
+	spin_lock_bh(&adap->mbox_lock);
+	list_add_tail(&entry.list, &adap->mlist.list);
+	spin_unlock_bh(&adap->mbox_lock);
+
+	delay_idx = 0;
+	ms = delay[0];
+
+	for (i = 0; ; i += ms) {
+		/* If we've waited too long, return a busy indication.  This
+		 * really ought to be based on our initial position in the
+		 * mailbox access list but this is a start.  We very rearely
+		 * contend on access to the mailbox ...
+		 */
+		pcie_fw = t4_read_reg(adap, PCIE_FW_A);
+		if (i > FW_CMD_MAX_TIMEOUT || (pcie_fw & PCIE_FW_ERR_F)) {
+			spin_lock_bh(&adap->mbox_lock);
+			list_del(&entry.list);
+			spin_unlock_bh(&adap->mbox_lock);
+			ret = (pcie_fw & PCIE_FW_ERR_F) ? -ENXIO : -EBUSY;
+			t4_record_mbox(adap, cmd, size, access, ret);
+			return ret;
+		}
+
+		/* If we're at the head, break out and start the mailbox
+		 * protocol.
+		 */
+		if (list_first_entry(&adap->mlist.list, struct mbox_list,
+				     list) == &entry)
+			break;
+
+		/* Delay for a bit before checking again ... */
+		if (sleep_ok) {
+			ms = delay[delay_idx];  /* last element may repeat */
+			if (delay_idx < ARRAY_SIZE(delay) - 1)
+				delay_idx++;
+			msleep(ms);
+		} else {
+			mdelay(ms);
+		}
+	}
+
+	/* Loop trying to get ownership of the mailbox.  Return an error
+	 * if we can't gain ownership.
+	 */
 	v = MBOWNER_G(t4_read_reg(adap, ctl_reg));
 	for (i = 0; v == MBOX_OWNER_NONE && i < 3; i++)
 		v = MBOWNER_G(t4_read_reg(adap, ctl_reg));
-
 	if (v != MBOX_OWNER_DRV) {
+		spin_lock_bh(&adap->mbox_lock);
+		list_del(&entry.list);
+		spin_unlock_bh(&adap->mbox_lock);
 		ret = (v == MBOX_OWNER_FW) ? -EBUSY : -ETIMEDOUT;
-		t4_record_mbox(adap, cmd, MBOX_LEN, access, ret);
+		t4_record_mbox(adap, cmd, size, access, ret);
 		return ret;
 	}
 
 	/* Copy in the new mailbox command and send it on its way ... */
-	t4_record_mbox(adap, cmd, MBOX_LEN, access, 0);
+	t4_record_mbox(adap, cmd, size, access, 0);
 	for (i = 0; i < size; i += 8)
 		t4_write_reg64(adap, data_reg + i, be64_to_cpu(*p++));
 
@@ -366,15 +420,22 @@ int t4_wr_mbox_meat_timeout(struct adapter *adap, int mbox, const void *cmd,
 			execute = i + ms;
 			t4_record_mbox(adap, cmd_rpl,
 				       MBOX_LEN, access, execute);
+			spin_lock_bh(&adap->mbox_lock);
+			list_del(&entry.list);
+			spin_unlock_bh(&adap->mbox_lock);
 			return -FW_CMD_RETVAL_G((int)res);
 		}
 	}
 
 	ret = (pcie_fw & PCIE_FW_ERR_F) ? -ENXIO : -ETIMEDOUT;
-	t4_record_mbox(adap, cmd, MBOX_LEN, access, ret);
+	t4_record_mbox(adap, cmd, size, access, ret);
 	dev_err(adap->pdev_dev, "command %#x in mailbox %d timed out\n",
 		*(const u8 *)cmd, mbox);
 	t4_report_fw_error(adap);
+	spin_lock_bh(&adap->mbox_lock);
+	list_del(&entry.list);
+	spin_unlock_bh(&adap->mbox_lock);
+	t4_fatal_err(adap);
 	return ret;
 }
 
@@ -423,6 +484,117 @@ static int t4_edc_err_read(struct adapter *adap, int idx)
 }
 
 /**
+ * t4_memory_rw_init - Get memory window relative offset, base, and size.
+ * @adap: the adapter
+ * @win: PCI-E Memory Window to use
+ * @mtype: memory type: MEM_EDC0, MEM_EDC1, MEM_HMA or MEM_MC
+ * @mem_off: memory relative offset with respect to @mtype.
+ * @mem_base: configured memory base address.
+ * @mem_aperture: configured memory window aperture.
+ *
+ * Get the configured memory window's relative offset, base, and size.
+ */
+int t4_memory_rw_init(struct adapter *adap, int win, int mtype, u32 *mem_off,
+		      u32 *mem_base, u32 *mem_aperture)
+{
+	u32 edc_size, mc_size, mem_reg;
+
+	/* Offset into the region of memory which is being accessed
+	 * MEM_EDC0 = 0
+	 * MEM_EDC1 = 1
+	 * MEM_MC   = 2 -- MEM_MC for chips with only 1 memory controller
+	 * MEM_MC1  = 3 -- for chips with 2 memory controllers (e.g. T5)
+	 * MEM_HMA  = 4
+	 */
+	edc_size  = EDRAM0_SIZE_G(t4_read_reg(adap, MA_EDRAM0_BAR_A));
+	if (mtype == MEM_HMA) {
+		*mem_off = 2 * (edc_size * 1024 * 1024);
+	} else if (mtype != MEM_MC1) {
+		*mem_off = (mtype * (edc_size * 1024 * 1024));
+	} else {
+		mc_size = EXT_MEM0_SIZE_G(t4_read_reg(adap,
+						      MA_EXT_MEMORY0_BAR_A));
+		*mem_off = (MEM_MC0 * edc_size + mc_size) * 1024 * 1024;
+	}
+
+	/* Each PCI-E Memory Window is programmed with a window size -- or
+	 * "aperture" -- which controls the granularity of its mapping onto
+	 * adapter memory.  We need to grab that aperture in order to know
+	 * how to use the specified window.  The window is also programmed
+	 * with the base address of the Memory Window in BAR0's address
+	 * space.  For T4 this is an absolute PCI-E Bus Address.  For T5
+	 * the address is relative to BAR0.
+	 */
+	mem_reg = t4_read_reg(adap,
+			      PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_BASE_WIN_A,
+						  win));
+	/* a dead adapter will return 0xffffffff for PIO reads */
+	if (mem_reg == 0xffffffff)
+		return -ENXIO;
+
+	*mem_aperture = 1 << (WINDOW_G(mem_reg) + WINDOW_SHIFT_X);
+	*mem_base = PCIEOFST_G(mem_reg) << PCIEOFST_SHIFT_X;
+	if (is_t4(adap->params.chip))
+		*mem_base -= adap->t4_bar0;
+
+	return 0;
+}
+
+/**
+ * t4_memory_update_win - Move memory window to specified address.
+ * @adap: the adapter
+ * @win: PCI-E Memory Window to use
+ * @addr: location to move.
+ *
+ * Move memory window to specified address.
+ */
+void t4_memory_update_win(struct adapter *adap, int win, u32 addr)
+{
+	t4_write_reg(adap,
+		     PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_OFFSET_A, win),
+		     addr);
+	/* Read it back to ensure that changes propagate before we
+	 * attempt to use the new value.
+	 */
+	t4_read_reg(adap,
+		    PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_OFFSET_A, win));
+}
+
+/**
+ * t4_memory_rw_residual - Read/Write residual data.
+ * @adap: the adapter
+ * @off: relative offset within residual to start read/write.
+ * @addr: address within indicated memory type.
+ * @buf: host memory buffer
+ * @dir: direction of transfer T4_MEMORY_READ (1) or T4_MEMORY_WRITE (0)
+ *
+ * Read/Write residual data less than 32-bits.
+ */
+void t4_memory_rw_residual(struct adapter *adap, u32 off, u32 addr, u8 *buf,
+			   int dir)
+{
+	union {
+		u32 word;
+		char byte[4];
+	} last;
+	unsigned char *bp;
+	int i;
+
+	if (dir == T4_MEMORY_READ) {
+		last.word = le32_to_cpu((__force __le32)
+					t4_read_reg(adap, addr));
+		for (bp = (unsigned char *)buf, i = off; i < 4; i++)
+			bp[i] = last.byte[i];
+	} else {
+		last.word = *buf;
+		for (i = off; i < 4; i++)
+			last.byte[i] = 0;
+		t4_write_reg(adap, addr,
+			     (__force u32)cpu_to_le32(last.word));
+	}
+}
+
+/**
  *	t4_memory_rw - read/write EDC 0, EDC 1 or MC via PCIE memory window
  *	@adap: the adapter
  *	@win: PCI-E Memory Window to use
@@ -443,8 +615,9 @@ int t4_memory_rw(struct adapter *adap, int win, int mtype, u32 addr,
 		 u32 len, void *hbuf, int dir)
 {
 	u32 pos, offset, resid, memoffset;
-	u32 edc_size, mc_size, win_pf, mem_reg, mem_aperture, mem_base;
+	u32 win_pf, mem_aperture, mem_base;
 	u32 *buf;
+	int ret;
 
 	/* Argument sanity checks ...
 	 */
@@ -460,56 +633,26 @@ int t4_memory_rw(struct adapter *adap, int win, int mtype, u32 addr,
 	resid = len & 0x3;
 	len -= resid;
 
-	/* Offset into the region of memory which is being accessed
-	 * MEM_EDC0 = 0
-	 * MEM_EDC1 = 1
-	 * MEM_MC   = 2 -- MEM_MC for chips with only 1 memory controller
-	 * MEM_MC1  = 3 -- for chips with 2 memory controllers (e.g. T5)
-	 */
-	edc_size  = EDRAM0_SIZE_G(t4_read_reg(adap, MA_EDRAM0_BAR_A));
-	if (mtype != MEM_MC1)
-		memoffset = (mtype * (edc_size * 1024 * 1024));
-	else {
-		mc_size = EXT_MEM0_SIZE_G(t4_read_reg(adap,
-						      MA_EXT_MEMORY0_BAR_A));
-		memoffset = (MEM_MC0 * edc_size + mc_size) * 1024 * 1024;
-	}
+	ret = t4_memory_rw_init(adap, win, mtype, &memoffset, &mem_base,
+				&mem_aperture);
+	if (ret)
+		return ret;
 
 	/* Determine the PCIE_MEM_ACCESS_OFFSET */
 	addr = addr + memoffset;
 
-	/* Each PCI-E Memory Window is programmed with a window size -- or
-	 * "aperture" -- which controls the granularity of its mapping onto
-	 * adapter memory.  We need to grab that aperture in order to know
-	 * how to use the specified window.  The window is also programmed
-	 * with the base address of the Memory Window in BAR0's address
-	 * space.  For T4 this is an absolute PCI-E Bus Address.  For T5
-	 * the address is relative to BAR0.
-	 */
-	mem_reg = t4_read_reg(adap,
-			      PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_BASE_WIN_A,
-						  win));
-	mem_aperture = 1 << (WINDOW_G(mem_reg) + WINDOW_SHIFT_X);
-	mem_base = PCIEOFST_G(mem_reg) << PCIEOFST_SHIFT_X;
-	if (is_t4(adap->params.chip))
-		mem_base -= adap->t4_bar0;
 	win_pf = is_t4(adap->params.chip) ? 0 : PFNUM_V(adap->pf);
 
 	/* Calculate our initial PCI-E Memory Window Position and Offset into
 	 * that Window.
 	 */
-	pos = addr & ~(mem_aperture-1);
+	pos = addr & ~(mem_aperture - 1);
 	offset = addr - pos;
 
 	/* Set up initial PCI-E Memory Window to cover the start of our
-	 * transfer.  (Read it back to ensure that changes propagate before we
-	 * attempt to use the new value.)
+	 * transfer.
 	 */
-	t4_write_reg(adap,
-		     PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_OFFSET_A, win),
-		     pos | win_pf);
-	t4_read_reg(adap,
-		    PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_OFFSET_A, win));
+	t4_memory_update_win(adap, win, pos | win_pf);
 
 	/* Transfer data to/from the adapter as long as there's an integral
 	 * number of 32-bit transfers to complete.
@@ -564,12 +707,7 @@ int t4_memory_rw(struct adapter *adap, int win, int mtype, u32 addr,
 		if (offset == mem_aperture) {
 			pos += mem_aperture;
 			offset = 0;
-			t4_write_reg(adap,
-				PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_OFFSET_A,
-						    win), pos | win_pf);
-			t4_read_reg(adap,
-				PCIE_MEM_ACCESS_REG(PCIE_MEM_ACCESS_OFFSET_A,
-						    win));
+			t4_memory_update_win(adap, win, pos | win_pf);
 		}
 	}
 
@@ -578,28 +716,9 @@ int t4_memory_rw(struct adapter *adap, int win, int mtype, u32 addr,
 	 * residual amount.  The PCI-E Memory Window has already been moved
 	 * above (if necessary) to cover this final transfer.
 	 */
-	if (resid) {
-		union {
-			u32 word;
-			char byte[4];
-		} last;
-		unsigned char *bp;
-		int i;
-
-		if (dir == T4_MEMORY_READ) {
-			last.word = le32_to_cpu(
-					(__force __le32)t4_read_reg(adap,
-						mem_base + offset));
-			for (bp = (unsigned char *)buf, i = resid; i < 4; i++)
-				bp[i] = last.byte[i];
-		} else {
-			last.word = *buf;
-			for (i = resid; i < 4; i++)
-				last.byte[i] = 0;
-			t4_write_reg(adap, mem_base + offset,
-				     (__force u32)cpu_to_le32(last.word));
-		}
-	}
+	if (resid)
+		t4_memory_rw_residual(adap, resid, mem_base + offset,
+				      (u8 *)buf, dir);
 
 	return 0;
 }
@@ -854,7 +973,8 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0xd010, 0xd03c,
 		0xdfc0, 0xdfe0,
 		0xe000, 0xea7c,
-		0xf000, 0x11190,
+		0xf000, 0x11110,
+		0x11118, 0x11190,
 		0x19040, 0x1906c,
 		0x19078, 0x19080,
 		0x1908c, 0x190e4,
@@ -1380,8 +1500,6 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0x1ff00, 0x1ff84,
 		0x1ffc0, 0x1ffc8,
 		0x30000, 0x30030,
-		0x30038, 0x30038,
-		0x30040, 0x30040,
 		0x30100, 0x30144,
 		0x30190, 0x301a0,
 		0x301a8, 0x301b8,
@@ -1492,8 +1610,6 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0x33c3c, 0x33c50,
 		0x33cf0, 0x33cfc,
 		0x34000, 0x34030,
-		0x34038, 0x34038,
-		0x34040, 0x34040,
 		0x34100, 0x34144,
 		0x34190, 0x341a0,
 		0x341a8, 0x341b8,
@@ -1604,8 +1720,6 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0x37c3c, 0x37c50,
 		0x37cf0, 0x37cfc,
 		0x38000, 0x38030,
-		0x38038, 0x38038,
-		0x38040, 0x38040,
 		0x38100, 0x38144,
 		0x38190, 0x381a0,
 		0x381a8, 0x381b8,
@@ -1716,8 +1830,6 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0x3bc3c, 0x3bc50,
 		0x3bcf0, 0x3bcfc,
 		0x3c000, 0x3c030,
-		0x3c038, 0x3c038,
-		0x3c040, 0x3c040,
 		0x3c100, 0x3c144,
 		0x3c190, 0x3c1a0,
 		0x3c1a8, 0x3c1b8,
@@ -1981,12 +2093,8 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0x1190, 0x1194,
 		0x11a0, 0x11a4,
 		0x11b0, 0x11b4,
-		0x11fc, 0x1258,
-		0x1280, 0x12d4,
-		0x12d9, 0x12d9,
-		0x12de, 0x12de,
-		0x12e3, 0x12e3,
-		0x12e8, 0x133c,
+		0x11fc, 0x1274,
+		0x1280, 0x133c,
 		0x1800, 0x18fc,
 		0x3000, 0x302c,
 		0x3060, 0x30b0,
@@ -2017,6 +2125,9 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0x5ea0, 0x5eb0,
 		0x5ec0, 0x5ec0,
 		0x5ec8, 0x5ed0,
+		0x5ee0, 0x5ee0,
+		0x5ef0, 0x5ef0,
+		0x5f00, 0x5f00,
 		0x6000, 0x6020,
 		0x6028, 0x6040,
 		0x6058, 0x609c,
@@ -2074,6 +2185,8 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0xd300, 0xd31c,
 		0xdfc0, 0xdfe0,
 		0xe000, 0xf008,
+		0xf010, 0xf018,
+		0xf020, 0xf028,
 		0x11000, 0x11014,
 		0x11048, 0x1106c,
 		0x11074, 0x11088,
@@ -2197,13 +2310,6 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0x1ff00, 0x1ff84,
 		0x1ffc0, 0x1ffc8,
 		0x30000, 0x30030,
-		0x30038, 0x30038,
-		0x30040, 0x30040,
-		0x30048, 0x30048,
-		0x30050, 0x30050,
-		0x3005c, 0x30060,
-		0x30068, 0x30068,
-		0x30070, 0x30070,
 		0x30100, 0x30168,
 		0x30190, 0x301a0,
 		0x301a8, 0x301b8,
@@ -2266,13 +2372,12 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0x326a8, 0x326a8,
 		0x326ec, 0x326ec,
 		0x32a00, 0x32abc,
-		0x32b00, 0x32b38,
+		0x32b00, 0x32b18,
+		0x32b20, 0x32b38,
 		0x32b40, 0x32b58,
 		0x32b60, 0x32b78,
 		0x32c00, 0x32c00,
 		0x32c08, 0x32c3c,
-		0x32e00, 0x32e2c,
-		0x32f00, 0x32f2c,
 		0x33000, 0x3302c,
 		0x33034, 0x33050,
 		0x33058, 0x33058,
@@ -2337,13 +2442,6 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0x33c38, 0x33c50,
 		0x33cf0, 0x33cfc,
 		0x34000, 0x34030,
-		0x34038, 0x34038,
-		0x34040, 0x34040,
-		0x34048, 0x34048,
-		0x34050, 0x34050,
-		0x3405c, 0x34060,
-		0x34068, 0x34068,
-		0x34070, 0x34070,
 		0x34100, 0x34168,
 		0x34190, 0x341a0,
 		0x341a8, 0x341b8,
@@ -2406,13 +2504,12 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0x366a8, 0x366a8,
 		0x366ec, 0x366ec,
 		0x36a00, 0x36abc,
-		0x36b00, 0x36b38,
+		0x36b00, 0x36b18,
+		0x36b20, 0x36b38,
 		0x36b40, 0x36b58,
 		0x36b60, 0x36b78,
 		0x36c00, 0x36c00,
 		0x36c08, 0x36c3c,
-		0x36e00, 0x36e2c,
-		0x36f00, 0x36f2c,
 		0x37000, 0x3702c,
 		0x37034, 0x37050,
 		0x37058, 0x37058,
@@ -2486,8 +2583,7 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 		0x40280, 0x40280,
 		0x40304, 0x40304,
 		0x40330, 0x4033c,
-		0x41304, 0x413b8,
-		0x413c0, 0x413c8,
+		0x41304, 0x413c8,
 		0x413d0, 0x413dc,
 		0x413f0, 0x413f0,
 		0x41400, 0x4140c,
@@ -2596,11 +2692,39 @@ void t4_get_regs(struct adapter *adap, void *buf, size_t buf_size)
 }
 
 #define EEPROM_STAT_ADDR   0x7bfc
-#define VPD_SIZE           0x800
 #define VPD_BASE           0x400
 #define VPD_BASE_OLD       0
 #define VPD_LEN            1024
 #define CHELSIO_VPD_UNIQUE_ID 0x82
+
+/**
+ * t4_eeprom_ptov - translate a physical EEPROM address to virtual
+ * @phys_addr: the physical EEPROM address
+ * @fn: the PCI function number
+ * @sz: size of function-specific area
+ *
+ * Translate a physical EEPROM address to virtual.  The first 1K is
+ * accessed through virtual addresses starting at 31K, the rest is
+ * accessed through virtual addresses starting at 0.
+ *
+ * The mapping is as follows:
+ * [0..1K) -> [31K..32K)
+ * [1K..1K+A) -> [31K-A..31K)
+ * [1K+A..ES) -> [0..ES-A-1K)
+ *
+ * where A = @fn * @sz, and ES = EEPROM size.
+ */
+int t4_eeprom_ptov(unsigned int phys_addr, unsigned int fn, unsigned int sz)
+{
+	fn *= sz;
+	if (phys_addr < 1024)
+		return phys_addr + (31 << 10);
+	if (phys_addr < 1024 + fn)
+		return 31744 - fn + phys_addr - 1024;
+	if (phys_addr < EEPROMSIZE)
+		return phys_addr - 1024 - fn;
+	return -EINVAL;
+}
 
 /**
  *	t4_seeprom_wp - enable/disable EEPROM write protection
@@ -2633,15 +2757,6 @@ int t4_get_raw_vpd_params(struct adapter *adapter, struct vpd_params *p)
 	vpd = vmalloc(VPD_LEN);
 	if (!vpd)
 		return -ENOMEM;
-
-	/* We have two VPD data structures stored in the adapter VPD area.
-	 * By default, Linux calculates the size of the VPD area by traversing
-	 * the first VPD area at offset 0x0, so we need to tell the OS what
-	 * our real VPD size is.
-	 */
-	ret = pci_set_vpd_size(adapter->pdev, VPD_SIZE);
-	if (ret < 0)
-		goto out;
 
 	/* Card information normally starts at VPD_BASE but early cards had
 	 * it at 0.
@@ -2767,6 +2882,57 @@ int t4_get_vpd_params(struct adapter *adapter, struct vpd_params *p)
 	return 0;
 }
 
+/**
+ *	t4_get_pfres - retrieve VF resource limits
+ *	@adapter: the adapter
+ *
+ *	Retrieves configured resource limits and capabilities for a physical
+ *	function.  The results are stored in @adapter->pfres.
+ */
+int t4_get_pfres(struct adapter *adapter)
+{
+	struct pf_resources *pfres = &adapter->params.pfres;
+	struct fw_pfvf_cmd cmd, rpl;
+	int v;
+	u32 word;
+
+	/* Execute PFVF Read command to get VF resource limits; bail out early
+	 * with error on command failure.
+	 */
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.op_to_vfn = cpu_to_be32(FW_CMD_OP_V(FW_PFVF_CMD) |
+				    FW_CMD_REQUEST_F |
+				    FW_CMD_READ_F |
+				    FW_PFVF_CMD_PFN_V(adapter->pf) |
+				    FW_PFVF_CMD_VFN_V(0));
+	cmd.retval_len16 = cpu_to_be32(FW_LEN16(cmd));
+	v = t4_wr_mbox(adapter, adapter->mbox, &cmd, sizeof(cmd), &rpl);
+	if (v != FW_SUCCESS)
+		return v;
+
+	/* Extract PF resource limits and return success.
+	 */
+	word = be32_to_cpu(rpl.niqflint_niq);
+	pfres->niqflint = FW_PFVF_CMD_NIQFLINT_G(word);
+	pfres->niq = FW_PFVF_CMD_NIQ_G(word);
+
+	word = be32_to_cpu(rpl.type_to_neq);
+	pfres->neq = FW_PFVF_CMD_NEQ_G(word);
+	pfres->pmask = FW_PFVF_CMD_PMASK_G(word);
+
+	word = be32_to_cpu(rpl.tc_to_nexactf);
+	pfres->tc = FW_PFVF_CMD_TC_G(word);
+	pfres->nvi = FW_PFVF_CMD_NVI_G(word);
+	pfres->nexactf = FW_PFVF_CMD_NEXACTF_G(word);
+
+	word = be32_to_cpu(rpl.r_caps_to_nethctrl);
+	pfres->r_caps = FW_PFVF_CMD_R_CAPS_G(word);
+	pfres->wx_caps = FW_PFVF_CMD_WX_CAPS_G(word);
+	pfres->nethctrl = FW_PFVF_CMD_NETHCTRL_G(word);
+
+	return 0;
+}
+
 /* serial flash and firmware constants */
 enum {
 	SF_ATTEMPTS = 10,             /* max retries for SF operations */
@@ -2779,8 +2945,6 @@ enum {
 	SF_RD_DATA_FAST = 0xb,        /* read flash */
 	SF_RD_ID        = 0x9f,       /* read ID */
 	SF_ERASE_SECTOR = 0xd8,       /* erase sector */
-
-	FW_MAX_SIZE = 16 * SF_SEC_SIZE,
 };
 
 /**
@@ -3038,6 +3202,179 @@ int t4_get_exprom_version(struct adapter *adap, u32 *vers)
 		 FW_HDR_FW_VER_MICRO_V(hdr->hdr_ver[2]) |
 		 FW_HDR_FW_VER_BUILD_V(hdr->hdr_ver[3]));
 	return 0;
+}
+
+/**
+ *      t4_get_vpd_version - return the VPD version
+ *      @adapter: the adapter
+ *      @vers: where to place the version
+ *
+ *      Reads the VPD via the Firmware interface (thus this can only be called
+ *      once we're ready to issue Firmware commands).  The format of the
+ *      VPD version is adapter specific.  Returns 0 on success, an error on
+ *      failure.
+ *
+ *      Note that early versions of the Firmware didn't include the ability
+ *      to retrieve the VPD version, so we zero-out the return-value parameter
+ *      in that case to avoid leaving it with garbage in it.
+ *
+ *      Also note that the Firmware will return its cached copy of the VPD
+ *      Revision ID, not the actual Revision ID as written in the Serial
+ *      EEPROM.  This is only an issue if a new VPD has been written and the
+ *      Firmware/Chip haven't yet gone through a RESET sequence.  So it's best
+ *      to defer calling this routine till after a FW_RESET_CMD has been issued
+ *      if the Host Driver will be performing a full adapter initialization.
+ */
+int t4_get_vpd_version(struct adapter *adapter, u32 *vers)
+{
+	u32 vpdrev_param;
+	int ret;
+
+	vpdrev_param = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DEV) |
+			FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DEV_VPDREV));
+	ret = t4_query_params(adapter, adapter->mbox, adapter->pf, 0,
+			      1, &vpdrev_param, vers);
+	if (ret)
+		*vers = 0;
+	return ret;
+}
+
+/**
+ *      t4_get_scfg_version - return the Serial Configuration version
+ *      @adapter: the adapter
+ *      @vers: where to place the version
+ *
+ *      Reads the Serial Configuration Version via the Firmware interface
+ *      (thus this can only be called once we're ready to issue Firmware
+ *      commands).  The format of the Serial Configuration version is
+ *      adapter specific.  Returns 0 on success, an error on failure.
+ *
+ *      Note that early versions of the Firmware didn't include the ability
+ *      to retrieve the Serial Configuration version, so we zero-out the
+ *      return-value parameter in that case to avoid leaving it with
+ *      garbage in it.
+ *
+ *      Also note that the Firmware will return its cached copy of the Serial
+ *      Initialization Revision ID, not the actual Revision ID as written in
+ *      the Serial EEPROM.  This is only an issue if a new VPD has been written
+ *      and the Firmware/Chip haven't yet gone through a RESET sequence.  So
+ *      it's best to defer calling this routine till after a FW_RESET_CMD has
+ *      been issued if the Host Driver will be performing a full adapter
+ *      initialization.
+ */
+int t4_get_scfg_version(struct adapter *adapter, u32 *vers)
+{
+	u32 scfgrev_param;
+	int ret;
+
+	scfgrev_param = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DEV) |
+			 FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DEV_SCFGREV));
+	ret = t4_query_params(adapter, adapter->mbox, adapter->pf, 0,
+			      1, &scfgrev_param, vers);
+	if (ret)
+		*vers = 0;
+	return ret;
+}
+
+/**
+ *      t4_get_version_info - extract various chip/firmware version information
+ *      @adapter: the adapter
+ *
+ *      Reads various chip/firmware version numbers and stores them into the
+ *      adapter Adapter Parameters structure.  If any of the efforts fails
+ *      the first failure will be returned, but all of the version numbers
+ *      will be read.
+ */
+int t4_get_version_info(struct adapter *adapter)
+{
+	int ret = 0;
+
+	#define FIRST_RET(__getvinfo) \
+	do { \
+		int __ret = __getvinfo; \
+		if (__ret && !ret) \
+			ret = __ret; \
+	} while (0)
+
+	FIRST_RET(t4_get_fw_version(adapter, &adapter->params.fw_vers));
+	FIRST_RET(t4_get_bs_version(adapter, &adapter->params.bs_vers));
+	FIRST_RET(t4_get_tp_version(adapter, &adapter->params.tp_vers));
+	FIRST_RET(t4_get_exprom_version(adapter, &adapter->params.er_vers));
+	FIRST_RET(t4_get_scfg_version(adapter, &adapter->params.scfg_vers));
+	FIRST_RET(t4_get_vpd_version(adapter, &adapter->params.vpd_vers));
+
+	#undef FIRST_RET
+	return ret;
+}
+
+/**
+ *      t4_dump_version_info - dump all of the adapter configuration IDs
+ *      @adapter: the adapter
+ *
+ *      Dumps all of the various bits of adapter configuration version/revision
+ *      IDs information.  This is typically called at some point after
+ *      t4_get_version_info() has been called.
+ */
+void t4_dump_version_info(struct adapter *adapter)
+{
+	/* Device information */
+	dev_info(adapter->pdev_dev, "Chelsio %s rev %d\n",
+		 adapter->params.vpd.id,
+		 CHELSIO_CHIP_RELEASE(adapter->params.chip));
+	dev_info(adapter->pdev_dev, "S/N: %s, P/N: %s\n",
+		 adapter->params.vpd.sn, adapter->params.vpd.pn);
+
+	/* Firmware Version */
+	if (!adapter->params.fw_vers)
+		dev_warn(adapter->pdev_dev, "No firmware loaded\n");
+	else
+		dev_info(adapter->pdev_dev, "Firmware version: %u.%u.%u.%u\n",
+			 FW_HDR_FW_VER_MAJOR_G(adapter->params.fw_vers),
+			 FW_HDR_FW_VER_MINOR_G(adapter->params.fw_vers),
+			 FW_HDR_FW_VER_MICRO_G(adapter->params.fw_vers),
+			 FW_HDR_FW_VER_BUILD_G(adapter->params.fw_vers));
+
+	/* Bootstrap Firmware Version. (Some adapters don't have Bootstrap
+	 * Firmware, so dev_info() is more appropriate here.)
+	 */
+	if (!adapter->params.bs_vers)
+		dev_info(adapter->pdev_dev, "No bootstrap loaded\n");
+	else
+		dev_info(adapter->pdev_dev, "Bootstrap version: %u.%u.%u.%u\n",
+			 FW_HDR_FW_VER_MAJOR_G(adapter->params.bs_vers),
+			 FW_HDR_FW_VER_MINOR_G(adapter->params.bs_vers),
+			 FW_HDR_FW_VER_MICRO_G(adapter->params.bs_vers),
+			 FW_HDR_FW_VER_BUILD_G(adapter->params.bs_vers));
+
+	/* TP Microcode Version */
+	if (!adapter->params.tp_vers)
+		dev_warn(adapter->pdev_dev, "No TP Microcode loaded\n");
+	else
+		dev_info(adapter->pdev_dev,
+			 "TP Microcode version: %u.%u.%u.%u\n",
+			 FW_HDR_FW_VER_MAJOR_G(adapter->params.tp_vers),
+			 FW_HDR_FW_VER_MINOR_G(adapter->params.tp_vers),
+			 FW_HDR_FW_VER_MICRO_G(adapter->params.tp_vers),
+			 FW_HDR_FW_VER_BUILD_G(adapter->params.tp_vers));
+
+	/* Expansion ROM version */
+	if (!adapter->params.er_vers)
+		dev_info(adapter->pdev_dev, "No Expansion ROM loaded\n");
+	else
+		dev_info(adapter->pdev_dev,
+			 "Expansion ROM version: %u.%u.%u.%u\n",
+			 FW_HDR_FW_VER_MAJOR_G(adapter->params.er_vers),
+			 FW_HDR_FW_VER_MINOR_G(adapter->params.er_vers),
+			 FW_HDR_FW_VER_MICRO_G(adapter->params.er_vers),
+			 FW_HDR_FW_VER_BUILD_G(adapter->params.er_vers));
+
+	/* Serial Configuration version */
+	dev_info(adapter->pdev_dev, "Serial Configuration version: %#x\n",
+		 adapter->params.scfg_vers);
+
+	/* VPD Version */
+	dev_info(adapter->pdev_dev, "VPD version: %#x\n",
+		 adapter->params.vpd_vers);
 }
 
 /**
@@ -3320,8 +3657,9 @@ int t4_load_fw(struct adapter *adap, const u8 *fw_data, unsigned int size)
 	const __be32 *p = (const __be32 *)fw_data;
 	const struct fw_hdr *hdr = (const struct fw_hdr *)fw_data;
 	unsigned int sf_sec_size = adap->params.sf_size / adap->params.sf_nsec;
-	unsigned int fw_img_start = adap->params.sf_fw_start;
-	unsigned int fw_start_sec = fw_img_start / sf_sec_size;
+	unsigned int fw_start_sec = FLASH_FW_START_SEC;
+	unsigned int fw_size = FLASH_FW_MAX_SIZE;
+	unsigned int fw_start = FLASH_FW_START;
 
 	if (!size) {
 		dev_err(adap->pdev_dev, "FW image has no data\n");
@@ -3337,9 +3675,9 @@ int t4_load_fw(struct adapter *adap, const u8 *fw_data, unsigned int size)
 			"FW image size differs from size in FW header\n");
 		return -EINVAL;
 	}
-	if (size > FW_MAX_SIZE) {
+	if (size > fw_size) {
 		dev_err(adap->pdev_dev, "FW image too large, max is %u bytes\n",
-			FW_MAX_SIZE);
+			fw_size);
 		return -EFBIG;
 	}
 	if (!t4_fw_matches_chip(adap, hdr))
@@ -3366,11 +3704,11 @@ int t4_load_fw(struct adapter *adap, const u8 *fw_data, unsigned int size)
 	 */
 	memcpy(first_page, fw_data, SF_PAGE_SIZE);
 	((struct fw_hdr *)first_page)->fw_ver = cpu_to_be32(0xffffffff);
-	ret = t4_write_flash(adap, fw_img_start, SF_PAGE_SIZE, first_page);
+	ret = t4_write_flash(adap, fw_start, SF_PAGE_SIZE, first_page);
 	if (ret)
 		goto out;
 
-	addr = fw_img_start;
+	addr = fw_start;
 	for (size -= SF_PAGE_SIZE; size; size -= SF_PAGE_SIZE) {
 		addr += SF_PAGE_SIZE;
 		fw_data += SF_PAGE_SIZE;
@@ -3380,7 +3718,7 @@ int t4_load_fw(struct adapter *adap, const u8 *fw_data, unsigned int size)
 	}
 
 	ret = t4_write_flash(adap,
-			     fw_img_start + offsetof(struct fw_hdr, fw_ver),
+			     fw_start + offsetof(struct fw_hdr, fw_ver),
 			     sizeof(hdr->fw_ver), (const u8 *)&hdr->fw_ver);
 out:
 	if (ret)
@@ -3456,7 +3794,7 @@ int t4_load_phy_fw(struct adapter *adap,
 	/* If we have version number support, then check to see if the adapter
 	 * already has up-to-date PHY firmware loaded.
 	 */
-	 if (phy_fw_version) {
+	if (phy_fw_version) {
 		new_phy_fw_vers = phy_fw_version(phy_fw_data, phy_fw_size);
 		ret = t4_phy_fw_ver(adap, &cur_phy_fw_ver);
 		if (ret < 0)
@@ -3481,7 +3819,7 @@ int t4_load_phy_fw(struct adapter *adap,
 		 FW_PARAMS_PARAM_Z_V(FW_PARAMS_PARAM_DEV_PHYFW_DOWNLOAD));
 	val = phy_fw_size;
 	ret = t4_query_params_rw(adap, adap->mbox, adap->pf, 0, 1,
-				 &param, &val, 1);
+				 &param, &val, 1, true);
 	if (ret < 0)
 		return ret;
 	mtype = val >> 8;
@@ -3551,7 +3889,7 @@ int t4_fwcache(struct adapter *adap, enum fw_params_param_dev_fwcache op)
 	c.param[0].mnem =
 		cpu_to_be32(FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DEV) |
 			    FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DEV_FWCACHE));
-	c.param[0].val = (__force __be32)op;
+	c.param[0].val = cpu_to_be32(op);
 
 	return t4_wr_mbox(adap, adap->mbox, &c, sizeof(c), NULL);
 }
@@ -3626,16 +3964,245 @@ void t4_ulprx_read_la(struct adapter *adap, u32 *la_buf)
 	}
 }
 
-#define ADVERT_MASK (FW_PORT_CAP_SPEED_100M | FW_PORT_CAP_SPEED_1G |\
-		     FW_PORT_CAP_SPEED_10G | FW_PORT_CAP_SPEED_25G | \
-		     FW_PORT_CAP_SPEED_40G | FW_PORT_CAP_SPEED_100G | \
-		     FW_PORT_CAP_ANEG)
+/* The ADVERT_MASK is used to mask out all of the Advertised Firmware Port
+ * Capabilities which we control with separate controls -- see, for instance,
+ * Pause Frames and Forward Error Correction.  In order to determine what the
+ * full set of Advertised Port Capabilities are, the base Advertised Port
+ * Capabilities (masked by ADVERT_MASK) must be combined with the Advertised
+ * Port Capabilities associated with those other controls.  See
+ * t4_link_acaps() for how this is done.
+ */
+#define ADVERT_MASK (FW_PORT_CAP32_SPEED_V(FW_PORT_CAP32_SPEED_M) | \
+		     FW_PORT_CAP32_ANEG)
 
 /**
- *	t4_link_l1cfg - apply link configuration to MAC/PHY
- *	@phy: the PHY to setup
- *	@mac: the MAC to setup
- *	@lc: the requested link configuration
+ *	fwcaps16_to_caps32 - convert 16-bit Port Capabilities to 32-bits
+ *	@caps16: a 16-bit Port Capabilities value
+ *
+ *	Returns the equivalent 32-bit Port Capabilities value.
+ */
+static fw_port_cap32_t fwcaps16_to_caps32(fw_port_cap16_t caps16)
+{
+	fw_port_cap32_t caps32 = 0;
+
+	#define CAP16_TO_CAP32(__cap) \
+		do { \
+			if (caps16 & FW_PORT_CAP_##__cap) \
+				caps32 |= FW_PORT_CAP32_##__cap; \
+		} while (0)
+
+	CAP16_TO_CAP32(SPEED_100M);
+	CAP16_TO_CAP32(SPEED_1G);
+	CAP16_TO_CAP32(SPEED_25G);
+	CAP16_TO_CAP32(SPEED_10G);
+	CAP16_TO_CAP32(SPEED_40G);
+	CAP16_TO_CAP32(SPEED_100G);
+	CAP16_TO_CAP32(FC_RX);
+	CAP16_TO_CAP32(FC_TX);
+	CAP16_TO_CAP32(ANEG);
+	CAP16_TO_CAP32(FORCE_PAUSE);
+	CAP16_TO_CAP32(MDIAUTO);
+	CAP16_TO_CAP32(MDISTRAIGHT);
+	CAP16_TO_CAP32(FEC_RS);
+	CAP16_TO_CAP32(FEC_BASER_RS);
+	CAP16_TO_CAP32(802_3_PAUSE);
+	CAP16_TO_CAP32(802_3_ASM_DIR);
+
+	#undef CAP16_TO_CAP32
+
+	return caps32;
+}
+
+/**
+ *	fwcaps32_to_caps16 - convert 32-bit Port Capabilities to 16-bits
+ *	@caps32: a 32-bit Port Capabilities value
+ *
+ *	Returns the equivalent 16-bit Port Capabilities value.  Note that
+ *	not all 32-bit Port Capabilities can be represented in the 16-bit
+ *	Port Capabilities and some fields/values may not make it.
+ */
+static fw_port_cap16_t fwcaps32_to_caps16(fw_port_cap32_t caps32)
+{
+	fw_port_cap16_t caps16 = 0;
+
+	#define CAP32_TO_CAP16(__cap) \
+		do { \
+			if (caps32 & FW_PORT_CAP32_##__cap) \
+				caps16 |= FW_PORT_CAP_##__cap; \
+		} while (0)
+
+	CAP32_TO_CAP16(SPEED_100M);
+	CAP32_TO_CAP16(SPEED_1G);
+	CAP32_TO_CAP16(SPEED_10G);
+	CAP32_TO_CAP16(SPEED_25G);
+	CAP32_TO_CAP16(SPEED_40G);
+	CAP32_TO_CAP16(SPEED_100G);
+	CAP32_TO_CAP16(FC_RX);
+	CAP32_TO_CAP16(FC_TX);
+	CAP32_TO_CAP16(802_3_PAUSE);
+	CAP32_TO_CAP16(802_3_ASM_DIR);
+	CAP32_TO_CAP16(ANEG);
+	CAP32_TO_CAP16(FORCE_PAUSE);
+	CAP32_TO_CAP16(MDIAUTO);
+	CAP32_TO_CAP16(MDISTRAIGHT);
+	CAP32_TO_CAP16(FEC_RS);
+	CAP32_TO_CAP16(FEC_BASER_RS);
+
+	#undef CAP32_TO_CAP16
+
+	return caps16;
+}
+
+/* Translate Firmware Port Capabilities Pause specification to Common Code */
+static inline enum cc_pause fwcap_to_cc_pause(fw_port_cap32_t fw_pause)
+{
+	enum cc_pause cc_pause = 0;
+
+	if (fw_pause & FW_PORT_CAP32_FC_RX)
+		cc_pause |= PAUSE_RX;
+	if (fw_pause & FW_PORT_CAP32_FC_TX)
+		cc_pause |= PAUSE_TX;
+
+	return cc_pause;
+}
+
+/* Translate Common Code Pause specification into Firmware Port Capabilities */
+static inline fw_port_cap32_t cc_to_fwcap_pause(enum cc_pause cc_pause)
+{
+	/* Translate orthogonal RX/TX Pause Controls for L1 Configure
+	 * commands, etc.
+	 */
+	fw_port_cap32_t fw_pause = 0;
+
+	if (cc_pause & PAUSE_RX)
+		fw_pause |= FW_PORT_CAP32_FC_RX;
+	if (cc_pause & PAUSE_TX)
+		fw_pause |= FW_PORT_CAP32_FC_TX;
+	if (!(cc_pause & PAUSE_AUTONEG))
+		fw_pause |= FW_PORT_CAP32_FORCE_PAUSE;
+
+	/* Translate orthogonal Pause controls into IEEE 802.3 Pause,
+	 * Asymetrical Pause for use in reporting to upper layer OS code, etc.
+	 * Note that these bits are ignored in L1 Configure commands.
+	 */
+	if (cc_pause & PAUSE_RX) {
+		if (cc_pause & PAUSE_TX)
+			fw_pause |= FW_PORT_CAP32_802_3_PAUSE;
+		else
+			fw_pause |= FW_PORT_CAP32_802_3_ASM_DIR;
+	} else if (cc_pause & PAUSE_TX) {
+		fw_pause |= FW_PORT_CAP32_802_3_ASM_DIR;
+	}
+
+	return fw_pause;
+}
+
+/* Translate Firmware Forward Error Correction specification to Common Code */
+static inline enum cc_fec fwcap_to_cc_fec(fw_port_cap32_t fw_fec)
+{
+	enum cc_fec cc_fec = 0;
+
+	if (fw_fec & FW_PORT_CAP32_FEC_RS)
+		cc_fec |= FEC_RS;
+	if (fw_fec & FW_PORT_CAP32_FEC_BASER_RS)
+		cc_fec |= FEC_BASER_RS;
+
+	return cc_fec;
+}
+
+/* Translate Common Code Forward Error Correction specification to Firmware */
+static inline fw_port_cap32_t cc_to_fwcap_fec(enum cc_fec cc_fec)
+{
+	fw_port_cap32_t fw_fec = 0;
+
+	if (cc_fec & FEC_RS)
+		fw_fec |= FW_PORT_CAP32_FEC_RS;
+	if (cc_fec & FEC_BASER_RS)
+		fw_fec |= FW_PORT_CAP32_FEC_BASER_RS;
+
+	return fw_fec;
+}
+
+/**
+ *	t4_link_acaps - compute Link Advertised Port Capabilities
+ *	@adapter: the adapter
+ *	@port: the Port ID
+ *	@lc: the Port's Link Configuration
+ *
+ *	Synthesize the Advertised Port Capabilities we'll be using based on
+ *	the base Advertised Port Capabilities (which have been filtered by
+ *	ADVERT_MASK) plus the individual controls for things like Pause
+ *	Frames, Forward Error Correction, MDI, etc.
+ */
+fw_port_cap32_t t4_link_acaps(struct adapter *adapter, unsigned int port,
+			      struct link_config *lc)
+{
+	fw_port_cap32_t fw_fc, fw_fec, acaps;
+	unsigned int fw_mdi;
+	char cc_fec;
+
+	fw_mdi = (FW_PORT_CAP32_MDI_V(FW_PORT_CAP32_MDI_AUTO) & lc->pcaps);
+
+	/* Convert driver coding of Pause Frame Flow Control settings into the
+	 * Firmware's API.
+	 */
+	fw_fc = cc_to_fwcap_pause(lc->requested_fc);
+
+	/* Convert Common Code Forward Error Control settings into the
+	 * Firmware's API.  If the current Requested FEC has "Automatic"
+	 * (IEEE 802.3) specified, then we use whatever the Firmware
+	 * sent us as part of it's IEEE 802.3-based interpratation of
+	 * the Transceiver Module EPROM FEC parameters.  Otherwise we
+	 * use whatever is in the current Requested FEC settings.
+	 */
+	if (lc->requested_fec & FEC_AUTO)
+		cc_fec = fwcap_to_cc_fec(lc->def_acaps);
+	else
+		cc_fec = lc->requested_fec;
+	fw_fec = cc_to_fwcap_fec(cc_fec);
+
+	/* Figure out what our Requested Port Capabilities are going to be.
+	 * Note parallel structure in t4_handle_get_port_info() and
+	 * init_link_config().
+	 */
+	if (!(lc->pcaps & FW_PORT_CAP32_ANEG)) {
+		acaps = lc->acaps | fw_fc | fw_fec;
+		lc->fc = lc->requested_fc & ~PAUSE_AUTONEG;
+		lc->fec = cc_fec;
+	} else if (lc->autoneg == AUTONEG_DISABLE) {
+		acaps = lc->speed_caps | fw_fc | fw_fec | fw_mdi;
+		lc->fc = lc->requested_fc & ~PAUSE_AUTONEG;
+		lc->fec = cc_fec;
+	} else {
+		acaps = lc->acaps | fw_fc | fw_fec | fw_mdi;
+	}
+
+	/* Some Requested Port Capabilities are trivially wrong if they exceed
+	 * the Physical Port Capabilities.  We can check that here and provide
+	 * moderately useful feedback in the system log.
+	 *
+	 * Note that older Firmware doesn't have FW_PORT_CAP32_FORCE_PAUSE, so
+	 * we need to exclude this from this check in order to maintain
+	 * compatibility ...
+	 */
+	if ((acaps & ~lc->pcaps) & ~FW_PORT_CAP32_FORCE_PAUSE) {
+		dev_err(adapter->pdev_dev, "Requested Port Capabilities %#x exceed Physical Port Capabilities %#x\n",
+			acaps, lc->pcaps);
+		return -EINVAL;
+	}
+
+	return acaps;
+}
+
+/**
+ *	t4_link_l1cfg_core - apply link configuration to MAC/PHY
+ *	@adapter: the adapter
+ *	@mbox: the Firmware Mailbox to use
+ *	@port: the Port ID
+ *	@lc: the Port's Link Configuration
+ *	@sleep_ok: if true we may sleep while awaiting command completion
+ *	@timeout: time to wait for command to finish before timing out
+ *		(negative implies @sleep_ok=false)
  *
  *	Set up a port's MAC and PHY according to a desired link configuration.
  *	- If the PHY can auto-negotiate first decide what to advertise, then
@@ -3644,37 +4211,54 @@ void t4_ulprx_read_la(struct adapter *adap, u32 *la_buf)
  *	- If auto-negotiation is off set the MAC to the proper speed/duplex/FC,
  *	  otherwise do it later based on the outcome of auto-negotiation.
  */
-int t4_link_l1cfg(struct adapter *adap, unsigned int mbox, unsigned int port,
-		  struct link_config *lc)
+int t4_link_l1cfg_core(struct adapter *adapter, unsigned int mbox,
+		       unsigned int port, struct link_config *lc,
+		       u8 sleep_ok, int timeout)
 {
-	struct fw_port_cmd c;
-	unsigned int fc = 0, mdi = FW_PORT_CAP_MDI_V(FW_PORT_CAP_MDI_AUTO);
+	unsigned int fw_caps = adapter->params.fw_caps_support;
+	struct fw_port_cmd cmd;
+	fw_port_cap32_t rcap;
+	int ret;
 
-	lc->link_ok = 0;
-	if (lc->requested_fc & PAUSE_RX)
-		fc |= FW_PORT_CAP_FC_RX;
-	if (lc->requested_fc & PAUSE_TX)
-		fc |= FW_PORT_CAP_FC_TX;
+	if (!(lc->pcaps & FW_PORT_CAP32_ANEG) &&
+	    lc->autoneg == AUTONEG_ENABLE) {
+		return -EINVAL;
+	}
 
-	memset(&c, 0, sizeof(c));
-	c.op_to_portid = cpu_to_be32(FW_CMD_OP_V(FW_PORT_CMD) |
-				     FW_CMD_REQUEST_F | FW_CMD_EXEC_F |
-				     FW_PORT_CMD_PORTID_V(port));
-	c.action_to_len16 =
-		cpu_to_be32(FW_PORT_CMD_ACTION_V(FW_PORT_ACTION_L1_CFG) |
-			    FW_LEN16(c));
+	/* Compute our Requested Port Capabilities and send that on to the
+	 * Firmware.
+	 */
+	rcap = t4_link_acaps(adapter, port, lc);
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.op_to_portid = cpu_to_be32(FW_CMD_OP_V(FW_PORT_CMD) |
+				       FW_CMD_REQUEST_F | FW_CMD_EXEC_F |
+				       FW_PORT_CMD_PORTID_V(port));
+	cmd.action_to_len16 =
+		cpu_to_be32(FW_PORT_CMD_ACTION_V(fw_caps == FW_CAPS16
+						 ? FW_PORT_ACTION_L1_CFG
+						 : FW_PORT_ACTION_L1_CFG32) |
+						 FW_LEN16(cmd));
+	if (fw_caps == FW_CAPS16)
+		cmd.u.l1cfg.rcap = cpu_to_be32(fwcaps32_to_caps16(rcap));
+	else
+		cmd.u.l1cfg32.rcap32 = cpu_to_be32(rcap);
 
-	if (!(lc->supported & FW_PORT_CAP_ANEG)) {
-		c.u.l1cfg.rcap = cpu_to_be32((lc->supported & ADVERT_MASK) |
-					     fc);
-		lc->fc = lc->requested_fc & (PAUSE_RX | PAUSE_TX);
-	} else if (lc->autoneg == AUTONEG_DISABLE) {
-		c.u.l1cfg.rcap = cpu_to_be32(lc->requested_speed | fc | mdi);
-		lc->fc = lc->requested_fc & (PAUSE_RX | PAUSE_TX);
-	} else
-		c.u.l1cfg.rcap = cpu_to_be32(lc->advertising | fc | mdi);
+	ret = t4_wr_mbox_meat_timeout(adapter, mbox, &cmd, sizeof(cmd), NULL,
+				      sleep_ok, timeout);
 
-	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
+	/* Unfortunately, even if the Requested Port Capabilities "fit" within
+	 * the Physical Port Capabilities, some combinations of features may
+	 * still not be leagal.  For example, 40Gb/s and Reed-Solomon Forward
+	 * Error Correction.  So if the Firmware rejects the L1 Configure
+	 * request, flag that here.
+	 */
+	if (ret) {
+		dev_err(adapter->pdev_dev,
+			"Requested Port Capabilities %#x rejected, error %d\n",
+			rcap, -ret);
+		return ret;
+	}
+	return 0;
 }
 
 /**
@@ -3687,6 +4271,7 @@ int t4_link_l1cfg(struct adapter *adap, unsigned int mbox, unsigned int port,
  */
 int t4_restart_aneg(struct adapter *adap, unsigned int mbox, unsigned int port)
 {
+	unsigned int fw_caps = adap->params.fw_caps_support;
 	struct fw_port_cmd c;
 
 	memset(&c, 0, sizeof(c));
@@ -3694,9 +4279,14 @@ int t4_restart_aneg(struct adapter *adap, unsigned int mbox, unsigned int port)
 				     FW_CMD_REQUEST_F | FW_CMD_EXEC_F |
 				     FW_PORT_CMD_PORTID_V(port));
 	c.action_to_len16 =
-		cpu_to_be32(FW_PORT_CMD_ACTION_V(FW_PORT_ACTION_L1_CFG) |
+		cpu_to_be32(FW_PORT_CMD_ACTION_V(fw_caps == FW_CAPS16
+						 ? FW_PORT_ACTION_L1_CFG
+						 : FW_PORT_ACTION_L1_CFG32) |
 			    FW_LEN16(c));
-	c.u.l1cfg.rcap = cpu_to_be32(FW_PORT_CAP_ANEG);
+	if (fw_caps == FW_CAPS16)
+		c.u.l1cfg.rcap = cpu_to_be32(FW_PORT_CAP_ANEG);
+	else
+		c.u.l1cfg32.rcap32 = cpu_to_be32(FW_PORT_CAP32_ANEG);
 	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
 }
 
@@ -3971,6 +4561,7 @@ static void cim_intr_handler(struct adapter *adapter)
 		{ MBHOSTPARERR_F, "CIM mailbox host parity error", -1, 1 },
 		{ TIEQINPARERRINT_F, "CIM TIEQ outgoing parity error", -1, 1 },
 		{ TIEQOUTPARERRINT_F, "CIM TIEQ incoming parity error", -1, 1 },
+		{ TIMER0INT_F, "CIM TIMER0 interrupt", -1, 1 },
 		{ 0 }
 	};
 	static const struct intr_info cim_upintr_info[] = {
@@ -4005,10 +4596,26 @@ static void cim_intr_handler(struct adapter *adapter)
 		{ 0 }
 	};
 
+	u32 val, fw_err;
 	int fat;
 
-	if (t4_read_reg(adapter, PCIE_FW_A) & PCIE_FW_ERR_F)
+	fw_err = t4_read_reg(adapter, PCIE_FW_A);
+	if (fw_err & PCIE_FW_ERR_F)
 		t4_report_fw_error(adapter);
+
+	/* When the Firmware detects an internal error which normally
+	 * wouldn't raise a Host Interrupt, it forces a CIM Timer0 interrupt
+	 * in order to make sure the Host sees the Firmware Crash.  So
+	 * if we have a Timer0 interrupt and don't see a Firmware Crash,
+	 * ignore the Timer0 interrupt.
+	 */
+
+	val = t4_read_reg(adapter, CIM_HOST_INT_CAUSE_A);
+	if (val & TIMER0INT_F)
+		if (!(fw_err & PCIE_FW_ERR_F) ||
+		    (PCIE_FW_EVAL_G(fw_err) != PCIE_FW_EVAL_CRASH))
+			t4_write_reg(adapter, CIM_HOST_INT_CAUSE_A,
+				     TIMER0INT_F);
 
 	fat = t4_handle_intr_status(adapter, CIM_HOST_INT_CAUSE_A,
 				    cim_intr_info) +
@@ -4168,6 +4775,18 @@ static void mps_intr_handler(struct adapter *adapter)
 		{ FRMERR_F, "MPS Tx framing error", -1, 1 },
 		{ 0 }
 	};
+	static const struct intr_info t6_mps_tx_intr_info[] = {
+		{ TPFIFO_V(TPFIFO_M), "MPS Tx TP FIFO parity error", -1, 1 },
+		{ NCSIFIFO_F, "MPS Tx NC-SI FIFO parity error", -1, 1 },
+		{ TXDATAFIFO_V(TXDATAFIFO_M), "MPS Tx data FIFO parity error",
+		  -1, 1 },
+		{ TXDESCFIFO_V(TXDESCFIFO_M), "MPS Tx desc FIFO parity error",
+		  -1, 1 },
+		/* MPS Tx Bubble is normal for T6 */
+		{ SECNTERR_F, "MPS Tx SOP/EOP error", -1, 1 },
+		{ FRMERR_F, "MPS Tx framing error", -1, 1 },
+		{ 0 }
+	};
 	static const struct intr_info mps_trc_intr_info[] = {
 		{ FILTMEM_V(FILTMEM_M), "MPS TRC filter parity error", -1, 1 },
 		{ PKTFIFO_V(PKTFIFO_M), "MPS TRC packet FIFO parity error",
@@ -4199,7 +4818,9 @@ static void mps_intr_handler(struct adapter *adapter)
 	fat = t4_handle_intr_status(adapter, MPS_RX_PERR_INT_CAUSE_A,
 				    mps_rx_intr_info) +
 	      t4_handle_intr_status(adapter, MPS_TX_INT_CAUSE_A,
-				    mps_tx_intr_info) +
+				    is_t6(adapter->params.chip)
+				    ? t6_mps_tx_intr_info
+				    : mps_tx_intr_info) +
 	      t4_handle_intr_status(adapter, MPS_TRC_INT_CAUSE_A,
 				    mps_trc_intr_info) +
 	      t4_handle_intr_status(adapter, MPS_STAT_PERR_INT_CAUSE_SRAM_A,
@@ -4376,7 +4997,7 @@ static void pl_intr_handler(struct adapter *adap)
 #define PF_INTR_MASK (PFSW_F)
 #define GLBL_INTR_MASK (CIM_F | MPS_F | PL_F | PCIE_F | MC_F | EDC0_F | \
 		EDC1_F | LE_F | TP_F | MA_F | PM_TX_F | PM_RX_F | ULP_RX_F | \
-		CPL_SWITCH_F | SGE_F | ULP_TX_F)
+		CPL_SWITCH_F | SGE_F | ULP_TX_F | SF_F)
 
 /**
  *	t4_slow_intr_handler - control path interrupt handler
@@ -4388,7 +5009,13 @@ static void pl_intr_handler(struct adapter *adap)
  */
 int t4_slow_intr_handler(struct adapter *adapter)
 {
-	u32 cause = t4_read_reg(adapter, PL_INT_CAUSE_A);
+	/* There are rare cases where a PL_INT_CAUSE bit may end up getting
+	 * set when the corresponding PL_INT_ENABLE bit isn't set.  It's
+	 * easiest just to mask that case here.
+	 */
+	u32 raw_cause = t4_read_reg(adapter, PL_INT_CAUSE_A);
+	u32 enable = t4_read_reg(adapter, PL_INT_ENABLE_A);
+	u32 cause = raw_cause & enable;
 
 	if (!(cause & GLBL_INTR_MASK))
 		return 0;
@@ -4440,7 +5067,7 @@ int t4_slow_intr_handler(struct adapter *adapter)
 		ulptx_intr_handler(adapter);
 
 	/* Clear the interrupts just processed for which we are the master. */
-	t4_write_reg(adapter, PL_INT_CAUSE_A, cause & GLBL_INTR_MASK);
+	t4_write_reg(adapter, PL_INT_CAUSE_A, raw_cause & GLBL_INTR_MASK);
 	(void)t4_read_reg(adapter, PL_INT_CAUSE_A); /* flush */
 	return 1;
 }
@@ -4488,12 +5115,25 @@ void t4_intr_enable(struct adapter *adapter)
  */
 void t4_intr_disable(struct adapter *adapter)
 {
-	u32 whoami = t4_read_reg(adapter, PL_WHOAMI_A);
-	u32 pf = CHELSIO_CHIP_VERSION(adapter->params.chip) <= CHELSIO_T5 ?
+	u32 whoami, pf;
+
+	if (pci_channel_offline(adapter->pdev))
+		return;
+
+	whoami = t4_read_reg(adapter, PL_WHOAMI_A);
+	pf = CHELSIO_CHIP_VERSION(adapter->params.chip) <= CHELSIO_T5 ?
 			SOURCEPF_G(whoami) : T6_SOURCEPF_G(whoami);
 
 	t4_write_reg(adapter, MYPF_REG(PL_PF_INT_ENABLE_A), 0);
 	t4_set_reg_field(adapter, PL_INT_MAP0_A, 1 << pf, 0);
+}
+
+unsigned int t4_chip_rss_size(struct adapter *adap)
+{
+	if (CHELSIO_CHIP_VERSION(adap->params.chip) <= CHELSIO_T5)
+		return RSS_NENTRIES;
+	else
+		return T6_RSS_NENTRIES;
 }
 
 /**
@@ -4634,10 +5274,11 @@ static int rd_rss_row(struct adapter *adap, int row, u32 *val)
  */
 int t4_read_rss(struct adapter *adapter, u16 *map)
 {
+	int i, ret, nentries;
 	u32 val;
-	int i, ret;
 
-	for (i = 0; i < RSS_NENTRIES / 2; ++i) {
+	nentries = t4_chip_rss_size(adapter);
+	for (i = 0; i < nentries / 2; ++i) {
 		ret = rd_rss_row(adapter, i, &val);
 		if (ret)
 			return ret;
@@ -4649,27 +5290,30 @@ int t4_read_rss(struct adapter *adapter, u16 *map)
 
 static unsigned int t4_use_ldst(struct adapter *adap)
 {
-	return (adap->flags & FW_OK) || !adap->use_bd;
+	return (adap->flags & CXGB4_FW_OK) && !adap->use_bd;
 }
 
 /**
- *	t4_fw_tp_pio_rw - Access TP PIO through LDST
- *	@adap: the adapter
- *	@vals: where the indirect register values are stored/written
- *	@nregs: how many indirect registers to read/write
- *	@start_idx: index of first indirect register to read/write
- *	@rw: Read (1) or Write (0)
+ * t4_tp_fw_ldst_rw - Access TP indirect register through LDST
+ * @adap: the adapter
+ * @cmd: TP fw ldst address space type
+ * @vals: where the indirect register values are stored/written
+ * @nregs: how many indirect registers to read/write
+ * @start_idx: index of first indirect register to read/write
+ * @rw: Read (1) or Write (0)
+ * @sleep_ok: if true we may sleep while awaiting command completion
  *
- *	Access TP PIO registers through LDST
+ * Access TP indirect registers through LDST
  */
-static void t4_fw_tp_pio_rw(struct adapter *adap, u32 *vals, unsigned int nregs,
-			    unsigned int start_index, unsigned int rw)
+static int t4_tp_fw_ldst_rw(struct adapter *adap, int cmd, u32 *vals,
+			    unsigned int nregs, unsigned int start_index,
+			    unsigned int rw, bool sleep_ok)
 {
-	int ret, i;
-	int cmd = FW_LDST_ADDRSPC_TP_PIO;
+	int ret = 0;
+	unsigned int i;
 	struct fw_ldst_cmd c;
 
-	for (i = 0 ; i < nregs; i++) {
+	for (i = 0; i < nregs; i++) {
 		memset(&c, 0, sizeof(c));
 		c.op_to_addrspace = cpu_to_be32(FW_CMD_OP_V(FW_LDST_CMD) |
 						FW_CMD_REQUEST_F |
@@ -4680,26 +5324,147 @@ static void t4_fw_tp_pio_rw(struct adapter *adap, u32 *vals, unsigned int nregs,
 
 		c.u.addrval.addr = cpu_to_be32(start_index + i);
 		c.u.addrval.val  = rw ? 0 : cpu_to_be32(vals[i]);
-		ret = t4_wr_mbox(adap, adap->mbox, &c, sizeof(c), &c);
-		if (!ret && rw)
+		ret = t4_wr_mbox_meat(adap, adap->mbox, &c, sizeof(c), &c,
+				      sleep_ok);
+		if (ret)
+			return ret;
+
+		if (rw)
 			vals[i] = be32_to_cpu(c.u.addrval.val);
 	}
+	return 0;
+}
+
+/**
+ * t4_tp_indirect_rw - Read/Write TP indirect register through LDST or backdoor
+ * @adap: the adapter
+ * @reg_addr: Address Register
+ * @reg_data: Data register
+ * @buff: where the indirect register values are stored/written
+ * @nregs: how many indirect registers to read/write
+ * @start_index: index of first indirect register to read/write
+ * @rw: READ(1) or WRITE(0)
+ * @sleep_ok: if true we may sleep while awaiting command completion
+ *
+ * Read/Write TP indirect registers through LDST if possible.
+ * Else, use backdoor access
+ **/
+static void t4_tp_indirect_rw(struct adapter *adap, u32 reg_addr, u32 reg_data,
+			      u32 *buff, u32 nregs, u32 start_index, int rw,
+			      bool sleep_ok)
+{
+	int rc = -EINVAL;
+	int cmd;
+
+	switch (reg_addr) {
+	case TP_PIO_ADDR_A:
+		cmd = FW_LDST_ADDRSPC_TP_PIO;
+		break;
+	case TP_TM_PIO_ADDR_A:
+		cmd = FW_LDST_ADDRSPC_TP_TM_PIO;
+		break;
+	case TP_MIB_INDEX_A:
+		cmd = FW_LDST_ADDRSPC_TP_MIB;
+		break;
+	default:
+		goto indirect_access;
+	}
+
+	if (t4_use_ldst(adap))
+		rc = t4_tp_fw_ldst_rw(adap, cmd, buff, nregs, start_index, rw,
+				      sleep_ok);
+
+indirect_access:
+
+	if (rc) {
+		if (rw)
+			t4_read_indirect(adap, reg_addr, reg_data, buff, nregs,
+					 start_index);
+		else
+			t4_write_indirect(adap, reg_addr, reg_data, buff, nregs,
+					  start_index);
+	}
+}
+
+/**
+ * t4_tp_pio_read - Read TP PIO registers
+ * @adap: the adapter
+ * @buff: where the indirect register values are written
+ * @nregs: how many indirect registers to read
+ * @start_index: index of first indirect register to read
+ * @sleep_ok: if true we may sleep while awaiting command completion
+ *
+ * Read TP PIO Registers
+ **/
+void t4_tp_pio_read(struct adapter *adap, u32 *buff, u32 nregs,
+		    u32 start_index, bool sleep_ok)
+{
+	t4_tp_indirect_rw(adap, TP_PIO_ADDR_A, TP_PIO_DATA_A, buff, nregs,
+			  start_index, 1, sleep_ok);
+}
+
+/**
+ * t4_tp_pio_write - Write TP PIO registers
+ * @adap: the adapter
+ * @buff: where the indirect register values are stored
+ * @nregs: how many indirect registers to write
+ * @start_index: index of first indirect register to write
+ * @sleep_ok: if true we may sleep while awaiting command completion
+ *
+ * Write TP PIO Registers
+ **/
+static void t4_tp_pio_write(struct adapter *adap, u32 *buff, u32 nregs,
+			    u32 start_index, bool sleep_ok)
+{
+	t4_tp_indirect_rw(adap, TP_PIO_ADDR_A, TP_PIO_DATA_A, buff, nregs,
+			  start_index, 0, sleep_ok);
+}
+
+/**
+ * t4_tp_tm_pio_read - Read TP TM PIO registers
+ * @adap: the adapter
+ * @buff: where the indirect register values are written
+ * @nregs: how many indirect registers to read
+ * @start_index: index of first indirect register to read
+ * @sleep_ok: if true we may sleep while awaiting command completion
+ *
+ * Read TP TM PIO Registers
+ **/
+void t4_tp_tm_pio_read(struct adapter *adap, u32 *buff, u32 nregs,
+		       u32 start_index, bool sleep_ok)
+{
+	t4_tp_indirect_rw(adap, TP_TM_PIO_ADDR_A, TP_TM_PIO_DATA_A, buff,
+			  nregs, start_index, 1, sleep_ok);
+}
+
+/**
+ * t4_tp_mib_read - Read TP MIB registers
+ * @adap: the adapter
+ * @buff: where the indirect register values are written
+ * @nregs: how many indirect registers to read
+ * @start_index: index of first indirect register to read
+ * @sleep_ok: if true we may sleep while awaiting command completion
+ *
+ * Read TP MIB Registers
+ **/
+void t4_tp_mib_read(struct adapter *adap, u32 *buff, u32 nregs, u32 start_index,
+		    bool sleep_ok)
+{
+	t4_tp_indirect_rw(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A, buff, nregs,
+			  start_index, 1, sleep_ok);
 }
 
 /**
  *	t4_read_rss_key - read the global RSS key
  *	@adap: the adapter
  *	@key: 10-entry array holding the 320-bit RSS key
+ *      @sleep_ok: if true we may sleep while awaiting command completion
  *
  *	Reads the global 320-bit RSS key.
  */
-void t4_read_rss_key(struct adapter *adap, u32 *key)
+void t4_read_rss_key(struct adapter *adap, u32 *key, bool sleep_ok)
 {
-	if (t4_use_ldst(adap))
-		t4_fw_tp_pio_rw(adap, key, 10, TP_RSS_SECRET_KEY0_A, 1);
-	else
-		t4_read_indirect(adap, TP_PIO_ADDR_A, TP_PIO_DATA_A, key, 10,
-				 TP_RSS_SECRET_KEY0_A);
+	t4_tp_pio_read(adap, key, 10, TP_RSS_SECRET_KEY0_A, sleep_ok);
 }
 
 /**
@@ -4707,12 +5472,14 @@ void t4_read_rss_key(struct adapter *adap, u32 *key)
  *	@adap: the adapter
  *	@key: 10-entry array holding the 320-bit RSS key
  *	@idx: which RSS key to write
+ *      @sleep_ok: if true we may sleep while awaiting command completion
  *
  *	Writes one of the RSS keys with the given 320-bit value.  If @idx is
  *	0..15 the corresponding entry in the RSS key table is written,
  *	otherwise the global RSS key is written.
  */
-void t4_write_rss_key(struct adapter *adap, const u32 *key, int idx)
+void t4_write_rss_key(struct adapter *adap, const u32 *key, int idx,
+		      bool sleep_ok)
 {
 	u8 rss_key_addr_cnt = 16;
 	u32 vrt = t4_read_reg(adap, TP_RSS_CONFIG_VRT_A);
@@ -4725,11 +5492,7 @@ void t4_write_rss_key(struct adapter *adap, const u32 *key, int idx)
 	    (vrt & KEYEXTEND_F) && (KEYMODE_G(vrt) == 3))
 		rss_key_addr_cnt = 32;
 
-	if (t4_use_ldst(adap))
-		t4_fw_tp_pio_rw(adap, (void *)key, 10, TP_RSS_SECRET_KEY0_A, 0);
-	else
-		t4_write_indirect(adap, TP_PIO_ADDR_A, TP_PIO_DATA_A, key, 10,
-				  TP_RSS_SECRET_KEY0_A);
+	t4_tp_pio_write(adap, (void *)key, 10, TP_RSS_SECRET_KEY0_A, sleep_ok);
 
 	if (idx >= 0 && idx < rss_key_addr_cnt) {
 		if (rss_key_addr_cnt > 16)
@@ -4747,19 +5510,15 @@ void t4_write_rss_key(struct adapter *adap, const u32 *key, int idx)
  *	@adapter: the adapter
  *	@index: the entry in the PF RSS table to read
  *	@valp: where to store the returned value
+ *      @sleep_ok: if true we may sleep while awaiting command completion
  *
  *	Reads the PF RSS Configuration Table at the specified index and returns
  *	the value found there.
  */
 void t4_read_rss_pf_config(struct adapter *adapter, unsigned int index,
-			   u32 *valp)
+			   u32 *valp, bool sleep_ok)
 {
-	if (t4_use_ldst(adapter))
-		t4_fw_tp_pio_rw(adapter, valp, 1,
-				TP_RSS_PF0_CONFIG_A + index, 1);
-	else
-		t4_read_indirect(adapter, TP_PIO_ADDR_A, TP_PIO_DATA_A,
-				 valp, 1, TP_RSS_PF0_CONFIG_A + index);
+	t4_tp_pio_read(adapter, valp, 1, TP_RSS_PF0_CONFIG_A + index, sleep_ok);
 }
 
 /**
@@ -4768,12 +5527,13 @@ void t4_read_rss_pf_config(struct adapter *adapter, unsigned int index,
  *	@index: the entry in the VF RSS table to read
  *	@vfl: where to store the returned VFL
  *	@vfh: where to store the returned VFH
+ *      @sleep_ok: if true we may sleep while awaiting command completion
  *
  *	Reads the VF RSS Configuration Table at the specified index and returns
  *	the (VFL, VFH) values found there.
  */
 void t4_read_rss_vf_config(struct adapter *adapter, unsigned int index,
-			   u32 *vfl, u32 *vfh)
+			   u32 *vfl, u32 *vfh, bool sleep_ok)
 {
 	u32 vrt, mask, data;
 
@@ -4794,50 +5554,37 @@ void t4_read_rss_vf_config(struct adapter *adapter, unsigned int index,
 
 	/* Grab the VFL/VFH values ...
 	 */
-	if (t4_use_ldst(adapter)) {
-		t4_fw_tp_pio_rw(adapter, vfl, 1, TP_RSS_VFL_CONFIG_A, 1);
-		t4_fw_tp_pio_rw(adapter, vfh, 1, TP_RSS_VFH_CONFIG_A, 1);
-	} else {
-		t4_read_indirect(adapter, TP_PIO_ADDR_A, TP_PIO_DATA_A,
-				 vfl, 1, TP_RSS_VFL_CONFIG_A);
-		t4_read_indirect(adapter, TP_PIO_ADDR_A, TP_PIO_DATA_A,
-				 vfh, 1, TP_RSS_VFH_CONFIG_A);
-	}
+	t4_tp_pio_read(adapter, vfl, 1, TP_RSS_VFL_CONFIG_A, sleep_ok);
+	t4_tp_pio_read(adapter, vfh, 1, TP_RSS_VFH_CONFIG_A, sleep_ok);
 }
 
 /**
  *	t4_read_rss_pf_map - read PF RSS Map
  *	@adapter: the adapter
+ *      @sleep_ok: if true we may sleep while awaiting command completion
  *
  *	Reads the PF RSS Map register and returns its value.
  */
-u32 t4_read_rss_pf_map(struct adapter *adapter)
+u32 t4_read_rss_pf_map(struct adapter *adapter, bool sleep_ok)
 {
 	u32 pfmap;
 
-	if (t4_use_ldst(adapter))
-		t4_fw_tp_pio_rw(adapter, &pfmap, 1, TP_RSS_PF_MAP_A, 1);
-	else
-		t4_read_indirect(adapter, TP_PIO_ADDR_A, TP_PIO_DATA_A,
-				 &pfmap, 1, TP_RSS_PF_MAP_A);
+	t4_tp_pio_read(adapter, &pfmap, 1, TP_RSS_PF_MAP_A, sleep_ok);
 	return pfmap;
 }
 
 /**
  *	t4_read_rss_pf_mask - read PF RSS Mask
  *	@adapter: the adapter
+ *      @sleep_ok: if true we may sleep while awaiting command completion
  *
  *	Reads the PF RSS Mask register and returns its value.
  */
-u32 t4_read_rss_pf_mask(struct adapter *adapter)
+u32 t4_read_rss_pf_mask(struct adapter *adapter, bool sleep_ok)
 {
 	u32 pfmask;
 
-	if (t4_use_ldst(adapter))
-		t4_fw_tp_pio_rw(adapter, &pfmask, 1, TP_RSS_PF_MSK_A, 1);
-	else
-		t4_read_indirect(adapter, TP_PIO_ADDR_A, TP_PIO_DATA_A,
-				 &pfmask, 1, TP_RSS_PF_MSK_A);
+	t4_tp_pio_read(adapter, &pfmask, 1, TP_RSS_PF_MSK_A, sleep_ok);
 	return pfmask;
 }
 
@@ -4846,12 +5593,13 @@ u32 t4_read_rss_pf_mask(struct adapter *adapter)
  *	@adap: the adapter
  *	@v4: holds the TCP/IP counter values
  *	@v6: holds the TCP/IPv6 counter values
+ *      @sleep_ok: if true we may sleep while awaiting command completion
  *
  *	Returns the values of TP's TCP/IP and TCP/IPv6 MIB counters.
  *	Either @v4 or @v6 may be %NULL to skip the corresponding stats.
  */
 void t4_tp_get_tcp_stats(struct adapter *adap, struct tp_tcp_stats *v4,
-			 struct tp_tcp_stats *v6)
+			 struct tp_tcp_stats *v6, bool sleep_ok)
 {
 	u32 val[TP_MIB_TCP_RXT_SEG_LO_A - TP_MIB_TCP_OUT_RST_A + 1];
 
@@ -4860,16 +5608,16 @@ void t4_tp_get_tcp_stats(struct adapter *adap, struct tp_tcp_stats *v4,
 #define STAT64(x)   (((u64)STAT(x##_HI) << 32) | STAT(x##_LO))
 
 	if (v4) {
-		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A, val,
-				 ARRAY_SIZE(val), TP_MIB_TCP_OUT_RST_A);
+		t4_tp_mib_read(adap, val, ARRAY_SIZE(val),
+			       TP_MIB_TCP_OUT_RST_A, sleep_ok);
 		v4->tcp_out_rsts = STAT(OUT_RST);
 		v4->tcp_in_segs  = STAT64(IN_SEG);
 		v4->tcp_out_segs = STAT64(OUT_SEG);
 		v4->tcp_retrans_segs = STAT64(RXT_SEG);
 	}
 	if (v6) {
-		t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A, val,
-				 ARRAY_SIZE(val), TP_MIB_TCP_V6OUT_RST_A);
+		t4_tp_mib_read(adap, val, ARRAY_SIZE(val),
+			       TP_MIB_TCP_V6OUT_RST_A, sleep_ok);
 		v6->tcp_out_rsts = STAT(OUT_RST);
 		v6->tcp_in_segs  = STAT64(IN_SEG);
 		v6->tcp_out_segs = STAT64(OUT_SEG);
@@ -4884,63 +5632,66 @@ void t4_tp_get_tcp_stats(struct adapter *adap, struct tp_tcp_stats *v4,
  *	t4_tp_get_err_stats - read TP's error MIB counters
  *	@adap: the adapter
  *	@st: holds the counter values
+ *      @sleep_ok: if true we may sleep while awaiting command completion
  *
  *	Returns the values of TP's error counters.
  */
-void t4_tp_get_err_stats(struct adapter *adap, struct tp_err_stats *st)
+void t4_tp_get_err_stats(struct adapter *adap, struct tp_err_stats *st,
+			 bool sleep_ok)
 {
 	int nchan = adap->params.arch.nchan;
 
-	t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
-			 st->mac_in_errs, nchan, TP_MIB_MAC_IN_ERR_0_A);
-	t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
-			 st->hdr_in_errs, nchan, TP_MIB_HDR_IN_ERR_0_A);
-	t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
-			 st->tcp_in_errs, nchan, TP_MIB_TCP_IN_ERR_0_A);
-	t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
-			 st->tnl_cong_drops, nchan, TP_MIB_TNL_CNG_DROP_0_A);
-	t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
-			 st->ofld_chan_drops, nchan, TP_MIB_OFD_CHN_DROP_0_A);
-	t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
-			 st->tnl_tx_drops, nchan, TP_MIB_TNL_DROP_0_A);
-	t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
-			 st->ofld_vlan_drops, nchan, TP_MIB_OFD_VLN_DROP_0_A);
-	t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
-			 st->tcp6_in_errs, nchan, TP_MIB_TCP_V6IN_ERR_0_A);
-
-	t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A,
-			 &st->ofld_no_neigh, 2, TP_MIB_OFD_ARP_DROP_A);
+	t4_tp_mib_read(adap, st->mac_in_errs, nchan, TP_MIB_MAC_IN_ERR_0_A,
+		       sleep_ok);
+	t4_tp_mib_read(adap, st->hdr_in_errs, nchan, TP_MIB_HDR_IN_ERR_0_A,
+		       sleep_ok);
+	t4_tp_mib_read(adap, st->tcp_in_errs, nchan, TP_MIB_TCP_IN_ERR_0_A,
+		       sleep_ok);
+	t4_tp_mib_read(adap, st->tnl_cong_drops, nchan,
+		       TP_MIB_TNL_CNG_DROP_0_A, sleep_ok);
+	t4_tp_mib_read(adap, st->ofld_chan_drops, nchan,
+		       TP_MIB_OFD_CHN_DROP_0_A, sleep_ok);
+	t4_tp_mib_read(adap, st->tnl_tx_drops, nchan, TP_MIB_TNL_DROP_0_A,
+		       sleep_ok);
+	t4_tp_mib_read(adap, st->ofld_vlan_drops, nchan,
+		       TP_MIB_OFD_VLN_DROP_0_A, sleep_ok);
+	t4_tp_mib_read(adap, st->tcp6_in_errs, nchan,
+		       TP_MIB_TCP_V6IN_ERR_0_A, sleep_ok);
+	t4_tp_mib_read(adap, &st->ofld_no_neigh, 2, TP_MIB_OFD_ARP_DROP_A,
+		       sleep_ok);
 }
 
 /**
  *	t4_tp_get_cpl_stats - read TP's CPL MIB counters
  *	@adap: the adapter
  *	@st: holds the counter values
+ *      @sleep_ok: if true we may sleep while awaiting command completion
  *
  *	Returns the values of TP's CPL counters.
  */
-void t4_tp_get_cpl_stats(struct adapter *adap, struct tp_cpl_stats *st)
+void t4_tp_get_cpl_stats(struct adapter *adap, struct tp_cpl_stats *st,
+			 bool sleep_ok)
 {
 	int nchan = adap->params.arch.nchan;
 
-	t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A, st->req,
-			 nchan, TP_MIB_CPL_IN_REQ_0_A);
-	t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A, st->rsp,
-			 nchan, TP_MIB_CPL_OUT_RSP_0_A);
+	t4_tp_mib_read(adap, st->req, nchan, TP_MIB_CPL_IN_REQ_0_A, sleep_ok);
 
+	t4_tp_mib_read(adap, st->rsp, nchan, TP_MIB_CPL_OUT_RSP_0_A, sleep_ok);
 }
 
 /**
  *	t4_tp_get_rdma_stats - read TP's RDMA MIB counters
  *	@adap: the adapter
  *	@st: holds the counter values
+ *      @sleep_ok: if true we may sleep while awaiting command completion
  *
  *	Returns the values of TP's RDMA counters.
  */
-void t4_tp_get_rdma_stats(struct adapter *adap, struct tp_rdma_stats *st)
+void t4_tp_get_rdma_stats(struct adapter *adap, struct tp_rdma_stats *st,
+			  bool sleep_ok)
 {
-	t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A, &st->rqe_dfr_pkt,
-			 2, TP_MIB_RQE_DFR_PKT_A);
+	t4_tp_mib_read(adap, &st->rqe_dfr_pkt, 2, TP_MIB_RQE_DFR_PKT_A,
+		       sleep_ok);
 }
 
 /**
@@ -4948,20 +5699,24 @@ void t4_tp_get_rdma_stats(struct adapter *adap, struct tp_rdma_stats *st)
  *	@adap: the adapter
  *	@idx: the port index
  *	@st: holds the counter values
+ *      @sleep_ok: if true we may sleep while awaiting command completion
  *
  *	Returns the values of TP's FCoE counters for the selected port.
  */
 void t4_get_fcoe_stats(struct adapter *adap, unsigned int idx,
-		       struct tp_fcoe_stats *st)
+		       struct tp_fcoe_stats *st, bool sleep_ok)
 {
 	u32 val[2];
 
-	t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A, &st->frames_ddp,
-			 1, TP_MIB_FCOE_DDP_0_A + idx);
-	t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A, &st->frames_drop,
-			 1, TP_MIB_FCOE_DROP_0_A + idx);
-	t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A, val,
-			 2, TP_MIB_FCOE_BYTE_0_HI_A + 2 * idx);
+	t4_tp_mib_read(adap, &st->frames_ddp, 1, TP_MIB_FCOE_DDP_0_A + idx,
+		       sleep_ok);
+
+	t4_tp_mib_read(adap, &st->frames_drop, 1,
+		       TP_MIB_FCOE_DROP_0_A + idx, sleep_ok);
+
+	t4_tp_mib_read(adap, val, 2, TP_MIB_FCOE_BYTE_0_HI_A + 2 * idx,
+		       sleep_ok);
+
 	st->octets_ddp = ((u64)val[0] << 32) | val[1];
 }
 
@@ -4969,15 +5724,16 @@ void t4_get_fcoe_stats(struct adapter *adap, unsigned int idx,
  *	t4_get_usm_stats - read TP's non-TCP DDP MIB counters
  *	@adap: the adapter
  *	@st: holds the counter values
+ *      @sleep_ok: if true we may sleep while awaiting command completion
  *
  *	Returns the values of TP's counters for non-TCP directly-placed packets.
  */
-void t4_get_usm_stats(struct adapter *adap, struct tp_usm_stats *st)
+void t4_get_usm_stats(struct adapter *adap, struct tp_usm_stats *st,
+		      bool sleep_ok)
 {
 	u32 val[4];
 
-	t4_read_indirect(adap, TP_MIB_INDEX_A, TP_MIB_DATA_A, val, 4,
-			 TP_MIB_USM_PKTS_A);
+	t4_tp_mib_read(adap, val, 4, TP_MIB_USM_PKTS_A, sleep_ok);
 	st->frames = val[0];
 	st->drops = val[1];
 	st->octets = ((u64)val[2] << 32) | val[3];
@@ -5197,7 +5953,6 @@ int t4_set_trace_filter(struct adapter *adap, const struct trace_params *tp,
 {
 	int i, ofst = idx * 4;
 	u32 data_reg, mask_reg, cfg;
-	u32 multitrc = TRCMULTIFILTER_F;
 
 	if (!enable) {
 		t4_write_reg(adap, MPS_TRC_FILTER_MATCH_CTL_A_A + ofst, 0);
@@ -5217,7 +5972,6 @@ int t4_set_trace_filter(struct adapter *adap, const struct trace_params *tp,
 		 * maximum packet capture size of 9600 bytes is recommended.
 		 * Also in this mode, only trace0 can be enabled and running.
 		 */
-		multitrc = 0;
 		if (tp->snap_len > 9600 || idx)
 			return -EINVAL;
 	}
@@ -5349,30 +6103,187 @@ void t4_pmrx_get_stats(struct adapter *adap, u32 cnt[], u64 cycles[])
 }
 
 /**
- *	t4_get_mps_bg_map - return the buffer groups associated with a port
+ *	compute_mps_bg_map - compute the MPS Buffer Group Map for a Port
  *	@adap: the adapter
- *	@idx: the port index
+ *	@pidx: the port index
+ *
+ *	Computes and returns a bitmap indicating which MPS buffer groups are
+ *	associated with the given Port.  Bit i is set if buffer group i is
+ *	used by the Port.
+ */
+static inline unsigned int compute_mps_bg_map(struct adapter *adapter,
+					      int pidx)
+{
+	unsigned int chip_version, nports;
+
+	chip_version = CHELSIO_CHIP_VERSION(adapter->params.chip);
+	nports = 1 << NUMPORTS_G(t4_read_reg(adapter, MPS_CMN_CTL_A));
+
+	switch (chip_version) {
+	case CHELSIO_T4:
+	case CHELSIO_T5:
+		switch (nports) {
+		case 1: return 0xf;
+		case 2: return 3 << (2 * pidx);
+		case 4: return 1 << pidx;
+		}
+		break;
+
+	case CHELSIO_T6:
+		switch (nports) {
+		case 2: return 1 << (2 * pidx);
+		}
+		break;
+	}
+
+	dev_err(adapter->pdev_dev, "Need MPS Buffer Group Map for Chip %0x, Nports %d\n",
+		chip_version, nports);
+
+	return 0;
+}
+
+/**
+ *	t4_get_mps_bg_map - return the buffer groups associated with a port
+ *	@adapter: the adapter
+ *	@pidx: the port index
  *
  *	Returns a bitmap indicating which MPS buffer groups are associated
- *	with the given port.  Bit i is set if buffer group i is used by the
- *	port.
+ *	with the given Port.  Bit i is set if buffer group i is used by the
+ *	Port.
  */
-unsigned int t4_get_mps_bg_map(struct adapter *adap, int idx)
+unsigned int t4_get_mps_bg_map(struct adapter *adapter, int pidx)
 {
-	u32 n = NUMPORTS_G(t4_read_reg(adap, MPS_CMN_CTL_A));
+	u8 *mps_bg_map;
+	unsigned int nports;
 
-	if (n == 0)
-		return idx == 0 ? 0xf : 0;
-	/* In T6 (which is a 2 port card),
-	 * port 0 is mapped to channel 0 and port 1 is mapped to channel 1.
-	 * For 2 port T4/T5 adapter,
-	 * port 0 is mapped to channel 0 and 1,
-	 * port 1 is mapped to channel 2 and 3.
+	nports = 1 << NUMPORTS_G(t4_read_reg(adapter, MPS_CMN_CTL_A));
+	if (pidx >= nports) {
+		CH_WARN(adapter, "MPS Port Index %d >= Nports %d\n",
+			pidx, nports);
+		return 0;
+	}
+
+	/* If we've already retrieved/computed this, just return the result.
 	 */
-	if ((n == 1) &&
-	    (CHELSIO_CHIP_VERSION(adap->params.chip) <= CHELSIO_T5))
-		return idx < 2 ? (3 << (2 * idx)) : 0;
-	return 1 << idx;
+	mps_bg_map = adapter->params.mps_bg_map;
+	if (mps_bg_map[pidx])
+		return mps_bg_map[pidx];
+
+	/* Newer Firmware can tell us what the MPS Buffer Group Map is.
+	 * If we're talking to such Firmware, let it tell us.  If the new
+	 * API isn't supported, revert back to old hardcoded way.  The value
+	 * obtained from Firmware is encoded in below format:
+	 *
+	 * val = (( MPSBGMAP[Port 3] << 24 ) |
+	 *        ( MPSBGMAP[Port 2] << 16 ) |
+	 *        ( MPSBGMAP[Port 1] <<  8 ) |
+	 *        ( MPSBGMAP[Port 0] <<  0 ))
+	 */
+	if (adapter->flags & CXGB4_FW_OK) {
+		u32 param, val;
+		int ret;
+
+		param = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DEV) |
+			 FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DEV_MPSBGMAP));
+		ret = t4_query_params_ns(adapter, adapter->mbox, adapter->pf,
+					 0, 1, &param, &val);
+		if (!ret) {
+			int p;
+
+			/* Store the BG Map for all of the Ports in order to
+			 * avoid more calls to the Firmware in the future.
+			 */
+			for (p = 0; p < MAX_NPORTS; p++, val >>= 8)
+				mps_bg_map[p] = val & 0xff;
+
+			return mps_bg_map[pidx];
+		}
+	}
+
+	/* Either we're not talking to the Firmware or we're dealing with
+	 * older Firmware which doesn't support the new API to get the MPS
+	 * Buffer Group Map.  Fall back to computing it ourselves.
+	 */
+	mps_bg_map[pidx] = compute_mps_bg_map(adapter, pidx);
+	return mps_bg_map[pidx];
+}
+
+/**
+ *      t4_get_tp_e2c_map - return the E2C channel map associated with a port
+ *      @adapter: the adapter
+ *      @pidx: the port index
+ */
+static unsigned int t4_get_tp_e2c_map(struct adapter *adapter, int pidx)
+{
+	unsigned int nports;
+	u32 param, val = 0;
+	int ret;
+
+	nports = 1 << NUMPORTS_G(t4_read_reg(adapter, MPS_CMN_CTL_A));
+	if (pidx >= nports) {
+		CH_WARN(adapter, "TP E2C Channel Port Index %d >= Nports %d\n",
+			pidx, nports);
+		return 0;
+	}
+
+	/* FW version >= 1.16.44.0 can determine E2C channel map using
+	 * FW_PARAMS_PARAM_DEV_TPCHMAP API.
+	 */
+	param = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DEV) |
+		 FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DEV_TPCHMAP));
+	ret = t4_query_params_ns(adapter, adapter->mbox, adapter->pf,
+				 0, 1, &param, &val);
+	if (!ret)
+		return (val >> (8 * pidx)) & 0xff;
+
+	return 0;
+}
+
+/**
+ *	t4_get_tp_ch_map - return TP ingress channels associated with a port
+ *	@adapter: the adapter
+ *	@pidx: the port index
+ *
+ *	Returns a bitmap indicating which TP Ingress Channels are associated
+ *	with a given Port.  Bit i is set if TP Ingress Channel i is used by
+ *	the Port.
+ */
+unsigned int t4_get_tp_ch_map(struct adapter *adap, int pidx)
+{
+	unsigned int chip_version = CHELSIO_CHIP_VERSION(adap->params.chip);
+	unsigned int nports = 1 << NUMPORTS_G(t4_read_reg(adap, MPS_CMN_CTL_A));
+
+	if (pidx >= nports) {
+		dev_warn(adap->pdev_dev, "TP Port Index %d >= Nports %d\n",
+			 pidx, nports);
+		return 0;
+	}
+
+	switch (chip_version) {
+	case CHELSIO_T4:
+	case CHELSIO_T5:
+		/* Note that this happens to be the same values as the MPS
+		 * Buffer Group Map for these Chips.  But we replicate the code
+		 * here because they're really separate concepts.
+		 */
+		switch (nports) {
+		case 1: return 0xf;
+		case 2: return 3 << (2 * pidx);
+		case 4: return 1 << pidx;
+		}
+		break;
+
+	case CHELSIO_T6:
+		switch (nports) {
+		case 1:
+		case 2: return 1 << pidx;
+		}
+		break;
+	}
+
+	dev_err(adap->pdev_dev, "Need TP Channel Map for Chip %0x, Nports %d\n",
+		chip_version, nports);
+	return 0;
 }
 
 /**
@@ -5382,22 +6293,29 @@ unsigned int t4_get_mps_bg_map(struct adapter *adap, int idx)
 const char *t4_get_port_type_description(enum fw_port_type port_type)
 {
 	static const char *const port_type_description[] = {
-		"R XFI",
-		"R XAUI",
-		"T SGMII",
-		"T XFI",
-		"T XAUI",
+		"Fiber_XFI",
+		"Fiber_XAUI",
+		"BT_SGMII",
+		"BT_XFI",
+		"BT_XAUI",
 		"KX4",
 		"CX4",
 		"KX",
 		"KR",
-		"R SFP+",
-		"KR/KX",
-		"KR/KX/KX4",
-		"R QSFP_10G",
-		"R QSA",
-		"R QSFP",
-		"R BP40_BA",
+		"SFP",
+		"BP_AP",
+		"BP4_AP",
+		"QSFP_10G",
+		"QSA",
+		"QSFP",
+		"BP40_BA",
+		"KR4_100G",
+		"CR4_QSFP",
+		"CR_QSFP",
+		"CR2_QSFP",
+		"SFP28",
+		"KR_SFP28",
+		"KR_XLAUI"
 	};
 
 	if (port_type < ARRAY_SIZE(port_type_description))
@@ -5438,6 +6356,7 @@ void t4_get_port_stats_offset(struct adapter *adap, int idx,
 void t4_get_port_stats(struct adapter *adap, int idx, struct port_stats *p)
 {
 	u32 bgmap = t4_get_mps_bg_map(adap, idx);
+	u32 stat_ctl = t4_read_reg(adap, MPS_STAT_CTL_A);
 
 #define GET_STAT(name) \
 	t4_read_reg64(adap, \
@@ -5469,6 +6388,12 @@ void t4_get_port_stats(struct adapter *adap, int idx, struct port_stats *p)
 	p->tx_ppp6             = GET_STAT(TX_PORT_PPP6);
 	p->tx_ppp7             = GET_STAT(TX_PORT_PPP7);
 
+	if (CHELSIO_CHIP_VERSION(adap->params.chip) >= CHELSIO_T5) {
+		if (stat_ctl & COUNTPAUSESTATTX_F)
+			p->tx_frames_64 -= p->tx_pause;
+		if (stat_ctl & COUNTPAUSEMCTX_F)
+			p->tx_mcast_frames -= p->tx_pause;
+	}
 	p->rx_octets           = GET_STAT(RX_PORT_BYTES);
 	p->rx_frames           = GET_STAT(RX_PORT_FRAMES);
 	p->rx_bcast_frames     = GET_STAT(RX_PORT_BCAST);
@@ -5496,6 +6421,13 @@ void t4_get_port_stats(struct adapter *adap, int idx, struct port_stats *p)
 	p->rx_ppp5             = GET_STAT(RX_PORT_PPP5);
 	p->rx_ppp6             = GET_STAT(RX_PORT_PPP6);
 	p->rx_ppp7             = GET_STAT(RX_PORT_PPP7);
+
+	if (CHELSIO_CHIP_VERSION(adap->params.chip) >= CHELSIO_T5) {
+		if (stat_ctl & COUNTPAUSESTATRX_F)
+			p->rx_frames_64 -= p->rx_pause;
+		if (stat_ctl & COUNTPAUSEMCRX_F)
+			p->rx_mcast_frames -= p->rx_pause;
+	}
 
 	p->rx_ovflow0 = (bgmap & 1) ? GET_STAT_COM(RX_BG_0_MAC_DROP_FRAME) : 0;
 	p->rx_ovflow1 = (bgmap & 2) ? GET_STAT_COM(RX_BG_1_MAC_DROP_FRAME) : 0;
@@ -5839,18 +6771,21 @@ void t4_sge_decode_idma_state(struct adapter *adapter, int state)
  *      t4_sge_ctxt_flush - flush the SGE context cache
  *      @adap: the adapter
  *      @mbox: mailbox to use for the FW command
+ *      @ctx_type: Egress or Ingress
  *
  *      Issues a FW command through the given mailbox to flush the
  *      SGE context cache.
  */
-int t4_sge_ctxt_flush(struct adapter *adap, unsigned int mbox)
+int t4_sge_ctxt_flush(struct adapter *adap, unsigned int mbox, int ctxt_type)
 {
 	int ret;
 	u32 ldst_addrspace;
 	struct fw_ldst_cmd c;
 
 	memset(&c, 0, sizeof(c));
-	ldst_addrspace = FW_LDST_CMD_ADDRSPACE_V(FW_LDST_ADDRSPC_SGE_EGRC);
+	ldst_addrspace = FW_LDST_CMD_ADDRSPACE_V(ctxt_type == CTXT_EGRESS ?
+						 FW_LDST_ADDRSPC_SGE_EGRC :
+						 FW_LDST_ADDRSPC_SGE_INGC);
 	c.op_to_addrspace = cpu_to_be32(FW_CMD_OP_V(FW_LDST_CMD) |
 					FW_CMD_REQUEST_F | FW_CMD_READ_F |
 					ldst_addrspace);
@@ -5858,6 +6793,47 @@ int t4_sge_ctxt_flush(struct adapter *adap, unsigned int mbox)
 	c.u.idctxt.msg_ctxtflush = cpu_to_be32(FW_LDST_CMD_CTXTFLUSH_F);
 
 	ret = t4_wr_mbox(adap, mbox, &c, sizeof(c), &c);
+	return ret;
+}
+
+/**
+ *	t4_read_sge_dbqtimers - reag SGE Doorbell Queue Timer values
+ *	@adap - the adapter
+ *	@ndbqtimers: size of the provided SGE Doorbell Queue Timer table
+ *	@dbqtimers: SGE Doorbell Queue Timer table
+ *
+ *	Reads the SGE Doorbell Queue Timer values into the provided table.
+ *	Returns 0 on success (Firmware and Hardware support this feature),
+ *	an error on failure.
+ */
+int t4_read_sge_dbqtimers(struct adapter *adap, unsigned int ndbqtimers,
+			  u16 *dbqtimers)
+{
+	int ret, dbqtimerix;
+
+	ret = 0;
+	dbqtimerix = 0;
+	while (dbqtimerix < ndbqtimers) {
+		int nparams, param;
+		u32 params[7], vals[7];
+
+		nparams = ndbqtimers - dbqtimerix;
+		if (nparams > ARRAY_SIZE(params))
+			nparams = ARRAY_SIZE(params);
+
+		for (param = 0; param < nparams; param++)
+			params[param] =
+			  (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DEV) |
+			   FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DEV_DBQ_TIMER) |
+			   FW_PARAMS_PARAM_Y_V(dbqtimerix + param));
+		ret = t4_query_params(adap, adap->mbox, adap->pf, 0,
+				      nparams, params, vals);
+		if (ret)
+			break;
+
+		for (param = 0; param < nparams; param++)
+			dbqtimers[dbqtimerix++] = vals[param];
+	}
 	return ret;
 }
 
@@ -6195,13 +7171,29 @@ int t4_fw_upgrade(struct adapter *adap, unsigned int mbox,
 	if (!t4_fw_matches_chip(adap, fw_hdr))
 		return -EINVAL;
 
+	/* Disable CXGB4_FW_OK flag so that mbox commands with CXGB4_FW_OK flag
+	 * set wont be sent when we are flashing FW.
+	 */
+	adap->flags &= ~CXGB4_FW_OK;
+
 	ret = t4_fw_halt(adap, mbox, force);
 	if (ret < 0 && !force)
-		return ret;
+		goto out;
 
 	ret = t4_load_fw(adap, fw_data, size);
 	if (ret < 0)
-		return ret;
+		goto out;
+
+	/*
+	 * If there was a Firmware Configuration File stored in FLASH,
+	 * there's a good chance that it won't be compatible with the new
+	 * Firmware.  In order to prevent difficult to diagnose adapter
+	 * initialization issues, we clear out the Firmware Configuration File
+	 * portion of the FLASH .  The user will need to re-FLASH a new
+	 * Firmware Configuration File which is compatible with the new
+	 * Firmware if that's desired.
+	 */
+	(void)t4_load_cfg(adap, NULL, 0);
 
 	/*
 	 * Older versions of the firmware don't understand the new
@@ -6212,7 +7204,17 @@ int t4_fw_upgrade(struct adapter *adap, unsigned int mbox,
 	 * its header flags to see if it advertises the capability.
 	 */
 	reset = ((be32_to_cpu(fw_hdr->flags) & FW_HDR_FLAGS_RESET_HALT) == 0);
-	return t4_fw_restart(adap, mbox, reset);
+	ret = t4_fw_restart(adap, mbox, reset);
+
+	/* Grab potentially new Firmware Device Log parameters so we can see
+	 * how healthy the new Firmware is.  It's okay to contact the new
+	 * Firmware for these parameters even though, as far as it's
+	 * concerned, we've never said "HELLO" to it ...
+	 */
+	(void)t4_init_devlog_params(adap);
+out:
+	adap->flags |= CXGB4_FW_OK;
+	return ret;
 }
 
 /**
@@ -6286,7 +7288,6 @@ int t4_fixup_host_params(struct adapter *adap, unsigned int page_size,
 	unsigned int stat_len = cache_line_size > 64 ? 128 : 64;
 	unsigned int fl_align = cache_line_size < 32 ? 32 : cache_line_size;
 	unsigned int fl_align_log = fls(fl_align) - 1;
-	unsigned int ingpad;
 
 	t4_write_reg(adap, SGE_HOST_PAGE_SIZE_A,
 		     HOSTPAGESIZEPF0_V(sge_hps) |
@@ -6306,6 +7307,9 @@ int t4_fixup_host_params(struct adapter *adap, unsigned int page_size,
 						  INGPADBOUNDARY_SHIFT_X) |
 				 EGRSTATUSPAGESIZE_V(stat_len != 64));
 	} else {
+		unsigned int pack_align;
+		unsigned int ingpad, ingpack;
+
 		/* T5 introduced the separation of the Free List Padding and
 		 * Packing Boundaries.  Thus, we can select a smaller Padding
 		 * Boundary to avoid uselessly chewing up PCIe Link and Memory
@@ -6318,27 +7322,60 @@ int t4_fixup_host_params(struct adapter *adap, unsigned int page_size,
 		 * Size (the minimum unit of transfer to/from Memory).  If we
 		 * have a Padding Boundary which is smaller than the Memory
 		 * Line Size, that'll involve a Read-Modify-Write cycle on the
-		 * Memory Controller which is never good.  For T5 the smallest
-		 * Padding Boundary which we can select is 32 bytes which is
-		 * larger than any known Memory Controller Line Size so we'll
-		 * use that.
-		 *
-		 * T5 has a different interpretation of the "0" value for the
-		 * Packing Boundary.  This corresponds to 16 bytes instead of
-		 * the expected 32 bytes.  We never have a Packing Boundary
-		 * less than 32 bytes so we can't use that special value but
-		 * on the other hand, if we wanted 32 bytes, the best we can
-		 * really do is 64 bytes.
-		*/
-		if (fl_align <= 32) {
-			fl_align = 64;
-			fl_align_log = 6;
+		 * Memory Controller which is never good.
+		 */
+
+		/* We want the Packing Boundary to be based on the Cache Line
+		 * Size in order to help avoid False Sharing performance
+		 * issues between CPUs, etc.  We also want the Packing
+		 * Boundary to incorporate the PCI-E Maximum Payload Size.  We
+		 * get best performance when the Packing Boundary is a
+		 * multiple of the Maximum Payload Size.
+		 */
+		pack_align = fl_align;
+		if (pci_is_pcie(adap->pdev)) {
+			unsigned int mps, mps_log;
+			u16 devctl;
+
+			/* The PCIe Device Control Maximum Payload Size field
+			 * [bits 7:5] encodes sizes as powers of 2 starting at
+			 * 128 bytes.
+			 */
+			pcie_capability_read_word(adap->pdev, PCI_EXP_DEVCTL,
+						  &devctl);
+			mps_log = ((devctl & PCI_EXP_DEVCTL_PAYLOAD) >> 5) + 7;
+			mps = 1 << mps_log;
+			if (mps > pack_align)
+				pack_align = mps;
 		}
 
+		/* N.B. T5/T6 have a crazy special interpretation of the "0"
+		 * value for the Packing Boundary.  This corresponds to 16
+		 * bytes instead of the expected 32 bytes.  So if we want 32
+		 * bytes, the best we can really do is 64 bytes ...
+		 */
+		if (pack_align <= 16) {
+			ingpack = INGPACKBOUNDARY_16B_X;
+			fl_align = 16;
+		} else if (pack_align == 32) {
+			ingpack = INGPACKBOUNDARY_64B_X;
+			fl_align = 64;
+		} else {
+			unsigned int pack_align_log = fls(pack_align) - 1;
+
+			ingpack = pack_align_log - INGPACKBOUNDARY_SHIFT_X;
+			fl_align = pack_align;
+		}
+
+		/* Use the smallest Ingress Padding which isn't smaller than
+		 * the Memory Controller Read/Write Size.  We'll take that as
+		 * being 8 bytes since we don't know of any system with a
+		 * wider Memory Controller Bus Width.
+		 */
 		if (is_t5(adap->params.chip))
-			ingpad = INGPCIEBOUNDARY_32B_X;
+			ingpad = INGPADBOUNDARY_32B_X;
 		else
-			ingpad = T6_INGPADBOUNDARY_32B_X;
+			ingpad = T6_INGPADBOUNDARY_8B_X;
 
 		t4_set_reg_field(adap, SGE_CONTROL_A,
 				 INGPADBOUNDARY_V(INGPADBOUNDARY_M) |
@@ -6347,8 +7384,7 @@ int t4_fixup_host_params(struct adapter *adap, unsigned int page_size,
 				 EGRSTATUSPAGESIZE_V(stat_len != 64));
 		t4_set_reg_field(adap, SGE_CONTROL2_A,
 				 INGPACKBOUNDARY_V(INGPACKBOUNDARY_M),
-				 INGPACKBOUNDARY_V(fl_align_log -
-						   INGPACKBOUNDARY_SHIFT_X));
+				 INGPACKBOUNDARY_V(ingpack));
 	}
 	/*
 	 * Adjust various SGE Free List Host Buffer Sizes.
@@ -6411,13 +7447,14 @@ int t4_fw_initialize(struct adapter *adap, unsigned int mbox)
  *	@params: the parameter names
  *	@val: the parameter values
  *	@rw: Write and read flag
+ *	@sleep_ok: if true, we may sleep awaiting mbox cmd completion
  *
  *	Reads the value of FW or device parameters.  Up to 7 parameters can be
  *	queried at once.
  */
 int t4_query_params_rw(struct adapter *adap, unsigned int mbox, unsigned int pf,
 		       unsigned int vf, unsigned int nparams, const u32 *params,
-		       u32 *val, int rw)
+		       u32 *val, int rw, bool sleep_ok)
 {
 	int i, ret;
 	struct fw_params_cmd c;
@@ -6440,7 +7477,7 @@ int t4_query_params_rw(struct adapter *adap, unsigned int mbox, unsigned int pf,
 		p++;
 	}
 
-	ret = t4_wr_mbox(adap, mbox, &c, sizeof(c), &c);
+	ret = t4_wr_mbox_meat(adap, mbox, &c, sizeof(c), &c, sleep_ok);
 	if (ret == 0)
 		for (i = 0, p = &c.param[0].val; i < nparams; i++, p += 2)
 			*val++ = be32_to_cpu(*p);
@@ -6451,7 +7488,16 @@ int t4_query_params(struct adapter *adap, unsigned int mbox, unsigned int pf,
 		    unsigned int vf, unsigned int nparams, const u32 *params,
 		    u32 *val)
 {
-	return t4_query_params_rw(adap, mbox, pf, vf, nparams, params, val, 0);
+	return t4_query_params_rw(adap, mbox, pf, vf, nparams, params, val, 0,
+				  true);
+}
+
+int t4_query_params_ns(struct adapter *adap, unsigned int mbox, unsigned int pf,
+		       unsigned int vf, unsigned int nparams, const u32 *params,
+		       u32 *val)
+{
+	return t4_query_params_rw(adap, mbox, pf, vf, nparams, params, val, 0,
+				  false);
 }
 
 /**
@@ -6582,7 +7628,7 @@ int t4_cfg_pfvf(struct adapter *adap, unsigned int mbox, unsigned int pf,
  */
 int t4_alloc_vi(struct adapter *adap, unsigned int mbox, unsigned int port,
 		unsigned int pf, unsigned int vf, unsigned int nmac, u8 *mac,
-		unsigned int *rss_size)
+		unsigned int *rss_size, u8 *vivld, u8 *vin)
 {
 	int ret;
 	struct fw_vi_cmd c;
@@ -6604,16 +7650,26 @@ int t4_alloc_vi(struct adapter *adap, unsigned int mbox, unsigned int port,
 		switch (nmac) {
 		case 5:
 			memcpy(mac + 24, c.nmac3, sizeof(c.nmac3));
+			/* Fall through */
 		case 4:
 			memcpy(mac + 18, c.nmac2, sizeof(c.nmac2));
+			/* Fall through */
 		case 3:
 			memcpy(mac + 12, c.nmac1, sizeof(c.nmac1));
+			/* Fall through */
 		case 2:
 			memcpy(mac + 6,  c.nmac0, sizeof(c.nmac0));
 		}
 	}
 	if (rss_size)
 		*rss_size = FW_VI_CMD_RSSSIZE_G(be16_to_cpu(c.rsssize_pkd));
+
+	if (vivld)
+		*vivld = FW_VI_CMD_VFVLD_G(be32_to_cpu(c.alloc_to_len16));
+
+	if (vin)
+		*vin = FW_VI_CMD_VIN_G(be32_to_cpu(c.alloc_to_len16));
+
 	return FW_VI_CMD_VIID_G(be16_to_cpu(c.type_viid));
 }
 
@@ -6688,6 +7744,198 @@ int t4_set_rxmode(struct adapter *adap, unsigned int mbox, unsigned int viid,
 			    FW_VI_RXMODE_CMD_BROADCASTEN_V(bcast) |
 			    FW_VI_RXMODE_CMD_VLANEXEN_V(vlanex));
 	return t4_wr_mbox_meat(adap, mbox, &c, sizeof(c), NULL, sleep_ok);
+}
+
+/**
+ *      t4_free_encap_mac_filt - frees MPS entry at given index
+ *      @adap: the adapter
+ *      @viid: the VI id
+ *      @idx: index of MPS entry to be freed
+ *      @sleep_ok: call is allowed to sleep
+ *
+ *      Frees the MPS entry at supplied index
+ *
+ *      Returns a negative error number or zero on success
+ */
+int t4_free_encap_mac_filt(struct adapter *adap, unsigned int viid,
+			   int idx, bool sleep_ok)
+{
+	struct fw_vi_mac_exact *p;
+	u8 addr[] = {0, 0, 0, 0, 0, 0};
+	struct fw_vi_mac_cmd c;
+	int ret = 0;
+	u32 exact;
+
+	memset(&c, 0, sizeof(c));
+	c.op_to_viid = cpu_to_be32(FW_CMD_OP_V(FW_VI_MAC_CMD) |
+				   FW_CMD_REQUEST_F | FW_CMD_WRITE_F |
+				   FW_CMD_EXEC_V(0) |
+				   FW_VI_MAC_CMD_VIID_V(viid));
+	exact = FW_VI_MAC_CMD_ENTRY_TYPE_V(FW_VI_MAC_TYPE_EXACTMAC);
+	c.freemacs_to_len16 = cpu_to_be32(FW_VI_MAC_CMD_FREEMACS_V(0) |
+					  exact |
+					  FW_CMD_LEN16_V(1));
+	p = c.u.exact;
+	p->valid_to_idx = cpu_to_be16(FW_VI_MAC_CMD_VALID_F |
+				      FW_VI_MAC_CMD_IDX_V(idx));
+	memcpy(p->macaddr, addr, sizeof(p->macaddr));
+	ret = t4_wr_mbox_meat(adap, adap->mbox, &c, sizeof(c), &c, sleep_ok);
+	return ret;
+}
+
+/**
+ *	t4_free_raw_mac_filt - Frees a raw mac entry in mps tcam
+ *	@adap: the adapter
+ *	@viid: the VI id
+ *	@addr: the MAC address
+ *	@mask: the mask
+ *	@idx: index of the entry in mps tcam
+ *	@lookup_type: MAC address for inner (1) or outer (0) header
+ *	@port_id: the port index
+ *	@sleep_ok: call is allowed to sleep
+ *
+ *	Removes the mac entry at the specified index using raw mac interface.
+ *
+ *	Returns a negative error number on failure.
+ */
+int t4_free_raw_mac_filt(struct adapter *adap, unsigned int viid,
+			 const u8 *addr, const u8 *mask, unsigned int idx,
+			 u8 lookup_type, u8 port_id, bool sleep_ok)
+{
+	struct fw_vi_mac_cmd c;
+	struct fw_vi_mac_raw *p = &c.u.raw;
+	u32 val;
+
+	memset(&c, 0, sizeof(c));
+	c.op_to_viid = cpu_to_be32(FW_CMD_OP_V(FW_VI_MAC_CMD) |
+				   FW_CMD_REQUEST_F | FW_CMD_WRITE_F |
+				   FW_CMD_EXEC_V(0) |
+				   FW_VI_MAC_CMD_VIID_V(viid));
+	val = FW_CMD_LEN16_V(1) |
+	      FW_VI_MAC_CMD_ENTRY_TYPE_V(FW_VI_MAC_TYPE_RAW);
+	c.freemacs_to_len16 = cpu_to_be32(FW_VI_MAC_CMD_FREEMACS_V(0) |
+					  FW_CMD_LEN16_V(val));
+
+	p->raw_idx_pkd = cpu_to_be32(FW_VI_MAC_CMD_RAW_IDX_V(idx) |
+				     FW_VI_MAC_ID_BASED_FREE);
+
+	/* Lookup Type. Outer header: 0, Inner header: 1 */
+	p->data0_pkd = cpu_to_be32(DATALKPTYPE_V(lookup_type) |
+				   DATAPORTNUM_V(port_id));
+	/* Lookup mask and port mask */
+	p->data0m_pkd = cpu_to_be64(DATALKPTYPE_V(DATALKPTYPE_M) |
+				    DATAPORTNUM_V(DATAPORTNUM_M));
+
+	/* Copy the address and the mask */
+	memcpy((u8 *)&p->data1[0] + 2, addr, ETH_ALEN);
+	memcpy((u8 *)&p->data1m[0] + 2, mask, ETH_ALEN);
+
+	return t4_wr_mbox_meat(adap, adap->mbox, &c, sizeof(c), &c, sleep_ok);
+}
+
+/**
+ *      t4_alloc_encap_mac_filt - Adds a mac entry in mps tcam with VNI support
+ *      @adap: the adapter
+ *      @viid: the VI id
+ *      @mac: the MAC address
+ *      @mask: the mask
+ *      @vni: the VNI id for the tunnel protocol
+ *      @vni_mask: mask for the VNI id
+ *      @dip_hit: to enable DIP match for the MPS entry
+ *      @lookup_type: MAC address for inner (1) or outer (0) header
+ *      @sleep_ok: call is allowed to sleep
+ *
+ *      Allocates an MPS entry with specified MAC address and VNI value.
+ *
+ *      Returns a negative error number or the allocated index for this mac.
+ */
+int t4_alloc_encap_mac_filt(struct adapter *adap, unsigned int viid,
+			    const u8 *addr, const u8 *mask, unsigned int vni,
+			    unsigned int vni_mask, u8 dip_hit, u8 lookup_type,
+			    bool sleep_ok)
+{
+	struct fw_vi_mac_cmd c;
+	struct fw_vi_mac_vni *p = c.u.exact_vni;
+	int ret = 0;
+	u32 val;
+
+	memset(&c, 0, sizeof(c));
+	c.op_to_viid = cpu_to_be32(FW_CMD_OP_V(FW_VI_MAC_CMD) |
+				   FW_CMD_REQUEST_F | FW_CMD_WRITE_F |
+				   FW_VI_MAC_CMD_VIID_V(viid));
+	val = FW_CMD_LEN16_V(1) |
+	      FW_VI_MAC_CMD_ENTRY_TYPE_V(FW_VI_MAC_TYPE_EXACTMAC_VNI);
+	c.freemacs_to_len16 = cpu_to_be32(val);
+	p->valid_to_idx = cpu_to_be16(FW_VI_MAC_CMD_VALID_F |
+				      FW_VI_MAC_CMD_IDX_V(FW_VI_MAC_ADD_MAC));
+	memcpy(p->macaddr, addr, sizeof(p->macaddr));
+	memcpy(p->macaddr_mask, mask, sizeof(p->macaddr_mask));
+
+	p->lookup_type_to_vni =
+		cpu_to_be32(FW_VI_MAC_CMD_VNI_V(vni) |
+			    FW_VI_MAC_CMD_DIP_HIT_V(dip_hit) |
+			    FW_VI_MAC_CMD_LOOKUP_TYPE_V(lookup_type));
+	p->vni_mask_pkd = cpu_to_be32(FW_VI_MAC_CMD_VNI_MASK_V(vni_mask));
+	ret = t4_wr_mbox_meat(adap, adap->mbox, &c, sizeof(c), &c, sleep_ok);
+	if (ret == 0)
+		ret = FW_VI_MAC_CMD_IDX_G(be16_to_cpu(p->valid_to_idx));
+	return ret;
+}
+
+/**
+ *	t4_alloc_raw_mac_filt - Adds a mac entry in mps tcam
+ *	@adap: the adapter
+ *	@viid: the VI id
+ *	@mac: the MAC address
+ *	@mask: the mask
+ *	@idx: index at which to add this entry
+ *	@port_id: the port index
+ *	@lookup_type: MAC address for inner (1) or outer (0) header
+ *	@sleep_ok: call is allowed to sleep
+ *
+ *	Adds the mac entry at the specified index using raw mac interface.
+ *
+ *	Returns a negative error number or the allocated index for this mac.
+ */
+int t4_alloc_raw_mac_filt(struct adapter *adap, unsigned int viid,
+			  const u8 *addr, const u8 *mask, unsigned int idx,
+			  u8 lookup_type, u8 port_id, bool sleep_ok)
+{
+	int ret = 0;
+	struct fw_vi_mac_cmd c;
+	struct fw_vi_mac_raw *p = &c.u.raw;
+	u32 val;
+
+	memset(&c, 0, sizeof(c));
+	c.op_to_viid = cpu_to_be32(FW_CMD_OP_V(FW_VI_MAC_CMD) |
+				   FW_CMD_REQUEST_F | FW_CMD_WRITE_F |
+				   FW_VI_MAC_CMD_VIID_V(viid));
+	val = FW_CMD_LEN16_V(1) |
+	      FW_VI_MAC_CMD_ENTRY_TYPE_V(FW_VI_MAC_TYPE_RAW);
+	c.freemacs_to_len16 = cpu_to_be32(val);
+
+	/* Specify that this is an inner mac address */
+	p->raw_idx_pkd = cpu_to_be32(FW_VI_MAC_CMD_RAW_IDX_V(idx));
+
+	/* Lookup Type. Outer header: 0, Inner header: 1 */
+	p->data0_pkd = cpu_to_be32(DATALKPTYPE_V(lookup_type) |
+				   DATAPORTNUM_V(port_id));
+	/* Lookup mask and port mask */
+	p->data0m_pkd = cpu_to_be64(DATALKPTYPE_V(DATALKPTYPE_M) |
+				    DATAPORTNUM_V(DATAPORTNUM_M));
+
+	/* Copy the address and the mask */
+	memcpy((u8 *)&p->data1[0] + 2, addr, ETH_ALEN);
+	memcpy((u8 *)&p->data1m[0] + 2, mask, ETH_ALEN);
+
+	ret = t4_wr_mbox_meat(adap, adap->mbox, &c, sizeof(c), &c, sleep_ok);
+	if (ret == 0) {
+		ret = FW_VI_MAC_CMD_RAW_IDX_G(be32_to_cpu(p->raw_idx_pkd));
+		if (ret != idx)
+			ret = -ENOMEM;
+	}
+
+	return ret;
 }
 
 /**
@@ -6879,7 +8127,7 @@ int t4_free_mac_filt(struct adapter *adap, unsigned int mbox,
  *	MAC value.
  */
 int t4_change_mac(struct adapter *adap, unsigned int mbox, unsigned int viid,
-		  int idx, const u8 *addr, bool persist, bool add_smt)
+		  int idx, const u8 *addr, bool persist, u8 *smt_idx)
 {
 	int ret, mode;
 	struct fw_vi_mac_cmd c;
@@ -6888,7 +8136,7 @@ int t4_change_mac(struct adapter *adap, unsigned int mbox, unsigned int viid,
 
 	if (idx < 0)                             /* new allocation */
 		idx = persist ? FW_VI_MAC_ADD_PERSIST_MAC : FW_VI_MAC_ADD_MAC;
-	mode = add_smt ? FW_VI_MAC_SMT_AND_MPSTCAM : FW_VI_MAC_MPS_TCAM_ENTRY;
+	mode = smt_idx ? FW_VI_MAC_SMT_AND_MPSTCAM : FW_VI_MAC_MPS_TCAM_ENTRY;
 
 	memset(&c, 0, sizeof(c));
 	c.op_to_viid = cpu_to_be32(FW_CMD_OP_V(FW_VI_MAC_CMD) |
@@ -6905,6 +8153,23 @@ int t4_change_mac(struct adapter *adap, unsigned int mbox, unsigned int viid,
 		ret = FW_VI_MAC_CMD_IDX_G(be16_to_cpu(p->valid_to_idx));
 		if (ret >= max_mac_addr)
 			ret = -ENOMEM;
+		if (smt_idx) {
+			if (adap->params.viid_smt_extn_support) {
+				*smt_idx = FW_VI_MAC_CMD_SMTID_G
+						    (be32_to_cpu(c.op_to_viid));
+			} else {
+				/* In T4/T5, SMT contains 256 SMAC entries
+				 * organized in 128 rows of 2 entries each.
+				 * In T6, SMT contains 256 SMAC entries in
+				 * 256 rows.
+				 */
+				if (CHELSIO_CHIP_VERSION(adap->params.chip) <=
+								     CHELSIO_T5)
+					*smt_idx = (viid & FW_VIID_VIN_M) << 1;
+				else
+					*smt_idx = (viid & FW_VIID_VIN_M);
+			}
+		}
 	}
 	return ret;
 }
@@ -6978,6 +8243,34 @@ int t4_enable_vi(struct adapter *adap, unsigned int mbox, unsigned int viid,
 		 bool rx_en, bool tx_en)
 {
 	return t4_enable_vi_params(adap, mbox, viid, rx_en, tx_en, 0);
+}
+
+/**
+ *	t4_enable_pi_params - enable/disable a Port's Virtual Interface
+ *      @adap: the adapter
+ *      @mbox: mailbox to use for the FW command
+ *      @pi: the Port Information structure
+ *      @rx_en: 1=enable Rx, 0=disable Rx
+ *      @tx_en: 1=enable Tx, 0=disable Tx
+ *      @dcb_en: 1=enable delivery of Data Center Bridging messages.
+ *
+ *      Enables/disables a Port's Virtual Interface.  Note that setting DCB
+ *	Enable only makes sense when enabling a Virtual Interface ...
+ *	If the Virtual Interface enable/disable operation is successful,
+ *	we notify the OS-specific code of a potential Link Status change
+ *	via the OS Contract API t4_os_link_changed().
+ */
+int t4_enable_pi_params(struct adapter *adap, unsigned int mbox,
+			struct port_info *pi,
+			bool rx_en, bool tx_en, bool dcb_en)
+{
+	int ret = t4_enable_vi_params(adap, mbox, pi->viid,
+				      rx_en, tx_en, dcb_en);
+	if (ret)
+		return ret;
+	t4_os_link_changed(adap, pi->port_id,
+			   rx_en && tx_en && pi->link_cfg.link_ok);
+	return 0;
 }
 
 /**
@@ -7169,6 +8462,98 @@ static const char *t4_link_down_rc_str(unsigned char link_down_rc)
 }
 
 /**
+ * Return the highest speed set in the port capabilities, in Mb/s.
+ */
+static unsigned int fwcap_to_speed(fw_port_cap32_t caps)
+{
+	#define TEST_SPEED_RETURN(__caps_speed, __speed) \
+		do { \
+			if (caps & FW_PORT_CAP32_SPEED_##__caps_speed) \
+				return __speed; \
+		} while (0)
+
+	TEST_SPEED_RETURN(400G, 400000);
+	TEST_SPEED_RETURN(200G, 200000);
+	TEST_SPEED_RETURN(100G, 100000);
+	TEST_SPEED_RETURN(50G,   50000);
+	TEST_SPEED_RETURN(40G,   40000);
+	TEST_SPEED_RETURN(25G,   25000);
+	TEST_SPEED_RETURN(10G,   10000);
+	TEST_SPEED_RETURN(1G,     1000);
+	TEST_SPEED_RETURN(100M,    100);
+
+	#undef TEST_SPEED_RETURN
+
+	return 0;
+}
+
+/**
+ *	fwcap_to_fwspeed - return highest speed in Port Capabilities
+ *	@acaps: advertised Port Capabilities
+ *
+ *	Get the highest speed for the port from the advertised Port
+ *	Capabilities.  It will be either the highest speed from the list of
+ *	speeds or whatever user has set using ethtool.
+ */
+static fw_port_cap32_t fwcap_to_fwspeed(fw_port_cap32_t acaps)
+{
+	#define TEST_SPEED_RETURN(__caps_speed) \
+		do { \
+			if (acaps & FW_PORT_CAP32_SPEED_##__caps_speed) \
+				return FW_PORT_CAP32_SPEED_##__caps_speed; \
+		} while (0)
+
+	TEST_SPEED_RETURN(400G);
+	TEST_SPEED_RETURN(200G);
+	TEST_SPEED_RETURN(100G);
+	TEST_SPEED_RETURN(50G);
+	TEST_SPEED_RETURN(40G);
+	TEST_SPEED_RETURN(25G);
+	TEST_SPEED_RETURN(10G);
+	TEST_SPEED_RETURN(1G);
+	TEST_SPEED_RETURN(100M);
+
+	#undef TEST_SPEED_RETURN
+
+	return 0;
+}
+
+/**
+ *	lstatus_to_fwcap - translate old lstatus to 32-bit Port Capabilities
+ *	@lstatus: old FW_PORT_ACTION_GET_PORT_INFO lstatus value
+ *
+ *	Translates old FW_PORT_ACTION_GET_PORT_INFO lstatus field into new
+ *	32-bit Port Capabilities value.
+ */
+static fw_port_cap32_t lstatus_to_fwcap(u32 lstatus)
+{
+	fw_port_cap32_t linkattr = 0;
+
+	/* Unfortunately the format of the Link Status in the old
+	 * 16-bit Port Information message isn't the same as the
+	 * 16-bit Port Capabilities bitfield used everywhere else ...
+	 */
+	if (lstatus & FW_PORT_CMD_RXPAUSE_F)
+		linkattr |= FW_PORT_CAP32_FC_RX;
+	if (lstatus & FW_PORT_CMD_TXPAUSE_F)
+		linkattr |= FW_PORT_CAP32_FC_TX;
+	if (lstatus & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_100M))
+		linkattr |= FW_PORT_CAP32_SPEED_100M;
+	if (lstatus & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_1G))
+		linkattr |= FW_PORT_CAP32_SPEED_1G;
+	if (lstatus & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_10G))
+		linkattr |= FW_PORT_CAP32_SPEED_10G;
+	if (lstatus & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_25G))
+		linkattr |= FW_PORT_CAP32_SPEED_25G;
+	if (lstatus & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_40G))
+		linkattr |= FW_PORT_CAP32_SPEED_40G;
+	if (lstatus & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_100G))
+		linkattr |= FW_PORT_CAP32_SPEED_100G;
+
+	return linkattr;
+}
+
+/**
  *	t4_handle_get_port_info - process a FW reply message
  *	@pi: the port info
  *	@rpl: start of the FW message
@@ -7177,56 +8562,262 @@ static const char *t4_link_down_rc_str(unsigned char link_down_rc)
  */
 void t4_handle_get_port_info(struct port_info *pi, const __be64 *rpl)
 {
-	const struct fw_port_cmd *p = (const void *)rpl;
-	struct adapter *adap = pi->adapter;
+	const struct fw_port_cmd *cmd = (const void *)rpl;
+	int action = FW_PORT_CMD_ACTION_G(be32_to_cpu(cmd->action_to_len16));
+	struct adapter *adapter = pi->adapter;
+	struct link_config *lc = &pi->link_cfg;
+	int link_ok, linkdnrc;
+	enum fw_port_type port_type;
+	enum fw_port_module_type mod_type;
+	unsigned int speed, fc, fec;
+	fw_port_cap32_t pcaps, acaps, lpacaps, linkattr;
 
-	/* link/module state change message */
-	int speed = 0, fc = 0;
-	struct link_config *lc;
-	u32 stat = be32_to_cpu(p->u.info.lstatus_to_modtype);
-	int link_ok = (stat & FW_PORT_CMD_LSTATUS_F) != 0;
-	u32 mod = FW_PORT_CMD_MODTYPE_G(stat);
+	/* Extract the various fields from the Port Information message.
+	 */
+	switch (action) {
+	case FW_PORT_ACTION_GET_PORT_INFO: {
+		u32 lstatus = be32_to_cpu(cmd->u.info.lstatus_to_modtype);
 
-	if (stat & FW_PORT_CMD_RXPAUSE_F)
-		fc |= PAUSE_RX;
-	if (stat & FW_PORT_CMD_TXPAUSE_F)
-		fc |= PAUSE_TX;
-	if (stat & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_100M))
-		speed = 100;
-	else if (stat & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_1G))
-		speed = 1000;
-	else if (stat & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_10G))
-		speed = 10000;
-	else if (stat & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_25G))
-		speed = 25000;
-	else if (stat & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_40G))
-		speed = 40000;
-	else if (stat & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_100G))
-		speed = 100000;
-
-	lc = &pi->link_cfg;
-
-	if (mod != pi->mod_type) {
-		pi->mod_type = mod;
-		t4_os_portmod_changed(adap, pi->port_id);
+		link_ok = (lstatus & FW_PORT_CMD_LSTATUS_F) != 0;
+		linkdnrc = FW_PORT_CMD_LINKDNRC_G(lstatus);
+		port_type = FW_PORT_CMD_PTYPE_G(lstatus);
+		mod_type = FW_PORT_CMD_MODTYPE_G(lstatus);
+		pcaps = fwcaps16_to_caps32(be16_to_cpu(cmd->u.info.pcap));
+		acaps = fwcaps16_to_caps32(be16_to_cpu(cmd->u.info.acap));
+		lpacaps = fwcaps16_to_caps32(be16_to_cpu(cmd->u.info.lpacap));
+		linkattr = lstatus_to_fwcap(lstatus);
+		break;
 	}
-	if (link_ok != lc->link_ok || speed != lc->speed ||
-	    fc != lc->fc) {	/* something changed */
-		if (!link_ok && lc->link_ok) {
-			unsigned char rc = FW_PORT_CMD_LINKDNRC_G(stat);
 
-			lc->link_down_rc = rc;
-			dev_warn(adap->pdev_dev,
-				 "Port %d link down, reason: %s\n",
-				 pi->port_id, t4_link_down_rc_str(rc));
+	case FW_PORT_ACTION_GET_PORT_INFO32: {
+		u32 lstatus32;
+
+		lstatus32 = be32_to_cpu(cmd->u.info32.lstatus32_to_cbllen32);
+		link_ok = (lstatus32 & FW_PORT_CMD_LSTATUS32_F) != 0;
+		linkdnrc = FW_PORT_CMD_LINKDNRC32_G(lstatus32);
+		port_type = FW_PORT_CMD_PORTTYPE32_G(lstatus32);
+		mod_type = FW_PORT_CMD_MODTYPE32_G(lstatus32);
+		pcaps = be32_to_cpu(cmd->u.info32.pcaps32);
+		acaps = be32_to_cpu(cmd->u.info32.acaps32);
+		lpacaps = be32_to_cpu(cmd->u.info32.lpacaps32);
+		linkattr = be32_to_cpu(cmd->u.info32.linkattr32);
+		break;
+	}
+
+	default:
+		dev_err(adapter->pdev_dev, "Handle Port Information: Bad Command/Action %#x\n",
+			be32_to_cpu(cmd->action_to_len16));
+		return;
+	}
+
+	fec = fwcap_to_cc_fec(acaps);
+	fc = fwcap_to_cc_pause(linkattr);
+	speed = fwcap_to_speed(linkattr);
+
+	/* Reset state for communicating new Transceiver Module status and
+	 * whether the OS-dependent layer wants us to redo the current
+	 * "sticky" L1 Configure Link Parameters.
+	 */
+	lc->new_module = false;
+	lc->redo_l1cfg = false;
+
+	if (mod_type != pi->mod_type) {
+		/* With the newer SFP28 and QSFP28 Transceiver Module Types,
+		 * various fundamental Port Capabilities which used to be
+		 * immutable can now change radically.  We can now have
+		 * Speeds, Auto-Negotiation, Forward Error Correction, etc.
+		 * all change based on what Transceiver Module is inserted.
+		 * So we need to record the Physical "Port" Capabilities on
+		 * every Transceiver Module change.
+		 */
+		lc->pcaps = pcaps;
+
+		/* When a new Transceiver Module is inserted, the Firmware
+		 * will examine its i2c EPROM to determine its type and
+		 * general operating parameters including things like Forward
+		 * Error Control, etc.  Various IEEE 802.3 standards dictate
+		 * how to interpret these i2c values to determine default
+		 * "sutomatic" settings.  We record these for future use when
+		 * the user explicitly requests these standards-based values.
+		 */
+		lc->def_acaps = acaps;
+
+		/* Some versions of the early T6 Firmware "cheated" when
+		 * handling different Transceiver Modules by changing the
+		 * underlaying Port Type reported to the Host Drivers.  As
+		 * such we need to capture whatever Port Type the Firmware
+		 * sends us and record it in case it's different from what we
+		 * were told earlier.  Unfortunately, since Firmware is
+		 * forever, we'll need to keep this code here forever, but in
+		 * later T6 Firmware it should just be an assignment of the
+		 * same value already recorded.
+		 */
+		pi->port_type = port_type;
+
+		/* Record new Module Type information.
+		 */
+		pi->mod_type = mod_type;
+
+		/* Let the OS-dependent layer know if we have a new
+		 * Transceiver Module inserted.
+		 */
+		lc->new_module = t4_is_inserted_mod_type(mod_type);
+
+		t4_os_portmod_changed(adapter, pi->port_id);
+	}
+
+	if (link_ok != lc->link_ok || speed != lc->speed ||
+	    fc != lc->fc || fec != lc->fec) {	/* something changed */
+		if (!link_ok && lc->link_ok) {
+			lc->link_down_rc = linkdnrc;
+			dev_warn_ratelimited(adapter->pdev_dev,
+					     "Port %d link down, reason: %s\n",
+					     pi->tx_chan,
+					     t4_link_down_rc_str(linkdnrc));
 		}
 		lc->link_ok = link_ok;
 		lc->speed = speed;
 		lc->fc = fc;
-		lc->supported = be16_to_cpu(p->u.info.pcap);
-		lc->lp_advertising = be16_to_cpu(p->u.info.lpacap);
-		t4_os_link_changed(adap, pi->port_id, link_ok);
+		lc->fec = fec;
+
+		lc->lpacaps = lpacaps;
+		lc->acaps = acaps & ADVERT_MASK;
+
+		/* If we're not physically capable of Auto-Negotiation, note
+		 * this as Auto-Negotiation disabled.  Otherwise, we track
+		 * what Auto-Negotiation settings we have.  Note parallel
+		 * structure in t4_link_l1cfg_core() and init_link_config().
+		 */
+		if (!(lc->acaps & FW_PORT_CAP32_ANEG)) {
+			lc->autoneg = AUTONEG_DISABLE;
+		} else if (lc->acaps & FW_PORT_CAP32_ANEG) {
+			lc->autoneg = AUTONEG_ENABLE;
+		} else {
+			/* When Autoneg is disabled, user needs to set
+			 * single speed.
+			 * Similar to cxgb4_ethtool.c: set_link_ksettings
+			 */
+			lc->acaps = 0;
+			lc->speed_caps = fwcap_to_fwspeed(acaps);
+			lc->autoneg = AUTONEG_DISABLE;
+		}
+
+		t4_os_link_changed(adapter, pi->port_id, link_ok);
 	}
+
+	/* If we have a new Transceiver Module and the OS-dependent code has
+	 * told us that it wants us to redo whatever "sticky" L1 Configuration
+	 * Link Parameters are set, do that now.
+	 */
+	if (lc->new_module && lc->redo_l1cfg) {
+		struct link_config old_lc;
+		int ret;
+
+		/* Save the current L1 Configuration and restore it if an
+		 * error occurs.  We probably should fix the l1_cfg*()
+		 * routines not to change the link_config when an error
+		 * occurs ...
+		 */
+		old_lc = *lc;
+		ret = t4_link_l1cfg_ns(adapter, adapter->mbox, pi->lport, lc);
+		if (ret) {
+			*lc = old_lc;
+			dev_warn(adapter->pdev_dev,
+				 "Attempt to update new Transceiver Module settings failed\n");
+		}
+	}
+	lc->new_module = false;
+	lc->redo_l1cfg = false;
+}
+
+/**
+ *	t4_update_port_info - retrieve and update port information if changed
+ *	@pi: the port_info
+ *
+ *	We issue a Get Port Information Command to the Firmware and, if
+ *	successful, we check to see if anything is different from what we
+ *	last recorded and update things accordingly.
+ */
+int t4_update_port_info(struct port_info *pi)
+{
+	unsigned int fw_caps = pi->adapter->params.fw_caps_support;
+	struct fw_port_cmd port_cmd;
+	int ret;
+
+	memset(&port_cmd, 0, sizeof(port_cmd));
+	port_cmd.op_to_portid = cpu_to_be32(FW_CMD_OP_V(FW_PORT_CMD) |
+					    FW_CMD_REQUEST_F | FW_CMD_READ_F |
+					    FW_PORT_CMD_PORTID_V(pi->tx_chan));
+	port_cmd.action_to_len16 = cpu_to_be32(
+		FW_PORT_CMD_ACTION_V(fw_caps == FW_CAPS16
+				     ? FW_PORT_ACTION_GET_PORT_INFO
+				     : FW_PORT_ACTION_GET_PORT_INFO32) |
+		FW_LEN16(port_cmd));
+	ret = t4_wr_mbox(pi->adapter, pi->adapter->mbox,
+			 &port_cmd, sizeof(port_cmd), &port_cmd);
+	if (ret)
+		return ret;
+
+	t4_handle_get_port_info(pi, (__be64 *)&port_cmd);
+	return 0;
+}
+
+/**
+ *	t4_get_link_params - retrieve basic link parameters for given port
+ *	@pi: the port
+ *	@link_okp: value return pointer for link up/down
+ *	@speedp: value return pointer for speed (Mb/s)
+ *	@mtup: value return pointer for mtu
+ *
+ *	Retrieves basic link parameters for a port: link up/down, speed (Mb/s),
+ *	and MTU for a specified port.  A negative error is returned on
+ *	failure; 0 on success.
+ */
+int t4_get_link_params(struct port_info *pi, unsigned int *link_okp,
+		       unsigned int *speedp, unsigned int *mtup)
+{
+	unsigned int fw_caps = pi->adapter->params.fw_caps_support;
+	struct fw_port_cmd port_cmd;
+	unsigned int action, link_ok, mtu;
+	fw_port_cap32_t linkattr;
+	int ret;
+
+	memset(&port_cmd, 0, sizeof(port_cmd));
+	port_cmd.op_to_portid = cpu_to_be32(FW_CMD_OP_V(FW_PORT_CMD) |
+					    FW_CMD_REQUEST_F | FW_CMD_READ_F |
+					    FW_PORT_CMD_PORTID_V(pi->tx_chan));
+	action = (fw_caps == FW_CAPS16
+		  ? FW_PORT_ACTION_GET_PORT_INFO
+		  : FW_PORT_ACTION_GET_PORT_INFO32);
+	port_cmd.action_to_len16 = cpu_to_be32(
+		FW_PORT_CMD_ACTION_V(action) |
+		FW_LEN16(port_cmd));
+	ret = t4_wr_mbox(pi->adapter, pi->adapter->mbox,
+			 &port_cmd, sizeof(port_cmd), &port_cmd);
+	if (ret)
+		return ret;
+
+	if (action == FW_PORT_ACTION_GET_PORT_INFO) {
+		u32 lstatus = be32_to_cpu(port_cmd.u.info.lstatus_to_modtype);
+
+		link_ok = !!(lstatus & FW_PORT_CMD_LSTATUS_F);
+		linkattr = lstatus_to_fwcap(lstatus);
+		mtu = be16_to_cpu(port_cmd.u.info.mtu);
+	} else {
+		u32 lstatus32 =
+			   be32_to_cpu(port_cmd.u.info32.lstatus32_to_cbllen32);
+
+		link_ok = !!(lstatus32 & FW_PORT_CMD_LSTATUS32_F);
+		linkattr = be32_to_cpu(port_cmd.u.info32.linkattr32);
+		mtu = FW_PORT_CMD_MTU32_G(
+			be32_to_cpu(port_cmd.u.info32.auxlinfo32_mtu32));
+	}
+
+	*link_okp = link_ok;
+	*speedp = fwcap_to_speed(linkattr);
+	*mtup = mtu;
+
+	return 0;
 }
 
 /**
@@ -7249,7 +8840,9 @@ int t4_handle_fw_rpl(struct adapter *adap, const __be64 *rpl)
 	unsigned int action =
 		FW_PORT_CMD_ACTION_G(be32_to_cpu(p->action_to_len16));
 
-	if (opcode == FW_PORT_CMD && action == FW_PORT_ACTION_GET_PORT_INFO) {
+	if (opcode == FW_PORT_CMD &&
+	    (action == FW_PORT_ACTION_GET_PORT_INFO ||
+	     action == FW_PORT_ACTION_GET_PORT_INFO32)) {
 		int i;
 		int chan = FW_PORT_CMD_PORTID_G(be32_to_cpu(p->op_to_portid));
 		struct port_info *pi = NULL;
@@ -7262,7 +8855,8 @@ int t4_handle_fw_rpl(struct adapter *adap, const __be64 *rpl)
 
 		t4_handle_get_port_info(pi, rpl);
 	} else {
-		dev_warn(adap->pdev_dev, "Unknown firmware reply %d\n", opcode);
+		dev_warn(adap->pdev_dev, "Unknown firmware reply %d\n",
+			 opcode);
 		return -EINVAL;
 	}
 	return 0;
@@ -7281,26 +8875,44 @@ static void get_pci_mode(struct adapter *adapter, struct pci_params *p)
 
 /**
  *	init_link_config - initialize a link's SW state
- *	@lc: structure holding the link state
- *	@caps: link capabilities
+ *	@lc: pointer to structure holding the link state
+ *	@pcaps: link Port Capabilities
+ *	@acaps: link current Advertised Port Capabilities
  *
  *	Initializes the SW state maintained for each link, including the link's
  *	capabilities and default speed/flow-control/autonegotiation settings.
  */
-static void init_link_config(struct link_config *lc, unsigned int caps)
+static void init_link_config(struct link_config *lc, fw_port_cap32_t pcaps,
+			     fw_port_cap32_t acaps)
 {
-	lc->supported = caps;
-	lc->lp_advertising = 0;
-	lc->requested_speed = 0;
+	lc->pcaps = pcaps;
+	lc->def_acaps = acaps;
+	lc->lpacaps = 0;
+	lc->speed_caps = 0;
 	lc->speed = 0;
 	lc->requested_fc = lc->fc = PAUSE_RX | PAUSE_TX;
-	if (lc->supported & FW_PORT_CAP_ANEG) {
-		lc->advertising = lc->supported & ADVERT_MASK;
+
+	/* For Forward Error Control, we default to whatever the Firmware
+	 * tells us the Link is currently advertising.
+	 */
+	lc->requested_fec = FEC_AUTO;
+	lc->fec = fwcap_to_cc_fec(lc->def_acaps);
+
+	/* If the Port is capable of Auto-Negtotiation, initialize it as
+	 * "enabled" and copy over all of the Physical Port Capabilities
+	 * to the Advertised Port Capabilities.  Otherwise mark it as
+	 * Auto-Negotiate disabled and select the highest supported speed
+	 * for the link.  Note parallel structure in t4_link_l1cfg_core()
+	 * and t4_handle_get_port_info().
+	 */
+	if (lc->pcaps & FW_PORT_CAP32_ANEG) {
+		lc->acaps = lc->pcaps & ADVERT_MASK;
 		lc->autoneg = AUTONEG_ENABLE;
 		lc->requested_fc |= PAUSE_AUTONEG;
 	} else {
-		lc->advertising = 0;
+		lc->acaps = 0;
 		lc->autoneg = AUTONEG_DISABLE;
+		lc->speed_caps = fwcap_to_fwspeed(acaps);
 	}
 }
 
@@ -7324,7 +8936,7 @@ struct flash_desc {
 	u32 size_mb;
 };
 
-static int get_flash_params(struct adapter *adap)
+static int t4_get_flash_params(struct adapter *adap)
 {
 	/* Table for non-Numonix supported flash parts.  Numonix parts are left
 	 * to the preexisting code.  All flash parts have 64KB sectors.
@@ -7333,57 +8945,148 @@ static int get_flash_params(struct adapter *adap)
 		{ 0x150201, 4 << 20 },       /* Spansion 4MB S25FL032P */
 	};
 
+	unsigned int part, manufacturer;
+	unsigned int density, size = 0;
+	u32 flashid = 0;
 	int ret;
-	u32 info;
+
+	/* Issue a Read ID Command to the Flash part.  We decode supported
+	 * Flash parts and their sizes from this.  There's a newer Query
+	 * Command which can retrieve detailed geometry information but many
+	 * Flash parts don't support it.
+	 */
 
 	ret = sf1_write(adap, 1, 1, 0, SF_RD_ID);
 	if (!ret)
-		ret = sf1_read(adap, 3, 0, 1, &info);
+		ret = sf1_read(adap, 3, 0, 1, &flashid);
 	t4_write_reg(adap, SF_OP_A, 0);                    /* unlock SF */
 	if (ret)
 		return ret;
 
-	for (ret = 0; ret < ARRAY_SIZE(supported_flash); ++ret)
-		if (supported_flash[ret].vendor_and_model_id == info) {
-			adap->params.sf_size = supported_flash[ret].size_mb;
+	/* Check to see if it's one of our non-standard supported Flash parts.
+	 */
+	for (part = 0; part < ARRAY_SIZE(supported_flash); part++)
+		if (supported_flash[part].vendor_and_model_id == flashid) {
+			adap->params.sf_size = supported_flash[part].size_mb;
 			adap->params.sf_nsec =
 				adap->params.sf_size / SF_SEC_SIZE;
-			return 0;
+			goto found;
 		}
 
-	if ((info & 0xff) != 0x20)             /* not a Numonix flash */
-		return -EINVAL;
-	info >>= 16;                           /* log2 of size */
-	if (info >= 0x14 && info < 0x18)
-		adap->params.sf_nsec = 1 << (info - 16);
-	else if (info == 0x18)
-		adap->params.sf_nsec = 64;
-	else
-		return -EINVAL;
-	adap->params.sf_size = 1 << info;
-	adap->params.sf_fw_start =
-		t4_read_reg(adap, CIM_BOOT_CFG_A) & BOOTADDR_M;
-
-	if (adap->params.sf_size < FLASH_MIN_SIZE)
-		dev_warn(adap->pdev_dev, "WARNING!!! FLASH size %#x < %#x!!!\n",
-			 adap->params.sf_size, FLASH_MIN_SIZE);
-	return 0;
-}
-
-static void set_pcie_completion_timeout(struct adapter *adapter, u8 range)
-{
-	u16 val;
-	u32 pcie_cap;
-
-	pcie_cap = pci_find_capability(adapter->pdev, PCI_CAP_ID_EXP);
-	if (pcie_cap) {
-		pci_read_config_word(adapter->pdev,
-				     pcie_cap + PCI_EXP_DEVCTL2, &val);
-		val &= ~PCI_EXP_DEVCTL2_COMP_TIMEOUT;
-		val |= range;
-		pci_write_config_word(adapter->pdev,
-				      pcie_cap + PCI_EXP_DEVCTL2, val);
+	/* Decode Flash part size.  The code below looks repetative with
+	 * common encodings, but that's not guaranteed in the JEDEC
+	 * specification for the Read JADEC ID command.  The only thing that
+	 * we're guaranteed by the JADEC specification is where the
+	 * Manufacturer ID is in the returned result.  After that each
+	 * Manufacturer ~could~ encode things completely differently.
+	 * Note, all Flash parts must have 64KB sectors.
+	 */
+	manufacturer = flashid & 0xff;
+	switch (manufacturer) {
+	case 0x20: { /* Micron/Numonix */
+		/* This Density -> Size decoding table is taken from Micron
+		 * Data Sheets.
+		 */
+		density = (flashid >> 16) & 0xff;
+		switch (density) {
+		case 0x14: /* 1MB */
+			size = 1 << 20;
+			break;
+		case 0x15: /* 2MB */
+			size = 1 << 21;
+			break;
+		case 0x16: /* 4MB */
+			size = 1 << 22;
+			break;
+		case 0x17: /* 8MB */
+			size = 1 << 23;
+			break;
+		case 0x18: /* 16MB */
+			size = 1 << 24;
+			break;
+		case 0x19: /* 32MB */
+			size = 1 << 25;
+			break;
+		case 0x20: /* 64MB */
+			size = 1 << 26;
+			break;
+		case 0x21: /* 128MB */
+			size = 1 << 27;
+			break;
+		case 0x22: /* 256MB */
+			size = 1 << 28;
+			break;
+		}
+		break;
 	}
+	case 0x9d: { /* ISSI -- Integrated Silicon Solution, Inc. */
+		/* This Density -> Size decoding table is taken from ISSI
+		 * Data Sheets.
+		 */
+		density = (flashid >> 16) & 0xff;
+		switch (density) {
+		case 0x16: /* 32 MB */
+			size = 1 << 25;
+			break;
+		case 0x17: /* 64MB */
+			size = 1 << 26;
+			break;
+		}
+		break;
+	}
+	case 0xc2: { /* Macronix */
+		/* This Density -> Size decoding table is taken from Macronix
+		 * Data Sheets.
+		 */
+		density = (flashid >> 16) & 0xff;
+		switch (density) {
+		case 0x17: /* 8MB */
+			size = 1 << 23;
+			break;
+		case 0x18: /* 16MB */
+			size = 1 << 24;
+			break;
+		}
+		break;
+	}
+	case 0xef: { /* Winbond */
+		/* This Density -> Size decoding table is taken from Winbond
+		 * Data Sheets.
+		 */
+		density = (flashid >> 16) & 0xff;
+		switch (density) {
+		case 0x17: /* 8MB */
+			size = 1 << 23;
+			break;
+		case 0x18: /* 16MB */
+			size = 1 << 24;
+			break;
+		}
+		break;
+	}
+	}
+
+	/* If we didn't recognize the FLASH part, that's no real issue: the
+	 * Hardware/Software contract says that Hardware will _*ALWAYS*_
+	 * use a FLASH part which is at least 4MB in size and has 64KB
+	 * sectors.  The unrecognized FLASH part is likely to be much larger
+	 * than 4MB, but that's all we really need.
+	 */
+	if (size == 0) {
+		dev_warn(adap->pdev_dev, "Unknown Flash Part, ID = %#x, assuming 4MB\n",
+			 flashid);
+		size = 1 << 22;
+	}
+
+	/* Store decoded Flash size and fall through into vetting code. */
+	adap->params.sf_size = size;
+	adap->params.sf_nsec = size / SF_SEC_SIZE;
+
+found:
+	if (adap->params.sf_size < FLASH_MIN_SIZE)
+		dev_warn(adap->pdev_dev, "WARNING: Flash Part ID %#x, size %#x < %#x\n",
+			 flashid, adap->params.sf_size, FLASH_MIN_SIZE);
+	return 0;
 }
 
 /**
@@ -7404,7 +9107,7 @@ int t4_prep_adapter(struct adapter *adapter)
 	get_pci_mode(adapter, &adapter->params.pci);
 	pl_rev = REV_G(t4_read_reg(adapter, PL_REV_A));
 
-	ret = get_flash_params(adapter);
+	ret = t4_get_flash_params(adapter);
 	if (ret < 0) {
 		dev_err(adapter->pdev_dev, "error %d identifying flash\n", ret);
 		return ret;
@@ -7471,8 +9174,41 @@ int t4_prep_adapter(struct adapter *adapter)
 	adapter->params.portvec = 1;
 	adapter->params.vpd.cclk = 50000;
 
-	/* Set pci completion timeout value to 4 seconds. */
-	set_pcie_completion_timeout(adapter, 0xd);
+	/* Set PCIe completion timeout to 4 seconds. */
+	pcie_capability_clear_and_set_word(adapter->pdev, PCI_EXP_DEVCTL2,
+					   PCI_EXP_DEVCTL2_COMP_TIMEOUT, 0xd);
+	return 0;
+}
+
+/**
+ *	t4_shutdown_adapter - shut down adapter, host & wire
+ *	@adapter: the adapter
+ *
+ *	Perform an emergency shutdown of the adapter and stop it from
+ *	continuing any further communication on the ports or DMA to the
+ *	host.  This is typically used when the adapter and/or firmware
+ *	have crashed and we want to prevent any further accidental
+ *	communication with the rest of the world.  This will also force
+ *	the port Link Status to go down -- if register writes work --
+ *	which should help our peers figure out that we're down.
+ */
+int t4_shutdown_adapter(struct adapter *adapter)
+{
+	int port;
+
+	t4_intr_disable(adapter);
+	t4_write_reg(adapter, DBG_GPIO_EN_A, 0);
+	for_each_port(adapter, port) {
+		u32 a_port_cfg = is_t4(adapter->params.chip) ?
+				       PORT_REG(port, XGMAC_PORT_CFG_A) :
+				       T5_PORT_REG(port, MAC_PORT_CFG_A);
+
+		t4_write_reg(adapter, a_port_cfg,
+			     t4_read_reg(adapter, a_port_cfg)
+			     & ~SIGNAL_DET_V(1));
+	}
+	t4_set_reg_field(adapter, SGE_CONTROL_A, GLOBALENABLE_F, 0);
+
 	return 0;
 }
 
@@ -7654,13 +9390,15 @@ int t4_init_sge_params(struct adapter *adapter)
 /**
  *      t4_init_tp_params - initialize adap->params.tp
  *      @adap: the adapter
+ *      @sleep_ok: if true we may sleep while awaiting command completion
  *
  *      Initialize various fields of the adapter's TP Parameters structure.
  */
-int t4_init_tp_params(struct adapter *adap)
+int t4_init_tp_params(struct adapter *adap, bool sleep_ok)
 {
-	int chan;
-	u32 v;
+	u32 param, val, v;
+	int chan, ret;
+
 
 	v = t4_read_reg(adap, TP_TIMER_RESOLUTION_A);
 	adap->params.tp.tre = TIMERRESOLUTION_G(v);
@@ -7670,32 +9408,77 @@ int t4_init_tp_params(struct adapter *adap)
 	for (chan = 0; chan < NCHAN; chan++)
 		adap->params.tp.tx_modq[chan] = chan;
 
-	/* Cache the adapter's Compressed Filter Mode and global Incress
+	/* Cache the adapter's Compressed Filter Mode/Mask and global Ingress
 	 * Configuration.
 	 */
-	if (t4_use_ldst(adap)) {
-		t4_fw_tp_pio_rw(adap, &adap->params.tp.vlan_pri_map, 1,
-				TP_VLAN_PRI_MAP_A, 1);
-		t4_fw_tp_pio_rw(adap, &adap->params.tp.ingress_config, 1,
-				TP_INGRESS_CONFIG_A, 1);
+	param = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DEV) |
+		 FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DEV_FILTER) |
+		 FW_PARAMS_PARAM_Y_V(FW_PARAM_DEV_FILTER_MODE_MASK));
+
+	/* Read current value */
+	ret = t4_query_params(adap, adap->mbox, adap->pf, 0, 1,
+			      &param, &val);
+	if (ret == 0) {
+		dev_info(adap->pdev_dev,
+			 "Current filter mode/mask 0x%x:0x%x\n",
+			 FW_PARAMS_PARAM_FILTER_MODE_G(val),
+			 FW_PARAMS_PARAM_FILTER_MASK_G(val));
+		adap->params.tp.vlan_pri_map =
+			FW_PARAMS_PARAM_FILTER_MODE_G(val);
+		adap->params.tp.filter_mask =
+			FW_PARAMS_PARAM_FILTER_MASK_G(val);
 	} else {
-		t4_read_indirect(adap, TP_PIO_ADDR_A, TP_PIO_DATA_A,
-				 &adap->params.tp.vlan_pri_map, 1,
-				 TP_VLAN_PRI_MAP_A);
-		t4_read_indirect(adap, TP_PIO_ADDR_A, TP_PIO_DATA_A,
-				 &adap->params.tp.ingress_config, 1,
-				 TP_INGRESS_CONFIG_A);
+		dev_info(adap->pdev_dev,
+			 "Failed to read filter mode/mask via fw api, using indirect-reg-read\n");
+
+		/* Incase of older-fw (which doesn't expose the api
+		 * FW_PARAM_DEV_FILTER_MODE_MASK) and newer-driver (which uses
+		 * the fw api) combination, fall-back to older method of reading
+		 * the filter mode from indirect-register
+		 */
+		t4_tp_pio_read(adap, &adap->params.tp.vlan_pri_map, 1,
+			       TP_VLAN_PRI_MAP_A, sleep_ok);
+
+		/* With the older-fw and newer-driver combination we might run
+		 * into an issue when user wants to use hash filter region but
+		 * the filter_mask is zero, in this case filter_mask validation
+		 * is tough. To avoid that we set the filter_mask same as filter
+		 * mode, which will behave exactly as the older way of ignoring
+		 * the filter mask validation.
+		 */
+		adap->params.tp.filter_mask = adap->params.tp.vlan_pri_map;
+	}
+
+	t4_tp_pio_read(adap, &adap->params.tp.ingress_config, 1,
+		       TP_INGRESS_CONFIG_A, sleep_ok);
+
+	/* For T6, cache the adapter's compressed error vector
+	 * and passing outer header info for encapsulated packets.
+	 */
+	if (CHELSIO_CHIP_VERSION(adap->params.chip) > CHELSIO_T5) {
+		v = t4_read_reg(adap, TP_OUT_CONFIG_A);
+		adap->params.tp.rx_pkt_encap = (v & CRXPKTENC_F) ? 1 : 0;
 	}
 
 	/* Now that we have TP_VLAN_PRI_MAP cached, we can calculate the field
 	 * shift positions of several elements of the Compressed Filter Tuple
 	 * for this adapter which we need frequently ...
 	 */
-	adap->params.tp.vlan_shift = t4_filter_field_shift(adap, VLAN_F);
-	adap->params.tp.vnic_shift = t4_filter_field_shift(adap, VNIC_ID_F);
+	adap->params.tp.fcoe_shift = t4_filter_field_shift(adap, FCOE_F);
 	adap->params.tp.port_shift = t4_filter_field_shift(adap, PORT_F);
+	adap->params.tp.vnic_shift = t4_filter_field_shift(adap, VNIC_ID_F);
+	adap->params.tp.vlan_shift = t4_filter_field_shift(adap, VLAN_F);
+	adap->params.tp.tos_shift = t4_filter_field_shift(adap, TOS_F);
 	adap->params.tp.protocol_shift = t4_filter_field_shift(adap,
 							       PROTOCOL_F);
+	adap->params.tp.ethertype_shift = t4_filter_field_shift(adap,
+								ETHERTYPE_F);
+	adap->params.tp.macmatch_shift = t4_filter_field_shift(adap,
+							       MACMATCH_F);
+	adap->params.tp.matchtype_shift = t4_filter_field_shift(adap,
+								MPSHITTYPE_F);
+	adap->params.tp.frag_shift = t4_filter_field_shift(adap,
+							   FRAGMENTATION_F);
 
 	/* If TP_INGRESS_CONFIG.VNID == 0, then TP_VLAN_PRI_MAP.VNIC_ID
 	 * represents the presence of an Outer VLAN instead of a VNIC ID.
@@ -7703,6 +9486,10 @@ int t4_init_tp_params(struct adapter *adap)
 	if ((adap->params.tp.ingress_config & VNIC_F) == 0)
 		adap->params.tp.vnic_shift = -1;
 
+	v = t4_read_reg(adap, LE_3_DB_HASH_MASK_GEN_IPV4_T6_A);
+	adap->params.tp.hash_filter_mask = v;
+	v = t4_read_reg(adap, LE_4_DB_HASH_MASK_GEN_IPV4_T6_A);
+	adap->params.tp.hash_filter_mask |= ((u64)v << 32);
 	return 0;
 }
 
@@ -7785,7 +9572,7 @@ int t4_init_rss_mode(struct adapter *adap, int mbox)
 }
 
 /**
- *	t4_init_portinfo - allocate a virtual interface amd initialize port_info
+ *	t4_init_portinfo - allocate a virtual interface and initialize port_info
  *	@pi: the port_info
  *	@mbox: mailbox to use for the FW command
  *	@port: physical port associated with the VI
@@ -7801,22 +9588,70 @@ int t4_init_rss_mode(struct adapter *adap, int mbox)
 int t4_init_portinfo(struct port_info *pi, int mbox,
 		     int port, int pf, int vf, u8 mac[])
 {
-	int ret;
-	struct fw_port_cmd c;
+	struct adapter *adapter = pi->adapter;
+	unsigned int fw_caps = adapter->params.fw_caps_support;
+	struct fw_port_cmd cmd;
 	unsigned int rss_size;
+	enum fw_port_type port_type;
+	int mdio_addr;
+	fw_port_cap32_t pcaps, acaps;
+	u8 vivld = 0, vin = 0;
+	int ret;
 
-	memset(&c, 0, sizeof(c));
-	c.op_to_portid = cpu_to_be32(FW_CMD_OP_V(FW_PORT_CMD) |
-				     FW_CMD_REQUEST_F | FW_CMD_READ_F |
-				     FW_PORT_CMD_PORTID_V(port));
-	c.action_to_len16 = cpu_to_be32(
-		FW_PORT_CMD_ACTION_V(FW_PORT_ACTION_GET_PORT_INFO) |
-		FW_LEN16(c));
-	ret = t4_wr_mbox(pi->adapter, mbox, &c, sizeof(c), &c);
+	/* If we haven't yet determined whether we're talking to Firmware
+	 * which knows the new 32-bit Port Capabilities, it's time to find
+	 * out now.  This will also tell new Firmware to send us Port Status
+	 * Updates using the new 32-bit Port Capabilities version of the
+	 * Port Information message.
+	 */
+	if (fw_caps == FW_CAPS_UNKNOWN) {
+		u32 param, val;
+
+		param = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_PFVF) |
+			 FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_PFVF_PORT_CAPS32));
+		val = 1;
+		ret = t4_set_params(adapter, mbox, pf, vf, 1, &param, &val);
+		fw_caps = (ret == 0 ? FW_CAPS32 : FW_CAPS16);
+		adapter->params.fw_caps_support = fw_caps;
+	}
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.op_to_portid = cpu_to_be32(FW_CMD_OP_V(FW_PORT_CMD) |
+				       FW_CMD_REQUEST_F | FW_CMD_READ_F |
+				       FW_PORT_CMD_PORTID_V(port));
+	cmd.action_to_len16 = cpu_to_be32(
+		FW_PORT_CMD_ACTION_V(fw_caps == FW_CAPS16
+				     ? FW_PORT_ACTION_GET_PORT_INFO
+				     : FW_PORT_ACTION_GET_PORT_INFO32) |
+		FW_LEN16(cmd));
+	ret = t4_wr_mbox(pi->adapter, mbox, &cmd, sizeof(cmd), &cmd);
 	if (ret)
 		return ret;
 
-	ret = t4_alloc_vi(pi->adapter, mbox, port, pf, vf, 1, mac, &rss_size);
+	/* Extract the various fields from the Port Information message.
+	 */
+	if (fw_caps == FW_CAPS16) {
+		u32 lstatus = be32_to_cpu(cmd.u.info.lstatus_to_modtype);
+
+		port_type = FW_PORT_CMD_PTYPE_G(lstatus);
+		mdio_addr = ((lstatus & FW_PORT_CMD_MDIOCAP_F)
+			     ? FW_PORT_CMD_MDIOADDR_G(lstatus)
+			     : -1);
+		pcaps = fwcaps16_to_caps32(be16_to_cpu(cmd.u.info.pcap));
+		acaps = fwcaps16_to_caps32(be16_to_cpu(cmd.u.info.acap));
+	} else {
+		u32 lstatus32 = be32_to_cpu(cmd.u.info32.lstatus32_to_cbllen32);
+
+		port_type = FW_PORT_CMD_PORTTYPE32_G(lstatus32);
+		mdio_addr = ((lstatus32 & FW_PORT_CMD_MDIOCAP32_F)
+			     ? FW_PORT_CMD_MDIOADDR32_G(lstatus32)
+			     : -1);
+		pcaps = be32_to_cpu(cmd.u.info32.pcaps32);
+		acaps = be32_to_cpu(cmd.u.info32.acaps32);
+	}
+
+	ret = t4_alloc_vi(pi->adapter, mbox, port, pf, vf, 1, mac, &rss_size,
+			  &vivld, &vin);
 	if (ret < 0)
 		return ret;
 
@@ -7824,14 +9659,25 @@ int t4_init_portinfo(struct port_info *pi, int mbox,
 	pi->tx_chan = port;
 	pi->lport = port;
 	pi->rss_size = rss_size;
+	pi->rx_cchan = t4_get_tp_e2c_map(pi->adapter, port);
 
-	ret = be32_to_cpu(c.u.info.lstatus_to_modtype);
-	pi->mdio_addr = (ret & FW_PORT_CMD_MDIOCAP_F) ?
-		FW_PORT_CMD_MDIOADDR_G(ret) : -1;
-	pi->port_type = FW_PORT_CMD_PTYPE_G(ret);
+	/* If fw supports returning the VIN as part of FW_VI_CMD,
+	 * save the returned values.
+	 */
+	if (adapter->params.viid_smt_extn_support) {
+		pi->vivld = vivld;
+		pi->vin = vin;
+	} else {
+		/* Retrieve the values from VIID */
+		pi->vivld = FW_VIID_VIVLD_G(pi->viid);
+		pi->vin =  FW_VIID_VIN_G(pi->viid);
+	}
+
+	pi->port_type = port_type;
+	pi->mdio_addr = mdio_addr;
 	pi->mod_type = FW_PORT_MOD_TYPE_NA;
 
-	init_link_config(&pi->link_cfg, be16_to_cpu(c.u.info.pcap));
+	init_link_config(&pi->link_cfg, pcaps, acaps);
 	return 0;
 }
 
@@ -7851,7 +9697,6 @@ int t4_port_init(struct adapter *adap, int mbox, int pf, int vf)
 			return ret;
 
 		memcpy(adap->port[i]->dev_addr, addr, ETH_ALEN);
-		adap->port[i]->dev_port = j;
 		j++;
 	}
 	return 0;
@@ -8084,7 +9929,16 @@ int t4_cim_read_la(struct adapter *adap, u32 *la_buf, unsigned int *wrptr)
 		ret = t4_cim_read(adap, UP_UP_DBG_LA_DATA_A, 1, &la_buf[i]);
 		if (ret)
 			break;
-		idx = (idx + 1) & UPDBGLARDPTR_M;
+
+		/* Bits 0-3 of UpDbgLaRdPtr can be between 0000 to 1001 to
+		 * identify the 32-bit portion of the full 312-bit data
+		 */
+		if (is_t6(adap->params.chip) && (idx & 0xf) >= 9)
+			idx = (idx & 0xff0) + 0x10;
+		else
+			idx++;
+		/* address can't exceed 0xfff */
+		idx &= UPDBGLARDPTR_M;
 	}
 restart:
 	if (cfg & UPDBGLAEN_F) {
@@ -8271,6 +10125,65 @@ void t4_idma_monitor(struct adapter *adapter,
 }
 
 /**
+ *	t4_load_cfg - download config file
+ *	@adap: the adapter
+ *	@cfg_data: the cfg text file to write
+ *	@size: text file size
+ *
+ *	Write the supplied config text file to the card's serial flash.
+ */
+int t4_load_cfg(struct adapter *adap, const u8 *cfg_data, unsigned int size)
+{
+	int ret, i, n, cfg_addr;
+	unsigned int addr;
+	unsigned int flash_cfg_start_sec;
+	unsigned int sf_sec_size = adap->params.sf_size / adap->params.sf_nsec;
+
+	cfg_addr = t4_flash_cfg_addr(adap);
+	if (cfg_addr < 0)
+		return cfg_addr;
+
+	addr = cfg_addr;
+	flash_cfg_start_sec = addr / SF_SEC_SIZE;
+
+	if (size > FLASH_CFG_MAX_SIZE) {
+		dev_err(adap->pdev_dev, "cfg file too large, max is %u bytes\n",
+			FLASH_CFG_MAX_SIZE);
+		return -EFBIG;
+	}
+
+	i = DIV_ROUND_UP(FLASH_CFG_MAX_SIZE,	/* # of sectors spanned */
+			 sf_sec_size);
+	ret = t4_flash_erase_sectors(adap, flash_cfg_start_sec,
+				     flash_cfg_start_sec + i - 1);
+	/* If size == 0 then we're simply erasing the FLASH sectors associated
+	 * with the on-adapter Firmware Configuration File.
+	 */
+	if (ret || size == 0)
+		goto out;
+
+	/* this will write to the flash up to SF_PAGE_SIZE at a time */
+	for (i = 0; i < size; i += SF_PAGE_SIZE) {
+		if ((size - i) <  SF_PAGE_SIZE)
+			n = size - i;
+		else
+			n = SF_PAGE_SIZE;
+		ret = t4_write_flash(adap, addr, n, cfg_data);
+		if (ret)
+			goto out;
+
+		addr += SF_PAGE_SIZE;
+		cfg_data += SF_PAGE_SIZE;
+	}
+
+out:
+	if (ret)
+		dev_err(adap->pdev_dev, "config file %s failed %d\n",
+			(size == 0 ? "clear" : "download"), ret);
+	return ret;
+}
+
+/**
  *	t4_set_vf_mac - Set MAC address for the specified VF
  *	@adapter: The adapter
  *	@vf: one of the VFs instantiated by the specified PF
@@ -8311,6 +10224,125 @@ int t4_set_vf_mac_acl(struct adapter *adapter, unsigned int vf,
 	return t4_wr_mbox(adapter, adapter->mbox, &cmd, sizeof(cmd), &cmd);
 }
 
+/**
+ * t4_read_pace_tbl - read the pace table
+ * @adap: the adapter
+ * @pace_vals: holds the returned values
+ *
+ * Returns the values of TP's pace table in microseconds.
+ */
+void t4_read_pace_tbl(struct adapter *adap, unsigned int pace_vals[NTX_SCHED])
+{
+	unsigned int i, v;
+
+	for (i = 0; i < NTX_SCHED; i++) {
+		t4_write_reg(adap, TP_PACE_TABLE_A, 0xffff0000 + i);
+		v = t4_read_reg(adap, TP_PACE_TABLE_A);
+		pace_vals[i] = dack_ticks_to_usec(adap, v);
+	}
+}
+
+/**
+ * t4_get_tx_sched - get the configuration of a Tx HW traffic scheduler
+ * @adap: the adapter
+ * @sched: the scheduler index
+ * @kbps: the byte rate in Kbps
+ * @ipg: the interpacket delay in tenths of nanoseconds
+ * @sleep_ok: if true we may sleep while awaiting command completion
+ *
+ * Return the current configuration of a HW Tx scheduler.
+ */
+void t4_get_tx_sched(struct adapter *adap, unsigned int sched,
+		     unsigned int *kbps, unsigned int *ipg, bool sleep_ok)
+{
+	unsigned int v, addr, bpt, cpt;
+
+	if (kbps) {
+		addr = TP_TX_MOD_Q1_Q0_RATE_LIMIT_A - sched / 2;
+		t4_tp_tm_pio_read(adap, &v, 1, addr, sleep_ok);
+		if (sched & 1)
+			v >>= 16;
+		bpt = (v >> 8) & 0xff;
+		cpt = v & 0xff;
+		if (!cpt) {
+			*kbps = 0;	/* scheduler disabled */
+		} else {
+			v = (adap->params.vpd.cclk * 1000) / cpt; /* ticks/s */
+			*kbps = (v * bpt) / 125;
+		}
+	}
+	if (ipg) {
+		addr = TP_TX_MOD_Q1_Q0_TIMER_SEPARATOR_A - sched / 2;
+		t4_tp_tm_pio_read(adap, &v, 1, addr, sleep_ok);
+		if (sched & 1)
+			v >>= 16;
+		v &= 0xffff;
+		*ipg = (10000 * v) / core_ticks_per_usec(adap);
+	}
+}
+
+/* t4_sge_ctxt_rd - read an SGE context through FW
+ * @adap: the adapter
+ * @mbox: mailbox to use for the FW command
+ * @cid: the context id
+ * @ctype: the context type
+ * @data: where to store the context data
+ *
+ * Issues a FW command through the given mailbox to read an SGE context.
+ */
+int t4_sge_ctxt_rd(struct adapter *adap, unsigned int mbox, unsigned int cid,
+		   enum ctxt_type ctype, u32 *data)
+{
+	struct fw_ldst_cmd c;
+	int ret;
+
+	if (ctype == CTXT_FLM)
+		ret = FW_LDST_ADDRSPC_SGE_FLMC;
+	else
+		ret = FW_LDST_ADDRSPC_SGE_CONMC;
+
+	memset(&c, 0, sizeof(c));
+	c.op_to_addrspace = cpu_to_be32(FW_CMD_OP_V(FW_LDST_CMD) |
+					FW_CMD_REQUEST_F | FW_CMD_READ_F |
+					FW_LDST_CMD_ADDRSPACE_V(ret));
+	c.cycles_to_len16 = cpu_to_be32(FW_LEN16(c));
+	c.u.idctxt.physid = cpu_to_be32(cid);
+
+	ret = t4_wr_mbox(adap, mbox, &c, sizeof(c), &c);
+	if (ret == 0) {
+		data[0] = be32_to_cpu(c.u.idctxt.ctxt_data0);
+		data[1] = be32_to_cpu(c.u.idctxt.ctxt_data1);
+		data[2] = be32_to_cpu(c.u.idctxt.ctxt_data2);
+		data[3] = be32_to_cpu(c.u.idctxt.ctxt_data3);
+		data[4] = be32_to_cpu(c.u.idctxt.ctxt_data4);
+		data[5] = be32_to_cpu(c.u.idctxt.ctxt_data5);
+	}
+	return ret;
+}
+
+/**
+ * t4_sge_ctxt_rd_bd - read an SGE context bypassing FW
+ * @adap: the adapter
+ * @cid: the context id
+ * @ctype: the context type
+ * @data: where to store the context data
+ *
+ * Reads an SGE context directly, bypassing FW.  This is only for
+ * debugging when FW is unavailable.
+ */
+int t4_sge_ctxt_rd_bd(struct adapter *adap, unsigned int cid,
+		      enum ctxt_type ctype, u32 *data)
+{
+	int i, ret;
+
+	t4_write_reg(adap, SGE_CTXT_CMD_A, CTXTQID_V(cid) | CTXTTYPE_V(ctype));
+	ret = t4_wait_op_done(adap, SGE_CTXT_CMD_A, BUSY_F, 0, 3, 1);
+	if (!ret)
+		for (i = SGE_CTXT_DATA0_A; i <= SGE_CTXT_DATA5_A; i += 4)
+			*data++ = t4_read_reg(adap, i);
+	return ret;
+}
+
 int t4_sched_params(struct adapter *adapter, int type, int level, int mode,
 		    int rateunit, int ratemode, int channel, int class,
 		    int minrate, int maxrate, int weight, int pktsize)
@@ -8338,4 +10370,94 @@ int t4_sched_params(struct adapter *adapter, int type, int level, int mode,
 
 	return t4_wr_mbox_meat(adapter, adapter->mbox, &cmd, sizeof(cmd),
 			       NULL, 1);
+}
+
+/**
+ *	t4_i2c_rd - read I2C data from adapter
+ *	@adap: the adapter
+ *	@port: Port number if per-port device; <0 if not
+ *	@devid: per-port device ID or absolute device ID
+ *	@offset: byte offset into device I2C space
+ *	@len: byte length of I2C space data
+ *	@buf: buffer in which to return I2C data
+ *
+ *	Reads the I2C data from the indicated device and location.
+ */
+int t4_i2c_rd(struct adapter *adap, unsigned int mbox, int port,
+	      unsigned int devid, unsigned int offset,
+	      unsigned int len, u8 *buf)
+{
+	struct fw_ldst_cmd ldst_cmd, ldst_rpl;
+	unsigned int i2c_max = sizeof(ldst_cmd.u.i2c.data);
+	int ret = 0;
+
+	if (len > I2C_PAGE_SIZE)
+		return -EINVAL;
+
+	/* Dont allow reads that spans multiple pages */
+	if (offset < I2C_PAGE_SIZE && offset + len > I2C_PAGE_SIZE)
+		return -EINVAL;
+
+	memset(&ldst_cmd, 0, sizeof(ldst_cmd));
+	ldst_cmd.op_to_addrspace =
+		cpu_to_be32(FW_CMD_OP_V(FW_LDST_CMD) |
+			    FW_CMD_REQUEST_F |
+			    FW_CMD_READ_F |
+			    FW_LDST_CMD_ADDRSPACE_V(FW_LDST_ADDRSPC_I2C));
+	ldst_cmd.cycles_to_len16 = cpu_to_be32(FW_LEN16(ldst_cmd));
+	ldst_cmd.u.i2c.pid = (port < 0 ? 0xff : port);
+	ldst_cmd.u.i2c.did = devid;
+
+	while (len > 0) {
+		unsigned int i2c_len = (len < i2c_max) ? len : i2c_max;
+
+		ldst_cmd.u.i2c.boffset = offset;
+		ldst_cmd.u.i2c.blen = i2c_len;
+
+		ret = t4_wr_mbox(adap, mbox, &ldst_cmd, sizeof(ldst_cmd),
+				 &ldst_rpl);
+		if (ret)
+			break;
+
+		memcpy(buf, ldst_rpl.u.i2c.data, i2c_len);
+		offset += i2c_len;
+		buf += i2c_len;
+		len -= i2c_len;
+	}
+
+	return ret;
+}
+
+/**
+ *      t4_set_vlan_acl - Set a VLAN id for the specified VF
+ *      @adapter: the adapter
+ *      @mbox: mailbox to use for the FW command
+ *      @vf: one of the VFs instantiated by the specified PF
+ *      @vlan: The vlanid to be set
+ */
+int t4_set_vlan_acl(struct adapter *adap, unsigned int mbox, unsigned int vf,
+		    u16 vlan)
+{
+	struct fw_acl_vlan_cmd vlan_cmd;
+	unsigned int enable;
+
+	enable = (vlan ? FW_ACL_VLAN_CMD_EN_F : 0);
+	memset(&vlan_cmd, 0, sizeof(vlan_cmd));
+	vlan_cmd.op_to_vfn = cpu_to_be32(FW_CMD_OP_V(FW_ACL_VLAN_CMD) |
+					 FW_CMD_REQUEST_F |
+					 FW_CMD_WRITE_F |
+					 FW_CMD_EXEC_F |
+					 FW_ACL_VLAN_CMD_PFN_V(adap->pf) |
+					 FW_ACL_VLAN_CMD_VFN_V(vf));
+	vlan_cmd.en_to_len16 = cpu_to_be32(enable | FW_LEN16(vlan_cmd));
+	/* Drop all packets that donot match vlan id */
+	vlan_cmd.dropnovlan_fm = (enable
+				  ? (FW_ACL_VLAN_CMD_DROPNOVLAN_F |
+				     FW_ACL_VLAN_CMD_FM_F) : 0);
+	if (enable != 0) {
+		vlan_cmd.nvlan = 1;
+		vlan_cmd.vlanid[0] = cpu_to_be16(vlan);
+	}
+
+	return t4_wr_mbox(adap, adap->mbox, &vlan_cmd, sizeof(vlan_cmd), NULL);
 }

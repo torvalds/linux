@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * File: pep-gprs.c
  *
@@ -6,20 +7,6 @@
  * Copyright (C) 2008 Nokia Corporation.
  *
  * Author: Rémi Denis-Courmont
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
  */
 
 #include <linux/kernel.h>
@@ -217,20 +204,10 @@ static netdev_tx_t gprs_xmit(struct sk_buff *skb, struct net_device *dev)
 	return NETDEV_TX_OK;
 }
 
-static int gprs_set_mtu(struct net_device *dev, int new_mtu)
-{
-	if ((new_mtu < 576) || (new_mtu > (PHONET_MAX_MTU - 11)))
-		return -EINVAL;
-
-	dev->mtu = new_mtu;
-	return 0;
-}
-
 static const struct net_device_ops gprs_netdev_ops = {
 	.ndo_open	= gprs_open,
 	.ndo_stop	= gprs_close,
 	.ndo_start_xmit	= gprs_xmit,
-	.ndo_change_mtu	= gprs_set_mtu,
 };
 
 static void gprs_setup(struct net_device *dev)
@@ -239,12 +216,14 @@ static void gprs_setup(struct net_device *dev)
 	dev->type		= ARPHRD_PHONET_PIPE;
 	dev->flags		= IFF_POINTOPOINT | IFF_NOARP;
 	dev->mtu		= GPRS_DEFAULT_MTU;
+	dev->min_mtu		= 576;
+	dev->max_mtu		= (PHONET_MAX_MTU - 11);
 	dev->hard_header_len	= 0;
 	dev->addr_len		= 0;
 	dev->tx_queue_len	= 10;
 
 	dev->netdev_ops		= &gprs_netdev_ops;
-	dev->destructor		= free_netdev;
+	dev->needs_free_netdev	= true;
 }
 
 /*

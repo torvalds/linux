@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 	.section	.text..SHmedia32,"ax"
 	.align	2
 	.global	__udivdi3

@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ADXRS450/ADXRS453 Digital Output Gyroscope Driver
  *
  * Copyright 2011 Analog Devices Inc.
- *
- * Licensed under the GPL-2.
  */
 
 #include <linux/interrupt.h>
@@ -405,7 +404,6 @@ static const struct iio_chan_spec adxrs450_channels[2][2] = {
 };
 
 static const struct iio_info adxrs450_info = {
-	.driver_module = THIS_MODULE,
 	.read_raw = &adxrs450_read_raw,
 	.write_raw = &adxrs450_write_raw,
 };

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * ARM callchain support
  *
@@ -36,7 +37,7 @@ user_backtrace(struct frame_tail __user *tail,
 	struct frame_tail buftail;
 	unsigned long err;
 
-	if (!access_ok(VERIFY_READ, tail, sizeof(buftail)))
+	if (!access_ok(tail, sizeof(buftail)))
 		return NULL;
 
 	pagefault_disable();

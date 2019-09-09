@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* atomic.S: These things are too big to do inline.
  *
  * Copyright (C) 1999, 2007 2012 David S. Miller (davem@davemloft.net)
@@ -62,19 +63,23 @@ ENTRY(atomic_fetch_##op) /* %o0 = increment, %o1 = atomic_ptr */	\
 ENDPROC(atomic_fetch_##op);						\
 EXPORT_SYMBOL(atomic_fetch_##op);
 
-#define ATOMIC_OPS(op) ATOMIC_OP(op) ATOMIC_OP_RETURN(op) ATOMIC_FETCH_OP(op)
+ATOMIC_OP(add)
+ATOMIC_OP_RETURN(add)
+ATOMIC_FETCH_OP(add)
 
-ATOMIC_OPS(add)
-ATOMIC_OPS(sub)
+ATOMIC_OP(sub)
+ATOMIC_OP_RETURN(sub)
+ATOMIC_FETCH_OP(sub)
 
-#undef ATOMIC_OPS
-#define ATOMIC_OPS(op) ATOMIC_OP(op) ATOMIC_FETCH_OP(op)
+ATOMIC_OP(and)
+ATOMIC_FETCH_OP(and)
 
-ATOMIC_OPS(and)
-ATOMIC_OPS(or)
-ATOMIC_OPS(xor)
+ATOMIC_OP(or)
+ATOMIC_FETCH_OP(or)
 
-#undef ATOMIC_OPS
+ATOMIC_OP(xor)
+ATOMIC_FETCH_OP(xor)
+
 #undef ATOMIC_FETCH_OP
 #undef ATOMIC_OP_RETURN
 #undef ATOMIC_OP
@@ -124,19 +129,23 @@ ENTRY(atomic64_fetch_##op) /* %o0 = increment, %o1 = atomic_ptr */	\
 ENDPROC(atomic64_fetch_##op);						\
 EXPORT_SYMBOL(atomic64_fetch_##op);
 
-#define ATOMIC64_OPS(op) ATOMIC64_OP(op) ATOMIC64_OP_RETURN(op) ATOMIC64_FETCH_OP(op)
+ATOMIC64_OP(add)
+ATOMIC64_OP_RETURN(add)
+ATOMIC64_FETCH_OP(add)
 
-ATOMIC64_OPS(add)
-ATOMIC64_OPS(sub)
+ATOMIC64_OP(sub)
+ATOMIC64_OP_RETURN(sub)
+ATOMIC64_FETCH_OP(sub)
 
-#undef ATOMIC64_OPS
-#define ATOMIC64_OPS(op) ATOMIC64_OP(op) ATOMIC64_FETCH_OP(op)
+ATOMIC64_OP(and)
+ATOMIC64_FETCH_OP(and)
 
-ATOMIC64_OPS(and)
-ATOMIC64_OPS(or)
-ATOMIC64_OPS(xor)
+ATOMIC64_OP(or)
+ATOMIC64_FETCH_OP(or)
 
-#undef ATOMIC64_OPS
+ATOMIC64_OP(xor)
+ATOMIC64_FETCH_OP(xor)
+
 #undef ATOMIC64_FETCH_OP
 #undef ATOMIC64_OP_RETURN
 #undef ATOMIC64_OP

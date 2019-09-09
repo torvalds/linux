@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * MPC8349E-mITX Device Tree Source
  *
  * Copyright 2006 Freescale Semiconductor Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
  */
 
 /dts-v1/;
@@ -92,7 +88,7 @@
 			dfsrr;
 
 			eeprom: at24@50 {
-				compatible = "st,24c256";
+				compatible = "st,24c256", "atmel,24c256";
 				reg = <0x50>;
 			};
 
@@ -130,7 +126,7 @@
 			};
 
 			spd: at24@51 {
-				compatible = "at24,spd";
+				compatible = "atmel,spd";
 				reg = <0x51>;
 			};
 

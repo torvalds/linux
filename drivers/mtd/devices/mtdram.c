@@ -13,6 +13,7 @@
 #include <linux/slab.h>
 #include <linux/ioport.h>
 #include <linux/vmalloc.h>
+#include <linux/mm.h>
 #include <linux/init.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/mtdram.h>
@@ -23,14 +24,12 @@ static unsigned long writebuf_size = 64;
 #define MTDRAM_TOTAL_SIZE (total_size * 1024)
 #define MTDRAM_ERASE_SIZE (erase_size * 1024)
 
-#ifdef MODULE
 module_param(total_size, ulong, 0);
 MODULE_PARM_DESC(total_size, "Total device size in KiB");
 module_param(erase_size, ulong, 0);
 MODULE_PARM_DESC(erase_size, "Device erase block size in KiB");
 module_param(writebuf_size, ulong, 0);
 MODULE_PARM_DESC(writebuf_size, "Device write buf size in Bytes (Default: 64)");
-#endif
 
 // We could store these in the mtd structure, but we only support 1 device..
 static struct mtd_info *mtd_info;
@@ -59,8 +58,7 @@ static int ram_erase(struct mtd_info *mtd, struct erase_info *instr)
 	if (check_offs_len(mtd, instr->addr, instr->len))
 		return -EINVAL;
 	memset((char *)mtd->priv + instr->addr, 0xff, instr->len);
-	instr->state = MTD_ERASE_DONE;
-	mtd_erase_callback(instr);
+
 	return 0;
 }
 
@@ -69,25 +67,33 @@ static int ram_point(struct mtd_info *mtd, loff_t from, size_t len,
 {
 	*virt = mtd->priv + from;
 	*retlen = len;
+
+	if (phys) {
+		/* limit retlen to the number of contiguous physical pages */
+		unsigned long page_ofs = offset_in_page(*virt);
+		void *addr = *virt - page_ofs;
+		unsigned long pfn1, pfn0 = vmalloc_to_pfn(addr);
+
+		*phys = __pfn_to_phys(pfn0) + page_ofs;
+		len += page_ofs;
+		while (len > PAGE_SIZE) {
+			len -= PAGE_SIZE;
+			addr += PAGE_SIZE;
+			pfn0++;
+			pfn1 = vmalloc_to_pfn(addr);
+			if (pfn1 != pfn0) {
+				*retlen = addr - *virt;
+				break;
+			}
+		}
+	}
+
 	return 0;
 }
 
 static int ram_unpoint(struct mtd_info *mtd, loff_t from, size_t len)
 {
 	return 0;
-}
-
-/*
- * Allow NOMMU mmap() to directly map the device (if not NULL)
- * - return the address to which the offset maps
- * - return -ENOSYS to indicate refusal to do the mapping
- */
-static unsigned long ram_get_unmapped_area(struct mtd_info *mtd,
-					   unsigned long len,
-					   unsigned long offset,
-					   unsigned long flags)
-{
-	return (unsigned long) mtd->priv + offset;
 }
 
 static int ram_read(struct mtd_info *mtd, loff_t from, size_t len,
@@ -134,7 +140,6 @@ int mtdram_init_device(struct mtd_info *mtd, void *mapped_address,
 	mtd->_erase = ram_erase;
 	mtd->_point = ram_point;
 	mtd->_unpoint = ram_unpoint;
-	mtd->_get_unmapped_area = ram_get_unmapped_area;
 	mtd->_read = ram_read;
 	mtd->_write = ram_write;
 

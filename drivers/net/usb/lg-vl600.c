@@ -1,21 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Ethernet interface part of the LG VL600 LTE modem (4G dongle)
  *
  * Copyright (C) 2011 Intel Corporation
  * Author: Andrzej Zaborowski <balrogg@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
@@ -135,7 +123,7 @@ static int vl600_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 		}
 
 		buf = s->current_rx_buf;
-		memcpy(skb_put(buf, skb->len), skb->data, skb->len);
+		skb_put_data(buf, skb->data, skb->len);
 	} else if (skb->len < 4) {
 		netif_err(dev, ifup, dev->net, "Frame too short\n");
 		dev->net->stats.rx_length_errors++;
@@ -157,12 +145,8 @@ static int vl600_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 
 		s->current_rx_buf = skb_copy_expand(skb, 0,
 				le32_to_cpup(&frame->len), GFP_ATOMIC);
-		if (!s->current_rx_buf) {
-			netif_err(dev, ifup, dev->net, "Reserving %i bytes "
-					"for packet assembly failed.\n",
-					le32_to_cpup(&frame->len));
+		if (!s->current_rx_buf)
 			dev->net->stats.rx_errors++;
-		}
 
 		return 0;
 	}
@@ -304,7 +288,7 @@ encapsulate:
 	memset(&packet->dummy, 0, sizeof(packet->dummy));
 	packet->len = cpu_to_le32(orig_len);
 
-	frame = (struct vl600_frame_hdr *) skb_push(skb, sizeof(*frame));
+	frame = skb_push(skb, sizeof(*frame));
 	memset(frame, 0, sizeof(*frame));
 	frame->len = cpu_to_le32(full_len);
 	frame->serial = cpu_to_le32(serial++);

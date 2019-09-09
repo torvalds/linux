@@ -1,11 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2008 Nir Tzachar <nir.tzachar@gmail.com?
- * Released under the terms of the GNU GPL v2.0.
+ * Copyright (C) 2008 Nir Tzachar <nir.tzachar@gmail.com>
  *
  * Derived from menuconfig.
- *
  */
 #include "nconf.h"
+#include "lkc.h"
 
 /* a list of all the different widgets we use */
 attributes_t attributes[ATTR_MAX+1] = {0};
@@ -129,7 +129,7 @@ static void no_colors_theme(void)
 	mkattrn(FUNCTION_TEXT, A_REVERSE);
 }
 
-void set_colors()
+void set_colors(void)
 {
 	start_color();
 	use_default_colors();
@@ -192,7 +192,7 @@ const char *get_line(const char *text, int line_no)
 	int lines = 0;
 
 	if (!text)
-		return 0;
+		return NULL;
 
 	for (i = 0; text[i] != '\0' && lines < line_no; i++)
 		if (text[i] == '\n')
@@ -364,15 +364,17 @@ int dialog_inputbox(WINDOW *main_window,
 	WINDOW *prompt_win;
 	WINDOW *form_win;
 	PANEL *panel;
-	int i, x, y;
+	int i, x, y, lines, columns, win_lines, win_cols;
 	int res = -1;
 	int cursor_position = strlen(init);
 	int cursor_form_win;
 	char *result = *resultp;
 
+	getmaxyx(stdscr, lines, columns);
+
 	if (strlen(init)+1 > *result_len) {
 		*result_len = strlen(init)+1;
-		*resultp = result = realloc(result, *result_len);
+		*resultp = result = xrealloc(result, *result_len);
 	}
 
 	/* find the widest line of msg: */
@@ -386,14 +388,19 @@ int dialog_inputbox(WINDOW *main_window,
 	if (title)
 		prompt_width = max(prompt_width, strlen(title));
 
+	win_lines = min(prompt_lines+6, lines-2);
+	win_cols = min(prompt_width+7, columns-2);
+	prompt_lines = max(win_lines-6, 0);
+	prompt_width = max(win_cols-7, 0);
+
 	/* place dialog in middle of screen */
-	y = (getmaxy(stdscr)-(prompt_lines+4))/2;
-	x = (getmaxx(stdscr)-(prompt_width+4))/2;
+	y = (lines-win_lines)/2;
+	x = (columns-win_cols)/2;
 
 	strncpy(result, init, *result_len);
 
 	/* create the windows */
-	win = newwin(prompt_lines+6, prompt_width+7, y, x);
+	win = newwin(win_lines, win_cols, y, x);
 	prompt_win = derwin(win, prompt_lines+1, prompt_width, 2, 2);
 	form_win = derwin(win, 1, prompt_width, prompt_lines+3, 2);
 	keypad(form_win, TRUE);
@@ -432,7 +439,8 @@ int dialog_inputbox(WINDOW *main_window,
 		case KEY_F(F_EXIT):
 		case KEY_F(F_BACK):
 			break;
-		case 127:
+		case 8:   /* ^H */
+		case 127: /* ^? */
 		case KEY_BACKSPACE:
 			if (cursor_position > 0) {
 				memmove(&result[cursor_position-1],

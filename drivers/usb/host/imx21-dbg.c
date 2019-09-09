@@ -1,19 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 2009 by Martin Fuzzey
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 /* this file is part of imx21-hcd.c */
@@ -258,6 +245,7 @@ static int debug_status_show(struct seq_file *s, void *v)
 
 	return 0;
 }
+DEFINE_SHOW_ATTRIBUTE(debug_status);
 
 static int debug_dmem_show(struct seq_file *s, void *v)
 {
@@ -279,6 +267,7 @@ static int debug_dmem_show(struct seq_file *s, void *v)
 
 	return 0;
 }
+DEFINE_SHOW_ATTRIBUTE(debug_dmem);
 
 static int debug_etd_show(struct seq_file *s, void *v)
 {
@@ -347,6 +336,7 @@ static int debug_etd_show(struct seq_file *s, void *v)
 
 	return 0;
 }
+DEFINE_SHOW_ATTRIBUTE(debug_etd);
 
 static void debug_statistics_show_one(struct seq_file *s,
 	const char *name, struct debug_stats *stats)
@@ -381,6 +371,7 @@ static int debug_statistics_show(struct seq_file *s, void *v)
 
 	return 0;
 }
+DEFINE_SHOW_ATTRIBUTE(debug_statistics);
 
 static void debug_isoc_show_one(struct seq_file *s,
 	const char *name, int index, 	struct debug_isoc_trace *trace)
@@ -422,109 +413,26 @@ static int debug_isoc_show(struct seq_file *s, void *v)
 
 	return 0;
 }
-
-static int debug_status_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, debug_status_show, inode->i_private);
-}
-
-static int debug_dmem_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, debug_dmem_show, inode->i_private);
-}
-
-static int debug_etd_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, debug_etd_show, inode->i_private);
-}
-
-static int debug_statistics_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, debug_statistics_show, inode->i_private);
-}
-
-static int debug_isoc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, debug_isoc_show, inode->i_private);
-}
-
-static const struct file_operations debug_status_fops = {
-	.open = debug_status_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
-
-static const struct file_operations debug_dmem_fops = {
-	.open = debug_dmem_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
-
-static const struct file_operations debug_etd_fops = {
-	.open = debug_etd_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
-
-static const struct file_operations debug_statistics_fops = {
-	.open = debug_statistics_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
-
-static const struct file_operations debug_isoc_fops = {
-	.open = debug_isoc_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(debug_isoc);
 
 static void create_debug_files(struct imx21 *imx21)
 {
-	imx21->debug_root = debugfs_create_dir(dev_name(imx21->dev), NULL);
-	if (!imx21->debug_root)
-		goto failed_create_rootdir;
+	struct dentry *root;
 
-	if (!debugfs_create_file("status", S_IRUGO,
-			imx21->debug_root, imx21, &debug_status_fops))
-		goto failed_create;
+	root = debugfs_create_dir(dev_name(imx21->dev), NULL);
+	imx21->debug_root = root;
 
-	if (!debugfs_create_file("dmem", S_IRUGO,
-			imx21->debug_root, imx21, &debug_dmem_fops))
-		goto failed_create;
-
-	if (!debugfs_create_file("etd", S_IRUGO,
-			imx21->debug_root, imx21, &debug_etd_fops))
-		goto failed_create;
-
-	if (!debugfs_create_file("statistics", S_IRUGO,
-			imx21->debug_root, imx21, &debug_statistics_fops))
-		goto failed_create;
-
-	if (!debugfs_create_file("isoc", S_IRUGO,
-			imx21->debug_root, imx21, &debug_isoc_fops))
-		goto failed_create;
-
-	return;
-
-failed_create:
-	debugfs_remove_recursive(imx21->debug_root);
-
-failed_create_rootdir:
-	imx21->debug_root = NULL;
+	debugfs_create_file("status", S_IRUGO, root, imx21, &debug_status_fops);
+	debugfs_create_file("dmem", S_IRUGO, root, imx21, &debug_dmem_fops);
+	debugfs_create_file("etd", S_IRUGO, root, imx21, &debug_etd_fops);
+	debugfs_create_file("statistics", S_IRUGO, root, imx21,
+			    &debug_statistics_fops);
+	debugfs_create_file("isoc", S_IRUGO, root, imx21, &debug_isoc_fops);
 }
-
 
 static void remove_debug_files(struct imx21 *imx21)
 {
-	if (imx21->debug_root) {
-		debugfs_remove_recursive(imx21->debug_root);
-		imx21->debug_root = NULL;
-	}
+	debugfs_remove_recursive(imx21->debug_root);
 }
 
 #endif

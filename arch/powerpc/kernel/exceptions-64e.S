@@ -1,12 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *  Boot code and exception vectors for Book3E processors
  *
  *  Copyright (C) 2007 Ben. Herrenschmidt (benh@kernel.crashing.org), IBM Corp.
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version
- *  2 of the License, or (at your option) any later version.
  */
 
 #include <linux/threads.h>
@@ -27,6 +23,7 @@
 #include <asm/hw_irq.h>
 #include <asm/kvm_asm.h>
 #include <asm/kvm_booke_hv_asm.h>
+#include <asm/feature-fixups.h>
 
 /* XXX This will ultimately add space for a special exception save
  *     structure used to save things like SRR0/SRR1, SPRGs, MAS, etc...
@@ -75,17 +72,6 @@ special_reg_save:
 	ld	r3,_MSR(r1)
 	andi.	r3,r3,MSR_PR
 	bnelr
-
-	/* Copy info into temporary exception thread info */
-	ld	r11,PACAKSAVE(r13)
-	CURRENT_THREAD_INFO(r11, r11)
-	CURRENT_THREAD_INFO(r12, r1)
-	ld	r10,TI_FLAGS(r11)
-	std	r10,TI_FLAGS(r12)
-	ld	r10,TI_PREEMPT(r11)
-	std	r10,TI_PREEMPT(r12)
-	ld	r10,TI_TASK(r11)
-	std	r10,TI_TASK(r12)
 
 	/*
 	 * Advance to the next TLB exception frame for handler
@@ -139,7 +125,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_EMB_HV)
 	mfspr	r10,SPRN_ESR
 	SPECIAL_EXC_STORE(r10,ESR)
 
-	lbz	r10,PACASOFTIRQEN(r13)
+	lbz	r10,PACAIRQSOFTMASK(r13)
 	SPECIAL_EXC_STORE(r10,SOFTE)
 	ld	r10,_NIP(r1)
 	SPECIAL_EXC_STORE(r10,CSRR0)
@@ -206,17 +192,17 @@ BEGIN_FTR_SECTION
 	mtspr	SPRN_MAS8,r10
 END_FTR_SECTION_IFSET(CPU_FTR_EMB_HV)
 
-	lbz	r6,PACASOFTIRQEN(r13)
+	lbz	r6,PACAIRQSOFTMASK(r13)
 	ld	r5,SOFTE(r1)
 
 	/* Interrupts had better not already be enabled... */
-	twnei	r6,0
+	tweqi	r6,IRQS_ENABLED
 
-	cmpwi	cr0,r5,0
-	beq	1f
+	andi.	r6,r5,IRQS_DISABLED
+	bne	1f
 
 	TRACE_ENABLE_INTS
-	stb	r5,PACASOFTIRQEN(r13)
+	stb	r5,PACAIRQSOFTMASK(r13)
 1:
 	/*
 	 * Restore PACAIRQHAPPENED rather than setting it based on
@@ -295,7 +281,8 @@ ret_from_mc_except:
 	andi.	r10,r11,MSR_PR;		/* save stack pointer */	    \
 	beq	1f;			/* branch around if supervisor */   \
 	ld	r1,PACAKSAVE(r13);	/* get kernel stack coming from usr */\
-1:	cmpdi	cr1,r1,0;		/* check if SP makes sense */	    \
+1:	type##_BTB_FLUSH		\
+	cmpdi	cr1,r1,0;		/* check if SP makes sense */	    \
 	bge-	cr1,exc_##n##_bad_stack;/* bad stack (TODO: out of line) */ \
 	mfspr	r10,SPRN_##type##_SRR0;	/* read SRR0 before touching stack */
 
@@ -327,6 +314,30 @@ ret_from_mc_except:
 #define SPRN_MC_SRR0	SPRN_MCSRR0
 #define SPRN_MC_SRR1	SPRN_MCSRR1
 
+#ifdef CONFIG_PPC_FSL_BOOK3E
+#define GEN_BTB_FLUSH			\
+	START_BTB_FLUSH_SECTION		\
+		beq 1f;			\
+		BTB_FLUSH(r10)			\
+		1:		\
+	END_BTB_FLUSH_SECTION
+
+#define CRIT_BTB_FLUSH			\
+	START_BTB_FLUSH_SECTION		\
+		BTB_FLUSH(r10)		\
+	END_BTB_FLUSH_SECTION
+
+#define DBG_BTB_FLUSH CRIT_BTB_FLUSH
+#define MC_BTB_FLUSH CRIT_BTB_FLUSH
+#define GDBELL_BTB_FLUSH GEN_BTB_FLUSH
+#else
+#define GEN_BTB_FLUSH
+#define CRIT_BTB_FLUSH
+#define DBG_BTB_FLUSH
+#define MC_BTB_FLUSH
+#define GDBELL_BTB_FLUSH
+#endif
+
 #define NORMAL_EXCEPTION_PROLOG(n, intnum, addition)			    \
 	EXCEPTION_PROLOG(n, intnum, GEN, addition##_GEN(n))
 
@@ -351,9 +362,9 @@ ret_from_mc_except:
 #define PROLOG_ADDITION_NONE_MC(n)
 
 #define PROLOG_ADDITION_MASKABLE_GEN(n)					    \
-	lbz	r10,PACASOFTIRQEN(r13); /* are irqs soft-disabled ? */	    \
-	cmpwi	cr0,r10,0;		/* yes -> go out of line */	    \
-	beq	masked_interrupt_book3e_##n
+	lbz	r10,PACAIRQSOFTMASK(r13);	/* are irqs soft-masked? */ \
+	andi.	r10,r10,IRQS_DISABLED;	/* yes -> go out of line */ \
+	bne	masked_interrupt_book3e_##n
 
 #define PROLOG_ADDITION_2REGS_GEN(n)					    \
 	std	r14,PACA_EXGEN+EX_R14(r13);				    \
@@ -397,7 +408,7 @@ exc_##n##_common:							    \
 	mfspr	r8,SPRN_XER;		/* save XER in stackframe */	    \
 	ld	r9,excf+EX_R1(r13);	/* load orig r1 back from PACA */   \
 	lwz	r10,excf+EX_CR(r13);	/* load orig CR back from PACA	*/  \
-	lbz	r11,PACASOFTIRQEN(r13);	/* get current IRQ softe */	    \
+	lbz	r11,PACAIRQSOFTMASK(r13); /* get current IRQ softe */	    \
 	ld	r12,exception_marker@toc(r2);				    \
 	li	r0,0;							    \
 	std	r3,GPR10(r1);		/* save r10 to stackframe */	    \
@@ -479,7 +490,7 @@ exc_##n##_bad_stack:							    \
  * interrupts happen before the wait instruction.
  */
 #define CHECK_NAPPING()							\
-	CURRENT_THREAD_INFO(r11, r1);					\
+	ld	r11, PACA_THREAD_INFO(r13);				\
 	ld	r10,TI_LOCAL_FLAGS(r11);				\
 	andi.	r9,r10,_TLF_NAPPING;					\
 	beq+	1f;							\
@@ -735,8 +746,14 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 	andis.	r15,r14,(DBSR_IC|DBSR_BT)@h
 	beq+	1f
 
+#ifdef CONFIG_RELOCATABLE
+	ld	r15,PACATOC(r13)
+	ld	r14,interrupt_base_book3e@got(r15)
+	ld	r15,__end_interrupts@got(r15)
+#else
 	LOAD_REG_IMMEDIATE(r14,interrupt_base_book3e)
 	LOAD_REG_IMMEDIATE(r15,__end_interrupts)
+#endif
 	cmpld	cr0,r10,r14
 	cmpld	cr1,r10,r15
 	blt+	cr0,1f
@@ -799,8 +816,14 @@ kernel_dbg_exc:
 	andis.	r15,r14,(DBSR_IC|DBSR_BT)@h
 	beq+	1f
 
+#ifdef CONFIG_RELOCATABLE
+	ld	r15,PACATOC(r13)
+	ld	r14,interrupt_base_book3e@got(r15)
+	ld	r15,__end_interrupts@got(r15)
+#else
 	LOAD_REG_IMMEDIATE(r14,interrupt_base_book3e)
 	LOAD_REG_IMMEDIATE(r15,__end_interrupts)
+#endif
 	cmpld	cr0,r10,r14
 	cmpld	cr1,r10,r15
 	blt+	cr0,1f
@@ -923,19 +946,25 @@ kernel_dbg_exc:
 			        PROLOG_ADDITION_NONE)
 	EXCEPTION_COMMON(0x340)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
-	bl	.save_nvgprs
+	bl	save_nvgprs
 	INTS_RESTORE_HARD
-	bl	.unknown_exception
-	b	.ret_from_except
+	bl	unknown_exception
+	b	ret_from_except
 
 /*
  * An interrupt came in while soft-disabled; We mark paca->irq_happened
  * accordingly and if the interrupt is level sensitive, we hard disable
+ * hard disable (full_mask) corresponds to PACA_IRQ_MUST_HARD_MASK, so
+ * keep these in synch.
  */
 
 .macro masked_interrupt_book3e paca_irq full_mask
 	lbz	r10,PACAIRQHAPPENED(r13)
+	.if \full_mask == 1
+	ori	r10,r10,\paca_irq | PACA_IRQ_HARD_DIS
+	.else
 	ori	r10,r10,\paca_irq
+	.endif
 	stb	r10,PACAIRQHAPPENED(r13)
 
 	.if \full_mask == 1

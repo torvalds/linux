@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * ip_vs_est.c: simple rate estimator for IPVS
  *
  * Authors:     Wensong Zhang <wensong@linuxvirtualserver.org>
- *
- *              This program is free software; you can redistribute it and/or
- *              modify it under the terms of the GNU General Public License
- *              as published by the Free Software Foundation; either version
- *              2 of the License, or (at your option) any later version.
  *
  * Changes:     Hans Schillstrom <hans.schillstrom@ericsson.com>
  *              Network name space (netns) aware.
@@ -97,12 +93,12 @@ static void ip_vs_read_cpu_stats(struct ip_vs_kstats *sum,
 }
 
 
-static void estimation_timer(unsigned long arg)
+static void estimation_timer(struct timer_list *t)
 {
 	struct ip_vs_estimator *e;
 	struct ip_vs_stats *s;
 	u64 rate;
-	struct netns_ipvs *ipvs = (struct netns_ipvs *)arg;
+	struct netns_ipvs *ipvs = from_timer(ipvs, t, est_timer);
 
 	spin_lock(&ipvs->est_lock);
 	list_for_each_entry(e, &ipvs->est_list, list) {
@@ -192,7 +188,7 @@ int __net_init ip_vs_estimator_net_init(struct netns_ipvs *ipvs)
 {
 	INIT_LIST_HEAD(&ipvs->est_list);
 	spin_lock_init(&ipvs->est_lock);
-	setup_timer(&ipvs->est_timer, estimation_timer, (unsigned long)ipvs);
+	timer_setup(&ipvs->est_timer, estimation_timer, 0);
 	mod_timer(&ipvs->est_timer, jiffies + 2 * HZ);
 	return 0;
 }

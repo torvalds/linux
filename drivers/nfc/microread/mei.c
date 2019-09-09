@@ -1,19 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
+ * Copyright (C) 2013 Intel Corporation. All rights reserved.
+ *
  * HCI based Driver for Inside Secure microread NFC Chip
- *
- * Copyright (C) 2013  Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -82,28 +71,7 @@ static struct mei_cl_driver microread_driver = {
 	.remove = microread_mei_remove,
 };
 
-static int microread_mei_init(void)
-{
-	int r;
-
-	pr_debug(DRIVER_DESC ": %s\n", __func__);
-
-	r = mei_cldev_driver_register(&microread_driver);
-	if (r) {
-		pr_err(MICROREAD_DRIVER_NAME ": driver registration failed\n");
-		return r;
-	}
-
-	return 0;
-}
-
-static void microread_mei_exit(void)
-{
-	mei_cldev_driver_unregister(&microread_driver);
-}
-
-module_init(microread_mei_init);
-module_exit(microread_mei_exit);
+module_mei_cl_driver(microread_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION(DRIVER_DESC);

@@ -1,23 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
   Madge Horizon ATM Adapter driver.
   Copyright (C) 1995-1999  Madge Networks Ltd.
   
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; either version 2 of the License, or
-  (at your option) any later version.
-  
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-  
-  You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-  
-  The GNU GPL is contained in /usr/doc/copyright/GPL on a Debian
-  system and in the file COPYING in the Linux kernel source.
 */
 
 /*
@@ -27,6 +12,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/sched/signal.h>
 #include <linux/mm.h>
 #include <linux/pci.h>
 #include <linux/errno.h>
@@ -45,7 +31,7 @@
 
 #include <asm/io.h>
 #include <linux/atomic.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/string.h>
 #include <asm/byteorder.h>
 
@@ -356,7 +342,7 @@ static inline void __init show_version (void) {
 
 /********** globals **********/
 
-static void do_housekeeping (unsigned long arg);
+static void do_housekeeping (struct timer_list *t);
 
 static unsigned short debug = 0;
 static unsigned short vpi_bits = 0;
@@ -1417,9 +1403,9 @@ static irqreturn_t interrupt_handler(int irq, void *dev_id)
 
 /********** housekeeping **********/
 
-static void do_housekeeping (unsigned long arg) {
+static void do_housekeeping (struct timer_list *t) {
   // just stats at the moment
-  hrz_dev * dev = (hrz_dev *) arg;
+  hrz_dev * dev = from_timer(dev, t, housekeeping);
 
   // collect device-specific (not driver/atm-linux) stats here
   dev->tx_cell_count += rd_regw (dev, TX_CELL_COUNT_OFF);
@@ -2795,14 +2781,14 @@ static int hrz_probe(struct pci_dev *pci_dev,
 	dev->atm_dev->ci_range.vpi_bits = vpi_bits;
 	dev->atm_dev->ci_range.vci_bits = 10-vpi_bits;
 
-	setup_timer(&dev->housekeeping, do_housekeeping, (unsigned long) dev);
+	timer_setup(&dev->housekeeping, do_housekeeping, 0);
 	mod_timer(&dev->housekeeping, jiffies);
 
 out:
 	return err;
 
 out_free_irq:
-	free_irq(dev->irq, dev);
+	free_irq(irq, dev);
 out_free:
 	kfree(dev);
 out_release:
@@ -2866,7 +2852,7 @@ MODULE_PARM_DESC(max_tx_size, "maximum size of TX AAL5 frames");
 MODULE_PARM_DESC(max_rx_size, "maximum size of RX AAL5 frames");
 MODULE_PARM_DESC(pci_lat, "PCI latency in bus cycles");
 
-static struct pci_device_id hrz_pci_tbl[] = {
+static const struct pci_device_id hrz_pci_tbl[] = {
 	{ PCI_VENDOR_ID_MADGE, PCI_DEVICE_ID_MADGE_HORIZON, PCI_ANY_ID, PCI_ANY_ID,
 	  0, 0, 0 },
 	{ 0, }
@@ -2884,12 +2870,7 @@ static struct pci_driver hrz_driver = {
 /********** module entry **********/
 
 static int __init hrz_module_init (void) {
-  // sanity check - cast is needed since printk does not support %Zu
-  if (sizeof(struct MEMMAP) != 128*1024/4) {
-    PRINTK (KERN_ERR, "Fix struct MEMMAP (is %lu fakewords).",
-	    (unsigned long) sizeof(struct MEMMAP));
-    return -ENOMEM;
-  }
+  BUILD_BUG_ON(sizeof(struct MEMMAP) != 128*1024/4);
   
   show_version();
   

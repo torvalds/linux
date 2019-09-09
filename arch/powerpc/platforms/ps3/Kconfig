@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config PPC_PS3
 	bool "Sony PS3"
 	depends on PPC64 && PPC_BOOK3S && CPU_BIG_ENDIAN
@@ -5,7 +6,7 @@ config PPC_PS3
 	select USB_OHCI_LITTLE_ENDIAN
 	select USB_OHCI_BIG_ENDIAN_MMIO
 	select USB_EHCI_BIG_ENDIAN_MMIO
-	select PPC_PCI_CHOICE
+	select HAVE_PCI
 	help
 	  This option enables support for the Sony PS3 game console
 	  and other platforms using the PS3 hypervisor.  Enabling this
@@ -48,7 +49,6 @@ config PS3_HTAB_SIZE
 config PS3_DYNAMIC_DMA
 	depends on PPC_PS3
 	bool "PS3 Platform dynamic DMA page table management"
-	default n
 	help
 	  This option will enable kernel support to take advantage of the
 	  per device dynamic DMA page table management provided by the Cell
@@ -88,7 +88,6 @@ config PS3_SYS_MANAGER
 config PS3_REPOSITORY_WRITE
 	bool "PS3 Repository write support" if PS3_ADVANCED
 	depends on PPC_PS3
-	default n
 	help
 	  Enables support for writing to the PS3 System Repository.
 

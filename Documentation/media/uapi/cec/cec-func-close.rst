@@ -1,4 +1,11 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 .. _cec-func-close:
 
@@ -33,11 +40,6 @@ Arguments
 Description
 ===========
 
-.. note::
-
-   This documents the proposed CEC API. This API is not yet finalized
-   and is currently only available as a staging kernel module.
-
 Closes the cec device. Resources associated with the file descriptor are
 freed. The device configuration remain unchanged.
 
@@ -45,7 +47,7 @@ freed. The device configuration remain unchanged.
 Return Value
 ============
 
-:c:func:`close()` returns 0 on success. On error, -1 is returned, and
+:c:func:`close() <cec-close>` returns 0 on success. On error, -1 is returned, and
 ``errno`` is set appropriately. Possible error codes are:
 
 ``EBADF``

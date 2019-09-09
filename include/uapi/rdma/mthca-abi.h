@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR Linux-OpenIB) */
 /*
  * Copyright (c) 2005 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005, 2006 Cisco Systems.  All rights reserved.
@@ -73,8 +74,8 @@ struct mthca_reg_mr {
 struct mthca_create_cq {
 	__u32 lkey;
 	__u32 pdn;
-	__u64 arm_db_page;
-	__u64 set_db_page;
+	__aligned_u64 arm_db_page;
+	__aligned_u64 set_db_page;
 	__u32 arm_db_index;
 	__u32 set_db_index;
 };
@@ -92,7 +93,7 @@ struct mthca_resize_cq {
 struct mthca_create_srq {
 	__u32 lkey;
 	__u32 db_index;
-	__u64 db_page;
+	__aligned_u64 db_page;
 };
 
 struct mthca_create_srq_resp {
@@ -103,8 +104,8 @@ struct mthca_create_srq_resp {
 struct mthca_create_qp {
 	__u32 lkey;
 	__u32 reserved;
-	__u64 sq_db_page;
-	__u64 rq_db_page;
+	__aligned_u64 sq_db_page;
+	__aligned_u64 rq_db_page;
 	__u32 sq_db_index;
 	__u32 rq_db_index;
 };

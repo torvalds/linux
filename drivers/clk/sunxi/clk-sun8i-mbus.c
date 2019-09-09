@@ -1,22 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2014 Chen-Yu Tsai
  *
  * Chen-Yu Tsai <wens@csie.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/clk.h>
-#include <linux/clkdev.h>
 #include <linux/clk-provider.h>
+#include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/of_address.h>
@@ -82,11 +73,12 @@ static void __init sun8i_a23_mbus_setup(struct device_node *node)
 	mux->mask = SUN8I_MBUS_MUX_MASK;
 	mux->lock = &sun8i_a23_mbus_lock;
 
+	/* The MBUS clocks needs to be always enabled */
 	clk = clk_register_composite(NULL, clk_name, parents, num_parents,
 				     &mux->hw, &clk_mux_ops,
 				     &div->hw, &clk_divider_ops,
 				     &gate->hw, &clk_gate_ops,
-				     0);
+				     CLK_IS_CRITICAL);
 	if (IS_ERR(clk))
 		goto err_free_gate;
 
@@ -95,9 +87,6 @@ static void __init sun8i_a23_mbus_setup(struct device_node *node)
 		goto err_unregister_clk;
 
 	kfree(parents); /* parents is deep copied */
-	/* The MBUS clocks needs to be always enabled */
-	__clk_get(clk);
-	clk_prepare_enable(clk);
 
 	return;
 

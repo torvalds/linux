@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * This file defines the trace event structures that go into the ring
  * buffer directly. They are created via macros so that changes for them
@@ -64,7 +65,8 @@ FTRACE_ENTRY_REG(function, ftrace_entry,
 		__field(	unsigned long,	parent_ip	)
 	),
 
-	F_printk(" %lx <-- %lx", __entry->ip, __entry->parent_ip),
+	F_printk(" %ps <-- %ps",
+		 (void *)__entry->ip, (void *)__entry->parent_ip),
 
 	FILTER_TRACE_FN,
 
@@ -82,7 +84,7 @@ FTRACE_ENTRY_PACKED(funcgraph_entry, ftrace_graph_ent_entry,
 		__field_desc(	int,		graph_ent,	depth		)
 	),
 
-	F_printk("--> %lx (%d)", __entry->func, __entry->depth),
+	F_printk("--> %ps (%d)", (void *)__entry->func, __entry->depth),
 
 	FILTER_OTHER
 );
@@ -101,8 +103,8 @@ FTRACE_ENTRY_PACKED(funcgraph_exit, ftrace_graph_ret_entry,
 		__field_desc(	int,		ret,		depth	)
 	),
 
-	F_printk("<-- %lx (%d) (start: %llx  end: %llx) over: %d",
-		 __entry->func, __entry->depth,
+	F_printk("<-- %ps (%d) (start: %llx  end: %llx) over: %d",
+		 (void *)__entry->func, __entry->depth,
 		 __entry->calltime, __entry->rettime,
 		 __entry->depth),
 
@@ -166,12 +168,6 @@ FTRACE_ENTRY_DUP(wakeup, ctx_switch_entry,
 
 #define FTRACE_STACK_ENTRIES	8
 
-#ifndef CONFIG_64BIT
-# define IP_FMT "%08lx"
-#else
-# define IP_FMT "%016lx"
-#endif
-
 FTRACE_ENTRY(kernel_stack, stack_entry,
 
 	TRACE_STACK,
@@ -181,12 +177,13 @@ FTRACE_ENTRY(kernel_stack, stack_entry,
 		__dynamic_array(unsigned long,	caller	)
 	),
 
-	F_printk("\t=> (" IP_FMT ")\n\t=> (" IP_FMT ")\n\t=> (" IP_FMT ")\n"
-		 "\t=> (" IP_FMT ")\n\t=> (" IP_FMT ")\n\t=> (" IP_FMT ")\n"
-		 "\t=> (" IP_FMT ")\n\t=> (" IP_FMT ")\n",
-		 __entry->caller[0], __entry->caller[1], __entry->caller[2],
-		 __entry->caller[3], __entry->caller[4], __entry->caller[5],
-		 __entry->caller[6], __entry->caller[7]),
+	F_printk("\t=> %ps\n\t=> %ps\n\t=> %ps\n"
+		 "\t=> %ps\n\t=> %ps\n\t=> %ps\n"
+		 "\t=> %ps\n\t=> %ps\n",
+		 (void *)__entry->caller[0], (void *)__entry->caller[1],
+		 (void *)__entry->caller[2], (void *)__entry->caller[3],
+		 (void *)__entry->caller[4], (void *)__entry->caller[5],
+		 (void *)__entry->caller[6], (void *)__entry->caller[7]),
 
 	FILTER_OTHER
 );
@@ -200,12 +197,13 @@ FTRACE_ENTRY(user_stack, userstack_entry,
 		__array(	unsigned long,	caller, FTRACE_STACK_ENTRIES	)
 	),
 
-	F_printk("\t=> (" IP_FMT ")\n\t=> (" IP_FMT ")\n\t=> (" IP_FMT ")\n"
-		 "\t=> (" IP_FMT ")\n\t=> (" IP_FMT ")\n\t=> (" IP_FMT ")\n"
-		 "\t=> (" IP_FMT ")\n\t=> (" IP_FMT ")\n",
-		 __entry->caller[0], __entry->caller[1], __entry->caller[2],
-		 __entry->caller[3], __entry->caller[4], __entry->caller[5],
-		 __entry->caller[6], __entry->caller[7]),
+	F_printk("\t=> %ps\n\t=> %ps\n\t=> %ps\n"
+		 "\t=> %ps\n\t=> %ps\n\t=> %ps\n"
+		 "\t=> %ps\n\t=> %ps\n",
+		 (void *)__entry->caller[0], (void *)__entry->caller[1],
+		 (void *)__entry->caller[2], (void *)__entry->caller[3],
+		 (void *)__entry->caller[4], (void *)__entry->caller[5],
+		 (void *)__entry->caller[6], (void *)__entry->caller[7]),
 
 	FILTER_OTHER
 );
@@ -229,7 +227,7 @@ FTRACE_ENTRY(bprint, bprint_entry,
 	FILTER_OTHER
 );
 
-FTRACE_ENTRY(print, print_entry,
+FTRACE_ENTRY_REG(print, print_entry,
 
 	TRACE_PRINT,
 
@@ -240,6 +238,23 @@ FTRACE_ENTRY(print, print_entry,
 
 	F_printk("%ps: %s",
 		 (void *)__entry->ip, __entry->buf),
+
+	FILTER_OTHER,
+
+	ftrace_event_register
+);
+
+FTRACE_ENTRY(raw_data, raw_data_entry,
+
+	TRACE_RAW_DATA,
+
+	F_STRUCT(
+		__field(	unsigned int,	id	)
+		__dynamic_array(	char,	buf	)
+	),
+
+	F_printk("id:%04x %08x",
+		 __entry->id, (int)__entry->buf[0]),
 
 	FILTER_OTHER
 );
@@ -313,11 +328,13 @@ FTRACE_ENTRY(branch, trace_branch,
 		__array(	char,		func,	TRACE_FUNC_SIZE+1	)
 		__array(	char,		file,	TRACE_FILE_SIZE+1	)
 		__field(	char,		correct				)
+		__field(	char,		constant			)
 	),
 
-	F_printk("%u:%s:%s (%u)",
+	F_printk("%u:%s:%s (%u)%s",
 		 __entry->line,
-		 __entry->func, __entry->file, __entry->correct),
+		 __entry->func, __entry->file, __entry->correct,
+		 __entry->constant ? " CONSTANT" : ""),
 
 	FILTER_OTHER
 );
@@ -331,14 +348,14 @@ FTRACE_ENTRY(hwlat, hwlat_entry,
 		__field(	u64,			duration	)
 		__field(	u64,			outer_duration	)
 		__field(	u64,			nmi_total_ts	)
-		__field_struct( struct timespec,	timestamp	)
-		__field_desc(	long,	timestamp,	tv_sec		)
+		__field_struct( struct timespec64,	timestamp	)
+		__field_desc(	s64,	timestamp,	tv_sec		)
 		__field_desc(	long,	timestamp,	tv_nsec		)
 		__field(	unsigned int,		nmi_count	)
 		__field(	unsigned int,		seqnum		)
 	),
 
-	F_printk("cnt:%u\tts:%010lu.%010lu\tinner:%llu\touter:%llunmi-ts:%llu\tnmi-count:%u\n",
+	F_printk("cnt:%u\tts:%010llu.%010lu\tinner:%llu\touter:%llu\tnmi-ts:%llu\tnmi-count:%u\n",
 		 __entry->seqnum,
 		 __entry->tv_sec,
 		 __entry->tv_nsec,

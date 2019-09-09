@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Linux for s390 qdio support, buffer handling, qdio API and module support.
  *
@@ -71,6 +72,7 @@ static inline int do_siga_input(unsigned long schid, unsigned int mask,
  * @mask: which output queues to process
  * @bb: busy bit indicator, set only if SIGA-w/wt could not access a buffer
  * @fc: function code to perform
+ * @aob: asynchronous operation block
  *
  * Returns condition code.
  * Note: For IQDC unicast queues only the highest priority queue is processed.
@@ -96,22 +98,6 @@ static inline int do_siga_output(unsigned long schid, unsigned long mask,
 	return cc;
 }
 
-static inline int qdio_check_ccq(struct qdio_q *q, unsigned int ccq)
-{
-	/* all done or next buffer state different */
-	if (ccq == 0 || ccq == 32)
-		return 0;
-	/* no buffer processed */
-	if (ccq == 97)
-		return 1;
-	/* not all buffers processed */
-	if (ccq == 96)
-		return 2;
-	/* notify devices immediately */
-	DBF_ERROR("%4x ccq:%3d", SCH_NO(q), ccq);
-	return -EIO;
-}
-
 /**
  * qdio_do_eqbs - extract buffer states for QEBSM
  * @q: queue to manipulate
@@ -126,7 +112,7 @@ static inline int qdio_check_ccq(struct qdio_q *q, unsigned int ccq)
 static int qdio_do_eqbs(struct qdio_q *q, unsigned char *state,
 			int start, int count, int auto_ack)
 {
-	int rc, tmp_count = count, tmp_start = start, nr = q->nr, retried = 0;
+	int tmp_count = count, tmp_start = start, nr = q->nr;
 	unsigned int ccq = 0;
 
 	qperf_inc(q, eqbs);
@@ -136,34 +122,30 @@ static int qdio_do_eqbs(struct qdio_q *q, unsigned char *state,
 again:
 	ccq = do_eqbs(q->irq_ptr->sch_token, state, nr, &tmp_start, &tmp_count,
 		      auto_ack);
-	rc = qdio_check_ccq(q, ccq);
-	if (!rc)
+
+	switch (ccq) {
+	case 0:
+	case 32:
+		/* all done, or next buffer state different */
 		return count - tmp_count;
-
-	if (rc == 1) {
-		DBF_DEV_EVENT(DBF_WARN, q->irq_ptr, "EQBS again:%2d", ccq);
-		goto again;
-	}
-
-	if (rc == 2) {
+	case 96:
+		/* not all buffers processed */
 		qperf_inc(q, eqbs_partial);
 		DBF_DEV_EVENT(DBF_WARN, q->irq_ptr, "EQBS part:%02x",
 			tmp_count);
-		/*
-		 * Retry once, if that fails bail out and process the
-		 * extracted buffers before trying again.
-		 */
-		if (!retried++)
-			goto again;
-		else
-			return count - tmp_count;
+		return count - tmp_count;
+	case 97:
+		/* no buffer processed */
+		DBF_DEV_EVENT(DBF_WARN, q->irq_ptr, "EQBS again:%2d", ccq);
+		goto again;
+	default:
+		DBF_ERROR("%4x ccq:%3d", SCH_NO(q), ccq);
+		DBF_ERROR("%4x EQBS ERROR", SCH_NO(q));
+		DBF_ERROR("%3d%3d%2d", count, tmp_count, nr);
+		q->handler(q->irq_ptr->cdev, QDIO_ERROR_GET_BUF_STATE, q->nr,
+			   q->first_to_kick, count, q->irq_ptr->int_parm);
+		return 0;
 	}
-
-	DBF_ERROR("%4x EQBS ERROR", SCH_NO(q));
-	DBF_ERROR("%3d%3d%2d", count, tmp_count, nr);
-	q->handler(q->irq_ptr->cdev, QDIO_ERROR_GET_BUF_STATE,
-		   q->nr, q->first_to_kick, count, q->irq_ptr->int_parm);
-	return 0;
 }
 
 /**
@@ -183,7 +165,6 @@ static int qdio_do_sqbs(struct qdio_q *q, unsigned char state, int start,
 	unsigned int ccq = 0;
 	int tmp_count = count, tmp_start = start;
 	int nr = q->nr;
-	int rc;
 
 	if (!count)
 		return 0;
@@ -193,48 +174,67 @@ static int qdio_do_sqbs(struct qdio_q *q, unsigned char state, int start,
 		nr += q->irq_ptr->nr_input_qs;
 again:
 	ccq = do_sqbs(q->irq_ptr->sch_token, state, nr, &tmp_start, &tmp_count);
-	rc = qdio_check_ccq(q, ccq);
-	if (!rc) {
+
+	switch (ccq) {
+	case 0:
+	case 32:
+		/* all done, or active buffer adapter-owned */
 		WARN_ON_ONCE(tmp_count);
 		return count - tmp_count;
-	}
-
-	if (rc == 1 || rc == 2) {
+	case 96:
+		/* not all buffers processed */
 		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "SQBS again:%2d", ccq);
 		qperf_inc(q, sqbs_partial);
 		goto again;
+	default:
+		DBF_ERROR("%4x ccq:%3d", SCH_NO(q), ccq);
+		DBF_ERROR("%4x SQBS ERROR", SCH_NO(q));
+		DBF_ERROR("%3d%3d%2d", count, tmp_count, nr);
+		q->handler(q->irq_ptr->cdev, QDIO_ERROR_SET_BUF_STATE, q->nr,
+			   q->first_to_kick, count, q->irq_ptr->int_parm);
+		return 0;
 	}
-
-	DBF_ERROR("%4x SQBS ERROR", SCH_NO(q));
-	DBF_ERROR("%3d%3d%2d", count, tmp_count, nr);
-	q->handler(q->irq_ptr->cdev, QDIO_ERROR_SET_BUF_STATE,
-		   q->nr, q->first_to_kick, count, q->irq_ptr->int_parm);
-	return 0;
 }
 
-/* returns number of examined buffers and their common state in *state */
+/*
+ * Returns number of examined buffers and their common state in *state.
+ * Requested number of buffers-to-examine must be > 0.
+ */
 static inline int get_buf_states(struct qdio_q *q, unsigned int bufnr,
 				 unsigned char *state, unsigned int count,
 				 int auto_ack, int merge_pending)
 {
 	unsigned char __state = 0;
-	int i;
+	int i = 1;
 
 	if (is_qebsm(q))
 		return qdio_do_eqbs(q, state, bufnr, count, auto_ack);
 
-	for (i = 0; i < count; i++) {
-		if (!__state) {
-			__state = q->slsb.val[bufnr];
-			if (merge_pending && __state == SLSB_P_OUTPUT_PENDING)
-				__state = SLSB_P_OUTPUT_EMPTY;
-		} else if (merge_pending) {
-			if ((q->slsb.val[bufnr] & __state) != __state)
-				break;
-		} else if (q->slsb.val[bufnr] != __state)
-			break;
+	/* get initial state: */
+	__state = q->slsb.val[bufnr];
+
+	/* Bail out early if there is no work on the queue: */
+	if (__state & SLSB_OWNER_CU)
+		goto out;
+
+	if (merge_pending && __state == SLSB_P_OUTPUT_PENDING)
+		__state = SLSB_P_OUTPUT_EMPTY;
+
+	for (; i < count; i++) {
 		bufnr = next_buf(bufnr);
+
+		/* merge PENDING into EMPTY: */
+		if (merge_pending &&
+		    q->slsb.val[bufnr] == SLSB_P_OUTPUT_PENDING &&
+		    __state == SLSB_P_OUTPUT_EMPTY)
+			continue;
+
+		/* stop if next state differs from initial state: */
+		if (q->slsb.val[bufnr] != __state)
+			break;
 	}
+
+out:
 	*state = __state;
 	return i;
 }
@@ -319,9 +319,7 @@ static int qdio_siga_output(struct qdio_q *q, unsigned int *busy_bit,
 	int retries = 0, cc;
 	unsigned long laob = 0;
 
-	WARN_ON_ONCE(aob && ((queue_type(q) != QDIO_IQDIO_QFMT) ||
-			     !q->u.out.use_cq));
-	if (q->u.out.use_cq && aob != 0) {
+	if (aob) {
 		fc = QDIO_SIGA_WRITEQ;
 		laob = aob;
 	}
@@ -378,7 +376,7 @@ static inline int qdio_siga_input(struct qdio_q *q)
 static inline void qdio_sync_queues(struct qdio_q *q)
 {
 	/* PCI capable outbound queues will also be scanned so sync them too */
-	if (pci_out_supported(q))
+	if (pci_out_supported(q->irq_ptr))
 		qdio_siga_sync_all(q);
 	else
 		qdio_siga_sync_q(q);
@@ -389,7 +387,7 @@ int debug_get_buf_state(struct qdio_q *q, unsigned int bufnr,
 {
 	if (need_siga_sync(q))
 		qdio_siga_sync_q(q);
-	return get_buf_states(q, bufnr, state, 1, 0, 0);
+	return get_buf_state(q, bufnr, state, 0);
 }
 
 static inline void qdio_stop_polling(struct qdio_q *q)
@@ -422,7 +420,8 @@ static inline void account_sbals(struct qdio_q *q, unsigned int count)
 	q->q_stats.nr_sbals[pos]++;
 }
 
-static void process_buffer_error(struct qdio_q *q, int count)
+static void process_buffer_error(struct qdio_q *q, unsigned int start,
+				 int count)
 {
 	unsigned char state = (q->is_input_q) ? SLSB_P_INPUT_NOT_INIT :
 					SLSB_P_OUTPUT_NOT_INIT;
@@ -430,41 +429,41 @@ static void process_buffer_error(struct qdio_q *q, int count)
 	q->qdio_error = QDIO_ERROR_SLSB_STATE;
 
 	/* special handling for no target buffer empty */
-	if ((!q->is_input_q &&
-	    (q->sbal[q->first_to_check]->element[15].sflags) == 0x10)) {
+	if (queue_type(q) == QDIO_IQDIO_QFMT && !q->is_input_q &&
+	    q->sbal[start]->element[15].sflags == 0x10) {
 		qperf_inc(q, target_full);
-		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "OUTFULL FTC:%02x",
-			      q->first_to_check);
+		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "OUTFULL FTC:%02x", start);
 		goto set;
 	}
 
 	DBF_ERROR("%4x BUF ERROR", SCH_NO(q));
 	DBF_ERROR((q->is_input_q) ? "IN:%2d" : "OUT:%2d", q->nr);
-	DBF_ERROR("FTC:%3d C:%3d", q->first_to_check, count);
+	DBF_ERROR("FTC:%3d C:%3d", start, count);
 	DBF_ERROR("F14:%2x F15:%2x",
-		  q->sbal[q->first_to_check]->element[14].sflags,
-		  q->sbal[q->first_to_check]->element[15].sflags);
+		  q->sbal[start]->element[14].sflags,
+		  q->sbal[start]->element[15].sflags);
 
 set:
 	/*
 	 * Interrupts may be avoided as long as the error is present
 	 * so change the buffer state immediately to avoid starvation.
 	 */
-	set_buf_states(q, q->first_to_check, state, count);
+	set_buf_states(q, start, state, count);
 }
 
-static inline void inbound_primed(struct qdio_q *q, int count)
+static inline void inbound_primed(struct qdio_q *q, unsigned int start,
+				  int count)
 {
 	int new;
 
-	DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "in prim: %02x", count);
+	DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "in prim:%1d %02x", q->nr, count);
 
 	/* for QEBSM the ACK was already set by EQBS */
 	if (is_qebsm(q)) {
 		if (!q->u.in.polling) {
 			q->u.in.polling = 1;
 			q->u.in.ack_count = count;
-			q->u.in.ack_start = q->first_to_check;
+			q->u.in.ack_start = start;
 			return;
 		}
 
@@ -472,7 +471,7 @@ static inline void inbound_primed(struct qdio_q *q, int count)
 		set_buf_states(q, q->u.in.ack_start, SLSB_P_INPUT_NOT_INIT,
 			       q->u.in.ack_count);
 		q->u.in.ack_count = count;
-		q->u.in.ack_start = q->first_to_check;
+		q->u.in.ack_start = start;
 		return;
 	}
 
@@ -480,7 +479,7 @@ static inline void inbound_primed(struct qdio_q *q, int count)
 	 * ACK the newest buffer. The ACK will be removed in qdio_stop_polling
 	 * or by the next inbound run.
 	 */
-	new = add_buf(q->first_to_check, count - 1);
+	new = add_buf(start, count - 1);
 	if (q->u.in.polling) {
 		/* reset the previous ACK but first set the new one */
 		set_buf_state(q, new, SLSB_P_INPUT_ACK);
@@ -495,13 +494,13 @@ static inline void inbound_primed(struct qdio_q *q, int count)
 	if (!count)
 		return;
 	/* need to change ALL buffers to get more interrupts */
-	set_buf_states(q, q->first_to_check, SLSB_P_INPUT_NOT_INIT, count);
+	set_buf_states(q, start, SLSB_P_INPUT_NOT_INIT, count);
 }
 
-static int get_inbound_buffer_frontier(struct qdio_q *q)
+static int get_inbound_buffer_frontier(struct qdio_q *q, unsigned int start)
 {
-	int count, stop;
 	unsigned char state = 0;
+	int count;
 
 	q->timestamp = get_tod_clock_fast();
 
@@ -510,65 +509,59 @@ static int get_inbound_buffer_frontier(struct qdio_q *q)
 	 * would return 0.
 	 */
 	count = min(atomic_read(&q->nr_buf_used), QDIO_MAX_BUFFERS_MASK);
-	stop = add_buf(q->first_to_check, count);
-
-	if (q->first_to_check == stop)
-		goto out;
+	if (!count)
+		return 0;
 
 	/*
 	 * No siga sync here, as a PCI or we after a thin interrupt
 	 * already sync'ed the queues.
 	 */
-	count = get_buf_states(q, q->first_to_check, &state, count, 1, 0);
+	count = get_buf_states(q, start, &state, count, 1, 0);
 	if (!count)
-		goto out;
+		return 0;
 
 	switch (state) {
 	case SLSB_P_INPUT_PRIMED:
-		inbound_primed(q, count);
-		q->first_to_check = add_buf(q->first_to_check, count);
+		inbound_primed(q, start, count);
 		if (atomic_sub_return(count, &q->nr_buf_used) == 0)
 			qperf_inc(q, inbound_queue_full);
 		if (q->irq_ptr->perf_stat_enabled)
 			account_sbals(q, count);
-		break;
+		return count;
 	case SLSB_P_INPUT_ERROR:
-		process_buffer_error(q, count);
-		q->first_to_check = add_buf(q->first_to_check, count);
-		atomic_sub(count, &q->nr_buf_used);
+		process_buffer_error(q, start, count);
+		if (atomic_sub_return(count, &q->nr_buf_used) == 0)
+			qperf_inc(q, inbound_queue_full);
 		if (q->irq_ptr->perf_stat_enabled)
 			account_sbals_error(q, count);
-		break;
+		return count;
 	case SLSB_CU_INPUT_EMPTY:
 	case SLSB_P_INPUT_NOT_INIT:
 	case SLSB_P_INPUT_ACK:
 		if (q->irq_ptr->perf_stat_enabled)
 			q->q_stats.nr_sbal_nop++;
-		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "in nop");
-		break;
+		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "in nop:%1d %#02x",
+			      q->nr, start);
+		return 0;
 	default:
 		WARN_ON_ONCE(1);
-	}
-out:
-	return q->first_to_check;
-}
-
-static int qdio_inbound_q_moved(struct qdio_q *q)
-{
-	int bufnr;
-
-	bufnr = get_inbound_buffer_frontier(q);
-
-	if (bufnr != q->last_move) {
-		q->last_move = bufnr;
-		if (!is_thinint_irq(q->irq_ptr) && MACHINE_IS_LPAR)
-			q->u.in.timestamp = get_tod_clock();
-		return 1;
-	} else
 		return 0;
+	}
 }
 
-static inline int qdio_inbound_q_done(struct qdio_q *q)
+static int qdio_inbound_q_moved(struct qdio_q *q, unsigned int start)
+{
+	int count;
+
+	count = get_inbound_buffer_frontier(q, start);
+
+	if (count && !is_thinint_irq(q->irq_ptr) && MACHINE_IS_LPAR)
+		q->u.in.timestamp = get_tod_clock();
+
+	return count;
+}
+
+static inline int qdio_inbound_q_done(struct qdio_q *q, unsigned int start)
 {
 	unsigned char state = 0;
 
@@ -577,7 +570,7 @@ static inline int qdio_inbound_q_done(struct qdio_q *q)
 
 	if (need_siga_sync(q))
 		qdio_siga_sync_q(q);
-	get_buf_state(q, q->first_to_check, &state, 0);
+	get_buf_state(q, start, &state, 0);
 
 	if (state == SLSB_P_INPUT_PRIMED || state == SLSB_P_INPUT_ERROR)
 		/* more work coming */
@@ -595,25 +588,16 @@ static inline int qdio_inbound_q_done(struct qdio_q *q)
 	 * has (probably) not moved (see qdio_inbound_processing).
 	 */
 	if (get_tod_clock_fast() > q->u.in.timestamp + QDIO_INPUT_THRESHOLD) {
-		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "in done:%02x",
-			      q->first_to_check);
+		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "in done:%02x", start);
 		return 1;
 	} else
 		return 0;
-}
-
-static inline int contains_aobs(struct qdio_q *q)
-{
-	return !q->is_input_q && q->u.out.use_cq;
 }
 
 static inline void qdio_handle_aobs(struct qdio_q *q, int start, int count)
 {
 	unsigned char state = 0;
 	int j, b = start;
-
-	if (!contains_aobs(q))
-		return;
 
 	for (j = 0; j < count; ++j) {
 		get_buf_state(q, b, &state, 0);
@@ -625,8 +609,6 @@ static inline void qdio_handle_aobs(struct qdio_q *q, int start, int count)
 			q->u.out.sbal_state[b].flags |=
 				QDIO_OUTBUF_STATE_FLAG_PENDING;
 			q->u.out.aobs[b] = NULL;
-		} else if (state == SLSB_P_OUTPUT_EMPTY) {
-			q->u.out.sbal_state[b].aob = NULL;
 		}
 		b = next_buf(b);
 	}
@@ -637,35 +619,26 @@ static inline unsigned long qdio_aob_for_buffer(struct qdio_output_q *q,
 {
 	unsigned long phys_aob = 0;
 
-	if (!q->use_cq)
-		goto out;
-
 	if (!q->aobs[bufnr]) {
 		struct qaob *aob = qdio_allocate_aob();
 		q->aobs[bufnr] = aob;
 	}
 	if (q->aobs[bufnr]) {
-		q->sbal_state[bufnr].flags = QDIO_OUTBUF_STATE_FLAG_NONE;
-		q->sbal_state[bufnr].aob = q->aobs[bufnr];
 		q->aobs[bufnr]->user1 = (u64) q->sbal_state[bufnr].user;
 		phys_aob = virt_to_phys(q->aobs[bufnr]);
 		WARN_ON_ONCE(phys_aob & 0xFF);
 	}
 
-out:
+	q->sbal_state[bufnr].flags = 0;
 	return phys_aob;
 }
 
-static void qdio_kick_handler(struct qdio_q *q)
+static void qdio_kick_handler(struct qdio_q *q, unsigned int count)
 {
 	int start = q->first_to_kick;
-	int end = q->first_to_check;
-	int count;
 
 	if (unlikely(q->irq_ptr->state != QDIO_IRQ_STATE_ACTIVE))
 		return;
-
-	count = sub_buf(end, start);
 
 	if (q->is_input_q) {
 		qperf_inc(q, inbound_handler);
@@ -674,15 +647,15 @@ static void qdio_kick_handler(struct qdio_q *q)
 		qperf_inc(q, outbound_handler);
 		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "koh: s:%02x c:%02x",
 			      start, count);
+		if (q->u.out.use_cq)
+			qdio_handle_aobs(q, start, count);
 	}
-
-	qdio_handle_aobs(q, start, count);
 
 	q->handler(q->irq_ptr->cdev, q->qdio_error, q->nr, start, count,
 		   q->irq_ptr->int_parm);
 
 	/* for the next time */
-	q->first_to_kick = end;
+	q->first_to_kick = add_buf(start, count);
 	q->qdio_error = 0;
 }
 
@@ -697,14 +670,20 @@ static inline int qdio_tasklet_schedule(struct qdio_q *q)
 
 static void __qdio_inbound_processing(struct qdio_q *q)
 {
+	unsigned int start = q->first_to_check;
+	int count;
+
 	qperf_inc(q, tasklet_inbound);
 
-	if (!qdio_inbound_q_moved(q))
+	count = qdio_inbound_q_moved(q, start);
+	if (count == 0)
 		return;
 
-	qdio_kick_handler(q);
+	start = add_buf(start, count);
+	q->first_to_check = start;
+	qdio_kick_handler(q, count);
 
-	if (!qdio_inbound_q_done(q)) {
+	if (!qdio_inbound_q_done(q, start)) {
 		/* means poll time is not yet over */
 		qperf_inc(q, tasklet_inbound_resched);
 		if (!qdio_tasklet_schedule(q))
@@ -716,7 +695,7 @@ static void __qdio_inbound_processing(struct qdio_q *q)
 	 * We need to check again to not lose initiative after
 	 * resetting the ACK state.
 	 */
-	if (!qdio_inbound_q_done(q)) {
+	if (!qdio_inbound_q_done(q, start)) {
 		qperf_inc(q, tasklet_inbound_resched2);
 		qdio_tasklet_schedule(q);
 	}
@@ -728,68 +707,59 @@ void qdio_inbound_processing(unsigned long data)
 	__qdio_inbound_processing(q);
 }
 
-static int get_outbound_buffer_frontier(struct qdio_q *q)
+static int get_outbound_buffer_frontier(struct qdio_q *q, unsigned int start)
 {
-	int count, stop;
 	unsigned char state = 0;
+	int count;
 
 	q->timestamp = get_tod_clock_fast();
 
 	if (need_siga_sync(q))
 		if (((queue_type(q) != QDIO_IQDIO_QFMT) &&
-		    !pci_out_supported(q)) ||
+		    !pci_out_supported(q->irq_ptr)) ||
 		    (queue_type(q) == QDIO_IQDIO_QFMT &&
 		    multicast_outbound(q)))
 			qdio_siga_sync_q(q);
 
-	/*
-	 * Don't check 128 buffers, as otherwise qdio_inbound_q_moved
-	 * would return 0.
-	 */
-	count = min(atomic_read(&q->nr_buf_used), QDIO_MAX_BUFFERS_MASK);
-	stop = add_buf(q->first_to_check, count);
-	if (q->first_to_check == stop)
-		goto out;
-
-	count = get_buf_states(q, q->first_to_check, &state, count, 0, 1);
+	count = atomic_read(&q->nr_buf_used);
 	if (!count)
-		goto out;
+		return 0;
+
+	count = get_buf_states(q, start, &state, count, 0, q->u.out.use_cq);
+	if (!count)
+		return 0;
 
 	switch (state) {
 	case SLSB_P_OUTPUT_EMPTY:
+	case SLSB_P_OUTPUT_PENDING:
 		/* the adapter got it */
 		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr,
 			"out empty:%1d %02x", q->nr, count);
 
 		atomic_sub(count, &q->nr_buf_used);
-		q->first_to_check = add_buf(q->first_to_check, count);
 		if (q->irq_ptr->perf_stat_enabled)
 			account_sbals(q, count);
-
-		break;
+		return count;
 	case SLSB_P_OUTPUT_ERROR:
-		process_buffer_error(q, count);
-		q->first_to_check = add_buf(q->first_to_check, count);
+		process_buffer_error(q, start, count);
 		atomic_sub(count, &q->nr_buf_used);
 		if (q->irq_ptr->perf_stat_enabled)
 			account_sbals_error(q, count);
-		break;
+		return count;
 	case SLSB_CU_OUTPUT_PRIMED:
 		/* the adapter has not fetched the output yet */
 		if (q->irq_ptr->perf_stat_enabled)
 			q->q_stats.nr_sbal_nop++;
 		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "out primed:%1d",
 			      q->nr);
-		break;
+		return 0;
 	case SLSB_P_OUTPUT_NOT_INIT:
 	case SLSB_P_OUTPUT_HALTED:
-		break;
+		return 0;
 	default:
 		WARN_ON_ONCE(1);
+		return 0;
 	}
-
-out:
-	return q->first_to_check;
 }
 
 /* all buffers processed? */
@@ -798,18 +768,16 @@ static inline int qdio_outbound_q_done(struct qdio_q *q)
 	return atomic_read(&q->nr_buf_used) == 0;
 }
 
-static inline int qdio_outbound_q_moved(struct qdio_q *q)
+static inline int qdio_outbound_q_moved(struct qdio_q *q, unsigned int start)
 {
-	int bufnr;
+	int count;
 
-	bufnr = get_outbound_buffer_frontier(q);
+	count = get_outbound_buffer_frontier(q, start);
 
-	if (bufnr != q->last_move) {
-		q->last_move = bufnr;
+	if (count)
 		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "out moved:%1d", q->nr);
-		return 1;
-	} else
-		return 0;
+
+	return count;
 }
 
 static int qdio_kick_outbound_q(struct qdio_q *q, unsigned long aob)
@@ -856,15 +824,21 @@ retry:
 
 static void __qdio_outbound_processing(struct qdio_q *q)
 {
+	unsigned int start = q->first_to_check;
+	int count;
+
 	qperf_inc(q, tasklet_outbound);
 	WARN_ON_ONCE(atomic_read(&q->nr_buf_used) < 0);
 
-	if (qdio_outbound_q_moved(q))
-		qdio_kick_handler(q);
+	count = qdio_outbound_q_moved(q, start);
+	if (count) {
+		q->first_to_check = add_buf(start, count);
+		qdio_kick_handler(q, count);
+	}
 
-	if (queue_type(q) == QDIO_ZFCP_QFMT)
-		if (!pci_out_supported(q) && !qdio_outbound_q_done(q))
-			goto sched;
+	if (queue_type(q) == QDIO_ZFCP_QFMT && !pci_out_supported(q->irq_ptr) &&
+	    !qdio_outbound_q_done(q))
+		goto sched;
 
 	if (q->u.out.pci_out_enabled)
 		return;
@@ -893,44 +867,47 @@ void qdio_outbound_processing(unsigned long data)
 	__qdio_outbound_processing(q);
 }
 
-void qdio_outbound_timer(unsigned long data)
+void qdio_outbound_timer(struct timer_list *t)
 {
-	struct qdio_q *q = (struct qdio_q *)data;
+	struct qdio_q *q = from_timer(q, t, u.out.timer);
 
 	qdio_tasklet_schedule(q);
 }
 
-static inline void qdio_check_outbound_after_thinint(struct qdio_q *q)
+static inline void qdio_check_outbound_pci_queues(struct qdio_irq *irq)
 {
 	struct qdio_q *out;
 	int i;
 
-	if (!pci_out_supported(q))
+	if (!pci_out_supported(irq))
 		return;
 
-	for_each_output_queue(q->irq_ptr, out, i)
+	for_each_output_queue(irq, out, i)
 		if (!qdio_outbound_q_done(out))
 			qdio_tasklet_schedule(out);
 }
 
 static void __tiqdio_inbound_processing(struct qdio_q *q)
 {
+	unsigned int start = q->first_to_check;
+	int count;
+
 	qperf_inc(q, tasklet_inbound);
 	if (need_siga_sync(q) && need_siga_sync_after_ai(q))
 		qdio_sync_queues(q);
 
-	/*
-	 * The interrupt could be caused by a PCI request. Check the
-	 * PCI capable outbound queues.
-	 */
-	qdio_check_outbound_after_thinint(q);
+	/* The interrupt could be caused by a PCI request: */
+	qdio_check_outbound_pci_queues(q->irq_ptr);
 
-	if (!qdio_inbound_q_moved(q))
+	count = qdio_inbound_q_moved(q, start);
+	if (count == 0)
 		return;
 
-	qdio_kick_handler(q);
+	start = add_buf(start, count);
+	q->first_to_check = start;
+	qdio_kick_handler(q, count);
 
-	if (!qdio_inbound_q_done(q)) {
+	if (!qdio_inbound_q_done(q, start)) {
 		qperf_inc(q, tasklet_inbound_resched);
 		if (!qdio_tasklet_schedule(q))
 			return;
@@ -941,7 +918,7 @@ static void __tiqdio_inbound_processing(struct qdio_q *q)
 	 * We need to check again to not lose initiative after
 	 * resetting the ACK state.
 	 */
-	if (!qdio_inbound_q_done(q)) {
+	if (!qdio_inbound_q_done(q, start)) {
 		qperf_inc(q, tasklet_inbound_resched2);
 		qdio_tasklet_schedule(q);
 	}
@@ -995,7 +972,7 @@ static void qdio_int_handler_pci(struct qdio_irq *irq_ptr)
 		}
 	}
 
-	if (!(irq_ptr->qib.ac & QIB_AC_OUTBOUND_PCI_SUPPORTED))
+	if (!pci_out_supported(irq_ptr))
 		return;
 
 	for_each_output_queue(irq_ptr, q, i) {
@@ -1214,8 +1191,10 @@ no_cleanup:
 	qdio_shutdown_thinint(irq_ptr);
 
 	/* restore interrupt handler */
-	if ((void *)cdev->handler == (void *)qdio_int_handler)
+	if ((void *)cdev->handler == (void *)qdio_int_handler) {
 		cdev->handler = irq_ptr->orig_handler;
+		cdev->private->intparm = 0;
+	}
 	spin_unlock_irq(get_ccwdev_lock(cdev));
 
 	qdio_set_state(irq_ptr, QDIO_IRQ_STATE_INACTIVE);
@@ -1324,6 +1303,8 @@ static void qdio_detect_hsicq(struct qdio_irq *irq_ptr)
 
 	for_each_output_queue(irq_ptr, q, i) {
 		if (use_cq) {
+			if (multicast_outbound(q))
+				continue;
 			if (qdio_enable_async_operation(&q->u.out) < 0) {
 				use_cq = 0;
 				continue;
@@ -1569,18 +1550,19 @@ static int handle_outbound(struct qdio_q *q, unsigned int callflags,
 		/* One SIGA-W per buffer required for unicast HSI */
 		WARN_ON_ONCE(count > 1 && !multicast_outbound(q));
 
-		phys_aob = qdio_aob_for_buffer(&q->u.out, bufnr);
+		if (q->u.out.use_cq)
+			phys_aob = qdio_aob_for_buffer(&q->u.out, bufnr);
 
 		rc = qdio_kick_outbound_q(q, phys_aob);
 	} else if (need_siga_sync(q)) {
 		rc = qdio_siga_sync_q(q);
+	} else if (count < QDIO_MAX_BUFFERS_PER_Q &&
+		   get_buf_state(q, prev_buf(bufnr), &state, 0) > 0 &&
+		   state == SLSB_CU_OUTPUT_PRIMED) {
+		/* The previous buffer is not processed yet, tack on. */
+		qperf_inc(q, fast_requeue);
 	} else {
-		/* try to fast requeue buffers */
-		get_buf_state(q, prev_buf(bufnr), &state, 0);
-		if (state != SLSB_CU_OUTPUT_PRIMED)
-			rc = qdio_kick_outbound_q(q, 0);
-		else
-			qperf_inc(q, fast_requeue);
+		rc = qdio_kick_outbound_q(q, 0);
 	}
 
 	/* in case of SIGA errors we must process the error immediately */
@@ -1659,7 +1641,7 @@ int qdio_start_irq(struct ccw_device *cdev, int nr)
 	 */
 	if (test_nonshared_ind(irq_ptr))
 		goto rescan;
-	if (!qdio_inbound_q_done(q))
+	if (!qdio_inbound_q_done(q, q->first_to_check))
 		goto rescan;
 	return 0;
 
@@ -1689,12 +1671,14 @@ int qdio_get_next_buffers(struct ccw_device *cdev, int nr, int *bufnr,
 			  int *error)
 {
 	struct qdio_q *q;
-	int start, end;
 	struct qdio_irq *irq_ptr = cdev->private->qdio_data;
+	unsigned int start;
+	int count;
 
 	if (!irq_ptr)
 		return -ENODEV;
 	q = irq_ptr->input_qs[nr];
+	start = q->first_to_check;
 
 	/*
 	 * Cannot rely on automatic sync after interrupt since queues may
@@ -1703,25 +1687,27 @@ int qdio_get_next_buffers(struct ccw_device *cdev, int nr, int *bufnr,
 	if (need_siga_sync(q))
 		qdio_sync_queues(q);
 
-	/* check the PCI capable outbound queues. */
-	qdio_check_outbound_after_thinint(q);
+	qdio_check_outbound_pci_queues(irq_ptr);
 
-	if (!qdio_inbound_q_moved(q))
+	count = qdio_inbound_q_moved(q, start);
+	if (count == 0)
 		return 0;
+
+	start = add_buf(start, count);
+	q->first_to_check = start;
 
 	/* Note: upper-layer MUST stop processing immediately here ... */
 	if (unlikely(q->irq_ptr->state != QDIO_IRQ_STATE_ACTIVE))
 		return -EIO;
 
-	start = q->first_to_kick;
-	end = q->first_to_check;
-	*bufnr = start;
+	*bufnr = q->first_to_kick;
 	*error = q->qdio_error;
 
 	/* for the next time */
-	q->first_to_kick = end;
+	q->first_to_kick = add_buf(q->first_to_kick, count);
 	q->qdio_error = 0;
-	return sub_buf(end, start);
+
+	return count;
 }
 EXPORT_SYMBOL(qdio_get_next_buffers);
 
@@ -1758,9 +1744,6 @@ EXPORT_SYMBOL(qdio_stop_irq);
  * @response:		Response code will be stored at this address
  * @cb: 		Callback function will be executed for each element
  *			of the address list
- * @priv:		Pointer passed from the caller to qdio_pnso_brinfo()
- * @type:		Type of the address entry passed to the callback
- * @entry:		Entry containg the address of the specified type
  * @priv:		Pointer to pass to the callback function.
  *
  * Performs "Store-network-bridging-information list" operation and calls

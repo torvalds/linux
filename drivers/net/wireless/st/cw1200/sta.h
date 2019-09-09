@@ -1,12 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Mac80211 STA interface for ST-Ericsson CW1200 mac80211 drivers
  *
  * Copyright (c) 2010, ST-Ericsson
  * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.no>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef STA_H_INCLUDED
@@ -117,6 +114,6 @@ void cw1200_set_tim_work(struct work_struct *work);
 void cw1200_set_cts_work(struct work_struct *work);
 void cw1200_multicast_start_work(struct work_struct *work);
 void cw1200_multicast_stop_work(struct work_struct *work);
-void cw1200_mcast_timeout(unsigned long arg);
+void cw1200_mcast_timeout(struct timer_list *t);
 
 #endif

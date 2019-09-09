@@ -17,6 +17,9 @@
 #include <linux/random.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
+#include <linux/sched/task.h>
+#include <linux/sched/task_stack.h>
 #include <linux/seq_file.h>
 #include <linux/tick.h>
 #include <linux/threads.h>
@@ -24,7 +27,7 @@
 #include <asm/current.h>
 #include <asm/pgtable.h>
 #include <asm/mmu_context.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <as-layout.h>
 #include <kern_util.h>
 #include <os.h>
@@ -128,7 +131,7 @@ void new_thread_handler(void)
 	 * callback returns only if the kernel thread execs a process
 	 */
 	n = fn(arg);
-	userspace(&current->thread.regs.regs);
+	userspace(&current->thread.regs.regs, current_thread_info()->aux_fp_regs);
 }
 
 /* Called magically, see new_thread_handler above */
@@ -147,7 +150,7 @@ void fork_handler(void)
 
 	current->thread.prev_sched = NULL;
 
-	userspace(&current->thread.regs.regs);
+	userspace(&current->thread.regs.regs, current_thread_info()->aux_fp_regs);
 }
 
 int copy_thread(unsigned long clone_flags, unsigned long sp,
@@ -200,10 +203,50 @@ void initial_thread_cb(void (*proc)(void *), void *arg)
 	kmalloc_ok = save_kmalloc_ok;
 }
 
+static void time_travel_sleep(unsigned long long duration)
+{
+	unsigned long long next = time_travel_time + duration;
+
+	if (time_travel_mode != TT_MODE_INFCPU)
+		os_timer_disable();
+
+	if (time_travel_timer_mode != TT_TMR_DISABLED ||
+	    time_travel_timer_expiry < next) {
+		if (time_travel_timer_mode == TT_TMR_ONESHOT)
+			time_travel_set_timer_mode(TT_TMR_DISABLED);
+		/*
+		 * time_travel_time will be adjusted in the timer
+		 * IRQ handler so it works even when the signal
+		 * comes from the OS timer
+		 */
+		deliver_alarm();
+	} else {
+		time_travel_set_time(next);
+	}
+
+	if (time_travel_mode != TT_MODE_INFCPU) {
+		if (time_travel_timer_mode == TT_TMR_PERIODIC)
+			os_timer_set_interval(time_travel_timer_interval);
+		else if (time_travel_timer_mode == TT_TMR_ONESHOT)
+			os_timer_one_shot(time_travel_timer_expiry - next);
+	}
+}
+
+static void um_idle_sleep(void)
+{
+	unsigned long long duration = UM_NSEC_PER_SEC;
+
+	if (time_travel_mode != TT_MODE_OFF) {
+		time_travel_sleep(duration);
+	} else {
+		os_idle_sleep(duration);
+	}
+}
+
 void arch_cpu_idle(void)
 {
 	cpu_tasks[current_thread_info()->cpu].pid = os_getpid();
-	os_idle_sleep(UM_NSEC_PER_SEC);
+	um_idle_sleep();
 	local_irq_enable();
 }
 
@@ -250,11 +293,6 @@ int copy_from_user_proc(void *to, void __user *from, int size)
 int clear_user_proc(void __user *buf, int size)
 {
 	return clear_user(buf, size);
-}
-
-int strlen_user_proc(char __user *str)
-{
-	return strlen_user(str);
 }
 
 int cpu(void)

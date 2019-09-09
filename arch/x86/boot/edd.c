@@ -1,11 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* -*- linux-c -*- ------------------------------------------------------- *
  *
  *   Copyright (C) 1991, 1992 Linus Torvalds
  *   Copyright 2007 rPath, Inc. - All Rights Reserved
  *   Copyright 2009 Intel Corporation; author H. Peter Anvin
- *
- *   This file is part of the Linux kernel, and is made available under
- *   the terms of the GNU General Public License version 2.
  *
  * ----------------------------------------------------------------------- */
 
@@ -76,7 +74,7 @@ static int get_edd_info(u8 devno, struct edd_info *ei)
 {
 	struct biosregs ireg, oreg;
 
-	memset(ei, 0, sizeof *ei);
+	memset(ei, 0, sizeof(*ei));
 
 	/* Check Extensions Present */
 
@@ -133,7 +131,7 @@ void query_edd(void)
 	struct edd_info ei, *edp;
 	u32 *mbrptr;
 
-	if (cmdline_find_option("edd", eddarg, sizeof eddarg) > 0) {
+	if (cmdline_find_option("edd", eddarg, sizeof(eddarg)) > 0) {
 		if (!strcmp(eddarg, "skipmbr") || !strcmp(eddarg, "skip")) {
 			do_edd = 1;
 			do_mbr = 0;
@@ -166,7 +164,7 @@ void query_edd(void)
 		 */
 		if (!get_edd_info(devno, &ei)
 		    && boot_params.eddbuf_entries < EDDMAXNR) {
-			memcpy(edp, &ei, sizeof ei);
+			memcpy(edp, &ei, sizeof(ei));
 			edp++;
 			boot_params.eddbuf_entries++;
 		}

@@ -1,22 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Driver for the NXP SAA7164 PCIe bridge
  *
  *  Copyright (c) 2010-2015 Steven Toth <stoth@kernellabs.com>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/init.h>
@@ -161,7 +147,7 @@ static void saa7164_ts_verifier(struct saa7164_buffer *buf)
 
 	}
 
-	/* Only report errors if we've been through this function atleast
+	/* Only report errors if we've been through this function at least
 	 * once already and the cached cc values are primed. First time through
 	 * always generates errors.
 	 */
@@ -183,7 +169,7 @@ static void saa7164_histogram_reset(struct saa7164_histogram *hg, char *name)
 	int i;
 
 	memset(hg, 0, sizeof(struct saa7164_histogram));
-	strcpy(hg->name, name);
+	strscpy(hg->name, name, sizeof(hg->name));
 
 	/* First 30ms x 1ms */
 	for (i = 0; i < 30; i++)
@@ -710,9 +696,7 @@ static irqreturn_t saa7164_irq(int irq, void *dev_id)
 				} else {
 					/* Find the function */
 					dprintk(DBGLVL_IRQ,
-						"%s() unhandled interrupt "
-						"reg 0x%x bit 0x%x "
-						"intid = 0x%x\n",
+						"%s() unhandled interrupt reg 0x%x bit 0x%x intid = 0x%x\n",
 						__func__, i, bit, intid);
 				}
 			}
@@ -767,13 +751,11 @@ void saa7164_dumpregs(struct saa7164_dev *dev, u32 addr)
 {
 	int i;
 
-	dprintk(1, "--------------------> "
-		"00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f\n");
+	dprintk(1, "--------------------> 00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f\n");
 
 	for (i = 0; i < 0x100; i += 16)
-		dprintk(1, "region0[0x%08x] = "
-			"%02x %02x %02x %02x %02x %02x %02x %02x"
-			" %02x %02x %02x %02x %02x %02x %02x %02x\n", i,
+		dprintk(1, "region0[0x%08x] = %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",
+			i,
 			(u8)saa7164_readb(addr + i + 0),
 			(u8)saa7164_readb(addr + i + 1),
 			(u8)saa7164_readb(addr + i + 2),
@@ -825,8 +807,7 @@ static void saa7164_dump_hwdesc(struct saa7164_dev *dev)
 
 static void saa7164_dump_intfdesc(struct saa7164_dev *dev)
 {
-	dprintk(1, "@0x%p intfdesc "
-		"sizeof(struct tmComResInterfaceDescr) = %d bytes\n",
+	dprintk(1, "@0x%p intfdesc sizeof(struct tmComResInterfaceDescr) = %d bytes\n",
 		&dev->intfdesc, (u32)sizeof(struct tmComResInterfaceDescr));
 
 	dprintk(1, " .bLength = 0x%x\n", dev->intfdesc.bLength);
@@ -1011,8 +992,7 @@ static int saa7164_dev_setup(struct saa7164_dev *dev)
 	saa7164_port_init(dev, SAA7164_PORT_VBI2);
 
 	if (get_resources(dev) < 0) {
-		printk(KERN_ERR "CORE %s No more PCIe resources for "
-		       "subsystem: %04x:%04x\n",
+		printk(KERN_ERR "CORE %s No more PCIe resources for subsystem: %04x:%04x\n",
 		       dev->name, dev->pci->subsystem_vendor,
 		       dev->pci->subsystem_device);
 
@@ -1030,7 +1010,7 @@ static int saa7164_dev_setup(struct saa7164_dev *dev)
 	dev->bmmio = (u8 __iomem *)dev->lmmio;
 	dev->bmmio2 = (u8 __iomem *)dev->lmmio2;
 
-	/* Inerrupt and ack register locations offset of bmmio */
+	/* Interrupt and ack register locations offset of bmmio */
 	dev->int_status = 0x183000 + 0xf80;
 	dev->int_ack = 0x183000 + 0xf90;
 
@@ -1132,28 +1112,25 @@ static int saa7164_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int saa7164_proc_open(struct inode *inode, struct file *filp)
-{
-	return single_open(filp, saa7164_proc_show, NULL);
-}
-
-static const struct file_operations saa7164_proc_fops = {
-	.open		= saa7164_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+static struct proc_dir_entry *saa7164_pe;
 
 static int saa7164_proc_create(void)
 {
-	struct proc_dir_entry *pe;
-
-	pe = proc_create("saa7164", S_IRUGO, NULL, &saa7164_proc_fops);
-	if (!pe)
+	saa7164_pe = proc_create_single("saa7164", 0444, NULL, saa7164_proc_show);
+	if (!saa7164_pe)
 		return -ENOMEM;
 
 	return 0;
 }
+
+static void saa7164_proc_destroy(void)
+{
+	if (saa7164_pe)
+		remove_proc_entry("saa7164", NULL);
+}
+#else
+static int saa7164_proc_create(void) { return 0; }
+static void saa7164_proc_destroy(void) {}
 #endif
 
 static int saa7164_thread_function(void *data)
@@ -1204,8 +1181,8 @@ static bool saa7164_enable_msi(struct pci_dev *pci_dev, struct saa7164_dev *dev)
 	err = pci_enable_msi(pci_dev);
 
 	if (err) {
-		printk(KERN_ERR "%s() Failed to enable MSI interrupt."
-			" Falling back to a shared IRQ\n", __func__);
+		printk(KERN_ERR "%s() Failed to enable MSI interrupt. Falling back to a shared IRQ\n",
+		       __func__);
 		return false;
 	}
 
@@ -1215,8 +1192,8 @@ static bool saa7164_enable_msi(struct pci_dev *pci_dev, struct saa7164_dev *dev)
 
 	if (err) {
 		/* fall back to legacy interrupt */
-		printk(KERN_ERR "%s() Failed to get an MSI interrupt."
-		       " Falling back to a shared IRQ\n", __func__);
+		printk(KERN_ERR "%s() Failed to get an MSI interrupt. Falling back to a shared IRQ\n",
+		       __func__);
 		pci_disable_msi(pci_dev);
 		return false;
 	}
@@ -1256,8 +1233,8 @@ static int saa7164_initdev(struct pci_dev *pci_dev,
 	/* print pci info */
 	dev->pci_rev = pci_dev->revision;
 	pci_read_config_byte(pci_dev, PCI_LATENCY_TIMER,  &dev->pci_lat);
-	printk(KERN_INFO "%s/0: found at %s, rev: %d, irq: %d, "
-	       "latency: %d, mmio: 0x%llx\n", dev->name,
+	printk(KERN_INFO "%s/0: found at %s, rev: %d, irq: %d, latency: %d, mmio: 0x%llx\n",
+	       dev->name,
 	       pci_name(pci_dev), dev->pci_rev, pci_dev->irq,
 	       dev->pci_lat,
 		(unsigned long long)pci_resource_start(pci_dev, 0));
@@ -1307,8 +1284,7 @@ static int saa7164_initdev(struct pci_dev *pci_dev,
 		err = saa7164_downloadfirmware(dev);
 		if (err < 0) {
 			printk(KERN_ERR
-				"Failed to boot firmware, no features "
-				"registered\n");
+				"Failed to boot firmware, no features registered\n");
 			goto fail_fw;
 		}
 
@@ -1327,8 +1303,7 @@ static int saa7164_initdev(struct pci_dev *pci_dev,
 		 */
 		version = 0;
 		if (saa7164_api_get_fw_version(dev, &version) == SAA_OK)
-			dprintk(1, "Bus is operating correctly using "
-				"version %d.%d.%d.%d (0x%x)\n",
+			dprintk(1, "Bus is operating correctly using version %d.%d.%d.%d (0x%x)\n",
 				(version & 0x0000fc00) >> 10,
 				(version & 0x000003e0) >> 5,
 				(version & 0x0000001f),
@@ -1356,45 +1331,43 @@ static int saa7164_initdev(struct pci_dev *pci_dev,
 		/* Begin to create the video sub-systems and register funcs */
 		if (saa7164_boards[dev->board].porta == SAA7164_MPEG_DVB) {
 			if (saa7164_dvb_register(&dev->ports[SAA7164_PORT_TS1]) < 0) {
-				printk(KERN_ERR "%s() Failed to register "
-					"dvb adapters on porta\n",
+				printk(KERN_ERR "%s() Failed to register dvb adapters on porta\n",
 					__func__);
 			}
 		}
 
 		if (saa7164_boards[dev->board].portb == SAA7164_MPEG_DVB) {
 			if (saa7164_dvb_register(&dev->ports[SAA7164_PORT_TS2]) < 0) {
-				printk(KERN_ERR"%s() Failed to register "
-					"dvb adapters on portb\n",
+				printk(KERN_ERR"%s() Failed to register dvb adapters on portb\n",
 					__func__);
 			}
 		}
 
 		if (saa7164_boards[dev->board].portc == SAA7164_MPEG_ENCODER) {
 			if (saa7164_encoder_register(&dev->ports[SAA7164_PORT_ENC1]) < 0) {
-				printk(KERN_ERR"%s() Failed to register "
-					"mpeg encoder\n", __func__);
+				printk(KERN_ERR"%s() Failed to register mpeg encoder\n",
+				       __func__);
 			}
 		}
 
 		if (saa7164_boards[dev->board].portd == SAA7164_MPEG_ENCODER) {
 			if (saa7164_encoder_register(&dev->ports[SAA7164_PORT_ENC2]) < 0) {
-				printk(KERN_ERR"%s() Failed to register "
-					"mpeg encoder\n", __func__);
+				printk(KERN_ERR"%s() Failed to register mpeg encoder\n",
+				       __func__);
 			}
 		}
 
 		if (saa7164_boards[dev->board].porte == SAA7164_MPEG_VBI) {
 			if (saa7164_vbi_register(&dev->ports[SAA7164_PORT_VBI1]) < 0) {
-				printk(KERN_ERR"%s() Failed to register "
-					"vbi device\n", __func__);
+				printk(KERN_ERR"%s() Failed to register vbi device\n",
+				       __func__);
 			}
 		}
 
 		if (saa7164_boards[dev->board].portf == SAA7164_MPEG_VBI) {
 			if (saa7164_vbi_register(&dev->ports[SAA7164_PORT_VBI2]) < 0) {
-				printk(KERN_ERR"%s() Failed to register "
-					"vbi device\n", __func__);
+				printk(KERN_ERR"%s() Failed to register vbi device\n",
+				       __func__);
 			}
 		}
 		saa7164_api_set_debug(dev, fw_debug);
@@ -1404,15 +1377,15 @@ static int saa7164_initdev(struct pci_dev *pci_dev,
 				"saa7164 debug");
 			if (IS_ERR(dev->kthread)) {
 				dev->kthread = NULL;
-				printk(KERN_ERR "%s() Failed to create "
-					"debug kernel thread\n", __func__);
+				printk(KERN_ERR "%s() Failed to create debug kernel thread\n",
+				       __func__);
 			}
 		}
 
 	} /* != BOARD_UNKNOWN */
 	else
-		printk(KERN_ERR "%s() Unsupported board detected, "
-			"registering without firmware\n", __func__);
+		printk(KERN_ERR "%s() Unsupported board detected, registering without firmware\n",
+		       __func__);
 
 	dprintk(1, "%s() parameter debug = %d\n", __func__, saa_debug);
 	dprintk(1, "%s() parameter waitsecs = %d\n", __func__, waitsecs);
@@ -1504,7 +1477,7 @@ static void saa7164_finidev(struct pci_dev *pci_dev)
 	kfree(dev);
 }
 
-static struct pci_device_id saa7164_pci_tbl[] = {
+static const struct pci_device_id saa7164_pci_tbl[] = {
 	{
 		/* SAA7164 */
 		.vendor       = 0x1131,
@@ -1529,19 +1502,21 @@ static struct pci_driver saa7164_pci_driver = {
 
 static int __init saa7164_init(void)
 {
-	printk(KERN_INFO "saa7164 driver loaded\n");
+	int ret = pci_register_driver(&saa7164_pci_driver);
 
-#ifdef CONFIG_PROC_FS
+	if (ret)
+		return ret;
+
 	saa7164_proc_create();
-#endif
-	return pci_register_driver(&saa7164_pci_driver);
+
+	pr_info("saa7164 driver loaded\n");
+
+	return 0;
 }
 
 static void __exit saa7164_fini(void)
 {
-#ifdef CONFIG_PROC_FS
-	remove_proc_entry("saa7164", NULL);
-#endif
+	saa7164_proc_destroy();
 	pci_unregister_driver(&saa7164_pci_driver);
 }
 

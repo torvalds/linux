@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * arch/arm/mach-ixp4xx/avila-setup.c
  *
@@ -17,7 +18,7 @@
 #include <linux/serial.h>
 #include <linux/tty.h>
 #include <linux/serial_8250.h>
-#include <linux/i2c-gpio.h>
+#include <linux/gpio/machine.h>
 #include <asm/types.h>
 #include <asm/setup.h>
 #include <asm/memory.h>
@@ -26,6 +27,8 @@
 #include <asm/irq.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
+
+#include "irqs.h"
 
 #define AVILA_SDA_PIN	7
 #define AVILA_SCL_PIN	6
@@ -49,16 +52,21 @@ static struct platform_device avila_flash = {
 	.resource	= &avila_flash_resource,
 };
 
-static struct i2c_gpio_platform_data avila_i2c_gpio_data = {
-	.sda_pin	= AVILA_SDA_PIN,
-	.scl_pin	= AVILA_SCL_PIN,
+static struct gpiod_lookup_table avila_i2c_gpiod_table = {
+	.dev_id		= "i2c-gpio.0",
+	.table		= {
+		GPIO_LOOKUP_IDX("IXP4XX_GPIO_CHIP", AVILA_SDA_PIN,
+				NULL, 0, GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN),
+		GPIO_LOOKUP_IDX("IXP4XX_GPIO_CHIP", AVILA_SCL_PIN,
+				NULL, 1, GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN),
+	},
 };
 
 static struct platform_device avila_i2c_gpio = {
 	.name		= "i2c-gpio",
 	.id		= 0,
 	.dev	 = {
-		.platform_data	= &avila_i2c_gpio_data,
+		.platform_data	= NULL,
 	},
 };
 
@@ -146,6 +154,8 @@ static void __init avila_init(void)
 	avila_flash_resource.start = IXP4XX_EXP_BUS_BASE(0);
 	avila_flash_resource.end =
 		IXP4XX_EXP_BUS_BASE(0) + ixp4xx_exp_bus_size - 1;
+
+	gpiod_add_lookup_table(&avila_i2c_gpiod_table);
 
 	platform_add_devices(avila_devices, ARRAY_SIZE(avila_devices));
 

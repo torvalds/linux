@@ -1366,7 +1366,7 @@ int jffs2_do_read_inode(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
 		jffs2_add_ino_cache(c, f->inocache);
 	}
 	if (!f->inocache) {
-		JFFS2_ERROR("requestied to read an nonexistent ino %u\n", ino);
+		JFFS2_ERROR("requested to read a nonexistent ino %u\n", ino);
 		return -ENOENT;
 	}
 
@@ -1413,11 +1413,6 @@ void jffs2_do_clear_inode(struct jffs2_sb_info *c, struct jffs2_inode_info *f)
 	}
 
 	jffs2_kill_fragtree(&f->fragtree, deleted?c:NULL);
-
-	if (f->target) {
-		kfree(f->target);
-		f->target = NULL;
-	}
 
 	fds = f->dents;
 	while(fds) {

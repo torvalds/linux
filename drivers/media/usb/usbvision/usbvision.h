@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * USBVISION.H
  *  usbvision header file
@@ -5,26 +6,11 @@
  * Copyright (c) 1999-2005 Joerg Heckenbach <joerg@heckenbach-aw.de>
  *                         Dwaine Garden <dwainegarden@rogers.com>
  *
- *
  * Report problems to v4l MailingList: linux-media@vger.kernel.org
  *
  * This module is part of usbvision driver project.
  * Updates to driver completed by Dwaine P. Garden
  * v4l2 conversion by Thierry Merle <thierry.merle@free.fr>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 
@@ -139,11 +125,11 @@
 
 #define MIN_FRAME_WIDTH			64
 #define MAX_USB_WIDTH			320  /* 384 */
-#define MAX_FRAME_WIDTH			320  /* 384 */			/* streching sometimes causes crashes*/
+#define MAX_FRAME_WIDTH			320  /* 384 */			/* stretching sometimes causes crashes*/
 
 #define MIN_FRAME_HEIGHT		48
 #define MAX_USB_HEIGHT			240  /* 288 */
-#define MAX_FRAME_HEIGHT		240  /* 288 */			/* Streching sometimes causes crashes*/
+#define MAX_FRAME_HEIGHT		240  /* 288 */			/* Stretching sometimes causes crashes*/
 
 #define MAX_FRAME_SIZE			(MAX_FRAME_WIDTH * MAX_FRAME_HEIGHT * MAX_BYTES_PER_PIXEL)
 #define USBVISION_CLIPMASK_SIZE		(MAX_FRAME_WIDTH * MAX_FRAME_HEIGHT / 8) /* bytesize of clipmask */
@@ -181,7 +167,7 @@ enum {
  * G = 1.164*(Y-16) - 0.813*(U-128) - 0.391*(V-128)
  * R = 1.164*(Y-16) + 1.596*(U-128)
  *
- * If you fancy integer arithmetics (as you should), hear this:
+ * If you fancy integer arithmetic (as you should), hear this:
  *
  * 65536*B = 76284*(Y-16)		  + 132252*(V-128)
  * 65536*G = 76284*(Y-16) -  53281*(U-128) -  25625*(V-128)
@@ -320,7 +306,7 @@ struct usbvision_frame {
 	long bytes_read;				/* amount of scanlength that has been read from data */
 	struct usbvision_v4l2_format_st v4l2_format;	/* format the user needs*/
 	int v4l2_linesize;				/* bytes for one videoline*/
-	struct timeval timestamp;
+	u64 ts;
 	int sequence;					/* How many video frames we send to user */
 };
 
@@ -370,7 +356,6 @@ struct usb_usbvision {
 	unsigned char ctrl_urb_buffer[8];
 	int ctrl_urb_busy;
 	struct usb_ctrlrequest ctrl_urb_setup;
-	wait_queue_head_t ctrl_urb_wq;					/* Processes waiting */
 
 	/* configuration part */
 	int have_tuner;
@@ -443,7 +428,7 @@ struct usb_usbvision {
 	int last_compr_level;						/* How strong (100) or weak (0) was compression */
 	int usb_bandwidth;						/* Mbit/s */
 
-	/* Statistics that can be overlayed on the screen */
+	/* Statistics that can be overlaid on the screen */
 	unsigned long isoc_urb_count;			/* How many URBs we received so far */
 	unsigned long urb_length;			/* Length of last URB */
 	unsigned long isoc_data_count;			/* How many bytes we received */
@@ -452,7 +437,6 @@ struct usb_usbvision {
 	unsigned long isoc_skip_count;			/* How many empty ISO packets received */
 	unsigned long isoc_err_count;			/* How many bad ISO packets received */
 	unsigned long isoc_packet_count;		/* How many packets we totally got */
-	unsigned long time_in_irq;			/* How long do we need for interrupt */
 	int isoc_measure_bandwidth_count;
 	int frame_num;					/* How many video frames we send to user */
 	int max_strip_len;				/* How big is the biggest strip */

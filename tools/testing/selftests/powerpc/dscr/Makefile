@@ -1,14 +1,11 @@
-TEST_PROGS := dscr_default_test dscr_explicit_test dscr_user_test	\
+# SPDX-License-Identifier: GPL-2.0
+TEST_GEN_PROGS := dscr_default_test dscr_explicit_test dscr_user_test	\
 	      dscr_inherit_test dscr_inherit_exec_test dscr_sysfs_test	\
 	      dscr_sysfs_thread_test
 
-dscr_default_test: LDLIBS += -lpthread
-
-all: $(TEST_PROGS)
-
-$(TEST_PROGS): ../harness.c
-
+top_srcdir = ../../../../..
 include ../../lib.mk
 
-clean:
-	rm -f $(TEST_PROGS) *.o
+$(OUTPUT)/dscr_default_test: LDLIBS += -lpthread
+
+$(TEST_GEN_PROGS): ../harness.c

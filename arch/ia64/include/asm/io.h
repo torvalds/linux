@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_IA64_IO_H
 #define _ASM_IA64_IO_H
 
@@ -82,12 +83,14 @@ virt_to_phys (volatile void *address)
 {
 	return (unsigned long) address - PAGE_OFFSET;
 }
+#define virt_to_phys virt_to_phys
 
 static inline void*
 phys_to_virt (unsigned long address)
 {
 	return (void *) (address + PAGE_OFFSET);
 }
+#define phys_to_virt phys_to_virt
 
 #define ARCH_HAS_VALID_PHYS_ADDR_RANGE
 extern u64 kern_mem_attribute (unsigned long phys_addr, unsigned long size);
@@ -109,20 +112,6 @@ extern int valid_mmap_phys_addr_range (unsigned long pfn, size_t count);
  * not IA-64 specific.
  */
 #define __ia64_mf_a()	ia64_mfa()
-
-/**
- * ___ia64_mmiowb - I/O write barrier
- *
- * Ensure ordering of I/O space writes.  This will make sure that writes
- * following the barrier will arrive after all previous writes.  For most
- * ia64 platforms, this is a simple 'mf.a' instruction.
- *
- * See Documentation/DocBook/deviceiobook.tmpl for more information.
- */
-static inline void ___ia64_mmiowb(void)
-{
-	ia64_mfa();
-}
 
 static inline void*
 __ia64_mk_io_addr (unsigned long port)
@@ -158,7 +147,6 @@ __ia64_mk_io_addr (unsigned long port)
 #define __ia64_writew	___ia64_writew
 #define __ia64_writel	___ia64_writel
 #define __ia64_writeq	___ia64_writeq
-#define __ia64_mmiowb	___ia64_mmiowb
 
 /*
  * For the in/out routines, we need to do "mf.a" _after_ doing the I/O access to ensure
@@ -293,7 +281,6 @@ __outsl (unsigned long port, const void *src, unsigned long count)
 #define __outb		platform_outb
 #define __outw		platform_outw
 #define __outl		platform_outl
-#define __mmiowb	platform_mmiowb
 
 #define inb(p)		__inb(p)
 #define inw(p)		__inw(p)
@@ -307,7 +294,6 @@ __outsl (unsigned long port, const void *src, unsigned long count)
 #define outsb(p,s,c)	__outsb(p,s,c)
 #define outsw(p,s,c)	__outsw(p,s,c)
 #define outsl(p,s,c)	__outsl(p,s,c)
-#define mmiowb()	__mmiowb()
 
 /*
  * The address passed to these functions are ioremap()ped already.
@@ -432,9 +418,11 @@ static inline void __iomem * ioremap_cache (unsigned long phys_addr, unsigned lo
 {
 	return ioremap(phys_addr, size);
 }
+#define ioremap ioremap
+#define ioremap_nocache ioremap_nocache
 #define ioremap_cache ioremap_cache
 #define ioremap_uc ioremap_nocache
-
+#define iounmap iounmap
 
 /*
  * String version of IO memory access ops:
@@ -442,6 +430,14 @@ static inline void __iomem * ioremap_cache (unsigned long phys_addr, unsigned lo
 extern void memcpy_fromio(void *dst, const volatile void __iomem *src, long n);
 extern void memcpy_toio(volatile void __iomem *dst, const void *src, long n);
 extern void memset_io(volatile void __iomem *s, int c, long n);
+
+#define memcpy_fromio memcpy_fromio
+#define memcpy_toio memcpy_toio
+#define memset_io memset_io
+#define xlate_dev_kmem_ptr xlate_dev_kmem_ptr
+#define xlate_dev_mem_ptr xlate_dev_mem_ptr
+#include <asm-generic/io.h>
+#undef PCI_IOBASE
 
 # endif /* __KERNEL__ */
 

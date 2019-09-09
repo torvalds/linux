@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Firmware replacement code.
  *
@@ -13,6 +14,7 @@
 #define pr_fmt(fmt) "AGP: " fmt
 
 #include <linux/kernel.h>
+#include <linux/kcore.h>
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/memblock.h>
@@ -21,7 +23,7 @@
 #include <linux/pci.h>
 #include <linux/bitops.h>
 #include <linux/suspend.h>
-#include <asm/e820.h>
+#include <asm/e820/api.h>
 #include <asm/io.h>
 #include <asm/iommu.h>
 #include <asm/gart.h>
@@ -29,6 +31,7 @@
 #include <asm/dma.h>
 #include <asm/amd_nb.h>
 #include <asm/x86_init.h>
+#include <linux/crash_dump.h>
 
 /*
  * Using 512M as goal, in case kexec will load kernel_big
@@ -54,6 +57,38 @@ int fallback_aper_order __initdata = 1; /* 64MB */
 int fallback_aper_force __initdata;
 
 int fix_aperture __initdata = 1;
+
+#if defined(CONFIG_PROC_VMCORE) || defined(CONFIG_PROC_KCORE)
+/*
+ * If the first kernel maps the aperture over e820 RAM, the kdump kernel will
+ * use the same range because it will remain configured in the northbridge.
+ * Trying to dump this area via /proc/vmcore may crash the machine, so exclude
+ * it from vmcore.
+ */
+static unsigned long aperture_pfn_start, aperture_page_count;
+
+static int gart_mem_pfn_is_ram(unsigned long pfn)
+{
+	return likely((pfn < aperture_pfn_start) ||
+		      (pfn >= aperture_pfn_start + aperture_page_count));
+}
+
+static void __init exclude_from_core(u64 aper_base, u32 aper_order)
+{
+	aperture_pfn_start = aper_base >> PAGE_SHIFT;
+	aperture_page_count = (32 * 1024 * 1024) << aper_order >> PAGE_SHIFT;
+#ifdef CONFIG_PROC_VMCORE
+	WARN_ON(register_oldmem_pfn_is_ram(&gart_mem_pfn_is_ram));
+#endif
+#ifdef CONFIG_PROC_KCORE
+	WARN_ON(register_mem_pfn_is_ram(&gart_mem_pfn_is_ram));
+#endif
+}
+#else
+static void exclude_from_core(u64 aper_base, u32 aper_order)
+{
+}
+#endif
 
 /* This code runs before the PCI subsystem is initialized, so just
    access the northbridge directly. */
@@ -235,18 +270,23 @@ static int __init parse_gart_mem(char *p)
 }
 early_param("gart_fix_e820", parse_gart_mem);
 
+/*
+ * With kexec/kdump, if the first kernel doesn't shut down the GART and the
+ * second kernel allocates a different GART region, there might be two
+ * overlapping GART regions present:
+ *
+ * - the first still used by the GART initialized in the first kernel.
+ * - (sub-)set of it used as normal RAM by the second kernel.
+ *
+ * which leads to memory corruptions and a kernel panic eventually.
+ *
+ * This can also happen if the BIOS has forgotten to mark the GART region
+ * as reserved.
+ *
+ * Try to update the e820 map to mark that new region as reserved.
+ */
 void __init early_gart_iommu_check(void)
 {
-	/*
-	 * in case it is enabled before, esp for kexec/kdump,
-	 * previous kernel already enable that. memset called
-	 * by allocate_aperture/__alloc_bootmem_nopanic cause restart.
-	 * or second kernel have different position for GART hole. and new
-	 * kernel could use hole as RAM that is still used by GART set by
-	 * first kernel
-	 * or BIOS forget to put that in reserved.
-	 * try to update e820 to make that region as reserved.
-	 */
 	u32 agp_aper_order = 0;
 	int i, fix, slot, valid_agp = 0;
 	u32 ctl;
@@ -306,13 +346,13 @@ void __init early_gart_iommu_check(void)
 		fix = 1;
 
 	if (gart_fix_e820 && !fix && aper_enabled) {
-		if (e820_any_mapped(aper_base, aper_base + aper_size,
-				    E820_RAM)) {
+		if (e820__mapped_any(aper_base, aper_base + aper_size,
+				    E820_TYPE_RAM)) {
 			/* reserve it, so we can reuse it in second kernel */
 			pr_info("e820: reserve [mem %#010Lx-%#010Lx] for GART\n",
 				aper_base, aper_base + aper_size - 1);
-			e820_add_region(aper_base, aper_size, E820_RESERVED);
-			update_e820();
+			e820__range_add(aper_base, aper_size, E820_TYPE_RESERVED);
+			e820__update_table_print();
 		}
 	}
 
@@ -434,8 +474,16 @@ int __init gart_iommu_hole_init(void)
 
 out:
 	if (!fix && !fallback_aper_force) {
-		if (last_aper_base)
+		if (last_aper_base) {
+			/*
+			 * If this is the kdump kernel, the first kernel
+			 * may have allocated the range over its e820 RAM
+			 * and fixed up the northbridge
+			 */
+			exclude_from_core(last_aper_base, last_aper_order);
+
 			return 1;
+		}
 		return 0;
 	}
 
@@ -471,6 +519,14 @@ out:
 	} else {
 		return 0;
 	}
+
+	/*
+	 * If this is the kdump kernel _and_ the first kernel did not
+	 * configure the aperture in the northbridge, this range may
+	 * overlap with the first kernel's memory. We can't access the
+	 * range through vmcore even though it should be part of the dump.
+	 */
+	exclude_from_core(aper_alloc, aper_order);
 
 	/* Fix up the north bridges */
 	for (i = 0; i < amd_nb_bus_dev_ranges[i].dev_limit; i++) {

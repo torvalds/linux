@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * spitz.c  --  SoC audio for Sharp SL-Cxx00 models Spitz, Borzoi and Akita
  *
@@ -6,12 +7,6 @@
  *
  * Authors: Liam Girdwood <lrg@slimlogic.co.uk>
  *          Richard Purdie <richard@openedhand.com>
- *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
- *
  */
 
 #include <linux/module.h>
@@ -156,7 +151,7 @@ static int spitz_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_soc_ops spitz_ops = {
+static const struct snd_soc_ops spitz_ops = {
 	.startup = spitz_startup,
 	.hw_params = spitz_hw_params,
 };
@@ -230,8 +225,8 @@ static const struct snd_soc_dapm_route spitz_audio_map[] = {
 	{"Headset Jack", NULL, "ROUT1"},
 
 	/* ext speaker connected to LOUT2, ROUT2  */
-	{"Ext Spk", NULL , "ROUT2"},
-	{"Ext Spk", NULL , "LOUT2"},
+	{"Ext Spk", NULL, "ROUT2"},
+	{"Ext Spk", NULL, "LOUT2"},
 
 	/* mic is connected to input 1 - with bias */
 	{"LINPUT1", NULL, "Mic Bias"},
@@ -241,9 +236,9 @@ static const struct snd_soc_dapm_route spitz_audio_map[] = {
 	{"LINPUT1", NULL, "Line Jack"},
 };
 
-static const char *jack_function[] = {"Headphone", "Mic", "Line", "Headset",
-	"Off"};
-static const char *spk_function[] = {"On", "Off"};
+static const char * const jack_function[] = {"Headphone", "Mic", "Line",
+	"Headset", "Off"};
+static const char * const spk_function[] = {"On", "Off"};
 static const struct soc_enum spitz_enum[] = {
 	SOC_ENUM_SINGLE_EXT(5, jack_function),
 	SOC_ENUM_SINGLE_EXT(2, spk_function),
@@ -257,16 +252,18 @@ static const struct snd_kcontrol_new wm8750_spitz_controls[] = {
 };
 
 /* spitz digital audio interface glue - connects codec <--> CPU */
+SND_SOC_DAILINK_DEFS(wm8750,
+	DAILINK_COMP_ARRAY(COMP_CPU("pxa2xx-i2s")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("wm8750.0-001b", "wm8750-hifi")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("pxa-pcm-audio")));
+
 static struct snd_soc_dai_link spitz_dai = {
 	.name = "wm8750",
 	.stream_name = "WM8750",
-	.cpu_dai_name = "pxa2xx-i2s",
-	.codec_dai_name = "wm8750-hifi",
-	.platform_name = "pxa-pcm-audio",
-	.codec_name = "wm8750.0-001b",
 	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 		   SND_SOC_DAIFMT_CBS_CFS,
 	.ops = &spitz_ops,
+	SND_SOC_DAILINK_REG(wm8750),
 };
 
 /* spitz audio machine driver */

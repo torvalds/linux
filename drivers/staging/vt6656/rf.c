@@ -1,17 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
  * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  *
  * File: rf.c
  *
@@ -611,7 +601,7 @@ int vnt_rf_write_embedded(struct vnt_private *priv, u32 data)
 	reg_data[3] = (u8)(data >> 24);
 
 	vnt_control_out(priv, MESSAGE_TYPE_WRITE_IFRF,
-				0, 0, ARRAY_SIZE(reg_data), reg_data);
+			0, 0, ARRAY_SIZE(reg_data), reg_data);
 
 	return true;
 }
@@ -643,9 +633,9 @@ int vnt_rf_setpower(struct vnt_private *priv, u32 rate, u32 channel)
 	case RATE_48M:
 	case RATE_54M:
 		if (channel > CB_MAX_CHANNEL_24G)
-			power = priv->ofdm_a_pwr_tbl[channel-15];
+			power = priv->ofdm_a_pwr_tbl[channel - 15];
 		else
-			power = priv->ofdm_pwr_tbl[channel-1];
+			power = priv->ofdm_pwr_tbl[channel - 1];
 		break;
 	}
 
@@ -730,9 +720,9 @@ int vnt_rf_set_txpower(struct vnt_private *priv, u8 power, u32 rate)
 			return false;
 
 		/*
-		* 0x080F1B00 for 3 wire control TxGain(D10)
-		* and 0x31 as TX Gain value
-		*/
+		 * 0x080F1B00 for 3 wire control TxGain(D10)
+		 * and 0x31 as TX Gain value
+		 */
 		power_setting = 0x080c0b00 | (power << 12);
 
 		ret &= vnt_rf_write_embedded(priv, power_setting);
@@ -771,7 +761,7 @@ int vnt_rf_set_txpower(struct vnt_private *priv, u8 power, u32 rate)
 			ret &= vnt_rf_write_embedded(priv, 0x015C0800);
 		} else {
 			dev_dbg(&priv->usb->dev,
-					"@@@@ vnt_rf_set_txpower> 11G mode\n");
+				"@@@@ %s> 11G mode\n", __func__);
 
 			power_setting = ((0x3f - power) << 20) | (0x7 << 8);
 
@@ -800,8 +790,8 @@ int vnt_rf_set_txpower(struct vnt_private *priv, u8 power, u32 rate)
 /* Convert rssi to dbm */
 void vnt_rf_rssi_to_dbm(struct vnt_private *priv, u8 rssi, long *dbm)
 {
-	u8 idx = (((rssi & 0xc0) >> 6) & 0x03);
-	long b = (rssi & 0x3f);
+	u8 idx = ((rssi & 0xc0) >> 6) & 0x03;
+	long b = rssi & 0x3f;
 	long a = 0;
 	u8 airoharf[4] = {0, 18, 0, 40};
 
@@ -821,8 +811,9 @@ void vnt_rf_rssi_to_dbm(struct vnt_private *priv, u8 rssi, long *dbm)
 	*dbm = -1 * (a + b * 2);
 }
 
-void vnt_rf_table_download(struct vnt_private *priv)
+int vnt_rf_table_download(struct vnt_private *priv)
 {
+	int ret = 0;
 	u16 length1 = 0, length2 = 0, length3 = 0;
 	u8 *addr1 = NULL, *addr2 = NULL, *addr3 = NULL;
 	u16 length, value;
@@ -875,8 +866,10 @@ void vnt_rf_table_download(struct vnt_private *priv)
 	/* Init Table */
 	memcpy(array, addr1, length1);
 
-	vnt_control_out(priv, MESSAGE_TYPE_WRITE, 0,
-		MESSAGE_REQUEST_RF_INIT, length1, array);
+	ret = vnt_control_out(priv, MESSAGE_TYPE_WRITE, 0,
+			      MESSAGE_REQUEST_RF_INIT, length1, array);
+	if (ret)
+		goto end;
 
 	/* Channel Table 0 */
 	value = 0;
@@ -888,8 +881,10 @@ void vnt_rf_table_download(struct vnt_private *priv)
 
 		memcpy(array, addr2, length);
 
-		vnt_control_out(priv, MESSAGE_TYPE_WRITE,
-			value, MESSAGE_REQUEST_RF_CH0, length, array);
+		ret = vnt_control_out(priv, MESSAGE_TYPE_WRITE, value,
+				      MESSAGE_REQUEST_RF_CH0, length, array);
+		if (ret)
+			goto end;
 
 		length2 -= length;
 		value += length;
@@ -906,8 +901,10 @@ void vnt_rf_table_download(struct vnt_private *priv)
 
 		memcpy(array, addr3, length);
 
-		vnt_control_out(priv, MESSAGE_TYPE_WRITE,
-			value, MESSAGE_REQUEST_RF_CH1, length, array);
+		ret = vnt_control_out(priv, MESSAGE_TYPE_WRITE, value,
+				      MESSAGE_REQUEST_RF_CH1, length, array);
+		if (ret)
+			goto end;
 
 		length3 -= length;
 		value += length;
@@ -923,8 +920,10 @@ void vnt_rf_table_download(struct vnt_private *priv)
 		memcpy(array, addr1, length1);
 
 		/* Init Table 2 */
-		vnt_control_out(priv, MESSAGE_TYPE_WRITE,
-			0, MESSAGE_REQUEST_RF_INIT2, length1, array);
+		ret = vnt_control_out(priv, MESSAGE_TYPE_WRITE, 0,
+				      MESSAGE_REQUEST_RF_INIT2, length1, array);
+		if (ret)
+			goto end;
 
 		/* Channel Table 0 */
 		value = 0;
@@ -936,12 +935,18 @@ void vnt_rf_table_download(struct vnt_private *priv)
 
 			memcpy(array, addr2, length);
 
-			vnt_control_out(priv, MESSAGE_TYPE_WRITE,
-				value, MESSAGE_REQUEST_RF_CH2, length, array);
+			ret = vnt_control_out(priv, MESSAGE_TYPE_WRITE, value,
+					      MESSAGE_REQUEST_RF_CH2, length,
+					      array);
+			if (ret)
+				goto end;
 
 			length2 -= length;
 			value += length;
 			addr2 += length;
 		}
 	}
+
+end:
+	return ret;
 }

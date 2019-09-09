@@ -1,14 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Userland implementation of gettimeofday() for 32 bits processes in a
  * ppc64 kernel for use in the vDSO
  *
  * Copyright (C) 2004 Benjamin Herrenschmuidt (benh@kernel.crashing.org,
  *                    IBM Corp.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 #include <asm/processor.h>
 #include <asm/ppc_asm.h>
@@ -98,7 +94,7 @@ V_FUNCTION_BEGIN(__kernel_clock_gettime)
 	 * can be used, r7 contains NSEC_PER_SEC.
 	 */
 
-	lwz	r5,WTOM_CLOCK_SEC(r9)
+	lwz	r5,(WTOM_CLOCK_SEC+LOPART)(r9)
 	lwz	r6,WTOM_CLOCK_NSEC(r9)
 
 	/* We now have our offset in r5,r6. We create a fake dependency
@@ -139,6 +135,7 @@ V_FUNCTION_BEGIN(__kernel_clock_gettime)
 	 */
 99:
 	li	r0,__NR_clock_gettime
+  .cfi_restore lr
 	sc
 	blr
   .cfi_endproc
@@ -232,15 +229,9 @@ __do_get_tspec:
 	lwz	r6,(CFG_TB_ORIG_STAMP+4)(r9)
 
 	/* Get a stable TB value */
-#ifdef CONFIG_8xx
-2:	mftbu	r3
-	mftbl	r4
-	mftbu	r0
-#else
-2:	mfspr	r3, SPRN_TBRU
-	mfspr	r4, SPRN_TBRL
-	mfspr	r0, SPRN_TBRU
-#endif
+2:	MFTBU(r3)
+	MFTBL(r4)
+	MFTBU(r0)
 	cmplw	cr0,r3,r0
 	bne-	2b
 

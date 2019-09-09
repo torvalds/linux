@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) Sistina Software, Inc.  1997-2003 All rights reserved.
  * Copyright (C) 2004-2006 Red Hat, Inc.  All rights reserved.
- *
- * This copyrighted material is made available to anyone wishing to use,
- * modify, copy, or redistribute it subject to the terms and conditions
- * of the GNU General Public License version 2.
  */
 
 #include <linux/sched.h>
@@ -82,27 +79,12 @@ struct posix_acl *gfs2_get_acl(struct inode *inode, int type)
 int __gfs2_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 {
 	int error;
-	int len;
+	size_t len;
 	char *data;
 	const char *name = gfs2_acl_name(type);
 
-	if (acl && acl->a_count > GFS2_ACL_MAX_ENTRIES(GFS2_SB(inode)))
-		return -E2BIG;
-
-	if (type == ACL_TYPE_ACCESS) {
-		umode_t mode = inode->i_mode;
-
-		error = posix_acl_update_mode(inode, &inode->i_mode, &acl);
-		if (error)
-			return error;
-		if (mode != inode->i_mode)
-			mark_inode_dirty(inode);
-	}
-
 	if (acl) {
-		len = posix_acl_to_xattr(&init_user_ns, acl, NULL, 0);
-		if (len == 0)
-			return 0;
+		len = posix_acl_xattr_size(acl->a_count);
 		data = kmalloc(len, GFP_NOFS);
 		if (data == NULL)
 			return -ENOMEM;
@@ -129,6 +111,10 @@ int gfs2_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 	struct gfs2_holder gh;
 	bool need_unlock = false;
 	int ret;
+	umode_t mode;
+
+	if (acl && acl->a_count > GFS2_ACL_MAX_ENTRIES(GFS2_SB(inode)))
+		return -E2BIG;
 
 	ret = gfs2_rsqa_alloc(ip);
 	if (ret)
@@ -140,7 +126,21 @@ int gfs2_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 			return ret;
 		need_unlock = true;
 	}
+
+	mode = inode->i_mode;
+	if (type == ACL_TYPE_ACCESS && acl) {
+		ret = posix_acl_update_mode(inode, &mode, &acl);
+		if (ret)
+			goto unlock;
+	}
+
 	ret = __gfs2_set_acl(inode, acl, type);
+	if (!ret && mode != inode->i_mode) {
+		inode->i_ctime = current_time(inode);
+		inode->i_mode = mode;
+		mark_inode_dirty(inode);
+	}
+unlock:
 	if (need_unlock)
 		gfs2_glock_dq_uninit(&gh);
 	return ret;

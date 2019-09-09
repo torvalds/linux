@@ -1,22 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2015 Chen-Yu Tsai
  *
  * Chen-Yu Tsai	<wens@csie.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
+#include <linux/delay.h>
 #include <linux/init.h>
+#include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/reset.h>
@@ -83,9 +76,20 @@ static int sun9i_mmc_reset_deassert(struct reset_controller_dev *rcdev,
 	return 0;
 }
 
+static int sun9i_mmc_reset_reset(struct reset_controller_dev *rcdev,
+				 unsigned long id)
+{
+	sun9i_mmc_reset_assert(rcdev, id);
+	udelay(10);
+	sun9i_mmc_reset_deassert(rcdev, id);
+
+	return 0;
+}
+
 static const struct reset_control_ops sun9i_mmc_reset_ops = {
 	.assert		= sun9i_mmc_reset_assert,
 	.deassert	= sun9i_mmc_reset_deassert,
+	.reset		= sun9i_mmc_reset_reset,
 };
 
 static int sun9i_a80_mmc_config_clk_probe(struct platform_device *pdev)
@@ -124,7 +128,7 @@ static int sun9i_a80_mmc_config_clk_probe(struct platform_device *pdev)
 		return PTR_ERR(data->clk);
 	}
 
-	data->reset = devm_reset_control_get(&pdev->dev, NULL);
+	data->reset = devm_reset_control_get_exclusive(&pdev->dev, NULL);
 	if (IS_ERR(data->reset)) {
 		dev_err(&pdev->dev, "Could not get reset control\n");
 		return PTR_ERR(data->reset);

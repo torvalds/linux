@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * vsp1_wpf.c  --  R-Car VSP1 Write Pixel Formatter
  *
  * Copyright (C) 2013-2014 Renesas Electronics Corporation
  *
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/device.h>
@@ -31,9 +27,9 @@
  */
 
 static inline void vsp1_wpf_write(struct vsp1_rwpf *wpf,
-				  struct vsp1_dl_list *dl, u32 reg, u32 data)
+				  struct vsp1_dl_body *dlb, u32 reg, u32 data)
 {
-	vsp1_dl_list_write(dl, reg + wpf->entity.index * VI6_WPF_OFFSET, data);
+	vsp1_dl_body_write(dlb, reg + wpf->entity.index * VI6_WPF_OFFSET, data);
 }
 
 /* -----------------------------------------------------------------------------
@@ -43,32 +39,90 @@ static inline void vsp1_wpf_write(struct vsp1_rwpf *wpf,
 enum wpf_flip_ctrl {
 	WPF_CTRL_VFLIP = 0,
 	WPF_CTRL_HFLIP = 1,
-	WPF_CTRL_MAX,
 };
+
+static int vsp1_wpf_set_rotation(struct vsp1_rwpf *wpf, unsigned int rotation)
+{
+	struct vsp1_video *video = wpf->video;
+	struct v4l2_mbus_framefmt *sink_format;
+	struct v4l2_mbus_framefmt *source_format;
+	bool rotate;
+	int ret = 0;
+
+	/*
+	 * Only consider the 0°/180° from/to 90°/270° modifications, the rest
+	 * is taken care of by the flipping configuration.
+	 */
+	rotate = rotation == 90 || rotation == 270;
+	if (rotate == wpf->flip.rotate)
+		return 0;
+
+	/* Changing rotation isn't allowed when buffers are allocated. */
+	mutex_lock(&video->lock);
+
+	if (vb2_is_busy(&video->queue)) {
+		ret = -EBUSY;
+		goto done;
+	}
+
+	sink_format = vsp1_entity_get_pad_format(&wpf->entity,
+						 wpf->entity.config,
+						 RWPF_PAD_SINK);
+	source_format = vsp1_entity_get_pad_format(&wpf->entity,
+						   wpf->entity.config,
+						   RWPF_PAD_SOURCE);
+
+	mutex_lock(&wpf->entity.lock);
+
+	if (rotate) {
+		source_format->width = sink_format->height;
+		source_format->height = sink_format->width;
+	} else {
+		source_format->width = sink_format->width;
+		source_format->height = sink_format->height;
+	}
+
+	wpf->flip.rotate = rotate;
+
+	mutex_unlock(&wpf->entity.lock);
+
+done:
+	mutex_unlock(&video->lock);
+	return ret;
+}
 
 static int vsp1_wpf_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct vsp1_rwpf *wpf =
 		container_of(ctrl->handler, struct vsp1_rwpf, ctrls);
-	unsigned int i;
+	unsigned int rotation;
 	u32 flip = 0;
+	int ret;
 
-	switch (ctrl->id) {
-	case V4L2_CID_HFLIP:
-	case V4L2_CID_VFLIP:
-		for (i = 0; i < WPF_CTRL_MAX; ++i) {
-			if (wpf->flip.ctrls[i])
-				flip |= wpf->flip.ctrls[i]->val ? BIT(i) : 0;
-		}
+	/* Update the rotation. */
+	rotation = wpf->flip.ctrls.rotate ? wpf->flip.ctrls.rotate->val : 0;
+	ret = vsp1_wpf_set_rotation(wpf, rotation);
+	if (ret < 0)
+		return ret;
 
-		spin_lock_irq(&wpf->flip.lock);
-		wpf->flip.pending = flip;
-		spin_unlock_irq(&wpf->flip.lock);
-		break;
+	/*
+	 * Compute the flip value resulting from all three controls, with
+	 * rotation by 180° flipping the image in both directions. Store the
+	 * result in the pending flip field for the next frame that will be
+	 * processed.
+	 */
+	if (wpf->flip.ctrls.vflip->val)
+		flip |= BIT(WPF_CTRL_VFLIP);
 
-	default:
-		return -EINVAL;
-	}
+	if (wpf->flip.ctrls.hflip && wpf->flip.ctrls.hflip->val)
+		flip |= BIT(WPF_CTRL_HFLIP);
+
+	if (rotation == 180 || rotation == 270)
+		flip ^= BIT(WPF_CTRL_VFLIP) | BIT(WPF_CTRL_HFLIP);
+
+	spin_lock_irq(&wpf->flip.lock);
+	wpf->flip.pending = flip;
+	spin_unlock_irq(&wpf->flip.lock);
 
 	return 0;
 }
@@ -87,13 +141,15 @@ static int wpf_init_controls(struct vsp1_rwpf *wpf)
 	if (wpf->entity.index != 0) {
 		/* Only WPF0 supports flipping. */
 		num_flip_ctrls = 0;
-	} else if (vsp1->info->features & VSP1_HAS_WPF_HFLIP) {
-		/* When horizontal flip is supported the WPF implements two
-		 * controls (horizontal flip and vertical flip).
+	} else if (vsp1_feature(vsp1, VSP1_HAS_WPF_HFLIP)) {
+		/*
+		 * When horizontal flip is supported the WPF implements three
+		 * controls (horizontal flip, vertical flip and rotation).
 		 */
-		num_flip_ctrls = 2;
-	} else if (vsp1->info->features & VSP1_HAS_WPF_VFLIP) {
-		/* When only vertical flip is supported the WPF implements a
+		num_flip_ctrls = 3;
+	} else if (vsp1_feature(vsp1, VSP1_HAS_WPF_VFLIP)) {
+		/*
+		 * When only vertical flip is supported the WPF implements a
 		 * single control (vertical flip).
 		 */
 		num_flip_ctrls = 1;
@@ -105,17 +161,19 @@ static int wpf_init_controls(struct vsp1_rwpf *wpf)
 	vsp1_rwpf_init_ctrls(wpf, num_flip_ctrls);
 
 	if (num_flip_ctrls >= 1) {
-		wpf->flip.ctrls[WPF_CTRL_VFLIP] =
+		wpf->flip.ctrls.vflip =
 			v4l2_ctrl_new_std(&wpf->ctrls, &vsp1_wpf_ctrl_ops,
 					  V4L2_CID_VFLIP, 0, 1, 1, 0);
 	}
 
-	if (num_flip_ctrls == 2) {
-		wpf->flip.ctrls[WPF_CTRL_HFLIP] =
+	if (num_flip_ctrls == 3) {
+		wpf->flip.ctrls.hflip =
 			v4l2_ctrl_new_std(&wpf->ctrls, &vsp1_wpf_ctrl_ops,
 					  V4L2_CID_HFLIP, 0, 1, 1, 0);
-
-		v4l2_ctrl_cluster(2, wpf->flip.ctrls);
+		wpf->flip.ctrls.rotate =
+			v4l2_ctrl_new_std(&wpf->ctrls, &vsp1_wpf_ctrl_ops,
+					  V4L2_CID_ROTATE, 0, 270, 90, 0);
+		v4l2_ctrl_cluster(3, &wpf->flip.ctrls.vflip);
 	}
 
 	if (wpf->ctrls.error) {
@@ -139,7 +197,8 @@ static int wpf_s_stream(struct v4l2_subdev *subdev, int enable)
 	if (enable)
 		return 0;
 
-	/* Write to registers directly when stopping the stream as there will be
+	/*
+	 * Write to registers directly when stopping the stream as there will be
 	 * no pipeline run to apply the display list.
 	 */
 	vsp1_write(vsp1, VI6_WPF_IRQ_ENB(wpf->entity.index), 0);
@@ -173,39 +232,41 @@ static void vsp1_wpf_destroy(struct vsp1_entity *entity)
 	vsp1_dlm_destroy(wpf->dlm);
 }
 
-static void wpf_configure(struct vsp1_entity *entity,
-			  struct vsp1_pipeline *pipe,
-			  struct vsp1_dl_list *dl,
-			  enum vsp1_entity_params params)
+static int wpf_configure_writeback_chain(struct vsp1_rwpf *wpf,
+					 struct vsp1_dl_list *dl)
+{
+	unsigned int index = wpf->entity.index;
+	struct vsp1_dl_list *dl_next;
+	struct vsp1_dl_body *dlb;
+
+	dl_next = vsp1_dl_list_get(wpf->dlm);
+	if (!dl_next) {
+		dev_err(wpf->entity.vsp1->dev,
+			"Failed to obtain a dl list, disabling writeback\n");
+		return -ENOMEM;
+	}
+
+	dlb = vsp1_dl_list_get_body0(dl_next);
+	vsp1_dl_body_write(dlb, VI6_WPF_WRBCK_CTRL(index), 0);
+	vsp1_dl_list_add_chain(dl, dl_next);
+
+	return 0;
+}
+
+static void wpf_configure_stream(struct vsp1_entity *entity,
+				 struct vsp1_pipeline *pipe,
+				 struct vsp1_dl_list *dl,
+				 struct vsp1_dl_body *dlb)
 {
 	struct vsp1_rwpf *wpf = to_rwpf(&entity->subdev);
 	struct vsp1_device *vsp1 = wpf->entity.vsp1;
 	const struct v4l2_mbus_framefmt *source_format;
 	const struct v4l2_mbus_framefmt *sink_format;
+	unsigned int index = wpf->entity.index;
 	unsigned int i;
 	u32 outfmt = 0;
 	u32 srcrpf = 0;
-
-	if (params == VSP1_ENTITY_PARAMS_RUNTIME) {
-		const unsigned int mask = BIT(WPF_CTRL_VFLIP)
-					| BIT(WPF_CTRL_HFLIP);
-		unsigned long flags;
-
-		spin_lock_irqsave(&wpf->flip.lock, flags);
-		wpf->flip.active = (wpf->flip.active & ~mask)
-				 | (wpf->flip.pending & mask);
-		spin_unlock_irqrestore(&wpf->flip.lock, flags);
-
-		outfmt = (wpf->alpha << VI6_WPF_OUTFMT_PDV_SHIFT) | wpf->outfmt;
-
-		if (wpf->flip.active & BIT(WPF_CTRL_VFLIP))
-			outfmt |= VI6_WPF_OUTFMT_FLP;
-		if (wpf->flip.active & BIT(WPF_CTRL_HFLIP))
-			outfmt |= VI6_WPF_OUTFMT_HFLP;
-
-		vsp1_wpf_write(wpf, dl, VI6_WPF_OUTFMT, outfmt);
-		return;
-	}
+	int ret;
 
 	sink_format = vsp1_entity_get_pad_format(&wpf->entity,
 						 wpf->entity.config,
@@ -214,85 +275,15 @@ static void wpf_configure(struct vsp1_entity *entity,
 						   wpf->entity.config,
 						   RWPF_PAD_SOURCE);
 
-	if (params == VSP1_ENTITY_PARAMS_PARTITION) {
-		const struct v4l2_pix_format_mplane *format = &wpf->format;
-		struct vsp1_rwpf_memory mem = wpf->mem;
-		unsigned int flip = wpf->flip.active;
-		unsigned int width = source_format->width;
-		unsigned int height = source_format->height;
-		unsigned int offset;
-
-		/*
-		 * Cropping. The partition algorithm can split the image into
-		 * multiple slices.
-		 */
-		if (pipe->partitions > 1)
-			width = pipe->partition.width;
-
-		vsp1_wpf_write(wpf, dl, VI6_WPF_HSZCLIP, VI6_WPF_SZCLIP_EN |
-			       (0 << VI6_WPF_SZCLIP_OFST_SHIFT) |
-			       (width << VI6_WPF_SZCLIP_SIZE_SHIFT));
-		vsp1_wpf_write(wpf, dl, VI6_WPF_VSZCLIP, VI6_WPF_SZCLIP_EN |
-			       (0 << VI6_WPF_SZCLIP_OFST_SHIFT) |
-			       (height << VI6_WPF_SZCLIP_SIZE_SHIFT));
-
-		if (pipe->lif)
-			return;
-
-		/*
-		 * Update the memory offsets based on flipping configuration.
-		 * The destination addresses point to the locations where the
-		 * VSP starts writing to memory, which can be different corners
-		 * of the image depending on vertical flipping.
-		 */
-		if (pipe->partitions > 1) {
-			const struct vsp1_format_info *fmtinfo = wpf->fmtinfo;
-
-			/*
-			 * Horizontal flipping is handled through a line buffer
-			 * and doesn't modify the start address, but still needs
-			 * to be handled when image partitioning is in effect to
-			 * order the partitions correctly.
-			 */
-			if (flip & BIT(WPF_CTRL_HFLIP))
-				offset = format->width - pipe->partition.left
-					- pipe->partition.width;
-			else
-				offset = pipe->partition.left;
-
-			mem.addr[0] += offset * fmtinfo->bpp[0] / 8;
-			if (format->num_planes > 1) {
-				mem.addr[1] += offset / fmtinfo->hsub
-					     * fmtinfo->bpp[1] / 8;
-				mem.addr[2] += offset / fmtinfo->hsub
-					     * fmtinfo->bpp[2] / 8;
-			}
-		}
-
-		if (flip & BIT(WPF_CTRL_VFLIP)) {
-			mem.addr[0] += (format->height - 1)
-				     * format->plane_fmt[0].bytesperline;
-
-			if (format->num_planes > 1) {
-				offset = (format->height / wpf->fmtinfo->vsub - 1)
-				       * format->plane_fmt[1].bytesperline;
-				mem.addr[1] += offset;
-				mem.addr[2] += offset;
-			}
-		}
-
-		vsp1_wpf_write(wpf, dl, VI6_WPF_DSTM_ADDR_Y, mem.addr[0]);
-		vsp1_wpf_write(wpf, dl, VI6_WPF_DSTM_ADDR_C0, mem.addr[1]);
-		vsp1_wpf_write(wpf, dl, VI6_WPF_DSTM_ADDR_C1, mem.addr[2]);
-		return;
-	}
-
 	/* Format */
-	if (!pipe->lif) {
+	if (!pipe->lif || wpf->writeback) {
 		const struct v4l2_pix_format_mplane *format = &wpf->format;
 		const struct vsp1_format_info *fmtinfo = wpf->fmtinfo;
 
 		outfmt = fmtinfo->hwfmt << VI6_WPF_OUTFMT_WRFMT_SHIFT;
+
+		if (wpf->flip.rotate)
+			outfmt |= VI6_WPF_OUTFMT_ROT;
 
 		if (fmtinfo->alpha)
 			outfmt |= VI6_WPF_OUTFMT_PXA;
@@ -302,17 +293,16 @@ static void wpf_configure(struct vsp1_entity *entity,
 			outfmt |= VI6_WPF_OUTFMT_SPUVS;
 
 		/* Destination stride and byte swapping. */
-		vsp1_wpf_write(wpf, dl, VI6_WPF_DSTM_STRIDE_Y,
+		vsp1_wpf_write(wpf, dlb, VI6_WPF_DSTM_STRIDE_Y,
 			       format->plane_fmt[0].bytesperline);
 		if (format->num_planes > 1)
-			vsp1_wpf_write(wpf, dl, VI6_WPF_DSTM_STRIDE_C,
+			vsp1_wpf_write(wpf, dlb, VI6_WPF_DSTM_STRIDE_C,
 				       format->plane_fmt[1].bytesperline);
 
-		vsp1_wpf_write(wpf, dl, VI6_WPF_DSWAP, fmtinfo->swap);
+		vsp1_wpf_write(wpf, dlb, VI6_WPF_DSWAP, fmtinfo->swap);
 
-		if (vsp1->info->features & VSP1_HAS_WPF_HFLIP &&
-		    wpf->entity.index == 0)
-			vsp1_wpf_write(wpf, dl, VI6_WPF_ROT_CTRL,
+		if (vsp1_feature(vsp1, VSP1_HAS_WPF_HFLIP) && index == 0)
+			vsp1_wpf_write(wpf, dlb, VI6_WPF_ROT_CTRL,
 				       VI6_WPF_ROT_CTRL_LN16 |
 				       (256 << VI6_WPF_ROT_CTRL_LMEM_WD_SHIFT));
 	}
@@ -322,12 +312,11 @@ static void wpf_configure(struct vsp1_entity *entity,
 
 	wpf->outfmt = outfmt;
 
-	vsp1_dl_list_write(dl, VI6_DPR_WPF_FPORCH(wpf->entity.index),
+	vsp1_dl_body_write(dlb, VI6_DPR_WPF_FPORCH(index),
 			   VI6_DPR_WPF_FPORCH_FP_WPFN);
 
-	vsp1_dl_list_write(dl, VI6_WPF_WRBCK_CTRL, 0);
-
-	/* Sources. If the pipeline has a single input and BRU is not used,
+	/*
+	 * Sources. If the pipeline has a single input and BRx is not used,
 	 * configure it as the master layer. Otherwise configure all
 	 * inputs as sub-layers and select the virtual RPF as the master
 	 * layer.
@@ -338,25 +327,233 @@ static void wpf_configure(struct vsp1_entity *entity,
 		if (!input)
 			continue;
 
-		srcrpf |= (!pipe->bru && pipe->num_inputs == 1)
+		srcrpf |= (!pipe->brx && pipe->num_inputs == 1)
 			? VI6_WPF_SRCRPF_RPF_ACT_MST(input->entity.index)
 			: VI6_WPF_SRCRPF_RPF_ACT_SUB(input->entity.index);
 	}
 
-	if (pipe->bru || pipe->num_inputs > 1)
-		srcrpf |= VI6_WPF_SRCRPF_VIRACT_MST;
+	if (pipe->brx)
+		srcrpf |= pipe->brx->type == VSP1_ENTITY_BRU
+			? VI6_WPF_SRCRPF_VIRACT_MST
+			: VI6_WPF_SRCRPF_VIRACT2_MST;
 
-	vsp1_wpf_write(wpf, dl, VI6_WPF_SRCRPF, srcrpf);
+	vsp1_wpf_write(wpf, dlb, VI6_WPF_SRCRPF, srcrpf);
 
-	/* Enable interrupts */
-	vsp1_dl_list_write(dl, VI6_WPF_IRQ_STA(wpf->entity.index), 0);
-	vsp1_dl_list_write(dl, VI6_WPF_IRQ_ENB(wpf->entity.index),
+	/* Enable interrupts. */
+	vsp1_dl_body_write(dlb, VI6_WPF_IRQ_STA(index), 0);
+	vsp1_dl_body_write(dlb, VI6_WPF_IRQ_ENB(index),
 			   VI6_WFP_IRQ_ENB_DFEE);
+
+	/*
+	 * Configure writeback for display pipelines (the wpf writeback flag is
+	 * never set for memory-to-memory pipelines). Start by adding a chained
+	 * display list to disable writeback after a single frame, and process
+	 * to enable writeback. If the display list allocation fails don't
+	 * enable writeback as we wouldn't be able to safely disable it,
+	 * resulting in possible memory corruption.
+	 */
+	if (wpf->writeback) {
+		ret = wpf_configure_writeback_chain(wpf, dl);
+		if (ret < 0)
+			wpf->writeback = false;
+	}
+
+	vsp1_dl_body_write(dlb, VI6_WPF_WRBCK_CTRL(index),
+			   wpf->writeback ? VI6_WPF_WRBCK_CTRL_WBMD : 0);
+}
+
+static void wpf_configure_frame(struct vsp1_entity *entity,
+				struct vsp1_pipeline *pipe,
+				struct vsp1_dl_list *dl,
+				struct vsp1_dl_body *dlb)
+{
+	const unsigned int mask = BIT(WPF_CTRL_VFLIP)
+				| BIT(WPF_CTRL_HFLIP);
+	struct vsp1_rwpf *wpf = to_rwpf(&entity->subdev);
+	unsigned long flags;
+	u32 outfmt;
+
+	spin_lock_irqsave(&wpf->flip.lock, flags);
+	wpf->flip.active = (wpf->flip.active & ~mask)
+			 | (wpf->flip.pending & mask);
+	spin_unlock_irqrestore(&wpf->flip.lock, flags);
+
+	outfmt = (wpf->alpha << VI6_WPF_OUTFMT_PDV_SHIFT) | wpf->outfmt;
+
+	if (wpf->flip.active & BIT(WPF_CTRL_VFLIP))
+		outfmt |= VI6_WPF_OUTFMT_FLP;
+	if (wpf->flip.active & BIT(WPF_CTRL_HFLIP))
+		outfmt |= VI6_WPF_OUTFMT_HFLP;
+
+	vsp1_wpf_write(wpf, dlb, VI6_WPF_OUTFMT, outfmt);
+}
+
+static void wpf_configure_partition(struct vsp1_entity *entity,
+				    struct vsp1_pipeline *pipe,
+				    struct vsp1_dl_list *dl,
+				    struct vsp1_dl_body *dlb)
+{
+	struct vsp1_rwpf *wpf = to_rwpf(&entity->subdev);
+	struct vsp1_device *vsp1 = wpf->entity.vsp1;
+	struct vsp1_rwpf_memory mem = wpf->mem;
+	const struct v4l2_mbus_framefmt *sink_format;
+	const struct v4l2_pix_format_mplane *format = &wpf->format;
+	const struct vsp1_format_info *fmtinfo = wpf->fmtinfo;
+	unsigned int width;
+	unsigned int height;
+	unsigned int left;
+	unsigned int offset;
+	unsigned int flip;
+	unsigned int i;
+
+	sink_format = vsp1_entity_get_pad_format(&wpf->entity,
+						 wpf->entity.config,
+						 RWPF_PAD_SINK);
+	width = sink_format->width;
+	height = sink_format->height;
+	left = 0;
+
+	/*
+	 * Cropping. The partition algorithm can split the image into
+	 * multiple slices.
+	 */
+	if (pipe->partitions > 1) {
+		width = pipe->partition->wpf.width;
+		left = pipe->partition->wpf.left;
+	}
+
+	vsp1_wpf_write(wpf, dlb, VI6_WPF_HSZCLIP, VI6_WPF_SZCLIP_EN |
+		       (0 << VI6_WPF_SZCLIP_OFST_SHIFT) |
+		       (width << VI6_WPF_SZCLIP_SIZE_SHIFT));
+	vsp1_wpf_write(wpf, dlb, VI6_WPF_VSZCLIP, VI6_WPF_SZCLIP_EN |
+		       (0 << VI6_WPF_SZCLIP_OFST_SHIFT) |
+		       (height << VI6_WPF_SZCLIP_SIZE_SHIFT));
+
+	/*
+	 * For display pipelines without writeback enabled there's no memory
+	 * address to configure, return now.
+	 */
+	if (pipe->lif && !wpf->writeback)
+		return;
+
+	/*
+	 * Update the memory offsets based on flipping configuration.
+	 * The destination addresses point to the locations where the
+	 * VSP starts writing to memory, which can be any corner of the
+	 * image depending on the combination of flipping and rotation.
+	 */
+
+	/*
+	 * First take the partition left coordinate into account.
+	 * Compute the offset to order the partitions correctly on the
+	 * output based on whether flipping is enabled. Consider
+	 * horizontal flipping when rotation is disabled but vertical
+	 * flipping when rotation is enabled, as rotating the image
+	 * switches the horizontal and vertical directions. The offset
+	 * is applied horizontally or vertically accordingly.
+	 */
+	flip = wpf->flip.active;
+
+	if (flip & BIT(WPF_CTRL_HFLIP) && !wpf->flip.rotate)
+		offset = format->width - left - width;
+	else if (flip & BIT(WPF_CTRL_VFLIP) && wpf->flip.rotate)
+		offset = format->height - left - width;
+	else
+		offset = left;
+
+	for (i = 0; i < format->num_planes; ++i) {
+		unsigned int hsub = i > 0 ? fmtinfo->hsub : 1;
+		unsigned int vsub = i > 0 ? fmtinfo->vsub : 1;
+
+		if (wpf->flip.rotate)
+			mem.addr[i] += offset / vsub
+				     * format->plane_fmt[i].bytesperline;
+		else
+			mem.addr[i] += offset / hsub
+				     * fmtinfo->bpp[i] / 8;
+	}
+
+	if (flip & BIT(WPF_CTRL_VFLIP)) {
+		/*
+		 * When rotating the output (after rotation) image
+		 * height is equal to the partition width (before
+		 * rotation). Otherwise it is equal to the output
+		 * image height.
+		 */
+		if (wpf->flip.rotate)
+			height = width;
+		else
+			height = format->height;
+
+		mem.addr[0] += (height - 1)
+			     * format->plane_fmt[0].bytesperline;
+
+		if (format->num_planes > 1) {
+			offset = (height / fmtinfo->vsub - 1)
+			       * format->plane_fmt[1].bytesperline;
+			mem.addr[1] += offset;
+			mem.addr[2] += offset;
+		}
+	}
+
+	if (wpf->flip.rotate && !(flip & BIT(WPF_CTRL_HFLIP))) {
+		unsigned int hoffset = max(0, (int)format->width - 16);
+
+		/*
+		 * Compute the output coordinate. The partition
+		 * horizontal (left) offset becomes a vertical offset.
+		 */
+		for (i = 0; i < format->num_planes; ++i) {
+			unsigned int hsub = i > 0 ? fmtinfo->hsub : 1;
+
+			mem.addr[i] += hoffset / hsub
+				     * fmtinfo->bpp[i] / 8;
+		}
+	}
+
+	/*
+	 * On Gen3 hardware the SPUVS bit has no effect on 3-planar
+	 * formats. Swap the U and V planes manually in that case.
+	 */
+	if (vsp1->info->gen == 3 && format->num_planes == 3 &&
+	    fmtinfo->swap_uv)
+		swap(mem.addr[1], mem.addr[2]);
+
+	vsp1_wpf_write(wpf, dlb, VI6_WPF_DSTM_ADDR_Y, mem.addr[0]);
+	vsp1_wpf_write(wpf, dlb, VI6_WPF_DSTM_ADDR_C0, mem.addr[1]);
+	vsp1_wpf_write(wpf, dlb, VI6_WPF_DSTM_ADDR_C1, mem.addr[2]);
+
+	/*
+	 * Writeback operates in single-shot mode and lasts for a single frame,
+	 * reset the writeback flag to false for the next frame.
+	 */
+	wpf->writeback = false;
+}
+
+static unsigned int wpf_max_width(struct vsp1_entity *entity,
+				  struct vsp1_pipeline *pipe)
+{
+	struct vsp1_rwpf *wpf = to_rwpf(&entity->subdev);
+
+	return wpf->flip.rotate ? 256 : wpf->max_width;
+}
+
+static void wpf_partition(struct vsp1_entity *entity,
+			  struct vsp1_pipeline *pipe,
+			  struct vsp1_partition *partition,
+			  unsigned int partition_idx,
+			  struct vsp1_partition_window *window)
+{
+	partition->wpf = *window;
 }
 
 static const struct vsp1_entity_operations wpf_entity_ops = {
 	.destroy = vsp1_wpf_destroy,
-	.configure = wpf_configure,
+	.configure_stream = wpf_configure_stream,
+	.configure_frame = wpf_configure_frame,
+	.configure_partition = wpf_configure_partition,
+	.max_width = wpf_max_width,
+	.partition = wpf_partition,
 };
 
 /* -----------------------------------------------------------------------------

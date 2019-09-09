@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef OLPC_DCON_H_
 #define OLPC_DCON_H_
 
@@ -9,18 +10,18 @@
 #define DCON_REG_ID		 0
 #define DCON_REG_MODE		 1
 
-#define MODE_PASSTHRU	(1<<0)
-#define MODE_SLEEP	(1<<1)
-#define MODE_SLEEP_AUTO	(1<<2)
-#define MODE_BL_ENABLE	(1<<3)
-#define MODE_BLANK	(1<<4)
-#define MODE_CSWIZZLE	(1<<5)
-#define MODE_COL_AA	(1<<6)
-#define MODE_MONO_LUMA	(1<<7)
-#define MODE_SCAN_INT	(1<<8)
-#define MODE_CLOCKDIV	(1<<9)
-#define MODE_DEBUG	(1<<14)
-#define MODE_SELFTEST	(1<<15)
+#define MODE_PASSTHRU	BIT(0)
+#define MODE_SLEEP	BIT(1)
+#define MODE_SLEEP_AUTO	BIT(2)
+#define MODE_BL_ENABLE	BIT(3)
+#define MODE_BLANK	BIT(4)
+#define MODE_CSWIZZLE	BIT(5)
+#define MODE_COL_AA	BIT(6)
+#define MODE_MONO_LUMA	BIT(7)
+#define MODE_SCAN_INT	BIT(8)
+#define MODE_CLOCKDIV	BIT(9)
+#define MODE_DEBUG	BIT(14)
+#define MODE_SELFTEST	BIT(15)
 
 #define DCON_REG_HRES		0x2
 #define DCON_REG_HTOTAL		0x3
@@ -35,11 +36,11 @@
 #define DCON_REG_MEM_OPT_B	0x42
 
 /* Load Delay Locked Loop (DLL) settings for clock delay */
-#define MEM_DLL_CLOCK_DELAY	(1<<0)
+#define MEM_DLL_CLOCK_DELAY	BIT(0)
 /* Memory controller power down function */
-#define MEM_POWER_DOWN		(1<<8)
+#define MEM_POWER_DOWN		BIT(8)
 /* Memory controller software reset */
-#define MEM_SOFT_RESET		(1<<0)
+#define MEM_SOFT_RESET		BIT(0)
 
 /* Status values */
 
@@ -90,10 +91,15 @@ struct dcon_priv {
 };
 
 struct dcon_platform_data {
-	int (*init)(struct dcon_priv *);
+	int (*init)(struct dcon_priv *dcon);
 	void (*bus_stabilize_wiggle)(void);
-	void (*set_dconload)(int);
-	int (*read_status)(u8 *);
+	void (*set_dconload)(int load);
+	int (*read_status)(u8 *status);
+};
+
+struct dcon_gpio {
+	const char *name;
+	unsigned long flags;
 };
 
 #include <linux/interrupt.h>

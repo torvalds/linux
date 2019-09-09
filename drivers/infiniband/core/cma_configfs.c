@@ -33,7 +33,10 @@
 #include <linux/module.h>
 #include <linux/configfs.h>
 #include <rdma/ib_verbs.h>
+#include <rdma/rdma_cm.h>
+
 #include "core_priv.h"
+#include "cma_priv.h"
 
 struct cma_device;
 
@@ -65,7 +68,7 @@ static struct cma_dev_port_group *to_dev_port_group(struct config_item *item)
 
 static bool filter_by_name(struct ib_device *ib_dev, void *cookie)
 {
-	return !strcmp(ib_dev->name, cookie);
+	return !strcmp(dev_name(&ib_dev->dev), cookie);
 }
 
 static int cma_configfs_params_get(struct config_item *item,
@@ -139,12 +142,54 @@ static ssize_t default_roce_mode_store(struct config_item *item,
 
 CONFIGFS_ATTR(, default_roce_mode);
 
+static ssize_t default_roce_tos_show(struct config_item *item, char *buf)
+{
+	struct cma_device *cma_dev;
+	struct cma_dev_port_group *group;
+	ssize_t ret;
+	u8 tos;
+
+	ret = cma_configfs_params_get(item, &cma_dev, &group);
+	if (ret)
+		return ret;
+
+	tos = cma_get_default_roce_tos(cma_dev, group->port_num);
+	cma_configfs_params_put(cma_dev);
+
+	return sprintf(buf, "%u\n", tos);
+}
+
+static ssize_t default_roce_tos_store(struct config_item *item,
+				      const char *buf, size_t count)
+{
+	struct cma_device *cma_dev;
+	struct cma_dev_port_group *group;
+	ssize_t ret;
+	u8 tos;
+
+	ret = kstrtou8(buf, 0, &tos);
+	if (ret)
+		return ret;
+
+	ret = cma_configfs_params_get(item, &cma_dev, &group);
+	if (ret)
+		return ret;
+
+	ret = cma_set_default_roce_tos(cma_dev, group->port_num, tos);
+	cma_configfs_params_put(cma_dev);
+
+	return ret ? ret : strnlen(buf, count);
+}
+
+CONFIGFS_ATTR(, default_roce_tos);
+
 static struct configfs_attribute *cma_configfs_attributes[] = {
 	&attr_default_roce_mode,
+	&attr_default_roce_tos,
 	NULL,
 };
 
-static struct config_item_type cma_port_group_type = {
+static const struct config_item_type cma_port_group_type = {
 	.ct_attrs	= cma_configfs_attributes,
 	.ct_owner	= THIS_MODULE
 };
@@ -221,7 +266,7 @@ static struct configfs_item_operations cma_ports_item_ops = {
 	.release = release_cma_ports_group
 };
 
-static struct config_item_type cma_ports_group_type = {
+static const struct config_item_type cma_ports_group_type = {
 	.ct_item_ops	= &cma_ports_item_ops,
 	.ct_owner	= THIS_MODULE
 };
@@ -230,7 +275,7 @@ static struct configfs_item_operations cma_device_item_ops = {
 	.release = release_cma_dev
 };
 
-static struct config_item_type cma_device_group_type = {
+static const struct config_item_type cma_device_group_type = {
 	.ct_item_ops	= &cma_device_item_ops,
 	.ct_owner	= THIS_MODULE
 };
@@ -253,7 +298,7 @@ static struct config_group *make_cma_dev(struct config_group *group,
 		goto fail;
 	}
 
-	strncpy(cma_dev_group->name, name, sizeof(cma_dev_group->name));
+	strlcpy(cma_dev_group->name, name, sizeof(cma_dev_group->name));
 
 	config_group_init_type_name(&cma_dev_group->ports_group, "ports",
 				    &cma_ports_group_type);
@@ -281,7 +326,7 @@ static struct configfs_group_operations cma_subsys_group_ops = {
 	.make_group	= make_cma_dev,
 };
 
-static struct config_item_type cma_subsys_type = {
+static const struct config_item_type cma_subsys_type = {
 	.ct_group_ops	= &cma_subsys_group_ops,
 	.ct_owner	= THIS_MODULE,
 };

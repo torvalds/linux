@@ -1,22 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *  Routines for the GF1 MIDI interface - like UART 6850
- *
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <linux/delay.h>
@@ -227,14 +212,14 @@ static void snd_gf1_uart_output_trigger(struct snd_rawmidi_substream *substream,
 	spin_unlock_irqrestore(&gus->uart_cmd_lock, flags);
 }
 
-static struct snd_rawmidi_ops snd_gf1_uart_output =
+static const struct snd_rawmidi_ops snd_gf1_uart_output =
 {
 	.open =		snd_gf1_uart_output_open,
 	.close =	snd_gf1_uart_output_close,
 	.trigger =	snd_gf1_uart_output_trigger,
 };
 
-static struct snd_rawmidi_ops snd_gf1_uart_input =
+static const struct snd_rawmidi_ops snd_gf1_uart_input =
 {
 	.open =		snd_gf1_uart_input_open,
 	.close =	snd_gf1_uart_input_close,

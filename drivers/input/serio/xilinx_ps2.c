@@ -1,17 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Xilinx XPS PS/2 device driver
  *
  * (c) 2005 MontaVista Software, Inc.
  * (c) 2008 Xilinx, Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 
@@ -45,8 +37,10 @@
 #define XPS2_STATUS_RX_FULL	0x00000001 /* Receive Full  */
 #define XPS2_STATUS_TX_FULL	0x00000002 /* Transmit Full  */
 
-/* Bit definitions for ISR/IER registers. Both the registers have the same bit
- * definitions and are only defined once. */
+/*
+ * Bit definitions for ISR/IER registers. Both the registers have the same bit
+ * definitions and are only defined once.
+ */
 #define XPS2_IPIXR_WDT_TOUT	0x00000001 /* Watchdog Timeout Interrupt */
 #define XPS2_IPIXR_TX_NOACK	0x00000002 /* Transmit No ACK Interrupt */
 #define XPS2_IPIXR_TX_ACK	0x00000004 /* Transmit ACK (Data) Interrupt */
@@ -243,18 +237,17 @@ static int xps2_of_probe(struct platform_device *ofdev)
 	unsigned int irq;
 	int error;
 
-	dev_info(dev, "Device Tree Probing \'%s\'\n",
-			ofdev->dev.of_node->name);
+	dev_info(dev, "Device Tree Probing \'%pOFn\'\n", dev->of_node);
 
 	/* Get iospace for the device */
-	error = of_address_to_resource(ofdev->dev.of_node, 0, &r_mem);
+	error = of_address_to_resource(dev->of_node, 0, &r_mem);
 	if (error) {
 		dev_err(dev, "invalid address\n");
 		return error;
 	}
 
 	/* Get IRQ for the device */
-	irq = irq_of_parse_and_map(ofdev->dev.of_node, 0);
+	irq = irq_of_parse_and_map(dev->of_node, 0);
 	if (!irq) {
 		dev_err(dev, "no IRQ found\n");
 		return -ENODEV;
@@ -293,8 +286,10 @@ static int xps2_of_probe(struct platform_device *ofdev)
 	/* Disable all the interrupts, just in case */
 	out_be32(drvdata->base_address + XPS2_IPIER_OFFSET, 0);
 
-	/* Reset the PS2 device and abort any current transaction, to make sure
-	 * we have the PS2 in a good state */
+	/*
+	 * Reset the PS2 device and abort any current transaction,
+	 * to make sure we have the PS2 in a good state.
+	 */
 	out_be32(drvdata->base_address + XPS2_SRST_OFFSET, XPS2_SRST_RESET);
 
 	dev_info(dev, "Xilinx PS2 at 0x%08llX mapped to 0x%p, irq=%d\n",

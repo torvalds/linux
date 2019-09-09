@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * SH7720 Pinmux
  *
  *  Copyright (C) 2008  Magnus Damm
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 
 #include <linux/kernel.h>
@@ -928,7 +925,7 @@ static const struct pinmux_func pinmux_func_gpios[] = {
 };
 
 static const struct pinmux_cfg_reg pinmux_config_regs[] = {
-	{ PINMUX_CFG_REG("PACR", 0xa4050100, 16, 2) {
+	{ PINMUX_CFG_REG("PACR", 0xa4050100, 16, 2, GROUP(
 		PTA7_FN, PTA7_OUT, 0, PTA7_IN,
 		PTA6_FN, PTA6_OUT, 0, PTA6_IN,
 		PTA5_FN, PTA5_OUT, 0, PTA5_IN,
@@ -936,9 +933,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		PTA3_FN, PTA3_OUT, 0, PTA3_IN,
 		PTA2_FN, PTA2_OUT, 0, PTA2_IN,
 		PTA1_FN, PTA1_OUT, 0, PTA1_IN,
-		PTA0_FN, PTA0_OUT, 0, PTA0_IN }
+		PTA0_FN, PTA0_OUT, 0, PTA0_IN ))
 	},
-	{ PINMUX_CFG_REG("PBCR", 0xa4050102, 16, 2) {
+	{ PINMUX_CFG_REG("PBCR", 0xa4050102, 16, 2, GROUP(
 		PTB7_FN, PTB7_OUT, 0, PTB7_IN,
 		PTB6_FN, PTB6_OUT, 0, PTB6_IN,
 		PTB5_FN, PTB5_OUT, 0, PTB5_IN,
@@ -946,9 +943,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		PTB3_FN, PTB3_OUT, 0, PTB3_IN,
 		PTB2_FN, PTB2_OUT, 0, PTB2_IN,
 		PTB1_FN, PTB1_OUT, 0, PTB1_IN,
-		PTB0_FN, PTB0_OUT, 0, PTB0_IN }
+		PTB0_FN, PTB0_OUT, 0, PTB0_IN ))
 	},
-	{ PINMUX_CFG_REG("PCCR", 0xa4050104, 16, 2) {
+	{ PINMUX_CFG_REG("PCCR", 0xa4050104, 16, 2, GROUP(
 		PTC7_FN, PTC7_OUT, 0, PTC7_IN,
 		PTC6_FN, PTC6_OUT, 0, PTC6_IN,
 		PTC5_FN, PTC5_OUT, 0, PTC5_IN,
@@ -956,9 +953,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		PTC3_FN, PTC3_OUT, 0, PTC3_IN,
 		PTC2_FN, PTC2_OUT, 0, PTC2_IN,
 		PTC1_FN, PTC1_OUT, 0, PTC1_IN,
-		PTC0_FN, PTC0_OUT, 0, PTC0_IN }
+		PTC0_FN, PTC0_OUT, 0, PTC0_IN ))
 	},
-	{ PINMUX_CFG_REG("PDCR", 0xa4050106, 16, 2) {
+	{ PINMUX_CFG_REG("PDCR", 0xa4050106, 16, 2, GROUP(
 		PTD7_FN, PTD7_OUT, 0, PTD7_IN,
 		PTD6_FN, PTD6_OUT, 0, PTD6_IN,
 		PTD5_FN, PTD5_OUT, 0, PTD5_IN,
@@ -966,9 +963,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		PTD3_FN, PTD3_OUT, 0, PTD3_IN,
 		PTD2_FN, PTD2_OUT, 0, PTD2_IN,
 		PTD1_FN, PTD1_OUT, 0, PTD1_IN,
-		PTD0_FN, PTD0_OUT, 0, PTD0_IN }
+		PTD0_FN, PTD0_OUT, 0, PTD0_IN ))
 	},
-	{ PINMUX_CFG_REG("PECR", 0xa4050108, 16, 2) {
+	{ PINMUX_CFG_REG("PECR", 0xa4050108, 16, 2, GROUP(
 		0, 0, 0, 0,
 		PTE6_FN, 0, 0, PTE6_IN,
 		PTE5_FN, 0, 0, PTE5_IN,
@@ -976,9 +973,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		PTE3_FN, PTE3_OUT, 0, PTE3_IN,
 		PTE2_FN, PTE2_OUT, 0, PTE2_IN,
 		PTE1_FN, PTE1_OUT, 0, PTE1_IN,
-		PTE0_FN, PTE0_OUT, 0, PTE0_IN }
+		PTE0_FN, PTE0_OUT, 0, PTE0_IN ))
 	},
-	{ PINMUX_CFG_REG("PFCR", 0xa405010a, 16, 2) {
+	{ PINMUX_CFG_REG("PFCR", 0xa405010a, 16, 2, GROUP(
 		0, 0, 0, 0,
 		PTF6_FN, 0, 0, PTF6_IN,
 		PTF5_FN, 0, 0, PTF5_IN,
@@ -986,9 +983,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		PTF3_FN, 0, 0, PTF3_IN,
 		PTF2_FN, 0, 0, PTF2_IN,
 		PTF1_FN, 0, 0, PTF1_IN,
-		PTF0_FN, 0, 0, PTF0_IN }
+		PTF0_FN, 0, 0, PTF0_IN ))
 	},
-	{ PINMUX_CFG_REG("PGCR", 0xa405010c, 16, 2) {
+	{ PINMUX_CFG_REG("PGCR", 0xa405010c, 16, 2, GROUP(
 		0, 0, 0, 0,
 		PTG6_FN, PTG6_OUT, 0, PTG6_IN,
 		PTG5_FN, PTG5_OUT, 0, PTG5_IN,
@@ -996,9 +993,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		PTG3_FN, PTG3_OUT, 0, PTG3_IN,
 		PTG2_FN, PTG2_OUT, 0, PTG2_IN,
 		PTG1_FN, PTG1_OUT, 0, PTG1_IN,
-		PTG0_FN, PTG0_OUT, 0, PTG0_IN }
+		PTG0_FN, PTG0_OUT, 0, PTG0_IN ))
 	},
-	{ PINMUX_CFG_REG("PHCR", 0xa405010e, 16, 2) {
+	{ PINMUX_CFG_REG("PHCR", 0xa405010e, 16, 2, GROUP(
 		0, 0, 0, 0,
 		PTH6_FN, PTH6_OUT, 0, PTH6_IN,
 		PTH5_FN, PTH5_OUT, 0, PTH5_IN,
@@ -1006,9 +1003,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		PTH3_FN, PTH3_OUT, 0, PTH3_IN,
 		PTH2_FN, PTH2_OUT, 0, PTH2_IN,
 		PTH1_FN, PTH1_OUT, 0, PTH1_IN,
-		PTH0_FN, PTH0_OUT, 0, PTH0_IN }
+		PTH0_FN, PTH0_OUT, 0, PTH0_IN ))
 	},
-	{ PINMUX_CFG_REG("PJCR", 0xa4050110, 16, 2) {
+	{ PINMUX_CFG_REG("PJCR", 0xa4050110, 16, 2, GROUP(
 		0, 0, 0, 0,
 		PTJ6_FN, PTJ6_OUT, 0, PTJ6_IN,
 		PTJ5_FN, PTJ5_OUT, 0, PTJ5_IN,
@@ -1016,9 +1013,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		PTJ3_FN, PTJ3_OUT, 0, PTJ3_IN,
 		PTJ2_FN, PTJ2_OUT, 0, PTJ2_IN,
 		PTJ1_FN, PTJ1_OUT, 0, PTJ1_IN,
-		PTJ0_FN, PTJ0_OUT, 0, PTJ0_IN }
+		PTJ0_FN, PTJ0_OUT, 0, PTJ0_IN ))
 	},
-	{ PINMUX_CFG_REG("PKCR", 0xa4050112, 16, 2) {
+	{ PINMUX_CFG_REG("PKCR", 0xa4050112, 16, 2, GROUP(
 		0, 0, 0, 0,
 		0, 0, 0, 0,
 		0, 0, 0, 0,
@@ -1026,9 +1023,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		PTK3_FN, PTK3_OUT, 0, PTK3_IN,
 		PTK2_FN, PTK2_OUT, 0, PTK2_IN,
 		PTK1_FN, PTK1_OUT, 0, PTK1_IN,
-		PTK0_FN, PTK0_OUT, 0, PTK0_IN }
+		PTK0_FN, PTK0_OUT, 0, PTK0_IN ))
 	},
-	{ PINMUX_CFG_REG("PLCR", 0xa4050114, 16, 2) {
+	{ PINMUX_CFG_REG("PLCR", 0xa4050114, 16, 2, GROUP(
 		PTL7_FN, PTL7_OUT, 0, PTL7_IN,
 		PTL6_FN, PTL6_OUT, 0, PTL6_IN,
 		PTL5_FN, PTL5_OUT, 0, PTL5_IN,
@@ -1036,9 +1033,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		PTL3_FN, PTL3_OUT, 0, PTL3_IN,
 		0, 0, 0, 0,
 		0, 0, 0, 0,
-		0, 0, 0, 0 }
+		0, 0, 0, 0 ))
 	},
-	{ PINMUX_CFG_REG("PMCR", 0xa4050116, 16, 2) {
+	{ PINMUX_CFG_REG("PMCR", 0xa4050116, 16, 2, GROUP(
 		PTM7_FN, PTM7_OUT, 0, PTM7_IN,
 		PTM6_FN, PTM6_OUT, 0, PTM6_IN,
 		PTM5_FN, PTM5_OUT, 0, PTM5_IN,
@@ -1046,9 +1043,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		PTM3_FN, PTM3_OUT, 0, PTM3_IN,
 		PTM2_FN, PTM2_OUT, 0, PTM2_IN,
 		PTM1_FN, PTM1_OUT, 0, PTM1_IN,
-		PTM0_FN, PTM0_OUT, 0, PTM0_IN }
+		PTM0_FN, PTM0_OUT, 0, PTM0_IN ))
 	},
-	{ PINMUX_CFG_REG("PPCR", 0xa4050118, 16, 2) {
+	{ PINMUX_CFG_REG("PPCR", 0xa4050118, 16, 2, GROUP(
 		0, 0, 0, 0,
 		0, 0, 0, 0,
 		0, 0, 0, 0,
@@ -1056,9 +1053,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		PTP3_FN, PTP3_OUT, 0, PTP3_IN,
 		PTP2_FN, PTP2_OUT, 0, PTP2_IN,
 		PTP1_FN, PTP1_OUT, 0, PTP1_IN,
-		PTP0_FN, PTP0_OUT, 0, PTP0_IN }
+		PTP0_FN, PTP0_OUT, 0, PTP0_IN ))
 	},
-	{ PINMUX_CFG_REG("PRCR", 0xa405011a, 16, 2) {
+	{ PINMUX_CFG_REG("PRCR", 0xa405011a, 16, 2, GROUP(
 		PTR7_FN, PTR7_OUT, 0, PTR7_IN,
 		PTR6_FN, PTR6_OUT, 0, PTR6_IN,
 		PTR5_FN, PTR5_OUT, 0, PTR5_IN,
@@ -1066,9 +1063,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		PTR3_FN, PTR3_OUT, 0, PTR3_IN,
 		PTR2_FN, PTR2_OUT, 0, PTR2_IN,
 		PTR1_FN, PTR1_OUT, 0, PTR1_IN,
-		PTR0_FN, PTR0_OUT, 0, PTR0_IN }
+		PTR0_FN, PTR0_OUT, 0, PTR0_IN ))
 	},
-	{ PINMUX_CFG_REG("PSCR", 0xa405011c, 16, 2) {
+	{ PINMUX_CFG_REG("PSCR", 0xa405011c, 16, 2, GROUP(
 		0, 0, 0, 0,
 		0, 0, 0, 0,
 		0, 0, 0, 0,
@@ -1076,9 +1073,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		PTS3_FN, PTS3_OUT, 0, PTS3_IN,
 		PTS2_FN, PTS2_OUT, 0, PTS2_IN,
 		PTS1_FN, PTS1_OUT, 0, PTS1_IN,
-		PTS0_FN, PTS0_OUT, 0, PTS0_IN }
+		PTS0_FN, PTS0_OUT, 0, PTS0_IN ))
 	},
-	{ PINMUX_CFG_REG("PTCR", 0xa405011e, 16, 2) {
+	{ PINMUX_CFG_REG("PTCR", 0xa405011e, 16, 2, GROUP(
 		0, 0, 0, 0,
 		0, 0, 0, 0,
 		0, 0, 0, 0,
@@ -1086,9 +1083,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		PTT3_FN, PTT3_OUT, 0, PTT3_IN,
 		PTT2_FN, PTT2_OUT, 0, PTT2_IN,
 		PTT1_FN, PTT1_OUT, 0, PTT1_IN,
-		PTT0_FN, PTT0_OUT, 0, PTT0_IN }
+		PTT0_FN, PTT0_OUT, 0, PTT0_IN ))
 	},
-	{ PINMUX_CFG_REG("PUCR", 0xa4050120, 16, 2) {
+	{ PINMUX_CFG_REG("PUCR", 0xa4050120, 16, 2, GROUP(
 		0, 0, 0, 0,
 		0, 0, 0, 0,
 		0, 0, 0, 0,
@@ -1096,9 +1093,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		PTU3_FN, PTU3_OUT, 0, PTU3_IN,
 		PTU2_FN, PTU2_OUT, 0, PTU2_IN,
 		PTU1_FN, PTU1_OUT, 0, PTU1_IN,
-		PTU0_FN, PTU0_OUT, 0, PTU0_IN }
+		PTU0_FN, PTU0_OUT, 0, PTU0_IN ))
 	},
-	{ PINMUX_CFG_REG("PVCR", 0xa4050122, 16, 2) {
+	{ PINMUX_CFG_REG("PVCR", 0xa4050122, 16, 2, GROUP(
 		0, 0, 0, 0,
 		0, 0, 0, 0,
 		0, 0, 0, 0,
@@ -1106,83 +1103,83 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		PTV3_FN, PTV3_OUT, 0, PTV3_IN,
 		PTV2_FN, PTV2_OUT, 0, PTV2_IN,
 		PTV1_FN, PTV1_OUT, 0, PTV1_IN,
-		PTV0_FN, PTV0_OUT, 0, PTV0_IN }
+		PTV0_FN, PTV0_OUT, 0, PTV0_IN ))
 	},
 	{}
 };
 
 static const struct pinmux_data_reg pinmux_data_regs[] = {
-	{ PINMUX_DATA_REG("PADR", 0xa4050140, 8) {
+	{ PINMUX_DATA_REG("PADR", 0xa4050140, 8, GROUP(
 		PTA7_DATA, PTA6_DATA, PTA5_DATA, PTA4_DATA,
-		PTA3_DATA, PTA2_DATA, PTA1_DATA, PTA0_DATA }
+		PTA3_DATA, PTA2_DATA, PTA1_DATA, PTA0_DATA ))
 	},
-	{ PINMUX_DATA_REG("PBDR", 0xa4050142, 8) {
+	{ PINMUX_DATA_REG("PBDR", 0xa4050142, 8, GROUP(
 		PTB7_DATA, PTB6_DATA, PTB5_DATA, PTB4_DATA,
-		PTB3_DATA, PTB2_DATA, PTB1_DATA, PTB0_DATA }
+		PTB3_DATA, PTB2_DATA, PTB1_DATA, PTB0_DATA ))
 	},
-	{ PINMUX_DATA_REG("PCDR", 0xa4050144, 8) {
+	{ PINMUX_DATA_REG("PCDR", 0xa4050144, 8, GROUP(
 		PTC7_DATA, PTC6_DATA, PTC5_DATA, PTC4_DATA,
-		PTC3_DATA, PTC2_DATA, PTC1_DATA, PTC0_DATA }
+		PTC3_DATA, PTC2_DATA, PTC1_DATA, PTC0_DATA ))
 	},
-	{ PINMUX_DATA_REG("PDDR", 0xa4050126, 8) {
+	{ PINMUX_DATA_REG("PDDR", 0xa4050126, 8, GROUP(
 		PTD7_DATA, PTD6_DATA, PTD5_DATA, PTD4_DATA,
-		PTD3_DATA, PTD2_DATA, PTD1_DATA, PTD0_DATA }
+		PTD3_DATA, PTD2_DATA, PTD1_DATA, PTD0_DATA ))
 	},
-	{ PINMUX_DATA_REG("PEDR", 0xa4050148, 8) {
+	{ PINMUX_DATA_REG("PEDR", 0xa4050148, 8, GROUP(
 		0, PTE6_DATA, PTE5_DATA, PTE4_DATA,
-		PTE3_DATA, PTE2_DATA, PTE1_DATA, PTE0_DATA }
+		PTE3_DATA, PTE2_DATA, PTE1_DATA, PTE0_DATA ))
 	},
-	{ PINMUX_DATA_REG("PFDR", 0xa405014a, 8) {
+	{ PINMUX_DATA_REG("PFDR", 0xa405014a, 8, GROUP(
 		0, PTF6_DATA, PTF5_DATA, PTF4_DATA,
-		PTF3_DATA, PTF2_DATA, PTF1_DATA, PTF0_DATA }
+		PTF3_DATA, PTF2_DATA, PTF1_DATA, PTF0_DATA ))
 	},
-	{ PINMUX_DATA_REG("PGDR", 0xa405014c, 8) {
+	{ PINMUX_DATA_REG("PGDR", 0xa405014c, 8, GROUP(
 		0, PTG6_DATA, PTG5_DATA, PTG4_DATA,
-		PTG3_DATA, PTG2_DATA, PTG1_DATA, PTG0_DATA }
+		PTG3_DATA, PTG2_DATA, PTG1_DATA, PTG0_DATA ))
 	},
-	{ PINMUX_DATA_REG("PHDR", 0xa405014e, 8) {
+	{ PINMUX_DATA_REG("PHDR", 0xa405014e, 8, GROUP(
 		0, PTH6_DATA, PTH5_DATA, PTH4_DATA,
-		PTH3_DATA, PTH2_DATA, PTH1_DATA, PTH0_DATA }
+		PTH3_DATA, PTH2_DATA, PTH1_DATA, PTH0_DATA ))
 	},
-	{ PINMUX_DATA_REG("PJDR", 0xa4050150, 8) {
+	{ PINMUX_DATA_REG("PJDR", 0xa4050150, 8, GROUP(
 		0, PTJ6_DATA, PTJ5_DATA, PTJ4_DATA,
-		PTJ3_DATA, PTJ2_DATA, PTJ1_DATA, PTJ0_DATA }
+		PTJ3_DATA, PTJ2_DATA, PTJ1_DATA, PTJ0_DATA ))
 	},
-	{ PINMUX_DATA_REG("PKDR", 0xa4050152, 8) {
+	{ PINMUX_DATA_REG("PKDR", 0xa4050152, 8, GROUP(
 		0, 0, 0, 0,
-		PTK3_DATA, PTK2_DATA, PTK1_DATA, PTK0_DATA }
+		PTK3_DATA, PTK2_DATA, PTK1_DATA, PTK0_DATA ))
 	},
-	{ PINMUX_DATA_REG("PLDR", 0xa4050154, 8) {
+	{ PINMUX_DATA_REG("PLDR", 0xa4050154, 8, GROUP(
 		PTL7_DATA, PTL6_DATA, PTL5_DATA, PTL4_DATA,
-		PTL3_DATA, 0, 0, 0 }
+		PTL3_DATA, 0, 0, 0 ))
 	},
-	{ PINMUX_DATA_REG("PMDR", 0xa4050156, 8) {
+	{ PINMUX_DATA_REG("PMDR", 0xa4050156, 8, GROUP(
 		PTM7_DATA, PTM6_DATA, PTM5_DATA, PTM4_DATA,
-		PTM3_DATA, PTM2_DATA, PTM1_DATA, PTM0_DATA }
+		PTM3_DATA, PTM2_DATA, PTM1_DATA, PTM0_DATA ))
 	},
-	{ PINMUX_DATA_REG("PPDR", 0xa4050158, 8) {
+	{ PINMUX_DATA_REG("PPDR", 0xa4050158, 8, GROUP(
 		0, 0, 0, PTP4_DATA,
-		PTP3_DATA, PTP2_DATA, PTP1_DATA, PTP0_DATA }
+		PTP3_DATA, PTP2_DATA, PTP1_DATA, PTP0_DATA ))
 	},
-	{ PINMUX_DATA_REG("PRDR", 0xa405015a, 8) {
+	{ PINMUX_DATA_REG("PRDR", 0xa405015a, 8, GROUP(
 		PTR7_DATA, PTR6_DATA, PTR5_DATA, PTR4_DATA,
-		PTR3_DATA, PTR2_DATA, PTR1_DATA, PTR0_DATA }
+		PTR3_DATA, PTR2_DATA, PTR1_DATA, PTR0_DATA ))
 	},
-	{ PINMUX_DATA_REG("PSDR", 0xa405015c, 8) {
+	{ PINMUX_DATA_REG("PSDR", 0xa405015c, 8, GROUP(
 		0, 0, 0, PTS4_DATA,
-		PTS3_DATA, PTS2_DATA, PTS1_DATA, PTS0_DATA }
+		PTS3_DATA, PTS2_DATA, PTS1_DATA, PTS0_DATA ))
 	},
-	{ PINMUX_DATA_REG("PTDR", 0xa405015e, 8) {
+	{ PINMUX_DATA_REG("PTDR", 0xa405015e, 8, GROUP(
 		0, 0, 0, PTT4_DATA,
-		PTT3_DATA, PTT2_DATA, PTT1_DATA, PTT0_DATA }
+		PTT3_DATA, PTT2_DATA, PTT1_DATA, PTT0_DATA ))
 	},
-	{ PINMUX_DATA_REG("PUDR", 0xa4050160, 8) {
+	{ PINMUX_DATA_REG("PUDR", 0xa4050160, 8, GROUP(
 		0, 0, 0, PTU4_DATA,
-		PTU3_DATA, PTU2_DATA, PTU1_DATA, PTU0_DATA }
+		PTU3_DATA, PTU2_DATA, PTU1_DATA, PTU0_DATA ))
 	},
-	{ PINMUX_DATA_REG("PVDR", 0xa4050162, 8) {
+	{ PINMUX_DATA_REG("PVDR", 0xa4050162, 8, GROUP(
 		0, 0, 0, PTV4_DATA,
-		PTV3_DATA, PTV2_DATA, PTV1_DATA, PTV0_DATA }
+		PTV3_DATA, PTV2_DATA, PTV1_DATA, PTV0_DATA ))
 	},
 	{ },
 };

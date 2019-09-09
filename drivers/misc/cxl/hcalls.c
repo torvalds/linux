@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2015 IBM Corp.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 
@@ -413,9 +409,9 @@ long cxl_h_collect_int_info(u64 unit_address, u64 process_token,
 
 	switch (rc) {
 	case H_SUCCESS:     /* The interrupt info is returned in return registers. */
-		pr_devel("dsisr:%#llx, dar:%#llx, dsr:%#llx, pid:%u, tid:%u, afu_err:%#llx, errstat:%#llx\n",
-			info->dsisr, info->dar, info->dsr, info->pid,
-			info->tid, info->afu_err, info->errstat);
+		pr_devel("dsisr:%#llx, dar:%#llx, dsr:%#llx, pid_tid:%#llx, afu_err:%#llx, errstat:%#llx\n",
+			info->dsisr, info->dar, info->dsr, info->reserved,
+			info->afu_err, info->errstat);
 		return 0;
 	case H_PARAMETER:   /* An incorrect parameter was supplied. */
 		return -EINVAL;

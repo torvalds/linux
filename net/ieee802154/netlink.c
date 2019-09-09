@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Netlink interface for IEEE 802.15.4 stack
  *
  * Copyright 2007, 2008 Siemens AG
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  *
  * Written by:
  * Sergey Lapin <slapin@ossfans.org>
@@ -27,14 +19,6 @@
 
 static unsigned int ieee802154_seq_num;
 static DEFINE_SPINLOCK(ieee802154_seq_lock);
-
-struct genl_family nl802154_family = {
-	.id		= GENL_ID_GENERATE,
-	.hdrsize	= 0,
-	.name		= IEEE802154_NL_NAME,
-	.version	= 1,
-	.maxattr	= IEEE802154_ATTR_MAX,
-};
 
 /* Requests to userspace */
 struct sk_buff *ieee802154_nl_create(int flags, u8 req)
@@ -97,7 +81,7 @@ int ieee802154_nl_reply(struct sk_buff *msg, struct genl_info *info)
 	return genlmsg_reply(msg, info);
 }
 
-static const struct genl_ops ieee8021154_ops[] = {
+static const struct genl_ops ieee802154_ops[] = {
 	/* see nl-phy.c */
 	IEEE802154_DUMP(IEEE802154_LIST_PHY, ieee802154_list_phy,
 			ieee802154_dump_phy),
@@ -139,11 +123,22 @@ static const struct genl_multicast_group ieee802154_mcgrps[] = {
 	[IEEE802154_BEACON_MCGRP] = { .name = IEEE802154_MCAST_BEACON_NAME, },
 };
 
+struct genl_family nl802154_family __ro_after_init = {
+	.hdrsize	= 0,
+	.name		= IEEE802154_NL_NAME,
+	.version	= 1,
+	.maxattr	= IEEE802154_ATTR_MAX,
+	.policy		= ieee802154_policy,
+	.module		= THIS_MODULE,
+	.ops		= ieee802154_ops,
+	.n_ops		= ARRAY_SIZE(ieee802154_ops),
+	.mcgrps		= ieee802154_mcgrps,
+	.n_mcgrps	= ARRAY_SIZE(ieee802154_mcgrps),
+};
+
 int __init ieee802154_nl_init(void)
 {
-	return genl_register_family_with_ops_groups(&nl802154_family,
-						    ieee8021154_ops,
-						    ieee802154_mcgrps);
+	return genl_register_family(&nl802154_family);
 }
 
 void ieee802154_nl_exit(void)

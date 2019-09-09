@@ -1,26 +1,20 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * hdmi-codec.h - HDMI Codec driver API
  *
  * Copyright (C) 2014 Texas Instruments Incorporated - http://www.ti.com
  *
  * Author: Jyri Sarha <jsarha@ti.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 
 #ifndef __HDMI_CODEC_H__
 #define __HDMI_CODEC_H__
 
+#include <linux/of_graph.h>
 #include <linux/hdmi.h>
 #include <drm/drm_edid.h>
 #include <sound/asoundef.h>
+#include <sound/soc.h>
 #include <uapi/sound/asound.h>
 
 /*
@@ -36,10 +30,10 @@ struct hdmi_codec_daifmt {
 		HDMI_AC97,
 		HDMI_SPDIF,
 	} fmt;
-	int bit_clk_inv:1;
-	int frame_clk_inv:1;
-	int bit_clk_master:1;
-	int frame_clk_master:1;
+	unsigned int bit_clk_inv:1;
+	unsigned int frame_clk_inv:1;
+	unsigned int bit_clk_master:1;
+	unsigned int frame_clk_master:1;
 };
 
 /*
@@ -87,6 +81,13 @@ struct hdmi_codec_ops {
 	 */
 	int (*get_eld)(struct device *dev, void *data,
 		       uint8_t *buf, size_t len);
+
+	/*
+	 * Getting DAI ID
+	 * Optional
+	 */
+	int (*get_dai_id)(struct snd_soc_component *comment,
+			  struct device_node *endpoint);
 };
 
 /* HDMI codec initalization data */

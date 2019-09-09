@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #define pr_fmt(fmt) "efi: " fmt
 
 #include <linux/init.h>
@@ -8,18 +9,74 @@
 #include <linux/efi.h>
 #include <linux/slab.h>
 #include <linux/memblock.h>
-#include <linux/bootmem.h>
 #include <linux/acpi.h>
 #include <linux/dmi.h>
+
+#include <asm/e820/api.h>
 #include <asm/efi.h>
 #include <asm/uv/uv.h>
+#include <asm/cpu_device_id.h>
+#include <asm/reboot.h>
 
 #define EFI_MIN_RESERVE 5120
 
 #define EFI_DUMMY_GUID \
 	EFI_GUID(0x4424ac57, 0xbe4b, 0x47dd, 0x9e, 0x97, 0xed, 0x50, 0xf0, 0x9f, 0x92, 0xa9)
 
-static efi_char16_t efi_dummy_name[6] = { 'D', 'U', 'M', 'M', 'Y', 0 };
+#define QUARK_CSH_SIGNATURE		0x5f435348	/* _CSH */
+#define QUARK_SECURITY_HEADER_SIZE	0x400
+
+/*
+ * Header prepended to the standard EFI capsule on Quark systems the are based
+ * on Intel firmware BSP.
+ * @csh_signature:	Unique identifier to sanity check signed module
+ * 			presence ("_CSH").
+ * @version:		Current version of CSH used. Should be one for Quark A0.
+ * @modulesize:		Size of the entire module including the module header
+ * 			and payload.
+ * @security_version_number_index: Index of SVN to use for validation of signed
+ * 			module.
+ * @security_version_number: Used to prevent against roll back of modules.
+ * @rsvd_module_id:	Currently unused for Clanton (Quark).
+ * @rsvd_module_vendor:	Vendor Identifier. For Intel products value is
+ * 			0x00008086.
+ * @rsvd_date:		BCD representation of build date as yyyymmdd, where
+ * 			yyyy=4 digit year, mm=1-12, dd=1-31.
+ * @headersize:		Total length of the header including including any
+ * 			padding optionally added by the signing tool.
+ * @hash_algo:		What Hash is used in the module signing.
+ * @cryp_algo:		What Crypto is used in the module signing.
+ * @keysize:		Total length of the key data including including any
+ * 			padding optionally added by the signing tool.
+ * @signaturesize:	Total length of the signature including including any
+ * 			padding optionally added by the signing tool.
+ * @rsvd_next_header:	32-bit pointer to the next Secure Boot Module in the
+ * 			chain, if there is a next header.
+ * @rsvd:		Reserved, padding structure to required size.
+ *
+ * See also QuartSecurityHeader_t in
+ * Quark_EDKII_v1.2.1.1/QuarkPlatformPkg/Include/QuarkBootRom.h
+ * from https://downloadcenter.intel.com/download/23197/Intel-Quark-SoC-X1000-Board-Support-Package-BSP
+ */
+struct quark_security_header {
+	u32 csh_signature;
+	u32 version;
+	u32 modulesize;
+	u32 security_version_number_index;
+	u32 security_version_number;
+	u32 rsvd_module_id;
+	u32 rsvd_module_vendor;
+	u32 rsvd_date;
+	u32 headersize;
+	u32 hash_algo;
+	u32 cryp_algo;
+	u32 keysize;
+	u32 signaturesize;
+	u32 rsvd_next_header;
+	u32 rsvd[2];
+};
+
+static const efi_char16_t efi_dummy_name[] = L"DUMMY";
 
 static bool efi_no_storage_paranoia;
 
@@ -49,11 +106,11 @@ early_param("efi_no_storage_paranoia", setup_storage_paranoia);
 */
 void efi_delete_dummy_variable(void)
 {
-	efi.set_variable(efi_dummy_name, &EFI_DUMMY_GUID,
-			 EFI_VARIABLE_NON_VOLATILE |
-			 EFI_VARIABLE_BOOTSERVICE_ACCESS |
-			 EFI_VARIABLE_RUNTIME_ACCESS,
-			 0, NULL);
+	efi.set_variable_nonblocking((efi_char16_t *)efi_dummy_name,
+				     &EFI_DUMMY_GUID,
+				     EFI_VARIABLE_NON_VOLATILE |
+				     EFI_VARIABLE_BOOTSERVICE_ACCESS |
+				     EFI_VARIABLE_RUNTIME_ACCESS, 0, NULL);
 }
 
 /*
@@ -121,12 +178,13 @@ efi_status_t efi_query_variable_store(u32 attributes, unsigned long size,
 		 * that by attempting to use more space than is available.
 		 */
 		unsigned long dummy_size = remaining_size + 1024;
-		void *dummy = kzalloc(dummy_size, GFP_ATOMIC);
+		void *dummy = kzalloc(dummy_size, GFP_KERNEL);
 
 		if (!dummy)
 			return EFI_OUT_OF_RESOURCES;
 
-		status = efi.set_variable(efi_dummy_name, &EFI_DUMMY_GUID,
+		status = efi.set_variable((efi_char16_t *)efi_dummy_name,
+					  &EFI_DUMMY_GUID,
 					  EFI_VARIABLE_NON_VOLATILE |
 					  EFI_VARIABLE_BOOTSERVICE_ACCESS |
 					  EFI_VARIABLE_RUNTIME_ACCESS,
@@ -191,7 +249,8 @@ void __init efi_arch_mem_reserve(phys_addr_t addr, u64 size)
 	int num_entries;
 	void *new;
 
-	if (efi_mem_desc_lookup(addr, &md)) {
+	if (efi_mem_desc_lookup(addr, &md) ||
+	    md.type != EFI_BOOT_SERVICES_DATA) {
 		pr_err("Failed to lookup EFI memory descriptor for %pa\n", &addr);
 		return;
 	}
@@ -200,6 +259,10 @@ void __init efi_arch_mem_reserve(phys_addr_t addr, u64 size)
 		pr_err("Region spans EFI memory descriptors, %pa\n", &addr);
 		return;
 	}
+
+	/* No need to reserve regions that will never be freed. */
+	if (md.attribute & EFI_MEMORY_RUNTIME)
+		return;
 
 	size += addr % EFI_PAGE_SIZE;
 	size = round_up(size, EFI_PAGE_SIZE);
@@ -214,7 +277,7 @@ void __init efi_arch_mem_reserve(phys_addr_t addr, u64 size)
 
 	new_size = efi.memmap.desc_size * num_entries;
 
-	new_phys = memblock_alloc(new_size, 0);
+	new_phys = efi_memmap_alloc(num_entries);
 	if (!new_phys) {
 		pr_err("Could not allocate boot services memmap\n");
 		return;
@@ -240,14 +303,14 @@ void __init efi_arch_mem_reserve(phys_addr_t addr, u64 size)
  * else. We must only reserve (and then free) regions:
  *
  * - Not within any part of the kernel
- * - Not the BIOS reserved area (E820_RESERVED, E820_NVS, etc)
+ * - Not the BIOS reserved area (E820_TYPE_RESERVED, E820_TYPE_NVS, etc)
  */
-static bool can_free_region(u64 start, u64 size)
+static __init bool can_free_region(u64 start, u64 size)
 {
 	if (start + size > __pa_symbol(_text) && start <= __pa_symbol(_end))
 		return false;
 
-	if (!e820_all_mapped(start, start+size, E820_RAM))
+	if (!e820__mapped_all(start, start+size, E820_TYPE_RAM))
 		return false;
 
 	return true;
@@ -270,7 +333,7 @@ void __init efi_reserve_boot_services(void)
 
 		/*
 		 * Because the following memblock_reserve() is paired
-		 * with free_bootmem_late() for this region in
+		 * with memblock_free_late() for this region in
 		 * efi_free_boot_services(), we must be extremely
 		 * careful not to reserve, and subsequently free,
 		 * critical regions of memory (like the kernel image) or
@@ -280,7 +343,7 @@ void __init efi_reserve_boot_services(void)
 		 * A good example of a critical region that must not be
 		 * freed is page zero (first 4Kb of memory), which may
 		 * contain boot services code/data but is marked
-		 * E820_RESERVED by trim_bios_range().
+		 * E820_TYPE_RESERVED by trim_bios_range().
 		 */
 		if (!already_reserved) {
 			memblock_reserve(start, size);
@@ -301,10 +364,44 @@ void __init efi_reserve_boot_services(void)
 		 * doesn't make sense as far as the firmware is
 		 * concerned, but it does provide us with a way to tag
 		 * those regions that must not be paired with
-		 * free_bootmem_late().
+		 * memblock_free_late().
 		 */
 		md->attribute |= EFI_MEMORY_RUNTIME;
 	}
+}
+
+/*
+ * Apart from having VA mappings for EFI boot services code/data regions,
+ * (duplicate) 1:1 mappings were also created as a quirk for buggy firmware. So,
+ * unmap both 1:1 and VA mappings.
+ */
+static void __init efi_unmap_pages(efi_memory_desc_t *md)
+{
+	pgd_t *pgd = efi_mm.pgd;
+	u64 pa = md->phys_addr;
+	u64 va = md->virt_addr;
+
+	/*
+	 * To Do: Remove this check after adding functionality to unmap EFI boot
+	 * services code/data regions from direct mapping area because
+	 * "efi=old_map" maps EFI regions in swapper_pg_dir.
+	 */
+	if (efi_enabled(EFI_OLD_MEMMAP))
+		return;
+
+	/*
+	 * EFI mixed mode has all RAM mapped to access arguments while making
+	 * EFI runtime calls, hence don't unmap EFI boot services code/data
+	 * regions.
+	 */
+	if (!efi_is_native())
+		return;
+
+	if (kernel_unmap_pages_in_pgd(pgd, pa, md->num_pages))
+		pr_err("Failed to unmap 1:1 mapping for 0x%llx\n", pa);
+
+	if (kernel_unmap_pages_in_pgd(pgd, va, md->num_pages))
+		pr_err("Failed to unmap VA mapping for 0x%llx\n", va);
 }
 
 void __init efi_free_boot_services(void)
@@ -332,6 +429,13 @@ void __init efi_free_boot_services(void)
 		}
 
 		/*
+		 * Before calling set_virtual_address_map(), EFI boot services
+		 * code/data regions were mapped as a quirk for buggy firmware.
+		 * Unmap them from efi_pgd before freeing them up.
+		 */
+		efi_unmap_pages(md);
+
+		/*
 		 * Nasty quirk: if all sub-1MB memory is used for boot
 		 * services, we can get here without having allocated the
 		 * real mode trampoline.  It's too late to hand boot services
@@ -346,16 +450,19 @@ void __init efi_free_boot_services(void)
 		 */
 		rm_size = real_mode_size_needed();
 		if (rm_size && (start + rm_size) < (1<<20) && size >= rm_size) {
-			set_real_mode_mem(start, rm_size);
+			set_real_mode_mem(start);
 			start += rm_size;
 			size -= rm_size;
 		}
 
-		free_bootmem_late(start, size);
+		memblock_free_late(start, size);
 	}
 
+	if (!num_entries)
+		return;
+
 	new_size = efi.memmap.desc_size * num_entries;
-	new_phys = memblock_alloc(new_size, 0);
+	new_phys = efi_memmap_alloc(num_entries);
 	if (!new_phys) {
 		pr_err("Failed to allocate new EFI memmap\n");
 		return;
@@ -405,6 +512,9 @@ int __init efi_reuse_config(u64 tables, int nr_tables)
 	int i, sz, ret = 0;
 	void *p, *tablep;
 	struct efi_setup_data *data;
+
+	if (nr_tables == 0)
+		return 0;
 
 	if (!efi_setup)
 		return 0;
@@ -494,4 +604,175 @@ bool efi_reboot_required(void)
 bool efi_poweroff_required(void)
 {
 	return acpi_gbl_reduced_hardware || acpi_no_s5;
+}
+
+#ifdef CONFIG_EFI_CAPSULE_QUIRK_QUARK_CSH
+
+static int qrk_capsule_setup_info(struct capsule_info *cap_info, void **pkbuff,
+				  size_t hdr_bytes)
+{
+	struct quark_security_header *csh = *pkbuff;
+
+	/* Only process data block that is larger than the security header */
+	if (hdr_bytes < sizeof(struct quark_security_header))
+		return 0;
+
+	if (csh->csh_signature != QUARK_CSH_SIGNATURE ||
+	    csh->headersize != QUARK_SECURITY_HEADER_SIZE)
+		return 1;
+
+	/* Only process data block if EFI header is included */
+	if (hdr_bytes < QUARK_SECURITY_HEADER_SIZE +
+			sizeof(efi_capsule_header_t))
+		return 0;
+
+	pr_debug("Quark security header detected\n");
+
+	if (csh->rsvd_next_header != 0) {
+		pr_err("multiple Quark security headers not supported\n");
+		return -EINVAL;
+	}
+
+	*pkbuff += csh->headersize;
+	cap_info->total_size = csh->headersize;
+
+	/*
+	 * Update the first page pointer to skip over the CSH header.
+	 */
+	cap_info->phys[0] += csh->headersize;
+
+	/*
+	 * cap_info->capsule should point at a virtual mapping of the entire
+	 * capsule, starting at the capsule header. Our image has the Quark
+	 * security header prepended, so we cannot rely on the default vmap()
+	 * mapping created by the generic capsule code.
+	 * Given that the Quark firmware does not appear to care about the
+	 * virtual mapping, let's just point cap_info->capsule at our copy
+	 * of the capsule header.
+	 */
+	cap_info->capsule = &cap_info->header;
+
+	return 1;
+}
+
+#define ICPU(family, model, quirk_handler) \
+	{ X86_VENDOR_INTEL, family, model, X86_FEATURE_ANY, \
+	  (unsigned long)&quirk_handler }
+
+static const struct x86_cpu_id efi_capsule_quirk_ids[] = {
+	ICPU(5, 9, qrk_capsule_setup_info),	/* Intel Quark X1000 */
+	{ }
+};
+
+int efi_capsule_setup_info(struct capsule_info *cap_info, void *kbuff,
+			   size_t hdr_bytes)
+{
+	int (*quirk_handler)(struct capsule_info *, void **, size_t);
+	const struct x86_cpu_id *id;
+	int ret;
+
+	if (hdr_bytes < sizeof(efi_capsule_header_t))
+		return 0;
+
+	cap_info->total_size = 0;
+
+	id = x86_match_cpu(efi_capsule_quirk_ids);
+	if (id) {
+		/*
+		 * The quirk handler is supposed to return
+		 *  - a value > 0 if the setup should continue, after advancing
+		 *    kbuff as needed
+		 *  - 0 if not enough hdr_bytes are available yet
+		 *  - a negative error code otherwise
+		 */
+		quirk_handler = (typeof(quirk_handler))id->driver_data;
+		ret = quirk_handler(cap_info, &kbuff, hdr_bytes);
+		if (ret <= 0)
+			return ret;
+	}
+
+	memcpy(&cap_info->header, kbuff, sizeof(cap_info->header));
+
+	cap_info->total_size += cap_info->header.imagesize;
+
+	return __efi_capsule_setup_info(cap_info);
+}
+
+#endif
+
+/*
+ * If any access by any efi runtime service causes a page fault, then,
+ * 1. If it's efi_reset_system(), reboot through BIOS.
+ * 2. If any other efi runtime service, then
+ *    a. Return error status to the efi caller process.
+ *    b. Disable EFI Runtime Services forever and
+ *    c. Freeze efi_rts_wq and schedule new process.
+ *
+ * @return: Returns, if the page fault is not handled. This function
+ * will never return if the page fault is handled successfully.
+ */
+void efi_recover_from_page_fault(unsigned long phys_addr)
+{
+	if (!IS_ENABLED(CONFIG_X86_64))
+		return;
+
+	/*
+	 * Make sure that an efi runtime service caused the page fault.
+	 * "efi_mm" cannot be used to check if the page fault had occurred
+	 * in the firmware context because efi=old_map doesn't use efi_pgd.
+	 */
+	if (efi_rts_work.efi_rts_id == EFI_NONE)
+		return;
+
+	/*
+	 * Address range 0x0000 - 0x0fff is always mapped in the efi_pgd, so
+	 * page faulting on these addresses isn't expected.
+	 */
+	if (phys_addr <= 0x0fff)
+		return;
+
+	/*
+	 * Print stack trace as it might be useful to know which EFI Runtime
+	 * Service is buggy.
+	 */
+	WARN(1, FW_BUG "Page fault caused by firmware at PA: 0x%lx\n",
+	     phys_addr);
+
+	/*
+	 * Buggy efi_reset_system() is handled differently from other EFI
+	 * Runtime Services as it doesn't use efi_rts_wq. Although,
+	 * native_machine_emergency_restart() says that machine_real_restart()
+	 * could fail, it's better not to compilcate this fault handler
+	 * because this case occurs *very* rarely and hence could be improved
+	 * on a need by basis.
+	 */
+	if (efi_rts_work.efi_rts_id == EFI_RESET_SYSTEM) {
+		pr_info("efi_reset_system() buggy! Reboot through BIOS\n");
+		machine_real_restart(MRR_BIOS);
+		return;
+	}
+
+	/*
+	 * Before calling EFI Runtime Service, the kernel has switched the
+	 * calling process to efi_mm. Hence, switch back to task_mm.
+	 */
+	arch_efi_call_virt_teardown();
+
+	/* Signal error status to the efi caller process */
+	efi_rts_work.status = EFI_ABORTED;
+	complete(&efi_rts_work.efi_rts_comp);
+
+	clear_bit(EFI_RUNTIME_SERVICES, &efi.flags);
+	pr_info("Froze efi_rts_wq and disabled EFI Runtime Services\n");
+
+	/*
+	 * Call schedule() in an infinite loop, so that any spurious wake ups
+	 * will never run efi_rts_wq again.
+	 */
+	for (;;) {
+		set_current_state(TASK_IDLE);
+		schedule();
+	}
+
+	return;
 }

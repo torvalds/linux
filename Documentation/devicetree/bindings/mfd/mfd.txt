@@ -19,11 +19,21 @@ Optional properties:
 
 - compatible : "simple-mfd" - this signifies that the operating system should
   consider all subnodes of the MFD device as separate devices akin to how
-  "simple-bus" inidicates when to see subnodes as children for a simple
+  "simple-bus" indicates when to see subnodes as children for a simple
   memory-mapped bus. For more complex devices, when the nexus driver has to
   probe registers to figure out what child devices exist etc, this should not
   be used. In the latter case the child devices will be determined by the
   operating system.
+
+- ranges: Describes the address mapping relationship to the parent. Should set
+  the child's base address to 0, the physical address within parent's address
+  space, and the length of the address map.
+
+- #address-cells: Specifies the number of cells used to represent physical base
+  addresses. Must be present if ranges is used.
+
+- #size-cells: Specifies the number of cells used to represent the size of an
+  address. Must be present if ranges is used.
 
 Example:
 
@@ -31,7 +41,7 @@ foo@1000 {
 	compatible = "syscon", "simple-mfd";
 	reg = <0x01000 0x1000>;
 
-	led@08.0 {
+	led@8.0 {
 		compatible = "register-bit-led";
 		offset = <0x08>;
 		mask = <0x01>;

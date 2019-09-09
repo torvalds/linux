@@ -1,0 +1,105 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Phy drivers for Broadcom platforms
+#
+config PHY_CYGNUS_PCIE
+	tristate "Broadcom Cygnus PCIe PHY driver"
+	depends on OF && (ARCH_BCM_CYGNUS || COMPILE_TEST)
+	select GENERIC_PHY
+	default ARCH_BCM_CYGNUS
+	help
+	  Enable this to support the Broadcom Cygnus PCIe PHY.
+	  If unsure, say N.
+
+config PHY_BCM_SR_USB
+	tristate "Broadcom Stingray USB PHY driver"
+	depends on OF && (ARCH_BCM_IPROC || COMPILE_TEST)
+	select GENERIC_PHY
+	default ARCH_BCM_IPROC
+	help
+	  Enable this to support the Broadcom Stingray USB PHY
+	  driver. It supports all versions of Superspeed and
+	  Highspeed PHYs.
+	  If unsure, say N.
+
+config BCM_KONA_USB2_PHY
+	tristate "Broadcom Kona USB2 PHY Driver"
+	depends on HAS_IOMEM
+	select GENERIC_PHY
+	help
+	  Enable this to support the Broadcom Kona USB 2.0 PHY.
+
+config PHY_BCM_NS_USB2
+	tristate "Broadcom Northstar USB 2.0 PHY Driver"
+	depends on ARCH_BCM_IPROC || COMPILE_TEST
+	depends on HAS_IOMEM && OF
+	select GENERIC_PHY
+	help
+	  Enable this to support Broadcom USB 2.0 PHY connected to the USB
+	  controller on Northstar family.
+
+config PHY_BCM_NS_USB3
+	tristate "Broadcom Northstar USB 3.0 PHY Driver"
+	depends on ARCH_BCM_IPROC || COMPILE_TEST
+	depends on HAS_IOMEM && OF
+	depends on MDIO_BUS
+	select GENERIC_PHY
+	help
+	  Enable this to support Broadcom USB 3.0 PHY connected to the USB
+	  controller on Northstar family.
+
+config PHY_NS2_PCIE
+	tristate "Broadcom Northstar2 PCIe PHY driver"
+	depends on OF && MDIO_BUS_MUX_BCM_IPROC
+	select GENERIC_PHY
+	default ARCH_BCM_IPROC
+	help
+	  Enable this to support the Broadcom Northstar2 PCIe PHY.
+	  If unsure, say N.
+
+config PHY_NS2_USB_DRD
+	tristate "Broadcom Northstar2 USB DRD PHY support"
+	depends on OF && (ARCH_BCM_IPROC || COMPILE_TEST)
+	select GENERIC_PHY
+	select EXTCON
+	default ARCH_BCM_IPROC
+	help
+	  Enable this to support the Broadcom Northstar2 USB DRD PHY.
+	  This driver initializes the PHY in either HOST or DEVICE mode.
+	  The host or device configuration is read from device tree.
+
+	  If unsure, say N.
+
+config PHY_BRCM_SATA
+	tristate "Broadcom SATA PHY driver"
+	depends on ARCH_BRCMSTB || ARCH_BCM_IPROC || BMIPS_GENERIC || \
+		   ARCH_BCM_63XX || COMPILE_TEST
+	depends on OF
+	select GENERIC_PHY
+	default ARCH_BCM_IPROC
+	help
+	  Enable this to support the Broadcom SATA PHY.
+	  If unsure, say N.
+
+config PHY_BRCM_USB
+	tristate "Broadcom STB USB PHY driver"
+	depends on ARCH_BRCMSTB
+	depends on OF
+	select GENERIC_PHY
+	select SOC_BRCMSTB
+	default ARCH_BRCMSTB
+	help
+	  Enable this to support the Broadcom STB USB PHY.
+	  This driver is required by the USB XHCI, EHCI and OHCI
+	  drivers.
+	  If unsure, say N.
+
+config PHY_BCM_SR_PCIE
+	tristate "Broadcom Stingray PCIe PHY driver"
+	depends on OF && (ARCH_BCM_IPROC || COMPILE_TEST)
+	select GENERIC_PHY
+	select MFD_SYSCON
+	default ARCH_BCM_IPROC
+	help
+	  Enable this to support the Broadcom Stingray PCIe PHY
+	  If unsure, say N.

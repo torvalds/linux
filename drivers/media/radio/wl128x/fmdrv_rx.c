@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  FM Driver for Connectivity chip of Texas Instruments.
  *  This sub-module of FM driver implements FM RX functionality.
@@ -5,20 +6,6 @@
  *  Copyright (C) 2011 Texas Instruments
  *  Author: Raja Mani <raja_mani@ti.com>
  *  Author: Manjunatha Halli <manjunatha_halli@ti.com>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  */
 
 #include "fmdrv.h"
@@ -120,8 +107,8 @@ int fm_rx_set_freq(struct fmdev *fmdev, u32 freq)
 	curr_frq_in_khz = (fmdev->rx.region.bot_freq + ((u32)curr_frq * FM_FREQ_MUL));
 
 	if (curr_frq_in_khz != freq) {
-		pr_info("Frequency is set to (%d) but "
-			   "requested freq is (%d)\n", curr_frq_in_khz, freq);
+		pr_info("Frequency is set to (%d) but requested freq is (%d)\n",
+			curr_frq_in_khz, freq);
 	}
 
 	/* Update local cache  */
@@ -390,8 +377,8 @@ int fm_rx_set_region(struct fmdev *fmdev, u8 region_to_set)
 		new_frq = fmdev->rx.region.top_freq;
 
 	if (new_frq) {
-		fmdbg("Current freq is not within band limit boundary,"
-				"switching to %d KHz\n", new_frq);
+		fmdbg("Current freq is not within band limit boundary,switching to %d KHz\n",
+		      new_frq);
 		 /* Current RX frequency is not in range. So, update it */
 		ret = fm_rx_set_freq(fmdev, new_frq);
 	}

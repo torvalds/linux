@@ -1,4 +1,11 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 .. _VIDIOC_ENUM_FRAMEINTERVALS:
 
@@ -26,9 +33,8 @@ Arguments
     File descriptor returned by :ref:`open() <func-open>`.
 
 ``argp``
-    Pointer to a struct :c:type:`v4l2_frmivalenum`
-    structure that contains a pixel format and size and receives a frame
-    interval.
+    Pointer to struct :c:type:`v4l2_frmivalenum`
+    that contains a pixel format and size and receives a frame interval.
 
 
 Description
@@ -123,6 +129,8 @@ application should zero out all members except for the *IN* fields.
 
 
 .. c:type:: v4l2_frmivalenum
+
+.. tabularcolumns:: |p{1.8cm}|p{4.4cm}|p{2.4cm}|p{8.9cm}|
 
 .. flat-table:: struct v4l2_frmivalenum
     :header-rows:  0

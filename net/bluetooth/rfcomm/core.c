@@ -233,9 +233,9 @@ static int rfcomm_check_security(struct rfcomm_dlc *d)
 				 d->out);
 }
 
-static void rfcomm_session_timeout(unsigned long arg)
+static void rfcomm_session_timeout(struct timer_list *t)
 {
-	struct rfcomm_session *s = (void *) arg;
+	struct rfcomm_session *s = from_timer(s, t, timer);
 
 	BT_DBG("session %p state %ld", s, s->state);
 
@@ -258,9 +258,9 @@ static void rfcomm_session_clear_timer(struct rfcomm_session *s)
 }
 
 /* ---- RFCOMM DLCs ---- */
-static void rfcomm_dlc_timeout(unsigned long arg)
+static void rfcomm_dlc_timeout(struct timer_list *t)
 {
-	struct rfcomm_dlc *d = (void *) arg;
+	struct rfcomm_dlc *d = from_timer(d, t, timer);
 
 	BT_DBG("dlc %p state %ld", d, d->state);
 
@@ -307,11 +307,11 @@ struct rfcomm_dlc *rfcomm_dlc_alloc(gfp_t prio)
 	if (!d)
 		return NULL;
 
-	setup_timer(&d->timer, rfcomm_dlc_timeout, (unsigned long)d);
+	timer_setup(&d->timer, rfcomm_dlc_timeout, 0);
 
 	skb_queue_head_init(&d->tx_queue);
 	mutex_init(&d->lock);
-	atomic_set(&d->refcnt, 1);
+	refcount_set(&d->refcnt, 1);
 
 	rfcomm_dlc_clear_state(d);
 
@@ -342,7 +342,7 @@ static void rfcomm_dlc_unlink(struct rfcomm_dlc *d)
 {
 	struct rfcomm_session *s = d->session;
 
-	BT_DBG("dlc %p refcnt %d session %p", d, atomic_read(&d->refcnt), s);
+	BT_DBG("dlc %p refcnt %d session %p", d, refcount_read(&d->refcnt), s);
 
 	list_del(&d->list);
 	d->session = NULL;
@@ -483,6 +483,7 @@ static int __rfcomm_dlc_close(struct rfcomm_dlc *d, int err)
 		/* if closing a dlc in a session that hasn't been started,
 		 * just close and unlink the dlc
 		 */
+		/* fall through */
 
 	default:
 		rfcomm_dlc_clear_timer(d);
@@ -650,7 +651,7 @@ static struct rfcomm_session *rfcomm_session_add(struct socket *sock, int state)
 
 	BT_DBG("session %p sock %p", s, sock);
 
-	setup_timer(&s->timer, rfcomm_session_timeout, (unsigned long) s);
+	timer_setup(&s->timer, rfcomm_session_timeout, 0);
 
 	INIT_LIST_HEAD(&s->dlcs);
 	s->state = state;
@@ -863,7 +864,7 @@ static int rfcomm_queue_disc(struct rfcomm_dlc *d)
 	if (!skb)
 		return -ENOMEM;
 
-	cmd = (void *) __skb_put(skb, sizeof(*cmd));
+	cmd = __skb_put(skb, sizeof(*cmd));
 	cmd->addr = d->addr;
 	cmd->ctrl = __ctrl(RFCOMM_DISC, 1);
 	cmd->len  = __len8(0);
@@ -1149,10 +1150,10 @@ static void rfcomm_make_uih(struct sk_buff *skb, u8 addr)
 	u8 *crc;
 
 	if (len > 127) {
-		hdr = (void *) skb_push(skb, 4);
+		hdr = skb_push(skb, 4);
 		put_unaligned(cpu_to_le16(__len16(len)), (__le16 *) &hdr->len);
 	} else {
-		hdr = (void *) skb_push(skb, 3);
+		hdr = skb_push(skb, 3);
 		hdr->len = __len8(len);
 	}
 	hdr->addr = addr;
@@ -2166,17 +2167,7 @@ static int rfcomm_dlc_debugfs_show(struct seq_file *f, void *x)
 	return 0;
 }
 
-static int rfcomm_dlc_debugfs_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, rfcomm_dlc_debugfs_show, inode->i_private);
-}
-
-static const struct file_operations rfcomm_dlc_debugfs_fops = {
-	.open		= rfcomm_dlc_debugfs_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(rfcomm_dlc_debugfs);
 
 static struct dentry *rfcomm_dlc_debugfs;
 

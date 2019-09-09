@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Broadcom device configuration
 #
@@ -7,14 +8,15 @@ config NET_VENDOR_BROADCOM
 	default y
 	depends on (SSB_POSSIBLE && HAS_DMA) || PCI || BCM63XX || \
 		   SIBYTE_SB1xxx_SOC
+	select DIMLIB
 	---help---
 	  If you have a network (Ethernet) chipset belonging to this class,
 	  say Y.
 
 	  Note that the answer to this question does not directly affect
-	  the kernel: saying N will just case the configurator to skip all
-	  the questions regarding AMD chipsets. If you say Y, you will be asked
-	  for your specific chipset/driver in the following questions.
+	  the kernel: saying N will just cause the configurator to skip all
+	  the questions regarding Broadcom chipsets. If you say Y, you will
+	  be asked for your specific chipset/driver in the following questions.
 
 if NET_VENDOR_BROADCOM
 
@@ -61,10 +63,12 @@ config BCM63XX_ENET
 
 config BCMGENET
 	tristate "Broadcom GENET internal MAC support"
+	depends on HAS_IOMEM
 	select MII
 	select PHYLIB
 	select FIXED_PHY
 	select BCM7XXX_PHY
+	select MDIO_BCM_UNIMAC
 	help
 	  This driver supports the built-in Ethernet MACs found in the
 	  Broadcom BCM7xxx Set Top Box family chipset.
@@ -109,18 +113,24 @@ config TIGON3
 	tristate "Broadcom Tigon3 support"
 	depends on PCI
 	select PHYLIB
-	select HWMON
-	select PTP_1588_CLOCK
+	imply PTP_1588_CLOCK
 	---help---
 	  This driver supports Broadcom Tigon3 based gigabit Ethernet cards.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called tg3.  This is recommended.
 
+config TIGON3_HWMON
+	bool "Broadcom Tigon3 HWMON support"
+	default y
+	depends on TIGON3 && HWMON && !(TIGON3=y && HWMON=m)
+	---help---
+	  Say Y if you want to expose the thermal sensor on Tigon3 devices.
+
 config BNX2X
 	tristate "Broadcom NetXtremeII 10Gb support"
 	depends on PCI
-	select PTP_1588_CLOCK
+	imply PTP_1588_CLOCK
 	select FW_LOADER
 	select ZLIB_INFLATE
 	select LIBCRC32C
@@ -149,7 +159,6 @@ config BGMAC
 config BGMAC_BCMA
 	tristate "Broadcom iProc GBit BCMA support"
 	depends on BCMA && BCMA_HOST_SOC
-	depends on HAS_DMA
 	depends on BCM47XX || ARCH_BCM_5301X || COMPILE_TEST
 	select BGMAC
 	select PHYLIB
@@ -162,7 +171,6 @@ config BGMAC_BCMA
 
 config BGMAC_PLATFORM
 	tristate "Broadcom iProc GBit platform support"
-	depends on HAS_DMA
 	depends on ARCH_BCM_IPROC || COMPILE_TEST
 	depends on OF
 	select BGMAC
@@ -175,7 +183,8 @@ config BGMAC_PLATFORM
 
 config SYSTEMPORT
 	tristate "Broadcom SYSTEMPORT internal MAC support"
-	depends on OF
+	depends on HAS_IOMEM
+	depends on NET_DSA || !NET_DSA
 	select MII
 	select PHYLIB
 	select FIXED_PHY
@@ -189,6 +198,8 @@ config BNXT
 	depends on PCI
 	select FW_LOADER
 	select LIBCRC32C
+	select NET_DEVLINK
+	select PAGE_POOL
 	---help---
 	  This driver supports Broadcom NetXtreme-C/E 10/25/40/50 gigabit
 	  Ethernet cards.  To compile this driver as a module, choose M here:
@@ -202,5 +213,32 @@ config BNXT_SRIOV
 	  This configuration parameter enables Single Root Input Output
 	  Virtualization support in the NetXtreme-C/E products. This
 	  allows for virtual function acceleration in virtual environments.
+
+config BNXT_FLOWER_OFFLOAD
+	bool "TC Flower offload support for NetXtreme-C/E"
+	depends on BNXT
+	default y
+	---help---
+	  This configuration parameter enables TC Flower packet classifier
+	  offload for eswitch.  This option enables SR-IOV switchdev eswitch
+	  offload.
+
+config BNXT_DCB
+	bool "Data Center Bridging (DCB) Support"
+	default n
+	depends on BNXT && DCB
+	---help---
+	  Say Y here if you want to use Data Center Bridging (DCB) in the
+	  driver.
+
+	  If unsure, say N.
+
+config BNXT_HWMON
+	bool "Broadcom NetXtreme-C/E HWMON support"
+	default y
+	depends on BNXT && HWMON && !(BNXT=y && HWMON=m)
+	---help---
+	  Say Y if you want to expose the thermal sensor data on NetXtreme-C/E
+	  devices, via the hwmon sysfs interface.
 
 endif # NET_VENDOR_BROADCOM

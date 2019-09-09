@@ -1,15 +1,10 @@
-/* linux/arch/arm/mach-s3c64xx/mach-crag6410.c
- *
- * Copyright 2011 Wolfson Microelectronics plc
- *	Mark Brown <broonie@opensource.wolfsonmicro.com>
- *
- * Copyright 2011 Simtec Electronics
- *	Ben Dooks <ben@simtec.co.uk>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Copyright 2011 Wolfson Microelectronics plc
+//	Mark Brown <broonie@opensource.wolfsonmicro.com>
+//
+// Copyright 2011 Simtec Electronics
+//	Ben Dooks <ben@simtec.co.uk>
 
 #include <linux/kernel.h>
 #include <linux/list.h>
@@ -20,6 +15,7 @@
 #include <linux/io.h>
 #include <linux/init.h>
 #include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/leds.h>
 #include <linux/delay.h>
 #include <linux/mmc/host.h>
@@ -357,7 +353,6 @@ static struct fixed_voltage_config wallvdd_pdata = {
 	.supply_name = "WALLVDD",
 	.microvolts = 5000000,
 	.init_data = &wallvdd_data,
-	.gpio = -EINVAL,
 };
 
 static struct platform_device wallvdd_device = {
@@ -404,7 +399,6 @@ static struct pca953x_platform_data crag6410_pca_data = {
 /* VDDARM is controlled by DVS1 connected to GPK(0) */
 static struct wm831x_buckv_pdata vddarm_pdata = {
 	.dvs_control_src = 1,
-	.dvs_gpio = S3C64XX_GPK(0),
 };
 
 static struct regulator_consumer_supply vddarm_consumers[] = {
@@ -600,6 +594,24 @@ static struct wm831x_pdata crag_pmic_pdata = {
 	},
 
 	.touch = &touch_pdata,
+};
+
+/*
+ * VDDARM is eventually ending up as a regulator hanging on the MFD cell device
+ * "wm831x-buckv.1" spawn from drivers/mfd/wm831x-core.c.
+ *
+ * From the note on the platform data we can see that this is clearly DVS1
+ * and assigned as dcdc1 resource to the MFD core which sets .id of the cell
+ * spawning the DVS1 platform device to 1, then the cell platform device
+ * name is calculated from 10*instance + id resulting in the device name
+ * "wm831x-buckv.11"
+ */
+static struct gpiod_lookup_table crag_pmic_gpiod_table = {
+	.dev_id = "wm831x-buckv.11",
+	.table = {
+		GPIO_LOOKUP("GPIOK", 0, "dvs", GPIO_ACTIVE_HIGH),
+		{ },
+	},
 };
 
 static struct i2c_board_info i2c_devs0[] = {
@@ -842,6 +854,7 @@ static void __init crag6410_machine_init(void)
 	s3c_fb_set_platdata(&crag6410_lcd_pdata);
 	dwc2_hsotg_set_platdata(&crag6410_hsotg_pdata);
 
+	gpiod_add_lookup_table(&crag_pmic_gpiod_table);
 	i2c_register_board_info(0, i2c_devs0, ARRAY_SIZE(i2c_devs0));
 	i2c_register_board_info(1, i2c_devs1, ARRAY_SIZE(i2c_devs1));
 

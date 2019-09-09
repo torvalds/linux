@@ -1,19 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /******************************************************************************
 *                  QLOGIC LINUX SOFTWARE
 *
 * QLogic ISP1280 (Ultra2) /12160 (Ultra3) SCSI driver
 * Copyright (C) 2000 Qlogic Corporation
 * (www.qlogic.com)
-*
-* This program is free software; you can redistribute it and/or modify it
-* under the terms of the GNU General Public License as published by the
-* Free Software Foundation; either version 2, or (at your option) any
-* later version.
-*
-* This program is distributed in the hope that it will be useful, but
-* WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-* General Public License for more details.
 *
 ******************************************************************************/
 
@@ -1055,6 +1046,7 @@ struct scsi_qla_host {
 	struct list_head done_q;	/* Done queue */
 
 	struct completion *mailbox_wait;
+	struct timer_list mailbox_timer;
 
 	volatile struct {
 		uint32_t online:1;			/* 0 */

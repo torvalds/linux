@@ -1,10 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (C) 2016 Cogent Embedded, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #ifndef __DT_BINDINGS_CLOCK_R8A7792_H__
@@ -17,7 +13,6 @@
 #define R8A7792_CLK_PLL3		3
 #define R8A7792_CLK_LB			4
 #define R8A7792_CLK_QSPI		5
-#define R8A7792_CLK_Z			6
 
 /* MSTP0 */
 #define R8A7792_CLK_MSIOF0		0
@@ -45,6 +40,7 @@
 
 /* MSTP4 */
 #define R8A7792_CLK_IRQC		7
+#define R8A7792_CLK_INTC_SYS		8
 
 /* MSTP5 */
 #define R8A7792_CLK_AUDIO_DMAC0		2

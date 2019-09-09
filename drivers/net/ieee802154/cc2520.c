@@ -1,14 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* Driver for TI CC2520 802.15.4 Wireless-PAN Networking controller
  *
  * Copyright (C) 2014 Varka Bhadram <varkab@cdac.in>
  *		      Md.Jamal Mohiuddin <mjmohiuddin@cdac.in>
  *		      P Sowjanya <sowjanyap@cdac.in>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -517,7 +512,7 @@ cc2520_tx(struct ieee802154_hw *hw, struct sk_buff *skb)
 	}
 
 	spin_lock_irqsave(&priv->lock, flags);
-	BUG_ON(priv->is_tx);
+	WARN_ON(priv->is_tx);
 	priv->is_tx = 1;
 	spin_unlock_irqrestore(&priv->lock, flags);
 
@@ -643,12 +638,12 @@ cc2520_set_channel(struct ieee802154_hw *hw, u8 page, u8 channel)
 
 	dev_dbg(&priv->spi->dev, "trying to set channel\n");
 
-	BUG_ON(page != 0);
-	BUG_ON(channel < CC2520_MINCHANNEL);
-	BUG_ON(channel > CC2520_MAXCHANNEL);
+	WARN_ON(page != 0);
+	WARN_ON(channel < CC2520_MINCHANNEL);
+	WARN_ON(channel > CC2520_MAXCHANNEL);
 
 	ret = cc2520_write_register(priv, CC2520_FREQCTRL,
-				    11 + 5*(channel - 11));
+				    11 + 5 * (channel - 11));
 
 	return ret;
 }
@@ -663,15 +658,14 @@ cc2520_filter(struct ieee802154_hw *hw,
 	if (changed & IEEE802154_AFILT_PANID_CHANGED) {
 		u16 panid = le16_to_cpu(filt->pan_id);
 
-		dev_vdbg(&priv->spi->dev,
-			 "cc2520_filter called for pan id\n");
+		dev_vdbg(&priv->spi->dev, "%s called for pan id\n", __func__);
 		ret = cc2520_write_ram(priv, CC2520RAM_PANID,
 				       sizeof(panid), (u8 *)&panid);
 	}
 
 	if (changed & IEEE802154_AFILT_IEEEADDR_CHANGED) {
 		dev_vdbg(&priv->spi->dev,
-			 "cc2520_filter called for IEEE addr\n");
+			 "%s called for IEEE addr\n", __func__);
 		ret = cc2520_write_ram(priv, CC2520RAM_IEEEADDR,
 				       sizeof(filt->ieee_addr),
 				       (u8 *)&filt->ieee_addr);
@@ -680,8 +674,7 @@ cc2520_filter(struct ieee802154_hw *hw,
 	if (changed & IEEE802154_AFILT_SADDR_CHANGED) {
 		u16 addr = le16_to_cpu(filt->short_addr);
 
-		dev_vdbg(&priv->spi->dev,
-			 "cc2520_filter called for saddr\n");
+		dev_vdbg(&priv->spi->dev, "%s called for saddr\n", __func__);
 		ret = cc2520_write_ram(priv, CC2520RAM_SHORTADDR,
 				       sizeof(addr), (u8 *)&addr);
 	}
@@ -690,7 +683,7 @@ cc2520_filter(struct ieee802154_hw *hw,
 		u8 frmfilt0;
 
 		dev_vdbg(&priv->spi->dev,
-			 "cc2520_filter called for panc change\n");
+			 "%s called for panc change\n", __func__);
 
 		cc2520_read_register(priv, CC2520_FRMFILT0, &frmfilt0);
 
@@ -929,6 +922,7 @@ static int cc2520_get_platform_data(struct spi_device *spi,
 
 	if (!np) {
 		struct cc2520_platform_data *spi_pdata = spi->dev.platform_data;
+
 		if (!spi_pdata)
 			return -ENOENT;
 		*pdata = *spi_pdata;

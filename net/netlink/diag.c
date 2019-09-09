@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/module.h>
 
 #include <net/sock.h>
@@ -17,6 +18,27 @@ static int sk_diag_dump_groups(struct sock *sk, struct sk_buff *nlskb)
 
 	return nla_put(nlskb, NETLINK_DIAG_GROUPS, NLGRPSZ(nlk->ngroups),
 		       nlk->groups);
+}
+
+static int sk_diag_put_flags(struct sock *sk, struct sk_buff *skb)
+{
+	struct netlink_sock *nlk = nlk_sk(sk);
+	u32 flags = 0;
+
+	if (nlk->cb_running)
+		flags |= NDIAG_FLAG_CB_RUNNING;
+	if (nlk->flags & NETLINK_F_RECV_PKTINFO)
+		flags |= NDIAG_FLAG_PKTINFO;
+	if (nlk->flags & NETLINK_F_BROADCAST_SEND_ERROR)
+		flags |= NDIAG_FLAG_BROADCAST_ERROR;
+	if (nlk->flags & NETLINK_F_RECV_NO_ENOBUFS)
+		flags |= NDIAG_FLAG_NO_ENOBUFS;
+	if (nlk->flags & NETLINK_F_LISTEN_ALL_NSID)
+		flags |= NDIAG_FLAG_LISTEN_ALL_NSID;
+	if (nlk->flags & NETLINK_F_CAP_ACK)
+		flags |= NDIAG_FLAG_CAP_ACK;
+
+	return nla_put_u32(skb, NETLINK_DIAG_FLAGS, flags);
 }
 
 static int sk_diag_fill(struct sock *sk, struct sk_buff *skb,
@@ -50,6 +72,10 @@ static int sk_diag_fill(struct sock *sk, struct sk_buff *skb,
 
 	if ((req->ndiag_show & NDIAG_SHOW_MEMINFO) &&
 	    sock_diag_put_meminfo(sk, skb, NETLINK_DIAG_MEMINFO))
+		goto out_nlmsg_trim;
+
+	if ((req->ndiag_show & NDIAG_SHOW_FLAGS) &&
+	    sk_diag_put_flags(sk, skb))
 		goto out_nlmsg_trim;
 
 	nlmsg_end(skb, nlh);
@@ -90,11 +116,7 @@ static int __netlink_diag_dump(struct sk_buff *skb, struct netlink_callback *cb,
 	if (!s_num)
 		rhashtable_walk_enter(&tbl->hash, hti);
 
-	ret = rhashtable_walk_start(hti);
-	if (ret == -EAGAIN)
-		ret = 0;
-	if (ret)
-		goto stop;
+	rhashtable_walk_start(hti);
 
 	while ((nlsk = rhashtable_walk_next(hti))) {
 		if (IS_ERR(nlsk)) {
@@ -121,8 +143,8 @@ static int __netlink_diag_dump(struct sk_buff *skb, struct netlink_callback *cb,
 		}
 	}
 
-stop:
 	rhashtable_walk_stop(hti);
+
 	if (ret)
 		goto done;
 
@@ -178,11 +200,8 @@ static int netlink_diag_dump(struct sk_buff *skb, struct netlink_callback *cb)
 		}
 		cb->args[1] = i;
 	} else {
-		if (req->sdiag_protocol >= MAX_LINKS) {
-			read_unlock(&nl_table_lock);
-			rcu_read_unlock();
+		if (req->sdiag_protocol >= MAX_LINKS)
 			return -ENOENT;
-		}
 
 		err = __netlink_diag_dump(skb, cb, req->sdiag_protocol, s_num);
 	}

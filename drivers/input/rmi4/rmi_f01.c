@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2011-2016 Synaptics Incorporated
  * Copyright (c) 2011 Unixphere
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 
 #include <linux/kernel.h>
@@ -12,6 +9,7 @@
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/of.h>
+#include <asm/unaligned.h>
 #include "rmi_driver.h"
 
 #define RMI_PRODUCT_ID_LENGTH    10
@@ -54,6 +52,7 @@ struct f01_basic_properties {
 	u8 product_id[RMI_PRODUCT_ID_LENGTH + 1];
 	u16 productinfo;
 	u32 firmware_id;
+	u32 package_id;
 };
 
 /* F01 device status bits */
@@ -62,6 +61,8 @@ struct f01_basic_properties {
 #define RMI_F01_STATUS_CODE(status)		((status) & 0x0f)
 /* The device has lost its configuration for some reason. */
 #define RMI_F01_STATUS_UNCONFIGURED(status)	(!!((status) & 0x80))
+/* The device is in bootloader mode */
+#define RMI_F01_STATUS_BOOTLOADER(status)	((status) & 0x40)
 
 /* Control register bits */
 
@@ -218,8 +219,19 @@ static int rmi_f01_read_properties(struct rmi_device *rmi_dev,
 			has_build_id_query = !!(queries[0] & BIT(1));
 		}
 
-		if (has_package_id_query)
+		if (has_package_id_query) {
+			ret = rmi_read_block(rmi_dev, prod_info_addr,
+					     queries, sizeof(__le64));
+			if (ret) {
+				dev_err(&rmi_dev->dev,
+					"Failed to read package info: %d\n",
+					ret);
+				return ret;
+			}
+
+			props->package_id = get_unaligned_le64(queries);
 			prod_info_addr++;
+		}
 
 		if (has_build_id_query) {
 			ret = rmi_read_block(rmi_dev, prod_info_addr, queries,
@@ -239,12 +251,89 @@ static int rmi_f01_read_properties(struct rmi_device *rmi_dev,
 	return 0;
 }
 
-char *rmi_f01_get_product_ID(struct rmi_function *fn)
+const char *rmi_f01_get_product_ID(struct rmi_function *fn)
 {
 	struct f01_data *f01 = dev_get_drvdata(&fn->dev);
 
 	return f01->properties.product_id;
 }
+
+static ssize_t rmi_driver_manufacturer_id_show(struct device *dev,
+					       struct device_attribute *dattr,
+					       char *buf)
+{
+	struct rmi_driver_data *data = dev_get_drvdata(dev);
+	struct f01_data *f01 = dev_get_drvdata(&data->f01_container->dev);
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n",
+			 f01->properties.manufacturer_id);
+}
+
+static DEVICE_ATTR(manufacturer_id, 0444,
+		   rmi_driver_manufacturer_id_show, NULL);
+
+static ssize_t rmi_driver_dom_show(struct device *dev,
+				   struct device_attribute *dattr, char *buf)
+{
+	struct rmi_driver_data *data = dev_get_drvdata(dev);
+	struct f01_data *f01 = dev_get_drvdata(&data->f01_container->dev);
+
+	return scnprintf(buf, PAGE_SIZE, "%s\n", f01->properties.dom);
+}
+
+static DEVICE_ATTR(date_of_manufacture, 0444, rmi_driver_dom_show, NULL);
+
+static ssize_t rmi_driver_product_id_show(struct device *dev,
+					  struct device_attribute *dattr,
+					  char *buf)
+{
+	struct rmi_driver_data *data = dev_get_drvdata(dev);
+	struct f01_data *f01 = dev_get_drvdata(&data->f01_container->dev);
+
+	return scnprintf(buf, PAGE_SIZE, "%s\n", f01->properties.product_id);
+}
+
+static DEVICE_ATTR(product_id, 0444, rmi_driver_product_id_show, NULL);
+
+static ssize_t rmi_driver_firmware_id_show(struct device *dev,
+					   struct device_attribute *dattr,
+					   char *buf)
+{
+	struct rmi_driver_data *data = dev_get_drvdata(dev);
+	struct f01_data *f01 = dev_get_drvdata(&data->f01_container->dev);
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", f01->properties.firmware_id);
+}
+
+static DEVICE_ATTR(firmware_id, 0444, rmi_driver_firmware_id_show, NULL);
+
+static ssize_t rmi_driver_package_id_show(struct device *dev,
+					  struct device_attribute *dattr,
+					  char *buf)
+{
+	struct rmi_driver_data *data = dev_get_drvdata(dev);
+	struct f01_data *f01 = dev_get_drvdata(&data->f01_container->dev);
+
+	u32 package_id = f01->properties.package_id;
+
+	return scnprintf(buf, PAGE_SIZE, "%04x.%04x\n",
+			 package_id & 0xffff, (package_id >> 16) & 0xffff);
+}
+
+static DEVICE_ATTR(package_id, 0444, rmi_driver_package_id_show, NULL);
+
+static struct attribute *rmi_f01_attrs[] = {
+	&dev_attr_manufacturer_id.attr,
+	&dev_attr_date_of_manufacture.attr,
+	&dev_attr_product_id.attr,
+	&dev_attr_firmware_id.attr,
+	&dev_attr_package_id.attr,
+	NULL
+};
+
+static const struct attribute_group rmi_f01_attr_group = {
+	.attrs = rmi_f01_attrs,
+};
 
 #ifdef CONFIG_OF
 static int rmi_f01_of_probe(struct device *dev,
@@ -326,12 +415,12 @@ static int rmi_f01_probe(struct rmi_function *fn)
 	}
 
 	switch (pdata->power_management.nosleep) {
-	case RMI_F01_NOSLEEP_DEFAULT:
+	case RMI_REG_STATE_DEFAULT:
 		break;
-	case RMI_F01_NOSLEEP_OFF:
+	case RMI_REG_STATE_OFF:
 		f01->device_control.ctrl0 &= ~RMI_F01_CTRL0_NOSLEEP_BIT;
 		break;
-	case RMI_F01_NOSLEEP_ON:
+	case RMI_REG_STATE_ON:
 		f01->device_control.ctrl0 |= RMI_F01_CTRL0_NOSLEEP_BIT;
 		break;
 	}
@@ -478,7 +567,17 @@ static int rmi_f01_probe(struct rmi_function *fn)
 
 	dev_set_drvdata(&fn->dev, f01);
 
+	error = sysfs_create_group(&fn->rmi_dev->dev.kobj, &rmi_f01_attr_group);
+	if (error)
+		dev_warn(&fn->dev, "Failed to create sysfs group: %d\n", error);
+
 	return 0;
+}
+
+static void rmi_f01_remove(struct rmi_function *fn)
+{
+	/* Note that the bus device is used, not the F01 device */
+	sysfs_remove_group(&fn->rmi_dev->dev.kobj, &rmi_f01_attr_group);
 }
 
 static int rmi_f01_config(struct rmi_function *fn)
@@ -579,9 +678,9 @@ static int rmi_f01_resume(struct rmi_function *fn)
 	return 0;
 }
 
-static int rmi_f01_attention(struct rmi_function *fn,
-			     unsigned long *irq_bits)
+static irqreturn_t rmi_f01_attention(int irq, void *ctx)
 {
+	struct rmi_function *fn = ctx;
 	struct rmi_device *rmi_dev = fn->rmi_dev;
 	int error;
 	u8 device_status;
@@ -590,19 +689,23 @@ static int rmi_f01_attention(struct rmi_function *fn,
 	if (error) {
 		dev_err(&fn->dev,
 			"Failed to read device status: %d.\n", error);
-		return error;
+		return IRQ_RETVAL(error);
 	}
+
+	if (RMI_F01_STATUS_BOOTLOADER(device_status))
+		dev_warn(&fn->dev,
+			 "Device in bootloader mode, please update firmware\n");
 
 	if (RMI_F01_STATUS_UNCONFIGURED(device_status)) {
 		dev_warn(&fn->dev, "Device reset detected.\n");
 		error = rmi_dev->driver->reset_handler(rmi_dev);
 		if (error) {
 			dev_err(&fn->dev, "Device reset failed: %d\n", error);
-			return error;
+			return IRQ_RETVAL(error);
 		}
 	}
 
-	return 0;
+	return IRQ_HANDLED;
 }
 
 struct rmi_function_handler rmi_f01_handler = {
@@ -616,6 +719,7 @@ struct rmi_function_handler rmi_f01_handler = {
 	},
 	.func		= 0x01,
 	.probe		= rmi_f01_probe,
+	.remove		= rmi_f01_remove,
 	.config		= rmi_f01_config,
 	.attention	= rmi_f01_attention,
 	.suspend	= rmi_f01_suspend,

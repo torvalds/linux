@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Common CPM code
  *
@@ -11,10 +12,6 @@
  * Copyright (c) 2000 MontaVista Software, Inc (source@mvista.com)
  * 2006 (c) MontaVista Software, Inc.
  * Vitaly Bordug <vbordug@ru.mvista.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
  */
 
 #include <linux/init.h>
@@ -190,8 +187,9 @@ static int cpm2_gpio32_dir_in(struct gpio_chip *gc, unsigned int gpio)
 	return 0;
 }
 
-int cpm2_gpiochip_add32(struct device_node *np)
+int cpm2_gpiochip_add32(struct device *dev)
 {
+	struct device_node *np = dev->of_node;
 	struct cpm2_gpio32_chip *cpm2_gc;
 	struct of_mm_gpio_chip *mm_gc;
 	struct gpio_chip *gc;
@@ -211,6 +209,8 @@ int cpm2_gpiochip_add32(struct device_node *np)
 	gc->direction_output = cpm2_gpio32_dir_out;
 	gc->get = cpm2_gpio32_get;
 	gc->set = cpm2_gpio32_set;
+	gc->parent = dev;
+	gc->owner = THIS_MODULE;
 
 	return of_mm_gpiochip_add_data(np, mm_gc, cpm2_gc);
 }

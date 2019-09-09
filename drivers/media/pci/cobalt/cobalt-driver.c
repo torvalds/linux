@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  cobalt driver initialization and card probing
  *
@@ -5,19 +6,6 @@
  *
  *  Copyright 2012-2015 Cisco Systems, Inc. and/or its affiliates.
  *  All rights reserved.
- *
- *  This program is free software; you may redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; version 2 of the License.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- *  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- *  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- *  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- *  BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- *  ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- *  CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
  */
 
 #include <linux/delay.h>
@@ -36,7 +24,7 @@
 #include "cobalt-omnitek.h"
 
 /* add your revision and whatnot here */
-static struct pci_device_id cobalt_pci_tbl[] = {
+static const struct pci_device_id cobalt_pci_tbl[] = {
 	{PCI_VENDOR_ID_CISCO, PCI_DEVICE_ID_COBALT,
 	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{0,}
@@ -205,6 +193,8 @@ void cobalt_pcie_status_show(struct cobalt *cobalt)
 
 	offset = pci_find_capability(pci_dev, PCI_CAP_ID_EXP);
 	bus_offset = pci_find_capability(pci_bus_dev, PCI_CAP_ID_EXP);
+	if (!offset || !bus_offset)
+		return;
 
 	/* Device */
 	pci_read_config_dword(pci_dev, offset + PCI_EXP_DEVCAP, &capa);
@@ -308,9 +298,7 @@ static void cobalt_pci_iounmap(struct cobalt *cobalt, struct pci_dev *pci_dev)
 static void cobalt_free_msi(struct cobalt *cobalt, struct pci_dev *pci_dev)
 {
 	free_irq(pci_dev->irq, (void *)cobalt);
-
-	if (cobalt->msi_enabled)
-		pci_disable_msi(pci_dev);
+	pci_free_irq_vectors(pci_dev);
 }
 
 static int cobalt_setup_pci(struct cobalt *cobalt, struct pci_dev *pci_dev,
@@ -387,14 +375,12 @@ static int cobalt_setup_pci(struct cobalt *cobalt, struct pci_dev *pci_dev,
 	   from being generated. */
 	cobalt_set_interrupt(cobalt, false);
 
-	if (pci_enable_msi_range(pci_dev, 1, 1) < 1) {
+	if (pci_alloc_irq_vectors(pci_dev, 1, 1, PCI_IRQ_MSI) < 1) {
 		cobalt_err("Could not enable MSI\n");
-		cobalt->msi_enabled = false;
 		ret = -EIO;
 		goto err_release;
 	}
 	msi_config_show(cobalt, pci_dev);
-	cobalt->msi_enabled = true;
 
 	/* Register IRQ */
 	if (request_irq(pci_dev->irq, cobalt_irq_handler, IRQF_SHARED,
@@ -684,7 +670,7 @@ static int cobalt_probe(struct pci_dev *pci_dev,
 	/* FIXME - module parameter arrays constrain max instances */
 	i = atomic_inc_return(&cobalt_instance) - 1;
 
-	cobalt = kzalloc(sizeof(struct cobalt), GFP_ATOMIC);
+	cobalt = kzalloc(sizeof(struct cobalt), GFP_KERNEL);
 	if (cobalt == NULL)
 		return -ENOMEM;
 	cobalt->pci_dev = pci_dev;
@@ -740,9 +726,6 @@ static int cobalt_probe(struct pci_dev *pci_dev,
 			goto err_i2c;
 	}
 
-	retval = v4l2_device_register_subdev_nodes(&cobalt->v4l2_dev);
-	if (retval)
-		goto err_i2c;
 	retval = cobalt_nodes_register(cobalt);
 	if (retval) {
 		cobalt_err("Error %d registering device nodes\n", retval);
@@ -769,8 +752,6 @@ err_pci:
 err_wq:
 	destroy_workqueue(cobalt->irq_work_queues);
 err:
-	if (retval == 0)
-		retval = -ENODEV;
 	cobalt_err("error %d on initialization\n", retval);
 
 	v4l2_device_unregister(&cobalt->v4l2_dev);

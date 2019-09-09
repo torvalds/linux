@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright 2014 Texas Instruments, Inc.
- *
  * Keystone 2 Lamarr EVM device tree
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * Copyright (C) 2014-2017 Texas Instruments Incorporated - http://www.ti.com/
  */
 /dts-v1/;
 
@@ -16,7 +13,21 @@
 	compatible = "ti,k2l-evm", "ti,k2l", "ti,keystone";
 	model = "Texas Instruments Keystone 2 Lamarr EVM";
 
-	soc {
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		dsp_common_memory: dsp-common-memory@81f800000 {
+			compatible = "shared-dma-pool";
+			reg = <0x00000008 0x1f800000 0x00000000 0x800000>;
+			reusable;
+			status = "okay";
+		};
+	};
+};
+
+&soc0 {
 		clocks {
 			refclksys: refclksys {
 				#clock-cells = <0>;
@@ -25,7 +36,6 @@
 				clock-output-names = "refclk-sys";
 			};
 		};
-	};
 };
 
 &usb_phy {
@@ -42,7 +52,7 @@
 
 &i2c0 {
 	dtt@50 {
-		compatible = "at,24c1024";
+		compatible = "atmel,24c1024";
 		reg = <0x50>;
 	};
 };
@@ -132,4 +142,24 @@
 		compatible = "marvell,88E1514", "marvell,88E1510", "ethernet-phy-ieee802.3-c22";
 		reg = <1>;
 	};
+};
+
+&dsp0 {
+	memory-region = <&dsp_common_memory>;
+	status = "okay";
+};
+
+&dsp1 {
+	memory-region = <&dsp_common_memory>;
+	status = "okay";
+};
+
+&dsp2 {
+	memory-region = <&dsp_common_memory>;
+	status = "okay";
+};
+
+&dsp3 {
+	memory-region = <&dsp_common_memory>;
+	status = "okay";
 };

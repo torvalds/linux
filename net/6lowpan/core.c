@@ -1,11 +1,5 @@
-/* This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+// SPDX-License-Identifier: GPL-2.0-only
+/*
  *
  * Authors:
  * (C) 2015 Pengutronix, Alexander Aring <aar@pengutronix.de>
@@ -23,10 +17,18 @@ int lowpan_register_netdevice(struct net_device *dev,
 {
 	int i, ret;
 
-	dev->addr_len = EUI64_ADDR_LEN;
+	switch (lltype) {
+	case LOWPAN_LLTYPE_IEEE802154:
+		dev->addr_len = EUI64_ADDR_LEN;
+		break;
+
+	case LOWPAN_LLTYPE_BTLE:
+		dev->addr_len = ETH_ALEN;
+		break;
+	}
+
 	dev->type = ARPHRD_6LOWPAN;
 	dev->mtu = IPV6_MIN_MTU;
-	dev->priv_flags |= IFF_NO_QUEUE;
 
 	lowpan_dev(dev)->lltype = lltype;
 
@@ -40,9 +42,7 @@ int lowpan_register_netdevice(struct net_device *dev,
 	if (ret < 0)
 		return ret;
 
-	ret = lowpan_dev_debugfs_init(dev);
-	if (ret < 0)
-		unregister_netdevice(dev);
+	lowpan_dev_debugfs_init(dev);
 
 	return ret;
 }
@@ -150,9 +150,7 @@ static int __init lowpan_module_init(void)
 {
 	int ret;
 
-	ret = lowpan_debugfs_init();
-	if (ret < 0)
-		return ret;
+	lowpan_debugfs_init();
 
 	ret = register_netdevice_notifier(&lowpan_notifier);
 	if (ret < 0) {

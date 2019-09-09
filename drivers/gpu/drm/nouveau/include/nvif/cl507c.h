@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 #ifndef __NVIF_CL507C_H__
 #define __NVIF_CL507C_H__
 

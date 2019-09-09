@@ -25,14 +25,19 @@
  *          Alex Deucher
  *          Jerome Glisse
  */
+
 #include <linux/seq_file.h>
 #include <linux/slab.h>
-#include <drm/drmP.h>
-#include "rv515d.h"
+
+#include <drm/drm_debugfs.h>
+#include <drm/drm_device.h>
+#include <drm/drm_file.h>
+
+#include "atom.h"
 #include "radeon.h"
 #include "radeon_asic.h"
-#include "atom.h"
 #include "rv515_reg_safe.h"
+#include "rv515d.h"
 
 /* This files gather functions specifics to: rv515 */
 static int rv515_debugfs_pipes_info_init(struct radeon_device *rdev);
@@ -138,7 +143,7 @@ int rv515_mc_wait_for_idle(struct radeon_device *rdev)
 		if (tmp & MC_STATUS_IDLE) {
 			return 0;
 		}
-		DRM_UDELAY(1);
+		udelay(1);
 	}
 	return -1;
 }
@@ -154,8 +159,7 @@ static void rv515_gpu_init(struct radeon_device *rdev)
 	unsigned pipe_select_current, gb_pipe_select, tmp;
 
 	if (r100_gui_wait_for_idle(rdev)) {
-		printk(KERN_WARNING "Failed to wait GUI idle while "
-		       "resetting GPU. Bad things might happen.\n");
+		pr_warn("Failed to wait GUI idle while resetting GPU. Bad things might happen.\n");
 	}
 	rv515_vga_render_disable(rdev);
 	r420_pipes_init(rdev);
@@ -166,12 +170,10 @@ static void rv515_gpu_init(struct radeon_device *rdev)
 	      (((gb_pipe_select >> 8) & 0xF) << 4);
 	WREG32_PLL(0x000D, tmp);
 	if (r100_gui_wait_for_idle(rdev)) {
-		printk(KERN_WARNING "Failed to wait GUI idle while "
-		       "resetting GPU. Bad things might happen.\n");
+		pr_warn("Failed to wait GUI idle while resetting GPU. Bad things might happen.\n");
 	}
 	if (rv515_mc_wait_for_idle(rdev)) {
-		printk(KERN_WARNING "Failed to wait MC idle while "
-		       "programming pipes. Bad things might happen.\n");
+		pr_warn("Failed to wait MC idle while programming pipes. Bad things might happen.\n");
 	}
 }
 

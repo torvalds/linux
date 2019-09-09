@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * AD5593R Digital <-> Analog converters driver
  *
  * Copyright 2015-2016 Analog Devices Inc.
  * Author: Paul Cercueil <paul.cercueil@analog.com>
- *
- * Licensed under the GPL-2.
  */
 
 #include "ad5592r-base.h"
@@ -13,6 +12,7 @@
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/acpi.h>
 
 #define AD5593R_MODE_CONF		(0 << 4)
 #define AD5593R_MODE_DAC_WRITE		(1 << 4)
@@ -115,10 +115,17 @@ static const struct of_device_id ad5593r_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, ad5593r_of_match);
 
+static const struct acpi_device_id ad5593r_acpi_match[] = {
+	{"ADS5593", },
+	{ },
+};
+MODULE_DEVICE_TABLE(acpi, ad5593r_acpi_match);
+
 static struct i2c_driver ad5593r_driver = {
 	.driver = {
 		.name = "ad5593r",
 		.of_match_table = of_match_ptr(ad5593r_of_match),
+		.acpi_match_table = ACPI_PTR(ad5593r_acpi_match),
 	},
 	.probe = ad5593r_i2c_probe,
 	.remove = ad5593r_i2c_remove,

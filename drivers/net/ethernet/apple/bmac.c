@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Network device driver for the BMAC ethernet controller on
  * Apple Powermacs.  Assumes it's under a DBDMA controller.
@@ -19,6 +20,7 @@
 #include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/crc32.h>
+#include <linux/crc32poly.h>
 #include <linux/bitrev.h>
 #include <linux/ethtool.h>
 #include <linux/slab.h>
@@ -36,11 +38,6 @@
 
 #define trunc_page(x)	((void *)(((unsigned long)(x)) & ~((unsigned long)(PAGE_SIZE - 1))))
 #define round_page(x)	trunc_page(((unsigned long)(x)) + ((unsigned long)(PAGE_SIZE - 1)))
-
-/*
- * CRC polynomial - used in working out multicast filter bits.
- */
-#define ENET_CRCPOLY 0x04c11db7
 
 /* switch to use multicast code lifted from sunhme driver */
 #define SUNHME_MULTICAST
@@ -157,8 +154,8 @@ static irqreturn_t bmac_misc_intr(int irq, void *dev_id);
 static irqreturn_t bmac_txdma_intr(int irq, void *dev_id);
 static irqreturn_t bmac_rxdma_intr(int irq, void *dev_id);
 static void bmac_set_timeout(struct net_device *dev);
-static void bmac_tx_timeout(unsigned long data);
-static int bmac_output(struct sk_buff *skb, struct net_device *dev);
+static void bmac_tx_timeout(struct timer_list *t);
+static netdev_tx_t bmac_output(struct sk_buff *skb, struct net_device *dev);
 static void bmac_start(struct net_device *dev);
 
 #define	DBDMA_SET(x)	( ((x) | (x) << 16) )
@@ -555,8 +552,6 @@ static inline void bmac_set_timeout(struct net_device *dev)
 	if (bp->timeout_active)
 		del_timer(&bp->tx_timeout);
 	bp->tx_timeout.expires = jiffies + TX_TIMEOUT;
-	bp->tx_timeout.function = bmac_tx_timeout;
-	bp->tx_timeout.data = (unsigned long) dev;
 	add_timer(&bp->tx_timeout);
 	bp->timeout_active = 1;
 	spin_unlock_irqrestore(&bp->lock, flags);
@@ -783,7 +778,7 @@ static irqreturn_t bmac_txdma_intr(int irq, void *dev_id)
 
 		if (bp->tx_bufs[bp->tx_empty]) {
 			++dev->stats.tx_packets;
-			dev_kfree_skb_irq(bp->tx_bufs[bp->tx_empty]);
+			dev_consume_skb_irq(bp->tx_bufs[bp->tx_empty]);
 		}
 		bp->tx_bufs[bp->tx_empty] = NULL;
 		bp->tx_fullup = 0;
@@ -840,7 +835,7 @@ crc416(unsigned int curval, unsigned short nxtval)
 		next = next >> 1;
 
 		/* do the XOR */
-		if (high_crc_set ^ low_data_set) cur = cur ^ ENET_CRCPOLY;
+		if (high_crc_set ^ low_data_set) cur = cur ^ CRC32_POLY_BE;
 	}
 	return cur;
 }
@@ -1218,8 +1213,7 @@ static void bmac_reset_and_enable(struct net_device *dev)
 	 */
 	skb = netdev_alloc_skb(dev, ETHERMINPACKET);
 	if (skb != NULL) {
-		data = skb_put(skb, ETHERMINPACKET);
-		memset(data, 0, ETHERMINPACKET);
+		data = skb_put_zero(skb, ETHERMINPACKET);
 		memcpy(data, dev->dev_addr, ETH_ALEN);
 		memcpy(data + ETH_ALEN, dev->dev_addr, ETH_ALEN);
 		bmac_transmit_packet(skb, dev);
@@ -1237,7 +1231,6 @@ static const struct net_device_ops bmac_netdev_ops = {
 	.ndo_start_xmit		= bmac_output,
 	.ndo_set_rx_mode	= bmac_set_multicast,
 	.ndo_set_mac_address	= bmac_set_address,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
@@ -1323,7 +1316,7 @@ static int bmac_probe(struct macio_dev *mdev, const struct of_device_id *match)
 	bp->queue = (struct sk_buff_head *)(bp->rx_cmds + N_RX_RING + 1);
 	skb_queue_head_init(bp->queue);
 
-	init_timer(&bp->tx_timeout);
+	timer_setup(&bp->tx_timeout, bmac_tx_timeout, 0);
 
 	ret = request_irq(dev->irq, bmac_misc_intr, 0, "BMAC-misc", dev);
 	if (ret) {
@@ -1464,7 +1457,7 @@ bmac_start(struct net_device *dev)
 	spin_unlock_irqrestore(&bp->lock, flags);
 }
 
-static int
+static netdev_tx_t
 bmac_output(struct sk_buff *skb, struct net_device *dev)
 {
 	struct bmac_data *bp = netdev_priv(dev);
@@ -1473,10 +1466,10 @@ bmac_output(struct sk_buff *skb, struct net_device *dev)
 	return NETDEV_TX_OK;
 }
 
-static void bmac_tx_timeout(unsigned long data)
+static void bmac_tx_timeout(struct timer_list *t)
 {
-	struct net_device *dev = (struct net_device *) data;
-	struct bmac_data *bp = netdev_priv(dev);
+	struct bmac_data *bp = from_timer(bp, t, tx_timeout);
+	struct net_device *dev = macio_get_drvdata(bp->mdev);
 	volatile struct dbdma_regs __iomem *td = bp->tx_dma;
 	volatile struct dbdma_regs __iomem *rd = bp->rx_dma;
 	volatile struct dbdma_cmd *cp;

@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * P1021 MDS Device Tree Source
  *
  * Copyright 2010,2012 Freescale Semiconductor Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
  */
 
 /include/ "p1021si-pre.dtsi"
@@ -202,7 +198,7 @@
 			ranges = <0x0 0xe0100 0x60>;
 			device_type = "par_io";
 			num-ports = <3>;
-			pio1: ucc_pin@01 {
+			pio1: ucc_pin@1 {
 				pio-map = <
 			/* port  pin  dir  open_drain  assignment  has_irq */
 					0x1  0x13 0x1  0x0  0x1  0x0    /* QE_MUX_MDC */
@@ -225,7 +221,7 @@
 					0x0  0x10 0x2  0x0  0x2  0x0>;    /* ENET1_COL */
 			};
 
-			pio2: ucc_pin@02 {
+			pio2: ucc_pin@2 {
 				pio-map = <
 			/* port  pin  dir  open_drain  assignment  has_irq */
 					0x1  0x13 0x1  0x0  0x1  0x0    /* QE_MUX_MDC */
@@ -296,7 +292,7 @@
 				interrupts = <4 1 0 0>;
 				reg = <0x0>;
 			};
-			qe_phy1: ethernet-phy@03 {
+			qe_phy1: ethernet-phy@3 {
 				interrupt-parent = <&mpic>;
 				interrupts = <5 1 0 0>;
 				reg = <0x3>;

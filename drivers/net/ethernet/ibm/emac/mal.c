@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * drivers/net/ethernet/ibm/emac/mal.c
  *
@@ -17,12 +18,6 @@
  *
  *      Armin Kuster <akuster@mvista.com>
  *      Copyright 2002 MontaVista Softare Inc.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- *
  */
 
 #include <linux/delay.h>
@@ -402,7 +397,7 @@ static int mal_poll(struct napi_struct *napi, int budget)
 	unsigned long flags;
 
 	MAL_DBG2(mal, "poll(%d)" NL, budget);
- again:
+
 	/* Process TX skbs */
 	list_for_each(l, &mal->poll_list) {
 		struct mal_commac *mc =
@@ -421,20 +416,20 @@ static int mal_poll(struct napi_struct *napi, int budget)
 		int n;
 		if (unlikely(test_bit(MAL_COMMAC_POLL_DISABLED, &mc->flags)))
 			continue;
-		n = mc->ops->poll_rx(mc->dev, budget);
+		n = mc->ops->poll_rx(mc->dev, budget - received);
 		if (n) {
 			received += n;
-			budget -= n;
-			if (budget <= 0)
-				goto more_work; // XXX What if this is the last one ?
+			if (received >= budget)
+				return budget;
 		}
 	}
 
-	/* We need to disable IRQs to protect from RXDE IRQ here */
-	spin_lock_irqsave(&mal->lock, flags);
-	__napi_complete(napi);
-	mal_enable_eob_irq(mal);
-	spin_unlock_irqrestore(&mal->lock, flags);
+	if (napi_complete_done(napi, received)) {
+		/* We need to disable IRQs to protect from RXDE IRQ here */
+		spin_lock_irqsave(&mal->lock, flags);
+		mal_enable_eob_irq(mal);
+		spin_unlock_irqrestore(&mal->lock, flags);
+	}
 
 	/* Check for "rotting" packet(s) */
 	list_for_each(l, &mal->poll_list) {
@@ -451,7 +446,6 @@ static int mal_poll(struct napi_struct *napi, int budget)
 			spin_lock_irqsave(&mal->lock, flags);
 			mal_disable_eob_irq(mal);
 			spin_unlock_irqrestore(&mal->lock, flags);
-			goto again;
 		}
 		mc->ops->poll_tx(mc->dev);
 	}
@@ -579,8 +573,8 @@ static int mal_probe(struct platform_device *ofdev)
 		mal->features |= (MAL_FTR_CLEAR_ICINTSTAT |
 				MAL_FTR_COMMON_ERR_INT);
 #else
-		printk(KERN_ERR "%s: Support for 405EZ not enabled!\n",
-				ofdev->dev.of_node->full_name);
+		printk(KERN_ERR "%pOF: Support for 405EZ not enabled!\n",
+				ofdev->dev.of_node);
 		err = -ENODEV;
 		goto fail;
 #endif
@@ -637,8 +631,8 @@ static int mal_probe(struct platform_device *ofdev)
 	bd_size = sizeof(struct mal_descriptor) *
 		(NUM_TX_BUFF * mal->num_tx_chans +
 		 NUM_RX_BUFF * mal->num_rx_chans);
-	mal->bd_virt = dma_zalloc_coherent(&ofdev->dev, bd_size, &mal->bd_dma,
-					   GFP_KERNEL);
+	mal->bd_virt = dma_alloc_coherent(&ofdev->dev, bd_size, &mal->bd_dma,
+					  GFP_KERNEL);
 	if (mal->bd_virt == NULL) {
 		err = -ENOMEM;
 		goto fail_unmap;
@@ -687,15 +681,13 @@ static int mal_probe(struct platform_device *ofdev)
 	mal_enable_eob_irq(mal);
 
 	printk(KERN_INFO
-	       "MAL v%d %s, %d TX channels, %d RX channels\n",
-	       mal->version, ofdev->dev.of_node->full_name,
+	       "MAL v%d %pOF, %d TX channels, %d RX channels\n",
+	       mal->version, ofdev->dev.of_node,
 	       mal->num_tx_chans, mal->num_rx_chans);
 
 	/* Advertise this instance to the rest of the world */
 	wmb();
 	platform_set_drvdata(ofdev, mal);
-
-	mal_dbg_register(mal);
 
 	return 0;
 
@@ -739,8 +731,6 @@ static int mal_remove(struct platform_device *ofdev)
 	free_irq(mal->rxeob_irq, mal);
 
 	mal_reset(mal);
-
-	mal_dbg_unregister(mal);
 
 	dma_free_coherent(&ofdev->dev,
 			  sizeof(struct mal_descriptor) *

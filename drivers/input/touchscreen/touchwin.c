@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Touchwindow serial touchscreen driver
  *
@@ -8,11 +9,6 @@
  * and Dan Streetman <ddstreet@ieee.org>
  */
 
-/*
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
- */
 
 /*
  * 2005/02/19 Rick Koch:
@@ -159,7 +155,7 @@ static int tw_connect(struct serio *serio, struct serio_driver *drv)
  * The serio driver structure.
  */
 
-static struct serio_device_id tw_serio_ids[] = {
+static const struct serio_device_id tw_serio_ids[] = {
 	{
 		.type	= SERIO_RS232,
 		.proto	= SERIO_TOUCHWIN,

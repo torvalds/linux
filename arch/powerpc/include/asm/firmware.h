@@ -1,21 +1,16 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *  Copyright (C) 2001 Ben. Herrenschmidt (benh@kernel.crashing.org)
  *
  *  Modifications for ppc64:
  *      Copyright (C) 2003 Dave Engebretsen <engebret@us.ibm.com>
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version
- *  2 of the License, or (at your option) any later version.
  */
 #ifndef __ASM_POWERPC_FIRMWARE_H
 #define __ASM_POWERPC_FIRMWARE_H
 
 #ifdef __KERNEL__
 
-#include <asm/asm-compat.h>
-#include <asm/feature-fixups.h>
+#include <asm/asm-const.h>
 
 /* firmware feature bitmask values */
 
@@ -42,7 +37,7 @@
 #define FW_FEATURE_SPLPAR	ASM_CONST(0x0000000000100000)
 #define FW_FEATURE_LPAR		ASM_CONST(0x0000000000400000)
 #define FW_FEATURE_PS3_LV1	ASM_CONST(0x0000000000800000)
-/* Free				ASM_CONST(0x0000000001000000) */
+#define FW_FEATURE_HPT_RESIZE	ASM_CONST(0x0000000001000000)
 #define FW_FEATURE_CMO		ASM_CONST(0x0000000002000000)
 #define FW_FEATURE_VPHN		ASM_CONST(0x0000000004000000)
 #define FW_FEATURE_XCMO		ASM_CONST(0x0000000008000000)
@@ -51,6 +46,10 @@
 #define FW_FEATURE_BEST_ENERGY	ASM_CONST(0x0000000080000000)
 #define FW_FEATURE_TYPE1_AFFINITY ASM_CONST(0x0000000100000000)
 #define FW_FEATURE_PRRN		ASM_CONST(0x0000000200000000)
+#define FW_FEATURE_DRMEM_V2	ASM_CONST(0x0000000400000000)
+#define FW_FEATURE_DRC_INFO	ASM_CONST(0x0000000800000000)
+#define FW_FEATURE_BLOCK_REMOVE ASM_CONST(0x0000001000000000)
+#define FW_FEATURE_PAPR_SCM 	ASM_CONST(0x0000002000000000)
 
 #ifndef __ASSEMBLY__
 
@@ -66,7 +65,10 @@ enum {
 		FW_FEATURE_MULTITCE | FW_FEATURE_SPLPAR | FW_FEATURE_LPAR |
 		FW_FEATURE_CMO | FW_FEATURE_VPHN | FW_FEATURE_XCMO |
 		FW_FEATURE_SET_MODE | FW_FEATURE_BEST_ENERGY |
-		FW_FEATURE_TYPE1_AFFINITY | FW_FEATURE_PRRN,
+		FW_FEATURE_TYPE1_AFFINITY | FW_FEATURE_PRRN |
+		FW_FEATURE_HPT_RESIZE | FW_FEATURE_DRMEM_V2 |
+		FW_FEATURE_DRC_INFO | FW_FEATURE_BLOCK_REMOVE |
+		FW_FEATURE_PAPR_SCM,
 	FW_FEATURE_PSERIES_ALWAYS = 0,
 	FW_FEATURE_POWERNV_POSSIBLE = FW_FEATURE_OPAL,
 	FW_FEATURE_POWERNV_ALWAYS = 0,

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* flash.c: Allow mmap access to the OBP Flash, for OBP updates.
  *
  * Copyright (C) 1997  Eddie C. Dost  (ecd@skynet.be)
@@ -15,7 +16,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/io.h>
 #include <asm/upa.h>
@@ -165,9 +166,9 @@ static int flash_probe(struct platform_device *op)
 
 	parent = dp->parent;
 
-	if (strcmp(parent->name, "sbus") &&
-	    strcmp(parent->name, "sbi") &&
-	    strcmp(parent->name, "ebus"))
+	if (!of_node_name_eq(parent, "sbus") &&
+	    !of_node_name_eq(parent, "sbi") &&
+	    !of_node_name_eq(parent, "ebus"))
 		return -ENODEV;
 
 	flash.read_base = op->resource[0].start;
@@ -181,8 +182,8 @@ static int flash_probe(struct platform_device *op)
 	}
 	flash.busy = 0;
 
-	printk(KERN_INFO "%s: OBP Flash, RD %lx[%lx] WR %lx[%lx]\n",
-	       op->dev.of_node->full_name,
+	printk(KERN_INFO "%pOF: OBP Flash, RD %lx[%lx] WR %lx[%lx]\n",
+	       op->dev.of_node,
 	       flash.read_base, flash.read_size,
 	       flash.write_base, flash.write_size);
 

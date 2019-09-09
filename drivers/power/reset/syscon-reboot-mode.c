@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (c) 2016, Fuzhou Rockchip Electronics Co., Ltd
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/init.h>
@@ -15,7 +11,7 @@
 #include <linux/reboot.h>
 #include <linux/regmap.h>
 #include <linux/mfd/syscon.h>
-#include "reboot-mode.h"
+#include <linux/reboot-mode.h>
 
 struct syscon_reboot_mode {
 	struct regmap *map;
@@ -74,6 +70,7 @@ static const struct of_device_id syscon_reboot_mode_of_match[] = {
 	{ .compatible = "syscon-reboot-mode" },
 	{}
 };
+MODULE_DEVICE_TABLE(of, syscon_reboot_mode_of_match);
 
 static struct platform_driver syscon_reboot_mode_driver = {
 	.probe = syscon_reboot_mode_probe,

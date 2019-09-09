@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2015 Jakub Kicinski <kubakici@wp.pl>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2
- * as published by the Free Software Foundation
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
  */
 
 #include <linux/kernel.h>
@@ -19,7 +11,7 @@
 #include "usb.h"
 #include "trace.h"
 
-static struct usb_device_id mt7601u_device_table[] = {
+static const struct usb_device_id mt7601u_device_table[] = {
 	{ USB_DEVICE(0x0b05, 0x17d3) },
 	{ USB_DEVICE(0x0e8d, 0x760a) },
 	{ USB_DEVICE(0x0e8d, 0x760b) },
@@ -129,14 +121,13 @@ void mt7601u_vendor_reset(struct mt7601u_dev *dev)
 			       MT_VEND_DEV_MODE_RESET, 0, NULL, 0);
 }
 
-u32 mt7601u_rr(struct mt7601u_dev *dev, u32 offset)
+/* should be called with vendor_req_mutex held */
+static u32 __mt7601u_rr(struct mt7601u_dev *dev, u32 offset)
 {
 	int ret;
 	u32 val = ~0;
 
 	WARN_ONCE(offset > USHRT_MAX, "read high off:%08x", offset);
-
-	mutex_lock(&dev->vendor_req_mutex);
 
 	ret = mt7601u_vendor_request(dev, MT_VEND_MULTI_READ, USB_DIR_IN,
 				     0, offset, dev->vend_buf, MT_VEND_BUF);
@@ -146,10 +137,32 @@ u32 mt7601u_rr(struct mt7601u_dev *dev, u32 offset)
 		dev_err(dev->dev, "Error: wrong size read:%d off:%08x\n",
 			ret, offset);
 
-	mutex_unlock(&dev->vendor_req_mutex);
-
 	trace_reg_read(dev, offset, val);
 	return val;
+}
+
+u32 mt7601u_rr(struct mt7601u_dev *dev, u32 offset)
+{
+	u32 ret;
+
+	mutex_lock(&dev->vendor_req_mutex);
+	ret = __mt7601u_rr(dev, offset);
+	mutex_unlock(&dev->vendor_req_mutex);
+
+	return ret;
+}
+
+/* should be called with vendor_req_mutex held */
+static int __mt7601u_vendor_single_wr(struct mt7601u_dev *dev, const u8 req,
+				      const u16 offset, const u32 val)
+{
+	int ret = mt7601u_vendor_request(dev, req, USB_DIR_OUT,
+					 val & 0xffff, offset, NULL, 0);
+	if (!ret)
+		ret = mt7601u_vendor_request(dev, req, USB_DIR_OUT,
+					     val >> 16, offset + 2, NULL, 0);
+	trace_reg_write(dev, offset, val);
+	return ret;
 }
 
 int mt7601u_vendor_single_wr(struct mt7601u_dev *dev, const u8 req,
@@ -158,13 +171,7 @@ int mt7601u_vendor_single_wr(struct mt7601u_dev *dev, const u8 req,
 	int ret;
 
 	mutex_lock(&dev->vendor_req_mutex);
-
-	ret = mt7601u_vendor_request(dev, req, USB_DIR_OUT,
-				     val & 0xffff, offset, NULL, 0);
-	if (!ret)
-		ret = mt7601u_vendor_request(dev, req, USB_DIR_OUT,
-					     val >> 16, offset + 2, NULL, 0);
-
+	ret = __mt7601u_vendor_single_wr(dev, req, offset, val);
 	mutex_unlock(&dev->vendor_req_mutex);
 
 	return ret;
@@ -175,23 +182,30 @@ void mt7601u_wr(struct mt7601u_dev *dev, u32 offset, u32 val)
 	WARN_ONCE(offset > USHRT_MAX, "write high off:%08x", offset);
 
 	mt7601u_vendor_single_wr(dev, MT_VEND_WRITE, offset, val);
-	trace_reg_write(dev, offset, val);
 }
 
 u32 mt7601u_rmw(struct mt7601u_dev *dev, u32 offset, u32 mask, u32 val)
 {
-	val |= mt7601u_rr(dev, offset) & ~mask;
-	mt7601u_wr(dev, offset, val);
+	mutex_lock(&dev->vendor_req_mutex);
+	val |= __mt7601u_rr(dev, offset) & ~mask;
+	__mt7601u_vendor_single_wr(dev, MT_VEND_WRITE, offset, val);
+	mutex_unlock(&dev->vendor_req_mutex);
+
 	return val;
 }
 
 u32 mt7601u_rmc(struct mt7601u_dev *dev, u32 offset, u32 mask, u32 val)
 {
-	u32 reg = mt7601u_rr(dev, offset);
+	u32 reg;
 
+	mutex_lock(&dev->vendor_req_mutex);
+	reg = __mt7601u_rr(dev, offset);
 	val |= reg & ~mask;
 	if (reg != val)
-		mt7601u_wr(dev, offset, val);
+		__mt7601u_vendor_single_wr(dev, MT_VEND_WRITE,
+					   offset, val);
+	mutex_unlock(&dev->vendor_req_mutex);
+
 	return val;
 }
 
@@ -281,6 +295,10 @@ static int mt7601u_probe(struct usb_interface *usb_intf,
 	mac_rev = mt7601u_rr(dev, MT_MAC_CSR0);
 	dev_info(dev->dev, "ASIC revision: %08x MAC revision: %08x\n",
 		 asic_rev, mac_rev);
+	if ((asic_rev >> 16) != 0x7601) {
+		ret = -ENODEV;
+		goto err;
+	}
 
 	/* Note: vendor driver skips this check for MT7601U */
 	if (!(mt7601u_rr(dev, MT_EFUSE_CTRL) & MT_EFUSE_CTRL_SEL))

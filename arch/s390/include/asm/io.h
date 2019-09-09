@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *  S390 version
  *    Copyright IBM Corp. 1999
@@ -25,20 +26,12 @@ void unxlate_dev_mem_ptr(phys_addr_t phys, void *addr);
 
 #define IO_SPACE_LIMIT 0
 
-#ifdef CONFIG_PCI
-
 #define ioremap_nocache(addr, size)	ioremap(addr, size)
 #define ioremap_wc			ioremap_nocache
 #define ioremap_wt			ioremap_nocache
 
-static inline void __iomem *ioremap(unsigned long offset, unsigned long size)
-{
-	return (void __iomem *) offset;
-}
-
-static inline void iounmap(volatile void __iomem *addr)
-{
-}
+void __iomem *ioremap(unsigned long offset, unsigned long size);
+void iounmap(volatile void __iomem *addr);
 
 static inline void __iomem *ioport_map(unsigned long port, unsigned int nr)
 {
@@ -49,6 +42,8 @@ static inline void ioport_unmap(void __iomem *p)
 {
 }
 
+#ifdef CONFIG_PCI
+
 /*
  * s390 needs a private implementation of pci_iomap since ioremap with its
  * offset parameter isn't sufficient. That's because BAR spaces are not
@@ -56,13 +51,16 @@ static inline void ioport_unmap(void __iomem *p)
  * the corresponding device and create the mapping cookie.
  */
 #define pci_iomap pci_iomap
+#define pci_iomap_range pci_iomap_range
 #define pci_iounmap pci_iounmap
-#define pci_iomap_wc pci_iomap
-#define pci_iomap_wc_range pci_iomap_range
+#define pci_iomap_wc pci_iomap_wc
+#define pci_iomap_wc_range pci_iomap_wc_range
 
 #define memcpy_fromio(dst, src, count)	zpci_memcpy_fromio(dst, src, count)
 #define memcpy_toio(dst, src, count)	zpci_memcpy_toio(dst, src, count)
 #define memset_io(dst, val, count)	zpci_memset_io(dst, val, count)
+
+#define mmiowb()	zpci_barrier()
 
 #define __raw_readb	zpci_read_u8
 #define __raw_readw	zpci_read_u16

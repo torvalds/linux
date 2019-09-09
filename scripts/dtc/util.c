@@ -1,24 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2011 The Chromium Authors, All Rights Reserved.
  * Copyright 2008 Jon Loeliger, Freescale Semiconductor, Inc.
  *
  * util_is_printable_string contributed by
  *	Pantelis Antoniou <pantelis.antoniou AT gmail.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of the
- * License, or (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307
- *                                                                   USA
  */
 
 #include <ctype.h>
@@ -44,6 +30,54 @@ char *xstrdup(const char *s)
 	memcpy(d, s, len);
 
 	return d;
+}
+
+int xavsprintf_append(char **strp, const char *fmt, va_list ap)
+{
+	int n, size = 0;	/* start with 128 bytes */
+	char *p;
+	va_list ap_copy;
+
+	p = *strp;
+	if (p)
+		size = strlen(p);
+
+	va_copy(ap_copy, ap);
+	n = vsnprintf(NULL, 0, fmt, ap_copy) + 1;
+	va_end(ap_copy);
+
+	p = xrealloc(p, size + n);
+
+	n = vsnprintf(p + size, n, fmt, ap);
+
+	*strp = p;
+	return strlen(p);
+}
+
+int xasprintf_append(char **strp, const char *fmt, ...)
+{
+	int n;
+	va_list ap;
+
+	va_start(ap, fmt);
+	n = xavsprintf_append(strp, fmt, ap);
+	va_end(ap);
+
+	return n;
+}
+
+int xasprintf(char **strp, const char *fmt, ...)
+{
+	int n;
+	va_list ap;
+
+	*strp = NULL;
+
+	va_start(ap, fmt);
+	n = xavsprintf_append(strp, fmt, ap);
+	va_end(ap);
+
+	return n;
 }
 
 char *join_path(const char *path, const char *name)
@@ -197,11 +231,11 @@ char get_escape_char(const char *s, int *i)
 	return val;
 }
 
-int utilfdt_read_err_len(const char *filename, char **buffp, off_t *len)
+int utilfdt_read_err(const char *filename, char **buffp, size_t *len)
 {
 	int fd = 0;	/* assume stdin */
 	char *buf = NULL;
-	off_t bufsize = 1024, offset = 0;
+	size_t bufsize = 1024, offset = 0;
 	int ret = 0;
 
 	*buffp = NULL;
@@ -234,20 +268,15 @@ int utilfdt_read_err_len(const char *filename, char **buffp, off_t *len)
 		free(buf);
 	else
 		*buffp = buf;
-	*len = bufsize;
+	if (len)
+		*len = bufsize;
 	return ret;
 }
 
-int utilfdt_read_err(const char *filename, char **buffp)
-{
-	off_t len;
-	return utilfdt_read_err_len(filename, buffp, &len);
-}
-
-char *utilfdt_read_len(const char *filename, off_t *len)
+char *utilfdt_read(const char *filename, size_t *len)
 {
 	char *buff;
-	int ret = utilfdt_read_err_len(filename, &buff, len);
+	int ret = utilfdt_read_err(filename, &buff, len);
 
 	if (ret) {
 		fprintf(stderr, "Couldn't open blob from '%s': %s\n", filename,
@@ -256,12 +285,6 @@ char *utilfdt_read_len(const char *filename, off_t *len)
 	}
 	/* Successful read */
 	return buff;
-}
-
-char *utilfdt_read(const char *filename)
-{
-	off_t len;
-	return utilfdt_read_len(filename, &len);
 }
 
 int utilfdt_write_err(const char *filename, const void *blob)
@@ -366,7 +389,7 @@ void utilfdt_print_data(const char *data, int len)
 		} while (s < data + len);
 
 	} else if ((len % 4) == 0) {
-		const uint32_t *cell = (const uint32_t *)data;
+		const fdt32_t *cell = (const fdt32_t *)data;
 
 		printf(" = <");
 		for (i = 0, len /= 4; i < len; i++)
@@ -382,15 +405,16 @@ void utilfdt_print_data(const char *data, int len)
 	}
 }
 
-void util_version(void)
+void NORETURN util_version(void)
 {
 	printf("Version: %s\n", DTC_VERSION);
 	exit(0);
 }
 
-void util_usage(const char *errmsg, const char *synopsis,
-		const char *short_opts, struct option const long_opts[],
-		const char * const opts_help[])
+void NORETURN util_usage(const char *errmsg, const char *synopsis,
+			 const char *short_opts,
+			 struct option const long_opts[],
+			 const char * const opts_help[])
 {
 	FILE *fp = errmsg ? stderr : stdout;
 	const char a_arg[] = "<arg>";

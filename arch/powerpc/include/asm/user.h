@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_POWERPC_USER_H
 #define _ASM_POWERPC_USER_H
 
@@ -30,7 +31,7 @@
  *	to write an integer number of pages.
  */
 struct user {
-	struct pt_regs	regs;			/* entire machine state */
+	struct user_pt_regs regs;		/* entire machine state */
 	size_t		u_tsize;		/* text size (pages) */
 	size_t		u_dsize;		/* data size (pages) */
 	size_t		u_ssize;		/* stack size (pages) */

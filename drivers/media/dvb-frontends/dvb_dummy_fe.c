@@ -1,22 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Driver for Dummy Frontend
  *
  *  Written by Emard <emard@softhome.net>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.=
  */
 
 #include <linux/module.h>
@@ -24,7 +10,7 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "dvb_dummy_fe.h"
 
 
@@ -119,7 +105,7 @@ static void dvb_dummy_fe_release(struct dvb_frontend* fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops dvb_dummy_fe_ofdm_ops;
+static const struct dvb_frontend_ops dvb_dummy_fe_ofdm_ops;
 
 struct dvb_frontend* dvb_dummy_fe_ofdm_attach(void)
 {
@@ -136,7 +122,7 @@ struct dvb_frontend* dvb_dummy_fe_ofdm_attach(void)
 	return &state->frontend;
 }
 
-static struct dvb_frontend_ops dvb_dummy_fe_qpsk_ops;
+static const struct dvb_frontend_ops dvb_dummy_fe_qpsk_ops;
 
 struct dvb_frontend *dvb_dummy_fe_qpsk_attach(void)
 {
@@ -153,7 +139,7 @@ struct dvb_frontend *dvb_dummy_fe_qpsk_attach(void)
 	return &state->frontend;
 }
 
-static struct dvb_frontend_ops dvb_dummy_fe_qam_ops;
+static const struct dvb_frontend_ops dvb_dummy_fe_qam_ops;
 
 struct dvb_frontend *dvb_dummy_fe_qam_attach(void)
 {
@@ -170,13 +156,13 @@ struct dvb_frontend *dvb_dummy_fe_qam_attach(void)
 	return &state->frontend;
 }
 
-static struct dvb_frontend_ops dvb_dummy_fe_ofdm_ops = {
+static const struct dvb_frontend_ops dvb_dummy_fe_ofdm_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		.name			= "Dummy DVB-T",
-		.frequency_min		= 0,
-		.frequency_max		= 863250000,
-		.frequency_stepsize	= 62500,
+		.frequency_min_hz	= 0,
+		.frequency_max_hz	= 863250 * kHz,
+		.frequency_stepsize_hz	= 62500,
 		.caps = FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 | FE_CAN_FEC_3_4 |
 				FE_CAN_FEC_4_5 | FE_CAN_FEC_5_6 | FE_CAN_FEC_6_7 |
 				FE_CAN_FEC_7_8 | FE_CAN_FEC_8_9 | FE_CAN_FEC_AUTO |
@@ -201,15 +187,15 @@ static struct dvb_frontend_ops dvb_dummy_fe_ofdm_ops = {
 	.read_ucblocks = dvb_dummy_fe_read_ucblocks,
 };
 
-static struct dvb_frontend_ops dvb_dummy_fe_qam_ops = {
+static const struct dvb_frontend_ops dvb_dummy_fe_qam_ops = {
 	.delsys = { SYS_DVBC_ANNEX_A },
 	.info = {
 		.name			= "Dummy DVB-C",
-		.frequency_stepsize	= 62500,
-		.frequency_min		= 51000000,
-		.frequency_max		= 858000000,
-		.symbol_rate_min	= (57840000/2)/64,     /* SACLK/64 == (XIN/2)/64 */
-		.symbol_rate_max	= (57840000/2)/4,      /* SACLK/4 */
+		.frequency_min_hz	=  51 * MHz,
+		.frequency_max_hz	= 858 * MHz,
+		.frequency_stepsize_hz	= 62500,
+		.symbol_rate_min	= (57840000 / 2) / 64,  /* SACLK/64 == (XIN/2)/64 */
+		.symbol_rate_max	= (57840000 / 2) / 4,   /* SACLK/4 */
 		.caps = FE_CAN_QAM_16 | FE_CAN_QAM_32 | FE_CAN_QAM_64 |
 			FE_CAN_QAM_128 | FE_CAN_QAM_256 |
 			FE_CAN_FEC_AUTO | FE_CAN_INVERSION_AUTO
@@ -230,14 +216,14 @@ static struct dvb_frontend_ops dvb_dummy_fe_qam_ops = {
 	.read_ucblocks = dvb_dummy_fe_read_ucblocks,
 };
 
-static struct dvb_frontend_ops dvb_dummy_fe_qpsk_ops = {
+static const struct dvb_frontend_ops dvb_dummy_fe_qpsk_ops = {
 	.delsys = { SYS_DVBS },
 	.info = {
 		.name			= "Dummy DVB-S",
-		.frequency_min		= 950000,
-		.frequency_max		= 2150000,
-		.frequency_stepsize	= 250,           /* kHz for QPSK frontends */
-		.frequency_tolerance	= 29500,
+		.frequency_min_hz	=  950 * MHz,
+		.frequency_max_hz	= 2150 * MHz,
+		.frequency_stepsize_hz	= 250 * kHz,
+		.frequency_tolerance_hz	= 29500 * kHz,
 		.symbol_rate_min	= 1000000,
 		.symbol_rate_max	= 45000000,
 		.caps = FE_CAN_INVERSION_AUTO |

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* -*- linux-c -*-
  * sysctl_net.c: sysctl interface to net subsystem.
  *
@@ -106,7 +107,6 @@ __init int net_sysctl_init(void)
 	ret = register_pernet_subsys(&sysctl_pernet_ops);
 	if (ret)
 		goto out1;
-	register_sysctl_root(&net_sysctl_root);
 out:
 	return ret;
 out1:

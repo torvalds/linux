@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * OF-platform PATA driver
  *
  * Copyright (c) 2007  MontaVista Software, Inc.
  *                     Anton Vorontsov <avorontsov@ru.mvista.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License (Version 2) as
- * published by the Free Software Foundation.
  */
 
 #include <linux/kernel.h>
@@ -32,7 +29,7 @@ static int pata_of_platform_probe(struct platform_device *ofdev)
 	unsigned int reg_shift = 0;
 	int pio_mode = 0;
 	int pio_mask;
-	const u32 *prop;
+	bool use16bit;
 
 	ret = of_address_to_resource(dn, 0, &io_res);
 	if (ret) {
@@ -50,13 +47,9 @@ static int pata_of_platform_probe(struct platform_device *ofdev)
 
 	irq_res = platform_get_resource(ofdev, IORESOURCE_IRQ, 0);
 
-	prop = of_get_property(dn, "reg-shift", NULL);
-	if (prop)
-		reg_shift = be32_to_cpup(prop);
+	of_property_read_u32(dn, "reg-shift", &reg_shift);
 
-	prop = of_get_property(dn, "pio-mode", NULL);
-	if (prop) {
-		pio_mode = be32_to_cpup(prop);
+	if (!of_property_read_u32(dn, "pio-mode", &pio_mode)) {
 		if (pio_mode > 6) {
 			dev_err(&ofdev->dev, "invalid pio-mode\n");
 			return -EINVAL;
@@ -65,14 +58,17 @@ static int pata_of_platform_probe(struct platform_device *ofdev)
 		dev_info(&ofdev->dev, "pio-mode unspecified, assuming PIO0\n");
 	}
 
+	use16bit = of_property_read_bool(dn, "ata-generic,use16bit");
+
 	pio_mask = 1 << pio_mode;
 	pio_mask |= (1 << pio_mode) - 1;
 
 	return __pata_platform_probe(&ofdev->dev, &io_res, &ctl_res, irq_res,
-				     reg_shift, pio_mask, &pata_platform_sht);
+				     reg_shift, pio_mask, &pata_platform_sht,
+				     use16bit);
 }
 
-static struct of_device_id pata_of_platform_match[] = {
+static const struct of_device_id pata_of_platform_match[] = {
 	{ .compatible = "ata-generic", },
 	{ },
 };

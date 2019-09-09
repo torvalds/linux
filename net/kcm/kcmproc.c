@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/in.h>
 #include <linux/inet.h>
 #include <linux/list.h>
@@ -14,12 +15,6 @@
 #include <net/tcp.h>
 
 #ifdef CONFIG_PROC_FS
-struct kcm_seq_muxinfo {
-	char				*name;
-	const struct file_operations	*seq_fops;
-	const struct seq_operations	seq_ops;
-};
-
 static struct kcm_mux *kcm_get_first(struct seq_file *seq)
 {
 	struct net *net = seq_file_net(seq);
@@ -85,14 +80,6 @@ struct kcm_proc_mux_state {
 	int idx;
 };
 
-static int kcm_seq_open(struct inode *inode, struct file *file)
-{
-	struct kcm_seq_muxinfo *muxinfo = PDE_DATA(inode);
-
-	return seq_open_net(inode, file, &muxinfo->seq_ops,
-			   sizeof(struct kcm_proc_mux_state));
-}
-
 static void kcm_format_mux_header(struct seq_file *seq)
 {
 	struct net *net = seq_file_net(seq);
@@ -155,14 +142,14 @@ static void kcm_format_psock(struct kcm_psock *psock, struct seq_file *seq,
 	seq_printf(seq,
 		   "   psock-%-5u %-10llu %-16llu %-10llu %-16llu %-8d %-8d %-8d %-8d ",
 		   psock->index,
-		   psock->strp.stats.rx_msgs,
-		   psock->strp.stats.rx_bytes,
+		   psock->strp.stats.msgs,
+		   psock->strp.stats.bytes,
 		   psock->stats.tx_msgs,
 		   psock->stats.tx_bytes,
 		   psock->sk->sk_receive_queue.qlen,
 		   atomic_read(&psock->sk->sk_rmem_alloc),
 		   psock->sk->sk_write_queue.qlen,
-		   atomic_read(&psock->sk->sk_wmem_alloc));
+		   refcount_read(&psock->sk->sk_wmem_alloc));
 
 	if (psock->done)
 		seq_puts(seq, "Done ");
@@ -170,22 +157,22 @@ static void kcm_format_psock(struct kcm_psock *psock, struct seq_file *seq,
 	if (psock->tx_stopped)
 		seq_puts(seq, "TxStop ");
 
-	if (psock->strp.rx_stopped)
+	if (psock->strp.stopped)
 		seq_puts(seq, "RxStop ");
 
 	if (psock->tx_kcm)
 		seq_printf(seq, "Rsvd-%d ", psock->tx_kcm->index);
 
-	if (!psock->strp.rx_paused && !psock->ready_rx_msg) {
+	if (!psock->strp.paused && !psock->ready_rx_msg) {
 		if (psock->sk->sk_receive_queue.qlen) {
-			if (psock->strp.rx_need_bytes)
+			if (psock->strp.need_bytes)
 				seq_printf(seq, "RxWait=%u ",
-					   psock->strp.rx_need_bytes);
+					   psock->strp.need_bytes);
 			else
 				seq_printf(seq, "RxWait ");
 		}
 	} else  {
-		if (psock->strp.rx_paused)
+		if (psock->strp.paused)
 			seq_puts(seq, "RxPause ");
 
 		if (psock->ready_rx_msg)
@@ -245,44 +232,12 @@ static int kcm_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static const struct file_operations kcm_seq_fops = {
-	.owner		= THIS_MODULE,
-	.open		= kcm_seq_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release_net,
+static const struct seq_operations kcm_seq_ops = {
+	.show	= kcm_seq_show,
+	.start	= kcm_seq_start,
+	.next	= kcm_seq_next,
+	.stop	= kcm_seq_stop,
 };
-
-static struct kcm_seq_muxinfo kcm_seq_muxinfo = {
-	.name		= "kcm",
-	.seq_fops	= &kcm_seq_fops,
-	.seq_ops	= {
-		.show	= kcm_seq_show,
-		.start	= kcm_seq_start,
-		.next	= kcm_seq_next,
-		.stop	= kcm_seq_stop,
-	}
-};
-
-static int kcm_proc_register(struct net *net, struct kcm_seq_muxinfo *muxinfo)
-{
-	struct proc_dir_entry *p;
-	int rc = 0;
-
-	p = proc_create_data(muxinfo->name, S_IRUGO, net->proc_net,
-			     muxinfo->seq_fops, muxinfo);
-	if (!p)
-		rc = -ENOMEM;
-	return rc;
-}
-EXPORT_SYMBOL(kcm_proc_register);
-
-static void kcm_proc_unregister(struct net *net,
-				struct kcm_seq_muxinfo *muxinfo)
-{
-	remove_proc_entry(muxinfo->name, net->proc_net);
-}
-EXPORT_SYMBOL(kcm_proc_unregister);
 
 static int kcm_stats_seq_show(struct seq_file *seq, void *v)
 {
@@ -371,50 +326,33 @@ static int kcm_stats_seq_show(struct seq_file *seq, void *v)
 	seq_printf(seq,
 		   "%-8s %-10llu %-16llu %-10llu %-16llu %-10llu %-10llu %-10u %-10u %-10u %-10u %-10u %-10u %-10u %-10u %-10u\n",
 		   "",
-		   strp_stats.rx_msgs,
-		   strp_stats.rx_bytes,
+		   strp_stats.msgs,
+		   strp_stats.bytes,
 		   psock_stats.tx_msgs,
 		   psock_stats.tx_bytes,
 		   psock_stats.reserved,
 		   psock_stats.unreserved,
-		   strp_stats.rx_aborts,
-		   strp_stats.rx_interrupted,
-		   strp_stats.rx_unrecov_intr,
-		   strp_stats.rx_mem_fail,
-		   strp_stats.rx_need_more_hdr,
-		   strp_stats.rx_bad_hdr_len,
-		   strp_stats.rx_msg_too_big,
-		   strp_stats.rx_msg_timeouts,
+		   strp_stats.aborts,
+		   strp_stats.interrupted,
+		   strp_stats.unrecov_intr,
+		   strp_stats.mem_fail,
+		   strp_stats.need_more_hdr,
+		   strp_stats.bad_hdr_len,
+		   strp_stats.msg_too_big,
+		   strp_stats.msg_timeouts,
 		   psock_stats.tx_aborts);
 
 	return 0;
 }
 
-static int kcm_stats_seq_open(struct inode *inode, struct file *file)
-{
-	return single_open_net(inode, file, kcm_stats_seq_show);
-}
-
-static const struct file_operations kcm_stats_seq_fops = {
-	.owner   = THIS_MODULE,
-	.open    = kcm_stats_seq_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = single_release_net,
-};
-
 static int kcm_proc_init_net(struct net *net)
 {
-	int err;
-
-	if (!proc_create("kcm_stats", S_IRUGO, net->proc_net,
-			 &kcm_stats_seq_fops)) {
-		err = -ENOMEM;
+	if (!proc_create_net_single("kcm_stats", 0444, net->proc_net,
+			 kcm_stats_seq_show, NULL))
 		goto out_kcm_stats;
-	}
 
-	err = kcm_proc_register(net, &kcm_seq_muxinfo);
-	if (err)
+	if (!proc_create_net("kcm", 0444, net->proc_net, &kcm_seq_ops,
+			sizeof(struct kcm_proc_mux_state)))
 		goto out_kcm;
 
 	return 0;
@@ -422,12 +360,12 @@ static int kcm_proc_init_net(struct net *net)
 out_kcm:
 	remove_proc_entry("kcm_stats", net->proc_net);
 out_kcm_stats:
-	return err;
+	return -ENOMEM;
 }
 
 static void kcm_proc_exit_net(struct net *net)
 {
-	kcm_proc_unregister(net, &kcm_seq_muxinfo);
+	remove_proc_entry("kcm", net->proc_net);
 	remove_proc_entry("kcm_stats", net->proc_net);
 }
 

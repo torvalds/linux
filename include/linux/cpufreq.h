@@ -1,12 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * linux/include/linux/cpufreq.h
  *
  * Copyright (C) 2001 Russell King
  *           (C) 2002 - 2003 Dominik Brodowski <linux@brodo.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #ifndef _LINUX_CPUFREQ_H
 #define _LINUX_CPUFREQ_H
@@ -31,7 +28,7 @@
 
 #define CPUFREQ_ETERNAL			(-1)
 #define CPUFREQ_NAME_LEN		16
-/* Print length for names. Extra 1 space for accomodating '\n' in prints */
+/* Print length for names. Extra 1 space for accommodating '\n' in prints */
 #define CPUFREQ_NAME_PLEN		(CPUFREQ_NAME_LEN + 1)
 
 struct cpufreq_governor;
@@ -42,24 +39,12 @@ enum cpufreq_table_sorting {
 	CPUFREQ_TABLE_SORTED_DESCENDING
 };
 
-struct cpufreq_freqs {
-	unsigned int cpu;	/* cpu nr */
-	unsigned int old;
-	unsigned int new;
-	u8 flags;		/* flags of cpufreq_driver, see below. */
-};
-
 struct cpufreq_cpuinfo {
 	unsigned int		max_freq;
 	unsigned int		min_freq;
 
 	/* in 10^(-9) s = nanoseconds */
 	unsigned int		transition_latency;
-};
-
-struct cpufreq_user_policy {
-	unsigned int		min;    /* in kHz */
-	unsigned int		max;    /* in kHz */
 };
 
 struct cpufreq_policy {
@@ -91,7 +76,8 @@ struct cpufreq_policy {
 	struct work_struct	update; /* if update_policy() needs to be
 					 * called, but you're in IRQ context */
 
-	struct cpufreq_user_policy user_policy;
+	struct dev_pm_qos_request *min_freq_req;
+	struct dev_pm_qos_request *max_freq_req;
 	struct cpufreq_frequency_table	*freq_table;
 	enum cpufreq_table_sorting freq_table_sorted;
 
@@ -115,10 +101,26 @@ struct cpufreq_policy {
 	 *   guarantee that frequency can be changed on any CPU sharing the
 	 *   policy and that the change will affect all of the policy CPUs then.
 	 * - fast_switch_enabled is to be set by governors that support fast
-	 *   freqnency switching with the help of cpufreq_enable_fast_switch().
+	 *   frequency switching with the help of cpufreq_enable_fast_switch().
 	 */
 	bool			fast_switch_possible;
 	bool			fast_switch_enabled;
+
+	/*
+	 * Preferred average time interval between consecutive invocations of
+	 * the driver to set the frequency for this policy.  To be set by the
+	 * scaling driver (0, which is the default, means no preference).
+	 */
+	unsigned int		transition_delay_us;
+
+	/*
+	 * Remote DVFS flag (Not added to the driver structure as we don't want
+	 * to access another structure from scheduler hotpath).
+	 *
+	 * Should be set if CPUs can do DVFS on behalf of other CPUs from
+	 * different cpufreq policies.
+	 */
+	bool			dvfs_possible_from_any_cpu;
 
 	 /* Cached frequency lookup from cpufreq_driver_resolve_freq. */
 	unsigned int cached_target_freq;
@@ -135,6 +137,19 @@ struct cpufreq_policy {
 
 	/* For cpufreq driver's internal use */
 	void			*driver_data;
+
+	/* Pointer to the cooling device if used for thermal mitigation */
+	struct thermal_cooling_device *cdev;
+
+	struct notifier_block nb_min;
+	struct notifier_block nb_max;
+};
+
+struct cpufreq_freqs {
+	struct cpufreq_policy *policy;
+	unsigned int old;
+	unsigned int new;
+	u8 flags;		/* flags of cpufreq_driver, see below. */
 };
 
 /* Only for ACPI */
@@ -159,6 +174,11 @@ static inline struct cpufreq_policy *cpufreq_cpu_get(unsigned int cpu)
 static inline void cpufreq_cpu_put(struct cpufreq_policy *policy) { }
 #endif
 
+static inline bool policy_is_inactive(struct cpufreq_policy *policy)
+{
+	return cpumask_empty(policy->cpus);
+}
+
 static inline bool policy_is_shared(struct cpufreq_policy *policy)
 {
 	return cpumask_weight(policy->cpus) > 1;
@@ -174,8 +194,15 @@ unsigned int cpufreq_quick_get_max(unsigned int cpu);
 void disable_cpufreq(void);
 
 u64 get_cpu_idle_time(unsigned int cpu, u64 *wall, int io_busy);
+
+struct cpufreq_policy *cpufreq_cpu_acquire(unsigned int cpu);
+void cpufreq_cpu_release(struct cpufreq_policy *policy);
 int cpufreq_get_policy(struct cpufreq_policy *policy, unsigned int cpu);
-int cpufreq_update_policy(unsigned int cpu);
+int cpufreq_set_policy(struct cpufreq_policy *policy,
+		       struct cpufreq_policy *new_policy);
+void refresh_frequency_limits(struct cpufreq_policy *policy);
+void cpufreq_update_policy(unsigned int cpu);
+void cpufreq_update_limits(unsigned int cpu);
 bool have_governor_per_policy(void);
 struct kobject *get_governor_parent_kobj(struct cpufreq_policy *policy);
 void cpufreq_enable_fast_switch(struct cpufreq_policy *policy);
@@ -234,20 +261,16 @@ __ATTR(_name, _perm, show_##_name, NULL)
 static struct freq_attr _name =			\
 __ATTR(_name, 0644, show_##_name, store_##_name)
 
-struct global_attr {
-	struct attribute attr;
-	ssize_t (*show)(struct kobject *kobj,
-			struct attribute *attr, char *buf);
-	ssize_t (*store)(struct kobject *a, struct attribute *b,
-			 const char *c, size_t count);
-};
+#define cpufreq_freq_attr_wo(_name)		\
+static struct freq_attr _name =			\
+__ATTR(_name, 0200, NULL, store_##_name)
 
 #define define_one_global_ro(_name)		\
-static struct global_attr _name =		\
+static struct kobj_attribute _name =		\
 __ATTR(_name, 0444, show_##_name, NULL)
 
 #define define_one_global_rw(_name)		\
-static struct global_attr _name =		\
+static struct kobj_attribute _name =		\
 __ATTR(_name, 0644, show_##_name, store_##_name)
 
 
@@ -307,9 +330,14 @@ struct cpufreq_driver {
 	/* should be defined, if possible */
 	unsigned int	(*get)(unsigned int cpu);
 
+	/* Called to update policy limits on firmware notifications. */
+	void		(*update_limits)(unsigned int cpu);
+
 	/* optional */
 	int		(*bios_limit)(int cpu, unsigned int *limit);
 
+	int		(*online)(struct cpufreq_policy *policy);
+	int		(*offline)(struct cpufreq_policy *policy);
 	int		(*exit)(struct cpufreq_policy *policy);
 	void		(*stop_cpu)(struct cpufreq_policy *policy);
 	int		(*suspend)(struct cpufreq_policy *policy);
@@ -326,14 +354,15 @@ struct cpufreq_driver {
 };
 
 /* flags */
-#define CPUFREQ_STICKY		(1 << 0)	/* driver isn't removed even if
-						   all ->init() calls failed */
-#define CPUFREQ_CONST_LOOPS	(1 << 1)	/* loops_per_jiffy or other
-						   kernel "constants" aren't
-						   affected by frequency
-						   transitions */
-#define CPUFREQ_PM_NO_WARN	(1 << 2)	/* don't warn on suspend/resume
-						   speed mismatches */
+
+/* driver isn't removed even if all ->init() calls failed */
+#define CPUFREQ_STICKY				BIT(0)
+
+/* loops_per_jiffy or other kernel "constants" aren't affected by frequency transitions */
+#define CPUFREQ_CONST_LOOPS			BIT(1)
+
+/* don't warn on suspend/resume speed mismatches */
+#define CPUFREQ_PM_NO_WARN			BIT(2)
 
 /*
  * This should be set by platforms having multiple clock-domains, i.e.
@@ -341,14 +370,14 @@ struct cpufreq_driver {
  * be created in cpu/cpu<num>/cpufreq/ directory and so they can use the same
  * governor with different tunables for different clusters.
  */
-#define CPUFREQ_HAVE_GOVERNOR_PER_POLICY (1 << 3)
+#define CPUFREQ_HAVE_GOVERNOR_PER_POLICY	BIT(3)
 
 /*
  * Driver will do POSTCHANGE notifications from outside of their ->target()
  * routine and so must set cpufreq_driver->flags with this flag, so that core
  * can handle them specially.
  */
-#define CPUFREQ_ASYNC_NOTIFICATION  (1 << 4)
+#define CPUFREQ_ASYNC_NOTIFICATION		BIT(4)
 
 /*
  * Set by drivers which want cpufreq core to check if CPU is running at a
@@ -357,13 +386,31 @@ struct cpufreq_driver {
  * from the table. And if that fails, we will stop further boot process by
  * issuing a BUG_ON().
  */
-#define CPUFREQ_NEED_INITIAL_FREQ_CHECK	(1 << 5)
+#define CPUFREQ_NEED_INITIAL_FREQ_CHECK	BIT(5)
+
+/*
+ * Set by drivers to disallow use of governors with "dynamic_switching" flag
+ * set.
+ */
+#define CPUFREQ_NO_AUTO_DYNAMIC_SWITCHING	BIT(6)
+
+/*
+ * Set by drivers that want the core to automatically register the cpufreq
+ * driver as a thermal cooling device.
+ */
+#define CPUFREQ_IS_COOLING_DEV			BIT(7)
 
 int cpufreq_register_driver(struct cpufreq_driver *driver_data);
 int cpufreq_unregister_driver(struct cpufreq_driver *driver_data);
 
 const char *cpufreq_get_current_driver(void);
 void *cpufreq_get_driver_data(void);
+
+static inline int cpufreq_thermal_control_enabled(struct cpufreq_driver *drv)
+{
+	return IS_ENABLED(CONFIG_CPU_THERMAL) &&
+		(drv->flags & CPUFREQ_IS_COOLING_DEV);
+}
 
 static inline void cpufreq_verify_within_limits(struct cpufreq_policy *policy,
 		unsigned int min, unsigned int max)
@@ -411,9 +458,6 @@ static inline void cpufreq_resume(void) {}
 /* Policy Notifiers  */
 #define CPUFREQ_ADJUST			(0)
 #define CPUFREQ_NOTIFY			(1)
-#define CPUFREQ_START			(2)
-#define CPUFREQ_CREATE_POLICY		(3)
-#define CPUFREQ_REMOVE_POLICY		(4)
 
 #ifdef CONFIG_CPU_FREQ
 int cpufreq_register_notifier(struct notifier_block *nb, unsigned int list);
@@ -479,14 +523,8 @@ static inline unsigned long cpufreq_scale(unsigned long old, u_int div,
  * polling frequency is 1000 times the transition latency of the processor. The
  * ondemand governor will work on any processor with transition latency <= 10ms,
  * using appropriate sampling rate.
- *
- * For CPUs with transition latency > 10ms (mostly drivers with CPUFREQ_ETERNAL)
- * the ondemand governor will not work. All times here are in us (microseconds).
  */
-#define MIN_SAMPLING_RATE_RATIO		(2)
 #define LATENCY_MULTIPLIER		(1000)
-#define MIN_LATENCY_MULTIPLIER		(20)
-#define TRANSITION_LATENCY_LIMIT	(10 * 1000 * 1000)
 
 struct cpufreq_governor {
 	char	name[CPUFREQ_NAME_LEN];
@@ -499,9 +537,8 @@ struct cpufreq_governor {
 					 char *buf);
 	int	(*store_setspeed)	(struct cpufreq_policy *policy,
 					 unsigned int freq);
-	unsigned int max_transition_latency; /* HW must be able to switch to
-			next freq faster than this value in nano secs or we
-			will fallback to performance governor */
+	/* For governors which change frequency dynamically by themselves */
+	bool			dynamic_switching;
 	struct list_head	governor_list;
 	struct module		*owner;
 };
@@ -517,6 +554,7 @@ int __cpufreq_driver_target(struct cpufreq_policy *policy,
 				   unsigned int relation);
 unsigned int cpufreq_driver_resolve_freq(struct cpufreq_policy *policy,
 					 unsigned int target_freq);
+unsigned int cpufreq_policy_transition_delay_us(struct cpufreq_policy *policy);
 int cpufreq_register_governor(struct cpufreq_governor *governor);
 void cpufreq_unregister_governor(struct cpufreq_governor *governor);
 
@@ -553,6 +591,17 @@ struct governor_attr {
 	ssize_t (*store)(struct gov_attr_set *attr_set, const char *buf,
 			 size_t count);
 };
+
+static inline bool cpufreq_this_cpu_can_update(struct cpufreq_policy *policy)
+{
+	/*
+	 * Allow remote callbacks if:
+	 * - dvfs_possible_from_any_cpu flag is set
+	 * - the local and remote CPUs share cpufreq policy
+	 */
+	return policy->dvfs_possible_from_any_cpu ||
+		cpumask_test_cpu(smp_processor_id(), policy->cpus);
+}
 
 /*********************************************************************
  *                     FREQUENCY TABLE HELPERS                       *
@@ -601,6 +650,18 @@ static inline void dev_pm_opp_free_cpufreq_table(struct device *dev,
 	for (pos = table; pos->frequency != CPUFREQ_TABLE_END; pos++)
 
 /*
+ * cpufreq_for_each_entry_idx -	iterate over a cpufreq_frequency_table
+ *	with index
+ * @pos:	the cpufreq_frequency_table * to use as a loop cursor.
+ * @table:	the cpufreq_frequency_table * to iterate over.
+ * @idx:	the table entry currently being processed
+ */
+
+#define cpufreq_for_each_entry_idx(pos, table, idx)	\
+	for (pos = table, idx = 0; pos->frequency != CPUFREQ_TABLE_END; \
+		pos++, idx++)
+
+/*
  * cpufreq_for_each_valid_entry -     iterate over a cpufreq_frequency_table
  *	excluding CPUFREQ_ENTRY_INVALID frequencies.
  * @pos:        the cpufreq_frequency_table * to use as a loop cursor.
@@ -612,6 +673,21 @@ static inline void dev_pm_opp_free_cpufreq_table(struct device *dev,
 		if (pos->frequency == CPUFREQ_ENTRY_INVALID)		\
 			continue;					\
 		else
+
+/*
+ * cpufreq_for_each_valid_entry_idx -     iterate with index over a cpufreq
+ *	frequency_table excluding CPUFREQ_ENTRY_INVALID frequencies.
+ * @pos:	the cpufreq_frequency_table * to use as a loop cursor.
+ * @table:	the cpufreq_frequency_table * to iterate over.
+ * @idx:	the table entry currently being processed
+ */
+
+#define cpufreq_for_each_valid_entry_idx(pos, table, idx)		\
+	cpufreq_for_each_entry_idx(pos, table, idx)			\
+		if (pos->frequency == CPUFREQ_ENTRY_INVALID)		\
+			continue;					\
+		else
+
 
 int cpufreq_frequency_table_cpuinfo(struct cpufreq_policy *policy,
 				    struct cpufreq_frequency_table *table);
@@ -639,19 +715,20 @@ static inline int cpufreq_table_find_index_al(struct cpufreq_policy *policy,
 					      unsigned int target_freq)
 {
 	struct cpufreq_frequency_table *table = policy->freq_table;
-	struct cpufreq_frequency_table *pos, *best = table - 1;
+	struct cpufreq_frequency_table *pos;
 	unsigned int freq;
+	int idx, best = -1;
 
-	cpufreq_for_each_valid_entry(pos, table) {
+	cpufreq_for_each_valid_entry_idx(pos, table, idx) {
 		freq = pos->frequency;
 
 		if (freq >= target_freq)
-			return pos - table;
+			return idx;
 
-		best = pos;
+		best = idx;
 	}
 
-	return best - table;
+	return best;
 }
 
 /* Find lowest freq at or above target in a table in descending order */
@@ -659,28 +736,29 @@ static inline int cpufreq_table_find_index_dl(struct cpufreq_policy *policy,
 					      unsigned int target_freq)
 {
 	struct cpufreq_frequency_table *table = policy->freq_table;
-	struct cpufreq_frequency_table *pos, *best = table - 1;
+	struct cpufreq_frequency_table *pos;
 	unsigned int freq;
+	int idx, best = -1;
 
-	cpufreq_for_each_valid_entry(pos, table) {
+	cpufreq_for_each_valid_entry_idx(pos, table, idx) {
 		freq = pos->frequency;
 
 		if (freq == target_freq)
-			return pos - table;
+			return idx;
 
 		if (freq > target_freq) {
-			best = pos;
+			best = idx;
 			continue;
 		}
 
 		/* No freq found above target_freq */
-		if (best == table - 1)
-			return pos - table;
+		if (best == -1)
+			return idx;
 
-		return best - table;
+		return best;
 	}
 
-	return best - table;
+	return best;
 }
 
 /* Works only on sorted freq-tables */
@@ -700,28 +778,29 @@ static inline int cpufreq_table_find_index_ah(struct cpufreq_policy *policy,
 					      unsigned int target_freq)
 {
 	struct cpufreq_frequency_table *table = policy->freq_table;
-	struct cpufreq_frequency_table *pos, *best = table - 1;
+	struct cpufreq_frequency_table *pos;
 	unsigned int freq;
+	int idx, best = -1;
 
-	cpufreq_for_each_valid_entry(pos, table) {
+	cpufreq_for_each_valid_entry_idx(pos, table, idx) {
 		freq = pos->frequency;
 
 		if (freq == target_freq)
-			return pos - table;
+			return idx;
 
 		if (freq < target_freq) {
-			best = pos;
+			best = idx;
 			continue;
 		}
 
 		/* No freq found below target_freq */
-		if (best == table - 1)
-			return pos - table;
+		if (best == -1)
+			return idx;
 
-		return best - table;
+		return best;
 	}
 
-	return best - table;
+	return best;
 }
 
 /* Find highest freq at or below target in a table in descending order */
@@ -729,19 +808,20 @@ static inline int cpufreq_table_find_index_dh(struct cpufreq_policy *policy,
 					      unsigned int target_freq)
 {
 	struct cpufreq_frequency_table *table = policy->freq_table;
-	struct cpufreq_frequency_table *pos, *best = table - 1;
+	struct cpufreq_frequency_table *pos;
 	unsigned int freq;
+	int idx, best = -1;
 
-	cpufreq_for_each_valid_entry(pos, table) {
+	cpufreq_for_each_valid_entry_idx(pos, table, idx) {
 		freq = pos->frequency;
 
 		if (freq <= target_freq)
-			return pos - table;
+			return idx;
 
-		best = pos;
+		best = idx;
 	}
 
-	return best - table;
+	return best;
 }
 
 /* Works only on sorted freq-tables */
@@ -761,32 +841,33 @@ static inline int cpufreq_table_find_index_ac(struct cpufreq_policy *policy,
 					      unsigned int target_freq)
 {
 	struct cpufreq_frequency_table *table = policy->freq_table;
-	struct cpufreq_frequency_table *pos, *best = table - 1;
+	struct cpufreq_frequency_table *pos;
 	unsigned int freq;
+	int idx, best = -1;
 
-	cpufreq_for_each_valid_entry(pos, table) {
+	cpufreq_for_each_valid_entry_idx(pos, table, idx) {
 		freq = pos->frequency;
 
 		if (freq == target_freq)
-			return pos - table;
+			return idx;
 
 		if (freq < target_freq) {
-			best = pos;
+			best = idx;
 			continue;
 		}
 
 		/* No freq found below target_freq */
-		if (best == table - 1)
-			return pos - table;
+		if (best == -1)
+			return idx;
 
 		/* Choose the closest freq */
-		if (target_freq - best->frequency > freq - target_freq)
-			return pos - table;
+		if (target_freq - table[best].frequency > freq - target_freq)
+			return idx;
 
-		return best - table;
+		return best;
 	}
 
-	return best - table;
+	return best;
 }
 
 /* Find closest freq to target in a table in descending order */
@@ -794,32 +875,33 @@ static inline int cpufreq_table_find_index_dc(struct cpufreq_policy *policy,
 					      unsigned int target_freq)
 {
 	struct cpufreq_frequency_table *table = policy->freq_table;
-	struct cpufreq_frequency_table *pos, *best = table - 1;
+	struct cpufreq_frequency_table *pos;
 	unsigned int freq;
+	int idx, best = -1;
 
-	cpufreq_for_each_valid_entry(pos, table) {
+	cpufreq_for_each_valid_entry_idx(pos, table, idx) {
 		freq = pos->frequency;
 
 		if (freq == target_freq)
-			return pos - table;
+			return idx;
 
 		if (freq > target_freq) {
-			best = pos;
+			best = idx;
 			continue;
 		}
 
 		/* No freq found above target_freq */
-		if (best == table - 1)
-			return pos - table;
+		if (best == -1)
+			return idx;
 
 		/* Choose the closest freq */
-		if (best->frequency - target_freq > target_freq - freq)
-			return pos - table;
+		if (table[best].frequency - target_freq > target_freq - freq)
+			return idx;
 
-		return best - table;
+		return best;
 	}
 
-	return best - table;
+	return best;
 }
 
 /* Works only on sorted freq-tables */
@@ -854,6 +936,20 @@ static inline int cpufreq_frequency_table_target(struct cpufreq_policy *policy,
 		return -EINVAL;
 	}
 }
+
+static inline int cpufreq_table_count_valid_entries(const struct cpufreq_policy *policy)
+{
+	struct cpufreq_frequency_table *pos;
+	int count = 0;
+
+	if (unlikely(!policy->freq_table))
+		return 0;
+
+	cpufreq_for_each_valid_entry(pos, policy->freq_table)
+		count++;
+
+	return count;
+}
 #else
 static inline int cpufreq_boost_trigger_state(int state)
 {
@@ -875,15 +971,28 @@ static inline bool policy_has_boost_freq(struct cpufreq_policy *policy)
 }
 #endif
 
+#if defined(CONFIG_ENERGY_MODEL) && defined(CONFIG_CPU_FREQ_GOV_SCHEDUTIL)
+void sched_cpufreq_governor_change(struct cpufreq_policy *policy,
+			struct cpufreq_governor *old_gov);
+#else
+static inline void sched_cpufreq_governor_change(struct cpufreq_policy *policy,
+			struct cpufreq_governor *old_gov) { }
+#endif
+
+extern void arch_freq_prepare_all(void);
+extern unsigned int arch_freq_get_on_cpu(int cpu);
+
+extern void arch_set_freq_scale(struct cpumask *cpus, unsigned long cur_freq,
+				unsigned long max_freq);
+
 /* the following are really really optional */
 extern struct freq_attr cpufreq_freq_attr_scaling_available_freqs;
 extern struct freq_attr cpufreq_freq_attr_scaling_boost_freqs;
 extern struct freq_attr *cpufreq_generic_attr[];
-int cpufreq_table_validate_and_show(struct cpufreq_policy *policy,
-				      struct cpufreq_frequency_table *table);
+int cpufreq_table_validate_and_sort(struct cpufreq_policy *policy);
 
 unsigned int cpufreq_generic_get(unsigned int cpu);
-int cpufreq_generic_init(struct cpufreq_policy *policy,
+void cpufreq_generic_init(struct cpufreq_policy *policy,
 		struct cpufreq_frequency_table *table,
 		unsigned int transition_latency);
 #endif /* _LINUX_CPUFREQ_H */

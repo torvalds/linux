@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2003-2006, Cluster File Systems, Inc, info@clusterfs.com
  * Written by Alex Tomas <alex@clusterfs.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-
  */
 
 #ifndef _EXT4_EXTENTS
@@ -103,6 +91,7 @@ struct ext4_extent_header {
 };
 
 #define EXT4_EXT_MAGIC		cpu_to_le16(0xf30a)
+#define EXT4_MAX_EXTENT_DEPTH 5
 
 #define EXT4_EXTENT_TAIL_OFFSET(hdr) \
 	(sizeof(struct ext4_extent_header) + \
@@ -128,6 +117,19 @@ struct ext4_ext_path {
 	struct ext4_extent_idx		*p_idx;
 	struct ext4_extent_header	*p_hdr;
 	struct buffer_head		*p_bh;
+};
+
+/*
+ * Used to record a portion of a cluster found at the beginning or end
+ * of an extent while traversing the extent tree during space removal.
+ * A partial cluster may be removed if it does not contain blocks shared
+ * with extents that aren't being deleted (tofree state).  Otherwise,
+ * it cannot be removed (nofree state).
+ */
+struct partial_cluster {
+	ext4_fsblk_t pclu;  /* physical cluster number */
+	ext4_lblk_t lblk;   /* logical block number within logical cluster */
+	enum {initial, tofree, nofree} state;
 };
 
 /*

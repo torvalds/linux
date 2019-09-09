@@ -1,24 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Register declarations for DA9052 PMICs.
  *
  * Copyright(c) 2011 Dialog Semiconductor Ltd.
  *
  * Author: David Dajun Chen <dchen@diasemi.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
 #ifndef __LINUX_MFD_DA9052_REG_H
@@ -690,7 +676,10 @@
 /* TSI CONTROL REGISTER B BITS */
 #define DA9052_TSICONTB_ADCREF		0X80
 #define DA9052_TSICONTB_TSIMAN		0X40
-#define DA9052_TSICONTB_TSIMUX		0X30
+#define DA9052_TSICONTB_TSIMUX_XP	0X00
+#define DA9052_TSICONTB_TSIMUX_YP	0X10
+#define DA9052_TSICONTB_TSIMUX_XN	0X20
+#define DA9052_TSICONTB_TSIMUX_YN	0X30
 #define DA9052_TSICONTB_TSISEL3	0X08
 #define DA9052_TSICONTB_TSISEL2	0X04
 #define DA9052_TSICONTB_TSISEL1	0X02
@@ -705,8 +694,14 @@
 /* TSI CO-ORDINATE LSB RESULT REGISTER BITS */
 #define DA9052_TSILSB_PENDOWN		0X40
 #define DA9052_TSILSB_TSIZL		0X30
+#define DA9052_TSILSB_TSIZL_SHIFT	4
+#define DA9052_TSILSB_TSIZL_BITS	2
 #define DA9052_TSILSB_TSIYL		0X0C
+#define DA9052_TSILSB_TSIYL_SHIFT	2
+#define DA9052_TSILSB_TSIYL_BITS	2
 #define DA9052_TSILSB_TSIXL		0X03
+#define DA9052_TSILSB_TSIXL_SHIFT	0
+#define DA9052_TSILSB_TSIXL_BITS	2
 
 /* TSI Z MEASUREMENT MSB RESULT REGISTER BIT */
 #define DA9052_TSIZMSB_TSIZM		0XFF

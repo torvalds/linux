@@ -32,6 +32,8 @@
 
 int nvkm_therm_new_(const struct nvkm_therm_func *, struct nvkm_device *,
 		    int index, struct nvkm_therm **);
+void nvkm_therm_ctor(struct nvkm_therm *therm, struct nvkm_device *device,
+		     int index, const struct nvkm_therm_func *func);
 
 struct nvkm_fan {
 	struct nvkm_therm *parent;
@@ -66,8 +68,6 @@ int nvkm_therm_fan_set(struct nvkm_therm *, bool now, int percent);
 int nvkm_therm_fan_user_get(struct nvkm_therm *);
 int nvkm_therm_fan_user_set(struct nvkm_therm *, int percent);
 
-int nvkm_therm_preinit(struct nvkm_therm *);
-
 int  nvkm_therm_sensor_init(struct nvkm_therm *);
 int  nvkm_therm_sensor_fini(struct nvkm_therm *, bool suspend);
 void nvkm_therm_sensor_preinit(struct nvkm_therm *);
@@ -96,6 +96,11 @@ struct nvkm_therm_func {
 	int (*fan_sense)(struct nvkm_therm *);
 
 	void (*program_alarms)(struct nvkm_therm *);
+
+	void (*clkgate_init)(struct nvkm_therm *,
+			     const struct nvkm_therm_clkgate_pack *);
+	void (*clkgate_enable)(struct nvkm_therm *);
+	void (*clkgate_fini)(struct nvkm_therm *, bool);
 };
 
 void nv40_therm_intr(struct nvkm_therm *);
@@ -111,7 +116,20 @@ void g84_therm_fini(struct nvkm_therm *);
 
 int gt215_therm_fan_sense(struct nvkm_therm *);
 
+void gf100_clkgate_init(struct nvkm_therm *,
+			const struct nvkm_therm_clkgate_pack *);
+
+void g84_therm_init(struct nvkm_therm *);
+
+int gf119_fan_pwm_ctrl(struct nvkm_therm *, int, bool);
+int gf119_fan_pwm_get(struct nvkm_therm *, int, u32 *, u32 *);
+int gf119_fan_pwm_set(struct nvkm_therm *, int, u32, u32);
+int gf119_fan_pwm_clock(struct nvkm_therm *, int);
 void gf119_therm_init(struct nvkm_therm *);
+
+void gk104_therm_init(struct nvkm_therm *);
+void gk104_clkgate_enable(struct nvkm_therm *);
+void gk104_clkgate_fini(struct nvkm_therm *, bool);
 
 int nvkm_fanpwm_create(struct nvkm_therm *, struct dcb_gpio_func *);
 int nvkm_fantog_create(struct nvkm_therm *, struct dcb_gpio_func *);

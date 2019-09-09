@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2015 Broadcom Corporation
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation version 2.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
  */
 
 #include <linux/delay.h>
@@ -81,8 +73,6 @@ static int iproc_mdio_read(struct mii_bus *bus, int phy_id, int reg)
 	if (rc)
 		return rc;
 
-	iproc_mdio_config_clk(priv->base);
-
 	/* Prepare the read operation */
 	cmd = (MII_DATA_TA_VAL << MII_DATA_TA_SHIFT) |
 		(reg << MII_DATA_RA_SHIFT) |
@@ -111,8 +101,6 @@ static int iproc_mdio_write(struct mii_bus *bus, int phy_id,
 	rc = iproc_mdio_wait_for_idle(priv->base);
 	if (rc)
 		return rc;
-
-	iproc_mdio_config_clk(priv->base);
 
 	/* Prepare the write operation */
 	cmd = (MII_DATA_TA_VAL << MII_DATA_TA_SHIFT) |
@@ -162,6 +150,8 @@ static int iproc_mdio_probe(struct platform_device *pdev)
 	bus->parent = &pdev->dev;
 	bus->read = iproc_mdio_read;
 	bus->write = iproc_mdio_write;
+
+	iproc_mdio_config_clk(priv->base);
 
 	rc = of_mdiobus_register(bus, pdev->dev.of_node);
 	if (rc) {

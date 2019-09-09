@@ -1,21 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * A devfreq driver for NVIDIA Tegra SoCs
  *
  * Copyright (c) 2014 NVIDIA CORPORATION. All rights reserved.
  * Copyright (C) 2014 Google, Inc
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
- *
  */
 
 #include <linux/clk.h>
@@ -24,6 +12,7 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 #include <linux/pm_opp.h>
 #include <linux/reset.h>
@@ -487,15 +476,13 @@ static int tegra_devfreq_target(struct device *dev, unsigned long *freq,
 	struct dev_pm_opp *opp;
 	unsigned long rate = *freq * KHZ;
 
-	rcu_read_lock();
 	opp = devfreq_recommended_opp(dev, &rate, flags);
 	if (IS_ERR(opp)) {
-		rcu_read_unlock();
 		dev_err(dev, "Failed to find opp for %lu KHz\n", *freq);
 		return PTR_ERR(opp);
 	}
 	rate = dev_pm_opp_get_freq(opp);
-	rcu_read_unlock();
+	dev_pm_opp_put(opp);
 
 	clk_set_min_rate(tegra->emc_clock, rate);
 	clk_set_rate(tegra->emc_clock, 0);
@@ -574,10 +561,7 @@ static int tegra_governor_get_target(struct devfreq *devfreq,
 static int tegra_governor_event_handler(struct devfreq *devfreq,
 					unsigned int event, void *data)
 {
-	struct tegra_devfreq *tegra;
-	int ret = 0;
-
-	tegra = dev_get_drvdata(devfreq->dev.parent);
+	struct tegra_devfreq *tegra = dev_get_drvdata(devfreq->dev.parent);
 
 	switch (event) {
 	case DEVFREQ_GOV_START:
@@ -601,7 +585,7 @@ static int tegra_governor_event_handler(struct devfreq *devfreq,
 		break;
 	}
 
-	return ret;
+	return 0;
 }
 
 static struct devfreq_governor tegra_devfreq_governor = {
@@ -690,9 +674,9 @@ static int tegra_devfreq_probe(struct platform_device *pdev)
 	}
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq <= 0) {
-		dev_err(&pdev->dev, "Failed to get IRQ\n");
-		return -ENODEV;
+	if (irq < 0) {
+		dev_err(&pdev->dev, "Failed to get IRQ: %d\n", irq);
+		return irq;
 	}
 
 	platform_set_drvdata(pdev, tegra);

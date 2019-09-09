@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * apb_timer.c: Driver for Langwell APB timers
  *
  * (C) Copyright 2009 Intel Corporation
  * Author: Jacob Pan (jacob.jun.pan@intel.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; version 2
- * of the License.
  *
  * Note:
  * Langwell is the south complex of Intel Moorestown MID platform. There are
@@ -234,7 +230,7 @@ static __init int apbt_late_init(void)
 	if (intel_mid_timer_options == INTEL_MID_TIMER_LAPIC_APBT ||
 		!apb_timer_block_enabled)
 		return 0;
-	return cpuhp_setup_state(CPUHP_X86_APB_DEAD, "X86_APB_DEAD", NULL,
+	return cpuhp_setup_state(CPUHP_X86_APB_DEAD, "x86/apb:dead", NULL,
 				 apbt_cpu_dead);
 }
 fs_initcall(apbt_late_init);
@@ -247,7 +243,7 @@ void apbt_setup_secondary_clock(void) {}
 static int apbt_clocksource_register(void)
 {
 	u64 start, now;
-	cycle_t t1;
+	u64 t1;
 
 	/* Start the counter, use timer 2 as source, timer 0/1 for event */
 	dw_apb_clocksource_start(clocksource_apbt);
@@ -355,7 +351,7 @@ unsigned long apbt_quick_calibrate(void)
 {
 	int i, scale;
 	u64 old, new;
-	cycle_t t1, t2;
+	u64 t1, t2;
 	unsigned long khz = 0;
 	u32 loop, shift;
 

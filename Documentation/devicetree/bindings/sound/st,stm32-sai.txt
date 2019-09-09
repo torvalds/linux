@@ -1,0 +1,107 @@
+STMicroelectronics STM32 Serial Audio Interface (SAI).
+
+The SAI interface (Serial Audio Interface) offers a wide set of audio protocols
+as I2S standards, LSB or MSB-justified, PCM/DSP, TDM, and AC'97.
+The SAI contains two independent audio sub-blocks. Each sub-block has
+its own clock generator and I/O lines controller.
+
+Required properties:
+  - compatible: Should be "st,stm32f4-sai" or "st,stm32h7-sai"
+  - reg: Base address and size of SAI common register set.
+  - clocks: Must contain phandle and clock specifier pairs for each entry
+	in clock-names.
+  - clock-names: Must contain "pclk" "x8k" and "x11k"
+	"pclk": Clock which feeds the peripheral bus interface.
+	        Mandatory for "st,stm32h7-sai" compatible.
+	        Not used for "st,stm32f4-sai" compatible.
+	"x8k": SAI parent clock for sampling rates multiple of 8kHz.
+	"x11k": SAI parent clock for sampling rates multiple of 11.025kHz.
+  - interrupts: cpu DAI interrupt line shared by SAI sub-blocks
+
+Optional properties:
+  - resets: Reference to a reset controller asserting the SAI
+
+SAI subnodes:
+Two subnodes corresponding to SAI sub-block instances A et B can be defined.
+Subnode can be omitted for unsused sub-block.
+
+SAI subnodes required properties:
+  - compatible: Should be "st,stm32-sai-sub-a" or "st,stm32-sai-sub-b"
+	for SAI sub-block A or B respectively.
+  - reg: Base address and size of SAI sub-block register set.
+  - clocks: Must contain one phandle and clock specifier pair
+	for sai_ck which feeds the internal clock generator.
+	If the SAI shares a master clock, with another SAI set as MCLK
+	clock provider, SAI provider phandle must be specified here.
+  - clock-names: Must contain "sai_ck".
+	Must also contain "MCLK", if SAI shares a master clock,
+	with a SAI set as MCLK clock provider.
+  - dmas: see Documentation/devicetree/bindings/dma/stm32-dma.txt
+  - dma-names: identifier string for each DMA request line
+	"tx": if sai sub-block is configured as playback DAI
+	"rx": if sai sub-block is configured as capture DAI
+  - pinctrl-names: should contain only value "default"
+  - pinctrl-0: see Documentation/devicetree/bindings/pinctrl/st,stm32-pinctrl.yaml
+
+SAI subnodes Optional properties:
+  - st,sync: specify synchronization mode.
+	By default SAI sub-block is in asynchronous mode.
+	This property sets SAI sub-block as slave of another SAI sub-block.
+	Must contain the phandle and index of the sai sub-block providing
+	the synchronization.
+  - st,iec60958: support S/PDIF IEC6958 protocol for playback
+	IEC60958 protocol is not available for capture.
+	By default, custom protocol is assumed, meaning that protocol is
+	configured according to protocol defined in related DAI link node,
+	such as i2s, left justified, right justified, dsp and pdm protocols.
+	Note: ac97 protocol is not supported by SAI driver
+   - #clock-cells: should be 0. This property must be present if the SAI device
+	is a master clock provider, according to clocks bindings, described in
+	Documentation/devicetree/bindings/clock/clock-bindings.txt.
+
+The device node should contain one 'port' child node with one child 'endpoint'
+node, according to the bindings defined in Documentation/devicetree/bindings/
+graph.txt.
+
+Example:
+sound_card {
+	compatible = "audio-graph-card";
+	dais = <&sai1b_port>;
+};
+
+sai1: sai1@40015800 {
+	compatible = "st,stm32h7-sai";
+	#address-cells = <1>;
+	#size-cells = <1>;
+	ranges = <0 0x40015800 0x400>;
+	reg = <0x40015800 0x4>;
+	clocks = <&rcc SAI1_CK>, <&rcc PLL1_Q>, <&rcc PLL2_P>;
+	clock-names = "pclk", "x8k", "x11k";
+	interrupts = <87>;
+
+	sai1a: audio-controller@40015804 {
+		compatible = "st,stm32-sai-sub-a";
+		reg = <0x4 0x1C>;
+		clocks = <&rcc SAI1_CK>;
+		clock-names = "sai_ck";
+		dmas = <&dmamux1 1 87 0x400 0x0>;
+		dma-names = "tx";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_sai1a>;
+
+		sai1b_port: port {
+			cpu_endpoint: endpoint {
+				remote-endpoint = <&codec_endpoint>;
+				format = "i2s";
+			};
+		};
+	};
+};
+
+audio-codec {
+	codec_port: port {
+		codec_endpoint: endpoint {
+			remote-endpoint = <&cpu_endpoint>;
+		};
+	};
+};

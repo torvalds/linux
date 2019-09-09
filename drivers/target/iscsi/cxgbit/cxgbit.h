@@ -1,9 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2016 Chelsio Communications, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef __CXGBIT_H__
@@ -165,6 +162,7 @@ enum cxgbit_csk_flags {
 	CSK_LOGIN_PDU_DONE,
 	CSK_LOGIN_DONE,
 	CSK_DDP_ENABLE,
+	CSK_ABORT_RPL_WAIT,
 };
 
 struct cxgbit_sock_common {
@@ -321,6 +319,7 @@ int cxgbit_setup_np(struct iscsi_np *, struct sockaddr_storage *);
 int cxgbit_setup_conn_digest(struct cxgbit_sock *);
 int cxgbit_accept_np(struct iscsi_np *, struct iscsi_conn *);
 void cxgbit_free_np(struct iscsi_np *);
+void cxgbit_abort_conn(struct cxgbit_sock *csk);
 void cxgbit_free_conn(struct iscsi_conn *);
 extern cxgbit_cplhandler_func cxgbit_cplhandlers[NUM_CPL_CMDS];
 int cxgbit_get_login_rx(struct iscsi_conn *, struct iscsi_login *);
@@ -343,7 +342,7 @@ struct cxgbit_device *cxgbit_find_device(struct net_device *, u8 *);
 int cxgbit_ddp_init(struct cxgbit_device *);
 int cxgbit_setup_conn_pgidx(struct cxgbit_sock *, u32);
 int cxgbit_reserve_ttt(struct cxgbit_sock *, struct iscsi_cmd *);
-void cxgbit_release_cmd(struct iscsi_conn *, struct iscsi_cmd *);
+void cxgbit_unmap_cmd(struct iscsi_conn *, struct iscsi_cmd *);
 
 static inline
 struct cxgbi_ppm *cdev2ppm(struct cxgbit_device *cdev)

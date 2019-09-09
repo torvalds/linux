@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2011-2016 Synaptics Incorporated
  * Copyright (c) 2011 Unixphere
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 
 #include <linux/kernel.h>
@@ -32,14 +29,14 @@ void rmi_2d_sensor_abs_process(struct rmi_2d_sensor *sensor,
 	if (obj->type == RMI_2D_OBJECT_NONE)
 		return;
 
-	if (axis_align->swap_axes)
-		swap(obj->x, obj->y);
-
 	if (axis_align->flip_x)
 		obj->x = sensor->max_x - obj->x;
 
 	if (axis_align->flip_y)
 		obj->y = sensor->max_y - obj->y;
+
+	if (axis_align->swap_axes)
+		swap(obj->x, obj->y);
 
 	/*
 	 * Here checking if X offset or y offset are specified is
@@ -120,14 +117,14 @@ void rmi_2d_sensor_rel_report(struct rmi_2d_sensor *sensor, int x, int y)
 	x = min(RMI_2D_REL_POS_MAX, max(RMI_2D_REL_POS_MIN, (int)x));
 	y = min(RMI_2D_REL_POS_MAX, max(RMI_2D_REL_POS_MIN, (int)y));
 
-	if (axis_align->swap_axes)
-		swap(x, y);
-
 	if (axis_align->flip_x)
 		x = min(RMI_2D_REL_POS_MAX, -x);
 
 	if (axis_align->flip_y)
 		y = min(RMI_2D_REL_POS_MAX, -y);
+
+	if (axis_align->swap_axes)
+		swap(x, y);
 
 	if (x || y) {
 		input_report_rel(sensor->input, REL_X, x);
@@ -141,12 +138,10 @@ static void rmi_2d_sensor_set_input_params(struct rmi_2d_sensor *sensor)
 	struct input_dev *input = sensor->input;
 	int res_x;
 	int res_y;
+	int max_x, max_y;
 	int input_flags = 0;
 
 	if (sensor->report_abs) {
-		if (sensor->axis_align.swap_axes)
-			swap(sensor->max_x, sensor->max_y);
-
 		sensor->min_x = sensor->axis_align.clip_x_low;
 		if (sensor->axis_align.clip_x_high)
 			sensor->max_x = min(sensor->max_x,
@@ -158,14 +153,19 @@ static void rmi_2d_sensor_set_input_params(struct rmi_2d_sensor *sensor)
 				sensor->axis_align.clip_y_high);
 
 		set_bit(EV_ABS, input->evbit);
-		input_set_abs_params(input, ABS_MT_POSITION_X, 0, sensor->max_x,
-					0, 0);
-		input_set_abs_params(input, ABS_MT_POSITION_Y, 0, sensor->max_y,
-					0, 0);
+
+		max_x = sensor->max_x;
+		max_y = sensor->max_y;
+		if (sensor->axis_align.swap_axes)
+			swap(max_x, max_y);
+		input_set_abs_params(input, ABS_MT_POSITION_X, 0, max_x, 0, 0);
+		input_set_abs_params(input, ABS_MT_POSITION_Y, 0, max_y, 0, 0);
 
 		if (sensor->x_mm && sensor->y_mm) {
 			res_x = (sensor->max_x - sensor->min_x) / sensor->x_mm;
 			res_y = (sensor->max_y - sensor->min_y) / sensor->y_mm;
+			if (sensor->axis_align.swap_axes)
+				swap(res_x, res_y);
 
 			input_abs_set_res(input, ABS_X, res_x);
 			input_abs_set_res(input, ABS_Y, res_y);
@@ -177,10 +177,12 @@ static void rmi_2d_sensor_set_input_params(struct rmi_2d_sensor *sensor)
 				sensor->dmax = DMAX * res_x;
 		}
 
-		input_set_abs_params(input, ABS_MT_PRESSURE, 0,	0xff, 0, 0);
-		input_set_abs_params(input, ABS_MT_TOUCH_MAJOR,	0, 0x0f, 0, 0);
-		input_set_abs_params(input, ABS_MT_TOUCH_MINOR,	0, 0x0f, 0, 0);
-		input_set_abs_params(input, ABS_MT_ORIENTATION,	0, 1, 0, 0);
+		input_set_abs_params(input, ABS_MT_PRESSURE, 0, 0xff, 0, 0);
+		input_set_abs_params(input, ABS_MT_TOUCH_MAJOR, 0, 0x0f, 0, 0);
+		input_set_abs_params(input, ABS_MT_TOUCH_MINOR, 0, 0x0f, 0, 0);
+		input_set_abs_params(input, ABS_MT_ORIENTATION, 0, 1, 0, 0);
+		input_set_abs_params(input, ABS_MT_TOOL_TYPE,
+				     0, MT_TOOL_MAX, 0, 0);
 
 		if (sensor->sensor_type == rmi_sensor_touchpad)
 			input_flags = INPUT_MT_POINTER;

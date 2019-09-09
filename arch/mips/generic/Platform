@@ -1,6 +1,6 @@
 #
 # Copyright (C) 2016 Imagination Technologies
-# Author: Paul Burton <paul.burton@imgtec.com>
+# Author: Paul Burton <paul.burton@mips.com>
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
@@ -12,3 +12,9 @@ platform-$(CONFIG_MIPS_GENERIC)	+= generic/
 cflags-$(CONFIG_MIPS_GENERIC)	+= -I$(srctree)/arch/mips/include/asm/mach-generic
 load-$(CONFIG_MIPS_GENERIC)	+= 0xffffffff80100000
 all-$(CONFIG_MIPS_GENERIC)	:= vmlinux.gz.itb
+
+its-y					:= vmlinux.its.S
+its-$(CONFIG_FIT_IMAGE_FDT_BOSTON)	+= board-boston.its.S
+its-$(CONFIG_FIT_IMAGE_FDT_NI169445)	+= board-ni169445.its.S
+its-$(CONFIG_FIT_IMAGE_FDT_OCELOT)	+= board-ocelot.its.S
+its-$(CONFIG_FIT_IMAGE_FDT_XILFPGA)	+= board-xilfpga.its.S

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * SiS 300/540/630[S]/730[S],
  * SiS 315[E|PRO]/550/[M]65x/[M]66x[F|M|G]X/[M]74x[GX]/330/[M]76x[GX],
@@ -5,20 +6,6 @@
  * frame buffer driver for Linux kernels >= 2.4.14 and >=2.6.3
  *
  * Copyright (C) 2001-2005 Thomas Winischhofer, Vienna, Austria.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the named License,
- * or any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA
  *
  * Author:	Thomas Winischhofer <thomas@winischhofer.net>
  *
@@ -30,7 +17,6 @@
  *
  * Originally based on the VBE 2.0 compliant graphic boards framebuffer driver,
  * which is (c) 1998 Gerd Knorr <kraxel@goldbach.in-berlin.de>
- *
  */
 
 #include <linux/module.h>
@@ -56,14 +42,65 @@
 
 #include "sis.h"
 #include "sis_main.h"
+#include "init301.h"
 
 #if !defined(CONFIG_FB_SIS_300) && !defined(CONFIG_FB_SIS_315)
 #warning Neither CONFIG_FB_SIS_300 nor CONFIG_FB_SIS_315 is set
 #warning sisfb will not work!
 #endif
 
+/* ---------------------- Prototypes ------------------------- */
+
+/* Interface used by the world */
+#ifndef MODULE
+static int sisfb_setup(char *options);
+#endif
+
+/* Interface to the low level console driver */
+static int sisfb_init(void);
+
+/* fbdev routines */
+static int	sisfb_get_fix(struct fb_fix_screeninfo *fix, int con,
+				struct fb_info *info);
+
+static int	sisfb_ioctl(struct fb_info *info, unsigned int cmd,
+			    unsigned long arg);
+static int	sisfb_set_par(struct fb_info *info);
+static int	sisfb_blank(int blank,
+				struct fb_info *info);
+
 static void sisfb_handle_command(struct sis_video_info *ivideo,
 				 struct sisfb_cmd *sisfb_command);
+
+static void	sisfb_search_mode(char *name, bool quiet);
+static int	sisfb_validate_mode(struct sis_video_info *ivideo, int modeindex, u32 vbflags);
+static u8	sisfb_search_refresh_rate(struct sis_video_info *ivideo, unsigned int rate,
+				int index);
+static int	sisfb_setcolreg(unsigned regno, unsigned red, unsigned green,
+				unsigned blue, unsigned transp,
+				struct fb_info *fb_info);
+static int	sisfb_do_set_var(struct fb_var_screeninfo *var, int isactive,
+				struct fb_info *info);
+static void	sisfb_pre_setmode(struct sis_video_info *ivideo);
+static void	sisfb_post_setmode(struct sis_video_info *ivideo);
+static bool	sisfb_CheckVBRetrace(struct sis_video_info *ivideo);
+static bool	sisfbcheckvretracecrt2(struct sis_video_info *ivideo);
+static bool	sisfbcheckvretracecrt1(struct sis_video_info *ivideo);
+static bool	sisfb_bridgeisslave(struct sis_video_info *ivideo);
+static void	sisfb_detect_VB_connect(struct sis_video_info *ivideo);
+static void	sisfb_get_VB_type(struct sis_video_info *ivideo);
+static void	sisfb_set_TVxposoffset(struct sis_video_info *ivideo, int val);
+static void	sisfb_set_TVyposoffset(struct sis_video_info *ivideo, int val);
+
+/* Internal heap routines */
+static int		sisfb_heap_init(struct sis_video_info *ivideo);
+static struct SIS_OH *	sisfb_poh_new_node(struct SIS_HEAP *memheap);
+static struct SIS_OH *	sisfb_poh_allocate(struct SIS_HEAP *memheap, u32 size);
+static void		sisfb_delete_node(struct SIS_OH *poh);
+static void		sisfb_insert_node(struct SIS_OH *pohList, struct SIS_OH *poh);
+static struct SIS_OH *	sisfb_poh_free(struct SIS_HEAP *memheap, u32 base);
+static void		sisfb_free_node(struct SIS_HEAP *memheap, struct SIS_OH *poh);
+
 
 /* ------------------ Internal helper routines ----------------- */
 
@@ -1702,6 +1739,7 @@ static int	sisfb_ioctl(struct fb_info *info, unsigned int cmd,
 		if(ivideo->warncount++ < 10)
 			printk(KERN_INFO
 				"sisfb: Deprecated ioctl call received - update your application!\n");
+		/* fall through */
 	   case SISFB_GET_INFO:  /* For communication with X driver */
 		ivideo->sisfb_infoblock.sisfb_id         = SISFB_ID;
 		ivideo->sisfb_infoblock.sisfb_version    = VER_MAJOR;
@@ -1755,6 +1793,7 @@ static int	sisfb_ioctl(struct fb_info *info, unsigned int cmd,
 		if(ivideo->warncount++ < 10)
 			printk(KERN_INFO
 				"sisfb: Deprecated ioctl call received - update your application!\n");
+		/* fall through */
 	   case SISFB_GET_VBRSTATUS:
 		if(sisfb_CheckVBRetrace(ivideo))
 			return put_user((u32)1, argp);
@@ -1765,6 +1804,7 @@ static int	sisfb_ioctl(struct fb_info *info, unsigned int cmd,
 		if(ivideo->warncount++ < 10)
 			printk(KERN_INFO
 				"sisfb: Deprecated ioctl call received - update your application!\n");
+		/* fall through */
 	   case SISFB_GET_AUTOMAXIMIZE:
 		if(ivideo->sisfb_max)
 			return put_user((u32)1, argp);
@@ -1775,6 +1815,7 @@ static int	sisfb_ioctl(struct fb_info *info, unsigned int cmd,
 		if(ivideo->warncount++ < 10)
 			printk(KERN_INFO
 				"sisfb: Deprecated ioctl call received - update your application!\n");
+		/* fall through */
 	   case SISFB_SET_AUTOMAXIMIZE:
 		if(get_user(gpu32, argp))
 			return -EFAULT;

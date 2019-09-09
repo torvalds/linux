@@ -1,28 +1,24 @@
 /**********************************************************************
-* Author: Cavium, Inc.
-*
-* Contact: support@cavium.com
-*          Please include "LiquidIO" in the subject.
-*
-* Copyright (c) 2003-2015 Cavium, Inc.
-*
-* This file is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License, Version 2, as
-* published by the Free Software Foundation.
-*
-* This file is distributed in the hope that it will be useful, but
-* AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
-* of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
-* NONINFRINGEMENT.  See the GNU General Public License for more
-* details.
-*
-* This file may also be available under a different license from Cavium.
-* Contact Cavium, Inc. for more information
-**********************************************************************/
-#include <linux/version.h>
+ * Author: Cavium, Inc.
+ *
+ * Contact: support@cavium.com
+ *          Please include "LiquidIO" in the subject.
+ *
+ * Copyright (c) 2003-2016 Cavium, Inc.
+ *
+ * This file is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License, Version 2, as
+ * published by the Free Software Foundation.
+ *
+ * This file is distributed in the hope that it will be useful, but
+ * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
+ * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
+ * NONINFRINGEMENT.  See the GNU General Public License for more details.
+ ***********************************************************************/
+#include <linux/module.h>
+#include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/firmware.h>
-#include <linux/ptp_clock_kernel.h>
 #include <net/vxlan.h>
 #include <linux/kthread.h>
 #include "liquidio_common.h"
@@ -38,14 +34,20 @@
 #include "cn68xx_device.h"
 #include "cn23xx_pf_device.h"
 #include "liquidio_image.h"
+#include "lio_vf_rep.h"
 
 MODULE_AUTHOR("Cavium Networks, <support@cavium.com>");
 MODULE_DESCRIPTION("Cavium LiquidIO Intelligent Server Adapter Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(LIQUIDIO_VERSION);
-MODULE_FIRMWARE(LIO_FW_DIR LIO_FW_BASE_NAME LIO_210SV_NAME LIO_FW_NAME_SUFFIX);
-MODULE_FIRMWARE(LIO_FW_DIR LIO_FW_BASE_NAME LIO_210NV_NAME LIO_FW_NAME_SUFFIX);
-MODULE_FIRMWARE(LIO_FW_DIR LIO_FW_BASE_NAME LIO_410NV_NAME LIO_FW_NAME_SUFFIX);
+MODULE_FIRMWARE(LIO_FW_DIR LIO_FW_BASE_NAME LIO_210SV_NAME
+		"_" LIO_FW_NAME_TYPE_NIC LIO_FW_NAME_SUFFIX);
+MODULE_FIRMWARE(LIO_FW_DIR LIO_FW_BASE_NAME LIO_210NV_NAME
+		"_" LIO_FW_NAME_TYPE_NIC LIO_FW_NAME_SUFFIX);
+MODULE_FIRMWARE(LIO_FW_DIR LIO_FW_BASE_NAME LIO_410NV_NAME
+		"_" LIO_FW_NAME_TYPE_NIC LIO_FW_NAME_SUFFIX);
+MODULE_FIRMWARE(LIO_FW_DIR LIO_FW_BASE_NAME LIO_23XX_NAME
+		"_" LIO_FW_NAME_TYPE_NIC LIO_FW_NAME_SUFFIX);
 
 static int ddr_timeout = 10000;
 module_param(ddr_timeout, int, 0644);
@@ -54,55 +56,46 @@ MODULE_PARM_DESC(ddr_timeout,
 
 #define DEFAULT_MSG_ENABLE (NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_LINK)
 
-#define INCR_INSTRQUEUE_PKT_COUNT(octeon_dev_ptr, iq_no, field, count)  \
-	(octeon_dev_ptr->instr_queue[iq_no]->stats.field += count)
-
 static int debug = -1;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "NETIF_MSG debug bits");
 
-static char fw_type[LIO_MAX_FW_TYPE_LEN];
-module_param_string(fw_type, fw_type, sizeof(fw_type), 0000);
-MODULE_PARM_DESC(fw_type, "Type of firmware to be loaded. Default \"nic\"");
+static char fw_type[LIO_MAX_FW_TYPE_LEN] = LIO_FW_NAME_TYPE_AUTO;
+module_param_string(fw_type, fw_type, sizeof(fw_type), 0444);
+MODULE_PARM_DESC(fw_type, "Type of firmware to be loaded (default is \"auto\"), which uses firmware in flash, if present, else loads \"nic\".");
 
-static int conf_type;
-module_param(conf_type, int, 0);
-MODULE_PARM_DESC(conf_type, "select octeon configuration 0 default 1 ovs");
+static u32 console_bitmask;
+module_param(console_bitmask, int, 0644);
+MODULE_PARM_DESC(console_bitmask,
+		 "Bitmask indicating which consoles have debug output redirected to syslog.");
 
-static int ptp_enable = 1;
-
-/* Bit mask values for lio->ifstate */
-#define   LIO_IFSTATE_DROQ_OPS             0x01
-#define   LIO_IFSTATE_REGISTERED           0x02
-#define   LIO_IFSTATE_RUNNING              0x04
-#define   LIO_IFSTATE_RX_TIMESTAMP_ENABLED 0x08
+/**
+ * \brief determines if a given console has debug enabled.
+ * @param console console to check
+ * @returns  1 = enabled. 0 otherwise
+ */
+static int octeon_console_debug_enabled(u32 console)
+{
+	return (console_bitmask >> (console)) & 0x1;
+}
 
 /* Polling interval for determining when NIC application is alive */
 #define LIQUIDIO_STARTER_POLL_INTERVAL_MS 100
 
 /* runtime link query interval */
 #define LIQUIDIO_LINK_QUERY_INTERVAL_MS         1000
+/* update localtime to octeon firmware every 60 seconds.
+ * make firmware to use same time reference, so that it will be easy to
+ * correlate firmware logged events/errors with host events, for debugging.
+ */
+#define LIO_SYNC_OCTEON_TIME_INTERVAL_MS 60000
 
-struct liquidio_if_cfg_context {
-	int octeon_id;
+/* time to wait for possible in-flight requests in milliseconds */
+#define WAIT_INFLIGHT_REQUEST	msecs_to_jiffies(1000)
 
-	wait_queue_head_t wc;
-
-	int cond;
-};
-
-struct liquidio_if_cfg_resp {
-	u64 rh;
-	struct liquidio_if_cfg_info cfg_info;
-	u64 status;
-};
-
-struct liquidio_rx_ctl_context {
-	int octeon_id;
-
-	wait_queue_head_t wc;
-
-	int cond;
+struct lio_trusted_vf_ctx {
+	struct completion complete;
+	int status;
 };
 
 struct oct_link_status_resp {
@@ -139,32 +132,9 @@ union tx_info {
  * by this structure in the NIC module.
  */
 
-#define OCTNIC_MAX_SG  (MAX_SKB_FRAGS)
-
 #define OCTNIC_GSO_MAX_HEADER_SIZE 128
 #define OCTNIC_GSO_MAX_SIZE                                                    \
 	(CN23XX_DEFAULT_INPUT_JABBER - OCTNIC_GSO_MAX_HEADER_SIZE)
-
-/** Structure of a node in list of gather components maintained by
- * NIC driver for each network device.
- */
-struct octnic_gather {
-	/** List manipulation. Next and prev pointers. */
-	struct list_head list;
-
-	/** Size of the gather component at sg in bytes. */
-	int sg_size;
-
-	/** Number of bytes that sg was adjusted to make it 8B-aligned. */
-	int adjust;
-
-	/** Gather component that can accommodate max sized fragment list
-	 *  received from the IP layer.
-	 */
-	struct octeon_sg_entry *sg;
-
-	u64 sg_dma_ptr;
-};
 
 struct handshake {
 	struct completion init;
@@ -174,17 +144,20 @@ struct handshake {
 	int started_ok;
 };
 
-struct octeon_device_priv {
-	/** Tasklet structures for this device. */
-	struct tasklet_struct droq_tasklet;
-	unsigned long napi_mask;
-};
+#ifdef CONFIG_PCI_IOV
+static int liquidio_enable_sriov(struct pci_dev *dev, int num_vfs);
+#endif
+
+static int octeon_dbg_console_print(struct octeon_device *oct, u32 console_num,
+				    char *prefix, char *suffix);
 
 static int octeon_device_init(struct octeon_device *);
 static int liquidio_stop(struct net_device *netdev);
 static void liquidio_remove(struct pci_dev *pdev);
 static int liquidio_probe(struct pci_dev *pdev,
 			  const struct pci_device_id *ent);
+static int liquidio_set_vf_link_state(struct net_device *netdev, int vfidx,
+				      int linkstate);
 
 static struct handshake handshake[MAX_OCTEON_DEVICES];
 static struct completion first_stage;
@@ -197,9 +170,8 @@ static void octeon_droq_bh(unsigned long pdev)
 	struct octeon_device_priv *oct_priv =
 		(struct octeon_device_priv *)oct->priv;
 
-	/* for (q_no = 0; q_no < oct->num_oqs; q_no++) { */
 	for (q_no = 0; q_no < MAX_OCTEON_OUTPUT_QUEUES(oct); q_no++) {
-		if (!(oct->io_qmask.oq & (1ULL << q_no)))
+		if (!(oct->io_qmask.oq & BIT_ULL(q_no)))
 			continue;
 		reschedule |= octeon_droq_process_packets(oct, oct->droq[q_no],
 							  MAX_PACKET_BUDGET);
@@ -234,7 +206,7 @@ static int lio_wait_for_oq_pkts(struct octeon_device *oct)
 		pending_pkts = 0;
 
 		for (i = 0; i < MAX_OCTEON_OUTPUT_QUEUES(oct); i++) {
-			if (!(oct->io_qmask.oq & (1ULL << i)))
+			if (!(oct->io_qmask.oq & BIT_ULL(i)))
 				continue;
 			pkt_cnt += octeon_droq_check_hw_for_pkts(oct->droq[i]);
 		}
@@ -267,32 +239,6 @@ static void force_io_queues_off(struct octeon_device *oct)
 }
 
 /**
- * \brief wait for all pending requests to complete
- * @param oct Pointer to Octeon device
- *
- * Called during shutdown sequence
- */
-static int wait_for_pending_requests(struct octeon_device *oct)
-{
-	int i, pcount = 0;
-
-	for (i = 0; i < 100; i++) {
-		pcount =
-			atomic_read(&oct->response_list
-				[OCTEON_ORDERED_SC_LIST].pending_req_count);
-		if (pcount)
-			schedule_timeout_uninterruptible(HZ / 10);
-		else
-			break;
-	}
-
-	if (pcount)
-		return 1;
-
-	return 0;
-}
-
-/**
  * \brief Cause device to go quiet so it can be safely removed/reset/etc
  * @param oct Pointer to Octeon device
  */
@@ -307,7 +253,7 @@ static inline void pcierror_quiesce_device(struct octeon_device *oct)
 	force_io_queues_off(oct);
 
 	/* To allow for in-flight requests */
-	schedule_timeout_uninterruptible(100);
+	schedule_timeout_uninterruptible(WAIT_INFLIGHT_REQUEST);
 
 	if (wait_for_pending_requests(oct))
 		dev_err(&oct->pci_dev->dev, "There were pending requests\n");
@@ -316,7 +262,7 @@ static inline void pcierror_quiesce_device(struct octeon_device *oct)
 	for (i = 0; i < MAX_OCTEON_INSTR_QUEUES(oct); i++) {
 		struct octeon_instr_queue *iq;
 
-		if (!(oct->io_qmask.iq & (1ULL << i)))
+		if (!(oct->io_qmask.iq & BIT_ULL(i)))
 			continue;
 		iq = oct->instr_queue[i];
 
@@ -382,7 +328,6 @@ static void stop_pci_io(struct octeon_device *oct)
 	dev_dbg(&oct->pci_dev->dev, "Device state is now %s\n",
 		lio_get_state_string(&oct->status));
 
-	/* cn63xx_cleanup_aer_uncorrect_error_status(oct->pci_dev); */
 	/* making it a common function for all OCTEON models */
 	cleanup_aer_uncorrect_error_status(oct->pci_dev);
 }
@@ -518,6 +463,9 @@ static struct pci_driver liquidio_pci_driver = {
 	.suspend	= liquidio_suspend,
 	.resume		= liquidio_resume,
 #endif
+#ifdef CONFIG_PCI_IOV
+	.sriov_configure = liquidio_enable_sriov,
+#endif
 };
 
 /**
@@ -537,311 +485,31 @@ static void liquidio_deinit_pci(void)
 }
 
 /**
- * \brief check interface state
- * @param lio per-network private data
- * @param state_flag flag state to check
- */
-static inline int ifstate_check(struct lio *lio, int state_flag)
-{
-	return atomic_read(&lio->ifstate) & state_flag;
-}
-
-/**
- * \brief set interface state
- * @param lio per-network private data
- * @param state_flag flag state to set
- */
-static inline void ifstate_set(struct lio *lio, int state_flag)
-{
-	atomic_set(&lio->ifstate, (atomic_read(&lio->ifstate) | state_flag));
-}
-
-/**
- * \brief clear interface state
- * @param lio per-network private data
- * @param state_flag flag state to clear
- */
-static inline void ifstate_reset(struct lio *lio, int state_flag)
-{
-	atomic_set(&lio->ifstate, (atomic_read(&lio->ifstate) & ~(state_flag)));
-}
-
-/**
- * \brief Stop Tx queues
- * @param netdev network device
- */
-static inline void txqs_stop(struct net_device *netdev)
-{
-	if (netif_is_multiqueue(netdev)) {
-		int i;
-
-		for (i = 0; i < netdev->num_tx_queues; i++)
-			netif_stop_subqueue(netdev, i);
-	} else {
-		netif_stop_queue(netdev);
-	}
-}
-
-/**
- * \brief Start Tx queues
- * @param netdev network device
- */
-static inline void txqs_start(struct net_device *netdev)
-{
-	if (netif_is_multiqueue(netdev)) {
-		int i;
-
-		for (i = 0; i < netdev->num_tx_queues; i++)
-			netif_start_subqueue(netdev, i);
-	} else {
-		netif_start_queue(netdev);
-	}
-}
-
-/**
- * \brief Wake Tx queues
- * @param netdev network device
- */
-static inline void txqs_wake(struct net_device *netdev)
-{
-	struct lio *lio = GET_LIO(netdev);
-
-	if (netif_is_multiqueue(netdev)) {
-		int i;
-
-		for (i = 0; i < netdev->num_tx_queues; i++) {
-			int qno = lio->linfo.txpciq[i %
-				(lio->linfo.num_txpciq)].s.q_no;
-
-			if (__netif_subqueue_stopped(netdev, i)) {
-				INCR_INSTRQUEUE_PKT_COUNT(lio->oct_dev, qno,
-							  tx_restart, 1);
-				netif_wake_subqueue(netdev, i);
-			}
-		}
-	} else {
-		INCR_INSTRQUEUE_PKT_COUNT(lio->oct_dev, lio->txq,
-					  tx_restart, 1);
-		netif_wake_queue(netdev);
-	}
-}
-
-/**
- * \brief Stop Tx queue
- * @param netdev network device
- */
-static void stop_txq(struct net_device *netdev)
-{
-	txqs_stop(netdev);
-}
-
-/**
- * \brief Start Tx queue
- * @param netdev network device
- */
-static void start_txq(struct net_device *netdev)
-{
-	struct lio *lio = GET_LIO(netdev);
-
-	if (lio->linfo.link.s.link_up) {
-		txqs_start(netdev);
-		return;
-	}
-}
-
-/**
- * \brief Wake a queue
- * @param netdev network device
- * @param q which queue to wake
- */
-static inline void wake_q(struct net_device *netdev, int q)
-{
-	if (netif_is_multiqueue(netdev))
-		netif_wake_subqueue(netdev, q);
-	else
-		netif_wake_queue(netdev);
-}
-
-/**
- * \brief Stop a queue
- * @param netdev network device
- * @param q which queue to stop
- */
-static inline void stop_q(struct net_device *netdev, int q)
-{
-	if (netif_is_multiqueue(netdev))
-		netif_stop_subqueue(netdev, q);
-	else
-		netif_stop_queue(netdev);
-}
-
-/**
  * \brief Check Tx queue status, and take appropriate action
  * @param lio per-network private data
  * @returns 0 if full, number of queues woken up otherwise
  */
 static inline int check_txq_status(struct lio *lio)
 {
+	int numqs = lio->netdev->real_num_tx_queues;
 	int ret_val = 0;
+	int q, iq;
 
-	if (netif_is_multiqueue(lio->netdev)) {
-		int numqs = lio->netdev->num_tx_queues;
-		int q, iq = 0;
-
-		/* check each sub-queue state */
-		for (q = 0; q < numqs; q++) {
-			iq = lio->linfo.txpciq[q %
-				(lio->linfo.num_txpciq)].s.q_no;
-			if (octnet_iq_is_full(lio->oct_dev, iq))
-				continue;
-			if (__netif_subqueue_stopped(lio->netdev, q)) {
-				wake_q(lio->netdev, q);
-				INCR_INSTRQUEUE_PKT_COUNT(lio->oct_dev, iq,
-							  tx_restart, 1);
-				ret_val++;
-			}
+	/* check each sub-queue state */
+	for (q = 0; q < numqs; q++) {
+		iq = lio->linfo.txpciq[q %
+			lio->oct_dev->num_iqs].s.q_no;
+		if (octnet_iq_is_full(lio->oct_dev, iq))
+			continue;
+		if (__netif_subqueue_stopped(lio->netdev, q)) {
+			netif_wake_subqueue(lio->netdev, q);
+			INCR_INSTRQUEUE_PKT_COUNT(lio->oct_dev, iq,
+						  tx_restart, 1);
+			ret_val++;
 		}
-	} else {
-		if (octnet_iq_is_full(lio->oct_dev, lio->txq))
-			return 0;
-		wake_q(lio->netdev, lio->txq);
-		INCR_INSTRQUEUE_PKT_COUNT(lio->oct_dev, lio->txq,
-					  tx_restart, 1);
-		ret_val = 1;
 	}
+
 	return ret_val;
-}
-
-/**
- * Remove the node at the head of the list. The list would be empty at
- * the end of this call if there are no more nodes in the list.
- */
-static inline struct list_head *list_delete_head(struct list_head *root)
-{
-	struct list_head *node;
-
-	if ((root->prev == root) && (root->next == root))
-		node = NULL;
-	else
-		node = root->next;
-
-	if (node)
-		list_del(node);
-
-	return node;
-}
-
-/**
- * \brief Delete gather lists
- * @param lio per-network private data
- */
-static void delete_glists(struct lio *lio)
-{
-	struct octnic_gather *g;
-	int i;
-
-	if (!lio->glist)
-		return;
-
-	for (i = 0; i < lio->linfo.num_txpciq; i++) {
-		do {
-			g = (struct octnic_gather *)
-				list_delete_head(&lio->glist[i]);
-			if (g) {
-				if (g->sg) {
-					dma_unmap_single(&lio->oct_dev->
-							 pci_dev->dev,
-							 g->sg_dma_ptr,
-							 g->sg_size,
-							 DMA_TO_DEVICE);
-					kfree((void *)((unsigned long)g->sg -
-						       g->adjust));
-				}
-				kfree(g);
-			}
-		} while (g);
-	}
-
-	kfree((void *)lio->glist);
-}
-
-/**
- * \brief Setup gather lists
- * @param lio per-network private data
- */
-static int setup_glists(struct octeon_device *oct, struct lio *lio, int num_iqs)
-{
-	int i, j;
-	struct octnic_gather *g;
-
-	lio->glist_lock = kcalloc(num_iqs, sizeof(*lio->glist_lock),
-				  GFP_KERNEL);
-	if (!lio->glist_lock)
-		return 1;
-
-	lio->glist = kcalloc(num_iqs, sizeof(*lio->glist),
-			     GFP_KERNEL);
-	if (!lio->glist) {
-		kfree((void *)lio->glist_lock);
-		return 1;
-	}
-
-	for (i = 0; i < num_iqs; i++) {
-		int numa_node = cpu_to_node(i % num_online_cpus());
-
-		spin_lock_init(&lio->glist_lock[i]);
-
-		INIT_LIST_HEAD(&lio->glist[i]);
-
-		for (j = 0; j < lio->tx_qsize; j++) {
-			g = kzalloc_node(sizeof(*g), GFP_KERNEL,
-					 numa_node);
-			if (!g)
-				g = kzalloc(sizeof(*g), GFP_KERNEL);
-			if (!g)
-				break;
-
-			g->sg_size = ((ROUNDUP4(OCTNIC_MAX_SG) >> 2) *
-				      OCT_SG_ENTRY_SIZE);
-
-			g->sg = kmalloc_node(g->sg_size + 8,
-					     GFP_KERNEL, numa_node);
-			if (!g->sg)
-				g->sg = kmalloc(g->sg_size + 8, GFP_KERNEL);
-			if (!g->sg) {
-				kfree(g);
-				break;
-			}
-
-			/* The gather component should be aligned on 64-bit
-			 * boundary
-			 */
-			if (((unsigned long)g->sg) & 7) {
-				g->adjust = 8 - (((unsigned long)g->sg) & 7);
-				g->sg = (struct octeon_sg_entry *)
-					((unsigned long)g->sg + g->adjust);
-			}
-			g->sg_dma_ptr = dma_map_single(&oct->pci_dev->dev,
-						       g->sg, g->sg_size,
-						       DMA_TO_DEVICE);
-			if (dma_mapping_error(&oct->pci_dev->dev,
-					      g->sg_dma_ptr)) {
-				kfree((void *)((unsigned long)g->sg -
-					       g->adjust));
-				kfree(g);
-				break;
-			}
-
-			list_add_tail(&g->list, &lio->glist[i]);
-		}
-
-		if (j != lio->tx_qsize) {
-			delete_glists(lio);
-			return 1;
-		}
-	}
-
-	return 0;
 }
 
 /**
@@ -852,7 +520,8 @@ static void print_link_info(struct net_device *netdev)
 {
 	struct lio *lio = GET_LIO(netdev);
 
-	if (atomic_read(&lio->ifstate) & LIO_IFSTATE_REGISTERED) {
+	if (!ifstate_check(lio, LIO_IFSTATE_RESETTING) &&
+	    ifstate_check(lio, LIO_IFSTATE_REGISTERED)) {
 		struct oct_link_info *linfo = &lio->linfo;
 
 		if (linfo->link.s.link_up) {
@@ -874,8 +543,12 @@ static void octnet_link_status_change(struct work_struct *work)
 	struct cavium_wk *wk = (struct cavium_wk *)work;
 	struct lio *lio = (struct lio *)wk->ctxptr;
 
+	/* lio->linfo.link.s.mtu always contains max MTU of the lio interface.
+	 * this API is invoked only when new max-MTU of the interface is
+	 * less than current MTU.
+	 */
 	rtnl_lock();
-	call_netdevice_notifiers(NETDEV_CHANGEMTU, lio->netdev);
+	dev_set_mtu(lio->netdev, lio->linfo.link.s.mtu);
 	rtnl_unlock();
 }
 
@@ -924,7 +597,11 @@ static inline void update_link_status(struct net_device *netdev,
 {
 	struct lio *lio = GET_LIO(netdev);
 	int changed = (lio->linfo.link.u64 != ls->u64);
+	int current_max_mtu = lio->linfo.link.s.mtu;
+	struct octeon_device *oct = lio->oct_dev;
 
+	dev_dbg(&oct->pci_dev->dev, "%s: lio->linfo.link.u64=%llx, ls->u64=%llx\n",
+		__func__, lio->linfo.link.u64, ls->u64);
 	lio->linfo.link.u64 = ls->u64;
 
 	if ((lio->intf_open) && (changed)) {
@@ -932,350 +609,241 @@ static inline void update_link_status(struct net_device *netdev,
 		lio->link_changes++;
 
 		if (lio->linfo.link.s.link_up) {
+			dev_dbg(&oct->pci_dev->dev, "%s: link_up", __func__);
 			netif_carrier_on(netdev);
-			/* start_txq(netdev); */
-			txqs_wake(netdev);
+			wake_txqs(netdev);
 		} else {
+			dev_dbg(&oct->pci_dev->dev, "%s: link_off", __func__);
 			netif_carrier_off(netdev);
-			stop_txq(netdev);
+			stop_txqs(netdev);
+		}
+		if (lio->linfo.link.s.mtu != current_max_mtu) {
+			netif_info(lio, probe, lio->netdev, "Max MTU changed from %d to %d\n",
+				   current_max_mtu, lio->linfo.link.s.mtu);
+			netdev->max_mtu = lio->linfo.link.s.mtu;
+		}
+		if (lio->linfo.link.s.mtu < netdev->mtu) {
+			dev_warn(&oct->pci_dev->dev,
+				 "Current MTU is higher than new max MTU; Reducing the current mtu from %d to %d\n",
+				     netdev->mtu, lio->linfo.link.s.mtu);
+			queue_delayed_work(lio->link_status_wq.wq,
+					   &lio->link_status_wq.wk.work, 0);
 		}
 	}
 }
 
-/* Runs in interrupt context. */
-static void update_txq_status(struct octeon_device *oct, int iq_num)
+/**
+ * lio_sync_octeon_time - send latest localtime to octeon firmware so that
+ * firmware will correct it's time, in case there is a time skew
+ *
+ * @work: work scheduled to send time update to octeon firmware
+ **/
+static void lio_sync_octeon_time(struct work_struct *work)
+{
+	struct cavium_wk *wk = (struct cavium_wk *)work;
+	struct lio *lio = (struct lio *)wk->ctxptr;
+	struct octeon_device *oct = lio->oct_dev;
+	struct octeon_soft_command *sc;
+	struct timespec64 ts;
+	struct lio_time *lt;
+	int ret;
+
+	sc = octeon_alloc_soft_command(oct, sizeof(struct lio_time), 16, 0);
+	if (!sc) {
+		dev_err(&oct->pci_dev->dev,
+			"Failed to sync time to octeon: soft command allocation failed\n");
+		return;
+	}
+
+	lt = (struct lio_time *)sc->virtdptr;
+
+	/* Get time of the day */
+	ktime_get_real_ts64(&ts);
+	lt->sec = ts.tv_sec;
+	lt->nsec = ts.tv_nsec;
+	octeon_swap_8B_data((u64 *)lt, (sizeof(struct lio_time)) / 8);
+
+	sc->iq_no = lio->linfo.txpciq[0].s.q_no;
+	octeon_prepare_soft_command(oct, sc, OPCODE_NIC,
+				    OPCODE_NIC_SYNC_OCTEON_TIME, 0, 0, 0);
+
+	init_completion(&sc->complete);
+	sc->sc_status = OCTEON_REQUEST_PENDING;
+
+	ret = octeon_send_soft_command(oct, sc);
+	if (ret == IQ_SEND_FAILED) {
+		dev_err(&oct->pci_dev->dev,
+			"Failed to sync time to octeon: failed to send soft command\n");
+		octeon_free_soft_command(oct, sc);
+	} else {
+		WRITE_ONCE(sc->caller_is_done, true);
+	}
+
+	queue_delayed_work(lio->sync_octeon_time_wq.wq,
+			   &lio->sync_octeon_time_wq.wk.work,
+			   msecs_to_jiffies(LIO_SYNC_OCTEON_TIME_INTERVAL_MS));
+}
+
+/**
+ * setup_sync_octeon_time_wq - Sets up the work to periodically update
+ * local time to octeon firmware
+ *
+ * @netdev - network device which should send time update to firmware
+ **/
+static inline int setup_sync_octeon_time_wq(struct net_device *netdev)
+{
+	struct lio *lio = GET_LIO(netdev);
+	struct octeon_device *oct = lio->oct_dev;
+
+	lio->sync_octeon_time_wq.wq =
+		alloc_workqueue("update-octeon-time", WQ_MEM_RECLAIM, 0);
+	if (!lio->sync_octeon_time_wq.wq) {
+		dev_err(&oct->pci_dev->dev, "Unable to create wq to update octeon time\n");
+		return -1;
+	}
+	INIT_DELAYED_WORK(&lio->sync_octeon_time_wq.wk.work,
+			  lio_sync_octeon_time);
+	lio->sync_octeon_time_wq.wk.ctxptr = lio;
+	queue_delayed_work(lio->sync_octeon_time_wq.wq,
+			   &lio->sync_octeon_time_wq.wk.work,
+			   msecs_to_jiffies(LIO_SYNC_OCTEON_TIME_INTERVAL_MS));
+
+	return 0;
+}
+
+/**
+ * cleanup_sync_octeon_time_wq - stop scheduling and destroy the work created
+ * to periodically update local time to octeon firmware
+ *
+ * @netdev - network device which should send time update to firmware
+ **/
+static inline void cleanup_sync_octeon_time_wq(struct net_device *netdev)
+{
+	struct lio *lio = GET_LIO(netdev);
+	struct cavium_wq *time_wq = &lio->sync_octeon_time_wq;
+
+	if (time_wq->wq) {
+		cancel_delayed_work_sync(&time_wq->wk.work);
+		destroy_workqueue(time_wq->wq);
+	}
+}
+
+static struct octeon_device *get_other_octeon_device(struct octeon_device *oct)
+{
+	struct octeon_device *other_oct;
+
+	other_oct = lio_get_device(oct->octeon_id + 1);
+
+	if (other_oct && other_oct->pci_dev) {
+		int oct_busnum, other_oct_busnum;
+
+		oct_busnum = oct->pci_dev->bus->number;
+		other_oct_busnum = other_oct->pci_dev->bus->number;
+
+		if (oct_busnum == other_oct_busnum) {
+			int oct_slot, other_oct_slot;
+
+			oct_slot = PCI_SLOT(oct->pci_dev->devfn);
+			other_oct_slot = PCI_SLOT(other_oct->pci_dev->devfn);
+
+			if (oct_slot == other_oct_slot)
+				return other_oct;
+		}
+	}
+
+	return NULL;
+}
+
+static void disable_all_vf_links(struct octeon_device *oct)
 {
 	struct net_device *netdev;
-	struct lio *lio;
-	struct octeon_instr_queue *iq = oct->instr_queue[iq_num];
+	int max_vfs, vf, i;
 
-	netdev = oct->props[iq->ifidx].netdev;
-
-	/* This is needed because the first IQ does not have
-	 * a netdev associated with it.
-	 */
-	if (!netdev)
+	if (!oct)
 		return;
 
-	lio = GET_LIO(netdev);
-	if (netif_is_multiqueue(netdev)) {
-		if (__netif_subqueue_stopped(netdev, iq->q_index) &&
-		    lio->linfo.link.s.link_up &&
-		    (!octnet_iq_is_full(oct, iq_num))) {
-			INCR_INSTRQUEUE_PKT_COUNT(lio->oct_dev, iq_num,
-						  tx_restart, 1);
-			netif_wake_subqueue(netdev, iq->q_index);
-		} else {
-			if (!octnet_iq_is_full(oct, lio->txq)) {
-				INCR_INSTRQUEUE_PKT_COUNT(lio->oct_dev,
-							  lio->txq,
-							  tx_restart, 1);
-				wake_q(netdev, lio->txq);
-			}
-		}
+	max_vfs = oct->sriov_info.max_vfs;
+
+	for (i = 0; i < oct->ifcount; i++) {
+		netdev = oct->props[i].netdev;
+		if (!netdev)
+			continue;
+
+		for (vf = 0; vf < max_vfs; vf++)
+			liquidio_set_vf_link_state(netdev, vf,
+						   IFLA_VF_LINK_STATE_DISABLE);
 	}
-}
-
-static
-int liquidio_schedule_msix_droq_pkt_handler(struct octeon_droq *droq, u64 ret)
-{
-	struct octeon_device *oct = droq->oct_dev;
-	struct octeon_device_priv *oct_priv =
-	    (struct octeon_device_priv *)oct->priv;
-
-	if (droq->ops.poll_mode) {
-		droq->ops.napi_fn(droq);
-	} else {
-		if (ret & MSIX_PO_INT) {
-			tasklet_schedule(&oct_priv->droq_tasklet);
-			return 1;
-		}
-		/* this will be flushed periodically by check iq db */
-		if (ret & MSIX_PI_INT)
-			return 0;
-	}
-	return 0;
-}
-
-/**
- * \brief Droq packet processor sceduler
- * @param oct octeon device
- */
-static void liquidio_schedule_droq_pkt_handlers(struct octeon_device *oct)
-{
-	struct octeon_device_priv *oct_priv =
-		(struct octeon_device_priv *)oct->priv;
-	u64 oq_no;
-	struct octeon_droq *droq;
-
-	if (oct->int_status & OCT_DEV_INTR_PKT_DATA) {
-		for (oq_no = 0; oq_no < MAX_OCTEON_OUTPUT_QUEUES(oct);
-		     oq_no++) {
-			if (!(oct->droq_intr & (1ULL << oq_no)))
-				continue;
-
-			droq = oct->droq[oq_no];
-
-			if (droq->ops.poll_mode) {
-				droq->ops.napi_fn(droq);
-				oct_priv->napi_mask |= (1 << oq_no);
-			} else {
-				tasklet_schedule(&oct_priv->droq_tasklet);
-			}
-		}
-	}
-}
-
-static irqreturn_t
-liquidio_msix_intr_handler(int irq __attribute__((unused)), void *dev)
-{
-	u64 ret;
-	struct octeon_ioq_vector *ioq_vector = (struct octeon_ioq_vector *)dev;
-	struct octeon_device *oct = ioq_vector->oct_dev;
-	struct octeon_droq *droq = oct->droq[ioq_vector->droq_index];
-
-	ret = oct->fn_list.msix_interrupt_handler(ioq_vector);
-
-	if ((ret & MSIX_PO_INT) || (ret & MSIX_PI_INT))
-		liquidio_schedule_msix_droq_pkt_handler(droq, ret);
-
-	return IRQ_HANDLED;
-}
-
-/**
- * \brief Interrupt handler for octeon
- * @param irq unused
- * @param dev octeon device
- */
-static
-irqreturn_t liquidio_legacy_intr_handler(int irq __attribute__((unused)),
-					 void *dev)
-{
-	struct octeon_device *oct = (struct octeon_device *)dev;
-	irqreturn_t ret;
-
-	/* Disable our interrupts for the duration of ISR */
-	oct->fn_list.disable_interrupt(oct, OCTEON_ALL_INTR);
-
-	ret = oct->fn_list.process_interrupt_regs(oct);
-
-	if (ret == IRQ_HANDLED)
-		liquidio_schedule_droq_pkt_handlers(oct);
-
-	/* Re-enable our interrupts  */
-	if (!(atomic_read(&oct->status) == OCT_DEV_IN_RESET))
-		oct->fn_list.enable_interrupt(oct, OCTEON_ALL_INTR);
-
-	return ret;
-}
-
-/**
- * \brief Setup interrupt for octeon device
- * @param oct octeon device
- *
- *  Enable interrupt in Octeon device as given in the PCI interrupt mask.
- */
-static int octeon_setup_interrupt(struct octeon_device *oct)
-{
-	int irqret, err;
-	struct msix_entry *msix_entries;
-	int i;
-	int num_ioq_vectors;
-	int num_alloc_ioq_vectors;
-
-	if (OCTEON_CN23XX_PF(oct) && oct->msix_on) {
-		oct->num_msix_irqs = oct->sriov_info.num_pf_rings;
-		/* one non ioq interrupt for handling sli_mac_pf_int_sum */
-		oct->num_msix_irqs += 1;
-
-		oct->msix_entries = kcalloc(
-		    oct->num_msix_irqs, sizeof(struct msix_entry), GFP_KERNEL);
-		if (!oct->msix_entries)
-			return 1;
-
-		msix_entries = (struct msix_entry *)oct->msix_entries;
-		/*Assumption is that pf msix vectors start from pf srn to pf to
-		 * trs and not from 0. if not change this code
-		 */
-		for (i = 0; i < oct->num_msix_irqs - 1; i++)
-			msix_entries[i].entry = oct->sriov_info.pf_srn + i;
-		msix_entries[oct->num_msix_irqs - 1].entry =
-		    oct->sriov_info.trs;
-		num_alloc_ioq_vectors = pci_enable_msix_range(
-						oct->pci_dev, msix_entries,
-						oct->num_msix_irqs,
-						oct->num_msix_irqs);
-		if (num_alloc_ioq_vectors < 0) {
-			dev_err(&oct->pci_dev->dev, "unable to Allocate MSI-X interrupts\n");
-			kfree(oct->msix_entries);
-			oct->msix_entries = NULL;
-			return 1;
-		}
-		dev_dbg(&oct->pci_dev->dev, "OCTEON: Enough MSI-X interrupts are allocated...\n");
-
-		num_ioq_vectors = oct->num_msix_irqs;
-
-		/** For PF, there is one non-ioq interrupt handler */
-		num_ioq_vectors -= 1;
-		irqret = request_irq(msix_entries[num_ioq_vectors].vector,
-				     liquidio_legacy_intr_handler, 0, "octeon",
-				     oct);
-		if (irqret) {
-			dev_err(&oct->pci_dev->dev,
-				"OCTEON: Request_irq failed for MSIX interrupt Error: %d\n",
-				irqret);
-			pci_disable_msix(oct->pci_dev);
-			kfree(oct->msix_entries);
-			oct->msix_entries = NULL;
-			return 1;
-		}
-
-		for (i = 0; i < num_ioq_vectors; i++) {
-			irqret = request_irq(msix_entries[i].vector,
-					     liquidio_msix_intr_handler, 0,
-					     "octeon", &oct->ioq_vector[i]);
-			if (irqret) {
-				dev_err(&oct->pci_dev->dev,
-					"OCTEON: Request_irq failed for MSIX interrupt Error: %d\n",
-					irqret);
-				/** Freeing the non-ioq irq vector here . */
-				free_irq(msix_entries[num_ioq_vectors].vector,
-					 oct);
-
-				while (i) {
-					i--;
-					/** clearing affinity mask. */
-					irq_set_affinity_hint(
-						msix_entries[i].vector, NULL);
-					free_irq(msix_entries[i].vector,
-						 &oct->ioq_vector[i]);
-				}
-				pci_disable_msix(oct->pci_dev);
-				kfree(oct->msix_entries);
-				oct->msix_entries = NULL;
-				return 1;
-			}
-			oct->ioq_vector[i].vector = msix_entries[i].vector;
-			/* assign the cpu mask for this msix interrupt vector */
-			irq_set_affinity_hint(
-					msix_entries[i].vector,
-					(&oct->ioq_vector[i].affinity_mask));
-		}
-		dev_dbg(&oct->pci_dev->dev, "OCTEON[%d]: MSI-X enabled\n",
-			oct->octeon_id);
-	} else {
-		err = pci_enable_msi(oct->pci_dev);
-		if (err)
-			dev_warn(&oct->pci_dev->dev, "Reverting to legacy interrupts. Error: %d\n",
-				 err);
-		else
-			oct->flags |= LIO_FLAG_MSI_ENABLED;
-
-		irqret = request_irq(oct->pci_dev->irq,
-				     liquidio_legacy_intr_handler, IRQF_SHARED,
-				     "octeon", oct);
-		if (irqret) {
-			if (oct->flags & LIO_FLAG_MSI_ENABLED)
-				pci_disable_msi(oct->pci_dev);
-			dev_err(&oct->pci_dev->dev, "Request IRQ failed with code: %d\n",
-				irqret);
-			return 1;
-		}
-	}
-	return 0;
 }
 
 static int liquidio_watchdog(void *param)
 {
-	u64 wdog;
-	u16 mask_of_stuck_cores = 0;
-	u16 mask_of_crashed_cores = 0;
-	int core_num;
-	u8 core_is_stuck[LIO_MAX_CORES];
-	u8 core_crashed[LIO_MAX_CORES];
+	bool err_msg_was_printed[LIO_MAX_CORES];
+	u16 mask_of_crashed_or_stuck_cores = 0;
+	bool all_vf_links_are_disabled = false;
 	struct octeon_device *oct = param;
+	struct octeon_device *other_oct;
+#ifdef CONFIG_MODULE_UNLOAD
+	long refcount, vfs_referencing_pf;
+	u64 vfs_mask1, vfs_mask2;
+#endif
+	int core;
 
-	memset(core_is_stuck, 0, sizeof(core_is_stuck));
-	memset(core_crashed, 0, sizeof(core_crashed));
+	memset(err_msg_was_printed, 0, sizeof(err_msg_was_printed));
 
 	while (!kthread_should_stop()) {
-		mask_of_crashed_cores =
+		/* sleep for a couple of seconds so that we don't hog the CPU */
+		set_current_state(TASK_INTERRUPTIBLE);
+		schedule_timeout(msecs_to_jiffies(2000));
+
+		mask_of_crashed_or_stuck_cores =
 		    (u16)octeon_read_csr64(oct, CN23XX_SLI_SCRATCH2);
 
-		for (core_num = 0; core_num < LIO_MAX_CORES; core_num++) {
-			if (!core_is_stuck[core_num]) {
-				wdog = lio_pci_readq(oct, CIU3_WDOG(core_num));
+		if (!mask_of_crashed_or_stuck_cores)
+			continue;
 
-				/* look at watchdog state field */
-				wdog &= CIU3_WDOG_MASK;
-				if (wdog) {
-					/* this watchdog timer has expired */
-					core_is_stuck[core_num] =
-						LIO_MONITOR_WDOG_EXPIRE;
-					mask_of_stuck_cores |= (1 << core_num);
-				}
-			}
+		WRITE_ONCE(oct->cores_crashed, true);
+		other_oct = get_other_octeon_device(oct);
+		if (other_oct)
+			WRITE_ONCE(other_oct->cores_crashed, true);
 
-			if (!core_crashed[core_num])
-				core_crashed[core_num] =
-				    (mask_of_crashed_cores >> core_num) & 1;
-		}
+		for (core = 0; core < LIO_MAX_CORES; core++) {
+			bool core_crashed_or_got_stuck;
 
-		if (mask_of_stuck_cores) {
-			for (core_num = 0; core_num < LIO_MAX_CORES;
-			     core_num++) {
-				if (core_is_stuck[core_num] == 1) {
-					dev_err(&oct->pci_dev->dev,
-						"ERROR: Octeon core %d is stuck!\n",
-						core_num);
-					/* 2 means we have printk'd  an error
-					 * so no need to repeat the same printk
-					 */
-					core_is_stuck[core_num] =
-						LIO_MONITOR_CORE_STUCK_MSGD;
-				}
+			core_crashed_or_got_stuck =
+						(mask_of_crashed_or_stuck_cores
+						 >> core) & 1;
+
+			if (core_crashed_or_got_stuck &&
+			    !err_msg_was_printed[core]) {
+				dev_err(&oct->pci_dev->dev,
+					"ERROR: Octeon core %d crashed or got stuck!  See oct-fwdump for details.\n",
+					core);
+				err_msg_was_printed[core] = true;
 			}
 		}
 
-		if (mask_of_crashed_cores) {
-			for (core_num = 0; core_num < LIO_MAX_CORES;
-			     core_num++) {
-				if (core_crashed[core_num] == 1) {
-					dev_err(&oct->pci_dev->dev,
-						"ERROR: Octeon core %d crashed!  See oct-fwdump for details.\n",
-						core_num);
-					/* 2 means we have printk'd  an error
-					 * so no need to repeat the same printk
-					 */
-					core_crashed[core_num] =
-						LIO_MONITOR_CORE_STUCK_MSGD;
-				}
-			}
-		}
+		if (all_vf_links_are_disabled)
+			continue;
+
+		disable_all_vf_links(oct);
+		disable_all_vf_links(other_oct);
+		all_vf_links_are_disabled = true;
+
 #ifdef CONFIG_MODULE_UNLOAD
-		if (mask_of_stuck_cores || mask_of_crashed_cores) {
-			/* make module refcount=0 so that rmmod will work */
-			long refcount;
+		vfs_mask1 = READ_ONCE(oct->sriov_info.vf_drv_loaded_mask);
+		vfs_mask2 = READ_ONCE(other_oct->sriov_info.vf_drv_loaded_mask);
 
-			refcount = module_refcount(THIS_MODULE);
+		vfs_referencing_pf  = hweight64(vfs_mask1);
+		vfs_referencing_pf += hweight64(vfs_mask2);
 
-			while (refcount > 0) {
+		refcount = module_refcount(THIS_MODULE);
+		if (refcount >= vfs_referencing_pf) {
+			while (vfs_referencing_pf) {
 				module_put(THIS_MODULE);
-				refcount = module_refcount(THIS_MODULE);
-			}
-
-			/* compensate for and withstand an unlikely (but still
-			 * possible) race condition
-			 */
-			while (refcount < 0) {
-				try_module_get(THIS_MODULE);
-				refcount = module_refcount(THIS_MODULE);
+				vfs_referencing_pf--;
 			}
 		}
 #endif
-		/* sleep for two seconds */
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(2 * HZ);
 	}
 
 	return 0;
@@ -1303,6 +871,13 @@ liquidio_probe(struct pci_dev *pdev,
 	if (pdev->device == OCTEON_CN23XX_PF_VID)
 		oct_dev->msix_on = LIO_FLAG_MSIX_ENABLED;
 
+	/* Enable PTP for 6XXX Device */
+	if (((pdev->device == OCTEON_CN66XX) ||
+	     (pdev->device == OCTEON_CN68XX)))
+		oct_dev->ptp_enable = true;
+	else
+		oct_dev->ptp_enable = false;
+
 	dev_info(&pdev->dev, "Initializing device %x:%x.\n",
 		 (u32)pdev->vendor, (u32)pdev->device);
 
@@ -1311,6 +886,9 @@ liquidio_probe(struct pci_dev *pdev,
 
 	/* set linux specific device pointer */
 	oct_dev->pci_dev = (void *)pdev;
+
+	oct_dev->subsystem_id = pdev->subsystem_vendor |
+		(pdev->subsystem_device << 16);
 
 	hs = &handshake[oct_dev->octeon_id];
 	init_completion(&hs->init);
@@ -1322,31 +900,34 @@ liquidio_probe(struct pci_dev *pdev,
 		complete(&first_stage);
 
 	if (octeon_device_init(oct_dev)) {
+		complete(&hs->init);
 		liquidio_remove(pdev);
 		return -ENOMEM;
 	}
 
 	if (OCTEON_CN23XX_PF(oct_dev)) {
-		u64 scratch1;
 		u8 bus, device, function;
 
-		scratch1 = octeon_read_csr64(oct_dev, CN23XX_SLI_SCRATCH1);
-		if (!(scratch1 & 4ULL)) {
-			/* Bit 2 of SLI_SCRATCH_1 is a flag that indicates that
-			 * the lio watchdog kernel thread is running for this
-			 * NIC.  Each NIC gets one watchdog kernel thread.
+		if (atomic_read(oct_dev->adapter_refcount) == 1) {
+			/* Each NIC gets one watchdog kernel thread.  The first
+			 * PF (of each NIC) that gets pci_driver->probe()'d
+			 * creates that thread.
 			 */
-			scratch1 |= 4ULL;
-			octeon_write_csr64(oct_dev, CN23XX_SLI_SCRATCH1,
-					   scratch1);
-
 			bus = pdev->bus->number;
 			device = PCI_SLOT(pdev->devfn);
 			function = PCI_FUNC(pdev->devfn);
 			oct_dev->watchdog_task = kthread_create(
 			    liquidio_watchdog, oct_dev,
 			    "liowd/%02hhx:%02hhx.%hhx", bus, device, function);
-			wake_up_process(oct_dev->watchdog_task);
+			if (!IS_ERR(oct_dev->watchdog_task)) {
+				wake_up_process(oct_dev->watchdog_task);
+			} else {
+				oct_dev->watchdog_task = NULL;
+				dev_err(&oct_dev->pci_dev->dev,
+					"failed to create kernel_thread\n");
+				liquidio_remove(pdev);
+				return -1;
+			}
 		}
 	}
 
@@ -1358,6 +939,39 @@ liquidio_probe(struct pci_dev *pdev,
 	return 0;
 }
 
+static bool fw_type_is_auto(void)
+{
+	return strncmp(fw_type, LIO_FW_NAME_TYPE_AUTO,
+		       sizeof(LIO_FW_NAME_TYPE_AUTO)) == 0;
+}
+
+/**
+ * \brief PCI FLR for each Octeon device.
+ * @param oct octeon device
+ */
+static void octeon_pci_flr(struct octeon_device *oct)
+{
+	int rc;
+
+	pci_save_state(oct->pci_dev);
+
+	pci_cfg_access_lock(oct->pci_dev);
+
+	/* Quiesce the device completely */
+	pci_write_config_word(oct->pci_dev, PCI_COMMAND,
+			      PCI_COMMAND_INTX_DISABLE);
+
+	rc = __pci_reset_function_locked(oct->pci_dev);
+
+	if (rc != 0)
+		dev_err(&oct->pci_dev->dev, "Error %d resetting PCI function %d\n",
+			rc, oct->pf_num);
+
+	pci_cfg_access_unlock(oct->pci_dev);
+
+	pci_restore_state(oct->pci_dev);
+}
+
 /**
  *\brief Destroy resources associated with octeon device
  * @param pdev PCI device structure
@@ -1365,7 +979,7 @@ liquidio_probe(struct pci_dev *pdev,
  */
 static void octeon_destroy_resources(struct octeon_device *oct)
 {
-	int i;
+	int i, refcount;
 	struct msix_entry *msix_entries;
 	struct octeon_device_priv *oct_priv =
 		(struct octeon_device_priv *)oct->priv;
@@ -1395,11 +1009,11 @@ static void octeon_destroy_resources(struct octeon_device *oct)
 
 		/* fallthrough */
 	case OCT_DEV_IO_QUEUES_DONE:
-		if (wait_for_pending_requests(oct))
-			dev_err(&oct->pci_dev->dev, "There were pending requests\n");
-
 		if (lio_wait_for_instr_fetch(oct))
 			dev_err(&oct->pci_dev->dev, "IQ had pending instructions\n");
+
+		if (wait_for_pending_requests(oct))
+			dev_err(&oct->pci_dev->dev, "There were pending requests\n");
 
 		/* Disable the input and output queues now. No more packets will
 		 * arrive from Octeon, but we should wait for all packet
@@ -1410,17 +1024,48 @@ static void octeon_destroy_resources(struct octeon_device *oct)
 		if (lio_wait_for_oq_pkts(oct))
 			dev_err(&oct->pci_dev->dev, "OQ had pending packets\n");
 
+		/* Force all requests waiting to be fetched by OCTEON to
+		 * complete.
+		 */
+		for (i = 0; i < MAX_OCTEON_INSTR_QUEUES(oct); i++) {
+			struct octeon_instr_queue *iq;
+
+			if (!(oct->io_qmask.iq & BIT_ULL(i)))
+				continue;
+			iq = oct->instr_queue[i];
+
+			if (atomic_read(&iq->instr_pending)) {
+				spin_lock_bh(&iq->lock);
+				iq->fill_cnt = 0;
+				iq->octeon_read_index = iq->host_write_index;
+				iq->stats.instr_processed +=
+					atomic_read(&iq->instr_pending);
+				lio_process_iq_request_list(oct, iq, 0);
+				spin_unlock_bh(&iq->lock);
+			}
+		}
+
+		lio_process_ordered_list(oct, 1);
+		octeon_free_sc_done_list(oct);
+		octeon_free_sc_zombie_list(oct);
+
+	/* fallthrough */
+	case OCT_DEV_INTR_SET_DONE:
 		/* Disable interrupts  */
 		oct->fn_list.disable_interrupt(oct, OCTEON_ALL_INTR);
 
 		if (oct->msix_on) {
 			msix_entries = (struct msix_entry *)oct->msix_entries;
 			for (i = 0; i < oct->num_msix_irqs - 1; i++) {
-				/* clear the affinity_cpumask */
-				irq_set_affinity_hint(msix_entries[i].vector,
-						      NULL);
-				free_irq(msix_entries[i].vector,
-					 &oct->ioq_vector[i]);
+				if (oct->ioq_vector[i].vector) {
+					/* clear the affinity_cpumask */
+					irq_set_affinity_hint(
+							msix_entries[i].vector,
+							NULL);
+					free_irq(msix_entries[i].vector,
+						 &oct->ioq_vector[i]);
+					oct->ioq_vector[i].vector = 0;
+				}
 			}
 			/* non-iov vector's argument is oct struct */
 			free_irq(msix_entries[i].vector, oct);
@@ -1436,12 +1081,23 @@ static void octeon_destroy_resources(struct octeon_device *oct)
 				pci_disable_msi(oct->pci_dev);
 		}
 
+		kfree(oct->irq_name_storage);
+		oct->irq_name_storage = NULL;
+
+	/* fallthrough */
+	case OCT_DEV_MSIX_ALLOC_VECTOR_DONE:
 		if (OCTEON_CN23XX_PF(oct))
 			octeon_free_ioq_vector(oct);
+
+	/* fallthrough */
+	case OCT_DEV_MBOX_SETUP_DONE:
+		if (OCTEON_CN23XX_PF(oct))
+			oct->fn_list.free_mbox(oct);
+
 	/* fallthrough */
 	case OCT_DEV_IN_RESET:
 	case OCT_DEV_DROQ_INIT_DONE:
-		/*atomic_set(&oct->status, OCT_DEV_DROQ_INIT_DONE);*/
+		/* Wait for any pending operations */
 		mdelay(100);
 		for (i = 0; i < MAX_OCTEON_OUTPUT_QUEUES(oct); i++) {
 			if (!(oct->io_qmask.oq & BIT_ULL(i)))
@@ -1472,6 +1128,10 @@ static void octeon_destroy_resources(struct octeon_device *oct)
 				continue;
 			octeon_delete_instr_queue(oct, i);
 		}
+#ifdef CONFIG_PCI_IOV
+		if (oct->sriov_info.sriov_enabled)
+			pci_disable_sriov(oct->pci_dev);
+#endif
 		/* fallthrough */
 	case OCT_DEV_SC_BUFF_POOL_INIT_DONE:
 		octeon_free_sc_buffer_pool(oct);
@@ -1483,51 +1143,35 @@ static void octeon_destroy_resources(struct octeon_device *oct)
 
 		/* fallthrough */
 	case OCT_DEV_PCI_MAP_DONE:
-		/* Soft reset the octeon device before exiting */
-		if ((!OCTEON_CN23XX_PF(oct)) || !oct->octeon_id)
+		refcount = octeon_deregister_device(oct);
+
+		/* Soft reset the octeon device before exiting.
+		 * However, if fw was loaded from card (i.e. autoboot),
+		 * perform an FLR instead.
+		 * Implementation note: only soft-reset the device
+		 * if it is a CN6XXX OR the LAST CN23XX device.
+		 */
+		if (atomic_read(oct->adapter_fw_state) == FW_IS_PRELOADED)
+			octeon_pci_flr(oct);
+		else if (OCTEON_CN6XXX(oct) || !refcount)
 			oct->fn_list.soft_reset(oct);
 
 		octeon_unmap_pci_barx(oct, 0);
 		octeon_unmap_pci_barx(oct, 1);
 
 		/* fallthrough */
-	case OCT_DEV_BEGIN_STATE:
+	case OCT_DEV_PCI_ENABLE_DONE:
+		pci_clear_master(oct->pci_dev);
 		/* Disable the device, releasing the PCI INT */
 		pci_disable_device(oct->pci_dev);
 
+		/* fallthrough */
+	case OCT_DEV_BEGIN_STATE:
 		/* Nothing to be done here either */
 		break;
 	}                       /* end switch (oct->status) */
 
 	tasklet_kill(&oct_priv->droq_tasklet);
-}
-
-/**
- * \brief Callback for rx ctrl
- * @param status status of request
- * @param buf pointer to resp structure
- */
-static void rx_ctl_callback(struct octeon_device *oct,
-			    u32 status,
-			    void *buf)
-{
-	struct octeon_soft_command *sc = (struct octeon_soft_command *)buf;
-	struct liquidio_rx_ctl_context *ctx;
-
-	ctx  = (struct liquidio_rx_ctl_context *)sc->ctxptr;
-
-	oct = lio_get_device(ctx->octeon_id);
-	if (status)
-		dev_err(&oct->pci_dev->dev, "rx ctl instruction failed. Status: %llx\n",
-			CVM_CAST64(status));
-	WRITE_ONCE(ctx->cond, 1);
-
-	/* This barrier is required to be sure that the response has been
-	 * written fully before waking up the handler
-	 */
-	wmb();
-
-	wake_up_interruptible(&ctx->wc);
 }
 
 /**
@@ -1538,9 +1182,7 @@ static void rx_ctl_callback(struct octeon_device *oct,
 static void send_rx_ctrl_cmd(struct lio *lio, int start_stop)
 {
 	struct octeon_soft_command *sc;
-	struct liquidio_rx_ctl_context *ctx;
 	union octnet_cmd *ncmd;
-	int ctx_size = sizeof(struct liquidio_rx_ctl_context);
 	struct octeon_device *oct = (struct octeon_device *)lio->oct_dev;
 	int retval;
 
@@ -1549,14 +1191,14 @@ static void send_rx_ctrl_cmd(struct lio *lio, int start_stop)
 
 	sc = (struct octeon_soft_command *)
 		octeon_alloc_soft_command(oct, OCTNET_CMD_SIZE,
-					  16, ctx_size);
+					  16, 0);
+	if (!sc) {
+		netif_info(lio, rx_err, lio->netdev,
+			   "Failed to allocate octeon_soft_command\n");
+		return;
+	}
 
 	ncmd = (union octnet_cmd *)sc->virtdptr;
-	ctx  = (struct liquidio_rx_ctl_context *)sc->ctxptr;
-
-	WRITE_ONCE(ctx->cond, 0);
-	ctx->octeon_id = lio_get_device_id(oct);
-	init_waitqueue_head(&ctx->wc);
 
 	ncmd->u64 = 0;
 	ncmd->s.cmd = OCTNET_CMD_RX_CTL;
@@ -1569,23 +1211,25 @@ static void send_rx_ctrl_cmd(struct lio *lio, int start_stop)
 	octeon_prepare_soft_command(oct, sc, OPCODE_NIC,
 				    OPCODE_NIC_CMD, 0, 0, 0);
 
-	sc->callback = rx_ctl_callback;
-	sc->callback_arg = sc;
-	sc->wait_time = 5000;
+	init_completion(&sc->complete);
+	sc->sc_status = OCTEON_REQUEST_PENDING;
 
 	retval = octeon_send_soft_command(oct, sc);
 	if (retval == IQ_SEND_FAILED) {
 		netif_info(lio, rx_err, lio->netdev, "Failed to send RX Control message\n");
+		octeon_free_soft_command(oct, sc);
+		return;
 	} else {
 		/* Sleep on a wait queue till the cond flag indicates that the
 		 * response arrived or timed-out.
 		 */
-		if (sleep_cond(&ctx->wc, &ctx->cond) == -EINTR)
+		retval = wait_for_sc_completion_timeout(oct, sc, 0);
+		if (retval)
 			return;
-		oct->props[lio->ifidx].rx_on = start_stop;
-	}
 
-	octeon_free_soft_command(oct, sc);
+		oct->props[lio->ifidx].rx_on = start_stop;
+		WRITE_ONCE(sc->caller_is_done, true);
+	}
 }
 
 /**
@@ -1599,8 +1243,10 @@ static void send_rx_ctrl_cmd(struct lio *lio, int start_stop)
 static void liquidio_destroy_nic_device(struct octeon_device *oct, int ifidx)
 {
 	struct net_device *netdev = oct->props[ifidx].netdev;
-	struct lio *lio;
+	struct octeon_device_priv *oct_priv =
+		(struct octeon_device_priv *)oct->priv;
 	struct napi_struct *napi, *n;
+	struct lio *lio;
 
 	if (!netdev) {
 		dev_err(&oct->pci_dev->dev, "%s No netdevice ptr for index %d\n",
@@ -1625,12 +1271,21 @@ static void liquidio_destroy_nic_device(struct octeon_device *oct, int ifidx)
 			oct->droq[0]->ops.poll_mode = 0;
 	}
 
+	/* Delete NAPI */
+	list_for_each_entry_safe(napi, n, &netdev->napi_list, dev_list)
+		netif_napi_del(napi);
+
+	tasklet_enable(&oct_priv->droq_tasklet);
+
 	if (atomic_read(&lio->ifstate) & LIO_IFSTATE_REGISTERED)
 		unregister_netdev(netdev);
 
+	cleanup_sync_octeon_time_wq(netdev);
 	cleanup_link_status_change_wq(netdev);
 
-	delete_glists(lio);
+	cleanup_rx_oom_poll_fn(netdev);
+
+	lio_delete_glists(lio);
 
 	free_netdev(netdev);
 
@@ -1658,15 +1313,23 @@ static int liquidio_stop_nic_module(struct octeon_device *oct)
 	oct->cmd_resp_state = OCT_DRV_OFFLINE;
 	spin_unlock_bh(&oct->cmd_resp_wqlock);
 
+	lio_vf_rep_destroy(oct);
+
 	for (i = 0; i < oct->ifcount; i++) {
 		lio = GET_LIO(oct->props[i].netdev);
-		for (j = 0; j < lio->linfo.num_rxpciq; j++)
+		for (j = 0; j < oct->num_oqs; j++)
 			octeon_unregister_droq_ops(oct,
 						   lio->linfo.rxpciq[j].s.q_no);
 	}
 
 	for (i = 0; i < oct->ifcount; i++)
 		liquidio_destroy_nic_device(oct, i);
+
+	if (oct->devlink) {
+		devlink_unregister(oct->devlink);
+		devlink_free(oct->devlink);
+		oct->devlink = NULL;
+	}
 
 	dev_dbg(&oct->pci_dev->dev, "Network interfaces stopped\n");
 	return 0;
@@ -1684,6 +1347,10 @@ static void liquidio_remove(struct pci_dev *pdev)
 
 	if (oct_dev->watchdog_task)
 		kthread_stop(oct_dev->watchdog_task);
+
+	if (!oct_dev->octeon_id &&
+	    oct_dev->fw_info.app_cap_flags & LIQUIDIO_SWITCHDEV_CAP)
+		lio_vf_rep_modexit();
 
 	if (oct_dev->app_mode && (oct_dev->app_mode == CVM_DRV_NIC_APP))
 		liquidio_stop_nic_module(oct_dev);
@@ -1731,6 +1398,13 @@ static int octeon_chip_specific_setup(struct octeon_device *oct)
 	case OCTEON_CN23XX_PCIID_PF:
 		oct->chip_id = OCTEON_CN23XX_PF_VID;
 		ret = setup_cn23xx_octeon_pf_device(oct);
+		if (ret)
+			break;
+#ifdef CONFIG_PCI_IOV
+		if (!ret)
+			pci_sriov_set_totalvfs(oct->pci_dev,
+					       oct->sriov_info.max_vfs);
+#endif
 		s = "CN23XX";
 		break;
 
@@ -1764,6 +1438,7 @@ static int octeon_pci_os_setup(struct octeon_device *oct)
 
 	if (dma_set_mask_and_coherent(&oct->pci_dev->dev, DMA_BIT_MASK(64))) {
 		dev_err(&oct->pci_dev->dev, "Unexpected DMA device capability\n");
+		pci_disable_device(oct->pci_dev);
 		return 1;
 	}
 
@@ -1771,43 +1446,6 @@ static int octeon_pci_os_setup(struct octeon_device *oct)
 	pci_set_master(oct->pci_dev);
 
 	return 0;
-}
-
-static inline int skb_iq(struct lio *lio, struct sk_buff *skb)
-{
-	int q = 0;
-
-	if (netif_is_multiqueue(lio->netdev))
-		q = skb->queue_mapping % lio->linfo.num_txpciq;
-
-	return q;
-}
-
-/**
- * \brief Check Tx queue state for a given network buffer
- * @param lio per-network private data
- * @param skb network buffer
- */
-static inline int check_txq_state(struct lio *lio, struct sk_buff *skb)
-{
-	int q = 0, iq = 0;
-
-	if (netif_is_multiqueue(lio->netdev)) {
-		q = skb->queue_mapping;
-		iq = lio->linfo.txpciq[(q % (lio->linfo.num_txpciq))].s.q_no;
-	} else {
-		iq = lio->txq;
-		q = iq;
-	}
-
-	if (octnet_iq_is_full(lio->oct_dev, iq))
-		return 0;
-
-	if (__netif_subqueue_stopped(lio->netdev, q)) {
-		INCR_INSTRQUEUE_PKT_COUNT(lio->oct_dev, iq, tx_restart, 1);
-		wake_q(lio->netdev, q);
-	}
-	return 1;
 }
 
 /**
@@ -1826,8 +1464,6 @@ static void free_netbuf(void *buf)
 
 	dma_unmap_single(&lio->oct_dev->pci_dev->dev, finfo->dptr, skb->len,
 			 DMA_TO_DEVICE);
-
-	check_txq_state(lio, skb);
 
 	tx_buffer_free(skb);
 }
@@ -1864,15 +1500,10 @@ static void free_netsgbuf(void *buf)
 		i++;
 	}
 
-	dma_sync_single_for_cpu(&lio->oct_dev->pci_dev->dev,
-				g->sg_dma_ptr, g->sg_size, DMA_TO_DEVICE);
-
-	iq = skb_iq(lio, skb);
+	iq = skb_iq(lio->oct_dev, skb);
 	spin_lock(&lio->glist_lock[iq]);
 	list_add_tail(&g->list, &lio->glist[iq]);
 	spin_unlock(&lio->glist_lock[iq]);
-
-	check_txq_state(lio, skb);     /* mq support: sub-queue state check */
 
 	tx_buffer_free(skb);
 }
@@ -1912,18 +1543,13 @@ static void free_netsgbuf_with_resp(void *buf)
 		i++;
 	}
 
-	dma_sync_single_for_cpu(&lio->oct_dev->pci_dev->dev,
-				g->sg_dma_ptr, g->sg_size, DMA_TO_DEVICE);
-
-	iq = skb_iq(lio, skb);
+	iq = skb_iq(lio->oct_dev, skb);
 
 	spin_lock(&lio->glist_lock[iq]);
 	list_add_tail(&g->list, &lio->glist[iq]);
 	spin_unlock(&lio->glist_lock[iq]);
 
 	/* Don't free the skb yet */
-
-	check_txq_state(lio, skb);
 }
 
 /**
@@ -2016,7 +1642,7 @@ static int liquidio_ptp_settime(struct ptp_clock_info *ptp,
 	struct lio *lio = container_of(ptp, struct lio, ptp_info);
 	struct octeon_device *oct = (struct octeon_device *)lio->oct_dev;
 
-	ns = timespec_to_ns(ts);
+	ns = timespec64_to_ns(ts);
 
 	spin_lock_irqsave(&lio->ptp_lock, flags);
 	lio_pci_writeq(oct, ns, CN6XXX_MIO_PTP_CLOCK_HI);
@@ -2103,16 +1729,12 @@ static int load_firmware(struct octeon_device *oct)
 	char fw_name[LIO_MAX_FW_FILENAME_LEN];
 	char *tmp_fw_type;
 
-	if (strncmp(fw_type, LIO_FW_NAME_TYPE_NONE,
-		    sizeof(LIO_FW_NAME_TYPE_NONE)) == 0) {
-		dev_info(&oct->pci_dev->dev, "Skipping firmware load\n");
-		return ret;
-	}
-
-	if (fw_type[0] == '\0')
+	if (fw_type_is_auto()) {
 		tmp_fw_type = LIO_FW_NAME_TYPE_NIC;
-	else
+		strncpy(fw_type, tmp_fw_type, sizeof(fw_type));
+	} else {
 		tmp_fw_type = fw_type;
+	}
 
 	sprintf(fw_name, "%s%s%s_%s%s", LIO_FW_DIR, LIO_FW_BASE_NAME,
 		octeon_get_conf(oct)->card_name, tmp_fw_type,
@@ -2120,7 +1742,7 @@ static int load_firmware(struct octeon_device *oct)
 
 	ret = request_firmware(&fw, fw_name, &oct->pci_dev->dev);
 	if (ret) {
-		dev_err(&oct->pci_dev->dev, "Request firmware failed. Could not find file %s.\n.",
+		dev_err(&oct->pci_dev->dev, "Request firmware failed. Could not find file %s.\n",
 			fw_name);
 		release_firmware(fw);
 		return ret;
@@ -2131,413 +1753,6 @@ static int load_firmware(struct octeon_device *oct)
 	release_firmware(fw);
 
 	return ret;
-}
-
-/**
- * \brief Setup output queue
- * @param oct octeon device
- * @param q_no which queue
- * @param num_descs how many descriptors
- * @param desc_size size of each descriptor
- * @param app_ctx application context
- */
-static int octeon_setup_droq(struct octeon_device *oct, int q_no, int num_descs,
-			     int desc_size, void *app_ctx)
-{
-	int ret_val = 0;
-
-	dev_dbg(&oct->pci_dev->dev, "Creating Droq: %d\n", q_no);
-	/* droq creation and local register settings. */
-	ret_val = octeon_create_droq(oct, q_no, num_descs, desc_size, app_ctx);
-	if (ret_val < 0)
-		return ret_val;
-
-	if (ret_val == 1) {
-		dev_dbg(&oct->pci_dev->dev, "Using default droq %d\n", q_no);
-		return 0;
-	}
-	/* tasklet creation for the droq */
-
-	/* Enable the droq queues */
-	octeon_set_droq_pkt_op(oct, q_no, 1);
-
-	/* Send Credit for Octeon Output queues. Credits are always
-	 * sent after the output queue is enabled.
-	 */
-	writel(oct->droq[q_no]->max_count,
-	       oct->droq[q_no]->pkts_credit_reg);
-
-	return ret_val;
-}
-
-/**
- * \brief Callback for getting interface configuration
- * @param status status of request
- * @param buf pointer to resp structure
- */
-static void if_cfg_callback(struct octeon_device *oct,
-			    u32 status __attribute__((unused)),
-			    void *buf)
-{
-	struct octeon_soft_command *sc = (struct octeon_soft_command *)buf;
-	struct liquidio_if_cfg_resp *resp;
-	struct liquidio_if_cfg_context *ctx;
-
-	resp = (struct liquidio_if_cfg_resp *)sc->virtrptr;
-	ctx = (struct liquidio_if_cfg_context *)sc->ctxptr;
-
-	oct = lio_get_device(ctx->octeon_id);
-	if (resp->status)
-		dev_err(&oct->pci_dev->dev, "nic if cfg instruction failed. Status: %llx\n",
-			CVM_CAST64(resp->status));
-	WRITE_ONCE(ctx->cond, 1);
-
-	snprintf(oct->fw_info.liquidio_firmware_version, 32, "%s",
-		 resp->cfg_info.liquidio_firmware_version);
-
-	/* This barrier is required to be sure that the response has been
-	 * written fully before waking up the handler
-	 */
-	wmb();
-
-	wake_up_interruptible(&ctx->wc);
-}
-
-/**
- * \brief Select queue based on hash
- * @param dev Net device
- * @param skb sk_buff structure
- * @returns selected queue number
- */
-static u16 select_q(struct net_device *dev, struct sk_buff *skb,
-		    void *accel_priv __attribute__((unused)),
-		    select_queue_fallback_t fallback __attribute__((unused)))
-{
-	u32 qindex = 0;
-	struct lio *lio;
-
-	lio = GET_LIO(dev);
-	qindex = skb_tx_hash(dev, skb);
-
-	return (u16)(qindex % (lio->linfo.num_txpciq));
-}
-
-/** Routine to push packets arriving on Octeon interface upto network layer.
- * @param oct_id   - octeon device id.
- * @param skbuff   - skbuff struct to be passed to network layer.
- * @param len      - size of total data received.
- * @param rh       - Control header associated with the packet
- * @param param    - additional control data with the packet
- * @param arg	   - farg registered in droq_ops
- */
-static void
-liquidio_push_packet(u32 octeon_id __attribute__((unused)),
-		     void *skbuff,
-		     u32 len,
-		     union octeon_rh *rh,
-		     void *param,
-		     void *arg)
-{
-	struct napi_struct *napi = param;
-	struct sk_buff *skb = (struct sk_buff *)skbuff;
-	struct skb_shared_hwtstamps *shhwtstamps;
-	u64 ns;
-	u16 vtag = 0;
-	struct net_device *netdev = (struct net_device *)arg;
-	struct octeon_droq *droq = container_of(param, struct octeon_droq,
-						napi);
-	if (netdev) {
-		int packet_was_received;
-		struct lio *lio = GET_LIO(netdev);
-		struct octeon_device *oct = lio->oct_dev;
-
-		/* Do not proceed if the interface is not in RUNNING state. */
-		if (!ifstate_check(lio, LIO_IFSTATE_RUNNING)) {
-			recv_buffer_free(skb);
-			droq->stats.rx_dropped++;
-			return;
-		}
-
-		skb->dev = netdev;
-
-		skb_record_rx_queue(skb, droq->q_no);
-		if (likely(len > MIN_SKB_SIZE)) {
-			struct octeon_skb_page_info *pg_info;
-			unsigned char *va;
-
-			pg_info = ((struct octeon_skb_page_info *)(skb->cb));
-			if (pg_info->page) {
-				/* For Paged allocation use the frags */
-				va = page_address(pg_info->page) +
-					pg_info->page_offset;
-				memcpy(skb->data, va, MIN_SKB_SIZE);
-				skb_put(skb, MIN_SKB_SIZE);
-				skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags,
-						pg_info->page,
-						pg_info->page_offset +
-						MIN_SKB_SIZE,
-						len - MIN_SKB_SIZE,
-						LIO_RXBUFFER_SZ);
-			}
-		} else {
-			struct octeon_skb_page_info *pg_info =
-				((struct octeon_skb_page_info *)(skb->cb));
-			skb_copy_to_linear_data(skb, page_address(pg_info->page)
-						+ pg_info->page_offset, len);
-			skb_put(skb, len);
-			put_page(pg_info->page);
-		}
-
-		if (((oct->chip_id == OCTEON_CN66XX) ||
-		     (oct->chip_id == OCTEON_CN68XX)) &&
-		    ptp_enable) {
-			if (rh->r_dh.has_hwtstamp) {
-				/* timestamp is included from the hardware at
-				 * the beginning of the packet.
-				 */
-				if (ifstate_check
-				    (lio, LIO_IFSTATE_RX_TIMESTAMP_ENABLED)) {
-					/* Nanoseconds are in the first 64-bits
-					 * of the packet.
-					 */
-					memcpy(&ns, (skb->data), sizeof(ns));
-					shhwtstamps = skb_hwtstamps(skb);
-					shhwtstamps->hwtstamp =
-						ns_to_ktime(ns +
-							    lio->ptp_adjust);
-				}
-				skb_pull(skb, sizeof(ns));
-			}
-		}
-
-		skb->protocol = eth_type_trans(skb, skb->dev);
-		if ((netdev->features & NETIF_F_RXCSUM) &&
-		    (((rh->r_dh.encap_on) &&
-		      (rh->r_dh.csum_verified & CNNIC_TUN_CSUM_VERIFIED)) ||
-		     (!(rh->r_dh.encap_on) &&
-		      (rh->r_dh.csum_verified & CNNIC_CSUM_VERIFIED))))
-			/* checksum has already been verified */
-			skb->ip_summed = CHECKSUM_UNNECESSARY;
-		else
-			skb->ip_summed = CHECKSUM_NONE;
-
-		/* Setting Encapsulation field on basis of status received
-		 * from the firmware
-		 */
-		if (rh->r_dh.encap_on) {
-			skb->encapsulation = 1;
-			skb->csum_level = 1;
-			droq->stats.rx_vxlan++;
-		}
-
-		/* inbound VLAN tag */
-		if ((netdev->features & NETIF_F_HW_VLAN_CTAG_RX) &&
-		    (rh->r_dh.vlan != 0)) {
-			u16 vid = rh->r_dh.vlan;
-			u16 priority = rh->r_dh.priority;
-
-			vtag = priority << 13 | vid;
-			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vtag);
-		}
-
-		packet_was_received = napi_gro_receive(napi, skb) != GRO_DROP;
-
-		if (packet_was_received) {
-			droq->stats.rx_bytes_received += len;
-			droq->stats.rx_pkts_received++;
-			netdev->last_rx = jiffies;
-		} else {
-			droq->stats.rx_dropped++;
-			netif_info(lio, rx_err, lio->netdev,
-				   "droq:%d  error rx_dropped:%llu\n",
-				   droq->q_no, droq->stats.rx_dropped);
-		}
-
-	} else {
-		recv_buffer_free(skb);
-	}
-}
-
-/**
- * \brief wrapper for calling napi_schedule
- * @param param parameters to pass to napi_schedule
- *
- * Used when scheduling on different CPUs
- */
-static void napi_schedule_wrapper(void *param)
-{
-	struct napi_struct *napi = param;
-
-	napi_schedule(napi);
-}
-
-/**
- * \brief callback when receive interrupt occurs and we are in NAPI mode
- * @param arg pointer to octeon output queue
- */
-static void liquidio_napi_drv_callback(void *arg)
-{
-	struct octeon_device *oct;
-	struct octeon_droq *droq = arg;
-	int this_cpu = smp_processor_id();
-
-	oct = droq->oct_dev;
-
-	if (OCTEON_CN23XX_PF(oct) || droq->cpu_id == this_cpu) {
-		napi_schedule_irqoff(&droq->napi);
-	} else {
-		struct call_single_data *csd = &droq->csd;
-
-		csd->func = napi_schedule_wrapper;
-		csd->info = &droq->napi;
-		csd->flags = 0;
-
-		smp_call_function_single_async(droq->cpu_id, csd);
-	}
-}
-
-/**
- * \brief Entry point for NAPI polling
- * @param napi NAPI structure
- * @param budget maximum number of items to process
- */
-static int liquidio_napi_poll(struct napi_struct *napi, int budget)
-{
-	struct octeon_droq *droq;
-	int work_done;
-	int tx_done = 0, iq_no;
-	struct octeon_instr_queue *iq;
-	struct octeon_device *oct;
-
-	droq = container_of(napi, struct octeon_droq, napi);
-	oct = droq->oct_dev;
-	iq_no = droq->q_no;
-	/* Handle Droq descriptors */
-	work_done = octeon_process_droq_poll_cmd(oct, droq->q_no,
-						 POLL_EVENT_PROCESS_PKTS,
-						 budget);
-
-	/* Flush the instruction queue */
-	iq = oct->instr_queue[iq_no];
-	if (iq) {
-		/* Process iq buffers with in the budget limits */
-		tx_done = octeon_flush_iq(oct, iq, 1, budget);
-		/* Update iq read-index rather than waiting for next interrupt.
-		 * Return back if tx_done is false.
-		 */
-		update_txq_status(oct, iq_no);
-		/*tx_done = (iq->flush_index == iq->octeon_read_index);*/
-	} else {
-		dev_err(&oct->pci_dev->dev, "%s:  iq (%d) num invalid\n",
-			__func__, iq_no);
-	}
-
-	if ((work_done < budget) && (tx_done)) {
-		napi_complete(napi);
-		octeon_process_droq_poll_cmd(droq->oct_dev, droq->q_no,
-					     POLL_EVENT_ENABLE_INTR, 0);
-		return 0;
-	}
-
-	return (!tx_done) ? (budget) : (work_done);
-}
-
-/**
- * \brief Setup input and output queues
- * @param octeon_dev octeon device
- * @param ifidx  Interface Index
- *
- * Note: Queues are with respect to the octeon device. Thus
- * an input queue is for egress packets, and output queues
- * are for ingress packets.
- */
-static inline int setup_io_queues(struct octeon_device *octeon_dev,
-				  int ifidx)
-{
-	struct octeon_droq_ops droq_ops;
-	struct net_device *netdev;
-	static int cpu_id;
-	static int cpu_id_modulus;
-	struct octeon_droq *droq;
-	struct napi_struct *napi;
-	int q, q_no, retval = 0;
-	struct lio *lio;
-	int num_tx_descs;
-
-	netdev = octeon_dev->props[ifidx].netdev;
-
-	lio = GET_LIO(netdev);
-
-	memset(&droq_ops, 0, sizeof(struct octeon_droq_ops));
-
-	droq_ops.fptr = liquidio_push_packet;
-	droq_ops.farg = (void *)netdev;
-
-	droq_ops.poll_mode = 1;
-	droq_ops.napi_fn = liquidio_napi_drv_callback;
-	cpu_id = 0;
-	cpu_id_modulus = num_present_cpus();
-
-	/* set up DROQs. */
-	for (q = 0; q < lio->linfo.num_rxpciq; q++) {
-		q_no = lio->linfo.rxpciq[q].s.q_no;
-		dev_dbg(&octeon_dev->pci_dev->dev,
-			"setup_io_queues index:%d linfo.rxpciq.s.q_no:%d\n",
-			q, q_no);
-		retval = octeon_setup_droq(octeon_dev, q_no,
-					   CFG_GET_NUM_RX_DESCS_NIC_IF
-						   (octeon_get_conf(octeon_dev),
-						   lio->ifidx),
-					   CFG_GET_NUM_RX_BUF_SIZE_NIC_IF
-						   (octeon_get_conf(octeon_dev),
-						   lio->ifidx), NULL);
-		if (retval) {
-			dev_err(&octeon_dev->pci_dev->dev,
-				"%s : Runtime DROQ(RxQ) creation failed.\n",
-				__func__);
-			return 1;
-		}
-
-		droq = octeon_dev->droq[q_no];
-		napi = &droq->napi;
-		dev_dbg(&octeon_dev->pci_dev->dev, "netif_napi_add netdev:%llx oct:%llx pf_num:%d\n",
-			(u64)netdev, (u64)octeon_dev, octeon_dev->pf_num);
-		netif_napi_add(netdev, napi, liquidio_napi_poll, 64);
-
-		/* designate a CPU for this droq */
-		droq->cpu_id = cpu_id;
-		cpu_id++;
-		if (cpu_id >= cpu_id_modulus)
-			cpu_id = 0;
-
-		octeon_register_droq_ops(octeon_dev, q_no, &droq_ops);
-	}
-
-	if (OCTEON_CN23XX_PF(octeon_dev)) {
-		/* 23XX PF can receive control messages (via the first PF-owned
-		 * droq) from the firmware even if the ethX interface is down,
-		 * so that's why poll_mode must be off for the first droq.
-		 */
-		octeon_dev->droq[0]->ops.poll_mode = 0;
-	}
-
-	/* set up IQs. */
-	for (q = 0; q < lio->linfo.num_txpciq; q++) {
-		num_tx_descs = CFG_GET_NUM_TX_DESCS_NIC_IF(octeon_get_conf
-							   (octeon_dev),
-							   lio->ifidx);
-		retval = octeon_setup_iq(octeon_dev, ifidx, q,
-					 lio->linfo.txpciq[q], num_tx_descs,
-					 netdev_get_tx_queue(netdev, q));
-		if (retval) {
-			dev_err(&octeon_dev->pci_dev->dev,
-				" %s : Runtime IQ(TxQ) creation failed.\n",
-				__func__);
-			return 1;
-		}
-	}
-
-	return 0;
 }
 
 /**
@@ -2598,9 +1813,13 @@ static int liquidio_open(struct net_device *netdev)
 {
 	struct lio *lio = GET_LIO(netdev);
 	struct octeon_device *oct = lio->oct_dev;
+	struct octeon_device_priv *oct_priv =
+		(struct octeon_device_priv *)oct->priv;
 	struct napi_struct *napi, *n;
 
 	if (oct->props[lio->ifidx].napi_enabled == 0) {
+		tasklet_disable(&oct_priv->droq_tasklet);
+
 		list_for_each_entry_safe(napi, n, &netdev->napi_list, dev_list)
 			napi_enable(napi);
 
@@ -2610,14 +1829,10 @@ static int liquidio_open(struct net_device *netdev)
 			oct->droq[0]->ops.poll_mode = 1;
 	}
 
-	oct_ptp_open(netdev);
+	if (oct->ptp_enable)
+		oct_ptp_open(netdev);
 
 	ifstate_set(lio, LIO_IFSTATE_RUNNING);
-
-	/* Ready for link status updates */
-	lio->intf_open = 1;
-
-	netif_info(lio, ifup, lio->netdev, "Interface Open, ready for traffic\n");
 
 	if (OCTEON_CN23XX_PF(oct)) {
 		if (!oct->msix_on)
@@ -2628,10 +1843,21 @@ static int liquidio_open(struct net_device *netdev)
 			return -1;
 	}
 
-	start_txq(netdev);
+	netif_tx_start_all_queues(netdev);
+
+	/* Ready for link status updates */
+	lio->intf_open = 1;
+
+	netif_info(lio, ifup, lio->netdev, "Interface Open, ready for traffic\n");
 
 	/* tell Octeon to start forwarding packets to host */
 	send_rx_ctrl_cmd(lio, 1);
+
+	/* start periodical statistics fetch */
+	INIT_DELAYED_WORK(&lio->stats_wk.work, lio_fetch_stats);
+	lio->stats_wk.ctxptr = lio;
+	schedule_delayed_work(&lio->stats_wk.work, msecs_to_jiffies
+					(LIQUIDIO_NDEV_STATS_POLL_TIME_MS));
 
 	dev_info(&oct->pci_dev->dev, "%s interface is opened\n",
 		 netdev->name);
@@ -2647,24 +1873,25 @@ static int liquidio_stop(struct net_device *netdev)
 {
 	struct lio *lio = GET_LIO(netdev);
 	struct octeon_device *oct = lio->oct_dev;
+	struct octeon_device_priv *oct_priv =
+		(struct octeon_device_priv *)oct->priv;
+	struct napi_struct *napi, *n;
 
 	ifstate_reset(lio, LIO_IFSTATE_RUNNING);
 
-	netif_tx_disable(netdev);
+	/* Stop any link updates */
+	lio->intf_open = 0;
+
+	stop_txqs(netdev);
 
 	/* Inform that netif carrier is down */
 	netif_carrier_off(netdev);
-	lio->intf_open = 0;
+	netif_tx_disable(netdev);
+
 	lio->linfo.link.s.link_up = 0;
 	lio->link_changes++;
 
-	/* Pause for a moment and wait for Octeon to flush out (to the wire) any
-	 * egress packets that are in-flight.
-	 */
-	set_current_state(TASK_INTERRUPTIBLE);
-	schedule_timeout(msecs_to_jiffies(100));
-
-	/* Now it should be safe to tell Octeon that nic interface is down. */
+	/* Tell Octeon that nic interface is down. */
 	send_rx_ctrl_cmd(lio, 0);
 
 	if (OCTEON_CN23XX_PF(oct)) {
@@ -2674,9 +1901,28 @@ static int liquidio_stop(struct net_device *netdev)
 		cleanup_tx_poll_fn(netdev);
 	}
 
+	cancel_delayed_work_sync(&lio->stats_wk.work);
+
 	if (lio->ptp_clock) {
 		ptp_clock_unregister(lio->ptp_clock);
 		lio->ptp_clock = NULL;
+	}
+
+	/* Wait for any pending Rx descriptors */
+	if (lio_wait_for_clean_oq(oct))
+		netif_info(lio, rx_err, lio->netdev,
+			   "Proceeding with stop interface after partial RX desc processing\n");
+
+	if (oct->props[lio->ifidx].napi_enabled == 1) {
+		list_for_each_entry_safe(napi, n, &netdev->napi_list, dev_list)
+			napi_disable(napi);
+
+		oct->props[lio->ifidx].napi_enabled = 0;
+
+		if (OCTEON_CN23XX_PF(oct))
+			oct->droq[0]->ops.poll_mode = 0;
+
+		tasklet_enable(&oct_priv->droq_tasklet);
 	}
 
 	dev_info(&oct->pci_dev->dev, "%s interface is stopped\n", netdev->name);
@@ -2757,10 +2003,9 @@ static void liquidio_set_mcast_list(struct net_device *netdev)
 	/* Apparently, any activity in this call from the kernel has to
 	 * be atomic. So we won't wait for response.
 	 */
-	nctrl.wait_time = 0;
 
 	ret = octnet_send_nic_ctrl_pkt(lio->oct_dev, &nctrl);
-	if (ret < 0) {
+	if (ret) {
 		dev_err(&oct->pci_dev->dev, "DEVFLAGS change failed in core (ret: 0x%x)\n",
 			ret);
 	}
@@ -2789,8 +2034,6 @@ static int liquidio_set_mac(struct net_device *netdev, void *p)
 	nctrl.ncmd.s.more = 1;
 	nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
 	nctrl.netpndev = (u64)netdev;
-	nctrl.cb_fn = liquidio_link_ctrl_cmd_completion;
-	nctrl.wait_time = 100;
 
 	nctrl.udd[0] = 0;
 	/* The MAC Address is presented in network byte order. */
@@ -2801,20 +2044,25 @@ static int liquidio_set_mac(struct net_device *netdev, void *p)
 		dev_err(&oct->pci_dev->dev, "MAC Address change failed\n");
 		return -ENOMEM;
 	}
+
+	if (nctrl.sc_status) {
+		dev_err(&oct->pci_dev->dev,
+			"%s: MAC Address change failed. sc return=%x\n",
+			 __func__, nctrl.sc_status);
+		return -EIO;
+	}
+
 	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
 	memcpy(((u8 *)&lio->linfo.hw_addr) + 2, addr->sa_data, ETH_ALEN);
 
 	return 0;
 }
 
-/**
- * \brief Net device get_stats
- * @param netdev network device
- */
-static struct net_device_stats *liquidio_get_stats(struct net_device *netdev)
+static void
+liquidio_get_stats64(struct net_device *netdev,
+		     struct rtnl_link_stats64 *lstats)
 {
 	struct lio *lio = GET_LIO(netdev);
-	struct net_device_stats *stats = &netdev->stats;
 	struct octeon_device *oct;
 	u64 pkts = 0, drop = 0, bytes = 0;
 	struct oct_droq_stats *oq_stats;
@@ -2823,7 +2071,10 @@ static struct net_device_stats *liquidio_get_stats(struct net_device *netdev)
 
 	oct = lio->oct_dev;
 
-	for (i = 0; i < lio->linfo.num_txpciq; i++) {
+	if (ifstate_check(lio, LIO_IFSTATE_RESETTING))
+		return;
+
+	for (i = 0; i < oct->num_iqs; i++) {
 		iq_no = lio->linfo.txpciq[i].s.q_no;
 		iq_stats = &oct->instr_queue[iq_no]->stats;
 		pkts += iq_stats->tx_done;
@@ -2831,15 +2082,15 @@ static struct net_device_stats *liquidio_get_stats(struct net_device *netdev)
 		bytes += iq_stats->tx_tot_bytes;
 	}
 
-	stats->tx_packets = pkts;
-	stats->tx_bytes = bytes;
-	stats->tx_dropped = drop;
+	lstats->tx_packets = pkts;
+	lstats->tx_bytes = bytes;
+	lstats->tx_dropped = drop;
 
 	pkts = 0;
 	drop = 0;
 	bytes = 0;
 
-	for (i = 0; i < lio->linfo.num_rxpciq; i++) {
+	for (i = 0; i < oct->num_oqs; i++) {
 		oq_no = lio->linfo.rxpciq[i].s.q_no;
 		oq_stats = &oct->droq[oq_no]->stats;
 		pkts += oq_stats->rx_pkts_received;
@@ -2850,54 +2101,33 @@ static struct net_device_stats *liquidio_get_stats(struct net_device *netdev)
 		bytes += oq_stats->rx_bytes_received;
 	}
 
-	stats->rx_bytes = bytes;
-	stats->rx_packets = pkts;
-	stats->rx_dropped = drop;
+	lstats->rx_bytes = bytes;
+	lstats->rx_packets = pkts;
+	lstats->rx_dropped = drop;
 
-	return stats;
-}
+	lstats->multicast = oct->link_stats.fromwire.fw_total_mcast;
+	lstats->collisions = oct->link_stats.fromhost.total_collisions;
 
-/**
- * \brief Net device change_mtu
- * @param netdev network device
- */
-static int liquidio_change_mtu(struct net_device *netdev, int new_mtu)
-{
-	struct lio *lio = GET_LIO(netdev);
-	struct octeon_device *oct = lio->oct_dev;
-	struct octnic_ctrl_pkt nctrl;
-	int ret = 0;
+	/* detailed rx_errors: */
+	lstats->rx_length_errors = oct->link_stats.fromwire.l2_err;
+	/* recved pkt with crc error    */
+	lstats->rx_crc_errors = oct->link_stats.fromwire.fcs_err;
+	/* recv'd frame alignment error */
+	lstats->rx_frame_errors = oct->link_stats.fromwire.frame_err;
+	/* recv'r fifo overrun */
+	lstats->rx_fifo_errors = oct->link_stats.fromwire.fifo_err;
 
-	/* Limit the MTU to make sure the ethernet packets are between 68 bytes
-	 * and 16000 bytes
-	 */
-	if ((new_mtu < LIO_MIN_MTU_SIZE) ||
-	    (new_mtu > LIO_MAX_MTU_SIZE)) {
-		dev_err(&oct->pci_dev->dev, "Invalid MTU: %d\n", new_mtu);
-		dev_err(&oct->pci_dev->dev, "Valid range %d and %d\n",
-			LIO_MIN_MTU_SIZE, LIO_MAX_MTU_SIZE);
-		return -EINVAL;
-	}
+	lstats->rx_errors = lstats->rx_length_errors + lstats->rx_crc_errors +
+		lstats->rx_frame_errors + lstats->rx_fifo_errors;
 
-	memset(&nctrl, 0, sizeof(struct octnic_ctrl_pkt));
+	/* detailed tx_errors */
+	lstats->tx_aborted_errors = oct->link_stats.fromhost.fw_err_pko;
+	lstats->tx_carrier_errors = oct->link_stats.fromhost.fw_err_link;
+	lstats->tx_fifo_errors = oct->link_stats.fromhost.fifo_err;
 
-	nctrl.ncmd.u64 = 0;
-	nctrl.ncmd.s.cmd = OCTNET_CMD_CHANGE_MTU;
-	nctrl.ncmd.s.param1 = new_mtu;
-	nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
-	nctrl.wait_time = 100;
-	nctrl.netpndev = (u64)netdev;
-	nctrl.cb_fn = liquidio_link_ctrl_cmd_completion;
-
-	ret = octnet_send_nic_ctrl_pkt(lio->oct_dev, &nctrl);
-	if (ret < 0) {
-		dev_err(&oct->pci_dev->dev, "Failed to set MTU\n");
-		return -1;
-	}
-
-	lio->mtu = new_mtu;
-
-	return 0;
+	lstats->tx_errors = lstats->tx_aborted_errors +
+		lstats->tx_carrier_errors +
+		lstats->tx_fifo_errors;
 }
 
 /**
@@ -2942,6 +2172,7 @@ static int hwtstamp_ioctl(struct net_device *netdev, struct ifreq *ifr)
 	case HWTSTAMP_FILTER_PTP_V2_EVENT:
 	case HWTSTAMP_FILTER_PTP_V2_SYNC:
 	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
+	case HWTSTAMP_FILTER_NTP_ALL:
 		conf.rx_filter = HWTSTAMP_FILTER_ALL;
 		break;
 	default:
@@ -2965,9 +2196,13 @@ static int hwtstamp_ioctl(struct net_device *netdev, struct ifreq *ifr)
  */
 static int liquidio_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 {
+	struct lio *lio = GET_LIO(netdev);
+
 	switch (cmd) {
 	case SIOCSHWTSTAMP:
-		return hwtstamp_ioctl(netdev, ifr);
+		if (lio->oct_dev->ptp_enable)
+			return hwtstamp_ioctl(netdev, ifr);
+		/* fall through */
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -3024,7 +2259,8 @@ static void handle_timestamp(struct octeon_device *oct,
  */
 static inline int send_nic_timestamp_pkt(struct octeon_device *oct,
 					 struct octnic_data_pkt *ndata,
-					 struct octnet_buf_free_info *finfo)
+					 struct octnet_buf_free_info *finfo,
+					 int xmit_more)
 {
 	int retval;
 	struct octeon_soft_command *sc;
@@ -3059,7 +2295,7 @@ static inline int send_nic_timestamp_pkt(struct octeon_device *oct,
 		len = (u32)((struct octeon_instr_ih2 *)
 			    (&sc->cmd.cmd2.ih2))->dlengsz;
 
-	ring_doorbell = 1;
+	ring_doorbell = !xmit_more;
 
 	retval = octeon_send_command(oct, sc->iq_no, ring_doorbell, &sc->cmd,
 				     sc, len, ndata->reqtype);
@@ -3081,7 +2317,7 @@ static inline int send_nic_timestamp_pkt(struct octeon_device *oct,
  * @returns whether the packet was transmitted to the device okay or not
  *             (NETDEV_TX_OK or NETDEV_TX_BUSY)
  */
-static int liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
+static netdev_tx_t liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct lio *lio;
 	struct octnet_buf_free_info *finfo;
@@ -3093,21 +2329,16 @@ static int liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 	union tx_info *tx_info;
 	int status = 0;
 	int q_idx = 0, iq_no = 0;
-	int j;
+	int j, xmit_more = 0;
 	u64 dptr = 0;
 	u32 tag = 0;
 
 	lio = GET_LIO(netdev);
 	oct = lio->oct_dev;
 
-	if (netif_is_multiqueue(netdev)) {
-		q_idx = skb->queue_mapping;
-		q_idx = (q_idx % (lio->linfo.num_txpciq));
-		tag = q_idx;
-		iq_no = lio->linfo.txpciq[q_idx].s.q_no;
-	} else {
-		iq_no = lio->txq;
-	}
+	q_idx = skb_iq(oct, skb);
+	tag = q_idx;
+	iq_no = lio->linfo.txpciq[q_idx].s.q_no;
 
 	stats = &oct->instr_queue[iq_no]->stats;
 
@@ -3138,23 +2369,14 @@ static int liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 	ndata.q_no = iq_no;
 
-	if (netif_is_multiqueue(netdev)) {
-		if (octnet_iq_is_full(oct, ndata.q_no)) {
-			/* defer sending if queue is full */
-			netif_info(lio, tx_err, lio->netdev, "Transmit failed iq:%d full\n",
-				   ndata.q_no);
-			stats->tx_iq_busy++;
-			return NETDEV_TX_BUSY;
-		}
-	} else {
-		if (octnet_iq_is_full(oct, lio->txq)) {
-			/* defer sending if queue is full */
-			stats->tx_iq_busy++;
-			netif_info(lio, tx_err, lio->netdev, "Transmit failed iq:%d full\n",
-				   lio->txq);
-			return NETDEV_TX_BUSY;
-		}
+	if (octnet_iq_is_full(oct, ndata.q_no)) {
+		/* defer sending if queue is full */
+		netif_info(lio, tx_err, lio->netdev, "Transmit failed iq:%d full\n",
+			   ndata.q_no);
+		stats->tx_iq_busy++;
+		return NETDEV_TX_BUSY;
 	}
+
 	/* pr_info(" XMIT - valid Qs: %d, 1st Q no: %d, cpu:  %d, q_no:%d\n",
 	 *	lio->linfo.num_txpciq, lio->txq, cpu, ndata.q_no);
 	 */
@@ -3189,6 +2411,7 @@ static int liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 		if (dma_mapping_error(&oct->pci_dev->dev, dptr)) {
 			dev_err(&oct->pci_dev->dev, "%s DMA mapping error 1\n",
 				__func__);
+			stats->tx_dmamap_fail++;
 			return NETDEV_TX_BUSY;
 		}
 
@@ -3206,7 +2429,7 @@ static int liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 		spin_lock(&lio->glist_lock[q_idx]);
 		g = (struct octnic_gather *)
-			list_delete_head(&lio->glist[q_idx]);
+			lio_list_delete_head(&lio->glist[q_idx]);
 		spin_unlock(&lio->glist_lock[q_idx]);
 
 		if (!g) {
@@ -3228,6 +2451,7 @@ static int liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 		if (dma_mapping_error(&oct->pci_dev->dev, g->sg[0].ptr[0])) {
 			dev_err(&oct->pci_dev->dev, "%s DMA mapping error 2\n",
 				__func__);
+			stats->tx_dmamap_fail++;
 			return NETDEV_TX_BUSY;
 		}
 		add_sg_size(&g->sg[0], (skb->len - skb->data_len), 0);
@@ -3266,8 +2490,6 @@ static int liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 			i++;
 		}
 
-		dma_sync_single_for_device(&oct->pci_dev->dev, g->sg_dma_ptr,
-					   g->sg_size, DMA_TO_DEVICE);
 		dptr = g->sg_dma_ptr;
 
 		if (OCTEON_CN23XX_PF(oct))
@@ -3300,25 +2522,27 @@ static int liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 		irh->vlan = skb_vlan_tag_get(skb) & 0xfff;
 	}
 
+	xmit_more = netdev_xmit_more();
+
 	if (unlikely(cmdsetup.s.timestamp))
-		status = send_nic_timestamp_pkt(oct, &ndata, finfo);
+		status = send_nic_timestamp_pkt(oct, &ndata, finfo, xmit_more);
 	else
-		status = octnet_send_nic_data_pkt(oct, &ndata);
+		status = octnet_send_nic_data_pkt(oct, &ndata, xmit_more);
 	if (status == IQ_SEND_FAILED)
 		goto lio_xmit_failed;
 
 	netif_info(lio, tx_queued, lio->netdev, "Transmit queued successfully\n");
 
 	if (status == IQ_SEND_STOP)
-		stop_q(lio->netdev, q_idx);
+		netif_stop_subqueue(netdev, q_idx);
 
 	netif_trans_update(netdev);
 
-	if (skb_shinfo(skb)->gso_size)
-		stats->tx_done += skb_shinfo(skb)->gso_segs;
+	if (tx_info->s.gso_segs)
+		stats->tx_done += tx_info->s.gso_segs;
 	else
 		stats->tx_done++;
-	stats->tx_tot_bytes += skb->len;
+	stats->tx_tot_bytes += ndata.datasize;
 
 	return NETDEV_TX_OK;
 
@@ -3329,6 +2553,9 @@ lio_xmit_failed:
 	if (dptr)
 		dma_unmap_single(&oct->pci_dev->dev, dptr,
 				 ndata.datasize, DMA_TO_DEVICE);
+
+	octeon_ring_doorbell_locked(oct, iq_no);
+
 	tx_buffer_free(skb);
 	return NETDEV_TX_OK;
 }
@@ -3346,7 +2573,7 @@ static void liquidio_tx_timeout(struct net_device *netdev)
 		   "Transmit timeout tx_dropped:%ld, waking up queues now!!\n",
 		   netdev->stats.tx_dropped);
 	netif_trans_update(netdev);
-	txqs_wake(netdev);
+	wake_txqs(netdev);
 }
 
 static int liquidio_vlan_rx_add_vid(struct net_device *netdev,
@@ -3364,14 +2591,15 @@ static int liquidio_vlan_rx_add_vid(struct net_device *netdev,
 	nctrl.ncmd.s.cmd = OCTNET_CMD_ADD_VLAN_FILTER;
 	nctrl.ncmd.s.param1 = vid;
 	nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
-	nctrl.wait_time = 100;
 	nctrl.netpndev = (u64)netdev;
 	nctrl.cb_fn = liquidio_link_ctrl_cmd_completion;
 
 	ret = octnet_send_nic_ctrl_pkt(lio->oct_dev, &nctrl);
-	if (ret < 0) {
+	if (ret) {
 		dev_err(&oct->pci_dev->dev, "Add VLAN filter failed in core (ret: 0x%x)\n",
 			ret);
+		if (ret > 0)
+			ret = -EIO;
 	}
 
 	return ret;
@@ -3392,14 +2620,15 @@ static int liquidio_vlan_rx_kill_vid(struct net_device *netdev,
 	nctrl.ncmd.s.cmd = OCTNET_CMD_DEL_VLAN_FILTER;
 	nctrl.ncmd.s.param1 = vid;
 	nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
-	nctrl.wait_time = 100;
 	nctrl.netpndev = (u64)netdev;
 	nctrl.cb_fn = liquidio_link_ctrl_cmd_completion;
 
 	ret = octnet_send_nic_ctrl_pkt(lio->oct_dev, &nctrl);
-	if (ret < 0) {
-		dev_err(&oct->pci_dev->dev, "Add VLAN filter failed in core (ret: 0x%x)\n",
+	if (ret) {
+		dev_err(&oct->pci_dev->dev, "Del VLAN filter failed in core (ret: 0x%x)\n",
 			ret);
+		if (ret > 0)
+			ret = -EIO;
 	}
 	return ret;
 }
@@ -3419,19 +2648,22 @@ static int liquidio_set_rxcsum_command(struct net_device *netdev, int command,
 	struct octnic_ctrl_pkt nctrl;
 	int ret = 0;
 
+	memset(&nctrl, 0, sizeof(struct octnic_ctrl_pkt));
+
 	nctrl.ncmd.u64 = 0;
 	nctrl.ncmd.s.cmd = command;
 	nctrl.ncmd.s.param1 = rx_cmd;
 	nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
-	nctrl.wait_time = 100;
 	nctrl.netpndev = (u64)netdev;
 	nctrl.cb_fn = liquidio_link_ctrl_cmd_completion;
 
 	ret = octnet_send_nic_ctrl_pkt(lio->oct_dev, &nctrl);
-	if (ret < 0) {
+	if (ret) {
 		dev_err(&oct->pci_dev->dev,
 			"DEVFLAGS RXCSUM change failed in core(ret:0x%x)\n",
 			ret);
+		if (ret > 0)
+			ret = -EIO;
 	}
 	return ret;
 }
@@ -3452,20 +2684,23 @@ static int liquidio_vxlan_port_command(struct net_device *netdev, int command,
 	struct octnic_ctrl_pkt nctrl;
 	int ret = 0;
 
+	memset(&nctrl, 0, sizeof(struct octnic_ctrl_pkt));
+
 	nctrl.ncmd.u64 = 0;
 	nctrl.ncmd.s.cmd = command;
 	nctrl.ncmd.s.more = vxlan_cmd_bit;
 	nctrl.ncmd.s.param1 = vxlan_port;
 	nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
-	nctrl.wait_time = 100;
 	nctrl.netpndev = (u64)netdev;
 	nctrl.cb_fn = liquidio_link_ctrl_cmd_completion;
 
 	ret = octnet_send_nic_ctrl_pkt(lio->oct_dev, &nctrl);
-	if (ret < 0) {
+	if (ret) {
 		dev_err(&oct->pci_dev->dev,
 			"VxLAN port add/delete failed in core (ret:0x%x)\n",
 			ret);
+		if (ret > 0)
+			ret = -EIO;
 	}
 	return ret;
 }
@@ -3502,6 +2737,10 @@ static netdev_features_t liquidio_fix_features(struct net_device *netdev,
 	    (lio->dev_capability & NETIF_F_LRO))
 		request &= ~NETIF_F_LRO;
 
+	if ((request & NETIF_F_HW_VLAN_CTAG_FILTER) &&
+	    !(lio->dev_capability & NETIF_F_HW_VLAN_CTAG_FILTER))
+		request &= ~NETIF_F_HW_VLAN_CTAG_FILTER;
+
 	return request;
 }
 
@@ -3514,14 +2753,14 @@ static int liquidio_set_features(struct net_device *netdev,
 {
 	struct lio *lio = netdev_priv(netdev);
 
-	if (!((netdev->features ^ features) & NETIF_F_LRO))
-		return 0;
-
-	if ((features & NETIF_F_LRO) && (lio->dev_capability & NETIF_F_LRO))
+	if ((features & NETIF_F_LRO) &&
+	    (lio->dev_capability & NETIF_F_LRO) &&
+	    !(netdev->features & NETIF_F_LRO))
 		liquidio_set_feature(netdev, OCTNET_CMD_LRO_ENABLE,
 				     OCTNIC_LROIPV4 | OCTNIC_LROIPV6);
 	else if (!(features & NETIF_F_LRO) &&
-		 (lio->dev_capability & NETIF_F_LRO))
+		 (lio->dev_capability & NETIF_F_LRO) &&
+		 (netdev->features & NETIF_F_LRO))
 		liquidio_set_feature(netdev, OCTNET_CMD_LRO_DISABLE,
 				     OCTNIC_LROIPV4 | OCTNIC_LROIPV6);
 
@@ -3539,6 +2778,17 @@ static int liquidio_set_features(struct net_device *netdev,
 		 !(features & NETIF_F_RXCSUM))
 		liquidio_set_rxcsum_command(netdev, OCTNET_CMD_TNL_RX_CSUM_CTL,
 					    OCTNET_CMD_RXCSUM_DISABLE);
+
+	if ((features & NETIF_F_HW_VLAN_CTAG_FILTER) &&
+	    (lio->dev_capability & NETIF_F_HW_VLAN_CTAG_FILTER) &&
+	    !(netdev->features & NETIF_F_HW_VLAN_CTAG_FILTER))
+		liquidio_set_feature(netdev, OCTNET_CMD_VLAN_FILTER_CTL,
+				     OCTNET_CMD_VLAN_FILTER_ENABLE);
+	else if (!(features & NETIF_F_HW_VLAN_CTAG_FILTER) &&
+		 (lio->dev_capability & NETIF_F_HW_VLAN_CTAG_FILTER) &&
+		 (netdev->features & NETIF_F_HW_VLAN_CTAG_FILTER))
+		liquidio_set_feature(netdev, OCTNET_CMD_VLAN_FILTER_CTL,
+				     OCTNET_CMD_VLAN_FILTER_DISABLE);
 
 	return 0;
 }
@@ -3567,11 +2817,422 @@ static void liquidio_del_vxlan_port(struct net_device *netdev,
 				    OCTNET_CMD_VXLAN_PORT_DEL);
 }
 
-static struct net_device_ops lionetdevops = {
+static int __liquidio_set_vf_mac(struct net_device *netdev, int vfidx,
+				 u8 *mac, bool is_admin_assigned)
+{
+	struct lio *lio = GET_LIO(netdev);
+	struct octeon_device *oct = lio->oct_dev;
+	struct octnic_ctrl_pkt nctrl;
+	int ret = 0;
+
+	if (!is_valid_ether_addr(mac))
+		return -EINVAL;
+
+	if (vfidx < 0 || vfidx >= oct->sriov_info.max_vfs)
+		return -EINVAL;
+
+	memset(&nctrl, 0, sizeof(struct octnic_ctrl_pkt));
+
+	nctrl.ncmd.u64 = 0;
+	nctrl.ncmd.s.cmd = OCTNET_CMD_CHANGE_MACADDR;
+	/* vfidx is 0 based, but vf_num (param1) is 1 based */
+	nctrl.ncmd.s.param1 = vfidx + 1;
+	nctrl.ncmd.s.more = 1;
+	nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
+	nctrl.netpndev = (u64)netdev;
+	if (is_admin_assigned) {
+		nctrl.ncmd.s.param2 = true;
+		nctrl.cb_fn = liquidio_link_ctrl_cmd_completion;
+	}
+
+	nctrl.udd[0] = 0;
+	/* The MAC Address is presented in network byte order. */
+	ether_addr_copy((u8 *)&nctrl.udd[0] + 2, mac);
+
+	oct->sriov_info.vf_macaddr[vfidx] = nctrl.udd[0];
+
+	ret = octnet_send_nic_ctrl_pkt(oct, &nctrl);
+	if (ret > 0)
+		ret = -EIO;
+
+	return ret;
+}
+
+static int liquidio_set_vf_mac(struct net_device *netdev, int vfidx, u8 *mac)
+{
+	struct lio *lio = GET_LIO(netdev);
+	struct octeon_device *oct = lio->oct_dev;
+	int retval;
+
+	if (vfidx < 0 || vfidx >= oct->sriov_info.num_vfs_alloced)
+		return -EINVAL;
+
+	retval = __liquidio_set_vf_mac(netdev, vfidx, mac, true);
+	if (!retval)
+		cn23xx_tell_vf_its_macaddr_changed(oct, vfidx, mac);
+
+	return retval;
+}
+
+static int liquidio_set_vf_spoofchk(struct net_device *netdev, int vfidx,
+				    bool enable)
+{
+	struct lio *lio = GET_LIO(netdev);
+	struct octeon_device *oct = lio->oct_dev;
+	struct octnic_ctrl_pkt nctrl;
+	int retval;
+
+	if (!(oct->fw_info.app_cap_flags & LIQUIDIO_SPOOFCHK_CAP)) {
+		netif_info(lio, drv, lio->netdev,
+			   "firmware does not support spoofchk\n");
+		return -EOPNOTSUPP;
+	}
+
+	if (vfidx < 0 || vfidx >= oct->sriov_info.num_vfs_alloced) {
+		netif_info(lio, drv, lio->netdev, "Invalid vfidx %d\n", vfidx);
+		return -EINVAL;
+	}
+
+	if (enable) {
+		if (oct->sriov_info.vf_spoofchk[vfidx])
+			return 0;
+	} else {
+		/* Clear */
+		if (!oct->sriov_info.vf_spoofchk[vfidx])
+			return 0;
+	}
+
+	memset(&nctrl, 0, sizeof(struct octnic_ctrl_pkt));
+	nctrl.ncmd.s.cmdgroup = OCTNET_CMD_GROUP1;
+	nctrl.ncmd.s.cmd = OCTNET_CMD_SET_VF_SPOOFCHK;
+	nctrl.ncmd.s.param1 =
+		vfidx + 1; /* vfidx is 0 based,
+			    * but vf_num (param1) is 1 based
+			    */
+	nctrl.ncmd.s.param2 = enable;
+	nctrl.ncmd.s.more = 0;
+	nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
+	nctrl.cb_fn = NULL;
+
+	retval = octnet_send_nic_ctrl_pkt(oct, &nctrl);
+
+	if (retval) {
+		netif_info(lio, drv, lio->netdev,
+			   "Failed to set VF %d spoofchk %s\n", vfidx,
+			enable ? "on" : "off");
+		return -1;
+	}
+
+	oct->sriov_info.vf_spoofchk[vfidx] = enable;
+	netif_info(lio, drv, lio->netdev, "VF %u spoofchk is %s\n", vfidx,
+		   enable ? "on" : "off");
+
+	return 0;
+}
+
+static int liquidio_set_vf_vlan(struct net_device *netdev, int vfidx,
+				u16 vlan, u8 qos, __be16 vlan_proto)
+{
+	struct lio *lio = GET_LIO(netdev);
+	struct octeon_device *oct = lio->oct_dev;
+	struct octnic_ctrl_pkt nctrl;
+	u16 vlantci;
+	int ret = 0;
+
+	if (vfidx < 0 || vfidx >= oct->sriov_info.num_vfs_alloced)
+		return -EINVAL;
+
+	if (vlan_proto != htons(ETH_P_8021Q))
+		return -EPROTONOSUPPORT;
+
+	if (vlan >= VLAN_N_VID || qos > 7)
+		return -EINVAL;
+
+	if (vlan)
+		vlantci = vlan | (u16)qos << VLAN_PRIO_SHIFT;
+	else
+		vlantci = 0;
+
+	if (oct->sriov_info.vf_vlantci[vfidx] == vlantci)
+		return 0;
+
+	memset(&nctrl, 0, sizeof(struct octnic_ctrl_pkt));
+
+	if (vlan)
+		nctrl.ncmd.s.cmd = OCTNET_CMD_ADD_VLAN_FILTER;
+	else
+		nctrl.ncmd.s.cmd = OCTNET_CMD_DEL_VLAN_FILTER;
+
+	nctrl.ncmd.s.param1 = vlantci;
+	nctrl.ncmd.s.param2 =
+	    vfidx + 1; /* vfidx is 0 based, but vf_num (param2) is 1 based */
+	nctrl.ncmd.s.more = 0;
+	nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
+	nctrl.cb_fn = NULL;
+
+	ret = octnet_send_nic_ctrl_pkt(oct, &nctrl);
+	if (ret) {
+		if (ret > 0)
+			ret = -EIO;
+		return ret;
+	}
+
+	oct->sriov_info.vf_vlantci[vfidx] = vlantci;
+
+	return ret;
+}
+
+static int liquidio_get_vf_config(struct net_device *netdev, int vfidx,
+				  struct ifla_vf_info *ivi)
+{
+	struct lio *lio = GET_LIO(netdev);
+	struct octeon_device *oct = lio->oct_dev;
+	u8 *macaddr;
+
+	if (vfidx < 0 || vfidx >= oct->sriov_info.num_vfs_alloced)
+		return -EINVAL;
+
+	memset(ivi, 0, sizeof(struct ifla_vf_info));
+
+	ivi->vf = vfidx;
+	macaddr = 2 + (u8 *)&oct->sriov_info.vf_macaddr[vfidx];
+	ether_addr_copy(&ivi->mac[0], macaddr);
+	ivi->vlan = oct->sriov_info.vf_vlantci[vfidx] & VLAN_VID_MASK;
+	ivi->qos = oct->sriov_info.vf_vlantci[vfidx] >> VLAN_PRIO_SHIFT;
+	if (oct->sriov_info.trusted_vf.active &&
+	    oct->sriov_info.trusted_vf.id == vfidx)
+		ivi->trusted = true;
+	else
+		ivi->trusted = false;
+	ivi->linkstate = oct->sriov_info.vf_linkstate[vfidx];
+	ivi->spoofchk = oct->sriov_info.vf_spoofchk[vfidx];
+	ivi->max_tx_rate = lio->linfo.link.s.speed;
+	ivi->min_tx_rate = 0;
+
+	return 0;
+}
+
+static int liquidio_send_vf_trust_cmd(struct lio *lio, int vfidx, bool trusted)
+{
+	struct octeon_device *oct = lio->oct_dev;
+	struct octeon_soft_command *sc;
+	int retval;
+
+	sc = octeon_alloc_soft_command(oct, 0, 16, 0);
+	if (!sc)
+		return -ENOMEM;
+
+	sc->iq_no = lio->linfo.txpciq[0].s.q_no;
+
+	/* vfidx is 0 based, but vf_num (param1) is 1 based */
+	octeon_prepare_soft_command(oct, sc, OPCODE_NIC,
+				    OPCODE_NIC_SET_TRUSTED_VF, 0, vfidx + 1,
+				    trusted);
+
+	init_completion(&sc->complete);
+	sc->sc_status = OCTEON_REQUEST_PENDING;
+
+	retval = octeon_send_soft_command(oct, sc);
+	if (retval == IQ_SEND_FAILED) {
+		octeon_free_soft_command(oct, sc);
+		retval = -1;
+	} else {
+		/* Wait for response or timeout */
+		retval = wait_for_sc_completion_timeout(oct, sc, 0);
+		if (retval)
+			return (retval);
+
+		WRITE_ONCE(sc->caller_is_done, true);
+	}
+
+	return retval;
+}
+
+static int liquidio_set_vf_trust(struct net_device *netdev, int vfidx,
+				 bool setting)
+{
+	struct lio *lio = GET_LIO(netdev);
+	struct octeon_device *oct = lio->oct_dev;
+
+	if (strcmp(oct->fw_info.liquidio_firmware_version, "1.7.1") < 0) {
+		/* trusted vf is not supported by firmware older than 1.7.1 */
+		return -EOPNOTSUPP;
+	}
+
+	if (vfidx < 0 || vfidx >= oct->sriov_info.num_vfs_alloced) {
+		netif_info(lio, drv, lio->netdev, "Invalid vfidx %d\n", vfidx);
+		return -EINVAL;
+	}
+
+	if (setting) {
+		/* Set */
+
+		if (oct->sriov_info.trusted_vf.active &&
+		    oct->sriov_info.trusted_vf.id == vfidx)
+			return 0;
+
+		if (oct->sriov_info.trusted_vf.active) {
+			netif_info(lio, drv, lio->netdev, "More than one trusted VF is not allowed\n");
+			return -EPERM;
+		}
+	} else {
+		/* Clear */
+
+		if (!oct->sriov_info.trusted_vf.active)
+			return 0;
+	}
+
+	if (!liquidio_send_vf_trust_cmd(lio, vfidx, setting)) {
+		if (setting) {
+			oct->sriov_info.trusted_vf.id = vfidx;
+			oct->sriov_info.trusted_vf.active = true;
+		} else {
+			oct->sriov_info.trusted_vf.active = false;
+		}
+
+		netif_info(lio, drv, lio->netdev, "VF %u is %strusted\n", vfidx,
+			   setting ? "" : "not ");
+	} else {
+		netif_info(lio, drv, lio->netdev, "Failed to set VF trusted\n");
+		return -1;
+	}
+
+	return 0;
+}
+
+static int liquidio_set_vf_link_state(struct net_device *netdev, int vfidx,
+				      int linkstate)
+{
+	struct lio *lio = GET_LIO(netdev);
+	struct octeon_device *oct = lio->oct_dev;
+	struct octnic_ctrl_pkt nctrl;
+	int ret = 0;
+
+	if (vfidx < 0 || vfidx >= oct->sriov_info.num_vfs_alloced)
+		return -EINVAL;
+
+	if (oct->sriov_info.vf_linkstate[vfidx] == linkstate)
+		return 0;
+
+	memset(&nctrl, 0, sizeof(struct octnic_ctrl_pkt));
+	nctrl.ncmd.s.cmd = OCTNET_CMD_SET_VF_LINKSTATE;
+	nctrl.ncmd.s.param1 =
+	    vfidx + 1; /* vfidx is 0 based, but vf_num (param1) is 1 based */
+	nctrl.ncmd.s.param2 = linkstate;
+	nctrl.ncmd.s.more = 0;
+	nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
+	nctrl.cb_fn = NULL;
+
+	ret = octnet_send_nic_ctrl_pkt(oct, &nctrl);
+
+	if (!ret)
+		oct->sriov_info.vf_linkstate[vfidx] = linkstate;
+	else if (ret > 0)
+		ret = -EIO;
+
+	return ret;
+}
+
+static int
+liquidio_eswitch_mode_get(struct devlink *devlink, u16 *mode)
+{
+	struct lio_devlink_priv *priv;
+	struct octeon_device *oct;
+
+	priv = devlink_priv(devlink);
+	oct = priv->oct;
+
+	*mode = oct->eswitch_mode;
+
+	return 0;
+}
+
+static int
+liquidio_eswitch_mode_set(struct devlink *devlink, u16 mode,
+			  struct netlink_ext_ack *extack)
+{
+	struct lio_devlink_priv *priv;
+	struct octeon_device *oct;
+	int ret = 0;
+
+	priv = devlink_priv(devlink);
+	oct = priv->oct;
+
+	if (!(oct->fw_info.app_cap_flags & LIQUIDIO_SWITCHDEV_CAP))
+		return -EINVAL;
+
+	if (oct->eswitch_mode == mode)
+		return 0;
+
+	switch (mode) {
+	case DEVLINK_ESWITCH_MODE_SWITCHDEV:
+		oct->eswitch_mode = mode;
+		ret = lio_vf_rep_create(oct);
+		break;
+
+	case DEVLINK_ESWITCH_MODE_LEGACY:
+		lio_vf_rep_destroy(oct);
+		oct->eswitch_mode = mode;
+		break;
+
+	default:
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
+
+static const struct devlink_ops liquidio_devlink_ops = {
+	.eswitch_mode_get = liquidio_eswitch_mode_get,
+	.eswitch_mode_set = liquidio_eswitch_mode_set,
+};
+
+static int
+liquidio_get_port_parent_id(struct net_device *dev,
+			    struct netdev_phys_item_id *ppid)
+{
+	struct lio *lio = GET_LIO(dev);
+	struct octeon_device *oct = lio->oct_dev;
+
+	if (oct->eswitch_mode != DEVLINK_ESWITCH_MODE_SWITCHDEV)
+		return -EOPNOTSUPP;
+
+	ppid->id_len = ETH_ALEN;
+	ether_addr_copy(ppid->id, (void *)&lio->linfo.hw_addr + 2);
+
+	return 0;
+}
+
+static int liquidio_get_vf_stats(struct net_device *netdev, int vfidx,
+				 struct ifla_vf_stats *vf_stats)
+{
+	struct lio *lio = GET_LIO(netdev);
+	struct octeon_device *oct = lio->oct_dev;
+	struct oct_vf_stats stats;
+	int ret;
+
+	if (vfidx < 0 || vfidx >= oct->sriov_info.num_vfs_alloced)
+		return -EINVAL;
+
+	memset(&stats, 0, sizeof(struct oct_vf_stats));
+	ret = cn23xx_get_vf_stats(oct, vfidx, &stats);
+	if (!ret) {
+		vf_stats->rx_packets = stats.rx_packets;
+		vf_stats->tx_packets = stats.tx_packets;
+		vf_stats->rx_bytes = stats.rx_bytes;
+		vf_stats->tx_bytes = stats.tx_bytes;
+		vf_stats->broadcast = stats.broadcast;
+		vf_stats->multicast = stats.multicast;
+	}
+
+	return ret;
+}
+
+static const struct net_device_ops lionetdevops = {
 	.ndo_open		= liquidio_open,
 	.ndo_stop		= liquidio_stop,
 	.ndo_start_xmit		= liquidio_xmit,
-	.ndo_get_stats		= liquidio_get_stats,
+	.ndo_get_stats64	= liquidio_get_stats64,
 	.ndo_set_mac_address	= liquidio_set_mac,
 	.ndo_set_rx_mode	= liquidio_set_mcast_list,
 	.ndo_tx_timeout		= liquidio_tx_timeout,
@@ -3584,6 +3245,14 @@ static struct net_device_ops lionetdevops = {
 	.ndo_set_features	= liquidio_set_features,
 	.ndo_udp_tunnel_add	= liquidio_add_vxlan_port,
 	.ndo_udp_tunnel_del	= liquidio_del_vxlan_port,
+	.ndo_set_vf_mac		= liquidio_set_vf_mac,
+	.ndo_set_vf_vlan	= liquidio_set_vf_vlan,
+	.ndo_get_vf_config	= liquidio_get_vf_config,
+	.ndo_set_vf_spoofchk	= liquidio_set_vf_spoofchk,
+	.ndo_set_vf_trust	= liquidio_set_vf_trust,
+	.ndo_set_vf_link_state  = liquidio_set_vf_link_state,
+	.ndo_get_vf_stats	= liquidio_get_vf_stats,
+	.ndo_get_port_parent_id	= liquidio_get_port_parent_id,
 };
 
 /** \brief Entry point for the liquidio module
@@ -3595,7 +3264,7 @@ static int __init liquidio_init(void)
 
 	init_completion(&first_stage);
 
-	octeon_init_device_list(conf_type);
+	octeon_init_device_list(OCTEON_CONFIG_TYPE_DEFAULT);
 
 	if (liquidio_init_pci())
 		return -EINVAL;
@@ -3642,7 +3311,7 @@ static int lio_nic_info(struct octeon_recv_info *recv_info, void *buf)
 	union oct_link_status *ls;
 	int i;
 
-	if (recv_pkt->buffer_size[0] != sizeof(*ls)) {
+	if (recv_pkt->buffer_size[0] != (sizeof(*ls) + OCT_DROQ_INFO_SIZE)) {
 		dev_err(&oct->pci_dev->dev, "Malformed NIC_INFO, len=%d, ifidx=%d\n",
 			recv_pkt->buffer_size[0],
 			recv_pkt->rh.r_nic_info.gmxport);
@@ -3650,7 +3319,8 @@ static int lio_nic_info(struct octeon_recv_info *recv_info, void *buf)
 	}
 
 	gmxport = recv_pkt->rh.r_nic_info.gmxport;
-	ls = (union oct_link_status *)get_rbd(recv_pkt->buffer_ptr[0]);
+	ls = (union oct_link_status *)(get_rbd(recv_pkt->buffer_ptr[0]) +
+		OCT_DROQ_INFO_SIZE);
 
 	octeon_swap_8B_data((u64 *)ls, (sizeof(union oct_link_status)) >> 3);
 	for (i = 0; i < oct->ifcount; i++) {
@@ -3679,18 +3349,22 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 {
 	struct lio *lio = NULL;
 	struct net_device *netdev;
-	u8 mac[6], i, j;
+	u8 mac[6], i, j, *fw_ver, *micro_ver;
+	unsigned long micro;
+	u32 cur_ver;
 	struct octeon_soft_command *sc;
-	struct liquidio_if_cfg_context *ctx;
 	struct liquidio_if_cfg_resp *resp;
 	struct octdev_props *props;
 	int retval, num_iqueues, num_oqueues;
+	int max_num_queues = 0;
 	union oct_nic_if_cfg if_cfg;
 	unsigned int base_queue;
 	unsigned int gmx_port_id;
-	u32 resp_size, ctx_size, data_size;
+	u32 resp_size, data_size;
 	u32 ifidx_or_pfnum;
 	struct lio_version *vdata;
+	struct devlink *devlink;
+	struct lio_devlink_priv *lio_devlink;
 
 	/* This is to handle link status changes */
 	octeon_register_dispatch_fn(octeon_dev, OPCODE_NIC,
@@ -3711,13 +3385,11 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 
 	for (i = 0; i < octeon_dev->ifcount; i++) {
 		resp_size = sizeof(struct liquidio_if_cfg_resp);
-		ctx_size = sizeof(struct liquidio_if_cfg_context);
 		data_size = sizeof(struct lio_version);
 		sc = (struct octeon_soft_command *)
 			octeon_alloc_soft_command(octeon_dev, data_size,
-						  resp_size, ctx_size);
+						  resp_size, 0);
 		resp = (struct liquidio_if_cfg_resp *)sc->virtrptr;
-		ctx  = (struct liquidio_if_cfg_context *)sc->ctxptr;
 		vdata = (struct lio_version *)sc->virtdptr;
 
 		*((u64 *)vdata) = 0;
@@ -3747,9 +3419,6 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 		dev_dbg(&octeon_dev->pci_dev->dev,
 			"requesting config for interface %d, iqs %d, oqs %d\n",
 			ifidx_or_pfnum, num_iqueues, num_oqueues);
-		WRITE_ONCE(ctx->cond, 0);
-		ctx->octeon_id = lio_get_device_id(octeon_dev);
-		init_waitqueue_head(&ctx->wc);
 
 		if_cfg.u64 = 0;
 		if_cfg.s.num_iqueues = num_iqueues;
@@ -3763,9 +3432,8 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 					    OPCODE_NIC_IF_CFG, 0,
 					    if_cfg.u64, 0);
 
-		sc->callback = if_cfg_callback;
-		sc->callback_arg = sc;
-		sc->wait_time = 3000;
+		init_completion(&sc->complete);
+		sc->sc_status = OCTEON_REQUEST_PENDING;
 
 		retval = octeon_send_soft_command(octeon_dev, sc);
 		if (retval == IQ_SEND_FAILED) {
@@ -3773,22 +3441,51 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 				"iq/oq config failed status: %x\n",
 				retval);
 			/* Soft instr is freed by driver in case of failure. */
-			goto setup_nic_dev_fail;
+			octeon_free_soft_command(octeon_dev, sc);
+			return(-EIO);
 		}
 
 		/* Sleep on a wait queue till the cond flag indicates that the
 		 * response arrived or timed-out.
 		 */
-		if (sleep_cond(&ctx->wc, &ctx->cond) == -EINTR) {
-			dev_err(&octeon_dev->pci_dev->dev, "Wait interrupted\n");
-			goto setup_nic_wait_intr;
-		}
+		retval = wait_for_sc_completion_timeout(octeon_dev, sc, 0);
+		if (retval)
+			return retval;
 
 		retval = resp->status;
 		if (retval) {
 			dev_err(&octeon_dev->pci_dev->dev, "iq/oq config failed\n");
-			goto setup_nic_dev_fail;
+			WRITE_ONCE(sc->caller_is_done, true);
+			goto setup_nic_dev_done;
 		}
+		snprintf(octeon_dev->fw_info.liquidio_firmware_version,
+			 32, "%s",
+			 resp->cfg_info.liquidio_firmware_version);
+
+		/* Verify f/w version (in case of 'auto' loading from flash) */
+		fw_ver = octeon_dev->fw_info.liquidio_firmware_version;
+		if (memcmp(LIQUIDIO_BASE_VERSION,
+			   fw_ver,
+			   strlen(LIQUIDIO_BASE_VERSION))) {
+			dev_err(&octeon_dev->pci_dev->dev,
+				"Unmatched firmware version. Expected %s.x, got %s.\n",
+				LIQUIDIO_BASE_VERSION, fw_ver);
+			WRITE_ONCE(sc->caller_is_done, true);
+			goto setup_nic_dev_done;
+		} else if (atomic_read(octeon_dev->adapter_fw_state) ==
+			   FW_IS_PRELOADED) {
+			dev_info(&octeon_dev->pci_dev->dev,
+				 "Using auto-loaded firmware version %s.\n",
+				 fw_ver);
+		}
+
+		/* extract micro version field; point past '<maj>.<min>.' */
+		micro_ver = fw_ver + strlen(LIQUIDIO_BASE_VERSION) + 1;
+		if (kstrtoul(micro_ver, 10, &micro) != 0)
+			micro = 0;
+		octeon_dev->fw_info.ver.maj = LIQUIDIO_BASE_MAJOR_VERSION;
+		octeon_dev->fw_info.ver.min = LIQUIDIO_BASE_MINOR_VERSION;
+		octeon_dev->fw_info.ver.rev = micro;
 
 		octeon_swap_8B_data((u64 *)(&resp->cfg_info),
 				    (sizeof(struct liquidio_if_cfg_info)) >> 3);
@@ -3801,28 +3498,52 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 				"Got bad iqueues (%016llx) or oqueues (%016llx) from firmware.\n",
 				resp->cfg_info.iqmask,
 				resp->cfg_info.oqmask);
-			goto setup_nic_dev_fail;
+			WRITE_ONCE(sc->caller_is_done, true);
+			goto setup_nic_dev_done;
 		}
+
+		if (OCTEON_CN6XXX(octeon_dev)) {
+			max_num_queues = CFG_GET_IQ_MAX_Q(CHIP_CONF(octeon_dev,
+								    cn6xxx));
+		} else if (OCTEON_CN23XX_PF(octeon_dev)) {
+			max_num_queues = CFG_GET_IQ_MAX_Q(CHIP_CONF(octeon_dev,
+								    cn23xx_pf));
+		}
+
 		dev_dbg(&octeon_dev->pci_dev->dev,
-			"interface %d, iqmask %016llx, oqmask %016llx, numiqueues %d, numoqueues %d\n",
+			"interface %d, iqmask %016llx, oqmask %016llx, numiqueues %d, numoqueues %d max_num_queues: %d\n",
 			i, resp->cfg_info.iqmask, resp->cfg_info.oqmask,
-			num_iqueues, num_oqueues);
-		netdev = alloc_etherdev_mq(LIO_SIZE, num_iqueues);
+			num_iqueues, num_oqueues, max_num_queues);
+		netdev = alloc_etherdev_mq(LIO_SIZE, max_num_queues);
 
 		if (!netdev) {
 			dev_err(&octeon_dev->pci_dev->dev, "Device allocation failed\n");
-			goto setup_nic_dev_fail;
+			WRITE_ONCE(sc->caller_is_done, true);
+			goto setup_nic_dev_done;
 		}
 
 		SET_NETDEV_DEV(netdev, &octeon_dev->pci_dev->dev);
-
-		if (num_iqueues > 1)
-			lionetdevops.ndo_select_queue = select_q;
 
 		/* Associate the routines that will handle different
 		 * netdev tasks.
 		 */
 		netdev->netdev_ops = &lionetdevops;
+
+		retval = netif_set_real_num_rx_queues(netdev, num_oqueues);
+		if (retval) {
+			dev_err(&octeon_dev->pci_dev->dev,
+				"setting real number rx failed\n");
+			WRITE_ONCE(sc->caller_is_done, true);
+			goto setup_nic_dev_free;
+		}
+
+		retval = netif_set_real_num_tx_queues(netdev, num_iqueues);
+		if (retval) {
+			dev_err(&octeon_dev->pci_dev->dev,
+				"setting real number tx failed\n");
+			WRITE_ONCE(sc->caller_is_done, true);
+			goto setup_nic_dev_free;
+		}
 
 		lio = GET_LIO(netdev);
 
@@ -3847,6 +3568,8 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 		lio->linfo.hw_addr = resp->cfg_info.linfo.hw_addr;
 		lio->linfo.gmxport = resp->cfg_info.linfo.gmxport;
 		lio->linfo.link.u64 = resp->cfg_info.linfo.link.u64;
+
+		WRITE_ONCE(sc->caller_is_done, true);
 
 		lio->msg_enable = netif_msg_init(debug, DEFAULT_MSG_ENABLE);
 
@@ -3891,6 +3614,10 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 		netdev->hw_features = netdev->hw_features &
 			~NETIF_F_HW_VLAN_CTAG_RX;
 
+		/* MTU range: 68 - 16000 */
+		netdev->min_mtu = LIO_MIN_MTU_SIZE;
+		netdev->max_mtu = LIO_MAX_MTU_SIZE;
+
 		/* Point to the  properties for octeon device to which this
 		 * interface belongs.
 		 */
@@ -3901,6 +3628,18 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 		dev_dbg(&octeon_dev->pci_dev->dev,
 			"if%d gmx: %d hw_addr: 0x%llx\n", i,
 			lio->linfo.gmxport, CVM_CAST64(lio->linfo.hw_addr));
+
+		for (j = 0; j < octeon_dev->sriov_info.max_vfs; j++) {
+			u8 vfmac[ETH_ALEN];
+
+			eth_random_addr(vfmac);
+			if (__liquidio_set_vf_mac(netdev, j, vfmac, false)) {
+				dev_err(&octeon_dev->pci_dev->dev,
+					"Error setting VF%d MAC address\n",
+					j);
+				goto setup_nic_dev_free;
+			}
+		}
 
 		/* 64-bit swap required on LE machines */
 		octeon_swap_8B_data(&lio->linfo.hw_addr, 1);
@@ -3916,9 +3655,11 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 		 */
 		lio->txq = lio->linfo.txpciq[0].s.q_no;
 		lio->rxq = lio->linfo.rxpciq[0].s.q_no;
-		if (setup_io_queues(octeon_dev, i)) {
+		if (liquidio_setup_io_queues(octeon_dev, i,
+					     lio->linfo.num_txpciq,
+					     lio->linfo.num_rxpciq)) {
 			dev_err(&octeon_dev->pci_dev->dev, "I/O queues creation failed\n");
-			goto setup_nic_dev_fail;
+			goto setup_nic_dev_free;
 		}
 
 		ifstate_set(lio, LIO_IFSTATE_DROQ_OPS);
@@ -3926,10 +3667,10 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 		lio->tx_qsize = octeon_get_tx_qsize(octeon_dev, lio->txq);
 		lio->rx_qsize = octeon_get_rx_qsize(octeon_dev, lio->rxq);
 
-		if (setup_glists(octeon_dev, lio, num_iqueues)) {
+		if (lio_setup_glists(octeon_dev, lio, num_iqueues)) {
 			dev_err(&octeon_dev->pci_dev->dev,
 				"Gather list allocation failed\n");
-			goto setup_nic_dev_fail;
+			goto setup_nic_dev_free;
 		}
 
 		/* Register ethtool support */
@@ -3943,19 +3684,28 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 			liquidio_set_feature(netdev, OCTNET_CMD_LRO_ENABLE,
 					     OCTNIC_LROIPV4 | OCTNIC_LROIPV6);
 
-		liquidio_set_feature(netdev, OCTNET_CMD_ENABLE_VLAN_FILTER, 0);
+		liquidio_set_feature(netdev, OCTNET_CMD_VLAN_FILTER_CTL,
+				     OCTNET_CMD_VLAN_FILTER_ENABLE);
 
 		if ((debug != -1) && (debug & NETIF_MSG_HW))
 			liquidio_set_feature(netdev,
 					     OCTNET_CMD_VERBOSE_ENABLE, 0);
 
 		if (setup_link_status_change_wq(netdev))
-			goto setup_nic_dev_fail;
+			goto setup_nic_dev_free;
+
+		if ((octeon_dev->fw_info.app_cap_flags &
+		     LIQUIDIO_TIME_SYNC_CAP) &&
+		    setup_sync_octeon_time_wq(netdev))
+			goto setup_nic_dev_free;
+
+		if (setup_rx_oom_poll_fn(netdev))
+			goto setup_nic_dev_free;
 
 		/* Register the network device with the OS */
 		if (register_netdev(netdev)) {
 			dev_err(&octeon_dev->pci_dev->dev, "Device registration failed\n");
-			goto setup_nic_dev_fail;
+			goto setup_nic_dev_free;
 		}
 
 		dev_dbg(&octeon_dev->pci_dev->dev,
@@ -3978,24 +3728,177 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 		dev_dbg(&octeon_dev->pci_dev->dev,
 			"NIC ifidx:%d Setup successful\n", i);
 
-		octeon_free_soft_command(octeon_dev, sc);
+		if (octeon_dev->subsystem_id ==
+			OCTEON_CN2350_25GB_SUBSYS_ID ||
+		    octeon_dev->subsystem_id ==
+			OCTEON_CN2360_25GB_SUBSYS_ID) {
+			cur_ver = OCT_FW_VER(octeon_dev->fw_info.ver.maj,
+					     octeon_dev->fw_info.ver.min,
+					     octeon_dev->fw_info.ver.rev);
+
+			/* speed control unsupported in f/w older than 1.7.2 */
+			if (cur_ver < OCT_FW_VER(1, 7, 2)) {
+				dev_info(&octeon_dev->pci_dev->dev,
+					 "speed setting not supported by f/w.");
+				octeon_dev->speed_setting = 25;
+				octeon_dev->no_speed_setting = 1;
+			} else {
+				liquidio_get_speed(lio);
+			}
+
+			if (octeon_dev->speed_setting == 0) {
+				octeon_dev->speed_setting = 25;
+				octeon_dev->no_speed_setting = 1;
+			}
+		} else {
+			octeon_dev->no_speed_setting = 1;
+			octeon_dev->speed_setting = 10;
+		}
+		octeon_dev->speed_boot = octeon_dev->speed_setting;
+
+		/* don't read FEC setting if unsupported by f/w (see above) */
+		if (octeon_dev->speed_boot == 25 &&
+		    !octeon_dev->no_speed_setting) {
+			liquidio_get_fec(lio);
+			octeon_dev->props[lio->ifidx].fec_boot =
+				octeon_dev->props[lio->ifidx].fec;
+		}
 	}
+
+	devlink = devlink_alloc(&liquidio_devlink_ops,
+				sizeof(struct lio_devlink_priv));
+	if (!devlink) {
+		dev_err(&octeon_dev->pci_dev->dev, "devlink alloc failed\n");
+		goto setup_nic_dev_free;
+	}
+
+	lio_devlink = devlink_priv(devlink);
+	lio_devlink->oct = octeon_dev;
+
+	if (devlink_register(devlink, &octeon_dev->pci_dev->dev)) {
+		devlink_free(devlink);
+		dev_err(&octeon_dev->pci_dev->dev,
+			"devlink registration failed\n");
+		goto setup_nic_dev_free;
+	}
+
+	octeon_dev->devlink = devlink;
+	octeon_dev->eswitch_mode = DEVLINK_ESWITCH_MODE_LEGACY;
 
 	return 0;
 
-setup_nic_dev_fail:
-
-	octeon_free_soft_command(octeon_dev, sc);
-
-setup_nic_wait_intr:
+setup_nic_dev_free:
 
 	while (i--) {
 		dev_err(&octeon_dev->pci_dev->dev,
 			"NIC ifidx:%d Setup failed\n", i);
 		liquidio_destroy_nic_device(octeon_dev, i);
 	}
+
+setup_nic_dev_done:
+
 	return -ENODEV;
 }
+
+#ifdef CONFIG_PCI_IOV
+static int octeon_enable_sriov(struct octeon_device *oct)
+{
+	unsigned int num_vfs_alloced = oct->sriov_info.num_vfs_alloced;
+	struct pci_dev *vfdev;
+	int err;
+	u32 u;
+
+	if (OCTEON_CN23XX_PF(oct) && num_vfs_alloced) {
+		err = pci_enable_sriov(oct->pci_dev,
+				       oct->sriov_info.num_vfs_alloced);
+		if (err) {
+			dev_err(&oct->pci_dev->dev,
+				"OCTEON: Failed to enable PCI sriov: %d\n",
+				err);
+			oct->sriov_info.num_vfs_alloced = 0;
+			return err;
+		}
+		oct->sriov_info.sriov_enabled = 1;
+
+		/* init lookup table that maps DPI ring number to VF pci_dev
+		 * struct pointer
+		 */
+		u = 0;
+		vfdev = pci_get_device(PCI_VENDOR_ID_CAVIUM,
+				       OCTEON_CN23XX_VF_VID, NULL);
+		while (vfdev) {
+			if (vfdev->is_virtfn &&
+			    (vfdev->physfn == oct->pci_dev)) {
+				oct->sriov_info.dpiring_to_vfpcidev_lut[u] =
+					vfdev;
+				u += oct->sriov_info.rings_per_vf;
+			}
+			vfdev = pci_get_device(PCI_VENDOR_ID_CAVIUM,
+					       OCTEON_CN23XX_VF_VID, vfdev);
+		}
+	}
+
+	return num_vfs_alloced;
+}
+
+static int lio_pci_sriov_disable(struct octeon_device *oct)
+{
+	int u;
+
+	if (pci_vfs_assigned(oct->pci_dev)) {
+		dev_err(&oct->pci_dev->dev, "VFs are still assigned to VMs.\n");
+		return -EPERM;
+	}
+
+	pci_disable_sriov(oct->pci_dev);
+
+	u = 0;
+	while (u < MAX_POSSIBLE_VFS) {
+		oct->sriov_info.dpiring_to_vfpcidev_lut[u] = NULL;
+		u += oct->sriov_info.rings_per_vf;
+	}
+
+	oct->sriov_info.num_vfs_alloced = 0;
+	dev_info(&oct->pci_dev->dev, "oct->pf_num:%d disabled VFs\n",
+		 oct->pf_num);
+
+	return 0;
+}
+
+static int liquidio_enable_sriov(struct pci_dev *dev, int num_vfs)
+{
+	struct octeon_device *oct = pci_get_drvdata(dev);
+	int ret = 0;
+
+	if ((num_vfs == oct->sriov_info.num_vfs_alloced) &&
+	    (oct->sriov_info.sriov_enabled)) {
+		dev_info(&oct->pci_dev->dev, "oct->pf_num:%d already enabled num_vfs:%d\n",
+			 oct->pf_num, num_vfs);
+		return 0;
+	}
+
+	if (!num_vfs) {
+		lio_vf_rep_destroy(oct);
+		ret = lio_pci_sriov_disable(oct);
+	} else if (num_vfs > oct->sriov_info.max_vfs) {
+		dev_err(&oct->pci_dev->dev,
+			"OCTEON: Max allowed VFs:%d user requested:%d",
+			oct->sriov_info.max_vfs, num_vfs);
+		ret = -EPERM;
+	} else {
+		oct->sriov_info.num_vfs_alloced = num_vfs;
+		ret = octeon_enable_sriov(oct);
+		dev_info(&oct->pci_dev->dev, "oct->pf_num:%d num_vfs:%d\n",
+			 oct->pf_num, num_vfs);
+		ret = lio_vf_rep_create(oct);
+		if (ret)
+			dev_info(&oct->pci_dev->dev,
+				 "vf representor create failed");
+	}
+
+	return ret;
+}
+#endif
 
 /**
  * \brief initialize the NIC
@@ -4006,7 +3909,6 @@ setup_nic_wait_intr:
  */
 static int liquidio_init_nic_module(struct octeon_device *oct)
 {
-	struct oct_intrmod_cfg *intrmod_cfg;
 	int i, retval = 0;
 	int num_nic_ports = CFG_GET_NUM_NIC_PORTS(octeon_get_conf(oct));
 
@@ -4029,24 +3931,20 @@ static int liquidio_init_nic_module(struct octeon_device *oct)
 		goto octnet_init_failure;
 	}
 
+	/* Call vf_rep_modinit if the firmware is switchdev capable
+	 * and do it from the first liquidio function probed.
+	 */
+	if (!oct->octeon_id &&
+	    oct->fw_info.app_cap_flags & LIQUIDIO_SWITCHDEV_CAP) {
+		retval = lio_vf_rep_modinit();
+		if (retval) {
+			liquidio_stop_nic_module(oct);
+			goto octnet_init_failure;
+		}
+	}
+
 	liquidio_ptp_init(oct);
 
-	/* Initialize interrupt moderation params */
-	intrmod_cfg = &((struct octeon_device *)oct)->intrmod;
-	intrmod_cfg->rx_enable = 1;
-	intrmod_cfg->check_intrvl = LIO_INTRMOD_CHECK_INTERVAL;
-	intrmod_cfg->maxpkt_ratethr = LIO_INTRMOD_MAXPKT_RATETHR;
-	intrmod_cfg->minpkt_ratethr = LIO_INTRMOD_MINPKT_RATETHR;
-	intrmod_cfg->rx_maxcnt_trigger = LIO_INTRMOD_RXMAXCNT_TRIGGER;
-	intrmod_cfg->rx_maxtmr_trigger = LIO_INTRMOD_RXMAXTMR_TRIGGER;
-	intrmod_cfg->rx_mintmr_trigger = LIO_INTRMOD_RXMINTMR_TRIGGER;
-	intrmod_cfg->rx_mincnt_trigger = LIO_INTRMOD_RXMINCNT_TRIGGER;
-	intrmod_cfg->tx_enable = 1;
-	intrmod_cfg->tx_maxcnt_trigger = LIO_INTRMOD_TXMAXCNT_TRIGGER;
-	intrmod_cfg->tx_mincnt_trigger = LIO_INTRMOD_TXMINCNT_TRIGGER;
-	intrmod_cfg->rx_frames = CFG_GET_OQ_INTR_PKT(octeon_get_conf(oct));
-	intrmod_cfg->rx_usecs = CFG_GET_OQ_INTR_TIME(octeon_get_conf(oct));
-	intrmod_cfg->tx_frames = CFG_GET_IQ_INTR_PKT(octeon_get_conf(oct));
 	dev_dbg(&oct->pci_dev->dev, "Network interfaces ready\n");
 
 	return retval;
@@ -4102,6 +4000,57 @@ static void nic_starter(struct work_struct *work)
 	complete(&handshake[oct->octeon_id].started);
 }
 
+static int
+octeon_recv_vf_drv_notice(struct octeon_recv_info *recv_info, void *buf)
+{
+	struct octeon_device *oct = (struct octeon_device *)buf;
+	struct octeon_recv_pkt *recv_pkt = recv_info->recv_pkt;
+	int i, notice, vf_idx;
+	bool cores_crashed;
+	u64 *data, vf_num;
+
+	notice = recv_pkt->rh.r.ossp;
+	data = (u64 *)(get_rbd(recv_pkt->buffer_ptr[0]) + OCT_DROQ_INFO_SIZE);
+
+	/* the first 64-bit word of data is the vf_num */
+	vf_num = data[0];
+	octeon_swap_8B_data(&vf_num, 1);
+	vf_idx = (int)vf_num - 1;
+
+	cores_crashed = READ_ONCE(oct->cores_crashed);
+
+	if (notice == VF_DRV_LOADED) {
+		if (!(oct->sriov_info.vf_drv_loaded_mask & BIT_ULL(vf_idx))) {
+			oct->sriov_info.vf_drv_loaded_mask |= BIT_ULL(vf_idx);
+			dev_info(&oct->pci_dev->dev,
+				 "driver for VF%d was loaded\n", vf_idx);
+			if (!cores_crashed)
+				try_module_get(THIS_MODULE);
+		}
+	} else if (notice == VF_DRV_REMOVED) {
+		if (oct->sriov_info.vf_drv_loaded_mask & BIT_ULL(vf_idx)) {
+			oct->sriov_info.vf_drv_loaded_mask &= ~BIT_ULL(vf_idx);
+			dev_info(&oct->pci_dev->dev,
+				 "driver for VF%d was removed\n", vf_idx);
+			if (!cores_crashed)
+				module_put(THIS_MODULE);
+		}
+	} else if (notice == VF_DRV_MACADDR_CHANGED) {
+		u8 *b = (u8 *)&data[1];
+
+		oct->sriov_info.vf_macaddr[vf_idx] = data[1];
+		dev_info(&oct->pci_dev->dev,
+			 "VF driver changed VF%d's MAC address to %pM\n",
+			 vf_idx, b + 2);
+	}
+
+	for (i = 0; i < recv_pkt->buffer_count; i++)
+		recv_buffer_free(recv_pkt->buffer_ptr[i]);
+	octeon_free_recv_info(recv_info);
+
+	return 0;
+}
+
 /**
  * \brief Device initialization for each Octeon device that is probed
  * @param octeon_dev  octeon device
@@ -4109,8 +4058,9 @@ static void nic_starter(struct work_struct *work)
 static int octeon_device_init(struct octeon_device *octeon_dev)
 {
 	int j, ret;
-	int fw_loaded = 0;
 	char bootcmd[] = "\n";
+	char *dbg_enb = NULL;
+	enum lio_fw_state fw_state;
 	struct octeon_device_priv *oct_priv =
 		(struct octeon_device_priv *)octeon_dev->priv;
 	atomic_set(&octeon_dev->status, OCT_DEV_BEGIN_STATE);
@@ -4121,6 +4071,8 @@ static int octeon_device_init(struct octeon_device *octeon_dev)
 	if (octeon_pci_os_setup(octeon_dev))
 		return 1;
 
+	atomic_set(&octeon_dev->status, OCT_DEV_PCI_ENABLE_DONE);
+
 	/* Identify the Octeon type and map the BAR address space. */
 	if (octeon_chip_specific_setup(octeon_dev)) {
 		dev_err(&octeon_dev->pci_dev->dev, "Chip specific setup failed\n");
@@ -4129,25 +4081,50 @@ static int octeon_device_init(struct octeon_device *octeon_dev)
 
 	atomic_set(&octeon_dev->status, OCT_DEV_PCI_MAP_DONE);
 
+	/* Only add a reference after setting status 'OCT_DEV_PCI_MAP_DONE',
+	 * since that is what is required for the reference to be removed
+	 * during de-initialization (see 'octeon_destroy_resources').
+	 */
+	octeon_register_device(octeon_dev, octeon_dev->pci_dev->bus->number,
+			       PCI_SLOT(octeon_dev->pci_dev->devfn),
+			       PCI_FUNC(octeon_dev->pci_dev->devfn),
+			       true);
+
 	octeon_dev->app_mode = CVM_DRV_INVALID_APP;
 
-	if (OCTEON_CN23XX_PF(octeon_dev)) {
-		if (!cn23xx_fw_loaded(octeon_dev)) {
-			fw_loaded = 0;
-			/* Do a soft reset of the Octeon device. */
-			if (octeon_dev->fn_list.soft_reset(octeon_dev))
-				return 1;
-			/* things might have changed */
-			if (!cn23xx_fw_loaded(octeon_dev))
-				fw_loaded = 0;
-			else
-				fw_loaded = 1;
-		} else {
-			fw_loaded = 1;
-		}
-	} else if (octeon_dev->fn_list.soft_reset(octeon_dev)) {
-		return 1;
+	/* CN23XX supports preloaded firmware if the following is true:
+	 *
+	 * The adapter indicates that firmware is currently running AND
+	 * 'fw_type' is 'auto'.
+	 *
+	 * (default state is NEEDS_TO_BE_LOADED, override it if appropriate).
+	 */
+	if (OCTEON_CN23XX_PF(octeon_dev) &&
+	    cn23xx_fw_loaded(octeon_dev) && fw_type_is_auto()) {
+		atomic_cmpxchg(octeon_dev->adapter_fw_state,
+			       FW_NEEDS_TO_BE_LOADED, FW_IS_PRELOADED);
 	}
+
+	/* If loading firmware, only first device of adapter needs to do so. */
+	fw_state = atomic_cmpxchg(octeon_dev->adapter_fw_state,
+				  FW_NEEDS_TO_BE_LOADED,
+				  FW_IS_BEING_LOADED);
+
+	/* Here, [local variable] 'fw_state' is set to one of:
+	 *
+	 *   FW_IS_PRELOADED:       No firmware is to be loaded (see above)
+	 *   FW_NEEDS_TO_BE_LOADED: The driver's first instance will load
+	 *                          firmware to the adapter.
+	 *   FW_IS_BEING_LOADED:    The driver's second instance will not load
+	 *                          firmware to the adapter.
+	 */
+
+	/* Prior to f/w load, perform a soft reset of the Octeon device;
+	 * if error resetting, return w/error.
+	 */
+	if (fw_state == FW_NEEDS_TO_BE_LOADED)
+		if (octeon_dev->fn_list.soft_reset(octeon_dev))
+			return 1;
 
 	/* Initialize the dispatch mechanism used to push packets arriving on
 	 * Octeon Output queues.
@@ -4160,6 +4137,9 @@ static int octeon_device_init(struct octeon_device *octeon_dev)
 				    octeon_core_drv_init,
 				    octeon_dev);
 
+	octeon_register_dispatch_fn(octeon_dev, OPCODE_NIC,
+				    OPCODE_NIC_VF_DRV_NOTICE,
+				    octeon_recv_vf_drv_notice, octeon_dev);
 	INIT_DELAYED_WORK(&octeon_dev->nic_poll_work.work, nic_starter);
 	octeon_dev->nic_poll_work.ctxptr = (void *)octeon_dev;
 	schedule_delayed_work(&octeon_dev->nic_poll_work.work,
@@ -4167,7 +4147,10 @@ static int octeon_device_init(struct octeon_device *octeon_dev)
 
 	atomic_set(&octeon_dev->status, OCT_DEV_DISPATCH_INIT_DONE);
 
-	octeon_set_io_queues_off(octeon_dev);
+	if (octeon_set_io_queues_off(octeon_dev)) {
+		dev_err(&octeon_dev->pci_dev->dev, "setting io queues off failed\n");
+		return 1;
+	}
 
 	if (OCTEON_CN23XX_PF(octeon_dev)) {
 		ret = octeon_dev->fn_list.setup_device_regs(octeon_dev);
@@ -4189,9 +4172,6 @@ static int octeon_device_init(struct octeon_device *octeon_dev)
 	if (octeon_setup_instr_queues(octeon_dev)) {
 		dev_err(&octeon_dev->pci_dev->dev,
 			"instruction queue initialization failed\n");
-		/* On error, release any previously allocated queues */
-		for (j = 0; j < octeon_dev->num_iqs; j++)
-			octeon_delete_instr_queue(octeon_dev, j);
 		return 1;
 	}
 	atomic_set(&octeon_dev->status, OCT_DEV_INSTR_QUEUE_INIT_DONE);
@@ -4207,19 +4187,25 @@ static int octeon_device_init(struct octeon_device *octeon_dev)
 
 	if (octeon_setup_output_queues(octeon_dev)) {
 		dev_err(&octeon_dev->pci_dev->dev, "Output queue initialization failed\n");
-		/* Release any previously allocated queues */
-		for (j = 0; j < octeon_dev->num_oqs; j++)
-			octeon_delete_droq(octeon_dev, j);
 		return 1;
 	}
 
 	atomic_set(&octeon_dev->status, OCT_DEV_DROQ_INIT_DONE);
 
 	if (OCTEON_CN23XX_PF(octeon_dev)) {
-		if (octeon_allocate_ioq_vector(octeon_dev)) {
+		if (octeon_dev->fn_list.setup_mbox(octeon_dev)) {
+			dev_err(&octeon_dev->pci_dev->dev, "OCTEON: Mailbox setup failed\n");
+			return 1;
+		}
+		atomic_set(&octeon_dev->status, OCT_DEV_MBOX_SETUP_DONE);
+
+		if (octeon_allocate_ioq_vector
+				(octeon_dev,
+				 octeon_dev->sriov_info.num_pf_rings)) {
 			dev_err(&octeon_dev->pci_dev->dev, "OCTEON: ioq vector allocation failed\n");
 			return 1;
 		}
+		atomic_set(&octeon_dev->status, OCT_DEV_MSIX_ALLOC_VECTOR_DONE);
 
 	} else {
 		/* The input and output queue registers were setup earlier (the
@@ -4241,11 +4227,26 @@ static int octeon_device_init(struct octeon_device *octeon_dev)
 
 	/* Setup the interrupt handler and record the INT SUM register address
 	 */
-	if (octeon_setup_interrupt(octeon_dev))
+	if (octeon_setup_interrupt(octeon_dev,
+				   octeon_dev->sriov_info.num_pf_rings))
 		return 1;
 
 	/* Enable Octeon device interrupts */
 	octeon_dev->fn_list.enable_interrupt(octeon_dev, OCTEON_ALL_INTR);
+
+	atomic_set(&octeon_dev->status, OCT_DEV_INTR_SET_DONE);
+
+	/* Send Credit for Octeon Output queues. Credits are always sent BEFORE
+	 * the output queue is enabled.
+	 * This ensures that we'll receive the f/w CORE DRV_ACTIVE message in
+	 * case we've configured CN23XX_SLI_GBL_CONTROL[NOPTR_D] = 0.
+	 * Otherwise, it is possible that the DRV_ACTIVE message will be sent
+	 * before any credits have been issued, causing the ring to be reset
+	 * (and the f/w appear to never have started).
+	 */
+	for (j = 0; j < octeon_dev->num_oqs; j++)
+		writel(octeon_dev->droq[j]->max_count,
+		       octeon_dev->droq[j]->pkts_credit_reg);
 
 	/* Enable the input and output queues for this Octeon device */
 	ret = octeon_dev->fn_list.enable_io_queues(octeon_dev);
@@ -4256,7 +4257,7 @@ static int octeon_device_init(struct octeon_device *octeon_dev)
 
 	atomic_set(&octeon_dev->status, OCT_DEV_IO_QUEUES_DONE);
 
-	if ((!OCTEON_CN23XX_PF(octeon_dev)) || !fw_loaded) {
+	if (fw_state == FW_NEEDS_TO_BE_LOADED) {
 		dev_dbg(&octeon_dev->pci_dev->dev, "Waiting for DDR initialization...\n");
 		if (!ddr_timeout) {
 			dev_info(&octeon_dev->pci_dev->dev,
@@ -4295,10 +4296,19 @@ static int octeon_device_init(struct octeon_device *octeon_dev)
 			dev_err(&octeon_dev->pci_dev->dev, "Could not access board consoles\n");
 			return 1;
 		}
-		ret = octeon_add_console(octeon_dev, 0);
+		/* If console debug enabled, specify empty string to use default
+		 * enablement ELSE specify NULL string for 'disabled'.
+		 */
+		dbg_enb = octeon_console_debug_enabled(0) ? "" : NULL;
+		ret = octeon_add_console(octeon_dev, 0, dbg_enb);
 		if (ret) {
 			dev_err(&octeon_dev->pci_dev->dev, "Could not access board console\n");
 			return 1;
+		} else if (octeon_console_debug_enabled(0)) {
+			/* If console was added AND we're logging console output
+			 * then set our console print function.
+			 */
+			octeon_dev->console[0].print = octeon_dbg_console_print;
 		}
 
 		atomic_set(&octeon_dev->status, OCT_DEV_CONSOLE_INIT_DONE);
@@ -4309,12 +4319,8 @@ static int octeon_device_init(struct octeon_device *octeon_dev)
 			dev_err(&octeon_dev->pci_dev->dev, "Could not load firmware to board\n");
 			return 1;
 		}
-		/* set bit 1 of SLI_SCRATCH_1 to indicate that firmware is
-		 * loaded
-		 */
-		if (OCTEON_CN23XX_PF(octeon_dev))
-			octeon_write_csr64(octeon_dev, CN23XX_SLI_SCRATCH1,
-					   2ULL);
+
+		atomic_set(octeon_dev->adapter_fw_state, FW_HAS_BEEN_LOADED);
 	}
 
 	handshake[octeon_dev->octeon_id].init_ok = 1;
@@ -4322,14 +4328,33 @@ static int octeon_device_init(struct octeon_device *octeon_dev)
 
 	atomic_set(&octeon_dev->status, OCT_DEV_HOST_OK);
 
-	/* Send Credit for Octeon Output queues. Credits are always sent after
-	 * the output queue is enabled.
-	 */
-	for (j = 0; j < octeon_dev->num_oqs; j++)
-		writel(octeon_dev->droq[j]->max_count,
-		       octeon_dev->droq[j]->pkts_credit_reg);
+	return 0;
+}
 
-	/* Packets can start arriving on the output queues from this point. */
+/**
+ * \brief Debug console print function
+ * @param octeon_dev  octeon device
+ * @param console_num console number
+ * @param prefix      first portion of line to display
+ * @param suffix      second portion of line to display
+ *
+ * The OCTEON debug console outputs entire lines (excluding '\n').
+ * Normally, the line will be passed in the 'prefix' parameter.
+ * However, due to buffering, it is possible for a line to be split into two
+ * parts, in which case they will be passed as the 'prefix' parameter and
+ * 'suffix' parameter.
+ */
+static int octeon_dbg_console_print(struct octeon_device *oct, u32 console_num,
+				    char *prefix, char *suffix)
+{
+	if (prefix && suffix)
+		dev_info(&oct->pci_dev->dev, "%u: %s%s\n", console_num, prefix,
+			 suffix);
+	else if (prefix)
+		dev_info(&oct->pci_dev->dev, "%u: %s\n", console_num, prefix);
+	else if (suffix)
+		dev_info(&oct->pci_dev->dev, "%u: %s\n", console_num, suffix);
+
 	return 0;
 }
 

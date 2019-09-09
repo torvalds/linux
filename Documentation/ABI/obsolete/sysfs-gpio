@@ -11,7 +11,7 @@ Description:
   Kernel code may export it for complete or partial access.
 
   GPIOs are identified as they are inside the kernel, using integers in
-  the range 0..INT_MAX.  See Documentation/gpio.txt for more information.
+  the range 0..INT_MAX.  See Documentation/admin-guide/gpio for more information.
 
     /sys/class/gpio
 	/export ... asks the kernel to export a GPIO to userspace

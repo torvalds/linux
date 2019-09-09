@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  Implementation of operations over global quota file
  */
@@ -11,6 +12,7 @@
 #include <linux/writeback.h>
 #include <linux/workqueue.h>
 #include <linux/llist.h>
+#include <linux/iversion.h>
 
 #include <cluster/masklog.h>
 
@@ -33,7 +35,7 @@
  * Locking of quotas with OCFS2 is rather complex. Here are rules that
  * should be obeyed by all the functions:
  * - any write of quota structure (either to local or global file) is protected
- *   by dqio_mutex or dquot->dq_lock.
+ *   by dqio_sem or dquot->dq_lock.
  * - any modification of global quota file holds inode cluster lock, i_mutex,
  *   and ip_alloc_sem of the global quota file (achieved by
  *   ocfs2_lock_global_qf). It also has to hold qinfo_lock.
@@ -42,9 +44,9 @@
  *
  * A rough sketch of locking dependencies (lf = local file, gf = global file):
  * Normal filesystem operation:
- *   start_trans -> dqio_mutex -> write to lf
+ *   start_trans -> dqio_sem -> write to lf
  * Syncing of local and global file:
- *   ocfs2_lock_global_qf -> start_trans -> dqio_mutex -> qinfo_lock ->
+ *   ocfs2_lock_global_qf -> start_trans -> dqio_sem -> qinfo_lock ->
  *     write to gf
  *						       -> write to lf
  * Acquire dquot for the first time:
@@ -60,7 +62,7 @@
  * Recovery:
  *   inode cluster lock of recovered lf
  *     -> read bitmaps -> ip_alloc_sem of lf
- *     -> ocfs2_lock_global_qf -> start_trans -> dqio_mutex -> qinfo_lock ->
+ *     -> ocfs2_lock_global_qf -> start_trans -> dqio_sem -> qinfo_lock ->
  *        write to gf
  */
 
@@ -288,7 +290,7 @@ out:
 		mlog_errno(err);
 		return err;
 	}
-	gqinode->i_version++;
+	inode_inc_iversion(gqinode);
 	ocfs2_mark_inode_dirty(handle, gqinode, oinfo->dqi_gqi_bh);
 	return len;
 }
@@ -443,13 +445,17 @@ static int __ocfs2_global_write_info(struct super_block *sb, int type)
 int ocfs2_global_write_info(struct super_block *sb, int type)
 {
 	int err;
-	struct ocfs2_mem_dqinfo *info = sb_dqinfo(sb, type)->dqi_priv;
+	struct quota_info *dqopt = sb_dqopt(sb);
+	struct ocfs2_mem_dqinfo *info = dqopt->info[type].dqi_priv;
 
+	down_write(&dqopt->dqio_sem);
 	err = ocfs2_qinfo_lock(info, 1);
 	if (err < 0)
-		return err;
+		goto out_sem;
 	err = __ocfs2_global_write_info(sb, type);
 	ocfs2_qinfo_unlock(info, 1);
+out_sem:
+	up_write(&dqopt->dqio_sem);
 	return err;
 }
 
@@ -500,7 +506,7 @@ int __ocfs2_sync_dquot(struct dquot *dquot, int freeing)
 	/* Update space and inode usage. Get also other information from
 	 * global quota file so that we don't overwrite any changes there.
 	 * We are */
-	spin_lock(&dq_data_lock);
+	spin_lock(&dquot->dq_dqb_lock);
 	spacechange = dquot->dq_dqb.dqb_curspace -
 					OCFS2_DQUOT(dquot)->dq_origspace;
 	inodechange = dquot->dq_dqb.dqb_curinodes -
@@ -556,7 +562,7 @@ int __ocfs2_sync_dquot(struct dquot *dquot, int freeing)
 	__clear_bit(DQ_LASTSET_B + QIF_ITIME_B, &dquot->dq_flags);
 	OCFS2_DQUOT(dquot)->dq_origspace = dquot->dq_dqb.dqb_curspace;
 	OCFS2_DQUOT(dquot)->dq_originodes = dquot->dq_dqb.dqb_curinodes;
-	spin_unlock(&dq_data_lock);
+	spin_unlock(&dquot->dq_dqb_lock);
 	err = ocfs2_qinfo_lock(info, freeing);
 	if (err < 0) {
 		mlog(ML_ERROR, "Failed to lock quota info, losing quota write"
@@ -611,7 +617,7 @@ static int ocfs2_sync_dquot_helper(struct dquot *dquot, unsigned long type)
 		mlog_errno(status);
 		goto out_ilock;
 	}
-	mutex_lock(&sb_dqopt(sb)->dqio_mutex);
+	down_write(&sb_dqopt(sb)->dqio_sem);
 	status = ocfs2_sync_dquot(dquot);
 	if (status < 0)
 		mlog_errno(status);
@@ -619,7 +625,7 @@ static int ocfs2_sync_dquot_helper(struct dquot *dquot, unsigned long type)
 	status = ocfs2_local_write_dquot(dquot);
 	if (status < 0)
 		mlog_errno(status);
-	mutex_unlock(&sb_dqopt(sb)->dqio_mutex);
+	up_write(&sb_dqopt(sb)->dqio_sem);
 	ocfs2_commit_trans(osb, handle);
 out_ilock:
 	ocfs2_unlock_global_qf(oinfo, 1);
@@ -634,7 +640,15 @@ static void qsync_work_fn(struct work_struct *work)
 						      dqi_sync_work.work);
 	struct super_block *sb = oinfo->dqi_gqinode->i_sb;
 
-	dquot_scan_active(sb, ocfs2_sync_dquot_helper, oinfo->dqi_type);
+	/*
+	 * We have to be careful here not to deadlock on s_umount as umount
+	 * disabling quotas may be in progress and it waits for this work to
+	 * complete. If trylock fails, we'll do the sync next time...
+	 */
+	if (down_read_trylock(&sb->s_umount)) {
+		dquot_scan_active(sb, ocfs2_sync_dquot_helper, oinfo->dqi_type);
+		up_read(&sb->s_umount);
+	}
 	schedule_delayed_work(&oinfo->dqi_sync_work,
 			      msecs_to_jiffies(oinfo->dqi_syncms));
 }
@@ -658,9 +672,9 @@ static int ocfs2_write_dquot(struct dquot *dquot)
 		mlog_errno(status);
 		goto out;
 	}
-	mutex_lock(&sb_dqopt(dquot->dq_sb)->dqio_mutex);
+	down_write(&sb_dqopt(dquot->dq_sb)->dqio_sem);
 	status = ocfs2_local_write_dquot(dquot);
-	mutex_unlock(&sb_dqopt(dquot->dq_sb)->dqio_mutex);
+	up_write(&sb_dqopt(dquot->dq_sb)->dqio_sem);
 	ocfs2_commit_trans(osb, handle);
 out:
 	return status;
@@ -912,10 +926,10 @@ static int ocfs2_mark_dquot_dirty(struct dquot *dquot)
 
 	/* In case user set some limits, sync dquot immediately to global
 	 * quota file so that information propagates quicker */
-	spin_lock(&dq_data_lock);
+	spin_lock(&dquot->dq_dqb_lock);
 	if (dquot->dq_flags & mask)
 		sync = 1;
-	spin_unlock(&dq_data_lock);
+	spin_unlock(&dquot->dq_dqb_lock);
 	/* This is a slight hack but we can't afford getting global quota
 	 * lock if we already have a transaction started. */
 	if (!sync || journal_current_handle()) {
@@ -931,7 +945,7 @@ static int ocfs2_mark_dquot_dirty(struct dquot *dquot)
 		mlog_errno(status);
 		goto out_ilock;
 	}
-	mutex_lock(&sb_dqopt(sb)->dqio_mutex);
+	down_write(&sb_dqopt(sb)->dqio_sem);
 	status = ocfs2_sync_dquot(dquot);
 	if (status < 0) {
 		mlog_errno(status);
@@ -940,7 +954,7 @@ static int ocfs2_mark_dquot_dirty(struct dquot *dquot)
 	/* Now write updated local dquot structure */
 	status = ocfs2_local_write_dquot(dquot);
 out_dlock:
-	mutex_unlock(&sb_dqopt(sb)->dqio_mutex);
+	up_write(&sb_dqopt(sb)->dqio_sem);
 	ocfs2_commit_trans(osb, handle);
 out_ilock:
 	ocfs2_unlock_global_qf(oinfo, 1);

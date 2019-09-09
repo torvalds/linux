@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* ptrace.c: Sparc process tracing support.
  *
  * Copyright (C) 1996, 2008 David S. Miller (davem@davemloft.net)
@@ -23,7 +24,7 @@
 #include <linux/tracehook.h>
 
 #include <asm/pgtable.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/cacheflush.h>
 
 #include "kernel.h"

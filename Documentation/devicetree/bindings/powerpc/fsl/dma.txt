@@ -13,7 +13,6 @@ Required properties:
                       DMA channels and the address space of the DMA controller
 - cell-index        : controller index.  0 for controller @ 0x8100
 - interrupts        : interrupt specifier for DMA IRQ
-- interrupt-parent  : optional, if needed for interrupt mapping
 
 - DMA channel nodes:
         - compatible        : must include "fsl,elo-dma-channel"
@@ -25,7 +24,6 @@ Optional properties:
         - interrupts        : interrupt specifier for DMA channel IRQ
                               (on 83xx this is expected to be identical to
                               the interrupts property of the parent node)
-        - interrupt-parent  : optional, if needed for interrupt mapping
 
 Example:
 	dma@82a8 {
@@ -88,7 +86,6 @@ Required properties:
         - cell-index        : DMA channel index starts at 0.
         - reg               : DMA channel specific registers
         - interrupts        : interrupt specifier for DMA channel IRQ
-        - interrupt-parent  : optional, if needed for interrupt mapping
 
 Example:
 	dma@21300 {
@@ -146,7 +143,6 @@ Required properties:
         - compatible        : must include "fsl,eloplus-dma-channel"
         - reg               : DMA channel specific registers
         - interrupts        : interrupt specifier for DMA channel IRQ
-        - interrupt-parent  : optional, if needed for interrupt mapping
 
 Example:
 dma@100300 {

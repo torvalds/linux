@@ -1,23 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * SPU file system
  *
  * (C) Copyright IBM Deutschland Entwicklung GmbH 2005
  *
  * Author: Arnd Bergmann <arndb@de.ibm.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 #ifndef SPUFS_H
 #define SPUFS_H
@@ -27,6 +14,7 @@
 #include <linux/spinlock.h>
 #include <linux/fs.h>
 #include <linux/cpumask.h>
+#include <linux/sched/signal.h>
 
 #include <asm/spu.h>
 #include <asm/spu_csa.h>
@@ -68,7 +56,7 @@ struct switch_log {
 	unsigned long		head;
 	unsigned long		tail;
 	struct switch_log_entry {
-		struct timespec	tstamp;
+		struct timespec64 tstamp;
 		s32		spu_id;
 		u32		type;
 		u32		val;
@@ -102,9 +90,6 @@ struct spu_context {
 	wait_queue_head_t stop_wq;
 	wait_queue_head_t mfc_wq;
 	wait_queue_head_t run_wq;
-	struct fasync_struct *ibox_fasync;
-	struct fasync_struct *wbox_fasync;
-	struct fasync_struct *mfc_fasync;
 	u32 tagwait;
 	struct spu_context_ops *ops;
 	struct work_struct reap_work;
@@ -187,8 +172,7 @@ struct mfc_dma_command {
 struct spu_context_ops {
 	int (*mbox_read) (struct spu_context * ctx, u32 * data);
 	 u32(*mbox_stat_read) (struct spu_context * ctx);
-	unsigned int (*mbox_stat_poll)(struct spu_context *ctx,
-					unsigned int events);
+	__poll_t (*mbox_stat_poll)(struct spu_context *ctx, __poll_t events);
 	int (*ibox_read) (struct spu_context * ctx, u32 * data);
 	int (*wbox_write) (struct spu_context * ctx, u32 data);
 	 u32(*signal1_read) (struct spu_context * ctx);

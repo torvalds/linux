@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (c) 2010 Broadcom Corporation
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
- * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
- * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
- * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #include "phy_qmath.h"
@@ -179,7 +168,7 @@ s16 qm_norm32(s32 op)
 	return u16extraSignBits;
 }
 
-/* This table is log2(1+(i/32)) where i=[0:1:31], in q.15 format */
+/* This table is log2(1+(i/32)) where i=[0:1:32], in q.15 format */
 static const s16 log_table[] = {
 	0,
 	1455,
@@ -212,7 +201,8 @@ static const s16 log_table[] = {
 	29717,
 	30498,
 	31267,
-	32024
+	32024,
+	32767
 };
 
 #define LOG_TABLE_SIZE 32       /* log_table size */

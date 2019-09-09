@@ -1,18 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2010 Cisco Systems, Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 /* XXX TBD some includes may be extraneous */
@@ -28,7 +16,6 @@
 #include <linux/configfs.h>
 #include <linux/ctype.h>
 #include <linux/hash.h>
-#include <linux/percpu_ida.h>
 #include <asm/unaligned.h>
 #include <scsi/scsi_tcq.h>
 #include <scsi/libfc.h>
@@ -83,18 +70,16 @@ void ft_dump_cmd(struct ft_cmd *cmd, const char *caller)
 static void ft_free_cmd(struct ft_cmd *cmd)
 {
 	struct fc_frame *fp;
-	struct fc_lport *lport;
 	struct ft_sess *sess;
 
 	if (!cmd)
 		return;
 	sess = cmd->sess;
 	fp = cmd->req_frame;
-	lport = fr_dev(fp);
 	if (fr_seq(fp))
-		lport->tt.seq_release(fr_seq(fp));
+		fc_seq_release(fr_seq(fp));
 	fc_frame_free(fp);
-	percpu_ida_free(&sess->se_sess->sess_tag_pool, cmd->se_cmd.map_tag);
+	target_free_tag(sess->se_sess, &cmd->se_cmd);
 	ft_sess_put(sess);	/* undo get from lookup at recv */
 }
 
@@ -161,11 +146,11 @@ int ft_queue_status(struct se_cmd *se_cmd)
 	/*
 	 * Send response.
 	 */
-	cmd->seq = lport->tt.seq_start_next(cmd->seq);
+	cmd->seq = fc_seq_start_next(cmd->seq);
 	fc_fill_fc_hdr(fp, FC_RCTL_DD_CMD_STATUS, ep->did, ep->sid, FC_TYPE_FCP,
 		       FC_FC_EX_CTX | FC_FC_LAST_SEQ | FC_FC_END_SEQ, 0);
 
-	rc = lport->tt.seq_send(lport, cmd->seq, fp);
+	rc = fc_seq_send(lport, cmd->seq, fp);
 	if (rc) {
 		pr_info_ratelimited("%s: Failed to send response frame %p, "
 				    "xid <0x%x>\n", __func__, fp, ep->xid);
@@ -177,7 +162,7 @@ int ft_queue_status(struct se_cmd *se_cmd)
 		se_cmd->scsi_status = SAM_STAT_TASK_SET_FULL;
 		return -ENOMEM;
 	}
-	lport->tt.exch_done(cmd->seq);
+	fc_exch_done(cmd->seq);
 	/*
 	 * Drop the extra ACK_KREF reference taken by target_submit_cmd()
 	 * ahead of ft_check_stop_free() -> transport_generic_free_cmd()
@@ -185,13 +170,6 @@ int ft_queue_status(struct se_cmd *se_cmd)
 	 */
 	target_put_sess_cmd(&cmd->se_cmd);
 	return 0;
-}
-
-int ft_write_pending_status(struct se_cmd *se_cmd)
-{
-	struct ft_cmd *cmd = container_of(se_cmd, struct ft_cmd, se_cmd);
-
-	return cmd->write_data_len != se_cmd->data_length;
 }
 
 /*
@@ -221,7 +199,7 @@ int ft_write_pending(struct se_cmd *se_cmd)
 	memset(txrdy, 0, sizeof(*txrdy));
 	txrdy->ft_burst_len = htonl(se_cmd->data_length);
 
-	cmd->seq = lport->tt.seq_start_next(cmd->seq);
+	cmd->seq = fc_seq_start_next(cmd->seq);
 	fc_fill_fc_hdr(fp, FC_RCTL_DD_DATA_DESC, ep->did, ep->sid, FC_TYPE_FCP,
 		       FC_FC_EX_CTX | FC_FC_END_SEQ | FC_FC_SEQ_INIT, 0);
 
@@ -242,7 +220,7 @@ int ft_write_pending(struct se_cmd *se_cmd)
 				cmd->was_ddp_setup = 1;
 		}
 	}
-	lport->tt.seq_send(lport, cmd->seq, fp);
+	fc_seq_send(lport, cmd->seq, fp);
 	return 0;
 }
 
@@ -323,8 +301,8 @@ static void ft_send_resp_status(struct fc_lport *lport,
 	fc_fill_reply_hdr(fp, rx_fp, FC_RCTL_DD_CMD_STATUS, 0);
 	sp = fr_seq(fp);
 	if (sp) {
-		lport->tt.seq_send(lport, sp, fp);
-		lport->tt.exch_done(sp);
+		fc_seq_send(lport, sp, fp);
+		fc_exch_done(sp);
 	} else {
 		lport->tt.frame_send(lport, fp);
 	}
@@ -450,9 +428,9 @@ static void ft_recv_cmd(struct ft_sess *sess, struct fc_frame *fp)
 	struct ft_cmd *cmd;
 	struct fc_lport *lport = sess->tport->lport;
 	struct se_session *se_sess = sess->se_sess;
-	int tag;
+	int tag, cpu;
 
-	tag = percpu_ida_alloc(&se_sess->sess_tag_pool, TASK_RUNNING);
+	tag = sbitmap_queue_get(&se_sess->sess_tag_pool, &cpu);
 	if (tag < 0)
 		goto busy;
 
@@ -460,10 +438,11 @@ static void ft_recv_cmd(struct ft_sess *sess, struct fc_frame *fp)
 	memset(cmd, 0, sizeof(struct ft_cmd));
 
 	cmd->se_cmd.map_tag = tag;
+	cmd->se_cmd.map_cpu = cpu;
 	cmd->sess = sess;
-	cmd->seq = lport->tt.seq_assign(lport, fp);
+	cmd->seq = fc_seq_assign(lport, fp);
 	if (!cmd->seq) {
-		percpu_ida_free(&se_sess->sess_tag_pool, tag);
+		target_free_tag(se_sess, &cmd->se_cmd);
 		goto busy;
 	}
 	cmd->req_frame = fp;		/* hold frame during cmd */
@@ -563,7 +542,7 @@ static void ft_send_work(struct work_struct *work)
 		task_attr = TCM_SIMPLE_TAG;
 	}
 
-	fc_seq_exch(cmd->seq)->lp->tt.seq_set_resp(cmd->seq, ft_recv_seq, cmd);
+	fc_seq_set_resp(cmd->seq, ft_recv_seq, cmd);
 	cmd->se_cmd.tag = fc_seq_exch(cmd->seq)->rxid;
 	/*
 	 * Use a single se_cmd->cmd_kref as we expect to release se_cmd

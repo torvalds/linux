@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright (c) 2016, The Linux Foundation. All rights reserved. */
+
+/dts-v1/;
+
+#include "msm8998-mtp.dtsi"
+
+/ {
+	model = "Qualcomm Technologies, Inc. MSM8998 v1 MTP";
+	compatible = "qcom,msm8998-mtp";
+
+	qcom,board-id = <8 0>;
+};

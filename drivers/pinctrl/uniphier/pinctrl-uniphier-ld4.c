@@ -1,19 +1,11 @@
-/*
- * Copyright (C) 2015 Masahiro Yamada <yamada.masahiro@socionext.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// Copyright (C) 2015-2017 Socionext Inc.
+//   Author: Masahiro Yamada <yamada.masahiro@socionext.com>
 
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/init.h>
+#include <linux/mod_devicetable.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/platform_device.h>
 
@@ -575,6 +567,8 @@ static const unsigned nand_cs1_pins[] = {22, 23};
 static const int nand_cs1_muxvals[] = {0, 0};
 static const unsigned sd_pins[] = {44, 45, 46, 47, 48, 49, 50, 51, 52};
 static const int sd_muxvals[] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
+static const unsigned spi0_pins[] = {135, 136, 137, 138};
+static const int spi0_muxvals[] = {12, 12, 12, 12};
 static const unsigned system_bus_pins[] = {16, 17, 18, 19, 20, 165, 166, 167,
 					   168, 169, 170, 171, 172, 173};
 static const int system_bus_muxvals[] = {0, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1,
@@ -589,6 +583,8 @@ static const unsigned system_bus_cs3_pins[] = {156};
 static const int system_bus_cs3_muxvals[] = {1};
 static const unsigned uart0_pins[] = {85, 88};
 static const int uart0_muxvals[] = {1, 1};
+static const unsigned uart0_ctsrts_pins[] = {86, 87, 89};
+static const int uart0_ctsrts_muxvals[] = {1, 1, 1};
 static const unsigned uart1_pins[] = {155, 156};
 static const int uart1_muxvals[] = {13, 13};
 static const unsigned uart1b_pins[] = {69, 70};
@@ -605,59 +601,24 @@ static const unsigned usb2_pins[] = {155, 156};
 static const int usb2_muxvals[] = {4, 4};
 static const unsigned usb2b_pins[] = {67, 68};
 static const int usb2b_muxvals[] = {23, 23};
-static const unsigned port_range0_pins[] = {
-	135, 136, 137, 138, 139, 140, 141, 142,		/* PORT0x */
-	143, 144, 145, 146, 147, 148, 149, 150,		/* PORT1x */
-	151, 152, 153, 154, 155, 156, 157, 0,		/* PORT2x */
-	1, 2, 3, 4, 5, 120, 121, 122,			/* PORT3x */
-	24, 25, 26, 27, 28, 29, 30, 31,			/* PORT4x */
-	40, 41, 42, 43, 44, 45, 46, 47,			/* PORT5x */
-	48, 49, 50, 51, 52, 53, 54, 55,			/* PORT6x */
-	56, 85, 84, 59, 82, 61, 64, 65,			/* PORT7x */
-	8, 9, 10, 11, 12, 13, 14, 15,			/* PORT8x */
-	66, 67, 68, 69, 70, 71, 72, 73,			/* PORT9x */
-	74, 75, 89, 86, 78, 79, 80, 81,			/* PORT10x */
-	60, 83, 58, 57, 88, 87, 77, 76,			/* PORT11x */
-	90, 91, 92, 93, 94, 95, 96, 97,			/* PORT12x */
-	98, 99, 100, 6, 101, 114, 115, 116,		/* PORT13x */
-	103, 108, 21, 22, 23, 117, 118, 119,		/* PORT14x */
-};
-static const int port_range0_muxvals[] = {
-	0, 0, 0, 0, 0, 0, 0, 0,				/* PORT0x */
-	0, 0, 0, 0, 0, 0, 0, 0,				/* PORT1x */
-	0, 0, 0, 0, 0, 0, 0, 15,			/* PORT2x */
-	15, 15, 15, 15, 15, 15, 15, 15,			/* PORT3x */
-	15, 15, 15, 15, 15, 15, 15, 15,			/* PORT4x */
-	15, 15, 15, 15, 15, 15, 15, 15,			/* PORT5x */
-	15, 15, 15, 15, 15, 15, 15, 15,			/* PORT6x */
-	15, 15, 15, 15, 15, 15, 15, 15,			/* PORT7x */
-	15, 15, 15, 15, 15, 15, 15, 15,			/* PORT8x */
-	15, 15, 15, 15, 15, 15, 15, 15,			/* PORT9x */
-	15, 15, 15, 15, 15, 15, 15, 15,			/* PORT10x */
-	15, 15, 15, 15, 15, 15, 15, 15,			/* PORT11x */
-	15, 15, 15, 15, 15, 15, 15, 15,			/* PORT12x */
-	15, 15, 15, 15, 15, 15, 15, 15,			/* PORT13x */
-	15, 15, 15, 15, 15, 15, 15, 15,			/* PORT14x */
-};
-static const unsigned port_range1_pins[] = {
-	7,						/* PORT166 */
-};
-static const int port_range1_muxvals[] = {
-	15,						/* PORT166 */
-};
-static const unsigned xirq_range0_pins[] = {
-	151, 123, 124, 125, 126, 127, 128, 129,		/* XIRQ0-7 */
-	130, 131, 132, 133, 62,				/* XIRQ8-12 */
-};
-static const int xirq_range0_muxvals[] = {
-	14, 0, 0, 0, 0, 0, 0, 0,			/* XIRQ0-7 */
-	0, 0, 0, 0, 14,					/* XIRQ8-12 */
-};
-static const unsigned xirq_range1_pins[] = {
-	134, 63,					/* XIRQ14-15 */
-};
-static const int xirq_range1_muxvals[] = {
-	0, 14,						/* XIRQ14-15 */
+static const unsigned int gpio_range_pins[] = {
+	135, 136, 137, 138, 139, 140, 141, 142,	/* PORT0x */
+	143, 144, 145, 146, 147, 148, 149, 150,	/* PORT1x */
+	151, 152, 153, 154, 155, 156, 157, 0,	/* PORT2x */
+	1, 2, 3, 4, 5, 120, 121, 122,		/* PORT3x */
+	24, 25, 26, 27, 28, 29, 30, 31,		/* PORT4x */
+	40, 41, 42, 43, 44, 45, 46, 47,		/* PORT5x */
+	48, 49, 50, 51, 52, 53, 54, 55,		/* PORT6x */
+	56, 85, 84, 59, 82, 61, 64, 65,		/* PORT7x */
+	8, 9, 10, 11, 12, 13, 14, 15,		/* PORT8x */
+	66, 67, 68, 69, 70, 71, 72, 73,		/* PORT9x */
+	74, 75, 89, 86, 78, 79, 80, 81,		/* PORT10x */
+	60, 83, 58, 57, 88, 87, 77, 76,		/* PORT11x */
+	90, 91, 92, 93, 94, 95, 96, 97,		/* PORT12x */
+	98, 99, 100, 6, 101, 114, 115, 116,	/* PORT13x */
+	103, 108, 21, 22, 23, 117, 118, 119,	/* PORT14x */
+	151, 123, 124, 125, 126, 127, 128, 129,	/* XIRQ0-7 */
+	130, 131, 132, 133, 62, 7, 134, 63,   /* XIRQ8-12, PORT165, XIRQ14-15 */
 };
 
 static const struct uniphier_pinctrl_group uniphier_ld4_groups[] = {
@@ -672,12 +633,14 @@ static const struct uniphier_pinctrl_group uniphier_ld4_groups[] = {
 	UNIPHIER_PINCTRL_GROUP(nand),
 	UNIPHIER_PINCTRL_GROUP(nand_cs1),
 	UNIPHIER_PINCTRL_GROUP(sd),
+	UNIPHIER_PINCTRL_GROUP(spi0),
 	UNIPHIER_PINCTRL_GROUP(system_bus),
 	UNIPHIER_PINCTRL_GROUP(system_bus_cs0),
 	UNIPHIER_PINCTRL_GROUP(system_bus_cs1),
 	UNIPHIER_PINCTRL_GROUP(system_bus_cs2),
 	UNIPHIER_PINCTRL_GROUP(system_bus_cs3),
 	UNIPHIER_PINCTRL_GROUP(uart0),
+	UNIPHIER_PINCTRL_GROUP(uart0_ctsrts),
 	UNIPHIER_PINCTRL_GROUP(uart1),
 	UNIPHIER_PINCTRL_GROUP(uart1b),
 	UNIPHIER_PINCTRL_GROUP(uart2),
@@ -686,146 +649,7 @@ static const struct uniphier_pinctrl_group uniphier_ld4_groups[] = {
 	UNIPHIER_PINCTRL_GROUP(usb1),
 	UNIPHIER_PINCTRL_GROUP(usb2),
 	UNIPHIER_PINCTRL_GROUP(usb2b),
-	UNIPHIER_PINCTRL_GROUP_GPIO_RANGE_PORT(port_range0),
-	UNIPHIER_PINCTRL_GROUP_GPIO_RANGE_PORT(port_range1),
-	UNIPHIER_PINCTRL_GROUP_GPIO_RANGE_IRQ(xirq_range0),
-	UNIPHIER_PINCTRL_GROUP_GPIO_RANGE_IRQ(xirq_range1),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port00, port_range0, 0),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port01, port_range0, 1),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port02, port_range0, 2),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port03, port_range0, 3),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port04, port_range0, 4),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port05, port_range0, 5),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port06, port_range0, 6),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port07, port_range0, 7),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port10, port_range0, 8),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port11, port_range0, 9),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port12, port_range0, 10),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port13, port_range0, 11),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port14, port_range0, 12),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port15, port_range0, 13),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port16, port_range0, 14),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port17, port_range0, 15),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port20, port_range0, 16),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port21, port_range0, 17),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port22, port_range0, 18),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port23, port_range0, 19),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port24, port_range0, 20),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port25, port_range0, 21),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port26, port_range0, 22),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port27, port_range0, 23),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port30, port_range0, 24),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port31, port_range0, 25),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port32, port_range0, 26),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port33, port_range0, 27),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port34, port_range0, 28),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port35, port_range0, 29),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port36, port_range0, 30),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port37, port_range0, 31),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port40, port_range0, 32),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port41, port_range0, 33),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port42, port_range0, 34),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port43, port_range0, 35),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port44, port_range0, 36),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port45, port_range0, 37),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port46, port_range0, 38),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port47, port_range0, 39),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port50, port_range0, 40),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port51, port_range0, 41),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port52, port_range0, 42),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port53, port_range0, 43),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port54, port_range0, 44),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port55, port_range0, 45),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port56, port_range0, 46),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port57, port_range0, 47),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port60, port_range0, 48),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port61, port_range0, 49),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port62, port_range0, 50),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port63, port_range0, 51),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port64, port_range0, 52),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port65, port_range0, 53),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port66, port_range0, 54),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port67, port_range0, 55),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port70, port_range0, 56),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port71, port_range0, 57),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port72, port_range0, 58),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port73, port_range0, 59),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port74, port_range0, 60),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port75, port_range0, 61),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port76, port_range0, 62),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port77, port_range0, 63),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port80, port_range0, 64),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port81, port_range0, 65),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port82, port_range0, 66),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port83, port_range0, 67),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port84, port_range0, 68),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port85, port_range0, 69),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port86, port_range0, 70),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port87, port_range0, 71),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port90, port_range0, 72),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port91, port_range0, 73),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port92, port_range0, 74),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port93, port_range0, 75),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port94, port_range0, 76),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port95, port_range0, 77),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port96, port_range0, 78),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port97, port_range0, 79),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port100, port_range0, 80),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port101, port_range0, 81),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port102, port_range0, 82),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port103, port_range0, 83),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port104, port_range0, 84),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port105, port_range0, 85),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port106, port_range0, 86),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port107, port_range0, 87),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port110, port_range0, 88),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port111, port_range0, 89),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port112, port_range0, 90),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port113, port_range0, 91),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port114, port_range0, 92),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port115, port_range0, 93),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port116, port_range0, 94),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port117, port_range0, 95),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port120, port_range0, 96),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port121, port_range0, 97),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port122, port_range0, 98),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port123, port_range0, 99),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port124, port_range0, 100),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port125, port_range0, 101),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port126, port_range0, 102),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port127, port_range0, 103),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port130, port_range0, 104),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port131, port_range0, 105),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port132, port_range0, 106),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port133, port_range0, 107),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port134, port_range0, 108),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port135, port_range0, 109),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port136, port_range0, 110),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port137, port_range0, 111),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port140, port_range0, 112),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port141, port_range0, 113),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port142, port_range0, 114),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port143, port_range0, 115),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port144, port_range0, 116),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port145, port_range0, 117),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port146, port_range0, 118),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port147, port_range0, 119),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(port165, port_range1, 0),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(xirq0, xirq_range0, 0),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(xirq1, xirq_range0, 1),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(xirq2, xirq_range0, 2),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(xirq3, xirq_range0, 3),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(xirq4, xirq_range0, 4),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(xirq5, xirq_range0, 5),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(xirq6, xirq_range0, 6),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(xirq7, xirq_range0, 7),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(xirq8, xirq_range0, 8),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(xirq9, xirq_range0, 9),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(xirq10, xirq_range0, 10),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(xirq11, xirq_range0, 11),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(xirq12, xirq_range0, 12),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(xirq14, xirq_range1, 0),
-	UNIPHIER_PINCTRL_GROUP_SINGLE(xirq15, xirq_range1, 1),
+	UNIPHIER_PINCTRL_GROUP_GPIO(gpio_range),
 };
 
 static const char * const emmc_groups[] = {"emmc", "emmc_dat8"};
@@ -837,58 +661,19 @@ static const char * const i2c2_groups[] = {"i2c2"};
 static const char * const i2c3_groups[] = {"i2c3"};
 static const char * const nand_groups[] = {"nand", "nand_cs1"};
 static const char * const sd_groups[] = {"sd"};
+static const char * const spi0_groups[] = {"spi0"};
 static const char * const system_bus_groups[] = {"system_bus",
 						 "system_bus_cs0",
 						 "system_bus_cs1",
 						 "system_bus_cs2",
 						 "system_bus_cs3"};
-static const char * const uart0_groups[] = {"uart0"};
+static const char * const uart0_groups[] = {"uart0", "uart0_ctsrts"};
 static const char * const uart1_groups[] = {"uart1", "uart1b"};
 static const char * const uart2_groups[] = {"uart2"};
 static const char * const uart3_groups[] = {"uart3"};
 static const char * const usb0_groups[] = {"usb0"};
 static const char * const usb1_groups[] = {"usb1"};
 static const char * const usb2_groups[] = {"usb2", "usb2b"};
-static const char * const port_groups[] = {
-	"port00",  "port01",  "port02",  "port03",
-	"port04",  "port05",  "port06",  "port07",
-	"port10",  "port11",  "port12",  "port13",
-	"port14",  "port15",  "port16",  "port17",
-	"port20",  "port21",  "port22",  "port23",
-	"port24",  "port25",  "port26",  "port27",
-	"port30",  "port31",  "port32",  "port33",
-	"port34",  "port35",  "port36",  "port37",
-	"port40",  "port41",  "port42",  "port43",
-	"port44",  "port45",  "port46",  "port47",
-	"port50",  "port51",  "port52",  "port53",
-	"port54",  "port55",  "port56",  "port57",
-	"port60",  "port61",  "port62",  "port63",
-	"port64",  "port65",  "port66",  "port67",
-	"port70",  "port71",  "port72",  "port73",
-	"port74",  "port75",  "port76",  "port77",
-	"port80",  "port81",  "port82",  "port83",
-	"port84",  "port85",  "port86",  "port87",
-	"port90",  "port91",  "port92",  "port93",
-	"port94",  "port95",  "port96",  "port97",
-	"port100", "port101", "port102", "port103",
-	"port104", "port105", "port106", "port107",
-	"port110", "port111", "port112", "port113",
-	"port114", "port115", "port116", "port117",
-	"port120", "port121", "port122", "port123",
-	"port124", "port125", "port126", "port127",
-	"port130", "port131", "port132", "port133",
-	"port134", "port135", "port136", "port137",
-	"port140", "port141", "port142", "port143",
-	"port144", "port145", "port146", "port147",
-	/* port150-164 missing */
-	/* none */ "port165",
-};
-static const char * const xirq_groups[] = {
-	"xirq0",  "xirq1",  "xirq2",  "xirq3",
-	"xirq4",  "xirq5",  "xirq6",  "xirq7",
-	"xirq8",  "xirq9",  "xirq10", "xirq11",
-	"xirq12", /* none*/ "xirq14", "xirq15",
-};
 
 static const struct uniphier_pinmux_function uniphier_ld4_functions[] = {
 	UNIPHIER_PINMUX_FUNCTION(emmc),
@@ -900,6 +685,7 @@ static const struct uniphier_pinmux_function uniphier_ld4_functions[] = {
 	UNIPHIER_PINMUX_FUNCTION(i2c3),
 	UNIPHIER_PINMUX_FUNCTION(nand),
 	UNIPHIER_PINMUX_FUNCTION(sd),
+	UNIPHIER_PINMUX_FUNCTION(spi0),
 	UNIPHIER_PINMUX_FUNCTION(system_bus),
 	UNIPHIER_PINMUX_FUNCTION(uart0),
 	UNIPHIER_PINMUX_FUNCTION(uart1),
@@ -908,17 +694,33 @@ static const struct uniphier_pinmux_function uniphier_ld4_functions[] = {
 	UNIPHIER_PINMUX_FUNCTION(usb0),
 	UNIPHIER_PINMUX_FUNCTION(usb1),
 	UNIPHIER_PINMUX_FUNCTION(usb2),
-	UNIPHIER_PINMUX_FUNCTION(port),
-	UNIPHIER_PINMUX_FUNCTION(xirq),
 };
 
-static struct uniphier_pinctrl_socdata uniphier_ld4_pindata = {
+static int uniphier_ld4_get_gpio_muxval(unsigned int pin,
+					unsigned int gpio_offset)
+{
+	switch (gpio_offset) {
+	case 0 ... 22:		/* PORT00-PORT26 */
+	case 121 ... 131:	/* XIRQ1-XIRQ11 */
+	case 134:		/* XIRQ14 */
+		return 0;
+	case 120:		/* XIRQ0 */
+	case 132:		/* XIRQ12 */
+	case 135:		/* XIRQ15 */
+		return 14;
+	default:
+		return 15;
+	}
+}
+
+static const struct uniphier_pinctrl_socdata uniphier_ld4_pindata = {
 	.pins = uniphier_ld4_pins,
 	.npins = ARRAY_SIZE(uniphier_ld4_pins),
 	.groups = uniphier_ld4_groups,
 	.groups_count = ARRAY_SIZE(uniphier_ld4_groups),
 	.functions = uniphier_ld4_functions,
 	.functions_count = ARRAY_SIZE(uniphier_ld4_functions),
+	.get_gpio_muxval = uniphier_ld4_get_gpio_muxval,
 	.caps = 0,
 };
 
@@ -929,20 +731,15 @@ static int uniphier_ld4_pinctrl_probe(struct platform_device *pdev)
 
 static const struct of_device_id uniphier_ld4_pinctrl_match[] = {
 	{ .compatible = "socionext,uniphier-ld4-pinctrl" },
-	{ .compatible = "socionext,ph1-ld4-pinctrl" },
 	{ /* sentinel */ }
 };
-MODULE_DEVICE_TABLE(of, uniphier_ld4_pinctrl_match);
 
 static struct platform_driver uniphier_ld4_pinctrl_driver = {
 	.probe = uniphier_ld4_pinctrl_probe,
 	.driver = {
 		.name = "uniphier-ld4-pinctrl",
 		.of_match_table = uniphier_ld4_pinctrl_match,
+		.pm = &uniphier_pinctrl_pm_ops,
 	},
 };
-module_platform_driver(uniphier_ld4_pinctrl_driver);
-
-MODULE_AUTHOR("Masahiro Yamada <yamada.masahiro@socionext.com>");
-MODULE_DESCRIPTION("UniPhier PH1-LD4 pinctrl driver");
-MODULE_LICENSE("GPL");
+builtin_platform_driver(uniphier_ld4_pinctrl_driver);

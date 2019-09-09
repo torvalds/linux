@@ -1,22 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2013 Emilio López
  *
  * Emilio López <emilio@elopez.com.ar>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/clkdev.h>
+#include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/reset-controller.h>
@@ -373,7 +365,7 @@ static void sun4i_get_apb1_factors(struct factors_request *req)
 	else
 		calcp = 3;
 
-	calcm = (req->parent_rate >> calcp) - 1;
+	calcm = (div >> calcp) - 1;
 
 	req->rate = (req->parent_rate >> calcp) / (calcm + 1);
 	req->m = calcm;
@@ -568,8 +560,8 @@ static struct clk * __init sunxi_factors_clk_setup(struct device_node *node,
 
 	reg = of_iomap(node, 0);
 	if (!reg) {
-		pr_err("Could not get registers for factors-clk: %s\n",
-		       node->name);
+		pr_err("Could not get registers for factors-clk: %pOFn\n",
+		       node);
 		return NULL;
 	}
 
@@ -656,7 +648,8 @@ static const struct mux_data sun8i_h3_ahb2_mux_data __initconst = {
 };
 
 static struct clk * __init sunxi_mux_clk_setup(struct device_node *node,
-					       const struct mux_data *data)
+					       const struct mux_data *data,
+					       unsigned long flags)
 {
 	struct clk *clk;
 	const char *clk_name = node->name;
@@ -666,20 +659,19 @@ static struct clk * __init sunxi_mux_clk_setup(struct device_node *node,
 
 	reg = of_iomap(node, 0);
 	if (!reg) {
-		pr_err("Could not map registers for mux-clk: %s\n",
-		       of_node_full_name(node));
+		pr_err("Could not map registers for mux-clk: %pOF\n", node);
 		return NULL;
 	}
 
 	i = of_clk_parent_fill(node, parents, SUNXI_MAX_PARENTS);
 	if (of_property_read_string(node, "clock-output-names", &clk_name)) {
-		pr_err("%s: could not read clock-output-names from \"%s\"\n",
-		       __func__, of_node_full_name(node));
+		pr_err("%s: could not read clock-output-names from \"%pOF\"\n",
+		       __func__, node);
 		goto out_unmap;
 	}
 
 	clk = clk_register_mux(NULL, clk_name, parents, i,
-			       CLK_SET_RATE_PARENT, reg,
+			       CLK_SET_RATE_PARENT | flags, reg,
 			       data->shift, SUNXI_MUX_GATE_WIDTH,
 			       0, &clk_lock);
 
@@ -704,29 +696,22 @@ out_unmap:
 
 static void __init sun4i_cpu_clk_setup(struct device_node *node)
 {
-	struct clk *clk;
-
-	clk = sunxi_mux_clk_setup(node, &sun4i_cpu_mux_data);
-	if (!clk)
-		return;
-
 	/* Protect CPU clock */
-	__clk_get(clk);
-	clk_prepare_enable(clk);
+	sunxi_mux_clk_setup(node, &sun4i_cpu_mux_data, CLK_IS_CRITICAL);
 }
 CLK_OF_DECLARE(sun4i_cpu, "allwinner,sun4i-a10-cpu-clk",
 	       sun4i_cpu_clk_setup);
 
 static void __init sun6i_ahb1_mux_clk_setup(struct device_node *node)
 {
-	sunxi_mux_clk_setup(node, &sun6i_a31_ahb1_mux_data);
+	sunxi_mux_clk_setup(node, &sun6i_a31_ahb1_mux_data, 0);
 }
 CLK_OF_DECLARE(sun6i_ahb1_mux, "allwinner,sun6i-a31-ahb1-mux-clk",
 	       sun6i_ahb1_mux_clk_setup);
 
 static void __init sun8i_ahb2_clk_setup(struct device_node *node)
 {
-	sunxi_mux_clk_setup(node, &sun8i_h3_ahb2_mux_data);
+	sunxi_mux_clk_setup(node, &sun8i_h3_ahb2_mux_data, 0);
 }
 CLK_OF_DECLARE(sun8i_ahb2, "allwinner,sun8i-h3-ahb2-clk",
 	       sun8i_ahb2_clk_setup);
@@ -797,16 +782,15 @@ static void __init sunxi_divider_clk_setup(struct device_node *node,
 
 	reg = of_iomap(node, 0);
 	if (!reg) {
-		pr_err("Could not map registers for mux-clk: %s\n",
-		       of_node_full_name(node));
+		pr_err("Could not map registers for mux-clk: %pOF\n", node);
 		return;
 	}
 
 	clk_parent = of_clk_get_parent_name(node, 0);
 
 	if (of_property_read_string(node, "clock-output-names", &clk_name)) {
-		pr_err("%s: could not read clock-output-names from \"%s\"\n",
-		       __func__, of_node_full_name(node));
+		pr_err("%s: could not read clock-output-names from \"%pOF\"\n",
+		       __func__, node);
 		goto out_unmap;
 	}
 
@@ -902,6 +886,7 @@ struct divs_data {
 		u8 shift; /* otherwise it's a normal divisor with this shift */
 		u8 pow;   /* is it power-of-two based? */
 		u8 gate;  /* is it independently gateable? */
+		bool critical;
 	} div[SUNXI_DIVS_MAX_QTY];
 };
 
@@ -917,7 +902,8 @@ static const struct divs_data pll5_divs_data __initconst = {
 	.factors = &sun4i_pll5_data,
 	.ndivs = 2,
 	.div = {
-		{ .shift = 0, .pow = 0, }, /* M, DDR */
+		/* Protect PLL5_DDR */
+		{ .shift = 0, .pow = 0, .critical = true }, /* M, DDR */
 		{ .shift = 16, .pow = 1, }, /* P, other */
 		/* No output for the base factor clock */
 	}
@@ -994,6 +980,8 @@ static struct clk ** __init sunxi_divs_clk_setup(struct device_node *node,
 		if (endp) {
 			derived_name = kstrndup(clk_name, endp - clk_name,
 						GFP_KERNEL);
+			if (!derived_name)
+				return NULL;
 			factors.name = derived_name;
 		} else {
 			factors.name = clk_name;
@@ -1010,8 +998,7 @@ static struct clk ** __init sunxi_divs_clk_setup(struct device_node *node,
 
 	reg = of_iomap(node, 0);
 	if (!reg) {
-		pr_err("Could not map registers for divs-clk: %s\n",
-		       of_node_full_name(node));
+		pr_err("Could not map registers for divs-clk: %pOF\n", node);
 		return NULL;
 	}
 
@@ -1092,7 +1079,9 @@ static struct clk ** __init sunxi_divs_clk_setup(struct device_node *node,
 						 NULL, NULL,
 						 rate_hw, rate_ops,
 						 gate_hw, &clk_gate_ops,
-						 clkflags);
+						 clkflags |
+						 data->div[i].critical ?
+							CLK_IS_CRITICAL : 0);
 
 		WARN_ON(IS_ERR(clk_data->clks[i]));
 	}
@@ -1120,15 +1109,7 @@ out_unmap:
 
 static void __init sun4i_pll5_clk_setup(struct device_node *node)
 {
-	struct clk **clks;
-
-	clks = sunxi_divs_clk_setup(node, &pll5_divs_data);
-	if (!clks)
-		return;
-
-	/* Protect PLL5_DDR */
-	__clk_get(clks[0]);
-	clk_prepare_enable(clks[0]);
+	sunxi_divs_clk_setup(node, &pll5_divs_data);
 }
 CLK_OF_DECLARE(sun4i_pll5, "allwinner,sun4i-a10-pll5-clk",
 	       sun4i_pll5_clk_setup);

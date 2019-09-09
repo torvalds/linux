@@ -1,66 +1,85 @@
-FILES=					\
-	test-all.bin			\
-	test-backtrace.bin		\
-	test-bionic.bin			\
-	test-dwarf.bin			\
-	test-dwarf_getlocations.bin	\
-	test-fortify-source.bin		\
-	test-sync-compare-and-swap.bin	\
-	test-glibc.bin			\
-	test-gtk2.bin			\
-	test-gtk2-infobar.bin		\
-	test-hello.bin			\
-	test-libaudit.bin		\
-	test-libbfd.bin			\
-	test-liberty.bin		\
-	test-liberty-z.bin		\
-	test-cplus-demangle.bin		\
-	test-libelf.bin			\
-	test-libelf-getphdrnum.bin	\
-	test-libelf-gelf_getnote.bin	\
-	test-libelf-getshdrstrndx.bin	\
-	test-libelf-mmap.bin		\
-	test-libnuma.bin		\
-	test-numa_num_possible_cpus.bin	\
-	test-libperl.bin		\
-	test-libpython.bin		\
-	test-libpython-version.bin	\
-	test-libslang.bin		\
-	test-libcrypto.bin		\
-	test-libunwind.bin		\
-	test-libunwind-debug-frame.bin	\
-	test-libunwind-x86.bin		\
-	test-libunwind-x86_64.bin	\
-	test-libunwind-arm.bin		\
-	test-libunwind-aarch64.bin	\
-	test-libunwind-debug-frame-arm.bin	\
-	test-libunwind-debug-frame-aarch64.bin	\
-	test-pthread-attr-setaffinity-np.bin	\
-	test-stackprotector-all.bin	\
-	test-timerfd.bin		\
-	test-libdw-dwarf-unwind.bin	\
-	test-libbabeltrace.bin		\
-	test-compile-32.bin		\
-	test-compile-x32.bin		\
-	test-zlib.bin			\
-	test-lzma.bin			\
-	test-bpf.bin			\
-	test-get_cpuid.bin		\
-	test-sdt.bin			\
-	test-cxx.bin
+# SPDX-License-Identifier: GPL-2.0
+FILES=                                          \
+         test-all.bin                           \
+         test-backtrace.bin                     \
+         test-bionic.bin                        \
+         test-dwarf.bin                         \
+         test-dwarf_getlocations.bin            \
+         test-eventfd.bin                       \
+         test-fortify-source.bin                \
+         test-sync-compare-and-swap.bin         \
+         test-get_current_dir_name.bin          \
+         test-glibc.bin                         \
+         test-gtk2.bin                          \
+         test-gtk2-infobar.bin                  \
+         test-hello.bin                         \
+         test-libaudit.bin                      \
+         test-libbfd.bin                        \
+         test-disassembler-four-args.bin        \
+         test-reallocarray.bin			\
+         test-libbfd-liberty.bin                \
+         test-libbfd-liberty-z.bin              \
+         test-cplus-demangle.bin                \
+         test-libelf.bin                        \
+         test-libelf-getphdrnum.bin             \
+         test-libelf-gelf_getnote.bin           \
+         test-libelf-getshdrstrndx.bin          \
+         test-libelf-mmap.bin                   \
+         test-libnuma.bin                       \
+         test-numa_num_possible_cpus.bin        \
+         test-libperl.bin                       \
+         test-libpython.bin                     \
+         test-libpython-version.bin             \
+         test-libslang.bin                      \
+         test-libslang-include-subdir.bin       \
+         test-libcrypto.bin                     \
+         test-libunwind.bin                     \
+         test-libunwind-debug-frame.bin         \
+         test-libunwind-x86.bin                 \
+         test-libunwind-x86_64.bin              \
+         test-libunwind-arm.bin                 \
+         test-libunwind-aarch64.bin             \
+         test-libunwind-debug-frame-arm.bin     \
+         test-libunwind-debug-frame-aarch64.bin \
+         test-pthread-attr-setaffinity-np.bin   \
+         test-pthread-barrier.bin		\
+         test-stackprotector-all.bin            \
+         test-timerfd.bin                       \
+         test-libdw-dwarf-unwind.bin            \
+         test-libbabeltrace.bin                 \
+         test-compile-32.bin                    \
+         test-compile-x32.bin                   \
+         test-zlib.bin                          \
+         test-lzma.bin                          \
+         test-bpf.bin                           \
+         test-get_cpuid.bin                     \
+         test-sdt.bin                           \
+         test-cxx.bin                           \
+         test-gettid.bin			\
+         test-jvmti.bin				\
+         test-jvmti-cmlr.bin			\
+         test-sched_getcpu.bin			\
+         test-setns.bin				\
+         test-libopencsd.bin			\
+         test-clang.bin				\
+         test-llvm.bin				\
+         test-llvm-version.bin			\
+         test-libaio.bin			\
+         test-libzstd.bin
 
 FILES := $(addprefix $(OUTPUT),$(FILES))
 
-CC := $(CROSS_COMPILE)gcc -MD
-CXX := $(CROSS_COMPILE)g++ -MD
-PKG_CONFIG := $(CROSS_COMPILE)pkg-config
+CC ?= $(CROSS_COMPILE)gcc
+CXX ?= $(CROSS_COMPILE)g++
+PKG_CONFIG ?= $(CROSS_COMPILE)pkg-config
+LLVM_CONFIG ?= llvm-config
 
 all: $(FILES)
 
-__BUILD = $(CC) $(CFLAGS) -Wall -Werror -o $@ $(patsubst %.bin,%.c,$(@F)) $(LDFLAGS)
+__BUILD = $(CC) $(CFLAGS) -MD -Wall -Werror -o $@ $(patsubst %.bin,%.c,$(@F)) $(LDFLAGS)
   BUILD = $(__BUILD) > $(@:.bin=.make.output) 2>&1
 
-__BUILDXX = $(CXX) $(CXXFLAGS) -Wall -Werror -o $@ $(patsubst %.bin,%.cpp,$(@F)) $(LDFLAGS)
+__BUILDXX = $(CXX) $(CXXFLAGS) -MD -Wall -Werror -o $@ $(patsubst %.bin,%.cpp,$(@F)) $(LDFLAGS)
   BUILDXX = $(__BUILDXX) > $(@:.bin=.make.output) 2>&1
 
 ###############################
@@ -74,6 +93,9 @@ $(OUTPUT)test-hello.bin:
 $(OUTPUT)test-pthread-attr-setaffinity-np.bin:
 	$(BUILD) -D_GNU_SOURCE -lpthread
 
+$(OUTPUT)test-pthread-barrier.bin:
+	$(BUILD) -lpthread
+
 $(OUTPUT)test-stackprotector-all.bin:
 	$(BUILD) -fstack-protector-all
 
@@ -86,8 +108,24 @@ $(OUTPUT)test-bionic.bin:
 $(OUTPUT)test-libelf.bin:
 	$(BUILD) -lelf
 
+$(OUTPUT)test-eventfd.bin:
+	$(BUILD)
+
+$(OUTPUT)test-get_current_dir_name.bin:
+	$(BUILD)
+
 $(OUTPUT)test-glibc.bin:
 	$(BUILD)
+
+$(OUTPUT)test-sched_getcpu.bin:
+	$(BUILD)
+
+$(OUTPUT)test-setns.bin:
+	$(BUILD)
+
+$(OUTPUT)test-libopencsd.bin:
+	$(BUILD) # -lopencsd_c_api -lopencsd provided by
+		 # $(FEATURE_CHECK_LDFLAGS-libopencsd)
 
 DWARFLIBS := -ldw
 ifeq ($(findstring -static,${LDFLAGS}),-static)
@@ -145,7 +183,10 @@ $(OUTPUT)test-libaudit.bin:
 	$(BUILD) -laudit
 
 $(OUTPUT)test-libslang.bin:
-	$(BUILD) -I/usr/include/slang -lslang
+	$(BUILD) -lslang
+
+$(OUTPUT)test-libslang-include-subdir.bin:
+	$(BUILD) -lslang
 
 $(OUTPUT)test-libcrypto.bin:
 	$(BUILD) -lcrypto
@@ -169,18 +210,24 @@ $(OUTPUT)test-libperl.bin:
 	$(BUILD) $(FLAGS_PERL_EMBED)
 
 $(OUTPUT)test-libpython.bin:
-	$(BUILD)
+	$(BUILD) $(FLAGS_PYTHON_EMBED)
 
 $(OUTPUT)test-libpython-version.bin:
 	$(BUILD)
 
 $(OUTPUT)test-libbfd.bin:
-	$(BUILD) -DPACKAGE='"perf"' -lbfd -lz -liberty -ldl
+	$(BUILD) -DPACKAGE='"perf"' -lbfd -ldl
 
-$(OUTPUT)test-liberty.bin:
+$(OUTPUT)test-disassembler-four-args.bin:
+	$(BUILD) -DPACKAGE='"perf"' -lbfd -lopcodes
+
+$(OUTPUT)test-reallocarray.bin:
+	$(BUILD)
+
+$(OUTPUT)test-libbfd-liberty.bin:
 	$(CC) $(CFLAGS) -Wall -Werror -o $@ test-libbfd.c -DPACKAGE='"perf"' $(LDFLAGS) -lbfd -ldl -liberty
 
-$(OUTPUT)test-liberty-z.bin:
+$(OUTPUT)test-libbfd-liberty-z.bin:
 	$(CC) $(CFLAGS) -Wall -Werror -o $@ test-libbfd.c -DPACKAGE='"perf"' $(LDFLAGS) -lbfd -ldl -liberty -lz
 
 $(OUTPUT)test-cplus-demangle.bin:
@@ -225,7 +272,46 @@ $(OUTPUT)test-sdt.bin:
 $(OUTPUT)test-cxx.bin:
 	$(BUILDXX) -std=gnu++11
 
+$(OUTPUT)test-gettid.bin:
+	$(BUILD)
+
+$(OUTPUT)test-jvmti.bin:
+	$(BUILD)
+
+$(OUTPUT)test-jvmti-cmlr.bin:
+	$(BUILD)
+
+$(OUTPUT)test-llvm.bin:
+	$(BUILDXX) -std=gnu++11 				\
+		-I$(shell $(LLVM_CONFIG) --includedir) 		\
+		-L$(shell $(LLVM_CONFIG) --libdir)		\
+		$(shell $(LLVM_CONFIG) --libs Core BPF)		\
+		$(shell $(LLVM_CONFIG) --system-libs)		\
+		> $(@:.bin=.make.output) 2>&1
+
+$(OUTPUT)test-llvm-version.bin:
+	$(BUILDXX) -std=gnu++11 				\
+		-I$(shell $(LLVM_CONFIG) --includedir)		\
+		> $(@:.bin=.make.output) 2>&1
+
+$(OUTPUT)test-clang.bin:
+	$(BUILDXX) -std=gnu++11 				\
+		-I$(shell $(LLVM_CONFIG) --includedir) 		\
+		-L$(shell $(LLVM_CONFIG) --libdir)		\
+		-Wl,--start-group -lclangBasic -lclangDriver	\
+		  -lclangFrontend -lclangEdit -lclangLex	\
+		  -lclangAST -Wl,--end-group 			\
+		$(shell $(LLVM_CONFIG) --libs Core option)	\
+		$(shell $(LLVM_CONFIG) --system-libs)		\
+		> $(@:.bin=.make.output) 2>&1
+
 -include $(OUTPUT)*.d
+
+$(OUTPUT)test-libaio.bin:
+	$(BUILD) -lrt
+
+$(OUTPUT)test-libzstd.bin:
+	$(BUILD) -lzstd
 
 ###############################
 

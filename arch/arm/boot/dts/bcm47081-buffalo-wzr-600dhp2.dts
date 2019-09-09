@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
 /*
  * Broadcom BCM470X / BCM5301X ARM platform code.
  * DTS for Buffalo WZR-600DHP2
  *
  * Copyright (C) 2014 Rafał Miłecki <zajec5@gmail.com>
- *
- * Licensed under the GNU/GPL. See COPYING for details.
  */
 
 /dts-v1/;
@@ -20,8 +19,10 @@
 		bootargs = "console=ttyS0,115200 earlycon";
 	};
 
-	memory {
-		reg = <0x00000000 0x08000000>;
+	memory@0 {
+		device_type = "memory";
+		reg = <0x00000000 0x08000000
+		       0x88000000 0x08000000>;
 	};
 
 	spi {
@@ -57,7 +58,6 @@
 		power1 {
 			label = "bcm53xx:red:power";
 			gpios = <&hc595 2 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "default-off";
 		};
 
 		router0 {
@@ -69,7 +69,6 @@
 		router1 {
 			label = "bcm53xx:amber:router";
 			gpios = <&hc595 4 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "default-off";
 		};
 
 		wan {
@@ -81,20 +80,16 @@
 		wireless0 {
 			label = "bcm53xx:green:wireless";
 			gpios = <&hc595 6 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "default-off";
 		};
 
 		wireless1 {
 			label = "bcm53xx:amber:wireless";
 			gpios = <&hc595 7 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "default-off";
 		};
 	};
 
 	gpio-keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 
 		aoss {
 			label = "AOSS";
@@ -123,6 +118,6 @@
 	};
 };
 
-&uart0 {
+&usb3_phy {
 	status = "okay";
 };

@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /******************************************************************************
  *
  *	(C)Copyright 1998,1999 SysKonnect,
  *	a business unit of Schneider & Koch & Co. Datensysteme GmbH.
  *
  *	See the file "skfddi.c" for further information.
- *
- *	This program is free software; you can redistribute it and/or modify
- *	it under the terms of the GNU General Public License as published by
- *	the Free Software Foundation; either version 2 of the License, or
- *	(at your option) any later version.
  *
  *	The information in this file is provided "AS IS" without warranty.
  *
@@ -70,7 +66,6 @@ static const char ID_sccs[] = "@(#)rmt.c	2.13 99/07/02 (C) SK " ;
 #define RM6_DIRECTED	6		/* sending directed beacons */
 #define RM7_TRACE	7		/* trace initiated */
 
-#ifdef	DEBUG
 /*
  * symbolic state names
  */
@@ -91,7 +86,6 @@ static const char * const rmt_events[] = {
 	"RM_TIMEOUT_ANNOUNCE","RM_TIMEOUT_T_DIRECT",
 	"RM_TIMEOUT_D_MAX","RM_TIMEOUT_POLL","RM_TX_STATE_CHANGE"
 } ;
-#endif
 
 /*
  * Globals
@@ -149,10 +143,10 @@ void rmt(struct s_smc *smc, int event)
 	int	state ;
 
 	do {
-		DB_RMT("RMT : state %s%s",
-			(smc->mib.m[MAC0].fddiMACRMTState & AFLAG) ? "ACTIONS " : "",
-			rmt_states[smc->mib.m[MAC0].fddiMACRMTState & ~AFLAG]) ;
-		DB_RMT(" event %s\n",rmt_events[event],0) ;
+		DB_RMT("RMT : state %s%s event %s",
+		       smc->mib.m[MAC0].fddiMACRMTState & AFLAG ? "ACTIONS " : "",
+		       rmt_states[smc->mib.m[MAC0].fddiMACRMTState & ~AFLAG],
+		       rmt_events[event]);
 		state = smc->mib.m[MAC0].fddiMACRMTState ;
 		rmt_fsm(smc,event) ;
 		event = 0 ;
@@ -191,7 +185,7 @@ static void rmt_fsm(struct s_smc *smc, int cmd)
 		smc->r.loop_avail = FALSE ;
 		smc->r.sm_ma_avail = FALSE ;
 		smc->r.no_flag = TRUE ;
-		DB_RMTN(1,"RMT : ISOLATED\n",0,0) ;
+		DB_RMTN(1, "RMT : ISOLATED");
 		ACTIONS_DONE() ;
 		break ;
 	case RM0_ISOLATED :
@@ -213,7 +207,7 @@ static void rmt_fsm(struct s_smc *smc, int cmd)
 		stop_rmt_timer1(smc) ;
 		stop_rmt_timer2(smc) ;
 		sm_ma_control(smc,MA_BEACON) ;
-		DB_RMTN(1,"RMT : RING DOWN\n",0,0) ;
+		DB_RMTN(1, "RMT : RING DOWN");
 		RS_SET(smc,RS_NORINGOP) ;
 		smc->r.sm_ma_avail = FALSE ;
 		rmt_indication(smc,0) ;
@@ -248,7 +242,7 @@ static void rmt_fsm(struct s_smc *smc, int cmd)
 				else
 			smc->mib.m[MAC0].fddiMACMA_UnitdataAvailable = FALSE ;
 		}
-		DB_RMTN(1,"RMT : RING UP\n",0,0) ;
+		DB_RMTN(1, "RMT : RING UP");
 		RS_CLEAR(smc,RS_NORINGOP) ;
 		RS_SET(smc,RS_RINGOPCHANGE) ;
 		rmt_indication(smc,1) ;
@@ -285,7 +279,7 @@ static void rmt_fsm(struct s_smc *smc, int cmd)
 		start_rmt_timer1(smc,smc->s.rmt_t_stuck,RM_TIMEOUT_T_STUCK) ;
 		start_rmt_timer2(smc,smc->s.rmt_t_poll,RM_TIMEOUT_POLL) ;
 		sm_mac_check_beacon_claim(smc) ;
-		DB_RMTN(1,"RMT : RM3_DETECT\n",0,0) ;
+		DB_RMTN(1, "RMT : RM3_DETECT");
 		ACTIONS_DONE() ;
 		break ;
 	case RM3_DETECT :
@@ -327,7 +321,7 @@ static void rmt_fsm(struct s_smc *smc, int cmd)
 			 * trace !
 			 */
 			if ((tx =  sm_mac_get_tx_state(smc)) == 4 || tx == 5) {
-			DB_RMTN(2,"RMT : DETECT && TRT_EXPIRED && T4/T5\n",0,0);
+			DB_RMTN(2, "RMT : DETECT && TRT_EXPIRED && T4/T5");
 				smc->r.bn_flag = TRUE ;
 				/*
 				 * If one of the upstream stations beaconed
@@ -344,9 +338,8 @@ static void rmt_fsm(struct s_smc *smc, int cmd)
 			 * must be cleared in order to get in this condition.
 			 */
 
-			DB_RMTN(2,
-			"RMT : sm_mac_get_tx_state() = %d (bn_flag = %d)\n",
-			tx,smc->r.bn_flag) ;
+			DB_RMTN(2, "RMT : sm_mac_get_tx_state() = %d (bn_flag = %d)",
+				tx, smc->r.bn_flag);
 		}
 		/*RM34a*/
 		else if (cmd == RM_MY_CLAIM && smc->r.timer0_exp) {
@@ -378,7 +371,7 @@ static void rmt_fsm(struct s_smc *smc, int cmd)
 		start_rmt_timer1(smc,smc->s.rmt_t_stuck,RM_TIMEOUT_T_STUCK) ;
 		start_rmt_timer2(smc,smc->s.rmt_t_poll,RM_TIMEOUT_POLL) ;
 		sm_mac_check_beacon_claim(smc) ;
-		DB_RMTN(1,"RMT : RM4_NON_OP_DUP\n",0,0) ;
+		DB_RMTN(1, "RMT : RM4_NON_OP_DUP");
 		ACTIONS_DONE() ;
 		break ;
 	case RM4_NON_OP_DUP :
@@ -406,7 +399,7 @@ static void rmt_fsm(struct s_smc *smc, int cmd)
 			 * trace !
 			 */
 			if ((tx =  sm_mac_get_tx_state(smc)) == 4 || tx == 5) {
-			DB_RMTN(2,"RMT : NOPDUP && TRT_EXPIRED && T4/T5\n",0,0);
+			DB_RMTN(2, "RMT : NOPDUP && TRT_EXPIRED && T4/T5");
 				smc->r.bn_flag = TRUE ;
 				/*
 				 * If one of the upstream stations beaconed
@@ -423,9 +416,8 @@ static void rmt_fsm(struct s_smc *smc, int cmd)
 			 * must be cleared in order to get in this condition.
 			 */
 
-			DB_RMTN(2,
-			"RMT : sm_mac_get_tx_state() = %d (bn_flag = %d)\n",
-			tx,smc->r.bn_flag) ;
+			DB_RMTN(2, "RMT : sm_mac_get_tx_state() = %d (bn_flag = %d)",
+				tx, smc->r.bn_flag);
 		}
 		/*RM44c*/
 		else if (cmd == RM_TIMEOUT_ANNOUNCE && !smc->r.bn_flag) {
@@ -448,7 +440,7 @@ static void rmt_fsm(struct s_smc *smc, int cmd)
 		stop_rmt_timer0(smc) ;
 		stop_rmt_timer1(smc) ;
 		stop_rmt_timer2(smc) ;
-		DB_RMTN(1,"RMT : RM5_RING_OP_DUP\n",0,0) ;
+		DB_RMTN(1, "RMT : RM5_RING_OP_DUP");
 		ACTIONS_DONE() ;
 		break;
 	case RM5_RING_OP_DUP :
@@ -472,7 +464,7 @@ static void rmt_fsm(struct s_smc *smc, int cmd)
 		start_rmt_timer2(smc,smc->s.rmt_t_poll,RM_TIMEOUT_POLL) ;
 		sm_ma_control(smc,MA_DIRECTED) ;
 		RS_SET(smc,RS_BEACON) ;
-		DB_RMTN(1,"RMT : RM6_DIRECTED\n",0,0) ;
+		DB_RMTN(1, "RMT : RM6_DIRECTED");
 		ACTIONS_DONE() ;
 		break ;
 	case RM6_DIRECTED :
@@ -515,7 +507,7 @@ static void rmt_fsm(struct s_smc *smc, int cmd)
 		stop_rmt_timer2(smc) ;
 		smc->e.trace_prop |= ENTITY_BIT(ENTITY_MAC) ;
 		queue_event(smc,EVENT_ECM,EC_TRACE_PROP) ;
-		DB_RMTN(1,"RMT : RM7_TRACE\n",0,0) ;
+		DB_RMTN(1, "RMT : RM7_TRACE");
 		ACTIONS_DONE() ;
 		break ;
 	case RM7_TRACE :

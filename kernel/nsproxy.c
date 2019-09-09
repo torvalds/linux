@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Copyright (C) 2006 IBM Corporation
  *
  *  Author: Serge Hallyn <serue@us.ibm.com>
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License as
- *  published by the Free Software Foundation, version 2 of the
- *  License.
  *
  *  Jun 2006 - namespaces support
  *             OpenVZ, SWsoft Inc.
@@ -26,6 +22,7 @@
 #include <linux/file.h>
 #include <linux/syscalls.h>
 #include <linux/cgroup.h>
+#include <linux/perf_event.h>
 
 static struct kmem_cache *nsproxy_cachep;
 
@@ -262,6 +259,8 @@ SYSCALL_DEFINE2(setns, int, fd, int, nstype)
 		goto out;
 	}
 	switch_task_namespaces(tsk, new_nsproxy);
+
+	perf_event_namespaces(tsk);
 out:
 	fput(file);
 	return err;

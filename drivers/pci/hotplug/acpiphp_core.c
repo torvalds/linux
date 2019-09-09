@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * ACPI PCI Hot Plug Controller Driver
  *
@@ -7,25 +8,10 @@
  * Copyright (C) 2002 Hiroshi Aono (h-aono@ap.jp.nec.com)
  * Copyright (C) 2002,2003 Takayoshi Kochi (t-kochi@bq.jp.nec.com)
  * Copyright (C) 2002,2003 NEC Corporation
- * Copyright (C) 2003-2005 Matthew Wilcox (matthew.wilcox@hp.com)
+ * Copyright (C) 2003-2005 Matthew Wilcox (willy@infradead.org)
  * Copyright (C) 2003-2005 Hewlett Packard
  *
  * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or (at
- * your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
- * NON INFRINGEMENT.  See the GNU General Public License for more
- * details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  * Send feedback to <kristen.c.accardi@intel.com>
  *
@@ -54,7 +40,7 @@ bool acpiphp_disabled;
 static struct acpiphp_attention_info *attention_info;
 
 #define DRIVER_VERSION	"0.5"
-#define DRIVER_AUTHOR	"Greg Kroah-Hartman <gregkh@us.ibm.com>, Takayoshi Kochi <t-kochi@bq.jp.nec.com>, Matthew Wilcox <willy@hp.com>"
+#define DRIVER_AUTHOR	"Greg Kroah-Hartman <gregkh@us.ibm.com>, Takayoshi Kochi <t-kochi@bq.jp.nec.com>, Matthew Wilcox <willy@infradead.org>"
 #define DRIVER_DESC	"ACPI Hot Plug PCI Controller Driver"
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
@@ -71,7 +57,7 @@ static int get_attention_status(struct hotplug_slot *slot, u8 *value);
 static int get_latch_status(struct hotplug_slot *slot, u8 *value);
 static int get_adapter_status(struct hotplug_slot *slot, u8 *value);
 
-static struct hotplug_slot_ops acpi_hotplug_slot_ops = {
+static const struct hotplug_slot_ops acpi_hotplug_slot_ops = {
 	.enable_slot		= enable_slot,
 	.disable_slot		= disable_slot,
 	.set_attention_status	= set_attention_status,
@@ -132,7 +118,7 @@ EXPORT_SYMBOL_GPL(acpiphp_unregister_attention);
  */
 static int enable_slot(struct hotplug_slot *hotplug_slot)
 {
-	struct slot *slot = hotplug_slot->private;
+	struct slot *slot = to_slot(hotplug_slot);
 
 	pr_debug("%s - physical_slot = %s\n", __func__, slot_name(slot));
 
@@ -149,7 +135,7 @@ static int enable_slot(struct hotplug_slot *hotplug_slot)
  */
 static int disable_slot(struct hotplug_slot *hotplug_slot)
 {
-	struct slot *slot = hotplug_slot->private;
+	struct slot *slot = to_slot(hotplug_slot);
 
 	pr_debug("%s - physical_slot = %s\n", __func__, slot_name(slot));
 
@@ -193,7 +179,7 @@ static int set_attention_status(struct hotplug_slot *hotplug_slot, u8 status)
  */
 static int get_power_status(struct hotplug_slot *hotplug_slot, u8 *value)
 {
-	struct slot *slot = hotplug_slot->private;
+	struct slot *slot = to_slot(hotplug_slot);
 
 	pr_debug("%s - physical_slot = %s\n", __func__, slot_name(slot));
 
@@ -239,7 +225,7 @@ static int get_attention_status(struct hotplug_slot *hotplug_slot, u8 *value)
  */
 static int get_latch_status(struct hotplug_slot *hotplug_slot, u8 *value)
 {
-	struct slot *slot = hotplug_slot->private;
+	struct slot *slot = to_slot(hotplug_slot);
 
 	pr_debug("%s - physical_slot = %s\n", __func__, slot_name(slot));
 
@@ -259,27 +245,13 @@ static int get_latch_status(struct hotplug_slot *hotplug_slot, u8 *value)
  */
 static int get_adapter_status(struct hotplug_slot *hotplug_slot, u8 *value)
 {
-	struct slot *slot = hotplug_slot->private;
+	struct slot *slot = to_slot(hotplug_slot);
 
 	pr_debug("%s - physical_slot = %s\n", __func__, slot_name(slot));
 
 	*value = acpiphp_get_adapter_status(slot->acpi_slot);
 
 	return 0;
-}
-
-/**
- * release_slot - free up the memory used by a slot
- * @hotplug_slot: slot to free
- */
-static void release_slot(struct hotplug_slot *hotplug_slot)
-{
-	struct slot *slot = hotplug_slot->private;
-
-	pr_debug("%s - physical_slot = %s\n", __func__, slot_name(slot));
-
-	kfree(slot->hotplug_slot);
-	kfree(slot);
 }
 
 /* callback routine to initialize 'struct slot' for each slot */
@@ -294,40 +266,26 @@ int acpiphp_register_hotplug_slot(struct acpiphp_slot *acpiphp_slot,
 	if (!slot)
 		goto error;
 
-	slot->hotplug_slot = kzalloc(sizeof(*slot->hotplug_slot), GFP_KERNEL);
-	if (!slot->hotplug_slot)
-		goto error_slot;
-
-	slot->hotplug_slot->info = &slot->info;
-
-	slot->hotplug_slot->private = slot;
-	slot->hotplug_slot->release = &release_slot;
-	slot->hotplug_slot->ops = &acpi_hotplug_slot_ops;
+	slot->hotplug_slot.ops = &acpi_hotplug_slot_ops;
 
 	slot->acpi_slot = acpiphp_slot;
-	slot->hotplug_slot->info->power_status = acpiphp_get_power_status(slot->acpi_slot);
-	slot->hotplug_slot->info->attention_status = 0;
-	slot->hotplug_slot->info->latch_status = acpiphp_get_latch_status(slot->acpi_slot);
-	slot->hotplug_slot->info->adapter_status = acpiphp_get_adapter_status(slot->acpi_slot);
 
 	acpiphp_slot->slot = slot;
 	slot->sun = sun;
 	snprintf(name, SLOT_NAME_SIZE, "%u", sun);
 
-	retval = pci_hp_register(slot->hotplug_slot, acpiphp_slot->bus,
+	retval = pci_hp_register(&slot->hotplug_slot, acpiphp_slot->bus,
 				 acpiphp_slot->device, name);
 	if (retval == -EBUSY)
-		goto error_hpslot;
+		goto error_slot;
 	if (retval) {
 		pr_err("pci_hp_register failed with error %d\n", retval);
-		goto error_hpslot;
+		goto error_slot;
 	}
 
 	pr_info("Slot [%s] registered\n", slot_name(slot));
 
 	return 0;
-error_hpslot:
-	kfree(slot->hotplug_slot);
 error_slot:
 	kfree(slot);
 error:
@@ -338,13 +296,11 @@ error:
 void acpiphp_unregister_hotplug_slot(struct acpiphp_slot *acpiphp_slot)
 {
 	struct slot *slot = acpiphp_slot->slot;
-	int retval = 0;
 
 	pr_info("Slot [%s] unregistered\n", slot_name(slot));
 
-	retval = pci_hp_deregister(slot->hotplug_slot);
-	if (retval)
-		pr_err("pci_hp_deregister failed with error %d\n", retval);
+	pci_hp_deregister(&slot->hotplug_slot);
+	kfree(slot);
 }
 
 

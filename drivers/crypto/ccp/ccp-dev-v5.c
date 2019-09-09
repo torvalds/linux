@@ -1,19 +1,17 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * AMD Cryptographic Coprocessor (CCP) driver
  *
- * Copyright (C) 2016 Advanced Micro Devices, Inc.
+ * Copyright (C) 2016,2017 Advanced Micro Devices, Inc.
  *
  * Author: Gary R Hook <gary.hook@amd.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
 #include <linux/kthread.h>
+#include <linux/debugfs.h>
 #include <linux/dma-mapping.h>
 #include <linux/interrupt.h>
 #include <linux/compiler.h>
@@ -21,6 +19,12 @@
 
 #include "ccp-dev.h"
 
+/* Allocate the requested number of contiguous LSB slots
+ * from the LSB bitmap. Look in the private range for this
+ * queue first; failing that, check the public area.
+ * If no space is available, wait around.
+ * Return: first slot number
+ */
 static u32 ccp_lsb_alloc(struct ccp_cmd_queue *cmd_q, unsigned int count)
 {
 	struct ccp_device *ccp;
@@ -50,7 +54,7 @@ static u32 ccp_lsb_alloc(struct ccp_cmd_queue *cmd_q, unsigned int count)
 			bitmap_set(ccp->lsbmap, start, count);
 
 			mutex_unlock(&ccp->sb_mutex);
-			return start * LSB_ITEM_SIZE;
+			return start;
 		}
 
 		ccp->sb_avail = 0;
@@ -63,17 +67,18 @@ static u32 ccp_lsb_alloc(struct ccp_cmd_queue *cmd_q, unsigned int count)
 	}
 }
 
+/* Free a number of LSB slots from the bitmap, starting at
+ * the indicated starting slot number.
+ */
 static void ccp_lsb_free(struct ccp_cmd_queue *cmd_q, unsigned int start,
 			 unsigned int count)
 {
-	int lsbno = start / LSB_SIZE;
-
 	if (!start)
 		return;
 
-	if (cmd_q->lsb == lsbno) {
+	if (cmd_q->lsb == start) {
 		/* An entry from the private LSB */
-		bitmap_clear(cmd_q->lsbmap, start % LSB_SIZE, count);
+		bitmap_clear(cmd_q->lsbmap, start, count);
 	} else {
 		/* From the shared LSBs */
 		struct ccp_device *ccp = cmd_q->ccp;
@@ -100,6 +105,12 @@ union ccp_function {
 		u16 rsvd:5;
 		u16 type:2;
 	} aes_xts;
+	struct {
+		u16 size:7;
+		u16 encrypt:1;
+		u16 mode:5;
+		u16 type:2;
+	} des3;
 	struct {
 		u16 rsvd1:10;
 		u16 type:4;
@@ -131,7 +142,12 @@ union ccp_function {
 #define	CCP_AES_MODE(p)		((p)->aes.mode)
 #define	CCP_AES_TYPE(p)		((p)->aes.type)
 #define	CCP_XTS_SIZE(p)		((p)->aes_xts.size)
+#define	CCP_XTS_TYPE(p)		((p)->aes_xts.type)
 #define	CCP_XTS_ENCRYPT(p)	((p)->aes_xts.encrypt)
+#define	CCP_DES3_SIZE(p)	((p)->des3.size)
+#define	CCP_DES3_ENCRYPT(p)	((p)->des3.encrypt)
+#define	CCP_DES3_MODE(p)	((p)->des3.mode)
+#define	CCP_DES3_TYPE(p)	((p)->des3.type)
 #define	CCP_SHA_TYPE(p)		((p)->sha.type)
 #define	CCP_RSA_SIZE(p)		((p)->rsa.size)
 #define	CCP_PT_BYTESWAP(p)	((p)->pt.byteswap)
@@ -214,6 +230,8 @@ static int ccp5_do_cmd(struct ccp5_desc *desc,
 	int	i;
 	int ret = 0;
 
+	cmd_q->total_ops++;
+
 	if (CCP5_CMD_SOC(desc)) {
 		CCP5_CMD_IOC(desc) = 1;
 		CCP5_CMD_SOC(desc) = 0;
@@ -243,17 +261,20 @@ static int ccp5_do_cmd(struct ccp5_desc *desc,
 		ret = wait_event_interruptible(cmd_q->int_queue,
 					       cmd_q->int_rcvd);
 		if (ret || cmd_q->cmd_error) {
+			/* Log the error and flush the queue by
+			 * moving the head pointer
+			 */
 			if (cmd_q->cmd_error)
 				ccp_log_error(cmd_q->ccp,
 					      cmd_q->cmd_error);
-			/* A version 5 device doesn't use Job IDs... */
+			iowrite32(tail, cmd_q->reg_head_lo);
 			if (!ret)
 				ret = -EIO;
 		}
 		cmd_q->int_rcvd = 0;
 	}
 
-	return 0;
+	return ret;
 }
 
 static int ccp5_perform_aes(struct ccp_op *op)
@@ -261,6 +282,8 @@ static int ccp5_perform_aes(struct ccp_op *op)
 	struct ccp5_desc desc;
 	union ccp_function function;
 	u32 key_addr = op->sb_key * LSB_ITEM_SIZE;
+
+	op->cmd_q->total_aes_ops++;
 
 	/* Zero out all the fields of the command desc */
 	memset(&desc, 0, Q_DESC_SIZE);
@@ -277,8 +300,7 @@ static int ccp5_perform_aes(struct ccp_op *op)
 	CCP_AES_ENCRYPT(&function) = op->u.aes.action;
 	CCP_AES_MODE(&function) = op->u.aes.mode;
 	CCP_AES_TYPE(&function) = op->u.aes.type;
-	if (op->u.aes.mode == CCP_AES_MODE_CFB)
-		CCP_AES_SIZE(&function) = 0x7f;
+	CCP_AES_SIZE(&function) = op->u.aes.size;
 
 	CCP5_CMD_FUNCTION(&desc) = function.raw;
 
@@ -306,6 +328,8 @@ static int ccp5_perform_xts_aes(struct ccp_op *op)
 	union ccp_function function;
 	u32 key_addr = op->sb_key * LSB_ITEM_SIZE;
 
+	op->cmd_q->total_xts_aes_ops++;
+
 	/* Zero out all the fields of the command desc */
 	memset(&desc, 0, Q_DESC_SIZE);
 
@@ -318,6 +342,7 @@ static int ccp5_perform_xts_aes(struct ccp_op *op)
 	CCP5_CMD_PROT(&desc) = 0;
 
 	function.raw = 0;
+	CCP_XTS_TYPE(&function) = op->u.xts.type;
 	CCP_XTS_ENCRYPT(&function) = op->u.xts.action;
 	CCP_XTS_SIZE(&function) = op->u.xts.unit_size;
 	CCP5_CMD_FUNCTION(&desc) = function.raw;
@@ -344,6 +369,8 @@ static int ccp5_perform_sha(struct ccp_op *op)
 {
 	struct ccp5_desc desc;
 	union ccp_function function;
+
+	op->cmd_q->total_sha_ops++;
 
 	/* Zero out all the fields of the command desc */
 	memset(&desc, 0, Q_DESC_SIZE);
@@ -379,10 +406,55 @@ static int ccp5_perform_sha(struct ccp_op *op)
 	return ccp5_do_cmd(&desc, op->cmd_q);
 }
 
+static int ccp5_perform_des3(struct ccp_op *op)
+{
+	struct ccp5_desc desc;
+	union ccp_function function;
+	u32 key_addr = op->sb_key * LSB_ITEM_SIZE;
+
+	op->cmd_q->total_3des_ops++;
+
+	/* Zero out all the fields of the command desc */
+	memset(&desc, 0, sizeof(struct ccp5_desc));
+
+	CCP5_CMD_ENGINE(&desc) = CCP_ENGINE_DES3;
+
+	CCP5_CMD_SOC(&desc) = op->soc;
+	CCP5_CMD_IOC(&desc) = 1;
+	CCP5_CMD_INIT(&desc) = op->init;
+	CCP5_CMD_EOM(&desc) = op->eom;
+	CCP5_CMD_PROT(&desc) = 0;
+
+	function.raw = 0;
+	CCP_DES3_ENCRYPT(&function) = op->u.des3.action;
+	CCP_DES3_MODE(&function) = op->u.des3.mode;
+	CCP_DES3_TYPE(&function) = op->u.des3.type;
+	CCP5_CMD_FUNCTION(&desc) = function.raw;
+
+	CCP5_CMD_LEN(&desc) = op->src.u.dma.length;
+
+	CCP5_CMD_SRC_LO(&desc) = ccp_addr_lo(&op->src.u.dma);
+	CCP5_CMD_SRC_HI(&desc) = ccp_addr_hi(&op->src.u.dma);
+	CCP5_CMD_SRC_MEM(&desc) = CCP_MEMTYPE_SYSTEM;
+
+	CCP5_CMD_DST_LO(&desc) = ccp_addr_lo(&op->dst.u.dma);
+	CCP5_CMD_DST_HI(&desc) = ccp_addr_hi(&op->dst.u.dma);
+	CCP5_CMD_DST_MEM(&desc) = CCP_MEMTYPE_SYSTEM;
+
+	CCP5_CMD_KEY_LO(&desc) = lower_32_bits(key_addr);
+	CCP5_CMD_KEY_HI(&desc) = 0;
+	CCP5_CMD_KEY_MEM(&desc) = CCP_MEMTYPE_SB;
+	CCP5_CMD_LSB_ID(&desc) = op->sb_ctx;
+
+	return ccp5_do_cmd(&desc, op->cmd_q);
+}
+
 static int ccp5_perform_rsa(struct ccp_op *op)
 {
 	struct ccp5_desc desc;
 	union ccp_function function;
+
+	op->cmd_q->total_rsa_ops++;
 
 	/* Zero out all the fields of the command desc */
 	memset(&desc, 0, Q_DESC_SIZE);
@@ -396,7 +468,7 @@ static int ccp5_perform_rsa(struct ccp_op *op)
 	CCP5_CMD_PROT(&desc) = 0;
 
 	function.raw = 0;
-	CCP_RSA_SIZE(&function) = op->u.rsa.mod_size;
+	CCP_RSA_SIZE(&function) = (op->u.rsa.mod_size + 7) >> 3;
 	CCP5_CMD_FUNCTION(&desc) = function.raw;
 
 	CCP5_CMD_LEN(&desc) = op->u.rsa.input_len;
@@ -425,6 +497,9 @@ static int ccp5_perform_passthru(struct ccp_op *op)
 	union ccp_function function;
 	struct ccp_dma_info *saddr = &op->src.u.dma;
 	struct ccp_dma_info *daddr = &op->dst.u.dma;
+
+
+	op->cmd_q->total_pt_ops++;
 
 	memset(&desc, 0, Q_DESC_SIZE);
 
@@ -482,6 +557,8 @@ static int ccp5_perform_ecc(struct ccp_op *op)
 	struct ccp5_desc desc;
 	union ccp_function function;
 
+	op->cmd_q->total_ecc_ops++;
+
 	/* Zero out all the fields of the command desc */
 	memset(&desc, 0, Q_DESC_SIZE);
 
@@ -525,12 +602,11 @@ static int ccp_find_lsb_regions(struct ccp_cmd_queue *cmd_q, u64 status)
 		status >>= LSB_REGION_WIDTH;
 	}
 	queues = bitmap_weight(cmd_q->lsbmask, MAX_LSB_CNT);
-	dev_info(cmd_q->ccp->dev, "Queue %d can access %d LSB regions\n",
+	dev_dbg(cmd_q->ccp->dev, "Queue %d can access %d LSB regions\n",
 		 cmd_q->id, queues);
 
 	return queues ? 0 : -EINVAL;
 }
-
 
 static int ccp_find_and_assign_lsb_to_q(struct ccp_device *ccp,
 					int lsb_cnt, int n_lsbs,
@@ -567,7 +643,7 @@ static int ccp_find_and_assign_lsb_to_q(struct ccp_device *ccp,
 					 */
 					cmd_q->lsb = bitno;
 					bitmap_clear(lsb_pub, bitno, 1);
-					dev_info(ccp->dev,
+					dev_dbg(ccp->dev,
 						 "Queue %d gets LSB %d\n",
 						 i, bitno);
 					break;
@@ -644,19 +720,77 @@ static int ccp_assign_lsbs(struct ccp_device *ccp)
 	return rc;
 }
 
+static void ccp5_disable_queue_interrupts(struct ccp_device *ccp)
+{
+	unsigned int i;
+
+	for (i = 0; i < ccp->cmd_q_count; i++)
+		iowrite32(0x0, ccp->cmd_q[i].reg_int_enable);
+}
+
+static void ccp5_enable_queue_interrupts(struct ccp_device *ccp)
+{
+	unsigned int i;
+
+	for (i = 0; i < ccp->cmd_q_count; i++)
+		iowrite32(SUPPORTED_INTERRUPTS, ccp->cmd_q[i].reg_int_enable);
+}
+
+static void ccp5_irq_bh(unsigned long data)
+{
+	struct ccp_device *ccp = (struct ccp_device *)data;
+	u32 status;
+	unsigned int i;
+
+	for (i = 0; i < ccp->cmd_q_count; i++) {
+		struct ccp_cmd_queue *cmd_q = &ccp->cmd_q[i];
+
+		status = ioread32(cmd_q->reg_interrupt_status);
+
+		if (status) {
+			cmd_q->int_status = status;
+			cmd_q->q_status = ioread32(cmd_q->reg_status);
+			cmd_q->q_int_status = ioread32(cmd_q->reg_int_status);
+
+			/* On error, only save the first error value */
+			if ((status & INT_ERROR) && !cmd_q->cmd_error)
+				cmd_q->cmd_error = CMD_Q_ERROR(cmd_q->q_status);
+
+			cmd_q->int_rcvd = 1;
+
+			/* Acknowledge the interrupt and wake the kthread */
+			iowrite32(status, cmd_q->reg_interrupt_status);
+			wake_up_interruptible(&cmd_q->int_queue);
+		}
+	}
+	ccp5_enable_queue_interrupts(ccp);
+}
+
+static irqreturn_t ccp5_irq_handler(int irq, void *data)
+{
+	struct ccp_device *ccp = (struct ccp_device *)data;
+
+	ccp5_disable_queue_interrupts(ccp);
+	ccp->total_interrupts++;
+	if (ccp->use_tasklet)
+		tasklet_schedule(&ccp->irq_tasklet);
+	else
+		ccp5_irq_bh((unsigned long)ccp);
+	return IRQ_HANDLED;
+}
+
 static int ccp5_init(struct ccp_device *ccp)
 {
 	struct device *dev = ccp->dev;
 	struct ccp_cmd_queue *cmd_q;
 	struct dma_pool *dma_pool;
 	char dma_pool_name[MAX_DMAPOOL_NAME_LEN];
-	unsigned int qmr, qim, i;
+	unsigned int qmr, i;
 	u64 status;
 	u32 status_lo, status_hi;
 	int ret;
 
 	/* Find available queues */
-	qim = 0;
 	qmr = ioread32(ccp->io_regs + Q_MASK_REG);
 	for (i = 0; i < MAX_HW_QUEUES; i++) {
 
@@ -685,9 +819,9 @@ static int ccp5_init(struct ccp_device *ccp)
 		/* Page alignment satisfies our needs for N <= 128 */
 		BUILD_BUG_ON(COMMANDS_PER_QUEUE > 128);
 		cmd_q->qsize = Q_SIZE(Q_DESC_SIZE);
-		cmd_q->qbase = dma_zalloc_coherent(dev, cmd_q->qsize,
-						   &cmd_q->qbase_dma,
-						   GFP_KERNEL);
+		cmd_q->qbase = dma_alloc_coherent(dev, cmd_q->qsize,
+						  &cmd_q->qbase_dma,
+						  GFP_KERNEL);
 		if (!cmd_q->qbase) {
 			dev_err(dev, "unable to allocate command queue\n");
 			ret = -ENOMEM;
@@ -720,39 +854,39 @@ static int ccp5_init(struct ccp_device *ccp)
 
 		dev_dbg(dev, "queue #%u available\n", i);
 	}
+
 	if (ccp->cmd_q_count == 0) {
 		dev_notice(dev, "no command queues available\n");
 		ret = -EIO;
 		goto e_pool;
 	}
-	dev_notice(dev, "%u command queues available\n", ccp->cmd_q_count);
 
 	/* Turn off the queues and disable interrupts until ready */
+	ccp5_disable_queue_interrupts(ccp);
 	for (i = 0; i < ccp->cmd_q_count; i++) {
 		cmd_q = &ccp->cmd_q[i];
 
 		cmd_q->qcontrol = 0; /* Start with nothing */
 		iowrite32(cmd_q->qcontrol, cmd_q->reg_control);
 
-		/* Disable the interrupts */
-		iowrite32(0x00, cmd_q->reg_int_enable);
 		ioread32(cmd_q->reg_int_status);
 		ioread32(cmd_q->reg_status);
 
-		/* Clear the interrupts */
-		iowrite32(ALL_INTERRUPTS, cmd_q->reg_interrupt_status);
+		/* Clear the interrupt status */
+		iowrite32(SUPPORTED_INTERRUPTS, cmd_q->reg_interrupt_status);
 	}
 
 	dev_dbg(dev, "Requesting an IRQ...\n");
 	/* Request an irq */
-	ret = ccp->get_irq(ccp);
+	ret = sp_request_ccp_irq(ccp->sp, ccp5_irq_handler, ccp->name, ccp);
 	if (ret) {
 		dev_err(dev, "unable to allocate an IRQ\n");
 		goto e_pool;
 	}
-
-	/* Initialize the queue used to suspend */
-	init_waitqueue_head(&ccp->suspend_queue);
+	/* Initialize the ISR tasklet */
+	if (ccp->use_tasklet)
+		tasklet_init(&ccp->irq_tasklet, ccp5_irq_bh,
+			     (unsigned long)ccp);
 
 	dev_dbg(dev, "Loading LSB map...\n");
 	/* Copy the private LSB mask to the public registers */
@@ -821,11 +955,7 @@ static int ccp5_init(struct ccp_device *ccp)
 	}
 
 	dev_dbg(dev, "Enabling interrupts...\n");
-	/* Enable interrupts */
-	for (i = 0; i < ccp->cmd_q_count; i++) {
-		cmd_q = &ccp->cmd_q[i];
-		iowrite32(ALL_INTERRUPTS, cmd_q->reg_int_enable);
-	}
+	ccp5_enable_queue_interrupts(ccp);
 
 	dev_dbg(dev, "Registering device...\n");
 	/* Put this on the unit list to make it available */
@@ -840,6 +970,9 @@ static int ccp5_init(struct ccp_device *ccp)
 	if (ret)
 		goto e_hwrng;
 
+	/* Set up debugfs entries */
+	ccp5_debugfs_setup(ccp);
+
 	return 0;
 
 e_hwrng:
@@ -851,7 +984,7 @@ e_kthread:
 			kthread_stop(ccp->cmd_q[i].kthread);
 
 e_irq:
-	ccp->free_irq(ccp);
+	sp_free_ccp_irq(ccp->sp, ccp);
 
 e_pool:
 	for (i = 0; i < ccp->cmd_q_count; i++)
@@ -876,18 +1009,22 @@ static void ccp5_destroy(struct ccp_device *ccp)
 	/* Remove this device from the list of available units first */
 	ccp_del_device(ccp);
 
+	/* We're in the process of tearing down the entire driver;
+	 * when all the devices are gone clean up debugfs
+	 */
+	if (ccp_present())
+		ccp5_debugfs_destroy();
+
 	/* Disable and clear interrupts */
+	ccp5_disable_queue_interrupts(ccp);
 	for (i = 0; i < ccp->cmd_q_count; i++) {
 		cmd_q = &ccp->cmd_q[i];
 
 		/* Turn off the run bit */
 		iowrite32(cmd_q->qcontrol & ~CMD5_Q_RUN, cmd_q->reg_control);
 
-		/* Disable the interrupts */
-		iowrite32(ALL_INTERRUPTS, cmd_q->reg_interrupt_status);
-
 		/* Clear the interrupt status */
-		iowrite32(0x00, cmd_q->reg_int_enable);
+		iowrite32(SUPPORTED_INTERRUPTS, cmd_q->reg_interrupt_status);
 		ioread32(cmd_q->reg_int_status);
 		ioread32(cmd_q->reg_status);
 	}
@@ -897,7 +1034,7 @@ static void ccp5_destroy(struct ccp_device *ccp)
 		if (ccp->cmd_q[i].kthread)
 			kthread_stop(ccp->cmd_q[i].kthread);
 
-	ccp->free_irq(ccp);
+	sp_free_ccp_irq(ccp->sp, ccp);
 
 	for (i = 0; i < ccp->cmd_q_count; i++) {
 		cmd_q = &ccp->cmd_q[i];
@@ -920,42 +1057,10 @@ static void ccp5_destroy(struct ccp_device *ccp)
 	}
 }
 
-static irqreturn_t ccp5_irq_handler(int irq, void *data)
-{
-	struct device *dev = data;
-	struct ccp_device *ccp = dev_get_drvdata(dev);
-	u32 status;
-	unsigned int i;
-
-	for (i = 0; i < ccp->cmd_q_count; i++) {
-		struct ccp_cmd_queue *cmd_q = &ccp->cmd_q[i];
-
-		status = ioread32(cmd_q->reg_interrupt_status);
-
-		if (status) {
-			cmd_q->int_status = status;
-			cmd_q->q_status = ioread32(cmd_q->reg_status);
-			cmd_q->q_int_status = ioread32(cmd_q->reg_int_status);
-
-			/* On error, only save the first error value */
-			if ((status & INT_ERROR) && !cmd_q->cmd_error)
-				cmd_q->cmd_error = CMD_Q_ERROR(cmd_q->q_status);
-
-			cmd_q->int_rcvd = 1;
-
-			/* Acknowledge the interrupt and wake the kthread */
-			iowrite32(ALL_INTERRUPTS, cmd_q->reg_interrupt_status);
-			wake_up_interruptible(&cmd_q->int_queue);
-		}
-	}
-
-	return IRQ_HANDLED;
-}
-
 static void ccp5_config(struct ccp_device *ccp)
 {
 	/* Public side */
-	iowrite32(0x00001249, ccp->io_regs + CMD5_REQID_CONFIG_OFFSET);
+	iowrite32(0x0, ccp->io_regs + CMD5_REQID_CONFIG_OFFSET);
 }
 
 static void ccp5other_config(struct ccp_device *ccp)
@@ -989,6 +1094,7 @@ static const struct ccp_actions ccp5_actions = {
 	.aes = ccp5_perform_aes,
 	.xts_aes = ccp5_perform_xts_aes,
 	.sha = ccp5_perform_sha,
+	.des3 = ccp5_perform_des3,
 	.rsa = ccp5_perform_rsa,
 	.passthru = ccp5_perform_passthru,
 	.ecc = ccp5_perform_ecc,
@@ -997,21 +1103,21 @@ static const struct ccp_actions ccp5_actions = {
 	.init = ccp5_init,
 	.destroy = ccp5_destroy,
 	.get_free_slots = ccp5_get_free_slots,
-	.irqhandler = ccp5_irq_handler,
 };
 
 const struct ccp_vdata ccpv5a = {
 	.version = CCP_VERSION(5, 0),
 	.setup = ccp5_config,
 	.perform = &ccp5_actions,
-	.bar = 2,
 	.offset = 0x0,
+	.rsamax = CCP5_RSA_MAX_WIDTH,
 };
 
 const struct ccp_vdata ccpv5b = {
 	.version = CCP_VERSION(5, 0),
+	.dma_chan_attr = DMA_PRIVATE,
 	.setup = ccp5other_config,
 	.perform = &ccp5_actions,
-	.bar = 2,
 	.offset = 0x0,
+	.rsamax = CCP5_RSA_MAX_WIDTH,
 };

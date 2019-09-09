@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  *
  ******************************************************************************/
 
@@ -32,7 +24,7 @@
 #define USB_VENDER_ID_REALTEK		0x0bda
 
 /* DID_USB_v916_20130116 */
-static struct usb_device_id rtw_usb_id_tbl[] = {
+static const struct usb_device_id rtw_usb_id_tbl[] = {
 	/*=== Realtek demoboard ===*/
 	{USB_DEVICE(USB_VENDER_ID_REALTEK, 0x8179)}, /* 8188EUS */
 	{USB_DEVICE(USB_VENDER_ID_REALTEK, 0x0179)}, /* 8188ETV */
@@ -43,7 +35,10 @@ static struct usb_device_id rtw_usb_id_tbl[] = {
 	{USB_DEVICE(0x2001, 0x330F)}, /* DLink DWA-125 REV D1 */
 	{USB_DEVICE(0x2001, 0x3310)}, /* Dlink DWA-123 REV D1 */
 	{USB_DEVICE(0x2001, 0x3311)}, /* DLink GO-USB-N150 REV B1 */
+	{USB_DEVICE(0x2001, 0x331B)}, /* D-Link DWA-121 rev B1 */
+	{USB_DEVICE(0x2357, 0x010c)}, /* TP-Link TL-WN722N v2 */
 	{USB_DEVICE(0x0df6, 0x0076)}, /* Sitecom N150 v2 */
+	{USB_DEVICE(USB_VENDER_ID_REALTEK, 0xffef)}, /* Rosewill RNX-N150NUB */
 	{}	/* Terminating entry */
 };
 
@@ -83,6 +78,7 @@ static struct dvobj_priv *usb_dvobj_init(struct usb_interface *usb_intf)
 
 	for (i = 0; i < piface_desc->bNumEndpoints; i++) {
 		int ep_num;
+
 		pendp_desc = &phost_iface->endpoint[i].desc;
 
 		ep_num = usb_endpoint_num(pendp_desc);
@@ -138,19 +134,9 @@ static void usb_dvobj_deinit(struct usb_interface *usb_intf)
 	}
 
 	usb_put_dev(interface_to_usbdev(usb_intf));
-
 }
 
-static void usb_intf_start(struct adapter *padapter)
-{
-	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("+usb_intf_start\n"));
-
-	rtw_hal_inirp_init(padapter);
-
-	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("-usb_intf_start\n"));
-}
-
-static void usb_intf_stop(struct adapter *padapter)
+void usb_intf_stop(struct adapter *padapter)
 {
 	RT_TRACE(_module_hci_intfs_c_, _drv_err_, ("+usb_intf_stop\n"));
 
@@ -183,8 +169,7 @@ static void rtw_dev_unload(struct adapter *padapter)
 		if (padapter->xmitpriv.ack_tx)
 			rtw_ack_tx_done(&padapter->xmitpriv, RTW_SCTX_DONE_DRV_STOP);
 		/* s3. */
-		if (padapter->intf_stop)
-			padapter->intf_stop(padapter);
+		usb_intf_stop(padapter);
 		/* s4. */
 		if (!padapter->pwrctrlpriv.bInternalAutoSuspend)
 			rtw_stop_drv_threads(padapter);
@@ -243,10 +228,10 @@ static int rtw_suspend(struct usb_interface *pusb_intf, pm_message_t message)
 	    check_fwstate(pmlmepriv, _FW_LINKED)) {
 		pr_debug("%s:%d %s(%pM), length:%d assoc_ssid.length:%d\n",
 			__func__, __LINE__,
-			pmlmepriv->cur_network.network.Ssid.Ssid,
+			pmlmepriv->cur_network.network.ssid.ssid,
 			pmlmepriv->cur_network.network.MacAddress,
-			pmlmepriv->cur_network.network.Ssid.SsidLength,
-			pmlmepriv->assoc_ssid.SsidLength);
+			pmlmepriv->cur_network.network.ssid.ssid_length,
+			pmlmepriv->assoc_ssid.ssid_length);
 
 		pmlmepriv->to_roaming = 1;
 	}
@@ -294,7 +279,7 @@ static int rtw_resume_process(struct adapter *padapter)
 	pwrpriv->bkeepfwalive = false;
 
 	pr_debug("bkeepfwalive(%x)\n", pwrpriv->bkeepfwalive);
-	if (pm_netdev_open(pnetdev, true) != 0) {
+	if (netdev_open(pnetdev) != 0) {
 		mutex_unlock(&pwrpriv->mutex_lock);
 		goto exit;
 	}
@@ -340,8 +325,8 @@ static struct adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 	struct net_device *pmondev;
 	int status = _FAIL;
 
-	padapter = (struct adapter *)vzalloc(sizeof(*padapter));
-	if (padapter == NULL)
+	padapter = vzalloc(sizeof(*padapter));
+	if (!padapter)
 		goto exit;
 	padapter->dvobj = dvobj;
 	dvobj->if1 = padapter;
@@ -350,14 +335,14 @@ static struct adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 	mutex_init(&padapter->hw_init_mutex);
 
 	pnetdev = rtw_init_netdev(padapter);
-	if (pnetdev == NULL)
+	if (!pnetdev)
 		goto free_adapter;
 	SET_NETDEV_DEV(pnetdev, dvobj_to_dev(dvobj));
 	padapter = rtw_netdev_priv(pnetdev);
 
 	if (padapter->registrypriv.monitor_enable) {
 		pmondev = rtl88eu_mon_init();
-		if (pmondev == NULL)
+		if (!pmondev)
 			netdev_warn(pnetdev, "Failed to initialize monitor interface");
 		padapter->pmondev = pmondev;
 	}
@@ -365,9 +350,6 @@ static struct adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 	padapter->HalData = kzalloc(sizeof(struct hal_data_8188e), GFP_KERNEL);
 	if (!padapter->HalData)
 		DBG_88E("cant not alloc memory for HAL DATA\n");
-
-	padapter->intf_start = &usb_intf_start;
-	padapter->intf_stop = &usb_intf_stop;
 
 	/* step read_chip_version */
 	rtw_hal_read_chip_version(padapter);
@@ -399,7 +381,7 @@ static struct adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 	/* 2012-07-11 Move here to prevent the 8723AS-VAU BT auto
 	 * suspend influence */
 	if (usb_autopm_get_interface(pusb_intf) < 0)
-			pr_debug("can't get autopm:\n");
+		pr_debug("can't get autopm:\n");
 
 	/*  alloc dev name after read efuse. */
 	rtw_init_netdev_name(pnetdev, padapter->registrypriv.ifname);

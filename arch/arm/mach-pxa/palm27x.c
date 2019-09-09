@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Common code for Palm LD, T5, TX, Z72
  *
  * Copyright (C) 2010-2011 Marek Vasut <marek.vasut@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/platform_device.h>
@@ -22,7 +18,7 @@
 #include <linux/power_supply.h>
 #include <linux/usb/gpio_vbus.h>
 #include <linux/regulator/max1586.h>
-#include <linux/i2c/pxa-i2c.h>
+#include <linux/platform_data/i2c-pxa.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -49,14 +45,10 @@ static struct pxamci_platform_data palm27x_mci_platform_data = {
 	.detect_delay_ms	= 200,
 };
 
-void __init palm27x_mmc_init(int detect, int ro, int power,
-					int power_inverted)
+void __init palm27x_mmc_init(struct gpiod_lookup_table *gtable)
 {
-	palm27x_mci_platform_data.gpio_card_detect	= detect;
-	palm27x_mci_platform_data.gpio_card_ro		= ro;
-	palm27x_mci_platform_data.gpio_power		= power;
-	palm27x_mci_platform_data.gpio_power_invert	= power_inverted;
-
+	if (gtable)
+		gpiod_add_lookup_table(gtable);
 	pxa_set_mci_info(&palm27x_mci_platform_data);
 }
 #endif

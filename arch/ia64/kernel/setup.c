@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Architecture-specific setup.
  *
@@ -26,12 +27,15 @@
 #include <linux/init.h>
 
 #include <linux/acpi.h>
-#include <linux/bootmem.h>
 #include <linux/console.h>
 #include <linux/delay.h>
+#include <linux/cpu.h>
 #include <linux/kernel.h>
+#include <linux/memblock.h>
 #include <linux/reboot.h>
-#include <linux/sched.h>
+#include <linux/sched/mm.h>
+#include <linux/sched/clock.h>
+#include <linux/sched/task_stack.h>
 #include <linux/seq_file.h>
 #include <linux/string.h>
 #include <linux/threads.h>
@@ -118,18 +122,6 @@ unsigned long ia64_i_cache_stride_shift = ~0;
 /* Safest way to go: 32 bytes by 32 bytes */
 #define	CACHE_STRIDE_SHIFT	5
 unsigned long ia64_cache_stride_shift = ~0;
-
-/*
- * The merge_mask variable needs to be set to (max(iommu_page_size(iommu)) - 1).  This
- * mask specifies a mask of address bits that must be 0 in order for two buffers to be
- * mergeable by the I/O MMU (i.e., the end address of the first buffer and the start
- * address of the second buffer must be aligned to (merge_mask+1) in order to be
- * mergeable).  By default, we assume there is no I/O MMU which can merge physically
- * discontiguous buffers, so we set the merge_mask to ~0UL, which corresponds to a iommu
- * page-size of 2^64.
- */
-unsigned long ia64_max_iommu_merge_mask = ~0UL;
-EXPORT_SYMBOL(ia64_max_iommu_merge_mask);
 
 /*
  * We use a special marker for the end of memory and it uses the extra (+1) slot
@@ -391,8 +383,16 @@ reserve_memory (void)
 
 	sort_regions(rsvd_region, num_rsvd_regions);
 	num_rsvd_regions = merge_regions(rsvd_region, num_rsvd_regions);
-}
 
+	/* reserve all regions except the end of memory marker with memblock */
+	for (n = 0; n < num_rsvd_regions - 1; n++) {
+		struct rsvd_region *region = &rsvd_region[n];
+		phys_addr_t addr = __pa(region->start);
+		phys_addr_t size = region->end - region->start;
+
+		memblock_reserve(addr, size);
+	}
+}
 
 /**
  * find_initrd - get initrd parameters from the boot parameter structure
@@ -619,6 +619,8 @@ setup_arch (char **cmdline_p)
 	check_sal_cache_flush();
 #endif
 	paging_init();
+
+	clear_sched_clock_stable();
 }
 
 /*
@@ -992,7 +994,7 @@ cpu_init (void)
 	 */
 	ia64_setreg(_IA64_REG_CR_DCR,  (  IA64_DCR_DP | IA64_DCR_DK | IA64_DCR_DX | IA64_DCR_DR
 					| IA64_DCR_DA | IA64_DCR_DD | IA64_DCR_LC));
-	atomic_inc(&init_mm.mm_count);
+	mmgrab(&init_mm);
 	current->active_mm = &init_mm;
 	BUG_ON(current->mm);
 
@@ -1056,9 +1058,7 @@ check_bugs (void)
 
 static int __init run_dmi_scan(void)
 {
-	dmi_scan_machine();
-	dmi_memdev_walk();
-	dmi_set_dump_stack_arch_desc();
+	dmi_setup();
 	return 0;
 }
 core_initcall(run_dmi_scan);

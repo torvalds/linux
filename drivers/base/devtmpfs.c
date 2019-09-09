@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * devtmpfs - kernel-maintained tmpfs-based /dev
  *
@@ -24,6 +25,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/kthread.h>
+#include <uapi/linux/mount.h>
 #include "base.h"
 
 static struct task_struct *thread;
@@ -251,7 +253,7 @@ static int dev_rmdir(const char *name)
 
 static int delete_path(const char *nodepath)
 {
-	const char *path;
+	char *path;
 	int err = 0;
 
 	path = kstrdup(nodepath, GFP_KERNEL);
@@ -309,7 +311,8 @@ static int handle_remove(const char *nodename, struct device *dev)
 	if (d_really_is_positive(dentry)) {
 		struct kstat stat;
 		struct path p = {.mnt = parent.mnt, .dentry = dentry};
-		err = vfs_getattr(&p, &stat);
+		err = vfs_getattr(&p, &stat, STATX_TYPE | STATX_MODE,
+				  AT_STATX_SYNC_AS_STAT);
 		if (!err && dev_mynode(dev, d_inode(dentry), &stat)) {
 			struct iattr newattrs;
 			/*
@@ -354,7 +357,7 @@ int devtmpfs_mount(const char *mntdir)
 	if (!thread)
 		return 0;
 
-	err = sys_mount("devtmpfs", (char *)mntdir, "devtmpfs", MS_SILENT, NULL);
+	err = ksys_mount("devtmpfs", mntdir, "devtmpfs", MS_SILENT, NULL);
 	if (err)
 		printk(KERN_INFO "devtmpfs: error mounting %i\n", err);
 	else
@@ -377,14 +380,14 @@ static int devtmpfsd(void *p)
 {
 	char options[] = "mode=0755";
 	int *err = p;
-	*err = sys_unshare(CLONE_NEWNS);
+	*err = ksys_unshare(CLONE_NEWNS);
 	if (*err)
 		goto out;
-	*err = sys_mount("devtmpfs", "/", "devtmpfs", MS_SILENT, options);
+	*err = ksys_mount("devtmpfs", "/", "devtmpfs", MS_SILENT, options);
 	if (*err)
 		goto out;
-	sys_chdir("/.."); /* will traverse into overmounted root */
-	sys_chroot(".");
+	ksys_chdir("/.."); /* will traverse into overmounted root */
+	ksys_chroot(".");
 	complete(&setup_done);
 	while (1) {
 		spin_lock(&req_lock);

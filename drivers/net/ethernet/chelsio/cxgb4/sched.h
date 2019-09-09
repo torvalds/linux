@@ -42,8 +42,8 @@
 
 #define FW_SCHED_CLS_NONE 0xffffffff
 
-/* Max rate that can be set to a scheduling class is 10 Gbps */
-#define SCHED_MAX_RATE_KBPS 10000000U
+/* Max rate that can be set to a scheduling class is 100 Gbps */
+#define SCHED_MAX_RATE_KBPS 100000000U
 
 enum {
 	SCHED_STATE_ACTIVE,
@@ -69,13 +69,11 @@ struct sched_class {
 	u8 idx;
 	struct ch_sched_params info;
 	struct list_head queue_list;
-	spinlock_t lock; /* Per class lock */
 	atomic_t refcnt;
 };
 
 struct sched_table {      /* per port scheduling table */
 	u8 sched_size;
-	rwlock_t rw_lock; /* Table lock */
 	struct sched_class tab[0];
 };
 

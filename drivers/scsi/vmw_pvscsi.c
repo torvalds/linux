@@ -68,10 +68,7 @@ struct pvscsi_ctx {
 
 struct pvscsi_adapter {
 	char				*mmioBase;
-	unsigned int			irq;
 	u8				rev;
-	bool				use_msi;
-	bool				use_msix;
 	bool				use_msg;
 	bool				use_req_threshold;
 
@@ -338,7 +335,7 @@ static void pvscsi_create_sg(struct pvscsi_ctx *ctx,
 	BUG_ON(count > PVSCSI_MAX_NUM_SG_ENTRIES_PER_SEGMENT);
 
 	sge = &ctx->sgl->sge[0];
-	for (i = 0; i < count; i++, sg++) {
+	for (i = 0; i < count; i++, sg = sg_next(sg)) {
 		sge[i].addr   = sg_dma_address(sg);
 		sge[i].length = sg_dma_len(sg);
 		sge[i].flags  = 0;
@@ -375,9 +372,9 @@ static int pvscsi_map_buffers(struct pvscsi_adapter *adapter,
 			pvscsi_create_sg(ctx, sg, segs);
 
 			e->flags |= PVSCSI_FLAG_CMD_WITH_SG_LIST;
-			ctx->sglPA = pci_map_single(adapter->dev, ctx->sgl,
-						    SGL_SIZE, PCI_DMA_TODEVICE);
-			if (pci_dma_mapping_error(adapter->dev, ctx->sglPA)) {
+			ctx->sglPA = dma_map_single(&adapter->dev->dev,
+					ctx->sgl, SGL_SIZE, DMA_TO_DEVICE);
+			if (dma_mapping_error(&adapter->dev->dev, ctx->sglPA)) {
 				scmd_printk(KERN_ERR, cmd,
 					    "vmw_pvscsi: Failed to map ctx sglist for DMA.\n");
 				scsi_dma_unmap(cmd);
@@ -392,9 +389,9 @@ static int pvscsi_map_buffers(struct pvscsi_adapter *adapter,
 		 * In case there is no S/G list, scsi_sglist points
 		 * directly to the buffer.
 		 */
-		ctx->dataPA = pci_map_single(adapter->dev, sg, bufflen,
+		ctx->dataPA = dma_map_single(&adapter->dev->dev, sg, bufflen,
 					     cmd->sc_data_direction);
-		if (pci_dma_mapping_error(adapter->dev, ctx->dataPA)) {
+		if (dma_mapping_error(&adapter->dev->dev, ctx->dataPA)) {
 			scmd_printk(KERN_ERR, cmd,
 				    "vmw_pvscsi: Failed to map direct data buffer for DMA.\n");
 			return -ENOMEM;
@@ -420,23 +417,23 @@ static void pvscsi_unmap_buffers(const struct pvscsi_adapter *adapter,
 		if (count != 0) {
 			scsi_dma_unmap(cmd);
 			if (ctx->sglPA) {
-				pci_unmap_single(adapter->dev, ctx->sglPA,
-						 SGL_SIZE, PCI_DMA_TODEVICE);
+				dma_unmap_single(&adapter->dev->dev, ctx->sglPA,
+						 SGL_SIZE, DMA_TO_DEVICE);
 				ctx->sglPA = 0;
 			}
 		} else
-			pci_unmap_single(adapter->dev, ctx->dataPA, bufflen,
-					 cmd->sc_data_direction);
+			dma_unmap_single(&adapter->dev->dev, ctx->dataPA,
+					 bufflen, cmd->sc_data_direction);
 	}
 	if (cmd->sense_buffer)
-		pci_unmap_single(adapter->dev, ctx->sensePA,
-				 SCSI_SENSE_BUFFERSIZE, PCI_DMA_FROMDEVICE);
+		dma_unmap_single(&adapter->dev->dev, ctx->sensePA,
+				 SCSI_SENSE_BUFFERSIZE, DMA_FROM_DEVICE);
 }
 
 static int pvscsi_allocate_rings(struct pvscsi_adapter *adapter)
 {
-	adapter->rings_state = pci_alloc_consistent(adapter->dev, PAGE_SIZE,
-						    &adapter->ringStatePA);
+	adapter->rings_state = dma_alloc_coherent(&adapter->dev->dev, PAGE_SIZE,
+			&adapter->ringStatePA, GFP_KERNEL);
 	if (!adapter->rings_state)
 		return -ENOMEM;
 
@@ -444,17 +441,17 @@ static int pvscsi_allocate_rings(struct pvscsi_adapter *adapter)
 				 pvscsi_ring_pages);
 	adapter->req_depth = adapter->req_pages
 					* PVSCSI_MAX_NUM_REQ_ENTRIES_PER_PAGE;
-	adapter->req_ring = pci_alloc_consistent(adapter->dev,
-						 adapter->req_pages * PAGE_SIZE,
-						 &adapter->reqRingPA);
+	adapter->req_ring = dma_alloc_coherent(&adapter->dev->dev,
+			adapter->req_pages * PAGE_SIZE, &adapter->reqRingPA,
+			GFP_KERNEL);
 	if (!adapter->req_ring)
 		return -ENOMEM;
 
 	adapter->cmp_pages = min(PVSCSI_MAX_NUM_PAGES_CMP_RING,
 				 pvscsi_ring_pages);
-	adapter->cmp_ring = pci_alloc_consistent(adapter->dev,
-						 adapter->cmp_pages * PAGE_SIZE,
-						 &adapter->cmpRingPA);
+	adapter->cmp_ring = dma_alloc_coherent(&adapter->dev->dev,
+			adapter->cmp_pages * PAGE_SIZE, &adapter->cmpRingPA,
+			GFP_KERNEL);
 	if (!adapter->cmp_ring)
 		return -ENOMEM;
 
@@ -467,9 +464,9 @@ static int pvscsi_allocate_rings(struct pvscsi_adapter *adapter)
 
 	adapter->msg_pages = min(PVSCSI_MAX_NUM_PAGES_MSG_RING,
 				 pvscsi_msg_ring_pages);
-	adapter->msg_ring = pci_alloc_consistent(adapter->dev,
-						 adapter->msg_pages * PAGE_SIZE,
-						 &adapter->msgRingPA);
+	adapter->msg_ring = dma_alloc_coherent(&adapter->dev->dev,
+			adapter->msg_pages * PAGE_SIZE, &adapter->msgRingPA,
+			GFP_KERNEL);
 	if (!adapter->msg_ring)
 		return -ENOMEM;
 	BUG_ON(!IS_ALIGNED(adapter->msgRingPA, PAGE_SIZE));
@@ -564,9 +561,14 @@ static void pvscsi_complete_request(struct pvscsi_adapter *adapter,
 	    (btstat == BTSTAT_SUCCESS ||
 	     btstat == BTSTAT_LINKED_COMMAND_COMPLETED ||
 	     btstat == BTSTAT_LINKED_COMMAND_COMPLETED_WITH_FLAG)) {
-		cmd->result = (DID_OK << 16) | sdstat;
-		if (sdstat == SAM_STAT_CHECK_CONDITION && cmd->sense_buffer)
-			cmd->result |= (DRIVER_SENSE << 24);
+		if (sdstat == SAM_STAT_COMMAND_TERMINATED) {
+			cmd->result = (DID_RESET << 16);
+		} else {
+			cmd->result = (DID_OK << 16) | sdstat;
+			if (sdstat == SAM_STAT_CHECK_CONDITION &&
+			    cmd->sense_buffer)
+				cmd->result |= (DRIVER_SENSE << 24);
+		}
 	} else
 		switch (btstat) {
 		case BTSTAT_SUCCESS:
@@ -612,7 +614,7 @@ static void pvscsi_complete_request(struct pvscsi_adapter *adapter,
 			break;
 
 		case BTSTAT_ABORTQUEUE:
-			cmd->result = (DID_ABORT << 16);
+			cmd->result = (DID_BUS_BUSY << 16);
 			break;
 
 		case BTSTAT_SCSIPARITY:
@@ -706,10 +708,10 @@ static int pvscsi_queue_ring(struct pvscsi_adapter *adapter,
 	e->lun[1] = sdev->lun;
 
 	if (cmd->sense_buffer) {
-		ctx->sensePA = pci_map_single(adapter->dev, cmd->sense_buffer,
-					      SCSI_SENSE_BUFFERSIZE,
-					      PCI_DMA_FROMDEVICE);
-		if (pci_dma_mapping_error(adapter->dev, ctx->sensePA)) {
+		ctx->sensePA = dma_map_single(&adapter->dev->dev,
+				cmd->sense_buffer, SCSI_SENSE_BUFFERSIZE,
+				DMA_FROM_DEVICE);
+		if (dma_mapping_error(&adapter->dev->dev, ctx->sensePA)) {
 			scmd_printk(KERN_ERR, cmd,
 				    "vmw_pvscsi: Failed to map sense buffer for DMA.\n");
 			ctx->sensePA = 0;
@@ -738,9 +740,9 @@ static int pvscsi_queue_ring(struct pvscsi_adapter *adapter,
 
 	if (pvscsi_map_buffers(adapter, ctx, cmd, e) != 0) {
 		if (cmd->sense_buffer) {
-			pci_unmap_single(adapter->dev, ctx->sensePA,
+			dma_unmap_single(&adapter->dev->dev, ctx->sensePA,
 					 SCSI_SENSE_BUFFERSIZE,
-					 PCI_DMA_FROMDEVICE);
+					 DMA_FROM_DEVICE);
 			ctx->sensePA = 0;
 		}
 		return -ENOMEM;
@@ -761,6 +763,7 @@ static int pvscsi_queue_lck(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd
 	struct pvscsi_adapter *adapter = shost_priv(host);
 	struct pvscsi_ctx *ctx;
 	unsigned long flags;
+	unsigned char op;
 
 	spin_lock_irqsave(&adapter->hw_lock, flags);
 
@@ -773,13 +776,14 @@ static int pvscsi_queue_lck(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd
 	}
 
 	cmd->scsi_done = done;
+	op = cmd->cmnd[0];
 
 	dev_dbg(&cmd->device->sdev_gendev,
-		"queued cmd %p, ctx %p, op=%x\n", cmd, ctx, cmd->cmnd[0]);
+		"queued cmd %p, ctx %p, op=%x\n", cmd, ctx, op);
 
 	spin_unlock_irqrestore(&adapter->hw_lock, flags);
 
-	pvscsi_kick_io(adapter, cmd->cmnd[0]);
+	pvscsi_kick_io(adapter, op);
 
 	return 0;
 }
@@ -793,6 +797,7 @@ static int pvscsi_abort(struct scsi_cmnd *cmd)
 	unsigned long flags;
 	int result = SUCCESS;
 	DECLARE_COMPLETION_ONSTACK(abort_cmp);
+	int done;
 
 	scmd_printk(KERN_DEBUG, cmd, "task abort on host %u, %p\n",
 		    adapter->host->host_no, cmd);
@@ -824,10 +829,10 @@ static int pvscsi_abort(struct scsi_cmnd *cmd)
 	pvscsi_abort_cmd(adapter, ctx);
 	spin_unlock_irqrestore(&adapter->hw_lock, flags);
 	/* Wait for 2 secs for the completion. */
-	wait_for_completion_timeout(&abort_cmp, msecs_to_jiffies(2000));
+	done = wait_for_completion_timeout(&abort_cmp, msecs_to_jiffies(2000));
 	spin_lock_irqsave(&adapter->hw_lock, flags);
 
-	if (!completion_done(&abort_cmp)) {
+	if (!done) {
 		/*
 		 * Failed to abort the command, unmark the fact that it
 		 * was requested to be aborted.
@@ -1004,7 +1009,6 @@ static struct scsi_host_template pvscsi_template = {
 	.sg_tablesize			= PVSCSI_MAX_NUM_SG_ENTRIES_PER_SEGMENT,
 	.dma_boundary			= UINT_MAX,
 	.max_sectors			= 0xffff,
-	.use_clustering			= ENABLE_CLUSTERING,
 	.change_queue_depth		= pvscsi_change_queue_depth,
 	.eh_abort_handler		= pvscsi_abort,
 	.eh_device_reset_handler	= pvscsi_device_reset,
@@ -1160,30 +1164,26 @@ static bool pvscsi_setup_req_threshold(struct pvscsi_adapter *adapter,
 static irqreturn_t pvscsi_isr(int irq, void *devp)
 {
 	struct pvscsi_adapter *adapter = devp;
-	int handled;
+	unsigned long flags;
 
-	if (adapter->use_msi || adapter->use_msix)
-		handled = true;
-	else {
-		u32 val = pvscsi_read_intr_status(adapter);
-		handled = (val & PVSCSI_INTR_ALL_SUPPORTED) != 0;
-		if (handled)
-			pvscsi_write_intr_status(devp, val);
-	}
+	spin_lock_irqsave(&adapter->hw_lock, flags);
+	pvscsi_process_completion_ring(adapter);
+	if (adapter->use_msg && pvscsi_msg_pending(adapter))
+		queue_work(adapter->workqueue, &adapter->work);
+	spin_unlock_irqrestore(&adapter->hw_lock, flags);
 
-	if (handled) {
-		unsigned long flags;
+	return IRQ_HANDLED;
+}
 
-		spin_lock_irqsave(&adapter->hw_lock, flags);
+static irqreturn_t pvscsi_shared_isr(int irq, void *devp)
+{
+	struct pvscsi_adapter *adapter = devp;
+	u32 val = pvscsi_read_intr_status(adapter);
 
-		pvscsi_process_completion_ring(adapter);
-		if (adapter->use_msg && pvscsi_msg_pending(adapter))
-			queue_work(adapter->workqueue, &adapter->work);
-
-		spin_unlock_irqrestore(&adapter->hw_lock, flags);
-	}
-
-	return IRQ_RETVAL(handled);
+	if (!(val & PVSCSI_INTR_ALL_SUPPORTED))
+		return IRQ_NONE;
+	pvscsi_write_intr_status(devp, val);
+	return pvscsi_isr(irq, devp);
 }
 
 static void pvscsi_free_sgls(const struct pvscsi_adapter *adapter)
@@ -1195,40 +1195,14 @@ static void pvscsi_free_sgls(const struct pvscsi_adapter *adapter)
 		free_pages((unsigned long)ctx->sgl, get_order(SGL_SIZE));
 }
 
-static int pvscsi_setup_msix(const struct pvscsi_adapter *adapter,
-			     unsigned int *irq)
-{
-	struct msix_entry entry = { 0, PVSCSI_VECTOR_COMPLETION };
-	int ret;
-
-	ret = pci_enable_msix_exact(adapter->dev, &entry, 1);
-	if (ret)
-		return ret;
-
-	*irq = entry.vector;
-
-	return 0;
-}
-
 static void pvscsi_shutdown_intr(struct pvscsi_adapter *adapter)
 {
-	if (adapter->irq) {
-		free_irq(adapter->irq, adapter);
-		adapter->irq = 0;
-	}
-	if (adapter->use_msi) {
-		pci_disable_msi(adapter->dev);
-		adapter->use_msi = 0;
-	} else if (adapter->use_msix) {
-		pci_disable_msix(adapter->dev);
-		adapter->use_msix = 0;
-	}
+	free_irq(pci_irq_vector(adapter->dev, 0), adapter);
+	pci_free_irq_vectors(adapter->dev);
 }
 
 static void pvscsi_release_resources(struct pvscsi_adapter *adapter)
 {
-	pvscsi_shutdown_intr(adapter);
-
 	if (adapter->workqueue)
 		destroy_workqueue(adapter->workqueue);
 
@@ -1243,21 +1217,21 @@ static void pvscsi_release_resources(struct pvscsi_adapter *adapter)
 	}
 
 	if (adapter->rings_state)
-		pci_free_consistent(adapter->dev, PAGE_SIZE,
+		dma_free_coherent(&adapter->dev->dev, PAGE_SIZE,
 				    adapter->rings_state, adapter->ringStatePA);
 
 	if (adapter->req_ring)
-		pci_free_consistent(adapter->dev,
+		dma_free_coherent(&adapter->dev->dev,
 				    adapter->req_pages * PAGE_SIZE,
 				    adapter->req_ring, adapter->reqRingPA);
 
 	if (adapter->cmp_ring)
-		pci_free_consistent(adapter->dev,
+		dma_free_coherent(&adapter->dev->dev,
 				    adapter->cmp_pages * PAGE_SIZE,
 				    adapter->cmp_ring, adapter->cmpRingPA);
 
 	if (adapter->msg_ring)
-		pci_free_consistent(adapter->dev,
+		dma_free_coherent(&adapter->dev->dev,
 				    adapter->msg_pages * PAGE_SIZE,
 				    adapter->msg_ring, adapter->msgRingPA);
 }
@@ -1316,8 +1290,8 @@ static u32 pvscsi_get_max_targets(struct pvscsi_adapter *adapter)
 	u32 numPhys = 16;
 
 	dev = pvscsi_dev(adapter);
-	config_page = pci_alloc_consistent(adapter->dev, PAGE_SIZE,
-					   &configPagePA);
+	config_page = dma_alloc_coherent(&adapter->dev->dev, PAGE_SIZE,
+			&configPagePA, GFP_KERNEL);
 	if (!config_page) {
 		dev_warn(dev, "vmw_pvscsi: failed to allocate memory for config page\n");
 		goto exit;
@@ -1351,18 +1325,19 @@ static u32 pvscsi_get_max_targets(struct pvscsi_adapter *adapter)
 	} else
 		dev_warn(dev, "vmw_pvscsi: PVSCSI_CMD_CONFIG failed. hostStatus = 0x%x, scsiStatus = 0x%x\n",
 			 header->hostStatus, header->scsiStatus);
-	pci_free_consistent(adapter->dev, PAGE_SIZE, config_page, configPagePA);
+	dma_free_coherent(&adapter->dev->dev, PAGE_SIZE, config_page,
+			  configPagePA);
 exit:
 	return numPhys;
 }
 
 static int pvscsi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
+	unsigned int irq_flag = PCI_IRQ_MSIX | PCI_IRQ_MSI | PCI_IRQ_LEGACY;
 	struct pvscsi_adapter *adapter;
 	struct pvscsi_adapter adapter_temp;
 	struct Scsi_Host *host = NULL;
 	unsigned int i;
-	unsigned long flags = 0;
 	int error;
 	u32 max_id;
 
@@ -1371,11 +1346,9 @@ static int pvscsi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (pci_enable_device(pdev))
 		return error;
 
-	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(64)) == 0 &&
-	    pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64)) == 0) {
+	if (!dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64))) {
 		printk(KERN_INFO "vmw_pvscsi: using 64bit dma\n");
-	} else if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32)) == 0 &&
-		   pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32)) == 0) {
+	} else if (!dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32))) {
 		printk(KERN_INFO "vmw_pvscsi: using 32bit dma\n");
 	} else {
 		printk(KERN_ERR "vmw_pvscsi: failed to set DMA mask\n");
@@ -1511,30 +1484,33 @@ static int pvscsi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto out_reset_adapter;
 	}
 
-	if (!pvscsi_disable_msix &&
-	    pvscsi_setup_msix(adapter, &adapter->irq) == 0) {
-		printk(KERN_INFO "vmw_pvscsi: using MSI-X\n");
-		adapter->use_msix = 1;
-	} else if (!pvscsi_disable_msi && pci_enable_msi(pdev) == 0) {
-		printk(KERN_INFO "vmw_pvscsi: using MSI\n");
-		adapter->use_msi = 1;
-		adapter->irq = pdev->irq;
-	} else {
-		printk(KERN_INFO "vmw_pvscsi: using INTx\n");
-		adapter->irq = pdev->irq;
-		flags = IRQF_SHARED;
-	}
+	if (pvscsi_disable_msix)
+		irq_flag &= ~PCI_IRQ_MSIX;
+	if (pvscsi_disable_msi)
+		irq_flag &= ~PCI_IRQ_MSI;
+
+	error = pci_alloc_irq_vectors(adapter->dev, 1, 1, irq_flag);
+	if (error < 0)
+		goto out_reset_adapter;
 
 	adapter->use_req_threshold = pvscsi_setup_req_threshold(adapter, true);
 	printk(KERN_DEBUG "vmw_pvscsi: driver-based request coalescing %sabled\n",
 	       adapter->use_req_threshold ? "en" : "dis");
 
-	error = request_irq(adapter->irq, pvscsi_isr, flags,
-			    "vmw_pvscsi", adapter);
+	if (adapter->dev->msix_enabled || adapter->dev->msi_enabled) {
+		printk(KERN_INFO "vmw_pvscsi: using MSI%s\n",
+			adapter->dev->msix_enabled ? "-X" : "");
+		error = request_irq(pci_irq_vector(pdev, 0), pvscsi_isr,
+				0, "vmw_pvscsi", adapter);
+	} else {
+		printk(KERN_INFO "vmw_pvscsi: using INTx\n");
+		error = request_irq(pci_irq_vector(pdev, 0), pvscsi_shared_isr,
+				IRQF_SHARED, "vmw_pvscsi", adapter);
+	}
+
 	if (error) {
 		printk(KERN_ERR
 		       "vmw_pvscsi: unable to request IRQ: %d\n", error);
-		adapter->irq = 0;
 		goto out_reset_adapter;
 	}
 
@@ -1557,6 +1533,7 @@ static int pvscsi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 out_reset_adapter:
 	ll_adapter_reset(adapter);
 out_release_resources:
+	pvscsi_shutdown_intr(adapter);
 	pvscsi_release_resources(adapter);
 	scsi_host_put(host);
 out_disable_device:
@@ -1565,6 +1542,7 @@ out_disable_device:
 	return error;
 
 out_release_resources_and_disable:
+	pvscsi_shutdown_intr(adapter);
 	pvscsi_release_resources(adapter);
 	goto out_disable_device;
 }

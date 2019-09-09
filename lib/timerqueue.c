@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Generic Timer-queue
  *
@@ -6,20 +7,6 @@
  *
  *  NOTE: All of the following functions need to be serialized
  *  to avoid races. No locking is done by this library code.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/bug.h>
@@ -33,8 +20,9 @@
  * @head: head of timerqueue
  * @node: timer node to be added
  *
- * Adds the timer node to the timerqueue, sorted by the
- * node's expires value.
+ * Adds the timer node to the timerqueue, sorted by the node's expires
+ * value. Returns true if the newly added timer is the first expiring timer in
+ * the queue.
  */
 bool timerqueue_add(struct timerqueue_head *head, struct timerqueue_node *node)
 {
@@ -48,7 +36,7 @@ bool timerqueue_add(struct timerqueue_head *head, struct timerqueue_node *node)
 	while (*p) {
 		parent = *p;
 		ptr = rb_entry(parent, struct timerqueue_node, node);
-		if (node->expires.tv64 < ptr->expires.tv64)
+		if (node->expires < ptr->expires)
 			p = &(*p)->rb_left;
 		else
 			p = &(*p)->rb_right;
@@ -56,7 +44,7 @@ bool timerqueue_add(struct timerqueue_head *head, struct timerqueue_node *node)
 	rb_link_node(&node->node, parent, p);
 	rb_insert_color(&node->node, &head->head);
 
-	if (!head->next || node->expires.tv64 < head->next->expires.tv64) {
+	if (!head->next || node->expires < head->next->expires) {
 		head->next = node;
 		return true;
 	}
@@ -70,7 +58,8 @@ EXPORT_SYMBOL_GPL(timerqueue_add);
  * @head: head of timerqueue
  * @node: timer node to be removed
  *
- * Removes the timer node from the timerqueue.
+ * Removes the timer node from the timerqueue. Returns true if the queue is
+ * not empty after the remove.
  */
 bool timerqueue_del(struct timerqueue_head *head, struct timerqueue_node *node)
 {
@@ -80,8 +69,7 @@ bool timerqueue_del(struct timerqueue_head *head, struct timerqueue_node *node)
 	if (head->next == node) {
 		struct rb_node *rbn = rb_next(&node->node);
 
-		head->next = rbn ?
-			rb_entry(rbn, struct timerqueue_node, node) : NULL;
+		head->next = rb_entry_safe(rbn, struct timerqueue_node, node);
 	}
 	rb_erase(&node->node, &head->head);
 	RB_CLEAR_NODE(&node->node);

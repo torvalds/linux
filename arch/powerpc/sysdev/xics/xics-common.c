@@ -1,11 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2011 IBM Corporation.
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version
- *  2 of the License, or (at your option) any later version.
- *
  */
 #include <linux/types.h>
 #include <linux/threads.h>
@@ -20,6 +15,7 @@
 #include <linux/of.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <linux/delay.h>
 
 #include <asm/prom.h>
 #include <asm/io.h>
@@ -142,11 +138,11 @@ static void xics_request_ipi(void)
 
 void __init xics_smp_probe(void)
 {
-	/* Setup cause_ipi callback  based on which ICP is used */
-	smp_ops->cause_ipi = icp_ops->cause_ipi;
-
 	/* Register all the IPIs */
 	xics_request_ipi();
+
+	/* Setup cause_ipi callback based on which ICP is used */
+	smp_ops->cause_ipi = icp_ops->cause_ipi;
 }
 
 #endif /* CONFIG_SMP */
@@ -198,9 +194,6 @@ void xics_migrate_irqs_away(void)
 	/* Remove ourselves from the global interrupt queue */
 	xics_set_cpu_giq(xics_default_distrib_server, 0);
 
-	/* Allow IPIs again... */
-	icp_ops->set_priority(DEFAULT_PRIORITY);
-
 	for_each_irq_desc(virq, desc) {
 		struct irq_chip *chip;
 		long server;
@@ -245,8 +238,8 @@ void xics_migrate_irqs_away(void)
 
 		/* This is expected during cpu offline. */
 		if (cpu_online(cpu))
-			pr_warning("IRQ %u affinity broken off cpu %u\n",
-			       virq, cpu);
+			pr_warn("IRQ %u affinity broken off cpu %u\n",
+				virq, cpu);
 
 		/* Reset affinity to all cpus */
 		raw_spin_unlock_irqrestore(&desc->lock, flags);
@@ -255,6 +248,19 @@ void xics_migrate_irqs_away(void)
 unlock:
 		raw_spin_unlock_irqrestore(&desc->lock, flags);
 	}
+
+	/* Allow "sufficient" time to drop any inflight IRQ's */
+	mdelay(5);
+
+	/*
+	 * Allow IPIs again. This is done at the very end, after migrating all
+	 * interrupts, the expectation is that we'll only get woken up by an IPI
+	 * interrupt beyond this point, but leave externals masked just to be
+	 * safe. If we're using icp-opal this may actually allow all
+	 * interrupts anyway, but that should be OK.
+	 */
+	icp_ops->set_priority(DEFAULT_PRIORITY);
+
 }
 #endif /* CONFIG_HOTPLUG_CPU */
 
@@ -435,10 +441,11 @@ static void __init xics_get_server_size(void)
 	np = of_find_compatible_node(NULL, NULL, "ibm,ppc-xics");
 	if (!np)
 		return;
+
 	isize = of_get_property(np, "ibm,interrupt-server#-size", NULL);
-	if (!isize)
-		return;
-	xics_interrupt_server_size = be32_to_cpu(*isize);
+	if (isize)
+		xics_interrupt_server_size = be32_to_cpu(*isize);
+
 	of_node_put(np);
 }
 
@@ -455,7 +462,7 @@ void __init xics_init(void)
 		    rc = icp_opal_init();
 	}
 	if (rc < 0) {
-		pr_warning("XICS: Cannot find a Presentation Controller !\n");
+		pr_warn("XICS: Cannot find a Presentation Controller !\n");
 		return;
 	}
 
@@ -470,7 +477,7 @@ void __init xics_init(void)
 	if (rc < 0)
 		rc = ics_opal_init();
 	if (rc < 0)
-		pr_warning("XICS: Cannot find a Source Controller !\n");
+		pr_warn("XICS: Cannot find a Source Controller !\n");
 
 	/* Initialize common bits */
 	xics_get_server_size();

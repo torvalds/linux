@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ASM_SPINLOCK_H
 #define __ASM_SPINLOCK_H
 
@@ -14,19 +15,11 @@ static inline int arch_spin_is_locked(arch_spinlock_t *x)
 
 #define arch_spin_lock(lock) arch_spin_lock_flags(lock, 0)
 
-static inline void arch_spin_unlock_wait(arch_spinlock_t *x)
-{
-	volatile unsigned int *a = __ldcw_align(x);
-
-	smp_cond_load_acquire(a, VAL);
-}
-
 static inline void arch_spin_lock_flags(arch_spinlock_t *x,
 					 unsigned long flags)
 {
 	volatile unsigned int *a;
 
-	mb();
 	a = __ldcw_align(x);
 	while (__ldcw(a) == 0)
 		while (*a == 0)
@@ -36,16 +29,20 @@ static inline void arch_spin_lock_flags(arch_spinlock_t *x,
 				local_irq_disable();
 			} else
 				cpu_relax();
-	mb();
 }
+#define arch_spin_lock_flags arch_spin_lock_flags
 
 static inline void arch_spin_unlock(arch_spinlock_t *x)
 {
 	volatile unsigned int *a;
-	mb();
+
 	a = __ldcw_align(x);
-	*a = 1;
+#ifdef CONFIG_SMP
+	(void) __ldcw(a);
+#else
 	mb();
+#endif
+	*a = 1;
 }
 
 static inline int arch_spin_trylock(arch_spinlock_t *x)
@@ -53,10 +50,8 @@ static inline int arch_spin_trylock(arch_spinlock_t *x)
 	volatile unsigned int *a;
 	int ret;
 
-	mb();
 	a = __ldcw_align(x);
         ret = __ldcw(a) != 0;
-	mb();
 
 	return ret;
 }
@@ -174,26 +169,5 @@ static __inline__ int arch_write_trylock(arch_rwlock_t *rw)
 
 	return result;
 }
-
-/*
- * read_can_lock - would read_trylock() succeed?
- * @lock: the rwlock in question.
- */
-static __inline__ int arch_read_can_lock(arch_rwlock_t *rw)
-{
-	return rw->counter >= 0;
-}
-
-/*
- * write_can_lock - would write_trylock() succeed?
- * @lock: the rwlock in question.
- */
-static __inline__ int arch_write_can_lock(arch_rwlock_t *rw)
-{
-	return !rw->counter;
-}
-
-#define arch_read_lock_flags(lock, flags) arch_read_lock(lock)
-#define arch_write_lock_flags(lock, flags) arch_write_lock(lock)
 
 #endif /* __ASM_SPINLOCK_H */

@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Driver for Samsung Q10 and related laptops: controls the backlight
  *
  *  Copyright (c) 2011 Frederick van der Wyck <fvanderwyck@gmail.com>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
- *
  */
 
 #include <linux/module.h>
@@ -95,7 +91,7 @@ static int __init dmi_check_callback(const struct dmi_system_id *id)
 	return 1;
 }
 
-static struct dmi_system_id __initdata samsungq10_dmi_table[] = {
+static const struct dmi_system_id samsungq10_dmi_table[] __initconst = {
 	{
 		.ident = "Samsung Q10",
 		.matches = {

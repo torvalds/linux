@@ -4,7 +4,7 @@
  */
 
 #include <linux/init.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/initrd.h>
 #include <asm/types.h>
 #include <init.h>
@@ -14,7 +14,7 @@
 static char *initrd __initdata = NULL;
 static int load_initrd(char *filename, void *buf, int size);
 
-static int __init read_initrd(void)
+int __init read_initrd(void)
 {
 	void *area;
 	long long size;
@@ -36,7 +36,9 @@ static int __init read_initrd(void)
 		return 0;
 	}
 
-	area = alloc_bootmem(size);
+	area = memblock_alloc(size, SMP_CACHE_BYTES);
+	if (!area)
+		panic("%s: Failed to allocate %llu bytes\n", __func__, size);
 
 	if (load_initrd(initrd, area, size) == -1)
 		return 0;
@@ -45,8 +47,6 @@ static int __init read_initrd(void)
 	initrd_end = initrd_start + size;
 	return 0;
 }
-
-__uml_postsetup(read_initrd);
 
 static int __init uml_initrd_setup(char *line, int *add)
 {

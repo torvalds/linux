@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * TI ADC081C/ADC101C/ADC121C 8/10/12-bit ADC driver
  *
  * Copyright (C) 2012 Avionic Design GmbH
  * Copyright (C) 2016 Intel
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Datasheets:
  *	http://www.ti.com/lit/ds/symlink/adc081c021.pdf
@@ -124,7 +121,6 @@ static struct adcxx1c_model adcxx1c_models[] = {
 
 static const struct iio_info adc081c_info = {
 	.read_raw = adc081c_read_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static irqreturn_t adc081c_trigger_handler(int irq, void *p)

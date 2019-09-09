@@ -1,23 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Ultra Wide Band
  * UWB internal API
  *
  * Copyright (C) 2005-2006 Intel Corporation
  * Inaky Perez-Gonzalez <inaky.perez-gonzalez@intel.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
  *
  * This contains most of the internal API for UWB. This is stuff used
  * across the stack that of course, is of no interest to the rest.
@@ -329,7 +316,7 @@ void uwb_rsv_put(struct uwb_rsv *rsv);
 bool uwb_rsv_has_two_drp_ies(struct uwb_rsv *rsv);
 void uwb_rsv_dump(char *text, struct uwb_rsv *rsv);
 int uwb_rsv_try_move(struct uwb_rsv *rsv, struct uwb_mas_bm *available);
-void uwb_rsv_backoff_win_timer(unsigned long arg);
+void uwb_rsv_backoff_win_timer(struct timer_list *t);
 void uwb_rsv_backoff_win_increment(struct uwb_rc *rc);
 int uwb_rsv_status(struct uwb_rsv *rsv);
 int uwb_rsv_companion_status(struct uwb_rsv *rsv);

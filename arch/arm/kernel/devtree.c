@@ -1,18 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/arch/arm/kernel/devtree.c
  *
  *  Copyright (C) 2009 Canonical Ltd. <jeremy.kerr@canonical.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/init.h>
 #include <linux/export.h>
 #include <linux/errno.h>
 #include <linux/types.h>
-#include <linux/bootmem.h>
 #include <linux/memblock.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
@@ -87,15 +83,12 @@ void __init arm_dt_init_cpu_maps(void)
 	if (!cpus)
 		return;
 
-	for_each_child_of_node(cpus, cpu) {
+	for_each_of_cpu_node(cpu) {
 		const __be32 *cell;
 		int prop_bytes;
 		u32 hwid;
 
-		if (of_node_cmp(cpu->type, "cpu"))
-			continue;
-
-		pr_debug(" * %s...\n", cpu->full_name);
+		pr_debug(" * %pOF...\n", cpu);
 		/*
 		 * A device tree containing CPU nodes with missing "reg"
 		 * properties is considered invalid to build the
@@ -103,8 +96,7 @@ void __init arm_dt_init_cpu_maps(void)
 		 */
 		cell = of_get_property(cpu, "reg", &prop_bytes);
 		if (!cell || prop_bytes < sizeof(*cell)) {
-			pr_debug(" * %s missing reg property\n",
-				     cpu->full_name);
+			pr_debug(" * %pOF missing reg property\n", cpu);
 			of_node_put(cpu);
 			return;
 		}

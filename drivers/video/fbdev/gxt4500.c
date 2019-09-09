@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Frame buffer device for IBM GXT4500P/6500P and GXT4000P/6000P
  * display adaptors
@@ -642,10 +643,9 @@ static int gxt4500_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	info = framebuffer_alloc(sizeof(struct gxt4500_par), &pdev->dev);
-	if (!info) {
-		dev_err(&pdev->dev, "gxt4500: cannot alloc FB info record\n");
+	if (!info)
 		goto err_free_fb;
-	}
+
 	par = info->par;
 	cardtype = ent->driver_data;
 	par->refclk_ps = cardinfo[cardtype].refclk_ps;

@@ -4,7 +4,7 @@
  * Contact: support@cavium.com
  *          Please include "LiquidIO" in the subject.
  *
- * Copyright (c) 2003-2015 Cavium, Inc.
+ * Copyright (c) 2003-2016 Cavium, Inc.
  *
  * This file is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, Version 2, as
@@ -15,9 +15,6 @@
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
  * NONINFRINGEMENT.  See the GNU General Public License for more
  * details.
- *
- * This file may also be available under a different license from Cavium.
- * Contact Cavium, Inc. for more information
  **********************************************************************/
 
 /*!  \file octeon_nic.h
@@ -55,19 +52,16 @@ struct octnic_ctrl_pkt {
 	/** Input queue to use to send this command. */
 	u64 iq_no;
 
-	/** Time to wait for Octeon software to respond to this control command.
-	 *  If wait_time is 0, OSI assumes no response is expected.
-	 */
-	size_t wait_time;
-
 	/** The network device that issued the control command. */
 	u64 netpndev;
 
 	/** Callback function called when the command has been fetched */
 	octnic_ctrl_pkt_cb_fn_t cb_fn;
+
+	u32 sc_status;
 };
 
-#define MAX_UDD_SIZE(nctrl) (sizeof(nctrl->udd))
+#define MAX_UDD_SIZE(nctrl) (sizeof((nctrl)->udd))
 
 /** Structure of data information passed by the NIC module to the OSI
  * layer when forwarding data to Octeon device software.
@@ -278,7 +272,8 @@ octeon_alloc_soft_command_resp(struct octeon_device    *oct,
  * queue should be stopped, and IQ_SEND_OK if it sent okay.
  */
 int octnet_send_nic_data_pkt(struct octeon_device *oct,
-			     struct octnic_data_pkt *ndata);
+			     struct octnic_data_pkt *ndata,
+			     int xmit_more);
 
 /** Send a NIC control packet to the device
  * @param oct - octeon device pointer

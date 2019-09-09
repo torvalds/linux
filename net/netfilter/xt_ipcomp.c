@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*  Kernel module to match IPComp parameters for IPv4 and IPv6
  *
  *  Copyright (C) 2013 WindRiver
@@ -7,11 +8,6 @@
  *
  *  Based on:
  *  net/netfilter/xt_esp.c
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version
- *  2 of the License, or (at your option) any later version.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -58,7 +54,7 @@ static bool comp_mt(const struct sk_buff *skb, struct xt_action_param *par)
 		 */
 		pr_debug("Dropping evil IPComp tinygram.\n");
 		par->hotdrop = true;
-		return 0;
+		return false;
 	}
 
 	return spi_match(compinfo->spis[0], compinfo->spis[1],
@@ -72,7 +68,7 @@ static int comp_mt_check(const struct xt_mtchk_param *par)
 
 	/* Must specify no unknown invflags */
 	if (compinfo->invflags & ~XT_IPCOMP_INV_MASK) {
-		pr_err("unknown flags %X\n", compinfo->invflags);
+		pr_info_ratelimited("unknown flags %X\n", compinfo->invflags);
 		return -EINVAL;
 	}
 	return 0;

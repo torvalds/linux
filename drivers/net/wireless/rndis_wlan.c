@@ -1,21 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for RNDIS based wireless USB devices.
  *
  * Copyright (C) 2007 by Bjorge Dijkstra <bjd@jooz.net>
  * Copyright (C) 2008-2009 by Jussi Kivilinna <jussi.kivilinna@iki.fi>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  *  Portions of this file are based on NDISwrapper project,
  *  Copyright (C) 2003-2005 Pontus Fuchs, Giridhar Pemmasani
@@ -479,7 +467,7 @@ struct rndis_wlan_private {
  */
 static int rndis_change_virtual_intf(struct wiphy *wiphy,
 					struct net_device *dev,
-					enum nl80211_iftype type, u32 *flags,
+					enum nl80211_iftype type,
 					struct vif_params *params);
 
 static int rndis_scan(struct wiphy *wiphy,
@@ -1707,7 +1695,7 @@ static struct ndis_80211_pmkid *get_device_pmkids(struct usbnet *usbdev)
 	int len, ret, max_pmkids;
 
 	max_pmkids = priv->wdev.wiphy->max_num_pmkids;
-	len = sizeof(*pmkids) + max_pmkids * sizeof(pmkids->bssid_info[0]);
+	len = struct_size(pmkids, bssid_info, max_pmkids);
 
 	pmkids = kzalloc(len, GFP_KERNEL);
 	if (!pmkids)
@@ -1740,7 +1728,7 @@ static int set_device_pmkids(struct usbnet *usbdev,
 	int ret, len, num_pmkids;
 
 	num_pmkids = le32_to_cpu(pmkids->bssid_info_count);
-	len = sizeof(*pmkids) + num_pmkids * sizeof(pmkids->bssid_info[0]);
+	len = struct_size(pmkids, bssid_info, num_pmkids);
 	pmkids->length = cpu_to_le32(len);
 
 	debug_print_pmkids(usbdev, pmkids, __func__);
@@ -1761,7 +1749,7 @@ static struct ndis_80211_pmkid *remove_pmkid(struct usbnet *usbdev,
 						struct cfg80211_pmksa *pmksa,
 						int max_pmkids)
 {
-	int i, newlen, err;
+	int i, err;
 	unsigned int count;
 
 	count = le32_to_cpu(pmkids->bssid_info_count);
@@ -1786,9 +1774,7 @@ static struct ndis_80211_pmkid *remove_pmkid(struct usbnet *usbdev,
 		pmkids->bssid_info[i] = pmkids->bssid_info[i + 1];
 
 	count--;
-	newlen = sizeof(*pmkids) + count * sizeof(pmkids->bssid_info[0]);
-
-	pmkids->length = cpu_to_le32(newlen);
+	pmkids->length = cpu_to_le32(struct_size(pmkids, bssid_info, count));
 	pmkids->bssid_info_count = cpu_to_le32(count);
 
 	return pmkids;
@@ -1831,7 +1817,7 @@ static struct ndis_80211_pmkid *update_pmkid(struct usbnet *usbdev,
 	}
 
 	/* add new pmkid */
-	newlen = sizeof(*pmkids) + (count + 1) * sizeof(pmkids->bssid_info[0]);
+	newlen = struct_size(pmkids, bssid_info, count + 1);
 
 	new_pmkids = krealloc(pmkids, newlen, GFP_KERNEL);
 	if (!new_pmkids) {
@@ -1857,7 +1843,7 @@ error:
  */
 static int rndis_change_virtual_intf(struct wiphy *wiphy,
 					struct net_device *dev,
-					enum nl80211_iftype type, u32 *flags,
+					enum nl80211_iftype type,
 					struct vif_params *params)
 {
 	struct rndis_wlan_private *priv = wiphy_priv(wiphy);
@@ -2480,7 +2466,7 @@ static void rndis_fill_station_info(struct usbnet *usbdev,
 	ret = rndis_query_oid(usbdev, RNDIS_OID_GEN_LINK_SPEED, &linkspeed, &len);
 	if (ret == 0) {
 		sinfo->txrate.legacy = le32_to_cpu(linkspeed) / 1000;
-		sinfo->filled |= BIT(NL80211_STA_INFO_TX_BITRATE);
+		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_BITRATE);
 	}
 
 	len = sizeof(rssi);
@@ -2488,7 +2474,7 @@ static void rndis_fill_station_info(struct usbnet *usbdev,
 			      &rssi, &len);
 	if (ret == 0) {
 		sinfo->signal = level_to_qual(le32_to_cpu(rssi));
-		sinfo->filled |= BIT(NL80211_STA_INFO_SIGNAL);
+		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_SIGNAL);
 	}
 }
 
@@ -2830,15 +2816,22 @@ static void rndis_wlan_do_link_up_work(struct usbnet *usbdev)
 	}
 
 	if (priv->infra_mode == NDIS_80211_INFRA_INFRA) {
-		if (!roamed)
+		if (!roamed) {
 			cfg80211_connect_result(usbdev->net, bssid, req_ie,
 						req_ie_len, resp_ie,
 						resp_ie_len, 0, GFP_KERNEL);
-		else
-			cfg80211_roamed(usbdev->net,
-					get_current_channel(usbdev, NULL),
-					bssid, req_ie, req_ie_len,
-					resp_ie, resp_ie_len, GFP_KERNEL);
+		} else {
+			struct cfg80211_roam_info roam_info = {
+				.channel = get_current_channel(usbdev, NULL),
+				.bssid = bssid,
+				.req_ie = req_ie,
+				.req_ie_len = req_ie_len,
+				.resp_ie = resp_ie,
+				.resp_ie_len = resp_ie_len,
+			};
+
+			cfg80211_roamed(usbdev->net, &roam_info, GFP_KERNEL);
+		}
 	} else if (priv->infra_mode == NDIS_80211_INFRA_ADHOC)
 		cfg80211_ibss_joined(usbdev->net, bssid,
 				     get_current_channel(usbdev, NULL),
@@ -2921,6 +2914,8 @@ static void rndis_wlan_auth_indication(struct usbnet *usbdev,
 
 	while (buflen >= sizeof(*auth_req)) {
 		auth_req = (void *)buf;
+		if (buflen < le32_to_cpu(auth_req->length))
+			return;
 		type = "unknown";
 		flags = le32_to_cpu(auth_req->flags);
 		pairwise_error = false;
@@ -3187,7 +3182,7 @@ static void rndis_do_cqm(struct usbnet *usbdev, s32 rssi)
 		return;
 
 	priv->last_cqm_event_rssi = rssi;
-	cfg80211_cqm_rssi_notify(usbdev->net, event, GFP_KERNEL);
+	cfg80211_cqm_rssi_notify(usbdev->net, event, rssi, GFP_KERNEL);
 }
 
 #define DEVICE_POLLER_JIFFIES (HZ)
@@ -3392,6 +3387,7 @@ static const struct net_device_ops rndis_wlan_netdev_ops = {
 	.ndo_stop		= usbnet_stop,
 	.ndo_start_xmit		= usbnet_start_xmit,
 	.ndo_tx_timeout		= usbnet_tx_timeout,
+	.ndo_get_stats64	= usbnet_get_stats64,
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_rx_mode	= rndis_wlan_set_multicast_list,
@@ -3427,6 +3423,10 @@ static int rndis_wlan_bind(struct usbnet *usbdev, struct usb_interface *intf)
 
 	/* because rndis_command() sleeps we need to use workqueue */
 	priv->workqueue = create_singlethread_workqueue("rndis_wlan");
+	if (!priv->workqueue) {
+		wiphy_free(wiphy);
+		return -ENOMEM;
+	}
 	INIT_WORK(&priv->work, rndis_wlan_worker);
 	INIT_DELAYED_WORK(&priv->dev_poller_work, rndis_device_poller);
 	INIT_DELAYED_WORK(&priv->scan_work, rndis_get_scan_results);

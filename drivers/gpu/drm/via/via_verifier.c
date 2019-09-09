@@ -34,6 +34,7 @@
 #include <drm/drm_legacy.h>
 #include "via_verifier.h"
 #include "via_drv.h"
+#include <linux/kernel.h>
 
 typedef enum {
 	state_command,
@@ -1102,10 +1103,7 @@ setup_hazard_table(hz_init_t init_table[], hazard_t table[], int size)
 
 void via_init_command_verifier(void)
 {
-	setup_hazard_table(init_table1, table1,
-			   sizeof(init_table1) / sizeof(hz_init_t));
-	setup_hazard_table(init_table2, table2,
-			   sizeof(init_table2) / sizeof(hz_init_t));
-	setup_hazard_table(init_table3, table3,
-			   sizeof(init_table3) / sizeof(hz_init_t));
+	setup_hazard_table(init_table1, table1, ARRAY_SIZE(init_table1));
+	setup_hazard_table(init_table2, table2, ARRAY_SIZE(init_table2));
+	setup_hazard_table(init_table3, table3, ARRAY_SIZE(init_table3));
 }

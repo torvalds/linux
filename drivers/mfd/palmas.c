@@ -1,15 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * TI Palmas MFD Driver
  *
  * Copyright 2011-2012 Texas Instruments Inc.
  *
  * Author: Graeme Gregory <gg@slimlogic.co.uk>
- *
- *  This program is free software; you can redistribute it and/or modify it
- *  under  the terms of the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the License, or (at your
- *  option) any later version.
- *
  */
 
 #include <linux/module.h>
@@ -430,9 +425,28 @@ static void palmas_power_off(void)
 {
 	unsigned int addr;
 	int ret, slave;
+	u8 powerhold_mask;
+	struct device_node *np = palmas_dev->dev->of_node;
 
-	if (!palmas_dev)
-		return;
+	if (of_property_read_bool(np, "ti,palmas-override-powerhold")) {
+		addr = PALMAS_BASE_TO_REG(PALMAS_PU_PD_OD_BASE,
+					  PALMAS_PRIMARY_SECONDARY_PAD2);
+		slave = PALMAS_BASE_TO_SLAVE(PALMAS_PU_PD_OD_BASE);
+
+		if (of_device_is_compatible(np, "ti,tps65917"))
+			powerhold_mask =
+				TPS65917_PRIMARY_SECONDARY_PAD2_GPIO_5_MASK;
+		else
+			powerhold_mask =
+				PALMAS_PRIMARY_SECONDARY_PAD2_GPIO_7_MASK;
+
+		ret = regmap_update_bits(palmas_dev->regmap[slave], addr,
+					 powerhold_mask, 0);
+		if (ret)
+			dev_err(palmas_dev->dev,
+				"Unable to write PRIMARY_SECONDARY_PAD2 %d\n",
+				ret);
+	}
 
 	slave = PALMAS_BASE_TO_SLAVE(PALMAS_PMU_CONTROL_BASE);
 	addr = PALMAS_BASE_TO_REG(PALMAS_PMU_CONTROL_BASE, PALMAS_DEV_CTRL);
@@ -570,7 +584,7 @@ static int palmas_i2c_probe(struct i2c_client *i2c,
 			PALMAS_POLARITY_CTRL, PALMAS_POLARITY_CTRL_INT_POLARITY,
 			reg);
 	if (ret < 0) {
-		dev_err(palmas->dev, "POLARITY_CTRL updat failed: %d\n", ret);
+		dev_err(palmas->dev, "POLARITY_CTRL update failed: %d\n", ret);
 		goto err_i2c;
 	}
 
@@ -665,7 +679,7 @@ no_irq:
 	 * otherwise continue and add devices using mfd helpers.
 	 */
 	if (node) {
-		ret = of_platform_populate(node, NULL, NULL, &i2c->dev);
+		ret = devm_of_platform_populate(&i2c->dev);
 		if (ret < 0) {
 			goto err_irq;
 		} else if (pdata->pm_off && !pm_power_off) {

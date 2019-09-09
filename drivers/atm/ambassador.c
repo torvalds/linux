@@ -1,23 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
   Madge Ambassador ATM Adapter driver.
   Copyright (C) 1995-1999  Madge Networks Ltd.
 
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; either version 2 of the License, or
-  (at your option) any later version.
-
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-
-  The GNU GPL is contained in /usr/doc/copyright/GPL on a Debian
-  system and in the file COPYING in the Linux kernel source.
 */
 
 /* * dedicated to the memory of Graham Gordon 1971-1998 * */
@@ -293,7 +278,7 @@ static inline void __init show_version (void) {
   
 */
 
-static void do_housekeeping (unsigned long arg);
+static void do_housekeeping (struct timer_list *t);
 /********** globals **********/
 
 static unsigned short debug = 0;
@@ -1493,8 +1478,8 @@ static const struct atmdev_ops amb_ops = {
 };
 
 /********** housekeeping **********/
-static void do_housekeeping (unsigned long arg) {
-  amb_dev * dev = (amb_dev *) arg;
+static void do_housekeeping (struct timer_list *t) {
+  amb_dev * dev = from_timer(dev, t, housekeeping);
   
   // could collect device-specific (not driver/atm-linux) stats here
       
@@ -2258,7 +2243,7 @@ static int amb_probe(struct pci_dev *pci_dev,
 
 	PRINTD (DBG_INFO, "registered Madge ATM adapter (no. %d) (%p) at %p",
 		dev->atm_dev->number, dev, dev->atm_dev);
-		dev->atm_dev->dev_data = (void *) dev;
+	dev->atm_dev->dev_data = (void *) dev;
 
 	// register our address
 	amb_esi (dev, dev->atm_dev->esi);
@@ -2267,9 +2252,7 @@ static int amb_probe(struct pci_dev *pci_dev,
 	dev->atm_dev->ci_range.vpi_bits = NUM_VPI_BITS;
 	dev->atm_dev->ci_range.vci_bits = NUM_VCI_BITS;
 
-	init_timer(&dev->housekeeping);
-	dev->housekeeping.function = do_housekeeping;
-	dev->housekeeping.data = (unsigned long) dev;
+	timer_setup(&dev->housekeeping, do_housekeeping, 0);
 	mod_timer(&dev->housekeeping, jiffies);
 
 	// enable host interrupts
@@ -2375,7 +2358,7 @@ MODULE_PARM_DESC(pci_lat, "PCI latency in bus cycles");
 
 /********** module entry **********/
 
-static struct pci_device_id amb_pci_tbl[] = {
+static const struct pci_device_id amb_pci_tbl[] = {
 	{ PCI_VDEVICE(MADGE, PCI_DEVICE_ID_MADGE_AMBASSADOR), 0 },
 	{ PCI_VDEVICE(MADGE, PCI_DEVICE_ID_MADGE_AMBASSADOR_BAD), 0 },
 	{ 0, }
@@ -2394,12 +2377,7 @@ static int __init amb_module_init (void)
 {
   PRINTD (DBG_FLOW|DBG_INIT, "init_module");
   
-  // sanity check - cast needed as printk does not support %Zu
-  if (sizeof(amb_mem) != 4*16 + 4*12) {
-    PRINTK (KERN_ERR, "Fix amb_mem (is %lu words).",
-	    (unsigned long) sizeof(amb_mem));
-    return -ENOMEM;
-  }
+  BUILD_BUG_ON(sizeof(amb_mem) != 4*16 + 4*12);
   
   show_version();
   

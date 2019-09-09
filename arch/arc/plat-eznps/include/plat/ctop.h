@@ -1,17 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright(c) 2015 EZchip Technologies.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in
- * the file called "COPYING".
  */
 
 #ifndef _PLAT_EZNPS_CTOP_H
@@ -21,6 +10,8 @@
 #error "Incorrect ctop.h include"
 #endif
 
+#include <linux/bits.h>
+#include <linux/types.h>
 #include <soc/nps/common.h>
 
 /* core auxiliary registers */
@@ -39,6 +30,7 @@
 #define CTOP_AUX_LOGIC_CORE_ID			(CTOP_AUX_BASE + 0x018)
 #define CTOP_AUX_MT_CTRL			(CTOP_AUX_BASE + 0x020)
 #define CTOP_AUX_HW_COMPLY			(CTOP_AUX_BASE + 0x024)
+#define CTOP_AUX_DPC				(CTOP_AUX_BASE + 0x02C)
 #define CTOP_AUX_LPC				(CTOP_AUX_BASE + 0x030)
 #define CTOP_AUX_EFLAGS				(CTOP_AUX_BASE + 0x080)
 #define CTOP_AUX_IACK				(CTOP_AUX_BASE + 0x088)
@@ -46,9 +38,8 @@
 #define CTOP_AUX_UDMC				(CTOP_AUX_BASE + 0x300)
 
 /* EZchip core instructions */
-#define CTOP_INST_HWSCHD_OFF_R3			0x3B6F00BF
+#define CTOP_INST_HWSCHD_WFT_IE12		0x3E6F7344
 #define CTOP_INST_HWSCHD_OFF_R4			0x3C6F00BF
-#define CTOP_INST_HWSCHD_RESTORE_R3		0x3E6F70C3
 #define CTOP_INST_HWSCHD_RESTORE_R4		0x3E6F7103
 #define CTOP_INST_SCHD_RW			0x3E6F7004
 #define CTOP_INST_SCHD_RD			0x3E6F7084
@@ -61,19 +52,19 @@
 #define CTOP_INST_AXOR_DI_R2_R2_R3		0x4A664C06
 
 /* Do not use D$ for address in 2G-3G */
-#define HW_COMPLY_KRN_NOT_D_CACHED		_BITUL(28)
+#define HW_COMPLY_KRN_NOT_D_CACHED		BIT(28)
 
 #define NPS_MSU_EN_CFG				0x80
 #define NPS_CRG_BLKID				0x480
-#define NPS_CRG_SYNC_BIT			_BITUL(0)
+#define NPS_CRG_SYNC_BIT			BIT(0)
 #define NPS_GIM_BLKID				0x5C0
 
 /* GIM registers and fields*/
-#define NPS_GIM_UART_LINE			_BITUL(7)
-#define NPS_GIM_DBG_LAN_EAST_TX_DONE_LINE	_BITUL(10)
-#define NPS_GIM_DBG_LAN_EAST_RX_RDY_LINE	_BITUL(11)
-#define NPS_GIM_DBG_LAN_WEST_TX_DONE_LINE	_BITUL(25)
-#define NPS_GIM_DBG_LAN_WEST_RX_RDY_LINE	_BITUL(26)
+#define NPS_GIM_UART_LINE			BIT(7)
+#define NPS_GIM_DBG_LAN_EAST_TX_DONE_LINE	BIT(10)
+#define NPS_GIM_DBG_LAN_EAST_RX_RDY_LINE	BIT(11)
+#define NPS_GIM_DBG_LAN_WEST_TX_DONE_LINE	BIT(25)
+#define NPS_GIM_DBG_LAN_WEST_RX_RDY_LINE	BIT(26)
 
 #ifndef __ASSEMBLY__
 /* Functional registers definition */
@@ -143,6 +134,15 @@ struct nps_host_reg_gim_p_int_dst {
 };
 
 /* AUX registers definition */
+struct nps_host_reg_aux_dpc {
+	union {
+		struct {
+			u32 ien:1, men:1, hen:1, reserved:29;
+		};
+		u32 value;
+	};
+};
+
 struct nps_host_reg_aux_udmc {
 	union {
 		struct {

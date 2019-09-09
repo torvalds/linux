@@ -1,10 +1,16 @@
+# SPDX-License-Identifier: GPL-2.0
 menuconfig MOST
-        tristate "MOST driver"
-	depends on HAS_DMA
-        select MOSTCORE
+        tristate "MOST support"
+	depends on HAS_DMA && CONFIGFS_FS
         default n
-        ---help---
-          This option allows you to enable support for MOST Network transceivers.
+        help
+	  Say Y here if you want to enable MOST support.
+	  This driver needs at least one additional component to enable the
+	  desired access from userspace (e.g. character devices) and one that
+	  matches the network controller's hardware interface (e.g. USB).
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called most_core.
 
           If in doubt, say N here.
 
@@ -12,20 +18,18 @@ menuconfig MOST
 
 if MOST
 
-source "drivers/staging/most/mostcore/Kconfig"
+source "drivers/staging/most/cdev/Kconfig"
 
-source "drivers/staging/most/aim-cdev/Kconfig"
+source "drivers/staging/most/net/Kconfig"
 
-source "drivers/staging/most/aim-network/Kconfig"
+source "drivers/staging/most/sound/Kconfig"
 
-source "drivers/staging/most/aim-sound/Kconfig"
+source "drivers/staging/most/video/Kconfig"
 
-source "drivers/staging/most/aim-v4l2/Kconfig"
+source "drivers/staging/most/dim2/Kconfig"
 
-source "drivers/staging/most/hdm-dim2/Kconfig"
+source "drivers/staging/most/i2c/Kconfig"
 
-source "drivers/staging/most/hdm-i2c/Kconfig"
-
-source "drivers/staging/most/hdm-usb/Kconfig"
+source "drivers/staging/most/usb/Kconfig"
 
 endif

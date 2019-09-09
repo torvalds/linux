@@ -1,23 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Camellia Cipher Algorithm (x86_64)
  *
  * Copyright (C) 2012 Jussi Kivilinna <jussi.kivilinna@mbnet.fi>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307
- * USA
- *
  */
 
 #include <linux/linkage.h>
@@ -75,17 +60,17 @@
 #define RCD1bh %dh
 
 #define RT0 %rsi
-#define RT1 %rbp
+#define RT1 %r12
 #define RT2 %r8
 
 #define RT0d %esi
-#define RT1d %ebp
+#define RT1d %r12d
 #define RT2d %r8d
 
 #define RT2bl %r8b
 
 #define RXOR %r9
-#define RRBP %r10
+#define RR12 %r10
 #define RDST %r11
 
 #define RXORd %r9d
@@ -197,7 +182,7 @@ ENTRY(__camellia_enc_blk)
 	 *	%rdx: src
 	 *	%rcx: bool xor
 	 */
-	movq %rbp, RRBP;
+	movq %r12, RR12;
 
 	movq %rcx, RXOR;
 	movq %rsi, RDST;
@@ -227,13 +212,13 @@ ENTRY(__camellia_enc_blk)
 
 	enc_outunpack(mov, RT1);
 
-	movq RRBP, %rbp;
+	movq RR12, %r12;
 	ret;
 
 .L__enc_xor:
 	enc_outunpack(xor, RT1);
 
-	movq RRBP, %rbp;
+	movq RR12, %r12;
 	ret;
 ENDPROC(__camellia_enc_blk)
 
@@ -248,7 +233,7 @@ ENTRY(camellia_dec_blk)
 	movl $24, RXORd;
 	cmovel RXORd, RT2d; /* max */
 
-	movq %rbp, RRBP;
+	movq %r12, RR12;
 	movq %rsi, RDST;
 	movq %rdx, RIO;
 
@@ -271,7 +256,7 @@ ENTRY(camellia_dec_blk)
 
 	dec_outunpack();
 
-	movq RRBP, %rbp;
+	movq RR12, %r12;
 	ret;
 ENDPROC(camellia_dec_blk)
 
@@ -433,7 +418,7 @@ ENTRY(__camellia_enc_blk_2way)
 	 */
 	pushq %rbx;
 
-	movq %rbp, RRBP;
+	movq %r12, RR12;
 	movq %rcx, RXOR;
 	movq %rsi, RDST;
 	movq %rdx, RIO;
@@ -461,14 +446,14 @@ ENTRY(__camellia_enc_blk_2way)
 
 	enc_outunpack2(mov, RT2);
 
-	movq RRBP, %rbp;
+	movq RR12, %r12;
 	popq %rbx;
 	ret;
 
 .L__enc2_xor:
 	enc_outunpack2(xor, RT2);
 
-	movq RRBP, %rbp;
+	movq RR12, %r12;
 	popq %rbx;
 	ret;
 ENDPROC(__camellia_enc_blk_2way)
@@ -485,7 +470,7 @@ ENTRY(camellia_dec_blk_2way)
 	cmovel RXORd, RT2d; /* max */
 
 	movq %rbx, RXOR;
-	movq %rbp, RRBP;
+	movq %r12, RR12;
 	movq %rsi, RDST;
 	movq %rdx, RIO;
 
@@ -508,7 +493,7 @@ ENTRY(camellia_dec_blk_2way)
 
 	dec_outunpack2();
 
-	movq RRBP, %rbp;
+	movq RR12, %r12;
 	movq RXOR, %rbx;
 	ret;
 ENDPROC(camellia_dec_blk_2way)

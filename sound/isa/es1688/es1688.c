@@ -1,22 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Driver for generic ESS AudioDrive ESx688 soundcards
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
- *
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <linux/init.h>
@@ -71,17 +56,17 @@ module_param_array(isapnp, bool, NULL, 0444);
 MODULE_PARM_DESC(isapnp, "PnP detection for specified soundcard.");
 #endif
 MODULE_PARM_DESC(enable, "Enable " CRD_NAME " soundcard.");
-module_param_array(port, long, NULL, 0444);
+module_param_hw_array(port, long, ioport, NULL, 0444);
 MODULE_PARM_DESC(port, "Port # for " CRD_NAME " driver.");
-module_param_array(mpu_port, long, NULL, 0444);
+module_param_hw_array(mpu_port, long, ioport, NULL, 0444);
 MODULE_PARM_DESC(mpu_port, "MPU-401 port # for " CRD_NAME " driver.");
-module_param_array(irq, int, NULL, 0444);
-module_param_array(fm_port, long, NULL, 0444);
+module_param_hw_array(irq, int, irq, NULL, 0444);
+module_param_hw_array(fm_port, long, ioport, NULL, 0444);
 MODULE_PARM_DESC(fm_port, "FM port # for ES1688 driver.");
 MODULE_PARM_DESC(irq, "IRQ # for " CRD_NAME " driver.");
-module_param_array(mpu_irq, int, NULL, 0444);
+module_param_hw_array(mpu_irq, int, irq, NULL, 0444);
 MODULE_PARM_DESC(mpu_irq, "MPU-401 IRQ # for " CRD_NAME " driver.");
-module_param_array(dma8, int, NULL, 0444);
+module_param_hw_array(dma8, int, dma, NULL, 0444);
 MODULE_PARM_DESC(dma8, "8-bit DMA # for " CRD_NAME " driver.");
 
 #ifdef CONFIG_PNP
@@ -260,7 +245,6 @@ static int snd_es968_pnp_detect(struct pnp_card_link *pcard,
 	struct snd_card *card;
 	static unsigned int dev;
 	int error;
-	struct snd_es1688 *chip;
 
 	if (snd_es968_pnp_is_probed)
 		return -EBUSY;
@@ -276,7 +260,6 @@ static int snd_es968_pnp_detect(struct pnp_card_link *pcard,
 			     sizeof(struct snd_es1688), &card);
 	if (error < 0)
 		return error;
-	chip = card->private_data;
 
 	error = snd_card_es968_pnp(card, dev, pcard, pid);
 	if (error < 0) {
@@ -303,10 +286,8 @@ static int snd_es968_pnp_suspend(struct pnp_card_link *pcard,
 				 pm_message_t state)
 {
 	struct snd_card *card = pnp_get_card_drvdata(pcard);
-	struct snd_es1688 *chip = card->private_data;
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
-	snd_pcm_suspend_all(chip->pcm);
 	return 0;
 }
 
@@ -321,7 +302,7 @@ static int snd_es968_pnp_resume(struct pnp_card_link *pcard)
 }
 #endif
 
-static struct pnp_card_device_id snd_es968_pnpids[] = {
+static const struct pnp_card_device_id snd_es968_pnpids[] = {
 	{ .id = "ESS0968", .devs = { { "@@@0968" }, } },
 	{ .id = "ESS0968", .devs = { { "ESS0968" }, } },
 	{ .id = "", } /* end */

@@ -1,4 +1,5 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
+# SPDX-License-Identifier: GPL-2.0-only
 
 use File::Basename;
 use Math::BigInt;
@@ -7,10 +8,6 @@ use Getopt::Long;
 # Copyright 2008, Intel Corporation
 #
 # This file is part of the Linux kernel
-#
-# This program file is free software; you can redistribute it and/or modify it
-# under the terms of the GNU General Public License as published by the
-# Free Software Foundation; version 2 of the License.
 #
 # Authors:
 # 	Arjan van de Ven <arjan@linux.intel.com>

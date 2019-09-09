@@ -1,20 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * v4l2-rect.h - v4l2_rect helper functions
  *
  * Copyright 2014 Cisco Systems, Inc. and/or its affiliates. All rights reserved.
- *
- * This program is free software; you may redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
  */
 
 #ifndef _V4L2_RECT_H_
@@ -92,6 +80,32 @@ static inline bool v4l2_rect_same_size(const struct v4l2_rect *r1,
 				       const struct v4l2_rect *r2)
 {
 	return r1->width == r2->width && r1->height == r2->height;
+}
+
+/**
+ * v4l2_rect_same_position() - return true if r1 has the same position as r2
+ * @r1: rectangle.
+ * @r2: rectangle.
+ *
+ * Return true if both rectangles have the same position
+ */
+static inline bool v4l2_rect_same_position(const struct v4l2_rect *r1,
+					   const struct v4l2_rect *r2)
+{
+	return r1->top == r2->top && r1->left == r2->left;
+}
+
+/**
+ * v4l2_rect_equal() - return true if r1 equals r2
+ * @r1: rectangle.
+ * @r2: rectangle.
+ *
+ * Return true if both rectangles have the same size and position.
+ */
+static inline bool v4l2_rect_equal(const struct v4l2_rect *r1,
+				   const struct v4l2_rect *r2)
+{
+	return v4l2_rect_same_size(r1, r2) && v4l2_rect_same_position(r1, r2);
 }
 
 /**

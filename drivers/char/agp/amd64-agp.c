@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2001-2003 SuSE Labs.
  * Distributed under the GNU public license, v2.
@@ -14,7 +15,7 @@
 #include <linux/agp_backend.h>
 #include <linux/mmzone.h>
 #include <asm/page.h>		/* PAGE_SIZE */
-#include <asm/e820.h>
+#include <asm/e820/api.h>
 #include <asm/amd_nb.h>
 #include <asm/gart.h>
 #include "agp.h"
@@ -156,7 +157,7 @@ static u64 amd64_configure(struct pci_dev *hammer, u64 gatt_table)
 
 	/* Address to map to */
 	pci_read_config_dword(hammer, AMD64_GARTAPERTUREBASE, &tmp);
-	aperturebase = tmp << 25;
+	aperturebase = (u64)tmp << 25;
 	aper_base = (aperturebase & PCI_BASE_ADDRESS_MEM_MASK);
 
 	enable_gart_translation(hammer, gatt_table);
@@ -277,7 +278,7 @@ static int fix_northbridge(struct pci_dev *nb, struct pci_dev *agp, u16 cap)
 	pci_read_config_dword(nb, AMD64_GARTAPERTURECTL, &nb_order);
 	nb_order = (nb_order >> 1) & 7;
 	pci_read_config_dword(nb, AMD64_GARTAPERTUREBASE, &nb_base);
-	nb_aper = nb_base << 25;
+	nb_aper = (u64)nb_base << 25;
 
 	/* Northbridge seems to contain crap. Try the AGP bridge. */
 
@@ -610,7 +611,7 @@ static int agp_amd64_resume(struct pci_dev *pdev)
 
 #endif /* CONFIG_PM */
 
-static struct pci_device_id agp_amd64_pci_table[] = {
+static const struct pci_device_id agp_amd64_pci_table[] = {
 	{
 	.class		= (PCI_CLASS_BRIDGE_HOST << 8),
 	.class_mask	= ~0,

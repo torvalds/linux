@@ -1,22 +1,18 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * rcar_du_plane.c  --  R-Car Display Unit Planes
  *
  * Copyright (C) 2013-2015 Renesas Electronics Corporation
  *
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
-#include <drm/drmP.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_device.h>
 #include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fourcc.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_plane_helper.h>
 
@@ -50,23 +46,21 @@
  * automatically when the core swaps the old and new states.
  */
 
-static bool rcar_du_plane_needs_realloc(struct rcar_du_plane *plane,
-					struct rcar_du_plane_state *new_state)
+static bool rcar_du_plane_needs_realloc(
+				const struct rcar_du_plane_state *old_state,
+				const struct rcar_du_plane_state *new_state)
 {
-	struct rcar_du_plane_state *cur_state;
-
-	cur_state = to_rcar_plane_state(plane->plane.state);
-
-	/* Lowering the number of planes doesn't strictly require reallocation
+	/*
+	 * Lowering the number of planes doesn't strictly require reallocation
 	 * as the extra hardware plane will be freed when committing, but doing
 	 * so could lead to more fragmentation.
 	 */
-	if (!cur_state->format ||
-	    cur_state->format->planes != new_state->format->planes)
+	if (!old_state->format ||
+	    old_state->format->planes != new_state->format->planes)
 		return true;
 
 	/* Reallocate hardware planes if the source has changed. */
-	if (cur_state->source != new_state->source)
+	if (old_state->source != new_state->source)
 		return true;
 
 	return false;
@@ -141,37 +135,43 @@ int rcar_du_atomic_check_planes(struct drm_device *dev,
 	unsigned int groups = 0;
 	unsigned int i;
 	struct drm_plane *drm_plane;
-	struct drm_plane_state *drm_plane_state;
+	struct drm_plane_state *old_drm_plane_state;
+	struct drm_plane_state *new_drm_plane_state;
 
 	/* Check if hardware planes need to be reallocated. */
-	for_each_plane_in_state(state, drm_plane, drm_plane_state, i) {
-		struct rcar_du_plane_state *plane_state;
+	for_each_oldnew_plane_in_state(state, drm_plane, old_drm_plane_state,
+				       new_drm_plane_state, i) {
+		struct rcar_du_plane_state *old_plane_state;
+		struct rcar_du_plane_state *new_plane_state;
 		struct rcar_du_plane *plane;
 		unsigned int index;
 
 		plane = to_rcar_plane(drm_plane);
-		plane_state = to_rcar_plane_state(drm_plane_state);
+		old_plane_state = to_rcar_plane_state(old_drm_plane_state);
+		new_plane_state = to_rcar_plane_state(new_drm_plane_state);
 
 		dev_dbg(rcdu->dev, "%s: checking plane (%u,%tu)\n", __func__,
 			plane->group->index, plane - plane->group->planes);
 
-		/* If the plane is being disabled we don't need to go through
+		/*
+		 * If the plane is being disabled we don't need to go through
 		 * the full reallocation procedure. Just mark the hardware
 		 * plane(s) as freed.
 		 */
-		if (!plane_state->format) {
+		if (!new_plane_state->format) {
 			dev_dbg(rcdu->dev, "%s: plane is being disabled\n",
 				__func__);
 			index = plane - plane->group->planes;
 			group_freed_planes[plane->group->index] |= 1 << index;
-			plane_state->hwindex = -1;
+			new_plane_state->hwindex = -1;
 			continue;
 		}
 
-		/* If the plane needs to be reallocated mark it as such, and
+		/*
+		 * If the plane needs to be reallocated mark it as such, and
 		 * mark the hardware plane(s) as free.
 		 */
-		if (rcar_du_plane_needs_realloc(plane, plane_state)) {
+		if (rcar_du_plane_needs_realloc(old_plane_state, new_plane_state)) {
 			dev_dbg(rcdu->dev, "%s: plane needs reallocation\n",
 				__func__);
 			groups |= 1 << plane->group->index;
@@ -179,14 +179,15 @@ int rcar_du_atomic_check_planes(struct drm_device *dev,
 
 			index = plane - plane->group->planes;
 			group_freed_planes[plane->group->index] |= 1 << index;
-			plane_state->hwindex = -1;
+			new_plane_state->hwindex = -1;
 		}
 	}
 
 	if (!needs_realloc)
 		return 0;
 
-	/* Grab all plane states for the groups that need reallocation to ensure
+	/*
+	 * Grab all plane states for the groups that need reallocation to ensure
 	 * locking and avoid racy updates. This serializes the update operation,
 	 * but there's not much we can do about it as that's the hardware
 	 * design.
@@ -204,14 +205,15 @@ int rcar_du_atomic_check_planes(struct drm_device *dev,
 
 		for (i = 0; i < group->num_planes; ++i) {
 			struct rcar_du_plane *plane = &group->planes[i];
-			struct rcar_du_plane_state *plane_state;
+			struct rcar_du_plane_state *new_plane_state;
 			struct drm_plane_state *s;
 
 			s = drm_atomic_get_plane_state(state, &plane->plane);
 			if (IS_ERR(s))
 				return PTR_ERR(s);
 
-			/* If the plane has been freed in the above loop its
+			/*
+			 * If the plane has been freed in the above loop its
 			 * hardware planes must not be added to the used planes
 			 * bitmask. However, the current state doesn't reflect
 			 * the free state yet, as we've modified the new state
@@ -226,16 +228,16 @@ int rcar_du_atomic_check_planes(struct drm_device *dev,
 				continue;
 			}
 
-			plane_state = to_rcar_plane_state(plane->plane.state);
-			used_planes |= rcar_du_plane_hwmask(plane_state);
+			new_plane_state = to_rcar_plane_state(s);
+			used_planes |= rcar_du_plane_hwmask(new_plane_state);
 
 			dev_dbg(rcdu->dev,
 				"%s: plane (%u,%tu) uses %u hwplanes (index %d)\n",
 				__func__, plane->group->index,
 				plane - plane->group->planes,
-				plane_state->format ?
-				plane_state->format->planes : 0,
-				plane_state->hwindex);
+				new_plane_state->format ?
+				new_plane_state->format->planes : 0,
+				new_plane_state->hwindex);
 		}
 
 		group_free_planes[index] = 0xff & ~used_planes;
@@ -246,40 +248,45 @@ int rcar_du_atomic_check_planes(struct drm_device *dev,
 	}
 
 	/* Reallocate hardware planes for each plane that needs it. */
-	for_each_plane_in_state(state, drm_plane, drm_plane_state, i) {
-		struct rcar_du_plane_state *plane_state;
+	for_each_oldnew_plane_in_state(state, drm_plane, old_drm_plane_state,
+				       new_drm_plane_state, i) {
+		struct rcar_du_plane_state *old_plane_state;
+		struct rcar_du_plane_state *new_plane_state;
 		struct rcar_du_plane *plane;
 		unsigned int crtc_planes;
 		unsigned int free;
 		int idx;
 
 		plane = to_rcar_plane(drm_plane);
-		plane_state = to_rcar_plane_state(drm_plane_state);
+		old_plane_state = to_rcar_plane_state(old_drm_plane_state);
+		new_plane_state = to_rcar_plane_state(new_drm_plane_state);
 
 		dev_dbg(rcdu->dev, "%s: allocating plane (%u,%tu)\n", __func__,
 			plane->group->index, plane - plane->group->planes);
 
-		/* Skip planes that are being disabled or don't need to be
+		/*
+		 * Skip planes that are being disabled or don't need to be
 		 * reallocated.
 		 */
-		if (!plane_state->format ||
-		    !rcar_du_plane_needs_realloc(plane, plane_state))
+		if (!new_plane_state->format ||
+		    !rcar_du_plane_needs_realloc(old_plane_state, new_plane_state))
 			continue;
 
-		/* Try to allocate the plane from the free planes currently
+		/*
+		 * Try to allocate the plane from the free planes currently
 		 * associated with the target CRTC to avoid restarting the CRTC
 		 * group and thus minimize flicker. If it fails fall back to
 		 * allocating from all free planes.
 		 */
-		crtc_planes = to_rcar_crtc(plane_state->state.crtc)->index % 2
+		crtc_planes = to_rcar_crtc(new_plane_state->state.crtc)->index % 2
 			    ? plane->group->dptsr_planes
 			    : ~plane->group->dptsr_planes;
 		free = group_free_planes[plane->group->index];
 
-		idx = rcar_du_plane_hwalloc(plane, plane_state,
+		idx = rcar_du_plane_hwalloc(plane, new_plane_state,
 					    free & crtc_planes);
 		if (idx < 0)
-			idx = rcar_du_plane_hwalloc(plane, plane_state,
+			idx = rcar_du_plane_hwalloc(plane, new_plane_state,
 						    free);
 		if (idx < 0) {
 			dev_dbg(rcdu->dev, "%s: no available hardware plane\n",
@@ -288,12 +295,12 @@ int rcar_du_atomic_check_planes(struct drm_device *dev,
 		}
 
 		dev_dbg(rcdu->dev, "%s: allocated %u hwplanes (index %u)\n",
-			__func__, plane_state->format->planes, idx);
+			__func__, new_plane_state->format->planes, idx);
 
-		plane_state->hwindex = idx;
+		new_plane_state->hwindex = idx;
 
 		group_free_planes[plane->group->index] &=
-			~rcar_du_plane_hwmask(plane_state);
+			~rcar_du_plane_hwmask(new_plane_state);
 
 		dev_dbg(rcdu->dev, "%s: group %u free planes mask 0x%02x\n",
 			__func__, plane->group->index,
@@ -321,8 +328,8 @@ static void rcar_du_plane_write(struct rcar_du_group *rgrp,
 static void rcar_du_plane_setup_scanout(struct rcar_du_group *rgrp,
 					const struct rcar_du_plane_state *state)
 {
-	unsigned int src_x = state->state.src_x >> 16;
-	unsigned int src_y = state->state.src_y >> 16;
+	unsigned int src_x = state->state.src.x1 >> 16;
+	unsigned int src_y = state->state.src.y1 >> 16;
 	unsigned int index = state->hwindex;
 	unsigned int pitch;
 	bool interlaced;
@@ -346,19 +353,21 @@ static void rcar_du_plane_setup_scanout(struct rcar_du_group *rgrp,
 			dma[i] = gem->paddr + fb->offsets[i];
 		}
 	} else {
-		pitch = state->state.src_w >> 16;
+		pitch = drm_rect_width(&state->state.src) >> 16;
 		dma[0] = 0;
 		dma[1] = 0;
 	}
 
-	/* Memory pitch (expressed in pixels). Must be doubled for interlaced
+	/*
+	 * Memory pitch (expressed in pixels). Must be doubled for interlaced
 	 * operation with 32bpp formats.
 	 */
 	rcar_du_plane_write(rgrp, index, PnMWR,
 			    (interlaced && state->format->bpp == 32) ?
 			    pitch * 2 : pitch);
 
-	/* The Y position is expressed in raster line units and must be doubled
+	/*
+	 * The Y position is expressed in raster line units and must be doubled
 	 * for 32bpp formats, according to the R8A7790 datasheet. No mention of
 	 * doubling the Y position is found in the R8A7779 datasheet, but the
 	 * rule seems to apply there as well.
@@ -396,7 +405,8 @@ static void rcar_du_plane_setup_mode(struct rcar_du_group *rgrp,
 	u32 colorkey;
 	u32 pnmr;
 
-	/* The PnALPHAR register controls alpha-blending in 16bpp formats
+	/*
+	 * The PnALPHAR register controls alpha-blending in 16bpp formats
 	 * (ARGB1555 and XRGB1555).
 	 *
 	 * For ARGB, set the alpha value to 0, and enable alpha-blending when
@@ -409,11 +419,12 @@ static void rcar_du_plane_setup_mode(struct rcar_du_group *rgrp,
 		rcar_du_plane_write(rgrp, index, PnALPHAR, PnALPHAR_ABIT_0);
 	else
 		rcar_du_plane_write(rgrp, index, PnALPHAR,
-				    PnALPHAR_ABIT_X | state->alpha);
+				    PnALPHAR_ABIT_X | state->state.alpha >> 8);
 
 	pnmr = PnMR_BM_MD | state->format->pnmr;
 
-	/* Disable color keying when requested. YUV formats have the
+	/*
+	 * Disable color keying when requested. YUV formats have the
 	 * PnMR_SPIM_TP_OFF bit set in their pnmr field, disabling color keying
 	 * automatically.
 	 */
@@ -457,7 +468,8 @@ static void rcar_du_plane_setup_format_gen2(struct rcar_du_group *rgrp,
 	u32 ddcr2 = PnDDCR2_CODE;
 	u32 ddcr4;
 
-	/* Data format
+	/*
+	 * Data format
 	 *
 	 * The data format is selected by the DDDF field in PnMR and the EDF
 	 * field in DDCR4.
@@ -505,6 +517,7 @@ static void rcar_du_plane_setup_format(struct rcar_du_group *rgrp,
 				       const struct rcar_du_plane_state *state)
 {
 	struct rcar_du_device *rcdu = rgrp->dev;
+	const struct drm_rect *dst = &state->state.dst;
 
 	if (rcdu->info->gen < 3)
 		rcar_du_plane_setup_format_gen2(rgrp, index, state);
@@ -512,10 +525,10 @@ static void rcar_du_plane_setup_format(struct rcar_du_group *rgrp,
 		rcar_du_plane_setup_format_gen3(rgrp, index, state);
 
 	/* Destination position and size */
-	rcar_du_plane_write(rgrp, index, PnDSXR, state->state.crtc_w);
-	rcar_du_plane_write(rgrp, index, PnDSYR, state->state.crtc_h);
-	rcar_du_plane_write(rgrp, index, PnDPXR, state->state.crtc_x);
-	rcar_du_plane_write(rgrp, index, PnDPYR, state->state.crtc_y);
+	rcar_du_plane_write(rgrp, index, PnDSXR, drm_rect_width(dst));
+	rcar_du_plane_write(rgrp, index, PnDSYR, drm_rect_height(dst));
+	rcar_du_plane_write(rgrp, index, PnDPXR, dst->x1);
+	rcar_du_plane_write(rgrp, index, PnDPYR, dst->y1);
 
 	if (rcdu->info->gen < 3) {
 		/* Wrap-around and blinking, disabled */
@@ -549,32 +562,56 @@ void __rcar_du_plane_setup(struct rcar_du_group *rgrp,
 	}
 }
 
-static int rcar_du_plane_atomic_check(struct drm_plane *plane,
-				      struct drm_plane_state *state)
+int __rcar_du_plane_atomic_check(struct drm_plane *plane,
+				 struct drm_plane_state *state,
+				 const struct rcar_du_format_info **format)
 {
-	struct rcar_du_plane_state *rstate = to_rcar_plane_state(state);
-	struct rcar_du_plane *rplane = to_rcar_plane(plane);
-	struct rcar_du_device *rcdu = rplane->group->dev;
+	struct drm_device *dev = plane->dev;
+	struct drm_crtc_state *crtc_state;
+	int ret;
 
-	if (!state->fb || !state->crtc) {
-		rstate->format = NULL;
+	if (!state->crtc) {
+		/*
+		 * The visible field is not reset by the DRM core but only
+		 * updated by drm_plane_helper_check_state(), set it manually.
+		 */
+		state->visible = false;
+		*format = NULL;
 		return 0;
 	}
 
-	if (state->src_w >> 16 != state->crtc_w ||
-	    state->src_h >> 16 != state->crtc_h) {
-		dev_dbg(rcdu->dev, "%s: scaling not supported\n", __func__);
-		return -EINVAL;
+	crtc_state = drm_atomic_get_crtc_state(state->state, state->crtc);
+	if (IS_ERR(crtc_state))
+		return PTR_ERR(crtc_state);
+
+	ret = drm_atomic_helper_check_plane_state(state, crtc_state,
+						  DRM_PLANE_HELPER_NO_SCALING,
+						  DRM_PLANE_HELPER_NO_SCALING,
+						  true, true);
+	if (ret < 0)
+		return ret;
+
+	if (!state->visible) {
+		*format = NULL;
+		return 0;
 	}
 
-	rstate->format = rcar_du_format_info(state->fb->pixel_format);
-	if (rstate->format == NULL) {
-		dev_dbg(rcdu->dev, "%s: unsupported format %08x\n", __func__,
-			state->fb->pixel_format);
+	*format = rcar_du_format_info(state->fb->format->format);
+	if (*format == NULL) {
+		dev_dbg(dev->dev, "%s: unsupported format %08x\n", __func__,
+			state->fb->format->format);
 		return -EINVAL;
 	}
 
 	return 0;
+}
+
+static int rcar_du_plane_atomic_check(struct drm_plane *plane,
+				      struct drm_plane_state *state)
+{
+	struct rcar_du_plane_state *rstate = to_rcar_plane_state(state);
+
+	return __rcar_du_plane_atomic_check(plane, state, &rstate->format);
 }
 
 static void rcar_du_plane_atomic_update(struct drm_plane *plane,
@@ -584,12 +621,13 @@ static void rcar_du_plane_atomic_update(struct drm_plane *plane,
 	struct rcar_du_plane_state *old_rstate;
 	struct rcar_du_plane_state *new_rstate;
 
-	if (!plane->state->crtc)
+	if (!plane->state->visible)
 		return;
 
 	rcar_du_plane_setup(rplane);
 
-	/* Check whether the source has changed from memory to live source or
+	/*
+	 * Check whether the source has changed from memory to live source or
 	 * from live source to memory. The source has been configured by the
 	 * VSPS bit in the PnDDCR4 register. Although the datasheet states that
 	 * the bit is updated during vertical blanking, it seems that updates
@@ -648,14 +686,12 @@ static void rcar_du_plane_reset(struct drm_plane *plane)
 	if (state == NULL)
 		return;
 
+	__drm_atomic_helper_plane_reset(plane, &state->state);
+
 	state->hwindex = -1;
 	state->source = RCAR_DU_PLANE_MEMORY;
-	state->alpha = 255;
 	state->colorkey = RCAR_DU_COLORKEY_NONE;
 	state->state.zpos = plane->type == DRM_PLANE_TYPE_PRIMARY ? 0 : 1;
-
-	plane->state = &state->state;
-	plane->state->plane = plane;
 }
 
 static int rcar_du_plane_atomic_set_property(struct drm_plane *plane,
@@ -666,9 +702,7 @@ static int rcar_du_plane_atomic_set_property(struct drm_plane *plane,
 	struct rcar_du_plane_state *rstate = to_rcar_plane_state(state);
 	struct rcar_du_device *rcdu = to_rcar_plane(plane)->group->dev;
 
-	if (property == rcdu->props.alpha)
-		rstate->alpha = val;
-	else if (property == rcdu->props.colorkey)
+	if (property == rcdu->props.colorkey)
 		rstate->colorkey = val;
 	else
 		return -EINVAL;
@@ -684,9 +718,7 @@ static int rcar_du_plane_atomic_get_property(struct drm_plane *plane,
 		container_of(state, const struct rcar_du_plane_state, state);
 	struct rcar_du_device *rcdu = to_rcar_plane(plane)->group->dev;
 
-	if (property == rcdu->props.alpha)
-		*val = rstate->alpha;
-	else if (property == rcdu->props.colorkey)
+	if (property == rcdu->props.colorkey)
 		*val = rstate->colorkey;
 	else
 		return -EINVAL;
@@ -698,7 +730,6 @@ static const struct drm_plane_funcs rcar_du_plane_funcs = {
 	.update_plane = drm_atomic_helper_update_plane,
 	.disable_plane = drm_atomic_helper_disable_plane,
 	.reset = rcar_du_plane_reset,
-	.set_property = drm_atomic_helper_plane_set_property,
 	.destroy = drm_plane_cleanup,
 	.atomic_duplicate_state = rcar_du_plane_atomic_duplicate_state,
 	.atomic_destroy_state = rcar_du_plane_atomic_destroy_state,
@@ -726,7 +757,8 @@ int rcar_du_planes_init(struct rcar_du_group *rgrp)
 	unsigned int i;
 	int ret;
 
-	 /* Create one primary plane per CRTC in this group and seven overlay
+	 /*
+	  * Create one primary plane per CRTC in this group and seven overlay
 	  * planes.
 	  */
 	rgrp->num_planes = rgrp->num_crtcs + 7;
@@ -743,19 +775,19 @@ int rcar_du_planes_init(struct rcar_du_group *rgrp)
 
 		ret = drm_universal_plane_init(rcdu->ddev, &plane->plane, crtcs,
 					       &rcar_du_plane_funcs, formats,
-					       ARRAY_SIZE(formats), type,
-					       NULL);
+					       ARRAY_SIZE(formats),
+					       NULL, type, NULL);
 		if (ret < 0)
 			return ret;
 
 		drm_plane_helper_add(&plane->plane,
 				     &rcar_du_plane_helper_funcs);
 
+		drm_plane_create_alpha_property(&plane->plane);
+
 		if (type == DRM_PLANE_TYPE_PRIMARY)
 			continue;
 
-		drm_object_attach_property(&plane->plane.base,
-					   rcdu->props.alpha, 255);
 		drm_object_attach_property(&plane->plane.base,
 					   rcdu->props.colorkey,
 					   RCAR_DU_COLORKEY_NONE);

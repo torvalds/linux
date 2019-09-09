@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_UML_INIT_H
 #define _LINUX_UML_INIT_H
 
@@ -40,7 +41,7 @@
 typedef int (*initcall_t)(void);
 typedef void (*exitcall_t)(void);
 
-#include <linux/compiler.h>
+#include <linux/compiler_types.h>
 
 /* These are for everybody (although not all archs will actually
    discard it in modules) */
@@ -63,13 +64,9 @@ struct uml_param {
         int (*setup_func)(char *, int *);
 };
 
-extern initcall_t __uml_initcall_start, __uml_initcall_end;
 extern initcall_t __uml_postsetup_start, __uml_postsetup_end;
 extern const char *__uml_help_start, *__uml_help_end;
 #endif
-
-#define __uml_initcall(fn)					  	\
-	static initcall_t __uml_initcall_##fn __uml_init_call = fn
 
 #define __uml_exitcall(fn)						\
 	static exitcall_t __uml_exitcall_##fn __uml_exit_call = fn
@@ -107,7 +104,6 @@ extern struct uml_param __uml_setup_start, __uml_setup_end;
  */
 #define __uml_init_setup	__used __section(.uml.setup.init)
 #define __uml_setup_help	__used __section(.uml.help.init)
-#define __uml_init_call		__used __section(.uml.initcall.init)
 #define __uml_postsetup_call	__used __section(.uml.postsetup.init)
 #define __uml_exit_call		__used __section(.uml.exitcall.exit)
 

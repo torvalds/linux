@@ -1,19 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2010 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
  *
  * Modifications for inclusion into the Linux staging tree are
  * Copyright(c) 2010 Larry Finger. All rights reserved.
@@ -33,7 +21,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/semaphore.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/sem.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -61,15 +49,6 @@ static inline u32 end_of_queue_search(struct list_head *head,
 		struct list_head *plist)
 {
 	return (head == plist);
-}
-
-static inline void sleep_schedulable(int ms)
-{
-	u32 delta;
-
-	delta = msecs_to_jiffies(ms);/*(ms)*/
-	set_current_state(TASK_INTERRUPTIBLE);
-	schedule_timeout(delta);
 }
 
 static inline void flush_signals_thread(void)

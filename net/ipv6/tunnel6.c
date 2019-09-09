@@ -1,18 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C)2003,2004 USAGI/WIDE Project
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Authors	Mitsuru KANDA  <mk@linux-ipv6.org>
  *		YOSHIFUJI Hideaki <yoshfuji@linux-ipv6.org>
@@ -134,24 +122,28 @@ drop:
 	return 0;
 }
 
-static void tunnel6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
+static int tunnel6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 			u8 type, u8 code, int offset, __be32 info)
 {
 	struct xfrm6_tunnel *handler;
 
 	for_each_tunnel_rcu(tunnel6_handlers, handler)
 		if (!handler->err_handler(skb, opt, type, code, offset, info))
-			break;
+			return 0;
+
+	return -ENOENT;
 }
 
-static void tunnel46_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
+static int tunnel46_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 			 u8 type, u8 code, int offset, __be32 info)
 {
 	struct xfrm6_tunnel *handler;
 
 	for_each_tunnel_rcu(tunnel46_handlers, handler)
 		if (!handler->err_handler(skb, opt, type, code, offset, info))
-			break;
+			return 0;
+
+	return -ENOENT;
 }
 
 static const struct inet6_protocol tunnel6_protocol = {

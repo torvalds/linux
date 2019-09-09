@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ARCH_MCI_H
 #define _ARCH_MCI_H
 
@@ -6,7 +7,6 @@
  * @no_wprotect: Set this to indicate there is no write-protect switch.
  * @no_detect: Set this if there is no detect switch.
  * @wprotect_invert: Invert the default sense of the write protect switch.
- * @detect_invert: Invert the default sense of the write protect switch.
  * @use_dma: Set to allow the use of DMA.
  * @gpio_detect: GPIO number for the card detect line.
  * @gpio_wprotect: GPIO number for the write protect line.
@@ -30,11 +30,8 @@ struct s3c24xx_mci_pdata {
 	unsigned int	no_wprotect:1;
 	unsigned int	no_detect:1;
 	unsigned int	wprotect_invert:1;
-	unsigned int	detect_invert:1;	/* set => detect active high */
 	unsigned int	use_dma:1;
 
-	unsigned int	gpio_detect;
-	unsigned int	gpio_wprotect;
 	unsigned long	ocr_avail;
 	void		(*set_power)(unsigned char power_mode,
 				     unsigned short vdd);

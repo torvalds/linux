@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* -*- mode: c; c-basic-offset: 8; -*-
  * vim: noexpandtab sw=8 ts=8 sts=0:
  *
@@ -6,22 +7,6 @@
  * debug functionality for the dlm
  *
  * Copyright (C) 2004, 2008 Oracle.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public
- * License as published by the Free Software Foundation; either
- * version 2 of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public
- * License along with this program; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 021110-1307, USA.
- *
  */
 
 #include <linux/types.h>
@@ -81,7 +66,7 @@ static void __dlm_print_lock(struct dlm_lock *lock)
 	       lock->ml.type, lock->ml.convert_type, lock->ml.node,
 	       dlm_get_lock_cookie_node(be64_to_cpu(lock->ml.cookie)),
 	       dlm_get_lock_cookie_seq(be64_to_cpu(lock->ml.cookie)),
-	       atomic_read(&lock->lock_refs.refcount),
+	       kref_read(&lock->lock_refs),
 	       (list_empty(&lock->ast_list) ? 'y' : 'n'),
 	       (lock->ast_pending ? 'y' : 'n'),
 	       (list_empty(&lock->bast_list) ? 'y' : 'n'),
@@ -106,7 +91,7 @@ void __dlm_print_one_lock_resource(struct dlm_lock_resource *res)
 	printk("lockres: %s, owner=%u, state=%u\n",
 	       buf, res->owner, res->state);
 	printk("  last used: %lu, refcnt: %u, on purge list: %s\n",
-	       res->last_used, atomic_read(&res->refs.refcount),
+	       res->last_used, kref_read(&res->refs),
 	       list_empty(&res->purge) ? "no" : "yes");
 	printk("  on dirty list: %s, on reco list: %s, "
 	       "migrating pending: %s\n",
@@ -298,7 +283,7 @@ static int dump_mle(struct dlm_master_list_entry *mle, char *buf, int len)
 			mle_type, mle->master, mle->new_master,
 			!list_empty(&mle->hb_events),
 			!!mle->inuse,
-			atomic_read(&mle->mle_refs.refcount));
+			kref_read(&mle->mle_refs));
 
 	out += snprintf(buf + out, len - out, "Maybe=");
 	out += stringify_nodemap(mle->maybe_map, O2NM_MAX_NODES,
@@ -329,7 +314,7 @@ void dlm_print_one_mle(struct dlm_master_list_entry *mle)
 {
 	char *buf;
 
-	buf = (char *) get_zeroed_page(GFP_NOFS);
+	buf = (char *) get_zeroed_page(GFP_ATOMIC);
 	if (buf) {
 		dump_mle(mle, buf, PAGE_SIZE - 1);
 		free_page((unsigned long)buf);
@@ -494,7 +479,7 @@ static int dump_lock(struct dlm_lock *lock, int list_type, char *buf, int len)
 		       lock->ast_pending, lock->bast_pending,
 		       lock->convert_pending, lock->lock_pending,
 		       lock->cancel_pending, lock->unlock_pending,
-		       atomic_read(&lock->lock_refs.refcount));
+		       kref_read(&lock->lock_refs));
 	spin_unlock(&lock->spinlock);
 
 	return out;
@@ -521,7 +506,7 @@ static int dump_lockres(struct dlm_lock_resource *res, char *buf, int len)
 			!list_empty(&res->recovering),
 			res->inflight_locks, res->migration_pending,
 			atomic_read(&res->asts_reserved),
-			atomic_read(&res->refs.refcount));
+			kref_read(&res->refs));
 
 	/* refmap */
 	out += snprintf(buf + out, len - out, "RMAP:");
@@ -777,7 +762,7 @@ static int debug_state_print(struct dlm_ctxt *dlm, char *buf, int len)
 	/* Purge Count: xxx  Refs: xxx */
 	out += snprintf(buf + out, len - out,
 			"Purge Count: %d  Refs: %d\n", dlm->purge_count,
-			atomic_read(&dlm->dlm_refs.refcount));
+			kref_read(&dlm->dlm_refs));
 
 	/* Dead Node: xxx */
 	out += snprintf(buf + out, len - out,
@@ -866,7 +851,7 @@ static const struct file_operations debug_state_fops = {
 /* end  - debug state funcs */
 
 /* files in subroot */
-int dlm_debug_init(struct dlm_ctxt *dlm)
+void dlm_debug_init(struct dlm_ctxt *dlm)
 {
 	struct dlm_debug_ctxt *dc = dlm->dlm_debug_ctxt;
 
@@ -875,10 +860,6 @@ int dlm_debug_init(struct dlm_ctxt *dlm)
 						     S_IFREG|S_IRUSR,
 						     dlm->dlm_debugfs_subroot,
 						     dlm, &debug_state_fops);
-	if (!dc->debug_state_dentry) {
-		mlog_errno(-ENOMEM);
-		goto bail;
-	}
 
 	/* for dumping lockres */
 	dc->debug_lockres_dentry =
@@ -886,20 +867,12 @@ int dlm_debug_init(struct dlm_ctxt *dlm)
 					    S_IFREG|S_IRUSR,
 					    dlm->dlm_debugfs_subroot,
 					    dlm, &debug_lockres_fops);
-	if (!dc->debug_lockres_dentry) {
-		mlog_errno(-ENOMEM);
-		goto bail;
-	}
 
 	/* for dumping mles */
 	dc->debug_mle_dentry = debugfs_create_file(DLM_DEBUGFS_MLE_STATE,
 						   S_IFREG|S_IRUSR,
 						   dlm->dlm_debugfs_subroot,
 						   dlm, &debug_mle_fops);
-	if (!dc->debug_mle_dentry) {
-		mlog_errno(-ENOMEM);
-		goto bail;
-	}
 
 	/* for dumping lockres on the purge list */
 	dc->debug_purgelist_dentry =
@@ -907,15 +880,6 @@ int dlm_debug_init(struct dlm_ctxt *dlm)
 					    S_IFREG|S_IRUSR,
 					    dlm->dlm_debugfs_subroot,
 					    dlm, &debug_purgelist_fops);
-	if (!dc->debug_purgelist_dentry) {
-		mlog_errno(-ENOMEM);
-		goto bail;
-	}
-
-	return 0;
-
-bail:
-	return -ENOMEM;
 }
 
 void dlm_debug_shutdown(struct dlm_ctxt *dlm)
@@ -935,24 +899,16 @@ void dlm_debug_shutdown(struct dlm_ctxt *dlm)
 /* subroot - domain dir */
 int dlm_create_debugfs_subroot(struct dlm_ctxt *dlm)
 {
-	dlm->dlm_debugfs_subroot = debugfs_create_dir(dlm->name,
-						      dlm_debugfs_root);
-	if (!dlm->dlm_debugfs_subroot) {
-		mlog_errno(-ENOMEM);
-		goto bail;
-	}
-
 	dlm->dlm_debug_ctxt = kzalloc(sizeof(struct dlm_debug_ctxt),
 				      GFP_KERNEL);
 	if (!dlm->dlm_debug_ctxt) {
 		mlog_errno(-ENOMEM);
-		goto bail;
+		return -ENOMEM;
 	}
 
+	dlm->dlm_debugfs_subroot = debugfs_create_dir(dlm->name,
+						      dlm_debugfs_root);
 	return 0;
-bail:
-	dlm_destroy_debugfs_subroot(dlm);
-	return -ENOMEM;
 }
 
 void dlm_destroy_debugfs_subroot(struct dlm_ctxt *dlm)
@@ -961,14 +917,9 @@ void dlm_destroy_debugfs_subroot(struct dlm_ctxt *dlm)
 }
 
 /* debugfs root */
-int dlm_create_debugfs_root(void)
+void dlm_create_debugfs_root(void)
 {
 	dlm_debugfs_root = debugfs_create_dir(DLM_DEBUGFS_DIR, NULL);
-	if (!dlm_debugfs_root) {
-		mlog_errno(-ENOMEM);
-		return -ENOMEM;
-	}
-	return 0;
 }
 
 void dlm_destroy_debugfs_root(void)

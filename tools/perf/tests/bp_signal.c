@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Inspired by breakpoint overflow test done by
  * Vince Weaver <vincent.weaver@maine.edu> for perf_event_tests
@@ -62,8 +63,7 @@ static void __test_function(volatile long *ptr)
 }
 #endif
 
-__attribute__ ((noinline))
-static int test_function(void)
+static noinline int test_function(void)
 {
 	__test_function(&the_var);
 	the_var++;
@@ -165,7 +165,7 @@ static long long bp_count(int fd)
 	return count;
 }
 
-int test__bp_signal(int subtest __maybe_unused)
+int test__bp_signal(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	struct sigaction sa;
 	long long count1, count2, count3;
@@ -287,4 +287,26 @@ int test__bp_signal(int subtest __maybe_unused)
 
 	return count1 == 1 && overflows == 3 && count2 == 3 && overflows_2 == 3 && count3 == 2 ?
 		TEST_OK : TEST_FAIL;
+}
+
+bool test__bp_signal_is_supported(void)
+{
+	/*
+	 * PowerPC and S390 do not support creation of instruction
+	 * breakpoints using the perf_event interface.
+	 *
+	 * ARM requires explicit rounding down of the instruction
+	 * pointer in Thumb mode, and then requires the single-step
+	 * to be handled explicitly in the overflow handler to avoid
+	 * stepping into the SIGIO handler and getting stuck on the
+	 * breakpointed instruction.
+	 *
+	 * Just disable the test for these architectures until these
+	 * issues are resolved.
+	 */
+#if defined(__powerpc__) || defined(__s390x__) || defined(__arm__)
+	return false;
+#else
+	return true;
+#endif
 }

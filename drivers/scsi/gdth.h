@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _GDTH_H
 #define _GDTH_H
 
@@ -37,17 +38,9 @@
 #define OEM_ID_INTEL    0x8000
 
 /* controller classes */
-#define GDT_ISA         0x01                    /* ISA controller */
-#define GDT_EISA        0x02                    /* EISA controller */
 #define GDT_PCI         0x03                    /* PCI controller */
 #define GDT_PCINEW      0x04                    /* new PCI controller */
 #define GDT_PCIMPR      0x05                    /* PCI MPR controller */
-/* GDT_EISA, controller subtypes EISA */
-#define GDT3_ID         0x0130941c              /* GDT3000/3020 */
-#define GDT3A_ID        0x0230941c              /* GDT3000A/3020A/3050A */
-#define GDT3B_ID        0x0330941c              /* GDT3000B/3010A */
-/* GDT_ISA */
-#define GDT2_ID         0x0120941c              /* GDT2000/2020 */
 
 #ifndef PCI_DEVICE_ID_VORTEX_GDT60x0
 /* GDT_PCI */
@@ -161,9 +154,9 @@
 #define BIGSECS         63                      /* mapping 255*63 */
 
 /* special command ptr. */
-#define UNUSED_CMND     ((Scsi_Cmnd *)-1)
-#define INTERNAL_CMND   ((Scsi_Cmnd *)-2)
-#define SCREEN_CMND     ((Scsi_Cmnd *)-3)
+#define UNUSED_CMND     ((struct scsi_cmnd *)-1)
+#define INTERNAL_CMND   ((struct scsi_cmnd *)-2)
+#define SCREEN_CMND     ((struct scsi_cmnd *)-3)
 #define SPECIAL_SCP(p)  (p==UNUSED_CMND || p==INTERNAL_CMND || p==SCREEN_CMND)
 
 /* controller services */
@@ -176,9 +169,6 @@
 #define MSGLEN          16                      /* size of message text */
 #define MSG_SIZE        34                      /* size of message structure */
 #define MSG_REQUEST     0                       /* async. event: message */
-
-/* cacheservice defines */
-#define SECTOR_SIZE     0x200                   /* always 512 bytes per sec. */
 
 /* DPMEM constants */
 #define DPMEM_MAGIC     0xC0FFEE11
@@ -282,17 +272,6 @@
 /* data directions */
 #define GDTH_DATA_IN    0x01000000L             /* data from target */
 #define GDTH_DATA_OUT   0x00000000L             /* data to target */
-
-/* BMIC registers (EISA controllers) */
-#define ID0REG          0x0c80                  /* board ID */
-#define EINTENABREG     0x0c89                  /* interrupt enable */
-#define SEMA0REG        0x0c8a                  /* command semaphore */
-#define SEMA1REG        0x0c8b                  /* status semaphore */
-#define LDOORREG        0x0c8d                  /* local doorbell */
-#define EDENABREG       0x0c8e                  /* EISA system doorbell enab. */
-#define EDOORREG        0x0c8f                  /* EISA system doorbell */
-#define MAILBOXREG      0x0c90                  /* mailbox reg. (16 bytes) */
-#define EISAREG         0x0cc0                  /* EISA configuration */
 
 /* other defines */
 #define LINUX_OS        8                       /* used for cache optim. */
@@ -708,21 +687,11 @@ typedef struct {
     u8      fw_magic;                       /* contr. ID from firmware */
 } __attribute__((packed)) gdt_pci_sram;
 
-/* SRAM structure EISA controllers (but NOT GDT3000/3020) */
-typedef struct {
-    u8      os_used[16];                    /* OS code per service */
-    u16      need_deinit;                    /* switch betw. BIOS/driver */
-    u8      switch_support;                 /* see need_deinit */
-    u8      padding;
-} __attribute__((packed)) gdt_eisa_sram;
-
-
 /* DPRAM ISA controllers */
 typedef struct {
     union {
         struct {
             u8      bios_used[0x3c00-32];   /* 15KB - 32Bytes BIOS */
-            u32     magic;                  /* controller (EISA) ID */
             u16      need_deinit;            /* switch betw. BIOS/driver */
             u8      switch_support;         /* see need_deinit */
             u8      padding[9];
@@ -845,7 +814,6 @@ typedef struct {
     u16              cache_feat;             /* feat. cache serv. (s/g,..)*/
     u16              raw_feat;               /* feat. raw service (s/g,..)*/
     u16              screen_feat;            /* feat. raw service (s/g,..)*/
-    u16              bmic;                   /* BMIC address (EISA) */
     void __iomem        *brd;                   /* DPRAM address */
     u32             brd_phys;               /* slot number/BIOS address */
     gdt6c_plx_regs      *plx;                   /* PLX regs (new PCI contr.) */
@@ -869,7 +837,7 @@ typedef struct {
     u16              service;                /* service/firmware ver./.. */
     u32             info;
     u32             info2;                  /* additional info */
-    Scsi_Cmnd           *req_first;             /* top of request queue */
+    struct scsi_cmnd           *req_first;             /* top of request queue */
     struct {
         u8          present;                /* Flag: host drive present? */
         u8          is_logdrv;              /* Flag: log. drive (master)? */
@@ -898,7 +866,7 @@ typedef struct {
         u32         id_list[MAXID];         /* IDs of the phys. devices */
     } raw[MAXBUS];                              /* SCSI channels */
     struct {
-        Scsi_Cmnd       *cmnd;                  /* pending request */
+        struct scsi_cmnd       *cmnd;                  /* pending request */
         u16          service;                /* service */
     } cmd_tab[GDTH_MAXCMDS];                    /* table of pend. requests */
     struct gdth_cmndinfo {                      /* per-command private info */

@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2006, Johannes Berg <johannes@sipsolutions.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 /* just for IFNAMSIZ */
@@ -52,13 +49,15 @@ void ieee80211_free_led_names(struct ieee80211_local *local)
 	kfree(local->radio_led.name);
 }
 
-static void ieee80211_tx_led_activate(struct led_classdev *led_cdev)
+static int ieee80211_tx_led_activate(struct led_classdev *led_cdev)
 {
 	struct ieee80211_local *local = container_of(led_cdev->trigger,
 						     struct ieee80211_local,
 						     tx_led);
 
 	atomic_inc(&local->tx_led_active);
+
+	return 0;
 }
 
 static void ieee80211_tx_led_deactivate(struct led_classdev *led_cdev)
@@ -70,13 +69,15 @@ static void ieee80211_tx_led_deactivate(struct led_classdev *led_cdev)
 	atomic_dec(&local->tx_led_active);
 }
 
-static void ieee80211_rx_led_activate(struct led_classdev *led_cdev)
+static int ieee80211_rx_led_activate(struct led_classdev *led_cdev)
 {
 	struct ieee80211_local *local = container_of(led_cdev->trigger,
 						     struct ieee80211_local,
 						     rx_led);
 
 	atomic_inc(&local->rx_led_active);
+
+	return 0;
 }
 
 static void ieee80211_rx_led_deactivate(struct led_classdev *led_cdev)
@@ -88,13 +89,15 @@ static void ieee80211_rx_led_deactivate(struct led_classdev *led_cdev)
 	atomic_dec(&local->rx_led_active);
 }
 
-static void ieee80211_assoc_led_activate(struct led_classdev *led_cdev)
+static int ieee80211_assoc_led_activate(struct led_classdev *led_cdev)
 {
 	struct ieee80211_local *local = container_of(led_cdev->trigger,
 						     struct ieee80211_local,
 						     assoc_led);
 
 	atomic_inc(&local->assoc_led_active);
+
+	return 0;
 }
 
 static void ieee80211_assoc_led_deactivate(struct led_classdev *led_cdev)
@@ -106,13 +109,15 @@ static void ieee80211_assoc_led_deactivate(struct led_classdev *led_cdev)
 	atomic_dec(&local->assoc_led_active);
 }
 
-static void ieee80211_radio_led_activate(struct led_classdev *led_cdev)
+static int ieee80211_radio_led_activate(struct led_classdev *led_cdev)
 {
 	struct ieee80211_local *local = container_of(led_cdev->trigger,
 						     struct ieee80211_local,
 						     radio_led);
 
 	atomic_inc(&local->radio_led_active);
+
+	return 0;
 }
 
 static void ieee80211_radio_led_deactivate(struct led_classdev *led_cdev)
@@ -124,13 +129,15 @@ static void ieee80211_radio_led_deactivate(struct led_classdev *led_cdev)
 	atomic_dec(&local->radio_led_active);
 }
 
-static void ieee80211_tpt_led_activate(struct led_classdev *led_cdev)
+static int ieee80211_tpt_led_activate(struct led_classdev *led_cdev)
 {
 	struct ieee80211_local *local = container_of(led_cdev->trigger,
 						     struct ieee80211_local,
 						     tpt_led);
 
 	atomic_inc(&local->tpt_led_active);
+
+	return 0;
 }
 
 static void ieee80211_tpt_led_deactivate(struct led_classdev *led_cdev)
@@ -248,10 +255,10 @@ static unsigned long tpt_trig_traffic(struct ieee80211_local *local,
 	return DIV_ROUND_UP(delta, 1024 / 8);
 }
 
-static void tpt_trig_timer(unsigned long data)
+static void tpt_trig_timer(struct timer_list *t)
 {
-	struct ieee80211_local *local = (void *)data;
-	struct tpt_led_trigger *tpt_trig = local->tpt_led_trigger;
+	struct tpt_led_trigger *tpt_trig = from_timer(tpt_trig, t, timer);
+	struct ieee80211_local *local = tpt_trig->local;
 	struct led_classdev *led_cdev;
 	unsigned long on, off, tpt;
 	int i;
@@ -306,8 +313,9 @@ __ieee80211_create_tpt_led_trigger(struct ieee80211_hw *hw,
 	tpt_trig->blink_table = blink_table;
 	tpt_trig->blink_table_len = blink_table_len;
 	tpt_trig->want = flags;
+	tpt_trig->local = local;
 
-	setup_timer(&tpt_trig->timer, tpt_trig_timer, (unsigned long)local);
+	timer_setup(&tpt_trig->timer, tpt_trig_timer, 0);
 
 	local->tpt_led_trigger = tpt_trig;
 
@@ -326,7 +334,7 @@ static void ieee80211_start_tpt_led_trig(struct ieee80211_local *local)
 	tpt_trig_traffic(local, tpt_trig);
 	tpt_trig->running = true;
 
-	tpt_trig_timer((unsigned long)local);
+	tpt_trig_timer(&tpt_trig->timer);
 	mod_timer(&tpt_trig->timer, round_jiffies(jiffies + HZ));
 }
 

@@ -1,14 +1,13 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Wireless USB Core configuration
 #
 config USB_WUSB
 	tristate "Enable Wireless USB extensions"
 	depends on UWB
-        select CRYPTO
-        select CRYPTO_BLKCIPHER
-        select CRYPTO_CBC
-        select CRYPTO_MANAGER
-        select CRYPTO_AES
+	select CRYPTO
+	select CRYPTO_AES
+	select CRYPTO_CCM
 	help
 	  Enable the host-side support for Wireless USB.
 

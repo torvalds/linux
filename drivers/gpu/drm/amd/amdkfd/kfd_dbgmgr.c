@@ -33,6 +33,7 @@
 #include "kfd_pm4_headers_diq.h"
 #include "kfd_dbgmgr.h"
 #include "kfd_dbgdev.h"
+#include "kfd_device_queue_manager.h"
 
 static DEFINE_MUTEX(kfd_dbgmgr_mutex);
 
@@ -44,8 +45,6 @@ struct mutex *kfd_get_dbgmgr_mutex(void)
 
 static void kfd_dbgmgr_uninitialize(struct kfd_dbgmgr *pmgr)
 {
-	BUG_ON(!pmgr);
-
 	kfree(pmgr->dbgdev);
 
 	pmgr->dbgdev = NULL;
@@ -55,7 +54,7 @@ static void kfd_dbgmgr_uninitialize(struct kfd_dbgmgr *pmgr)
 
 void kfd_dbgmgr_destroy(struct kfd_dbgmgr *pmgr)
 {
-	if (pmgr != NULL) {
+	if (pmgr) {
 		kfd_dbgmgr_uninitialize(pmgr);
 		kfree(pmgr);
 	}
@@ -66,12 +65,12 @@ bool kfd_dbgmgr_create(struct kfd_dbgmgr **ppmgr, struct kfd_dev *pdev)
 	enum DBGDEV_TYPE type = DBGDEV_TYPE_DIQ;
 	struct kfd_dbgmgr *new_buff;
 
-	BUG_ON(pdev == NULL);
-	BUG_ON(!pdev->init_complete);
+	if (WARN_ON(!pdev->init_complete))
+		return false;
 
 	new_buff = kfd_alloc_struct(new_buff);
 	if (!new_buff) {
-		pr_err("amdkfd: Failed to allocate dbgmgr instance\n");
+		pr_err("Failed to allocate dbgmgr instance\n");
 		return false;
 	}
 
@@ -79,13 +78,13 @@ bool kfd_dbgmgr_create(struct kfd_dbgmgr **ppmgr, struct kfd_dev *pdev)
 	new_buff->dev = pdev;
 	new_buff->dbgdev = kfd_alloc_struct(new_buff->dbgdev);
 	if (!new_buff->dbgdev) {
-		pr_err("amdkfd: Failed to allocate dbgdev instance\n");
+		pr_err("Failed to allocate dbgdev instance\n");
 		kfree(new_buff);
 		return false;
 	}
 
 	/* get actual type of DBGDevice cpsch or not */
-	if (sched_policy == KFD_SCHED_POLICY_NO_HWS)
+	if (pdev->dqm->sched_policy == KFD_SCHED_POLICY_NO_HWS)
 		type = DBGDEV_TYPE_NODIQ;
 
 	kfd_dbgdev_init(new_buff->dbgdev, pdev, type);
@@ -96,8 +95,6 @@ bool kfd_dbgmgr_create(struct kfd_dbgmgr **ppmgr, struct kfd_dev *pdev)
 
 long kfd_dbgmgr_register(struct kfd_dbgmgr *pmgr, struct kfd_process *p)
 {
-	BUG_ON(!p || !pmgr || !pmgr->dbgdev);
-
 	if (pmgr->pasid != 0) {
 		pr_debug("H/W debugger is already active using pasid %d\n",
 				pmgr->pasid);
@@ -118,8 +115,6 @@ long kfd_dbgmgr_register(struct kfd_dbgmgr *pmgr, struct kfd_process *p)
 
 long kfd_dbgmgr_unregister(struct kfd_dbgmgr *pmgr, struct kfd_process *p)
 {
-	BUG_ON(!p || !pmgr || !pmgr->dbgdev);
-
 	/* Is the requests coming from the already registered process? */
 	if (pmgr->pasid != p->pasid) {
 		pr_debug("H/W debugger is not registered by calling pasid %d\n",
@@ -137,8 +132,6 @@ long kfd_dbgmgr_unregister(struct kfd_dbgmgr *pmgr, struct kfd_process *p)
 long kfd_dbgmgr_wave_control(struct kfd_dbgmgr *pmgr,
 				struct dbg_wave_control_info *wac_info)
 {
-	BUG_ON(!pmgr || !pmgr->dbgdev || !wac_info);
-
 	/* Is the requests coming from the already registered process? */
 	if (pmgr->pasid != wac_info->process->pasid) {
 		pr_debug("H/W debugger support was not registered for requester pasid %d\n",
@@ -152,9 +145,6 @@ long kfd_dbgmgr_wave_control(struct kfd_dbgmgr *pmgr,
 long kfd_dbgmgr_address_watch(struct kfd_dbgmgr *pmgr,
 				struct dbg_address_watch_info *adw_info)
 {
-	BUG_ON(!pmgr || !pmgr->dbgdev || !adw_info);
-
-
 	/* Is the requests coming from the already registered process? */
 	if (pmgr->pasid != adw_info->process->pasid) {
 		pr_debug("H/W debugger support was not registered for requester pasid %d\n",

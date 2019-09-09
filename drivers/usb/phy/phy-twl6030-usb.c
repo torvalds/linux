@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * twl6030_usb - TWL6030 USB transceiver, talking to OMAP OTG driver.
  *
  * Copyright (C) 2010 Texas Instruments Incorporated - http://www.ti.com
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  *
  * Author: Hema HK <hemahk@ti.com>
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
 #include <linux/module.h>
@@ -28,7 +15,7 @@
 #include <linux/usb/musb.h>
 #include <linux/usb/phy_companion.h>
 #include <linux/phy/omap_usb.h>
-#include <linux/i2c/twl.h>
+#include <linux/mfd/twl.h>
 #include <linux/regulator/consumer.h>
 #include <linux/err.h>
 #include <linux/slab.h>
@@ -108,7 +95,6 @@ struct twl6030_usb {
 	enum musb_vbus_id_status linkstat;
 	u8			asleep;
 	bool			vbus_enable;
-	const char		*regulator;
 };
 
 #define	comparator_to_twl(x) container_of((x), struct twl6030_usb, comparator)
@@ -166,7 +152,7 @@ static int twl6030_usb_ldo_init(struct twl6030_usb *twl)
 	/* Program MISC2 register and set bit VUSB_IN_VBAT */
 	twl6030_writeb(twl, TWL6030_MODULE_ID0, 0x10, TWL6030_MISC2);
 
-	twl->usb3v3 = regulator_get(twl->dev, twl->regulator);
+	twl->usb3v3 = regulator_get(twl->dev, "usb");
 	if (IS_ERR(twl->usb3v3))
 		return -ENODEV;
 
@@ -182,7 +168,7 @@ static int twl6030_usb_ldo_init(struct twl6030_usb *twl)
 	return 0;
 }
 
-static ssize_t twl6030_usb_vbus_show(struct device *dev,
+static ssize_t vbus_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
 	struct twl6030_usb *twl = dev_get_drvdata(dev);
@@ -208,7 +194,7 @@ static ssize_t twl6030_usb_vbus_show(struct device *dev,
 
 	return ret;
 }
-static DEVICE_ATTR(vbus, 0444, twl6030_usb_vbus_show, NULL);
+static DEVICE_ATTR_RO(vbus);
 
 static irqreturn_t twl6030_usb_irq(int irq, void *_twl)
 {
@@ -341,7 +327,11 @@ static int twl6030_usb_probe(struct platform_device *pdev)
 	int			status, err;
 	struct device_node	*np = pdev->dev.of_node;
 	struct device		*dev = &pdev->dev;
-	struct twl4030_usb_data	*pdata = dev_get_platdata(dev);
+
+	if (!np) {
+		dev_err(dev, "no DT info\n");
+		return -EINVAL;
+	}
 
 	twl = devm_kzalloc(dev, sizeof(*twl), GFP_KERNEL);
 	if (!twl)
@@ -359,18 +349,6 @@ static int twl6030_usb_probe(struct platform_device *pdev)
 	if (ret == -ENODEV) {
 		dev_info(&pdev->dev, "phy not ready, deferring probe");
 		return -EPROBE_DEFER;
-	}
-
-	if (np) {
-		twl->regulator = "usb";
-	} else if (pdata) {
-		if (pdata->features & TWL6032_SUBCLASS)
-			twl->regulator = "ldousb";
-		else
-			twl->regulator = "vusb";
-	} else {
-		dev_err(&pdev->dev, "twl6030 initialized without pdata\n");
-		return -EINVAL;
 	}
 
 	/* init spinlock for workqueue */
@@ -422,7 +400,7 @@ static int twl6030_usb_remove(struct platform_device *pdev)
 {
 	struct twl6030_usb *twl = platform_get_drvdata(pdev);
 
-	cancel_delayed_work(&twl->get_status_work);
+	cancel_delayed_work_sync(&twl->get_status_work);
 	twl6030_interrupt_mask(TWL6030_USBOTG_INT_MASK,
 		REG_INT_MSK_LINE_C);
 	twl6030_interrupt_mask(TWL6030_USBOTG_INT_MASK,
@@ -436,13 +414,11 @@ static int twl6030_usb_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_OF
 static const struct of_device_id twl6030_usb_id_table[] = {
 	{ .compatible = "ti,twl6030-usb" },
 	{}
 };
 MODULE_DEVICE_TABLE(of, twl6030_usb_id_table);
-#endif
 
 static struct platform_driver twl6030_usb_driver = {
 	.probe		= twl6030_usb_probe,

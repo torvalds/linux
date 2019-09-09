@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
   initramfs_data includes the compressed binary that is the
   filesystem used for early user space.
@@ -9,7 +10,7 @@
 
   ld -m elf_i386  --format binary --oformat elf32-i386 -r \
   -T initramfs_data.scr initramfs_data.cpio.gz -o initramfs_data.o
-   ld -m elf_i386  -r -o built-in.o initramfs_data.o
+   ld -m elf_i386  -r -o built-in.a initramfs_data.o
 
   For including the .init.ramfs sections, see include/asm-generic/vmlinux.lds.
 
@@ -29,8 +30,8 @@ __irf_start:
 .incbin __stringify(INITRAMFS_IMAGE)
 __irf_end:
 .section .init.ramfs.info,"a"
-.globl VMLINUX_SYMBOL(__initramfs_size)
-VMLINUX_SYMBOL(__initramfs_size):
+.globl __initramfs_size
+__initramfs_size:
 #ifdef CONFIG_64BIT
 	.quad __irf_end - __irf_start
 #else

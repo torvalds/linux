@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * driver for the i2c-tiny-usb adapter - 1.0
  * http://www.harbaum.org/till/i2c_tiny_usb
  *
  * Copyright (C) 2006-2007 Till Harbaum (Till@Harbaum.org)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation, version 2.
- *
  */
 
 #include <linux/kernel.h>
@@ -178,22 +174,39 @@ static int usb_read(struct i2c_adapter *adapter, int cmd,
 		    int value, int index, void *data, int len)
 {
 	struct i2c_tiny_usb *dev = (struct i2c_tiny_usb *)adapter->algo_data;
+	void *dmadata = kmalloc(len, GFP_KERNEL);
+	int ret;
+
+	if (!dmadata)
+		return -ENOMEM;
 
 	/* do control transfer */
-	return usb_control_msg(dev->usb_dev, usb_rcvctrlpipe(dev->usb_dev, 0),
+	ret = usb_control_msg(dev->usb_dev, usb_rcvctrlpipe(dev->usb_dev, 0),
 			       cmd, USB_TYPE_VENDOR | USB_RECIP_INTERFACE |
-			       USB_DIR_IN, value, index, data, len, 2000);
+			       USB_DIR_IN, value, index, dmadata, len, 2000);
+
+	memcpy(data, dmadata, len);
+	kfree(dmadata);
+	return ret;
 }
 
 static int usb_write(struct i2c_adapter *adapter, int cmd,
 		     int value, int index, void *data, int len)
 {
 	struct i2c_tiny_usb *dev = (struct i2c_tiny_usb *)adapter->algo_data;
+	void *dmadata = kmemdup(data, len, GFP_KERNEL);
+	int ret;
+
+	if (!dmadata)
+		return -ENOMEM;
 
 	/* do control transfer */
-	return usb_control_msg(dev->usb_dev, usb_sndctrlpipe(dev->usb_dev, 0),
+	ret = usb_control_msg(dev->usb_dev, usb_sndctrlpipe(dev->usb_dev, 0),
 			       cmd, USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
-			       value, index, data, len, 2000);
+			       value, index, dmadata, len, 2000);
+
+	kfree(dmadata);
+	return ret;
 }
 
 static void i2c_tiny_usb_free(struct i2c_tiny_usb *dev)

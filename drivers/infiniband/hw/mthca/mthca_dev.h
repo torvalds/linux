@@ -118,7 +118,7 @@ enum {
 };
 
 struct mthca_cmd {
-	struct pci_pool          *pool;
+	struct dma_pool          *pool;
 	struct mutex              hcr_mutex;
 	struct semaphore 	  poll_sem;
 	struct semaphore 	  event_sem;
@@ -263,7 +263,7 @@ struct mthca_qp_table {
 };
 
 struct mthca_av_table {
-	struct pci_pool   *pool;
+	struct dma_pool   *pool;
 	int                num_ddr_avs;
 	u64                ddr_av_base;
 	void __iomem      *av_map;
@@ -510,7 +510,8 @@ int mthca_alloc_cq_buf(struct mthca_dev *dev, struct mthca_cq_buf *buf, int nent
 void mthca_free_cq_buf(struct mthca_dev *dev, struct mthca_cq_buf *buf, int cqe);
 
 int mthca_alloc_srq(struct mthca_dev *dev, struct mthca_pd *pd,
-		    struct ib_srq_attr *attr, struct mthca_srq *srq);
+		    struct ib_srq_attr *attr, struct mthca_srq *srq,
+		    struct ib_udata *udata);
 void mthca_free_srq(struct mthca_dev *dev, struct mthca_srq *srq);
 int mthca_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 		     enum ib_srq_attr_mask attr_mask, struct ib_udata *udata);
@@ -519,10 +520,10 @@ int mthca_max_srq_sge(struct mthca_dev *dev);
 void mthca_srq_event(struct mthca_dev *dev, u32 srqn,
 		     enum ib_event_type event_type);
 void mthca_free_srq_wqe(struct mthca_srq *srq, u32 wqe_addr);
-int mthca_tavor_post_srq_recv(struct ib_srq *srq, struct ib_recv_wr *wr,
-			      struct ib_recv_wr **bad_wr);
-int mthca_arbel_post_srq_recv(struct ib_srq *srq, struct ib_recv_wr *wr,
-			      struct ib_recv_wr **bad_wr);
+int mthca_tavor_post_srq_recv(struct ib_srq *srq, const struct ib_recv_wr *wr,
+			      const struct ib_recv_wr **bad_wr);
+int mthca_arbel_post_srq_recv(struct ib_srq *srq, const struct ib_recv_wr *wr,
+			      const struct ib_recv_wr **bad_wr);
 
 void mthca_qp_event(struct mthca_dev *dev, u32 qpn,
 		    enum ib_event_type event_type);
@@ -530,14 +531,14 @@ int mthca_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr, int qp_attr_m
 		   struct ib_qp_init_attr *qp_init_attr);
 int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask,
 		    struct ib_udata *udata);
-int mthca_tavor_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
-			  struct ib_send_wr **bad_wr);
-int mthca_tavor_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
-			     struct ib_recv_wr **bad_wr);
-int mthca_arbel_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
-			  struct ib_send_wr **bad_wr);
-int mthca_arbel_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
-			     struct ib_recv_wr **bad_wr);
+int mthca_tavor_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
+			  const struct ib_send_wr **bad_wr);
+int mthca_tavor_post_receive(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
+			     const struct ib_recv_wr **bad_wr);
+int mthca_arbel_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
+			  const struct ib_send_wr **bad_wr);
+int mthca_arbel_post_receive(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
+			     const struct ib_recv_wr **bad_wr);
 void mthca_free_err_wqe(struct mthca_dev *dev, struct mthca_qp *qp, int is_send,
 			int index, int *dbd, __be32 *new_wqe);
 int mthca_alloc_qp(struct mthca_dev *dev,
@@ -547,7 +548,8 @@ int mthca_alloc_qp(struct mthca_dev *dev,
 		   enum ib_qp_type type,
 		   enum ib_sig_type send_policy,
 		   struct ib_qp_cap *cap,
-		   struct mthca_qp *qp);
+		   struct mthca_qp *qp,
+		   struct ib_udata *udata);
 int mthca_alloc_sqp(struct mthca_dev *dev,
 		    struct mthca_pd *pd,
 		    struct mthca_cq *send_cq,
@@ -556,16 +558,17 @@ int mthca_alloc_sqp(struct mthca_dev *dev,
 		    struct ib_qp_cap *cap,
 		    int qpn,
 		    int port,
-		    struct mthca_sqp *sqp);
+		    struct mthca_sqp *sqp,
+		    struct ib_udata *udata);
 void mthca_free_qp(struct mthca_dev *dev, struct mthca_qp *qp);
 int mthca_create_ah(struct mthca_dev *dev,
 		    struct mthca_pd *pd,
-		    struct ib_ah_attr *ah_attr,
+		    struct rdma_ah_attr *ah_attr,
 		    struct mthca_ah *ah);
 int mthca_destroy_ah(struct mthca_dev *dev, struct mthca_ah *ah);
 int mthca_read_ah(struct mthca_dev *dev, struct mthca_ah *ah,
 		  struct ib_ud_header *header);
-int mthca_ah_query(struct ib_ah *ibah, struct ib_ah_attr *attr);
+int mthca_ah_query(struct ib_ah *ibah, struct rdma_ah_attr *attr);
 int mthca_ah_grh_present(struct mthca_ah *ah);
 u8 mthca_get_rate(struct mthca_dev *dev, int static_rate, u8 port);
 enum ib_rate mthca_rate_to_ib(struct mthca_dev *dev, u8 mthca_rate, u8 port);

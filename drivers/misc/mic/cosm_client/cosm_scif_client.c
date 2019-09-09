@@ -1,27 +1,17 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Intel MIC Platform Software Stack (MPSS)
  *
  * Copyright(c) 2015 Intel Corporation.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * The full GNU General Public License is included in this distribution in
- * the file called "COPYING".
- *
  * Intel MIC COSM Client Driver
- *
  */
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/reboot.h>
 #include <linux/kthread.h>
+#include <linux/sched/signal.h>
+
 #include "../cosm/cosm_main.h"
 
 #define COSM_SCIF_MAX_RETRIES 10
@@ -61,7 +51,11 @@ static struct notifier_block cosm_reboot = {
 /* Set system time from timespec value received from the host */
 static void cosm_set_time(struct cosm_msg *msg)
 {
-	int rc = do_settimeofday64(&msg->timespec);
+	struct timespec64 ts = {
+		.tv_sec = msg->timespec.tv_sec,
+		.tv_nsec = msg->timespec.tv_nsec,
+	};
+	int rc = do_settimeofday64(&ts);
 
 	if (rc)
 		dev_err(&client_spdev->dev, "%s: %d settimeofday rc %d\n",
@@ -158,7 +152,7 @@ static int cosm_scif_client(void *unused)
 
 	while (!kthread_should_stop()) {
 		pollepd.epd = client_epd;
-		pollepd.events = POLLIN;
+		pollepd.events = EPOLLIN;
 
 		rc = scif_poll(&pollepd, 1, COSM_HEARTBEAT_SEND_MSEC);
 		if (rc < 0) {
@@ -169,7 +163,7 @@ static int cosm_scif_client(void *unused)
 			continue;
 		}
 
-		if (pollepd.revents & POLLIN)
+		if (pollepd.revents & EPOLLIN)
 			cosm_client_recv();
 
 		msg.id = COSM_MSG_HEARTBEAT;

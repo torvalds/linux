@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * TUSB6010 USB 2.0 OTG Dual Role controller
  *
  * Copyright (C) 2006 Nokia Corporation
  * Tony Lindgren <tony@atomide.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Notes:
  * - Driver assumes that interface to external host (main CPU) is
@@ -452,11 +449,9 @@ static int tusb_musb_vbus_status(struct musb *musb)
 	return ret;
 }
 
-static struct timer_list musb_idle_timer;
-
-static void musb_do_idle(unsigned long _musb)
+static void musb_do_idle(struct timer_list *t)
 {
-	struct musb	*musb = (void *)_musb;
+	struct musb	*musb = from_timer(musb, t, dev_timer);
 	unsigned long	flags;
 
 	spin_lock_irqsave(&musb->lock, flags);
@@ -523,13 +518,13 @@ static void tusb_musb_try_idle(struct musb *musb, unsigned long timeout)
 			&& (musb->xceiv->otg->state == OTG_STATE_A_WAIT_BCON))) {
 		dev_dbg(musb->controller, "%s active, deleting timer\n",
 			usb_otg_state_string(musb->xceiv->otg->state));
-		del_timer(&musb_idle_timer);
+		del_timer(&musb->dev_timer);
 		last_timer = jiffies;
 		return;
 	}
 
 	if (time_after(last_timer, timeout)) {
-		if (!timer_pending(&musb_idle_timer))
+		if (!timer_pending(&musb->dev_timer))
 			last_timer = timeout;
 		else {
 			dev_dbg(musb->controller, "Longer idle timer already pending, ignoring\n");
@@ -541,7 +536,7 @@ static void tusb_musb_try_idle(struct musb *musb, unsigned long timeout)
 	dev_dbg(musb->controller, "%s inactive, for idle timer for %lu ms\n",
 		usb_otg_state_string(musb->xceiv->otg->state),
 		(unsigned long)jiffies_to_msecs(timeout - jiffies));
-	mod_timer(&musb_idle_timer, timeout);
+	mod_timer(&musb->dev_timer, timeout);
 }
 
 /* ticks of 60 MHz clock */
@@ -724,7 +719,7 @@ tusb_otg_ints(struct musb *musb, u32 int_src, void __iomem *tbase)
 			dev_dbg(musb->controller, "vbus change, %s, otg %03x\n",
 				usb_otg_state_string(musb->xceiv->otg->state), otg_stat);
 			idle_timeout = jiffies + (1 * HZ);
-			schedule_work(&musb->irq_work);
+			schedule_delayed_work(&musb->irq_work, 0);
 
 		} else /* A-dev state machine */ {
 			dev_dbg(musb->controller, "vbus change, %s, otg %03x\n",
@@ -814,7 +809,7 @@ tusb_otg_ints(struct musb *musb, u32 int_src, void __iomem *tbase)
 			break;
 		}
 	}
-	schedule_work(&musb->irq_work);
+	schedule_delayed_work(&musb->irq_work, 0);
 
 	return idle_timeout;
 }
@@ -864,7 +859,7 @@ static irqreturn_t tusb_musb_interrupt(int irq, void *__hci)
 		musb_writel(tbase, TUSB_PRCM_WAKEUP_CLEAR, reg);
 		if (reg & ~TUSB_PRCM_WNORCS) {
 			musb->is_active = 1;
-			schedule_work(&musb->irq_work);
+			schedule_delayed_work(&musb->irq_work, 0);
 		}
 		dev_dbg(musb->controller, "wake %sactive %02x\n",
 				musb->is_active ? "" : "in", reg);
@@ -873,7 +868,7 @@ static irqreturn_t tusb_musb_interrupt(int irq, void *__hci)
 	}
 
 	if (int_src & TUSB_INT_SRC_USB_IP_CONN)
-		del_timer(&musb_idle_timer);
+		del_timer(&musb->dev_timer);
 
 	/* OTG state change reports (annoyingly) not issued by Mentor core */
 	if (int_src & (TUSB_INT_SRC_VBUS_SENSE_CHNG
@@ -881,26 +876,14 @@ static irqreturn_t tusb_musb_interrupt(int irq, void *__hci)
 				| TUSB_INT_SRC_ID_STATUS_CHNG))
 		idle_timeout = tusb_otg_ints(musb, int_src, tbase);
 
-	/* TX dma callback must be handled here, RX dma callback is
-	 * handled in tusb_omap_dma_cb.
+	/*
+	 * Just clear the DMA interrupt if it comes as the completion for both
+	 * TX and RX is handled by the DMA callback in tusb6010_omap
 	 */
 	if ((int_src & TUSB_INT_SRC_TXRX_DMA_DONE)) {
 		u32	dma_src = musb_readl(tbase, TUSB_DMA_INT_SRC);
-		u32	real_dma_src = musb_readl(tbase, TUSB_DMA_INT_MASK);
 
 		dev_dbg(musb->controller, "DMA IRQ %08x\n", dma_src);
-		real_dma_src = ~real_dma_src & dma_src;
-		if (tusb_dma_omap(musb) && real_dma_src) {
-			int	tx_source = (real_dma_src & 0xffff);
-			int	i;
-
-			for (i = 1; i <= 15; i++) {
-				if (tx_source & (1 << i)) {
-					dev_dbg(musb->controller, "completing ep%i %s\n", i, "tx");
-					musb_dma_completion(musb, i, 1);
-				}
-			}
-		}
 		musb_writel(tbase, TUSB_DMA_INT_CLEAR, dma_src);
 	}
 
@@ -994,7 +977,7 @@ static void tusb_musb_disable(struct musb *musb)
 	musb_writel(tbase, TUSB_DMA_INT_MASK, 0x7fffffff);
 	musb_writel(tbase, TUSB_GPIO_INT_MASK, 0x1ff);
 
-	del_timer(&musb_idle_timer);
+	del_timer(&musb->dev_timer);
 
 	if (is_dma_capable() && !dma_off) {
 		printk(KERN_WARNING "%s %s: dma still active\n",
@@ -1154,7 +1137,7 @@ static int tusb_musb_init(struct musb *musb)
 	musb->xceiv->set_power = tusb_draw_power;
 	the_musb = musb;
 
-	setup_timer(&musb_idle_timer, musb_do_idle, (unsigned long) musb);
+	timer_setup(&musb->dev_timer, musb_do_idle, 0);
 
 done:
 	if (ret < 0) {
@@ -1168,7 +1151,7 @@ done:
 
 static int tusb_musb_exit(struct musb *musb)
 {
-	del_timer_sync(&musb_idle_timer);
+	del_timer_sync(&musb->dev_timer);
 	the_musb = NULL;
 
 	if (musb->board_set_power)
@@ -1181,7 +1164,8 @@ static int tusb_musb_exit(struct musb *musb)
 }
 
 static const struct musb_platform_ops tusb_ops = {
-	.quirks		= MUSB_DMA_TUSB_OMAP | MUSB_IN_TUSB,
+	.quirks		= MUSB_DMA_TUSB_OMAP | MUSB_IN_TUSB |
+			  MUSB_G_NO_SKB_RESERVE,
 	.init		= tusb_musb_init,
 	.exit		= tusb_musb_exit,
 

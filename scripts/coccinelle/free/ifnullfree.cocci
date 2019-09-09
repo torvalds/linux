@@ -1,10 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /// NULL check before some freeing functions is not needed.
 ///
 /// Based on checkpatch warning
 /// "kfree(NULL) is safe this check is probably not required"
 /// and kfreeaddr.cocci by Julia Lawall.
 ///
-// Copyright: (C) 2014 Fabian Frederick.  GPLv2.
+// Copyright: (C) 2014 Fabian Frederick.
 // Comments: -
 // Options: --no-includes --include-headers
 
@@ -55,5 +56,5 @@ cocci.print_main("NULL check before that freeing function is not needed", p)
 p << r.p;
 @@
 
-msg = "WARNING: NULL check before freeing functions like kfree, debugfs_remove, debugfs_remove_recursive or usb_free_urb is not needed. Maybe consider reorganizing relevant code to avoid passing NULL values."
+msg = "WARNING: NULL check before some freeing functions is not needed."
 coccilib.report.print_report(p[0], msg)

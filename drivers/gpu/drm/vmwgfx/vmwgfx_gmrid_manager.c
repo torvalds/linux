@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 /**************************************************************************
  *
- * Copyright (c) 2007-2010 VMware, Inc., Palo Alto, CA., USA
- * All Rights Reserved.
+ * Copyright 2007-2010 VMware, Inc., Palo Alto, CA., USA
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -51,51 +51,34 @@ static int vmw_gmrid_man_get_node(struct ttm_mem_type_manager *man,
 {
 	struct vmwgfx_gmrid_man *gman =
 		(struct vmwgfx_gmrid_man *)man->priv;
-	int ret = 0;
 	int id;
 
 	mem->mm_node = NULL;
+
+	id = ida_alloc_max(&gman->gmr_ida, gman->max_gmr_ids - 1, GFP_KERNEL);
+	if (id < 0)
+		return (id != -ENOMEM ? 0 : id);
 
 	spin_lock(&gman->lock);
 
 	if (gman->max_gmr_pages > 0) {
 		gman->used_gmr_pages += bo->num_pages;
 		if (unlikely(gman->used_gmr_pages > gman->max_gmr_pages))
-			goto out_err_locked;
+			goto nospace;
 	}
 
-	do {
-		spin_unlock(&gman->lock);
-		if (unlikely(ida_pre_get(&gman->gmr_ida, GFP_KERNEL) == 0)) {
-			ret = -ENOMEM;
-			goto out_err;
-		}
-		spin_lock(&gman->lock);
-
-		ret = ida_get_new(&gman->gmr_ida, &id);
-		if (unlikely(ret == 0 && id >= gman->max_gmr_ids)) {
-			ida_remove(&gman->gmr_ida, id);
-			ret = 0;
-			goto out_err_locked;
-		}
-	} while (ret == -EAGAIN);
-
-	if (likely(ret == 0)) {
-		mem->mm_node = gman;
-		mem->start = id;
-		mem->num_pages = bo->num_pages;
-	} else
-		goto out_err_locked;
+	mem->mm_node = gman;
+	mem->start = id;
+	mem->num_pages = bo->num_pages;
 
 	spin_unlock(&gman->lock);
 	return 0;
 
-out_err:
-	spin_lock(&gman->lock);
-out_err_locked:
+nospace:
 	gman->used_gmr_pages -= bo->num_pages;
 	spin_unlock(&gman->lock);
-	return ret;
+	ida_free(&gman->gmr_ida, id);
+	return 0;
 }
 
 static void vmw_gmrid_man_put_node(struct ttm_mem_type_manager *man,
@@ -105,8 +88,8 @@ static void vmw_gmrid_man_put_node(struct ttm_mem_type_manager *man,
 		(struct vmwgfx_gmrid_man *)man->priv;
 
 	if (mem->mm_node) {
+		ida_free(&gman->gmr_ida, mem->start);
 		spin_lock(&gman->lock);
-		ida_remove(&gman->gmr_ida, mem->start);
 		gman->used_gmr_pages -= mem->num_pages;
 		spin_unlock(&gman->lock);
 		mem->mm_node = NULL;
@@ -121,7 +104,7 @@ static int vmw_gmrid_man_init(struct ttm_mem_type_manager *man,
 	struct vmwgfx_gmrid_man *gman =
 		kzalloc(sizeof(*gman), GFP_KERNEL);
 
-	if (unlikely(gman == NULL))
+	if (unlikely(!gman))
 		return -ENOMEM;
 
 	spin_lock_init(&gman->lock);
@@ -157,16 +140,15 @@ static int vmw_gmrid_man_takedown(struct ttm_mem_type_manager *man)
 }
 
 static void vmw_gmrid_man_debug(struct ttm_mem_type_manager *man,
-				const char *prefix)
+				struct drm_printer *printer)
 {
-	printk(KERN_INFO "%s: No debug info available for the GMR "
-	       "id manager.\n", prefix);
+	drm_printf(printer, "No debug info available for the GMR id manager\n");
 }
 
 const struct ttm_mem_type_manager_func vmw_gmrid_manager_func = {
-	vmw_gmrid_man_init,
-	vmw_gmrid_man_takedown,
-	vmw_gmrid_man_get_node,
-	vmw_gmrid_man_put_node,
-	vmw_gmrid_man_debug
+	.init = vmw_gmrid_man_init,
+	.takedown = vmw_gmrid_man_takedown,
+	.get_node = vmw_gmrid_man_get_node,
+	.put_node = vmw_gmrid_man_put_node,
+	.debug = vmw_gmrid_man_debug
 };

@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Fujitsu Lifebook Application Panel button drive
  *
  *  Copyright (C) 2007 Stephen Hemminger <shemminger@linux-foundation.org>
  *  Copyright (C) 2001-2003 Jochen Eisinger <jochen@penguin-breeder.org>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  *
  * Many Fujitsu Lifebook laptops have a small panel of buttons that are
  * accessible via the i2c/smbus interface. This driver polls those
@@ -22,11 +19,9 @@
 #include <linux/io.h>
 #include <linux/input-polldev.h>
 #include <linux/i2c.h>
-#include <linux/workqueue.h>
 #include <linux/leds.h>
 
 #define APANEL_NAME	"Fujitsu Application Panel"
-#define APANEL_VERSION	"1.3.1"
 #define APANEL		"apanel"
 
 /* How often we poll keys - msecs */
@@ -60,8 +55,6 @@ struct apanel {
 	struct i2c_client *client;
 	unsigned short keymap[MAX_PANEL_KEYS];
 	u16    nkeys;
-	u16    led_bits;
-	struct work_struct led_work;
 	struct led_classdev mail_led;
 };
 
@@ -110,25 +103,13 @@ static void apanel_poll(struct input_polled_dev *ipdev)
 			report_key(idev, ap->keymap[i]);
 }
 
-/* Track state changes of LED */
-static void led_update(struct work_struct *work)
-{
-	struct apanel *ap = container_of(work, struct apanel, led_work);
-
-	i2c_smbus_write_word_data(ap->client, 0x10, ap->led_bits);
-}
-
-static void mail_led_set(struct led_classdev *led,
+static int mail_led_set(struct led_classdev *led,
 			 enum led_brightness value)
 {
 	struct apanel *ap = container_of(led, struct apanel, mail_led);
+	u16 led_bits = value != LED_OFF ? 0x8000 : 0x0000;
 
-	if (value != LED_OFF)
-		ap->led_bits |= 0x8000;
-	else
-		ap->led_bits &= ~0x8000;
-
-	schedule_work(&ap->led_work);
+	return i2c_smbus_write_word_data(ap->client, 0x10, led_bits);
 }
 
 static int apanel_remove(struct i2c_client *client)
@@ -180,7 +161,7 @@ static struct apanel apanel = {
 	},
 	.mail_led = {
 		.name = "mail:blue",
-		.brightness_set = mail_led_set,
+		.brightness_set_blocking = mail_led_set,
 	},
 };
 
@@ -236,7 +217,6 @@ static int apanel_probe(struct i2c_client *client,
 	if (err)
 		goto out3;
 
-	INIT_WORK(&ap->led_work, led_update);
 	if (device_chip[APANEL_DEV_LED] != CHIP_NONE) {
 		err = led_classdev_register(&client->dev, &ap->mail_led);
 		if (err)
@@ -314,7 +294,8 @@ static int __init apanel_init(void)
 		if (devno >= APANEL_DEV_MAX)
 			pr_notice(APANEL ": unknown device %u found\n", devno);
 		else if (device_chip[devno] != CHIP_NONE)
-			pr_warning(APANEL ": duplicate entry for devno %u\n", devno);
+			pr_warn(APANEL ": duplicate entry for devno %u\n",
+				devno);
 
 		else if (method != 1 && method != 2 && method != 4) {
 			pr_notice(APANEL ": unknown method %u for devno %u\n",
@@ -344,7 +325,6 @@ module_exit(apanel_cleanup);
 MODULE_AUTHOR("Stephen Hemminger <shemminger@linux-foundation.org>");
 MODULE_DESCRIPTION(APANEL_NAME " driver");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(APANEL_VERSION);
 
 MODULE_ALIAS("dmi:*:svnFUJITSU:pnLifeBook*:pvr*:rvnFUJITSU:*");
 MODULE_ALIAS("dmi:*:svnFUJITSU:pnLifebook*:pvr*:rvnFUJITSU:*");

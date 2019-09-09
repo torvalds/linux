@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Cirrus network device configuration
 #
@@ -19,10 +20,11 @@ if NET_VENDOR_CIRRUS
 config CS89x0
 	tristate "CS89x0 support"
 	depends on ISA || EISA || ARM
+	depends on !PPC32
 	---help---
 	  Support for CS89x0 chipset based Ethernet cards. If you have a
 	  network (Ethernet) card of this type, say Y and read the file
-	  <file:Documentation/networking/cs89x0.txt>.
+	  <file:Documentation/networking/device_drivers/cirrus/cs89x0.txt>.
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called cs89x0.
@@ -40,7 +42,7 @@ config CS89x0_PLATFORM
 
 config EP93XX_ETH
 	tristate "EP93xx Ethernet support"
-	depends on ARM && ARCH_EP93XX
+	depends on (ARM && ARCH_EP93XX) || COMPILE_TEST
 	select MII
 	help
 	  This is a driver for the ethernet hardware included in EP93xx CPUs.

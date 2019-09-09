@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifdef CONFIG_MMU
 #include <linux/list.h>
 #include <linux/vmalloc.h>
@@ -6,6 +7,8 @@
 
 /* the upper-most page table pointer */
 extern pmd_t *top_pmd;
+
+extern int icache_size;
 
 /*
  * 0xffff8000 to 0xffffffff is reserved for any ARM architecture

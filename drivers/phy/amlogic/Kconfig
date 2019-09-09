@@ -1,0 +1,61 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Phy drivers for Amlogic platforms
+#
+config PHY_MESON8B_USB2
+	tristate "Meson8, Meson8b and GXBB USB2 PHY driver"
+	default ARCH_MESON
+	depends on OF && (ARCH_MESON || COMPILE_TEST)
+	depends on USB_SUPPORT
+	select USB_COMMON
+	select GENERIC_PHY
+	help
+	  Enable this to support the Meson USB2 PHYs found in Meson8,
+	  Meson8b and GXBB SoCs.
+	  If unsure, say N.
+
+config PHY_MESON_GXL_USB2
+	tristate "Meson GXL and GXM USB2 PHY drivers"
+	default ARCH_MESON
+	depends on OF && (ARCH_MESON || COMPILE_TEST)
+	depends on USB_SUPPORT
+	select GENERIC_PHY
+	select REGMAP_MMIO
+	help
+	  Enable this to support the Meson USB2 PHYs found in Meson
+	  GXL and GXM SoCs.
+	  If unsure, say N.
+
+config PHY_MESON_GXL_USB3
+	tristate "Meson GXL and GXM USB3 PHY drivers"
+	default ARCH_MESON
+	depends on OF && (ARCH_MESON || COMPILE_TEST)
+	depends on USB_SUPPORT
+	select GENERIC_PHY
+	select REGMAP_MMIO
+	help
+	  Enable this to support the Meson USB3 PHY and OTG detection
+	  IP block found in Meson GXL and GXM SoCs.
+	  If unsure, say N.
+
+config PHY_MESON_G12A_USB2
+	tristate "Meson G12A USB2 PHY driver"
+	default ARCH_MESON
+	depends on OF && (ARCH_MESON || COMPILE_TEST)
+	select GENERIC_PHY
+	select REGMAP_MMIO
+	help
+	  Enable this to support the Meson USB2 PHYs found in Meson
+	  G12A SoCs.
+	  If unsure, say N.
+
+config PHY_MESON_G12A_USB3_PCIE
+	tristate "Meson G12A USB3+PCIE Combo PHY driver"
+	default ARCH_MESON
+	depends on OF && (ARCH_MESON || COMPILE_TEST)
+	select GENERIC_PHY
+	select REGMAP_MMIO
+	help
+	  Enable this to support the Meson USB3 + PCIE Combo PHY found
+	  in Meson G12A SoCs.
+	  If unsure, say N.

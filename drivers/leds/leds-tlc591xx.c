@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2014 Belkin Inc.
  * Copyright 2015 Andrew Lunn <andrew@lunn.ch>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
  */
 
 #include <linux/i2c.h>
@@ -230,12 +227,15 @@ tlc591xx_probe(struct i2c_client *client,
 
 	for_each_child_of_node(np, child) {
 		err = of_property_read_u32(child, "reg", &reg);
-		if (err)
+		if (err) {
+			of_node_put(child);
 			return err;
-		if (reg < 0 || reg >= tlc591xx->max_leds)
+		}
+		if (reg < 0 || reg >= tlc591xx->max_leds ||
+		    priv->leds[reg].active) {
+			of_node_put(child);
 			return -EINVAL;
-		if (priv->leds[reg].active)
-			return -EINVAL;
+		}
 		priv->leds[reg].active = true;
 		priv->leds[reg].ldev.name =
 			of_get_property(child, "label", NULL) ? : child->name;

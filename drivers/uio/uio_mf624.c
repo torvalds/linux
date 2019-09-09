@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * UIO driver fo Humusoft MF624 DAQ card.
  * Copyright (C) 2011 Rostislav Lisovy <lisovy@gmail.com>,
  *                    Czech Technical University in Prague
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/init.h>
@@ -127,6 +114,24 @@ static int mf624_irqcontrol(struct uio_info *info, s32 irq_on)
 	return 0;
 }
 
+static int mf624_setup_mem(struct pci_dev *dev, int bar, struct uio_mem *mem, const char *name)
+{
+	resource_size_t start = pci_resource_start(dev, bar);
+	resource_size_t len = pci_resource_len(dev, bar);
+
+	mem->name = name;
+	mem->addr = start & PAGE_MASK;
+	mem->offs = start & ~PAGE_MASK;
+	if (!mem->addr)
+		return -ENODEV;
+	mem->size = ((start & ~PAGE_MASK) + len + PAGE_SIZE - 1) & PAGE_MASK;
+	mem->memtype = UIO_MEM_PHYS;
+	mem->internal_addr = pci_ioremap_bar(dev, bar);
+	if (!mem->internal_addr)
+		return -ENODEV;
+	return 0;
+}
+
 static int mf624_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	struct uio_info *info;
@@ -147,37 +152,15 @@ static int mf624_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	/* Note: Datasheet says device uses BAR0, BAR1, BAR2 -- do not trust it */
 
 	/* BAR0 */
-	info->mem[0].name = "PCI chipset, interrupts, status "
-			"bits, special functions";
-	info->mem[0].addr = pci_resource_start(dev, 0);
-	if (!info->mem[0].addr)
+	if (mf624_setup_mem(dev, 0, &info->mem[0], "PCI chipset, interrupts, status "
+			    "bits, special functions"))
 		goto out_release;
-	info->mem[0].size = pci_resource_len(dev, 0);
-	info->mem[0].memtype = UIO_MEM_PHYS;
-	info->mem[0].internal_addr = pci_ioremap_bar(dev, 0);
-	if (!info->mem[0].internal_addr)
-		goto out_release;
-
 	/* BAR2 */
-	info->mem[1].name = "ADC, DAC, DIO";
-	info->mem[1].addr = pci_resource_start(dev, 2);
-	if (!info->mem[1].addr)
-		goto out_unmap0;
-	info->mem[1].size = pci_resource_len(dev, 2);
-	info->mem[1].memtype = UIO_MEM_PHYS;
-	info->mem[1].internal_addr = pci_ioremap_bar(dev, 2);
-	if (!info->mem[1].internal_addr)
+	if (mf624_setup_mem(dev, 2, &info->mem[1], "ADC, DAC, DIO"))
 		goto out_unmap0;
 
 	/* BAR4 */
-	info->mem[2].name = "Counter/timer chip";
-	info->mem[2].addr = pci_resource_start(dev, 4);
-	if (!info->mem[2].addr)
-		goto out_unmap1;
-	info->mem[2].size = pci_resource_len(dev, 4);
-	info->mem[2].memtype = UIO_MEM_PHYS;
-	info->mem[2].internal_addr = pci_ioremap_bar(dev, 4);
-	if (!info->mem[2].internal_addr)
+	if (mf624_setup_mem(dev, 4, &info->mem[2], "Counter/timer chip"))
 		goto out_unmap1;
 
 	info->irq = dev->irq;

@@ -1,19 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2005-2009 Texas Instruments Inc
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  * CCDC hardware module for DM355
  * ------------------------------
@@ -21,18 +8,13 @@
  * This module is for configuring DM355 CCD controller of VPFE to capture
  * Raw yuv or Bayer RGB data from a decoder. CCDC has several modules
  * such as Defect Pixel Correction, Color Space Conversion etc to
- * pre-process the Bayer RGB data, before writing it to SDRAM. This
- * module also allows application to configure individual
- * module parameters through VPFE_CMD_S_CCDC_RAW_PARAMS IOCTL.
- * To do so, application include dm355_ccdc.h and vpfe_capture.h header
- * files. The setparams() API is called by vpfe_capture driver
- * to configure module parameters
+ * pre-process the Bayer RGB data, before writing it to SDRAM.
  *
  * TODO: 1) Raw bayer parameter settings and bayer capture
- * 	 2) Split module parameter structure to module specific ioctl structs
+ *	 2) Split module parameter structure to module specific ioctl structs
  *	 3) add support for lense shading correction
  *	 4) investigate if enum used for user space type definition
- * 	    to be replaced by #defines or integer
+ *	    to be replaced by #defines or integer
  */
 #include <linux/platform_device.h>
 #include <linux/uaccess.h>
@@ -262,90 +244,6 @@ static void ccdc_setwin(struct v4l2_rect *image_win,
 	regw(vert_start & CCDC_START_VER_TWO_MASK, SLV1);
 	regw(vert_nr_lines & CCDC_NUM_LINES_VER, NLV);
 	dev_dbg(ccdc_cfg.dev, "\nEnd of ccdc_setwin...");
-}
-
-static int validate_ccdc_param(struct ccdc_config_params_raw *ccdcparam)
-{
-	if (ccdcparam->datasft < CCDC_DATA_NO_SHIFT ||
-	    ccdcparam->datasft > CCDC_DATA_SHIFT_6BIT) {
-		dev_dbg(ccdc_cfg.dev, "Invalid value of data shift\n");
-		return -EINVAL;
-	}
-
-	if (ccdcparam->mfilt1 < CCDC_NO_MEDIAN_FILTER1 ||
-	    ccdcparam->mfilt1 > CCDC_MEDIAN_FILTER1) {
-		dev_dbg(ccdc_cfg.dev, "Invalid value of median filter1\n");
-		return -EINVAL;
-	}
-
-	if (ccdcparam->mfilt2 < CCDC_NO_MEDIAN_FILTER2 ||
-	    ccdcparam->mfilt2 > CCDC_MEDIAN_FILTER2) {
-		dev_dbg(ccdc_cfg.dev, "Invalid value of median filter2\n");
-		return -EINVAL;
-	}
-
-	if ((ccdcparam->med_filt_thres < 0) ||
-	   (ccdcparam->med_filt_thres > CCDC_MED_FILT_THRESH)) {
-		dev_dbg(ccdc_cfg.dev,
-			"Invalid value of median filter threshold\n");
-		return -EINVAL;
-	}
-
-	if (ccdcparam->data_sz < CCDC_DATA_16BITS ||
-	    ccdcparam->data_sz > CCDC_DATA_8BITS) {
-		dev_dbg(ccdc_cfg.dev, "Invalid value of data size\n");
-		return -EINVAL;
-	}
-
-	if (ccdcparam->alaw.enable) {
-		if (ccdcparam->alaw.gamma_wd < CCDC_GAMMA_BITS_13_4 ||
-		    ccdcparam->alaw.gamma_wd > CCDC_GAMMA_BITS_09_0) {
-			dev_dbg(ccdc_cfg.dev, "Invalid value of ALAW\n");
-			return -EINVAL;
-		}
-	}
-
-	if (ccdcparam->blk_clamp.b_clamp_enable) {
-		if (ccdcparam->blk_clamp.sample_pixel < CCDC_SAMPLE_1PIXELS ||
-		    ccdcparam->blk_clamp.sample_pixel > CCDC_SAMPLE_16PIXELS) {
-			dev_dbg(ccdc_cfg.dev,
-				"Invalid value of sample pixel\n");
-			return -EINVAL;
-		}
-		if (ccdcparam->blk_clamp.sample_ln < CCDC_SAMPLE_1LINES ||
-		    ccdcparam->blk_clamp.sample_ln > CCDC_SAMPLE_16LINES) {
-			dev_dbg(ccdc_cfg.dev,
-				"Invalid value of sample lines\n");
-			return -EINVAL;
-		}
-	}
-	return 0;
-}
-
-/* Parameter operations */
-static int ccdc_set_params(void __user *params)
-{
-	struct ccdc_config_params_raw ccdc_raw_params;
-	int x;
-
-	/* only raw module parameters can be set through the IOCTL */
-	if (ccdc_cfg.if_type != VPFE_RAW_BAYER)
-		return -EINVAL;
-
-	x = copy_from_user(&ccdc_raw_params, params, sizeof(ccdc_raw_params));
-	if (x) {
-		dev_dbg(ccdc_cfg.dev, "ccdc_set_params: error in copying ccdc"
-			"params, %d\n", x);
-		return -EFAULT;
-	}
-
-	if (!validate_ccdc_param(&ccdc_raw_params)) {
-		memcpy(&ccdc_cfg.bayer.config_params,
-			&ccdc_raw_params,
-			sizeof(ccdc_raw_params));
-		return 0;
-	}
-	return -EINVAL;
 }
 
 /* This function will configure CCDC for YCbCr video capture */
@@ -934,7 +832,7 @@ static int ccdc_set_hw_if_params(struct vpfe_hw_if_param *params)
 	return 0;
 }
 
-static struct ccdc_hw_device ccdc_hw_dev = {
+static const struct ccdc_hw_device ccdc_hw_dev = {
 	.name = "DM355 CCDC",
 	.owner = THIS_MODULE,
 	.hw_ops = {
@@ -943,7 +841,6 @@ static struct ccdc_hw_device ccdc_hw_dev = {
 		.enable = ccdc_enable,
 		.enable_out_to_sdram = ccdc_enable_output_to_sdram,
 		.set_hw_if_params = ccdc_set_hw_if_params,
-		.set_params = ccdc_set_params,
 		.configure = ccdc_configure,
 		.set_buftype = ccdc_set_buftype,
 		.get_buftype = ccdc_get_buftype,

@@ -1,22 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* ZD1211 USB-WLAN driver for Linux
  *
  * Copyright (C) 2005-2007 Ulrich Kunitz <kune@deine-taler.de>
  * Copyright (C) 2006-2007 Daniel Drake <dsd@gentoo.org>
  * Copyright (C) 2006-2007 Michael Wu <flamingice@sourmilk.net>
  * Copyright (C) 2007-2008 Luis R. Rodriguez <mcgrof@winlab.rutgers.edu>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/netdevice.h>
@@ -235,7 +223,7 @@ void zd_mac_clear(struct zd_mac *mac)
 {
 	flush_workqueue(zd_workqueue);
 	zd_chip_clear(&mac->chip);
-	ZD_ASSERT(!spin_is_locked(&mac->lock));
+	lockdep_assert_held(&mac->lock);
 	ZD_MEMCLEAR(mac, sizeof(struct zd_mac));
 }
 
@@ -509,7 +497,6 @@ void zd_mac_tx_failed(struct urb *urb)
 	int found = 0;
 	int i, position = 0;
 
-	q = &mac->ack_wait_queue;
 	spin_lock_irqsave(&q->lock, flags);
 
 	skb_queue_walk(q, skb) {
@@ -733,7 +720,8 @@ static int zd_mac_config_beacon(struct ieee80211_hw *hw, struct sk_buff *beacon,
 
 	/* Alloc memory for full beacon write at once. */
 	num_cmds = 1 + zd_chip_is_zd1211b(&mac->chip) + full_len;
-	ioreqs = kmalloc(num_cmds * sizeof(struct zd_ioreq32), GFP_KERNEL);
+	ioreqs = kmalloc_array(num_cmds, sizeof(struct zd_ioreq32),
+			       GFP_KERNEL);
 	if (!ioreqs) {
 		r = -ENOMEM;
 		goto out_nofree;
@@ -868,8 +856,7 @@ static int fill_ctrlset(struct zd_mac *mac,
 	unsigned int frag_len = skb->len + FCS_LEN;
 	unsigned int packet_length;
 	struct ieee80211_rate *txrate;
-	struct zd_ctrlset *cs = (struct zd_ctrlset *)
-		skb_push(skb, sizeof(struct zd_ctrlset));
+	struct zd_ctrlset *cs = skb_push(skb, sizeof(struct zd_ctrlset));
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 
 	ZD_ASSERT(frag_len <= 0xffff);
@@ -1103,7 +1090,7 @@ int zd_mac_rx(struct ieee80211_hw *hw, const u8 *buffer, unsigned int length)
 	}
 
 	/* FIXME : could we avoid this big memcpy ? */
-	memcpy(skb_put(skb, length), buffer, length);
+	skb_put_data(skb, buffer, length);
 
 	memcpy(IEEE80211_SKB_RXCB(skb), &stats, sizeof(stats));
 	ieee80211_rx_irqsafe(hw, skb);
@@ -1407,6 +1394,8 @@ struct ieee80211_hw *zd_mac_alloc_hw(struct usb_interface *intf)
 		BIT(NL80211_IFTYPE_STATION) |
 		BIT(NL80211_IFTYPE_ADHOC) |
 		BIT(NL80211_IFTYPE_AP);
+
+	wiphy_ext_feature_set(hw->wiphy, NL80211_EXT_FEATURE_CQM_RSSI_LIST);
 
 	hw->max_signal = 100;
 	hw->queues = 1;

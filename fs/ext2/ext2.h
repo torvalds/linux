@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 1992, 1993, 1994, 1995
  * Remy Card (card@masi.ibp.fr)
@@ -113,7 +114,8 @@ struct ext2_sb_info {
 	 * of the mount options.
 	 */
 	spinlock_t s_lock;
-	struct mb_cache *s_mb_cache;
+	struct mb_cache *s_ea_block_cache;
+	struct dax_device *s_daxdev;
 };
 
 static inline spinlock_t *
@@ -388,11 +390,7 @@ struct ext2_inode {
 #define EXT2_MOUNT_USRQUOTA		0x020000  /* user quota */
 #define EXT2_MOUNT_GRPQUOTA		0x040000  /* group quota */
 #define EXT2_MOUNT_RESERVATION		0x080000  /* Preallocation */
-#ifdef CONFIG_FS_DAX
 #define EXT2_MOUNT_DAX			0x100000  /* Direct Access */
-#else
-#define EXT2_MOUNT_DAX			0
-#endif
 
 
 #define clear_opt(o, opt)		o &= ~EXT2_MOUNT_##opt
@@ -606,22 +604,6 @@ struct ext2_dir_entry_2 {
 };
 
 /*
- * Ext2 directory file types.  Only the low 3 bits are used.  The
- * other bits are reserved for now.
- */
-enum {
-	EXT2_FT_UNKNOWN		= 0,
-	EXT2_FT_REG_FILE	= 1,
-	EXT2_FT_DIR		= 2,
-	EXT2_FT_CHRDEV		= 3,
-	EXT2_FT_BLKDEV		= 4,
-	EXT2_FT_FIFO		= 5,
-	EXT2_FT_SOCK		= 6,
-	EXT2_FT_SYMLINK		= 7,
-	EXT2_FT_MAX
-};
-
-/*
  * EXT2_DIR_PAD defines the directory entries boundaries
  *
  * NOTE: It must be a multiple of 4
@@ -746,7 +728,6 @@ extern void ext2_free_blocks (struct inode *, unsigned long,
 			      unsigned long);
 extern unsigned long ext2_count_free_blocks (struct super_block *);
 extern unsigned long ext2_count_dirs (struct super_block *);
-extern void ext2_check_blocks_bitmap (struct super_block *);
 extern struct ext2_group_desc * ext2_get_group_desc(struct super_block * sb,
 						    unsigned int block_group,
 						    struct buffer_head ** bh);
@@ -769,7 +750,6 @@ extern void ext2_set_link(struct inode *, struct ext2_dir_entry_2 *, struct page
 extern struct inode * ext2_new_inode (struct inode *, umode_t, const struct qstr *);
 extern void ext2_free_inode (struct inode *);
 extern unsigned long ext2_count_free_inodes (struct super_block *);
-extern void ext2_check_inodes_bitmap (struct super_block *);
 extern unsigned long ext2_count_free (struct buffer_head *, unsigned);
 
 /* inode.c */
@@ -778,8 +758,8 @@ extern int ext2_write_inode (struct inode *, struct writeback_control *);
 extern void ext2_evict_inode(struct inode *);
 extern int ext2_get_block(struct inode *, sector_t, struct buffer_head *, int);
 extern int ext2_setattr (struct dentry *, struct iattr *);
+extern int ext2_getattr (const struct path *, struct kstat *, u32, unsigned int);
 extern void ext2_set_inode_flags(struct inode *inode);
-extern void ext2_get_inode_flags(struct ext2_inode_info *);
 extern int ext2_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		       u64 start, u64 len);
 
@@ -796,7 +776,8 @@ void ext2_error(struct super_block *, const char *, const char *, ...);
 extern __printf(3, 4)
 void ext2_msg(struct super_block *, const char *, const char *, ...);
 extern void ext2_update_dynamic_rev (struct super_block *sb);
-extern void ext2_write_super (struct super_block *);
+extern void ext2_sync_super(struct super_block *sb, struct ext2_super_block *es,
+			    int wait);
 
 /*
  * Inodes and files operations
@@ -812,9 +793,10 @@ extern const struct inode_operations ext2_file_inode_operations;
 extern const struct file_operations ext2_file_operations;
 
 /* inode.c */
+extern void ext2_set_file_ops(struct inode *inode);
 extern const struct address_space_operations ext2_aops;
 extern const struct address_space_operations ext2_nobh_aops;
-extern struct iomap_ops ext2_iomap_ops;
+extern const struct iomap_ops ext2_iomap_ops;
 
 /* namei.c */
 extern const struct inode_operations ext2_dir_inode_operations;

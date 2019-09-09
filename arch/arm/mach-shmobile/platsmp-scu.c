@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * SMP support for SoCs with SCU covered by mach-shmobile
  *
  * Copyright (C) 2013  Magnus Damm
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/cpu.h>
 #include <linux/delay.h>
@@ -24,7 +21,7 @@ static void __iomem *shmobile_scu_base;
 static int shmobile_scu_cpu_prepare(unsigned int cpu)
 {
 	/* For this particular CPU register SCU SMP boot vector */
-	shmobile_smp_hook(cpu, virt_to_phys(shmobile_boot_scu),
+	shmobile_smp_hook(cpu, __pa_symbol(shmobile_boot_scu),
 			  shmobile_scu_base_phys);
 	return 0;
 }
@@ -33,7 +30,7 @@ void __init shmobile_smp_scu_prepare_cpus(phys_addr_t scu_base_phys,
 					  unsigned int max_cpus)
 {
 	/* install boot code shared by all CPUs */
-	shmobile_boot_fn = virt_to_phys(shmobile_smp_boot);
+	shmobile_boot_fn = __pa_symbol(shmobile_smp_boot);
 
 	/* enable SCU and cache coherency on booting CPU */
 	shmobile_scu_base_phys = scu_base_phys;

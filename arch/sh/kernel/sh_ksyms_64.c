@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * arch/sh/kernel/sh_ksyms_64.c
  *
  * Copyright (C) 2000, 2001  Paolo Alberelli
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 #include <linux/rwsem.h>
 #include <linux/module.h>
@@ -18,7 +15,7 @@
 #include <linux/screen_info.h>
 #include <asm/cacheflush.h>
 #include <asm/processor.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/checksum.h>
 #include <asm/io.h>
 #include <asm/delay.h>

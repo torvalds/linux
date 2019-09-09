@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2012-2015, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include "dsi_pll.h"
@@ -140,6 +132,15 @@ int msm_dsi_pll_restore_state(struct msm_dsi_pll *pll)
 	return 0;
 }
 
+int msm_dsi_pll_set_usecase(struct msm_dsi_pll *pll,
+			    enum msm_dsi_phy_usecase uc)
+{
+	if (pll->set_usecase)
+		return pll->set_usecase(pll, uc);
+
+	return 0;
+}
+
 struct msm_dsi_pll *msm_dsi_pll_init(struct platform_device *pdev,
 			enum msm_dsi_phy_type type, int id)
 {
@@ -154,14 +155,20 @@ struct msm_dsi_pll *msm_dsi_pll_init(struct platform_device *pdev,
 	case MSM_DSI_PHY_28NM_8960:
 		pll = msm_dsi_pll_28nm_8960_init(pdev, id);
 		break;
+	case MSM_DSI_PHY_14NM:
+		pll = msm_dsi_pll_14nm_init(pdev, id);
+		break;
+	case MSM_DSI_PHY_10NM:
+		pll = msm_dsi_pll_10nm_init(pdev, id);
+		break;
 	default:
 		pll = ERR_PTR(-ENXIO);
 		break;
 	}
 
 	if (IS_ERR(pll)) {
-		dev_err(dev, "%s: failed to init DSI PLL\n", __func__);
-		return NULL;
+		DRM_DEV_ERROR(dev, "%s: failed to init DSI PLL\n", __func__);
+		return pll;
 	}
 
 	pll->type = type;

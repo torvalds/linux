@@ -5,8 +5,9 @@
  */
 
 #include <linux/mm.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/slab.h>
+
 #include <asm/pgalloc.h>
 #include <asm/pgtable.h>
 #include <asm/sections.h>
@@ -118,7 +119,7 @@ void uml_setup_stubs(struct mm_struct *mm)
 	return;
 
 out:
-	force_sigsegv(SIGSEGV, current);
+	force_sigsegv(SIGSEGV);
 }
 
 void arch_exit_mmap(struct mm_struct *mm)

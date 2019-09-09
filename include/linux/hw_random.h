@@ -1,7 +1,7 @@
 /*
 	Hardware Random Number Generator
 
-	Please read Documentation/hw_random.txt for details on use.
+	Please read Documentation/admin-guide/hw_random.rst for details on use.
 
 	----------------------------------------------------------
 	This software may be used and distributed according to the terms
@@ -30,11 +30,11 @@
  *			Must not be NULL.    *OBSOLETE*
  * @read:		New API. drivers can fill up to max bytes of data
  *			into the buffer. The buffer is aligned for any type
- *			and max is guaranteed to be >= to that alignment
- *			(either 4 or 8 depending on architecture).
+ *			and max is a multiple of 4 and >= 32 bytes.
  * @priv:		Private data, for use by the RNG driver.
  * @quality:		Estimation of true entropy in RNG's bitstream
- *			(per mill).
+ *			(in bits of entropy per 1024 bits of input;
+ *			valid values: 1 to 1024, or 0 for unknown).
  */
 struct hwrng {
 	const char *name;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /// Use ARRAY_SIZE instead of dividing sizeof array with sizeof an element
 ///
 //# This makes an effort to find cases where ARRAY_SIZE can be used such as
@@ -6,7 +7,7 @@
 //# division of the two sizeofs by ARRAY_SIZE.
 //
 // Confidence: High
-// Copyright: (C) 2014 Himangi Saraogi.  GPLv2.
+// Copyright: (C) 2014 Himangi Saraogi.
 // Comments:
 // Options: --no-includes --include-headers
 
@@ -72,13 +73,13 @@ position p;
  (sizeof(E)@p /sizeof(T))
 )
 
-@script:python depends on i&&org@
+@script:python depends on org@
 p << r.p;
 @@
 
 coccilib.org.print_todo(p[0], "WARNING should use ARRAY_SIZE")
 
-@script:python depends on i&&report@
+@script:python depends on report@
 p << r.p;
 @@
 

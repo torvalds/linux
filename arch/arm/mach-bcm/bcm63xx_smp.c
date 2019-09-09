@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Broadcom BCM63138 DSL SoCs SMP support code
  *
  * Copyright (C) 2015, Broadcom Corporation
- *
- * Licensed under the terms of the GPLv2
  */
 
 #include <linux/delay.h>
@@ -135,13 +134,14 @@ static int bcm63138_smp_boot_secondary(unsigned int cpu,
 	}
 
 	/* Write the secondary init routine to the BootLUT reset vector */
-	val = virt_to_phys(secondary_startup);
+	val = __pa_symbol(secondary_startup);
 	writel_relaxed(val, bootlut_base + BOOTLUT_RESET_VECT);
 
 	/* Power up the core, will jump straight to its reset vector when we
 	 * return
 	 */
 	ret = bcm63xx_pmb_power_on_cpu(dn);
+	of_node_put(dn);
 	if (ret)
 		goto out;
 out:

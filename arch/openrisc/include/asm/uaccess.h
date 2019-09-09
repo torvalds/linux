@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * OpenRISC Linux
  *
@@ -9,11 +10,6 @@
  * Copyright (C) 2003 Matjaz Breskvar <phoenix@bsemi.com>
  * Copyright (C) 2010-2011 Jonas Bonn <jonas@southpole.se>
  * et al.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #ifndef __ASM_OPENRISC_UACCESS_H
@@ -22,14 +18,10 @@
 /*
  * User space memory access functions
  */
-#include <linux/errno.h>
-#include <linux/thread_info.h>
 #include <linux/prefetch.h>
 #include <linux/string.h>
 #include <asm/page.h>
-
-#define VERIFY_READ	0
-#define VERIFY_WRITE	1
+#include <asm/extable.h>
 
 /*
  * The fs value determines whether argument validity checking should be
@@ -46,7 +38,6 @@
  */
 
 #define KERNEL_DS	(~0UL)
-#define get_ds()	(KERNEL_DS)
 
 #define USER_DS		(TASK_SIZE)
 #define get_fs()	(current_thread_info()->addr_limit)
@@ -62,25 +53,12 @@
 /* Ensure that addr is below task's addr_limit */
 #define __addr_ok(addr) ((unsigned long) addr < get_fs())
 
-#define access_ok(type, addr, size) \
-	__range_ok((unsigned long)addr, (unsigned long)size)
-
-/*
- * The exception table consists of pairs of addresses: the first is the
- * address of an instruction that is allowed to fault, and the second is
- * the address at which the program should continue.  No registers are
- * modified, so it is entirely up to the continuation code to figure out
- * what to do.
- *
- * All the routines below use bits of fixup code that are out of line
- * with the main instruction path.  This means when everything is well,
- * we don't even have to jump over them.  Further, they do not intrude
- * on our cache or tlb entries.
- */
-
-struct exception_table_entry {
-	unsigned long insn, fixup;
-};
+#define access_ok(addr, size)						\
+({ 									\
+	unsigned long __ao_addr = (unsigned long)(addr);		\
+	unsigned long __ao_size = (unsigned long)(size);		\
+	__range_ok(__ao_addr, __ao_size);				\
+})
 
 /*
  * These are the main single-value transfer routines.  They automatically
@@ -123,7 +101,7 @@ extern long __put_user_bad(void);
 ({									\
 	long __pu_err = -EFAULT;					\
 	__typeof__(*(ptr)) *__pu_addr = (ptr);				\
-	if (access_ok(VERIFY_WRITE, __pu_addr, size))			\
+	if (access_ok(__pu_addr, size))			\
 		__put_user_size((x), __pu_addr, (size), __pu_err);	\
 	__pu_err;							\
 })
@@ -196,7 +174,7 @@ struct __large_struct {
 ({									\
 	long __gu_err = -EFAULT, __gu_val = 0;				\
 	const __typeof__(*(ptr)) * __gu_addr = (ptr);			\
-	if (access_ok(VERIFY_READ, __gu_addr, size))			\
+	if (access_ok(__gu_addr, size))			\
 		__get_user_size(__gu_val, __gu_addr, (size), __gu_err);	\
 	(x) = (__force __typeof__(*(ptr)))__gu_val;			\
 	__gu_err;							\
@@ -211,7 +189,7 @@ do {									\
 	case 1: __get_user_asm(x, ptr, retval, "l.lbz"); break;		\
 	case 2: __get_user_asm(x, ptr, retval, "l.lhz"); break;		\
 	case 4: __get_user_asm(x, ptr, retval, "l.lwz"); break;		\
-	case 8: __get_user_asm2(x, ptr, retval);			\
+	case 8: __get_user_asm2(x, ptr, retval); break;			\
 	default: (x) = __get_user_bad();				\
 	}								\
 } while (0)
@@ -257,51 +235,34 @@ do {									\
 
 extern unsigned long __must_check
 __copy_tofrom_user(void *to, const void *from, unsigned long size);
-
-#define __copy_from_user(to, from, size) \
-	__copy_tofrom_user(to, from, size)
-#define __copy_to_user(to, from, size) \
-	__copy_tofrom_user(to, from, size)
-
-#define __copy_to_user_inatomic __copy_to_user
-#define __copy_from_user_inatomic __copy_from_user
-
 static inline unsigned long
-copy_from_user(void *to, const void *from, unsigned long n)
+raw_copy_from_user(void *to, const void __user *from, unsigned long size)
 {
-	unsigned long res = n;
-
-	if (likely(access_ok(VERIFY_READ, from, n)))
-		res = __copy_tofrom_user(to, from, n);
-	if (unlikely(res))
-		memset(to + (n - res), 0, res);
-	return res;
+	return __copy_tofrom_user(to, (__force const void *)from, size);
 }
-
 static inline unsigned long
-copy_to_user(void *to, const void *from, unsigned long n)
+raw_copy_to_user(void *to, const void __user *from, unsigned long size)
 {
-	if (likely(access_ok(VERIFY_WRITE, to, n)))
-		n = __copy_tofrom_user(to, from, n);
-	return n;
+	return __copy_tofrom_user((__force void *)to, from, size);
 }
+#define INLINE_COPY_FROM_USER
+#define INLINE_COPY_TO_USER
 
 extern unsigned long __clear_user(void *addr, unsigned long size);
 
 static inline __must_check unsigned long
 clear_user(void *addr, unsigned long size)
 {
-	if (likely(access_ok(VERIFY_WRITE, addr, size)))
+	if (likely(access_ok(addr, size)))
 		size = __clear_user(addr, size);
 	return size;
 }
 
 #define user_addr_max() \
-	(segment_eq(get_fs(), USER_DS) ? TASK_SIZE : ~0UL)
+	(uaccess_kernel() ? ~0UL : TASK_SIZE)
 
 extern long strncpy_from_user(char *dest, const char __user *src, long count);
 
-extern __must_check long strlen_user(const char __user *str);
 extern __must_check long strnlen_user(const char __user *str, long n);
 
 #endif /* __ASM_OPENRISC_UACCESS_H */

@@ -27,7 +27,7 @@
 #include <linux/input.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
-#include <linux/i2c/twl.h>
+#include <linux/mfd/twl.h>
 
 #define PWR_PWRON_IRQ (1 << 0)
 
@@ -64,13 +64,12 @@ static int twl4030_pwrbutton_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	pwr->evbit[0] = BIT_MASK(EV_KEY);
-	pwr->keybit[BIT_WORD(KEY_POWER)] = BIT_MASK(KEY_POWER);
+	input_set_capability(pwr, EV_KEY, KEY_POWER);
 	pwr->name = "twl4030_pwrbutton";
 	pwr->phys = "twl4030_pwrbutton/input0";
 	pwr->dev.parent = &pdev->dev;
 
-	err = devm_request_threaded_irq(&pwr->dev, irq, NULL, powerbutton_irq,
+	err = devm_request_threaded_irq(&pdev->dev, irq, NULL, powerbutton_irq,
 			IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING |
 			IRQF_ONESHOT,
 			"twl4030_pwrbutton", pwr);
@@ -85,7 +84,6 @@ static int twl4030_pwrbutton_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	platform_set_drvdata(pdev, pwr);
 	device_init_wakeup(&pdev->dev, true);
 
 	return 0;

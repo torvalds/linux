@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * SL82C105/Winbond 553 IDE driver
  *
@@ -239,8 +240,9 @@ static u8 sl82c105_bridge_revision(struct pci_dev *dev)
 	/*
 	 * The bridge should be part of the same device, but function 0.
 	 */
-	bridge = pci_get_bus_and_slot(dev->bus->number,
-			       PCI_DEVFN(PCI_SLOT(dev->devfn), 0));
+	bridge = pci_get_domain_bus_and_slot(pci_domain_nr(dev->bus),
+					dev->bus->number,
+					PCI_DEVFN(PCI_SLOT(dev->devfn), 0));
 	if (!bridge)
 		return -1;
 

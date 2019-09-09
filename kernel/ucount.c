@@ -1,14 +1,11 @@
-/*
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License as
- *  published by the Free Software Foundation, version 2 of the
- *  License.
- */
+// SPDX-License-Identifier: GPL-2.0-only
 
 #include <linux/stat.h>
 #include <linux/sysctl.h>
 #include <linux/slab.h>
+#include <linux/cred.h>
 #include <linux/hash.h>
+#include <linux/kmemleak.h>
 #include <linux/user_namespace.h>
 
 #define UCOUNTS_HASHTABLE_BITS 10
@@ -55,16 +52,14 @@ static struct ctl_table_root set_root = {
 	.permissions = set_permissions,
 };
 
-static int zero = 0;
-static int int_max = INT_MAX;
-#define UCOUNT_ENTRY(name) 				\
+#define UCOUNT_ENTRY(name)				\
 	{						\
 		.procname	= name,			\
 		.maxlen		= sizeof(int),		\
 		.mode		= 0644,			\
 		.proc_handler	= proc_dointvec_minmax,	\
-		.extra1		= &zero,		\
-		.extra2		= &int_max,		\
+		.extra1		= SYSCTL_ZERO,		\
+		.extra2		= SYSCTL_INT_MAX,	\
 	}
 static struct ctl_table user_table[] = {
 	UCOUNT_ENTRY("max_user_namespaces"),
@@ -74,6 +69,10 @@ static struct ctl_table user_table[] = {
 	UCOUNT_ENTRY("max_net_namespaces"),
 	UCOUNT_ENTRY("max_mnt_namespaces"),
 	UCOUNT_ENTRY("max_cgroup_namespaces"),
+#ifdef CONFIG_INOTIFY_USER
+	UCOUNT_ENTRY("max_inotify_instances"),
+	UCOUNT_ENTRY("max_inotify_watches"),
+#endif
 	{ }
 };
 #endif /* CONFIG_SYSCTL */
@@ -128,10 +127,10 @@ static struct ucounts *get_ucounts(struct user_namespace *ns, kuid_t uid)
 	struct hlist_head *hashent = ucounts_hashentry(ns, uid);
 	struct ucounts *ucounts, *new;
 
-	spin_lock(&ucounts_lock);
+	spin_lock_irq(&ucounts_lock);
 	ucounts = find_ucounts(ns, uid, hashent);
 	if (!ucounts) {
-		spin_unlock(&ucounts_lock);
+		spin_unlock_irq(&ucounts_lock);
 
 		new = kzalloc(sizeof(*new), GFP_KERNEL);
 		if (!new)
@@ -139,9 +138,9 @@ static struct ucounts *get_ucounts(struct user_namespace *ns, kuid_t uid)
 
 		new->ns = ns;
 		new->uid = uid;
-		atomic_set(&new->count, 0);
+		new->count = 0;
 
-		spin_lock(&ucounts_lock);
+		spin_lock_irq(&ucounts_lock);
 		ucounts = find_ucounts(ns, uid, hashent);
 		if (ucounts) {
 			kfree(new);
@@ -150,21 +149,27 @@ static struct ucounts *get_ucounts(struct user_namespace *ns, kuid_t uid)
 			ucounts = new;
 		}
 	}
-	if (!atomic_add_unless(&ucounts->count, 1, INT_MAX))
+	if (ucounts->count == INT_MAX)
 		ucounts = NULL;
-	spin_unlock(&ucounts_lock);
+	else
+		ucounts->count += 1;
+	spin_unlock_irq(&ucounts_lock);
 	return ucounts;
 }
 
 static void put_ucounts(struct ucounts *ucounts)
 {
-	if (atomic_dec_and_test(&ucounts->count)) {
-		spin_lock(&ucounts_lock);
-		hlist_del_init(&ucounts->node);
-		spin_unlock(&ucounts_lock);
+	unsigned long flags;
 
-		kfree(ucounts);
-	}
+	spin_lock_irqsave(&ucounts_lock, flags);
+	ucounts->count -= 1;
+	if (!ucounts->count)
+		hlist_del_init(&ucounts->node);
+	else
+		ucounts = NULL;
+	spin_unlock_irqrestore(&ucounts_lock, flags);
+
+	kfree(ucounts);
 }
 
 static inline bool atomic_inc_below(atomic_t *v, int u)
@@ -225,11 +230,10 @@ static __init int user_namespace_sysctl_init(void)
 	 * properly.
 	 */
 	user_header = register_sysctl("user", empty);
+	kmemleak_ignore(user_header);
 	BUG_ON(!user_header);
 	BUG_ON(!setup_userns_sysctls(&init_user_ns));
 #endif
 	return 0;
 }
 subsys_initcall(user_namespace_sysctl_init);
-
-

@@ -1,16 +1,12 @@
-/*
- * Fifo-attached Serial Interface (FSI) support for SH7724
- *
- * Copyright (C) 2009 Renesas Solutions Corp.
- * Kuninori Morimoto <morimoto.kuninori@renesas.com>
- *
- * Based on ssi.c
- * Copyright (c) 2007 Manuel Lauss <mano@roarinelk.homelinux.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Fifo-attached Serial Interface (FSI) support for SH7724
+//
+// Copyright (C) 2009 Renesas Solutions Corp.
+// Kuninori Morimoto <morimoto.kuninori@renesas.com>
+//
+// Based on ssi.c
+// Copyright (c) 2007 Manuel Lauss <mano@roarinelk.homelinux.net>
 
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
@@ -301,7 +297,12 @@ struct fsi_master {
 	spinlock_t lock;
 };
 
-static int fsi_stream_is_play(struct fsi_priv *fsi, struct fsi_stream *io);
+static inline int fsi_stream_is_play(struct fsi_priv *fsi,
+				     struct fsi_stream *io)
+{
+	return &fsi->playback == io;
+}
+
 
 /*
  *		basic read write function
@@ -489,12 +490,6 @@ static void fsi_count_fifo_err(struct fsi_priv *fsi)
 /*
  *		fsi_stream_xx() function
  */
-static inline int fsi_stream_is_play(struct fsi_priv *fsi,
-				     struct fsi_stream *io)
-{
-	return &fsi->playback == io;
-}
-
 static inline struct fsi_stream *fsi_stream_get(struct fsi_priv *fsi,
 					struct snd_pcm_substream *substream)
 {
@@ -785,7 +780,7 @@ static int fsi_clk_init(struct device *dev,
 			return -EINVAL;
 		}
 		if (clock->div == clock->own) {
-			dev_err(dev, "cpu doens't support div clock\n");
+			dev_err(dev, "cpu doesn't support div clock\n");
 			return -EINVAL;
 		}
 	}
@@ -1711,7 +1706,7 @@ static const struct snd_soc_dai_ops fsi_dai_ops = {
  *		pcm ops
  */
 
-static struct snd_pcm_hardware fsi_pcm_hardware = {
+static const struct snd_pcm_hardware fsi_pcm_hardware = {
 	.info =		SNDRV_PCM_INFO_INTERLEAVED	|
 			SNDRV_PCM_INFO_MMAP		|
 			SNDRV_PCM_INFO_MMAP_VALID,
@@ -1756,7 +1751,7 @@ static snd_pcm_uframes_t fsi_pointer(struct snd_pcm_substream *substream)
 	return fsi_sample2frame(fsi, io->buff_sample_pos);
 }
 
-static struct snd_pcm_ops fsi_pcm_ops = {
+static const struct snd_pcm_ops fsi_pcm_ops = {
 	.open		= fsi_pcm_open,
 	.ioctl		= snd_pcm_lib_ioctl,
 	.hw_params	= fsi_hw_params,
@@ -1765,7 +1760,7 @@ static struct snd_pcm_ops fsi_pcm_ops = {
 };
 
 /*
- *		snd_soc_platform
+ *		snd_soc_component
  */
 
 #define PREALLOC_BUFFER		(32 * 1024)
@@ -1773,11 +1768,12 @@ static struct snd_pcm_ops fsi_pcm_ops = {
 
 static int fsi_pcm_new(struct snd_soc_pcm_runtime *rtd)
 {
-	return snd_pcm_lib_preallocate_pages_for_all(
+	snd_pcm_lib_preallocate_pages_for_all(
 		rtd->pcm,
 		SNDRV_DMA_TYPE_DEV,
 		rtd->card->snd_card->dev,
 		PREALLOC_BUFFER, PREALLOC_BUFFER_MAX);
+	return 0;
 }
 
 /*
@@ -1819,13 +1815,10 @@ static struct snd_soc_dai_driver fsi_soc_dai[] = {
 	},
 };
 
-static struct snd_soc_platform_driver fsi_soc_platform = {
-	.ops		= &fsi_pcm_ops,
-	.pcm_new	= fsi_pcm_new,
-};
-
 static const struct snd_soc_component_driver fsi_soc_component = {
 	.name		= "fsi",
+	.ops		= &fsi_pcm_ops,
+	.pcm_new	= fsi_pcm_new,
 };
 
 /*
@@ -1933,14 +1926,9 @@ static int fsi_probe(struct platform_device *pdev)
 
 	core = NULL;
 	if (np) {
-		const struct of_device_id *of_id;
-
-		of_id = of_match_device(fsi_of_match, &pdev->dev);
-		if (of_id) {
-			core = of_id->data;
-			fsi_of_parse("fsia", np, &info.port_a, &pdev->dev);
-			fsi_of_parse("fsib", np, &info.port_b, &pdev->dev);
-		}
+		core = of_device_get_match_data(&pdev->dev);
+		fsi_of_parse("fsia", np, &info.port_a, &pdev->dev);
+		fsi_of_parse("fsib", np, &info.port_b, &pdev->dev);
 	} else {
 		const struct platform_device_id	*id_entry = pdev->id_entry;
 		if (id_entry)
@@ -1963,10 +1951,8 @@ static int fsi_probe(struct platform_device *pdev)
 	}
 
 	master = devm_kzalloc(&pdev->dev, sizeof(*master), GFP_KERNEL);
-	if (!master) {
-		dev_err(&pdev->dev, "Could not allocate master\n");
+	if (!master)
 		return -ENOMEM;
-	}
 
 	master->base = devm_ioremap_nocache(&pdev->dev,
 					    res->start, resource_size(res));
@@ -2015,23 +2001,15 @@ static int fsi_probe(struct platform_device *pdev)
 		goto exit_fsib;
 	}
 
-	ret = snd_soc_register_platform(&pdev->dev, &fsi_soc_platform);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "cannot snd soc register\n");
-		goto exit_fsib;
-	}
-
-	ret = snd_soc_register_component(&pdev->dev, &fsi_soc_component,
+	ret = devm_snd_soc_register_component(&pdev->dev, &fsi_soc_component,
 				    fsi_soc_dai, ARRAY_SIZE(fsi_soc_dai));
 	if (ret < 0) {
 		dev_err(&pdev->dev, "cannot snd component register\n");
-		goto exit_snd_soc;
+		goto exit_fsib;
 	}
 
 	return ret;
 
-exit_snd_soc:
-	snd_soc_unregister_platform(&pdev->dev);
 exit_fsib:
 	pm_runtime_disable(&pdev->dev);
 	fsi_stream_remove(&master->fsib);
@@ -2048,9 +2026,6 @@ static int fsi_remove(struct platform_device *pdev)
 	master = dev_get_drvdata(&pdev->dev);
 
 	pm_runtime_disable(&pdev->dev);
-
-	snd_soc_unregister_component(&pdev->dev);
-	snd_soc_unregister_platform(&pdev->dev);
 
 	fsi_stream_remove(&master->fsia);
 	fsi_stream_remove(&master->fsib);
@@ -2110,7 +2085,7 @@ static int fsi_resume(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops fsi_pm_ops = {
+static const struct dev_pm_ops fsi_pm_ops = {
 	.suspend		= fsi_suspend,
 	.resume			= fsi_resume,
 };

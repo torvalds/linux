@@ -1,13 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * eisa_enumerator.c - provide support for EISA adapters in PA-RISC machines
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
- *
  * Copyright (c) 2002 Daniel Engstrom <5116@telia.com>
- *
  */
 
 #include <linux/ioport.h>
@@ -15,7 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/byteorder.h>
 
 #include <asm/eisa_bus.h>

@@ -1,12 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  linux/arch/arm/vfp/vfp.h
  *
  *  Copyright (C) 2004 ARM Limited.
  *  Written by Deep Blue Solutions Limited.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 static inline u32 vfp_shiftright32jamming(u32 val, unsigned int shift)
@@ -155,8 +152,8 @@ struct vfp_single {
 	u32	significand;
 };
 
-extern s32 vfp_get_float(unsigned int reg);
-extern void vfp_put_float(s32 val, unsigned int reg);
+asmlinkage s32 vfp_get_float(unsigned int reg);
+asmlinkage void vfp_put_float(s32 val, unsigned int reg);
 
 /*
  * VFP_SINGLE_MANTISSA_BITS - number of bits in the mantissa
@@ -270,8 +267,8 @@ struct vfp_double {
 #else
 #define VFP_REG_ZERO	16
 #endif
-extern u64 vfp_get_double(unsigned int reg);
-extern void vfp_put_double(u64 val, unsigned int reg);
+asmlinkage u64 vfp_get_double(unsigned int reg);
+asmlinkage void vfp_put_double(u64 val, unsigned int reg);
 
 #define VFP_DOUBLE_MANTISSA_BITS	(52)
 #define VFP_DOUBLE_EXPONENT_BITS	(11)
@@ -377,4 +374,4 @@ struct op {
 	u32 flags;
 };
 
-extern void vfp_save_state(void *location, u32 fpexc);
+asmlinkage void vfp_save_state(void *location, u32 fpexc);

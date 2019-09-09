@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *	Berkshire PCI-PC Watchdog Card Driver
  *
@@ -9,11 +10,6 @@
  *	  Alan Cox <alan@lxorguk.ukuu.org.uk>,
  *	  Matt Domsch <Matt_Domsch@dell.com>,
  *	  Rob Radez <rob@osinvestor.com>
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
  *
  *	Neither Wim Van Sebroeck nor Iguana vzw. admit liability nor
  *	provide warranty for any of this software. This material is
@@ -545,8 +541,8 @@ static long pcipcwd_ioctl(struct file *file, unsigned int cmd,
 			return -EINVAL;
 
 		pcipcwd_keepalive();
-		/* Fall */
 	}
+		/* fall through */
 
 	case WDIOC_GETTIMEOUT:
 		return put_user(heartbeat, p);
@@ -578,7 +574,7 @@ static int pcipcwd_open(struct inode *inode, struct file *file)
 	/* Activate */
 	pcipcwd_start();
 	pcipcwd_keepalive();
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 static int pcipcwd_release(struct inode *inode, struct file *file)
@@ -620,7 +616,7 @@ static int pcipcwd_temp_open(struct inode *inode, struct file *file)
 	if (!pcipcwd_private.supports_temp)
 		return -ENODEV;
 
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 static int pcipcwd_temp_release(struct inode *inode, struct file *file)

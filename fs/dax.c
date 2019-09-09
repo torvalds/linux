@@ -1,17 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * fs/dax.c - Direct Access filesystem code
  * Copyright (c) 2013-2014 Intel Corporation
  * Author: Matthew Wilcox <matthew.r.wilcox@intel.com>
  * Author: Ross Zwisler <ross.zwisler@linux.intel.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #include <linux/atomic.h>
@@ -25,34 +17,42 @@
 #include <linux/mm.h>
 #include <linux/mutex.h>
 #include <linux/pagevec.h>
-#include <linux/pmem.h>
 #include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/uio.h>
 #include <linux/vmstat.h>
 #include <linux/pfn_t.h>
 #include <linux/sizes.h>
+#include <linux/mmu_notifier.h>
 #include <linux/iomap.h>
-#include "internal.h"
+#include <asm/pgalloc.h>
 
-/*
- * We use lowest available bit in exceptional entry for locking, other two
- * bits to determine entry type. In total 3 special bits.
- */
-#define RADIX_DAX_SHIFT	(RADIX_TREE_EXCEPTIONAL_SHIFT + 3)
-#define RADIX_DAX_PTE (1 << (RADIX_TREE_EXCEPTIONAL_SHIFT + 1))
-#define RADIX_DAX_PMD (1 << (RADIX_TREE_EXCEPTIONAL_SHIFT + 2))
-#define RADIX_DAX_TYPE_MASK (RADIX_DAX_PTE | RADIX_DAX_PMD)
-#define RADIX_DAX_TYPE(entry) ((unsigned long)entry & RADIX_DAX_TYPE_MASK)
-#define RADIX_DAX_SECTOR(entry) (((unsigned long)entry >> RADIX_DAX_SHIFT))
-#define RADIX_DAX_ENTRY(sector, pmd) ((void *)((unsigned long)sector << \
-		RADIX_DAX_SHIFT | (pmd ? RADIX_DAX_PMD : RADIX_DAX_PTE) | \
-		RADIX_TREE_EXCEPTIONAL_ENTRY))
+#define CREATE_TRACE_POINTS
+#include <trace/events/fs_dax.h>
+
+static inline unsigned int pe_order(enum page_entry_size pe_size)
+{
+	if (pe_size == PE_SIZE_PTE)
+		return PAGE_SHIFT - PAGE_SHIFT;
+	if (pe_size == PE_SIZE_PMD)
+		return PMD_SHIFT - PAGE_SHIFT;
+	if (pe_size == PE_SIZE_PUD)
+		return PUD_SHIFT - PAGE_SHIFT;
+	return ~0;
+}
 
 /* We choose 4096 entries - same as per-zone page wait tables */
 #define DAX_WAIT_TABLE_BITS 12
 #define DAX_WAIT_TABLE_ENTRIES (1 << DAX_WAIT_TABLE_BITS)
 
-wait_queue_head_t wait_table[DAX_WAIT_TABLE_ENTRIES];
+/* The 'colour' (ie low bits) within a PMD of a page offset.  */
+#define PG_PMD_COLOUR	((PMD_SIZE >> PAGE_SHIFT) - 1)
+#define PG_PMD_NR	(PMD_SIZE >> PAGE_SHIFT)
+
+/* The order of a PMD entry */
+#define PMD_ORDER	(PMD_SHIFT - PAGE_SHIFT)
+
+static wait_queue_head_t wait_table[DAX_WAIT_TABLE_ENTRIES];
 
 static int __init init_dax_wait_table(void)
 {
@@ -64,668 +64,869 @@ static int __init init_dax_wait_table(void)
 }
 fs_initcall(init_dax_wait_table);
 
-static wait_queue_head_t *dax_entry_waitqueue(struct address_space *mapping,
-					      pgoff_t index)
-{
-	unsigned long hash = hash_long((unsigned long)mapping ^ index,
-				       DAX_WAIT_TABLE_BITS);
-	return wait_table + hash;
-}
-
-static long dax_map_atomic(struct block_device *bdev, struct blk_dax_ctl *dax)
-{
-	struct request_queue *q = bdev->bd_queue;
-	long rc = -EIO;
-
-	dax->addr = ERR_PTR(-EIO);
-	if (blk_queue_enter(q, true) != 0)
-		return rc;
-
-	rc = bdev_direct_access(bdev, dax);
-	if (rc < 0) {
-		dax->addr = ERR_PTR(rc);
-		blk_queue_exit(q);
-		return rc;
-	}
-	return rc;
-}
-
-static void dax_unmap_atomic(struct block_device *bdev,
-		const struct blk_dax_ctl *dax)
-{
-	if (IS_ERR(dax->addr))
-		return;
-	blk_queue_exit(bdev->bd_queue);
-}
-
-struct page *read_dax_sector(struct block_device *bdev, sector_t n)
-{
-	struct page *page = alloc_pages(GFP_KERNEL, 0);
-	struct blk_dax_ctl dax = {
-		.size = PAGE_SIZE,
-		.sector = n & ~((((int) PAGE_SIZE) / 512) - 1),
-	};
-	long rc;
-
-	if (!page)
-		return ERR_PTR(-ENOMEM);
-
-	rc = dax_map_atomic(bdev, &dax);
-	if (rc < 0)
-		return ERR_PTR(rc);
-	memcpy_from_pmem(page_address(page), dax.addr, PAGE_SIZE);
-	dax_unmap_atomic(bdev, &dax);
-	return page;
-}
-
-static bool buffer_written(struct buffer_head *bh)
-{
-	return buffer_mapped(bh) && !buffer_unwritten(bh);
-}
-
 /*
- * When ext4 encounters a hole, it returns without modifying the buffer_head
- * which means that we can't trust b_size.  To cope with this, we set b_state
- * to 0 before calling get_block and, if any bit is set, we know we can trust
- * b_size.  Unfortunate, really, since ext4 knows precisely how long a hole is
- * and would save us time calling get_block repeatedly.
- */
-static bool buffer_size_valid(struct buffer_head *bh)
-{
-	return bh->b_state != 0;
-}
-
-
-static sector_t to_sector(const struct buffer_head *bh,
-		const struct inode *inode)
-{
-	sector_t sector = bh->b_blocknr << (inode->i_blkbits - 9);
-
-	return sector;
-}
-
-static ssize_t dax_io(struct inode *inode, struct iov_iter *iter,
-		      loff_t start, loff_t end, get_block_t get_block,
-		      struct buffer_head *bh)
-{
-	loff_t pos = start, max = start, bh_max = start;
-	bool hole = false;
-	struct block_device *bdev = NULL;
-	int rw = iov_iter_rw(iter), rc;
-	long map_len = 0;
-	struct blk_dax_ctl dax = {
-		.addr = ERR_PTR(-EIO),
-	};
-	unsigned blkbits = inode->i_blkbits;
-	sector_t file_blks = (i_size_read(inode) + (1 << blkbits) - 1)
-								>> blkbits;
-
-	if (rw == READ)
-		end = min(end, i_size_read(inode));
-
-	while (pos < end) {
-		size_t len;
-		if (pos == max) {
-			long page = pos >> PAGE_SHIFT;
-			sector_t block = page << (PAGE_SHIFT - blkbits);
-			unsigned first = pos - (block << blkbits);
-			long size;
-
-			if (pos == bh_max) {
-				bh->b_size = PAGE_ALIGN(end - pos);
-				bh->b_state = 0;
-				rc = get_block(inode, block, bh, rw == WRITE);
-				if (rc)
-					break;
-				if (!buffer_size_valid(bh))
-					bh->b_size = 1 << blkbits;
-				bh_max = pos - first + bh->b_size;
-				bdev = bh->b_bdev;
-				/*
-				 * We allow uninitialized buffers for writes
-				 * beyond EOF as those cannot race with faults
-				 */
-				WARN_ON_ONCE(
-					(buffer_new(bh) && block < file_blks) ||
-					(rw == WRITE && buffer_unwritten(bh)));
-			} else {
-				unsigned done = bh->b_size -
-						(bh_max - (pos - first));
-				bh->b_blocknr += done >> blkbits;
-				bh->b_size -= done;
-			}
-
-			hole = rw == READ && !buffer_written(bh);
-			if (hole) {
-				size = bh->b_size - first;
-			} else {
-				dax_unmap_atomic(bdev, &dax);
-				dax.sector = to_sector(bh, inode);
-				dax.size = bh->b_size;
-				map_len = dax_map_atomic(bdev, &dax);
-				if (map_len < 0) {
-					rc = map_len;
-					break;
-				}
-				dax.addr += first;
-				size = map_len - first;
-			}
-			/*
-			 * pos + size is one past the last offset for IO,
-			 * so pos + size can overflow loff_t at extreme offsets.
-			 * Cast to u64 to catch this and get the true minimum.
-			 */
-			max = min_t(u64, pos + size, end);
-		}
-
-		if (iov_iter_rw(iter) == WRITE) {
-			len = copy_from_iter_pmem(dax.addr, max - pos, iter);
-		} else if (!hole)
-			len = copy_to_iter((void __force *) dax.addr, max - pos,
-					iter);
-		else
-			len = iov_iter_zero(max - pos, iter);
-
-		if (!len) {
-			rc = -EFAULT;
-			break;
-		}
-
-		pos += len;
-		if (!IS_ERR(dax.addr))
-			dax.addr += len;
-	}
-
-	dax_unmap_atomic(bdev, &dax);
-
-	return (pos == start) ? rc : pos - start;
-}
-
-/**
- * dax_do_io - Perform I/O to a DAX file
- * @iocb: The control block for this I/O
- * @inode: The file which the I/O is directed at
- * @iter: The addresses to do I/O from or to
- * @get_block: The filesystem method used to translate file offsets to blocks
- * @end_io: A filesystem callback for I/O completion
- * @flags: See below
+ * DAX pagecache entries use XArray value entries so they can't be mistaken
+ * for pages.  We use one bit for locking, one bit for the entry size (PMD)
+ * and two more to tell us if the entry is a zero page or an empty entry that
+ * is just used for locking.  In total four special bits.
  *
- * This function uses the same locking scheme as do_blockdev_direct_IO:
- * If @flags has DIO_LOCKING set, we assume that the i_mutex is held by the
- * caller for writes.  For reads, we take and release the i_mutex ourselves.
- * If DIO_LOCKING is not set, the filesystem takes care of its own locking.
- * As with do_blockdev_direct_IO(), we increment i_dio_count while the I/O
- * is in progress.
+ * If the PMD bit isn't set the entry has size PAGE_SIZE, and if the ZERO_PAGE
+ * and EMPTY bits aren't set the entry is a normal DAX entry with a filesystem
+ * block allocation.
  */
-ssize_t dax_do_io(struct kiocb *iocb, struct inode *inode,
-		  struct iov_iter *iter, get_block_t get_block,
-		  dio_iodone_t end_io, int flags)
+#define DAX_SHIFT	(4)
+#define DAX_LOCKED	(1UL << 0)
+#define DAX_PMD		(1UL << 1)
+#define DAX_ZERO_PAGE	(1UL << 2)
+#define DAX_EMPTY	(1UL << 3)
+
+static unsigned long dax_to_pfn(void *entry)
 {
-	struct buffer_head bh;
-	ssize_t retval = -EINVAL;
-	loff_t pos = iocb->ki_pos;
-	loff_t end = pos + iov_iter_count(iter);
-
-	memset(&bh, 0, sizeof(bh));
-	bh.b_bdev = inode->i_sb->s_bdev;
-
-	if ((flags & DIO_LOCKING) && iov_iter_rw(iter) == READ)
-		inode_lock(inode);
-
-	/* Protects against truncate */
-	if (!(flags & DIO_SKIP_DIO_COUNT))
-		inode_dio_begin(inode);
-
-	retval = dax_io(inode, iter, pos, end, get_block, &bh);
-
-	if ((flags & DIO_LOCKING) && iov_iter_rw(iter) == READ)
-		inode_unlock(inode);
-
-	if (end_io) {
-		int err;
-
-		err = end_io(iocb, pos, retval, bh.b_private);
-		if (err)
-			retval = err;
-	}
-
-	if (!(flags & DIO_SKIP_DIO_COUNT))
-		inode_dio_end(inode);
-	return retval;
+	return xa_to_value(entry) >> DAX_SHIFT;
 }
-EXPORT_SYMBOL_GPL(dax_do_io);
+
+static void *dax_make_entry(pfn_t pfn, unsigned long flags)
+{
+	return xa_mk_value(flags | (pfn_t_to_pfn(pfn) << DAX_SHIFT));
+}
+
+static bool dax_is_locked(void *entry)
+{
+	return xa_to_value(entry) & DAX_LOCKED;
+}
+
+static unsigned int dax_entry_order(void *entry)
+{
+	if (xa_to_value(entry) & DAX_PMD)
+		return PMD_ORDER;
+	return 0;
+}
+
+static unsigned long dax_is_pmd_entry(void *entry)
+{
+	return xa_to_value(entry) & DAX_PMD;
+}
+
+static bool dax_is_pte_entry(void *entry)
+{
+	return !(xa_to_value(entry) & DAX_PMD);
+}
+
+static int dax_is_zero_entry(void *entry)
+{
+	return xa_to_value(entry) & DAX_ZERO_PAGE;
+}
+
+static int dax_is_empty_entry(void *entry)
+{
+	return xa_to_value(entry) & DAX_EMPTY;
+}
 
 /*
- * DAX radix tree locking
+ * true if the entry that was found is of a smaller order than the entry
+ * we were looking for
+ */
+static bool dax_is_conflict(void *entry)
+{
+	return entry == XA_RETRY_ENTRY;
+}
+
+/*
+ * DAX page cache entry locking
  */
 struct exceptional_entry_key {
-	struct address_space *mapping;
-	unsigned long index;
+	struct xarray *xa;
+	pgoff_t entry_start;
 };
 
 struct wait_exceptional_entry_queue {
-	wait_queue_t wait;
+	wait_queue_entry_t wait;
 	struct exceptional_entry_key key;
 };
 
-static int wake_exceptional_entry_func(wait_queue_t *wait, unsigned int mode,
-				       int sync, void *keyp)
+static wait_queue_head_t *dax_entry_waitqueue(struct xa_state *xas,
+		void *entry, struct exceptional_entry_key *key)
+{
+	unsigned long hash;
+	unsigned long index = xas->xa_index;
+
+	/*
+	 * If 'entry' is a PMD, align the 'index' that we use for the wait
+	 * queue to the start of that PMD.  This ensures that all offsets in
+	 * the range covered by the PMD map to the same bit lock.
+	 */
+	if (dax_is_pmd_entry(entry))
+		index &= ~PG_PMD_COLOUR;
+	key->xa = xas->xa;
+	key->entry_start = index;
+
+	hash = hash_long((unsigned long)xas->xa ^ index, DAX_WAIT_TABLE_BITS);
+	return wait_table + hash;
+}
+
+static int wake_exceptional_entry_func(wait_queue_entry_t *wait,
+		unsigned int mode, int sync, void *keyp)
 {
 	struct exceptional_entry_key *key = keyp;
 	struct wait_exceptional_entry_queue *ewait =
 		container_of(wait, struct wait_exceptional_entry_queue, wait);
 
-	if (key->mapping != ewait->key.mapping ||
-	    key->index != ewait->key.index)
+	if (key->xa != ewait->key.xa ||
+	    key->entry_start != ewait->key.entry_start)
 		return 0;
 	return autoremove_wake_function(wait, mode, sync, NULL);
 }
 
 /*
- * Check whether the given slot is locked. The function must be called with
- * mapping->tree_lock held
+ * @entry may no longer be the entry at the index in the mapping.
+ * The important information it's conveying is whether the entry at
+ * this index used to be a PMD entry.
  */
-static inline int slot_locked(struct address_space *mapping, void **slot)
+static void dax_wake_entry(struct xa_state *xas, void *entry, bool wake_all)
 {
-	unsigned long entry = (unsigned long)
-		radix_tree_deref_slot_protected(slot, &mapping->tree_lock);
-	return entry & RADIX_DAX_ENTRY_LOCK;
+	struct exceptional_entry_key key;
+	wait_queue_head_t *wq;
+
+	wq = dax_entry_waitqueue(xas, entry, &key);
+
+	/*
+	 * Checking for locked entry and prepare_to_wait_exclusive() happens
+	 * under the i_pages lock, ditto for entry handling in our callers.
+	 * So at this point all tasks that could have seen our entry locked
+	 * must be in the waitqueue and the following check will see them.
+	 */
+	if (waitqueue_active(wq))
+		__wake_up(wq, TASK_NORMAL, wake_all ? 0 : 1, &key);
 }
 
 /*
- * Mark the given slot is locked. The function must be called with
- * mapping->tree_lock held
- */
-static inline void *lock_slot(struct address_space *mapping, void **slot)
-{
-	unsigned long entry = (unsigned long)
-		radix_tree_deref_slot_protected(slot, &mapping->tree_lock);
-
-	entry |= RADIX_DAX_ENTRY_LOCK;
-	radix_tree_replace_slot(slot, (void *)entry);
-	return (void *)entry;
-}
-
-/*
- * Mark the given slot is unlocked. The function must be called with
- * mapping->tree_lock held
- */
-static inline void *unlock_slot(struct address_space *mapping, void **slot)
-{
-	unsigned long entry = (unsigned long)
-		radix_tree_deref_slot_protected(slot, &mapping->tree_lock);
-
-	entry &= ~(unsigned long)RADIX_DAX_ENTRY_LOCK;
-	radix_tree_replace_slot(slot, (void *)entry);
-	return (void *)entry;
-}
-
-/*
- * Lookup entry in radix tree, wait for it to become unlocked if it is
- * exceptional entry and return it. The caller must call
- * put_unlocked_mapping_entry() when he decided not to lock the entry or
- * put_locked_mapping_entry() when he locked the entry and now wants to
- * unlock it.
+ * Look up entry in page cache, wait for it to become unlocked if it
+ * is a DAX entry and return it.  The caller must subsequently call
+ * put_unlocked_entry() if it did not lock the entry or dax_unlock_entry()
+ * if it did.  The entry returned may have a larger order than @order.
+ * If @order is larger than the order of the entry found in i_pages, this
+ * function returns a dax_is_conflict entry.
  *
- * The function must be called with mapping->tree_lock held.
+ * Must be called with the i_pages lock held.
  */
-static void *get_unlocked_mapping_entry(struct address_space *mapping,
-					pgoff_t index, void ***slotp)
+static void *get_unlocked_entry(struct xa_state *xas, unsigned int order)
 {
-	void *ret, **slot;
+	void *entry;
 	struct wait_exceptional_entry_queue ewait;
-	wait_queue_head_t *wq = dax_entry_waitqueue(mapping, index);
+	wait_queue_head_t *wq;
 
 	init_wait(&ewait.wait);
 	ewait.wait.func = wake_exceptional_entry_func;
-	ewait.key.mapping = mapping;
-	ewait.key.index = index;
 
 	for (;;) {
-		ret = __radix_tree_lookup(&mapping->page_tree, index, NULL,
-					  &slot);
-		if (!ret || !radix_tree_exceptional_entry(ret) ||
-		    !slot_locked(mapping, slot)) {
-			if (slotp)
-				*slotp = slot;
-			return ret;
-		}
+		entry = xas_find_conflict(xas);
+		if (dax_entry_order(entry) < order)
+			return XA_RETRY_ENTRY;
+		if (!entry || WARN_ON_ONCE(!xa_is_value(entry)) ||
+				!dax_is_locked(entry))
+			return entry;
+
+		wq = dax_entry_waitqueue(xas, entry, &ewait.key);
 		prepare_to_wait_exclusive(wq, &ewait.wait,
 					  TASK_UNINTERRUPTIBLE);
-		spin_unlock_irq(&mapping->tree_lock);
+		xas_unlock_irq(xas);
+		xas_reset(xas);
 		schedule();
 		finish_wait(wq, &ewait.wait);
-		spin_lock_irq(&mapping->tree_lock);
+		xas_lock_irq(xas);
 	}
 }
 
 /*
- * Find radix tree entry at given index. If it points to a page, return with
- * the page locked. If it points to the exceptional entry, return with the
- * radix tree entry locked. If the radix tree doesn't contain given index,
- * create empty exceptional entry for the index and return with it locked.
+ * The only thing keeping the address space around is the i_pages lock
+ * (it's cycled in clear_inode() after removing the entries from i_pages)
+ * After we call xas_unlock_irq(), we cannot touch xas->xa.
+ */
+static void wait_entry_unlocked(struct xa_state *xas, void *entry)
+{
+	struct wait_exceptional_entry_queue ewait;
+	wait_queue_head_t *wq;
+
+	init_wait(&ewait.wait);
+	ewait.wait.func = wake_exceptional_entry_func;
+
+	wq = dax_entry_waitqueue(xas, entry, &ewait.key);
+	/*
+	 * Unlike get_unlocked_entry() there is no guarantee that this
+	 * path ever successfully retrieves an unlocked entry before an
+	 * inode dies. Perform a non-exclusive wait in case this path
+	 * never successfully performs its own wake up.
+	 */
+	prepare_to_wait(wq, &ewait.wait, TASK_UNINTERRUPTIBLE);
+	xas_unlock_irq(xas);
+	schedule();
+	finish_wait(wq, &ewait.wait);
+}
+
+static void put_unlocked_entry(struct xa_state *xas, void *entry)
+{
+	/* If we were the only waiter woken, wake the next one */
+	if (entry && !dax_is_conflict(entry))
+		dax_wake_entry(xas, entry, false);
+}
+
+/*
+ * We used the xa_state to get the entry, but then we locked the entry and
+ * dropped the xa_lock, so we know the xa_state is stale and must be reset
+ * before use.
+ */
+static void dax_unlock_entry(struct xa_state *xas, void *entry)
+{
+	void *old;
+
+	BUG_ON(dax_is_locked(entry));
+	xas_reset(xas);
+	xas_lock_irq(xas);
+	old = xas_store(xas, entry);
+	xas_unlock_irq(xas);
+	BUG_ON(!dax_is_locked(old));
+	dax_wake_entry(xas, entry, false);
+}
+
+/*
+ * Return: The entry stored at this location before it was locked.
+ */
+static void *dax_lock_entry(struct xa_state *xas, void *entry)
+{
+	unsigned long v = xa_to_value(entry);
+	return xas_store(xas, xa_mk_value(v | DAX_LOCKED));
+}
+
+static unsigned long dax_entry_size(void *entry)
+{
+	if (dax_is_zero_entry(entry))
+		return 0;
+	else if (dax_is_empty_entry(entry))
+		return 0;
+	else if (dax_is_pmd_entry(entry))
+		return PMD_SIZE;
+	else
+		return PAGE_SIZE;
+}
+
+static unsigned long dax_end_pfn(void *entry)
+{
+	return dax_to_pfn(entry) + dax_entry_size(entry) / PAGE_SIZE;
+}
+
+/*
+ * Iterate through all mapped pfns represented by an entry, i.e. skip
+ * 'empty' and 'zero' entries.
+ */
+#define for_each_mapped_pfn(entry, pfn) \
+	for (pfn = dax_to_pfn(entry); \
+			pfn < dax_end_pfn(entry); pfn++)
+
+/*
+ * TODO: for reflink+dax we need a way to associate a single page with
+ * multiple address_space instances at different linear_page_index()
+ * offsets.
+ */
+static void dax_associate_entry(void *entry, struct address_space *mapping,
+		struct vm_area_struct *vma, unsigned long address)
+{
+	unsigned long size = dax_entry_size(entry), pfn, index;
+	int i = 0;
+
+	if (IS_ENABLED(CONFIG_FS_DAX_LIMITED))
+		return;
+
+	index = linear_page_index(vma, address & ~(size - 1));
+	for_each_mapped_pfn(entry, pfn) {
+		struct page *page = pfn_to_page(pfn);
+
+		WARN_ON_ONCE(page->mapping);
+		page->mapping = mapping;
+		page->index = index + i++;
+	}
+}
+
+static void dax_disassociate_entry(void *entry, struct address_space *mapping,
+		bool trunc)
+{
+	unsigned long pfn;
+
+	if (IS_ENABLED(CONFIG_FS_DAX_LIMITED))
+		return;
+
+	for_each_mapped_pfn(entry, pfn) {
+		struct page *page = pfn_to_page(pfn);
+
+		WARN_ON_ONCE(trunc && page_ref_count(page) > 1);
+		WARN_ON_ONCE(page->mapping && page->mapping != mapping);
+		page->mapping = NULL;
+		page->index = 0;
+	}
+}
+
+static struct page *dax_busy_page(void *entry)
+{
+	unsigned long pfn;
+
+	for_each_mapped_pfn(entry, pfn) {
+		struct page *page = pfn_to_page(pfn);
+
+		if (page_ref_count(page) > 1)
+			return page;
+	}
+	return NULL;
+}
+
+/*
+ * dax_lock_mapping_entry - Lock the DAX entry corresponding to a page
+ * @page: The page whose entry we want to lock
+ *
+ * Context: Process context.
+ * Return: A cookie to pass to dax_unlock_page() or 0 if the entry could
+ * not be locked.
+ */
+dax_entry_t dax_lock_page(struct page *page)
+{
+	XA_STATE(xas, NULL, 0);
+	void *entry;
+
+	/* Ensure page->mapping isn't freed while we look at it */
+	rcu_read_lock();
+	for (;;) {
+		struct address_space *mapping = READ_ONCE(page->mapping);
+
+		entry = NULL;
+		if (!mapping || !dax_mapping(mapping))
+			break;
+
+		/*
+		 * In the device-dax case there's no need to lock, a
+		 * struct dev_pagemap pin is sufficient to keep the
+		 * inode alive, and we assume we have dev_pagemap pin
+		 * otherwise we would not have a valid pfn_to_page()
+		 * translation.
+		 */
+		entry = (void *)~0UL;
+		if (S_ISCHR(mapping->host->i_mode))
+			break;
+
+		xas.xa = &mapping->i_pages;
+		xas_lock_irq(&xas);
+		if (mapping != page->mapping) {
+			xas_unlock_irq(&xas);
+			continue;
+		}
+		xas_set(&xas, page->index);
+		entry = xas_load(&xas);
+		if (dax_is_locked(entry)) {
+			rcu_read_unlock();
+			wait_entry_unlocked(&xas, entry);
+			rcu_read_lock();
+			continue;
+		}
+		dax_lock_entry(&xas, entry);
+		xas_unlock_irq(&xas);
+		break;
+	}
+	rcu_read_unlock();
+	return (dax_entry_t)entry;
+}
+
+void dax_unlock_page(struct page *page, dax_entry_t cookie)
+{
+	struct address_space *mapping = page->mapping;
+	XA_STATE(xas, &mapping->i_pages, page->index);
+
+	if (S_ISCHR(mapping->host->i_mode))
+		return;
+
+	dax_unlock_entry(&xas, (void *)cookie);
+}
+
+/*
+ * Find page cache entry at given index. If it is a DAX entry, return it
+ * with the entry locked. If the page cache doesn't contain an entry at
+ * that index, add a locked empty entry.
+ *
+ * When requesting an entry with size DAX_PMD, grab_mapping_entry() will
+ * either return that locked entry or will return VM_FAULT_FALLBACK.
+ * This will happen if there are any PTE entries within the PMD range
+ * that we are requesting.
+ *
+ * We always favor PTE entries over PMD entries. There isn't a flow where we
+ * evict PTE entries in order to 'upgrade' them to a PMD entry.  A PMD
+ * insertion will fail if it finds any PTE entries already in the tree, and a
+ * PTE insertion will cause an existing PMD entry to be unmapped and
+ * downgraded to PTE entries.  This happens for both PMD zero pages as
+ * well as PMD empty entries.
+ *
+ * The exception to this downgrade path is for PMD entries that have
+ * real storage backing them.  We will leave these real PMD entries in
+ * the tree, and PTE writes will simply dirty the entire PMD entry.
  *
  * Note: Unlike filemap_fault() we don't honor FAULT_FLAG_RETRY flags. For
  * persistent memory the benefit is doubtful. We can add that later if we can
  * show it helps.
+ *
+ * On error, this function does not return an ERR_PTR.  Instead it returns
+ * a VM_FAULT code, encoded as an xarray internal entry.  The ERR_PTR values
+ * overlap with xarray value entries.
  */
-static void *grab_mapping_entry(struct address_space *mapping, pgoff_t index)
+static void *grab_mapping_entry(struct xa_state *xas,
+		struct address_space *mapping, unsigned int order)
 {
-	void *ret, **slot;
+	unsigned long index = xas->xa_index;
+	bool pmd_downgrade = false; /* splitting PMD entry into PTE entries? */
+	void *entry;
 
-restart:
-	spin_lock_irq(&mapping->tree_lock);
-	ret = get_unlocked_mapping_entry(mapping, index, &slot);
-	/* No entry for given index? Make sure radix tree is big enough. */
-	if (!ret) {
-		int err;
+retry:
+	xas_lock_irq(xas);
+	entry = get_unlocked_entry(xas, order);
 
-		spin_unlock_irq(&mapping->tree_lock);
-		err = radix_tree_preload(
-				mapping_gfp_mask(mapping) & ~__GFP_HIGHMEM);
-		if (err)
-			return ERR_PTR(err);
-		ret = (void *)(RADIX_TREE_EXCEPTIONAL_ENTRY |
-			       RADIX_DAX_ENTRY_LOCK);
-		spin_lock_irq(&mapping->tree_lock);
-		err = radix_tree_insert(&mapping->page_tree, index, ret);
-		radix_tree_preload_end();
-		if (err) {
-			spin_unlock_irq(&mapping->tree_lock);
-			/* Someone already created the entry? */
-			if (err == -EEXIST)
-				goto restart;
-			return ERR_PTR(err);
+	if (entry) {
+		if (dax_is_conflict(entry))
+			goto fallback;
+		if (!xa_is_value(entry)) {
+			xas_set_err(xas, EIO);
+			goto out_unlock;
 		}
-		/* Good, we have inserted empty locked entry into the tree. */
+
+		if (order == 0) {
+			if (dax_is_pmd_entry(entry) &&
+			    (dax_is_zero_entry(entry) ||
+			     dax_is_empty_entry(entry))) {
+				pmd_downgrade = true;
+			}
+		}
+	}
+
+	if (pmd_downgrade) {
+		/*
+		 * Make sure 'entry' remains valid while we drop
+		 * the i_pages lock.
+		 */
+		dax_lock_entry(xas, entry);
+
+		/*
+		 * Besides huge zero pages the only other thing that gets
+		 * downgraded are empty entries which don't need to be
+		 * unmapped.
+		 */
+		if (dax_is_zero_entry(entry)) {
+			xas_unlock_irq(xas);
+			unmap_mapping_pages(mapping,
+					xas->xa_index & ~PG_PMD_COLOUR,
+					PG_PMD_NR, false);
+			xas_reset(xas);
+			xas_lock_irq(xas);
+		}
+
+		dax_disassociate_entry(entry, mapping, false);
+		xas_store(xas, NULL);	/* undo the PMD join */
+		dax_wake_entry(xas, entry, true);
+		mapping->nrexceptional--;
+		entry = NULL;
+		xas_set(xas, index);
+	}
+
+	if (entry) {
+		dax_lock_entry(xas, entry);
+	} else {
+		unsigned long flags = DAX_EMPTY;
+
+		if (order > 0)
+			flags |= DAX_PMD;
+		entry = dax_make_entry(pfn_to_pfn_t(0), flags);
+		dax_lock_entry(xas, entry);
+		if (xas_error(xas))
+			goto out_unlock;
 		mapping->nrexceptional++;
-		spin_unlock_irq(&mapping->tree_lock);
-		return ret;
 	}
-	/* Normal page in radix tree? */
-	if (!radix_tree_exceptional_entry(ret)) {
-		struct page *page = ret;
 
-		get_page(page);
-		spin_unlock_irq(&mapping->tree_lock);
-		lock_page(page);
-		/* Page got truncated? Retry... */
-		if (unlikely(page->mapping != mapping)) {
-			unlock_page(page);
-			put_page(page);
-			goto restart;
-		}
-		return page;
+out_unlock:
+	xas_unlock_irq(xas);
+	if (xas_nomem(xas, mapping_gfp_mask(mapping) & ~__GFP_HIGHMEM))
+		goto retry;
+	if (xas->xa_node == XA_ERROR(-ENOMEM))
+		return xa_mk_internal(VM_FAULT_OOM);
+	if (xas_error(xas))
+		return xa_mk_internal(VM_FAULT_SIGBUS);
+	return entry;
+fallback:
+	xas_unlock_irq(xas);
+	return xa_mk_internal(VM_FAULT_FALLBACK);
+}
+
+/**
+ * dax_layout_busy_page - find first pinned page in @mapping
+ * @mapping: address space to scan for a page with ref count > 1
+ *
+ * DAX requires ZONE_DEVICE mapped pages. These pages are never
+ * 'onlined' to the page allocator so they are considered idle when
+ * page->count == 1. A filesystem uses this interface to determine if
+ * any page in the mapping is busy, i.e. for DMA, or other
+ * get_user_pages() usages.
+ *
+ * It is expected that the filesystem is holding locks to block the
+ * establishment of new mappings in this address_space. I.e. it expects
+ * to be able to run unmap_mapping_range() and subsequently not race
+ * mapping_mapped() becoming true.
+ */
+struct page *dax_layout_busy_page(struct address_space *mapping)
+{
+	XA_STATE(xas, &mapping->i_pages, 0);
+	void *entry;
+	unsigned int scanned = 0;
+	struct page *page = NULL;
+
+	/*
+	 * In the 'limited' case get_user_pages() for dax is disabled.
+	 */
+	if (IS_ENABLED(CONFIG_FS_DAX_LIMITED))
+		return NULL;
+
+	if (!dax_mapping(mapping) || !mapping_mapped(mapping))
+		return NULL;
+
+	/*
+	 * If we race get_user_pages_fast() here either we'll see the
+	 * elevated page count in the iteration and wait, or
+	 * get_user_pages_fast() will see that the page it took a reference
+	 * against is no longer mapped in the page tables and bail to the
+	 * get_user_pages() slow path.  The slow path is protected by
+	 * pte_lock() and pmd_lock(). New references are not taken without
+	 * holding those locks, and unmap_mapping_range() will not zero the
+	 * pte or pmd without holding the respective lock, so we are
+	 * guaranteed to either see new references or prevent new
+	 * references from being established.
+	 */
+	unmap_mapping_range(mapping, 0, 0, 0);
+
+	xas_lock_irq(&xas);
+	xas_for_each(&xas, entry, ULONG_MAX) {
+		if (WARN_ON_ONCE(!xa_is_value(entry)))
+			continue;
+		if (unlikely(dax_is_locked(entry)))
+			entry = get_unlocked_entry(&xas, 0);
+		if (entry)
+			page = dax_busy_page(entry);
+		put_unlocked_entry(&xas, entry);
+		if (page)
+			break;
+		if (++scanned % XA_CHECK_SCHED)
+			continue;
+
+		xas_pause(&xas);
+		xas_unlock_irq(&xas);
+		cond_resched();
+		xas_lock_irq(&xas);
 	}
-	ret = lock_slot(mapping, slot);
-	spin_unlock_irq(&mapping->tree_lock);
+	xas_unlock_irq(&xas);
+	return page;
+}
+EXPORT_SYMBOL_GPL(dax_layout_busy_page);
+
+static int __dax_invalidate_entry(struct address_space *mapping,
+					  pgoff_t index, bool trunc)
+{
+	XA_STATE(xas, &mapping->i_pages, index);
+	int ret = 0;
+	void *entry;
+
+	xas_lock_irq(&xas);
+	entry = get_unlocked_entry(&xas, 0);
+	if (!entry || WARN_ON_ONCE(!xa_is_value(entry)))
+		goto out;
+	if (!trunc &&
+	    (xas_get_mark(&xas, PAGECACHE_TAG_DIRTY) ||
+	     xas_get_mark(&xas, PAGECACHE_TAG_TOWRITE)))
+		goto out;
+	dax_disassociate_entry(entry, mapping, trunc);
+	xas_store(&xas, NULL);
+	mapping->nrexceptional--;
+	ret = 1;
+out:
+	put_unlocked_entry(&xas, entry);
+	xas_unlock_irq(&xas);
 	return ret;
 }
 
-void dax_wake_mapping_entry_waiter(struct address_space *mapping,
-				   pgoff_t index, bool wake_all)
-{
-	wait_queue_head_t *wq = dax_entry_waitqueue(mapping, index);
-
-	/*
-	 * Checking for locked entry and prepare_to_wait_exclusive() happens
-	 * under mapping->tree_lock, ditto for entry handling in our callers.
-	 * So at this point all tasks that could have seen our entry locked
-	 * must be in the waitqueue and the following check will see them.
-	 */
-	if (waitqueue_active(wq)) {
-		struct exceptional_entry_key key;
-
-		key.mapping = mapping;
-		key.index = index;
-		__wake_up(wq, TASK_NORMAL, wake_all ? 0 : 1, &key);
-	}
-}
-
-void dax_unlock_mapping_entry(struct address_space *mapping, pgoff_t index)
-{
-	void *ret, **slot;
-
-	spin_lock_irq(&mapping->tree_lock);
-	ret = __radix_tree_lookup(&mapping->page_tree, index, NULL, &slot);
-	if (WARN_ON_ONCE(!ret || !radix_tree_exceptional_entry(ret) ||
-			 !slot_locked(mapping, slot))) {
-		spin_unlock_irq(&mapping->tree_lock);
-		return;
-	}
-	unlock_slot(mapping, slot);
-	spin_unlock_irq(&mapping->tree_lock);
-	dax_wake_mapping_entry_waiter(mapping, index, false);
-}
-
-static void put_locked_mapping_entry(struct address_space *mapping,
-				     pgoff_t index, void *entry)
-{
-	if (!radix_tree_exceptional_entry(entry)) {
-		unlock_page(entry);
-		put_page(entry);
-	} else {
-		dax_unlock_mapping_entry(mapping, index);
-	}
-}
-
 /*
- * Called when we are done with radix tree entry we looked up via
- * get_unlocked_mapping_entry() and which we didn't lock in the end.
- */
-static void put_unlocked_mapping_entry(struct address_space *mapping,
-				       pgoff_t index, void *entry)
-{
-	if (!radix_tree_exceptional_entry(entry))
-		return;
-
-	/* We have to wake up next waiter for the radix tree entry lock */
-	dax_wake_mapping_entry_waiter(mapping, index, false);
-}
-
-/*
- * Delete exceptional DAX entry at @index from @mapping. Wait for radix tree
- * entry to get unlocked before deleting it.
+ * Delete DAX entry at @index from @mapping.  Wait for it
+ * to be unlocked before deleting it.
  */
 int dax_delete_mapping_entry(struct address_space *mapping, pgoff_t index)
 {
-	void *entry;
+	int ret = __dax_invalidate_entry(mapping, index, true);
 
-	spin_lock_irq(&mapping->tree_lock);
-	entry = get_unlocked_mapping_entry(mapping, index, NULL);
 	/*
 	 * This gets called from truncate / punch_hole path. As such, the caller
 	 * must hold locks protecting against concurrent modifications of the
-	 * radix tree (usually fs-private i_mmap_sem for writing). Since the
-	 * caller has seen exceptional entry for this index, we better find it
+	 * page cache (usually fs-private i_mmap_sem for writing). Since the
+	 * caller has seen a DAX entry for this index, we better find it
 	 * at that index as well...
 	 */
-	if (WARN_ON_ONCE(!entry || !radix_tree_exceptional_entry(entry))) {
-		spin_unlock_irq(&mapping->tree_lock);
-		return 0;
-	}
-	radix_tree_delete(&mapping->page_tree, index);
-	mapping->nrexceptional--;
-	spin_unlock_irq(&mapping->tree_lock);
-	dax_wake_mapping_entry_waiter(mapping, index, true);
-
-	return 1;
+	WARN_ON_ONCE(!ret);
+	return ret;
 }
 
 /*
- * The user has performed a load from a hole in the file.  Allocating
- * a new page in the file would cause excessive storage usage for
- * workloads with sparse files.  We allocate a page cache page instead.
- * We'll kick it out of the page cache if it's ever written to,
- * otherwise it will simply fall out of the page cache under memory
- * pressure without ever having been dirtied.
+ * Invalidate DAX entry if it is clean.
  */
-static int dax_load_hole(struct address_space *mapping, void *entry,
-			 struct vm_fault *vmf)
+int dax_invalidate_mapping_entry_sync(struct address_space *mapping,
+				      pgoff_t index)
 {
-	struct page *page;
-
-	/* Hole page already exists? Return it...  */
-	if (!radix_tree_exceptional_entry(entry)) {
-		vmf->page = entry;
-		return VM_FAULT_LOCKED;
-	}
-
-	/* This will replace locked radix tree entry with a hole page */
-	page = find_or_create_page(mapping, vmf->pgoff,
-				   vmf->gfp_mask | __GFP_ZERO);
-	if (!page) {
-		put_locked_mapping_entry(mapping, vmf->pgoff, entry);
-		return VM_FAULT_OOM;
-	}
-	vmf->page = page;
-	return VM_FAULT_LOCKED;
+	return __dax_invalidate_entry(mapping, index, false);
 }
 
-static int copy_user_dax(struct block_device *bdev, sector_t sector, size_t size,
-		struct page *to, unsigned long vaddr)
+static int copy_user_dax(struct block_device *bdev, struct dax_device *dax_dev,
+		sector_t sector, size_t size, struct page *to,
+		unsigned long vaddr)
 {
-	struct blk_dax_ctl dax = {
-		.sector = sector,
-		.size = size,
-	};
-	void *vto;
+	void *vto, *kaddr;
+	pgoff_t pgoff;
+	long rc;
+	int id;
 
-	if (dax_map_atomic(bdev, &dax) < 0)
-		return PTR_ERR(dax.addr);
+	rc = bdev_dax_pgoff(bdev, sector, size, &pgoff);
+	if (rc)
+		return rc;
+
+	id = dax_read_lock();
+	rc = dax_direct_access(dax_dev, pgoff, PHYS_PFN(size), &kaddr, NULL);
+	if (rc < 0) {
+		dax_read_unlock(id);
+		return rc;
+	}
 	vto = kmap_atomic(to);
-	copy_user_page(vto, (void __force *)dax.addr, vaddr, to);
+	copy_user_page(vto, (void __force *)kaddr, vaddr, to);
 	kunmap_atomic(vto);
-	dax_unmap_atomic(bdev, &dax);
+	dax_read_unlock(id);
 	return 0;
 }
 
-#define DAX_PMD_INDEX(page_index) (page_index & (PMD_MASK >> PAGE_SHIFT))
-
-static void *dax_insert_mapping_entry(struct address_space *mapping,
-				      struct vm_fault *vmf,
-				      void *entry, sector_t sector)
+/*
+ * By this point grab_mapping_entry() has ensured that we have a locked entry
+ * of the appropriate size so we don't have to worry about downgrading PMDs to
+ * PTEs.  If we happen to be trying to insert a PTE and there is a PMD
+ * already in the tree, we will skip the insertion and just dirty the PMD as
+ * appropriate.
+ */
+static void *dax_insert_entry(struct xa_state *xas,
+		struct address_space *mapping, struct vm_fault *vmf,
+		void *entry, pfn_t pfn, unsigned long flags, bool dirty)
 {
-	struct radix_tree_root *page_tree = &mapping->page_tree;
-	int error = 0;
-	bool hole_fill = false;
-	void *new_entry;
-	pgoff_t index = vmf->pgoff;
+	void *new_entry = dax_make_entry(pfn, flags);
 
-	if (vmf->flags & FAULT_FLAG_WRITE)
+	if (dirty)
 		__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
 
-	/* Replacing hole page with block mapping? */
-	if (!radix_tree_exceptional_entry(entry)) {
-		hole_fill = true;
-		/*
-		 * Unmap the page now before we remove it from page cache below.
-		 * The page is locked so it cannot be faulted in again.
-		 */
-		unmap_mapping_range(mapping, vmf->pgoff << PAGE_SHIFT,
-				    PAGE_SIZE, 0);
-		error = radix_tree_preload(vmf->gfp_mask & ~__GFP_HIGHMEM);
-		if (error)
-			return ERR_PTR(error);
+	if (dax_is_zero_entry(entry) && !(flags & DAX_ZERO_PAGE)) {
+		unsigned long index = xas->xa_index;
+		/* we are replacing a zero page with block mapping */
+		if (dax_is_pmd_entry(entry))
+			unmap_mapping_pages(mapping, index & ~PG_PMD_COLOUR,
+					PG_PMD_NR, false);
+		else /* pte entry */
+			unmap_mapping_pages(mapping, index, 1, false);
 	}
 
-	spin_lock_irq(&mapping->tree_lock);
-	new_entry = (void *)((unsigned long)RADIX_DAX_ENTRY(sector, false) |
-		       RADIX_DAX_ENTRY_LOCK);
-	if (hole_fill) {
-		__delete_from_page_cache(entry, NULL);
-		/* Drop pagecache reference */
-		put_page(entry);
-		error = radix_tree_insert(page_tree, index, new_entry);
-		if (error) {
-			new_entry = ERR_PTR(error);
-			goto unlock;
-		}
-		mapping->nrexceptional++;
+	xas_reset(xas);
+	xas_lock_irq(xas);
+	if (dax_is_zero_entry(entry) || dax_is_empty_entry(entry)) {
+		void *old;
+
+		dax_disassociate_entry(entry, mapping, false);
+		dax_associate_entry(new_entry, mapping, vmf->vma, vmf->address);
+		/*
+		 * Only swap our new entry into the page cache if the current
+		 * entry is a zero page or an empty entry.  If a normal PTE or
+		 * PMD entry is already in the cache, we leave it alone.  This
+		 * means that if we are trying to insert a PTE and the
+		 * existing entry is a PMD, we will just leave the PMD in the
+		 * tree and dirty it if necessary.
+		 */
+		old = dax_lock_entry(xas, new_entry);
+		WARN_ON_ONCE(old != xa_mk_value(xa_to_value(entry) |
+					DAX_LOCKED));
+		entry = new_entry;
 	} else {
-		void **slot;
-		void *ret;
+		xas_load(xas);	/* Walk the xa_state */
+	}
 
-		ret = __radix_tree_lookup(page_tree, index, NULL, &slot);
-		WARN_ON_ONCE(ret != entry);
-		radix_tree_replace_slot(slot, new_entry);
-	}
-	if (vmf->flags & FAULT_FLAG_WRITE)
-		radix_tree_tag_set(page_tree, index, PAGECACHE_TAG_DIRTY);
- unlock:
-	spin_unlock_irq(&mapping->tree_lock);
-	if (hole_fill) {
-		radix_tree_preload_end();
-		/*
-		 * We don't need hole page anymore, it has been replaced with
-		 * locked radix tree entry now.
-		 */
-		if (mapping->a_ops->freepage)
-			mapping->a_ops->freepage(entry);
-		unlock_page(entry);
-		put_page(entry);
-	}
-	return new_entry;
+	if (dirty)
+		xas_set_mark(xas, PAGECACHE_TAG_DIRTY);
+
+	xas_unlock_irq(xas);
+	return entry;
 }
 
-static int dax_writeback_one(struct block_device *bdev,
-		struct address_space *mapping, pgoff_t index, void *entry)
+static inline
+unsigned long pgoff_address(pgoff_t pgoff, struct vm_area_struct *vma)
 {
-	struct radix_tree_root *page_tree = &mapping->page_tree;
-	int type = RADIX_DAX_TYPE(entry);
-	struct radix_tree_node *node;
-	struct blk_dax_ctl dax;
-	void **slot;
-	int ret = 0;
+	unsigned long address;
 
-	spin_lock_irq(&mapping->tree_lock);
+	address = vma->vm_start + ((pgoff - vma->vm_pgoff) << PAGE_SHIFT);
+	VM_BUG_ON_VMA(address < vma->vm_start || address >= vma->vm_end, vma);
+	return address;
+}
+
+/* Walk all mappings of a given index of a file and writeprotect them */
+static void dax_entry_mkclean(struct address_space *mapping, pgoff_t index,
+		unsigned long pfn)
+{
+	struct vm_area_struct *vma;
+	pte_t pte, *ptep = NULL;
+	pmd_t *pmdp = NULL;
+	spinlock_t *ptl;
+
+	i_mmap_lock_read(mapping);
+	vma_interval_tree_foreach(vma, &mapping->i_mmap, index, index) {
+		struct mmu_notifier_range range;
+		unsigned long address;
+
+		cond_resched();
+
+		if (!(vma->vm_flags & VM_SHARED))
+			continue;
+
+		address = pgoff_address(index, vma);
+
+		/*
+		 * Note because we provide range to follow_pte_pmd it will
+		 * call mmu_notifier_invalidate_range_start() on our behalf
+		 * before taking any lock.
+		 */
+		if (follow_pte_pmd(vma->vm_mm, address, &range,
+				   &ptep, &pmdp, &ptl))
+			continue;
+
+		/*
+		 * No need to call mmu_notifier_invalidate_range() as we are
+		 * downgrading page table protection not changing it to point
+		 * to a new page.
+		 *
+		 * See Documentation/vm/mmu_notifier.rst
+		 */
+		if (pmdp) {
+#ifdef CONFIG_FS_DAX_PMD
+			pmd_t pmd;
+
+			if (pfn != pmd_pfn(*pmdp))
+				goto unlock_pmd;
+			if (!pmd_dirty(*pmdp) && !pmd_write(*pmdp))
+				goto unlock_pmd;
+
+			flush_cache_page(vma, address, pfn);
+			pmd = pmdp_invalidate(vma, address, pmdp);
+			pmd = pmd_wrprotect(pmd);
+			pmd = pmd_mkclean(pmd);
+			set_pmd_at(vma->vm_mm, address, pmdp, pmd);
+unlock_pmd:
+#endif
+			spin_unlock(ptl);
+		} else {
+			if (pfn != pte_pfn(*ptep))
+				goto unlock_pte;
+			if (!pte_dirty(*ptep) && !pte_write(*ptep))
+				goto unlock_pte;
+
+			flush_cache_page(vma, address, pfn);
+			pte = ptep_clear_flush(vma, address, ptep);
+			pte = pte_wrprotect(pte);
+			pte = pte_mkclean(pte);
+			set_pte_at(vma->vm_mm, address, ptep, pte);
+unlock_pte:
+			pte_unmap_unlock(ptep, ptl);
+		}
+
+		mmu_notifier_invalidate_range_end(&range);
+	}
+	i_mmap_unlock_read(mapping);
+}
+
+static int dax_writeback_one(struct xa_state *xas, struct dax_device *dax_dev,
+		struct address_space *mapping, void *entry)
+{
+	unsigned long pfn, index, count;
+	long ret = 0;
+
 	/*
-	 * Regular page slots are stabilized by the page lock even
-	 * without the tree itself locked.  These unlocked entries
-	 * need verification under the tree lock.
+	 * A page got tagged dirty in DAX mapping? Something is seriously
+	 * wrong.
 	 */
-	if (!__radix_tree_lookup(page_tree, index, &node, &slot))
-		goto unlock;
-	if (*slot != entry)
-		goto unlock;
+	if (WARN_ON(!xa_is_value(entry)))
+		return -EIO;
 
-	/* another fsync thread may have already written back this entry */
-	if (!radix_tree_tag_get(page_tree, index, PAGECACHE_TAG_TOWRITE))
-		goto unlock;
+	if (unlikely(dax_is_locked(entry))) {
+		void *old_entry = entry;
 
-	if (WARN_ON_ONCE(type != RADIX_DAX_PTE && type != RADIX_DAX_PMD)) {
-		ret = -EIO;
-		goto unlock;
+		entry = get_unlocked_entry(xas, 0);
+
+		/* Entry got punched out / reallocated? */
+		if (!entry || WARN_ON_ONCE(!xa_is_value(entry)))
+			goto put_unlocked;
+		/*
+		 * Entry got reallocated elsewhere? No need to writeback.
+		 * We have to compare pfns as we must not bail out due to
+		 * difference in lockbit or entry type.
+		 */
+		if (dax_to_pfn(old_entry) != dax_to_pfn(entry))
+			goto put_unlocked;
+		if (WARN_ON_ONCE(dax_is_empty_entry(entry) ||
+					dax_is_zero_entry(entry))) {
+			ret = -EIO;
+			goto put_unlocked;
+		}
+
+		/* Another fsync thread may have already done this entry */
+		if (!xas_get_mark(xas, PAGECACHE_TAG_TOWRITE))
+			goto put_unlocked;
 	}
 
-	dax.sector = RADIX_DAX_SECTOR(entry);
-	dax.size = (type == RADIX_DAX_PMD ? PMD_SIZE : PAGE_SIZE);
-	spin_unlock_irq(&mapping->tree_lock);
+	/* Lock the entry to serialize with page faults */
+	dax_lock_entry(xas, entry);
 
 	/*
-	 * We cannot hold tree_lock while calling dax_map_atomic() because it
-	 * eventually calls cond_resched().
+	 * We can clear the tag now but we have to be careful so that concurrent
+	 * dax_writeback_one() calls for the same index cannot finish before we
+	 * actually flush the caches. This is achieved as the calls will look
+	 * at the entry only under the i_pages lock and once they do that
+	 * they will see the entry locked and wait for it to unlock.
 	 */
-	ret = dax_map_atomic(bdev, &dax);
-	if (ret < 0)
-		return ret;
+	xas_clear_mark(xas, PAGECACHE_TAG_TOWRITE);
+	xas_unlock_irq(xas);
 
-	if (WARN_ON_ONCE(ret < dax.size)) {
-		ret = -EIO;
-		goto unmap;
-	}
+	/*
+	 * If dax_writeback_mapping_range() was given a wbc->range_start
+	 * in the middle of a PMD, the 'index' we use needs to be
+	 * aligned to the start of the PMD.
+	 * This allows us to flush for PMD_SIZE and not have to worry about
+	 * partial PMD writebacks.
+	 */
+	pfn = dax_to_pfn(entry);
+	count = 1UL << dax_entry_order(entry);
+	index = xas->xa_index & ~(count - 1);
 
-	wb_cache_pmem(dax.addr, dax.size);
+	dax_entry_mkclean(mapping, index, pfn);
+	dax_flush(dax_dev, page_address(pfn_to_page(pfn)), count * PAGE_SIZE);
+	/*
+	 * After we have flushed the cache, we can clear the dirty tag. There
+	 * cannot be new dirty data in the pfn after the flush has completed as
+	 * the pfn mappings are writeprotected and fault waits for mapping
+	 * entry lock.
+	 */
+	xas_reset(xas);
+	xas_lock_irq(xas);
+	xas_store(xas, entry);
+	xas_clear_mark(xas, PAGECACHE_TAG_DIRTY);
+	dax_wake_entry(xas, entry, false);
 
-	spin_lock_irq(&mapping->tree_lock);
-	radix_tree_tag_clear(page_tree, index, PAGECACHE_TAG_TOWRITE);
-	spin_unlock_irq(&mapping->tree_lock);
- unmap:
-	dax_unmap_atomic(bdev, &dax);
+	trace_dax_writeback_one(mapping->host, index, count);
 	return ret;
 
- unlock:
-	spin_unlock_irq(&mapping->tree_lock);
+ put_unlocked:
+	put_unlocked_entry(xas, entry);
 	return ret;
 }
 
@@ -737,13 +938,13 @@ static int dax_writeback_one(struct block_device *bdev,
 int dax_writeback_mapping_range(struct address_space *mapping,
 		struct block_device *bdev, struct writeback_control *wbc)
 {
+	XA_STATE(xas, &mapping->i_pages, wbc->range_start >> PAGE_SHIFT);
 	struct inode *inode = mapping->host;
-	pgoff_t start_index, end_index, pmd_index;
-	pgoff_t indices[PAGEVEC_SIZE];
-	struct pagevec pvec;
-	bool done = false;
-	int i, ret = 0;
+	pgoff_t end_index = wbc->range_end >> PAGE_SHIFT;
+	struct dax_device *dax_dev;
 	void *entry;
+	int ret = 0;
+	unsigned int scanned = 0;
 
 	if (WARN_ON_ONCE(inode->i_blkbits != PAGE_SHIFT))
 		return -EIO;
@@ -751,409 +952,96 @@ int dax_writeback_mapping_range(struct address_space *mapping,
 	if (!mapping->nrexceptional || wbc->sync_mode != WB_SYNC_ALL)
 		return 0;
 
-	start_index = wbc->range_start >> PAGE_SHIFT;
-	end_index = wbc->range_end >> PAGE_SHIFT;
-	pmd_index = DAX_PMD_INDEX(start_index);
+	dax_dev = dax_get_by_host(bdev->bd_disk->disk_name);
+	if (!dax_dev)
+		return -EIO;
 
-	rcu_read_lock();
-	entry = radix_tree_lookup(&mapping->page_tree, pmd_index);
-	rcu_read_unlock();
+	trace_dax_writeback_range(inode, xas.xa_index, end_index);
 
-	/* see if the start of our range is covered by a PMD entry */
-	if (entry && RADIX_DAX_TYPE(entry) == RADIX_DAX_PMD)
-		start_index = pmd_index;
+	tag_pages_for_writeback(mapping, xas.xa_index, end_index);
 
-	tag_pages_for_writeback(mapping, start_index, end_index);
-
-	pagevec_init(&pvec, 0);
-	while (!done) {
-		pvec.nr = find_get_entries_tag(mapping, start_index,
-				PAGECACHE_TAG_TOWRITE, PAGEVEC_SIZE,
-				pvec.pages, indices);
-
-		if (pvec.nr == 0)
+	xas_lock_irq(&xas);
+	xas_for_each_marked(&xas, entry, end_index, PAGECACHE_TAG_TOWRITE) {
+		ret = dax_writeback_one(&xas, dax_dev, mapping, entry);
+		if (ret < 0) {
+			mapping_set_error(mapping, ret);
 			break;
-
-		for (i = 0; i < pvec.nr; i++) {
-			if (indices[i] > end_index) {
-				done = true;
-				break;
-			}
-
-			ret = dax_writeback_one(bdev, mapping, indices[i],
-					pvec.pages[i]);
-			if (ret < 0)
-				return ret;
 		}
+		if (++scanned % XA_CHECK_SCHED)
+			continue;
+
+		xas_pause(&xas);
+		xas_unlock_irq(&xas);
+		cond_resched();
+		xas_lock_irq(&xas);
 	}
-	return 0;
+	xas_unlock_irq(&xas);
+	put_dax(dax_dev);
+	trace_dax_writeback_range_done(inode, xas.xa_index, end_index);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(dax_writeback_mapping_range);
 
-static int dax_insert_mapping(struct address_space *mapping,
-		struct block_device *bdev, sector_t sector, size_t size,
-		void **entryp, struct vm_area_struct *vma, struct vm_fault *vmf)
+static sector_t dax_iomap_sector(struct iomap *iomap, loff_t pos)
 {
-	unsigned long vaddr = (unsigned long)vmf->virtual_address;
-	struct blk_dax_ctl dax = {
-		.sector = sector,
-		.size = size,
-	};
-	void *ret;
-	void *entry = *entryp;
-
-	if (dax_map_atomic(bdev, &dax) < 0)
-		return PTR_ERR(dax.addr);
-	dax_unmap_atomic(bdev, &dax);
-
-	ret = dax_insert_mapping_entry(mapping, vmf, entry, dax.sector);
-	if (IS_ERR(ret))
-		return PTR_ERR(ret);
-	*entryp = ret;
-
-	return vm_insert_mixed(vma, vaddr, dax.pfn);
+	return (iomap->addr + (pos & PAGE_MASK) - iomap->offset) >> 9;
 }
 
-/**
- * dax_fault - handle a page fault on a DAX file
- * @vma: The virtual memory area where the fault occurred
- * @vmf: The description of the fault
- * @get_block: The filesystem method used to translate file offsets to blocks
- *
- * When a page fault occurs, filesystems may call this helper in their
- * fault handler for DAX files. dax_fault() assumes the caller has done all
- * the necessary locking for the page fault to proceed successfully.
- */
-int dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
-			get_block_t get_block)
+static int dax_iomap_pfn(struct iomap *iomap, loff_t pos, size_t size,
+			 pfn_t *pfnp)
 {
-	struct file *file = vma->vm_file;
-	struct address_space *mapping = file->f_mapping;
-	struct inode *inode = mapping->host;
-	void *entry;
-	struct buffer_head bh;
-	unsigned long vaddr = (unsigned long)vmf->virtual_address;
-	unsigned blkbits = inode->i_blkbits;
-	sector_t block;
-	pgoff_t size;
-	int error;
-	int major = 0;
+	const sector_t sector = dax_iomap_sector(iomap, pos);
+	pgoff_t pgoff;
+	int id, rc;
+	long length;
 
-	/*
-	 * Check whether offset isn't beyond end of file now. Caller is supposed
-	 * to hold locks serializing us with truncate / punch hole so this is
-	 * a reliable test.
-	 */
-	size = (i_size_read(inode) + PAGE_SIZE - 1) >> PAGE_SHIFT;
-	if (vmf->pgoff >= size)
-		return VM_FAULT_SIGBUS;
-
-	memset(&bh, 0, sizeof(bh));
-	block = (sector_t)vmf->pgoff << (PAGE_SHIFT - blkbits);
-	bh.b_bdev = inode->i_sb->s_bdev;
-	bh.b_size = PAGE_SIZE;
-
-	entry = grab_mapping_entry(mapping, vmf->pgoff);
-	if (IS_ERR(entry)) {
-		error = PTR_ERR(entry);
+	rc = bdev_dax_pgoff(iomap->bdev, sector, size, &pgoff);
+	if (rc)
+		return rc;
+	id = dax_read_lock();
+	length = dax_direct_access(iomap->dax_dev, pgoff, PHYS_PFN(size),
+				   NULL, pfnp);
+	if (length < 0) {
+		rc = length;
 		goto out;
 	}
-
-	error = get_block(inode, block, &bh, 0);
-	if (!error && (bh.b_size < PAGE_SIZE))
-		error = -EIO;		/* fs corruption? */
-	if (error)
-		goto unlock_entry;
-
-	if (vmf->cow_page) {
-		struct page *new_page = vmf->cow_page;
-		if (buffer_written(&bh))
-			error = copy_user_dax(bh.b_bdev, to_sector(&bh, inode),
-					bh.b_size, new_page, vaddr);
-		else
-			clear_user_highpage(new_page, vaddr);
-		if (error)
-			goto unlock_entry;
-		if (!radix_tree_exceptional_entry(entry)) {
-			vmf->page = entry;
-			return VM_FAULT_LOCKED;
-		}
-		vmf->entry = entry;
-		return VM_FAULT_DAX_LOCKED;
-	}
-
-	if (!buffer_mapped(&bh)) {
-		if (vmf->flags & FAULT_FLAG_WRITE) {
-			error = get_block(inode, block, &bh, 1);
-			count_vm_event(PGMAJFAULT);
-			mem_cgroup_count_vm_event(vma->vm_mm, PGMAJFAULT);
-			major = VM_FAULT_MAJOR;
-			if (!error && (bh.b_size < PAGE_SIZE))
-				error = -EIO;
-			if (error)
-				goto unlock_entry;
-		} else {
-			return dax_load_hole(mapping, entry, vmf);
-		}
-	}
-
-	/* Filesystem should not return unwritten buffers to us! */
-	WARN_ON_ONCE(buffer_unwritten(&bh) || buffer_new(&bh));
-	error = dax_insert_mapping(mapping, bh.b_bdev, to_sector(&bh, inode),
-			bh.b_size, &entry, vma, vmf);
- unlock_entry:
-	put_locked_mapping_entry(mapping, vmf->pgoff, entry);
- out:
-	if (error == -ENOMEM)
-		return VM_FAULT_OOM | major;
-	/* -EBUSY is fine, somebody else faulted on the same PTE */
-	if ((error < 0) && (error != -EBUSY))
-		return VM_FAULT_SIGBUS | major;
-	return VM_FAULT_NOPAGE | major;
-}
-EXPORT_SYMBOL_GPL(dax_fault);
-
-#if defined(CONFIG_TRANSPARENT_HUGEPAGE)
-/*
- * The 'colour' (ie low bits) within a PMD of a page offset.  This comes up
- * more often than one might expect in the below function.
- */
-#define PG_PMD_COLOUR	((PMD_SIZE >> PAGE_SHIFT) - 1)
-
-static void __dax_dbg(struct buffer_head *bh, unsigned long address,
-		const char *reason, const char *fn)
-{
-	if (bh) {
-		char bname[BDEVNAME_SIZE];
-		bdevname(bh->b_bdev, bname);
-		pr_debug("%s: %s addr: %lx dev %s state %lx start %lld "
-			"length %zd fallback: %s\n", fn, current->comm,
-			address, bname, bh->b_state, (u64)bh->b_blocknr,
-			bh->b_size, reason);
-	} else {
-		pr_debug("%s: %s addr: %lx fallback: %s\n", fn,
-			current->comm, address, reason);
-	}
-}
-
-#define dax_pmd_dbg(bh, address, reason)	__dax_dbg(bh, address, reason, "dax_pmd")
-
-/**
- * dax_pmd_fault - handle a PMD fault on a DAX file
- * @vma: The virtual memory area where the fault occurred
- * @vmf: The description of the fault
- * @get_block: The filesystem method used to translate file offsets to blocks
- *
- * When a page fault occurs, filesystems may call this helper in their
- * pmd_fault handler for DAX files.
- */
-int dax_pmd_fault(struct vm_area_struct *vma, unsigned long address,
-		pmd_t *pmd, unsigned int flags, get_block_t get_block)
-{
-	struct file *file = vma->vm_file;
-	struct address_space *mapping = file->f_mapping;
-	struct inode *inode = mapping->host;
-	struct buffer_head bh;
-	unsigned blkbits = inode->i_blkbits;
-	unsigned long pmd_addr = address & PMD_MASK;
-	bool write = flags & FAULT_FLAG_WRITE;
-	struct block_device *bdev;
-	pgoff_t size, pgoff;
-	sector_t block;
-	int result = 0;
-	bool alloc = false;
-
-	/* dax pmd mappings require pfn_t_devmap() */
-	if (!IS_ENABLED(CONFIG_FS_DAX_PMD))
-		return VM_FAULT_FALLBACK;
-
-	/* Fall back to PTEs if we're going to COW */
-	if (write && !(vma->vm_flags & VM_SHARED)) {
-		split_huge_pmd(vma, pmd, address);
-		dax_pmd_dbg(NULL, address, "cow write");
-		return VM_FAULT_FALLBACK;
-	}
-	/* If the PMD would extend outside the VMA */
-	if (pmd_addr < vma->vm_start) {
-		dax_pmd_dbg(NULL, address, "vma start unaligned");
-		return VM_FAULT_FALLBACK;
-	}
-	if ((pmd_addr + PMD_SIZE) > vma->vm_end) {
-		dax_pmd_dbg(NULL, address, "vma end unaligned");
-		return VM_FAULT_FALLBACK;
-	}
-
-	pgoff = linear_page_index(vma, pmd_addr);
-	size = (i_size_read(inode) + PAGE_SIZE - 1) >> PAGE_SHIFT;
-	if (pgoff >= size)
-		return VM_FAULT_SIGBUS;
-	/* If the PMD would cover blocks out of the file */
-	if ((pgoff | PG_PMD_COLOUR) >= size) {
-		dax_pmd_dbg(NULL, address,
-				"offset + huge page size > file size");
-		return VM_FAULT_FALLBACK;
-	}
-
-	memset(&bh, 0, sizeof(bh));
-	bh.b_bdev = inode->i_sb->s_bdev;
-	block = (sector_t)pgoff << (PAGE_SHIFT - blkbits);
-
-	bh.b_size = PMD_SIZE;
-
-	if (get_block(inode, block, &bh, 0) != 0)
-		return VM_FAULT_SIGBUS;
-
-	if (!buffer_mapped(&bh) && write) {
-		if (get_block(inode, block, &bh, 1) != 0)
-			return VM_FAULT_SIGBUS;
-		alloc = true;
-		WARN_ON_ONCE(buffer_unwritten(&bh) || buffer_new(&bh));
-	}
-
-	bdev = bh.b_bdev;
-
-	/*
-	 * If the filesystem isn't willing to tell us the length of a hole,
-	 * just fall back to PTEs.  Calling get_block 512 times in a loop
-	 * would be silly.
-	 */
-	if (!buffer_size_valid(&bh) || bh.b_size < PMD_SIZE) {
-		dax_pmd_dbg(&bh, address, "allocated block too small");
-		return VM_FAULT_FALLBACK;
-	}
-
-	/*
-	 * If we allocated new storage, make sure no process has any
-	 * zero pages covering this hole
-	 */
-	if (alloc) {
-		loff_t lstart = pgoff << PAGE_SHIFT;
-		loff_t lend = lstart + PMD_SIZE - 1; /* inclusive */
-
-		truncate_pagecache_range(inode, lstart, lend);
-	}
-
-	if (!write && !buffer_mapped(&bh)) {
-		spinlock_t *ptl;
-		pmd_t entry;
-		struct page *zero_page = mm_get_huge_zero_page(vma->vm_mm);
-
-		if (unlikely(!zero_page)) {
-			dax_pmd_dbg(&bh, address, "no zero page");
-			goto fallback;
-		}
-
-		ptl = pmd_lock(vma->vm_mm, pmd);
-		if (!pmd_none(*pmd)) {
-			spin_unlock(ptl);
-			dax_pmd_dbg(&bh, address, "pmd already present");
-			goto fallback;
-		}
-
-		dev_dbg(part_to_dev(bdev->bd_part),
-				"%s: %s addr: %lx pfn: <zero> sect: %llx\n",
-				__func__, current->comm, address,
-				(unsigned long long) to_sector(&bh, inode));
-
-		entry = mk_pmd(zero_page, vma->vm_page_prot);
-		entry = pmd_mkhuge(entry);
-		set_pmd_at(vma->vm_mm, pmd_addr, pmd, entry);
-		result = VM_FAULT_NOPAGE;
-		spin_unlock(ptl);
-	} else {
-		struct blk_dax_ctl dax = {
-			.sector = to_sector(&bh, inode),
-			.size = PMD_SIZE,
-		};
-		long length = dax_map_atomic(bdev, &dax);
-
-		if (length < 0) {
-			dax_pmd_dbg(&bh, address, "dax-error fallback");
-			goto fallback;
-		}
-		if (length < PMD_SIZE) {
-			dax_pmd_dbg(&bh, address, "dax-length too small");
-			dax_unmap_atomic(bdev, &dax);
-			goto fallback;
-		}
-		if (pfn_t_to_pfn(dax.pfn) & PG_PMD_COLOUR) {
-			dax_pmd_dbg(&bh, address, "pfn unaligned");
-			dax_unmap_atomic(bdev, &dax);
-			goto fallback;
-		}
-
-		if (!pfn_t_devmap(dax.pfn)) {
-			dax_unmap_atomic(bdev, &dax);
-			dax_pmd_dbg(&bh, address, "pfn not in memmap");
-			goto fallback;
-		}
-		dax_unmap_atomic(bdev, &dax);
-
-		/*
-		 * For PTE faults we insert a radix tree entry for reads, and
-		 * leave it clean.  Then on the first write we dirty the radix
-		 * tree entry via the dax_pfn_mkwrite() path.  This sequence
-		 * allows the dax_pfn_mkwrite() call to be simpler and avoid a
-		 * call into get_block() to translate the pgoff to a sector in
-		 * order to be able to create a new radix tree entry.
-		 *
-		 * The PMD path doesn't have an equivalent to
-		 * dax_pfn_mkwrite(), though, so for a read followed by a
-		 * write we traverse all the way through dax_pmd_fault()
-		 * twice.  This means we can just skip inserting a radix tree
-		 * entry completely on the initial read and just wait until
-		 * the write to insert a dirty entry.
-		 */
-		if (write) {
-			/*
-			 * We should insert radix-tree entry and dirty it here.
-			 * For now this is broken...
-			 */
-		}
-
-		dev_dbg(part_to_dev(bdev->bd_part),
-				"%s: %s addr: %lx pfn: %lx sect: %llx\n",
-				__func__, current->comm, address,
-				pfn_t_to_pfn(dax.pfn),
-				(unsigned long long) dax.sector);
-		result |= vmf_insert_pfn_pmd(vma, address, pmd,
-				dax.pfn, write);
-	}
-
- out:
-	return result;
-
- fallback:
-	count_vm_event(THP_FAULT_FALLBACK);
-	result = VM_FAULT_FALLBACK;
-	goto out;
-}
-EXPORT_SYMBOL_GPL(dax_pmd_fault);
-#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
-
-/**
- * dax_pfn_mkwrite - handle first write to DAX page
- * @vma: The virtual memory area where the fault occurred
- * @vmf: The description of the fault
- */
-int dax_pfn_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
-{
-	struct file *file = vma->vm_file;
-	struct address_space *mapping = file->f_mapping;
-	void *entry;
-	pgoff_t index = vmf->pgoff;
-
-	spin_lock_irq(&mapping->tree_lock);
-	entry = get_unlocked_mapping_entry(mapping, index, NULL);
-	if (!entry || !radix_tree_exceptional_entry(entry))
+	rc = -EINVAL;
+	if (PFN_PHYS(length) < size)
 		goto out;
-	radix_tree_tag_set(&mapping->page_tree, index, PAGECACHE_TAG_DIRTY);
-	put_unlocked_mapping_entry(mapping, index, entry);
+	if (pfn_t_to_pfn(*pfnp) & (PHYS_PFN(size)-1))
+		goto out;
+	/* For larger pages we need devmap */
+	if (length > 1 && !pfn_t_devmap(*pfnp))
+		goto out;
+	rc = 0;
 out:
-	spin_unlock_irq(&mapping->tree_lock);
-	return VM_FAULT_NOPAGE;
+	dax_read_unlock(id);
+	return rc;
 }
-EXPORT_SYMBOL_GPL(dax_pfn_mkwrite);
+
+/*
+ * The user has performed a load from a hole in the file.  Allocating a new
+ * page in the file would cause excessive storage usage for workloads with
+ * sparse files.  Instead we insert a read-only mapping of the 4k zero page.
+ * If this page is ever written to we will re-fault and change the mapping to
+ * point to real DAX storage instead.
+ */
+static vm_fault_t dax_load_hole(struct xa_state *xas,
+		struct address_space *mapping, void **entry,
+		struct vm_fault *vmf)
+{
+	struct inode *inode = mapping->host;
+	unsigned long vaddr = vmf->address;
+	pfn_t pfn = pfn_to_pfn_t(my_zero_pfn(vaddr));
+	vm_fault_t ret;
+
+	*entry = dax_insert_entry(xas, mapping, vmf, *entry, pfn,
+			DAX_ZERO_PAGE, false);
+
+	ret = vmf_insert_mixed(vmf->vma, vaddr, pfn);
+	trace_dax_load_hole(inode, vmf, ret);
+	return ret;
+}
 
 static bool dax_range_is_aligned(struct block_device *bdev,
 				 unsigned int offset, unsigned int length)
@@ -1168,90 +1056,49 @@ static bool dax_range_is_aligned(struct block_device *bdev,
 	return true;
 }
 
-int __dax_zero_page_range(struct block_device *bdev, sector_t sector,
-		unsigned int offset, unsigned int length)
+int __dax_zero_page_range(struct block_device *bdev,
+		struct dax_device *dax_dev, sector_t sector,
+		unsigned int offset, unsigned int size)
 {
-	struct blk_dax_ctl dax = {
-		.sector		= sector,
-		.size		= PAGE_SIZE,
-	};
-
-	if (dax_range_is_aligned(bdev, offset, length)) {
-		sector_t start_sector = dax.sector + (offset >> 9);
+	if (dax_range_is_aligned(bdev, offset, size)) {
+		sector_t start_sector = sector + (offset >> 9);
 
 		return blkdev_issue_zeroout(bdev, start_sector,
-				length >> 9, GFP_NOFS, true);
+				size >> 9, GFP_NOFS, 0);
 	} else {
-		if (dax_map_atomic(bdev, &dax) < 0)
-			return PTR_ERR(dax.addr);
-		clear_pmem(dax.addr + offset, length);
-		dax_unmap_atomic(bdev, &dax);
+		pgoff_t pgoff;
+		long rc, id;
+		void *kaddr;
+
+		rc = bdev_dax_pgoff(bdev, sector, PAGE_SIZE, &pgoff);
+		if (rc)
+			return rc;
+
+		id = dax_read_lock();
+		rc = dax_direct_access(dax_dev, pgoff, 1, &kaddr, NULL);
+		if (rc < 0) {
+			dax_read_unlock(id);
+			return rc;
+		}
+		memset(kaddr + offset, 0, size);
+		dax_flush(dax_dev, kaddr + offset, size);
+		dax_read_unlock(id);
 	}
 	return 0;
 }
 EXPORT_SYMBOL_GPL(__dax_zero_page_range);
 
-/**
- * dax_zero_page_range - zero a range within a page of a DAX file
- * @inode: The file being truncated
- * @from: The file offset that is being truncated to
- * @length: The number of bytes to zero
- * @get_block: The filesystem method used to translate file offsets to blocks
- *
- * This function can be called by a filesystem when it is zeroing part of a
- * page in a DAX file.  This is intended for hole-punch operations.  If
- * you are truncating a file, the helper function dax_truncate_page() may be
- * more convenient.
- */
-int dax_zero_page_range(struct inode *inode, loff_t from, unsigned length,
-							get_block_t get_block)
-{
-	struct buffer_head bh;
-	pgoff_t index = from >> PAGE_SHIFT;
-	unsigned offset = from & (PAGE_SIZE-1);
-	int err;
-
-	/* Block boundary? Nothing to do */
-	if (!length)
-		return 0;
-	BUG_ON((offset + length) > PAGE_SIZE);
-
-	memset(&bh, 0, sizeof(bh));
-	bh.b_bdev = inode->i_sb->s_bdev;
-	bh.b_size = PAGE_SIZE;
-	err = get_block(inode, index, &bh, 0);
-	if (err < 0 || !buffer_written(&bh))
-		return err;
-
-	return __dax_zero_page_range(bh.b_bdev, to_sector(&bh, inode),
-			offset, length);
-}
-EXPORT_SYMBOL_GPL(dax_zero_page_range);
-
-/**
- * dax_truncate_page - handle a partial page being truncated in a DAX file
- * @inode: The file being truncated
- * @from: The file offset that is being truncated to
- * @get_block: The filesystem method used to translate file offsets to blocks
- *
- * Similar to block_truncate_page(), this function can be called by a
- * filesystem when it is truncating a DAX file to handle the partial page.
- */
-int dax_truncate_page(struct inode *inode, loff_t from, get_block_t get_block)
-{
-	unsigned length = PAGE_ALIGN(from) - from;
-	return dax_zero_page_range(inode, from, length, get_block);
-}
-EXPORT_SYMBOL_GPL(dax_truncate_page);
-
-#ifdef CONFIG_FS_IOMAP
 static loff_t
-iomap_dax_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
+dax_iomap_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
 		struct iomap *iomap)
 {
+	struct block_device *bdev = iomap->bdev;
+	struct dax_device *dax_dev = iomap->dax_dev;
 	struct iov_iter *iter = data;
 	loff_t end = pos + length, done = 0;
 	ssize_t ret = 0;
+	size_t xfer;
+	int id;
 
 	if (iov_iter_rw(iter) == READ) {
 		end = min(end, i_size_read(inode));
@@ -1265,45 +1112,76 @@ iomap_dax_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
 	if (WARN_ON_ONCE(iomap->type != IOMAP_MAPPED))
 		return -EIO;
 
+	/*
+	 * Write can allocate block for an area which has a hole page mapped
+	 * into page tables. We have to tear down these mappings so that data
+	 * written by write(2) is visible in mmap.
+	 */
+	if (iomap->flags & IOMAP_F_NEW) {
+		invalidate_inode_pages2_range(inode->i_mapping,
+					      pos >> PAGE_SHIFT,
+					      (end - 1) >> PAGE_SHIFT);
+	}
+
+	id = dax_read_lock();
 	while (pos < end) {
 		unsigned offset = pos & (PAGE_SIZE - 1);
-		struct blk_dax_ctl dax = { 0 };
+		const size_t size = ALIGN(length + offset, PAGE_SIZE);
+		const sector_t sector = dax_iomap_sector(iomap, pos);
 		ssize_t map_len;
+		pgoff_t pgoff;
+		void *kaddr;
 
-		dax.sector = iomap->blkno +
-			(((pos & PAGE_MASK) - iomap->offset) >> 9);
-		dax.size = (length + offset + PAGE_SIZE - 1) & PAGE_MASK;
-		map_len = dax_map_atomic(iomap->bdev, &dax);
+		if (fatal_signal_pending(current)) {
+			ret = -EINTR;
+			break;
+		}
+
+		ret = bdev_dax_pgoff(bdev, sector, size, &pgoff);
+		if (ret)
+			break;
+
+		map_len = dax_direct_access(dax_dev, pgoff, PHYS_PFN(size),
+				&kaddr, NULL);
 		if (map_len < 0) {
 			ret = map_len;
 			break;
 		}
 
-		dax.addr += offset;
+		map_len = PFN_PHYS(map_len);
+		kaddr += offset;
 		map_len -= offset;
 		if (map_len > end - pos)
 			map_len = end - pos;
 
+		/*
+		 * The userspace address for the memory copy has already been
+		 * validated via access_ok() in either vfs_read() or
+		 * vfs_write(), depending on which operation we are doing.
+		 */
 		if (iov_iter_rw(iter) == WRITE)
-			map_len = copy_from_iter_pmem(dax.addr, map_len, iter);
+			xfer = dax_copy_from_iter(dax_dev, pgoff, kaddr,
+					map_len, iter);
 		else
-			map_len = copy_to_iter(dax.addr, map_len, iter);
-		dax_unmap_atomic(iomap->bdev, &dax);
-		if (map_len <= 0) {
-			ret = map_len ? map_len : -EFAULT;
-			break;
-		}
+			xfer = dax_copy_to_iter(dax_dev, pgoff, kaddr,
+					map_len, iter);
 
-		pos += map_len;
-		length -= map_len;
-		done += map_len;
+		pos += xfer;
+		length -= xfer;
+		done += xfer;
+
+		if (xfer == 0)
+			ret = -EFAULT;
+		if (xfer < map_len)
+			break;
 	}
+	dax_read_unlock(id);
 
 	return done ? done : ret;
 }
 
 /**
- * iomap_dax_rw - Perform I/O to a DAX file
+ * dax_iomap_rw - Perform I/O to a DAX file
  * @iocb:	The control block for this I/O
  * @iter:	The addresses to do I/O from or to
  * @ops:	iomap ops passed from the file system
@@ -1313,37 +1191,24 @@ iomap_dax_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
  * and evicting any page cache pages in the region under I/O.
  */
 ssize_t
-iomap_dax_rw(struct kiocb *iocb, struct iov_iter *iter,
-		struct iomap_ops *ops)
+dax_iomap_rw(struct kiocb *iocb, struct iov_iter *iter,
+		const struct iomap_ops *ops)
 {
 	struct address_space *mapping = iocb->ki_filp->f_mapping;
 	struct inode *inode = mapping->host;
 	loff_t pos = iocb->ki_pos, ret = 0, done = 0;
 	unsigned flags = 0;
 
-	if (iov_iter_rw(iter) == WRITE)
+	if (iov_iter_rw(iter) == WRITE) {
+		lockdep_assert_held_write(&inode->i_rwsem);
 		flags |= IOMAP_WRITE;
-
-	/*
-	 * Yes, even DAX files can have page cache attached to them:  A zeroed
-	 * page is inserted into the pagecache when we have to serve a write
-	 * fault on a hole.  It should never be dirtied and can simply be
-	 * dropped from the pagecache once we get real data for the page.
-	 *
-	 * XXX: This is racy against mmap, and there's nothing we can do about
-	 * it. We'll eventually need to shift this down even further so that
-	 * we can check if we allocated blocks over a hole first.
-	 */
-	if (mapping->nrpages) {
-		ret = invalidate_inode_pages2_range(mapping,
-				pos >> PAGE_SHIFT,
-				(pos + iov_iter_count(iter) - 1) >> PAGE_SHIFT);
-		WARN_ON_ONCE(ret);
+	} else {
+		lockdep_assert_held(&inode->i_rwsem);
 	}
 
 	while (iov_iter_count(iter)) {
 		ret = iomap_apply(inode, pos, iov_iter_count(iter), flags, ops,
-				iter, iomap_dax_actor);
+				iter, dax_iomap_actor);
 		if (ret <= 0)
 			break;
 		pos += ret;
@@ -1353,47 +1218,74 @@ iomap_dax_rw(struct kiocb *iocb, struct iov_iter *iter,
 	iocb->ki_pos += done;
 	return done ? done : ret;
 }
-EXPORT_SYMBOL_GPL(iomap_dax_rw);
+EXPORT_SYMBOL_GPL(dax_iomap_rw);
 
-/**
- * iomap_dax_fault - handle a page fault on a DAX file
- * @vma: The virtual memory area where the fault occurred
- * @vmf: The description of the fault
- * @ops: iomap ops passed from the file system
- *
- * When a page fault occurs, filesystems may call this helper in their fault
- * or mkwrite handler for DAX files. Assumes the caller has done all the
- * necessary locking for the page fault to proceed successfully.
- */
-int iomap_dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
-			struct iomap_ops *ops)
+static vm_fault_t dax_fault_return(int error)
 {
-	struct address_space *mapping = vma->vm_file->f_mapping;
-	struct inode *inode = mapping->host;
-	unsigned long vaddr = (unsigned long)vmf->virtual_address;
-	loff_t pos = (loff_t)vmf->pgoff << PAGE_SHIFT;
-	sector_t sector;
-	struct iomap iomap = { 0 };
-	unsigned flags = 0;
-	int error, major = 0;
-	void *entry;
+	if (error == 0)
+		return VM_FAULT_NOPAGE;
+	return vmf_error(error);
+}
 
+/*
+ * MAP_SYNC on a dax mapping guarantees dirty metadata is
+ * flushed on write-faults (non-cow), but not read-faults.
+ */
+static bool dax_fault_is_synchronous(unsigned long flags,
+		struct vm_area_struct *vma, struct iomap *iomap)
+{
+	return (flags & IOMAP_WRITE) && (vma->vm_flags & VM_SYNC)
+		&& (iomap->flags & IOMAP_F_DIRTY);
+}
+
+static vm_fault_t dax_iomap_pte_fault(struct vm_fault *vmf, pfn_t *pfnp,
+			       int *iomap_errp, const struct iomap_ops *ops)
+{
+	struct vm_area_struct *vma = vmf->vma;
+	struct address_space *mapping = vma->vm_file->f_mapping;
+	XA_STATE(xas, &mapping->i_pages, vmf->pgoff);
+	struct inode *inode = mapping->host;
+	unsigned long vaddr = vmf->address;
+	loff_t pos = (loff_t)vmf->pgoff << PAGE_SHIFT;
+	struct iomap iomap = { 0 };
+	unsigned flags = IOMAP_FAULT;
+	int error, major = 0;
+	bool write = vmf->flags & FAULT_FLAG_WRITE;
+	bool sync;
+	vm_fault_t ret = 0;
+	void *entry;
+	pfn_t pfn;
+
+	trace_dax_pte_fault(inode, vmf, ret);
 	/*
 	 * Check whether offset isn't beyond end of file now. Caller is supposed
 	 * to hold locks serializing us with truncate / punch hole so this is
 	 * a reliable test.
 	 */
-	if (pos >= i_size_read(inode))
-		return VM_FAULT_SIGBUS;
-
-	entry = grab_mapping_entry(mapping, vmf->pgoff);
-	if (IS_ERR(entry)) {
-		error = PTR_ERR(entry);
+	if (pos >= i_size_read(inode)) {
+		ret = VM_FAULT_SIGBUS;
 		goto out;
 	}
 
-	if ((vmf->flags & FAULT_FLAG_WRITE) && !vmf->cow_page)
+	if (write && !vmf->cow_page)
 		flags |= IOMAP_WRITE;
+
+	entry = grab_mapping_entry(&xas, mapping, 0);
+	if (xa_is_internal(entry)) {
+		ret = xa_to_internal(entry);
+		goto out;
+	}
+
+	/*
+	 * It is possible, particularly with mixed reads & writes to private
+	 * mappings, that we have raced with a PMD fault that overlaps with
+	 * the PTE we need to set up.  If so just return and the fault will be
+	 * retried.
+	 */
+	if (pmd_trans_huge(*vmf->pmd) || pmd_devmap(*vmf->pmd)) {
+		ret = VM_FAULT_NOPAGE;
+		goto unlock_entry;
+	}
 
 	/*
 	 * Note that we don't bother to use iomap_apply here: DAX required
@@ -1401,24 +1293,28 @@ int iomap_dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
 	 * that we never have to deal with more than a single extent here.
 	 */
 	error = ops->iomap_begin(inode, pos, PAGE_SIZE, flags, &iomap);
-	if (error)
-		goto unlock_entry;
-	if (WARN_ON_ONCE(iomap.offset + iomap.length < pos + PAGE_SIZE)) {
-		error = -EIO;		/* fs corruption? */
+	if (iomap_errp)
+		*iomap_errp = error;
+	if (error) {
+		ret = dax_fault_return(error);
 		goto unlock_entry;
 	}
-
-	sector = iomap.blkno + (((pos & PAGE_MASK) - iomap.offset) >> 9);
+	if (WARN_ON_ONCE(iomap.offset + iomap.length < pos + PAGE_SIZE)) {
+		error = -EIO;	/* fs corruption? */
+		goto error_finish_iomap;
+	}
 
 	if (vmf->cow_page) {
+		sector_t sector = dax_iomap_sector(&iomap, pos);
+
 		switch (iomap.type) {
 		case IOMAP_HOLE:
 		case IOMAP_UNWRITTEN:
 			clear_user_highpage(vmf->cow_page, vaddr);
 			break;
 		case IOMAP_MAPPED:
-			error = copy_user_dax(iomap.bdev, sector, PAGE_SIZE,
-					vmf->cow_page, vaddr);
+			error = copy_user_dax(iomap.bdev, iomap.dax_dev,
+					sector, PAGE_SIZE, vmf->cow_page, vaddr);
 			break;
 		default:
 			WARN_ON_ONCE(1);
@@ -1427,29 +1323,59 @@ int iomap_dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
 		}
 
 		if (error)
-			goto unlock_entry;
-		if (!radix_tree_exceptional_entry(entry)) {
-			vmf->page = entry;
-			return VM_FAULT_LOCKED;
-		}
-		vmf->entry = entry;
-		return VM_FAULT_DAX_LOCKED;
+			goto error_finish_iomap;
+
+		__SetPageUptodate(vmf->cow_page);
+		ret = finish_fault(vmf);
+		if (!ret)
+			ret = VM_FAULT_DONE_COW;
+		goto finish_iomap;
 	}
+
+	sync = dax_fault_is_synchronous(flags, vma, &iomap);
 
 	switch (iomap.type) {
 	case IOMAP_MAPPED:
 		if (iomap.flags & IOMAP_F_NEW) {
 			count_vm_event(PGMAJFAULT);
-			mem_cgroup_count_vm_event(vma->vm_mm, PGMAJFAULT);
+			count_memcg_event_mm(vma->vm_mm, PGMAJFAULT);
 			major = VM_FAULT_MAJOR;
 		}
-		error = dax_insert_mapping(mapping, iomap.bdev, sector,
-				PAGE_SIZE, &entry, vma, vmf);
-		break;
+		error = dax_iomap_pfn(&iomap, pos, PAGE_SIZE, &pfn);
+		if (error < 0)
+			goto error_finish_iomap;
+
+		entry = dax_insert_entry(&xas, mapping, vmf, entry, pfn,
+						 0, write && !sync);
+
+		/*
+		 * If we are doing synchronous page fault and inode needs fsync,
+		 * we can insert PTE into page tables only after that happens.
+		 * Skip insertion for now and return the pfn so that caller can
+		 * insert it after fsync is done.
+		 */
+		if (sync) {
+			if (WARN_ON_ONCE(!pfnp)) {
+				error = -EIO;
+				goto error_finish_iomap;
+			}
+			*pfnp = pfn;
+			ret = VM_FAULT_NEEDDSYNC | major;
+			goto finish_iomap;
+		}
+		trace_dax_insert_mapping(inode, vmf, entry);
+		if (write)
+			ret = vmf_insert_mixed_mkwrite(vma, vaddr, pfn);
+		else
+			ret = vmf_insert_mixed(vma, vaddr, pfn);
+
+		goto finish_iomap;
 	case IOMAP_UNWRITTEN:
 	case IOMAP_HOLE:
-		if (!(vmf->flags & FAULT_FLAG_WRITE))
-			return dax_load_hole(mapping, entry, vmf);
+		if (!write) {
+			ret = dax_load_hole(&xas, mapping, &entry, vmf);
+			goto finish_iomap;
+		}
 		/*FALLTHRU*/
 	default:
 		WARN_ON_ONCE(1);
@@ -1457,15 +1383,341 @@ int iomap_dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
 		break;
 	}
 
+ error_finish_iomap:
+	ret = dax_fault_return(error);
+ finish_iomap:
+	if (ops->iomap_end) {
+		int copied = PAGE_SIZE;
+
+		if (ret & VM_FAULT_ERROR)
+			copied = 0;
+		/*
+		 * The fault is done by now and there's no way back (other
+		 * thread may be already happily using PTE we have installed).
+		 * Just ignore error from ->iomap_end since we cannot do much
+		 * with it.
+		 */
+		ops->iomap_end(inode, pos, PAGE_SIZE, copied, flags, &iomap);
+	}
  unlock_entry:
-	put_locked_mapping_entry(mapping, vmf->pgoff, entry);
+	dax_unlock_entry(&xas, entry);
  out:
-	if (error == -ENOMEM)
-		return VM_FAULT_OOM | major;
-	/* -EBUSY is fine, somebody else faulted on the same PTE */
-	if (error < 0 && error != -EBUSY)
-		return VM_FAULT_SIGBUS | major;
-	return VM_FAULT_NOPAGE | major;
+	trace_dax_pte_fault_done(inode, vmf, ret);
+	return ret | major;
 }
-EXPORT_SYMBOL_GPL(iomap_dax_fault);
-#endif /* CONFIG_FS_IOMAP */
+
+#ifdef CONFIG_FS_DAX_PMD
+static vm_fault_t dax_pmd_load_hole(struct xa_state *xas, struct vm_fault *vmf,
+		struct iomap *iomap, void **entry)
+{
+	struct address_space *mapping = vmf->vma->vm_file->f_mapping;
+	unsigned long pmd_addr = vmf->address & PMD_MASK;
+	struct vm_area_struct *vma = vmf->vma;
+	struct inode *inode = mapping->host;
+	pgtable_t pgtable = NULL;
+	struct page *zero_page;
+	spinlock_t *ptl;
+	pmd_t pmd_entry;
+	pfn_t pfn;
+
+	zero_page = mm_get_huge_zero_page(vmf->vma->vm_mm);
+
+	if (unlikely(!zero_page))
+		goto fallback;
+
+	pfn = page_to_pfn_t(zero_page);
+	*entry = dax_insert_entry(xas, mapping, vmf, *entry, pfn,
+			DAX_PMD | DAX_ZERO_PAGE, false);
+
+	if (arch_needs_pgtable_deposit()) {
+		pgtable = pte_alloc_one(vma->vm_mm);
+		if (!pgtable)
+			return VM_FAULT_OOM;
+	}
+
+	ptl = pmd_lock(vmf->vma->vm_mm, vmf->pmd);
+	if (!pmd_none(*(vmf->pmd))) {
+		spin_unlock(ptl);
+		goto fallback;
+	}
+
+	if (pgtable) {
+		pgtable_trans_huge_deposit(vma->vm_mm, vmf->pmd, pgtable);
+		mm_inc_nr_ptes(vma->vm_mm);
+	}
+	pmd_entry = mk_pmd(zero_page, vmf->vma->vm_page_prot);
+	pmd_entry = pmd_mkhuge(pmd_entry);
+	set_pmd_at(vmf->vma->vm_mm, pmd_addr, vmf->pmd, pmd_entry);
+	spin_unlock(ptl);
+	trace_dax_pmd_load_hole(inode, vmf, zero_page, *entry);
+	return VM_FAULT_NOPAGE;
+
+fallback:
+	if (pgtable)
+		pte_free(vma->vm_mm, pgtable);
+	trace_dax_pmd_load_hole_fallback(inode, vmf, zero_page, *entry);
+	return VM_FAULT_FALLBACK;
+}
+
+static vm_fault_t dax_iomap_pmd_fault(struct vm_fault *vmf, pfn_t *pfnp,
+			       const struct iomap_ops *ops)
+{
+	struct vm_area_struct *vma = vmf->vma;
+	struct address_space *mapping = vma->vm_file->f_mapping;
+	XA_STATE_ORDER(xas, &mapping->i_pages, vmf->pgoff, PMD_ORDER);
+	unsigned long pmd_addr = vmf->address & PMD_MASK;
+	bool write = vmf->flags & FAULT_FLAG_WRITE;
+	bool sync;
+	unsigned int iomap_flags = (write ? IOMAP_WRITE : 0) | IOMAP_FAULT;
+	struct inode *inode = mapping->host;
+	vm_fault_t result = VM_FAULT_FALLBACK;
+	struct iomap iomap = { 0 };
+	pgoff_t max_pgoff;
+	void *entry;
+	loff_t pos;
+	int error;
+	pfn_t pfn;
+
+	/*
+	 * Check whether offset isn't beyond end of file now. Caller is
+	 * supposed to hold locks serializing us with truncate / punch hole so
+	 * this is a reliable test.
+	 */
+	max_pgoff = DIV_ROUND_UP(i_size_read(inode), PAGE_SIZE);
+
+	trace_dax_pmd_fault(inode, vmf, max_pgoff, 0);
+
+	/*
+	 * Make sure that the faulting address's PMD offset (color) matches
+	 * the PMD offset from the start of the file.  This is necessary so
+	 * that a PMD range in the page table overlaps exactly with a PMD
+	 * range in the page cache.
+	 */
+	if ((vmf->pgoff & PG_PMD_COLOUR) !=
+	    ((vmf->address >> PAGE_SHIFT) & PG_PMD_COLOUR))
+		goto fallback;
+
+	/* Fall back to PTEs if we're going to COW */
+	if (write && !(vma->vm_flags & VM_SHARED))
+		goto fallback;
+
+	/* If the PMD would extend outside the VMA */
+	if (pmd_addr < vma->vm_start)
+		goto fallback;
+	if ((pmd_addr + PMD_SIZE) > vma->vm_end)
+		goto fallback;
+
+	if (xas.xa_index >= max_pgoff) {
+		result = VM_FAULT_SIGBUS;
+		goto out;
+	}
+
+	/* If the PMD would extend beyond the file size */
+	if ((xas.xa_index | PG_PMD_COLOUR) >= max_pgoff)
+		goto fallback;
+
+	/*
+	 * grab_mapping_entry() will make sure we get an empty PMD entry,
+	 * a zero PMD entry or a DAX PMD.  If it can't (because a PTE
+	 * entry is already in the array, for instance), it will return
+	 * VM_FAULT_FALLBACK.
+	 */
+	entry = grab_mapping_entry(&xas, mapping, PMD_ORDER);
+	if (xa_is_internal(entry)) {
+		result = xa_to_internal(entry);
+		goto fallback;
+	}
+
+	/*
+	 * It is possible, particularly with mixed reads & writes to private
+	 * mappings, that we have raced with a PTE fault that overlaps with
+	 * the PMD we need to set up.  If so just return and the fault will be
+	 * retried.
+	 */
+	if (!pmd_none(*vmf->pmd) && !pmd_trans_huge(*vmf->pmd) &&
+			!pmd_devmap(*vmf->pmd)) {
+		result = 0;
+		goto unlock_entry;
+	}
+
+	/*
+	 * Note that we don't use iomap_apply here.  We aren't doing I/O, only
+	 * setting up a mapping, so really we're using iomap_begin() as a way
+	 * to look up our filesystem block.
+	 */
+	pos = (loff_t)xas.xa_index << PAGE_SHIFT;
+	error = ops->iomap_begin(inode, pos, PMD_SIZE, iomap_flags, &iomap);
+	if (error)
+		goto unlock_entry;
+
+	if (iomap.offset + iomap.length < pos + PMD_SIZE)
+		goto finish_iomap;
+
+	sync = dax_fault_is_synchronous(iomap_flags, vma, &iomap);
+
+	switch (iomap.type) {
+	case IOMAP_MAPPED:
+		error = dax_iomap_pfn(&iomap, pos, PMD_SIZE, &pfn);
+		if (error < 0)
+			goto finish_iomap;
+
+		entry = dax_insert_entry(&xas, mapping, vmf, entry, pfn,
+						DAX_PMD, write && !sync);
+
+		/*
+		 * If we are doing synchronous page fault and inode needs fsync,
+		 * we can insert PMD into page tables only after that happens.
+		 * Skip insertion for now and return the pfn so that caller can
+		 * insert it after fsync is done.
+		 */
+		if (sync) {
+			if (WARN_ON_ONCE(!pfnp))
+				goto finish_iomap;
+			*pfnp = pfn;
+			result = VM_FAULT_NEEDDSYNC;
+			goto finish_iomap;
+		}
+
+		trace_dax_pmd_insert_mapping(inode, vmf, PMD_SIZE, pfn, entry);
+		result = vmf_insert_pfn_pmd(vmf, pfn, write);
+		break;
+	case IOMAP_UNWRITTEN:
+	case IOMAP_HOLE:
+		if (WARN_ON_ONCE(write))
+			break;
+		result = dax_pmd_load_hole(&xas, vmf, &iomap, &entry);
+		break;
+	default:
+		WARN_ON_ONCE(1);
+		break;
+	}
+
+ finish_iomap:
+	if (ops->iomap_end) {
+		int copied = PMD_SIZE;
+
+		if (result == VM_FAULT_FALLBACK)
+			copied = 0;
+		/*
+		 * The fault is done by now and there's no way back (other
+		 * thread may be already happily using PMD we have installed).
+		 * Just ignore error from ->iomap_end since we cannot do much
+		 * with it.
+		 */
+		ops->iomap_end(inode, pos, PMD_SIZE, copied, iomap_flags,
+				&iomap);
+	}
+ unlock_entry:
+	dax_unlock_entry(&xas, entry);
+ fallback:
+	if (result == VM_FAULT_FALLBACK) {
+		split_huge_pmd(vma, vmf->pmd, vmf->address);
+		count_vm_event(THP_FAULT_FALLBACK);
+	}
+out:
+	trace_dax_pmd_fault_done(inode, vmf, max_pgoff, result);
+	return result;
+}
+#else
+static vm_fault_t dax_iomap_pmd_fault(struct vm_fault *vmf, pfn_t *pfnp,
+			       const struct iomap_ops *ops)
+{
+	return VM_FAULT_FALLBACK;
+}
+#endif /* CONFIG_FS_DAX_PMD */
+
+/**
+ * dax_iomap_fault - handle a page fault on a DAX file
+ * @vmf: The description of the fault
+ * @pe_size: Size of the page to fault in
+ * @pfnp: PFN to insert for synchronous faults if fsync is required
+ * @iomap_errp: Storage for detailed error code in case of error
+ * @ops: Iomap ops passed from the file system
+ *
+ * When a page fault occurs, filesystems may call this helper in
+ * their fault handler for DAX files. dax_iomap_fault() assumes the caller
+ * has done all the necessary locking for page fault to proceed
+ * successfully.
+ */
+vm_fault_t dax_iomap_fault(struct vm_fault *vmf, enum page_entry_size pe_size,
+		    pfn_t *pfnp, int *iomap_errp, const struct iomap_ops *ops)
+{
+	switch (pe_size) {
+	case PE_SIZE_PTE:
+		return dax_iomap_pte_fault(vmf, pfnp, iomap_errp, ops);
+	case PE_SIZE_PMD:
+		return dax_iomap_pmd_fault(vmf, pfnp, ops);
+	default:
+		return VM_FAULT_FALLBACK;
+	}
+}
+EXPORT_SYMBOL_GPL(dax_iomap_fault);
+
+/*
+ * dax_insert_pfn_mkwrite - insert PTE or PMD entry into page tables
+ * @vmf: The description of the fault
+ * @pfn: PFN to insert
+ * @order: Order of entry to insert.
+ *
+ * This function inserts a writeable PTE or PMD entry into the page tables
+ * for an mmaped DAX file.  It also marks the page cache entry as dirty.
+ */
+static vm_fault_t
+dax_insert_pfn_mkwrite(struct vm_fault *vmf, pfn_t pfn, unsigned int order)
+{
+	struct address_space *mapping = vmf->vma->vm_file->f_mapping;
+	XA_STATE_ORDER(xas, &mapping->i_pages, vmf->pgoff, order);
+	void *entry;
+	vm_fault_t ret;
+
+	xas_lock_irq(&xas);
+	entry = get_unlocked_entry(&xas, order);
+	/* Did we race with someone splitting entry or so? */
+	if (!entry || dax_is_conflict(entry) ||
+	    (order == 0 && !dax_is_pte_entry(entry))) {
+		put_unlocked_entry(&xas, entry);
+		xas_unlock_irq(&xas);
+		trace_dax_insert_pfn_mkwrite_no_entry(mapping->host, vmf,
+						      VM_FAULT_NOPAGE);
+		return VM_FAULT_NOPAGE;
+	}
+	xas_set_mark(&xas, PAGECACHE_TAG_DIRTY);
+	dax_lock_entry(&xas, entry);
+	xas_unlock_irq(&xas);
+	if (order == 0)
+		ret = vmf_insert_mixed_mkwrite(vmf->vma, vmf->address, pfn);
+#ifdef CONFIG_FS_DAX_PMD
+	else if (order == PMD_ORDER)
+		ret = vmf_insert_pfn_pmd(vmf, pfn, FAULT_FLAG_WRITE);
+#endif
+	else
+		ret = VM_FAULT_FALLBACK;
+	dax_unlock_entry(&xas, entry);
+	trace_dax_insert_pfn_mkwrite(mapping->host, vmf, ret);
+	return ret;
+}
+
+/**
+ * dax_finish_sync_fault - finish synchronous page fault
+ * @vmf: The description of the fault
+ * @pe_size: Size of entry to be inserted
+ * @pfn: PFN to insert
+ *
+ * This function ensures that the file range touched by the page fault is
+ * stored persistently on the media and handles inserting of appropriate page
+ * table entry.
+ */
+vm_fault_t dax_finish_sync_fault(struct vm_fault *vmf,
+		enum page_entry_size pe_size, pfn_t pfn)
+{
+	int err;
+	loff_t start = ((loff_t)vmf->pgoff) << PAGE_SHIFT;
+	unsigned int order = pe_order(pe_size);
+	size_t len = PAGE_SIZE << order;
+
+	err = vfs_fsync_range(vmf->vma->vm_file, start, start + len - 1, 1);
+	if (err)
+		return VM_FAULT_SIGBUS;
+	return dax_insert_pfn_mkwrite(vmf, pfn, order);
+}
+EXPORT_SYMBOL_GPL(dax_finish_sync_fault);

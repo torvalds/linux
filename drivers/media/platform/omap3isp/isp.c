@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * isp.c
  *
@@ -36,10 +37,6 @@
  *	Thara Gopinath <thara@ti.com>
  *	Toni Leinonen <toni.leinonen@nokia.com>
  *	Troy Laramy <t-laramy@ti.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <asm/cacheflush.h>
@@ -55,17 +52,20 @@
 #include <linux/module.h>
 #include <linux/omap-iommu.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/vmalloc.h>
 
+#ifdef CONFIG_ARM_DMA_USE_IOMMU
 #include <asm/dma-iommu.h>
+#endif
 
 #include <media/v4l2-common.h>
+#include <media/v4l2-fwnode.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-mc.h>
-#include <media/v4l2-of.h>
 
 #include "isp.h"
 #include "ispreg.h"
@@ -283,13 +283,6 @@ static const struct clk_ops isp_xclk_ops = {
 
 static const char *isp_xclk_parent_name = "cam_mclk";
 
-static const struct clk_init_data isp_xclk_init_data = {
-	.name = "cam_xclk",
-	.ops = &isp_xclk_ops,
-	.parent_names = &isp_xclk_parent_name,
-	.num_parents = 1,
-};
-
 static struct clk *isp_xclk_src_get(struct of_phandle_args *clkspec, void *data)
 {
 	unsigned int idx = clkspec->args[0];
@@ -304,7 +297,7 @@ static struct clk *isp_xclk_src_get(struct of_phandle_args *clkspec, void *data)
 static int isp_xclk_init(struct isp_device *isp)
 {
 	struct device_node *np = isp->dev->of_node;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(isp->xclks); ++i)
@@ -480,8 +473,8 @@ void omap3isp_hist_dma_done(struct isp_device *isp)
 	    omap3isp_stat_pcr_busy(&isp->isp_hist)) {
 		/* Histogram cannot be enabled in this frame anymore */
 		atomic_set(&isp->isp_hist.buf_err, 1);
-		dev_dbg(isp->dev, "hist: Out of synchronization with "
-				  "CCDC. Ignoring next buffer.\n");
+		dev_dbg(isp->dev,
+			"hist: Out of synchronization with CCDC. Ignoring next buffer.\n");
 	}
 }
 
@@ -919,7 +912,7 @@ static void isp_pipeline_suspend(struct isp_pipeline *pipe)
 
 /*
  * isp_pipeline_is_last - Verify if entity has an enabled link to the output
- * 			  video node
+ *			  video node
  * @me: ISP module's media entity
  *
  * Returns 1 if the entity has an enabled link to the output video node or 0
@@ -975,7 +968,7 @@ static void isp_resume_module_pipeline(struct media_entity *me)
  * Returns 0 if suspend left in idle state all the submodules properly,
  * or returns 1 if a general Reset is required to suspend the submodules.
  */
-static int isp_suspend_modules(struct isp_device *isp)
+static int __maybe_unused isp_suspend_modules(struct isp_device *isp)
 {
 	unsigned long timeout;
 
@@ -1009,7 +1002,7 @@ static int isp_suspend_modules(struct isp_device *isp)
  * isp_resume_modules - Resume ISP submodules.
  * @isp: OMAP3 ISP device
  */
-static void isp_resume_modules(struct isp_device *isp)
+static void __maybe_unused isp_resume_modules(struct isp_device *isp)
 {
 	omap3isp_stat_resume(&isp->isp_aewb);
 	omap3isp_stat_resume(&isp->isp_af);
@@ -1521,7 +1514,7 @@ void omap3isp_print_status(struct isp_device *isp)
  *
  * To solve this problem power management support is split into prepare/complete
  * and suspend/resume operations. The pipelines are stopped in prepare() and the
- * ISP clocks get disabled in suspend(). Similarly, the clocks are reenabled in
+ * ISP clocks get disabled in suspend(). Similarly, the clocks are re-enabled in
  * resume(), and the the pipelines are restarted in complete().
  *
  * TODO: PM dependencies between the ISP and sensors are not modelled explicitly
@@ -1591,6 +1584,8 @@ static void isp_pm_complete(struct device *dev)
 
 static void isp_unregister_entities(struct isp_device *isp)
 {
+	media_device_unregister(&isp->media_dev);
+
 	omap3isp_csi2_unregister_entities(&isp->isp_csi2a);
 	omap3isp_ccp2_unregister_entities(&isp->isp_ccp2);
 	omap3isp_ccdc_unregister_entities(&isp->isp_ccdc);
@@ -1601,7 +1596,6 @@ static void isp_unregister_entities(struct isp_device *isp)
 	omap3isp_stat_unregister_entities(&isp->isp_hist);
 
 	v4l2_device_unregister(&isp->v4l2_dev);
-	media_device_unregister(&isp->media_dev);
 	media_device_cleanup(&isp->media_dev);
 }
 
@@ -1668,8 +1662,8 @@ static int isp_link_entity(
 			break;
 	}
 	if (i == entity->num_pads) {
-		dev_err(isp->dev, "%s: no source pad in external entity\n",
-			__func__);
+		dev_err(isp->dev, "%s: no source pad in external entity %s\n",
+			__func__, entity->name);
 		return -EINVAL;
 	}
 
@@ -1681,7 +1675,7 @@ static int isp_register_entities(struct isp_device *isp)
 	int ret;
 
 	isp->media_dev.dev = isp->dev;
-	strlcpy(isp->media_dev.model, "TI OMAP3 ISP",
+	strscpy(isp->media_dev.model, "TI OMAP3 ISP",
 		sizeof(isp->media_dev.model));
 	isp->media_dev.hw_revision = isp->revision;
 	isp->media_dev.ops = &isp_media_ops;
@@ -1858,6 +1852,7 @@ static void isp_cleanup_modules(struct isp_device *isp)
 	omap3isp_ccdc_cleanup(isp);
 	omap3isp_ccp2_cleanup(isp);
 	omap3isp_csi2_cleanup(isp);
+	omap3isp_csiphy_cleanup(isp);
 }
 
 static int isp_initialize_modules(struct isp_device *isp)
@@ -1867,7 +1862,7 @@ static int isp_initialize_modules(struct isp_device *isp)
 	ret = omap3isp_csiphy_init(isp);
 	if (ret < 0) {
 		dev_err(isp->dev, "CSI PHY initialization failed\n");
-		goto error_csiphy;
+		return ret;
 	}
 
 	ret = omap3isp_csi2_init(isp);
@@ -1878,7 +1873,8 @@ static int isp_initialize_modules(struct isp_device *isp)
 
 	ret = omap3isp_ccp2_init(isp);
 	if (ret < 0) {
-		dev_err(isp->dev, "CCP2 initialization failed\n");
+		if (ret != -EPROBE_DEFER)
+			dev_err(isp->dev, "CCP2 initialization failed\n");
 		goto error_ccp2;
 	}
 
@@ -1935,37 +1931,25 @@ error_ccdc:
 error_ccp2:
 	omap3isp_csi2_cleanup(isp);
 error_csi2:
-error_csiphy:
+	omap3isp_csiphy_cleanup(isp);
+
 	return ret;
 }
 
 static void isp_detach_iommu(struct isp_device *isp)
 {
+#ifdef CONFIG_ARM_DMA_USE_IOMMU
+	arm_iommu_detach_device(isp->dev);
 	arm_iommu_release_mapping(isp->mapping);
 	isp->mapping = NULL;
-	iommu_group_remove_device(isp->dev);
+#endif
 }
 
 static int isp_attach_iommu(struct isp_device *isp)
 {
+#ifdef CONFIG_ARM_DMA_USE_IOMMU
 	struct dma_iommu_mapping *mapping;
-	struct iommu_group *group;
 	int ret;
-
-	/* Create a device group and add the device to it. */
-	group = iommu_group_alloc();
-	if (IS_ERR(group)) {
-		dev_err(isp->dev, "failed to allocate IOMMU group\n");
-		return PTR_ERR(group);
-	}
-
-	ret = iommu_group_add_device(group, isp->dev);
-	iommu_group_put(group);
-
-	if (ret < 0) {
-		dev_err(isp->dev, "failed to add device to IPMMU group\n");
-		return ret;
-	}
 
 	/*
 	 * Create the ARM mapping, used by the ARM DMA mapping core to allocate
@@ -1974,8 +1958,7 @@ static int isp_attach_iommu(struct isp_device *isp)
 	mapping = arm_iommu_create_mapping(&platform_bus_type, SZ_1G, SZ_2G);
 	if (IS_ERR(mapping)) {
 		dev_err(isp->dev, "failed to create ARM IOMMU mapping\n");
-		ret = PTR_ERR(mapping);
-		goto error;
+		return PTR_ERR(mapping);
 	}
 
 	isp->mapping = mapping;
@@ -1990,8 +1973,12 @@ static int isp_attach_iommu(struct isp_device *isp)
 	return 0;
 
 error:
-	isp_detach_iommu(isp);
+	arm_iommu_release_mapping(isp->mapping);
+	isp->mapping = NULL;
 	return ret;
+#else
+	return -ENODEV;
+#endif
 }
 
 /*
@@ -2014,6 +2001,9 @@ static int isp_remove(struct platform_device *pdev)
 	__omap3isp_put(isp, false);
 
 	media_entity_enum_cleanup(&isp->crashed);
+	v4l2_async_notifier_cleanup(&isp->notifier);
+
+	kfree(isp);
 
 	return 0;
 }
@@ -2024,134 +2014,132 @@ enum isp_of_phy {
 	ISP_OF_PHY_CSIPHY2,
 };
 
-static int isp_of_parse_node(struct device *dev, struct device_node *node,
-			     struct isp_async_subdev *isd)
+static int isp_fwnode_parse(struct device *dev,
+			    struct v4l2_fwnode_endpoint *vep,
+			    struct v4l2_async_subdev *asd)
 {
+	struct isp_async_subdev *isd =
+		container_of(asd, struct isp_async_subdev, asd);
 	struct isp_bus_cfg *buscfg = &isd->bus;
-	struct v4l2_of_endpoint vep;
+	bool csi1 = false;
 	unsigned int i;
-	int ret;
 
-	ret = v4l2_of_parse_endpoint(node, &vep);
-	if (ret)
-		return ret;
+	dev_dbg(dev, "parsing endpoint %pOF, interface %u\n",
+		to_of_node(vep->base.local_fwnode), vep->base.port);
 
-	dev_dbg(dev, "parsing endpoint %s, interface %u\n", node->full_name,
-		vep.base.port);
-
-	switch (vep.base.port) {
+	switch (vep->base.port) {
 	case ISP_OF_PHY_PARALLEL:
 		buscfg->interface = ISP_INTERFACE_PARALLEL;
 		buscfg->bus.parallel.data_lane_shift =
-			vep.bus.parallel.data_shift;
+			vep->bus.parallel.data_shift;
 		buscfg->bus.parallel.clk_pol =
-			!!(vep.bus.parallel.flags
+			!!(vep->bus.parallel.flags
 			   & V4L2_MBUS_PCLK_SAMPLE_FALLING);
 		buscfg->bus.parallel.hs_pol =
-			!!(vep.bus.parallel.flags & V4L2_MBUS_VSYNC_ACTIVE_LOW);
+			!!(vep->bus.parallel.flags & V4L2_MBUS_VSYNC_ACTIVE_LOW);
 		buscfg->bus.parallel.vs_pol =
-			!!(vep.bus.parallel.flags & V4L2_MBUS_HSYNC_ACTIVE_LOW);
+			!!(vep->bus.parallel.flags & V4L2_MBUS_HSYNC_ACTIVE_LOW);
 		buscfg->bus.parallel.fld_pol =
-			!!(vep.bus.parallel.flags & V4L2_MBUS_FIELD_EVEN_LOW);
+			!!(vep->bus.parallel.flags & V4L2_MBUS_FIELD_EVEN_LOW);
 		buscfg->bus.parallel.data_pol =
-			!!(vep.bus.parallel.flags & V4L2_MBUS_DATA_ACTIVE_LOW);
+			!!(vep->bus.parallel.flags & V4L2_MBUS_DATA_ACTIVE_LOW);
+		buscfg->bus.parallel.bt656 = vep->bus_type == V4L2_MBUS_BT656;
 		break;
 
 	case ISP_OF_PHY_CSIPHY1:
 	case ISP_OF_PHY_CSIPHY2:
-		/* FIXME: always assume CSI-2 for now. */
-		switch (vep.base.port) {
+		switch (vep->bus_type) {
+		case V4L2_MBUS_CCP2:
+		case V4L2_MBUS_CSI1:
+			dev_dbg(dev, "CSI-1/CCP-2 configuration\n");
+			csi1 = true;
+			break;
+		case V4L2_MBUS_CSI2_DPHY:
+			dev_dbg(dev, "CSI-2 configuration\n");
+			csi1 = false;
+			break;
+		default:
+			dev_err(dev, "unsupported bus type %u\n",
+				vep->bus_type);
+			return -EINVAL;
+		}
+
+		switch (vep->base.port) {
 		case ISP_OF_PHY_CSIPHY1:
-			buscfg->interface = ISP_INTERFACE_CSI2C_PHY1;
+			if (csi1)
+				buscfg->interface = ISP_INTERFACE_CCP2B_PHY1;
+			else
+				buscfg->interface = ISP_INTERFACE_CSI2C_PHY1;
 			break;
 		case ISP_OF_PHY_CSIPHY2:
-			buscfg->interface = ISP_INTERFACE_CSI2A_PHY2;
+			if (csi1)
+				buscfg->interface = ISP_INTERFACE_CCP2B_PHY2;
+			else
+				buscfg->interface = ISP_INTERFACE_CSI2A_PHY2;
 			break;
 		}
-		buscfg->bus.csi2.lanecfg.clk.pos = vep.bus.mipi_csi2.clock_lane;
-		buscfg->bus.csi2.lanecfg.clk.pol =
-			vep.bus.mipi_csi2.lane_polarities[0];
-		dev_dbg(dev, "clock lane polarity %u, pos %u\n",
-			buscfg->bus.csi2.lanecfg.clk.pol,
-			buscfg->bus.csi2.lanecfg.clk.pos);
+		if (csi1) {
+			buscfg->bus.ccp2.lanecfg.clk.pos =
+				vep->bus.mipi_csi1.clock_lane;
+			buscfg->bus.ccp2.lanecfg.clk.pol =
+				vep->bus.mipi_csi1.lane_polarity[0];
+			dev_dbg(dev, "clock lane polarity %u, pos %u\n",
+				buscfg->bus.ccp2.lanecfg.clk.pol,
+				buscfg->bus.ccp2.lanecfg.clk.pos);
 
-		for (i = 0; i < ISP_CSIPHY2_NUM_DATA_LANES; i++) {
-			buscfg->bus.csi2.lanecfg.data[i].pos =
-				vep.bus.mipi_csi2.data_lanes[i];
-			buscfg->bus.csi2.lanecfg.data[i].pol =
-				vep.bus.mipi_csi2.lane_polarities[i + 1];
-			dev_dbg(dev, "data lane %u polarity %u, pos %u\n", i,
-				buscfg->bus.csi2.lanecfg.data[i].pol,
-				buscfg->bus.csi2.lanecfg.data[i].pos);
+			buscfg->bus.ccp2.lanecfg.data[0].pos =
+				vep->bus.mipi_csi1.data_lane;
+			buscfg->bus.ccp2.lanecfg.data[0].pol =
+				vep->bus.mipi_csi1.lane_polarity[1];
+
+			dev_dbg(dev, "data lane polarity %u, pos %u\n",
+				buscfg->bus.ccp2.lanecfg.data[0].pol,
+				buscfg->bus.ccp2.lanecfg.data[0].pos);
+
+			buscfg->bus.ccp2.strobe_clk_pol =
+				vep->bus.mipi_csi1.clock_inv;
+			buscfg->bus.ccp2.phy_layer = vep->bus.mipi_csi1.strobe;
+			buscfg->bus.ccp2.ccp2_mode =
+				vep->bus_type == V4L2_MBUS_CCP2;
+			buscfg->bus.ccp2.vp_clk_pol = 1;
+
+			buscfg->bus.ccp2.crc = 1;
+		} else {
+			buscfg->bus.csi2.lanecfg.clk.pos =
+				vep->bus.mipi_csi2.clock_lane;
+			buscfg->bus.csi2.lanecfg.clk.pol =
+				vep->bus.mipi_csi2.lane_polarities[0];
+			dev_dbg(dev, "clock lane polarity %u, pos %u\n",
+				buscfg->bus.csi2.lanecfg.clk.pol,
+				buscfg->bus.csi2.lanecfg.clk.pos);
+
+			buscfg->bus.csi2.num_data_lanes =
+				vep->bus.mipi_csi2.num_data_lanes;
+
+			for (i = 0; i < buscfg->bus.csi2.num_data_lanes; i++) {
+				buscfg->bus.csi2.lanecfg.data[i].pos =
+					vep->bus.mipi_csi2.data_lanes[i];
+				buscfg->bus.csi2.lanecfg.data[i].pol =
+					vep->bus.mipi_csi2.lane_polarities[i + 1];
+				dev_dbg(dev,
+					"data lane %u polarity %u, pos %u\n", i,
+					buscfg->bus.csi2.lanecfg.data[i].pol,
+					buscfg->bus.csi2.lanecfg.data[i].pos);
+			}
+			/*
+			 * FIXME: now we assume the CRC is always there.
+			 * Implement a way to obtain this information from the
+			 * sensor. Frame descriptors, perhaps?
+			 */
+			buscfg->bus.csi2.crc = 1;
 		}
-
-		/*
-		 * FIXME: now we assume the CRC is always there.
-		 * Implement a way to obtain this information from the
-		 * sensor. Frame descriptors, perhaps?
-		 */
-		buscfg->bus.csi2.crc = 1;
 		break;
 
 	default:
-		dev_warn(dev, "%s: invalid interface %u\n", node->full_name,
-			 vep.base.port);
-		break;
+		dev_warn(dev, "%pOF: invalid interface %u\n",
+			 to_of_node(vep->base.local_fwnode), vep->base.port);
+		return -EINVAL;
 	}
-
-	return 0;
-}
-
-static int isp_of_parse_nodes(struct device *dev,
-			      struct v4l2_async_notifier *notifier)
-{
-	struct device_node *node = NULL;
-
-	notifier->subdevs = devm_kcalloc(
-		dev, ISP_MAX_SUBDEVS, sizeof(*notifier->subdevs), GFP_KERNEL);
-	if (!notifier->subdevs)
-		return -ENOMEM;
-
-	while (notifier->num_subdevs < ISP_MAX_SUBDEVS &&
-	       (node = of_graph_get_next_endpoint(dev->of_node, node))) {
-		struct isp_async_subdev *isd;
-
-		isd = devm_kzalloc(dev, sizeof(*isd), GFP_KERNEL);
-		if (!isd) {
-			of_node_put(node);
-			return -ENOMEM;
-		}
-
-		notifier->subdevs[notifier->num_subdevs] = &isd->asd;
-
-		if (isp_of_parse_node(dev, node, isd)) {
-			of_node_put(node);
-			return -EINVAL;
-		}
-
-		isd->asd.match.of.node = of_graph_get_remote_port_parent(node);
-		of_node_put(node);
-		if (!isd->asd.match.of.node) {
-			dev_warn(dev, "bad remote port parent\n");
-			return -EINVAL;
-		}
-
-		isd->asd.match_type = V4L2_ASYNC_MATCH_OF;
-		notifier->num_subdevs++;
-	}
-
-	return notifier->num_subdevs;
-}
-
-static int isp_subdev_notifier_bound(struct v4l2_async_notifier *async,
-				     struct v4l2_subdev *subdev,
-				     struct v4l2_async_subdev *asd)
-{
-	struct isp_async_subdev *isd =
-		container_of(asd, struct isp_async_subdev, asd);
-
-	isd->sd = subdev;
-	isd->sd->host_priv = &isd->bus;
 
 	return 0;
 }
@@ -2162,7 +2150,6 @@ static int isp_subdev_notifier_complete(struct v4l2_async_notifier *async)
 					      notifier);
 	struct v4l2_device *v4l2_dev = &isp->v4l2_dev;
 	struct v4l2_subdev *sd;
-	struct isp_bus_cfg *bus;
 	int ret;
 
 	ret = media_entity_enum_init(&isp->crashed, &isp->media_dev);
@@ -2170,13 +2157,13 @@ static int isp_subdev_notifier_complete(struct v4l2_async_notifier *async)
 		return ret;
 
 	list_for_each_entry(sd, &v4l2_dev->subdevs, list) {
-		/* Only try to link entities whose interface was set on bound */
-		if (sd->host_priv) {
-			bus = (struct isp_bus_cfg *)sd->host_priv;
-			ret = isp_link_entity(isp, &sd->entity, bus->interface);
-			if (ret < 0)
-				return ret;
-		}
+		if (sd->notifier != &isp->notifier)
+			continue;
+
+		ret = isp_link_entity(isp, &sd->entity,
+				      v4l2_subdev_to_bus_cfg(sd)->interface);
+		if (ret < 0)
+			return ret;
 	}
 
 	ret = v4l2_device_register_subdev_nodes(&isp->v4l2_dev);
@@ -2185,6 +2172,10 @@ static int isp_subdev_notifier_complete(struct v4l2_async_notifier *async)
 
 	return media_device_register(&isp->media_dev);
 }
+
+static const struct v4l2_async_notifier_operations isp_subdev_notifier_ops = {
+	.complete = isp_subdev_notifier_complete,
+};
 
 /*
  * isp_probe - Probe ISP platform device
@@ -2204,35 +2195,40 @@ static int isp_probe(struct platform_device *pdev)
 	int ret;
 	int i, m;
 
-	isp = devm_kzalloc(&pdev->dev, sizeof(*isp), GFP_KERNEL);
+	isp = kzalloc(sizeof(*isp), GFP_KERNEL);
 	if (!isp) {
 		dev_err(&pdev->dev, "could not allocate memory\n");
 		return -ENOMEM;
 	}
 
-	ret = of_property_read_u32(pdev->dev.of_node, "ti,phy-type",
-				   &isp->phy_type);
+	ret = fwnode_property_read_u32(of_fwnode_handle(pdev->dev.of_node),
+				       "ti,phy-type", &isp->phy_type);
 	if (ret)
-		return ret;
+		goto error_release_isp;
 
 	isp->syscon = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
 						      "syscon");
-	if (IS_ERR(isp->syscon))
-		return PTR_ERR(isp->syscon);
+	if (IS_ERR(isp->syscon)) {
+		ret = PTR_ERR(isp->syscon);
+		goto error_release_isp;
+	}
 
-	ret = of_property_read_u32_index(pdev->dev.of_node, "syscon", 1,
-					 &isp->syscon_offset);
+	ret = of_property_read_u32_index(pdev->dev.of_node,
+					 "syscon", 1, &isp->syscon_offset);
 	if (ret)
-		return ret;
-
-	ret = isp_of_parse_nodes(&pdev->dev, &isp->notifier);
-	if (ret < 0)
-		return ret;
+		goto error_release_isp;
 
 	isp->autoidle = autoidle;
 
 	mutex_init(&isp->isp_mutex);
 	spin_lock_init(&isp->stat_lock);
+	v4l2_async_notifier_init(&isp->notifier);
+
+	ret = v4l2_async_notifier_parse_fwnode_endpoints(
+		&pdev->dev, &isp->notifier, sizeof(struct isp_async_subdev),
+		isp_fwnode_parse);
+	if (ret < 0)
+		goto error;
 
 	isp->dev = &pdev->dev;
 	isp->ref_count = 0;
@@ -2354,8 +2350,7 @@ static int isp_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto error_register_entities;
 
-	isp->notifier.bound = isp_subdev_notifier_bound;
-	isp->notifier.complete = isp_subdev_notifier_complete;
+	isp->notifier.ops = &isp_subdev_notifier_ops;
 
 	ret = v4l2_async_notifier_register(&isp->v4l2_dev, &isp->notifier);
 	if (ret)
@@ -2376,7 +2371,10 @@ error_isp:
 	isp_xclk_cleanup(isp);
 	__omap3isp_put(isp, false);
 error:
+	v4l2_async_notifier_cleanup(&isp->notifier);
 	mutex_destroy(&isp->isp_mutex);
+error_release_isp:
+	kfree(isp);
 
 	return ret;
 }
@@ -2388,7 +2386,7 @@ static const struct dev_pm_ops omap3isp_pm_ops = {
 	.complete = isp_pm_complete,
 };
 
-static struct platform_device_id omap3isp_id_table[] = {
+static const struct platform_device_id omap3isp_id_table[] = {
 	{ "omap3isp", 0 },
 	{ },
 };

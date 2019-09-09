@@ -1,5 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef TARGET_CORE_ALUA_H
 #define TARGET_CORE_ALUA_H
+
+#include <target/target_core_base.h>
 
 /*
  * INQUIRY response data, TPGS Field
@@ -69,15 +72,6 @@
  */
 #define ALUA_DEFAULT_IMPLICIT_TRANS_SECS			0
 #define ALUA_MAX_IMPLICIT_TRANS_SECS			255
-/*
- * Used by core_alua_update_tpg_primary_metadata() and
- * core_alua_update_tpg_secondary_metadata()
- */
-#define ALUA_METADATA_PATH_LEN				512
-/*
- * Used by core_alua_update_tpg_secondary_metadata()
- */
-#define ALUA_SECONDARY_METADATA_WWN_LEN			256
 
 /* Used by core_alua_update_tpg_(primary,secondary)_metadata */
 #define ALUA_MD_BUF_LEN					1024

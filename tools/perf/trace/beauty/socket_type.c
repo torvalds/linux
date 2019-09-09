@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: LGPL-2.1
 #include <sys/types.h>
 #include <sys/socket.h>
 
@@ -19,6 +20,8 @@
 
 static size_t syscall_arg__scnprintf_socket_type(char *bf, size_t size, struct syscall_arg *arg)
 {
+	bool show_prefix = arg->show_string_prefix;
+	const char *prefix = "SOCK_";
 	size_t printed;
 	int type = arg->val,
 	    flags = type & ~SOCK_TYPE_MASK;
@@ -28,7 +31,7 @@ static size_t syscall_arg__scnprintf_socket_type(char *bf, size_t size, struct s
 	 * Can't use a strarray, MIPS may override for ABI reasons.
 	 */
 	switch (type) {
-#define	P_SK_TYPE(n) case SOCK_##n: printed = scnprintf(bf, size, #n); break;
+#define	P_SK_TYPE(n) case SOCK_##n: printed = scnprintf(bf, size, "%s%s", show_prefix ? prefix : "", #n); break;
 	P_SK_TYPE(STREAM);
 	P_SK_TYPE(DGRAM);
 	P_SK_TYPE(RAW);

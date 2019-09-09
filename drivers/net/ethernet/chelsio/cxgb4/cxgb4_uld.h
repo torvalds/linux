@@ -77,6 +77,8 @@ enum {
 
 /* Special asynchronous notification message */
 #define CXGB4_MSG_AN ((void *)1)
+#define TX_ULD(uld)(((uld) != CXGB4_ULD_CRYPTO) ? CXGB4_TX_OFLD :\
+		      CXGB4_TX_CRYPTO)
 
 struct serv_entry {
 	void *data;
@@ -121,12 +123,14 @@ struct tid_info {
 
 	spinlock_t stid_lock;
 	unsigned int stids_in_use;
+	unsigned int v6_stids_in_use;
 	unsigned int sftids_in_use;
 
 	/* TIDs in the TCAM */
 	atomic_t tids_in_use;
 	/* TIDs in the HASH */
 	atomic_t hash_tids_in_use;
+	atomic_t conns_in_use;
 	/* lock for setting/clearing filter bitmap */
 	spinlock_t ftid_lock;
 };
@@ -155,13 +159,21 @@ static inline void *lookup_stid(const struct tid_info *t, unsigned int stid)
 }
 
 static inline void cxgb4_insert_tid(struct tid_info *t, void *data,
-				    unsigned int tid)
+				    unsigned int tid, unsigned short family)
 {
 	t->tid_tab[tid] = data;
-	if (t->hash_base && (tid >= t->hash_base))
-		atomic_inc(&t->hash_tids_in_use);
-	else
-		atomic_inc(&t->tids_in_use);
+	if (t->hash_base && (tid >= t->hash_base)) {
+		if (family == AF_INET6)
+			atomic_add(2, &t->hash_tids_in_use);
+		else
+			atomic_inc(&t->hash_tids_in_use);
+	} else {
+		if (family == AF_INET6)
+			atomic_add(2, &t->tids_in_use);
+		else
+			atomic_inc(&t->tids_in_use);
+	}
+	atomic_inc(&t->conns_in_use);
 }
 
 int cxgb4_alloc_atid(struct tid_info *t, void *data);
@@ -169,8 +181,8 @@ int cxgb4_alloc_stid(struct tid_info *t, int family, void *data);
 int cxgb4_alloc_sftid(struct tid_info *t, int family, void *data);
 void cxgb4_free_atid(struct tid_info *t, unsigned int atid);
 void cxgb4_free_stid(struct tid_info *t, unsigned int stid, int family);
-void cxgb4_remove_tid(struct tid_info *t, unsigned int qid, unsigned int tid);
-
+void cxgb4_remove_tid(struct tid_info *t, unsigned int qid, unsigned int tid,
+		      unsigned short family);
 struct in6_addr;
 
 int cxgb4_create_server(const struct net_device *dev, unsigned int stid,
@@ -200,14 +212,19 @@ struct filter_ctx {
 
 struct ch_filter_specification;
 
+int cxgb4_get_free_ftid(struct net_device *dev, int family);
 int __cxgb4_set_filter(struct net_device *dev, int filter_id,
 		       struct ch_filter_specification *fs,
 		       struct filter_ctx *ctx);
 int __cxgb4_del_filter(struct net_device *dev, int filter_id,
+		       struct ch_filter_specification *fs,
 		       struct filter_ctx *ctx);
 int cxgb4_set_filter(struct net_device *dev, int filter_id,
 		     struct ch_filter_specification *fs);
-int cxgb4_del_filter(struct net_device *dev, int filter_id);
+int cxgb4_del_filter(struct net_device *dev, int filter_id,
+		     struct ch_filter_specification *fs);
+int cxgb4_get_filter_counters(struct net_device *dev, unsigned int fidx,
+			      u64 *hitcnt, u64 *bytecnt, bool hash);
 
 static inline void set_wr_txq(struct sk_buff *skb, int prio, int queue)
 {
@@ -220,14 +237,29 @@ enum cxgb4_uld {
 	CXGB4_ULD_ISCSI,
 	CXGB4_ULD_ISCSIT,
 	CXGB4_ULD_CRYPTO,
+	CXGB4_ULD_TLS,
 	CXGB4_ULD_MAX
+};
+
+enum cxgb4_tx_uld {
+	CXGB4_TX_OFLD,
+	CXGB4_TX_CRYPTO,
+	CXGB4_TX_MAX
+};
+
+enum cxgb4_txq_type {
+	CXGB4_TXQ_ETH,
+	CXGB4_TXQ_ULD,
+	CXGB4_TXQ_CTRL,
+	CXGB4_TXQ_MAX
 };
 
 enum cxgb4_state {
 	CXGB4_STATE_UP,
 	CXGB4_STATE_START_RECOVERY,
 	CXGB4_STATE_DOWN,
-	CXGB4_STATE_DETACH
+	CXGB4_STATE_DETACH,
+	CXGB4_STATE_FATAL_ERROR
 };
 
 enum cxgb4_control {
@@ -253,10 +285,27 @@ struct cxgb4_virt_res {                      /* virtualized HW resources */
 	struct cxgb4_range iscsi;
 	struct cxgb4_range stag;
 	struct cxgb4_range rq;
+	struct cxgb4_range srq;
 	struct cxgb4_range pbl;
 	struct cxgb4_range qp;
 	struct cxgb4_range cq;
 	struct cxgb4_range ocq;
+	struct cxgb4_range key;
+	unsigned int ncrypto_fc;
+	struct cxgb4_range ppod_edram;
+};
+
+struct chcr_stats_debug {
+	atomic_t cipher_rqst;
+	atomic_t digest_rqst;
+	atomic_t aead_rqst;
+	atomic_t complete;
+	atomic_t error;
+	atomic_t fallback;
+	atomic_t ipsec_cnt;
+	atomic_t tls_pdu_tx;
+	atomic_t tls_pdu_rx;
+	atomic_t tls_key;
 };
 
 #define OCQ_WIN_OFFSET(pdev, vres) \
@@ -282,11 +331,13 @@ struct cxgb4_lld_info {
 	unsigned char wr_cred;               /* WR 16-byte credits */
 	unsigned char adapter_type;          /* type of adapter */
 	unsigned char fw_api_ver;            /* FW API version */
+	unsigned char crypto;                /* crypto support */
 	unsigned int fw_vers;                /* FW version */
 	unsigned int iscsi_iolen;            /* iSCSI max I/O length */
 	unsigned int cclk_ps;                /* Core clock period in psec */
 	unsigned short udb_density;          /* # of user DB/page */
 	unsigned short ucq_density;          /* # of user CQs/page */
+	unsigned int sge_host_page_size;     /* SGE host page size */
 	unsigned short filt_mode;            /* filter optional components */
 	unsigned short tx_modq[NCHAN];       /* maps each tx channel to a */
 					     /* scheduler queue */
@@ -306,16 +357,20 @@ struct cxgb4_lld_info {
 	unsigned int iscsi_tagmask;	     /* iscsi ddp tag mask */
 	unsigned int iscsi_pgsz_order;	     /* iscsi ddp page size orders */
 	unsigned int iscsi_llimit;	     /* chip's iscsi region llimit */
+	unsigned int ulp_crypto;             /* crypto lookaside support */
 	void **iscsi_ppm;		     /* iscsi page pod manager */
 	int nodeid;			     /* device numa node id */
 	bool fr_nsmr_tpte_wr_support;	     /* FW supports FR_NSMR_TPTE_WR */
+	bool write_w_imm_support;         /* FW supports WRITE_WITH_IMMEDIATE */
+	bool write_cmpl_support;             /* FW supports WRITE_CMPL WR */
 };
 
 struct cxgb4_uld_info {
-	const char *name;
+	char name[IFNAMSIZ];
 	void *handle;
 	unsigned int nrxq;
 	unsigned int rxq_size;
+	unsigned int ntxq;
 	bool ciq;
 	bool lro;
 	void *(*add)(const struct cxgb4_lld_info *p);
@@ -328,13 +383,18 @@ struct cxgb4_uld_info {
 			      struct t4_lro_mgr *lro_mgr,
 			      struct napi_struct *napi);
 	void (*lro_flush)(struct t4_lro_mgr *);
+	int (*tx_handler)(struct sk_buff *skb, struct net_device *dev);
 };
 
-int cxgb4_register_uld(enum cxgb4_uld type, const struct cxgb4_uld_info *p);
+void cxgb4_register_uld(enum cxgb4_uld type, const struct cxgb4_uld_info *p);
 int cxgb4_unregister_uld(enum cxgb4_uld type);
 int cxgb4_ofld_send(struct net_device *dev, struct sk_buff *skb);
+int cxgb4_immdata_send(struct net_device *dev, unsigned int idx,
+		       const void *src, unsigned int len);
+int cxgb4_crypto_send(struct net_device *dev, struct sk_buff *skb);
 unsigned int cxgb4_dbfifo_count(const struct net_device *dev, int lpfifo);
 unsigned int cxgb4_port_chan(const struct net_device *dev);
+unsigned int cxgb4_port_e2cchan(const struct net_device *dev);
 unsigned int cxgb4_port_viid(const struct net_device *dev);
 unsigned int cxgb4_tp_smt_idx(enum chip_type chip, unsigned int viid);
 unsigned int cxgb4_port_idx(const struct net_device *dev);

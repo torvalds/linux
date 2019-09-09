@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * PowerNV LPC bus handling.
  *
  * Copyright 2013 IBM Corp.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -36,17 +32,17 @@ static scom_map_t opal_scom_map(struct device_node *dev, u64 reg, u64 count)
 	const __be32 *gcid;
 
 	if (!of_get_property(dev, "scom-controller", NULL)) {
-		pr_err("%s: device %s is not a SCOM controller\n",
-			__func__, dev->full_name);
+		pr_err("%s: device %pOF is not a SCOM controller\n",
+			__func__, dev);
 		return SCOM_MAP_INVALID;
 	}
 	gcid = of_get_property(dev, "ibm,chip-id", NULL);
 	if (!gcid) {
-		pr_err("%s: device %s has no ibm,chip-id\n",
-			__func__, dev->full_name);
+		pr_err("%s: device %pOF has no ibm,chip-id\n",
+			__func__, dev);
 		return SCOM_MAP_INVALID;
 	}
-	m = kmalloc(sizeof(struct opal_scom_map), GFP_KERNEL);
+	m = kmalloc(sizeof(*m), GFP_KERNEL);
 	if (!m)
 		return NULL;
 	m->chip = be32_to_cpup(gcid);
@@ -73,25 +69,32 @@ static int opal_xscom_err_xlate(int64_t rc)
 
 static u64 opal_scom_unmangle(u64 addr)
 {
+	u64 tmp;
+
 	/*
-	 * XSCOM indirect addresses have the top bit set. Additionally
-	 * the rest of the top 3 nibbles is always 0.
+	 * XSCOM addresses use the top nibble to set indirect mode and
+	 * its form.  Bits 4-11 are always 0.
 	 *
 	 * Because the debugfs interface uses signed offsets and shifts
 	 * the address left by 3, we basically cannot use the top 4 bits
 	 * of the 64-bit address, and thus cannot use the indirect bit.
 	 *
-	 * To deal with that, we support the indirect bit being in bit
-	 * 4 (IBM notation) instead of bit 0 in this API, we do the
-	 * conversion here. To leave room for further xscom address
-	 * expansion, we only clear out the top byte
+	 * To deal with that, we support the indirect bits being in
+	 * bits 4-7 (IBM notation) instead of bit 0-3 in this API, we
+	 * do the conversion here.
 	 *
-	 * For in-kernel use, we also support the real indirect bit, so
-	 * we test for any of the top 5 bits
+	 * For in-kernel use, we don't need to do this mangling.  In
+	 * kernel won't have bits 4-7 set.
 	 *
+	 * So:
+	 *   debugfs will always   set 0-3 = 0 and clear 4-7
+	 *    kernel will always clear 0-3 = 0 and   set 4-7
 	 */
-	if (addr & (0x1full << 59))
-		addr = (addr & ~(0xffull << 56)) | (1ull << 63);
+	tmp = addr;
+	tmp  &= 0x0f00000000000000;
+	addr &= 0xf0ffffffffffffff;
+	addr |= tmp << 4;
+
 	return addr;
 }
 

@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * TS3A227E Autonomous Audio Accessory Detection and Configuration Switch
  *
  * Copyright (C) 2014 Google, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/gpio.h>
@@ -15,6 +12,7 @@
 #include <linux/module.h>
 #include <linux/of_gpio.h>
 #include <linux/regmap.h>
+#include <linux/acpi.h>
 
 #include <sound/core.h>
 #include <sound/jack.h>
@@ -240,7 +238,7 @@ int ts3a227e_enable_jack_detect(struct snd_soc_component *component,
 {
 	struct ts3a227e *ts3a227e = snd_soc_component_get_drvdata(component);
 
-	snd_jack_set_key(jack->jack, SND_JACK_BTN_0, KEY_MEDIA);
+	snd_jack_set_key(jack->jack, SND_JACK_BTN_0, KEY_PLAYPAUSE);
 	snd_jack_set_key(jack->jack, SND_JACK_BTN_1, KEY_VOICECOMMAND);
 	snd_jack_set_key(jack->jack, SND_JACK_BTN_2, KEY_VOLUMEUP);
 	snd_jack_set_key(jack->jack, SND_JACK_BTN_3, KEY_VOLUMEDOWN);
@@ -374,11 +372,20 @@ static const struct of_device_id ts3a227e_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, ts3a227e_of_match);
 
+#ifdef CONFIG_ACPI
+static struct acpi_device_id ts3a227e_acpi_match[] = {
+	{ "104C227E", 0 },
+	{},
+};
+MODULE_DEVICE_TABLE(acpi, ts3a227e_acpi_match);
+#endif
+
 static struct i2c_driver ts3a227e_driver = {
 	.driver = {
 		.name = "ts3a227e",
 		.pm = &ts3a227e_pm,
 		.of_match_table = of_match_ptr(ts3a227e_of_match),
+		.acpi_match_table = ACPI_PTR(ts3a227e_acpi_match),
 	},
 	.probe = ts3a227e_i2c_probe,
 	.id_table = ts3a227e_i2c_ids,

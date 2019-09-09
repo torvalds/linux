@@ -1,7 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * Xen PCI Frontend.
+ * Xen PCI Frontend
  *
- *   Author: Ryan Wilson <hap9@epoch.ncsc.mil>
+ * Author: Ryan Wilson <hap9@epoch.ncsc.mil>
  */
 #include <linux/module.h>
 #include <linux/init.h>
@@ -261,8 +262,8 @@ static int pci_frontend_enable_msix(struct pci_dev *dev,
 	struct msi_desc *entry;
 
 	if (nvec > SH_INFO_MAX_VEC) {
-		dev_err(&dev->dev, "too much vector for pci frontend: %x."
-				   " Increase SH_INFO_MAX_VEC.\n", nvec);
+		pci_err(dev, "too many vectors (0x%x) for PCI frontend:"
+				   " Increase SH_INFO_MAX_VEC\n", nvec);
 		return -EINVAL;
 	}
 
@@ -281,7 +282,7 @@ static int pci_frontend_enable_msix(struct pci_dev *dev,
 			/* we get the result */
 			for (i = 0; i < nvec; i++) {
 				if (op.msix_entries[i].vector <= 0) {
-					dev_warn(&dev->dev, "MSI-X entry %d is invalid: %d!\n",
+					pci_warn(dev, "MSI-X entry %d is invalid: %d!\n",
 						i, op.msix_entries[i].vector);
 					err = -EINVAL;
 					vector[i] = -1;
@@ -290,12 +291,11 @@ static int pci_frontend_enable_msix(struct pci_dev *dev,
 				vector[i] = op.msix_entries[i].vector;
 			}
 		} else {
-			printk(KERN_DEBUG "enable msix get value %x\n",
-				op.value);
+			pr_info("enable msix get value %x\n", op.value);
 			err = op.value;
 		}
 	} else {
-		dev_err(&dev->dev, "enable msix get err %x\n", err);
+		pci_err(dev, "enable msix get err %x\n", err);
 	}
 	return err;
 }
@@ -316,7 +316,7 @@ static void pci_frontend_disable_msix(struct pci_dev *dev)
 
 	/* What should do for error ? */
 	if (err)
-		dev_err(&dev->dev, "pci_disable_msix get err %x\n", err);
+		pci_err(dev, "pci_disable_msix get err %x\n", err);
 }
 
 static int pci_frontend_enable_msi(struct pci_dev *dev, int vector[])
@@ -335,13 +335,13 @@ static int pci_frontend_enable_msi(struct pci_dev *dev, int vector[])
 	if (likely(!err)) {
 		vector[0] = op.value;
 		if (op.value <= 0) {
-			dev_warn(&dev->dev, "MSI entry is invalid: %d!\n",
+			pci_warn(dev, "MSI entry is invalid: %d!\n",
 				op.value);
 			err = -EINVAL;
 			vector[0] = -1;
 		}
 	} else {
-		dev_err(&dev->dev, "pci frontend enable msi failed for dev "
+		pci_err(dev, "pci frontend enable msi failed for dev "
 				    "%x:%x\n", op.bus, op.devfn);
 		err = -EINVAL;
 	}
@@ -363,12 +363,12 @@ static void pci_frontend_disable_msi(struct pci_dev *dev)
 	err = do_pci_op(pdev, &op);
 	if (err == XEN_PCI_ERR_dev_not_found) {
 		/* XXX No response from backend, what shall we do? */
-		printk(KERN_DEBUG "get no response from backend for disable MSI\n");
+		pr_info("get no response from backend for disable MSI\n");
 		return;
 	}
 	if (err)
 		/* how can pciback notify us fail? */
-		printk(KERN_DEBUG "get fake response frombackend\n");
+		pr_info("get fake response from backend\n");
 }
 
 static struct xen_pci_frontend_ops pci_frontend_ops = {
@@ -560,7 +560,7 @@ static void free_root_bus_devs(struct pci_bus *bus)
 	while (!list_empty(&bus->devices)) {
 		dev = container_of(bus->devices.next, struct pci_dev,
 				   bus_list);
-		dev_dbg(&dev->dev, "removing device\n");
+		pci_dbg(dev, "removing device\n");
 		pci_stop_and_remove_bus_device(dev);
 	}
 }
@@ -595,6 +595,7 @@ static pci_ers_result_t pcifront_common_process(int cmd,
 	struct pci_driver *pdrv;
 	int bus = pdev->sh_info->aer_op.bus;
 	int devfn = pdev->sh_info->aer_op.devfn;
+	int domain = pdev->sh_info->aer_op.domain;
 	struct pci_dev *pcidev;
 	int flag = 0;
 
@@ -603,7 +604,7 @@ static pci_ers_result_t pcifront_common_process(int cmd,
 		cmd, bus, devfn);
 	result = PCI_ERS_RESULT_NONE;
 
-	pcidev = pci_get_bus_and_slot(bus, devfn);
+	pcidev = pci_get_domain_bus_and_slot(domain, bus, devfn);
 	if (!pcidev || !pcidev->driver) {
 		dev_err(&pdev->xdev->dev, "device or AER driver is NULL\n");
 		pci_dev_put(pcidev);
@@ -613,8 +614,7 @@ static pci_ers_result_t pcifront_common_process(int cmd,
 
 	if (pdrv) {
 		if (pdrv->err_handler && pdrv->err_handler->error_detected) {
-			dev_dbg(&pcidev->dev,
-				"trying to call AER service\n");
+			pci_dbg(pcidev, "trying to call AER service\n");
 			if (pcidev) {
 				flag = 1;
 				switch (cmd) {
@@ -1038,10 +1038,8 @@ static int pcifront_detach_devices(struct pcifront_device *pdev)
 			err = -ENOMEM;
 			goto out;
 		}
-		err = xenbus_scanf(XBT_NIL, pdev->xdev->otherend, str, "%d",
-				   &state);
-		if (err != 1)
-			state = XenbusStateUnknown;
+		state = xenbus_read_unsigned(pdev->xdev->otherend, str,
+					     XenbusStateUnknown);
 
 		if (state != XenbusStateClosing)
 			continue;
@@ -1105,7 +1103,7 @@ static void __ref pcifront_backend_changed(struct xenbus_device *xdev,
 	case XenbusStateClosed:
 		if (xdev->state == XenbusStateClosed)
 			break;
-		/* Missed the backend's CLOSING state -- fallthrough */
+		/* fall through - Missed the backend's CLOSING state. */
 	case XenbusStateClosing:
 		dev_warn(&xdev->dev, "backend going away!\n");
 		pcifront_try_disconnect(pdev);

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Hardware definitions for Palm Zire72
  *
@@ -10,12 +11,7 @@
  * Rewrite for mainline:
  *	Marek Vasut <marek.vasut@gmail.com>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  * (find more info at www.hackndev.com)
- *
  */
 
 #include <linux/platform_device.h>
@@ -30,7 +26,8 @@
 #include <linux/wm97xx.h>
 #include <linux/power_supply.h>
 #include <linux/usb/gpio_vbus.h>
-#include <linux/i2c-gpio.h>
+#include <linux/platform_data/i2c-gpio.h>
+#include <linux/gpio/machine.h>
 
 #include <asm/mach-types.h>
 #include <asm/suspend.h>
@@ -249,7 +246,7 @@ static int palmz72_pm_suspend(void)
 	store_ptr = *PALMZ72_SAVE_DWORD;
 
 	/* Setting PSPR to a proper value */
-	PSPR = virt_to_phys(&palmz72_resume_info);
+	PSPR = __pa_symbol(&palmz72_resume_info);
 
 	return 0;
 }
@@ -320,9 +317,17 @@ static struct soc_camera_link palmz72_iclink = {
 	.flags		= SOCAM_DATAWIDTH_8,
 };
 
+static struct gpiod_lookup_table palmz72_i2c_gpiod_table = {
+	.dev_id		= "i2c-gpio.0",
+	.table		= {
+		GPIO_LOOKUP_IDX("gpio-pxa", 118, NULL, 0,
+				GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN),
+		GPIO_LOOKUP_IDX("gpio-pxa", 117, NULL, 1,
+				GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN),
+	},
+};
+
 static struct i2c_gpio_platform_data palmz72_i2c_bus_data = {
-	.sda_pin	= 118,
-	.scl_pin	= 117,
 	.udelay		= 10,
 	.timeout	= 100,
 };
@@ -369,12 +374,26 @@ static void __init palmz72_camera_init(void)
 {
 	palmz72_cam_gpio_init();
 	pxa_set_camera_info(&palmz72_pxacamera_platform_data);
+	gpiod_add_lookup_table(&palmz72_i2c_gpiod_table);
 	platform_device_register(&palmz72_i2c_bus_device);
 	platform_device_register(&palmz72_camera);
 }
 #else
 static inline void palmz72_camera_init(void) {}
 #endif
+
+static struct gpiod_lookup_table palmz72_mci_gpio_table = {
+	.dev_id = "pxa2xx-mci.0",
+	.table = {
+		GPIO_LOOKUP("gpio-pxa", GPIO_NR_PALMZ72_SD_DETECT_N,
+			    "cd", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("gpio-pxa", GPIO_NR_PALMZ72_SD_RO,
+			    "wp", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("gpio-pxa", GPIO_NR_PALMZ72_SD_POWER_N,
+			    "power", GPIO_ACTIVE_LOW),
+		{ },
+	},
+};
 
 /******************************************************************************
  * Machine init
@@ -386,8 +405,7 @@ static void __init palmz72_init(void)
 	pxa_set_btuart_info(NULL);
 	pxa_set_stuart_info(NULL);
 
-	palm27x_mmc_init(GPIO_NR_PALMZ72_SD_DETECT_N, GPIO_NR_PALMZ72_SD_RO,
-			GPIO_NR_PALMZ72_SD_POWER_N, 1);
+	palm27x_mmc_init(&palmz72_mci_gpio_table);
 	palm27x_lcd_init(-1, &palm_320x320_lcd_mode);
 	palm27x_udc_init(GPIO_NR_PALMZ72_USB_DETECT_N,
 			GPIO_NR_PALMZ72_USB_PULLUP, 0);

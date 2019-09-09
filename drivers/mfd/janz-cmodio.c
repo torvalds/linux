@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Janz CMOD-IO MODULbus Carrier Board PCI Driver
  *
  * Copyright (c) 2010 Ira W. Snyder <iws@ovro.caltech.edu>
  *
  * Lots of inspiration and code was copied from drivers/mfd/sm501.c
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -183,10 +179,8 @@ static int cmodio_pci_probe(struct pci_dev *dev,
 	int ret;
 
 	priv = devm_kzalloc(&dev->dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv) {
-		dev_err(&dev->dev, "unable to allocate private data\n");
+	if (!priv)
 		return -ENOMEM;
-	}
 
 	pci_set_drvdata(dev, priv);
 	priv->pdev = dev;

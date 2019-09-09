@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (c) 2010 Broadcom Corporation
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
- * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
- * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
- * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 /****************
@@ -36,7 +25,7 @@
 #define BRCMF_DCMD_MEDLEN	1536
 #define BRCMF_DCMD_MAXLEN	8192
 
-/* IOCTL from host to device are limited in lenght. A device can only handle
+/* IOCTL from host to device are limited in length. A device can only handle
  * ethernet frame size. This limitation is to be applied by protocol layer.
  */
 #define BRCMF_TX_IOCTL_MAX_MSG_SIZE	(ETH_FRAME_LEN+ETH_FCS_LEN)
@@ -87,7 +76,6 @@ struct brcmf_rev_info {
 	u32 vendorid;
 	u32 deviceid;
 	u32 radiorev;
-	u32 chiprev;
 	u32 corerev;
 	u32 boardid;
 	u32 boardvendor;
@@ -95,7 +83,7 @@ struct brcmf_rev_info {
 	u32 driverrev;
 	u32 ucoderev;
 	u32 bus;
-	u32 chipnum;
+	char chipname[12];
 	u32 phytype;
 	u32 phyrev;
 	u32 anarev;
@@ -108,6 +96,7 @@ struct brcmf_pub {
 	/* Linkage ponters */
 	struct brcmf_bus *bus_if;
 	struct brcmf_proto *proto;
+	struct wiphy *wiphy;
 	struct brcmf_cfg80211_info *config;
 
 	/* Internal brcmf items */
@@ -121,13 +110,12 @@ struct brcmf_pub {
 
 	struct brcmf_if *iflist[BRCMF_MAX_IFS];
 	s32 if2bss[BRCMF_MAX_IFS];
+	struct brcmf_if *mon_if;
 
 	struct mutex proto_block;
 	unsigned char proto_buf[BRCMF_DCMD_MAXLEN];
 
 	struct brcmf_fweh_info fweh;
-
-	struct brcmf_fws_info *fws;
 
 	struct brcmf_ampdu_rx_reorder
 		*reorder_flows[BRCMF_AMPDU_RX_REORDER_MAXFLOWS];
@@ -143,6 +131,10 @@ struct brcmf_pub {
 	struct notifier_block inetaddr_notifier;
 	struct notifier_block inet6addr_notifier;
 	struct brcmf_mp_device *settings;
+
+	struct work_struct bus_reset;
+
+	u8 clmver[BRCMF_DCMD_SMLEN];
 };
 
 /* forward declarations */
@@ -171,7 +163,6 @@ enum brcmf_netif_stop_reason {
  * @drvr: points to device related information.
  * @vif: points to cfg80211 specific interface information.
  * @ndev: associated network device.
- * @stats: interface specific network statistics.
  * @multicast_work: worker object for multicast provisioning.
  * @ndoffload_work: worker object for neighbor discovery offload configuration.
  * @fws_desc: interface specific firmware-signalling descriptor.
@@ -182,12 +173,12 @@ enum brcmf_netif_stop_reason {
  * @netif_stop_lock: spinlock for update netif_stop from multiple sources.
  * @pend_8021x_cnt: tracks outstanding number of 802.1x frames.
  * @pend_8021x_wait: used for signalling change in count.
+ * @fwil_fwerr: flag indicating fwil layer should return firmware error codes.
  */
 struct brcmf_if {
 	struct brcmf_pub *drvr;
 	struct brcmf_cfg80211_vif *vif;
 	struct net_device *ndev;
-	struct net_device_stats stats;
 	struct work_struct multicast_work;
 	struct work_struct ndoffload_work;
 	struct brcmf_fws_mac_descriptor *fws_desc;
@@ -200,6 +191,7 @@ struct brcmf_if {
 	wait_queue_head_t pend_8021x_wait;
 	struct in6_addr ipv6_addr_tbl[NDOL_MAX_ENTRIES];
 	u8 ipv6addr_idx;
+	bool fwil_fwerr;
 };
 
 int brcmf_netdev_wait_pend8021x(struct brcmf_if *ifp);
@@ -207,6 +199,7 @@ int brcmf_netdev_wait_pend8021x(struct brcmf_if *ifp);
 /* Return pointer to interface name */
 char *brcmf_ifname(struct brcmf_if *ifp);
 struct brcmf_if *brcmf_get_ifp(struct brcmf_pub *drvr, int ifidx);
+void brcmf_configure_arp_nd_offload(struct brcmf_if *ifp, bool enable);
 int brcmf_net_attach(struct brcmf_if *ifp, bool rtnl_locked);
 struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, s32 bsscfgidx, s32 ifidx,
 			      bool is_p2pdev, const char *name, u8 *mac_addr);
@@ -215,8 +208,8 @@ void brcmf_txflowblock_if(struct brcmf_if *ifp,
 			  enum brcmf_netif_stop_reason reason, bool state);
 void brcmf_txfinalize(struct brcmf_if *ifp, struct sk_buff *txp, bool success);
 void brcmf_netif_rx(struct brcmf_if *ifp, struct sk_buff *skb);
+void brcmf_netif_mon_rx(struct brcmf_if *ifp, struct sk_buff *skb);
 void brcmf_net_setcarrier(struct brcmf_if *ifp, bool on);
-void brcmf_c_set_joinpref_default(struct brcmf_if *ifp);
 int __init brcmf_core_init(void);
 void __exit brcmf_core_exit(void);
 

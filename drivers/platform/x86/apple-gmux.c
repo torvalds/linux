@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Gmux driver for Apple laptops
  *
  *  Copyright (C) Canonical Ltd. <seth.forshee@canonical.com>
  *  Copyright (C) 2010-2012 Andreas Heider <andreas@meetr.de>
  *  Copyright (C) 2015 Lukas Wunner <lukas@wunner.de>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -24,7 +21,6 @@
 #include <linux/delay.h>
 #include <linux/pci.h>
 #include <linux/vga_switcheroo.h>
-#include <linux/vgaarb.h>
 #include <acpi/video.h>
 #include <asm/io.h>
 
@@ -54,12 +50,12 @@ struct apple_gmux_data {
 	bool indexed;
 	struct mutex index_lock;
 
-	struct pci_dev *pdev;
 	struct backlight_device *bdev;
 
 	/* switcheroo data */
 	acpi_handle dhandle;
 	int gpe;
+	bool external_switchable;
 	enum vga_switcheroo_client_id switch_state_display;
 	enum vga_switcheroo_client_id switch_state_ddc;
 	enum vga_switcheroo_client_id switch_state_external;
@@ -358,6 +354,19 @@ static const struct backlight_ops gmux_bl_ops = {
  * ports while the discrete GPU is asleep, but currently we do not make use
  * of this feature.
  *
+ * Our switching policy for the external port is that on those generations
+ * which are able to switch it fully, the port is switched together with the
+ * panel when IGD / DIS commands are issued to vga_switcheroo. It is thus
+ * possible to drive e.g. a beamer on battery power with the integrated GPU.
+ * The user may manually switch to the discrete GPU if more performance is
+ * needed.
+ *
+ * On all newer generations, the external port can only be driven by the
+ * discrete GPU. If a display is plugged in while the panel is switched to
+ * the integrated GPU, *both* GPUs will be in use for maximum performance.
+ * To decrease power consumption, the user may manually switch to the
+ * discrete GPU, thereby suspending the integrated GPU.
+ *
  * gmux' initial switch state on bootup is user configurable via the EFI
  * variable ``gpu-power-prefs-fa4ce28d-b62f-4c99-9cc3-6815686e30f9`` (5th byte,
  * 1 = IGD, 0 = DIS). Based on this setting, the EFI firmware tells gmux to
@@ -414,7 +423,8 @@ static int gmux_switchto(enum vga_switcheroo_client_id id)
 {
 	apple_gmux_data->switch_state_ddc = id;
 	apple_gmux_data->switch_state_display = id;
-	apple_gmux_data->switch_state_external = id;
+	if (apple_gmux_data->external_switchable)
+		apple_gmux_data->switch_state_external = id;
 
 	gmux_write_switch_state(apple_gmux_data);
 
@@ -482,7 +492,7 @@ static int gmux_set_power_state(enum vga_switcheroo_client_id id,
 	return gmux_set_discrete_state(apple_gmux_data, state);
 }
 
-static int gmux_get_client_id(struct pci_dev *pdev)
+static enum vga_switcheroo_client_id gmux_get_client_id(struct pci_dev *pdev)
 {
 	/*
 	 * Early Macbook Pros with switchable graphics use nvidia
@@ -584,21 +594,9 @@ static int gmux_resume(struct device *dev)
 	return 0;
 }
 
-static struct pci_dev *gmux_get_io_pdev(void)
+static int is_thunderbolt(struct device *dev, void *data)
 {
-	struct pci_dev *pdev = NULL;
-
-	while ((pdev = pci_get_class(PCI_CLASS_DISPLAY_VGA << 8, pdev))) {
-		u16 cmd;
-
-		pci_read_config_word(pdev, PCI_COMMAND, &cmd);
-		if (!(cmd & PCI_COMMAND_IO))
-			continue;
-
-		return pdev;
-	}
-
-	return NULL;
+	return to_pci_dev(dev)->is_thunderbolt;
 }
 
 static int gmux_probe(struct pnp_dev *pnp, const struct pnp_device_id *id)
@@ -611,7 +609,6 @@ static int gmux_probe(struct pnp_dev *pnp, const struct pnp_device_id *id)
 	int ret = -ENXIO;
 	acpi_status status;
 	unsigned long long gpe;
-	struct pci_dev *pdev = NULL;
 
 	if (apple_gmux_data)
 		return -EBUSY;
@@ -662,30 +659,13 @@ static int gmux_probe(struct pnp_dev *pnp, const struct pnp_device_id *id)
 			ver_minor = (version >> 16) & 0xff;
 			ver_release = (version >> 8) & 0xff;
 		} else {
-			pr_info("gmux device not present or IO disabled\n");
+			pr_info("gmux device not present\n");
 			ret = -ENODEV;
 			goto err_release;
 		}
 	}
 	pr_info("Found gmux version %d.%d.%d [%s]\n", ver_major, ver_minor,
 		ver_release, (gmux_data->indexed ? "indexed" : "classic"));
-
-	/*
-	 * Apple systems with gmux are EFI based and normally don't use
-	 * VGA. In addition changing IO+MEM ownership between IGP and dGPU
-	 * disables IO/MEM used for backlight control on some systems.
-	 * Lock IO+MEM to GPU with active IO to prevent switch.
-	 */
-	pdev = gmux_get_io_pdev();
-	if (pdev && vga_tryget(pdev,
-			       VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM)) {
-		pr_err("IO+MEM vgaarb-locking for PCI:%s failed\n",
-			pci_name(pdev));
-		ret = -EBUSY;
-		goto err_release;
-	} else if (pdev)
-		pr_info("locked IO for PCI:%s\n", pci_name(pdev));
-	gmux_data->pdev = pdev;
 
 	memset(&props, 0, sizeof(props));
 	props.type = BACKLIGHT_PLATFORM;
@@ -755,6 +735,15 @@ static int gmux_probe(struct pnp_dev *pnp, const struct pnp_device_id *id)
 		gmux_data->gpe = -1;
 	}
 
+	/*
+	 * If Thunderbolt is present, the external DP port is not fully
+	 * switchable. Force its AUX channel to the discrete GPU.
+	 */
+	gmux_data->external_switchable =
+		!bus_for_each_dev(&pci_bus_type, NULL, NULL, is_thunderbolt);
+	if (!gmux_data->external_switchable)
+		gmux_write8(gmux_data, GMUX_PORT_SWITCH_EXTERNAL, 3);
+
 	apple_gmux_data = gmux_data;
 	init_completion(&gmux_data->powerchange_done);
 	gmux_enable_interrupts(gmux_data);
@@ -793,10 +782,6 @@ err_enable_gpe:
 err_notify:
 	backlight_device_unregister(bdev);
 err_release:
-	if (gmux_data->pdev)
-		vga_put(gmux_data->pdev,
-			VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM);
-	pci_dev_put(pdev);
 	release_region(gmux_data->iostart, gmux_data->iolen);
 err_free:
 	kfree(gmux_data);
@@ -816,11 +801,6 @@ static void gmux_remove(struct pnp_dev *pnp)
 					   &gmux_notify_handler);
 	}
 
-	if (gmux_data->pdev) {
-		vga_put(gmux_data->pdev,
-			VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM);
-		pci_dev_put(gmux_data->pdev);
-	}
 	backlight_device_unregister(gmux_data->bdev);
 
 	release_region(gmux_data->iostart, gmux_data->iolen);

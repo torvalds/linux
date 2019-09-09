@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Virtual master and slave controls
  *
  *  Copyright (c) 2008 by Takashi Iwai <tiwai@suse.de>
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License as
- *  published by the Free Software Foundation, version 2.
- *
  */
 
 #include <linux/slab.h>
@@ -63,15 +59,18 @@ static int slave_update(struct link_slave *slave)
 	struct snd_ctl_elem_value *uctl;
 	int err, ch;
 
-	uctl = kmalloc(sizeof(*uctl), GFP_KERNEL);
+	uctl = kzalloc(sizeof(*uctl), GFP_KERNEL);
 	if (!uctl)
 		return -ENOMEM;
 	uctl->id = slave->slave.id;
 	err = slave->slave.get(&slave->slave, uctl);
+	if (err < 0)
+		goto error;
 	for (ch = 0; ch < slave->info.count; ch++)
 		slave->vals[ch] = uctl->value.integer.value[ch];
+ error:
 	kfree(uctl);
-	return 0;
+	return err < 0 ? err : 0;
 }
 
 /* get the slave ctl info and save the initial values */
@@ -256,8 +255,8 @@ int _snd_ctl_add_slave(struct snd_kcontrol *master, struct snd_kcontrol *slave,
 	struct link_master *master_link = snd_kcontrol_chip(master);
 	struct link_slave *srec;
 
-	srec = kzalloc(sizeof(*srec) +
-		       slave->count * sizeof(*slave->vd), GFP_KERNEL);
+	srec = kzalloc(struct_size(srec, slave.vd, slave->count),
+		       GFP_KERNEL);
 	if (!srec)
 		return -ENOMEM;
 	srec->kctl = slave;
@@ -418,13 +417,15 @@ struct snd_kcontrol *snd_ctl_make_virtual_master(char *name,
 	kctl->private_free = master_free;
 
 	/* additional (constant) TLV read */
-	if (tlv &&
-	    (tlv[0] == SNDRV_CTL_TLVT_DB_SCALE ||
-	     tlv[0] == SNDRV_CTL_TLVT_DB_MINMAX ||
-	     tlv[0] == SNDRV_CTL_TLVT_DB_MINMAX_MUTE)) {
-		kctl->vd[0].access |= SNDRV_CTL_ELEM_ACCESS_TLV_READ;
-		memcpy(master->tlv, tlv, sizeof(master->tlv));
-		kctl->tlv.p = master->tlv;
+	if (tlv) {
+		unsigned int type = tlv[SNDRV_CTL_TLVO_TYPE];
+		if (type == SNDRV_CTL_TLVT_DB_SCALE ||
+		    type == SNDRV_CTL_TLVT_DB_MINMAX ||
+		    type == SNDRV_CTL_TLVT_DB_MINMAX_MUTE) {
+			kctl->vd[0].access |= SNDRV_CTL_ELEM_ACCESS_TLV_READ;
+			memcpy(master->tlv, tlv, sizeof(master->tlv));
+			kctl->tlv.p = master->tlv;
+		}
 	}
 
 	return kctl;
@@ -484,3 +485,36 @@ void snd_ctl_sync_vmaster(struct snd_kcontrol *kcontrol, bool hook_only)
 		master->hook(master->hook_private_data, master->val);
 }
 EXPORT_SYMBOL_GPL(snd_ctl_sync_vmaster);
+
+/**
+ * snd_ctl_apply_vmaster_slaves - Apply function to each vmaster slave
+ * @kctl: vmaster kctl element
+ * @func: function to apply
+ * @arg: optional function argument
+ *
+ * Apply the function @func to each slave kctl of the given vmaster kctl.
+ * Returns 0 if successful, or a negative error code.
+ */
+int snd_ctl_apply_vmaster_slaves(struct snd_kcontrol *kctl,
+				 int (*func)(struct snd_kcontrol *vslave,
+					     struct snd_kcontrol *slave,
+					     void *arg),
+				 void *arg)
+{
+	struct link_master *master;
+	struct link_slave *slave;
+	int err;
+
+	master = snd_kcontrol_chip(kctl);
+	err = master_init(master);
+	if (err < 0)
+		return err;
+	list_for_each_entry(slave, &master->slaves, list) {
+		err = func(slave->kctl, &slave->slave, arg);
+		if (err < 0)
+			return err;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_ctl_apply_vmaster_slaves);

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *   ALSA driver for ICEnsemble ICE1712 (Envy24)
  *
@@ -5,21 +6,6 @@
  *			    Audiophile, Digigram VX442
  *
  *	Copyright (c) 2000 Jaroslav Kysela <perex@perex.cz>
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */      
 
 #include <linux/delay.h>
@@ -432,7 +418,7 @@ static int snd_ice1712_delta1010lt_wordclock_status_get(struct snd_kcontrol *kco
 	return 0;
 }
 
-static struct snd_kcontrol_new snd_ice1712_delta1010lt_wordclock_status =
+static const struct snd_kcontrol_new snd_ice1712_delta1010lt_wordclock_status =
 {
 	.access =	(SNDRV_CTL_ELEM_ACCESS_READ),
 	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
@@ -445,7 +431,7 @@ static struct snd_kcontrol_new snd_ice1712_delta1010lt_wordclock_status =
  * initialize the chips on M-Audio cards
  */
 
-static struct snd_akm4xxx akm_audiophile = {
+static const struct snd_akm4xxx akm_audiophile = {
 	.type = SND_AK4528,
 	.num_adcs = 2,
 	.num_dacs = 2,
@@ -454,7 +440,7 @@ static struct snd_akm4xxx akm_audiophile = {
 	}
 };
 
-static struct snd_ak4xxx_private akm_audiophile_priv = {
+static const struct snd_ak4xxx_private akm_audiophile_priv = {
 	.caddr = 2,
 	.cif = 0,
 	.data_mask = ICE1712_DELTA_AP_DOUT,
@@ -466,7 +452,7 @@ static struct snd_ak4xxx_private akm_audiophile_priv = {
 	.mask_flags = 0,
 };
 
-static struct snd_akm4xxx akm_delta410 = {
+static const struct snd_akm4xxx akm_delta410 = {
 	.type = SND_AK4529,
 	.num_adcs = 2,
 	.num_dacs = 8,
@@ -475,7 +461,7 @@ static struct snd_akm4xxx akm_delta410 = {
 	}
 };
 
-static struct snd_ak4xxx_private akm_delta410_priv = {
+static const struct snd_ak4xxx_private akm_delta410_priv = {
 	.caddr = 0,
 	.cif = 0,
 	.data_mask = ICE1712_DELTA_AP_DOUT,
@@ -487,7 +473,7 @@ static struct snd_ak4xxx_private akm_delta410_priv = {
 	.mask_flags = 0,
 };
 
-static struct snd_akm4xxx akm_delta1010lt = {
+static const struct snd_akm4xxx akm_delta1010lt = {
 	.type = SND_AK4524,
 	.num_adcs = 8,
 	.num_dacs = 8,
@@ -497,7 +483,7 @@ static struct snd_akm4xxx akm_delta1010lt = {
 	}
 };
 
-static struct snd_ak4xxx_private akm_delta1010lt_priv = {
+static const struct snd_ak4xxx_private akm_delta1010lt_priv = {
 	.caddr = 2,
 	.cif = 0, /* the default level of the CIF pin from AK4524 */
 	.data_mask = ICE1712_DELTA_1010LT_DOUT,
@@ -509,7 +495,7 @@ static struct snd_ak4xxx_private akm_delta1010lt_priv = {
 	.mask_flags = 0,
 };
 
-static struct snd_akm4xxx akm_delta66e = {
+static const struct snd_akm4xxx akm_delta66e = {
 	.type = SND_AK4524,
 	.num_adcs = 4,
 	.num_dacs = 4,
@@ -519,7 +505,7 @@ static struct snd_akm4xxx akm_delta66e = {
 	}
 };
 
-static struct snd_ak4xxx_private akm_delta66e_priv = {
+static const struct snd_ak4xxx_private akm_delta66e_priv = {
 	.caddr = 2,
 	.cif = 0, /* the default level of the CIF pin from AK4524 */
 	.data_mask = ICE1712_DELTA_66E_DOUT,
@@ -532,7 +518,7 @@ static struct snd_ak4xxx_private akm_delta66e_priv = {
 };
 
 
-static struct snd_akm4xxx akm_delta44 = {
+static const struct snd_akm4xxx akm_delta44 = {
 	.type = SND_AK4524,
 	.num_adcs = 4,
 	.num_dacs = 4,
@@ -542,7 +528,7 @@ static struct snd_akm4xxx akm_delta44 = {
 	}
 };
 
-static struct snd_ak4xxx_private akm_delta44_priv = {
+static const struct snd_ak4xxx_private akm_delta44_priv = {
 	.caddr = 2,
 	.cif = 0, /* the default level of the CIF pin from AK4524 */
 	.data_mask = ICE1712_DELTA_CODEC_SERIAL_DATA,
@@ -554,7 +540,7 @@ static struct snd_ak4xxx_private akm_delta44_priv = {
 	.mask_flags = 0,
 };
 
-static struct snd_akm4xxx akm_vx442 = {
+static const struct snd_akm4xxx akm_vx442 = {
 	.type = SND_AK4524,
 	.num_adcs = 4,
 	.num_dacs = 4,
@@ -564,7 +550,7 @@ static struct snd_akm4xxx akm_vx442 = {
 	}
 };
 
-static struct snd_ak4xxx_private akm_vx442_priv = {
+static const struct snd_ak4xxx_private akm_vx442_priv = {
 	.caddr = 2,
 	.cif = 0,
 	.data_mask = ICE1712_VX442_DOUT,

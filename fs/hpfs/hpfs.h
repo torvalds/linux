@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *  linux/fs/hpfs/hpfs.h
  *
@@ -119,11 +120,11 @@ struct hpfs_spare_block
   u8 bad_sector: 1;			/* bad sector, corrupted disk (???) */
   u8 bad_bitmap: 1;			/* bad bitmap */
   u8 fast: 1;				/* partition was fast formatted */
-  u8 old_wrote: 1;			/* old version wrote to partion */
-  u8 old_wrote_1: 1;			/* old version wrote to partion (?) */
+  u8 old_wrote: 1;			/* old version wrote to partition */
+  u8 old_wrote_1: 1;			/* old version wrote to partition (?) */
 #else
-  u8 old_wrote_1: 1;			/* old version wrote to partion (?) */
-  u8 old_wrote: 1;			/* old version wrote to partion */
+  u8 old_wrote_1: 1;			/* old version wrote to partition (?) */
+  u8 old_wrote: 1;			/* old version wrote to partition */
   u8 fast: 1;				/* partition was fast formatted */
   u8 bad_bitmap: 1;			/* bad bitmap */
   u8 bad_sector: 1;			/* bad sector, corrupted disk (???) */

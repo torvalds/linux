@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ZTE zx296702 SoC reset code
  *
  * Copyright (c) 2015 Linaro Ltd.
  *
  * Author: Jun Nie <jun.nie@linaro.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/delay.h>
@@ -51,6 +48,7 @@ static int zx_reboot_probe(struct platform_device *pdev)
 
 	np = of_find_compatible_node(NULL, NULL, "zte,zx296702-pcu");
 	pcu_base = of_iomap(np, 0);
+	of_node_put(np);
 	if (!pcu_base) {
 		iounmap(base);
 		WARN(1, "failed to map pcu_base address");
@@ -72,6 +70,7 @@ static const struct of_device_id zx_reboot_of_match[] = {
 	{ .compatible = "zte,sysctrl" },
 	{}
 };
+MODULE_DEVICE_TABLE(of, zx_reboot_of_match);
 
 static struct platform_driver zx_reboot_driver = {
 	.probe = zx_reboot_probe,
@@ -81,3 +80,7 @@ static struct platform_driver zx_reboot_driver = {
 	},
 };
 module_platform_driver(zx_reboot_driver);
+
+MODULE_DESCRIPTION("ZTE SoCs reset driver");
+MODULE_AUTHOR("Jun Nie <jun.nie@linaro.org>");
+MODULE_LICENSE("GPL v2");

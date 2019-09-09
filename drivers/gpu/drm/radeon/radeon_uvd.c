@@ -30,7 +30,7 @@
 
 #include <linux/firmware.h>
 #include <linux/module.h>
-#include <drm/drmP.h>
+
 #include <drm/drm.h>
 
 #include "radeon.h"
@@ -467,7 +467,7 @@ static int radeon_uvd_cs_msg(struct radeon_cs_parser *p, struct radeon_bo *bo,
 {
 	int32_t *msg, msg_type, handle;
 	unsigned img_size = 0;
-	struct fence *f;
+	struct dma_fence *f;
 	void *ptr;
 
 	int i, r;
@@ -995,7 +995,7 @@ int radeon_uvd_calc_upll_dividers(struct radeon_device *rdev,
 		/* calc dclk divider with current vco freq */
 		dclk_div = radeon_uvd_calc_upll_post_div(vco_freq, dclk,
 							 pd_min, pd_even);
-		if (vclk_div > pd_max)
+		if (dclk_div > pd_max)
 			break; /* vco is too big, it has to stop */
 
 		/* calc score with current vco freq */

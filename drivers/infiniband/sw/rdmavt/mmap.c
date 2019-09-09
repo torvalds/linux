@@ -49,6 +49,7 @@
 #include <linux/vmalloc.h>
 #include <linux/mm.h>
 #include <asm/pgtable.h>
+#include <rdma/uverbs_ioctl.h>
 #include "mmap.h"
 
 /**
@@ -150,17 +151,18 @@ done:
  * rvt_create_mmap_info - allocate information for hfi1_mmap
  * @rdi: rvt dev struct
  * @size: size in bytes to map
- * @context: user context
+ * @udata: user data (must be valid!)
  * @obj: opaque pointer to a cq, wq etc
  *
  * Return: rvt_mmap struct on success
  */
-struct rvt_mmap_info *rvt_create_mmap_info(struct rvt_dev_info *rdi,
-					   u32 size,
-					   struct ib_ucontext *context,
-					   void *obj)
+struct rvt_mmap_info *rvt_create_mmap_info(struct rvt_dev_info *rdi, u32 size,
+					   struct ib_udata *udata, void *obj)
 {
 	struct rvt_mmap_info *ip;
+
+	if (!udata)
+		return ERR_PTR(-EINVAL);
 
 	ip = kmalloc_node(sizeof(*ip), GFP_KERNEL, rdi->dparms.node);
 	if (!ip)
@@ -170,14 +172,16 @@ struct rvt_mmap_info *rvt_create_mmap_info(struct rvt_dev_info *rdi,
 
 	spin_lock_irq(&rdi->mmap_offset_lock);
 	if (rdi->mmap_offset == 0)
-		rdi->mmap_offset = PAGE_SIZE;
+		rdi->mmap_offset = ALIGN(PAGE_SIZE, SHMLBA);
 	ip->offset = rdi->mmap_offset;
-	rdi->mmap_offset += size;
+	rdi->mmap_offset += ALIGN(size, SHMLBA);
 	spin_unlock_irq(&rdi->mmap_offset_lock);
 
 	INIT_LIST_HEAD(&ip->pending_mmaps);
 	ip->size = size;
-	ip->context = context;
+	ip->context =
+		container_of(udata, struct uverbs_attr_bundle, driver_udata)
+			->context;
 	ip->obj = obj;
 	kref_init(&ip->ref);
 

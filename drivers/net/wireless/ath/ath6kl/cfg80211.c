@@ -20,6 +20,7 @@
 #include <linux/moduleparam.h>
 #include <linux/inetdevice.h>
 #include <linux/export.h>
+#include <linux/sched/signal.h>
 
 #include "core.h"
 #include "cfg80211.h"
@@ -101,10 +102,8 @@ static struct ieee80211_channel ath6kl_2ghz_channels[] = {
 };
 
 static struct ieee80211_channel ath6kl_5ghz_a_channels[] = {
-	CHAN5G(34, 0), CHAN5G(36, 0),
-	CHAN5G(38, 0), CHAN5G(40, 0),
-	CHAN5G(42, 0), CHAN5G(44, 0),
-	CHAN5G(46, 0), CHAN5G(48, 0),
+	CHAN5G(36, 0), CHAN5G(40, 0),
+	CHAN5G(44, 0), CHAN5G(48, 0),
 	CHAN5G(52, 0), CHAN5G(56, 0),
 	CHAN5G(60, 0), CHAN5G(64, 0),
 	CHAN5G(100, 0), CHAN5G(104, 0),
@@ -170,7 +169,7 @@ static void ath6kl_cfg80211_sscan_disable(struct ath6kl_vif *vif)
 	if (!stopped)
 		return;
 
-	cfg80211_sched_scan_stopped(ar->wiphy);
+	cfg80211_sched_scan_stopped(ar->wiphy, 0);
 }
 
 static int ath6kl_set_wpa_version(struct ath6kl_vif *vif,
@@ -292,7 +291,7 @@ static bool ath6kl_cfg80211_ready(struct ath6kl_vif *vif)
 	}
 
 	if (!test_bit(WLAN_ENABLED, &vif->flags)) {
-		ath6kl_err("wlan disabled\n");
+		ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "wlan disabled\n");
 		return false;
 	}
 
@@ -807,9 +806,15 @@ void ath6kl_cfg80211_connect_event(struct ath6kl_vif *vif, u16 channel,
 					WLAN_STATUS_SUCCESS, GFP_KERNEL);
 		cfg80211_put_bss(ar->wiphy, bss);
 	} else if (vif->sme_state == SME_CONNECTED) {
+		struct cfg80211_roam_info roam_info = {
+			.bss = bss,
+			.req_ie = assoc_req_ie,
+			.req_ie_len = assoc_req_len,
+			.resp_ie = assoc_resp_ie,
+			.resp_ie_len = assoc_resp_len,
+		};
 		/* inform roam event to cfg80211 */
-		cfg80211_roamed_bss(vif->ndev, bss, assoc_req_ie, assoc_req_len,
-				    assoc_resp_ie, assoc_resp_len, GFP_KERNEL);
+		cfg80211_roamed(vif->ndev, &roam_info, GFP_KERNEL);
 	}
 }
 
@@ -934,7 +939,7 @@ static int ath6kl_set_probed_ssids(struct ath6kl *ar,
 		else
 			ssid_list[i].flag = ANY_SSID_FLAG;
 
-		if (n_match_ssid == 0)
+		if (ar->wiphy->max_match_sets != 0 && n_match_ssid == 0)
 			ssid_list[i].flag |= MATCH_SSID_FLAG;
 	}
 
@@ -1036,7 +1041,7 @@ static int ath6kl_cfg80211_scan(struct wiphy *wiphy,
 
 		n_channels = request->n_channels;
 
-		channels = kzalloc(n_channels * sizeof(u16), GFP_KERNEL);
+		channels = kcalloc(n_channels, sizeof(u16), GFP_KERNEL);
 		if (channels == NULL) {
 			ath6kl_warn("failed to set scan channels, scan all channels");
 			n_channels = 0;
@@ -1088,7 +1093,7 @@ void ath6kl_cfg80211_scan_complete_event(struct ath6kl_vif *vif, bool aborted)
 	if (vif->scan_req->n_ssids && vif->scan_req->ssids[0].ssid_len) {
 		for (i = 0; i < vif->scan_req->n_ssids; i++) {
 			ath6kl_wmi_probedssid_cmd(ar->wmi, vif->fw_vif_idx,
-						  i + 1, DISABLE_SSID_FLAG,
+						  i, DISABLE_SSID_FLAG,
 						  0, NULL);
 		}
 	}
@@ -1317,7 +1322,7 @@ static int ath6kl_cfg80211_set_default_key(struct wiphy *wiphy,
 	struct ath6kl_vif *vif = netdev_priv(ndev);
 	struct ath6kl_key *key = NULL;
 	u8 key_usage;
-	enum crypto_type key_type = NONE_CRYPT;
+	enum ath6kl_crypto_type key_type = NONE_CRYPT;
 
 	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "%s: index %d\n", __func__, key_index);
 
@@ -1504,7 +1509,6 @@ static struct wireless_dev *ath6kl_cfg80211_add_iface(struct wiphy *wiphy,
 						      const char *name,
 						      unsigned char name_assign_type,
 						      enum nl80211_iftype type,
-						      u32 *flags,
 						      struct vif_params *params)
 {
 	struct ath6kl *ar = wiphy_priv(wiphy);
@@ -1551,7 +1555,7 @@ static int ath6kl_cfg80211_del_iface(struct wiphy *wiphy,
 
 static int ath6kl_cfg80211_change_iface(struct wiphy *wiphy,
 					struct net_device *ndev,
-					enum nl80211_iftype type, u32 *flags,
+					enum nl80211_iftype type,
 					struct vif_params *params)
 {
 	struct ath6kl_vif *vif = netdev_priv(ndev);
@@ -1807,20 +1811,20 @@ static int ath6kl_get_station(struct wiphy *wiphy, struct net_device *dev,
 
 	if (vif->target_stats.rx_byte) {
 		sinfo->rx_bytes = vif->target_stats.rx_byte;
-		sinfo->filled |= BIT(NL80211_STA_INFO_RX_BYTES64);
+		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_RX_BYTES64);
 		sinfo->rx_packets = vif->target_stats.rx_pkt;
-		sinfo->filled |= BIT(NL80211_STA_INFO_RX_PACKETS);
+		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_RX_PACKETS);
 	}
 
 	if (vif->target_stats.tx_byte) {
 		sinfo->tx_bytes = vif->target_stats.tx_byte;
-		sinfo->filled |= BIT(NL80211_STA_INFO_TX_BYTES64);
+		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_BYTES64);
 		sinfo->tx_packets = vif->target_stats.tx_pkt;
-		sinfo->filled |= BIT(NL80211_STA_INFO_TX_PACKETS);
+		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_PACKETS);
 	}
 
 	sinfo->signal = vif->target_stats.cs_rssi;
-	sinfo->filled |= BIT(NL80211_STA_INFO_SIGNAL);
+	sinfo->filled |= BIT_ULL(NL80211_STA_INFO_SIGNAL);
 
 	rate = vif->target_stats.tx_ucast_rate;
 
@@ -1853,12 +1857,12 @@ static int ath6kl_get_station(struct wiphy *wiphy, struct net_device *dev,
 		return 0;
 	}
 
-	sinfo->filled |= BIT(NL80211_STA_INFO_TX_BITRATE);
+	sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_BITRATE);
 
 	if (test_bit(CONNECTED, &vif->flags) &&
 	    test_bit(DTIM_PERIOD_AVAIL, &vif->flags) &&
 	    vif->nw_type == INFRA_NETWORK) {
-		sinfo->filled |= BIT(NL80211_STA_INFO_BSS_PARAM);
+		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_BSS_PARAM);
 		sinfo->bss_param.flags = 0;
 		sinfo->bss_param.dtim_period = vif->assoc_bss_dtim_period;
 		sinfo->bss_param.beacon_interval = vif->assoc_bss_beacon_int;
@@ -2190,13 +2194,13 @@ static int ath6kl_wow_suspend_vif(struct ath6kl_vif *vif,
 	if (!in_dev)
 		return 0;
 
-	ifa = in_dev->ifa_list;
+	ifa = rtnl_dereference(in_dev->ifa_list);
 	memset(&ips, 0, sizeof(ips));
 
 	/* Configure IP addr only if IP address count < MAX_IP_ADDRS */
 	while (index < MAX_IP_ADDRS && ifa) {
 		ips[index] = ifa->ifa_local;
-		ifa = ifa->ifa_next;
+		ifa = rtnl_dereference(ifa->ifa_next);
 		index++;
 	}
 
@@ -2762,7 +2766,6 @@ static int ath6kl_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	struct ieee80211_mgmt *mgmt;
 	bool hidden = false;
 	u8 *ies;
-	int ies_len;
 	struct wmi_connect_cmd p;
 	int res;
 	int i, ret;
@@ -2800,7 +2803,6 @@ static int ath6kl_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	ies = mgmt->u.beacon.variable;
 	if (ies > info->beacon.head + info->beacon.head_len)
 		return -EINVAL;
-	ies_len = info->beacon.head + info->beacon.head_len - ies;
 
 	if (info->ssid == NULL)
 		return -EINVAL;
@@ -3354,7 +3356,7 @@ static int ath6kl_cfg80211_sscan_start(struct wiphy *wiphy,
 }
 
 static int ath6kl_cfg80211_sscan_stop(struct wiphy *wiphy,
-				      struct net_device *dev)
+				      struct net_device *dev, u64 reqid)
 {
 	struct ath6kl_vif *vif = netdev_priv(dev);
 	bool stopped;
@@ -3585,10 +3587,8 @@ static int ath6kl_cfg80211_vif_init(struct ath6kl_vif *vif)
 		return -ENOMEM;
 	}
 
-	setup_timer(&vif->disconnect_timer, disconnect_timer_handler,
-		    (unsigned long) vif->ndev);
-	setup_timer(&vif->sched_scan_timer, ath6kl_wmi_sscan_timer,
-		    (unsigned long) vif);
+	timer_setup(&vif->disconnect_timer, disconnect_timer_handler, 0);
+	timer_setup(&vif->sched_scan_timer, ath6kl_wmi_sscan_timer, 0);
 
 	set_bit(WMM_ENABLED, &vif->flags);
 	spin_lock_init(&vif->if_lock);
@@ -3899,16 +3899,19 @@ int ath6kl_cfg80211_init(struct ath6kl *ar)
 	switch (ar->hw.cap) {
 	case WMI_11AN_CAP:
 		ht = true;
+		/* fall through */
 	case WMI_11A_CAP:
 		band_5gig = true;
 		break;
 	case WMI_11GN_CAP:
 		ht = true;
+		/* fall through */
 	case WMI_11G_CAP:
 		band_2gig = true;
 		break;
 	case WMI_11AGN_CAP:
 		ht = true;
+		/* fall through */
 	case WMI_11AG_CAP:
 		band_2gig = true;
 		band_5gig = true;
@@ -3975,7 +3978,7 @@ int ath6kl_cfg80211_init(struct ath6kl *ar)
 			    WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD;
 
 	if (test_bit(ATH6KL_FW_CAPABILITY_SCHED_SCAN_V2, ar->fw_capabilities))
-		ar->wiphy->flags |= WIPHY_FLAG_SUPPORTS_SCHED_SCAN;
+		ar->wiphy->max_sched_scan_reqs = 1;
 
 	if (test_bit(ATH6KL_FW_CAPABILITY_INACTIVITY_TIMEOUT,
 		     ar->fw_capabilities))

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * OpenRISC Linux
  *
@@ -9,11 +10,6 @@
  * Copyright (C) 2003 Matjaz Breskvar <phoenix@bsemi.com>
  * Copyright (C) 2010-2011 Jonas Bonn <jonas@southpole.se>
  * et al.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #ifndef _ASM_THREAD_INFO_H
@@ -74,12 +70,10 @@ struct thread_info {
 	.task		= &tsk,				\
 	.flags		= 0,				\
 	.cpu		= 0,				\
-	.preempt_count	= 1,				\
+	.preempt_count	= INIT_PREEMPT_COUNT,		\
 	.addr_limit	= KERNEL_DS,			\
 	.ksp            = 0,                            \
 }
-
-#define init_thread_info	(init_thread_union.thread_info)
 
 /* how to get the thread information struct from C */
 register struct thread_info *current_thread_info_reg asm("r10");

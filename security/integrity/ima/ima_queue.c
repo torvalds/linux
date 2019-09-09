@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2005,2006,2007,2008 IBM Corporation
  *
@@ -5,11 +6,6 @@
  * Serge Hallyn <serue@us.ibm.com>
  * Reiner Sailer <sailer@watson.ibm.com>
  * Mimi Zohar <zohar@us.ibm.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation, version 2 of the
- * License.
  *
  * File: ima_queue.c
  *       Implements queues that store template measurements and
@@ -21,14 +17,21 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/module.h>
 #include <linux/rculist.h>
 #include <linux/slab.h>
 #include "ima.h"
 
 #define AUDIT_CAUSE_LEN_MAX 32
 
+/* pre-allocated array of tpm_digest structures to extend a PCR */
+static struct tpm_digest *digests;
+
 LIST_HEAD(ima_measurements);	/* list of all measurements */
+#ifdef CONFIG_IMA_KEXEC
+static unsigned long binary_runtime_size;
+#else
+static unsigned long binary_runtime_size = ULONG_MAX;
+#endif
 
 /* key: inode (before secure-hashing a file) */
 struct ima_h_table ima_htable = {
@@ -64,12 +67,32 @@ static struct ima_queue_entry *ima_lookup_digest_entry(u8 *digest_value,
 	return ret;
 }
 
+/*
+ * Calculate the memory required for serializing a single
+ * binary_runtime_measurement list entry, which contains a
+ * couple of variable length fields (e.g template name and data).
+ */
+static int get_binary_runtime_size(struct ima_template_entry *entry)
+{
+	int size = 0;
+
+	size += sizeof(u32);	/* pcr */
+	size += sizeof(entry->digest);
+	size += sizeof(int);	/* template name size field */
+	size += strlen(entry->template_desc->name);
+	size += sizeof(entry->template_data_len);
+	size += entry->template_data_len;
+	return size;
+}
+
 /* ima_add_template_entry helper function:
- * - Add template entry to measurement list and hash table.
+ * - Add template entry to the measurement list and hash table, for
+ *   all entries except those carried across kexec.
  *
  * (Called with ima_extend_list_mutex held.)
  */
-static int ima_add_digest_entry(struct ima_template_entry *entry)
+static int ima_add_digest_entry(struct ima_template_entry *entry,
+				bool update_htable)
 {
 	struct ima_queue_entry *qe;
 	unsigned int key;
@@ -85,26 +108,58 @@ static int ima_add_digest_entry(struct ima_template_entry *entry)
 	list_add_tail_rcu(&qe->later, &ima_measurements);
 
 	atomic_long_inc(&ima_htable.len);
-	key = ima_hash_key(entry->digest);
-	hlist_add_head_rcu(&qe->hnext, &ima_htable.queue[key]);
+	if (update_htable) {
+		key = ima_hash_key(entry->digest);
+		hlist_add_head_rcu(&qe->hnext, &ima_htable.queue[key]);
+	}
+
+	if (binary_runtime_size != ULONG_MAX) {
+		int size;
+
+		size = get_binary_runtime_size(entry);
+		binary_runtime_size = (binary_runtime_size < ULONG_MAX - size) ?
+		     binary_runtime_size + size : ULONG_MAX;
+	}
 	return 0;
 }
+
+/*
+ * Return the amount of memory required for serializing the
+ * entire binary_runtime_measurement list, including the ima_kexec_hdr
+ * structure.
+ */
+unsigned long ima_get_binary_runtime_size(void)
+{
+	if (binary_runtime_size >= (ULONG_MAX - sizeof(struct ima_kexec_hdr)))
+		return ULONG_MAX;
+	else
+		return binary_runtime_size + sizeof(struct ima_kexec_hdr);
+};
 
 static int ima_pcr_extend(const u8 *hash, int pcr)
 {
 	int result = 0;
+	int i;
 
-	if (!ima_used_chip)
+	if (!ima_tpm_chip)
 		return result;
 
-	result = tpm_pcr_extend(TPM_ANY_NUM, pcr, hash);
+	for (i = 0; i < ima_tpm_chip->nr_allocated_banks; i++)
+		memcpy(digests[i].digest, hash, TPM_DIGEST_SIZE);
+
+	result = tpm_pcr_extend(ima_tpm_chip, pcr, digests);
 	if (result != 0)
 		pr_err("Error Communicating to TPM chip, result: %d\n", result);
 	return result;
 }
 
-/* Add template entry to the measurement list and hash table,
- * and extend the pcr.
+/*
+ * Add template entry to the measurement list and hash table, and
+ * extend the pcr.
+ *
+ * On systems which support carrying the IMA measurement list across
+ * kexec, maintain the total memory size required for serializing the
+ * binary_runtime_measurements.
  */
 int ima_add_template_entry(struct ima_template_entry *entry, int violation,
 			   const char *op, struct inode *inode,
@@ -126,7 +181,7 @@ int ima_add_template_entry(struct ima_template_entry *entry, int violation,
 		}
 	}
 
-	result = ima_add_digest_entry(entry);
+	result = ima_add_digest_entry(entry, 1);
 	if (result < 0) {
 		audit_cause = "ENOMEM";
 		audit_info = 0;
@@ -148,4 +203,32 @@ out:
 	integrity_audit_msg(AUDIT_INTEGRITY_PCR, inode, filename,
 			    op, audit_cause, result, audit_info);
 	return result;
+}
+
+int ima_restore_measurement_entry(struct ima_template_entry *entry)
+{
+	int result = 0;
+
+	mutex_lock(&ima_extend_list_mutex);
+	result = ima_add_digest_entry(entry, 0);
+	mutex_unlock(&ima_extend_list_mutex);
+	return result;
+}
+
+int __init ima_init_digests(void)
+{
+	int i;
+
+	if (!ima_tpm_chip)
+		return 0;
+
+	digests = kcalloc(ima_tpm_chip->nr_allocated_banks, sizeof(*digests),
+			  GFP_NOFS);
+	if (!digests)
+		return -ENOMEM;
+
+	for (i = 0; i < ima_tpm_chip->nr_allocated_banks; i++)
+		digests[i].alg_id = ima_tpm_chip->allocated_banks[i].alg_id;
+
+	return 0;
 }

@@ -1,12 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 #ifndef _SPARSE_KEYMAP_H
 #define _SPARSE_KEYMAP_H
 
 /*
  * Copyright (c) 2009 Dmitry Torokhov
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 
 #define KE_END		0	/* Indicates end of keymap */
@@ -51,7 +48,6 @@ struct key_entry *sparse_keymap_entry_from_keycode(struct input_dev *dev,
 int sparse_keymap_setup(struct input_dev *dev,
 			const struct key_entry *keymap,
 			int (*setup)(struct input_dev *, struct key_entry *));
-void sparse_keymap_free(struct input_dev *dev);
 
 void sparse_keymap_report_entry(struct input_dev *dev, const struct key_entry *ke,
 				unsigned int value, bool autorelease);

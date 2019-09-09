@@ -1,14 +1,9 @@
-/* dntv-live-dvbt-pro.h - Keytable for dntv_live_dvbt_pro Remote Controller
- *
- * keymap imported from ir-keymaps.c
- *
- * Copyright (c) 2010 by Mauro Carvalho Chehab
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- */
+// SPDX-License-Identifier: GPL-2.0+
+// dntv-live-dvbt-pro.h - Keytable for dntv_live_dvbt_pro Remote Controller
+//
+// keymap imported from ir-keymaps.c
+//
+// Copyright (c) 2010 by Mauro Carvalho Chehab
 
 #include <media/rc-map.h>
 #include <linux/module.h>
@@ -23,17 +18,17 @@ static struct rc_map_table dntv_live_dvbt_pro[] = {
 	{ 0x58, KEY_TUNER },		/* digital Radio */
 	{ 0x5a, KEY_RADIO },		/* FM radio */
 	{ 0x59, KEY_DVD },		/* dvd menu */
-	{ 0x03, KEY_1 },
-	{ 0x01, KEY_2 },
-	{ 0x06, KEY_3 },
-	{ 0x09, KEY_4 },
-	{ 0x1d, KEY_5 },
-	{ 0x1f, KEY_6 },
-	{ 0x0d, KEY_7 },
-	{ 0x19, KEY_8 },
-	{ 0x1b, KEY_9 },
+	{ 0x03, KEY_NUMERIC_1 },
+	{ 0x01, KEY_NUMERIC_2 },
+	{ 0x06, KEY_NUMERIC_3 },
+	{ 0x09, KEY_NUMERIC_4 },
+	{ 0x1d, KEY_NUMERIC_5 },
+	{ 0x1f, KEY_NUMERIC_6 },
+	{ 0x0d, KEY_NUMERIC_7 },
+	{ 0x19, KEY_NUMERIC_8 },
+	{ 0x1b, KEY_NUMERIC_9 },
 	{ 0x0c, KEY_CANCEL },
-	{ 0x15, KEY_0 },
+	{ 0x15, KEY_NUMERIC_0 },
 	{ 0x4a, KEY_CLEAR },
 	{ 0x13, KEY_BACK },
 	{ 0x00, KEY_TAB },
@@ -74,10 +69,10 @@ static struct rc_map_table dntv_live_dvbt_pro[] = {
 
 static struct rc_map_list dntv_live_dvbt_pro_map = {
 	.map = {
-		.scan    = dntv_live_dvbt_pro,
-		.size    = ARRAY_SIZE(dntv_live_dvbt_pro),
-		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
-		.name    = RC_MAP_DNTV_LIVE_DVBT_PRO,
+		.scan     = dntv_live_dvbt_pro,
+		.size     = ARRAY_SIZE(dntv_live_dvbt_pro),
+		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.name     = RC_MAP_DNTV_LIVE_DVBT_PRO,
 	}
 };
 

@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2011-12 Synopsys, Inc. (www.synopsys.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/interrupt.h>
@@ -14,6 +10,7 @@
 #include <linux/irqchip.h>
 #include <asm/irq.h>
 
+#define NR_CPU_IRQS	32	/* number of irq lines coming in */
 #define TIMER0_IRQ	3	/* Fixed by ISA */
 
 /*
@@ -26,7 +23,7 @@
  */
 void arc_init_IRQ(void)
 {
-	int level_mask = 0;
+	unsigned int level_mask = 0, i;
 
        /* Is timer high priority Interrupt (Level2 in ARCompact jargon) */
 	level_mask |= IS_ENABLED(CONFIG_ARC_COMPACT_IRQ_LEVELS) << TIMER0_IRQ;
@@ -39,6 +36,18 @@ void arc_init_IRQ(void)
 
 	if (level_mask)
 		pr_info("Level-2 interrupts bitset %x\n", level_mask);
+
+	/*
+	 * Disable all IRQ lines so faulty external hardware won't
+	 * trigger interrupt that kernel is not ready to handle.
+	 */
+	for (i = TIMER0_IRQ; i < NR_CPU_IRQS; i++) {
+		unsigned int ienb;
+
+		ienb = read_aux_reg(AUX_IENABLE);
+		ienb &= ~(1 << i);
+		write_aux_reg(AUX_IENABLE, ienb);
+	}
 }
 
 /*
@@ -57,7 +66,7 @@ static void arc_irq_mask(struct irq_data *data)
 	unsigned int ienb;
 
 	ienb = read_aux_reg(AUX_IENABLE);
-	ienb &= ~(1 << data->irq);
+	ienb &= ~(1 << data->hwirq);
 	write_aux_reg(AUX_IENABLE, ienb);
 }
 
@@ -66,7 +75,7 @@ static void arc_irq_unmask(struct irq_data *data)
 	unsigned int ienb;
 
 	ienb = read_aux_reg(AUX_IENABLE);
-	ienb |= (1 << data->irq);
+	ienb |= (1 << data->hwirq);
 	write_aux_reg(AUX_IENABLE, ienb);
 }
 

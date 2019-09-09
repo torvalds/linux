@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000,2002,2005 Silicon Graphics, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #ifndef __XFS_ATTR_SF_H__
 #define	__XFS_ATTR_SF_H__
@@ -31,10 +19,10 @@ typedef struct xfs_attr_sf_entry xfs_attr_sf_entry_t;
  * We generate this then sort it, attr_list() must return things in hash-order.
  */
 typedef struct xfs_attr_sf_sort {
-	__uint8_t	entno;		/* entry number in original list */
-	__uint8_t	namelen;	/* length of name value (no null) */
-	__uint8_t	valuelen;	/* length of value */
-	__uint8_t	flags;		/* flags bits (see xfs_attr_leaf.h) */
+	uint8_t		entno;		/* entry number in original list */
+	uint8_t		namelen;	/* length of name value (no null) */
+	uint8_t		valuelen;	/* length of value */
+	uint8_t		flags;		/* flags bits (see xfs_attr_leaf.h) */
 	xfs_dahash_t	hash;		/* this entry's hash value */
 	unsigned char	*name;		/* name value, pointer into buffer */
 } xfs_attr_sf_sort_t;
@@ -42,7 +30,7 @@ typedef struct xfs_attr_sf_sort {
 #define XFS_ATTR_SF_ENTSIZE_BYNAME(nlen,vlen)	/* space name/value uses */ \
 	(((int)sizeof(xfs_attr_sf_entry_t)-1 + (nlen)+(vlen)))
 #define XFS_ATTR_SF_ENTSIZE_MAX			/* max space for name&value */ \
-	((1 << (NBBY*(int)sizeof(__uint8_t))) - 1)
+	((1 << (NBBY*(int)sizeof(uint8_t))) - 1)
 #define XFS_ATTR_SF_ENTSIZE(sfep)		/* space an entry uses */ \
 	((int)sizeof(xfs_attr_sf_entry_t)-1 + (sfep)->namelen+(sfep)->valuelen)
 #define XFS_ATTR_SF_NEXTENTRY(sfep)		/* next entry in struct */ \

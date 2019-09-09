@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menuconfig LIBNVDIMM
 	tristate "NVDIMM (Non-Volatile Memory Device) Support"
 	depends on PHYS_ADDR_T_64BIT
@@ -20,6 +21,7 @@ if LIBNVDIMM
 config BLK_DEV_PMEM
 	tristate "PMEM: Persistent memory block device support"
 	default LIBNVDIMM
+	select DAX_DRIVER
 	select ND_BTT if BTT
 	select ND_PFN if NVDIMM_PFN
 	help
@@ -28,10 +30,10 @@ config BLK_DEV_PMEM
 	  non-standard OEM-specific E820 memory type (type-12, see
 	  CONFIG_X86_PMEM_LEGACY), or it is manually specified by the
 	  'memmap=nn[KMG]!ss[KMG]' kernel command line (see
-	  Documentation/kernel-parameters.txt).  This driver converts
+	  Documentation/admin-guide/kernel-parameters.rst).  This driver converts
 	  these persistent memory ranges into block devices that are
 	  capable of DAX (direct-access) file system mappings.  See
-	  Documentation/nvdimm/nvdimm.txt for more details.
+	  Documentation/driver-api/nvdimm/nvdimm.rst for more details.
 
 	  Say Y if you want to use an NVDIMM
 
@@ -95,10 +97,25 @@ config NVDIMM_DAX
 	help
 	  Support raw device dax access to a persistent memory
 	  namespace.  For environments that want to hard partition
-	  peristent memory, this capability provides a mechanism to
+	  persistent memory, this capability provides a mechanism to
 	  sub-divide a namespace into character devices that can only be
 	  accessed via DAX (mmap(2)).
 
 	  Select Y if unsure
+
+config OF_PMEM
+	tristate "Device-tree support for persistent memory regions"
+	depends on OF
+	default LIBNVDIMM
+	help
+	  Allows regions of persistent memory to be described in the
+	  device-tree.
+
+	  Select Y if unsure.
+
+config NVDIMM_KEYS
+	def_bool y
+	depends on ENCRYPTED_KEYS
+	depends on (LIBNVDIMM=ENCRYPTED_KEYS) || LIBNVDIMM=m
 
 endif

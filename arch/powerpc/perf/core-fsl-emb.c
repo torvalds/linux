@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Performance event support - Freescale Embedded Performance Monitor
  *
  * Copyright 2008-2009 Paul Mackerras, IBM Corporation.
  * Copyright 2010 Freescale Semiconductor, Inc.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -42,7 +38,7 @@ static DEFINE_MUTEX(pmc_reserve_mutex);
 static inline int perf_intr_is_nmi(struct pt_regs *regs)
 {
 #ifdef __powerpc64__
-	return !regs->softe;
+	return (regs->softe & IRQS_DISABLED);
 #else
 	return 0;
 #endif
@@ -277,7 +273,7 @@ static int collect_events(struct perf_event *group, int max_count,
 		ctrs[n] = group;
 		n++;
 	}
-	list_for_each_entry(event, &group->sibling_list, group_entry) {
+	for_each_sibling_event(event, group) {
 		if (!is_software_event(event) &&
 		    event->state != PERF_EVENT_STATE_OFF) {
 			if (n >= max_count)

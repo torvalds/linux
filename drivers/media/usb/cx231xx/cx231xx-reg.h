@@ -1,22 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
    cx231xx-reg.h - driver for Conexant Cx23100/101/102
 	       USB video capture devices
 
    Copyright (C) 2008 <srinivasa.deevi at conexant dot com>
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
-   (at your option) any later version.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #ifndef _CX231XX_REG_H
@@ -1433,16 +1421,16 @@
 #define      FLD_AC97_SHUTDOWN        0x00000001
 
 /* Cx231xx redefine */
-#define      QPSK_IAGC_CTL1  		0x94c
-#define      QPSK_IAGC_CTL2  		0x950
-#define      QPSK_FEPR_FREQ  		0x954
-#define      QPSK_BTL_CTL1  		0x958
-#define      QPSK_BTL_CTL2  		0x95c
-#define      QPSK_CTL_CTL1  		0x960
-#define      QPSK_CTL_CTL2  		0x964
-#define      QPSK_MF_FAGC_CTL 		0x968
-#define      QPSK_EQ_CTL  		0x96c
-#define      QPSK_LOCK_CTL  		0x970
+#define      QPSK_IAGC_CTL1		0x94c
+#define      QPSK_IAGC_CTL2		0x950
+#define      QPSK_FEPR_FREQ		0x954
+#define      QPSK_BTL_CTL1		0x958
+#define      QPSK_BTL_CTL2		0x95c
+#define      QPSK_CTL_CTL1		0x960
+#define      QPSK_CTL_CTL2		0x964
+#define      QPSK_MF_FAGC_CTL		0x968
+#define      QPSK_EQ_CTL		0x96c
+#define      QPSK_LOCK_CTL		0x970
 
 /*****************************************************************************/
 #define      FM1_DFT_CTL              0x9a8

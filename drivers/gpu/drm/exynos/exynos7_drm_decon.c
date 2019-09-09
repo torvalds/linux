@@ -1,18 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* drivers/gpu/drm/exynos/exynos7_drm_decon.c
  *
  * Copyright (C) 2014 Samsung Electronics Co.Ltd
  * Authors:
  *	Akshu Agarwal <akshua@gmail.com>
  *	Ajay Kumar <ajaykumar.rs@samsung.com>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- *
  */
-#include <drm/drmP.h>
-#include <drm/exynos_drm.h>
 
 #include <linux/clk.h>
 #include <linux/component.h>
@@ -25,13 +18,16 @@
 
 #include <video/of_display_timing.h>
 #include <video/of_videomode.h>
-#include <video/exynos7_decon.h>
+
+#include <drm/drm_fourcc.h>
+#include <drm/drm_vblank.h>
+#include <drm/exynos_drm.h>
 
 #include "exynos_drm_crtc.h"
-#include "exynos_drm_plane.h"
 #include "exynos_drm_drv.h"
 #include "exynos_drm_fb.h"
-#include "exynos_drm_iommu.h"
+#include "exynos_drm_plane.h"
+#include "regs-decon7.h"
 
 /*
  * DECON stands for Display and Enhancement controller.
@@ -55,7 +51,6 @@ struct decon_context {
 	unsigned long			irq_flags;
 	bool				i80_if;
 	bool				suspended;
-	int				pipe;
 	wait_queue_head_t		wait_vsync_queue;
 	atomic_t			wait_vsync_event;
 
@@ -101,15 +96,13 @@ static void decon_wait_for_vblank(struct exynos_drm_crtc *crtc)
 	if (!wait_event_timeout(ctx->wait_vsync_queue,
 				!atomic_read(&ctx->wait_vsync_event),
 				HZ/20))
-		DRM_DEBUG_KMS("vblank wait timed out.\n");
+		DRM_DEV_DEBUG_KMS(ctx->dev, "vblank wait timed out.\n");
 }
 
 static void decon_clear_channels(struct exynos_drm_crtc *crtc)
 {
 	struct decon_context *ctx = crtc->ctx;
 	unsigned int win, ch_enabled = 0;
-
-	DRM_DEBUG_KMS("%s\n", __FILE__);
 
 	/* Check if any channel is enabled. */
 	for (win = 0; win < WINDOWS_NR; win++) {
@@ -130,25 +123,17 @@ static void decon_clear_channels(struct exynos_drm_crtc *crtc)
 static int decon_ctx_initialize(struct decon_context *ctx,
 			struct drm_device *drm_dev)
 {
-	struct exynos_drm_private *priv = drm_dev->dev_private;
-	int ret;
-
 	ctx->drm_dev = drm_dev;
-	ctx->pipe = priv->pipe++;
 
 	decon_clear_channels(ctx->crtc);
 
-	ret = drm_iommu_attach_device(drm_dev, ctx->dev);
-	if (ret)
-		priv->pipe--;
-
-	return ret;
+	return exynos_drm_register_dma(drm_dev, ctx->dev);
 }
 
 static void decon_ctx_remove(struct decon_context *ctx)
 {
 	/* detach this sub driver from iommu mapping if supported. */
-	drm_iommu_detach_device(ctx->drm_dev, ctx->dev);
+	exynos_drm_unregister_dma(ctx->drm_dev, ctx->dev);
 }
 
 static u32 decon_calc_clkdiv(struct decon_context *ctx,
@@ -281,7 +266,7 @@ static void decon_win_set_pixfmt(struct decon_context *ctx, unsigned int win,
 	val = readl(ctx->regs + WINCON(win));
 	val &= ~WINCONx_BPPMODE_MASK;
 
-	switch (fb->pixel_format) {
+	switch (fb->format->format) {
 	case DRM_FORMAT_RGB565:
 		val |= WINCONx_BPPMODE_16BPP_565;
 		val |= WINCONx_BURSTLEN_16WORD;
@@ -318,19 +303,14 @@ static void decon_win_set_pixfmt(struct decon_context *ctx, unsigned int win,
 		val |= WINCONx_BURSTLEN_16WORD;
 		break;
 	case DRM_FORMAT_BGRA8888:
+	default:
 		val |= WINCONx_BPPMODE_32BPP_BGRA | WINCONx_BLD_PIX |
 			WINCONx_ALPHA_SEL;
 		val |= WINCONx_BURSTLEN_16WORD;
 		break;
-	default:
-		DRM_DEBUG_KMS("invalid pixel size so using unpacked 24bpp.\n");
-
-		val |= WINCONx_BPPMODE_24BPP_xRGB;
-		val |= WINCONx_BURSTLEN_16WORD;
-		break;
 	}
 
-	DRM_DEBUG_KMS("bpp = %d\n", fb->bits_per_pixel);
+	DRM_DEV_DEBUG_KMS(ctx->dev, "cpp = %d\n", fb->format->cpp[0]);
 
 	/*
 	 * In case of exynos, setting dma-burst to 16Word causes permanent
@@ -340,7 +320,7 @@ static void decon_win_set_pixfmt(struct decon_context *ctx, unsigned int win,
 	 * movement causes unstable DMA which results into iommu crash/tear.
 	 */
 
-	padding = (fb->pitches[0] / (fb->bits_per_pixel >> 3)) - fb->width;
+	padding = (fb->pitches[0] / fb->format->cpp[0]) - fb->width;
 	if (fb->width + padding < MIN_FB_WIDTH_FOR_16WORD_BURST) {
 		val &= ~WINCONx_BURSTLEN_MASK;
 		val |= WINCONx_BURSTLEN_8WORD;
@@ -407,7 +387,7 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 	unsigned int last_x;
 	unsigned int last_y;
 	unsigned int win = plane->index;
-	unsigned int bpp = fb->bits_per_pixel >> 3;
+	unsigned int cpp = fb->format->cpp[0];
 	unsigned int pitch = fb->pitches[0];
 
 	if (ctx->suspended)
@@ -427,7 +407,7 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 	val = (unsigned long)exynos_drm_fb_dma_addr(fb, 0);
 	writel(val, ctx->regs + VIDW_BUF_START(win));
 
-	padding = (pitch / bpp) - fb->width;
+	padding = (pitch / cpp) - fb->width;
 
 	/* buffer size */
 	writel(fb->width + padding, ctx->regs + VIDW_WHOLE_X(win));
@@ -437,9 +417,9 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 	writel(state->src.x, ctx->regs + VIDW_OFFSET_X(win));
 	writel(state->src.y, ctx->regs + VIDW_OFFSET_Y(win));
 
-	DRM_DEBUG_KMS("start addr = 0x%lx\n",
+	DRM_DEV_DEBUG_KMS(ctx->dev, "start addr = 0x%lx\n",
 			(unsigned long)val);
-	DRM_DEBUG_KMS("ovl_width = %d, ovl_height = %d\n",
+	DRM_DEV_DEBUG_KMS(ctx->dev, "ovl_width = %d, ovl_height = %d\n",
 			state->crtc.w, state->crtc.h);
 
 	val = VIDOSDxA_TOPLEFT_X(state->crtc.x) |
@@ -457,7 +437,7 @@ static void decon_update_plane(struct exynos_drm_crtc *crtc,
 
 	writel(val, ctx->regs + VIDOSD_B(win));
 
-	DRM_DEBUG_KMS("osd pos: tx = %d, ty = %d, bx = %d, by = %d\n",
+	DRM_DEV_DEBUG_KMS(ctx->dev, "osd pos: tx = %d, ty = %d, bx = %d, by = %d\n",
 			state->crtc.x, state->crtc.y, last_x, last_y);
 
 	/* OSD alpha */
@@ -526,6 +506,7 @@ static void decon_atomic_flush(struct exynos_drm_crtc *crtc)
 
 	for (i = 0; i < WINDOWS_NR; i++)
 		decon_shadow_protect_win(ctx, i, false);
+	exynos_crtc_handle_event(crtc);
 }
 
 static void decon_init(struct decon_context *ctx)
@@ -589,7 +570,6 @@ static void decon_disable(struct exynos_drm_crtc *crtc)
 static const struct exynos_drm_crtc_ops decon_crtc_ops = {
 	.enable = decon_enable,
 	.disable = decon_disable,
-	.commit = decon_commit,
 	.enable_vblank = decon_enable_vblank,
 	.disable_vblank = decon_disable_vblank,
 	.atomic_begin = decon_atomic_begin,
@@ -611,7 +591,7 @@ static irqreturn_t decon_irq_handler(int irq, void *dev_id)
 		writel(clear_bit, ctx->regs + VIDINTCON1);
 
 	/* check the crtc is detached already from encoder */
-	if (ctx->pipe < 0 || !ctx->drm_dev)
+	if (!ctx->drm_dev)
 		goto out;
 
 	if (!ctx->i80_if) {
@@ -637,7 +617,7 @@ static int decon_bind(struct device *dev, struct device *master, void *data)
 
 	ret = decon_ctx_initialize(ctx, drm_dev);
 	if (ret) {
-		DRM_ERROR("decon_ctx_initialize failed.\n");
+		DRM_DEV_ERROR(dev, "decon_ctx_initialize failed.\n");
 		return ret;
 	}
 
@@ -648,15 +628,14 @@ static int decon_bind(struct device *dev, struct device *master, void *data)
 		ctx->configs[i].type = decon_win_types[i];
 
 		ret = exynos_plane_init(drm_dev, &ctx->planes[i], i,
-					1 << ctx->pipe, &ctx->configs[i]);
+					&ctx->configs[i]);
 		if (ret)
 			return ret;
 	}
 
 	exynos_plane = &ctx->planes[DEFAULT_WIN];
 	ctx->crtc = exynos_drm_crtc_create(drm_dev, &exynos_plane->base,
-					   ctx->pipe, EXYNOS_DISPLAY_TYPE_LCD,
-					   &decon_crtc_ops, ctx);
+			EXYNOS_DISPLAY_TYPE_LCD, &decon_crtc_ops, ctx);
 	if (IS_ERR(ctx->crtc)) {
 		decon_ctx_remove(ctx);
 		return PTR_ERR(ctx->crtc);
@@ -818,25 +797,29 @@ static int exynos7_decon_resume(struct device *dev)
 
 	ret = clk_prepare_enable(ctx->pclk);
 	if (ret < 0) {
-		DRM_ERROR("Failed to prepare_enable the pclk [%d]\n", ret);
+		DRM_DEV_ERROR(dev, "Failed to prepare_enable the pclk [%d]\n",
+			      ret);
 		return ret;
 	}
 
 	ret = clk_prepare_enable(ctx->aclk);
 	if (ret < 0) {
-		DRM_ERROR("Failed to prepare_enable the aclk [%d]\n", ret);
+		DRM_DEV_ERROR(dev, "Failed to prepare_enable the aclk [%d]\n",
+			      ret);
 		return ret;
 	}
 
 	ret = clk_prepare_enable(ctx->eclk);
 	if  (ret < 0) {
-		DRM_ERROR("Failed to prepare_enable the eclk [%d]\n", ret);
+		DRM_DEV_ERROR(dev, "Failed to prepare_enable the eclk [%d]\n",
+			      ret);
 		return ret;
 	}
 
 	ret = clk_prepare_enable(ctx->vclk);
 	if  (ret < 0) {
-		DRM_ERROR("Failed to prepare_enable the vclk [%d]\n", ret);
+		DRM_DEV_ERROR(dev, "Failed to prepare_enable the vclk [%d]\n",
+			      ret);
 		return ret;
 	}
 
@@ -847,6 +830,8 @@ static int exynos7_decon_resume(struct device *dev)
 static const struct dev_pm_ops exynos7_decon_pm_ops = {
 	SET_RUNTIME_PM_OPS(exynos7_decon_suspend, exynos7_decon_resume,
 			   NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				pm_runtime_force_resume)
 };
 
 struct platform_driver decon_driver = {

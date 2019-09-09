@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
+#include <errno.h>
+#include <inttypes.h>
 /* For the CLR_() macros */
 #include <pthread.h>
 
@@ -7,6 +10,7 @@
 #include "cpumap.h"
 #include "tests.h"
 #include <linux/err.h>
+#include <linux/kernel.h>
 
 /*
  * This test will generate random numbers of calls to some getpid syscalls,
@@ -19,7 +23,7 @@
  * Then it checks if the number of syscalls reported as perf events by
  * the kernel corresponds to the number of syscalls made.
  */
-int test__basic_mmap(int subtest __maybe_unused)
+int test__basic_mmap(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	int err = -1;
 	union perf_event *event;
@@ -34,6 +38,7 @@ int test__basic_mmap(int subtest __maybe_unused)
 		     expected_nr_events[nsyscalls], i, j;
 	struct perf_evsel *evsels[nsyscalls], *evsel;
 	char sbuf[STRERR_BUFSIZE];
+	struct perf_mmap *md;
 
 	threads = thread_map__new(-1, getpid(), UINT_MAX);
 	if (threads == NULL) {
@@ -70,7 +75,7 @@ int test__basic_mmap(int subtest __maybe_unused)
 		snprintf(name, sizeof(name), "sys_enter_%s", syscall_names[i]);
 		evsels[i] = perf_evsel__newtp("syscalls", name);
 		if (IS_ERR(evsels[i])) {
-			pr_debug("perf_evsel__new\n");
+			pr_debug("perf_evsel__new(%s)\n", name);
 			goto out_delete_evlist;
 		}
 
@@ -90,7 +95,7 @@ int test__basic_mmap(int subtest __maybe_unused)
 		expected_nr_events[i] = 1 + rand() % 127;
 	}
 
-	if (perf_evlist__mmap(evlist, 128, true) < 0) {
+	if (perf_evlist__mmap(evlist, 128) < 0) {
 		pr_debug("failed to mmap events: %d (%s)\n", errno,
 			 str_error_r(errno, sbuf, sizeof(sbuf)));
 		goto out_delete_evlist;
@@ -102,7 +107,11 @@ int test__basic_mmap(int subtest __maybe_unused)
 			++foo;
 		}
 
-	while ((event = perf_evlist__mmap_read(evlist, 0)) != NULL) {
+	md = &evlist->mmap[0];
+	if (perf_mmap__read_init(md) < 0)
+		goto out_init;
+
+	while ((event = perf_mmap__read_event(md)) != NULL) {
 		struct perf_sample sample;
 
 		if (event->header.type != PERF_RECORD_SAMPLE) {
@@ -125,9 +134,11 @@ int test__basic_mmap(int subtest __maybe_unused)
 			goto out_delete_evlist;
 		}
 		nr_events[evsel->idx]++;
-		perf_evlist__mmap_consume(evlist, 0);
+		perf_mmap__consume(md);
 	}
+	perf_mmap__read_done(md);
 
+out_init:
 	err = 0;
 	evlist__for_each_entry(evlist, evsel) {
 		if (nr_events[evsel->idx] != expected_nr_events[evsel->idx]) {

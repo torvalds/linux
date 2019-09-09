@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Mainly by David Woodhouse, somewhat modified by Jordan Crouse
  *
@@ -5,10 +6,6 @@
  * Copyright © 2006-2007  Advanced Micro Devices, Inc.
  * Copyright © 2009       VIA Technology, Inc.
  * Copyright (c) 2010-2011  Andres Salomon <dilinger@queued.net>
- *
- * This program is free software.  You can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -81,7 +78,7 @@ static int dcon_hw_init(struct dcon_priv *dcon, int is_init)
 
 	if (ver < 0xdc02) {
 		dev_err(&dcon->client->dev,
-				"DCON v1 is unsupported, giving up..\n");
+			"DCON v1 is unsupported, giving up..\n");
 		rc = -ENODEV;
 		goto err;
 	}
@@ -90,7 +87,7 @@ static int dcon_hw_init(struct dcon_priv *dcon, int is_init)
 	dcon_write(dcon, 0x3a, 0xc040);
 	dcon_write(dcon, DCON_REG_MEM_OPT_A, 0x0000);  /* clear option bits */
 	dcon_write(dcon, DCON_REG_MEM_OPT_A,
-				MEM_DLL_CLOCK_DELAY | MEM_POWER_DOWN);
+		   MEM_DLL_CLOCK_DELAY | MEM_POWER_DOWN);
 	dcon_write(dcon, DCON_REG_MEM_OPT_B, MEM_SOFT_RESET);
 
 	/* Colour swizzle, AA, no passthrough, backlight */
@@ -253,22 +250,18 @@ static bool dcon_blank_fb(struct dcon_priv *dcon, bool blank)
 	int err;
 
 	console_lock();
-	if (!lock_fb_info(dcon->fbinfo)) {
-		console_unlock();
-		dev_err(&dcon->client->dev, "unable to lock framebuffer\n");
-		return false;
-	}
+	lock_fb_info(dcon->fbinfo);
 
 	dcon->ignore_fb_events = true;
 	err = fb_blank(dcon->fbinfo,
-			blank ? FB_BLANK_POWERDOWN : FB_BLANK_UNBLANK);
+		       blank ? FB_BLANK_POWERDOWN : FB_BLANK_UNBLANK);
 	dcon->ignore_fb_events = false;
 	unlock_fb_info(dcon->fbinfo);
 	console_unlock();
 
 	if (err) {
 		dev_err(&dcon->client->dev, "couldn't %sblank framebuffer\n",
-				blank ? "" : "un");
+			blank ? "" : "un");
 		return false;
 	}
 	return true;
@@ -290,10 +283,10 @@ static void dcon_source_switch(struct work_struct *work)
 
 	switch (source) {
 	case DCON_SOURCE_CPU:
-		pr_info("dcon_source_switch to CPU\n");
+		pr_info("%s to CPU\n", __func__);
 		/* Enable the scanline interrupt bit */
 		if (dcon_write(dcon, DCON_REG_MODE,
-				dcon->disp_mode | MODE_SCAN_INT))
+			       dcon->disp_mode | MODE_SCAN_INT))
 			pr_err("couldn't enable scanline interrupt!\n");
 		else
 			/* Wait up to one second for the scanline interrupt */
@@ -330,13 +323,13 @@ static void dcon_source_switch(struct work_struct *work)
 	{
 		ktime_t delta_t;
 
-		pr_info("dcon_source_switch to DCON\n");
+		pr_info("%s to DCON\n", __func__);
 
 		/* Clear DCONLOAD - this implies that the DCON is in control */
 		pdata->set_dconload(0);
 		dcon->load_time = ktime_get();
 
-		wait_event_timeout(dcon->waitq, dcon->switched, HZ/2);
+		wait_event_timeout(dcon->waitq, dcon->switched, HZ / 2);
 
 		if (!dcon->switched) {
 			pr_err("Timeout entering DCON mode; expect a screen glitch.\n");
@@ -393,7 +386,8 @@ static void dcon_set_source_sync(struct dcon_priv *dcon, int arg)
 }
 
 static ssize_t dcon_mode_show(struct device *dev,
-	struct device_attribute *attr, char *buf)
+			      struct device_attribute *attr,
+			      char *buf)
 {
 	struct dcon_priv *dcon = dev_get_drvdata(dev);
 
@@ -401,7 +395,8 @@ static ssize_t dcon_mode_show(struct device *dev,
 }
 
 static ssize_t dcon_sleep_show(struct device *dev,
-	struct device_attribute *attr, char *buf)
+			       struct device_attribute *attr,
+			       char *buf)
 {
 	struct dcon_priv *dcon = dev_get_drvdata(dev);
 
@@ -409,7 +404,8 @@ static ssize_t dcon_sleep_show(struct device *dev,
 }
 
 static ssize_t dcon_freeze_show(struct device *dev,
-	struct device_attribute *attr, char *buf)
+				struct device_attribute *attr,
+				char *buf)
 {
 	struct dcon_priv *dcon = dev_get_drvdata(dev);
 
@@ -417,7 +413,8 @@ static ssize_t dcon_freeze_show(struct device *dev,
 }
 
 static ssize_t dcon_mono_show(struct device *dev,
-	struct device_attribute *attr, char *buf)
+			      struct device_attribute *attr,
+			      char *buf)
 {
 	struct dcon_priv *dcon = dev_get_drvdata(dev);
 
@@ -425,13 +422,15 @@ static ssize_t dcon_mono_show(struct device *dev,
 }
 
 static ssize_t dcon_resumeline_show(struct device *dev,
-	struct device_attribute *attr, char *buf)
+				    struct device_attribute *attr,
+				    char *buf)
 {
 	return sprintf(buf, "%d\n", resumeline);
 }
 
 static ssize_t dcon_mono_store(struct device *dev,
-	struct device_attribute *attr, const char *buf, size_t count)
+			       struct device_attribute *attr,
+			       const char *buf, size_t count)
 {
 	unsigned long enable_mono;
 	int rc;
@@ -446,7 +445,8 @@ static ssize_t dcon_mono_store(struct device *dev,
 }
 
 static ssize_t dcon_freeze_store(struct device *dev,
-	struct device_attribute *attr, const char *buf, size_t count)
+				 struct device_attribute *attr,
+				 const char *buf, size_t count)
 {
 	struct dcon_priv *dcon = dev_get_drvdata(dev);
 	unsigned long output;
@@ -455,8 +455,6 @@ static ssize_t dcon_freeze_store(struct device *dev,
 	ret = kstrtoul(buf, 10, &output);
 	if (ret)
 		return ret;
-
-	pr_info("dcon_freeze_store: %lu\n", output);
 
 	switch (output) {
 	case 0:
@@ -476,7 +474,8 @@ static ssize_t dcon_freeze_store(struct device *dev,
 }
 
 static ssize_t dcon_resumeline_store(struct device *dev,
-	struct device_attribute *attr, const char *buf, size_t count)
+				     struct device_attribute *attr,
+				     const char *buf, size_t count)
 {
 	unsigned short rl;
 	int rc;
@@ -492,7 +491,8 @@ static ssize_t dcon_resumeline_store(struct device *dev,
 }
 
 static ssize_t dcon_sleep_store(struct device *dev,
-	struct device_attribute *attr, const char *buf, size_t count)
+				struct device_attribute *attr,
+				const char *buf, size_t count)
 {
 	unsigned long output;
 	int ret;
@@ -643,10 +643,11 @@ static int dcon_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	/* Add the backlight device for the DCON */
 	dcon_bl_props.brightness = dcon->bl_val;
 	dcon->bl_dev = backlight_device_register("dcon-bl", &dcon_device->dev,
-		dcon, &dcon_bl_ops, &dcon_bl_props);
+						 dcon, &dcon_bl_ops,
+						 &dcon_bl_props);
 	if (IS_ERR(dcon->bl_dev)) {
 		dev_err(&client->dev, "cannot register backlight dev (%ld)\n",
-				PTR_ERR(dcon->bl_dev));
+			PTR_ERR(dcon->bl_dev));
 		dcon->bl_dev = NULL;
 	}
 

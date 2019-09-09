@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *
  * (c) 2004 Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]
  *
  *  Extended 3 / 2005 by Hartmut Hackmann to support various
  *  cards with the tda10046 DVB-T channel decoder
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include "saa7134.h"
@@ -33,7 +20,7 @@
 
 #include <media/v4l2-common.h>
 #include "dvb-pll.h"
-#include <dvb_frontend.h>
+#include <media/dvb_frontend.h>
 
 #include "mt352.h"
 #include "mt352_priv.h" /* FIXME */
@@ -1046,11 +1033,11 @@ static int md8800_set_high_voltage2(struct dvb_frontend *fe, long arg)
  * nxt200x based ATSC cards, helper functions
  */
 
-static struct nxt200x_config avertvhda180 = {
+static const struct nxt200x_config avertvhda180 = {
 	.demod_address    = 0x0a,
 };
 
-static struct nxt200x_config kworldatsc110 = {
+static const struct nxt200x_config kworldatsc110 = {
 	.demod_address    = 0x0a,
 };
 
@@ -1199,7 +1186,7 @@ static struct s5h1411_config kworld_s5h1411_config = {
 	.inversion     = S5H1411_INVERSION_ON,
 	.status_mode   = S5H1411_DEMODLOCKING,
 	.mpeg_timing   =
-		S5H1411_MPEGTIMING_CONTINOUS_NONINVERTING_CLOCK,
+		S5H1411_MPEGTIMING_CONTINUOUS_NONINVERTING_CLOCK,
 };
 
 
@@ -1393,7 +1380,7 @@ static int dvb_init(struct saa7134_dev *dev)
 			if (configure_tda827x_fe(dev, &lifeview_trio_config,
 						 &tda827x_cfg_0) < 0)
 				goto detach_frontend;
-		} else {  		/* satellite */
+		} else {		/* satellite */
 			fe0->dvb.frontend = dvb_attach(tda10086_attach, &flydvbs, &dev->i2c_adap);
 			if (fe0->dvb.frontend) {
 				if (dvb_attach(tda826x_attach, fe0->dvb.frontend, 0x63,
@@ -1449,8 +1436,8 @@ static int dvb_init(struct saa7134_dev *dev)
 
 				if (dvb_attach(tda826x_attach, fe0->dvb.frontend,
 						0x60, &dev->i2c_adap, 0) == NULL) {
-					pr_warn("%s: Medion Quadro, no tda826x "
-						"found !\n", __func__);
+					pr_warn("%s: Medion Quadro, no tda826x found !\n",
+						__func__);
 					goto detach_frontend;
 				}
 				if (dev_id != 0x08) {
@@ -1458,8 +1445,8 @@ static int dvb_init(struct saa7134_dev *dev)
 					fe->ops.i2c_gate_ctrl(fe, 1);
 					if (dvb_attach(isl6405_attach, fe,
 							&dev->i2c_adap, 0x08, 0, 0) == NULL) {
-						pr_warn("%s: Medion Quadro, no ISL6405 "
-							"found !\n", __func__);
+						pr_warn("%s: Medion Quadro, no ISL6405 found !\n",
+							__func__);
 						goto detach_frontend;
 					}
 					if (dev_id == 0x07) {
@@ -1629,8 +1616,8 @@ static int dvb_init(struct saa7134_dev *dev)
 			struct dvb_frontend *fe;
 			if (dvb_attach(dvb_pll_attach, fe0->dvb.frontend, 0x60,
 				  &dev->i2c_adap, DVB_PLL_PHILIPS_SD1878_TDA8261) == NULL) {
-				pr_warn("%s: MD7134 DVB-S, no SD1878 "
-					"found !\n", __func__);
+				pr_warn("%s: MD7134 DVB-S, no SD1878 found !\n",
+					__func__);
 				goto detach_frontend;
 			}
 			/* we need to open the i2c gate (we know it exists) */
@@ -1638,8 +1625,8 @@ static int dvb_init(struct saa7134_dev *dev)
 			fe->ops.i2c_gate_ctrl(fe, 1);
 			if (dvb_attach(isl6405_attach, fe,
 					&dev->i2c_adap, 0x08, 0, 0) == NULL) {
-				pr_warn("%s: MD7134 DVB-S, no ISL6405 "
-					"found !\n", __func__);
+				pr_warn("%s: MD7134 DVB-S, no ISL6405 found !\n",
+					__func__);
 				goto detach_frontend;
 			}
 			fe->ops.i2c_gate_ctrl(fe, 0);
@@ -1663,21 +1650,21 @@ static int dvb_init(struct saa7134_dev *dev)
 			if (configure_tda827x_fe(dev, &asus_tiger_3in1_config,
 							&tda827x_cfg_2) < 0)
 				goto detach_frontend;
-		} else {  		/* satellite */
+		} else {		/* satellite */
 			fe0->dvb.frontend = dvb_attach(tda10086_attach,
 						&flydvbs, &dev->i2c_adap);
 			if (fe0->dvb.frontend) {
 				if (dvb_attach(tda826x_attach,
 						fe0->dvb.frontend, 0x60,
 						&dev->i2c_adap, 0) == NULL) {
-					pr_warn("%s: Asus Tiger 3in1, no "
-						"tda826x found!\n", __func__);
+					pr_warn("%s: Asus Tiger 3in1, no tda826x found!\n",
+						__func__);
 					goto detach_frontend;
 				}
 				if (dvb_attach(lnbp21_attach, fe0->dvb.frontend,
 						&dev->i2c_adap, 0, 0) == NULL) {
-					pr_warn("%s: Asus Tiger 3in1, no lnbp21"
-						" found!\n", __func__);
+					pr_warn("%s: Asus Tiger 3in1, no lnbp21 found!\n",
+						__func__);
 					goto detach_frontend;
 			       }
 		       }
@@ -1695,14 +1682,14 @@ static int dvb_init(struct saa7134_dev *dev)
 				if (dvb_attach(tda826x_attach,
 					       fe0->dvb.frontend, 0x60,
 					       &dev->i2c_adap, 0) == NULL) {
-					pr_warn("%s: Asus My Cinema PS3-100, no "
-						"tda826x found!\n", __func__);
+					pr_warn("%s: Asus My Cinema PS3-100, no tda826x found!\n",
+						__func__);
 					goto detach_frontend;
 				}
 				if (dvb_attach(lnbp21_attach, fe0->dvb.frontend,
 					       &dev->i2c_adap, 0, 0) == NULL) {
-					pr_warn("%s: Asus My Cinema PS3-100, no lnbp21"
-						" found!\n", __func__);
+					pr_warn("%s: Asus My Cinema PS3-100, no lnbp21 found!\n",
+						__func__);
 					goto detach_frontend;
 				}
 			}

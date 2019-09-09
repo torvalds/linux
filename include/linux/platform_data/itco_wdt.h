@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Platform data for the Intel TCO Watchdog
  */
@@ -14,6 +15,10 @@
 struct itco_wdt_platform_data {
 	char name[32];
 	unsigned int version;
+	/* private data to be passed to update_no_reboot_bit API */
+	void *no_reboot_priv;
+	/* pointer for platform specific no reboot update function */
+	int (*update_no_reboot_bit)(void *priv, bool set);
 };
 
 #endif /* _ITCO_WDT_H_ */

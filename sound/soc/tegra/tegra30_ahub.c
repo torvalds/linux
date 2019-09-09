@@ -1,19 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * tegra30_ahub.c - Tegra30 AHUB driver
  *
  * Copyright (c) 2011,2012, NVIDIA CORPORATION.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/clk.h>
@@ -41,6 +30,7 @@ static inline void tegra30_apbif_write(u32 reg, u32 val)
 static inline u32 tegra30_apbif_read(u32 reg)
 {
 	u32 val;
+
 	regmap_read(ahub->regmap_apbif, reg, &val);
 	return val;
 }
@@ -543,8 +533,8 @@ static int tegra30_ahub_probe(struct platform_device *pdev)
 					soc_data->mod_list_mask))
 			continue;
 
-		rst = reset_control_get(&pdev->dev,
-					configlink_mods[i].rst_name);
+		rst = reset_control_get_exclusive(&pdev->dev,
+						  configlink_mods[i].rst_name);
 		if (IS_ERR(rst)) {
 			dev_err(&pdev->dev, "Can't get reset %s\n",
 				configlink_mods[i].rst_name);
@@ -560,10 +550,8 @@ static int tegra30_ahub_probe(struct platform_device *pdev)
 
 	ahub = devm_kzalloc(&pdev->dev, sizeof(struct tegra30_ahub),
 			    GFP_KERNEL);
-	if (!ahub) {
-		dev_err(&pdev->dev, "Can't allocate tegra30_ahub\n");
+	if (!ahub)
 		return -ENOMEM;
-	}
 	dev_set_drvdata(&pdev->dev, ahub);
 
 	ahub->soc_data = soc_data;

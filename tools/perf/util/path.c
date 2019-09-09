@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * I'm tired of doing "vsnprintf()" etc just to open a
  * file, so here's a "return static buffer with printf"
@@ -11,8 +12,14 @@
  * which is what it's designed for.
  */
 #include "cache.h"
-#include "util.h"
+#include "path.h"
+#include <linux/kernel.h>
 #include <limits.h>
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <dirent.h>
+#include <unistd.h>
 
 static char bad_path[] = "/bad-path/";
 /*
@@ -49,4 +56,38 @@ char *mkpath(const char *fmt, ...)
 	if (len >= PATH_MAX)
 		return bad_path;
 	return cleanup_path(pathname);
+}
+
+int path__join(char *bf, size_t size, const char *path1, const char *path2)
+{
+	return scnprintf(bf, size, "%s%s%s", path1, path1[0] ? "/" : "", path2);
+}
+
+int path__join3(char *bf, size_t size, const char *path1, const char *path2, const char *path3)
+{
+	return scnprintf(bf, size, "%s%s%s%s%s", path1, path1[0] ? "/" : "",
+			 path2, path2[0] ? "/" : "", path3);
+}
+
+bool is_regular_file(const char *file)
+{
+	struct stat st;
+
+	if (stat(file, &st))
+		return false;
+
+	return S_ISREG(st.st_mode);
+}
+
+/* Helper function for filesystems that return a dent->d_type DT_UNKNOWN */
+bool is_directory(const char *base_path, const struct dirent *dent)
+{
+	char path[PATH_MAX];
+	struct stat st;
+
+	sprintf(path, "%s/%s", base_path, dent->d_name);
+	if (stat(path, &st))
+		return false;
+
+	return S_ISDIR(st.st_mode);
 }

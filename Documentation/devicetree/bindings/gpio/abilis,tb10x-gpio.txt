@@ -14,14 +14,13 @@ Optional Properties:
 - #interrupt-cells: Should be <1>. Interrupts are triggered on both edges.
 - interrupts: Defines the interrupt line connecting this GPIO controller to
   its parent interrupt controller.
-- interrupt-parent: Defines the parent interrupt controller.
 
 GPIO ranges are specified as described in
 Documentation/devicetree/bindings/gpio/gpio.txt
 
 Example:
 
-	gpioa: gpio@FF140000 {
+	gpioa: gpio@ff140000 {
 		compatible = "abilis,tb10x-gpio";
 		interrupt-controller;
 		#interrupt-cells = <1>;

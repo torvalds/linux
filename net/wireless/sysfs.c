@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * This file provides /sys/class/ieee80211/<wiphy name>/
  * and some default attributes.
  *
  * Copyright 2005-2006	Jiri Benc <jbenc@suse.cz>
  * Copyright 2006	Johannes Berg <johannes@sipsolutions.net>
- *
- * This file is GPLv2 as found in COPYING.
  */
 
 #include <linux/device.h>
@@ -39,9 +38,11 @@ SHOW_FMT(address_mask, "%pM", wiphy.addr_mask);
 
 static ssize_t name_show(struct device *dev,
 			 struct device_attribute *attr,
-			 char *buf) {
+			 char *buf)
+{
 	struct wiphy *wiphy = &dev_to_rdev(dev)->wiphy;
-	return sprintf(buf, "%s\n", dev_name(&wiphy->dev));
+
+	return sprintf(buf, "%s\n", wiphy_name(wiphy));
 }
 static DEVICE_ATTR_RO(name);
 
@@ -100,7 +101,7 @@ static int wiphy_suspend(struct device *dev)
 	struct cfg80211_registered_device *rdev = dev_to_rdev(dev);
 	int ret = 0;
 
-	rdev->suspend_at = get_seconds();
+	rdev->suspend_at = ktime_get_boottime_seconds();
 
 	rtnl_lock();
 	if (rdev->wiphy.registered) {
@@ -128,14 +129,12 @@ static int wiphy_resume(struct device *dev)
 	int ret = 0;
 
 	/* Age scan results with time spent in suspend */
-	cfg80211_bss_age(rdev, get_seconds() - rdev->suspend_at);
+	cfg80211_bss_age(rdev, ktime_get_boottime_seconds() - rdev->suspend_at);
 
-	if (rdev->ops->resume) {
-		rtnl_lock();
-		if (rdev->wiphy.registered)
-			ret = rdev_resume(rdev);
-		rtnl_unlock();
-	}
+	rtnl_lock();
+	if (rdev->wiphy.registered && rdev->ops->resume)
+		ret = rdev_resume(rdev);
+	rtnl_unlock();
 
 	return ret;
 }

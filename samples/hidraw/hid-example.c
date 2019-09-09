@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Hidraw Userspace Example
  *
@@ -118,7 +119,7 @@ int main(int argc, char **argv)
 	if (res < 0)
 		perror("HIDIOCSFEATURE");
 	else
-		printf("ioctl HIDIOCGFEATURE returned: %d\n", res);
+		printf("ioctl HIDIOCSFEATURE returned: %d\n", res);
 
 	/* Get Feature */
 	buf[0] = 0x9; /* Report Number */

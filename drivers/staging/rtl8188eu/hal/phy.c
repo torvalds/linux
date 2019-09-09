@@ -1,22 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  *
  ******************************************************************************/
 #define _RTL8188E_PHYCFG_C_
 
 #include <osdep_service.h>
 #include <drv_types.h>
-#include <rtw_iol.h>
 #include <rtl8188e_hal.h>
 #include <rf.h>
 #include <phy.h>
@@ -40,12 +31,11 @@ static u32 cal_bit_shift(u32 bitmask)
 
 u32 phy_query_bb_reg(struct adapter *adapt, u32 regaddr, u32 bitmask)
 {
-	u32 return_value = 0, original_value, bit_shift;
+	u32 original_value, bit_shift;
 
 	original_value = usb_read32(adapt, regaddr);
 	bit_shift = cal_bit_shift(bitmask);
-	return_value = (original_value & bitmask) >> bit_shift;
-	return return_value;
+	return (original_value & bitmask) >> bit_shift;
 }
 
 void phy_set_bb_reg(struct adapter *adapt, u32 regaddr, u32 bitmask, u32 data)
@@ -119,12 +109,11 @@ static void rf_serial_write(struct adapter *adapt,
 u32 rtw_hal_read_rfreg(struct adapter *adapt, enum rf_radio_path rf_path,
 		     u32 reg_addr, u32 bit_mask)
 {
-	u32 original_value, readback_value, bit_shift;
+	u32 original_value, bit_shift;
 
 	original_value = rf_serial_read(adapt, rf_path, reg_addr);
 	bit_shift =  cal_bit_shift(bit_mask);
-	readback_value = (original_value & bit_mask) >> bit_shift;
-	return readback_value;
+	return (original_value & bit_mask) >> bit_shift;
 }
 
 void phy_set_rf_reg(struct adapter *adapt, enum rf_radio_path rf_path,
@@ -210,13 +199,6 @@ static void phy_set_bw_mode_callback(struct adapter *adapt)
 	u8 reg_bw_opmode;
 	u8 reg_prsr_rsc;
 
-	if (hal_data->rf_chip == RF_PSEUDO_11N)
-		return;
-
-	/*  There is no 40MHz mode in RF_8225. */
-	if (hal_data->rf_chip == RF_8225)
-		return;
-
 	if (adapt->bDriverStopped)
 		return;
 
@@ -265,8 +247,7 @@ static void phy_set_bw_mode_callback(struct adapter *adapt)
 	}
 
 	/* Set RF related register */
-	if (hal_data->rf_chip == RF_6052)
-		rtl88eu_phy_rf6052_set_bandwidth(adapt, hal_data->CurrentChannelBW);
+	rtl88eu_phy_rf6052_set_bandwidth(adapt, hal_data->CurrentChannelBW);
 }
 
 void rtw_hal_set_bwmode(struct adapter *adapt, enum ht_channel_width bandwidth,
@@ -286,7 +267,6 @@ void rtw_hal_set_bwmode(struct adapter *adapt, enum ht_channel_width bandwidth,
 
 static void phy_sw_chnl_callback(struct adapter *adapt, u8 channel)
 {
-	u8 rf_path;
 	u32 param1, param2;
 	struct hal_data_8188e *hal_data = adapt->HalData;
 
@@ -294,21 +274,16 @@ static void phy_sw_chnl_callback(struct adapter *adapt, u8 channel)
 
 	param1 = RF_CHNLBW;
 	param2 = channel;
-	for (rf_path = 0; rf_path < hal_data->NumTotalRFPath; rf_path++) {
-		hal_data->RfRegChnlVal[rf_path] = (hal_data->RfRegChnlVal[rf_path] &
-						  0xfffffc00) | param2;
-		phy_set_rf_reg(adapt, (enum rf_radio_path)rf_path, param1,
-			       bRFRegOffsetMask, hal_data->RfRegChnlVal[rf_path]);
-	}
+	hal_data->RfRegChnlVal[0] = (hal_data->RfRegChnlVal[0] &
+					  0xfffffc00) | param2;
+	phy_set_rf_reg(adapt, 0, param1,
+		       bRFRegOffsetMask, hal_data->RfRegChnlVal[0]);
 }
 
 void rtw_hal_set_chan(struct adapter *adapt, u8 channel)
 {
 	struct hal_data_8188e *hal_data = adapt->HalData;
 	u8 tmpchannel = hal_data->CurrentChannel;
-
-	if (hal_data->rf_chip == RF_PSEUDO_11N)
-		return;
 
 	if (channel == 0)
 		channel = 1;
@@ -322,25 +297,6 @@ void rtw_hal_set_chan(struct adapter *adapt, u8 channel)
 }
 
 #define ODM_TXPWRTRACK_MAX_IDX_88E  6
-
-static u8 get_right_chnl_for_iqk(u8 chnl)
-{
-	u8 place;
-	u8 channel_all[ODM_TARGET_CHNL_NUM_2G_5G] = {
-		36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60, 62, 64,
-		100, 102, 104, 106, 108, 110, 112, 114, 116, 118, 120, 122,
-		124, 126, 128, 130, 132, 134, 136, 138, 140, 149, 151, 153,
-		155, 157, 159, 161, 163, 165
-	};
-
-	if (chnl > 14) {
-		for (place = 0; place < sizeof(channel_all); place++) {
-			if (channel_all[place] == chnl)
-				return ++place;
-		}
-	}
-	return 0;
-}
 
 void rtl88eu_dm_txpower_track_adjust(struct odm_dm_struct *dm_odm, u8 type,
 				     u8 *direction, u32 *out_write_val)
@@ -376,7 +332,6 @@ void rtl88eu_dm_txpower_track_adjust(struct odm_dm_struct *dm_odm, u8 type,
 			pwr_value = dm_odm->BbSwingIdxCck -
 				     dm_odm->BbSwingIdxCckBase;
 		}
-
 	}
 
 	if (pwr_value >= ODM_TXPWRTRACK_MAX_IDX_88E && *direction == 1)
@@ -407,9 +362,8 @@ void rtl88eu_dm_txpower_tracking_callback_thermalmeter(struct adapter *adapt)
 	s8 ofdm_index[2], cck_index = 0;
 	s8 ofdm_index_old[2] = {0, 0}, cck_index_old = 0;
 	u32 i = 0, j = 0;
-	bool is2t = false;
 
-	u8 ofdm_min_index = 6, rf; /* OFDM BB Swing should be less than +3.0dB */
+	u8 ofdm_min_index = 6; /* OFDM BB Swing should be less than +3.0dB */
 	s8 ofdm_index_mapping[2][index_mapping_NUM_88E] = {
 		/* 2.4G, decrease power */
 		{0, 0, 2, 3, 4, 4, 5, 6, 7, 7, 8, 9, 10, 10, 11},
@@ -427,17 +381,11 @@ void rtl88eu_dm_txpower_tracking_callback_thermalmeter(struct adapter *adapt)
 	dm_txpwr_track_setpwr(dm_odm);
 
 	dm_odm->RFCalibrateInfo.TXPowerTrackingCallbackCnt++;
-	dm_odm->RFCalibrateInfo.bTXPowerTrackingInit = true;
 
 	dm_odm->RFCalibrateInfo.RegA24 = 0x090e1317;
 
 	thermal_val = (u8)rtw_hal_read_rfreg(adapt, RF_PATH_A,
 					   RF_T_METER_88E, 0xfc00);
-
-	if (is2t)
-		rf = 2;
-	else
-		rf = 1;
 
 	if (thermal_val) {
 		/* Query OFDM path A default setting */
@@ -447,17 +395,6 @@ void rtl88eu_dm_txpower_tracking_callback_thermalmeter(struct adapter *adapt)
 				ofdm_index_old[0] = (u8)i;
 				dm_odm->BbSwingIdxOfdmBase = (u8)i;
 				break;
-			}
-		}
-
-		/* Query OFDM path B default setting */
-		if (is2t) {
-			ele_d = phy_query_bb_reg(adapt, rOFDM0_XBTxIQImbalance, bMaskDWord)&bMaskOFDM_D;
-			for (i = 0; i < OFDM_TABLE_SIZE_92D; i++) {
-				if (ele_d == (OFDMSwingTable[i]&bMaskOFDM_D)) {
-					ofdm_index_old[1] = (u8)i;
-					break;
-				}
 			}
 		}
 
@@ -479,8 +416,7 @@ void rtl88eu_dm_txpower_tracking_callback_thermalmeter(struct adapter *adapt)
 			dm_odm->RFCalibrateInfo.ThermalValue_LCK = thermal_val;
 			dm_odm->RFCalibrateInfo.ThermalValue_IQK = thermal_val;
 
-			for (i = 0; i < rf; i++)
-				dm_odm->RFCalibrateInfo.OFDM_index[i] = ofdm_index_old[i];
+			dm_odm->RFCalibrateInfo.OFDM_index[0] = ofdm_index_old[0];
 			dm_odm->RFCalibrateInfo.CCK_index = cck_index_old;
 		}
 
@@ -501,9 +437,9 @@ void rtl88eu_dm_txpower_tracking_callback_thermalmeter(struct adapter *adapt)
 			thermal_val = (u8)(thermal_avg / thermal_avg_count);
 
 		if (dm_odm->RFCalibrateInfo.bDoneTxpower &&
-			!dm_odm->RFCalibrateInfo.bReloadtxpowerindex)
+			!dm_odm->RFCalibrateInfo.bReloadtxpowerindex) {
 			delta = abs(thermal_val - dm_odm->RFCalibrateInfo.ThermalValue);
-		else {
+		} else {
 			delta = abs(thermal_val - hal_data->EEPROMThermalMeter);
 			if (dm_odm->RFCalibrateInfo.bReloadtxpowerindex) {
 				dm_odm->RFCalibrateInfo.bReloadtxpowerindex = false;
@@ -539,13 +475,11 @@ void rtl88eu_dm_txpower_tracking_callback_thermalmeter(struct adapter *adapt)
 				offset = index_mapping_NUM_88E-1;
 
 			/* Updating ofdm_index values with new OFDM / CCK offset */
-			for (i = 0; i < rf; i++) {
-				ofdm_index[i] = dm_odm->RFCalibrateInfo.OFDM_index[i] + ofdm_index_mapping[j][offset];
-				if (ofdm_index[i] > OFDM_TABLE_SIZE_92D-1)
-					ofdm_index[i] = OFDM_TABLE_SIZE_92D-1;
-				else if (ofdm_index[i] < ofdm_min_index)
-					ofdm_index[i] = ofdm_min_index;
-			}
+			ofdm_index[0] = dm_odm->RFCalibrateInfo.OFDM_index[0] + ofdm_index_mapping[j][offset];
+			if (ofdm_index[0] > OFDM_TABLE_SIZE_92D-1)
+				ofdm_index[0] = OFDM_TABLE_SIZE_92D-1;
+			else if (ofdm_index[0] < ofdm_min_index)
+				ofdm_index[0] = ofdm_min_index;
 
 			cck_index = dm_odm->RFCalibrateInfo.CCK_index + ofdm_index_mapping[j][offset];
 			if (cck_index > CCK_TABLE_SIZE-1)
@@ -857,9 +791,8 @@ static void save_adda_registers(struct adapter *adapt, u32 *addareg,
 {
 	u32 i;
 
-	for (i = 0; i < register_num; i++) {
+	for (i = 0; i < register_num; i++)
 		backup[i] = phy_query_bb_reg(adapt, addareg[i], bMaskDWord);
-	}
 }
 
 static void save_mac_registers(struct adapter *adapt, u32 *mac_reg,
@@ -867,9 +800,9 @@ static void save_mac_registers(struct adapter *adapt, u32 *mac_reg,
 {
 	u32 i;
 
-	for (i = 0; i < (IQK_MAC_REG_NUM - 1); i++) {
+	for (i = 0; i < (IQK_MAC_REG_NUM - 1); i++)
 		backup[i] = usb_read8(adapt, mac_reg[i]);
-	}
+
 	backup[i] = usb_read32(adapt, mac_reg[i]);
 }
 
@@ -887,9 +820,9 @@ static void reload_mac_registers(struct adapter *adapt,
 {
 	u32 i;
 
-	for (i = 0; i < (IQK_MAC_REG_NUM - 1); i++) {
+	for (i = 0; i < (IQK_MAC_REG_NUM - 1); i++)
 		usb_write8(adapt, mac_reg[i], (u8)backup[i]);
-	}
+
 	usb_write32(adapt, mac_reg[i], backup[i]);
 }
 
@@ -917,15 +850,14 @@ static void mac_setting_calibration(struct adapter *adapt, u32 *mac_reg, u32 *ba
 
 	usb_write8(adapt, mac_reg[i], 0x3F);
 
-	for (i = 1; i < (IQK_MAC_REG_NUM - 1); i++) {
+	for (i = 1; i < (IQK_MAC_REG_NUM - 1); i++)
 		usb_write8(adapt, mac_reg[i], (u8)(backup[i]&(~BIT(3))));
-	}
+
 	usb_write8(adapt, mac_reg[i], (u8)(backup[i]&(~BIT(5))));
 }
 
 static void path_a_standby(struct adapter *adapt)
 {
-
 	phy_set_bb_reg(adapt, rFPGA0_IQK, bMaskDWord, 0x0);
 	phy_set_bb_reg(adapt, 0x840, bMaskDWord, 0x00010000);
 	phy_set_bb_reg(adapt, rFPGA0_IQK, bMaskDWord, 0x80800000);
@@ -1042,13 +974,13 @@ static void phy_iq_calibrate(struct adapter *adapt, s32 result[][8],
 					      rFPGA0_XB_RFInterfaceOE, rFPGA0_RFMOD};
 
 	u32 retry_count = 9;
+
 	if (*(dm_odm->mp_mode) == 1)
 		retry_count = 9;
 	else
 		retry_count = 2;
 
 	if (t == 0) {
-
 		/*  Save ADDA parameters, turn Path A ADDA on */
 		save_adda_registers(adapt, adda_reg, dm_odm->RFCalibrateInfo.ADDA_backup,
 				    IQK_ADDA_REG_NUM);
@@ -1127,7 +1059,7 @@ static void phy_iq_calibrate(struct adapter *adapt, s32 result[][8],
 		}
 	}
 
-	if (0x00 == path_a_ok) {
+	if (path_a_ok == 0x00) {
 		ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD,
 			     ("Path A IQK failed!!\n"));
 	}
@@ -1158,7 +1090,7 @@ static void phy_iq_calibrate(struct adapter *adapt, s32 result[][8],
 			}
 		}
 
-		if (0x00 == path_b_ok) {
+		if (path_b_ok == 0x00) {
 			ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD,
 				     ("Path B IQK failed!!\n"));
 		}
@@ -1264,7 +1196,7 @@ void rtl88eu_phy_iq_calibrate(struct adapter *adapt, bool recovery)
 {
 	struct odm_dm_struct *dm_odm = &adapt->HalData->odmpriv;
 	s32 result[4][8];
-	u8 i, final, chn_index;
+	u8 i, final;
 	bool pathaok, pathbok;
 	s32 reg_e94, reg_e9c, reg_ea4, reg_eb4, reg_ebc, reg_ec4;
 	bool is12simular, is13simular, is23simular;
@@ -1293,15 +1225,10 @@ void rtl88eu_phy_iq_calibrate(struct adapter *adapt, bool recovery)
 		return;
 	}
 
-	for (i = 0; i < 8; i++) {
-		result[0][i] = 0;
-		result[1][i] = 0;
-		result[2][i] = 0;
-		if ((i == 0) || (i == 2) || (i == 4)  || (i == 6))
-			result[3][i] = 0x100;
-		else
-			result[3][i] = 0;
-	}
+	memset(result, 0, sizeof(result));
+	for (i = 0; i < 8; i += 2)
+		result[3][i] = 0x100;
+
 	final = 0xff;
 	pathaok = false;
 	pathbok = false;
@@ -1373,12 +1300,10 @@ void rtl88eu_phy_iq_calibrate(struct adapter *adapt, bool recovery)
 				       (reg_ec4 == 0));
 	}
 
-	chn_index = get_right_chnl_for_iqk(adapt->HalData->CurrentChannel);
-
 	if (final < 4) {
 		for (i = 0; i < IQK_Matrix_REG_NUM; i++)
-			dm_odm->RFCalibrateInfo.IQKMatrixRegSetting[chn_index].Value[0][i] = result[final][i];
-		dm_odm->RFCalibrateInfo.IQKMatrixRegSetting[chn_index].bIQKDone = true;
+			dm_odm->RFCalibrateInfo.IQKMatrixRegSetting[0].Value[0][i] = result[final][i];
+		dm_odm->RFCalibrateInfo.IQKMatrixRegSetting[0].bIQKDone = true;
 	}
 
 	save_adda_registers(adapt, iqk_bb_reg_92c,

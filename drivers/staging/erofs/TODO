@@ -1,0 +1,46 @@
+
+EROFS is still working in progress, thus it is not suitable
+for all productive uses. play at your own risk :)
+
+TODO List:
+ - add the missing error handling code
+   (mainly existed in xattr and decompression submodules);
+
+ - finalize erofs ondisk format design  (which means that
+   minor on-disk revisions could happen later);
+
+ - documentation and detailed technical analysis;
+
+ - general code review and clean up
+   (including confusing variable names and code snippets);
+
+ - support larger compressed clustersizes for selection
+   (currently erofs only works as expected with the page-sized
+    compressed cluster configuration, usually 4KB);
+
+ - support more lossless data compression algorithms
+   in addition to LZ4 algorithms in VLE approach;
+
+ - data deduplication and other useful features.
+
+The following git tree provides the file system user-space
+tools under development (ex, formatting tool mkfs.erofs):
+>> git://git.kernel.org/pub/scm/linux/kernel/git/xiang/erofs-utils.git
+
+The open-source development of erofs-utils is at the early stage.
+Contact the original author Li Guifu <bluce.liguifu@huawei.com> and
+the co-maintainer Fang Wei <fangwei1@huawei.com> for the latest news
+and more details.
+
+Code, suggestions, etc, are welcome. Please feel free to
+ask and send patches,
+
+To:
+  linux-erofs mailing list   <linux-erofs@lists.ozlabs.org>
+  Gao Xiang                  <gaoxiang25@huawei.com>
+  Chao Yu                    <yuchao0@huawei.com>
+
+Cc: (for linux-kernel upstream patches)
+  Greg Kroah-Hartman         <gregkh@linuxfoundation.org>
+  linux-staging mailing list <devel@driverdev.osuosl.org>
+

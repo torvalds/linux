@@ -1,15 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Mac80211 SDIO driver for ST-Ericsson CW1200 device
  *
  * Copyright (c) 2010, ST-Ericsson
  * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.no>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
+#include <linux/interrupt.h>
 #include <linux/gpio.h>
 #include <linux/delay.h>
 #include <linux/mmc/host.h>
@@ -265,7 +263,7 @@ static int cw1200_sdio_pm(struct hwbus_priv *self, bool suspend)
 	return ret;
 }
 
-static struct hwbus_ops cw1200_sdio_hwbus_ops = {
+static const struct hwbus_ops cw1200_sdio_hwbus_ops = {
 	.hwbus_memcpy_fromio	= cw1200_sdio_memcpy_fromio,
 	.hwbus_memcpy_toio	= cw1200_sdio_memcpy_toio,
 	.lock			= cw1200_sdio_lock,

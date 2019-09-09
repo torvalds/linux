@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	Pentium 4/Xeon CPU on demand clock modulation/speed scaling
  *	(C) 2002 - 2003 Dominik Brodowski <linux@brodo.de>
@@ -6,18 +7,12 @@
  *	(C) 2002 Tora T. Engstad
  *	All Rights Reserved
  *
- *	This program is free software; you can redistribute it and/or
- *      modify it under the terms of the GNU General Public License
- *      as published by the Free Software Foundation; either version
- *      2 of the License, or (at your option) any later version.
- *
  *      The author(s) of this software shall not be held liable for damages
  *      of any nature resulting due to the use of this software. This
  *      software is provided AS-IS with no warranties.
  *
  *	Date		Errata			Description
  *	20020525	N44, O17	12.5% or 25% DC causes lockup
- *
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -168,7 +163,7 @@ static int cpufreq_p4_cpu_init(struct cpufreq_policy *policy)
 #endif
 
 	/* Errata workaround */
-	cpuid = (c->x86 << 8) | (c->x86_model << 4) | c->x86_mask;
+	cpuid = (c->x86 << 8) | (c->x86_model << 4) | c->x86_stepping;
 	switch (cpuid) {
 	case 0x0f07:
 	case 0x0f0a:
@@ -202,8 +197,9 @@ static int cpufreq_p4_cpu_init(struct cpufreq_policy *policy)
 	/* the transition latency is set to be 1 higher than the maximum
 	 * transition latency of the ondemand governor */
 	policy->cpuinfo.transition_latency = 10000001;
+	policy->freq_table = &p4clockmod_table[0];
 
-	return cpufreq_table_validate_and_show(policy, &p4clockmod_table[0]);
+	return 0;
 }
 
 

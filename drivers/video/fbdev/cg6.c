@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* cg6.c: CGSIX (GX, GXplus, TGX) frame buffer driver
  *
  * Copyright (C) 2003, 2006 David S. Miller (davem@davemloft.net)
@@ -810,8 +811,8 @@ static int cg6_probe(struct platform_device *op)
 
 	dev_set_drvdata(&op->dev, info);
 
-	printk(KERN_INFO "%s: CGsix [%s] at %lx:%lx\n",
-	       dp->full_name, info->fix.id,
+	printk(KERN_INFO "%pOF: CGsix [%s] at %lx:%lx\n",
+	       dp, info->fix.id,
 	       par->which_io, info->fix.smem_start);
 
 	return 0;

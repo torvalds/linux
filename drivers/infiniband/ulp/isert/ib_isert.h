@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #include <linux/socket.h>
 #include <linux/in.h>
 #include <linux/in6.h>
@@ -60,7 +61,7 @@
 
 #define ISER_RX_PAD_SIZE	(ISCSI_DEF_MAX_RECV_SEG_LEN + 4096 - \
 		(ISER_RX_PAYLOAD_SIZE + sizeof(u64) + sizeof(struct ib_sge) + \
-		 sizeof(struct ib_cqe)))
+		 sizeof(struct ib_cqe) + sizeof(bool)))
 
 #define ISCSI_ISER_SG_TABLESIZE		256
 
@@ -85,6 +86,7 @@ struct iser_rx_desc {
 	u64		dma_addr;
 	struct ib_sge	rx_sg;
 	struct ib_cqe	rx_cqe;
+	bool		in_use;
 	char		pad[ISER_RX_PAD_SIZE];
 } __packed;
 
@@ -124,6 +126,7 @@ struct isert_cmd {
 	struct rdma_rw_ctx	rw;
 	struct work_struct	comp_work;
 	struct scatterlist	sg;
+	bool			ctx_init_done;
 };
 
 static inline struct isert_cmd *tx_desc_to_cmd(struct iser_tx_desc *desc)

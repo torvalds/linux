@@ -1,9 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2015 Freescale Semiconductor, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef __LINUX_IMX7_IOMUXC_GPR_H
@@ -43,5 +40,9 @@
 #define IMX7D_GPR1_ENET_CLK_DIR_MASK		(0x3 << 17)
 
 #define IMX7D_GPR5_CSI_MUX_CONTROL_MIPI		(0x1 << 4)
+
+#define IMX7D_GPR12_PCIE_PHY_REFCLK_SEL		BIT(5)
+
+#define IMX7D_GPR22_PCIE_PHY_PLL_LOCKED		BIT(31)
 
 #endif /* __LINUX_IMX7_IOMUXC_GPR_H */

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _TOOLS_LINUX_ASM_X86_ATOMIC_H
 #define _TOOLS_LINUX_ASM_X86_ATOMIC_H
 
@@ -6,6 +7,8 @@
 #include "rmwcc.h"
 
 #define LOCK_PREFIX "\n\tlock; "
+
+#include <asm/cmpxchg.h>
 
 /*
  * Atomic operations that C can't guarantee us.  Useful for
@@ -22,7 +25,7 @@
  */
 static inline int atomic_read(const atomic_t *v)
 {
-	return ACCESS_ONCE((v)->counter);
+	return READ_ONCE((v)->counter);
 }
 
 /**
@@ -60,6 +63,11 @@ static inline void atomic_inc(atomic_t *v)
 static inline int atomic_dec_and_test(atomic_t *v)
 {
 	GEN_UNARY_RMWcc(LOCK_PREFIX "decl", v->counter, "%0", "e");
+}
+
+static __always_inline int atomic_cmpxchg(atomic_t *v, int old, int new)
+{
+	return cmpxchg(&v->counter, old, new);
 }
 
 #endif /* _TOOLS_LINUX_ASM_X86_ATOMIC_H */

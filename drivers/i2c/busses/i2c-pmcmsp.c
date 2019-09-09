@@ -444,16 +444,6 @@ static enum pmcmsptwi_xfer_result pmcmsptwi_xfer_cmd(
 {
 	enum pmcmsptwi_xfer_result retval;
 
-	if ((cmd->type == MSP_TWI_CMD_WRITE && cmd->write_len == 0) ||
-	    (cmd->type == MSP_TWI_CMD_READ && cmd->read_len == 0) ||
-	    (cmd->type == MSP_TWI_CMD_WRITE_READ &&
-	    (cmd->read_len == 0 || cmd->write_len == 0))) {
-		dev_err(&pmcmsptwi_adapter.dev,
-			"%s: Cannot transfer less than 1 byte\n",
-			__func__);
-		return -EINVAL;
-	}
-
 	mutex_lock(&data->lock);
 	dev_dbg(&pmcmsptwi_adapter.dev,
 		"Setting address to 0x%04x\n", cmd->addr);
@@ -532,11 +522,6 @@ static int pmcmsptwi_master_xfer(struct i2c_adapter *adap,
 		cmd.write_data = msg->buf;
 	}
 
-	if (msg->len == 0) {
-		dev_err(&adap->dev, "Zero-byte messages unsupported\n");
-		return -EINVAL;
-	}
-
 	cmd.addr = msg->addr;
 
 	if (msg->flags & I2C_M_TEN) {
@@ -564,10 +549,10 @@ static int pmcmsptwi_master_xfer(struct i2c_adapter *adap,
 		 * TODO: We could potentially loop and retry in the case
 		 * of MSP_TWI_XFER_TIMEOUT.
 		 */
-		return -1;
+		return -EIO;
 	}
 
-	return 0;
+	return num;
 }
 
 static u32 pmcmsptwi_i2c_func(struct i2c_adapter *adapter)
@@ -577,8 +562,8 @@ static u32 pmcmsptwi_i2c_func(struct i2c_adapter *adapter)
 		I2C_FUNC_SMBUS_WORD_DATA | I2C_FUNC_SMBUS_PROC_CALL;
 }
 
-static struct i2c_adapter_quirks pmcmsptwi_i2c_quirks = {
-	.flags = I2C_AQ_COMB_WRITE_THEN_READ,
+static const struct i2c_adapter_quirks pmcmsptwi_i2c_quirks = {
+	.flags = I2C_AQ_COMB_WRITE_THEN_READ | I2C_AQ_NO_ZERO_LEN,
 	.max_write_len = MSP_MAX_BYTES_PER_RW,
 	.max_read_len = MSP_MAX_BYTES_PER_RW,
 	.max_comb_1st_msg_len = MSP_MAX_BYTES_PER_RW,
@@ -587,7 +572,7 @@ static struct i2c_adapter_quirks pmcmsptwi_i2c_quirks = {
 
 /* -- Initialization -- */
 
-static struct i2c_algorithm pmcmsptwi_algo = {
+static const struct i2c_algorithm pmcmsptwi_algo = {
 	.master_xfer	= pmcmsptwi_master_xfer,
 	.functionality	= pmcmsptwi_i2c_func,
 };

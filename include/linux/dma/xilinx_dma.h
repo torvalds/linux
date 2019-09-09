@@ -1,12 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Xilinx DMA Engine drivers support header file
  *
  * Copyright (C) 2010-2014 Xilinx, Inc. All rights reserved.
- *
- * This is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #ifndef __DMA_XILINX_DMA_H
@@ -27,6 +23,7 @@
  * @delay: Delay counter
  * @reset: Reset Channel
  * @ext_fsync: External Frame Sync source
+ * @vflip_en:  Vertical Flip enable
  */
 struct xilinx_vdma_config {
 	int frm_dly;
@@ -39,20 +36,7 @@ struct xilinx_vdma_config {
 	int delay;
 	int reset;
 	int ext_fsync;
-};
-
-/**
- * enum xdma_ip_type: DMA IP type.
- *
- * XDMA_TYPE_AXIDMA: Axi dma ip.
- * XDMA_TYPE_CDMA: Axi cdma ip.
- * XDMA_TYPE_VDMA: Axi vdma ip.
- *
- */
-enum xdma_ip_type {
-	XDMA_TYPE_AXIDMA = 0,
-	XDMA_TYPE_CDMA,
-	XDMA_TYPE_VDMA,
+	bool vflip_en;
 };
 
 int xilinx_vdma_channel_set_config(struct dma_chan *dchan,

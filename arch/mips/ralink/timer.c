@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Ralink RT2880 timer
  * Author: John Crispin
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
  *
  * Copyright (C) 2013 John Crispin <john@phrozen.org>
 */
@@ -71,11 +68,6 @@ static int rt_timer_request(struct rt_timer *rt)
 	return err;
 }
 
-static void rt_timer_free(struct rt_timer *rt)
-{
-	free_irq(rt->irq, rt);
-}
-
 static int rt_timer_config(struct rt_timer *rt, unsigned long divisor)
 {
 	if (rt->timer_freq < divisor)
@@ -101,15 +93,6 @@ static int rt_timer_enable(struct rt_timer *rt)
 	return 0;
 }
 
-static void rt_timer_disable(struct rt_timer *rt)
-{
-	u32 t;
-
-	t = rt_timer_r32(rt, TIMER_REG_TMR0CTL);
-	t &= ~TMR0CTL_ENABLE;
-	rt_timer_w32(rt, TIMER_REG_TMR0CTL, t);
-}
-
 static int rt_timer_probe(struct platform_device *pdev)
 {
 	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -123,9 +106,9 @@ static int rt_timer_probe(struct platform_device *pdev)
 	}
 
 	rt->irq = platform_get_irq(pdev, 0);
-	if (!rt->irq) {
+	if (rt->irq < 0) {
 		dev_err(&pdev->dev, "failed to load irq\n");
-		return -ENOENT;
+		return rt->irq;
 	}
 
 	rt->membase = devm_ioremap_resource(&pdev->dev, res);

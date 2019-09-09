@@ -1,45 +1,9 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /*******************************************************************************
  *
  * Module Name: dbdisply - debug display commands
  *
  ******************************************************************************/
-
-/*
- * Copyright (C) 2000 - 2016, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
 
 #include <acpi/acpi.h>
 #include "accommon.h"
@@ -273,7 +237,7 @@ void acpi_db_decode_and_display_object(char *target, char *output_type)
 
 		default:
 
-			/* Is not a recognizeable object */
+			/* Is not a recognizable object */
 
 			acpi_os_printf
 			    ("Not a known ACPI internal object, descriptor type %2.2X\n",
@@ -310,7 +274,7 @@ dump_node:
 	}
 
 	else {
-		acpi_os_printf("Object (%p) Pathname: %s\n",
+		acpi_os_printf("Object %p: Namespace Node - Pathname: %s\n",
 			       node, (char *)ret_buf.pointer);
 	}
 
@@ -326,7 +290,7 @@ dump_node:
 
 	obj_desc = acpi_ns_get_attached_object(node);
 	if (obj_desc) {
-		acpi_os_printf("\nAttached Object (%p):\n", obj_desc);
+		acpi_os_printf("\nAttached Object %p:", obj_desc);
 		if (!acpi_os_readable
 		    (obj_desc, sizeof(union acpi_operand_object))) {
 			acpi_os_printf
@@ -335,9 +299,36 @@ dump_node:
 			return;
 		}
 
-		acpi_ut_debug_dump_buffer((void *)obj_desc,
-					  sizeof(union acpi_operand_object),
-					  display, ACPI_UINT32_MAX);
+		if (ACPI_GET_DESCRIPTOR_TYPE(((struct acpi_namespace_node *)
+					      obj_desc)) ==
+		    ACPI_DESC_TYPE_NAMED) {
+			acpi_os_printf(" Namespace Node - ");
+			status =
+			    acpi_get_name((struct acpi_namespace_node *)
+					  obj_desc,
+					  ACPI_FULL_PATHNAME_NO_TRAILING,
+					  &ret_buf);
+			if (ACPI_FAILURE(status)) {
+				acpi_os_printf
+				    ("Could not convert name to pathname\n");
+			} else {
+				acpi_os_printf("Pathname: %s",
+					       (char *)ret_buf.pointer);
+			}
+
+			acpi_os_printf("\n");
+			acpi_ut_debug_dump_buffer((void *)obj_desc,
+						  sizeof(struct
+							 acpi_namespace_node),
+						  display, ACPI_UINT32_MAX);
+		} else {
+			acpi_os_printf("\n");
+			acpi_ut_debug_dump_buffer((void *)obj_desc,
+						  sizeof(union
+							 acpi_operand_object),
+						  display, ACPI_UINT32_MAX);
+		}
+
 		acpi_ex_dump_object_descriptor(obj_desc, 1);
 	}
 }
@@ -615,9 +606,8 @@ void acpi_db_display_object_type(char *object_arg)
 		return;
 	}
 
-	acpi_os_printf("ADR: %8.8X%8.8X, STA: %8.8X, Flags: %X\n",
-		       ACPI_FORMAT_UINT64(info->address),
-		       info->current_status, info->flags);
+	acpi_os_printf("ADR: %8.8X%8.8X, Flags: %X\n",
+		       ACPI_FORMAT_UINT64(info->address), info->flags);
 
 	acpi_os_printf("S1D-%2.2X S2D-%2.2X S3D-%2.2X S4D-%2.2X\n",
 		       info->highest_dstates[0], info->highest_dstates[1],
@@ -657,7 +647,7 @@ void acpi_db_display_object_type(char *object_arg)
  *
  * DESCRIPTION: Display the result of an AML opcode
  *
- * Note: Curently only displays the result object if we are single stepping.
+ * Note: Currently only displays the result object if we are single stepping.
  * However, this output may be useful in other contexts and could be enabled
  * to do so if needed.
  *

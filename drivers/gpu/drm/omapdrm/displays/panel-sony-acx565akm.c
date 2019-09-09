@@ -1,38 +1,23 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Sony ACX565AKM LCD Panel driver
  *
  * Copyright (C) 2010 Nokia Corporation
  *
  * Original Driver Author: Imre Deak <imre.deak@nokia.com>
- * Based on panel-generic.c by Tomi Valkeinen <tomi.valkeinen@nokia.com>
+ * Based on panel-generic.c by Tomi Valkeinen <tomi.valkeinen@ti.com>
  * Adapted to new DSS2 framework: Roger Quadros <roger.quadros@nokia.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/backlight.h>
+#include <linux/delay.h>
+#include <linux/gpio/consumer.h>
+#include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/delay.h>
-#include <linux/spi/spi.h>
-#include <linux/jiffies.h>
 #include <linux/sched.h>
-#include <linux/backlight.h>
-#include <linux/gpio/consumer.h>
-#include <linux/of.h>
-#include <linux/of_gpio.h>
-
-#include <video/omap-panel-data.h>
+#include <linux/spi/spi.h>
 
 #include "../dss/omapdss.h"
 
@@ -66,12 +51,10 @@
 
 struct panel_drv_data {
 	struct omap_dss_device	dssdev;
-	struct omap_dss_device *in;
 
-	int reset_gpio;
-	int datapairs;
+	struct gpio_desc *reset_gpio;
 
-	struct omap_video_timings videomode;
+	struct videomode vm;
 
 	char		*name;
 	int		enabled;
@@ -92,23 +75,18 @@ struct panel_drv_data {
 	struct backlight_device *bl_dev;
 };
 
-static const struct omap_video_timings acx565akm_panel_timings = {
-	.x_res		= 800,
-	.y_res		= 480,
+static const struct videomode acx565akm_panel_vm = {
+	.hactive	= 800,
+	.vactive	= 480,
 	.pixelclock	= 24000000,
-	.hfp		= 28,
-	.hsw		= 4,
-	.hbp		= 24,
-	.vfp		= 3,
-	.vsw		= 3,
-	.vbp		= 4,
+	.hfront_porch	= 28,
+	.hsync_len	= 4,
+	.hback_porch	= 24,
+	.vfront_porch	= 3,
+	.vsync_len	= 3,
+	.vback_porch	= 4,
 
-	.vsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
-	.hsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
-
-	.data_pclk_edge	= OMAPDSS_DRIVE_SIG_RISING_EDGE,
-	.de_level	= OMAPDSS_SIG_ACTIVE_HIGH,
-	.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_FALLING_EDGE,
+	.flags		= DISPLAY_FLAGS_HSYNC_LOW | DISPLAY_FLAGS_VSYNC_LOW,
 };
 
 #define to_panel_data(p) container_of(p, struct panel_drv_data, dssdev)
@@ -222,12 +200,12 @@ static void set_display_state(struct panel_drv_data *ddata, int enabled)
 
 static int panel_enabled(struct panel_drv_data *ddata)
 {
+	__be32 v;
 	u32 disp_status;
 	int enabled;
 
-	acx565akm_read(ddata, MIPID_CMD_READ_DISP_STATUS,
-			(u8 *)&disp_status, 4);
-	disp_status = __be32_to_cpu(disp_status);
+	acx565akm_read(ddata, MIPID_CMD_READ_DISP_STATUS, (u8 *)&v, 4);
+	disp_status = __be32_to_cpu(v);
 	enabled = (disp_status & (1 << 17)) && (disp_status & (1 << 10));
 	dev_dbg(&ddata->spi->dev,
 		"LCD panel %senabled by bootloader (status 0x%04x)\n",
@@ -295,7 +273,7 @@ static void enable_backlight_ctrl(struct panel_drv_data *ddata, int enable)
 	acx565akm_write(ddata, MIPID_CMD_WRITE_CTRL_DISP, (u8 *)&ctrl, 2);
 }
 
-static void set_cabc_mode(struct panel_drv_data *ddata, unsigned mode)
+static void set_cabc_mode(struct panel_drv_data *ddata, unsigned int mode)
 {
 	u16 cabc_ctrl;
 
@@ -309,12 +287,12 @@ static void set_cabc_mode(struct panel_drv_data *ddata, unsigned mode)
 	acx565akm_write(ddata, MIPID_CMD_WRITE_CABC, (u8 *)&cabc_ctrl, 2);
 }
 
-static unsigned get_cabc_mode(struct panel_drv_data *ddata)
+static unsigned int get_cabc_mode(struct panel_drv_data *ddata)
 {
 	return ddata->cabc_mode;
 }
 
-static unsigned get_hw_cabc_mode(struct panel_drv_data *ddata)
+static unsigned int get_hw_cabc_mode(struct panel_drv_data *ddata)
 {
 	u8 cabc_ctrl;
 
@@ -509,61 +487,32 @@ static struct attribute *bldev_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group bldev_attr_group = {
+static const struct attribute_group bldev_attr_group = {
 	.attrs = bldev_attrs,
 };
 
-static int acx565akm_connect(struct omap_dss_device *dssdev)
+static int acx565akm_connect(struct omap_dss_device *src,
+			     struct omap_dss_device *dst)
 {
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
-	int r;
-
-	if (omapdss_device_is_connected(dssdev))
-		return 0;
-
-	r = in->ops.sdi->connect(in, dssdev);
-	if (r)
-		return r;
-
 	return 0;
 }
 
-static void acx565akm_disconnect(struct omap_dss_device *dssdev)
+static void acx565akm_disconnect(struct omap_dss_device *src,
+				 struct omap_dss_device *dst)
 {
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
-
-	if (!omapdss_device_is_connected(dssdev))
-		return;
-
-	in->ops.sdi->disconnect(in, dssdev);
 }
 
 static int acx565akm_panel_power_on(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
-	int r;
 
 	dev_dbg(&ddata->spi->dev, "%s\n", __func__);
-
-	in->ops.sdi->set_timings(in, &ddata->videomode);
-
-	if (ddata->datapairs > 0)
-		in->ops.sdi->set_datapairs(in, ddata->datapairs);
-
-	r = in->ops.sdi->enable(in);
-	if (r) {
-		pr_err("%s sdi enable failed\n", __func__);
-		return r;
-	}
 
 	/*FIXME tweak me */
 	msleep(50);
 
-	if (gpio_is_valid(ddata->reset_gpio))
-		gpio_set_value(ddata->reset_gpio, 1);
+	if (ddata->reset_gpio)
+		gpiod_set_value(ddata->reset_gpio, 1);
 
 	if (ddata->enabled) {
 		dev_dbg(&ddata->spi->dev, "panel already enabled\n");
@@ -594,7 +543,6 @@ static int acx565akm_panel_power_on(struct omap_dss_device *dssdev)
 static void acx565akm_panel_power_off(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
 
 	dev_dbg(dssdev->dev, "%s\n", __func__);
 
@@ -612,139 +560,48 @@ static void acx565akm_panel_power_off(struct omap_dss_device *dssdev)
 	 */
 	msleep(50);
 
-	if (gpio_is_valid(ddata->reset_gpio))
-		gpio_set_value(ddata->reset_gpio, 0);
+	if (ddata->reset_gpio)
+		gpiod_set_value(ddata->reset_gpio, 0);
 
 	/* FIXME need to tweak this delay */
 	msleep(100);
-
-	in->ops.sdi->disable(in);
 }
 
-static int acx565akm_enable(struct omap_dss_device *dssdev)
+static void acx565akm_enable(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	int r;
-
-	dev_dbg(dssdev->dev, "%s\n", __func__);
-
-	if (!omapdss_device_is_connected(dssdev))
-		return -ENODEV;
-
-	if (omapdss_device_is_enabled(dssdev))
-		return 0;
 
 	mutex_lock(&ddata->mutex);
-	r = acx565akm_panel_power_on(dssdev);
+	acx565akm_panel_power_on(dssdev);
 	mutex_unlock(&ddata->mutex);
-	if (r)
-		return r;
-
-	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
-
-	return 0;
 }
 
 static void acx565akm_disable(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 
-	dev_dbg(dssdev->dev, "%s\n", __func__);
-
-	if (!omapdss_device_is_enabled(dssdev))
-		return;
-
 	mutex_lock(&ddata->mutex);
 	acx565akm_panel_power_off(dssdev);
 	mutex_unlock(&ddata->mutex);
-
-	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 }
 
-static void acx565akm_set_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
-{
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
-
-	ddata->videomode = *timings;
-	dssdev->panel.timings = *timings;
-
-	in->ops.sdi->set_timings(in, timings);
-}
-
-static void acx565akm_get_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+static int acx565akm_get_modes(struct omap_dss_device *dssdev,
+			       struct drm_connector *connector)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 
-	*timings = ddata->videomode;
+	return omapdss_display_get_modes(connector, &ddata->vm);
 }
 
-static int acx565akm_check_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
-{
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
-
-	return in->ops.sdi->check_timings(in, timings);
-}
-
-static struct omap_dss_driver acx565akm_ops = {
+static const struct omap_dss_device_ops acx565akm_ops = {
 	.connect	= acx565akm_connect,
 	.disconnect	= acx565akm_disconnect,
 
 	.enable		= acx565akm_enable,
 	.disable	= acx565akm_disable,
 
-	.set_timings	= acx565akm_set_timings,
-	.get_timings	= acx565akm_get_timings,
-	.check_timings	= acx565akm_check_timings,
-
-	.get_resolution	= omapdss_default_get_resolution,
+	.get_modes	= acx565akm_get_modes,
 };
-
-static int acx565akm_probe_pdata(struct spi_device *spi)
-{
-	const struct panel_acx565akm_platform_data *pdata;
-	struct panel_drv_data *ddata = dev_get_drvdata(&spi->dev);
-	struct omap_dss_device *dssdev, *in;
-
-	pdata = dev_get_platdata(&spi->dev);
-
-	ddata->reset_gpio = pdata->reset_gpio;
-
-	in = omap_dss_find_output(pdata->source);
-	if (in == NULL) {
-		dev_err(&spi->dev, "failed to find video source '%s'\n",
-				pdata->source);
-		return -EPROBE_DEFER;
-	}
-	ddata->in = in;
-
-	ddata->datapairs = pdata->datapairs;
-
-	dssdev = &ddata->dssdev;
-	dssdev->name = pdata->name;
-
-	return 0;
-}
-
-static int acx565akm_probe_of(struct spi_device *spi)
-{
-	struct panel_drv_data *ddata = dev_get_drvdata(&spi->dev);
-	struct device_node *np = spi->dev.of_node;
-
-	ddata->reset_gpio = of_get_named_gpio(np, "reset-gpios", 0);
-
-	ddata->in = omapdss_of_find_source_for_first_ep(np);
-	if (IS_ERR(ddata->in)) {
-		dev_err(&spi->dev, "failed to find video source\n");
-		return PTR_ERR(ddata->in);
-	}
-
-	return 0;
-}
 
 static int acx565akm_probe(struct spi_device *spi)
 {
@@ -753,6 +610,7 @@ static int acx565akm_probe(struct spi_device *spi)
 	struct backlight_device *bldev;
 	int max_brightness, brightness;
 	struct backlight_properties props;
+	struct gpio_desc *gpio;
 	int r;
 
 	dev_dbg(&spi->dev, "%s\n", __func__);
@@ -769,28 +627,16 @@ static int acx565akm_probe(struct spi_device *spi)
 
 	mutex_init(&ddata->mutex);
 
-	if (dev_get_platdata(&spi->dev)) {
-		r = acx565akm_probe_pdata(spi);
-		if (r)
-			return r;
-	} else if (spi->dev.of_node) {
-		r = acx565akm_probe_of(spi);
-		if (r)
-			return r;
-	} else {
-		dev_err(&spi->dev, "platform data missing!\n");
-		return -ENODEV;
+	gpio = devm_gpiod_get_optional(&spi->dev, "reset", GPIOD_OUT_LOW);
+	if (IS_ERR(gpio)) {
+		dev_err(&spi->dev, "failed to parse reset gpio\n");
+		return PTR_ERR(gpio);
 	}
 
-	if (gpio_is_valid(ddata->reset_gpio)) {
-		r = devm_gpio_request_one(&spi->dev, ddata->reset_gpio,
-				GPIOF_OUT_INIT_LOW, "lcd reset");
-		if (r)
-			goto err_gpio;
-	}
+	ddata->reset_gpio = gpio;
 
-	if (gpio_is_valid(ddata->reset_gpio))
-		gpio_set_value(ddata->reset_gpio, 1);
+	if (ddata->reset_gpio)
+		gpiod_set_value(ddata->reset_gpio, 1);
 
 	/*
 	 * After reset we have to wait 5 msec before the first
@@ -802,12 +648,12 @@ static int acx565akm_probe(struct spi_device *spi)
 
 	r = panel_detect(ddata);
 
-	if (!ddata->enabled && gpio_is_valid(ddata->reset_gpio))
-		gpio_set_value(ddata->reset_gpio, 0);
+	if (!ddata->enabled && ddata->reset_gpio)
+		gpiod_set_value(ddata->reset_gpio, 0);
 
 	if (r) {
 		dev_err(&spi->dev, "%s panel detect error\n", __func__);
-		goto err_detect;
+		return r;
 	}
 
 	memset(&props, 0, sizeof(props));
@@ -817,17 +663,15 @@ static int acx565akm_probe(struct spi_device *spi)
 
 	bldev = backlight_device_register("acx565akm", &ddata->spi->dev,
 			ddata, &acx565akm_bl_ops, &props);
-	if (IS_ERR(bldev)) {
-		r = PTR_ERR(bldev);
-		goto err_reg_bl;
-	}
+	if (IS_ERR(bldev))
+		return PTR_ERR(bldev);
 	ddata->bl_dev = bldev;
 	if (ddata->has_cabc) {
 		r = sysfs_create_group(&bldev->dev.kobj, &bldev_attr_group);
 		if (r) {
 			dev_err(&bldev->dev,
 				"%s failed to create sysfs files\n", __func__);
-			goto err_sysfs;
+			goto err_backlight_unregister;
 		}
 		ddata->cabc_mode = get_hw_cabc_mode(ddata);
 	}
@@ -845,31 +689,27 @@ static int acx565akm_probe(struct spi_device *spi)
 	acx565akm_bl_update_status(bldev);
 
 
-	ddata->videomode = acx565akm_panel_timings;
+	ddata->vm = acx565akm_panel_vm;
 
 	dssdev = &ddata->dssdev;
 	dssdev->dev = &spi->dev;
-	dssdev->driver = &acx565akm_ops;
+	dssdev->ops = &acx565akm_ops;
 	dssdev->type = OMAP_DISPLAY_TYPE_SDI;
+	dssdev->display = true;
 	dssdev->owner = THIS_MODULE;
-	dssdev->panel.timings = ddata->videomode;
+	dssdev->of_ports = BIT(0);
+	dssdev->ops_flags = OMAP_DSS_DEVICE_OP_MODES;
+	dssdev->bus_flags = DRM_BUS_FLAG_DE_HIGH
+			  | DRM_BUS_FLAG_SYNC_DRIVE_NEGEDGE
+			  | DRM_BUS_FLAG_PIXDATA_DRIVE_POSEDGE;
 
-	r = omapdss_register_display(dssdev);
-	if (r) {
-		dev_err(&spi->dev, "Failed to register panel\n");
-		goto err_reg;
-	}
+	omapdss_display_init(dssdev);
+	omapdss_device_register(dssdev);
 
 	return 0;
 
-err_reg:
-	sysfs_remove_group(&bldev->dev.kobj, &bldev_attr_group);
-err_sysfs:
+err_backlight_unregister:
 	backlight_device_unregister(bldev);
-err_reg_bl:
-err_detect:
-err_gpio:
-	omap_dss_put_device(ddata->in);
 	return r;
 }
 
@@ -877,19 +717,16 @@ static int acx565akm_remove(struct spi_device *spi)
 {
 	struct panel_drv_data *ddata = dev_get_drvdata(&spi->dev);
 	struct omap_dss_device *dssdev = &ddata->dssdev;
-	struct omap_dss_device *in = ddata->in;
 
 	dev_dbg(&ddata->spi->dev, "%s\n", __func__);
 
 	sysfs_remove_group(&ddata->bl_dev->dev.kobj, &bldev_attr_group);
 	backlight_device_unregister(ddata->bl_dev);
 
-	omapdss_unregister_display(dssdev);
+	omapdss_device_unregister(dssdev);
 
-	acx565akm_disable(dssdev);
-	acx565akm_disconnect(dssdev);
-
-	omap_dss_put_device(in);
+	if (omapdss_device_is_enabled(dssdev))
+		acx565akm_disable(dssdev);
 
 	return 0;
 }
@@ -912,6 +749,7 @@ static struct spi_driver acx565akm_driver = {
 
 module_spi_driver(acx565akm_driver);
 
+MODULE_ALIAS("spi:sony,acx565akm");
 MODULE_AUTHOR("Nokia Corporation");
 MODULE_DESCRIPTION("acx565akm LCD Driver");
 MODULE_LICENSE("GPL");

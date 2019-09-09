@@ -1,22 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Driver for Cirrus Logic CS4281 based PCI soundcard
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>,
- *
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <linux/io.h>
@@ -709,7 +694,7 @@ static int snd_cs4281_trigger(struct snd_pcm_substream *substream, int cmd)
 
 static unsigned int snd_cs4281_rate(unsigned int rate, unsigned int *real_rate)
 {
-	unsigned int val = ~0;
+	unsigned int val;
 	
 	if (real_rate)
 		*real_rate = rate;
@@ -722,9 +707,8 @@ static unsigned int snd_cs4281_rate(unsigned int rate, unsigned int *real_rate)
 	case 44100:	return 1;
 	case 48000:	return 0;
 	default:
-		goto __variable;
+		break;
 	}
-      __variable:
 	val = 1536000 / rate;
 	if (real_rate)
 		*real_rate = 1536000 / val;
@@ -847,7 +831,7 @@ static snd_pcm_uframes_t snd_cs4281_pointer(struct snd_pcm_substream *substream)
 	       snd_cs4281_peekBA0(chip, dma->regDCC) - 1;
 }
 
-static struct snd_pcm_hardware snd_cs4281_playback =
+static const struct snd_pcm_hardware snd_cs4281_playback =
 {
 	.info =			SNDRV_PCM_INFO_MMAP |
 				SNDRV_PCM_INFO_INTERLEAVED |
@@ -872,7 +856,7 @@ static struct snd_pcm_hardware snd_cs4281_playback =
 	.fifo_size =		CS4281_FIFO_SIZE,
 };
 
-static struct snd_pcm_hardware snd_cs4281_capture =
+static const struct snd_pcm_hardware snd_cs4281_capture =
 {
 	.info =			SNDRV_PCM_INFO_MMAP |
 				SNDRV_PCM_INFO_INTERLEAVED |
@@ -1055,7 +1039,7 @@ static int snd_cs4281_put_volume(struct snd_kcontrol *kcontrol,
 
 static const DECLARE_TLV_DB_SCALE(db_scale_dsp, -4650, 150, 0);
 
-static struct snd_kcontrol_new snd_cs4281_fm_vol = 
+static const struct snd_kcontrol_new snd_cs4281_fm_vol =
 {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Synth Playback Volume",
@@ -1066,7 +1050,7 @@ static struct snd_kcontrol_new snd_cs4281_fm_vol =
 	.tlv = { .p = db_scale_dsp },
 };
 
-static struct snd_kcontrol_new snd_cs4281_pcm_vol = 
+static const struct snd_kcontrol_new snd_cs4281_pcm_vol =
 {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "PCM Stream Playback Volume",
@@ -1174,8 +1158,7 @@ static void snd_cs4281_proc_init(struct cs4281 *chip)
 {
 	struct snd_info_entry *entry;
 
-	if (! snd_card_proc_new(chip->card, "cs4281", &entry))
-		snd_info_set_text_ops(entry, chip, snd_cs4281_proc_read);
+	snd_card_ro_proc_new(chip->card, "cs4281", chip, snd_cs4281_proc_read);
 	if (! snd_card_proc_new(chip->card, "cs4281_BA0", &entry)) {
 		entry->content = SNDRV_INFO_CONTENT_DATA;
 		entry->private_data = chip;
@@ -1194,7 +1177,7 @@ static void snd_cs4281_proc_init(struct cs4281 *chip)
  * joystick support
  */
 
-#if defined(CONFIG_GAMEPORT) || (defined(MODULE) && defined(CONFIG_GAMEPORT_MODULE))
+#if IS_REACHABLE(CONFIG_GAMEPORT)
 
 static void snd_cs4281_gameport_trigger(struct gameport *gameport)
 {
@@ -1296,7 +1279,7 @@ static void snd_cs4281_free_gameport(struct cs4281 *chip)
 #else
 static inline int snd_cs4281_create_gameport(struct cs4281 *chip) { return -ENOSYS; }
 static inline void snd_cs4281_free_gameport(struct cs4281 *chip) { }
-#endif /* CONFIG_GAMEPORT || (MODULE && CONFIG_GAMEPORT_MODULE) */
+#endif /* IS_REACHABLE(CONFIG_GAMEPORT) */
 
 static int snd_cs4281_free(struct cs4281 *chip)
 {
@@ -1767,14 +1750,14 @@ static void snd_cs4281_midi_output_trigger(struct snd_rawmidi_substream *substre
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
 }
 
-static struct snd_rawmidi_ops snd_cs4281_midi_output =
+static const struct snd_rawmidi_ops snd_cs4281_midi_output =
 {
 	.open =		snd_cs4281_midi_output_open,
 	.close =	snd_cs4281_midi_output_close,
 	.trigger =	snd_cs4281_midi_output_trigger,
 };
 
-static struct snd_rawmidi_ops snd_cs4281_midi_input =
+static const struct snd_rawmidi_ops snd_cs4281_midi_input =
 {
 	.open = 	snd_cs4281_midi_input_open,
 	.close =	snd_cs4281_midi_input_close,
@@ -2002,8 +1985,6 @@ static int cs4281_suspend(struct device *dev)
 	unsigned int i;
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
-	snd_pcm_suspend_all(chip->pcm);
-
 	snd_ac97_suspend(chip->ac97);
 	snd_ac97_suspend(chip->ac97_secondary);
 

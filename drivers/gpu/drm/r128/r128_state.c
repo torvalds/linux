@@ -28,8 +28,15 @@
  *    Gareth Hughes <gareth@valinux.com>
  */
 
-#include <drm/drmP.h>
+#include <linux/pci.h>
+#include <linux/slab.h>
+#include <linux/uaccess.h>
+
+#include <drm/drm_device.h>
+#include <drm/drm_file.h>
+#include <drm/drm_print.h>
 #include <drm/r128_drm.h>
+
 #include "r128_drv.h"
 
 /* ================================================================
@@ -824,7 +831,7 @@ static int r128_cce_dispatch_blit(struct drm_device *dev,
 
 	if (buf->file_priv != file_priv) {
 		DRM_ERROR("process %d using buffer owned by %p\n",
-			  DRM_CURRENTPID, buf->file_priv);
+			  task_pid_nr(current), buf->file_priv);
 		return -EINVAL;
 	}
 	if (buf->pending) {
@@ -982,25 +989,14 @@ static int r128_cce_dispatch_write_pixels(struct drm_device *dev,
 
 	xbuf_size = count * sizeof(*x);
 	ybuf_size = count * sizeof(*y);
-	x = kmalloc(xbuf_size, GFP_KERNEL);
-	if (x == NULL)
-		return -ENOMEM;
-	y = kmalloc(ybuf_size, GFP_KERNEL);
-	if (y == NULL) {
+	x = memdup_user(depth->x, xbuf_size);
+	if (IS_ERR(x))
+		return PTR_ERR(x);
+	y = memdup_user(depth->y, ybuf_size);
+	if (IS_ERR(y)) {
 		kfree(x);
-		return -ENOMEM;
+		return PTR_ERR(y);
 	}
-	if (copy_from_user(x, depth->x, xbuf_size)) {
-		kfree(x);
-		kfree(y);
-		return -EFAULT;
-	}
-	if (copy_from_user(y, depth->y, xbuf_size)) {
-		kfree(x);
-		kfree(y);
-		return -EFAULT;
-	}
-
 	buffer_size = depth->n * sizeof(u32);
 	buffer = memdup_user(depth->buffer, buffer_size);
 	if (IS_ERR(buffer)) {
@@ -1328,7 +1324,7 @@ static int r128_cce_vertex(struct drm_device *dev, void *data, struct drm_file *
 	DEV_INIT_TEST_WITH_RETURN(dev_priv);
 
 	DRM_DEBUG("pid=%d index=%d count=%d discard=%d\n",
-		  DRM_CURRENTPID, vertex->idx, vertex->count, vertex->discard);
+		  task_pid_nr(current), vertex->idx, vertex->count, vertex->discard);
 
 	if (vertex->idx < 0 || vertex->idx >= dma->buf_count) {
 		DRM_ERROR("buffer index %d (of %d max)\n",
@@ -1349,7 +1345,7 @@ static int r128_cce_vertex(struct drm_device *dev, void *data, struct drm_file *
 
 	if (buf->file_priv != file_priv) {
 		DRM_ERROR("process %d using buffer owned by %p\n",
-			  DRM_CURRENTPID, buf->file_priv);
+			  task_pid_nr(current), buf->file_priv);
 		return -EINVAL;
 	}
 	if (buf->pending) {
@@ -1380,7 +1376,7 @@ static int r128_cce_indices(struct drm_device *dev, void *data, struct drm_file 
 
 	DEV_INIT_TEST_WITH_RETURN(dev_priv);
 
-	DRM_DEBUG("pid=%d buf=%d s=%d e=%d d=%d\n", DRM_CURRENTPID,
+	DRM_DEBUG("pid=%d buf=%d s=%d e=%d d=%d\n", task_pid_nr(current),
 		  elts->idx, elts->start, elts->end, elts->discard);
 
 	if (elts->idx < 0 || elts->idx >= dma->buf_count) {
@@ -1402,7 +1398,7 @@ static int r128_cce_indices(struct drm_device *dev, void *data, struct drm_file 
 
 	if (buf->file_priv != file_priv) {
 		DRM_ERROR("process %d using buffer owned by %p\n",
-			  DRM_CURRENTPID, buf->file_priv);
+			  task_pid_nr(current), buf->file_priv);
 		return -EINVAL;
 	}
 	if (buf->pending) {
@@ -1443,7 +1439,7 @@ static int r128_cce_blit(struct drm_device *dev, void *data, struct drm_file *fi
 
 	DEV_INIT_TEST_WITH_RETURN(dev_priv);
 
-	DRM_DEBUG("pid=%d index=%d\n", DRM_CURRENTPID, blit->idx);
+	DRM_DEBUG("pid=%d index=%d\n", task_pid_nr(current), blit->idx);
 
 	if (blit->idx < 0 || blit->idx >= dma->buf_count) {
 		DRM_ERROR("buffer index %d (of %d max)\n",
@@ -1460,7 +1456,7 @@ static int r128_cce_blit(struct drm_device *dev, void *data, struct drm_file *fi
 	return ret;
 }
 
-static int r128_cce_depth(struct drm_device *dev, void *data, struct drm_file *file_priv)
+int r128_cce_depth(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
 	drm_r128_private_t *dev_priv = dev->dev_private;
 	drm_r128_depth_t *depth = data;
@@ -1492,7 +1488,7 @@ static int r128_cce_depth(struct drm_device *dev, void *data, struct drm_file *f
 	return ret;
 }
 
-static int r128_cce_stipple(struct drm_device *dev, void *data, struct drm_file *file_priv)
+int r128_cce_stipple(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
 	drm_r128_private_t *dev_priv = dev->dev_private;
 	drm_r128_stipple_t *stipple = data;
@@ -1543,7 +1539,7 @@ static int r128_cce_indirect(struct drm_device *dev, void *data, struct drm_file
 
 	if (buf->file_priv != file_priv) {
 		DRM_ERROR("process %d using buffer owned by %p\n",
-			  DRM_CURRENTPID, buf->file_priv);
+			  task_pid_nr(current), buf->file_priv);
 		return -EINVAL;
 	}
 	if (buf->pending) {
@@ -1582,7 +1578,7 @@ static int r128_cce_indirect(struct drm_device *dev, void *data, struct drm_file
 	return 0;
 }
 
-static int r128_getparam(struct drm_device *dev, void *data, struct drm_file *file_priv)
+int r128_getparam(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
 	drm_r128_private_t *dev_priv = dev->dev_private;
 	drm_r128_getparam_t *param = data;
@@ -1590,7 +1586,7 @@ static int r128_getparam(struct drm_device *dev, void *data, struct drm_file *fi
 
 	DEV_INIT_TEST_WITH_RETURN(dev_priv);
 
-	DRM_DEBUG("pid=%d\n", DRM_CURRENTPID);
+	DRM_DEBUG("pid=%d\n", task_pid_nr(current));
 
 	switch (param->param) {
 	case R128_PARAM_IRQ_NR:

@@ -1,16 +1,25 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (c) 2016 IBM Corporation.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include "ppc_asm.h"
 #include "../include/asm/opal-api.h"
 
 	.text
+
+	.globl opal_kentry
+opal_kentry:
+	/* r3 is the fdt ptr */
+	mtctr r4
+	li	r4, 0
+	li	r5, 0
+	li	r6, 0
+	li	r7, 0
+	ld	r11,opal@got(r2)
+	ld	r8,0(r11)
+	ld	r9,8(r11)
+	bctr
 
 #define OPAL_CALL(name, token)				\
 	.globl name;					\

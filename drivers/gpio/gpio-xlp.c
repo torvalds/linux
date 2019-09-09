@@ -1,18 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2003-2015 Broadcom Corporation
  * All Rights Reserved
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/platform_device.h>
 #include <linux/of_device.h>
 #include <linux/module.h>
@@ -225,7 +217,7 @@ static void xlp_gpio_generic_handler(struct irq_desc *desc)
 
 		if (gpio_stat & BIT(gpio % XLP_GPIO_REGSZ))
 			generic_handle_irq(irq_find_mapping(
-						priv->chip.irqdomain, gpio));
+						priv->chip.irq.domain, gpio));
 	}
 	chained_irq_exit(irqchip, desc);
 }
@@ -298,22 +290,17 @@ MODULE_DEVICE_TABLE(of, xlp_gpio_of_ids);
 static int xlp_gpio_probe(struct platform_device *pdev)
 {
 	struct gpio_chip *gc;
-	struct resource *iores;
 	struct xlp_gpio_priv *priv;
 	void __iomem *gpio_base;
 	int irq_base, irq, err;
 	int ngpio;
 	u32 soc_type;
 
-	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!iores)
-		return -ENODEV;
-
 	priv = devm_kzalloc(&pdev->dev,	sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
-	gpio_base = devm_ioremap_resource(&pdev->dev, iores);
+	gpio_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(gpio_base))
 		return PTR_ERR(gpio_base);
 
@@ -322,14 +309,7 @@ static int xlp_gpio_probe(struct platform_device *pdev)
 		return irq;
 
 	if (pdev->dev.of_node) {
-		const struct of_device_id *of_id;
-
-		of_id = of_match_device(xlp_gpio_of_ids, &pdev->dev);
-		if (!of_id) {
-			dev_err(&pdev->dev, "Unable to match OF ID\n");
-			return -ENODEV;
-		}
-		soc_type = (uintptr_t) of_id->data;
+		soc_type = (uintptr_t)of_device_get_match_data(&pdev->dev);
 	} else {
 		const struct acpi_device_id *acpi_id;
 
@@ -404,7 +384,9 @@ static int xlp_gpio_probe(struct platform_device *pdev)
 
 	/* XLP(MIPS) has fixed range for GPIO IRQs, Vulcan(ARM64) does not */
 	if (soc_type != GPIO_VARIANT_VULCAN) {
-		irq_base = irq_alloc_descs(-1, XLP_GPIO_IRQ_BASE, gc->ngpio, 0);
+		irq_base = devm_irq_alloc_descs(&pdev->dev, -1,
+						XLP_GPIO_IRQ_BASE,
+						gc->ngpio, 0);
 		if (irq_base < 0) {
 			dev_err(&pdev->dev, "Failed to allocate IRQ numbers\n");
 			return irq_base;
@@ -415,7 +397,7 @@ static int xlp_gpio_probe(struct platform_device *pdev)
 
 	err = gpiochip_add_data(gc, priv);
 	if (err < 0)
-		goto out_free_desc;
+		return err;
 
 	err = gpiochip_irqchip_add(gc, &xlp_gpio_irq_chip, irq_base,
 				handle_level_irq, IRQ_TYPE_NONE);
@@ -433,14 +415,13 @@ static int xlp_gpio_probe(struct platform_device *pdev)
 
 out_gpio_remove:
 	gpiochip_remove(gc);
-out_free_desc:
-	irq_free_descs(irq_base, gc->ngpio);
 	return err;
 }
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id xlp_gpio_acpi_match[] = {
 	{ "BRCM9006", GPIO_VARIANT_VULCAN },
+	{ "CAV9006",  GPIO_VARIANT_VULCAN },
 	{},
 };
 MODULE_DEVICE_TABLE(acpi, xlp_gpio_acpi_match);

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # SCTP configuration
 #
@@ -37,24 +38,12 @@ menuconfig IP_SCTP
 
 if IP_SCTP
 
-config NET_SCTPPROBE
-	tristate "SCTP: Association probing"
-        depends on PROC_FS && KPROBES
-        ---help---
-        This module allows for capturing the changes to SCTP association
-        state in response to incoming packets. It is used for debugging
-        SCTP congestion control algorithms. If you don't understand
-        what was just said, you don't need it: say N.
-
-        To compile this code as a module, choose M here: the
-        module will be called sctp_probe.
-
 config SCTP_DBG_OBJCNT
 	bool "SCTP: Debug object counts"
 	depends on PROC_FS
 	help
-	  If you say Y, this will enable debugging support for counting the 
-	  type of objects that are currently allocated.  This is useful for 
+	  If you say Y, this will enable debugging support for counting the
+	  type of objects that are currently allocated.  This is useful for
 	  identifying memory leaks. This debug information can be viewed by
 	  'cat /proc/net/sctp/sctp_dbg_objcnt'
 

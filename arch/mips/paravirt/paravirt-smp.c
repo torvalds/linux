@@ -10,6 +10,7 @@
 #include <linux/cpumask.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 
 #include <asm/mipsregs.h>
 #include <asm/setup.h>
@@ -99,11 +100,12 @@ static void paravirt_smp_finish(void)
 	local_irq_enable();
 }
 
-static void paravirt_boot_secondary(int cpu, struct task_struct *idle)
+static int paravirt_boot_secondary(int cpu, struct task_struct *idle)
 {
 	paravirt_smp_gp[cpu] = (unsigned long)task_thread_info(idle);
 	smp_wmb();
 	paravirt_smp_sp[cpu] = __KSTK_TOS(idle);
+	return 0;
 }
 
 static irqreturn_t paravirt_reched_interrupt(int irq, void *dev_id)
@@ -132,7 +134,7 @@ static void paravirt_prepare_cpus(unsigned int max_cpus)
 	}
 }
 
-struct plat_smp_ops paravirt_smp_ops = {
+const struct plat_smp_ops paravirt_smp_ops = {
 	.send_ipi_single	= paravirt_send_ipi_single,
 	.send_ipi_mask		= paravirt_send_ipi_mask,
 	.init_secondary		= paravirt_init_secondary,

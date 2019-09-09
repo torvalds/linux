@@ -1,24 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *  Copyright (c) by Takashi Iwai <tiwai@suse.de>
  *
  *  EMU10K1 memory page allocation (PTB area)
- *
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <linux/pci.h>
@@ -34,7 +19,10 @@
  * aligned pages in others
  */
 #define __set_ptb_entry(emu,page,addr) \
-	(((u32 *)(emu)->ptb_pages.area)[page] = cpu_to_le32(((addr) << (emu->address_mode)) | (page)))
+	(((__le32 *)(emu)->ptb_pages.area)[page] = \
+	 cpu_to_le32(((addr) << (emu->address_mode)) | (page)))
+#define __get_ptb_entry(emu, page) \
+	(le32_to_cpu(((__le32 *)(emu)->ptb_pages.area)[page]))
 
 #define UNIT_PAGES		(PAGE_SIZE / EMUPAGESIZE)
 #define MAX_ALIGN_PAGES0		(MAXPAGES0 / UNIT_PAGES)
@@ -44,8 +32,7 @@
 /* get offset address from aligned page */
 #define aligned_page_offset(page)	((page) << PAGE_SHIFT)
 
-#if PAGE_SIZE == 4096
-/* page size == EMUPAGESIZE */
+#if PAGE_SIZE == EMUPAGESIZE && !IS_ENABLED(CONFIG_DYNAMIC_DEBUG)
 /* fill PTB entrie(s) corresponding to page with addr */
 #define set_ptb_entry(emu,page,addr)	__set_ptb_entry(emu,page,addr)
 /* fill PTB entrie(s) corresponding to page with silence pointer */
@@ -58,6 +45,8 @@ static inline void set_ptb_entry(struct snd_emu10k1 *emu, int page, dma_addr_t a
 	page *= UNIT_PAGES;
 	for (i = 0; i < UNIT_PAGES; i++, page++) {
 		__set_ptb_entry(emu, page, addr);
+		dev_dbg(emu->card->dev, "mapped page %d to entry %.8x\n", page,
+			(unsigned int)__get_ptb_entry(emu, page));
 		addr += EMUPAGESIZE;
 	}
 }
@@ -65,9 +54,12 @@ static inline void set_silent_ptb(struct snd_emu10k1 *emu, int page)
 {
 	int i;
 	page *= UNIT_PAGES;
-	for (i = 0; i < UNIT_PAGES; i++, page++)
+	for (i = 0; i < UNIT_PAGES; i++, page++) {
 		/* do not increment ptr */
 		__set_ptb_entry(emu, page, emu->silent_page.addr);
+		dev_dbg(emu->card->dev, "mapped silent page %d to entry %.8x\n",
+			page, (unsigned int)__get_ptb_entry(emu, page));
+	}
 }
 #endif /* PAGE_SIZE */
 
@@ -102,7 +94,7 @@ static void emu10k1_memblk_init(struct snd_emu10k1_memblk *blk)
  */
 static int search_empty_map_area(struct snd_emu10k1 *emu, int npages, struct list_head **nextp)
 {
-	int page = 0, found_page = -ENOMEM;
+	int page = 1, found_page = -ENOMEM;
 	int max_size = npages;
 	int size;
 	struct list_head *candidate = &emu->mapped_link_head;
@@ -147,6 +139,10 @@ static int map_memblk(struct snd_emu10k1 *emu, struct snd_emu10k1_memblk *blk)
 	page = search_empty_map_area(emu, blk->pages, &next);
 	if (page < 0) /* not found */
 		return page;
+	if (page == 0) {
+		dev_err(emu->card->dev, "trying to map zero (reserved) page\n");
+		return -EINVAL;
+	}
 	/* insert this block in the proper position of mapped list */
 	list_add_tail(&blk->mapped_link, next);
 	/* append this as a newest block in order list */
@@ -177,7 +173,7 @@ static int unmap_memblk(struct snd_emu10k1 *emu, struct snd_emu10k1_memblk *blk)
 		q = get_emu10k1_memblk(p, mapped_link);
 		start_page = q->mapped_page + q->pages;
 	} else
-		start_page = 0;
+		start_page = 1;
 	if ((p = blk->mapped_link.next) != &emu->mapped_link_head) {
 		q = get_emu10k1_memblk(p, mapped_link);
 		end_page = q->mapped_page;
@@ -237,13 +233,13 @@ __found_pages:
 static int is_valid_page(struct snd_emu10k1 *emu, dma_addr_t addr)
 {
 	if (addr & ~emu->dma_mask) {
-		dev_err(emu->card->dev,
+		dev_err_ratelimited(emu->card->dev,
 			"max memory size is 0x%lx (addr = 0x%lx)!!\n",
 			emu->dma_mask, (unsigned long)addr);
 		return 0;
 	}
 	if (addr & (EMUPAGESIZE-1)) {
-		dev_err(emu->card->dev, "page is not aligned\n");
+		dev_err_ratelimited(emu->card->dev, "page is not aligned\n");
 		return 0;
 	}
 	return 1;
@@ -334,7 +330,7 @@ snd_emu10k1_alloc_pages(struct snd_emu10k1 *emu, struct snd_pcm_substream *subst
 		else
 			addr = snd_pcm_sgbuf_get_addr(substream, ofs);
 		if (! is_valid_page(emu, addr)) {
-			dev_err(emu->card->dev,
+			dev_err_ratelimited(emu->card->dev,
 				"emu: failure page = %d\n", idx);
 			mutex_unlock(&hdr->block_mutex);
 			return NULL;
@@ -366,6 +362,33 @@ int snd_emu10k1_free_pages(struct snd_emu10k1 *emu, struct snd_util_memblk *blk)
 	return snd_emu10k1_synth_free(emu, blk);
 }
 
+/*
+ * allocate DMA pages, widening the allocation if necessary
+ *
+ * See the comment above snd_emu10k1_detect_iommu() in emu10k1_main.c why
+ * this might be needed.
+ *
+ * If you modify this function check whether __synth_free_pages() also needs
+ * changes.
+ */
+int snd_emu10k1_alloc_pages_maybe_wider(struct snd_emu10k1 *emu, size_t size,
+					struct snd_dma_buffer *dmab)
+{
+	if (emu->iommu_workaround) {
+		size_t npages = (size + PAGE_SIZE - 1) / PAGE_SIZE;
+		size_t size_real = npages * PAGE_SIZE;
+
+		/*
+		 * The device has been observed to accesses up to 256 extra
+		 * bytes, but use 1k to be safe.
+		 */
+		if (size_real < size + 1024)
+			size += PAGE_SIZE;
+	}
+
+	return snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV,
+				   snd_dma_pci_data(emu->pci), size, dmab);
+}
 
 /*
  * memory allocation using multiple pages (for synth)
@@ -450,10 +473,27 @@ static void get_single_page_range(struct snd_util_memhdr *hdr,
 static void __synth_free_pages(struct snd_emu10k1 *emu, int first_page,
 			       int last_page)
 {
+	struct snd_dma_buffer dmab;
 	int page;
 
+	dmab.dev.type = SNDRV_DMA_TYPE_DEV;
+	dmab.dev.dev = snd_dma_pci_data(emu->pci);
+
 	for (page = first_page; page <= last_page; page++) {
-		free_page((unsigned long)emu->page_ptr_table[page]);
+		if (emu->page_ptr_table[page] == NULL)
+			continue;
+		dmab.area = emu->page_ptr_table[page];
+		dmab.addr = emu->page_addr_table[page];
+
+		/*
+		 * please keep me in sync with logic in
+		 * snd_emu10k1_alloc_pages_maybe_wider()
+		 */
+		dmab.bytes = PAGE_SIZE;
+		if (emu->iommu_workaround)
+			dmab.bytes *= 2;
+
+		snd_dma_free_pages(&dmab);
 		emu->page_addr_table[page] = 0;
 		emu->page_ptr_table[page] = NULL;
 	}
@@ -465,30 +505,30 @@ static void __synth_free_pages(struct snd_emu10k1 *emu, int first_page,
 static int synth_alloc_pages(struct snd_emu10k1 *emu, struct snd_emu10k1_memblk *blk)
 {
 	int page, first_page, last_page;
+	struct snd_dma_buffer dmab;
 
 	emu10k1_memblk_init(blk);
 	get_single_page_range(emu->memhdr, blk, &first_page, &last_page);
 	/* allocate kernel pages */
 	for (page = first_page; page <= last_page; page++) {
-		/* first try to allocate from <4GB zone */
-		struct page *p = alloc_page(GFP_KERNEL | GFP_DMA32 |
-					    __GFP_NOWARN);
-		if (!p || (page_to_pfn(p) & ~(emu->dma_mask >> PAGE_SHIFT))) {
-			if (p)
-				__free_page(p);
-			/* try to allocate from <16MB zone */
-			p = alloc_page(GFP_ATOMIC | GFP_DMA |
-				       __GFP_NORETRY | /* no OOM-killer */
-				       __GFP_NOWARN);
+		if (snd_emu10k1_alloc_pages_maybe_wider(emu, PAGE_SIZE,
+							&dmab) < 0)
+			goto __fail;
+		if (!is_valid_page(emu, dmab.addr)) {
+			snd_dma_free_pages(&dmab);
+			goto __fail;
 		}
-		if (!p) {
-			__synth_free_pages(emu, first_page, page - 1);
-			return -ENOMEM;
-		}
-		emu->page_addr_table[page] = page_to_phys(p);
-		emu->page_ptr_table[page] = page_address(p);
+		emu->page_addr_table[page] = dmab.addr;
+		emu->page_ptr_table[page] = dmab.area;
 	}
 	return 0;
+
+__fail:
+	/* release allocated pages */
+	last_page = page - 1;
+	__synth_free_pages(emu, first_page, last_page);
+
+	return -ENOMEM;
 }
 
 /*

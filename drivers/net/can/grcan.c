@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Socket CAN driver for Aeroflex Gaisler GRCAN and GRHCAN.
  *
@@ -15,13 +16,8 @@
  * See "Documentation/ABI/testing/sysfs-class-net-grcan" for information on the
  * sysfs interface.
  *
- * See "Documentation/kernel-parameters.txt" for information on the module
+ * See "Documentation/admin-guide/kernel-parameters.rst" for information on the module
  * parameters.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
  *
  * Contributors: Andreas Larsson <andreas@gaisler.com>
  */
@@ -807,10 +803,10 @@ static irqreturn_t grcan_interrupt(int irq, void *dev_id)
  * is not ONGOING (TX might be stuck in ONGOING due to a harwrware bug
  * for single shot)
  */
-static void grcan_running_reset(unsigned long data)
+static void grcan_running_reset(struct timer_list *t)
 {
-	struct net_device *dev = (struct net_device *)data;
-	struct grcan_priv *priv = netdev_priv(dev);
+	struct grcan_priv *priv = from_timer(priv, t, rr_timer);
+	struct net_device *dev = priv->dev;
 	struct grcan_registers __iomem *regs = priv->regs;
 	unsigned long flags;
 
@@ -898,10 +894,10 @@ static inline void grcan_reset_timer(struct timer_list *timer, __u32 bitrate)
 }
 
 /* Disable channels and schedule a running reset */
-static void grcan_initiate_running_reset(unsigned long data)
+static void grcan_initiate_running_reset(struct timer_list *t)
 {
-	struct net_device *dev = (struct net_device *)data;
-	struct grcan_priv *priv = netdev_priv(dev);
+	struct grcan_priv *priv = from_timer(priv, t, hang_timer);
+	struct net_device *dev = priv->dev;
 	struct grcan_registers __iomem *regs = priv->regs;
 	unsigned long flags;
 
@@ -1057,7 +1053,7 @@ static int grcan_open(struct net_device *dev)
 		return err;
 	}
 
-	priv->echo_skb = kzalloc(dma->tx.size * sizeof(*priv->echo_skb),
+	priv->echo_skb = kcalloc(dma->tx.size, sizeof(*priv->echo_skb),
 				 GFP_KERNEL);
 	if (!priv->echo_skb) {
 		err = -ENOMEM;
@@ -1066,7 +1062,7 @@ static int grcan_open(struct net_device *dev)
 	priv->can.echo_skb_max = dma->tx.size;
 	priv->can.echo_skb = priv->echo_skb;
 
-	priv->txdlc = kzalloc(dma->tx.size * sizeof(*priv->txdlc), GFP_KERNEL);
+	priv->txdlc = kcalloc(dma->tx.size, sizeof(*priv->txdlc), GFP_KERNEL);
 	if (!priv->txdlc) {
 		err = -ENOMEM;
 		goto exit_free_echo_skb;
@@ -1484,7 +1480,7 @@ static netdev_tx_t grcan_start_xmit(struct sk_buff *skb,
 		}							\
 	}								\
 	module_param_named(name, grcan_module_config.name,		\
-			   mtype, S_IRUGO);				\
+			   mtype, 0444);				\
 	MODULE_PARM_DESC(name, desc)
 
 #define GRCAN_CONFIG_ATTR(name, desc)					\
@@ -1513,7 +1509,7 @@ static netdev_tx_t grcan_start_xmit(struct sk_buff *skb,
 		struct grcan_priv *priv = netdev_priv(dev);		\
 		return sprintf(buf, "%d\n", priv->config.name);		\
 	}								\
-	static DEVICE_ATTR(name, S_IRUGO | S_IWUSR,			\
+	static DEVICE_ATTR(name, 0644,					\
 			   grcan_show_##name,				\
 			   grcan_store_##name);				\
 	GRCAN_MODULE_PARAM(name, ushort, GRCAN_NOT_BOOL, desc)
@@ -1626,13 +1622,8 @@ static int grcan_setup_netdev(struct platform_device *ofdev,
 	spin_lock_init(&priv->lock);
 
 	if (priv->need_txbug_workaround) {
-		init_timer(&priv->rr_timer);
-		priv->rr_timer.function = grcan_running_reset;
-		priv->rr_timer.data = (unsigned long)dev;
-
-		init_timer(&priv->hang_timer);
-		priv->hang_timer.function = grcan_initiate_running_reset;
-		priv->hang_timer.data = (unsigned long)dev;
+		timer_setup(&priv->rr_timer, grcan_running_reset, 0);
+		timer_setup(&priv->hang_timer, grcan_initiate_running_reset, 0);
 	}
 
 	netif_napi_add(dev, &priv->napi, grcan_poll, GRCAN_NAPI_WEIGHT);

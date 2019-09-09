@@ -20,6 +20,8 @@ Optional properties:
 - ams,enable-internal-i2c-pullup: Boolean property, to enable internal pullup on
 	i2c scl/sda pins. Missing this will disable internal pullup on i2c
 	scl/sda lines.
+- ams,enable-ac-ok-power-on: Boolean property, to enable exit out of power off
+	mode with AC_OK pin (pin enabled in power off mode).
 
 Optional submodule and their properties:
 =======================================
@@ -46,7 +48,7 @@ is required:
 	Following properties are require if pin control setting is required
 	at boot.
 	- pinctrl-names: A pinctrl state named "default" be defined, using the
-		bindings in pinctrl/pinctrl-binding.txt.
+		bindings in pinctrl/pinctrl-bindings.txt.
 	- pinctrl[0...n]: Properties to contain the phandle that refer to
 		different nodes of pin control settings. These nodes represents
 		the pin control setting of state 0 to state n. Each of these
@@ -122,8 +124,7 @@ Following are properties of regulator subnode.
 
 Power-off:
 =========
-AS3722 supports the system power off by turning off all its rail. This
-is provided through pm_power_off.
+AS3722 supports the system power off by turning off all its rails.
 The device node should have the following properties to enable this
 functionality
 ams,system-power-controller: Boolean, to enable the power off functionality

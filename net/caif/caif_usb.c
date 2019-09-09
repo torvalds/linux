@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * CAIF USB handler
  * Copyright (C) ST-Ericsson AB 2011
  * Author:	Sjur Brendeland
- * License terms: GNU General Public License (GPL) version 2
- *
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ":%s(): " fmt, __func__
@@ -176,9 +175,7 @@ static int cfusbl_device_notify(struct notifier_block *me, unsigned long what,
 		dev_add_pack(&caif_usb_type);
 	pack_added = true;
 
-	strncpy(layer->name, dev->name,
-			sizeof(layer->name) - 1);
-	layer->name[sizeof(layer->name) - 1] = 0;
+	strlcpy(layer->name, dev->name, sizeof(layer->name));
 
 	return 0;
 }

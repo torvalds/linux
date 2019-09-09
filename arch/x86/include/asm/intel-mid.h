@@ -1,12 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * intel-mid.h: Intel MID specific setup code
  *
  * (C) Copyright 2009 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; version 2
- * of the License.
  */
 #ifndef _ASM_X86_INTEL_MID_H
 #define _ASM_X86_INTEL_MID_H
@@ -17,6 +13,7 @@
 
 extern int intel_mid_pci_init(void);
 extern int intel_mid_pci_set_power_state(struct pci_dev *pdev, pci_power_t state);
+extern pci_power_t intel_mid_pci_get_power_state(struct pci_dev *pdev);
 
 extern void intel_mid_pwr_power_off(void);
 
@@ -26,7 +23,6 @@ extern void intel_mid_pwr_power_off(void);
 extern int intel_mid_pwr_get_lss_id(struct pci_dev *pdev);
 
 extern int get_gpio_by_name(const char *name);
-extern void intel_scu_device_register(struct platform_device *pdev);
 extern int __init sfi_parse_mrtc(struct sfi_table_header *table);
 extern int __init sfi_parse_mtmr(struct sfi_table_header *table);
 extern int sfi_mrtc_num;
@@ -41,10 +37,8 @@ struct devs_id {
 	char name[SFI_NAME_LEN + 1];
 	u8 type;
 	u8 delay;
+	u8 msic;
 	void *(*get_platform_data)(void *info);
-	/* Custom handler for devices */
-	void (*device_handler)(struct sfi_device_table_entry *pentry,
-			       struct devs_id *dev);
 };
 
 #define sfi_device(i)								\
@@ -82,35 +76,6 @@ enum intel_mid_cpu_type {
 
 extern enum intel_mid_cpu_type __intel_mid_cpu_chip;
 
-/**
- * struct intel_mid_ops - Interface between intel-mid & sub archs
- * @arch_setup: arch_setup function to re-initialize platform
- *		structures (x86_init, x86_platform_init)
- *
- * This structure can be extended if any new interface is required
- * between intel-mid & its sub arch files.
- */
-struct intel_mid_ops {
-	void (*arch_setup)(void);
-};
-
-/* Helper API's for INTEL_MID_OPS_INIT */
-#define DECLARE_INTEL_MID_OPS_INIT(cpuname, cpuid)				\
-	[cpuid] = get_##cpuname##_ops
-
-/* Maximum number of CPU ops */
-#define MAX_CPU_OPS(a)			(sizeof(a)/sizeof(void *))
-
-/*
- * For every new cpu addition, a weak get_<cpuname>_ops() function needs be
- * declared in arch/x86/platform/intel_mid/intel_mid_weak_decls.h.
- */
-#define INTEL_MID_OPS_INIT {							\
-	DECLARE_INTEL_MID_OPS_INIT(penwell, INTEL_MID_CPU_CHIP_PENWELL),	\
-	DECLARE_INTEL_MID_OPS_INIT(cloverview, INTEL_MID_CPU_CHIP_CLOVERVIEW),	\
-	DECLARE_INTEL_MID_OPS_INIT(tangier, INTEL_MID_CPU_CHIP_TANGIER)		\
-};
-
 #ifdef CONFIG_X86_INTEL_MID
 
 static inline enum intel_mid_cpu_type intel_mid_identify_cpu(void)
@@ -137,20 +102,6 @@ enum intel_mid_timer_options {
 };
 
 extern enum intel_mid_timer_options intel_mid_timer_options;
-
-/*
- * Penwell uses spread spectrum clock, so the freq number is not exactly
- * the same as reported by MSR based on SDM.
- */
-#define FSB_FREQ_83SKU			83200
-#define FSB_FREQ_100SKU			99840
-#define FSB_FREQ_133SKU			133000
-
-#define FSB_FREQ_167SKU			167000
-#define FSB_FREQ_200SKU			200000
-#define FSB_FREQ_267SKU			267000
-#define FSB_FREQ_333SKU			333000
-#define FSB_FREQ_400SKU			400000
 
 /* Bus Select SoC Fuse value */
 #define BSEL_SOC_FUSE_MASK		0x7

@@ -16,9 +16,9 @@
 
 #include "dt-bindings/clock/bcm21664.h"
 
-#include "skeleton.dtsi"
-
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
 	model = "BCM21664 SoC";
 	compatible = "brcm,bcm21664";
 	interrupt-parent = <&gic>;
@@ -55,7 +55,7 @@
 		      <0x3ff00100 0x100>;
 	};
 
-	smc@0x3404e000 {
+	smc@3404e000 {
 		compatible = "brcm,bcm21664-smc", "brcm,kona-smc";
 		reg = <0x3404e000 0x400>; /* 1 KiB in SRAM */
 	};
@@ -90,7 +90,7 @@
 		reg-io-width = <4>;
 	};
 
-	L2: l2-cache {
+	L2: l2-cache@3ff20000 {
 		compatible = "arm,pl310-cache";
 		reg = <0x3ff20000 0x1000>;
 		cache-unified;
@@ -295,21 +295,21 @@
 			clock-frequency = <156000000>;
 		};
 
-		root_ccu: root_ccu {
+		root_ccu: root_ccu@35001000 {
 			compatible = BCM21664_DT_ROOT_CCU_COMPAT;
 			reg = <0x35001000 0x0f00>;
 			#clock-cells = <1>;
 			clock-output-names = "frac_1m";
 		};
 
-		aon_ccu: aon_ccu {
+		aon_ccu: aon_ccu@35002000 {
 			compatible = BCM21664_DT_AON_CCU_COMPAT;
 			reg = <0x35002000 0x0f00>;
 			#clock-cells = <1>;
 			clock-output-names = "hub_timer";
 		};
 
-		master_ccu: master_ccu {
+		master_ccu: master_ccu@3f001000 {
 			compatible = BCM21664_DT_MASTER_CCU_COMPAT;
 			reg = <0x3f001000 0x0f00>;
 			#clock-cells = <1>;
@@ -323,7 +323,7 @@
 					     "sdio4_sleep";
 		};
 
-		slave_ccu: slave_ccu {
+		slave_ccu: slave_ccu@3e011000 {
 			compatible = BCM21664_DT_SLAVE_CCU_COMPAT;
 			reg = <0x3e011000 0x0f00>;
 			#clock-cells = <1>;

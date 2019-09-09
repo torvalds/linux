@@ -1,17 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * super.c - NILFS module and super block management.
  *
  * Copyright (C) 2005-2008 Nippon Telegraph and Telephone Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  *
  * Written by Ryusuke Konishi.
  */
@@ -136,12 +127,12 @@ void __nilfs_error(struct super_block *sb, const char *function,
 
 	va_end(args);
 
-	if (!(sb->s_flags & MS_RDONLY)) {
+	if (!sb_rdonly(sb)) {
 		nilfs_set_error(sb);
 
 		if (nilfs_test_opt(nilfs, ERRORS_RO)) {
 			printk(KERN_CRIT "Remounting filesystem read-only\n");
-			sb->s_flags |= MS_RDONLY;
+			sb->s_flags |= SB_RDONLY;
 		}
 	}
 
@@ -160,24 +151,16 @@ struct inode *nilfs_alloc_inode(struct super_block *sb)
 	ii->i_bh = NULL;
 	ii->i_state = 0;
 	ii->i_cno = 0;
-	ii->vfs_inode.i_version = 1;
 	nilfs_mapping_init(&ii->i_btnode_cache, &ii->vfs_inode);
 	return &ii->vfs_inode;
 }
 
-static void nilfs_i_callback(struct rcu_head *head)
+static void nilfs_free_inode(struct inode *inode)
 {
-	struct inode *inode = container_of(head, struct inode, i_rcu);
-
 	if (nilfs_is_metadata_file_inode(inode))
 		nilfs_mdt_destroy(inode);
 
 	kmem_cache_free(nilfs_inode_cachep, NILFS_I(inode));
-}
-
-void nilfs_destroy_inode(struct inode *inode)
-{
-	call_rcu(&inode->i_rcu, nilfs_i_callback);
 }
 
 static int nilfs_sync_super(struct super_block *sb, int flag)
@@ -189,7 +172,7 @@ static int nilfs_sync_super(struct super_block *sb, int flag)
 	set_buffer_dirty(nilfs->ns_sbh[0]);
 	if (nilfs_test_opt(nilfs, BARRIER)) {
 		err = __sync_dirty_buffer(nilfs->ns_sbh[0],
-					  WRITE_SYNC | WRITE_FLUSH_FUA);
+					  REQ_SYNC | REQ_PREFLUSH | REQ_FUA);
 	} else {
 		err = sync_dirty_buffer(nilfs->ns_sbh[0]);
 	}
@@ -284,10 +267,10 @@ int nilfs_commit_super(struct super_block *sb, int flag)
 {
 	struct the_nilfs *nilfs = sb->s_fs_info;
 	struct nilfs_super_block **sbp = nilfs->ns_sbp;
-	time_t t;
+	time64_t t;
 
 	/* nilfs->ns_sem must be locked by the caller. */
-	t = get_seconds();
+	t = ktime_get_real_seconds();
 	nilfs->ns_sbwtime = t;
 	sbp[0]->s_wtime = cpu_to_le64(t);
 	sbp[0]->s_sum = 0;
@@ -478,7 +461,7 @@ static void nilfs_put_super(struct super_block *sb)
 
 	nilfs_detach_log_writer(sb);
 
-	if (!(sb->s_flags & MS_RDONLY)) {
+	if (!sb_rdonly(sb)) {
 		down_write(&nilfs->ns_sem);
 		nilfs_cleanup_super(sb);
 		up_write(&nilfs->ns_sem);
@@ -578,7 +561,7 @@ static int nilfs_freeze(struct super_block *sb)
 	struct the_nilfs *nilfs = sb->s_fs_info;
 	int err;
 
-	if (sb->s_flags & MS_RDONLY)
+	if (sb_rdonly(sb))
 		return 0;
 
 	/* Mark super block clean */
@@ -592,7 +575,7 @@ static int nilfs_unfreeze(struct super_block *sb)
 {
 	struct the_nilfs *nilfs = sb->s_fs_info;
 
-	if (sb->s_flags & MS_RDONLY)
+	if (sb_rdonly(sb))
 		return 0;
 
 	down_write(&nilfs->ns_sem);
@@ -696,7 +679,7 @@ static int nilfs_show_options(struct seq_file *seq, struct dentry *dentry)
 
 static const struct super_operations nilfs_sops = {
 	.alloc_inode    = nilfs_alloc_inode,
-	.destroy_inode  = nilfs_destroy_inode,
+	.free_inode     = nilfs_free_inode,
 	.dirty_inode    = nilfs_dirty_inode,
 	.evict_inode    = nilfs_evict_inode,
 	.put_super      = nilfs_put_super,
@@ -835,7 +818,7 @@ static int nilfs_setup_super(struct super_block *sb, int is_mount)
 		sbp[0]->s_max_mnt_count = cpu_to_le16(NILFS_DFL_MAX_MNT_COUNT);
 
 	sbp[0]->s_mnt_count = cpu_to_le16(mnt_count + 1);
-	sbp[0]->s_mtime = cpu_to_le64(get_seconds());
+	sbp[0]->s_mtime = cpu_to_le64(ktime_get_real_seconds());
 
 skip_mount_setup:
 	sbp[0]->s_state =
@@ -870,7 +853,7 @@ int nilfs_store_magic_and_option(struct super_block *sb,
 
 	/* FS independent flags */
 #ifdef NILFS_ATIME_DISABLE
-	sb->s_flags |= MS_NOATIME;
+	sb->s_flags |= SB_NOATIME;
 #endif
 
 	nilfs_set_default_options(sb, sbp);
@@ -898,7 +881,7 @@ int nilfs_check_feature_compatibility(struct super_block *sb,
 	}
 	features = le64_to_cpu(sbp->s_feature_compat_ro) &
 		~NILFS_FEATURE_COMPAT_RO_SUPP;
-	if (!(sb->s_flags & MS_RDONLY) && features) {
+	if (!sb_rdonly(sb) && features) {
 		nilfs_msg(sb, KERN_ERR,
 			  "couldn't mount RDWR because of unsupported optional features (%llx)",
 			  (unsigned long long)features);
@@ -1068,7 +1051,7 @@ nilfs_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_time_gran = 1;
 	sb->s_max_links = NILFS_LINK_MAX;
 
-	sb->s_bdi = &bdev_get_queue(sb->s_bdev)->backing_dev_info;
+	sb->s_bdi = bdi_get(sb->s_bdev->bd_bdi);
 
 	err = load_nilfs(nilfs, sb);
 	if (err)
@@ -1083,7 +1066,7 @@ nilfs_fill_super(struct super_block *sb, void *data, int silent)
 		goto failed_unload;
 	}
 
-	if (!(sb->s_flags & MS_RDONLY)) {
+	if (!sb_rdonly(sb)) {
 		err = nilfs_attach_log_writer(sb, fsroot);
 		if (err)
 			goto failed_checkpoint;
@@ -1095,7 +1078,7 @@ nilfs_fill_super(struct super_block *sb, void *data, int silent)
 
 	nilfs_put_root(fsroot);
 
-	if (!(sb->s_flags & MS_RDONLY)) {
+	if (!sb_rdonly(sb)) {
 		down_write(&nilfs->ns_sem);
 		nilfs_setup_super(sb, true);
 		up_write(&nilfs->ns_sem);
@@ -1134,7 +1117,7 @@ static int nilfs_remount(struct super_block *sb, int *flags, char *data)
 		err = -EINVAL;
 		goto restore_opts;
 	}
-	sb->s_flags = (sb->s_flags & ~MS_POSIXACL);
+	sb->s_flags = (sb->s_flags & ~SB_POSIXACL);
 
 	err = -EINVAL;
 
@@ -1144,12 +1127,12 @@ static int nilfs_remount(struct super_block *sb, int *flags, char *data)
 		goto restore_opts;
 	}
 
-	if ((*flags & MS_RDONLY) == (sb->s_flags & MS_RDONLY))
+	if ((bool)(*flags & SB_RDONLY) == sb_rdonly(sb))
 		goto out;
-	if (*flags & MS_RDONLY) {
+	if (*flags & SB_RDONLY) {
 		/* Shutting down log writer */
 		nilfs_detach_log_writer(sb);
-		sb->s_flags |= MS_RDONLY;
+		sb->s_flags |= SB_RDONLY;
 
 		/*
 		 * Remounting a valid RW partition RDONLY, so set
@@ -1179,7 +1162,7 @@ static int nilfs_remount(struct super_block *sb, int *flags, char *data)
 			goto restore_opts;
 		}
 
-		sb->s_flags &= ~MS_RDONLY;
+		sb->s_flags &= ~SB_RDONLY;
 
 		root = NILFS_I(d_inode(sb->s_root))->i_root;
 		err = nilfs_attach_log_writer(sb, root);
@@ -1213,7 +1196,7 @@ static int nilfs_parse_snapshot_option(const char *option,
 	const char *msg = NULL;
 	int err;
 
-	if (!(sd->flags & MS_RDONLY)) {
+	if (!(sd->flags & SB_RDONLY)) {
 		msg = "read-only option is not specified";
 		goto parse_error;
 	}
@@ -1287,7 +1270,7 @@ nilfs_mount(struct file_system_type *fs_type, int flags,
 	struct dentry *root_dentry;
 	int err, s_new = false;
 
-	if (!(flags & MS_RDONLY))
+	if (!(flags & SB_RDONLY))
 		mode |= FMODE_WRITE;
 
 	sd.bdev = blkdev_get_by_path(dev_name, mode, fs_type);
@@ -1328,18 +1311,17 @@ nilfs_mount(struct file_system_type *fs_type, int flags,
 		snprintf(s->s_id, sizeof(s->s_id), "%pg", sd.bdev);
 		sb_set_blocksize(s, block_size(sd.bdev));
 
-		err = nilfs_fill_super(s, data, flags & MS_SILENT ? 1 : 0);
+		err = nilfs_fill_super(s, data, flags & SB_SILENT ? 1 : 0);
 		if (err)
 			goto failed_super;
 
-		s->s_flags |= MS_ACTIVE;
+		s->s_flags |= SB_ACTIVE;
 	} else if (!sd.cno) {
 		if (nilfs_tree_is_busy(s->s_root)) {
-			if ((flags ^ s->s_flags) & MS_RDONLY) {
+			if ((flags ^ s->s_flags) & SB_RDONLY) {
 				nilfs_msg(s, KERN_ERR,
 					  "the device already has a %s mount.",
-					  (s->s_flags & MS_RDONLY) ?
-					  "read-only" : "read/write");
+					  sb_rdonly(s) ? "read-only" : "read/write");
 				err = -EBUSY;
 				goto failed_super;
 			}

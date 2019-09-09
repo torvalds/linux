@@ -1,15 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * linux/kernel/time/tick-oneshot.c
- *
  * This file contains functions which manage high resolution tick
  * related events.
  *
  * Copyright(C) 2005-2006, Thomas Gleixner <tglx@linutronix.de>
  * Copyright(C) 2005-2007, Red Hat, Inc., Ingo Molnar
  * Copyright(C) 2006-2007, Timesys Corp., Thomas Gleixner
- *
- * This code is licenced under the GPL version 2. For details see
- * kernel-base/COPYING.
  */
 #include <linux/cpu.h>
 #include <linux/err.h>
@@ -28,11 +24,12 @@ int tick_program_event(ktime_t expires, int force)
 {
 	struct clock_event_device *dev = __this_cpu_read(tick_cpu_device.evtdev);
 
-	if (unlikely(expires.tv64 == KTIME_MAX)) {
+	if (unlikely(expires == KTIME_MAX)) {
 		/*
 		 * We don't need the clock event device any more, stop it.
 		 */
 		clockevents_switch_state(dev, CLOCK_EVT_STATE_ONESHOT_STOPPED);
+		dev->next_event = KTIME_MAX;
 		return 0;
 	}
 
@@ -81,16 +78,15 @@ int tick_switch_to_oneshot(void (*handler)(struct clock_event_device *))
 	if (!dev || !(dev->features & CLOCK_EVT_FEAT_ONESHOT) ||
 		    !tick_device_is_functional(dev)) {
 
-		printk(KERN_INFO "Clockevents: "
-		       "could not switch to one-shot mode:");
+		pr_info("Clockevents: could not switch to one-shot mode:");
 		if (!dev) {
-			printk(" no tick device\n");
+			pr_cont(" no tick device\n");
 		} else {
 			if (!tick_device_is_functional(dev))
-				printk(" %s is not functional.\n", dev->name);
+				pr_cont(" %s is not functional.\n", dev->name);
 			else
-				printk(" %s does not support one-shot mode.\n",
-				       dev->name);
+				pr_cont(" %s does not support one-shot mode.\n",
+					dev->name);
 		}
 		return -EINVAL;
 	}

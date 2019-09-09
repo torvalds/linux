@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config ARCH_OMAP
 	bool
 
@@ -63,32 +64,6 @@ config OMAP_RESET_CLOCKS
 	  probably do not want this option enabled until your
 	  device drivers work properly.
 
-config OMAP_MUX
-	bool "OMAP multiplexing support"
-	depends on ARCH_OMAP
-	default y
-	help
-	  Pin multiplexing support for OMAP boards. If your bootloader
-	  sets the multiplexing correctly, say N. Otherwise, or if unsure,
-	  say Y.
-
-config OMAP_MUX_DEBUG
-	bool "Multiplexing debug output"
-	depends on OMAP_MUX
-	help
-	  Makes the multiplexing functions print out a lot of debug info.
-	  This is useful if you want to find out the correct values of the
-	  multiplexing registers.
-
-config OMAP_MUX_WARNINGS
-	bool "Warn about pins the bootloader didn't set up"
-	depends on OMAP_MUX
-	default y
-	help
-	  Choose Y here to warn whenever driver initialization logic needs
-	  to change the pin multiplexing setup.	 When there are no warnings
-	  printed, it's safe to deselect OMAP_MUX for your product.
-
 config OMAP_MPU_TIMER
 	bool "Use mpu timer"
 	depends on ARCH_OMAP1
@@ -117,7 +92,6 @@ config OMAP_32K_TIMER
 config OMAP3_L2_AUX_SECURE_SAVE_RESTORE
 	bool "OMAP3 HS/EMU save and restore for L2 AUX control register"
 	depends on ARCH_OMAP3 && PM
-	default n
 	help
 	  Without this option, L2 Auxiliary control register contents are
 	  lost during off-mode entry on HS/EMU devices. This feature
@@ -131,12 +105,6 @@ config OMAP3_L2_AUX_SECURE_SERVICE_SET_ID
 	help
 	  PPA routine service ID for setting L2 auxiliary control register.
 
-config OMAP_DM_TIMER
-	bool "Use dual-mode timer"
-	depends on ARCH_OMAP16XX || ARCH_OMAP2PLUS
-	help
-	 Select this option if you want to use OMAP Dual-Mode timers.
-
 config OMAP_SERIAL_WAKE
 	bool "Enable wake-up events for serial ports"
 	depends on ARCH_OMAP1 && OMAP_MUX
@@ -145,16 +113,6 @@ config OMAP_SERIAL_WAKE
 	  Select this option if you want to have your system wake up
 	  to data on the serial RX line. This allows you to wake the
 	  system from serial console.
-
-choice
-	prompt "OMAP PM layer selection"
-	depends on ARCH_OMAP
-	default OMAP_PM_NOOP
-
-config OMAP_PM_NOOP
-	bool "No-op/debug PM layer"
-
-endchoice
 
 endmenu
 

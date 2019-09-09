@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Scatterlist Cryptographic API.
  *
@@ -5,12 +6,6 @@
  *
  * Copyright (c) 2002 James Morris <jmorris@intercode.com.au>
  * Copyright (c) 2005 Herbert Xu <herbert@gondor.apana.org.au>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option) 
- * any later version.
- *
  */
 
 #include <linux/atomic.h>
@@ -46,7 +41,7 @@ static int c_show(struct seq_file *m, void *p)
 	seq_printf(m, "driver       : %s\n", alg->cra_driver_name);
 	seq_printf(m, "module       : %s\n", module_name(alg->cra_module));
 	seq_printf(m, "priority     : %d\n", alg->cra_priority);
-	seq_printf(m, "refcnt       : %d\n", atomic_read(&alg->cra_refcnt));
+	seq_printf(m, "refcnt       : %u\n", refcount_read(&alg->cra_refcnt));
 	seq_printf(m, "selftest     : %s\n",
 		   (alg->cra_flags & CRYPTO_ALG_TESTED) ?
 		   "passed" : "unknown");
@@ -94,21 +89,9 @@ static const struct seq_operations crypto_seq_ops = {
 	.show		= c_show
 };
 
-static int crypto_info_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &crypto_seq_ops);
-}
-        
-static const struct file_operations proc_crypto_ops = {
-	.open		= crypto_info_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release
-};
-
 void __init crypto_init_proc(void)
 {
-	proc_create("crypto", 0, NULL, &proc_crypto_ops);
+	proc_create_seq("crypto", 0, NULL, &crypto_seq_ops);
 }
 
 void __exit crypto_exit_proc(void)

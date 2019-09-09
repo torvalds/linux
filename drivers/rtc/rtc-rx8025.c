@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for Epson's RTC module RX-8025 SA/NB
  *
@@ -13,10 +14,6 @@
  * Code cleanup by Sergei Poselenov, <sposelenov@emcraft.com>
  * Converted to new style by Wolfgang Grandegger <wg@grandegger.com>
  * Alarm and periodic interrupt added by Dmitry Rakhchev <rda@emcraft.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
  */
 #include <linux/bcd.h>
 #include <linux/bitops.h>
@@ -193,10 +190,7 @@ static int rx8025_get_time(struct device *dev, struct rtc_time *dt)
 	if (err)
 		return err;
 
-	dev_dbg(dev, "%s: read 0x%02x 0x%02x "
-		"0x%02x 0x%02x 0x%02x 0x%02x 0x%02x\n", __func__,
-		date[0], date[1], date[2], date[3], date[4],
-		date[5], date[6]);
+	dev_dbg(dev, "%s: read %7ph\n", __func__, date);
 
 	dt->tm_sec = bcd2bin(date[RX8025_REG_SEC] & 0x7f);
 	dt->tm_min = bcd2bin(date[RX8025_REG_MIN] & 0x7f);
@@ -210,11 +204,9 @@ static int rx8025_get_time(struct device *dev, struct rtc_time *dt)
 	dt->tm_mon = bcd2bin(date[RX8025_REG_MONTH] & 0x1f) - 1;
 	dt->tm_year = bcd2bin(date[RX8025_REG_YEAR]) + 100;
 
-	dev_dbg(dev, "%s: date %ds %dm %dh %dmd %dm %dy\n", __func__,
-		dt->tm_sec, dt->tm_min, dt->tm_hour,
-		dt->tm_mday, dt->tm_mon, dt->tm_year);
+	dev_dbg(dev, "%s: date %ptRr\n", __func__, dt);
 
-	return rtc_valid_tm(dt);
+	return 0;
 }
 
 static int rx8025_set_time(struct device *dev, struct rtc_time *dt)
@@ -243,10 +235,7 @@ static int rx8025_set_time(struct device *dev, struct rtc_time *dt)
 	date[RX8025_REG_MONTH] = bin2bcd(dt->tm_mon + 1);
 	date[RX8025_REG_YEAR] = bin2bcd(dt->tm_year - 100);
 
-	dev_dbg(dev,
-		"%s: write 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x\n",
-		__func__,
-		date[0], date[1], date[2], date[3], date[4], date[5], date[6]);
+	dev_dbg(dev, "%s: write %7ph\n", __func__, date);
 
 	ret = rx8025_write_regs(rx8025->client, RX8025_REG_SEC, 7, date);
 	if (ret < 0)
@@ -319,10 +308,7 @@ static int rx8025_read_alarm(struct device *dev, struct rtc_wkalrm *t)
 		t->time.tm_hour = bcd2bin(ald[1] & 0x1f) % 12
 			+ (ald[1] & 0x20 ? 12 : 0);
 
-	dev_dbg(dev, "%s: date: %ds %dm %dh %dmd %dm %dy\n",
-		__func__,
-		t->time.tm_sec, t->time.tm_min, t->time.tm_hour,
-		t->time.tm_mday, t->time.tm_mon, t->time.tm_year);
+	dev_dbg(dev, "%s: date: %ptRr\n", __func__, &t->time);
 	t->enabled = !!(rx8025->ctrl1 & RX8025_BIT_CTRL1_DALE);
 	t->pending = (ctrl2 & RX8025_BIT_CTRL2_DAFG) && t->enabled;
 
@@ -515,7 +501,7 @@ static void rx8025_sysfs_unregister(struct device *dev)
 static int rx8025_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
-	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
+	struct i2c_adapter *adapter = client->adapter;
 	struct rx8025_data *rx8025;
 	int err = 0;
 

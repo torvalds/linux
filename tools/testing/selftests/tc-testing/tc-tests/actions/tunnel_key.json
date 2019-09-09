@@ -1,0 +1,913 @@
+[
+    {
+        "id": "2b11",
+        "name": "Add tunnel_key set action with mandatory parameters",
+        "category": [
+            "actions",
+            "tunnel_key"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action tunnel_key",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action tunnel_key set src_ip 10.10.10.1 dst_ip 20.20.20.2 id 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action tunnel_key",
+        "matchPattern": "action order [0-9]+: tunnel_key.*set.*src_ip 10.10.10.1.*dst_ip 20.20.20.2.*key_id 1",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action tunnel_key"
+        ]
+    },
+    {
+        "id": "dc6b",
+        "name": "Add tunnel_key set action with missing mandatory src_ip parameter",
+        "category": [
+            "actions",
+            "tunnel_key"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action tunnel_key",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action tunnel_key set dst_ip 20.20.20.2 id 100",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions list action tunnel_key",
+        "matchPattern": "action order [0-9]+: tunnel_key set.*dst_ip 20.20.20.2.*key_id 100",
+        "matchCount": "0",
+        "teardown": [
+	    [
+		"$TC actions flush action tunnel_key",
+		0,
+		1,
+		255
+	    ]
+        ]
+    },
+    {
+        "id": "7f25",
+        "name": "Add tunnel_key set action with missing mandatory dst_ip parameter",
+        "category": [
+            "actions",
+            "tunnel_key"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action tunnel_key",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action tunnel_key set src_ip 10.10.10.1 id 100",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions list action tunnel_key",
+        "matchPattern": "action order [0-9]+: tunnel_key set.*src_ip 10.10.10.1.*key_id 100",
+        "matchCount": "0",
+        "teardown": [
+	    [
+		"$TC actions flush action tunnel_key",
+		0,
+		1,
+		255
+	    ]
+        ]
+    },
+    {
+        "id": "a5e0",
+        "name": "Add tunnel_key set action with invalid src_ip parameter",
+        "category": [
+            "actions",
+            "tunnel_key"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action tunnel_key",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action tunnel_key set src_ip 300.168.100.1 dst_ip 192.168.200.1 id 7 index 1",
+        "expExitCode": "1",
+        "verifyCmd": "$TC actions get action tunnel_key index 1",
+        "matchPattern": "action order [0-9]+: tunnel_key set.*src_ip 300.168.100.1.*dst_ip 192.168.200.1.*key_id 7.*index 1 ref",
+        "matchCount": "0",
+        "teardown": [
+	    [
+		"$TC actions flush action tunnel_key",
+		0,
+		1,
+		255
+	    ]
+        ]
+    },
+    {
+        "id": "eaa8",
+        "name": "Add tunnel_key set action with invalid dst_ip parameter",
+        "category": [
+            "actions",
+            "tunnel_key"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action tunnel_key",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action tunnel_key set src_ip 192.168.100.1 dst_ip 192.168.800.1 id 10 index 11",
+        "expExitCode": "1",
+        "verifyCmd": "$TC actions get action tunnel_key index 11",
+        "matchPattern": "action order [0-9]+: tunnel_key set.*src_ip 192.168.100.1.*dst_ip 192.168.800.1.*key_id 10.*index 11 ref",
+        "matchCount": "0",
+        "teardown": [
+	    [
+		"$TC actions flush action tunnel_key",
+		0,
+		1,
+		255
+	    ]
+        ]
+    },
+    {
+        "id": "3b09",
+        "name": "Add tunnel_key set action with invalid id parameter",
+        "category": [
+            "actions",
+            "tunnel_key"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action tunnel_key",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action tunnel_key set src_ip 1.1.1.1 dst_ip 2.2.2.2 id 112233445566778899 index 1",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions get action tunnel_key index 1",
+        "matchPattern": "action order [0-9]+: tunnel_key set.*src_ip 1.1.1.1.*dst_ip 2.2.2.2.*key_id 112233445566778899.*index 1 ref",
+        "matchCount": "0",
+        "teardown": [
+	    [
+		"$TC actions flush action tunnel_key",
+		0,
+		1,
+		255
+	    ]
+        ]
+    },
+    {
+        "id": "9625",
+        "name": "Add tunnel_key set action with invalid dst_port parameter",
+        "category": [
+            "actions",
+            "tunnel_key"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action tunnel_key",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action tunnel_key set src_ip 1.1.1.1 dst_ip 2.2.2.2 id 11 dst_port 998877 index 1",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions get action tunnel_key index 1",
+        "matchPattern": "action order [0-9]+: tunnel_key set.*src_ip 1.1.1.1.*dst_ip 2.2.2.2.*key_id 11.*dst_port 998877.*index 1 ref",
+        "matchCount": "0",
+        "teardown": [
+	    [
+		"$TC actions flush action tunnel_key",
+		0,
+		1,
+		255
+	    ]
+        ]
+    },
+    {
+        "id": "05af",
+        "name": "Add tunnel_key set action with optional dst_port parameter",
+        "category": [
+            "actions",
+            "tunnel_key"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action tunnel_key",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action tunnel_key set src_ip 192.168.100.1 dst_ip 192.168.200.1 id 789 dst_port 4000 index 10",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action tunnel_key index 10",
+        "matchPattern": "action order [0-9]+: tunnel_key.*set.*src_ip 192.168.100.1.*dst_ip 192.168.200.1.*key_id 789.*dst_port 4000.*index 10 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action tunnel_key"
+        ]
+    },
+    {
+        "id": "da80",
+        "name": "Add tunnel_key set action with index at 32-bit maximum",
+        "category": [
+            "actions",
+            "tunnel_key"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action tunnel_key",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action tunnel_key set src_ip 1.1.1.1 dst_ip 2.2.2.2 id 11 index 4294967295",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action tunnel_key index 4294967295",
+        "matchPattern": "action order [0-9]+: tunnel_key.*set.*src_ip 1.1.1.1.*dst_ip 2.2.2.2.*id 11.*index 4294967295 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action tunnel_key"
+        ]
+    },
+    {
+        "id": "d407",
+        "name": "Add tunnel_key set action with index exceeding 32-bit maximum",
+        "category": [
+            "actions",
+            "tunnel_key"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action tunnel_key",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action tunnel_key set src_ip 1.1.1.1 dst_ip 2.2.2.2 id 11 index 4294967295678",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions get action tunnel_key index 4294967295678",
+        "matchPattern": "action order [0-9]+: tunnel_key set.*index 4294967295678 ref",
+        "matchCount": "0",
+        "teardown": [
+            [
+                "$TC actions flush action tunnel_key",
+                0,
+                1,
+                255
+            ]
+        ]
+    },
+    {
+        "id": "5cba",
+        "name": "Add tunnel_key set action with id value at 32-bit maximum",
+        "category": [
+            "actions",
+            "tunnel_key"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action tunnel_key",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action tunnel_key set src_ip 1.1.1.1 dst_ip 2.2.2.2 id 4294967295 index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action tunnel_key index 1",
+        "matchPattern": "action order [0-9]+: tunnel_key.*set.*src_ip 1.1.1.1.*dst_ip 2.2.2.2.*key_id 4294967295.*index 1",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action tunnel_key"
+        ]
+    },
+    {
+        "id": "e84a",
+        "name": "Add tunnel_key set action with id value exceeding 32-bit maximum",
+        "category": [
+            "actions",
+            "tunnel_key"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action tunnel_key",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action tunnel_key set src_ip 1.1.1.1 dst_ip 2.2.2.2 id 42949672955 index 1",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions get action tunnel_key index 4294967295",
+        "matchPattern": "action order [0-9]+: tunnel_key.*set.*src_ip 1.1.1.1.*dst_ip 2.2.2.2.*key_id 42949672955.*index 1",
+        "matchCount": "0",
+        "teardown": [
+            [
+                "$TC actions flush action tunnel_key",
+                0,
+                1,
+                255
+            ]
+	]
+    },
+    {
+        "id": "9c19",
+        "name": "Add tunnel_key set action with dst_port value at 16-bit maximum",
+        "category": [
+            "actions",
+            "tunnel_key"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action tunnel_key",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action tunnel_key set src_ip 1.1.1.1 dst_ip 2.2.2.2 id 429 dst_port 65535 index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action tunnel_key index 1",
+        "matchPattern": "action order [0-9]+: tunnel_key.*set.*src_ip 1.1.1.1.*dst_ip 2.2.2.2.*key_id 429.*dst_port 65535.*index 1",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action tunnel_key"
+        ]
+    },
+    {
+        "id": "3bd9",
+        "name": "Add tunnel_key set action with dst_port value exceeding 16-bit maximum",
+        "category": [
+            "actions",
+            "tunnel_key"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action tunnel_key",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action tunnel_key set src_ip 1.1.1.1 dst_ip 2.2.2.2 id 429 dst_port 65535789 index 1",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions get action tunnel_key index 1",
+        "matchPattern": "action order [0-9]+: tunnel_key.*set.*src_ip 1.1.1.1.*dst_ip 2.2.2.2.*key_id 429.*dst_port 65535789.*index 1",
+        "matchCount": "0",
+        "teardown": [
+            [
+                "$TC actions flush action tunnel_key",
+                0,
+                1,
+                255
+            ]
+	]
+    },
+    {
+        "id": "68e2",
+        "name": "Add tunnel_key unset action",
+        "category": [
+            "actions",
+            "tunnel_key"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action tunnel_key",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action tunnel_key unset index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action tunnel_key index 1",
+        "matchPattern": "action order [0-9]+: tunnel_key.*unset.*index 1 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action tunnel_key"
+        ]
+    },
+    {
+        "id": "6192",
+        "name": "Add tunnel_key unset continue action",
+        "category": [
+            "actions",
+            "tunnel_key"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action tunnel_key",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action tunnel_key unset continue index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action tunnel_key index 1",
+        "matchPattern": "action order [0-9]+: tunnel_key.*unset continue.*index 1 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action tunnel_key"
+        ]
+    },
+    {
+        "id": "061d",
+        "name": "Add tunnel_key set continue action with cookie",
+        "category": [
+            "actions",
+            "tunnel_key"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action tunnel_key",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action tunnel_key set src_ip 192.168.10.1 dst_ip 192.168.20.2 id 123 continue index 1 cookie aa11bb22cc33dd44ee55ff66aa11b1b2",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action tunnel_key index 1",
+        "matchPattern": "action order [0-9]+: tunnel_key.*set.*src_ip 192.168.10.1.*dst_ip 192.168.20.2.*key_id 123.*csum continue.*index 1.*cookie aa11bb22cc33dd44ee55ff66aa11b1b2",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action tunnel_key"
+        ]
+    },
+    {
+        "id": "8acb",
+        "name": "Add tunnel_key set continue action with invalid cookie",
+        "category": [
+            "actions",
+            "tunnel_key"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action tunnel_key",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action tunnel_key set src_ip 192.168.10.1 dst_ip 192.168.20.2 id 123 continue index 1 cookie aa11bb22cc33dd44ee55ff66aa11b1b2777888",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions get action tunnel_key index 1",
+        "matchPattern": "action order [0-9]+: tunnel_key.*set.*src_ip 192.168.10.1.*dst_ip 192.168.20.2.*key_id 123.*csum continue.*index 1.*cookie aa11bb22cc33dd44ee55ff66aa11b1b2777888",
+        "matchCount": "0",
+        "teardown": [
+            [
+                "$TC actions flush action tunnel_key",
+                0,
+                1,
+                255
+            ]
+	]
+    },
+    {
+        "id": "a07e",
+        "name": "Add tunnel_key action with no set/unset command specified",
+        "category": [
+            "actions",
+            "tunnel_key"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action tunnel_key",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action tunnel_key src_ip 10.10.10.1 dst_ip 20.20.20.2 id 1",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions get action tunnel_key index 1",
+        "matchPattern": "action order [0-9]+: tunnel_key.*src_ip 10.10.10.1.*dst_ip 20.20.20.2.*key_id 1",
+        "matchCount": "0",
+        "teardown": [
+            [
+                "$TC actions flush action tunnel_key",
+                0,
+                1,
+                255
+            ]
+        ]
+    },
+    {
+        "id": "b227",
+        "name": "Add tunnel_key action with csum option",
+        "category": [
+            "actions",
+            "tunnel_key"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action tunnel_key",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action tunnel_key set src_ip 10.10.10.1 dst_ip 20.20.20.2 id 1 csum index 99",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action tunnel_key index 99",
+        "matchPattern": "action order [0-9]+: tunnel_key.*src_ip 10.10.10.1.*dst_ip 20.20.20.2.*key_id 1.*csum pipe.*index 99",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action tunnel_key"
+        ]
+    },
+    {
+        "id": "58a7",
+        "name": "Add tunnel_key action with nocsum option",
+        "category": [
+            "actions",
+            "tunnel_key"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action tunnel_key",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action tunnel_key set src_ip 10.10.10.1 dst_ip 10.10.10.2 id 7823 nocsum index 234",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action tunnel_key index 234",
+        "matchPattern": "action order [0-9]+: tunnel_key.*src_ip 10.10.10.1.*dst_ip 10.10.10.2.*key_id 7823.*nocsum pipe.*index 234",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action tunnel_key"
+        ]
+    },
+    {
+        "id": "2575",
+        "name": "Add tunnel_key action with not-supported parameter",
+        "category": [
+            "actions",
+            "tunnel_key"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action tunnel_key",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action tunnel_key set src_ip 10.10.10.1 dst_ip 10.10.10.2 id 7 foobar 999 index 4",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions get action tunnel_key index 4",
+        "matchPattern": "action order [0-9]+: tunnel_key.*src_ip 10.10.10.1.*dst_ip 10.10.10.2.*key_id 7.*foobar 999.*index 4",
+        "matchCount": "0",
+        "teardown": [
+            [
+                "$TC actions flush action tunnel_key",
+                0,
+                1,
+                255
+            ]
+        ]
+    },
+    {
+        "id": "7a88",
+        "name": "Add tunnel_key action with cookie parameter",
+        "category": [
+            "actions",
+            "tunnel_key"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action tunnel_key",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action tunnel_key set src_ip 10.10.10.1 dst_ip 10.10.10.2 id 7 index 4 cookie aa11bb22cc33dd44ee55ff66aa11b1b2",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action tunnel_key index 4",
+        "matchPattern": "action order [0-9]+: tunnel_key.*set.*src_ip 10.10.10.1.*dst_ip 10.10.10.2.*key_id 7.*csum pipe.*index 4 ref.*cookie aa11bb22cc33dd44ee55ff66aa11b1b2",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action tunnel_key"
+        ]
+    },
+    {
+        "id": "4f20",
+        "name": "Add tunnel_key action with a single geneve option parameter",
+        "category": [
+            "actions",
+            "tunnel_key"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action tunnel_key",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action tunnel_key set src_ip 1.1.1.1 dst_ip 2.2.2.2 id 42 dst_port 6081 geneve_opts 0102:80:00880022 index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action tunnel_key index 1",
+        "matchPattern": "action order [0-9]+: tunnel_key.*set.*src_ip 1.1.1.1.*dst_ip 2.2.2.2.*key_id 42.*dst_port 6081.*geneve_opt 0102:80:00880022.*index 1",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action tunnel_key"
+        ]
+    },
+    {
+        "id": "e33d",
+        "name": "Add tunnel_key action with multiple geneve options parameter",
+        "category": [
+            "actions",
+            "tunnel_key"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action tunnel_key",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action tunnel_key set src_ip 1.1.1.1 dst_ip 2.2.2.2 id 42 dst_port 6081 geneve_opts 0102:80:00880022,0408:42:0040007611223344,0111:02:1020304011223344 index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action tunnel_key index 1",
+        "matchPattern": "action order [0-9]+: tunnel_key.*set.*src_ip 1.1.1.1.*dst_ip 2.2.2.2.*key_id 42.*dst_port 6081.*geneve_opt 0102:80:00880022,0408:42:0040007611223344,0111:02:1020304011223344.*index 1",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action tunnel_key"
+        ]
+    },
+    {
+        "id": "0778",
+        "name": "Add tunnel_key action with invalid class geneve option parameter",
+        "category": [
+            "actions",
+            "tunnel_key"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action tunnel_key",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action tunnel_key set src_ip 1.1.1.1 dst_ip 2.2.2.2 id 42 dst_port 6081 geneve_opts 824212:80:00880022 index 1",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions get action tunnel_key index 1",
+        "matchPattern": "action order [0-9]+: tunnel_key.*set.*src_ip 1.1.1.1.*dst_ip 2.2.2.2.*key_id 42.*dst_port 6081.*geneve_opt 824212:80:00880022.*index 1",
+        "matchCount": "0",
+        "teardown": [
+            "$TC actions flush action tunnel_key"
+        ]
+    },
+    {
+        "id": "4ae8",
+        "name": "Add tunnel_key action with invalid type geneve option parameter",
+        "category": [
+            "actions",
+            "tunnel_key"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action tunnel_key",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action tunnel_key set src_ip 1.1.1.1 dst_ip 2.2.2.2 id 42 dst_port 6081 geneve_opts 0102:4224:00880022 index 1",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions get action tunnel_key index 1",
+        "matchPattern": "action order [0-9]+: tunnel_key.*set.*src_ip 1.1.1.1.*dst_ip 2.2.2.2.*key_id 42.*dst_port 6081.*geneve_opt 0102:4224:00880022.*index 1",
+        "matchCount": "0",
+        "teardown": [
+            "$TC actions flush action tunnel_key"
+        ]
+    },
+    {
+        "id": "4039",
+        "name": "Add tunnel_key action with short data length geneve option parameter",
+        "category": [
+            "actions",
+            "tunnel_key"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action tunnel_key",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action tunnel_key set src_ip 1.1.1.1 dst_ip 2.2.2.2 id 42 dst_port 6081 geneve_opts 0102:80:4288 index 1",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions get action tunnel_key index 1",
+        "matchPattern": "action order [0-9]+: tunnel_key.*set.*src_ip 1.1.1.1.*dst_ip 2.2.2.2.*key_id 42.*dst_port 6081.*geneve_opt 0102:80:4288.*index 1",
+        "matchCount": "0",
+        "teardown": [
+            "$TC actions flush action tunnel_key"
+        ]
+    },
+    {
+        "id": "26a6",
+        "name": "Add tunnel_key action with non-multiple of 4 data length geneve option parameter",
+        "category": [
+            "actions",
+            "tunnel_key"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action tunnel_key",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action tunnel_key set src_ip 1.1.1.1 dst_ip 2.2.2.2 id 42 dst_port 6081 geneve_opts 0102:80:4288428822 index 1",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions get action tunnel_key index 1",
+        "matchPattern": "action order [0-9]+: tunnel_key.*set.*src_ip 1.1.1.1.*dst_ip 2.2.2.2.*key_id 42.*dst_port 6081.*geneve_opt 0102:80:4288428822.*index 1",
+        "matchCount": "0",
+        "teardown": [
+            "$TC actions flush action tunnel_key"
+        ]
+    },
+    {
+        "id": "f44d",
+        "name": "Add tunnel_key action with incomplete geneve options parameter",
+        "category": [
+            "actions",
+            "tunnel_key"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action tunnel_key",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action tunnel_key set src_ip 1.1.1.1 dst_ip 2.2.2.2 id 42 dst_port 6081 geneve_opts 0102:80:00880022,0408:42: index 1",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions get action tunnel_key index 1",
+        "matchPattern": "action order [0-9]+: tunnel_key.*set.*src_ip 1.1.1.1.*dst_ip 2.2.2.2.*key_id 42.*dst_port 6081.*geneve_opt 0102:80:00880022,0408:42:.*index 1",
+        "matchCount": "0",
+        "teardown": [
+            "$TC actions flush action tunnel_key"
+        ]
+    },
+    {
+        "id": "7afc",
+        "name": "Replace tunnel_key set action with all parameters",
+        "category": [
+            "actions",
+            "tunnel_key"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action tunnel_key",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action tunnel_key set src_ip 10.10.10.1 dst_ip 20.20.20.2 dst_port 3128 csum id 1 index 1"
+        ],
+        "cmdUnderTest": "$TC actions replace action tunnel_key set src_ip 11.11.11.1 dst_ip 21.21.21.2 dst_port 3129 nocsum id 11 index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action tunnel_key index 1",
+        "matchPattern": "action order [0-9]+: tunnel_key.*set.*src_ip 11.11.11.1.*dst_ip 21.21.21.2.*key_id 11.*dst_port 3129.*nocsum pipe.*index 1",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action tunnel_key"
+        ]
+    },
+    {
+        "id": "364d",
+        "name": "Replace tunnel_key set action with all parameters and cookie",
+        "category": [
+            "actions",
+            "tunnel_key"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action tunnel_key",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action tunnel_key set src_ip 10.10.10.1 dst_ip 20.20.20.2 dst_port 3128 nocsum id 1 index 1 cookie aabbccddeeff112233445566778800a"
+        ],
+        "cmdUnderTest": "$TC actions replace action tunnel_key set src_ip 11.11.11.1 dst_ip 21.21.21.2 dst_port 3129 id 11 csum reclassify index 1 cookie a1b1c1d1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action tunnel_key index 1",
+        "matchPattern": "action order [0-9]+: tunnel_key.*set.*src_ip 11.11.11.1.*dst_ip 21.21.21.2.*key_id 11.*dst_port 3129.*csum reclassify.*index 1.*cookie a1b1c1d1",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action tunnel_key"
+        ]
+    },
+    {
+        "id": "937c",
+        "name": "Fetch all existing tunnel_key actions",
+        "category": [
+            "actions",
+            "tunnel_key"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action tunnel_key",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action tunnel_key set src_ip 10.10.10.1 dst_ip 20.20.20.2 dst_port 3128 nocsum id 1 pipe index 1",
+            "$TC actions add action tunnel_key set src_ip 11.10.10.1 dst_ip 21.20.20.2 dst_port 3129 csum id 2 jump 10 index 2",
+            "$TC actions add action tunnel_key set src_ip 12.10.10.1 dst_ip 22.20.20.2 dst_port 3130 csum id 3 pass index 3",
+            "$TC actions add action tunnel_key set src_ip 13.10.10.1 dst_ip 23.20.20.2 dst_port 3131 nocsum id 4 continue index 4"
+        ],
+        "cmdUnderTest": "$TC actions list action tunnel_key",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action tunnel_key",
+        "matchPattern": "action order [0-9]+: tunnel_key.*set.*src_ip 10.10.10.1.*dst_ip 20.20.20.2.*key_id 1.*dst_port 3128.*nocsum pipe.*index 1.*set.*src_ip 11.10.10.1.*dst_ip 21.20.20.2.*key_id 2.*dst_port 3129.*csum jump 10.*index 2.*set.*src_ip 12.10.10.1.*dst_ip 22.20.20.2.*key_id 3.*dst_port 3130.*csum pass.*index 3.*set.*src_ip 13.10.10.1.*dst_ip 23.20.20.2.*key_id 4.*dst_port 3131.*nocsum continue.*index 4",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action tunnel_key"
+        ]
+    },
+    {
+        "id": "6783",
+        "name": "Flush all existing tunnel_key actions",
+        "category": [
+            "actions",
+            "tunnel_key"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action tunnel_key",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action tunnel_key set src_ip 10.10.10.1 dst_ip 20.20.20.2 dst_port 3128 nocsum id 1 pipe index 1",
+            "$TC actions add action tunnel_key set src_ip 11.10.10.1 dst_ip 21.20.20.2 dst_port 3129 csum id 2 reclassify index 2",
+            "$TC actions add action tunnel_key set src_ip 12.10.10.1 dst_ip 22.20.20.2 dst_port 3130 csum id 3 pass index 3",
+            "$TC actions add action tunnel_key set src_ip 13.10.10.1 dst_ip 23.20.20.2 dst_port 3131 nocsum id 4 continue index 4"
+        ],
+        "cmdUnderTest": "$TC actions flush action tunnel_key",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action tunnel_key",
+        "matchPattern": "action order [0-9]+:.*",
+        "matchCount": "0",
+        "teardown": [
+	    "$TC actions flush action tunnel_key"
+	]
+    },
+    {
+        "id": "8242",
+        "name": "Replace tunnel_key set action with invalid goto chain",
+        "category": [
+            "actions",
+            "tunnel_key"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action tunnel_key",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action tunnel_key set src_ip 10.10.10.1 dst_ip 20.20.20.2 dst_port 3128 nocsum id 1 pass index 90"
+        ],
+        "cmdUnderTest": "$TC actions replace action tunnel_key set src_ip 10.10.10.2 dst_ip 20.20.20.1 dst_port 3129 id 2 csum goto chain 42 index 90 cookie c1a0c1a0",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions get action tunnel_key index 90",
+        "matchPattern": "action order [0-9]+: tunnel_key.*set.*src_ip 10.10.10.1.*dst_ip 20.20.20.2.*key_id 1.*dst_port 3128.*csum pass.*index 90 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action tunnel_key"
+        ]
+    }
+]

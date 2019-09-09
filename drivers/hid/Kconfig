@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # HID driver configuration
 #
@@ -98,6 +99,18 @@ config HID_A4TECH
 	---help---
 	Support for A4 tech X5 and WOP-35 / Trust 450L mice.
 
+config HID_ACCUTOUCH
+	tristate "Accutouch touch device"
+	depends on USB_HID
+	---help---
+	  This selects a driver for the Accutouch 2216 touch controller.
+
+	  The driver works around a problem in the reported device capabilities
+	  which causes userspace to detect the device as a mouse rather than
+          a touchscreen.
+
+	  Say Y here if you have a Accutouch 2216 touch controller.
+
 config HID_ACRUX
 	tristate "ACRUX game controller support"
 	depends on HID
@@ -136,13 +149,18 @@ config HID_APPLEIR
 
 config HID_ASUS
 	tristate "Asus"
-	depends on I2C_HID
+	depends on LEDS_CLASS
+	depends on ASUS_WMI || ASUS_WMI=n
+	select POWER_SUPPLY
 	---help---
-	Support for Asus notebook built-in keyboard via i2c.
+	Support for Asus notebook built-in keyboard and touchpad via i2c, and
+	the Asus Republic of Gamers laptop keyboard special keys.
 
 	Supported devices:
 	- EeeBook X205TA
 	- VivoBook E200HA
+	- GL553V series
+	- GL753V series
 
 config HID_AUREAL
 	tristate "Aureal"
@@ -167,6 +185,18 @@ config HID_BETOP_FF
 	Currently the following devices are known to be supported:
 	 - BETOP 2185 PC & BFM MODE
 
+config HID_BIGBEN_FF
+	tristate "BigBen Interactive Kids' gamepad support"
+	depends on USB_HID
+	depends on NEW_LEDS
+	depends on LEDS_CLASS
+	select INPUT_FF_MEMLESS
+	help
+	  Support for the "Kid-friendly Wired Controller" PS3OFMINIPAD
+	  gamepad made by BigBen Interactive, originally sold as a PS3
+	  accessory. This driver fixes input mapping and adds support for
+	  force feedback effects and LEDs on the device.
+
 config HID_CHERRY
 	tristate "Cherry Cymotion keyboard"
 	depends on HID
@@ -175,11 +205,11 @@ config HID_CHERRY
 	Support for Cherry Cymotion keyboard.
 
 config HID_CHICONY
-	tristate "Chicony Tactical pad"
+	tristate "Chicony devices"
 	depends on HID
 	default !EXPERT
 	---help---
-	Support for Chicony Tactical pad.
+	Support for Chicony Tactical pad and special keys on Chicony keyboards.
 
 config HID_CORSAIR
 	tristate "Corsair devices"
@@ -190,6 +220,27 @@ config HID_CORSAIR
 
 	Supported devices:
 	- Vengeance K90
+	- Scimitar PRO RGB
+
+config HID_COUGAR
+	tristate "Cougar devices"
+	depends on HID
+	help
+	Support for Cougar devices that are not fully compliant with the
+	HID standard.
+
+	Supported devices:
+	- Cougar 500k Gaming Keyboard
+
+config HID_MACALLY
+	tristate "Macally devices"
+	depends on HID
+	help
+	Support for Macally devices that are not fully compliant with the
+	HID standard.
+
+	supported devices:
+	- Macally ikey keyboard
 
 config HID_PRODIKEYS
 	tristate "Prodikeys PC-MIDI Keyboard support"
@@ -214,7 +265,8 @@ config HID_CMEDIA
 
 config HID_CP2112
 	tristate "Silicon Labs CP2112 HID USB-to-SMBus Bridge support"
-	depends on USB_HID && I2C && GPIOLIB
+	depends on USB_HID && HIDRAW && I2C && GPIOLIB
+	select GPIOLIB_IRQCHIP
 	---help---
 	Support for Silicon Labs CP2112 HID USB to SMBus Master Bridge.
 	This is a HID device driver which registers as an i2c adapter
@@ -257,11 +309,23 @@ config HID_EMS_FF
 	Currently the following devices are known to be supported:
 	 - Trio Linker Plus II
 
+config HID_ELAN
+	tristate "ELAN USB Touchpad Support"
+	depends on LEDS_CLASS && USB_HID
+	---help---
+	Say Y to enable support for the USB ELAN touchpad
+	Currently the following devices are known to be supported:
+	 - HP Pavilion X2 10-p0XX.
+
 config HID_ELECOM
-	tristate "ELECOM BM084 bluetooth mouse"
+	tristate "ELECOM HID devices"
 	depends on HID
 	---help---
-	Support for the ELECOM BM084 (bluetooth mouse).
+	Support for ELECOM devices:
+	  - BM084 Bluetooth Mouse
+	  - EX-G Trackballs (M-XT3DRBK, M-XT3URBK)
+	  - DEFT Trackballs (M-DT1DRBK, M-DT1URBK, M-DT2DRBK, M-DT2URBK)
+	  - HUGE Trackballs (M-HT1DRBK, M-HT1URBK)
 
 config HID_ELO
 	tristate "ELO USB 4000/4500 touchscreen"
@@ -310,6 +374,12 @@ config HOLTEK_FF
 	  Say Y here if you have a Holtek On Line Grip based game controller
 	  and want to have force feedback support for it.
 
+config HID_GOOGLE_HAMMER
+	tristate "Google Hammer Keyboard"
+	depends on USB_HID && LEDS_CLASS && MFD_CROS_EC
+	---help---
+	Say Y here if you have a Google Hammer device.
+
 config HID_GT683R
 	tristate "MSI GT68xR LED support"
 	depends on LEDS_CLASS && USB_HID
@@ -354,6 +424,12 @@ config HID_WALTOP
 	---help---
 	Support for Waltop tablets.
 
+config HID_VIEWSONIC
+	tristate "ViewSonic/Signotec"
+	depends on HID
+	help
+	  Support for ViewSonic/Signotec PD1011 signature pad.
+
 config HID_GYRATION
 	tristate "Gyration remote control"
 	depends on HID
@@ -368,6 +444,24 @@ config HID_ICADE
 
 	To compile this driver as a module, choose M here: the
 	module will be called hid-icade.
+
+config HID_ITE
+	tristate "ITE devices"
+	depends on HID
+	default !EXPERT
+	---help---
+	Support for ITE devices not fully compliant with HID standard.
+
+config HID_JABRA
+	tristate "Jabra USB HID Driver"
+	depends on HID
+	---help---
+	Support for Jabra USB HID devices.
+
+	Prevents mapping of vendor defined HID usages to input events. Without
+	this driver HID	reports from Jabra devices may incorrectly be seen as
+	mouse button events.
+	Say M here if you may ever plug in a Jabra USB device.
 
 config HID_TWINHAN
 	tristate "Twinhan IR remote control"
@@ -409,10 +503,11 @@ config HID_LENOVO
 	select NEW_LEDS
 	select LEDS_CLASS
 	---help---
-	Support for Lenovo devices that are not fully compliant with HID standard.
+	Support for IBM/Lenovo devices that are not fully compliant with HID standard.
 
-	Say Y if you want support for the non-compliant features of the Lenovo
-	Thinkpad standalone keyboards, e.g:
+	Say Y if you want support for horizontal scrolling of the IBM/Lenovo
+	Scrollpoint mice or the non-compliant features of the Lenovo Thinkpad
+	standalone keyboards, e.g:
 	- ThinkPad USB Keyboard with TrackPoint (supports extra LEDs and trackpoint
 	  configuration)
 	- ThinkPad Compact Bluetooth Keyboard with TrackPoint (supports Fn keys)
@@ -427,6 +522,7 @@ config HID_LOGITECH
 
 config HID_LOGITECH_DJ
 	tristate "Logitech Unifying receivers full support"
+	depends on USB_HID
 	depends on HIDRAW
 	depends on HID_LOGITECH
 	select HID_LOGITECH_HIDPP
@@ -440,6 +536,7 @@ config HID_LOGITECH_DJ
 config HID_LOGITECH_HIDPP
 	tristate "Logitech HID++ devices support"
 	depends on HID_LOGITECH
+	select POWER_SUPPLY
 	---help---
 	Support for Logitech devices relyingon the HID++ Logitech specification
 
@@ -512,10 +609,33 @@ config HID_MAGICMOUSE
 	Say Y here if you want support for the multi-touch features of the
 	Apple Wireless "Magic" Mouse and the Apple Wireless "Magic" Trackpad.
 
+config HID_MALTRON
+	tristate "Maltron L90 keyboard"
+	depends on HID
+	---help---
+	Adds support for the volume up, volume down, mute, and play/pause buttons
+	of the Maltron L90 keyboard.
+
+config HID_MAYFLASH
+	tristate "Mayflash game controller adapter force feedback"
+	depends on HID
+	select INPUT_FF_MEMLESS
+	---help---
+	Say Y here if you have HJZ Mayflash PS3 game controller adapters
+	and want to enable force feedback support.
+
+config HID_REDRAGON
+	tristate "Redragon keyboards"
+	depends on HID
+	default !EXPERT
+	---help---
+    Support for Redragon keyboards that need fix-ups to work properly.
+
 config HID_MICROSOFT
 	tristate "Microsoft non-fully HID-compliant devices"
 	depends on HID
 	default !EXPERT
+	select INPUT_FF_MEMLESS
 	---help---
 	Support for Microsoft devices that are not fully compliant with HID standard.
 
@@ -571,6 +691,12 @@ config HID_MULTITOUCH
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called hid-multitouch.
+
+config HID_NTI
+	tristate "NTI keyboard adapters"
+	---help---
+	Support for the "extra" Sun keyboard keys on keyboards attached
+	through Network Technologies USB-SUN keyboard adapters.
 
 config HID_NTRIG
 	tristate "N-Trig touch screen"
@@ -707,6 +833,13 @@ config HID_PRIMAX
 	Support for Primax devices that are not fully compliant with the
 	HID standard.
 
+config HID_RETRODE
+	tristate "Retrode 2 USB adapter for vintage video games"
+	depends on USB_HID
+	---help---
+	Support for
+	  * Retrode 2 cartridge and controller adapter
+
 config HID_ROCCAT
 	tristate "Roccat device support"
 	depends on USB_HID
@@ -762,6 +895,15 @@ config HID_SPEEDLINK
 	---help---
 	Support for Speedlink Vicious and Divine Cezanne mouse.
 
+config HID_STEAM
+	tristate "Steam Controller support"
+	depends on HID
+	select POWER_SUPPLY
+	---help---
+	Say Y here if you have a Steam Controller if you want to use it
+	without running the Steam Client. It supports both the wired and
+	the wireless adaptor.
+
 config HID_STEELSERIES
 	tristate "Steelseries SRW-S1 steering wheel support"
 	depends on HID
@@ -777,6 +919,11 @@ config HID_SUNPLUS
 config HID_RMI
 	tristate "Synaptics RMI4 device support"
 	depends on HID
+	select RMI4_CORE
+	select RMI4_F03
+	select RMI4_F11
+	select RMI4_F12
+	select RMI4_F30
 	---help---
 	Support for Synaptics RMI4 touchpads.
 	Say Y here if you have a Synaptics RMI4 touchpads over i2c-hid or usbhid
@@ -861,9 +1008,32 @@ config THRUSTMASTER_FF
 	  a THRUSTMASTER Dual Trigger 3-in-1 or a THRUSTMASTER Ferrari GT
 	  Rumble Force or Force Feedback Wheel.
 
+config HID_UDRAW_PS3
+	tristate "THQ PS3 uDraw tablet"
+	depends on HID
+	---help---
+	  Say Y here if you want to use the THQ uDraw gaming tablet for
+	  the PS3.
+
+config HID_U2FZERO
+	tristate "U2F Zero LED and RNG support"
+	depends on USB_HID
+	depends on LEDS_CLASS
+	depends on HW_RANDOM
+	help
+	  Support for the LED of the U2F Zero device.
+
+	  U2F Zero supports custom commands for blinking the LED
+	  and getting data from the internal hardware RNG.
+	  The internal hardware can be used to feed the enthropy pool.
+
+	  U2F Zero only supports blinking its LED, so this driver doesn't
+	  allow setting the brightness to anything but 1, which will
+	  trigger a single blink and immediately reset to back 0.
+
 config HID_WACOM
 	tristate "Wacom Intuos/Graphire tablet support (USB)"
-	depends on HID
+	depends on USB_HID
 	select POWER_SUPPLY
 	select NEW_LEDS
 	select LEDS_CLASS

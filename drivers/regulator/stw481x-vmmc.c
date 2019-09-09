@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Regulator driver for STw4810/STw4811 VMMC regulator.
  *
@@ -5,8 +6,6 @@
  * Written on behalf of Linaro for ST-Ericsson
  *
  * Author: Linus Walleij <linus.walleij@linaro.org>
- *
- * License terms: GNU General Public License (GPL) version 2
  */
 
 #include <linux/err.h>
@@ -47,7 +46,8 @@ static struct regulator_desc vmmc_regulator = {
 	.volt_table = stw481x_vmmc_voltages,
 	.enable_time = 200, /* FIXME: look this up */
 	.enable_reg = STW_CONF1,
-	.enable_mask = STW_CONF1_PDN_VMMC,
+	.enable_mask = STW_CONF1_PDN_VMMC | STW_CONF1_MMC_LS_STATUS,
+	.enable_val = STW_CONF1_PDN_VMMC,
 	.vsel_reg = STW_CONF1,
 	.vsel_mask = STW_CONF1_VMMC_MASK,
 };

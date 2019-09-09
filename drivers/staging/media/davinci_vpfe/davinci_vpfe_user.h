@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 2012 Texas Instruments Inc
  *
@@ -9,10 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  *
  * Contributors:
  *      Manjunath Hadli <manjunath.hadli@ti.com>
@@ -155,8 +152,8 @@ struct vpfe_isif_dfc {
 };
 
 /************************************************************************
-*   Digital/Black clamp or DC Subtract parameters
-************************************************************************/
+ *   Digital/Black clamp or DC Subtract parameters
+ ************************************************************************/
 /**
  * Horizontal Black Clamp modes
  */
@@ -309,8 +306,8 @@ struct vpfe_isif_black_clamp {
 };
 
 /*************************************************************************
-** Color Space Conversion (CSC)
-*************************************************************************/
+ ** Color Space Conversion (CSC)
+ *************************************************************************/
 /**
  * Number of Coefficient values used for CSC
  */
@@ -331,8 +328,8 @@ struct float_16_bit {
 };
 
 /*************************************************************************
-**  Color Space Conversion parameters
-*************************************************************************/
+ **  Color Space Conversion parameters
+ *************************************************************************/
 /**
  * Structure used for CSC config params
  */
@@ -365,8 +362,8 @@ enum vpfe_isif_datasft {
 
 #define VPFE_ISIF_LINEAR_TAB_SIZE		192
 /*************************************************************************
-**  Linearization parameters
-*************************************************************************/
+ **  Linearization parameters
+ *************************************************************************/
 /**
  * Structure for Sensor data linearization
  */
@@ -382,8 +379,8 @@ struct vpfe_isif_linearize {
 };
 
 /*************************************************************************
-**  ISIF Raw configuration parameters
-*************************************************************************/
+ **  ISIF Raw configuration parameters
+ *************************************************************************/
 enum vpfe_isif_fmt_mode {
 	VPFE_ISIF_SPLIT,
 	VPFE_ISIF_COMBINE
@@ -1189,8 +1186,8 @@ struct vpfe_ipipe_config {
 };
 
 /*******************************************************************
-**  Resizer API structures
-*******************************************************************/
+ **  Resizer API structures
+ *******************************************************************/
 /* Interpolation types used for horizontal rescale */
 enum vpfe_rsz_intp_t {
 	VPFE_RSZ_INTP_CUBIC,

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __SVM_H
 #define __SVM_H
 
@@ -59,7 +60,8 @@ struct __attribute__ ((__packed__)) vmcb_control_area {
 	u32 intercept_dr;
 	u32 intercept_exceptions;
 	u64 intercept;
-	u8 reserved_1[42];
+	u8 reserved_1[40];
+	u16 pause_filter_thresh;
 	u16 pause_filter_count;
 	u64 iopm_base_pa;
 	u64 msrpm_base_pa;
@@ -83,7 +85,7 @@ struct __attribute__ ((__packed__)) vmcb_control_area {
 	u32 event_inj;
 	u32 event_inj_err;
 	u64 nested_cr3;
-	u64 lbr_ctl;
+	u64 virt_ext;
 	u32 clean;
 	u32 reserved_5;
 	u64 next_rip;
@@ -107,6 +109,9 @@ struct __attribute__ ((__packed__)) vmcb_control_area {
 #define V_IRQ_SHIFT 8
 #define V_IRQ_MASK (1 << V_IRQ_SHIFT)
 
+#define V_GIF_SHIFT 9
+#define V_GIF_MASK (1 << V_GIF_SHIFT)
+
 #define V_INTR_PRIO_SHIFT 16
 #define V_INTR_PRIO_MASK (0x0f << V_INTR_PRIO_SHIFT)
 
@@ -116,8 +121,14 @@ struct __attribute__ ((__packed__)) vmcb_control_area {
 #define V_INTR_MASKING_SHIFT 24
 #define V_INTR_MASKING_MASK (1 << V_INTR_MASKING_SHIFT)
 
+#define V_GIF_ENABLE_SHIFT 25
+#define V_GIF_ENABLE_MASK (1 << V_GIF_ENABLE_SHIFT)
+
 #define AVIC_ENABLE_SHIFT 31
 #define AVIC_ENABLE_MASK (1 << AVIC_ENABLE_SHIFT)
+
+#define LBR_CTL_ENABLE_MASK BIT_ULL(0)
+#define VIRTUAL_VMLOAD_VMSAVE_ENABLE_MASK BIT_ULL(1)
 
 #define SVM_INTERRUPT_SHADOW_MASK 1
 
@@ -135,6 +146,9 @@ struct __attribute__ ((__packed__)) vmcb_control_area {
 #define SVM_VM_CR_VALID_MASK	0x001fULL
 #define SVM_VM_CR_SVM_LOCK_MASK 0x0008ULL
 #define SVM_VM_CR_SVM_DIS_MASK  0x0010ULL
+
+#define SVM_NESTED_CTL_NP_ENABLE	BIT(0)
+#define SVM_NESTED_CTL_SEV_ENABLE	BIT(1)
 
 struct __attribute__ ((__packed__)) vmcb_seg {
 	u16 selector;
@@ -275,12 +289,5 @@ struct __attribute__ ((__packed__)) vmcb {
 #define SVM_EXITINFO_REG_MASK 0x0F
 
 #define SVM_CR0_SELECTIVE_MASK (X86_CR0_TS | X86_CR0_MP)
-
-#define SVM_VMLOAD ".byte 0x0f, 0x01, 0xda"
-#define SVM_VMRUN  ".byte 0x0f, 0x01, 0xd8"
-#define SVM_VMSAVE ".byte 0x0f, 0x01, 0xdb"
-#define SVM_CLGI   ".byte 0x0f, 0x01, 0xdd"
-#define SVM_STGI   ".byte 0x0f, 0x01, 0xdc"
-#define SVM_INVLPGA ".byte 0x0f, 0x01, 0xdf"
 
 #endif

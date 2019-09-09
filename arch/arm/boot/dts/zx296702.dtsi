@@ -1,9 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0
 
-#include "skeleton.dtsi"
 #include <dt-bindings/clock/zx296702-clock.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -37,7 +40,7 @@
 			reg = <0x00400000 0x1000>;
 		};
 
-		intc: interrupt-controller@00801000 {
+		intc: interrupt-controller@801000 {
 			compatible = "arm,cortex-a9-gic";
 			#interrupt-cells = <3>;
 			#address-cells = <1>;
@@ -47,7 +50,7 @@
 			      <0x00800100 0x100>;
 		};
 
-		global_timer: timer@008000200 {
+		global_timer: timer@8000200 {
 			compatible = "arm,cortex-a9-global-timer";
 			reg = <0x00800200 0x20>;
 			interrupts = <GIC_PPI 11 IRQ_TYPE_LEVEL_HIGH>;
@@ -55,7 +58,7 @@
 			clocks = <&topclk ZX296702_A9_PERIPHCLK>;
 		};
 
-		l2cc: l2-cache-controller@0x00c00000 {
+		l2cc: l2-cache-controller@c00000 {
 			compatible = "arm,pl310-cache";
 			reg = <0x00c00000 0x1000>;
 			cache-unified;
@@ -66,30 +69,30 @@
 			arm,double-linefill-incr = <0>;
 		};
 
-		pcu: pcu@0xa0008000 {
+		pcu: pcu@a0008000 {
 			compatible = "zte,zx296702-pcu";
 			reg = <0xa0008000 0x1000>;
 		};
 
-		topclk: topclk@0x09800000 {
+		topclk: topclk@9800000 {
 			compatible = "zte,zx296702-topcrm-clk";
 			reg = <0x09800000 0x1000>;
 			#clock-cells = <1>;
 		};
 
-		lsp1clk: lsp1clk@0x09400000 {
+		lsp1clk: lsp1clk@9400000 {
 			compatible = "zte,zx296702-lsp1crpm-clk";
 			reg = <0x09400000 0x1000>;
 			#clock-cells = <1>;
 		};
 
-		lsp0clk: lsp0clk@0x0b000000 {
+		lsp0clk: lsp0clk@b000000 {
 			compatible = "zte,zx296702-lsp0crpm-clk";
 			reg = <0x0b000000 0x1000>;
 			#clock-cells = <1>;
 		};
 
-		uart0: serial@0x09405000 {
+		uart0: serial@9405000 {
 			compatible = "zte,zx296702-uart";
 			reg = <0x09405000 0x1000>;
 			interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
@@ -97,7 +100,7 @@
 			status = "disabled";
 		};
 
-		uart1: serial@0x09406000 {
+		uart1: serial@9406000 {
 			compatible = "zte,zx296702-uart";
 			reg = <0x09406000 0x1000>;
 			interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
@@ -105,7 +108,7 @@
 			status = "disabled";
 		};
 
-		mmc0: mmc@0x09408000 {
+		mmc0: mmc@9408000 {
 			compatible = "snps,dw-mshc";
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -118,7 +121,7 @@
 			status = "disabled";
 		};
 
-		mmc1: mmc@0x0b003000 {
+		mmc1: mmc@b003000 {
 			compatible = "snps,dw-mshc";
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -131,7 +134,7 @@
 			status = "disabled";
 		};
 
-		sysctrl: sysctrl@0xa0007000 {
+		sysctrl: sysctrl@a0007000 {
 			compatible = "zte,sysctrl", "syscon";
 			reg = <0xa0007000 0x1000>;
 		};

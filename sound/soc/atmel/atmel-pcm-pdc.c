@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * atmel-pcm.c  --  ALSA PCM interface for the Atmel atmel SoC.
  *
@@ -15,20 +16,6 @@
  * Author:	Nicolas Pitre
  * Created:	Nov 30, 2004
  * Copyright:	(C) 2004 MontaVista Software, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/module.h>
@@ -393,7 +380,7 @@ static const struct snd_pcm_ops atmel_pcm_ops = {
 	.mmap		= atmel_pcm_mmap,
 };
 
-static struct snd_soc_platform_driver atmel_soc_platform = {
+static struct snd_soc_component_driver atmel_soc_platform = {
 	.ops		= &atmel_pcm_ops,
 	.pcm_new	= atmel_pcm_new,
 	.pcm_free	= atmel_pcm_free,
@@ -401,15 +388,10 @@ static struct snd_soc_platform_driver atmel_soc_platform = {
 
 int atmel_pcm_pdc_platform_register(struct device *dev)
 {
-	return snd_soc_register_platform(dev, &atmel_soc_platform);
+	return devm_snd_soc_register_component(dev, &atmel_soc_platform,
+					       NULL, 0);
 }
 EXPORT_SYMBOL(atmel_pcm_pdc_platform_register);
-
-void atmel_pcm_pdc_platform_unregister(struct device *dev)
-{
-	snd_soc_unregister_platform(dev);
-}
-EXPORT_SYMBOL(atmel_pcm_pdc_platform_unregister);
 
 MODULE_AUTHOR("Sedji Gaouaou <sedji.gaouaou@atmel.com>");
 MODULE_DESCRIPTION("Atmel PCM module");

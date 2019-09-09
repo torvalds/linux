@@ -13,7 +13,6 @@ Required properties:
   - reg: the I2C address of the sensor
 
 Optional properties:
-  - interrupt-parent: should be the phandle for the interrupt controller
   - interrupts: interrupt mapping for GPIO IRQ (configure for falling edge)
 
 Example:

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Freescale General-purpose Timers Module
  *
@@ -6,11 +7,6 @@
  *               Jerry Huang <Chang-Ming.Huang@freescale.com>
  * Copyright (c) MontaVista Software, Inc. 2008.
  *               Anton Vorontsov <avorontsov@ru.mvista.com>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -388,8 +384,8 @@ static int __init fsl_gtm_init(void)
 
 		gtm = kzalloc(sizeof(*gtm), GFP_KERNEL);
 		if (!gtm) {
-			pr_err("%s: unable to allocate memory\n",
-				np->full_name);
+			pr_err("%pOF: unable to allocate memory\n",
+				np);
 			continue;
 		}
 
@@ -397,7 +393,7 @@ static int __init fsl_gtm_init(void)
 
 		clock = of_get_property(np, "clock-frequency", &size);
 		if (!clock || size != sizeof(*clock)) {
-			pr_err("%s: no clock-frequency\n", np->full_name);
+			pr_err("%pOF: no clock-frequency\n", np);
 			goto err;
 		}
 		gtm->clock = *clock;
@@ -407,8 +403,8 @@ static int __init fsl_gtm_init(void)
 
 			irq = irq_of_parse_and_map(np, i);
 			if (!irq) {
-				pr_err("%s: not enough interrupts specified\n",
-				       np->full_name);
+				pr_err("%pOF: not enough interrupts specified\n",
+				       np);
 				goto err;
 			}
 			gtm->timers[i].irq = irq;
@@ -417,8 +413,8 @@ static int __init fsl_gtm_init(void)
 
 		gtm->regs = of_iomap(np, 0);
 		if (!gtm->regs) {
-			pr_err("%s: unable to iomap registers\n",
-			       np->full_name);
+			pr_err("%pOF: unable to iomap registers\n",
+			       np);
 			goto err;
 		}
 

@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ARM64 CPU idle arch support
  *
  * Copyright (C) 2014 ARM Ltd.
  * Author: Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/acpi.h>
@@ -30,7 +27,7 @@ int arm_cpuidle_init(unsigned int cpu)
 }
 
 /**
- * cpu_suspend() - function to enter a low-power idle state
+ * arm_cpuidle_suspend() - function to enter a low-power idle state
  * @arg: argument to pass to CPU suspend operations
  *
  * Return: 0 on success, -EOPNOTSUPP if CPU suspend hook not initialized, CPU
@@ -47,6 +44,8 @@ int arm_cpuidle_suspend(int index)
 
 #include <acpi/processor.h>
 
+#define ARM64_LPI_IS_RETENTION_STATE(arch_flags) (!(arch_flags))
+
 int acpi_processor_ffh_lpi_probe(unsigned int cpu)
 {
 	return arm_cpuidle_init(cpu);
@@ -54,6 +53,10 @@ int acpi_processor_ffh_lpi_probe(unsigned int cpu)
 
 int acpi_processor_ffh_lpi_enter(struct acpi_lpi_state *lpi)
 {
-	return CPU_PM_CPU_IDLE_ENTER(arm_cpuidle_suspend, lpi->index);
+	if (ARM64_LPI_IS_RETENTION_STATE(lpi->arch_flags))
+		return CPU_PM_CPU_IDLE_ENTER_RETENTION(arm_cpuidle_suspend,
+						lpi->index);
+	else
+		return CPU_PM_CPU_IDLE_ENTER(arm_cpuidle_suspend, lpi->index);
 }
 #endif

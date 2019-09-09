@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (C) 2010-2013 Bluecherry, LLC <http://www.bluecherrydvr.com>
  *
@@ -6,16 +7,6 @@
  *
  * Additional work by:
  * John Brooks <john.brooks@bluecherry.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef __SOLO6X10_H
@@ -31,6 +22,7 @@
 #include <linux/atomic.h>
 #include <linux/slab.h>
 #include <linux/videodev2.h>
+#include <linux/gpio/driver.h>
 
 #include <media/v4l2-dev.h>
 #include <media/v4l2-device.h>
@@ -199,6 +191,10 @@ struct solo_dev {
 	u32			irq_mask;
 	u32			motion_mask;
 	struct v4l2_device	v4l2_dev;
+#ifdef CONFIG_GPIOLIB
+	/* GPIO */
+	struct gpio_chip	gpio_dev;
+#endif
 
 	/* tw28xx accounting */
 	u8			tw2865, tw2864, tw2815;
@@ -284,7 +280,10 @@ static inline u32 solo_reg_read(struct solo_dev *solo_dev, int reg)
 static inline void solo_reg_write(struct solo_dev *solo_dev, int reg,
 				  u32 data)
 {
+	u16 val;
+
 	writel(data, solo_dev->reg_base + reg);
+	pci_read_config_word(solo_dev->pdev, PCI_STATUS, &val);
 }
 
 static inline void solo_irq_on(struct solo_dev *dev, u32 mask)

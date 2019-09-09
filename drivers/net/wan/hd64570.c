@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Hitachi SCA HD64570 driver for Linux
  *
  * Copyright (C) 1998-2003 Krzysztof Halasa <khc@pm.waw.pl>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License
- * as published by the Free Software Foundation.
  *
  * Source of information: Hitachi HD64570 SCA User's Manual
  *
@@ -39,7 +36,7 @@
 #include <linux/string.h>
 #include <linux/types.h>
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "hd64570.h"
 
 #define get_msci(port)	  (phy_node(port) ?   MSCI1_OFFSET :   MSCI0_OFFSET)

@@ -1,15 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  * System Trace Module (STM) userspace interfaces
  * Copyright (c) 2014, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  *
  * STM class implements generic infrastructure for  System Trace Module devices
  * as defined in MIPI STPv2 specification.
@@ -19,6 +11,10 @@
 #define _UAPI_LINUX_STM_H
 
 #include <linux/types.h>
+
+/* Maximum allowed master and channel values */
+#define STP_MASTER_MAX	0xffff
+#define STP_CHANNEL_MAX	0xffff
 
 /**
  * struct stp_policy_id - identification for the STP policy

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Jeilinj subdriver
  *
@@ -8,20 +9,6 @@
  *
  * Sportscam DV15 support and control settings are
  * Copyright (C) 2011 Patrice Chotard
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -266,7 +253,7 @@ static int jlj_start(struct gspca_dev *gspca_dev)
 	msleep(2);
 	setfreq(gspca_dev, v4l2_ctrl_g_ctrl(sd->freq));
 	if (gspca_dev->usb_err < 0)
-		PERR("Start streaming command failed");
+		gspca_err(gspca_dev, "Start streaming command failed\n");
 	return gspca_dev->usb_err;
 }
 
@@ -277,17 +264,18 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	int packet_type;
 	u32 header_marker;
 
-	PDEBUG(D_STREAM, "Got %d bytes out of %d for Block 0",
-			len, JEILINJ_MAX_TRANSFER);
+	gspca_dbg(gspca_dev, D_STREAM, "Got %d bytes out of %d for Block 0\n",
+		  len, JEILINJ_MAX_TRANSFER);
 	if (len != JEILINJ_MAX_TRANSFER) {
-		PDEBUG(D_PACK, "bad length");
+		gspca_dbg(gspca_dev, D_PACK, "bad length\n");
 		goto discard;
 	}
 	/* check if it's start of frame */
 	header_marker = ((u32 *)data)[0];
 	if (header_marker == FRAME_START) {
 		sd->blocks_left = data[0x0a] - 1;
-		PDEBUG(D_STREAM, "blocks_left = 0x%x", sd->blocks_left);
+		gspca_dbg(gspca_dev, D_STREAM, "blocks_left = 0x%x\n",
+			  sd->blocks_left);
 		/* Start a new frame, and add the JPEG header, first thing */
 		gspca_frame_add(gspca_dev, FIRST_PACKET,
 				sd->jpeg_hdr, JPEG_HDR_SZ);
@@ -296,8 +284,8 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 				data + FRAME_HEADER_LEN,
 				JEILINJ_MAX_TRANSFER - FRAME_HEADER_LEN);
 	} else if (sd->blocks_left > 0) {
-		PDEBUG(D_STREAM, "%d blocks remaining for frame",
-				sd->blocks_left);
+		gspca_dbg(gspca_dev, D_STREAM, "%d blocks remaining for frame\n",
+			  sd->blocks_left);
 		sd->blocks_left -= 1;
 		if (sd->blocks_left == 0)
 			packet_type = LAST_PACKET;
@@ -382,8 +370,8 @@ static int sd_start(struct gspca_dev *gspca_dev)
 			gspca_dev->pixfmt.width,
 			0x21);          /* JPEG 422 */
 	jpeg_set_qual(dev->jpeg_hdr, dev->quality);
-	PDEBUG(D_STREAM, "Start streaming at %dx%d",
-		gspca_dev->pixfmt.height, gspca_dev->pixfmt.width);
+	gspca_dbg(gspca_dev, D_STREAM, "Start streaming at %dx%d\n",
+		  gspca_dev->pixfmt.height, gspca_dev->pixfmt.width);
 	jlj_start(gspca_dev);
 	return gspca_dev->usb_err;
 }

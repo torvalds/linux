@@ -233,8 +233,10 @@ static u32 to3264(u32 timing, int bpp, int is64)
 	switch (bpp) {
 	case 24:
 		timing *= 3;
+		/* fall through */
 	case 8:
 		timing >>= 1;
+		/* fall through */
 	case 16:
 		timing >>= 1;
 	case 32:
@@ -1732,7 +1734,7 @@ static void pm2fb_remove(struct pci_dev *pdev)
 	framebuffer_release(info);
 }
 
-static struct pci_device_id pm2fb_id_table[] = {
+static const struct pci_device_id pm2fb_id_table[] = {
 	{ PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_TVP4020,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ PCI_VENDOR_ID_3DLABS, PCI_DEVICE_ID_3DLABS_PERMEDIA2,

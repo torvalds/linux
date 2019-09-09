@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * 1-Wire implementation for the ds2780 chip
  *
@@ -6,11 +7,6 @@
  * Author: Clifton Barnes <cabarnes@indesign-llc.com>
  *
  * Based on w1-ds2760 driver
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/kernel.h>
@@ -21,10 +17,11 @@
 #include <linux/mutex.h>
 #include <linux/idr.h>
 
-#include "../w1.h"
-#include "../w1_int.h"
-#include "../w1_family.h"
+#include <linux/w1.h>
+
 #include "w1_ds2780.h"
+
+#define W1_FAMILY_DS2780	0x32
 
 static int w1_ds2780_do_io(struct device *dev, char *buf, int addr,
 			size_t count, int io)
@@ -156,7 +153,7 @@ static struct w1_family w1_ds2780_family = {
 };
 module_w1_family(w1_ds2780_family);
 
-MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Clifton Barnes <cabarnes@indesign-llc.com>");
 MODULE_DESCRIPTION("1-wire Driver for Maxim/Dallas DS2780 Stand-Alone Fuel Gauge IC");
+MODULE_LICENSE("GPL");
 MODULE_ALIAS("w1-family-" __stringify(W1_FAMILY_DS2780));

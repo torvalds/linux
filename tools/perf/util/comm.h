@@ -1,9 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __PERF_COMM_H
 #define __PERF_COMM_H
 
-#include "../perf.h"
-#include <linux/rbtree.h>
 #include <linux/list.h>
+#include <linux/types.h>
+#include <stdbool.h>
 
 struct comm_str;
 

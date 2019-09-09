@@ -1,7 +1,8 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config FANOTIFY
 	bool "Filesystem wide access notification"
 	select FSNOTIFY
-	select ANON_INODES
+	select EXPORTFS
 	default n
 	---help---
 	   Say Y here to enable fanotify support.  fanotify is a file access
@@ -21,6 +22,6 @@ config FANOTIFY_ACCESS_PERMISSIONS
 	   decisions concerning filesystem events.  This is used by some fanotify
 	   listeners which need to scan files before allowing the system access to
 	   use those files.  This is used by some anti-malware vendors and by some
-	   hierarchical storage managent systems.
+	   hierarchical storage management systems.
 
 	   If unsure, say N.

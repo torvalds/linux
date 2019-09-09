@@ -1,25 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * IBM Real-Time Linux driver
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * Copyright (C) IBM Corporation, 2010
  *
  * Author: Keith Mannthey <kmannth@us.ibm.com>
  *         Vernon Mauery <vernux@us.ibm.com>
- *
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -103,7 +89,7 @@ static void rtl_port_unmap(void __iomem *addr)
 static int ibm_rtl_write(u8 value)
 {
 	int ret = 0, count = 0;
-	static u32 cmd_port_val;
+	u32 cmd_port_val;
 
 	RTL_DEBUG("%s(%d)\n", __func__, value);
 
@@ -227,7 +213,7 @@ static void rtl_teardown_sysfs(void) {
 }
 
 
-static struct dmi_system_id __initdata ibm_rtl_dmi_table[] = {
+static const struct dmi_system_id ibm_rtl_dmi_table[] __initconst = {
 	{                                                  \
 		.matches = {                               \
 			DMI_MATCH(DMI_SYS_VENDOR, "IBM"),  \

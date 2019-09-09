@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * s3c24xx/s3c64xx SoC series Camera Interface (CAMIF) driver
  *
@@ -6,10 +7,6 @@
  *
  * Based on drivers/media/platform/s5p-fimc,
  * Copyright (C) 2010 - 2012 Samsung Electronics Co., Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
 */
 #define pr_fmt(fmt) "%s:%d " fmt, __func__, __LINE__
 
@@ -80,7 +77,7 @@ static int s3c_camif_hw_init(struct camif_dev *camif, struct camif_vp *vp)
 	camif_hw_set_test_pattern(camif, camif->test_pattern);
 	if (variant->has_img_effect)
 		camif_hw_set_effect(camif, camif->colorfx,
-				camif->colorfx_cb, camif->colorfx_cr);
+				camif->colorfx_cr, camif->colorfx_cb);
 	if (variant->ip_revision == S3C6410_CAMIF_IP_REV)
 		camif_hw_set_input_path(vp);
 	camif_cfg_video_path(vp);
@@ -117,6 +114,8 @@ static int sensor_set_power(struct camif_dev *camif, int on)
 
 	if (camif->sensor.power_count == !on)
 		err = v4l2_subdev_call(sensor->sd, core, s_power, on);
+	if (err == -ENOIOCTLCMD)
+		err = 0;
 	if (!err)
 		sensor->power_count += on ? 1 : -1;
 
@@ -364,7 +363,7 @@ irqreturn_t s3c_camif_irq_handler(int irq, void *priv)
 		camif_hw_set_test_pattern(camif, camif->test_pattern);
 		if (camif->variant->has_img_effect)
 			camif_hw_set_effect(camif, camif->colorfx,
-				    camif->colorfx_cb, camif->colorfx_cr);
+				    camif->colorfx_cr, camif->colorfx_cb);
 		vp->state &= ~ST_VP_CONFIG;
 	}
 unlock:
@@ -590,16 +589,16 @@ static int s3c_camif_close(struct file *file)
 	return ret;
 }
 
-static unsigned int s3c_camif_poll(struct file *file,
+static __poll_t s3c_camif_poll(struct file *file,
 				   struct poll_table_struct *wait)
 {
 	struct camif_vp *vp = video_drvdata(file);
 	struct camif_dev *camif = vp->camif;
-	int ret;
+	__poll_t ret;
 
 	mutex_lock(&camif->lock);
 	if (vp->owner && vp->owner != file->private_data)
-		ret = -EBUSY;
+		ret = EPOLLERR;
 	else
 		ret = vb2_poll(&vp->vb_queue, file, wait);
 
@@ -638,8 +637,8 @@ static int s3c_camif_vidioc_querycap(struct file *file, void *priv,
 {
 	struct camif_vp *vp = video_drvdata(file);
 
-	strlcpy(cap->driver, S3C_CAMIF_DRIVER_NAME, sizeof(cap->driver));
-	strlcpy(cap->card, S3C_CAMIF_DRIVER_NAME, sizeof(cap->card));
+	strscpy(cap->driver, S3C_CAMIF_DRIVER_NAME, sizeof(cap->driver));
+	strscpy(cap->card, S3C_CAMIF_DRIVER_NAME, sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s.%d",
 		 dev_name(vp->camif->dev), vp->id);
 
@@ -659,7 +658,7 @@ static int s3c_camif_vidioc_enum_input(struct file *file, void *priv,
 		return -EINVAL;
 
 	input->type = V4L2_INPUT_TYPE_CAMERA;
-	strlcpy(input->name, sensor->name, sizeof(input->name));
+	strscpy(input->name, sensor->name, sizeof(input->name));
 	return 0;
 }
 
@@ -686,7 +685,7 @@ static int s3c_camif_vidioc_enum_fmt(struct file *file, void *priv,
 	if (!fmt)
 		return -EINVAL;
 
-	strlcpy(f->description, fmt->name, sizeof(f->description));
+	strscpy(f->description, fmt->name, sizeof(f->description));
 	f->pixelformat = fmt->fourcc;
 
 	pr_debug("fmt(%d): %s\n", f->index, f->description);
@@ -856,13 +855,13 @@ static int s3c_camif_streamon(struct file *file, void *priv,
 	if (s3c_vp_active(vp))
 		return 0;
 
-	ret = media_entity_pipeline_start(sensor, camif->m_pipeline);
+	ret = media_pipeline_start(sensor, camif->m_pipeline);
 	if (ret < 0)
 		return ret;
 
 	ret = camif_pipeline_validate(camif);
 	if (ret < 0) {
-		media_entity_pipeline_stop(sensor);
+		media_pipeline_stop(sensor);
 		return ret;
 	}
 
@@ -886,7 +885,7 @@ static int s3c_camif_streamoff(struct file *file, void *priv,
 
 	ret = vb2_streamoff(&vp->vb_queue, type);
 	if (ret == 0)
-		media_entity_pipeline_stop(&camif->sensor.sd->entity);
+		media_pipeline_stop(&camif->sensor.sd->entity);
 	return ret;
 }
 
@@ -941,7 +940,7 @@ static int s3c_camif_qbuf(struct file *file, void *priv,
 	if (vp->owner && vp->owner != priv)
 		return -EBUSY;
 
-	return vb2_qbuf(&vp->vb_queue, buf);
+	return vb2_qbuf(&vp->vb_queue, vp->vdev.v4l2_dev->mdev, buf);
 }
 
 static int s3c_camif_dqbuf(struct file *file, void *priv,
@@ -979,7 +978,7 @@ static int s3c_camif_prepare_buf(struct file *file, void *priv,
 				 struct v4l2_buffer *b)
 {
 	struct camif_vp *vp = video_drvdata(file);
-	return vb2_prepare_buf(&vp->vb_queue, b);
+	return vb2_prepare_buf(&vp->vb_queue, vp->vdev.v4l2_dev->mdev, b);
 }
 
 static int s3c_camif_g_selection(struct file *file, void *priv,
@@ -1256,16 +1255,17 @@ static void __camif_subdev_try_format(struct camif_dev *camif,
 {
 	const struct s3c_camif_variant *variant = camif->variant;
 	const struct vp_pix_limits *pix_lim;
-	int i = ARRAY_SIZE(camif_mbus_formats);
+	unsigned int i;
 
 	/* FIXME: constraints against codec or preview path ? */
 	pix_lim = &variant->vp_pix_limits[VP_CODEC];
 
-	while (i-- >= 0)
+	for (i = 0; i < ARRAY_SIZE(camif_mbus_formats); i++)
 		if (camif_mbus_formats[i] == mf->code)
 			break;
 
-	mf->code = camif_mbus_formats[i];
+	if (i == ARRAY_SIZE(camif_mbus_formats))
+		mf->code = camif_mbus_formats[0];
 
 	if (pad == CAMIF_SD_PAD_SINK) {
 		v4l_bound_align_image(&mf->width, 8, CAMIF_MAX_PIX_WIDTH,
@@ -1488,7 +1488,7 @@ static const struct v4l2_subdev_pad_ops s3c_camif_subdev_pad_ops = {
 	.set_fmt = s3c_camif_subdev_set_fmt,
 };
 
-static struct v4l2_subdev_ops s3c_camif_subdev_ops = {
+static const struct v4l2_subdev_ops s3c_camif_subdev_ops = {
 	.pad = &s3c_camif_subdev_pad_ops,
 };
 
@@ -1552,7 +1552,7 @@ int s3c_camif_create_subdev(struct camif_dev *camif)
 
 	v4l2_subdev_init(sd, &s3c_camif_subdev_ops);
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
-	strlcpy(sd->name, "S3C-CAMIF", sizeof(sd->name));
+	strscpy(sd->name, "S3C-CAMIF", sizeof(sd->name));
 
 	camif->pads[CAMIF_SD_PAD_SINK].flags = MEDIA_PAD_FL_SINK;
 	camif->pads[CAMIF_SD_PAD_SOURCE_C].flags = MEDIA_PAD_FL_SOURCE;

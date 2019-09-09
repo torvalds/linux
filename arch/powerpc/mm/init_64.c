@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  PowerPC version
  *    Copyright (C) 1995-1996 Gary Thomas (gdt@linuxppc.org)
@@ -11,12 +12,6 @@
  *
  *  Dave Engebretsen <engebret@us.ibm.com>
  *      Rework for PPC64 port.
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version
- *  2 of the License, or (at your option) any later version.
- *
  */
 
 #undef DEBUG
@@ -42,6 +37,9 @@
 #include <linux/memblock.h>
 #include <linux/hugetlb.h>
 #include <linux/slab.h>
+#include <linux/of_fdt.h>
+#include <linux/libfdt.h>
+#include <linux/memremap.h>
 
 #include <asm/pgalloc.h>
 #include <asm/page.h>
@@ -51,7 +49,7 @@
 #include <asm/mmu_context.h>
 #include <asm/pgtable.h>
 #include <asm/mmu.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/smp.h>
 #include <asm/machdep.h>
 #include <asm/tlb.h>
@@ -63,99 +61,12 @@
 #include <asm/iommu.h>
 #include <asm/vdso.h>
 
-#include "mmu_decl.h"
-
-#ifdef CONFIG_PPC_STD_MMU_64
-#if H_PGTABLE_RANGE > USER_VSID_RANGE
-#warning Limited user VSID range means pagetable space is wasted
-#endif
-
-#if (TASK_SIZE_USER64 < H_PGTABLE_RANGE) && (TASK_SIZE_USER64 < USER_VSID_RANGE)
-#warning TASK_SIZE is smaller than it needs to be.
-#endif
-#endif /* CONFIG_PPC_STD_MMU_64 */
+#include <mm/mmu_decl.h>
 
 phys_addr_t memstart_addr = ~0;
 EXPORT_SYMBOL_GPL(memstart_addr);
 phys_addr_t kernstart_addr;
 EXPORT_SYMBOL_GPL(kernstart_addr);
-
-static void pgd_ctor(void *addr)
-{
-	memset(addr, 0, PGD_TABLE_SIZE);
-}
-
-static void pud_ctor(void *addr)
-{
-	memset(addr, 0, PUD_TABLE_SIZE);
-}
-
-static void pmd_ctor(void *addr)
-{
-	memset(addr, 0, PMD_TABLE_SIZE);
-}
-
-struct kmem_cache *pgtable_cache[MAX_PGTABLE_INDEX_SIZE];
-
-/*
- * Create a kmem_cache() for pagetables.  This is not used for PTE
- * pages - they're linked to struct page, come from the normal free
- * pages pool and have a different entry size (see real_pte_t) to
- * everything else.  Caches created by this function are used for all
- * the higher level pagetables, and for hugepage pagetables.
- */
-void pgtable_cache_add(unsigned shift, void (*ctor)(void *))
-{
-	char *name;
-	unsigned long table_size = sizeof(void *) << shift;
-	unsigned long align = table_size;
-
-	/* When batching pgtable pointers for RCU freeing, we store
-	 * the index size in the low bits.  Table alignment must be
-	 * big enough to fit it.
-	 *
-	 * Likewise, hugeapge pagetable pointers contain a (different)
-	 * shift value in the low bits.  All tables must be aligned so
-	 * as to leave enough 0 bits in the address to contain it. */
-	unsigned long minalign = max(MAX_PGTABLE_INDEX_SIZE + 1,
-				     HUGEPD_SHIFT_MASK + 1);
-	struct kmem_cache *new;
-
-	/* It would be nice if this was a BUILD_BUG_ON(), but at the
-	 * moment, gcc doesn't seem to recognize is_power_of_2 as a
-	 * constant expression, so so much for that. */
-	BUG_ON(!is_power_of_2(minalign));
-	BUG_ON((shift < 1) || (shift > MAX_PGTABLE_INDEX_SIZE));
-
-	if (PGT_CACHE(shift))
-		return; /* Already have a cache of this size */
-
-	align = max_t(unsigned long, align, minalign);
-	name = kasprintf(GFP_KERNEL, "pgtable-2^%d", shift);
-	new = kmem_cache_create(name, table_size, align, 0, ctor);
-	kfree(name);
-	pgtable_cache[shift - 1] = new;
-	pr_debug("Allocated pgtable cache for order %d\n", shift);
-}
-
-
-void pgtable_cache_init(void)
-{
-	pgtable_cache_add(PGD_INDEX_SIZE, pgd_ctor);
-	pgtable_cache_add(PMD_CACHE_INDEX, pmd_ctor);
-	/*
-	 * In all current configs, when the PUD index exists it's the
-	 * same size as either the pgd or pmd index except with THP enabled
-	 * on book3s 64
-	 */
-	if (PUD_INDEX_SIZE && !PGT_CACHE(PUD_INDEX_SIZE))
-		pgtable_cache_add(PUD_INDEX_SIZE, pud_ctor);
-
-	if (!PGT_CACHE(PGD_INDEX_SIZE) || !PGT_CACHE(PMD_CACHE_INDEX))
-		panic("Couldn't allocate pgtable caches");
-	if (PUD_INDEX_SIZE && !PGT_CACHE(PUD_INDEX_SIZE))
-		panic("Couldn't allocate pud pgtable caches");
-}
 
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
 /*
@@ -189,8 +100,29 @@ static int __meminit vmemmap_populated(unsigned long start, int page_size)
 	return 0;
 }
 
+/*
+ * vmemmap virtual address space management does not have a traditonal page
+ * table to track which virtual struct pages are backed by physical mapping.
+ * The virtual to physical mappings are tracked in a simple linked list
+ * format. 'vmemmap_list' maintains the entire vmemmap physical mapping at
+ * all times where as the 'next' list maintains the available
+ * vmemmap_backing structures which have been deleted from the
+ * 'vmemmap_global' list during system runtime (memory hotplug remove
+ * operation). The freed 'vmemmap_backing' structures are reused later when
+ * new requests come in without allocating fresh memory. This pointer also
+ * tracks the allocated 'vmemmap_backing' structures as we allocate one
+ * full page memory at a time when we dont have any.
+ */
 struct vmemmap_backing *vmemmap_list;
 static struct vmemmap_backing *next;
+
+/*
+ * The same pointer 'next' tracks individual chunks inside the allocated
+ * full page during the boot time and again tracks the freeed nodes during
+ * runtime. It is racy but it does not happen as they are separated by the
+ * boot process. Will create problem if some how we have memory hotplug
+ * operation during boot !!
+ */
 static int num_left;
 static int num_freed;
 
@@ -240,7 +172,8 @@ static __meminit void vmemmap_list_populate(unsigned long phys,
 	vmemmap_list = vmem_back;
 }
 
-int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
+int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
+		struct vmem_altmap *altmap)
 {
 	unsigned long page_size = 1 << mmu_psize_defs[mmu_vmemmap_psize].shift;
 
@@ -250,13 +183,24 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
 	pr_debug("vmemmap_populate %lx..%lx, node %d\n", start, end, node);
 
 	for (; start < end; start += page_size) {
-		void *p;
+		void *p = NULL;
 		int rc;
 
 		if (vmemmap_populated(start, page_size))
 			continue;
 
-		p = vmemmap_alloc_block(page_size, node);
+		/*
+		 * Allocate from the altmap first if we have one. This may
+		 * fail due to alignment issues when using 16MB hugepages, so
+		 * fall back to system memory if the altmap allocation fail.
+		 */
+		if (altmap) {
+			p = altmap_alloc_block_buf(page_size, altmap);
+			if (!p)
+				pr_debug("altmap block allocation failed, falling back to system memory");
+		}
+		if (!p)
+			p = vmemmap_alloc_block_buf(page_size, node);
 		if (!p)
 			return -ENOMEM;
 
@@ -267,9 +211,8 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
 
 		rc = vmemmap_create_mapping(start, page_size, __pa(p));
 		if (rc < 0) {
-			pr_warning(
-				"vmemmap_populate: Unable to create vmemmap mapping: %d\n",
-				rc);
+			pr_warn("%s: Unable to create vmemmap mapping: %d\n",
+				__func__, rc);
 			return -EFAULT;
 		}
 	}
@@ -310,16 +253,26 @@ static unsigned long vmemmap_list_free(unsigned long start)
 	return vmem_back->phys;
 }
 
-void __ref vmemmap_free(unsigned long start, unsigned long end)
+void __ref vmemmap_free(unsigned long start, unsigned long end,
+		struct vmem_altmap *altmap)
 {
 	unsigned long page_size = 1 << mmu_psize_defs[mmu_vmemmap_psize].shift;
+	unsigned long page_order = get_order(page_size);
+	unsigned long alt_start = ~0, alt_end = ~0;
+	unsigned long base_pfn;
 
 	start = _ALIGN_DOWN(start, page_size);
+	if (altmap) {
+		alt_start = altmap->base_pfn;
+		alt_end = altmap->base_pfn + altmap->reserve +
+			  altmap->free + altmap->alloc + altmap->align;
+	}
 
 	pr_debug("vmemmap_free %lx...%lx\n", start, end);
 
 	for (; start < end; start += page_size) {
-		unsigned long addr;
+		unsigned long nr_pages, addr;
+		struct page *page;
 
 		/*
 		 * the section has already be marked as invalid, so
@@ -330,29 +283,32 @@ void __ref vmemmap_free(unsigned long start, unsigned long end)
 			continue;
 
 		addr = vmemmap_list_free(start);
-		if (addr) {
-			struct page *page = pfn_to_page(addr >> PAGE_SHIFT);
+		if (!addr)
+			continue;
 
-			if (PageReserved(page)) {
-				/* allocated from bootmem */
-				if (page_size < PAGE_SIZE) {
-					/*
-					 * this shouldn't happen, but if it is
-					 * the case, leave the memory there
-					 */
-					WARN_ON_ONCE(1);
-				} else {
-					unsigned int nr_pages =
-						1 << get_order(page_size);
-					while (nr_pages--)
-						free_reserved_page(page++);
-				}
-			} else
-				free_pages((unsigned long)(__va(addr)),
-							get_order(page_size));
+		page = pfn_to_page(addr >> PAGE_SHIFT);
+		nr_pages = 1 << page_order;
+		base_pfn = PHYS_PFN(addr);
 
-			vmemmap_remove_mapping(start, page_size);
+		if (base_pfn >= alt_start && base_pfn < alt_end) {
+			vmem_altmap_free(altmap, nr_pages);
+		} else if (PageReserved(page)) {
+			/* allocated from bootmem */
+			if (page_size < PAGE_SIZE) {
+				/*
+				 * this shouldn't happen, but if it is
+				 * the case, leave the memory there
+				 */
+				WARN_ON_ONCE(1);
+			} else {
+				while (nr_pages--)
+					free_reserved_page(page++);
+			}
+		} else {
+			free_pages((unsigned long)(__va(addr)), page_order);
 		}
+
+		vmemmap_remove_mapping(start, page_size);
 	}
 }
 #endif
@@ -361,65 +317,73 @@ void register_page_bootmem_memmap(unsigned long section_nr,
 {
 }
 
-/*
- * We do not have access to the sparsemem vmemmap, so we fallback to
- * walking the list of sparsemem blocks which we already maintain for
- * the sake of crashdump. In the long run, we might want to maintain
- * a tree if performance of that linear walk becomes a problem.
- *
- * realmode_pfn_to_page functions can fail due to:
- * 1) As real sparsemem blocks do not lay in RAM continously (they
- * are in virtual address space which is not available in the real mode),
- * the requested page struct can be split between blocks so get_page/put_page
- * may fail.
- * 2) When huge pages are used, the get_page/put_page API will fail
- * in real mode as the linked addresses in the page struct are virtual
- * too.
- */
-struct page *realmode_pfn_to_page(unsigned long pfn)
-{
-	struct vmemmap_backing *vmem_back;
-	struct page *page;
-	unsigned long page_size = 1 << mmu_psize_defs[mmu_vmemmap_psize].shift;
-	unsigned long pg_va = (unsigned long) pfn_to_page(pfn);
+#endif /* CONFIG_SPARSEMEM_VMEMMAP */
 
-	for (vmem_back = vmemmap_list; vmem_back; vmem_back = vmem_back->list) {
-		if (pg_va < vmem_back->virt_addr)
-			continue;
+#ifdef CONFIG_PPC_BOOK3S_64
+static bool disable_radix = !IS_ENABLED(CONFIG_PPC_RADIX_MMU_DEFAULT);
 
-		/* After vmemmap_list entry free is possible, need check all */
-		if ((pg_va + sizeof(struct page)) <=
-				(vmem_back->virt_addr + page_size)) {
-			page = (struct page *) (vmem_back->phys + pg_va -
-				vmem_back->virt_addr);
-			return page;
-		}
-	}
-
-	/* Probably that page struct is split between real pages */
-	return NULL;
-}
-EXPORT_SYMBOL_GPL(realmode_pfn_to_page);
-
-#elif defined(CONFIG_FLATMEM)
-
-struct page *realmode_pfn_to_page(unsigned long pfn)
-{
-	struct page *page = pfn_to_page(pfn);
-	return page;
-}
-EXPORT_SYMBOL_GPL(realmode_pfn_to_page);
-
-#endif /* CONFIG_SPARSEMEM_VMEMMAP/CONFIG_FLATMEM */
-
-#ifdef CONFIG_PPC_STD_MMU_64
-static bool disable_radix;
 static int __init parse_disable_radix(char *p)
 {
-	disable_radix = true;
+	bool val;
+
+	if (!p)
+		val = true;
+	else if (kstrtobool(p, &val))
+		return -EINVAL;
+
+	disable_radix = val;
+
 	return 0;
 }
 early_param("disable_radix", parse_disable_radix);
+
+/*
+ * If we're running under a hypervisor, we need to check the contents of
+ * /chosen/ibm,architecture-vec-5 to see if the hypervisor is willing to do
+ * radix.  If not, we clear the radix feature bit so we fall back to hash.
+ */
+static void __init early_check_vec5(void)
+{
+	unsigned long root, chosen;
+	int size;
+	const u8 *vec5;
+	u8 mmu_supported;
+
+	root = of_get_flat_dt_root();
+	chosen = of_get_flat_dt_subnode_by_name(root, "chosen");
+	if (chosen == -FDT_ERR_NOTFOUND) {
+		cur_cpu_spec->mmu_features &= ~MMU_FTR_TYPE_RADIX;
+		return;
+	}
+	vec5 = of_get_flat_dt_prop(chosen, "ibm,architecture-vec-5", &size);
+	if (!vec5) {
+		cur_cpu_spec->mmu_features &= ~MMU_FTR_TYPE_RADIX;
+		return;
+	}
+	if (size <= OV5_INDX(OV5_MMU_SUPPORT)) {
+		cur_cpu_spec->mmu_features &= ~MMU_FTR_TYPE_RADIX;
+		return;
+	}
+
+	/* Check for supported configuration */
+	mmu_supported = vec5[OV5_INDX(OV5_MMU_SUPPORT)] &
+			OV5_FEAT(OV5_MMU_SUPPORT);
+	if (mmu_supported == OV5_FEAT(OV5_MMU_RADIX)) {
+		/* Hypervisor only supports radix - check enabled && GTSE */
+		if (!early_radix_enabled()) {
+			pr_warn("WARNING: Ignoring cmdline option disable_radix\n");
+		}
+		if (!(vec5[OV5_INDX(OV5_RADIX_GTSE)] &
+						OV5_FEAT(OV5_RADIX_GTSE))) {
+			pr_warn("WARNING: Hypervisor doesn't support RADIX with GTSE\n");
+		}
+		/* Do radix anyway - the hypervisor said we had to */
+		cur_cpu_spec->mmu_features |= MMU_FTR_TYPE_RADIX;
+	} else if (mmu_supported == OV5_FEAT(OV5_MMU_HASH)) {
+		/* Hypervisor only supports hash - disable radix */
+		cur_cpu_spec->mmu_features &= ~MMU_FTR_TYPE_RADIX;
+	}
+}
 
 void __init mmu_early_init_devtree(void)
 {
@@ -427,9 +391,18 @@ void __init mmu_early_init_devtree(void)
 	if (disable_radix)
 		cur_cpu_spec->mmu_features &= ~MMU_FTR_TYPE_RADIX;
 
+	/*
+	 * Check /chosen/ibm,architecture-vec-5 if running as a guest.
+	 * When running bare-metal, we can use radix if we like
+	 * even though the ibm,architecture-vec-5 property created by
+	 * skiboot doesn't have the necessary bits set.
+	 */
+	if (!(mfmsr() & MSR_HV))
+		early_check_vec5();
+
 	if (early_radix_enabled())
 		radix__early_init_devtree();
 	else
 		hash__early_init_devtree();
 }
-#endif /* CONFIG_PPC_STD_MMU_64 */
+#endif /* CONFIG_PPC_BOOK3S_64 */

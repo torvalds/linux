@@ -1,22 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- *  GPL LICENSE SUMMARY
- *
  *  Copyright(c) 2010 Intel Corporation. All rights reserved.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of version 2 of the GNU General Public License as
- *  published by the Free Software Foundation.
- *
- *  This program is distributed in the hope that it will be useful, but
- *  WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
- *  The full GNU General Public License is included in this distribution
- *  in the file called LICENSE.GPL.
  *
  *  Contact Information:
  *    Intel Corporation
@@ -65,6 +49,9 @@ struct sim_reg_op {
 { PCI_DEVFN(device, func), offset, init_op, read_op, write_op,\
 	{0, SIZE_TO_MASK(size)} },
 
+/*
+ * All read/write functions are called with pci_config_lock held.
+ */
 static void reg_init(struct sim_dev_reg *reg)
 {
 	pci_direct_conf1.read(0, 1, reg->dev_func, reg->reg, 4,
@@ -73,21 +60,13 @@ static void reg_init(struct sim_dev_reg *reg)
 
 static void reg_read(struct sim_dev_reg *reg, u32 *value)
 {
-	unsigned long flags;
-
-	raw_spin_lock_irqsave(&pci_config_lock, flags);
 	*value = reg->sim_reg.value;
-	raw_spin_unlock_irqrestore(&pci_config_lock, flags);
 }
 
 static void reg_write(struct sim_dev_reg *reg, u32 value)
 {
-	unsigned long flags;
-
-	raw_spin_lock_irqsave(&pci_config_lock, flags);
 	reg->sim_reg.value = (value & reg->sim_reg.mask) |
 		(reg->sim_reg.value & ~reg->sim_reg.mask);
-	raw_spin_unlock_irqrestore(&pci_config_lock, flags);
 }
 
 static void sata_reg_init(struct sim_dev_reg *reg)
@@ -117,12 +96,8 @@ static void sata_revid_read(struct sim_dev_reg *reg, u32 *value)
 
 static void reg_noirq_read(struct sim_dev_reg *reg, u32 *value)
 {
-	unsigned long flags;
-
-	raw_spin_lock_irqsave(&pci_config_lock, flags);
 	/* force interrupt pin value to 0 */
 	*value = reg->sim_reg.value & 0xfff00ff;
-	raw_spin_unlock_irqrestore(&pci_config_lock, flags);
 }
 
 static struct sim_dev_reg bus1_fixups[] = {
@@ -265,24 +240,33 @@ int bridge_read(unsigned int devfn, int reg, int len, u32 *value)
 	return retval;
 }
 
+static int ce4100_bus1_read(unsigned int devfn, int reg, int len, u32 *value)
+{
+	unsigned long flags;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(bus1_fixups); i++) {
+		if (bus1_fixups[i].dev_func == devfn &&
+		    bus1_fixups[i].reg == (reg & ~3) &&
+		    bus1_fixups[i].read) {
+
+			raw_spin_lock_irqsave(&pci_config_lock, flags);
+			bus1_fixups[i].read(&(bus1_fixups[i]), value);
+			raw_spin_unlock_irqrestore(&pci_config_lock, flags);
+			extract_bytes(value, reg, len);
+			return 0;
+		}
+	}
+	return -1;
+}
+
 static int ce4100_conf_read(unsigned int seg, unsigned int bus,
 			    unsigned int devfn, int reg, int len, u32 *value)
 {
-	int i;
-
 	WARN_ON(seg);
-	if (bus == 1) {
-		for (i = 0; i < ARRAY_SIZE(bus1_fixups); i++) {
-			if (bus1_fixups[i].dev_func == devfn &&
-			    bus1_fixups[i].reg == (reg & ~3) &&
-			    bus1_fixups[i].read) {
-				bus1_fixups[i].read(&(bus1_fixups[i]),
-						    value);
-				extract_bytes(value, reg, len);
-				return 0;
-			}
-		}
-	}
+
+	if (bus == 1 && !ce4100_bus1_read(devfn, reg, len, value))
+		return 0;
 
 	if (bus == 0 && (PCI_DEVFN(1, 0) == devfn) &&
 	    !bridge_read(devfn, reg, len, value))
@@ -291,23 +275,32 @@ static int ce4100_conf_read(unsigned int seg, unsigned int bus,
 	return pci_direct_conf1.read(seg, bus, devfn, reg, len, value);
 }
 
+static int ce4100_bus1_write(unsigned int devfn, int reg, int len, u32 value)
+{
+	unsigned long flags;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(bus1_fixups); i++) {
+		if (bus1_fixups[i].dev_func == devfn &&
+		    bus1_fixups[i].reg == (reg & ~3) &&
+		    bus1_fixups[i].write) {
+
+			raw_spin_lock_irqsave(&pci_config_lock, flags);
+			bus1_fixups[i].write(&(bus1_fixups[i]), value);
+			raw_spin_unlock_irqrestore(&pci_config_lock, flags);
+			return 0;
+		}
+	}
+	return -1;
+}
+
 static int ce4100_conf_write(unsigned int seg, unsigned int bus,
 			     unsigned int devfn, int reg, int len, u32 value)
 {
-	int i;
-
 	WARN_ON(seg);
-	if (bus == 1) {
-		for (i = 0; i < ARRAY_SIZE(bus1_fixups); i++) {
-			if (bus1_fixups[i].dev_func == devfn &&
-			    bus1_fixups[i].reg == (reg & ~3) &&
-			    bus1_fixups[i].write) {
-				bus1_fixups[i].write(&(bus1_fixups[i]),
-						     value);
-				return 0;
-			}
-		}
-	}
+
+	if (bus == 1 && !ce4100_bus1_write(devfn, reg, len, value))
+		return 0;
 
 	/* Discard writes to A/V bridge BAR. */
 	if (bus == 0 && PCI_DEVFN(1, 0) == devfn &&
@@ -318,8 +311,8 @@ static int ce4100_conf_write(unsigned int seg, unsigned int bus,
 }
 
 static const struct pci_raw_ops ce4100_pci_conf = {
-	.read =	ce4100_conf_read,
-	.write = ce4100_conf_write,
+	.read	= ce4100_conf_read,
+	.write	= ce4100_conf_write,
 };
 
 int __init ce4100_pci_init(void)

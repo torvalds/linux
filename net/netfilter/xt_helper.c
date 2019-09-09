@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* iptables module to match on related connections */
 /*
  * (C) 2001 Martin Josefsson <gandalf@wlug.westbo.se>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
@@ -59,10 +56,10 @@ static int helper_mt_check(const struct xt_mtchk_param *par)
 	struct xt_helper_info *info = par->matchinfo;
 	int ret;
 
-	ret = nf_ct_l3proto_try_module_get(par->family);
+	ret = nf_ct_netns_get(par->net, par->family);
 	if (ret < 0) {
-		pr_info("cannot load conntrack support for proto=%u\n",
-			par->family);
+		pr_info_ratelimited("cannot load conntrack support for proto=%u\n",
+				    par->family);
 		return ret;
 	}
 	info->name[sizeof(info->name) - 1] = '\0';
@@ -71,7 +68,7 @@ static int helper_mt_check(const struct xt_mtchk_param *par)
 
 static void helper_mt_destroy(const struct xt_mtdtor_param *par)
 {
-	nf_ct_l3proto_module_put(par->family);
+	nf_ct_netns_put(par->net, par->family);
 }
 
 static struct xt_match helper_mt_reg __read_mostly = {

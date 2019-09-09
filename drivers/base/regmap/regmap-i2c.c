@@ -1,14 +1,10 @@
-/*
- * Register map access API - I2C support
- *
- * Copyright 2011 Wolfson Microelectronics plc
- *
- * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Register map access API - I2C support
+//
+// Copyright 2011 Wolfson Microelectronics plc
+//
+// Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
 
 #include <linux/regmap.h>
 #include <linux/i2c.h>
@@ -217,8 +213,6 @@ static int regmap_i2c_smbus_i2c_write(void *context, const void *data,
 
 	if (count < 1)
 		return -EINVAL;
-	if (count >= I2C_SMBUS_BLOCK_MAX)
-		return -E2BIG;
 
 	--count;
 	return i2c_smbus_write_i2c_block_data(i2c, ((u8 *)data)[0], count,
@@ -235,8 +229,6 @@ static int regmap_i2c_smbus_i2c_read(void *context, const void *reg,
 
 	if (reg_size != 1 || val_size < 1)
 		return -EINVAL;
-	if (val_size >= I2C_SMBUS_BLOCK_MAX)
-		return -E2BIG;
 
 	ret = i2c_smbus_read_i2c_block_data(i2c, ((u8 *)reg)[0], val_size, val);
 	if (ret == val_size)

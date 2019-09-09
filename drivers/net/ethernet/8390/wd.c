@@ -156,7 +156,6 @@ static const struct net_device_ops wd_netdev_ops = {
 	.ndo_set_rx_mode	= ei_set_multicast_list,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address 	= eth_mac_addr,
-	.ndo_change_mtu		= eth_change_mtu,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller 	= ei_poll,
 #endif
@@ -300,7 +299,7 @@ static int __init wd_probe1(struct net_device *dev, int ioaddr)
 
 			outb_p(0x00, nic_addr+EN0_IMR);	/* Mask all intrs. again. */
 
-			if (netif_msg_drv(ei_local))
+			if (wd_msg_enable & NETIF_MSG_PROBE)
 				pr_cont(" autoirq is %d", dev->irq);
 			if (dev->irq < 2)
 				dev->irq = word16 ? 10 : 5;
@@ -504,11 +503,11 @@ static int irq[MAX_WD_CARDS];
 static int mem[MAX_WD_CARDS];
 static int mem_end[MAX_WD_CARDS];	/* for non std. mem size */
 
-module_param_array(io, int, NULL, 0);
-module_param_array(irq, int, NULL, 0);
-module_param_array(mem, int, NULL, 0);
-module_param_array(mem_end, int, NULL, 0);
-module_param_named(msg_enable, wd_msg_enable, uint, (S_IRUSR|S_IRGRP|S_IROTH));
+module_param_hw_array(io, int, ioport, NULL, 0);
+module_param_hw_array(irq, int, irq, NULL, 0);
+module_param_hw_array(mem, int, iomem, NULL, 0);
+module_param_hw_array(mem_end, int, iomem, NULL, 0);
+module_param_named(msg_enable, wd_msg_enable, uint, 0444);
 MODULE_PARM_DESC(io, "I/O base address(es)");
 MODULE_PARM_DESC(irq, "IRQ number(s) (ignored for PureData boards)");
 MODULE_PARM_DESC(mem, "memory base address(es)(ignored for PureData boards)");

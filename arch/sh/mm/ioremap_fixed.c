@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Re-map IO memory to kernel address space so that we can access it.
  *
@@ -13,7 +14,7 @@
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/io.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/proc_fs.h>
 #include <asm/fixmap.h>
 #include <asm/page.h>

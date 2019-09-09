@@ -1,21 +1,17 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* user_defined.c: user defined key type
  *
  * Copyright (C) 2004 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/seq_file.h>
 #include <linux/err.h>
 #include <keys/user-type.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "internal.h"
 
 static int logon_vet_description(const char *desc);
@@ -86,9 +82,17 @@ EXPORT_SYMBOL_GPL(user_preparse);
  */
 void user_free_preparse(struct key_preparsed_payload *prep)
 {
-	kfree(prep->payload.data[0]);
+	kzfree(prep->payload.data[0]);
 }
 EXPORT_SYMBOL_GPL(user_free_preparse);
+
+static void user_free_payload_rcu(struct rcu_head *head)
+{
+	struct user_key_payload *payload;
+
+	payload = container_of(head, struct user_key_payload, rcu);
+	kzfree(payload);
+}
 
 /*
  * update a user defined key
@@ -106,13 +110,13 @@ int user_update(struct key *key, struct key_preparsed_payload *prep)
 
 	/* attach the new data, displacing the old */
 	key->expiry = prep->expiry;
-	if (!test_bit(KEY_FLAG_NEGATIVE, &key->flags))
-		zap = rcu_dereference_key(key);
+	if (key_is_positive(key))
+		zap = dereference_key_locked(key);
 	rcu_assign_keypointer(key, prep->payload.data[0]);
 	prep->payload.data[0] = NULL;
 
 	if (zap)
-		kfree_rcu(zap, rcu);
+		call_rcu(&zap->rcu, user_free_payload_rcu);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(user_update);
@@ -123,14 +127,14 @@ EXPORT_SYMBOL_GPL(user_update);
  */
 void user_revoke(struct key *key)
 {
-	struct user_key_payload *upayload = key->payload.data[0];
+	struct user_key_payload *upayload = user_key_payload_locked(key);
 
 	/* clear the quota */
 	key_payload_reserve(key, 0);
 
 	if (upayload) {
 		rcu_assign_keypointer(key, NULL);
-		kfree_rcu(upayload, rcu);
+		call_rcu(&upayload->rcu, user_free_payload_rcu);
 	}
 }
 
@@ -143,7 +147,7 @@ void user_destroy(struct key *key)
 {
 	struct user_key_payload *upayload = key->payload.data[0];
 
-	kfree(upayload);
+	kzfree(upayload);
 }
 
 EXPORT_SYMBOL_GPL(user_destroy);
@@ -154,7 +158,7 @@ EXPORT_SYMBOL_GPL(user_destroy);
 void user_describe(const struct key *key, struct seq_file *m)
 {
 	seq_puts(m, key->description);
-	if (key_is_instantiated(key))
+	if (key_is_positive(key))
 		seq_printf(m, ": %u", key->datalen);
 }
 
@@ -169,7 +173,7 @@ long user_read(const struct key *key, char __user *buffer, size_t buflen)
 	const struct user_key_payload *upayload;
 	long ret;
 
-	upayload = user_key_payload(key);
+	upayload = user_key_payload_locked(key);
 	ret = upayload->datalen;
 
 	/* we can return the data as is */

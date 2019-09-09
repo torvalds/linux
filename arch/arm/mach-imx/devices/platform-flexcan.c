@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2010 Pengutronix, Marc Kleine-Budde <kernel@pengutronix.de>
- *
- * This program is free software; you can redistribute it and/or modify it under
- * the terms of the GNU General Public License version 2 as published by the
- * Free Software Foundation.
  */
 #include "../hardware.h"
 #include "devices-common.h"
@@ -18,15 +15,6 @@
 
 #define imx_flexcan_data_entry(soc, _id, _hwid, _size)			\
 	[_id] = imx_flexcan_data_entry_single(soc, _id, _hwid, _size)
-
-#ifdef CONFIG_SOC_IMX25
-const struct imx_flexcan_data imx25_flexcan_data[] __initconst = {
-#define imx25_flexcan_data_entry(_id, _hwid)				\
-	imx_flexcan_data_entry(MX25, _id, _hwid, SZ_16K)
-	imx25_flexcan_data_entry(0, 1),
-	imx25_flexcan_data_entry(1, 2),
-};
-#endif /* ifdef CONFIG_SOC_IMX25 */
 
 #ifdef CONFIG_SOC_IMX35
 const struct imx_flexcan_data imx35_flexcan_data[] __initconst = {

@@ -30,9 +30,49 @@
 
 static DEFINE_PER_CPU(struct clk, sh_cpuclk);
 
+struct cpufreq_target {
+	struct cpufreq_policy	*policy;
+	unsigned int		freq;
+};
+
 static unsigned int sh_cpufreq_get(unsigned int cpu)
 {
 	return (clk_get_rate(&per_cpu(sh_cpuclk, cpu)) + 500) / 1000;
+}
+
+static long __sh_cpufreq_target(void *arg)
+{
+	struct cpufreq_target *target = arg;
+	struct cpufreq_policy *policy = target->policy;
+	int cpu = policy->cpu;
+	struct clk *cpuclk = &per_cpu(sh_cpuclk, cpu);
+	struct cpufreq_freqs freqs;
+	struct device *dev;
+	long freq;
+
+	if (smp_processor_id() != cpu)
+		return -ENODEV;
+
+	dev = get_cpu_device(cpu);
+
+	/* Convert target_freq from kHz to Hz */
+	freq = clk_round_rate(cpuclk, target->freq * 1000);
+
+	if (freq < (policy->min * 1000) || freq > (policy->max * 1000))
+		return -EINVAL;
+
+	dev_dbg(dev, "requested frequency %u Hz\n", target->freq * 1000);
+
+	freqs.old	= sh_cpufreq_get(cpu);
+	freqs.new	= (freq + 500) / 1000;
+	freqs.flags	= 0;
+
+	cpufreq_freq_transition_begin(target->policy, &freqs);
+	clk_set_rate(cpuclk, freq);
+	cpufreq_freq_transition_end(target->policy, &freqs, 0);
+
+	dev_dbg(dev, "set frequency %lu Hz\n", freq);
+	return 0;
 }
 
 /*
@@ -42,40 +82,9 @@ static int sh_cpufreq_target(struct cpufreq_policy *policy,
 			     unsigned int target_freq,
 			     unsigned int relation)
 {
-	unsigned int cpu = policy->cpu;
-	struct clk *cpuclk = &per_cpu(sh_cpuclk, cpu);
-	cpumask_t cpus_allowed;
-	struct cpufreq_freqs freqs;
-	struct device *dev;
-	long freq;
+	struct cpufreq_target data = { .policy = policy, .freq = target_freq };
 
-	cpus_allowed = current->cpus_allowed;
-	set_cpus_allowed_ptr(current, cpumask_of(cpu));
-
-	BUG_ON(smp_processor_id() != cpu);
-
-	dev = get_cpu_device(cpu);
-
-	/* Convert target_freq from kHz to Hz */
-	freq = clk_round_rate(cpuclk, target_freq * 1000);
-
-	if (freq < (policy->min * 1000) || freq > (policy->max * 1000))
-		return -EINVAL;
-
-	dev_dbg(dev, "requested frequency %u Hz\n", target_freq * 1000);
-
-	freqs.old	= sh_cpufreq_get(cpu);
-	freqs.new	= (freq + 500) / 1000;
-	freqs.flags	= 0;
-
-	cpufreq_freq_transition_begin(policy, &freqs);
-	set_cpus_allowed_ptr(current, &cpus_allowed);
-	clk_set_rate(cpuclk, freq);
-	cpufreq_freq_transition_end(policy, &freqs, 0);
-
-	dev_dbg(dev, "set frequency %lu Hz\n", freq);
-
-	return 0;
+	return work_on_cpu(policy->cpu, __sh_cpufreq_target, &data);
 }
 
 static int sh_cpufreq_verify(struct cpufreq_policy *policy)
@@ -113,11 +122,7 @@ static int sh_cpufreq_cpu_init(struct cpufreq_policy *policy)
 
 	freq_table = cpuclk->nr_freqs ? cpuclk->freq_table : NULL;
 	if (freq_table) {
-		int result;
-
-		result = cpufreq_table_validate_and_show(policy, freq_table);
-		if (result)
-			return result;
+		policy->freq_table = freq_table;
 	} else {
 		dev_notice(dev, "no frequency table found, falling back "
 			   "to rate rounding.\n");
@@ -127,13 +132,6 @@ static int sh_cpufreq_cpu_init(struct cpufreq_policy *policy)
 		policy->max = policy->cpuinfo.max_freq =
 			(clk_round_rate(cpuclk, ~0UL) + 500) / 1000;
 	}
-
-	policy->cpuinfo.transition_latency = CPUFREQ_ETERNAL;
-
-	dev_info(dev, "CPU Frequencies - Minimum %u.%03u MHz, "
-	       "Maximum %u.%03u MHz.\n",
-	       policy->min / 1000, policy->min % 1000,
-	       policy->max / 1000, policy->max % 1000);
 
 	return 0;
 }
@@ -148,13 +146,25 @@ static int sh_cpufreq_cpu_exit(struct cpufreq_policy *policy)
 	return 0;
 }
 
+static void sh_cpufreq_cpu_ready(struct cpufreq_policy *policy)
+{
+	struct device *dev = get_cpu_device(policy->cpu);
+
+	dev_info(dev, "CPU Frequencies - Minimum %u.%03u MHz, "
+	       "Maximum %u.%03u MHz.\n",
+	       policy->min / 1000, policy->min % 1000,
+	       policy->max / 1000, policy->max % 1000);
+}
+
 static struct cpufreq_driver sh_cpufreq_driver = {
 	.name		= "sh",
+	.flags		= CPUFREQ_NO_AUTO_DYNAMIC_SWITCHING,
 	.get		= sh_cpufreq_get,
 	.target		= sh_cpufreq_target,
 	.verify		= sh_cpufreq_verify,
 	.init		= sh_cpufreq_cpu_init,
 	.exit		= sh_cpufreq_cpu_exit,
+	.ready		= sh_cpufreq_cpu_ready,
 	.attr		= cpufreq_generic_attr,
 };
 

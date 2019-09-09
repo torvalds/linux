@@ -1,9 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /**
  * Copyright (c) 2011 Jonathan Cameron
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  *
  * Join together the various functionality of iio_simple_dummy driver
  */
@@ -88,11 +85,11 @@ static inline int
 iio_simple_dummy_events_register(struct iio_dev *indio_dev)
 {
 	return 0;
-};
+}
 
 static inline void
 iio_simple_dummy_events_unregister(struct iio_dev *indio_dev)
-{ };
+{}
 
 #endif /* CONFIG_IIO_SIMPLE_DUMMY_EVENTS*/
 
@@ -119,11 +116,11 @@ void iio_simple_dummy_unconfigure_buffer(struct iio_dev *indio_dev);
 static inline int iio_simple_dummy_configure_buffer(struct iio_dev *indio_dev)
 {
 	return 0;
-};
+}
 
 static inline
 void iio_simple_dummy_unconfigure_buffer(struct iio_dev *indio_dev)
-{};
+{}
 
 #endif /* CONFIG_IIO_SIMPLE_DUMMY_BUFFER */
 #endif /* _IIO_SIMPLE_DUMMY_H_ */

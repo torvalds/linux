@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *
  *  Support for a cx23417 mpeg encoder via cx231xx host port.
@@ -8,20 +9,6 @@
  *      - CX23885/7/8 support
  *
  *  Includes parts from the ivtv driver( http://ivtv.sourceforge.net/),
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include "cx231xx.h"
@@ -33,6 +20,7 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/firmware.h>
+#include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
@@ -1319,7 +1307,7 @@ static void buffer_copy(struct cx231xx *dev, char *data, int len, struct urb *ur
 
 		buf->vb.state = VIDEOBUF_DONE;
 		buf->vb.field_count++;
-		v4l2_get_timestamp(&buf->vb.ts);
+		buf->vb.ts = ktime_get_ns();
 		list_del(&buf->vb.queue);
 		wake_up(&buf->vb.done);
 		dma_q->mpeg_buffer_completed = 0;
@@ -1350,7 +1338,7 @@ static void buffer_filled(char *data, int len, struct urb *urb,
 	memcpy(vbuf, data, len);
 	buf->vb.state = VIDEOBUF_DONE;
 	buf->vb.field_count++;
-	v4l2_get_timestamp(&buf->vb.ts);
+	buf->vb.ts = ktime_get_ns();
 	list_del(&buf->vb.queue);
 	wake_up(&buf->vb.done);
 }
@@ -1494,7 +1482,7 @@ static void bb_buf_release(struct videobuf_queue *q,
 	free_buffer(q, buf);
 }
 
-static struct videobuf_queue_ops cx231xx_qops = {
+static const struct videobuf_queue_ops cx231xx_qops = {
 	.buf_setup    = bb_buf_setup,
 	.buf_prepare  = bb_buf_prepare,
 	.buf_queue    = bb_buf_queue,
@@ -1503,24 +1491,42 @@ static struct videobuf_queue_ops cx231xx_qops = {
 
 /* ------------------------------------------------------------------ */
 
-static int vidioc_cropcap(struct file *file, void *priv,
-			  struct v4l2_cropcap *cc)
+static int vidioc_g_pixelaspect(struct file *file, void *priv,
+				int type, struct v4l2_fract *f)
 {
 	struct cx231xx_fh *fh = priv;
 	struct cx231xx *dev = fh->dev;
 	bool is_50hz = dev->encodernorm.id & V4L2_STD_625_50;
 
-	if (cc->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+	if (type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 
-	cc->bounds.left = 0;
-	cc->bounds.top = 0;
-	cc->bounds.width = dev->ts1.width;
-	cc->bounds.height = dev->ts1.height;
-	cc->defrect = cc->bounds;
-	cc->pixelaspect.numerator = is_50hz ? 54 : 11;
-	cc->pixelaspect.denominator = is_50hz ? 59 : 10;
+	f->numerator = is_50hz ? 54 : 11;
+	f->denominator = is_50hz ? 59 : 10;
 
+	return 0;
+}
+
+static int vidioc_g_selection(struct file *file, void *priv,
+			      struct v4l2_selection *s)
+{
+	struct cx231xx_fh *fh = priv;
+	struct cx231xx *dev = fh->dev;
+
+	if (s->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
+
+	switch (s->target) {
+	case V4L2_SEL_TGT_CROP_BOUNDS:
+	case V4L2_SEL_TGT_CROP_DEFAULT:
+		s->r.left = 0;
+		s->r.top = 0;
+		s->r.width = dev->ts1.width;
+		s->r.height = dev->ts1.height;
+		break;
+	default:
+		return -EINVAL;
+	}
 	return 0;
 }
 
@@ -1586,7 +1592,7 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
 	if (f->index != 0)
 		return -EINVAL;
 
-	strlcpy(f->description, "MPEG", sizeof(f->description));
+	strscpy(f->description, "MPEG", sizeof(f->description));
 	f->pixelformat = V4L2_PIX_FMT_MPEG;
 
 	return 0;
@@ -1816,20 +1822,20 @@ static ssize_t mpeg_read(struct file *file, char __user *data,
 				    file->f_flags & O_NONBLOCK);
 }
 
-static unsigned int mpeg_poll(struct file *file,
+static __poll_t mpeg_poll(struct file *file,
 	struct poll_table_struct *wait)
 {
-	unsigned long req_events = poll_requested_events(wait);
+	__poll_t req_events = poll_requested_events(wait);
 	struct cx231xx_fh *fh = file->private_data;
 	struct cx231xx *dev = fh->dev;
-	unsigned int res = 0;
+	__poll_t res = 0;
 
 	if (v4l2_event_pending(&fh->fh))
-		res |= POLLPRI;
+		res |= EPOLLPRI;
 	else
 		poll_wait(file, &fh->fh.wait, wait);
 
-	if (!(req_events & (POLLIN | POLLRDNORM)))
+	if (!(req_events & (EPOLLIN | EPOLLRDNORM)))
 		return res;
 
 	mutex_lock(&dev->lock);
@@ -1847,7 +1853,7 @@ static int mpeg_mmap(struct file *file, struct vm_area_struct *vma)
 	return videobuf_mmap_mapper(&fh->vidq, vma);
 }
 
-static struct v4l2_file_operations mpeg_fops = {
+static const struct v4l2_file_operations mpeg_fops = {
 	.owner	       = THIS_MODULE,
 	.open	       = mpeg_open,
 	.release       = mpeg_release,
@@ -1868,7 +1874,8 @@ static const struct v4l2_ioctl_ops mpeg_ioctl_ops = {
 	.vidioc_g_input		 = cx231xx_g_input,
 	.vidioc_s_input		 = cx231xx_s_input,
 	.vidioc_s_ctrl		 = vidioc_s_ctrl,
-	.vidioc_cropcap		 = vidioc_cropcap,
+	.vidioc_g_pixelaspect	 = vidioc_g_pixelaspect,
+	.vidioc_g_selection	 = vidioc_g_selection,
 	.vidioc_querycap	 = cx231xx_querycap,
 	.vidioc_enum_fmt_vid_cap = vidioc_enum_fmt_vid_cap,
 	.vidioc_g_fmt_vid_cap	 = vidioc_g_fmt_vid_cap,
@@ -1995,7 +2002,7 @@ int cx231xx_417_register(struct cx231xx *dev)
 	dev->mpeg_ctrl_handler.ops = &cx231xx_ops;
 	if (dev->sd_cx25840)
 		v4l2_ctrl_add_handler(&dev->mpeg_ctrl_handler.hdl,
-				dev->sd_cx25840->ctrl_handler, NULL);
+				dev->sd_cx25840->ctrl_handler, NULL, false);
 	if (dev->mpeg_ctrl_handler.hdl.error) {
 		err = dev->mpeg_ctrl_handler.hdl.error;
 		dprintk(3, "%s: can't add cx25840 controls\n", dev->name);

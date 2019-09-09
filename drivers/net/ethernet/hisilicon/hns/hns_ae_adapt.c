@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (c) 2014-2015 Hisilicon Limited.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/etherdevice.h>
@@ -18,9 +14,6 @@
 #include "hns_dsaf_rcb.h"
 
 #define AE_NAME_PORT_ID_IDX 6
-#define ETH_STATIC_REG	 1
-#define ETH_DUMP_REG	 5
-#define ETH_GSTRING_LEN	32
 
 static struct hns_mac_cb *hns_get_mac_cb(struct hnae_handle *handle)
 {
@@ -73,8 +66,8 @@ static struct ring_pair_cb *hns_ae_get_ring_pair(struct hnae_queue *q)
 	return container_of(q, struct ring_pair_cb, q);
 }
 
-struct hnae_handle *hns_ae_get_handle(struct hnae_ae_dev *dev,
-				      u32 port_id)
+static struct hnae_handle *hns_ae_get_handle(struct hnae_ae_dev *dev,
+					     u32 port_id)
 {
 	int vfnum_per_port;
 	int qnum_per_vf;
@@ -102,6 +95,7 @@ struct hnae_handle *hns_ae_get_handle(struct hnae_ae_dev *dev,
 	ae_handle->owner_dev = dsaf_dev->dev;
 	ae_handle->dev = dev;
 	ae_handle->q_num = qnum_per_vf;
+	ae_handle->coal_param = HNAE_LOWEST_LATENCY_COAL_PARAM;
 
 	/* find ring pair, and set vf id*/
 	for (ae_handle->vf_id = 0;
@@ -149,12 +143,45 @@ static void hns_ae_put_handle(struct hnae_handle *handle)
 	struct hnae_vf_cb *vf_cb = hns_ae_get_vf_cb(handle);
 	int i;
 
-	vf_cb->mac_cb	 = NULL;
-
-	kfree(vf_cb);
-
 	for (i = 0; i < handle->q_num; i++)
 		hns_ae_get_ring_pair(handle->qs[i])->used_by_vf = 0;
+
+	kfree(vf_cb);
+}
+
+static int hns_ae_wait_flow_down(struct hnae_handle *handle)
+{
+	struct dsaf_device *dsaf_dev;
+	struct hns_ppe_cb *ppe_cb;
+	struct hnae_vf_cb *vf_cb;
+	int ret;
+	int i;
+
+	for (i = 0; i < handle->q_num; i++) {
+		ret = hns_rcb_wait_tx_ring_clean(handle->qs[i]);
+		if (ret)
+			return ret;
+	}
+
+	ppe_cb = hns_get_ppe_cb(handle);
+	ret = hns_ppe_wait_tx_fifo_clean(ppe_cb);
+	if (ret)
+		return ret;
+
+	dsaf_dev = hns_ae_get_dsaf_dev(handle->dev);
+	if (!dsaf_dev)
+		return -EINVAL;
+	ret = hns_dsaf_wait_pkt_clean(dsaf_dev, handle->dport_id);
+	if (ret)
+		return ret;
+
+	vf_cb = hns_ae_get_vf_cb(handle);
+	ret = hns_mac_wait_fifo_clean(vf_cb->mac_cb);
+	if (ret)
+		return ret;
+
+	mdelay(10);
+	return 0;
 }
 
 static void hns_ae_ring_enable_all(struct hnae_handle *handle, int val)
@@ -202,6 +229,28 @@ static int hns_ae_set_mac_address(struct hnae_handle *handle, void *p)
 	return 0;
 }
 
+static int hns_ae_add_uc_address(struct hnae_handle *handle,
+				 const unsigned char *addr)
+{
+	struct hns_mac_cb *mac_cb = hns_get_mac_cb(handle);
+
+	if (mac_cb->mac_type != HNAE_PORT_SERVICE)
+		return -ENOSPC;
+
+	return hns_mac_add_uc_addr(mac_cb, handle->vf_id, addr);
+}
+
+static int hns_ae_rm_uc_address(struct hnae_handle *handle,
+				const unsigned char *addr)
+{
+	struct hns_mac_cb *mac_cb = hns_get_mac_cb(handle);
+
+	if (mac_cb->mac_type != HNAE_PORT_SERVICE)
+		return -ENOSPC;
+
+	return hns_mac_rm_uc_addr(mac_cb, handle->vf_id, addr);
+}
+
 static int hns_ae_set_multicast_one(struct hnae_handle *handle, void *addr)
 {
 	int ret;
@@ -235,11 +284,45 @@ static int hns_ae_set_multicast_one(struct hnae_handle *handle, void *addr)
 	return ret;
 }
 
-static int hns_ae_set_mtu(struct hnae_handle *handle, int new_mtu)
+static int hns_ae_clr_multicast(struct hnae_handle *handle)
 {
 	struct hns_mac_cb *mac_cb = hns_get_mac_cb(handle);
 
-	return hns_mac_set_mtu(mac_cb, new_mtu);
+	if (mac_cb->mac_type != HNAE_PORT_SERVICE)
+		return 0;
+
+	return hns_mac_clr_multicast(mac_cb, handle->vf_id);
+}
+
+static int hns_ae_set_mtu(struct hnae_handle *handle, int new_mtu)
+{
+	struct hns_mac_cb *mac_cb = hns_get_mac_cb(handle);
+	struct hnae_queue *q;
+	u32 rx_buf_size;
+	int i, ret;
+
+	/* when buf_size is 2048, max mtu is 6K for rx ring max bd num is 3. */
+	if (!AE_IS_VER1(mac_cb->dsaf_dev->dsaf_ver)) {
+		if (new_mtu <= BD_SIZE_2048_MAX_MTU)
+			rx_buf_size = 2048;
+		else
+			rx_buf_size = 4096;
+	} else {
+		rx_buf_size = mac_cb->dsaf_dev->buf_size;
+	}
+
+	ret = hns_mac_set_mtu(mac_cb, new_mtu, rx_buf_size);
+
+	if (!ret) {
+		/* reinit ring buf_size */
+		for (i = 0; i < handle->q_num; i++) {
+			q = handle->qs[i];
+			q->rx_ring.buf_size = rx_buf_size;
+			hns_rcb_set_rx_ring_bs(q, rx_buf_size);
+		}
+	}
+
+	return ret;
 }
 
 static void hns_ae_set_tso_stats(struct hnae_handle *handle, int enable)
@@ -275,7 +358,7 @@ static int hns_ae_start(struct hnae_handle *handle)
 	return 0;
 }
 
-void hns_ae_stop(struct hnae_handle *handle)
+static void hns_ae_stop(struct hnae_handle *handle)
 {
 	struct hns_mac_cb *mac_cb = hns_get_mac_cb(handle);
 
@@ -290,6 +373,9 @@ void hns_ae_stop(struct hnae_handle *handle)
 
 	hns_ae_ring_enable_all(handle, 0);
 
+	/* clean rx fbd. */
+	hns_rcb_wait_fbd_clean(handle->qs, handle->q_num, RCB_INT_FLAG_RX);
+
 	(void)hns_mac_vm_config_bc_en(mac_cb, 0, false);
 }
 
@@ -303,7 +389,7 @@ static void hns_ae_reset(struct hnae_handle *handle)
 	}
 }
 
-void hns_ae_toggle_ring_irq(struct hnae_ring *ring, u32 mask)
+static void hns_ae_toggle_ring_irq(struct hnae_ring *ring, u32 mask)
 {
 	u32 flag;
 
@@ -345,12 +431,41 @@ static int hns_ae_get_mac_info(struct hnae_handle *handle,
 	return hns_mac_get_port_info(mac_cb, auto_neg, speed, duplex);
 }
 
+static bool hns_ae_need_adjust_link(struct hnae_handle *handle, int speed,
+				    int duplex)
+{
+	struct hns_mac_cb *mac_cb = hns_get_mac_cb(handle);
+
+	return hns_mac_need_adjust_link(mac_cb, speed, duplex);
+}
+
 static void hns_ae_adjust_link(struct hnae_handle *handle, int speed,
 			       int duplex)
 {
 	struct hns_mac_cb *mac_cb = hns_get_mac_cb(handle);
 
-	hns_mac_adjust_link(mac_cb, speed, duplex);
+	switch (mac_cb->dsaf_dev->dsaf_ver) {
+	case AE_VERSION_1:
+		hns_mac_adjust_link(mac_cb, speed, duplex);
+		break;
+
+	case AE_VERSION_2:
+		/* chip need to clear all pkt inside */
+		hns_mac_disable(mac_cb, MAC_COMM_MODE_RX);
+		if (hns_ae_wait_flow_down(handle)) {
+			hns_mac_enable(mac_cb, MAC_COMM_MODE_RX);
+			break;
+		}
+
+		hns_mac_adjust_link(mac_cb, speed, duplex);
+		hns_mac_enable(mac_cb, MAC_COMM_MODE_RX);
+		break;
+
+	default:
+		break;
+	}
+
+	return;
 }
 
 static void hns_ae_get_ring_bdnum_limit(struct hnae_queue *queue,
@@ -434,15 +549,21 @@ static void hns_ae_get_coalesce_usecs(struct hnae_handle *handle,
 					       ring_pair->port_id_in_comm);
 }
 
-static void hns_ae_get_rx_max_coalesced_frames(struct hnae_handle *handle,
-					       u32 *tx_frames, u32 *rx_frames)
+static void hns_ae_get_max_coalesced_frames(struct hnae_handle *handle,
+					    u32 *tx_frames, u32 *rx_frames)
 {
 	struct ring_pair_cb *ring_pair =
 		container_of(handle->qs[0], struct ring_pair_cb, q);
+	struct dsaf_device *dsaf_dev = hns_ae_get_dsaf_dev(handle->dev);
 
-	*tx_frames = hns_rcb_get_coalesced_frames(ring_pair->rcb_common,
-						  ring_pair->port_id_in_comm);
-	*rx_frames = hns_rcb_get_coalesced_frames(ring_pair->rcb_common,
+	if (AE_IS_VER1(dsaf_dev->dsaf_ver) ||
+	    handle->port_type == HNAE_PORT_DEBUG)
+		*tx_frames = hns_rcb_get_rx_coalesced_frames(
+			ring_pair->rcb_common, ring_pair->port_id_in_comm);
+	else
+		*tx_frames = hns_rcb_get_tx_coalesced_frames(
+			ring_pair->rcb_common, ring_pair->port_id_in_comm);
+	*rx_frames = hns_rcb_get_rx_coalesced_frames(ring_pair->rcb_common,
 						  ring_pair->port_id_in_comm);
 }
 
@@ -456,15 +577,34 @@ static int hns_ae_set_coalesce_usecs(struct hnae_handle *handle,
 		ring_pair->rcb_common, ring_pair->port_id_in_comm, timeout);
 }
 
-static int  hns_ae_set_coalesce_frames(struct hnae_handle *handle,
-				       u32 coalesce_frames)
+static int hns_ae_set_coalesce_frames(struct hnae_handle *handle,
+				      u32 tx_frames, u32 rx_frames)
 {
+	int ret;
 	struct ring_pair_cb *ring_pair =
 		container_of(handle->qs[0], struct ring_pair_cb, q);
+	struct dsaf_device *dsaf_dev = hns_ae_get_dsaf_dev(handle->dev);
 
-	return hns_rcb_set_coalesced_frames(
-		ring_pair->rcb_common,
-		ring_pair->port_id_in_comm, coalesce_frames);
+	if (AE_IS_VER1(dsaf_dev->dsaf_ver) ||
+	    handle->port_type == HNAE_PORT_DEBUG) {
+		if (tx_frames != rx_frames)
+			return -EINVAL;
+		return hns_rcb_set_rx_coalesced_frames(
+			ring_pair->rcb_common,
+			ring_pair->port_id_in_comm, rx_frames);
+	} else {
+		if (tx_frames != 1)
+			return -EINVAL;
+		ret = hns_rcb_set_tx_coalesced_frames(
+			ring_pair->rcb_common,
+			ring_pair->port_id_in_comm, tx_frames);
+		if (ret)
+			return ret;
+
+		return hns_rcb_set_rx_coalesced_frames(
+			ring_pair->rcb_common,
+			ring_pair->port_id_in_comm, rx_frames);
+	}
 }
 
 static void hns_ae_get_coalesce_range(struct hnae_handle *handle,
@@ -475,24 +615,31 @@ static void hns_ae_get_coalesce_range(struct hnae_handle *handle,
 {
 	struct dsaf_device *dsaf_dev;
 
+	assert(handle);
+
 	dsaf_dev = hns_ae_get_dsaf_dev(handle->dev);
 
-	*tx_frames_low  = HNS_RCB_MIN_COALESCED_FRAMES;
-	*rx_frames_low  = HNS_RCB_MIN_COALESCED_FRAMES;
-	*tx_frames_high =
-		(dsaf_dev->desc_num - 1 > HNS_RCB_MAX_COALESCED_FRAMES) ?
-		HNS_RCB_MAX_COALESCED_FRAMES : dsaf_dev->desc_num - 1;
-	*rx_frames_high =
-		(dsaf_dev->desc_num - 1 > HNS_RCB_MAX_COALESCED_FRAMES) ?
-		 HNS_RCB_MAX_COALESCED_FRAMES : dsaf_dev->desc_num - 1;
-	*tx_usecs_low   = 0;
-	*rx_usecs_low   = 0;
-	*tx_usecs_high  = HNS_RCB_MAX_COALESCED_USECS;
-	*rx_usecs_high  = HNS_RCB_MAX_COALESCED_USECS;
+	*tx_frames_low  = HNS_RCB_TX_FRAMES_LOW;
+	*rx_frames_low  = HNS_RCB_RX_FRAMES_LOW;
+
+	if (AE_IS_VER1(dsaf_dev->dsaf_ver) ||
+	    handle->port_type == HNAE_PORT_DEBUG)
+		*tx_frames_high =
+			(dsaf_dev->desc_num - 1 > HNS_RCB_TX_FRAMES_HIGH) ?
+			HNS_RCB_TX_FRAMES_HIGH : dsaf_dev->desc_num - 1;
+	else
+		*tx_frames_high = 1;
+
+	*rx_frames_high = (dsaf_dev->desc_num - 1 > HNS_RCB_RX_FRAMES_HIGH) ?
+		HNS_RCB_RX_FRAMES_HIGH : dsaf_dev->desc_num - 1;
+	*tx_usecs_low   = HNS_RCB_TX_USECS_LOW;
+	*rx_usecs_low   = HNS_RCB_RX_USECS_LOW;
+	*tx_usecs_high  = HNS_RCB_TX_USECS_HIGH;
+	*rx_usecs_high  = HNS_RCB_RX_USECS_HIGH;
 }
 
-void hns_ae_update_stats(struct hnae_handle *handle,
-			 struct net_device_stats *net_stats)
+static void hns_ae_update_stats(struct hnae_handle *handle,
+				struct net_device_stats *net_stats)
 {
 	int port;
 	int idx;
@@ -574,7 +721,7 @@ void hns_ae_update_stats(struct hnae_handle *handle,
 	net_stats->multicast = mac_cb->hw_stats.rx_mc_pkts;
 }
 
-void hns_ae_get_stats(struct hnae_handle *handle, u64 *data)
+static void hns_ae_get_stats(struct hnae_handle *handle, u64 *data)
 {
 	int idx;
 	struct hns_mac_cb *mac_cb;
@@ -606,8 +753,8 @@ void hns_ae_get_stats(struct hnae_handle *handle, u64 *data)
 		hns_dsaf_get_stats(vf_cb->dsaf_dev, p, vf_cb->port_index);
 }
 
-void hns_ae_get_strings(struct hnae_handle *handle,
-			u32 stringset, u8 *data)
+static void hns_ae_get_strings(struct hnae_handle *handle,
+			       u32 stringset, u8 *data)
 {
 	int port;
 	int idx;
@@ -639,7 +786,7 @@ void hns_ae_get_strings(struct hnae_handle *handle,
 		hns_dsaf_get_strings(stringset, p, port, dsaf_dev);
 }
 
-int hns_ae_get_sset_count(struct hnae_handle *handle, int stringset)
+static int hns_ae_get_sset_count(struct hnae_handle *handle, int stringset)
 {
 	u32 sset_count = 0;
 	struct hns_mac_cb *mac_cb;
@@ -685,19 +832,20 @@ static int hns_ae_config_loopback(struct hnae_handle *handle,
 	return ret;
 }
 
-void hns_ae_update_led_status(struct hnae_handle *handle)
+static void hns_ae_update_led_status(struct hnae_handle *handle)
 {
 	struct hns_mac_cb *mac_cb;
 
 	assert(handle);
 	mac_cb = hns_get_mac_cb(handle);
-	if (!mac_cb->cpld_ctrl)
+	if (mac_cb->media_type != HNAE_MEDIA_TYPE_FIBER)
 		return;
+
 	hns_set_led_opt(mac_cb);
 }
 
-int hns_ae_cpld_set_led_id(struct hnae_handle *handle,
-			   enum hnae_led_state status)
+static int hns_ae_cpld_set_led_id(struct hnae_handle *handle,
+				  enum hnae_led_state status)
 {
 	struct hns_mac_cb *mac_cb;
 
@@ -708,7 +856,7 @@ int hns_ae_cpld_set_led_id(struct hnae_handle *handle,
 	return hns_cpld_led_set_id(mac_cb, status);
 }
 
-void hns_ae_get_regs(struct hnae_handle *handle, void *data)
+static void hns_ae_get_regs(struct hnae_handle *handle, void *data)
 {
 	u32 *p = data;
 	int i;
@@ -733,7 +881,7 @@ void hns_ae_get_regs(struct hnae_handle *handle, void *data)
 		hns_dsaf_get_regs(vf_cb->dsaf_dev, vf_cb->port_index, p);
 }
 
-int hns_ae_get_regs_len(struct hnae_handle *handle)
+static int hns_ae_get_regs_len(struct hnae_handle *handle)
 {
 	u32 total_num;
 	struct hnae_vf_cb *vf_cb = hns_ae_get_vf_cb(handle);
@@ -773,8 +921,9 @@ static int hns_ae_get_rss(struct hnae_handle *handle, u32 *indir, u8 *key,
 		memcpy(key, ppe_cb->rss_key, HNS_PPEV2_RSS_KEY_SIZE);
 
 	/* update the current hash->queue mappings from the shadow RSS table */
-	memcpy(indir, ppe_cb->rss_indir_table,
-	       HNS_PPEV2_RSS_IND_TBL_SIZE * sizeof(*indir));
+	if (indir)
+		memcpy(indir, ppe_cb->rss_indir_table,
+		       HNS_PPEV2_RSS_IND_TBL_SIZE  * sizeof(*indir));
 
 	return 0;
 }
@@ -785,15 +934,19 @@ static int hns_ae_set_rss(struct hnae_handle *handle, const u32 *indir,
 	struct hns_ppe_cb *ppe_cb = hns_get_ppe_cb(handle);
 
 	/* set the RSS Hash Key if specififed by the user */
-	if (key)
-		hns_ppe_set_rss_key(ppe_cb, (u32 *)key);
+	if (key) {
+		memcpy(ppe_cb->rss_key, key, HNS_PPEV2_RSS_KEY_SIZE);
+		hns_ppe_set_rss_key(ppe_cb, ppe_cb->rss_key);
+	}
 
-	/* update the shadow RSS table with user specified qids */
-	memcpy(ppe_cb->rss_indir_table, indir,
-	       HNS_PPEV2_RSS_IND_TBL_SIZE * sizeof(*indir));
+	if (indir) {
+		/* update the shadow RSS table with user specified qids */
+		memcpy(ppe_cb->rss_indir_table, indir,
+		       HNS_PPEV2_RSS_IND_TBL_SIZE  * sizeof(*indir));
 
-	/* now update the hardware */
-	hns_ppe_set_indir_table(ppe_cb, ppe_cb->rss_indir_table);
+		/* now update the hardware */
+		hns_ppe_set_indir_table(ppe_cb, ppe_cb->rss_indir_table);
+	}
 
 	return 0;
 }
@@ -810,6 +963,7 @@ static struct hnae_ae_ops hns_dsaf_ops = {
 	.get_status = hns_ae_get_link_status,
 	.get_info = hns_ae_get_mac_info,
 	.adjust_link = hns_ae_adjust_link,
+	.need_adjust_link = hns_ae_need_adjust_link,
 	.set_loopback = hns_ae_config_loopback,
 	.get_ring_bdnum_limit = hns_ae_get_ring_bdnum_limit,
 	.get_pauseparam = hns_ae_get_pauseparam,
@@ -817,13 +971,16 @@ static struct hnae_ae_ops hns_dsaf_ops = {
 	.get_autoneg = hns_ae_get_autoneg,
 	.set_pauseparam = hns_ae_set_pauseparam,
 	.get_coalesce_usecs = hns_ae_get_coalesce_usecs,
-	.get_rx_max_coalesced_frames = hns_ae_get_rx_max_coalesced_frames,
+	.get_max_coalesced_frames = hns_ae_get_max_coalesced_frames,
 	.set_coalesce_usecs = hns_ae_set_coalesce_usecs,
 	.set_coalesce_frames = hns_ae_set_coalesce_frames,
 	.get_coalesce_range = hns_ae_get_coalesce_range,
 	.set_promisc_mode = hns_ae_set_promisc_mode,
 	.set_mac_addr = hns_ae_set_mac_address,
+	.add_uc_addr = hns_ae_add_uc_address,
+	.rm_uc_addr = hns_ae_rm_uc_address,
 	.set_mc_addr = hns_ae_set_multicast_one,
+	.clr_mc_addr = hns_ae_clr_multicast,
 	.set_mtu = hns_ae_set_mtu,
 	.update_stats = hns_ae_update_stats,
 	.set_tso_stats = hns_ae_set_tso_stats,

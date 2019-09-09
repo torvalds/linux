@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * arch/sh/drivers/pci/ops-snapgear.c
  *
@@ -6,9 +7,6 @@
  * Ported to new API by Paul Mundt <lethal@linux-sh.org>
  *
  * Highly leveraged from pci-bigsur.c, written by Dustin McIntire.
- *
- * May be copied or modified under the terms of the GNU General Public
- * License.  See linux/COPYING for more information.
  *
  * PCI initialization for the SnapGear boards
  */
@@ -19,7 +17,7 @@
 #include <linux/sh_intc.h>
 #include "pci-sh4.h"
 
-int __init pcibios_map_platform_irq(const struct pci_dev *pdev, u8 slot, u8 pin)
+int pcibios_map_platform_irq(const struct pci_dev *pdev, u8 slot, u8 pin)
 {
 	int irq = -1;
 

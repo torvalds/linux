@@ -1,4 +1,11 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 .. _V4L2-PIX-FMT-NV12MT:
 
@@ -33,8 +40,8 @@ Layout of macroblocks in memory is presented in the following figure.
 
 .. _nv12mt:
 
-.. figure::  pixfmt-nv12mt_files/nv12mt.*
-    :alt:    nv12mt.png
+.. kernel-figure:: nv12mt.svg
+    :alt:    nv12mt.svg
     :align:  center
 
     V4L2_PIX_FMT_NV12MT macroblock Z shape memory layout
@@ -50,8 +57,8 @@ interleaved. Height of the buffer is aligned to 32.
 
 .. _nv12mt_ex:
 
-.. figure::  pixfmt-nv12mt_files/nv12mt_example.*
-    :alt:    nv12mt_example.png
+.. kernel-figure:: nv12mt_example.svg
+    :alt:    nv12mt_example.svg
     :align:  center
 
     Example V4L2_PIX_FMT_NV12MT memory layout of macroblocks

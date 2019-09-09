@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * generic videomode helper
  *
  * Copyright (c) 2012 Steffen Trumtrar <s.trumtrar@pengutronix.de>, Pengutronix
- *
- * This file is released under the GPLv2
  */
 #include <linux/errno.h>
 #include <linux/export.h>
@@ -36,7 +35,7 @@ int of_get_videomode(struct device_node *np, struct videomode *vm,
 
 	disp = of_get_display_timings(np);
 	if (!disp) {
-		pr_err("%s: no timings specified\n", of_node_full_name(np));
+		pr_err("%pOF: no timings specified\n", np);
 		return -EINVAL;
 	}
 

@@ -1,0 +1,98 @@
+The device node for Mediatek USB3.0 DRD controller
+
+Required properties:
+ - compatible : should be "mediatek,<soc-model>-mtu3", "mediatek,mtu3",
+	soc-model is the name of SoC, such as mt8173, mt2712 etc,
+	when using "mediatek,mtu3" compatible string, you need SoC specific
+	ones in addition, one of:
+	- "mediatek,mt8173-mtu3"
+ - reg : specifies physical base address and size of the registers
+ - reg-names: should be "mac" for device IP and "ippc" for IP port control
+ - interrupts : interrupt used by the device IP
+ - power-domains : a phandle to USB power domain node to control USB's
+	mtcmos
+ - vusb33-supply : regulator of USB avdd3.3v
+ - clocks : a list of phandle + clock-specifier pairs, one for each
+	entry in clock-names
+ - clock-names : must contain "sys_ck" for clock of controller,
+	the following clocks are optional:
+	"ref_ck", "mcu_ck" and "dam_ck";
+ - phys : see usb-hcd.txt in the current directory
+ - dr_mode : should be one of "host", "peripheral" or "otg",
+	refer to usb/generic.txt
+
+Optional properties:
+ - #address-cells, #size-cells : should be '2' if the device has sub-nodes
+	with 'reg' property
+ - ranges : allows valid 1:1 translation between child's address space and
+	parent's address space
+ - extcon : external connector for vbus and idpin changes detection, needed
+	when supports dual-role mode.
+ - vbus-supply : reference to the VBUS regulator, needed when supports
+	dual-role mode.
+ - pinctrl-names : a pinctrl state named "default" is optional, and need be
+	defined if auto drd switch is enabled, that means the property dr_mode
+	is set as "otg", and meanwhile the property "mediatek,enable-manual-drd"
+	is not set.
+ - pinctrl-0 : pin control group
+	See: Documentation/devicetree/bindings/pinctrl/pinctrl-bindings.txt
+
+ - maximum-speed : valid arguments are "super-speed", "high-speed" and
+	"full-speed"; refer to usb/generic.txt
+ - enable-manual-drd : supports manual dual-role switch via debugfs; usually
+	used when receptacle is TYPE-A and also wants to support dual-role
+	mode.
+ - wakeup-source: enable USB remote wakeup of host mode.
+ - mediatek,syscon-wakeup : phandle to syscon used to access the register
+	of the USB wakeup glue layer between SSUSB and SPM; it depends on
+	"wakeup-source", and has two arguments:
+	- the first one : register base address of the glue layer in syscon;
+	- the second one : hardware version of the glue layer
+		- 1 : used by mt8173 etc
+		- 2 : used by mt2712 etc
+ - mediatek,u3p-dis-msk : mask to disable u3ports, bit0 for u3port0,
+	bit1 for u3port1, ... etc;
+
+additionally the properties from usb-hcd.txt (in the current directory) are
+supported.
+
+Sub-nodes:
+The xhci should be added as subnode to mtu3 as shown in the following example
+if host mode is enabled. The DT binding details of xhci can be found in:
+Documentation/devicetree/bindings/usb/mediatek,mtk-xhci.txt
+
+Example:
+ssusb: usb@11271000 {
+	compatible = "mediatek,mt8173-mtu3";
+	reg = <0 0x11271000 0 0x3000>,
+	      <0 0x11280700 0 0x0100>;
+	reg-names = "mac", "ippc";
+	interrupts = <GIC_SPI 64 IRQ_TYPE_LEVEL_LOW>;
+	phys = <&phy_port0 PHY_TYPE_USB3>,
+	       <&phy_port1 PHY_TYPE_USB2>;
+	power-domains = <&scpsys MT8173_POWER_DOMAIN_USB>;
+	clocks = <&topckgen CLK_TOP_USB30_SEL>, <&clk26m>,
+		 <&pericfg CLK_PERI_USB0>,
+		 <&pericfg CLK_PERI_USB1>;
+	clock-names = "sys_ck", "ref_ck";
+	vusb33-supply = <&mt6397_vusb_reg>;
+	vbus-supply = <&usb_p0_vbus>;
+	extcon = <&extcon_usb>;
+	dr_mode = "otg";
+	wakeup-source;
+	mediatek,syscon-wakeup = <&pericfg 0x400 1>;
+	#address-cells = <2>;
+	#size-cells = <2>;
+	ranges;
+
+	usb_host: xhci@11270000 {
+		compatible = "mediatek,mt8173-xhci";
+		reg = <0 0x11270000 0 0x1000>;
+		reg-names = "mac";
+		interrupts = <GIC_SPI 115 IRQ_TYPE_LEVEL_LOW>;
+		power-domains = <&scpsys MT8173_POWER_DOMAIN_USB>;
+		clocks = <&topckgen CLK_TOP_USB30_SEL>, <&clk26m>;
+		clock-names = "sys_ck", "ref_ck";
+		vusb33-supply = <&mt6397_vusb_reg>;
+	};
+};

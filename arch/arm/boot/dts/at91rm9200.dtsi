@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * at91rm9200.dtsi - Device Tree Include file for AT91RM9200 family SoC
  *
@@ -6,17 +7,16 @@
  *                2012 Joachim Eastwood <manabian@gmail.com>
  *
  * Based on at91sam9260.dtsi
- *
- * Licensed under GPLv2 or later.
  */
 
-#include "skeleton.dtsi"
 #include <dt-bindings/pinctrl/at91.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/clock/at91.h>
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
 	model = "Atmel AT91RM9200 family SoC";
 	compatible = "atmel,at91rm9200";
 	interrupt-parent = <&aic>;
@@ -49,6 +49,7 @@
 	};
 
 	memory {
+		device_type = "memory";
 		reg = <0x20000000 0x04000000>;
 	};
 
@@ -66,7 +67,7 @@
 		};
 	};
 
-	sram: sram@00200000 {
+	sram: sram@200000 {
 		compatible = "mmio-sram";
 		reg = <0x00200000 0x4000>;
 	};
@@ -375,7 +376,9 @@
 			};
 
 			tcb0: timer@fffa0000 {
-				compatible = "atmel,at91rm9200-tcb";
+				compatible = "atmel,at91rm9200-tcb", "simple-mfd", "syscon";
+				#address-cells = <1>;
+				#size-cells = <0>;
 				reg = <0xfffa0000 0x100>;
 				interrupts = <17 IRQ_TYPE_LEVEL_HIGH 0
 					      18 IRQ_TYPE_LEVEL_HIGH 0
@@ -385,7 +388,9 @@
 			};
 
 			tcb1: timer@fffa4000 {
-				compatible = "atmel,at91rm9200-tcb";
+				compatible = "atmel,at91rm9200-tcb", "simple-mfd", "syscon";
+				#address-cells = <1>;
+				#size-cells = <0>;
 				reg = <0xfffa4000 0x100>;
 				interrupts = <20 IRQ_TYPE_LEVEL_HIGH 0
 					      21 IRQ_TYPE_LEVEL_HIGH 0
@@ -481,16 +486,16 @@
 				dbgu {
 					pinctrl_dbgu: dbgu-0 {
 						atmel,pins =
-							<AT91_PIOA 30 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PA30 periph A */
-							 AT91_PIOA 31 AT91_PERIPH_A AT91_PINCTRL_PULL_UP>;	/* PA31 periph with pullup */
+							<AT91_PIOA 30 AT91_PERIPH_A AT91_PINCTRL_PULL_UP
+							 AT91_PIOA 31 AT91_PERIPH_A AT91_PINCTRL_NONE>;
 					};
 				};
 
 				uart0 {
 					pinctrl_uart0: uart0-0 {
 						atmel,pins =
-							<AT91_PIOA 17 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PA17 periph A */
-							 AT91_PIOA 18 AT91_PERIPH_A AT91_PINCTRL_NONE>;	/* PA18 periph A */
+							<AT91_PIOA 17 AT91_PERIPH_A AT91_PINCTRL_NONE
+							 AT91_PIOA 18 AT91_PERIPH_A AT91_PINCTRL_PULL_UP>;
 					};
 
 					pinctrl_uart0_cts: uart0_cts-0 {
@@ -507,8 +512,8 @@
 				uart1 {
 					pinctrl_uart1: uart1-0 {
 						atmel,pins =
-							<AT91_PIOB 20 AT91_PERIPH_A AT91_PINCTRL_PULL_UP	/* PB20 periph A with pullup */
-							 AT91_PIOB 21 AT91_PERIPH_A AT91_PINCTRL_NONE>;	/* PB21 periph A */
+							<AT91_PIOB 20 AT91_PERIPH_A AT91_PINCTRL_NONE
+							 AT91_PIOB 21 AT91_PERIPH_A AT91_PINCTRL_PULL_UP>;
 					};
 
 					pinctrl_uart1_rts: uart1_rts-0 {
@@ -541,8 +546,8 @@
 				uart2 {
 					pinctrl_uart2: uart2-0 {
 						atmel,pins =
-							<AT91_PIOA 22 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PA22 periph A */
-							 AT91_PIOA 23 AT91_PERIPH_A AT91_PINCTRL_PULL_UP>;	/* PA23 periph A with pullup */
+							<AT91_PIOA 22 AT91_PERIPH_A AT91_PINCTRL_PULL_UP
+							 AT91_PIOA 23 AT91_PERIPH_A AT91_PINCTRL_NONE>;
 					};
 
 					pinctrl_uart2_rts: uart2_rts-0 {
@@ -559,8 +564,8 @@
 				uart3 {
 					pinctrl_uart3: uart3-0 {
 						atmel,pins =
-							<AT91_PIOA 5 AT91_PERIPH_B AT91_PINCTRL_PULL_UP	/* PA5 periph B with pullup */
-							 AT91_PIOA 6 AT91_PERIPH_B AT91_PINCTRL_NONE>;	/* PA6 periph B */
+							<AT91_PIOA 5 AT91_PERIPH_B AT91_PINCTRL_NONE
+							 AT91_PIOA 6 AT91_PERIPH_B AT91_PINCTRL_PULL_UP>;
 					};
 
 					pinctrl_uart3_rts: uart3_rts-0 {
@@ -938,7 +943,7 @@
 			status = "disabled";
 		};
 
-		usb0: ohci@00300000 {
+		usb0: ohci@300000 {
 			compatible = "atmel,at91rm9200-ohci", "usb-ohci";
 			reg = <0x00300000 0x100000>;
 			interrupts = <23 IRQ_TYPE_LEVEL_HIGH 2>;

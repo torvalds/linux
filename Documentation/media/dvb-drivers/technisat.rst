@@ -1,3 +1,5 @@
+.. SPDX-License-Identifier: GPL-2.0
+
 How to set up the Technisat/B2C2 Flexcop devices
 ================================================
 

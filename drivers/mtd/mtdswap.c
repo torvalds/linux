@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Swap block device support for MTDs
  * Turns an MTD device into a swap device with block wear leveling
@@ -8,20 +9,6 @@
  *
  * Based on Richard Purdie's earlier implementation in 2007. Background
  * support and lock-less operation written by Adrian Hunter.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
  */
 
 #include <linux/kernel.h>
@@ -50,7 +37,7 @@
  * Number of free eraseblocks below which GC can also collect low frag
  * blocks.
  */
-#define LOW_FRAG_GC_TRESHOLD	5
+#define LOW_FRAG_GC_THRESHOLD	5
 
 /*
  * Wear level cost amortization. We want to do wear leveling on the background
@@ -138,8 +125,6 @@ struct mtdswap_dev {
 
 	char *page_buf;
 	char *oob_buf;
-
-	struct dentry *debugfs_root;
 };
 
 struct mtdswap_oobdata {
@@ -538,18 +523,10 @@ static void mtdswap_store_eb(struct mtdswap_dev *d, struct swap_eb *eb)
 		mtdswap_rb_add(d, eb, MTDSWAP_HIFRAG);
 }
 
-
-static void mtdswap_erase_callback(struct erase_info *done)
-{
-	wait_queue_head_t *wait_q = (wait_queue_head_t *)done->priv;
-	wake_up(wait_q);
-}
-
 static int mtdswap_erase_block(struct mtdswap_dev *d, struct swap_eb *eb)
 {
 	struct mtd_info *mtd = d->mtd;
 	struct erase_info erase;
-	wait_queue_head_t wq;
 	unsigned int retries = 0;
 	int ret;
 
@@ -558,14 +535,9 @@ static int mtdswap_erase_block(struct mtdswap_dev *d, struct swap_eb *eb)
 		d->max_erase_count = eb->erase_count;
 
 retry:
-	init_waitqueue_head(&wq);
 	memset(&erase, 0, sizeof(struct erase_info));
-
-	erase.mtd	= mtd;
-	erase.callback	= mtdswap_erase_callback;
 	erase.addr	= mtdswap_eb_offset(d, eb);
 	erase.len	= mtd->erasesize;
-	erase.priv	= (u_long)&wq;
 
 	ret = mtd_erase(mtd, &erase);
 	if (ret) {
@@ -579,27 +551,6 @@ retry:
 
 		dev_err(d->dev, "Cannot erase erase block %#llx on %s\n",
 			erase.addr, mtd->name);
-
-		mtdswap_handle_badblock(d, eb);
-		return -EIO;
-	}
-
-	ret = wait_event_interruptible(wq, erase.state == MTD_ERASE_DONE ||
-					   erase.state == MTD_ERASE_FAILED);
-	if (ret) {
-		dev_err(d->dev, "Interrupted erase block %#llx erassure on %s",
-			erase.addr, mtd->name);
-		return -EINTR;
-	}
-
-	if (erase.state == MTD_ERASE_FAILED) {
-		if (retries++ < MTDSWAP_ERASE_RETRIES) {
-			dev_warn(d->dev,
-				"erase of erase block %#llx on %s failed",
-				erase.addr, mtd->name);
-			yield();
-			goto retry;
-		}
 
 		mtdswap_handle_badblock(d, eb);
 		return -EIO;
@@ -807,7 +758,7 @@ static int __mtdswap_choose_gc_tree(struct mtdswap_dev *d)
 {
 	int idx, stopat;
 
-	if (TREE_COUNT(d, CLEAN) < LOW_FRAG_GC_TRESHOLD)
+	if (TREE_COUNT(d, CLEAN) < LOW_FRAG_GC_THRESHOLD)
 		stopat = MTDSWAP_LOWFRAG;
 	else
 		stopat = MTDSWAP_HIFRAG;
@@ -1225,8 +1176,9 @@ static int mtdswap_show(struct seq_file *s, void *data)
 	unsigned int max[MTDSWAP_TREE_CNT];
 	unsigned int i, cw = 0, cwp = 0, cwecount = 0, bb_cnt, mapped, pages;
 	uint64_t use_size;
-	char *name[] = {"clean", "used", "low", "high", "dirty", "bitflip",
-			"failing"};
+	static const char * const name[] = {
+		"clean", "used", "low", "high", "dirty", "bitflip", "failing"
+	};
 
 	mutex_lock(&d->mbd_dev->lock);
 
@@ -1235,10 +1187,8 @@ static int mtdswap_show(struct seq_file *s, void *data)
 
 		if (root->rb_node) {
 			count[i] = d->trees[i].count;
-			min[i] = rb_entry(rb_first(root), struct swap_eb,
-					rb)->erase_count;
-			max[i] = rb_entry(rb_last(root), struct swap_eb,
-					rb)->erase_count;
+			min[i] = MTDSWAP_ECNT_MIN(root);
+			max[i] = MTDSWAP_ECNT_MAX(root);
 		} else
 			count[i] = 0;
 	}
@@ -1302,44 +1252,23 @@ static int mtdswap_show(struct seq_file *s, void *data)
 
 	return 0;
 }
-
-static int mtdswap_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, mtdswap_show, inode->i_private);
-}
-
-static const struct file_operations mtdswap_fops = {
-	.open		= mtdswap_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(mtdswap);
 
 static int mtdswap_add_debugfs(struct mtdswap_dev *d)
 {
-	struct gendisk *gd = d->mbd_dev->disk;
-	struct device *dev = disk_to_dev(gd);
-
-	struct dentry *root;
+	struct dentry *root = d->mtd->dbg.dfs_dir;
 	struct dentry *dent;
 
-	root = debugfs_create_dir(gd->disk_name, NULL);
-	if (IS_ERR(root))
+	if (!IS_ENABLED(CONFIG_DEBUG_FS))
 		return 0;
 
-	if (!root) {
-		dev_err(dev, "failed to initialize debugfs\n");
+	if (IS_ERR_OR_NULL(root))
 		return -1;
-	}
 
-	d->debugfs_root = root;
-
-	dent = debugfs_create_file("stats", S_IRUSR, root, d,
+	dent = debugfs_create_file("mtdswap_stats", S_IRUSR, root, d,
 				&mtdswap_fops);
 	if (!dent) {
 		dev_err(d->dev, "debugfs_create_file failed\n");
-		debugfs_remove_recursive(root);
-		d->debugfs_root = NULL;
 		return -1;
 	}
 
@@ -1364,11 +1293,11 @@ static int mtdswap_init(struct mtdswap_dev *d, unsigned int eblocks,
 	for (i = 0; i < MTDSWAP_TREE_CNT; i++)
 		d->trees[i].root = RB_ROOT;
 
-	d->page_data = vmalloc(sizeof(int)*pages);
+	d->page_data = vmalloc(array_size(pages, sizeof(int)));
 	if (!d->page_data)
 		goto page_data_fail;
 
-	d->revmap = vmalloc(sizeof(int)*blocks);
+	d->revmap = vmalloc(array_size(blocks, sizeof(int)));
 	if (!d->revmap)
 		goto revmap_fail;
 
@@ -1387,7 +1316,7 @@ static int mtdswap_init(struct mtdswap_dev *d, unsigned int eblocks,
 	if (!d->page_buf)
 		goto page_buf_fail;
 
-	d->oob_buf = kmalloc(2 * mtd->oobavail, GFP_KERNEL);
+	d->oob_buf = kmalloc_array(2, mtd->oobavail, GFP_KERNEL);
 	if (!d->oob_buf)
 		goto oob_buf_fail;
 
@@ -1542,7 +1471,6 @@ static void mtdswap_remove_dev(struct mtd_blktrans_dev *dev)
 {
 	struct mtdswap_dev *d = MTDSWAP_MBD_TO_MTDSWAP(dev);
 
-	debugfs_remove_recursive(d->debugfs_root);
 	del_mtd_blktrans_dev(dev);
 	mtdswap_cleanup(d);
 	kfree(d);

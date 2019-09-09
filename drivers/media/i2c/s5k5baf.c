@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for Samsung S5K5BAF UXGA 1/5" 2M CMOS Image Sensor
  * with embedded SoC ISP.
@@ -7,10 +8,6 @@
  *
  * Based on S5K6AA driver authored by Sylwester Nawrocki
  * Copyright (C) 2013, Samsung Electronics Co., Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/clk.h>
@@ -30,7 +27,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-subdev.h>
 #include <media/v4l2-mediabus.h>
-#include <media/v4l2-of.h>
+#include <media/v4l2-fwnode.h>
 
 static int debug;
 module_param(debug, int, 0644);
@@ -373,7 +370,7 @@ static int s5k5baf_fw_parse(struct device *dev, struct s5k5baf_fw **fw,
 	data += S5K5BAG_FW_TAG_LEN;
 	count -= S5K5BAG_FW_TAG_LEN;
 
-	d = devm_kzalloc(dev, count * sizeof(u16), GFP_KERNEL);
+	d = devm_kcalloc(dev, count, sizeof(u16), GFP_KERNEL);
 	if (!d)
 		return -ENOMEM;
 
@@ -766,7 +763,7 @@ static int s5k5baf_hw_set_video_bus(struct s5k5baf *state)
 {
 	u16 en_pkts;
 
-	if (state->bus_type == V4L2_MBUS_CSI2)
+	if (state->bus_type == V4L2_MBUS_CSI2_DPHY)
 		en_pkts = EN_PACKETS_CSI2;
 	else
 		en_pkts = 0;
@@ -1374,7 +1371,7 @@ static int s5k5baf_get_selection(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_pad_config *cfg,
 				 struct v4l2_subdev_selection *sel)
 {
-	static enum selection_rect rtype;
+	enum selection_rect rtype;
 	struct s5k5baf *state = to_s5k5baf(sd);
 
 	rtype = s5k5baf_get_sel_rect(sel->pad, sel->target);
@@ -1841,7 +1838,7 @@ static int s5k5baf_parse_device_node(struct s5k5baf *state, struct device *dev)
 {
 	struct device_node *node = dev->of_node;
 	struct device_node *node_ep;
-	struct v4l2_of_endpoint ep;
+	struct v4l2_fwnode_endpoint ep = { .bus_type = 0 };
 	int ret;
 
 	if (!node) {
@@ -1863,12 +1860,11 @@ static int s5k5baf_parse_device_node(struct s5k5baf *state, struct device *dev)
 
 	node_ep = of_graph_get_next_endpoint(node, NULL);
 	if (!node_ep) {
-		dev_err(dev, "no endpoint defined at node %s\n",
-			node->full_name);
+		dev_err(dev, "no endpoint defined at node %pOF\n", node);
 		return -EINVAL;
 	}
 
-	ret = v4l2_of_parse_endpoint(node_ep, &ep);
+	ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(node_ep), &ep);
 	of_node_put(node_ep);
 	if (ret)
 		return ret;
@@ -1876,14 +1872,14 @@ static int s5k5baf_parse_device_node(struct s5k5baf *state, struct device *dev)
 	state->bus_type = ep.bus_type;
 
 	switch (state->bus_type) {
-	case V4L2_MBUS_CSI2:
+	case V4L2_MBUS_CSI2_DPHY:
 		state->nlanes = ep.bus.mipi_csi2.num_data_lanes;
 		break;
 	case V4L2_MBUS_PARALLEL:
 		break;
 	default:
-		dev_err(dev, "unsupported bus in endpoint defined at node %s\n",
-			node->full_name);
+		dev_err(dev, "unsupported bus in endpoint defined at node %pOF\n",
+			node);
 		return -EINVAL;
 	}
 

@@ -1,4 +1,6 @@
-Video2Linux devices
+.. SPDX-License-Identifier: GPL-2.0
+
+Video4Linux devices
 -------------------
 
 .. toctree::
@@ -19,7 +21,8 @@ Video2Linux devices
     v4l2-mc
     v4l2-mediabus
     v4l2-mem2mem
-    v4l2-of
+    v4l2-async
+    v4l2-fwnode
     v4l2-rect
     v4l2-tuner
     v4l2-common

@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Port on Texas Instruments TMS320C6x architecture
  *
  *  Copyright (C) 2004, 2009, 2010, 2011 Texas Instruments Incorporated
  *  Author: Aurelien Jacquiot (aurelien.jacquiot@jaluna.com)
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
  */
 
 #include <linux/kernel.h>
@@ -26,7 +23,7 @@
 static u32 sched_clock_multiplier;
 #define SCHED_CLOCK_SHIFT 16
 
-static cycle_t tsc_read(struct clocksource *cs)
+static u64 tsc_read(struct clocksource *cs)
 {
 	return get_cycles();
 }

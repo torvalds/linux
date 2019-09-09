@@ -1,20 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
- * linux/kernel/time/timecounter.c
- *
- * based on code that migrated away from
- * linux/kernel/time/clocksource.c
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * Based on clocksource code. See commit 74d23cc704d1
  */
-
 #include <linux/export.h>
 #include <linux/timecounter.h>
 
@@ -43,7 +30,7 @@ EXPORT_SYMBOL_GPL(timecounter_init);
  */
 static u64 timecounter_read_delta(struct timecounter *tc)
 {
-	cycle_t cycle_now, cycle_delta;
+	u64 cycle_now, cycle_delta;
 	u64 ns_offset;
 
 	/* read cycle counter: */
@@ -80,7 +67,7 @@ EXPORT_SYMBOL_GPL(timecounter_read);
  * time previous to the time stored in the cycle counter.
  */
 static u64 cc_cyc2ns_backwards(const struct cyclecounter *cc,
-			       cycle_t cycles, u64 mask, u64 frac)
+			       u64 cycles, u64 mask, u64 frac)
 {
 	u64 ns = (u64) cycles;
 
@@ -90,7 +77,7 @@ static u64 cc_cyc2ns_backwards(const struct cyclecounter *cc,
 }
 
 u64 timecounter_cyc2time(struct timecounter *tc,
-			 cycle_t cycle_tstamp)
+			 u64 cycle_tstamp)
 {
 	u64 delta = (cycle_tstamp - tc->cycle_last) & tc->cc->mask;
 	u64 nsec = tc->nsec, frac = tc->frac;

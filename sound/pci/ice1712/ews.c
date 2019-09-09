@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *   ALSA driver for ICEnsemble ICE1712 (Envy24)
  *
@@ -5,21 +6,6 @@
  *
  *	Copyright (c) 2000 Jaroslav Kysela <perex@perex.cz>
  *                    2002 Takashi Iwai <tiwai@suse.de>
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */      
 
 #include <linux/delay.h>
@@ -344,7 +330,7 @@ static void ews88_setup_spdif(struct snd_ice1712 *ice, int rate)
 
 /*
  */
-static struct snd_akm4xxx akm_ews88mt = {
+static const struct snd_akm4xxx akm_ews88mt = {
 	.num_adcs = 8,
 	.num_dacs = 8,
 	.type = SND_AK4524,
@@ -354,7 +340,7 @@ static struct snd_akm4xxx akm_ews88mt = {
 	}
 };
 
-static struct snd_ak4xxx_private akm_ews88mt_priv = {
+static const struct snd_ak4xxx_private akm_ews88mt_priv = {
 	.caddr = 2,
 	.cif = 1, /* CIF high */
 	.data_mask = ICE1712_EWS88_SERIAL_DATA,
@@ -366,7 +352,7 @@ static struct snd_ak4xxx_private akm_ews88mt_priv = {
 	.mask_flags = 0,
 };
 
-static struct snd_akm4xxx akm_ewx2496 = {
+static const struct snd_akm4xxx akm_ewx2496 = {
 	.num_adcs = 2,
 	.num_dacs = 2,
 	.type = SND_AK4524,
@@ -375,7 +361,7 @@ static struct snd_akm4xxx akm_ewx2496 = {
 	}
 };
 
-static struct snd_ak4xxx_private akm_ewx2496_priv = {
+static const struct snd_ak4xxx_private akm_ewx2496_priv = {
 	.caddr = 2,
 	.cif = 1, /* CIF high */
 	.data_mask = ICE1712_EWS88_SERIAL_DATA,
@@ -387,7 +373,7 @@ static struct snd_ak4xxx_private akm_ewx2496_priv = {
 	.mask_flags = 0,
 };
 
-static struct snd_akm4xxx akm_6fire = {
+static const struct snd_akm4xxx akm_6fire = {
 	.num_adcs = 6,
 	.num_dacs = 6,
 	.type = SND_AK4524,
@@ -396,7 +382,7 @@ static struct snd_akm4xxx akm_6fire = {
 	}
 };
 
-static struct snd_ak4xxx_private akm_6fire_priv = {
+static const struct snd_ak4xxx_private akm_6fire_priv = {
 	.caddr = 2,
 	.cif = 1, /* CIF high */
 	.data_mask = ICE1712_6FIRE_SERIAL_DATA,
@@ -719,7 +705,7 @@ static int snd_ice1712_ews88mt_input_sense_put(struct snd_kcontrol *kcontrol, st
 	return ndata != data;
 }
 
-static struct snd_kcontrol_new snd_ice1712_ews88mt_input_sense = {
+static const struct snd_kcontrol_new snd_ice1712_ews88mt_input_sense = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Input Sensitivity Switch",
 	.info = snd_ice1712_ewx_io_sense_info,
@@ -728,7 +714,7 @@ static struct snd_kcontrol_new snd_ice1712_ews88mt_input_sense = {
 	.count = 8,
 };
 
-static struct snd_kcontrol_new snd_ice1712_ews88mt_output_sense = {
+static const struct snd_kcontrol_new snd_ice1712_ews88mt_output_sense = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Output Sensitivity Switch",
 	.info = snd_ice1712_ewx_io_sense_info,
@@ -826,7 +812,12 @@ static int snd_ice1712_6fire_read_pca(struct snd_ice1712 *ice, unsigned char reg
 
 	snd_i2c_lock(ice->i2c);
 	byte = reg;
-	snd_i2c_sendbytes(spec->i2cdevs[EWS_I2C_6FIRE], &byte, 1);
+	if (snd_i2c_sendbytes(spec->i2cdevs[EWS_I2C_6FIRE], &byte, 1) != 1) {
+		snd_i2c_unlock(ice->i2c);
+		dev_err(ice->card->dev, "cannot send pca\n");
+		return -EIO;
+	}
+
 	byte = 0;
 	if (snd_i2c_readbytes(spec->i2cdevs[EWS_I2C_6FIRE], &byte, 1) != 1) {
 		snd_i2c_unlock(ice->i2c);

@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * GPR board platform device registration (Au1550)
  *
  * Copyright (C) 2010 Wolfgang Grandegger <wg@denx.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
 #include <linux/delay.h>
@@ -29,10 +16,12 @@
 #include <linux/leds.h>
 #include <linux/gpio.h>
 #include <linux/i2c.h>
-#include <linux/i2c-gpio.h>
+#include <linux/platform_data/i2c-gpio.h>
+#include <linux/gpio/machine.h>
 #include <asm/bootinfo.h>
 #include <asm/idle.h>
 #include <asm/reboot.h>
+#include <asm/setup.h>
 #include <asm/mach-au1x00/au1000.h>
 #include <asm/mach-au1x00/gpio-au1000.h>
 #include <prom.h>
@@ -59,7 +48,7 @@ void __init prom_init(void)
 	add_memory_region(0, memsize, BOOT_MEM_RAM);
 }
 
-void prom_putchar(unsigned char c)
+void prom_putchar(char c)
 {
 	alchemy_uart_putchar(AU1000_UART0_PHYS_ADDR, c);
 }
@@ -189,7 +178,7 @@ static struct platform_device gpr_mtd_device = {
 /*
  * LEDs
  */
-static struct gpio_led gpr_gpio_leds[] = {
+static const struct gpio_led gpr_gpio_leds[] = {
 	{	/* green */
 		.name			= "gpr:green",
 		.gpio			= 4,
@@ -218,10 +207,27 @@ static struct platform_device gpr_led_devices = {
 /*
  * I2C
  */
+static struct gpiod_lookup_table gpr_i2c_gpiod_table = {
+	.dev_id = "i2c-gpio",
+	.table = {
+		/*
+		 * This should be on "GPIO2" which has base at 200 so
+		 * the global numbers 209 and 210 should correspond to
+		 * local offsets 9 and 10.
+		 */
+		GPIO_LOOKUP_IDX("alchemy-gpio2", 9, NULL, 0,
+				GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP_IDX("alchemy-gpio2", 10, NULL, 1,
+				GPIO_ACTIVE_HIGH),
+	},
+};
+
 static struct i2c_gpio_platform_data gpr_i2c_data = {
-	.sda_pin		= 209,
+	/*
+	 * The open drain mode is hardwired somewhere or an electrical
+	 * property of the alchemy GPIO controller.
+	 */
 	.sda_is_open_drain	= 1,
-	.scl_pin		= 210,
 	.scl_is_open_drain	= 1,
 	.udelay			= 2,		/* ~100 kHz */
 	.timeout		= HZ,
@@ -236,7 +242,6 @@ static struct platform_device gpr_i2c_device = {
 static struct i2c_board_info gpr_i2c_info[] __initdata = {
 	{
 		I2C_BOARD_INFO("lm83", 0x18),
-		.type = "lm83"
 	}
 };
 
@@ -296,6 +301,7 @@ arch_initcall(gpr_pci_init);
 
 static int __init gpr_dev_init(void)
 {
+	gpiod_add_lookup_table(&gpr_i2c_gpiod_table);
 	i2c_register_board_info(0, gpr_i2c_info, ARRAY_SIZE(gpr_i2c_info));
 
 	return platform_add_devices(gpr_devices, ARRAY_SIZE(gpr_devices));

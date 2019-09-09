@@ -1,14 +1,9 @@
-/* avermedia-dvbt.h - Keytable for avermedia_dvbt Remote Controller
- *
- * keymap imported from ir-keymaps.c
- *
- * Copyright (c) 2010 by Mauro Carvalho Chehab
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- */
+// SPDX-License-Identifier: GPL-2.0+
+// avermedia-dvbt.h - Keytable for avermedia_dvbt Remote Controller
+//
+// keymap imported from ir-keymaps.c
+//
+// Copyright (c) 2010 by Mauro Carvalho Chehab
 
 #include <media/rc-map.h>
 #include <linux/module.h>
@@ -16,16 +11,16 @@
 /* Matt Jesson <dvb@jesson.eclipse.co.uk */
 
 static struct rc_map_table avermedia_dvbt[] = {
-	{ 0x28, KEY_0 },		/* '0' / 'enter' */
-	{ 0x22, KEY_1 },		/* '1' */
-	{ 0x12, KEY_2 },		/* '2' / 'up arrow' */
-	{ 0x32, KEY_3 },		/* '3' */
-	{ 0x24, KEY_4 },		/* '4' / 'left arrow' */
-	{ 0x14, KEY_5 },		/* '5' */
-	{ 0x34, KEY_6 },		/* '6' / 'right arrow' */
-	{ 0x26, KEY_7 },		/* '7' */
-	{ 0x16, KEY_8 },		/* '8' / 'down arrow' */
-	{ 0x36, KEY_9 },		/* '9' */
+	{ 0x28, KEY_NUMERIC_0 },	/* '0' / 'enter' */
+	{ 0x22, KEY_NUMERIC_1 },	/* '1' */
+	{ 0x12, KEY_NUMERIC_2 },	/* '2' / 'up arrow' */
+	{ 0x32, KEY_NUMERIC_3 },	/* '3' */
+	{ 0x24, KEY_NUMERIC_4 },	/* '4' / 'left arrow' */
+	{ 0x14, KEY_NUMERIC_5 },	/* '5' */
+	{ 0x34, KEY_NUMERIC_6 },	/* '6' / 'right arrow' */
+	{ 0x26, KEY_NUMERIC_7 },	/* '7' */
+	{ 0x16, KEY_NUMERIC_8 },	/* '8' / 'down arrow' */
+	{ 0x36, KEY_NUMERIC_9 },	/* '9' */
 
 	{ 0x20, KEY_VIDEO },		/* 'source' */
 	{ 0x10, KEY_TEXT },		/* 'teletext' */
@@ -55,10 +50,10 @@ static struct rc_map_table avermedia_dvbt[] = {
 
 static struct rc_map_list avermedia_dvbt_map = {
 	.map = {
-		.scan    = avermedia_dvbt,
-		.size    = ARRAY_SIZE(avermedia_dvbt),
-		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
-		.name    = RC_MAP_AVERMEDIA_DVBT,
+		.scan     = avermedia_dvbt,
+		.size     = ARRAY_SIZE(avermedia_dvbt),
+		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.name     = RC_MAP_AVERMEDIA_DVBT,
 	}
 };
 

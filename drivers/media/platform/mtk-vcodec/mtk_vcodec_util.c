@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
 * Copyright (c) 2016 MediaTek Inc.
 * Author: PC Chen <pc.chen@mediatek.com>
 *	Tiffany Lin <tiffany.lin@mediatek.com>
-*
-* This program is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License version 2 as
-* published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU General Public License for more details.
 */
 
 #include <linux/module.h>
@@ -50,14 +42,11 @@ int mtk_vcodec_mem_alloc(struct mtk_vcodec_ctx *data,
 	struct device *dev = &ctx->dev->plat_dev->dev;
 
 	mem->va = dma_alloc_coherent(dev, size, &mem->dma_addr, GFP_KERNEL);
-
 	if (!mem->va) {
 		mtk_v4l2_err("%s dma_alloc size=%ld failed!", dev_name(dev),
 			     size);
 		return -ENOMEM;
 	}
-
-	memset(mem->va, 0, size);
 
 	mtk_v4l2_debug(3, "[%d]  - va      = %p", ctx->id, mem->va);
 	mtk_v4l2_debug(3, "[%d]  - dma     = 0x%lx", ctx->id,
@@ -81,14 +70,40 @@ void mtk_vcodec_mem_free(struct mtk_vcodec_ctx *data,
 		return;
 	}
 
-	dma_free_coherent(dev, size, mem->va, mem->dma_addr);
-	mem->va = NULL;
-	mem->dma_addr = 0;
-	mem->size = 0;
-
 	mtk_v4l2_debug(3, "[%d]  - va      = %p", ctx->id, mem->va);
 	mtk_v4l2_debug(3, "[%d]  - dma     = 0x%lx", ctx->id,
 		       (unsigned long)mem->dma_addr);
 	mtk_v4l2_debug(3, "[%d]    size = 0x%lx", ctx->id, size);
+
+	dma_free_coherent(dev, size, mem->va, mem->dma_addr);
+	mem->va = NULL;
+	mem->dma_addr = 0;
+	mem->size = 0;
 }
 EXPORT_SYMBOL(mtk_vcodec_mem_free);
+
+void mtk_vcodec_set_curr_ctx(struct mtk_vcodec_dev *dev,
+	struct mtk_vcodec_ctx *ctx)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev->irqlock, flags);
+	dev->curr_ctx = ctx;
+	spin_unlock_irqrestore(&dev->irqlock, flags);
+}
+EXPORT_SYMBOL(mtk_vcodec_set_curr_ctx);
+
+struct mtk_vcodec_ctx *mtk_vcodec_get_curr_ctx(struct mtk_vcodec_dev *dev)
+{
+	unsigned long flags;
+	struct mtk_vcodec_ctx *ctx;
+
+	spin_lock_irqsave(&dev->irqlock, flags);
+	ctx = dev->curr_ctx;
+	spin_unlock_irqrestore(&dev->irqlock, flags);
+	return ctx;
+}
+EXPORT_SYMBOL(mtk_vcodec_get_curr_ctx);
+
+MODULE_LICENSE("GPL v2");
+MODULE_DESCRIPTION("Mediatek video codec driver");

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * PCI HotPlug Core Functions
  *
@@ -7,21 +8,6 @@
  *
  * All rights reserved.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or (at
- * your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
- * NON INFRINGEMENT.  See the GNU General Public License for more
- * details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  * Send feedback to <kristen.c.accardi@intel.com>
  *
  */
@@ -30,8 +16,6 @@
 
 /**
  * struct hotplug_slot_ops -the callbacks that the hotplug pci core can use
- * @owner: The module owner of this structure
- * @mod_name: The module name (KBUILD_MODNAME) of this structure
  * @enable_slot: Called when the user wants to enable a specific pci slot
  * @disable_slot: Called when the user wants to disable a specific pci slot
  * @set_attention_status: Called to set the specific slot's attention LED to
@@ -39,17 +23,9 @@
  * @hardware_test: Called to run a specified hardware test on the specified
  * slot.
  * @get_power_status: Called to get the current power status of a slot.
- *	If this field is NULL, the value passed in the struct hotplug_slot_info
- *	will be used when this value is requested by a user.
  * @get_attention_status: Called to get the current attention status of a slot.
- *	If this field is NULL, the value passed in the struct hotplug_slot_info
- *	will be used when this value is requested by a user.
  * @get_latch_status: Called to get the current latch status of a slot.
- *	If this field is NULL, the value passed in the struct hotplug_slot_info
- *	will be used when this value is requested by a user.
  * @get_adapter_status: Called to get see if an adapter is present in the slot or not.
- *	If this field is NULL, the value passed in the struct hotplug_slot_info
- *	will be used when this value is requested by a user.
  * @reset_slot: Optional interface to allow override of a bus reset for the
  *	slot for cases where a secondary bus reset can result in spurious
  *	hotplug events or where a slot can be reset independent of the bus.
@@ -60,8 +36,6 @@
  * set an LED, enable / disable power, etc.)
  */
 struct hotplug_slot_ops {
-	struct module *owner;
-	const char *mod_name;
 	int (*enable_slot)		(struct hotplug_slot *slot);
 	int (*disable_slot)		(struct hotplug_slot *slot);
 	int (*set_attention_status)	(struct hotplug_slot *slot, u8 value);
@@ -74,40 +48,19 @@ struct hotplug_slot_ops {
 };
 
 /**
- * struct hotplug_slot_info - used to notify the hotplug pci core of the state of the slot
- * @power_status: if power is enabled or not (1/0)
- * @attention_status: if the attention light is enabled or not (1/0)
- * @latch_status: if the latch (if any) is open or closed (1/0)
- * @adapter_status: if there is a pci board present in the slot or not (1/0)
- *
- * Used to notify the hotplug pci core of the status of a specific slot.
- */
-struct hotplug_slot_info {
-	u8	power_status;
-	u8	attention_status;
-	u8	latch_status;
-	u8	adapter_status;
-};
-
-/**
  * struct hotplug_slot - used to register a physical slot with the hotplug pci core
  * @ops: pointer to the &struct hotplug_slot_ops to be used for this slot
- * @info: pointer to the &struct hotplug_slot_info for the initial values for
- * this slot.
- * @release: called during pci_hp_deregister to free memory allocated in a
- * hotplug_slot structure.
- * @private: used by the hotplug pci controller driver to store whatever it
- * needs.
+ * @owner: The module owner of this structure
+ * @mod_name: The module name (KBUILD_MODNAME) of this structure
  */
 struct hotplug_slot {
-	struct hotplug_slot_ops		*ops;
-	struct hotplug_slot_info	*info;
-	void (*release) (struct hotplug_slot *slot);
-	void				*private;
+	const struct hotplug_slot_ops	*ops;
 
 	/* Variables below this are for use only by the hotplug pci core. */
 	struct list_head		slot_list;
 	struct pci_slot			*pci_slot;
+	struct module			*owner;
+	const char			*mod_name;
 };
 
 static inline const char *hotplug_slot_name(const struct hotplug_slot *slot)
@@ -118,13 +71,20 @@ static inline const char *hotplug_slot_name(const struct hotplug_slot *slot)
 int __pci_hp_register(struct hotplug_slot *slot, struct pci_bus *pbus, int nr,
 		      const char *name, struct module *owner,
 		      const char *mod_name);
-int pci_hp_deregister(struct hotplug_slot *slot);
-int __must_check pci_hp_change_slot_info(struct hotplug_slot *slot,
-					 struct hotplug_slot_info *info);
+int __pci_hp_initialize(struct hotplug_slot *slot, struct pci_bus *bus, int nr,
+			const char *name, struct module *owner,
+			const char *mod_name);
+int pci_hp_add(struct hotplug_slot *slot);
+
+void pci_hp_del(struct hotplug_slot *slot);
+void pci_hp_destroy(struct hotplug_slot *slot);
+void pci_hp_deregister(struct hotplug_slot *slot);
 
 /* use a define to avoid include chaining to get THIS_MODULE & friends */
 #define pci_hp_register(slot, pbus, devnr, name) \
 	__pci_hp_register(slot, pbus, devnr, name, THIS_MODULE, KBUILD_MODNAME)
+#define pci_hp_initialize(slot, bus, nr, name) \
+	__pci_hp_initialize(slot, bus, nr, name, THIS_MODULE, KBUILD_MODNAME)
 
 /* PCI Setting Record (Type 0) */
 struct hpp_type0 {
@@ -164,26 +124,86 @@ struct hpp_type2 {
 	u32 sec_unc_err_mask_or;
 };
 
-struct hotplug_params {
-	struct hpp_type0 *t0;		/* Type0: NULL if not available */
-	struct hpp_type1 *t1;		/* Type1: NULL if not available */
-	struct hpp_type2 *t2;		/* Type2: NULL if not available */
-	struct hpp_type0 type0_data;
-	struct hpp_type1 type1_data;
-	struct hpp_type2 type2_data;
+/*
+ * _HPX PCI Express Setting Record (Type 3)
+ */
+struct hpx_type3 {
+	u16 device_type;
+	u16 function_type;
+	u16 config_space_location;
+	u16 pci_exp_cap_id;
+	u16 pci_exp_cap_ver;
+	u16 pci_exp_vendor_id;
+	u16 dvsec_id;
+	u16 dvsec_rev;
+	u16 match_offset;
+	u32 match_mask_and;
+	u32 match_value;
+	u16 reg_offset;
+	u32 reg_mask_and;
+	u32 reg_mask_or;
+};
+
+struct hotplug_program_ops {
+	void (*program_type0)(struct pci_dev *dev, struct hpp_type0 *hpp);
+	void (*program_type1)(struct pci_dev *dev, struct hpp_type1 *hpp);
+	void (*program_type2)(struct pci_dev *dev, struct hpp_type2 *hpp);
+	void (*program_type3)(struct pci_dev *dev, struct hpx_type3 *hpp);
+};
+
+enum hpx_type3_dev_type {
+	HPX_TYPE_ENDPOINT	= BIT(0),
+	HPX_TYPE_LEG_END	= BIT(1),
+	HPX_TYPE_RC_END		= BIT(2),
+	HPX_TYPE_RC_EC		= BIT(3),
+	HPX_TYPE_ROOT_PORT	= BIT(4),
+	HPX_TYPE_UPSTREAM	= BIT(5),
+	HPX_TYPE_DOWNSTREAM	= BIT(6),
+	HPX_TYPE_PCI_BRIDGE	= BIT(7),
+	HPX_TYPE_PCIE_BRIDGE	= BIT(8),
+};
+
+enum hpx_type3_fn_type {
+	HPX_FN_NORMAL		= BIT(0),
+	HPX_FN_SRIOV_PHYS	= BIT(1),
+	HPX_FN_SRIOV_VIRT	= BIT(2),
+};
+
+enum hpx_type3_cfg_loc {
+	HPX_CFG_PCICFG		= 0,
+	HPX_CFG_PCIE_CAP	= 1,
+	HPX_CFG_PCIE_CAP_EXT	= 2,
+	HPX_CFG_VEND_CAP	= 3,
+	HPX_CFG_DVSEC		= 4,
+	HPX_CFG_MAX,
 };
 
 #ifdef CONFIG_ACPI
 #include <linux/acpi.h>
-int pci_get_hp_params(struct pci_dev *dev, struct hotplug_params *hpp);
-int acpi_get_hp_hw_control_from_firmware(struct pci_dev *dev, u32 flags);
+int pci_acpi_program_hp_params(struct pci_dev *dev,
+			       const struct hotplug_program_ops *hp_ops);
+bool pciehp_is_native(struct pci_dev *bridge);
+int acpi_get_hp_hw_control_from_firmware(struct pci_dev *bridge);
+bool shpchp_is_native(struct pci_dev *bridge);
 int acpi_pci_check_ejectable(struct pci_bus *pbus, acpi_handle handle);
 int acpi_pci_detect_ejectable(acpi_handle handle);
 #else
-static inline int pci_get_hp_params(struct pci_dev *dev,
-				    struct hotplug_params *hpp)
+static inline int pci_acpi_program_hp_params(struct pci_dev *dev,
+				    const struct hotplug_program_ops *hp_ops)
 {
 	return -ENODEV;
 }
+
+static inline int acpi_get_hp_hw_control_from_firmware(struct pci_dev *bridge)
+{
+	return 0;
+}
+static inline bool pciehp_is_native(struct pci_dev *bridge) { return true; }
+static inline bool shpchp_is_native(struct pci_dev *bridge) { return true; }
 #endif
+
+static inline bool hotplug_is_native(struct pci_dev *bridge)
+{
+	return pciehp_is_native(bridge) || shpchp_is_native(bridge);
+}
 #endif

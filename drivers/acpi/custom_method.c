@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * custom_method.c - debugfs interface for customizing ACPI control method
  */
@@ -79,22 +80,15 @@ static const struct file_operations cm_fops = {
 
 static int __init acpi_custom_method_init(void)
 {
-	if (acpi_debugfs_dir == NULL)
-		return -ENOENT;
-
 	cm_dentry = debugfs_create_file("custom_method", S_IWUSR,
 					acpi_debugfs_dir, NULL, &cm_fops);
-	if (cm_dentry == NULL)
-		return -ENODEV;
-
 	return 0;
 }
 
 static void __exit acpi_custom_method_exit(void)
 {
-	if (cm_dentry)
-		debugfs_remove(cm_dentry);
- }
+	debugfs_remove(cm_dentry);
+}
 
 module_init(acpi_custom_method_init);
 module_exit(acpi_custom_method_exit);

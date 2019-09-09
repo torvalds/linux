@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright 2006 IBM Corporation
  * IUCV protocol stack for Linux on zSeries
@@ -79,6 +80,11 @@ struct af_iucv_trans_hdr {
 	u8 pad;                          /* total 104 bytes */
 } __packed;
 
+static inline struct af_iucv_trans_hdr *iucv_trans_hdr(struct sk_buff *skb)
+{
+	return (struct af_iucv_trans_hdr *)skb_network_header(skb);
+}
+
 enum iucv_tx_notify {
 	/* transmission of skb is completed and was successful */
 	TX_NOTIFY_OK = 0,
@@ -152,7 +158,7 @@ struct iucv_sock_list {
 	atomic_t	  autobind_name;
 };
 
-unsigned int iucv_sock_poll(struct file *file, struct socket *sock,
+__poll_t iucv_sock_poll(struct file *file, struct socket *sock,
 			    poll_table *wait);
 void iucv_sock_link(struct iucv_sock_list *l, struct sock *s);
 void iucv_sock_unlink(struct iucv_sock_list *l, struct sock *s);

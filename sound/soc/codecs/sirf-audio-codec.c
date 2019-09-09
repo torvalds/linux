@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * SiRF audio codec driver
  *
  * Copyright (c) 2011 Cambridge Silicon Radio Limited, a CSR plc group company.
- *
- * Licensed under GPLv2 or later.
  */
 
 #include <linux/module.h>
@@ -120,8 +119,8 @@ static int atlas6_codec_enable_and_reset_event(struct snd_soc_dapm_widget *w,
 {
 #define ATLAS6_CODEC_ENABLE_BITS (1 << 29)
 #define ATLAS6_CODEC_RESET_BITS (1 << 28)
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-	struct sirf_audio_codec *sirf_audio_codec = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct sirf_audio_codec *sirf_audio_codec = snd_soc_component_get_drvdata(component);
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
 		enable_and_reset_codec(sirf_audio_codec->regmap,
@@ -143,8 +142,8 @@ static int prima2_codec_enable_and_reset_event(struct snd_soc_dapm_widget *w,
 {
 #define PRIMA2_CODEC_ENABLE_BITS (1 << 27)
 #define PRIMA2_CODEC_RESET_BITS (1 << 26)
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-	struct sirf_audio_codec *sirf_audio_codec = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct sirf_audio_codec *sirf_audio_codec = snd_soc_component_get_drvdata(component);
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
 		enable_and_reset_codec(sirf_audio_codec->regmap,
@@ -333,8 +332,8 @@ static int sirf_audio_codec_trigger(struct snd_pcm_substream *substream,
 		int cmd,
 		struct snd_soc_dai *dai)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct sirf_audio_codec *sirf_audio_codec = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct sirf_audio_codec *sirf_audio_codec = snd_soc_component_get_drvdata(component);
 	int playback = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
 
 	/*
@@ -346,7 +345,7 @@ static int sirf_audio_codec_trigger(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		if (playback) {
-			snd_soc_update_bits(codec, AUDIO_IC_CODEC_CTRL0,
+			snd_soc_component_update_bits(component, AUDIO_IC_CODEC_CTRL0,
 				IC_HSLEN | IC_HSREN, 0);
 			sirf_audio_codec_tx_disable(sirf_audio_codec);
 		} else
@@ -357,7 +356,7 @@ static int sirf_audio_codec_trigger(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		if (playback) {
 			sirf_audio_codec_tx_enable(sirf_audio_codec);
-			snd_soc_update_bits(codec, AUDIO_IC_CODEC_CTRL0,
+			snd_soc_component_update_bits(component, AUDIO_IC_CODEC_CTRL0,
 				IC_HSLEN | IC_HSREN, IC_HSLEN | IC_HSREN);
 		} else
 			sirf_audio_codec_rx_enable(sirf_audio_codec,
@@ -393,29 +392,29 @@ static struct snd_soc_dai_driver sirf_audio_codec_dai = {
 	.ops = &sirf_audio_codec_dai_ops,
 };
 
-static int sirf_audio_codec_probe(struct snd_soc_codec *codec)
+static int sirf_audio_codec_probe(struct snd_soc_component *component)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
 
-	pm_runtime_enable(codec->dev);
+	pm_runtime_enable(component->dev);
 
-	if (of_device_is_compatible(codec->dev->of_node, "sirf,prima2-audio-codec")) {
+	if (of_device_is_compatible(component->dev->of_node, "sirf,prima2-audio-codec")) {
 		snd_soc_dapm_new_controls(dapm,
 			prima2_output_driver_dapm_widgets,
 			ARRAY_SIZE(prima2_output_driver_dapm_widgets));
 		snd_soc_dapm_new_controls(dapm,
 			&prima2_codec_clock_dapm_widget, 1);
-		return snd_soc_add_codec_controls(codec,
+		return snd_soc_add_component_controls(component,
 			volume_controls_prima2,
 			ARRAY_SIZE(volume_controls_prima2));
 	}
-	if (of_device_is_compatible(codec->dev->of_node, "sirf,atlas6-audio-codec")) {
+	if (of_device_is_compatible(component->dev->of_node, "sirf,atlas6-audio-codec")) {
 		snd_soc_dapm_new_controls(dapm,
 			atlas6_output_driver_dapm_widgets,
 			ARRAY_SIZE(atlas6_output_driver_dapm_widgets));
 		snd_soc_dapm_new_controls(dapm,
 			&atlas6_codec_clock_dapm_widget, 1);
-		return snd_soc_add_codec_controls(codec,
+		return snd_soc_add_component_controls(component,
 			volume_controls_atlas6,
 			ARRAY_SIZE(volume_controls_atlas6));
 	}
@@ -423,20 +422,21 @@ static int sirf_audio_codec_probe(struct snd_soc_codec *codec)
 	return -EINVAL;
 }
 
-static int sirf_audio_codec_remove(struct snd_soc_codec *codec)
+static void sirf_audio_codec_remove(struct snd_soc_component *component)
 {
-	pm_runtime_disable(codec->dev);
-	return 0;
+	pm_runtime_disable(component->dev);
 }
 
-static struct snd_soc_codec_driver soc_codec_device_sirf_audio_codec = {
-	.probe = sirf_audio_codec_probe,
-	.remove = sirf_audio_codec_remove,
-	.dapm_widgets = sirf_audio_codec_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(sirf_audio_codec_dapm_widgets),
-	.dapm_routes = sirf_audio_codec_map,
-	.num_dapm_routes = ARRAY_SIZE(sirf_audio_codec_map),
-	.idle_bias_off = true,
+static const struct snd_soc_component_driver soc_codec_device_sirf_audio_codec = {
+	.probe			= sirf_audio_codec_probe,
+	.remove			= sirf_audio_codec_remove,
+	.dapm_widgets		= sirf_audio_codec_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(sirf_audio_codec_dapm_widgets),
+	.dapm_routes		= sirf_audio_codec_map,
+	.num_dapm_routes	= ARRAY_SIZE(sirf_audio_codec_map),
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static const struct of_device_id sirf_audio_codec_of_match[] = {
@@ -460,9 +460,6 @@ static int sirf_audio_codec_driver_probe(struct platform_device *pdev)
 	struct sirf_audio_codec *sirf_audio_codec;
 	void __iomem *base;
 	struct resource *mem_res;
-	const struct of_device_id *match;
-
-	match = of_match_node(sirf_audio_codec_of_match, pdev->dev.of_node);
 
 	sirf_audio_codec = devm_kzalloc(&pdev->dev,
 		sizeof(struct sirf_audio_codec), GFP_KERNEL);
@@ -493,7 +490,7 @@ static int sirf_audio_codec_driver_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = snd_soc_register_codec(&(pdev->dev),
+	ret = devm_snd_soc_register_component(&(pdev->dev),
 			&soc_codec_device_sirf_audio_codec,
 			&sirf_audio_codec_dai, 1);
 	if (ret) {
@@ -523,7 +520,6 @@ static int sirf_audio_codec_driver_remove(struct platform_device *pdev)
 	struct sirf_audio_codec *sirf_audio_codec = platform_get_drvdata(pdev);
 
 	clk_disable_unprepare(sirf_audio_codec->clk);
-	snd_soc_unregister_codec(&(pdev->dev));
 
 	return 0;
 }

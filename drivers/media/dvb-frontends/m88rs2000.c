@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
 	Driver for M88RS2000 demodulator and tuner
 
@@ -7,19 +8,6 @@
 	Include various calculation code from DS3000 driver.
 	Copyright (C) 2009 Konstantin Dimitrov.
 
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 2 of the License, or
-	(at your option) any later version.
-
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU General Public License for more details.
-
-	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the Free Software
-	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 */
 #include <linux/init.h>
@@ -31,7 +19,7 @@
 #include <linux/types.h>
 
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "m88rs2000.h"
 
 struct m88rs2000_state {
@@ -75,8 +63,8 @@ static int m88rs2000_writereg(struct m88rs2000_state *state,
 	ret = i2c_transfer(state->i2c, &msg, 1);
 
 	if (ret != 1)
-		deb_info("%s: writereg error (reg == 0x%02x, val == 0x%02x, "
-			"ret == %i)\n", __func__, reg, data, ret);
+		deb_info("%s: writereg error (reg == 0x%02x, val == 0x%02x, ret == %i)\n",
+			 __func__, reg, data, ret);
 
 	return (ret != 1) ? -EREMOTEIO : 0;
 }
@@ -618,10 +606,9 @@ static int m88rs2000_set_frontend(struct dvb_frontend *fe)
 	state->no_lock_count = 0;
 
 	if (c->delivery_system != SYS_DVBS) {
-			deb_info("%s: unsupported delivery "
-				"system selected (%d)\n",
-				__func__, c->delivery_system);
-			return -EOPNOTSUPP;
+		deb_info("%s: unsupported delivery system selected (%d)\n",
+			 __func__, c->delivery_system);
+		return -EOPNOTSUPP;
 	}
 
 	/* Set Tuner */
@@ -631,13 +618,16 @@ static int m88rs2000_set_frontend(struct dvb_frontend *fe)
 	if (ret < 0)
 		return -ENODEV;
 
-	if (fe->ops.tuner_ops.get_frequency)
+	if (fe->ops.tuner_ops.get_frequency) {
 		ret = fe->ops.tuner_ops.get_frequency(fe, &tuner_freq);
 
-	if (ret < 0)
-		return -ENODEV;
+		if (ret < 0)
+			return -ENODEV;
 
-	offset = (s16)((s32)tuner_freq - c->frequency);
+		offset = (s16)((s32)tuner_freq - c->frequency);
+	} else {
+		offset = 0;
+	}
 
 	/* default mclk value 96.4285 * 2 * 1000 = 192857 */
 	if (((c->frequency % 192857) >= (192857 - 3000)) ||
@@ -699,7 +689,7 @@ static int m88rs2000_set_frontend(struct dvb_frontend *fe)
 
 	if (status & FE_HAS_LOCK) {
 		state->fec_inner = m88rs2000_get_fec(state);
-		/* Uknown suspect SNR level */
+		/* Unknown suspect SNR level */
 		reg = m88rs2000_readreg(state, 0x65);
 	}
 
@@ -753,14 +743,14 @@ static void m88rs2000_release(struct dvb_frontend *fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops m88rs2000_ops = {
+static const struct dvb_frontend_ops m88rs2000_ops = {
 	.delsys = { SYS_DVBS },
 	.info = {
 		.name			= "M88RS2000 DVB-S",
-		.frequency_min		= 950000,
-		.frequency_max		= 2150000,
-		.frequency_stepsize	= 1000,	 /* kHz for QPSK frontends */
-		.frequency_tolerance	= 5000,
+		.frequency_min_hz	=  950 * MHz,
+		.frequency_max_hz	= 2150 * MHz,
+		.frequency_stepsize_hz	= 1 * MHz,
+		.frequency_tolerance_hz	= 5 * MHz,
 		.symbol_rate_min	= 1000000,
 		.symbol_rate_max	= 45000000,
 		.symbol_rate_tolerance	= 500,	/* ppm */

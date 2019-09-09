@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * AppliedMicro X-Gene SoC GPIO-Standby Driver
  *
@@ -5,19 +6,6 @@
  * Author:	Tin Huynh <tnhuynh@apm.com>.
  *		Y Vo <yvo@apm.com>.
  *		Quan Nguyen <qnguyen@apm.com>.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/module.h>
@@ -130,31 +118,32 @@ static int xgene_gpio_sb_to_irq(struct gpio_chip *gc, u32 gpio)
 			(gpio > HWIRQ_TO_GPIO(priv, priv->nirq)))
 		return -ENXIO;
 
-	if (gc->parent->of_node)
-		fwspec.fwnode = of_node_to_fwnode(gc->parent->of_node);
-	else
-		fwspec.fwnode = gc->parent->fwnode;
+	fwspec.fwnode = gc->parent->fwnode;
 	fwspec.param_count = 2;
 	fwspec.param[0] = GPIO_TO_HWIRQ(priv, gpio);
 	fwspec.param[1] = IRQ_TYPE_NONE;
 	return irq_create_fwspec_mapping(&fwspec);
 }
 
-static void xgene_gpio_sb_domain_activate(struct irq_domain *d,
-		struct irq_data *irq_data)
+static int xgene_gpio_sb_domain_activate(struct irq_domain *d,
+					 struct irq_data *irq_data,
+					 bool reserve)
 {
 	struct xgene_gpio_sb *priv = d->host_data;
 	u32 gpio = HWIRQ_TO_GPIO(priv, irq_data->hwirq);
+	int ret;
 
-	if (gpiochip_lock_as_irq(&priv->gc, gpio)) {
+	ret = gpiochip_lock_as_irq(&priv->gc, gpio);
+	if (ret) {
 		dev_err(priv->gc.parent,
 		"Unable to configure XGene GPIO standby pin %d as IRQ\n",
 				gpio);
-		return;
+		return ret;
 	}
 
 	xgene_gpio_set_bit(&priv->gc, priv->regs + MPA_GPIO_SEL_LO,
 			gpio * 2, 1);
+	return 0;
 }
 
 static void xgene_gpio_sb_domain_deactivate(struct irq_domain *d,
@@ -228,18 +217,15 @@ static int xgene_gpio_sb_probe(struct platform_device *pdev)
 {
 	struct xgene_gpio_sb *priv;
 	int ret;
-	struct resource *res;
 	void __iomem *regs;
 	struct irq_domain *parent_domain = NULL;
-	struct fwnode_handle *fwnode;
 	u32 val32;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	regs = devm_ioremap_resource(&pdev->dev, res);
+	regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(regs))
 		return PTR_ERR(regs);
 
@@ -285,18 +271,13 @@ static int xgene_gpio_sb_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, priv);
 
-	if (pdev->dev.of_node)
-		fwnode = of_node_to_fwnode(pdev->dev.of_node);
-	else
-		fwnode = pdev->dev.fwnode;
-
 	priv->irq_domain = irq_domain_create_hierarchy(parent_domain,
-					0, priv->nirq, fwnode,
+					0, priv->nirq, pdev->dev.fwnode,
 					&xgene_gpio_sb_domain_ops, priv);
 	if (!priv->irq_domain)
 		return -ENODEV;
 
-	priv->gc.irqdomain = priv->irq_domain;
+	priv->gc.irq.domain = priv->irq_domain;
 
 	ret = devm_gpiochip_add_data(&pdev->dev, &priv->gc, priv);
 	if (ret) {

@@ -48,11 +48,11 @@
 #include "cmd.h"
 
 static bool modparam_nohwcrypt;
-module_param_named(nohwcrypt, modparam_nohwcrypt, bool, S_IRUGO);
+module_param_named(nohwcrypt, modparam_nohwcrypt, bool, 0444);
 MODULE_PARM_DESC(nohwcrypt, "Disable hardware crypto offload.");
 
 int modparam_noht;
-module_param_named(noht, modparam_noht, int, S_IRUGO);
+module_param_named(noht, modparam_noht, int, 0444);
 MODULE_PARM_DESC(noht, "Disable MPDU aggregation.");
 
 #define RATE(_bitrate, _hw_rate, _txpidx, _flags) {	\
@@ -1387,13 +1387,8 @@ static int carl9170_op_conf_tx(struct ieee80211_hw *hw,
 	int ret;
 
 	mutex_lock(&ar->mutex);
-	if (queue < ar->hw->queues) {
-		memcpy(&ar->edcf[ar9170_qmap[queue]], param, sizeof(*param));
-		ret = carl9170_set_qos(ar);
-	} else {
-		ret = -EINVAL;
-	}
-
+	memcpy(&ar->edcf[ar9170_qmap[queue]], param, sizeof(*param));
+	ret = carl9170_set_qos(ar);
 	mutex_unlock(&ar->mutex);
 	return ret;
 }
@@ -1874,6 +1869,8 @@ void *carl9170_alloc(size_t priv_size)
 	for (i = 0; i < ARRAY_SIZE(ar->noise); i++)
 		ar->noise[i] = -95; /* ATH_DEFAULT_NOISE_FLOOR */
 
+	wiphy_ext_feature_set(hw->wiphy, NL80211_EXT_FEATURE_CQM_RSSI_LIST);
+
 	return ar;
 
 err_nomem:
@@ -1956,7 +1953,7 @@ static int carl9170_parse_eeprom(struct ar9170 *ar)
 	if (!bands)
 		return -EINVAL;
 
-	ar->survey = kzalloc(sizeof(struct survey_info) * chans, GFP_KERNEL);
+	ar->survey = kcalloc(chans, sizeof(struct survey_info), GFP_KERNEL);
 	if (!ar->survey)
 		return -ENOMEM;
 	ar->num_channels = chans;
@@ -1986,8 +1983,9 @@ int carl9170_register(struct ar9170 *ar)
 	if (WARN_ON(ar->mem_bitmap))
 		return -EINVAL;
 
-	ar->mem_bitmap = kzalloc(roundup(ar->fw.mem_blocks, BITS_PER_LONG) *
-				 sizeof(unsigned long), GFP_KERNEL);
+	ar->mem_bitmap = kcalloc(roundup(ar->fw.mem_blocks, BITS_PER_LONG),
+				 sizeof(unsigned long),
+				 GFP_KERNEL);
 
 	if (!ar->mem_bitmap)
 		return -ENOMEM;

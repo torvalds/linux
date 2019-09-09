@@ -1,9 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef __ASM_ARC_SMP_H
@@ -37,9 +34,9 @@ extern const char *arc_platform_smp_cpuinfo(void);
  * API expected BY platform smp code (FROM arch smp code)
  *
  * smp_ipi_irq_setup:
- *	Takes @cpu and @irq to which the arch-common ISR is hooked up
+ *	Takes @cpu and @hwirq to which the arch-common ISR is hooked up
  */
-extern int smp_ipi_irq_setup(int cpu, int irq);
+extern int smp_ipi_irq_setup(int cpu, irq_hw_number_t hwirq);
 
 /*
  * struct plat_smp_ops	- SMP callbacks provided by platform to ARC SMP

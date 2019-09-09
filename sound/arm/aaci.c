@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/sound/arm/aaci.c - ARM PrimeCell AACI PL041 driver
  *
  *  Copyright (C) 2003 Deep Blue Solutions Ltd, All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  *  Documentation: ARM DDI 0173B
  */
@@ -348,7 +345,7 @@ static irqreturn_t aaci_irq(int irq, void *devid)
 /*
  * ALSA support.
  */
-static struct snd_pcm_hardware aaci_hw_info = {
+static const struct snd_pcm_hardware aaci_hw_info = {
 	.info			= SNDRV_PCM_INFO_MMAP |
 				  SNDRV_PCM_INFO_MMAP_VALID |
 				  SNDRV_PCM_INFO_INTERLEAVED |
@@ -635,7 +632,7 @@ static int aaci_pcm_playback_trigger(struct snd_pcm_substream *substream, int cm
 	return ret;
 }
 
-static struct snd_pcm_ops aaci_playback_ops = {
+static const struct snd_pcm_ops aaci_playback_ops = {
 	.open		= aaci_pcm_open,
 	.close		= aaci_pcm_close,
 	.ioctl		= snd_pcm_lib_ioctl,
@@ -738,7 +735,7 @@ static int aaci_pcm_capture_prepare(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static struct snd_pcm_ops aaci_capture_ops = {
+static const struct snd_pcm_ops aaci_capture_ops = {
 	.open		= aaci_pcm_open,
 	.close		= aaci_pcm_close,
 	.ioctl		= snd_pcm_lib_ioctl,
@@ -757,7 +754,6 @@ static int aaci_do_suspend(struct snd_card *card)
 {
 	struct aaci *aaci = card->private_data;
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3cold);
-	snd_pcm_suspend_all(aaci->pcm);
 	return 0;
 }
 
@@ -786,7 +782,7 @@ static SIMPLE_DEV_PM_OPS(aaci_dev_pm_ops, aaci_suspend, aaci_resume);
 #endif
 
 
-static struct ac97_pcm ac97_defs[] = {
+static const struct ac97_pcm ac97_defs[] = {
 	[0] = {	/* Front PCM */
 		.exclusive = 1,
 		.r = {
@@ -942,7 +938,8 @@ static int aaci_init_pcm(struct aaci *aaci)
 		snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &aaci_playback_ops);
 		snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &aaci_capture_ops);
 		snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-						      NULL, 0, 64 * 1024);
+						      aaci->card->dev,
+						      0, 64 * 1024);
 	}
 
 	return ret;

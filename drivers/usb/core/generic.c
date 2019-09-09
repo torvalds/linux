@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * drivers/usb/generic.c - generic driver for USB devices (not interfaces)
  *
@@ -15,10 +16,12 @@
  *		(usb_device_id matching changes by Adam J. Richter)
  *	(C) Copyright Greg Kroah-Hartman 2002-2003
  *
+ * Released under the GPLv2 only.
  */
 
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
+#include <uapi/linux/usb/audio.h>
 #include "usb.h"
 
 static inline const char *plural(int n)
@@ -38,6 +41,16 @@ static int is_activesync(struct usb_interface_descriptor *desc)
 	return desc->bInterfaceClass == USB_CLASS_MISC
 		&& desc->bInterfaceSubClass == 1
 		&& desc->bInterfaceProtocol == 1;
+}
+
+static bool is_audio(struct usb_interface_descriptor *desc)
+{
+	return desc->bInterfaceClass == USB_CLASS_AUDIO;
+}
+
+static bool is_uac3_config(struct usb_interface_descriptor *desc)
+{
+	return desc->bInterfaceProtocol == UAC_VERSION_3;
 }
 
 int usb_choose_configuration(struct usb_device *udev)
@@ -102,6 +115,31 @@ int usb_choose_configuration(struct usb_device *udev)
 		/* Rule out configs that draw too much bus current */
 		if (usb_get_max_power(udev, c) > udev->bus_mA) {
 			insufficient_power++;
+			continue;
+		}
+
+		/*
+		 * Select first configuration as default for audio so that
+		 * devices that don't comply with UAC3 protocol are supported.
+		 * But, still iterate through other configurations and
+		 * select UAC3 compliant config if present.
+		 */
+		if (desc && is_audio(desc)) {
+			/* Always prefer the first found UAC3 config */
+			if (is_uac3_config(desc)) {
+				best = c;
+				break;
+			}
+
+			/* If there is no UAC3 config, prefer the first config */
+			else if (i == 0)
+				best = c;
+
+			/* Unconditional continue, because the rest of the code
+			 * in the loop is irrelevant for audio devices, and
+			 * because it can reassign best, which for audio devices
+			 * we don't want.
+			 */
 			continue;
 		}
 
@@ -208,8 +246,13 @@ static int generic_suspend(struct usb_device *udev, pm_message_t msg)
 	if (!udev->parent)
 		rc = hcd_bus_suspend(udev, msg);
 
-	/* Non-root devices don't need to do anything for FREEZE or PRETHAW */
-	else if (msg.event == PM_EVENT_FREEZE || msg.event == PM_EVENT_PRETHAW)
+	/*
+	 * Non-root USB2 devices don't need to do anything for FREEZE
+	 * or PRETHAW. USB3 devices don't support global suspend and
+	 * needs to be selectively suspended.
+	 */
+	else if ((msg.event == PM_EVENT_FREEZE || msg.event == PM_EVENT_PRETHAW)
+		 && (udev->speed < USB_SPEED_SUPER))
 		rc = 0;
 	else
 		rc = usb_port_suspend(udev, msg);

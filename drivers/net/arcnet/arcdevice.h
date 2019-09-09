@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * INET         An implementation of the TCP/IP protocol suite for the LINUX
  *              operating system.  NET  is implemented using the  BSD Socket
@@ -6,12 +7,6 @@
  *              Definitions used by the ARCnet driver.
  *
  * Authors:     Avery Pennarun and David Woodhouse
- *
- *              This program is free software; you can redistribute it and/or
- *              modify it under the terms of the GNU General Public License
- *              as published by the Free Software Foundation; either version
- *              2 of the License, or (at your option) any later version.
- *
  */
 #ifndef _LINUX_ARCDEVICE_H
 #define _LINUX_ARCDEVICE_H
@@ -20,7 +15,7 @@
 #include <linux/if_arcnet.h>
 
 #ifdef __KERNEL__
-#include  <linux/irqreturn.h>
+#include <linux/interrupt.h>
 
 /*
  * RECON_THRESHOLD is the maximum number of RECON messages to receive
@@ -268,6 +263,10 @@ struct arcnet_local {
 	char recon_led_trig_name[ARCNET_LED_NAME_SZ];
 
 	struct timer_list	timer;
+
+	struct net_device *dev;
+	int reply_status;
+	struct tasklet_struct reply_tasklet;
 
 	/*
 	 * Buffer management: an ARCnet card has 4 x 512-byte buffers, each of

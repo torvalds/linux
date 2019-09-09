@@ -28,7 +28,7 @@
 #include <linux/slab.h>
 #include <linux/pagemap.h>
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/sn/addrs.h>
 #include <asm/sn/intr.h>
@@ -50,6 +50,7 @@ static LIST_HEAD(soft_list);
  * file operations
  */
 static const struct file_operations mbcs_ops = {
+	.owner = THIS_MODULE,
 	.open = mbcs_open,
 	.llseek = mbcs_sram_llseek,
 	.read = mbcs_sram_read,

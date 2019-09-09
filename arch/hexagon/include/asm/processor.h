@@ -1,21 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Process/processor support for the Hexagon architecture
  *
  * Copyright (c) 2010-2012, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
  */
 
 #ifndef _ASM_PROCESSOR_H
@@ -27,14 +14,8 @@
 #include <asm/registers.h>
 #include <asm/hexagon_vm.h>
 
-/*  must be a macro  */
-#define current_text_addr() ({ __label__ _l; _l: &&_l; })
-
 /*  task_struct, defined elsewhere, is the "process descriptor" */
 struct task_struct;
-
-/*  this is defined in arch/process.c  */
-extern unsigned long thread_saved_pc(struct task_struct *tsk);
 
 extern void start_thread(struct pt_regs *, unsigned long, unsigned long);
 
@@ -56,7 +37,6 @@ struct thread_struct {
 }
 
 #define cpu_relax() __vmyield()
-#define cpu_relax_lowlatency() cpu_relax()
 
 /*
  * Decides where the kernel will search for a free chunk of vm space during

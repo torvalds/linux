@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * linux/include/asm-m68k/raw_io.h
  *
@@ -11,20 +12,6 @@
 #ifdef __KERNEL__
 
 #include <asm/byteorder.h>
-
-
-/* Values for nocacheflag and cmode */
-#define IOMAP_FULL_CACHING		0
-#define IOMAP_NOCACHE_SER		1
-#define IOMAP_NOCACHE_NONSER		2
-#define IOMAP_WRITETHROUGH		3
-
-extern void iounmap(void __iomem *addr);
-
-extern void __iomem *__ioremap(unsigned long physaddr, unsigned long size,
-		       int cacheflag);
-extern void __iounmap(void *addr, unsigned long size);
-
 
 /* ++roman: The assignments to temp. vars avoid that gcc sometimes generates
  * two accesses to memory, which may be undesirable for some devices.
@@ -120,12 +107,43 @@ static inline void raw_insb(volatile u8 __iomem *port, u8 *buf, unsigned int len
 }
 
 static inline void raw_outsb(volatile u8 __iomem *port, const u8 *buf,
-			     unsigned int len)
+			     unsigned int nr)
 {
-	unsigned int i;
+	unsigned int tmp;
 
-        for (i = 0; i < len; i++)
-		out_8(port, *buf++);
+	if (nr & 15) {
+		tmp = (nr & 15) - 1;
+		asm volatile (
+			"1: moveb %0@+,%2@; dbra %1,1b"
+			: "=a" (buf), "=d" (tmp)
+			: "a" (port), "0" (buf),
+			  "1" (tmp));
+	}
+	if (nr >> 4) {
+		tmp = (nr >> 4) - 1;
+		asm volatile (
+			"1: "
+			"moveb %0@+,%2@; "
+			"moveb %0@+,%2@; "
+			"moveb %0@+,%2@; "
+			"moveb %0@+,%2@; "
+			"moveb %0@+,%2@; "
+			"moveb %0@+,%2@; "
+			"moveb %0@+,%2@; "
+			"moveb %0@+,%2@; "
+			"moveb %0@+,%2@; "
+			"moveb %0@+,%2@; "
+			"moveb %0@+,%2@; "
+			"moveb %0@+,%2@; "
+			"moveb %0@+,%2@; "
+			"moveb %0@+,%2@; "
+			"moveb %0@+,%2@; "
+			"moveb %0@+,%2@; "
+			"dbra %1,1b"
+			: "=a" (buf), "=d" (tmp)
+			: "a" (port), "0" (buf),
+			  "1" (tmp));
+	}
 }
 
 static inline void raw_insw(volatile u16 __iomem *port, u16 *buf, unsigned int nr)

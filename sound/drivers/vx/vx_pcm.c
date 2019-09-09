@@ -1,24 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for Digigram VX soundcards
  *
  * PCM part
  *
  * Copyright (c) 2002,2003 by Takashi Iwai <tiwai@suse.de>
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  *
  * STRATEGY
  *  for playback, we send series of "chunks", which size is equal with the
@@ -38,7 +24,6 @@
  *
  *  the current point of read buffer is kept in pipe->hw_ptr.  note that
  *  this is in bytes.
- *
  *
  * TODO
  *  - linked trigger for full-duplex mode.
@@ -500,7 +485,7 @@ static int vx_stop_stream(struct vx_core *chip, struct vx_pipe *pipe)
  * playback hw information
  */
 
-static struct snd_pcm_hardware vx_pcm_playback_hw = {
+static const struct snd_pcm_hardware vx_pcm_playback_hw = {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_MMAP_VALID /*|*/
 				 /*SNDRV_PCM_INFO_RESUME*/),
@@ -873,7 +858,7 @@ static int vx_pcm_prepare(struct snd_pcm_substream *subs)
 /*
  * operators for PCM playback
  */
-static struct snd_pcm_ops vx_pcm_playback_ops = {
+static const struct snd_pcm_ops vx_pcm_playback_ops = {
 	.open =		vx_pcm_playback_open,
 	.close =	vx_pcm_playback_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -883,7 +868,6 @@ static struct snd_pcm_ops vx_pcm_playback_ops = {
 	.trigger =	vx_pcm_trigger,
 	.pointer =	vx_pcm_playback_pointer,
 	.page =		snd_pcm_lib_get_vmalloc_page,
-	.mmap =		snd_pcm_lib_mmap_vmalloc,
 };
 
 
@@ -891,7 +875,7 @@ static struct snd_pcm_ops vx_pcm_playback_ops = {
  * playback hw information
  */
 
-static struct snd_pcm_hardware vx_pcm_capture_hw = {
+static const struct snd_pcm_hardware vx_pcm_capture_hw = {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_MMAP_VALID /*|*/
 				 /*SNDRV_PCM_INFO_RESUME*/),
@@ -1015,7 +999,7 @@ static void vx_pcm_capture_update(struct vx_core *chip, struct snd_pcm_substream
 	int size, space, count;
 	struct snd_pcm_runtime *runtime = subs->runtime;
 
-	if (! pipe->prepared || (chip->chip_status & VX_STAT_IS_STALE))
+	if (!pipe->running || (chip->chip_status & VX_STAT_IS_STALE))
 		return;
 
 	size = runtime->buffer_size - snd_pcm_capture_avail(runtime);
@@ -1048,8 +1032,10 @@ static void vx_pcm_capture_update(struct vx_core *chip, struct snd_pcm_substream
 		/* ok, let's accelerate! */
 		int align = pipe->align * 3;
 		space = (count / align) * align;
-		vx_pseudo_dma_read(chip, runtime, pipe, space);
-		count -= space;
+		if (space > 0) {
+			vx_pseudo_dma_read(chip, runtime, pipe, space);
+			count -= space;
+		}
 	}
 	/* read the rest of bytes */
 	while (count > 0) {
@@ -1093,7 +1079,7 @@ static snd_pcm_uframes_t vx_pcm_capture_pointer(struct snd_pcm_substream *subs)
 /*
  * operators for PCM capture
  */
-static struct snd_pcm_ops vx_pcm_capture_ops = {
+static const struct snd_pcm_ops vx_pcm_capture_ops = {
 	.open =		vx_pcm_capture_open,
 	.close =	vx_pcm_capture_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -1103,7 +1089,6 @@ static struct snd_pcm_ops vx_pcm_capture_ops = {
 	.trigger =	vx_pcm_trigger,
 	.pointer =	vx_pcm_capture_pointer,
 	.page =		snd_pcm_lib_get_vmalloc_page,
-	.mmap =		snd_pcm_lib_mmap_vmalloc,
 };
 
 

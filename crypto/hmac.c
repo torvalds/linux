@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Cryptographic API.
  *
@@ -8,14 +9,9 @@
  *
  * The HMAC implementation is derived from USAGI.
  * Copyright (c) 2002 Kazunori Miyazawa <miyazawa@linux-ipv6.org> / USAGI
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
- *
  */
 
+#include <crypto/hmac.h>
 #include <crypto/internal/hash.h>
 #include <crypto/scatterwalk.h>
 #include <linux/err.h>
@@ -56,8 +52,6 @@ static int hmac_setkey(struct crypto_shash *parent,
 	unsigned int i;
 
 	shash->tfm = hash;
-	shash->flags = crypto_shash_get_flags(parent)
-		& CRYPTO_TFM_REQ_MAY_SLEEP;
 
 	if (keylen > bs) {
 		int err;
@@ -74,8 +68,8 @@ static int hmac_setkey(struct crypto_shash *parent,
 	memcpy(opad, ipad, bs);
 
 	for (i = 0; i < bs; i++) {
-		ipad[i] ^= 0x36;
-		opad[i] ^= 0x5c;
+		ipad[i] ^= HMAC_IPAD_VALUE;
+		opad[i] ^= HMAC_OPAD_VALUE;
 	}
 
 	return crypto_shash_init(shash) ?:
@@ -90,8 +84,6 @@ static int hmac_export(struct shash_desc *pdesc, void *out)
 {
 	struct shash_desc *desc = shash_desc_ctx(pdesc);
 
-	desc->flags = pdesc->flags & CRYPTO_TFM_REQ_MAY_SLEEP;
-
 	return crypto_shash_export(desc, out);
 }
 
@@ -101,7 +93,6 @@ static int hmac_import(struct shash_desc *pdesc, const void *in)
 	struct hmac_ctx *ctx = hmac_ctx(pdesc->tfm);
 
 	desc->tfm = ctx->hash;
-	desc->flags = pdesc->flags & CRYPTO_TFM_REQ_MAY_SLEEP;
 
 	return crypto_shash_import(desc, in);
 }
@@ -116,8 +107,6 @@ static int hmac_update(struct shash_desc *pdesc,
 {
 	struct shash_desc *desc = shash_desc_ctx(pdesc);
 
-	desc->flags = pdesc->flags & CRYPTO_TFM_REQ_MAY_SLEEP;
-
 	return crypto_shash_update(desc, data, nbytes);
 }
 
@@ -128,8 +117,6 @@ static int hmac_final(struct shash_desc *pdesc, u8 *out)
 	int ss = crypto_shash_statesize(parent);
 	char *opad = crypto_shash_ctx_aligned(parent) + ss;
 	struct shash_desc *desc = shash_desc_ctx(pdesc);
-
-	desc->flags = pdesc->flags & CRYPTO_TFM_REQ_MAY_SLEEP;
 
 	return crypto_shash_final(desc, out) ?:
 	       crypto_shash_import(desc, opad) ?:
@@ -145,8 +132,6 @@ static int hmac_finup(struct shash_desc *pdesc, const u8 *data,
 	int ss = crypto_shash_statesize(parent);
 	char *opad = crypto_shash_ctx_aligned(parent) + ss;
 	struct shash_desc *desc = shash_desc_ctx(pdesc);
-
-	desc->flags = pdesc->flags & CRYPTO_TFM_REQ_MAY_SLEEP;
 
 	return crypto_shash_finup(desc, data, nbytes, out) ?:
 	       crypto_shash_import(desc, opad) ?:
@@ -167,6 +152,10 @@ static int hmac_init_tfm(struct crypto_tfm *tfm)
 
 	parent->descsize = sizeof(struct shash_desc) +
 			   crypto_shash_descsize(hash);
+	if (WARN_ON(parent->descsize > HASH_MAX_DESCSIZE)) {
+		crypto_free_shash(hash);
+		return -EINVAL;
+	}
 
 	ctx->hash = hash;
 	return 0;
@@ -194,11 +183,15 @@ static int hmac_create(struct crypto_template *tmpl, struct rtattr **tb)
 	salg = shash_attr_alg(tb[1], 0, 0);
 	if (IS_ERR(salg))
 		return PTR_ERR(salg);
+	alg = &salg->base;
 
+	/* The underlying hash algorithm must be unkeyed */
 	err = -EINVAL;
+	if (crypto_shash_alg_has_setkey(salg))
+		goto out_put_alg;
+
 	ds = salg->digestsize;
 	ss = salg->statesize;
-	alg = &salg->base;
 	if (ds > alg->cra_blocksize ||
 	    ss < alg->cra_blocksize)
 		goto out_put_alg;
@@ -263,7 +256,7 @@ static void __exit hmac_module_exit(void)
 	crypto_unregister_template(&hmac_tmpl);
 }
 
-module_init(hmac_module_init);
+subsys_initcall(hmac_module_init);
 module_exit(hmac_module_exit);
 
 MODULE_LICENSE("GPL");

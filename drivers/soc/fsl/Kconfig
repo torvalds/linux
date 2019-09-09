@@ -1,0 +1,43 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# NXP/Freescale QorIQ series SOC drivers
+#
+
+menu "NXP/Freescale QorIQ SoC drivers"
+
+source "drivers/soc/fsl/qbman/Kconfig"
+source "drivers/soc/fsl/qe/Kconfig"
+
+config FSL_GUTS
+	bool
+	select SOC_BUS
+	help
+	  The global utilities block controls power management, I/O device
+	  enabling, power-onreset(POR) configuration monitoring, alternate
+	  function selection for multiplexed signals,and clock control.
+	  This driver is to manage and access global utilities block.
+	  Initially only reading SVR and registering soc device are supported.
+	  Other guts accesses, such as reading RCW, should eventually be moved
+	  into this driver as well.
+
+config FSL_MC_DPIO
+        tristate "QorIQ DPAA2 DPIO driver"
+        depends on FSL_MC_BUS
+        select SOC_BUS
+        help
+	  Driver for the DPAA2 DPIO object.  A DPIO provides queue and
+	  buffer management facilities for software to interact with
+	  other DPAA2 objects. This driver does not expose the DPIO
+	  objects individually, but groups them under a service layer
+	  API.
+
+config DPAA2_CONSOLE
+	tristate "QorIQ DPAA2 console driver"
+	depends on OF && (ARCH_LAYERSCAPE || COMPILE_TEST)
+	default y
+	help
+	  Console driver for DPAA2 platforms. Exports 2 char devices,
+	  /dev/dpaa2_mc_console and /dev/dpaa2_aiop_console,
+	  which can be used to dump the Management Complex and AIOP
+	  firmware logs.
+endmenu

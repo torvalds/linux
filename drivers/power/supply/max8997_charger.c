@@ -1,23 +1,9 @@
-/*
- * max8997_charger.c - Power supply consumer driver for the Maxim 8997/8966
- *
- *  Copyright (C) 2011 Samsung Electronics
- *  MyungJoo Ham <myungjoo.ham@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// max8997_charger.c - Power supply consumer driver for the Maxim 8997/8966
+//
+//  Copyright (C) 2011 Samsung Electronics
+//  MyungJoo Ham <myungjoo.ham@samsung.com>
 
 #include <linux/err.h>
 #include <linux/module.h>
@@ -146,12 +132,9 @@ static int max8997_battery_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	charger = devm_kzalloc(&pdev->dev, sizeof(struct charger_data),
-				GFP_KERNEL);
-	if (charger == NULL) {
-		dev_err(&pdev->dev, "Cannot allocate memory.\n");
+	charger = devm_kzalloc(&pdev->dev, sizeof(*charger), GFP_KERNEL);
+	if (!charger)
 		return -ENOMEM;
-	}
 
 	platform_set_drvdata(pdev, charger);
 
@@ -161,7 +144,7 @@ static int max8997_battery_probe(struct platform_device *pdev)
 
 	psy_cfg.drv_data = charger;
 
-	charger->battery = power_supply_register(&pdev->dev,
+	charger->battery = devm_power_supply_register(&pdev->dev,
 						 &max8997_battery_desc,
 						 &psy_cfg);
 	if (IS_ERR(charger->battery)) {
@@ -172,25 +155,17 @@ static int max8997_battery_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int max8997_battery_remove(struct platform_device *pdev)
-{
-	struct charger_data *charger = platform_get_drvdata(pdev);
-
-	power_supply_unregister(charger->battery);
-	return 0;
-}
-
 static const struct platform_device_id max8997_battery_id[] = {
 	{ "max8997-battery", 0 },
 	{ }
 };
+MODULE_DEVICE_TABLE(platform, max8997_battery_id);
 
 static struct platform_driver max8997_battery_driver = {
 	.driver = {
 		.name = "max8997-battery",
 	},
 	.probe = max8997_battery_probe,
-	.remove = max8997_battery_remove,
 	.id_table = max8997_battery_id,
 };
 

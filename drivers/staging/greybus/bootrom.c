@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * BOOTROM Greybus driver.
  *
  * Copyright 2016 Google Inc.
  * Copyright 2016 Linaro Ltd.
- *
- * Released under the GPLv2 only.
  */
 
 #include <linux/firmware.h>
@@ -53,7 +52,8 @@ static void free_firmware(struct gb_bootrom *bootrom)
 static void gb_bootrom_timedout(struct work_struct *work)
 {
 	struct delayed_work *dwork = to_delayed_work(work);
-	struct gb_bootrom *bootrom = container_of(dwork, struct gb_bootrom, dwork);
+	struct gb_bootrom *bootrom = container_of(dwork,
+						  struct gb_bootrom, dwork);
 	struct device *dev = &bootrom->connection->bundle->dev;
 	const char *reason;
 
@@ -86,7 +86,8 @@ static void gb_bootrom_timedout(struct work_struct *work)
 }
 
 static void gb_bootrom_set_timeout(struct gb_bootrom *bootrom,
-			enum next_request_type next, unsigned long timeout)
+				   enum next_request_type next,
+				   unsigned long timeout)
 {
 	bootrom->next_request = next;
 	schedule_delayed_work(&bootrom->dwork, msecs_to_jiffies(timeout));
@@ -175,7 +176,7 @@ static int find_firmware(struct gb_bootrom *bootrom, u8 stage)
 		 firmware_name);
 
 	rc = request_firmware(&bootrom->fw, firmware_name,
-		&connection->bundle->dev);
+			      &connection->bundle->dev);
 	if (rc) {
 		dev_err(&connection->bundle->dev,
 			"failed to find %s firmware (%d)\n", firmware_name, rc);
@@ -187,7 +188,8 @@ static int find_firmware(struct gb_bootrom *bootrom, u8 stage)
 static int gb_bootrom_firmware_size_request(struct gb_operation *op)
 {
 	struct gb_bootrom *bootrom = gb_connection_get_data(op->connection);
-	struct gb_bootrom_firmware_size_request *size_request = op->request->payload;
+	struct gb_bootrom_firmware_size_request *size_request =
+		op->request->payload;
 	struct gb_bootrom_firmware_size_response *size_response;
 	struct device *dev = &op->connection->bundle->dev;
 	int ret;
@@ -220,7 +222,8 @@ static int gb_bootrom_firmware_size_request(struct gb_operation *op)
 	size_response = op->response->payload;
 	size_response->size = cpu_to_le32(bootrom->fw->size);
 
-	dev_dbg(dev, "%s: firmware size %d bytes\n", __func__, size_response->size);
+	dev_dbg(dev, "%s: firmware size %d bytes\n",
+		__func__, size_response->size);
 
 unlock:
 	mutex_unlock(&bootrom->mutex);
@@ -272,7 +275,7 @@ static int gb_bootrom_get_firmware(struct gb_operation *op)
 
 	if (offset >= fw->size || size > fw->size - offset) {
 		dev_warn(dev, "bad firmware request (offs = %u, size = %u)\n",
-				offset, size);
+			 offset, size);
 		ret = -EINVAL;
 		goto unlock;
 	}
@@ -287,8 +290,8 @@ static int gb_bootrom_get_firmware(struct gb_operation *op)
 	firmware_response = op->response->payload;
 	memcpy(firmware_response->data, fw->data + offset, size);
 
-	dev_dbg(dev, "responding with firmware (offs = %u, size = %u)\n", offset,
-		size);
+	dev_dbg(dev, "responding with firmware (offs = %u, size = %u)\n",
+		offset, size);
 
 unlock:
 	mutex_unlock(&bootrom->mutex);
@@ -385,15 +388,15 @@ static int gb_bootrom_get_version(struct gb_bootrom *bootrom)
 				sizeof(response));
 	if (ret) {
 		dev_err(&bundle->dev,
-				"failed to get protocol version: %d\n",
-				ret);
+			"failed to get protocol version: %d\n",
+			ret);
 		return ret;
 	}
 
 	if (response.major > request.major) {
 		dev_err(&bundle->dev,
-				"unsupported major protocol version (%u > %u)\n",
-				response.major, request.major);
+			"unsupported major protocol version (%u > %u)\n",
+			response.major, request.major);
 		return -ENOTSUPP;
 	}
 
@@ -401,13 +404,13 @@ static int gb_bootrom_get_version(struct gb_bootrom *bootrom)
 	bootrom->protocol_minor = response.minor;
 
 	dev_dbg(&bundle->dev, "%s - %u.%u\n", __func__, response.major,
-			response.minor);
+		response.minor);
 
 	return 0;
 }
 
 static int gb_bootrom_probe(struct gb_bundle *bundle,
-					const struct greybus_bundle_id *id)
+			    const struct greybus_bundle_id *id)
 {
 	struct greybus_descriptor_cport *cport_desc;
 	struct gb_connection *connection;
@@ -426,8 +429,8 @@ static int gb_bootrom_probe(struct gb_bundle *bundle,
 		return -ENOMEM;
 
 	connection = gb_connection_create(bundle,
-						le16_to_cpu(cport_desc->id),
-						gb_bootrom_request_handler);
+					  le16_to_cpu(cport_desc->id),
+					  gb_bootrom_request_handler);
 	if (IS_ERR(connection)) {
 		ret = PTR_ERR(connection);
 		goto err_free_bootrom;
@@ -464,7 +467,7 @@ static int gb_bootrom_probe(struct gb_bundle *bundle,
 				NULL, 0);
 	if (ret) {
 		dev_err(&connection->bundle->dev,
-				"failed to send AP READY: %d\n", ret);
+			"failed to send AP READY: %d\n", ret);
 		goto err_cancel_timeout;
 	}
 

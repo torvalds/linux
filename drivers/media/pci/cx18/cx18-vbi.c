@@ -1,24 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  cx18 Vertical Blank Interval support functions
  *
  *  Derived from ivtv-vbi.c
  *
  *  Copyright (C) 2007  Hans Verkuil <hverkuil@xs4all.nl>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
- *  02111-1307  USA
  */
 
 #include "cx18-driver.h"
@@ -29,7 +15,7 @@
 /*
  * Raster Reference/Protection (RP) bytes, used in Start/End Active
  * Video codes emitted from the digitzer in VIP 1.x mode, that flag the start
- * of VBI sample or VBI ancillary data regions in the digitial ratser line.
+ * of VBI sample or VBI ancillary data regions in the digital ratser line.
  *
  * Task FieldEven VerticalBlank HorizontalBlank 0 0 0 0
  */
@@ -52,7 +38,7 @@ static void copy_vbi_data(struct cx18 *cx, int lines, u32 pts_stamp)
 		0x00, 0x00, 0x01, 0xbd,		    /* Priv Stream 1 start */
 		0x00, 0x1a,			    /* length */
 		0x84, 0x80, 0x07,		    /* flags, hdr data len */
-		0x21, 0x00, 0x5d, 0x63, 0xa7, 	    /* PTS, markers */
+		0x21, 0x00, 0x5d, 0x63, 0xa7,	    /* PTS, markers */
 		0xff, 0xff			    /* stuffing */
 	};
 	const int sd = sizeof(mpeg_hdr_data);	/* start of vbi data */

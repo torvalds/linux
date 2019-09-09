@@ -1,10 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <stdio.h>
 #include <linux/bpf.h>
 #include <unistd.h>
 #include <linux/filter.h>
 #include <linux/seccomp.h>
 #include <sys/prctl.h>
-#include "libbpf.h"
+#include <bpf/bpf.h>
 #include "bpf_load.h"
 #include <sys/resource.h>
 

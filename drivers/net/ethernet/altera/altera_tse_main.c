@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Altera Triple-Speed Ethernet MAC driver
  * Copyright (C) 2008-2014 Altera Corporation. All rights reserved
  *
@@ -14,18 +15,6 @@
  *
  * Original driver contributed by SLS.
  * Major updates contributed by GlobalLogic
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/atomic.h>
@@ -37,6 +26,7 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/mii.h>
 #include <linux/netdevice.h>
 #include <linux/of_device.h>
 #include <linux/of_mdio.h>
@@ -55,7 +45,7 @@
 static atomic_t instance_count = ATOMIC_INIT(~0);
 /* Module parameters */
 static int debug = -1;
-module_param(debug, int, S_IRUGO | S_IWUSR);
+module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Message Level (-1: default, 0: no output, 16: all)");
 
 static const u32 default_msg_level = (NETIF_MSG_DRV | NETIF_MSG_PROBE |
@@ -64,12 +54,12 @@ static const u32 default_msg_level = (NETIF_MSG_DRV | NETIF_MSG_PROBE |
 
 #define RX_DESCRIPTORS 64
 static int dma_rx_num = RX_DESCRIPTORS;
-module_param(dma_rx_num, int, S_IRUGO | S_IWUSR);
+module_param(dma_rx_num, int, 0644);
 MODULE_PARM_DESC(dma_rx_num, "Number of descriptors in the RX list");
 
 #define TX_DESCRIPTORS 64
 static int dma_tx_num = TX_DESCRIPTORS;
-module_param(dma_tx_num, int, S_IRUGO | S_IWUSR);
+module_param(dma_tx_num, int, 0644);
 MODULE_PARM_DESC(dma_tx_num, "Number of descriptors in the TX list");
 
 
@@ -94,6 +84,27 @@ static const struct of_device_id altera_tse_ids[];
 static inline u32 tse_tx_avail(struct altera_tse_private *priv)
 {
 	return priv->tx_cons + priv->tx_ring_size - priv->tx_prod - 1;
+}
+
+/* PCS Register read/write functions
+ */
+static u16 sgmii_pcs_read(struct altera_tse_private *priv, int regnum)
+{
+	return csrrd32(priv->mac_dev,
+		       tse_csroffs(mdio_phy0) + regnum * 4) & 0xffff;
+}
+
+static void sgmii_pcs_write(struct altera_tse_private *priv, int regnum,
+				u16 value)
+{
+	csrwr32(value, priv->mac_dev, tse_csroffs(mdio_phy0) + regnum * 4);
+}
+
+/* Check PCS scratch memory */
+static int sgmii_pcs_scratch_test(struct altera_tse_private *priv, u16 value)
+{
+	sgmii_pcs_write(priv, SGMII_PCS_SCRATCH, value);
+	return (sgmii_pcs_read(priv, SGMII_PCS_SCRATCH) == value);
 }
 
 /* MDIO specific functions
@@ -400,12 +411,6 @@ static int tse_rx(struct altera_tse_private *priv, int limit)
 
 		skb_put(skb, pktlength);
 
-		/* make cache consistent with receive packet buffer */
-		dma_sync_single_for_cpu(priv->device,
-					priv->rx_ring[entry].dma_addr,
-					priv->rx_ring[entry].len,
-					DMA_FROM_DEVICE);
-
 		dma_unmap_single(priv->device, priv->rx_ring[entry].dma_addr,
 				 priv->rx_ring[entry].len, DMA_FROM_DEVICE);
 
@@ -469,7 +474,6 @@ static int tse_tx_complete(struct altera_tse_private *priv)
 
 	if (unlikely(netif_queue_stopped(priv->dev) &&
 		     tse_tx_avail(priv) > TSE_TX_THRESH(priv))) {
-		netif_tx_lock(priv->dev);
 		if (netif_queue_stopped(priv->dev) &&
 		    tse_tx_avail(priv) > TSE_TX_THRESH(priv)) {
 			if (netif_msg_tx_done(priv))
@@ -477,7 +481,6 @@ static int tse_tx_complete(struct altera_tse_private *priv)
 					   __func__);
 			netif_wake_queue(priv->dev);
 		}
-		netif_tx_unlock(priv->dev);
 	}
 
 	spin_unlock(&priv->tx_lock);
@@ -499,7 +502,7 @@ static int tse_poll(struct napi_struct *napi, int budget)
 
 	if (rxcomplete < budget) {
 
-		napi_complete(napi);
+		napi_complete_done(napi, rxcomplete);
 
 		netdev_dbg(priv->dev,
 			   "NAPI Complete, did %d packets with budget %d\n",
@@ -591,10 +594,6 @@ static int tse_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	buffer->skb = skb;
 	buffer->dma_addr = dma_addr;
 	buffer->len = nopaged_len;
-
-	/* Push data out of the cache hierarchy into main memory */
-	dma_sync_single_for_device(priv->device, buffer->dma_addr,
-				   buffer->len, DMA_TO_DEVICE);
 
 	priv->dmaops->tx_buffer(priv, buffer);
 
@@ -704,8 +703,10 @@ static struct phy_device *connect_local_phy(struct net_device *dev)
 
 		phydev = phy_connect(dev, phy_id_fmt, &altera_tse_adjust_link,
 				     priv->phy_iface);
-		if (IS_ERR(phydev))
+		if (IS_ERR(phydev)) {
 			netdev_err(dev, "Could not attach to PHY\n");
+			phydev = NULL;
+		}
 
 	} else {
 		int ret;
@@ -819,17 +820,16 @@ static int init_phy(struct net_device *dev)
 
 	if (!phydev) {
 		netdev_err(dev, "Could not find the PHY\n");
+		if (fixed_link)
+			of_phy_deregister_fixed_link(priv->device->of_node);
 		return -ENODEV;
 	}
 
 	/* Stop Advertising 1000BASE Capability if interface is not GMII
-	 * Note: Checkpatch throws CHECKs for the camel case defines below,
-	 * it's ok to ignore.
 	 */
 	if ((priv->phy_iface == PHY_INTERFACE_MODE_MII) ||
 	    (priv->phy_iface == PHY_INTERFACE_MODE_RMII))
-		phydev->advertising &= ~(SUPPORTED_1000baseT_Half |
-					 SUPPORTED_1000baseT_Full);
+		phy_set_max_speed(phydev, SPEED_100);
 
 	/* Broken HW is sometimes missing the pull-up resistor on the
 	 * MDIO line, which results in reads to non-existent devices returning
@@ -994,18 +994,9 @@ static void tse_set_mac(struct altera_tse_private *priv, bool enable)
  */
 static int tse_change_mtu(struct net_device *dev, int new_mtu)
 {
-	struct altera_tse_private *priv = netdev_priv(dev);
-	unsigned int max_mtu = priv->max_mtu;
-	unsigned int min_mtu = ETH_ZLEN + ETH_FCS_LEN;
-
 	if (netif_running(dev)) {
 		netdev_err(dev, "must be stopped to change its MTU\n");
 		return -EBUSY;
-	}
-
-	if ((new_mtu < min_mtu) || (new_mtu > max_mtu)) {
-		netdev_err(dev, "invalid MTU, max MTU is: %u\n", max_mtu);
-		return -EINVAL;
 	}
 
 	dev->mtu = new_mtu;
@@ -1092,6 +1083,66 @@ static void tse_set_rx_mode(struct net_device *dev)
 	spin_unlock(&priv->mac_cfg_lock);
 }
 
+/* Initialise (if necessary) the SGMII PCS component
+ */
+static int init_sgmii_pcs(struct net_device *dev)
+{
+	struct altera_tse_private *priv = netdev_priv(dev);
+	int n;
+	unsigned int tmp_reg = 0;
+
+	if (priv->phy_iface != PHY_INTERFACE_MODE_SGMII)
+		return 0; /* Nothing to do, not in SGMII mode */
+
+	/* The TSE SGMII PCS block looks a little like a PHY, it is
+	 * mapped into the zeroth MDIO space of the MAC and it has
+	 * ID registers like a PHY would.  Sadly this is often
+	 * configured to zeroes, so don't be surprised if it does
+	 * show 0x00000000.
+	 */
+
+	if (sgmii_pcs_scratch_test(priv, 0x0000) &&
+		sgmii_pcs_scratch_test(priv, 0xffff) &&
+		sgmii_pcs_scratch_test(priv, 0xa5a5) &&
+		sgmii_pcs_scratch_test(priv, 0x5a5a)) {
+		netdev_info(dev, "PCS PHY ID: 0x%04x%04x\n",
+				sgmii_pcs_read(priv, MII_PHYSID1),
+				sgmii_pcs_read(priv, MII_PHYSID2));
+	} else {
+		netdev_err(dev, "SGMII PCS Scratch memory test failed.\n");
+		return -ENOMEM;
+	}
+
+	/* Starting on page 5-29 of the MegaCore Function User Guide
+	 * Set SGMII Link timer to 1.6ms
+	 */
+	sgmii_pcs_write(priv, SGMII_PCS_LINK_TIMER_0, 0x0D40);
+	sgmii_pcs_write(priv, SGMII_PCS_LINK_TIMER_1, 0x03);
+
+	/* Enable SGMII Interface and Enable SGMII Auto Negotiation */
+	sgmii_pcs_write(priv, SGMII_PCS_IF_MODE, 0x3);
+
+	/* Enable Autonegotiation */
+	tmp_reg = sgmii_pcs_read(priv, MII_BMCR);
+	tmp_reg |= (BMCR_SPEED1000 | BMCR_FULLDPLX | BMCR_ANENABLE);
+	sgmii_pcs_write(priv, MII_BMCR, tmp_reg);
+
+	/* Reset PCS block */
+	tmp_reg |= BMCR_RESET;
+	sgmii_pcs_write(priv, MII_BMCR, tmp_reg);
+	for (n = 0; n < SGMII_PCS_SW_RESET_TIMEOUT; n++) {
+		if (!(sgmii_pcs_read(priv, MII_BMCR) & BMCR_RESET)) {
+			netdev_info(dev, "SGMII PCS block initialised OK\n");
+			return 0;
+		}
+		udelay(1);
+	}
+
+	/* We failed to reset the block, return a timeout */
+	netdev_err(dev, "SGMII PCS block reset failed.\n");
+	return -ETIMEDOUT;
+}
+
 /* Open and initialize the interface
  */
 static int tse_open(struct net_device *dev)
@@ -1116,6 +1167,15 @@ static int tse_open(struct net_device *dev)
 		netdev_warn(dev, "TSE revision %x\n", priv->revision);
 
 	spin_lock(&priv->mac_cfg_lock);
+	/* no-op if MAC not operating in SGMII mode*/
+	ret = init_sgmii_pcs(dev);
+	if (ret) {
+		netdev_err(dev,
+			   "Cannot init the SGMII PCS (error: %d)\n", ret);
+		spin_unlock(&priv->mac_cfg_lock);
+		goto phy_error;
+	}
+
 	ret = reset_mac(priv);
 	/* Note that reset_mac will fail if the clocks are gated by the PHY
 	 * due to the PHY being put into isolation or power down mode.
@@ -1338,11 +1398,13 @@ static int altera_tse_probe(struct platform_device *pdev)
 		if (upper_32_bits(priv->rxdescmem_busaddr)) {
 			dev_dbg(priv->device,
 				"SGDMA bus addresses greater than 32-bits\n");
+			ret = -EINVAL;
 			goto err_free_netdev;
 		}
 		if (upper_32_bits(priv->txdescmem_busaddr)) {
 			dev_dbg(priv->device,
 				"SGDMA bus addresses greater than 32-bits\n");
+			ret = -EINVAL;
 			goto err_free_netdev;
 		}
 	} else if (priv->dmaops &&
@@ -1446,15 +1508,16 @@ static int altera_tse_probe(struct platform_device *pdev)
 		of_property_read_bool(pdev->dev.of_node,
 				      "altr,has-supplementary-unicast");
 
+	priv->dev->min_mtu = ETH_ZLEN + ETH_FCS_LEN;
 	/* Max MTU is 1500, ETH_DATA_LEN */
-	priv->max_mtu = ETH_DATA_LEN;
+	priv->dev->max_mtu = ETH_DATA_LEN;
 
 	/* Get the max mtu from the device tree. Note that the
 	 * "max-frame-size" parameter is actually max mtu. Definition
 	 * in the ePAPR v1.1 spec and usage differ, so go with usage.
 	 */
 	of_property_read_u32(pdev->dev.of_node, "max-frame-size",
-			     &priv->max_mtu);
+			     &priv->dev->max_mtu);
 
 	/* The DMA buffer size already accounts for an alignment bias
 	 * to avoid unaligned access exceptions for the NIOS processor,
@@ -1463,7 +1526,7 @@ static int altera_tse_probe(struct platform_device *pdev)
 
 	/* get default MAC address from device tree */
 	macaddr = of_get_mac_address(pdev->dev.of_node);
-	if (macaddr)
+	if (!IS_ERR(macaddr))
 		ether_addr_copy(ndev->dev_addr, macaddr);
 	else
 		eth_hw_addr_random(ndev);
@@ -1545,9 +1608,14 @@ err_free_netdev:
 static int altera_tse_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
+	struct altera_tse_private *priv = netdev_priv(ndev);
 
-	if (ndev->phydev)
+	if (ndev->phydev) {
 		phy_disconnect(ndev->phydev);
+
+		if (of_phy_is_fixed_link(priv->device->of_node))
+			of_phy_deregister_fixed_link(priv->device->of_node);
+	}
 
 	platform_set_drvdata(pdev, NULL);
 	altera_tse_mdio_destroy(ndev);

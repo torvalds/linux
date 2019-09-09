@@ -1,25 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 #ifndef __SOUND_INFO_H
 #define __SOUND_INFO_H
 
 /*
  *  Header file for info interface
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
- *
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <linux/poll.h>
@@ -62,7 +47,7 @@ struct snd_info_entry_ops {
 	loff_t (*llseek)(struct snd_info_entry *entry,
 			 void *file_private_data, struct file *file,
 			 loff_t offset, int orig);
-	unsigned int (*poll)(struct snd_info_entry *entry,
+	__poll_t (*poll)(struct snd_info_entry *entry,
 			     void *file_private_data, struct file *file,
 			     poll_table *wait);
 	int (*ioctl)(struct snd_info_entry *entry, void *file_private_data,
@@ -82,7 +67,6 @@ struct snd_info_entry {
 		struct snd_info_entry_ops *ops;
 	} c;
 	struct snd_info_entry *parent;
-	struct snd_card *card;
 	struct module *module;
 	void *private_data;
 	void (*private_free)(struct snd_info_entry *entry);
@@ -160,6 +144,13 @@ static inline void snd_info_set_text_ops(struct snd_info_entry *entry,
 	entry->c.text.read = read;
 }
 
+int snd_card_rw_proc_new(struct snd_card *card, const char *name,
+			 void *private_data,
+			 void (*read)(struct snd_info_entry *,
+				      struct snd_info_buffer *),
+			 void (*write)(struct snd_info_entry *entry,
+				       struct snd_info_buffer *buffer));
+
 int snd_info_check_reserved_words(const char *str);
 
 #else
@@ -189,9 +180,37 @@ static inline int snd_card_proc_new(struct snd_card *card, const char *name,
 static inline void snd_info_set_text_ops(struct snd_info_entry *entry __attribute__((unused)),
 					 void *private_data,
 					 void (*read)(struct snd_info_entry *, struct snd_info_buffer *)) {}
+static inline int snd_card_rw_proc_new(struct snd_card *card, const char *name,
+				       void *private_data,
+				       void (*read)(struct snd_info_entry *,
+						    struct snd_info_buffer *),
+				       void (*write)(struct snd_info_entry *entry,
+						     struct snd_info_buffer *buffer))
+{
+	return 0;
+}
 static inline int snd_info_check_reserved_words(const char *str) { return 1; }
 
 #endif
+
+/**
+ * snd_card_ro_proc_new - Create a read-only text proc file entry for the card
+ * @card: the card instance
+ * @name: the file name
+ * @private_data: the arbitrary private data
+ * @read: the read callback
+ *
+ * This proc file entry will be registered via snd_card_register() call, and
+ * it will be removed automatically at the card removal, too.
+ */
+static inline int
+snd_card_ro_proc_new(struct snd_card *card, const char *name,
+		     void *private_data,
+		     void (*read)(struct snd_info_entry *,
+				  struct snd_info_buffer *))
+{
+	return snd_card_rw_proc_new(card, name, private_data, read, NULL);
+}
 
 /*
  * OSS info part

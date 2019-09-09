@@ -1,8 +1,9 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menuconfig MTD_UBI
 	tristate "Enable UBI - Unsorted block images"
 	select CRC32
 	help
-	  UBI is a software layer above MTD layer which admits of LVM-like
+	  UBI is a software layer above MTD layer which admits use of LVM-like
 	  logical volumes on top of MTD devices, hides some complexities of
 	  flash chips like wear and bad blocks and provides some other useful
 	  capabilities. Please, consult the MTD web site for more details

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config SND_AOA_ONYX
 	tristate "support Onyx chip"
 	select I2C

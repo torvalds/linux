@@ -1,16 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	IPV6 GSO/GRO offload support
  *	Linux INET6 implementation
- *
- *	This program is free software; you can redistribute it and/or
- *      modify it under the terms of the GNU General Public License
- *      as published by the Free Software Foundation; either version
- *      2 of the License, or (at your option) any later version.
  *
  *      UDPv6 GSO support
  */
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
+#include <linux/indirect_call_wrapper.h>
 #include <net/protocol.h>
 #include <net/ipv6.h>
 #include <net/udp.h>
@@ -29,23 +26,11 @@ static struct sk_buff *udp6_ufo_fragment(struct sk_buff *skb,
 	u8 frag_hdr_sz = sizeof(struct frag_hdr);
 	__wsum csum;
 	int tnl_hlen;
+	int err;
 
 	mss = skb_shinfo(skb)->gso_size;
 	if (unlikely(skb->len <= mss))
 		goto out;
-
-	if (skb_gso_ok(skb, features | NETIF_F_GSO_ROBUST)) {
-		/* Packet is from an untrusted source, reset gso_segs. */
-
-		skb_shinfo(skb)->gso_segs = DIV_ROUND_UP(skb->len, mss);
-
-		/* Set the IPv6 fragment id if not set yet */
-		if (!skb_shinfo(skb)->ip6_frag_id)
-			ipv6_proxy_select_ident(dev_net(skb->dev), skb);
-
-		segs = NULL;
-		goto out;
-	}
 
 	if (skb->encapsulation && skb_shinfo(skb)->gso_type &
 	    (SKB_GSO_UDP_TUNNEL|SKB_GSO_UDP_TUNNEL_CSUM))
@@ -54,8 +39,14 @@ static struct sk_buff *udp6_ufo_fragment(struct sk_buff *skb,
 		const struct ipv6hdr *ipv6h;
 		struct udphdr *uh;
 
+		if (!(skb_shinfo(skb)->gso_type & (SKB_GSO_UDP | SKB_GSO_UDP_L4)))
+			goto out;
+
 		if (!pskb_may_pull(skb, sizeof(struct udphdr)))
 			goto out;
+
+		if (skb_shinfo(skb)->gso_type & SKB_GSO_UDP_L4)
+			return __udp_gso_segment(skb, features);
 
 		/* Do software UFO. Complete and fill in the UDP checksum as HW cannot
 		 * do checksum of UDP packets sent as multiple IP fragments.
@@ -71,7 +62,7 @@ static struct sk_buff *udp6_ufo_fragment(struct sk_buff *skb,
 		if (uh->check == 0)
 			uh->check = CSUM_MANGLED_0;
 
-		skb->ip_summed = CHECKSUM_NONE;
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
 
 		/* If there is no outer header we can fake a checksum offload
 		 * due to the fact that we have already done the checksum in
@@ -90,7 +81,10 @@ static struct sk_buff *udp6_ufo_fragment(struct sk_buff *skb,
 		/* Find the unfragmentable header and shift it left by frag_hdr_sz
 		 * bytes to insert fragment header.
 		 */
-		unfrag_ip6hlen = ip6_find_1stfragopt(skb, &prevhdr);
+		err = ip6_find_1stfragopt(skb, &prevhdr);
+		if (err < 0)
+			return ERR_PTR(err);
+		unfrag_ip6hlen = err;
 		nexthdr = *prevhdr;
 		*prevhdr = NEXTHDR_FRAGMENT;
 		unfrag_len = (skb_network_header(skb) - skb_mac_header(skb)) +
@@ -105,9 +99,7 @@ static struct sk_buff *udp6_ufo_fragment(struct sk_buff *skb,
 		fptr = (struct frag_hdr *)(skb_network_header(skb) + unfrag_ip6hlen);
 		fptr->nexthdr = nexthdr;
 		fptr->reserved = 0;
-		if (!skb_shinfo(skb)->ip6_frag_id)
-			ipv6_proxy_select_ident(dev_net(skb->dev), skb);
-		fptr->identification = skb_shinfo(skb)->ip6_frag_id;
+		fptr->identification = ipv6_proxy_select_ident(dev_net(skb->dev), skb);
 
 		/* Fragment the skb. ipv6 header and the remaining fields of the
 		 * fragment header are updated in ipv6_gso_segment()
@@ -119,12 +111,12 @@ out:
 	return segs;
 }
 
-static struct sk_buff **udp6_gro_receive(struct sk_buff **head,
-					 struct sk_buff *skb)
+INDIRECT_CALLABLE_SCOPE
+struct sk_buff *udp6_gro_receive(struct list_head *head, struct sk_buff *skb)
 {
 	struct udphdr *uh = udp_gro_udphdr(skb);
 
-	if (unlikely(!uh))
+	if (unlikely(!uh) || !static_branch_unlikely(&udpv6_encap_needed_key))
 		goto flush;
 
 	/* Don't bother verifying checksum if we're going to flush anyway. */
@@ -147,18 +139,14 @@ flush:
 	return NULL;
 }
 
-static int udp6_gro_complete(struct sk_buff *skb, int nhoff)
+INDIRECT_CALLABLE_SCOPE int udp6_gro_complete(struct sk_buff *skb, int nhoff)
 {
 	const struct ipv6hdr *ipv6h = ipv6_hdr(skb);
 	struct udphdr *uh = (struct udphdr *)(skb->data + nhoff);
 
-	if (uh->check) {
-		skb_shinfo(skb)->gso_type |= SKB_GSO_UDP_TUNNEL_CSUM;
+	if (uh->check)
 		uh->check = ~udp_v6_check(skb->len - nhoff, &ipv6h->saddr,
 					  &ipv6h->daddr, 0);
-	} else {
-		skb_shinfo(skb)->gso_type |= SKB_GSO_UDP_TUNNEL;
-	}
 
 	return udp_gro_complete(skb, nhoff, udp6_lib_lookup_skb);
 }

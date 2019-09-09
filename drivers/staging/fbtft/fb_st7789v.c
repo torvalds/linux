@@ -1,17 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * FB driver for the ST7789V LCD Controller
  *
  * Copyright (C) 2015 Dennis Menschel
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/bitops.h>
@@ -178,7 +169,7 @@ static int set_var(struct fbtft_par *par)
  *
  * Return: 0 on success, < 0 if error occurred.
  */
-static int set_gamma(struct fbtft_par *par, unsigned long *curves)
+static int set_gamma(struct fbtft_par *par, u32 *curves)
 {
 	int i;
 	int j;
@@ -189,7 +180,7 @@ static int set_gamma(struct fbtft_par *par, unsigned long *curves)
 	 * The masks are the same for both positive and negative voltage
 	 * gamma curves.
 	 */
-	const u8 gamma_par_mask[] = {
+	static const u8 gamma_par_mask[] = {
 		0xFF, /* V63[3:0], V0[3:0]*/
 		0x3F, /* V1[5:0] */
 		0x3F, /* V2[5:0] */
@@ -210,13 +201,12 @@ static int set_gamma(struct fbtft_par *par, unsigned long *curves)
 		c = i * par->gamma.num_values;
 		for (j = 0; j < par->gamma.num_values; j++)
 			curves[c + j] &= gamma_par_mask[j];
-		write_reg(
-			par, PVGAMCTRL + i,
-			curves[c + 0], curves[c + 1], curves[c + 2],
-			curves[c + 3], curves[c + 4], curves[c + 5],
-			curves[c + 6], curves[c + 7], curves[c + 8],
-			curves[c + 9], curves[c + 10], curves[c + 11],
-			curves[c + 12], curves[c + 13]);
+		write_reg(par, PVGAMCTRL + i,
+			  curves[c + 0],  curves[c + 1],  curves[c + 2],
+			  curves[c + 3],  curves[c + 4],  curves[c + 5],
+			  curves[c + 6],  curves[c + 7],  curves[c + 8],
+			  curves[c + 9],  curves[c + 10], curves[c + 11],
+			  curves[c + 12], curves[c + 13]);
 	}
 	return 0;
 }

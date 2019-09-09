@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2, as
@@ -30,7 +31,7 @@
  * Struct fields are always 32 or 64 bit aligned, depending on them being 32
  * or 64 bit wide respectively.
  *
- * See Documentation/virtual/kvm/ppc-pv.txt
+ * See Documentation/virt/kvm/ppc-pv.txt
  */
 struct kvm_vcpu_arch_shared {
 	__u64 scratch1;

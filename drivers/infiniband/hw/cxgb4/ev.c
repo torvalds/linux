@@ -47,17 +47,16 @@ static void print_tpte(struct c4iw_dev *dev, u32 stag)
 			"%s cxgb4_read_tpte err %d\n", __func__, ret);
 		return;
 	}
-	PDBG("stag idx 0x%x valid %d key 0x%x state %d pdid %d "
-	       "perm 0x%x ps %d len 0x%llx va 0x%llx\n",
-	       stag & 0xffffff00,
-	       FW_RI_TPTE_VALID_G(ntohl(tpte.valid_to_pdid)),
-	       FW_RI_TPTE_STAGKEY_G(ntohl(tpte.valid_to_pdid)),
-	       FW_RI_TPTE_STAGSTATE_G(ntohl(tpte.valid_to_pdid)),
-	       FW_RI_TPTE_PDID_G(ntohl(tpte.valid_to_pdid)),
-	       FW_RI_TPTE_PERM_G(ntohl(tpte.locread_to_qpid)),
-	       FW_RI_TPTE_PS_G(ntohl(tpte.locread_to_qpid)),
-	       ((u64)ntohl(tpte.len_hi) << 32) | ntohl(tpte.len_lo),
-	       ((u64)ntohl(tpte.va_hi) << 32) | ntohl(tpte.va_lo_fbo));
+	pr_debug("stag idx 0x%x valid %d key 0x%x state %d pdid %d perm 0x%x ps %d len 0x%llx va 0x%llx\n",
+		 stag & 0xffffff00,
+		 FW_RI_TPTE_VALID_G(ntohl(tpte.valid_to_pdid)),
+		 FW_RI_TPTE_STAGKEY_G(ntohl(tpte.valid_to_pdid)),
+		 FW_RI_TPTE_STAGSTATE_G(ntohl(tpte.valid_to_pdid)),
+		 FW_RI_TPTE_PDID_G(ntohl(tpte.valid_to_pdid)),
+		 FW_RI_TPTE_PERM_G(ntohl(tpte.locread_to_qpid)),
+		 FW_RI_TPTE_PS_G(ntohl(tpte.locread_to_qpid)),
+		 ((u64)ntohl(tpte.len_hi) << 32) | ntohl(tpte.len_lo),
+		 ((u64)ntohl(tpte.va_hi) << 32) | ntohl(tpte.va_lo_fbo));
 }
 
 static void dump_err_cqe(struct c4iw_dev *dev, struct t4_cqe *err_cqe)
@@ -71,9 +70,10 @@ static void dump_err_cqe(struct c4iw_dev *dev, struct t4_cqe *err_cqe)
 		CQE_STATUS(err_cqe), CQE_TYPE(err_cqe), ntohl(err_cqe->len),
 		CQE_WRID_HI(err_cqe), CQE_WRID_LOW(err_cqe));
 
-	PDBG("%016llx %016llx %016llx %016llx\n",
-	     be64_to_cpu(p[0]), be64_to_cpu(p[1]), be64_to_cpu(p[2]),
-	     be64_to_cpu(p[3]));
+	pr_debug("%016llx %016llx %016llx %016llx - %016llx %016llx %016llx %016llx\n",
+		 be64_to_cpu(p[0]), be64_to_cpu(p[1]), be64_to_cpu(p[2]),
+		 be64_to_cpu(p[3]), be64_to_cpu(p[4]), be64_to_cpu(p[5]),
+		 be64_to_cpu(p[6]), be64_to_cpu(p[7]));
 
 	/*
 	 * Ingress WRITE and READ_RESP errors provide
@@ -110,9 +110,11 @@ static void post_qp_event(struct c4iw_dev *dev, struct c4iw_cq *chp,
 	if (qhp->ibqp.event_handler)
 		(*qhp->ibqp.event_handler)(&event, qhp->ibqp.qp_context);
 
-	spin_lock_irqsave(&chp->comp_handler_lock, flag);
-	(*chp->ibcq.comp_handler)(&chp->ibcq, chp->ibcq.cq_context);
-	spin_unlock_irqrestore(&chp->comp_handler_lock, flag);
+	if (t4_clear_cq_armed(&chp->cq)) {
+		spin_lock_irqsave(&chp->comp_handler_lock, flag);
+		(*chp->ibcq.comp_handler)(&chp->ibcq, chp->ibcq.cq_context);
+		spin_unlock_irqrestore(&chp->comp_handler_lock, flag);
+	}
 }
 
 void c4iw_ev_dispatch(struct c4iw_dev *dev, struct t4_cqe *err_cqe)
@@ -121,16 +123,15 @@ void c4iw_ev_dispatch(struct c4iw_dev *dev, struct t4_cqe *err_cqe)
 	struct c4iw_qp *qhp;
 	u32 cqid;
 
-	spin_lock_irq(&dev->lock);
-	qhp = get_qhp(dev, CQE_QPID(err_cqe));
+	xa_lock_irq(&dev->qps);
+	qhp = xa_load(&dev->qps, CQE_QPID(err_cqe));
 	if (!qhp) {
-		printk(KERN_ERR MOD "BAD AE qpid 0x%x opcode %d "
-		       "status 0x%x type %d wrid.hi 0x%x wrid.lo 0x%x\n",
+		pr_err("BAD AE qpid 0x%x opcode %d status 0x%x type %d wrid.hi 0x%x wrid.lo 0x%x\n",
 		       CQE_QPID(err_cqe),
 		       CQE_OPCODE(err_cqe), CQE_STATUS(err_cqe),
 		       CQE_TYPE(err_cqe), CQE_WRID_HI(err_cqe),
 		       CQE_WRID_LOW(err_cqe));
-		spin_unlock_irq(&dev->lock);
+		xa_unlock_irq(&dev->qps);
 		goto out;
 	}
 
@@ -140,19 +141,18 @@ void c4iw_ev_dispatch(struct c4iw_dev *dev, struct t4_cqe *err_cqe)
 		cqid = qhp->attr.rcq;
 	chp = get_chp(dev, cqid);
 	if (!chp) {
-		printk(KERN_ERR MOD "BAD AE cqid 0x%x qpid 0x%x opcode %d "
-		       "status 0x%x type %d wrid.hi 0x%x wrid.lo 0x%x\n",
+		pr_err("BAD AE cqid 0x%x qpid 0x%x opcode %d status 0x%x type %d wrid.hi 0x%x wrid.lo 0x%x\n",
 		       cqid, CQE_QPID(err_cqe),
 		       CQE_OPCODE(err_cqe), CQE_STATUS(err_cqe),
 		       CQE_TYPE(err_cqe), CQE_WRID_HI(err_cqe),
 		       CQE_WRID_LOW(err_cqe));
-		spin_unlock_irq(&dev->lock);
+		xa_unlock_irq(&dev->qps);
 		goto out;
 	}
 
 	c4iw_qp_add_ref(&qhp->ibqp);
 	atomic_inc(&chp->refcnt);
-	spin_unlock_irq(&dev->lock);
+	xa_unlock_irq(&dev->qps);
 
 	/* Bad incoming write */
 	if (RQ_TYPE(err_cqe) &&
@@ -165,7 +165,7 @@ void c4iw_ev_dispatch(struct c4iw_dev *dev, struct t4_cqe *err_cqe)
 
 	/* Completion Events */
 	case T4_ERR_SUCCESS:
-		printk(KERN_ERR MOD "AE with status 0!\n");
+		pr_err("AE with status 0!\n");
 		break;
 
 	case T4_ERR_STAG:
@@ -207,7 +207,7 @@ void c4iw_ev_dispatch(struct c4iw_dev *dev, struct t4_cqe *err_cqe)
 		break;
 
 	default:
-		printk(KERN_ERR MOD "Unknown T4 status 0x%x QPID 0x%x\n",
+		pr_err("Unknown T4 status 0x%x QPID 0x%x\n",
 		       CQE_STATUS(err_cqe), qhp->wq.sq.qid);
 		post_qp_event(dev, chp, qhp, err_cqe, IB_EVENT_QP_FATAL);
 		break;
@@ -225,11 +225,11 @@ int c4iw_ev_handler(struct c4iw_dev *dev, u32 qid)
 	struct c4iw_cq *chp;
 	unsigned long flag;
 
-	spin_lock_irqsave(&dev->lock, flag);
-	chp = get_chp(dev, qid);
+	xa_lock_irqsave(&dev->cqs, flag);
+	chp = xa_load(&dev->cqs, qid);
 	if (chp) {
 		atomic_inc(&chp->refcnt);
-		spin_unlock_irqrestore(&dev->lock, flag);
+		xa_unlock_irqrestore(&dev->cqs, flag);
 		t4_clear_cq_armed(&chp->cq);
 		spin_lock_irqsave(&chp->comp_handler_lock, flag);
 		(*chp->ibcq.comp_handler)(&chp->ibcq, chp->ibcq.cq_context);
@@ -237,8 +237,8 @@ int c4iw_ev_handler(struct c4iw_dev *dev, u32 qid)
 		if (atomic_dec_and_test(&chp->refcnt))
 			wake_up(&chp->wait);
 	} else {
-		PDBG("%s unknown cqid 0x%x\n", __func__, qid);
-		spin_unlock_irqrestore(&dev->lock, flag);
+		pr_debug("unknown cqid 0x%x\n", qid);
+		xa_unlock_irqrestore(&dev->cqs, flag);
 	}
 	return 0;
 }

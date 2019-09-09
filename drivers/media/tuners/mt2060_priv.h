@@ -1,22 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *  Driver for Microtune MT2060 "Single chip dual conversion broadband tuner"
  *
  *  Copyright (c) 2006 Olivier DANET <odanet@caramail.com>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.=
  */
 
 #ifndef MT2060_PRIV_H
@@ -95,10 +81,21 @@
 struct mt2060_priv {
 	struct mt2060_config *cfg;
 	struct i2c_adapter   *i2c;
+	struct i2c_client *client;
+	struct mt2060_config config;
 
+	u8 i2c_max_regs;
 	u32 frequency;
 	u16 if1_freq;
 	u8  fmfreq;
+
+	/*
+	 * Use REG_MISC_CTRL register for sleep. That drops sleep power usage
+	 * about 0.9W (huge!). Register bit meanings are unknown, so let it be
+	 * disabled by default to avoid possible regression. Convert driver to
+	 * i2c model in order to enable it.
+	 */
+	bool sleep;
 };
 
 #endif

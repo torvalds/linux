@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  Port on Texas Instruments TMS320C6x architecture
  *
@@ -5,10 +6,6 @@
  *  Author: Aurelien Jacquiot (aurelien.jacquiot@jaluna.com)
  *
  *  Updated for 2.6.34: Mark Salter <msalter@redhat.com>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
  */
 #ifndef _ASM_C6X_PROCESSOR_H
 #define _ASM_C6X_PROCESSOR_H
@@ -16,17 +13,6 @@
 #include <asm/ptrace.h>
 #include <asm/page.h>
 #include <asm/current.h>
-
-/*
- * Default implementation of macro that returns current
- * instruction pointer ("program counter").
- */
-#define current_text_addr()			\
-({						\
-	void *__pc;				\
-	asm("mvc .S2 pce1,%0\n" : "=b"(__pc));	\
-	__pc;					\
-})
 
 /*
  * User space process size. This is mostly meaningless for NOMMU
@@ -92,14 +78,6 @@ static inline void release_thread(struct task_struct *dead_task)
 {
 }
 
-#define copy_segments(tsk, mm)		do { } while (0)
-#define release_segments(mm)		do { } while (0)
-
-/*
- * saved PC of a blocked thread.
- */
-#define thread_saved_pc(tsk) (task_pt_regs(tsk)->pc)
-
 /*
  * saved kernel SP and DP of a blocked thread.
  */
@@ -121,7 +99,6 @@ extern unsigned long get_wchan(struct task_struct *p);
 #define KSTK_ESP(task)	(task_pt_regs(task)->sp)
 
 #define cpu_relax()		do { } while (0)
-#define cpu_relax_lowlatency()        cpu_relax()
 
 extern const struct seq_operations cpuinfo_op;
 

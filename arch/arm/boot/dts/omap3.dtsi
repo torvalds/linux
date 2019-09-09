@@ -17,6 +17,7 @@
 	interrupt-parent = <&intc>;
 	#address-cells = <1>;
 	#size-cells = <1>;
+	chosen { };
 
 	aliases {
 		i2c0 = &i2c1;
@@ -106,6 +107,7 @@
 					reg = <0x30 0x238>;
 					#address-cells = <1>;
 					#size-cells = <0>;
+					#pinctrl-cells = <1>;
 					#interrupt-cells = <1>;
 					interrupt-controller;
 					pinctrl-single,register-width = <16>;
@@ -145,6 +147,7 @@
 					reg = <0xa00 0x5c>;
 					#address-cells = <1>;
 					#size-cells = <0>;
+					#pinctrl-cells = <1>;
 					#interrupt-cells = <1>;
 					interrupt-controller;
 					pinctrl-single,register-width = <16>;
@@ -212,6 +215,7 @@
 			#dma-cells = <1>;
 			dma-channels = <32>;
 			dma-requests = <96>;
+			ti,hwmods = "dma";
 		};
 
 		gpio1: gpio@48310000 {
@@ -553,6 +557,7 @@
 			dma-names = "tx", "rx";
 			clocks = <&mcbsp4_fck>;
 			clock-names = "fck";
+			#sound-dai-cells = <0>;
 			status = "disabled";
 		};
 
@@ -581,20 +586,6 @@
 			interrupts = <49>;
 			dmas = <&sdma 69>;
 			dma-names = "rx";
-		};
-
-		smartreflex_core: smartreflex@480cb000 {
-			compatible = "ti,omap3-smartreflex-core";
-			ti,hwmods = "smartreflex_core";
-			reg = <0x480cb000 0x400>;
-			interrupts = <19>;
-		};
-
-		smartreflex_mpu_iva: smartreflex@480c9000 {
-			compatible = "ti,omap3-smartreflex-iva";
-			ti,hwmods = "smartreflex_mpu_iva";
-			reg = <0x480c9000 0x400>;
-			interrupts = <18>;
 		};
 
 		timer1: timer@48318000 {
@@ -710,14 +701,13 @@
 			usbhsohci: ohci@48064400 {
 				compatible = "ti,ohci-omap3";
 				reg = <0x48064400 0x400>;
-				interrupt-parent = <&intc>;
 				interrupts = <76>;
+				remote-wakeup-connected;
 			};
 
 			usbhsehci: ehci@48064800 {
 				compatible = "ti,ehci-omap";
 				reg = <0x48064800 0x400>;
-				interrupt-parent = <&intc>;
 				interrupts = <77>;
 			};
 		};
@@ -828,7 +818,6 @@
 				reg-names = "tx",
 					    "rx";
 
-				interrupt-parent = <&intc>;
 				interrupts = <67>,
 					     <68>;
 			};
@@ -841,7 +830,6 @@
 				reg-names = "tx",
 					    "rx";
 
-				interrupt-parent = <&intc>;
 				interrupts = <69>,
 					     <70>;
 			};

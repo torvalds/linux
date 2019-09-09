@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * VIA Camera register definitions.
  */
@@ -28,7 +29,7 @@
 #define   VCR_CI_BSS	  0x00000002  /* WTF "bit stream selection" */
 #define   VCR_CI_3BUFS	  0x00000004  /* 1 = 3 buffers, 0 = 2 buffers */
 #define   VCR_CI_VIPEN	  0x00000008  /* VIP enable */
-#define   VCR_CI_CCIR601_8  0	        /* CCIR601 input stream, 8 bit */
+#define   VCR_CI_CCIR601_8  0		/* CCIR601 input stream, 8 bit */
 #define   VCR_CI_CCIR656_8  0x00000010  /* ... CCIR656, 8 bit */
 #define   VCR_CI_CCIR601_16 0x00000020  /* ... CCIR601, 16 bit */
 #define   VCR_CI_CCIR656_16 0x00000030  /* ... CCIR656, 16 bit */

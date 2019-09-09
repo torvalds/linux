@@ -1,19 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * HCI based Driver for Inside Secure microread NFC Chip - i2c layer
  *
  * Copyright (C) 2013 Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -70,12 +59,12 @@ static void microread_i2c_add_len_crc(struct sk_buff *skb)
 	int len;
 
 	len = skb->len;
-	*skb_push(skb, 1) = len;
+	*(u8 *)skb_push(skb, 1) = len;
 
 	for (i = 0; i < skb->len; i++)
 		crc = crc ^ skb->data[i];
 
-	*skb_put(skb, 1) = crc;
+	skb_put_u8(skb, crc);
 }
 
 static void microread_i2c_remove_len_crc(struct sk_buff *skb)
@@ -173,7 +162,7 @@ static int microread_i2c_read(struct microread_i2c_phy *phy,
 		goto flush;
 	}
 
-	*skb_put(*skb, 1) = len;
+	skb_put_u8(*skb, len);
 
 	r = i2c_master_recv(client, skb_put(*skb, len), len);
 	if (r != len) {
@@ -294,7 +283,7 @@ static int microread_i2c_remove(struct i2c_client *client)
 	return 0;
 }
 
-static struct i2c_device_id microread_i2c_id[] = {
+static const struct i2c_device_id microread_i2c_id[] = {
 	{ MICROREAD_I2C_DRIVER_NAME, 0},
 	{ }
 };

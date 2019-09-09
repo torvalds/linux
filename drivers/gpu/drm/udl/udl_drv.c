@@ -1,24 +1,20 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2012 Red Hat
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License v2. See the file COPYING in the main directory of this archive for
- * more details.
  */
 
 #include <linux/module.h>
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_probe_helper.h>
 #include "udl_drv.h"
-
-static int udl_driver_set_busid(struct drm_device *d, struct drm_master *m)
-{
-	return 0;
-}
 
 static int udl_usb_suspend(struct usb_interface *interface,
 			   pm_message_t message)
 {
+	struct drm_device *dev = usb_get_intfdata(interface);
+
+	drm_kms_helper_poll_disable(dev);
 	return 0;
 }
 
@@ -26,6 +22,7 @@ static int udl_usb_resume(struct usb_interface *interface)
 {
 	struct drm_device *dev = usb_get_intfdata(interface);
 
+	drm_kms_helper_poll_enable(dev);
 	udl_modeset_restore(dev);
 	return 0;
 }
@@ -44,25 +41,28 @@ static const struct file_operations udl_driver_fops = {
 	.read = drm_read,
 	.unlocked_ioctl	= drm_ioctl,
 	.release = drm_release,
-#ifdef CONFIG_COMPAT
 	.compat_ioctl = drm_compat_ioctl,
-#endif
 	.llseek = noop_llseek,
 };
 
+static void udl_driver_release(struct drm_device *dev)
+{
+	udl_fini(dev);
+	udl_modeset_cleanup(dev);
+	drm_dev_fini(dev);
+	kfree(dev);
+}
+
 static struct drm_driver driver = {
 	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME,
-	.load = udl_driver_load,
-	.unload = udl_driver_unload,
-	.set_busid = udl_driver_set_busid,
+	.release = udl_driver_release,
 
 	/* gem hooks */
-	.gem_free_object = udl_gem_free_object,
+	.gem_free_object_unlocked = udl_gem_free_object,
 	.gem_vm_ops = &udl_gem_vm_ops,
 
 	.dumb_create = udl_dumb_create,
 	.dumb_map_offset = udl_gem_mmap,
-	.dumb_destroy = drm_gem_dumb_destroy,
 	.fops = &udl_driver_fops,
 
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
@@ -78,28 +78,56 @@ static struct drm_driver driver = {
 	.patchlevel = DRIVER_PATCHLEVEL,
 };
 
+static struct udl_device *udl_driver_create(struct usb_interface *interface)
+{
+	struct usb_device *udev = interface_to_usbdev(interface);
+	struct udl_device *udl;
+	int r;
+
+	udl = kzalloc(sizeof(*udl), GFP_KERNEL);
+	if (!udl)
+		return ERR_PTR(-ENOMEM);
+
+	r = drm_dev_init(&udl->drm, &driver, &interface->dev);
+	if (r) {
+		kfree(udl);
+		return ERR_PTR(r);
+	}
+
+	udl->udev = udev;
+	udl->drm.dev_private = udl;
+
+	r = udl_init(udl);
+	if (r) {
+		drm_dev_fini(&udl->drm);
+		kfree(udl);
+		return ERR_PTR(r);
+	}
+
+	usb_set_intfdata(interface, udl);
+	return udl;
+}
+
 static int udl_usb_probe(struct usb_interface *interface,
 			 const struct usb_device_id *id)
 {
-	struct usb_device *udev = interface_to_usbdev(interface);
-	struct drm_device *dev;
 	int r;
+	struct udl_device *udl;
 
-	dev = drm_dev_alloc(&driver, &interface->dev);
-	if (IS_ERR(dev))
-		return PTR_ERR(dev);
+	udl = udl_driver_create(interface);
+	if (IS_ERR(udl))
+		return PTR_ERR(udl);
 
-	r = drm_dev_register(dev, (unsigned long)udev);
+	r = drm_dev_register(&udl->drm, 0);
 	if (r)
 		goto err_free;
 
-	usb_set_intfdata(interface, dev);
-	DRM_INFO("Initialized udl on minor %d\n", dev->primary->index);
+	DRM_INFO("Initialized udl on minor %d\n", udl->drm.primary->index);
 
 	return 0;
 
 err_free:
-	drm_dev_unref(dev);
+	drm_dev_put(&udl->drm);
 	return r;
 }
 
@@ -110,7 +138,8 @@ static void udl_usb_disconnect(struct usb_interface *interface)
 	drm_kms_helper_poll_disable(dev);
 	udl_fbdev_unplug(dev);
 	udl_drop_usb(dev);
-	drm_unplug_dev(dev);
+	drm_dev_unplug(dev);
+	drm_dev_put(dev);
 }
 
 /*
@@ -120,7 +149,7 @@ static void udl_usb_disconnect(struct usb_interface *interface)
  * which is compatible with all known USB 2.0 era graphics chips and firmware,
  * but allows DisplayLink to increment those for any future incompatible chips
  */
-static struct usb_device_id id_table[] = {
+static const struct usb_device_id id_table[] = {
 	{.idVendor = 0x17e9, .bInterfaceClass = 0xff,
 	 .bInterfaceSubClass = 0x00,
 	 .bInterfaceProtocol = 0x00,

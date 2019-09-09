@@ -1,22 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *	w1_io.c
- *
  * Copyright (c) 2004 Evgeniy Polyakov <zbr@ioremap.net>
- *
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #include <asm/io.h>
@@ -25,8 +9,7 @@
 #include <linux/moduleparam.h>
 #include <linux/module.h>
 
-#include "w1.h"
-#include "w1_log.h"
+#include "w1_internal.h"
 
 static int w1_delay_parm = 1;
 module_param_named(delay_coef, w1_delay_parm, int, 0);
@@ -66,7 +49,7 @@ static u8 w1_read_bit(struct w1_master *dev);
  * @dev:	the master device
  * @bit:	0 - write a 0, 1 - write a 0 read the level
  */
-static u8 w1_touch_bit(struct w1_master *dev, int bit)
+u8 w1_touch_bit(struct w1_master *dev, int bit)
 {
 	if (dev->bus_master->touch_bit)
 		return dev->bus_master->touch_bit(dev->bus_master->data, bit);
@@ -77,6 +60,7 @@ static u8 w1_touch_bit(struct w1_master *dev, int bit)
 		return 0;
 	}
 }
+EXPORT_SYMBOL_GPL(w1_touch_bit);
 
 /**
  * w1_write_bit() - Generates a write-0 or write-1 cycle.
@@ -201,6 +185,7 @@ static u8 w1_read_bit(struct w1_master *dev)
  *  bit 0 = id_bit
  *  bit 1 = comp_bit
  *  bit 2 = dir_taken
+ *
  * If both bits 0 & 1 are set, the search should be restarted.
  *
  * Return:        bit fields - see above
@@ -233,6 +218,7 @@ u8 w1_triplet(struct w1_master *dev, int bdir)
 		return retval;
 	}
 }
+EXPORT_SYMBOL_GPL(w1_triplet);
 
 /**
  * w1_read_8() - Reads 8 bits.
@@ -437,8 +423,7 @@ int w1_reset_resume_command(struct w1_master *dev)
 	if (w1_reset_bus(dev))
 		return -1;
 
-	/* This will make only the last matched slave perform a skip ROM. */
-	w1_write_8(dev, W1_RESUME_CMD);
+	w1_write_8(dev, dev->slave_count > 1 ? W1_RESUME_CMD : W1_SKIP_ROM);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(w1_reset_resume_command);

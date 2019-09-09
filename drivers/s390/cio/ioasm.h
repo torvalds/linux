@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef S390_CIO_IOASM_H
 #define S390_CIO_IOASM_H
 
@@ -19,7 +20,6 @@ int ssch(struct subchannel_id schid, union orb *addr);
 int csch(struct subchannel_id schid);
 int tpi(struct tpi_info *addr);
 int chsc(void *chsc_area);
-int rchp(struct chp_id chpid);
 int rsch(struct subchannel_id schid);
 int hsch(struct subchannel_id schid);
 int xsch(struct subchannel_id schid);

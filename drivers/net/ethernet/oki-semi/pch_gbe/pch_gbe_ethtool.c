@@ -1,23 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 1999 - 2010 Intel Corporation.
  * Copyright (C) 2010 OKI SEMICONDUCTOR Co., LTD.
  *
  * This code was derived from the Intel e1000e Linux driver.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 #include "pch_gbe.h"
-#include "pch_gbe_api.h"
+#include "pch_gbe_phy.h"
 
 /**
  * pch_gbe_stats - Stats item information
@@ -73,62 +62,80 @@ static const struct pch_gbe_stats pch_gbe_gstrings_stats[] = {
 #define PCH_GBE_MAC_REGS_LEN    (sizeof(struct pch_gbe_regs) / 4)
 #define PCH_GBE_REGS_LEN        (PCH_GBE_MAC_REGS_LEN + PCH_GBE_PHY_REGS_LEN)
 /**
- * pch_gbe_get_settings - Get device-specific settings
+ * pch_gbe_get_link_ksettings - Get device-specific settings
  * @netdev: Network interface device structure
  * @ecmd:   Ethtool command
  * Returns:
  *	0:			Successful.
  *	Negative value:		Failed.
  */
-static int pch_gbe_get_settings(struct net_device *netdev,
-				 struct ethtool_cmd *ecmd)
+static int pch_gbe_get_link_ksettings(struct net_device *netdev,
+				      struct ethtool_link_ksettings *ecmd)
 {
 	struct pch_gbe_adapter *adapter = netdev_priv(netdev);
-	int ret;
+	u32 supported, advertising;
 
-	ret = mii_ethtool_gset(&adapter->mii, ecmd);
-	ecmd->supported &= ~(SUPPORTED_TP | SUPPORTED_1000baseT_Half);
-	ecmd->advertising &= ~(ADVERTISED_TP | ADVERTISED_1000baseT_Half);
+	mii_ethtool_get_link_ksettings(&adapter->mii, ecmd);
+
+	ethtool_convert_link_mode_to_legacy_u32(&supported,
+						ecmd->link_modes.supported);
+	ethtool_convert_link_mode_to_legacy_u32(&advertising,
+						ecmd->link_modes.advertising);
+
+	supported &= ~(SUPPORTED_TP | SUPPORTED_1000baseT_Half);
+	advertising &= ~(ADVERTISED_TP | ADVERTISED_1000baseT_Half);
+
+	ethtool_convert_legacy_u32_to_link_mode(ecmd->link_modes.supported,
+						supported);
+	ethtool_convert_legacy_u32_to_link_mode(ecmd->link_modes.advertising,
+						advertising);
 
 	if (!netif_carrier_ok(adapter->netdev))
-		ethtool_cmd_speed_set(ecmd, SPEED_UNKNOWN);
-	return ret;
+		ecmd->base.speed = SPEED_UNKNOWN;
+
+	return 0;
 }
 
 /**
- * pch_gbe_set_settings - Set device-specific settings
+ * pch_gbe_set_link_ksettings - Set device-specific settings
  * @netdev: Network interface device structure
  * @ecmd:   Ethtool command
  * Returns:
  *	0:			Successful.
  *	Negative value:		Failed.
  */
-static int pch_gbe_set_settings(struct net_device *netdev,
-				 struct ethtool_cmd *ecmd)
+static int pch_gbe_set_link_ksettings(struct net_device *netdev,
+				      const struct ethtool_link_ksettings *ecmd)
 {
 	struct pch_gbe_adapter *adapter = netdev_priv(netdev);
 	struct pch_gbe_hw *hw = &adapter->hw;
-	u32 speed = ethtool_cmd_speed(ecmd);
+	struct ethtool_link_ksettings copy_ecmd;
+	u32 speed = ecmd->base.speed;
+	u32 advertising;
 	int ret;
 
-	pch_gbe_hal_write_phy_reg(hw, MII_BMCR, BMCR_RESET);
+	pch_gbe_phy_write_reg_miic(hw, MII_BMCR, BMCR_RESET);
+
+	memcpy(&copy_ecmd, ecmd, sizeof(*ecmd));
 
 	/* when set_settings() is called with a ethtool_cmd previously
 	 * filled by get_settings() on a down link, speed is -1: */
 	if (speed == UINT_MAX) {
 		speed = SPEED_1000;
-		ethtool_cmd_speed_set(ecmd, speed);
-		ecmd->duplex = DUPLEX_FULL;
+		copy_ecmd.base.speed = speed;
+		copy_ecmd.base.duplex = DUPLEX_FULL;
 	}
-	ret = mii_ethtool_sset(&adapter->mii, ecmd);
+	ret = mii_ethtool_set_link_ksettings(&adapter->mii, &copy_ecmd);
 	if (ret) {
-		netdev_err(netdev, "Error: mii_ethtool_sset\n");
+		netdev_err(netdev, "Error: mii_ethtool_set_link_ksettings\n");
 		return ret;
 	}
 	hw->mac.link_speed = speed;
-	hw->mac.link_duplex = ecmd->duplex;
-	hw->phy.autoneg_advertised = ecmd->advertising;
-	hw->mac.autoneg = ecmd->autoneg;
+	hw->mac.link_duplex = copy_ecmd.base.duplex;
+	ethtool_convert_link_mode_to_legacy_u32(
+		&advertising, copy_ecmd.link_modes.advertising);
+	hw->phy.autoneg_advertised = advertising;
+	hw->mac.autoneg = copy_ecmd.base.autoneg;
 
 	/* reset the link */
 	if (netif_running(adapter->netdev)) {
@@ -186,7 +193,7 @@ static void pch_gbe_get_regs(struct net_device *netdev,
 		*regs_buff++ = ioread32(&hw->reg->INT_ST + i);
 	/* PHY register */
 	for (i = 0; i < PCH_GBE_PHY_REGS_LEN; i++) {
-		pch_gbe_hal_read_phy_reg(&adapter->hw, i, &tmp);
+		pch_gbe_phy_read_reg_miic(&adapter->hw, i, &tmp);
 		*regs_buff++ = tmp;
 	}
 }
@@ -331,25 +338,12 @@ static int pch_gbe_set_ringparam(struct net_device *netdev,
 		err = pch_gbe_setup_tx_resources(adapter, adapter->tx_ring);
 		if (err)
 			goto err_setup_tx;
-		/* save the new, restore the old in order to free it,
-		 * then restore the new back again */
-#ifdef RINGFREE
-		adapter->rx_ring = rx_old;
-		adapter->tx_ring = tx_old;
-		pch_gbe_free_rx_resources(adapter, adapter->rx_ring);
-		pch_gbe_free_tx_resources(adapter, adapter->tx_ring);
-		kfree(tx_old);
-		kfree(rx_old);
-		adapter->rx_ring = rxdr;
-		adapter->tx_ring = txdr;
-#else
 		pch_gbe_free_rx_resources(adapter, rx_old);
 		pch_gbe_free_tx_resources(adapter, tx_old);
 		kfree(tx_old);
 		kfree(rx_old);
 		adapter->rx_ring = rxdr;
 		adapter->tx_ring = txdr;
-#endif
 		err = pch_gbe_up(adapter);
 	}
 	return err;
@@ -487,8 +481,6 @@ static int pch_gbe_get_sset_count(struct net_device *netdev, int sset)
 }
 
 static const struct ethtool_ops pch_gbe_ethtool_ops = {
-	.get_settings = pch_gbe_get_settings,
-	.set_settings = pch_gbe_set_settings,
 	.get_drvinfo = pch_gbe_get_drvinfo,
 	.get_regs_len = pch_gbe_get_regs_len,
 	.get_regs = pch_gbe_get_regs,
@@ -503,6 +495,8 @@ static const struct ethtool_ops pch_gbe_ethtool_ops = {
 	.get_strings = pch_gbe_get_strings,
 	.get_ethtool_stats = pch_gbe_get_ethtool_stats,
 	.get_sset_count = pch_gbe_get_sset_count,
+	.get_link_ksettings = pch_gbe_get_link_ksettings,
+	.set_link_ksettings = pch_gbe_set_link_ksettings,
 };
 
 void pch_gbe_set_ethtool_ops(struct net_device *netdev)

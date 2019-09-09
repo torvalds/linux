@@ -1,22 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *   fs/cifs/cifs_unicode.c
  *
  *   Copyright (c) International Business Machines  Corp., 2000,2009
  *   Modified by Steve French (sfrench@us.ibm.com)
- *
- *   This program is free software;  you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY;  without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
- *   the GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program;  if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 #include <linux/fs.h>
 #include <linux/slab.h>
@@ -79,9 +66,16 @@ convert_sfu_char(const __u16 src_char, char *target)
 static bool
 convert_sfm_char(const __u16 src_char, char *target)
 {
+	if (src_char >= 0xF001 && src_char <= 0xF01F) {
+		*target = src_char - 0xF000;
+		return true;
+	}
 	switch (src_char) {
 	case SFM_COLON:
 		*target = ':';
+		break;
+	case SFM_DOUBLEQUOTE:
+		*target = '"';
 		break;
 	case SFM_ASTERISK:
 		*target = '*';
@@ -97,9 +91,6 @@ convert_sfm_char(const __u16 src_char, char *target)
 		break;
 	case SFM_LESSTHAN:
 		*target = '<';
-		break;
-	case SFM_SLASH:
-		*target = '\\';
 		break;
 	case SFM_SPACE:
 		*target = ' ';
@@ -414,9 +405,16 @@ static __le16 convert_to_sfm_char(char src_char, bool end_of_string)
 {
 	__le16 dest_char;
 
+	if (src_char >= 0x01 && src_char <= 0x1F) {
+		dest_char = cpu_to_le16(src_char + 0xF000);
+		return dest_char;
+	}
 	switch (src_char) {
 	case ':':
 		dest_char = cpu_to_le16(SFM_COLON);
+		break;
+	case '"':
+		dest_char = cpu_to_le16(SFM_DOUBLEQUOTE);
 		break;
 	case '*':
 		dest_char = cpu_to_le16(SFM_ASTERISK);
@@ -574,7 +572,6 @@ ctoUTF16_out:
 	return j;
 }
 
-#ifdef CONFIG_CIFS_SMB2
 /*
  * cifs_local_to_utf16_bytes - how long will a string be after conversion?
  * @from - pointer to input string
@@ -633,4 +630,3 @@ cifs_strndup_to_utf16(const char *src, const int maxlen, int *utf16_len,
 	*utf16_len = len;
 	return dst;
 }
-#endif /* CONFIG_CIFS_SMB2 */

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Common code for mac80211 Prism54 drivers
  *
@@ -10,10 +11,6 @@
  *   Copyright 2004-2006 Jean-Baptiste Note <jbnote@gmail.com>, et al.
  * - stlc45xx driver
  *   Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/export.h>
@@ -121,8 +118,8 @@ static int p54_assign_address(struct p54_common *priv, struct sk_buff *skb)
 	}
 	if (unlikely(!target_skb)) {
 		if (priv->rx_end - last_addr >= len) {
-			target_skb = priv->tx_queue.prev;
-			if (!skb_queue_empty(&priv->tx_queue)) {
+			target_skb = skb_peek_tail(&priv->tx_queue);
+			if (target_skb) {
 				info = IEEE80211_SKB_CB(target_skb);
 				range = (void *)info->rate_driver_data;
 				target_addr = range->end_addr;
@@ -142,7 +139,10 @@ static int p54_assign_address(struct p54_common *priv, struct sk_buff *skb)
 	    unlikely(GET_HW_QUEUE(skb) == P54_QUEUE_BEACON))
 		priv->beacon_req_id = data->req_id;
 
-	__skb_queue_after(&priv->tx_queue, target_skb, skb);
+	if (target_skb)
+		__skb_queue_after(&priv->tx_queue, target_skb, skb);
+	else
+		__skb_queue_head(&priv->tx_queue, skb);
 	spin_unlock_irqrestore(&priv->tx_queue.lock, flags);
 	return 0;
 }
@@ -331,6 +331,7 @@ static int p54_rx_data(struct p54_common *priv, struct sk_buff *skb)
 	u16 freq = le16_to_cpu(hdr->freq);
 	size_t header_len = sizeof(*hdr);
 	u32 tsf32;
+	__le16 fc;
 	u8 rate = hdr->rate & 0xf;
 
 	/*
@@ -352,7 +353,7 @@ static int p54_rx_data(struct p54_common *priv, struct sk_buff *skb)
 
 	rx_status->signal = p54_rssi_to_dbm(priv, hdr->rssi);
 	if (hdr->rate & 0x10)
-		rx_status->flag |= RX_FLAG_SHORTPRE;
+		rx_status->enc_flags |= RX_ENC_FLAG_SHORTPRE;
 	if (priv->hw->conf.chandef.chan->band == NL80211_BAND_5GHZ)
 		rx_status->rate_idx = (rate < 4) ? 0 : rate - 4;
 	else
@@ -379,6 +380,11 @@ static int p54_rx_data(struct p54_common *priv, struct sk_buff *skb)
 
 	skb_pull(skb, header_len);
 	skb_trim(skb, le16_to_cpu(hdr->len));
+
+	fc = ((struct ieee80211_hdr *)skb->data)->frame_control;
+	if (ieee80211_is_probe_resp(fc) || ieee80211_is_beacon(fc))
+		rx_status->boottime_ns = ktime_get_boottime_ns();
+
 	if (unlikely(priv->hw->conf.flags & IEEE80211_CONF_PS))
 		p54_pspoll_workaround(priv, skb);
 
@@ -815,8 +821,8 @@ void p54_tx_80211(struct ieee80211_hw *dev,
 		}
 	}
 
-	txhdr = (struct p54_tx_data *) skb_push(skb, sizeof(*txhdr) + padding);
-	hdr = (struct p54_hdr *) skb_push(skb, sizeof(*hdr));
+	txhdr = skb_push(skb, sizeof(*txhdr) + padding);
+	hdr = skb_push(skb, sizeof(*hdr));
 
 	if (padding)
 		hdr_flags |= P54_HDR_FLAG_DATA_ALIGN;
@@ -905,13 +911,13 @@ void p54_tx_80211(struct ieee80211_hw *dev,
 		if (info->control.hw_key->cipher == WLAN_CIPHER_SUITE_TKIP) {
 			/* reserve space for the MIC key */
 			len += 8;
-			memcpy(skb_put(skb, 8), &(info->control.hw_key->key
-				[NL80211_TKIP_DATA_OFFSET_TX_MIC_KEY]), 8);
+			skb_put_data(skb,
+				     &(info->control.hw_key->key[NL80211_TKIP_DATA_OFFSET_TX_MIC_KEY]),
+				     8);
 		}
 		/* reserve some space for ICV */
 		len += info->control.hw_key->icv_len;
-		memset(skb_put(skb, info->control.hw_key->icv_len), 0,
-		       info->control.hw_key->icv_len);
+		skb_put_zero(skb, info->control.hw_key->icv_len);
 	} else {
 		txhdr->key_type = 0;
 		txhdr->key_len = 0;

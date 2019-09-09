@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * CAN driver for PEAK System USB adapters
  * Derived from the PCAN project file driver/src/pcan_usb_core.c
@@ -6,15 +7,6 @@
  * Copyright (C) 2010-2012 Stephane Grosjean <s.grosjean@peak-system.com>
  *
  * Many thanks to Klaus Hitschler <klaus.hitschler@gmx.de>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published
- * by the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 #ifndef PCAN_USB_CORE_H
 #define PCAN_USB_CORE_H
@@ -27,6 +19,8 @@
 #define PCAN_USBPRO_PRODUCT_ID		0x000d
 #define PCAN_USBPROFD_PRODUCT_ID	0x0011
 #define PCAN_USBFD_PRODUCT_ID		0x0012
+#define PCAN_USBCHIP_PRODUCT_ID		0x0013
+#define PCAN_USBX6_PRODUCT_ID		0x0014
 
 #define PCAN_USB_DRIVER_NAME		"peak_usb"
 
@@ -89,10 +83,12 @@ struct peak_usb_adapter {
 extern const struct peak_usb_adapter pcan_usb;
 extern const struct peak_usb_adapter pcan_usb_pro;
 extern const struct peak_usb_adapter pcan_usb_fd;
+extern const struct peak_usb_adapter pcan_usb_chip;
 extern const struct peak_usb_adapter pcan_usb_pro_fd;
+extern const struct peak_usb_adapter pcan_usb_x6;
 
 struct peak_time_ref {
-	struct timeval tv_host_0, tv_host;
+	ktime_t tv_host_0, tv_host;
 	u32 ts_dev_1, ts_dev_2;
 	u64 ts_total;
 	u32 tick_count;
@@ -147,10 +143,9 @@ void peak_usb_init_time_ref(struct peak_time_ref *time_ref,
 			    const struct peak_usb_adapter *adapter);
 void peak_usb_update_ts_now(struct peak_time_ref *time_ref, u32 ts_now);
 void peak_usb_set_ts_now(struct peak_time_ref *time_ref, u32 ts_now);
-void peak_usb_get_ts_tv(struct peak_time_ref *time_ref, u32 ts,
-			struct timeval *tv);
+void peak_usb_get_ts_time(struct peak_time_ref *time_ref, u32 ts, ktime_t *tv);
 int peak_usb_netif_rx(struct sk_buff *skb,
-		      struct peak_time_ref *time_ref, u32 ts_low, u32 ts_high);
+		      struct peak_time_ref *time_ref, u32 ts_low);
 void peak_usb_async_complete(struct urb *urb);
 void peak_usb_restart_complete(struct peak_usb_device *dev);
 

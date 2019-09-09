@@ -1,20 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * This file contains common code that is intended to be used across
  * boards so that it's not replicated.
  *
  *  Copyright (C) 2011 Xilinx
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/init.h>
+#include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/cpumask.h>
 #include <linux/platform_device.h>
@@ -59,7 +52,7 @@ void __iomem *zynq_scu_base;
 static void __init zynq_memory_init(void)
 {
 	if (!__pa(PAGE_OFFSET))
-		memblock_reserve(__pa(PAGE_OFFSET), __pa(swapper_pg_dir));
+		memblock_reserve(__pa(PAGE_OFFSET), 0x80000);
 }
 
 static struct platform_device zynq_cpuidle_device = {
@@ -150,7 +143,7 @@ static void __init zynq_timer_init(void)
 {
 	zynq_clock_init();
 	of_clk_init(NULL);
-	clocksource_probe();
+	timer_probe();
 }
 
 static struct map_desc zynq_cortex_a9_scu_map __initdata = {

@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2012 - Virtual Open Systems and Columbia University
  * Authors: Rusty Russell <rusty@rustcorp.com.au>
  *          Christoffer Dall <c.dall@virtualopensystems.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
 #include <linux/bsearch.h>
@@ -32,6 +20,7 @@
 #include <asm/vfp.h>
 #include "../vfp/vfpinstr.h"
 
+#define CREATE_TRACE_POINTS
 #include "trace.h"
 #include "coproc.h"
 
@@ -39,6 +28,24 @@
 /******************************************************************************
  * Co-processor emulation
  *****************************************************************************/
+
+static bool write_to_read_only(struct kvm_vcpu *vcpu,
+			       const struct coproc_params *params)
+{
+	WARN_ONCE(1, "CP15 write to read-only register\n");
+	print_cp_instr(params);
+	kvm_inject_undefined(vcpu);
+	return false;
+}
+
+static bool read_from_write_only(struct kvm_vcpu *vcpu,
+				 const struct coproc_params *params)
+{
+	WARN_ONCE(1, "CP15 read to write-only register\n");
+	print_cp_instr(params);
+	kvm_inject_undefined(vcpu);
+	return false;
+}
 
 /* 3 bits per cache level, as per CLIDR, but non-existent caches always 0 */
 static u32 cache_levels;
@@ -88,12 +95,6 @@ int kvm_handle_cp_0_13_access(struct kvm_vcpu *vcpu, struct kvm_run *run)
 }
 
 int kvm_handle_cp14_load_store(struct kvm_vcpu *vcpu, struct kvm_run *run)
-{
-	kvm_inject_undefined(vcpu);
-	return 1;
-}
-
-int kvm_handle_cp14_access(struct kvm_vcpu *vcpu, struct kvm_run *run)
 {
 	kvm_inject_undefined(vcpu);
 	return 1;
@@ -233,6 +234,7 @@ static bool access_gic_sgi(struct kvm_vcpu *vcpu,
 			   const struct coproc_reg *r)
 {
 	u64 reg;
+	bool g1;
 
 	if (!p->is_write)
 		return read_from_write_only(vcpu, p);
@@ -240,7 +242,25 @@ static bool access_gic_sgi(struct kvm_vcpu *vcpu,
 	reg = (u64)*vcpu_reg(vcpu, p->Rt2) << 32;
 	reg |= *vcpu_reg(vcpu, p->Rt1) ;
 
-	vgic_v3_dispatch_sgi(vcpu, reg);
+	/*
+	 * In a system where GICD_CTLR.DS=1, a ICC_SGI0R access generates
+	 * Group0 SGIs only, while ICC_SGI1R can generate either group,
+	 * depending on the SGI configuration. ICC_ASGI1R is effectively
+	 * equivalent to ICC_SGI0R, as there is no "alternative" secure
+	 * group.
+	 */
+	switch (p->Op1) {
+	default:		/* Keep GCC quiet */
+	case 0:			/* ICC_SGI1R */
+		g1 = true;
+		break;
+	case 1:			/* ICC_ASGI1R */
+	case 2:			/* ICC_SGI0R */
+		g1 = false;
+		break;
+	}
+
+	vgic_v3_dispatch_sgi(vcpu, reg, g1);
 
 	return true;
 }
@@ -257,6 +277,65 @@ static bool access_gic_sre(struct kvm_vcpu *vcpu,
 	return true;
 }
 
+static bool access_cntp_tval(struct kvm_vcpu *vcpu,
+			     const struct coproc_params *p,
+			     const struct coproc_reg *r)
+{
+	u32 val;
+
+	if (p->is_write) {
+		val = *vcpu_reg(vcpu, p->Rt1);
+		kvm_arm_timer_write_sysreg(vcpu,
+					   TIMER_PTIMER, TIMER_REG_TVAL, val);
+	} else {
+		val = kvm_arm_timer_read_sysreg(vcpu,
+						TIMER_PTIMER, TIMER_REG_TVAL);
+		*vcpu_reg(vcpu, p->Rt1) = val;
+	}
+
+	return true;
+}
+
+static bool access_cntp_ctl(struct kvm_vcpu *vcpu,
+			    const struct coproc_params *p,
+			    const struct coproc_reg *r)
+{
+	u32 val;
+
+	if (p->is_write) {
+		val = *vcpu_reg(vcpu, p->Rt1);
+		kvm_arm_timer_write_sysreg(vcpu,
+					   TIMER_PTIMER, TIMER_REG_CTL, val);
+	} else {
+		val = kvm_arm_timer_read_sysreg(vcpu,
+						TIMER_PTIMER, TIMER_REG_CTL);
+		*vcpu_reg(vcpu, p->Rt1) = val;
+	}
+
+	return true;
+}
+
+static bool access_cntp_cval(struct kvm_vcpu *vcpu,
+			     const struct coproc_params *p,
+			     const struct coproc_reg *r)
+{
+	u64 val;
+
+	if (p->is_write) {
+		val = (u64)*vcpu_reg(vcpu, p->Rt2) << 32;
+		val |= *vcpu_reg(vcpu, p->Rt1);
+		kvm_arm_timer_write_sysreg(vcpu,
+					   TIMER_PTIMER, TIMER_REG_CVAL, val);
+	} else {
+		val = kvm_arm_timer_read_sysreg(vcpu,
+						TIMER_PTIMER, TIMER_REG_CVAL);
+		*vcpu_reg(vcpu, p->Rt1) = val;
+		*vcpu_reg(vcpu, p->Rt2) = val >> 32;
+	}
+
+	return true;
+}
+
 /*
  * We could trap ID_DFR0 and tell the guest we don't support performance
  * monitoring.  Unfortunately the patch to make the kernel check ID_DFR0 was
@@ -266,7 +345,7 @@ static bool access_gic_sre(struct kvm_vcpu *vcpu,
  * must always support PMCCNTR (the cycle counter): we just RAZ/WI for
  * all PM registers, which doesn't crash the guest kernel at least.
  */
-static bool pm_fake(struct kvm_vcpu *vcpu,
+static bool trap_raz_wi(struct kvm_vcpu *vcpu,
 		    const struct coproc_params *p,
 		    const struct coproc_reg *r)
 {
@@ -276,19 +355,19 @@ static bool pm_fake(struct kvm_vcpu *vcpu,
 		return read_zero(vcpu, p);
 }
 
-#define access_pmcr pm_fake
-#define access_pmcntenset pm_fake
-#define access_pmcntenclr pm_fake
-#define access_pmovsr pm_fake
-#define access_pmselr pm_fake
-#define access_pmceid0 pm_fake
-#define access_pmceid1 pm_fake
-#define access_pmccntr pm_fake
-#define access_pmxevtyper pm_fake
-#define access_pmxevcntr pm_fake
-#define access_pmuserenr pm_fake
-#define access_pmintenset pm_fake
-#define access_pmintenclr pm_fake
+#define access_pmcr trap_raz_wi
+#define access_pmcntenset trap_raz_wi
+#define access_pmcntenclr trap_raz_wi
+#define access_pmovsr trap_raz_wi
+#define access_pmselr trap_raz_wi
+#define access_pmceid0 trap_raz_wi
+#define access_pmceid1 trap_raz_wi
+#define access_pmccntr trap_raz_wi
+#define access_pmxevtyper trap_raz_wi
+#define access_pmxevcntr trap_raz_wi
+#define access_pmuserenr trap_raz_wi
+#define access_pmintenset trap_raz_wi
+#define access_pmintenclr trap_raz_wi
 
 /* Architected CP15 registers.
  * CRn denotes the primary register number, but is copied to the CRm in the
@@ -397,6 +476,10 @@ static const struct coproc_reg cp15_regs[] = {
 	{ CRn(12), CRm( 0), Op1( 0), Op2( 0), is32,
 			NULL, reset_val, c12_VBAR, 0x00000000 },
 
+	/* ICC_ASGI1R */
+	{ CRm64(12), Op1( 1), is64, access_gic_sgi},
+	/* ICC_SGI0R */
+	{ CRm64(12), Op1( 2), is64, access_gic_sgi},
 	/* ICC_SRE */
 	{ CRn(12), CRm(12), Op1( 0), Op2(5), is32, access_gic_sre },
 
@@ -410,9 +493,16 @@ static const struct coproc_reg cp15_regs[] = {
 	{ CRn(13), CRm( 0), Op1( 0), Op2( 4), is32,
 			NULL, reset_unknown, c13_TID_PRIV },
 
+	/* CNTP */
+	{ CRm64(14), Op1( 2), is64, access_cntp_cval},
+
 	/* CNTKCTL: swapped by interrupt.S. */
 	{ CRn(14), CRm( 1), Op1( 0), Op2( 0), is32,
 			NULL, reset_val, c14_CNTKCTL, 0x00000000 },
+
+	/* CNTP */
+	{ CRn(14), CRm( 2), Op1( 0), Op2( 0), is32, access_cntp_tval },
+	{ CRn(14), CRm( 2), Op1( 0), Op2( 1), is32, access_cntp_ctl },
 
 	/* The Configuration Base Address Register. */
 	{ CRn(15), CRm( 0), Op1( 4), Op2( 0), is32, access_cbar},
@@ -502,24 +592,19 @@ static int emulate_cp15(struct kvm_vcpu *vcpu,
 		if (likely(r->access(vcpu, params, r))) {
 			/* Skip instruction, since it was emulated */
 			kvm_skip_instr(vcpu, kvm_vcpu_trap_il_is32bit(vcpu));
-			return 1;
 		}
-		/* If access function fails, it should complain. */
 	} else {
-		kvm_err("Unsupported guest CP15 access at: %08lx\n",
-			*vcpu_pc(vcpu));
+		/* If access function fails, it should complain. */
+		kvm_err("Unsupported guest CP15 access at: %08lx [%08lx]\n",
+			*vcpu_pc(vcpu), *vcpu_cpsr(vcpu));
 		print_cp_instr(params);
+		kvm_inject_undefined(vcpu);
 	}
-	kvm_inject_undefined(vcpu);
+
 	return 1;
 }
 
-/**
- * kvm_handle_cp15_64 -- handles a mrrc/mcrr trap on a guest CP15 access
- * @vcpu: The VCPU pointer
- * @run:  The kvm_run struct
- */
-int kvm_handle_cp15_64(struct kvm_vcpu *vcpu, struct kvm_run *run)
+static struct coproc_params decode_64bit_hsr(struct kvm_vcpu *vcpu)
 {
 	struct coproc_params params;
 
@@ -533,25 +618,58 @@ int kvm_handle_cp15_64(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	params.Rt2 = (kvm_vcpu_get_hsr(vcpu) >> 10) & 0xf;
 	params.CRm = 0;
 
+	return params;
+}
+
+/**
+ * kvm_handle_cp15_64 -- handles a mrrc/mcrr trap on a guest CP15 access
+ * @vcpu: The VCPU pointer
+ * @run:  The kvm_run struct
+ */
+int kvm_handle_cp15_64(struct kvm_vcpu *vcpu, struct kvm_run *run)
+{
+	struct coproc_params params = decode_64bit_hsr(vcpu);
+
 	return emulate_cp15(vcpu, &params);
 }
 
+/**
+ * kvm_handle_cp14_64 -- handles a mrrc/mcrr trap on a guest CP14 access
+ * @vcpu: The VCPU pointer
+ * @run:  The kvm_run struct
+ */
+int kvm_handle_cp14_64(struct kvm_vcpu *vcpu, struct kvm_run *run)
+{
+	struct coproc_params params = decode_64bit_hsr(vcpu);
+
+	/* raz_wi cp14 */
+	trap_raz_wi(vcpu, &params, NULL);
+
+	/* handled */
+	kvm_skip_instr(vcpu, kvm_vcpu_trap_il_is32bit(vcpu));
+	return 1;
+}
+
 static void reset_coproc_regs(struct kvm_vcpu *vcpu,
-			      const struct coproc_reg *table, size_t num)
+			      const struct coproc_reg *table, size_t num,
+			      unsigned long *bmap)
 {
 	unsigned long i;
 
 	for (i = 0; i < num; i++)
-		if (table[i].reset)
+		if (table[i].reset) {
+			int reg = table[i].reg;
+
 			table[i].reset(vcpu, &table[i]);
+			if (reg > 0 && reg < NR_CP15_REGS) {
+				set_bit(reg, bmap);
+				if (table[i].is_64bit)
+					set_bit(reg + 1, bmap);
+			}
+		}
 }
 
-/**
- * kvm_handle_cp15_32 -- handles a mrc/mcr trap on a guest CP15 access
- * @vcpu: The VCPU pointer
- * @run:  The kvm_run struct
- */
-int kvm_handle_cp15_32(struct kvm_vcpu *vcpu, struct kvm_run *run)
+static struct coproc_params decode_32bit_hsr(struct kvm_vcpu *vcpu)
 {
 	struct coproc_params params;
 
@@ -565,7 +683,35 @@ int kvm_handle_cp15_32(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	params.Op2 = (kvm_vcpu_get_hsr(vcpu) >> 17) & 0x7;
 	params.Rt2 = 0;
 
+	return params;
+}
+
+/**
+ * kvm_handle_cp15_32 -- handles a mrc/mcr trap on a guest CP15 access
+ * @vcpu: The VCPU pointer
+ * @run:  The kvm_run struct
+ */
+int kvm_handle_cp15_32(struct kvm_vcpu *vcpu, struct kvm_run *run)
+{
+	struct coproc_params params = decode_32bit_hsr(vcpu);
 	return emulate_cp15(vcpu, &params);
+}
+
+/**
+ * kvm_handle_cp14_32 -- handles a mrc/mcr trap on a guest CP14 access
+ * @vcpu: The VCPU pointer
+ * @run:  The kvm_run struct
+ */
+int kvm_handle_cp14_32(struct kvm_vcpu *vcpu, struct kvm_run *run)
+{
+	struct coproc_params params = decode_32bit_hsr(vcpu);
+
+	/* raz_wi cp14 */
+	trap_raz_wi(vcpu, &params, NULL);
+
+	/* handled */
+	kvm_skip_instr(vcpu, kvm_vcpu_trap_il_is32bit(vcpu));
+	return 1;
 }
 
 /******************************************************************************
@@ -1295,17 +1441,15 @@ void kvm_reset_coprocs(struct kvm_vcpu *vcpu)
 {
 	size_t num;
 	const struct coproc_reg *table;
-
-	/* Catch someone adding a register without putting in reset entry. */
-	memset(vcpu->arch.ctxt.cp15, 0x42, sizeof(vcpu->arch.ctxt.cp15));
+	DECLARE_BITMAP(bmap, NR_CP15_REGS) = { 0, };
 
 	/* Generic chip reset first (so target could override). */
-	reset_coproc_regs(vcpu, cp15_regs, ARRAY_SIZE(cp15_regs));
+	reset_coproc_regs(vcpu, cp15_regs, ARRAY_SIZE(cp15_regs), bmap);
 
 	table = get_target_table(vcpu->arch.target, &num);
-	reset_coproc_regs(vcpu, table, num);
+	reset_coproc_regs(vcpu, table, num, bmap);
 
 	for (num = 1; num < NR_CP15_REGS; num++)
-		if (vcpu_cp15(vcpu, num) == 0x42424242)
-			panic("Didn't reset vcpu_cp15(vcpu, %zi)", num);
+		WARN(!test_bit(num, bmap),
+		     "Didn't reset vcpu_cp15(vcpu, %zi)", num);
 }

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Support for the Arcom ZEUS.
  *
@@ -5,17 +6,15 @@
  *
  *  Loosely based on Arcom's 2.6.16.28.
  *  Maintained by Marc Zyngier <maz@misterjones.org>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
  */
 
 #include <linux/cpufreq.h>
 #include <linux/interrupt.h>
+#include <linux/leds.h>
 #include <linux/irq.h>
 #include <linux/pm.h>
 #include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/serial_8250.h>
 #include <linux/dm9000.h>
 #include <linux/mmc/host.h>
@@ -25,7 +24,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
 #include <linux/i2c.h>
-#include <linux/i2c/pxa-i2c.h>
+#include <linux/platform_data/i2c-pxa.h>
 #include <linux/platform_data/pca953x.h>
 #include <linux/apm-emulation.h>
 #include <linux/can/platform/mcp251x.h>
@@ -39,6 +38,7 @@
 #include <asm/mach/map.h>
 
 #include "pxa27x.h"
+#include "devices.h"
 #include <mach/regs-uart.h>
 #include <linux/platform_data/usb-ohci-pxa27x.h>
 #include <linux/platform_data/mmc-pxamci.h>
@@ -388,7 +388,7 @@ static struct platform_device zeus_sram_device = {
 };
 
 /* SPI interface on SSP3 */
-static struct pxa2xx_spi_master pxa2xx_spi_ssp3_master_info = {
+static struct pxa2xx_spi_controller pxa2xx_spi_ssp3_master_info = {
 	.num_chipselect = 1,
 	.enable_dma     = 1,
 };
@@ -408,7 +408,6 @@ static struct regulator_init_data can_regulator_init_data = {
 static struct fixed_voltage_config can_regulator_pdata = {
 	.supply_name	= "CAN_SHDN",
 	.microvolts	= 3300000,
-	.gpio		= ZEUS_CAN_SHDN_GPIO,
 	.init_data	= &can_regulator_init_data,
 };
 
@@ -417,6 +416,15 @@ static struct platform_device can_regulator_device = {
 	.id	= 0,
 	.dev	= {
 		.platform_data	= &can_regulator_pdata,
+	},
+};
+
+static struct gpiod_lookup_table can_regulator_gpiod_table = {
+	.dev_id = "reg-fixed-voltage.0",
+	.table = {
+		GPIO_LOOKUP("gpio-pxa", ZEUS_CAN_SHDN_GPIO,
+			    NULL, GPIO_ACTIVE_LOW),
+		{ },
 	},
 };
 
@@ -536,8 +544,6 @@ static struct regulator_init_data zeus_ohci_regulator_data = {
 static struct fixed_voltage_config zeus_ohci_regulator_config = {
 	.supply_name		= "vbus2",
 	.microvolts		= 5000000, /* 5.0V */
-	.gpio			= ZEUS_USB2_PWREN_GPIO,
-	.enable_high		= 1,
 	.startup_delay		= 0,
 	.init_data		= &zeus_ohci_regulator_data,
 };
@@ -550,6 +556,15 @@ static struct platform_device zeus_ohci_regulator_device = {
 	},
 };
 
+static struct gpiod_lookup_table zeus_ohci_regulator_gpiod_table = {
+	.dev_id = "reg-fixed-voltage.0",
+	.table = {
+		GPIO_LOOKUP("gpio-pxa", ZEUS_USB2_PWREN_GPIO,
+			    NULL, GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
+
 static struct pxaohci_platform_data zeus_ohci_platform_data = {
 	.port_mode	= PMM_NPS_MODE,
 	/* Clear Power Control Polarity Low and set Power Sense
@@ -557,7 +572,7 @@ static struct pxaohci_platform_data zeus_ohci_platform_data = {
 	.flags		= ENABLE_PORT_ALL | POWER_SENSE_LOW,
 };
 
-static void zeus_register_ohci(void)
+static void __init zeus_register_ohci(void)
 {
 	/* Port 2 is shared between host and client interface. */
 	UP2OCR = UP2OCR_HXOE | UP2OCR_HXS | UP2OCR_DMPDE | UP2OCR_DPPDE;
@@ -644,10 +659,18 @@ static struct pxafb_mach_info zeus_fb_info = {
 static struct pxamci_platform_data zeus_mci_platform_data = {
 	.ocr_mask		= MMC_VDD_32_33|MMC_VDD_33_34,
 	.detect_delay_ms	= 250,
-	.gpio_card_detect       = ZEUS_MMC_CD_GPIO,
-	.gpio_card_ro           = ZEUS_MMC_WP_GPIO,
 	.gpio_card_ro_invert	= 1,
-	.gpio_power             = -1
+};
+
+static struct gpiod_lookup_table zeus_mci_gpio_table = {
+	.dev_id = "pxa2xx-mci.0",
+	.table = {
+		GPIO_LOOKUP("gpio-pxa", ZEUS_MMC_CD_GPIO,
+			    "cd", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("gpio-pxa", ZEUS_MMC_WP_GPIO,
+			    "wp", GPIO_ACTIVE_HIGH),
+		{ },
+	},
 };
 
 /*
@@ -853,6 +876,8 @@ static void __init zeus_init(void)
 
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(zeus_pin_config));
 
+	gpiod_add_lookup_table(&can_regulator_gpiod_table);
+	gpiod_add_lookup_table(&zeus_ohci_regulator_gpiod_table);
 	platform_add_devices(zeus_devices, ARRAY_SIZE(zeus_devices));
 
 	zeus_register_ohci();
@@ -862,6 +887,7 @@ static void __init zeus_init(void)
 	else
 		pxa_set_fb_info(NULL, &zeus_fb_info);
 
+	gpiod_add_lookup_table(&zeus_mci_gpio_table);
 	pxa_set_mci_info(&zeus_mci_platform_data);
 	pxa_set_udc_info(&zeus_udc_info);
 	pxa_set_ac97_info(&zeus_ac97_info);

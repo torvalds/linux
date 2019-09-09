@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * STMicroelectronics pressures driver
  *
@@ -5,7 +6,6 @@
  *
  * Denis Ciocca <denis.ciocca@st.com>
  * v. 1.0.0
- * Licensed under the GPL-2.
  */
 
 #ifndef ST_PRESS_H
@@ -14,10 +14,24 @@
 #include <linux/types.h>
 #include <linux/iio/common/st_sensors.h>
 
+enum st_press_type {
+	LPS001WP,
+	LPS25H,
+	LPS331AP,
+	LPS22HB,
+	LPS33HW,
+	LPS35HW,
+	LPS22HH,
+	ST_PRESS_MAX,
+};
+
 #define LPS001WP_PRESS_DEV_NAME		"lps001wp"
 #define LPS25H_PRESS_DEV_NAME		"lps25h"
 #define LPS331AP_PRESS_DEV_NAME		"lps331ap"
 #define LPS22HB_PRESS_DEV_NAME		"lps22hb"
+#define LPS33HW_PRESS_DEV_NAME		"lps33hw"
+#define LPS35HW_PRESS_DEV_NAME		"lps35hw"
+#define LPS22HH_PRESS_DEV_NAME		"lps22hh"
 
 /**
  * struct st_sensors_platform_data - default press platform data

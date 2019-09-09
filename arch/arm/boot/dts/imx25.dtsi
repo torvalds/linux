@@ -1,18 +1,20 @@
-/*
- * Copyright 2012 Sascha Hauer, Pengutronix <s.hauer@pengutronix.de>
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// Copyright 2012 Sascha Hauer, Pengutronix <s.hauer@pengutronix.de>
 
-#include "skeleton.dtsi"
+#include <dt-bindings/gpio/gpio.h>
 #include "imx25-pinfunc.h"
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	/*
+	 * The decompressor and also some bootloaders rely on a
+	 * pre-existing /chosen node to be available to insert the
+	 * command line and merge other ATAGS info.
+	 */
+	chosen {};
+
 	aliases {
 		ethernet0 = &fec;
 		gpio0 = &gpio1;
@@ -41,12 +43,13 @@
 	};
 
 	cpus {
-		#address-cells = <0>;
+		#address-cells = <1>;
 		#size-cells = <0>;
 
-		cpu {
+		cpu@0 {
 			compatible = "arm,arm926ej-s";
 			device_type = "cpu";
+			reg = <0>;
 		};
 	};
 
@@ -58,9 +61,6 @@
 	};
 
 	clocks {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
 		osc {
 			compatible = "fsl,imx-osc", "fixed-clock";
 			#clock-cells = <0>;
@@ -81,6 +81,11 @@
 			#size-cells = <1>;
 			reg = <0x43f00000 0x100000>;
 			ranges;
+
+			aips1: bridge@43f00000 {
+				compatible = "fsl,imx25-aips";
+				reg = <0x43f00000 0x4000>;
+			};
 
 			i2c1: i2c@43f80000 {
 				#address-cells = <1>;
@@ -105,7 +110,7 @@
 			};
 
 			can1: can@43f88000 {
-				compatible = "fsl,imx25-flexcan", "fsl,p1010-flexcan";
+				compatible = "fsl,imx25-flexcan";
 				reg = <0x43f88000 0x4000>;
 				interrupts = <43>;
 				clocks = <&clks 75>, <&clks 75>;
@@ -114,7 +119,7 @@
 			};
 
 			can2: can@43f8c000 {
-				compatible = "fsl,imx25-flexcan", "fsl,p1010-flexcan";
+				compatible = "fsl,imx25-flexcan";
 				reg = <0x43f8c000 0x4000>;
 				interrupts = <44>;
 				clocks = <&clks 76>, <&clks 76>;
@@ -161,7 +166,7 @@
 				status = "disabled";
 			};
 
-			spi1: cspi@43fa4000 {
+			spi1: spi@43fa4000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx25-cspi", "fsl,imx35-cspi";
@@ -202,7 +207,7 @@
 			reg = <0x50000000 0x40000>;
 			ranges;
 
-			spi3: cspi@50004000 {
+			spi3: spi@50004000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx25-cspi", "fsl,imx35-cspi";
@@ -231,7 +236,7 @@
 				status = "disabled";
 			};
 
-			spi2: cspi@50010000 {
+			spi2: spi@50010000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx25-cspi", "fsl,imx35-cspi";
@@ -252,6 +257,7 @@
 				dmas = <&sdma 24 1 0>,
 				       <&sdma 25 1 0>;
 				dma-names = "rx", "tx";
+				fsl,fifo-depth = <15>;
 				status = "disabled";
 			};
 
@@ -280,6 +286,7 @@
 				#address-cells = <1>;
 				#size-cells = <1>;
 				status = "disabled";
+				ranges;
 
 				adc: adc@50030800 {
 					compatible = "fsl,imx25-gcq";
@@ -311,6 +318,7 @@
 				dmas = <&sdma 28 1 0>,
 				       <&sdma 29 1 0>;
 				dma-names = "rx", "tx";
+				fsl,fifo-depth = <15>;
 				status = "disabled";
 			};
 
@@ -330,6 +338,11 @@
 			#size-cells = <1>;
 			reg = <0x53f00000 0x100000>;
 			ranges;
+
+			aips2: bridge@53f00000 {
+				compatible = "fsl,imx25-aips";
+				reg = <0x53f00000 0x4000>;
+			};
 
 			clks: ccm@53f80000 {
 				compatible = "fsl,imx25-ccm";
@@ -373,12 +386,16 @@
 			epit1: timer@53f94000 {
 				compatible = "fsl,imx25-epit";
 				reg = <0x53f94000 0x4000>;
+				clocks = <&clks 83>, <&clks 43>;
+				clock-names = "ipg", "per";
 				interrupts = <28>;
 			};
 
 			epit2: timer@53f98000 {
 				compatible = "fsl,imx25-epit";
 				reg = <0x53f98000 0x4000>;
+				clocks = <&clks 84>, <&clks 43>;
+				clock-names = "ipg", "per";
 				interrupts = <27>;
 			};
 
@@ -427,6 +444,13 @@
 				clock-names = "ipg";
 				interrupts = <49>, <50>;
 				interrupt-names = "scm", "smn";
+			};
+
+			rngb: rngb@53fb0000 {
+				compatible = "fsl,imx25-rngb";
+				reg = <0x53fb0000 0x4000>;
+				clocks = <&clks 109>;
+				interrupts = <22>;
 			};
 
 			esdhc1: esdhc@53fb4000 {
@@ -533,6 +557,8 @@
 				clock-names = "ipg", "ahb", "per";
 				fsl,usbmisc = <&usbmisc 0>;
 				fsl,usbphy = <&usbphy0>;
+				phy_type = "utmi";
+				dr_mode = "otg";
 				status = "disabled";
 			};
 
@@ -558,7 +584,7 @@
 				reg = <0x53ffc000 0x4000>;
 				clocks = <&clks 81>;
 				clock-names = "ipg";
-				interrupts = <25>;
+				interrupts = <25 56>;
 			};
 		};
 
@@ -596,11 +622,13 @@
 		usbphy0: usb-phy@0 {
 			reg = <0>;
 			compatible = "usb-nop-xceiv";
+			#phy-cells = <0>;
 		};
 
 		usbphy1: usb-phy@1 {
 			reg = <1>;
 			compatible = "usb-nop-xceiv";
+			#phy-cells = <0>;
 		};
 	};
 };

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * security/tomoyo/common.c
  *
@@ -196,6 +197,7 @@ static void tomoyo_addprintf(char *buffer, int len, const char *fmt, ...)
 {
 	va_list args;
 	const int pos = strlen(buffer);
+
 	va_start(args, fmt);
 	vsnprintf(buffer + pos, len - pos - 1, fmt, args);
 	va_end(args);
@@ -213,6 +215,7 @@ static bool tomoyo_flush(struct tomoyo_io_buffer *head)
 	while (head->r.w_pos) {
 		const char *w = head->r.w[0];
 		size_t len = strlen(w);
+
 		if (len) {
 			if (len > head->read_user_buf_avail)
 				len = head->read_user_buf_avail;
@@ -278,6 +281,7 @@ static void tomoyo_io_printf(struct tomoyo_io_buffer *head, const char *fmt,
 	size_t len;
 	size_t pos = head->r.avail;
 	int size = head->readbuf_size - pos;
+
 	if (size <= 0)
 		return;
 	va_start(args, fmt);
@@ -343,13 +347,14 @@ static bool tomoyo_namespace_enabled;
 void tomoyo_init_policy_namespace(struct tomoyo_policy_namespace *ns)
 {
 	unsigned int idx;
+
 	for (idx = 0; idx < TOMOYO_MAX_ACL_GROUPS; idx++)
 		INIT_LIST_HEAD(&ns->acl_group[idx]);
 	for (idx = 0; idx < TOMOYO_MAX_GROUP; idx++)
 		INIT_LIST_HEAD(&ns->group_list[idx]);
 	for (idx = 0; idx < TOMOYO_MAX_POLICY; idx++)
 		INIT_LIST_HEAD(&ns->policy_list[idx]);
-	ns->profile_version = 20110903;
+	ns->profile_version = 20150505;
 	tomoyo_namespace_enabled = !list_empty(&tomoyo_namespace_list);
 	list_add_tail_rcu(&ns->namespace_list, &tomoyo_namespace_list);
 }
@@ -432,6 +437,7 @@ static void tomoyo_print_number_union_nospace
 		u8 min_type = ptr->value_type[0];
 		const u8 max_type = ptr->value_type[1];
 		char buffer[128];
+
 		buffer[0] = '\0';
 		for (i = 0; i < 2; i++) {
 			switch (min_type) {
@@ -486,6 +492,7 @@ static struct tomoyo_profile *tomoyo_assign_profile
 {
 	struct tomoyo_profile *ptr;
 	struct tomoyo_profile *entry;
+
 	if (profile >= TOMOYO_MAX_PROFILES)
 		return NULL;
 	ptr = ns->profile_ptr[profile];
@@ -529,6 +536,7 @@ struct tomoyo_profile *tomoyo_profile(const struct tomoyo_policy_namespace *ns,
 {
 	static struct tomoyo_profile tomoyo_null_profile;
 	struct tomoyo_profile *ptr = ns->profile_ptr[profile];
+
 	if (!ptr)
 		ptr = &tomoyo_null_profile;
 	return ptr;
@@ -545,6 +553,7 @@ struct tomoyo_profile *tomoyo_profile(const struct tomoyo_policy_namespace *ns,
 static s8 tomoyo_find_yesno(const char *string, const char *find)
 {
 	const char *cp = strstr(string, find);
+
 	if (cp) {
 		cp += strlen(find);
 		if (!strncmp(cp, "=yes", 4))
@@ -568,6 +577,7 @@ static void tomoyo_set_uint(unsigned int *i, const char *string,
 			    const char *find)
 {
 	const char *cp = strstr(string, find);
+
 	if (cp)
 		sscanf(cp + strlen(find), "=%u", i);
 }
@@ -586,6 +596,7 @@ static int tomoyo_set_mode(char *name, const char *value,
 {
 	u8 i;
 	u8 config;
+
 	if (!strcmp(name, "CONFIG")) {
 		i = TOMOYO_MAX_MAC_INDEX + TOMOYO_MAX_MAC_CATEGORY_INDEX;
 		config = profile->default_config;
@@ -594,10 +605,12 @@ static int tomoyo_set_mode(char *name, const char *value,
 		for (i = 0; i < TOMOYO_MAX_MAC_INDEX
 			     + TOMOYO_MAX_MAC_CATEGORY_INDEX; i++) {
 			int len = 0;
+
 			if (i < TOMOYO_MAX_MAC_INDEX) {
 				const u8 c = tomoyo_index2category[i];
 				const char *category =
 					tomoyo_category_keywords[c];
+
 				len = strlen(category);
 				if (strncmp(name, category, len) ||
 				    name[len++] != ':' || name[len++] != ':')
@@ -617,6 +630,7 @@ static int tomoyo_set_mode(char *name, const char *value,
 		config = TOMOYO_CONFIG_USE_DEFAULT;
 	} else {
 		u8 mode;
+
 		for (mode = 0; mode < 4; mode++)
 			if (strstr(value, tomoyo_mode[mode]))
 				/*
@@ -663,6 +677,7 @@ static int tomoyo_write_profile(struct tomoyo_io_buffer *head)
 	unsigned int i;
 	char *cp;
 	struct tomoyo_profile *profile;
+
 	if (sscanf(data, "PROFILE_VERSION=%u", &head->w.ns->profile_version)
 	    == 1)
 		return 0;
@@ -682,6 +697,7 @@ static int tomoyo_write_profile(struct tomoyo_io_buffer *head)
 		const struct tomoyo_path_info *new_comment
 			= tomoyo_get_name(cp);
 		const struct tomoyo_path_info *old_comment;
+
 		if (!new_comment)
 			return -ENOMEM;
 		spin_lock(&lock);
@@ -731,6 +747,7 @@ static void tomoyo_read_profile(struct tomoyo_io_buffer *head)
 	struct tomoyo_policy_namespace *ns =
 		container_of(head->r.ns, typeof(*ns), namespace_list);
 	const struct tomoyo_profile *profile;
+
 	if (head->r.eof)
 		return;
  next:
@@ -759,6 +776,7 @@ static void tomoyo_read_profile(struct tomoyo_io_buffer *head)
 			u8 i;
 			const struct tomoyo_path_info *comment =
 				profile->comment;
+
 			tomoyo_print_namespace(head);
 			tomoyo_io_printf(head, "%u-COMMENT=", index);
 			tomoyo_set_string(head, comment ? comment->name : "");
@@ -787,6 +805,7 @@ static void tomoyo_read_profile(struct tomoyo_io_buffer *head)
 			      + TOMOYO_MAX_MAC_CATEGORY_INDEX; head->r.bit++) {
 			const u8 i = head->r.bit;
 			const u8 config = profile->config[i];
+
 			if (config == TOMOYO_CONFIG_USE_DEFAULT)
 				continue;
 			tomoyo_print_namespace(head);
@@ -846,10 +865,10 @@ static int tomoyo_update_manager_entry(const char *manager,
 	struct tomoyo_acl_param param = {
 		/* .ns = &tomoyo_kernel_namespace, */
 		.is_delete = is_delete,
-		.list = &tomoyo_kernel_namespace.
-		policy_list[TOMOYO_ID_MANAGER],
+		.list = &tomoyo_kernel_namespace.policy_list[TOMOYO_ID_MANAGER],
 	};
 	int error = is_delete ? -ENOENT : -ENOMEM;
+
 	if (!tomoyo_correct_domain(manager) &&
 	    !tomoyo_correct_word(manager))
 		return -EINVAL;
@@ -893,10 +912,10 @@ static void tomoyo_read_manager(struct tomoyo_io_buffer *head)
 {
 	if (head->r.eof)
 		return;
-	list_for_each_cookie(head->r.acl, &tomoyo_kernel_namespace.
-			     policy_list[TOMOYO_ID_MANAGER]) {
+	list_for_each_cookie(head->r.acl, &tomoyo_kernel_namespace.policy_list[TOMOYO_ID_MANAGER]) {
 		struct tomoyo_manager *ptr =
 			list_entry(head->r.acl, typeof(*ptr), head.list);
+
 		if (ptr->head.is_deleted)
 			continue;
 		if (!tomoyo_flush(head))
@@ -921,7 +940,7 @@ static bool tomoyo_manager(void)
 	const char *exe;
 	const struct task_struct *task = current;
 	const struct tomoyo_path_info *domainname = tomoyo_domain()->domainname;
-	bool found = false;
+	bool found = IS_ENABLED(CONFIG_SECURITY_TOMOYO_INSECURE_BUILTIN_SETTING);
 
 	if (!tomoyo_policy_loaded)
 		return true;
@@ -932,8 +951,7 @@ static bool tomoyo_manager(void)
 	exe = tomoyo_get_exe();
 	if (!exe)
 		return false;
-	list_for_each_entry_rcu(ptr, &tomoyo_kernel_namespace.
-				policy_list[TOMOYO_ID_MANAGER], head.list) {
+	list_for_each_entry_rcu(ptr, &tomoyo_kernel_namespace.policy_list[TOMOYO_ID_MANAGER], head.list) {
 		if (!ptr->head.is_deleted &&
 		    (!tomoyo_pathcmp(domainname, ptr->manager) ||
 		     !strcmp(exe, ptr->manager->name))) {
@@ -944,9 +962,10 @@ static bool tomoyo_manager(void)
 	if (!found) { /* Reduce error messages. */
 		static pid_t last_pid;
 		const pid_t pid = current->pid;
+
 		if (last_pid != pid) {
-			printk(KERN_WARNING "%s ( %s ) is not permitted to "
-			       "update policies.\n", domainname->name, exe);
+			pr_warn("%s ( %s ) is not permitted to update policies.\n",
+				domainname->name, exe);
 			last_pid = pid;
 		}
 	}
@@ -973,19 +992,21 @@ static bool tomoyo_select_domain(struct tomoyo_io_buffer *head,
 	unsigned int pid;
 	struct tomoyo_domain_info *domain = NULL;
 	bool global_pid = false;
+
 	if (strncmp(data, "select ", 7))
 		return false;
 	data += 7;
 	if (sscanf(data, "pid=%u", &pid) == 1 ||
 	    (global_pid = true, sscanf(data, "global-pid=%u", &pid) == 1)) {
 		struct task_struct *p;
+
 		rcu_read_lock();
 		if (global_pid)
 			p = find_task_by_pid_ns(pid, &init_pid_ns);
 		else
 			p = find_task_by_vpid(pid);
 		if (p)
-			domain = tomoyo_real_domain(p);
+			domain = tomoyo_task(p)->domain_info;
 		rcu_read_unlock();
 	} else if (!strncmp(data, "domain=", 7)) {
 		if (tomoyo_domain_def(data + 7))
@@ -1019,10 +1040,11 @@ static bool tomoyo_select_domain(struct tomoyo_io_buffer *head,
  * Returns true if @a == @b, false otherwise.
  */
 static bool tomoyo_same_task_acl(const struct tomoyo_acl_info *a,
-			      const struct tomoyo_acl_info *b)
+				 const struct tomoyo_acl_info *b)
 {
 	const struct tomoyo_task_acl *p1 = container_of(a, typeof(*p1), head);
 	const struct tomoyo_task_acl *p2 = container_of(b, typeof(*p2), head);
+
 	return p1->domainname == p2->domainname;
 }
 
@@ -1038,11 +1060,13 @@ static bool tomoyo_same_task_acl(const struct tomoyo_acl_info *a,
 static int tomoyo_write_task(struct tomoyo_acl_param *param)
 {
 	int error = -EINVAL;
+
 	if (tomoyo_str_starts(&param->data, "manual_domain_transition ")) {
 		struct tomoyo_task_acl e = {
 			.head.type = TOMOYO_TYPE_MANUAL_TASK_ACL,
 			.domainname = tomoyo_get_domainname(param),
 		};
+
 		if (e.domainname)
 			error = tomoyo_update_domain(&e.head, sizeof(e), param,
 						     tomoyo_same_task_acl,
@@ -1109,7 +1133,7 @@ static int tomoyo_write_domain2(struct tomoyo_policy_namespace *ns,
 	};
 	static const struct {
 		const char *keyword;
-		int (*write) (struct tomoyo_acl_param *);
+		int (*write)(struct tomoyo_acl_param *param);
 	} tomoyo_callback[5] = {
 		{ "file ", tomoyo_write_file },
 		{ "network inet ", tomoyo_write_inet_network },
@@ -1150,9 +1174,11 @@ static int tomoyo_write_domain(struct tomoyo_io_buffer *head)
 	struct tomoyo_domain_info *domain = head->w.domain;
 	const bool is_delete = head->w.is_delete;
 	bool is_select = !is_delete && tomoyo_str_starts(&data, "select ");
-	unsigned int profile;
+	unsigned int idx;
+
 	if (*data == '<') {
 		int ret = 0;
+
 		domain = NULL;
 		if (is_delete)
 			ret = tomoyo_delete_domain(data);
@@ -1166,23 +1192,27 @@ static int tomoyo_write_domain(struct tomoyo_io_buffer *head)
 	if (!domain)
 		return -EINVAL;
 	ns = domain->ns;
-	if (sscanf(data, "use_profile %u", &profile) == 1
-	    && profile < TOMOYO_MAX_PROFILES) {
-		if (!tomoyo_policy_loaded || ns->profile_ptr[profile])
-			domain->profile = (u8) profile;
+	if (sscanf(data, "use_profile %u", &idx) == 1
+	    && idx < TOMOYO_MAX_PROFILES) {
+		if (!tomoyo_policy_loaded || ns->profile_ptr[idx])
+			if (!is_delete)
+				domain->profile = (u8) idx;
 		return 0;
 	}
-	if (sscanf(data, "use_group %u\n", &profile) == 1
-	    && profile < TOMOYO_MAX_ACL_GROUPS) {
+	if (sscanf(data, "use_group %u\n", &idx) == 1
+	    && idx < TOMOYO_MAX_ACL_GROUPS) {
 		if (!is_delete)
-			domain->group = (u8) profile;
+			set_bit(idx, domain->group);
+		else
+			clear_bit(idx, domain->group);
 		return 0;
 	}
-	for (profile = 0; profile < TOMOYO_MAX_DOMAIN_INFO_FLAGS; profile++) {
-		const char *cp = tomoyo_dif[profile];
+	for (idx = 0; idx < TOMOYO_MAX_DOMAIN_INFO_FLAGS; idx++) {
+		const char *cp = tomoyo_dif[idx];
+
 		if (strncmp(data, cp, strlen(cp) - 1))
 			continue;
-		domain->flags[profile] = !is_delete;
+		domain->flags[idx] = !is_delete;
 		return 0;
 	}
 	return tomoyo_write_domain2(ns, &domain->acl_info_list, data,
@@ -1224,9 +1254,11 @@ static bool tomoyo_print_condition(struct tomoyo_io_buffer *head,
 			const struct tomoyo_envp *envp =
 				(typeof(envp)) (argv + cond->argc);
 			u16 skip;
+
 			for (skip = 0; skip < head->r.cond_index; skip++) {
 				const u8 left = condp->left;
 				const u8 right = condp->right;
+
 				condp++;
 				switch (left) {
 				case TOMOYO_ARGV_ENTRY:
@@ -1252,6 +1284,7 @@ static bool tomoyo_print_condition(struct tomoyo_io_buffer *head,
 				const u8 match = condp->equals;
 				const u8 left = condp->left;
 				const u8 right = condp->right;
+
 				if (!tomoyo_flush(head))
 					return false;
 				condp++;
@@ -1261,8 +1294,7 @@ static bool tomoyo_print_condition(struct tomoyo_io_buffer *head,
 				case TOMOYO_ARGV_ENTRY:
 					tomoyo_io_printf(head,
 							 "exec.argv[%lu]%s=\"",
-							 argv->index, argv->
-							 is_not ? "!" : "");
+							 argv->index, argv->is_not ? "!" : "");
 					tomoyo_set_string(head,
 							  argv->value->name);
 					tomoyo_set_string(head, "\"");
@@ -1273,12 +1305,10 @@ static bool tomoyo_print_condition(struct tomoyo_io_buffer *head,
 							  "exec.envp[\"");
 					tomoyo_set_string(head,
 							  envp->name->name);
-					tomoyo_io_printf(head, "\"]%s=", envp->
-							 is_not ? "!" : "");
+					tomoyo_io_printf(head, "\"]%s=", envp->is_not ? "!" : "");
 					if (envp->value) {
 						tomoyo_set_string(head, "\"");
-						tomoyo_set_string(head, envp->
-								  value->name);
+						tomoyo_set_string(head, envp->value->name);
 						tomoyo_set_string(head, "\"");
 					} else {
 						tomoyo_set_string(head,
@@ -1374,6 +1404,7 @@ static bool tomoyo_print_entry(struct tomoyo_io_buffer *head,
 		struct tomoyo_path_acl *ptr =
 			container_of(acl, typeof(*ptr), head);
 		const u16 perm = ptr->perm;
+
 		for (bit = 0; bit < TOMOYO_MAX_PATH_OPERATION; bit++) {
 			if (!(perm & (1 << bit)))
 				continue;
@@ -1394,6 +1425,7 @@ static bool tomoyo_print_entry(struct tomoyo_io_buffer *head,
 	} else if (acl_type == TOMOYO_TYPE_MANUAL_TASK_ACL) {
 		struct tomoyo_task_acl *ptr =
 			container_of(acl, typeof(*ptr), head);
+
 		tomoyo_set_group(head, "task ");
 		tomoyo_set_string(head, "manual_domain_transition ");
 		tomoyo_set_string(head, ptr->domainname->name);
@@ -1403,6 +1435,7 @@ static bool tomoyo_print_entry(struct tomoyo_io_buffer *head,
 		struct tomoyo_path2_acl *ptr =
 			container_of(acl, typeof(*ptr), head);
 		const u8 perm = ptr->perm;
+
 		for (bit = 0; bit < TOMOYO_MAX_PATH2_OPERATION; bit++) {
 			if (!(perm & (1 << bit)))
 				continue;
@@ -1423,6 +1456,7 @@ static bool tomoyo_print_entry(struct tomoyo_io_buffer *head,
 		struct tomoyo_path_number_acl *ptr =
 			container_of(acl, typeof(*ptr), head);
 		const u8 perm = ptr->perm;
+
 		for (bit = 0; bit < TOMOYO_MAX_PATH_NUMBER_OPERATION; bit++) {
 			if (!(perm & (1 << bit)))
 				continue;
@@ -1443,6 +1477,7 @@ static bool tomoyo_print_entry(struct tomoyo_io_buffer *head,
 		struct tomoyo_mkdev_acl *ptr =
 			container_of(acl, typeof(*ptr), head);
 		const u8 perm = ptr->perm;
+
 		for (bit = 0; bit < TOMOYO_MAX_MKDEV_OPERATION; bit++) {
 			if (!(perm & (1 << bit)))
 				continue;
@@ -1489,6 +1524,7 @@ static bool tomoyo_print_entry(struct tomoyo_io_buffer *head,
 					  ->name);
 		} else {
 			char buf[128];
+
 			tomoyo_print_ip(buf, sizeof(buf), &ptr->address);
 			tomoyo_io_printf(head, "%s", buf);
 		}
@@ -1518,6 +1554,7 @@ static bool tomoyo_print_entry(struct tomoyo_io_buffer *head,
 	} else if (acl_type == TOMOYO_TYPE_MOUNT_ACL) {
 		struct tomoyo_mount_acl *ptr =
 			container_of(acl, typeof(*ptr), head);
+
 		tomoyo_set_group(head, "file mount");
 		tomoyo_print_name_union(head, &ptr->dev_name);
 		tomoyo_print_name_union(head, &ptr->dir_name);
@@ -1561,6 +1598,7 @@ static bool tomoyo_read_domain2(struct tomoyo_io_buffer *head,
 	list_for_each_cookie(head->r.acl, list) {
 		struct tomoyo_acl_info *ptr =
 			list_entry(head->r.acl, typeof(*ptr), list);
+
 		if (!tomoyo_print_entry(head, ptr))
 			return false;
 	}
@@ -1582,8 +1620,9 @@ static void tomoyo_read_domain(struct tomoyo_io_buffer *head)
 	list_for_each_cookie(head->r.domain, &tomoyo_domain_list) {
 		struct tomoyo_domain_info *domain =
 			list_entry(head->r.domain, typeof(*domain), list);
+		u8 i;
+
 		switch (head->r.step) {
-			u8 i;
 		case 0:
 			if (domain->is_deleted &&
 			    !head->r.print_this_domain_only)
@@ -1593,22 +1632,33 @@ static void tomoyo_read_domain(struct tomoyo_io_buffer *head)
 			tomoyo_set_lf(head);
 			tomoyo_io_printf(head, "use_profile %u\n",
 					 domain->profile);
-			tomoyo_io_printf(head, "use_group %u\n",
-					 domain->group);
 			for (i = 0; i < TOMOYO_MAX_DOMAIN_INFO_FLAGS; i++)
 				if (domain->flags[i])
 					tomoyo_set_string(head, tomoyo_dif[i]);
+			head->r.index = 0;
+			head->r.step++;
+			/* fall through */
+		case 1:
+			while (head->r.index < TOMOYO_MAX_ACL_GROUPS) {
+				i = head->r.index++;
+				if (!test_bit(i, domain->group))
+					continue;
+				tomoyo_io_printf(head, "use_group %u\n", i);
+				if (!tomoyo_flush(head))
+					return;
+			}
+			head->r.index = 0;
 			head->r.step++;
 			tomoyo_set_lf(head);
 			/* fall through */
-		case 1:
+		case 2:
 			if (!tomoyo_read_domain2(head, &domain->acl_info_list))
 				return;
 			head->r.step++;
 			if (!tomoyo_set_lf(head))
 				return;
 			/* fall through */
-		case 2:
+		case 3:
 			head->r.step = 0;
 			if (head->r.print_this_domain_only)
 				goto done;
@@ -1659,14 +1709,15 @@ static void tomoyo_read_pid(struct tomoyo_io_buffer *head)
 	head->r.eof = true;
 	if (tomoyo_str_starts(&buf, "global-pid "))
 		global_pid = true;
-	pid = (unsigned int) simple_strtoul(buf, NULL, 10);
+	if (kstrtouint(buf, 10, &pid))
+		return;
 	rcu_read_lock();
 	if (global_pid)
 		p = find_task_by_pid_ns(pid, &init_pid_ns);
 	else
 		p = find_task_by_vpid(pid);
 	if (p)
-		domain = tomoyo_real_domain(p);
+		domain = tomoyo_task(p)->domain_info;
 	rcu_read_unlock();
 	if (!domain)
 		return;
@@ -1709,6 +1760,7 @@ static int tomoyo_write_exception(struct tomoyo_io_buffer *head)
 		.data = head->write_buf,
 	};
 	u8 i;
+
 	if (tomoyo_str_starts(&param.data, "aggregator "))
 		return tomoyo_write_aggregator(&param);
 	for (i = 0; i < TOMOYO_MAX_TRANSITION_TYPE; i++)
@@ -1720,6 +1772,7 @@ static int tomoyo_write_exception(struct tomoyo_io_buffer *head)
 	if (tomoyo_str_starts(&param.data, "acl_group ")) {
 		unsigned int group;
 		char *data;
+
 		group = simple_strtoul(param.data, &data, 10);
 		if (group < TOMOYO_MAX_ACL_GROUPS && *data++ == ' ')
 			return tomoyo_write_domain2
@@ -1744,12 +1797,15 @@ static bool tomoyo_read_group(struct tomoyo_io_buffer *head, const int idx)
 	struct tomoyo_policy_namespace *ns =
 		container_of(head->r.ns, typeof(*ns), namespace_list);
 	struct list_head *list = &ns->group_list[idx];
+
 	list_for_each_cookie(head->r.group, list) {
 		struct tomoyo_group *group =
 			list_entry(head->r.group, typeof(*group), head.list);
+
 		list_for_each_cookie(head->r.acl, &group->member_list) {
 			struct tomoyo_acl_head *ptr =
 				list_entry(head->r.acl, typeof(*ptr), list);
+
 			if (ptr->is_deleted)
 				continue;
 			if (!tomoyo_flush(head))
@@ -1769,10 +1825,10 @@ static bool tomoyo_read_group(struct tomoyo_io_buffer *head, const int idx)
 							   head)->number);
 			} else if (idx == TOMOYO_ADDRESS_GROUP) {
 				char buffer[128];
-
 				struct tomoyo_address_group *member =
 					container_of(ptr, typeof(*member),
 						     head);
+
 				tomoyo_print_ip(buffer, sizeof(buffer),
 						&member->address);
 				tomoyo_io_printf(head, " %s", buffer);
@@ -1800,6 +1856,7 @@ static bool tomoyo_read_policy(struct tomoyo_io_buffer *head, const int idx)
 	struct tomoyo_policy_namespace *ns =
 		container_of(head->r.ns, typeof(*ns), namespace_list);
 	struct list_head *list = &ns->policy_list[idx];
+
 	list_for_each_cookie(head->r.acl, list) {
 		struct tomoyo_acl_head *acl =
 			container_of(head->r.acl, typeof(*acl), list);
@@ -1812,6 +1869,7 @@ static bool tomoyo_read_policy(struct tomoyo_io_buffer *head, const int idx)
 			{
 				struct tomoyo_transition_control *ptr =
 					container_of(acl, typeof(*ptr), head);
+
 				tomoyo_print_namespace(head);
 				tomoyo_set_string(head, tomoyo_transition_type
 						  [ptr->type]);
@@ -1827,6 +1885,7 @@ static bool tomoyo_read_policy(struct tomoyo_io_buffer *head, const int idx)
 			{
 				struct tomoyo_aggregator *ptr =
 					container_of(acl, typeof(*ptr), head);
+
 				tomoyo_print_namespace(head);
 				tomoyo_set_string(head, "aggregator ");
 				tomoyo_set_string(head,
@@ -1856,6 +1915,7 @@ static void tomoyo_read_exception(struct tomoyo_io_buffer *head)
 {
 	struct tomoyo_policy_namespace *ns =
 		container_of(head->r.ns, typeof(*ns), namespace_list);
+
 	if (head->r.eof)
 		return;
 	while (head->r.step < TOMOYO_MAX_POLICY &&
@@ -1919,6 +1979,7 @@ static atomic_t tomoyo_query_observers = ATOMIC_INIT(0);
 static int tomoyo_truncate(char *str)
 {
 	char *start = str;
+
 	while (*(unsigned char *) str > (unsigned char) ' ')
 		str++;
 	*str = '\0';
@@ -1941,6 +2002,7 @@ static void tomoyo_add_entry(struct tomoyo_domain_info *domain, char *header)
 	char *symlink = NULL;
 	char *cp = strchr(header, '\n');
 	int len;
+
 	if (!cp)
 		return;
 	cp = strchr(cp + 1, '\n');
@@ -2000,6 +2062,7 @@ int tomoyo_supervisor(struct tomoyo_request_info *r, const char *fmt, ...)
 	static unsigned int tomoyo_serial;
 	struct tomoyo_query entry = { };
 	bool quota_exceeded = false;
+
 	va_start(args, fmt);
 	len = vsnprintf((char *) &len, 1, fmt, args) + 1;
 	va_end(args);
@@ -2061,8 +2124,7 @@ int tomoyo_supervisor(struct tomoyo_request_info *r, const char *fmt, ...)
 		    (tomoyo_answer_wait, entry.answer ||
 		     !atomic_read(&tomoyo_query_observers), HZ))
 			break;
-		else
-			entry.timer++;
+		entry.timer++;
 	}
 	spin_lock(&tomoyo_query_list_lock);
 	list_del(&entry.list);
@@ -2098,6 +2160,7 @@ static struct tomoyo_domain_info *tomoyo_find_domain_by_qid
 {
 	struct tomoyo_query *ptr;
 	struct tomoyo_domain_info *domain = NULL;
+
 	spin_lock(&tomoyo_query_list_lock);
 	list_for_each_entry(ptr, &tomoyo_query_list, list) {
 		if (ptr->serial != serial)
@@ -2115,17 +2178,17 @@ static struct tomoyo_domain_info *tomoyo_find_domain_by_qid
  * @file: Pointer to "struct file".
  * @wait: Pointer to "poll_table".
  *
- * Returns POLLIN | POLLRDNORM when ready to read, 0 otherwise.
+ * Returns EPOLLIN | EPOLLRDNORM when ready to read, 0 otherwise.
  *
  * Waits for access requests which violated policy in enforcing mode.
  */
-static unsigned int tomoyo_poll_query(struct file *file, poll_table *wait)
+static __poll_t tomoyo_poll_query(struct file *file, poll_table *wait)
 {
 	if (!list_empty(&tomoyo_query_list))
-		return POLLIN | POLLRDNORM;
+		return EPOLLIN | EPOLLRDNORM;
 	poll_wait(file, &tomoyo_query_wait, wait);
 	if (!list_empty(&tomoyo_query_list))
-		return POLLIN | POLLRDNORM;
+		return EPOLLIN | EPOLLRDNORM;
 	return 0;
 }
 
@@ -2140,15 +2203,15 @@ static void tomoyo_read_query(struct tomoyo_io_buffer *head)
 	unsigned int pos = 0;
 	size_t len = 0;
 	char *buf;
+
 	if (head->r.w_pos)
 		return;
-	if (head->read_buf) {
-		kfree(head->read_buf);
-		head->read_buf = NULL;
-	}
+	kfree(head->read_buf);
+	head->read_buf = NULL;
 	spin_lock(&tomoyo_query_list_lock);
 	list_for_each(tmp, &tomoyo_query_list) {
 		struct tomoyo_query *ptr = list_entry(tmp, typeof(*ptr), list);
+
 		if (pos++ != head->r.query_index)
 			continue;
 		len = ptr->query_len;
@@ -2166,6 +2229,7 @@ static void tomoyo_read_query(struct tomoyo_io_buffer *head)
 	spin_lock(&tomoyo_query_list_lock);
 	list_for_each(tmp, &tomoyo_query_list) {
 		struct tomoyo_query *ptr = list_entry(tmp, typeof(*ptr), list);
+
 		if (pos++ != head->r.query_index)
 			continue;
 		/*
@@ -2200,9 +2264,11 @@ static int tomoyo_write_answer(struct tomoyo_io_buffer *head)
 	struct list_head *tmp;
 	unsigned int serial;
 	unsigned int answer;
+
 	spin_lock(&tomoyo_query_list_lock);
 	list_for_each(tmp, &tomoyo_query_list) {
 		struct tomoyo_query *ptr = list_entry(tmp, typeof(*ptr), list);
+
 		ptr->timer = 0;
 	}
 	spin_unlock(&tomoyo_query_list_lock);
@@ -2211,6 +2277,7 @@ static int tomoyo_write_answer(struct tomoyo_io_buffer *head)
 	spin_lock(&tomoyo_query_list_lock);
 	list_for_each(tmp, &tomoyo_query_list) {
 		struct tomoyo_query *ptr = list_entry(tmp, typeof(*ptr), list);
+
 		if (ptr->serial != serial)
 			continue;
 		ptr->answer = answer;
@@ -2233,7 +2300,7 @@ static int tomoyo_write_answer(struct tomoyo_io_buffer *head)
 static void tomoyo_read_version(struct tomoyo_io_buffer *head)
 {
 	if (!head->r.eof) {
-		tomoyo_io_printf(head, "2.5.0");
+		tomoyo_io_printf(head, "2.6.0");
 		head->r.eof = true;
 	}
 }
@@ -2256,7 +2323,7 @@ static const char * const tomoyo_memory_headers[TOMOYO_MAX_MEMORY_STAT] = {
 /* Timestamp counter for last updated. */
 static unsigned int tomoyo_stat_updated[TOMOYO_MAX_POLICY_STAT];
 /* Counter for number of updates. */
-static unsigned int tomoyo_stat_modified[TOMOYO_MAX_POLICY_STAT];
+static time64_t tomoyo_stat_modified[TOMOYO_MAX_POLICY_STAT];
 
 /**
  * tomoyo_update_stat - Update statistic counters.
@@ -2271,7 +2338,7 @@ void tomoyo_update_stat(const u8 index)
 	 * I don't use atomic operations because race condition is not fatal.
 	 */
 	tomoyo_stat_updated[index]++;
-	tomoyo_stat_modified[index] = get_seconds();
+	tomoyo_stat_modified[index] = ktime_get_real_seconds();
 }
 
 /**
@@ -2285,6 +2352,7 @@ static void tomoyo_read_stat(struct tomoyo_io_buffer *head)
 {
 	u8 i;
 	unsigned int total = 0;
+
 	if (head->r.eof)
 		return;
 	for (i = 0; i < TOMOYO_MAX_POLICY_STAT; i++) {
@@ -2293,9 +2361,9 @@ static void tomoyo_read_stat(struct tomoyo_io_buffer *head)
 				 tomoyo_stat_updated[i]);
 		if (tomoyo_stat_modified[i]) {
 			struct tomoyo_time stamp;
+
 			tomoyo_convert_time(tomoyo_stat_modified[i], &stamp);
-			tomoyo_io_printf(head, " (Last: %04u/%02u/%02u "
-					 "%02u:%02u:%02u)",
+			tomoyo_io_printf(head, " (Last: %04u/%02u/%02u %02u:%02u:%02u)",
 					 stamp.year, stamp.month, stamp.day,
 					 stamp.hour, stamp.min, stamp.sec);
 		}
@@ -2303,6 +2371,7 @@ static void tomoyo_read_stat(struct tomoyo_io_buffer *head)
 	}
 	for (i = 0; i < TOMOYO_MAX_MEMORY_STAT; i++) {
 		unsigned int used = tomoyo_memory_used[i];
+
 		total += used;
 		tomoyo_io_printf(head, "Memory used by %-22s %10u",
 				 tomoyo_memory_headers[i], used);
@@ -2327,6 +2396,7 @@ static int tomoyo_write_stat(struct tomoyo_io_buffer *head)
 {
 	char *data = head->write_buf;
 	u8 i;
+
 	if (tomoyo_str_starts(&data, "Memory used by "))
 		for (i = 0; i < TOMOYO_MAX_MEMORY_STAT; i++)
 			if (tomoyo_str_starts(&data, tomoyo_memory_headers[i]))
@@ -2449,15 +2519,16 @@ int tomoyo_open_control(const u8 type, struct file *file)
  * @file: Pointer to "struct file".
  * @wait: Pointer to "poll_table". Maybe NULL.
  *
- * Returns POLLIN | POLLRDNORM | POLLOUT | POLLWRNORM if ready to read/write,
- * POLLOUT | POLLWRNORM otherwise.
+ * Returns EPOLLIN | EPOLLRDNORM | EPOLLOUT | EPOLLWRNORM if ready to read/write,
+ * EPOLLOUT | EPOLLWRNORM otherwise.
  */
-unsigned int tomoyo_poll_control(struct file *file, poll_table *wait)
+__poll_t tomoyo_poll_control(struct file *file, poll_table *wait)
 {
 	struct tomoyo_io_buffer *head = file->private_data;
+
 	if (head->poll)
-		return head->poll(file, wait) | POLLOUT | POLLWRNORM;
-	return POLLIN | POLLRDNORM | POLLOUT | POLLWRNORM;
+		return head->poll(file, wait) | EPOLLOUT | EPOLLWRNORM;
+	return EPOLLIN | EPOLLRDNORM | EPOLLOUT | EPOLLWRNORM;
 }
 
 /**
@@ -2470,6 +2541,7 @@ unsigned int tomoyo_poll_control(struct file *file, poll_table *wait)
 static inline void tomoyo_set_namespace_cursor(struct tomoyo_io_buffer *head)
 {
 	struct list_head *ns;
+
 	if (head->type != TOMOYO_EXCEPTIONPOLICY &&
 	    head->type != TOMOYO_PROFILE)
 		return;
@@ -2515,7 +2587,7 @@ ssize_t tomoyo_read_control(struct tomoyo_io_buffer *head, char __user *buffer,
 	int idx;
 
 	if (!head->read)
-		return -ENOSYS;
+		return -EINVAL;
 	if (mutex_lock_interruptible(&head->io_sem))
 		return -EINTR;
 	head->read_user_buf = buffer;
@@ -2555,6 +2627,7 @@ static int tomoyo_parse_policy(struct tomoyo_io_buffer *head, char *line)
 	    head->type == TOMOYO_PROFILE) {
 		if (*line == '<') {
 			char *cp = strchr(line, ' ');
+
 			if (cp) {
 				*cp++ = '\0';
 				head->w.ns = tomoyo_assign_namespace(line);
@@ -2587,9 +2660,10 @@ ssize_t tomoyo_write_control(struct tomoyo_io_buffer *head,
 	size_t avail_len = buffer_len;
 	char *cp0 = head->write_buf;
 	int idx;
+
 	if (!head->write)
-		return -ENOSYS;
-	if (!access_ok(VERIFY_READ, buffer, buffer_len))
+		return -EINVAL;
+	if (!access_ok(buffer, buffer_len))
 		return -EFAULT;
 	if (mutex_lock_interruptible(&head->io_sem))
 		return -EINTR;
@@ -2598,9 +2672,11 @@ ssize_t tomoyo_write_control(struct tomoyo_io_buffer *head,
 	/* Read a line and dispatch it to the policy handler. */
 	while (avail_len > 0) {
 		char c;
+
 		if (head->w.avail >= head->writebuf_size - 1) {
 			const int len = head->writebuf_size * 2;
 			char *cp = kzalloc(len, GFP_NOFS);
+
 			if (!cp) {
 				error = -ENOMEM;
 				break;
@@ -2699,30 +2775,32 @@ void tomoyo_check_profile(void)
 {
 	struct tomoyo_domain_info *domain;
 	const int idx = tomoyo_read_lock();
+
 	tomoyo_policy_loaded = true;
-	printk(KERN_INFO "TOMOYO: 2.5.0\n");
+	pr_info("TOMOYO: 2.6.0\n");
 	list_for_each_entry_rcu(domain, &tomoyo_domain_list, list) {
 		const u8 profile = domain->profile;
-		const struct tomoyo_policy_namespace *ns = domain->ns;
-		if (ns->profile_version != 20110903)
-			printk(KERN_ERR
-			       "Profile version %u is not supported.\n",
+		struct tomoyo_policy_namespace *ns = domain->ns;
+
+		if (ns->profile_version == 20110903) {
+			pr_info_once("Converting profile version from %u to %u.\n",
+				     20110903, 20150505);
+			ns->profile_version = 20150505;
+		}
+		if (ns->profile_version != 20150505)
+			pr_err("Profile version %u is not supported.\n",
 			       ns->profile_version);
 		else if (!ns->profile_ptr[profile])
-			printk(KERN_ERR
-			       "Profile %u (used by '%s') is not defined.\n",
+			pr_err("Profile %u (used by '%s') is not defined.\n",
 			       profile, domain->domainname->name);
 		else
 			continue;
-		printk(KERN_ERR
-		       "Userland tools for TOMOYO 2.5 must be installed and "
-		       "policy must be initialized.\n");
-		printk(KERN_ERR "Please see http://tomoyo.sourceforge.jp/2.5/ "
-		       "for more information.\n");
+		pr_err("Userland tools for TOMOYO 2.6 must be installed and policy must be initialized.\n");
+		pr_err("Please see https://tomoyo.osdn.jp/2.6/ for more information.\n");
 		panic("STOP!");
 	}
 	tomoyo_read_unlock(idx);
-	printk(KERN_INFO "Mandatory Access Control activated.\n");
+	pr_info("Mandatory Access Control activated.\n");
 }
 
 /**
@@ -2732,6 +2810,16 @@ void tomoyo_check_profile(void)
  */
 void __init tomoyo_load_builtin_policy(void)
 {
+#ifdef CONFIG_SECURITY_TOMOYO_INSECURE_BUILTIN_SETTING
+	static char tomoyo_builtin_profile[] __initdata =
+		"PROFILE_VERSION=20150505\n"
+		"0-CONFIG={ mode=learning grant_log=no reject_log=yes }\n";
+	static char tomoyo_builtin_exception_policy[] __initdata =
+		"aggregator proc:/self/exe /proc/self/exe\n";
+	static char tomoyo_builtin_domain_policy[] __initdata = "";
+	static char tomoyo_builtin_manager[] __initdata = "";
+	static char tomoyo_builtin_stat[] __initdata = "";
+#else
 	/*
 	 * This include file is manually created and contains built-in policy
 	 * named "tomoyo_builtin_profile", "tomoyo_builtin_exception_policy",
@@ -2739,11 +2827,14 @@ void __init tomoyo_load_builtin_policy(void)
 	 * "tomoyo_builtin_stat" in the form of "static char [] __initdata".
 	 */
 #include "builtin-policy.h"
+#endif
 	u8 i;
 	const int idx = tomoyo_read_lock();
+
 	for (i = 0; i < 5; i++) {
 		struct tomoyo_io_buffer head = { };
 		char *start = "";
+
 		switch (i) {
 		case 0:
 			start = tomoyo_builtin_profile;
@@ -2773,6 +2864,7 @@ void __init tomoyo_load_builtin_policy(void)
 		}
 		while (1) {
 			char *end = strchr(start, '\n');
+
 			if (!end)
 				break;
 			*end = '\0';

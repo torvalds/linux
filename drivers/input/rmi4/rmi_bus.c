@@ -1,14 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2011-2016 Synaptics Incorporated
  * Copyright (c) 2011 Unixphere
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 
 #include <linux/kernel.h>
 #include <linux/device.h>
+#include <linux/irq.h>
+#include <linux/irqdomain.h>
 #include <linux/list.h>
 #include <linux/pm.h>
 #include <linux/rmi.h>
@@ -55,7 +54,7 @@ static void rmi_release_device(struct device *dev)
 	kfree(rmi_dev);
 }
 
-static struct device_type rmi_device_type = {
+static const struct device_type rmi_device_type = {
 	.name		= "rmi4_sensor",
 	.release	= rmi_release_device,
 };
@@ -134,7 +133,7 @@ static void rmi_release_function(struct device *dev)
 	kfree(fn);
 }
 
-static struct device_type rmi_function_type = {
+static const struct device_type rmi_function_type = {
 	.name		= "rmi4_function",
 	.release	= rmi_release_function,
 };
@@ -167,6 +166,39 @@ static inline void rmi_function_of_probe(struct rmi_function *fn)
 {}
 #endif
 
+static struct irq_chip rmi_irq_chip = {
+	.name = "rmi4",
+};
+
+static int rmi_create_function_irq(struct rmi_function *fn,
+				   struct rmi_function_handler *handler)
+{
+	struct rmi_driver_data *drvdata = dev_get_drvdata(&fn->rmi_dev->dev);
+	int i, error;
+
+	for (i = 0; i < fn->num_of_irqs; i++) {
+		set_bit(fn->irq_pos + i, fn->irq_mask);
+
+		fn->irq[i] = irq_create_mapping(drvdata->irqdomain,
+						fn->irq_pos + i);
+
+		irq_set_chip_data(fn->irq[i], fn);
+		irq_set_chip_and_handler(fn->irq[i], &rmi_irq_chip,
+					 handle_simple_irq);
+		irq_set_nested_thread(fn->irq[i], 1);
+
+		error = devm_request_threaded_irq(&fn->dev, fn->irq[i], NULL,
+					handler->attention, IRQF_ONESHOT,
+					dev_name(&fn->dev), fn);
+		if (error) {
+			dev_err(&fn->dev, "Error %d registering IRQ\n", error);
+			return error;
+		}
+	}
+
+	return 0;
+}
+
 static int rmi_function_probe(struct device *dev)
 {
 	struct rmi_function *fn = to_rmi_function(dev);
@@ -178,7 +210,14 @@ static int rmi_function_probe(struct device *dev)
 
 	if (handler->probe) {
 		error = handler->probe(fn);
-		return error;
+		if (error)
+			return error;
+	}
+
+	if (fn->num_of_irqs && handler->attention) {
+		error = rmi_create_function_irq(fn, handler);
+		if (error)
+			return error;
 	}
 
 	return 0;
@@ -230,9 +269,18 @@ err_put_device:
 
 void rmi_unregister_function(struct rmi_function *fn)
 {
+	int i;
+
+	rmi_dbg(RMI_DEBUG_CORE, &fn->dev, "Unregistering F%02X.\n",
+			fn->fd.function_number);
+
 	device_del(&fn->dev);
 	of_node_put(fn->dev.of_node);
 	put_device(&fn->dev);
+
+	for (i = 0; i < fn->num_of_irqs; i++)
+		irq_dispose_mapping(fn->irq[i]);
+
 }
 
 /**
@@ -258,10 +306,10 @@ int __rmi_register_function_handler(struct rmi_function_handler *handler,
 	driver->probe = rmi_function_probe;
 	driver->remove = rmi_function_remove;
 
-	error = driver_register(&handler->driver);
+	error = driver_register(driver);
 	if (error) {
 		pr_err("driver_register() failed for %s, error: %d\n",
-			handler->driver.name, error);
+			driver->name, error);
 		return error;
 	}
 
@@ -302,6 +350,9 @@ struct bus_type rmi_bus_type = {
 
 static struct rmi_function_handler *fn_handlers[] = {
 	&rmi_f01_handler,
+#ifdef CONFIG_RMI4_F03
+	&rmi_f03_handler,
+#endif
 #ifdef CONFIG_RMI4_F11
 	&rmi_f11_handler,
 #endif
@@ -311,8 +362,14 @@ static struct rmi_function_handler *fn_handlers[] = {
 #ifdef CONFIG_RMI4_F30
 	&rmi_f30_handler,
 #endif
+#ifdef CONFIG_RMI4_F34
+	&rmi_f34_handler,
+#endif
 #ifdef CONFIG_RMI4_F54
 	&rmi_f54_handler,
+#endif
+#ifdef CONFIG_RMI4_F55
+	&rmi_f55_handler,
 #endif
 };
 
@@ -415,4 +472,3 @@ MODULE_AUTHOR("Christopher Heiny <cheiny@synaptics.com");
 MODULE_AUTHOR("Andrew Duggan <aduggan@synaptics.com");
 MODULE_DESCRIPTION("RMI bus");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(RMI_DRIVER_VERSION);

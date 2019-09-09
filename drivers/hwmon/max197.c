@@ -1,18 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Maxim MAX197 A/D Converter driver
  *
  * Copyright (c) 2012 Savoir-faire Linux Inc.
  *          Vivien Didelot <vivien.didelot@savoirfairelinux.com>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * For further information, see the Documentation/hwmon/max197 file.
+ * For further information, see the Documentation/hwmon/max197.rst file.
  */
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/init.h>
 #include <linux/err.h>
 #include <linux/slab.h>
@@ -207,8 +205,8 @@ unlock:
 	return ret;
 }
 
-static ssize_t max197_show_name(struct device *dev,
-				struct device_attribute *attr, char *buf)
+static ssize_t name_show(struct device *dev, struct device_attribute *attr,
+			 char *buf)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	return sprintf(buf, "%s\n", pdev->name);
@@ -231,7 +229,7 @@ static ssize_t max197_show_name(struct device *dev,
 	&sensor_dev_attr_in##chan##_max.dev_attr.attr,			\
 	&sensor_dev_attr_in##chan##_min.dev_attr.attr
 
-static DEVICE_ATTR(name, S_IRUGO, max197_show_name, NULL);
+static DEVICE_ATTR_RO(name);
 
 MAX197_SENSOR_DEVICE_ATTR_CH(0);
 MAX197_SENSOR_DEVICE_ATTR_CH(1);

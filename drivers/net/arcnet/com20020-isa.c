@@ -38,7 +38,7 @@
 #include <linux/netdevice.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/io.h>
 
 #include "arcdevice.h"
@@ -129,8 +129,8 @@ static int clockp = 0;
 static int clockm = 0;
 
 module_param(node, int, 0);
-module_param(io, int, 0);
-module_param(irq, int, 0);
+module_param_hw(io, int, ioport, 0);
+module_param_hw(irq, int, irq, 0);
 module_param_string(device, device, sizeof(device), 0);
 module_param(timeout, int, 0);
 module_param(backplane, int, 0);
@@ -197,16 +197,22 @@ static int __init com20020isa_setup(char *s)
 	switch (ints[0]) {
 	default:		/* ERROR */
 		pr_info("Too many arguments\n");
+		/* Fall through */
 	case 6:		/* Timeout */
 		timeout = ints[6];
+		/* Fall through */
 	case 5:		/* CKP value */
 		clockp = ints[5];
+		/* Fall through */
 	case 4:		/* Backplane flag */
 		backplane = ints[4];
+		/* Fall through */
 	case 3:		/* Node ID */
 		node = ints[3];
+		/* Fall through */
 	case 2:		/* IRQ */
 		irq = ints[2];
+		/* Fall through */
 	case 1:		/* IO address */
 		io = ints[1];
 	}

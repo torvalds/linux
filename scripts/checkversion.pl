@@ -1,4 +1,5 @@
-#! /usr/bin/perl
+#! /usr/bin/env perl
+# SPDX-License-Identifier: GPL-2.0
 #
 # checkversion find uses of LINUX_VERSION_CODE or KERNEL_VERSION
 # without including <linux/version.h>, or cases of

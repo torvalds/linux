@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * S3C24XX IRQ handling
  *
  * Copyright (c) 2003-2004 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  * Copyright (c) 2012 Heiko Stuebner <heiko@sntech.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
 */
 
 #include <linux/init.h>
@@ -58,7 +49,7 @@ struct s3c_irq_data {
 };
 
 /*
- * Sructure holding the controller data
+ * Structure holding the controller data
  * @reg_pending		register holding pending irqs
  * @reg_intpnd		special register intpnd in main intc
  * @reg_mask		mask register
@@ -156,7 +147,7 @@ static int s3c_irq_type(struct irq_data *data, unsigned int type)
 		irq_set_handler(data->irq, handle_level_irq);
 		break;
 	default:
-		pr_err("No such irq type %d", type);
+		pr_err("No such irq type %d\n", type);
 		return -EINVAL;
 	}
 
@@ -204,7 +195,7 @@ static int s3c_irqext_type_set(void __iomem *gpcon_reg,
 			break;
 
 		default:
-			pr_err("No such irq type %d", type);
+			pr_err("No such irq type %d\n", type);
 			return -EINVAL;
 	}
 
@@ -250,7 +241,7 @@ static int s3c_irqext0_type(struct irq_data *data, unsigned int type)
 	void __iomem *gpcon_reg;
 	unsigned long gpcon_offset, extint_offset;
 
-	if ((data->hwirq >= 0) && (data->hwirq <= 3)) {
+	if (data->hwirq <= 3) {
 		gpcon_reg = S3C2410_GPFCON;
 		extint_reg = S3C24XX_EXTINT0;
 		gpcon_offset = (data->hwirq) * 2;
@@ -1261,7 +1252,7 @@ static int __init s3c_init_intc_of(struct device_node *np,
 			return -ENOMEM;
 
 		intc->domain = domain;
-		intc->irqs = kzalloc(sizeof(struct s3c_irq_data) * 32,
+		intc->irqs = kcalloc(32, sizeof(struct s3c_irq_data),
 				     GFP_KERNEL);
 		if (!intc->irqs) {
 			kfree(intc);

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #include <linux/mount.h>
 #include <linux/seq_file.h>
 #include <linux/poll.h>
@@ -16,7 +17,7 @@ struct mnt_namespace {
 	u64 event;
 	unsigned int		mounts; /* # of mounts in the namespace */
 	unsigned int		pending_mounts;
-};
+} __randomize_layout;
 
 struct mnt_pcp {
 	int mnt_count;
@@ -57,18 +58,21 @@ struct mount {
 	struct mount *mnt_master;	/* slave is on master->mnt_slave_list */
 	struct mnt_namespace *mnt_ns;	/* containing namespace */
 	struct mountpoint *mnt_mp;	/* where is it mounted */
-	struct hlist_node mnt_mp_list;	/* list mounts with the same mountpoint */
+	union {
+		struct hlist_node mnt_mp_list;	/* list mounts with the same mountpoint */
+		struct hlist_node mnt_umount;
+	};
+	struct list_head mnt_umounting; /* list entry for umount propagation */
 #ifdef CONFIG_FSNOTIFY
-	struct hlist_head mnt_fsnotify_marks;
+	struct fsnotify_mark_connector __rcu *mnt_fsnotify_marks;
 	__u32 mnt_fsnotify_mask;
 #endif
 	int mnt_id;			/* mount identifier */
 	int mnt_group_id;		/* peer group identifier */
 	int mnt_expiry_mark;		/* true if marked for expiry */
 	struct hlist_head mnt_pins;
-	struct fs_pin mnt_umount;
-	struct dentry *mnt_ex_mountpoint;
-};
+	struct hlist_head mnt_stuck_children;
+} __randomize_layout;
 
 #define MNT_NS_INTERNAL ERR_PTR(-EINVAL) /* distinct from any mnt_namespace */
 
@@ -89,10 +93,15 @@ static inline int is_mounted(struct vfsmount *mnt)
 }
 
 extern struct mount *__lookup_mnt(struct vfsmount *, struct dentry *);
-extern struct mount *__lookup_mnt_last(struct vfsmount *, struct dentry *);
 
 extern int __legitimize_mnt(struct vfsmount *, unsigned);
 extern bool legitimize_mnt(struct vfsmount *, unsigned);
+
+static inline bool __path_is_mountpoint(const struct path *path)
+{
+	struct mount *m = __lookup_mnt(path->mnt, path->dentry);
+	return m && likely(!(m->mnt.mnt_flags & MNT_SYNC_UMOUNT));
+}
 
 extern void __detach_mounts(struct dentry *dentry);
 
@@ -138,4 +147,9 @@ static inline bool is_local_mountpoint(struct dentry *dentry)
 		return false;
 
 	return __is_local_mountpoint(dentry);
+}
+
+static inline bool is_anon_ns(struct mnt_namespace *ns)
+{
+	return ns->seq == 0;
 }

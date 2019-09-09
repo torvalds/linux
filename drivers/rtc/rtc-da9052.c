@@ -1,15 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Real time clock driver for DA9052
  *
  * Copyright(c) 2012 Dialog Semiconductor Ltd.
  *
  * Author: Dajun Dajun Chen <dajun.chen@diasemi.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
  */
 
 #include <linux/module.h>
@@ -187,8 +182,7 @@ static int da9052_rtc_read_time(struct device *dev, struct rtc_time *rtc_tm)
 			rtc_tm->tm_min  = v[0][1] & DA9052_RTC_MIN;
 			rtc_tm->tm_sec  = v[0][0] & DA9052_RTC_SEC;
 
-			ret = rtc_valid_tm(rtc_tm);
-			return ret;
+			return 0;
 		}
 
 		idx = (1-idx);

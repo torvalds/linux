@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2014 Angelo Compagnucci <angelo.compagnucci@gmail.com>
  *
@@ -6,16 +7,14 @@
  * http://www.ti.com/lit/ds/symlink/adc128s052.pdf
  * http://www.ti.com/lit/ds/symlink/adc122s021.pdf
  * http://www.ti.com/lit/ds/symlink/adc124s021.pdf
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
+#include <linux/acpi.h>
 #include <linux/err.h>
 #include <linux/spi/spi.h>
 #include <linux/module.h>
 #include <linux/iio/iio.h>
+#include <linux/property.h>
 #include <linux/regulator/consumer.h>
 
 struct adc128_configuration {
@@ -130,15 +129,19 @@ static const struct adc128_configuration adc128_config[] = {
 
 static const struct iio_info adc128_info = {
 	.read_raw = adc128_read_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static int adc128_probe(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev;
+	unsigned int config;
 	struct adc128 *adc;
-	int config = spi_get_device_id(spi)->driver_data;
 	int ret;
+
+	if (dev_fwnode(&spi->dev))
+		config = (unsigned long) device_get_match_data(&spi->dev);
+	else
+		config = spi_get_device_id(spi)->driver_data;
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*adc));
 	if (!indio_dev)
@@ -187,23 +190,40 @@ static int adc128_remove(struct spi_device *spi)
 static const struct of_device_id adc128_of_match[] = {
 	{ .compatible = "ti,adc128s052", },
 	{ .compatible = "ti,adc122s021", },
+	{ .compatible = "ti,adc122s051", },
+	{ .compatible = "ti,adc122s101", },
 	{ .compatible = "ti,adc124s021", },
+	{ .compatible = "ti,adc124s051", },
+	{ .compatible = "ti,adc124s101", },
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, adc128_of_match);
 
 static const struct spi_device_id adc128_id[] = {
-	{ "adc128s052", 0},	/* index into adc128_config */
-	{ "adc122s021",	1},
-	{ "adc124s021", 2},
+	{ "adc128s052", 0 },	/* index into adc128_config */
+	{ "adc122s021",	1 },
+	{ "adc122s051",	1 },
+	{ "adc122s101",	1 },
+	{ "adc124s021", 2 },
+	{ "adc124s051", 2 },
+	{ "adc124s101", 2 },
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, adc128_id);
+
+#ifdef CONFIG_ACPI
+static const struct acpi_device_id adc128_acpi_match[] = {
+	{ "AANT1280", 2 }, /* ADC124S021 compatible ACPI ID */
+	{ }
+};
+MODULE_DEVICE_TABLE(acpi, adc128_acpi_match);
+#endif
 
 static struct spi_driver adc128_driver = {
 	.driver = {
 		.name = "adc128s052",
 		.of_match_table = of_match_ptr(adc128_of_match),
+		.acpi_match_table = ACPI_PTR(adc128_acpi_match),
 	},
 	.probe = adc128_probe,
 	.remove = adc128_remove,

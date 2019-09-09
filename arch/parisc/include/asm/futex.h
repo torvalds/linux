@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_PARISC_FUTEX_H
 #define _ASM_PARISC_FUTEX_H
 
@@ -32,21 +33,11 @@ _futex_spin_unlock_irqrestore(u32 __user *uaddr, unsigned long int *flags)
 }
 
 static inline int
-futex_atomic_op_inuser (int encoded_op, u32 __user *uaddr)
+arch_futex_atomic_op_inuser(int op, int oparg, int *oval, u32 __user *uaddr)
 {
 	unsigned long int flags;
-	int op = (encoded_op >> 28) & 7;
-	int cmp = (encoded_op >> 24) & 15;
-	int oparg = (encoded_op << 8) >> 20;
-	int cmparg = (encoded_op << 20) >> 20;
 	int oldval, ret;
 	u32 tmp;
-
-	if (encoded_op & (FUTEX_OP_OPARG_SHIFT << 28))
-		oparg = 1 << oparg;
-
-	if (!access_ok(VERIFY_WRITE, uaddr, sizeof(*uaddr)))
-		return -EFAULT;
 
 	_futex_spin_lock_irqsave(uaddr, &flags);
 	pagefault_disable();
@@ -85,17 +76,9 @@ out_pagefault_enable:
 	pagefault_enable();
 	_futex_spin_unlock_irqrestore(uaddr, &flags);
 
-	if (ret == 0) {
-		switch (cmp) {
-		case FUTEX_OP_CMP_EQ: ret = (oldval == cmparg); break;
-		case FUTEX_OP_CMP_NE: ret = (oldval != cmparg); break;
-		case FUTEX_OP_CMP_LT: ret = (oldval < cmparg); break;
-		case FUTEX_OP_CMP_GE: ret = (oldval >= cmparg); break;
-		case FUTEX_OP_CMP_LE: ret = (oldval <= cmparg); break;
-		case FUTEX_OP_CMP_GT: ret = (oldval > cmparg); break;
-		default: ret = -ENOSYS;
-		}
-	}
+	if (!ret)
+		*oval = oldval;
+
 	return ret;
 }
 
@@ -109,10 +92,10 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
 	/* futex.c wants to do a cmpxchg_inatomic on kernel NULL, which is
 	 * our gateway page, and causes no end of trouble...
 	 */
-	if (segment_eq(KERNEL_DS, get_fs()) && !uaddr)
+	if (uaccess_kernel() && !uaddr)
 		return -EFAULT;
 
-	if (!access_ok(VERIFY_WRITE, uaddr, sizeof(u32)))
+	if (!access_ok(uaddr, sizeof(u32)))
 		return -EFAULT;
 
 	/* HPPA has no cmpxchg in hardware and therefore the

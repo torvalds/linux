@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  ALSA PCM device for the
  *  ALSA interface to cx18 PCM capture streams
@@ -6,21 +7,6 @@
  *  Copyright (C) 2009  Devin Heitmueller <dheitmueller@kernellabs.com>
  *
  *  Portions of this work were sponsored by ONELAN Limited.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
- *  02111-1307  USA
  */
 
 #include <linux/init.h>
@@ -46,10 +32,10 @@ MODULE_PARM_DESC(pcm_debug, "enable debug messages for pcm");
 #define dprintk(fmt, arg...) do {					\
 	    if (pcm_debug)						\
 		printk(KERN_INFO "cx18-alsa-pcm %s: " fmt,		\
-				  __func__, ##arg); 			\
+				  __func__, ##arg);			\
 	} while (0)
 
-static struct snd_pcm_hardware snd_cx18_hw_capture = {
+static const struct snd_pcm_hardware snd_cx18_hw_capture = {
 	.info = SNDRV_PCM_INFO_BLOCK_TRANSFER |
 		SNDRV_PCM_INFO_MMAP           |
 		SNDRV_PCM_INFO_INTERLEAVED    |
@@ -262,14 +248,16 @@ static int snd_cx18_pcm_hw_free(struct snd_pcm_substream *substream)
 {
 	struct snd_cx18_card *cxsc = snd_pcm_substream_chip(substream);
 	unsigned long flags;
+	unsigned char *dma_area = NULL;
 
 	spin_lock_irqsave(&cxsc->slock, flags);
 	if (substream->runtime->dma_area) {
 		dprintk("freeing pcm capture region\n");
-		vfree(substream->runtime->dma_area);
+		dma_area = substream->runtime->dma_area;
 		substream->runtime->dma_area = NULL;
 	}
 	spin_unlock_irqrestore(&cxsc->slock, flags);
+	vfree(dma_area);
 
 	return 0;
 }
@@ -348,7 +336,7 @@ int snd_cx18_pcm_create(struct snd_cx18_card *cxsc)
 			&snd_cx18_pcm_capture_ops);
 	sp->info_flags = 0;
 	sp->private_data = cxsc;
-	strlcpy(sp->name, cx->card_name, sizeof(sp->name));
+	strscpy(sp->name, cx->card_name, sizeof(sp->name));
 
 	return 0;
 

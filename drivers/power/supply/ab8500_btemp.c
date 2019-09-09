@@ -1,9 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) ST-Ericsson SA 2012
  *
  * Battery temperature driver for AB8500
  *
- * License Terms: GNU General Public License v2
  * Author:
  *	Johan Palsson <johan.palsson@stericsson.com>
  *	Karl Komierowski <karl.komierowski@stericsson.com>
@@ -76,8 +76,8 @@ struct ab8500_btemp_ranges {
  * @dev:		Pointer to the structure device
  * @node:		List of AB8500 BTEMPs, hence prepared for reentrance
  * @curr_source:	What current source we use, in uA
- * @bat_temp:		Dispatched battery temperature in degree Celcius
- * @prev_bat_temp	Last measured battery temperature in degree Celcius
+ * @bat_temp:		Dispatched battery temperature in degree Celsius
+ * @prev_bat_temp	Last measured battery temperature in degree Celsius
  * @parent:		Pointer to the struct ab8500
  * @gpadc:		Pointer to the struct gpadc
  * @fg:			Pointer to the struct fg
@@ -123,10 +123,7 @@ static LIST_HEAD(ab8500_btemp_list);
  */
 struct ab8500_btemp *ab8500_btemp_get(void)
 {
-	struct ab8500_btemp *btemp;
-	btemp = list_first_entry(&ab8500_btemp_list, struct ab8500_btemp, node);
-
-	return btemp;
+	return list_first_entry(&ab8500_btemp_list, struct ab8500_btemp, node);
 }
 EXPORT_SYMBOL(ab8500_btemp_get);
 
@@ -217,22 +214,10 @@ static int ab8500_btemp_curr_source_enable(struct ab8500_btemp *di,
 	/* Only do this for batteries with internal NTC */
 	if (di->bm->adc_therm == ABx500_ADC_THERM_BATCTRL && enable) {
 
-		if (is_ab8540(di->parent)) {
-			if (di->curr_source == BTEMP_BATCTRL_CURR_SRC_60UA)
-				curr = BAT_CTRL_60U_ENA;
-			else
-				curr = BAT_CTRL_120U_ENA;
-		} else if (is_ab9540(di->parent) || is_ab8505(di->parent)) {
-			if (di->curr_source == BTEMP_BATCTRL_CURR_SRC_16UA)
-				curr = BAT_CTRL_16U_ENA;
-			else
-				curr = BAT_CTRL_18U_ENA;
-		} else {
-			if (di->curr_source == BTEMP_BATCTRL_CURR_SRC_7UA)
-				curr = BAT_CTRL_7U_ENA;
-			else
-				curr = BAT_CTRL_20U_ENA;
-		}
+		if (di->curr_source == BTEMP_BATCTRL_CURR_SRC_7UA)
+			curr = BAT_CTRL_7U_ENA;
+		else
+			curr = BAT_CTRL_20U_ENA;
 
 		dev_dbg(di->dev, "Set BATCTRL %duA\n", di->curr_source);
 
@@ -263,28 +248,12 @@ static int ab8500_btemp_curr_source_enable(struct ab8500_btemp *di,
 	} else if (di->bm->adc_therm == ABx500_ADC_THERM_BATCTRL && !enable) {
 		dev_dbg(di->dev, "Disable BATCTRL curr source\n");
 
-		if (is_ab8540(di->parent)) {
-			/* Write 0 to the curr bits */
-			ret = abx500_mask_and_set_register_interruptible(
-				di->dev,
-				AB8500_CHARGER, AB8500_BAT_CTRL_CURRENT_SOURCE,
-				BAT_CTRL_60U_ENA | BAT_CTRL_120U_ENA,
-				~(BAT_CTRL_60U_ENA | BAT_CTRL_120U_ENA));
-		} else if (is_ab9540(di->parent) || is_ab8505(di->parent)) {
-			/* Write 0 to the curr bits */
-			ret = abx500_mask_and_set_register_interruptible(
-				di->dev,
-				AB8500_CHARGER, AB8500_BAT_CTRL_CURRENT_SOURCE,
-				BAT_CTRL_16U_ENA | BAT_CTRL_18U_ENA,
-				~(BAT_CTRL_16U_ENA | BAT_CTRL_18U_ENA));
-		} else {
-			/* Write 0 to the curr bits */
-			ret = abx500_mask_and_set_register_interruptible(
-				di->dev,
-				AB8500_CHARGER, AB8500_BAT_CTRL_CURRENT_SOURCE,
-				BAT_CTRL_7U_ENA | BAT_CTRL_20U_ENA,
-				~(BAT_CTRL_7U_ENA | BAT_CTRL_20U_ENA));
-		}
+		/* Write 0 to the curr bits */
+		ret = abx500_mask_and_set_register_interruptible(
+			di->dev,
+			AB8500_CHARGER, AB8500_BAT_CTRL_CURRENT_SOURCE,
+			BAT_CTRL_7U_ENA | BAT_CTRL_20U_ENA,
+			~(BAT_CTRL_7U_ENA | BAT_CTRL_20U_ENA));
 
 		if (ret) {
 			dev_err(di->dev, "%s failed disabling current source\n",
@@ -327,25 +296,11 @@ static int ab8500_btemp_curr_source_enable(struct ab8500_btemp *di,
 	 * if we got an error above
 	 */
 disable_curr_source:
-	if (is_ab8540(di->parent)) {
-		/* Write 0 to the curr bits */
-		ret = abx500_mask_and_set_register_interruptible(di->dev,
-			AB8500_CHARGER, AB8500_BAT_CTRL_CURRENT_SOURCE,
-			BAT_CTRL_60U_ENA | BAT_CTRL_120U_ENA,
-			~(BAT_CTRL_60U_ENA | BAT_CTRL_120U_ENA));
-	} else if (is_ab9540(di->parent) || is_ab8505(di->parent)) {
-		/* Write 0 to the curr bits */
-		ret = abx500_mask_and_set_register_interruptible(di->dev,
-			AB8500_CHARGER, AB8500_BAT_CTRL_CURRENT_SOURCE,
-			BAT_CTRL_16U_ENA | BAT_CTRL_18U_ENA,
-			~(BAT_CTRL_16U_ENA | BAT_CTRL_18U_ENA));
-	} else {
-		/* Write 0 to the curr bits */
-		ret = abx500_mask_and_set_register_interruptible(di->dev,
-			AB8500_CHARGER, AB8500_BAT_CTRL_CURRENT_SOURCE,
-			BAT_CTRL_7U_ENA | BAT_CTRL_20U_ENA,
-			~(BAT_CTRL_7U_ENA | BAT_CTRL_20U_ENA));
-	}
+	/* Write 0 to the curr bits */
+	ret = abx500_mask_and_set_register_interruptible(di->dev,
+		AB8500_CHARGER, AB8500_BAT_CTRL_CURRENT_SOURCE,
+		BAT_CTRL_7U_ENA | BAT_CTRL_20U_ENA,
+		~(BAT_CTRL_7U_ENA | BAT_CTRL_20U_ENA));
 
 	if (ret) {
 		dev_err(di->dev, "%s failed disabling current source\n",
@@ -464,13 +419,13 @@ static int ab8500_btemp_get_batctrl_res(struct ab8500_btemp *di)
  * @tbl_size:	size of the resistance to temperature table
  * @res:	resistance to calculate the temperature from
  *
- * This function returns the battery temperature in degrees Celcius
+ * This function returns the battery temperature in degrees Celsius
  * based on the NTC resistance.
  */
 static int ab8500_btemp_res_to_temp(struct ab8500_btemp *di,
 	const struct abx500_res_to_temp *tbl, int tbl_size, int res)
 {
-	int i, temp;
+	int i;
 	/*
 	 * Calculate the formula for the straight line
 	 * Simple interpolation if we are within
@@ -488,9 +443,8 @@ static int ab8500_btemp_res_to_temp(struct ab8500_btemp *di,
 			i++;
 	}
 
-	temp = tbl[i].temp + ((tbl[i + 1].temp - tbl[i].temp) *
+	return tbl[i].temp + ((tbl[i + 1].temp - tbl[i].temp) *
 		(res - tbl[i].resist)) / (tbl[i + 1].resist - tbl[i].resist);
-	return temp;
 }
 
 /**
@@ -560,13 +514,8 @@ static int ab8500_btemp_id(struct ab8500_btemp *di)
 {
 	int res;
 	u8 i;
-	if (is_ab8540(di->parent))
-		di->curr_source = BTEMP_BATCTRL_CURR_SRC_60UA;
-	else if (is_ab9540(di->parent) || is_ab8505(di->parent))
-		di->curr_source = BTEMP_BATCTRL_CURR_SRC_16UA;
-	else
-		di->curr_source = BTEMP_BATCTRL_CURR_SRC_7UA;
 
+	di->curr_source = BTEMP_BATCTRL_CURR_SRC_7UA;
 	di->bm->batt_id = BATTERY_UNKNOWN;
 
 	res =  ab8500_btemp_get_batctrl_res(di);
@@ -604,18 +553,8 @@ static int ab8500_btemp_id(struct ab8500_btemp *di)
 	 */
 	if (di->bm->adc_therm == ABx500_ADC_THERM_BATCTRL &&
 	    di->bm->batt_id == 1) {
-		if (is_ab8540(di->parent)) {
-			dev_dbg(di->dev,
-				"Set BATCTRL current source to 60uA\n");
-			di->curr_source = BTEMP_BATCTRL_CURR_SRC_60UA;
-		} else if (is_ab9540(di->parent) || is_ab8505(di->parent)) {
-			dev_dbg(di->dev,
-				"Set BATCTRL current source to 16uA\n");
-			di->curr_source = BTEMP_BATCTRL_CURR_SRC_16UA;
-		} else {
-			dev_dbg(di->dev, "Set BATCTRL current source to 20uA\n");
-			di->curr_source = BTEMP_BATCTRL_CURR_SRC_20UA;
-		}
+		dev_dbg(di->dev, "Set BATCTRL current source to 20uA\n");
+		di->curr_source = BTEMP_BATCTRL_CURR_SRC_20UA;
 	}
 
 	return di->bm->batt_id;

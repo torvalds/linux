@@ -1,0 +1,184 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2016 Paweł Jarosz <paweljarosz3691@gmail.com>
+ */
+
+/dts-v1/;
+#include "rk3066a.dtsi"
+
+/ {
+	model = "Rikomagic MK808";
+	compatible = "rikomagic,mk808", "rockchip,rk3066a";
+
+	chosen {
+		stdout-path = "serial2:115200n8";
+	};
+
+	memory@60000000 {
+		reg = <0x60000000 0x40000000>;
+		device_type = "memory";
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		blue {
+			label = "mk808:blue:power";
+			gpios = <&gpio0 RK_PA3 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+			linux,default-trigger = "default-on";
+		};
+	};
+
+	hdmi_con {
+		compatible = "hdmi-connector";
+		type = "c";
+
+		port {
+			hdmi_con_in: endpoint {
+				remote-endpoint = <&hdmi_out_con>;
+			};
+		};
+	};
+
+	vcc_io: vcc-io {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_io";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
+	vcc_host: usb-host-regulator {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio0 RK_PA6 GPIO_ACTIVE_HIGH>;
+		pinctrl-0 = <&host_drv>;
+		pinctrl-names = "default";
+		regulator-always-on;
+		regulator-name = "host-pwr";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		startup-delay-us = <100000>;
+		vin-supply = <&vcc_io>;
+	};
+
+	vcc_otg: usb-otg-regulator {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio0 RK_PA5 GPIO_ACTIVE_HIGH>;
+		pinctrl-0 = <&otg_drv>;
+		pinctrl-names = "default";
+		regulator-always-on;
+		regulator-name = "vcc_otg";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		startup-delay-us = <100000>;
+		vin-supply = <&vcc_io>;
+	};
+
+	vcc_sd: sdmmc-regulator {
+		compatible = "regulator-fixed";
+		gpio = <&gpio3 RK_PA7 GPIO_ACTIVE_LOW>;
+		pinctrl-0 = <&sdmmc_pwr>;
+		pinctrl-names = "default";
+		regulator-name = "vcc_sd";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		startup-delay-us = <100000>;
+		vin-supply = <&vcc_io>;
+	};
+
+	vcc_wifi: sdio-regulator {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio3 RK_PD0 GPIO_ACTIVE_HIGH>;
+		pinctrl-0 = <&wifi_pwr>;
+		pinctrl-names = "default";
+		regulator-name = "vcc_wifi";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		startup-delay-us = <100000>;
+		vin-supply = <&vcc_io>;
+	};
+};
+
+&hdmi {
+	status = "okay";
+};
+
+&hdmi_in_vop1 {
+	status = "disabled";
+};
+
+&hdmi_out {
+	hdmi_out_con: endpoint {
+		remote-endpoint = <&hdmi_con_in>;
+	};
+};
+
+&mmc0 {
+	bus-width = <4>;
+	cap-mmc-highspeed;
+	cap-sd-highspeed;
+	vmmc-supply = <&vcc_sd>;
+	status = "okay";
+};
+
+&mmc1 {
+	bus-width = <4>;
+	non-removable;
+	pinctrl-0 = <&sd1_clk &sd1_cmd &sd1_bus4>;
+	pinctrl-names = "default";
+	vmmc-supply = <&vcc_wifi>;
+	status = "okay";
+};
+
+&pinctrl {
+	usb-host {
+		host_drv: host-drv {
+			rockchip,pins = <0 RK_PA6 RK_FUNC_GPIO &pcfg_pull_default>;
+		};
+	};
+
+	usb-otg {
+		otg_drv: otg-drv {
+			rockchip,pins = <0 RK_PA5 RK_FUNC_GPIO &pcfg_pull_default>;
+		};
+	};
+
+	sdmmc {
+		sdmmc_pwr: sdmmc-pwr {
+			rockchip,pins = <3 RK_PA7 RK_FUNC_GPIO &pcfg_pull_default>;
+		};
+	};
+
+	sdio {
+		wifi_pwr: wifi-pwr {
+			rockchip,pins = <3 RK_PD0 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};
+
+&uart2 {
+	status = "okay";
+};
+
+&usb_host {
+	status = "okay";
+};
+
+&usb_otg {
+	status = "okay";
+};
+
+&usbphy {
+	status = "okay";
+};
+
+&vop0 {
+	status = "okay";
+};
+
+&wdt {
+	status = "okay";
+};

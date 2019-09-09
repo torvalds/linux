@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * DECnet       An implementation of the DECnet protocol suite for the LINUX
  *              operating system.  DECnet is implemented using the  BSD Socket
@@ -34,15 +35,6 @@
 /******************************************************************************
     (c) 1995-1998 E.M. Serrat		emserrat@geocities.com
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
 *******************************************************************************/
 
 #include <linux/errno.h>
@@ -491,6 +483,7 @@ static void dn_nsp_disc_conf(struct sock *sk, struct sk_buff *skb)
 		break;
 	case DN_RUN:
 		sk->sk_shutdown |= SHUTDOWN_MASK;
+		/* fall through */
 	case DN_CC:
 		scp->state = DN_CN;
 	}
@@ -776,12 +769,8 @@ static int dn_nsp_rx_packet(struct net *net, struct sock *sk2,
 	 * Swap src & dst and look up in the normal way.
 	 */
 	if (unlikely(cb->rt_flags & DN_RT_F_RTS)) {
-		__le16 tmp = cb->dst_port;
-		cb->dst_port = cb->src_port;
-		cb->src_port = tmp;
-		tmp = cb->dst;
-		cb->dst = cb->src;
-		cb->src = tmp;
+		swap(cb->dst_port, cb->src_port);
+		swap(cb->dst, cb->src);
 	}
 
 	/*
@@ -915,4 +904,3 @@ free_out:
 
 	return NET_RX_SUCCESS;
 }
-

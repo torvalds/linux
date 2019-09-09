@@ -1,15 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* NXP PCF50633 Power Management Unit (PMU) driver
  *
  * (C) 2006-2008 by Openmoko, Inc.
  * Author: Harald Welte <laforge@openmoko.org>
  * 	   Balaji Rao <balajirrao@openmoko.org>
  * All rights reserved.
- *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
- *
  */
 
 #include <linux/kernel.h>
@@ -149,7 +144,7 @@ pcf50633_client_dev_register(struct pcf50633 *pcf, const char *name,
 
 	*pdev = platform_device_alloc(name, -1);
 	if (!*pdev) {
-		dev_err(pcf->dev, "Falied to allocate %s\n", name);
+		dev_err(pcf->dev, "Failed to allocate %s\n", name);
 		return;
 	}
 
@@ -242,8 +237,10 @@ static int pcf50633_probe(struct i2c_client *client,
 
 	for (i = 0; i < PCF50633_NUM_REGULATORS; i++) {
 		pdev = platform_device_alloc("pcf50633-regulator", i);
-		if (!pdev)
-			return -ENOMEM;
+		if (!pdev) {
+			ret = -ENOMEM;
+			goto err2;
+		}
 
 		pdev->dev.parent = pcf->dev;
 		ret = platform_device_add_data(pdev, &pdata->reg_init_data[i],
@@ -269,6 +266,7 @@ static int pcf50633_probe(struct i2c_client *client,
 
 err:
 	platform_device_put(pdev);
+err2:
 	for (j = 0; j < i; j++)
 		platform_device_put(pcf->regulator_pdev[j]);
 

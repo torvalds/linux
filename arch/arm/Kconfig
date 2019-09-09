@@ -1,26 +1,54 @@
+# SPDX-License-Identifier: GPL-2.0
 config ARM
 	bool
 	default y
+	select ARCH_32BIT_OFF_T
 	select ARCH_CLOCKSOURCE_DATA
+	select ARCH_HAS_BINFMT_FLAT
+	select ARCH_HAS_DEBUG_VIRTUAL if MMU
 	select ARCH_HAS_DEVMEM_IS_ALLOWED
+	select ARCH_HAS_DMA_COHERENT_TO_PFN if SWIOTLB
+	select ARCH_HAS_DMA_MMAP_PGPROT if SWIOTLB
 	select ARCH_HAS_ELF_RANDOMIZE
+	select ARCH_HAS_FORTIFY_SOURCE
+	select ARCH_HAS_KEEPINITRD
+	select ARCH_HAS_KCOV
+	select ARCH_HAS_MEMBARRIER_SYNC_CORE
+	select ARCH_HAS_PTE_SPECIAL if ARM_LPAE
+	select ARCH_HAS_PHYS_TO_DMA
+	select ARCH_HAS_SETUP_DMA_OPS
+	select ARCH_HAS_SET_MEMORY
+	select ARCH_HAS_STRICT_KERNEL_RWX if MMU && !XIP_KERNEL
+	select ARCH_HAS_STRICT_MODULE_RWX if MMU
+	select ARCH_HAS_SYNC_DMA_FOR_DEVICE if SWIOTLB
+	select ARCH_HAS_SYNC_DMA_FOR_CPU if SWIOTLB
+	select ARCH_HAS_TEARDOWN_DMA_OPS if MMU
 	select ARCH_HAS_TICK_BROADCAST if GENERIC_CLOCKEVENTS_BROADCAST
 	select ARCH_HAVE_CUSTOM_GPIO_H
 	select ARCH_HAS_GCOV_PROFILE_ALL
+	select ARCH_KEEP_MEMBLOCK if HAVE_ARCH_PFN_VALID || KEXEC
 	select ARCH_MIGHT_HAVE_PC_PARPORT
+	select ARCH_NO_SG_CHAIN if !ARM_HAS_SG_CHAIN
+	select ARCH_OPTIONAL_KERNEL_RWX if ARCH_HAS_STRICT_KERNEL_RWX
+	select ARCH_OPTIONAL_KERNEL_RWX_DEFAULT if CPU_V7
 	select ARCH_SUPPORTS_ATOMIC_RMW
 	select ARCH_USE_BUILTIN_BSWAP
 	select ARCH_USE_CMPXCHG_LOCKREF
 	select ARCH_WANT_IPC_PARSE_VERSION
+	select BINFMT_FLAT_ARGVP_ENVP_ON_STACK
 	select BUILDTIME_EXTABLE_SORT if MMU
 	select CLONE_BACKWARDS
-	select CPU_PM if (SUSPEND || CPU_IDLE)
+	select CPU_PM if SUSPEND || CPU_IDLE
 	select DCACHE_WORD_ACCESS if HAVE_EFFICIENT_UNALIGNED_ACCESS
+	select DMA_DECLARE_COHERENT
+	select DMA_REMAP if MMU
 	select EDAC_SUPPORT
 	select EDAC_ATOMIC_SCRUB
 	select GENERIC_ALLOCATOR
-	select GENERIC_ATOMIC64 if (CPU_V7M || CPU_V6 || !CPU_32v6K || !AEABI)
+	select GENERIC_ARCH_TOPOLOGY if ARM_CPU_TOPOLOGY
+	select GENERIC_ATOMIC64 if CPU_V7M || CPU_V6 || !CPU_32v6K || !AEABI
 	select GENERIC_CLOCKEVENTS_BROADCAST if SMP
+	select GENERIC_CPU_AUTOPROBE
 	select GENERIC_EARLY_IOREMAP
 	select GENERIC_IDLE_POLL_SETUP
 	select GENERIC_IRQ_PROBE
@@ -33,31 +61,30 @@ config ARM
 	select GENERIC_STRNLEN_USER
 	select HANDLE_DOMAIN_IRQ
 	select HARDIRQS_SW_RESEND
-	select HAVE_ARCH_AUDITSYSCALL if (AEABI && !OABI_COMPAT)
+	select HAVE_ARCH_AUDITSYSCALL if AEABI && !OABI_COMPAT
 	select HAVE_ARCH_BITREVERSE if (CPU_32v7M || CPU_32v7) && !CPU_32v6
-	select HAVE_ARCH_HARDENED_USERCOPY
 	select HAVE_ARCH_JUMP_LABEL if !XIP_KERNEL && !CPU_ENDIAN_BE32 && MMU
 	select HAVE_ARCH_KGDB if !CPU_ENDIAN_BE32 && MMU
 	select HAVE_ARCH_MMAP_RND_BITS if MMU
-	select HAVE_ARCH_SECCOMP_FILTER if (AEABI && !OABI_COMPAT)
+	select HAVE_ARCH_SECCOMP_FILTER if AEABI && !OABI_COMPAT
+	select HAVE_ARCH_THREAD_STRUCT_WHITELIST
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_ARM_SMCCC if CPU_V7
-	select HAVE_CBPF_JIT
-	select HAVE_CC_STACKPROTECTOR
+	select HAVE_EBPF_JIT if !CPU_ENDIAN_BE32
 	select HAVE_CONTEXT_TRACKING
 	select HAVE_C_RECORDMCOUNT
 	select HAVE_DEBUG_KMEMLEAK
-	select HAVE_DMA_API_DEBUG
 	select HAVE_DMA_CONTIGUOUS if MMU
-	select HAVE_DYNAMIC_FTRACE if (!XIP_KERNEL) && !CPU_ENDIAN_BE32 && MMU
+	select HAVE_DYNAMIC_FTRACE if !XIP_KERNEL && !CPU_ENDIAN_BE32 && MMU
+	select HAVE_DYNAMIC_FTRACE_WITH_REGS if HAVE_DYNAMIC_FTRACE
 	select HAVE_EFFICIENT_UNALIGNED_ACCESS if (CPU_V6 || CPU_V6K || CPU_V7) && MMU
 	select HAVE_EXIT_THREAD
-	select HAVE_FTRACE_MCOUNT_RECORD if (!XIP_KERNEL)
-	select HAVE_FUNCTION_GRAPH_TRACER if (!THUMB2_KERNEL)
-	select HAVE_FUNCTION_TRACER if (!XIP_KERNEL)
+	select HAVE_FAST_GUP if ARM_LPAE
+	select HAVE_FTRACE_MCOUNT_RECORD if !XIP_KERNEL
+	select HAVE_FUNCTION_GRAPH_TRACER if !THUMB2_KERNEL && !CC_IS_CLANG
+	select HAVE_FUNCTION_TRACER if !XIP_KERNEL
 	select HAVE_GCC_PLUGINS
-	select HAVE_GENERIC_DMA_COHERENT
-	select HAVE_HW_BREAKPOINT if (PERF_EVENTS && (CPU_V6 || CPU_V6K || CPU_V7))
+	select HAVE_HW_BREAKPOINT if PERF_EVENTS && (CPU_V6 || CPU_V6K || CPU_V7)
 	select HAVE_IDE if PCI || ISA || PCMCIA
 	select HAVE_IRQ_TIME_ACCOUNTING
 	select HAVE_KERNEL_GZIP
@@ -66,28 +93,30 @@ config ARM
 	select HAVE_KERNEL_LZO
 	select HAVE_KERNEL_XZ
 	select HAVE_KPROBES if !XIP_KERNEL && !CPU_ENDIAN_BE32 && !CPU_V7M
-	select HAVE_KRETPROBES if (HAVE_KPROBES)
-	select HAVE_MEMBLOCK
+	select HAVE_KRETPROBES if HAVE_KPROBES
 	select HAVE_MOD_ARCH_SPECIFIC
 	select HAVE_NMI
-	select HAVE_OPROFILE if (HAVE_PERF_EVENTS)
+	select HAVE_OPROFILE if HAVE_PERF_EVENTS
 	select HAVE_OPTPROBES if !THUMB2_KERNEL
 	select HAVE_PERF_EVENTS
 	select HAVE_PERF_REGS
 	select HAVE_PERF_USER_STACK_DUMP
-	select HAVE_RCU_TABLE_FREE if (SMP && ARM_LPAE)
+	select HAVE_RCU_TABLE_FREE if SMP && ARM_LPAE
 	select HAVE_REGS_AND_STACK_ACCESS_API
+	select HAVE_RSEQ
+	select HAVE_STACKPROTECTOR
 	select HAVE_SYSCALL_TRACEPOINTS
 	select HAVE_UID16
 	select HAVE_VIRT_CPU_ACCOUNTING_GEN
 	select IRQ_FORCED_THREADING
 	select MODULES_USE_ELF_REL
-	select NO_BOOTMEM
+	select NEED_DMA_MAP_STATE
 	select OF_EARLY_FLATTREE if OF
-	select OF_RESERVED_MEM if OF
 	select OLD_SIGACTION
 	select OLD_SIGSUSPEND3
+	select PCI_SYSCALL if PCI
 	select PERF_USE_VMALLOC
+	select REFCOUNT_FULL
 	select RTC_LIB
 	select SYS_SUPPORTS_APM_EMULATION
 	# Above selects are sorted alphabetically; please add new ones
@@ -101,10 +130,6 @@ config ARM
 	  <http://www.arm.linux.org.uk/>.
 
 config ARM_HAS_SG_CHAIN
-	select ARCH_HAS_SG_CHAIN
-	bool
-
-config NEED_SG_DMA_LENGTH
 	bool
 
 config ARM_DMA_USE_IOMMU
@@ -133,9 +158,6 @@ config ARM_DMA_IOMMU_ALIGNMENT
 
 endif
 
-config MIGHT_HAVE_PCI
-	bool
-
 config SYS_SUPPORTS_APM_EMULATION
 	bool
 
@@ -148,21 +170,6 @@ config HAVE_PROC_CPU
 
 config NO_IOPORT_MAP
 	bool
-
-config EISA
-	bool
-	---help---
-	  The Extended Industry Standard Architecture (EISA) bus was
-	  developed as an open alternative to the IBM MicroChannel bus.
-
-	  The EISA bus provided some of the features of the IBM MicroChannel
-	  bus while maintaining backward compatibility with cards made for
-	  the older ISA bus.  The EISA bus saw limited use between 1988 and
-	  1995 when it was made obsolete by the PCI bus.
-
-	  Say Y here if you are building a kernel for an EISA-based machine.
-
-	  Otherwise, say N.
 
 config SBUS
 	bool
@@ -178,10 +185,6 @@ config LOCKDEP_SUPPORT
 config TRACE_IRQFLAGS_SUPPORT
 	bool
 	default !CPU_V7M
-
-config RWSEM_XCHGADD_ALGORITHM
-	bool
-	default y
 
 config ARCH_HAS_ILOG2_U32
 	bool
@@ -209,9 +212,6 @@ config ARCH_MAY_HAVE_PC_FDC
 config ZONE_DMA
 	bool
 
-config NEED_DMA_MAP_STATE
-       def_bool y
-
 config ARCH_SUPPORTS_UPROBES
 	def_bool y
 
@@ -229,15 +229,6 @@ config NEED_RET_TO_USER
 
 config ARCH_MTD_XIP
 	bool
-
-config VECTORS_BASE
-	hex
-	default 0xffff0000 if MMU || CPU_HIGH_VECTOR
-	default DRAM_BASE if REMAP_VECTORS_TO_RAM
-	default 0x00000000
-	help
-	  The base address of exception vectors.  This must be two pages
-	  in size.
 
 config ARM_PATCH_PHYS_VIRT
 	bool "Patch physical to virtual translations at runtime" if EMBEDDED
@@ -295,10 +286,6 @@ config PGTABLE_LEVELS
 	default 3 if ARM_LPAE
 	default 2
 
-source "init/Kconfig"
-
-source "kernel/Kconfig.freezer"
-
 menu "System Type"
 
 config MMU
@@ -331,12 +318,12 @@ config ARCH_MULTIPLATFORM
 	select ARM_HAS_SG_CHAIN
 	select ARM_PATCH_PHYS_VIRT
 	select AUTO_ZRELADDR
-	select CLKSRC_OF
+	select TIMER_OF
 	select COMMON_CLK
 	select GENERIC_CLOCKEVENTS
-	select MIGHT_HAVE_PCI
-	select MULTI_IRQ_HANDLER
-	select PCI_DOMAINS if PCI
+	select GENERIC_IRQ_MULTI_HANDLER
+	select HAVE_PCI
+	select PCI_DOMAINS_GENERIC if PCI
 	select SPARSE_IRQ
 	select USE_OF
 
@@ -345,22 +332,13 @@ config ARM_SINGLE_ARMV7M
 	depends on !MMU
 	select ARM_NVIC
 	select AUTO_ZRELADDR
-	select CLKSRC_OF
+	select TIMER_OF
 	select COMMON_CLK
 	select CPU_V7M
 	select GENERIC_CLOCKEVENTS
 	select NO_IOPORT_MAP
 	select SPARSE_IRQ
 	select USE_OF
-
-config ARCH_GEMINI
-	bool "Cortina Systems Gemini"
-	select CLKSRC_MMIO
-	select CPU_FA526
-	select GENERIC_CLOCKEVENTS
-	select GPIOLIB
-	help
-	  Support for the Cortina Systems Gemini family SoCs
 
 config ARCH_EBSA110
 	bool "EBSA-110"
@@ -378,9 +356,9 @@ config ARCH_EBSA110
 
 config ARCH_EP93XX
 	bool "EP93xx-based"
-	select ARCH_HAS_HOLES_MEMORYMODEL
+	select ARCH_SPARSEMEM_ENABLE
 	select ARM_AMBA
-	select ARM_PATCH_PHYS_VIRT
+	imply ARM_PATCH_PHYS_VIRT
 	select ARM_VIC
 	select AUTO_ZRELADDR
 	select CLKDEV_LOOKUP
@@ -403,22 +381,13 @@ config ARCH_FOOTBRIDGE
 	  Support for systems based on the DC21285 companion chip
 	  ("FootBridge"), such as the Simtec CATS and the Rebel NetWinder.
 
-config ARCH_NETX
-	bool "Hilscher NetX based"
-	select ARM_VIC
-	select CLKSRC_MMIO
-	select CPU_ARM926T
-	select GENERIC_CLOCKEVENTS
-	help
-	  This enables support for systems based on the Hilscher NetX Soc
-
 config ARCH_IOP13XX
 	bool "IOP13xx-based"
 	depends on MMU
 	select CPU_XSC3
 	select NEED_MACH_MEMORY_H
 	select NEED_RET_TO_USER
-	select PCI
+	select FORCE_PCI
 	select PLAT_IOP
 	select VMSPLIT_1G
 	select SPARSE_IRQ
@@ -432,7 +401,7 @@ config ARCH_IOP32X
 	select GPIO_IOP
 	select GPIOLIB
 	select NEED_RET_TO_USER
-	select PCI
+	select FORCE_PCI
 	select PLAT_IOP
 	help
 	  Support for Intel's 80219 and IOP32X (XScale) family of
@@ -445,7 +414,7 @@ config ARCH_IOP33X
 	select GPIO_IOP
 	select GPIOLIB
 	select NEED_RET_TO_USER
-	select PCI
+	select FORCE_PCI
 	select PLAT_IOP
 	help
 	  Support for Intel's IOP33X (XScale) family of processors.
@@ -455,12 +424,15 @@ config ARCH_IXP4XX
 	depends on MMU
 	select ARCH_HAS_DMA_SET_COHERENT_MASK
 	select ARCH_SUPPORTS_BIG_ENDIAN
-	select CLKSRC_MMIO
 	select CPU_XSCALE
 	select DMABOUNCE if PCI
 	select GENERIC_CLOCKEVENTS
+	select GENERIC_IRQ_MULTI_HANDLER
+	select GPIO_IXP4XX
 	select GPIOLIB
-	select MIGHT_HAVE_PCI
+	select HAVE_PCI
+	select IXP4XX_IRQ
+	select IXP4XX_TIMER
 	select NEED_MACH_IO_H
 	select USB_EHCI_BIG_ENDIAN_DESC
 	select USB_EHCI_BIG_ENDIAN_MMIO
@@ -471,9 +443,9 @@ config ARCH_DOVE
 	bool "Marvell Dove"
 	select CPU_PJ4
 	select GENERIC_CLOCKEVENTS
+	select GENERIC_IRQ_MULTI_HANDLER
 	select GPIOLIB
-	select MIGHT_HAVE_PCI
-	select MULTI_IRQ_HANDLER
+	select HAVE_PCI
 	select MVEBU_MBUS
 	select PINCTRL
 	select PINCTRL_DOVE
@@ -518,8 +490,8 @@ config ARCH_LPC32XX
 	select COMMON_CLK
 	select CPU_ARM926T
 	select GENERIC_CLOCKEVENTS
+	select GENERIC_IRQ_MULTI_HANDLER
 	select GPIOLIB
-	select MULTI_IRQ_HANDLER
 	select SPARSE_IRQ
 	select USE_OF
 	help
@@ -535,14 +507,14 @@ config ARCH_PXA
 	select CLKDEV_LOOKUP
 	select CLKSRC_PXA
 	select CLKSRC_MMIO
-	select CLKSRC_OF
+	select TIMER_OF
 	select CPU_XSCALE if !CPU_XSC3
 	select GENERIC_CLOCKEVENTS
+	select GENERIC_IRQ_MULTI_HANDLER
 	select GPIO_PXA
 	select GPIOLIB
 	select HAVE_IDE
 	select IRQ_DOMAIN
-	select MULTI_IRQ_HANDLER
 	select PLAT_PXA
 	select SPARSE_IRQ
 	help
@@ -554,7 +526,7 @@ config ARCH_RPC
 	select ARCH_ACORN
 	select ARCH_MAY_HAVE_PC_FDC
 	select ARCH_SPARSEMEM_ENABLE
-	select ARCH_USES_GETTIMEOFFSET
+	select ARM_HAS_SG_CHAIN
 	select CPU_SA110
 	select FIQ
 	select HAVE_IDE
@@ -574,15 +546,16 @@ config ARCH_SA1100
 	select CLKDEV_LOOKUP
 	select CLKSRC_MMIO
 	select CLKSRC_PXA
-	select CLKSRC_OF if OF
+	select TIMER_OF if OF
+	select COMMON_CLK
 	select CPU_FREQ
 	select CPU_SA1100
 	select GENERIC_CLOCKEVENTS
+	select GENERIC_IRQ_MULTI_HANDLER
 	select GPIOLIB
 	select HAVE_IDE
 	select IRQ_DOMAIN
 	select ISA
-	select MULTI_IRQ_HANDLER
 	select NEED_MACH_MEMORY_H
 	select SPARSE_IRQ
 	help
@@ -596,12 +569,13 @@ config ARCH_S3C24XX
 	select GENERIC_CLOCKEVENTS
 	select GPIO_SAMSUNG
 	select GPIOLIB
+	select GENERIC_IRQ_MULTI_HANDLER
 	select HAVE_S3C2410_I2C if I2C
 	select HAVE_S3C2410_WATCHDOG if WATCHDOG
 	select HAVE_S3C_RTC if RTC_CLASS
-	select MULTI_IRQ_HANDLER
 	select NEED_MACH_IO_H
 	select SAMSUNG_ATAGS
+	select USE_OF
 	help
 	  Samsung S3C2410, S3C2412, S3C2413, S3C2416, S3C2440, S3C2442, S3C2443
 	  and S3C2450 SoCs based systems, such as the Simtec Electronics BAST
@@ -611,13 +585,19 @@ config ARCH_S3C24XX
 config ARCH_DAVINCI
 	bool "TI DaVinci"
 	select ARCH_HAS_HOLES_MEMORYMODEL
-	select CLKDEV_LOOKUP
+	select COMMON_CLK
 	select CPU_ARM926T
 	select GENERIC_ALLOCATOR
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_IRQ_CHIP
+	select GENERIC_IRQ_MULTI_HANDLER
 	select GPIOLIB
 	select HAVE_IDE
+	select PM_GENERIC_DOMAINS if PM
+	select PM_GENERIC_DOMAINS_OF if PM && OF
+	select REGMAP_MMIO
+	select RESET_CONTROLLER
+	select SPARSE_IRQ
 	select USE_OF
 	select ZONE_DMA
 	help
@@ -632,10 +612,10 @@ config ARCH_OMAP1
 	select CLKSRC_MMIO
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_IRQ_CHIP
+	select GENERIC_IRQ_MULTI_HANDLER
 	select GPIOLIB
 	select HAVE_IDE
 	select IRQ_DOMAIN
-	select MULTI_IRQ_HANDLER
 	select NEED_MACH_IO_H if PCCARD
 	select NEED_MACH_MEMORY_H
 	select SPARSE_IRQ
@@ -703,21 +683,25 @@ config ARCH_VIRT
 	select ARM_GIC
 	select ARM_GIC_V2M if PCI
 	select ARM_GIC_V3
+	select ARM_GIC_V3_ITS if PCI
 	select ARM_PSCI
 	select HAVE_ARM_ARCH_TIMER
+	select ARCH_SUPPORTS_BIG_ENDIAN
 
 #
 # This is sorted alphabetically by mach-* pathname.  However, plat-*
 # Kconfigs may be included either alphabetically (according to the
 # plat- suffix) or along side the corresponding mach-* source.
 #
-source "arch/arm/mach-mvebu/Kconfig"
+source "arch/arm/mach-actions/Kconfig"
 
 source "arch/arm/mach-alpine/Kconfig"
 
 source "arch/arm/mach-artpec/Kconfig"
 
 source "arch/arm/mach-asm9260/Kconfig"
+
+source "arch/arm/mach-aspeed/Kconfig"
 
 source "arch/arm/mach-at91/Kconfig"
 
@@ -739,6 +723,9 @@ source "arch/arm/mach-dove/Kconfig"
 
 source "arch/arm/mach-ep93xx/Kconfig"
 
+source "arch/arm/mach-exynos/Kconfig"
+source "arch/arm/plat-samsung/Kconfig"
+
 source "arch/arm/mach-footbridge/Kconfig"
 
 source "arch/arm/mach-gemini/Kconfig"
@@ -747,13 +734,15 @@ source "arch/arm/mach-highbank/Kconfig"
 
 source "arch/arm/mach-hisi/Kconfig"
 
+source "arch/arm/mach-imx/Kconfig"
+
 source "arch/arm/mach-integrator/Kconfig"
+
+source "arch/arm/mach-iop13xx/Kconfig"
 
 source "arch/arm/mach-iop32x/Kconfig"
 
 source "arch/arm/mach-iop33x/Kconfig"
-
-source "arch/arm/mach-iop13xx/Kconfig"
 
 source "arch/arm/mach-ixp4xx/Kconfig"
 
@@ -761,23 +750,25 @@ source "arch/arm/mach-keystone/Kconfig"
 
 source "arch/arm/mach-ks8695/Kconfig"
 
+source "arch/arm/mach-mediatek/Kconfig"
+
 source "arch/arm/mach-meson/Kconfig"
+
+source "arch/arm/mach-milbeaut/Kconfig"
+
+source "arch/arm/mach-mmp/Kconfig"
 
 source "arch/arm/mach-moxart/Kconfig"
 
-source "arch/arm/mach-aspeed/Kconfig"
-
 source "arch/arm/mach-mv78xx0/Kconfig"
 
-source "arch/arm/mach-imx/Kconfig"
-
-source "arch/arm/mach-mediatek/Kconfig"
+source "arch/arm/mach-mvebu/Kconfig"
 
 source "arch/arm/mach-mxs/Kconfig"
 
-source "arch/arm/mach-netx/Kconfig"
-
 source "arch/arm/mach-nomadik/Kconfig"
+
+source "arch/arm/mach-npcm/Kconfig"
 
 source "arch/arm/mach-nspire/Kconfig"
 
@@ -789,28 +780,22 @@ source "arch/arm/mach-omap2/Kconfig"
 
 source "arch/arm/mach-orion5x/Kconfig"
 
+source "arch/arm/mach-oxnas/Kconfig"
+
 source "arch/arm/mach-picoxcell/Kconfig"
+
+source "arch/arm/mach-prima2/Kconfig"
 
 source "arch/arm/mach-pxa/Kconfig"
 source "arch/arm/plat-pxa/Kconfig"
 
-source "arch/arm/mach-mmp/Kconfig"
-
-source "arch/arm/mach-oxnas/Kconfig"
-
 source "arch/arm/mach-qcom/Kconfig"
+
+source "arch/arm/mach-rda/Kconfig"
 
 source "arch/arm/mach-realview/Kconfig"
 
 source "arch/arm/mach-rockchip/Kconfig"
-
-source "arch/arm/mach-sa1100/Kconfig"
-
-source "arch/arm/mach-socfpga/Kconfig"
-
-source "arch/arm/mach-spear/Kconfig"
-
-source "arch/arm/mach-sti/Kconfig"
 
 source "arch/arm/mach-s3c24xx/Kconfig"
 
@@ -818,14 +803,19 @@ source "arch/arm/mach-s3c64xx/Kconfig"
 
 source "arch/arm/mach-s5pv210/Kconfig"
 
-source "arch/arm/mach-exynos/Kconfig"
-source "arch/arm/plat-samsung/Kconfig"
+source "arch/arm/mach-sa1100/Kconfig"
 
 source "arch/arm/mach-shmobile/Kconfig"
 
-source "arch/arm/mach-sunxi/Kconfig"
+source "arch/arm/mach-socfpga/Kconfig"
 
-source "arch/arm/mach-prima2/Kconfig"
+source "arch/arm/mach-spear/Kconfig"
+
+source "arch/arm/mach-sti/Kconfig"
+
+source "arch/arm/mach-stm32/Kconfig"
+
+source "arch/arm/mach-sunxi/Kconfig"
 
 source "arch/arm/mach-tango/Kconfig"
 
@@ -870,23 +860,6 @@ config ARCH_LPC18XX
 	  Support for NXP's LPC18xx Cortex-M3 and LPC43xx Cortex-M4
 	  high performance microcontrollers.
 
-config ARCH_STM32
-	bool "STMicrolectronics STM32"
-	depends on ARM_SINGLE_ARMV7M
-	select ARCH_HAS_RESET_CONTROLLER
-	select ARMV7M_SYSTICK
-	select CLKSRC_STM32
-	select PINCTRL
-	select RESET_CONTROLLER
-	select STM32_EXTI
-	help
-	  Support for STMicroelectronics STM32 processors.
-
-config MACH_STM32F429
-	bool "STMicrolectronics STM32F429"
-	depends on ARCH_STM32
-	default y
-
 config ARCH_MPS2
 	bool "ARM MPS2 platform"
 	depends on ARM_SINGLE_ARMV7M
@@ -924,9 +897,7 @@ config PLAT_PXA
 config PLAT_VERSATILE
 	bool
 
-source "arch/arm/firmware/Kconfig"
-
-source arch/arm/mm/Kconfig
+source "arch/arm/mm/Kconfig"
 
 config IWMMXT
 	bool "Enable iWMMXt support"
@@ -935,11 +906,6 @@ config IWMMXT
 	help
 	  Enable support for iWMMXt context switching at run time if
 	  running on a CPU that supports it.
-
-config MULTI_IRQ_HANDLER
-	bool
-	help
-	  Allow each machine to specify it's own IRQ handler at run time.
 
 if !MMU
 source "arch/arm/Kconfig-nommu"
@@ -1206,6 +1172,14 @@ config ARM_ERRATA_825619
 	  DMB NSHST or DMB ISHST instruction followed by a mix of Cacheable
 	  and Device/Strongly-Ordered loads and stores might cause deadlock
 
+config ARM_ERRATA_857271
+	bool "ARM errata: A12: CPU might deadlock under some very rare internal conditions"
+	depends on CPU_V7
+	help
+	  This option enables the workaround for the 857271 Cortex-A12
+	  (all revs) erratum. Under very rare timing conditions, the CPU might
+	  hang. The workaround is expected to have a < 1% performance impact.
+
 config ARM_ERRATA_852421
 	bool "ARM errata: A17: DMB ST might fail to create order between stores"
 	depends on CPU_V7
@@ -1224,6 +1198,16 @@ config ARM_ERRATA_852423
 	    lead to either a data corruption or a CPU deadlock.  Not fixed in
 	    any Cortex-A17 cores yet.
 	  This is identical to Cortex-A12 erratum 852422.  It is a separate
+	  config option from the A12 erratum due to the way errata are checked
+	  for and handled.
+
+config ARM_ERRATA_857272
+	bool "ARM errata: A17: CPU might deadlock under some very rare internal conditions"
+	depends on CPU_V7
+	help
+	  This option enables the workaround for the 857272 Cortex-A17 erratum.
+	  This erratum is not known to be fixed in any A17 revision.
+	  This is identical to Cortex-A12 erratum 857271.  It is a separate
 	  config option from the A12 erratum due to the way errata are checked
 	  for and handled.
 
@@ -1251,29 +1235,11 @@ config ISA_DMA
 config ISA_DMA_API
 	bool
 
-config PCI
-	bool "PCI support" if MIGHT_HAVE_PCI
-	help
-	  Find out whether you have a PCI motherboard. PCI is the name of a
-	  bus system, i.e. the way the CPU talks to the other stuff inside
-	  your box. Other bus systems are ISA, EISA, MicroChannel (MCA) or
-	  VESA. If you have PCI, say Y, otherwise N.
-
-config PCI_DOMAINS
-	bool
-	depends on PCI
-
-config PCI_DOMAINS_GENERIC
-	def_bool PCI_DOMAINS
-
 config PCI_NANOENGINE
 	bool "BSE nanoEngine PCI support"
 	depends on SA1100_NANOENGINE
 	help
 	  Enable PCI on the BSE nanoEngine board.
-
-config PCI_SYSCALL
-	def_bool PCI
 
 config PCI_HOST_ITE8152
 	bool
@@ -1281,9 +1247,17 @@ config PCI_HOST_ITE8152
 	default y
 	select DMABOUNCE
 
-source "drivers/pci/Kconfig"
-
-source "drivers/pcmcia/Kconfig"
+config ARM_ERRATA_814220
+	bool "ARM errata: Cache maintenance by set/way operations can execute out of order"
+	depends on CPU_V7
+	help
+	  The v7 ARM states that all cache and branch predictor maintenance
+	  operations that do not specify an address execute, relative to
+	  each other, in program order.
+	  However, because of this erratum, an L2 set/way cache maintenance
+	  operation can overtake an L1 set/way cache maintenance operation.
+	  This ERRATA only affected the Cortex-A7 and present in r0p2, r0p3,
+	  r0p4, r0p5.
 
 endmenu
 
@@ -1316,8 +1290,8 @@ config SMP
 	  uniprocessor machines. On a uniprocessor machine, the kernel
 	  will run faster if you say N here.
 
-	  See also <file:Documentation/x86/i386/IO-APIC.txt>,
-	  <file:Documentation/nmi_watchdog.txt> and the SMP-HOWTO available at
+	  See also <file:Documentation/x86/i386/IO-APIC.rst>,
+	  <file:Documentation/admin-guide/lockup-watchdogs.rst> and the SMP-HOWTO available at
 	  <http://tldp.org/HOWTO/SMP-HOWTO.html>.
 
 	  If you don't know what to do here, say N.
@@ -1362,7 +1336,7 @@ config SCHED_SMT
 config HAVE_ARM_SCU
 	bool
 	help
-	  This option enables support for the ARM system coherency unit
+	  This option enables support for the ARM snoop control unit
 
 config HAVE_ARM_ARCH_TIMER
 	bool "Architected timer support"
@@ -1374,7 +1348,6 @@ config HAVE_ARM_ARCH_TIMER
 
 config HAVE_ARM_TWD
 	bool
-	select CLKSRC_OF if OF
 	help
 	  This options enables support for the ARM timer and watchdog unit
 
@@ -1433,6 +1406,7 @@ choice
 	config VMSPLIT_3G
 		bool "3G/1G user/kernel split"
 	config VMSPLIT_3G_OPT
+		depends on !ARM_LPAE
 		bool "3G/1G user/kernel split (for full 1G low memory)"
 	config VMSPLIT_2G
 		bool "2G/2G user/kernel split"
@@ -1457,6 +1431,7 @@ config NR_CPUS
 config HOTPLUG_CPU
 	bool "Support for hot-pluggable CPUs"
 	depends on SMP
+	select GENERIC_IRQ_MIGRATION
 	help
 	  Say Y here to experiment with turning CPUs off and on.  CPUs
 	  can be controlled through /sys/devices/system/cpu.
@@ -1477,7 +1452,8 @@ config ARM_PSCI
 # selected platforms.
 config ARCH_NR_GPIO
 	int
-	default 1024 if ARCH_BRCMSTB || ARCH_SHMOBILE || ARCH_TEGRA || \
+	default 2048 if ARCH_SOCFPGA
+	default 1024 if ARCH_BRCMSTB || ARCH_RENESAS || ARCH_TEGRA || \
 		ARCH_ZYNQ
 	default 512 if ARCH_EXYNOS || ARCH_KEYSTONE || SOC_OMAP5 || \
 		SOC_DRA7XX || ARCH_S3C24XX || ARCH_S3C64XX || ARCH_S5PV210
@@ -1492,12 +1468,9 @@ config ARCH_NR_GPIO
 
 	  If unsure, leave the default value.
 
-source kernel/Kconfig.preempt
-
 config HZ_FIXED
 	int
-	default 200 if ARCH_EBSA110 || ARCH_S3C24XX || \
-		ARCH_S5PV210 || ARCH_EXYNOS4
+	default 200 if ARCH_EBSA110
 	default 128 if SOC_AT91RM9200
 	default 0
 
@@ -1542,13 +1515,10 @@ config THUMB2_KERNEL
 	bool "Compile the kernel in Thumb-2 mode" if !CPU_THUMBONLY
 	depends on (CPU_V7 || CPU_V7M) && !CPU_V6 && !CPU_V6K
 	default y if CPU_THUMBONLY
-	select AEABI
-	select ARM_ASM_UNIFIED
 	select ARM_UNWIND
 	help
 	  By enabling this option, the kernel will be compiled in
-	  Thumb-2 mode. A compiler/assembler that understand the unified
-	  ARM-Thumb syntax is needed.
+	  Thumb-2 mode.
 
 	  If unsure, say N.
 
@@ -1583,9 +1553,6 @@ config THUMB2_AVOID_R_ARM_THM_JUMP11
 
 	  Unless you are sure your tools don't have this problem, say Y.
 
-config ARM_ASM_UNIFIED
-	bool
-
 config ARM_PATCH_IDIV
 	bool "Runtime patch udiv/sdiv instructions into __aeabi_{u}idiv()"
 	depends on CPU_32v7 && !XIP_KERNEL
@@ -1605,7 +1572,8 @@ config ARM_PATCH_IDIV
 	  code to do integer division.
 
 config AEABI
-	bool "Use the ARM EABI to compile the kernel"
+	bool "Use the ARM EABI to compile the kernel" if !CPU_V7 && !CPU_V7M && !CPU_V6 && !CPU_V6K
+	default CPU_V7 || CPU_V7M || CPU_V6 || CPU_V6K
 	help
 	  This option allows for the kernel to be compiled using the latest
 	  ARM ABI (aka EABI).  This is only useful if you are using a user
@@ -1649,15 +1617,8 @@ config ARCH_SPARSEMEM_ENABLE
 config ARCH_SPARSEMEM_DEFAULT
 	def_bool ARCH_SPARSEMEM_ENABLE
 
-config ARCH_SELECT_MEMORY_MODEL
-	def_bool ARCH_SPARSEMEM_ENABLE
-
 config HAVE_ARCH_PFN_VALID
 	def_bool ARCH_HAS_HOLES_MEMORYMODEL || !SPARSEMEM
-
-config HAVE_GENERIC_RCU_GUP
-	def_bool y
-	depends on ARM_LPAE
 
 config HIGHMEM
 	bool "High Memory Support"
@@ -1720,6 +1681,7 @@ config ARCH_WANT_GENERAL_HUGETLB
 config ARM_MODULE_PLTS
 	bool "Use PLTs to allow module memory to spill over into vmalloc area"
 	depends on MODULES
+	default y
 	help
 	  Allocate PLTs when loading modules so that jumps and calls whose
 	  targets are too far away for their relative offsets to be encoded
@@ -1730,9 +1692,8 @@ config ARM_MODULE_PLTS
 	  rounding up to page size, the actual memory footprint is usually
 	  the same.
 
-	  Say y if you are getting out of memory errors while loading modules
-
-source "mm/Kconfig"
+	  Disabling this is usually safe for small single-platform
+	  configurations. If unsure, say y.
 
 config FORCE_MAX_ZONEORDER
 	int "Maximum zone order"
@@ -1794,12 +1755,6 @@ config SECCOMP
 	  and the task is only allowed to execute a few safe syscalls
 	  defined by each seccomp mode.
 
-config SWIOTLB
-	def_bool y
-
-config IOMMU_HELPER
-	def_bool SWIOTLB
-
 config PARAVIRT
 	bool "Enable paravirtualization code"
 	help
@@ -1810,7 +1765,6 @@ config PARAVIRT
 config PARAVIRT_TIME_ACCOUNTING
 	bool "Paravirtual steal time accounting"
 	select PARAVIRT
-	default n
 	help
 	  Select this option to enable fine granularity task steal time
 	  accounting. Time spent executing other tasks in parallel with
@@ -1831,10 +1785,26 @@ config XEN
 	depends on MMU
 	select ARCH_DMA_ADDR_T_64BIT
 	select ARM_PSCI
+	select SWIOTLB
 	select SWIOTLB_XEN
 	select PARAVIRT
 	help
 	  Say Y if you want to run Linux in a Virtual Machine on Xen on ARM.
+
+config STACKPROTECTOR_PER_TASK
+	bool "Use a unique stack canary value for each task"
+	depends on GCC_PLUGINS && STACKPROTECTOR && SMP && !XIP_DEFLATED_DATA
+	select GCC_PLUGIN_ARM_SSP_PER_TASK
+	default y
+	help
+	  Due to the fact that GCC uses an ordinary symbol reference from
+	  which to load the value of the stack canary, this value can only
+	  change at reboot time on SMP systems, and all tasks running in the
+	  kernel's address space are forced to use the same canary value for
+	  the entire duration that the system is up.
+
+	  Enable this option to switch to a different method that uses a
+	  different canary value for each task.
 
 endmenu
 
@@ -2016,6 +1986,17 @@ config XIP_PHYS_ADDR
 	  be linked for and stored to.  This address is dependent on your
 	  own flash usage.
 
+config XIP_DEFLATED_DATA
+	bool "Store kernel .data section compressed in ROM"
+	depends on XIP_KERNEL
+	select ZLIB_INFLATE
+	help
+	  Before the kernel is actually executed, its .data section has to be
+	  copied to RAM from ROM. This option allows for storing that data
+	  in compressed form and decompressed to RAM rather than merely being
+	  copied, saving some precious ROM space. A possible drawback is a
+	  slightly longer boot delay.
+
 config KEXEC
 	bool "Kexec system call (EXPERIMENTAL)"
 	depends on (!SMP || PM_SLEEP_SMP)
@@ -2049,7 +2030,7 @@ config CRASH_DUMP
 	  kdump/kexec. The crash dump kernel must be compiled to a
 	  memory address not used by the main kernel
 
-	  For more details see Documentation/kdump/kdump.txt
+	  For more details see Documentation/admin-guide/kdump/kdump.rst
 
 config AUTO_ZRELADDR
 	bool "Auto calculation of the decompressed kernel image address"
@@ -2078,6 +2059,23 @@ config EFI
 	  allow the kernel to be booted as an EFI application. This
 	  is only useful for kernels that may run on systems that have
 	  UEFI firmware.
+
+config DMI
+	bool "Enable support for SMBIOS (DMI) tables"
+	depends on EFI
+	default y
+	help
+	  This enables SMBIOS/DMI feature for systems.
+
+	  This option is only useful on systems that have UEFI firmware.
+	  However, even with this option, the resultant kernel should
+	  continue to boot on existing non-UEFI platforms.
+
+	  NOTE: This does *NOT* enable or encourage the use of DMI quirks,
+	  i.e., the the practice of identifying the platform via DMI to
+	  decide whether certain workarounds for buggy hardware and/or
+	  firmware need to be enabled. This would require the DMI subsystem
+	  to be enabled much earlier than we do on ARM, which is non-trivial.
 
 endmenu
 
@@ -2138,7 +2136,7 @@ config VFP
 	  Say Y to include VFP support code in the kernel. This is needed
 	  if your hardware includes a VFP unit.
 
-	  Please see <file:Documentation/arm/VFP/release-notes.txt> for
+	  Please see <file:Documentation/arm/vfp/release-notes.rst> for
 	  release notes and additional status information.
 
 	  Say N if your target does not have VFP hardware.
@@ -2163,12 +2161,6 @@ config KERNEL_MODE_NEON
 
 endmenu
 
-menu "Userspace binary formats"
-
-source "fs/Kconfig.binfmt"
-
-endmenu
-
 menu "Power management options"
 
 source "kernel/power/Kconfig"
@@ -2189,23 +2181,10 @@ config ARCH_HIBERNATION_POSSIBLE
 
 endmenu
 
-source "net/Kconfig"
-
-source "drivers/Kconfig"
-
 source "drivers/firmware/Kconfig"
 
-source "fs/Kconfig"
-
-source "arch/arm/Kconfig.debug"
-
-source "security/Kconfig"
-
-source "crypto/Kconfig"
 if CRYPTO
 source "arch/arm/crypto/Kconfig"
 endif
-
-source "lib/Kconfig"
 
 source "arch/arm/kvm/Kconfig"

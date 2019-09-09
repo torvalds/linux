@@ -1,17 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Kontron PLD watchdog driver
  *
  * Copyright (c) 2010-2013 Kontron Europe GmbH
  * Author: Michael Brunner <michael.brunner@kontron.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License 2 as published
- * by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  *
  * Note: From the PLD watchdog point of view timeout and pretimeout are
  *       defined differently than in the kernel.
@@ -140,11 +132,13 @@ static int kempld_wdt_set_stage_timeout(struct kempld_wdt_data *wdt_data,
 					unsigned int timeout)
 {
 	struct kempld_device_data *pld = wdt_data->pld;
-	u32 prescaler = kempld_prescaler[PRESCALER_21];
+	u32 prescaler;
 	u64 stage_timeout64;
 	u32 stage_timeout;
 	u32 remainder;
 	u8 stage_cfg;
+
+	prescaler = kempld_prescaler[PRESCALER_21];
 
 	if (!stage)
 		return -EINVAL;
@@ -422,7 +416,7 @@ static int kempld_wdt_probe_stages(struct watchdog_device *wdd)
 	return 0;
 }
 
-static struct watchdog_info kempld_wdt_info = {
+static const struct watchdog_info kempld_wdt_info = {
 	.identity	= "KEMPLD Watchdog",
 	.options	= WDIOF_SETTIMEOUT |
 			WDIOF_KEEPALIVEPING |
@@ -465,7 +459,7 @@ static int kempld_wdt_probe(struct platform_device *pdev)
 			KEMPLD_WDT_CFG_GLOBAL_LOCK)) {
 		if (!nowayout)
 			dev_warn(dev,
-				"Forcing nowayout - watchdog lock enabled!\n");
+				 "Forcing nowayout - watchdog lock enabled!\n");
 		nowayout = true;
 	}
 
@@ -490,33 +484,15 @@ static int kempld_wdt_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, wdt_data);
-	ret = watchdog_register_device(wdd);
+	watchdog_stop_on_reboot(wdd);
+	watchdog_stop_on_unregister(wdd);
+	ret = devm_watchdog_register_device(dev, wdd);
 	if (ret)
 		return ret;
 
 	dev_info(dev, "Watchdog registered with %ds timeout\n", wdd->timeout);
 
 	return 0;
-}
-
-static void kempld_wdt_shutdown(struct platform_device *pdev)
-{
-	struct kempld_wdt_data *wdt_data = platform_get_drvdata(pdev);
-
-	kempld_wdt_stop(&wdt_data->wdd);
-}
-
-static int kempld_wdt_remove(struct platform_device *pdev)
-{
-	struct kempld_wdt_data *wdt_data = platform_get_drvdata(pdev);
-	struct watchdog_device *wdd = &wdt_data->wdd;
-	int ret = 0;
-
-	if (!nowayout)
-		ret = kempld_wdt_stop(wdd);
-	watchdog_unregister_device(wdd);
-
-	return ret;
 }
 
 #ifdef CONFIG_PM
@@ -565,8 +541,6 @@ static struct platform_driver kempld_wdt_driver = {
 		.name	= "kempld-wdt",
 	},
 	.probe		= kempld_wdt_probe,
-	.remove		= kempld_wdt_remove,
-	.shutdown	= kempld_wdt_shutdown,
 	.suspend	= kempld_wdt_suspend,
 	.resume		= kempld_wdt_resume,
 };

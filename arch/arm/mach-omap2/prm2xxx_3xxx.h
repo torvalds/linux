@@ -1,13 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * OMAP2xxx/3xxx-common Power/Reset Management (PRM) register definitions
  *
  * Copyright (C) 2007-2009, 2011-2012 Texas Instruments, Inc.
  * Copyright (C) 2008-2010 Nokia Corporation
  * Paul Walmsley
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * The PRM hardware modules on the OMAP2/3 are quite similar to each
  * other.  The PRM on OMAP4 has a new register layout, and is handled
@@ -55,12 +52,12 @@
 /* Power/reset management domain register get/set */
 static inline u32 omap2_prm_read_mod_reg(s16 module, u16 idx)
 {
-	return readl_relaxed(prm_base + module + idx);
+	return readl_relaxed(prm_base.va + module + idx);
 }
 
 static inline void omap2_prm_write_mod_reg(u32 val, s16 module, u16 idx)
 {
-	writel_relaxed(val, prm_base + module + idx);
+	writel_relaxed(val, prm_base.va + module + idx);
 }
 
 /* Read-modify-write a register in a PRM module. Caller must lock */

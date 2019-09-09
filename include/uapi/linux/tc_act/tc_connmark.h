@@ -1,10 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef __UAPI_TC_CONNMARK_H
 #define __UAPI_TC_CONNMARK_H
 
 #include <linux/types.h>
 #include <linux/pkt_cls.h>
-
-#define TCA_ACT_CONNMARK 14
 
 struct tc_connmark {
 	tc_gen;

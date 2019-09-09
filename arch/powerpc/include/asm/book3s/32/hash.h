@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_POWERPC_BOOK3S_32_HASH_H
 #define _ASM_POWERPC_BOOK3S_32_HASH_H
 #ifdef __KERNEL__
@@ -25,6 +26,7 @@
 #define _PAGE_WRITETHRU	0x040	/* W: cache write-through */
 #define _PAGE_DIRTY	0x080	/* C: page changed */
 #define _PAGE_ACCESSED	0x100	/* R: page referenced */
+#define _PAGE_EXEC	0x200	/* software: exec allowed */
 #define _PAGE_RW	0x400	/* software: user write access allowed */
 #define _PAGE_SPECIAL	0x800	/* software: Special page */
 

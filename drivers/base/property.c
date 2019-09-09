@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * property.c - Unified device property interface.
  *
  * Copyright (C) 2014, Intel Corporation
  * Authors: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
  *          Mika Westerberg <mika.westerberg@linux.intel.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/acpi.h>
@@ -15,178 +12,18 @@
 #include <linux/kernel.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/of_graph.h>
+#include <linux/of_irq.h>
 #include <linux/property.h>
 #include <linux/etherdevice.h>
 #include <linux/phy.h>
 
-struct property_set {
-	struct fwnode_handle fwnode;
-	struct property_entry *properties;
-};
-
-static inline bool is_pset_node(struct fwnode_handle *fwnode)
-{
-	return !IS_ERR_OR_NULL(fwnode) && fwnode->type == FWNODE_PDATA;
-}
-
-static inline struct property_set *to_pset_node(struct fwnode_handle *fwnode)
-{
-	return is_pset_node(fwnode) ?
-		container_of(fwnode, struct property_set, fwnode) : NULL;
-}
-
-static struct property_entry *pset_prop_get(struct property_set *pset,
-					    const char *name)
-{
-	struct property_entry *prop;
-
-	if (!pset || !pset->properties)
-		return NULL;
-
-	for (prop = pset->properties; prop->name; prop++)
-		if (!strcmp(name, prop->name))
-			return prop;
-
-	return NULL;
-}
-
-static void *pset_prop_find(struct property_set *pset, const char *propname,
-			    size_t length)
-{
-	struct property_entry *prop;
-	void *pointer;
-
-	prop = pset_prop_get(pset, propname);
-	if (!prop)
-		return ERR_PTR(-EINVAL);
-	if (prop->is_array)
-		pointer = prop->pointer.raw_data;
-	else
-		pointer = &prop->value.raw_data;
-	if (!pointer)
-		return ERR_PTR(-ENODATA);
-	if (length > prop->length)
-		return ERR_PTR(-EOVERFLOW);
-	return pointer;
-}
-
-static int pset_prop_read_u8_array(struct property_set *pset,
-				   const char *propname,
-				   u8 *values, size_t nval)
-{
-	void *pointer;
-	size_t length = nval * sizeof(*values);
-
-	pointer = pset_prop_find(pset, propname, length);
-	if (IS_ERR(pointer))
-		return PTR_ERR(pointer);
-
-	memcpy(values, pointer, length);
-	return 0;
-}
-
-static int pset_prop_read_u16_array(struct property_set *pset,
-				    const char *propname,
-				    u16 *values, size_t nval)
-{
-	void *pointer;
-	size_t length = nval * sizeof(*values);
-
-	pointer = pset_prop_find(pset, propname, length);
-	if (IS_ERR(pointer))
-		return PTR_ERR(pointer);
-
-	memcpy(values, pointer, length);
-	return 0;
-}
-
-static int pset_prop_read_u32_array(struct property_set *pset,
-				    const char *propname,
-				    u32 *values, size_t nval)
-{
-	void *pointer;
-	size_t length = nval * sizeof(*values);
-
-	pointer = pset_prop_find(pset, propname, length);
-	if (IS_ERR(pointer))
-		return PTR_ERR(pointer);
-
-	memcpy(values, pointer, length);
-	return 0;
-}
-
-static int pset_prop_read_u64_array(struct property_set *pset,
-				    const char *propname,
-				    u64 *values, size_t nval)
-{
-	void *pointer;
-	size_t length = nval * sizeof(*values);
-
-	pointer = pset_prop_find(pset, propname, length);
-	if (IS_ERR(pointer))
-		return PTR_ERR(pointer);
-
-	memcpy(values, pointer, length);
-	return 0;
-}
-
-static int pset_prop_count_elems_of_size(struct property_set *pset,
-					 const char *propname, size_t length)
-{
-	struct property_entry *prop;
-
-	prop = pset_prop_get(pset, propname);
-	if (!prop)
-		return -EINVAL;
-
-	return prop->length / length;
-}
-
-static int pset_prop_read_string_array(struct property_set *pset,
-				       const char *propname,
-				       const char **strings, size_t nval)
-{
-	void *pointer;
-	size_t length = nval * sizeof(*strings);
-
-	pointer = pset_prop_find(pset, propname, length);
-	if (IS_ERR(pointer))
-		return PTR_ERR(pointer);
-
-	memcpy(strings, pointer, length);
-	return 0;
-}
-
-static int pset_prop_read_string(struct property_set *pset,
-				 const char *propname, const char **strings)
-{
-	struct property_entry *prop;
-	const char **pointer;
-
-	prop = pset_prop_get(pset, propname);
-	if (!prop)
-		return -EINVAL;
-	if (!prop->is_string)
-		return -EILSEQ;
-	if (prop->is_array) {
-		pointer = prop->pointer.str;
-		if (!pointer)
-			return -ENODATA;
-	} else {
-		pointer = &prop->value.str;
-		if (*pointer && strnlen(*pointer, prop->length) >= prop->length)
-			return -EILSEQ;
-	}
-
-	*strings = *pointer;
-	return 0;
-}
-
-static inline struct fwnode_handle *dev_fwnode(struct device *dev)
+struct fwnode_handle *dev_fwnode(struct device *dev)
 {
 	return IS_ENABLED(CONFIG_OF) && dev->of_node ?
 		&dev->of_node->fwnode : dev->fwnode;
 }
+EXPORT_SYMBOL_GPL(dev_fwnode);
 
 /**
  * device_property_present - check if a property of a device is present
@@ -201,31 +38,21 @@ bool device_property_present(struct device *dev, const char *propname)
 }
 EXPORT_SYMBOL_GPL(device_property_present);
 
-static bool __fwnode_property_present(struct fwnode_handle *fwnode,
-				      const char *propname)
-{
-	if (is_of_node(fwnode))
-		return of_property_read_bool(to_of_node(fwnode), propname);
-	else if (is_acpi_node(fwnode))
-		return !acpi_node_prop_get(fwnode, propname, NULL);
-	else if (is_pset_node(fwnode))
-		return !!pset_prop_get(to_pset_node(fwnode), propname);
-	return false;
-}
-
 /**
  * fwnode_property_present - check if a property of a firmware node is present
  * @fwnode: Firmware node whose property to check
  * @propname: Name of the property
  */
-bool fwnode_property_present(struct fwnode_handle *fwnode, const char *propname)
+bool fwnode_property_present(const struct fwnode_handle *fwnode,
+			     const char *propname)
 {
 	bool ret;
 
-	ret = __fwnode_property_present(fwnode, propname);
+	ret = fwnode_call_bool_op(fwnode, property_present, propname);
 	if (ret == false && !IS_ERR_OR_NULL(fwnode) &&
 	    !IS_ERR_OR_NULL(fwnode->secondary))
-		ret = __fwnode_property_present(fwnode->secondary, propname);
+		ret = fwnode_call_bool_op(fwnode->secondary, property_present,
+					 propname);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(fwnode_property_present);
@@ -340,8 +167,8 @@ EXPORT_SYMBOL_GPL(device_property_read_u64_array);
  * Function reads an array of string properties with @propname from the device
  * firmware description and stores them to @val if found.
  *
- * Return: number of values if @val was %NULL,
- *         %0 if the property was found (success),
+ * Return: number of values read on success if @val is non-NULL,
+ *	   number of values available on success if @val is NULL,
  *	   %-EINVAL if given arguments are not valid,
  *	   %-ENODATA if the property does not have a value,
  *	   %-EPROTO or %-EILSEQ if the property is not an array of strings,
@@ -399,42 +226,23 @@ int device_property_match_string(struct device *dev, const char *propname,
 }
 EXPORT_SYMBOL_GPL(device_property_match_string);
 
-#define OF_DEV_PROP_READ_ARRAY(node, propname, type, val, nval)				\
-	(val) ? of_property_read_##type##_array((node), (propname), (val), (nval))	\
-	      : of_property_count_elems_of_size((node), (propname), sizeof(type))
+static int fwnode_property_read_int_array(const struct fwnode_handle *fwnode,
+					  const char *propname,
+					  unsigned int elem_size, void *val,
+					  size_t nval)
+{
+	int ret;
 
-#define PSET_PROP_READ_ARRAY(node, propname, type, val, nval)				\
-	(val) ? pset_prop_read_##type##_array((node), (propname), (val), (nval))	\
-	      : pset_prop_count_elems_of_size((node), (propname), sizeof(type))
+	ret = fwnode_call_int_op(fwnode, property_read_int_array, propname,
+				 elem_size, val, nval);
+	if (ret == -EINVAL && !IS_ERR_OR_NULL(fwnode) &&
+	    !IS_ERR_OR_NULL(fwnode->secondary))
+		ret = fwnode_call_int_op(
+			fwnode->secondary, property_read_int_array, propname,
+			elem_size, val, nval);
 
-#define FWNODE_PROP_READ(_fwnode_, _propname_, _type_, _proptype_, _val_, _nval_)	\
-({											\
-	int _ret_;									\
-	if (is_of_node(_fwnode_))							\
-		_ret_ = OF_DEV_PROP_READ_ARRAY(to_of_node(_fwnode_), _propname_,	\
-					       _type_, _val_, _nval_);			\
-	else if (is_acpi_node(_fwnode_))						\
-		_ret_ = acpi_node_prop_read(_fwnode_, _propname_, _proptype_,		\
-					    _val_, _nval_);				\
-	else if (is_pset_node(_fwnode_)) 						\
-		_ret_ = PSET_PROP_READ_ARRAY(to_pset_node(_fwnode_), _propname_,	\
-					     _type_, _val_, _nval_);			\
-	else										\
-		_ret_ = -ENXIO;								\
-	_ret_;										\
-})
-
-#define FWNODE_PROP_READ_ARRAY(_fwnode_, _propname_, _type_, _proptype_, _val_, _nval_)	\
-({											\
-	int _ret_;									\
-	_ret_ = FWNODE_PROP_READ(_fwnode_, _propname_, _type_, _proptype_,		\
-				 _val_, _nval_);					\
-	if (_ret_ == -EINVAL && !IS_ERR_OR_NULL(_fwnode_) &&				\
-	    !IS_ERR_OR_NULL(_fwnode_->secondary))					\
-		_ret_ = FWNODE_PROP_READ(_fwnode_->secondary, _propname_, _type_,	\
-				_proptype_, _val_, _nval_);				\
-	_ret_;										\
-})
+	return ret;
+}
 
 /**
  * fwnode_property_read_u8_array - return a u8 array property of firmware node
@@ -454,11 +262,11 @@ EXPORT_SYMBOL_GPL(device_property_match_string);
  *	   %-EOVERFLOW if the size of the property is not as expected,
  *	   %-ENXIO if no suitable firmware interface is present.
  */
-int fwnode_property_read_u8_array(struct fwnode_handle *fwnode,
+int fwnode_property_read_u8_array(const struct fwnode_handle *fwnode,
 				  const char *propname, u8 *val, size_t nval)
 {
-	return FWNODE_PROP_READ_ARRAY(fwnode, propname, u8, DEV_PROP_U8,
-				      val, nval);
+	return fwnode_property_read_int_array(fwnode, propname, sizeof(u8),
+					      val, nval);
 }
 EXPORT_SYMBOL_GPL(fwnode_property_read_u8_array);
 
@@ -480,11 +288,11 @@ EXPORT_SYMBOL_GPL(fwnode_property_read_u8_array);
  *	   %-EOVERFLOW if the size of the property is not as expected,
  *	   %-ENXIO if no suitable firmware interface is present.
  */
-int fwnode_property_read_u16_array(struct fwnode_handle *fwnode,
+int fwnode_property_read_u16_array(const struct fwnode_handle *fwnode,
 				   const char *propname, u16 *val, size_t nval)
 {
-	return FWNODE_PROP_READ_ARRAY(fwnode, propname, u16, DEV_PROP_U16,
-				      val, nval);
+	return fwnode_property_read_int_array(fwnode, propname, sizeof(u16),
+					      val, nval);
 }
 EXPORT_SYMBOL_GPL(fwnode_property_read_u16_array);
 
@@ -506,11 +314,11 @@ EXPORT_SYMBOL_GPL(fwnode_property_read_u16_array);
  *	   %-EOVERFLOW if the size of the property is not as expected,
  *	   %-ENXIO if no suitable firmware interface is present.
  */
-int fwnode_property_read_u32_array(struct fwnode_handle *fwnode,
+int fwnode_property_read_u32_array(const struct fwnode_handle *fwnode,
 				   const char *propname, u32 *val, size_t nval)
 {
-	return FWNODE_PROP_READ_ARRAY(fwnode, propname, u32, DEV_PROP_U32,
-				      val, nval);
+	return fwnode_property_read_int_array(fwnode, propname, sizeof(u32),
+					      val, nval);
 }
 EXPORT_SYMBOL_GPL(fwnode_property_read_u32_array);
 
@@ -532,48 +340,13 @@ EXPORT_SYMBOL_GPL(fwnode_property_read_u32_array);
  *	   %-EOVERFLOW if the size of the property is not as expected,
  *	   %-ENXIO if no suitable firmware interface is present.
  */
-int fwnode_property_read_u64_array(struct fwnode_handle *fwnode,
+int fwnode_property_read_u64_array(const struct fwnode_handle *fwnode,
 				   const char *propname, u64 *val, size_t nval)
 {
-	return FWNODE_PROP_READ_ARRAY(fwnode, propname, u64, DEV_PROP_U64,
-				      val, nval);
+	return fwnode_property_read_int_array(fwnode, propname, sizeof(u64),
+					      val, nval);
 }
 EXPORT_SYMBOL_GPL(fwnode_property_read_u64_array);
-
-static int __fwnode_property_read_string_array(struct fwnode_handle *fwnode,
-					       const char *propname,
-					       const char **val, size_t nval)
-{
-	if (is_of_node(fwnode))
-		return val ?
-			of_property_read_string_array(to_of_node(fwnode),
-						      propname, val, nval) :
-			of_property_count_strings(to_of_node(fwnode), propname);
-	else if (is_acpi_node(fwnode))
-		return acpi_node_prop_read(fwnode, propname, DEV_PROP_STRING,
-					   val, nval);
-	else if (is_pset_node(fwnode))
-		return val ?
-			pset_prop_read_string_array(to_pset_node(fwnode),
-						    propname, val, nval) :
-			pset_prop_count_elems_of_size(to_pset_node(fwnode),
-						      propname,
-						      sizeof(const char *));
-	return -ENXIO;
-}
-
-static int __fwnode_property_read_string(struct fwnode_handle *fwnode,
-					 const char *propname, const char **val)
-{
-	if (is_of_node(fwnode))
-		return of_property_read_string(to_of_node(fwnode), propname, val);
-	else if (is_acpi_node(fwnode))
-		return acpi_node_prop_read(fwnode, propname, DEV_PROP_STRING,
-					   val, 1);
-	else if (is_pset_node(fwnode))
-		return pset_prop_read_string(to_pset_node(fwnode), propname, val);
-	return -ENXIO;
-}
 
 /**
  * fwnode_property_read_string_array - return string array property of a node
@@ -585,25 +358,27 @@ static int __fwnode_property_read_string(struct fwnode_handle *fwnode,
  * Read an string list property @propname from the given firmware node and store
  * them to @val if found.
  *
- * Return: number of values if @val was %NULL,
- *         %0 if the property was found (success),
+ * Return: number of values read on success if @val is non-NULL,
+ *	   number of values available on success if @val is NULL,
  *	   %-EINVAL if given arguments are not valid,
  *	   %-ENODATA if the property does not have a value,
- *	   %-EPROTO if the property is not an array of strings,
+ *	   %-EPROTO or %-EILSEQ if the property is not an array of strings,
  *	   %-EOVERFLOW if the size of the property is not as expected,
  *	   %-ENXIO if no suitable firmware interface is present.
  */
-int fwnode_property_read_string_array(struct fwnode_handle *fwnode,
+int fwnode_property_read_string_array(const struct fwnode_handle *fwnode,
 				      const char *propname, const char **val,
 				      size_t nval)
 {
 	int ret;
 
-	ret = __fwnode_property_read_string_array(fwnode, propname, val, nval);
+	ret = fwnode_call_int_op(fwnode, property_read_string_array, propname,
+				 val, nval);
 	if (ret == -EINVAL && !IS_ERR_OR_NULL(fwnode) &&
 	    !IS_ERR_OR_NULL(fwnode->secondary))
-		ret = __fwnode_property_read_string_array(fwnode->secondary,
-							  propname, val, nval);
+		ret = fwnode_call_int_op(fwnode->secondary,
+					 property_read_string_array, propname,
+					 val, nval);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(fwnode_property_read_string_array);
@@ -623,17 +398,12 @@ EXPORT_SYMBOL_GPL(fwnode_property_read_string_array);
  *	   %-EPROTO or %-EILSEQ if the property is not a string,
  *	   %-ENXIO if no suitable firmware interface is present.
  */
-int fwnode_property_read_string(struct fwnode_handle *fwnode,
+int fwnode_property_read_string(const struct fwnode_handle *fwnode,
 				const char *propname, const char **val)
 {
-	int ret;
+	int ret = fwnode_property_read_string_array(fwnode, propname, val, 1);
 
-	ret = __fwnode_property_read_string(fwnode, propname, val);
-	if (ret == -EINVAL && !IS_ERR_OR_NULL(fwnode) &&
-	    !IS_ERR_OR_NULL(fwnode->secondary))
-		ret = __fwnode_property_read_string(fwnode->secondary,
-						    propname, val);
-	return ret;
+	return ret < 0 ? ret : 0;
 }
 EXPORT_SYMBOL_GPL(fwnode_property_read_string);
 
@@ -652,7 +422,7 @@ EXPORT_SYMBOL_GPL(fwnode_property_read_string);
  *	   %-EPROTO if the property is not an array of strings,
  *	   %-ENXIO if no suitable firmware interface is present.
  */
-int fwnode_property_match_string(struct fwnode_handle *fwnode,
+int fwnode_property_match_string(const struct fwnode_handle *fwnode,
 	const char *propname, const char *string)
 {
 	const char **values;
@@ -683,157 +453,79 @@ out:
 EXPORT_SYMBOL_GPL(fwnode_property_match_string);
 
 /**
- * pset_free_set - releases memory allocated for copied property set
- * @pset: Property set to release
+ * fwnode_property_get_reference_args() - Find a reference with arguments
+ * @fwnode:	Firmware node where to look for the reference
+ * @prop:	The name of the property
+ * @nargs_prop:	The name of the property telling the number of
+ *		arguments in the referred node. NULL if @nargs is known,
+ *		otherwise @nargs is ignored. Only relevant on OF.
+ * @nargs:	Number of arguments. Ignored if @nargs_prop is non-NULL.
+ * @index:	Index of the reference, from zero onwards.
+ * @args:	Result structure with reference and integer arguments.
  *
- * Function takes previously copied property set and releases all the
- * memory allocated to it.
+ * Obtain a reference based on a named property in an fwnode, with
+ * integer arguments.
+ *
+ * Caller is responsible to call fwnode_handle_put() on the returned
+ * args->fwnode pointer.
+ *
+ * Returns: %0 on success
+ *	    %-ENOENT when the index is out of bounds, the index has an empty
+ *		     reference or the property was not found
+ *	    %-EINVAL on parse error
  */
-static void pset_free_set(struct property_set *pset)
+int fwnode_property_get_reference_args(const struct fwnode_handle *fwnode,
+				       const char *prop, const char *nargs_prop,
+				       unsigned int nargs, unsigned int index,
+				       struct fwnode_reference_args *args)
 {
-	const struct property_entry *prop;
-	size_t i, nval;
-
-	if (!pset)
-		return;
-
-	for (prop = pset->properties; prop->name; prop++) {
-		if (prop->is_array) {
-			if (prop->is_string && prop->pointer.str) {
-				nval = prop->length / sizeof(const char *);
-				for (i = 0; i < nval; i++)
-					kfree(prop->pointer.str[i]);
-			}
-			kfree(prop->pointer.raw_data);
-		} else if (prop->is_string) {
-			kfree(prop->value.str);
-		}
-		kfree(prop->name);
-	}
-
-	kfree(pset->properties);
-	kfree(pset);
+	return fwnode_call_int_op(fwnode, get_reference_args, prop, nargs_prop,
+				  nargs, index, args);
 }
-
-static int pset_copy_entry(struct property_entry *dst,
-			   const struct property_entry *src)
-{
-	const char **d, **s;
-	size_t i, nval;
-
-	dst->name = kstrdup(src->name, GFP_KERNEL);
-	if (!dst->name)
-		return -ENOMEM;
-
-	if (src->is_array) {
-		if (!src->length)
-			return -ENODATA;
-
-		if (src->is_string) {
-			nval = src->length / sizeof(const char *);
-			dst->pointer.str = kcalloc(nval, sizeof(const char *),
-						   GFP_KERNEL);
-			if (!dst->pointer.str)
-				return -ENOMEM;
-
-			d = dst->pointer.str;
-			s = src->pointer.str;
-			for (i = 0; i < nval; i++) {
-				d[i] = kstrdup(s[i], GFP_KERNEL);
-				if (!d[i] && s[i])
-					return -ENOMEM;
-			}
-		} else {
-			dst->pointer.raw_data = kmemdup(src->pointer.raw_data,
-							src->length, GFP_KERNEL);
-			if (!dst->pointer.raw_data)
-				return -ENOMEM;
-		}
-	} else if (src->is_string) {
-		dst->value.str = kstrdup(src->value.str, GFP_KERNEL);
-		if (!dst->value.str && src->value.str)
-			return -ENOMEM;
-	} else {
-		dst->value.raw_data = src->value.raw_data;
-	}
-
-	dst->length = src->length;
-	dst->is_array = src->is_array;
-	dst->is_string = src->is_string;
-
-	return 0;
-}
+EXPORT_SYMBOL_GPL(fwnode_property_get_reference_args);
 
 /**
- * pset_copy_set - copies property set
- * @pset: Property set to copy
+ * fwnode_find_reference - Find named reference to a fwnode_handle
+ * @fwnode: Firmware node where to look for the reference
+ * @name: The name of the reference
+ * @index: Index of the reference
  *
- * This function takes a deep copy of the given property set and returns
- * pointer to the copy. Call device_free_property_set() to free resources
- * allocated in this function.
+ * @index can be used when the named reference holds a table of references.
  *
- * Return: Pointer to the new property set or error pointer.
+ * Returns pointer to the reference fwnode, or ERR_PTR. Caller is responsible to
+ * call fwnode_handle_put() on the returned fwnode pointer.
  */
-static struct property_set *pset_copy_set(const struct property_set *pset)
+struct fwnode_handle *fwnode_find_reference(const struct fwnode_handle *fwnode,
+					    const char *name,
+					    unsigned int index)
 {
-	const struct property_entry *entry;
-	struct property_set *p;
-	size_t i, n = 0;
+	struct fwnode_reference_args args;
+	int ret;
 
-	p = kzalloc(sizeof(*p), GFP_KERNEL);
-	if (!p)
-		return ERR_PTR(-ENOMEM);
-
-	while (pset->properties[n].name)
-		n++;
-
-	p->properties = kcalloc(n + 1, sizeof(*entry), GFP_KERNEL);
-	if (!p->properties) {
-		kfree(p);
-		return ERR_PTR(-ENOMEM);
-	}
-
-	for (i = 0; i < n; i++) {
-		int ret = pset_copy_entry(&p->properties[i],
-					  &pset->properties[i]);
-		if (ret) {
-			pset_free_set(p);
-			return ERR_PTR(ret);
-		}
-	}
-
-	return p;
+	ret = fwnode_property_get_reference_args(fwnode, name, NULL, 0, index,
+						 &args);
+	return ret ? ERR_PTR(ret) : args.fwnode;
 }
+EXPORT_SYMBOL_GPL(fwnode_find_reference);
 
 /**
  * device_remove_properties - Remove properties from a device object.
  * @dev: Device whose properties to remove.
  *
  * The function removes properties previously associated to the device
- * secondary firmware node with device_add_properties(). Memory allocated
- * to the properties will also be released.
+ * firmware node with device_add_properties(). Memory allocated to the
+ * properties will also be released.
  */
 void device_remove_properties(struct device *dev)
 {
-	struct fwnode_handle *fwnode;
+	struct fwnode_handle *fwnode = dev_fwnode(dev);
 
-	fwnode = dev_fwnode(dev);
 	if (!fwnode)
 		return;
-	/*
-	 * Pick either primary or secondary node depending which one holds
-	 * the pset. If there is no real firmware node (ACPI/DT) primary
-	 * will hold the pset.
-	 */
-	if (is_pset_node(fwnode)) {
-		set_primary_fwnode(dev, NULL);
-		pset_free_set(to_pset_node(fwnode));
-	} else {
-		fwnode = fwnode->secondary;
-		if (!IS_ERR(fwnode) && is_pset_node(fwnode)) {
-			set_secondary_fwnode(dev, NULL);
-			pset_free_set(to_pset_node(fwnode));
-		}
+
+	if (is_software_node(fwnode->secondary)) {
+		fwnode_remove_software_node(fwnode->secondary);
+		set_secondary_fwnode(dev, NULL);
 	}
 }
 EXPORT_SYMBOL_GPL(device_remove_properties);
@@ -844,27 +536,98 @@ EXPORT_SYMBOL_GPL(device_remove_properties);
  * @properties: Collection of properties to add.
  *
  * Associate a collection of device properties represented by @properties with
- * @dev as its secondary firmware node. The function takes a copy of
- * @properties.
+ * @dev. The function takes a copy of @properties.
+ *
+ * WARNING: The callers should not use this function if it is known that there
+ * is no real firmware node associated with @dev! In that case the callers
+ * should create a software node and assign it to @dev directly.
  */
-int device_add_properties(struct device *dev, struct property_entry *properties)
+int device_add_properties(struct device *dev,
+			  const struct property_entry *properties)
 {
-	struct property_set *p, pset;
+	struct fwnode_handle *fwnode;
 
-	if (!properties)
-		return -EINVAL;
+	fwnode = fwnode_create_software_node(properties, NULL);
+	if (IS_ERR(fwnode))
+		return PTR_ERR(fwnode);
 
-	pset.properties = properties;
-
-	p = pset_copy_set(&pset);
-	if (IS_ERR(p))
-		return PTR_ERR(p);
-
-	p->fwnode.type = FWNODE_PDATA;
-	set_secondary_fwnode(dev, &p->fwnode);
+	set_secondary_fwnode(dev, fwnode);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(device_add_properties);
+
+/**
+ * fwnode_get_next_parent - Iterate to the node's parent
+ * @fwnode: Firmware whose parent is retrieved
+ *
+ * This is like fwnode_get_parent() except that it drops the refcount
+ * on the passed node, making it suitable for iterating through a
+ * node's parents.
+ *
+ * Returns a node pointer with refcount incremented, use
+ * fwnode_handle_node() on it when done.
+ */
+struct fwnode_handle *fwnode_get_next_parent(struct fwnode_handle *fwnode)
+{
+	struct fwnode_handle *parent = fwnode_get_parent(fwnode);
+
+	fwnode_handle_put(fwnode);
+
+	return parent;
+}
+EXPORT_SYMBOL_GPL(fwnode_get_next_parent);
+
+/**
+ * fwnode_get_parent - Return parent firwmare node
+ * @fwnode: Firmware whose parent is retrieved
+ *
+ * Return parent firmware node of the given node if possible or %NULL if no
+ * parent was available.
+ */
+struct fwnode_handle *fwnode_get_parent(const struct fwnode_handle *fwnode)
+{
+	return fwnode_call_ptr_op(fwnode, get_parent);
+}
+EXPORT_SYMBOL_GPL(fwnode_get_parent);
+
+/**
+ * fwnode_get_next_child_node - Return the next child node handle for a node
+ * @fwnode: Firmware node to find the next child node for.
+ * @child: Handle to one of the node's child nodes or a %NULL handle.
+ */
+struct fwnode_handle *
+fwnode_get_next_child_node(const struct fwnode_handle *fwnode,
+			   struct fwnode_handle *child)
+{
+	return fwnode_call_ptr_op(fwnode, get_next_child_node, child);
+}
+EXPORT_SYMBOL_GPL(fwnode_get_next_child_node);
+
+/**
+ * fwnode_get_next_available_child_node - Return the next
+ * available child node handle for a node
+ * @fwnode: Firmware node to find the next child node for.
+ * @child: Handle to one of the node's child nodes or a %NULL handle.
+ */
+struct fwnode_handle *
+fwnode_get_next_available_child_node(const struct fwnode_handle *fwnode,
+				     struct fwnode_handle *child)
+{
+	struct fwnode_handle *next_child = child;
+
+	if (!fwnode)
+		return NULL;
+
+	do {
+		next_child = fwnode_get_next_child_node(fwnode, next_child);
+
+		if (!next_child || fwnode_device_is_available(next_child))
+			break;
+	} while (next_child);
+
+	return next_child;
+}
+EXPORT_SYMBOL_GPL(fwnode_get_next_available_child_node);
 
 /**
  * device_get_next_child_node - Return the next child node handle for a device
@@ -874,18 +637,30 @@ EXPORT_SYMBOL_GPL(device_add_properties);
 struct fwnode_handle *device_get_next_child_node(struct device *dev,
 						 struct fwnode_handle *child)
 {
-	if (IS_ENABLED(CONFIG_OF) && dev->of_node) {
-		struct device_node *node;
+	struct acpi_device *adev = ACPI_COMPANION(dev);
+	struct fwnode_handle *fwnode = NULL;
 
-		node = of_get_next_available_child(dev->of_node, to_of_node(child));
-		if (node)
-			return &node->fwnode;
-	} else if (IS_ENABLED(CONFIG_ACPI)) {
-		return acpi_get_next_subnode(dev, child);
-	}
-	return NULL;
+	if (dev->of_node)
+		fwnode = &dev->of_node->fwnode;
+	else if (adev)
+		fwnode = acpi_fwnode_handle(adev);
+
+	return fwnode_get_next_child_node(fwnode, child);
 }
 EXPORT_SYMBOL_GPL(device_get_next_child_node);
+
+/**
+ * fwnode_get_named_child_node - Return first matching named child node handle
+ * @fwnode: Firmware node to find the named child node for.
+ * @childname: String to match child node name against.
+ */
+struct fwnode_handle *
+fwnode_get_named_child_node(const struct fwnode_handle *fwnode,
+			    const char *childname)
+{
+	return fwnode_call_ptr_op(fwnode, get_named_child_node, childname);
+}
+EXPORT_SYMBOL_GPL(fwnode_get_named_child_node);
 
 /**
  * device_get_named_child_node - Return first matching named child node handle
@@ -895,25 +670,24 @@ EXPORT_SYMBOL_GPL(device_get_next_child_node);
 struct fwnode_handle *device_get_named_child_node(struct device *dev,
 						  const char *childname)
 {
-	struct fwnode_handle *child;
-
-	/*
-	 * Find first matching named child node of this device.
-	 * For ACPI this will be a data only sub-node.
-	 */
-	device_for_each_child_node(dev, child) {
-		if (is_of_node(child)) {
-			if (!of_node_cmp(to_of_node(child)->name, childname))
-				return child;
-		} else if (is_acpi_data_node(child)) {
-			if (acpi_data_node_match(child, childname))
-				return child;
-		}
-	}
-
-	return NULL;
+	return fwnode_get_named_child_node(dev_fwnode(dev), childname);
 }
 EXPORT_SYMBOL_GPL(device_get_named_child_node);
+
+/**
+ * fwnode_handle_get - Obtain a reference to a device node
+ * @fwnode: Pointer to the device node to obtain the reference to.
+ *
+ * Returns the fwnode handle.
+ */
+struct fwnode_handle *fwnode_handle_get(struct fwnode_handle *fwnode)
+{
+	if (!fwnode_has_op(fwnode, get))
+		return fwnode;
+
+	return fwnode_call_ptr_op(fwnode, get);
+}
+EXPORT_SYMBOL_GPL(fwnode_handle_get);
 
 /**
  * fwnode_handle_put - Drop reference to a device node
@@ -925,10 +699,19 @@ EXPORT_SYMBOL_GPL(device_get_named_child_node);
  */
 void fwnode_handle_put(struct fwnode_handle *fwnode)
 {
-	if (is_of_node(fwnode))
-		of_node_put(to_of_node(fwnode));
+	fwnode_call_void_op(fwnode, put);
 }
 EXPORT_SYMBOL_GPL(fwnode_handle_put);
+
+/**
+ * fwnode_device_is_available - check if a device is available for use
+ * @fwnode: Pointer to the fwnode of the device.
+ */
+bool fwnode_device_is_available(const struct fwnode_handle *fwnode)
+{
+	return fwnode_call_bool_op(fwnode, device_is_available);
+}
+EXPORT_SYMBOL_GPL(fwnode_device_is_available);
 
 /**
  * device_get_child_node_count - return the number of child nodes for device
@@ -976,21 +759,21 @@ enum dev_dma_attr device_get_dma_attr(struct device *dev)
 EXPORT_SYMBOL_GPL(device_get_dma_attr);
 
 /**
- * device_get_phy_mode - Get phy mode for given device
- * @dev:	Pointer to the given device
+ * fwnode_get_phy_mode - Get phy mode for given firmware node
+ * @fwnode:	Pointer to the given node
  *
  * The function gets phy interface string from property 'phy-mode' or
  * 'phy-connection-type', and return its index in phy_modes table, or errno in
  * error case.
  */
-int device_get_phy_mode(struct device *dev)
+int fwnode_get_phy_mode(struct fwnode_handle *fwnode)
 {
 	const char *pm;
 	int err, i;
 
-	err = device_property_read_string(dev, "phy-mode", &pm);
+	err = fwnode_property_read_string(fwnode, "phy-mode", &pm);
 	if (err < 0)
-		err = device_property_read_string(dev,
+		err = fwnode_property_read_string(fwnode,
 						  "phy-connection-type", &pm);
 	if (err < 0)
 		return err;
@@ -1001,13 +784,27 @@ int device_get_phy_mode(struct device *dev)
 
 	return -ENODEV;
 }
+EXPORT_SYMBOL_GPL(fwnode_get_phy_mode);
+
+/**
+ * device_get_phy_mode - Get phy mode for given device
+ * @dev:	Pointer to the given device
+ *
+ * The function gets phy interface string from property 'phy-mode' or
+ * 'phy-connection-type', and return its index in phy_modes table, or errno in
+ * error case.
+ */
+int device_get_phy_mode(struct device *dev)
+{
+	return fwnode_get_phy_mode(dev_fwnode(dev));
+}
 EXPORT_SYMBOL_GPL(device_get_phy_mode);
 
-static void *device_get_mac_addr(struct device *dev,
+static void *fwnode_get_mac_addr(struct fwnode_handle *fwnode,
 				 const char *name, char *addr,
 				 int alen)
 {
-	int ret = device_property_read_u8_array(dev, name, addr, alen);
+	int ret = fwnode_property_read_u8_array(fwnode, name, addr, alen);
 
 	if (ret == 0 && alen == ETH_ALEN && is_valid_ether_addr(addr))
 		return addr;
@@ -1015,8 +812,8 @@ static void *device_get_mac_addr(struct device *dev,
 }
 
 /**
- * device_get_mac_address - Get the MAC for a given device
- * @dev:	Pointer to the device
+ * fwnode_get_mac_address - Get the MAC from the firmware node
+ * @fwnode:	Pointer to the firmware node
  * @addr:	Address of buffer to store the MAC in
  * @alen:	Length of the buffer pointed to by addr, should be ETH_ALEN
  *
@@ -1037,18 +834,274 @@ static void *device_get_mac_addr(struct device *dev,
  * In this case, the real MAC is in 'local-mac-address', and 'mac-address'
  * exists but is all zeros.
 */
-void *device_get_mac_address(struct device *dev, char *addr, int alen)
+void *fwnode_get_mac_address(struct fwnode_handle *fwnode, char *addr, int alen)
 {
 	char *res;
 
-	res = device_get_mac_addr(dev, "mac-address", addr, alen);
+	res = fwnode_get_mac_addr(fwnode, "mac-address", addr, alen);
 	if (res)
 		return res;
 
-	res = device_get_mac_addr(dev, "local-mac-address", addr, alen);
+	res = fwnode_get_mac_addr(fwnode, "local-mac-address", addr, alen);
 	if (res)
 		return res;
 
-	return device_get_mac_addr(dev, "address", addr, alen);
+	return fwnode_get_mac_addr(fwnode, "address", addr, alen);
+}
+EXPORT_SYMBOL(fwnode_get_mac_address);
+
+/**
+ * device_get_mac_address - Get the MAC for a given device
+ * @dev:	Pointer to the device
+ * @addr:	Address of buffer to store the MAC in
+ * @alen:	Length of the buffer pointed to by addr, should be ETH_ALEN
+ */
+void *device_get_mac_address(struct device *dev, char *addr, int alen)
+{
+	return fwnode_get_mac_address(dev_fwnode(dev), addr, alen);
 }
 EXPORT_SYMBOL(device_get_mac_address);
+
+/**
+ * fwnode_irq_get - Get IRQ directly from a fwnode
+ * @fwnode:	Pointer to the firmware node
+ * @index:	Zero-based index of the IRQ
+ *
+ * Returns Linux IRQ number on success. Other values are determined
+ * accordingly to acpi_/of_ irq_get() operation.
+ */
+int fwnode_irq_get(struct fwnode_handle *fwnode, unsigned int index)
+{
+	struct device_node *of_node = to_of_node(fwnode);
+	struct resource res;
+	int ret;
+
+	if (IS_ENABLED(CONFIG_OF) && of_node)
+		return of_irq_get(of_node, index);
+
+	ret = acpi_irq_get(ACPI_HANDLE_FWNODE(fwnode), index, &res);
+	if (ret)
+		return ret;
+
+	return res.start;
+}
+EXPORT_SYMBOL(fwnode_irq_get);
+
+/**
+ * fwnode_graph_get_next_endpoint - Get next endpoint firmware node
+ * @fwnode: Pointer to the parent firmware node
+ * @prev: Previous endpoint node or %NULL to get the first
+ *
+ * Returns an endpoint firmware node pointer or %NULL if no more endpoints
+ * are available.
+ */
+struct fwnode_handle *
+fwnode_graph_get_next_endpoint(const struct fwnode_handle *fwnode,
+			       struct fwnode_handle *prev)
+{
+	return fwnode_call_ptr_op(fwnode, graph_get_next_endpoint, prev);
+}
+EXPORT_SYMBOL_GPL(fwnode_graph_get_next_endpoint);
+
+/**
+ * fwnode_graph_get_port_parent - Return the device fwnode of a port endpoint
+ * @endpoint: Endpoint firmware node of the port
+ *
+ * Return: the firmware node of the device the @endpoint belongs to.
+ */
+struct fwnode_handle *
+fwnode_graph_get_port_parent(const struct fwnode_handle *endpoint)
+{
+	struct fwnode_handle *port, *parent;
+
+	port = fwnode_get_parent(endpoint);
+	parent = fwnode_call_ptr_op(port, graph_get_port_parent);
+
+	fwnode_handle_put(port);
+
+	return parent;
+}
+EXPORT_SYMBOL_GPL(fwnode_graph_get_port_parent);
+
+/**
+ * fwnode_graph_get_remote_port_parent - Return fwnode of a remote device
+ * @fwnode: Endpoint firmware node pointing to the remote endpoint
+ *
+ * Extracts firmware node of a remote device the @fwnode points to.
+ */
+struct fwnode_handle *
+fwnode_graph_get_remote_port_parent(const struct fwnode_handle *fwnode)
+{
+	struct fwnode_handle *endpoint, *parent;
+
+	endpoint = fwnode_graph_get_remote_endpoint(fwnode);
+	parent = fwnode_graph_get_port_parent(endpoint);
+
+	fwnode_handle_put(endpoint);
+
+	return parent;
+}
+EXPORT_SYMBOL_GPL(fwnode_graph_get_remote_port_parent);
+
+/**
+ * fwnode_graph_get_remote_port - Return fwnode of a remote port
+ * @fwnode: Endpoint firmware node pointing to the remote endpoint
+ *
+ * Extracts firmware node of a remote port the @fwnode points to.
+ */
+struct fwnode_handle *
+fwnode_graph_get_remote_port(const struct fwnode_handle *fwnode)
+{
+	return fwnode_get_next_parent(fwnode_graph_get_remote_endpoint(fwnode));
+}
+EXPORT_SYMBOL_GPL(fwnode_graph_get_remote_port);
+
+/**
+ * fwnode_graph_get_remote_endpoint - Return fwnode of a remote endpoint
+ * @fwnode: Endpoint firmware node pointing to the remote endpoint
+ *
+ * Extracts firmware node of a remote endpoint the @fwnode points to.
+ */
+struct fwnode_handle *
+fwnode_graph_get_remote_endpoint(const struct fwnode_handle *fwnode)
+{
+	return fwnode_call_ptr_op(fwnode, graph_get_remote_endpoint);
+}
+EXPORT_SYMBOL_GPL(fwnode_graph_get_remote_endpoint);
+
+/**
+ * fwnode_graph_get_remote_node - get remote parent node for given port/endpoint
+ * @fwnode: pointer to parent fwnode_handle containing graph port/endpoint
+ * @port_id: identifier of the parent port node
+ * @endpoint_id: identifier of the endpoint node
+ *
+ * Return: Remote fwnode handle associated with remote endpoint node linked
+ *	   to @node. Use fwnode_node_put() on it when done.
+ */
+struct fwnode_handle *
+fwnode_graph_get_remote_node(const struct fwnode_handle *fwnode, u32 port_id,
+			     u32 endpoint_id)
+{
+	struct fwnode_handle *endpoint = NULL;
+
+	while ((endpoint = fwnode_graph_get_next_endpoint(fwnode, endpoint))) {
+		struct fwnode_endpoint fwnode_ep;
+		struct fwnode_handle *remote;
+		int ret;
+
+		ret = fwnode_graph_parse_endpoint(endpoint, &fwnode_ep);
+		if (ret < 0)
+			continue;
+
+		if (fwnode_ep.port != port_id || fwnode_ep.id != endpoint_id)
+			continue;
+
+		remote = fwnode_graph_get_remote_port_parent(endpoint);
+		if (!remote)
+			return NULL;
+
+		return fwnode_device_is_available(remote) ? remote : NULL;
+	}
+
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(fwnode_graph_get_remote_node);
+
+/**
+ * fwnode_graph_get_endpoint_by_id - get endpoint by port and endpoint numbers
+ * @fwnode: parent fwnode_handle containing the graph
+ * @port: identifier of the port node
+ * @endpoint: identifier of the endpoint node under the port node
+ * @flags: fwnode lookup flags
+ *
+ * Return the fwnode handle of the local endpoint corresponding the port and
+ * endpoint IDs or NULL if not found.
+ *
+ * If FWNODE_GRAPH_ENDPOINT_NEXT is passed in @flags and the specified endpoint
+ * has not been found, look for the closest endpoint ID greater than the
+ * specified one and return the endpoint that corresponds to it, if present.
+ *
+ * Do not return endpoints that belong to disabled devices, unless
+ * FWNODE_GRAPH_DEVICE_DISABLED is passed in @flags.
+ *
+ * The returned endpoint needs to be released by calling fwnode_handle_put() on
+ * it when it is not needed any more.
+ */
+struct fwnode_handle *
+fwnode_graph_get_endpoint_by_id(const struct fwnode_handle *fwnode,
+				u32 port, u32 endpoint, unsigned long flags)
+{
+	struct fwnode_handle *ep = NULL, *best_ep = NULL;
+	unsigned int best_ep_id = 0;
+	bool endpoint_next = flags & FWNODE_GRAPH_ENDPOINT_NEXT;
+	bool enabled_only = !(flags & FWNODE_GRAPH_DEVICE_DISABLED);
+
+	while ((ep = fwnode_graph_get_next_endpoint(fwnode, ep))) {
+		struct fwnode_endpoint fwnode_ep = { 0 };
+		int ret;
+
+		if (enabled_only) {
+			struct fwnode_handle *dev_node;
+			bool available;
+
+			dev_node = fwnode_graph_get_remote_port_parent(ep);
+			available = fwnode_device_is_available(dev_node);
+			fwnode_handle_put(dev_node);
+			if (!available)
+				continue;
+		}
+
+		ret = fwnode_graph_parse_endpoint(ep, &fwnode_ep);
+		if (ret < 0)
+			continue;
+
+		if (fwnode_ep.port != port)
+			continue;
+
+		if (fwnode_ep.id == endpoint)
+			return ep;
+
+		if (!endpoint_next)
+			continue;
+
+		/*
+		 * If the endpoint that has just been found is not the first
+		 * matching one and the ID of the one found previously is closer
+		 * to the requested endpoint ID, skip it.
+		 */
+		if (fwnode_ep.id < endpoint ||
+		    (best_ep && best_ep_id < fwnode_ep.id))
+			continue;
+
+		fwnode_handle_put(best_ep);
+		best_ep = fwnode_handle_get(ep);
+		best_ep_id = fwnode_ep.id;
+	}
+
+	return best_ep;
+}
+EXPORT_SYMBOL_GPL(fwnode_graph_get_endpoint_by_id);
+
+/**
+ * fwnode_graph_parse_endpoint - parse common endpoint node properties
+ * @fwnode: pointer to endpoint fwnode_handle
+ * @endpoint: pointer to the fwnode endpoint data structure
+ *
+ * Parse @fwnode representing a graph endpoint node and store the
+ * information in @endpoint. The caller must hold a reference to
+ * @fwnode.
+ */
+int fwnode_graph_parse_endpoint(const struct fwnode_handle *fwnode,
+				struct fwnode_endpoint *endpoint)
+{
+	memset(endpoint, 0, sizeof(*endpoint));
+
+	return fwnode_call_int_op(fwnode, graph_parse_endpoint, endpoint);
+}
+EXPORT_SYMBOL(fwnode_graph_parse_endpoint);
+
+const void *device_get_match_data(struct device *dev)
+{
+	return fwnode_call_ptr_op(dev_fwnode(dev), device_get_match_data, dev);
+}
+EXPORT_SYMBOL_GPL(device_get_match_data);

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	X.25 Packet Layer release 002
  *
@@ -6,12 +7,6 @@
  *	screw up. It might even work.
  *
  *	This code REQUIRES 2.1.15 or higher
- *
- *	This module:
- *		This module is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  *
  *	History
  *	X.25 001	Jonathan Naylor	  Started coding.
@@ -142,6 +137,15 @@ static int x25_state1_machine(struct sock *sk, struct sk_buff *skb, int frametyp
 			sk->sk_state_change(sk);
 		break;
 	}
+	case X25_CALL_REQUEST:
+		/* call collision */
+		x25->causediag.cause      = 0x01;
+		x25->causediag.diagnostic = 0x48;
+
+		x25_write_internal(sk, X25_CLEAR_REQUEST);
+		x25_disconnect(sk, EISCONN, 0x01, 0x48);
+		break;
+
 	case X25_CLEAR_REQUEST:
 		if (!pskb_may_pull(skb, X25_STD_MIN_LEN + 2))
 			goto out_clear;
@@ -345,6 +349,7 @@ static int x25_state4_machine(struct sock *sk, struct sk_buff *skb, int frametyp
 
 		case X25_RESET_REQUEST:
 			x25_write_internal(sk, X25_RESET_CONFIRMATION);
+			/* fall through */
 		case X25_RESET_CONFIRMATION: {
 			x25_stop_timer(sk);
 			x25->condition = 0x00;

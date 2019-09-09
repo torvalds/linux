@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* A driver for the D-Link DSB-R100 USB radio and Gemtek USB Radio 21.
  * The device plugs into both the USB and an analog audio input, so this thing
  * only deals with initialisation and frequency setting, the
@@ -18,20 +19,6 @@
  * Fully tested with the Keene USB FM Transmitter and the v4l2-compliance tool.
  *
  * Copyright (c) 2000 Markus Demleitner <msdemlei@cl.uni-heidelberg.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 */
 
 #include <linux/kernel.h>
@@ -178,11 +165,9 @@ static int vidioc_querycap(struct file *file, void *priv,
 {
 	struct dsbr100_device *radio = video_drvdata(file);
 
-	strlcpy(v->driver, "dsbr100", sizeof(v->driver));
-	strlcpy(v->card, "D-Link R-100 USB FM Radio", sizeof(v->card));
+	strscpy(v->driver, "dsbr100", sizeof(v->driver));
+	strscpy(v->card, "D-Link R-100 USB FM Radio", sizeof(v->card));
 	usb_make_path(radio->usbdev, v->bus_info, sizeof(v->bus_info));
-	v->device_caps = V4L2_CAP_RADIO | V4L2_CAP_TUNER;
-	v->capabilities = v->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -195,7 +180,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 		return -EINVAL;
 
 	dsbr100_getstat(radio);
-	strcpy(v->name, "FM");
+	strscpy(v->name, "FM", sizeof(v->name));
 	v->type = V4L2_TUNER_RADIO;
 	v->rangelow = FREQ_MIN * FREQ_MUL;
 	v->rangehigh = FREQ_MAX * FREQ_MUL;
@@ -383,13 +368,15 @@ static int usb_dsbr100_probe(struct usb_interface *intf,
 		goto err_reg_ctrl;
 	}
 	mutex_init(&radio->v4l2_lock);
-	strlcpy(radio->videodev.name, v4l2_dev->name, sizeof(radio->videodev.name));
+	strscpy(radio->videodev.name, v4l2_dev->name,
+		sizeof(radio->videodev.name));
 	radio->videodev.v4l2_dev = v4l2_dev;
 	radio->videodev.fops = &usb_dsbr100_fops;
 	radio->videodev.ioctl_ops = &usb_dsbr100_ioctl_ops;
 	radio->videodev.release = video_device_release_empty;
 	radio->videodev.lock = &radio->v4l2_lock;
 	radio->videodev.ctrl_handler = &radio->hdl;
+	radio->videodev.device_caps = V4L2_CAP_RADIO | V4L2_CAP_TUNER;
 
 	radio->usbdev = interface_to_usbdev(intf);
 	radio->curfreq = FREQ_MIN * FREQ_MUL;
@@ -412,7 +399,7 @@ err_reg_dev:
 	return retval;
 }
 
-static struct usb_device_id usb_dsbr100_device_table[] = {
+static const struct usb_device_id usb_dsbr100_device_table[] = {
 	{ USB_DEVICE(DSB100_VENDOR, DSB100_PRODUCT) },
 	{ }						/* Terminating entry */
 };

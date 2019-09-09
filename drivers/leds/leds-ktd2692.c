@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * LED driver : leds-ktd2692.c
  *
  * Copyright (C) 2015 Samsung Electronics
  * Ingi Kim <ingi2.kim@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/delay.h>
@@ -270,15 +267,15 @@ static int ktd2692_parse_dt(struct ktd2692_context *led, struct device *dev,
 		return -ENXIO;
 
 	led->ctrl_gpio = devm_gpiod_get(dev, "ctrl", GPIOD_ASIS);
-	if (IS_ERR(led->ctrl_gpio)) {
-		ret = PTR_ERR(led->ctrl_gpio);
+	ret = PTR_ERR_OR_ZERO(led->ctrl_gpio);
+	if (ret) {
 		dev_err(dev, "cannot get ctrl-gpios %d\n", ret);
 		return ret;
 	}
 
 	led->aux_gpio = devm_gpiod_get(dev, "aux", GPIOD_ASIS);
-	if (IS_ERR(led->aux_gpio)) {
-		ret = PTR_ERR(led->aux_gpio);
+	ret = PTR_ERR_OR_ZERO(led->aux_gpio);
+	if (ret) {
 		dev_err(dev, "cannot get aux-gpios %d\n", ret);
 		return ret;
 	}

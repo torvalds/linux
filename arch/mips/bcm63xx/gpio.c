@@ -8,7 +8,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/platform_device.h>
 #include <linux/gpio/driver.h>

@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2016 Chelsio Communications, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include "cxgbit.h"
@@ -79,7 +76,7 @@ cxgbit_ppod_init_idata(struct cxgbit_device *cdev, struct cxgbi_ppm *ppm,
 	if (!skb)
 		return NULL;
 
-	req = (struct ulp_mem_io *)__skb_put(skb, wr_len);
+	req = __skb_put(skb, wr_len);
 	INIT_ULPTX_WR(req, wr_len, 0, tid);
 	req->wr.wr_hi = htonl(FW_WR_OP_V(FW_ULPTX_WR) |
 		FW_WR_ATOMIC_V(0));
@@ -207,8 +204,8 @@ cxgbit_ddp_reserve(struct cxgbit_sock *csk, struct cxgbi_task_tag_info *ttinfo,
 	ret = dma_map_sg(&ppm->pdev->dev, sgl, sgcnt, DMA_FROM_DEVICE);
 	sgl->offset = sg_offset;
 	if (!ret) {
-		pr_info("%s: 0x%x, xfer %u, sgl %u dma mapping err.\n",
-			__func__, 0, xferlen, sgcnt);
+		pr_debug("%s: 0x%x, xfer %u, sgl %u dma mapping err.\n",
+			 __func__, 0, xferlen, sgcnt);
 		goto rel_ppods;
 	}
 
@@ -250,8 +247,8 @@ cxgbit_get_r2t_ttt(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
 
 	ret = cxgbit_ddp_reserve(csk, ttinfo, cmd->se_cmd.data_length);
 	if (ret < 0) {
-		pr_info("csk 0x%p, cmd 0x%p, xfer len %u, sgcnt %u no ddp.\n",
-			csk, cmd, cmd->se_cmd.data_length, ttinfo->nents);
+		pr_debug("csk 0x%p, cmd 0x%p, xfer len %u, sgcnt %u no ddp.\n",
+			 csk, cmd, cmd->se_cmd.data_length, ttinfo->nents);
 
 		ttinfo->sgl = NULL;
 		ttinfo->nents = 0;
@@ -263,7 +260,7 @@ out:
 	r2t->targ_xfer_tag = ttinfo->tag;
 }
 
-void cxgbit_release_cmd(struct iscsi_conn *conn, struct iscsi_cmd *cmd)
+void cxgbit_unmap_cmd(struct iscsi_conn *conn, struct iscsi_cmd *cmd)
 {
 	struct cxgbit_cmd *ccmd = iscsit_priv_cmd(cmd);
 
@@ -274,6 +271,14 @@ void cxgbit_release_cmd(struct iscsi_conn *conn, struct iscsi_cmd *cmd)
 			struct cxgbit_sock *csk = conn->context;
 			struct cxgbit_device *cdev = csk->com.cdev;
 			struct cxgbi_ppm *ppm = cdev2ppm(cdev);
+
+			/* Abort the TCP conn if DDP is not complete to
+			 * avoid any possibility of DDP after freeing
+			 * the cmd.
+			 */
+			if (unlikely(cmd->write_data_done !=
+				     cmd->se_cmd.data_length))
+				cxgbit_abort_conn(csk);
 
 			cxgbi_ppm_ppod_release(ppm, ttinfo->idx);
 
@@ -310,8 +315,10 @@ int cxgbit_ddp_init(struct cxgbit_device *cdev)
 
 	ret = cxgbi_ppm_init(lldi->iscsi_ppm, cdev->lldi.ports[0],
 			     cdev->lldi.pdev, &cdev->lldi, &tformat,
-			     ppmax, lldi->iscsi_llimit,
-			     lldi->vr->iscsi.start, 2);
+			     lldi->vr->iscsi.size, lldi->iscsi_llimit,
+			     lldi->vr->iscsi.start, 2,
+			     lldi->vr->ppod_edram.start,
+			     lldi->vr->ppod_edram.size);
 	if (ret >= 0) {
 		struct cxgbi_ppm *ppm = (struct cxgbi_ppm *)(*lldi->iscsi_ppm);
 

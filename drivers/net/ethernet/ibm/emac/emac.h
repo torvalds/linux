@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * drivers/net/ethernet/ibm/emac/emac.h
  *
@@ -15,12 +16,6 @@
  *      Matt Porter <mporter@kernel.crashing.org>
  *      Armin Kuster <akuster@mvista.com>
  * 	Copyright 2002-2004 MontaVista Software Inc.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- *
  */
 #ifndef __IBM_NEWEMAC_H
 #define __IBM_NEWEMAC_H
@@ -104,19 +99,6 @@ struct emac_regs {
 	} u1;
 };
 
-/*
- * PHY mode settings (EMAC <-> ZMII/RGMII bridge <-> PHY)
- */
-#define PHY_MODE_NA	PHY_INTERFACE_MODE_NA
-#define PHY_MODE_MII	PHY_INTERFACE_MODE_MII
-#define PHY_MODE_RMII	PHY_INTERFACE_MODE_RMII
-#define PHY_MODE_SMII	PHY_INTERFACE_MODE_SMII
-#define PHY_MODE_RGMII	PHY_INTERFACE_MODE_RGMII
-#define PHY_MODE_TBI	PHY_INTERFACE_MODE_TBI
-#define PHY_MODE_GMII	PHY_INTERFACE_MODE_GMII
-#define PHY_MODE_RTBI	PHY_INTERFACE_MODE_RTBI
-#define PHY_MODE_SGMII	PHY_INTERFACE_MODE_SGMII
-
 /* EMACx_MR0 */
 #define EMAC_MR0_RXI			0x80000000
 #define EMAC_MR0_TXI			0x40000000
@@ -151,9 +133,11 @@ struct emac_regs {
 
 #define EMAC4_MR1_RFS_2K		0x00100000
 #define EMAC4_MR1_RFS_4K		0x00180000
+#define EMAC4_MR1_RFS_8K		0x00200000
 #define EMAC4_MR1_RFS_16K		0x00280000
 #define EMAC4_MR1_TFS_2K       		0x00020000
 #define EMAC4_MR1_TFS_4K		0x00030000
+#define EMAC4_MR1_TFS_8K		0x00040000
 #define EMAC4_MR1_TFS_16K		0x00050000
 #define EMAC4_MR1_TR			0x00008000
 #define EMAC4_MR1_MWSW_001		0x00001000

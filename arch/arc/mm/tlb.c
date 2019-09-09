@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * TLB Management (flush/create/diagnostics) for ARC700
  *
  * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * vineetg: Aug 2011
  *  -Reintroduce duplicate PD fixup - some customer chips still have the issue
@@ -53,6 +50,8 @@
 
 #include <linux/module.h>
 #include <linux/bug.h>
+#include <linux/mm_types.h>
+
 #include <asm/arcregs.h>
 #include <asm/setup.h>
 #include <asm/mmu_context.h>
@@ -101,6 +100,8 @@
 
 /* A copy of the ASID from the PID reg is kept in asid_cache */
 DEFINE_PER_CPU(unsigned int, asid_cache) = MM_CTXT_FIRST_CYCLE;
+
+static int __read_mostly pae_exists;
 
 /*
  * Utility Routine to erase a J-TLB entry
@@ -758,21 +759,23 @@ void read_decode_mmu_bcr(void)
 	tmp = read_aux_reg(ARC_REG_MMU_BCR);
 	mmu->ver = (tmp >> 24);
 
-	if (mmu->ver <= 2) {
-		mmu2 = (struct bcr_mmu_1_2 *)&tmp;
-		mmu->pg_sz_k = TO_KB(0x2000);
-		mmu->sets = 1 << mmu2->sets;
-		mmu->ways = 1 << mmu2->ways;
-		mmu->u_dtlb = mmu2->u_dtlb;
-		mmu->u_itlb = mmu2->u_itlb;
-	} else if (mmu->ver == 3) {
-		mmu3 = (struct bcr_mmu_3 *)&tmp;
-		mmu->pg_sz_k = 1 << (mmu3->pg_sz - 1);
-		mmu->sets = 1 << mmu3->sets;
-		mmu->ways = 1 << mmu3->ways;
-		mmu->u_dtlb = mmu3->u_dtlb;
-		mmu->u_itlb = mmu3->u_itlb;
-		mmu->sasid = mmu3->sasid;
+	if (is_isa_arcompact()) {
+		if (mmu->ver <= 2) {
+			mmu2 = (struct bcr_mmu_1_2 *)&tmp;
+			mmu->pg_sz_k = TO_KB(0x2000);
+			mmu->sets = 1 << mmu2->sets;
+			mmu->ways = 1 << mmu2->ways;
+			mmu->u_dtlb = mmu2->u_dtlb;
+			mmu->u_itlb = mmu2->u_itlb;
+		} else {
+			mmu3 = (struct bcr_mmu_3 *)&tmp;
+			mmu->pg_sz_k = 1 << (mmu3->pg_sz - 1);
+			mmu->sets = 1 << mmu3->sets;
+			mmu->ways = 1 << mmu3->ways;
+			mmu->u_dtlb = mmu3->u_dtlb;
+			mmu->u_itlb = mmu3->u_itlb;
+			mmu->sasid = mmu3->sasid;
+		}
 	} else {
 		mmu4 = (struct bcr_mmu_4 *)&tmp;
 		mmu->pg_sz_k = 1 << (mmu4->sz0 - 1);
@@ -782,7 +785,7 @@ void read_decode_mmu_bcr(void)
 		mmu->u_dtlb = mmu4->u_dtlb * 4;
 		mmu->u_itlb = mmu4->u_itlb * 4;
 		mmu->sasid = mmu4->sasid;
-		mmu->pae = mmu4->pae;
+		pae_exists = mmu->pae = mmu4->pae;
 	}
 }
 
@@ -807,12 +810,18 @@ char *arc_mmu_mumbojumbo(int cpu_id, char *buf, int len)
 	return buf;
 }
 
+int pae40_exist_but_not_enab(void)
+{
+	return pae_exists && !is_pae40_enabled();
+}
+
 void arc_mmu_init(void)
 {
-	char str[256];
 	struct cpuinfo_arc_mmu *mmu = &cpuinfo_arc700[smp_processor_id()].mmu;
+	char str[256];
+	int compat = 0;
 
-	printk(arc_mmu_mumbojumbo(0, str, sizeof(str)));
+	pr_info("%s", arc_mmu_mumbojumbo(0, str, sizeof(str)));
 
 	/*
 	 * Can't be done in processor.h due to header include depenedencies
@@ -825,15 +834,21 @@ void arc_mmu_init(void)
 	 */
 	BUILD_BUG_ON(!IS_ALIGNED(STACK_TOP, PMD_SIZE));
 
-	/* For efficiency sake, kernel is compile time built for a MMU ver
-	 * This must match the hardware it is running on.
-	 * Linux built for MMU V2, if run on MMU V1 will break down because V1
-	 *  hardware doesn't understand cmds such as WriteNI, or IVUTLB
-	 * On the other hand, Linux built for V1 if run on MMU V2 will do
-	 *   un-needed workarounds to prevent memcpy thrashing.
-	 * Similarly MMU V3 has new features which won't work on older MMU
+	/*
+	 * Ensure that MMU features assumed by kernel exist in hardware.
+	 * For older ARC700 cpus, it has to be exact match, since the MMU
+	 * revisions were not backwards compatible (MMUv3 TLB layout changed
+	 * so even if kernel for v2 didn't use any new cmds of v3, it would
+	 * still not work.
+	 * For HS cpus, MMUv4 was baseline and v5 is backwards compatible
+	 * (will run older software).
 	 */
-	if (mmu->ver != CONFIG_ARC_MMU_VER) {
+	if (is_isa_arcompact() && mmu->ver == CONFIG_ARC_MMU_VER)
+		compat = 1;
+	else if (is_isa_arcv2() && mmu->ver >= CONFIG_ARC_MMU_VER)
+		compat = 1;
+
+	if (!compat) {
 		panic("MMU ver %d doesn't match kernel built for %d...\n",
 		      mmu->ver, CONFIG_ARC_MMU_VER);
 	}
@@ -857,6 +872,9 @@ void arc_mmu_init(void)
 	/* swapper_pg_dir is the pgd for the kernel, used by vmalloc */
 	write_aux_reg(ARC_REG_SCRATCH_DATA0, swapper_pg_dir);
 #endif
+
+	if (pae40_exist_but_not_enab())
+		write_aux_reg(ARC_REG_TLBPD1HI, 0);
 }
 
 /*
@@ -890,22 +908,22 @@ void do_tlb_overlap_fault(unsigned long cause, unsigned long address,
 			  struct pt_regs *regs)
 {
 	struct cpuinfo_arc_mmu *mmu = &cpuinfo_arc700[smp_processor_id()].mmu;
-	unsigned int pd0[mmu->ways];
 	unsigned long flags;
-	int set;
+	int set, n_ways = mmu->ways;
+
+	n_ways = min(n_ways, 4);
+	BUG_ON(mmu->ways > 4);
 
 	local_irq_save(flags);
-
-	/* re-enable the MMU */
-	write_aux_reg(ARC_REG_PID, MMU_ENABLE | read_aux_reg(ARC_REG_PID));
 
 	/* loop thru all sets of TLB */
 	for (set = 0; set < mmu->sets; set++) {
 
 		int is_valid, way;
+		unsigned int pd0[4];
 
 		/* read out all the ways of current set */
-		for (way = 0, is_valid = 0; way < mmu->ways; way++) {
+		for (way = 0, is_valid = 0; way < n_ways; way++) {
 			write_aux_reg(ARC_REG_TLBINDEX,
 					  SET_WAY_TO_IDX(mmu, set, way));
 			write_aux_reg(ARC_REG_TLBCOMMAND, TLBRead);
@@ -919,14 +937,14 @@ void do_tlb_overlap_fault(unsigned long cause, unsigned long address,
 			continue;
 
 		/* Scan the set for duplicate ways: needs a nested loop */
-		for (way = 0; way < mmu->ways - 1; way++) {
+		for (way = 0; way < n_ways - 1; way++) {
 
 			int n;
 
 			if (!pd0[way])
 				continue;
 
-			for (n = way + 1; n < mmu->ways; n++) {
+			for (n = way + 1; n < n_ways; n++) {
 				if (pd0[way] != pd0[n])
 					continue;
 

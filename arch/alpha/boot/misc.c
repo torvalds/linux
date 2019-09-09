@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * misc.c
  * 
@@ -21,7 +22,7 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define memzero(s,n)	memset ((s),0,(n))
 #define puts		srm_printk

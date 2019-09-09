@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Clock tree for CSR SiRFprimaII
  *
  * Copyright (c) 2011 - 2014 Cambridge Silicon Radio Limited, a CSR plc group
  * company.
- *
- * Licensed under GPLv2 or later.
  */
 
 #include <linux/module.h>
@@ -42,7 +41,7 @@ static struct clk_dmn clk_mmc45 = {
 	},
 };
 
-static struct clk_init_data clk_nand_init = {
+static const struct clk_init_data clk_nand_init = {
 	.name = "nand",
 	.ops = &ios_ops,
 	.parent_names = std_clk_io_parents,

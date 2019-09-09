@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2010-2011,2013-2015 The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  *
  * lpass-ipq806x.c -- ALSA SoC CPU DAI driver for QTi LPASS
  * Splited out the IPQ8064 soc specific from lpass-cpu.c
@@ -92,6 +84,12 @@ static struct lpass_variant ipq806x_data = {
 	.wrdma_channels		= 4,
 	.dai_driver		= &ipq806x_lpass_cpu_dai_driver,
 	.num_dai		= 1,
+	.dai_osr_clk_names	= (const char *[]) {
+				"mi2s-osr-clk",
+				},
+	.dai_bit_clk_names	= (const char *[]) {
+				"mi2s-bit-clk",
+				},
 	.alloc_dma_channel	= ipq806x_lpass_alloc_dma_channel,
 	.free_dma_channel	= ipq806x_lpass_free_dma_channel,
 };

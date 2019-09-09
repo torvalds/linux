@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 #ifndef __NVKM_I2C_PAD_H__
 #define __NVKM_I2C_PAD_H__
 #include <subdev/i2c.h>

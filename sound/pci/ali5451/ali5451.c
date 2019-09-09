@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Matt Wu <Matt_Wu@acersoftech.com.cn>
  *  Apr 26, 2001
@@ -8,21 +9,6 @@
  *
  *  TODO:
  *    --
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public Lcodecnse as published by
- *   the Free Software Foundation; either version 2 of the Lcodecnse, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public Lcodecnse for more details.
- *
- *   You should have received a copy of the GNU General Public Lcodecnse
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <linux/io.h>
@@ -1339,7 +1325,7 @@ static int snd_ali_prepare(struct snd_pcm_substream *substream)
 		rate = snd_ali_get_spdif_in_rate(codec);
 		if (rate == 0) {
 			dev_warn(codec->card->dev,
-				 "ali_capture_preapre: spdif rate detect err!\n");
+				 "ali_capture_prepare: spdif rate detect err!\n");
 			rate = 48000;
 		}
 		spin_lock_irq(&codec->reg_lock);
@@ -1484,12 +1470,9 @@ static struct snd_pcm_hardware snd_ali_capture =
 static void snd_ali_pcm_free_substream(struct snd_pcm_runtime *runtime)
 {
 	struct snd_ali_voice *pvoice = runtime->private_data;
-	struct snd_ali *codec;
 
-	if (pvoice) {
-		codec = pvoice->codec;
+	if (pvoice)
 		snd_ali_free_voice(pvoice->codec, pvoice);
-	}
 }
 
 static int snd_ali_open(struct snd_pcm_substream *substream, int rec,
@@ -1540,7 +1523,7 @@ static int snd_ali_close(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static struct snd_pcm_ops snd_ali_playback_ops = {
+static const struct snd_pcm_ops snd_ali_playback_ops = {
 	.open =		snd_ali_playback_open,
 	.close =	snd_ali_playback_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -1551,7 +1534,7 @@ static struct snd_pcm_ops snd_ali_playback_ops = {
 	.pointer =	snd_ali_playback_pointer,
 };
 
-static struct snd_pcm_ops snd_ali_capture_ops = {
+static const struct snd_pcm_ops snd_ali_capture_ops = {
 	.open =		snd_ali_capture_open,
 	.close =	snd_ali_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -1602,8 +1585,8 @@ static struct snd_pcm_hardware snd_ali_modem =
 static int snd_ali_modem_open(struct snd_pcm_substream *substream, int rec,
 			      int channel)
 {
-	static unsigned int rates[] = {8000, 9600, 12000, 16000};
-	static struct snd_pcm_hw_constraint_list hw_constraint_rates = {
+	static const unsigned int rates[] = {8000, 9600, 12000, 16000};
+	static const struct snd_pcm_hw_constraint_list hw_constraint_rates = {
 		.count = ARRAY_SIZE(rates),
 		.list = rates,
 		.mask = 0,
@@ -1626,7 +1609,7 @@ static int snd_ali_modem_capture_open(struct snd_pcm_substream *substream)
 	return snd_ali_modem_open(substream, 1, ALI_MODEM_IN_CHANNEL);
 }
 
-static struct snd_pcm_ops snd_ali_modem_playback_ops = {
+static const struct snd_pcm_ops snd_ali_modem_playback_ops = {
 	.open =		snd_ali_modem_playback_open,
 	.close =	snd_ali_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -1637,7 +1620,7 @@ static struct snd_pcm_ops snd_ali_modem_playback_ops = {
 	.pointer =	snd_ali_pointer,
 };
 
-static struct snd_pcm_ops snd_ali_modem_capture_ops = {
+static const struct snd_pcm_ops snd_ali_modem_capture_ops = {
 	.open =		snd_ali_modem_capture_open,
 	.close =	snd_ali_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -1653,8 +1636,8 @@ struct ali_pcm_description {
 	char *name;
 	unsigned int playback_num;
 	unsigned int capture_num;
-	struct snd_pcm_ops *playback_ops;
-	struct snd_pcm_ops *capture_ops;
+	const struct snd_pcm_ops *playback_ops;
+	const struct snd_pcm_ops *capture_ops;
 	unsigned short class;
 };
 
@@ -1885,10 +1868,8 @@ static int ali_suspend(struct device *dev)
 		return 0;
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
-	for (i = 0; i < chip->num_of_codecs; i++) {
-		snd_pcm_suspend_all(chip->pcm[i]);
+	for (i = 0; i < chip->num_of_codecs; i++)
 		snd_ac97_suspend(chip->ac97[i]);
-	}
 
 	spin_lock_irq(&chip->reg_lock);
 	
@@ -2054,9 +2035,7 @@ static void snd_ali_proc_read(struct snd_info_entry *entry,
 
 static void snd_ali_proc_init(struct snd_ali *codec)
 {
-	struct snd_info_entry *entry;
-	if (!snd_card_proc_new(codec->card, "ali5451", &entry))
-		snd_info_set_text_ops(entry, codec, snd_ali_proc_read);
+	snd_card_ro_proc_new(codec->card, "ali5451", codec, snd_ali_proc_read);
 }
 
 static int snd_ali_resources(struct snd_ali *codec)

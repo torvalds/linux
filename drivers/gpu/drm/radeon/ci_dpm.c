@@ -22,15 +22,17 @@
  */
 
 #include <linux/firmware.h>
-#include "drmP.h"
+#include <linux/seq_file.h>
+
+#include <drm/drm_pci.h>
+
+#include "atom.h"
+#include "ci_dpm.h"
+#include "cikd.h"
+#include "r600_dpm.h"
 #include "radeon.h"
 #include "radeon_asic.h"
 #include "radeon_ucode.h"
-#include "cikd.h"
-#include "r600_dpm.h"
-#include "ci_dpm.h"
-#include "atom.h"
-#include <linux/seq_file.h>
 
 #define MC_CG_ARB_FREQ_F0           0x0a
 #define MC_CG_ARB_FREQ_F1           0x0b
@@ -184,6 +186,7 @@ static int ci_set_overdrive_target_tdp(struct radeon_device *rdev,
 				       u32 target_tdp);
 static int ci_update_uvd_dpm(struct radeon_device *rdev, bool gate);
 
+static PPSMC_Result ci_send_msg_to_smc(struct radeon_device *rdev, PPSMC_Msg msg);
 static PPSMC_Result ci_send_msg_to_smc_with_parameter(struct radeon_device *rdev,
 						      PPSMC_Msg msg, u32 parameter);
 
@@ -775,6 +778,12 @@ bool ci_dpm_vblank_too_short(struct radeon_device *rdev)
 	struct ci_power_info *pi = ci_get_pi(rdev);
 	u32 vblank_time = r600_dpm_get_vblank_time(rdev);
 	u32 switch_limit = pi->mem_gddr5 ? 450 : 300;
+
+	/* disable mclk switching if the refresh is >120Hz, even if the
+        * blanking period would allow it
+        */
+	if (r600_dpm_get_vrefresh(rdev) > 120)
+		return true;
 
 	if (vblank_time < switch_limit)
 		return true;
@@ -1644,6 +1653,27 @@ static int ci_notify_hw_of_power_source(struct radeon_device *rdev,
 	return 0;
 }
 #endif
+
+static PPSMC_Result ci_send_msg_to_smc(struct radeon_device *rdev, PPSMC_Msg msg)
+{
+	u32 tmp;
+	int i;
+
+	if (!ci_is_smc_running(rdev))
+		return PPSMC_Result_Failed;
+
+	WREG32(SMC_MESSAGE_0, msg);
+
+	for (i = 0; i < rdev->usec_timeout; i++) {
+		tmp = RREG32(SMC_RESP_0);
+		if (tmp != 0)
+			break;
+		udelay(1);
+	}
+	tmp = RREG32(SMC_RESP_0);
+
+	return (PPSMC_Result)tmp;
+}
 
 static PPSMC_Result ci_send_msg_to_smc_with_parameter(struct radeon_device *rdev,
 						      PPSMC_Msg msg, u32 parameter)
@@ -4841,10 +4871,12 @@ static void ci_request_link_speed_change_before_state_change(struct radeon_devic
 			pi->force_pcie_gen = RADEON_PCIE_GEN2;
 			if (current_link_speed == RADEON_PCIE_GEN2)
 				break;
+			/* fall through */
 		case RADEON_PCIE_GEN2:
 			if (radeon_acpi_pcie_performance_request(rdev, PCIE_PERF_REQ_PECI_GEN2, false) == 0)
 				break;
 #endif
+			/* fall through */
 		default:
 			pi->force_pcie_gen = ci_get_current_pcie_speed(rdev);
 			break;
@@ -5540,8 +5572,9 @@ static int ci_parse_power_table(struct radeon_device *rdev)
 		(mode_info->atom_context->bios + data_offset +
 		 le16_to_cpu(power_info->pplib.usNonClockInfoArrayOffset));
 
-	rdev->pm.dpm.ps = kzalloc(sizeof(struct radeon_ps) *
-				  state_array->ucNumEntries, GFP_KERNEL);
+	rdev->pm.dpm.ps = kcalloc(state_array->ucNumEntries,
+				  sizeof(struct radeon_ps),
+				  GFP_KERNEL);
 	if (!rdev->pm.dpm.ps)
 		return -ENOMEM;
 	power_state_offset = (u8 *)state_array->states;
@@ -5647,19 +5680,30 @@ int ci_dpm_init(struct radeon_device *rdev)
 	u16 data_offset, size;
 	u8 frev, crev;
 	struct ci_power_info *pi;
+	enum pci_bus_speed speed_cap = PCI_SPEED_UNKNOWN;
+	struct pci_dev *root = rdev->pdev->bus->self;
 	int ret;
-	u32 mask;
 
 	pi = kzalloc(sizeof(struct ci_power_info), GFP_KERNEL);
 	if (pi == NULL)
 		return -ENOMEM;
 	rdev->pm.dpm.priv = pi;
 
-	ret = drm_pcie_get_speed_cap_mask(rdev->ddev, &mask);
-	if (ret)
+	if (!pci_is_root_bus(rdev->pdev->bus))
+		speed_cap = pcie_get_speed_cap(root);
+	if (speed_cap == PCI_SPEED_UNKNOWN) {
 		pi->sys_pcie_mask = 0;
-	else
-		pi->sys_pcie_mask = mask;
+	} else {
+		if (speed_cap == PCIE_SPEED_8_0GT)
+			pi->sys_pcie_mask = RADEON_PCIE_SPEED_25 |
+				RADEON_PCIE_SPEED_50 |
+				RADEON_PCIE_SPEED_80;
+		else if (speed_cap == PCIE_SPEED_5_0GT)
+			pi->sys_pcie_mask = RADEON_PCIE_SPEED_25 |
+				RADEON_PCIE_SPEED_50;
+		else
+			pi->sys_pcie_mask = RADEON_PCIE_SPEED_25;
+	}
 	pi->force_pcie_gen = RADEON_PCIE_GEN_INVALID;
 
 	pi->pcie_gen_performance.max = RADEON_PCIE_GEN1;
@@ -5742,7 +5786,9 @@ int ci_dpm_init(struct radeon_device *rdev)
 	ci_set_private_data_variables_based_on_pptable(rdev);
 
 	rdev->pm.dpm.dyn_state.vddc_dependency_on_dispclk.entries =
-		kzalloc(4 * sizeof(struct radeon_clock_voltage_dependency_entry), GFP_KERNEL);
+		kcalloc(4,
+			sizeof(struct radeon_clock_voltage_dependency_entry),
+			GFP_KERNEL);
 	if (!rdev->pm.dpm.dyn_state.vddc_dependency_on_dispclk.entries) {
 		ci_dpm_fini(rdev);
 		return -ENOMEM;

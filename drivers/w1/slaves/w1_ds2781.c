@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * 1-Wire implementation for the ds2781 chip
  *
  * Author: Renata Sayakhova <renata@oktetlabs.ru>
  *
  * Based on w1-ds2780 driver
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/kernel.h>
@@ -18,10 +14,11 @@
 #include <linux/platform_device.h>
 #include <linux/mutex.h>
 
-#include "../w1.h"
-#include "../w1_int.h"
-#include "../w1_family.h"
+#include <linux/w1.h>
+
 #include "w1_ds2781.h"
+
+#define W1_FAMILY_DS2781	0x3D
 
 static int w1_ds2781_do_io(struct device *dev, char *buf, int addr,
 			size_t count, int io)
@@ -153,7 +150,7 @@ static struct w1_family w1_ds2781_family = {
 };
 module_w1_family(w1_ds2781_family);
 
-MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Renata Sayakhova <renata@oktetlabs.ru>");
 MODULE_DESCRIPTION("1-wire Driver for Maxim/Dallas DS2781 Stand-Alone Fuel Gauge IC");
+MODULE_LICENSE("GPL");
 MODULE_ALIAS("w1-family-" __stringify(W1_FAMILY_DS2781));

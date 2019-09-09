@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* AF_RXRPC sendmsg() implementation.
  *
  * Copyright (C) 2007, 2016 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public Licence
- * as published by the Free Software Foundation; either version
- * 2 of the Licence, or (at your option) any later version.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -15,16 +11,85 @@
 #include <linux/gfp.h>
 #include <linux/skbuff.h>
 #include <linux/export.h>
+#include <linux/sched/signal.h>
+
 #include <net/sock.h>
 #include <net/af_rxrpc.h>
 #include "ar-internal.h"
 
-enum rxrpc_command {
-	RXRPC_CMD_SEND_DATA,		/* send data message */
-	RXRPC_CMD_SEND_ABORT,		/* request abort generation */
-	RXRPC_CMD_ACCEPT,		/* [server] accept incoming call */
-	RXRPC_CMD_REJECT_BUSY,		/* [server] reject a call as busy */
-};
+/*
+ * Wait for space to appear in the Tx queue or a signal to occur.
+ */
+static int rxrpc_wait_for_tx_window_intr(struct rxrpc_sock *rx,
+					 struct rxrpc_call *call,
+					 long *timeo)
+{
+	for (;;) {
+		set_current_state(TASK_INTERRUPTIBLE);
+		if (call->tx_top - call->tx_hard_ack <
+		    min_t(unsigned int, call->tx_winsize,
+			  call->cong_cwnd + call->cong_extra))
+			return 0;
+
+		if (call->state >= RXRPC_CALL_COMPLETE)
+			return call->error;
+
+		if (signal_pending(current))
+			return sock_intr_errno(*timeo);
+
+		trace_rxrpc_transmit(call, rxrpc_transmit_wait);
+		mutex_unlock(&call->user_mutex);
+		*timeo = schedule_timeout(*timeo);
+		if (mutex_lock_interruptible(&call->user_mutex) < 0)
+			return sock_intr_errno(*timeo);
+	}
+}
+
+/*
+ * Wait for space to appear in the Tx queue uninterruptibly, but with
+ * a timeout of 2*RTT if no progress was made and a signal occurred.
+ */
+static int rxrpc_wait_for_tx_window_nonintr(struct rxrpc_sock *rx,
+					    struct rxrpc_call *call)
+{
+	rxrpc_seq_t tx_start, tx_win;
+	signed long rtt2, timeout;
+	u64 rtt;
+
+	rtt = READ_ONCE(call->peer->rtt);
+	rtt2 = nsecs_to_jiffies64(rtt) * 2;
+	if (rtt2 < 1)
+		rtt2 = 1;
+
+	timeout = rtt2;
+	tx_start = READ_ONCE(call->tx_hard_ack);
+
+	for (;;) {
+		set_current_state(TASK_UNINTERRUPTIBLE);
+
+		tx_win = READ_ONCE(call->tx_hard_ack);
+		if (call->tx_top - tx_win <
+		    min_t(unsigned int, call->tx_winsize,
+			  call->cong_cwnd + call->cong_extra))
+			return 0;
+
+		if (call->state >= RXRPC_CALL_COMPLETE)
+			return call->error;
+
+		if (test_bit(RXRPC_CALL_IS_INTR, &call->flags) &&
+		    timeout == 0 &&
+		    tx_win == tx_start && signal_pending(current))
+			return -EINTR;
+
+		if (tx_win != tx_start) {
+			timeout = rtt2;
+			tx_start = tx_win;
+		}
+
+		trace_rxrpc_transmit(call, rxrpc_transmit_wait);
+		timeout = schedule_timeout(timeout);
+	}
+}
 
 /*
  * wait for space to appear in the transmit/ACK window
@@ -32,7 +97,8 @@ enum rxrpc_command {
  */
 static int rxrpc_wait_for_tx_window(struct rxrpc_sock *rx,
 				    struct rxrpc_call *call,
-				    long *timeo)
+				    long *timeo,
+				    bool waitall)
 {
 	DECLARE_WAITQUEUE(myself, current);
 	int ret;
@@ -42,27 +108,10 @@ static int rxrpc_wait_for_tx_window(struct rxrpc_sock *rx,
 
 	add_wait_queue(&call->waitq, &myself);
 
-	for (;;) {
-		set_current_state(TASK_INTERRUPTIBLE);
-		ret = 0;
-		if (call->tx_top - call->tx_hard_ack <
-		    min_t(unsigned int, call->tx_winsize,
-			  call->cong_cwnd + call->cong_extra))
-			break;
-		if (call->state >= RXRPC_CALL_COMPLETE) {
-			ret = -call->error;
-			break;
-		}
-		if (signal_pending(current)) {
-			ret = sock_intr_errno(*timeo);
-			break;
-		}
-
-		trace_rxrpc_transmit(call, rxrpc_transmit_wait);
-		release_sock(&rx->sk);
-		*timeo = schedule_timeout(*timeo);
-		lock_sock(&rx->sk);
-	}
+	if (waitall)
+		ret = rxrpc_wait_for_tx_window_nonintr(rx, call);
+	else
+		ret = rxrpc_wait_for_tx_window_intr(rx, call, timeo);
 
 	remove_wait_queue(&call->waitq, &myself);
 	set_current_state(TASK_RUNNING);
@@ -78,7 +127,9 @@ static inline void rxrpc_instant_resend(struct rxrpc_call *call, int ix)
 	spin_lock_bh(&call->lock);
 
 	if (call->state < RXRPC_CALL_COMPLETE) {
-		call->rxtx_annotations[ix] = RXRPC_TX_ANNO_RETRANS;
+		call->rxtx_annotations[ix] =
+			(call->rxtx_annotations[ix] & RXRPC_TX_ANNO_LAST) |
+			RXRPC_TX_ANNO_RETRANS;
 		if (!test_and_set_bit(RXRPC_CALL_EV_RESEND, &call->events))
 			rxrpc_queue_call(call);
 	}
@@ -87,13 +138,27 @@ static inline void rxrpc_instant_resend(struct rxrpc_call *call, int ix)
 }
 
 /*
- * Queue a DATA packet for transmission, set the resend timeout and send the
- * packet immediately
+ * Notify the owner of the call that the transmit phase is ended and the last
+ * packet has been queued.
  */
-static void rxrpc_queue_packet(struct rxrpc_call *call, struct sk_buff *skb,
-			       bool last)
+static void rxrpc_notify_end_tx(struct rxrpc_sock *rx, struct rxrpc_call *call,
+				rxrpc_notify_end_tx_t notify_end_tx)
+{
+	if (notify_end_tx)
+		notify_end_tx(&rx->sk, call, call->user_call_ID);
+}
+
+/*
+ * Queue a DATA packet for transmission, set the resend timeout and send
+ * the packet immediately.  Returns the error from rxrpc_send_data_packet()
+ * in case the caller wants to do something with it.
+ */
+static int rxrpc_queue_packet(struct rxrpc_sock *rx, struct rxrpc_call *call,
+			      struct sk_buff *skb, bool last,
+			      rxrpc_notify_end_tx_t notify_end_tx)
 {
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
+	unsigned long now;
 	rxrpc_seq_t seq = sp->hdr.seq;
 	int ret, ix;
 	u8 annotation = RXRPC_TX_ANNO_UNACK;
@@ -111,7 +176,7 @@ static void rxrpc_queue_packet(struct rxrpc_call *call, struct sk_buff *skb,
 	skb->tstamp = ktime_get_real();
 
 	ix = seq & RXRPC_RXTX_BUFF_MASK;
-	rxrpc_get_skb(skb, rxrpc_skb_tx_got);
+	rxrpc_get_skb(skb, rxrpc_skb_got);
 	call->rxtx_annotations[ix] = annotation;
 	smp_wmb();
 	call->rxtx_buffer[ix] = skb;
@@ -127,18 +192,21 @@ static void rxrpc_queue_packet(struct rxrpc_call *call, struct sk_buff *skb,
 		switch (call->state) {
 		case RXRPC_CALL_CLIENT_SEND_REQUEST:
 			call->state = RXRPC_CALL_CLIENT_AWAIT_REPLY;
+			rxrpc_notify_end_tx(rx, call, notify_end_tx);
 			break;
 		case RXRPC_CALL_SERVER_ACK_REQUEST:
 			call->state = RXRPC_CALL_SERVER_SEND_REPLY;
-			call->ack_at = call->expire_at;
+			now = jiffies;
+			WRITE_ONCE(call->ack_at, now + MAX_JIFFY_OFFSET);
 			if (call->ackr_reason == RXRPC_ACK_DELAY)
 				call->ackr_reason = 0;
-			__rxrpc_set_timer(call, rxrpc_timer_init_for_send_reply,
-					  ktime_get_real());
+			trace_rxrpc_timer(call, rxrpc_timer_init_for_send_reply, now);
 			if (!last)
 				break;
+			/* Fall through */
 		case RXRPC_CALL_SERVER_SEND_REPLY:
 			call->state = RXRPC_CALL_SERVER_AWAIT_ACK;
+			rxrpc_notify_end_tx(rx, call, notify_end_tx);
 			break;
 		default:
 			break;
@@ -151,31 +219,49 @@ static void rxrpc_queue_packet(struct rxrpc_call *call, struct sk_buff *skb,
 
 	ret = rxrpc_send_data_packet(call, skb, false);
 	if (ret < 0) {
+		switch (ret) {
+		case -ENETUNREACH:
+		case -EHOSTUNREACH:
+		case -ECONNREFUSED:
+			rxrpc_set_call_completion(call,
+						  RXRPC_CALL_LOCAL_ERROR,
+						  0, ret);
+			rxrpc_notify_socket(call);
+			goto out;
+		}
 		_debug("need instant resend %d", ret);
 		rxrpc_instant_resend(call, ix);
 	} else {
-		ktime_t now = ktime_get_real(), resend_at;
+		unsigned long now = jiffies, resend_at;
 
-		resend_at = ktime_add_ms(now, rxrpc_resend_timeout);
+		if (call->peer->rtt_usage > 1)
+			resend_at = nsecs_to_jiffies(call->peer->rtt * 3 / 2);
+		else
+			resend_at = rxrpc_resend_timeout;
+		if (resend_at < 1)
+			resend_at = 1;
 
-		if (ktime_before(resend_at, call->resend_at)) {
-			call->resend_at = resend_at;
-			rxrpc_set_timer(call, rxrpc_timer_set_for_send, now);
-		}
+		resend_at += now;
+		WRITE_ONCE(call->resend_at, resend_at);
+		rxrpc_reduce_call_timer(call, resend_at, now,
+					rxrpc_timer_set_for_send);
 	}
 
-	rxrpc_free_skb(skb, rxrpc_skb_tx_freed);
-	_leave("");
+out:
+	rxrpc_free_skb(skb, rxrpc_skb_freed);
+	_leave(" = %d", ret);
+	return ret;
 }
 
 /*
  * send data through a socket
  * - must be called in process context
- * - caller holds the socket locked
+ * - The caller holds the call user access mutex, but not the socket lock.
  */
 static int rxrpc_send_data(struct rxrpc_sock *rx,
 			   struct rxrpc_call *call,
-			   struct msghdr *msg, size_t len)
+			   struct msghdr *msg, size_t len,
+			   rxrpc_notify_end_tx_t notify_end_tx)
 {
 	struct rxrpc_skb_priv *sp;
 	struct sk_buff *skb;
@@ -194,15 +280,22 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 
 	more = msg->msg_flags & MSG_MORE;
 
+	if (call->tx_total_len != -1) {
+		if (len > call->tx_total_len)
+			return -EMSGSIZE;
+		if (!more && len != call->tx_total_len)
+			return -EMSGSIZE;
+	}
+
 	skb = call->tx_pending;
 	call->tx_pending = NULL;
-	rxrpc_see_skb(skb, rxrpc_skb_tx_seen);
+	rxrpc_see_skb(skb, rxrpc_skb_seen);
 
 	copied = 0;
 	do {
 		/* Check to see if there's a ping ACK to reply to. */
 		if (call->ackr_reason == RXRPC_ACK_PING_RESPONSE)
-			rxrpc_send_ack_packet(call, false);
+			rxrpc_send_ack_packet(call, false, NULL);
 
 		if (!skb) {
 			size_t size, chunk, max, space;
@@ -216,7 +309,8 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 				if (msg->msg_flags & MSG_DONTWAIT)
 					goto maybe_error;
 				ret = rxrpc_wait_for_tx_window(rx, call,
-							       &timeo);
+							       &timeo,
+							       msg->msg_flags & MSG_WAITALL);
 				if (ret < 0)
 					goto maybe_error;
 			}
@@ -242,7 +336,9 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 			if (!skb)
 				goto maybe_error;
 
-			rxrpc_new_skb(skb, rxrpc_skb_tx_new);
+			sp = rxrpc_skb(skb);
+			sp->rx_flags |= RXRPC_SKB_TX_BUFFER;
+			rxrpc_new_skb(skb, rxrpc_skb_new);
 
 			_debug("ALLOC SEND %p", skb);
 
@@ -252,7 +348,6 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 			skb_reserve(skb, call->conn->security_size);
 			skb->len += call->conn->security_size;
 
-			sp = rxrpc_skb(skb);
 			sp->remain = chunk;
 			if (sp->remain > skb_tailroom(skb))
 				sp->remain = skb_tailroom(skb);
@@ -286,6 +381,8 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 			sp->remain -= copy;
 			skb->mark += copy;
 			copied += copy;
+			if (call->tx_total_len != -1)
+				call->tx_total_len -= copy;
 		}
 
 		/* check for the far side aborting the call or a network error
@@ -307,7 +404,7 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 				pad &= conn->size_align - 1;
 				_debug("pad %zu", pad);
 				if (pad)
-					memset(skb_put(skb, pad), 0, pad);
+					skb_put_zero(skb, pad);
 			}
 
 			seq = call->tx_top + 1;
@@ -327,7 +424,10 @@ static int rxrpc_send_data(struct rxrpc_sock *rx,
 			if (ret < 0)
 				goto out;
 
-			rxrpc_queue_packet(call, skb, !msg_data_left(msg) && !more);
+			ret = rxrpc_queue_packet(rx, call, skb,
+						 !msg_data_left(msg) && !more,
+						 notify_end_tx);
+			/* Should check for failure here */
 			skb = NULL;
 		}
 	} while (msg_data_left(msg) > 0);
@@ -340,9 +440,9 @@ out:
 	return ret;
 
 call_terminated:
-	rxrpc_free_skb(skb, rxrpc_skb_tx_freed);
-	_leave(" = %d", -call->error);
-	return -call->error;
+	rxrpc_free_skb(skb, rxrpc_skb_freed);
+	_leave(" = %d", call->error);
+	return call->error;
 
 maybe_error:
 	if (copied)
@@ -357,17 +457,11 @@ efault:
 /*
  * extract control messages from the sendmsg() control buffer
  */
-static int rxrpc_sendmsg_cmsg(struct msghdr *msg,
-			      unsigned long *user_call_ID,
-			      enum rxrpc_command *command,
-			      u32 *abort_code,
-			      bool *_exclusive)
+static int rxrpc_sendmsg_cmsg(struct msghdr *msg, struct rxrpc_send_params *p)
 {
 	struct cmsghdr *cmsg;
 	bool got_user_ID = false;
 	int len;
-
-	*command = RXRPC_CMD_SEND_DATA;
 
 	if (msg->msg_controllen == 0)
 		return -EINVAL;
@@ -376,7 +470,7 @@ static int rxrpc_sendmsg_cmsg(struct msghdr *msg,
 		if (!CMSG_OK(msg, cmsg))
 			return -EINVAL;
 
-		len = cmsg->cmsg_len - CMSG_ALIGN(sizeof(struct cmsghdr));
+		len = cmsg->cmsg_len - sizeof(struct cmsghdr);
 		_debug("CMSG %d, %d, %d",
 		       cmsg->cmsg_level, cmsg->cmsg_type, len);
 
@@ -388,42 +482,68 @@ static int rxrpc_sendmsg_cmsg(struct msghdr *msg,
 			if (msg->msg_flags & MSG_CMSG_COMPAT) {
 				if (len != sizeof(u32))
 					return -EINVAL;
-				*user_call_ID = *(u32 *) CMSG_DATA(cmsg);
+				p->call.user_call_ID = *(u32 *)CMSG_DATA(cmsg);
 			} else {
 				if (len != sizeof(unsigned long))
 					return -EINVAL;
-				*user_call_ID = *(unsigned long *)
+				p->call.user_call_ID = *(unsigned long *)
 					CMSG_DATA(cmsg);
 			}
-			_debug("User Call ID %lx", *user_call_ID);
 			got_user_ID = true;
 			break;
 
 		case RXRPC_ABORT:
-			if (*command != RXRPC_CMD_SEND_DATA)
+			if (p->command != RXRPC_CMD_SEND_DATA)
 				return -EINVAL;
-			*command = RXRPC_CMD_SEND_ABORT;
-			if (len != sizeof(*abort_code))
+			p->command = RXRPC_CMD_SEND_ABORT;
+			if (len != sizeof(p->abort_code))
 				return -EINVAL;
-			*abort_code = *(unsigned int *) CMSG_DATA(cmsg);
-			_debug("Abort %x", *abort_code);
-			if (*abort_code == 0)
+			p->abort_code = *(unsigned int *)CMSG_DATA(cmsg);
+			if (p->abort_code == 0)
 				return -EINVAL;
 			break;
 
 		case RXRPC_ACCEPT:
-			if (*command != RXRPC_CMD_SEND_DATA)
+			if (p->command != RXRPC_CMD_SEND_DATA)
 				return -EINVAL;
-			*command = RXRPC_CMD_ACCEPT;
+			p->command = RXRPC_CMD_ACCEPT;
 			if (len != 0)
 				return -EINVAL;
 			break;
 
 		case RXRPC_EXCLUSIVE_CALL:
-			*_exclusive = true;
+			p->exclusive = true;
 			if (len != 0)
 				return -EINVAL;
 			break;
+
+		case RXRPC_UPGRADE_SERVICE:
+			p->upgrade = true;
+			if (len != 0)
+				return -EINVAL;
+			break;
+
+		case RXRPC_TX_LENGTH:
+			if (p->call.tx_total_len != -1 || len != sizeof(__s64))
+				return -EINVAL;
+			p->call.tx_total_len = *(__s64 *)CMSG_DATA(cmsg);
+			if (p->call.tx_total_len < 0)
+				return -EINVAL;
+			break;
+
+		case RXRPC_SET_CALL_TIMEOUT:
+			if (len & 3 || len < 4 || len > 12)
+				return -EINVAL;
+			memcpy(&p->call.timeouts, CMSG_DATA(cmsg), len);
+			p->call.nr_timeouts = len / 4;
+			if (p->call.timeouts.hard > INT_MAX / HZ)
+				return -ERANGE;
+			if (p->call.nr_timeouts >= 2 && p->call.timeouts.idle > 60 * 60 * 1000)
+				return -ERANGE;
+			if (p->call.nr_timeouts >= 3 && p->call.timeouts.normal > 60 * 60 * 1000)
+				return -ERANGE;
+			break;
+
 		default:
 			return -EINVAL;
 		}
@@ -431,16 +551,22 @@ static int rxrpc_sendmsg_cmsg(struct msghdr *msg,
 
 	if (!got_user_ID)
 		return -EINVAL;
+	if (p->call.tx_total_len != -1 && p->command != RXRPC_CMD_SEND_DATA)
+		return -EINVAL;
 	_leave(" = 0");
 	return 0;
 }
 
 /*
  * Create a new client call for sendmsg().
+ * - Called with the socket lock held, which it must release.
+ * - If it returns a call, the call's lock will need releasing by the caller.
  */
 static struct rxrpc_call *
 rxrpc_new_client_call_for_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg,
-				  unsigned long user_call_ID, bool exclusive)
+				  struct rxrpc_send_params *p)
+	__releases(&rx->sk.sk_lock.slock)
+	__acquires(&call->user_mutex)
 {
 	struct rxrpc_conn_parameters cp;
 	struct rxrpc_call *call;
@@ -450,8 +576,10 @@ rxrpc_new_client_call_for_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg,
 
 	_enter("");
 
-	if (!msg->msg_name)
+	if (!msg->msg_name) {
+		release_sock(&rx->sk);
 		return ERR_PTR(-EDESTADDRREQ);
+	}
 
 	key = rx->key;
 	if (key && !rx->key->payload.data[0])
@@ -461,10 +589,14 @@ rxrpc_new_client_call_for_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg,
 	cp.local		= rx->local;
 	cp.key			= rx->key;
 	cp.security_level	= rx->min_sec_level;
-	cp.exclusive		= rx->exclusive | exclusive;
+	cp.exclusive		= rx->exclusive | p->exclusive;
+	cp.upgrade		= p->upgrade;
 	cp.service_id		= srx->srx_service;
-	call = rxrpc_new_client_call(rx, &cp, srx, user_call_ID, GFP_KERNEL);
+	call = rxrpc_new_client_call(rx, &cp, srx, &p->call, GFP_KERNEL,
+				     atomic_inc_return(&rxrpc_debug_id));
+	/* The socket is now unlocked */
 
+	rxrpc_put_peer(cp.peer);
 	_leave(" = %p\n", call);
 	return call;
 }
@@ -475,68 +607,143 @@ rxrpc_new_client_call_for_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg,
  * - the socket may be either a client socket or a server socket
  */
 int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
+	__releases(&rx->sk.sk_lock.slock)
+	__releases(&call->user_mutex)
 {
-	enum rxrpc_command cmd;
+	enum rxrpc_call_state state;
 	struct rxrpc_call *call;
-	unsigned long user_call_ID = 0;
-	bool exclusive = false;
-	u32 abort_code = 0;
+	unsigned long now, j;
 	int ret;
+
+	struct rxrpc_send_params p = {
+		.call.tx_total_len	= -1,
+		.call.user_call_ID	= 0,
+		.call.nr_timeouts	= 0,
+		.call.intr		= true,
+		.abort_code		= 0,
+		.command		= RXRPC_CMD_SEND_DATA,
+		.exclusive		= false,
+		.upgrade		= false,
+	};
 
 	_enter("");
 
-	ret = rxrpc_sendmsg_cmsg(msg, &user_call_ID, &cmd, &abort_code,
-				 &exclusive);
+	ret = rxrpc_sendmsg_cmsg(msg, &p);
 	if (ret < 0)
-		return ret;
+		goto error_release_sock;
 
-	if (cmd == RXRPC_CMD_ACCEPT) {
+	if (p.command == RXRPC_CMD_ACCEPT) {
+		ret = -EINVAL;
 		if (rx->sk.sk_state != RXRPC_SERVER_LISTENING)
-			return -EINVAL;
-		call = rxrpc_accept_call(rx, user_call_ID, NULL);
+			goto error_release_sock;
+		call = rxrpc_accept_call(rx, p.call.user_call_ID, NULL);
+		/* The socket is now unlocked. */
 		if (IS_ERR(call))
 			return PTR_ERR(call);
-		rxrpc_put_call(call, rxrpc_call_put);
-		return 0;
+		ret = 0;
+		goto out_put_unlock;
 	}
 
-	call = rxrpc_find_call_by_user_ID(rx, user_call_ID);
+	call = rxrpc_find_call_by_user_ID(rx, p.call.user_call_ID);
 	if (!call) {
-		if (cmd != RXRPC_CMD_SEND_DATA)
-			return -EBADSLT;
-		call = rxrpc_new_client_call_for_sendmsg(rx, msg, user_call_ID,
-							 exclusive);
+		ret = -EBADSLT;
+		if (p.command != RXRPC_CMD_SEND_DATA)
+			goto error_release_sock;
+		call = rxrpc_new_client_call_for_sendmsg(rx, msg, &p);
+		/* The socket is now unlocked... */
 		if (IS_ERR(call))
 			return PTR_ERR(call);
+		/* ... and we have the call lock. */
+	} else {
+		switch (READ_ONCE(call->state)) {
+		case RXRPC_CALL_UNINITIALISED:
+		case RXRPC_CALL_CLIENT_AWAIT_CONN:
+		case RXRPC_CALL_SERVER_PREALLOC:
+		case RXRPC_CALL_SERVER_SECURING:
+		case RXRPC_CALL_SERVER_ACCEPTING:
+			ret = -EBUSY;
+			goto error_release_sock;
+		default:
+			break;
+		}
+
+		ret = mutex_lock_interruptible(&call->user_mutex);
+		release_sock(&rx->sk);
+		if (ret < 0) {
+			ret = -ERESTARTSYS;
+			goto error_put;
+		}
+
+		if (p.call.tx_total_len != -1) {
+			ret = -EINVAL;
+			if (call->tx_total_len != -1 ||
+			    call->tx_pending ||
+			    call->tx_top != 0)
+				goto error_put;
+			call->tx_total_len = p.call.tx_total_len;
+		}
 	}
 
-	_debug("CALL %d USR %lx ST %d on CONN %p",
-	       call->debug_id, call->user_call_ID, call->state, call->conn);
+	switch (p.call.nr_timeouts) {
+	case 3:
+		j = msecs_to_jiffies(p.call.timeouts.normal);
+		if (p.call.timeouts.normal > 0 && j == 0)
+			j = 1;
+		WRITE_ONCE(call->next_rx_timo, j);
+		/* Fall through */
+	case 2:
+		j = msecs_to_jiffies(p.call.timeouts.idle);
+		if (p.call.timeouts.idle > 0 && j == 0)
+			j = 1;
+		WRITE_ONCE(call->next_req_timo, j);
+		/* Fall through */
+	case 1:
+		if (p.call.timeouts.hard > 0) {
+			j = msecs_to_jiffies(p.call.timeouts.hard);
+			now = jiffies;
+			j += now;
+			WRITE_ONCE(call->expect_term_by, j);
+			rxrpc_reduce_call_timer(call, j, now,
+						rxrpc_timer_set_for_hard);
+		}
+		break;
+	}
 
-	if (call->state >= RXRPC_CALL_COMPLETE) {
+	state = READ_ONCE(call->state);
+	_debug("CALL %d USR %lx ST %d on CONN %p",
+	       call->debug_id, call->user_call_ID, state, call->conn);
+
+	if (state >= RXRPC_CALL_COMPLETE) {
 		/* it's too late for this call */
 		ret = -ESHUTDOWN;
-	} else if (cmd == RXRPC_CMD_SEND_ABORT) {
+	} else if (p.command == RXRPC_CMD_SEND_ABORT) {
 		ret = 0;
-		if (rxrpc_abort_call("CMD", call, 0, abort_code, ECONNABORTED))
+		if (rxrpc_abort_call("CMD", call, 0, p.abort_code, -ECONNABORTED))
 			ret = rxrpc_send_abort_packet(call);
-	} else if (cmd != RXRPC_CMD_SEND_DATA) {
+	} else if (p.command != RXRPC_CMD_SEND_DATA) {
 		ret = -EINVAL;
 	} else if (rxrpc_is_client_call(call) &&
-		   call->state != RXRPC_CALL_CLIENT_SEND_REQUEST) {
+		   state != RXRPC_CALL_CLIENT_SEND_REQUEST) {
 		/* request phase complete for this client call */
 		ret = -EPROTO;
 	} else if (rxrpc_is_service_call(call) &&
-		   call->state != RXRPC_CALL_SERVER_ACK_REQUEST &&
-		   call->state != RXRPC_CALL_SERVER_SEND_REPLY) {
+		   state != RXRPC_CALL_SERVER_ACK_REQUEST &&
+		   state != RXRPC_CALL_SERVER_SEND_REPLY) {
 		/* Reply phase not begun or not complete for service call. */
 		ret = -EPROTO;
 	} else {
-		ret = rxrpc_send_data(rx, call, msg, len);
+		ret = rxrpc_send_data(rx, call, msg, len, NULL);
 	}
 
+out_put_unlock:
+	mutex_unlock(&call->user_mutex);
+error_put:
 	rxrpc_put_call(call, rxrpc_call_put);
 	_leave(" = %d", ret);
+	return ret;
+
+error_release_sock:
+	release_sock(&rx->sk);
 	return ret;
 }
 
@@ -546,6 +753,7 @@ int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
  * @call: The call to send data through
  * @msg: The data to send
  * @len: The amount of data to send
+ * @notify_end_tx: Notification that the last packet is queued.
  *
  * Allow a kernel service to send data on a call.  The call must be in an state
  * appropriate to sending data.  No control data should be supplied in @msg,
@@ -553,7 +761,8 @@ int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
  * more data to come, otherwise this data will end the transmission phase.
  */
 int rxrpc_kernel_send_data(struct socket *sock, struct rxrpc_call *call,
-			   struct msghdr *msg, size_t len)
+			   struct msghdr *msg, size_t len,
+			   rxrpc_notify_end_tx_t notify_end_tx)
 {
 	int ret;
 
@@ -562,22 +771,31 @@ int rxrpc_kernel_send_data(struct socket *sock, struct rxrpc_call *call,
 	ASSERTCMP(msg->msg_name, ==, NULL);
 	ASSERTCMP(msg->msg_control, ==, NULL);
 
-	lock_sock(sock->sk);
+	mutex_lock(&call->user_mutex);
 
 	_debug("CALL %d USR %lx ST %d on CONN %p",
 	       call->debug_id, call->user_call_ID, call->state, call->conn);
 
-	if (call->state >= RXRPC_CALL_COMPLETE) {
-		ret = -ESHUTDOWN; /* it's too late for this call */
-	} else if (call->state != RXRPC_CALL_CLIENT_SEND_REQUEST &&
-		   call->state != RXRPC_CALL_SERVER_ACK_REQUEST &&
-		   call->state != RXRPC_CALL_SERVER_SEND_REPLY) {
-		ret = -EPROTO; /* request phase complete for this client call */
-	} else {
-		ret = rxrpc_send_data(rxrpc_sk(sock->sk), call, msg, len);
+	switch (READ_ONCE(call->state)) {
+	case RXRPC_CALL_CLIENT_SEND_REQUEST:
+	case RXRPC_CALL_SERVER_ACK_REQUEST:
+	case RXRPC_CALL_SERVER_SEND_REPLY:
+		ret = rxrpc_send_data(rxrpc_sk(sock->sk), call, msg, len,
+				      notify_end_tx);
+		break;
+	case RXRPC_CALL_COMPLETE:
+		read_lock_bh(&call->state_lock);
+		ret = call->error;
+		read_unlock_bh(&call->state_lock);
+		break;
+	default:
+		/* Request phase complete for this client call */
+		trace_rxrpc_rx_eproto(call, 0, tracepoint_string("late_send"));
+		ret = -EPROTO;
+		break;
 	}
 
-	release_sock(sock->sk);
+	mutex_unlock(&call->user_mutex);
 	_leave(" = %d", ret);
 	return ret;
 }
@@ -591,20 +809,43 @@ EXPORT_SYMBOL(rxrpc_kernel_send_data);
  * @error: Local error value
  * @why: 3-char string indicating why.
  *
- * Allow a kernel service to abort a call, if it's still in an abortable state.
+ * Allow a kernel service to abort a call, if it's still in an abortable state
+ * and return true if the call was aborted, false if it was already complete.
  */
-void rxrpc_kernel_abort_call(struct socket *sock, struct rxrpc_call *call,
+bool rxrpc_kernel_abort_call(struct socket *sock, struct rxrpc_call *call,
 			     u32 abort_code, int error, const char *why)
 {
+	bool aborted;
+
 	_enter("{%d},%d,%d,%s", call->debug_id, abort_code, error, why);
 
-	lock_sock(sock->sk);
+	mutex_lock(&call->user_mutex);
 
-	if (rxrpc_abort_call(why, call, 0, abort_code, error))
+	aborted = rxrpc_abort_call(why, call, 0, abort_code, error);
+	if (aborted)
 		rxrpc_send_abort_packet(call);
 
-	release_sock(sock->sk);
-	_leave("");
+	mutex_unlock(&call->user_mutex);
+	return aborted;
 }
-
 EXPORT_SYMBOL(rxrpc_kernel_abort_call);
+
+/**
+ * rxrpc_kernel_set_tx_length - Set the total Tx length on a call
+ * @sock: The socket the call is on
+ * @call: The call to be informed
+ * @tx_total_len: The amount of data to be transmitted for this call
+ *
+ * Allow a kernel service to set the total transmit length on a call.  This
+ * allows buffer-to-packet encrypt-and-copy to be performed.
+ *
+ * This function is primarily for use for setting the reply length since the
+ * request length can be set when beginning the call.
+ */
+void rxrpc_kernel_set_tx_length(struct socket *sock, struct rxrpc_call *call,
+				s64 tx_total_len)
+{
+	WARN_ON(call->tx_total_len != -1);
+	call->tx_total_len = tx_total_len;
+}
+EXPORT_SYMBOL(rxrpc_kernel_set_tx_length);

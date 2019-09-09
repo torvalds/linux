@@ -10,7 +10,7 @@
  */
 
 #include <linux/linkage.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/errno.h>
 #include <asm/ptrace.h>
 
@@ -40,5 +40,5 @@ void user_enable_single_step(struct task_struct *child)
 asmlinkage void trace_trap(unsigned long bp)
 {
 	(void)bp;
-	force_sig(SIGTRAP, current);
+	force_sig(SIGTRAP);
 }

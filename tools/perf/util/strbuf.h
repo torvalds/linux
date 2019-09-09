@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __PERF_STRBUF_H
 #define __PERF_STRBUF_H
 
@@ -42,6 +43,7 @@
 #include <stdarg.h>
 #include <stddef.h>
 #include <string.h>
+#include <linux/compiler.h>
 #include <sys/types.h>
 
 extern char strbuf_slopbuf[];
@@ -85,8 +87,7 @@ static inline int strbuf_addstr(struct strbuf *sb, const char *s) {
 	return strbuf_add(sb, s, strlen(s));
 }
 
-__attribute__((format(printf,2,3)))
-int strbuf_addf(struct strbuf *sb, const char *fmt, ...);
+int strbuf_addf(struct strbuf *sb, const char *fmt, ...) __printf(2, 3);
 
 /* XXX: if read fails, any partial read is undone */
 ssize_t strbuf_read(struct strbuf *, int fd, ssize_t hint);

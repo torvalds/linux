@@ -1,14 +1,10 @@
-/*
- * Phytec pcm030 driver for the PSC of the Freescale MPC52xx
- * configured as AC97 interface
- *
- * Copyright 2008 Jon Smirl, Digispeaker
- * Author: Jon Smirl <jonsmirl@gmail.com>
- *
- * This file is licensed under the terms of the GNU General Public License
- * version 2. This program is licensed "as is" without any warranty of any
- * kind, whether express or implied.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Phytec pcm030 driver for the PSC of the Freescale MPC52xx
+// configured as AC97 interface
+//
+// Copyright 2008 Jon Smirl, Digispeaker
+// Author: Jon Smirl <jonsmirl@gmail.com>
 
 #include <linux/init.h>
 #include <linux/module.h>
@@ -27,20 +23,26 @@ struct pcm030_audio_data {
 	struct platform_device *codec_device;
 };
 
+SND_SOC_DAILINK_DEFS(analog,
+	DAILINK_COMP_ARRAY(COMP_CPU("mpc5200-psc-ac97.0")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("wm9712-codec", "wm9712-hifi")),
+	DAILINK_COMP_ARRAY(COMP_EMPTY()));
+
+SND_SOC_DAILINK_DEFS(iec958,
+	DAILINK_COMP_ARRAY(COMP_CPU("mpc5200-psc-ac97.1")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("wm9712-codec", "wm9712-aux")),
+	DAILINK_COMP_ARRAY(COMP_EMPTY()));
+
 static struct snd_soc_dai_link pcm030_fabric_dai[] = {
 {
 	.name = "AC97.0",
 	.stream_name = "AC97 Analog",
-	.codec_dai_name = "wm9712-hifi",
-	.cpu_dai_name = "mpc5200-psc-ac97.0",
-	.codec_name = "wm9712-codec",
+	SND_SOC_DAILINK_REG(analog),
 },
 {
 	.name = "AC97.1",
 	.stream_name = "AC97 IEC958",
-	.codec_dai_name = "wm9712-aux",
-	.cpu_dai_name = "mpc5200-psc-ac97.1",
-	.codec_name = "wm9712-codec",
+	SND_SOC_DAILINK_REG(iec958),
 },
 };
 
@@ -57,6 +59,7 @@ static int pcm030_fabric_probe(struct platform_device *op)
 	struct device_node *platform_np;
 	struct snd_soc_card *card = &pcm030_card;
 	struct pcm030_audio_data *pdata;
+	struct snd_soc_dai_link *dai_link;
 	int ret;
 	int i;
 
@@ -78,8 +81,8 @@ static int pcm030_fabric_probe(struct platform_device *op)
 		return -ENODEV;
 	}
 
-	for (i = 0; i < card->num_links; i++)
-		card->dai_link[i].platform_of_node = platform_np;
+	for_each_card_prelinks(card, i, dai_link)
+		dai_link->platforms->of_node = platform_np;
 
 	ret = request_module("snd-soc-wm9712");
 	if (ret)

@@ -1,0 +1,40 @@
+What:		/sys/bus/platform/devices/INT3407:00/dptf_power/charger_type
+Date:		Jul, 2016
+KernelVersion:	v4.10
+Contact:	linux-acpi@vger.kernel.org
+Description:
+		(RO) The charger type - Traditional, Hybrid or NVDC.
+
+What:		/sys/bus/platform/devices/INT3407:00/dptf_power/adapter_rating_mw
+Date:		Jul, 2016
+KernelVersion:	v4.10
+Contact:	linux-acpi@vger.kernel.org
+Description:
+		(RO) Adapter rating in milliwatts (the maximum Adapter power).
+		Must be 0 if no AC Adaptor is plugged in.
+
+What:		/sys/bus/platform/devices/INT3407:00/dptf_power/max_platform_power_mw
+Date:		Jul, 2016
+KernelVersion:	v4.10
+Contact:	linux-acpi@vger.kernel.org
+Description:
+		(RO) Maximum platform power that can be supported by the battery
+		in milliwatts.
+
+What:		/sys/bus/platform/devices/INT3407:00/dptf_power/platform_power_source
+Date:		Jul, 2016
+KernelVersion:	v4.10
+Contact:	linux-acpi@vger.kernel.org
+Description:
+		(RO) Display the platform power source
+		0x00 = DC
+		0x01 = AC
+		0x02 = USB
+		0x03 = Wireless Charger
+
+What:		/sys/bus/platform/devices/INT3407:00/dptf_power/battery_steady_power
+Date:		Jul, 2016
+KernelVersion:	v4.10
+Contact:	linux-acpi@vger.kernel.org
+Description:
+		(RO) The maximum sustained power for battery in milliwatts.

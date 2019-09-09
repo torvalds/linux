@@ -34,9 +34,15 @@
  */
 
 #include <linux/export.h>
-#include <drm/drmP.h>
-#include "drm_legacy.h"
+#include <linux/sched/signal.h>
+
+#include <drm/drm.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_file.h>
+#include <drm/drm_print.h>
+
 #include "drm_internal.h"
+#include "drm_legacy.h"
 
 static int drm_lock_take(struct drm_lock_data *lock_data, unsigned int context);
 
@@ -164,7 +170,7 @@ int drm_legacy_lock(struct drm_device *dev, void *data,
 	int ret = 0;
 
 	if (!drm_core_check_feature(dev, DRIVER_LEGACY))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	++file_priv->lock_count;
 
@@ -176,7 +182,8 @@ int drm_legacy_lock(struct drm_device *dev, void *data,
 
 	DRM_DEBUG("%d (pid %d) requests lock (0x%08x), flags = 0x%08x\n",
 		  lock->context, task_pid_nr(current),
-		  master->lock.hw_lock->lock, lock->flags);
+		  master->lock.hw_lock ? master->lock.hw_lock->lock : -1,
+		  lock->flags);
 
 	add_wait_queue(&master->lock.lock_queue, &entry);
 	spin_lock_bh(&master->lock.spinlock);
@@ -253,7 +260,7 @@ int drm_legacy_unlock(struct drm_device *dev, void *data, struct drm_file *file_
 	struct drm_master *master = file_priv->master;
 
 	if (!drm_core_check_feature(dev, DRIVER_LEGACY))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	if (lock->context == DRM_KERNEL_CONTEXT) {
 		DRM_ERROR("Process %d using kernel context %d\n",
@@ -343,4 +350,23 @@ void drm_legacy_lock_release(struct drm_device *dev, struct file *filp)
 		drm_legacy_lock_free(&file_priv->master->lock,
 				     _DRM_LOCKING_CONTEXT(file_priv->master->lock.hw_lock->lock));
 	}
+}
+
+void drm_legacy_lock_master_cleanup(struct drm_device *dev, struct drm_master *master)
+{
+	if (!drm_core_check_feature(dev, DRIVER_LEGACY))
+		return;
+
+	/*
+	 * Since the master is disappearing, so is the
+	 * possibility to lock.
+	 */	mutex_lock(&dev->struct_mutex);
+	if (master->lock.hw_lock) {
+		if (dev->sigdata.lock == master->lock.hw_lock)
+			dev->sigdata.lock = NULL;
+		master->lock.hw_lock = NULL;
+		master->lock.file_priv = NULL;
+		wake_up_interruptible_all(&master->lock.lock_queue);
+	}
+	mutex_unlock(&dev->struct_mutex);
 }

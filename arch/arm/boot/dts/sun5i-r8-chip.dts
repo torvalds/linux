@@ -56,9 +56,11 @@
 
 	aliases {
 		i2c0 = &i2c0;
+		i2c1 = &i2c1;
 		i2c2 = &i2c2;
 		serial0 = &uart1;
 		serial1 = &uart3;
+		spi0 = &spi2;
 	};
 
 	chosen {
@@ -73,6 +75,16 @@
 			gpios = <&axp_gpio 2 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
 		};
+	};
+
+	mmc0_pwrseq: mmc0_pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		reset-gpios = <&pio 2 19 GPIO_ACTIVE_LOW>; /* PC19 */
+	};
+
+	onewire {
+		compatible = "w1-gpio";
+		gpios = <&pio 3 2 (GPIO_ACTIVE_HIGH | GPIO_PULL_UP)>; /* PD2 */
 	};
 };
 
@@ -93,8 +105,6 @@
 };
 
 &i2c0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c0_pins_a>;
 	status = "okay";
 
 	axp209: pmic@34 {
@@ -112,9 +122,19 @@
 
 #include "axp209.dtsi"
 
+&ac_power_supply {
+	status = "okay";
+};
+
+&battery_power_supply {
+	status = "okay";
+};
+
+&i2c1 {
+	status = "disabled";
+};
+
 &i2c2 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c2_pins_a>;
 	status = "okay";
 
 	xio: gpio@38 {
@@ -131,10 +151,13 @@
 	};
 };
 
+&mmc0_pins {
+	bias-pull-up;
+};
+
 &mmc0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins_a>;
 	vmmc-supply = <&reg_vcc3v3>;
+	mmc-pwrseq = <&mmc0_pwrseq>;
 	bus-width = <4>;
 	non-removable;
 	status = "okay";
@@ -146,22 +169,6 @@
 
 &otg_sram {
 	status = "okay";
-};
-
-&pio {
-	chip_vbus_pin: chip_vbus_pin@0 {
-		allwinner,pins = "PB10";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
-	};
-
-	chip_id_det_pin: chip_id_det_pin@0 {
-		allwinner,pins = "PG2";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
-	};
 };
 
 &reg_dcdc2 {
@@ -189,6 +196,28 @@
 	regulator-always-on;
 };
 
+/*
+ * Both LDO3 and LDO4 are used in parallel to power up the WiFi/BT
+ * Chip.
+ *
+ * If those are not enabled, the SDIO part will not enumerate, and
+ * since there's no way currently to pass DT infos to an SDIO device,
+ * we cannot really do better than this ugly hack for now.
+ */
+&reg_ldo3 {
+	regulator-min-microvolt = <3300000>;
+	regulator-max-microvolt = <3300000>;
+	regulator-name = "vcc-wifi-1";
+	regulator-always-on;
+};
+
+&reg_ldo4 {
+	regulator-min-microvolt = <3300000>;
+	regulator-max-microvolt = <3300000>;
+	regulator-name = "vcc-wifi-2";
+	regulator-always-on;
+};
+
 &reg_ldo5 {
 	regulator-min-microvolt = <1800000>;
 	regulator-max-microvolt = <1800000>;
@@ -196,10 +225,15 @@
 };
 
 &reg_usb0_vbus {
-	pinctrl-0 = <&chip_vbus_pin>;
 	vin-supply = <&reg_vcc5v0>;
 	gpio = <&pio 1 10 GPIO_ACTIVE_HIGH>; /* PB10 */
 	status = "okay";
+};
+
+&spi2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi2_pe_pins>;
+	status = "disabled";
 };
 
 &tcon0 {
@@ -212,14 +246,14 @@
 
 &uart1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart1_pins_b>;
+	pinctrl-0 = <&uart1_pg_pins>;
 	status = "okay";
 };
 
 &uart3 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart3_pins_a>,
-		    <&uart3_pins_cts_rts_a>;
+	pinctrl-0 = <&uart3_pg_pins>,
+		    <&uart3_cts_rts_pg_pins>;
 	status = "okay";
 };
 
@@ -233,11 +267,9 @@
 };
 
 &usbphy {
-	pinctrl-names = "default";
-	pinctrl-0 = <&chip_id_det_pin>;
 	status = "okay";
 
-	usb0_id_det-gpio = <&pio 6 2 GPIO_ACTIVE_HIGH>; /* PG2 */
+	usb0_id_det-gpios = <&pio 6 2 GPIO_ACTIVE_HIGH>; /* PG2 */
 	usb0_vbus_power-supply = <&usb_power_supply>;
 	usb0_vbus-supply = <&reg_usb0_vbus>;
 	usb1_vbus-supply = <&reg_vcc5v0>;

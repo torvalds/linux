@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2008, 2009 open80211s Ltd.
  * Authors:    Luis Carlos Cobo <luisca@cozybit.com>
  *             Javier Cardona <javier@cozybit.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef IEEE80211S_H
@@ -70,6 +67,7 @@ enum mesh_deferred_task_flags {
  * @dst: mesh path destination mac address
  * @mpp: mesh proxy mac address
  * @rhash: rhashtable list pointer
+ * @walk_list: linked list containing all mesh_path objects.
  * @gate_list: list pointer for known gates list
  * @sdata: mesh subif
  * @next_hop: mesh neighbor to which frames for this destination will be
@@ -94,6 +92,7 @@ enum mesh_deferred_task_flags {
  * @last_preq_to_root: Timestamp of last PREQ sent to root
  * @is_root: the destination station of this path is a root node
  * @is_gate: the destination station of this path is a mesh gate
+ * @path_change_count: the number of path changes to destination
  *
  *
  * The dst address is unique in the mesh path table. Since the mesh_path is
@@ -105,6 +104,7 @@ struct mesh_path {
 	u8 dst[ETH_ALEN];
 	u8 mpp[ETH_ALEN];	/* used for MPP or MAP */
 	struct rhash_head rhash;
+	struct hlist_node walk_list;
 	struct hlist_node gate_list;
 	struct ieee80211_sub_if_data *sdata;
 	struct sta_info __rcu *next_hop;
@@ -124,6 +124,7 @@ struct mesh_path {
 	unsigned long last_preq_to_root;
 	bool is_root;
 	bool is_gate;
+	u32 path_change_count;
 };
 
 /**
@@ -133,12 +134,16 @@ struct mesh_path {
  * gate's mpath may or may not be resolved and active.
  * @gates_lock: protects updates to known_gates
  * @rhead: the rhashtable containing struct mesh_paths, keyed by dest addr
+ * @walk_head: linked list containging all mesh_path objects
+ * @walk_lock: lock protecting walk_head
  * @entries: number of entries in the table
  */
 struct mesh_table {
 	struct hlist_head known_gates;
 	spinlock_t gates_lock;
 	struct rhashtable rhead;
+	struct hlist_head walk_head;
+	spinlock_t walk_lock;
 	atomic_t entries;		/* Up to MAX_MESH_NEIGHBOURS */
 };
 
@@ -217,7 +222,8 @@ void mesh_rmc_free(struct ieee80211_sub_if_data *sdata);
 int mesh_rmc_init(struct ieee80211_sub_if_data *sdata);
 void ieee80211s_init(void);
 void ieee80211s_update_metric(struct ieee80211_local *local,
-			      struct sta_info *sta, struct sk_buff *skb);
+			      struct sta_info *sta,
+			      struct ieee80211_tx_status *st);
 void ieee80211_mesh_init_sdata(struct ieee80211_sub_if_data *sdata);
 void ieee80211_mesh_teardown_sdata(struct ieee80211_sub_if_data *sdata);
 int ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata);
@@ -269,12 +275,16 @@ mesh_path_add(struct ieee80211_sub_if_data *sdata, const u8 *dst);
 int mesh_path_add_gate(struct mesh_path *mpath);
 int mesh_path_send_to_gates(struct mesh_path *mpath);
 int mesh_gate_num(struct ieee80211_sub_if_data *sdata);
+u32 airtime_link_metric_get(struct ieee80211_local *local,
+			    struct sta_info *sta);
 
 /* Mesh plinks */
 void mesh_neighbour_update(struct ieee80211_sub_if_data *sdata,
-			   u8 *hw_addr, struct ieee802_11_elems *ie);
+			   u8 *hw_addr, struct ieee802_11_elems *ie,
+			   struct ieee80211_rx_status *rx_status);
 bool mesh_peer_accepts_plinks(struct ieee802_11_elems *ie);
 u32 mesh_accept_plinks_update(struct ieee80211_sub_if_data *sdata);
+void mesh_plink_timer(struct timer_list *t);
 void mesh_plink_broken(struct sta_info *sta);
 u32 mesh_plink_deactivate(struct sta_info *sta);
 u32 mesh_plink_open(struct sta_info *sta);
@@ -295,7 +305,7 @@ void mesh_path_tx_pending(struct mesh_path *mpath);
 int mesh_pathtbl_init(struct ieee80211_sub_if_data *sdata);
 void mesh_pathtbl_unregister(struct ieee80211_sub_if_data *sdata);
 int mesh_path_del(struct ieee80211_sub_if_data *sdata, const u8 *addr);
-void mesh_path_timer(unsigned long data);
+void mesh_path_timer(struct timer_list *t);
 void mesh_path_flush_by_nexthop(struct sta_info *sta);
 void mesh_path_discard_frame(struct ieee80211_sub_if_data *sdata,
 			     struct sk_buff *skb);
@@ -341,7 +351,7 @@ static inline bool mesh_path_sel_is_hwmp(struct ieee80211_sub_if_data *sdata)
 }
 
 void mesh_path_flush_by_iface(struct ieee80211_sub_if_data *sdata);
-void mesh_sync_adjust_tbtt(struct ieee80211_sub_if_data *sdata);
+void mesh_sync_adjust_tsf(struct ieee80211_sub_if_data *sdata);
 void ieee80211s_stop(void);
 #else
 static inline bool mesh_path_sel_is_hwmp(struct ieee80211_sub_if_data *sdata)

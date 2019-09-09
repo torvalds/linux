@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * MPIC timer wakeup driver
  *
  * Copyright 2013 Freescale Semiconductor, Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -56,17 +52,16 @@ static ssize_t fsl_timer_wakeup_show(struct device *dev,
 				struct device_attribute *attr,
 				char *buf)
 {
-	struct timeval interval;
-	int val = 0;
+	time64_t interval = 0;
 
 	mutex_lock(&sysfs_lock);
 	if (fsl_wakeup->timer) {
 		mpic_get_remain_time(fsl_wakeup->timer, &interval);
-		val = interval.tv_sec + 1;
+		interval++;
 	}
 	mutex_unlock(&sysfs_lock);
 
-	return sprintf(buf, "%d\n", val);
+	return sprintf(buf, "%lld\n", interval);
 }
 
 static ssize_t fsl_timer_wakeup_store(struct device *dev,
@@ -74,11 +69,10 @@ static ssize_t fsl_timer_wakeup_store(struct device *dev,
 				const char *buf,
 				size_t count)
 {
-	struct timeval interval;
+	time64_t interval;
 	int ret;
 
-	interval.tv_usec = 0;
-	if (kstrtol(buf, 0, &interval.tv_sec))
+	if (kstrtoll(buf, 0, &interval))
 		return -EINVAL;
 
 	mutex_lock(&sysfs_lock);
@@ -89,13 +83,13 @@ static ssize_t fsl_timer_wakeup_store(struct device *dev,
 		fsl_wakeup->timer = NULL;
 	}
 
-	if (!interval.tv_sec) {
+	if (!interval) {
 		mutex_unlock(&sysfs_lock);
 		return count;
 	}
 
 	fsl_wakeup->timer = mpic_request_timer(fsl_mpic_timer_irq,
-						fsl_wakeup, &interval);
+						fsl_wakeup, interval);
 	if (!fsl_wakeup->timer) {
 		mutex_unlock(&sysfs_lock);
 		return -EINVAL;

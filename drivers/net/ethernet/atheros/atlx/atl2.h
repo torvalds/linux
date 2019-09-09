@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /* atl2.h -- atl2 driver definitions
  *
  * Copyright(c) 2007 Atheros Corporation. All rights reserved.
@@ -6,20 +7,6 @@
  *
  * Derived from Intel e1000 driver
  * Copyright(c) 1999 - 2005 Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 59
- * Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 
 #ifndef _ATL2_H_
@@ -228,12 +215,9 @@ static void atl2_force_ps(struct atl2_hw *hw);
 #define AUTONEG_ADVERTISE_SPEED_DEFAULT	0x000F	/* Everything */
 
 /* The size (in bytes) of a ethernet packet */
-#define ENET_HEADER_SIZE		14
 #define MAXIMUM_ETHERNET_FRAME_SIZE	1518	/* with FCS */
 #define MINIMUM_ETHERNET_FRAME_SIZE	64	/* with FCS */
-#define ETHERNET_FCS_SIZE		4
 #define MAX_JUMBO_FRAME_SIZE		0x2000
-#define VLAN_SIZE                                               4
 
 struct tx_pkt_header {
 	unsigned pkt_size:11;
@@ -263,7 +247,7 @@ struct tx_pkt_status {
 	unsigned multi_col:1;
 	unsigned late_col:1;
 	unsigned abort_col:1;
-	unsigned underun:1;	/* current packet is aborted
+	unsigned underrun:1;	/* current packet is aborted
 				 * due to txram underrun */
 	unsigned:3;		/* reserved */
 	unsigned update:1;	/* always 1'b1 in tx_status_buf */

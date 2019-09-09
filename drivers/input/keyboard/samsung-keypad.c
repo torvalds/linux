@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Samsung keypad driver
  *
  * Copyright (C) 2010 Samsung Electronics Co.Ltd
  * Author: Joonyoung Shim <jy0922.shim@samsung.com>
  * Author: Donghwa Lee <dh09.lee@samsung.com>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/clk.h>
@@ -281,7 +277,7 @@ samsung_keypad_parse_dt(struct device *dev)
 
 	key_count = of_get_child_count(np);
 	keymap_data->keymap_size = key_count;
-	keymap = devm_kzalloc(dev, sizeof(uint32_t) * key_count, GFP_KERNEL);
+	keymap = devm_kcalloc(dev, key_count, sizeof(uint32_t), GFP_KERNEL);
 	if (!keymap) {
 		dev_err(dev, "could not allocate memory for keymap\n");
 		return ERR_PTR(-ENOMEM);
@@ -445,7 +441,6 @@ static int samsung_keypad_probe(struct platform_device *pdev)
 
 err_disable_runtime_pm:
 	pm_runtime_disable(&pdev->dev);
-	device_init_wakeup(&pdev->dev, 0);
 err_unprepare_clk:
 	clk_unprepare(keypad->clk);
 	return error;
@@ -456,7 +451,6 @@ static int samsung_keypad_remove(struct platform_device *pdev)
 	struct samsung_keypad *keypad = platform_get_drvdata(pdev);
 
 	pm_runtime_disable(&pdev->dev);
-	device_init_wakeup(&pdev->dev, 0);
 
 	input_unregister_device(keypad->input_dev);
 

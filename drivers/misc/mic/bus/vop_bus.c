@@ -1,19 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Intel MIC Platform Software Stack (MPSS)
  *
  * Copyright(c) 2016 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * The full GNU General Public License is included in this distribution in
- * the file called "COPYING".
  *
  * Intel Virtio Over PCIe (VOP) Bus driver.
  */
@@ -135,7 +124,9 @@ EXPORT_SYMBOL_GPL(vop_unregister_driver);
 
 static void vop_release_dev(struct device *d)
 {
-	put_device(d);
+	struct vop_device *dev = dev_to_vop(d);
+
+	kfree(dev);
 }
 
 struct vop_device *
@@ -154,7 +145,7 @@ vop_register_device(struct device *pdev, int id,
 	vdev->dev.parent = pdev;
 	vdev->id.device = id;
 	vdev->id.vendor = VOP_DEV_ANY_ID;
-	vdev->dev.archdata.dma_ops = (struct dma_map_ops *)dma_ops;
+	vdev->dev.dma_ops = dma_ops;
 	vdev->dev.dma_mask = &vdev->dev.coherent_dma_mask;
 	dma_set_mask(&vdev->dev, DMA_BIT_MASK(64));
 	vdev->dev.release = vop_release_dev;
@@ -174,7 +165,7 @@ vop_register_device(struct device *pdev, int id,
 		goto free_vdev;
 	return vdev;
 free_vdev:
-	kfree(vdev);
+	put_device(&vdev->dev);
 	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(vop_register_device);

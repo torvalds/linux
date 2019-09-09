@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *   Copyright (C) International Business Machines  Corp., 2002-2004
  *   Copyright (C) Andreas Gruenbacher, 2001
  *   Copyright (C) Linus Torvalds, 1991, 1992
- *
- *   This program is free software;  you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY;  without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
- *   the GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program;  if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #include <linux/sched.h>
@@ -77,13 +64,6 @@ static int __jfs_set_acl(tid_t tid, struct inode *inode, int type,
 	switch (type) {
 	case ACL_TYPE_ACCESS:
 		ea_name = XATTR_NAME_POSIX_ACL_ACCESS;
-		if (acl) {
-			rc = posix_acl_update_mode(inode, &inode->i_mode, &acl);
-			if (rc)
-				return rc;
-			inode->i_ctime = current_time(inode);
-			mark_inode_dirty(inode);
-		}
 		break;
 	case ACL_TYPE_DEFAULT:
 		ea_name = XATTR_NAME_POSIX_ACL_DEFAULT;
@@ -115,12 +95,28 @@ int jfs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 {
 	int rc;
 	tid_t tid;
+	int update_mode = 0;
+	umode_t mode = inode->i_mode;
 
 	tid = txBegin(inode->i_sb, 0);
 	mutex_lock(&JFS_IP(inode)->commit_mutex);
+	if (type == ACL_TYPE_ACCESS && acl) {
+		rc = posix_acl_update_mode(inode, &mode, &acl);
+		if (rc)
+			goto end_tx;
+		if (mode != inode->i_mode)
+			update_mode = 1;
+	}
 	rc = __jfs_set_acl(tid, inode, type, acl);
-	if (!rc)
+	if (!rc) {
+		if (update_mode) {
+			inode->i_mode = mode;
+			inode->i_ctime = current_time(inode);
+			mark_inode_dirty(inode);
+		}
 		rc = txCommit(tid, 1, &inode, 0);
+	}
+end_tx:
 	txEnd(tid);
 	mutex_unlock(&JFS_IP(inode)->commit_mutex);
 	return rc;
@@ -138,12 +134,16 @@ int jfs_init_acl(tid_t tid, struct inode *inode, struct inode *dir)
 	if (default_acl) {
 		rc = __jfs_set_acl(tid, inode, ACL_TYPE_DEFAULT, default_acl);
 		posix_acl_release(default_acl);
+	} else {
+		inode->i_default_acl = NULL;
 	}
 
 	if (acl) {
 		if (!rc)
 			rc = __jfs_set_acl(tid, inode, ACL_TYPE_ACCESS, acl);
 		posix_acl_release(acl);
+	} else {
+		inode->i_acl = NULL;
 	}
 
 	JFS_IP(inode)->mode2 = (JFS_IP(inode)->mode2 & 0xffff0000) |

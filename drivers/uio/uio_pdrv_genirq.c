@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * drivers/uio/uio_pdrv_genirq.c
  *
@@ -8,10 +9,6 @@
  * Based on uio_pdrv.c by Uwe Kleine-Koenig,
  * Copyright (C) 2008 by Digi International Inc.
  * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 
 #include <linux/platform_device.h>
@@ -118,7 +115,8 @@ static int uio_pdrv_genirq_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "unable to kmalloc\n");
 			return -ENOMEM;
 		}
-		uioinfo->name = pdev->dev.of_node->name;
+		uioinfo->name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "%pOFn",
+					       pdev->dev.of_node);
 		uioinfo->version = "devicetree";
 		/* Multiple IRQs are not supported */
 	}

@@ -1,8 +1,17 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <stdio.h>
-#include <sys/utsname.h>
+#include <stdlib.h>
 #include "common.h"
-#include "../util/util.h"
+#include "../util/env.h"
 #include "../util/debug.h"
+#include <linux/zalloc.h>
+
+const char *const arc_triplets[] = {
+	"arc-linux-",
+	"arc-snps-linux-uclibc-",
+	"arc-snps-linux-gnu-",
+	NULL
+};
 
 const char *const arm_triplets[] = {
 	"arm-eabi-",
@@ -24,6 +33,7 @@ const char *const arm64_triplets[] = {
 
 const char *const powerpc_triplets[] = {
 	"powerpc-unknown-linux-gnu-",
+	"powerpc-linux-gnu-",
 	"powerpc64-unknown-linux-gnu-",
 	"powerpc64-linux-gnu-",
 	"powerpc64le-linux-gnu-",
@@ -116,55 +126,19 @@ static int lookup_triplets(const char *const *triplets, const char *name)
 	return -1;
 }
 
-/*
- * Return architecture name in a normalized form.
- * The conversion logic comes from the Makefile.
- */
-const char *normalize_arch(char *arch)
-{
-	if (!strcmp(arch, "x86_64"))
-		return "x86";
-	if (arch[0] == 'i' && arch[2] == '8' && arch[3] == '6')
-		return "x86";
-	if (!strcmp(arch, "sun4u") || !strncmp(arch, "sparc", 5))
-		return "sparc";
-	if (!strcmp(arch, "aarch64") || !strcmp(arch, "arm64"))
-		return "arm64";
-	if (!strncmp(arch, "arm", 3) || !strcmp(arch, "sa110"))
-		return "arm";
-	if (!strncmp(arch, "s390", 4))
-		return "s390";
-	if (!strncmp(arch, "parisc", 6))
-		return "parisc";
-	if (!strncmp(arch, "powerpc", 7) || !strncmp(arch, "ppc", 3))
-		return "powerpc";
-	if (!strncmp(arch, "mips", 4))
-		return "mips";
-	if (!strncmp(arch, "sh", 2) && isdigit(arch[2]))
-		return "sh";
-
-	return arch;
-}
-
 static int perf_env__lookup_binutils_path(struct perf_env *env,
 					  const char *name, const char **path)
 {
 	int idx;
-	const char *arch, *cross_env;
-	struct utsname uts;
+	const char *arch = perf_env__arch(env), *cross_env;
 	const char *const *path_list;
 	char *buf = NULL;
-
-	arch = normalize_arch(env->arch);
-
-	if (uname(&uts) < 0)
-		goto out;
 
 	/*
 	 * We don't need to try to find objdump path for native system.
 	 * Just use default binutils path (e.g.: "objdump").
 	 */
-	if (!strcmp(normalize_arch(uts.machine), arch))
+	if (!strcmp(perf_env__arch(NULL), arch))
 		goto out;
 
 	cross_env = getenv("CROSS_COMPILE");
@@ -181,7 +155,9 @@ static int perf_env__lookup_binutils_path(struct perf_env *env,
 		zfree(&buf);
 	}
 
-	if (!strcmp(arch, "arm"))
+	if (!strcmp(arch, "arc"))
+		path_list = arc_triplets;
+	else if (!strcmp(arch, "arm"))
 		path_list = arm_triplets;
 	else if (!strcmp(arch, "arm64"))
 		path_list = arm64_triplets;
@@ -223,7 +199,7 @@ out_error:
 	return -1;
 }
 
-int perf_env__lookup_objdump(struct perf_env *env)
+int perf_env__lookup_objdump(struct perf_env *env, const char **path)
 {
 	/*
 	 * For live mode, env->arch will be NULL and we can use
@@ -232,5 +208,15 @@ int perf_env__lookup_objdump(struct perf_env *env)
 	if (env->arch == NULL)
 		return 0;
 
-	return perf_env__lookup_binutils_path(env, "objdump", &objdump_path);
+	return perf_env__lookup_binutils_path(env, "objdump", path);
+}
+
+/*
+ * Some architectures have a single address space for kernel and user addresses,
+ * which makes it possible to determine if an address is in kernel space or user
+ * space.
+ */
+bool perf_env__single_address_space(struct perf_env *env)
+{
+	return strcmp(perf_env__arch(env), "sparc");
 }

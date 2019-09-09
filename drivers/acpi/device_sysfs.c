@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * drivers/acpi/device_sysfs.c - ACPI device sysfs attributes and modalias.
  *
@@ -6,15 +7,6 @@
  * Author: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as published
- *  by the Free Software Foundation.
- *
- *  This program is distributed in the hope that it will be useful, but
- *  WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  General Public License for more details.
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
@@ -52,7 +44,7 @@ struct acpi_data_node_attr {
 
 static ssize_t data_node_show_path(struct acpi_data_node *dn, char *buf)
 {
-	return acpi_object_path(dn->handle, buf);
+	return dn->handle ? acpi_object_path(dn->handle, buf) : 0;
 }
 
 DATA_NODE_ATTR(path);
@@ -105,10 +97,10 @@ static void acpi_expose_nondev_subnodes(struct kobject *kobj,
 		init_completion(&dn->kobj_done);
 		ret = kobject_init_and_add(&dn->kobj, &acpi_data_node_ktype,
 					   kobj, "%s", dn->name);
-		if (ret)
-			acpi_handle_err(dn->handle, "Failed to expose (%d)\n", ret);
-		else
+		if (!ret)
 			acpi_expose_nondev_subnodes(&dn->kobj, &dn->data);
+		else if (dn->handle)
+			acpi_handle_err(dn->handle, "Failed to expose (%d)\n", ret);
 	}
 }
 
@@ -145,6 +137,10 @@ static int create_pnp_modalias(struct acpi_device *acpi_dev, char *modalias,
 	int len;
 	int count;
 	struct acpi_hardware_id *id;
+
+	/* Avoid unnecessarily loading modules for non present devices. */
+	if (!acpi_device_is_present(acpi_dev))
+		return 0;
 
 	/*
 	 * Since we skip ACPI_DT_NAMESPACE_HID from the modalias below, 0 should
@@ -198,11 +194,15 @@ static int create_of_modalias(struct acpi_device *acpi_dev, char *modalias,
 {
 	struct acpi_buffer buf = { ACPI_ALLOCATE_BUFFER };
 	const union acpi_object *of_compatible, *obj;
+	acpi_status status;
 	int len, count;
 	int i, nval;
 	char *c;
 
-	acpi_get_name(acpi_dev->handle, ACPI_SINGLE_NAME, &buf);
+	status = acpi_get_name(acpi_dev->handle, ACPI_SINGLE_NAME, &buf);
+	if (ACPI_FAILURE(status))
+		return -ENODEV;
+
 	/* DT strings are all in lower case */
 	for (c = buf.pointer; *c != '\0'; c++)
 		*c = tolower(*c);
@@ -353,7 +353,7 @@ static ssize_t real_power_state_show(struct device *dev,
 	return sprintf(buf, "%s\n", acpi_power_state_string(state));
 }
 
-static DEVICE_ATTR(real_power_state, 0444, real_power_state_show, NULL);
+static DEVICE_ATTR_RO(real_power_state);
 
 static ssize_t power_state_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
@@ -363,7 +363,7 @@ static ssize_t power_state_show(struct device *dev,
 	return sprintf(buf, "%s\n", acpi_power_state_string(adev->power.state));
 }
 
-static DEVICE_ATTR(power_state, 0444, power_state_show, NULL);
+static DEVICE_ATTR_RO(power_state);
 
 static ssize_t
 acpi_eject_store(struct device *d, struct device_attribute *attr,
@@ -420,8 +420,10 @@ static ssize_t acpi_device_adr_show(struct device *dev,
 {
 	struct acpi_device *acpi_dev = to_acpi_device(dev);
 
-	return sprintf(buf, "0x%08x\n",
-		       (unsigned int)(acpi_dev->pnp.bus_address));
+	if (acpi_dev->pnp.bus_address > U32_MAX)
+		return sprintf(buf, "0x%016llx\n", acpi_dev->pnp.bus_address);
+	else
+		return sprintf(buf, "0x%08llx\n", acpi_dev->pnp.bus_address);
 }
 static DEVICE_ATTR(adr, 0444, acpi_device_adr_show, NULL);
 
@@ -458,7 +460,7 @@ static ssize_t description_show(struct device *dev,
 
 	return result;
 }
-static DEVICE_ATTR(description, 0444, description_show, NULL);
+static DEVICE_ATTR_RO(description);
 
 static ssize_t
 acpi_device_sun_show(struct device *dev, struct device_attribute *attr,

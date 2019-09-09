@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2008-2013 Freescale Semiconductor, Inc. All rights reserved.
  *
@@ -10,10 +11,6 @@
  * Description:
  * This file is based on arch/powerpc/kvm/44x_tlb.c,
  * by Hollis Blanchard <hollisb@us.ibm.com>.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
  */
 
 #include <linux/kernel.h>
@@ -25,11 +22,12 @@
 #include <linux/highmem.h>
 #include <linux/log2.h>
 #include <linux/uaccess.h>
-#include <linux/sched.h>
+#include <linux/sched/mm.h>
 #include <linux/rwsem.h>
 #include <linux/vmalloc.h>
 #include <linux/hugetlb.h>
 #include <asm/kvm_ppc.h>
+#include <asm/pte-walk.h>
 
 #include "e500.h"
 #include "timing.h"
@@ -376,7 +374,7 @@ static inline int kvmppc_e500_shadow_map(struct kvmppc_vcpu_e500 *vcpu_e500,
 
 			start = vma->vm_pgoff;
 			end = start +
-			      ((vma->vm_end - vma->vm_start) >> PAGE_SHIFT);
+			      vma_pages(vma);
 
 			pfn = start + ((hva - vma->vm_start) >> PAGE_SHIFT);
 
@@ -476,7 +474,7 @@ static inline int kvmppc_e500_shadow_map(struct kvmppc_vcpu_e500 *vcpu_e500,
 	 * can't run hence pfn won't change.
 	 */
 	local_irq_save(flags);
-	ptep = find_linux_pte_or_hugepte(pgdir, hva, NULL, NULL);
+	ptep = find_linux_pte(pgdir, hva, NULL, NULL);
 	if (ptep) {
 		pte_t pte = READ_ONCE(*ptep);
 
@@ -624,8 +622,8 @@ void kvmppc_mmu_map(struct kvm_vcpu *vcpu, u64 eaddr, gpa_t gpaddr,
 }
 
 #ifdef CONFIG_KVM_BOOKE_HV
-int kvmppc_load_last_inst(struct kvm_vcpu *vcpu, enum instruction_type type,
-			  u32 *instr)
+int kvmppc_load_last_inst(struct kvm_vcpu *vcpu,
+		enum instruction_fetch_type type, u32 *instr)
 {
 	gva_t geaddr;
 	hpa_t addr;
@@ -714,8 +712,8 @@ int kvmppc_load_last_inst(struct kvm_vcpu *vcpu, enum instruction_type type,
 	return EMULATE_DONE;
 }
 #else
-int kvmppc_load_last_inst(struct kvm_vcpu *vcpu, enum instruction_type type,
-			  u32 *instr)
+int kvmppc_load_last_inst(struct kvm_vcpu *vcpu,
+		enum instruction_fetch_type type, u32 *instr)
 {
 	return EMULATE_AGAIN;
 }
@@ -723,7 +721,7 @@ int kvmppc_load_last_inst(struct kvm_vcpu *vcpu, enum instruction_type type,
 
 /************* MMU Notifiers *************/
 
-int kvm_unmap_hva(struct kvm *kvm, unsigned long hva)
+static int kvm_unmap_hva(struct kvm *kvm, unsigned long hva)
 {
 	trace_kvm_unmap_hva(hva);
 
@@ -756,10 +754,11 @@ int kvm_test_age_hva(struct kvm *kvm, unsigned long hva)
 	return 0;
 }
 
-void kvm_set_spte_hva(struct kvm *kvm, unsigned long hva, pte_t pte)
+int kvm_set_spte_hva(struct kvm *kvm, unsigned long hva, pte_t pte)
 {
 	/* The page will get remapped properly on its next fault */
 	kvm_unmap_hva(kvm, hva);
+	return 0;
 }
 
 /*****************************************/
@@ -797,9 +796,8 @@ int e500_mmu_host_init(struct kvmppc_vcpu_e500 *vcpu_e500)
 	host_tlb_params[0].sets =
 		host_tlb_params[0].entries / host_tlb_params[0].ways;
 	host_tlb_params[1].sets = 1;
-
-	vcpu_e500->h2g_tlb1_rmap = kzalloc(sizeof(unsigned int) *
-					   host_tlb_params[1].entries,
+	vcpu_e500->h2g_tlb1_rmap = kcalloc(host_tlb_params[1].entries,
+					   sizeof(*vcpu_e500->h2g_tlb1_rmap),
 					   GFP_KERNEL);
 	if (!vcpu_e500->h2g_tlb1_rmap)
 		return -EINVAL;

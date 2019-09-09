@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for the s5k4aa sensor
  *
@@ -9,11 +10,6 @@
  * Copyright (c) 2006 Willem Duinker
  * v4l2 interface modeled after the V4L2 driver
  * for SN9C10x PC Camera Controllers
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation, version 2.
- *
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -357,7 +353,7 @@ int s5k4aa_probe(struct sd *sd)
 		return -ENODEV;
 	}
 
-	PDEBUG(D_PROBE, "Probing for a s5k4aa sensor");
+	gspca_dbg(gspca_dev, D_PROBE, "Probing for a s5k4aa sensor\n");
 
 	/* Preinit the sensor */
 	for (i = 0; i < ARRAY_SIZE(preinit_s5k4aa) && !err; i++) {
@@ -419,7 +415,7 @@ int s5k4aa_start(struct sd *sd)
 
 	switch (cam->cam_mode[sd->gspca_dev.curr_mode].width) {
 	case 1280:
-		PDEBUG(D_CONF, "Configuring camera for SXGA mode");
+		gspca_dbg(gspca_dev, D_CONF, "Configuring camera for SXGA mode\n");
 
 		for (i = 0; i < ARRAY_SIZE(SXGA_s5k4aa); i++) {
 			switch (SXGA_s5k4aa[i][0]) {
@@ -452,7 +448,7 @@ int s5k4aa_start(struct sd *sd)
 		break;
 
 	case 640:
-		PDEBUG(D_CONF, "Configuring camera for VGA mode");
+		gspca_dbg(gspca_dev, D_CONF, "Configuring camera for VGA mode\n");
 
 		for (i = 0; i < ARRAY_SIZE(VGA_s5k4aa); i++) {
 			switch (VGA_s5k4aa[i][0]) {
@@ -568,7 +564,7 @@ static int s5k4aa_set_exposure(struct gspca_dev *gspca_dev, __s32 val)
 	u8 data = S5K4AA_PAGE_MAP_2;
 	int err;
 
-	PDEBUG(D_CONF, "Set exposure to %d", val);
+	gspca_dbg(gspca_dev, D_CONF, "Set exposure to %d\n", val);
 	err = m5602_write_sensor(sd, S5K4AA_PAGE_MAP, &data, 1);
 	if (err < 0)
 		return err;
@@ -590,7 +586,7 @@ static int s5k4aa_set_hvflip(struct gspca_dev *gspca_dev)
 	int hflip = sd->hflip->val;
 	int vflip = sd->vflip->val;
 
-	PDEBUG(D_CONF, "Set hvflip %d %d", hflip, vflip);
+	gspca_dbg(gspca_dev, D_CONF, "Set hvflip %d %d\n", hflip, vflip);
 	err = m5602_write_sensor(sd, S5K4AA_PAGE_MAP, &data, 1);
 	if (err < 0)
 		return err;
@@ -640,7 +636,7 @@ static int s5k4aa_set_gain(struct gspca_dev *gspca_dev, __s32 val)
 	u8 data = S5K4AA_PAGE_MAP_2;
 	int err;
 
-	PDEBUG(D_CONF, "Set gain to %d", val);
+	gspca_dbg(gspca_dev, D_CONF, "Set gain to %d\n", val);
 	err = m5602_write_sensor(sd, S5K4AA_PAGE_MAP, &data, 1);
 	if (err < 0)
 		return err;
@@ -657,7 +653,7 @@ static int s5k4aa_set_brightness(struct gspca_dev *gspca_dev, __s32 val)
 	u8 data = S5K4AA_PAGE_MAP_2;
 	int err;
 
-	PDEBUG(D_CONF, "Set brightness to %d", val);
+	gspca_dbg(gspca_dev, D_CONF, "Set brightness to %d\n", val);
 	err = m5602_write_sensor(sd, S5K4AA_PAGE_MAP, &data, 1);
 	if (err < 0)
 		return err;
@@ -672,7 +668,7 @@ static int s5k4aa_set_noise(struct gspca_dev *gspca_dev, __s32 val)
 	u8 data = S5K4AA_PAGE_MAP_2;
 	int err;
 
-	PDEBUG(D_CONF, "Set noise to %d", val);
+	gspca_dbg(gspca_dev, D_CONF, "Set noise to %d\n", val);
 	err = m5602_write_sensor(sd, S5K4AA_PAGE_MAP, &data, 1);
 	if (err < 0)
 		return err;

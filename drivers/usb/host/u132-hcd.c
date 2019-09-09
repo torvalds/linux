@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
 * Host Controller Driver for the Elan Digital Systems U132 adapter
 *
@@ -6,11 +7,6 @@
 *
 * Author and Maintainer - Tony Olech - Elan Digital Systems
 * tony.olech@elandigitalsystems.com
-*
-* This program is free software;you can redistribute it and/or
-* modify it under the terms of the GNU General Public License as
-* published by the Free Software Foundation, version 2.
-*
 *
 * This driver was written by Tony Olech(tony.olech@elandigitalsystems.com)
 * based on various USB host drivers in the 2.6.15 linux kernel
@@ -2481,7 +2477,8 @@ static int u132_endp_urb_dequeue(struct u132 *u132, struct u132_endp *endp,
 				spin_unlock_irqrestore(&endp->queue_lock.slock,
 					irqs);
 				kfree(urbq);
-			} urb->error_count = 0;
+			}
+			urb->error_count = 0;
 			usb_hcd_giveback_urb(hcd, urb, status);
 			return 0;
 		} else if (list_empty(&endp->urb_more)) {
@@ -2557,10 +2554,9 @@ static int u132_get_frame(struct usb_hcd *hcd)
 		dev_err(&u132->platform_dev->dev, "device is being removed\n");
 		return -ESHUTDOWN;
 	} else {
-		int frame = 0;
 		dev_err(&u132->platform_dev->dev, "TODO: u132_get_frame\n");
-		msleep(100);
-		return frame;
+		mdelay(100);
+		return 0;
 	}
 }
 
@@ -2941,7 +2937,7 @@ static int u132_bus_resume(struct usb_hcd *hcd)
 #define u132_bus_suspend NULL
 #define u132_bus_resume NULL
 #endif
-static struct hc_driver u132_hc_driver = {
+static const struct hc_driver u132_hc_driver = {
 	.description = hcd_name,
 	.hcd_priv_size = sizeof(struct u132),
 	.irq = NULL,
@@ -2986,7 +2982,8 @@ static int u132_remove(struct platform_device *pdev)
 			while (rings-- > 0) {
 				struct u132_ring *ring = &u132->ring[rings];
 				u132_ring_cancel_work(u132, ring);
-			} while (endps-- > 0) {
+			}
+			while (endps-- > 0) {
 				struct u132_endp *endp = u132->endp[endps];
 				if (endp)
 					u132_endp_cancel_work(u132, endp);
@@ -3066,7 +3063,6 @@ static int u132_probe(struct platform_device *pdev)
 	int retval;
 	u32 control;
 	u32 rh_a = -1;
-	u32 num_ports;
 
 	msleep(100);
 	if (u132_exiting > 0)
@@ -3081,7 +3077,6 @@ static int u132_probe(struct platform_device *pdev)
 	retval = ftdi_read_pcimem(pdev, roothub.a, &rh_a);
 	if (retval)
 		return retval;
-	num_ports = rh_a & RH_A_NDP;	/* refuse to confuse usbcore */
 	if (pdev->dev.dma_mask)
 		return -EINVAL;
 
@@ -3207,7 +3202,12 @@ static int __init u132_hcd_init(void)
 		return -ENODEV;
 	printk(KERN_INFO "driver %s\n", hcd_name);
 	workqueue = create_singlethread_workqueue("u132");
+	if (!workqueue)
+		return -ENOMEM;
 	retval = platform_driver_register(&u132_platform_driver);
+	if (retval)
+		destroy_workqueue(workqueue);
+
 	return retval;
 }
 

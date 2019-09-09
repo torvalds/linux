@@ -1477,10 +1477,12 @@ static void init_vgachip(struct fb_info *info)
 		mdelay(100);
 		/* mode */
 		vga_wgfx(cinfo->regbase, CL_GR31, 0x00);
-	case BT_GD5480:  /* fall through */
+		/* fall through */
+	case BT_GD5480:
 		/* from Klaus' NetBSD driver: */
 		vga_wgfx(cinfo->regbase, CL_GR2F, 0x00);
-	case BT_ALPINE:  /* fall through */
+		/* fall through */
+	case BT_ALPINE:
 		/* put blitter into 542x compat */
 		vga_wgfx(cinfo->regbase, CL_GR33, 0x00);
 		break;
@@ -2091,7 +2093,6 @@ static int cirrusfb_pci_register(struct pci_dev *pdev,
 
 	info = framebuffer_alloc(sizeof(struct cirrusfb_info), &pdev->dev);
 	if (!info) {
-		printk(KERN_ERR "cirrusfb: could not allocate memory\n");
 		ret = -ENOMEM;
 		goto err_out;
 	}
@@ -2204,10 +2205,8 @@ static int cirrusfb_zorro_register(struct zorro_dev *z,
 	struct cirrusfb_info *cinfo;
 
 	info = framebuffer_alloc(sizeof(struct cirrusfb_info), &z->dev);
-	if (!info) {
-		printk(KERN_ERR "cirrusfb: could not allocate memory\n");
+	if (!info)
 		return -ENOMEM;
-	}
 
 	zcl = (const struct zorrocl *)ent->driver_data;
 	btype = zcl->type;

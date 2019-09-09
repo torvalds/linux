@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /* cassini.c: Sun Microsystems Cassini(+) ethernet driver.
  *
  * Copyright (C) 2004 Sun Microsystems Inc.
  * Copyright (C) 2003 Adrian Sun (asun@darksunrising.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * This driver uses the sungem driver (c) David Miller
  * (davem@redhat.com) as its basis.
@@ -99,7 +87,7 @@
 #include <linux/atomic.h>
 #include <asm/io.h>
 #include <asm/byteorder.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define cas_page_map(x)      kmap_atomic((x))
 #define cas_page_unmap(x)    kunmap_atomic((x))
@@ -691,7 +679,8 @@ static void cas_mif_poll(struct cas *cp, const int enable)
 }
 
 /* Must be invoked under cp->lock */
-static void cas_begin_auto_negotiation(struct cas *cp, struct ethtool_cmd *ep)
+static void cas_begin_auto_negotiation(struct cas *cp,
+				       const struct ethtool_link_ksettings *ep)
 {
 	u16 ctl;
 #if 1
@@ -704,16 +693,16 @@ static void cas_begin_auto_negotiation(struct cas *cp, struct ethtool_cmd *ep)
 	if (!ep)
 		goto start_aneg;
 	lcntl = cp->link_cntl;
-	if (ep->autoneg == AUTONEG_ENABLE)
+	if (ep->base.autoneg == AUTONEG_ENABLE) {
 		cp->link_cntl = BMCR_ANENABLE;
-	else {
-		u32 speed = ethtool_cmd_speed(ep);
+	} else {
+		u32 speed = ep->base.speed;
 		cp->link_cntl = 0;
 		if (speed == SPEED_100)
 			cp->link_cntl |= BMCR_SPEED100;
 		else if (speed == SPEED_1000)
 			cp->link_cntl |= CAS_BMCR_SPEED1000;
-		if (ep->duplex == DUPLEX_FULL)
+		if (ep->base.duplex == DUPLEX_FULL)
 			cp->link_cntl |= BMCR_FULLDPLX;
 	}
 #if 1
@@ -1909,7 +1898,7 @@ static inline void cas_tx_ringN(struct cas *cp, int ring, int limit)
 		cp->net_stats[ring].tx_packets++;
 		cp->net_stats[ring].tx_bytes += skb->len;
 		spin_unlock(&cp->stat_lock[ring]);
-		dev_kfree_skb_irq(skb);
+		dev_consume_skb_irq(skb);
 	}
 	cp->tx_old[ring] = entry;
 
@@ -3863,9 +3852,6 @@ static int cas_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct cas *cp = netdev_priv(dev);
 
-	if (new_mtu < CAS_MIN_MTU || new_mtu > CAS_MAX_MTU)
-		return -EINVAL;
-
 	dev->mtu = new_mtu;
 	if (!netif_running(dev) || !netif_device_present(dev))
 		return 0;
@@ -4081,9 +4067,9 @@ done:
 #endif
 }
 
-static void cas_link_timer(unsigned long data)
+static void cas_link_timer(struct timer_list *t)
 {
-	struct cas *cp = (struct cas *) data;
+	struct cas *cp = from_timer(cp, t, link_timer);
 	int mask, pending = 0, reset = 0;
 	unsigned long flags;
 
@@ -4531,19 +4517,21 @@ static void cas_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info
 	strlcpy(info->bus_info, pci_name(cp->pdev), sizeof(info->bus_info));
 }
 
-static int cas_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int cas_get_link_ksettings(struct net_device *dev,
+				  struct ethtool_link_ksettings *cmd)
 {
 	struct cas *cp = netdev_priv(dev);
 	u16 bmcr;
 	int full_duplex, speed, pause;
 	unsigned long flags;
 	enum link_state linkstate = link_up;
+	u32 supported, advertising;
 
-	cmd->advertising = 0;
-	cmd->supported = SUPPORTED_Autoneg;
+	advertising = 0;
+	supported = SUPPORTED_Autoneg;
 	if (cp->cas_flags & CAS_FLAG_1000MB_CAP) {
-		cmd->supported |= SUPPORTED_1000baseT_Full;
-		cmd->advertising |= ADVERTISED_1000baseT_Full;
+		supported |= SUPPORTED_1000baseT_Full;
+		advertising |= ADVERTISED_1000baseT_Full;
 	}
 
 	/* Record PHY settings if HW is on. */
@@ -4551,17 +4539,15 @@ static int cas_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	bmcr = 0;
 	linkstate = cp->lstate;
 	if (CAS_PHY_MII(cp->phy_type)) {
-		cmd->port = PORT_MII;
-		cmd->transceiver = (cp->cas_flags & CAS_FLAG_SATURN) ?
-			XCVR_INTERNAL : XCVR_EXTERNAL;
-		cmd->phy_address = cp->phy_addr;
-		cmd->advertising |= ADVERTISED_TP | ADVERTISED_MII |
+		cmd->base.port = PORT_MII;
+		cmd->base.phy_address = cp->phy_addr;
+		advertising |= ADVERTISED_TP | ADVERTISED_MII |
 			ADVERTISED_10baseT_Half |
 			ADVERTISED_10baseT_Full |
 			ADVERTISED_100baseT_Half |
 			ADVERTISED_100baseT_Full;
 
-		cmd->supported |=
+		supported |=
 			(SUPPORTED_10baseT_Half |
 			 SUPPORTED_10baseT_Full |
 			 SUPPORTED_100baseT_Half |
@@ -4577,11 +4563,10 @@ static int cas_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		}
 
 	} else {
-		cmd->port = PORT_FIBRE;
-		cmd->transceiver = XCVR_INTERNAL;
-		cmd->phy_address = 0;
-		cmd->supported   |= SUPPORTED_FIBRE;
-		cmd->advertising |= ADVERTISED_FIBRE;
+		cmd->base.port = PORT_FIBRE;
+		cmd->base.phy_address = 0;
+		supported   |= SUPPORTED_FIBRE;
+		advertising |= ADVERTISED_FIBRE;
 
 		if (cp->hw_running) {
 			/* pcs uses the same bits as mii */
@@ -4593,21 +4578,20 @@ static int cas_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	spin_unlock_irqrestore(&cp->lock, flags);
 
 	if (bmcr & BMCR_ANENABLE) {
-		cmd->advertising |= ADVERTISED_Autoneg;
-		cmd->autoneg = AUTONEG_ENABLE;
-		ethtool_cmd_speed_set(cmd, ((speed == 10) ?
+		advertising |= ADVERTISED_Autoneg;
+		cmd->base.autoneg = AUTONEG_ENABLE;
+		cmd->base.speed =  ((speed == 10) ?
 					    SPEED_10 :
 					    ((speed == 1000) ?
-					     SPEED_1000 : SPEED_100)));
-		cmd->duplex = full_duplex ? DUPLEX_FULL : DUPLEX_HALF;
+					     SPEED_1000 : SPEED_100));
+		cmd->base.duplex = full_duplex ? DUPLEX_FULL : DUPLEX_HALF;
 	} else {
-		cmd->autoneg = AUTONEG_DISABLE;
-		ethtool_cmd_speed_set(cmd, ((bmcr & CAS_BMCR_SPEED1000) ?
+		cmd->base.autoneg = AUTONEG_DISABLE;
+		cmd->base.speed = ((bmcr & CAS_BMCR_SPEED1000) ?
 					    SPEED_1000 :
 					    ((bmcr & BMCR_SPEED100) ?
-					     SPEED_100 : SPEED_10)));
-		cmd->duplex =
-			(bmcr & BMCR_FULLDPLX) ?
+					     SPEED_100 : SPEED_10));
+		cmd->base.duplex = (bmcr & BMCR_FULLDPLX) ?
 			DUPLEX_FULL : DUPLEX_HALF;
 	}
 	if (linkstate != link_up) {
@@ -4622,39 +4606,46 @@ static int cas_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		 * settings that we configured.
 		 */
 		if (cp->link_cntl & BMCR_ANENABLE) {
-			ethtool_cmd_speed_set(cmd, 0);
-			cmd->duplex = 0xff;
+			cmd->base.speed = 0;
+			cmd->base.duplex = 0xff;
 		} else {
-			ethtool_cmd_speed_set(cmd, SPEED_10);
+			cmd->base.speed = SPEED_10;
 			if (cp->link_cntl & BMCR_SPEED100) {
-				ethtool_cmd_speed_set(cmd, SPEED_100);
+				cmd->base.speed = SPEED_100;
 			} else if (cp->link_cntl & CAS_BMCR_SPEED1000) {
-				ethtool_cmd_speed_set(cmd, SPEED_1000);
+				cmd->base.speed = SPEED_1000;
 			}
-			cmd->duplex = (cp->link_cntl & BMCR_FULLDPLX)?
+			cmd->base.duplex = (cp->link_cntl & BMCR_FULLDPLX) ?
 				DUPLEX_FULL : DUPLEX_HALF;
 		}
 	}
+
+	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.supported,
+						supported);
+	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.advertising,
+						advertising);
+
 	return 0;
 }
 
-static int cas_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int cas_set_link_ksettings(struct net_device *dev,
+				  const struct ethtool_link_ksettings *cmd)
 {
 	struct cas *cp = netdev_priv(dev);
 	unsigned long flags;
-	u32 speed = ethtool_cmd_speed(cmd);
+	u32 speed = cmd->base.speed;
 
 	/* Verify the settings we care about. */
-	if (cmd->autoneg != AUTONEG_ENABLE &&
-	    cmd->autoneg != AUTONEG_DISABLE)
+	if (cmd->base.autoneg != AUTONEG_ENABLE &&
+	    cmd->base.autoneg != AUTONEG_DISABLE)
 		return -EINVAL;
 
-	if (cmd->autoneg == AUTONEG_DISABLE &&
+	if (cmd->base.autoneg == AUTONEG_DISABLE &&
 	    ((speed != SPEED_1000 &&
 	      speed != SPEED_100 &&
 	      speed != SPEED_10) ||
-	     (cmd->duplex != DUPLEX_HALF &&
-	      cmd->duplex != DUPLEX_FULL)))
+	     (cmd->base.duplex != DUPLEX_HALF &&
+	      cmd->base.duplex != DUPLEX_FULL)))
 		return -EINVAL;
 
 	/* Apply settings and restart link process. */
@@ -4756,8 +4747,6 @@ static void cas_get_ethtool_stats(struct net_device *dev,
 
 static const struct ethtool_ops cas_ethtool_ops = {
 	.get_drvinfo		= cas_get_drvinfo,
-	.get_settings		= cas_get_settings,
-	.set_settings		= cas_set_settings,
 	.nway_reset		= cas_nway_reset,
 	.get_link		= cas_get_link,
 	.get_msglevel		= cas_get_msglevel,
@@ -4767,6 +4756,8 @@ static const struct ethtool_ops cas_ethtool_ops = {
 	.get_sset_count		= cas_get_sset_count,
 	.get_strings		= cas_get_strings,
 	.get_ethtool_stats	= cas_get_ethtool_stats,
+	.get_link_ksettings	= cas_get_link_ksettings,
+	.set_link_ksettings	= cas_set_link_ksettings,
 };
 
 static int cas_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
@@ -5036,9 +5027,7 @@ static int cas_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	spin_lock_init(&cp->stat_lock[N_TX_RINGS]);
 	mutex_init(&cp->pm_mutex);
 
-	init_timer(&cp->link_timer);
-	cp->link_timer.function = cas_link_timer;
-	cp->link_timer.data = (unsigned long) cp;
+	timer_setup(&cp->link_timer, cas_link_timer, 0);
 
 #if 1
 	/* Just in case the implementation of atomic operations
@@ -5114,6 +5103,10 @@ static int cas_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	if (pci_using_dac)
 		dev->features |= NETIF_F_HIGHDMA;
+
+	/* MTU range: 60 - varies or 9000 */
+	dev->min_mtu = CAS_MIN_MTU;
+	dev->max_mtu = CAS_MAX_MTU;
 
 	if (register_netdev(dev)) {
 		dev_err(&pdev->dev, "Cannot register net device, aborting\n");

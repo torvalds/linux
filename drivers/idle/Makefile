@@ -1,3 +1,3 @@
-obj-$(CONFIG_I7300_IDLE)			+= i7300_idle.o
+# SPDX-License-Identifier: GPL-2.0-only
 obj-$(CONFIG_INTEL_IDLE)			+= intel_idle.o
 

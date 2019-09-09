@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 2015, He Kuang <hekuang@huawei.com>
  * Copyright (C) 2015, Huawei Inc.
@@ -18,6 +19,8 @@ int bpf__gen_prologue(struct probe_trace_arg *args, int nargs,
 		      struct bpf_insn *new_prog, size_t *new_cnt,
 		      size_t cnt_space);
 #else
+#include <errno.h>
+
 static inline int
 bpf__gen_prologue(struct probe_trace_arg *args __maybe_unused,
 		  int nargs __maybe_unused,

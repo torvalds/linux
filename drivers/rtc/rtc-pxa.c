@@ -1,22 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Real Time Clock interface for XScale PXA27x and PXA3xx
  *
  * Copyright (C) 2008 Robert Jarzmik
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  */
 
 #include <linux/init.h>
@@ -145,8 +131,7 @@ static void rtsr_set_bits(struct pxa_rtc *pxa_rtc, u32 mask)
 
 static irqreturn_t pxa_rtc_irq(int irq, void *dev_id)
 {
-	struct platform_device *pdev = to_platform_device(dev_id);
-	struct pxa_rtc *pxa_rtc = platform_get_drvdata(pdev);
+	struct pxa_rtc *pxa_rtc = dev_get_drvdata(dev_id);
 	u32 rtsr;
 	unsigned long events = 0;
 
@@ -348,7 +333,7 @@ static int __init pxa_rtc_probe(struct platform_device *pdev)
 		dev_err(dev, "No alarm IRQ resource defined\n");
 		return -ENXIO;
 	}
-	pxa_rtc_open(dev);
+
 	pxa_rtc->base = devm_ioremap(dev, pxa_rtc->ress->start,
 				resource_size(pxa_rtc->ress));
 	if (!pxa_rtc->base) {
@@ -356,12 +341,14 @@ static int __init pxa_rtc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
+	pxa_rtc_open(dev);
+
 	sa1100_rtc->rcnr = pxa_rtc->base + 0x0;
 	sa1100_rtc->rtsr = pxa_rtc->base + 0x8;
 	sa1100_rtc->rtar = pxa_rtc->base + 0x4;
 	sa1100_rtc->rttr = pxa_rtc->base + 0xc;
 	ret = sa1100_rtc_init(pdev, sa1100_rtc);
-	if (!ret) {
+	if (ret) {
 		dev_err(dev, "Unable to init SA1100 RTC sub-device\n");
 		return ret;
 	}

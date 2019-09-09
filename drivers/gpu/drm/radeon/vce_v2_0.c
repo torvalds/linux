@@ -26,7 +26,7 @@
  */
 
 #include <linux/firmware.h>
-#include <drm/drmP.h>
+
 #include "radeon.h"
 #include "radeon_asic.h"
 #include "cikd.h"
@@ -104,6 +104,10 @@ static void vce_v2_0_disable_cg(struct radeon_device *rdev)
 	WREG32(VCE_CGTT_CLK_OVERRIDE, 7);
 }
 
+/*
+ * Local variable sw_cg is used for debugging purposes, in case we
+ * ran into problems with dynamic clock gating. Don't remove it.
+ */
 void vce_v2_0_enable_mgcg(struct radeon_device *rdev, bool enable)
 {
 	bool sw_cg = false;

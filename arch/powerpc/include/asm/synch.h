@@ -1,13 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_POWERPC_SYNCH_H 
 #define _ASM_POWERPC_SYNCH_H 
 #ifdef __KERNEL__
 
-#include <linux/stringify.h>
 #include <asm/feature-fixups.h>
-
-#if defined(__powerpc64__) || defined(CONFIG_PPC_E500MC)
-#define __SUBARCH_HAS_LWSYNC
-#endif
+#include <asm/asm-const.h>
 
 #ifndef __ASSEMBLY__
 extern unsigned int __start___lwsync_fixup, __stop___lwsync_fixup;

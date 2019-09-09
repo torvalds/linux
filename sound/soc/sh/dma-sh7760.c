@@ -1,16 +1,14 @@
-/*
- * SH7760 ("camelot") DMABRG audio DMA unit support
- *
- * Copyright (C) 2007 Manuel Lauss <mano@roarinelk.homelinux.net>
- *  licensed under the terms outlined in the file COPYING at the root
- *  of the linux kernel sources.
- *
- * The SH7760 DMABRG provides 4 dma channels (2x rec, 2x play), which
- * trigger an interrupt when one half of the programmed transfer size
- * has been xmitted.
- *
- * FIXME: little-endian only for now
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// SH7760 ("camelot") DMABRG audio DMA unit support
+//
+// Copyright (C) 2007 Manuel Lauss <mano@roarinelk.homelinux.net>
+//
+// The SH7760 DMABRG provides 4 dma channels (2x rec, 2x play), which
+// trigger an interrupt when one half of the programmed transfer size
+// has been xmitted.
+//
+// FIXME: little-endian only for now
 
 #include <linux/module.h>
 #include <linux/gfp.h>
@@ -89,7 +87,7 @@ struct camelot_pcm {
 #define DMABRG_PREALLOC_BUFFER		32 * 1024
 #define DMABRG_PREALLOC_BUFFER_MAX	32 * 1024
 
-static struct snd_pcm_hardware camelot_pcm_hardware = {
+static const struct snd_pcm_hardware camelot_pcm_hardware = {
 	.info = (SNDRV_PCM_INFO_MMAP |
 		SNDRV_PCM_INFO_INTERLEAVED |
 		SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -204,7 +202,7 @@ static int camelot_prepare(struct snd_pcm_substream *substream)
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct camelot_pcm *cam = &cam_pcm_data[rtd->cpu_dai->id];
 
-	pr_debug("PCM data: addr 0x%08ulx len %d\n",
+	pr_debug("PCM data: addr 0x%08lx len %d\n",
 		 (u32)runtime->dma_addr, runtime->dma_bytes);
  
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
@@ -294,7 +292,7 @@ static snd_pcm_uframes_t camelot_pos(struct snd_pcm_substream *substream)
 	return bytes_to_frames(runtime, pos);
 }
 
-static struct snd_pcm_ops camelot_pcm_ops = {
+static const struct snd_pcm_ops camelot_pcm_ops = {
 	.open		= camelot_pcm_open,
 	.close		= camelot_pcm_close,
 	.ioctl		= snd_pcm_lib_ioctl,
@@ -320,14 +318,15 @@ static int camelot_pcm_new(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
-static struct snd_soc_platform_driver sh7760_soc_platform = {
+static const struct snd_soc_component_driver sh7760_soc_component = {
 	.ops		= &camelot_pcm_ops,
 	.pcm_new	= camelot_pcm_new,
 };
 
 static int sh7760_soc_platform_probe(struct platform_device *pdev)
 {
-	return devm_snd_soc_register_platform(&pdev->dev, &sh7760_soc_platform);
+	return devm_snd_soc_register_component(&pdev->dev, &sh7760_soc_component,
+					       NULL, 0);
 }
 
 static struct platform_driver sh7760_pcm_driver = {
@@ -340,6 +339,6 @@ static struct platform_driver sh7760_pcm_driver = {
 
 module_platform_driver(sh7760_pcm_driver);
 
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("SH7760 Audio DMA (DMABRG) driver");
 MODULE_AUTHOR("Manuel Lauss <mano@roarinelk.homelinux.net>");

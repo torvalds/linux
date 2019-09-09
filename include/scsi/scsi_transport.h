@@ -1,21 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* 
  *  Transport specific attributes.
  *
  *  Copyright (c) 2003 Silicon Graphics, Inc.  All rights reserved.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 #ifndef SCSI_TRANSPORT_H
 #define SCSI_TRANSPORT_H
@@ -56,29 +43,6 @@ struct scsi_transport_template {
 	 * Allows a transport to override the default error handler.
 	 */
 	void (* eh_strategy_handler)(struct Scsi_Host *);
-
-	/*
-	 * This is an optional routine that allows the transport to become
-	 * involved when a scsi io timer fires. The return value tells the
-	 * timer routine how to finish the io timeout handling:
-	 * EH_HANDLED:		I fixed the error, please complete the command
-	 * EH_RESET_TIMER:	I need more time, reset the timer and
-	 *			begin counting again
-	 * EH_NOT_HANDLED	Begin normal error recovery
-	 */
-	enum blk_eh_timer_return (*eh_timed_out)(struct scsi_cmnd *);
-
-	/*
-	 * Used as callback for the completion of i_t_nexus request
-	 * for target drivers.
-	 */
-	int (* it_nexus_response)(struct Scsi_Host *, u64, int);
-
-	/*
-	 * Used as callback for the completion of task management
-	 * request for target drivers.
-	 */
-	int (* tsk_mgmt_response)(struct Scsi_Host *, u64, u64, int);
 };
 
 #define transport_class_to_shost(tc) \
@@ -118,5 +82,7 @@ scsi_transport_device_data(struct scsi_device *sdev)
 	return (u8 *)sdev->sdev_data
 		+ shost->transportt->device_private_offset;
 }
+
+void __scsi_init_queue(struct Scsi_Host *shost, struct request_queue *q);
 
 #endif /* SCSI_TRANSPORT_H */

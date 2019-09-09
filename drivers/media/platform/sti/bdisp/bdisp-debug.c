@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) STMicroelectronics SA 2014
  * Authors: Fabien Dessenne <fabien.dessenne@st.com> for STMicroelectronics.
- * License terms:  GNU General Public License (GPL), version 2
  */
 
 #include <linux/debugfs.h>
@@ -104,7 +104,7 @@ static void bdisp_dbg_dump_ins(struct seq_file *s, u32 val)
 	if (val & BLT_INS_IRQ)
 		seq_puts(s, "IRQ - ");
 
-	seq_puts(s, "\n");
+	seq_putc(s, '\n');
 }
 
 static void bdisp_dbg_dump_tty(struct seq_file *s, u32 val)
@@ -153,7 +153,7 @@ static void bdisp_dbg_dump_tty(struct seq_file *s, u32 val)
 	if (val & BLT_TTY_BIG_END)
 		seq_puts(s, "BigEndian - ");
 
-	seq_puts(s, "\n");
+	seq_putc(s, '\n');
 }
 
 static void bdisp_dbg_dump_xy(struct seq_file *s, u32 val, char *name)
@@ -230,7 +230,7 @@ static void bdisp_dbg_dump_sty(struct seq_file *s,
 		seq_puts(s, "BigEndian - ");
 
 done:
-	seq_puts(s, "\n");
+	seq_putc(s, '\n');
 }
 
 static void bdisp_dbg_dump_fctl(struct seq_file *s, u32 val)
@@ -247,7 +247,7 @@ static void bdisp_dbg_dump_fctl(struct seq_file *s, u32 val)
 	else if ((val & BLT_FCTL_HV_SCALE) == BLT_FCTL_HV_SAMPLE)
 		seq_puts(s, "Sample Chroma");
 
-	seq_puts(s, "\n");
+	seq_putc(s, '\n');
 }
 
 static void bdisp_dbg_dump_rsf(struct seq_file *s, u32 val, char *name)
@@ -266,7 +266,7 @@ static void bdisp_dbg_dump_rsf(struct seq_file *s, u32 val, char *name)
 	seq_printf(s, "V: %d(6.10) / scale~%dx0.1", inc, 1024 * 10 / inc);
 
 done:
-	seq_puts(s, "\n");
+	seq_putc(s, '\n');
 }
 
 static void bdisp_dbg_dump_rzi(struct seq_file *s, u32 val, char *name)
@@ -281,7 +281,7 @@ static void bdisp_dbg_dump_rzi(struct seq_file *s, u32 val, char *name)
 	seq_printf(s, "V: init=%d repeat=%d", val & 0x3FF, (val >> 12) & 7);
 
 done:
-	seq_puts(s, "\n");
+	seq_putc(s, '\n');
 }
 
 static void bdisp_dbg_dump_ivmx(struct seq_file *s,
@@ -293,7 +293,7 @@ static void bdisp_dbg_dump_ivmx(struct seq_file *s,
 	seq_printf(s, "IVMX3\t0x%08X\t", c3);
 
 	if (!c0 && !c1 && !c2 && !c3) {
-		seq_puts(s, "\n");
+		seq_putc(s, '\n');
 		return;
 	}
 
@@ -315,7 +315,7 @@ static void bdisp_dbg_dump_ivmx(struct seq_file *s,
 	seq_puts(s, "Unknown conversion\n");
 }
 
-static int bdisp_dbg_last_nodes(struct seq_file *s, void *data)
+static int last_nodes_show(struct seq_file *s, void *data)
 {
 	/* Not dumping all fields, focusing on significant ones */
 	struct bdisp_dev *bdisp = s->private;
@@ -388,7 +388,7 @@ static int bdisp_dbg_last_nodes(struct seq_file *s, void *data)
 	return 0;
 }
 
-static int bdisp_dbg_last_nodes_raw(struct seq_file *s, void *data)
+static int last_nodes_raw_show(struct seq_file *s, void *data)
 {
 	struct bdisp_dev *bdisp = s->private;
 	struct bdisp_node *node;
@@ -437,7 +437,7 @@ static const char *bdisp_fmt_to_str(struct bdisp_frame frame)
 	}
 }
 
-static int bdisp_dbg_last_request(struct seq_file *s, void *data)
+static int last_request_show(struct seq_file *s, void *data)
 {
 	struct bdisp_dev *bdisp = s->private;
 	struct bdisp_request *request = &bdisp->dbg.copy_request;
@@ -474,7 +474,7 @@ static int bdisp_dbg_last_request(struct seq_file *s, void *data)
 
 #define DUMP(reg) seq_printf(s, #reg " \t0x%08X\n", readl(bdisp->regs + reg))
 
-static int bdisp_dbg_regs(struct seq_file *s, void *data)
+static int regs_show(struct seq_file *s, void *data)
 {
 	struct bdisp_dev *bdisp = s->private;
 	int ret;
@@ -582,7 +582,7 @@ static int bdisp_dbg_regs(struct seq_file *s, void *data)
 
 #define SECOND 1000000
 
-static int bdisp_dbg_perf(struct seq_file *s, void *data)
+static int perf_show(struct seq_file *s, void *data)
 {
 	struct bdisp_dev *bdisp = s->private;
 	struct bdisp_request *request = &bdisp->dbg.copy_request;
@@ -627,27 +627,15 @@ static int bdisp_dbg_perf(struct seq_file *s, void *data)
 	return 0;
 }
 
-#define bdisp_dbg_declare(name) \
-	static int bdisp_dbg_##name##_open(struct inode *i, struct file *f) \
-	{ \
-		return single_open(f, bdisp_dbg_##name, i->i_private); \
-	} \
-	static const struct file_operations bdisp_dbg_##name##_fops = { \
-		.open           = bdisp_dbg_##name##_open, \
-		.read           = seq_read, \
-		.llseek         = seq_lseek, \
-		.release        = single_release, \
-	}
-
 #define bdisp_dbg_create_entry(name) \
 	debugfs_create_file(#name, S_IRUGO, bdisp->dbg.debugfs_entry, bdisp, \
-			    &bdisp_dbg_##name##_fops)
+			    &name##_fops)
 
-bdisp_dbg_declare(regs);
-bdisp_dbg_declare(last_nodes);
-bdisp_dbg_declare(last_nodes_raw);
-bdisp_dbg_declare(last_request);
-bdisp_dbg_declare(perf);
+DEFINE_SHOW_ATTRIBUTE(regs);
+DEFINE_SHOW_ATTRIBUTE(last_nodes);
+DEFINE_SHOW_ATTRIBUTE(last_nodes_raw);
+DEFINE_SHOW_ATTRIBUTE(last_request);
+DEFINE_SHOW_ATTRIBUTE(perf);
 
 int bdisp_debugfs_create(struct bdisp_dev *bdisp)
 {
@@ -677,7 +665,7 @@ int bdisp_debugfs_create(struct bdisp_dev *bdisp)
 
 err:
 	bdisp_debugfs_remove(bdisp);
-	return 0;
+	return -ENOMEM;
 }
 
 void bdisp_debugfs_remove(struct bdisp_dev *bdisp)

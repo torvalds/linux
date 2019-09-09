@@ -49,17 +49,21 @@ sb=n				Use alternate superblock at this location.
 
 user_xattr			Enable "user." POSIX Extended Attributes
 				(requires CONFIG_EXT2_FS_XATTR).
-				See also http://acl.bestbits.at
 nouser_xattr			Don't support "user." extended attributes.
 
 acl				Enable POSIX Access Control Lists support
 				(requires CONFIG_EXT2_FS_POSIX_ACL).
-				See also http://acl.bestbits.at
 noacl				Don't support POSIX ACLs.
 
 nobh				Do not attach buffer_heads to file pagecache.
 
-grpquota,noquota,quota,usrquota	Quota options are silently ignored by ext2.
+quota, usrquota			Enable user disk quota support
+				(requires CONFIG_QUOTA).
+
+grpquota			Enable group disk quota support
+				(requires CONFIG_QUOTA).
+
+noquota option ls silently ignored by ext2.
 
 
 Specification
@@ -360,7 +364,7 @@ and are copied into the filesystem.  If a transaction is incomplete at
 the time of the crash, then there is no guarantee of consistency for
 the blocks in that transaction so they are discarded (which means any
 filesystem changes they represent are also lost).
-Check Documentation/filesystems/ext4.txt if you want to read more about
+Check Documentation/filesystems/ext4/ if you want to read more about
 ext4 and journaling.
 
 References

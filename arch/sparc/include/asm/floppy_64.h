@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* floppy.h: Sparc specific parts of the Floppy driver.
  *
  * Copyright (C) 1996, 2007, 2008 David S. Miller (davem@davemloft.net)
@@ -72,7 +73,6 @@ static struct sun_floppy_ops sun_fdops;
 #define fd_set_dma_addr(addr)     sun_fdops.fd_set_dma_addr(addr)
 #define fd_set_dma_count(count)   sun_fdops.fd_set_dma_count(count)
 #define get_dma_residue(x)        sun_fdops.get_dma_residue()
-#define fd_cacheflush(addr, size) /* nothing... */
 #define fd_request_irq()          sun_fdops.fd_request_irq()
 #define fd_free_irq()             sun_fdops.fd_free_irq()
 #define fd_eject(drive)           sun_fdops.fd_eject(drive)
@@ -528,9 +528,9 @@ static int sun_pci_fd_test_drive(unsigned long port, int drive)
 
 static int __init ebus_fdthree_p(struct device_node *dp)
 {
-	if (!strcmp(dp->name, "fdthree"))
+	if (of_node_name_eq(dp, "fdthree"))
 		return 1;
-	if (!strcmp(dp->name, "floppy")) {
+	if (of_node_name_eq(dp, "floppy")) {
 		const char *compat;
 
 		compat = of_get_property(dp, "compatible", NULL);
@@ -555,7 +555,7 @@ static unsigned long __init sun_floppy_init(void)
 	op = NULL;
 
 	for_each_node_by_name(dp, "SUNW,fdtwo") {
-		if (strcmp(dp->parent->name, "sbus"))
+		if (!of_node_name_eq(dp->parent, "sbus"))
 			continue;
 		op = of_find_device_by_node(dp);
 		if (op)
@@ -656,7 +656,7 @@ static unsigned long __init sun_floppy_init(void)
 		 */
 		config = 0;
 		for (dp = ebus_dp->child; dp; dp = dp->sibling) {
-			if (!strcmp(dp->name, "ecpp")) {
+			if (of_node_name_eq(dp, "ecpp")) {
 				struct platform_device *ecpp_op;
 
 				ecpp_op = of_find_device_by_node(dp);

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Hisilicon Ltd. HiP01 SoC
  *
@@ -5,13 +6,7 @@
  * Copyright (c) 2014 Huawei Ltd.
  *
  * Author: Wang Long <long.wanglong@huawei.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
-
-#include "skeleton.dtsi"
 
 / {
 	interrupt-parent = <&gic>;
@@ -93,14 +88,14 @@
 			reboot-offset = <0x4>;
 		};
 
-		global_timer@0a000200 {
+		global_timer@a000200 {
 			compatible = "arm,cortex-a9-global-timer";
 			reg = <0x0a000200 0x100>;
 			interrupts = <1 11 0xf04>;
 			clocks = <&hisi_refclk144mhz>;
 		};
 
-		local_timer@0a000600 {
+		local_timer@a000600 {
 			compatible = "arm,cortex-a9-twd-timer";
 			reg = <0x0a000600 0x100>;
 			interrupts = <1 13 0xf04>;

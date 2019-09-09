@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * NetLabel Kernel API
  *
@@ -6,25 +7,10 @@
  * as CIPSO and RIPSO.
  *
  * Author: Paul Moore <paul@paul-moore.com>
- *
  */
 
 /*
  * (c) Copyright Hewlett-Packard Development Company, L.P., 2006, 2008
- *
- * This program is free software;  you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY;  without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
- * the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program;  if not, see <http://www.gnu.org/licenses/>.
- *
  */
 
 #include <linux/init.h>
@@ -903,7 +889,8 @@ int netlbl_bitmap_walk(const unsigned char *bitmap, u32 bitmap_len,
 		    (state == 0 && (byte & bitmask) == 0))
 			return bit_spot;
 
-		bit_spot++;
+		if (++bit_spot >= bitmap_len)
+			return -1;
 		bitmask >>= 1;
 		if (bitmask == 0) {
 			byte = bitmap[++byte_offset];
@@ -1502,10 +1489,7 @@ static int __init netlbl_init(void)
 	printk(KERN_INFO "NetLabel: Initializing\n");
 	printk(KERN_INFO "NetLabel:  domain hash size = %u\n",
 	       (1 << NETLBL_DOMHSH_BITSIZE));
-	printk(KERN_INFO "NetLabel:  protocols ="
-	       " UNLABELED"
-	       " CIPSOv4"
-	       "\n");
+	printk(KERN_INFO "NetLabel:  protocols = UNLABELED CIPSOv4 CALIPSO\n");
 
 	ret_val = netlbl_domhsh_init(NETLBL_DOMHSH_BITSIZE);
 	if (ret_val != 0)

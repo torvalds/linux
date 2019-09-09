@@ -1,21 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * User memory copying routines for the Hexagon Kernel
  *
  * Copyright (c) 2010-2011, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
  */
 
 /* The right way to do this involves valignb
@@ -43,7 +30,7 @@
 #define bytes r2
 #define loopcount r5
 
-#define FUNCNAME __copy_to_user_hexagon
+#define FUNCNAME raw_copy_to_user
 #include "copy_user_template.S"
 
 	/* STORE FAULTS from COPY_TO_USER */

@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Backlight Driver for the KB3886 Backlight
  *
  *  Copyright (c) 2007-2008 Claudio Nieder
  *
  *  Based on corgi_bl.c by Richard Purdie and kb3886 driver by Robert Woerle
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
- *
  */
 
 #include <linux/module.h>
@@ -78,7 +74,7 @@ static struct kb3886bl_machinfo *bl_machinfo;
 static unsigned long kb3886bl_flags;
 #define KB3886BL_SUSPENDED     0x01
 
-static struct dmi_system_id kb3886bl_device_table[] __initdata = {
+static const struct dmi_system_id kb3886bl_device_table[] __initconst = {
 	{
 		.ident = "Sahara Touch-iT",
 		.matches = {

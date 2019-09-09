@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * memory.c: PROM library functions for acquiring/using memory descriptors
  *	     given to us from the ARCS firmware.
@@ -16,7 +17,7 @@
 #include <linux/types.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/swap.h>
 
 #include <asm/sgialib.h>

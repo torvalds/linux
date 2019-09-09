@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * digi00x-hwdep.c - a part of driver for Digidesign Digi 002/003 family
  *
  * Copyright (c) 2014-2015 Takashi Sakamoto
- *
- * Licensed under the terms of the GNU General Public License, version 2.
  */
 
 /*
@@ -60,17 +59,17 @@ static long hwdep_read(struct snd_hwdep *hwdep, char __user *buf,  long count,
 	return count;
 }
 
-static unsigned int hwdep_poll(struct snd_hwdep *hwdep, struct file *file,
+static __poll_t hwdep_poll(struct snd_hwdep *hwdep, struct file *file,
 			       poll_table *wait)
 {
 	struct snd_dg00x *dg00x = hwdep->private_data;
-	unsigned int events;
+	__poll_t events;
 
 	poll_wait(file, &dg00x->hwdep_wait, wait);
 
 	spin_lock_irq(&dg00x->lock);
 	if (dg00x->dev_lock_changed || dg00x->msg)
-		events = POLLIN | POLLRDNORM;
+		events = EPOLLIN | EPOLLRDNORM;
 	else
 		events = 0;
 	spin_unlock_irq(&dg00x->lock);
@@ -173,16 +172,15 @@ static int hwdep_compat_ioctl(struct snd_hwdep *hwdep, struct file *file,
 #define hwdep_compat_ioctl NULL
 #endif
 
-static const struct snd_hwdep_ops hwdep_ops = {
-	.read		= hwdep_read,
-	.release	= hwdep_release,
-	.poll		= hwdep_poll,
-	.ioctl		= hwdep_ioctl,
-	.ioctl_compat	= hwdep_compat_ioctl,
-};
-
 int snd_dg00x_create_hwdep_device(struct snd_dg00x *dg00x)
 {
+	static const struct snd_hwdep_ops ops = {
+		.read		= hwdep_read,
+		.release	= hwdep_release,
+		.poll		= hwdep_poll,
+		.ioctl		= hwdep_ioctl,
+		.ioctl_compat	= hwdep_compat_ioctl,
+	};
 	struct snd_hwdep *hwdep;
 	int err;
 
@@ -192,7 +190,7 @@ int snd_dg00x_create_hwdep_device(struct snd_dg00x *dg00x)
 
 	strcpy(hwdep->name, "Digi00x");
 	hwdep->iface = SNDRV_HWDEP_IFACE_FW_DIGI00X;
-	hwdep->ops = hwdep_ops;
+	hwdep->ops = ops;
 	hwdep->private_data = dg00x;
 	hwdep->exclusive = true;
 

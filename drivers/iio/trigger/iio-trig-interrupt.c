@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Industrial I/O - generic interrupt based trigger support
  *
  * Copyright (c) 2008-2013 Jonathan Cameron
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 
 #include <linux/kernel.h>
@@ -29,7 +26,6 @@ static irqreturn_t iio_interrupt_trigger_poll(int irq, void *private)
 }
 
 static const struct iio_trigger_ops iio_interrupt_trigger_ops = {
-	.owner = THIS_MODULE,
 };
 
 static int iio_interrupt_trigger_probe(struct platform_device *pdev)
@@ -58,7 +54,7 @@ static int iio_interrupt_trigger_probe(struct platform_device *pdev)
 	trig_info = kzalloc(sizeof(*trig_info), GFP_KERNEL);
 	if (!trig_info) {
 		ret = -ENOMEM;
-		goto error_put_trigger;
+		goto error_free_trigger;
 	}
 	iio_trigger_set_drvdata(trig, trig_info);
 	trig_info->irq = irq;
@@ -83,8 +79,8 @@ error_release_irq:
 	free_irq(irq, trig);
 error_free_trig_info:
 	kfree(trig_info);
-error_put_trigger:
-	iio_trigger_put(trig);
+error_free_trigger:
+	iio_trigger_free(trig);
 error_ret:
 	return ret;
 }
@@ -99,7 +95,7 @@ static int iio_interrupt_trigger_remove(struct platform_device *pdev)
 	iio_trigger_unregister(trig);
 	free_irq(trig_info->irq, trig);
 	kfree(trig_info);
-	iio_trigger_put(trig);
+	iio_trigger_free(trig);
 
 	return 0;
 }

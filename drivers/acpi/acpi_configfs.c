@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ACPI configfs support
  *
  * Copyright (c) 2016 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 
 #define pr_fmt(fmt) "ACPI configfs: " fmt
@@ -15,11 +12,15 @@
 #include <linux/configfs.h>
 #include <linux/acpi.h>
 
+#include "acpica/accommon.h"
+#include "acpica/actables.h"
+
 static struct config_group *acpi_table_group;
 
 struct acpi_table {
 	struct config_item cfg;
 	struct acpi_table_header *header;
+	u32 index;
 };
 
 static ssize_t acpi_table_aml_write(struct config_item *cfg,
@@ -89,22 +90,22 @@ static ssize_t acpi_table_aml_read(struct config_item *cfg,
 
 CONFIGFS_BIN_ATTR(acpi_table_, aml, NULL, MAX_ACPI_TABLE_SIZE);
 
-struct configfs_bin_attribute *acpi_table_bin_attrs[] = {
+static struct configfs_bin_attribute *acpi_table_bin_attrs[] = {
 	&acpi_table_attr_aml,
 	NULL,
 };
 
-ssize_t acpi_table_signature_show(struct config_item *cfg, char *str)
+static ssize_t acpi_table_signature_show(struct config_item *cfg, char *str)
 {
 	struct acpi_table_header *h = get_header(cfg);
 
 	if (!h)
 		return -EINVAL;
 
-	return sprintf(str, "%.*s\n", ACPI_NAME_SIZE, h->signature);
+	return sprintf(str, "%.*s\n", ACPI_NAMESEG_SIZE, h->signature);
 }
 
-ssize_t acpi_table_length_show(struct config_item *cfg, char *str)
+static ssize_t acpi_table_length_show(struct config_item *cfg, char *str)
 {
 	struct acpi_table_header *h = get_header(cfg);
 
@@ -114,7 +115,7 @@ ssize_t acpi_table_length_show(struct config_item *cfg, char *str)
 	return sprintf(str, "%d\n", h->length);
 }
 
-ssize_t acpi_table_revision_show(struct config_item *cfg, char *str)
+static ssize_t acpi_table_revision_show(struct config_item *cfg, char *str)
 {
 	struct acpi_table_header *h = get_header(cfg);
 
@@ -124,7 +125,7 @@ ssize_t acpi_table_revision_show(struct config_item *cfg, char *str)
 	return sprintf(str, "%d\n", h->revision);
 }
 
-ssize_t acpi_table_oem_id_show(struct config_item *cfg, char *str)
+static ssize_t acpi_table_oem_id_show(struct config_item *cfg, char *str)
 {
 	struct acpi_table_header *h = get_header(cfg);
 
@@ -134,7 +135,7 @@ ssize_t acpi_table_oem_id_show(struct config_item *cfg, char *str)
 	return sprintf(str, "%.*s\n", ACPI_OEM_ID_SIZE, h->oem_id);
 }
 
-ssize_t acpi_table_oem_table_id_show(struct config_item *cfg, char *str)
+static ssize_t acpi_table_oem_table_id_show(struct config_item *cfg, char *str)
 {
 	struct acpi_table_header *h = get_header(cfg);
 
@@ -144,7 +145,7 @@ ssize_t acpi_table_oem_table_id_show(struct config_item *cfg, char *str)
 	return sprintf(str, "%.*s\n", ACPI_OEM_TABLE_ID_SIZE, h->oem_table_id);
 }
 
-ssize_t acpi_table_oem_revision_show(struct config_item *cfg, char *str)
+static ssize_t acpi_table_oem_revision_show(struct config_item *cfg, char *str)
 {
 	struct acpi_table_header *h = get_header(cfg);
 
@@ -154,18 +155,19 @@ ssize_t acpi_table_oem_revision_show(struct config_item *cfg, char *str)
 	return sprintf(str, "%d\n", h->oem_revision);
 }
 
-ssize_t acpi_table_asl_compiler_id_show(struct config_item *cfg, char *str)
+static ssize_t acpi_table_asl_compiler_id_show(struct config_item *cfg,
+					       char *str)
 {
 	struct acpi_table_header *h = get_header(cfg);
 
 	if (!h)
 		return -EINVAL;
 
-	return sprintf(str, "%.*s\n", ACPI_NAME_SIZE, h->asl_compiler_id);
+	return sprintf(str, "%.*s\n", ACPI_NAMESEG_SIZE, h->asl_compiler_id);
 }
 
-ssize_t acpi_table_asl_compiler_revision_show(struct config_item *cfg,
-					      char *str)
+static ssize_t acpi_table_asl_compiler_revision_show(struct config_item *cfg,
+						     char *str)
 {
 	struct acpi_table_header *h = get_header(cfg);
 
@@ -184,7 +186,7 @@ CONFIGFS_ATTR_RO(acpi_table_, oem_revision);
 CONFIGFS_ATTR_RO(acpi_table_, asl_compiler_id);
 CONFIGFS_ATTR_RO(acpi_table_, asl_compiler_revision);
 
-struct configfs_attribute *acpi_table_attrs[] = {
+static struct configfs_attribute *acpi_table_attrs[] = {
 	&acpi_table_attr_signature,
 	&acpi_table_attr_length,
 	&acpi_table_attr_revision,
@@ -196,7 +198,7 @@ struct configfs_attribute *acpi_table_attrs[] = {
 	NULL,
 };
 
-static struct config_item_type acpi_table_type = {
+static const struct config_item_type acpi_table_type = {
 	.ct_owner = THIS_MODULE,
 	.ct_bin_attrs = acpi_table_bin_attrs,
 	.ct_attrs = acpi_table_attrs,
@@ -215,16 +217,26 @@ static struct config_item *acpi_table_make_item(struct config_group *group,
 	return &table->cfg;
 }
 
-struct configfs_group_operations acpi_table_group_ops = {
+static void acpi_table_drop_item(struct config_group *group,
+				 struct config_item *cfg)
+{
+	struct acpi_table *table = container_of(cfg, struct acpi_table, cfg);
+
+	ACPI_INFO(("Host-directed Dynamic ACPI Table Unload"));
+	acpi_tb_unload_table(table->index);
+}
+
+static struct configfs_group_operations acpi_table_group_ops = {
 	.make_item = acpi_table_make_item,
+	.drop_item = acpi_table_drop_item,
 };
 
-static struct config_item_type acpi_tables_type = {
+static const struct config_item_type acpi_tables_type = {
 	.ct_owner = THIS_MODULE,
 	.ct_group_ops = &acpi_table_group_ops,
 };
 
-static struct config_item_type acpi_root_group_type = {
+static const struct config_item_type acpi_root_group_type = {
 	.ct_owner = THIS_MODULE,
 };
 

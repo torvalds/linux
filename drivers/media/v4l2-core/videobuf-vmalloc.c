@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * helper functions for vmalloc video4linux capture buffers
  *
@@ -6,11 +7,7 @@
  * into PAGE_SIZE chunks).  They also assume the driver does not need
  * to touch the video data.
  *
- * (c) 2007 Mauro Carvalho Chehab, <mchehab@infradead.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2
+ * (c) 2007 Mauro Carvalho Chehab <mchehab@kernel.org>
  */
 
 #include <linux/init.h>
@@ -41,7 +38,7 @@ static int debug;
 module_param(debug, int, 0644);
 
 MODULE_DESCRIPTION("helper module to manage video4linux vmalloc buffers");
-MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@infradead.org>");
+MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@kernel.org>");
 MODULE_LICENSE("GPL");
 
 #define dprintk(level, fmt, arg...)					\
@@ -171,7 +168,7 @@ static int __videobuf_iolock(struct videobuf_queue *q,
 
 		/* All handling should be done by __videobuf_mmap_mapper() */
 		if (!mem->vaddr) {
-			printk(KERN_ERR "memory is not alloced/mmapped.\n");
+			printk(KERN_ERR "memory is not allocated/mmapped.\n");
 			return -EINVAL;
 		}
 		break;
@@ -196,26 +193,6 @@ static int __videobuf_iolock(struct videobuf_queue *q,
 		}
 		dprintk(1, "vmalloc is at addr %p (%d pages)\n",
 			mem->vaddr, pages);
-
-#if 0
-		int rc;
-		/* Kernel userptr is used also by read() method. In this case,
-		   there's no need to remap, since data will be copied to user
-		 */
-		if (!vb->baddr)
-			return 0;
-
-		/* FIXME: to properly support USERPTR, remap should occur.
-		   The code below won't work, since mem->vma = NULL
-		 */
-		/* Try to remap memory */
-		rc = remap_vmalloc_range(mem->vma, (void *)vb->baddr, 0);
-		if (rc < 0) {
-			printk(KERN_ERR "mmap: remap failed with error %d", rc);
-			return -ENOMEM;
-		}
-#endif
-
 		break;
 	case V4L2_MEMORY_OVERLAY:
 	default:

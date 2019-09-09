@@ -1,24 +1,15 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Abilis Systems Single DVB-T Receiver
  * Copyright (C) 2008 Pierrick Hascoet <pierrick.hascoet@abilis.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef _AS102_DRV_H
 #define _AS102_DRV_H
 #include <linux/usb.h>
-#include <dvb_demux.h>
-#include <dvb_frontend.h>
-#include <dmxdev.h>
+#include <media/dvb_demux.h>
+#include <media/dvb_frontend.h>
+#include <media/dmxdev.h>
 #include "as10x_handle.h"
 #include "as10x_cmd.h"
 #include "as102_usb_drv.h"

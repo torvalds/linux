@@ -1,9 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2012 Samsung Electronics Co., Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef FIMC_LITE_H_
@@ -56,9 +53,9 @@ enum {
  * @max_height: maximum camera interface input height in pixels
  * @out_width_align: minimum output width alignment in pixels
  * @win_hor_offs_align: minimum camera interface crop window horizontal
- * 			offset alignment in pixels
+ *			offset alignment in pixels
  * @out_hor_offs_align: minimum output DMA compose rectangle horizontal
- * 			offset alignment in pixels
+ *			offset alignment in pixels
  * @max_dma_bufs: number of output DMA buffer start address registers
  * @num_instances: total number of FIMC-LITE IP instances available
  */

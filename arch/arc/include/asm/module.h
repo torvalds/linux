@@ -1,9 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Amit Bhor, Sameer Dhavale: Codito Technologies 2004
 
@@ -14,13 +11,13 @@
 
 #include <asm-generic/module.h>
 
-#ifdef CONFIG_ARC_DW2_UNWIND
 struct mod_arch_specific {
+#ifdef CONFIG_ARC_DW2_UNWIND
 	void *unw_info;
 	int unw_sec_idx;
+#endif
 	const char *secstr;
 };
-#endif
 
 #define MODULE_PROC_FAMILY "ARC700"
 

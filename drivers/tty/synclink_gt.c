@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-1.0+
 /*
  * Device driver for Microgate SyncLink GT serial adapters.
  *
@@ -5,8 +6,6 @@
  * paulkf@microgate.com
  *
  * Microgate and SyncLink are trademarks of Microgate Corporation
- *
- * This code is released under the GNU General Public License (GPL)
  *
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -77,7 +76,7 @@
 #include <asm/irq.h>
 #include <asm/dma.h>
 #include <asm/types.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #if defined(CONFIG_HDLC) || (defined(CONFIG_HDLC_MODULE) && defined(CONFIG_SYNCLINK_GT_MODULE))
 #define SYNCLINK_GENERIC_HDLC 1
@@ -95,7 +94,7 @@ MODULE_LICENSE("GPL");
 #define MGSL_MAGIC 0x5401
 #define MAX_DEVICES 32
 
-static struct pci_device_id pci_table[] = {
+static const struct pci_device_id pci_table[] = {
 	{PCI_VENDOR_ID_MICROGATE, SYNCLINK_GT_DEVICE_ID, PCI_ANY_ID, PCI_ANY_ID,},
 	{PCI_VENDOR_ID_MICROGATE, SYNCLINK_GT2_DEVICE_ID, PCI_ANY_ID, PCI_ANY_ID,},
 	{PCI_VENDOR_ID_MICROGATE, SYNCLINK_GT4_DEVICE_ID, PCI_ANY_ID, PCI_ANY_ID,},
@@ -184,7 +183,7 @@ static void hdlcdev_exit(struct slgt_info *info);
 struct cond_wait {
 	struct cond_wait *next;
 	wait_queue_head_t q;
-	wait_queue_t wait;
+	wait_queue_entry_t wait;
 	unsigned int data;
 };
 static void init_cond_wait(struct cond_wait *w, unsigned int data);
@@ -494,8 +493,8 @@ static void free_bufs(struct slgt_info *info, struct slgt_desc *bufs, int count)
 static int  alloc_tmp_rbuf(struct slgt_info *info);
 static void free_tmp_rbuf(struct slgt_info *info);
 
-static void tx_timeout(unsigned long context);
-static void rx_timeout(unsigned long context);
+static void tx_timeout(struct timer_list *t);
+static void rx_timeout(struct timer_list *t);
 
 /*
  * ioctl handlers
@@ -1030,8 +1029,7 @@ static int ioctl(struct tty_struct *tty,
 		return -ENODEV;
 	DBGINFO(("%s ioctl() cmd=%08X\n", info->device_name, cmd));
 
-	if ((cmd != TIOCGSERIAL) && (cmd != TIOCSSERIAL) &&
-	    (cmd != TIOCMIWAIT)) {
+	if (cmd != TIOCMIWAIT) {
 		if (tty_io_error(tty))
 		    return -EIO;
 	}
@@ -1187,14 +1185,13 @@ static long slgt_compat_ioctl(struct tty_struct *tty,
 			 unsigned int cmd, unsigned long arg)
 {
 	struct slgt_info *info = tty->driver_data;
-	int rc = -ENOIOCTLCMD;
+	int rc;
 
 	if (sanity_check(info, tty->name, "compat_ioctl"))
 		return -ENODEV;
 	DBGINFO(("%s compat_ioctl() cmd=%08X\n", info->device_name, cmd));
 
 	switch (cmd) {
-
 	case MGSL_IOCSPARAMS32:
 		rc = set_params32(info, compat_ptr(arg));
 		break;
@@ -1214,18 +1211,11 @@ static long slgt_compat_ioctl(struct tty_struct *tty,
 	case MGSL_IOCWAITGPIO:
 	case MGSL_IOCGXSYNC:
 	case MGSL_IOCGXCTRL:
-	case MGSL_IOCSTXIDLE:
-	case MGSL_IOCTXENABLE:
-	case MGSL_IOCRXENABLE:
-	case MGSL_IOCTXABORT:
-	case TIOCMIWAIT:
-	case MGSL_IOCSIF:
-	case MGSL_IOCSXSYNC:
-	case MGSL_IOCSXCTRL:
-		rc = ioctl(tty, cmd, arg);
+		rc = ioctl(tty, cmd, (unsigned long)compat_ptr(arg));
 		break;
+	default:
+		rc = ioctl(tty, cmd, arg);
 	}
-
 	DBGINFO(("%s compat_ioctl() cmd=%08X rc=%d\n", info->device_name, cmd, rc));
 	return rc;
 }
@@ -1316,19 +1306,6 @@ static int synclink_gt_proc_show(struct seq_file *m, void *v)
 	}
 	return 0;
 }
-
-static int synclink_gt_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, synclink_gt_proc_show, NULL);
-}
-
-static const struct file_operations synclink_gt_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= synclink_gt_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
 
 /*
  * return count of bytes in transmit buffer
@@ -1755,7 +1732,7 @@ static void hdlcdev_rx(struct slgt_info *info, char *buf, int size)
 		return;
 	}
 
-	memcpy(skb_put(skb, size), buf, size);
+	skb_put_data(skb, buf, size);
 
 	skb->protocol = hdlc_type_trans(skb, dev);
 
@@ -1768,7 +1745,6 @@ static void hdlcdev_rx(struct slgt_info *info, char *buf, int size)
 static const struct net_device_ops hdlcdev_ops = {
 	.ndo_open       = hdlcdev_open,
 	.ndo_stop       = hdlcdev_close,
-	.ndo_change_mtu = hdlc_change_mtu,
 	.ndo_start_xmit = hdlc_start_xmit,
 	.ndo_do_ioctl   = hdlcdev_ioctl,
 	.ndo_tx_timeout = hdlcdev_tx_timeout,
@@ -3599,8 +3575,8 @@ static struct slgt_info *alloc_dev(int adapter_num, int port_num, struct pci_dev
 		info->adapter_num = adapter_num;
 		info->port_num = port_num;
 
-		setup_timer(&info->tx_timer, tx_timeout, (unsigned long)info);
-		setup_timer(&info->rx_timer, rx_timeout, (unsigned long)info);
+		timer_setup(&info->tx_timer, tx_timeout, 0);
+		timer_setup(&info->rx_timer, rx_timeout, 0);
 
 		/* Copy configuration info to device instance data */
 		info->pdev = pdev;
@@ -3723,7 +3699,7 @@ static const struct tty_operations ops = {
 	.tiocmget = tiocmget,
 	.tiocmset = tiocmset,
 	.get_icount = get_icount,
-	.proc_fops = &synclink_gt_proc_fops,
+	.proc_show = synclink_gt_proc_show,
 };
 
 static void slgt_cleanup(void)
@@ -5114,9 +5090,9 @@ static int adapter_test(struct slgt_info *info)
 /*
  * transmit timeout handler
  */
-static void tx_timeout(unsigned long context)
+static void tx_timeout(struct timer_list *t)
 {
-	struct slgt_info *info = (struct slgt_info*)context;
+	struct slgt_info *info = from_timer(info, t, tx_timer);
 	unsigned long flags;
 
 	DBGINFO(("%s tx_timeout\n", info->device_name));
@@ -5138,9 +5114,9 @@ static void tx_timeout(unsigned long context)
 /*
  * receive buffer polling timer
  */
-static void rx_timeout(unsigned long context)
+static void rx_timeout(struct timer_list *t)
 {
-	struct slgt_info *info = (struct slgt_info*)context;
+	struct slgt_info *info = from_timer(info, t, rx_timer);
 	unsigned long flags;
 
 	DBGINFO(("%s rx_timeout\n", info->device_name));

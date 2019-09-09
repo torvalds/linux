@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * max98925.h -- MAX98925 ALSA SoC Audio driver
  *
  * Copyright 2013-2015 Maxim Integrated Products
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef _MAX98925_H
@@ -821,7 +818,7 @@
 
 struct max98925_priv {
 	struct regmap *regmap;
-	struct snd_soc_codec *codec;
+	struct snd_soc_component *component;
 	struct max98925_pdata *pdata;
 	unsigned int sysclk;
 	unsigned int v_slot;

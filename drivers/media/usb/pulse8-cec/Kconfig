@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config USB_PULSE8_CEC
+	tristate "Pulse Eight HDMI CEC"
+	depends on USB_ACM
+	select CEC_CORE
+	select SERIO
+	select SERIO_SERPORT
+	help
+	  This is a cec driver for the Pulse Eight HDMI CEC device.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called pulse8-cec.

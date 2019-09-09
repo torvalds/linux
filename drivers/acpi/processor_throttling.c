@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * processor_throttling.c - Throttling submodule of the ACPI processor driver
  *
@@ -6,20 +7,6 @@
  *  Copyright (C) 2004       Dominik Brodowski <linux@brodo.de>
  *  Copyright (C) 2004  Anil S Keshavamurthy <anil.s.keshavamurthy@intel.com>
  *  			- Added processor hotplug support
- *
- * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or (at
- *  your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful, but
- *  WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  General Public License for more details.
- *
- * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
 
 #include <linux/kernel.h>
@@ -31,7 +18,7 @@
 #include <linux/acpi.h>
 #include <acpi/processor.h>
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define PREFIX "ACPI: "
 
@@ -62,8 +49,8 @@ struct acpi_processor_throttling_arg {
 #define THROTTLING_POSTCHANGE      (2)
 
 static int acpi_processor_get_throttling(struct acpi_processor *pr);
-int acpi_processor_set_throttling(struct acpi_processor *pr,
-						int state, bool force);
+static int __acpi_processor_set_throttling(struct acpi_processor *pr,
+					   int state, bool force, bool direct);
 
 static int acpi_processor_update_tsd_coord(void)
 {
@@ -534,8 +521,9 @@ static int acpi_processor_get_throttling_states(struct acpi_processor *pr)
 
 	pr->throttling.state_count = tss->package.count;
 	pr->throttling.states_tss =
-	    kmalloc(sizeof(struct acpi_processor_tx_tss) * tss->package.count,
-		    GFP_KERNEL);
+	    kmalloc_array(tss->package.count,
+			  sizeof(struct acpi_processor_tx_tss),
+			  GFP_KERNEL);
 	if (!pr->throttling.states_tss) {
 		result = -ENOMEM;
 		goto end;
@@ -891,7 +879,8 @@ static int acpi_processor_get_throttling_ptc(struct acpi_processor *pr)
 			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 				"Invalid throttling state, reset\n"));
 			state = 0;
-			ret = acpi_processor_set_throttling(pr, state, true);
+			ret = __acpi_processor_set_throttling(pr, state, true,
+							      true);
 			if (ret)
 				return ret;
 		}
@@ -901,36 +890,38 @@ static int acpi_processor_get_throttling_ptc(struct acpi_processor *pr)
 	return 0;
 }
 
+static long __acpi_processor_get_throttling(void *data)
+{
+	struct acpi_processor *pr = data;
+
+	return pr->throttling.acpi_processor_get_throttling(pr);
+}
+
+static int call_on_cpu(int cpu, long (*fn)(void *), void *arg, bool direct)
+{
+	if (direct || (is_percpu_thread() && cpu == smp_processor_id()))
+		return fn(arg);
+	return work_on_cpu(cpu, fn, arg);
+}
+
 static int acpi_processor_get_throttling(struct acpi_processor *pr)
 {
-	cpumask_var_t saved_mask;
-	int ret;
-
 	if (!pr)
 		return -EINVAL;
 
 	if (!pr->flags.throttling)
 		return -ENODEV;
 
-	if (!alloc_cpumask_var(&saved_mask, GFP_KERNEL))
-		return -ENOMEM;
-
 	/*
-	 * Migrate task to the cpu pointed by pr.
+	 * This is either called from the CPU hotplug callback of
+	 * processor_driver or via the ACPI probe function. In the latter
+	 * case the CPU is not guaranteed to be online. Both call sites are
+	 * protected against CPU hotplug.
 	 */
-	cpumask_copy(saved_mask, &current->cpus_allowed);
-	/* FIXME: use work_on_cpu() */
-	if (set_cpus_allowed_ptr(current, cpumask_of(pr->id))) {
-		/* Can't migrate to the target pr->id CPU. Exit */
-		free_cpumask_var(saved_mask);
+	if (!cpu_online(pr->id))
 		return -ENODEV;
-	}
-	ret = pr->throttling.acpi_processor_get_throttling(pr);
-	/* restore the previous state */
-	set_cpus_allowed_ptr(current, saved_mask);
-	free_cpumask_var(saved_mask);
 
-	return ret;
+	return call_on_cpu(pr->id, __acpi_processor_get_throttling, pr, false);
 }
 
 static int acpi_processor_get_fadt_info(struct acpi_processor *pr)
@@ -1080,8 +1071,8 @@ static long acpi_processor_throttling_fn(void *data)
 			arg->target_state, arg->force);
 }
 
-int acpi_processor_set_throttling(struct acpi_processor *pr,
-						int state, bool force)
+static int __acpi_processor_set_throttling(struct acpi_processor *pr,
+					   int state, bool force, bool direct)
 {
 	int ret = 0;
 	unsigned int i;
@@ -1130,7 +1121,8 @@ int acpi_processor_set_throttling(struct acpi_processor *pr,
 		arg.pr = pr;
 		arg.target_state = state;
 		arg.force = force;
-		ret = work_on_cpu(pr->id, acpi_processor_throttling_fn, &arg);
+		ret = call_on_cpu(pr->id, acpi_processor_throttling_fn, &arg,
+				  direct);
 	} else {
 		/*
 		 * When the T-state coordination is SW_ALL or HW_ALL,
@@ -1163,8 +1155,8 @@ int acpi_processor_set_throttling(struct acpi_processor *pr,
 			arg.pr = match_pr;
 			arg.target_state = state;
 			arg.force = force;
-			ret = work_on_cpu(pr->id, acpi_processor_throttling_fn,
-				&arg);
+			ret = call_on_cpu(pr->id, acpi_processor_throttling_fn,
+					  &arg, direct);
 		}
 	}
 	/*
@@ -1180,6 +1172,12 @@ int acpi_processor_set_throttling(struct acpi_processor *pr,
 	}
 
 	return ret;
+}
+
+int acpi_processor_set_throttling(struct acpi_processor *pr, int state,
+				  bool force)
+{
+	return __acpi_processor_set_throttling(pr, state, force, false);
 }
 
 int acpi_processor_get_throttling_info(struct acpi_processor *pr)

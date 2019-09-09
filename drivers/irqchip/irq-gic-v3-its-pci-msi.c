@@ -1,18 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2013-2015 ARM Limited, All Rights Reserved.
  * Author: Marc Zyngier <marc.zyngier@arm.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/acpi_iort.h>
@@ -41,27 +30,22 @@ static struct irq_chip its_msi_irq_chip = {
 	.irq_write_msi_msg	= pci_msi_domain_write_msg,
 };
 
-struct its_pci_alias {
-	struct pci_dev	*pdev;
-	u32		count;
-};
-
-static int its_pci_msi_vec_count(struct pci_dev *pdev)
+static int its_pci_msi_vec_count(struct pci_dev *pdev, void *data)
 {
-	int msi, msix;
+	int msi, msix, *count = data;
 
 	msi = max(pci_msi_vec_count(pdev), 0);
 	msix = max(pci_msix_vec_count(pdev), 0);
+	*count += max(msi, msix);
 
-	return max(msi, msix);
+	return 0;
 }
 
 static int its_get_pci_alias(struct pci_dev *pdev, u16 alias, void *data)
 {
-	struct its_pci_alias *dev_alias = data;
+	struct pci_dev **alias_dev = data;
 
-	if (pdev != dev_alias->pdev)
-		dev_alias->count += its_pci_msi_vec_count(pdev);
+	*alias_dev = pdev;
 
 	return 0;
 }
@@ -69,9 +53,9 @@ static int its_get_pci_alias(struct pci_dev *pdev, u16 alias, void *data)
 static int its_pci_msi_prepare(struct irq_domain *domain, struct device *dev,
 			       int nvec, msi_alloc_info_t *info)
 {
-	struct pci_dev *pdev;
-	struct its_pci_alias dev_alias;
+	struct pci_dev *pdev, *alias_dev;
 	struct msi_domain_info *msi_info;
+	int alias_count = 0, minnvec = 1;
 
 	if (!dev_is_pci(dev))
 		return -EINVAL;
@@ -79,16 +63,30 @@ static int its_pci_msi_prepare(struct irq_domain *domain, struct device *dev,
 	msi_info = msi_get_domain_info(domain->parent);
 
 	pdev = to_pci_dev(dev);
-	dev_alias.pdev = pdev;
-	dev_alias.count = nvec;
-
-	pci_for_each_dma_alias(pdev, its_get_pci_alias, &dev_alias);
+	/*
+	 * If pdev is downstream of any aliasing bridges, take an upper
+	 * bound of how many other vectors could map to the same DevID.
+	 */
+	pci_for_each_dma_alias(pdev, its_get_pci_alias, &alias_dev);
+	if (alias_dev != pdev && alias_dev->subordinate)
+		pci_walk_bus(alias_dev->subordinate, its_pci_msi_vec_count,
+			     &alias_count);
 
 	/* ITS specific DeviceID, as the core ITS ignores dev. */
 	info->scratchpad[0].ul = pci_msi_domain_get_msi_rid(domain, pdev);
 
-	return msi_info->ops->msi_prepare(domain->parent,
-					  dev, dev_alias.count, info);
+	/*
+	 * Always allocate a power of 2, and special case device 0 for
+	 * broken systems where the DevID is not wired (and all devices
+	 * appear as DevID 0). For that reason, we generously allocate a
+	 * minimum of 32 MSIs for DevID 0. If you want more because all
+	 * your devices are aliasing to DevID 0, consider fixing your HW.
+	 */
+	nvec = max(nvec, alias_count);
+	if (!info->scratchpad[0].ul)
+		minnvec = 32;
+	nvec = max_t(int, minnvec, roundup_pow_of_two(nvec));
+	return msi_info->ops->msi_prepare(domain->parent, dev, nvec, info);
 }
 
 static struct msi_domain_ops its_pci_msi_ops = {
@@ -133,13 +131,15 @@ static int __init its_pci_of_msi_init(void)
 
 	for (np = of_find_matching_node(NULL, its_device_id); np;
 	     np = of_find_matching_node(np, its_device_id)) {
+		if (!of_device_is_available(np))
+			continue;
 		if (!of_property_read_bool(np, "msi-controller"))
 			continue;
 
 		if (its_pci_msi_init_one(of_node_to_fwnode(np), np->full_name))
 			continue;
 
-		pr_info("PCI/MSI: %s domain created\n", np->full_name);
+		pr_info("PCI/MSI: %pOF domain created\n", np);
 	}
 
 	return 0;
@@ -148,7 +148,7 @@ static int __init its_pci_of_msi_init(void)
 #ifdef CONFIG_ACPI
 
 static int __init
-its_pci_msi_parse_madt(struct acpi_subtable_header *header,
+its_pci_msi_parse_madt(union acpi_subtable_headers *header,
 		       const unsigned long end)
 {
 	struct acpi_madt_generic_translator *its_entry;

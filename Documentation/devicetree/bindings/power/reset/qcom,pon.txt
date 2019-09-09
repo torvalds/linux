@@ -1,0 +1,49 @@
+Qualcomm PON Device
+
+The Power On device for Qualcomm PM8xxx is MFD supporting pwrkey
+and resin along with the Android reboot-mode.
+
+This DT node has pwrkey and resin as sub nodes.
+
+Required Properties:
+-compatible: Must be one of:
+	"qcom,pm8916-pon"
+	"qcom,pms405-pon"
+	"qcom,pm8998-pon"
+
+-reg: Specifies the physical address of the pon register
+
+Optional subnode:
+-pwrkey: Specifies the subnode pwrkey and should follow the
+ qcom,pm8941-pwrkey.txt description.
+-resin: Specifies the subnode resin and should follow the
+ qcom,pm8xxx-pwrkey.txt description.
+
+The rest of the properties should follow the generic reboot-mode description
+found in reboot-mode.txt
+
+Example:
+
+	pon@800 {
+		compatible = "qcom,pm8916-pon";
+
+		reg = <0x800>;
+		mode-bootloader = <0x2>;
+		mode-recovery = <0x1>;
+
+		pwrkey {
+			compatible = "qcom,pm8941-pwrkey";
+			interrupts = <0x0 0x8 0 IRQ_TYPE_EDGE_BOTH>;
+			debounce = <15625>;
+			bias-pull-up;
+			linux,code = <KEY_POWER>;
+		};
+
+		resin {
+			compatible = "qcom,pm8941-resin";
+			interrupts = <0x0 0x8 1 IRQ_TYPE_EDGE_BOTH>;
+			debounce = <15625>;
+			bias-pull-up;
+			linux,code = <KEY_VOLUMEDOWN>;
+		};
+	};

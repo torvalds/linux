@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * MPC83xx suspend support
  *
  * Author: Scott Wood <scottwood@freescale.com>
  *
  * Copyright (c) 2006-2007 Freescale Semiconductor, Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
  */
 
 #include <linux/pm.h>
@@ -15,6 +12,7 @@
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/wait.h>
+#include <linux/sched/signal.h>
 #include <linux/kthread.h>
 #include <linux/freezer.h>
 #include <linux/suspend.h>
@@ -360,7 +358,7 @@ static int pmc_probe(struct platform_device *ofdev)
 			return -EBUSY;
 	}
 
-	pmc_regs = ioremap(res.start, sizeof(struct mpc83xx_pmc));
+	pmc_regs = ioremap(res.start, sizeof(*pmc_regs));
 
 	if (!pmc_regs) {
 		ret = -ENOMEM;
@@ -373,7 +371,7 @@ static int pmc_probe(struct platform_device *ofdev)
 		goto out_pmc;
 	}
 
-	clock_regs = ioremap(res.start, sizeof(struct mpc83xx_pmc));
+	clock_regs = ioremap(res.start, sizeof(*clock_regs));
 
 	if (!clock_regs) {
 		ret = -ENOMEM;
@@ -441,8 +439,4 @@ static struct platform_driver pmc_driver = {
 	.remove = pmc_remove
 };
 
-static int pmc_init(void)
-{
-	return platform_driver_register(&pmc_driver);
-}
-device_initcall(pmc_init);
+builtin_platform_driver(pmc_driver);

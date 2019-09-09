@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2012, NVIDIA CORPORATION.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/kernel.h>
@@ -121,9 +110,50 @@ out:
 	return err;
 }
 
+static const struct clk_ops tegra_clk_super_mux_ops = {
+	.get_parent = clk_super_get_parent,
+	.set_parent = clk_super_set_parent,
+};
+
+static long clk_super_round_rate(struct clk_hw *hw, unsigned long rate,
+				 unsigned long *parent_rate)
+{
+	struct tegra_clk_super_mux *super = to_clk_super_mux(hw);
+	struct clk_hw *div_hw = &super->frac_div.hw;
+
+	__clk_hw_set_clk(div_hw, hw);
+
+	return super->div_ops->round_rate(div_hw, rate, parent_rate);
+}
+
+static unsigned long clk_super_recalc_rate(struct clk_hw *hw,
+					   unsigned long parent_rate)
+{
+	struct tegra_clk_super_mux *super = to_clk_super_mux(hw);
+	struct clk_hw *div_hw = &super->frac_div.hw;
+
+	__clk_hw_set_clk(div_hw, hw);
+
+	return super->div_ops->recalc_rate(div_hw, parent_rate);
+}
+
+static int clk_super_set_rate(struct clk_hw *hw, unsigned long rate,
+			      unsigned long parent_rate)
+{
+	struct tegra_clk_super_mux *super = to_clk_super_mux(hw);
+	struct clk_hw *div_hw = &super->frac_div.hw;
+
+	__clk_hw_set_clk(div_hw, hw);
+
+	return super->div_ops->set_rate(div_hw, rate, parent_rate);
+}
+
 const struct clk_ops tegra_clk_super_ops = {
 	.get_parent = clk_super_get_parent,
 	.set_parent = clk_super_set_parent,
+	.set_rate = clk_super_set_rate,
+	.round_rate = clk_super_round_rate,
+	.recalc_rate = clk_super_recalc_rate,
 };
 
 struct clk *tegra_clk_register_super_mux(const char *name,
@@ -136,13 +166,11 @@ struct clk *tegra_clk_register_super_mux(const char *name,
 	struct clk_init_data init;
 
 	super = kzalloc(sizeof(*super), GFP_KERNEL);
-	if (!super) {
-		pr_err("%s: could not allocate super clk\n", __func__);
+	if (!super)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	init.name = name;
-	init.ops = &tegra_clk_super_ops;
+	init.ops = &tegra_clk_super_mux_ops;
 	init.flags = flags;
 	init.parent_names = parent_names;
 	init.num_parents = num_parents;
@@ -153,6 +181,46 @@ struct clk *tegra_clk_register_super_mux(const char *name,
 	super->lock = lock;
 	super->width = width;
 	super->flags = clk_super_flags;
+
+	/* Data in .init is copied by clk_register(), so stack variable OK */
+	super->hw.init = &init;
+
+	clk = clk_register(NULL, &super->hw);
+	if (IS_ERR(clk))
+		kfree(super);
+
+	return clk;
+}
+
+struct clk *tegra_clk_register_super_clk(const char *name,
+		const char * const *parent_names, u8 num_parents,
+		unsigned long flags, void __iomem *reg, u8 clk_super_flags,
+		spinlock_t *lock)
+{
+	struct tegra_clk_super_mux *super;
+	struct clk *clk;
+	struct clk_init_data init;
+
+	super = kzalloc(sizeof(*super), GFP_KERNEL);
+	if (!super)
+		return ERR_PTR(-ENOMEM);
+
+	init.name = name;
+	init.ops = &tegra_clk_super_ops;
+	init.flags = flags;
+	init.parent_names = parent_names;
+	init.num_parents = num_parents;
+
+	super->reg = reg;
+	super->lock = lock;
+	super->width = 4;
+	super->flags = clk_super_flags;
+	super->frac_div.reg = reg + 4;
+	super->frac_div.shift = 16;
+	super->frac_div.width = 8;
+	super->frac_div.frac_width = 1;
+	super->frac_div.lock = lock;
+	super->div_ops = &tegra_clk_frac_div_ops;
 
 	/* Data in .init is copied by clk_register(), so stack variable OK */
 	super->hw.init = &init;

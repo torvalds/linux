@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * rsrc_nonstatic.c -- Resource management routines for !SS_CAP_STATIC_MAP sockets
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * The initial developer of the original code is David A. Hinds
  * <dahinds@users.sourceforge.net>.  Portions created by David A. Hinds
@@ -367,7 +364,7 @@ static int do_validate_mem(struct pcmcia_socket *s,
 		}
 	}
 
-	dev_dbg(&s->dev, "cs: memory probe 0x%06lx-0x%06lx: %p %p %u %u %u",
+	dev_dbg(&s->dev, "cs: memory probe 0x%06lx-0x%06lx: %pr %pr %u %u %u",
 		base, base+size-1, res1, res2, ret, info1, info2);
 
 	free_region(res2);

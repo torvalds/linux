@@ -26,7 +26,7 @@
 #include <linux/poll.h>
 #include <linux/mutex.h>
 #include <linux/wait.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 
 #include <pcmcia/cistpl.h>
@@ -104,9 +104,9 @@ static inline unsigned char xinb(unsigned short port)
 
 /* poll the device fifo status register.  not to be confused with
  * the poll syscall. */
-static void cm4040_do_poll(unsigned long dummy)
+static void cm4040_do_poll(struct timer_list *t)
 {
-	struct reader_dev *dev = (struct reader_dev *) dummy;
+	struct reader_dev *dev = from_timer(dev, t, poll_timer);
 	unsigned int obs = xinb(dev->p_dev->resource[0]->start
 				+ REG_OFFSET_BUFFER_STATUS);
 
@@ -331,7 +331,7 @@ static ssize_t cm4040_write(struct file *filp, const char __user *buf,
 	}
 
 	if ((count < 5) || (count > READ_WRITE_BUFFER_SIZE)) {
-		DEBUGP(2, dev, "<- cm4040_write buffersize=%Zd < 5\n", count);
+		DEBUGP(2, dev, "<- cm4040_write buffersize=%zd < 5\n", count);
 		return -EIO;
 	}
 
@@ -374,7 +374,7 @@ static ssize_t cm4040_write(struct file *filp, const char __user *buf,
 
 	rc = write_sync_reg(SCR_HOST_TO_READER_START, dev);
 	if (rc <= 0) {
-		DEBUGP(5, dev, "write_sync_reg c=%.2Zx\n", rc);
+		DEBUGP(5, dev, "write_sync_reg c=%.2zx\n", rc);
 		DEBUGP(2, dev, "<- cm4040_write (failed)\n");
 		if (rc == -ERESTARTSYS)
 			return rc;
@@ -387,7 +387,7 @@ static ssize_t cm4040_write(struct file *filp, const char __user *buf,
 	for (i = 0; i < bytes_to_write; i++) {
 		rc = wait_for_bulk_out_ready(dev);
 		if (rc <= 0) {
-			DEBUGP(5, dev, "wait_for_bulk_out_ready rc=%.2Zx\n",
+			DEBUGP(5, dev, "wait_for_bulk_out_ready rc=%.2zx\n",
 			       rc);
 			DEBUGP(2, dev, "<- cm4040_write (failed)\n");
 			if (rc == -ERESTARTSYS)
@@ -403,7 +403,7 @@ static ssize_t cm4040_write(struct file *filp, const char __user *buf,
 	rc = write_sync_reg(SCR_HOST_TO_READER_DONE, dev);
 
 	if (rc <= 0) {
-		DEBUGP(5, dev, "write_sync_reg c=%.2Zx\n", rc);
+		DEBUGP(5, dev, "write_sync_reg c=%.2zx\n", rc);
 		DEBUGP(2, dev, "<- cm4040_write (failed)\n");
 		if (rc == -ERESTARTSYS)
 			return rc;
@@ -415,17 +415,17 @@ static ssize_t cm4040_write(struct file *filp, const char __user *buf,
 	return count;
 }
 
-static unsigned int cm4040_poll(struct file *filp, poll_table *wait)
+static __poll_t cm4040_poll(struct file *filp, poll_table *wait)
 {
 	struct reader_dev *dev = filp->private_data;
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 
 	poll_wait(filp, &dev->poll_wait, wait);
 
 	if (test_and_clear_bit(BS_READABLE, &dev->buffer_status))
-		mask |= POLLIN | POLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDNORM;
 	if (test_and_clear_bit(BS_WRITABLE, &dev->buffer_status))
-		mask |= POLLOUT | POLLWRNORM;
+		mask |= EPOLLOUT | EPOLLWRNORM;
 
 	DEBUGP(2, dev, "<- cm4040_poll(%u)\n", mask);
 
@@ -465,7 +465,6 @@ static int cm4040_open(struct inode *inode, struct file *filp)
 
 	link->open = 1;
 
-	dev->poll_timer.data = (unsigned long) dev;
 	mod_timer(&dev->poll_timer, jiffies + POLL_PERIOD);
 
 	DEBUGP(2, dev, "<- cm4040_open (successfully)\n");
@@ -506,7 +505,7 @@ static void cm4040_reader_release(struct pcmcia_device *link)
 
 	DEBUGP(3, dev, "-> cm4040_reader_release\n");
 	while (link->open) {
-		DEBUGP(3, dev, KERN_INFO MODULE_NAME ": delaying release "
+		DEBUGP(3, dev, MODULE_NAME ": delaying release "
 		       "until process has terminated\n");
  		wait_event(dev->devq, (link->open == 0));
 	}
@@ -585,7 +584,7 @@ static int reader_probe(struct pcmcia_device *link)
 	init_waitqueue_head(&dev->poll_wait);
 	init_waitqueue_head(&dev->read_wait);
 	init_waitqueue_head(&dev->write_wait);
-	setup_timer(&dev->poll_timer, cm4040_do_poll, 0);
+	timer_setup(&dev->poll_timer, cm4040_do_poll, 0);
 
 	ret = reader_config(link, i);
 	if (ret) {

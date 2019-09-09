@@ -10,6 +10,8 @@
 
 #include <linux/init.h>
 #include <linux/sched.h>
+#include <linux/sched/hotplug.h>
+#include <linux/sched/task_stack.h>
 #include <linux/mm.h>
 #include <linux/delay.h>
 #include <linux/smp.h>
@@ -23,6 +25,7 @@
 #include <linux/linkage.h>
 #include <linux/bug.h>
 #include <linux/kernel.h>
+#include <linux/kexec.h>
 
 #include <asm/time.h>
 #include <asm/pgtable.h>
@@ -166,18 +169,18 @@ static void bmips_prepare_cpus(unsigned int max_cpus)
 		return;
 	}
 
-	if (request_irq(IPI0_IRQ, bmips_ipi_interrupt, IRQF_PERCPU,
-			"smp_ipi0", NULL))
+	if (request_irq(IPI0_IRQ, bmips_ipi_interrupt,
+			IRQF_PERCPU | IRQF_NO_SUSPEND, "smp_ipi0", NULL))
 		panic("Can't request IPI0 interrupt");
-	if (request_irq(IPI1_IRQ, bmips_ipi_interrupt, IRQF_PERCPU,
-			"smp_ipi1", NULL))
+	if (request_irq(IPI1_IRQ, bmips_ipi_interrupt,
+			IRQF_PERCPU | IRQF_NO_SUSPEND, "smp_ipi1", NULL))
 		panic("Can't request IPI1 interrupt");
 }
 
 /*
  * Tell the hardware to boot CPUx - runs on CPU0
  */
-static void bmips_boot_secondary(int cpu, struct task_struct *idle)
+static int bmips_boot_secondary(int cpu, struct task_struct *idle)
 {
 	bmips_smp_boot_sp = __KSTK_TOS(idle);
 	bmips_smp_boot_gp = (unsigned long)task_thread_info(idle);
@@ -229,6 +232,8 @@ static void bmips_boot_secondary(int cpu, struct task_struct *idle)
 		}
 		cpumask_set_cpu(cpu, &bmips_booted_mask);
 	}
+
+	return 0;
 }
 
 /*
@@ -243,7 +248,7 @@ static void bmips_init_secondary(void)
 		break;
 	case CPU_BMIPS5000:
 		write_c0_brcm_action(ACTION_CLR_IPI(smp_processor_id(), 0));
-		current_cpu_data.core = (read_c0_brcm_config() >> 25) & 3;
+		cpu_set_core(&current_cpu_data, (read_c0_brcm_config() >> 25) & 3);
 		break;
 	}
 }
@@ -364,7 +369,7 @@ static int bmips_cpu_disable(void)
 
 	set_cpu_online(cpu, false);
 	calculate_cpu_foreign_map();
-	cpumask_clear_cpu(cpu, &cpu_callin_map);
+	irq_cpu_offline();
 	clear_c0_status(IE_IRQ5);
 
 	local_flush_tlb_all();
@@ -407,7 +412,7 @@ void __ref play_dead(void)
 
 #endif /* CONFIG_HOTPLUG_CPU */
 
-struct plat_smp_ops bmips43xx_smp_ops = {
+const struct plat_smp_ops bmips43xx_smp_ops = {
 	.smp_setup		= bmips_smp_setup,
 	.prepare_cpus		= bmips_prepare_cpus,
 	.boot_secondary		= bmips_boot_secondary,
@@ -419,9 +424,12 @@ struct plat_smp_ops bmips43xx_smp_ops = {
 	.cpu_disable		= bmips_cpu_disable,
 	.cpu_die		= bmips_cpu_die,
 #endif
+#ifdef CONFIG_KEXEC
+	.kexec_nonboot_cpu	= kexec_nonboot_cpu_jump,
+#endif
 };
 
-struct plat_smp_ops bmips5000_smp_ops = {
+const struct plat_smp_ops bmips5000_smp_ops = {
 	.smp_setup		= bmips_smp_setup,
 	.prepare_cpus		= bmips_prepare_cpus,
 	.boot_secondary		= bmips_boot_secondary,
@@ -432,6 +440,9 @@ struct plat_smp_ops bmips5000_smp_ops = {
 #ifdef CONFIG_HOTPLUG_CPU
 	.cpu_disable		= bmips_cpu_disable,
 	.cpu_die		= bmips_cpu_die,
+#endif
+#ifdef CONFIG_KEXEC
+	.kexec_nonboot_cpu	= kexec_nonboot_cpu_jump,
 #endif
 };
 
@@ -568,7 +579,7 @@ asmlinkage void __weak plat_wired_tlb_setup(void)
 	 */
 }
 
-void __init bmips_cpu_setup(void)
+void bmips_cpu_setup(void)
 {
 	void __iomem __maybe_unused *cbr = BMIPS_GET_CBR();
 	u32 __maybe_unused cfg;
@@ -587,11 +598,11 @@ void __init bmips_cpu_setup(void)
 
 		/* Flush and enable RAC */
 		cfg = __raw_readl(cbr + BMIPS_RAC_CONFIG);
-		__raw_writel(cfg | 0x100, BMIPS_RAC_CONFIG);
+		__raw_writel(cfg | 0x100, cbr + BMIPS_RAC_CONFIG);
 		__raw_readl(cbr + BMIPS_RAC_CONFIG);
 
 		cfg = __raw_readl(cbr + BMIPS_RAC_CONFIG);
-		__raw_writel(cfg | 0xf, BMIPS_RAC_CONFIG);
+		__raw_writel(cfg | 0xf, cbr + BMIPS_RAC_CONFIG);
 		__raw_readl(cbr + BMIPS_RAC_CONFIG);
 
 		cfg = __raw_readl(cbr + BMIPS_RAC_ADDRESS_RANGE);

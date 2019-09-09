@@ -1,46 +1,10 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /*******************************************************************************
  *
  * Module Name: nsxfeval - Public interfaces to the ACPI subsystem
  *                         ACPI Object evaluation interfaces
  *
  ******************************************************************************/
-
-/*
- * Copyright (C) 2000 - 2016, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
 
 #define EXPORT_ACPI_INTERFACES
 
@@ -61,10 +25,10 @@ static void acpi_ns_resolve_references(struct acpi_evaluate_info *info);
  *
  * PARAMETERS:  handle              - Object handle (optional)
  *              pathname            - Object pathname (optional)
- *              external_params     - List of parameters to pass to method,
+ *              external_params     - List of parameters to pass to a method,
  *                                    terminated by NULL. May be NULL
  *                                    if no parameters are being passed.
- *              return_buffer       - Where to put method's return value (if
+ *              return_buffer       - Where to put the object's return value (if
  *                                    any). If NULL, no value is returned.
  *              return_type         - Expected type of return object
  *
@@ -85,6 +49,8 @@ acpi_evaluate_object_typed(acpi_handle handle,
 {
 	acpi_status status;
 	u8 free_buffer_on_error = FALSE;
+	acpi_handle target_handle;
+	char *full_pathname;
 
 	ACPI_FUNCTION_TRACE(acpi_evaluate_object_typed);
 
@@ -98,38 +64,56 @@ acpi_evaluate_object_typed(acpi_handle handle,
 		free_buffer_on_error = TRUE;
 	}
 
-	/* Evaluate the object */
+	/* Get a handle here, in order to build an error message if needed */
 
-	status = acpi_evaluate_object(handle, pathname,
-				      external_params, return_buffer);
-	if (ACPI_FAILURE(status)) {
-		return_ACPI_STATUS(status);
+	target_handle = handle;
+	if (pathname) {
+		status = acpi_get_handle(handle, pathname, &target_handle);
+		if (ACPI_FAILURE(status)) {
+			return_ACPI_STATUS(status);
+		}
 	}
 
-	/* Type ANY means "don't care" */
+	full_pathname = acpi_ns_get_external_pathname(target_handle);
+	if (!full_pathname) {
+		return_ACPI_STATUS(AE_NO_MEMORY);
+	}
+
+	/* Evaluate the object */
+
+	status = acpi_evaluate_object(target_handle, NULL, external_params,
+				      return_buffer);
+	if (ACPI_FAILURE(status)) {
+		goto exit;
+	}
+
+	/* Type ANY means "don't care about return value type" */
 
 	if (return_type == ACPI_TYPE_ANY) {
-		return_ACPI_STATUS(AE_OK);
+		goto exit;
 	}
 
 	if (return_buffer->length == 0) {
 
 		/* Error because caller specifically asked for a return value */
 
-		ACPI_ERROR((AE_INFO, "No return value"));
-		return_ACPI_STATUS(AE_NULL_OBJECT);
+		ACPI_ERROR((AE_INFO, "%s did not return any object",
+			    full_pathname));
+		status = AE_NULL_OBJECT;
+		goto exit;
 	}
 
 	/* Examine the object type returned from evaluate_object */
 
 	if (((union acpi_object *)return_buffer->pointer)->type == return_type) {
-		return_ACPI_STATUS(AE_OK);
+		goto exit;
 	}
 
 	/* Return object type does not match requested type */
 
 	ACPI_ERROR((AE_INFO,
-		    "Incorrect return type [%s] requested [%s]",
+		    "Incorrect return type from %s - received [%s], requested [%s]",
+		    full_pathname,
 		    acpi_ut_get_type_name(((union acpi_object *)return_buffer->
 					   pointer)->type),
 		    acpi_ut_get_type_name(return_type)));
@@ -147,7 +131,11 @@ acpi_evaluate_object_typed(acpi_handle handle,
 	}
 
 	return_buffer->length = 0;
-	return_ACPI_STATUS(AE_TYPE);
+	status = AE_TYPE;
+
+exit:
+	ACPI_FREE(full_pathname);
+	return_ACPI_STATUS(status);
 }
 
 ACPI_EXPORT_SYMBOL(acpi_evaluate_object_typed)
@@ -495,9 +483,9 @@ static void acpi_ns_resolve_references(struct acpi_evaluate_info *info)
 	/*
 	 * Two types of references are supported - those created by Index and
 	 * ref_of operators. A name reference (AML_NAMEPATH_OP) can be converted
-	 * to an union acpi_object, so it is not dereferenced here. A ddb_handle
+	 * to a union acpi_object, so it is not dereferenced here. A ddb_handle
 	 * (AML_LOAD_OP) cannot be dereferenced, nor can it be converted to
-	 * an union acpi_object.
+	 * a union acpi_object.
 	 */
 	switch (info->return_object->reference.class) {
 	case ACPI_REFCLASS_INDEX:

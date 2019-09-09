@@ -1,33 +1,39 @@
-#ifndef BSG_H
-#define BSG_H
+/* SPDX-License-Identifier: GPL-2.0 */
+#ifndef _LINUX_BSG_H
+#define _LINUX_BSG_H
 
 #include <uapi/linux/bsg.h>
 
+struct request;
 
-#if defined(CONFIG_BLK_DEV_BSG)
-struct bsg_class_device {
-	struct device *class_dev;
-	struct device *parent;
-	int minor;
-	struct request_queue *queue;
-	struct kref ref;
-	void (*release)(struct device *);
+#ifdef CONFIG_BLK_DEV_BSG
+struct bsg_ops {
+	int	(*check_proto)(struct sg_io_v4 *hdr);
+	int	(*fill_hdr)(struct request *rq, struct sg_io_v4 *hdr,
+				fmode_t mode);
+	int	(*complete_rq)(struct request *rq, struct sg_io_v4 *hdr);
+	void	(*free_rq)(struct request *rq);
 };
 
-extern int bsg_register_queue(struct request_queue *q,
-			      struct device *parent, const char *name,
-			      void (*release)(struct device *));
-extern void bsg_unregister_queue(struct request_queue *);
+struct bsg_class_device {
+	struct device *class_dev;
+	int minor;
+	struct request_queue *queue;
+	const struct bsg_ops *ops;
+};
+
+int bsg_register_queue(struct request_queue *q, struct device *parent,
+		const char *name, const struct bsg_ops *ops);
+int bsg_scsi_register_queue(struct request_queue *q, struct device *parent);
+void bsg_unregister_queue(struct request_queue *q);
 #else
-static inline int bsg_register_queue(struct request_queue *q,
-				     struct device *parent, const char *name,
-				     void (*release)(struct device *))
+static inline int bsg_scsi_register_queue(struct request_queue *q,
+		struct device *parent)
 {
 	return 0;
 }
 static inline void bsg_unregister_queue(struct request_queue *q)
 {
 }
-#endif
-
-#endif
+#endif /* CONFIG_BLK_DEV_BSG */
+#endif /* _LINUX_BSG_H */

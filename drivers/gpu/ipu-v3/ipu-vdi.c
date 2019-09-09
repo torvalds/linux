@@ -1,16 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2012-2016 Mentor Graphics Inc.
  * Copyright (C) 2005-2009 Freescale Semiconductor, Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
  */
 #include <linux/io.h>
 #include "ipu-prv.h"
@@ -88,9 +79,9 @@ void ipu_vdi_set_field_order(struct ipu_vdi *vdi, v4l2_std_id std, u32 field)
 
 	reg = ipu_vdi_read(vdi, VDI_C);
 	if (top_field_0)
-		reg &= ~VDI_C_TOP_FIELD_MAN_1;
+		reg &= ~(VDI_C_TOP_FIELD_MAN_1 | VDI_C_TOP_FIELD_AUTO_1);
 	else
-		reg |= VDI_C_TOP_FIELD_MAN_1;
+		reg |= VDI_C_TOP_FIELD_MAN_1 | VDI_C_TOP_FIELD_AUTO_1;
 	ipu_vdi_write(vdi, reg, VDI_C);
 
 	spin_unlock_irqrestore(&vdi->lock, flags);

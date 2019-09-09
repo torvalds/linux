@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "util/cache.h"
 #include "util/debug.h"
 #include "ui/browser.h"
@@ -7,6 +8,8 @@
 #include "ui/libslang.h"
 #include "util/header.h"
 #include "util/session.h"
+
+#include <sys/ttydefaults.h>
 
 static void ui_browser__argv_write(struct ui_browser *browser,
 				   void *entry, int row)
@@ -32,7 +35,7 @@ static int list_menu__run(struct ui_browser *menu)
 {
 	int key;
 	unsigned long offset;
-	const char help[] =
+	static const char help[] =
 	"h/?/F1        Show this window\n"
 	"UP/DOWN/PGUP\n"
 	"PGDN/SPACE\n"

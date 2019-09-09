@@ -88,17 +88,12 @@ static int block2mtd_erase(struct mtd_info *mtd, struct erase_info *instr)
 	size_t len = instr->len;
 	int err;
 
-	instr->state = MTD_ERASING;
 	mutex_lock(&dev->write_mutex);
 	err = _block2mtd_erase(dev, from, len);
 	mutex_unlock(&dev->write_mutex);
-	if (err) {
+	if (err)
 		pr_err("erase failed err = %d\n", err);
-		instr->state = MTD_ERASE_FAILED;
-	} else
-		instr->state = MTD_ERASE_DONE;
 
-	mtd_erase_callback(instr);
 	return err;
 }
 
@@ -225,7 +220,7 @@ static struct block2mtd_dev *add_device(char *devname, int erase_size,
 	int i;
 #endif
 	const fmode_t mode = FMODE_READ | FMODE_WRITE | FMODE_EXCL;
-	struct block_device *bdev = ERR_PTR(-ENODEV);
+	struct block_device *bdev;
 	struct block2mtd_dev *dev;
 	char *name;
 
@@ -334,8 +329,10 @@ static int ustrtoul(const char *cp, char **endp, unsigned int base)
 	switch (**endp) {
 	case 'G' :
 		result *= 1024;
+		/* fall through */
 	case 'M':
 		result *= 1024;
+		/* fall through */
 	case 'K':
 	case 'k':
 		result *= 1024;
@@ -431,7 +428,7 @@ static int block2mtd_setup2(const char *val)
 }
 
 
-static int block2mtd_setup(const char *val, struct kernel_param *kp)
+static int block2mtd_setup(const char *val, const struct kernel_param *kp)
 {
 #ifdef MODULE
 	return block2mtd_setup2(val);

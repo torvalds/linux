@@ -1,11 +1,5 @@
-/*   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; version 2 of the License
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
+/* SPDX-License-Identifier: GPL-2.0-only */
+/*
  *
  *   Copyright (C) 2009-2016 John Crispin <blogic@openwrt.org>
  *   Copyright (C) 2009-2016 Felix Fietkau <nbd@openwrt.org>
@@ -14,6 +8,12 @@
 
 #ifndef MTK_ETH_H
 #define MTK_ETH_H
+
+#include <linux/dma-mapping.h>
+#include <linux/netdevice.h>
+#include <linux/of_net.h>
+#include <linux/u64_stats_sync.h>
+#include <linux/refcount.h>
 
 #define MTK_QDMA_PAGE_SIZE	2048
 #define	MTK_MAX_RX_LENGTH	1536
@@ -70,6 +70,10 @@
 /* Frame Engine Interrupt Grouping Register */
 #define MTK_FE_INT_GRP		0x20
 
+/* CDMP Ingress Control Register */
+#define MTK_CDMQ_IG_CTRL	0x1400
+#define MTK_CDMQ_STAG_EN	BIT(0)
+
 /* CDMP Exgress Control Register */
 #define MTK_CDMP_EG_CTRL	0x404
 
@@ -121,7 +125,14 @@
 #define MTK_PST_DRX_IDX_CFG(x)	(MTK_PST_DRX_IDX0 << (x))
 
 /* PDMA Delay Interrupt Register */
-#define MTK_PDMA_DELAY_INT	0xa0c
+#define MTK_PDMA_DELAY_INT		0xa0c
+#define MTK_PDMA_DELAY_RX_EN		BIT(15)
+#define MTK_PDMA_DELAY_RX_PINT		4
+#define MTK_PDMA_DELAY_RX_PINT_SHIFT	8
+#define MTK_PDMA_DELAY_RX_PTIME		4
+#define MTK_PDMA_DELAY_RX_DELAY		\
+	(MTK_PDMA_DELAY_RX_EN | MTK_PDMA_DELAY_RX_PTIME | \
+	(MTK_PDMA_DELAY_RX_PINT << MTK_PDMA_DELAY_RX_PINT_SHIFT))
 
 /* PDMA Interrupt Status Register */
 #define MTK_PDMA_INT_STATUS	0xa20
@@ -202,6 +213,7 @@
 
 /* QDMA Interrupt Status Register */
 #define MTK_QMTK_INT_STATUS	0x1A18
+#define MTK_RX_DONE_DLY		BIT(30)
 #define MTK_RX_DONE_INT3	BIT(19)
 #define MTK_RX_DONE_INT2	BIT(18)
 #define MTK_RX_DONE_INT1	BIT(17)
@@ -210,8 +222,7 @@
 #define MTK_TX_DONE_INT2	BIT(2)
 #define MTK_TX_DONE_INT1	BIT(1)
 #define MTK_TX_DONE_INT0	BIT(0)
-#define MTK_RX_DONE_INT		(MTK_RX_DONE_INT0 | MTK_RX_DONE_INT1 | \
-				 MTK_RX_DONE_INT2 | MTK_RX_DONE_INT3)
+#define MTK_RX_DONE_INT		MTK_RX_DONE_DLY
 #define MTK_TX_DONE_INT		(MTK_TX_DONE_INT0 | MTK_TX_DONE_INT1 | \
 				 MTK_TX_DONE_INT2 | MTK_TX_DONE_INT3)
 
@@ -291,6 +302,9 @@
 #define PHY_IAC_REG_SHIFT	25
 #define PHY_IAC_TIMEOUT		HZ
 
+#define MTK_MAC_MISC		0x1000c
+#define MTK_MUX_TO_ESW		BIT(0)
+
 /* Mac control registers */
 #define MTK_MAC_MCR(x)		(0x10100 + (x * 0x100))
 #define MAC_MCR_MAX_RX_1536	BIT(24)
@@ -346,20 +360,57 @@
 #define ETHSYS_CHIPID0_3	0x0
 #define ETHSYS_CHIPID4_7	0x4
 #define MT7623_ETH		7623
+#define MT7622_ETH		7622
+#define MT7621_ETH		7621
+
+/* ethernet system control register */
+#define ETHSYS_SYSCFG		0x10
+#define SYSCFG_DRAM_TYPE_DDR2	BIT(4)
 
 /* ethernet subsystem config register */
 #define ETHSYS_SYSCFG0		0x14
 #define SYSCFG0_GE_MASK		0x3
 #define SYSCFG0_GE_MODE(x, y)	(x << (12 + (y * 2)))
+#define SYSCFG0_SGMII_MASK     GENMASK(9, 8)
+#define SYSCFG0_SGMII_GMAC1    ((2 << 8) & SYSCFG0_SGMII_MASK)
+#define SYSCFG0_SGMII_GMAC2    ((3 << 8) & SYSCFG0_SGMII_MASK)
+#define SYSCFG0_SGMII_GMAC1_V2 BIT(9)
+#define SYSCFG0_SGMII_GMAC2_V2 BIT(8)
+
 
 /* ethernet subsystem clock register */
 #define ETHSYS_CLKCFG0		0x2c
 #define ETHSYS_TRGMII_CLK_SEL362_5	BIT(11)
+#define ETHSYS_TRGMII_MT7621_MASK	(BIT(5) | BIT(6))
+#define ETHSYS_TRGMII_MT7621_APLL	BIT(6)
+#define ETHSYS_TRGMII_MT7621_DDR_PLL	BIT(5)
 
 /* ethernet reset control register */
 #define ETHSYS_RSTCTRL		0x34
 #define RSTCTRL_FE		BIT(6)
 #define RSTCTRL_PPE		BIT(31)
+
+/* SGMII subsystem config registers */
+/* Register to auto-negotiation restart */
+#define SGMSYS_PCS_CONTROL_1	0x0
+#define SGMII_AN_RESTART	BIT(9)
+
+/* Register to programmable link timer, the unit in 2 * 8ns */
+#define SGMSYS_PCS_LINK_TIMER	0x18
+#define SGMII_LINK_TIMER_DEFAULT	(0x186a0 & GENMASK(19, 0))
+
+/* Register to control remote fault */
+#define SGMSYS_SGMII_MODE	0x20
+#define SGMII_REMOTE_FAULT_DIS	BIT(8)
+
+/* Register to power up QPHY */
+#define SGMSYS_QPHY_PWR_STATE_CTRL 0xe8
+#define	SGMII_PHYA_PWD		BIT(4)
+
+/* Infrasys subsystem config registers */
+#define INFRA_MISC2            0x70c
+#define CO_QPHY_SEL            BIT(0)
+#define GEPHY_MAC_SEL          BIT(1)
 
 struct mtk_rx_dma {
 	unsigned int rxd1;
@@ -406,12 +457,18 @@ struct mtk_hw_stats {
 	struct u64_stats_sync	syncp;
 };
 
-/* PDMA descriptor can point at 1-2 segments. This enum allows us to track how
- * memory was allocated so that it can be freed properly
- */
 enum mtk_tx_flags {
+	/* PDMA descriptor can point at 1-2 segments. This enum allows us to
+	 * track how memory was allocated so that it can be freed properly.
+	 */
 	MTK_TX_FLAGS_SINGLE0	= 0x01,
 	MTK_TX_FLAGS_PAGE0	= 0x02,
+
+	/* MTK_TX_FLAGS_FPORTx allows tracking which port the transmitted
+	 * SKB out instead of looking up through hardware TX descriptor.
+	 */
+	MTK_TX_FLAGS_FPORT0	= 0x04,
+	MTK_TX_FLAGS_FPORT1	= 0x08,
 };
 
 /* This enum allows us to identify how the clock is defined on the array of the
@@ -419,12 +476,52 @@ enum mtk_tx_flags {
  */
 enum mtk_clks_map {
 	MTK_CLK_ETHIF,
+	MTK_CLK_SGMIITOP,
 	MTK_CLK_ESW,
+	MTK_CLK_GP0,
 	MTK_CLK_GP1,
 	MTK_CLK_GP2,
+	MTK_CLK_FE,
 	MTK_CLK_TRGPLL,
+	MTK_CLK_SGMII_TX_250M,
+	MTK_CLK_SGMII_RX_250M,
+	MTK_CLK_SGMII_CDR_REF,
+	MTK_CLK_SGMII_CDR_FB,
+	MTK_CLK_SGMII2_TX_250M,
+	MTK_CLK_SGMII2_RX_250M,
+	MTK_CLK_SGMII2_CDR_REF,
+	MTK_CLK_SGMII2_CDR_FB,
+	MTK_CLK_SGMII_CK,
+	MTK_CLK_ETH2PLL,
 	MTK_CLK_MAX
 };
+
+#define MT7623_CLKS_BITMAP	(BIT(MTK_CLK_ETHIF) | BIT(MTK_CLK_ESW) |  \
+				 BIT(MTK_CLK_GP1) | BIT(MTK_CLK_GP2) | \
+				 BIT(MTK_CLK_TRGPLL))
+#define MT7622_CLKS_BITMAP	(BIT(MTK_CLK_ETHIF) | BIT(MTK_CLK_ESW) |  \
+				 BIT(MTK_CLK_GP0) | BIT(MTK_CLK_GP1) | \
+				 BIT(MTK_CLK_GP2) | \
+				 BIT(MTK_CLK_SGMII_TX_250M) | \
+				 BIT(MTK_CLK_SGMII_RX_250M) | \
+				 BIT(MTK_CLK_SGMII_CDR_REF) | \
+				 BIT(MTK_CLK_SGMII_CDR_FB) | \
+				 BIT(MTK_CLK_SGMII_CK) | \
+				 BIT(MTK_CLK_ETH2PLL))
+#define MT7621_CLKS_BITMAP	(0)
+#define MT7629_CLKS_BITMAP	(BIT(MTK_CLK_ETHIF) | BIT(MTK_CLK_ESW) |  \
+				 BIT(MTK_CLK_GP0) | BIT(MTK_CLK_GP1) | \
+				 BIT(MTK_CLK_GP2) | BIT(MTK_CLK_FE) | \
+				 BIT(MTK_CLK_SGMII_TX_250M) | \
+				 BIT(MTK_CLK_SGMII_RX_250M) | \
+				 BIT(MTK_CLK_SGMII_CDR_REF) | \
+				 BIT(MTK_CLK_SGMII_CDR_FB) | \
+				 BIT(MTK_CLK_SGMII2_TX_250M) | \
+				 BIT(MTK_CLK_SGMII2_RX_250M) | \
+				 BIT(MTK_CLK_SGMII2_CDR_REF) | \
+				 BIT(MTK_CLK_SGMII2_CDR_FB) | \
+				 BIT(MTK_CLK_SGMII_CK) | \
+				 BIT(MTK_CLK_ETH2PLL) | BIT(MTK_CLK_SGMIITOP))
 
 enum mtk_dev_state {
 	MTK_HW_INIT,
@@ -472,6 +569,7 @@ struct mtk_tx_ring {
 enum mtk_rx_flags {
 	MTK_RX_FLAGS_NORMAL = 0,
 	MTK_RX_FLAGS_HWLRO,
+	MTK_RX_FLAGS_QDMA,
 };
 
 /* struct mtk_rx_ring -	This struct holds info describing a RX ring
@@ -494,14 +592,163 @@ struct mtk_rx_ring {
 	u32 crx_idx_reg;
 };
 
+enum mkt_eth_capabilities {
+	MTK_RGMII_BIT = 0,
+	MTK_TRGMII_BIT,
+	MTK_SGMII_BIT,
+	MTK_ESW_BIT,
+	MTK_GEPHY_BIT,
+	MTK_MUX_BIT,
+	MTK_INFRA_BIT,
+	MTK_SHARED_SGMII_BIT,
+	MTK_HWLRO_BIT,
+	MTK_SHARED_INT_BIT,
+	MTK_TRGMII_MT7621_CLK_BIT,
+
+	/* MUX BITS*/
+	MTK_ETH_MUX_GDM1_TO_GMAC1_ESW_BIT,
+	MTK_ETH_MUX_GMAC2_GMAC0_TO_GEPHY_BIT,
+	MTK_ETH_MUX_U3_GMAC2_TO_QPHY_BIT,
+	MTK_ETH_MUX_GMAC1_GMAC2_TO_SGMII_RGMII_BIT,
+	MTK_ETH_MUX_GMAC12_TO_GEPHY_SGMII_BIT,
+
+	/* PATH BITS */
+	MTK_ETH_PATH_GMAC1_RGMII_BIT,
+	MTK_ETH_PATH_GMAC1_TRGMII_BIT,
+	MTK_ETH_PATH_GMAC1_SGMII_BIT,
+	MTK_ETH_PATH_GMAC2_RGMII_BIT,
+	MTK_ETH_PATH_GMAC2_SGMII_BIT,
+	MTK_ETH_PATH_GMAC2_GEPHY_BIT,
+	MTK_ETH_PATH_GDM1_ESW_BIT,
+};
+
+/* Supported hardware group on SoCs */
+#define MTK_RGMII		BIT(MTK_RGMII_BIT)
+#define MTK_TRGMII		BIT(MTK_TRGMII_BIT)
+#define MTK_SGMII		BIT(MTK_SGMII_BIT)
+#define MTK_ESW			BIT(MTK_ESW_BIT)
+#define MTK_GEPHY		BIT(MTK_GEPHY_BIT)
+#define MTK_MUX			BIT(MTK_MUX_BIT)
+#define MTK_INFRA		BIT(MTK_INFRA_BIT)
+#define MTK_SHARED_SGMII	BIT(MTK_SHARED_SGMII_BIT)
+#define MTK_HWLRO		BIT(MTK_HWLRO_BIT)
+#define MTK_SHARED_INT		BIT(MTK_SHARED_INT_BIT)
+#define MTK_TRGMII_MT7621_CLK	BIT(MTK_TRGMII_MT7621_CLK_BIT)
+
+#define MTK_ETH_MUX_GDM1_TO_GMAC1_ESW		\
+	BIT(MTK_ETH_MUX_GDM1_TO_GMAC1_ESW_BIT)
+#define MTK_ETH_MUX_GMAC2_GMAC0_TO_GEPHY	\
+	BIT(MTK_ETH_MUX_GMAC2_GMAC0_TO_GEPHY_BIT)
+#define MTK_ETH_MUX_U3_GMAC2_TO_QPHY		\
+	BIT(MTK_ETH_MUX_U3_GMAC2_TO_QPHY_BIT)
+#define MTK_ETH_MUX_GMAC1_GMAC2_TO_SGMII_RGMII	\
+	BIT(MTK_ETH_MUX_GMAC1_GMAC2_TO_SGMII_RGMII_BIT)
+#define MTK_ETH_MUX_GMAC12_TO_GEPHY_SGMII	\
+	BIT(MTK_ETH_MUX_GMAC12_TO_GEPHY_SGMII_BIT)
+
+/* Supported path present on SoCs */
+#define MTK_ETH_PATH_GMAC1_RGMII	BIT(MTK_ETH_PATH_GMAC1_RGMII_BIT)
+#define MTK_ETH_PATH_GMAC1_TRGMII	BIT(MTK_ETH_PATH_GMAC1_TRGMII_BIT)
+#define MTK_ETH_PATH_GMAC1_SGMII	BIT(MTK_ETH_PATH_GMAC1_SGMII_BIT)
+#define MTK_ETH_PATH_GMAC2_RGMII	BIT(MTK_ETH_PATH_GMAC2_RGMII_BIT)
+#define MTK_ETH_PATH_GMAC2_SGMII	BIT(MTK_ETH_PATH_GMAC2_SGMII_BIT)
+#define MTK_ETH_PATH_GMAC2_GEPHY	BIT(MTK_ETH_PATH_GMAC2_GEPHY_BIT)
+#define MTK_ETH_PATH_GDM1_ESW		BIT(MTK_ETH_PATH_GDM1_ESW_BIT)
+
+#define MTK_GMAC1_RGMII		(MTK_ETH_PATH_GMAC1_RGMII | MTK_RGMII)
+#define MTK_GMAC1_TRGMII	(MTK_ETH_PATH_GMAC1_TRGMII | MTK_TRGMII)
+#define MTK_GMAC1_SGMII		(MTK_ETH_PATH_GMAC1_SGMII | MTK_SGMII)
+#define MTK_GMAC2_RGMII		(MTK_ETH_PATH_GMAC2_RGMII | MTK_RGMII)
+#define MTK_GMAC2_SGMII		(MTK_ETH_PATH_GMAC2_SGMII | MTK_SGMII)
+#define MTK_GMAC2_GEPHY		(MTK_ETH_PATH_GMAC2_GEPHY | MTK_GEPHY)
+#define MTK_GDM1_ESW		(MTK_ETH_PATH_GDM1_ESW | MTK_ESW)
+
+/* MUXes present on SoCs */
+/* 0: GDM1 -> GMAC1, 1: GDM1 -> ESW */
+#define MTK_MUX_GDM1_TO_GMAC1_ESW (MTK_ETH_MUX_GDM1_TO_GMAC1_ESW | MTK_MUX)
+
+/* 0: GMAC2 -> GEPHY, 1: GMAC0 -> GePHY */
+#define MTK_MUX_GMAC2_GMAC0_TO_GEPHY    \
+	(MTK_ETH_MUX_GMAC2_GMAC0_TO_GEPHY | MTK_MUX | MTK_INFRA)
+
+/* 0: U3 -> QPHY, 1: GMAC2 -> QPHY */
+#define MTK_MUX_U3_GMAC2_TO_QPHY        \
+	(MTK_ETH_MUX_U3_GMAC2_TO_QPHY | MTK_MUX | MTK_INFRA)
+
+/* 2: GMAC1 -> SGMII, 3: GMAC2 -> SGMII */
+#define MTK_MUX_GMAC1_GMAC2_TO_SGMII_RGMII      \
+	(MTK_ETH_MUX_GMAC1_GMAC2_TO_SGMII_RGMII | MTK_MUX | \
+	MTK_SHARED_SGMII)
+
+/* 0: GMACx -> GEPHY, 1: GMACx -> SGMII where x is 1 or 2 */
+#define MTK_MUX_GMAC12_TO_GEPHY_SGMII   \
+	(MTK_ETH_MUX_GMAC12_TO_GEPHY_SGMII | MTK_MUX)
+
+#define MTK_HAS_CAPS(caps, _x)		(((caps) & (_x)) == (_x))
+
+#define MT7621_CAPS  (MTK_GMAC1_RGMII | MTK_GMAC1_TRGMII | \
+		      MTK_GMAC2_RGMII | MTK_SHARED_INT | MTK_TRGMII_MT7621_CLK)
+
+#define MT7622_CAPS  (MTK_GMAC1_RGMII | MTK_GMAC1_SGMII | MTK_GMAC2_RGMII | \
+		      MTK_GMAC2_SGMII | MTK_GDM1_ESW | \
+		      MTK_MUX_GDM1_TO_GMAC1_ESW | \
+		      MTK_MUX_GMAC1_GMAC2_TO_SGMII_RGMII)
+
+#define MT7623_CAPS  (MTK_GMAC1_RGMII | MTK_GMAC1_TRGMII | MTK_GMAC2_RGMII)
+
+#define MT7629_CAPS  (MTK_GMAC1_SGMII | MTK_GMAC2_SGMII | MTK_GMAC2_GEPHY | \
+		      MTK_GDM1_ESW | MTK_MUX_GDM1_TO_GMAC1_ESW | \
+		      MTK_MUX_GMAC2_GMAC0_TO_GEPHY | \
+		      MTK_MUX_U3_GMAC2_TO_QPHY | \
+		      MTK_MUX_GMAC12_TO_GEPHY_SGMII)
+
+/* struct mtk_eth_data -	This is the structure holding all differences
+ *				among various plaforms
+ * @ana_rgc3:                   The offset for register ANA_RGC3 related to
+ *				sgmiisys syscon
+ * @caps			Flags shown the extra capability for the SoC
+ * @required_clks		Flags shown the bitmap for required clocks on
+ *				the target SoC
+ * @required_pctl		A bool value to show whether the SoC requires
+ *				the extra setup for those pins used by GMAC.
+ */
+struct mtk_soc_data {
+	u32             ana_rgc3;
+	u32		caps;
+	u32		required_clks;
+	bool		required_pctl;
+};
+
 /* currently no SoC has more than 2 macs */
 #define MTK_MAX_DEVS			2
+
+#define MTK_SGMII_PHYSPEED_AN          BIT(31)
+#define MTK_SGMII_PHYSPEED_MASK        GENMASK(2, 0)
+#define MTK_SGMII_PHYSPEED_1000        BIT(0)
+#define MTK_SGMII_PHYSPEED_2500        BIT(1)
+#define MTK_HAS_FLAGS(flags, _x)       (((flags) & (_x)) == (_x))
+
+/* struct mtk_sgmii -  This is the structure holding sgmii regmap and its
+ *                     characteristics
+ * @regmap:            The register map pointing at the range used to setup
+ *                     SGMII modes
+ * @flags:             The enum refers to which mode the sgmii wants to run on
+ * @ana_rgc3:          The offset refers to register ANA_RGC3 related to regmap
+ */
+
+struct mtk_sgmii {
+	struct regmap   *regmap[MTK_MAX_DEVS];
+	u32             flags[MTK_MAX_DEVS];
+	u32             ana_rgc3;
+};
 
 /* struct mtk_eth -	This is the main datasructure for holding the state
  *			of the driver
  * @dev:		The device pointer
  * @base:		The mapped register i/o base
  * @page_lock:		Make sure that register operations are atomic
+ * @tx_irq__lock:	Make sure that IRQ register operations are atomic
+ * @rx_irq__lock:	Make sure that IRQ register operations are atomic
  * @dummy_dev:		we run 2 netdevs on 1 physical DMA ring and need a
  *			dummy for NAPI to work
  * @netdev:		The netdev instances
@@ -510,11 +757,14 @@ struct mtk_rx_ring {
  * @msg_enable:		Ethtool msg level
  * @ethsys:		The register map pointing at the range used to setup
  *			MII modes
+ * @infra:              The register map pointing at the range used to setup
+ *                      SGMII and GePHY path
  * @pctl:		The register map pointing at the range used to setup
  *			GMAC port drive/slew values
  * @dma_refcnt:		track how many netdevs are using the DMA engine
- * @tx_ring:		Pointer to the memore holding info about the TX ring
- * @rx_ring:		Pointer to the memore holding info about the RX ring
+ * @tx_ring:		Pointer to the memory holding info about the TX ring
+ * @rx_ring:		Pointer to the memory holding info about the RX ring
+ * @rx_ring_qdma:	Pointer to the memory holding info about the QDMA RX ring
  * @tx_napi:		The TX NAPI struct
  * @rx_napi:		The RX NAPI struct
  * @scratch_ring:	Newer SoCs need memory for a second HW managed TX ring
@@ -523,14 +773,16 @@ struct mtk_rx_ring {
  * @clks:		clock array for all clocks required
  * @mii_bus:		If there is a bus we need to create an instance for it
  * @pending_work:	The workqueue used to reset the dma ring
- * @state               Initialization and runtime state of the device.
+ * @state:		Initialization and runtime state of the device
+ * @soc:		Holding specific data among vaious SoCs
  */
 
 struct mtk_eth {
 	struct device			*dev;
 	void __iomem			*base;
 	spinlock_t			page_lock;
-	spinlock_t			irq_lock;
+	spinlock_t			tx_irq_lock;
+	spinlock_t			rx_irq_lock;
 	struct net_device		dummy_dev;
 	struct net_device		*netdev[MTK_MAX_DEVS];
 	struct mtk_mac			*mac[MTK_MAX_DEVS];
@@ -538,12 +790,14 @@ struct mtk_eth {
 	u32				msg_enable;
 	unsigned long			sysclk;
 	struct regmap			*ethsys;
+	struct regmap                   *infra;
+	struct mtk_sgmii                *sgmii;
 	struct regmap			*pctl;
-	u32				chip_id;
 	bool				hwlro;
-	atomic_t			dma_refcnt;
+	refcount_t			dma_refcnt;
 	struct mtk_tx_ring		tx_ring;
 	struct mtk_rx_ring		rx_ring[MTK_MAX_RX_RING_NUM];
+	struct mtk_rx_ring		rx_ring_qdma;
 	struct napi_struct		tx_napi;
 	struct napi_struct		rx_napi;
 	struct mtk_tx_dma		*scratch_ring;
@@ -554,6 +808,8 @@ struct mtk_eth {
 	struct mii_bus			*mii_bus;
 	struct work_struct		pending_work;
 	unsigned long			state;
+
+	const struct mtk_soc_data	*soc;
 };
 
 /* struct mtk_mac -	the structure that holds the info about the MACs of the
@@ -585,5 +841,11 @@ void mtk_stats_update_mac(struct mtk_mac *mac);
 
 void mtk_w32(struct mtk_eth *eth, u32 val, unsigned reg);
 u32 mtk_r32(struct mtk_eth *eth, unsigned reg);
+
+int mtk_sgmii_init(struct mtk_sgmii *ss, struct device_node *np,
+		   u32 ana_rgc3);
+int mtk_sgmii_setup_mode_an(struct mtk_sgmii *ss, int id);
+int mtk_sgmii_setup_mode_force(struct mtk_sgmii *ss, int id);
+int mtk_setup_hw_path(struct mtk_eth *eth, int mac_id, int phymode);
 
 #endif /* MTK_ETH_H */

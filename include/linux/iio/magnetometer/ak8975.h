@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __IIO_MAGNETOMETER_AK8975_H__
 #define __IIO_MAGNETOMETER_AK8975_H__
 

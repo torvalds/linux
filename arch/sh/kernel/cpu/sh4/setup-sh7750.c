@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * SH7091/SH7750/SH7750S/SH7750R/SH7751/SH7751R Setup
  *
  *  Copyright (C) 2006  Paul Mundt
  *  Copyright (C) 2006  Jamie Lenehan
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 #include <linux/platform_device.h>
 #include <linux/init.h>
@@ -38,15 +35,11 @@ static struct platform_device rtc_device = {
 };
 
 static struct plat_sci_port sci_platform_data = {
-	.port_reg	= 0xffe0001C,
-	.flags		= UPF_BOOT_AUTOCONF,
-	.scscr		= SCSCR_TE | SCSCR_RE,
 	.type		= PORT_SCI,
-	.regshift	= 2,
 };
 
 static struct resource sci_resources[] = {
-	DEFINE_RES_MEM(0xffe00000, 0x100),
+	DEFINE_RES_MEM(0xffe00000, 0x20),
 	DEFINE_RES_IRQ(evt2irq(0x4e0)),
 };
 
@@ -61,8 +54,7 @@ static struct platform_device sci_device = {
 };
 
 static struct plat_sci_port scif_platform_data = {
-	.flags		= UPF_BOOT_AUTOCONF,
-	.scscr		= SCSCR_TE | SCSCR_RE | SCSCR_REIE,
+	.scscr		= SCSCR_REIE,
 	.type		= PORT_SCIF,
 };
 

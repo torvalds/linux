@@ -7,7 +7,7 @@
  */
 
 #include <linux/init.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/smp.h>
 #include <asm/bootinfo.h>
 #include <asm/bmips.h>

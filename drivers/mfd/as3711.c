@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * AS3711 PMIC MFC driver
  *
  * Copyright (C) 2012 Renesas Electronics Corporation
  * Author: Guennadi Liakhovetski, <g.liakhovetski@gmx.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the version 2 of the GNU General Public License as
- * published by the Free Software Foundation
  */
 
 #include <linux/device.h>
@@ -16,7 +13,6 @@
 #include <linux/kernel.h>
 #include <linux/mfd/as3711.h>
 #include <linux/mfd/core.h>
-#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
@@ -118,7 +114,6 @@ static const struct of_device_id as3711_of_match[] = {
 	{.compatible = "ams,as3711",},
 	{}
 };
-MODULE_DEVICE_TABLE(of, as3711_of_match);
 #endif
 
 static int as3711_i2c_probe(struct i2c_client *client,
@@ -202,8 +197,6 @@ static const struct i2c_device_id as3711_i2c_id[] = {
 	{}
 };
 
-MODULE_DEVICE_TABLE(i2c, as3711_i2c_id);
-
 static struct i2c_driver as3711_i2c_driver = {
 	.driver = {
 		   .name = "as3711",
@@ -219,13 +212,3 @@ static int __init as3711_i2c_init(void)
 }
 /* Initialise early */
 subsys_initcall(as3711_i2c_init);
-
-static void __exit as3711_i2c_exit(void)
-{
-	i2c_del_driver(&as3711_i2c_driver);
-}
-module_exit(as3711_i2c_exit);
-
-MODULE_AUTHOR("Guennadi Liakhovetski <g.liakhovetski@gmx.de>");
-MODULE_DESCRIPTION("AS3711 PMIC driver");
-MODULE_LICENSE("GPL v2");

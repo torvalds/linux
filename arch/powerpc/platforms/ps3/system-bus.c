@@ -1,21 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  PS3 system bus driver.
  *
  *  Copyright (C) 2006 Sony Computer Entertainment Inc.
  *  Copyright 2006 Sony Corp.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; version 2 of the License.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/kernel.h>
@@ -37,12 +25,12 @@ static struct device ps3_system_bus = {
 };
 
 /* FIXME: need device usage counters! */
-struct {
+static struct {
 	struct mutex mutex;
 	int sb_11; /* usb 0 */
 	int sb_12; /* usb 0 */
 	int gpu;
-} static usage_hack;
+} usage_hack;
 
 static int ps3_is_device(struct ps3_system_bus_device *dev, u64 bus_id,
 			 u64 dev_id)
@@ -471,11 +459,13 @@ static ssize_t modalias_show(struct device *_dev, struct device_attribute *a,
 
 	return (len >= PAGE_SIZE) ? (PAGE_SIZE - 1) : len;
 }
+static DEVICE_ATTR_RO(modalias);
 
-static struct device_attribute ps3_system_bus_dev_attrs[] = {
-	__ATTR_RO(modalias),
-	__ATTR_NULL,
+static struct attribute *ps3_system_bus_dev_attrs[] = {
+	&dev_attr_modalias.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(ps3_system_bus_dev);
 
 struct bus_type ps3_system_bus_type = {
 	.name = "ps3_system_bus",
@@ -484,7 +474,7 @@ struct bus_type ps3_system_bus_type = {
 	.probe = ps3_system_bus_probe,
 	.remove = ps3_system_bus_remove,
 	.shutdown = ps3_system_bus_shutdown,
-	.dev_attrs = ps3_system_bus_dev_attrs,
+	.dev_groups = ps3_system_bus_dev_groups,
 };
 
 static int __init ps3_system_bus_init(void)
@@ -701,7 +691,7 @@ static u64 ps3_dma_get_required_mask(struct device *_dev)
 	return DMA_BIT_MASK(32);
 }
 
-static struct dma_map_ops ps3_sb_dma_ops = {
+static const struct dma_map_ops ps3_sb_dma_ops = {
 	.alloc = ps3_alloc_coherent,
 	.free = ps3_free_coherent,
 	.map_sg = ps3_sb_map_sg,
@@ -712,7 +702,7 @@ static struct dma_map_ops ps3_sb_dma_ops = {
 	.unmap_page = ps3_unmap_page,
 };
 
-static struct dma_map_ops ps3_ioc0_dma_ops = {
+static const struct dma_map_ops ps3_ioc0_dma_ops = {
 	.alloc = ps3_alloc_coherent,
 	.free = ps3_free_coherent,
 	.map_sg = ps3_ioc0_map_sg,
@@ -756,11 +746,11 @@ int ps3_system_bus_device_register(struct ps3_system_bus_device *dev)
 
 	switch (dev->dev_type) {
 	case PS3_DEVICE_TYPE_IOC0:
-		dev->core.archdata.dma_ops = &ps3_ioc0_dma_ops;
+		dev->core.dma_ops = &ps3_ioc0_dma_ops;
 		dev_set_name(&dev->core, "ioc0_%02x", ++dev_ioc0_count);
 		break;
 	case PS3_DEVICE_TYPE_SB:
-		dev->core.archdata.dma_ops = &ps3_sb_dma_ops;
+		dev->core.dma_ops = &ps3_sb_dma_ops;
 		dev_set_name(&dev->core, "sb_%02x", ++dev_sb_count);
 
 		break;

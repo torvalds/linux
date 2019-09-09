@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __UM_PROCESSOR_H
 #define __UM_PROCESSOR_H
 
@@ -26,7 +27,6 @@ static inline void rep_nop(void)
 }
 
 #define cpu_relax()		rep_nop()
-#define cpu_relax_lowlatency()	cpu_relax()
 
 #define task_pt_regs(t) (&(t)->thread.regs)
 

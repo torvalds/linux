@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config MACH_TX39XX
 	bool
 	select MACH_TXX9
@@ -58,7 +59,7 @@ config SOC_TX3927
 	bool
 	select CEVT_TXX9
 	select HAS_TXX9_SERIAL
-	select HW_HAS_PCI
+	select HAVE_PCI
 	select IRQ_TXX9
 	select GPIO_TXX9
 
@@ -66,7 +67,7 @@ config SOC_TX4927
 	bool
 	select CEVT_TXX9
 	select HAS_TXX9_SERIAL
-	select HW_HAS_PCI
+	select HAVE_PCI
 	select IRQ_TXX9
 	select PCI_TX4927
 	select GPIO_TXX9
@@ -76,7 +77,7 @@ config SOC_TX4938
 	bool
 	select CEVT_TXX9
 	select HAS_TXX9_SERIAL
-	select HW_HAS_PCI
+	select HAVE_PCI
 	select IRQ_TXX9
 	select PCI_TX4927
 	select GPIO_TXX9
@@ -86,7 +87,7 @@ config SOC_TX4939
 	bool
 	select CEVT_TXX9
 	select HAS_TXX9_SERIAL
-	select HW_HAS_PCI
+	select HAVE_PCI
 	select PCI_TX4927
 	select HAS_TXX9_ACLC
 

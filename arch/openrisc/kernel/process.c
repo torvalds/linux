@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * OpenRISC process.c
  *
@@ -9,11 +10,6 @@
  * Copyright (C) 2003 Matjaz Breskvar <phoenix@bsemi.com>
  * Copyright (C) 2010-2011 Jonas Bonn <jonas@southpole.se>
  *
- *      This program is free software; you can redistribute it and/or
- *      modify it under the terms of the GNU General Public License
- *      as published by the Free Software Foundation; either version
- *      2 of the License, or (at your option) any later version.
- *
  * This file handles the architecture-dependent parts of process handling...
  */
 
@@ -22,8 +18,11 @@
 
 #include <linux/errno.h>
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
+#include <linux/sched/task.h>
+#include <linux/sched/task_stack.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/mm.h>
 #include <linux/stddef.h>
 #include <linux/unistd.h>
@@ -36,7 +35,7 @@
 #include <linux/mqueue.h>
 #include <linux/fs.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/io.h>
 #include <asm/processor.h>
@@ -75,7 +74,19 @@ void machine_power_off(void)
 	__asm__("l.nop 1");
 }
 
+/*
+ * Send the doze signal to the cpu if available.
+ * Make sure, that all interrupts are enabled
+ */
+void arch_cpu_idle(void)
+{
+	local_irq_enable();
+	if (mfspr(SPR_UPR) & SPR_UPR_PMP)
+		mtspr(SPR_PMR, mfspr(SPR_PMR) | SPR_PMR_DME);
+}
+
 void (*pm_power_off) (void) = machine_power_off;
+EXPORT_SYMBOL(pm_power_off);
 
 /*
  * When a process does an "exec", machine state like FPU and debug
@@ -93,11 +104,6 @@ void show_regs(struct pt_regs *regs)
 	show_regs_print_info(KERN_DEFAULT);
 	/* __PHX__ cleanup this mess */
 	show_registers(regs);
-}
-
-unsigned long thread_saved_pc(struct task_struct *t)
-{
-	return (unsigned long)user_regs(t->stack)->pc;
 }
 
 void release_thread(struct task_struct *dead_task)
@@ -152,8 +158,6 @@ copy_thread(unsigned long clone_flags, unsigned long usp,
 
 	top_of_kernel_stack = sp;
 
-	p->set_child_tid = p->clear_child_tid = NULL;
-
 	/* Locate userspace context on stack... */
 	sp -= STACK_FRAME_OVERHEAD;	/* redzone */
 	sp -= sizeof(struct pt_regs);
@@ -173,6 +177,19 @@ copy_thread(unsigned long clone_flags, unsigned long usp,
 
 		if (usp)
 			userregs->sp = usp;
+
+		/*
+		 * For CLONE_SETTLS set "tp" (r10) to the TLS pointer passed to sys_clone.
+		 *
+		 * The kernel entry is:
+		 *	int clone (long flags, void *child_stack, int *parent_tid,
+		 *		int *child_tid, struct void *tls)
+		 *
+		 * This makes the source r7 in the kernel registers.
+		 */
+		if (clone_flags & CLONE_SETTLS)
+			userregs->gpr[10] = userregs->gpr[7];
+
 		userregs->gpr[11] = 0;	/* Result from fork() */
 
 		kregs->gpr[20] = 0;	/* Userspace thread */
@@ -213,6 +230,7 @@ int dump_fpu(struct pt_regs *regs, elf_fpregset_t * fpu)
 
 extern struct thread_info *_switch(struct thread_info *old_ti,
 				   struct thread_info *new_ti);
+extern int lwa_flag;
 
 struct task_struct *__switch_to(struct task_struct *old,
 				struct task_struct *new)
@@ -229,6 +247,8 @@ struct task_struct *__switch_to(struct task_struct *old,
 	 */
 	new_ti = new->stack;
 	old_ti = old->stack;
+
+	lwa_flag = 0;
 
 	current_thread_info_set[smp_processor_id()] = new_ti;
 	last = (_switch(old_ti, new_ti))->task;

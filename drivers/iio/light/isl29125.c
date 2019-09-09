@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * isl29125.c - Support for Intersil ISL29125 RGB light sensor
  *
  * Copyright (c) 2014 Peter Meerwald <pmeerw@pmeerw.net>
- *
- * This file is subject to the terms and conditions of version 2 of
- * the GNU General Public License.  See the file COPYING in the main
- * directory of this archive for more details.
  *
  * RGB light sensor with 16-bit channels for red, green, blue);
  * 7-bit I2C slave address 0x44
@@ -214,7 +211,6 @@ static const struct iio_info isl29125_info = {
 	.read_raw = isl29125_read_raw,
 	.write_raw = isl29125_write_raw,
 	.attrs = &isl29125_attribute_group,
-	.driver_module = THIS_MODULE,
 };
 
 static int isl29125_buffer_preenable(struct iio_dev *indio_dev)

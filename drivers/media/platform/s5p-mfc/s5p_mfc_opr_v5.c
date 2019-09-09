@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * drivers/media/platform/samsung/mfc5/s5p_mfc_opr_v5.c
  *
@@ -6,10 +7,6 @@
  *
  * Kamil Debski, Copyright (c) 2011 Samsung Electronics
  * http://www.samsung.com/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include "s5p_mfc_common.h"
@@ -30,8 +27,8 @@
 #include <linux/mm.h>
 #include <linux/sched.h>
 
-#define OFFSETA(x)		(((x) - dev->bank1) >> MFC_OFFSET_SHIFT)
-#define OFFSETB(x)		(((x) - dev->bank2) >> MFC_OFFSET_SHIFT)
+#define OFFSETA(x)		(((x) - dev->dma_base[BANK_L_CTX]) >> MFC_OFFSET_SHIFT)
+#define OFFSETB(x)		(((x) - dev->dma_base[BANK_R_CTX]) >> MFC_OFFSET_SHIFT)
 
 /* Allocate temporary buffers for decoding */
 static int s5p_mfc_alloc_dec_temp_buffers_v5(struct s5p_mfc_ctx *ctx)
@@ -41,7 +38,7 @@ static int s5p_mfc_alloc_dec_temp_buffers_v5(struct s5p_mfc_ctx *ctx)
 	int ret;
 
 	ctx->dsc.size = buf_size->dsc;
-	ret =  s5p_mfc_alloc_priv_buf(dev->mem_dev_l, dev->bank1, &ctx->dsc);
+	ret =  s5p_mfc_alloc_priv_buf(dev, BANK_L_CTX, &ctx->dsc);
 	if (ret) {
 		mfc_err("Failed to allocate temporary buffer\n");
 		return ret;
@@ -57,7 +54,7 @@ static int s5p_mfc_alloc_dec_temp_buffers_v5(struct s5p_mfc_ctx *ctx)
 /* Release temporary buffers for decoding */
 static void s5p_mfc_release_dec_desc_buffer_v5(struct s5p_mfc_ctx *ctx)
 {
-	s5p_mfc_release_priv_buf(ctx->dev->mem_dev_l, &ctx->dsc);
+	s5p_mfc_release_priv_buf(ctx->dev, &ctx->dsc);
 }
 
 /* Allocate codec buffers */
@@ -172,8 +169,7 @@ static int s5p_mfc_alloc_codec_buffers_v5(struct s5p_mfc_ctx *ctx)
 	/* Allocate only if memory from bank 1 is necessary */
 	if (ctx->bank1.size > 0) {
 
-		ret = s5p_mfc_alloc_priv_buf(dev->mem_dev_l, dev->bank1,
-					     &ctx->bank1);
+		ret = s5p_mfc_alloc_priv_buf(dev, BANK_L_CTX, &ctx->bank1);
 		if (ret) {
 			mfc_err("Failed to allocate Bank1 temporary buffer\n");
 			return ret;
@@ -182,11 +178,10 @@ static int s5p_mfc_alloc_codec_buffers_v5(struct s5p_mfc_ctx *ctx)
 	}
 	/* Allocate only if memory from bank 2 is necessary */
 	if (ctx->bank2.size > 0) {
-		ret = s5p_mfc_alloc_priv_buf(dev->mem_dev_r, dev->bank2,
-					     &ctx->bank2);
+		ret = s5p_mfc_alloc_priv_buf(dev, BANK_R_CTX, &ctx->bank2);
 		if (ret) {
 			mfc_err("Failed to allocate Bank2 temporary buffer\n");
-			s5p_mfc_release_priv_buf(ctx->dev->mem_dev_l, &ctx->bank1);
+			s5p_mfc_release_priv_buf(ctx->dev, &ctx->bank1);
 			return ret;
 		}
 		BUG_ON(ctx->bank2.dma & ((1 << MFC_BANK2_ALIGN_ORDER) - 1));
@@ -197,8 +192,8 @@ static int s5p_mfc_alloc_codec_buffers_v5(struct s5p_mfc_ctx *ctx)
 /* Release buffers allocated for codec */
 static void s5p_mfc_release_codec_buffers_v5(struct s5p_mfc_ctx *ctx)
 {
-	s5p_mfc_release_priv_buf(ctx->dev->mem_dev_l, &ctx->bank1);
-	s5p_mfc_release_priv_buf(ctx->dev->mem_dev_r, &ctx->bank2);
+	s5p_mfc_release_priv_buf(ctx->dev, &ctx->bank1);
+	s5p_mfc_release_priv_buf(ctx->dev, &ctx->bank2);
 }
 
 /* Allocate memory for instance data buffer */
@@ -214,7 +209,7 @@ static int s5p_mfc_alloc_instance_buffer_v5(struct s5p_mfc_ctx *ctx)
 	else
 		ctx->ctx.size = buf_size->non_h264_ctx;
 
-	ret = s5p_mfc_alloc_priv_buf(dev->mem_dev_l, dev->bank1, &ctx->ctx);
+	ret = s5p_mfc_alloc_priv_buf(dev, BANK_L_CTX, &ctx->ctx);
 	if (ret) {
 		mfc_err("Failed to allocate instance buffer\n");
 		return ret;
@@ -227,15 +222,15 @@ static int s5p_mfc_alloc_instance_buffer_v5(struct s5p_mfc_ctx *ctx)
 
 	/* Initialize shared memory */
 	ctx->shm.size = buf_size->shm;
-	ret = s5p_mfc_alloc_priv_buf(dev->mem_dev_l, dev->bank1, &ctx->shm);
+	ret = s5p_mfc_alloc_priv_buf(dev, BANK_L_CTX, &ctx->shm);
 	if (ret) {
 		mfc_err("Failed to allocate shared memory buffer\n");
-		s5p_mfc_release_priv_buf(dev->mem_dev_l, &ctx->ctx);
+		s5p_mfc_release_priv_buf(dev, &ctx->ctx);
 		return ret;
 	}
 
 	/* shared memory offset only keeps the offset from base (port a) */
-	ctx->shm.ofs = ctx->shm.dma - dev->bank1;
+	ctx->shm.ofs = ctx->shm.dma - dev->dma_base[BANK_L_CTX];
 	BUG_ON(ctx->shm.ofs & ((1 << MFC_BANK1_ALIGN_ORDER) - 1));
 
 	memset(ctx->shm.virt, 0, buf_size->shm);
@@ -246,8 +241,8 @@ static int s5p_mfc_alloc_instance_buffer_v5(struct s5p_mfc_ctx *ctx)
 /* Release instance buffer */
 static void s5p_mfc_release_instance_buffer_v5(struct s5p_mfc_ctx *ctx)
 {
-	s5p_mfc_release_priv_buf(ctx->dev->mem_dev_l, &ctx->ctx);
-	s5p_mfc_release_priv_buf(ctx->dev->mem_dev_l, &ctx->shm);
+	s5p_mfc_release_priv_buf(ctx->dev, &ctx->ctx);
+	s5p_mfc_release_priv_buf(ctx->dev, &ctx->shm);
 }
 
 static int s5p_mfc_alloc_dev_context_buffer_v5(struct s5p_mfc_dev *dev)
@@ -534,10 +529,10 @@ static void s5p_mfc_get_enc_frame_buffer_v5(struct s5p_mfc_ctx *ctx,
 {
 	struct s5p_mfc_dev *dev = ctx->dev;
 
-	*y_addr = dev->bank2 + (mfc_read(dev, S5P_FIMV_ENCODED_Y_ADDR)
-							<< MFC_OFFSET_SHIFT);
-	*c_addr = dev->bank2 + (mfc_read(dev, S5P_FIMV_ENCODED_C_ADDR)
-							<< MFC_OFFSET_SHIFT);
+	*y_addr = dev->dma_base[BANK_R_CTX] +
+		  (mfc_read(dev, S5P_FIMV_ENCODED_Y_ADDR) << MFC_OFFSET_SHIFT);
+	*c_addr = dev->dma_base[BANK_R_CTX] +
+		  (mfc_read(dev, S5P_FIMV_ENCODED_C_ADDR) << MFC_OFFSET_SHIFT);
 }
 
 /* Set encoding ref & codec buffer */
@@ -697,9 +692,9 @@ static int s5p_mfc_set_enc_params(struct s5p_mfc_ctx *ctx)
 	/* multi-slice control */
 	/* multi-slice MB number or bit size */
 	mfc_write(dev, p->slice_mode, S5P_FIMV_ENC_MSLICE_CTRL);
-	if (p->slice_mode == V4L2_MPEG_VIDEO_MULTI_SICE_MODE_MAX_MB) {
+	if (p->slice_mode == V4L2_MPEG_VIDEO_MULTI_SLICE_MODE_MAX_MB) {
 		mfc_write(dev, p->slice_mb, S5P_FIMV_ENC_MSLICE_MB);
-	} else if (p->slice_mode == V4L2_MPEG_VIDEO_MULTI_SICE_MODE_MAX_BYTES) {
+	} else if (p->slice_mode == V4L2_MPEG_VIDEO_MULTI_SLICE_MODE_MAX_BYTES) {
 		mfc_write(dev, p->slice_bit, S5P_FIMV_ENC_MSLICE_BIT);
 	} else {
 		mfc_write(dev, 0, S5P_FIMV_ENC_MSLICE_MB);
@@ -1214,7 +1209,8 @@ static int s5p_mfc_run_enc_frame(struct s5p_mfc_ctx *ctx)
 	}
 	if (list_empty(&ctx->src_queue)) {
 		/* send null frame */
-		s5p_mfc_set_enc_frame_buffer_v5(ctx, dev->bank2, dev->bank2);
+		s5p_mfc_set_enc_frame_buffer_v5(ctx, dev->dma_base[BANK_R_CTX],
+						dev->dma_base[BANK_R_CTX]);
 		src_mb = NULL;
 	} else {
 		src_mb = list_entry(ctx->src_queue.next, struct s5p_mfc_buf,
@@ -1222,8 +1218,9 @@ static int s5p_mfc_run_enc_frame(struct s5p_mfc_ctx *ctx)
 		src_mb->flags |= MFC_BUF_FLAG_USED;
 		if (src_mb->b->vb2_buf.planes[0].bytesused == 0) {
 			/* send null frame */
-			s5p_mfc_set_enc_frame_buffer_v5(ctx, dev->bank2,
-								dev->bank2);
+			s5p_mfc_set_enc_frame_buffer_v5(ctx,
+						dev->dma_base[BANK_R_CTX],
+						dev->dma_base[BANK_R_CTX]);
 			ctx->state = MFCINST_FINISHING;
 		} else {
 			src_y_addr = vb2_dma_contig_plane_dma_addr(
@@ -1293,14 +1290,11 @@ static int s5p_mfc_run_init_dec_buffers(struct s5p_mfc_ctx *ctx)
 	 * First set the output frame buffers
 	 */
 	if (ctx->capture_state != QUEUE_BUFS_MMAPED) {
-		mfc_err("It seems that not all destionation buffers were "
-			"mmaped\nMFC requires that all destination are mmaped "
-			"before starting processing\n");
+		mfc_err("It seems that not all destination buffers were mmapped\nMFC requires that all destination are mmapped before starting processing\n");
 		return -EAGAIN;
 	}
 	if (list_empty(&ctx->src_queue)) {
-		mfc_err("Header has been deallocated in the middle of"
-			" initialization\n");
+		mfc_err("Header has been deallocated in the middle of initialization\n");
 		return -EIO;
 	}
 	temp_vb = list_entry(ctx->src_queue.next, struct s5p_mfc_buf, list);

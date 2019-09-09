@@ -1,16 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  linux/arch/arm/lib/clear_user.S
  *
  *  Copyright (C) 1995, 1996,1997,1998 Russell King
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/linkage.h>
 #include <asm/assembler.h>
 #include <asm/unwind.h>
-#include <asm/export.h>
 
 		.text
 
@@ -45,15 +41,12 @@ UNWIND(.save {r1, lr})
 		strusr	r2, r0, 1, ne, rept=2
 		tst	r1, #1			@ x1 x0 x1 x0 x1 x0 x1
 		it	ne			@ explicit IT needed for the label
-USER(		strnebt	r2, [r0])
+USER(		strbtne	r2, [r0])
 		mov	r0, #0
 		ldmfd	sp!, {r1, pc}
 UNWIND(.fnend)
 ENDPROC(arm_clear_user)
 ENDPROC(__clear_user_std)
-#ifndef CONFIG_UACCESS_WITH_MEMCPY
-EXPORT_SYMBOL(arm_clear_user)
-#endif
 
 		.pushsection .text.fixup,"ax"
 		.align	0

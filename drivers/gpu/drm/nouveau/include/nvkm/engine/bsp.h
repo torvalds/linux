@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 #ifndef __NVKM_BSP_H__
 #define __NVKM_BSP_H__
 #include <engine/xtensa.h>

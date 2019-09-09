@@ -98,6 +98,58 @@ static ssize_t pm8001_ctl_fw_version_show(struct device *cdev,
 	}
 }
 static DEVICE_ATTR(fw_version, S_IRUGO, pm8001_ctl_fw_version_show, NULL);
+
+/**
+ * pm8001_ctl_ila_version_show - ila version
+ * @cdev: pointer to embedded class device
+ * @buf: the buffer returned
+ *
+ * A sysfs 'read-only' shost attribute.
+ */
+static ssize_t pm8001_ctl_ila_version_show(struct device *cdev,
+	struct device_attribute *attr, char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(cdev);
+	struct sas_ha_struct *sha = SHOST_TO_SAS_HA(shost);
+	struct pm8001_hba_info *pm8001_ha = sha->lldd_ha;
+
+	if (pm8001_ha->chip_id != chip_8001) {
+		return snprintf(buf, PAGE_SIZE, "%02x.%02x.%02x.%02x\n",
+		(u8)(pm8001_ha->main_cfg_tbl.pm80xx_tbl.ila_version >> 24),
+		(u8)(pm8001_ha->main_cfg_tbl.pm80xx_tbl.ila_version >> 16),
+		(u8)(pm8001_ha->main_cfg_tbl.pm80xx_tbl.ila_version >> 8),
+		(u8)(pm8001_ha->main_cfg_tbl.pm80xx_tbl.ila_version));
+	}
+	return 0;
+}
+static DEVICE_ATTR(ila_version, 0444, pm8001_ctl_ila_version_show, NULL);
+
+/**
+ * pm8001_ctl_inactive_fw_version_show - Inacative firmware version number
+ * @cdev: pointer to embedded class device
+ * @buf: the buffer returned
+ *
+ * A sysfs 'read-only' shost attribute.
+ */
+static ssize_t pm8001_ctl_inactive_fw_version_show(struct device *cdev,
+	struct device_attribute *attr, char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(cdev);
+	struct sas_ha_struct *sha = SHOST_TO_SAS_HA(shost);
+	struct pm8001_hba_info *pm8001_ha = sha->lldd_ha;
+
+	if (pm8001_ha->chip_id != chip_8001) {
+		return snprintf(buf, PAGE_SIZE, "%02x.%02x.%02x.%02x\n",
+		(u8)(pm8001_ha->main_cfg_tbl.pm80xx_tbl.inc_fw_version >> 24),
+		(u8)(pm8001_ha->main_cfg_tbl.pm80xx_tbl.inc_fw_version >> 16),
+		(u8)(pm8001_ha->main_cfg_tbl.pm80xx_tbl.inc_fw_version >> 8),
+		(u8)(pm8001_ha->main_cfg_tbl.pm80xx_tbl.inc_fw_version));
+	}
+	return 0;
+}
+static
+DEVICE_ATTR(inc_fw_ver, 0444, pm8001_ctl_inactive_fw_version_show, NULL);
+
 /**
  * pm8001_ctl_max_out_io_show - max outstanding io supported
  * @cdev: pointer to embedded class device
@@ -410,6 +462,24 @@ static ssize_t pm8001_ctl_bios_version_show(struct device *cdev,
 }
 static DEVICE_ATTR(bios_version, S_IRUGO, pm8001_ctl_bios_version_show, NULL);
 /**
+ * event_log_size_show - event log size
+ * @cdev: pointer to embedded class device
+ * @buf: the buffer returned
+ *
+ * A sysfs read  shost attribute.
+ */
+static ssize_t event_log_size_show(struct device *cdev,
+	struct device_attribute *attr, char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(cdev);
+	struct sas_ha_struct *sha = SHOST_TO_SAS_HA(shost);
+	struct pm8001_hba_info *pm8001_ha = sha->lldd_ha;
+
+	return snprintf(buf, PAGE_SIZE, "%d\n",
+		pm8001_ha->main_cfg_tbl.pm80xx_tbl.event_log_size);
+}
+static DEVICE_ATTR_RO(event_log_size);
+/**
  * pm8001_ctl_aap_log_show - IOP event log
  * @cdev: pointer to embedded class device
  * @buf: the buffer returned
@@ -422,25 +492,26 @@ static ssize_t pm8001_ctl_iop_log_show(struct device *cdev,
 	struct Scsi_Host *shost = class_to_shost(cdev);
 	struct sas_ha_struct *sha = SHOST_TO_SAS_HA(shost);
 	struct pm8001_hba_info *pm8001_ha = sha->lldd_ha;
-#define IOP_MEMMAP(r, c) \
-	(*(u32 *)((u8*)pm8001_ha->memoryMap.region[IOP].virt_ptr + (r) * 32 \
-	+ (c)))
-	int i;
 	char *str = buf;
-	int max = 2;
-	for (i = 0; i < max; i++) {
-		str += sprintf(str, "0x%08x 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x"
-			       "0x%08x 0x%08x\n",
-			       IOP_MEMMAP(i, 0),
-			       IOP_MEMMAP(i, 4),
-			       IOP_MEMMAP(i, 8),
-			       IOP_MEMMAP(i, 12),
-			       IOP_MEMMAP(i, 16),
-			       IOP_MEMMAP(i, 20),
-			       IOP_MEMMAP(i, 24),
-			       IOP_MEMMAP(i, 28));
+	u32 read_size =
+		pm8001_ha->main_cfg_tbl.pm80xx_tbl.event_log_size / 1024;
+	static u32 start, end, count;
+	u32 max_read_times = 32;
+	u32 max_count = (read_size * 1024) / (max_read_times * 4);
+	u32 *temp = (u32 *)pm8001_ha->memoryMap.region[IOP].virt_ptr;
+
+	if ((count % max_count) == 0) {
+		start = 0;
+		end = max_read_times;
+		count = 0;
+	} else {
+		start = end;
+		end = end + max_read_times;
 	}
 
+	for (; start < end; start++)
+		str += sprintf(str, "%08x ", *(temp+start));
+	count++;
 	return str - buf;
 }
 static DEVICE_ATTR(iop_log, S_IRUGO, pm8001_ctl_iop_log_show, NULL);
@@ -653,7 +724,7 @@ static ssize_t pm8001_store_update_fw(struct device *cdev,
 		return -EINPROGRESS;
 	pm8001_ha->fw_status = FLASH_IN_PROGRESS;
 
-	cmd_ptr = kzalloc(count*2, GFP_KERNEL);
+	cmd_ptr = kcalloc(count, 2, GFP_KERNEL);
 	if (!cmd_ptr) {
 		pm8001_ha->fw_status = FAIL_OUT_MEMORY;
 		return -ENOMEM;
@@ -744,10 +815,13 @@ struct device_attribute *pm8001_host_attrs[] = {
 	&dev_attr_max_sg_list,
 	&dev_attr_sas_spec_support,
 	&dev_attr_logging_level,
+	&dev_attr_event_log_size,
 	&dev_attr_host_sas_address,
 	&dev_attr_bios_version,
 	&dev_attr_ib_log,
 	&dev_attr_ob_log,
+	&dev_attr_ila_version,
+	&dev_attr_inc_fw_ver,
 	NULL,
 };
 

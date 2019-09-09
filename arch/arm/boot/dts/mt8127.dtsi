@@ -1,22 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2014 MediaTek Inc.
  * Author: Joe.C <yingjoe.chen@mediatek.com>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
-#include "skeleton64.dtsi"
 
 / {
+	#address-cells = <2>;
+	#size-cells = <2>;
 	compatible = "mediatek,mt8127";
 	interrupt-parent = <&sysirq>;
 
@@ -129,7 +123,7 @@
 			#interrupt-cells = <3>;
 			interrupt-parent = <&gic>;
 			reg = <0 0x10211000 0 0x1000>,
-			      <0 0x10212000 0 0x1000>,
+			      <0 0x10212000 0 0x2000>,
 			      <0 0x10214000 0 0x2000>,
 			      <0 0x10216000 0 0x2000>;
 		};

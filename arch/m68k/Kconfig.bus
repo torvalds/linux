@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 if MMU
 
 comment "Bus Support"
@@ -58,15 +59,6 @@ config ATARI_ROM_ISA
 config GENERIC_ISA_DMA
 	def_bool ISA
 
-config PCI
-	bool "PCI support"
-	depends on M54xx
-	help
-	  Enable the PCI bus. Support for the PCI bus hardware built into the
-	  ColdFire 547x and 548x processors.
-
-source "drivers/pci/Kconfig"
-
 source "drivers/zorro/Kconfig"
 
 endif
@@ -75,7 +67,5 @@ if !MMU
 
 config ISA_DMA_API
         def_bool !M5272
-
-source "drivers/pcmcia/Kconfig"
 
 endif

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * sht15.c - support for the SHT15 Temperature and Humidity Sensor
  *
@@ -9,22 +10,16 @@
  *
  * Copyright (c) 2007 Wouter Horre
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * For further information, see the Documentation/hwmon/sht15 file.
+ * For further information, see the Documentation/hwmon/sht15.rst file.
  */
 
 #include <linux/interrupt.h>
 #include <linux/irq.h>
-#include <linux/gpio.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
 #include <linux/mutex.h>
-#include <linux/platform_data/sht15.h>
 #include <linux/platform_device.h>
 #include <linux/sched.h>
 #include <linux/delay.h>
@@ -34,6 +29,8 @@
 #include <linux/slab.h>
 #include <linux/atomic.h>
 #include <linux/bitrev.h>
+#include <linux/gpio/consumer.h>
+#include <linux/of.h>
 
 /* Commands */
 #define SHT15_MEASURE_TEMP		0x03
@@ -121,7 +118,8 @@ static const u8 sht15_crc8_table[] = {
 
 /**
  * struct sht15_data - device instance specific data
- * @pdata:		platform data (gpio's etc).
+ * @sck:		clock GPIO line
+ * @data:		data GPIO line
  * @read_work:		bh of interrupt handler.
  * @wait_queue:		wait queue for getting values from device.
  * @val_temp:		last temperature value read from device.
@@ -149,7 +147,8 @@ static const u8 sht15_crc8_table[] = {
  * @interrupt_handled:	flag used to indicate a handler has been scheduled.
  */
 struct sht15_data {
-	struct sht15_platform_data	*pdata;
+	struct gpio_desc		*sck;
+	struct gpio_desc		*data;
 	struct work_struct		read_work;
 	wait_queue_head_t		wait_queue;
 	uint16_t			val_temp;
@@ -177,6 +176,7 @@ struct sht15_data {
  * sht15_crc8() - compute crc8
  * @data:	sht15 specific data.
  * @value:	sht15 retrieved data.
+ * @len:	Length of retrieved data
  *
  * This implements section 2 of the CRC datasheet.
  */
@@ -204,16 +204,16 @@ static int sht15_connection_reset(struct sht15_data *data)
 {
 	int i, err;
 
-	err = gpio_direction_output(data->pdata->gpio_data, 1);
+	err = gpiod_direction_output(data->data, 1);
 	if (err)
 		return err;
 	ndelay(SHT15_TSCKL);
-	gpio_set_value(data->pdata->gpio_sck, 0);
+	gpiod_set_value(data->sck, 0);
 	ndelay(SHT15_TSCKL);
 	for (i = 0; i < 9; ++i) {
-		gpio_set_value(data->pdata->gpio_sck, 1);
+		gpiod_set_value(data->sck, 1);
 		ndelay(SHT15_TSCKH);
-		gpio_set_value(data->pdata->gpio_sck, 0);
+		gpiod_set_value(data->sck, 0);
 		ndelay(SHT15_TSCKL);
 	}
 	return 0;
@@ -226,11 +226,11 @@ static int sht15_connection_reset(struct sht15_data *data)
  */
 static inline void sht15_send_bit(struct sht15_data *data, int val)
 {
-	gpio_set_value(data->pdata->gpio_data, val);
+	gpiod_set_value(data->data, val);
 	ndelay(SHT15_TSU);
-	gpio_set_value(data->pdata->gpio_sck, 1);
+	gpiod_set_value(data->sck, 1);
 	ndelay(SHT15_TSCKH);
-	gpio_set_value(data->pdata->gpio_sck, 0);
+	gpiod_set_value(data->sck, 0);
 	ndelay(SHT15_TSCKL); /* clock low time */
 }
 
@@ -247,23 +247,23 @@ static int sht15_transmission_start(struct sht15_data *data)
 	int err;
 
 	/* ensure data is high and output */
-	err = gpio_direction_output(data->pdata->gpio_data, 1);
+	err = gpiod_direction_output(data->data, 1);
 	if (err)
 		return err;
 	ndelay(SHT15_TSU);
-	gpio_set_value(data->pdata->gpio_sck, 0);
+	gpiod_set_value(data->sck, 0);
 	ndelay(SHT15_TSCKL);
-	gpio_set_value(data->pdata->gpio_sck, 1);
+	gpiod_set_value(data->sck, 1);
 	ndelay(SHT15_TSCKH);
-	gpio_set_value(data->pdata->gpio_data, 0);
+	gpiod_set_value(data->data, 0);
 	ndelay(SHT15_TSU);
-	gpio_set_value(data->pdata->gpio_sck, 0);
+	gpiod_set_value(data->sck, 0);
 	ndelay(SHT15_TSCKL);
-	gpio_set_value(data->pdata->gpio_sck, 1);
+	gpiod_set_value(data->sck, 1);
 	ndelay(SHT15_TSCKH);
-	gpio_set_value(data->pdata->gpio_data, 1);
+	gpiod_set_value(data->data, 1);
 	ndelay(SHT15_TSU);
-	gpio_set_value(data->pdata->gpio_sck, 0);
+	gpiod_set_value(data->sck, 0);
 	ndelay(SHT15_TSCKL);
 	return 0;
 }
@@ -291,20 +291,20 @@ static int sht15_wait_for_response(struct sht15_data *data)
 {
 	int err;
 
-	err = gpio_direction_input(data->pdata->gpio_data);
+	err = gpiod_direction_input(data->data);
 	if (err)
 		return err;
-	gpio_set_value(data->pdata->gpio_sck, 1);
+	gpiod_set_value(data->sck, 1);
 	ndelay(SHT15_TSCKH);
-	if (gpio_get_value(data->pdata->gpio_data)) {
-		gpio_set_value(data->pdata->gpio_sck, 0);
+	if (gpiod_get_value(data->data)) {
+		gpiod_set_value(data->sck, 0);
 		dev_err(data->dev, "Command not acknowledged\n");
 		err = sht15_connection_reset(data);
 		if (err)
 			return err;
 		return -EIO;
 	}
-	gpio_set_value(data->pdata->gpio_sck, 0);
+	gpiod_set_value(data->sck, 0);
 	ndelay(SHT15_TSCKL);
 	return 0;
 }
@@ -359,17 +359,17 @@ static int sht15_ack(struct sht15_data *data)
 {
 	int err;
 
-	err = gpio_direction_output(data->pdata->gpio_data, 0);
+	err = gpiod_direction_output(data->data, 0);
 	if (err)
 		return err;
 	ndelay(SHT15_TSU);
-	gpio_set_value(data->pdata->gpio_sck, 1);
+	gpiod_set_value(data->sck, 1);
 	ndelay(SHT15_TSU);
-	gpio_set_value(data->pdata->gpio_sck, 0);
+	gpiod_set_value(data->sck, 0);
 	ndelay(SHT15_TSU);
-	gpio_set_value(data->pdata->gpio_data, 1);
+	gpiod_set_value(data->data, 1);
 
-	return gpio_direction_input(data->pdata->gpio_data);
+	return gpiod_direction_input(data->data);
 }
 
 /**
@@ -382,13 +382,13 @@ static int sht15_end_transmission(struct sht15_data *data)
 {
 	int err;
 
-	err = gpio_direction_output(data->pdata->gpio_data, 1);
+	err = gpiod_direction_output(data->data, 1);
 	if (err)
 		return err;
 	ndelay(SHT15_TSU);
-	gpio_set_value(data->pdata->gpio_sck, 1);
+	gpiod_set_value(data->sck, 1);
 	ndelay(SHT15_TSCKH);
-	gpio_set_value(data->pdata->gpio_sck, 0);
+	gpiod_set_value(data->sck, 0);
 	ndelay(SHT15_TSCKL);
 	return 0;
 }
@@ -404,10 +404,10 @@ static u8 sht15_read_byte(struct sht15_data *data)
 
 	for (i = 0; i < 8; ++i) {
 		byte <<= 1;
-		gpio_set_value(data->pdata->gpio_sck, 1);
+		gpiod_set_value(data->sck, 1);
 		ndelay(SHT15_TSCKH);
-		byte |= !!gpio_get_value(data->pdata->gpio_data);
-		gpio_set_value(data->pdata->gpio_sck, 0);
+		byte |= !!gpiod_get_value(data->data);
+		gpiod_set_value(data->sck, 0);
 		ndelay(SHT15_TSCKL);
 	}
 	return byte;
@@ -427,7 +427,7 @@ static int sht15_send_status(struct sht15_data *data, u8 status)
 	err = sht15_send_cmd(data, SHT15_WRITE_STATUS);
 	if (err)
 		return err;
-	err = gpio_direction_output(data->pdata->gpio_data, 1);
+	err = gpiod_direction_output(data->data, 1);
 	if (err)
 		return err;
 	ndelay(SHT15_TSU);
@@ -527,14 +527,14 @@ static int sht15_measurement(struct sht15_data *data,
 	if (ret)
 		return ret;
 
-	ret = gpio_direction_input(data->pdata->gpio_data);
+	ret = gpiod_direction_input(data->data);
 	if (ret)
 		return ret;
 	atomic_set(&data->interrupt_handled, 0);
 
-	enable_irq(gpio_to_irq(data->pdata->gpio_data));
-	if (gpio_get_value(data->pdata->gpio_data) == 0) {
-		disable_irq_nosync(gpio_to_irq(data->pdata->gpio_data));
+	enable_irq(gpiod_to_irq(data->data));
+	if (gpiod_get_value(data->data) == 0) {
+		disable_irq_nosync(gpiod_to_irq(data->data));
 		/* Only relevant if the interrupt hasn't occurred. */
 		if (!atomic_read(&data->interrupt_handled))
 			schedule_work(&data->read_work);
@@ -546,7 +546,7 @@ static int sht15_measurement(struct sht15_data *data,
 		data->state = SHT15_READING_NOTHING;
 		return -EIO;
 	} else if (ret == 0) { /* timeout occurred */
-		disable_irq_nosync(gpio_to_irq(data->pdata->gpio_data));
+		disable_irq_nosync(gpiod_to_irq(data->data));
 		ret = sht15_connection_reset(data);
 		if (ret)
 			return ret;
@@ -677,9 +677,8 @@ static inline int sht15_calc_humid(struct sht15_data *data)
  * and heater_enable sysfs attributes.
  * Returns number of bytes written into buffer, negative errno on error.
  */
-static ssize_t sht15_show_status(struct device *dev,
-				 struct device_attribute *attr,
-				 char *buf)
+static ssize_t sht15_status_show(struct device *dev,
+				 struct device_attribute *attr, char *buf)
 {
 	int ret;
 	struct sht15_data *data = dev_get_drvdata(dev);
@@ -700,7 +699,7 @@ static ssize_t sht15_show_status(struct device *dev,
  * Will be called on write access to heater_enable sysfs attribute.
  * Returns number of bytes actually decoded, negative errno on error.
  */
-static ssize_t sht15_store_heater(struct device *dev,
+static ssize_t sht15_status_store(struct device *dev,
 				  struct device_attribute *attr,
 				  const char *buf, size_t count)
 {
@@ -734,9 +733,8 @@ static ssize_t sht15_store_heater(struct device *dev,
  * Will be called on read access to temp1_input sysfs attribute.
  * Returns number of bytes written into buffer, negative errno on error.
  */
-static ssize_t sht15_show_temp(struct device *dev,
-			       struct device_attribute *attr,
-			       char *buf)
+static ssize_t sht15_temp_show(struct device *dev,
+			       struct device_attribute *attr, char *buf)
 {
 	int ret;
 	struct sht15_data *data = dev_get_drvdata(dev);
@@ -757,9 +755,8 @@ static ssize_t sht15_show_temp(struct device *dev,
  * Will be called on read access to humidity1_input sysfs attribute.
  * Returns number of bytes written into buffer, negative errno on error.
  */
-static ssize_t sht15_show_humidity(struct device *dev,
-				   struct device_attribute *attr,
-				   char *buf)
+static ssize_t sht15_humidity_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
 {
 	int ret;
 	struct sht15_data *data = dev_get_drvdata(dev);
@@ -769,7 +766,7 @@ static ssize_t sht15_show_humidity(struct device *dev,
 	return ret ? ret : sprintf(buf, "%d\n", sht15_calc_humid(data));
 }
 
-static ssize_t show_name(struct device *dev,
+static ssize_t name_show(struct device *dev,
 			 struct device_attribute *attr,
 			 char *buf)
 {
@@ -777,17 +774,14 @@ static ssize_t show_name(struct device *dev,
 	return sprintf(buf, "%s\n", pdev->name);
 }
 
-static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO,
-			  sht15_show_temp, NULL, 0);
-static SENSOR_DEVICE_ATTR(humidity1_input, S_IRUGO,
-			  sht15_show_humidity, NULL, 0);
-static SENSOR_DEVICE_ATTR(temp1_fault, S_IRUGO, sht15_show_status, NULL,
-			  SHT15_STATUS_LOW_BATTERY);
-static SENSOR_DEVICE_ATTR(humidity1_fault, S_IRUGO, sht15_show_status, NULL,
-			  SHT15_STATUS_LOW_BATTERY);
-static SENSOR_DEVICE_ATTR(heater_enable, S_IRUGO | S_IWUSR, sht15_show_status,
-			  sht15_store_heater, SHT15_STATUS_HEATER);
-static DEVICE_ATTR(name, S_IRUGO, show_name, NULL);
+static SENSOR_DEVICE_ATTR_RO(temp1_input, sht15_temp, 0);
+static SENSOR_DEVICE_ATTR_RO(humidity1_input, sht15_humidity, 0);
+static SENSOR_DEVICE_ATTR_RO(temp1_fault, sht15_status,
+			     SHT15_STATUS_LOW_BATTERY);
+static SENSOR_DEVICE_ATTR_RO(humidity1_fault, sht15_status,
+			     SHT15_STATUS_LOW_BATTERY);
+static SENSOR_DEVICE_ATTR_RW(heater_enable, sht15_status, SHT15_STATUS_HEATER);
+static DEVICE_ATTR_RO(name);
 static struct attribute *sht15_attrs[] = {
 	&sensor_dev_attr_temp1_input.dev_attr.attr,
 	&sensor_dev_attr_humidity1_input.dev_attr.attr,
@@ -825,15 +819,15 @@ static void sht15_bh_read_data(struct work_struct *work_s)
 			       read_work);
 
 	/* Firstly, verify the line is low */
-	if (gpio_get_value(data->pdata->gpio_data)) {
+	if (gpiod_get_value(data->data)) {
 		/*
 		 * If not, then start the interrupt again - care here as could
 		 * have gone low in meantime so verify it hasn't!
 		 */
 		atomic_set(&data->interrupt_handled, 0);
-		enable_irq(gpio_to_irq(data->pdata->gpio_data));
+		enable_irq(gpiod_to_irq(data->data));
 		/* If still not occurred or another handler was scheduled */
-		if (gpio_get_value(data->pdata->gpio_data)
+		if (gpiod_get_value(data->data)
 		    || atomic_read(&data->interrupt_handled))
 			return;
 	}
@@ -911,11 +905,18 @@ static int sht15_invalidate_voltage(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
+#ifdef CONFIG_OF
+static const struct of_device_id sht15_dt_match[] = {
+	{ .compatible = "sensirion,sht15" },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, sht15_dt_match);
+#endif
+
 static int sht15_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct sht15_data *data;
-	u8 status = 0;
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
@@ -927,19 +928,6 @@ static int sht15_probe(struct platform_device *pdev)
 	mutex_init(&data->read_lock);
 	data->dev = &pdev->dev;
 	init_waitqueue_head(&data->wait_queue);
-
-	if (dev_get_platdata(&pdev->dev) == NULL) {
-		dev_err(&pdev->dev, "no platform data supplied\n");
-		return -EINVAL;
-	}
-	data->pdata = dev_get_platdata(&pdev->dev);
-	data->supply_uv = data->pdata->supply_mv * 1000;
-	if (data->pdata->checksum)
-		data->checksumming = true;
-	if (data->pdata->no_otp_reload)
-		status |= SHT15_STATUS_NO_OTP_RELOAD;
-	if (data->pdata->low_resolution)
-		status |= SHT15_STATUS_LOW_RESOLUTION;
 
 	/*
 	 * If a regulator is available,
@@ -975,21 +963,20 @@ static int sht15_probe(struct platform_device *pdev)
 	}
 
 	/* Try requesting the GPIOs */
-	ret = devm_gpio_request_one(&pdev->dev, data->pdata->gpio_sck,
-			GPIOF_OUT_INIT_LOW, "SHT15 sck");
-	if (ret) {
+	data->sck = devm_gpiod_get(&pdev->dev, "clk", GPIOD_OUT_LOW);
+	if (IS_ERR(data->sck)) {
+		ret = PTR_ERR(data->sck);
 		dev_err(&pdev->dev, "clock line GPIO request failed\n");
 		goto err_release_reg;
 	}
-
-	ret = devm_gpio_request(&pdev->dev, data->pdata->gpio_data,
-				"SHT15 data");
-	if (ret) {
+	data->data = devm_gpiod_get(&pdev->dev, "data", GPIOD_IN);
+	if (IS_ERR(data->data)) {
+		ret = PTR_ERR(data->data);
 		dev_err(&pdev->dev, "data line GPIO request failed\n");
 		goto err_release_reg;
 	}
 
-	ret = devm_request_irq(&pdev->dev, gpio_to_irq(data->pdata->gpio_data),
+	ret = devm_request_irq(&pdev->dev, gpiod_to_irq(data->data),
 			       sht15_interrupt_fired,
 			       IRQF_TRIGGER_FALLING,
 			       "sht15 data",
@@ -998,20 +985,13 @@ static int sht15_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to get irq for data line\n");
 		goto err_release_reg;
 	}
-	disable_irq_nosync(gpio_to_irq(data->pdata->gpio_data));
+	disable_irq_nosync(gpiod_to_irq(data->data));
 	ret = sht15_connection_reset(data);
 	if (ret)
 		goto err_release_reg;
 	ret = sht15_soft_reset(data);
 	if (ret)
 		goto err_release_reg;
-
-	/* write status with platform data options */
-	if (status) {
-		ret = sht15_send_status(data, status);
-		if (ret)
-			goto err_release_reg;
-	}
 
 	ret = sysfs_create_group(&pdev->dev.kobj, &sht15_attr_group);
 	if (ret) {
@@ -1075,6 +1055,7 @@ MODULE_DEVICE_TABLE(platform, sht15_device_ids);
 static struct platform_driver sht15_driver = {
 	.driver = {
 		.name = "sht15",
+		.of_match_table = of_match_ptr(sht15_dt_match),
 	},
 	.probe = sht15_probe,
 	.remove = sht15_remove,

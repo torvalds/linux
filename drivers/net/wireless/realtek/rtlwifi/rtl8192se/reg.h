@@ -1,31 +1,6 @@
-/******************************************************************************
- *
- * Copyright(c) 2009-2012  Realtek Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
- *
- * Contact Information:
- * wlanfae <wlanfae@realtek.com>
- * Realtek Corporation, No. 2, Innovation Road II, Hsinchu Science Park,
- * Hsinchu 300, Taiwan.
- *
- * Larry Finger <Larry.Finger@lwfinger.net>
- *
- *****************************************************************************/
+/* SPDX-License-Identifier: GPL-2.0 */
+/* Copyright(c) 2009-2012  Realtek Corporation.*/
+
 #ifndef __REALTEK_92S_REG_H__
 #define __REALTEK_92S_REG_H__
 
@@ -194,7 +169,7 @@
 #define	BCNTCFG					0x01E0
 #define	CWRR					0x01E2
 #define	ACMAVG					0x01E4
-#define	AcmHwCtrl				0x01E7
+#define	ACMHWCTRL				0x01E7
 #define	VO_ADMTM				0x01E8
 #define	VI_ADMTM				0x01EC
 #define	BE_ADMTM				0x01F0
@@ -260,7 +235,7 @@
 #define	INTA_MASK				0x0300
 #define	ISR					0x0308
 
-/* 13. Test Mode and Debug Control Registers */
+/* 13. Test mode and Debug Control Registers */
 #define	DBG_PORT_SWITCH				0x003A
 #define	BIST					0x0310
 #define	DBS					0x0314
@@ -350,9 +325,9 @@
 #define	SYS_SWHW_SEL				BIT(14)
 #define	SYS_FWHW_SEL				BIT(15)
 
-#define	CmdEEPROM_En				BIT(5)
-#define	CmdEERPOMSEL				BIT(4)
-#define	Cmd9346CR_9356SEL			BIT(4)
+#define	CMDEEPROM_EN				BIT(5)
+#define	CMDEERPOMSEL				BIT(4)
+#define	CMD9346CR_9356SEL			BIT(4)
 
 #define	AFE_MBEN				BIT(1)
 #define	AFE_BGEN				BIT(0)
@@ -373,9 +348,9 @@
 
 #define	APLL_EN					BIT(0)
 
-#define	AFR_CardBEn				BIT(0)
+#define	AFR_CARDBEN				BIT(0)
 #define	AFR_CLKRUN_SEL				BIT(1)
-#define	AFR_FuncRegEn				BIT(2)
+#define	AFR_FUNCREGEN				BIT(2)
 
 #define	APSDOFF_STATUS				BIT(15)
 #define	APSDOFF					BIT(14)
@@ -391,13 +366,13 @@
 #define	HCI_RXDMA_EN				BIT(3)
 #define	HCI_TXDMA_EN				BIT(2)
 
-#define	StopHCCA				BIT(6)
-#define	StopHigh				BIT(5)
-#define	StopMgt					BIT(4)
-#define	StopVO					BIT(3)
-#define	StopVI					BIT(2)
-#define	StopBE					BIT(1)
-#define	StopBK					BIT(0)
+#define	STOPHCCA				BIT(6)
+#define	STOPHIGH				BIT(5)
+#define	STOPMGT					BIT(4)
+#define	STOPVO					BIT(3)
+#define	STOPVI					BIT(2)
+#define	STOPBE					BIT(1)
+#define	STOPBK					BIT(0)
 
 #define	LBK_NORMAL				0x00
 #define	LBK_MAC_LB				(BIT(0) | BIT(1) | BIT(3))
@@ -409,7 +384,7 @@
 #define	TXDMAPRE2FULL				BIT(23)
 #define	DISCW					BIT(20)
 #define	TCRICV					BIT(19)
-#define	CfendForm				BIT(17)
+#define	cfendform				BIT(17)
 #define	TCRCRC					BIT(16)
 #define	FAKE_IMEM_EN				BIT(15)
 #define	TSFRST					BIT(9)
@@ -534,7 +509,7 @@
 #define	RRSR_MCS5				BIT(17)
 #define	RRSR_MCS6				BIT(18)
 #define	RRSR_MCS7				BIT(19)
-#define	BRSR_AckShortPmb			BIT(23)
+#define	BRSR_ACKSHORTPMB			BIT(23)
 
 #define	RATR_1M					0x00000001
 #define	RATR_2M					0x00000002
@@ -585,13 +560,13 @@
 #define	AC_PARAM_ECW_MIN_OFFSET			8
 #define	AC_PARAM_AIFS_OFFSET			0
 
-#define	AcmHw_HwEn				BIT(0)
-#define	AcmHw_BeqEn				BIT(1)
-#define	AcmHw_ViqEn				BIT(2)
-#define	AcmHw_VoqEn				BIT(3)
-#define	AcmHw_BeqStatus				BIT(4)
-#define	AcmHw_ViqStatus				BIT(5)
-#define	AcmHw_VoqStatus				BIT(6)
+#define	ACMHW_HWEN				BIT(0)
+#define	ACMHW_BEQEN				BIT(1)
+#define	ACMHW_VIQEN				BIT(2)
+#define	ACMHW_VOQEN				BIT(3)
+#define	ACMHW_BEQSTATUS				BIT(4)
+#define	ACMHW_VIQSTATUS				BIT(5)
+#define	ACMHW_VOQSTATUS				BIT(6)
 
 #define	RETRY_LIMIT_SHORT_SHIFT			8
 #define	RETRY_LIMIT_LONG_SHIFT			0
@@ -849,7 +824,7 @@
 #define TCR_SAT					BIT(24)
 #define RCR_MXDMA_OFFSET			8
 #define RCR_FIFO_OFFSET				13
-#define RCR_OnlyErlPkt				BIT(31)
+#define RCR_ONLYERLPKT				BIT(31)
 #define CWR					0xDC
 #define RETRYCTR				0xDE
 

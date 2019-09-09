@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/capability.h>
 #include <linux/seq_file.h>
 #include <linux/uaccess.h>
@@ -42,7 +43,7 @@ mtrr_file_add(unsigned long base, unsigned long size,
 
 	max = num_var_ranges;
 	if (fcount == NULL) {
-		fcount = kzalloc(max * sizeof *fcount, GFP_KERNEL);
+		fcount = kcalloc(max, sizeof(*fcount), GFP_KERNEL);
 		if (!fcount)
 			return -ENOMEM;
 		FILE_FCOUNT(file) = fcount;
@@ -105,17 +106,10 @@ mtrr_write(struct file *file, const char __user *buf, size_t len, loff_t * ppos)
 
 	memset(line, 0, LINE_SIZE);
 
-	length = len;
-	length--;
-
-	if (length > LINE_SIZE - 1)
-		length = LINE_SIZE - 1;
-
+	len = min_t(size_t, len, LINE_SIZE - 1);
+	length = strncpy_from_user(line, buf, len);
 	if (length < 0)
-		return -EINVAL;
-
-	if (copy_from_user(line, buf, length))
-		return -EFAULT;
+		return length;
 
 	linelen = strlen(line);
 	ptr = line + linelen - 1;
@@ -148,17 +142,16 @@ mtrr_write(struct file *file, const char __user *buf, size_t len, loff_t * ppos)
 		return -EINVAL;
 	ptr = skip_spaces(ptr + 5);
 
-	for (i = 0; i < MTRR_NUM_TYPES; ++i) {
-		if (strcmp(ptr, mtrr_strings[i]))
-			continue;
-		base >>= PAGE_SHIFT;
-		size >>= PAGE_SHIFT;
-		err = mtrr_add_page((unsigned long)base, (unsigned long)size, i, true);
-		if (err < 0)
-			return err;
-		return len;
-	}
-	return -EINVAL;
+	i = match_string(mtrr_strings, MTRR_NUM_TYPES, ptr);
+	if (i < 0)
+		return i;
+
+	base >>= PAGE_SHIFT;
+	size >>= PAGE_SHIFT;
+	err = mtrr_add_page((unsigned long)base, (unsigned long)size, i, true);
+	if (err < 0)
+		return err;
+	return len;
 }
 
 static long
@@ -172,6 +165,8 @@ mtrr_ioctl(struct file *file, unsigned int cmd, unsigned long __arg)
 	struct mtrr_gentry gentry;
 	void __user *arg = (void __user *) __arg;
 
+	memset(&gentry, 0, sizeof(gentry));
+
 	switch (cmd) {
 	case MTRRIOC_ADD_ENTRY:
 	case MTRRIOC_SET_ENTRY:
@@ -181,12 +176,12 @@ mtrr_ioctl(struct file *file, unsigned int cmd, unsigned long __arg)
 	case MTRRIOC_SET_PAGE_ENTRY:
 	case MTRRIOC_DEL_PAGE_ENTRY:
 	case MTRRIOC_KILL_PAGE_ENTRY:
-		if (copy_from_user(&sentry, arg, sizeof sentry))
+		if (copy_from_user(&sentry, arg, sizeof(sentry)))
 			return -EFAULT;
 		break;
 	case MTRRIOC_GET_ENTRY:
 	case MTRRIOC_GET_PAGE_ENTRY:
-		if (copy_from_user(&gentry, arg, sizeof gentry))
+		if (copy_from_user(&gentry, arg, sizeof(gentry)))
 			return -EFAULT;
 		break;
 #ifdef CONFIG_COMPAT
@@ -339,7 +334,7 @@ mtrr_ioctl(struct file *file, unsigned int cmd, unsigned long __arg)
 	switch (cmd) {
 	case MTRRIOC_GET_ENTRY:
 	case MTRRIOC_GET_PAGE_ENTRY:
-		if (copy_to_user(arg, &gentry, sizeof gentry))
+		if (copy_to_user(arg, &gentry, sizeof(gentry)))
 			err = -EFAULT;
 		break;
 #ifdef CONFIG_COMPAT

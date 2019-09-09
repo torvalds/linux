@@ -1,17 +1,19 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * HID driver for Corsair devices
  *
  * Supported devices:
+ *  - Vengeance K70 Keyboard
+ *  - K70 RAPIDFIRE Keyboard
  *  - Vengeance K90 Keyboard
+ *  - Scimitar PRO RGB Gaming Mouse
  *
  * Copyright (c) 2015 Clement Vuchener
+ * Copyright (c) 2017 Oscar Campos
+ * Copyright (c) 2017 Aaron Bottegal
  */
 
 /*
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
  */
 
 #include <linux/hid.h>
@@ -148,26 +150,36 @@ static enum led_brightness k90_backlight_get(struct led_classdev *led_cdev)
 	struct usb_interface *usbif = to_usb_interface(dev->parent);
 	struct usb_device *usbdev = interface_to_usbdev(usbif);
 	int brightness;
-	char data[8];
+	char *data;
+
+	data = kmalloc(8, GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
 
 	ret = usb_control_msg(usbdev, usb_rcvctrlpipe(usbdev, 0),
 			      K90_REQUEST_STATUS,
 			      USB_DIR_IN | USB_TYPE_VENDOR |
 			      USB_RECIP_DEVICE, 0, 0, data, 8,
 			      USB_CTRL_SET_TIMEOUT);
-	if (ret < 0) {
+	if (ret < 5) {
 		dev_warn(dev, "Failed to get K90 initial state (error %d).\n",
 			 ret);
-		return -EIO;
+		ret = -EIO;
+		goto out;
 	}
 	brightness = data[4];
 	if (brightness < 0 || brightness > 3) {
 		dev_warn(dev,
 			 "Read invalid backlight brightness: %02hhx.\n",
 			 data[4]);
-		return -EIO;
+		ret = -EIO;
+		goto out;
 	}
-	return brightness;
+	ret = brightness;
+out:
+	kfree(data);
+
+	return ret;
 }
 
 static enum led_brightness k90_record_led_get(struct led_classdev *led_cdev)
@@ -253,17 +265,22 @@ static ssize_t k90_show_macro_mode(struct device *dev,
 	struct usb_interface *usbif = to_usb_interface(dev->parent);
 	struct usb_device *usbdev = interface_to_usbdev(usbif);
 	const char *macro_mode;
-	char data[8];
+	char *data;
+
+	data = kmalloc(2, GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
 
 	ret = usb_control_msg(usbdev, usb_rcvctrlpipe(usbdev, 0),
 			      K90_REQUEST_GET_MODE,
 			      USB_DIR_IN | USB_TYPE_VENDOR |
 			      USB_RECIP_DEVICE, 0, 0, data, 2,
 			      USB_CTRL_SET_TIMEOUT);
-	if (ret < 0) {
+	if (ret < 1) {
 		dev_warn(dev, "Failed to get K90 initial mode (error %d).\n",
 			 ret);
-		return -EIO;
+		ret = -EIO;
+		goto out;
 	}
 
 	switch (data[0]) {
@@ -277,10 +294,15 @@ static ssize_t k90_show_macro_mode(struct device *dev,
 	default:
 		dev_warn(dev, "K90 in unknown mode: %02hhx.\n",
 			 data[0]);
-		return -EIO;
+		ret = -EIO;
+		goto out;
 	}
 
-	return snprintf(buf, PAGE_SIZE, "%s\n", macro_mode);
+	ret = snprintf(buf, PAGE_SIZE, "%s\n", macro_mode);
+out:
+	kfree(data);
+
+	return ret;
 }
 
 static ssize_t k90_store_macro_mode(struct device *dev,
@@ -320,26 +342,36 @@ static ssize_t k90_show_current_profile(struct device *dev,
 	struct usb_interface *usbif = to_usb_interface(dev->parent);
 	struct usb_device *usbdev = interface_to_usbdev(usbif);
 	int current_profile;
-	char data[8];
+	char *data;
+
+	data = kmalloc(8, GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
 
 	ret = usb_control_msg(usbdev, usb_rcvctrlpipe(usbdev, 0),
 			      K90_REQUEST_STATUS,
 			      USB_DIR_IN | USB_TYPE_VENDOR |
 			      USB_RECIP_DEVICE, 0, 0, data, 8,
 			      USB_CTRL_SET_TIMEOUT);
-	if (ret < 0) {
+	if (ret < 8) {
 		dev_warn(dev, "Failed to get K90 initial state (error %d).\n",
 			 ret);
-		return -EIO;
+		ret = -EIO;
+		goto out;
 	}
 	current_profile = data[7];
 	if (current_profile < 1 || current_profile > 3) {
 		dev_warn(dev, "Read invalid current profile: %02hhx.\n",
 			 data[7]);
-		return -EIO;
+		ret = -EIO;
+		goto out;
 	}
 
-	return snprintf(buf, PAGE_SIZE, "%d\n", current_profile);
+	ret = snprintf(buf, PAGE_SIZE, "%d\n", current_profile);
+out:
+	kfree(data);
+
+	return ret;
 }
 
 static ssize_t k90_store_current_profile(struct device *dev,
@@ -640,10 +672,60 @@ static int corsair_input_mapping(struct hid_device *dev,
 	return 0;
 }
 
+/*
+ * The report descriptor of some of the Corsair gaming mice is
+ * non parseable as they define two consecutive Logical Minimum for
+ * the Usage Page (Consumer) in rdescs bytes 75 and 77 being 77 0x16
+ * that should be obviousy 0x26 for Logical Magimum of 16 bits. This
+ * prevents poper parsing of the report descriptor due Logical
+ * Minimum being larger than Logical Maximum.
+ *
+ * This driver fixes the report descriptor for:
+ * - USB ID 1b1c:1b34, sold as GLAIVE RGB Gaming mouse
+ * - USB ID 1b1c:1b3e, sold as Scimitar RGB Pro Gaming mouse
+ */
+
+static __u8 *corsair_mouse_report_fixup(struct hid_device *hdev, __u8 *rdesc,
+        unsigned int *rsize)
+{
+	struct usb_interface *intf = to_usb_interface(hdev->dev.parent);
+
+	if (intf->cur_altsetting->desc.bInterfaceNumber == 1) {
+		/*
+		 * Corsair GLAIVE RGB and Scimitar RGB Pro report descriptor is
+		 * broken and defines two different Logical Minimum for the
+		 * Consumer Application. The byte 77 should be a 0x26 defining
+		 * a 16 bits integer for the Logical Maximum but it is a 0x16
+		 * instead (Logical Minimum)
+		 */
+		switch (hdev->product) {
+		case USB_DEVICE_ID_CORSAIR_GLAIVE_RGB:
+		case USB_DEVICE_ID_CORSAIR_SCIMITAR_PRO_RGB:
+			if (*rsize >= 172 && rdesc[75] == 0x15 && rdesc[77] == 0x16
+			&& rdesc[78] == 0xff && rdesc[79] == 0x0f) {
+				hid_info(hdev, "Fixing up report descriptor\n");
+				rdesc[77] = 0x26;
+			}
+			break;
+		}
+
+	}
+	return rdesc;
+}
+
 static const struct hid_device_id corsair_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_CORSAIR, USB_DEVICE_ID_CORSAIR_K90),
 		.driver_data = CORSAIR_USE_K90_MACRO |
 			       CORSAIR_USE_K90_BACKLIGHT },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_CORSAIR,
+            USB_DEVICE_ID_CORSAIR_GLAIVE_RGB) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_CORSAIR,
+            USB_DEVICE_ID_CORSAIR_SCIMITAR_PRO_RGB) },
+	/*
+	 * Vengeance K70 and K70 RAPIDFIRE share product IDs.
+	 */
+	{ HID_USB_DEVICE(USB_VENDOR_ID_CORSAIR,
+            USB_DEVICE_ID_CORSAIR_K70R) },
 	{}
 };
 
@@ -656,10 +738,14 @@ static struct hid_driver corsair_driver = {
 	.event = corsair_event,
 	.remove = corsair_remove,
 	.input_mapping = corsair_input_mapping,
+	.report_fixup = corsair_mouse_report_fixup,
 };
 
 module_hid_driver(corsair_driver);
 
 MODULE_LICENSE("GPL");
+/* Original K90 driver author */
 MODULE_AUTHOR("Clement Vuchener");
+/* Scimitar PRO RGB driver author */
+MODULE_AUTHOR("Oscar Campos");
 MODULE_DESCRIPTION("HID driver for Corsair devices");

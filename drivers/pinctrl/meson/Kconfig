@@ -1,0 +1,57 @@
+# SPDX-License-Identifier: GPL-2.0-only
+menuconfig PINCTRL_MESON
+	bool "Amlogic SoC pinctrl drivers"
+	depends on ARCH_MESON
+	depends on OF
+	select PINMUX
+	select PINCONF
+	select GENERIC_PINCONF
+	select GPIOLIB
+	select OF_GPIO
+	select REGMAP_MMIO
+
+if PINCTRL_MESON
+
+config PINCTRL_MESON8
+	bool "Meson 8 SoC pinctrl driver"
+	depends on ARM
+	select PINCTRL_MESON8_PMX
+	default y
+
+config PINCTRL_MESON8B
+	bool "Meson 8b SoC pinctrl driver"
+	depends on ARM
+	select PINCTRL_MESON8_PMX
+	default y
+
+config PINCTRL_MESON_GXBB
+	bool "Meson gxbb SoC pinctrl driver"
+	depends on ARM64
+	select PINCTRL_MESON8_PMX
+	default y
+
+config PINCTRL_MESON_GXL
+	bool "Meson gxl SoC pinctrl driver"
+	depends on ARM64
+	select PINCTRL_MESON8_PMX
+	default y
+
+config PINCTRL_MESON8_PMX
+	bool
+
+config PINCTRL_MESON_AXG
+	bool "Meson axg Soc pinctrl driver"
+	depends on ARM64
+	select PINCTRL_MESON_AXG_PMX
+	default y
+
+config PINCTRL_MESON_AXG_PMX
+	bool
+
+config PINCTRL_MESON_G12A
+	bool "Meson g12a Soc pinctrl driver"
+	depends on ARM64
+	select PINCTRL_MESON_AXG_PMX
+	default y
+
+endif

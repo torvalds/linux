@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Driver for SanDisk SDDR-09 SmartMedia reader
  *
@@ -11,20 +12,6 @@
  * been programmed to obey a certain limited set of SCSI commands.
  * This driver translates the "real" SCSI commands to the SDDR-09 SCSI
  * commands.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2, or (at your option) any
- * later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 /*
@@ -870,13 +857,12 @@ sddr09_write_lba(struct us_data *us, unsigned int lba,
 	unsigned int pagelen;
 	unsigned char *bptr, *cptr, *xptr;
 	unsigned char ecc[3];
-	int i, result, isnew;
+	int i, result;
 
 	lbap = ((lba % 1000) << 1) | 0x1000;
 	if (parity[MSB_of(lbap) ^ LSB_of(lbap)])
 		lbap ^= 1;
 	pba = info->lba_to_pba[lba];
-	isnew = 0;
 
 	if (pba == UNDEF) {
 		pba = sddr09_find_unused_pba(info, lba);
@@ -887,7 +873,6 @@ sddr09_write_lba(struct us_data *us, unsigned int lba,
 		}
 		info->pba_to_lba[pba] = lba;
 		info->lba_to_pba[lba] = pba;
-		isnew = 1;
 	}
 
 	if (pba == 1) {
@@ -1246,8 +1231,8 @@ sddr09_read_map(struct us_data *us) {
 
 	kfree(info->lba_to_pba);
 	kfree(info->pba_to_lba);
-	info->lba_to_pba = kmalloc(numblocks*sizeof(int), GFP_NOIO);
-	info->pba_to_lba = kmalloc(numblocks*sizeof(int), GFP_NOIO);
+	info->lba_to_pba = kmalloc_array(numblocks, sizeof(int), GFP_NOIO);
+	info->pba_to_lba = kmalloc_array(numblocks, sizeof(int), GFP_NOIO);
 
 	if (info->lba_to_pba == NULL || info->pba_to_lba == NULL) {
 		printk(KERN_WARNING "sddr09_read_map: out of memory\n");

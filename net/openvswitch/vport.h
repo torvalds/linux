@@ -1,19 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2007-2012 Nicira, Inc.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA
  */
 
 #ifndef VPORT_H
@@ -149,7 +136,6 @@ struct vport_ops {
 struct vport *ovs_vport_alloc(int priv_size, const struct vport_ops *,
 			      const struct vport_parms *);
 void ovs_vport_free(struct vport *);
-void ovs_vport_deferred_free(struct vport *vport);
 
 #define VPORT_ALIGN 8
 
@@ -198,6 +184,6 @@ int __ovs_vport_ops_register(struct vport_ops *ops);
 	})
 
 void ovs_vport_ops_unregister(struct vport_ops *ops);
-void ovs_vport_send(struct vport *vport, struct sk_buff *skb);
+void ovs_vport_send(struct vport *vport, struct sk_buff *skb, u8 mac_proto);
 
 #endif /* vport.h */

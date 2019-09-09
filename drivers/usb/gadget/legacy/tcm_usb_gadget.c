@@ -1,10 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /* Target based USB-Gadget
  *
  * UAS protocol handling, target callbacks, configfs handling,
  * BBB (USB Mass Storage Class Bulk-Only (BBB) and Transport protocol handling.
  *
  * Author: Sebastian Andrzej Siewior <bigeasy at linutronix dot de>
- * License: GPLv2 as published by FSF.
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -41,7 +41,7 @@ static struct usb_device_descriptor usbg_device_desc = {
 #define USB_G_STR_CONFIG USB_GADGET_FIRST_AVAIL_IDX
 
 static struct usb_string	usbg_us_strings[] = {
-	[USB_GADGET_MANUFACTURER_IDX].s	= "Target Manufactor",
+	[USB_GADGET_MANUFACTURER_IDX].s	= "Target Manufacturer",
 	[USB_GADGET_PRODUCT_IDX].s	= "Target Product",
 	[USB_GADGET_SERIAL_IDX].s	= "000000000001",
 	[USB_G_STR_CONFIG].s		= "default config",

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR Linux-OpenIB) */
 /*
  * Copyright (c) 2004 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005 Voltaire, Inc. All rights reserved.
@@ -35,7 +36,7 @@
 #define IB_USER_MAD_H
 
 #include <linux/types.h>
-#include <linux/ioctl.h>
+#include <rdma/rdma_user_ioctl.h>
 
 /*
  * Increment this value if any changes that break userspace ABI
@@ -142,7 +143,7 @@ struct ib_user_mad_hdr {
  */
 struct ib_user_mad {
 	struct ib_user_mad_hdr hdr;
-	__u64	data[0];
+	__aligned_u64	data[0];
 };
 
 /*
@@ -224,22 +225,10 @@ struct ib_user_mad_reg_req2 {
 	__u8	mgmt_class_version;
 	__u16   res;
 	__u32   flags;
-	__u64   method_mask[2];
+	__aligned_u64 method_mask[2];
 	__u32   oui;
 	__u8	rmpp_version;
 	__u8	reserved[3];
 };
-
-#define IB_IOCTL_MAGIC		0x1b
-
-#define IB_USER_MAD_REGISTER_AGENT	_IOWR(IB_IOCTL_MAGIC, 1, \
-					      struct ib_user_mad_reg_req)
-
-#define IB_USER_MAD_UNREGISTER_AGENT	_IOW(IB_IOCTL_MAGIC, 2, __u32)
-
-#define IB_USER_MAD_ENABLE_PKEY		_IO(IB_IOCTL_MAGIC, 3)
-
-#define IB_USER_MAD_REGISTER_AGENT2     _IOWR(IB_IOCTL_MAGIC, 4, \
-					      struct ib_user_mad_reg_req2)
 
 #endif /* IB_USER_MAD_H */

@@ -14,6 +14,7 @@
 #include <media/v4l2-ctrls.h>
 #include <video/omapfb_dss.h>
 #include <video/omapvrfb.h>
+#include <linux/dmaengine.h>
 
 #define YUYV_BPP        2
 #define RGB565_BPP      2
@@ -36,7 +37,7 @@
 #define VID_MAX_WIDTH		1280	/* Largest width */
 #define VID_MAX_HEIGHT		720	/* Largest height */
 
-/* Mimimum requirement is 2x2 for DSS */
+/* Minimum requirement is 2x2 for DSS */
 #define VID_MIN_WIDTH		2
 #define VID_MIN_HEIGHT		2
 
@@ -81,8 +82,9 @@ enum vout_rotaion_type {
  * for VRFB hidden buffer
  */
 struct vid_vrfb_dma {
-	int dev_id;
-	int dma_ch;
+	struct dma_chan *chan;
+	struct dma_interleaved_template *xt;
+
 	int req_status;
 	int tx_status;
 	wait_queue_head_t wait;
@@ -133,7 +135,7 @@ struct omap_vout_device {
 	enum omap_color_mode dss_mode;
 
 	/* we don't allow to request new buffer when old buffers are
-	 * still mmaped
+	 * still mmapped
 	 */
 	int mmap_count;
 

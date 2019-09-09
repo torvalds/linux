@@ -1,16 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * FBTFT driver for the RA8875 LCD Controller
  * Copyright by Pf@nne & NOTRO
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/module.h>
@@ -18,7 +9,7 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include "fbtft.h"
 
 #define DRVNAME "fb_ra8875"
@@ -33,7 +24,7 @@ static int write_spi(struct fbtft_par *par, void *buf, size_t len)
 	struct spi_message m;
 
 	fbtft_par_dbg_hex(DEBUG_WRITE, par, par->info->device, u8, buf, len,
-		"%s(len=%d): ", __func__, len);
+			  "%s(len=%zu): ", __func__, len);
 
 	if (!par->spi) {
 		dev_err(par->info->device,
@@ -42,22 +33,18 @@ static int write_spi(struct fbtft_par *par, void *buf, size_t len)
 	}
 
 	spi_message_init(&m);
-	if (par->txbuf.dma && buf == par->txbuf.buf) {
-		t.tx_dma = par->txbuf.dma;
-		m.is_dma_mapped = 1;
-	}
 	spi_message_add_tail(&t, &m);
 	return spi_sync(par->spi, &m);
 }
 
 static int init_display(struct fbtft_par *par)
 {
-	gpio_set_value(par->gpio.dc, 1);
+	gpiod_set_value(par->gpio.dc, 1);
 
 	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par,
-		"%s()\n", __func__);
+		      "%s()\n", __func__);
 	fbtft_par_dbg(DEBUG_INIT_DISPLAY, par,
-		"display size %dx%d\n",
+		      "display size %dx%d\n",
 		par->info->var.xres,
 		par->info->var.yres);
 
@@ -215,7 +202,7 @@ static void write_reg8_bus8(struct fbtft_par *par, int len, ...)
 			buf[i] = (u8)va_arg(args, unsigned int);
 		va_end(args);
 		fbtft_par_dbg_hex(DEBUG_WRITE_REGISTER, par, par->info->device,
-			u8, buf, len, "%s: ", __func__);
+				  u8, buf, len, "%s: ", __func__);
 	}
 
 	va_start(args, len);
@@ -257,7 +244,7 @@ static void write_reg8_bus8(struct fbtft_par *par, int len, ...)
 static int write_vmem16_bus8(struct fbtft_par *par, size_t offset, size_t len)
 {
 	u16 *vmem16;
-	u16 *txbuf16 = par->txbuf.buf;
+	__be16 *txbuf16;
 	size_t remain;
 	size_t to_copy;
 	size_t tx_array_size;
@@ -266,15 +253,15 @@ static int write_vmem16_bus8(struct fbtft_par *par, size_t offset, size_t len)
 	size_t startbyte_size = 0;
 
 	fbtft_par_dbg(DEBUG_WRITE_VMEM, par, "%s(offset=%zu, len=%zu)\n",
-		__func__, offset, len);
+		      __func__, offset, len);
 
 	remain = len / 2;
 	vmem16 = (u16 *)(par->info->screen_buffer + offset);
 	tx_array_size = par->txbuf.len / 2;
-		txbuf16 = par->txbuf.buf + 1;
-		tx_array_size -= 2;
-		*(u8 *)(par->txbuf.buf) = 0x00;
-		startbyte_size = 1;
+	txbuf16 = par->txbuf.buf + 1;
+	tx_array_size -= 2;
+	*(u8 *)(par->txbuf.buf) = 0x00;
+	startbyte_size = 1;
 
 	while (remain) {
 		to_copy = min(tx_array_size, remain);

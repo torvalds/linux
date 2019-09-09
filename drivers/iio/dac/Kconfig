@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # DAC drivers
 #
@@ -13,7 +14,8 @@ config AD5064
 	  AD5045, AD5064, AD5064-1, AD5065, AD5625, AD5625R, AD5627, AD5627R,
 	  AD5628, AD5629R, AD5645R, AD5647R, AD5648, AD5665, AD5665R, AD5666,
 	  AD5667, AD5667R, AD5668, AD5669R, LTC2606, LTC2607, LTC2609, LTC2616,
-	  LTC2617, LTC2619, LTC2626, LTC2627, LTC2629 Digital to Analog Converter.
+	  LTC2617, LTC2619, LTC2626, LTC2627, LTC2629, LTC2631, LTC2633, LTC2635
+	  Digital to Analog Converter.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad5064.
@@ -59,7 +61,8 @@ config AD5446
 	  Say yes here to build support for Analog Devices AD5300, AD5301, AD5310,
 	  AD5311, AD5320, AD5321, AD5444, AD5446, AD5450, AD5451, AD5452, AD5453,
 	  AD5512A, AD5541A, AD5542A, AD5543, AD5553, AD5601, AD5602, AD5611, AD5612,
-	  AD5620, AD5621, AD5622, AD5640, AD5641, AD5660, AD5662 DACs.
+	  AD5620, AD5621, AD5622, AD5640, AD5641, AD5660, AD5662 DACs
+	  as well as Texas Instruments DAC081S101, DAC101S101, DAC121S101.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad5446.
@@ -118,16 +121,51 @@ config AD5624R_SPI
 	  Say yes here to build support for Analog Devices AD5624R, AD5644R and
 	  AD5664R converters (DAC). This driver uses the common SPI interface.
 
-config AD5686
-	tristate "Analog Devices AD5686R/AD5685R/AD5684R DAC SPI driver"
+config LTC1660
+	tristate "Linear Technology LTC1660/LTC1665 DAC SPI driver"
 	depends on SPI
 	help
-	  Say yes here to build support for Analog Devices AD5686R, AD5685R,
-	  AD5684R, AD5791 Voltage Output Digital to
-	  Analog Converter.
+	  Say yes here to build support for Linear Technology
+	  LTC1660 and LTC1665 Digital to Analog Converters.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ltc1660.
+
+config LTC2632
+	tristate "Linear Technology LTC2632-12/10/8 DAC spi driver"
+	depends on SPI
+	help
+	  Say yes here to build support for Linear Technology
+	  LTC2632-12, LTC2632-10, LTC2632-8 converters (DAC).
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ltc2632.
+
+config AD5686
+	tristate
+
+config AD5686_SPI
+	tristate "Analog Devices AD5686 and similar multi-channel DACs (SPI)"
+	depends on SPI
+	select AD5686
+	help
+	  Say yes here to build support for Analog Devices AD5672R, AD5674R,
+	  AD5676, AD5676R, AD5679R, AD5684, AD5684R, AD5684R, AD5685R, AD5686,
+	  AD5686R Voltage Output Digital to Analog Converter.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad5686.
+
+config AD5696_I2C
+	tristate "Analog Devices AD5696 and similar multi-channel DACs (I2C)"
+	depends on I2C
+	select AD5686
+	help
+	  Say yes here to build support for Analog Devices AD5671R, AD5675R,
+	  AD5694, AD5694R, AD5695R, AD5696, AD5696R Voltage Output Digital to
+	  Analog Converter.
+	  To compile this driver as a module, choose M here: the module will be
+	  called ad5696.
 
 config AD5755
 	tristate "Analog Devices AD5755/AD5755-1/AD5757/AD5735/AD5737 DAC driver"
@@ -139,6 +177,16 @@ config AD5755
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad5755.
+
+config AD5758
+	tristate "Analog Devices AD5758 DAC driver"
+	depends on SPI_MASTER
+	help
+	  Say yes here to build support for Analog Devices AD5758 single channel
+	  Digital to Analog Converter.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad5758.
 
 config AD5761
 	tristate "Analog Devices AD5761/61R/21/21R DAC driver"
@@ -183,7 +231,8 @@ config AD7303
 
 config CIO_DAC
 	tristate "Measurement Computing CIO-DAC IIO driver"
-	depends on X86 && ISA_BUS_API
+	depends on X86 && (ISA_BUS || PC104)
+	select ISA_BUS_API
 	help
 	  Say yes here to build support for the Measurement Computing CIO-DAC
 	  analog output device family (CIO-DAC16, CIO-DAC08, PC104-DAC06). The
@@ -199,6 +248,25 @@ config AD8801
 
 	  To compile this driver as a module choose M here: the module will be called
 	  ad8801.
+
+config DPOT_DAC
+	tristate "DAC emulation using a DPOT"
+	depends on OF
+	help
+	  Say yes here to build support for DAC emulation using a digital
+	  potentiometer.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called dpot-dac.
+
+config DS4424
+	tristate "Maxim Integrated DS4422/DS4424 DAC driver"
+	depends on I2C
+	help
+	  If you say yes here you get support for Maxim chips DS4422, DS4424.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called ds4424.
 
 config LPC18XX_DAC
 	tristate "NXP LPC18xx DAC driver"
@@ -263,6 +331,60 @@ config MCP4922
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called mcp4922.
+
+config STM32_DAC
+	tristate "STMicroelectronics STM32 DAC"
+	depends on (ARCH_STM32 && OF) || COMPILE_TEST
+	depends on REGULATOR
+	select STM32_DAC_CORE
+	help
+	  Say yes here to build support for STMicroelectronics STM32 Digital
+	  to Analog Converter (DAC).
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called stm32-dac.
+
+config STM32_DAC_CORE
+	tristate
+
+config TI_DAC082S085
+	tristate "Texas Instruments 8/10/12-bit 2/4-channel DAC driver"
+	depends on SPI_MASTER
+	help
+	  Driver for the Texas Instruments (formerly National Semiconductor)
+	  DAC082S085, DAC102S085, DAC122S085, DAC084S085, DAC104S085 and
+	  DAC124S085.
+
+	  If compiled as a module, it will be called ti-dac082s085.
+
+config TI_DAC5571
+	tristate "Texas Instruments 8/10/12/16-bit 1/2/4-channel DAC driver"
+	depends on I2C
+	help
+	  Driver for the Texas Instruments
+	  DAC5571, DAC6571, DAC7571, DAC5574, DAC6574, DAC7574, DAC5573,
+	  DAC6573, DAC7573, DAC8571, DAC8574.
+
+	  If compiled as a module, it will be called ti-dac5571.
+
+config TI_DAC7311
+	tristate "Texas Instruments 8/10/12-bit 1-channel DAC driver"
+	depends on SPI
+	help
+	  Driver for the Texas Instruments
+	  DAC7311, DAC6311, DAC5311.
+
+	  If compiled as a module, it will be called ti-dac7311.
+
+config TI_DAC7612
+	tristate "Texas Instruments 12-bit 2-channel DAC driver"
+	depends on SPI_MASTER && GPIOLIB
+	help
+	  Driver for the Texas Instruments DAC7612, DAC7612U, DAC7612UB
+	  The driver hand drive the load pin automatically, otherwise
+	  it needs to be toggled manually.
+
+	  If compiled as a module, it will be called ti-dac7612.
 
 config VF610_DAC
 	tristate "Vybrid vf610 DAC driver"

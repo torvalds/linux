@@ -17,6 +17,7 @@
  * this warranty disclaimer.
  */
 
+#include <asm/unaligned.h>
 #include "decl.h"
 #include "ioctl.h"
 #include "util.h"
@@ -24,7 +25,8 @@
 #include "main.h"
 #include "wmm.h"
 #include "11n.h"
-#include "11ac.h"
+
+static void mwifiex_cancel_pending_ioctl(struct mwifiex_adapter *adapter);
 
 /*
  * This function initializes a command node.
@@ -37,10 +39,11 @@
 static void
 mwifiex_init_cmd_node(struct mwifiex_private *priv,
 		      struct cmd_ctrl_node *cmd_node,
-		      u32 cmd_oid, void *data_buf, bool sync)
+		      u32 cmd_no, void *data_buf, bool sync)
 {
 	cmd_node->priv = priv;
-	cmd_node->cmd_oid = cmd_oid;
+	cmd_node->cmd_no = cmd_no;
+
 	if (sync) {
 		cmd_node->wait_q_enabled = true;
 		cmd_node->cmd_wait_q_woken = false;
@@ -58,19 +61,18 @@ static struct cmd_ctrl_node *
 mwifiex_get_cmd_node(struct mwifiex_adapter *adapter)
 {
 	struct cmd_ctrl_node *cmd_node;
-	unsigned long flags;
 
-	spin_lock_irqsave(&adapter->cmd_free_q_lock, flags);
+	spin_lock_bh(&adapter->cmd_free_q_lock);
 	if (list_empty(&adapter->cmd_free_q)) {
 		mwifiex_dbg(adapter, ERROR,
 			    "GET_CMD_NODE: cmd node not available\n");
-		spin_unlock_irqrestore(&adapter->cmd_free_q_lock, flags);
+		spin_unlock_bh(&adapter->cmd_free_q_lock);
 		return NULL;
 	}
 	cmd_node = list_first_entry(&adapter->cmd_free_q,
 				    struct cmd_ctrl_node, list);
 	list_del(&cmd_node->list);
-	spin_unlock_irqrestore(&adapter->cmd_free_q_lock, flags);
+	spin_unlock_bh(&adapter->cmd_free_q_lock);
 
 	return cmd_node;
 }
@@ -90,7 +92,7 @@ static void
 mwifiex_clean_cmd_node(struct mwifiex_adapter *adapter,
 		       struct cmd_ctrl_node *cmd_node)
 {
-	cmd_node->cmd_oid = 0;
+	cmd_node->cmd_no = 0;
 	cmd_node->cmd_flag = 0;
 	cmd_node->data_buf = NULL;
 	cmd_node->wait_q_enabled = false;
@@ -114,8 +116,6 @@ static void
 mwifiex_insert_cmd_to_free_q(struct mwifiex_adapter *adapter,
 			     struct cmd_ctrl_node *cmd_node)
 {
-	unsigned long flags;
-
 	if (!cmd_node)
 		return;
 
@@ -125,9 +125,9 @@ mwifiex_insert_cmd_to_free_q(struct mwifiex_adapter *adapter,
 	mwifiex_clean_cmd_node(adapter, cmd_node);
 
 	/* Insert node into cmd_free_q */
-	spin_lock_irqsave(&adapter->cmd_free_q_lock, flags);
+	spin_lock_bh(&adapter->cmd_free_q_lock);
 	list_add_tail(&cmd_node->list, &adapter->cmd_free_q);
-	spin_unlock_irqrestore(&adapter->cmd_free_q_lock, flags);
+	spin_unlock_bh(&adapter->cmd_free_q_lock);
 }
 
 /* This function reuses a command node. */
@@ -180,8 +180,6 @@ static int mwifiex_dnld_cmd_to_fw(struct mwifiex_private *priv,
 	struct host_cmd_ds_command *host_cmd;
 	uint16_t cmd_code;
 	uint16_t cmd_size;
-	unsigned long flags;
-	__le32 tmp;
 
 	if (!adapter || !cmd_node)
 		return -1;
@@ -200,6 +198,7 @@ static int mwifiex_dnld_cmd_to_fw(struct mwifiex_private *priv,
 	}
 
 	cmd_code = le16_to_cpu(host_cmd->command);
+	cmd_node->cmd_no = cmd_code;
 	cmd_size = le16_to_cpu(host_cmd->size);
 
 	if (adapter->hw_status == MWIFIEX_HW_STATUS_RESET &&
@@ -220,9 +219,9 @@ static int mwifiex_dnld_cmd_to_fw(struct mwifiex_private *priv,
 					 cmd_node->priv->bss_num,
 					 cmd_node->priv->bss_type));
 
-	spin_lock_irqsave(&adapter->mwifiex_cmd_lock, flags);
+	spin_lock_bh(&adapter->mwifiex_cmd_lock);
 	adapter->curr_cmd = cmd_node;
-	spin_unlock_irqrestore(&adapter->mwifiex_cmd_lock, flags);
+	spin_unlock_bh(&adapter->mwifiex_cmd_lock);
 
 	/* Adjust skb length */
 	if (cmd_node->cmd_skb->len > cmd_size)
@@ -242,14 +241,14 @@ static int mwifiex_dnld_cmd_to_fw(struct mwifiex_private *priv,
 	mwifiex_dbg(adapter, CMD,
 		    "cmd: DNLD_CMD: %#x, act %#x, len %d, seqno %#x\n",
 		    cmd_code,
-		    le16_to_cpu(*(__le16 *)((u8 *)host_cmd + S_DS_GEN)),
+		    get_unaligned_le16((u8 *)host_cmd + S_DS_GEN),
 		    cmd_size, le16_to_cpu(host_cmd->seq_num));
 	mwifiex_dbg_dump(adapter, CMD_D, "cmd buffer:", host_cmd, cmd_size);
 
 	if (adapter->iface_type == MWIFIEX_USB) {
-		tmp = cpu_to_le32(MWIFIEX_USB_TYPE_CMD);
 		skb_push(cmd_node->cmd_skb, MWIFIEX_TYPE_LEN);
-		memcpy(cmd_node->cmd_skb->data, &tmp, MWIFIEX_TYPE_LEN);
+		put_unaligned_le32(MWIFIEX_USB_TYPE_CMD,
+				   cmd_node->cmd_skb->data);
 		adapter->cmd_sent = true;
 		ret = adapter->if_ops.host_to_card(adapter,
 						   MWIFIEX_USB_EP_CMD_EVENT,
@@ -258,10 +257,10 @@ static int mwifiex_dnld_cmd_to_fw(struct mwifiex_private *priv,
 		if (ret == -EBUSY)
 			cmd_node->cmd_skb = NULL;
 	} else {
-		skb_push(cmd_node->cmd_skb, INTF_HEADER_LEN);
+		skb_push(cmd_node->cmd_skb, adapter->intf_hdr_len);
 		ret = adapter->if_ops.host_to_card(adapter, MWIFIEX_TYPE_CMD,
 						   cmd_node->cmd_skb, NULL);
-		skb_pull(cmd_node->cmd_skb, INTF_HEADER_LEN);
+		skb_pull(cmd_node->cmd_skb, adapter->intf_hdr_len);
 	}
 
 	if (ret == -1) {
@@ -273,9 +272,9 @@ static int mwifiex_dnld_cmd_to_fw(struct mwifiex_private *priv,
 			adapter->cmd_wait_q.status = -1;
 		mwifiex_recycle_cmd_node(adapter, adapter->curr_cmd);
 
-		spin_lock_irqsave(&adapter->mwifiex_cmd_lock, flags);
+		spin_lock_bh(&adapter->mwifiex_cmd_lock);
 		adapter->curr_cmd = NULL;
-		spin_unlock_irqrestore(&adapter->mwifiex_cmd_lock, flags);
+		spin_unlock_bh(&adapter->mwifiex_cmd_lock);
 
 		adapter->dbg.num_cmd_host_to_card_failure++;
 		return -1;
@@ -286,14 +285,17 @@ static int mwifiex_dnld_cmd_to_fw(struct mwifiex_private *priv,
 			(adapter->dbg.last_cmd_index + 1) % DBG_CMD_NUM;
 	adapter->dbg.last_cmd_id[adapter->dbg.last_cmd_index] = cmd_code;
 	adapter->dbg.last_cmd_act[adapter->dbg.last_cmd_index] =
-			le16_to_cpu(*(__le16 *) ((u8 *) host_cmd + S_DS_GEN));
+			get_unaligned_le16((u8 *)host_cmd + S_DS_GEN);
+
+	/* Setup the timer after transmit command, except that specific
+	 * command might not have command response.
+	 */
+	if (cmd_code != HostCmd_CMD_FW_DUMP_EVENT)
+		mod_timer(&adapter->cmd_timer,
+			  jiffies + msecs_to_jiffies(MWIFIEX_TIMER_10S));
 
 	/* Clear BSS_NO_BITS from HostCmd */
 	cmd_code &= HostCmd_CMD_ID_MASK;
-
-	/* Setup the timer after transmit command */
-	mod_timer(&adapter->cmd_timer,
-		  jiffies + msecs_to_jiffies(MWIFIEX_TIMER_10S));
 
 	return 0;
 }
@@ -315,7 +317,6 @@ static int mwifiex_dnld_sleep_confirm_cmd(struct mwifiex_adapter *adapter)
 				(struct mwifiex_opt_sleep_confirm *)
 						adapter->sleep_cfm->data;
 	struct sk_buff *sleep_cfm_tmp;
-	__le32 tmp;
 
 	priv = mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY);
 
@@ -338,10 +339,15 @@ static int mwifiex_dnld_sleep_confirm_cmd(struct mwifiex_adapter *adapter)
 		sleep_cfm_tmp =
 			dev_alloc_skb(sizeof(struct mwifiex_opt_sleep_confirm)
 				      + MWIFIEX_TYPE_LEN);
+		if (!sleep_cfm_tmp) {
+			mwifiex_dbg(adapter, ERROR,
+				    "SLEEP_CFM: dev_alloc_skb failed\n");
+			return -ENOMEM;
+		}
+
 		skb_put(sleep_cfm_tmp, sizeof(struct mwifiex_opt_sleep_confirm)
 			+ MWIFIEX_TYPE_LEN);
-		tmp = cpu_to_le32(MWIFIEX_USB_TYPE_CMD);
-		memcpy(sleep_cfm_tmp->data, &tmp, MWIFIEX_TYPE_LEN);
+		put_unaligned_le32(MWIFIEX_USB_TYPE_CMD, sleep_cfm_tmp->data);
 		memcpy(sleep_cfm_tmp->data + MWIFIEX_TYPE_LEN,
 		       adapter->sleep_cfm->data,
 		       sizeof(struct mwifiex_opt_sleep_confirm));
@@ -351,10 +357,10 @@ static int mwifiex_dnld_sleep_confirm_cmd(struct mwifiex_adapter *adapter)
 		if (ret != -EBUSY)
 			dev_kfree_skb_any(sleep_cfm_tmp);
 	} else {
-		skb_push(adapter->sleep_cfm, INTF_HEADER_LEN);
+		skb_push(adapter->sleep_cfm, adapter->intf_hdr_len);
 		ret = adapter->if_ops.host_to_card(adapter, MWIFIEX_TYPE_CMD,
 						   adapter->sleep_cfm, NULL);
-		skb_pull(adapter->sleep_cfm, INTF_HEADER_LEN);
+		skb_pull(adapter->sleep_cfm, adapter->intf_hdr_len);
 	}
 
 	if (ret == -1) {
@@ -370,7 +376,7 @@ static int mwifiex_dnld_sleep_confirm_cmd(struct mwifiex_adapter *adapter)
 		adapter->ps_state = PS_STATE_SLEEP_CFM;
 
 	if (!le16_to_cpu(sleep_cfm_buf->resp_ctrl) &&
-	    (adapter->is_hs_configured &&
+	    (test_bit(MWIFIEX_IS_HS_CONFIGURED, &adapter->work_flags) &&
 	     !adapter->sleep_period.period)) {
 		adapter->pm_wakeup_card_req = true;
 		mwifiex_hs_activated_event(mwifiex_get_priv
@@ -427,7 +433,7 @@ int mwifiex_alloc_cmd_buffer(struct mwifiex_adapter *adapter)
  * The function calls the completion callback for all the command
  * buffers that still have response buffers associated with them.
  */
-int mwifiex_free_cmd_buffer(struct mwifiex_adapter *adapter)
+void mwifiex_free_cmd_buffer(struct mwifiex_adapter *adapter)
 {
 	struct cmd_ctrl_node *cmd_array;
 	u32 i;
@@ -436,7 +442,7 @@ int mwifiex_free_cmd_buffer(struct mwifiex_adapter *adapter)
 	if (!adapter->cmd_pool) {
 		mwifiex_dbg(adapter, FATAL,
 			    "info: FREE_CMD_BUF: cmd_pool is null\n");
-		return 0;
+		return;
 	}
 
 	cmd_array = adapter->cmd_pool;
@@ -464,8 +470,6 @@ int mwifiex_free_cmd_buffer(struct mwifiex_adapter *adapter)
 		kfree(adapter->cmd_pool);
 		adapter->cmd_pool = NULL;
 	}
-
-	return 0;
 }
 
 /*
@@ -564,25 +568,26 @@ int mwifiex_send_cmd(struct mwifiex_private *priv, u16 cmd_no,
 		return -1;
 	}
 
-	if (adapter->is_suspended) {
+	if (test_bit(MWIFIEX_IS_SUSPENDED, &adapter->work_flags)) {
 		mwifiex_dbg(adapter, ERROR,
 			    "PREP_CMD: device in suspended state\n");
 		return -1;
 	}
 
-	if (adapter->hs_enabling && cmd_no != HostCmd_CMD_802_11_HS_CFG_ENH) {
+	if (test_bit(MWIFIEX_IS_HS_ENABLING, &adapter->work_flags) &&
+	    cmd_no != HostCmd_CMD_802_11_HS_CFG_ENH) {
 		mwifiex_dbg(adapter, ERROR,
 			    "PREP_CMD: host entering sleep state\n");
 		return -1;
 	}
 
-	if (adapter->surprise_removed) {
+	if (test_bit(MWIFIEX_SURPRISE_REMOVED, &adapter->work_flags)) {
 		mwifiex_dbg(adapter, ERROR,
 			    "PREP_CMD: card is removed\n");
 		return -1;
 	}
 
-	if (adapter->is_cmd_timedout) {
+	if (test_bit(MWIFIEX_IS_CMD_TIMEDOUT, &adapter->work_flags)) {
 		mwifiex_dbg(adapter, ERROR,
 			    "PREP_CMD: FW is in bad state\n");
 		return -1;
@@ -614,7 +619,7 @@ int mwifiex_send_cmd(struct mwifiex_private *priv, u16 cmd_no,
 	}
 
 	/* Initialize the command node */
-	mwifiex_init_cmd_node(priv, cmd_node, cmd_oid, data_buf, sync);
+	mwifiex_init_cmd_node(priv, cmd_node, cmd_no, data_buf, sync);
 
 	if (!cmd_node->cmd_skb) {
 		mwifiex_dbg(adapter, ERROR,
@@ -622,8 +627,7 @@ int mwifiex_send_cmd(struct mwifiex_private *priv, u16 cmd_no,
 		return -1;
 	}
 
-	memset(skb_put(cmd_node->cmd_skb, sizeof(struct host_cmd_ds_command)),
-	       0, sizeof(struct host_cmd_ds_command));
+	skb_put_zero(cmd_node->cmd_skb, sizeof(struct host_cmd_ds_command));
 
 	cmd_ptr = (struct host_cmd_ds_command *) (cmd_node->cmd_skb->data);
 	cmd_ptr->command = cpu_to_le16(cmd_no);
@@ -667,7 +671,7 @@ int mwifiex_send_cmd(struct mwifiex_private *priv, u16 cmd_no,
 	    cmd_no == HostCmd_CMD_802_11_SCAN_EXT) {
 		mwifiex_queue_scan_cmd(priv, cmd_node);
 	} else {
-		mwifiex_insert_cmd_to_pending_q(adapter, cmd_node, true);
+		mwifiex_insert_cmd_to_pending_q(adapter, cmd_node);
 		queue_work(adapter->workqueue, &adapter->main_work);
 		if (cmd_node->wait_q_enabled)
 			ret = mwifiex_wait_queue_complete(adapter, cmd_node);
@@ -685,11 +689,11 @@ int mwifiex_send_cmd(struct mwifiex_private *priv, u16 cmd_no,
  */
 void
 mwifiex_insert_cmd_to_pending_q(struct mwifiex_adapter *adapter,
-				struct cmd_ctrl_node *cmd_node, u32 add_tail)
+				struct cmd_ctrl_node *cmd_node)
 {
 	struct host_cmd_ds_command *host_cmd = NULL;
 	u16 command;
-	unsigned long flags;
+	bool add_tail = true;
 
 	host_cmd = (struct host_cmd_ds_command *) (cmd_node->cmd_skb->data);
 	if (!host_cmd) {
@@ -710,12 +714,12 @@ mwifiex_insert_cmd_to_pending_q(struct mwifiex_adapter *adapter,
 		}
 	}
 
-	spin_lock_irqsave(&adapter->cmd_pending_q_lock, flags);
+	spin_lock_bh(&adapter->cmd_pending_q_lock);
 	if (add_tail)
 		list_add_tail(&cmd_node->list, &adapter->cmd_pending_q);
 	else
 		list_add(&cmd_node->list, &adapter->cmd_pending_q);
-	spin_unlock_irqrestore(&adapter->cmd_pending_q_lock, flags);
+	spin_unlock_bh(&adapter->cmd_pending_q_lock);
 
 	atomic_inc(&adapter->cmd_pending);
 	mwifiex_dbg(adapter, CMD,
@@ -740,8 +744,6 @@ int mwifiex_exec_next_cmd(struct mwifiex_adapter *adapter)
 	struct cmd_ctrl_node *cmd_node;
 	int ret = 0;
 	struct host_cmd_ds_command *host_cmd;
-	unsigned long cmd_flags;
-	unsigned long cmd_pending_q_flags;
 
 	/* Check if already in processing */
 	if (adapter->curr_cmd) {
@@ -750,19 +752,16 @@ int mwifiex_exec_next_cmd(struct mwifiex_adapter *adapter)
 		return -1;
 	}
 
-	spin_lock_irqsave(&adapter->mwifiex_cmd_lock, cmd_flags);
+	spin_lock_bh(&adapter->mwifiex_cmd_lock);
 	/* Check if any command is pending */
-	spin_lock_irqsave(&adapter->cmd_pending_q_lock, cmd_pending_q_flags);
+	spin_lock_bh(&adapter->cmd_pending_q_lock);
 	if (list_empty(&adapter->cmd_pending_q)) {
-		spin_unlock_irqrestore(&adapter->cmd_pending_q_lock,
-				       cmd_pending_q_flags);
-		spin_unlock_irqrestore(&adapter->mwifiex_cmd_lock, cmd_flags);
+		spin_unlock_bh(&adapter->cmd_pending_q_lock);
+		spin_unlock_bh(&adapter->mwifiex_cmd_lock);
 		return 0;
 	}
 	cmd_node = list_first_entry(&adapter->cmd_pending_q,
 				    struct cmd_ctrl_node, list);
-	spin_unlock_irqrestore(&adapter->cmd_pending_q_lock,
-			       cmd_pending_q_flags);
 
 	host_cmd = (struct host_cmd_ds_command *) (cmd_node->cmd_skb->data);
 	priv = cmd_node->priv;
@@ -771,16 +770,15 @@ int mwifiex_exec_next_cmd(struct mwifiex_adapter *adapter)
 		mwifiex_dbg(adapter, ERROR,
 			    "%s: cannot send cmd in sleep state,\t"
 			    "this should not happen\n", __func__);
-		spin_unlock_irqrestore(&adapter->mwifiex_cmd_lock, cmd_flags);
+		spin_unlock_bh(&adapter->cmd_pending_q_lock);
+		spin_unlock_bh(&adapter->mwifiex_cmd_lock);
 		return ret;
 	}
 
-	spin_lock_irqsave(&adapter->cmd_pending_q_lock, cmd_pending_q_flags);
 	list_del(&cmd_node->list);
-	spin_unlock_irqrestore(&adapter->cmd_pending_q_lock,
-			       cmd_pending_q_flags);
+	spin_unlock_bh(&adapter->cmd_pending_q_lock);
 
-	spin_unlock_irqrestore(&adapter->mwifiex_cmd_lock, cmd_flags);
+	spin_unlock_bh(&adapter->mwifiex_cmd_lock);
 	ret = mwifiex_dnld_cmd_to_fw(priv, cmd_node);
 	priv = mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY);
 	/* Any command sent to the firmware when host is in sleep
@@ -790,7 +788,8 @@ int mwifiex_exec_next_cmd(struct mwifiex_adapter *adapter)
 	if (priv && (host_cmd->command !=
 	     cpu_to_le16(HostCmd_CMD_802_11_HS_CFG_ENH))) {
 		if (adapter->hs_activated) {
-			adapter->is_hs_configured = false;
+			clear_bit(MWIFIEX_IS_HS_CONFIGURED,
+				  &adapter->work_flags);
 			mwifiex_hs_activated_event(priv, false);
 		}
 	}
@@ -813,10 +812,6 @@ int mwifiex_process_cmdresp(struct mwifiex_adapter *adapter)
 	uint16_t orig_cmdresp_no;
 	uint16_t cmdresp_no;
 	uint16_t cmdresp_result;
-	unsigned long flags;
-
-	/* Now we got response from FW, cancel the command timer */
-	del_timer_sync(&adapter->cmd_timer);
 
 	if (!adapter->curr_cmd || !adapter->curr_cmd->resp_skb) {
 		resp = (struct host_cmd_ds_command *) adapter->upld_buf;
@@ -826,9 +821,20 @@ int mwifiex_process_cmdresp(struct mwifiex_adapter *adapter)
 		return -1;
 	}
 
-	adapter->is_cmd_timedout = 0;
+	resp = (struct host_cmd_ds_command *)adapter->curr_cmd->resp_skb->data;
+	orig_cmdresp_no = le16_to_cpu(resp->command);
+	cmdresp_no = (orig_cmdresp_no & HostCmd_CMD_ID_MASK);
 
-	resp = (struct host_cmd_ds_command *) adapter->curr_cmd->resp_skb->data;
+	if (adapter->curr_cmd->cmd_no != cmdresp_no) {
+		mwifiex_dbg(adapter, ERROR,
+			    "cmdresp error: cmd=0x%x cmd_resp=0x%x\n",
+			    adapter->curr_cmd->cmd_no, cmdresp_no);
+		return -1;
+	}
+	/* Now we got response from FW, cancel the command timer */
+	del_timer_sync(&adapter->cmd_timer);
+	clear_bit(MWIFIEX_IS_CMD_TIMEDOUT, &adapter->work_flags);
+
 	if (adapter->curr_cmd->cmd_flag & CMD_F_HOSTCMD) {
 		/* Copy original response back to response buffer */
 		struct mwifiex_ds_misc_cmd *hostcmd;
@@ -842,7 +848,6 @@ int mwifiex_process_cmdresp(struct mwifiex_adapter *adapter)
 			memcpy(hostcmd->cmd, resp, size);
 		}
 	}
-	orig_cmdresp_no = le16_to_cpu(resp->command);
 
 	/* Get BSS number and corresponding priv */
 	priv = mwifiex_get_priv_by_id(adapter,
@@ -875,9 +880,9 @@ int mwifiex_process_cmdresp(struct mwifiex_adapter *adapter)
 			adapter->cmd_wait_q.status = -1;
 
 		mwifiex_recycle_cmd_node(adapter, adapter->curr_cmd);
-		spin_lock_irqsave(&adapter->mwifiex_cmd_lock, flags);
+		spin_lock_bh(&adapter->mwifiex_cmd_lock);
 		adapter->curr_cmd = NULL;
-		spin_unlock_irqrestore(&adapter->mwifiex_cmd_lock, flags);
+		spin_unlock_bh(&adapter->mwifiex_cmd_lock);
 		return -1;
 	}
 
@@ -909,9 +914,9 @@ int mwifiex_process_cmdresp(struct mwifiex_adapter *adapter)
 
 		mwifiex_recycle_cmd_node(adapter, adapter->curr_cmd);
 
-		spin_lock_irqsave(&adapter->mwifiex_cmd_lock, flags);
+		spin_lock_bh(&adapter->mwifiex_cmd_lock);
 		adapter->curr_cmd = NULL;
-		spin_unlock_irqrestore(&adapter->mwifiex_cmd_lock, flags);
+		spin_unlock_bh(&adapter->mwifiex_cmd_lock);
 	}
 
 	return ret;
@@ -923,13 +928,12 @@ int mwifiex_process_cmdresp(struct mwifiex_adapter *adapter)
  * It will re-send the same command again.
  */
 void
-mwifiex_cmd_timeout_func(unsigned long function_context)
+mwifiex_cmd_timeout_func(struct timer_list *t)
 {
-	struct mwifiex_adapter *adapter =
-		(struct mwifiex_adapter *) function_context;
+	struct mwifiex_adapter *adapter = from_timer(adapter, t, cmd_timer);
 	struct cmd_ctrl_node *cmd_node;
 
-	adapter->is_cmd_timedout = 1;
+	set_bit(MWIFIEX_IS_CMD_TIMEDOUT, &adapter->work_flags);
 	if (!adapter->curr_cmd) {
 		mwifiex_dbg(adapter, ERROR,
 			    "cmd: empty curr_cmd\n");
@@ -955,7 +959,8 @@ mwifiex_cmd_timeout_func(unsigned long function_context)
 
 		mwifiex_dbg(adapter, MSG,
 			    "is_cmd_timedout = %d\n",
-			    adapter->is_cmd_timedout);
+			    test_bit(MWIFIEX_IS_CMD_TIMEDOUT,
+				     &adapter->work_flags));
 		mwifiex_dbg(adapter, MSG,
 			    "num_tx_timeout = %d\n",
 			    adapter->dbg.num_tx_timeout);
@@ -1017,17 +1022,16 @@ void
 mwifiex_cancel_pending_scan_cmd(struct mwifiex_adapter *adapter)
 {
 	struct cmd_ctrl_node *cmd_node = NULL, *tmp_node;
-	unsigned long flags;
 
 	/* Cancel all pending scan command */
-	spin_lock_irqsave(&adapter->scan_pending_q_lock, flags);
+	spin_lock_bh(&adapter->scan_pending_q_lock);
 	list_for_each_entry_safe(cmd_node, tmp_node,
 				 &adapter->scan_pending_q, list) {
 		list_del(&cmd_node->list);
 		cmd_node->wait_q_enabled = false;
 		mwifiex_insert_cmd_to_free_q(adapter, cmd_node);
 	}
-	spin_unlock_irqrestore(&adapter->scan_pending_q_lock, flags);
+	spin_unlock_bh(&adapter->scan_pending_q_lock);
 }
 
 /*
@@ -1041,9 +1045,8 @@ void
 mwifiex_cancel_all_pending_cmd(struct mwifiex_adapter *adapter)
 {
 	struct cmd_ctrl_node *cmd_node = NULL, *tmp_node;
-	unsigned long flags, cmd_flags;
 
-	spin_lock_irqsave(&adapter->mwifiex_cmd_lock, cmd_flags);
+	spin_lock_bh(&adapter->mwifiex_cmd_lock);
 	/* Cancel current cmd */
 	if ((adapter->curr_cmd) && (adapter->curr_cmd->wait_q_enabled)) {
 		adapter->cmd_wait_q.status = -1;
@@ -1052,19 +1055,17 @@ mwifiex_cancel_all_pending_cmd(struct mwifiex_adapter *adapter)
 		/* no recycle probably wait for response */
 	}
 	/* Cancel all pending command */
-	spin_lock_irqsave(&adapter->cmd_pending_q_lock, flags);
+	spin_lock_bh(&adapter->cmd_pending_q_lock);
 	list_for_each_entry_safe(cmd_node, tmp_node,
 				 &adapter->cmd_pending_q, list) {
 		list_del(&cmd_node->list);
-		spin_unlock_irqrestore(&adapter->cmd_pending_q_lock, flags);
 
 		if (cmd_node->wait_q_enabled)
 			adapter->cmd_wait_q.status = -1;
 		mwifiex_recycle_cmd_node(adapter, cmd_node);
-		spin_lock_irqsave(&adapter->cmd_pending_q_lock, flags);
 	}
-	spin_unlock_irqrestore(&adapter->cmd_pending_q_lock, flags);
-	spin_unlock_irqrestore(&adapter->mwifiex_cmd_lock, cmd_flags);
+	spin_unlock_bh(&adapter->cmd_pending_q_lock);
+	spin_unlock_bh(&adapter->mwifiex_cmd_lock);
 
 	mwifiex_cancel_scan(adapter);
 }
@@ -1079,15 +1080,14 @@ mwifiex_cancel_all_pending_cmd(struct mwifiex_adapter *adapter)
  * In case of scan commands, all pending commands in scan pending queue
  * are cancelled.
  */
-void
+static void
 mwifiex_cancel_pending_ioctl(struct mwifiex_adapter *adapter)
 {
 	struct cmd_ctrl_node *cmd_node = NULL;
-	unsigned long cmd_flags;
 
 	if ((adapter->curr_cmd) &&
 	    (adapter->curr_cmd->wait_q_enabled)) {
-		spin_lock_irqsave(&adapter->mwifiex_cmd_lock, cmd_flags);
+		spin_lock_bh(&adapter->mwifiex_cmd_lock);
 		cmd_node = adapter->curr_cmd;
 		/* setting curr_cmd to NULL is quite dangerous, because
 		 * mwifiex_process_cmdresp checks curr_cmd to be != NULL
@@ -1098,7 +1098,7 @@ mwifiex_cancel_pending_ioctl(struct mwifiex_adapter *adapter)
 		 * at that point
 		 */
 		adapter->curr_cmd = NULL;
-		spin_unlock_irqrestore(&adapter->mwifiex_cmd_lock, cmd_flags);
+		spin_unlock_bh(&adapter->mwifiex_cmd_lock);
 
 		mwifiex_recycle_cmd_node(adapter, cmd_node);
 	}
@@ -1118,13 +1118,14 @@ mwifiex_cancel_pending_ioctl(struct mwifiex_adapter *adapter)
 void
 mwifiex_check_ps_cond(struct mwifiex_adapter *adapter)
 {
-	if (!adapter->cmd_sent &&
+	if (!adapter->cmd_sent && !atomic_read(&adapter->tx_hw_pending) &&
 	    !adapter->curr_cmd && !IS_CARD_RX_RCVD(adapter))
 		mwifiex_dnld_sleep_confirm_cmd(adapter);
 	else
 		mwifiex_dbg(adapter, CMD,
-			    "cmd: Delay Sleep Confirm (%s%s%s)\n",
+			    "cmd: Delay Sleep Confirm (%s%s%s%s)\n",
 			    (adapter->cmd_sent) ? "D" : "",
+			    atomic_read(&adapter->tx_hw_pending) ? "T" : "",
 			    (adapter->curr_cmd) ? "C" : "",
 			    (IS_CARD_RX_RCVD(adapter)) ? "R" : "");
 }
@@ -1138,7 +1139,8 @@ void
 mwifiex_hs_activated_event(struct mwifiex_private *priv, u8 activated)
 {
 	if (activated) {
-		if (priv->adapter->is_hs_configured) {
+		if (test_bit(MWIFIEX_IS_HS_CONFIGURED,
+			     &priv->adapter->work_flags)) {
 			priv->adapter->hs_activated = true;
 			mwifiex_update_rxreor_flags(priv->adapter,
 						    RXREOR_FORCE_NO_DROP);
@@ -1189,11 +1191,11 @@ int mwifiex_ret_802_11_hs_cfg(struct mwifiex_private *priv,
 			    phs_cfg->params.hs_config.gap);
 	}
 	if (conditions != HS_CFG_CANCEL) {
-		adapter->is_hs_configured = true;
+		set_bit(MWIFIEX_IS_HS_CONFIGURED, &adapter->work_flags);
 		if (adapter->iface_type == MWIFIEX_USB)
 			mwifiex_hs_activated_event(priv, true);
 	} else {
-		adapter->is_hs_configured = false;
+		clear_bit(MWIFIEX_IS_HS_CONFIGURED, &adapter->work_flags);
 		if (adapter->hs_activated)
 			mwifiex_hs_activated_event(priv, false);
 	}
@@ -1215,8 +1217,8 @@ mwifiex_process_hs_config(struct mwifiex_adapter *adapter)
 
 	adapter->if_ops.wakeup(adapter);
 	adapter->hs_activated = false;
-	adapter->is_hs_configured = false;
-	adapter->is_suspended = false;
+	clear_bit(MWIFIEX_IS_HS_CONFIGURED, &adapter->work_flags);
+	clear_bit(MWIFIEX_IS_SUSPENDED, &adapter->work_flags);
 	mwifiex_hs_activated_event(mwifiex_get_priv(adapter,
 						    MWIFIEX_BSS_ROLE_ANY),
 				   false);
@@ -1276,7 +1278,7 @@ mwifiex_process_sleep_confirm_resp(struct mwifiex_adapter *adapter,
 		return;
 	}
 	adapter->pm_wakeup_card_req = true;
-	if (adapter->is_hs_configured)
+	if (test_bit(MWIFIEX_IS_HS_CONFIGURED, &adapter->work_flags))
 		mwifiex_hs_activated_event(mwifiex_get_priv
 						(adapter, MWIFIEX_BSS_ROLE_ANY),
 					   true);
@@ -1531,7 +1533,8 @@ int mwifiex_ret_get_hw_spec(struct mwifiex_private *priv,
 
 	adapter->fw_release_number = le32_to_cpu(hw_spec->fw_release_number);
 	adapter->fw_api_ver = (adapter->fw_release_number >> 16) & 0xff;
-	adapter->number_of_antenna = le16_to_cpu(hw_spec->number_of_antenna);
+	adapter->number_of_antenna =
+			le16_to_cpu(hw_spec->number_of_antenna) & 0xf;
 
 	if (le32_to_cpu(hw_spec->dot_11ac_dev_cap)) {
 		adapter->is_hw_11ac_capable = true;

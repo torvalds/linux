@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2009 Extreme Engineering Solutions, Inc.
  *
@@ -6,10 +7,6 @@
  * Based on mpc85xx_ds code from Freescale Semiconductor, Inc.
  *
  * Author: Nate Case <ncase@xes-inc.com>
- *
- * This is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/stddef.h>
@@ -100,8 +97,8 @@ static void xes_mpc85xx_fixups(void)
 		err = of_address_to_resource(np, 0, &r[0]);
 		if (err) {
 			printk(KERN_WARNING "xes_mpc85xx: Could not get "
-			       "resource for device tree node '%s'",
-			       np->full_name);
+			       "resource for device tree node '%pOF'",
+			       np);
 			continue;
 		}
 

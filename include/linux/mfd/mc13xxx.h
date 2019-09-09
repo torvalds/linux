@@ -1,10 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright 2009-2010 Pengutronix
  * Uwe Kleine-Koenig <u.kleine-koenig@pengutronix.de>
- *
- * This program is free software; you can redistribute it and/or modify it under
- * the terms of the GNU General Public License version 2 as published by the
- * Free Software Foundation.
  */
 #ifndef __LINUX_MFD_MC13XXX_H
 #define __LINUX_MFD_MC13XXX_H
@@ -243,10 +240,13 @@ struct mc13xxx_platform_data {
 #define MC13XXX_ADC0_LICELLCON		(1 << 0)
 #define MC13XXX_ADC0_CHRGICON		(1 << 1)
 #define MC13XXX_ADC0_BATICON		(1 << 2)
+#define MC13XXX_ADC0_ADIN7SEL_DIE	(1 << 4)
+#define MC13XXX_ADC0_ADIN7SEL_UID	(2 << 4)
 #define MC13XXX_ADC0_ADREFEN		(1 << 10)
 #define MC13XXX_ADC0_TSMOD0		(1 << 12)
 #define MC13XXX_ADC0_TSMOD1		(1 << 13)
 #define MC13XXX_ADC0_TSMOD2		(1 << 14)
+#define MC13XXX_ADC0_CHRGRAWDIV		(1 << 15)
 #define MC13XXX_ADC0_ADINC1		(1 << 16)
 #define MC13XXX_ADC0_ADINC2		(1 << 17)
 

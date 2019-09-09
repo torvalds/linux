@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (c) 2016 IBM Corporation.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include "ops.h"
@@ -12,8 +8,6 @@
 #include "io.h"
 #include <libfdt.h>
 #include "../include/asm/opal-api.h"
-
-#ifdef __powerpc64__
 
 /* Global OPAL struct used by opal-call.S */
 struct opal {
@@ -23,14 +17,25 @@ struct opal {
 
 static u32 opal_con_id;
 
+/* see opal-wrappers.S */
 int64_t opal_console_write(int64_t term_number, u64 *length, const u8 *buffer);
 int64_t opal_console_read(int64_t term_number, uint64_t *length, u8 *buffer);
 int64_t opal_console_write_buffer_space(uint64_t term_number, uint64_t *length);
 int64_t opal_console_flush(uint64_t term_number);
 int64_t opal_poll_events(uint64_t *outstanding_event_mask);
 
+void opal_kentry(unsigned long fdt_addr, void *vmlinux_addr);
+
 static int opal_con_open(void)
 {
+	/*
+	 * When OPAL loads the boot kernel it stashes the OPAL base and entry
+	 * address in r8 and r9 so the kernel can use the OPAL console
+	 * before unflattening the devicetree. While executing the wrapper will
+	 * probably trash r8 and r9 so this kentry hook restores them before
+	 * entering the decompressed kernel.
+	 */
+	platform_ops.kentry = opal_kentry;
 	return 0;
 }
 
@@ -90,9 +95,3 @@ int opal_console_init(void *devp, struct serial_console_data *scdp)
 
 	return 0;
 }
-#else
-int opal_console_init(void *devp, struct serial_console_data *scdp)
-{
-	return -1;
-}
-#endif /* __powerpc64__ */

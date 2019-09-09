@@ -1,10 +1,14 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NET_VXLAN_H
 #define __NET_VXLAN_H 1
 
 #include <linux/if_vlan.h>
 #include <net/udp_tunnel.h>
 #include <net/dst_metadata.h>
-#include <net/udp_tunnel.h>
+#include <net/rtnetlink.h>
+#include <net/switchdev.h>
+
+#define IANA_VXLAN_UDP_PORT     4789
 
 /* VXLAN protocol (RFC 7348) header:
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -145,7 +149,7 @@ struct vxlanhdr_gpe {
 		np_applied:1,
 		instance_applied:1,
 		version:2,
-reserved_flags2:2;
+		reserved_flags2:2;
 #elif defined(__BIG_ENDIAN_BITFIELD)
 	u8	reserved_flags2:2,
 		version:2,
@@ -168,12 +172,6 @@ reserved_flags2:2;
 #define VXLAN_GPE_USED_BITS (VXLAN_HF_VER | VXLAN_HF_NP | VXLAN_HF_OAM | \
 			     cpu_to_be32(0xff))
 
-/* VXLAN-GPE header Next Protocol. */
-#define VXLAN_GPE_NP_IPV4      0x01
-#define VXLAN_GPE_NP_IPV6      0x02
-#define VXLAN_GPE_NP_ETHERNET  0x03
-#define VXLAN_GPE_NP_NSH       0x04
-
 struct vxlan_metadata {
 	u32		gbp;
 };
@@ -183,7 +181,7 @@ struct vxlan_sock {
 	struct hlist_node hlist;
 	struct socket	 *sock;
 	struct hlist_head vni_list[VNI_HASH_SIZE];
-	atomic_t	  refcnt;
+	refcount_t	  refcnt;
 	u32		  flags;
 };
 
@@ -196,6 +194,7 @@ union vxlan_addr {
 struct vxlan_rdst {
 	union vxlan_addr	 remote_ip;
 	__be16			 remote_port;
+	u8			 offloaded:1;
 	__be32			 remote_vni;
 	u32			 remote_ifindex;
 	struct list_head	 list;
@@ -219,11 +218,20 @@ struct vxlan_config {
 	unsigned long		age_interval;
 	unsigned int		addrmax;
 	bool			no_share;
+	enum ifla_vxlan_df	df;
+};
+
+struct vxlan_dev_node {
+	struct hlist_node hlist;
+	struct vxlan_dev *vxlan;
 };
 
 /* Pseudo network device */
 struct vxlan_dev {
-	struct hlist_node hlist;	/* vni hash table */
+	struct vxlan_dev_node hlist4;	/* vni hash table for IPv4 socket */
+#if IS_ENABLED(CONFIG_IPV6)
+	struct vxlan_dev_node hlist6;	/* vni hash table for IPv6 socket */
+#endif
 	struct list_head  next;		/* vxlan's per namespace list */
 	struct vxlan_sock __rcu *vn4_sock;	/* listening socket for IPv4 */
 #if IS_ENABLED(CONFIG_IPV6)
@@ -232,10 +240,9 @@ struct vxlan_dev {
 	struct net_device *dev;
 	struct net	  *net;		/* netns for packet i/o */
 	struct vxlan_rdst default_dst;	/* default destination */
-	u32		  flags;	/* VXLAN_F_* in vxlan.h */
 
 	struct timer_list age_timer;
-	spinlock_t	  hash_lock;
+	spinlock_t	  hash_lock[FDB_HASH_SIZE];
 	unsigned int	  addrcnt;
 	struct gro_cells  gro_cells;
 
@@ -259,6 +266,8 @@ struct vxlan_dev {
 #define VXLAN_F_REMCSUM_NOPARTIAL	0x1000
 #define VXLAN_F_COLLECT_METADATA	0x2000
 #define VXLAN_F_GPE			0x4000
+#define VXLAN_F_IPV6_LINKLOCAL		0x8000
+#define VXLAN_F_TTL_INHERIT		0x10000
 
 /* Flags that are used in the receive path. These flags must match in
  * order for a socket to be shareable
@@ -273,6 +282,7 @@ struct vxlan_dev {
 /* Flags that can be set together with VXLAN_F_GPE. */
 #define VXLAN_F_ALLOWED_GPE		(VXLAN_F_GPE |			\
 					 VXLAN_F_IPV6 |			\
+					 VXLAN_F_IPV6_LINKLOCAL |	\
 					 VXLAN_F_UDP_ZERO_CSUM_TX |	\
 					 VXLAN_F_UDP_ZERO_CSUM6_TX |	\
 					 VXLAN_F_UDP_ZERO_CSUM6_RX |	\
@@ -280,16 +290,6 @@ struct vxlan_dev {
 
 struct net_device *vxlan_dev_create(struct net *net, const char *name,
 				    u8 name_assign_type, struct vxlan_config *conf);
-
-static inline __be16 vxlan_dev_dst_port(struct vxlan_dev *vxlan,
-					unsigned short family)
-{
-#if IS_ENABLED(CONFIG_IPV6)
-	if (family == AF_INET6)
-		return inet_sk(vxlan->vn6_sock->sock->sk)->inet_sport;
-#endif
-	return inet_sk(vxlan->vn4_sock->sock->sk)->inet_sport;
-}
 
 static inline netdev_features_t vxlan_features_check(struct sk_buff *skb,
 						     netdev_features_t features)
@@ -307,7 +307,7 @@ static inline netdev_features_t vxlan_features_check(struct sk_buff *skb,
 		l4_hdr = ipv6_hdr(skb)->nexthdr;
 		break;
 	default:
-		return features;;
+		return features;
 	}
 
 	if ((l4_hdr == IPPROTO_UDP) &&
@@ -374,6 +374,116 @@ static inline __be32 vxlan_compute_rco(unsigned int start, unsigned int offset)
 static inline unsigned short vxlan_get_sk_family(struct vxlan_sock *vs)
 {
 	return vs->sock->sk->sk_family;
+}
+
+#if IS_ENABLED(CONFIG_IPV6)
+
+static inline bool vxlan_addr_any(const union vxlan_addr *ipa)
+{
+	if (ipa->sa.sa_family == AF_INET6)
+		return ipv6_addr_any(&ipa->sin6.sin6_addr);
+	else
+		return ipa->sin.sin_addr.s_addr == htonl(INADDR_ANY);
+}
+
+static inline bool vxlan_addr_multicast(const union vxlan_addr *ipa)
+{
+	if (ipa->sa.sa_family == AF_INET6)
+		return ipv6_addr_is_multicast(&ipa->sin6.sin6_addr);
+	else
+		return IN_MULTICAST(ntohl(ipa->sin.sin_addr.s_addr));
+}
+
+#else /* !IS_ENABLED(CONFIG_IPV6) */
+
+static inline bool vxlan_addr_any(const union vxlan_addr *ipa)
+{
+	return ipa->sin.sin_addr.s_addr == htonl(INADDR_ANY);
+}
+
+static inline bool vxlan_addr_multicast(const union vxlan_addr *ipa)
+{
+	return IN_MULTICAST(ntohl(ipa->sin.sin_addr.s_addr));
+}
+
+#endif /* IS_ENABLED(CONFIG_IPV6) */
+
+static inline bool netif_is_vxlan(const struct net_device *dev)
+{
+	return dev->rtnl_link_ops &&
+	       !strcmp(dev->rtnl_link_ops->kind, "vxlan");
+}
+
+struct switchdev_notifier_vxlan_fdb_info {
+	struct switchdev_notifier_info info; /* must be first */
+	union vxlan_addr remote_ip;
+	__be16 remote_port;
+	__be32 remote_vni;
+	u32 remote_ifindex;
+	u8 eth_addr[ETH_ALEN];
+	__be32 vni;
+	bool offloaded;
+	bool added_by_user;
+};
+
+#if IS_ENABLED(CONFIG_VXLAN)
+int vxlan_fdb_find_uc(struct net_device *dev, const u8 *mac, __be32 vni,
+		      struct switchdev_notifier_vxlan_fdb_info *fdb_info);
+int vxlan_fdb_replay(const struct net_device *dev, __be32 vni,
+		     struct notifier_block *nb,
+		     struct netlink_ext_ack *extack);
+void vxlan_fdb_clear_offload(const struct net_device *dev, __be32 vni);
+
+#else
+static inline int
+vxlan_fdb_find_uc(struct net_device *dev, const u8 *mac, __be32 vni,
+		  struct switchdev_notifier_vxlan_fdb_info *fdb_info)
+{
+	return -ENOENT;
+}
+
+static inline int vxlan_fdb_replay(const struct net_device *dev, __be32 vni,
+				   struct notifier_block *nb,
+				   struct netlink_ext_ack *extack)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline void
+vxlan_fdb_clear_offload(const struct net_device *dev, __be32 vni)
+{
+}
+#endif
+
+static inline void vxlan_flag_attr_error(int attrtype,
+					 struct netlink_ext_ack *extack)
+{
+#define VXLAN_FLAG(flg) \
+	case IFLA_VXLAN_##flg: \
+		NL_SET_ERR_MSG_MOD(extack, \
+				   "cannot change " #flg " flag"); \
+		break
+	switch (attrtype) {
+	VXLAN_FLAG(TTL_INHERIT);
+	VXLAN_FLAG(LEARNING);
+	VXLAN_FLAG(PROXY);
+	VXLAN_FLAG(RSC);
+	VXLAN_FLAG(L2MISS);
+	VXLAN_FLAG(L3MISS);
+	VXLAN_FLAG(COLLECT_METADATA);
+	VXLAN_FLAG(UDP_ZERO_CSUM6_TX);
+	VXLAN_FLAG(UDP_ZERO_CSUM6_RX);
+	VXLAN_FLAG(REMCSUM_TX);
+	VXLAN_FLAG(REMCSUM_RX);
+	VXLAN_FLAG(GBP);
+	VXLAN_FLAG(GPE);
+	VXLAN_FLAG(REMCSUM_NOPARTIAL);
+	default:
+		NL_SET_ERR_MSG_MOD(extack, \
+				   "cannot change flag");
+		break;
+	}
+#undef VXLAN_FLAG
 }
 
 #endif

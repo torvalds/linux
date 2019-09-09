@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *    IBM/3270 Driver - tty functions.
  *
@@ -18,13 +19,13 @@
 #include <linux/workqueue.h>
 
 #include <linux/slab.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/compat.h>
 
 #include <asm/ccwdev.h>
 #include <asm/cio.h>
 #include <asm/ebcdic.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "raw3270.h"
 #include "tty3270.h"
@@ -118,7 +119,7 @@ struct tty3270 {
 #define TTY_UPDATE_STATUS	8	/* Update status line. */
 #define TTY_UPDATE_ALL		16	/* Recreate screen. */
 
-static void tty3270_update(struct tty3270 *);
+static void tty3270_update(struct timer_list *);
 static void tty3270_resize_work(struct work_struct *work);
 
 /*
@@ -361,8 +362,9 @@ tty3270_write_callback(struct raw3270_request *rq, void *data)
  * Update 3270 display.
  */
 static void
-tty3270_update(struct tty3270 *tp)
+tty3270_update(struct timer_list *t)
 {
+	struct tty3270 *tp = from_timer(tp, t, timer);
 	static char invalid_sba[2] = { 0xff, 0xff };
 	struct raw3270_request *wrq;
 	unsigned long updated;
@@ -717,7 +719,8 @@ tty3270_alloc_view(void)
 	if (!tp)
 		goto out_err;
 	tp->freemem_pages =
-		kmalloc(sizeof(void *) * TTY3270_STRING_PAGES, GFP_KERNEL);
+		kmalloc_array(TTY3270_STRING_PAGES, sizeof(void *),
+			      GFP_KERNEL);
 	if (!tp->freemem_pages)
 		goto out_tp;
 	INIT_LIST_HEAD(&tp->freemem);
@@ -748,8 +751,7 @@ tty3270_alloc_view(void)
 		goto out_reset;
 
 	tty_port_init(&tp->port);
-	setup_timer(&tp->timer, (void (*)(unsigned long)) tty3270_update,
-		    (unsigned long) tp);
+	timer_setup(&tp->timer, tty3270_update, 0);
 	tasklet_init(&tp->readlet,
 		     (void (*)(unsigned long)) tty3270_read_tasklet,
 		     (unsigned long) tp->read);
@@ -978,7 +980,8 @@ static int tty3270_install(struct tty_driver *driver, struct tty_struct *tty)
 		return PTR_ERR(tp);
 
 	rc = raw3270_add_view(&tp->view, &tty3270_fn,
-			      tty->index + RAW3270_FIRSTMINOR);
+			      tty->index + RAW3270_FIRSTMINOR,
+			      RAW3270_VIEW_LOCK_BH);
 	if (rc) {
 		tty3270_free_view(tp);
 		return rc;

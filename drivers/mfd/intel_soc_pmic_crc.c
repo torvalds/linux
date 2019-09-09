@@ -1,25 +1,18 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * intel_soc_pmic_crc.c - Device access for Crystal Cove PMIC
+ * Device access for Crystal Cove PMIC
  *
  * Copyright (C) 2013, 2014 Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  *
  * Author: Yang, Bin <bin.yang@intel.com>
  * Author: Zhu, Lejun <lejun.zhu@linux.intel.com>
  */
 
-#include <linux/mfd/core.h>
 #include <linux/interrupt.h>
 #include <linux/regmap.h>
+#include <linux/mfd/core.h>
 #include <linux/mfd/intel_soc_pmic.h>
+
 #include "intel_soc_pmic_core.h"
 
 #define CRYSTAL_COVE_MAX_REGISTER	0xC6
@@ -36,51 +29,26 @@
 #define CRYSTAL_COVE_IRQ_VHDMIOCP	6
 
 static struct resource gpio_resources[] = {
-	{
-		.name	= "GPIO",
-		.start	= CRYSTAL_COVE_IRQ_GPIO,
-		.end	= CRYSTAL_COVE_IRQ_GPIO,
-		.flags	= IORESOURCE_IRQ,
-	},
+	DEFINE_RES_IRQ_NAMED(CRYSTAL_COVE_IRQ_GPIO, "GPIO"),
 };
 
 static struct resource pwrsrc_resources[] = {
-	{
-		.name  = "PWRSRC",
-		.start = CRYSTAL_COVE_IRQ_PWRSRC,
-		.end   = CRYSTAL_COVE_IRQ_PWRSRC,
-		.flags = IORESOURCE_IRQ,
-	},
+	DEFINE_RES_IRQ_NAMED(CRYSTAL_COVE_IRQ_PWRSRC, "PWRSRC"),
 };
 
 static struct resource adc_resources[] = {
-	{
-		.name  = "ADC",
-		.start = CRYSTAL_COVE_IRQ_ADC,
-		.end   = CRYSTAL_COVE_IRQ_ADC,
-		.flags = IORESOURCE_IRQ,
-	},
+	DEFINE_RES_IRQ_NAMED(CRYSTAL_COVE_IRQ_ADC, "ADC"),
 };
 
 static struct resource thermal_resources[] = {
-	{
-		.name  = "THERMAL",
-		.start = CRYSTAL_COVE_IRQ_THRM,
-		.end   = CRYSTAL_COVE_IRQ_THRM,
-		.flags = IORESOURCE_IRQ,
-	},
+	DEFINE_RES_IRQ_NAMED(CRYSTAL_COVE_IRQ_THRM, "THERMAL"),
 };
 
 static struct resource bcu_resources[] = {
-	{
-		.name  = "BCU",
-		.start = CRYSTAL_COVE_IRQ_BCU,
-		.end   = CRYSTAL_COVE_IRQ_BCU,
-		.flags = IORESOURCE_IRQ,
-	},
+	DEFINE_RES_IRQ_NAMED(CRYSTAL_COVE_IRQ_BCU, "BCU"),
 };
 
-static struct mfd_cell crystal_cove_dev[] = {
+static struct mfd_cell crystal_cove_byt_dev[] = {
 	{
 		.name = "crystal_cove_pwrsrc",
 		.num_resources = ARRAY_SIZE(pwrsrc_resources),
@@ -114,6 +82,17 @@ static struct mfd_cell crystal_cove_dev[] = {
 	},
 };
 
+static struct mfd_cell crystal_cove_cht_dev[] = {
+	{
+		.name = "crystal_cove_gpio",
+		.num_resources = ARRAY_SIZE(gpio_resources),
+		.resources = gpio_resources,
+	},
+	{
+		.name = "crystal_cove_pwm",
+	},
+};
+
 static const struct regmap_config crystal_cove_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
@@ -123,27 +102,13 @@ static const struct regmap_config crystal_cove_regmap_config = {
 };
 
 static const struct regmap_irq crystal_cove_irqs[] = {
-	[CRYSTAL_COVE_IRQ_PWRSRC] = {
-		.mask = BIT(CRYSTAL_COVE_IRQ_PWRSRC),
-	},
-	[CRYSTAL_COVE_IRQ_THRM] = {
-		.mask = BIT(CRYSTAL_COVE_IRQ_THRM),
-	},
-	[CRYSTAL_COVE_IRQ_BCU] = {
-		.mask = BIT(CRYSTAL_COVE_IRQ_BCU),
-	},
-	[CRYSTAL_COVE_IRQ_ADC] = {
-		.mask = BIT(CRYSTAL_COVE_IRQ_ADC),
-	},
-	[CRYSTAL_COVE_IRQ_CHGR] = {
-		.mask = BIT(CRYSTAL_COVE_IRQ_CHGR),
-	},
-	[CRYSTAL_COVE_IRQ_GPIO] = {
-		.mask = BIT(CRYSTAL_COVE_IRQ_GPIO),
-	},
-	[CRYSTAL_COVE_IRQ_VHDMIOCP] = {
-		.mask = BIT(CRYSTAL_COVE_IRQ_VHDMIOCP),
-	},
+	REGMAP_IRQ_REG(CRYSTAL_COVE_IRQ_PWRSRC, 0, BIT(CRYSTAL_COVE_IRQ_PWRSRC)),
+	REGMAP_IRQ_REG(CRYSTAL_COVE_IRQ_THRM, 0, BIT(CRYSTAL_COVE_IRQ_THRM)),
+	REGMAP_IRQ_REG(CRYSTAL_COVE_IRQ_BCU, 0, BIT(CRYSTAL_COVE_IRQ_BCU)),
+	REGMAP_IRQ_REG(CRYSTAL_COVE_IRQ_ADC, 0, BIT(CRYSTAL_COVE_IRQ_ADC)),
+	REGMAP_IRQ_REG(CRYSTAL_COVE_IRQ_CHGR, 0, BIT(CRYSTAL_COVE_IRQ_CHGR)),
+	REGMAP_IRQ_REG(CRYSTAL_COVE_IRQ_GPIO, 0, BIT(CRYSTAL_COVE_IRQ_GPIO)),
+	REGMAP_IRQ_REG(CRYSTAL_COVE_IRQ_VHDMIOCP, 0, BIT(CRYSTAL_COVE_IRQ_VHDMIOCP)),
 };
 
 static const struct regmap_irq_chip crystal_cove_irq_chip = {
@@ -155,10 +120,18 @@ static const struct regmap_irq_chip crystal_cove_irq_chip = {
 	.mask_base = CRYSTAL_COVE_REG_MIRQLVL1,
 };
 
-struct intel_soc_pmic_config intel_soc_pmic_config_crc = {
+struct intel_soc_pmic_config intel_soc_pmic_config_byt_crc = {
 	.irq_flags = IRQF_TRIGGER_RISING,
-	.cell_dev = crystal_cove_dev,
-	.n_cell_devs = ARRAY_SIZE(crystal_cove_dev),
+	.cell_dev = crystal_cove_byt_dev,
+	.n_cell_devs = ARRAY_SIZE(crystal_cove_byt_dev),
+	.regmap_config = &crystal_cove_regmap_config,
+	.irq_chip = &crystal_cove_irq_chip,
+};
+
+struct intel_soc_pmic_config intel_soc_pmic_config_cht_crc = {
+	.irq_flags = IRQF_TRIGGER_RISING,
+	.cell_dev = crystal_cove_cht_dev,
+	.n_cell_devs = ARRAY_SIZE(crystal_cove_cht_dev),
 	.regmap_config = &crystal_cove_regmap_config,
 	.irq_chip = &crystal_cove_irq_chip,
 };

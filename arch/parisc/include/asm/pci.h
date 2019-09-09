@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ASM_PARISC_PCI_H
 #define __ASM_PARISC_PCI_H
 
@@ -55,7 +56,7 @@ struct pci_hba_data {
 	#define DINO_MAX_LMMIO_RESOURCES	3
 
 	unsigned long   lmmio_space_offset;  /* CPU view - PCI view */
-	void *          iommu;          /* IOMMU this device is under */
+	struct ioc	*iommu;		/* IOMMU this device is under */
 	/* REVISIT - spinlock to protect resources? */
 
 	#define HBA_NAME_SIZE 16
@@ -64,8 +65,6 @@ struct pci_hba_data {
 	char elmmio_name[HBA_NAME_SIZE];
 	char gmmio_name[HBA_NAME_SIZE];
 };
-
-#define HBA_DATA(d)		((struct pci_hba_data *) (d))
 
 /* 
 ** We support 2^16 I/O ports per HBA.  These are set up in the form
@@ -85,36 +84,6 @@ struct pci_hba_data {
 #else	/* !CONFIG_64BIT */
 #define PCI_F_EXTEND		0UL
 #endif /* !CONFIG_64BIT */
-
-/*
-** KLUGE: linux/pci.h include asm/pci.h BEFORE declaring struct pci_bus
-** (This eliminates some of the warnings).
-*/
-struct pci_bus;
-struct pci_dev;
-
-/*
- * If the PCI device's view of memory is the same as the CPU's view of memory,
- * PCI_DMA_BUS_IS_PHYS is true.  The networking and block device layers use
- * this boolean for bounce buffer decisions.
- */
-#ifdef CONFIG_PA20
-/* All PA-2.0 machines have an IOMMU. */
-#define PCI_DMA_BUS_IS_PHYS	0
-#define parisc_has_iommu()	do { } while (0)
-#else
-
-#if defined(CONFIG_IOMMU_CCIO) || defined(CONFIG_IOMMU_SBA)
-extern int parisc_bus_is_phys; 	/* in arch/parisc/kernel/setup.c */
-#define PCI_DMA_BUS_IS_PHYS	parisc_bus_is_phys
-#define parisc_has_iommu()	do { parisc_bus_is_phys = 0; } while (0)
-#else
-#define PCI_DMA_BUS_IS_PHYS	1
-#define parisc_has_iommu()	do { } while (0)
-#endif
-
-#endif	/* !CONFIG_PA20 */
-
 
 /*
 ** Most PCI devices (eg Tulip, NCR720) also export the same registers
@@ -161,7 +130,6 @@ extern struct pci_bios_ops *pci_bios;
 
 #ifdef CONFIG_PCI
 extern void pcibios_register_hba(struct pci_hba_data *);
-extern void pcibios_set_master(struct pci_dev *);
 #else
 static inline void pcibios_register_hba(struct pci_hba_data *x)
 {
@@ -200,8 +168,6 @@ static inline int pci_get_legacy_ide_irq(struct pci_dev *dev, int channel)
 }
 
 #define HAVE_PCI_MMAP
-
-extern int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
-	enum pci_mmap_state mmap_state, int write_combine);
+#define ARCH_GENERIC_PCI_MMAP_RESOURCE
 
 #endif /* __ASM_PARISC_PCI_H */

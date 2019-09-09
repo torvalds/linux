@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Architecture-specific unaligned trap handling.
  *
@@ -15,14 +16,16 @@
  */
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/tty.h>
+#include <linux/extable.h>
 #include <linux/ratelimit.h>
+#include <linux/uaccess.h>
 
 #include <asm/intrinsics.h>
 #include <asm/processor.h>
 #include <asm/rse.h>
-#include <asm/uaccess.h>
+#include <asm/exception.h>
 #include <asm/unaligned.h>
 
 extern int die_if_kernel(char *str, struct pt_regs *regs, long err);
@@ -1295,7 +1298,6 @@ ia64_handle_unaligned (unsigned long ifa, struct pt_regs *regs)
 	mm_segment_t old_fs = get_fs();
 	unsigned long bundle[2];
 	unsigned long opcode;
-	struct siginfo si;
 	const struct exception_table_entry *eh = NULL;
 	union {
 		unsigned long l;
@@ -1534,13 +1536,7 @@ ia64_handle_unaligned (unsigned long ifa, struct pt_regs *regs)
 		/* NOT_REACHED */
 	}
   force_sigbus:
-	si.si_signo = SIGBUS;
-	si.si_errno = 0;
-	si.si_code = BUS_ADRALN;
-	si.si_addr = (void __user *) ifa;
-	si.si_flags = 0;
-	si.si_isr = 0;
-	si.si_imm = 0;
-	force_sig_info(SIGBUS, &si, current);
+	force_sig_fault(SIGBUS, BUS_ADRALN, (void __user *) ifa,
+			0, 0, 0);
 	goto done;
 }

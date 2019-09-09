@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* hplance.c  : the  Linux/hp300/lance ethernet driver
  *
  * Copyright (C) 05/1998 Peter Maydell <pmaydell@chiark.greenend.org.uk>
@@ -72,7 +73,6 @@ static const struct net_device_ops hplance_netdev_ops = {
 	.ndo_stop		= hplance_close,
 	.ndo_start_xmit		= lance_start_xmit,
 	.ndo_set_rx_mode	= lance_set_multicast,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= eth_mac_addr,
 #ifdef CONFIG_NET_POLL_CONTROLLER

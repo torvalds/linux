@@ -1,24 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * STMicroelectronics TPM Linux driver for TPM ST33ZP24
  * Copyright (C) 2009 - 2016 STMicroelectronics
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/module.h>
 #include <linux/fs.h>
-#include <linux/miscdevice.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/wait.h>
@@ -118,9 +105,9 @@ static u8 st33zp24_status(struct tpm_chip *chip)
 /*
  * check_locality if the locality is active
  * @param: chip, the tpm chip description
- * @return: the active locality or -EACCESS.
+ * @return: true if LOCALITY0 is active, otherwise false
  */
-static int check_locality(struct tpm_chip *chip)
+static bool check_locality(struct tpm_chip *chip)
 {
 	struct st33zp24_dev *tpm_dev = dev_get_drvdata(&chip->dev);
 	u8 data;
@@ -130,9 +117,9 @@ static int check_locality(struct tpm_chip *chip)
 	if (status && (data &
 		(TPM_ACCESS_ACTIVE_LOCALITY | TPM_ACCESS_VALID)) ==
 		(TPM_ACCESS_ACTIVE_LOCALITY | TPM_ACCESS_VALID))
-		return tpm_dev->locality;
+		return true;
 
-	return -EACCES;
+	return false;
 } /* check_locality() */
 
 /*
@@ -147,7 +134,7 @@ static int request_locality(struct tpm_chip *chip)
 	long ret;
 	u8 data;
 
-	if (check_locality(chip) == tpm_dev->locality)
+	if (check_locality(chip))
 		return tpm_dev->locality;
 
 	data = TPM_ACCESS_REQUEST_USE;
@@ -159,7 +146,7 @@ static int request_locality(struct tpm_chip *chip)
 
 	/* Request locality is usually effective after the request */
 	do {
-		if (check_locality(chip) >= 0)
+		if (check_locality(chip))
 			return tpm_dev->locality;
 		msleep(TPM_TIMEOUT);
 	} while (time_before(jiffies, stop));
@@ -374,8 +361,6 @@ static int st33zp24_send(struct tpm_chip *chip, unsigned char *buf,
 	int ret;
 	u8 data;
 
-	if (!chip)
-		return -EBUSY;
 	if (len < TPM_HEADER_SIZE)
 		return -EBUSY;
 
@@ -439,7 +424,7 @@ static int st33zp24_send(struct tpm_chip *chip, unsigned char *buf,
 			goto out_err;
 	}
 
-	return len;
+	return 0;
 out_err:
 	st33zp24_cancel(chip);
 	release_locality(chip);
@@ -458,7 +443,7 @@ static int st33zp24_recv(struct tpm_chip *chip, unsigned char *buf,
 			    size_t count)
 {
 	int size = 0;
-	int expected;
+	u32 expected;
 
 	if (!chip)
 		return -EBUSY;
@@ -475,7 +460,7 @@ static int st33zp24_recv(struct tpm_chip *chip, unsigned char *buf,
 	}
 
 	expected = be32_to_cpu(*(__be32 *)(buf + 2));
-	if (expected > count) {
+	if (expected > count || expected < TPM_HEADER_SIZE) {
 		size = -EIO;
 		goto out;
 	}
@@ -652,7 +637,7 @@ int st33zp24_pm_resume(struct device *dev)
 	} else {
 		ret = tpm_pm_resume(dev);
 		if (!ret)
-			tpm_do_selftest(chip);
+			tpm1_do_selftest(chip);
 	}
 	return ret;
 } /* st33zp24_pm_resume() */

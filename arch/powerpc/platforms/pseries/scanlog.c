@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  c 2001 PPC 64 Team, IBM Corp
- *
- *      This program is free software; you can redistribute it and/or
- *      modify it under the terms of the GNU General Public License
- *      as published by the Free Software Foundation; either version
- *      2 of the License, or (at your option) any later version.
  *
  * scan-log-data driver for PPC64  Todd Inglett <tinglett@vnet.ibm.com>
  *
@@ -27,7 +23,7 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/rtas.h>
 #include <asm/prom.h>
 
@@ -63,7 +59,7 @@ static ssize_t scanlog_read(struct file *file, char __user *buf,
 		return -EINVAL;
 	}
 
-	if (!access_ok(VERIFY_WRITE, buf, count))
+	if (!access_ok(buf, count))
 		return -EFAULT;
 
 	for (;;) {
@@ -179,7 +175,7 @@ static int __init scanlog_init(void)
 	if (!scanlog_buffer)
 		goto err;
 
-	ent = proc_create("powerpc/rtas/scan-log-dump", S_IRUSR, NULL,
+	ent = proc_create("powerpc/rtas/scan-log-dump", 0400, NULL,
 			  &scanlog_fops);
 	if (!ent)
 		goto err;

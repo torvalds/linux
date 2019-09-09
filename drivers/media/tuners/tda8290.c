@@ -1,21 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
 
    i2c tv tuner chip device driver
    controls the philips tda8290+75 tuner chip combo.
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
-   (at your option) any later version.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    This "tda8290" module was split apart from the original "tuner" module.
 */
@@ -63,8 +51,8 @@ static int tda8290_i2c_bridge(struct dvb_frontend *fe, int close)
 {
 	struct tda8290_priv *priv = fe->analog_demod_priv;
 
-	unsigned char  enable[2] = { 0x21, 0xC0 };
-	unsigned char disable[2] = { 0x21, 0x00 };
+	static unsigned char  enable[2] = { 0x21, 0xC0 };
+	static unsigned char disable[2] = { 0x21, 0x00 };
 	unsigned char *msg;
 
 	if (close) {
@@ -84,9 +72,9 @@ static int tda8295_i2c_bridge(struct dvb_frontend *fe, int close)
 {
 	struct tda8290_priv *priv = fe->analog_demod_priv;
 
-	unsigned char  enable[2] = { 0x45, 0xc1 };
-	unsigned char disable[2] = { 0x46, 0x00 };
-	unsigned char buf[3] = { 0x45, 0x01, 0x00 };
+	static unsigned char  enable[2] = { 0x45, 0xc1 };
+	static unsigned char disable[2] = { 0x46, 0x00 };
+	static unsigned char buf[3] = { 0x45, 0x01, 0x00 };
 	unsigned char *msg;
 
 	if (close) {
@@ -178,25 +166,25 @@ static void tda8290_set_params(struct dvb_frontend *fe,
 {
 	struct tda8290_priv *priv = fe->analog_demod_priv;
 
-	unsigned char soft_reset[]  = { 0x00, 0x00 };
+	static unsigned char soft_reset[]  = { 0x00, 0x00 };
 	unsigned char easy_mode[]   = { 0x01, priv->tda8290_easy_mode };
-	unsigned char expert_mode[] = { 0x01, 0x80 };
-	unsigned char agc_out_on[]  = { 0x02, 0x00 };
-	unsigned char gainset_off[] = { 0x28, 0x14 };
-	unsigned char if_agc_spd[]  = { 0x0f, 0x88 };
-	unsigned char adc_head_6[]  = { 0x05, 0x04 };
-	unsigned char adc_head_9[]  = { 0x05, 0x02 };
-	unsigned char adc_head_12[] = { 0x05, 0x01 };
-	unsigned char pll_bw_nom[]  = { 0x0d, 0x47 };
-	unsigned char pll_bw_low[]  = { 0x0d, 0x27 };
-	unsigned char gainset_2[]   = { 0x28, 0x64 };
-	unsigned char agc_rst_on[]  = { 0x0e, 0x0b };
-	unsigned char agc_rst_off[] = { 0x0e, 0x09 };
-	unsigned char if_agc_set[]  = { 0x0f, 0x81 };
-	unsigned char addr_adc_sat  = 0x1a;
-	unsigned char addr_agc_stat = 0x1d;
-	unsigned char addr_pll_stat = 0x1b;
-	unsigned char adc_sat, agc_stat,
+	static unsigned char expert_mode[] = { 0x01, 0x80 };
+	static unsigned char agc_out_on[]  = { 0x02, 0x00 };
+	static unsigned char gainset_off[] = { 0x28, 0x14 };
+	static unsigned char if_agc_spd[]  = { 0x0f, 0x88 };
+	static unsigned char adc_head_6[]  = { 0x05, 0x04 };
+	static unsigned char adc_head_9[]  = { 0x05, 0x02 };
+	static unsigned char adc_head_12[] = { 0x05, 0x01 };
+	static unsigned char pll_bw_nom[]  = { 0x0d, 0x47 };
+	static unsigned char pll_bw_low[]  = { 0x0d, 0x27 };
+	static unsigned char gainset_2[]   = { 0x28, 0x64 };
+	static unsigned char agc_rst_on[]  = { 0x0e, 0x0b };
+	static unsigned char agc_rst_off[] = { 0x0e, 0x09 };
+	static unsigned char if_agc_set[]  = { 0x0f, 0x81 };
+	static unsigned char addr_adc_sat  = 0x1a;
+	static unsigned char addr_agc_stat = 0x1d;
+	static unsigned char addr_pll_stat = 0x1b;
+	static unsigned char adc_sat = 0, agc_stat = 0,
 		      pll_stat;
 	int i;
 
@@ -468,9 +456,9 @@ static void tda8290_standby(struct dvb_frontend *fe)
 {
 	struct tda8290_priv *priv = fe->analog_demod_priv;
 
-	unsigned char cb1[] = { 0x30, 0xD0 };
-	unsigned char tda8290_standby[] = { 0x00, 0x02 };
-	unsigned char tda8290_agc_tri[] = { 0x02, 0x20 };
+	static unsigned char cb1[] = { 0x30, 0xD0 };
+	static unsigned char tda8290_standby[] = { 0x00, 0x02 };
+	static unsigned char tda8290_agc_tri[] = { 0x02, 0x20 };
 	struct i2c_msg msg = {.addr = priv->tda827x_addr, .flags=0, .buf=cb1, .len = 2};
 
 	if (fe->ops.analog_ops.i2c_gate_ctrl)
@@ -495,9 +483,9 @@ static void tda8290_init_if(struct dvb_frontend *fe)
 {
 	struct tda8290_priv *priv = fe->analog_demod_priv;
 
-	unsigned char set_VS[] = { 0x30, 0x6F };
-	unsigned char set_GP00_CF[] = { 0x20, 0x01 };
-	unsigned char set_GP01_CF[] = { 0x20, 0x0B };
+	static unsigned char set_VS[] = { 0x30, 0x6F };
+	static unsigned char set_GP00_CF[] = { 0x20, 0x01 };
+	static unsigned char set_GP01_CF[] = { 0x20, 0x0B };
 
 	if ((priv->cfg.config == TDA8290_LNA_GP0_HIGH_ON) ||
 	    (priv->cfg.config == TDA8290_LNA_GP0_HIGH_OFF))
@@ -539,10 +527,12 @@ static void tda8295_init_if(struct dvb_frontend *fe)
 static void tda8290_init_tuner(struct dvb_frontend *fe)
 {
 	struct tda8290_priv *priv = fe->analog_demod_priv;
-	unsigned char tda8275_init[]  = { 0x00, 0x00, 0x00, 0x40, 0xdC, 0x04, 0xAf,
-					  0x3F, 0x2A, 0x04, 0xFF, 0x00, 0x00, 0x40 };
-	unsigned char tda8275a_init[] = { 0x00, 0x00, 0x00, 0x00, 0xdC, 0x05, 0x8b,
-					  0x0c, 0x04, 0x20, 0xFF, 0x00, 0x00, 0x4b };
+	static unsigned char tda8275_init[]  =
+		{ 0x00, 0x00, 0x00, 0x40, 0xdC, 0x04, 0xAf,
+		  0x3F, 0x2A, 0x04, 0xFF, 0x00, 0x00, 0x40 };
+	static unsigned char tda8275a_init[] =
+		 { 0x00, 0x00, 0x00, 0x00, 0xdC, 0x05, 0x8b,
+		   0x0c, 0x04, 0x20, 0xFF, 0x00, 0x00, 0x4b };
 	struct i2c_msg msg = {.addr = priv->tda827x_addr, .flags=0,
 			      .buf=tda8275_init, .len = 14};
 	if (priv->ver & TDA8275A)
@@ -617,8 +607,8 @@ static int tda829x_find_tuner(struct dvb_frontend *fe)
 
 	if (tuner_addrs == 0) {
 		tuner_addrs = 0x60;
-		tuner_info("could not clearly identify tuner address, "
-			   "defaulting to %x\n", tuner_addrs);
+		tuner_info("could not clearly identify tuner address, defaulting to %x\n",
+			   tuner_addrs);
 	} else {
 		tuner_addrs = tuner_addrs & 0xff;
 		tuner_info("setting tuner address to %x\n", tuner_addrs);
@@ -721,7 +711,7 @@ static int tda8295_probe(struct tuner_i2c_props *i2c_props)
 	return -ENODEV;
 }
 
-static struct analog_demod_ops tda8290_ops = {
+static const struct analog_demod_ops tda8290_ops = {
 	.set_params     = tda8290_set_params,
 	.has_signal     = tda8290_has_signal,
 	.standby        = tda8290_standby,
@@ -729,7 +719,7 @@ static struct analog_demod_ops tda8290_ops = {
 	.i2c_gate_ctrl  = tda8290_i2c_bridge,
 };
 
-static struct analog_demod_ops tda8295_ops = {
+static const struct analog_demod_ops tda8295_ops = {
 	.set_params     = tda8295_set_params,
 	.has_signal     = tda8295_has_signal,
 	.standby        = tda8295_standby,
@@ -834,11 +824,11 @@ int tda829x_probe(struct i2c_adapter *i2c_adap, u8 i2c_addr)
 		.addr = i2c_addr,
 	};
 
-	unsigned char soft_reset[]   = { 0x00, 0x00 };
-	unsigned char easy_mode_b[]  = { 0x01, 0x02 };
-	unsigned char easy_mode_g[]  = { 0x01, 0x04 };
-	unsigned char restore_9886[] = { 0x00, 0xd6, 0x30 };
-	unsigned char addr_dto_lsb = 0x07;
+	static unsigned char soft_reset[]   = { 0x00, 0x00 };
+	static unsigned char easy_mode_b[]  = { 0x01, 0x02 };
+	static unsigned char easy_mode_g[]  = { 0x01, 0x04 };
+	static unsigned char restore_9886[] = { 0x00, 0xd6, 0x30 };
+	static unsigned char addr_dto_lsb = 0x07;
 	unsigned char data;
 #define PROBE_BUFFER_SIZE 8
 	unsigned char buf[PROBE_BUFFER_SIZE];

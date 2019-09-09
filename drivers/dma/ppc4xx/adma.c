@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2006-2009 DENX Software Engineering.
  *
@@ -5,19 +6,6 @@
  *
  * Further porting to arch/powerpc by
  * 	Anatolij Gustschin <agust@denx.de>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called COPYING.
  */
 
 /*
@@ -4040,9 +4028,9 @@ static int ppc440spe_adma_probe(struct platform_device *ofdev)
 		/* it is DMA0 or DMA1 */
 		idx = of_get_property(np, "cell-index", &len);
 		if (!idx || (len != sizeof(u32))) {
-			dev_err(&ofdev->dev, "Device node %s has missing "
+			dev_err(&ofdev->dev, "Device node %pOF has missing "
 				"or invalid cell-index property\n",
-				np->full_name);
+				np);
 			return -EINVAL;
 		}
 		id = *idx;
@@ -4307,7 +4295,7 @@ static int ppc440spe_adma_remove(struct platform_device *ofdev)
  * "poly" allows setting/checking used polynomial (for PPC440SPe only).
  */
 
-static ssize_t show_ppc440spe_devices(struct device_driver *dev, char *buf)
+static ssize_t devices_show(struct device_driver *dev, char *buf)
 {
 	ssize_t size = 0;
 	int i;
@@ -4321,16 +4309,17 @@ static ssize_t show_ppc440spe_devices(struct device_driver *dev, char *buf)
 	}
 	return size;
 }
+static DRIVER_ATTR_RO(devices);
 
-static ssize_t show_ppc440spe_r6enable(struct device_driver *dev, char *buf)
+static ssize_t enable_show(struct device_driver *dev, char *buf)
 {
 	return snprintf(buf, PAGE_SIZE,
 			"PPC440SP(e) RAID-6 capabilities are %sABLED.\n",
 			ppc440spe_r6_enabled ? "EN" : "DIS");
 }
 
-static ssize_t store_ppc440spe_r6enable(struct device_driver *dev,
-					const char *buf, size_t count)
+static ssize_t enable_store(struct device_driver *dev, const char *buf,
+			    size_t count)
 {
 	unsigned long val;
 
@@ -4357,8 +4346,9 @@ static ssize_t store_ppc440spe_r6enable(struct device_driver *dev,
 	}
 	return count;
 }
+static DRIVER_ATTR_RW(enable);
 
-static ssize_t show_ppc440spe_r6poly(struct device_driver *dev, char *buf)
+static ssize_t poly_show(struct device_driver *dev, char *buf)
 {
 	ssize_t size = 0;
 	u32 reg;
@@ -4377,8 +4367,8 @@ static ssize_t show_ppc440spe_r6poly(struct device_driver *dev, char *buf)
 	return size;
 }
 
-static ssize_t store_ppc440spe_r6poly(struct device_driver *dev,
-				      const char *buf, size_t count)
+static ssize_t poly_store(struct device_driver *dev, const char *buf,
+			  size_t count)
 {
 	unsigned long reg, val;
 
@@ -4404,12 +4394,7 @@ static ssize_t store_ppc440spe_r6poly(struct device_driver *dev,
 
 	return count;
 }
-
-static DRIVER_ATTR(devices, S_IRUGO, show_ppc440spe_devices, NULL);
-static DRIVER_ATTR(enable, S_IRUGO | S_IWUSR, show_ppc440spe_r6enable,
-		   store_ppc440spe_r6enable);
-static DRIVER_ATTR(poly, S_IRUGO | S_IWUSR, show_ppc440spe_r6poly,
-		   store_ppc440spe_r6poly);
+static DRIVER_ATTR_RW(poly);
 
 /*
  * Common initialisation for RAID engines; allocate memory for
@@ -4448,8 +4433,7 @@ static int ppc440spe_configure_raid_devices(void)
 	dcr_base = dcr_resource_start(np, 0);
 	dcr_len = dcr_resource_len(np, 0);
 	if (!dcr_base && !dcr_len) {
-		pr_err("%s: can't get DCR registers base/len!\n",
-			np->full_name);
+		pr_err("%pOF: can't get DCR registers base/len!\n", np);
 		of_node_put(np);
 		iounmap(i2o_reg);
 		return -ENODEV;
@@ -4457,7 +4441,7 @@ static int ppc440spe_configure_raid_devices(void)
 
 	i2o_dcr_host = dcr_map(np, dcr_base, dcr_len);
 	if (!DCR_MAP_OK(i2o_dcr_host)) {
-		pr_err("%s: failed to map DCRs!\n", np->full_name);
+		pr_err("%pOF: failed to map DCRs!\n", np);
 		of_node_put(np);
 		iounmap(i2o_reg);
 		return -ENODEV;
@@ -4518,15 +4502,14 @@ static int ppc440spe_configure_raid_devices(void)
 	dcr_base = dcr_resource_start(np, 0);
 	dcr_len = dcr_resource_len(np, 0);
 	if (!dcr_base && !dcr_len) {
-		pr_err("%s: can't get DCR registers base/len!\n",
-			np->full_name);
+		pr_err("%pOF: can't get DCR registers base/len!\n", np);
 		ret = -ENODEV;
 		goto out_mq;
 	}
 
 	ppc440spe_mq_dcr_host = dcr_map(np, dcr_base, dcr_len);
 	if (!DCR_MAP_OK(ppc440spe_mq_dcr_host)) {
-		pr_err("%s: failed to map DCRs!\n", np->full_name);
+		pr_err("%pOF: failed to map DCRs!\n", np);
 		ret = -ENODEV;
 		goto out_mq;
 	}

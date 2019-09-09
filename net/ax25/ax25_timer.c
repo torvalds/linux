@@ -1,8 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  *
  * Copyright (C) Alan Cox GW4PTS (alan@lxorguk.ukuu.org.uk)
  * Copyright (C) Jonathan Naylor G4KLX (g4klx@g4klx.demon.co.uk)
@@ -28,25 +25,24 @@
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <net/sock.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/fcntl.h>
 #include <linux/mm.h>
 #include <linux/interrupt.h>
 
-static void ax25_heartbeat_expiry(unsigned long);
-static void ax25_t1timer_expiry(unsigned long);
-static void ax25_t2timer_expiry(unsigned long);
-static void ax25_t3timer_expiry(unsigned long);
-static void ax25_idletimer_expiry(unsigned long);
+static void ax25_heartbeat_expiry(struct timer_list *);
+static void ax25_t1timer_expiry(struct timer_list *);
+static void ax25_t2timer_expiry(struct timer_list *);
+static void ax25_t3timer_expiry(struct timer_list *);
+static void ax25_idletimer_expiry(struct timer_list *);
 
 void ax25_setup_timers(ax25_cb *ax25)
 {
-	setup_timer(&ax25->timer, ax25_heartbeat_expiry, (unsigned long)ax25);
-	setup_timer(&ax25->t1timer, ax25_t1timer_expiry, (unsigned long)ax25);
-	setup_timer(&ax25->t2timer, ax25_t2timer_expiry, (unsigned long)ax25);
-	setup_timer(&ax25->t3timer, ax25_t3timer_expiry, (unsigned long)ax25);
-	setup_timer(&ax25->idletimer, ax25_idletimer_expiry,
-		    (unsigned long)ax25);
+	timer_setup(&ax25->timer, ax25_heartbeat_expiry, 0);
+	timer_setup(&ax25->t1timer, ax25_t1timer_expiry, 0);
+	timer_setup(&ax25->t2timer, ax25_t2timer_expiry, 0);
+	timer_setup(&ax25->t3timer, ax25_t3timer_expiry, 0);
+	timer_setup(&ax25->idletimer, ax25_idletimer_expiry, 0);
 }
 
 void ax25_start_heartbeat(ax25_cb *ax25)
@@ -120,10 +116,10 @@ unsigned long ax25_display_timer(struct timer_list *timer)
 
 EXPORT_SYMBOL(ax25_display_timer);
 
-static void ax25_heartbeat_expiry(unsigned long param)
+static void ax25_heartbeat_expiry(struct timer_list *t)
 {
 	int proto = AX25_PROTO_STD_SIMPLEX;
-	ax25_cb *ax25 = (ax25_cb *)param;
+	ax25_cb *ax25 = from_timer(ax25, t, timer);
 
 	if (ax25->ax25_dev)
 		proto = ax25->ax25_dev->values[AX25_VALUES_PROTOCOL];
@@ -145,9 +141,9 @@ static void ax25_heartbeat_expiry(unsigned long param)
 	}
 }
 
-static void ax25_t1timer_expiry(unsigned long param)
+static void ax25_t1timer_expiry(struct timer_list *t)
 {
-	ax25_cb *ax25 = (ax25_cb *)param;
+	ax25_cb *ax25 = from_timer(ax25, t, t1timer);
 
 	switch (ax25->ax25_dev->values[AX25_VALUES_PROTOCOL]) {
 	case AX25_PROTO_STD_SIMPLEX:
@@ -164,9 +160,9 @@ static void ax25_t1timer_expiry(unsigned long param)
 	}
 }
 
-static void ax25_t2timer_expiry(unsigned long param)
+static void ax25_t2timer_expiry(struct timer_list *t)
 {
-	ax25_cb *ax25 = (ax25_cb *)param;
+	ax25_cb *ax25 = from_timer(ax25, t, t2timer);
 
 	switch (ax25->ax25_dev->values[AX25_VALUES_PROTOCOL]) {
 	case AX25_PROTO_STD_SIMPLEX:
@@ -183,9 +179,9 @@ static void ax25_t2timer_expiry(unsigned long param)
 	}
 }
 
-static void ax25_t3timer_expiry(unsigned long param)
+static void ax25_t3timer_expiry(struct timer_list *t)
 {
-	ax25_cb *ax25 = (ax25_cb *)param;
+	ax25_cb *ax25 = from_timer(ax25, t, t3timer);
 
 	switch (ax25->ax25_dev->values[AX25_VALUES_PROTOCOL]) {
 	case AX25_PROTO_STD_SIMPLEX:
@@ -204,9 +200,9 @@ static void ax25_t3timer_expiry(unsigned long param)
 	}
 }
 
-static void ax25_idletimer_expiry(unsigned long param)
+static void ax25_idletimer_expiry(struct timer_list *t)
 {
-	ax25_cb *ax25 = (ax25_cb *)param;
+	ax25_cb *ax25 = from_timer(ax25, t, idletimer);
 
 	switch (ax25->ax25_dev->values[AX25_VALUES_PROTOCOL]) {
 	case AX25_PROTO_STD_SIMPLEX:

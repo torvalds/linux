@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2012  Google, Inc.
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/kernel.h>
@@ -27,6 +19,9 @@
 #include <asm/barrier.h>
 #include "internal.h"
 
+/* This doesn't need to be atomic: speed is chosen over correctness here. */
+static u64 pstore_ftrace_stamp;
+
 static void notrace pstore_ftrace_call(unsigned long ip,
 				       unsigned long parent_ip,
 				       struct ftrace_ops *op,
@@ -34,6 +29,12 @@ static void notrace pstore_ftrace_call(unsigned long ip,
 {
 	unsigned long flags;
 	struct pstore_ftrace_record rec = {};
+	struct pstore_record record = {
+		.type = PSTORE_TYPE_FTRACE,
+		.buf = (char *)&rec,
+		.size = sizeof(rec),
+		.psi = psinfo,
+	};
 
 	if (unlikely(oops_in_progress))
 		return;
@@ -42,9 +43,9 @@ static void notrace pstore_ftrace_call(unsigned long ip,
 
 	rec.ip = ip;
 	rec.parent_ip = parent_ip;
+	pstore_ftrace_write_timestamp(&rec, pstore_ftrace_stamp++);
 	pstore_ftrace_encode_cpu(&rec, raw_smp_processor_id());
-	psinfo->write_buf(PSTORE_TYPE_FTRACE, 0, NULL, 0, (void *)&rec,
-			  0, sizeof(rec), psinfo);
+	psinfo->write(&record);
 
 	local_irq_restore(flags);
 }
@@ -71,10 +72,13 @@ static ssize_t pstore_ftrace_knob_write(struct file *f, const char __user *buf,
 	if (!on ^ pstore_ftrace_enabled)
 		goto out;
 
-	if (on)
+	if (on) {
+		ftrace_ops_set_global_filter(&pstore_ftrace_ops);
 		ret = register_ftrace_function(&pstore_ftrace_ops);
-	else
+	} else {
 		ret = unregister_ftrace_function(&pstore_ftrace_ops);
+	}
+
 	if (ret) {
 		pr_err("%s: unable to %sregister ftrace ops: %zd\n",
 		       __func__, on ? "" : "un", ret);
@@ -108,27 +112,13 @@ static struct dentry *pstore_ftrace_dir;
 
 void pstore_register_ftrace(void)
 {
-	struct dentry *file;
-
-	if (!psinfo->write_buf)
+	if (!psinfo->write)
 		return;
 
 	pstore_ftrace_dir = debugfs_create_dir("pstore", NULL);
-	if (!pstore_ftrace_dir) {
-		pr_err("%s: unable to create pstore directory\n", __func__);
-		return;
-	}
 
-	file = debugfs_create_file("record_ftrace", 0600, pstore_ftrace_dir,
-				   NULL, &pstore_knob_fops);
-	if (!file) {
-		pr_err("%s: unable to create record_ftrace file\n", __func__);
-		goto err_file;
-	}
-
-	return;
-err_file:
-	debugfs_remove(pstore_ftrace_dir);
+	debugfs_create_file("record_ftrace", 0600, pstore_ftrace_dir, NULL,
+			    &pstore_knob_fops);
 }
 
 void pstore_unregister_ftrace(void)
@@ -136,7 +126,7 @@ void pstore_unregister_ftrace(void)
 	mutex_lock(&pstore_ftrace_lock);
 	if (pstore_ftrace_enabled) {
 		unregister_ftrace_function(&pstore_ftrace_ops);
-		pstore_ftrace_enabled = 0;
+		pstore_ftrace_enabled = false;
 	}
 	mutex_unlock(&pstore_ftrace_lock);
 

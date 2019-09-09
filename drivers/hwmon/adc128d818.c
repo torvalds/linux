@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for TI ADC128D818 System Monitor with Temperature Sensor
  *
@@ -6,16 +7,6 @@
  * Derived from lm80.c
  * Copyright (C) 1998, 1999  Frodo Looijaard <frodol@dds.nl>
  *			     and Philip Edelbrock <phil@netroedge.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/module.h>
@@ -28,6 +19,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/mutex.h>
 #include <linux/bitops.h>
+#include <linux/of.h>
 
 /* Addresses to scan
  * The chip also supports addresses 0x35..0x37. Don't scan those addresses
@@ -58,15 +50,22 @@ static const unsigned short normal_i2c[] = {
 #define ADC128_REG_MAN_ID		0x3e
 #define ADC128_REG_DEV_ID		0x3f
 
+/* No. of voltage entries in adc128_attrs */
+#define ADC128_ATTR_NUM_VOLT		(8 * 4)
+
+/* Voltage inputs visible per operation mode */
+static const u8 num_inputs[] = { 7, 8, 4, 6 };
+
 struct adc128_data {
 	struct i2c_client *client;
 	struct regulator *regulator;
 	int vref;		/* Reference voltage in mV */
 	struct mutex update_lock;
+	u8 mode;		/* Operation mode */
 	bool valid;		/* true if following fields are valid */
 	unsigned long last_updated;	/* In jiffies */
 
-	u16 in[3][7];		/* Register value, normalized to 12 bit
+	u16 in[3][8];		/* Register value, normalized to 12 bit
 				 * 0: input voltage
 				 * 1: min limit
 				 * 2: max limit
@@ -87,7 +86,7 @@ static struct adc128_data *adc128_update_device(struct device *dev)
 	mutex_lock(&data->update_lock);
 
 	if (time_after(jiffies, data->last_updated + HZ) || !data->valid) {
-		for (i = 0; i < 7; i++) {
+		for (i = 0; i < num_inputs[data->mode]; i++) {
 			rv = i2c_smbus_read_word_swapped(client,
 							 ADC128_REG_IN(i));
 			if (rv < 0)
@@ -107,20 +106,25 @@ static struct adc128_data *adc128_update_device(struct device *dev)
 			data->in[2][i] = rv << 4;
 		}
 
-		rv = i2c_smbus_read_word_swapped(client, ADC128_REG_TEMP);
-		if (rv < 0)
-			goto abort;
-		data->temp[0] = rv >> 7;
+		if (data->mode != 1) {
+			rv = i2c_smbus_read_word_swapped(client,
+							 ADC128_REG_TEMP);
+			if (rv < 0)
+				goto abort;
+			data->temp[0] = rv >> 7;
 
-		rv = i2c_smbus_read_byte_data(client, ADC128_REG_TEMP_MAX);
-		if (rv < 0)
-			goto abort;
-		data->temp[1] = rv << 1;
+			rv = i2c_smbus_read_byte_data(client,
+						      ADC128_REG_TEMP_MAX);
+			if (rv < 0)
+				goto abort;
+			data->temp[1] = rv << 1;
 
-		rv = i2c_smbus_read_byte_data(client, ADC128_REG_TEMP_HYST);
-		if (rv < 0)
-			goto abort;
-		data->temp[2] = rv << 1;
+			rv = i2c_smbus_read_byte_data(client,
+						      ADC128_REG_TEMP_HYST);
+			if (rv < 0)
+				goto abort;
+			data->temp[2] = rv << 1;
+		}
 
 		rv = i2c_smbus_read_byte_data(client, ADC128_REG_ALARM);
 		if (rv < 0)
@@ -140,8 +144,8 @@ done:
 	return ret;
 }
 
-static ssize_t adc128_show_in(struct device *dev, struct device_attribute *attr,
-			      char *buf)
+static ssize_t adc128_in_show(struct device *dev,
+			      struct device_attribute *attr, char *buf)
 {
 	struct adc128_data *data = adc128_update_device(dev);
 	int index = to_sensor_dev_attr_2(attr)->index;
@@ -155,8 +159,9 @@ static ssize_t adc128_show_in(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%d\n", val);
 }
 
-static ssize_t adc128_set_in(struct device *dev, struct device_attribute *attr,
-			     const char *buf, size_t count)
+static ssize_t adc128_in_store(struct device *dev,
+			       struct device_attribute *attr, const char *buf,
+			       size_t count)
 {
 	struct adc128_data *data = dev_get_drvdata(dev);
 	int index = to_sensor_dev_attr_2(attr)->index;
@@ -180,7 +185,7 @@ static ssize_t adc128_set_in(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static ssize_t adc128_show_temp(struct device *dev,
+static ssize_t adc128_temp_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
 	struct adc128_data *data = adc128_update_device(dev);
@@ -194,9 +199,9 @@ static ssize_t adc128_show_temp(struct device *dev,
 	return sprintf(buf, "%d\n", temp * 500);/* 0.5 degrees C resolution */
 }
 
-static ssize_t adc128_set_temp(struct device *dev,
-			       struct device_attribute *attr,
-			       const char *buf, size_t count)
+static ssize_t adc128_temp_store(struct device *dev,
+				 struct device_attribute *attr,
+				 const char *buf, size_t count)
 {
 	struct adc128_data *data = dev_get_drvdata(dev);
 	int index = to_sensor_dev_attr(attr)->index;
@@ -220,7 +225,7 @@ static ssize_t adc128_set_temp(struct device *dev,
 	return count;
 }
 
-static ssize_t adc128_show_alarm(struct device *dev,
+static ssize_t adc128_alarm_show(struct device *dev,
 				 struct device_attribute *attr, char *buf)
 {
 	struct adc128_data *data = adc128_update_device(dev);
@@ -240,106 +245,116 @@ static ssize_t adc128_show_alarm(struct device *dev,
 	return sprintf(buf, "%u\n", !!(alarms & mask));
 }
 
-static SENSOR_DEVICE_ATTR_2(in0_input, S_IRUGO,
-			    adc128_show_in, NULL, 0, 0);
-static SENSOR_DEVICE_ATTR_2(in0_min, S_IWUSR | S_IRUGO,
-			    adc128_show_in, adc128_set_in, 0, 1);
-static SENSOR_DEVICE_ATTR_2(in0_max, S_IWUSR | S_IRUGO,
-			    adc128_show_in, adc128_set_in, 0, 2);
+static umode_t adc128_is_visible(struct kobject *kobj,
+				 struct attribute *attr, int index)
+{
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct adc128_data *data = dev_get_drvdata(dev);
 
-static SENSOR_DEVICE_ATTR_2(in1_input, S_IRUGO,
-			    adc128_show_in, NULL, 1, 0);
-static SENSOR_DEVICE_ATTR_2(in1_min, S_IWUSR | S_IRUGO,
-			    adc128_show_in, adc128_set_in, 1, 1);
-static SENSOR_DEVICE_ATTR_2(in1_max, S_IWUSR | S_IRUGO,
-			    adc128_show_in, adc128_set_in, 1, 2);
+	if (index < ADC128_ATTR_NUM_VOLT) {
+		/* Voltage, visible according to num_inputs[] */
+		if (index >= num_inputs[data->mode] * 4)
+			return 0;
+	} else {
+		/* Temperature, visible if not in mode 1 */
+		if (data->mode == 1)
+			return 0;
+	}
 
-static SENSOR_DEVICE_ATTR_2(in2_input, S_IRUGO,
-			    adc128_show_in, NULL, 2, 0);
-static SENSOR_DEVICE_ATTR_2(in2_min, S_IWUSR | S_IRUGO,
-			    adc128_show_in, adc128_set_in, 2, 1);
-static SENSOR_DEVICE_ATTR_2(in2_max, S_IWUSR | S_IRUGO,
-			    adc128_show_in, adc128_set_in, 2, 2);
+	return attr->mode;
+}
 
-static SENSOR_DEVICE_ATTR_2(in3_input, S_IRUGO,
-			    adc128_show_in, NULL, 3, 0);
-static SENSOR_DEVICE_ATTR_2(in3_min, S_IWUSR | S_IRUGO,
-			    adc128_show_in, adc128_set_in, 3, 1);
-static SENSOR_DEVICE_ATTR_2(in3_max, S_IWUSR | S_IRUGO,
-			    adc128_show_in, adc128_set_in, 3, 2);
+static SENSOR_DEVICE_ATTR_2_RO(in0_input, adc128_in, 0, 0);
+static SENSOR_DEVICE_ATTR_2_RW(in0_min, adc128_in, 0, 1);
+static SENSOR_DEVICE_ATTR_2_RW(in0_max, adc128_in, 0, 2);
 
-static SENSOR_DEVICE_ATTR_2(in4_input, S_IRUGO,
-			    adc128_show_in, NULL, 4, 0);
-static SENSOR_DEVICE_ATTR_2(in4_min, S_IWUSR | S_IRUGO,
-			    adc128_show_in, adc128_set_in, 4, 1);
-static SENSOR_DEVICE_ATTR_2(in4_max, S_IWUSR | S_IRUGO,
-			    adc128_show_in, adc128_set_in, 4, 2);
+static SENSOR_DEVICE_ATTR_2_RO(in1_input, adc128_in, 1, 0);
+static SENSOR_DEVICE_ATTR_2_RW(in1_min, adc128_in, 1, 1);
+static SENSOR_DEVICE_ATTR_2_RW(in1_max, adc128_in, 1, 2);
 
-static SENSOR_DEVICE_ATTR_2(in5_input, S_IRUGO,
-			    adc128_show_in, NULL, 5, 0);
-static SENSOR_DEVICE_ATTR_2(in5_min, S_IWUSR | S_IRUGO,
-			    adc128_show_in, adc128_set_in, 5, 1);
-static SENSOR_DEVICE_ATTR_2(in5_max, S_IWUSR | S_IRUGO,
-			    adc128_show_in, adc128_set_in, 5, 2);
+static SENSOR_DEVICE_ATTR_2_RO(in2_input, adc128_in, 2, 0);
+static SENSOR_DEVICE_ATTR_2_RW(in2_min, adc128_in, 2, 1);
+static SENSOR_DEVICE_ATTR_2_RW(in2_max, adc128_in, 2, 2);
 
-static SENSOR_DEVICE_ATTR_2(in6_input, S_IRUGO,
-			    adc128_show_in, NULL, 6, 0);
-static SENSOR_DEVICE_ATTR_2(in6_min, S_IWUSR | S_IRUGO,
-			    adc128_show_in, adc128_set_in, 6, 1);
-static SENSOR_DEVICE_ATTR_2(in6_max, S_IWUSR | S_IRUGO,
-			    adc128_show_in, adc128_set_in, 6, 2);
+static SENSOR_DEVICE_ATTR_2_RO(in3_input, adc128_in, 3, 0);
+static SENSOR_DEVICE_ATTR_2_RW(in3_min, adc128_in, 3, 1);
+static SENSOR_DEVICE_ATTR_2_RW(in3_max, adc128_in, 3, 2);
 
-static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, adc128_show_temp, NULL, 0);
-static SENSOR_DEVICE_ATTR(temp1_max, S_IWUSR | S_IRUGO,
-			  adc128_show_temp, adc128_set_temp, 1);
-static SENSOR_DEVICE_ATTR(temp1_max_hyst, S_IWUSR | S_IRUGO,
-			  adc128_show_temp, adc128_set_temp, 2);
+static SENSOR_DEVICE_ATTR_2_RO(in4_input, adc128_in, 4, 0);
+static SENSOR_DEVICE_ATTR_2_RW(in4_min, adc128_in, 4, 1);
+static SENSOR_DEVICE_ATTR_2_RW(in4_max, adc128_in, 4, 2);
 
-static SENSOR_DEVICE_ATTR(in0_alarm, S_IRUGO, adc128_show_alarm, NULL, 0);
-static SENSOR_DEVICE_ATTR(in1_alarm, S_IRUGO, adc128_show_alarm, NULL, 1);
-static SENSOR_DEVICE_ATTR(in2_alarm, S_IRUGO, adc128_show_alarm, NULL, 2);
-static SENSOR_DEVICE_ATTR(in3_alarm, S_IRUGO, adc128_show_alarm, NULL, 3);
-static SENSOR_DEVICE_ATTR(in4_alarm, S_IRUGO, adc128_show_alarm, NULL, 4);
-static SENSOR_DEVICE_ATTR(in5_alarm, S_IRUGO, adc128_show_alarm, NULL, 5);
-static SENSOR_DEVICE_ATTR(in6_alarm, S_IRUGO, adc128_show_alarm, NULL, 6);
-static SENSOR_DEVICE_ATTR(temp1_max_alarm, S_IRUGO, adc128_show_alarm, NULL, 7);
+static SENSOR_DEVICE_ATTR_2_RO(in5_input, adc128_in, 5, 0);
+static SENSOR_DEVICE_ATTR_2_RW(in5_min, adc128_in, 5, 1);
+static SENSOR_DEVICE_ATTR_2_RW(in5_max, adc128_in, 5, 2);
+
+static SENSOR_DEVICE_ATTR_2_RO(in6_input, adc128_in, 6, 0);
+static SENSOR_DEVICE_ATTR_2_RW(in6_min, adc128_in, 6, 1);
+static SENSOR_DEVICE_ATTR_2_RW(in6_max, adc128_in, 6, 2);
+
+static SENSOR_DEVICE_ATTR_2_RO(in7_input, adc128_in, 7, 0);
+static SENSOR_DEVICE_ATTR_2_RW(in7_min, adc128_in, 7, 1);
+static SENSOR_DEVICE_ATTR_2_RW(in7_max, adc128_in, 7, 2);
+
+static SENSOR_DEVICE_ATTR_RO(temp1_input, adc128_temp, 0);
+static SENSOR_DEVICE_ATTR_RW(temp1_max, adc128_temp, 1);
+static SENSOR_DEVICE_ATTR_RW(temp1_max_hyst, adc128_temp, 2);
+
+static SENSOR_DEVICE_ATTR_RO(in0_alarm, adc128_alarm, 0);
+static SENSOR_DEVICE_ATTR_RO(in1_alarm, adc128_alarm, 1);
+static SENSOR_DEVICE_ATTR_RO(in2_alarm, adc128_alarm, 2);
+static SENSOR_DEVICE_ATTR_RO(in3_alarm, adc128_alarm, 3);
+static SENSOR_DEVICE_ATTR_RO(in4_alarm, adc128_alarm, 4);
+static SENSOR_DEVICE_ATTR_RO(in5_alarm, adc128_alarm, 5);
+static SENSOR_DEVICE_ATTR_RO(in6_alarm, adc128_alarm, 6);
+static SENSOR_DEVICE_ATTR_RO(in7_alarm, adc128_alarm, 7);
+static SENSOR_DEVICE_ATTR_RO(temp1_max_alarm, adc128_alarm, 7);
 
 static struct attribute *adc128_attrs[] = {
-	&sensor_dev_attr_in0_min.dev_attr.attr,
-	&sensor_dev_attr_in1_min.dev_attr.attr,
-	&sensor_dev_attr_in2_min.dev_attr.attr,
-	&sensor_dev_attr_in3_min.dev_attr.attr,
-	&sensor_dev_attr_in4_min.dev_attr.attr,
-	&sensor_dev_attr_in5_min.dev_attr.attr,
-	&sensor_dev_attr_in6_min.dev_attr.attr,
-	&sensor_dev_attr_in0_max.dev_attr.attr,
-	&sensor_dev_attr_in1_max.dev_attr.attr,
-	&sensor_dev_attr_in2_max.dev_attr.attr,
-	&sensor_dev_attr_in3_max.dev_attr.attr,
-	&sensor_dev_attr_in4_max.dev_attr.attr,
-	&sensor_dev_attr_in5_max.dev_attr.attr,
-	&sensor_dev_attr_in6_max.dev_attr.attr,
+	&sensor_dev_attr_in0_alarm.dev_attr.attr,
 	&sensor_dev_attr_in0_input.dev_attr.attr,
+	&sensor_dev_attr_in0_max.dev_attr.attr,
+	&sensor_dev_attr_in0_min.dev_attr.attr,
+	&sensor_dev_attr_in1_alarm.dev_attr.attr,
 	&sensor_dev_attr_in1_input.dev_attr.attr,
+	&sensor_dev_attr_in1_max.dev_attr.attr,
+	&sensor_dev_attr_in1_min.dev_attr.attr,
+	&sensor_dev_attr_in2_alarm.dev_attr.attr,
 	&sensor_dev_attr_in2_input.dev_attr.attr,
+	&sensor_dev_attr_in2_max.dev_attr.attr,
+	&sensor_dev_attr_in2_min.dev_attr.attr,
+	&sensor_dev_attr_in3_alarm.dev_attr.attr,
 	&sensor_dev_attr_in3_input.dev_attr.attr,
+	&sensor_dev_attr_in3_max.dev_attr.attr,
+	&sensor_dev_attr_in3_min.dev_attr.attr,
+	&sensor_dev_attr_in4_alarm.dev_attr.attr,
 	&sensor_dev_attr_in4_input.dev_attr.attr,
+	&sensor_dev_attr_in4_max.dev_attr.attr,
+	&sensor_dev_attr_in4_min.dev_attr.attr,
+	&sensor_dev_attr_in5_alarm.dev_attr.attr,
 	&sensor_dev_attr_in5_input.dev_attr.attr,
+	&sensor_dev_attr_in5_max.dev_attr.attr,
+	&sensor_dev_attr_in5_min.dev_attr.attr,
+	&sensor_dev_attr_in6_alarm.dev_attr.attr,
 	&sensor_dev_attr_in6_input.dev_attr.attr,
+	&sensor_dev_attr_in6_max.dev_attr.attr,
+	&sensor_dev_attr_in6_min.dev_attr.attr,
+	&sensor_dev_attr_in7_alarm.dev_attr.attr,
+	&sensor_dev_attr_in7_input.dev_attr.attr,
+	&sensor_dev_attr_in7_max.dev_attr.attr,
+	&sensor_dev_attr_in7_min.dev_attr.attr,
 	&sensor_dev_attr_temp1_input.dev_attr.attr,
 	&sensor_dev_attr_temp1_max.dev_attr.attr,
-	&sensor_dev_attr_temp1_max_hyst.dev_attr.attr,
-	&sensor_dev_attr_in0_alarm.dev_attr.attr,
-	&sensor_dev_attr_in1_alarm.dev_attr.attr,
-	&sensor_dev_attr_in2_alarm.dev_attr.attr,
-	&sensor_dev_attr_in3_alarm.dev_attr.attr,
-	&sensor_dev_attr_in4_alarm.dev_attr.attr,
-	&sensor_dev_attr_in5_alarm.dev_attr.attr,
-	&sensor_dev_attr_in6_alarm.dev_attr.attr,
 	&sensor_dev_attr_temp1_max_alarm.dev_attr.attr,
+	&sensor_dev_attr_temp1_max_hyst.dev_attr.attr,
 	NULL
 };
-ATTRIBUTE_GROUPS(adc128);
+
+static const struct attribute_group adc128_group = {
+	.attrs = adc128_attrs,
+	.is_visible = adc128_is_visible,
+};
+__ATTRIBUTE_GROUPS(adc128);
 
 static int adc128_detect(struct i2c_client *client, struct i2c_board_info *info)
 {
@@ -387,6 +402,15 @@ static int adc128_init_client(struct adc128_data *data)
 	if (err)
 		return err;
 
+	/* Set operation mode, if non-default */
+	if (data->mode != 0) {
+		err = i2c_smbus_write_byte_data(client,
+						ADC128_REG_CONFIG_ADV,
+						data->mode << 1);
+		if (err)
+			return err;
+	}
+
 	/* Start monitoring */
 	err = i2c_smbus_write_byte_data(client, ADC128_REG_CONFIG, 0x01);
 	if (err)
@@ -433,6 +457,21 @@ static int adc128_probe(struct i2c_client *client,
 		data->vref = 2560;	/* 2.56V, in mV */
 	}
 
+	/* Operation mode is optional. If unspecified, keep current mode */
+	if (of_property_read_u8(dev->of_node, "ti,mode", &data->mode) == 0) {
+		if (data->mode > 3) {
+			dev_err(dev, "invalid operation mode %d\n",
+				data->mode);
+			err = -EINVAL;
+			goto error;
+		}
+	} else {
+		err = i2c_smbus_read_byte_data(client, ADC128_REG_CONFIG_ADV);
+		if (err < 0)
+			goto error;
+		data->mode = (err >> 1) & ADC128_REG_MASK;
+	}
+
 	data->client = client;
 	i2c_set_clientdata(client, data);
 	mutex_init(&data->update_lock);
@@ -473,10 +512,17 @@ static const struct i2c_device_id adc128_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, adc128_id);
 
+static const struct of_device_id __maybe_unused adc128_of_match[] = {
+	{ .compatible = "ti,adc128d818" },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, adc128_of_match);
+
 static struct i2c_driver adc128_driver = {
 	.class		= I2C_CLASS_HWMON,
 	.driver = {
 		.name	= "adc128d818",
+		.of_match_table = of_match_ptr(adc128_of_match),
 	},
 	.probe		= adc128_probe,
 	.remove		= adc128_remove,

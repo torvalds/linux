@@ -1,0 +1,142 @@
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/asic_health
+
+Date:		June 2018
+KernelVersion:	4.19
+Contact:	Vadim Pasternak <vadimpmellanox.com>
+Description:	This file shows ASIC health status. The possible values are:
+		0 - health failed, 2 - health OK, 3 - ASIC in booting state.
+
+		The files are read only.
+
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/cpld1_version
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/cpld2_version
+Date:		June 2018
+KernelVersion:	4.19
+Contact:	Vadim Pasternak <vadimpmellanox.com>
+Description:	These files show with which CPLD versions have been burned
+		on carrier and switch boards.
+
+		The files are read only.
+
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/fan_dir
+
+Date:		December 2018
+KernelVersion:	5.0
+Contact:	Vadim Pasternak <vadimpmellanox.com>
+Description:	This file shows the system fans direction:
+		forward direction - relevant bit is set 0;
+		reversed direction - relevant bit is set 1.
+
+		The files are read only.
+
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/jtag_enable
+
+Date:		November 2018
+KernelVersion:	5.0
+Contact:	Vadim Pasternak <vadimpmellanox.com>
+Description:	These files show with which CPLD versions have been burned
+		on LED board.
+
+		The files are read only.
+
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/jtag_enable
+
+Date:		November 2018
+KernelVersion:	5.0
+Contact:	Vadim Pasternak <vadimpmellanox.com>
+Description:	These files enable and disable the access to the JTAG domain.
+		By default access to the JTAG domain is disabled.
+
+		The file is read/write.
+
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/select_iio
+Date:		June 2018
+KernelVersion:	4.19
+Contact:	Vadim Pasternak <vadimpmellanox.com>
+Description:	This file allows iio devices selection.
+
+		Attribute select_iio can be written with 0 or with 1. It
+		selects which one of iio devices can be accessed.
+
+		The file is read/write.
+
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/psu1_on
+		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/psu2_on
+		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/pwr_cycle
+		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/pwr_down
+Date:		June 2018
+KernelVersion:	4.19
+Contact:	Vadim Pasternak <vadimpmellanox.com>
+Description:	These files allow asserting system power cycling, switching
+		power supply units on and off and system's main power domain
+		shutdown.
+		Expected behavior:
+		When pwr_cycle is written 1: auxiliary power domain will go
+		down and after short period (about 1 second) up.
+		When  psu1_on or psu2_on is written 1, related unit will be
+		disconnected from the power source, when written 0 - connected.
+		If both are written 1 - power supplies main power domain will
+		go down.
+		When pwr_down is written 1, system's main power domain will go
+		down.
+
+		The files are write only.
+
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_aux_pwr_or_ref
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_asic_thermal
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_hotswap_or_halt
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_hotswap_or_wd
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_fw_reset
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_long_pb
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_main_pwr_fail
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_short_pb
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_sw_reset
+Date:		June 2018
+KernelVersion:	4.19
+Contact:	Vadim Pasternak <vadimpmellanox.com>
+Description:	These files show the system reset cause, as following: power
+		auxiliary outage or power refresh, ASIC thermal shutdown, halt,
+		hotswap, watchdog, firmware reset, long press power button,
+		short press power button, software reset. Value 1 in file means
+		this is reset cause, 0 - otherwise. Only one of the above
+		causes could be 1 at the same time, representing only last
+		reset cause.
+
+		The files are read only.
+
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_comex_pwr_fail
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_from_comex
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_system
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_voltmon_upgrade_fail
+
+Date:		November 2018
+KernelVersion:	5.0
+Contact:	Vadim Pasternak <vadimpmellanox.com>
+Description:	These files show the system reset cause, as following: ComEx
+		power fail, reset from ComEx, system platform reset, reset
+		due to voltage monitor devices upgrade failure,
+		Value 1 in file means this is reset cause, 0 - otherwise.
+		Only one bit could be 1 at the same time, representing only
+		the last reset cause.
+
+		The files are read only.
+
+Date:		June 2019
+KernelVersion:	5.3
+Contact:	Vadim Pasternak <vadimpmellanox.com>
+Description:	These files show the system reset cause, as following:
+		COMEX thermal shutdown; wathchdog power off or reset was derived
+		by one of the next components: COMEX, switch board or by Small Form
+		Factor mezzanine, reset requested from ASIC, reset cuased by BIOS
+		reload. Value 1 in file means this is reset cause, 0 - otherwise.
+		Only one of the above causes could be 1 at the same time, representing
+		only last reset cause.
+
+		The files are read only.
+
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_comex_thermal
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_comex_wd
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_from_asic
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_reload_bios
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_sff_wd
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/reset_swb_wd

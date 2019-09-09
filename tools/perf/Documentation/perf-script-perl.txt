@@ -1,5 +1,5 @@
 perf-script-perl(1)
-==================
+===================
 
 NAME
 ----
@@ -39,7 +39,7 @@ EVENT HANDLERS
 When perf script is invoked using a trace script, a user-defined
 'handler function' is called for each event in the trace.  If there's
 no handler function defined for a given event type, the event is
-ignored (or passed to a 'trace_handled' function, see below) and the
+ignored (or passed to a 'trace_unhandled' function, see below) and the
 next event is processed.
 
 Most of the event's field values are passed as arguments to the

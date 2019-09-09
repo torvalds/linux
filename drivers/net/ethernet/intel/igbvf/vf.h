@@ -1,28 +1,5 @@
-/*******************************************************************************
-
-  Intel(R) 82576 Virtual Function Linux driver
-  Copyright(c) 2009 - 2012 Intel Corporation.
-
-  This program is free software; you can redistribute it and/or modify it
-  under the terms and conditions of the GNU General Public License,
-  version 2, as published by the Free Software Foundation.
-
-  This program is distributed in the hope it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details.
-
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, see <http://www.gnu.org/licenses/>.
-
-  The full GNU General Public License is included in this distribution in
-  the file called "COPYING".
-
-  Contact Information:
-  e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
-  Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
-
-*******************************************************************************/
+/* SPDX-License-Identifier: GPL-2.0 */
+/* Copyright(c) 2009 - 2018 Intel Corporation. */
 
 #ifndef _E1000_VF_H_
 #define _E1000_VF_H_
@@ -179,6 +156,7 @@ struct e1000_mac_operations {
 	s32  (*get_bus_info)(struct e1000_hw *);
 	s32  (*get_link_up_info)(struct e1000_hw *, u16 *, u16 *);
 	void (*update_mc_addr_list)(struct e1000_hw *, u8 *, u32, u32, u32);
+	s32  (*set_uc_addr)(struct e1000_hw *, u32, u8 *);
 	s32  (*reset_hw)(struct e1000_hw *);
 	s32  (*init_hw)(struct e1000_hw *);
 	s32  (*setup_link)(struct e1000_hw *);
@@ -244,6 +222,7 @@ struct e1000_hw {
 
 	struct e1000_mac_info  mac;
 	struct e1000_mbx_info mbx;
+	spinlock_t mbx_lock;		/* serializes mailbox ops */
 
 	union {
 		struct e1000_dev_spec_vf vf;

@@ -54,7 +54,7 @@
 #define DRV_NAME "sis5513"
 
 /* registers layout and init values are chipset family dependent */
-
+#undef ATA_16
 #define ATA_16		0x01
 #define ATA_33		0x02
 #define ATA_66		0x03
@@ -494,6 +494,7 @@ static int init_chipset_sis5513(struct pci_dev *dev)
 		pci_read_config_byte(dev, 0x09, &reg);
 		if ((reg & 0x0f) != 0x00)
 			pci_write_config_byte(dev, 0x09, reg&0xf0);
+		/* fall through */
 	case ATA_16:
 		/* force per drive recovery and active timings
 		   needed on ATA_33 and below chips */

@@ -45,7 +45,6 @@
 #include "sunxi-common-regulators.dtsi"
 
 #include <dt-bindings/gpio/gpio.h>
-#include <dt-bindings/pinctrl/sun4i-a10.h>
 
 / {
 	model = "Mele A1000G Quad top set box";
@@ -61,8 +60,6 @@
 
 	leds {
 		compatible = "gpio-leds";
-		pinctrl-names = "default";
-		pinctrl-0 = <&led_pins_m9>;
 
 		blue {
 			label = "a1000g:blue:pwr";
@@ -86,7 +83,7 @@
 
 &gmac {
 	pinctrl-names = "default";
-	pinctrl-0 = <&gmac_pins_mii_a>;
+	pinctrl-0 = <&gmac_mii_pins>;
 	phy = <&phy1>;
 	phy-mode = "mii";
 	phy-supply = <&reg_dldo1>;
@@ -99,17 +96,14 @@
 
 &ir {
 	pinctrl-names = "default";
-	pinctrl-0 = <&ir_pins_a>;
+	pinctrl-0 = <&s_ir_rx_pin>;
 	status = "okay";
 };
 
 &mmc0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_m9>;
 	vmmc-supply = <&reg_dcdc1>;
 	bus-width = <4>;
-	cd-gpios = <&pio 7 22 GPIO_ACTIVE_HIGH>; /* PH22 */
-	cd-inverted;
+	cd-gpios = <&pio 7 22 GPIO_ACTIVE_LOW>; /* PH22 */
 	status = "okay";
 };
 
@@ -125,29 +119,6 @@
 };
 
 #include "axp22x.dtsi"
-
-&pio {
-	led_pins_m9: led_pins@0 {
-		allwinner,pins = "PH13";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
-	};
-
-	mmc0_cd_pin_m9: mmc0_cd_pin@0 {
-		allwinner,pins = "PH22";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
-	};
-
-	usb1_vbus_pin_m9: usb1_vbus_pin@0 {
-		allwinner,pins = "PC27";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
-	};
-};
 
 &reg_aldo1 {
 	regulator-min-microvolt = <3300000>;
@@ -222,15 +193,13 @@
 };
 
 &reg_usb1_vbus {
-	pinctrl-names = "default";
-	pinctrl-0 = <&usb1_vbus_pin_m9>;
 	gpio = <&pio 2 27 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
 
 &uart0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_pins_a>;
+	pinctrl-0 = <&uart0_ph_pins>;
 	status = "okay";
 };
 

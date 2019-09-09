@@ -1,25 +1,16 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *    Support for LGDT3306A - 8VSB/QAM-B
  *
  *    Copyright (C) 2013,2014 Fred Richter <frichter@hauppauge.com>
  *      based on lgdt3305.[ch] by Michael Krufky
- *
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation; either version 2 of the License, or
- *    (at your option) any later version.
- *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
  */
 
 #ifndef _LGDT3306A_H_
 #define _LGDT3306A_H_
 
 #include <linux/i2c.h>
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 
 enum lgdt3306a_mpeg_mode {
@@ -56,6 +47,10 @@ struct lgdt3306a_config {
 
 	/* demod clock freq in MHz; 24 or 25 supported */
 	int  xtalMHz;
+
+	/* returned by driver if using i2c bus multiplexing */
+	struct dvb_frontend **fe;
+	struct i2c_adapter **i2c_adapter;
 };
 
 #if IS_REACHABLE(CONFIG_DVB_LGDT3306A)

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Pixart PAC207BCA / PAC73xx common functions
  *
@@ -6,26 +7,11 @@
  * Copyleft (C) 2005 Michel Xhaard mxhaard@magic.fr
  *
  * V4L2 by Jean-Francois Moine <http://moinejf.free.fr>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  */
 
 /* We calculate the autogain at the end of the transfer of a frame, at this
    moment a frame with the old settings is being captured and transmitted. So
-   if we adjust the gain or exposure we must ignore atleast the next frame for
+   if we adjust the gain or exposure we must ignore at least the next frame for
    the new settings to come into effect before doing any other adjustments. */
 #define PAC_AUTOGAIN_IGNORE_FRAMES	2
 
@@ -111,10 +97,9 @@ static unsigned char *pac_find_sof(struct gspca_dev *gspca_dev, u8 *sof_read,
 			switch (m[i]) {
 			case 0x96:
 				/* Pattern found */
-				PDEBUG(D_FRAM,
-					"SOF found, bytes to analyze: %u."
-					" Frame starts at byte #%u",
-					len, i + 1);
+				gspca_dbg(gspca_dev, D_FRAM,
+					  "SOF found, bytes to analyze: %u - Frame starts at byte #%u\n",
+					  len, i + 1);
 				*sof_read = 0;
 				return m + i + 1;
 				break;

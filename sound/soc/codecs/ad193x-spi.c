@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * AD1938/AD1939 audio driver
  *
  * Copyright 2014 Analog Devices Inc.
- *
- * Licensed under the GPL-2.
  */
 
 #include <linux/module.h>
@@ -29,12 +28,6 @@ static int ad193x_spi_probe(struct spi_device *spi)
 			    (enum ad193x_type)id->driver_data);
 }
 
-static int ad193x_spi_remove(struct spi_device *spi)
-{
-	snd_soc_unregister_codec(&spi->dev);
-	return 0;
-}
-
 static const struct spi_device_id ad193x_spi_id[] = {
 	{ "ad193x", AD193X },
 	{ "ad1933", AD1933 },
@@ -51,7 +44,6 @@ static struct spi_driver ad193x_spi_driver = {
 		.name	= "ad193x",
 	},
 	.probe		= ad193x_spi_probe,
-	.remove		= ad193x_spi_remove,
 	.id_table	= ad193x_spi_id,
 };
 module_spi_driver(ad193x_spi_driver);

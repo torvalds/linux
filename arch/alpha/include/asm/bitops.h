@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ALPHA_BITOPS_H
 #define _ALPHA_BITOPS_H
 
@@ -390,9 +391,9 @@ static inline unsigned long __fls(unsigned long x)
 	return fls64(x) - 1;
 }
 
-static inline int fls(int x)
+static inline int fls(unsigned int x)
 {
-	return fls64((unsigned int) x);
+	return fls64(x);
 }
 
 /*

@@ -1,22 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
 	STV0900/0903 Multistandard Broadcast Frontend driver
 	Copyright (C) Manu Abraham <abraham.manu@gmail.com>
 
 	Copyright (C) ST Microelectronics
 
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 2 of the License, or
-	(at your option) any later version.
-
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU General Public License for more details.
-
-	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the Free Software
-	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
 #include <linux/init.h>
@@ -27,7 +15,7 @@
 #include <linux/mutex.h>
 
 #include <linux/dvb/frontend.h>
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 #include "stv6110x.h" /* for demodulator internal modes */
 
@@ -677,7 +665,7 @@ static struct stv090x_short_frame_crloop stv090x_s2_short_crl_cut20[] = {
 
 /* Cut 3.0 Short Frame Tracking CR Loop */
 static struct stv090x_short_frame_crloop stv090x_s2_short_crl_cut30[] = {
-	/* MODCOD  	  2M	5M    10M   20M	  30M */
+	/* MODCOD	  2M	5M    10M   20M	  30M */
 	{ STV090x_QPSK,   0x2C, 0x2B, 0x0B, 0x0B, 0x3A },
 	{ STV090x_8PSK,   0x3B, 0x0B, 0x2A, 0x0A, 0x39 },
 	{ STV090x_16APSK, 0x1B, 0x1B, 0x1B, 0x3A, 0x2A },
@@ -701,7 +689,7 @@ static int stv090x_read_reg(struct stv090x_state *state, unsigned int reg)
 	u8 buf;
 
 	struct i2c_msg msg[] = {
-		{ .addr	= config->address, .flags	= 0, 		.buf = b0,   .len = 2 },
+		{ .addr	= config->address, .flags	= 0,		.buf = b0,   .len = 2 },
 		{ .addr	= config->address, .flags	= I2C_M_RD,	.buf = &buf, .len = 1 }
 	};
 
@@ -739,14 +727,8 @@ static int stv090x_write_regs(struct stv090x_state *state, unsigned int reg, u8 
 	buf[1] = reg & 0xff;
 	memcpy(&buf[2], data, count);
 
-	if (unlikely(*state->verbose >= FE_DEBUGREG)) {
-		int i;
-
-		printk(KERN_DEBUG "%s [0x%04x]:", __func__, reg);
-		for (i = 0; i < count; i++)
-			printk(" %02x", data[i]);
-		printk("\n");
-	}
+	dprintk(FE_DEBUGREG, 1, "%s [0x%04x]: %*ph",
+		__func__, reg, count, data);
 
 	ret = i2c_transfer(state->i2c, &i2c_msg, 1);
 	if (ret != 1) {
@@ -761,7 +743,9 @@ static int stv090x_write_regs(struct stv090x_state *state, unsigned int reg, u8 
 
 static int stv090x_write_reg(struct stv090x_state *state, unsigned int reg, u8 data)
 {
-	return stv090x_write_regs(state, reg, &data, 1);
+	u8 tmp = data; /* see gcc.gnu.org/bugzilla/show_bug.cgi?id=81715 */
+
+	return stv090x_write_regs(state, reg, &tmp, 1);
 }
 
 static int stv090x_i2c_gate_ctrl(struct stv090x_state *state, int enable)
@@ -2221,12 +2205,11 @@ static int stv090x_get_coldlock(struct stv090x_state *state, s32 timeout_dmd)
 		if (state->config->tuner_get_status) {
 			if (state->config->tuner_get_status(fe, &reg) < 0)
 				goto err_gateoff;
+			if (reg)
+				dprintk(FE_DEBUG, 1, "Tuner phase locked");
+			else
+				dprintk(FE_DEBUG, 1, "Tuner unlocked");
 		}
-
-		if (reg)
-			dprintk(FE_DEBUG, 1, "Tuner phase locked");
-		else
-			dprintk(FE_DEBUG, 1, "Tuner unlocked");
 
 		if (stv090x_i2c_gate_ctrl(state, 0) < 0)
 			goto err;
@@ -3435,6 +3418,21 @@ err:
 	return -1;
 }
 
+static int stv090x_set_pls(struct stv090x_state *state, u32 pls_code)
+{
+	dprintk(FE_DEBUG, 1, "Set Gold PLS code %d", pls_code);
+	if (STV090x_WRITE_DEMOD(state, PLROOT0, pls_code & 0xff) < 0)
+		goto err;
+	if (STV090x_WRITE_DEMOD(state, PLROOT1, (pls_code >> 8) & 0xff) < 0)
+		goto err;
+	if (STV090x_WRITE_DEMOD(state, PLROOT2, 0x04 | (pls_code >> 16)) < 0)
+		goto err;
+	return 0;
+err:
+	dprintk(FE_ERROR, 1, "I/O error");
+	return -1;
+}
+
 static int stv090x_set_mis(struct stv090x_state *state, int mis)
 {
 	u32 reg;
@@ -3497,6 +3495,7 @@ static enum dvbfe_search stv090x_search(struct dvb_frontend *fe)
 		state->search_range = 5000000;
 	}
 
+	stv090x_set_pls(state, props->scrambling_sequence_index);
 	stv090x_set_mis(state, props->stream_id);
 
 	if (stv090x_algo(state) == STV090x_RANGEOK) {
@@ -3698,9 +3697,12 @@ static int stv090x_read_cnr(struct dvb_frontend *fe, u16 *cnr)
 			}
 			val /= 16;
 			last = ARRAY_SIZE(stv090x_s2cn_tab) - 1;
-			div = stv090x_s2cn_tab[0].read -
-			      stv090x_s2cn_tab[last].read;
-			*cnr = 0xFFFF - ((val * 0xFFFF) / div);
+			div = stv090x_s2cn_tab[last].real -
+			      stv090x_s2cn_tab[3].real;
+			val = stv090x_table_lookup(stv090x_s2cn_tab, last, val);
+			if (val < 0)
+				val = 0;
+			*cnr = val * 0xFFFF / div;
 		}
 		break;
 
@@ -3720,9 +3722,10 @@ static int stv090x_read_cnr(struct dvb_frontend *fe, u16 *cnr)
 			}
 			val /= 16;
 			last = ARRAY_SIZE(stv090x_s1cn_tab) - 1;
-			div = stv090x_s1cn_tab[0].read -
-			      stv090x_s1cn_tab[last].read;
-			*cnr = 0xFFFF - ((val * 0xFFFF) / div);
+			div = stv090x_s1cn_tab[last].real -
+			      stv090x_s1cn_tab[0].real;
+			val = stv090x_table_lookup(stv090x_s1cn_tab, last, val);
+			*cnr = val * 0xFFFF / div;
 		}
 		break;
 	default:
@@ -4886,72 +4889,19 @@ static int stv090x_set_gpio(struct dvb_frontend *fe, u8 gpio, u8 dir,
 	return stv090x_write_reg(state, STV090x_GPIOxCFG(gpio), reg);
 }
 
-static struct dvb_frontend_ops stv090x_ops = {
-	.delsys = { SYS_DVBS, SYS_DVBS2, SYS_DSS },
-	.info = {
-		.name			= "STV090x Multistandard",
-		.frequency_min		= 950000,
-		.frequency_max 		= 2150000,
-		.frequency_stepsize	= 0,
-		.frequency_tolerance	= 0,
-		.symbol_rate_min 	= 1000000,
-		.symbol_rate_max 	= 45000000,
-		.caps			= FE_CAN_INVERSION_AUTO |
-					  FE_CAN_FEC_AUTO       |
-					  FE_CAN_QPSK           |
-					  FE_CAN_2G_MODULATION
-	},
-
-	.release			= stv090x_release,
-	.init				= stv090x_init,
-
-	.sleep				= stv090x_sleep,
-	.get_frontend_algo		= stv090x_frontend_algo,
-
-	.diseqc_send_master_cmd		= stv090x_send_diseqc_msg,
-	.diseqc_send_burst		= stv090x_send_diseqc_burst,
-	.diseqc_recv_slave_reply	= stv090x_recv_slave_reply,
-	.set_tone			= stv090x_set_tone,
-
-	.search				= stv090x_search,
-	.read_status			= stv090x_read_status,
-	.read_ber			= stv090x_read_per,
-	.read_signal_strength		= stv090x_read_signal_strength,
-	.read_snr			= stv090x_read_cnr,
-};
-
-
-struct dvb_frontend *stv090x_attach(struct stv090x_config *config,
-				    struct i2c_adapter *i2c,
-				    enum stv090x_demodulator demod)
+static int stv090x_setup_compound(struct stv090x_state *state)
 {
-	struct stv090x_state *state = NULL;
 	struct stv090x_dev *temp_int;
 
-	state = kzalloc(sizeof (struct stv090x_state), GFP_KERNEL);
-	if (state == NULL)
-		goto error;
-
-	state->verbose				= &verbose;
-	state->config				= config;
-	state->i2c				= i2c;
-	state->frontend.ops			= stv090x_ops;
-	state->frontend.demodulator_priv	= state;
-	state->demod				= demod;
-	state->demod_mode 			= config->demod_mode; /* Single or Dual mode */
-	state->device				= config->device;
-	state->rolloff				= STV090x_RO_35; /* default */
-
 	temp_int = find_dev(state->i2c,
-				state->config->address);
+			    state->config->address);
 
-	if ((temp_int != NULL) && (state->demod_mode == STV090x_DUAL)) {
+	if (temp_int && state->demod_mode == STV090x_DUAL) {
 		state->internal = temp_int->internal;
 		state->internal->num_used++;
 		dprintk(FE_INFO, 1, "Found Internal Structure!");
 	} else {
-		state->internal = kmalloc(sizeof(struct stv090x_internal),
-					  GFP_KERNEL);
+		state->internal = kmalloc(sizeof(*state->internal), GFP_KERNEL);
 		if (!state->internal)
 			goto error;
 		temp_int = append_internal(state->internal);
@@ -4979,26 +4929,170 @@ struct dvb_frontend *stv090x_attach(struct stv090x_config *config,
 		state->frontend.ops.info.caps |= FE_CAN_MULTISTREAM;
 
 	/* workaround for stuck DiSEqC output */
-	if (config->diseqc_envelope_mode)
+	if (state->config->diseqc_envelope_mode)
 		stv090x_send_diseqc_burst(&state->frontend, SEC_MINI_A);
 
-	config->set_gpio = stv090x_set_gpio;
+	state->config->set_gpio = stv090x_set_gpio;
 
-	dprintk(FE_ERROR, 1, "Attaching %s demodulator(%d) Cut=0x%02x",
-	       state->device == STV0900 ? "STV0900" : "STV0903",
-	       demod,
-	       state->internal->dev_ver);
+	dprintk(FE_ERROR, 1, "Probing %s demodulator(%d) Cut=0x%02x",
+		state->device == STV0900 ? "STV0900" : "STV0903",
+		state->config->demod,
+		state->internal->dev_ver);
 
-	return &state->frontend;
+	return 0;
 
+error:
+	return -ENOMEM;
 err_remove:
 	remove_dev(state->internal);
 	kfree(state->internal);
+	return -ENODEV;
+}
+
+static const struct dvb_frontend_ops stv090x_ops = {
+	.delsys = { SYS_DVBS, SYS_DVBS2, SYS_DSS },
+	.info = {
+		.name			= "STV090x Multistandard",
+		.frequency_min_hz	=  950 * MHz,
+		.frequency_max_hz	= 2150 * MHz,
+		.symbol_rate_min	= 1000000,
+		.symbol_rate_max	= 45000000,
+		.caps			= FE_CAN_INVERSION_AUTO |
+					  FE_CAN_FEC_AUTO       |
+					  FE_CAN_QPSK           |
+					  FE_CAN_2G_MODULATION
+	},
+
+	.release			= stv090x_release,
+	.init				= stv090x_init,
+
+	.sleep				= stv090x_sleep,
+	.get_frontend_algo		= stv090x_frontend_algo,
+
+	.diseqc_send_master_cmd		= stv090x_send_diseqc_msg,
+	.diseqc_send_burst		= stv090x_send_diseqc_burst,
+	.diseqc_recv_slave_reply	= stv090x_recv_slave_reply,
+	.set_tone			= stv090x_set_tone,
+
+	.search				= stv090x_search,
+	.read_status			= stv090x_read_status,
+	.read_ber			= stv090x_read_per,
+	.read_signal_strength		= stv090x_read_signal_strength,
+	.read_snr			= stv090x_read_cnr,
+};
+
+static struct dvb_frontend *stv090x_get_dvb_frontend(struct i2c_client *client)
+{
+	struct stv090x_state *state = i2c_get_clientdata(client);
+
+	dev_dbg(&client->dev, "\n");
+
+	return &state->frontend;
+}
+
+static int stv090x_probe(struct i2c_client *client,
+			 const struct i2c_device_id *id)
+{
+	int ret = 0;
+	struct stv090x_config *config = client->dev.platform_data;
+
+	struct stv090x_state *state = NULL;
+
+	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	if (!state) {
+		ret = -ENOMEM;
+		goto error;
+	}
+
+	state->verbose				= &verbose;
+	state->config				= config;
+	state->i2c				= client->adapter;
+	state->frontend.ops			= stv090x_ops;
+	state->frontend.demodulator_priv	= state;
+	state->demod				= config->demod;
+						/* Single or Dual mode */
+	state->demod_mode			= config->demod_mode;
+	state->device				= config->device;
+						/* default */
+	state->rolloff				= STV090x_RO_35;
+
+	ret = stv090x_setup_compound(state);
+	if (ret)
+		goto error;
+
+	i2c_set_clientdata(client, state);
+
+	/* setup callbacks */
+	config->get_dvb_frontend = stv090x_get_dvb_frontend;
+
+	return 0;
+
+error:
+	kfree(state);
+	return ret;
+}
+
+static int stv090x_remove(struct i2c_client *client)
+{
+	struct stv090x_state *state = i2c_get_clientdata(client);
+
+	stv090x_release(&state->frontend);
+	return 0;
+}
+
+struct dvb_frontend *stv090x_attach(struct stv090x_config *config,
+				    struct i2c_adapter *i2c,
+				    enum stv090x_demodulator demod)
+{
+	int ret = 0;
+	struct stv090x_state *state = NULL;
+
+	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	if (!state)
+		goto error;
+
+	state->verbose				= &verbose;
+	state->config				= config;
+	state->i2c				= i2c;
+	state->frontend.ops			= stv090x_ops;
+	state->frontend.demodulator_priv	= state;
+	state->demod				= demod;
+						/* Single or Dual mode */
+	state->demod_mode			= config->demod_mode;
+	state->device				= config->device;
+						/* default */
+	state->rolloff				= STV090x_RO_35;
+
+	ret = stv090x_setup_compound(state);
+	if (ret)
+		goto error;
+
+	return &state->frontend;
+
 error:
 	kfree(state);
 	return NULL;
 }
 EXPORT_SYMBOL(stv090x_attach);
+
+static const struct i2c_device_id stv090x_id_table[] = {
+	{"stv090x", 0},
+	{}
+};
+MODULE_DEVICE_TABLE(i2c, stv090x_id_table);
+
+static struct i2c_driver stv090x_driver = {
+	.driver = {
+		.name	= "stv090x",
+		.suppress_bind_attrs = true,
+	},
+	.probe		= stv090x_probe,
+	.remove		= stv090x_remove,
+	.id_table	= stv090x_id_table,
+};
+
+module_i2c_driver(stv090x_driver);
+
 MODULE_PARM_DESC(verbose, "Set Verbosity level");
 MODULE_AUTHOR("Manu Abraham");
 MODULE_DESCRIPTION("STV090x Multi-Std Broadcast frontend");

@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  WM8505/WM8650 SD/MMC Host Controller
  *
  *  Copyright (C) 2010 Tony Prisk
  *  Copyright (C) 2008 WonderMedia Technologies, Inc.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation
  */
 
 #include <linux/init.h>
@@ -19,7 +16,7 @@
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/clk.h>
-#include <linux/gpio.h>
+#include <linux/interrupt.h>
 
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -725,7 +722,7 @@ static int wmt_mci_get_cd(struct mmc_host *mmc)
 	return !(cd ^ priv->cd_inverted);
 }
 
-static struct mmc_host_ops wmt_mci_ops = {
+static const struct mmc_host_ops wmt_mci_ops = {
 	.request = wmt_mci_request,
 	.set_ios = wmt_mci_set_ios,
 	.get_ro = wmt_mci_get_ro,
@@ -855,7 +852,9 @@ static int wmt_mci_probe(struct platform_device *pdev)
 		goto fail5;
 	}
 
-	clk_prepare_enable(priv->clk_sdmmc);
+	ret = clk_prepare_enable(priv->clk_sdmmc);
+	if (ret)
+		goto fail6;
 
 	/* configure the controller to a known 'ready' state */
 	wmt_reset_hardware(mmc);
@@ -865,6 +864,8 @@ static int wmt_mci_probe(struct platform_device *pdev)
 	dev_info(&pdev->dev, "WMT SDHC Controller initialized\n");
 
 	return 0;
+fail6:
+	clk_put(priv->clk_sdmmc);
 fail5:
 	free_irq(dma_irq, priv);
 fail4:
@@ -923,8 +924,7 @@ static int wmt_mci_remove(struct platform_device *pdev)
 static int wmt_mci_suspend(struct device *dev)
 {
 	u32 reg_tmp;
-	struct platform_device *pdev = to_platform_device(dev);
-	struct mmc_host *mmc = platform_get_drvdata(pdev);
+	struct mmc_host *mmc = dev_get_drvdata(dev);
 	struct wmt_mci_priv *priv;
 
 	if (!mmc)
@@ -948,8 +948,7 @@ static int wmt_mci_suspend(struct device *dev)
 static int wmt_mci_resume(struct device *dev)
 {
 	u32 reg_tmp;
-	struct platform_device *pdev = to_platform_device(dev);
-	struct mmc_host *mmc = platform_get_drvdata(pdev);
+	struct mmc_host *mmc = dev_get_drvdata(dev);
 	struct wmt_mci_priv *priv;
 
 	if (mmc) {

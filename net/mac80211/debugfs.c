@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * mac80211 debugfs for wireless PHYs
  *
  * Copyright 2007	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
- *
- * GPLv2
- *
+ * Copyright (C) 2018 - 2019 Intel Corporation
  */
 
 #include <linux/debugfs.h>
@@ -149,6 +148,58 @@ static const struct file_operations aqm_ops = {
 	.llseek = default_llseek,
 };
 
+static ssize_t force_tx_status_read(struct file *file,
+				    char __user *user_buf,
+				    size_t count,
+				    loff_t *ppos)
+{
+	struct ieee80211_local *local = file->private_data;
+	char buf[3];
+	int len = 0;
+
+	len = scnprintf(buf, sizeof(buf), "%d\n", (int)local->force_tx_status);
+
+	return simple_read_from_buffer(user_buf, count, ppos,
+				       buf, len);
+}
+
+static ssize_t force_tx_status_write(struct file *file,
+				     const char __user *user_buf,
+				     size_t count,
+				     loff_t *ppos)
+{
+	struct ieee80211_local *local = file->private_data;
+	char buf[3];
+	size_t len;
+
+	if (count > sizeof(buf))
+		return -EINVAL;
+
+	if (copy_from_user(buf, user_buf, count))
+		return -EFAULT;
+
+	buf[sizeof(buf) - 1] = '\0';
+	len = strlen(buf);
+	if (len > 0 && buf[len - 1] == '\n')
+		buf[len - 1] = 0;
+
+	if (buf[0] == '0' && buf[1] == '\0')
+		local->force_tx_status = 0;
+	else if (buf[0] == '1' && buf[1] == '\0')
+		local->force_tx_status = 1;
+	else
+		return -EINVAL;
+
+	return count;
+}
+
+static const struct file_operations force_tx_status_ops = {
+	.write = force_tx_status_write,
+	.read = force_tx_status_read,
+	.open = simple_open,
+	.llseek = default_llseek,
+};
+
 #ifdef CONFIG_PM
 static ssize_t reset_write(struct file *file, const char __user *user_buf,
 			   size_t count, loff_t *ppos)
@@ -210,6 +261,18 @@ static const char *hw_flag_names[] = {
 	FLAG(TX_AMSDU),
 	FLAG(TX_FRAG_LIST),
 	FLAG(REPORTS_LOW_ACK),
+	FLAG(SUPPORTS_TX_FRAG),
+	FLAG(SUPPORTS_TDLS_BUFFER_STA),
+	FLAG(DEAUTH_NEED_MGD_TX_PREP),
+	FLAG(DOESNT_SUPPORT_QOS_NDP),
+	FLAG(BUFF_MMPDU_TXQ),
+	FLAG(SUPPORTS_VHT_EXT_NSS_BW),
+	FLAG(STA_MMPDU_TXQ),
+	FLAG(TX_STATUS_NO_AMPDU_LEN),
+	FLAG(SUPPORTS_MULTI_BSSID),
+	FLAG(SUPPORTS_ONLY_HE_MULTI_BSSID),
+	FLAG(EXT_KEY_ID_NATIVE),
+	FLAG(NO_AMPDU_KEYBORDER_SUPPORT),
 #undef FLAG
 };
 
@@ -242,6 +305,38 @@ static ssize_t hwflags_read(struct file *file, char __user *user_buf,
 	return rv;
 }
 
+static ssize_t misc_read(struct file *file, char __user *user_buf,
+			 size_t count, loff_t *ppos)
+{
+	struct ieee80211_local *local = file->private_data;
+	/* Max len of each line is 16 characters, plus 9 for 'pending:\n' */
+	size_t bufsz = IEEE80211_MAX_QUEUES * 16 + 9;
+	char *buf;
+	char *pos, *end;
+	ssize_t rv;
+	int i;
+	int ln;
+
+	buf = kzalloc(bufsz, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	pos = buf;
+	end = buf + bufsz - 1;
+
+	pos += scnprintf(pos, end - pos, "pending:\n");
+
+	for (i = 0; i < IEEE80211_MAX_QUEUES; i++) {
+		ln = skb_queue_len(&local->pending[i]);
+		pos += scnprintf(pos, end - pos, "[%i] %d\n",
+				 i, ln);
+	}
+
+	rv = simple_read_from_buffer(user_buf, count, ppos, buf, strlen(buf));
+	kfree(buf);
+	return rv;
+}
+
 static ssize_t queues_read(struct file *file, char __user *user_buf,
 			   size_t count, loff_t *ppos)
 {
@@ -262,6 +357,7 @@ static ssize_t queues_read(struct file *file, char __user *user_buf,
 
 DEBUGFS_READONLY_FILE_OPS(hwflags);
 DEBUGFS_READONLY_FILE_OPS(queues);
+DEBUGFS_READONLY_FILE_OPS(misc);
 
 /* statistics stuff */
 
@@ -329,16 +425,22 @@ void debugfs_hw_add(struct ieee80211_local *local)
 
 	DEBUGFS_ADD(total_ps_buffered);
 	DEBUGFS_ADD(wep_iv);
+	DEBUGFS_ADD(rate_ctrl_alg);
 	DEBUGFS_ADD(queues);
+	DEBUGFS_ADD(misc);
 #ifdef CONFIG_PM
 	DEBUGFS_ADD_MODE(reset, 0200);
 #endif
 	DEBUGFS_ADD(hwflags);
 	DEBUGFS_ADD(user_power);
 	DEBUGFS_ADD(power);
+	DEBUGFS_ADD_MODE(force_tx_status, 0600);
 
 	if (local->ops->wake_tx_queue)
 		DEBUGFS_ADD_MODE(aqm, 0600);
+
+	debugfs_create_u16("airtime_flags", 0600,
+			   phyd, &local->airtime_flags);
 
 	statsd = debugfs_create_dir("statistics", phyd);
 

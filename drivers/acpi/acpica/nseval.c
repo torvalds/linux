@@ -1,45 +1,9 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /*******************************************************************************
  *
  * Module Name: nseval - Object evaluation, includes control method execution
  *
  ******************************************************************************/
-
-/*
- * Copyright (C) 2000 - 2016, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
 
 #include <acpi/acpi.h>
 #include "accommon.h"
@@ -49,11 +13,6 @@
 
 #define _COMPONENT          ACPI_NAMESPACE
 ACPI_MODULE_NAME("nseval")
-
-/* Local prototypes */
-static void
-acpi_ns_exec_module_code(union acpi_operand_object *method_obj,
-			 struct acpi_evaluate_info *info);
 
 /*******************************************************************************
  *
@@ -80,7 +39,6 @@ acpi_ns_exec_module_code(union acpi_operand_object *method_obj,
  * MUTEX:       Locks interpreter
  *
  ******************************************************************************/
-
 acpi_status acpi_ns_evaluate(struct acpi_evaluate_info *info)
 {
 	acpi_status status;
@@ -140,6 +98,13 @@ acpi_status acpi_ns_evaluate(struct acpi_evaluate_info *info)
 		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
 
+	/* Optional object evaluation log */
+
+	ACPI_DEBUG_PRINT_RAW((ACPI_DB_EVALUATION,
+			      "%-26s:  %s (%s)\n", "   Enter evaluation",
+			      &info->full_pathname[1],
+			      acpi_ut_get_type_name(info->node->type)));
+
 	/* Count the number of arguments being passed in */
 
 	info->param_count = 0;
@@ -187,6 +152,7 @@ acpi_status acpi_ns_evaluate(struct acpi_evaluate_info *info)
 	 * 3) The object is not a method -- just return it's current value
 	 */
 	switch (acpi_ns_get_type(info->node)) {
+	case ACPI_TYPE_ANY:
 	case ACPI_TYPE_DEVICE:
 	case ACPI_TYPE_EVENT:
 	case ACPI_TYPE_MUTEX:
@@ -194,11 +160,12 @@ acpi_status acpi_ns_evaluate(struct acpi_evaluate_info *info)
 	case ACPI_TYPE_THERMAL:
 	case ACPI_TYPE_LOCAL_SCOPE:
 		/*
-		 * 1) Disallow evaluation of certain object types. For these,
-		 *    object evaluation is undefined and not supported.
+		 * 1) Disallow evaluation of these object types. For these,
+		 *    object evaluation is undefined.
 		 */
 		ACPI_ERROR((AE_INFO,
-			    "%s: Evaluation of object type [%s] is not supported",
+			    "%s: This object type [%s] "
+			    "never contains data and cannot be evaluated",
 			    info->full_pathname,
 			    acpi_ut_get_type_name(info->node->type)));
 
@@ -308,6 +275,14 @@ acpi_status acpi_ns_evaluate(struct acpi_evaluate_info *info)
 		/* Map AE_CTRL_RETURN_VALUE to AE_OK, we are done with it */
 
 		status = AE_OK;
+	} else if (ACPI_FAILURE(status)) {
+
+		/* If return_object exists, delete it */
+
+		if (info->return_object) {
+			acpi_ut_remove_reference(info->return_object);
+			info->return_object = NULL;
+		}
 	}
 
 	ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
@@ -315,6 +290,12 @@ acpi_status acpi_ns_evaluate(struct acpi_evaluate_info *info)
 			  info->relative_pathname));
 
 cleanup:
+	/* Optional object evaluation log */
+
+	ACPI_DEBUG_PRINT_RAW((ACPI_DB_EVALUATION,
+			      "%-26s:  %s\n", "   Exit evaluation",
+			      &info->full_pathname[1]));
+
 	/*
 	 * Namespace was unlocked by the handling acpi_ns* function, so we
 	 * just free the pathname and return
@@ -322,174 +303,4 @@ cleanup:
 	ACPI_FREE(info->full_pathname);
 	info->full_pathname = NULL;
 	return_ACPI_STATUS(status);
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_ns_exec_module_code_list
- *
- * PARAMETERS:  None
- *
- * RETURN:      None. Exceptions during method execution are ignored, since
- *              we cannot abort a table load.
- *
- * DESCRIPTION: Execute all elements of the global module-level code list.
- *              Each element is executed as a single control method.
- *
- ******************************************************************************/
-
-void acpi_ns_exec_module_code_list(void)
-{
-	union acpi_operand_object *prev;
-	union acpi_operand_object *next;
-	struct acpi_evaluate_info *info;
-	u32 method_count = 0;
-
-	ACPI_FUNCTION_TRACE(ns_exec_module_code_list);
-
-	/* Exit now if the list is empty */
-
-	next = acpi_gbl_module_code_list;
-	if (!next) {
-		return_VOID;
-	}
-
-	/* Allocate the evaluation information block */
-
-	info = ACPI_ALLOCATE(sizeof(struct acpi_evaluate_info));
-	if (!info) {
-		return_VOID;
-	}
-
-	/* Walk the list, executing each "method" */
-
-	while (next) {
-		prev = next;
-		next = next->method.mutex;
-
-		/* Clear the link field and execute the method */
-
-		prev->method.mutex = NULL;
-		acpi_ns_exec_module_code(prev, info);
-		method_count++;
-
-		/* Delete the (temporary) method object */
-
-		acpi_ut_remove_reference(prev);
-	}
-
-	ACPI_INFO(("Executed %u blocks of module-level executable AML code",
-		   method_count));
-
-	ACPI_FREE(info);
-	acpi_gbl_module_code_list = NULL;
-	return_VOID;
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_ns_exec_module_code
- *
- * PARAMETERS:  method_obj          - Object container for the module-level code
- *              info                - Info block for method evaluation
- *
- * RETURN:      None. Exceptions during method execution are ignored, since
- *              we cannot abort a table load.
- *
- * DESCRIPTION: Execute a control method containing a block of module-level
- *              executable AML code. The control method is temporarily
- *              installed to the root node, then evaluated.
- *
- ******************************************************************************/
-
-static void
-acpi_ns_exec_module_code(union acpi_operand_object *method_obj,
-			 struct acpi_evaluate_info *info)
-{
-	union acpi_operand_object *parent_obj;
-	struct acpi_namespace_node *parent_node;
-	acpi_object_type type;
-	acpi_status status;
-
-	ACPI_FUNCTION_TRACE(ns_exec_module_code);
-
-	/*
-	 * Get the parent node. We cheat by using the next_object field
-	 * of the method object descriptor.
-	 */
-	parent_node =
-	    ACPI_CAST_PTR(struct acpi_namespace_node,
-				    method_obj->method.next_object);
-	type = acpi_ns_get_type(parent_node);
-
-	/*
-	 * Get the region handler and save it in the method object. We may need
-	 * this if an operation region declaration causes a _REG method to be run.
-	 *
-	 * We can't do this in acpi_ps_link_module_code because
-	 * acpi_gbl_root_node->Object is NULL at PASS1.
-	 */
-	if ((type == ACPI_TYPE_DEVICE) && parent_node->object) {
-		method_obj->method.dispatch.handler =
-		    parent_node->object->device.handler;
-	}
-
-	/* Must clear next_object (acpi_ns_attach_object needs the field) */
-
-	method_obj->method.next_object = NULL;
-
-	/* Initialize the evaluation information block */
-
-	memset(info, 0, sizeof(struct acpi_evaluate_info));
-	info->prefix_node = parent_node;
-
-	/*
-	 * Get the currently attached parent object. Add a reference,
-	 * because the ref count will be decreased when the method object
-	 * is installed to the parent node.
-	 */
-	parent_obj = acpi_ns_get_attached_object(parent_node);
-	if (parent_obj) {
-		acpi_ut_add_reference(parent_obj);
-	}
-
-	/* Install the method (module-level code) in the parent node */
-
-	status =
-	    acpi_ns_attach_object(parent_node, method_obj, ACPI_TYPE_METHOD);
-	if (ACPI_FAILURE(status)) {
-		goto exit;
-	}
-
-	/* Execute the parent node as a control method */
-
-	status = acpi_ns_evaluate(info);
-
-	ACPI_DEBUG_PRINT((ACPI_DB_INIT_NAMES,
-			  "Executed module-level code at %p\n",
-			  method_obj->method.aml_start));
-
-	/* Delete a possible implicit return value (in slack mode) */
-
-	if (info->return_object) {
-		acpi_ut_remove_reference(info->return_object);
-	}
-
-	/* Detach the temporary method object */
-
-	acpi_ns_detach_object(parent_node);
-
-	/* Restore the original parent object */
-
-	if (parent_obj) {
-		status = acpi_ns_attach_object(parent_node, parent_obj, type);
-	} else {
-		parent_node->type = (u8)type;
-	}
-
-exit:
-	if (parent_obj) {
-		acpi_ut_remove_reference(parent_obj);
-	}
-	return_VOID;
 }

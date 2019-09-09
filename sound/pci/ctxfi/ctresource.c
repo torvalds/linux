@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /**
  * Copyright (C) 2008, Creative Technology Ltd. All Rights Reserved.
- *
- * This source file is released under GPL v2 license (no other versions).
- * See the COPYING file included in the main directory of this source
- * distribution for the license terms and conditions.
  *
  * @File	ctresource.c
  *
@@ -12,7 +9,6 @@
  *
  * @Author	Liu Chun
  * @Date 	May 15 2008
- *
  */
 
 #include "ctresource.h"
@@ -258,10 +254,8 @@ error:
 
 int rsc_mgr_uninit(struct rsc_mgr *mgr)
 {
-	if (NULL != mgr->rscs) {
-		kfree(mgr->rscs);
-		mgr->rscs = NULL;
-	}
+	kfree(mgr->rscs);
+	mgr->rscs = NULL;
 
 	if ((NULL != mgr->hw) && (NULL != mgr->ctrl_blk)) {
 		switch (mgr->type) {

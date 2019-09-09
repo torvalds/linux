@@ -43,7 +43,7 @@
 
 #include "usbtv.h"
 
-static struct snd_pcm_hardware snd_usbtv_digital_hw = {
+static const struct snd_pcm_hardware snd_usbtv_digital_hw = {
 	.info = SNDRV_PCM_INFO_BATCH |
 		SNDRV_PCM_INFO_MMAP |
 		SNDRV_PCM_INFO_INTERLEAVED |
@@ -126,6 +126,7 @@ static void usbtv_audio_urb_received(struct urb *urb)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	size_t i, frame_bytes, chunk_length, buffer_pos, period_pos;
 	int period_elapsed;
+	unsigned long flags;
 	void *urb_current;
 
 	switch (urb->status) {
@@ -179,12 +180,12 @@ static void usbtv_audio_urb_received(struct urb *urb)
 		}
 	}
 
-	snd_pcm_stream_lock(substream);
+	snd_pcm_stream_lock_irqsave(substream, flags);
 
 	chip->snd_buffer_pos = buffer_pos;
 	chip->snd_period_pos = period_pos;
 
-	snd_pcm_stream_unlock(substream);
+	snd_pcm_stream_unlock_irqrestore(substream, flags);
 
 	if (period_elapsed)
 		snd_pcm_period_elapsed(substream);
@@ -357,8 +358,8 @@ int usbtv_audio_init(struct usbtv *usbtv)
 	if (rv < 0)
 		return rv;
 
-	strlcpy(card->driver, usbtv->dev->driver->name, sizeof(card->driver));
-	strlcpy(card->shortname, "usbtv", sizeof(card->shortname));
+	strscpy(card->driver, usbtv->dev->driver->name, sizeof(card->driver));
+	strscpy(card->shortname, "usbtv", sizeof(card->shortname));
 	snprintf(card->longname, sizeof(card->longname),
 		"USBTV Audio at bus %d device %d", usbtv->udev->bus->busnum,
 		usbtv->udev->devnum);
@@ -371,7 +372,7 @@ int usbtv_audio_init(struct usbtv *usbtv)
 	if (rv < 0)
 		goto err;
 
-	strlcpy(pcm->name, "USBTV Audio Input", sizeof(pcm->name));
+	strscpy(pcm->name, "USBTV Audio Input", sizeof(pcm->name));
 	pcm->info_flags = 0;
 	pcm->private_data = usbtv;
 

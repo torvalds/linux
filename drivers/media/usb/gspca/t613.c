@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * T613 subdriver
  *
  * Copyright (C) 2010 Jean-Francois Moine (http://moinejf.free.fr)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
  *Notes: * t613  + tas5130A
  *	* Focus to light do not balance well as in win.
@@ -367,7 +354,7 @@ static void reg_w_ixbuf(struct gspca_dev *gspca_dev,
 	if (len * 2 <= USB_BUF_SZ) {
 		p = tmpbuf = gspca_dev->usb_buf;
 	} else {
-		p = tmpbuf = kmalloc(len * 2, GFP_KERNEL);
+		p = tmpbuf = kmalloc_array(len, 2, GFP_KERNEL);
 		if (!tmpbuf) {
 			pr_err("Out of memory\n");
 			return;
@@ -494,7 +481,7 @@ static void setcolors(struct gspca_dev *gspca_dev, s32 val)
 
 static void setgamma(struct gspca_dev *gspca_dev, s32 val)
 {
-	PDEBUG(D_CONF, "Gamma: %d", val);
+	gspca_dbg(gspca_dev, D_CONF, "Gamma: %d\n", val);
 	reg_w_ixbuf(gspca_dev, 0x90,
 		gamma_table[val], sizeof gamma_table[0]);
 }
@@ -574,9 +561,9 @@ static void setfreq(struct gspca_dev *gspca_dev, s32 val)
 /* this function is called at probe and resume time */
 static int sd_init(struct gspca_dev *gspca_dev)
 {
-	/* some of this registers are not really neded, because
-	 * they are overriden by setbrigthness, setcontrast, etc,
-	 * but wont hurt anyway, and can help someone with similar webcam
+	/* some of this registers are not really needed, because
+	 * they are overridden by setbrigthness, setcontrast, etc.,
+	 * but won't hurt anyway, and can help someone with similar webcam
 	 * to see the initial parameters.*/
 	struct sd *sd = (struct sd *) gspca_dev;
 	const struct additional_sensor_data *sensor;
@@ -596,19 +583,19 @@ static int sd_init(struct gspca_dev *gspca_dev)
 			| reg_r(gspca_dev, 0x07);
 	switch (sensor_id & 0xff0f) {
 	case 0x0801:
-		PDEBUG(D_PROBE, "sensor tas5130a");
+		gspca_dbg(gspca_dev, D_PROBE, "sensor tas5130a\n");
 		sd->sensor = SENSOR_TAS5130A;
 		break;
 	case 0x0802:
-		PDEBUG(D_PROBE, "sensor lt168g");
+		gspca_dbg(gspca_dev, D_PROBE, "sensor lt168g\n");
 		sd->sensor = SENSOR_LT168G;
 		break;
 	case 0x0803:
-		PDEBUG(D_PROBE, "sensor 'other'");
+		gspca_dbg(gspca_dev, D_PROBE, "sensor 'other'\n");
 		sd->sensor = SENSOR_OTHER;
 		break;
 	case 0x0807:
-		PDEBUG(D_PROBE, "sensor om6802");
+		gspca_dbg(gspca_dev, D_PROBE, "sensor om6802\n");
 		sd->sensor = SENSOR_OM6802;
 		break;
 	default:
@@ -636,8 +623,8 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	i = 0;
 	while (read_indexs[i] != 0x00) {
 		test_byte = reg_r(gspca_dev, read_indexs[i]);
-		PDEBUG(D_STREAM, "Reg 0x%02x = 0x%02x", read_indexs[i],
-		       test_byte);
+		gspca_dbg(gspca_dev, D_STREAM, "Reg 0x%02x = 0x%02x\n",
+			  read_indexs[i], test_byte);
 		i++;
 	}
 
@@ -647,8 +634,8 @@ static int sd_init(struct gspca_dev *gspca_dev)
 
 	if (sd->sensor == SENSOR_LT168G) {
 		test_byte = reg_r(gspca_dev, 0x80);
-		PDEBUG(D_STREAM, "Reg 0x%02x = 0x%02x", 0x80,
-		       test_byte);
+		gspca_dbg(gspca_dev, D_STREAM, "Reg 0x%02x = 0x%02x\n", 0x80,
+			  test_byte);
 		reg_w(gspca_dev, 0x6c80);
 	}
 
@@ -669,8 +656,8 @@ static int sd_init(struct gspca_dev *gspca_dev)
 
 	if (sd->sensor == SENSOR_LT168G) {
 		test_byte = reg_r(gspca_dev, 0x80);
-		PDEBUG(D_STREAM, "Reg 0x%02x = 0x%02x", 0x80,
-		       test_byte);
+		gspca_dbg(gspca_dev, D_STREAM, "Reg 0x%02x = 0x%02x\n", 0x80,
+			  test_byte);
 		reg_w(gspca_dev, 0x6c80);
 	}
 
@@ -741,7 +728,7 @@ static void poll_sensor(struct gspca_dev *gspca_dev)
 		 0xa1, 0xb1, 0xda, 0x6b, 0xdb, 0x98, 0xdf, 0x0c,
 		 0xc2, 0x80, 0xc3, 0x10};
 
-	PDEBUG(D_STREAM, "[Sensor requires polling]");
+	gspca_dbg(gspca_dev, D_STREAM, "[Sensor requires polling]\n");
 	reg_w_buf(gspca_dev, poll1, sizeof poll1);
 	reg_w_buf(gspca_dev, poll2, sizeof poll2);
 	reg_w_buf(gspca_dev, noise03, sizeof noise03);
@@ -970,7 +957,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 			V4L2_CID_SATURATION, 0, 0xf, 1, 5);
 	v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
 			V4L2_CID_GAMMA, 0, GAMMA_MAX, 1, 10);
-	/* Activate lowlight, some apps dont bring up the
+	/* Activate lowlight, some apps don't bring up the
 	   backlight_compensation control) */
 	v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
 			V4L2_CID_BACKLIGHT_COMPENSATION, 0, 1, 1, 1);

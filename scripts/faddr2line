@@ -1,4 +1,5 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-2.0
 #
 # Translate stack dump function offsets.
 #
@@ -43,12 +44,19 @@
 set -o errexit
 set -o nounset
 
+READELF="${CROSS_COMPILE:-}readelf"
+ADDR2LINE="${CROSS_COMPILE:-}addr2line"
+SIZE="${CROSS_COMPILE:-}size"
+NM="${CROSS_COMPILE:-}nm"
+
 command -v awk >/dev/null 2>&1 || die "awk isn't installed"
-command -v readelf >/dev/null 2>&1 || die "readelf isn't installed"
-command -v addr2line >/dev/null 2>&1 || die "addr2line isn't installed"
+command -v ${READELF} >/dev/null 2>&1 || die "readelf isn't installed"
+command -v ${ADDR2LINE} >/dev/null 2>&1 || die "addr2line isn't installed"
+command -v ${SIZE} >/dev/null 2>&1 || die "size isn't installed"
+command -v ${NM} >/dev/null 2>&1 || die "nm isn't installed"
 
 usage() {
-	echo "usage: faddr2line <object file> <func+offset> <func+offset>..." >&2
+	echo "usage: faddr2line [--list] <object file> <func+offset> <func+offset>..." >&2
 	exit 1
 }
 
@@ -63,15 +71,15 @@ die() {
 
 # Try to figure out the source directory prefix so we can remove it from the
 # addr2line output.  HACK ALERT: This assumes that start_kernel() is in
-# kernel/init.c!  This only works for vmlinux.  Otherwise it falls back to
+# init/main.c!  This only works for vmlinux.  Otherwise it falls back to
 # printing the absolute path.
 find_dir_prefix() {
 	local objfile=$1
 
-	local start_kernel_addr=$(readelf -sW $objfile | awk '$8 == "start_kernel" {printf "0x%s", $2}')
+	local start_kernel_addr=$(${READELF} -sW $objfile | awk '$8 == "start_kernel" {printf "0x%s", $2}')
 	[[ -z $start_kernel_addr ]] && return
 
-	local file_line=$(addr2line -e $objfile $start_kernel_addr)
+	local file_line=$(${ADDR2LINE} -e $objfile $start_kernel_addr)
 	[[ -z $file_line ]] && return
 
 	local prefix=${file_line%init/main.c:*}
@@ -103,11 +111,21 @@ __faddr2line() {
 
 	# Go through each of the object's symbols which match the func name.
 	# In rare cases there might be duplicates.
+	file_end=$(${SIZE} -Ax $objfile | awk '$1 == ".text" {print $2}')
 	while read symbol; do
 		local fields=($symbol)
-		local sym_base=0x${fields[1]}
-		local sym_size=${fields[2]}
-		local sym_type=${fields[3]}
+		local sym_base=0x${fields[0]}
+		local sym_type=${fields[1]}
+		local sym_end=${fields[3]}
+
+		# calculate the size
+		local sym_size=$(($sym_end - $sym_base))
+		if [[ -z $sym_size ]] || [[ $sym_size -le 0 ]]; then
+			warn "bad symbol size: base: $sym_base end: $sym_end"
+			DONE=1
+			return
+		fi
+		sym_size=0x$(printf %x $sym_size)
 
 		# calculate the address
 		local addr=$(($sym_base + $offset))
@@ -116,26 +134,26 @@ __faddr2line() {
 			DONE=1
 			return
 		fi
-		local hexaddr=0x$(printf %x $addr)
+		addr=0x$(printf %x $addr)
 
 		# weed out non-function symbols
-		if [[ $sym_type != "FUNC" ]]; then
+		if [[ $sym_type != t ]] && [[ $sym_type != T ]]; then
 			[[ $print_warnings = 1 ]] &&
-				echo "skipping $func address at $hexaddr due to non-function symbol"
+				echo "skipping $func address at $addr due to non-function symbol of type '$sym_type'"
 			continue
 		fi
 
 		# if the user provided a size, make sure it matches the symbol's size
 		if [[ -n $size ]] && [[ $size -ne $sym_size ]]; then
 			[[ $print_warnings = 1 ]] &&
-				echo "skipping $func address at $hexaddr due to size mismatch ($size != $sym_size)"
+				echo "skipping $func address at $addr due to size mismatch ($size != $sym_size)"
 			continue;
 		fi
 
 		# make sure the provided offset is within the symbol's range
 		if [[ $offset -gt $sym_size ]]; then
 			[[ $print_warnings = 1 ]] &&
-				echo "skipping $func address at $hexaddr due to size mismatch ($offset > $sym_size)"
+				echo "skipping $func address at $addr due to size mismatch ($offset > $sym_size)"
 			continue
 		fi
 
@@ -143,17 +161,44 @@ __faddr2line() {
 		[[ $FIRST = 0 ]] && echo
 		FIRST=0
 
-		local hexsize=0x$(printf %x $sym_size)
-		echo "$func+$offset/$hexsize:"
-		addr2line -fpie $objfile $hexaddr | sed "s; $dir_prefix\(\./\)*; ;"
+		# pass real address to addr2line
+		echo "$func+$offset/$sym_size:"
+		local file_lines=$(${ADDR2LINE} -fpie $objfile $addr | sed "s; $dir_prefix\(\./\)*; ;")
+		[[ -z $file_lines ]] && return
+
+		if [[ $LIST = 0 ]]; then
+			echo "$file_lines" | while read -r line
+			do
+				echo $line
+			done
+			DONE=1;
+			return
+		fi
+
+		# show each line with context
+		echo "$file_lines" | while read -r line
+		do
+			echo
+			echo $line
+			n=$(echo $line | sed 's/.*:\([0-9]\+\).*/\1/g')
+			n1=$[$n-5]
+			n2=$[$n+5]
+			f=$(echo $line | sed 's/.*at \(.\+\):.*/\1/g')
+			awk 'NR>=strtonum("'$n1'") && NR<=strtonum("'$n2'") { if (NR=='$n') printf(">%d<", NR); else printf(" %d ", NR); printf("\t%s\n", $0)}' $f
+		done
+
 		DONE=1
 
-	done < <(readelf -sW $objfile | awk -v f=$func '$8 == f {print}')
+	done < <(${NM} -n $objfile | awk -v fn=$func -v end=$file_end '$3 == fn { found=1; line=$0; start=$1; next } found == 1 { found=0; print line, "0x"$1 } END {if (found == 1) print line, end; }')
 }
 
 [[ $# -lt 2 ]] && usage
 
 objfile=$1
+
+LIST=0
+[[ "$objfile" == "--list" ]] && LIST=1 && shift && objfile=$1
+
 [[ ! -f $objfile ]] && die "can't find objfile $objfile"
 shift
 

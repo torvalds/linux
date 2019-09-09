@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * ascot2e.c
  *
@@ -7,16 +8,6 @@
  * Copyright (C) 2014 NetUP Inc.
  * Copyright (C) 2014 Sergey Kozlov <serjk@netup.ru>
  * Copyright (C) 2014 Abylay Ospan <aospan@netup.ru>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
   */
 
 #include <linux/slab.h>
@@ -24,7 +15,7 @@
 #include <linux/dvb/frontend.h>
 #include <linux/types.h>
 #include "ascot2e.h"
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 #define MAX_WRITE_REGSIZE 10
 
@@ -155,7 +146,9 @@ static int ascot2e_write_regs(struct ascot2e_priv *priv,
 
 static int ascot2e_write_reg(struct ascot2e_priv *priv, u8 reg, u8 val)
 {
-	return ascot2e_write_regs(priv, reg, &val, 1);
+	u8 tmp = val; /* see gcc.gnu.org/bugzilla/show_bug.cgi?id=81715 */
+
+	return ascot2e_write_regs(priv, reg, &tmp, 1);
 }
 
 static int ascot2e_read_regs(struct ascot2e_priv *priv,
@@ -254,14 +247,13 @@ static int ascot2e_init(struct dvb_frontend *fe)
 	return ascot2e_leave_power_save(priv);
 }
 
-static int ascot2e_release(struct dvb_frontend *fe)
+static void ascot2e_release(struct dvb_frontend *fe)
 {
 	struct ascot2e_priv *priv = fe->tuner_priv;
 
 	dev_dbg(&priv->i2c->dev, "%s()\n", __func__);
 	kfree(fe->tuner_priv);
 	fe->tuner_priv = NULL;
-	return 0;
 }
 
 static int ascot2e_sleep(struct dvb_frontend *fe)
@@ -467,9 +459,9 @@ static int ascot2e_get_frequency(struct dvb_frontend *fe, u32 *frequency)
 static const struct dvb_tuner_ops ascot2e_tuner_ops = {
 	.info = {
 		.name = "Sony ASCOT2E",
-		.frequency_min = 1000000,
-		.frequency_max = 1200000000,
-		.frequency_step = 25000,
+		.frequency_min_hz  =    1 * MHz,
+		.frequency_max_hz  = 1200 * MHz,
+		.frequency_step_hz =   25 * kHz,
 	},
 	.init = ascot2e_init,
 	.release = ascot2e_release,

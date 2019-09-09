@@ -1,5 +1,3 @@
+# SPDX-License-Identifier: GPL-2.0-only
 dtb-$(CONFIG_ARCH_ZX) += zx296718-evb.dtb
-
-always		:= $(dtb-y)
-subdir-y	:= $(dts-dirs)
-clean-files	:= *.dtb
+dtb-$(CONFIG_ARCH_ZX) += zx296718-pcbox.dtb

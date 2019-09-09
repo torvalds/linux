@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* cnode related routines for the coda kernel code
    (C) 1996 Peter Braam
    */
@@ -7,8 +8,8 @@
 #include <linux/time.h>
 
 #include <linux/coda.h>
-#include <linux/coda_psdev.h>
 #include <linux/pagemap.h>
+#include "coda_psdev.h"
 #include "coda_linux.h"
 
 static inline int coda_fideq(struct CodaFid *fid1, struct CodaFid *fid2)
@@ -17,7 +18,6 @@ static inline int coda_fideq(struct CodaFid *fid1, struct CodaFid *fid2)
 }
 
 static const struct inode_operations coda_symlink_inode_operations = {
-	.readlink	= generic_readlink,
 	.get_link	= page_get_link,
 	.setattr	= coda_setattr,
 };
@@ -137,11 +137,6 @@ struct inode *coda_fid_to_inode(struct CodaFid *fid, struct super_block *sb)
 	struct inode *inode;
 	unsigned long hash = coda_f2i(fid);
 
-	if ( !sb ) {
-		pr_warn("%s: no sb!\n", __func__);
-		return NULL;
-	}
-
 	inode = ilookup5(sb, hash, coda_test_inode, fid);
 	if ( !inode )
 		return NULL;
@@ -151,6 +146,16 @@ struct inode *coda_fid_to_inode(struct CodaFid *fid, struct super_block *sb)
 	BUG_ON(inode->i_state & I_NEW);
 
 	return inode;
+}
+
+struct coda_file_info *coda_ftoc(struct file *file)
+{
+	struct coda_file_info *cfi = file->private_data;
+
+	BUG_ON(!cfi || cfi->cfi_magic != CODA_MAGIC);
+
+	return cfi;
+
 }
 
 /* the CONTROL inode is made without asking attributes from Venus */

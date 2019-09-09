@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * CM3323 - Capella Color Light Sensor
  *
  * Copyright (c) 2015, Intel Corporation.
- *
- * This file is subject to the terms and conditions of version 2 of
- * the GNU General Public License.  See the file COPYING in the main
- * directory of this archive for more details.
  *
  * IIO driver for CM3323 (7-bit I2C slave address 0x10)
  *
@@ -211,7 +208,6 @@ static int cm3323_write_raw(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info cm3323_info = {
-	.driver_module	= THIS_MODULE,
 	.read_raw	= cm3323_read_raw,
 	.write_raw	= cm3323_write_raw,
 	.attrs		= &cm3323_attribute_group,

@@ -1,0 +1,50 @@
+What:		/sys/class/remoteproc/.../firmware
+Date:		October 2016
+Contact:	Matt Redfearn <matt.redfearn@mips.com>
+Description:	Remote processor firmware
+
+		Reports the name of the firmware currently loaded to the
+		remote processor.
+
+		To change the running firmware, ensure the remote processor is
+		stopped (using /sys/class/remoteproc/.../state) and write a new filename.
+
+What:		/sys/class/remoteproc/.../state
+Date:		October 2016
+Contact:	Matt Redfearn <matt.redfearn@mips.com>
+Description:	Remote processor state
+
+		Reports the state of the remote processor, which will be one of:
+
+		"offline"
+		"suspended"
+		"running"
+		"crashed"
+		"invalid"
+
+		"offline" means the remote processor is powered off.
+
+		"suspended" means that the remote processor is suspended and
+		must be woken to receive messages.
+
+		"running" is the normal state of an available remote processor
+
+		"crashed" indicates that a problem/crash has been detected on
+		the remote processor.
+
+		"invalid" is returned if the remote processor is in an
+		unknown state.
+
+		Writing this file controls the state of the remote processor.
+		The following states can be written:
+
+		"start"
+		"stop"
+
+		Writing "start" will attempt to start the processor running the
+		firmware indicated by, or written to,
+		/sys/class/remoteproc/.../firmware. The remote processor should
+		transition to "running" state.
+
+		Writing "stop" will attempt to halt the remote processor and
+		return it to the "offline" state.

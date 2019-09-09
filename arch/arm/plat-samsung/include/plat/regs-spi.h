@@ -1,13 +1,9 @@
-/* arch/arm/plat-samsung/include/plat/regs-spi.h
- *
+/* SPDX-License-Identifier: GPL-2.0 */
+/*
  * Copyright (c) 2004 Fetron GmbH
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  * S3C2410 SPI register definition
-*/
+ */
 
 #ifndef __ASM_ARCH_REGS_SPI_H
 #define __ASM_ARCH_REGS_SPI_H

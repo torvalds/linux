@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2009-2010 Freescale Semiconductor, Inc.
  *
@@ -7,20 +8,6 @@
  *
  * This file is derived from the original work done
  * by Sylvain Munaut for the Bestcomm SRAM allocator.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/kernel.h>
@@ -101,25 +88,25 @@ int __init instantiate_cache_sram(struct platform_device *dev,
 
 	if (!request_mem_region(cache_sram->base_phys, cache_sram->size,
 						"fsl_85xx_cache_sram")) {
-		dev_err(&dev->dev, "%s: request memory failed\n",
-				dev->dev.of_node->full_name);
+		dev_err(&dev->dev, "%pOF: request memory failed\n",
+				dev->dev.of_node);
 		ret = -ENXIO;
 		goto out_free;
 	}
 
-	cache_sram->base_virt = ioremap_prot(cache_sram->base_phys,
-				cache_sram->size, _PAGE_COHERENT | PAGE_KERNEL);
+	cache_sram->base_virt = ioremap_coherent(cache_sram->base_phys,
+						 cache_sram->size);
 	if (!cache_sram->base_virt) {
-		dev_err(&dev->dev, "%s: ioremap_prot failed\n",
-				dev->dev.of_node->full_name);
+		dev_err(&dev->dev, "%pOF: ioremap_coherent failed\n",
+			dev->dev.of_node);
 		ret = -ENOMEM;
 		goto out_release;
 	}
 
 	cache_sram->rh = rh_create(sizeof(unsigned int));
 	if (IS_ERR(cache_sram->rh)) {
-		dev_err(&dev->dev, "%s: Unable to create remote heap\n",
-				dev->dev.of_node->full_name);
+		dev_err(&dev->dev, "%pOF: Unable to create remote heap\n",
+				dev->dev.of_node);
 		ret = PTR_ERR(cache_sram->rh);
 		goto out_unmap;
 	}

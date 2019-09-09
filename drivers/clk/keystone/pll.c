@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * PLL clock driver for Keystone devices
  *
  * Copyright (C) 2013 Texas Instruments Inc.
  *	Murali Karicheri <m-karicheri2@ti.com>
  *	Santosh Shilimkar <santosh.shilimkar@ti.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 #include <linux/clk-provider.h>
 #include <linux/err.h>
@@ -154,7 +150,7 @@ out:
 }
 
 /**
- * _of_clk_init - PLL initialisation via DT
+ * _of_pll_clk_init - PLL initialisation via DT
  * @node: device tree node for this clock
  * @pllctrl: If true, lower 6 bits of multiplier is in pllm register of
  *		pll controller, else it is in the control register0(bit 11-6)
@@ -219,7 +215,7 @@ static void __init _of_pll_clk_init(struct device_node *node, bool pllctrl)
 	}
 
 out:
-	pr_err("%s: error initializing pll %s\n", __func__, node->name);
+	pr_err("%s: error initializing pll %pOFn\n", __func__, node);
 	kfree(pll_data);
 }
 
@@ -235,7 +231,7 @@ CLK_OF_DECLARE(keystone_pll_clock, "ti,keystone,pll-clock",
 					of_keystone_pll_clk_init);
 
 /**
- * of_keystone_pll_main_clk_init - Main PLL initialisation DT wrapper
+ * of_keystone_main_pll_clk_init - Main PLL initialisation DT wrapper
  * @node: device tree node for this clock
  */
 static void __init of_keystone_main_pll_clk_init(struct device_node *node)
@@ -267,25 +263,30 @@ static void __init of_pll_div_clk_init(struct device_node *node)
 	parent_name = of_clk_get_parent_name(node, 0);
 	if (!parent_name) {
 		pr_err("%s: missing parent clock\n", __func__);
+		iounmap(reg);
 		return;
 	}
 
 	if (of_property_read_u32(node, "bit-shift", &shift)) {
 		pr_err("%s: missing 'shift' property\n", __func__);
+		iounmap(reg);
 		return;
 	}
 
 	if (of_property_read_u32(node, "bit-mask", &mask)) {
 		pr_err("%s: missing 'bit-mask' property\n", __func__);
+		iounmap(reg);
 		return;
 	}
 
 	clk = clk_register_divider(NULL, clk_name, parent_name, 0, reg, shift,
 				 mask, 0, NULL);
-	if (clk)
+	if (clk) {
 		of_clk_add_provider(node, of_clk_src_simple_get, clk);
-	else
+	} else {
 		pr_err("%s: error registering divider %s\n", __func__, clk_name);
+		iounmap(reg);
+	}
 }
 CLK_OF_DECLARE(pll_divider_clock, "ti,keystone,pll-divider-clock", of_pll_div_clk_init);
 
@@ -333,3 +334,8 @@ static void __init of_pll_mux_clk_init(struct device_node *node)
 		pr_err("%s: error registering mux %s\n", __func__, clk_name);
 }
 CLK_OF_DECLARE(pll_mux_clock, "ti,keystone,pll-mux-clock", of_pll_mux_clk_init);
+
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("PLL clock driver for Keystone devices");
+MODULE_AUTHOR("Murali Karicheri <m-karicheri2@ti.com>");
+MODULE_AUTHOR("Santosh Shilimkar <santosh.shilimkar@ti.com>");

@@ -75,9 +75,8 @@ extern unsigned int xenblk_max_queues;
 struct blkif_common_request {
 	char dummy;
 };
-struct blkif_common_response {
-	char dummy;
-};
+
+/* i386 protocol version */
 
 struct blkif_x86_32_request_rw {
 	uint8_t        nr_segments;  /* number of segments                   */
@@ -129,14 +128,6 @@ struct blkif_x86_32_request {
 	} u;
 } __attribute__((__packed__));
 
-/* i386 protocol version */
-#pragma pack(push, 4)
-struct blkif_x86_32_response {
-	uint64_t        id;              /* copied from request */
-	uint8_t         operation;       /* copied from request */
-	int16_t         status;          /* BLKIF_RSP_???       */
-};
-#pragma pack(pop)
 /* x86_64 protocol version */
 
 struct blkif_x86_64_request_rw {
@@ -193,18 +184,12 @@ struct blkif_x86_64_request {
 	} u;
 } __attribute__((__packed__));
 
-struct blkif_x86_64_response {
-	uint64_t       __attribute__((__aligned__(8))) id;
-	uint8_t         operation;       /* copied from request */
-	int16_t         status;          /* BLKIF_RSP_???       */
-};
-
 DEFINE_RING_TYPES(blkif_common, struct blkif_common_request,
-		  struct blkif_common_response);
+		  struct blkif_response);
 DEFINE_RING_TYPES(blkif_x86_32, struct blkif_x86_32_request,
-		  struct blkif_x86_32_response);
+		  struct blkif_response __packed);
 DEFINE_RING_TYPES(blkif_x86_64, struct blkif_x86_64_request,
-		  struct blkif_x86_64_response);
+		  struct blkif_response);
 
 union blkif_back_rings {
 	struct blkif_back_ring        native;
@@ -248,16 +233,6 @@ struct xen_vbd {
 
 struct backend_info;
 
-/* Number of available flags */
-#define PERSISTENT_GNT_FLAGS_SIZE	2
-/* This persistent grant is currently in use */
-#define PERSISTENT_GNT_ACTIVE		0
-/*
- * This persistent grant has been used, this flag is set when we remove the
- * PERSISTENT_GNT_ACTIVE, to know that this grant has been used recently.
- */
-#define PERSISTENT_GNT_WAS_ACTIVE	1
-
 /* Number of requests that we can fit in a ring */
 #define XEN_BLKIF_REQS_PER_PAGE		32
 
@@ -265,7 +240,8 @@ struct persistent_gnt {
 	struct page *page;
 	grant_ref_t gnt;
 	grant_handle_t handle;
-	DECLARE_BITMAP(flags, PERSISTENT_GNT_FLAGS_SIZE);
+	unsigned long last_used;
+	bool active;
 	struct rb_node node;
 	struct list_head remove_node;
 };
@@ -281,6 +257,7 @@ struct xen_blkif_ring {
 
 	wait_queue_head_t	wq;
 	atomic_t		inflight;
+	bool			active;
 	/* One thread per blkif ring. */
 	struct task_struct	*xenblkd;
 	unsigned int		waiting_reqs;
@@ -292,7 +269,6 @@ struct xen_blkif_ring {
 	wait_queue_head_t	pending_free_wq;
 
 	/* Tree to store persistent grants. */
-	spinlock_t		pers_gnts_lock;
 	struct rb_root		persistent_gnts;
 	unsigned int		persistent_gnt_c;
 	atomic_t		persistent_gnt_in_use;

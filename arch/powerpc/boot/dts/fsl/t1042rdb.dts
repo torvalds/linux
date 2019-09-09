@@ -59,7 +59,7 @@
 			};
 
 			mdio@fc000 {
-				phy_sgmii_2: ethernet-phy@03 {
+				phy_sgmii_2: ethernet-phy@3 {
 					reg = <0x03>;
 				};
 			};

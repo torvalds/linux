@@ -16,7 +16,7 @@
 #include <linux/jffs2.h>
 #include <linux/mtd/mtd.h>
 #include <linux/completion.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/freezer.h>
 #include <linux/kthread.h>
 #include "nodelist.h"
@@ -125,7 +125,7 @@ static int jffs2_garbage_collect_thread(void *_c)
 			if (try_to_freeze())
 				goto again;
 
-			signr = kernel_dequeue_signal(NULL);
+			signr = kernel_dequeue_signal();
 
 			switch(signr) {
 			case SIGSTOP:

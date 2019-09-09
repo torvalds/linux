@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* n2-asm.S: Niagara2 RNG hypervisor call assembler.
  *
  * Copyright (C) 2008 David S. Miller <davem@davemloft.net>

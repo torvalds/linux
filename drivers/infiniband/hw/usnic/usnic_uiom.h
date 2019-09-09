@@ -39,6 +39,8 @@
 
 #include "usnic_uiom_interval_tree.h"
 
+struct ib_ucontext;
+
 #define USNIC_UIOM_READ			(1)
 #define USNIC_UIOM_WRITE		(2)
 
@@ -55,7 +57,7 @@ struct usnic_uiom_dev {
 struct usnic_uiom_pd {
 	struct iommu_domain		*domain;
 	spinlock_t			lock;
-	struct rb_root			rb_root;
+	struct rb_root_cached		root;
 	struct list_head		devs;
 	int				dev_cnt;
 };
@@ -69,8 +71,7 @@ struct usnic_uiom_reg {
 	int				writable;
 	struct list_head		chunk_list;
 	struct work_struct		work;
-	struct mm_struct		*mm;
-	unsigned long			diff;
+	struct mm_struct		*owning_mm;
 };
 
 struct usnic_uiom_chunk {
@@ -89,7 +90,6 @@ void usnic_uiom_free_dev_list(struct device **devs);
 struct usnic_uiom_reg *usnic_uiom_reg_get(struct usnic_uiom_pd *pd,
 						unsigned long addr, size_t size,
 						int access, int dmasync);
-void usnic_uiom_reg_release(struct usnic_uiom_reg *uiomr, int closing);
+void usnic_uiom_reg_release(struct usnic_uiom_reg *uiomr);
 int usnic_uiom_init(char *drv_name);
-void usnic_uiom_fini(void);
 #endif /* USNIC_UIOM_H_ */

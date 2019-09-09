@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * vio driver interface to hvc_console.c
  *
@@ -13,20 +14,6 @@
  *
  * Additional Author(s):
  *  Ryan S. Arnold <rsa@us.ibm.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  *
  * TODO:
  *
@@ -53,7 +40,7 @@
 
 static const char hvc_driver_name[] = "hvc_console";
 
-static struct vio_device_id hvc_driver_table[] = {
+static const struct vio_device_id hvc_driver_table[] = {
 	{"serial", "hvterm1"},
 #ifndef HVC_OLD_HVSI
 	{"serial", "hvterm-protocol"},
@@ -120,6 +107,14 @@ static int hvterm_raw_get_chars(uint32_t vtermno, char *buf, int count)
 	return got;
 }
 
+/**
+ * hvterm_raw_put_chars: send characters to firmware for given vterm adapter
+ * @vtermno: The virtual terminal number.
+ * @buf: The characters to send. Because of the underlying hypercall in
+ *       hvc_put_chars(), this buffer must be at least 16 bytes long, even if
+ *       you are sending fewer chars.
+ * @count: number of chars to send.
+ */
 static int hvterm_raw_put_chars(uint32_t vtermno, const char *buf, int count)
 {
 	struct hvterm_priv *pv = hvterm_privs[vtermno];
@@ -232,6 +227,7 @@ static const struct hv_ops hvterm_hvsi_ops = {
 static void udbg_hvc_putc(char c)
 {
 	int count = -1;
+	unsigned char bounce_buffer[16];
 
 	if (!hvterm_privs[0])
 		return;
@@ -242,7 +238,12 @@ static void udbg_hvc_putc(char c)
 	do {
 		switch(hvterm_privs[0]->proto) {
 		case HV_PROTOCOL_RAW:
-			count = hvterm_raw_put_chars(0, &c, 1);
+			/*
+			 * hvterm_raw_put_chars requires at least a 16-byte
+			 * buffer, so go via the bounce buffer
+			 */
+			bounce_buffer[0] = c;
+			count = hvterm_raw_put_chars(0, bounce_buffer, 1);
 			break;
 		case HV_PROTOCOL_HVSI:
 			count = hvterm_hvsi_put_chars(0, &c, 1);
@@ -312,12 +313,12 @@ static int hvc_vio_probe(struct vio_dev *vdev,
 		proto = HV_PROTOCOL_HVSI;
 		ops = &hvterm_hvsi_ops;
 	} else {
-		pr_err("hvc_vio: Unknown protocol for %s\n", vdev->dev.of_node->full_name);
+		pr_err("hvc_vio: Unknown protocol for %pOF\n", vdev->dev.of_node);
 		return -ENXIO;
 	}
 
-	pr_devel("hvc_vio_probe() device %s, using %s protocol\n",
-		 vdev->dev.of_node->full_name,
+	pr_devel("hvc_vio_probe() device %pOF, using %s protocol\n",
+		 vdev->dev.of_node,
 		 proto == HV_PROTOCOL_RAW ? "raw" : "hvsi");
 
 	/* Is it our boot one ? */
@@ -384,20 +385,11 @@ device_initcall(hvc_vio_init); /* after drivers/tty/hvc/hvc_console.c */
 void __init hvc_vio_init_early(void)
 {
 	const __be32 *termno;
-	const char *name;
 	const struct hv_ops *ops;
 
 	/* find the boot console from /chosen/stdout */
-	if (!of_stdout)
-		return;
-	name = of_get_property(of_stdout, "name", NULL);
-	if (!name) {
-		printk(KERN_WARNING "stdout node missing 'name' property!\n");
-		return;
-	}
-
 	/* Check if it's a virtual terminal */
-	if (strncmp(name, "vty", 3) != 0)
+	if (!of_node_name_prefix(of_stdout, "vty"))
 		return;
 	termno = of_get_property(of_stdout, "reg", NULL);
 	if (termno == NULL)
@@ -442,6 +434,14 @@ void __init hvc_vio_init_early(void)
 #ifdef CONFIG_PPC_EARLY_DEBUG_LPAR
 void __init udbg_init_debug_lpar(void)
 {
+	/*
+	 * If we're running as a hypervisor then we definitely can't call the
+	 * hypervisor to print debug output (we *are* the hypervisor), so don't
+	 * register if we detect that MSR_HV=1.
+	 */
+	if (mfmsr() & MSR_HV)
+		return;
+
 	hvterm_privs[0] = &hvterm_priv0;
 	hvterm_priv0.termno = 0;
 	hvterm_priv0.proto = HV_PROTOCOL_RAW;
@@ -455,6 +455,10 @@ void __init udbg_init_debug_lpar(void)
 #ifdef CONFIG_PPC_EARLY_DEBUG_LPAR_HVSI
 void __init udbg_init_debug_lpar_hvsi(void)
 {
+	/* See comment above in udbg_init_debug_lpar() */
+	if (mfmsr() & MSR_HV)
+		return;
+
 	hvterm_privs[0] = &hvterm_priv0;
 	hvterm_priv0.termno = CONFIG_PPC_EARLY_DEBUG_HVSI_VTERMNO;
 	hvterm_priv0.proto = HV_PROTOCOL_HVSI;

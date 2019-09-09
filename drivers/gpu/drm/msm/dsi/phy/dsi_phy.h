@@ -1,14 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2015, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef __DSI_PHY_H__
@@ -21,9 +13,13 @@
 #define dsi_phy_read(offset) msm_readl((offset))
 #define dsi_phy_write(offset, data) msm_writel((data), (offset))
 
+/* v3.0.0 10nm implementation that requires the old timings settings */
+#define V3_0_0_10NM_OLD_TIMINGS_QUIRK	BIT(0)
+
 struct msm_dsi_phy_ops {
+	int (*init) (struct msm_dsi_phy *phy);
 	int (*enable)(struct msm_dsi_phy *phy, int src_pll_id,
-		const unsigned long bit_rate, const unsigned long esc_rate);
+			struct msm_dsi_phy_clk_request *clk_req);
 	void (*disable)(struct msm_dsi_phy *phy);
 };
 
@@ -40,12 +36,16 @@ struct msm_dsi_phy_cfg {
 	bool src_pll_truthtable[DSI_MAX][DSI_MAX];
 	const resource_size_t io_start[DSI_MAX];
 	const int num_dsi_phy;
+	const int quirks;
 };
 
 extern const struct msm_dsi_phy_cfg dsi_phy_28nm_hpm_cfgs;
 extern const struct msm_dsi_phy_cfg dsi_phy_28nm_lp_cfgs;
 extern const struct msm_dsi_phy_cfg dsi_phy_20nm_cfgs;
 extern const struct msm_dsi_phy_cfg dsi_phy_28nm_8960_cfgs;
+extern const struct msm_dsi_phy_cfg dsi_phy_14nm_cfgs;
+extern const struct msm_dsi_phy_cfg dsi_phy_10nm_cfgs;
+extern const struct msm_dsi_phy_cfg dsi_phy_10nm_8998_cfgs;
 
 struct msm_dsi_dphy_timing {
 	u32 clk_pre;
@@ -61,12 +61,22 @@ struct msm_dsi_dphy_timing {
 	u32 ta_go;
 	u32 ta_sure;
 	u32 ta_get;
+
+	struct msm_dsi_phy_shared_timings shared_timings;
+
+	/* For PHY v2 only */
+	u32 hs_rqst_ckln;
+	u32 hs_prep_dly;
+	u32 hs_prep_dly_ckln;
+	u8 hs_halfbyte_en;
+	u8 hs_halfbyte_en_ckln;
 };
 
 struct msm_dsi_phy {
 	struct platform_device *pdev;
 	void __iomem *base;
 	void __iomem *reg_base;
+	void __iomem *lane_base;
 	int id;
 
 	struct clk *ahb_clk;
@@ -75,6 +85,7 @@ struct msm_dsi_phy {
 	struct msm_dsi_dphy_timing timing;
 	const struct msm_dsi_phy_cfg *cfg;
 
+	enum msm_dsi_phy_usecase usecase;
 	bool regulator_ldo_mode;
 
 	struct msm_dsi_pll *pll;
@@ -84,9 +95,14 @@ struct msm_dsi_phy {
  * PHY internal functions
  */
 int msm_dsi_dphy_timing_calc(struct msm_dsi_dphy_timing *timing,
-	const unsigned long bit_rate, const unsigned long esc_rate);
+			     struct msm_dsi_phy_clk_request *clk_req);
+int msm_dsi_dphy_timing_calc_v2(struct msm_dsi_dphy_timing *timing,
+				struct msm_dsi_phy_clk_request *clk_req);
+int msm_dsi_dphy_timing_calc_v3(struct msm_dsi_dphy_timing *timing,
+				struct msm_dsi_phy_clk_request *clk_req);
 void msm_dsi_phy_set_src_pll(struct msm_dsi_phy *phy, int pll_id, u32 reg,
 				u32 bit_mask);
+int msm_dsi_phy_init_common(struct msm_dsi_phy *phy);
 
 #endif /* __DSI_PHY_H__ */
 

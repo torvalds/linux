@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* thread_info.h: h8300 low-level thread information
  * adapted from the i386 and PPC versions by Yoshinori Sato <ysato@users.sourceforge.jp>
  *
@@ -44,9 +45,6 @@ struct thread_info {
 	.preempt_count = INIT_PREEMPT_COUNT,	\
 	.addr_limit	= KERNEL_DS,		\
 }
-
-#define init_thread_info	(init_thread_union.thread_info)
-#define init_stack		(init_thread_union.stack)
 
 /* how to get the thread information struct from C */
 static inline struct thread_info *current_thread_info(void)

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 2012 Texas Instruments Inc
  *
@@ -10,10 +11,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  * Contributors:
  *      Manjunath Hadli <manjunath.hadli@ti.com>
  *      Prabhakar Lad <prabhakar.lad@ti.com>
@@ -23,7 +20,7 @@
 #define _DAVINCI_VPFE_DM365_RESIZER_H
 
 enum resizer_oper_mode {
-	RESIZER_MODE_CONTINIOUS = 0,
+	RESIZER_MODE_CONTINUOUS = 0,
 	RESIZER_MODE_ONE_SHOT = 1,
 };
 
@@ -210,7 +207,7 @@ enum resizer_input_entity {
 
 enum resizer_output_entity {
 	RESIZER_OUTPUT_NONE = 0,
-	RESIZER_OUPUT_MEMORY = 1,
+	RESIZER_OUTPUT_MEMORY = 1,
 };
 
 struct dm365_resizer_device {

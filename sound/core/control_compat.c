@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * compat ioctls for control API
  *
  *   Copyright (c) by Takashi Iwai <tiwai@suse.de>
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 /* this file included from control.c */
@@ -111,12 +98,10 @@ static int snd_ctl_elem_info_compat(struct snd_ctl_file *ctl,
 	if (get_user(data->value.enumerated.item, &data32->value.enumerated.item))
 		goto error;
 
-	snd_power_lock(ctl->card);
 	err = snd_power_wait(ctl->card, SNDRV_CTL_POWER_D0);
-	if (err >= 0)
-		err = snd_ctl_elem_info(ctl, data);
-	snd_power_unlock(ctl->card);
-
+	if (err < 0)
+		goto error;
+	err = snd_ctl_elem_info(ctl, data);
 	if (err < 0)
 		goto error;
 	/* restore info to 32bit */
@@ -315,14 +300,13 @@ static int ctl_elem_read_user(struct snd_card *card,
 	if (err < 0)
 		goto error;
 
-	snd_power_lock(card);
 	err = snd_power_wait(card, SNDRV_CTL_POWER_D0);
-	if (err >= 0)
-		err = snd_ctl_elem_read(card, data);
-	snd_power_unlock(card);
-	if (err >= 0)
-		err = copy_ctl_value_to_user(userdata, valuep, data,
-					     type, count);
+	if (err < 0)
+		goto error;
+	err = snd_ctl_elem_read(card, data);
+	if (err < 0)
+		goto error;
+	err = copy_ctl_value_to_user(userdata, valuep, data, type, count);
  error:
 	kfree(data);
 	return err;
@@ -344,14 +328,13 @@ static int ctl_elem_write_user(struct snd_ctl_file *file,
 	if (err < 0)
 		goto error;
 
-	snd_power_lock(card);
 	err = snd_power_wait(card, SNDRV_CTL_POWER_D0);
-	if (err >= 0)
-		err = snd_ctl_elem_write(card, file, data);
-	snd_power_unlock(card);
-	if (err >= 0)
-		err = copy_ctl_value_to_user(userdata, valuep, data,
-					     type, count);
+	if (err < 0)
+		goto error;
+	err = snd_ctl_elem_write(card, file, data);
+	if (err < 0)
+		goto error;
+	err = copy_ctl_value_to_user(userdata, valuep, data, type, count);
  error:
 	kfree(data);
 	return err;
@@ -400,8 +383,7 @@ static int snd_ctl_elem_add_compat(struct snd_ctl_file *file,
 	if (copy_from_user(&data->id, &data32->id, sizeof(data->id)) ||
 	    copy_from_user(&data->type, &data32->type, 3 * sizeof(u32)))
 		goto error;
-	if (get_user(data->owner, &data32->owner) ||
-	    get_user(data->type, &data32->type))
+	if (get_user(data->owner, &data32->owner))
 		goto error;
 	switch (data->type) {
 	case SNDRV_CTL_ELEM_TYPE_BOOLEAN:

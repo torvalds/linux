@@ -21,17 +21,19 @@ subdir-y	:= lib
 
 # Subdirs for the boot loader(s)
 
-bootdir-$(CONFIG_XTENSA_PLATFORM_ISS)	 += boot-elf
-bootdir-$(CONFIG_XTENSA_PLATFORM_XT2000) += boot-redboot boot-elf boot-uboot
-bootdir-$(CONFIG_XTENSA_PLATFORM_XTFPGA) += boot-redboot boot-elf boot-uboot
+boot-$(CONFIG_XTENSA_PLATFORM_ISS)    += Image
+boot-$(CONFIG_XTENSA_PLATFORM_XT2000) += Image zImage uImage
+boot-$(CONFIG_XTENSA_PLATFORM_XTFPGA) += Image zImage uImage
 
-zImage Image: $(bootdir-y)
+all: $(boot-y)
+Image: boot-elf
+zImage: boot-redboot
+uImage: $(obj)/uImage
 
-$(bootdir-y): $(addprefix $(obj)/,$(subdir-y)) \
-	      $(addprefix $(obj)/,$(host-progs))
+boot-elf boot-redboot: $(addprefix $(obj)/,$(subdir-y))
 	$(Q)$(MAKE) $(build)=$(obj)/$@ $(MAKECMDGOALS)
 
-OBJCOPYFLAGS = --strip-all -R .comment -R .note.gnu.build-id -O binary
+OBJCOPYFLAGS = --strip-all -R .comment -R .notes -O binary
 
 vmlinux.bin: vmlinux FORCE
 	$(call if_changed,objcopy)
@@ -41,4 +43,10 @@ vmlinux.bin.gz: vmlinux.bin FORCE
 
 boot-elf: vmlinux.bin
 boot-redboot: vmlinux.bin.gz
-boot-uboot: vmlinux.bin.gz
+
+UIMAGE_LOADADDR = $(CONFIG_KERNEL_LOAD_ADDRESS)
+UIMAGE_COMPRESSION = gzip
+
+$(obj)/uImage: vmlinux.bin.gz FORCE
+	$(call if_changed,uimage)
+	$(Q)$(kecho) '  Kernel: $@ is ready'

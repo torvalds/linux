@@ -1,14 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  Copyright (C) 2009 Sascha Hauer <s.hauer@pengutronix.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/linkage.h>
 #include <asm/assembler.h>
-#include <asm/export.h>
 
 /*
  * r8  = bit 0-15: tx offset, bit 16-31: tx buffer size
@@ -145,8 +141,4 @@ imx_ssi_fiq_tx_buffer:
 		.word 0x0
 .L_imx_ssi_fiq_end:
 imx_ssi_fiq_end:
-EXPORT_SYMBOL(imx_ssi_fiq_tx_buffer)
-EXPORT_SYMBOL(imx_ssi_fiq_rx_buffer)
-EXPORT_SYMBOL(imx_ssi_fiq_start)
-EXPORT_SYMBOL(imx_ssi_fiq_end)
-EXPORT_SYMBOL(imx_ssi_fiq_base)
+

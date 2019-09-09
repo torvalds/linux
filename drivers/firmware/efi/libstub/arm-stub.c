@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * EFI stub implementation that is shared by arm and arm64 architectures.
  * This should be #included by the EFI stub implementation files.
@@ -6,10 +7,6 @@
  *     Roy Franz <roy.franz@linaro.org
  * Copyright (C) 2013 Red Hat, Inc.
  *     Mark Salter <msalter@redhat.com>
- *
- * This file is part of the Linux kernel, and is made available under the
- * terms of the GNU General Public License version 2.
- *
  */
 
 #include <linux/efi.h>
@@ -18,147 +15,27 @@
 
 #include "efistub.h"
 
-bool __nokaslr;
+/*
+ * This is the base address at which to start allocating virtual memory ranges
+ * for UEFI Runtime Services. This is in the low TTBR0 range so that we can use
+ * any allocation we choose, and eliminate the risk of a conflict after kexec.
+ * The value chosen is the largest non-zero power of 2 suitable for this purpose
+ * both on 32-bit and 64-bit ARM CPUs, to maximize the likelihood that it can
+ * be mapped efficiently.
+ * Since 32-bit ARM could potentially execute with a 1G/3G user/kernel split,
+ * map everything below 1 GB. (512 MB is a reasonable upper bound for the
+ * entire footprint of the UEFI runtime services memory regions)
+ */
+#define EFI_RT_VIRTUAL_BASE	SZ_512M
+#define EFI_RT_VIRTUAL_SIZE	SZ_512M
 
-static int efi_get_secureboot(efi_system_table_t *sys_table_arg)
-{
-	static efi_char16_t const sb_var_name[] = {
-		'S', 'e', 'c', 'u', 'r', 'e', 'B', 'o', 'o', 't', 0 };
-	static efi_char16_t const sm_var_name[] = {
-		'S', 'e', 't', 'u', 'p', 'M', 'o', 'd', 'e', 0 };
+#ifdef CONFIG_ARM64
+# define EFI_RT_VIRTUAL_LIMIT	DEFAULT_MAP_WINDOW_64
+#else
+# define EFI_RT_VIRTUAL_LIMIT	TASK_SIZE
+#endif
 
-	efi_guid_t var_guid = EFI_GLOBAL_VARIABLE_GUID;
-	efi_get_variable_t *f_getvar = sys_table_arg->runtime->get_variable;
-	u8 val;
-	unsigned long size = sizeof(val);
-	efi_status_t status;
-
-	status = f_getvar((efi_char16_t *)sb_var_name, (efi_guid_t *)&var_guid,
-			  NULL, &size, &val);
-
-	if (status != EFI_SUCCESS)
-		goto out_efi_err;
-
-	if (val == 0)
-		return 0;
-
-	status = f_getvar((efi_char16_t *)sm_var_name, (efi_guid_t *)&var_guid,
-			  NULL, &size, &val);
-
-	if (status != EFI_SUCCESS)
-		goto out_efi_err;
-
-	if (val == 1)
-		return 0;
-
-	return 1;
-
-out_efi_err:
-	switch (status) {
-	case EFI_NOT_FOUND:
-		return 0;
-	case EFI_DEVICE_ERROR:
-		return -EIO;
-	case EFI_SECURITY_VIOLATION:
-		return -EACCES;
-	default:
-		return -EINVAL;
-	}
-}
-
-efi_status_t efi_open_volume(efi_system_table_t *sys_table_arg,
-			     void *__image, void **__fh)
-{
-	efi_file_io_interface_t *io;
-	efi_loaded_image_t *image = __image;
-	efi_file_handle_t *fh;
-	efi_guid_t fs_proto = EFI_FILE_SYSTEM_GUID;
-	efi_status_t status;
-	void *handle = (void *)(unsigned long)image->device_handle;
-
-	status = sys_table_arg->boottime->handle_protocol(handle,
-				 &fs_proto, (void **)&io);
-	if (status != EFI_SUCCESS) {
-		efi_printk(sys_table_arg, "Failed to handle fs_proto\n");
-		return status;
-	}
-
-	status = io->open_volume(io, &fh);
-	if (status != EFI_SUCCESS)
-		efi_printk(sys_table_arg, "Failed to open volume\n");
-
-	*__fh = fh;
-	return status;
-}
-
-efi_status_t efi_file_close(void *handle)
-{
-	efi_file_handle_t *fh = handle;
-
-	return fh->close(handle);
-}
-
-efi_status_t
-efi_file_read(void *handle, unsigned long *size, void *addr)
-{
-	efi_file_handle_t *fh = handle;
-
-	return fh->read(handle, size, addr);
-}
-
-
-efi_status_t
-efi_file_size(efi_system_table_t *sys_table_arg, void *__fh,
-	      efi_char16_t *filename_16, void **handle, u64 *file_sz)
-{
-	efi_file_handle_t *h, *fh = __fh;
-	efi_file_info_t *info;
-	efi_status_t status;
-	efi_guid_t info_guid = EFI_FILE_INFO_ID;
-	unsigned long info_sz;
-
-	status = fh->open(fh, &h, filename_16, EFI_FILE_MODE_READ, (u64)0);
-	if (status != EFI_SUCCESS) {
-		efi_printk(sys_table_arg, "Failed to open file: ");
-		efi_char16_printk(sys_table_arg, filename_16);
-		efi_printk(sys_table_arg, "\n");
-		return status;
-	}
-
-	*handle = h;
-
-	info_sz = 0;
-	status = h->get_info(h, &info_guid, &info_sz, NULL);
-	if (status != EFI_BUFFER_TOO_SMALL) {
-		efi_printk(sys_table_arg, "Failed to get file info size\n");
-		return status;
-	}
-
-grow:
-	status = sys_table_arg->boottime->allocate_pool(EFI_LOADER_DATA,
-				 info_sz, (void **)&info);
-	if (status != EFI_SUCCESS) {
-		efi_printk(sys_table_arg, "Failed to alloc mem for file info\n");
-		return status;
-	}
-
-	status = h->get_info(h, &info_guid, &info_sz,
-						   info);
-	if (status == EFI_BUFFER_TOO_SMALL) {
-		sys_table_arg->boottime->free_pool(info);
-		goto grow;
-	}
-
-	*file_sz = info->file_size;
-	sys_table_arg->boottime->free_pool(info);
-
-	if (status != EFI_SUCCESS)
-		efi_printk(sys_table_arg, "Failed to get initrd info\n");
-
-	return status;
-}
-
-
+static u64 virtmap_base = EFI_RT_VIRTUAL_BASE;
 
 void efi_char16_printk(efi_system_table_t *sys_table_arg,
 			      efi_char16_t *str)
@@ -188,6 +65,31 @@ static struct screen_info *setup_graphics(efi_system_table_t *sys_table_arg)
 	}
 	return si;
 }
+
+void install_memreserve_table(efi_system_table_t *sys_table_arg)
+{
+	struct linux_efi_memreserve *rsv;
+	efi_guid_t memreserve_table_guid = LINUX_EFI_MEMRESERVE_TABLE_GUID;
+	efi_status_t status;
+
+	status = efi_call_early(allocate_pool, EFI_LOADER_DATA, sizeof(*rsv),
+				(void **)&rsv);
+	if (status != EFI_SUCCESS) {
+		pr_efi_err(sys_table_arg, "Failed to allocate memreserve entry!\n");
+		return;
+	}
+
+	rsv->next = 0;
+	rsv->size = 0;
+	atomic_set(&rsv->count, 0);
+
+	status = efi_call_early(install_configuration_table,
+				&memreserve_table_guid,
+				rsv);
+	if (status != EFI_SUCCESS)
+		pr_efi_err(sys_table_arg, "Failed to install memreserve config table!\n");
+}
+
 
 /*
  * This function handles the architcture specific differences between arm and
@@ -226,14 +128,12 @@ unsigned long efi_entry(void *handle, efi_system_table_t *sys_table,
 	efi_guid_t loaded_image_proto = LOADED_IMAGE_PROTOCOL_GUID;
 	unsigned long reserve_addr = 0;
 	unsigned long reserve_size = 0;
-	int secure_boot = 0;
+	enum efi_secureboot_mode secure_boot;
 	struct screen_info *si;
 
 	/* Check if we were booted by the EFI firmware */
 	if (sys_table->hdr.signature != EFI_SYSTEM_TABLE_SIGNATURE)
 		goto fail;
-
-	pr_efi(sys_table, "Booting Linux Kernel...\n");
 
 	status = check_platform_features(sys_table);
 	if (status != EFI_SUCCESS)
@@ -268,17 +168,15 @@ unsigned long efi_entry(void *handle, efi_system_table_t *sys_table,
 		goto fail;
 	}
 
-	/* check whether 'nokaslr' was passed on the command line */
-	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE)) {
-		static const u8 default_cmdline[] = CONFIG_CMDLINE;
-		const u8 *str, *cmdline = cmdline_ptr;
+	if (IS_ENABLED(CONFIG_CMDLINE_EXTEND) ||
+	    IS_ENABLED(CONFIG_CMDLINE_FORCE) ||
+	    cmdline_size == 0)
+		efi_parse_options(CONFIG_CMDLINE);
 
-		if (IS_ENABLED(CONFIG_CMDLINE_FORCE))
-			cmdline = default_cmdline;
-		str = strstr(cmdline, "nokaslr");
-		if (str == cmdline || (str > cmdline && *(str - 1) == ' '))
-			__nokaslr = true;
-	}
+	if (!IS_ENABLED(CONFIG_CMDLINE_FORCE) && cmdline_size > 0)
+		efi_parse_options(cmdline_ptr);
+
+	pr_efi(sys_table, "Booting Linux Kernel...\n");
 
 	si = setup_graphics(sys_table);
 
@@ -291,25 +189,20 @@ unsigned long efi_entry(void *handle, efi_system_table_t *sys_table,
 		goto fail_free_cmdline;
 	}
 
-	status = efi_parse_options(cmdline_ptr);
-	if (status != EFI_SUCCESS)
-		pr_efi_err(sys_table, "Failed to parse EFI cmdline options\n");
+	/* Ask the firmware to clear memory on unclean shutdown */
+	efi_enable_reset_attack_mitigation(sys_table);
 
 	secure_boot = efi_get_secureboot(sys_table);
-	if (secure_boot > 0)
-		pr_efi(sys_table, "UEFI Secure Boot is enabled.\n");
-
-	if (secure_boot < 0) {
-		pr_efi_err(sys_table,
-			"could not determine UEFI Secure Boot status.\n");
-	}
 
 	/*
-	 * Unauthenticated device tree data is a security hazard, so
-	 * ignore 'dtb=' unless UEFI Secure Boot is disabled.
+	 * Unauthenticated device tree data is a security hazard, so ignore
+	 * 'dtb=' unless UEFI Secure Boot is disabled.  We assume that secure
+	 * boot is enabled if we can't determine its state.
 	 */
-	if (secure_boot != 0 && strstr(cmdline_ptr, "dtb=")) {
-		pr_efi(sys_table, "Ignoring DTB from command line.\n");
+	if (!IS_ENABLED(CONFIG_EFI_ARMSTUB_DTB_LOADER) ||
+	     secure_boot != efi_secureboot_mode_disabled) {
+		if (strstr(cmdline_ptr, "dtb="))
+			pr_efi(sys_table, "Ignoring DTB from command line.\n");
 	} else {
 		status = handle_cmdline_files(sys_table, image, cmdline_ptr,
 					      "dtb=",
@@ -333,16 +226,42 @@ unsigned long efi_entry(void *handle, efi_system_table_t *sys_table,
 	if (!fdt_addr)
 		pr_efi(sys_table, "Generating empty DTB\n");
 
-	status = handle_cmdline_files(sys_table, image, cmdline_ptr,
-				      "initrd=", dram_base + SZ_512M,
+	status = handle_cmdline_files(sys_table, image, cmdline_ptr, "initrd=",
+				      efi_get_max_initrd_addr(dram_base,
+							      *image_addr),
 				      (unsigned long *)&initrd_addr,
 				      (unsigned long *)&initrd_size);
 	if (status != EFI_SUCCESS)
 		pr_efi_err(sys_table, "Failed initrd from command line!\n");
 
+	efi_random_get_seed(sys_table);
+
+	/* hibernation expects the runtime regions to stay in the same place */
+	if (!IS_ENABLED(CONFIG_HIBERNATION) && !nokaslr()) {
+		/*
+		 * Randomize the base of the UEFI runtime services region.
+		 * Preserve the 2 MB alignment of the region by taking a
+		 * shift of 21 bit positions into account when scaling
+		 * the headroom value using a 32-bit random value.
+		 */
+		static const u64 headroom = EFI_RT_VIRTUAL_LIMIT -
+					    EFI_RT_VIRTUAL_BASE -
+					    EFI_RT_VIRTUAL_SIZE;
+		u32 rnd;
+
+		status = efi_get_random_bytes(sys_table, sizeof(rnd),
+					      (u8 *)&rnd);
+		if (status == EFI_SUCCESS) {
+			virtmap_base = EFI_RT_VIRTUAL_BASE +
+				       (((headroom >> 21) * rnd) >> (32 - 21));
+		}
+	}
+
+	install_memreserve_table(sys_table);
+
 	new_fdt_addr = fdt_addr;
 	status = allocate_new_fdt_and_exit_boot(sys_table, handle,
-				&new_fdt_addr, dram_base + MAX_FDT_OFFSET,
+				&new_fdt_addr, efi_get_max_fdt_addr(dram_base),
 				initrd_addr, initrd_size, cmdline_ptr,
 				fdt_addr, fdt_size);
 
@@ -368,18 +287,6 @@ fail_free_cmdline:
 fail:
 	return EFI_ERROR;
 }
-
-/*
- * This is the base address at which to start allocating virtual memory ranges
- * for UEFI Runtime Services. This is in the low TTBR0 range so that we can use
- * any allocation we choose, and eliminate the risk of a conflict after kexec.
- * The value chosen is the largest non-zero power of 2 suitable for this purpose
- * both on 32-bit and 64-bit ARM CPUs, to maximize the likelihood that it can
- * be mapped efficiently.
- * Since 32-bit ARM could potentially execute with a 1G/3G user/kernel split,
- * map everything below 1 GB.
- */
-#define EFI_RT_VIRTUAL_BASE	SZ_512M
 
 static int cmp_mem_desc(const void *l, const void *r)
 {
@@ -430,7 +337,7 @@ void efi_get_virtmap(efi_memory_desc_t *memory_map, unsigned long map_size,
 		     unsigned long desc_size, efi_memory_desc_t *runtime_map,
 		     int *count)
 {
-	u64 efi_virt_base = EFI_RT_VIRTUAL_BASE;
+	u64 efi_virt_base = virtmap_base;
 	efi_memory_desc_t *in, *prev = NULL, *out = runtime_map;
 	int l;
 
@@ -443,7 +350,9 @@ void efi_get_virtmap(efi_memory_desc_t *memory_map, unsigned long map_size,
 	 * The easiest way to find adjacent regions is to sort the memory map
 	 * before traversing it.
 	 */
-	sort(memory_map, map_size / desc_size, desc_size, cmp_mem_desc, NULL);
+	if (IS_ENABLED(CONFIG_ARM64))
+		sort(memory_map, map_size / desc_size, desc_size, cmp_mem_desc,
+		     NULL);
 
 	for (l = 0; l < map_size; l += desc_size, prev = in) {
 		u64 paddr, size;
@@ -455,12 +364,18 @@ void efi_get_virtmap(efi_memory_desc_t *memory_map, unsigned long map_size,
 		paddr = in->phys_addr;
 		size = in->num_pages * EFI_PAGE_SIZE;
 
+		if (novamap()) {
+			in->virt_addr = in->phys_addr;
+			continue;
+		}
+
 		/*
 		 * Make the mapping compatible with 64k pages: this allows
 		 * a 4k page size kernel to kexec a 64k page size kernel and
 		 * vice versa.
 		 */
-		if (!regions_are_adjacent(prev, in) ||
+		if ((IS_ENABLED(CONFIG_ARM64) &&
+		     !regions_are_adjacent(prev, in)) ||
 		    !regions_have_compatible_memory_type_attrs(prev, in)) {
 
 			paddr = round_down(in->phys_addr, SZ_64K);

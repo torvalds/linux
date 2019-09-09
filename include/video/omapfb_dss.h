@@ -1,10 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (C) 2016 Texas Instruments, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #ifndef __OMAPFB_DSS_H
@@ -118,11 +114,6 @@ enum omap_dss_trans_key_type {
 	OMAP_DSS_COLOR_KEY_VID_SRC = 1,
 };
 
-enum omap_rfbi_te_mode {
-	OMAP_DSS_RFBI_TE_MODE_1 = 1,
-	OMAP_DSS_RFBI_TE_MODE_2 = 2,
-};
-
 enum omap_dss_signal_level {
 	OMAPDSS_SIG_ACTIVE_LOW,
 	OMAPDSS_SIG_ACTIVE_HIGH,
@@ -191,27 +182,6 @@ enum omap_dss_output_id {
 	OMAP_DSS_OUTPUT_DSI2	= 1 << 4,
 	OMAP_DSS_OUTPUT_VENC	= 1 << 5,
 	OMAP_DSS_OUTPUT_HDMI	= 1 << 6,
-};
-
-/* RFBI */
-
-struct rfbi_timings {
-	int cs_on_time;
-	int cs_off_time;
-	int we_on_time;
-	int we_off_time;
-	int re_on_time;
-	int re_off_time;
-	int we_cycle_time;
-	int re_cycle_time;
-	int cs_pulse_width;
-	int access_time;
-
-	int clk_div;
-
-	u32 tim[5];             /* set by rfbi_convert_timings() */
-
-	int converted;
 };
 
 /* DSI */
@@ -645,11 +615,6 @@ struct omap_dss_device {
 		} dpi;
 
 		struct {
-			u8 channel;
-			u8 data_lines;
-		} rfbi;
-
-		struct {
 			u8 datapairs;
 		} sdi;
 
@@ -672,7 +637,6 @@ struct omap_dss_device {
 
 	struct {
 		u8 pixel_size;
-		struct rfbi_timings rfbi_timings;
 	} ctrl;
 
 	const char *name;
@@ -774,6 +738,12 @@ struct omap_dss_driver {
 		const struct hdmi_avi_infoframe *avi);
 };
 
+#define for_each_dss_dev(d) while ((d = omap_dss_get_next_device(d)) != NULL)
+
+typedef void (*omap_dispc_isr_t) (void *arg, u32 mask);
+
+#if IS_ENABLED(CONFIG_FB_OMAP2)
+
 enum omapdss_version omapdss_get_version(void);
 bool omapdss_is_initialized(void);
 
@@ -785,7 +755,6 @@ void omapdss_unregister_display(struct omap_dss_device *dssdev);
 
 struct omap_dss_device *omap_dss_get_device(struct omap_dss_device *dssdev);
 void omap_dss_put_device(struct omap_dss_device *dssdev);
-#define for_each_dss_dev(d) while ((d = omap_dss_get_next_device(d)) != NULL)
 struct omap_dss_device *omap_dss_get_next_device(struct omap_dss_device *from);
 struct omap_dss_device *omap_dss_find_device(void *data,
 		int (*match)(struct omap_dss_device *dssdev, void *data));
@@ -826,7 +795,6 @@ int omapdss_default_get_recommended_bpp(struct omap_dss_device *dssdev);
 void omapdss_default_get_timings(struct omap_dss_device *dssdev,
 		struct omap_video_timings *timings);
 
-typedef void (*omap_dispc_isr_t) (void *arg, u32 mask);
 int omap_dispc_register_isr(omap_dispc_isr_t isr, void *arg, u32 mask);
 int omap_dispc_unregister_isr(omap_dispc_isr_t isr, void *arg, u32 mask);
 
@@ -856,5 +824,51 @@ omapdss_of_get_first_endpoint(const struct device_node *parent);
 
 struct omap_dss_device *
 omapdss_of_find_source_for_first_ep(struct device_node *node);
+#else
+
+static inline enum omapdss_version omapdss_get_version(void)
+{ return OMAPDSS_VER_UNKNOWN; };
+
+static inline bool omapdss_is_initialized(void)
+{ return false; };
+
+static inline int omap_dispc_register_isr(omap_dispc_isr_t isr,
+					  void *arg, u32 mask)
+{ return 0; };
+
+static inline int omap_dispc_unregister_isr(omap_dispc_isr_t isr,
+					    void *arg, u32 mask)
+{ return 0; };
+
+static inline struct omap_dss_device
+*omap_dss_get_device(struct omap_dss_device *dssdev)
+{ return NULL; };
+
+static inline struct omap_dss_device
+*omap_dss_get_next_device(struct omap_dss_device *from)
+{return NULL; };
+
+static inline void omap_dss_put_device(struct omap_dss_device *dssdev) {};
+
+static inline int omapdss_compat_init(void)
+{ return 0; };
+
+static inline void omapdss_compat_uninit(void) {};
+
+static inline int omap_dss_get_num_overlay_managers(void)
+{ return 0; };
+
+static inline struct omap_overlay_manager *omap_dss_get_overlay_manager(int num)
+{ return NULL; };
+
+static inline int omap_dss_get_num_overlays(void)
+{ return 0; };
+
+static inline struct omap_overlay *omap_dss_get_overlay(int num)
+{ return NULL; };
+
+
+#endif /* FB_OMAP2 */
+
 
 #endif /* __OMAPFB_DSS_H */

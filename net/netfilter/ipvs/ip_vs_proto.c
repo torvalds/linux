@@ -1,16 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * ip_vs_proto.c: transport protocol load balancing support for IPVS
  *
  * Authors:     Wensong Zhang <wensong@linuxvirtualserver.org>
  *              Julian Anastasov <ja@ssi.bg>
  *
- *              This program is free software; you can redistribute it and/or
- *              modify it under the terms of the GNU General Public License
- *              as published by the Free Software Foundation; either version
- *              2 of the License, or (at your option) any later version.
- *
  * Changes:
- *
  */
 
 #define KMSG_COMPONENT "IPVS"
@@ -42,6 +37,11 @@
 
 static struct ip_vs_protocol *ip_vs_proto_table[IP_VS_PROTO_TAB_SIZE];
 
+/* States for conn templates: NONE or words separated with ",", max 15 chars */
+static const char *ip_vs_ctpl_state_name_table[IP_VS_CTPL_S_LAST] = {
+	[IP_VS_CTPL_S_NONE]			= "NONE",
+	[IP_VS_CTPL_S_ASSURED]			= "ASSURED",
+};
 
 /*
  *	register an ipvs protocol
@@ -193,34 +193,20 @@ ip_vs_create_timeout_table(int *table, int size)
 }
 
 
-/*
- *	Set timeout value for state specified by name
- */
-int
-ip_vs_set_state_timeout(int *table, int num, const char *const *names,
-			const char *name, int to)
+const char *ip_vs_state_name(const struct ip_vs_conn *cp)
 {
-	int i;
+	unsigned int state = cp->state;
+	struct ip_vs_protocol *pp;
 
-	if (!table || !name || !to)
-		return -EINVAL;
+	if (cp->flags & IP_VS_CONN_F_TEMPLATE) {
 
-	for (i = 0; i < num; i++) {
-		if (strcmp(names[i], name))
-			continue;
-		table[i] = to * HZ;
-		return 0;
+		if (state >= IP_VS_CTPL_S_LAST)
+			return "ERR!";
+		return ip_vs_ctpl_state_name_table[state] ? : "?";
 	}
-	return -ENOENT;
-}
-
-
-const char * ip_vs_state_name(__u16 proto, int state)
-{
-	struct ip_vs_protocol *pp = ip_vs_proto_get(proto);
-
+	pp = ip_vs_proto_get(cp->protocol);
 	if (pp == NULL || pp->state_name == NULL)
-		return (IPPROTO_IP == proto) ? "NONE" : "ERR!";
+		return (cp->protocol == IPPROTO_IP) ? "NONE" : "ERR!";
 	return pp->state_name(state);
 }
 

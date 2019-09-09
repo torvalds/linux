@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* drivers/atm/uPD98402.c - NEC uPD98402 (PHY) declarations */
  
 /* Written 1995-2000 by Werner Almesberger, EPFL LRC/ICA */
@@ -10,7 +11,7 @@
 #include <linux/sonet.h>
 #include <linux/init.h>
 #include <linux/slab.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/atomic.h>
 
 #include "uPD98402.h"

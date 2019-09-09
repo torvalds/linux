@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Mapping of DWARF debug register numbers into register names.
  *
  * Copyright (C) 2010 Ian Munsie, IBM Corporation.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <stddef.h>
@@ -15,6 +11,7 @@
 #include <dwarf-regs.h>
 #include <linux/ptrace.h>
 #include <linux/kernel.h>
+#include <linux/stringify.h>
 #include "util.h"
 
 struct pt_regs_dwarfnum {
@@ -24,10 +21,10 @@ struct pt_regs_dwarfnum {
 };
 
 #define REG_DWARFNUM_NAME(r, num)					\
-		{.name = STR(%)STR(r), .dwarfnum = num,			\
+		{.name = __stringify(%)__stringify(r), .dwarfnum = num,			\
 		.ptregs_offset = offsetof(struct pt_regs, r)}
 #define GPR_DWARFNUM_NAME(num)						\
-		{.name = STR(%gpr##num), .dwarfnum = num,		\
+		{.name = __stringify(%gpr##num), .dwarfnum = num,		\
 		.ptregs_offset = offsetof(struct pt_regs, gpr[num])}
 #define REG_DWARFNUM_END {.name = NULL, .dwarfnum = 0, .ptregs_offset = 0}
 

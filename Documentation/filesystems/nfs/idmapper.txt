@@ -55,7 +55,7 @@ request-key will find the first matching line and corresponding program.  In
 this case, /some/other/program will handle all uid lookups and
 /usr/sbin/nfs.idmap will handle gid, user, and group lookups.
 
-See <file:Documentation/security/keys-request-key.txt> for more information
+See <file:Documentation/security/keys/request-key.rst> for more information
 about the request-key function.
 
 

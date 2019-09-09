@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Copyright (C) 2014 Linaro Ltd
  *
  * Author: Ulf Hansson <ulf.hansson@linaro.org>
- *
- * License terms: GNU General Public License (GPL) version 2
  *
  *  MMC power sequence management
  */
@@ -74,6 +73,14 @@ void mmc_pwrseq_power_off(struct mmc_host *host)
 
 	if (pwrseq && pwrseq->ops->power_off)
 		pwrseq->ops->power_off(host);
+}
+
+void mmc_pwrseq_reset(struct mmc_host *host)
+{
+	struct mmc_pwrseq *pwrseq = host->pwrseq;
+
+	if (pwrseq && pwrseq->ops->reset)
+		pwrseq->ops->reset(host);
 }
 
 void mmc_pwrseq_free(struct mmc_host *host)

@@ -809,7 +809,6 @@ static const struct net_device_ops smc_netdev_ops = {
 	.ndo_start_xmit    	= smc_wait_to_send_packet,
 	.ndo_tx_timeout	    	= smc_timeout,
 	.ndo_set_rx_mode	= smc_set_multicast_list,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 };
@@ -1502,8 +1501,8 @@ static void smc_set_multicast_list(struct net_device *dev)
 static struct net_device *devSMC9194;
 MODULE_LICENSE("GPL");
 
-module_param(io, int, 0);
-module_param(irq, int, 0);
+module_param_hw(io, int, ioport, 0);
+module_param_hw(irq, int, irq, 0);
 module_param(ifport, int, 0);
 MODULE_PARM_DESC(io, "SMC 99194 I/O base address");
 MODULE_PARM_DESC(irq, "SMC 99194 IRQ number");

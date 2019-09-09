@@ -137,13 +137,13 @@ void agent_send_response(const struct ib_mad_hdr *mad_hdr, const struct ib_grh *
 err2:
 	ib_free_send_mad(send_buf);
 err1:
-	ib_destroy_ah(ah);
+	rdma_destroy_ah(ah, RDMA_DESTROY_AH_SLEEPABLE);
 }
 
 static void agent_send_handler(struct ib_mad_agent *mad_agent,
 			       struct ib_mad_send_wc *mad_send_wc)
 {
-	ib_destroy_ah(mad_send_wc->send_buf->ah);
+	rdma_destroy_ah(mad_send_wc->send_buf->ah, RDMA_DESTROY_AH_SLEEPABLE);
 	ib_free_send_mad(mad_send_wc->send_buf);
 }
 
@@ -156,7 +156,6 @@ int ib_agent_port_open(struct ib_device *device, int port_num)
 	/* Create new device info */
 	port_priv = kzalloc(sizeof *port_priv, GFP_KERNEL);
 	if (!port_priv) {
-		dev_err(&device->dev, "No memory for ib_agent_port_private\n");
 		ret = -ENOMEM;
 		goto error1;
 	}

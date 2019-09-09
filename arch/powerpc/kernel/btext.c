@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Procedures for drawing on the screen early on in the boot process.
  *
@@ -156,20 +157,20 @@ void btext_map(void)
 
 	/* By default, we are no longer mapped */
 	boot_text_mapped = 0;
-	if (dispDeviceBase == 0)
+	if (!dispDeviceBase)
 		return;
 	base = ((unsigned long) dispDeviceBase) & 0xFFFFF000UL;
 	offset = ((unsigned long) dispDeviceBase) - base;
 	size = dispDeviceRowBytes * dispDeviceRect[3] + offset
 		+ dispDeviceRect[0];
-	vbase = __ioremap(base, size, pgprot_val(pgprot_noncached_wc(__pgprot(0))));
-	if (vbase == 0)
+	vbase = ioremap_wc(base, size);
+	if (!vbase)
 		return;
 	logicalDisplayBase = vbase + offset;
 	boot_text_mapped = 1;
 }
 
-int btext_initialize(struct device_node *np)
+static int btext_initialize(struct device_node *np)
 {
 	unsigned int width, height, depth, pitch;
 	unsigned long address = 0;
@@ -231,20 +232,12 @@ int btext_initialize(struct device_node *np)
 
 int __init btext_find_display(int allow_nonstdout)
 {
-	const char *name;
-	struct device_node *np = NULL; 
+	struct device_node *np = of_stdout;
 	int rc = -ENODEV;
 
-	name = of_get_property(of_chosen, "linux,stdout-path", NULL);
-	if (name != NULL) {
-		np = of_find_node_by_path(name);
-		if (np != NULL) {
-			if (strcmp(np->type, "display") != 0) {
-				printk("boot stdout isn't a display !\n");
-				of_node_put(np);
-				np = NULL;
-			}
-		}
+	if (!of_node_is_type(np, "display")) {
+		printk("boot stdout isn't a display !\n");
+		np = NULL;
 	}
 	if (np)
 		rc = btext_initialize(np);
@@ -253,7 +246,7 @@ int __init btext_find_display(int allow_nonstdout)
 
 	for_each_node_by_type(np, "display") {
 		if (of_get_property(np, "linux,opened", NULL)) {
-			printk("trying %s ...\n", np->full_name);
+			printk("trying %pOF ...\n", np);
 			rc = btext_initialize(np);
 			printk("result: %d\n", rc);
 		}
@@ -269,7 +262,7 @@ static unsigned char * calc_base(int x, int y)
 	unsigned char *base;
 
 	base = logicalDisplayBase;
-	if (base == 0)
+	if (!base)
 		base = dispDeviceBase;
 	base += (x + dispDeviceRect[0]) * (dispDeviceDepth >> 3);
 	base += (y + dispDeviceRect[1]) * dispDeviceRowBytes;
@@ -280,7 +273,7 @@ static unsigned char * calc_base(int x, int y)
 void btext_update_display(unsigned long phys, int width, int height,
 			  int depth, int pitch)
 {
-	if (dispDeviceBase == 0)
+	if (!dispDeviceBase)
 		return;
 
 	/* check it's the same frame buffer (within 256MB) */

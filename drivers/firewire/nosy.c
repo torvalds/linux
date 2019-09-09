@@ -1,20 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * nosy - Snoop mode driver for TI PCILynx 1394 controllers
  * Copyright (C) 2002-2007 Kristian Høgsberg
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
 #include <linux/device.h>
@@ -303,7 +290,7 @@ nosy_open(struct inode *inode, struct file *file)
 
 	file->private_data = client;
 
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 fail:
 	kfree(client);
 	lynx_put(lynx);
@@ -328,19 +315,19 @@ nosy_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static unsigned int
+static __poll_t
 nosy_poll(struct file *file, poll_table *pt)
 {
 	struct client *client = file->private_data;
-	unsigned int ret = 0;
+	__poll_t ret = 0;
 
 	poll_wait(file, &client->buffer.wait, pt);
 
 	if (atomic_read(&client->buffer.size) > 0)
-		ret = POLLIN | POLLRDNORM;
+		ret = EPOLLIN | EPOLLRDNORM;
 
 	if (list_empty(&client->lynx->link))
-		ret |= POLLHUP;
+		ret |= EPOLLHUP;
 
 	return ret;
 }

@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Copyright (C) 2015 Altera Corporation. All rights reserved.
+ */
+
+/dts-v1/;
+#include "socfpga_arria10_socdk.dtsi"
+
+&nand {
+	status = "okay";
+
+	partition@nand-boot {
+		label = "Boot and fpga data";
+		reg = <0x0 0x1C00000>;
+	};
+	partition@nand-rootfs {
+		label = "Root Filesystem - JFFS2";
+		reg = <0x1C00000 0x6400000>;
+	};
+};

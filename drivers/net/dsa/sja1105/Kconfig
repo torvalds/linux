@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config NET_DSA_SJA1105
+tristate "NXP SJA1105 Ethernet switch family support"
+	depends on NET_DSA && SPI
+	select NET_DSA_TAG_SJA1105
+	select PACKING
+	select CRC32
+	help
+	  This is the driver for the NXP SJA1105 automotive Ethernet switch
+	  family. These are 5-port devices and are managed over an SPI
+	  interface. Probing is handled based on OF bindings and so is the
+	  linkage to PHYLINK. The driver supports the following revisions:
+	    - SJA1105E (Gen. 1, No TT-Ethernet)
+	    - SJA1105T (Gen. 1, TT-Ethernet)
+	    - SJA1105P (Gen. 2, No SGMII, No TT-Ethernet)
+	    - SJA1105Q (Gen. 2, No SGMII, TT-Ethernet)
+	    - SJA1105R (Gen. 2, SGMII, No TT-Ethernet)
+	    - SJA1105S (Gen. 2, SGMII, TT-Ethernet)
+
+config NET_DSA_SJA1105_PTP
+	bool "Support for the PTP clock on the NXP SJA1105 Ethernet switch"
+	depends on NET_DSA_SJA1105
+	help
+	  This enables support for timestamping and PTP clock manipulations in
+	  the SJA1105 DSA driver.

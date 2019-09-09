@@ -3,7 +3,8 @@
  * with 57712 FCoE firmware.
  *
  * Copyright (c) 2008-2013 Broadcom Corporation
- * Copyright (c) 2014-2015 QLogic Corporation
+ * Copyright (c) 2014-2016 QLogic Corporation
+ * Copyright (c) 2016-2017 Cavium Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -829,7 +830,7 @@ ret_err_rqe:
 			((u64)err_entry->data.err_warn_bitmap_hi << 32) |
 			(u64)err_entry->data.err_warn_bitmap_lo;
 		for (i = 0; i < BNX2FC_NUM_ERR_BITS; i++) {
-			if (err_warn_bit_map & (u64) (1 << i)) {
+			if (err_warn_bit_map & ((u64)1 << i)) {
 				err_warn = i;
 				break;
 			}
@@ -990,7 +991,6 @@ void bnx2fc_arm_cq(struct bnx2fc_rport *tgt)
 			FCOE_CQE_TOGGLE_BIT_SHIFT);
 	msg = *((u32 *)rx_db);
 	writel(cpu_to_le32(msg), tgt->ctx_base);
-	mmiowb();
 
 }
 
@@ -1005,6 +1005,28 @@ static struct bnx2fc_work *bnx2fc_alloc_work(struct bnx2fc_rport *tgt, u16 wqe)
 	work->tgt = tgt;
 	work->wqe = wqe;
 	return work;
+}
+
+/* Pending work request completion */
+static void bnx2fc_pending_work(struct bnx2fc_rport *tgt, unsigned int wqe)
+{
+	unsigned int cpu = wqe % num_possible_cpus();
+	struct bnx2fc_percpu_s *fps;
+	struct bnx2fc_work *work;
+
+	fps = &per_cpu(bnx2fc_percpu, cpu);
+	spin_lock_bh(&fps->fp_work_lock);
+	if (fps->iothread) {
+		work = bnx2fc_alloc_work(tgt, wqe);
+		if (work) {
+			list_add_tail(&work->list, &fps->work_list);
+			wake_up_process(fps->iothread);
+			spin_unlock_bh(&fps->fp_work_lock);
+			return;
+		}
+	}
+	spin_unlock_bh(&fps->fp_work_lock);
+	bnx2fc_process_cq_compl(tgt, wqe);
 }
 
 int bnx2fc_process_new_cqes(struct bnx2fc_rport *tgt)
@@ -1041,28 +1063,7 @@ int bnx2fc_process_new_cqes(struct bnx2fc_rport *tgt)
 			/* Unsolicited event notification */
 			bnx2fc_process_unsol_compl(tgt, wqe);
 		} else {
-			/* Pending work request completion */
-			struct bnx2fc_work *work = NULL;
-			struct bnx2fc_percpu_s *fps = NULL;
-			unsigned int cpu = wqe % num_possible_cpus();
-
-			fps = &per_cpu(bnx2fc_percpu, cpu);
-			spin_lock_bh(&fps->fp_work_lock);
-			if (unlikely(!fps->iothread))
-				goto unlock;
-
-			work = bnx2fc_alloc_work(tgt, wqe);
-			if (work)
-				list_add_tail(&work->list,
-					      &fps->work_list);
-unlock:
-			spin_unlock_bh(&fps->fp_work_lock);
-
-			/* Pending work request completion */
-			if (fps->iothread && work)
-				wake_up_process(fps->iothread);
-			else
-				bnx2fc_process_cq_compl(tgt, wqe);
+			bnx2fc_pending_work(tgt, wqe);
 			num_free_sqes++;
 		}
 		cqe++;
@@ -1407,7 +1408,6 @@ void bnx2fc_ring_doorbell(struct bnx2fc_rport *tgt)
 				(tgt->sq_curr_toggle_bit << 15);
 	msg = *((u32 *)sq_db);
 	writel(cpu_to_le32(msg), tgt->ctx_base);
-	mmiowb();
 
 }
 
@@ -1864,7 +1864,6 @@ int bnx2fc_setup_task_ctx(struct bnx2fc_hba *hba)
 		rc = -1;
 		goto out;
 	}
-	memset(hba->task_ctx_bd_tbl, 0, PAGE_SIZE);
 
 	/*
 	 * Allocate task_ctx which is an array of pointers pointing to
@@ -1902,7 +1901,6 @@ int bnx2fc_setup_task_ctx(struct bnx2fc_hba *hba)
 			rc = -1;
 			goto out3;
 		}
-		memset(hba->task_ctx[i], 0, PAGE_SIZE);
 		addr = (u64)hba->task_ctx_dma[i];
 		task_ctx_bdt->hi = cpu_to_le32((u64)addr >> 32);
 		task_ctx_bdt->lo = cpu_to_le32((u32)addr);
@@ -2031,28 +2029,23 @@ static int bnx2fc_allocate_hash_table(struct bnx2fc_hba *hba)
 	}
 
 	for (i = 0; i < segment_count; ++i) {
-		hba->hash_tbl_segments[i] =
-			dma_alloc_coherent(&hba->pcidev->dev,
-					   BNX2FC_HASH_TBL_CHUNK_SIZE,
-					   &dma_segment_array[i],
-					   GFP_KERNEL);
+		hba->hash_tbl_segments[i] = dma_alloc_coherent(&hba->pcidev->dev,
+							       BNX2FC_HASH_TBL_CHUNK_SIZE,
+							       &dma_segment_array[i],
+							       GFP_KERNEL);
 		if (!hba->hash_tbl_segments[i]) {
 			printk(KERN_ERR PFX "hash segment alloc failed\n");
 			goto cleanup_dma;
 		}
-		memset(hba->hash_tbl_segments[i], 0,
-		       BNX2FC_HASH_TBL_CHUNK_SIZE);
 	}
 
-	hba->hash_tbl_pbl = dma_alloc_coherent(&hba->pcidev->dev,
-					       PAGE_SIZE,
+	hba->hash_tbl_pbl = dma_alloc_coherent(&hba->pcidev->dev, PAGE_SIZE,
 					       &hba->hash_tbl_pbl_dma,
 					       GFP_KERNEL);
 	if (!hba->hash_tbl_pbl) {
 		printk(KERN_ERR PFX "hash table pbl alloc failed\n");
 		goto cleanup_dma;
 	}
-	memset(hba->hash_tbl_pbl, 0, PAGE_SIZE);
 
 	pbl = hba->hash_tbl_pbl;
 	for (i = 0; i < segment_count; ++i) {
@@ -2117,7 +2110,6 @@ int bnx2fc_setup_fw_resc(struct bnx2fc_hba *hba)
 		bnx2fc_free_fw_resc(hba);
 		return -ENOMEM;
 	}
-	memset(hba->t2_hash_tbl_ptr, 0x00, mem_size);
 
 	mem_size = BNX2FC_NUM_MAX_SESS *
 				sizeof(struct fcoe_t2_hash_table_entry);
@@ -2129,7 +2121,6 @@ int bnx2fc_setup_fw_resc(struct bnx2fc_hba *hba)
 		bnx2fc_free_fw_resc(hba);
 		return -ENOMEM;
 	}
-	memset(hba->t2_hash_tbl, 0x00, mem_size);
 	for (i = 0; i < BNX2FC_NUM_MAX_SESS; i++) {
 		addr = (unsigned long) hba->t2_hash_tbl_dma +
 			 ((i+1) * sizeof(struct fcoe_t2_hash_table_entry));
@@ -2146,8 +2137,7 @@ int bnx2fc_setup_fw_resc(struct bnx2fc_hba *hba)
 		return -ENOMEM;
 	}
 
-	hba->stats_buffer = dma_alloc_coherent(&hba->pcidev->dev,
-					       PAGE_SIZE,
+	hba->stats_buffer = dma_alloc_coherent(&hba->pcidev->dev, PAGE_SIZE,
 					       &hba->stats_buf_dma,
 					       GFP_KERNEL);
 	if (!hba->stats_buffer) {
@@ -2155,7 +2145,6 @@ int bnx2fc_setup_fw_resc(struct bnx2fc_hba *hba)
 		bnx2fc_free_fw_resc(hba);
 		return -ENOMEM;
 	}
-	memset(hba->stats_buffer, 0x00, PAGE_SIZE);
 
 	return 0;
 }

@@ -1,0 +1,346 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Device Tree Include file for Marvell 98dx3236 family SoC
+ *
+ * Copyright (C) 2016 Allied Telesis Labs
+ *
+ * Contains definitions specific to the 98dx3236 SoC that are not
+ * common to all Armada XP SoCs.
+ */
+
+#include "armada-370-xp.dtsi"
+
+/ {
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	model = "Marvell 98DX3236 SoC";
+	compatible = "marvell,armadaxp-98dx3236", "marvell,armada-370-xp";
+
+	aliases {
+		gpio0 = &gpio0;
+		gpio1 = &gpio1;
+		gpio2 = &gpio2;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		enable-method = "marvell,98dx3236-smp";
+
+		cpu@0 {
+			device_type = "cpu";
+			compatible = "marvell,sheeva-v7";
+			reg = <0>;
+			clocks = <&cpuclk 0>;
+			clock-latency = <1000000>;
+		};
+	};
+
+	soc {
+		compatible = "marvell,armadaxp-mbus", "simple-bus";
+
+		ranges = <MBUS_ID(0xf0, 0x01) 0 0 0xf1000000 0x100000
+			  MBUS_ID(0x01, 0x1d) 0 0 0xfff00000 0x100000
+			  MBUS_ID(0x01, 0x2f) 0 0 0xf0000000 0x1000000
+			  MBUS_ID(0x03, 0x00) 0 0 0xa8000000 0x4000000
+			  MBUS_ID(0x08, 0x00) 0 0 0xac000000 0x100000>;
+
+		bootrom {
+			compatible = "marvell,bootrom";
+			reg = <MBUS_ID(0x01, 0x1d) 0 0x100000>;
+		};
+
+		/*
+		 * 98DX3236 has 1 x1 PCIe unit Gen2.0
+		 */
+		pciec: pcie@82000000 {
+			compatible = "marvell,armada-xp-pcie";
+			status = "disabled";
+			device_type = "pci";
+
+			#address-cells = <3>;
+			#size-cells = <2>;
+
+			msi-parent = <&mpic>;
+			bus-range = <0x00 0xff>;
+
+			ranges =
+			       <0x82000000 0 0x40000 MBUS_ID(0xf0, 0x01) 0x40000 0 0x00002000   /* Port 0.0 registers */
+				0x82000000 0x1 0       MBUS_ID(0x04, 0xe8) 0 1 0 /* Port 0.0 MEM */
+				0x81000000 0x1 0       MBUS_ID(0x04, 0xe0) 0 1 0 /* Port 0.0 IO  */>;
+
+			pcie1: pcie@1,0 {
+				device_type = "pci";
+				assigned-addresses = <0x82000800 0 0x40000 0 0x2000>;
+				reg = <0x0800 0 0 0 0>;
+				#address-cells = <3>;
+				#size-cells = <2>;
+				#interrupt-cells = <1>;
+				ranges = <0x82000000 0 0 0x82000000 0x1 0 1 0
+					  0x81000000 0 0 0x81000000 0x1 0 1 0>;
+				bus-range = <0x00 0xff>;
+				interrupt-map-mask = <0 0 0 0>;
+				interrupt-map = <0 0 0 0 &mpic 58>;
+				marvell,pcie-port = <0>;
+				marvell,pcie-lane = <0>;
+				clocks = <&gateclk 5>;
+				status = "disabled";
+			};
+		};
+
+		internal-regs {
+			sdramc@1400 {
+				compatible = "marvell,armada-xp-sdram-controller";
+				reg = <0x1400 0x500>;
+			};
+
+			L2: l2-cache@8000 {
+				compatible = "marvell,aurora-system-cache";
+				reg = <0x08000 0x1000>;
+				cache-id-part = <0x100>;
+				cache-level = <2>;
+				cache-unified;
+				wt-override;
+			};
+
+			gpio0: gpio@18100 {
+				compatible = "marvell,orion-gpio";
+				reg = <0x18100 0x40>;
+				ngpios = <32>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				interrupts = <82>, <83>, <84>, <85>;
+			};
+
+			/* does not exist */
+			gpio1: gpio@18140 {
+				compatible = "marvell,orion-gpio";
+				reg = <0x18140 0x40>;
+				status = "disabled";
+			};
+
+			gpio2: gpio@18180 { /* rework some properties */
+				compatible = "marvell,orion-gpio";
+				reg = <0x18180 0x40>;
+				ngpios = <1>; /* only gpio #32 */
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				interrupts = <87>;
+			};
+
+			systemc: system-controller@18200 {
+				compatible = "marvell,armada-370-xp-system-controller";
+				reg = <0x18200 0x500>;
+			};
+
+			gateclk: clock-gating-control@18220 {
+				compatible = "marvell,mv98dx3236-gating-clock";
+				reg = <0x18220 0x4>;
+				clocks = <&coreclk 0>;
+				#clock-cells = <1>;
+			};
+
+			cpuclk: clock-complex@18700 {
+				#clock-cells = <1>;
+				compatible = "marvell,mv98dx3236-cpu-clock";
+				reg = <0x18700 0x24>, <0x1c054 0x10>;
+				clocks = <&coreclk 1>;
+			};
+
+			corediv-clock@18740 {
+				status = "disabled";
+			};
+
+			cpu-config@21000 {
+				compatible = "marvell,armada-xp-cpu-config";
+				reg = <0x21000 0x8>;
+			};
+
+			ethernet@70000 {
+				compatible = "marvell,armada-xp-neta";
+			};
+
+			ethernet@74000 {
+				compatible = "marvell,armada-xp-neta";
+			};
+
+			xor1: xor@f0800 {
+				compatible = "marvell,orion-xor";
+				reg = <0xf0800 0x100
+				       0xf0a00 0x100>;
+				clocks = <&gateclk 22>;
+				status = "okay";
+
+				xor10 {
+					interrupts = <51>;
+					dmacap,memcpy;
+					dmacap,xor;
+				};
+				xor11 {
+					interrupts = <52>;
+					dmacap,memcpy;
+					dmacap,xor;
+					dmacap,memset;
+				};
+			};
+
+			nand_controller: nand-controller@d0000 {
+				clocks = <&dfx_coredivclk 0>;
+			};
+
+			xor0: xor@f0900 {
+				compatible = "marvell,orion-xor";
+				reg = <0xF0900 0x100
+				       0xF0B00 0x100>;
+				clocks = <&gateclk 28>;
+				status = "okay";
+
+				xor00 {
+					interrupts = <94>;
+					dmacap,memcpy;
+					dmacap,xor;
+				};
+				xor01 {
+					interrupts = <95>;
+					dmacap,memcpy;
+					dmacap,xor;
+					dmacap,memset;
+				};
+			};
+		};
+
+		dfx: dfx-server@ac000000 {
+			compatible = "marvell,dfx-server", "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 MBUS_ID(0x08, 0x00) 0 0x100000>;
+			reg = <MBUS_ID(0x08, 0x00) 0 0x100000>;
+
+			coreclk: mvebu-sar@f8204 {
+				compatible = "marvell,mv98dx3236-core-clock";
+				reg = <0xf8204 0x4>;
+				#clock-cells = <1>;
+			};
+
+			dfx_coredivclk: corediv-clock@f8268 {
+				compatible = "marvell,mv98dx3236-corediv-clock";
+				reg = <0xf8268 0xc>;
+				#clock-cells = <1>;
+				clocks = <&mainpll>;
+				clock-output-names = "nand";
+			};
+		};
+
+		switch: switch@a8000000 {
+			compatible = "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 MBUS_ID(0x03, 0x00) 0 0x100000>;
+
+			pp0: packet-processor@0 {
+				compatible = "marvell,prestera-98dx3236", "marvell,prestera";
+				reg = <0 0x4000000>;
+				interrupts = <33>, <34>, <35>;
+				dfx = <&dfx>;
+			};
+		};
+	};
+
+	clocks {
+		/* 25 MHz reference crystal */
+		refclk: oscillator {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <25000000>;
+		};
+	};
+};
+
+&i2c0 {
+	compatible = "marvell,mv78230-i2c", "marvell,mv64xxx-i2c";
+	reg = <0x11000 0x100>;
+};
+
+&i2c1 {
+	compatible = "marvell,mv78230-i2c", "marvell,mv64xxx-i2c";
+	reg = <0x11100 0x100>;
+};
+
+&mpic {
+	reg = <0x20a00 0x2d0>, <0x21070 0x58>;
+};
+
+&rtc {
+	status = "disabled";
+};
+
+&timer {
+	compatible = "marvell,armada-xp-timer";
+	clocks = <&coreclk 2>, <&refclk>;
+	clock-names = "nbclk", "fixed";
+};
+
+&watchdog {
+	compatible = "marvell,armada-xp-wdt";
+	clocks = <&coreclk 2>, <&refclk>;
+	clock-names = "nbclk", "fixed";
+};
+
+&cpurst {
+	reg = <0x20800 0x20>;
+};
+
+&usb0 {
+	clocks = <&gateclk 18>;
+};
+
+&usb1 {
+	clocks = <&gateclk 19>;
+};
+
+&pinctrl {
+	compatible = "marvell,98dx3236-pinctrl";
+
+	nand_pins: nand-pins {
+		marvell,pins = "mpp20", "mpp21", "mpp22",
+			       "mpp23", "mpp24", "mpp25",
+			       "mpp26", "mpp27", "mpp28",
+			       "mpp29", "mpp30";
+		marvell,function = "dev";
+	};
+
+	nand_rb: nand-rb {
+		marvell,pins = "mpp19";
+		marvell,function = "nand";
+	};
+
+	spi0_pins: spi0-pins {
+		marvell,pins = "mpp0", "mpp1",
+			       "mpp2", "mpp3";
+		marvell,function = "spi0";
+	};
+};
+
+&spi0 {
+	compatible = "marvell,armada-xp-spi", "marvell,orion-spi";
+	pinctrl-0 = <&spi0_pins>;
+	pinctrl-names = "default";
+};
+
+&sdio {
+	status = "disabled";
+};
+
+&uart0 {
+	compatible = "marvell,armada-38x-uart";
+};
+
+&uart1 {
+	compatible = "marvell,armada-38x-uart";
+};
+

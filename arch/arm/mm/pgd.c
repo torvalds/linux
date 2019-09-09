@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/arch/arm/mm/pgd.c
  *
  *  Copyright (C) 1998-2005 Russell King
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/mm.h>
 #include <linux/gfp.h>
@@ -20,7 +17,7 @@
 #include "mm.h"
 
 #ifdef CONFIG_ARM_LPAE
-#define __pgd_alloc()	kmalloc(PTRS_PER_PGD * sizeof(pgd_t), GFP_KERNEL)
+#define __pgd_alloc()	kmalloc_array(PTRS_PER_PGD, sizeof(pgd_t), GFP_KERNEL)
 #define __pgd_free(pgd)	kfree(pgd)
 #else
 #define __pgd_alloc()	(pgd_t *)__get_free_pages(GFP_KERNEL, 2)
@@ -141,7 +138,7 @@ void pgd_free(struct mm_struct *mm, pgd_t *pgd_base)
 	pte = pmd_pgtable(*pmd);
 	pmd_clear(pmd);
 	pte_free(mm, pte);
-	atomic_long_dec(&mm->nr_ptes);
+	mm_dec_nr_ptes(mm);
 no_pmd:
 	pud_clear(pud);
 	pmd_free(mm, pmd);

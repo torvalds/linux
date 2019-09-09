@@ -1,9 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2016 Glider bvba
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
  */
 #ifndef __DT_BINDINGS_POWER_R8A7795_SYSC_H__
 #define __DT_BINDINGS_POWER_R8A7795_SYSC_H__
@@ -33,7 +30,7 @@
 #define R8A7795_PD_CA53_SCU		21
 #define R8A7795_PD_3DG_E		22
 #define R8A7795_PD_A3IR			24
-#define R8A7795_PD_A2VC0		25
+#define R8A7795_PD_A2VC0		25	/* ES1.x only */
 #define R8A7795_PD_A2VC1		26
 
 /* Always-on power area */

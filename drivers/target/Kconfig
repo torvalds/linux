@@ -1,9 +1,12 @@
+# SPDX-License-Identifier: GPL-2.0-only
 
 menuconfig TARGET_CORE
 	tristate "Generic Target Core Mod (TCM) and ConfigFS Infrastructure"
-	depends on SCSI && BLOCK
+	depends on BLOCK
 	select CONFIGFS_FS
 	select CRC_T10DIF
+	select BLK_SCSI_REQUEST
+	select SGL_ALLOC
 	default n
 	help
 	Say Y or M here to enable the TCM Storage Engine and ConfigFS enabled
@@ -27,6 +30,7 @@ config TCM_FILEIO
 
 config TCM_PSCSI
 	tristate "TCM/pSCSI Subsystem Plugin for Linux/SCSI"
+	depends on SCSI
 	help
 	Say Y here to enable the TCM/pSCSI subsystem plugin for non-buffered
 	passthrough access to Linux/SCSI device

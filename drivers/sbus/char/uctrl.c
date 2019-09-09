@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* uctrl.c: TS102 Microcontroller interface on Tadpole Sparcbook 3
  *
  * Copyright 1999 Derrick J Brashear (shadow@dementia.org)
@@ -379,8 +380,8 @@ static int uctrl_probe(struct platform_device *op)
 	}
 
 	sbus_writel(UCTRL_INTR_RXNE_REQ|UCTRL_INTR_RXNE_MSK, &p->regs->uctrl_intr);
-	printk(KERN_INFO "%s: uctrl regs[0x%p] (irq %d)\n",
-	       op->dev.of_node->full_name, p->regs, p->irq);
+	printk(KERN_INFO "%pOF: uctrl regs[0x%p] (irq %d)\n",
+	       op->dev.of_node, p->regs, p->irq);
 	uctrl_get_event_status(p);
 	uctrl_get_external_status(p);
 

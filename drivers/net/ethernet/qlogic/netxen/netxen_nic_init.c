@@ -1,24 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2003 - 2009 NetXen, Inc.
  * Copyright (C) 2009 - QLogic Corporation.
  * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
- *
- * The full GNU General Public License is included in this distribution
- * in the file called "COPYING".
- *
  */
 
 #include <linux/netdevice.h>
@@ -603,7 +587,7 @@ static struct uni_table_desc *nx_get_table_desc(const u8 *unirom, int section)
 
 static int
 netxen_nic_validate_header(struct netxen_adapter *adapter)
- {
+{
 	const u8 *unirom = adapter->fw->data;
 	struct uni_table_desc *directory = (struct uni_table_desc *) &unirom[0];
 	u32 fw_file_size = adapter->fw->size;
@@ -1125,7 +1109,8 @@ netxen_validate_firmware(struct netxen_adapter *adapter)
 		return -EINVAL;
 	}
 	val = nx_get_bios_version(adapter);
-	netxen_rom_fast_read(adapter, NX_BIOS_VERSION_OFFSET, (int *)&bios);
+	if (netxen_rom_fast_read(adapter, NX_BIOS_VERSION_OFFSET, (int *)&bios))
+		return -EIO;
 	if ((__force u32)val != bios) {
 		dev_err(&pdev->dev, "%s: firmware bios is incompatible\n",
 				fw_name[fw_type]);
@@ -1375,13 +1360,8 @@ netxen_receive_peg_ready(struct netxen_adapter *adapter)
 
 	} while (--retries);
 
-	if (!retries) {
-		printk(KERN_ERR "Receive Peg initialization not "
-			      "complete, state: 0x%x.\n", val);
-		return -EIO;
-	}
-
-	return 0;
+	pr_err("Receive Peg initialization not complete, state: 0x%x.\n", val);
+	return -EIO;
 }
 
 int netxen_init_firmware(struct netxen_adapter *adapter)

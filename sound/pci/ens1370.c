@@ -1,22 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Driver for Ensoniq ES1370/ES1371 AudioPCI soundcard
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>,
  *		     Thomas Sailer <sailer@ife.ee.ethz.ch>
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 /* Power-Management-Code ( CONFIG_PM )
@@ -79,7 +65,7 @@ MODULE_SUPPORTED_DEVICE("{{Ensoniq,AudioPCI ES1371/73},"
 		"{Ectiva,EV1938}}");
 #endif
 
-#if defined(CONFIG_GAMEPORT) || (defined(MODULE) && defined(CONFIG_GAMEPORT_MODULE))
+#if IS_REACHABLE(CONFIG_GAMEPORT)
 #define SUPPORT_JOYSTICK
 #endif
 
@@ -106,7 +92,7 @@ module_param_array(enable, bool, NULL, 0444);
 MODULE_PARM_DESC(enable, "Enable Ensoniq AudioPCI soundcard.");
 #ifdef SUPPORT_JOYSTICK
 #ifdef CHIP1371
-module_param_array(joystick_port, int, NULL, 0444);
+module_param_hw_array(joystick_port, int, ioport, NULL, 0444);
 MODULE_PARM_DESC(joystick_port, "Joystick port address.");
 #else
 module_param_array(joystick, bool, NULL, 0444);
@@ -467,41 +453,41 @@ MODULE_DEVICE_TABLE(pci, snd_audiopci_ids);
 #define POLL_COUNT	0xa000
 
 #ifdef CHIP1370
-static unsigned int snd_es1370_fixed_rates[] =
+static const unsigned int snd_es1370_fixed_rates[] =
 	{5512, 11025, 22050, 44100};
-static struct snd_pcm_hw_constraint_list snd_es1370_hw_constraints_rates = {
+static const struct snd_pcm_hw_constraint_list snd_es1370_hw_constraints_rates = {
 	.count = 4, 
 	.list = snd_es1370_fixed_rates,
 	.mask = 0,
 };
-static struct snd_ratnum es1370_clock = {
+static const struct snd_ratnum es1370_clock = {
 	.num = ES_1370_SRCLOCK,
 	.den_min = 29, 
 	.den_max = 353,
 	.den_step = 1,
 };
-static struct snd_pcm_hw_constraint_ratnums snd_es1370_hw_constraints_clock = {
+static const struct snd_pcm_hw_constraint_ratnums snd_es1370_hw_constraints_clock = {
 	.nrats = 1,
 	.rats = &es1370_clock,
 };
 #else
-static struct snd_ratden es1371_dac_clock = {
+static const struct snd_ratden es1371_dac_clock = {
 	.num_min = 3000 * (1 << 15),
 	.num_max = 48000 * (1 << 15),
 	.num_step = 3000,
 	.den = 1 << 15,
 };
-static struct snd_pcm_hw_constraint_ratdens snd_es1371_hw_constraints_dac_clock = {
+static const struct snd_pcm_hw_constraint_ratdens snd_es1371_hw_constraints_dac_clock = {
 	.nrats = 1,
 	.rats = &es1371_dac_clock,
 };
-static struct snd_ratnum es1371_adc_clock = {
+static const struct snd_ratnum es1371_adc_clock = {
 	.num = 48000 << 15,
 	.den_min = 32768, 
 	.den_max = 393216,
 	.den_step = 1,
 };
-static struct snd_pcm_hw_constraint_ratnums snd_es1371_hw_constraints_adc_clock = {
+static const struct snd_pcm_hw_constraint_ratnums snd_es1371_hw_constraints_adc_clock = {
 	.nrats = 1,
 	.rats = &es1371_adc_clock,
 };
@@ -732,7 +718,7 @@ static void snd_es1371_codec_wait(struct snd_ac97 *ac97)
 
 static void snd_es1371_adc_rate(struct ensoniq * ensoniq, unsigned int rate)
 {
-	unsigned int n, truncm, freq, result;
+	unsigned int n, truncm, freq;
 
 	mutex_lock(&ensoniq->src_mutex);
 	n = rate / 3000;
@@ -740,7 +726,6 @@ static void snd_es1371_adc_rate(struct ensoniq * ensoniq, unsigned int rate)
 		n--;
 	truncm = (21 * n - 1) | 1;
 	freq = ((48000UL << 15) / rate) * n;
-	result = (48000UL << 15) / (freq / n);
 	if (rate >= 24000) {
 		if (truncm > 239)
 			truncm = 239;
@@ -1059,7 +1044,7 @@ static snd_pcm_uframes_t snd_ensoniq_capture_pointer(struct snd_pcm_substream *s
 	return ptr;
 }
 
-static struct snd_pcm_hardware snd_ensoniq_playback1 =
+static const struct snd_pcm_hardware snd_ensoniq_playback1 =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -1086,7 +1071,7 @@ static struct snd_pcm_hardware snd_ensoniq_playback1 =
 	.fifo_size =		0,
 };
 
-static struct snd_pcm_hardware snd_ensoniq_playback2 =
+static const struct snd_pcm_hardware snd_ensoniq_playback2 =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -1106,7 +1091,7 @@ static struct snd_pcm_hardware snd_ensoniq_playback2 =
 	.fifo_size =		0,
 };
 
-static struct snd_pcm_hardware snd_ensoniq_capture =
+static const struct snd_pcm_hardware snd_ensoniq_capture =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -1530,7 +1515,7 @@ static int snd_es1373_rear_put(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
-static struct snd_kcontrol_new snd_ens1373_rear =
+static const struct snd_kcontrol_new snd_ens1373_rear =
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name =		"AC97 2ch->4ch Copy Switch",
@@ -1575,7 +1560,7 @@ static int snd_es1373_line_put(struct snd_kcontrol *kcontrol,
 	return changed;
 }
 
-static struct snd_kcontrol_new snd_ens1373_line =
+static const struct snd_kcontrol_new snd_ens1373_line =
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name =		"Line In->Rear Out Switch",
@@ -1903,10 +1888,8 @@ static void snd_ensoniq_proc_read(struct snd_info_entry *entry,
 
 static void snd_ensoniq_proc_init(struct ensoniq *ensoniq)
 {
-	struct snd_info_entry *entry;
-
-	if (! snd_card_proc_new(ensoniq->card, "audiopci", &entry))
-		snd_info_set_text_ops(entry, ensoniq, snd_ensoniq_proc_read);
+	snd_card_ro_proc_new(ensoniq->card, "audiopci", ensoniq,
+			     snd_ensoniq_proc_read);
 }
 
 /*
@@ -2038,9 +2021,6 @@ static int snd_ensoniq_suspend(struct device *dev)
 	
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
 
-	snd_pcm_suspend_all(ensoniq->pcm1);
-	snd_pcm_suspend_all(ensoniq->pcm2);
-	
 #ifdef CHIP1371	
 	snd_ac97_suspend(ensoniq->u.es1371.ac97);
 #else
@@ -2317,14 +2297,14 @@ static void snd_ensoniq_midi_output_trigger(struct snd_rawmidi_substream *substr
 	spin_unlock_irqrestore(&ensoniq->reg_lock, flags);
 }
 
-static struct snd_rawmidi_ops snd_ensoniq_midi_output =
+static const struct snd_rawmidi_ops snd_ensoniq_midi_output =
 {
 	.open =		snd_ensoniq_midi_output_open,
 	.close =	snd_ensoniq_midi_output_close,
 	.trigger =	snd_ensoniq_midi_output_trigger,
 };
 
-static struct snd_rawmidi_ops snd_ensoniq_midi_input =
+static const struct snd_rawmidi_ops snd_ensoniq_midi_input =
 {
 	.open =		snd_ensoniq_midi_input_open,
 	.close =	snd_ensoniq_midi_input_close,
@@ -2393,7 +2373,7 @@ static int snd_audiopci_probe(struct pci_dev *pci,
 	static int dev;
 	struct snd_card *card;
 	struct ensoniq *ensoniq;
-	int err, pcm_devs[2];
+	int err;
 
 	if (dev >= SNDRV_CARDS)
 		return -ENODEV;
@@ -2413,7 +2393,6 @@ static int snd_audiopci_probe(struct pci_dev *pci,
 	}
 	card->private_data = ensoniq;
 
-	pcm_devs[0] = 0; pcm_devs[1] = 1;
 #ifdef CHIP1370
 	if ((err = snd_ensoniq_1370_mixer(ensoniq)) < 0) {
 		snd_card_free(card);

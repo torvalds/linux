@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Microblaze support for cache consistent memory.
  * Copyright (C) 2010 Michal Simek <monstr@monstr.eu>
@@ -7,10 +8,6 @@
  * Based on PowerPC version derived from arch/arm/mm/consistent.c
  * Copyright (C) 2001 Dan Malek (dmalek@jlc.net)
  * Copyright (C) 2000 Russell King
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/export.h>
@@ -28,11 +25,12 @@
 #include <linux/vmalloc.h>
 #include <linux/init.h>
 #include <linux/delay.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/highmem.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/gfp.h>
+#include <linux/dma-noncoherent.h>
 
 #include <asm/pgalloc.h>
 #include <linux/io.h>
@@ -59,7 +57,8 @@
  * uncached region.  This will no doubt cause big problems if memory allocated
  * here is not also freed properly. -- JW
  */
-void *consistent_alloc(gfp_t gfp, size_t size, dma_addr_t *dma_handle)
+void *arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle,
+		gfp_t gfp, unsigned long attrs)
 {
 	unsigned long order, vaddr;
 	void *ret;
@@ -79,7 +78,7 @@ void *consistent_alloc(gfp_t gfp, size_t size, dma_addr_t *dma_handle)
 	size = PAGE_ALIGN(size);
 	order = get_order(size);
 
-	vaddr = __get_free_pages(gfp, order);
+	vaddr = __get_free_pages(gfp | __GFP_ZERO, order);
 	if (!vaddr)
 		return NULL;
 
@@ -154,7 +153,6 @@ void *consistent_alloc(gfp_t gfp, size_t size, dma_addr_t *dma_handle)
 
 	return ret;
 }
-EXPORT_SYMBOL(consistent_alloc);
 
 #ifdef CONFIG_MMU
 static pte_t *consistent_virt_to_pte(void *vaddr)
@@ -164,7 +162,8 @@ static pte_t *consistent_virt_to_pte(void *vaddr)
 	return pte_offset_kernel(pmd_offset(pgd_offset_k(addr), addr), addr);
 }
 
-unsigned long consistent_virt_to_pfn(void *vaddr)
+long arch_dma_coherent_to_pfn(struct device *dev, void *vaddr,
+		dma_addr_t dma_addr)
 {
 	pte_t *ptep = consistent_virt_to_pte(vaddr);
 
@@ -178,7 +177,8 @@ unsigned long consistent_virt_to_pfn(void *vaddr)
 /*
  * free page(s) as defined by the above mapping.
  */
-void consistent_free(size_t size, void *vaddr)
+void arch_dma_free(struct device *dev, size_t size, void *vaddr,
+		dma_addr_t dma_addr, unsigned long attrs)
 {
 	struct page *page;
 
@@ -218,49 +218,3 @@ void consistent_free(size_t size, void *vaddr)
 	flush_tlb_all();
 #endif
 }
-EXPORT_SYMBOL(consistent_free);
-
-/*
- * make an area consistent.
- */
-void consistent_sync(void *vaddr, size_t size, int direction)
-{
-	unsigned long start;
-	unsigned long end;
-
-	start = (unsigned long)vaddr;
-
-	/* Convert start address back down to unshadowed memory region */
-#ifdef CONFIG_XILINX_UNCACHED_SHADOW
-	start &= ~UNCACHED_SHADOW_MASK;
-#endif
-	end = start + size;
-
-	switch (direction) {
-	case PCI_DMA_NONE:
-		BUG();
-	case PCI_DMA_FROMDEVICE:	/* invalidate only */
-		invalidate_dcache_range(start, end);
-		break;
-	case PCI_DMA_TODEVICE:		/* writeback only */
-		flush_dcache_range(start, end);
-		break;
-	case PCI_DMA_BIDIRECTIONAL:	/* writeback and invalidate */
-		flush_dcache_range(start, end);
-		break;
-	}
-}
-EXPORT_SYMBOL(consistent_sync);
-
-/*
- * consistent_sync_page makes memory consistent. identical
- * to consistent_sync, but takes a struct page instead of a
- * virtual address
- */
-void consistent_sync_page(struct page *page, unsigned long offset,
-	size_t size, int direction)
-{
-	unsigned long start = (unsigned long)page_address(page) + offset;
-	consistent_sync((void *)start, size, direction);
-}
-EXPORT_SYMBOL(consistent_sync_page);

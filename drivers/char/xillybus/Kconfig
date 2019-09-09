@@ -1,10 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Xillybus devices
 #
 
 config XILLYBUS
 	tristate "Xillybus generic FPGA interface"
-	depends on PCI || (OF_ADDRESS && OF_IRQ)
+	depends on PCI || OF
 	select CRC32
 	help
 	  Xillybus is a generic interface for peripherals designed on
@@ -24,7 +25,7 @@ config XILLYBUS_PCIE
 
 config XILLYBUS_OF
 	tristate "Xillybus over Device Tree"
-	depends on OF_ADDRESS && OF_IRQ && HAS_DMA
+	depends on OF && HAS_DMA
 	help
 	  Set to M if you want Xillybus to find its resources from the
 	  Open Firmware Flattened Device Tree. If the target is an embedded

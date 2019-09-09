@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Port on Texas Instruments TMS320C6x architecture
  *
  *  Copyright (C) 2004, 2009, 2010, 2011 Texas Instruments Incorporated
  *  Author: Aurelien Jacquiot (aurelien.jacquiot@jaluna.com)
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
  */
 #include <linux/module.h>
 #include <linux/syscalls.h>
@@ -23,7 +20,7 @@ int _access_ok(unsigned long addr, unsigned long size)
 	if (!addr || addr > (0xffffffffUL - (size - 1)))
 		goto _bad_access;
 
-	if (segment_eq(get_fs(), KERNEL_DS))
+	if (uaccess_kernel())
 		return 1;
 
 	if (memory_start <= addr && (addr + size - 1) < memory_end)

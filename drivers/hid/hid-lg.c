@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  HID driver for some logitech "special" devices
  *
@@ -10,10 +11,6 @@
  */
 
 /*
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
  */
 
 #include <linux/device.h>
@@ -50,6 +47,7 @@
 #define MOMO_RDESC_ORIG_SIZE	87
 #define MOMO2_RDESC_ORIG_SIZE	87
 #define FFG_RDESC_ORIG_SIZE	85
+#define FG_RDESC_ORIG_SIZE	82
 
 /* Fixed report descriptors for Logitech Driving Force (and Pro)
  * wheel controllers
@@ -381,6 +379,49 @@ static __u8 ffg_rdesc_fixed[] = {
 0xC0                /*  End Collection                      */
 };
 
+static __u8 fg_rdesc_fixed[] = {
+0x05, 0x01,         /*  Usage Page (Desktop),               */
+0x09, 0x04,         /*  Usage (Joystik),                    */
+0xA1, 0x01,         /*  Collection (Application),           */
+0xA1, 0x02,         /*      Collection (Logical),           */
+0x15, 0x00,         /*          Logical Minimum (0),        */
+0x26, 0xFF, 0x00,   /*          Logical Maximum (255),      */
+0x35, 0x00,         /*          Physical Minimum (0),       */
+0x46, 0xFF, 0x00,   /*          Physical Maximum (255),     */
+0x75, 0x08,         /*          Report Size (8),            */
+0x95, 0x01,         /*          Report Count (1),           */
+0x09, 0x30,         /*          Usage (X),                  */
+0x81, 0x02,         /*          Input (Variable),           */
+0xA4,               /*  Push,                               */
+0x25, 0x01,         /*          Logical Maximum (1),        */
+0x45, 0x01,         /*          Physical Maximum (1),       */
+0x75, 0x01,         /*          Report Size (1),            */
+0x95, 0x02,         /*          Report Count (2),           */
+0x81, 0x01,         /*          Input (Constant),           */
+0x95, 0x06,         /*          Report Count (6),           */
+0x05, 0x09,         /*          Usage Page (Button),        */
+0x19, 0x01,         /*          Usage Minimum (01h),        */
+0x29, 0x06,         /*          Usage Maximum (06h),        */
+0x81, 0x02,         /*          Input (Variable),           */
+0x05, 0x01,         /*          Usage Page (Desktop),       */
+0xB4,               /*  Pop,                                */
+0x81, 0x02,         /*          Input (Constant),           */
+0x09, 0x31,         /*          Usage (Y),                  */
+0x81, 0x02,         /*          Input (Variable),           */
+0x09, 0x32,         /*          Usage (Z),                  */
+0x81, 0x02,         /*          Input (Variable),           */
+0xC0,               /*      End Collection,                 */
+0xA1, 0x02,         /*      Collection (Logical),           */
+0x26, 0xFF, 0x00,   /*          Logical Maximum (255),      */
+0x46, 0xFF, 0x00,   /*          Physical Maximum (255),     */
+0x75, 0x08,         /*          Report Size (8),            */
+0x95, 0x04,         /*          Report Count (4),           */
+0x09, 0x02,         /*          Usage (02h),                */
+0xB1, 0x02,         /*          Feature (Variable),         */
+0xC0,               /*      End Collection,                 */
+0xC0                /*  End Collection,                     */
+};
+
 /*
  * Certain Logitech keyboards send in report #3 keys which are far
  * above the logical maximum described in descriptor. This extends
@@ -407,6 +448,19 @@ static __u8 *lg_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 	}
 
 	switch (hdev->product) {
+
+	case USB_DEVICE_ID_LOGITECH_WINGMAN_FG:
+		if (*rsize == FG_RDESC_ORIG_SIZE) {
+			hid_info(hdev,
+				"fixing up Logitech Wingman Formula GP report descriptor\n");
+			rdesc = fg_rdesc_fixed;
+			*rsize = sizeof(fg_rdesc_fixed);
+		} else {
+			hid_info(hdev,
+				"rdesc size test failed for formula gp\n");
+		}
+		break;
+
 
 	case USB_DEVICE_ID_LOGITECH_WINGMAN_FFG:
 		if (*rsize == FFG_RDESC_ORIG_SIZE) {
@@ -664,6 +718,7 @@ static int lg_input_mapped(struct hid_device *hdev, struct hid_input *hi,
 			usage->code == ABS_RZ)) {
 		switch (hdev->product) {
 		case USB_DEVICE_ID_LOGITECH_G29_WHEEL:
+		case USB_DEVICE_ID_LOGITECH_WINGMAN_FG:
 		case USB_DEVICE_ID_LOGITECH_WINGMAN_FFG:
 		case USB_DEVICE_ID_LOGITECH_WHEEL:
 		case USB_DEVICE_ID_LOGITECH_MOMO_WHEEL:
@@ -756,11 +811,18 @@ static int lg_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	/* Setup wireless link with Logitech Wii wheel */
 	if (hdev->product == USB_DEVICE_ID_LOGITECH_WII_WHEEL) {
-		unsigned char buf[] = { 0x00, 0xAF,  0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+		static const unsigned char cbuf[] = {
+			0x00, 0xAF,  0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+		};
+		u8 *buf = kmemdup(cbuf, sizeof(cbuf), GFP_KERNEL);
 
-		ret = hid_hw_raw_request(hdev, buf[0], buf, sizeof(buf),
+		if (!buf) {
+			ret = -ENOMEM;
+			goto err_free;
+		}
+
+		ret = hid_hw_raw_request(hdev, buf[0], buf, sizeof(cbuf),
 					HID_FEATURE_REPORT, HID_REQ_SET_REPORT);
-
 		if (ret >= 0) {
 			/* insert a little delay of 10 jiffies ~ 40ms */
 			wait_queue_head_t wait;
@@ -772,9 +834,10 @@ static int lg_probe(struct hid_device *hdev, const struct hid_device_id *id)
 			buf[1] = 0xB2;
 			get_random_bytes(&buf[2], 2);
 
-			ret = hid_hw_raw_request(hdev, buf[0], buf, sizeof(buf),
+			ret = hid_hw_raw_request(hdev, buf[0], buf, sizeof(cbuf),
 					HID_FEATURE_REPORT, HID_REQ_SET_REPORT);
 		}
+		kfree(buf);
 	}
 
 	if (drv_data->quirks & LG_FF)
@@ -806,11 +869,7 @@ static void lg_remove(struct hid_device *hdev)
 }
 
 static const struct hid_device_id lg_devices[] = {
-	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_MX3000_RECEIVER),
-		.driver_data = LG_RDESC | LG_WIRELESS },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_S510_RECEIVER),
-		.driver_data = LG_RDESC | LG_WIRELESS },
-	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_S510_RECEIVER_2),
 		.driver_data = LG_RDESC | LG_WIRELESS },
 
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_RECEIVER),
@@ -863,10 +922,12 @@ static const struct hid_device_id lg_devices[] = {
 		.driver_data = LG_NOGET | LG_FF4 },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_WII_WHEEL),
 		.driver_data = LG_FF4 },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_WINGMAN_FG),
+		.driver_data = LG_NOGET },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_WINGMAN_FFG),
 		.driver_data = LG_NOGET | LG_FF4 },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_RUMBLEPAD2),
-		.driver_data = LG_FF2 },
+		.driver_data = LG_NOGET | LG_FF2 },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_FLIGHT_SYSTEM_G940),
 		.driver_data = LG_FF3 },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_SPACENAVIGATOR),

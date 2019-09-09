@@ -1,15 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- *   This program is free software; you can redistribute it and/or modify it
- *   under the terms of the GNU General Public License version 2 as published
- *   by the Free Software Foundation.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  *   Copyright (C) 2011 John Crispin <blogic@openwrt.org>
  */
@@ -112,10 +102,12 @@ struct ltq_etop_priv {
 static int
 ltq_etop_alloc_skb(struct ltq_etop_chan *ch)
 {
+	struct ltq_etop_priv *priv = netdev_priv(ch->netdev);
+
 	ch->skb[ch->dma.desc] = netdev_alloc_skb(ch->netdev, MAX_DMA_DATA_LEN);
 	if (!ch->skb[ch->dma.desc])
 		return -ENOMEM;
-	ch->dma.desc_base[ch->dma.desc].addr = dma_map_single(NULL,
+	ch->dma.desc_base[ch->dma.desc].addr = dma_map_single(&priv->pdev->dev,
 		ch->skb[ch->dma.desc]->data, MAX_DMA_DATA_LEN,
 		DMA_FROM_DEVICE);
 	ch->dma.desc_base[ch->dma.desc].addr =
@@ -156,24 +148,21 @@ ltq_etop_poll_rx(struct napi_struct *napi, int budget)
 {
 	struct ltq_etop_chan *ch = container_of(napi,
 				struct ltq_etop_chan, napi);
-	int rx = 0;
-	int complete = 0;
+	int work_done = 0;
 
-	while ((rx < budget) && !complete) {
+	while (work_done < budget) {
 		struct ltq_dma_desc *desc = &ch->dma.desc_base[ch->dma.desc];
 
-		if ((desc->ctl & (LTQ_DMA_OWN | LTQ_DMA_C)) == LTQ_DMA_C) {
-			ltq_etop_hw_receive(ch);
-			rx++;
-		} else {
-			complete = 1;
-		}
+		if ((desc->ctl & (LTQ_DMA_OWN | LTQ_DMA_C)) != LTQ_DMA_C)
+			break;
+		ltq_etop_hw_receive(ch);
+		work_done++;
 	}
-	if (complete || !rx) {
-		napi_complete(&ch->napi);
+	if (work_done < budget) {
+		napi_complete_done(&ch->napi, work_done);
 		ltq_dma_ack_irq(&ch->dma);
 	}
-	return rx;
+	return work_done;
 }
 
 static int
@@ -277,6 +266,7 @@ ltq_etop_hw_init(struct net_device *dev)
 		struct ltq_etop_chan *ch = &priv->ch[i];
 
 		ch->idx = ch->dma.nr = i;
+		ch->dma.dev = &priv->pdev->dev;
 
 		if (IS_TX(i)) {
 			ltq_dma_alloc_tx(&ch->dma);
@@ -303,15 +293,9 @@ ltq_etop_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
 }
 
-static int
-ltq_etop_nway_reset(struct net_device *dev)
-{
-	return phy_start_aneg(dev->phydev);
-}
-
 static const struct ethtool_ops ltq_etop_ethtool_ops = {
 	.get_drvinfo = ltq_etop_get_drvinfo,
-	.nway_reset = ltq_etop_nway_reset,
+	.nway_reset = phy_ethtool_nway_reset,
 	.get_link_ksettings = phy_ethtool_get_link_ksettings,
 	.set_link_ksettings = phy_ethtool_set_link_ksettings,
 };
@@ -373,15 +357,8 @@ ltq_etop_mdio_probe(struct net_device *dev)
 		return PTR_ERR(phydev);
 	}
 
-	phydev->supported &= (SUPPORTED_10baseT_Half
-			      | SUPPORTED_10baseT_Full
-			      | SUPPORTED_100baseT_Half
-			      | SUPPORTED_100baseT_Full
-			      | SUPPORTED_Autoneg
-			      | SUPPORTED_MII
-			      | SUPPORTED_TP);
+	phy_set_max_speed(phydev, SPEED_100);
 
-	phydev->advertising = phydev->supported;
 	phy_attached_info(phydev);
 
 	return 0;
@@ -447,6 +424,7 @@ ltq_etop_open(struct net_device *dev)
 		if (!IS_TX(i) && (!IS_RX(i)))
 			continue;
 		ltq_dma_open(&ch->dma);
+		ltq_dma_enable_irq(&ch->dma);
 		napi_enable(&ch->napi);
 	}
 	phy_start(dev->phydev);
@@ -501,7 +479,7 @@ ltq_etop_tx(struct sk_buff *skb, struct net_device *dev)
 	netif_trans_update(dev);
 
 	spin_lock_irqsave(&priv->lock, flags);
-	desc->addr = ((unsigned int) dma_map_single(NULL, skb->data, len,
+	desc->addr = ((unsigned int) dma_map_single(&priv->pdev->dev, skb->data, len,
 						DMA_TO_DEVICE)) - byte_offset;
 	wmb();
 	desc->ctl = LTQ_DMA_OWN | LTQ_DMA_SOP | LTQ_DMA_EOP |
@@ -519,18 +497,16 @@ ltq_etop_tx(struct sk_buff *skb, struct net_device *dev)
 static int
 ltq_etop_change_mtu(struct net_device *dev, int new_mtu)
 {
-	int ret = eth_change_mtu(dev, new_mtu);
+	struct ltq_etop_priv *priv = netdev_priv(dev);
+	unsigned long flags;
 
-	if (!ret) {
-		struct ltq_etop_priv *priv = netdev_priv(dev);
-		unsigned long flags;
+	dev->mtu = new_mtu;
 
-		spin_lock_irqsave(&priv->lock, flags);
-		ltq_etop_w32((ETOP_PLEN_UNDER << 16) | new_mtu,
-			LTQ_ETOP_IGPLEN);
-		spin_unlock_irqrestore(&priv->lock, flags);
-	}
-	return ret;
+	spin_lock_irqsave(&priv->lock, flags);
+	ltq_etop_w32((ETOP_PLEN_UNDER << 16) | new_mtu, LTQ_ETOP_IGPLEN);
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	return 0;
 }
 
 static int
@@ -572,14 +548,6 @@ ltq_etop_set_multicast_list(struct net_device *dev)
 	else
 		ltq_etop_w32_mask(0, ETOP_FTCU, LTQ_ETOP_ENETS0);
 	spin_unlock_irqrestore(&priv->lock, flags);
-}
-
-static u16
-ltq_etop_select_queue(struct net_device *dev, struct sk_buff *skb,
-		      void *accel_priv, select_queue_fallback_t fallback)
-{
-	/* we are currently only using the first queue */
-	return 0;
 }
 
 static int
@@ -652,7 +620,7 @@ static const struct net_device_ops ltq_eth_netdev_ops = {
 	.ndo_set_mac_address = ltq_etop_set_mac_address,
 	.ndo_validate_addr = eth_validate_addr,
 	.ndo_set_rx_mode = ltq_etop_set_multicast_list,
-	.ndo_select_queue = ltq_etop_select_queue,
+	.ndo_select_queue = dev_pick_tx_zero,
 	.ndo_init = ltq_etop_init,
 	.ndo_tx_timeout = ltq_etop_tx_timeout,
 };
@@ -704,6 +672,7 @@ ltq_etop_probe(struct platform_device *pdev)
 	priv->pldata = dev_get_platdata(&pdev->dev);
 	priv->netdev = dev;
 	spin_lock_init(&priv->lock);
+	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	for (i = 0; i < MAX_DMA_CHAN; i++) {
 		if (IS_TX(i))

@@ -1,4 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
+#include <dirent.h>
 #include <stdlib.h>
+#include <linux/kernel.h>
 #include <linux/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -110,7 +113,7 @@ static int dso__data_fd(struct dso *dso, struct machine *machine)
 	return fd;
 }
 
-int test__dso_data(int subtest __maybe_unused)
+int test__dso_data(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	struct machine machine;
 	struct dso *dso;
@@ -245,7 +248,7 @@ static int set_fd_limit(int n)
 	return setrlimit(RLIMIT_NOFILE, &rlim);
 }
 
-int test__dso_data_cache(int subtest __maybe_unused)
+int test__dso_data_cache(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	struct machine machine;
 	long nr_end, nr = open_files_cnt();
@@ -301,11 +304,11 @@ int test__dso_data_cache(int subtest __maybe_unused)
 	/* Make sure we did not leak any file descriptor. */
 	nr_end = open_files_cnt();
 	pr_debug("nr start %ld, nr stop %ld\n", nr, nr_end);
-	TEST_ASSERT_VAL("failed leadking files", nr == nr_end);
+	TEST_ASSERT_VAL("failed leaking files", nr == nr_end);
 	return 0;
 }
 
-int test__dso_data_reopen(int subtest __maybe_unused)
+int test__dso_data_reopen(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	struct machine machine;
 	long nr_end, nr = open_files_cnt();
@@ -377,6 +380,6 @@ int test__dso_data_reopen(int subtest __maybe_unused)
 	/* Make sure we did not leak any file descriptor. */
 	nr_end = open_files_cnt();
 	pr_debug("nr start %ld, nr stop %ld\n", nr, nr_end);
-	TEST_ASSERT_VAL("failed leadking files", nr == nr_end);
+	TEST_ASSERT_VAL("failed leaking files", nr == nr_end);
 	return 0;
 }

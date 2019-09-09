@@ -62,7 +62,7 @@ disabled, fcntl(fd, F_NOTIFY, ...) will return -EINVAL.
 
 Example
 -------
-See Documentation/filesystems/dnotify_test.c for an example.
+See tools/testing/selftests/filesystems/dnotify_test.c for an example.
 
 NOTE
 ----

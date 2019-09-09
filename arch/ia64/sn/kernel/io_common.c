@@ -6,7 +6,7 @@
  * Copyright (C) 2006 Silicon Graphics, Inc. All rights reserved.
  */
 
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/export.h>
 #include <linux/slab.h>
 #include <asm/sn/types.h>
@@ -132,7 +132,7 @@ static s64 sn_device_fixup_war(u64 nasid, u64 widget, int device,
 	printk_once(KERN_WARNING
 		"PROM version < 4.50 -- implementing old PROM flush WAR\n");
 
-	war_list = kzalloc(DEV_PER_WIDGET * sizeof(*war_list), GFP_KERNEL);
+	war_list = kcalloc(DEV_PER_WIDGET, sizeof(*war_list), GFP_KERNEL);
 	BUG_ON(!war_list);
 
 	SAL_CALL_NOLOCK(isrv, SN_SAL_IOIF_GET_WIDGET_DMAFLUSH_LIST,
@@ -385,16 +385,18 @@ void __init hubdev_init_node(nodepda_t * npda, cnodeid_t node)
 {
 	struct hubdev_info *hubdev_info;
 	int size;
-	pg_data_t *pg;
 
 	size = sizeof(struct hubdev_info);
 
 	if (node >= num_online_nodes())	/* Headless/memless IO nodes */
-		pg = NODE_DATA(0);
-	else
-		pg = NODE_DATA(node);
+		node = 0;
 
-	hubdev_info = (struct hubdev_info *)alloc_bootmem_node(pg, size);
+	hubdev_info = (struct hubdev_info *)memblock_alloc_node(size,
+								SMP_CACHE_BYTES,
+								node);
+	if (!hubdev_info)
+		panic("%s: Failed to allocate %d bytes align=0x%x nid=%d\n",
+		      __func__, size, SMP_CACHE_BYTES, node);
 
 	npda->pdinfo = (void *)hubdev_info;
 }
@@ -479,11 +481,6 @@ sn_io_early_init(void)
 	pcibr_init_provider();
 	tioca_init_provider();
 	tioce_init_provider();
-
-	/*
-	 * This is needed to avoid bounce limit checks in the blk layer
-	 */
-	ia64_max_iommu_merge_mask = ~PAGE_MASK;
 
 	sn_irq_lh_init();
 	INIT_LIST_HEAD(&sn_sysdata_list);

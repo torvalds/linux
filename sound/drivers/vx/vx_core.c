@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for Digigram VX soundcards
  *
  * Hardware core part
  *
  * Copyright (c) 2002 by Takashi Iwai <tiwai@suse.de>
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 #include <linux/delay.h>
@@ -256,8 +243,8 @@ int vx_send_msg_nolock(struct vx_core *chip, struct vx_rmh *rmh)
 	if (rmh->LgCmd > 1) {
 		printk(KERN_DEBUG "  ");
 		for (i = 1; i < rmh->LgCmd; i++)
-			printk("0x%06x ", rmh->Cmd[i]);
-		printk("\n");
+			printk(KERN_CONT "0x%06x ", rmh->Cmd[i]);
+		printk(KERN_CONT "\n");
 	}
 #endif
 	/* Check bit M is set according to length of the command */
@@ -643,10 +630,7 @@ static void vx_proc_read(struct snd_info_entry *entry, struct snd_info_buffer *b
 
 static void vx_proc_init(struct vx_core *chip)
 {
-	struct snd_info_entry *entry;
-
-	if (! snd_card_proc_new(chip->card, "vx-status", &entry))
-		snd_info_set_text_ops(entry, chip, vx_proc_read);
+	snd_card_ro_proc_new(chip->card, "vx-status", chip, vx_proc_read);
 }
 
 
@@ -732,12 +716,8 @@ EXPORT_SYMBOL(snd_vx_dsp_load);
  */
 int snd_vx_suspend(struct vx_core *chip)
 {
-	unsigned int i;
-
 	snd_power_change_state(chip->card, SNDRV_CTL_POWER_D3hot);
 	chip->chip_status |= VX_STAT_IN_SUSPEND;
-	for (i = 0; i < chip->hw->num_codecs; i++)
-		snd_pcm_suspend_all(chip->pcm[i]);
 
 	return 0;
 }
@@ -795,10 +775,8 @@ struct vx_core *snd_vx_create(struct snd_card *card, struct snd_vx_hardware *hw,
 		return NULL;
 
 	chip = kzalloc(sizeof(*chip) + extra_size, GFP_KERNEL);
-	if (! chip) {
-		snd_printk(KERN_ERR "vx_core: no memory\n");
+	if (! chip)
 		return NULL;
-	}
 	mutex_init(&chip->lock);
 	chip->irq = -1;
 	chip->hw = hw;
@@ -817,18 +795,3 @@ struct vx_core *snd_vx_create(struct snd_card *card, struct snd_vx_hardware *hw,
 }
 
 EXPORT_SYMBOL(snd_vx_create);
-
-/*
- * module entries
- */
-static int __init alsa_vx_core_init(void)
-{
-	return 0;
-}
-
-static void __exit alsa_vx_core_exit(void)
-{
-}
-
-module_init(alsa_vx_core_init)
-module_exit(alsa_vx_core_exit)

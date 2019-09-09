@@ -1,16 +1,12 @@
-/*
- * Device driver for regulators in Hi655x IC
- *
- * Copyright (c) 2016 Hisilicon.
- *
- * Authors:
- * Chen Feng <puck.chen@hisilicon.com>
- * Fei  Wang <w.f@huawei.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Device driver for regulators in Hi655x IC
+//
+// Copyright (c) 2016 Hisilicon.
+//
+// Authors:
+// Chen Feng <puck.chen@hisilicon.com>
+// Fei  Wang <w.f@huawei.com>
 
 #include <linux/bitops.h>
 #include <linux/device.h>
@@ -28,8 +24,6 @@
 struct hi655x_regulator {
 	unsigned int disable_reg;
 	unsigned int status_reg;
-	unsigned int ctrl_regs;
-	unsigned int ctrl_mask;
 	struct regulator_desc rdesc;
 };
 
@@ -78,25 +72,21 @@ enum hi655x_regulator_id {
 static int hi655x_is_enabled(struct regulator_dev *rdev)
 {
 	unsigned int value = 0;
-
 	struct hi655x_regulator *regulator = rdev_get_drvdata(rdev);
 
 	regmap_read(rdev->regmap, regulator->status_reg, &value);
-	return (value & BIT(regulator->ctrl_mask));
+	return (value & rdev->desc->enable_mask);
 }
 
 static int hi655x_disable(struct regulator_dev *rdev)
 {
-	int ret = 0;
-
 	struct hi655x_regulator *regulator = rdev_get_drvdata(rdev);
 
-	ret = regmap_write(rdev->regmap, regulator->disable_reg,
-			   BIT(regulator->ctrl_mask));
-	return ret;
+	return regmap_write(rdev->regmap, regulator->disable_reg,
+			    rdev->desc->enable_mask);
 }
 
-static struct regulator_ops hi655x_regulator_ops = {
+static const struct regulator_ops hi655x_regulator_ops = {
 	.enable = regulator_enable_regmap,
 	.disable = hi655x_disable,
 	.is_enabled = hi655x_is_enabled,
@@ -105,7 +95,7 @@ static struct regulator_ops hi655x_regulator_ops = {
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
 };
 
-static struct regulator_ops hi655x_ldo_linear_ops = {
+static const struct regulator_ops hi655x_ldo_linear_ops = {
 	.enable = regulator_enable_regmap,
 	.disable = hi655x_disable,
 	.is_enabled = hi655x_is_enabled,
@@ -133,7 +123,6 @@ static struct regulator_ops hi655x_ldo_linear_ops = {
 	},                                                       \
 	.disable_reg = HI655X_BUS_ADDR(dreg),                    \
 	.status_reg = HI655X_BUS_ADDR(sreg),                     \
-	.ctrl_mask = cmask,                                      \
 }
 
 #define HI655X_LDO_LINEAR(_ID, vreg, vmask, ereg, dreg,          \
@@ -156,10 +145,9 @@ static struct regulator_ops hi655x_ldo_linear_ops = {
 	},                                                       \
 	.disable_reg = HI655X_BUS_ADDR(dreg),                    \
 	.status_reg = HI655X_BUS_ADDR(sreg),                     \
-	.ctrl_mask = cmask,                                      \
 }
 
-static struct hi655x_regulator regulators[] = {
+static const struct hi655x_regulator regulators[] = {
 	HI655X_LDO_LINEAR(LDO2, 0x72, 0x07, 0x29, 0x2a, 0x2b, 0x01,
 			  2500000, 8, 100000),
 	HI655X_LDO(LDO7, 0x78, 0x07, 0x29, 0x2a, 0x2b, 0x06, ldo7_voltages),
@@ -214,7 +202,14 @@ static int hi655x_regulator_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct platform_device_id hi655x_regulator_table[] = {
+	{ .name = "hi655x-regulator" },
+	{},
+};
+MODULE_DEVICE_TABLE(platform, hi655x_regulator_table);
+
 static struct platform_driver hi655x_regulator_driver = {
+	.id_table = hi655x_regulator_table,
 	.driver = {
 		.name	= "hi655x-regulator",
 	},

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <Python.h>
 
 int main(void)
@@ -6,3 +7,4 @@ int main(void)
 
 	return 0;
 }
+#undef _GNU_SOURCE

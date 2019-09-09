@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Low-Level PCI Support for the SH7780
  *
  *  Copyright (C) 2005 - 2010  Paul Mundt
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -19,7 +16,7 @@
 #include <linux/log2.h>
 #include "pci-sh4.h"
 #include <asm/mmu.h>
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 
 #if defined(CONFIG_CPU_BIG_ENDIAN)
 # define PCICR_ENDIANNESS SH4_PCICR_BSWP

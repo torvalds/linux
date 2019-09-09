@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *  linux/include/linux/hfsplus_fs.h
  *
@@ -30,7 +31,6 @@
 #define DBG_EXTENT	0x00000020
 #define DBG_BITMAP	0x00000040
 #define DBG_ATTR_MOD	0x00000080
-#define DBG_ACL_MOD	0x00000100
 
 #if 0
 #define DBG_MASK	(DBG_EXTENT|DBG_INODE|DBG_BNODE_MOD)
@@ -311,6 +311,7 @@ static inline unsigned short hfsplus_min_io_size(struct super_block *sb)
 #define hfs_btree_open hfsplus_btree_open
 #define hfs_btree_close hfsplus_btree_close
 #define hfs_btree_write hfsplus_btree_write
+#define hfs_bmap_reserve hfsplus_bmap_reserve
 #define hfs_bmap_alloc hfsplus_bmap_alloc
 #define hfs_bmap_free hfsplus_bmap_free
 #define hfs_bnode_read hfsplus_bnode_read
@@ -395,6 +396,7 @@ u32 hfsplus_calc_btree_clump_size(u32 block_size, u32 node_size, u64 sectors,
 struct hfs_btree *hfs_btree_open(struct super_block *sb, u32 id);
 void hfs_btree_close(struct hfs_btree *tree);
 int hfs_btree_write(struct hfs_btree *tree);
+int hfs_bmap_reserve(struct hfs_btree *tree, int rsvd_nodes);
 struct hfs_bnode *hfs_bmap_alloc(struct hfs_btree *tree);
 void hfs_bmap_free(struct hfs_bnode *node);
 
@@ -477,7 +479,8 @@ extern const struct address_space_operations hfsplus_aops;
 extern const struct address_space_operations hfsplus_btree_aops;
 extern const struct dentry_operations hfsplus_dentry_operations;
 
-struct inode *hfsplus_new_inode(struct super_block *sb, umode_t mode);
+struct inode *hfsplus_new_inode(struct super_block *sb, struct inode *dir,
+				umode_t mode);
 void hfsplus_delete_inode(struct inode *inode);
 void hfsplus_inode_read_fork(struct inode *inode,
 			     struct hfsplus_fork_raw *fork);
@@ -485,6 +488,8 @@ void hfsplus_inode_write_fork(struct inode *inode,
 			      struct hfsplus_fork_raw *fork);
 int hfsplus_cat_read_inode(struct inode *inode, struct hfs_find_data *fd);
 int hfsplus_cat_write_inode(struct inode *inode);
+int hfsplus_getattr(const struct path *path, struct kstat *stat,
+		    u32 request_mask, unsigned int query_flags);
 int hfsplus_file_fsync(struct file *file, loff_t start, loff_t end,
 		       int datasync);
 

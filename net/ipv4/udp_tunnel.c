@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/socket.h>
@@ -19,6 +20,14 @@ int udp_sock_create4(struct net *net, struct udp_port_cfg *cfg,
 	err = sock_create_kern(net, AF_INET, SOCK_DGRAM, 0, &sock);
 	if (err < 0)
 		goto error;
+
+	if (cfg->bind_ifindex) {
+		err = kernel_setsockopt(sock, SOL_SOCKET, SO_BINDTOIFINDEX,
+					(void *)&cfg->bind_ifindex,
+					sizeof(cfg->bind_ifindex));
+		if (err < 0)
+			goto error;
+	}
 
 	udp_addr.sin_family = AF_INET;
 	udp_addr.sin_addr = cfg->local_ip;
@@ -68,6 +77,7 @@ void setup_udp_tunnel_sock(struct net *net, struct socket *sock,
 
 	udp_sk(sk)->encap_type = cfg->encap_type;
 	udp_sk(sk)->encap_rcv = cfg->encap_rcv;
+	udp_sk(sk)->encap_err_lookup = cfg->encap_err_lookup;
 	udp_sk(sk)->encap_destroy = cfg->encap_destroy;
 	udp_sk(sk)->gro_receive = cfg->gro_receive;
 	udp_sk(sk)->gro_complete = cfg->gro_complete;
@@ -82,7 +92,8 @@ void udp_tunnel_push_rx_port(struct net_device *dev, struct socket *sock,
 	struct sock *sk = sock->sk;
 	struct udp_tunnel_info ti;
 
-	if (!dev->netdev_ops->ndo_udp_tunnel_add)
+	if (!dev->netdev_ops->ndo_udp_tunnel_add ||
+	    !(dev->features & NETIF_F_RX_UDP_TUNNEL_PORT))
 		return;
 
 	ti.type = type;
@@ -92,6 +103,24 @@ void udp_tunnel_push_rx_port(struct net_device *dev, struct socket *sock,
 	dev->netdev_ops->ndo_udp_tunnel_add(dev, &ti);
 }
 EXPORT_SYMBOL_GPL(udp_tunnel_push_rx_port);
+
+void udp_tunnel_drop_rx_port(struct net_device *dev, struct socket *sock,
+			     unsigned short type)
+{
+	struct sock *sk = sock->sk;
+	struct udp_tunnel_info ti;
+
+	if (!dev->netdev_ops->ndo_udp_tunnel_del ||
+	    !(dev->features & NETIF_F_RX_UDP_TUNNEL_PORT))
+		return;
+
+	ti.type = type;
+	ti.sa_family = sk->sk_family;
+	ti.port = inet_sk(sk)->inet_sport;
+
+	dev->netdev_ops->ndo_udp_tunnel_del(dev, &ti);
+}
+EXPORT_SYMBOL_GPL(udp_tunnel_drop_rx_port);
 
 /* Notify netdevs that UDP port started listening */
 void udp_tunnel_notify_add_rx_port(struct socket *sock, unsigned short type)
@@ -108,6 +137,8 @@ void udp_tunnel_notify_add_rx_port(struct socket *sock, unsigned short type)
 	rcu_read_lock();
 	for_each_netdev_rcu(net, dev) {
 		if (!dev->netdev_ops->ndo_udp_tunnel_add)
+			continue;
+		if (!(dev->features & NETIF_F_RX_UDP_TUNNEL_PORT))
 			continue;
 		dev->netdev_ops->ndo_udp_tunnel_add(dev, &ti);
 	}
@@ -130,6 +161,8 @@ void udp_tunnel_notify_del_rx_port(struct socket *sock, unsigned short type)
 	rcu_read_lock();
 	for_each_netdev_rcu(net, dev) {
 		if (!dev->netdev_ops->ndo_udp_tunnel_del)
+			continue;
+		if (!(dev->features & NETIF_F_RX_UDP_TUNNEL_PORT))
 			continue;
 		dev->netdev_ops->ndo_udp_tunnel_del(dev, &ti);
 	}

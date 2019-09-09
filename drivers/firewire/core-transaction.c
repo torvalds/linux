@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Core IEEE1394 transaction logic
  *
  * Copyright (C) 2004-2006 Kristian Hoegsberg <krh@bitplanet.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
 #include <linux/bug.h>
@@ -137,9 +124,9 @@ int fw_cancel_transaction(struct fw_card *card,
 }
 EXPORT_SYMBOL(fw_cancel_transaction);
 
-static void split_transaction_timeout_callback(unsigned long data)
+static void split_transaction_timeout_callback(struct timer_list *timer)
 {
-	struct fw_transaction *t = (struct fw_transaction *)data;
+	struct fw_transaction *t = from_timer(t, timer, split_timeout_timer);
 	struct fw_card *card = t->card;
 	unsigned long flags;
 
@@ -373,8 +360,8 @@ void fw_send_request(struct fw_card *card, struct fw_transaction *t, int tcode,
 	t->tlabel = tlabel;
 	t->card = card;
 	t->is_split_transaction = false;
-	setup_timer(&t->split_timeout_timer,
-		    split_transaction_timeout_callback, (unsigned long)t);
+	timer_setup(&t->split_timeout_timer,
+		    split_transaction_timeout_callback, 0);
 	t->callback = callback;
 	t->callback_data = callback_data;
 
@@ -410,6 +397,14 @@ static void transaction_callback(struct fw_card *card, int rcode,
 
 /**
  * fw_run_transaction() - send request and sleep until transaction is completed
+ * @card:		card interface for this request
+ * @tcode:		transaction code
+ * @destination_id:	destination node ID, consisting of bus_ID and phy_ID
+ * @generation:		bus generation in which request and response are valid
+ * @speed:		transmission speed
+ * @offset:		48bit wide offset into destination's address space
+ * @payload:		data payload for the request subaction
+ * @length:		length of the payload, in bytes
  *
  * Returns the RCODE.  See fw_send_request() for parameter documentation.
  * Unlike fw_send_request(), @data points to the payload of the request or/and
@@ -423,7 +418,7 @@ int fw_run_transaction(struct fw_card *card, int tcode, int destination_id,
 	struct transaction_callback_data d;
 	struct fw_transaction t;
 
-	init_timer_on_stack(&t.split_timeout_timer);
+	timer_setup_on_stack(&t.split_timeout_timer, NULL, 0);
 	init_completion(&d.done);
 	d.payload = payload;
 	fw_send_request(card, &t, tcode, destination_id, generation, speed,
@@ -604,6 +599,7 @@ EXPORT_SYMBOL(fw_core_add_address_handler);
 
 /**
  * fw_core_remove_address_handler() - unregister an address handler
+ * @handler: callback
  *
  * To be called in process context.
  *
@@ -828,6 +824,7 @@ EXPORT_SYMBOL(fw_send_response);
 
 /**
  * fw_get_request_speed() - returns speed at which the @request was received
+ * @request: firewire request data
  */
 int fw_get_request_speed(struct fw_request *request)
 {

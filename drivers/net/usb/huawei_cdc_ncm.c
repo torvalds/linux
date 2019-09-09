@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* huawei_cdc_ncm.c - handles Huawei devices using the CDC NCM protocol as
  * transport layer.
  * Copyright (C) 2013	 Enrico Mioso <mrkiko.rs@gmail.com>
- *
  *
  * ABSTRACT:
  * This driver handles devices resembling the CDC NCM standard, but
@@ -11,10 +11,6 @@
  * This code has been heavily inspired by the cdc_mbim.c driver, which is
  * Copyright (c) 2012  Smith Micro Software, Inc.
  * Copyright (c) 2012  Bjørn Mork <bjorn@mork.no>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -80,6 +76,12 @@ static int huawei_cdc_ncm_bind(struct usbnet *usbnet_dev,
 	 * be at the end of the frame.
 	 */
 	drvflags |= CDC_NCM_FLAG_NDP_TO_END;
+
+	/* Additionally, it has been reported that some Huawei E3372H devices, with
+	 * firmware version 21.318.01.00.541, come out of reset in NTB32 format mode, hence
+	 * needing to be set to the NTB16 one again.
+	 */
+	drvflags |= CDC_NCM_FLAG_RESET_NTB16;
 	ret = cdc_ncm_bind_common(usbnet_dev, intf, 1, drvflags);
 	if (ret)
 		goto err;

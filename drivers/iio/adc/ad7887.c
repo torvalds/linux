@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * AD7887 SPI ADC driver
  *
  * Copyright 2010-2011 Analog Devices Inc.
- *
- * Licensed under the GPL-2.
  */
 
 #include <linux/device.h>
@@ -229,7 +228,6 @@ static const struct ad7887_chip_info ad7887_chip_info_tbl[] = {
 
 static const struct iio_info ad7887_info = {
 	.read_raw = &ad7887_read_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static int ad7887_probe(struct spi_device *spi)
@@ -363,6 +361,6 @@ static struct spi_driver ad7887_driver = {
 };
 module_spi_driver(ad7887_driver);
 
-MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
+MODULE_AUTHOR("Michael Hennerich <michael.hennerich@analog.com>");
 MODULE_DESCRIPTION("Analog Devices AD7887 ADC");
 MODULE_LICENSE("GPL v2");

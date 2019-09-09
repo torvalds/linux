@@ -8,13 +8,14 @@
 #include <linux/export.h>
 #include <linux/pci.h>
 
+#include <asm/acpi.h>
 #include <asm/bios_ebda.h>
 #include <asm/paravirt.h>
 #include <asm/pci_x86.h>
 #include <asm/mpspec.h>
 #include <asm/setup.h>
 #include <asm/apic.h>
-#include <asm/e820.h>
+#include <asm/e820/api.h>
 #include <asm/time.h>
 #include <asm/irq.h>
 #include <asm/io_apic.h>
@@ -26,8 +27,10 @@
 
 void x86_init_noop(void) { }
 void __init x86_init_uint_noop(unsigned int unused) { }
-int __init iommu_init_noop(void) { return 0; }
-void iommu_shutdown_noop(void) { }
+static int __init iommu_init_noop(void) { return 0; }
+static void iommu_shutdown_noop(void) { }
+bool __init bool_x86_init_noop(void) { return false; }
+void x86_op_int_noop(int cpu) { }
 
 /*
  * The platform setup functions are preset with the default functions
@@ -38,7 +41,7 @@ struct x86_init_ops x86_init __initdata = {
 	.resources = {
 		.probe_roms		= probe_roms,
 		.reserve_resources	= reserve_standard_io_resources,
-		.memory_setup		= default_machine_specific_memory_setup,
+		.memory_setup		= e820__memory_setup_default,
 	},
 
 	.mpparse = {
@@ -55,6 +58,7 @@ struct x86_init_ops x86_init __initdata = {
 		.pre_vector_init	= init_ISA_irqs,
 		.intr_init		= native_init_IRQ,
 		.trap_init		= x86_init_noop,
+		.intr_mode_init		= apic_intr_mode_init
 	},
 
 	.oem = {
@@ -81,6 +85,19 @@ struct x86_init_ops x86_init __initdata = {
 		.init_irq		= x86_default_pci_init_irq,
 		.fixup_irqs		= x86_default_pci_fixup_irqs,
 	},
+
+	.hyper = {
+		.init_platform		= x86_init_noop,
+		.guest_late_init	= x86_init_noop,
+		.x2apic_available	= bool_x86_init_noop,
+		.init_mem_mapping	= x86_init_noop,
+		.init_after_bootmem	= x86_init_noop,
+	},
+
+	.acpi = {
+		.get_root_pointer	= x86_default_get_root_pointer,
+		.reduced_hw_early_init	= acpi_generic_reduced_hw_init,
+	},
 };
 
 struct x86_cpuinit_ops x86_cpuinit = {
@@ -89,10 +106,9 @@ struct x86_cpuinit_ops x86_cpuinit = {
 };
 
 static void default_nmi_init(void) { };
-static int default_i8042_detect(void) { return 1; };
 
 struct x86_platform_ops x86_platform __ro_after_init = {
-	.calibrate_cpu			= native_calibrate_cpu,
+	.calibrate_cpu			= native_calibrate_cpu_early,
 	.calibrate_tsc			= native_calibrate_tsc,
 	.get_wallclock			= mach_get_cmos_time,
 	.set_wallclock			= mach_set_rtc_mmss,
@@ -100,9 +116,9 @@ struct x86_platform_ops x86_platform __ro_after_init = {
 	.is_untracked_pat_range		= is_ISA_range,
 	.nmi_init			= default_nmi_init,
 	.get_nmi_reason			= default_get_nmi_reason,
-	.i8042_detect			= default_i8042_detect,
 	.save_sched_clock_state 	= tsc_save_sched_clock_state,
 	.restore_sched_clock_state 	= tsc_restore_sched_clock_state,
+	.hyper.pin_vcpu			= x86_op_int_noop,
 };
 
 EXPORT_SYMBOL_GPL(x86_platform);
@@ -137,7 +153,7 @@ void arch_restore_msi_irqs(struct pci_dev *dev)
 }
 #endif
 
-struct x86_io_apic_ops x86_io_apic_ops __ro_after_init = {
-	.read			= native_io_apic_read,
-	.disable		= native_disable_io_apic,
+struct x86_apic_ops x86_apic_ops __ro_after_init = {
+	.io_apic_read	= native_io_apic_read,
+	.restore	= native_restore_boot_irq_mode,
 };

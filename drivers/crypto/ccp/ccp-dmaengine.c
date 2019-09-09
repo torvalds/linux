@@ -1,15 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * AMD Cryptographic Coprocessor (CCP) driver
  *
- * Copyright (C) 2016 Advanced Micro Devices, Inc.
+ * Copyright (C) 2016,2017 Advanced Micro Devices, Inc.
  *
  * Author: Gary R Hook <gary.hook@amd.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
+#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/dmaengine.h>
 #include <linux/spinlock.h>
@@ -24,6 +22,37 @@
 	u64 mask = _mask + 1;		\
 	(mask == 0) ? 64 : fls64(mask);	\
 })
+
+/* The CCP as a DMA provider can be configured for public or private
+ * channels. Default is specified in the vdata for the device (PCI ID).
+ * This module parameter will override for all channels on all devices:
+ *   dma_chan_attr = 0x2 to force all channels public
+ *                 = 0x1 to force all channels private
+ *                 = 0x0 to defer to the vdata setting
+ *                 = any other value: warning, revert to 0x0
+ */
+static unsigned int dma_chan_attr = CCP_DMA_DFLT;
+module_param(dma_chan_attr, uint, 0444);
+MODULE_PARM_DESC(dma_chan_attr, "Set DMA channel visibility: 0 (default) = device defaults, 1 = make private, 2 = make public");
+
+static unsigned int ccp_get_dma_chan_attr(struct ccp_device *ccp)
+{
+	switch (dma_chan_attr) {
+	case CCP_DMA_DFLT:
+		return ccp->vdata->dma_chan_attr;
+
+	case CCP_DMA_PRIV:
+		return DMA_PRIVATE;
+
+	case CCP_DMA_PUB:
+		return 0;
+
+	default:
+		dev_info_once(ccp->dev, "Invalid value for dma_chan_attr: %d\n",
+			      dma_chan_attr);
+		return ccp->vdata->dma_chan_attr;
+	}
+}
 
 static void ccp_free_cmd_resources(struct ccp_device *ccp,
 				   struct list_head *list)
@@ -63,6 +92,7 @@ static void ccp_free_chan_resources(struct dma_chan *dma_chan)
 	ccp_free_desc_resources(chan->ccp, &chan->complete);
 	ccp_free_desc_resources(chan->ccp, &chan->active);
 	ccp_free_desc_resources(chan->ccp, &chan->pending);
+	ccp_free_desc_resources(chan->ccp, &chan->created);
 
 	spin_unlock_irqrestore(&chan->lock, flags);
 }
@@ -190,6 +220,7 @@ static struct ccp_dma_desc *ccp_handle_active_desc(struct ccp_dma_chan *chan,
 				desc->tx_desc.cookie, desc->status);
 
 			dma_cookie_complete(tx_desc);
+			dma_descriptor_unmap(tx_desc);
 		}
 
 		desc = __ccp_next_dma_desc(chan, desc);
@@ -197,9 +228,7 @@ static struct ccp_dma_desc *ccp_handle_active_desc(struct ccp_dma_chan *chan,
 		spin_unlock_irqrestore(&chan->lock, flags);
 
 		if (tx_desc) {
-			if (tx_desc->callback &&
-			    (tx_desc->flags & DMA_PREP_INTERRUPT))
-				tx_desc->callback(tx_desc->callback_param);
+			dmaengine_desc_get_callback_invoke(tx_desc, NULL);
 
 			dma_run_dependencies(tx_desc);
 		}
@@ -273,6 +302,7 @@ static dma_cookie_t ccp_tx_submit(struct dma_async_tx_descriptor *tx_desc)
 	spin_lock_irqsave(&chan->lock, flags);
 
 	cookie = dma_cookie_assign(tx_desc);
+	list_del(&desc->entry);
 	list_add_tail(&desc->entry, &chan->pending);
 
 	spin_unlock_irqrestore(&chan->lock, flags);
@@ -388,6 +418,7 @@ static struct ccp_dma_desc *ccp_create_desc(struct dma_chan *dma_chan,
 			goto err;
 
 		ccp_cmd = &cmd->ccp_cmd;
+		ccp_cmd->ccp = chan->ccp;
 		ccp_pt = &ccp_cmd->u.passthru_nomap;
 		ccp_cmd->flags = CCP_CMD_MAY_BACKLOG;
 		ccp_cmd->flags |= CCP_CMD_PASSTHRU_NO_DMA_MAP;
@@ -426,7 +457,7 @@ static struct ccp_dma_desc *ccp_create_desc(struct dma_chan *dma_chan,
 
 	spin_lock_irqsave(&chan->lock, sflags);
 
-	list_add_tail(&desc->entry, &chan->pending);
+	list_add_tail(&desc->entry, &chan->created);
 
 	spin_unlock_irqrestore(&chan->lock, sflags);
 
@@ -461,27 +492,6 @@ static struct dma_async_tx_descriptor *ccp_prep_dma_memcpy(
 	sg_dma_len(&src_sg) = len;
 
 	desc = ccp_create_desc(dma_chan, &dst_sg, 1, &src_sg, 1, flags);
-	if (!desc)
-		return NULL;
-
-	return &desc->tx_desc;
-}
-
-static struct dma_async_tx_descriptor *ccp_prep_dma_sg(
-	struct dma_chan *dma_chan, struct scatterlist *dst_sg,
-	unsigned int dst_nents, struct scatterlist *src_sg,
-	unsigned int src_nents, unsigned long flags)
-{
-	struct ccp_dma_chan *chan = container_of(dma_chan, struct ccp_dma_chan,
-						 dma_chan);
-	struct ccp_dma_desc *desc;
-
-	dev_dbg(chan->ccp->dev,
-		"%s - src=%p, src_nents=%u dst=%p, dst_nents=%u, flags=%#lx\n",
-		__func__, src_sg, src_nents, dst_sg, dst_nents, flags);
-
-	desc = ccp_create_desc(dma_chan, dst_sg, dst_nents, src_sg, src_nents,
-			       flags);
 	if (!desc)
 		return NULL;
 
@@ -610,6 +620,7 @@ static int ccp_terminate_all(struct dma_chan *dma_chan)
 	/*TODO: Purge the complete list? */
 	ccp_free_desc_resources(chan->ccp, &chan->active);
 	ccp_free_desc_resources(chan->ccp, &chan->pending);
+	ccp_free_desc_resources(chan->ccp, &chan->created);
 
 	spin_unlock_irqrestore(&chan->lock, flags);
 
@@ -668,8 +679,16 @@ int ccp_dmaengine_register(struct ccp_device *ccp)
 	dma_dev->directions = DMA_MEM_TO_MEM;
 	dma_dev->residue_granularity = DMA_RESIDUE_GRANULARITY_DESCRIPTOR;
 	dma_cap_set(DMA_MEMCPY, dma_dev->cap_mask);
-	dma_cap_set(DMA_SG, dma_dev->cap_mask);
 	dma_cap_set(DMA_INTERRUPT, dma_dev->cap_mask);
+
+	/* The DMA channels for this device can be set to public or private,
+	 * and overridden by the module parameter dma_chan_attr.
+	 * Default: according to the value in vdata (dma_chan_attr=0)
+	 * dma_chan_attr=0x1: all channels private (override vdata)
+	 * dma_chan_attr=0x2: all channels public (override vdata)
+	 */
+	if (ccp_get_dma_chan_attr(ccp) == DMA_PRIVATE)
+		dma_cap_set(DMA_PRIVATE, dma_dev->cap_mask);
 
 	INIT_LIST_HEAD(&dma_dev->channels);
 	for (i = 0; i < ccp->cmd_q_count; i++) {
@@ -679,6 +698,7 @@ int ccp_dmaengine_register(struct ccp_device *ccp)
 		chan->ccp = ccp;
 
 		spin_lock_init(&chan->lock);
+		INIT_LIST_HEAD(&chan->created);
 		INIT_LIST_HEAD(&chan->pending);
 		INIT_LIST_HEAD(&chan->active);
 		INIT_LIST_HEAD(&chan->complete);
@@ -694,7 +714,6 @@ int ccp_dmaengine_register(struct ccp_device *ccp)
 
 	dma_dev->device_free_chan_resources = ccp_free_chan_resources;
 	dma_dev->device_prep_dma_memcpy = ccp_prep_dma_memcpy;
-	dma_dev->device_prep_dma_sg = ccp_prep_dma_sg;
 	dma_dev->device_prep_dma_interrupt = ccp_prep_dma_interrupt;
 	dma_dev->device_issue_pending = ccp_issue_pending;
 	dma_dev->device_tx_status = ccp_tx_status;

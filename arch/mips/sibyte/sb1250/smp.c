@@ -1,19 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2001, 2002, 2003 Broadcom Corporation
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 
 #include <linux/init.h>
@@ -21,7 +8,7 @@
 #include <linux/interrupt.h>
 #include <linux/smp.h>
 #include <linux/kernel_stat.h>
-#include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 
 #include <asm/mmu_context.h>
 #include <asm/io.h>
@@ -106,7 +93,7 @@ static void sb1250_smp_finish(void)
  * Setup the PC, SP, and GP of a secondary processor and start it
  * running!
  */
-static void sb1250_boot_secondary(int cpu, struct task_struct *idle)
+static int sb1250_boot_secondary(int cpu, struct task_struct *idle)
 {
 	int retval;
 
@@ -115,6 +102,7 @@ static void sb1250_boot_secondary(int cpu, struct task_struct *idle)
 			       (unsigned long)task_thread_info(idle), 0);
 	if (retval != 0)
 		printk("cfe_start_cpu(%i) returned %i\n" , cpu, retval);
+	return retval;
 }
 
 /*
@@ -146,7 +134,7 @@ static void __init sb1250_prepare_cpus(unsigned int max_cpus)
 {
 }
 
-struct plat_smp_ops sb_smp_ops = {
+const struct plat_smp_ops sb_smp_ops = {
 	.send_ipi_single	= sb1250_send_ipi_single,
 	.send_ipi_mask		= sb1250_send_ipi_mask,
 	.init_secondary		= sb1250_init_secondary,

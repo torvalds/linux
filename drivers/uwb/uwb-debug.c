@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Ultra Wide Band
  * Debug support
@@ -5,21 +6,6 @@
  * Copyright (C) 2005-2006 Intel Corporation
  * Inaky Perez-Gonzalez <inaky.perez-gonzalez@intel.com>
  * Copyright (C) 2008 Cambridge Silicon Radio Ltd.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
- *
  *
  * FIXME: doc
  */
@@ -206,7 +192,7 @@ static const struct file_operations command_fops = {
 	.owner  = THIS_MODULE,
 };
 
-static int reservations_print(struct seq_file *s, void *p)
+static int reservations_show(struct seq_file *s, void *p)
 {
 	struct uwb_rc *rc = s->private;
 	struct uwb_rsv *rsv;
@@ -240,21 +226,9 @@ static int reservations_print(struct seq_file *s, void *p)
 
 	return 0;
 }
+DEFINE_SHOW_ATTRIBUTE(reservations);
 
-static int reservations_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, reservations_print, inode->i_private);
-}
-
-static const struct file_operations reservations_fops = {
-	.open    = reservations_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = single_release,
-	.owner   = THIS_MODULE,
-};
-
-static int drp_avail_print(struct seq_file *s, void *p)
+static int drp_avail_show(struct seq_file *s, void *p)
 {
 	struct uwb_rc *rc = s->private;
 
@@ -264,19 +238,7 @@ static int drp_avail_print(struct seq_file *s, void *p)
 
 	return 0;
 }
-
-static int drp_avail_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, drp_avail_print, inode->i_private);
-}
-
-static const struct file_operations drp_avail_fops = {
-	.open    = drp_avail_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = single_release,
-	.owner   = THIS_MODULE,
-};
+DEFINE_SHOW_ATTRIBUTE(drp_avail);
 
 static void uwb_dbg_channel_changed(struct uwb_pal *pal, int channel)
 {

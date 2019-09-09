@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* Applied Micro X-Gene SoC Ethernet Driver
  *
  * Copyright (c) 2015, Applied Micro Circuits Corporation
  * Author: Iyappan Subramanian <isubramanian@apm.com>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "xgene_enet_main.h"
@@ -30,7 +18,7 @@ static void xgene_enet_ring_init(struct xgene_enet_desc_ring *ring)
 		ring_cfg[0] |= SET_VAL(X2_INTLINE, ring->id & RING_BUFNUM_MASK);
 		ring_cfg[3] |= SET_BIT(X2_DEQINTEN);
 	}
-	ring_cfg[0] |= SET_VAL(X2_CFGCRID, 1);
+	ring_cfg[0] |= SET_VAL(X2_CFGCRID, 2);
 
 	addr >>= 8;
 	ring_cfg[2] |= QCOHERENT | SET_VAL(RINGADDRL, addr);
@@ -119,6 +107,7 @@ static void xgene_enet_set_ring_id(struct xgene_enet_desc_ring *ring)
 
 	ring_id_buf = (ring->num << 9) & GENMASK(18, 9);
 	ring_id_buf |= PREFETCH_BUF_EN;
+
 	if (is_bufpool)
 		ring_id_buf |= IS_BUFFER_POOL;
 
@@ -192,13 +181,15 @@ static u32 xgene_enet_ring_len(struct xgene_enet_desc_ring *ring)
 
 static void xgene_enet_setup_coalescing(struct xgene_enet_desc_ring *ring)
 {
-	u32 data = 0x7777;
+	u32 data = 0x77777777;
 
 	xgene_enet_ring_wr32(ring, CSR_PBM_COAL, 0x8e);
+	xgene_enet_ring_wr32(ring, CSR_PBM_CTICK0, data);
 	xgene_enet_ring_wr32(ring, CSR_PBM_CTICK1, data);
-	xgene_enet_ring_wr32(ring, CSR_PBM_CTICK2, data << 16);
-	xgene_enet_ring_wr32(ring, CSR_THRESHOLD0_SET1, 0x40);
-	xgene_enet_ring_wr32(ring, CSR_THRESHOLD1_SET1, 0x80);
+	xgene_enet_ring_wr32(ring, CSR_PBM_CTICK2, data);
+	xgene_enet_ring_wr32(ring, CSR_PBM_CTICK3, data);
+	xgene_enet_ring_wr32(ring, CSR_THRESHOLD0_SET1, 0x08);
+	xgene_enet_ring_wr32(ring, CSR_THRESHOLD1_SET1, 0x10);
 }
 
 struct xgene_ring_ops xgene_ring2_ops = {

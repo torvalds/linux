@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * netup_unidvb.h
  *
@@ -6,16 +7,6 @@
  * Copyright (C) 2014 NetUP Inc.
  * Copyright (C) 2014 Sergey Kozlov <serjk@netup.ru>
  * Copyright (C) 2014 Abylay Ospan <aospan@netup.ru>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/pci.h>
@@ -24,7 +15,7 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-device.h>
 #include <media/videobuf2-dvb.h>
-#include <dvb_ca_en50221.h>
+#include <media/dvb_ca_en50221.h>
 
 #define NETUP_UNIDVB_NAME	"netup_unidvb"
 #define NETUP_UNIDVB_VERSION	"0.0.1"

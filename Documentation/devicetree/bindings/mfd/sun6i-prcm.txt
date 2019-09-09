@@ -8,14 +8,14 @@ Required properties:
  - reg: The PRCM registers range
 
 The prcm node may contain several subdevices definitions:
- - see Documentation/devicetree/clk/sunxi.txt for clock devices
- - see Documentation/devicetree/reset/allwinner,sunxi-clock-reset.txt for reset
+ - see Documentation/devicetree/bindings/clock/sunxi.txt for clock devices
+ - see Documentation/devicetree/bindings/reset/allwinner,sunxi-clock-reset.txt for reset
    controller devices
 
 
 Example:
 
-	prcm: prcm@01f01400 {
+	prcm: prcm@1f01400 {
 		compatible = "allwinner,sun6i-a31-prcm";
 		reg = <0x01f01400 0x200>;
 

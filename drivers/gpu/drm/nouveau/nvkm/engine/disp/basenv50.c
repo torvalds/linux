@@ -21,43 +21,41 @@
  *
  * Authors: Ben Skeggs
  */
-#include "dmacnv50.h"
-#include "rootnv50.h"
+#include "channv50.h"
+#include "head.h"
 
 #include <core/client.h>
 
-#include <nvif/class.h>
 #include <nvif/cl507c.h>
 #include <nvif/unpack.h>
 
 int
-nv50_disp_base_new(const struct nv50_disp_dmac_func *func,
-		   const struct nv50_disp_chan_mthd *mthd,
-		   struct nv50_disp_root *root, int chid,
-		   const struct nvkm_oclass *oclass, void *data, u32 size,
-		   struct nvkm_object **pobject)
+nv50_disp_base_new_(const struct nv50_disp_chan_func *func,
+		    const struct nv50_disp_chan_mthd *mthd,
+		    struct nv50_disp *disp, int chid,
+		    const struct nvkm_oclass *oclass, void *argv, u32 argc,
+		    struct nvkm_object **pobject)
 {
 	union {
 		struct nv50_disp_base_channel_dma_v0 v0;
-	} *args = data;
+	} *args = argv;
 	struct nvkm_object *parent = oclass->parent;
-	struct nv50_disp *disp = root->disp;
 	int head, ret = -ENOSYS;
 	u64 push;
 
-	nvif_ioctl(parent, "create disp base channel dma size %d\n", size);
-	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
+	nvif_ioctl(parent, "create disp base channel dma size %d\n", argc);
+	if (!(ret = nvif_unpack(ret, &argv, &argc, args->v0, 0, 0, false))) {
 		nvif_ioctl(parent, "create disp base channel dma vers %d "
 				   "pushbuf %016llx head %d\n",
 			   args->v0.version, args->v0.pushbuf, args->v0.head);
-		if (args->v0.head > disp->base.head.nr)
+		if (!nvkm_head_find(&disp->base, args->v0.head))
 			return -EINVAL;
 		push = args->v0.pushbuf;
 		head = args->v0.head;
 	} else
 		return ret;
 
-	return nv50_disp_dmac_new_(func, mthd, root, chid + head,
+	return nv50_disp_dmac_new_(func, mthd, disp, chid + head,
 				   head, push, oclass, pobject);
 }
 
@@ -101,7 +99,7 @@ nv50_disp_base_mthd_image = {
 };
 
 static const struct nv50_disp_chan_mthd
-nv50_disp_base_chan_mthd = {
+nv50_disp_base_mthd = {
 	.name = "Base",
 	.addr = 0x000540,
 	.prev = 0x000004,
@@ -112,13 +110,10 @@ nv50_disp_base_chan_mthd = {
 	}
 };
 
-const struct nv50_disp_dmac_oclass
-nv50_disp_base_oclass = {
-	.base.oclass = NV50_DISP_BASE_CHANNEL_DMA,
-	.base.minver = 0,
-	.base.maxver = 0,
-	.ctor = nv50_disp_base_new,
-	.func = &nv50_disp_dmac_func,
-	.mthd = &nv50_disp_base_chan_mthd,
-	.chid = 1,
-};
+int
+nv50_disp_base_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
+		   struct nv50_disp *disp, struct nvkm_object **pobject)
+{
+	return nv50_disp_base_new_(&nv50_disp_dmac_func, &nv50_disp_base_mthd,
+				   disp, 1, oclass, argv, argc, pobject);
+}

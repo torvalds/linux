@@ -292,12 +292,6 @@ static int mthca_cmd_post(struct mthca_dev *dev,
 		err = mthca_cmd_post_hcr(dev, in_param, out_param, in_modifier,
 					 op_modifier, op, token, event);
 
-	/*
-	 * Make sure that our HCR writes don't get mixed in with
-	 * writes from another CPU starting a FW command.
-	 */
-	mmiowb();
-
 	mutex_unlock(&dev->cmd.hcr_mutex);
 	return err;
 }
@@ -367,12 +361,16 @@ static int mthca_cmd_poll(struct mthca_dev *dev,
 		goto out;
 	}
 
-	if (out_is_imm)
+	if (out_is_imm && out_param) {
 		*out_param =
 			(u64) be32_to_cpu((__force __be32)
 					  __raw_readl(dev->hcr + HCR_OUT_PARAM_OFFSET)) << 32 |
 			(u64) be32_to_cpu((__force __be32)
 					  __raw_readl(dev->hcr + HCR_OUT_PARAM_OFFSET + 4));
+	} else if (out_is_imm) {
+		err = -EINVAL;
+		goto out;
+	}
 
 	status = be32_to_cpu((__force __be32) __raw_readl(dev->hcr + HCR_STATUS_OFFSET)) >> 24;
 	if (status) {
@@ -450,8 +448,12 @@ static int mthca_cmd_wait(struct mthca_dev *dev,
 		err = mthca_status_to_errno(context->status);
 	}
 
-	if (out_is_imm)
+	if (out_is_imm && out_param) {
 		*out_param = context->out_param;
+	} else if (out_is_imm) {
+		err = -EINVAL;
+		goto out;
+	}
 
 out:
 	spin_lock(&dev->cmd.context_lock);
@@ -530,7 +532,7 @@ int mthca_cmd_init(struct mthca_dev *dev)
 		return -ENOMEM;
 	}
 
-	dev->cmd.pool = pci_pool_create("mthca_cmd", dev->pdev,
+	dev->cmd.pool = dma_pool_create("mthca_cmd", &dev->pdev->dev,
 					MTHCA_MAILBOX_SIZE,
 					MTHCA_MAILBOX_SIZE, 0);
 	if (!dev->cmd.pool) {
@@ -543,7 +545,7 @@ int mthca_cmd_init(struct mthca_dev *dev)
 
 void mthca_cmd_cleanup(struct mthca_dev *dev)
 {
-	pci_pool_destroy(dev->cmd.pool);
+	dma_pool_destroy(dev->cmd.pool);
 	iounmap(dev->hcr);
 	if (dev->cmd.flags & MTHCA_CMD_POST_DOORBELLS)
 		iounmap(dev->cmd.dbell_map);
@@ -557,9 +559,9 @@ int mthca_cmd_use_events(struct mthca_dev *dev)
 {
 	int i;
 
-	dev->cmd.context = kmalloc(dev->cmd.max_cmds *
-				   sizeof (struct mthca_cmd_context),
-				   GFP_KERNEL);
+	dev->cmd.context = kmalloc_array(dev->cmd.max_cmds,
+					 sizeof(struct mthca_cmd_context),
+					 GFP_KERNEL);
 	if (!dev->cmd.context)
 		return -ENOMEM;
 
@@ -613,7 +615,7 @@ struct mthca_mailbox *mthca_alloc_mailbox(struct mthca_dev *dev,
 	if (!mailbox)
 		return ERR_PTR(-ENOMEM);
 
-	mailbox->buf = pci_pool_alloc(dev->cmd.pool, gfp_mask, &mailbox->dma);
+	mailbox->buf = dma_pool_alloc(dev->cmd.pool, gfp_mask, &mailbox->dma);
 	if (!mailbox->buf) {
 		kfree(mailbox);
 		return ERR_PTR(-ENOMEM);
@@ -627,7 +629,7 @@ void mthca_free_mailbox(struct mthca_dev *dev, struct mthca_mailbox *mailbox)
 	if (!mailbox)
 		return;
 
-	pci_pool_free(dev->cmd.pool, mailbox->buf, mailbox->dma);
+	dma_pool_free(dev->cmd.pool, mailbox->buf, mailbox->dma);
 	kfree(mailbox);
 }
 
@@ -690,7 +692,7 @@ static int mthca_map_cmd(struct mthca_dev *dev, u16 op, struct mthca_icm *icm,
 		for (i = 0; i < mthca_icm_size(&iter) >> lg; ++i) {
 			if (virt != -1) {
 				pages[nent * 2] = cpu_to_be64(virt);
-				virt += 1 << lg;
+				virt += 1ULL << lg;
 			}
 
 			pages[nent * 2 + 1] =
@@ -1913,7 +1915,7 @@ int mthca_MAD_IFC(struct mthca_dev *dev, int ignore_mkey, int ignore_bkey,
 			(in_wc->wc_flags & IB_WC_GRH ? 0x80 : 0);
 		MTHCA_PUT(inbox, val,               MAD_IFC_G_PATH_OFFSET);
 
-		MTHCA_PUT(inbox, in_wc->slid,       MAD_IFC_RLID_OFFSET);
+		MTHCA_PUT(inbox, ib_lid_cpu16(in_wc->slid), MAD_IFC_RLID_OFFSET);
 		MTHCA_PUT(inbox, in_wc->pkey_index, MAD_IFC_PKEY_OFFSET);
 
 		if (in_grh)
@@ -1921,7 +1923,7 @@ int mthca_MAD_IFC(struct mthca_dev *dev, int ignore_mkey, int ignore_bkey,
 
 		op_modifier |= 0x4;
 
-		in_modifier |= in_wc->slid << 16;
+		in_modifier |= ib_lid_cpu16(in_wc->slid) << 16;
 	}
 
 	err = mthca_cmd_box(dev, inmailbox->dma, outmailbox->dma,

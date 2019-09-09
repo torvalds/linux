@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright © 2009 - Maxim Levitsky
  * SmartMedia/xD translation layer
@@ -5,10 +6,6 @@
  * Based loosly on ssfdc.c which is
  *  © 2005 Eptar srl
  *  Author: Claudio Lanconelli <lanconelli.claudio@eptar.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/mtd/blktrans.h>
@@ -53,9 +50,6 @@ struct sm_ftl {
 	struct work_struct flush_work;
 	struct timer_list timer;
 
-	/* Async erase stuff */
-	struct completion erase_completion;
-
 	/* Geometry stuff */
 	int heads;
 	int sectors;
@@ -86,7 +80,6 @@ struct chs_entry {
 		printk(KERN_DEBUG "sm_ftl" ": " format "\n", ## __VA_ARGS__)
 
 
-static void sm_erase_callback(struct erase_info *self);
 static int sm_erase_block(struct sm_ftl *ftl, int zone_num, uint16_t block,
 								int put_free);
 static void sm_mark_block_bad(struct sm_ftl *ftl, int zone_num, int block);

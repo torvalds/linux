@@ -75,3 +75,12 @@ Contact:	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
 Description:
 		Amount (in KiB) of low (or normal) memory in the
 		balloon.
+
+What:		/sys/devices/system/xen_memory/xen_memory0/scrub_pages
+Date:		September 2018
+KernelVersion:	4.20
+Contact:	xen-devel@lists.xenproject.org
+Description:
+		Control scrubbing pages before returning them to Xen for others domains
+		use. Can be set with xen_scrub_pages cmdline
+		parameter. Default value controlled with CONFIG_XEN_SCRUB_PAGES_DEFAULT.

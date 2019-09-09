@@ -1,16 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Greybus operations
  *
  * Copyright 2015-2016 Google Inc.
- *
- * Released under the GPLv2 only.
  */
 
 #include <linux/string.h>
 #include <linux/sysfs.h>
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/rwlock.h>
+#include <linux/spinlock.h>
 #include <linux/idr.h>
 
 #include "audio_manager.h"
@@ -46,6 +45,9 @@ int gb_audio_manager_add(struct gb_audio_manager_module_descriptor *desc)
 	int err;
 
 	id = ida_simple_get(&module_id, 0, 0, GFP_KERNEL);
+	if (id < 0)
+		return id;
+
 	err = gb_audio_manager_module_create(&module, manager_kset,
 					     id, desc);
 	if (err) {

@@ -1,15 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * 32bit compatibility wrappers for the input subsystem.
  *
  * Very heavily based on evdev.c - Copyright (c) 1999-2002 Vojtech Pavlik
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 
 #include <linux/export.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "input-compat.h"
 
 #ifdef CONFIG_COMPAT
@@ -24,8 +21,8 @@ int input_event_from_user(const char __user *buffer,
 				   sizeof(struct input_event_compat)))
 			return -EFAULT;
 
-		event->time.tv_sec = compat_event.time.tv_sec;
-		event->time.tv_usec = compat_event.time.tv_usec;
+		event->input_event_sec = compat_event.sec;
+		event->input_event_usec = compat_event.usec;
 		event->type = compat_event.type;
 		event->code = compat_event.code;
 		event->value = compat_event.value;
@@ -44,8 +41,8 @@ int input_event_to_user(char __user *buffer,
 	if (in_compat_syscall() && !COMPAT_USE_64BIT_TIME) {
 		struct input_event_compat compat_event;
 
-		compat_event.time.tv_sec = event->time.tv_sec;
-		compat_event.time.tv_usec = event->time.tv_usec;
+		compat_event.sec = event->input_event_sec;
+		compat_event.usec = event->input_event_usec;
 		compat_event.type = event->type;
 		compat_event.code = event->code;
 		compat_event.value = event->value;

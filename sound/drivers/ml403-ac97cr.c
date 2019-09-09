@@ -1,24 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * ALSA driver for Xilinx ML403 AC97 Controller Reference
  *   IP: opb_ac97_controller_ref_v1_00_a (EDK 8.1i)
  *   IP: opb_ac97_controller_ref_v1_00_a (EDK 9.1i)
  *
  *  Copyright (c) by 2007  Joachim Foerster <JOFT@gmx.de>
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 /* Some notes / status of this driver:
@@ -373,7 +359,7 @@ struct snd_ml403_ac97cr {
 	struct snd_pcm_indirect2 capture_ind2_rec;
 };
 
-static struct snd_pcm_hardware snd_ml403_ac97cr_playback = {
+static const struct snd_pcm_hardware snd_ml403_ac97cr_playback = {
 	.info =	            (SNDRV_PCM_INFO_MMAP |
 			     SNDRV_PCM_INFO_INTERLEAVED |
 			     SNDRV_PCM_INFO_MMAP_VALID),
@@ -392,7 +378,7 @@ static struct snd_pcm_hardware snd_ml403_ac97cr_playback = {
 	.fifo_size =	    0,
 };
 
-static struct snd_pcm_hardware snd_ml403_ac97cr_capture = {
+static const struct snd_pcm_hardware snd_ml403_ac97cr_capture = {
 	.info =	            (SNDRV_PCM_INFO_MMAP |
 			     SNDRV_PCM_INFO_INTERLEAVED |
 			     SNDRV_PCM_INFO_MMAP_VALID),
@@ -759,7 +745,7 @@ static int snd_ml403_ac97cr_capture_close(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static struct snd_pcm_ops snd_ml403_ac97cr_playback_ops = {
+static const struct snd_pcm_ops snd_ml403_ac97cr_playback_ops = {
 	.open = snd_ml403_ac97cr_playback_open,
 	.close = snd_ml403_ac97cr_playback_close,
 	.ioctl = snd_pcm_lib_ioctl,
@@ -770,7 +756,7 @@ static struct snd_pcm_ops snd_ml403_ac97cr_playback_ops = {
 	.pointer = snd_ml403_ac97cr_pcm_pointer,
 };
 
-static struct snd_pcm_ops snd_ml403_ac97cr_capture_ops = {
+static const struct snd_pcm_ops snd_ml403_ac97cr_capture_ops = {
 	.open = snd_ml403_ac97cr_capture_open,
 	.close = snd_ml403_ac97cr_capture_close,
 	.ioctl = snd_pcm_lib_ioctl,

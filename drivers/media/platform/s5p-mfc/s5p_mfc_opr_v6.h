@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * drivers/media/platform/s5p-mfc/s5p_mfc_opr_v6.h
  *
@@ -6,10 +7,6 @@
  *
  * Copyright (c) 2012 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef S5P_MFC_OPR_V6_H_
@@ -24,6 +21,13 @@
 #define MB_HEIGHT(y_size)		DIV_ROUND_UP(y_size, 16)
 #define S5P_MFC_DEC_MV_SIZE_V6(x, y)	(MB_WIDTH(x) * \
 					(((MB_HEIGHT(y)+1)/2)*2) * 64 + 128)
+#define S5P_MFC_DEC_MV_SIZE_V10(x, y)	(MB_WIDTH(x) * \
+					(((MB_HEIGHT(y)+1)/2)*2) * 64 + 512)
+#define S5P_MFC_LCU_WIDTH(x_size)	DIV_ROUND_UP(x_size, 32)
+#define S5P_MFC_LCU_HEIGHT(y_size)	DIV_ROUND_UP(y_size, 32)
+
+#define s5p_mfc_dec_hevc_mv_size(x, y) \
+	(DIV_ROUND_UP(x, 64) * DIV_ROUND_UP(y, 64) * 256 + 512)
 
 /* Definition */
 #define ENC_MULTI_SLICE_MB_MAX		((1 << 30) - 1)
@@ -39,6 +43,14 @@
 #define ENC_MPEG4_VOP_TIME_RES_MAX	((1 << 16) - 1)
 #define FRAME_DELTA_H264_H263		1
 #define TIGHT_CBR_MAX			10
+#define ENC_HEVC_RC_FRAME_RATE_MAX	((1 << 16) - 1)
+#define ENC_HEVC_QP_INDEX_MIN		-12
+#define ENC_HEVC_QP_INDEX_MAX		12
+#define ENC_HEVC_LOOP_FILTER_MIN	-12
+#define ENC_HEVC_LOOP_FILTER_MAX	12
+#define ENC_HEVC_LEVEL_MAX		62
+
+#define FRAME_DELTA_DEFAULT		1
 
 struct s5p_mfc_hw_ops *s5p_mfc_init_hw_ops_v6(void);
 const struct s5p_mfc_regs *s5p_mfc_init_regs_v6_plus(struct s5p_mfc_dev *dev);

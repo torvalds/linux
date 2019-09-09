@@ -1,8 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2016 Facebook
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
  */
 #include "percpu_freelist.h"
 
@@ -28,8 +25,8 @@ void pcpu_freelist_destroy(struct pcpu_freelist *s)
 	free_percpu(s->freelist);
 }
 
-static inline void __pcpu_freelist_push(struct pcpu_freelist_head *head,
-					struct pcpu_freelist_node *node)
+static inline void ___pcpu_freelist_push(struct pcpu_freelist_head *head,
+					 struct pcpu_freelist_node *node)
 {
 	raw_spin_lock(&head->lock);
 	node->next = head->first;
@@ -37,12 +34,22 @@ static inline void __pcpu_freelist_push(struct pcpu_freelist_head *head,
 	raw_spin_unlock(&head->lock);
 }
 
-void pcpu_freelist_push(struct pcpu_freelist *s,
+void __pcpu_freelist_push(struct pcpu_freelist *s,
 			struct pcpu_freelist_node *node)
 {
 	struct pcpu_freelist_head *head = this_cpu_ptr(s->freelist);
 
-	__pcpu_freelist_push(head, node);
+	___pcpu_freelist_push(head, node);
+}
+
+void pcpu_freelist_push(struct pcpu_freelist *s,
+			struct pcpu_freelist_node *node)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+	__pcpu_freelist_push(s, node);
+	local_irq_restore(flags);
 }
 
 void pcpu_freelist_populate(struct pcpu_freelist *s, void *buf, u32 elem_size,
@@ -63,7 +70,7 @@ void pcpu_freelist_populate(struct pcpu_freelist *s, void *buf, u32 elem_size,
 	for_each_possible_cpu(cpu) {
 again:
 		head = per_cpu_ptr(s->freelist, cpu);
-		__pcpu_freelist_push(head, buf);
+		___pcpu_freelist_push(head, buf);
 		i++;
 		buf += elem_size;
 		if (i == nr_elems)
@@ -74,7 +81,7 @@ again:
 	local_irq_restore(flags);
 }
 
-struct pcpu_freelist_node *pcpu_freelist_pop(struct pcpu_freelist *s)
+struct pcpu_freelist_node *__pcpu_freelist_pop(struct pcpu_freelist *s)
 {
 	struct pcpu_freelist_head *head;
 	struct pcpu_freelist_node *node;
@@ -97,4 +104,15 @@ struct pcpu_freelist_node *pcpu_freelist_pop(struct pcpu_freelist *s)
 		if (cpu == orig_cpu)
 			return NULL;
 	}
+}
+
+struct pcpu_freelist_node *pcpu_freelist_pop(struct pcpu_freelist *s)
+{
+	struct pcpu_freelist_node *ret;
+	unsigned long flags;
+
+	local_irq_save(flags);
+	ret = __pcpu_freelist_pop(s);
+	local_irq_restore(flags);
+	return ret;
 }

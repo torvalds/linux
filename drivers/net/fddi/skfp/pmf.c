@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /******************************************************************************
  *
  *	(C)Copyright 1998,1999 SysKonnect,
  *	a business unit of Schneider & Koch & Co. Datensysteme GmbH.
  *
  *	See the file "skfddi.c" for further information.
- *
- *	This program is free software; you can redistribute it and/or modify
- *	it under the terms of the GNU General Public License as published by
- *	the Free Software Foundation; either version 2 of the License, or
- *	(at your option) any later version.
  *
  *	The information in this file is provided "AS IS" without warranty.
  *
@@ -284,7 +280,7 @@ void smt_pmf_received_pack(struct s_smc *smc, SMbuf *mb, int local)
 	SMbuf		*reply ;
 
 	sm = smtod(mb,struct smt_header *) ;
-	DB_SMT("SMT: processing PMF frame at %x len %d\n",sm,mb->sm_len) ;
+	DB_SMT("SMT: processing PMF frame at %p len %d", sm, mb->sm_len);
 #ifdef	DEBUG
 	dump_smt(smc,sm,"PMF Received") ;
 #endif
@@ -1585,7 +1581,7 @@ void dump_smt(struct s_smc *smc, struct smt_header *sm, char *text)
 	dump_hex((char *) &sm->smt_source,6) ;
 	printf(" Class %x Type %x Version %x\n",
 		sm->smt_class,sm->smt_type,sm->smt_version)  ;
-	printf("TID %lx\t\tSID ",sm->smt_tid) ;
+	printf("TID %x\t\tSID ", sm->smt_tid);
 	dump_hex((char *) &sm->smt_sid,8) ;
 	printf(" LEN %x\n",sm->smt_len) ;
 

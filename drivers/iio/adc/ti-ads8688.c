@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2015 Prevas A/S
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/device.h>
@@ -17,6 +14,9 @@
 #include <linux/of.h>
 
 #include <linux/iio/iio.h>
+#include <linux/iio/buffer.h>
+#include <linux/iio/trigger_consumer.h>
+#include <linux/iio/triggered_buffer.h>
 #include <linux/iio/sysfs.h>
 
 #define ADS8688_CMD_REG(x)		(x << 8)
@@ -38,6 +38,7 @@
 
 #define ADS8688_VREF_MV			4096
 #define ADS8688_REALBITS		16
+#define ADS8688_MAX_CHANNELS		8
 
 /*
  * enum ads8688_range - ADS8688 reference voltage range
@@ -155,6 +156,13 @@ static const struct attribute_group ads8688_attribute_group = {
 	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW)		\
 			      | BIT(IIO_CHAN_INFO_SCALE)	\
 			      | BIT(IIO_CHAN_INFO_OFFSET),	\
+	.scan_index = index,					\
+	.scan_type = {						\
+		.sign = 'u',					\
+		.realbits = 16,					\
+		.storagebits = 16,				\
+		.endianness = IIO_BE,				\
+	},							\
 }
 
 static const struct iio_chan_spec ads8684_channels[] = {
@@ -369,8 +377,29 @@ static const struct iio_info ads8688_info = {
 	.write_raw = &ads8688_write_raw,
 	.write_raw_get_fmt = &ads8688_write_raw_get_fmt,
 	.attrs = &ads8688_attribute_group,
-	.driver_module = THIS_MODULE,
 };
+
+static irqreturn_t ads8688_trigger_handler(int irq, void *p)
+{
+	struct iio_poll_func *pf = p;
+	struct iio_dev *indio_dev = pf->indio_dev;
+	u16 buffer[ADS8688_MAX_CHANNELS + sizeof(s64)/sizeof(u16)];
+	int i, j = 0;
+
+	for (i = 0; i < indio_dev->masklength; i++) {
+		if (!test_bit(i, indio_dev->active_scan_mask))
+			continue;
+		buffer[j] = ads8688_read(indio_dev, i);
+		j++;
+	}
+
+	iio_push_to_buffers_with_timestamp(indio_dev, buffer,
+			iio_get_time_ns(indio_dev));
+
+	iio_trigger_notify_done(indio_dev->trig);
+
+	return IRQ_HANDLED;
+}
 
 static const struct ads8688_chip_info ads8688_chip_info_tbl[] = {
 	[ID_ADS8684] = {
@@ -403,7 +432,7 @@ static int ads8688_probe(struct spi_device *spi)
 
 		ret = regulator_get_voltage(st->reg);
 		if (ret < 0)
-			goto error_out;
+			goto err_regulator_disable;
 
 		st->vref_mv = ret / 1000;
 	} else {
@@ -431,13 +460,22 @@ static int ads8688_probe(struct spi_device *spi)
 
 	mutex_init(&st->lock);
 
+	ret = iio_triggered_buffer_setup(indio_dev, NULL, ads8688_trigger_handler, NULL);
+	if (ret < 0) {
+		dev_err(&spi->dev, "iio triggered buffer setup failed\n");
+		goto err_regulator_disable;
+	}
+
 	ret = iio_device_register(indio_dev);
 	if (ret)
-		goto error_out;
+		goto err_buffer_cleanup;
 
 	return 0;
 
-error_out:
+err_buffer_cleanup:
+	iio_triggered_buffer_cleanup(indio_dev);
+
+err_regulator_disable:
 	if (!IS_ERR(st->reg))
 		regulator_disable(st->reg);
 
@@ -450,6 +488,7 @@ static int ads8688_remove(struct spi_device *spi)
 	struct ads8688_state *st = iio_priv(indio_dev);
 
 	iio_device_unregister(indio_dev);
+	iio_triggered_buffer_cleanup(indio_dev);
 
 	if (!IS_ERR(st->reg))
 		regulator_disable(st->reg);
@@ -474,7 +513,6 @@ MODULE_DEVICE_TABLE(of, ads8688_of_match);
 static struct spi_driver ads8688_driver = {
 	.driver = {
 		.name	= "ads8688",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= ads8688_probe,
 	.remove		= ads8688_remove,
@@ -482,6 +520,6 @@ static struct spi_driver ads8688_driver = {
 };
 module_spi_driver(ads8688_driver);
 
-MODULE_AUTHOR("Sean Nyekjaer <sean.nyekjaer@prevas.dk>");
+MODULE_AUTHOR("Sean Nyekjaer <sean@geanix.dk>");
 MODULE_DESCRIPTION("Texas Instruments ADS8688 driver");
 MODULE_LICENSE("GPL v2");

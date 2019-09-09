@@ -1,13 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2013 Texas Instruments Inc.
  *
  * David Griego, <dagriego@biglakesoftware.com>
  * Dale Farnsworth, <dale@farnsworth.org>
  * Archit Taneja, <archit@ti.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 #ifndef TI_SC_H
 #define TI_SC_H
@@ -173,6 +170,12 @@
 /* number of taps expected by the scaler in it's coefficient memory */
 #define SC_NUM_TAPS_MEM_ALIGN		8
 
+/* Maximum frame width the scaler can handle (in pixels) */
+#define SC_MAX_PIXEL_WIDTH		2047
+
+/* Maximum frame height the scaler can handle (in lines) */
+#define SC_MAX_PIXEL_HEIGHT		2047
+
 /*
  * coefficient memory size in bytes:
  * num phases x num sets(luma and chroma) x num taps(aligned) x coeff size
@@ -189,9 +192,6 @@ struct sc_data {
 	bool			load_coeff_h;	/* have new h SC coeffs */
 	bool			load_coeff_v;	/* have new v SC coeffs */
 
-	unsigned int		hs_index;	/* h SC coeffs selector */
-	unsigned int		vs_index;	/* v SC coeffs selector */
-
 	struct platform_device *pdev;
 };
 
@@ -203,6 +203,6 @@ void sc_set_vs_coeffs(struct sc_data *sc, void *addr, unsigned int src_h,
 void sc_config_scaler(struct sc_data *sc, u32 *sc_reg0, u32 *sc_reg8,
 		u32 *sc_reg17, unsigned int src_w, unsigned int src_h,
 		unsigned int dst_w, unsigned int dst_h);
-struct sc_data *sc_create(struct platform_device *pdev);
+struct sc_data *sc_create(struct platform_device *pdev, const char *res_name);
 
 #endif

@@ -1,12 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * ov772x Camera
  *
  * Copyright (C) 2008 Renesas Solutions Corp.
  * Kuninori Morimoto <morimoto.kuninori@renesas.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef __OV772X_H__
@@ -48,8 +45,10 @@ struct ov772x_edge_ctrl {
 	.threshold = (t & OV772X_EDGE_THRESHOLD_MASK),	\
 }
 
-/*
- * ov772x camera info
+/**
+ * ov772x_camera_info -	ov772x driver interface structure
+ * @flags:		Sensor configuration flags
+ * @edgectrl:		Sensor edge control
  */
 struct ov772x_camera_info {
 	unsigned long		flags;

@@ -1,25 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /******************************************************************************
  *
  * Copyright(c) 2003 - 2011 Intel Corporation. All rights reserved.
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
  *
  * Contact Information:
  *  Intel Linux Wireless <ilw@linux.intel.com>
@@ -559,7 +544,7 @@ il4965_translate_rx_status(struct il_priv *il, u32 decrypt_in)
 			decrypt_out |= RX_RES_STATUS_BAD_KEY_TTAK;
 			break;
 		}
-		/* fall through if TTAK OK */
+		/* fall through - if TTAK OK */
 	default:
 		if (!(decrypt_in & RX_MPDU_RES_STATUS_ICV_OK))
 			decrypt_out |= RX_RES_STATUS_BAD_ICV_MIC;
@@ -606,7 +591,7 @@ il4965_pass_packet_to_mac80211(struct il_priv *il, struct ieee80211_hdr *hdr,
 	}
 
 	if (len <= SMALL_PACKET_SIZE) {
-		memcpy(skb_put(skb, len), hdr, len);
+		skb_put_data(skb, hdr, len);
 	} else {
 		skb_add_rx_frag(skb, 0, rxb->page, (void *)hdr - rxb_addr(rxb),
 				len, PAGE_SIZE << il->hw_params.rx_page_order);
@@ -728,15 +713,17 @@ il4965_hdl_rx(struct il_priv *il, struct il_rx_buf *rxb)
 
 	/* set the preamble flag if appropriate */
 	if (phy_res->phy_flags & RX_RES_PHY_FLAGS_SHORT_PREAMBLE_MSK)
-		rx_status.flag |= RX_FLAG_SHORTPRE;
+		rx_status.enc_flags |= RX_ENC_FLAG_SHORTPRE;
 
 	/* Set up the HT phy flags */
 	if (rate_n_flags & RATE_MCS_HT_MSK)
-		rx_status.flag |= RX_FLAG_HT;
+		rx_status.encoding = RX_ENC_HT;
 	if (rate_n_flags & RATE_MCS_HT40_MSK)
-		rx_status.flag |= RX_FLAG_40MHZ;
+		rx_status.bw = RATE_INFO_BW_40;
+	else
+		rx_status.bw = RATE_INFO_BW_20;
 	if (rate_n_flags & RATE_MCS_SGI_MSK)
-		rx_status.flag |= RX_FLAG_SHORT_GI;
+		rx_status.enc_flags |= RX_ENC_FLAG_SHORT_GI;
 
 	if (phy_res->phy_flags & RX_RES_PHY_FLAGS_AGG_MSK) {
 		/* We know which subframes of an A-MPDU belong
@@ -1336,15 +1323,12 @@ il4965_accumulative_stats(struct il_priv *il, __le32 * stats)
 	u32 *accum_stats;
 	u32 *delta, *max_delta;
 	struct stats_general_common *general, *accum_general;
-	struct stats_tx *tx, *accum_tx;
 
 	prev_stats = (__le32 *) &il->_4965.stats;
 	accum_stats = (u32 *) &il->_4965.accum_stats;
 	size = sizeof(struct il_notif_stats);
 	general = &il->_4965.stats.general.common;
 	accum_general = &il->_4965.accum_stats.general.common;
-	tx = &il->_4965.stats.tx;
-	accum_tx = &il->_4965.accum_stats.tx;
 	delta = (u32 *) &il->_4965.delta_stats;
 	max_delta = (u32 *) &il->_4965.max_delta;
 
@@ -1478,7 +1462,7 @@ il4965_get_ac_from_tid(u16 tid)
 static inline int
 il4965_get_fifo_from_tid(u16 tid)
 {
-	const u8 ac_to_fifo[] = {
+	static const u8 ac_to_fifo[] = {
 		IL_TX_FIFO_VO,
 		IL_TX_FIFO_VI,
 		IL_TX_FIFO_BE,
@@ -4072,9 +4056,9 @@ il4965_hdl_alive(struct il_priv *il, struct il_rx_buf *rxb)
  * used for calibrating the TXPOWER.
  */
 static void
-il4965_bg_stats_periodic(unsigned long data)
+il4965_bg_stats_periodic(struct timer_list *t)
 {
-	struct il_priv *il = (struct il_priv *)data;
+	struct il_priv *il = from_timer(il, t, stats_periodic);
 
 	if (test_bit(S_EXIT_PENDING, &il->status))
 		return;
@@ -4589,7 +4573,7 @@ il4965_store_debug_level(struct device *d, struct device_attribute *attr,
 	return strnlen(buf, count);
 }
 
-static DEVICE_ATTR(debug_level, S_IWUSR | S_IRUGO, il4965_show_debug_level,
+static DEVICE_ATTR(debug_level, 0644, il4965_show_debug_level,
 		   il4965_store_debug_level);
 
 #endif /* CONFIG_IWLEGACY_DEBUG */
@@ -4606,7 +4590,7 @@ il4965_show_temperature(struct device *d, struct device_attribute *attr,
 	return sprintf(buf, "%d\n", il->temperature);
 }
 
-static DEVICE_ATTR(temperature, S_IRUGO, il4965_show_temperature, NULL);
+static DEVICE_ATTR(temperature, 0444, il4965_show_temperature, NULL);
 
 static ssize_t
 il4965_show_tx_power(struct device *d, struct device_attribute *attr, char *buf)
@@ -4640,7 +4624,7 @@ il4965_store_tx_power(struct device *d, struct device_attribute *attr,
 	return ret;
 }
 
-static DEVICE_ATTR(tx_power, S_IWUSR | S_IRUGO, il4965_show_tx_power,
+static DEVICE_ATTR(tx_power, 0644, il4965_show_tx_power,
 		   il4965_store_tx_power);
 
 static struct attribute *il_sysfs_entries[] = {
@@ -4652,7 +4636,7 @@ static struct attribute *il_sysfs_entries[] = {
 	NULL
 };
 
-static struct attribute_group il_attribute_group = {
+static const struct attribute_group il_attribute_group = {
 	.name = NULL,		/* put in device directory */
 	.attrs = il_sysfs_entries,
 };
@@ -4782,7 +4766,6 @@ static void
 il4965_ucode_callback(const struct firmware *ucode_raw, void *context)
 {
 	struct il_priv *il = context;
-	struct il_ucode_header *ucode;
 	int err;
 	struct il4965_firmware_pieces pieces;
 	const unsigned int api_max = il->cfg->ucode_api_max;
@@ -4812,8 +4795,6 @@ il4965_ucode_callback(const struct firmware *ucode_raw, void *context)
 	}
 
 	/* Data from ucode file:  header followed by uCode images */
-	ucode = (struct il_ucode_header *)ucode_raw->data;
-
 	err = il4965_load_firmware(il, ucode_raw, &pieces);
 
 	if (err)
@@ -4855,39 +4836,39 @@ il4965_ucode_callback(const struct firmware *ucode_raw, void *context)
 	 */
 
 	D_INFO("f/w package hdr ucode version raw = 0x%x\n", il->ucode_ver);
-	D_INFO("f/w package hdr runtime inst size = %Zd\n", pieces.inst_size);
-	D_INFO("f/w package hdr runtime data size = %Zd\n", pieces.data_size);
-	D_INFO("f/w package hdr init inst size = %Zd\n", pieces.init_size);
-	D_INFO("f/w package hdr init data size = %Zd\n", pieces.init_data_size);
-	D_INFO("f/w package hdr boot inst size = %Zd\n", pieces.boot_size);
+	D_INFO("f/w package hdr runtime inst size = %zd\n", pieces.inst_size);
+	D_INFO("f/w package hdr runtime data size = %zd\n", pieces.data_size);
+	D_INFO("f/w package hdr init inst size = %zd\n", pieces.init_size);
+	D_INFO("f/w package hdr init data size = %zd\n", pieces.init_data_size);
+	D_INFO("f/w package hdr boot inst size = %zd\n", pieces.boot_size);
 
 	/* Verify that uCode images will fit in card's SRAM */
 	if (pieces.inst_size > il->hw_params.max_inst_size) {
-		IL_ERR("uCode instr len %Zd too large to fit in\n",
+		IL_ERR("uCode instr len %zd too large to fit in\n",
 		       pieces.inst_size);
 		goto try_again;
 	}
 
 	if (pieces.data_size > il->hw_params.max_data_size) {
-		IL_ERR("uCode data len %Zd too large to fit in\n",
+		IL_ERR("uCode data len %zd too large to fit in\n",
 		       pieces.data_size);
 		goto try_again;
 	}
 
 	if (pieces.init_size > il->hw_params.max_inst_size) {
-		IL_ERR("uCode init instr len %Zd too large to fit in\n",
+		IL_ERR("uCode init instr len %zd too large to fit in\n",
 		       pieces.init_size);
 		goto try_again;
 	}
 
 	if (pieces.init_data_size > il->hw_params.max_data_size) {
-		IL_ERR("uCode init data len %Zd too large to fit in\n",
+		IL_ERR("uCode init data len %zd too large to fit in\n",
 		       pieces.init_data_size);
 		goto try_again;
 	}
 
 	if (pieces.boot_size > il->hw_params.max_bsm_size) {
-		IL_ERR("uCode boot instr len %Zd too large to fit in\n",
+		IL_ERR("uCode boot instr len %zd too large to fit in\n",
 		       pieces.boot_size);
 		goto try_again;
 	}
@@ -4938,7 +4919,7 @@ il4965_ucode_callback(const struct firmware *ucode_raw, void *context)
 	/* Copy images into buffers for card's bus-master reads ... */
 
 	/* Runtime instructions (first block of data in file) */
-	D_INFO("Copying (but not loading) uCode instr len %Zd\n",
+	D_INFO("Copying (but not loading) uCode instr len %zd\n",
 	       pieces.inst_size);
 	memcpy(il->ucode_code.v_addr, pieces.inst, pieces.inst_size);
 
@@ -4949,28 +4930,28 @@ il4965_ucode_callback(const struct firmware *ucode_raw, void *context)
 	 * Runtime data
 	 * NOTE:  Copy into backup buffer will be done in il_up()
 	 */
-	D_INFO("Copying (but not loading) uCode data len %Zd\n",
+	D_INFO("Copying (but not loading) uCode data len %zd\n",
 	       pieces.data_size);
 	memcpy(il->ucode_data.v_addr, pieces.data, pieces.data_size);
 	memcpy(il->ucode_data_backup.v_addr, pieces.data, pieces.data_size);
 
 	/* Initialization instructions */
 	if (pieces.init_size) {
-		D_INFO("Copying (but not loading) init instr len %Zd\n",
+		D_INFO("Copying (but not loading) init instr len %zd\n",
 		       pieces.init_size);
 		memcpy(il->ucode_init.v_addr, pieces.init, pieces.init_size);
 	}
 
 	/* Initialization data */
 	if (pieces.init_data_size) {
-		D_INFO("Copying (but not loading) init data len %Zd\n",
+		D_INFO("Copying (but not loading) init data len %zd\n",
 		       pieces.init_data_size);
 		memcpy(il->ucode_init_data.v_addr, pieces.init_data,
 		       pieces.init_data_size);
 	}
 
 	/* Bootstrap instructions */
-	D_INFO("Copying (but not loading) boot instr len %Zd\n",
+	D_INFO("Copying (but not loading) boot instr len %zd\n",
 	       pieces.boot_size);
 	memcpy(il->ucode_boot.v_addr, pieces.boot, pieces.boot_size);
 
@@ -4992,10 +4973,7 @@ il4965_ucode_callback(const struct firmware *ucode_raw, void *context)
 	if (err)
 		goto out_unbind;
 
-	err = il_dbgfs_register(il, DRV_NAME);
-	if (err)
-		IL_ERR("failed to create debugfs files. Ignoring error: %d\n",
-		       err);
+	il_dbgfs_register(il, DRV_NAME);
 
 	err = sysfs_create_group(&il->pci_dev->dev.kobj, &il_attribute_group);
 	if (err) {
@@ -5799,6 +5777,8 @@ il4965_mac_setup_register(struct il_priv *il, u32 max_probe_length)
 
 	il_leds_init(il);
 
+	wiphy_ext_feature_set(il->hw->wiphy, NL80211_EXT_FEATURE_CQM_RSSI_LIST);
+
 	ret = ieee80211_register_hw(il->hw);
 	if (ret) {
 		IL_ERR("Failed to register hw (error %d)\n", ret);
@@ -6254,10 +6234,9 @@ il4965_setup_deferred_work(struct il_priv *il)
 
 	INIT_WORK(&il->txpower_work, il4965_bg_txpower_work);
 
-	setup_timer(&il->stats_periodic, il4965_bg_stats_periodic,
-		    (unsigned long)il);
+	timer_setup(&il->stats_periodic, il4965_bg_stats_periodic, 0);
 
-	setup_timer(&il->watchdog, il_bg_watchdog, (unsigned long)il);
+	timer_setup(&il->watchdog, il_bg_watchdog, 0);
 
 	tasklet_init(&il->irq_tasklet,
 		     (void (*)(unsigned long))il4965_irq_tasklet,
@@ -6856,18 +6835,17 @@ module_exit(il4965_exit);
 module_init(il4965_init);
 
 #ifdef CONFIG_IWLEGACY_DEBUG
-module_param_named(debug, il_debug_level, uint, S_IRUGO | S_IWUSR);
+module_param_named(debug, il_debug_level, uint, 0644);
 MODULE_PARM_DESC(debug, "debug output mask");
 #endif
 
-module_param_named(swcrypto, il4965_mod_params.sw_crypto, int, S_IRUGO);
+module_param_named(swcrypto, il4965_mod_params.sw_crypto, int, 0444);
 MODULE_PARM_DESC(swcrypto, "using crypto in software (default 0 [hardware])");
-module_param_named(queues_num, il4965_mod_params.num_of_queues, int, S_IRUGO);
+module_param_named(queues_num, il4965_mod_params.num_of_queues, int, 0444);
 MODULE_PARM_DESC(queues_num, "number of hw queues.");
-module_param_named(11n_disable, il4965_mod_params.disable_11n, int, S_IRUGO);
+module_param_named(11n_disable, il4965_mod_params.disable_11n, int, 0444);
 MODULE_PARM_DESC(11n_disable, "disable 11n functionality");
-module_param_named(amsdu_size_8K, il4965_mod_params.amsdu_size_8K, int,
-		   S_IRUGO);
+module_param_named(amsdu_size_8K, il4965_mod_params.amsdu_size_8K, int, 0444);
 MODULE_PARM_DESC(amsdu_size_8K, "enable 8K amsdu size (default 0 [disabled])");
-module_param_named(fw_restart, il4965_mod_params.restart_fw, int, S_IRUGO);
+module_param_named(fw_restart, il4965_mod_params.restart_fw, int, 0444);
 MODULE_PARM_DESC(fw_restart, "restart firmware in case of error");

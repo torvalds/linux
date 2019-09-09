@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * security/tomoyo/audit.c
  *
@@ -31,6 +32,7 @@ static char *tomoyo_print_bprm(struct linux_binprm *bprm,
 	int argv_count = bprm->argc;
 	int envp_count = bprm->envc;
 	bool truncated = false;
+
 	if (!buffer)
 		return NULL;
 	len = snprintf(buffer, tomoyo_buffer_len - 1, "argv[]={ ");
@@ -48,6 +50,7 @@ static char *tomoyo_print_bprm(struct linux_binprm *bprm,
 		while (offset < PAGE_SIZE) {
 			const char *kaddr = dump->data;
 			const unsigned char c = kaddr[offset++];
+
 			if (cp == last_start)
 				*cp++ = '"';
 			if (cp >= buffer + tomoyo_buffer_len - 32) {
@@ -153,19 +156,18 @@ static char *tomoyo_print_header(struct tomoyo_request_info *r)
 	char *buffer = kmalloc(tomoyo_buffer_len, GFP_NOFS);
 	int pos;
 	u8 i;
+
 	if (!buffer)
 		return NULL;
 
-	tomoyo_convert_time(get_seconds(), &stamp);
+	tomoyo_convert_time(ktime_get_real_seconds(), &stamp);
 
 	pos = snprintf(buffer, tomoyo_buffer_len - 1,
-		       "#%04u/%02u/%02u %02u:%02u:%02u# profile=%u mode=%s "
-		       "granted=%s (global-pid=%u) task={ pid=%u ppid=%u "
-		       "uid=%u gid=%u euid=%u egid=%u suid=%u sgid=%u "
-		       "fsuid=%u fsgid=%u }", stamp.year, stamp.month,
-		       stamp.day, stamp.hour, stamp.min, stamp.sec, r->profile,
-		       tomoyo_mode[r->mode], tomoyo_yesno(r->granted), gpid,
-		       tomoyo_sys_getpid(), tomoyo_sys_getppid(),
+		       "#%04u/%02u/%02u %02u:%02u:%02u# profile=%u mode=%s granted=%s (global-pid=%u) task={ pid=%u ppid=%u uid=%u gid=%u euid=%u egid=%u suid=%u sgid=%u fsuid=%u fsgid=%u }",
+		       stamp.year, stamp.month, stamp.day, stamp.hour,
+		       stamp.min, stamp.sec, r->profile, tomoyo_mode[r->mode],
+		       tomoyo_yesno(r->granted), gpid, tomoyo_sys_getpid(),
+		       tomoyo_sys_getppid(),
 		       from_kuid(&init_user_ns, current_uid()),
 		       from_kgid(&init_user_ns, current_gid()),
 		       from_kuid(&init_user_ns, current_euid()),
@@ -184,6 +186,7 @@ static char *tomoyo_print_header(struct tomoyo_request_info *r)
 		struct tomoyo_mini_stat *stat;
 		unsigned int dev;
 		umode_t mode;
+
 		if (!obj->stat_valid[i])
 			continue;
 		stat = &obj->stat[i];
@@ -192,8 +195,8 @@ static char *tomoyo_print_header(struct tomoyo_request_info *r)
 		if (i & 1) {
 			pos += snprintf(buffer + pos,
 					tomoyo_buffer_len - 1 - pos,
-					" path%u.parent={ uid=%u gid=%u "
-					"ino=%lu perm=0%o }", (i >> 1) + 1,
+					" path%u.parent={ uid=%u gid=%u ino=%lu perm=0%o }",
+					(i >> 1) + 1,
 					from_kuid(&init_user_ns, stat->uid),
 					from_kgid(&init_user_ns, stat->gid),
 					(unsigned long)stat->ino,
@@ -201,8 +204,8 @@ static char *tomoyo_print_header(struct tomoyo_request_info *r)
 			continue;
 		}
 		pos += snprintf(buffer + pos, tomoyo_buffer_len - 1 - pos,
-				" path%u={ uid=%u gid=%u ino=%lu major=%u"
-				" minor=%u perm=0%o type=%s", (i >> 1) + 1,
+				" path%u={ uid=%u gid=%u ino=%lu major=%u minor=%u perm=0%o type=%s",
+				(i >> 1) + 1,
 				from_kuid(&init_user_ns, stat->uid),
 				from_kgid(&init_user_ns, stat->gid),
 				(unsigned long)stat->ino,
@@ -248,6 +251,7 @@ char *tomoyo_init_log(struct tomoyo_request_info *r, int len, const char *fmt,
 	const char *symlink = NULL;
 	int pos;
 	const char *domainname = r->domain->domainname->name;
+
 	header = tomoyo_print_header(r);
 	if (!header)
 		return NULL;
@@ -255,6 +259,7 @@ char *tomoyo_init_log(struct tomoyo_request_info *r, int len, const char *fmt,
 	len += strlen(domainname) + strlen(header) + 10;
 	if (r->ee) {
 		struct file *file = r->ee->bprm->file;
+
 		realpath = tomoyo_realpath_from_path(&file->f_path);
 		bprm_info = tomoyo_print_bprm(r->ee->bprm, &r->ee->dump);
 		if (!realpath || !bprm_info)
@@ -274,6 +279,7 @@ char *tomoyo_init_log(struct tomoyo_request_info *r, int len, const char *fmt,
 	pos = snprintf(buf, len, "%s", header);
 	if (realpath) {
 		struct linux_binprm *bprm = r->ee->bprm;
+
 		pos += snprintf(buf + pos, len - pos,
 				" exec={ realpath=\"%s\" argc=%d envc=%d %s }",
 				realpath, bprm->argc, bprm->envc, bprm_info);
@@ -327,6 +333,7 @@ static bool tomoyo_get_audit(const struct tomoyo_policy_namespace *ns,
 	const u8 category = tomoyo_index2category[index] +
 		TOMOYO_MAX_MAC_INDEX;
 	struct tomoyo_profile *p;
+
 	if (!tomoyo_policy_loaded)
 		return false;
 	p = tomoyo_profile(ns, profile);
@@ -361,6 +368,7 @@ void tomoyo_write_log2(struct tomoyo_request_info *r, int len, const char *fmt,
 	char *buf;
 	struct tomoyo_log *entry;
 	bool quota_exceeded = false;
+
 	if (!tomoyo_get_audit(r->domain->ns, r->profile, r->type,
 			      r->matched_acl, r->granted))
 		goto out;
@@ -412,6 +420,7 @@ void tomoyo_write_log(struct tomoyo_request_info *r, const char *fmt, ...)
 {
 	va_list args;
 	int len;
+
 	va_start(args, fmt);
 	len = vsnprintf((char *) &len, 1, fmt, args) + 1;
 	va_end(args);
@@ -430,6 +439,7 @@ void tomoyo_write_log(struct tomoyo_request_info *r, const char *fmt, ...)
 void tomoyo_read_log(struct tomoyo_io_buffer *head)
 {
 	struct tomoyo_log *ptr = NULL;
+
 	if (head->r.w_pos)
 		return;
 	kfree(head->read_buf);
@@ -455,14 +465,14 @@ void tomoyo_read_log(struct tomoyo_io_buffer *head)
  * @file: Pointer to "struct file".
  * @wait: Pointer to "poll_table". Maybe NULL.
  *
- * Returns POLLIN | POLLRDNORM when ready to read an audit log.
+ * Returns EPOLLIN | EPOLLRDNORM when ready to read an audit log.
  */
-unsigned int tomoyo_poll_log(struct file *file, poll_table *wait)
+__poll_t tomoyo_poll_log(struct file *file, poll_table *wait)
 {
 	if (tomoyo_log_count)
-		return POLLIN | POLLRDNORM;
+		return EPOLLIN | EPOLLRDNORM;
 	poll_wait(file, &tomoyo_log_wait, wait);
 	if (tomoyo_log_count)
-		return POLLIN | POLLRDNORM;
+		return EPOLLIN | EPOLLRDNORM;
 	return 0;
 }

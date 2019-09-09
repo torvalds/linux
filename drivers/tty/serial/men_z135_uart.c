@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * MEN 16z135 High Speed UART
  *
  * Copyright (C) 2014 MEN Mikroelektronik GmbH (www.men.de)
  * Author: Johannes Thumshirn <johannes.thumshirn@men.de>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; version 2 of the License.
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ":" fmt
 
@@ -356,7 +353,6 @@ static void men_z135_handle_tx(struct men_z135_port *uart)
 
 	memcpy_toio(port->membase + MEN_Z135_TX_RAM, &xmit->buf[xmit->tail], n);
 	xmit->tail = (xmit->tail + n) & (UART_XMIT_SIZE - 1);
-	mmiowb();
 
 	iowrite32(n & 0x3ff, port->membase + MEN_Z135_TX_CTRL);
 

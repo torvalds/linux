@@ -1,9 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * linux/drivers/net/ethernet/amd/am79c961a.h
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef _LINUX_am79c961a_H
@@ -140,6 +137,7 @@ struct dev_priv {
     unsigned long	txhdr;
     spinlock_t		chip_lock;
     struct timer_list	timer;
+    struct net_device   *dev;
 };
 
 #endif

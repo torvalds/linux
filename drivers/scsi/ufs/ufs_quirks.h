@@ -1,15 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2014-2016, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #ifndef _UFS_QUIRKS_H_
@@ -21,21 +12,9 @@
 #define UFS_ANY_VENDOR 0xFFFF
 #define UFS_ANY_MODEL  "ANY_MODEL"
 
-#define MAX_MODEL_LEN 16
-
 #define UFS_VENDOR_TOSHIBA     0x198
 #define UFS_VENDOR_SAMSUNG     0x1CE
 #define UFS_VENDOR_SKHYNIX     0x1AD
-
-/**
- * ufs_device_info - ufs device details
- * @wmanufacturerid: card details
- * @model: card model
- */
-struct ufs_device_info {
-	u16 wmanufacturerid;
-	char model[MAX_MODEL_LEN + 1];
-};
 
 /**
  * ufs_dev_fix - ufs device quirk info
@@ -43,34 +22,18 @@ struct ufs_device_info {
  * @quirk: device quirk
  */
 struct ufs_dev_fix {
-	struct ufs_device_info card;
+	struct ufs_dev_desc card;
 	unsigned int quirk;
 };
 
 #define END_FIX { { 0 }, 0 }
 
 /* add specific device quirk */
-#define UFS_FIX(_vendor, _model, _quirk) \
-		{					  \
-			.card.wmanufacturerid = (_vendor),\
-			.card.model = (_model),		  \
-			.quirk = (_quirk),		  \
-		}
-
-/*
- * If UFS device is having issue in processing LCC (Line Control
- * Command) coming from UFS host controller then enable this quirk.
- * When this quirk is enabled, host controller driver should disable
- * the LCC transmission on UFS host controller (by clearing
- * TX_LCC_ENABLE attribute of host to 0).
- */
-#define UFS_DEVICE_QUIRK_BROKEN_LCC (1 << 0)
-
-/*
- * Some UFS devices don't need VCCQ rail for device operations. Enabling this
- * quirk for such devices will make sure that VCCQ rail is not voted.
- */
-#define UFS_DEVICE_NO_VCCQ (1 << 1)
+#define UFS_FIX(_vendor, _model, _quirk) { \
+	.card.wmanufacturerid = (_vendor),\
+	.card.model = (_model),		   \
+	.quirk = (_quirk),		   \
+}
 
 /*
  * Some vendor's UFS device sends back to back NACs for the DL data frames
@@ -98,13 +61,6 @@ struct ufs_dev_fix {
 #define UFS_DEVICE_QUIRK_RECOVERY_FROM_DL_NAC_ERRORS (1 << 2)
 
 /*
- * Some UFS devices may not work properly after resume if the link was kept
- * in off state during suspend. Enabling this quirk will not allow the
- * link to be kept in off state during suspend.
- */
-#define UFS_DEVICE_QUIRK_NO_LINK_OFF	(1 << 3)
-
-/*
  * Few Toshiba UFS device models advertise RX_MIN_ACTIVATETIME_CAPABILITY as
  * 600us which may not be enough for reliable hibern8 exit hardware sequence
  * from UFS device.
@@ -114,13 +70,6 @@ struct ufs_dev_fix {
 #define UFS_DEVICE_QUIRK_PA_TACTIVATE	(1 << 4)
 
 /*
- * Some UFS memory devices may have really low read/write throughput in
- * FAST AUTO mode, enable this quirk to make sure that FAST AUTO mode is
- * never enabled for such devices.
- */
-#define UFS_DEVICE_NO_FASTAUTO		(1 << 5)
-
-/*
  * It seems some UFS devices may keep drawing more than sleep current
  * (atleast for 500us) from UFS rails (especially from VCCQ rail).
  * To avoid this situation, add 2ms delay before putting these UFS
@@ -128,26 +77,26 @@ struct ufs_dev_fix {
  */
 #define UFS_DEVICE_QUIRK_DELAY_BEFORE_LPM	(1 << 6)
 
-struct ufs_hba;
-void ufs_advertise_fixup_device(struct ufs_hba *hba);
+/*
+ * Some UFS devices require host PA_TACTIVATE to be lower than device
+ * PA_TACTIVATE, enabling this quirk ensure this.
+ */
+#define UFS_DEVICE_QUIRK_HOST_PA_TACTIVATE	(1 << 7)
 
-static struct ufs_dev_fix ufs_fixups[] = {
-	/* UFS cards deviations table */
-	UFS_FIX(UFS_VENDOR_SAMSUNG, UFS_ANY_MODEL,
-		UFS_DEVICE_QUIRK_DELAY_BEFORE_LPM),
-	UFS_FIX(UFS_VENDOR_SAMSUNG, UFS_ANY_MODEL, UFS_DEVICE_NO_VCCQ),
-	UFS_FIX(UFS_VENDOR_SAMSUNG, UFS_ANY_MODEL,
-		UFS_DEVICE_QUIRK_RECOVERY_FROM_DL_NAC_ERRORS),
-	UFS_FIX(UFS_VENDOR_SAMSUNG, UFS_ANY_MODEL,
-		UFS_DEVICE_NO_FASTAUTO),
-	UFS_FIX(UFS_VENDOR_TOSHIBA, UFS_ANY_MODEL,
-		UFS_DEVICE_QUIRK_DELAY_BEFORE_LPM),
-	UFS_FIX(UFS_VENDOR_TOSHIBA, "THGLF2G9C8KBADG",
-		UFS_DEVICE_QUIRK_PA_TACTIVATE),
-	UFS_FIX(UFS_VENDOR_TOSHIBA, "THGLF2G9D8KBADG",
-		UFS_DEVICE_QUIRK_PA_TACTIVATE),
-	UFS_FIX(UFS_VENDOR_SKHYNIX, UFS_ANY_MODEL, UFS_DEVICE_NO_VCCQ),
+/*
+ * The max. value PA_SaveConfigTime is 250 (10us) but this is not enough for
+ * some vendors.
+ * Gear switch from PWM to HS may fail even with this max. PA_SaveConfigTime.
+ * Gear switch can be issued by host controller as an error recovery and any
+ * software delay will not help on this case so we need to increase
+ * PA_SaveConfigTime to >32us as per vendor recommendation.
+ */
+#define UFS_DEVICE_QUIRK_HOST_PA_SAVECONFIGTIME	(1 << 8)
 
-	END_FIX
-};
+/*
+ * Some UFS devices require VS_DebugSaveConfigTime is 0x10,
+ * enabling this quirk ensure this.
+ */
+#define UFS_DEVICE_QUIRK_HOST_VS_DEBUGSAVECONFIGTIME	(1 << 9)
+
 #endif /* UFS_QUIRKS_H_ */

@@ -1,0 +1,23 @@
+What:		/sys/bus/platform/devices/dfl-fme.0/ports_num
+Date:		June 2018
+KernelVersion:  4.19
+Contact:	Wu Hao <hao.wu@intel.com>
+Description:	Read-only. One DFL FPGA device may have more than 1
+		port/Accelerator Function Unit (AFU). It returns the
+		number of ports on the FPGA device when read it.
+
+What:		/sys/bus/platform/devices/dfl-fme.0/bitstream_id
+Date:		June 2018
+KernelVersion:  4.19
+Contact:	Wu Hao <hao.wu@intel.com>
+Description:	Read-only. It returns Bitstream (static FPGA region)
+		identifier number, which includes the detailed version
+		and other information of this static FPGA region.
+
+What:		/sys/bus/platform/devices/dfl-fme.0/bitstream_metadata
+Date:		June 2018
+KernelVersion:  4.19
+Contact:	Wu Hao <hao.wu@intel.com>
+Description:	Read-only. It returns Bitstream (static FPGA region) meta
+		data, which includes the synthesis date, seed and other
+		information of this static FPGA region.

@@ -295,7 +295,6 @@ enum sci_controller_states {
 #define SCI_MAX_MSIX_INT (SCI_NUM_MSI_X_INT*SCI_MAX_CONTROLLERS)
 
 struct isci_pci_info {
-	struct msix_entry msix_entries[SCI_MAX_MSIX_INT];
 	struct isci_host *hosts[SCI_MAX_CONTROLLERS];
 	struct isci_orom *orom;
 };
@@ -490,7 +489,7 @@ enum sci_status sci_controller_start_io(
 	struct isci_remote_device *idev,
 	struct isci_request *ireq);
 
-enum sci_task_status sci_controller_start_task(
+enum sci_status sci_controller_start_task(
 	struct isci_host *ihost,
 	struct isci_remote_device *idev,
 	struct isci_request *ireq);

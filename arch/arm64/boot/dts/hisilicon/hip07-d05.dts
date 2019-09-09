@@ -1,0 +1,90 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/**
+ * dts file for Hisilicon D05 Development Board
+ *
+ * Copyright (C) 2016 Hisilicon Ltd.
+ */
+
+/dts-v1/;
+
+#include "hip07.dtsi"
+
+/ {
+	model = "Hisilicon Hip07 D05 Development Board";
+	compatible = "hisilicon,hip07-d05";
+
+	/* the mem node will be updated by UEFI. */
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x00000000 0x0 0x40000000>;
+		numa-node-id = <0>;
+	};
+
+	distance-map {
+		compatible = "numa-distance-map-v1";
+		distance-matrix = <0 0 10>,
+				  <0 1 15>,
+				  <0 2 20>,
+				  <0 3 25>,
+				  <1 0 15>,
+				  <1 1 10>,
+				  <1 2 25>,
+				  <1 3 30>,
+				  <2 0 20>,
+				  <2 1 25>,
+				  <2 2 10>,
+				  <2 3 15>,
+				  <3 0 25>,
+				  <3 1 30>,
+				  <3 2 15>,
+				  <3 3 10>;
+	};
+
+	aliases {
+		serial0 = &uart0;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+};
+
+&uart0 {
+	status = "ok";
+};
+
+&ipmi0 {
+	status = "ok";
+};
+
+&usb_ohci {
+	status = "ok";
+};
+
+&usb_ehci {
+	status = "ok";
+};
+
+&eth0 {
+	status = "ok";
+};
+
+&eth1 {
+	status = "ok";
+};
+
+&eth2 {
+	status = "ok";
+};
+
+&eth3 {
+	status = "ok";
+};
+
+&sas1 {
+	status = "ok";
+};
+
+&p0_pcie2_a {
+	status = "ok";
+};

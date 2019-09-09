@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __SOUND_CS5535AUDIO_H
 #define __SOUND_CS5535AUDIO_H
 
@@ -66,9 +67,9 @@ struct cs5535audio_dma_ops {
 };
 
 struct cs5535audio_dma_desc {
-	u32 addr;
-	u16 size;
-	u16 ctlreserved;
+	__le32 addr;
+	__le16 size;
+	__le16 ctlreserved;
 };
 
 struct cs5535audio_dma {

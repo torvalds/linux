@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  tw68_risc.c
  *  Part of the device driver for Techwell 68xx based cards
@@ -14,29 +15,20 @@
  *  Refactored and updated to the latest v4l core frameworks:
  *
  *  Copyright (C) 2014 Hans Verkuil <hverkuil@xs4all.nl>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
  */
 
 #include "tw68.h"
 
 /**
- *  @rp		pointer to current risc program position
- *  @sglist	pointer to "scatter-gather list" of buffer pointers
- *  @offset	offset to target memory buffer
- *  @sync_line	0 -> no sync, 1 -> odd sync, 2 -> even sync
- *  @bpl	number of bytes per scan line
- *  @padding	number of bytes of padding to add
- *  @lines	number of lines in field
- *  @jump	insert a jump at the start
+ * tw68_risc_field
+ *  @rp:	pointer to current risc program position
+ *  @sglist:	pointer to "scatter-gather list" of buffer pointers
+ *  @offset:	offset to target memory buffer
+ *  @sync_line:	0 -> no sync, 1 -> odd sync, 2 -> even sync
+ *  @bpl:	number of bytes per scan line
+ *  @padding:	number of bytes of padding to add
+ *  @lines:	number of lines in field
+ *  @jump:	insert a jump at the start
  */
 static __le32 *tw68_risc_field(__le32 *rp, struct scatterlist *sglist,
 			    unsigned int offset, u32 sync_line,
@@ -120,18 +112,18 @@ static __le32 *tw68_risc_field(__le32 *rp, struct scatterlist *sglist,
  *	memory for the dma controller "program" and then fills in that
  *	memory with the appropriate "instructions".
  *
- *	@pci_dev	structure with info about the pci
+ *	@pci:		structure with info about the pci
  *			slot which our device is in.
- *	@risc		structure with info about the memory
+ *	@buf:		structure with info about the memory
  *			used for our controller program.
- *	@sglist		scatter-gather list entry
- *	@top_offset	offset within the risc program area for the
+ *	@sglist:	scatter-gather list entry
+ *	@top_offset:	offset within the risc program area for the
  *			first odd frame line
- *	@bottom_offset	offset within the risc program area for the
+ *	@bottom_offset:	offset within the risc program area for the
  *			first even frame line
- *	@bpl		number of data bytes per scan line
- *	@padding	number of extra bytes to add at end of line
- *	@lines		number of scan lines
+ *	@bpl:		number of data bytes per scan line
+ *	@padding:	number of extra bytes to add at end of line
+ *	@lines:		number of scan lines
  */
 int tw68_risc_buffer(struct pci_dev *pci,
 			struct tw68_buf *buf,

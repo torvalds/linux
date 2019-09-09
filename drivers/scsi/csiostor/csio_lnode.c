@@ -114,7 +114,7 @@ static enum csio_ln_ev fwevt_to_lnevt[] = {
 static struct csio_lnode *
 csio_ln_lookup_by_portid(struct csio_hw *hw, uint8_t portid)
 {
-	struct csio_lnode *ln = hw->rln;
+	struct csio_lnode *ln;
 	struct list_head *tmp;
 
 	/* Match siblings lnode with portid */
@@ -238,14 +238,23 @@ csio_osname(uint8_t *buf, size_t buf_len)
 }
 
 static inline void
-csio_append_attrib(uint8_t **ptr, uint16_t type, uint8_t *val, uint16_t len)
+csio_append_attrib(uint8_t **ptr, uint16_t type, void *val, size_t val_len)
 {
+	uint16_t len;
 	struct fc_fdmi_attr_entry *ae = (struct fc_fdmi_attr_entry *)*ptr;
+
+	if (WARN_ON(val_len > U16_MAX))
+		return;
+
+	len = val_len;
+
 	ae->type = htons(type);
 	len += 4;		/* includes attribute type and length */
 	len = (len + 3) & ~3;	/* should be multiple of 4 bytes */
 	ae->len = htons(len);
-	memcpy(ae->value, val, len);
+	memcpy(ae->value, val, val_len);
+	if (len > val_len)
+		memset(ae->value + val_len, 0, len - val_len);
 	*ptr += len;
 }
 
@@ -335,7 +344,7 @@ csio_ln_fdmi_rhba_cbfn(struct csio_hw *hw, struct csio_ioreq *fdmi_req)
 	numattrs++;
 	val = htonl(FC_PORTSPEED_1GBIT | FC_PORTSPEED_10GBIT);
 	csio_append_attrib(&pld, FC_FDMI_PORT_ATTR_SUPPORTEDSPEED,
-			   (uint8_t *)&val,
+			   &val,
 			   FC_FDMI_PORT_ATTR_SUPPORTEDSPEED_LEN);
 	numattrs++;
 
@@ -343,26 +352,33 @@ csio_ln_fdmi_rhba_cbfn(struct csio_hw *hw, struct csio_ioreq *fdmi_req)
 		val = htonl(FC_PORTSPEED_1GBIT);
 	else if (hw->pport[ln->portid].link_speed == FW_PORT_CAP_SPEED_10G)
 		val = htonl(FC_PORTSPEED_10GBIT);
+	else if (hw->pport[ln->portid].link_speed == FW_PORT_CAP32_SPEED_25G)
+		val = htonl(FC_PORTSPEED_25GBIT);
+	else if (hw->pport[ln->portid].link_speed == FW_PORT_CAP32_SPEED_40G)
+		val = htonl(FC_PORTSPEED_40GBIT);
+	else if (hw->pport[ln->portid].link_speed == FW_PORT_CAP32_SPEED_50G)
+		val = htonl(FC_PORTSPEED_50GBIT);
+	else if (hw->pport[ln->portid].link_speed == FW_PORT_CAP32_SPEED_100G)
+		val = htonl(FC_PORTSPEED_100GBIT);
 	else
 		val = htonl(CSIO_HBA_PORTSPEED_UNKNOWN);
 	csio_append_attrib(&pld, FC_FDMI_PORT_ATTR_CURRENTPORTSPEED,
-			   (uint8_t *)&val,
-			   FC_FDMI_PORT_ATTR_CURRENTPORTSPEED_LEN);
+			   &val, FC_FDMI_PORT_ATTR_CURRENTPORTSPEED_LEN);
 	numattrs++;
 
 	mfs = ln->ln_sparm.csp.sp_bb_data;
 	csio_append_attrib(&pld, FC_FDMI_PORT_ATTR_MAXFRAMESIZE,
-			   (uint8_t *)&mfs, FC_FDMI_PORT_ATTR_MAXFRAMESIZE_LEN);
+			   &mfs, sizeof(mfs));
 	numattrs++;
 
 	strcpy(buf, "csiostor");
 	csio_append_attrib(&pld, FC_FDMI_PORT_ATTR_OSDEVICENAME, buf,
-			   (uint16_t)strlen(buf));
+			   strlen(buf));
 	numattrs++;
 
 	if (!csio_hostname(buf, sizeof(buf))) {
 		csio_append_attrib(&pld, FC_FDMI_PORT_ATTR_HOSTNAME,
-				   buf, (uint16_t)strlen(buf));
+				   buf, strlen(buf));
 		numattrs++;
 	}
 	attrib_blk->numattrs = htonl(numattrs);
@@ -444,33 +460,32 @@ csio_ln_fdmi_dprt_cbfn(struct csio_hw *hw, struct csio_ioreq *fdmi_req)
 
 	strcpy(buf, "Chelsio Communications");
 	csio_append_attrib(&pld, FC_FDMI_HBA_ATTR_MANUFACTURER, buf,
-			   (uint16_t)strlen(buf));
+			   strlen(buf));
 	numattrs++;
 	csio_append_attrib(&pld, FC_FDMI_HBA_ATTR_SERIALNUMBER,
-			   hw->vpd.sn, (uint16_t)sizeof(hw->vpd.sn));
+			   hw->vpd.sn, sizeof(hw->vpd.sn));
 	numattrs++;
 	csio_append_attrib(&pld, FC_FDMI_HBA_ATTR_MODEL, hw->vpd.id,
-			   (uint16_t)sizeof(hw->vpd.id));
+			   sizeof(hw->vpd.id));
 	numattrs++;
 	csio_append_attrib(&pld, FC_FDMI_HBA_ATTR_MODELDESCRIPTION,
-			   hw->model_desc, (uint16_t)strlen(hw->model_desc));
+			   hw->model_desc, strlen(hw->model_desc));
 	numattrs++;
 	csio_append_attrib(&pld, FC_FDMI_HBA_ATTR_HARDWAREVERSION,
-			   hw->hw_ver, (uint16_t)sizeof(hw->hw_ver));
+			   hw->hw_ver, sizeof(hw->hw_ver));
 	numattrs++;
 	csio_append_attrib(&pld, FC_FDMI_HBA_ATTR_FIRMWAREVERSION,
-			   hw->fwrev_str, (uint16_t)strlen(hw->fwrev_str));
+			   hw->fwrev_str, strlen(hw->fwrev_str));
 	numattrs++;
 
 	if (!csio_osname(buf, sizeof(buf))) {
 		csio_append_attrib(&pld, FC_FDMI_HBA_ATTR_OSNAMEVERSION,
-				   buf, (uint16_t)strlen(buf));
+				   buf, strlen(buf));
 		numattrs++;
 	}
 
 	csio_append_attrib(&pld, FC_FDMI_HBA_ATTR_MAXCTPAYLOAD,
-			   (uint8_t *)&maxpayload,
-			   FC_FDMI_HBA_ATTR_MAXCTPAYLOAD_LEN);
+			   &maxpayload, FC_FDMI_HBA_ATTR_MAXCTPAYLOAD_LEN);
 	len = (uint32_t)(pld - (uint8_t *)cmd);
 	numattrs++;
 	attrib_blk->numattrs = htonl(numattrs);
@@ -1794,6 +1809,8 @@ csio_ln_mgmt_submit_req(struct csio_ioreq *io_req,
 	struct csio_mgmtm *mgmtm = csio_hw_to_mgmtm(hw);
 	int rv;
 
+	BUG_ON(pld_len > pld->len);
+
 	io_req->io_cbfn = io_cbfn;	/* Upper layer callback handler */
 	io_req->fw_handle = (uintptr_t) (io_req);
 	io_req->eq_idx = mgmtm->eq_idx;
@@ -1828,8 +1845,8 @@ csio_ln_fdmi_init(struct csio_lnode *ln)
 	/* Allocate Dma buffers for FDMI response Payload */
 	dma_buf = &ln->mgmt_req->dma_buf;
 	dma_buf->len = 2048;
-	dma_buf->vaddr = pci_alloc_consistent(hw->pdev, dma_buf->len,
-						&dma_buf->paddr);
+	dma_buf->vaddr = dma_alloc_coherent(&hw->pdev->dev, dma_buf->len,
+						&dma_buf->paddr, GFP_KERNEL);
 	if (!dma_buf->vaddr) {
 		csio_err(hw, "Failed to alloc DMA buffer for FDMI!\n");
 		kfree(ln->mgmt_req);
@@ -1856,7 +1873,7 @@ csio_ln_fdmi_exit(struct csio_lnode *ln)
 
 	dma_buf = &ln->mgmt_req->dma_buf;
 	if (dma_buf->vaddr)
-		pci_free_consistent(hw->pdev, dma_buf->len, dma_buf->vaddr,
+		dma_free_coherent(&hw->pdev->dev, dma_buf->len, dma_buf->vaddr,
 				    dma_buf->paddr);
 
 	kfree(ln->mgmt_req);

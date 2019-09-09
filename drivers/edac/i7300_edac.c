@@ -1,8 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Intel 7300 class Memory Controllers kernel module (Clarksboro)
- *
- * This file may be distributed under the terms of the
- * GNU General Public License version 2 only.
  *
  * Copyright (c) 2010 by:
  *	 Mauro Carvalho Chehab
@@ -26,7 +24,7 @@
 #include <linux/edac.h>
 #include <linux/mmzone.h>
 
-#include "edac_core.h"
+#include "edac_module.h"
 
 /*
  * Alter this version for the I7300 module when modifications are made
@@ -304,7 +302,6 @@ static const char *ferr_global_lo_name[] = {
 #define REDMEMA		0xdc
 
 #define REDMEMB		0x7c
-  #define IS_SECOND_CH(v)	((v) * (1 << 17))
 
 #define RECMEMA		0xe0
   #define RECMEMA_BANK(v)	(((v) >> 12) & 7)
@@ -483,8 +480,9 @@ static void i7300_process_fbd_error(struct mem_ctl_info *mci)
 		pci_read_config_dword(pvt->pci_dev_16_1_fsb_addr_map,
 				     REDMEMB, &value);
 		channel = (branch << 1);
-		if (IS_SECOND_CH(value))
-			channel++;
+
+		/* Second channel ? */
+		channel += !!(value & BIT(17));
 
 		/* Clear the error bit */
 		pci_write_config_dword(pvt->pci_dev_16_1_fsb_addr_map,
@@ -1077,7 +1075,6 @@ static int i7300_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	mci->edac_ctl_cap = EDAC_FLAG_NONE;
 	mci->edac_cap = EDAC_FLAG_NONE;
 	mci->mod_name = "i7300_edac.c";
-	mci->mod_ver = I7300_REVISION;
 	mci->ctl_name = i7300_devs[0].ctl_name;
 	mci->dev_name = pci_name(pdev);
 	mci->ctl_page_to_phys = NULL;

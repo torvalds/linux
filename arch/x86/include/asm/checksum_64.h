@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_CHECKSUM_64_H
 #define _ASM_X86_CHECKSUM_64_H
 
@@ -8,7 +9,7 @@
  */
 
 #include <linux/compiler.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/byteorder.h>
 
 /**

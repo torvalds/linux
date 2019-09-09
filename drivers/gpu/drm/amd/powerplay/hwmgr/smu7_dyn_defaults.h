@@ -50,6 +50,6 @@
 #define SMU7_CGULVCONTROL_DFLT                      0x00007450
 #define SMU7_TARGETACTIVITY_DFLT                     50
 #define SMU7_MCLK_TARGETACTIVITY_DFLT                10
-
+#define SMU7_SCLK_TARGETACTIVITY_DFLT                30
 #endif
 

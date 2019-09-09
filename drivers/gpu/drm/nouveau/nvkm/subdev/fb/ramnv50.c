@@ -493,103 +493,8 @@ nv50_ram_tidy(struct nvkm_ram *base)
 	ram_exec(&ram->hwsq, false);
 }
 
-void
-__nv50_ram_put(struct nvkm_ram *ram, struct nvkm_mem *mem)
-{
-	struct nvkm_mm_node *this;
-
-	while (!list_empty(&mem->regions)) {
-		this = list_first_entry(&mem->regions, typeof(*this), rl_entry);
-
-		list_del(&this->rl_entry);
-		nvkm_mm_free(&ram->vram, &this);
-	}
-
-	nvkm_mm_free(&ram->tags, &mem->tag);
-}
-
-void
-nv50_ram_put(struct nvkm_ram *ram, struct nvkm_mem **pmem)
-{
-	struct nvkm_mem *mem = *pmem;
-
-	*pmem = NULL;
-	if (unlikely(mem == NULL))
-		return;
-
-	mutex_lock(&ram->fb->subdev.mutex);
-	__nv50_ram_put(ram, mem);
-	mutex_unlock(&ram->fb->subdev.mutex);
-
-	kfree(mem);
-}
-
-int
-nv50_ram_get(struct nvkm_ram *ram, u64 size, u32 align, u32 ncmin,
-	     u32 memtype, struct nvkm_mem **pmem)
-{
-	struct nvkm_mm *heap = &ram->vram;
-	struct nvkm_mm *tags = &ram->tags;
-	struct nvkm_mm_node *r;
-	struct nvkm_mem *mem;
-	int comp = (memtype & 0x300) >> 8;
-	int type = (memtype & 0x07f);
-	int back = (memtype & 0x800);
-	int min, max, ret;
-
-	max = (size >> NVKM_RAM_MM_SHIFT);
-	min = ncmin ? (ncmin >> NVKM_RAM_MM_SHIFT) : max;
-	align >>= NVKM_RAM_MM_SHIFT;
-
-	mem = kzalloc(sizeof(*mem), GFP_KERNEL);
-	if (!mem)
-		return -ENOMEM;
-
-	mutex_lock(&ram->fb->subdev.mutex);
-	if (comp) {
-		if (align == (1 << (16 - NVKM_RAM_MM_SHIFT))) {
-			int n = (max >> 4) * comp;
-
-			ret = nvkm_mm_head(tags, 0, 1, n, n, 1, &mem->tag);
-			if (ret)
-				mem->tag = NULL;
-		}
-
-		if (unlikely(!mem->tag))
-			comp = 0;
-	}
-
-	INIT_LIST_HEAD(&mem->regions);
-	mem->memtype = (comp << 7) | type;
-	mem->size = max;
-
-	type = nv50_fb_memtype[type];
-	do {
-		if (back)
-			ret = nvkm_mm_tail(heap, 0, type, max, min, align, &r);
-		else
-			ret = nvkm_mm_head(heap, 0, type, max, min, align, &r);
-		if (ret) {
-			mutex_unlock(&ram->fb->subdev.mutex);
-			ram->func->put(ram, &mem);
-			return ret;
-		}
-
-		list_add_tail(&r->rl_entry, &mem->regions);
-		max -= r->length;
-	} while (max);
-	mutex_unlock(&ram->fb->subdev.mutex);
-
-	r = list_first_entry(&mem->regions, struct nvkm_mm_node, rl_entry);
-	mem->offset = (u64)r->offset << NVKM_RAM_MM_SHIFT;
-	*pmem = mem;
-	return 0;
-}
-
 static const struct nvkm_ram_func
 nv50_ram_func = {
-	.get = nv50_ram_get,
-	.put = nv50_ram_put,
 	.calc = nv50_ram_calc,
 	.prog = nv50_ram_prog,
 	.tidy = nv50_ram_tidy,
@@ -642,7 +547,6 @@ nv50_ram_ctor(const struct nvkm_ram_func *func,
 	const u32 rsvd_head = ( 256 * 1024); /* vga memory */
 	const u32 rsvd_tail = (1024 * 1024); /* vbios etc */
 	u64 size = nvkm_rd32(device, 0x10020c);
-	u32 tags = nvkm_rd32(device, 0x100320);
 	enum nvkm_ram_type type = NVKM_RAM_TYPE_UNKNOWN;
 	int ret;
 
@@ -663,7 +567,7 @@ nv50_ram_ctor(const struct nvkm_ram_func *func,
 
 	size = (size & 0x000000ff) << 32 | (size & 0xffffff00);
 
-	ret = nvkm_ram_ctor(func, fb, type, size, tags, ram);
+	ret = nvkm_ram_ctor(func, fb, type, size, ram);
 	if (ret)
 		return ret;
 
@@ -672,7 +576,8 @@ nv50_ram_ctor(const struct nvkm_ram_func *func,
 	ram->ranks = (nvkm_rd32(device, 0x100200) & 0x4) ? 2 : 1;
 	nvkm_mm_fini(&ram->vram);
 
-	return nvkm_mm_init(&ram->vram, rsvd_head >> NVKM_RAM_MM_SHIFT,
+	return nvkm_mm_init(&ram->vram, NVKM_RAM_MM_NORMAL,
+			    rsvd_head >> NVKM_RAM_MM_SHIFT,
 			    (size - rsvd_head - rsvd_tail) >> NVKM_RAM_MM_SHIFT,
 			    nv50_fb_vram_rblock(ram) >> NVKM_RAM_MM_SHIFT);
 }

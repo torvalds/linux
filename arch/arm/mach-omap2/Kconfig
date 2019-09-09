@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menu "TI OMAP/AM/DM/DRA Family"
 	depends on ARCH_MULTI_V6 || ARCH_MULTI_V7
 
@@ -71,6 +72,8 @@ config SOC_AM43XX
 	select HAVE_ARM_TWD
 	select ARM_ERRATA_754322
 	select ARM_ERRATA_775420
+	select OMAP_INTERCONNECT
+	select ARM_CPU_SUSPEND if PM
 
 config SOC_DRA7XX
 	bool "TI DRA7XX"
@@ -86,6 +89,7 @@ config SOC_DRA7XX
 	select OMAP_INTERCONNECT_BARRIER
 	select PM_OPP if PM
 	select ZONE_DMA if ARM_LPAE
+	select PINCTRL_TI_IODELAY if OF && PINCTRL
 
 config ARCH_OMAP2PLUS
 	bool
@@ -102,6 +106,7 @@ config ARCH_OMAP2PLUS
 	select OMAP_GPMC
 	select PINCTRL
 	select SOC_BUS
+	select TI_SYSC
 	select OMAP_IRQCHIP
 	select CLKSRC_TI_32K
 	help
@@ -219,7 +224,6 @@ config MACH_NOKIA_N8X0
 config OMAP3_SDRC_AC_TIMING
 	bool "Enable SDRC AC timing register changes"
 	depends on ARCH_OMAP3
-	default n
 	help
 	  If you know that none of your system initiators will attempt to
 	  access SDRAM during CORE DVFS, select Y here.  This should boost

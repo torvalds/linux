@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_PGTABLE_32_DEFS_H
 #define _ASM_X86_PGTABLE_32_DEFS_H
 
@@ -13,6 +14,8 @@
 #else
 # include <asm/pgtable-2level_types.h>
 #endif
+
+#define pgtable_l5_enabled() 0
 
 #define PGDIR_SIZE	(1UL << PGDIR_SHIFT)
 #define PGDIR_MASK	(~(PGDIR_SIZE - 1))
@@ -37,13 +40,28 @@ extern bool __vmalloc_start_set; /* set once high_memory is set */
 #define LAST_PKMAP 1024
 #endif
 
-#define PKMAP_BASE ((FIXADDR_START - PAGE_SIZE * (LAST_PKMAP + 1))	\
-		    & PMD_MASK)
+/*
+ * Define this here and validate with BUILD_BUG_ON() in pgtable_32.c
+ * to avoid include recursion hell
+ */
+#define CPU_ENTRY_AREA_PAGES	(NR_CPUS * 40)
+
+#define CPU_ENTRY_AREA_BASE						\
+	((FIXADDR_TOT_START - PAGE_SIZE * (CPU_ENTRY_AREA_PAGES + 1))   \
+	 & PMD_MASK)
+
+#define LDT_BASE_ADDR		\
+	((CPU_ENTRY_AREA_BASE - PAGE_SIZE) & PMD_MASK)
+
+#define LDT_END_ADDR		(LDT_BASE_ADDR + PMD_SIZE)
+
+#define PKMAP_BASE		\
+	((LDT_BASE_ADDR - PAGE_SIZE) & PMD_MASK)
 
 #ifdef CONFIG_HIGHMEM
 # define VMALLOC_END	(PKMAP_BASE - 2 * PAGE_SIZE)
 #else
-# define VMALLOC_END	(FIXADDR_START - 2 * PAGE_SIZE)
+# define VMALLOC_END	(LDT_BASE_ADDR - 2 * PAGE_SIZE)
 #endif
 
 #define MODULES_VADDR	VMALLOC_START

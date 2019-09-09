@@ -1,5 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * perf_event_intel_rapl.c: support Intel RAPL energy consumption counters
+ * Support Intel RAPL energy consumption counters
  * Copyright (C) 2013 Google, Inc., Stephane Eranian
  *
  * Intel RAPL interface is specified in the IA-32 Manual Vol3b
@@ -54,27 +55,28 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/perf_event.h>
+#include <linux/nospec.h>
 #include <asm/cpu_device_id.h>
 #include <asm/intel-family.h>
 #include "../perf_event.h"
+#include "../probe.h"
 
 MODULE_LICENSE("GPL");
 
 /*
  * RAPL energy status counters
  */
-#define RAPL_IDX_PP0_NRG_STAT	0	/* all cores */
-#define INTEL_RAPL_PP0		0x1	/* pseudo-encoding */
-#define RAPL_IDX_PKG_NRG_STAT	1	/* entire package */
-#define INTEL_RAPL_PKG		0x2	/* pseudo-encoding */
-#define RAPL_IDX_RAM_NRG_STAT	2	/* DRAM */
-#define INTEL_RAPL_RAM		0x3	/* pseudo-encoding */
-#define RAPL_IDX_PP1_NRG_STAT	3	/* gpu */
-#define INTEL_RAPL_PP1		0x4	/* pseudo-encoding */
-#define RAPL_IDX_PSYS_NRG_STAT	4	/* psys */
-#define INTEL_RAPL_PSYS		0x5	/* pseudo-encoding */
+enum perf_rapl_events {
+	PERF_RAPL_PP0 = 0,		/* all cores */
+	PERF_RAPL_PKG,			/* entire package */
+	PERF_RAPL_RAM,			/* DRAM */
+	PERF_RAPL_PP1,			/* gpu */
+	PERF_RAPL_PSYS,			/* psys */
 
-#define NR_RAPL_DOMAINS         0x5
+	PERF_RAPL_MAX,
+	NR_RAPL_DOMAINS = PERF_RAPL_MAX,
+};
+
 static const char *const rapl_domain_names[NR_RAPL_DOMAINS] __initconst = {
 	"pp0-core",
 	"package",
@@ -82,33 +84,6 @@ static const char *const rapl_domain_names[NR_RAPL_DOMAINS] __initconst = {
 	"pp1-gpu",
 	"psys",
 };
-
-/* Clients have PP0, PKG */
-#define RAPL_IDX_CLN	(1<<RAPL_IDX_PP0_NRG_STAT|\
-			 1<<RAPL_IDX_PKG_NRG_STAT|\
-			 1<<RAPL_IDX_PP1_NRG_STAT)
-
-/* Servers have PP0, PKG, RAM */
-#define RAPL_IDX_SRV	(1<<RAPL_IDX_PP0_NRG_STAT|\
-			 1<<RAPL_IDX_PKG_NRG_STAT|\
-			 1<<RAPL_IDX_RAM_NRG_STAT)
-
-/* Servers have PP0, PKG, RAM, PP1 */
-#define RAPL_IDX_HSW	(1<<RAPL_IDX_PP0_NRG_STAT|\
-			 1<<RAPL_IDX_PKG_NRG_STAT|\
-			 1<<RAPL_IDX_RAM_NRG_STAT|\
-			 1<<RAPL_IDX_PP1_NRG_STAT)
-
-/* SKL clients have PP0, PKG, RAM, PP1, PSYS */
-#define RAPL_IDX_SKL_CLN (1<<RAPL_IDX_PP0_NRG_STAT|\
-			  1<<RAPL_IDX_PKG_NRG_STAT|\
-			  1<<RAPL_IDX_RAM_NRG_STAT|\
-			  1<<RAPL_IDX_PP1_NRG_STAT|\
-			  1<<RAPL_IDX_PSYS_NRG_STAT)
-
-/* Knights Landing has PKG, RAM */
-#define RAPL_IDX_KNL	(1<<RAPL_IDX_PKG_NRG_STAT|\
-			 1<<RAPL_IDX_RAM_NRG_STAT)
 
 /*
  * event code: LSB 8 bits, passed in attr->config
@@ -148,8 +123,13 @@ struct rapl_pmu {
 
 struct rapl_pmus {
 	struct pmu		pmu;
-	unsigned int		maxpkg;
+	unsigned int		maxdie;
 	struct rapl_pmu		*pmus[];
+};
+
+struct rapl_model {
+	unsigned long	events;
+	bool		apply_quirk;
 };
 
  /* 1/2^hw_unit Joule */
@@ -158,10 +138,17 @@ static struct rapl_pmus *rapl_pmus;
 static cpumask_t rapl_cpu_mask;
 static unsigned int rapl_cntr_mask;
 static u64 rapl_timer_ms;
+static struct perf_msr rapl_msrs[];
 
 static inline struct rapl_pmu *cpu_to_rapl_pmu(unsigned int cpu)
 {
-	return rapl_pmus->pmus[topology_logical_package_id(cpu)];
+	unsigned int dieid = topology_logical_die_id(cpu);
+
+	/*
+	 * The unsigned check also catches the '-1' return value for non
+	 * existent mappings in the topology map.
+	 */
+	return dieid < rapl_pmus->maxdie ? rapl_pmus->pmus[dieid] : NULL;
 }
 
 static inline u64 rapl_read_counter(struct perf_event *event)
@@ -343,7 +330,7 @@ static void rapl_pmu_event_del(struct perf_event *event, int flags)
 static int rapl_pmu_event_init(struct perf_event *event)
 {
 	u64 cfg = event->attr.config & RAPL_EVENT_MASK;
-	int bit, msr, ret = 0;
+	int bit, ret = 0;
 	struct rapl_pmu *pmu;
 
 	/* only look at RAPL events */
@@ -359,52 +346,27 @@ static int rapl_pmu_event_init(struct perf_event *event)
 
 	event->event_caps |= PERF_EV_CAP_READ_ACTIVE_PKG;
 
-	/*
-	 * check event is known (determines counter)
-	 */
-	switch (cfg) {
-	case INTEL_RAPL_PP0:
-		bit = RAPL_IDX_PP0_NRG_STAT;
-		msr = MSR_PP0_ENERGY_STATUS;
-		break;
-	case INTEL_RAPL_PKG:
-		bit = RAPL_IDX_PKG_NRG_STAT;
-		msr = MSR_PKG_ENERGY_STATUS;
-		break;
-	case INTEL_RAPL_RAM:
-		bit = RAPL_IDX_RAM_NRG_STAT;
-		msr = MSR_DRAM_ENERGY_STATUS;
-		break;
-	case INTEL_RAPL_PP1:
-		bit = RAPL_IDX_PP1_NRG_STAT;
-		msr = MSR_PP1_ENERGY_STATUS;
-		break;
-	case INTEL_RAPL_PSYS:
-		bit = RAPL_IDX_PSYS_NRG_STAT;
-		msr = MSR_PLATFORM_ENERGY_STATUS;
-		break;
-	default:
+	if (!cfg || cfg >= NR_RAPL_DOMAINS + 1)
 		return -EINVAL;
-	}
+
+	cfg = array_index_nospec((long)cfg, NR_RAPL_DOMAINS + 1);
+	bit = cfg - 1;
+
 	/* check event supported */
 	if (!(rapl_cntr_mask & (1 << bit)))
 		return -EINVAL;
 
 	/* unsupported modes and filters */
-	if (event->attr.exclude_user   ||
-	    event->attr.exclude_kernel ||
-	    event->attr.exclude_hv     ||
-	    event->attr.exclude_idle   ||
-	    event->attr.exclude_host   ||
-	    event->attr.exclude_guest  ||
-	    event->attr.sample_period) /* no sampling */
+	if (event->attr.sample_period) /* no sampling */
 		return -EINVAL;
 
 	/* must be done before validate_group */
 	pmu = cpu_to_rapl_pmu(event->cpu);
+	if (!pmu)
+		return -EINVAL;
 	event->cpu = pmu->cpu;
 	event->pmu_private = pmu;
-	event->hw.event_base = msr;
+	event->hw.event_base = rapl_msrs[bit].msr;
 	event->hw.config = cfg;
 	event->hw.idx = bit;
 
@@ -454,90 +416,18 @@ RAPL_EVENT_ATTR_STR(energy-ram.scale,     rapl_ram_scale, "2.3283064365386962890
 RAPL_EVENT_ATTR_STR(energy-gpu.scale,     rapl_gpu_scale, "2.3283064365386962890625e-10");
 RAPL_EVENT_ATTR_STR(energy-psys.scale,   rapl_psys_scale, "2.3283064365386962890625e-10");
 
-static struct attribute *rapl_events_srv_attr[] = {
-	EVENT_PTR(rapl_cores),
-	EVENT_PTR(rapl_pkg),
-	EVENT_PTR(rapl_ram),
-
-	EVENT_PTR(rapl_cores_unit),
-	EVENT_PTR(rapl_pkg_unit),
-	EVENT_PTR(rapl_ram_unit),
-
-	EVENT_PTR(rapl_cores_scale),
-	EVENT_PTR(rapl_pkg_scale),
-	EVENT_PTR(rapl_ram_scale),
-	NULL,
-};
-
-static struct attribute *rapl_events_cln_attr[] = {
-	EVENT_PTR(rapl_cores),
-	EVENT_PTR(rapl_pkg),
-	EVENT_PTR(rapl_gpu),
-
-	EVENT_PTR(rapl_cores_unit),
-	EVENT_PTR(rapl_pkg_unit),
-	EVENT_PTR(rapl_gpu_unit),
-
-	EVENT_PTR(rapl_cores_scale),
-	EVENT_PTR(rapl_pkg_scale),
-	EVENT_PTR(rapl_gpu_scale),
-	NULL,
-};
-
-static struct attribute *rapl_events_hsw_attr[] = {
-	EVENT_PTR(rapl_cores),
-	EVENT_PTR(rapl_pkg),
-	EVENT_PTR(rapl_gpu),
-	EVENT_PTR(rapl_ram),
-
-	EVENT_PTR(rapl_cores_unit),
-	EVENT_PTR(rapl_pkg_unit),
-	EVENT_PTR(rapl_gpu_unit),
-	EVENT_PTR(rapl_ram_unit),
-
-	EVENT_PTR(rapl_cores_scale),
-	EVENT_PTR(rapl_pkg_scale),
-	EVENT_PTR(rapl_gpu_scale),
-	EVENT_PTR(rapl_ram_scale),
-	NULL,
-};
-
-static struct attribute *rapl_events_skl_attr[] = {
-	EVENT_PTR(rapl_cores),
-	EVENT_PTR(rapl_pkg),
-	EVENT_PTR(rapl_gpu),
-	EVENT_PTR(rapl_ram),
-	EVENT_PTR(rapl_psys),
-
-	EVENT_PTR(rapl_cores_unit),
-	EVENT_PTR(rapl_pkg_unit),
-	EVENT_PTR(rapl_gpu_unit),
-	EVENT_PTR(rapl_ram_unit),
-	EVENT_PTR(rapl_psys_unit),
-
-	EVENT_PTR(rapl_cores_scale),
-	EVENT_PTR(rapl_pkg_scale),
-	EVENT_PTR(rapl_gpu_scale),
-	EVENT_PTR(rapl_ram_scale),
-	EVENT_PTR(rapl_psys_scale),
-	NULL,
-};
-
-static struct attribute *rapl_events_knl_attr[] = {
-	EVENT_PTR(rapl_pkg),
-	EVENT_PTR(rapl_ram),
-
-	EVENT_PTR(rapl_pkg_unit),
-	EVENT_PTR(rapl_ram_unit),
-
-	EVENT_PTR(rapl_pkg_scale),
-	EVENT_PTR(rapl_ram_scale),
+/*
+ * There are no default events, but we need to create
+ * "events" group (with empty attrs) before updating
+ * it with detected events.
+ */
+static struct attribute *attrs_empty[] = {
 	NULL,
 };
 
 static struct attribute_group rapl_pmu_events_group = {
 	.name = "events",
-	.attrs = NULL, /* patched at runtime */
+	.attrs = attrs_empty,
 };
 
 DEFINE_RAPL_FORMAT_ATTR(event, event, "config:0-7");
@@ -551,11 +441,84 @@ static struct attribute_group rapl_pmu_format_group = {
 	.attrs = rapl_formats_attr,
 };
 
-const struct attribute_group *rapl_attr_groups[] = {
+static const struct attribute_group *rapl_attr_groups[] = {
 	&rapl_pmu_attr_group,
 	&rapl_pmu_format_group,
 	&rapl_pmu_events_group,
 	NULL,
+};
+
+static struct attribute *rapl_events_cores[] = {
+	EVENT_PTR(rapl_cores),
+	EVENT_PTR(rapl_cores_unit),
+	EVENT_PTR(rapl_cores_scale),
+	NULL,
+};
+
+static struct attribute_group rapl_events_cores_group = {
+	.name  = "events",
+	.attrs = rapl_events_cores,
+};
+
+static struct attribute *rapl_events_pkg[] = {
+	EVENT_PTR(rapl_pkg),
+	EVENT_PTR(rapl_pkg_unit),
+	EVENT_PTR(rapl_pkg_scale),
+	NULL,
+};
+
+static struct attribute_group rapl_events_pkg_group = {
+	.name  = "events",
+	.attrs = rapl_events_pkg,
+};
+
+static struct attribute *rapl_events_ram[] = {
+	EVENT_PTR(rapl_ram),
+	EVENT_PTR(rapl_ram_unit),
+	EVENT_PTR(rapl_ram_scale),
+	NULL,
+};
+
+static struct attribute_group rapl_events_ram_group = {
+	.name  = "events",
+	.attrs = rapl_events_ram,
+};
+
+static struct attribute *rapl_events_gpu[] = {
+	EVENT_PTR(rapl_gpu),
+	EVENT_PTR(rapl_gpu_unit),
+	EVENT_PTR(rapl_gpu_scale),
+	NULL,
+};
+
+static struct attribute_group rapl_events_gpu_group = {
+	.name  = "events",
+	.attrs = rapl_events_gpu,
+};
+
+static struct attribute *rapl_events_psys[] = {
+	EVENT_PTR(rapl_psys),
+	EVENT_PTR(rapl_psys_unit),
+	EVENT_PTR(rapl_psys_scale),
+	NULL,
+};
+
+static struct attribute_group rapl_events_psys_group = {
+	.name  = "events",
+	.attrs = rapl_events_psys,
+};
+
+static bool test_msr(int idx, void *data)
+{
+	return test_bit(idx, (unsigned long *) data);
+}
+
+static struct perf_msr rapl_msrs[] = {
+	[PERF_RAPL_PP0]  = { MSR_PP0_ENERGY_STATUS,      &rapl_events_cores_group, test_msr },
+	[PERF_RAPL_PKG]  = { MSR_PKG_ENERGY_STATUS,      &rapl_events_pkg_group,   test_msr },
+	[PERF_RAPL_RAM]  = { MSR_DRAM_ENERGY_STATUS,     &rapl_events_ram_group,   test_msr },
+	[PERF_RAPL_PP1]  = { MSR_PP1_ENERGY_STATUS,      &rapl_events_gpu_group,   test_msr },
+	[PERF_RAPL_PSYS] = { MSR_PLATFORM_ENERGY_STATUS, &rapl_events_psys_group,  test_msr },
 };
 
 static int rapl_cpu_offline(unsigned int cpu)
@@ -569,7 +532,7 @@ static int rapl_cpu_offline(unsigned int cpu)
 
 	pmu->cpu = -1;
 	/* Find a new cpu to collect rapl events */
-	target = cpumask_any_but(topology_core_cpumask(cpu), cpu);
+	target = cpumask_any_but(topology_die_cpumask(cpu), cpu);
 
 	/* Migrate rapl events to the new target */
 	if (target < nr_cpu_ids) {
@@ -585,37 +548,30 @@ static int rapl_cpu_online(unsigned int cpu)
 	struct rapl_pmu *pmu = cpu_to_rapl_pmu(cpu);
 	int target;
 
+	if (!pmu) {
+		pmu = kzalloc_node(sizeof(*pmu), GFP_KERNEL, cpu_to_node(cpu));
+		if (!pmu)
+			return -ENOMEM;
+
+		raw_spin_lock_init(&pmu->lock);
+		INIT_LIST_HEAD(&pmu->active_list);
+		pmu->pmu = &rapl_pmus->pmu;
+		pmu->timer_interval = ms_to_ktime(rapl_timer_ms);
+		rapl_hrtimer_init(pmu);
+
+		rapl_pmus->pmus[topology_logical_die_id(cpu)] = pmu;
+	}
+
 	/*
 	 * Check if there is an online cpu in the package which collects rapl
 	 * events already.
 	 */
-	target = cpumask_any_and(&rapl_cpu_mask, topology_core_cpumask(cpu));
+	target = cpumask_any_and(&rapl_cpu_mask, topology_die_cpumask(cpu));
 	if (target < nr_cpu_ids)
 		return 0;
 
 	cpumask_set_cpu(cpu, &rapl_cpu_mask);
 	pmu->cpu = cpu;
-	return 0;
-}
-
-static int rapl_cpu_prepare(unsigned int cpu)
-{
-	struct rapl_pmu *pmu = cpu_to_rapl_pmu(cpu);
-
-	if (pmu)
-		return 0;
-
-	pmu = kzalloc_node(sizeof(*pmu), GFP_KERNEL, cpu_to_node(cpu));
-	if (!pmu)
-		return -ENOMEM;
-
-	raw_spin_lock_init(&pmu->lock);
-	INIT_LIST_HEAD(&pmu->active_list);
-	pmu->pmu = &rapl_pmus->pmu;
-	pmu->timer_interval = ms_to_ktime(rapl_timer_ms);
-	pmu->cpu = -1;
-	rapl_hrtimer_init(pmu);
-	rapl_pmus->pmus[topology_logical_package_id(cpu)] = pmu;
 	return 0;
 }
 
@@ -637,7 +593,7 @@ static int rapl_check_hw_unit(bool apply_quirk)
 	 * of 2. Datasheet, September 2014, Reference Number: 330784-001 "
 	 */
 	if (apply_quirk)
-		rapl_hw_unit[RAPL_IDX_RAM_NRG_STAT] = 16;
+		rapl_hw_unit[PERF_RAPL_RAM] = 16;
 
 	/*
 	 * Calculate the timer rate:
@@ -673,23 +629,33 @@ static void cleanup_rapl_pmus(void)
 {
 	int i;
 
-	for (i = 0; i < rapl_pmus->maxpkg; i++)
+	for (i = 0; i < rapl_pmus->maxdie; i++)
 		kfree(rapl_pmus->pmus[i]);
 	kfree(rapl_pmus);
 }
 
+const struct attribute_group *rapl_attr_update[] = {
+	&rapl_events_cores_group,
+	&rapl_events_pkg_group,
+	&rapl_events_ram_group,
+	&rapl_events_gpu_group,
+	&rapl_events_gpu_group,
+	NULL,
+};
+
 static int __init init_rapl_pmus(void)
 {
-	int maxpkg = topology_max_packages();
+	int maxdie = topology_max_packages() * topology_max_die_per_package();
 	size_t size;
 
-	size = sizeof(*rapl_pmus) + maxpkg * sizeof(struct rapl_pmu *);
+	size = sizeof(*rapl_pmus) + maxdie * sizeof(struct rapl_pmu *);
 	rapl_pmus = kzalloc(size, GFP_KERNEL);
 	if (!rapl_pmus)
 		return -ENOMEM;
 
-	rapl_pmus->maxpkg		= maxpkg;
+	rapl_pmus->maxdie		= maxdie;
 	rapl_pmus->pmu.attr_groups	= rapl_attr_groups;
+	rapl_pmus->pmu.attr_update	= rapl_attr_update;
 	rapl_pmus->pmu.task_ctx_nr	= perf_invalid_context;
 	rapl_pmus->pmu.event_init	= rapl_pmu_event_init;
 	rapl_pmus->pmu.add		= rapl_pmu_event_add;
@@ -697,101 +663,104 @@ static int __init init_rapl_pmus(void)
 	rapl_pmus->pmu.start		= rapl_pmu_event_start;
 	rapl_pmus->pmu.stop		= rapl_pmu_event_stop;
 	rapl_pmus->pmu.read		= rapl_pmu_event_read;
+	rapl_pmus->pmu.module		= THIS_MODULE;
+	rapl_pmus->pmu.capabilities	= PERF_PMU_CAP_NO_EXCLUDE;
 	return 0;
 }
 
 #define X86_RAPL_MODEL_MATCH(model, init)	\
 	{ X86_VENDOR_INTEL, 6, model, X86_FEATURE_ANY, (unsigned long)&init }
 
-struct intel_rapl_init_fun {
-	bool apply_quirk;
-	int cntr_mask;
-	struct attribute **attrs;
+static struct rapl_model model_snb = {
+	.events		= BIT(PERF_RAPL_PP0) |
+			  BIT(PERF_RAPL_PKG) |
+			  BIT(PERF_RAPL_PP1),
+	.apply_quirk	= false,
 };
 
-static const struct intel_rapl_init_fun snb_rapl_init __initconst = {
-	.apply_quirk = false,
-	.cntr_mask = RAPL_IDX_CLN,
-	.attrs = rapl_events_cln_attr,
+static struct rapl_model model_snbep = {
+	.events		= BIT(PERF_RAPL_PP0) |
+			  BIT(PERF_RAPL_PKG) |
+			  BIT(PERF_RAPL_RAM),
+	.apply_quirk	= false,
 };
 
-static const struct intel_rapl_init_fun hsx_rapl_init __initconst = {
-	.apply_quirk = true,
-	.cntr_mask = RAPL_IDX_SRV,
-	.attrs = rapl_events_srv_attr,
+static struct rapl_model model_hsw = {
+	.events		= BIT(PERF_RAPL_PP0) |
+			  BIT(PERF_RAPL_PKG) |
+			  BIT(PERF_RAPL_RAM) |
+			  BIT(PERF_RAPL_PP1),
+	.apply_quirk	= false,
 };
 
-static const struct intel_rapl_init_fun hsw_rapl_init __initconst = {
-	.apply_quirk = false,
-	.cntr_mask = RAPL_IDX_HSW,
-	.attrs = rapl_events_hsw_attr,
+static struct rapl_model model_hsx = {
+	.events		= BIT(PERF_RAPL_PP0) |
+			  BIT(PERF_RAPL_PKG) |
+			  BIT(PERF_RAPL_RAM),
+	.apply_quirk	= true,
 };
 
-static const struct intel_rapl_init_fun snbep_rapl_init __initconst = {
-	.apply_quirk = false,
-	.cntr_mask = RAPL_IDX_SRV,
-	.attrs = rapl_events_srv_attr,
+static struct rapl_model model_knl = {
+	.events		= BIT(PERF_RAPL_PKG) |
+			  BIT(PERF_RAPL_RAM),
+	.apply_quirk	= true,
 };
 
-static const struct intel_rapl_init_fun knl_rapl_init __initconst = {
-	.apply_quirk = true,
-	.cntr_mask = RAPL_IDX_KNL,
-	.attrs = rapl_events_knl_attr,
+static struct rapl_model model_skl = {
+	.events		= BIT(PERF_RAPL_PP0) |
+			  BIT(PERF_RAPL_PKG) |
+			  BIT(PERF_RAPL_RAM) |
+			  BIT(PERF_RAPL_PP1) |
+			  BIT(PERF_RAPL_PSYS),
+	.apply_quirk	= false,
 };
 
-static const struct intel_rapl_init_fun skl_rapl_init __initconst = {
-	.apply_quirk = false,
-	.cntr_mask = RAPL_IDX_SKL_CLN,
-	.attrs = rapl_events_skl_attr,
-};
-
-static const struct x86_cpu_id rapl_cpu_match[] __initconst = {
-	X86_RAPL_MODEL_MATCH(INTEL_FAM6_SANDYBRIDGE,   snb_rapl_init),
-	X86_RAPL_MODEL_MATCH(INTEL_FAM6_SANDYBRIDGE_X, snbep_rapl_init),
-
-	X86_RAPL_MODEL_MATCH(INTEL_FAM6_IVYBRIDGE,   snb_rapl_init),
-	X86_RAPL_MODEL_MATCH(INTEL_FAM6_IVYBRIDGE_X, snbep_rapl_init),
-
-	X86_RAPL_MODEL_MATCH(INTEL_FAM6_HASWELL_CORE, hsw_rapl_init),
-	X86_RAPL_MODEL_MATCH(INTEL_FAM6_HASWELL_X,    hsw_rapl_init),
-	X86_RAPL_MODEL_MATCH(INTEL_FAM6_HASWELL_ULT,  hsw_rapl_init),
-	X86_RAPL_MODEL_MATCH(INTEL_FAM6_HASWELL_GT3E, hsw_rapl_init),
-
-	X86_RAPL_MODEL_MATCH(INTEL_FAM6_BROADWELL_CORE,   hsw_rapl_init),
-	X86_RAPL_MODEL_MATCH(INTEL_FAM6_BROADWELL_GT3E,   hsw_rapl_init),
-	X86_RAPL_MODEL_MATCH(INTEL_FAM6_BROADWELL_X,	  hsw_rapl_init),
-	X86_RAPL_MODEL_MATCH(INTEL_FAM6_BROADWELL_XEON_D, hsw_rapl_init),
-
-	X86_RAPL_MODEL_MATCH(INTEL_FAM6_XEON_PHI_KNL, knl_rapl_init),
-	X86_RAPL_MODEL_MATCH(INTEL_FAM6_XEON_PHI_KNM, knl_rapl_init),
-
-	X86_RAPL_MODEL_MATCH(INTEL_FAM6_SKYLAKE_MOBILE,  skl_rapl_init),
-	X86_RAPL_MODEL_MATCH(INTEL_FAM6_SKYLAKE_DESKTOP, skl_rapl_init),
-	X86_RAPL_MODEL_MATCH(INTEL_FAM6_SKYLAKE_X,	 hsx_rapl_init),
-
-	X86_RAPL_MODEL_MATCH(INTEL_FAM6_ATOM_GOLDMONT, hsw_rapl_init),
+static const struct x86_cpu_id rapl_model_match[] __initconst = {
+	X86_RAPL_MODEL_MATCH(INTEL_FAM6_SANDYBRIDGE,		model_snb),
+	X86_RAPL_MODEL_MATCH(INTEL_FAM6_SANDYBRIDGE_X,		model_snbep),
+	X86_RAPL_MODEL_MATCH(INTEL_FAM6_IVYBRIDGE,		model_snb),
+	X86_RAPL_MODEL_MATCH(INTEL_FAM6_IVYBRIDGE_X,		model_snbep),
+	X86_RAPL_MODEL_MATCH(INTEL_FAM6_HASWELL_CORE,		model_hsw),
+	X86_RAPL_MODEL_MATCH(INTEL_FAM6_HASWELL_X,		model_hsx),
+	X86_RAPL_MODEL_MATCH(INTEL_FAM6_HASWELL_ULT,		model_hsw),
+	X86_RAPL_MODEL_MATCH(INTEL_FAM6_HASWELL_GT3E,		model_hsw),
+	X86_RAPL_MODEL_MATCH(INTEL_FAM6_BROADWELL_CORE,		model_hsw),
+	X86_RAPL_MODEL_MATCH(INTEL_FAM6_BROADWELL_GT3E,		model_hsw),
+	X86_RAPL_MODEL_MATCH(INTEL_FAM6_BROADWELL_X,		model_hsx),
+	X86_RAPL_MODEL_MATCH(INTEL_FAM6_BROADWELL_XEON_D,	model_hsx),
+	X86_RAPL_MODEL_MATCH(INTEL_FAM6_XEON_PHI_KNL,		model_knl),
+	X86_RAPL_MODEL_MATCH(INTEL_FAM6_XEON_PHI_KNM,		model_knl),
+	X86_RAPL_MODEL_MATCH(INTEL_FAM6_SKYLAKE_MOBILE,		model_skl),
+	X86_RAPL_MODEL_MATCH(INTEL_FAM6_SKYLAKE_DESKTOP,	model_skl),
+	X86_RAPL_MODEL_MATCH(INTEL_FAM6_SKYLAKE_X,		model_hsx),
+	X86_RAPL_MODEL_MATCH(INTEL_FAM6_KABYLAKE_MOBILE,	model_skl),
+	X86_RAPL_MODEL_MATCH(INTEL_FAM6_KABYLAKE_DESKTOP,	model_skl),
+	X86_RAPL_MODEL_MATCH(INTEL_FAM6_CANNONLAKE_MOBILE,	model_skl),
+	X86_RAPL_MODEL_MATCH(INTEL_FAM6_ATOM_GOLDMONT,		model_hsw),
+	X86_RAPL_MODEL_MATCH(INTEL_FAM6_ATOM_GOLDMONT_X,	model_hsw),
+	X86_RAPL_MODEL_MATCH(INTEL_FAM6_ATOM_GOLDMONT_PLUS,	model_hsw),
+	X86_RAPL_MODEL_MATCH(INTEL_FAM6_ICELAKE_MOBILE,		model_skl),
+	X86_RAPL_MODEL_MATCH(INTEL_FAM6_ICELAKE_DESKTOP,	model_skl),
 	{},
 };
 
-MODULE_DEVICE_TABLE(x86cpu, rapl_cpu_match);
+MODULE_DEVICE_TABLE(x86cpu, rapl_model_match);
 
 static int __init rapl_pmu_init(void)
 {
 	const struct x86_cpu_id *id;
-	struct intel_rapl_init_fun *rapl_init;
-	bool apply_quirk;
+	struct rapl_model *rm;
 	int ret;
 
-	id = x86_match_cpu(rapl_cpu_match);
+	id = x86_match_cpu(rapl_model_match);
 	if (!id)
 		return -ENODEV;
 
-	rapl_init = (struct intel_rapl_init_fun *)id->driver_data;
-	apply_quirk = rapl_init->apply_quirk;
-	rapl_cntr_mask = rapl_init->cntr_mask;
-	rapl_pmu_events_group.attrs = rapl_init->attrs;
+	rm = (struct rapl_model *) id->driver_data;
+	rapl_cntr_mask = perf_msr_probe(rapl_msrs, PERF_RAPL_MAX,
+					false, (void *) &rm->events);
 
-	ret = rapl_check_hw_unit(apply_quirk);
+	ret = rapl_check_hw_unit(rm->apply_quirk);
 	if (ret)
 		return ret;
 
@@ -802,29 +771,21 @@ static int __init rapl_pmu_init(void)
 	/*
 	 * Install callbacks. Core will call them for each online cpu.
 	 */
-
-	ret = cpuhp_setup_state(CPUHP_PERF_X86_RAPL_PREP, "PERF_X86_RAPL_PREP",
-				rapl_cpu_prepare, NULL);
+	ret = cpuhp_setup_state(CPUHP_AP_PERF_X86_RAPL_ONLINE,
+				"perf/x86/rapl:online",
+				rapl_cpu_online, rapl_cpu_offline);
 	if (ret)
 		goto out;
 
-	ret = cpuhp_setup_state(CPUHP_AP_PERF_X86_RAPL_ONLINE,
-				"AP_PERF_X86_RAPL_ONLINE",
-				rapl_cpu_online, rapl_cpu_offline);
-	if (ret)
-		goto out1;
-
 	ret = perf_pmu_register(&rapl_pmus->pmu, "power", -1);
 	if (ret)
-		goto out2;
+		goto out1;
 
 	rapl_advertise();
 	return 0;
 
-out2:
-	cpuhp_remove_state(CPUHP_AP_PERF_X86_RAPL_ONLINE);
 out1:
-	cpuhp_remove_state(CPUHP_PERF_X86_RAPL_PREP);
+	cpuhp_remove_state(CPUHP_AP_PERF_X86_RAPL_ONLINE);
 out:
 	pr_warn("Initialization failed (%d), disabled\n", ret);
 	cleanup_rapl_pmus();
@@ -835,7 +796,6 @@ module_init(rapl_pmu_init);
 static void __exit intel_rapl_exit(void)
 {
 	cpuhp_remove_state_nocalls(CPUHP_AP_PERF_X86_RAPL_ONLINE);
-	cpuhp_remove_state_nocalls(CPUHP_PERF_X86_RAPL_PREP);
 	perf_pmu_unregister(&rapl_pmus->pmu);
 	cleanup_rapl_pmus();
 }

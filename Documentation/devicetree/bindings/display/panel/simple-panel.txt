@@ -1,12 +1,19 @@
 Simple display panel
+====================
+
+panel node
+----------
 
 Required properties:
-- power-supply: regulator to provide the supply voltage
+- power-supply: See panel-common.txt
 
 Optional properties:
 - ddc-i2c-bus: phandle of an I2C controller used for DDC EDID probing
 - enable-gpios: GPIO pin to enable or disable the panel
 - backlight: phandle of the backlight device attached to the panel
+- no-hpd: This panel is supposed to communicate that it's ready via HPD
+  (hot plug detect) signal, but the signal isn't hooked up so we should
+  hardcode the max delay from the panel spec when powering up the panel.
 
 Example:
 

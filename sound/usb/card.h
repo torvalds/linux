@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __USBAUDIO_CARD_H
 #define __USBAUDIO_CARD_H
 
@@ -13,6 +14,7 @@ struct audioformat {
 	u64 formats;			/* ALSA format bits */
 	unsigned int channels;		/* # channels */
 	unsigned int fmt_type;		/* USB audio format type (1-3) */
+	unsigned int fmt_bits;		/* number of significant bits */
 	unsigned int frame_size;	/* samples per frame for non-audio */
 	int iface;			/* interface number */
 	unsigned char altsetting;	/* corresponding alternate setting */
@@ -21,7 +23,7 @@ struct audioformat {
 	unsigned char endpoint;		/* endpoint */
 	unsigned char ep_attr;		/* endpoint attributes */
 	unsigned char datainterval;	/* log_2 of data packet interval */
-	unsigned char protocol;		/* UAC_VERSION_1/2 */
+	unsigned char protocol;		/* UAC_VERSION_1/2/3 */
 	unsigned int maxpacksize;	/* max. packet size */
 	unsigned int rates;		/* rate bitmasks */
 	unsigned int rate_min, rate_max;	/* min/max rates */
@@ -31,10 +33,12 @@ struct audioformat {
 	struct snd_pcm_chmap_elem *chmap; /* (optional) channel map */
 	bool dsd_dop;			/* add DOP headers in case of DSD samples */
 	bool dsd_bitrev;		/* reverse the bits of each DSD sample */
+	bool dsd_raw;			/* altsetting is raw DSD */
 };
 
 struct snd_usb_substream;
 struct snd_usb_endpoint;
+struct snd_usb_power_domain;
 
 struct snd_urb_ctx {
 	struct urb *urb;
@@ -105,6 +109,8 @@ struct snd_usb_endpoint {
 	struct list_head list;
 };
 
+struct media_ctl;
+
 struct snd_usb_substream {
 	struct snd_usb_stream *stream;
 	struct usb_device *dev;
@@ -113,6 +119,7 @@ struct snd_usb_substream {
 	int interface;	/* current interface */
 	int endpoint;	/* assigned endpoint */
 	struct audioformat *cur_audiofmt;	/* current audioformat pointer (for hw_params callback) */
+	struct snd_usb_power_domain *str_pd;	/* UAC3 Power Domain for streaming path */
 	snd_pcm_format_t pcm_format;	/* current audio format (for hw_params callback) */
 	unsigned int channels;		/* current number of channels (for hw_params callback) */
 	unsigned int channels_max;	/* max channels in the all audiofmts */
@@ -156,6 +163,7 @@ struct snd_usb_substream {
 	} dsd_dop;
 
 	bool trigger_tstamp_pending_update; /* trigger timestamp being updated from initial estimate */
+	struct media_ctl *media_ctl;
 };
 
 struct snd_usb_stream {

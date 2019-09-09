@@ -1,39 +1,29 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright(c) 2016, Analogix Semiconductor.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  * Based on anx7808 driver obtained from chromeos with copyright:
  * Copyright(c) 2013, Google Inc.
- *
  */
 #include <linux/delay.h>
 #include <linux/err.h>
-#include <linux/interrupt.h>
+#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
+#include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of_gpio.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/regmap.h>
-#include <linux/types.h>
-#include <linux/gpio/consumer.h>
 #include <linux/regulator/consumer.h>
+#include <linux/types.h>
 
-#include <drm/drmP.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_dp_helper.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_print.h>
+#include <drm/drm_probe_helper.h>
 
 #include "analogix-anx78xx.h"
 
@@ -969,16 +959,14 @@ static int anx78xx_get_modes(struct drm_connector *connector)
 		goto unlock;
 	}
 
-	err = drm_mode_connector_update_edid_property(connector,
-						      anx78xx->edid);
+	err = drm_connector_update_edid_property(connector,
+						 anx78xx->edid);
 	if (err) {
 		DRM_ERROR("Failed to update EDID property: %d\n", err);
 		goto unlock;
 	}
 
 	num_modes = drm_add_edid_modes(connector, anx78xx->edid);
-	/* Store the ELD */
-	drm_edid_to_eld(connector, anx78xx->edid);
 
 unlock:
 	mutex_unlock(&anx78xx->lock);
@@ -1002,7 +990,6 @@ static enum drm_connector_status anx78xx_detect(struct drm_connector *connector,
 }
 
 static const struct drm_connector_funcs anx78xx_connector_funcs = {
-	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.detect = anx78xx_detect,
 	.destroy = drm_connector_cleanup,
@@ -1051,8 +1038,8 @@ static int anx78xx_bridge_attach(struct drm_bridge *bridge)
 
 	anx78xx->connector.polled = DRM_CONNECTOR_POLL_HPD;
 
-	err = drm_mode_connector_attach_encoder(&anx78xx->connector,
-						bridge->encoder);
+	err = drm_connector_attach_encoder(&anx78xx->connector,
+					   bridge->encoder);
 	if (err) {
 		DRM_ERROR("Failed to link up connector to encoder: %d\n", err);
 		return err;
@@ -1061,18 +1048,18 @@ static int anx78xx_bridge_attach(struct drm_bridge *bridge)
 	return 0;
 }
 
-static bool anx78xx_bridge_mode_fixup(struct drm_bridge *bridge,
-				      const struct drm_display_mode *mode,
-				      struct drm_display_mode *adjusted_mode)
+static enum drm_mode_status
+anx78xx_bridge_mode_valid(struct drm_bridge *bridge,
+			  const struct drm_display_mode *mode)
 {
 	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
-		return false;
+		return MODE_NO_INTERLACE;
 
 	/* Max 1200p at 5.4 Ghz, one lane */
 	if (mode->clock > 154000)
-		return false;
+		return MODE_CLOCK_HIGH;
 
-	return true;
+	return MODE_OK;
 }
 
 static void anx78xx_bridge_disable(struct drm_bridge *bridge)
@@ -1085,8 +1072,8 @@ static void anx78xx_bridge_disable(struct drm_bridge *bridge)
 }
 
 static void anx78xx_bridge_mode_set(struct drm_bridge *bridge,
-				    struct drm_display_mode *mode,
-				    struct drm_display_mode *adjusted_mode)
+				const struct drm_display_mode *mode,
+				const struct drm_display_mode *adjusted_mode)
 {
 	struct anx78xx *anx78xx = bridge_to_anx78xx(bridge);
 	struct hdmi_avi_infoframe frame;
@@ -1097,7 +1084,9 @@ static void anx78xx_bridge_mode_set(struct drm_bridge *bridge,
 
 	mutex_lock(&anx78xx->lock);
 
-	err = drm_hdmi_avi_infoframe_from_display_mode(&frame, adjusted_mode);
+	err = drm_hdmi_avi_infoframe_from_display_mode(&frame,
+						       &anx78xx->connector,
+						       adjusted_mode);
 	if (err) {
 		DRM_ERROR("Failed to setup AVI infoframe: %d\n", err);
 		goto unlock;
@@ -1129,7 +1118,7 @@ static void anx78xx_bridge_enable(struct drm_bridge *bridge)
 
 static const struct drm_bridge_funcs anx78xx_bridge_funcs = {
 	.attach = anx78xx_bridge_attach,
-	.mode_fixup = anx78xx_bridge_mode_fixup,
+	.mode_valid = anx78xx_bridge_mode_valid,
 	.disable = anx78xx_bridge_disable,
 	.mode_set = anx78xx_bridge_mode_set,
 	.enable = anx78xx_bridge_enable,
@@ -1303,8 +1292,7 @@ static void unregister_i2c_dummy_clients(struct anx78xx *anx78xx)
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(anx78xx->i2c_dummy); i++)
-		if (anx78xx->i2c_dummy[i])
-			i2c_unregister_device(anx78xx->i2c_dummy[i]);
+		i2c_unregister_device(anx78xx->i2c_dummy[i]);
 }
 
 static const struct regmap_config anx78xx_regmap_config = {
@@ -1438,11 +1426,7 @@ static int anx78xx_i2c_probe(struct i2c_client *client,
 
 	anx78xx->bridge.funcs = &anx78xx_bridge_funcs;
 
-	err = drm_bridge_add(&anx78xx->bridge);
-	if (err < 0) {
-		DRM_ERROR("Failed to add drm bridge: %d\n", err);
-		goto err_poweroff;
-	}
+	drm_bridge_add(&anx78xx->bridge);
 
 	/* If cable is pulled out, just poweroff and wait for HPD event */
 	if (!gpiod_get_value(anx78xx->pdata.gpiod_hpd))

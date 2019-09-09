@@ -1,0 +1,91 @@
+Binding for IDT VersaClock 5,6 programmable i2c clock generators.
+
+The IDT VersaClock 5 and VersaClock 6 are programmable i2c clock
+generators providing from 3 to 12 output clocks.
+
+==I2C device node==
+
+Required properties:
+- compatible:	shall be one of
+		"idt,5p49v5923"
+		"idt,5p49v5925"
+		"idt,5p49v5933"
+		"idt,5p49v5935"
+		"idt,5p49v6901"
+- reg:		i2c device address, shall be 0x68 or 0x6a.
+- #clock-cells:	from common clock binding; shall be set to 1.
+- clocks:	from common clock binding; list of parent clock handles,
+		- 5p49v5923 and
+		  5p49v5925 and
+		  5p49v6901: (required) either or both of XTAL or CLKIN
+					reference clock.
+		- 5p49v5933 and
+		- 5p49v5935: (optional) property not present (internal
+					Xtal used) or CLKIN reference
+					clock.
+- clock-names:	from common clock binding; clock input names, can be
+		- 5p49v5923 and
+		  5p49v5925 and
+		  5p49v6901: (required) either or both of "xin", "clkin".
+		- 5p49v5933 and
+		- 5p49v5935: (optional) property not present or "clkin".
+
+==Mapping between clock specifier and physical pins==
+
+When referencing the provided clock in the DT using phandle and
+clock specifier, the following mapping applies:
+
+5P49V5923:
+	0 -- OUT0_SEL_I2CB
+	1 -- OUT1
+	2 -- OUT2
+
+5P49V5933:
+	0 -- OUT0_SEL_I2CB
+	1 -- OUT1
+	2 -- OUT4
+
+5P49V5925 and
+5P49V5935:
+	0 -- OUT0_SEL_I2CB
+	1 -- OUT1
+	2 -- OUT2
+	3 -- OUT3
+	4 -- OUT4
+
+5P49V6901:
+	0 -- OUT0_SEL_I2CB
+	1 -- OUT1
+	2 -- OUT2
+	3 -- OUT3
+	4 -- OUT4
+
+==Example==
+
+/* 25MHz reference crystal */
+ref25: ref25m {
+	compatible = "fixed-clock";
+	#clock-cells = <0>;
+	clock-frequency = <25000000>;
+};
+
+i2c-master-node {
+
+	/* IDT 5P49V5923 i2c clock generator */
+	vc5: clock-generator@6a {
+		compatible = "idt,5p49v5923";
+		reg = <0x6a>;
+		#clock-cells = <1>;
+
+		/* Connect XIN input to 25MHz reference */
+		clocks = <&ref25m>;
+		clock-names = "xin";
+	};
+};
+
+/* Consumer referencing the 5P49V5923 pin OUT1 */
+consumer {
+	...
+	clocks = <&vc5 1>;
+	...
+}

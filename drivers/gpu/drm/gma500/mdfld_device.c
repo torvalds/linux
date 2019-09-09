@@ -1,29 +1,19 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /**************************************************************************
  * Copyright (c) 2011, Intel Corporation.
  * All Rights Reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
- *
  **************************************************************************/
 
-#include "psb_drv.h"
-#include "mid_bios.h"
-#include "mdfld_output.h"
-#include "mdfld_dsi_output.h"
-#include "tc35876x-dsi-lvds.h"
+#include <linux/delay.h>
 
 #include <asm/intel_scu_ipc.h>
+
+#include "mdfld_dsi_output.h"
+#include "mdfld_output.h"
+#include "mid_bios.h"
+#include "psb_drv.h"
+#include "tc35876x-dsi-lvds.h"
 
 #ifdef CONFIG_BACKLIGHT_CLASS_DEVICE
 
@@ -342,7 +332,7 @@ static int mdfld_restore_display_registers(struct drm_device *dev, int pipenum)
 
 	if (pipenum == 1) {
 		/* restore palette (gamma) */
-		/*DRM_UDELAY(50000); */
+		/* udelay(50000); */
 		for (i = 0; i < 256; i++)
 			PSB_WVDC32(pipe->palette[i], map->palette + (i << 2));
 
@@ -404,7 +394,7 @@ static int mdfld_restore_display_registers(struct drm_device *dev, int pipenum)
 	PSB_WVDC32(pipe->conf, map->conf);
 
 	/* restore palette (gamma) */
-	/*DRM_UDELAY(50000); */
+	/* udelay(50000); */
 	for (i = 0; i < 256; i++)
 		PSB_WVDC32(pipe->palette[i], map->palette + (i << 2));
 

@@ -1,13 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * AEAD: Authenticated Encryption with Associated Data
  * 
  * Copyright (c) 2007-2015 Herbert Xu <herbert@gondor.apana.org.au>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option) 
- * any later version.
- *
  */
 
 #ifndef _CRYPTO_AEAD_H
@@ -55,14 +50,14 @@
  * The scatter list pointing to the input data must contain:
  *
  * * for RFC4106 ciphers, the concatenation of
- * associated authentication data || IV || plaintext or ciphertext. Note, the
- * same IV (buffer) is also set with the aead_request_set_crypt call. Note,
- * the API call of aead_request_set_ad must provide the length of the AAD and
- * the IV. The API call of aead_request_set_crypt only points to the size of
- * the input plaintext or ciphertext.
+ *   associated authentication data || IV || plaintext or ciphertext. Note, the
+ *   same IV (buffer) is also set with the aead_request_set_crypt call. Note,
+ *   the API call of aead_request_set_ad must provide the length of the AAD and
+ *   the IV. The API call of aead_request_set_crypt only points to the size of
+ *   the input plaintext or ciphertext.
  *
  * * for "normal" AEAD ciphers, the concatenation of
- * associated authentication data || plaintext or ciphertext.
+ *   associated authentication data || plaintext or ciphertext.
  *
  * It is important to note that if multiple scatter gather list entries form
  * the input data mentioned above, the first entry must not point to a NULL
@@ -115,7 +110,6 @@ struct aead_request {
  * @setkey: see struct skcipher_alg
  * @encrypt: see struct skcipher_alg
  * @decrypt: see struct skcipher_alg
- * @geniv: see struct skcipher_alg
  * @ivsize: see struct skcipher_alg
  * @chunksize: see struct skcipher_alg
  * @init: Initialize the cryptographic transformation object. This function
@@ -141,8 +135,6 @@ struct aead_alg {
 	int (*decrypt)(struct aead_request *req);
 	int (*init)(struct crypto_aead *tfm);
 	void (*exit)(struct crypto_aead *tfm);
-
-	const char *geniv;
 
 	unsigned int ivsize;
 	unsigned int maxauthsize;
@@ -325,10 +317,7 @@ static inline struct crypto_aead *crypto_aead_reqtfm(struct aead_request *req)
  *
  * Return: 0 if the cipher operation was successful; < 0 if an error occurred
  */
-static inline int crypto_aead_encrypt(struct aead_request *req)
-{
-	return crypto_aead_alg(crypto_aead_reqtfm(req))->encrypt(req);
-}
+int crypto_aead_encrypt(struct aead_request *req);
 
 /**
  * crypto_aead_decrypt() - decrypt ciphertext
@@ -352,15 +341,7 @@ static inline int crypto_aead_encrypt(struct aead_request *req)
  *	   integrity of the ciphertext or the associated data was violated);
  *	   < 0 if an error occurred.
  */
-static inline int crypto_aead_decrypt(struct aead_request *req)
-{
-	struct crypto_aead *aead = crypto_aead_reqtfm(req);
-
-	if (req->cryptlen < crypto_aead_authsize(aead))
-		return -EINVAL;
-
-	return crypto_aead_alg(aead)->decrypt(req);
-}
+int crypto_aead_decrypt(struct aead_request *req);
 
 /**
  * DOC: Asynchronous AEAD Request Handle
@@ -452,7 +433,7 @@ static inline void aead_request_free(struct aead_request *req)
  * completes
  *
  * The callback function is registered with the aead_request handle and
- * must comply with the following template
+ * must comply with the following template::
  *
  *	void callback_function(struct crypto_async_request *req, int error)
  */
@@ -483,30 +464,18 @@ static inline void aead_request_set_callback(struct aead_request *req,
  * destination is the ciphertext. For a decryption operation, the use is
  * reversed - the source is the ciphertext and the destination is the plaintext.
  *
- * For both src/dst the layout is associated data, plain/cipher text,
- * authentication tag.
+ * The memory structure for cipher operation has the following structure:
  *
- * The content of the AD in the destination buffer after processing
- * will either be untouched, or it will contain a copy of the AD
- * from the source buffer.  In order to ensure that it always has
- * a copy of the AD, the user must copy the AD over either before
- * or after processing.  Of course this is not relevant if the user
- * is doing in-place processing where src == dst.
+ * - AEAD encryption input:  assoc data || plaintext
+ * - AEAD encryption output: assoc data || cipherntext || auth tag
+ * - AEAD decryption input:  assoc data || ciphertext || auth tag
+ * - AEAD decryption output: assoc data || plaintext
  *
- * IMPORTANT NOTE AEAD requires an authentication tag (MAC). For decryption,
- *		  the caller must concatenate the ciphertext followed by the
- *		  authentication tag and provide the entire data stream to the
- *		  decryption operation (i.e. the data length used for the
- *		  initialization of the scatterlist and the data length for the
- *		  decryption operation is identical). For encryption, however,
- *		  the authentication tag is created while encrypting the data.
- *		  The destination buffer must hold sufficient space for the
- *		  ciphertext and the authentication tag while the encryption
- *		  invocation must only point to the plaintext data size. The
- *		  following code snippet illustrates the memory usage
- *		  buffer = kmalloc(ptbuflen + (enc ? authsize : 0));
- *		  sg_init_one(&sg, buffer, ptbuflen + (enc ? authsize : 0));
- *		  aead_request_set_crypt(req, &sg, &sg, ptbuflen, iv);
+ * Albeit the kernel requires the presence of the AAD buffer, however,
+ * the kernel does not fill the AAD buffer in the output case. If the
+ * caller wants to have that data buffer filled, the caller must either
+ * use an in-place cipher operation (i.e. same memory location for
+ * input/output memory location).
  */
 static inline void aead_request_set_crypt(struct aead_request *req,
 					  struct scatterlist *src,

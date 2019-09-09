@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /****************************************************************************/
 
 /*
@@ -37,6 +38,7 @@
 #define	MCFINT_UART0		13		/* Interrupt number for UART0 */
 #define	MCFINT_UART1		14		/* Interrupt number for UART1 */
 #define	MCFINT_UART2		15		/* Interrupt number for UART2 */
+#define	MCFINT_I2C0		17		/* Interrupt number for I2C */
 #define	MCFINT_QSPI		18		/* Interrupt number for QSPI */
 #define	MCFINT_FECRX0		23		/* Interrupt number for FEC0 */
 #define	MCFINT_FECTX0		27		/* Interrupt number for FEC0 */
@@ -61,6 +63,7 @@
 
 #define	MCF_IRQ_QSPI		(MCFINT_VECBASE + MCFINT_QSPI)
 #define MCF_IRQ_PIT1		(MCFINT_VECBASE + MCFINT_PIT1)
+#define	MCF_IRQ_I2C0		(MCFINT_VECBASE + MCFINT_I2C0)
 
 /*
  *	SDRAM configuration registers.
@@ -352,6 +355,12 @@
 
 #define	MCF_RCR_SWRESET		0x80		/* Software reset bit */
 #define	MCF_RCR_FRCSTOUT	0x40		/* Force external reset */
+
+/*
+ * I2C module.
+ */
+#define	MCFI2C_BASE0		(MCF_IPSBAR + 0x300)
+#define	MCFI2C_SIZE0		0x40
 
 /****************************************************************************/
 #endif	/* m527xsim_h */

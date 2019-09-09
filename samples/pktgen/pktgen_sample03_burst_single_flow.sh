@@ -1,4 +1,5 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-2.0
 #
 # Script for max single flow performance
 #  - If correctly tuned[1], single CPU 10G wirespeed small pkts is possible[2]
@@ -30,17 +31,21 @@ if [ -z "$DEST_IP" ]; then
 fi
 [ -z "$DST_MAC" ]   && DST_MAC="90:e2:ba:ff:ff:ff"
 [ -z "$BURST" ]     && BURST=32
-[ -z "$CLONE_SKB" ] && CLONE_SKB="100000"
+[ -z "$CLONE_SKB" ] && CLONE_SKB="0" # No need for clones when bursting
+[ -z "$COUNT" ]     && COUNT="0" # Zero means indefinitely
+if [ -n "$DST_PORT" ]; then
+    read -r DST_MIN DST_MAX <<< $(parse_ports $DST_PORT)
+    validate_ports $DST_MIN $DST_MAX
+fi
 
 # Base Config
 DELAY="0"  # Zero means max speed
-COUNT="0"  # Zero means indefinitely
 
 # General cleanup everything since last run
 pg_ctrl "reset"
 
 # Threads are specified with parameter -t value in $THREADS
-for ((thread = 0; thread < $THREADS; thread++)); do
+for ((thread = $F_THREAD; thread <= $L_THREAD; thread++)); do
     dev=${DEV}@${thread}
 
     # Add remove all other devices and add_device $dev to thread
@@ -59,6 +64,13 @@ for ((thread = 0; thread < $THREADS; thread++)); do
     pg_set $dev "dst_mac $DST_MAC"
     pg_set $dev "dst$IP6 $DEST_IP"
 
+    if [ -n "$DST_PORT" ]; then
+	# Single destination port or random port range
+	pg_set $dev "flag UDPDST_RND"
+	pg_set $dev "udp_dst_min $DST_MIN"
+	pg_set $dev "udp_dst_max $DST_MAX"
+    fi
+
     # Setup burst, for easy testing -b 0 disable bursting
     # (internally in pktgen default and minimum burst=1)
     if [[ ${BURST} -ne 0 ]]; then
@@ -71,7 +83,7 @@ done
 # Run if user hits control-c
 function control_c() {
     # Print results
-    for ((thread = 0; thread < $THREADS; thread++)); do
+    for ((thread = $F_THREAD; thread <= $L_THREAD; thread++)); do
 	dev=${DEV}@${thread}
 	echo "Device: $dev"
 	cat /proc/net/pktgen/$dev | grep -A2 "Result:"

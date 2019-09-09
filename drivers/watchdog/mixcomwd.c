@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * MixCom Watchdog: A Simple Hardware Watchdog Device
  * Based on Softdog driver by Alan Cox and PC Watchdog driver by Ken Hollis
@@ -5,11 +6,6 @@
  * Author: Gergely Madarasz <gorgo@itc.hu>
  *
  * Copyright (c) 1999 ITConsult-Pro Co. <info@itc.hu>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  *
  * Version 0.1 (99/04/15):
  *		- first version
@@ -36,7 +32,6 @@
  *		- make mixcomwd_opened unsigned,
  *		  removed lock_kernel/unlock_kernel from mixcomwd_release,
  *		  modified ioctl a bit to conform to API
- *
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -99,13 +94,13 @@ static struct {
 	{0x0000, 0},
 };
 
-static void mixcomwd_timerfun(unsigned long d);
+static void mixcomwd_timerfun(struct timer_list *unused);
 
 static unsigned long mixcomwd_opened; /* long req'd for setbit --RR */
 
 static int watchdog_port;
 static int mixcomwd_timer_alive;
-static DEFINE_TIMER(mixcomwd_timer, mixcomwd_timerfun, 0, 0);
+static DEFINE_TIMER(mixcomwd_timer, mixcomwd_timerfun);
 static char expect_close;
 
 static bool nowayout = WATCHDOG_NOWAYOUT;
@@ -120,7 +115,7 @@ static void mixcomwd_ping(void)
 	return;
 }
 
-static void mixcomwd_timerfun(unsigned long d)
+static void mixcomwd_timerfun(struct timer_list *unused)
 {
 	mixcomwd_ping();
 	mod_timer(&mixcomwd_timer, jiffies + 5 * HZ);
@@ -150,7 +145,7 @@ static int mixcomwd_open(struct inode *inode, struct file *file)
 			mixcomwd_timer_alive = 0;
 		}
 	}
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 static int mixcomwd_release(struct inode *inode, struct file *file)

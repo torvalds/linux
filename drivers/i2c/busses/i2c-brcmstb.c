@@ -165,12 +165,10 @@ static const struct bsc_clk_param bsc_clk[] = {
 struct brcmstb_i2c_dev {
 	struct device *device;
 	void __iomem *base;
-	void __iomem *irq_base;
 	int irq;
 	struct bsc_regs *bsc_regmap;
 	struct i2c_adapter adapter;
 	struct completion done;
-	bool is_suspended;
 	u32 clk_freq_hz;
 	int data_regsz;
 };
@@ -465,9 +463,7 @@ static int brcmstb_i2c_xfer(struct i2c_adapter *adapter,
 	u8 *tmp_buf;
 	int len = 0;
 	int xfersz = brcmstb_i2c_get_xfersz(dev);
-
-	if (dev->is_suspended)
-		return -EBUSY;
+	u32 cond, cond_per_msg;
 
 	/* Loop through all messages */
 	for (i = 0; i < num; i++) {
@@ -481,10 +477,11 @@ static int brcmstb_i2c_xfer(struct i2c_adapter *adapter,
 			pmsg->buf ? pmsg->buf[0] : '0', pmsg->len);
 
 		if (i < (num - 1) && (msgs[i + 1].flags & I2C_M_NOSTART))
-			brcmstb_set_i2c_start_stop(dev, ~(COND_START_STOP));
+			cond = ~COND_START_STOP;
 		else
-			brcmstb_set_i2c_start_stop(dev,
-						   COND_RESTART | COND_NOSTOP);
+			cond = COND_RESTART | COND_NOSTOP;
+
+		brcmstb_set_i2c_start_stop(dev, cond);
 
 		/* Send slave address */
 		if (!(pmsg->flags & I2C_M_NOSTART)) {
@@ -497,13 +494,24 @@ static int brcmstb_i2c_xfer(struct i2c_adapter *adapter,
 			}
 		}
 
+		cond_per_msg = cond;
+
 		/* Perform data transfer */
 		while (len) {
 			bytes_to_xfer = min(len, xfersz);
 
-			if (len <= xfersz && i == (num - 1))
-				brcmstb_set_i2c_start_stop(dev,
-							   ~(COND_START_STOP));
+			if (len <= xfersz) {
+				if (i == (num - 1))
+					cond_per_msg = cond_per_msg &
+						~(COND_RESTART | COND_NOSTOP);
+				else
+					cond_per_msg = cond;
+			} else {
+				cond_per_msg = (cond_per_msg & ~COND_RESTART) |
+					COND_NOSTOP;
+			}
+
+			brcmstb_set_i2c_start_stop(dev, cond_per_msg);
 
 			rc = brcmstb_i2c_xfer_bsc_data(dev, tmp_buf,
 						       bytes_to_xfer, pmsg);
@@ -512,6 +520,8 @@ static int brcmstb_i2c_xfer(struct i2c_adapter *adapter,
 
 			len -=  bytes_to_xfer;
 			tmp_buf += bytes_to_xfer;
+
+			cond_per_msg = COND_NOSTART | COND_NOSTOP;
 		}
 	}
 
@@ -674,10 +684,7 @@ static int brcmstb_i2c_suspend(struct device *dev)
 {
 	struct brcmstb_i2c_dev *i2c_dev = dev_get_drvdata(dev);
 
-	i2c_lock_adapter(&i2c_dev->adapter);
-	i2c_dev->is_suspended = true;
-	i2c_unlock_adapter(&i2c_dev->adapter);
-
+	i2c_mark_adapter_suspended(&i2c_dev->adapter);
 	return 0;
 }
 
@@ -685,10 +692,8 @@ static int brcmstb_i2c_resume(struct device *dev)
 {
 	struct brcmstb_i2c_dev *i2c_dev = dev_get_drvdata(dev);
 
-	i2c_lock_adapter(&i2c_dev->adapter);
 	brcmstb_i2c_set_bsc_reg_defaults(i2c_dev);
-	i2c_dev->is_suspended = false;
-	i2c_unlock_adapter(&i2c_dev->adapter);
+	i2c_mark_adapter_resumed(&i2c_dev->adapter);
 
 	return 0;
 }

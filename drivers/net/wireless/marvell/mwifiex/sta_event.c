@@ -27,9 +27,9 @@
 
 #define MWIFIEX_IBSS_CONNECT_EVT_FIX_SIZE    12
 
-static int mwifiex_check_ibss_peer_capabilties(struct mwifiex_private *priv,
-					       struct mwifiex_sta_node *sta_ptr,
-					       struct sk_buff *event)
+static int mwifiex_check_ibss_peer_capabilities(struct mwifiex_private *priv,
+					        struct mwifiex_sta_node *sta_ptr,
+					        struct sk_buff *event)
 {
 	int evt_len, ele_len;
 	u8 *curr;
@@ -42,7 +42,7 @@ static int mwifiex_check_ibss_peer_capabilties(struct mwifiex_private *priv,
 	evt_len = event->len;
 	curr = event->data;
 
-	mwifiex_dbg_dump(priv->adapter, EVT_D, "ibss peer capabilties:",
+	mwifiex_dbg_dump(priv->adapter, EVT_D, "ibss peer capabilities:",
 			 event->data, event->len);
 
 	skb_push(event, MWIFIEX_IBSS_CONNECT_EVT_FIX_SIZE);
@@ -224,7 +224,8 @@ void mwifiex_reset_connect_state(struct mwifiex_private *priv, u16 reason_code,
 	adapter->tx_lock_flag = false;
 	adapter->pps_uapsd_mode = false;
 
-	if (adapter->is_cmd_timedout && adapter->curr_cmd)
+	if (test_bit(MWIFIEX_IS_CMD_TIMEDOUT, &adapter->work_flags) &&
+	    adapter->curr_cmd)
 		return;
 	priv->media_connected = false;
 	mwifiex_dbg(adapter, MSG,
@@ -240,6 +241,9 @@ void mwifiex_reset_connect_state(struct mwifiex_private *priv, u16 reason_code,
 	mwifiex_stop_net_dev_queue(priv->netdev, adapter);
 	if (netif_carrier_ok(priv->netdev))
 		netif_carrier_off(priv->netdev);
+
+	if (!ISSUPP_FIRMWARE_SUPPLICANT(priv->adapter->fw_cap_info))
+		return;
 
 	mwifiex_send_cmd(priv, HostCmd_CMD_GTK_REKEY_OFFLOAD_CFG,
 			 HostCmd_ACT_GEN_REMOVE, 0, NULL, false);
@@ -341,7 +345,6 @@ static void mwifiex_process_uap_tx_pause(struct mwifiex_private *priv,
 {
 	struct mwifiex_tx_pause_tlv *tp;
 	struct mwifiex_sta_node *sta_ptr;
-	unsigned long flags;
 
 	tp = (void *)tlv;
 	mwifiex_dbg(priv->adapter, EVENT,
@@ -357,15 +360,14 @@ static void mwifiex_process_uap_tx_pause(struct mwifiex_private *priv,
 	} else if (is_multicast_ether_addr(tp->peermac)) {
 		mwifiex_update_ralist_tx_pause(priv, tp->peermac, tp->tx_pause);
 	} else {
-		spin_lock_irqsave(&priv->sta_list_spinlock, flags);
+		spin_lock_bh(&priv->sta_list_spinlock);
 		sta_ptr = mwifiex_get_sta_entry(priv, tp->peermac);
-		spin_unlock_irqrestore(&priv->sta_list_spinlock, flags);
-
 		if (sta_ptr && sta_ptr->tx_pause != tp->tx_pause) {
 			sta_ptr->tx_pause = tp->tx_pause;
 			mwifiex_update_ralist_tx_pause(priv, tp->peermac,
 						       tp->tx_pause);
 		}
+		spin_unlock_bh(&priv->sta_list_spinlock);
 	}
 }
 
@@ -375,7 +377,6 @@ static void mwifiex_process_sta_tx_pause(struct mwifiex_private *priv,
 	struct mwifiex_tx_pause_tlv *tp;
 	struct mwifiex_sta_node *sta_ptr;
 	int status;
-	unsigned long flags;
 
 	tp = (void *)tlv;
 	mwifiex_dbg(priv->adapter, EVENT,
@@ -394,16 +395,15 @@ static void mwifiex_process_sta_tx_pause(struct mwifiex_private *priv,
 
 		status = mwifiex_get_tdls_link_status(priv, tp->peermac);
 		if (mwifiex_is_tdls_link_setup(status)) {
-			spin_lock_irqsave(&priv->sta_list_spinlock, flags);
+			spin_lock_bh(&priv->sta_list_spinlock);
 			sta_ptr = mwifiex_get_sta_entry(priv, tp->peermac);
-			spin_unlock_irqrestore(&priv->sta_list_spinlock, flags);
-
 			if (sta_ptr && sta_ptr->tx_pause != tp->tx_pause) {
 				sta_ptr->tx_pause = tp->tx_pause;
 				mwifiex_update_ralist_tx_pause(priv,
 							       tp->peermac,
 							       tp->tx_pause);
 			}
+			spin_unlock_bh(&priv->sta_list_spinlock);
 		}
 	}
 }
@@ -586,6 +586,62 @@ void mwifiex_bt_coex_wlan_param_update_event(struct mwifiex_private *priv,
 		adapter->coex_rx_win_size);
 }
 
+static void
+mwifiex_fw_dump_info_event(struct mwifiex_private *priv,
+			   struct sk_buff *event_skb)
+{
+	struct mwifiex_adapter *adapter = priv->adapter;
+	struct mwifiex_fw_dump_header *fw_dump_hdr =
+				(void *)adapter->event_body;
+
+	if (adapter->iface_type != MWIFIEX_USB) {
+		mwifiex_dbg(adapter, MSG,
+			    "event is not on usb interface, ignore it\n");
+		return;
+	}
+
+	if (!adapter->devdump_data) {
+		/* When receive the first event, allocate device dump
+		 * buffer, dump driver info.
+		 */
+		adapter->devdump_data = vzalloc(MWIFIEX_FW_DUMP_SIZE);
+		if (!adapter->devdump_data) {
+			mwifiex_dbg(adapter, ERROR,
+				    "vzalloc devdump data failure!\n");
+			return;
+		}
+
+		mwifiex_drv_info_dump(adapter);
+
+		/* If no proceeded event arrive in 10s, upload device
+		 * dump data, this will be useful if the end of
+		 * transmission event get lost, in this cornel case,
+		 * user would still get partial of the dump.
+		 */
+		mod_timer(&adapter->devdump_timer,
+			  jiffies + msecs_to_jiffies(MWIFIEX_TIMER_10S));
+	}
+
+	/* Overflow check */
+	if (adapter->devdump_len + event_skb->len >= MWIFIEX_FW_DUMP_SIZE)
+		goto upload_dump;
+
+	memmove(adapter->devdump_data + adapter->devdump_len,
+		adapter->event_skb->data, event_skb->len);
+	adapter->devdump_len += event_skb->len;
+
+	if (le16_to_cpu(fw_dump_hdr->type == FW_DUMP_INFO_ENDED)) {
+		mwifiex_dbg(adapter, MSG,
+			    "receive end of transmission flag event!\n");
+		goto upload_dump;
+	}
+	return;
+
+upload_dump:
+	del_timer_sync(&adapter->devdump_timer);
+	mwifiex_upload_device_dump(adapter);
+}
+
 /*
  * This function handles events generated by firmware.
  *
@@ -638,6 +694,7 @@ void mwifiex_bt_coex_wlan_param_update_event(struct mwifiex_private *priv,
  *      - EVENT_DELBA
  *      - EVENT_BA_STREAM_TIEMOUT
  *      - EVENT_AMSDU_AGGR_CTRL
+ *      - EVENT_FW_DUMP_INFO
  */
 int mwifiex_process_sta_event(struct mwifiex_private *priv)
 {
@@ -670,7 +727,7 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		adapter->dbg.num_event_deauth++;
 		if (priv->media_connected) {
 			reason_code =
-				le16_to_cpu(*(__le16 *)adapter->event_body);
+				get_unaligned_le16(adapter->event_body);
 			mwifiex_reset_connect_state(priv, reason_code, true);
 		}
 		break;
@@ -685,7 +742,7 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		adapter->dbg.num_event_disassoc++;
 		if (priv->media_connected) {
 			reason_code =
-				le16_to_cpu(*(__le16 *)adapter->event_body);
+				get_unaligned_le16(adapter->event_body);
 			mwifiex_reset_connect_state(priv, reason_code, true);
 		}
 		break;
@@ -695,7 +752,7 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		adapter->dbg.num_event_link_lost++;
 		if (priv->media_connected) {
 			reason_code =
-				le16_to_cpu(*(__le16 *)adapter->event_body);
+				get_unaligned_le16(adapter->event_body);
 			mwifiex_reset_connect_state(priv, reason_code, true);
 		}
 		break;
@@ -793,7 +850,7 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 
 	case EVENT_BG_SCAN_STOPPED:
 		dev_dbg(adapter->dev, "event: BGS_STOPPED\n");
-		cfg80211_sched_scan_stopped(priv->wdev.wiphy);
+		cfg80211_sched_scan_stopped(priv->wdev.wiphy, 0);
 		if (priv->sched_scanning)
 			priv->sched_scanning = false;
 		break;
@@ -824,7 +881,7 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 	case EVENT_RSSI_LOW:
 		cfg80211_cqm_rssi_notify(priv->netdev,
 					 NL80211_CQM_RSSI_THRESHOLD_EVENT_LOW,
-					 GFP_KERNEL);
+					 0, GFP_KERNEL);
 		mwifiex_send_cmd(priv, HostCmd_CMD_RSSI_INFO,
 				 HostCmd_ACT_GEN_GET, 0, NULL, false);
 		priv->subsc_evt_rssi_state = RSSI_LOW_RECVD;
@@ -839,7 +896,7 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 	case EVENT_RSSI_HIGH:
 		cfg80211_cqm_rssi_notify(priv->netdev,
 					 NL80211_CQM_RSSI_THRESHOLD_EVENT_HIGH,
-					 GFP_KERNEL);
+					 0, GFP_KERNEL);
 		mwifiex_send_cmd(priv, HostCmd_CMD_RSSI_INFO,
 				 HostCmd_ACT_GEN_GET, 0, NULL, false);
 		priv->subsc_evt_rssi_state = RSSI_HIGH_RECVD;
@@ -878,8 +935,8 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 			    ibss_sta_addr);
 		sta_ptr = mwifiex_add_sta_entry(priv, ibss_sta_addr);
 		if (sta_ptr && adapter->adhoc_11n_enabled) {
-			mwifiex_check_ibss_peer_capabilties(priv, sta_ptr,
-							    adapter->event_skb);
+			mwifiex_check_ibss_peer_capabilities(priv, sta_ptr,
+							     adapter->event_skb);
 			if (sta_ptr->is_11n_enabled)
 				for (i = 0; i < MAX_NUM_TID; i++)
 					sta_ptr->ampdu_sta[i] =
@@ -923,7 +980,7 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 					      adapter->event_body);
 		break;
 	case EVENT_AMSDU_AGGR_CTRL:
-		ctrl = le16_to_cpu(*(__le16 *)adapter->event_body);
+		ctrl = get_unaligned_le16(adapter->event_body);
 		mwifiex_dbg(adapter, EVENT,
 			    "event: AMSDU_AGGR_CTRL %d\n", ctrl);
 
@@ -1008,6 +1065,14 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		mwifiex_11n_rxba_sync_event(priv, adapter->event_body,
 					    adapter->event_skb->len -
 					    sizeof(eventcause));
+		break;
+	case EVENT_FW_DUMP_INFO:
+		mwifiex_dbg(adapter, EVENT, "event: firmware debug info\n");
+		mwifiex_fw_dump_info_event(priv, adapter->event_skb);
+		break;
+	/* Debugging event; not used, but let's not print an ERROR for it. */
+	case EVENT_UNKNOWN_DEBUG:
+		mwifiex_dbg(adapter, EVENT, "event: debug\n");
 		break;
 	default:
 		mwifiex_dbg(adapter, ERROR, "event: unknown event id: %#x\n",

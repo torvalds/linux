@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * FB driver for the TLS8204 LCD Controller
  *
@@ -6,22 +7,12 @@
  *
  * Copyright (C) 2013 Noralf Tronnes
  * Copyright (C) 2014 Michael Hope (adapted for the TLS8204)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/spi/spi.h>
 #include <linux/delay.h>
 
@@ -36,7 +27,7 @@
 #define DEFAULT_GAMMA	"40"
 
 static unsigned int bs = 4;
-module_param(bs, uint, 0);
+module_param(bs, uint, 0000);
 MODULE_PARM_DESC(bs, "BS[2:0] Bias voltage level: 0-7 (default: 4)");
 
 static int init_display(struct fbtft_par *par)
@@ -103,7 +94,7 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 		/* The display is 102x68 but the LCD is 84x48.
 		 * Set the write pointer at the start of each row.
 		 */
-		gpio_set_value(par->gpio.dc, 0);
+		gpiod_set_value(par->gpio.dc, 0);
 		write_reg(par, 0x80 | 0);
 		write_reg(par, 0x40 | y);
 
@@ -118,7 +109,7 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 			*buf++ = ch;
 		}
 		/* Write the row */
-		gpio_set_value(par->gpio.dc, 1);
+		gpiod_set_value(par->gpio.dc, 1);
 		ret = par->fbtftops.write(par, par->txbuf.buf, WIDTH);
 		if (ret < 0) {
 			dev_err(par->info->device,
@@ -130,7 +121,7 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 	return ret;
 }
 
-static int set_gamma(struct fbtft_par *par, unsigned long *curves)
+static int set_gamma(struct fbtft_par *par, u32 *curves)
 {
 	/* apply mask */
 	curves[0] &= 0x7F;

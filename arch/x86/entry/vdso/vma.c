@@ -1,12 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2007 Andi Kleen, SUSE Labs.
- * Subject to the GPL, v.2
  *
  * This contains most of the x86 vDSO kernel-side code.
  */
 #include <linux/mm.h>
 #include <linux/err.h>
 #include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/random.h>
@@ -21,6 +22,7 @@
 #include <asm/page.h>
 #include <asm/desc.h>
 #include <asm/cpufeature.h>
+#include <clocksource/hyperv_timer.h>
 
 #if defined(CONFIG_X86_64)
 unsigned int __read_mostly vdso64_enabled = 1;
@@ -37,7 +39,7 @@ void __init init_vdso_image(const struct vdso_image *image)
 
 struct linux_binprm;
 
-static int vdso_fault(const struct vm_special_mapping *sm,
+static vm_fault_t vdso_fault(const struct vm_special_mapping *sm,
 		      struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	const struct vdso_image *image = vma->vm_mm->context.vdso_image;
@@ -76,21 +78,17 @@ static int vdso_mremap(const struct vm_special_mapping *sm,
 	if (image->size != new_size)
 		return -EINVAL;
 
-	if (WARN_ON_ONCE(current->mm != new_vma->vm_mm))
-		return -EFAULT;
-
 	vdso_fix_landing(image, new_vma);
 	current->mm->context.vdso = (void __user *)new_vma->vm_start;
 
 	return 0;
 }
 
-static int vvar_fault(const struct vm_special_mapping *sm,
+static vm_fault_t vvar_fault(const struct vm_special_mapping *sm,
 		      struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	const struct vdso_image *image = vma->vm_mm->context.vdso_image;
 	long sym_offset;
-	int ret = -EFAULT;
 
 	if (!image)
 		return VM_FAULT_SIGBUS;
@@ -109,21 +107,23 @@ static int vvar_fault(const struct vm_special_mapping *sm,
 		return VM_FAULT_SIGBUS;
 
 	if (sym_offset == image->sym_vvar_page) {
-		ret = vm_insert_pfn(vma, (unsigned long)vmf->virtual_address,
-				    __pa_symbol(&__vvar_page) >> PAGE_SHIFT);
+		return vmf_insert_pfn(vma, vmf->address,
+				__pa_symbol(&__vvar_page) >> PAGE_SHIFT);
 	} else if (sym_offset == image->sym_pvclock_page) {
 		struct pvclock_vsyscall_time_info *pvti =
-			pvclock_pvti_cpu0_va();
+			pvclock_get_pvti_cpu0_va();
 		if (pvti && vclock_was_used(VCLOCK_PVCLOCK)) {
-			ret = vm_insert_pfn(
-				vma,
-				(unsigned long)vmf->virtual_address,
-				__pa(pvti) >> PAGE_SHIFT);
+			return vmf_insert_pfn_prot(vma, vmf->address,
+					__pa(pvti) >> PAGE_SHIFT,
+					pgprot_decrypted(vma->vm_page_prot));
 		}
-	}
+	} else if (sym_offset == image->sym_hvclock_page) {
+		struct ms_hyperv_tsc_page *tsc_pg = hv_get_tsc_page();
 
-	if (ret == 0 || ret == -EBUSY)
-		return VM_FAULT_NOPAGE;
+		if (tsc_pg && vclock_was_used(VCLOCK_HVCLOCK))
+			return vmf_insert_pfn(vma, vmf->address,
+					vmalloc_to_pfn(tsc_pg));
+	}
 
 	return VM_FAULT_SIGBUS;
 }
@@ -161,8 +161,6 @@ static int map_vdso(const struct vdso_image *image, unsigned long addr)
 	}
 
 	text_start = addr - image->sym_vvar_start;
-	current->mm->context.vdso = (void __user *)text_start;
-	current->mm->context.vdso_image = image;
 
 	/*
 	 * MAYWRITE to allow gdb to COW and set breakpoints
@@ -188,15 +186,13 @@ static int map_vdso(const struct vdso_image *image, unsigned long addr)
 
 	if (IS_ERR(vma)) {
 		ret = PTR_ERR(vma);
-		do_munmap(mm, text_start, image->size);
+		do_munmap(mm, text_start, image->size, NULL);
+	} else {
+		current->mm->context.vdso = (void __user *)text_start;
+		current->mm->context.vdso_image = image;
 	}
 
 up_fail:
-	if (ret) {
-		current->mm->context.vdso = NULL;
-		current->mm->context.vdso_image = NULL;
-	}
-
 	up_write(&mm->mmap_sem);
 	return ret;
 }
@@ -265,7 +261,7 @@ int map_vdso_once(const struct vdso_image *image, unsigned long addr)
 	 * abusing from userspace install_speciall_mapping, which may
 	 * not do accounting and rlimit right.
 	 * We could search vma near context.vdso, but it's a slowpath,
-	 * so let's explicitely check all VMAs to be completely sure.
+	 * so let's explicitly check all VMAs to be completely sure.
 	 */
 	for (vma = mm->mmap; vma; vma = vma->vm_next) {
 		if (vma_is_special_mapping(vma, &vdso_mapping) ||
@@ -330,40 +326,6 @@ static __init int vdso_setup(char *s)
 	return 0;
 }
 __setup("vdso=", vdso_setup);
-#endif
-
-#ifdef CONFIG_X86_64
-static void vgetcpu_cpu_init(void *arg)
-{
-	int cpu = smp_processor_id();
-	struct desc_struct d = { };
-	unsigned long node = 0;
-#ifdef CONFIG_NUMA
-	node = cpu_to_node(cpu);
-#endif
-	if (static_cpu_has(X86_FEATURE_RDTSCP))
-		write_rdtscp_aux((node << 12) | cpu);
-
-	/*
-	 * Store cpu number in limit so that it can be loaded
-	 * quickly in user space in vgetcpu. (12 bits for the CPU
-	 * and 8 bits for the node)
-	 */
-	d.limit0 = cpu | ((node & 0xf) << 12);
-	d.limit = node >> 4;
-	d.type = 5;		/* RO data, expand down, accessed */
-	d.dpl = 3;		/* Visible to user code */
-	d.s = 1;		/* Not a system segment */
-	d.p = 1;		/* Present */
-	d.d = 1;		/* 32-bit */
-
-	write_gdt_entry(get_cpu_gdt_table(cpu), GDT_ENTRY_PER_CPU, &d, DESCTYPE_S);
-}
-
-static int vgetcpu_online(unsigned int cpu)
-{
-	return smp_call_function_single(cpu, vgetcpu_cpu_init, NULL, 1);
-}
 
 static int __init init_vdso(void)
 {
@@ -373,9 +335,7 @@ static int __init init_vdso(void)
 	init_vdso_image(&vdso_image_x32);
 #endif
 
-	/* notifier priority > KVM */
-	return cpuhp_setup_state(CPUHP_AP_X86_VDSO_VMA_ONLINE,
-				 "AP_X86_VDSO_VMA_ONLINE", vgetcpu_online, NULL);
+	return 0;
 }
 subsys_initcall(init_vdso);
 #endif /* CONFIG_X86_64 */

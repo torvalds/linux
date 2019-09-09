@@ -1,21 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2015, National Instruments Corp.
  *
  * Xilinx Zynq Reset controller driver
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
+ * Author: Moritz Fischer <moritz.fischer@ettus.com>
  */
 
 #include <linux/err.h>
 #include <linux/io.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/mfd/syscon.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
@@ -137,8 +131,4 @@ static struct platform_driver zynq_reset_driver = {
 		.of_match_table	= zynq_reset_dt_ids,
 	},
 };
-module_platform_driver(zynq_reset_driver);
-
-MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("Moritz Fischer <moritz.fischer@ettus.com>");
-MODULE_DESCRIPTION("Zynq Reset Controller Driver");
+builtin_platform_driver(zynq_reset_driver);

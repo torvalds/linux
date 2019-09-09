@@ -1,19 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2010 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
  *
  * Modifications for inclusion into the Linux staging tree are
  * Copyright(c) 2010 Larry Finger. All rights reserved.
@@ -26,7 +14,7 @@
 #ifndef _RTL8712_EVENT_H_
 #define _RTL8712_EVENT_H_
 
-void r8712_event_handle(struct _adapter *padapter, uint *peventbuf);
+void r8712_event_handle(struct _adapter *padapter, __le32 *peventbuf);
 void r8712_got_addbareq_event_callback(struct _adapter *adapter, u8 *pbuf);
 
 enum rtl8712_c2h_event {
@@ -59,7 +47,6 @@ enum rtl8712_c2h_event {
 	GEN_EVT_CODE(_ADDBAReq_Report),		/*25*/
 	MAX_C2HEVT
 };
-
 
 #ifdef _RTL8712_CMD_C_
 

@@ -1,19 +1,13 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * sigreturn_codes.S - code sinpets for sigreturn syscalls
  *
  * Created by:	Victor Kamensky, 2013-08-13
  * Copyright:	(C) 2013  Linaro Limited
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
+#include <asm/assembler.h>
+#include <asm/asm-offsets.h>
 #include <asm/unistd.h>
 
 /*
@@ -50,6 +44,17 @@ ARM_OK(	.arm	)
 	.org	sigreturn_codes + 12 * (\n) + 8
 	.thumb
 	.endm
+
+	.macro arm_fdpic_slot n
+	.org	sigreturn_codes + 24 + 20 * (\n)
+ARM_OK(	.arm	)
+	.endm
+
+	.macro thumb_fdpic_slot n
+	.org	sigreturn_codes + 24 + 20 * (\n) + 12
+	.thumb
+	.endm
+
 
 #if __LINUX_ARM_ARCH__ <= 4
 	/*
@@ -90,13 +95,46 @@ ARM_OK(	swi	#(__NR_rt_sigreturn)|(__NR_OABI_SYSCALL_BASE)	)
 	movs	r7, #(__NR_rt_sigreturn - __NR_SYSCALL_BASE)
 	swi	#0
 
+	/* ARM sigreturn restorer FDPIC bounce code snippet */
+	arm_fdpic_slot 0
+ARM_OK(	ldr	r3, [sp, #SIGFRAME_RC3_OFFSET] )
+ARM_OK(	ldmia	r3, {r3, r9} )
+#ifdef CONFIG_ARM_THUMB
+ARM_OK(	bx	r3 )
+#else
+ARM_OK(	ret	r3 )
+#endif
+
+	/* Thumb sigreturn restorer FDPIC bounce code snippet */
+	thumb_fdpic_slot 0
+	ldr	r3, [sp, #SIGFRAME_RC3_OFFSET]
+	ldmia	r3, {r2, r3}
+	mov	r9, r3
+	bx	r2
+
+	/* ARM sigreturn_rt restorer FDPIC bounce code snippet */
+	arm_fdpic_slot 1
+ARM_OK(	ldr	r3, [sp, #RT_SIGFRAME_RC3_OFFSET] )
+ARM_OK(	ldmia	r3, {r3, r9} )
+#ifdef CONFIG_ARM_THUMB
+ARM_OK(	bx	r3 )
+#else
+ARM_OK(	ret	r3 )
+#endif
+
+	/* Thumb sigreturn_rt restorer FDPIC bounce code snippet */
+	thumb_fdpic_slot 1
+	ldr	r3, [sp, #RT_SIGFRAME_RC3_OFFSET]
+	ldmia	r3, {r2, r3}
+	mov	r9, r3
+	bx	r2
+
 	/*
-	 * Note on addtional space: setup_return in signal.c
-	 * algorithm uses two words copy regardless whether
-	 * it is thumb case or not, so we need additional
-	 * word after real last entry.
+	 * Note on additional space: setup_return in signal.c
+	 * always copies the same number of words regardless whether
+	 * it is thumb case or not, so we need one additional padding
+	 * word after the last entry.
 	 */
-	arm_slot 2
 	.space	4
 
 	.size	sigreturn_codes, . - sigreturn_codes

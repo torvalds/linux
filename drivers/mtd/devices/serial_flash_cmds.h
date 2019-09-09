@@ -1,35 +1,23 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Generic/SFDP Flash Commands and Device Capabilities
  *
  * Copyright (C) 2013 Lee Jones <lee.jones@lianro.org>
- *
- * This code is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #ifndef _MTD_SERIAL_FLASH_CMDS_H
 #define _MTD_SERIAL_FLASH_CMDS_H
 
 /* Generic Flash Commands/OPCODEs */
-#define SPINOR_OP_RDSR2		0x35
 #define SPINOR_OP_WRVCR		0x81
 #define SPINOR_OP_RDVCR		0x85
 
 /* JEDEC Standard - Serial Flash Discoverable Parmeters (SFDP) Commands */
-#define SPINOR_OP_READ_1_2_2	0xbb	/* DUAL I/O READ */
-#define SPINOR_OP_READ_1_4_4	0xeb	/* QUAD I/O READ */
-
 #define SPINOR_OP_WRITE		0x02	/* PAGE PROGRAM */
 #define SPINOR_OP_WRITE_1_1_2	0xa2	/* DUAL INPUT PROGRAM */
 #define SPINOR_OP_WRITE_1_2_2	0xd2	/* DUAL INPUT EXT PROGRAM */
 #define SPINOR_OP_WRITE_1_1_4	0x32	/* QUAD INPUT PROGRAM */
 #define SPINOR_OP_WRITE_1_4_4	0x12	/* QUAD INPUT EXT PROGRAM */
-
-/* READ commands with 32-bit addressing */
-#define SPINOR_OP_READ4_1_2_2	0xbc
-#define SPINOR_OP_READ4_1_4_4	0xec
 
 /* Configuration flags */
 #define FLASH_FLAG_SINGLE	0x000000ff

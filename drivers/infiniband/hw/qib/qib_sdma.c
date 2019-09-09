@@ -54,30 +54,6 @@ MODULE_PARM_DESC(sdma_descq_cnt, "Number of SDMA descq entries");
 #define SDMA_DESC_COUNT_LSB     16
 #define SDMA_DESC_GEN_LSB       30
 
-char *qib_sdma_state_names[] = {
-	[qib_sdma_state_s00_hw_down]          = "s00_HwDown",
-	[qib_sdma_state_s10_hw_start_up_wait] = "s10_HwStartUpWait",
-	[qib_sdma_state_s20_idle]             = "s20_Idle",
-	[qib_sdma_state_s30_sw_clean_up_wait] = "s30_SwCleanUpWait",
-	[qib_sdma_state_s40_hw_clean_up_wait] = "s40_HwCleanUpWait",
-	[qib_sdma_state_s50_hw_halt_wait]     = "s50_HwHaltWait",
-	[qib_sdma_state_s99_running]          = "s99_Running",
-};
-
-char *qib_sdma_event_names[] = {
-	[qib_sdma_event_e00_go_hw_down]   = "e00_GoHwDown",
-	[qib_sdma_event_e10_go_hw_start]  = "e10_GoHwStart",
-	[qib_sdma_event_e20_hw_started]   = "e20_HwStarted",
-	[qib_sdma_event_e30_go_running]   = "e30_GoRunning",
-	[qib_sdma_event_e40_sw_cleaned]   = "e40_SwCleaned",
-	[qib_sdma_event_e50_hw_cleaned]   = "e50_HwCleaned",
-	[qib_sdma_event_e60_hw_halted]    = "e60_HwHalted",
-	[qib_sdma_event_e70_go_idle]      = "e70_GoIdle",
-	[qib_sdma_event_e7220_err_halted] = "e7220_ErrHalted",
-	[qib_sdma_event_e7322_err_halted] = "e7322_ErrHalted",
-	[qib_sdma_event_e90_timer_tick]   = "e90_TimerTick",
-};
-
 /* declare all statics here rather than keep sorting */
 static int alloc_sdma(struct qib_pportdata *);
 static void sdma_complete(struct kref *);
@@ -589,19 +565,15 @@ retry:
 	sge = &ss->sge;
 	while (dwords) {
 		u32 dw;
-		u32 len;
+		u32 len = rvt_get_sge_length(sge, dwords << 2);
 
-		len = dwords << 2;
-		if (len > sge->length)
-			len = sge->length;
-		if (len > sge->sge_length)
-			len = sge->sge_length;
-		BUG_ON(len == 0);
 		dw = (len + 3) >> 2;
 		addr = dma_map_single(&ppd->dd->pcidev->dev, sge->vaddr,
 				      dw << 2, DMA_TO_DEVICE);
-		if (dma_mapping_error(&ppd->dd->pcidev->dev, addr))
+		if (dma_mapping_error(&ppd->dd->pcidev->dev, addr)) {
+			ret = -ENOMEM;
 			goto unmap;
+		}
 		sdmadesc[0] = 0;
 		make_sdma_desc(ppd, sdmadesc, (u64) addr, dw, dwoffset);
 		/* SDmaUseLargeBuf has to be set in every descriptor */
@@ -617,24 +589,7 @@ retry:
 			descqp = &ppd->sdma_descq[0].qw[0];
 			++ppd->sdma_generation;
 		}
-		sge->vaddr += len;
-		sge->length -= len;
-		sge->sge_length -= len;
-		if (sge->sge_length == 0) {
-			if (--ss->num_sge)
-				*sge = *ss->sg_list++;
-		} else if (sge->length == 0 && sge->mr->lkey) {
-			if (++sge->n >= RVT_SEGSZ) {
-				if (++sge->m >= sge->mr->mapsz)
-					break;
-				sge->n = 0;
-			}
-			sge->vaddr =
-				sge->mr->map[sge->m]->segs[sge->n].vaddr;
-			sge->length =
-				sge->mr->map[sge->m]->segs[sge->n].length;
-		}
-
+		rvt_update_sge(ss, len, false);
 		dwoffset += dw;
 		dwords -= dw;
 	}
@@ -675,7 +630,7 @@ unmap:
 		if (ib_rvt_state_ops[qp->state] & RVT_PROCESS_RECV_OK)
 			rvt_error_qp(qp, IB_WC_GENERAL_ERR);
 	} else if (qp->s_wqe)
-		qib_send_complete(qp, qp->s_wqe, IB_WC_GENERAL_ERR);
+		rvt_send_complete(qp, qp->s_wqe, IB_WC_GENERAL_ERR);
 	spin_unlock(&qp->s_lock);
 	spin_unlock(&qp->r_lock);
 	/* return zero to process the next send work request */
@@ -808,7 +763,7 @@ void __qib_sdma_process_event(struct qib_pportdata *ppd,
 			 * bringing the link up with traffic active on
 			 * 7220, e.g. */
 			ss->go_s99_running = 1;
-			/* fall through and start dma engine */
+			/* fall through -- and start dma engine */
 		case qib_sdma_event_e10_go_hw_start:
 			/* This reference means the state machine is started */
 			sdma_get(&ppd->sdma_state);

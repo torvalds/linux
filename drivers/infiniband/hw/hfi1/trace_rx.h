@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015, 2016 Intel Corporation.
+ * Copyright(c) 2015 - 2018 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -52,21 +52,20 @@
 
 #include "hfi.h"
 
+#define tidtype_name(type) { PT_##type, #type }
+#define show_tidtype(type)                   \
+__print_symbolic(type,                       \
+	tidtype_name(EXPECTED),              \
+	tidtype_name(EAGER),                 \
+	tidtype_name(INVALID))               \
+
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM hfi1_rx
 
 TRACE_EVENT(hfi1_rcvhdr,
-	    TP_PROTO(struct hfi1_devdata *dd,
-		     u32 ctxt,
-		     u64 eflags,
-		     u32 etype,
-		     u32 hlen,
-		     u32 tlen,
-		     u32 updegr,
-		     u32 etail
-		    ),
-	    TP_ARGS(dd, ctxt, eflags, etype, hlen, tlen, updegr, etail),
-	    TP_STRUCT__entry(DD_DEV_ENTRY(dd)
+	    TP_PROTO(struct hfi1_packet *packet),
+	    TP_ARGS(packet),
+	    TP_STRUCT__entry(DD_DEV_ENTRY(packet->rcd->dd)
 			     __field(u64, eflags)
 			     __field(u32, ctxt)
 			     __field(u32, etype)
@@ -75,14 +74,14 @@ TRACE_EVENT(hfi1_rcvhdr,
 			     __field(u32, updegr)
 			     __field(u32, etail)
 			     ),
-	     TP_fast_assign(DD_DEV_ASSIGN(dd);
-			    __entry->eflags = eflags;
-			    __entry->ctxt = ctxt;
-			    __entry->etype = etype;
-			    __entry->hlen = hlen;
-			    __entry->tlen = tlen;
-			    __entry->updegr = updegr;
-			    __entry->etail = etail;
+	     TP_fast_assign(DD_DEV_ASSIGN(packet->rcd->dd);
+			    __entry->eflags = rhf_err_flags(packet->rhf);
+			    __entry->ctxt = packet->rcd->ctxt;
+			    __entry->etype = packet->etype;
+			    __entry->hlen = packet->hlen;
+			    __entry->tlen = packet->tlen;
+			    __entry->updegr = packet->updegr;
+			    __entry->etail = rhf_egr_index(packet->rhf);
 			    ),
 	     TP_printk(
 		"[%s] ctxt %d eflags 0x%llx etype %d,%s hlen %d tlen %d updegr %d etail %d",
@@ -98,24 +97,24 @@ TRACE_EVENT(hfi1_rcvhdr,
 );
 
 TRACE_EVENT(hfi1_receive_interrupt,
-	    TP_PROTO(struct hfi1_devdata *dd, u32 ctxt),
-	    TP_ARGS(dd, ctxt),
+	    TP_PROTO(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd),
+	    TP_ARGS(dd, rcd),
 	    TP_STRUCT__entry(DD_DEV_ENTRY(dd)
 			     __field(u32, ctxt)
 			     __field(u8, slow_path)
 			     __field(u8, dma_rtail)
 			     ),
 	    TP_fast_assign(DD_DEV_ASSIGN(dd);
-			__entry->ctxt = ctxt;
-			if (dd->rcd[ctxt]->do_interrupt ==
+			__entry->ctxt = rcd->ctxt;
+			if (rcd->do_interrupt ==
 			    &handle_receive_interrupt) {
 				__entry->slow_path = 1;
 				__entry->dma_rtail = 0xFF;
-			} else if (dd->rcd[ctxt]->do_interrupt ==
+			} else if (rcd->do_interrupt ==
 					&handle_receive_interrupt_dma_rtail){
 				__entry->dma_rtail = 1;
 				__entry->slow_path = 0;
-			} else if (dd->rcd[ctxt]->do_interrupt ==
+			} else if (rcd->do_interrupt ==
 					&handle_receive_interrupt_nodma_rtail) {
 				__entry->dma_rtail = 0;
 				__entry->slow_path = 0;
@@ -128,103 +127,6 @@ TRACE_EVENT(hfi1_receive_interrupt,
 		      __entry->dma_rtail
 		      )
 );
-
-TRACE_EVENT(hfi1_exp_tid_reg,
-	    TP_PROTO(unsigned int ctxt, u16 subctxt, u32 rarr,
-		     u32 npages, unsigned long va, unsigned long pa,
-		     dma_addr_t dma),
-	    TP_ARGS(ctxt, subctxt, rarr, npages, va, pa, dma),
-	    TP_STRUCT__entry(
-			     __field(unsigned int, ctxt)
-			     __field(u16, subctxt)
-			     __field(u32, rarr)
-			     __field(u32, npages)
-			     __field(unsigned long, va)
-			     __field(unsigned long, pa)
-			     __field(dma_addr_t, dma)
-			     ),
-	    TP_fast_assign(
-			   __entry->ctxt = ctxt;
-			   __entry->subctxt = subctxt;
-			   __entry->rarr = rarr;
-			   __entry->npages = npages;
-			   __entry->va = va;
-			   __entry->pa = pa;
-			   __entry->dma = dma;
-			   ),
-	    TP_printk("[%u:%u] entry:%u, %u pages @ 0x%lx, va:0x%lx dma:0x%llx",
-		      __entry->ctxt,
-		      __entry->subctxt,
-		      __entry->rarr,
-		      __entry->npages,
-		      __entry->pa,
-		      __entry->va,
-		      __entry->dma
-		      )
-	);
-
-TRACE_EVENT(hfi1_exp_tid_unreg,
-	    TP_PROTO(unsigned int ctxt, u16 subctxt, u32 rarr, u32 npages,
-		     unsigned long va, unsigned long pa, dma_addr_t dma),
-	    TP_ARGS(ctxt, subctxt, rarr, npages, va, pa, dma),
-	    TP_STRUCT__entry(
-			     __field(unsigned int, ctxt)
-			     __field(u16, subctxt)
-			     __field(u32, rarr)
-			     __field(u32, npages)
-			     __field(unsigned long, va)
-			     __field(unsigned long, pa)
-			     __field(dma_addr_t, dma)
-			     ),
-	    TP_fast_assign(
-			   __entry->ctxt = ctxt;
-			   __entry->subctxt = subctxt;
-			   __entry->rarr = rarr;
-			   __entry->npages = npages;
-			   __entry->va = va;
-			   __entry->pa = pa;
-			   __entry->dma = dma;
-			   ),
-	    TP_printk("[%u:%u] entry:%u, %u pages @ 0x%lx, va:0x%lx dma:0x%llx",
-		      __entry->ctxt,
-		      __entry->subctxt,
-		      __entry->rarr,
-		      __entry->npages,
-		      __entry->pa,
-		      __entry->va,
-		      __entry->dma
-		      )
-	);
-
-TRACE_EVENT(hfi1_exp_tid_inval,
-	    TP_PROTO(unsigned int ctxt, u16 subctxt, unsigned long va, u32 rarr,
-		     u32 npages, dma_addr_t dma),
-	    TP_ARGS(ctxt, subctxt, va, rarr, npages, dma),
-	    TP_STRUCT__entry(
-			     __field(unsigned int, ctxt)
-			     __field(u16, subctxt)
-			     __field(unsigned long, va)
-			     __field(u32, rarr)
-			     __field(u32, npages)
-			     __field(dma_addr_t, dma)
-			     ),
-	    TP_fast_assign(
-			   __entry->ctxt = ctxt;
-			   __entry->subctxt = subctxt;
-			   __entry->va = va;
-			   __entry->rarr = rarr;
-			   __entry->npages = npages;
-			   __entry->dma = dma;
-			  ),
-	    TP_printk("[%u:%u] entry:%u, %u pages @ 0x%lx dma: 0x%llx",
-		      __entry->ctxt,
-		      __entry->subctxt,
-		      __entry->rarr,
-		      __entry->npages,
-		      __entry->va,
-		      __entry->dma
-		      )
-	    );
 
 TRACE_EVENT(hfi1_mmu_invalidate,
 	    TP_PROTO(unsigned int ctxt, u16 subctxt, const char *type,
@@ -252,66 +154,6 @@ TRACE_EVENT(hfi1_mmu_invalidate,
 		      __entry->end
 		      )
 	    );
-
-#define SNOOP_PRN \
-	"slid %.4x dlid %.4x qpn 0x%.6x opcode 0x%.2x,%s " \
-	"svc lvl %d pkey 0x%.4x [header = %d bytes] [data = %d bytes]"
-
-TRACE_EVENT(snoop_capture,
-	    TP_PROTO(struct hfi1_devdata *dd,
-		     int hdr_len,
-		     struct ib_header *hdr,
-		     int data_len,
-		     void *data),
-	    TP_ARGS(dd, hdr_len, hdr, data_len, data),
-	    TP_STRUCT__entry(
-			     DD_DEV_ENTRY(dd)
-			     __field(u16, slid)
-			     __field(u16, dlid)
-			     __field(u32, qpn)
-			     __field(u8, opcode)
-			     __field(u8, sl)
-			     __field(u16, pkey)
-			     __field(u32, hdr_len)
-			     __field(u32, data_len)
-			     __field(u8, lnh)
-			     __dynamic_array(u8, raw_hdr, hdr_len)
-			     __dynamic_array(u8, raw_pkt, data_len)
-			     ),
-	    TP_fast_assign(
-		struct ib_other_headers *ohdr;
-
-		__entry->lnh = (u8)(be16_to_cpu(hdr->lrh[0]) & 3);
-		if (__entry->lnh == HFI1_LRH_BTH)
-		ohdr = &hdr->u.oth;
-		else
-		ohdr = &hdr->u.l.oth;
-		DD_DEV_ASSIGN(dd);
-		__entry->slid = be16_to_cpu(hdr->lrh[3]);
-		__entry->dlid = be16_to_cpu(hdr->lrh[1]);
-		__entry->qpn = be32_to_cpu(ohdr->bth[1]) & RVT_QPN_MASK;
-		__entry->opcode = (be32_to_cpu(ohdr->bth[0]) >> 24) & 0xff;
-		__entry->sl = (u8)(be16_to_cpu(hdr->lrh[0]) >> 4) & 0xf;
-		__entry->pkey =	be32_to_cpu(ohdr->bth[0]) & 0xffff;
-		__entry->hdr_len = hdr_len;
-		__entry->data_len = data_len;
-		memcpy(__get_dynamic_array(raw_hdr), hdr, hdr_len);
-		memcpy(__get_dynamic_array(raw_pkt), data, data_len);
-		),
-	    TP_printk(
-		"[%s] " SNOOP_PRN,
-		__get_str(dev),
-		__entry->slid,
-		__entry->dlid,
-		__entry->qpn,
-		__entry->opcode,
-		show_ib_opcode(__entry->opcode),
-		__entry->sl,
-		__entry->pkey,
-		__entry->hdr_len,
-		__entry->data_len
-		)
-);
 
 #endif /* __HFI1_TRACE_RX_H */
 

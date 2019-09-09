@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Makefile for the kernel multimedia device drivers.
 #
@@ -13,10 +14,10 @@ obj-y        +=	ttpci/		\
 		ddbridge/	\
 		saa7146/	\
 		smipcie/	\
-		netup_unidvb/
+		netup_unidvb/	\
+		intel/
 
 obj-$(CONFIG_VIDEO_IVTV) += ivtv/
-obj-$(CONFIG_VIDEO_ZORAN) += zoran/
 obj-$(CONFIG_VIDEO_CX18) += cx18/
 obj-$(CONFIG_VIDEO_CX23885) += cx23885/
 obj-$(CONFIG_VIDEO_CX25821) += cx25821/

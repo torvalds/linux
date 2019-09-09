@@ -70,6 +70,8 @@ static struct platform_device bcm63xx_enet_shared_device = {
 
 static int shared_device_registered;
 
+static u64 enet_dmamask = DMA_BIT_MASK(32);
+
 static struct resource enet0_res[] = {
 	{
 		.start		= -1, /* filled at runtime */
@@ -99,6 +101,8 @@ static struct platform_device bcm63xx_enet0_device = {
 	.resource	= enet0_res,
 	.dev		= {
 		.platform_data = &enet0_pd,
+		.dma_mask = &enet_dmamask,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
 	},
 };
 
@@ -131,6 +135,8 @@ static struct platform_device bcm63xx_enet1_device = {
 	.resource	= enet1_res,
 	.dev		= {
 		.platform_data = &enet1_pd,
+		.dma_mask = &enet_dmamask,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
 	},
 };
 
@@ -157,6 +163,8 @@ static struct platform_device bcm63xx_enetsw_device = {
 	.resource	= enetsw_res,
 	.dev		= {
 		.platform_data = &enetsw_pd,
+		.dma_mask = &enet_dmamask,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
 	},
 };
 
@@ -263,6 +271,14 @@ int __init bcm63xx_enet_register(int unit,
 	} else {
 		dpd->dma_has_sram = true;
 		dpd->dma_chan_width = ENETDMA_CHAN_WIDTH;
+	}
+
+	if (unit == 0) {
+		dpd->rx_chan = 0;
+		dpd->tx_chan = 1;
+	} else {
+		dpd->rx_chan = 2;
+		dpd->tx_chan = 3;
 	}
 
 	ret = platform_device_register(pdev);

@@ -1,10 +1,17 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 .. _frontend_f_open:
 
-*******************
-DVB frontend open()
-*******************
+***************************
+Digital TV frontend open()
+***************************
 
 Name
 ====
@@ -79,24 +86,32 @@ On error, -1 is returned, and the ``errno`` variable is set appropriately.
 
 Possible error codes are:
 
-EACCES
-    The caller has no permission to access the device.
 
-EBUSY
-    The the device driver is already in use.
+On success 0 is returned, and :c:type:`ca_slot_info` is filled.
 
-ENXIO
-    No device corresponding to this device special file exists.
+On error -1 is returned, and the ``errno`` variable is set
+appropriately.
 
-ENOMEM
-    Not enough kernel memory was available to complete the request.
+.. tabularcolumns:: |p{2.5cm}|p{15.0cm}|
 
-EMFILE
-    The process already has the maximum number of files open.
+.. flat-table::
+    :header-rows:  0
+    :stub-columns: 0
+    :widths: 1 16
 
-ENFILE
-    The limit on the total number of files open on the system has been
-    reached.
+    -  - ``EPERM``
+       -  The caller has no permission to access the device.
 
-ENODEV
-    The device got removed.
+    -  - ``EBUSY``
+       -  The the device driver is already in use.
+
+    -  - ``EMFILE``
+       -  The process already has the maximum number of files open.
+
+    -  - ``ENFILE``
+       -  The limit on the total number of files open on the system has been
+	  reached.
+
+
+The generic error codes are described at the
+:ref:`Generic Error Codes <gen-errors>` chapter.

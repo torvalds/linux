@@ -1,23 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * File: pn_dev.h
  *
  * Phonet network device
  *
  * Copyright (C) 2008 Nokia Corporation.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
  */
 
 #ifndef PN_DEV_H
@@ -56,7 +43,7 @@ struct net_device *phonet_route_output(struct net *net, u8 daddr);
 
 #define PN_NO_ADDR	0xff
 
-extern const struct file_operations pn_sock_seq_fops;
-extern const struct file_operations pn_res_seq_fops;
+extern const struct seq_operations pn_sock_seq_ops;
+extern const struct seq_operations pn_res_seq_ops;
 
 #endif

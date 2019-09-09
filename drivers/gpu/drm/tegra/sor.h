@@ -1,9 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2013 NVIDIA Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef DRM_TEGRA_SOR_H
@@ -89,6 +86,8 @@
 #define SOR_PLL0 0x17
 #define  SOR_PLL0_ICHPMP_MASK			(0xf << 24)
 #define  SOR_PLL0_ICHPMP(x)			(((x) & 0xf) << 24)
+#define  SOR_PLL0_FILTER_MASK			(0xf << 16)
+#define  SOR_PLL0_FILTER(x)			(((x) & 0xf) << 16)
 #define  SOR_PLL0_VCOCAP_MASK			(0xf << 8)
 #define  SOR_PLL0_VCOCAP(x)			(((x) & 0xf) << 8)
 #define  SOR_PLL0_VCOCAP_RST			SOR_PLL0_VCOCAP(3)
@@ -122,10 +121,16 @@
 #define  SOR_PLL2_SEQ_PLL_PULLDOWN		(1 << 16)
 
 #define SOR_PLL3 0x1a
+#define  SOR_PLL3_BG_TEMP_COEF_MASK		(0xf << 28)
+#define  SOR_PLL3_BG_TEMP_COEF(x)		(((x) & 0xf) << 28)
 #define  SOR_PLL3_BG_VREF_LEVEL_MASK		(0xf << 24)
 #define  SOR_PLL3_BG_VREF_LEVEL(x)		(((x) & 0xf) << 24)
 #define  SOR_PLL3_PLL_VDD_MODE_1V8		(0 << 13)
 #define  SOR_PLL3_PLL_VDD_MODE_3V3		(1 << 13)
+#define  SOR_PLL3_AVDD10_LEVEL_MASK		(0xf << 8)
+#define  SOR_PLL3_AVDD10_LEVEL(x)		(((x) & 0xf) << 8)
+#define  SOR_PLL3_AVDD14_LEVEL_MASK		(0xf << 4)
+#define  SOR_PLL3_AVDD14_LEVEL(x)		(((x) & 0xf) << 4)
 
 #define SOR_CSTM 0x1b
 #define  SOR_CSTM_ROTCLK_MASK			(0xf << 24)
@@ -334,6 +339,10 @@
 #define SOR_DP_LQ_CSTM1 0x70
 #define SOR_DP_LQ_CSTM2 0x71
 
+#define SOR_DP_PADCTL2 0x73
+#define  SOR_DP_PADCTL_SPAREPLL_MASK (0xff << 24)
+#define  SOR_DP_PADCTL_SPAREPLL(x) (((x) & 0xff) << 24)
+
 #define SOR_HDMI_AUDIO_INFOFRAME_CTRL 0x9a
 #define SOR_HDMI_AUDIO_INFOFRAME_STATUS 0x9b
 #define SOR_HDMI_AUDIO_INFOFRAME_HEADER 0x9c
@@ -352,11 +361,27 @@
 #define  INFOFRAME_HEADER_VERSION(x) (((x) & 0xff) << 8)
 #define  INFOFRAME_HEADER_TYPE(x) (((x) & 0xff) << 0)
 
+#define SOR_HDMI_ACR_CTRL 0xb1
+
+#define SOR_HDMI_ACR_0320_SUBPACK_LOW 0xb2
+#define  SOR_HDMI_ACR_SUBPACK_LOW_SB1(x) (((x) & 0xff) << 24)
+
+#define SOR_HDMI_ACR_0320_SUBPACK_HIGH 0xb3
+#define  SOR_HDMI_ACR_SUBPACK_HIGH_ENABLE (1 << 31)
+
+#define SOR_HDMI_ACR_0441_SUBPACK_LOW 0xb4
+#define SOR_HDMI_ACR_0441_SUBPACK_HIGH 0xb5
+
 #define SOR_HDMI_CTRL 0xc0
 #define  SOR_HDMI_CTRL_ENABLE (1 << 30)
 #define  SOR_HDMI_CTRL_MAX_AC_PACKET(x) (((x) & 0x1f) << 16)
 #define  SOR_HDMI_CTRL_AUDIO_LAYOUT (1 << 10)
 #define  SOR_HDMI_CTRL_REKEY(x) (((x) & 0x7f) << 0)
+
+#define SOR_HDMI_SPARE 0xcb
+#define  SOR_HDMI_SPARE_ACR_PRIORITY_HIGH (1 << 31)
+#define  SOR_HDMI_SPARE_CTS_RESET(x) (((x) & 0x7) << 16)
+#define  SOR_HDMI_SPARE_HW_CTS_ENABLE (1 << 0)
 
 #define SOR_REFCLK 0xe6
 #define  SOR_REFCLK_DIV_INT(x) ((((x) >> 2) & 0xff) << 8)
@@ -366,8 +391,64 @@
 #define  SOR_INPUT_CONTROL_ARM_VIDEO_RANGE_LIMITED (1 << 1)
 #define  SOR_INPUT_CONTROL_HDMI_SRC_SELECT(x) (((x) & 0x1) << 0)
 
+#define SOR_AUDIO_CNTRL 0xfc
+#define  SOR_AUDIO_CNTRL_INJECT_NULLSMPL (1 << 29)
+#define  SOR_AUDIO_CNTRL_SOURCE_SELECT(x) (((x) & 0x3) << 20)
+#define   SOURCE_SELECT_MASK 0x3
+#define   SOURCE_SELECT_HDA 0x2
+#define   SOURCE_SELECT_SPDIF 0x1
+#define   SOURCE_SELECT_AUTO 0x0
+#define  SOR_AUDIO_CNTRL_AFIFO_FLUSH (1 << 12)
+
+#define SOR_AUDIO_SPARE 0xfe
+#define  SOR_AUDIO_SPARE_HBR_ENABLE (1 << 27)
+
+#define SOR_AUDIO_NVAL_0320 0xff
+#define SOR_AUDIO_NVAL_0441 0x100
+#define SOR_AUDIO_NVAL_0882 0x101
+#define SOR_AUDIO_NVAL_1764 0x102
+#define SOR_AUDIO_NVAL_0480 0x103
+#define SOR_AUDIO_NVAL_0960 0x104
+#define SOR_AUDIO_NVAL_1920 0x105
+
+#define SOR_AUDIO_HDA_CODEC_SCRATCH0 0x10a
+#define  SOR_AUDIO_HDA_CODEC_SCRATCH0_VALID (1 << 30)
+#define  SOR_AUDIO_HDA_CODEC_SCRATCH0_FMT_MASK 0xffff
+
+#define SOR_AUDIO_HDA_ELD_BUFWR 0x10c
+#define  SOR_AUDIO_HDA_ELD_BUFWR_INDEX(x) (((x) & 0xff) << 8)
+#define  SOR_AUDIO_HDA_ELD_BUFWR_DATA(x) (((x) & 0xff) << 0)
+
+#define SOR_AUDIO_HDA_PRESENSE 0x10d
+#define  SOR_AUDIO_HDA_PRESENSE_ELDV (1 << 1)
+#define  SOR_AUDIO_HDA_PRESENSE_PD (1 << 0)
+
+#define SOR_AUDIO_AVAL_0320 0x10f
+#define SOR_AUDIO_AVAL_0441 0x110
+#define SOR_AUDIO_AVAL_0882 0x111
+#define SOR_AUDIO_AVAL_1764 0x112
+#define SOR_AUDIO_AVAL_0480 0x113
+#define SOR_AUDIO_AVAL_0960 0x114
+#define SOR_AUDIO_AVAL_1920 0x115
+
+#define SOR_INT_STATUS 0x11c
+#define  SOR_INT_CODEC_CP_REQUEST (1 << 2)
+#define  SOR_INT_CODEC_SCRATCH1 (1 << 1)
+#define  SOR_INT_CODEC_SCRATCH0 (1 << 0)
+
+#define SOR_INT_MASK 0x11d
+#define SOR_INT_ENABLE 0x11e
+
 #define SOR_HDMI_VSI_INFOFRAME_CTRL 0x123
 #define SOR_HDMI_VSI_INFOFRAME_STATUS 0x124
 #define SOR_HDMI_VSI_INFOFRAME_HEADER 0x125
+
+#define SOR_HDMI_AUDIO_N 0x13c
+#define SOR_HDMI_AUDIO_N_LOOKUP (1 << 28)
+#define SOR_HDMI_AUDIO_N_RESET (1 << 20)
+
+#define SOR_HDMI2_CTRL 0x13e
+#define  SOR_HDMI2_CTRL_CLOCK_MODE_DIV_BY_4 (1 << 1)
+#define  SOR_HDMI2_CTRL_SCRAMBLE (1 << 0)
 
 #endif

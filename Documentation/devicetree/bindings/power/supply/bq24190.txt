@@ -1,0 +1,61 @@
+TI BQ24190 Li-Ion Battery Charger
+
+Required properties:
+- compatible: contains one of the following:
+    * "ti,bq24190"
+    * "ti,bq24192"
+    * "ti,bq24192i"
+    * "ti,bq24196"
+- reg: integer, I2C address of the charger.
+- interrupts[-extended]: configuration for charger INT pin.
+
+Optional properties:
+- monitored-battery: phandle of battery characteristics devicetree node
+  The charger uses the following battery properties:
+    + precharge-current-microamp: maximum charge current during precharge
+      phase (typically 20% of battery capacity).
+    + charge-term-current-microamp: a charge cycle terminates when the
+      battery voltage is above recharge threshold, and the current is below
+      this setting (typically 10% of battery capacity).
+  See also Documentation/devicetree/bindings/power/supply/battery.txt
+- ti,system-minimum-microvolt: when power is connected and the battery is below
+  minimum system voltage, the system will be regulated above this setting.
+
+child nodes:
+- usb-otg-vbus:
+  Usage: optional
+  Description: Regulator that is used to control the VBUS voltage direction for
+               either USB host mode or for charging on the OTG port.
+
+Notes:
+- Some circuit boards wire the chip's "OTG" pin high (enabling 500mA default
+  charge current on USB SDP ports, among other features). To simulate this on
+  boards that wire the pin to a GPIO, set a gpio-hog.
+
+Example:
+
+	bat: battery {
+		compatible = "simple-battery";
+		precharge-current-microamp = <256000>;
+		charge-term-current-microamp = <128000>;
+		// etc.
+	};
+
+	bq24190: charger@6a {
+		compatible = "ti,bq24190";
+		reg = <0x6a>;
+		interrupts-extended = <&gpiochip 10 IRQ_TYPE_EDGE_FALLING>;
+		monitored-battery = <&bat>;
+		ti,system-minimum-microvolt = <3200000>;
+
+		usb_otg_vbus: usb-otg-vbus { };
+	};
+
+	&twl_gpio {
+		otg {
+			gpio-hog;
+			gpios = <6 0>;
+			output-high;
+			line-name = "otg-gpio";
+		};
+	};

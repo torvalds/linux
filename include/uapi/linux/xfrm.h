@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _LINUX_XFRM_H
 #define _LINUX_XFRM_H
 
@@ -303,8 +304,13 @@ enum xfrm_attr_type_t {
 	XFRMA_PROTO,		/* __u8 */
 	XFRMA_ADDRESS_FILTER,	/* struct xfrm_address_filter */
 	XFRMA_PAD,
+	XFRMA_OFFLOAD_DEV,	/* struct xfrm_state_offload */
+	XFRMA_SET_MARK,		/* __u32 */
+	XFRMA_SET_MARK_MASK,	/* __u32 */
+	XFRMA_IF_ID,		/* __u32 */
 	__XFRMA_MAX
 
+#define XFRMA_OUTPUT_MARK XFRMA_SET_MARK	/* Compatibility */
 #define XFRMA_MAX (__XFRMA_MAX - 1)
 };
 
@@ -493,6 +499,13 @@ struct xfrm_address_filter {
 	__u8				splen;
 	__u8				dplen;
 };
+
+struct xfrm_user_offload {
+	int				ifindex;
+	__u8				flags;
+};
+#define XFRM_OFFLOAD_IPV6	1
+#define XFRM_OFFLOAD_INBOUND	2
 
 #ifndef __KERNEL__
 /* backwards compatibility for userspace */

@@ -1,32 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *	w1_family.c
- *
  * Copyright (c) 2004 Evgeniy Polyakov <zbr@ioremap.net>
- *
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #include <linux/spinlock.h>
 #include <linux/list.h>
-#include <linux/sched.h>	/* schedule_timeout() */
+#include <linux/sched/signal.h>
 #include <linux/delay.h>
 #include <linux/export.h>
 
-#include "w1_family.h"
-#include "w1.h"
+#include "w1_internal.h"
 
 DEFINE_SPINLOCK(w1_flock);
 static LIST_HEAD(w1_families);
@@ -62,6 +45,7 @@ int w1_register_family(struct w1_family *newf)
 
 	return ret;
 }
+EXPORT_SYMBOL(w1_register_family);
 
 /**
  * w1_unregister_family() - unregister a device family driver
@@ -94,6 +78,7 @@ void w1_unregister_family(struct w1_family *fent)
 			flush_signals(current);
 	}
 }
+EXPORT_SYMBOL(w1_unregister_family);
 
 /*
  * Should be called under w1_flock held.
@@ -143,6 +128,3 @@ void __w1_family_get(struct w1_family *f)
 	atomic_inc(&f->refcnt);
 	smp_mb__after_atomic();
 }
-
-EXPORT_SYMBOL(w1_unregister_family);
-EXPORT_SYMBOL(w1_register_family);

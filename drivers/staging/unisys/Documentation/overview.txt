@@ -15,7 +15,7 @@ normally be unsharable, specifically:
 * visorinput - keyboard and mouse
 
 These drivers conform to the standard Linux bus/device model described
-within Documentation/driver-model/, and utilize a driver named visorbus to
+within Documentation/driver-api/driver-model/, and utilize a driver named visorbus to
 present the virtual busses involved. Drivers in the 'visor*' driver set are
 commonly referred to as "guest drivers" or "client drivers".  All drivers
 except visorbus expose a device of a specific usable class to the Linux guest
@@ -141,7 +141,7 @@ called automatically by the visorbus driver at appropriate times:
 -----------------------------------
 
 Because visorbus is a standard Linux bus driver in the model described in
-Documentation/driver-model/, the hierarchy of s-Par virtual devices is
+Documentation/driver-api/driver-model/, the hierarchy of s-Par virtual devices is
 published in the sysfs tree beneath /bus/visorbus/, e.g.,
 /sys/bus/visorbus/devices/ might look like:
 
@@ -221,7 +221,7 @@ The following files exist under /sys/devices/visorbus<x>/vbus<x>:dev<y>:
 
 The visorhba driver registers with visorbus as the function driver to
 handle virtual scsi disk devices, specified using the
-SPAR_VHBA_CHANNEL_PROTOCOL_UUID type in the visorbus_register_visor_driver()
+VISOR_VHBA_CHANNEL_GUID type in the visorbus_register_visor_driver()
 call. visorhba uses scsi_add_host() to expose a Linux block device
 (e.g., /sys/block/) in the guest environment for each s-Par virtual device.
 
@@ -240,7 +240,7 @@ When compiled as a module, visorhba can be autoloaded by visorbus in
 standard udev/systemd environments, as it includes the modules.alias
 definition:
 
-    "visorbus:"+SPAR_VHBA_CHANNEL_PROTOCOL_UUID_STR
+    "visorbus:"+VISOR_VHBA_CHANNEL_GUID_STR
 
 i.e.:
 
@@ -252,7 +252,7 @@ i.e.:
 
 The visornic driver registers with visorbus as the function driver to
 handle virtual network devices, specified using the
-SPAR_VNIC_CHANNEL_PROTOCOL_UUID type in the visorbus_register_visor_driver()
+VISOR_VNIC_CHANNEL_GUID type in the visorbus_register_visor_driver()
 call. visornic uses register_netdev() to expose a Linux device of class net
 (e.g., /sys/class/net/) in the guest environment for each s-Par virtual
 device.
@@ -270,7 +270,7 @@ When compiled as a module, visornic can be autoloaded by visorbus in
 standard udev/systemd environments, as it includes the modules.alias
 definition:
 
-    "visorbus:"+SPAR_VNIC_CHANNEL_PROTOCOL_UUID_STR
+    "visorbus:"+VISOR_VNIC_CHANNEL_GUID_STR
 
 i.e.:
 
@@ -282,7 +282,7 @@ i.e.:
 
 The visorinput driver registers with visorbus as the function driver to
 handle human input devices, specified using the
-SPAR_KEYBOARD_CHANNEL_PROTOCOL_UUID and SPAR_MOUSE_CHANNEL_PROTOCOL_UUID
+VISOR_KEYBOARD_CHANNEL_GUID and VISOR_MOUSE_CHANNEL_GUID
 types in the visorbus_register_visor_driver() call. visorinput uses
 input_register_device() to expose devices of class input
 (e.g., /sys/class/input/) for virtual keyboard and virtual mouse devices.
@@ -307,8 +307,8 @@ When compiled as a module, visorinput can be autoloaded by visorbus in
 standard udev/systemd environments, as it includes the modules.alias
 definition:
 
-    "visorbus:"+SPAR_MOUSE_CHANNEL_PROTOCOL_UUID_STR
-    "visorbus:"+SPAR_KEYBOARD_CHANNEL_PROTOCOL_UUID_STR
+    "visorbus:"+VISOR_MOUSE_CHANNEL_GUID_STR
+    "visorbus:"+VISOR_KEYBOARD_CHANNEL_GUID_STR
 
 i.e.:
 

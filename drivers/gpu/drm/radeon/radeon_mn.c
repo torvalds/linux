@@ -31,7 +31,7 @@
 #include <linux/firmware.h>
 #include <linux/module.h>
 #include <linux/mmu_notifier.h>
-#include <drm/drmP.h>
+
 #include <drm/drm.h>
 
 #include "radeon.h"
@@ -50,7 +50,7 @@ struct radeon_mn {
 
 	/* objects protected by lock */
 	struct mutex		lock;
-	struct rb_root		objects;
+	struct rb_root_cached	objects;
 };
 
 struct radeon_mn_node {
@@ -75,8 +75,8 @@ static void radeon_mn_destroy(struct work_struct *work)
 	mutex_lock(&rdev->mn_lock);
 	mutex_lock(&rmn->lock);
 	hash_del(&rmn->node);
-	rbtree_postorder_for_each_entry_safe(node, next_node, &rmn->objects,
-					     it.rb) {
+	rbtree_postorder_for_each_entry_safe(node, next_node,
+					     &rmn->objects.rb_root, it.rb) {
 
 		interval_tree_remove(&node->it, &rmn->objects);
 		list_for_each_entry_safe(bo, next_bo, &node->bos, mn_list) {
@@ -118,27 +118,39 @@ static void radeon_mn_release(struct mmu_notifier *mn,
  * We block for all BOs between start and end to be idle and
  * unmap them by move them into system domain again.
  */
-static void radeon_mn_invalidate_range_start(struct mmu_notifier *mn,
-					     struct mm_struct *mm,
-					     unsigned long start,
-					     unsigned long end)
+static int radeon_mn_invalidate_range_start(struct mmu_notifier *mn,
+				const struct mmu_notifier_range *range)
 {
 	struct radeon_mn *rmn = container_of(mn, struct radeon_mn, mn);
+	struct ttm_operation_ctx ctx = { false, false };
 	struct interval_tree_node *it;
+	unsigned long end;
+	int ret = 0;
 
 	/* notification is exclusive, but interval is inclusive */
-	end -= 1;
+	end = range->end - 1;
 
-	mutex_lock(&rmn->lock);
+	/* TODO we should be able to split locking for interval tree and
+	 * the tear down.
+	 */
+	if (mmu_notifier_range_blockable(range))
+		mutex_lock(&rmn->lock);
+	else if (!mutex_trylock(&rmn->lock))
+		return -EAGAIN;
 
-	it = interval_tree_iter_first(&rmn->objects, start, end);
+	it = interval_tree_iter_first(&rmn->objects, range->start, end);
 	while (it) {
 		struct radeon_mn_node *node;
 		struct radeon_bo *bo;
 		long r;
 
+		if (!mmu_notifier_range_blockable(range)) {
+			ret = -EAGAIN;
+			goto out_unlock;
+		}
+
 		node = container_of(it, struct radeon_mn_node, it);
-		it = interval_tree_iter_next(it, start, end);
+		it = interval_tree_iter_next(it, range->start, end);
 
 		list_for_each_entry(bo, &node->bos, mn_list) {
 
@@ -157,7 +169,7 @@ static void radeon_mn_invalidate_range_start(struct mmu_notifier *mn,
 				DRM_ERROR("(%ld) failed to wait for user bo\n", r);
 
 			radeon_ttm_placement_from_domain(bo, RADEON_GEM_DOMAIN_CPU);
-			r = ttm_bo_validate(&bo->tbo, &bo->placement, false, false);
+			r = ttm_bo_validate(&bo->tbo, &bo->placement, &ctx);
 			if (r)
 				DRM_ERROR("(%ld) failed to validate user bo\n", r);
 
@@ -165,7 +177,10 @@ static void radeon_mn_invalidate_range_start(struct mmu_notifier *mn,
 		}
 	}
 	
+out_unlock:
 	mutex_unlock(&rmn->lock);
+
+	return ret;
 }
 
 static const struct mmu_notifier_ops radeon_mn_ops = {
@@ -205,7 +220,7 @@ static struct radeon_mn *radeon_mn_get(struct radeon_device *rdev)
 	rmn->mm = mm;
 	rmn->mn.ops = &radeon_mn_ops;
 	mutex_init(&rmn->lock);
-	rmn->objects = RB_ROOT;
+	rmn->objects = RB_ROOT_CACHED;
 	
 	r = __mmu_notifier_register(&rmn->mn, mm);
 	if (r)

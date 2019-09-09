@@ -1,12 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * GPIO and IRQ definitions for HTC Magician PDA phones
  *
  * Copyright (c) 2007 Philipp Zabel
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #ifndef _MAGICIAN_H_
@@ -24,6 +20,7 @@
 #define GPIO10_MAGICIAN_GSM_IRQ			10
 #define GPIO11_MAGICIAN_GSM_OUT1		11
 #define GPIO13_MAGICIAN_CPLD_IRQ		13
+#define GPIO14_MAGICIAN_TSC2046_CS		14
 #define GPIO18_MAGICIAN_UNKNOWN			18
 #define GPIO22_MAGICIAN_VIBRA_EN		22
 #define GPIO26_MAGICIAN_GSM_POWER		26

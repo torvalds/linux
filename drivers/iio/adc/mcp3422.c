@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * mcp3422.c - driver for the Microchip mcp3421/2/3/4/5/6/7/8 chip family
  *
@@ -10,11 +11,6 @@
  *
  * This driver exports the value of analog input voltage to sysfs, the
  * voltage unit is nV.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/err.h>
@@ -327,7 +323,6 @@ static const struct iio_info mcp3422_info = {
 	.write_raw = mcp3422_write_raw,
 	.write_raw_get_fmt = mcp3422_write_raw_get_fmt,
 	.attrs = &mcp3422_attribute_group,
-	.driver_module = THIS_MODULE,
 };
 
 static int mcp3422_probe(struct i2c_client *client,
@@ -379,10 +374,12 @@ static int mcp3422_probe(struct i2c_client *client,
 
 	/* meaningful default configuration */
 	config = (MCP3422_CONT_SAMPLING
-		| MCP3422_CHANNEL_VALUE(1)
+		| MCP3422_CHANNEL_VALUE(0)
 		| MCP3422_PGA_VALUE(MCP3422_PGA_1)
 		| MCP3422_SAMPLE_RATE_VALUE(MCP3422_SRATE_240));
-	mcp3422_update_config(adc, config);
+	err = mcp3422_update_config(adc, config);
+	if (err < 0)
+		return err;
 
 	err = devm_iio_device_register(&client->dev, indio_dev);
 	if (err < 0)

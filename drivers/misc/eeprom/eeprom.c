@@ -1,24 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 1998, 1999  Frodo Looijaard <frodol@dds.nl> and
  *                           Philip Edelbrock <phil@netroedge.com>
  * Copyright (C) 2003 Greg Kroah-Hartman <greg@kroah.com>
  * Copyright (C) 2003 IBM Corp.
  * Copyright (C) 2004 Jean Delvare <jdelvare@suse.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/device.h>
+#include <linux/capability.h>
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
 #include <linux/mutex.h>
@@ -113,7 +105,7 @@ static ssize_t eeprom_read(struct file *filp, struct kobject *kobj,
 	return count;
 }
 
-static struct bin_attribute eeprom_attr = {
+static const struct bin_attribute eeprom_attr = {
 	.attr = {
 		.name = "eeprom",
 		.mode = S_IRUGO,

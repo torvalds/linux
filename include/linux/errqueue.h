@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_ERRQUEUE_H
 #define _LINUX_ERRQUEUE_H 1
 
@@ -20,6 +21,8 @@ struct sock_exterr_skb {
 	struct sock_extended_err	ee;
 	u16				addr_offset;
 	__be16				port;
+	u8				opt_stats:1,
+					unused:7;
 };
 
 #endif

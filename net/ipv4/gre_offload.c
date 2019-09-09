@@ -1,11 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	IPV4 GSO/GRO offload support
  *	Linux INET implementation
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
  *
  *	GRE GSO support
  */
@@ -24,7 +20,7 @@ static struct sk_buff *gre_gso_segment(struct sk_buff *skb,
 	__be16 protocol = skb->protocol;
 	u16 mac_len = skb->mac_len;
 	int gre_offset, outer_hlen;
-	bool need_csum, ufo, gso_partial;
+	bool need_csum, gso_partial;
 
 	if (!skb->encapsulation)
 		goto out;
@@ -47,19 +43,7 @@ static struct sk_buff *gre_gso_segment(struct sk_buff *skb,
 	need_csum = !!(skb_shinfo(skb)->gso_type & SKB_GSO_GRE_CSUM);
 	skb->encap_hdr_csum = need_csum;
 
-	ufo = !!(skb_shinfo(skb)->gso_type & SKB_GSO_UDP);
-
 	features &= skb->dev->hw_enc_features;
-
-	/* The only checksum offload we care about from here on out is the
-	 * outer one so strip the existing checksum feature flags based
-	 * on the fact that we will be computing our checksum in software.
-	 */
-	if (ufo) {
-		features &= ~NETIF_F_CSUM_MASK;
-		if (!need_csum)
-			features |= NETIF_F_HW_CSUM;
-	}
 
 	/* segment inner packet. */
 	segs = skb_mac_gso_segment(skb, features);
@@ -98,7 +82,7 @@ static struct sk_buff *gre_gso_segment(struct sk_buff *skb,
 		greh = (struct gre_base_hdr *)skb_transport_header(skb);
 		pcsum = (__sum16 *)(greh + 1);
 
-		if (gso_partial) {
+		if (gso_partial && skb_is_gso(skb)) {
 			unsigned int partial_adj;
 
 			/* Adjust checksum to account for the fact that
@@ -120,10 +104,10 @@ out:
 	return segs;
 }
 
-static struct sk_buff **gre_gro_receive(struct sk_buff **head,
-					struct sk_buff *skb)
+static struct sk_buff *gre_gro_receive(struct list_head *head,
+				       struct sk_buff *skb)
 {
-	struct sk_buff **pp = NULL;
+	struct sk_buff *pp = NULL;
 	struct sk_buff *p;
 	const struct gre_base_hdr *greh;
 	unsigned int hlen, grehlen;
@@ -194,7 +178,7 @@ static struct sk_buff **gre_gro_receive(struct sk_buff **head,
 					     null_compute_pseudo);
 	}
 
-	for (p = *head; p; p = p->next) {
+	list_for_each_entry(p, head, list) {
 		const struct gre_base_hdr *greh2;
 
 		if (!NAPI_GRO_CB(p)->same_flow)
@@ -235,7 +219,7 @@ static struct sk_buff **gre_gro_receive(struct sk_buff **head,
 out_unlock:
 	rcu_read_unlock();
 out:
-	NAPI_GRO_CB(skb)->flush |= flush;
+	skb_gro_flush_final(skb, pp, flush);
 
 	return pp;
 }

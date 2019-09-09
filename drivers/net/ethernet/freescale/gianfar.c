@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* drivers/net/ethernet/freescale/gianfar.c
  *
  * Gianfar Ethernet Driver
@@ -11,11 +12,6 @@
  *
  * Copyright 2002-2009, 2011-2013 Freescale Semiconductor, Inc.
  * Copyright 2007 MontaVista Software, Inc.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  *
  *  Gianfar:  AKA Lambda Draconis, "Dragon"
  *  RA 11 31 24.2
@@ -93,7 +89,7 @@
 #include <asm/mpc85xx.h>
 #endif
 #include <asm/irq.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/module.h>
 #include <linux/dma-mapping.h>
 #include <linux/crc32.h>
@@ -102,8 +98,6 @@
 #include <linux/phy_fixed.h>
 #include <linux/of.h>
 #include <linux/of_net.h>
-#include <linux/of_address.h>
-#include <linux/of_irq.h>
 
 #include "gianfar.h"
 
@@ -112,7 +106,7 @@
 const char gfar_driver_version[] = "2.0";
 
 static int gfar_enet_open(struct net_device *dev);
-static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t gfar_start_xmit(struct sk_buff *skb, struct net_device *dev);
 static void gfar_reset_task(struct work_struct *work);
 static void gfar_timeout(struct net_device *dev);
 static int gfar_close(struct net_device *dev);
@@ -502,6 +496,7 @@ static const struct net_device_ops gfar_netdev_ops = {
 	.ndo_tx_timeout = gfar_timeout,
 	.ndo_do_ioctl = gfar_ioctl,
 	.ndo_get_stats = gfar_get_stats,
+	.ndo_change_carrier = fixed_phy_change_carrier,
 	.ndo_set_mac_address = gfar_set_mac_addr,
 	.ndo_validate_addr = eth_validate_addr,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -722,7 +717,7 @@ static int gfar_of_group_count(struct device_node *np)
 	int num = 0;
 
 	for_each_available_child_of_node(np, child)
-		if (!of_node_cmp(child->name, "queue-group"))
+		if (of_node_name_eq(child, "queue-group"))
 			num++;
 
 	return num;
@@ -840,7 +835,7 @@ static int gfar_of_init(struct platform_device *ofdev, struct net_device **pdev)
 	/* Parse and initialize group specific information */
 	if (priv->mode == MQ_MG_MODE) {
 		for_each_available_child_of_node(np, child) {
-			if (of_node_cmp(child->name, "queue-group"))
+			if (!of_node_name_eq(child, "queue-group"))
 				continue;
 
 			err = gfar_parse_group(child, priv, model);
@@ -873,8 +868,8 @@ static int gfar_of_init(struct platform_device *ofdev, struct net_device **pdev)
 
 	mac_addr = of_get_mac_address(np);
 
-	if (mac_addr)
-		memcpy(dev->dev_addr, mac_addr, ETH_ALEN);
+	if (!IS_ERR(mac_addr))
+		ether_addr_copy(dev->dev_addr, mac_addr);
 
 	if (model && !strcasecmp(model, "TSEC"))
 		priv->device_flags |= FSL_GIANFAR_DEV_HAS_GIGABIT |
@@ -1312,6 +1307,7 @@ static void gfar_init_addr_hash_table(struct gfar_private *priv)
  */
 static int gfar_probe(struct platform_device *ofdev)
 {
+	struct device_node *np = ofdev->dev.of_node;
 	struct net_device *dev = NULL;
 	struct gfar_private *priv = NULL;
 	int err = 0, i;
@@ -1338,7 +1334,10 @@ static int gfar_probe(struct platform_device *ofdev)
 
 	/* Fill in the dev structure */
 	dev->watchdog_timeo = TX_TIMEOUT;
+	/* MTU range: 50 - 9586 */
 	dev->mtu = 1500;
+	dev->min_mtu = 50;
+	dev->max_mtu = GFAR_JUMBO_FRAME_SIZE - ETH_HLEN;
 	dev->netdev_ops = &gfar_netdev_ops;
 	dev->ethtool_ops = &gfar_ethtool_ops;
 
@@ -1374,9 +1373,11 @@ static int gfar_probe(struct platform_device *ofdev)
 
 	gfar_init_addr_hash_table(priv);
 
-	/* Insert receive time stamps into padding alignment bytes */
+	/* Insert receive time stamps into padding alignment bytes, and
+	 * plus 2 bytes padding to ensure the cpu alignment.
+	 */
 	if (priv->device_flags & FSL_GIANFAR_DEV_HAS_TIMER)
-		priv->padding = 8;
+		priv->padding = 8 + DEFAULT_PADDING;
 
 	if (dev->features & NETIF_F_IP_CSUM ||
 	    priv->device_flags & FSL_GIANFAR_DEV_HAS_TIMER)
@@ -1462,6 +1463,8 @@ static int gfar_probe(struct platform_device *ofdev)
 	return 0;
 
 register_fail:
+	if (of_phy_is_fixed_link(np))
+		of_phy_deregister_fixed_link(np);
 	unmap_group_regs(priv);
 	gfar_free_rx_queues(priv);
 	gfar_free_tx_queues(priv);
@@ -1474,11 +1477,16 @@ register_fail:
 static int gfar_remove(struct platform_device *ofdev)
 {
 	struct gfar_private *priv = platform_get_drvdata(ofdev);
+	struct device_node *np = ofdev->dev.of_node;
 
 	of_node_put(priv->phy_node);
 	of_node_put(priv->tbi_node);
 
 	unregister_netdev(priv->ndev);
+
+	if (of_phy_is_fixed_link(np))
+		of_phy_deregister_fixed_link(np);
+
 	unmap_group_regs(priv);
 	gfar_free_rx_queues(priv);
 	gfar_free_tx_queues(priv);
@@ -1707,7 +1715,7 @@ static int gfar_restore(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops gfar_pm_ops = {
+static const struct dev_pm_ops gfar_pm_ops = {
 	.suspend = gfar_suspend,
 	.resume = gfar_resume,
 	.freeze = gfar_suspend,
@@ -1773,12 +1781,19 @@ static phy_interface_t gfar_get_interface(struct net_device *dev)
  */
 static int init_phy(struct net_device *dev)
 {
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
 	struct gfar_private *priv = netdev_priv(dev);
-	uint gigabit_support =
-		priv->device_flags & FSL_GIANFAR_DEV_HAS_GIGABIT ?
-		GFAR_SUPPORTED_GBIT : 0;
 	phy_interface_t interface;
 	struct phy_device *phydev;
+	struct ethtool_eee edata;
+
+	linkmode_set_bit_array(phy_10_100_features_array,
+			       ARRAY_SIZE(phy_10_100_features_array),
+			       mask);
+	linkmode_set_bit(ETHTOOL_LINK_MODE_Autoneg_BIT, mask);
+	linkmode_set_bit(ETHTOOL_LINK_MODE_MII_BIT, mask);
+	if (priv->device_flags & FSL_GIANFAR_DEV_HAS_GIGABIT)
+		linkmode_set_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT, mask);
 
 	priv->oldlink = 0;
 	priv->oldspeed = 0;
@@ -1797,11 +1812,15 @@ static int init_phy(struct net_device *dev)
 		gfar_configure_serdes(dev);
 
 	/* Remove any features not supported by the controller */
-	phydev->supported &= (GFAR_SUPPORTED | gigabit_support);
-	phydev->advertising = phydev->supported;
+	linkmode_and(phydev->supported, phydev->supported, mask);
+	linkmode_copy(phydev->advertising, phydev->supported);
 
-	/* Add support for flow control, but don't advertise it by default */
-	phydev->supported |= (SUPPORTED_Pause | SUPPORTED_Asym_Pause);
+	/* Add support for flow control */
+	phy_support_asym_pause(phydev);
+
+	/* disable EEE autoneg, EEE not supported by eTSEC */
+	memset(&edata, 0, sizeof(struct ethtool_eee));
+	phy_ethtool_set_eee(phydev, &edata);
 
 	return 0;
 }
@@ -1999,8 +2018,8 @@ static void free_skb_rx_queue(struct gfar_priv_rx_q *rx_queue)
 		if (!rxb->page)
 			continue;
 
-		dma_unmap_single(rx_queue->dev, rxb->dma,
-				 PAGE_SIZE, DMA_FROM_DEVICE);
+		dma_unmap_page(rx_queue->dev, rxb->dma,
+			       PAGE_SIZE, DMA_FROM_DEVICE);
 		__free_page(rxb->page);
 
 		rxb->page = NULL;
@@ -2239,7 +2258,7 @@ static int gfar_enet_open(struct net_device *dev)
 
 static inline struct txfcb *gfar_add_fcb(struct sk_buff *skb)
 {
-	struct txfcb *fcb = (struct txfcb *)skb_push(skb, GMAC_FCB_LEN);
+	struct txfcb *fcb = skb_push(skb, GMAC_FCB_LEN);
 
 	memset(fcb, 0, GMAC_FCB_LEN);
 
@@ -2316,7 +2335,7 @@ static inline bool gfar_csum_errata_76(struct gfar_private *priv,
 /* This is called by the kernel when a frame is ready for transmission.
  * It is pointed to by the dev->hard_start_xmit function pointer
  */
-static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct gfar_private *priv = netdev_priv(dev);
 	struct gfar_priv_tx_q *tx_queue = NULL;
@@ -2592,12 +2611,6 @@ static int gfar_set_mac_address(struct net_device *dev)
 static int gfar_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct gfar_private *priv = netdev_priv(dev);
-	int frame_size = new_mtu + ETH_HLEN;
-
-	if ((frame_size < 64) || (frame_size > GFAR_JUMBO_FRAME_SIZE)) {
-		netif_err(priv, drv, dev, "Invalid MTU setting\n");
-		return -EINVAL;
-	}
 
 	while (test_and_set_bit_lock(GFAR_RESETTING, &priv->state))
 		cpu_relax();
@@ -2920,30 +2933,23 @@ static irqreturn_t gfar_transmit(int irq, void *grp_id)
 static bool gfar_add_rx_frag(struct gfar_rx_buff *rxb, u32 lstatus,
 			     struct sk_buff *skb, bool first)
 {
-	unsigned int size = lstatus & BD_LENGTH_MASK;
+	int size = lstatus & BD_LENGTH_MASK;
 	struct page *page = rxb->page;
-	bool last = !!(lstatus & BD_LFLAG(RXBD_LAST));
-
-	/* Remove the FCS from the packet length */
-	if (last)
-		size -= ETH_FCS_LEN;
 
 	if (likely(first)) {
 		skb_put(skb, size);
 	} else {
 		/* the last fragments' length contains the full frame length */
-		if (last)
+		if (lstatus & BD_LFLAG(RXBD_LAST))
 			size -= skb->len;
 
-		/* in case the last fragment consisted only of the FCS */
-		if (size > 0)
-			skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags, page,
-					rxb->page_offset + RXBUF_ALIGNMENT,
-					size, GFAR_RXB_TRUESIZE);
+		skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags, page,
+				rxb->page_offset + RXBUF_ALIGNMENT,
+				size, GFAR_RXB_TRUESIZE);
 	}
 
 	/* try reuse page */
-	if (unlikely(page_count(page) != 1))
+	if (unlikely(page_count(page) != 1 || page_is_pfmemalloc(page)))
 		return false;
 
 	/* change offset to the other half */
@@ -3052,11 +3058,11 @@ static void gfar_process_frame(struct net_device *ndev, struct sk_buff *skb)
 	if (priv->padding)
 		skb_pull(skb, priv->padding);
 
+	/* Trim off the FCS */
+	pskb_trim(skb, skb->len - ETH_FCS_LEN);
+
 	if (ndev->features & NETIF_F_RXCSUM)
 		gfar_rx_checksum(skb, fcb);
-
-	/* Tell the skb what kind of packet this is */
-	skb->protocol = eth_type_trans(skb, ndev);
 
 	/* There's need to check for NETIF_F_HW_VLAN_CTAG_RX here.
 	 * Even if vlan rx accel is disabled, on some chips
@@ -3128,13 +3134,15 @@ int gfar_clean_rx_ring(struct gfar_priv_rx_q *rx_queue, int rx_work_limit)
 			continue;
 		}
 
+		gfar_process_frame(ndev, skb);
+
 		/* Increment the number of packets */
 		total_pkts++;
 		total_bytes += skb->len;
 
 		skb_record_rx_queue(skb, rx_queue->qindex);
 
-		gfar_process_frame(ndev, skb);
+		skb->protocol = eth_type_trans(skb, ndev);
 
 		/* Send the packet up the stack */
 		napi_gro_receive(&rx_queue->grp->napi_rx, skb);
@@ -3178,7 +3186,7 @@ static int gfar_poll_rx_sq(struct napi_struct *napi, int budget)
 
 	if (work_done < budget) {
 		u32 imask;
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		/* Clear the halt bit in RSTAT */
 		gfar_write(&regs->rstat, gfargrp->rstat);
 
@@ -3267,7 +3275,7 @@ static int gfar_poll_rx(struct napi_struct *napi, int budget)
 
 	if (!num_act_queues) {
 		u32 imask;
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 
 		/* Clear the halt bit in RSTAT */
 		gfar_write(&regs->rstat, gfargrp->rstat);
@@ -3651,12 +3659,7 @@ static u32 gfar_get_flowctrl_cfg(struct gfar_private *priv)
 		if (phydev->asym_pause)
 			rmt_adv |= LPA_PAUSE_ASYM;
 
-		lcl_adv = 0;
-		if (phydev->advertising & ADVERTISED_Pause)
-			lcl_adv |= ADVERTISE_PAUSE_CAP;
-		if (phydev->advertising & ADVERTISED_Asym_Pause)
-			lcl_adv |= ADVERTISE_PAUSE_ASYM;
-
+		lcl_adv = linkmode_adv_to_lcl_adv_t(phydev->advertising);
 		flowctrl = mii_resolve_flowctrl_fdx(lcl_adv, rmt_adv);
 		if (flowctrl & FLOW_CTRL_TX)
 			val |= MACCFG1_TX_FLOW;
@@ -3682,7 +3685,7 @@ static noinline void gfar_update_link_state(struct gfar_private *priv)
 		u32 tempval1 = gfar_read(&regs->maccfg1);
 		u32 tempval = gfar_read(&regs->maccfg2);
 		u32 ecntrl = gfar_read(&regs->ecntrl);
-		u32 tx_flow_oldval = (tempval & MACCFG1_TX_FLOW);
+		u32 tx_flow_oldval = (tempval1 & MACCFG1_TX_FLOW);
 
 		if (phydev->duplex != priv->oldduplex) {
 			if (!(phydev->duplex))

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Percpu refcounts:
  * (C) 2012 Google, Inc.
@@ -29,10 +30,14 @@
  * calls io_destroy() or the process exits.
  *
  * In the aio code, kill_ioctx() is called when we wish to destroy a kioctx; it
- * calls percpu_ref_kill(), then hlist_del_rcu() and synchronize_rcu() to remove
- * the kioctx from the proccess's list of kioctxs - after that, there can't be
- * any new users of the kioctx (from lookup_ioctx()) and it's then safe to drop
- * the initial ref with percpu_ref_put().
+ * removes the kioctx from the proccess's table of kioctxs and kills percpu_ref.
+ * After that, there can't be any new users of the kioctx (from lookup_ioctx())
+ * and it's then safe to drop the initial ref with percpu_ref_put().
+ *
+ * Note that the free path, free_ioctx(), needs to go through explicit call_rcu()
+ * to synchronize with RCU protected lookup_ioctx().  percpu_ref operations don't
+ * imply RCU grace periods of any kind and if a user wants to combine percpu_ref
+ * with RCU protection, it must be done explicitly.
  *
  * Code that does a two stage shutdown like this often needs some kind of
  * explicit synchronization to ensure the initial refcount can only be dropped
@@ -70,14 +75,21 @@ enum {
 	 * operation using percpu_ref_switch_to_percpu().  If initialized
 	 * with this flag, the ref will stay in atomic mode until
 	 * percpu_ref_switch_to_percpu() is invoked on it.
+	 * Implies ALLOW_REINIT.
 	 */
 	PERCPU_REF_INIT_ATOMIC	= 1 << 0,
 
 	/*
 	 * Start dead w/ ref == 0 in atomic mode.  Must be revived with
-	 * percpu_ref_reinit() before used.  Implies INIT_ATOMIC.
+	 * percpu_ref_reinit() before used.  Implies INIT_ATOMIC and
+	 * ALLOW_REINIT.
 	 */
 	PERCPU_REF_INIT_DEAD	= 1 << 1,
+
+	/*
+	 * Allow switching from atomic mode to percpu mode.
+	 */
+	PERCPU_REF_ALLOW_REINIT	= 1 << 2,
 };
 
 struct percpu_ref {
@@ -90,6 +102,7 @@ struct percpu_ref {
 	percpu_ref_func_t	*release;
 	percpu_ref_func_t	*confirm_switch;
 	bool			force_atomic:1;
+	bool			allow_reinit:1;
 	struct rcu_head		rcu;
 };
 
@@ -99,9 +112,11 @@ int __must_check percpu_ref_init(struct percpu_ref *ref,
 void percpu_ref_exit(struct percpu_ref *ref);
 void percpu_ref_switch_to_atomic(struct percpu_ref *ref,
 				 percpu_ref_func_t *confirm_switch);
+void percpu_ref_switch_to_atomic_sync(struct percpu_ref *ref);
 void percpu_ref_switch_to_percpu(struct percpu_ref *ref);
 void percpu_ref_kill_and_confirm(struct percpu_ref *ref,
 				 percpu_ref_func_t *confirm_kill);
+void percpu_ref_resurrect(struct percpu_ref *ref);
 void percpu_ref_reinit(struct percpu_ref *ref);
 
 /**
@@ -111,8 +126,10 @@ void percpu_ref_reinit(struct percpu_ref *ref);
  * Must be used to drop the initial ref on a percpu refcount; must be called
  * precisely once before shutdown.
  *
- * Puts @ref in non percpu mode, then does a call_rcu() before gathering up the
- * percpu counters and dropping the initial ref.
+ * Switches @ref into atomic mode before gathering up the percpu counters
+ * and dropping the initial ref.
+ *
+ * There are no implied RCU grace periods between kill and release.
  */
 static inline void percpu_ref_kill(struct percpu_ref *ref)
 {
@@ -137,11 +154,11 @@ static inline bool __ref_is_percpu(struct percpu_ref *ref,
 	 * when using it as a pointer, __PERCPU_REF_ATOMIC may be set in
 	 * between contaminating the pointer value, meaning that
 	 * READ_ONCE() is required when fetching it.
+	 *
+	 * The smp_read_barrier_depends() implied by READ_ONCE() pairs
+	 * with smp_store_release() in __percpu_ref_switch_to_percpu().
 	 */
 	percpu_ptr = READ_ONCE(ref->percpu_count_ptr);
-
-	/* paired with smp_store_release() in __percpu_ref_switch_to_percpu() */
-	smp_read_barrier_depends();
 
 	/*
 	 * Theoretically, the following could test just ATOMIC; however,
@@ -204,7 +221,7 @@ static inline void percpu_ref_get(struct percpu_ref *ref)
 static inline bool percpu_ref_tryget(struct percpu_ref *ref)
 {
 	unsigned long __percpu *percpu_count;
-	int ret;
+	bool ret;
 
 	rcu_read_lock_sched();
 
@@ -238,7 +255,7 @@ static inline bool percpu_ref_tryget(struct percpu_ref *ref)
 static inline bool percpu_ref_tryget_live(struct percpu_ref *ref)
 {
 	unsigned long __percpu *percpu_count;
-	int ret = false;
+	bool ret = false;
 
 	rcu_read_lock_sched();
 

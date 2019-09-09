@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Device Tree Source for the KZM-A9-GT board
  *
@@ -5,10 +6,6 @@
  *
  * Based on sh73a0-kzm9g.dts
  * Copyright (C) 2012 Renesas Solutions Corp.
- *
- * This file is licensed under the terms of the GNU General Public License
- * version 2.  This program is licensed "as is" without any warranty of any
- * kind, whether express or implied.
  */
 
 /dts-v1/;
@@ -39,7 +36,7 @@
 	};
 
 	chosen {
-		bootargs = "root=/dev/nfs ip=dhcp ignore_loglevel rw";
+		bootargs = "root=/dev/nfs ip=on ignore_loglevel rw";
 		stdout-path = "serial0:115200n8";
 	};
 

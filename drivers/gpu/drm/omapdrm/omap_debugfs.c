@@ -1,20 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * drivers/gpu/drm/omapdrm/omap_debugfs.c
- *
- * Copyright (C) 2011 Texas Instruments
+ * Copyright (C) 2011 Texas Instruments Incorporated - http://www.ti.com/
  * Author: Rob Clark <rob.clark@linaro.org>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/seq_file.h>
@@ -32,16 +19,11 @@ static int gem_show(struct seq_file *m, void *arg)
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
 	struct omap_drm_private *priv = dev->dev_private;
-	int ret;
-
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
 
 	seq_printf(m, "All Objects:\n");
+	mutex_lock(&priv->list_lock);
 	omap_gem_describe_objects(&priv->obj_list, m);
-
-	mutex_unlock(&dev->struct_mutex);
+	mutex_unlock(&priv->list_lock);
 
 	return 0;
 }
@@ -50,7 +32,11 @@ static int mm_show(struct seq_file *m, void *arg)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
-	return drm_mm_dump_table(m, &dev->vma_offset_manager->vm_addr_space_mm);
+	struct drm_printer p = drm_seq_file_printer(m);
+
+	drm_mm_print(&dev->vma_offset_manager->vm_addr_space_mm, &p);
+
+	return 0;
 }
 
 #ifdef CONFIG_DRM_FBDEV_EMULATION
@@ -117,15 +103,6 @@ int omap_debugfs_init(struct drm_minor *minor)
 	}
 
 	return ret;
-}
-
-void omap_debugfs_cleanup(struct drm_minor *minor)
-{
-	drm_debugfs_remove_files(omap_debugfs_list,
-			ARRAY_SIZE(omap_debugfs_list), minor);
-	if (dmm_is_available())
-		drm_debugfs_remove_files(omap_dmm_debugfs_list,
-				ARRAY_SIZE(omap_dmm_debugfs_list), minor);
 }
 
 #endif

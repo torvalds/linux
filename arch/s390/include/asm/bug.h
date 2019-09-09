@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_S390_BUG_H
 #define _ASM_S390_BUG_H
 
@@ -14,7 +15,7 @@
 		".section .rodata.str,\"aMS\",@progbits,1\n"	\
 		"2:	.asciz	\""__FILE__"\"\n"		\
 		".previous\n"					\
-		".section __bug_table,\"a\"\n"			\
+		".section __bug_table,\"awM\",@progbits,%2\n"	\
 		"3:	.long	1b-3b,2b-3b\n"			\
 		"	.short	%0,%1\n"			\
 		"	.org	3b+%2\n"			\
@@ -26,17 +27,17 @@
 
 #else /* CONFIG_DEBUG_BUGVERBOSE */
 
-#define __EMIT_BUG(x) do {				\
-	asm volatile(					\
-		"0:	j	0b+2\n"			\
-		"1:\n"					\
-		".section __bug_table,\"a\"\n"		\
-		"2:	.long	1b-2b\n"		\
-		"	.short	%0\n"			\
-		"	.org	2b+%1\n"		\
-		".previous\n"				\
-		: : "i" (x),				\
-		    "i" (sizeof(struct bug_entry)));	\
+#define __EMIT_BUG(x) do {					\
+	asm volatile(						\
+		"0:	j	0b+2\n"				\
+		"1:\n"						\
+		".section __bug_table,\"awM\",@progbits,%1\n"	\
+		"2:	.long	1b-2b\n"			\
+		"	.short	%0\n"				\
+		"	.org	2b+%1\n"			\
+		".previous\n"					\
+		: : "i" (x),					\
+		    "i" (sizeof(struct bug_entry)));		\
 } while (0)
 
 #endif /* CONFIG_DEBUG_BUGVERBOSE */
@@ -46,8 +47,8 @@
 	unreachable();					\
 } while (0)
 
-#define __WARN_TAINT(taint) do {			\
-	__EMIT_BUG(BUGFLAG_TAINT(taint));		\
+#define __WARN_FLAGS(flags) do {			\
+	__EMIT_BUG(BUGFLAG_WARNING|(flags));		\
 } while (0)
 
 #define WARN_ON(x) ({					\

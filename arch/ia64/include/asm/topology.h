@@ -1,12 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (C) 2002, Erich Focht, NEC
  *
  * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 #ifndef _ASM_IA64_TOPOLOGY_H
 #define _ASM_IA64_TOPOLOGY_H
@@ -32,13 +28,6 @@
 #define cpumask_of_node(node) ((node) == -1 ?				\
 			       cpu_all_mask :				\
 			       &node_to_cpu_mask[node])
-
-/*
- * Returns the number of the node containing Node 'nid'.
- * Not implemented here. Multi-level hierarchies detected with
- * the help of node_distance().
- */
-#define parent_node(nid) (nid)
 
 /*
  * Determines the node for a given pci bus

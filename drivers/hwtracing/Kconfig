@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: GPL-2.0-only
+menu "HW tracing support"
+
+source "drivers/hwtracing/stm/Kconfig"
+
+source "drivers/hwtracing/intel_th/Kconfig"
+
+endmenu

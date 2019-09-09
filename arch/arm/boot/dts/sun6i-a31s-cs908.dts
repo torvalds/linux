@@ -43,8 +43,6 @@
 /dts-v1/;
 #include "sun6i-a31s.dtsi"
 
-#include <dt-bindings/pinctrl/sun4i-a10.h>
-
 / {
 	model = "CSQ CS908 top set box";
 	compatible = "csq,cs908", "allwinner,sun6i-a31s";
@@ -68,7 +66,7 @@
 
 &gmac {
 	pinctrl-names = "default";
-	pinctrl-0 = <&gmac_pins_mii_a>;
+	pinctrl-0 = <&gmac_mii_pins>;
 	phy = <&phy1>;
 	phy-mode = "mii";
 	status = "okay";
@@ -79,7 +77,7 @@
 
 &ir {
 	pinctrl-names = "default";
-	pinctrl-0 = <&ir_pins_a>;
+	pinctrl-0 = <&s_ir_rx_pin>;
 	status = "okay";
 };
 
@@ -89,7 +87,7 @@
 
 &uart0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_pins_a>;
+	pinctrl-0 = <&uart0_ph_pins>;
 	status = "okay";
 };
 

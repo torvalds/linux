@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * kernel/power/suspend_test.c - Suspend to RAM and standby test facility.
  *
  * Copyright (c) 2009 Pavel Machek <pavel@ucw.cz>
- *
- * This file is released under the GPLv2.
  */
 
 #include <linux/init.h>
@@ -104,9 +103,9 @@ repeat:
 		printk(info_test, pm_states[state]);
 		status = pm_suspend(state);
 		if (status < 0)
-			state = PM_SUSPEND_FREEZE;
+			state = PM_SUSPEND_TO_IDLE;
 	}
-	if (state == PM_SUSPEND_FREEZE) {
+	if (state == PM_SUSPEND_TO_IDLE) {
 		printk(info_test, pm_states[state]);
 		status = pm_suspend(state);
 	}
@@ -166,7 +165,7 @@ static int __init setup_test_suspend(char *value)
 			return 0;
 	}
 
-	for (i = 0; pm_labels[i]; i++)
+	for (i = PM_SUSPEND_MIN; i < PM_SUSPEND_MAX; i++)
 		if (!strcmp(pm_labels[i], suspend_type)) {
 			test_state_label = pm_labels[i];
 			return 0;
@@ -203,8 +202,10 @@ static int __init test_suspend(void)
 
 	/* RTCs have initialized by now too ... can we use one? */
 	dev = class_find_device(rtc_class, NULL, NULL, has_wakealarm);
-	if (dev)
+	if (dev) {
 		rtc = rtc_class_open(dev_name(dev));
+		put_device(dev);
+	}
 	if (!rtc) {
 		printk(warn_no_rtc);
 		return 0;

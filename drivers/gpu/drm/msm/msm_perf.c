@@ -1,18 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 /* For profiling, userspace can:
@@ -41,9 +30,6 @@ struct msm_perf_state {
 	int buftot, bufpos;
 
 	unsigned long next_jiffies;
-
-	struct dentry *ent;
-	struct drm_info_node *node;
 };
 
 #define SAMPLE_TIME (HZ/4)
@@ -222,51 +208,19 @@ int msm_perf_debugfs_init(struct drm_minor *minor)
 	mutex_init(&perf->read_lock);
 	priv->perf = perf;
 
-	perf->node = kzalloc(sizeof(*perf->node), GFP_KERNEL);
-	if (!perf->node)
-		goto fail;
-
-	perf->ent = debugfs_create_file("perf", S_IFREG | S_IRUGO,
-			minor->debugfs_root, perf, &perf_debugfs_fops);
-	if (!perf->ent) {
-		DRM_ERROR("Cannot create /sys/kernel/debug/dri/%pd/perf\n",
-				minor->debugfs_root);
-		goto fail;
-	}
-
-	perf->node->minor = minor;
-	perf->node->dent  = perf->ent;
-	perf->node->info_ent = NULL;
-
-	mutex_lock(&minor->debugfs_lock);
-	list_add(&perf->node->list, &minor->debugfs_list);
-	mutex_unlock(&minor->debugfs_lock);
-
+	debugfs_create_file("perf", S_IFREG | S_IRUGO, minor->debugfs_root,
+			    perf, &perf_debugfs_fops);
 	return 0;
-
-fail:
-	msm_perf_debugfs_cleanup(minor);
-	return -1;
 }
 
-void msm_perf_debugfs_cleanup(struct drm_minor *minor)
+void msm_perf_debugfs_cleanup(struct msm_drm_private *priv)
 {
-	struct msm_drm_private *priv = minor->dev->dev_private;
 	struct msm_perf_state *perf = priv->perf;
 
 	if (!perf)
 		return;
 
 	priv->perf = NULL;
-
-	debugfs_remove(perf->ent);
-
-	if (perf->node) {
-		mutex_lock(&minor->debugfs_lock);
-		list_del(&perf->node->list);
-		mutex_unlock(&minor->debugfs_lock);
-		kfree(perf->node);
-	}
 
 	mutex_destroy(&perf->read_lock);
 

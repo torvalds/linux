@@ -17,11 +17,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110,
- * USA
- *
  * The full GNU General Public License is included in this distribution
  * in the file called COPYING.
  *
@@ -112,28 +107,10 @@ enum iwl_phy_db_section_type {
 
 #define PHY_DB_CMD 0x6c
 
-/*
- * phy db - configure operational ucode
- */
-struct iwl_phy_db_cmd {
-	__le16 type;
-	__le16 length;
-	u8 data[];
-} __packed;
-
 /* for parsing of tx power channel group data that comes from the firmware*/
 struct iwl_phy_db_chg_txp {
 	__le32 space;
 	__le16 max_channel_idx;
-} __packed;
-
-/*
- * phy db - Receive phy db chunk after calibrations
- */
-struct iwl_calib_res_notif_phy_db {
-	__le16 type;
-	__le16 length;
-	u8 data[];
 } __packed;
 
 struct iwl_phy_db *iwl_phy_db_init(struct iwl_trans *trans)

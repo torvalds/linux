@@ -1,9 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
+#include <linux/mm_types.h>
 
 #include <asm/cputype.h>
 #include <asm/idmap.h>
+#include <asm/hwcap.h>
 #include <asm/pgalloc.h>
 #include <asm/pgtable.h>
 #include <asm/sections.h>
@@ -14,8 +17,8 @@
  * are not supported on any CPU using the idmap tables as its current
  * page tables.
  */
-pgd_t *idmap_pgd;
-long long arch_phys_to_idmap_offset;
+pgd_t *idmap_pgd __ro_after_init;
+long long arch_phys_to_idmap_offset __ro_after_init;
 
 #ifdef CONFIG_ARM_LPAE
 static void idmap_add_pmd(pud_t *pud, unsigned long addr, unsigned long end,
@@ -108,7 +111,8 @@ static int __init init_static_idmap(void)
 			     __idmap_text_end, 0);
 
 	/* Flush L1 for the hardware to see this page table content */
-	flush_cache_louis();
+	if (!(elf_hwcap & HWCAP_LPAE))
+		flush_cache_louis();
 
 	return 0;
 }

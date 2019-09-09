@@ -1,25 +1,2 @@
-# UAPI Header export list
-include include/uapi/asm-generic/Kbuild.asm
-
-header-y += auxvec.h
-header-y += byteorder.h
-header-y += ioctls.h
-header-y += ipcbuf.h
-header-y += mman.h
-header-y += msgbuf.h
-header-y += param.h
-header-y += poll.h
-header-y += posix_types.h
-header-y += ptrace.h
-header-y += sembuf.h
-header-y += setup.h
-header-y += shmbuf.h
-header-y += sigcontext.h
-header-y += signal.h
-header-y += socket.h
-header-y += sockios.h
-header-y += stat.h
-header-y += swab.h
-header-y += termbits.h
-header-y += types.h
-header-y += unistd.h
+# SPDX-License-Identifier: GPL-2.0
+generated-y += unistd_32.h

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * OpenRISC head.S
  *
@@ -8,11 +9,6 @@
  * Modifications for the OpenRISC architecture:
  * Copyright (C) 2003 Matjaz Breskvar <phoenix@bsemi.com>
  * Copyright (C) 2010-2011 Jonas Bonn <jonas@southpole.se>
- *
- *      This program is free software; you can redistribute it and/or
- *      modify it under the terms of the GNU General Public License
- *      as published by the Free Software Foundation; either version
- *      2 of the License, or (at your option) any later version.
  */
 
 #include <linux/linkage.h>
@@ -24,6 +20,7 @@
 #include <asm/page.h>
 #include <asm/mmu.h>
 #include <asm/pgtable.h>
+#include <asm/thread_info.h>
 #include <asm/cache.h>
 #include <asm/spr_defs.h>
 #include <asm/asm-offsets.h>
@@ -34,7 +31,7 @@
 	l.add	rd,rd,rs
 
 #define CLEAR_GPR(gpr)				\
-	l.or    gpr,r0,r0
+	l.movhi	gpr,0x0
 
 #define LOAD_SYMBOL_2_GPR(gpr,symbol)		\
 	l.movhi gpr,hi(symbol)			;\
@@ -48,9 +45,31 @@
 
 /* ============================================[ tmp store locations ]=== */
 
+#define SPR_SHADOW_GPR(x)	((x) + SPR_GPR_BASE + 32)
+
 /*
  * emergency_print temporary stores
  */
+#ifdef CONFIG_OPENRISC_HAVE_SHADOW_GPRS
+#define EMERGENCY_PRINT_STORE_GPR4	l.mtspr r0,r4,SPR_SHADOW_GPR(14)
+#define EMERGENCY_PRINT_LOAD_GPR4	l.mfspr r4,r0,SPR_SHADOW_GPR(14)
+
+#define EMERGENCY_PRINT_STORE_GPR5	l.mtspr r0,r5,SPR_SHADOW_GPR(15)
+#define EMERGENCY_PRINT_LOAD_GPR5	l.mfspr r5,r0,SPR_SHADOW_GPR(15)
+
+#define EMERGENCY_PRINT_STORE_GPR6	l.mtspr r0,r6,SPR_SHADOW_GPR(16)
+#define EMERGENCY_PRINT_LOAD_GPR6	l.mfspr r6,r0,SPR_SHADOW_GPR(16)
+
+#define EMERGENCY_PRINT_STORE_GPR7	l.mtspr r0,r7,SPR_SHADOW_GPR(7)
+#define EMERGENCY_PRINT_LOAD_GPR7	l.mfspr r7,r0,SPR_SHADOW_GPR(7)
+
+#define EMERGENCY_PRINT_STORE_GPR8	l.mtspr r0,r8,SPR_SHADOW_GPR(8)
+#define EMERGENCY_PRINT_LOAD_GPR8	l.mfspr r8,r0,SPR_SHADOW_GPR(8)
+
+#define EMERGENCY_PRINT_STORE_GPR9	l.mtspr r0,r9,SPR_SHADOW_GPR(9)
+#define EMERGENCY_PRINT_LOAD_GPR9	l.mfspr r9,r0,SPR_SHADOW_GPR(9)
+
+#else /* !CONFIG_OPENRISC_HAVE_SHADOW_GPRS */
 #define EMERGENCY_PRINT_STORE_GPR4	l.sw    0x20(r0),r4
 #define EMERGENCY_PRINT_LOAD_GPR4	l.lwz   r4,0x20(r0)
 
@@ -69,13 +88,28 @@
 #define EMERGENCY_PRINT_STORE_GPR9	l.sw    0x34(r0),r9
 #define EMERGENCY_PRINT_LOAD_GPR9	l.lwz   r9,0x34(r0)
 
+#endif
 
 /*
  * TLB miss handlers temorary stores
  */
-#define EXCEPTION_STORE_GPR9		l.sw    0x10(r0),r9
-#define EXCEPTION_LOAD_GPR9		l.lwz   r9,0x10(r0)
+#ifdef CONFIG_OPENRISC_HAVE_SHADOW_GPRS
+#define EXCEPTION_STORE_GPR2		l.mtspr r0,r2,SPR_SHADOW_GPR(2)
+#define EXCEPTION_LOAD_GPR2		l.mfspr r2,r0,SPR_SHADOW_GPR(2)
 
+#define EXCEPTION_STORE_GPR3		l.mtspr r0,r3,SPR_SHADOW_GPR(3)
+#define EXCEPTION_LOAD_GPR3		l.mfspr r3,r0,SPR_SHADOW_GPR(3)
+
+#define EXCEPTION_STORE_GPR4		l.mtspr r0,r4,SPR_SHADOW_GPR(4)
+#define EXCEPTION_LOAD_GPR4		l.mfspr r4,r0,SPR_SHADOW_GPR(4)
+
+#define EXCEPTION_STORE_GPR5		l.mtspr r0,r5,SPR_SHADOW_GPR(5)
+#define EXCEPTION_LOAD_GPR5		l.mfspr r5,r0,SPR_SHADOW_GPR(5)
+
+#define EXCEPTION_STORE_GPR6		l.mtspr r0,r6,SPR_SHADOW_GPR(6)
+#define EXCEPTION_LOAD_GPR6		l.mfspr r6,r0,SPR_SHADOW_GPR(6)
+
+#else /* !CONFIG_OPENRISC_HAVE_SHADOW_GPRS */
 #define EXCEPTION_STORE_GPR2		l.sw    0x64(r0),r2
 #define EXCEPTION_LOAD_GPR2		l.lwz   r2,0x64(r0)
 
@@ -91,35 +125,67 @@
 #define EXCEPTION_STORE_GPR6		l.sw    0x74(r0),r6
 #define EXCEPTION_LOAD_GPR6		l.lwz   r6,0x74(r0)
 
+#endif
 
 /*
  * EXCEPTION_HANDLE temporary stores
  */
 
+#ifdef CONFIG_OPENRISC_HAVE_SHADOW_GPRS
+#define EXCEPTION_T_STORE_GPR30		l.mtspr r0,r30,SPR_SHADOW_GPR(30)
+#define EXCEPTION_T_LOAD_GPR30(reg)	l.mfspr reg,r0,SPR_SHADOW_GPR(30)
+
+#define EXCEPTION_T_STORE_GPR10		l.mtspr r0,r10,SPR_SHADOW_GPR(10)
+#define EXCEPTION_T_LOAD_GPR10(reg)	l.mfspr reg,r0,SPR_SHADOW_GPR(10)
+
+#define EXCEPTION_T_STORE_SP		l.mtspr r0,r1,SPR_SHADOW_GPR(1)
+#define EXCEPTION_T_LOAD_SP(reg)	l.mfspr reg,r0,SPR_SHADOW_GPR(1)
+
+#else /* !CONFIG_OPENRISC_HAVE_SHADOW_GPRS */
 #define EXCEPTION_T_STORE_GPR30		l.sw    0x78(r0),r30
 #define EXCEPTION_T_LOAD_GPR30(reg)	l.lwz   reg,0x78(r0)
 
 #define EXCEPTION_T_STORE_GPR10		l.sw    0x7c(r0),r10
 #define EXCEPTION_T_LOAD_GPR10(reg)	l.lwz   reg,0x7c(r0)
 
-#define EXCEPTION_T_STORE_SP		l.sw	0x80(r0),r1
+#define EXCEPTION_T_STORE_SP		l.sw    0x80(r0),r1
 #define EXCEPTION_T_LOAD_SP(reg)	l.lwz   reg,0x80(r0)
-
-/*
- * For UNHANLDED_EXCEPTION
- */
-
-#define EXCEPTION_T_STORE_GPR31		l.sw    0x84(r0),r31
-#define EXCEPTION_T_LOAD_GPR31(reg)	l.lwz   reg,0x84(r0)
+#endif
 
 /* =========================================================[ macros ]=== */
 
-
+#ifdef CONFIG_SMP
+#define GET_CURRENT_PGD(reg,t1)					\
+	LOAD_SYMBOL_2_GPR(reg,current_pgd)			;\
+	l.mfspr	t1,r0,SPR_COREID				;\
+	l.slli	t1,t1,2						;\
+	l.add	reg,reg,t1					;\
+	tophys  (t1,reg)					;\
+	l.lwz   reg,0(t1)
+#else
 #define GET_CURRENT_PGD(reg,t1)					\
 	LOAD_SYMBOL_2_GPR(reg,current_pgd)			;\
 	tophys  (t1,reg)					;\
 	l.lwz   reg,0(t1)
+#endif
 
+/* Load r10 from current_thread_info_set - clobbers r1 and r30 */
+#ifdef CONFIG_SMP
+#define GET_CURRENT_THREAD_INFO					\
+	LOAD_SYMBOL_2_GPR(r1,current_thread_info_set)		;\
+	tophys  (r30,r1)					;\
+	l.mfspr	r10,r0,SPR_COREID				;\
+	l.slli	r10,r10,2					;\
+	l.add	r30,r30,r10					;\
+	/* r10: current_thread_info  */				;\
+	l.lwz   r10,0(r30)
+#else
+#define GET_CURRENT_THREAD_INFO					\
+	LOAD_SYMBOL_2_GPR(r1,current_thread_info_set)		;\
+	tophys  (r30,r1)					;\
+	/* r10: current_thread_info  */				;\
+	l.lwz   r10,0(r30)
+#endif
 
 /*
  * DSCR: this is a common hook for handling exceptions. it will save
@@ -140,8 +206,7 @@
  *	 r4  - EEAR     exception EA
  *	 r10 - current	pointing to current_thread_info struct
  *	 r12 - syscall  0, since we didn't come from syscall
- *	 r13 - temp	it actually contains new SR, not needed anymore
- *	 r31 - handler	address of the handler we'll jump to
+ *	 r30 - handler	address of the handler we'll jump to
  *
  *	 handler has to save remaining registers to the exception
  *	 ksp frame *before* tainting them!
@@ -162,10 +227,7 @@
 	l.bnf   2f                            /* kernel_mode */	;\
 	 EXCEPTION_T_STORE_SP                 /* delay slot */	;\
 1: /* user_mode:   */						;\
-	LOAD_SYMBOL_2_GPR(r1,current_thread_info_set)		;\
-	tophys  (r30,r1)					;\
-	/* r10: current_thread_info  */				;\
-	l.lwz   r10,0(r30)					;\
+	GET_CURRENT_THREAD_INFO	 				;\
 	tophys  (r30,r10)					;\
 	l.lwz   r1,(TI_KSP)(r30)				;\
 	/* fall through */					;\
@@ -177,6 +239,7 @@
 	/* r1 is KSP, r30 is __pa(KSP) */			;\
 	tophys  (r30,r1)					;\
 	l.sw    PT_GPR12(r30),r12				;\
+	/* r4 use for tmp before EA */				;\
 	l.mfspr r12,r0,SPR_EPCR_BASE				;\
 	l.sw    PT_PC(r30),r12					;\
 	l.mfspr r12,r0,SPR_ESR_BASE				;\
@@ -196,7 +259,10 @@
 	/* r12 == 1 if we come from syscall */			;\
 	CLEAR_GPR(r12)						;\
 	/* ----- turn on MMU ----- */				;\
-	l.ori	r30,r0,(EXCEPTION_SR)				;\
+	/* Carry DSX into exception SR */			;\
+	l.mfspr r30,r0,SPR_SR					;\
+	l.andi	r30,r30,SPR_SR_DSX				;\
+	l.ori	r30,r30,(EXCEPTION_SR)				;\
 	l.mtspr	r0,r30,SPR_ESR_BASE				;\
 	/* r30:	EA address of handler */			;\
 	LOAD_SYMBOL_2_GPR(r30,handler)				;\
@@ -225,7 +291,7 @@
  *
  */
 #define UNHANDLED_EXCEPTION(handler)				\
-	EXCEPTION_T_STORE_GPR31					;\
+	EXCEPTION_T_STORE_GPR30					;\
 	EXCEPTION_T_STORE_GPR10					;\
 	EXCEPTION_T_STORE_SP					;\
 	/* temporary store r3, r9 into r1, r10 */		;\
@@ -254,35 +320,35 @@
 	/* r1: KSP, r10: current, r31: __pa(KSP) */		;\
 	/* r12:	temp, syscall indicator, r13 temp */		;\
 	l.addi  r1,r1,-(INT_FRAME_SIZE)				;\
-	/* r1 is KSP, r31 is __pa(KSP) */			;\
-	tophys  (r31,r1)					;\
-	l.sw    PT_GPR12(r31),r12					;\
+	/* r1 is KSP, r30 is __pa(KSP) */			;\
+	tophys  (r30,r1)					;\
+	l.sw    PT_GPR12(r30),r12					;\
 	l.mfspr r12,r0,SPR_EPCR_BASE				;\
-	l.sw    PT_PC(r31),r12					;\
+	l.sw    PT_PC(r30),r12					;\
 	l.mfspr r12,r0,SPR_ESR_BASE				;\
-	l.sw    PT_SR(r31),r12					;\
+	l.sw    PT_SR(r30),r12					;\
 	/* save r31 */						;\
-	EXCEPTION_T_LOAD_GPR31(r12)				;\
-	l.sw	PT_GPR31(r31),r12					;\
+	EXCEPTION_T_LOAD_GPR30(r12)				;\
+	l.sw	PT_GPR30(r30),r12					;\
 	/* save r10 as was prior to exception */		;\
 	EXCEPTION_T_LOAD_GPR10(r12)				;\
-	l.sw	PT_GPR10(r31),r12					;\
+	l.sw	PT_GPR10(r30),r12					;\
 	/* save PT_SP as was prior to exception */			;\
 	EXCEPTION_T_LOAD_SP(r12)				;\
-	l.sw	PT_SP(r31),r12					;\
-	l.sw    PT_GPR13(r31),r13					;\
+	l.sw	PT_SP(r30),r12					;\
+	l.sw    PT_GPR13(r30),r13					;\
 	/* --> */						;\
 	/* save exception r4, set r4 = EA */			;\
-	l.sw	PT_GPR4(r31),r4					;\
+	l.sw	PT_GPR4(r30),r4					;\
 	l.mfspr r4,r0,SPR_EEAR_BASE				;\
 	/* r12 == 1 if we come from syscall */			;\
 	CLEAR_GPR(r12)						;\
 	/* ----- play a MMU trick ----- */			;\
-	l.ori	r31,r0,(EXCEPTION_SR)				;\
-	l.mtspr	r0,r31,SPR_ESR_BASE				;\
+	l.ori	r30,r0,(EXCEPTION_SR)				;\
+	l.mtspr	r0,r30,SPR_ESR_BASE				;\
 	/* r31:	EA address of handler */			;\
-	LOAD_SYMBOL_2_GPR(r31,handler)				;\
-	l.mtspr r0,r31,SPR_EPCR_BASE				;\
+	LOAD_SYMBOL_2_GPR(r30,handler)				;\
+	l.mtspr r0,r30,SPR_EPCR_BASE				;\
 	l.rfe
 
 /* =====================================================[ exceptions] === */
@@ -324,7 +390,7 @@ _dispatch_do_ipage_fault:
     .org 0x500
 	EXCEPTION_HANDLE(_timer_handler)
 
-/* ---[ 0x600: Aligment exception ]-------------------------------------- */
+/* ---[ 0x600: Alignment exception ]-------------------------------------- */
     .org 0x600
 	EXCEPTION_HANDLE(_alignment_handler)
 
@@ -442,6 +508,9 @@ _dispatch_do_ipage_fault:
 	__HEAD
 	.global _start
 _start:
+	/* Init r0 to zero as per spec */
+	CLEAR_GPR(r0)
+
 	/* save kernel parameters */
 	l.or	r25,r0,r3	/* pointer to fdt */
 
@@ -483,10 +552,17 @@ _start:
 	CLEAR_GPR(r30)
 	CLEAR_GPR(r31)
 
+#ifdef CONFIG_SMP
+	l.mfspr	r26,r0,SPR_COREID
+	l.sfeq	r26,r0
+	l.bnf	secondary_wait
+	 l.nop
+#endif
 	/*
 	 * set up initial ksp and current
 	 */
-	LOAD_SYMBOL_2_GPR(r1,init_thread_union+0x2000)	// setup kernel stack
+	/* setup kernel stack */
+	LOAD_SYMBOL_2_GPR(r1,init_thread_union + THREAD_SIZE)
 	LOAD_SYMBOL_2_GPR(r10,init_thread_union)	// setup current
 	tophys	(r31,r10)
 	l.sw	TI_KSP(r31), r1
@@ -520,22 +596,8 @@ enable_dc:
 	 l.nop
 
 flush_tlb:
-	/*
-	 *  I N V A L I D A T E   T L B   e n t r i e s
-	 */
-	LOAD_SYMBOL_2_GPR(r5,SPR_DTLBMR_BASE(0))
-	LOAD_SYMBOL_2_GPR(r6,SPR_ITLBMR_BASE(0))
-	l.addi	r7,r0,128 /* Maximum number of sets */
-1:
-	l.mtspr	r5,r0,0x0
-	l.mtspr	r6,r0,0x0
-
-	l.addi	r5,r5,1
-	l.addi	r6,r6,1
-	l.sfeq	r7,r0
-	l.bnf	1b
-	 l.addi	r7,r7,-1
-
+	l.jal	_flush_tlb
+	 l.nop
 
 /* The MMU needs to be enabled before or32_early_setup is called */
 
@@ -627,10 +689,124 @@ jump_start_kernel:
 	l.jr    r30
 	 l.nop
 
+_flush_tlb:
+	/*
+	 *  I N V A L I D A T E   T L B   e n t r i e s
+	 */
+	LOAD_SYMBOL_2_GPR(r5,SPR_DTLBMR_BASE(0))
+	LOAD_SYMBOL_2_GPR(r6,SPR_ITLBMR_BASE(0))
+	l.addi	r7,r0,128 /* Maximum number of sets */
+1:
+	l.mtspr	r5,r0,0x0
+	l.mtspr	r6,r0,0x0
+
+	l.addi	r5,r5,1
+	l.addi	r6,r6,1
+	l.sfeq	r7,r0
+	l.bnf	1b
+	 l.addi	r7,r7,-1
+
+	l.jr	r9
+	 l.nop
+
+#ifdef CONFIG_SMP
+secondary_wait:
+	/* Doze the cpu until we are asked to run */
+	/* If we dont have power management skip doze */
+	l.mfspr r25,r0,SPR_UPR
+	l.andi  r25,r25,SPR_UPR_PMP
+	l.sfeq  r25,r0
+	l.bf	secondary_check_release
+	 l.nop
+
+	/* Setup special secondary exception handler */
+	LOAD_SYMBOL_2_GPR(r3, _secondary_evbar)
+	tophys(r25,r3)
+	l.mtspr	r0,r25,SPR_EVBAR
+
+	/* Enable Interrupts */
+	l.mfspr	r25,r0,SPR_SR
+	l.ori	r25,r25,SPR_SR_IEE
+	l.mtspr	r0,r25,SPR_SR
+
+	/* Unmask interrupts interrupts */
+	l.mfspr r25,r0,SPR_PICMR
+	l.ori   r25,r25,0xffff
+	l.mtspr	r0,r25,SPR_PICMR
+
+	/* Doze */
+	l.mfspr r25,r0,SPR_PMR
+	LOAD_SYMBOL_2_GPR(r3, SPR_PMR_DME)
+	l.or    r25,r25,r3
+	l.mtspr r0,r25,SPR_PMR
+
+	/* Wakeup - Restore exception handler */
+	l.mtspr	r0,r0,SPR_EVBAR
+
+secondary_check_release:
+	/*
+	 * Check if we actually got the release signal, if not go-back to
+	 * sleep.
+	 */
+	l.mfspr	r25,r0,SPR_COREID
+	LOAD_SYMBOL_2_GPR(r3, secondary_release)
+	tophys(r4, r3)
+	l.lwz	r3,0(r4)
+	l.sfeq	r25,r3
+	l.bnf	secondary_wait
+	 l.nop
+	/* fall through to secondary_init */
+
+secondary_init:
+	/*
+	 * set up initial ksp and current
+	 */
+	LOAD_SYMBOL_2_GPR(r10, secondary_thread_info)
+	tophys	(r30,r10)
+	l.lwz	r10,0(r30)
+	l.addi	r1,r10,THREAD_SIZE
+	tophys	(r30,r10)
+	l.sw	TI_KSP(r30),r1
+
+	l.jal	_ic_enable
+	 l.nop
+
+	l.jal	_dc_enable
+	 l.nop
+
+	l.jal	_flush_tlb
+	 l.nop
+
+	/*
+	 * enable dmmu & immu
+	 */
+	l.mfspr	r30,r0,SPR_SR
+	l.movhi	r28,hi(SPR_SR_DME | SPR_SR_IME)
+	l.ori	r28,r28,lo(SPR_SR_DME | SPR_SR_IME)
+	l.or	r30,r30,r28
+	/*
+	 * This is a bit tricky, we need to switch over from physical addresses
+	 * to virtual addresses on the fly.
+	 * To do that, we first set up ESR with the IME and DME bits set.
+	 * Then EPCR is set to secondary_start and then a l.rfe is issued to
+	 * "jump" to that.
+	 */
+	l.mtspr	r0,r30,SPR_ESR_BASE
+	LOAD_SYMBOL_2_GPR(r30, secondary_start)
+	l.mtspr	r0,r30,SPR_EPCR_BASE
+	l.rfe
+
+secondary_start:
+	LOAD_SYMBOL_2_GPR(r30, secondary_start_kernel)
+	l.jr    r30
+	 l.nop
+
+#endif
+
 /* ========================================[ cache ]=== */
 
-	/* aligment here so we don't change memory offsets with
-	 * memory controler defined
+	/* alignment here so we don't change memory offsets with
+	 * memory controller defined
 	 */
 	.align 0x2000
 
@@ -971,8 +1147,6 @@ ENTRY(dtlb_miss_handler)
 	EXCEPTION_STORE_GPR2
 	EXCEPTION_STORE_GPR3
 	EXCEPTION_STORE_GPR4
-	EXCEPTION_STORE_GPR5
-	EXCEPTION_STORE_GPR6
 	/*
 	 * get EA of the miss
 	 */
@@ -980,91 +1154,70 @@ ENTRY(dtlb_miss_handler)
 	/*
 	 * pmd = (pmd_t *)(current_pgd + pgd_index(daddr));
 	 */
-	GET_CURRENT_PGD(r3,r5)		// r3 is current_pgd, r5 is temp
+	GET_CURRENT_PGD(r3,r4)		// r3 is current_pgd, r4 is temp
 	l.srli	r4,r2,0x18		// >> PAGE_SHIFT + (PAGE_SHIFT - 2)
 	l.slli	r4,r4,0x2		// to get address << 2
-	l.add	r5,r4,r3		// r4 is pgd_index(daddr)
+	l.add	r3,r4,r3		// r4 is pgd_index(daddr)
 	/*
 	 * if (pmd_none(*pmd))
 	 *   goto pmd_none:
 	 */
-	tophys	(r4,r5)
+	tophys	(r4,r3)
 	l.lwz	r3,0x0(r4)		// get *pmd value
 	l.sfne	r3,r0
 	l.bnf	d_pmd_none
-	 l.andi	r3,r3,~PAGE_MASK //0x1fff		// ~PAGE_MASK
-	/*
-	 * if (pmd_bad(*pmd))
-	 *   pmd_clear(pmd)
-	 *   goto pmd_bad:
-	 */
-//	l.sfeq	r3,r0			// check *pmd value
-//	l.bf	d_pmd_good
-	l.addi	r3,r0,0xffffe000	// PAGE_MASK
-//	l.j	d_pmd_bad
-//	l.sw	0x0(r4),r0		// clear pmd
+	 l.addi	r3,r0,0xffffe000	// PAGE_MASK
+
 d_pmd_good:
 	/*
 	 * pte = *pte_offset(pmd, daddr);
 	 */
 	l.lwz	r4,0x0(r4)		// get **pmd value
 	l.and	r4,r4,r3		// & PAGE_MASK
-	l.srli	r5,r2,0xd		// >> PAGE_SHIFT, r2 == EEAR
-	l.andi	r3,r5,0x7ff		// (1UL << PAGE_SHIFT - 2) - 1
+	l.srli	r2,r2,0xd		// >> PAGE_SHIFT, r2 == EEAR
+	l.andi	r3,r2,0x7ff		// (1UL << PAGE_SHIFT - 2) - 1
 	l.slli	r3,r3,0x2		// to get address << 2
 	l.add	r3,r3,r4
-	l.lwz	r2,0x0(r3)		// this is pte at last
+	l.lwz	r3,0x0(r3)		// this is pte at last
 	/*
 	 * if (!pte_present(pte))
 	 */
-	l.andi	r4,r2,0x1
+	l.andi	r4,r3,0x1
 	l.sfne	r4,r0			// is pte present
 	l.bnf	d_pte_not_present
-	l.addi	r3,r0,0xffffe3fa	// PAGE_MASK | DTLB_UP_CONVERT_MASK
+	l.addi	r4,r0,0xffffe3fa	// PAGE_MASK | DTLB_UP_CONVERT_MASK
 	/*
 	 * fill DTLB TR register
 	 */
-	l.and	r4,r2,r3		// apply the mask
+	l.and	r4,r3,r4		// apply the mask
 	// Determine number of DMMU sets
-	l.mfspr r6, r0, SPR_DMMUCFGR
-	l.andi	r6, r6, SPR_DMMUCFGR_NTS
-	l.srli	r6, r6, SPR_DMMUCFGR_NTS_OFF
+	l.mfspr r2, r0, SPR_DMMUCFGR
+	l.andi	r2, r2, SPR_DMMUCFGR_NTS
+	l.srli	r2, r2, SPR_DMMUCFGR_NTS_OFF
 	l.ori	r3, r0, 0x1
-	l.sll	r3, r3, r6 	// r3 = number DMMU sets DMMUCFGR
-	l.addi	r6, r3, -1  	// r6 = nsets mask
-	l.and	r5, r5, r6	// calc offset:	 & (NUM_TLB_ENTRIES-1)
+	l.sll	r3, r3, r2 	// r3 = number DMMU sets DMMUCFGR
+	l.addi	r2, r3, -1  	// r2 = nsets mask
+	l.mfspr	r3, r0, SPR_EEAR_BASE
+	l.srli	r3, r3, 0xd	// >> PAGE_SHIFT
+	l.and	r2, r3, r2	// calc offset:	 & (NUM_TLB_ENTRIES-1)
 	                                                   //NUM_TLB_ENTRIES
-	l.mtspr	r5,r4,SPR_DTLBTR_BASE(0)
+	l.mtspr	r2,r4,SPR_DTLBTR_BASE(0)
 	/*
 	 * fill DTLB MR register
 	 */
-	l.mfspr	r2,r0,SPR_EEAR_BASE
-	l.addi	r3,r0,0xffffe000	// PAGE_MASK
-	l.and	r4,r2,r3		// apply PAGE_MASK to EA (__PHX__ do we really need this?)
-	l.ori	r4,r4,0x1		// set hardware valid bit: DTBL_MR entry
-	l.mtspr	r5,r4,SPR_DTLBMR_BASE(0)
+	l.slli	r3, r3, 0xd		/* << PAGE_SHIFT => EA & PAGE_MASK */
+	l.ori	r4,r3,0x1		// set hardware valid bit: DTBL_MR entry
+	l.mtspr	r2,r4,SPR_DTLBMR_BASE(0)
 
 	EXCEPTION_LOAD_GPR2
 	EXCEPTION_LOAD_GPR3
 	EXCEPTION_LOAD_GPR4
-	EXCEPTION_LOAD_GPR5
-	EXCEPTION_LOAD_GPR6
-	l.rfe
-d_pmd_bad:
-	l.nop	1
-	EXCEPTION_LOAD_GPR2
-	EXCEPTION_LOAD_GPR3
-	EXCEPTION_LOAD_GPR4
-	EXCEPTION_LOAD_GPR5
-	EXCEPTION_LOAD_GPR6
 	l.rfe
 d_pmd_none:
 d_pte_not_present:
 	EXCEPTION_LOAD_GPR2
 	EXCEPTION_LOAD_GPR3
 	EXCEPTION_LOAD_GPR4
-	EXCEPTION_LOAD_GPR5
-	EXCEPTION_LOAD_GPR6
 	EXCEPTION_HANDLE(_dtlb_miss_page_fault_handler)
 
 /* ==============================================[ ITLB miss handler ]=== */
@@ -1072,8 +1225,6 @@ ENTRY(itlb_miss_handler)
 	EXCEPTION_STORE_GPR2
 	EXCEPTION_STORE_GPR3
 	EXCEPTION_STORE_GPR4
-	EXCEPTION_STORE_GPR5
-	EXCEPTION_STORE_GPR6
 	/*
 	 * get EA of the miss
 	 */
@@ -1083,30 +1234,19 @@ ENTRY(itlb_miss_handler)
 	 * pmd = (pmd_t *)(current_pgd + pgd_index(daddr));
 	 *
 	 */
-	GET_CURRENT_PGD(r3,r5)		// r3 is current_pgd, r5 is temp
+	GET_CURRENT_PGD(r3,r4)		// r3 is current_pgd, r5 is temp
 	l.srli	r4,r2,0x18		// >> PAGE_SHIFT + (PAGE_SHIFT - 2)
 	l.slli	r4,r4,0x2		// to get address << 2
-	l.add	r5,r4,r3		// r4 is pgd_index(daddr)
+	l.add	r3,r4,r3		// r4 is pgd_index(daddr)
 	/*
 	 * if (pmd_none(*pmd))
 	 *   goto pmd_none:
 	 */
-	tophys	(r4,r5)
+	tophys	(r4,r3)
 	l.lwz	r3,0x0(r4)		// get *pmd value
 	l.sfne	r3,r0
 	l.bnf	i_pmd_none
-	l.andi	r3,r3,0x1fff		// ~PAGE_MASK
-	/*
-	 * if (pmd_bad(*pmd))
-	 *   pmd_clear(pmd)
-	 *   goto pmd_bad:
-	 */
-
-//	l.sfeq	r3,r0			// check *pmd value
-//	l.bf	i_pmd_good
-	l.addi	r3,r0,0xffffe000	// PAGE_MASK
-//	l.j	i_pmd_bad
-//	l.sw	0x0(r4),r0		// clear pmd
+	 l.addi	r3,r0,0xffffe000	// PAGE_MASK
 
 i_pmd_good:
 	/*
@@ -1115,35 +1255,36 @@ i_pmd_good:
 	 */
 	l.lwz	r4,0x0(r4)		// get **pmd value
 	l.and	r4,r4,r3		// & PAGE_MASK
-	l.srli	r5,r2,0xd		// >> PAGE_SHIFT, r2 == EEAR
-	l.andi	r3,r5,0x7ff		// (1UL << PAGE_SHIFT - 2) - 1
+	l.srli	r2,r2,0xd		// >> PAGE_SHIFT, r2 == EEAR
+	l.andi	r3,r2,0x7ff		// (1UL << PAGE_SHIFT - 2) - 1
 	l.slli	r3,r3,0x2		// to get address << 2
 	l.add	r3,r3,r4
-	l.lwz	r2,0x0(r3)		// this is pte at last
+	l.lwz	r3,0x0(r3)		// this is pte at last
 	/*
 	 * if (!pte_present(pte))
 	 *
 	 */
-	l.andi	r4,r2,0x1
+	l.andi	r4,r3,0x1
 	l.sfne	r4,r0			// is pte present
 	l.bnf	i_pte_not_present
-	l.addi	r3,r0,0xffffe03a	// PAGE_MASK | ITLB_UP_CONVERT_MASK
+	 l.addi	r4,r0,0xffffe03a	// PAGE_MASK | ITLB_UP_CONVERT_MASK
 	/*
 	 * fill ITLB TR register
 	 */
-	l.and	r4,r2,r3		// apply the mask
-	l.andi	r3,r2,0x7c0		// _PAGE_EXEC | _PAGE_SRE | _PAGE_SWE |  _PAGE_URE | _PAGE_UWE
-//	l.andi	r3,r2,0x400		// _PAGE_EXEC
+	l.and	r4,r3,r4		// apply the mask
+	l.andi	r3,r3,0x7c0		// _PAGE_EXEC | _PAGE_SRE | _PAGE_SWE |  _PAGE_URE | _PAGE_UWE
 	l.sfeq	r3,r0
 	l.bf	itlb_tr_fill //_workaround
 	// Determine number of IMMU sets
-	l.mfspr r6, r0, SPR_IMMUCFGR
-	l.andi	r6, r6, SPR_IMMUCFGR_NTS
-	l.srli	r6, r6, SPR_IMMUCFGR_NTS_OFF
+	l.mfspr r2, r0, SPR_IMMUCFGR
+	l.andi	r2, r2, SPR_IMMUCFGR_NTS
+	l.srli	r2, r2, SPR_IMMUCFGR_NTS_OFF
 	l.ori	r3, r0, 0x1
-	l.sll	r3, r3, r6 	// r3 = number IMMU sets IMMUCFGR
-	l.addi	r6, r3, -1  	// r6 = nsets mask
-	l.and	r5, r5, r6	// calc offset:	 & (NUM_TLB_ENTRIES-1)
+	l.sll	r3, r3, r2 	// r3 = number IMMU sets IMMUCFGR
+	l.addi	r2, r3, -1  	// r2 = nsets mask
+	l.mfspr	r3, r0, SPR_EEAR_BASE
+	l.srli	r3, r3, 0xd	// >> PAGE_SHIFT
+	l.and	r2, r3, r2	// calc offset:	 & (NUM_TLB_ENTRIES-1)
 
 /*
  * __PHX__ :: fixme
@@ -1155,38 +1296,24 @@ i_pmd_good:
 itlb_tr_fill_workaround:
 	l.ori	r4,r4,0xc0		// | (SPR_ITLBTR_UXE | ITLBTR_SXE)
 itlb_tr_fill:
-	l.mtspr	r5,r4,SPR_ITLBTR_BASE(0)
+	l.mtspr	r2,r4,SPR_ITLBTR_BASE(0)
 	/*
 	 * fill DTLB MR register
 	 */
-	l.mfspr	r2,r0,SPR_EEAR_BASE
-	l.addi	r3,r0,0xffffe000	// PAGE_MASK
-	l.and	r4,r2,r3		// apply PAGE_MASK to EA (__PHX__ do we really need this?)
-	l.ori	r4,r4,0x1		// set hardware valid bit: DTBL_MR entry
-	l.mtspr	r5,r4,SPR_ITLBMR_BASE(0)
+	l.slli	r3, r3, 0xd		/* << PAGE_SHIFT => EA & PAGE_MASK */
+	l.ori	r4,r3,0x1		// set hardware valid bit: ITBL_MR entry
+	l.mtspr	r2,r4,SPR_ITLBMR_BASE(0)
 
 	EXCEPTION_LOAD_GPR2
 	EXCEPTION_LOAD_GPR3
 	EXCEPTION_LOAD_GPR4
-	EXCEPTION_LOAD_GPR5
-	EXCEPTION_LOAD_GPR6
 	l.rfe
 
-i_pmd_bad:
-	l.nop	1
-	EXCEPTION_LOAD_GPR2
-	EXCEPTION_LOAD_GPR3
-	EXCEPTION_LOAD_GPR4
-	EXCEPTION_LOAD_GPR5
-	EXCEPTION_LOAD_GPR6
-	l.rfe
 i_pmd_none:
 i_pte_not_present:
 	EXCEPTION_LOAD_GPR2
 	EXCEPTION_LOAD_GPR3
 	EXCEPTION_LOAD_GPR4
-	EXCEPTION_LOAD_GPR5
-	EXCEPTION_LOAD_GPR6
 	EXCEPTION_HANDLE(_itlb_miss_page_fault_handler)
 
 /* ==============================================[ boot tlb handlers ]=== */
@@ -1571,12 +1698,18 @@ ENTRY(_early_uart_init)
 	l.jr	r9
 	l.nop
 
-_string_copying_linux:
-	.string "\n\n\n\n\n\rCopying Linux... \0"
+	.align	0x1000
+	.global _secondary_evbar
+_secondary_evbar:
 
-_string_ok_booting:
-	.string "Ok, booting the kernel.\n\r\0"
+	.space 0x800
+	/* Just disable interrupts and Return */
+	l.ori	r3,r0,SPR_SR_SM
+	l.mtspr	r0,r3,SPR_ESR_BASE
+	l.rfe
 
+
+	.section .rodata
 _string_unhandled_exception:
 	.string "\n\rRunarunaround: Unhandled exception 0x\0"
 
@@ -1586,17 +1719,12 @@ _string_epc_prefix:
 _string_nl:
 	.string "\n\r\0"
 
-	.global	_string_esr_irq_bug
-_string_esr_irq_bug:
-	.string "\n\rESR external interrupt bug, for details look into entry.S\n\r\0"
-
-
 
 /* ========================================[ page aligned structures ]=== */
 
 /*
  * .data section should be page aligned
- *	(look into arch/or32/kernel/vmlinux.lds)
+ *	(look into arch/openrisc/kernel/vmlinux.lds.S)
  */
 	.section .data,"aw"
 	.align	8192

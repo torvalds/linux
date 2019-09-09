@@ -1,23 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Collaborative memory management interface.
  *
  * Copyright (C) 2008 IBM Corporation
  * Author(s): Brian King (brking@linux.vnet.ibm.com),
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  */
 
 #include <linux/ctype.h>
@@ -37,9 +23,11 @@
 #include <asm/hvcall.h>
 #include <asm/mmu.h>
 #include <asm/pgalloc.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/memory.h>
 #include <asm/plpar_wrappers.h>
+
+#include "pseries.h"
 
 #define CMM_DRIVER_VERSION	"1.0.0"
 #define CMM_DEFAULT_DELAY	1
@@ -70,20 +58,20 @@ MODULE_DESCRIPTION("IBM System p Collaborative Memory Manager");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(CMM_DRIVER_VERSION);
 
-module_param_named(delay, delay, uint, S_IRUGO | S_IWUSR);
+module_param_named(delay, delay, uint, 0644);
 MODULE_PARM_DESC(delay, "Delay (in seconds) between polls to query hypervisor paging requests. "
 		 "[Default=" __stringify(CMM_DEFAULT_DELAY) "]");
-module_param_named(hotplug_delay, hotplug_delay, uint, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(delay, "Delay (in seconds) after memory hotplug remove "
+module_param_named(hotplug_delay, hotplug_delay, uint, 0644);
+MODULE_PARM_DESC(hotplug_delay, "Delay (in seconds) after memory hotplug remove "
 		 "before loaning resumes. "
 		 "[Default=" __stringify(CMM_HOTPLUG_DELAY) "]");
-module_param_named(oom_kb, oom_kb, uint, S_IRUGO | S_IWUSR);
+module_param_named(oom_kb, oom_kb, uint, 0644);
 MODULE_PARM_DESC(oom_kb, "Amount of memory in kb to free on OOM. "
 		 "[Default=" __stringify(CMM_OOM_KB) "]");
-module_param_named(min_mem_mb, min_mem_mb, ulong, S_IRUGO | S_IWUSR);
+module_param_named(min_mem_mb, min_mem_mb, ulong, 0644);
 MODULE_PARM_DESC(min_mem_mb, "Minimum amount of memory (in MB) to not balloon. "
 		 "[Default=" __stringify(CMM_MIN_MEM_MB) "]");
-module_param_named(debug, cmm_debug, uint, S_IRUGO | S_IWUSR);
+module_param_named(debug, cmm_debug, uint, 0644);
 MODULE_PARM_DESC(debug, "Enable module debugging logging. Set to 1 to enable. "
 		 "[Default=" __stringify(CMM_DEBUG) "]");
 
@@ -108,6 +96,38 @@ static DEFINE_MUTEX(hotplug_mutex);
 static int hotplug_occurred; /* protected by the hotplug mutex */
 
 static struct task_struct *cmm_thread_ptr;
+
+static long plpar_page_set_loaned(unsigned long vpa)
+{
+	unsigned long cmo_page_sz = cmo_get_page_size();
+	long rc = 0;
+	int i;
+
+	for (i = 0; !rc && i < PAGE_SIZE; i += cmo_page_sz)
+		rc = plpar_hcall_norets(H_PAGE_INIT, H_PAGE_SET_LOANED, vpa + i, 0);
+
+	for (i -= cmo_page_sz; rc && i != 0; i -= cmo_page_sz)
+		plpar_hcall_norets(H_PAGE_INIT, H_PAGE_SET_ACTIVE,
+				   vpa + i - cmo_page_sz, 0);
+
+	return rc;
+}
+
+static long plpar_page_set_active(unsigned long vpa)
+{
+	unsigned long cmo_page_sz = cmo_get_page_size();
+	long rc = 0;
+	int i;
+
+	for (i = 0; !rc && i < PAGE_SIZE; i += cmo_page_sz)
+		rc = plpar_hcall_norets(H_PAGE_INIT, H_PAGE_SET_ACTIVE, vpa + i, 0);
+
+	for (i -= cmo_page_sz; rc && i != 0; i -= cmo_page_sz)
+		plpar_hcall_norets(H_PAGE_INIT, H_PAGE_SET_LOANED,
+				   vpa + i - cmo_page_sz, 0);
+
+	return rc;
+}
 
 /**
  * cmm_alloc_pages - Allocate pages and mark them as loaned
@@ -174,7 +194,7 @@ static long cmm_alloc_pages(long nr)
 
 		pa->page[pa->index++] = addr;
 		loaned_pages++;
-		totalram_pages--;
+		totalram_pages_dec();
 		spin_unlock(&cmm_lock);
 		nr--;
 	}
@@ -213,7 +233,7 @@ static long cmm_free_pages(long nr)
 		free_page(addr);
 		loaned_pages--;
 		nr--;
-		totalram_pages++;
+		totalram_pages_inc();
 	}
 	spin_unlock(&cmm_lock);
 	cmm_dbg("End request with %ld pages unfulfilled\n", nr);
@@ -257,7 +277,7 @@ static void cmm_get_mpp(void)
 	int rc;
 	struct hvcall_mpp_data mpp_data;
 	signed long active_pages_target, page_loan_request, target;
-	signed long total_pages = totalram_pages + loaned_pages;
+	signed long total_pages = totalram_pages() + loaned_pages;
 	signed long min_mem_pages = (min_mem_mb * 1024 * 1024) / PAGE_SIZE;
 
 	rc = h_get_mpp(&mpp_data);
@@ -288,7 +308,7 @@ static void cmm_get_mpp(void)
 
 	cmm_dbg("delta = %ld, loaned = %lu, target = %lu, oom = %lu, totalram = %lu\n",
 		page_loan_request, loaned_pages, loaned_pages_target,
-		oom_freed_pages, totalram_pages);
+		oom_freed_pages, totalram_pages());
 }
 
 static struct notifier_block cmm_oom_nb = {
@@ -351,7 +371,7 @@ static int cmm_thread(void *dummy)
 	{							\
 		return sprintf(buf, format, ##args);		\
 	}							\
-	static DEVICE_ATTR(name, S_IRUGO, show_##name, NULL)
+	static DEVICE_ATTR(name, 0444, show_##name, NULL)
 
 CMM_SHOW(loaned_kb, "%lu\n", PAGES2KB(loaned_pages));
 CMM_SHOW(loaned_target_kb, "%lu\n", PAGES2KB(loaned_pages_target));
@@ -377,7 +397,7 @@ static ssize_t store_oom_pages(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR(oom_freed_kb, S_IWUSR | S_IRUGO,
+static DEVICE_ATTR(oom_freed_kb, 0644,
 		   show_oom_pages, store_oom_pages);
 
 static struct device_attribute *cmm_attrs[] = {
@@ -547,7 +567,7 @@ static int cmm_mem_going_offline(void *arg)
 			free_page(pa_curr->page[idx]);
 			freed++;
 			loaned_pages--;
-			totalram_pages++;
+			totalram_pages_inc();
 			pa_curr->page[idx] = pa_last->page[--pa_last->index];
 			if (pa_last->index == 0) {
 				if (pa_curr == pa_last)
@@ -708,7 +728,7 @@ static void cmm_exit(void)
  * Return value:
  * 	0 on success / other on failure
  **/
-static int cmm_set_disable(const char *val, struct kernel_param *kp)
+static int cmm_set_disable(const char *val, const struct kernel_param *kp)
 {
 	int disable = simple_strtoul(val, NULL, 10);
 
@@ -731,7 +751,7 @@ static int cmm_set_disable(const char *val, struct kernel_param *kp)
 }
 
 module_param_call(disable, cmm_set_disable, param_get_uint,
-		  &cmm_disabled, S_IRUGO | S_IWUSR);
+		  &cmm_disabled, 0644);
 MODULE_PARM_DESC(disable, "Disable CMM. Set to 1 to disable. "
 		 "[Default=" __stringify(CMM_DISABLE) "]");
 

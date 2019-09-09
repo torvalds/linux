@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Driver for Ntrig/Microsoft Touchscreens over SPI
  *
  *  Copyright (c) 2016 Red Hat Inc.
  */
 
-/*
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; version 2 of the License.
- */
 
 #include <linux/kernel.h>
 
@@ -173,7 +169,7 @@ static void surface3_spi_process_pen(struct surface3_ts_data *ts_data, u8 *data)
 
 static void surface3_spi_process(struct surface3_ts_data *ts_data)
 {
-	const char header[] = {
+	static const char header[] = {
 		0xff, 0xff, 0xff, 0xff, 0xa5, 0x5a, 0xe7, 0x7e, 0x01
 	};
 	u8 *data = ts_data->rd_buf;

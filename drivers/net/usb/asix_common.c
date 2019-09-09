@@ -1,22 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * ASIX AX8817X based USB 2.0 Ethernet Devices
  * Copyright (C) 2003-2006 David Hollis <dhollis@davehollis.com>
  * Copyright (C) 2005 Phil Chang <pchang23@sbcglobal.net>
  * Copyright (C) 2006 James Painter <jamie.painter@iname.com>
  * Copyright (c) 2002-2003 TiVo Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "asix.h"
@@ -75,6 +63,27 @@ void asix_write_cmd_async(struct usbnet *dev, u8 cmd, u16 value, u16 index,
 			       value, index, data, size);
 }
 
+static void reset_asix_rx_fixup_info(struct asix_rx_fixup_info *rx)
+{
+	/* Reset the variables that have a lifetime outside of
+	 * asix_rx_fixup_internal() so that future processing starts from a
+	 * known set of initial conditions.
+	 */
+
+	if (rx->ax_skb) {
+		/* Discard any incomplete Ethernet frame in the netdev buffer */
+		kfree_skb(rx->ax_skb);
+		rx->ax_skb = NULL;
+	}
+
+	/* Assume the Data header 32-bit word is at the start of the current
+	 * or next URB socket buffer so reset all the state variables.
+	 */
+	rx->remaining = 0;
+	rx->split_head = false;
+	rx->header = 0;
+}
+
 int asix_rx_fixup_internal(struct usbnet *dev, struct sk_buff *skb,
 			   struct asix_rx_fixup_info *rx)
 {
@@ -99,21 +108,12 @@ int asix_rx_fixup_internal(struct usbnet *dev, struct sk_buff *skb,
 		if (size != ((~rx->header >> 16) & 0x7ff)) {
 			netdev_err(dev->net, "asix_rx_fixup() Data Header synchronisation was lost, remaining %d\n",
 				   rx->remaining);
-			if (rx->ax_skb) {
-				kfree_skb(rx->ax_skb);
-				rx->ax_skb = NULL;
-				/* Discard the incomplete netdev Ethernet frame
-				 * and assume the Data header is at the start of
-				 * the current URB socket buffer.
-				 */
-			}
-			rx->remaining = 0;
+			reset_asix_rx_fixup_info(rx);
 		}
 	}
 
 	while (offset + sizeof(u16) <= skb->len) {
 		u16 copy_length;
-		unsigned char *data;
 
 		if (!rx->remaining) {
 			if (skb->len - offset == sizeof(u16)) {
@@ -140,11 +140,13 @@ int asix_rx_fixup_internal(struct usbnet *dev, struct sk_buff *skb,
 			if (size != ((~rx->header >> 16) & 0x7ff)) {
 				netdev_err(dev->net, "asix_rx_fixup() Bad Header Length 0x%x, offset %d\n",
 					   rx->header, offset);
+				reset_asix_rx_fixup_info(rx);
 				return 0;
 			}
 			if (size > dev->net->mtu + ETH_HLEN + VLAN_HLEN) {
 				netdev_dbg(dev->net, "asix_rx_fixup() Bad RX Length %d\n",
 					   size);
+				reset_asix_rx_fixup_info(rx);
 				return 0;
 			}
 
@@ -167,10 +169,12 @@ int asix_rx_fixup_internal(struct usbnet *dev, struct sk_buff *skb,
 		}
 
 		if (rx->ax_skb) {
-			data = skb_put(rx->ax_skb, copy_length);
-			memcpy(data, skb->data + offset, copy_length);
-			if (!rx->remaining)
+			skb_put_data(rx->ax_skb, skb->data + offset,
+				     copy_length);
+			if (!rx->remaining) {
 				usbnet_skb_return(dev, rx->ax_skb);
+				rx->ax_skb = NULL;
+			}
 		}
 
 		offset += (copy_length + 1) & 0xfffe;
@@ -179,6 +183,7 @@ int asix_rx_fixup_internal(struct usbnet *dev, struct sk_buff *skb,
 	if (skb->len != offset) {
 		netdev_err(dev->net, "asix_rx_fixup() Bad SKB Length %d, %d\n",
 			   skb->len, offset);
+		reset_asix_rx_fixup_info(rx);
 		return 0;
 	}
 
@@ -191,6 +196,21 @@ int asix_rx_fixup_common(struct usbnet *dev, struct sk_buff *skb)
 	struct asix_rx_fixup_info *rx = &dp->rx_fixup_info;
 
 	return asix_rx_fixup_internal(dev, skb, rx);
+}
+
+void asix_rx_fixup_common_free(struct asix_common_private *dp)
+{
+	struct asix_rx_fixup_info *rx;
+
+	if (!dp)
+		return;
+
+	rx = &dp->rx_fixup_info;
+
+	if (rx->ax_skb) {
+		kfree_skb(rx->ax_skb);
+		rx->ax_skb = NULL;
+	}
 }
 
 struct sk_buff *asix_tx_fixup(struct usbnet *dev, struct sk_buff *skb,
@@ -213,7 +233,7 @@ struct sk_buff *asix_tx_fixup(struct usbnet *dev, struct sk_buff *skb,
 	 * - We are allowed to put 4 bytes at tail if skb_cloned()
 	 *   is false (and if we have 4 bytes of tailroom)
 	 *
-	 * TCP packets for example are cloned, but skb_header_release()
+	 * TCP packets for example are cloned, but __skb_header_release()
 	 * was called in tcp stack, allowing us to use headroom for our needs.
 	 */
 	if (!skb_header_cloned(skb) &&
@@ -575,6 +595,9 @@ int asix_set_wol(struct net_device *net, struct ethtool_wolinfo *wolinfo)
 	struct usbnet *dev = netdev_priv(net);
 	u8 opt = 0;
 
+	if (wolinfo->wolopts & ~(WAKE_PHY | WAKE_MAGIC))
+		return -EINVAL;
+
 	if (wolinfo->wolopts & WAKE_PHY)
 		opt |= AX_MONITOR_LINK;
 	if (wolinfo->wolopts & WAKE_MAGIC)
@@ -608,8 +631,8 @@ int asix_get_eeprom(struct net_device *net, struct ethtool_eeprom *eeprom,
 	first_word = eeprom->offset >> 1;
 	last_word = (eeprom->offset + eeprom->len - 1) >> 1;
 
-	eeprom_buff = kmalloc(sizeof(u16) * (last_word - first_word + 1),
-			      GFP_KERNEL);
+	eeprom_buff = kmalloc_array(last_word - first_word + 1, sizeof(u16),
+				    GFP_KERNEL);
 	if (!eeprom_buff)
 		return -ENOMEM;
 
@@ -648,8 +671,8 @@ int asix_set_eeprom(struct net_device *net, struct ethtool_eeprom *eeprom,
 	first_word = eeprom->offset >> 1;
 	last_word = (eeprom->offset + eeprom->len - 1) >> 1;
 
-	eeprom_buff = kmalloc(sizeof(u16) * (last_word - first_word + 1),
-			      GFP_KERNEL);
+	eeprom_buff = kmalloc_array(last_word - first_word + 1, sizeof(u16),
+				    GFP_KERNEL);
 	if (!eeprom_buff)
 		return -ENOMEM;
 

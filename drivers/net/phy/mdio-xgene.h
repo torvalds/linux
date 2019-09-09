@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /* Applied Micro X-Gene SoC MDIO Driver
  *
  * Copyright (c) 2016, Applied Micro Circuits Corporation
  * Author: Iyappan Subramanian <isubramanian@apm.com>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef __MDIO_XGENE_H__
@@ -102,6 +90,7 @@ struct xgene_mdio_pdata {
 	void __iomem *mdio_csr_addr;
 	struct mii_bus *mdio_bus;
 	int mdio_id;
+	spinlock_t mac_lock; /* mac lock */
 };
 
 /* Set the specified value into a bit-field defined by its starting position
@@ -132,10 +121,8 @@ static inline u64 xgene_enet_get_field_value(int pos, int len, u64 src)
 #define GET_BIT(field, src) \
 		xgene_enet_get_field_value(field ## _POS, 1, src)
 
-static const struct of_device_id xgene_mdio_of_match[];
-#ifdef CONFIG_ACPI
-static const struct acpi_device_id xgene_mdio_acpi_match[];
-#endif
+u32 xgene_mdio_rd_mac(struct xgene_mdio_pdata *pdata, u32 rd_addr);
+void xgene_mdio_wr_mac(struct xgene_mdio_pdata *pdata, u32 wr_addr, u32 data);
 int xgene_mdio_rgmii_read(struct mii_bus *bus, int phy_id, int reg);
 int xgene_mdio_rgmii_write(struct mii_bus *bus, int phy_id, int reg, u16 data);
 struct phy_device *xgene_enet_phy_register(struct mii_bus *bus, int phy_addr);

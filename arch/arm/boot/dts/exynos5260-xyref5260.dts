@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * SAMSUNG XYREF5260 board device tree source
  *
  * Copyright (c) 2013 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
-*/
+ */
 
 /dts-v1/;
 #include "exynos5260.dtsi"
@@ -22,7 +19,7 @@
 	};
 
 	chosen {
-		bootargs = "console=ttySAC2,115200";
+		stdout-path = "serial2:115200n8";
 	};
 
 	fin_pll: xxti {
@@ -67,9 +64,7 @@
 
 &mmc_0 {
 	status = "okay";
-	num-slots = <1>;
 	broken-cd;
-	bypass-smu;
 	cap-mmc-highspeed;
 	supports-hs200-mode; /* 200 MHz */
 	card-detect-delay = <200>;
@@ -83,7 +78,6 @@
 
 &mmc_2 {
 	status = "okay";
-	num-slots = <1>;
 	cap-sd-highspeed;
 	card-detect-delay = <200>;
 	samsung,dw-mshc-ciu-div = <3>;

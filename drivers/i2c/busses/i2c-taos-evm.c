@@ -1,18 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for the TAOS evaluation modules
  * These devices include an I2C master which can be controlled over the
  * serial port.
  *
  * Copyright (C) 2007 Jean Delvare <jdelvare@suse.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/delay.h>
@@ -282,8 +274,7 @@ static void taos_disconnect(struct serio *serio)
 {
 	struct taos_data *taos = serio_get_drvdata(serio);
 
-	if (taos->client)
-		i2c_unregister_device(taos->client);
+	i2c_unregister_device(taos->client);
 	i2c_del_adapter(&taos->adapter);
 	serio_close(serio);
 	kfree(taos);
@@ -291,7 +282,7 @@ static void taos_disconnect(struct serio *serio)
 	dev_info(&serio->dev, "Disconnected from TAOS EVM\n");
 }
 
-static struct serio_device_id taos_serio_ids[] = {
+static const struct serio_device_id taos_serio_ids[] = {
 	{
 		.type	= SERIO_RS232,
 		.proto	= SERIO_TAOSEVM,

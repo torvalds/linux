@@ -1,16 +1,11 @@
-/*
- * imx-pcm-fiq.c  --  ALSA Soc Audio Layer
- *
- * Copyright 2009 Sascha Hauer <s.hauer@pengutronix.de>
- *
- * This code is based on code copyrighted by Freescale,
- * Liam Girdwood, Javier Martin and probably others.
- *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
- */
+// SPDX-License-Identifier: GPL-2.0+
+// imx-pcm-fiq.c  --  ALSA Soc Audio Layer
+//
+// Copyright 2009 Sascha Hauer <s.hauer@pengutronix.de>
+//
+// This code is based on code copyrighted by Freescale,
+// Liam Girdwood, Javier Martin and probably others.
+
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/device.h>
@@ -154,7 +149,7 @@ static snd_pcm_uframes_t snd_imx_pcm_pointer(struct snd_pcm_substream *substream
 	return bytes_to_frames(substream->runtime, iprtd->offset);
 }
 
-static struct snd_pcm_hardware snd_imx_hardware = {
+static const struct snd_pcm_hardware snd_imx_hardware = {
 	.info = SNDRV_PCM_INFO_INTERLEAVED |
 		SNDRV_PCM_INFO_BLOCK_TRANSFER |
 		SNDRV_PCM_INFO_MMAP |
@@ -227,7 +222,7 @@ static int snd_imx_pcm_mmap(struct snd_pcm_substream *substream,
 	return ret;
 }
 
-static struct snd_pcm_ops imx_pcm_ops = {
+static const struct snd_pcm_ops imx_pcm_ops = {
 	.open		= snd_imx_open,
 	.close		= snd_imx_close,
 	.ioctl		= snd_pcm_lib_ioctl,
@@ -282,7 +277,7 @@ static int imx_pcm_new(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
-static int ssi_irq = 0;
+static int ssi_irq;
 
 static int imx_pcm_fiq_new(struct snd_soc_pcm_runtime *rtd)
 {
@@ -341,7 +336,7 @@ static void imx_pcm_fiq_free(struct snd_pcm *pcm)
 	imx_pcm_free(pcm);
 }
 
-static struct snd_soc_platform_driver imx_soc_platform_fiq = {
+static const struct snd_soc_component_driver imx_soc_component_fiq = {
 	.ops		= &imx_pcm_ops,
 	.pcm_new	= imx_pcm_fiq_new,
 	.pcm_free	= imx_pcm_fiq_free,
@@ -368,7 +363,8 @@ int imx_pcm_fiq_init(struct platform_device *pdev,
 	params->dma_params_tx->maxburst = 4;
 	params->dma_params_rx->maxburst = 6;
 
-	ret = snd_soc_register_platform(&pdev->dev, &imx_soc_platform_fiq);
+	ret = devm_snd_soc_register_component(&pdev->dev, &imx_soc_component_fiq,
+					      NULL, 0);
 	if (ret)
 		goto failed_register;
 
@@ -384,7 +380,6 @@ EXPORT_SYMBOL_GPL(imx_pcm_fiq_init);
 
 void imx_pcm_fiq_exit(struct platform_device *pdev)
 {
-	snd_soc_unregister_platform(&pdev->dev);
 }
 EXPORT_SYMBOL_GPL(imx_pcm_fiq_exit);
 

@@ -3,7 +3,10 @@
 This binding is intended to represent MTK-EFUSE which is found in most Mediatek SOCs.
 
 Required properties:
-- compatible: should be "mediatek,mt8173-efuse" or "mediatek,efuse"
+- compatible: should be
+	      "mediatek,mt7622-efuse", "mediatek,efuse": for MT7622
+	      "mediatek,mt7623-efuse", "mediatek,efuse": for MT7623
+	      "mediatek,mt8173-efuse" or "mediatek,efuse": for MT8173
 - reg: Should contain registers location and length
 
 = Data cells =

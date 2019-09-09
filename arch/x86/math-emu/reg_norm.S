@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*---------------------------------------------------------------------------+
  |  reg_norm.S                                                               |
  |                                                                           |
@@ -94,6 +95,7 @@ L_overflow:
 	call	arith_overflow
 	pop	%ebx
 	jmp	L_exit
+ENDPROC(FPU_normalize)
 
 
 
@@ -145,3 +147,4 @@ L_exit_nuo_zero:
 	popl	%ebx
 	leave
 	ret
+ENDPROC(FPU_normalize_nuo)

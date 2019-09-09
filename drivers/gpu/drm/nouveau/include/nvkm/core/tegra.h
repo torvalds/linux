@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 #ifndef __NVKM_DEVICE_TEGRA_H__
 #define __NVKM_DEVICE_TEGRA_H__
 #include <core/device.h>
@@ -42,6 +43,10 @@ struct nvkm_device_tegra_func {
 	 * Whether the chip requires a reference clock
 	 */
 	bool require_ref_clk;
+	/*
+	 * Whether the chip requires the VDD regulator
+	 */
+	bool require_vdd;
 };
 
 int nvkm_device_tegra_new(const struct nvkm_device_tegra_func *,

@@ -1,14 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2012-2015, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef __DSI_PLL_H__
@@ -41,6 +33,8 @@ struct msm_dsi_pll {
 	void (*destroy)(struct msm_dsi_pll *pll);
 	void (*save_state)(struct msm_dsi_pll *pll);
 	int (*restore_state)(struct msm_dsi_pll *pll);
+	int (*set_usecase)(struct msm_dsi_pll *pll,
+			   enum msm_dsi_phy_usecase uc);
 };
 
 #define hw_clk_to_pll(x) container_of(x, struct msm_dsi_pll, clk_hw)
@@ -104,5 +98,23 @@ static inline struct msm_dsi_pll *msm_dsi_pll_28nm_8960_init(
 }
 #endif
 
+#ifdef CONFIG_DRM_MSM_DSI_14NM_PHY
+struct msm_dsi_pll *msm_dsi_pll_14nm_init(struct platform_device *pdev, int id);
+#else
+static inline struct msm_dsi_pll *
+msm_dsi_pll_14nm_init(struct platform_device *pdev, int id)
+{
+	return ERR_PTR(-ENODEV);
+}
+#endif
+#ifdef CONFIG_DRM_MSM_DSI_10NM_PHY
+struct msm_dsi_pll *msm_dsi_pll_10nm_init(struct platform_device *pdev, int id);
+#else
+static inline struct msm_dsi_pll *
+msm_dsi_pll_10nm_init(struct platform_device *pdev, int id)
+{
+	return ERR_PTR(-ENODEV);
+}
+#endif
 #endif /* __DSI_PLL_H__ */
 

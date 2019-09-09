@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* GENcopy_to_user.S: Generic sparc64 copy to userspace.
  *
  * Copyright (C) 2007 David S. Miller (davem@davemloft.net)
@@ -27,7 +28,7 @@
 #define PREAMBLE					\
 	rd		%asi, %g1;			\
 	cmp		%g1, ASI_AIUS;			\
-	bne,pn		%icc, ___copy_in_user;		\
+	bne,pn		%icc, raw_copy_in_user;		\
 	 nop
 #endif
 

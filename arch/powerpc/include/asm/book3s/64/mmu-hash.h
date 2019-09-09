@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 #ifndef _ASM_POWERPC_BOOK3S_64_MMU_HASH_H_
 #define _ASM_POWERPC_BOOK3S_64_MMU_HASH_H_
 /*
@@ -5,16 +6,11 @@
  *
  * Dave Engebretsen & Mike Corrigan <{engebret|mikejc}@us.ibm.com>
  *   PPC64 rework.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
-#include <asm/asm-compat.h>
 #include <asm/page.h>
 #include <asm/bug.h>
+#include <asm/asm-const.h>
 
 /*
  * This is necessary to get the definition of PGTABLE_RANGE which we
@@ -23,14 +19,14 @@
  */
 #include <asm/book3s/64/pgtable.h>
 #include <asm/bug.h>
-#include <asm/processor.h>
+#include <asm/task_size_64.h>
 #include <asm/cpu_has_feature.h>
 
 /*
  * SLB
  */
 
-#define SLB_NUM_BOLTED		3
+#define SLB_NUM_BOLTED		2
 #define SLB_CACHE_ENTRIES	8
 #define SLB_MIN_SIZE		32
 
@@ -39,6 +35,7 @@
 
 /* Bits in the SLB VSID word */
 #define SLB_VSID_SHIFT		12
+#define SLB_VSID_SHIFT_256M	SLB_VSID_SHIFT
 #define SLB_VSID_SHIFT_1T	24
 #define SLB_VSID_SSIZE_SHIFT	62
 #define SLB_VSID_B		ASM_CONST(0xc000000000000000)
@@ -70,7 +67,9 @@
 
 #define HPTE_V_SSIZE_SHIFT	62
 #define HPTE_V_AVPN_SHIFT	7
+#define HPTE_V_COMMON_BITS	ASM_CONST(0x000fffffffffffff)
 #define HPTE_V_AVPN		ASM_CONST(0x3fffffffffffff80)
+#define HPTE_V_AVPN_3_0		ASM_CONST(0x000fffffffffff80)
 #define HPTE_V_AVPN_VAL(x)	(((x) & HPTE_V_AVPN) >> HPTE_V_AVPN_SHIFT)
 #define HPTE_V_COMPARE(x,y)	(!(((x) ^ (y)) & 0xffffffffffffff80UL))
 #define HPTE_V_BOLTED		ASM_CONST(0x0000000000000010)
@@ -80,14 +79,18 @@
 #define HPTE_V_VALID		ASM_CONST(0x0000000000000001)
 
 /*
- * ISA 3.0 have a different HPTE format.
+ * ISA 3.0 has a different HPTE format.
  */
 #define HPTE_R_3_0_SSIZE_SHIFT	58
+#define HPTE_R_3_0_SSIZE_MASK	(3ull << HPTE_R_3_0_SSIZE_SHIFT)
 #define HPTE_R_PP0		ASM_CONST(0x8000000000000000)
 #define HPTE_R_TS		ASM_CONST(0x4000000000000000)
 #define HPTE_R_KEY_HI		ASM_CONST(0x3000000000000000)
+#define HPTE_R_KEY_BIT0		ASM_CONST(0x2000000000000000)
+#define HPTE_R_KEY_BIT1		ASM_CONST(0x1000000000000000)
 #define HPTE_R_RPN_SHIFT	12
 #define HPTE_R_RPN		ASM_CONST(0x0ffffffffffff000)
+#define HPTE_R_RPN_3_0		ASM_CONST(0x01fffffffffff000)
 #define HPTE_R_PP		ASM_CONST(0x0000000000000003)
 #define HPTE_R_PPP		ASM_CONST(0x8000000000000003)
 #define HPTE_R_N		ASM_CONST(0x0000000000000004)
@@ -99,6 +102,10 @@
 #define HPTE_R_C		ASM_CONST(0x0000000000000080)
 #define HPTE_R_R		ASM_CONST(0x0000000000000100)
 #define HPTE_R_KEY_LO		ASM_CONST(0x0000000000000e00)
+#define HPTE_R_KEY_BIT2		ASM_CONST(0x0000000000000800)
+#define HPTE_R_KEY_BIT3		ASM_CONST(0x0000000000000400)
+#define HPTE_R_KEY_BIT4		ASM_CONST(0x0000000000000200)
+#define HPTE_R_KEY		(HPTE_R_KEY_LO | HPTE_R_KEY_HI)
 
 #define HPTE_V_1TB_SEG		ASM_CONST(0x4000000000000000)
 #define HPTE_V_VRMA_MASK	ASM_CONST(0x4001ffffff000000)
@@ -153,6 +160,7 @@ struct mmu_hash_ops {
 					       unsigned long addr,
 					       unsigned char *hpte_slot_array,
 					       int psize, int ssize, int local);
+	int		(*resize_hpt)(unsigned long shift);
 	/*
 	 * Special for kexec.
 	 * To be called in real mode with interrupts disabled. No locks are
@@ -189,6 +197,18 @@ static inline unsigned int mmu_psize_to_shift(unsigned int mmu_psize)
 	if (mmu_psize_defs[mmu_psize].shift)
 		return mmu_psize_defs[mmu_psize].shift;
 	BUG();
+}
+
+static inline unsigned int ap_to_shift(unsigned long ap)
+{
+	int psize;
+
+	for (psize = 0; psize < MMU_PAGE_COUNT; psize++) {
+		if (mmu_psize_defs[psize].ap == ap)
+			return mmu_psize_defs[psize].shift;
+	}
+
+	return -1;
 }
 
 static inline unsigned long get_sllp_encoding(int psize)
@@ -316,9 +336,50 @@ static inline unsigned long hpte_encode_avpn(unsigned long vpn, int psize,
 	 */
 	v = (vpn >> (23 - VPN_SHIFT)) & ~(mmu_psize_defs[psize].avpnm);
 	v <<= HPTE_V_AVPN_SHIFT;
-	if (!cpu_has_feature(CPU_FTR_ARCH_300))
-		v |= ((unsigned long) ssize) << HPTE_V_SSIZE_SHIFT;
+	v |= ((unsigned long) ssize) << HPTE_V_SSIZE_SHIFT;
 	return v;
+}
+
+/*
+ * ISA v3.0 defines a new HPTE format, which differs from the old
+ * format in having smaller AVPN and ARPN fields, and the B field
+ * in the second dword instead of the first.
+ */
+static inline unsigned long hpte_old_to_new_v(unsigned long v)
+{
+	/* trim AVPN, drop B */
+	return v & HPTE_V_COMMON_BITS;
+}
+
+static inline unsigned long hpte_old_to_new_r(unsigned long v, unsigned long r)
+{
+	/* move B field from 1st to 2nd dword, trim ARPN */
+	return (r & ~HPTE_R_3_0_SSIZE_MASK) |
+		(((v) >> HPTE_V_SSIZE_SHIFT) << HPTE_R_3_0_SSIZE_SHIFT);
+}
+
+static inline unsigned long hpte_new_to_old_v(unsigned long v, unsigned long r)
+{
+	/* insert B field */
+	return (v & HPTE_V_COMMON_BITS) |
+		((r & HPTE_R_3_0_SSIZE_MASK) <<
+		 (HPTE_V_SSIZE_SHIFT - HPTE_R_3_0_SSIZE_SHIFT));
+}
+
+static inline unsigned long hpte_new_to_old_r(unsigned long r)
+{
+	/* clear out B field */
+	return r & ~HPTE_R_3_0_SSIZE_MASK;
+}
+
+static inline unsigned long hpte_get_old_v(struct hash_pte *hptep)
+{
+	unsigned long hpte_v;
+
+	hpte_v = be64_to_cpu(hptep->v);
+	if (cpu_has_feature(CPU_FTR_ARCH_300))
+		hpte_v = hpte_new_to_old_v(hpte_v, be64_to_cpu(hptep->r));
+	return hpte_v;
 }
 
 /*
@@ -341,12 +402,8 @@ static inline unsigned long hpte_encode_v(unsigned long vpn, int base_psize,
  * aligned for the requested page size
  */
 static inline unsigned long hpte_encode_r(unsigned long pa, int base_psize,
-					  int actual_psize, int ssize)
+					  int actual_psize)
 {
-
-	if (cpu_has_feature(CPU_FTR_ARCH_300))
-		pa |= ((unsigned long) ssize) << HPTE_R_3_0_SSIZE_SHIFT;
-
 	/* A 4K page needs no special encoding */
 	if (actual_psize == MMU_PAGE_4K)
 		return pa & HPTE_R_RPN;
@@ -376,7 +433,7 @@ static inline unsigned long hpt_vpn(unsigned long ea,
 static inline unsigned long hpt_hash(unsigned long vpn,
 				     unsigned int shift, int ssize)
 {
-	int mask;
+	unsigned long mask;
 	unsigned long hash, vsid;
 
 	/* VPN_SHIFT can be atmost 12 */
@@ -435,8 +492,10 @@ extern int htab_bolt_mapping(unsigned long vstart, unsigned long vend,
 			     int psize, int ssize);
 int htab_remove_mapping(unsigned long vstart, unsigned long vend,
 			int psize, int ssize);
-extern void add_gpage(u64 addr, u64 page_size, unsigned long number_of_pages);
+extern void pseries_add_gpage(u64 addr, u64 page_size, unsigned long number_of_pages);
 extern void demote_segment_4k(struct mm_struct *mm, unsigned long addr);
+
+extern void hash__setup_new_exec(void);
 
 #ifdef CONFIG_PPC_PSERIES
 void hpte_init_pseries(void);
@@ -446,8 +505,18 @@ static inline void hpte_init_pseries(void) { }
 
 extern void hpte_init_native(void);
 
+struct slb_entry {
+	u64	esid;
+	u64	vsid;
+};
+
 extern void slb_initialize(void);
-extern void slb_flush_and_rebolt(void);
+void slb_flush_and_restore_bolted(void);
+void slb_flush_all_realmode(void);
+void __slb_restore_bolted_realmode(void);
+void slb_restore_bolted_realmode(void);
+void slb_save_contents(struct slb_entry *slb_ptr);
+void slb_dump_contents(struct slb_entry *slb_ptr);
 
 extern void slb_vmalloc_update(void);
 extern void slb_set_size(u16 size);
@@ -459,13 +528,10 @@ extern void slb_set_size(u16 size);
  * We first generate a 37-bit "proto-VSID". Proto-VSIDs are generated
  * from mmu context id and effective segment id of the address.
  *
- * For user processes max context id is limited to ((1ul << 19) - 5)
- * for kernel space, we use the top 4 context ids to map address as below
- * NOTE: each context only support 64TB now.
- * 0x7fffc -  [ 0xc000000000000000 - 0xc0003fffffffffff ]
- * 0x7fffd -  [ 0xd000000000000000 - 0xd0003fffffffffff ]
- * 0x7fffe -  [ 0xe000000000000000 - 0xe0003fffffffffff ]
- * 0x7ffff -  [ 0xf000000000000000 - 0xf0003fffffffffff ]
+ * For user processes max context id is limited to MAX_USER_CONTEXT.
+ * more details in get_user_context
+ *
+ * For kernel space get_kernel_context
  *
  * The proto-VSIDs are then scrambled into real VSIDs with the
  * multiplicative hash:
@@ -479,82 +545,114 @@ extern void slb_set_size(u16 size);
  * robust scattering in the hash table (at least based on some initial
  * results).
  *
- * We also consider VSID 0 special. We use VSID 0 for slb entries mapping
- * bad address. This enables us to consolidate bad address handling in
- * hash_page.
+ * We use VSID 0 to indicate an invalid VSID. The means we can't use context id
+ * 0, because a context id of 0 and an EA of 0 gives a proto-VSID of 0, which
+ * will produce a VSID of 0.
  *
  * We also need to avoid the last segment of the last context, because that
  * would give a protovsid of 0x1fffffffff. That will result in a VSID 0
- * because of the modulo operation in vsid scramble. But the vmemmap
- * (which is what uses region 0xf) will never be close to 64TB in size
- * (it's 56 bytes per page of system memory).
+ * because of the modulo operation in vsid scramble.
  */
 
+/*
+ * Max Va bits we support as of now is 68 bits. We want 19 bit
+ * context ID.
+ * Restrictions:
+ * GPU has restrictions of not able to access beyond 128TB
+ * (47 bit effective address). We also cannot do more than 20bit PID.
+ * For p4 and p5 which can only do 65 bit VA, we restrict our CONTEXT_BITS
+ * to 16 bits (ie, we can only have 2^16 pids at the same time).
+ */
+#define VA_BITS			68
 #define CONTEXT_BITS		19
-#define ESID_BITS		18
-#define ESID_BITS_1T		6
+#define ESID_BITS		(VA_BITS - (SID_SHIFT + CONTEXT_BITS))
+#define ESID_BITS_1T		(VA_BITS - (SID_SHIFT_1T + CONTEXT_BITS))
+
+#define ESID_BITS_MASK		((1 << ESID_BITS) - 1)
+#define ESID_BITS_1T_MASK	((1 << ESID_BITS_1T) - 1)
+
+/*
+ * Now certain config support MAX_PHYSMEM more than 512TB. Hence we will need
+ * to use more than one context for linear mapping the kernel.
+ * For vmalloc and memmap, we use just one context with 512TB. With 64 byte
+ * struct page size, we need ony 32 TB in memmap for 2PB (51 bits (MAX_PHYSMEM_BITS)).
+ */
+#if (MAX_PHYSMEM_BITS > MAX_EA_BITS_PER_CONTEXT)
+#define MAX_KERNEL_CTX_CNT	(1UL << (MAX_PHYSMEM_BITS - MAX_EA_BITS_PER_CONTEXT))
+#else
+#define MAX_KERNEL_CTX_CNT	1
+#endif
+
+#define MAX_VMALLOC_CTX_CNT	1
+#define MAX_IO_CTX_CNT		1
+#define MAX_VMEMMAP_CTX_CNT	1
 
 /*
  * 256MB segment
  * The proto-VSID space has 2^(CONTEX_BITS + ESID_BITS) - 1 segments
- * available for user + kernel mapping. The top 4 contexts are used for
- * kernel mapping. Each segment contains 2^28 bytes. Each
- * context maps 2^46 bytes (64TB) so we can support 2^19-1 contexts
- * (19 == 37 + 28 - 46).
+ * available for user + kernel mapping. VSID 0 is reserved as invalid, contexts
+ * 1-4 are used for kernel mapping. Each segment contains 2^28 bytes. Each
+ * context maps 2^49 bytes (512TB).
+ *
+ * We also need to avoid the last segment of the last context, because that
+ * would give a protovsid of 0x1fffffffff. That will result in a VSID 0
+ * because of the modulo operation in vsid scramble.
+ *
  */
-#define MAX_USER_CONTEXT	((ASM_CONST(1) << CONTEXT_BITS) - 5)
+#define MAX_USER_CONTEXT	((ASM_CONST(1) << CONTEXT_BITS) - 2)
+#define MIN_USER_CONTEXT	(MAX_KERNEL_CTX_CNT + MAX_VMALLOC_CTX_CNT + \
+				 MAX_IO_CTX_CNT + MAX_VMEMMAP_CTX_CNT)
+/*
+ * For platforms that support on 65bit VA we limit the context bits
+ */
+#define MAX_USER_CONTEXT_65BIT_VA ((ASM_CONST(1) << (65 - (SID_SHIFT + ESID_BITS))) - 2)
 
 /*
  * This should be computed such that protovosid * vsid_mulitplier
- * doesn't overflow 64 bits. It should also be co-prime to vsid_modulus
+ * doesn't overflow 64 bits. The vsid_mutliplier should also be
+ * co-prime to vsid_modulus. We also need to make sure that number
+ * of bits in multiplied result (dividend) is less than twice the number of
+ * protovsid bits for our modulus optmization to work.
+ *
+ * The below table shows the current values used.
+ * |-------+------------+----------------------+------------+-------------------|
+ * |       | Prime Bits | proto VSID_BITS_65VA | Total Bits | 2* prot VSID_BITS |
+ * |-------+------------+----------------------+------------+-------------------|
+ * | 1T    |         24 |                   25 |         49 |                50 |
+ * |-------+------------+----------------------+------------+-------------------|
+ * | 256MB |         24 |                   37 |         61 |                74 |
+ * |-------+------------+----------------------+------------+-------------------|
+ *
+ * |-------+------------+----------------------+------------+--------------------|
+ * |       | Prime Bits | proto VSID_BITS_68VA | Total Bits | 2* proto VSID_BITS |
+ * |-------+------------+----------------------+------------+--------------------|
+ * | 1T    |         24 |                   28 |         52 |                 56 |
+ * |-------+------------+----------------------+------------+--------------------|
+ * | 256MB |         24 |                   40 |         64 |                 80 |
+ * |-------+------------+----------------------+------------+--------------------|
+ *
  */
 #define VSID_MULTIPLIER_256M	ASM_CONST(12538073)	/* 24-bit prime */
-#define VSID_BITS_256M		(CONTEXT_BITS + ESID_BITS)
-#define VSID_MODULUS_256M	((1UL<<VSID_BITS_256M)-1)
+#define VSID_BITS_256M		(VA_BITS - SID_SHIFT)
+#define VSID_BITS_65_256M	(65 - SID_SHIFT)
+/*
+ * Modular multiplicative inverse of VSID_MULTIPLIER under modulo VSID_MODULUS
+ */
+#define VSID_MULINV_256M	ASM_CONST(665548017062)
 
 #define VSID_MULTIPLIER_1T	ASM_CONST(12538073)	/* 24-bit prime */
-#define VSID_BITS_1T		(CONTEXT_BITS + ESID_BITS_1T)
-#define VSID_MODULUS_1T		((1UL<<VSID_BITS_1T)-1)
+#define VSID_BITS_1T		(VA_BITS - SID_SHIFT_1T)
+#define VSID_BITS_65_1T		(65 - SID_SHIFT_1T)
+#define VSID_MULINV_1T		ASM_CONST(209034062)
 
-
+/* 1TB VSID reserved for VRMA */
+#define VRMA_VSID	0x1ffffffUL
 #define USER_VSID_RANGE	(1UL << (ESID_BITS + SID_SHIFT))
 
-/*
- * This macro generates asm code to compute the VSID scramble
- * function.  Used in slb_allocate() and do_stab_bolted.  The function
- * computed is: (protovsid*VSID_MULTIPLIER) % VSID_MODULUS
- *
- *	rt = register containing the proto-VSID and into which the
- *		VSID will be stored
- *	rx = scratch register (clobbered)
- *
- * 	- rt and rx must be different registers
- * 	- The answer will end up in the low VSID_BITS bits of rt.  The higher
- * 	  bits may contain other garbage, so you may need to mask the
- * 	  result.
- */
-#define ASM_VSID_SCRAMBLE(rt, rx, size)					\
-	lis	rx,VSID_MULTIPLIER_##size@h;				\
-	ori	rx,rx,VSID_MULTIPLIER_##size@l;				\
-	mulld	rt,rt,rx;		/* rt = rt * MULTIPLIER */	\
-									\
-	srdi	rx,rt,VSID_BITS_##size;					\
-	clrldi	rt,rt,(64-VSID_BITS_##size);				\
-	add	rt,rt,rx;		/* add high and low bits */	\
-	/* NOTE: explanation based on VSID_BITS_##size = 36		\
-	 * Now, r3 == VSID (mod 2^36-1), and lies between 0 and		\
-	 * 2^36-1+2^28-1.  That in particular means that if r3 >=	\
-	 * 2^36-1, then r3+1 has the 2^36 bit set.  So, if r3+1 has	\
-	 * the bit clear, r3 already has the answer we want, if it	\
-	 * doesn't, the answer is the low 36 bits of r3+1.  So in all	\
-	 * cases the answer is the low 36 bits of (r3 + ((r3+1) >> 36))*/\
-	addi	rx,rt,1;						\
-	srdi	rx,rx,VSID_BITS_##size;	/* extract 2^VSID_BITS bit */	\
-	add	rt,rt,rx
-
 /* 4 bits per slice and we have one slice per 1TB */
-#define SLICE_ARRAY_SIZE  (H_PGTABLE_RANGE >> 41)
-
+#define SLICE_ARRAY_SIZE	(H_PGTABLE_RANGE >> 41)
+#define LOW_SLICE_ARRAY_SZ	(BITS_PER_LONG / BITS_PER_BYTE)
+#define TASK_SLICE_ARRAY_SZ(x)	((x)->hash_context->slb_addr_limit >> 41)
 #ifndef __ASSEMBLY__
 
 #ifdef CONFIG_PPC_SUBPAGE_PROT
@@ -583,11 +681,40 @@ struct subpage_prot_table {
 #define SBP_L3_SHIFT		(SBP_L2_SHIFT + SBP_L2_BITS)
 
 extern void subpage_prot_free(struct mm_struct *mm);
-extern void subpage_prot_init_new_context(struct mm_struct *mm);
 #else
 static inline void subpage_prot_free(struct mm_struct *mm) {}
-static inline void subpage_prot_init_new_context(struct mm_struct *mm) { }
 #endif /* CONFIG_PPC_SUBPAGE_PROT */
+
+/*
+ * One bit per slice. We have lower slices which cover 256MB segments
+ * upto 4G range. That gets us 16 low slices. For the rest we track slices
+ * in 1TB size.
+ */
+struct slice_mask {
+	u64 low_slices;
+	DECLARE_BITMAP(high_slices, SLICE_NUM_HIGH);
+};
+
+struct hash_mm_context {
+	u16 user_psize; /* page size index */
+
+	/* SLB page size encodings*/
+	unsigned char low_slices_psize[LOW_SLICE_ARRAY_SZ];
+	unsigned char high_slices_psize[SLICE_ARRAY_SIZE];
+	unsigned long slb_addr_limit;
+#ifdef CONFIG_PPC_64K_PAGES
+	struct slice_mask mask_64k;
+#endif
+	struct slice_mask mask_4k;
+#ifdef CONFIG_HUGETLB_PAGE
+	struct slice_mask mask_16m;
+	struct slice_mask mask_16g;
+#endif
+
+#ifdef CONFIG_PPC_SUBPAGE_PROT
+	struct subpage_prot_table *spt;
+#endif /* CONFIG_PPC_SUBPAGE_PROT */
+};
 
 #if 0
 /*
@@ -599,7 +726,7 @@ static inline void subpage_prot_init_new_context(struct mm_struct *mm) { }
 #define vsid_scramble(protovsid, size) \
 	((((protovsid) * VSID_MULTIPLIER_##size) % VSID_MODULUS_##size))
 
-#else /* 1 */
+/* simplified form avoiding mod operation */
 #define vsid_scramble(protovsid, size) \
 	({								 \
 		unsigned long x;					 \
@@ -607,6 +734,21 @@ static inline void subpage_prot_init_new_context(struct mm_struct *mm) { }
 		x = (x >> VSID_BITS_##size) + (x & VSID_MODULUS_##size); \
 		(x + ((x+1) >> VSID_BITS_##size)) & VSID_MODULUS_##size; \
 	})
+
+#else /* 1 */
+static inline unsigned long vsid_scramble(unsigned long protovsid,
+				  unsigned long vsid_multiplier, int vsid_bits)
+{
+	unsigned long vsid;
+	unsigned long vsid_modulus = ((1UL << vsid_bits) - 1);
+	/*
+	 * We have same multipler for both 256 and 1T segements now
+	 */
+	vsid = protovsid * vsid_multiplier;
+	vsid = (vsid >> vsid_bits) + (vsid & vsid_modulus);
+	return (vsid + ((vsid + 1) >> vsid_bits)) & vsid_modulus;
+}
+
 #endif /* 1 */
 
 /* Returns the segment size indicator for a user address */
@@ -621,36 +763,77 @@ static inline int user_segment_size(unsigned long addr)
 static inline unsigned long get_vsid(unsigned long context, unsigned long ea,
 				     int ssize)
 {
+	unsigned long va_bits = VA_BITS;
+	unsigned long vsid_bits;
+	unsigned long protovsid;
+
 	/*
 	 * Bad address. We return VSID 0 for that
 	 */
-	if ((ea & ~REGION_MASK) >= H_PGTABLE_RANGE)
+	if ((ea & EA_MASK)  >= H_PGTABLE_RANGE)
 		return 0;
 
-	if (ssize == MMU_SEGSIZE_256M)
-		return vsid_scramble((context << ESID_BITS)
-				     | (ea >> SID_SHIFT), 256M);
-	return vsid_scramble((context << ESID_BITS_1T)
-			     | (ea >> SID_SHIFT_1T), 1T);
+	if (!mmu_has_feature(MMU_FTR_68_BIT_VA))
+		va_bits = 65;
+
+	if (ssize == MMU_SEGSIZE_256M) {
+		vsid_bits = va_bits - SID_SHIFT;
+		protovsid = (context << ESID_BITS) |
+			((ea >> SID_SHIFT) & ESID_BITS_MASK);
+		return vsid_scramble(protovsid, VSID_MULTIPLIER_256M, vsid_bits);
+	}
+	/* 1T segment */
+	vsid_bits = va_bits - SID_SHIFT_1T;
+	protovsid = (context << ESID_BITS_1T) |
+		((ea >> SID_SHIFT_1T) & ESID_BITS_1T_MASK);
+	return vsid_scramble(protovsid, VSID_MULTIPLIER_1T, vsid_bits);
+}
+
+/*
+ * For kernel space, we use context ids as below
+ * below. Range is 512TB per context.
+ *
+ * 0x00001 -  [ 0xc000000000000000 - 0xc001ffffffffffff]
+ * 0x00002 -  [ 0xc002000000000000 - 0xc003ffffffffffff]
+ * 0x00003 -  [ 0xc004000000000000 - 0xc005ffffffffffff]
+ * 0x00004 -  [ 0xc006000000000000 - 0xc007ffffffffffff]
+ *
+ * vmap, IO, vmemap
+ *
+ * 0x00005 -  [ 0xc008000000000000 - 0xc009ffffffffffff]
+ * 0x00006 -  [ 0xc00a000000000000 - 0xc00bffffffffffff]
+ * 0x00007 -  [ 0xc00c000000000000 - 0xc00dffffffffffff]
+ *
+ */
+static inline unsigned long get_kernel_context(unsigned long ea)
+{
+	unsigned long region_id = get_region_id(ea);
+	unsigned long ctx;
+	/*
+	 * Depending on Kernel config, kernel region can have one context
+	 * or more.
+	 */
+	if (region_id == LINEAR_MAP_REGION_ID) {
+		/*
+		 * We already verified ea to be not beyond the addr limit.
+		 */
+		ctx =  1 + ((ea & EA_MASK) >> MAX_EA_BITS_PER_CONTEXT);
+	} else
+		ctx = region_id + MAX_KERNEL_CTX_CNT - 1;
+	return ctx;
 }
 
 /*
  * This is only valid for addresses >= PAGE_OFFSET
- *
- * For kernel space, we use the top 4 context ids to map address as below
- * 0x7fffc -  [ 0xc000000000000000 - 0xc0003fffffffffff ]
- * 0x7fffd -  [ 0xd000000000000000 - 0xd0003fffffffffff ]
- * 0x7fffe -  [ 0xe000000000000000 - 0xe0003fffffffffff ]
- * 0x7ffff -  [ 0xf000000000000000 - 0xf0003fffffffffff ]
  */
 static inline unsigned long get_kernel_vsid(unsigned long ea, int ssize)
 {
 	unsigned long context;
 
-	/*
-	 * kernel take the top 4 context from the available range
-	 */
-	context = (MAX_USER_CONTEXT) + ((ea >> 60) - 0xc) + 1;
+	if (!is_kernel_addr(ea))
+		return 0;
+
+	context = get_kernel_context(ea);
 	return get_vsid(context, ea, ssize);
 }
 

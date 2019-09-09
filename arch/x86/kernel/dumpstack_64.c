@@ -1,7 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  Copyright (C) 1991, 1992  Linus Torvalds
  *  Copyright (C) 2000, 2001, 2002 Andi Kleen, SuSE Labs
  */
+#include <linux/sched/debug.h>
 #include <linux/kallsyms.h>
 #include <linux/kprobes.h>
 #include <linux/uaccess.h>
@@ -14,76 +16,118 @@
 #include <linux/bug.h>
 #include <linux/nmi.h>
 
+#include <asm/cpu_entry_area.h>
 #include <asm/stacktrace.h>
 
-static char *exception_stack_names[N_EXCEPTION_STACKS] = {
-		[ DOUBLEFAULT_STACK-1	]	= "#DF",
-		[ NMI_STACK-1		]	= "NMI",
-		[ DEBUG_STACK-1		]	= "#DB",
-		[ MCE_STACK-1		]	= "#MC",
+static const char * const exception_stack_names[] = {
+		[ ESTACK_DF	]	= "#DF",
+		[ ESTACK_NMI	]	= "NMI",
+		[ ESTACK_DB2	]	= "#DB2",
+		[ ESTACK_DB1	]	= "#DB1",
+		[ ESTACK_DB	]	= "#DB",
+		[ ESTACK_MCE	]	= "#MC",
 };
 
-static unsigned long exception_stack_sizes[N_EXCEPTION_STACKS] = {
-	[0 ... N_EXCEPTION_STACKS - 1]		= EXCEPTION_STKSZ,
-	[DEBUG_STACK - 1]			= DEBUG_STKSZ
-};
-
-void stack_type_str(enum stack_type type, const char **begin, const char **end)
+const char *stack_type_name(enum stack_type type)
 {
-	BUILD_BUG_ON(N_EXCEPTION_STACKS != 4);
+	BUILD_BUG_ON(N_EXCEPTION_STACKS != 6);
 
-	switch (type) {
-	case STACK_TYPE_IRQ:
-		*begin = "IRQ";
-		*end   = "EOI";
-		break;
-	case STACK_TYPE_EXCEPTION ... STACK_TYPE_EXCEPTION_LAST:
-		*begin = exception_stack_names[type - STACK_TYPE_EXCEPTION];
-		*end   = "EOE";
-		break;
-	default:
-		*begin = NULL;
-		*end   = NULL;
+	if (type == STACK_TYPE_IRQ)
+		return "IRQ";
+
+	if (type == STACK_TYPE_ENTRY) {
+		/*
+		 * On 64-bit, we have a generic entry stack that we
+		 * use for all the kernel entry points, including
+		 * SYSENTER.
+		 */
+		return "ENTRY_TRAMPOLINE";
 	}
+
+	if (type >= STACK_TYPE_EXCEPTION && type <= STACK_TYPE_EXCEPTION_LAST)
+		return exception_stack_names[type - STACK_TYPE_EXCEPTION];
+
+	return NULL;
 }
+
+/**
+ * struct estack_pages - Page descriptor for exception stacks
+ * @offs:	Offset from the start of the exception stack area
+ * @size:	Size of the exception stack
+ * @type:	Type to store in the stack_info struct
+ */
+struct estack_pages {
+	u32	offs;
+	u16	size;
+	u16	type;
+};
+
+#define EPAGERANGE(st)							\
+	[PFN_DOWN(CEA_ESTACK_OFFS(st)) ...				\
+	 PFN_DOWN(CEA_ESTACK_OFFS(st) + CEA_ESTACK_SIZE(st) - 1)] = {	\
+		.offs	= CEA_ESTACK_OFFS(st),				\
+		.size	= CEA_ESTACK_SIZE(st),				\
+		.type	= STACK_TYPE_EXCEPTION + ESTACK_ ##st, }
+
+/*
+ * Array of exception stack page descriptors. If the stack is larger than
+ * PAGE_SIZE, all pages covering a particular stack will have the same
+ * info. The guard pages including the not mapped DB2 stack are zeroed
+ * out.
+ */
+static const
+struct estack_pages estack_pages[CEA_ESTACK_PAGES] ____cacheline_aligned = {
+	EPAGERANGE(DF),
+	EPAGERANGE(NMI),
+	EPAGERANGE(DB1),
+	EPAGERANGE(DB),
+	EPAGERANGE(MCE),
+};
 
 static bool in_exception_stack(unsigned long *stack, struct stack_info *info)
 {
-	unsigned long *begin, *end;
+	unsigned long begin, end, stk = (unsigned long)stack;
+	const struct estack_pages *ep;
 	struct pt_regs *regs;
-	unsigned k;
+	unsigned int k;
 
-	BUILD_BUG_ON(N_EXCEPTION_STACKS != 4);
+	BUILD_BUG_ON(N_EXCEPTION_STACKS != 6);
 
-	for (k = 0; k < N_EXCEPTION_STACKS; k++) {
-		end   = (unsigned long *)raw_cpu_ptr(&orig_ist)->ist[k];
-		begin = end - (exception_stack_sizes[k] / sizeof(long));
-		regs  = (struct pt_regs *)end - 1;
+	begin = (unsigned long)__this_cpu_read(cea_exception_stacks);
+	end = begin + sizeof(struct cea_exception_stacks);
+	/* Bail if @stack is outside the exception stack area. */
+	if (stk < begin || stk >= end)
+		return false;
 
-		if (stack < begin || stack >= end)
-			continue;
+	/* Calc page offset from start of exception stacks */
+	k = (stk - begin) >> PAGE_SHIFT;
+	/* Lookup the page descriptor */
+	ep = &estack_pages[k];
+	/* Guard page? */
+	if (!ep->size)
+		return false;
 
-		info->type	= STACK_TYPE_EXCEPTION + k;
-		info->begin	= begin;
-		info->end	= end;
-		info->next_sp	= (unsigned long *)regs->sp;
+	begin += (unsigned long)ep->offs;
+	end = begin + (unsigned long)ep->size;
+	regs = (struct pt_regs *)end - 1;
 
-		return true;
-	}
-
-	return false;
+	info->type	= ep->type;
+	info->begin	= (unsigned long *)begin;
+	info->end	= (unsigned long *)end;
+	info->next_sp	= (unsigned long *)regs->sp;
+	return true;
 }
 
 static bool in_irq_stack(unsigned long *stack, struct stack_info *info)
 {
-	unsigned long *end   = (unsigned long *)this_cpu_read(irq_stack_ptr);
+	unsigned long *end   = (unsigned long *)this_cpu_read(hardirq_stack_ptr);
 	unsigned long *begin = end - (IRQ_STACK_SIZE / sizeof(long));
 
 	/*
 	 * This is a software stack, so 'end' can be a valid stack pointer.
 	 * It just means the stack is empty.
 	 */
-	if (stack < begin || stack > end)
+	if (stack < begin || stack >= end)
 		return false;
 
 	info->type	= STACK_TYPE_IRQ;
@@ -119,6 +163,9 @@ int get_stack_info(unsigned long *stack, struct task_struct *task,
 	if (in_irq_stack(stack, info))
 		goto recursion_check;
 
+	if (in_entry_stack(stack, info))
+		goto recursion_check;
+
 	goto unknown;
 
 recursion_check:
@@ -128,8 +175,10 @@ recursion_check:
 	 * just break out and report an unknown stack type.
 	 */
 	if (visit_mask) {
-		if (*visit_mask & (1UL << info->type))
+		if (*visit_mask & (1UL << info->type)) {
+			printk_deferred_once(KERN_WARNING "WARNING: stack recursion on stack type %d\n", info->type);
 			goto unknown;
+		}
 		*visit_mask |= 1UL << info->type;
 	}
 
@@ -138,107 +187,4 @@ recursion_check:
 unknown:
 	info->type = STACK_TYPE_UNKNOWN;
 	return -EINVAL;
-}
-
-void show_stack_log_lvl(struct task_struct *task, struct pt_regs *regs,
-			unsigned long *sp, char *log_lvl)
-{
-	unsigned long *irq_stack_end;
-	unsigned long *irq_stack;
-	unsigned long *stack;
-	int i;
-
-	if (!try_get_task_stack(task))
-		return;
-
-	irq_stack_end = (unsigned long *)this_cpu_read(irq_stack_ptr);
-	irq_stack     = irq_stack_end - (IRQ_STACK_SIZE / sizeof(long));
-
-	sp = sp ? : get_stack_pointer(task, regs);
-
-	stack = sp;
-	for (i = 0; i < kstack_depth_to_print; i++) {
-		unsigned long word;
-
-		if (stack >= irq_stack && stack <= irq_stack_end) {
-			if (stack == irq_stack_end) {
-				stack = (unsigned long *) (irq_stack_end[-1]);
-				pr_cont(" <EOI> ");
-			}
-		} else {
-		if (kstack_end(stack))
-			break;
-		}
-
-		if (probe_kernel_address(stack, word))
-			break;
-
-		if ((i % STACKSLOTS_PER_LINE) == 0) {
-			if (i != 0)
-				pr_cont("\n");
-			printk("%s %016lx", log_lvl, word);
-		} else
-			pr_cont(" %016lx", word);
-
-		stack++;
-		touch_nmi_watchdog();
-	}
-
-	pr_cont("\n");
-	show_trace_log_lvl(task, regs, sp, log_lvl);
-
-	put_task_stack(task);
-}
-
-void show_regs(struct pt_regs *regs)
-{
-	int i;
-
-	show_regs_print_info(KERN_DEFAULT);
-	__show_regs(regs, 1);
-
-	/*
-	 * When in-kernel, we also print out the stack and code at the
-	 * time of the fault..
-	 */
-	if (!user_mode(regs)) {
-		unsigned int code_prologue = code_bytes * 43 / 64;
-		unsigned int code_len = code_bytes;
-		unsigned char c;
-		u8 *ip;
-
-		printk(KERN_DEFAULT "Stack:\n");
-		show_stack_log_lvl(current, regs, NULL, KERN_DEFAULT);
-
-		printk(KERN_DEFAULT "Code: ");
-
-		ip = (u8 *)regs->ip - code_prologue;
-		if (ip < (u8 *)PAGE_OFFSET || probe_kernel_address(ip, c)) {
-			/* try starting at IP */
-			ip = (u8 *)regs->ip;
-			code_len = code_len - code_prologue + 1;
-		}
-		for (i = 0; i < code_len; i++, ip++) {
-			if (ip < (u8 *)PAGE_OFFSET ||
-					probe_kernel_address(ip, c)) {
-				pr_cont(" Bad RIP value.");
-				break;
-			}
-			if (ip == (u8 *)regs->ip)
-				pr_cont("<%02x> ", c);
-			else
-				pr_cont("%02x ", c);
-		}
-	}
-	pr_cont("\n");
-}
-
-int is_valid_bugaddr(unsigned long ip)
-{
-	unsigned short ud2;
-
-	if (__copy_from_user(&ud2, (const void __user *) ip, sizeof(ud2)))
-		return 0;
-
-	return ud2 == 0x0b0f;
 }

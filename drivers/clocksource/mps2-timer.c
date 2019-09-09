@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2015 ARM Limited
  *
  * Author: Vladimir Murzin <vladimir.murzin@arm.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #define pr_fmt(fmt)	KBUILD_MODNAME ": " fmt
@@ -274,4 +270,4 @@ static int __init mps2_timer_init(struct device_node *np)
 	return 0;
 }
 
-CLOCKSOURCE_OF_DECLARE(mps2_timer, "arm,mps2-timer", mps2_timer_init);
+TIMER_OF_DECLARE(mps2_timer, "arm,mps2-timer", mps2_timer_init);

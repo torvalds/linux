@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0
+
 # Ignore header name
 ignore define _UAPI__LINUX_VIDEODEV2_H
 
@@ -27,6 +29,8 @@ replace symbol V4L2_FIELD_SEQ_TB :c:type:`v4l2_field`
 replace symbol V4L2_FIELD_TOP :c:type:`v4l2_field`
 
 # Documented enum v4l2_buf_type
+replace symbol V4L2_BUF_TYPE_META_CAPTURE :c:type:`v4l2_buf_type`
+replace symbol V4L2_BUF_TYPE_META_OUTPUT :c:type:`v4l2_buf_type`
 replace symbol V4L2_BUF_TYPE_SDR_CAPTURE :c:type:`v4l2_buf_type`
 replace symbol V4L2_BUF_TYPE_SDR_OUTPUT :c:type:`v4l2_buf_type`
 replace symbol V4L2_BUF_TYPE_SLICED_VBI_CAPTURE :c:type:`v4l2_buf_type`
@@ -55,7 +59,8 @@ replace symbol V4L2_MEMORY_USERPTR :c:type:`v4l2_memory`
 # Documented enum v4l2_colorspace
 replace symbol V4L2_COLORSPACE_470_SYSTEM_BG :c:type:`v4l2_colorspace`
 replace symbol V4L2_COLORSPACE_470_SYSTEM_M :c:type:`v4l2_colorspace`
-replace symbol V4L2_COLORSPACE_ADOBERGB :c:type:`v4l2_colorspace`
+replace symbol V4L2_COLORSPACE_OPRGB :c:type:`v4l2_colorspace`
+replace define V4L2_COLORSPACE_ADOBERGB :c:type:`v4l2_colorspace`
 replace symbol V4L2_COLORSPACE_BT2020 :c:type:`v4l2_colorspace`
 replace symbol V4L2_COLORSPACE_DCI_P3 :c:type:`v4l2_colorspace`
 replace symbol V4L2_COLORSPACE_DEFAULT :c:type:`v4l2_colorspace`
@@ -68,7 +73,8 @@ replace symbol V4L2_COLORSPACE_SRGB :c:type:`v4l2_colorspace`
 
 # Documented enum v4l2_xfer_func
 replace symbol V4L2_XFER_FUNC_709 :c:type:`v4l2_xfer_func`
-replace symbol V4L2_XFER_FUNC_ADOBERGB :c:type:`v4l2_xfer_func`
+replace symbol V4L2_XFER_FUNC_OPRGB :c:type:`v4l2_xfer_func`
+replace define V4L2_XFER_FUNC_ADOBERGB :c:type:`v4l2_xfer_func`
 replace symbol V4L2_XFER_FUNC_DCI_P3 :c:type:`v4l2_xfer_func`
 replace symbol V4L2_XFER_FUNC_DEFAULT :c:type:`v4l2_xfer_func`
 replace symbol V4L2_XFER_FUNC_NONE :c:type:`v4l2_xfer_func`
@@ -86,6 +92,10 @@ replace symbol V4L2_YCBCR_ENC_SYCC :c:type:`v4l2_ycbcr_encoding`
 replace symbol V4L2_YCBCR_ENC_XV601 :c:type:`v4l2_ycbcr_encoding`
 replace symbol V4L2_YCBCR_ENC_XV709 :c:type:`v4l2_ycbcr_encoding`
 replace symbol V4L2_YCBCR_ENC_SMPTE240M :c:type:`v4l2_ycbcr_encoding`
+
+# Documented enum v4l2_hsv_encoding
+replace symbol V4L2_HSV_ENC_180 :c:type:`v4l2_hsv_encoding`
+replace symbol V4L2_HSV_ENC_256 :c:type:`v4l2_hsv_encoding`
 
 # Documented enum v4l2_quantization
 replace symbol V4L2_QUANTIZATION_DEFAULT :c:type:`v4l2_quantization`
@@ -124,6 +134,13 @@ replace symbol V4L2_CTRL_TYPE_STRING :c:type:`v4l2_ctrl_type`
 replace symbol V4L2_CTRL_TYPE_U16 :c:type:`v4l2_ctrl_type`
 replace symbol V4L2_CTRL_TYPE_U32 :c:type:`v4l2_ctrl_type`
 replace symbol V4L2_CTRL_TYPE_U8 :c:type:`v4l2_ctrl_type`
+replace symbol V4L2_CTRL_TYPE_MPEG2_SLICE_PARAMS :c:type:`v4l2_ctrl_type`
+replace symbol V4L2_CTRL_TYPE_MPEG2_QUANTIZATION :c:type:`v4l2_ctrl_type`
+replace symbol V4L2_CTRL_TYPE_H264_SPS :c:type:`v4l2_ctrl_type`
+replace symbol V4L2_CTRL_TYPE_H264_PPS :c:type:`v4l2_ctrl_type`
+replace symbol V4L2_CTRL_TYPE_H264_SCALING_MATRIX :c:type:`v4l2_ctrl_type`
+replace symbol V4L2_CTRL_TYPE_H264_SLICE_PARAMS :c:type:`v4l2_ctrl_type`
+replace symbol V4L2_CTRL_TYPE_H264_DECODE_PARAMS :c:type:`v4l2_ctrl_type`
 
 # V4L2 capability defines
 replace define V4L2_CAP_VIDEO_CAPTURE device-capabilities
@@ -148,9 +165,11 @@ replace define V4L2_CAP_MODULATOR device-capabilities
 replace define V4L2_CAP_SDR_CAPTURE device-capabilities
 replace define V4L2_CAP_EXT_PIX_FORMAT device-capabilities
 replace define V4L2_CAP_SDR_OUTPUT device-capabilities
+replace define V4L2_CAP_META_CAPTURE device-capabilities
 replace define V4L2_CAP_READWRITE device-capabilities
 replace define V4L2_CAP_ASYNCIO device-capabilities
 replace define V4L2_CAP_STREAMING device-capabilities
+replace define V4L2_CAP_META_OUTPUT device-capabilities
 replace define V4L2_CAP_DEVICE_CAPS device-capabilities
 replace define V4L2_CAP_TOUCH device-capabilities
 
@@ -272,10 +291,14 @@ replace define V4L2_DV_BT_STD_SDI dv-bt-standards
 
 replace define V4L2_DV_FL_REDUCED_BLANKING dv-bt-standards
 replace define V4L2_DV_FL_CAN_REDUCE_FPS dv-bt-standards
+replace define V4L2_DV_FL_CAN_DETECT_REDUCED_FPS dv-bt-standards
 replace define V4L2_DV_FL_REDUCED_FPS dv-bt-standards
 replace define V4L2_DV_FL_HALF_LINE dv-bt-standards
 replace define V4L2_DV_FL_IS_CE_VIDEO dv-bt-standards
 replace define V4L2_DV_FL_FIRST_FIELD_EXTRA_LINE dv-bt-standards
+replace define V4L2_DV_FL_HAS_PICTURE_ASPECT dv-bt-standards
+replace define V4L2_DV_FL_HAS_CEA861_VIC dv-bt-standards
+replace define V4L2_DV_FL_HAS_HDMI_VIC dv-bt-standards
 
 replace define V4L2_DV_BT_656_1120 dv-timing-types
 
@@ -332,6 +355,7 @@ replace define V4L2_CTRL_FLAG_WRITE_ONLY control-flags
 replace define V4L2_CTRL_FLAG_VOLATILE control-flags
 replace define V4L2_CTRL_FLAG_HAS_PAYLOAD control-flags
 replace define V4L2_CTRL_FLAG_EXECUTE_ON_WRITE control-flags
+replace define V4L2_CTRL_FLAG_MODIFY_LAYOUT control-flags
 
 replace define V4L2_CTRL_FLAG_NEXT_CTRL control
 replace define V4L2_CTRL_FLAG_NEXT_COMPOUND control
@@ -504,10 +528,10 @@ ignore define V4L2_CTRL_DRIVER_PRIV
 ignore define V4L2_CTRL_MAX_DIMS
 ignore define V4L2_CTRL_WHICH_CUR_VAL
 ignore define V4L2_CTRL_WHICH_DEF_VAL
+ignore define V4L2_CTRL_WHICH_REQUEST_VAL
 ignore define V4L2_OUT_CAP_CUSTOM_TIMINGS
 ignore define V4L2_CID_MAX_CTRLS
 
-ignore ioctl VIDIOC_RESERVED
 ignore define BASE_VIDIOC_PRIVATE
 
 # Associate ioctls with their counterparts

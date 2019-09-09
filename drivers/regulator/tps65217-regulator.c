@@ -58,10 +58,9 @@ static const unsigned int LDO1_VSEL_table[] = {
 
 static const struct regulator_linear_range tps65217_uv1_ranges[] = {
 	REGULATOR_LINEAR_RANGE(900000, 0, 24, 25000),
-	REGULATOR_LINEAR_RANGE(1550000, 25, 30, 50000),
-	REGULATOR_LINEAR_RANGE(1850000, 31, 52, 50000),
+	REGULATOR_LINEAR_RANGE(1550000, 25, 52, 50000),
 	REGULATOR_LINEAR_RANGE(3000000, 53, 55, 100000),
-	REGULATOR_LINEAR_RANGE(3300000, 56, 62, 0),
+	REGULATOR_LINEAR_RANGE(3300000, 56, 63, 0),
 };
 
 static const struct regulator_linear_range tps65217_uv2_ranges[] = {
@@ -150,7 +149,7 @@ static int tps65217_pmic_set_suspend_disable(struct regulator_dev *dev)
 }
 
 /* Operations permitted on DCDCx, LDO2, LDO3 and LDO4 */
-static struct regulator_ops tps65217_pmic_ops = {
+static const struct regulator_ops tps65217_pmic_ops = {
 	.is_enabled		= regulator_is_enabled_regmap,
 	.enable			= tps65217_pmic_enable,
 	.disable		= tps65217_pmic_disable,
@@ -163,7 +162,7 @@ static struct regulator_ops tps65217_pmic_ops = {
 };
 
 /* Operations permitted on LDO1 */
-static struct regulator_ops tps65217_pmic_ldo1_ops = {
+static const struct regulator_ops tps65217_pmic_ldo1_ops = {
 	.is_enabled		= regulator_is_enabled_regmap,
 	.enable			= tps65217_pmic_enable,
 	.disable		= tps65217_pmic_disable,
@@ -179,7 +178,8 @@ static const struct regulator_desc regulators[] = {
 	TPS65217_REGULATOR("DCDC1", TPS65217_DCDC_1, "dcdc1",
 			   tps65217_pmic_ops, 64, TPS65217_REG_DEFDCDC1,
 			   TPS65217_DEFDCDCX_DCDC_MASK, TPS65217_ENABLE_DC1_EN,
-			   NULL, tps65217_uv1_ranges, 2, TPS65217_REG_SEQ1,
+			   NULL, tps65217_uv1_ranges,
+			   ARRAY_SIZE(tps65217_uv1_ranges), TPS65217_REG_SEQ1,
 			   TPS65217_SEQ1_DC1_SEQ_MASK),
 	TPS65217_REGULATOR("DCDC2", TPS65217_DCDC_2, "dcdc2",
 			   tps65217_pmic_ops, 64, TPS65217_REG_DEFDCDC2,
@@ -190,7 +190,8 @@ static const struct regulator_desc regulators[] = {
 	TPS65217_REGULATOR("DCDC3", TPS65217_DCDC_3, "dcdc3",
 			   tps65217_pmic_ops, 64, TPS65217_REG_DEFDCDC3,
 			   TPS65217_DEFDCDCX_DCDC_MASK, TPS65217_ENABLE_DC3_EN,
-			   NULL, tps65217_uv1_ranges, 1, TPS65217_REG_SEQ2,
+			   NULL, tps65217_uv1_ranges,
+			   ARRAY_SIZE(tps65217_uv1_ranges), TPS65217_REG_SEQ2,
 			   TPS65217_SEQ2_DC3_SEQ_MASK),
 	TPS65217_REGULATOR("LDO1", TPS65217_LDO_1, "ldo1",
 			   tps65217_pmic_ldo1_ops, 16, TPS65217_REG_DEFLDO1,
@@ -226,14 +227,12 @@ static int tps65217_regulator_probe(struct platform_device *pdev)
 	int i, ret;
 	unsigned int val;
 
-	if (tps65217_chip_id(tps) != TPS65217) {
-		dev_err(&pdev->dev, "Invalid tps chip version\n");
-		return -ENODEV;
-	}
-
 	/* Allocate memory for strobes */
-	tps->strobes = devm_kzalloc(&pdev->dev, sizeof(u8) *
-				    TPS65217_NUM_REGULATOR, GFP_KERNEL);
+	tps->strobes = devm_kcalloc(&pdev->dev,
+				    TPS65217_NUM_REGULATOR, sizeof(u8),
+				    GFP_KERNEL);
+	if (!tps->strobes)
+		return -ENOMEM;
 
 	platform_set_drvdata(pdev, tps);
 

@@ -1,16 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * intel_pt_insn_decoder.c: Intel Processor Trace support
  * Copyright (c) 2013-2014, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
  */
 
 #include <stdio.h>
@@ -26,14 +17,21 @@
 #include "insn.c"
 
 #include "intel-pt-insn-decoder.h"
+#include "dump-insn.h"
 
-/* Based on branch_type() from perf_event_intel_lbr.c */
+#if INTEL_PT_INSN_BUF_SZ < MAX_INSN_SIZE || INTEL_PT_INSN_BUF_SZ > MAX_INSN
+#error Instruction buffer size too small
+#endif
+
+/* Based on branch_type() from arch/x86/events/intel/lbr.c */
 static void intel_pt_insn_decoder(struct insn *insn,
 				  struct intel_pt_insn *intel_pt_insn)
 {
 	enum intel_pt_insn_op op = INTEL_PT_OP_OTHER;
 	enum intel_pt_insn_branch branch = INTEL_PT_BR_NO_BRANCH;
 	int ext;
+
+	intel_pt_insn->rel = 0;
 
 	if (insn_is_avx(insn)) {
 		intel_pt_insn->op = INTEL_PT_OP_OTHER;
@@ -166,11 +164,42 @@ int intel_pt_get_insn(const unsigned char *buf, size_t len, int x86_64,
 	if (!insn_complete(&insn) || insn.length > len)
 		return -1;
 	intel_pt_insn_decoder(&insn, intel_pt_insn);
-	if (insn.length < INTEL_PT_INSN_DBG_BUF_SZ)
+	if (insn.length < INTEL_PT_INSN_BUF_SZ)
 		memcpy(intel_pt_insn->buf, buf, insn.length);
 	else
-		memcpy(intel_pt_insn->buf, buf, INTEL_PT_INSN_DBG_BUF_SZ);
+		memcpy(intel_pt_insn->buf, buf, INTEL_PT_INSN_BUF_SZ);
 	return 0;
+}
+
+int arch_is_branch(const unsigned char *buf, size_t len, int x86_64)
+{
+	struct intel_pt_insn in;
+	if (intel_pt_get_insn(buf, len, x86_64, &in) < 0)
+		return -1;
+	return in.branch != INTEL_PT_BR_NO_BRANCH;
+}
+
+const char *dump_insn(struct perf_insn *x, uint64_t ip __maybe_unused,
+		      u8 *inbuf, int inlen, int *lenp)
+{
+	struct insn insn;
+	int n, i;
+	int left;
+
+	insn_init(&insn, inbuf, inlen, x->is64bit);
+	insn_get_length(&insn);
+	if (!insn_complete(&insn) || insn.length > inlen)
+		return "<bad>";
+	if (lenp)
+		*lenp = insn.length;
+	left = sizeof(x->out);
+	n = snprintf(x->out, left, "insn: ");
+	left -= n;
+	for (i = 0; i < insn.length; i++) {
+		n += snprintf(x->out + n, left, "%02x ", inbuf[i]);
+		left -= n;
+	}
+	return x->out;
 }
 
 const char *branch_name[] = {
@@ -209,11 +238,6 @@ int intel_pt_insn_desc(const struct intel_pt_insn *intel_pt_insn, char *buf,
 		break;
 	}
 	return 0;
-}
-
-size_t intel_pt_insn_max_size(void)
-{
-	return MAX_INSN_SIZE;
 }
 
 int intel_pt_insn_type(enum intel_pt_insn_op op)

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Makefile - Intel ISH HID drivers
 # Copyright (c) 2014-2016, Intel Corporation.
@@ -19,4 +20,7 @@ obj-$(CONFIG_INTEL_ISH_HID) += intel-ishtp-hid.o
 intel-ishtp-hid-objs := ishtp-hid.o
 intel-ishtp-hid-objs += ishtp-hid-client.o
 
-ccflags-y += -Idrivers/hid/intel-ish-hid/ishtp
+obj-$(CONFIG_INTEL_ISH_FIRMWARE_DOWNLOADER) += intel-ishtp-loader.o
+intel-ishtp-loader-objs += ishtp-fw-loader.o
+
+ccflags-y += -I $(srctree)/$(src)/ishtp

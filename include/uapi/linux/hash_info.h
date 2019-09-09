@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
 /*
  * Hash Info: Hash algorithms information
  *
@@ -32,6 +33,8 @@ enum hash_algo {
 	HASH_ALGO_TGR_160,
 	HASH_ALGO_TGR_192,
 	HASH_ALGO_SM3_256,
+	HASH_ALGO_STREEBOG_256,
+	HASH_ALGO_STREEBOG_512,
 	HASH_ALGO__LAST
 };
 

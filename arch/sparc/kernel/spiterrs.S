@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 	/* We need to carefully read the error status, ACK the errors,
 	 * prevent recursive traps, and pass the information on to C
 	 * code for logging.
@@ -86,6 +87,7 @@ __spitfire_cee_trap_continue:
 	 rd		%pc, %g7
 
 	ba,a,pt		%xcc, 2f
+	 nop
 
 1:	ba,pt		%xcc, etrap_irq
 	 rd		%pc, %g7

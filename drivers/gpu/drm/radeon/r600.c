@@ -25,19 +25,25 @@
  *          Alex Deucher
  *          Jerome Glisse
  */
+
 #include <linux/slab.h>
 #include <linux/seq_file.h>
 #include <linux/firmware.h>
 #include <linux/module.h>
-#include <drm/drmP.h>
+
+#include <drm/drm_debugfs.h>
+#include <drm/drm_device.h>
+#include <drm/drm_pci.h>
+#include <drm/drm_vblank.h>
 #include <drm/radeon_drm.h>
+
+#include "atom.h"
+#include "avivod.h"
+#include "r600d.h"
 #include "radeon.h"
 #include "radeon_asic.h"
 #include "radeon_audio.h"
 #include "radeon_mode.h"
-#include "r600d.h"
-#include "atom.h"
-#include "avivod.h"
 #include "radeon_ucode.h"
 
 /* Firmware Names */
@@ -1094,7 +1100,7 @@ void r600_pcie_gart_tlb_flush(struct radeon_device *rdev)
 		tmp = RREG32(VM_CONTEXT0_REQUEST_RESPONSE);
 		tmp = (tmp & RESPONSE_TYPE_MASK) >> RESPONSE_TYPE_SHIFT;
 		if (tmp == 2) {
-			printk(KERN_WARNING "[drm] r600 flush TLB failed\n");
+			pr_warn("[drm] r600 flush TLB failed\n");
 			return;
 		}
 		if (tmp) {
@@ -2550,8 +2556,7 @@ int r600_init_microcode(struct radeon_device *rdev)
 	if (err)
 		goto out;
 	if (rdev->pfp_fw->size != pfp_req_size) {
-		printk(KERN_ERR
-		       "r600_cp: Bogus length %zu in firmware \"%s\"\n",
+		pr_err("r600_cp: Bogus length %zu in firmware \"%s\"\n",
 		       rdev->pfp_fw->size, fw_name);
 		err = -EINVAL;
 		goto out;
@@ -2562,8 +2567,7 @@ int r600_init_microcode(struct radeon_device *rdev)
 	if (err)
 		goto out;
 	if (rdev->me_fw->size != me_req_size) {
-		printk(KERN_ERR
-		       "r600_cp: Bogus length %zu in firmware \"%s\"\n",
+		pr_err("r600_cp: Bogus length %zu in firmware \"%s\"\n",
 		       rdev->me_fw->size, fw_name);
 		err = -EINVAL;
 	}
@@ -2573,8 +2577,7 @@ int r600_init_microcode(struct radeon_device *rdev)
 	if (err)
 		goto out;
 	if (rdev->rlc_fw->size != rlc_req_size) {
-		printk(KERN_ERR
-		       "r600_rlc: Bogus length %zu in firmware \"%s\"\n",
+		pr_err("r600_rlc: Bogus length %zu in firmware \"%s\"\n",
 		       rdev->rlc_fw->size, fw_name);
 		err = -EINVAL;
 	}
@@ -2583,15 +2586,12 @@ int r600_init_microcode(struct radeon_device *rdev)
 		snprintf(fw_name, sizeof(fw_name), "radeon/%s_smc.bin", smc_chip_name);
 		err = request_firmware(&rdev->smc_fw, fw_name, rdev->dev);
 		if (err) {
-			printk(KERN_ERR
-			       "smc: error loading firmware \"%s\"\n",
-			       fw_name);
+			pr_err("smc: error loading firmware \"%s\"\n", fw_name);
 			release_firmware(rdev->smc_fw);
 			rdev->smc_fw = NULL;
 			err = 0;
 		} else if (rdev->smc_fw->size != smc_req_size) {
-			printk(KERN_ERR
-			       "smc: Bogus length %zu in firmware \"%s\"\n",
+			pr_err("smc: Bogus length %zu in firmware \"%s\"\n",
 			       rdev->smc_fw->size, fw_name);
 			err = -EINVAL;
 		}
@@ -2600,8 +2600,7 @@ int r600_init_microcode(struct radeon_device *rdev)
 out:
 	if (err) {
 		if (err != -EINVAL)
-			printk(KERN_ERR
-			       "r600_cp: Failed to load firmware \"%s\"\n",
+			pr_err("r600_cp: Failed to load firmware \"%s\"\n",
 			       fw_name);
 		release_firmware(rdev->pfp_fw);
 		rdev->pfp_fw = NULL;
@@ -2847,7 +2846,7 @@ int r600_ring_test(struct radeon_device *rdev, struct radeon_ring *ring)
 		tmp = RREG32(scratch);
 		if (tmp == 0xDEADBEEF)
 			break;
-		DRM_UDELAY(1);
+		udelay(1);
 	}
 	if (i < rdev->usec_timeout) {
 		DRM_INFO("ring test on %d succeeded in %d usecs\n", ring->idx, i);
@@ -3440,7 +3439,7 @@ int r600_ib_test(struct radeon_device *rdev, struct radeon_ring *ring)
 		tmp = RREG32(scratch);
 		if (tmp == 0xDEADBEEF)
 			break;
-		DRM_UDELAY(1);
+		udelay(1);
 	}
 	if (i < rdev->usec_timeout) {
 		DRM_INFO("ib test on ring %d succeeded in %u usecs\n", ib.fence->ring, i);
@@ -3995,7 +3994,7 @@ static void r600_irq_ack(struct radeon_device *rdev)
 			WREG32(DC_HPD5_INT_CONTROL, tmp);
 		}
 		if (rdev->irq.stat_regs.r600.disp_int_cont2 & DC_HPD6_INTERRUPT) {
-			tmp = RREG32(DC_HPD5_INT_CONTROL);
+			tmp = RREG32(DC_HPD6_INT_CONTROL);
 			tmp |= DC_HPDx_INT_ACK;
 			WREG32(DC_HPD6_INT_CONTROL, tmp);
 		}

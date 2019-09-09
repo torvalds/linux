@@ -1,56 +1,52 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2001,2005 Silicon Graphics, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "xfs.h"
 #include "xfs_fs.h"
+#include "xfs_shared.h"
 #include "xfs_format.h"
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
-#include "xfs_defer.h"
-#include "xfs_da_format.h"
-#include "xfs_da_btree.h"
 #include "xfs_inode.h"
 #include "xfs_trans.h"
-#include "xfs_inode_item.h"
 #include "xfs_bmap.h"
 #include "xfs_dir2.h"
 #include "xfs_dir2_priv.h"
+#include "xfs_errortag.h"
 #include "xfs_error.h"
 #include "xfs_trace.h"
 
 struct xfs_name xfs_name_dotdot = { (unsigned char *)"..", 2, XFS_DIR3_FT_DIR };
 
 /*
- * @mode, if set, indicates that the type field needs to be set up.
- * This uses the transformation from file mode to DT_* as defined in linux/fs.h
- * for file type specification. This will be propagated into the directory
- * structure if appropriate for the given operation and filesystem config.
+ * Convert inode mode to directory entry filetype
  */
-const unsigned char xfs_mode_to_ftype[S_IFMT >> S_SHIFT] = {
-	[0]			= XFS_DIR3_FT_UNKNOWN,
-	[S_IFREG >> S_SHIFT]    = XFS_DIR3_FT_REG_FILE,
-	[S_IFDIR >> S_SHIFT]    = XFS_DIR3_FT_DIR,
-	[S_IFCHR >> S_SHIFT]    = XFS_DIR3_FT_CHRDEV,
-	[S_IFBLK >> S_SHIFT]    = XFS_DIR3_FT_BLKDEV,
-	[S_IFIFO >> S_SHIFT]    = XFS_DIR3_FT_FIFO,
-	[S_IFSOCK >> S_SHIFT]   = XFS_DIR3_FT_SOCK,
-	[S_IFLNK >> S_SHIFT]    = XFS_DIR3_FT_SYMLINK,
-};
+unsigned char
+xfs_mode_to_ftype(
+	int		mode)
+{
+	switch (mode & S_IFMT) {
+	case S_IFREG:
+		return XFS_DIR3_FT_REG_FILE;
+	case S_IFDIR:
+		return XFS_DIR3_FT_DIR;
+	case S_IFCHR:
+		return XFS_DIR3_FT_CHRDEV;
+	case S_IFBLK:
+		return XFS_DIR3_FT_BLKDEV;
+	case S_IFIFO:
+		return XFS_DIR3_FT_FIFO;
+	case S_IFSOCK:
+		return XFS_DIR3_FT_SOCK;
+	case S_IFLNK:
+		return XFS_DIR3_FT_SYMLINK;
+	default:
+		return XFS_DIR3_FT_UNKNOWN;
+	}
+}
 
 /*
  * ASCII case-insensitive (ie. A-Z) support for directories that was
@@ -93,7 +89,7 @@ xfs_ascii_ci_compname(
 	return result;
 }
 
-static struct xfs_nameops xfs_ascii_ci_nameops = {
+static const struct xfs_nameops xfs_ascii_ci_nameops = {
 	.hashname	= xfs_ascii_ci_hashname,
 	.compname	= xfs_ascii_ci_compname,
 };
@@ -107,8 +103,7 @@ xfs_da_mount(
 
 
 	ASSERT(mp->m_sb.sb_versionnum & XFS_SB_VERSION_DIRV2BIT);
-	ASSERT((1 << (mp->m_sb.sb_blocklog + mp->m_sb.sb_dirblklog)) <=
-	       XFS_MAX_BLOCKSIZE);
+	ASSERT(xfs_dir2_dirblock_bytes(&mp->m_sb) <= XFS_MAX_BLOCKSIZE);
 
 	mp->m_dir_inode_ops = xfs_dir_get_ops(mp, NULL);
 	mp->m_nondir_inode_ops = xfs_nondir_get_ops(mp, NULL);
@@ -128,7 +123,7 @@ xfs_da_mount(
 	dageo = mp->m_dir_geo;
 	dageo->blklog = mp->m_sb.sb_blocklog + mp->m_sb.sb_dirblklog;
 	dageo->fsblog = mp->m_sb.sb_blocklog;
-	dageo->blksize = 1 << dageo->blklog;
+	dageo->blksize = xfs_dir2_dirblock_bytes(&mp->m_sb);
 	dageo->fsbcount = 1 << mp->m_sb.sb_dirblklog;
 
 	/*
@@ -194,24 +189,9 @@ xfs_dir_ino_validate(
 	xfs_mount_t	*mp,
 	xfs_ino_t	ino)
 {
-	xfs_agblock_t	agblkno;
-	xfs_agino_t	agino;
-	xfs_agnumber_t	agno;
-	int		ino_ok;
-	int		ioff;
+	bool		ino_ok = xfs_verify_dir_ino(mp, ino);
 
-	agno = XFS_INO_TO_AGNO(mp, ino);
-	agblkno = XFS_INO_TO_AGBNO(mp, ino);
-	ioff = XFS_INO_TO_OFFSET(mp, ino);
-	agino = XFS_OFFBNO_TO_AGINO(mp, agblkno, ioff);
-	ino_ok =
-		agno < mp->m_sb.sb_agcount &&
-		agblkno < mp->m_sb.sb_agblocks &&
-		agblkno != 0 &&
-		ioff < (1 << mp->m_sb.sb_inopblog) &&
-		XFS_AGINO_TO_INO(mp, agno, agino) == ino;
-	if (unlikely(XFS_TEST_ERROR(!ino_ok, mp, XFS_ERRTAG_DIR_INO_VALIDATE,
-			XFS_RANDOM_DIR_INO_VALIDATE))) {
+	if (unlikely(XFS_TEST_ERROR(!ino_ok, mp, XFS_ERRTAG_DIR_INO_VALIDATE))) {
 		xfs_warn(mp, "Invalid inode number 0x%Lx",
 				(unsigned long long) ino);
 		XFS_ERROR_REPORT("xfs_dir_ino_validate", XFS_ERRLEVEL_LOW, mp);
@@ -255,12 +235,10 @@ xfs_dir_init(
  */
 int
 xfs_dir_createname(
-	xfs_trans_t		*tp,
-	xfs_inode_t		*dp,
+	struct xfs_trans	*tp,
+	struct xfs_inode	*dp,
 	struct xfs_name		*name,
 	xfs_ino_t		inum,		/* new entry inode number */
-	xfs_fsblock_t		*first,		/* bmap's firstblock */
-	struct xfs_defer_ops	*dfops,		/* bmap's freeblock list */
 	xfs_extlen_t		total)		/* bmap's total block count */
 {
 	struct xfs_da_args	*args;
@@ -268,6 +246,7 @@ xfs_dir_createname(
 	int			v;		/* type-checking value */
 
 	ASSERT(S_ISDIR(VFS_I(dp)->i_mode));
+
 	if (inum) {
 		rval = xfs_dir_ino_validate(tp->t_mountp, inum);
 		if (rval)
@@ -286,8 +265,6 @@ xfs_dir_createname(
 	args->hashval = dp->i_mount->m_dirnameops->hashname(name);
 	args->inumber = inum;
 	args->dp = dp;
-	args->firstblock = first;
-	args->dfops = dfops;
 	args->total = total;
 	args->whichfork = XFS_DATA_FORK;
 	args->trans = tp;
@@ -432,17 +409,15 @@ out_free:
  */
 int
 xfs_dir_removename(
-	xfs_trans_t	*tp,
-	xfs_inode_t	*dp,
-	struct xfs_name	*name,
-	xfs_ino_t	ino,
-	xfs_fsblock_t	*first,		/* bmap's firstblock */
-	struct xfs_defer_ops	*dfops,		/* bmap's freeblock list */
-	xfs_extlen_t	total)		/* bmap's total block count */
+	struct xfs_trans	*tp,
+	struct xfs_inode	*dp,
+	struct xfs_name		*name,
+	xfs_ino_t		ino,
+	xfs_extlen_t		total)		/* bmap's total block count */
 {
-	struct xfs_da_args *args;
-	int		rval;
-	int		v;		/* type-checking value */
+	struct xfs_da_args	*args;
+	int			rval;
+	int			v;		/* type-checking value */
 
 	ASSERT(S_ISDIR(VFS_I(dp)->i_mode));
 	XFS_STATS_INC(dp->i_mount, xs_dir_remove);
@@ -458,8 +433,6 @@ xfs_dir_removename(
 	args->hashval = dp->i_mount->m_dirnameops->hashname(name);
 	args->inumber = ino;
 	args->dp = dp;
-	args->firstblock = first;
-	args->dfops = dfops;
 	args->total = total;
 	args->whichfork = XFS_DATA_FORK;
 	args->trans = tp;
@@ -494,17 +467,15 @@ out_free:
  */
 int
 xfs_dir_replace(
-	xfs_trans_t	*tp,
-	xfs_inode_t	*dp,
-	struct xfs_name	*name,		/* name of entry to replace */
-	xfs_ino_t	inum,		/* new inode number */
-	xfs_fsblock_t	*first,		/* bmap's firstblock */
-	struct xfs_defer_ops	*dfops,		/* bmap's freeblock list */
-	xfs_extlen_t	total)		/* bmap's total block count */
+	struct xfs_trans	*tp,
+	struct xfs_inode	*dp,
+	struct xfs_name		*name,		/* name of entry to replace */
+	xfs_ino_t		inum,		/* new inode number */
+	xfs_extlen_t		total)		/* bmap's total block count */
 {
-	struct xfs_da_args *args;
-	int		rval;
-	int		v;		/* type-checking value */
+	struct xfs_da_args	*args;
+	int			rval;
+	int			v;		/* type-checking value */
 
 	ASSERT(S_ISDIR(VFS_I(dp)->i_mode));
 
@@ -523,8 +494,6 @@ xfs_dir_replace(
 	args->hashval = dp->i_mount->m_dirnameops->hashname(name);
 	args->inumber = inum;
 	args->dp = dp;
-	args->firstblock = first;
-	args->dfops = dfops;
 	args->total = total;
 	args->whichfork = XFS_DATA_FORK;
 	args->trans = tp;
@@ -563,7 +532,7 @@ xfs_dir_canenter(
 	xfs_inode_t	*dp,
 	struct xfs_name	*name)		/* name of entry to add */
 {
-	return xfs_dir_createname(tp, dp, name, 0, NULL, NULL, 0);
+	return xfs_dir_createname(tp, dp, name, 0, 0);
 }
 
 /*
@@ -631,7 +600,8 @@ xfs_dir2_isblock(
 	if ((rval = xfs_bmap_last_offset(args->dp, &last, XFS_DATA_FORK)))
 		return rval;
 	rval = XFS_FSB_TO_B(args->dp->i_mount, last) == args->geo->blksize;
-	ASSERT(rval == 0 || args->dp->i_d.di_size == args->geo->blksize);
+	if (rval != 0 && args->dp->i_d.di_size != args->geo->blksize)
+		return -EFSCORRUPTED;
 	*vp = rval;
 	return 0;
 }
@@ -660,17 +630,17 @@ xfs_dir2_isleaf(
  */
 int
 xfs_dir2_shrink_inode(
-	xfs_da_args_t	*args,
-	xfs_dir2_db_t	db,
-	struct xfs_buf	*bp)
+	struct xfs_da_args	*args,
+	xfs_dir2_db_t		db,
+	struct xfs_buf		*bp)
 {
-	xfs_fileoff_t	bno;		/* directory file offset */
-	xfs_dablk_t	da;		/* directory file offset */
-	int		done;		/* bunmap is finished */
-	xfs_inode_t	*dp;
-	int		error;
-	xfs_mount_t	*mp;
-	xfs_trans_t	*tp;
+	xfs_fileoff_t		bno;		/* directory file offset */
+	xfs_dablk_t		da;		/* directory file offset */
+	int			done;		/* bunmap is finished */
+	struct xfs_inode	*dp;
+	int			error;
+	struct xfs_mount	*mp;
+	struct xfs_trans	*tp;
 
 	trace_xfs_dir2_shrink_inode(args, db);
 
@@ -680,8 +650,7 @@ xfs_dir2_shrink_inode(
 	da = xfs_dir2_db_to_da(args->geo, db);
 
 	/* Unmap the fsblock(s). */
-	error = xfs_bunmapi(tp, dp, da, args->geo->fsbcount, 0, 0,
-			    args->firstblock, args->dfops, &done);
+	error = xfs_bunmapi(tp, dp, da, args->geo->fsbcount, 0, 0, &done);
 	if (error) {
 		/*
 		 * ENOSPC actually can happen if we're in a removename with no
@@ -729,4 +698,21 @@ xfs_dir2_shrink_inode(
 	dp->i_d.di_size = XFS_FSB_TO_B(mp, bno);
 	xfs_trans_log_inode(tp, dp, XFS_ILOG_CORE);
 	return 0;
+}
+
+/* Returns true if the directory entry name is valid. */
+bool
+xfs_dir2_namecheck(
+	const void	*name,
+	size_t		length)
+{
+	/*
+	 * MAXNAMELEN includes the trailing null, but (name/length) leave it
+	 * out, so use >= for the length check.
+	 */
+	if (length >= MAXNAMELEN)
+		return false;
+
+	/* There shouldn't be any slashes or nulls here */
+	return !memchr(name, '/', length) && !memchr(name, 0, length);
 }

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * sun4i-ss-cipher.c - hardware cryptographic accelerator for Allwinner A20 SoC
  *
@@ -7,22 +8,17 @@
  * keysize in CBC and ECB mode.
  * Add support also for DES and 3DES in CBC and ECB mode.
  *
- * You could find the datasheet in Documentation/arm/sunxi/README
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
+ * You could find the datasheet in Documentation/arm/sunxi.rst
  */
 #include "sun4i-ss.h"
 
-static int sun4i_ss_opti_poll(struct ablkcipher_request *areq)
+static int noinline_for_stack sun4i_ss_opti_poll(struct skcipher_request *areq)
 {
-	struct crypto_ablkcipher *tfm = crypto_ablkcipher_reqtfm(areq);
-	struct sun4i_tfm_ctx *op = crypto_ablkcipher_ctx(tfm);
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(areq);
+	struct sun4i_tfm_ctx *op = crypto_skcipher_ctx(tfm);
 	struct sun4i_ss_ctx *ss = op->ss;
-	unsigned int ivsize = crypto_ablkcipher_ivsize(tfm);
-	struct sun4i_cipher_req_ctx *ctx = ablkcipher_request_ctx(areq);
+	unsigned int ivsize = crypto_skcipher_ivsize(tfm);
+	struct sun4i_cipher_req_ctx *ctx = skcipher_request_ctx(areq);
 	u32 mode = ctx->mode;
 	/* when activating SS, the default FIFO space is SS_RX_DEFAULT(32) */
 	u32 rx_cnt = SS_RX_DEFAULT;
@@ -31,20 +27,15 @@ static int sun4i_ss_opti_poll(struct ablkcipher_request *areq)
 	u32 v;
 	int err = 0;
 	unsigned int i;
-	unsigned int ileft = areq->nbytes;
-	unsigned int oleft = areq->nbytes;
+	unsigned int ileft = areq->cryptlen;
+	unsigned int oleft = areq->cryptlen;
 	unsigned int todo;
 	struct sg_mapping_iter mi, mo;
 	unsigned int oi, oo; /* offset for in and out */
 	unsigned long flags;
 
-	if (areq->nbytes == 0)
+	if (!areq->cryptlen)
 		return 0;
-
-	if (!areq->info) {
-		dev_err_ratelimited(ss->dev, "ERROR: Empty IV\n");
-		return -EINVAL;
-	}
 
 	if (!areq->src || !areq->dst) {
 		dev_err_ratelimited(ss->dev, "ERROR: Some SGs are NULL\n");
@@ -56,9 +47,9 @@ static int sun4i_ss_opti_poll(struct ablkcipher_request *areq)
 	for (i = 0; i < op->keylen; i += 4)
 		writel(*(op->key + i / 4), ss->base + SS_KEY0 + i);
 
-	if (areq->info) {
+	if (areq->iv) {
 		for (i = 0; i < 4 && i < ivsize / 4; i++) {
-			v = *(u32 *)(areq->info + i * 4);
+			v = *(u32 *)(areq->iv + i * 4);
 			writel(v, ss->base + SS_IV0 + i * 4);
 		}
 	}
@@ -76,13 +67,13 @@ static int sun4i_ss_opti_poll(struct ablkcipher_request *areq)
 		goto release_ss;
 	}
 
-	ileft = areq->nbytes / 4;
-	oleft = areq->nbytes / 4;
+	ileft = areq->cryptlen / 4;
+	oleft = areq->cryptlen / 4;
 	oi = 0;
 	oo = 0;
 	do {
 		todo = min3(rx_cnt, ileft, (mi.length - oi) / 4);
-		if (todo > 0) {
+		if (todo) {
 			ileft -= todo;
 			writesl(ss->base + SS_RXFIFO, mi.addr + oi, todo);
 			oi += todo * 4;
@@ -97,7 +88,7 @@ static int sun4i_ss_opti_poll(struct ablkcipher_request *areq)
 		tx_cnt = SS_TXFIFO_SPACES(spaces);
 
 		todo = min3(tx_cnt, oleft, (mo.length - oo) / 4);
-		if (todo > 0) {
+		if (todo) {
 			oleft -= todo;
 			readsl(ss->base + SS_TXFIFO, mo.addr + oo, todo);
 			oo += todo * 4;
@@ -106,12 +97,12 @@ static int sun4i_ss_opti_poll(struct ablkcipher_request *areq)
 			sg_miter_next(&mo);
 			oo = 0;
 		}
-	} while (oleft > 0);
+	} while (oleft);
 
-	if (areq->info) {
+	if (areq->iv) {
 		for (i = 0; i < 4 && i < ivsize / 4; i++) {
 			v = readl(ss->base + SS_IV0 + i * 4);
-			*(u32 *)(areq->info + i * 4) = v;
+			*(u32 *)(areq->iv + i * 4) = v;
 		}
 	}
 
@@ -123,17 +114,42 @@ release_ss:
 	return err;
 }
 
-/* Generic function that support SG with size not multiple of 4 */
-static int sun4i_ss_cipher_poll(struct ablkcipher_request *areq)
+
+static int noinline_for_stack sun4i_ss_cipher_poll_fallback(struct skcipher_request *areq)
 {
-	struct crypto_ablkcipher *tfm = crypto_ablkcipher_reqtfm(areq);
-	struct sun4i_tfm_ctx *op = crypto_ablkcipher_ctx(tfm);
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(areq);
+	struct sun4i_tfm_ctx *op = crypto_skcipher_ctx(tfm);
+	struct sun4i_cipher_req_ctx *ctx = skcipher_request_ctx(areq);
+	SYNC_SKCIPHER_REQUEST_ON_STACK(subreq, op->fallback_tfm);
+	int err;
+
+	skcipher_request_set_sync_tfm(subreq, op->fallback_tfm);
+	skcipher_request_set_callback(subreq, areq->base.flags, NULL,
+				      NULL);
+	skcipher_request_set_crypt(subreq, areq->src, areq->dst,
+				   areq->cryptlen, areq->iv);
+	if (ctx->mode & SS_DECRYPTION)
+		err = crypto_skcipher_decrypt(subreq);
+	else
+		err = crypto_skcipher_encrypt(subreq);
+	skcipher_request_zero(subreq);
+
+	return err;
+}
+
+/* Generic function that support SG with size not multiple of 4 */
+static int sun4i_ss_cipher_poll(struct skcipher_request *areq)
+{
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(areq);
+	struct sun4i_tfm_ctx *op = crypto_skcipher_ctx(tfm);
 	struct sun4i_ss_ctx *ss = op->ss;
 	int no_chunk = 1;
 	struct scatterlist *in_sg = areq->src;
 	struct scatterlist *out_sg = areq->dst;
-	unsigned int ivsize = crypto_ablkcipher_ivsize(tfm);
-	struct sun4i_cipher_req_ctx *ctx = ablkcipher_request_ctx(areq);
+	unsigned int ivsize = crypto_skcipher_ivsize(tfm);
+	struct sun4i_cipher_req_ctx *ctx = skcipher_request_ctx(areq);
+	struct skcipher_alg *alg = crypto_skcipher_alg(tfm);
+	struct sun4i_ss_alg_template *algt;
 	u32 mode = ctx->mode;
 	/* when activating SS, the default FIFO space is SS_RX_DEFAULT(32) */
 	u32 rx_cnt = SS_RX_DEFAULT;
@@ -142,57 +158,58 @@ static int sun4i_ss_cipher_poll(struct ablkcipher_request *areq)
 	u32 spaces;
 	int err = 0;
 	unsigned int i;
-	unsigned int ileft = areq->nbytes;
-	unsigned int oleft = areq->nbytes;
+	unsigned int ileft = areq->cryptlen;
+	unsigned int oleft = areq->cryptlen;
 	unsigned int todo;
 	struct sg_mapping_iter mi, mo;
 	unsigned int oi, oo;	/* offset for in and out */
-	char buf[4 * SS_RX_MAX];/* buffer for linearize SG src */
-	char bufo[4 * SS_TX_MAX]; /* buffer for linearize SG dst */
 	unsigned int ob = 0;	/* offset in buf */
 	unsigned int obo = 0;	/* offset in bufo*/
 	unsigned int obl = 0;	/* length of data in bufo */
 	unsigned long flags;
+	bool need_fallback;
 
-	if (areq->nbytes == 0)
+	if (!areq->cryptlen)
 		return 0;
-
-	if (!areq->info) {
-		dev_err_ratelimited(ss->dev, "ERROR: Empty IV\n");
-		return -EINVAL;
-	}
 
 	if (!areq->src || !areq->dst) {
 		dev_err_ratelimited(ss->dev, "ERROR: Some SGs are NULL\n");
 		return -EINVAL;
 	}
 
+	algt = container_of(alg, struct sun4i_ss_alg_template, alg.crypto);
+	if (areq->cryptlen % algt->alg.crypto.base.cra_blocksize)
+		need_fallback = true;
+
 	/*
 	 * if we have only SGs with size multiple of 4,
 	 * we can use the SS optimized function
 	 */
 	while (in_sg && no_chunk == 1) {
-		if ((in_sg->length % 4) != 0)
+		if (in_sg->length % 4)
 			no_chunk = 0;
 		in_sg = sg_next(in_sg);
 	}
 	while (out_sg && no_chunk == 1) {
-		if ((out_sg->length % 4) != 0)
+		if (out_sg->length % 4)
 			no_chunk = 0;
 		out_sg = sg_next(out_sg);
 	}
 
-	if (no_chunk == 1)
+	if (no_chunk == 1 && !need_fallback)
 		return sun4i_ss_opti_poll(areq);
+
+	if (need_fallback)
+		return sun4i_ss_cipher_poll_fallback(areq);
 
 	spin_lock_irqsave(&ss->slock, flags);
 
 	for (i = 0; i < op->keylen; i += 4)
 		writel(*(op->key + i / 4), ss->base + SS_KEY0 + i);
 
-	if (areq->info) {
+	if (areq->iv) {
 		for (i = 0; i < 4 && i < ivsize / 4; i++) {
-			v = *(u32 *)(areq->info + i * 4);
+			v = *(u32 *)(areq->iv + i * 4);
 			writel(v, ss->base + SS_IV0 + i * 4);
 		}
 	}
@@ -209,19 +226,21 @@ static int sun4i_ss_cipher_poll(struct ablkcipher_request *areq)
 		err = -EINVAL;
 		goto release_ss;
 	}
-	ileft = areq->nbytes;
-	oleft = areq->nbytes;
+	ileft = areq->cryptlen;
+	oleft = areq->cryptlen;
 	oi = 0;
 	oo = 0;
 
-	while (oleft > 0) {
-		if (ileft > 0) {
+	while (oleft) {
+		if (ileft) {
+			char buf[4 * SS_RX_MAX];/* buffer for linearize SG src */
+
 			/*
 			 * todo is the number of consecutive 4byte word that we
 			 * can read from current SG
 			 */
 			todo = min3(rx_cnt, ileft / 4, (mi.length - oi) / 4);
-			if (todo > 0 && ob == 0) {
+			if (todo && !ob) {
 				writesl(ss->base + SS_RXFIFO, mi.addr + oi,
 					todo);
 				ileft -= todo * 4;
@@ -240,7 +259,7 @@ static int sun4i_ss_cipher_poll(struct ablkcipher_request *areq)
 				ileft -= todo;
 				oi += todo;
 				ob += todo;
-				if (ob % 4 == 0) {
+				if (!(ob % 4)) {
 					writesl(ss->base + SS_RXFIFO, buf,
 						ob / 4);
 					ob = 0;
@@ -257,14 +276,14 @@ static int sun4i_ss_cipher_poll(struct ablkcipher_request *areq)
 		tx_cnt = SS_TXFIFO_SPACES(spaces);
 		dev_dbg(ss->dev, "%x %u/%u %u/%u cnt=%u %u/%u %u/%u cnt=%u %u\n",
 			mode,
-			oi, mi.length, ileft, areq->nbytes, rx_cnt,
-			oo, mo.length, oleft, areq->nbytes, tx_cnt, ob);
+			oi, mi.length, ileft, areq->cryptlen, rx_cnt,
+			oo, mo.length, oleft, areq->cryptlen, tx_cnt, ob);
 
-		if (tx_cnt == 0)
+		if (!tx_cnt)
 			continue;
 		/* todo in 4bytes word */
 		todo = min3(tx_cnt, oleft / 4, (mo.length - oo) / 4);
-		if (todo > 0) {
+		if (todo) {
 			readsl(ss->base + SS_TXFIFO, mo.addr + oo, todo);
 			oleft -= todo * 4;
 			oo += todo * 4;
@@ -273,6 +292,8 @@ static int sun4i_ss_cipher_poll(struct ablkcipher_request *areq)
 				oo = 0;
 			}
 		} else {
+			char bufo[4 * SS_TX_MAX]; /* buffer for linearize SG dst */
+
 			/*
 			 * read obl bytes in bufo, we read at maximum for
 			 * emptying the device
@@ -300,10 +321,10 @@ static int sun4i_ss_cipher_poll(struct ablkcipher_request *areq)
 			/* bufo must be fully used here */
 		}
 	}
-	if (areq->info) {
+	if (areq->iv) {
 		for (i = 0; i < 4 && i < ivsize / 4; i++) {
 			v = readl(ss->base + SS_IV0 + i * 4);
-			*(u32 *)(areq->info + i * 4) = v;
+			*(u32 *)(areq->iv + i * 4) = v;
 		}
 	}
 
@@ -317,22 +338,22 @@ release_ss:
 }
 
 /* CBC AES */
-int sun4i_ss_cbc_aes_encrypt(struct ablkcipher_request *areq)
+int sun4i_ss_cbc_aes_encrypt(struct skcipher_request *areq)
 {
-	struct crypto_ablkcipher *tfm = crypto_ablkcipher_reqtfm(areq);
-	struct sun4i_tfm_ctx *op = crypto_ablkcipher_ctx(tfm);
-	struct sun4i_cipher_req_ctx *rctx = ablkcipher_request_ctx(areq);
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(areq);
+	struct sun4i_tfm_ctx *op = crypto_skcipher_ctx(tfm);
+	struct sun4i_cipher_req_ctx *rctx = skcipher_request_ctx(areq);
 
 	rctx->mode = SS_OP_AES | SS_CBC | SS_ENABLED | SS_ENCRYPTION |
 		op->keymode;
 	return sun4i_ss_cipher_poll(areq);
 }
 
-int sun4i_ss_cbc_aes_decrypt(struct ablkcipher_request *areq)
+int sun4i_ss_cbc_aes_decrypt(struct skcipher_request *areq)
 {
-	struct crypto_ablkcipher *tfm = crypto_ablkcipher_reqtfm(areq);
-	struct sun4i_tfm_ctx *op = crypto_ablkcipher_ctx(tfm);
-	struct sun4i_cipher_req_ctx *rctx = ablkcipher_request_ctx(areq);
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(areq);
+	struct sun4i_tfm_ctx *op = crypto_skcipher_ctx(tfm);
+	struct sun4i_cipher_req_ctx *rctx = skcipher_request_ctx(areq);
 
 	rctx->mode = SS_OP_AES | SS_CBC | SS_ENABLED | SS_DECRYPTION |
 		op->keymode;
@@ -340,22 +361,22 @@ int sun4i_ss_cbc_aes_decrypt(struct ablkcipher_request *areq)
 }
 
 /* ECB AES */
-int sun4i_ss_ecb_aes_encrypt(struct ablkcipher_request *areq)
+int sun4i_ss_ecb_aes_encrypt(struct skcipher_request *areq)
 {
-	struct crypto_ablkcipher *tfm = crypto_ablkcipher_reqtfm(areq);
-	struct sun4i_tfm_ctx *op = crypto_ablkcipher_ctx(tfm);
-	struct sun4i_cipher_req_ctx *rctx = ablkcipher_request_ctx(areq);
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(areq);
+	struct sun4i_tfm_ctx *op = crypto_skcipher_ctx(tfm);
+	struct sun4i_cipher_req_ctx *rctx = skcipher_request_ctx(areq);
 
 	rctx->mode = SS_OP_AES | SS_ECB | SS_ENABLED | SS_ENCRYPTION |
 		op->keymode;
 	return sun4i_ss_cipher_poll(areq);
 }
 
-int sun4i_ss_ecb_aes_decrypt(struct ablkcipher_request *areq)
+int sun4i_ss_ecb_aes_decrypt(struct skcipher_request *areq)
 {
-	struct crypto_ablkcipher *tfm = crypto_ablkcipher_reqtfm(areq);
-	struct sun4i_tfm_ctx *op = crypto_ablkcipher_ctx(tfm);
-	struct sun4i_cipher_req_ctx *rctx = ablkcipher_request_ctx(areq);
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(areq);
+	struct sun4i_tfm_ctx *op = crypto_skcipher_ctx(tfm);
+	struct sun4i_cipher_req_ctx *rctx = skcipher_request_ctx(areq);
 
 	rctx->mode = SS_OP_AES | SS_ECB | SS_ENABLED | SS_DECRYPTION |
 		op->keymode;
@@ -363,22 +384,22 @@ int sun4i_ss_ecb_aes_decrypt(struct ablkcipher_request *areq)
 }
 
 /* CBC DES */
-int sun4i_ss_cbc_des_encrypt(struct ablkcipher_request *areq)
+int sun4i_ss_cbc_des_encrypt(struct skcipher_request *areq)
 {
-	struct crypto_ablkcipher *tfm = crypto_ablkcipher_reqtfm(areq);
-	struct sun4i_tfm_ctx *op = crypto_ablkcipher_ctx(tfm);
-	struct sun4i_cipher_req_ctx *rctx = ablkcipher_request_ctx(areq);
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(areq);
+	struct sun4i_tfm_ctx *op = crypto_skcipher_ctx(tfm);
+	struct sun4i_cipher_req_ctx *rctx = skcipher_request_ctx(areq);
 
 	rctx->mode = SS_OP_DES | SS_CBC | SS_ENABLED | SS_ENCRYPTION |
 		op->keymode;
 	return sun4i_ss_cipher_poll(areq);
 }
 
-int sun4i_ss_cbc_des_decrypt(struct ablkcipher_request *areq)
+int sun4i_ss_cbc_des_decrypt(struct skcipher_request *areq)
 {
-	struct crypto_ablkcipher *tfm = crypto_ablkcipher_reqtfm(areq);
-	struct sun4i_tfm_ctx *op = crypto_ablkcipher_ctx(tfm);
-	struct sun4i_cipher_req_ctx *rctx = ablkcipher_request_ctx(areq);
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(areq);
+	struct sun4i_tfm_ctx *op = crypto_skcipher_ctx(tfm);
+	struct sun4i_cipher_req_ctx *rctx = skcipher_request_ctx(areq);
 
 	rctx->mode = SS_OP_DES | SS_CBC | SS_ENABLED | SS_DECRYPTION |
 		op->keymode;
@@ -386,22 +407,22 @@ int sun4i_ss_cbc_des_decrypt(struct ablkcipher_request *areq)
 }
 
 /* ECB DES */
-int sun4i_ss_ecb_des_encrypt(struct ablkcipher_request *areq)
+int sun4i_ss_ecb_des_encrypt(struct skcipher_request *areq)
 {
-	struct crypto_ablkcipher *tfm = crypto_ablkcipher_reqtfm(areq);
-	struct sun4i_tfm_ctx *op = crypto_ablkcipher_ctx(tfm);
-	struct sun4i_cipher_req_ctx *rctx = ablkcipher_request_ctx(areq);
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(areq);
+	struct sun4i_tfm_ctx *op = crypto_skcipher_ctx(tfm);
+	struct sun4i_cipher_req_ctx *rctx = skcipher_request_ctx(areq);
 
 	rctx->mode = SS_OP_DES | SS_ECB | SS_ENABLED | SS_ENCRYPTION |
 		op->keymode;
 	return sun4i_ss_cipher_poll(areq);
 }
 
-int sun4i_ss_ecb_des_decrypt(struct ablkcipher_request *areq)
+int sun4i_ss_ecb_des_decrypt(struct skcipher_request *areq)
 {
-	struct crypto_ablkcipher *tfm = crypto_ablkcipher_reqtfm(areq);
-	struct sun4i_tfm_ctx *op = crypto_ablkcipher_ctx(tfm);
-	struct sun4i_cipher_req_ctx *rctx = ablkcipher_request_ctx(areq);
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(areq);
+	struct sun4i_tfm_ctx *op = crypto_skcipher_ctx(tfm);
+	struct sun4i_cipher_req_ctx *rctx = skcipher_request_ctx(areq);
 
 	rctx->mode = SS_OP_DES | SS_ECB | SS_ENABLED | SS_DECRYPTION |
 		op->keymode;
@@ -409,22 +430,22 @@ int sun4i_ss_ecb_des_decrypt(struct ablkcipher_request *areq)
 }
 
 /* CBC 3DES */
-int sun4i_ss_cbc_des3_encrypt(struct ablkcipher_request *areq)
+int sun4i_ss_cbc_des3_encrypt(struct skcipher_request *areq)
 {
-	struct crypto_ablkcipher *tfm = crypto_ablkcipher_reqtfm(areq);
-	struct sun4i_tfm_ctx *op = crypto_ablkcipher_ctx(tfm);
-	struct sun4i_cipher_req_ctx *rctx = ablkcipher_request_ctx(areq);
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(areq);
+	struct sun4i_tfm_ctx *op = crypto_skcipher_ctx(tfm);
+	struct sun4i_cipher_req_ctx *rctx = skcipher_request_ctx(areq);
 
 	rctx->mode = SS_OP_3DES | SS_CBC | SS_ENABLED | SS_ENCRYPTION |
 		op->keymode;
 	return sun4i_ss_cipher_poll(areq);
 }
 
-int sun4i_ss_cbc_des3_decrypt(struct ablkcipher_request *areq)
+int sun4i_ss_cbc_des3_decrypt(struct skcipher_request *areq)
 {
-	struct crypto_ablkcipher *tfm = crypto_ablkcipher_reqtfm(areq);
-	struct sun4i_tfm_ctx *op = crypto_ablkcipher_ctx(tfm);
-	struct sun4i_cipher_req_ctx *rctx = ablkcipher_request_ctx(areq);
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(areq);
+	struct sun4i_tfm_ctx *op = crypto_skcipher_ctx(tfm);
+	struct sun4i_cipher_req_ctx *rctx = skcipher_request_ctx(areq);
 
 	rctx->mode = SS_OP_3DES | SS_CBC | SS_ENABLED | SS_DECRYPTION |
 		op->keymode;
@@ -432,22 +453,22 @@ int sun4i_ss_cbc_des3_decrypt(struct ablkcipher_request *areq)
 }
 
 /* ECB 3DES */
-int sun4i_ss_ecb_des3_encrypt(struct ablkcipher_request *areq)
+int sun4i_ss_ecb_des3_encrypt(struct skcipher_request *areq)
 {
-	struct crypto_ablkcipher *tfm = crypto_ablkcipher_reqtfm(areq);
-	struct sun4i_tfm_ctx *op = crypto_ablkcipher_ctx(tfm);
-	struct sun4i_cipher_req_ctx *rctx = ablkcipher_request_ctx(areq);
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(areq);
+	struct sun4i_tfm_ctx *op = crypto_skcipher_ctx(tfm);
+	struct sun4i_cipher_req_ctx *rctx = skcipher_request_ctx(areq);
 
 	rctx->mode = SS_OP_3DES | SS_ECB | SS_ENABLED | SS_ENCRYPTION |
 		op->keymode;
 	return sun4i_ss_cipher_poll(areq);
 }
 
-int sun4i_ss_ecb_des3_decrypt(struct ablkcipher_request *areq)
+int sun4i_ss_ecb_des3_decrypt(struct skcipher_request *areq)
 {
-	struct crypto_ablkcipher *tfm = crypto_ablkcipher_reqtfm(areq);
-	struct sun4i_tfm_ctx *op = crypto_ablkcipher_ctx(tfm);
-	struct sun4i_cipher_req_ctx *rctx = ablkcipher_request_ctx(areq);
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(areq);
+	struct sun4i_tfm_ctx *op = crypto_skcipher_ctx(tfm);
+	struct sun4i_cipher_req_ctx *rctx = skcipher_request_ctx(areq);
 
 	rctx->mode = SS_OP_3DES | SS_ECB | SS_ENABLED | SS_DECRYPTION |
 		op->keymode;
@@ -457,24 +478,39 @@ int sun4i_ss_ecb_des3_decrypt(struct ablkcipher_request *areq)
 int sun4i_ss_cipher_init(struct crypto_tfm *tfm)
 {
 	struct sun4i_tfm_ctx *op = crypto_tfm_ctx(tfm);
-	struct crypto_alg *alg = tfm->__crt_alg;
 	struct sun4i_ss_alg_template *algt;
+	const char *name = crypto_tfm_alg_name(tfm);
 
 	memset(op, 0, sizeof(struct sun4i_tfm_ctx));
 
-	algt = container_of(alg, struct sun4i_ss_alg_template, alg.crypto);
+	algt = container_of(tfm->__crt_alg, struct sun4i_ss_alg_template,
+			    alg.crypto.base);
 	op->ss = algt->ss;
 
-	tfm->crt_ablkcipher.reqsize = sizeof(struct sun4i_cipher_req_ctx);
+	crypto_skcipher_set_reqsize(__crypto_skcipher_cast(tfm),
+				    sizeof(struct sun4i_cipher_req_ctx));
+
+	op->fallback_tfm = crypto_alloc_sync_skcipher(name, 0, CRYPTO_ALG_NEED_FALLBACK);
+	if (IS_ERR(op->fallback_tfm)) {
+		dev_err(op->ss->dev, "ERROR: Cannot allocate fallback for %s %ld\n",
+			name, PTR_ERR(op->fallback_tfm));
+		return PTR_ERR(op->fallback_tfm);
+	}
 
 	return 0;
 }
 
+void sun4i_ss_cipher_exit(struct crypto_tfm *tfm)
+{
+	struct sun4i_tfm_ctx *op = crypto_tfm_ctx(tfm);
+	crypto_free_sync_skcipher(op->fallback_tfm);
+}
+
 /* check and set the AES key, prepare the mode to be used */
-int sun4i_ss_aes_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
+int sun4i_ss_aes_setkey(struct crypto_skcipher *tfm, const u8 *key,
 			unsigned int keylen)
 {
-	struct sun4i_tfm_ctx *op = crypto_ablkcipher_ctx(tfm);
+	struct sun4i_tfm_ctx *op = crypto_skcipher_ctx(tfm);
 	struct sun4i_ss_ctx *ss = op->ss;
 
 	switch (keylen) {
@@ -489,19 +525,23 @@ int sun4i_ss_aes_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
 		break;
 	default:
 		dev_err(ss->dev, "ERROR: Invalid keylen %u\n", keylen);
-		crypto_ablkcipher_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
+		crypto_skcipher_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
 		return -EINVAL;
 	}
 	op->keylen = keylen;
 	memcpy(op->key, key, keylen);
-	return 0;
+
+	crypto_sync_skcipher_clear_flags(op->fallback_tfm, CRYPTO_TFM_REQ_MASK);
+	crypto_sync_skcipher_set_flags(op->fallback_tfm, tfm->base.crt_flags & CRYPTO_TFM_REQ_MASK);
+
+	return crypto_sync_skcipher_setkey(op->fallback_tfm, key, keylen);
 }
 
 /* check and set the DES key, prepare the mode to be used */
-int sun4i_ss_des_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
+int sun4i_ss_des_setkey(struct crypto_skcipher *tfm, const u8 *key,
 			unsigned int keylen)
 {
-	struct sun4i_tfm_ctx *op = crypto_ablkcipher_ctx(tfm);
+	struct sun4i_tfm_ctx *op = crypto_skcipher_ctx(tfm);
 	struct sun4i_ss_ctx *ss = op->ss;
 	u32 flags;
 	u32 tmp[DES_EXPKEY_WORDS];
@@ -509,37 +549,45 @@ int sun4i_ss_des_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
 
 	if (unlikely(keylen != DES_KEY_SIZE)) {
 		dev_err(ss->dev, "Invalid keylen %u\n", keylen);
-		crypto_ablkcipher_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
+		crypto_skcipher_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
 		return -EINVAL;
 	}
 
-	flags = crypto_ablkcipher_get_flags(tfm);
+	flags = crypto_skcipher_get_flags(tfm);
 
 	ret = des_ekey(tmp, key);
-	if (unlikely(ret == 0) && (flags & CRYPTO_TFM_REQ_WEAK_KEY)) {
-		crypto_ablkcipher_set_flags(tfm, CRYPTO_TFM_RES_WEAK_KEY);
+	if (unlikely(!ret) && (flags & CRYPTO_TFM_REQ_FORBID_WEAK_KEYS)) {
+		crypto_skcipher_set_flags(tfm, CRYPTO_TFM_RES_WEAK_KEY);
 		dev_dbg(ss->dev, "Weak key %u\n", keylen);
 		return -EINVAL;
 	}
 
 	op->keylen = keylen;
 	memcpy(op->key, key, keylen);
-	return 0;
+
+	crypto_sync_skcipher_clear_flags(op->fallback_tfm, CRYPTO_TFM_REQ_MASK);
+	crypto_sync_skcipher_set_flags(op->fallback_tfm, tfm->base.crt_flags & CRYPTO_TFM_REQ_MASK);
+
+	return crypto_sync_skcipher_setkey(op->fallback_tfm, key, keylen);
 }
 
 /* check and set the 3DES key, prepare the mode to be used */
-int sun4i_ss_des3_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
+int sun4i_ss_des3_setkey(struct crypto_skcipher *tfm, const u8 *key,
 			 unsigned int keylen)
 {
-	struct sun4i_tfm_ctx *op = crypto_ablkcipher_ctx(tfm);
-	struct sun4i_ss_ctx *ss = op->ss;
+	struct sun4i_tfm_ctx *op = crypto_skcipher_ctx(tfm);
+	int err;
 
-	if (unlikely(keylen != 3 * DES_KEY_SIZE)) {
-		dev_err(ss->dev, "Invalid keylen %u\n", keylen);
-		crypto_ablkcipher_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
-		return -EINVAL;
-	}
+	err = des3_verify_key(tfm, key);
+	if (unlikely(err))
+		return err;
+
 	op->keylen = keylen;
 	memcpy(op->key, key, keylen);
-	return 0;
+
+	crypto_sync_skcipher_clear_flags(op->fallback_tfm, CRYPTO_TFM_REQ_MASK);
+	crypto_sync_skcipher_set_flags(op->fallback_tfm, tfm->base.crt_flags & CRYPTO_TFM_REQ_MASK);
+
+	return crypto_sync_skcipher_setkey(op->fallback_tfm, key, keylen);
+
 }

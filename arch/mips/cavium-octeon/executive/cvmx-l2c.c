@@ -4,7 +4,7 @@
  * Contact: support@caviumnetworks.com
  * This file is part of the OCTEON SDK
  *
- * Copyright (c) 2003-2010 Cavium Networks
+ * Copyright (c) 2003-2017 Cavium, Inc.
  *
  * This file is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, Version 2, as
@@ -44,7 +44,7 @@
  * if multiple applications or operating systems are running, then it
  * is up to the user program to coordinate between them.
  */
-cvmx_spinlock_t cvmx_l2c_spinlock;
+static cvmx_spinlock_t cvmx_l2c_spinlock;
 
 int cvmx_l2c_get_core_way_partition(uint32_t core)
 {
@@ -239,6 +239,7 @@ uint64_t cvmx_l2c_read_perf(uint32_t counter)
 		else {
 			uint64_t counter = 0;
 			int tad;
+
 			for (tad = 0; tad < CVMX_L2C_TADS; tad++)
 				counter += cvmx_read_csr(CVMX_L2C_TADX_PFC0(tad));
 			return counter;
@@ -249,6 +250,7 @@ uint64_t cvmx_l2c_read_perf(uint32_t counter)
 		else {
 			uint64_t counter = 0;
 			int tad;
+
 			for (tad = 0; tad < CVMX_L2C_TADS; tad++)
 				counter += cvmx_read_csr(CVMX_L2C_TADX_PFC1(tad));
 			return counter;
@@ -259,6 +261,7 @@ uint64_t cvmx_l2c_read_perf(uint32_t counter)
 		else {
 			uint64_t counter = 0;
 			int tad;
+
 			for (tad = 0; tad < CVMX_L2C_TADS; tad++)
 				counter += cvmx_read_csr(CVMX_L2C_TADX_PFC2(tad));
 			return counter;
@@ -270,6 +273,7 @@ uint64_t cvmx_l2c_read_perf(uint32_t counter)
 		else {
 			uint64_t counter = 0;
 			int tad;
+
 			for (tad = 0; tad < CVMX_L2C_TADS; tad++)
 				counter += cvmx_read_csr(CVMX_L2C_TADX_PFC3(tad));
 			return counter;
@@ -301,7 +305,7 @@ static void fault_in(uint64_t addr, int len)
 	 */
 	CVMX_DCACHE_INVALIDATE;
 	while (len > 0) {
-		ACCESS_ONCE(*ptr);
+		READ_ONCE(*ptr);
 		len -= CVMX_CACHE_LINE_SIZE;
 		ptr += CVMX_CACHE_LINE_SIZE;
 	}
@@ -375,7 +379,9 @@ int cvmx_l2c_lock_line(uint64_t addr)
 		if (((union cvmx_l2c_cfg)(cvmx_read_csr(CVMX_L2C_CFG))).s.idxalias) {
 			int alias_shift = CVMX_L2C_IDX_ADDR_SHIFT + 2 * CVMX_L2_SET_BITS - 1;
 			uint64_t addr_tmp = addr ^ (addr & ((1 << alias_shift) - 1)) >> CVMX_L2_SET_BITS;
+
 			lckbase.s.lck_base = addr_tmp >> 7;
+
 		} else {
 			lckbase.s.lck_base = addr >> 7;
 		}
@@ -435,6 +441,7 @@ void cvmx_l2c_flush(void)
 		/* These may look like constants, but they aren't... */
 		int assoc_shift = CVMX_L2C_TAG_ADDR_ALIAS_SHIFT;
 		int set_shift = CVMX_L2C_IDX_ADDR_SHIFT;
+
 		for (set = 0; set < n_set; set++) {
 			for (assoc = 0; assoc < n_assoc; assoc++) {
 				address = CVMX_ADD_SEG(CVMX_MIPS_SPACE_XKPHYS,
@@ -519,89 +526,49 @@ int cvmx_l2c_unlock_mem_region(uint64_t start, uint64_t len)
 union __cvmx_l2c_tag {
 	uint64_t u64;
 	struct cvmx_l2c_tag_cn50xx {
-#ifdef __BIG_ENDIAN_BITFIELD
-		uint64_t reserved:40;
-		uint64_t V:1;		/* Line valid */
-		uint64_t D:1;		/* Line dirty */
-		uint64_t L:1;		/* Line locked */
-		uint64_t U:1;		/* Use, LRU eviction */
-		uint64_t addr:20;	/* Phys mem addr (33..14) */
-#else
-		uint64_t addr:20;	/* Phys mem addr (33..14) */
-		uint64_t U:1;		/* Use, LRU eviction */
-		uint64_t L:1;		/* Line locked */
-		uint64_t D:1;		/* Line dirty */
-		uint64_t V:1;		/* Line valid */
-		uint64_t reserved:40;
-#endif
+		__BITFIELD_FIELD(uint64_t reserved:40,
+		__BITFIELD_FIELD(uint64_t V:1,		/* Line valid */
+		__BITFIELD_FIELD(uint64_t D:1,		/* Line dirty */
+		__BITFIELD_FIELD(uint64_t L:1,		/* Line locked */
+		__BITFIELD_FIELD(uint64_t U:1,		/* Use, LRU eviction */
+		__BITFIELD_FIELD(uint64_t addr:20,	/* Phys addr (33..14) */
+		;))))))
 	} cn50xx;
 	struct cvmx_l2c_tag_cn30xx {
-#ifdef __BIG_ENDIAN_BITFIELD
-		uint64_t reserved:41;
-		uint64_t V:1;		/* Line valid */
-		uint64_t D:1;		/* Line dirty */
-		uint64_t L:1;		/* Line locked */
-		uint64_t U:1;		/* Use, LRU eviction */
-		uint64_t addr:19;	/* Phys mem addr (33..15) */
-#else
-		uint64_t addr:19;	/* Phys mem addr (33..15) */
-		uint64_t U:1;		/* Use, LRU eviction */
-		uint64_t L:1;		/* Line locked */
-		uint64_t D:1;		/* Line dirty */
-		uint64_t V:1;		/* Line valid */
-		uint64_t reserved:41;
-#endif
+		__BITFIELD_FIELD(uint64_t reserved:41,
+		__BITFIELD_FIELD(uint64_t V:1,		/* Line valid */
+		__BITFIELD_FIELD(uint64_t D:1,		/* Line dirty */
+		__BITFIELD_FIELD(uint64_t L:1,		/* Line locked */
+		__BITFIELD_FIELD(uint64_t U:1,		/* Use, LRU eviction */
+		__BITFIELD_FIELD(uint64_t addr:19,	/* Phys addr (33..15) */
+		;))))))
 	} cn30xx;
 	struct cvmx_l2c_tag_cn31xx {
-#ifdef __BIG_ENDIAN_BITFIELD
-		uint64_t reserved:42;
-		uint64_t V:1;		/* Line valid */
-		uint64_t D:1;		/* Line dirty */
-		uint64_t L:1;		/* Line locked */
-		uint64_t U:1;		/* Use, LRU eviction */
-		uint64_t addr:18;	/* Phys mem addr (33..16) */
-#else
-		uint64_t addr:18;	/* Phys mem addr (33..16) */
-		uint64_t U:1;		/* Use, LRU eviction */
-		uint64_t L:1;		/* Line locked */
-		uint64_t D:1;		/* Line dirty */
-		uint64_t V:1;		/* Line valid */
-		uint64_t reserved:42;
-#endif
+		__BITFIELD_FIELD(uint64_t reserved:42,
+		__BITFIELD_FIELD(uint64_t V:1,		/* Line valid */
+		__BITFIELD_FIELD(uint64_t D:1,		/* Line dirty */
+		__BITFIELD_FIELD(uint64_t L:1,		/* Line locked */
+		__BITFIELD_FIELD(uint64_t U:1,		/* Use, LRU eviction */
+		__BITFIELD_FIELD(uint64_t addr:18,	/* Phys addr (33..16) */
+		;))))))
 	} cn31xx;
 	struct cvmx_l2c_tag_cn38xx {
-#ifdef __BIG_ENDIAN_BITFIELD
-		uint64_t reserved:43;
-		uint64_t V:1;		/* Line valid */
-		uint64_t D:1;		/* Line dirty */
-		uint64_t L:1;		/* Line locked */
-		uint64_t U:1;		/* Use, LRU eviction */
-		uint64_t addr:17;	/* Phys mem addr (33..17) */
-#else
-		uint64_t addr:17;	/* Phys mem addr (33..17) */
-		uint64_t U:1;		/* Use, LRU eviction */
-		uint64_t L:1;		/* Line locked */
-		uint64_t D:1;		/* Line dirty */
-		uint64_t V:1;		/* Line valid */
-		uint64_t reserved:43;
-#endif
+		__BITFIELD_FIELD(uint64_t reserved:43,
+		__BITFIELD_FIELD(uint64_t V:1,		/* Line valid */
+		__BITFIELD_FIELD(uint64_t D:1,		/* Line dirty */
+		__BITFIELD_FIELD(uint64_t L:1,		/* Line locked */
+		__BITFIELD_FIELD(uint64_t U:1,		/* Use, LRU eviction */
+		__BITFIELD_FIELD(uint64_t addr:17,	/* Phys addr (33..17) */
+		;))))))
 	} cn38xx;
 	struct cvmx_l2c_tag_cn58xx {
-#ifdef __BIG_ENDIAN_BITFIELD
-		uint64_t reserved:44;
-		uint64_t V:1;		/* Line valid */
-		uint64_t D:1;		/* Line dirty */
-		uint64_t L:1;		/* Line locked */
-		uint64_t U:1;		/* Use, LRU eviction */
-		uint64_t addr:16;	/* Phys mem addr (33..18) */
-#else
-		uint64_t addr:16;	/* Phys mem addr (33..18) */
-		uint64_t U:1;		/* Use, LRU eviction */
-		uint64_t L:1;		/* Line locked */
-		uint64_t D:1;		/* Line dirty */
-		uint64_t V:1;		/* Line valid */
-		uint64_t reserved:44;
-#endif
+		__BITFIELD_FIELD(uint64_t reserved:44,
+		__BITFIELD_FIELD(uint64_t V:1,		/* Line valid */
+		__BITFIELD_FIELD(uint64_t D:1,		/* Line dirty */
+		__BITFIELD_FIELD(uint64_t L:1,		/* Line locked */
+		__BITFIELD_FIELD(uint64_t U:1,		/* Use, LRU eviction */
+		__BITFIELD_FIELD(uint64_t addr:16,	/* Phys addr (33..18) */
+		;))))))
 	} cn58xx;
 	struct cvmx_l2c_tag_cn58xx cn56xx;	/* 2048 sets */
 	struct cvmx_l2c_tag_cn31xx cn52xx;	/* 512 sets */
@@ -629,8 +596,8 @@ static union __cvmx_l2c_tag __read_l2_tag(uint64_t assoc, uint64_t index)
 	union __cvmx_l2c_tag tag_val;
 	uint64_t dbg_addr = CVMX_L2C_DBG;
 	unsigned long flags;
-
 	union cvmx_l2c_dbg debug_val;
+
 	debug_val.u64 = 0;
 	/*
 	 * For low core count parts, the core number is always small
@@ -683,8 +650,8 @@ static union __cvmx_l2c_tag __read_l2_tag(uint64_t assoc, uint64_t index)
 union cvmx_l2c_tag cvmx_l2c_get_tag(uint32_t association, uint32_t index)
 {
 	union cvmx_l2c_tag tag;
-	tag.u64 = 0;
 
+	tag.u64 = 0;
 	if ((int)association >= cvmx_l2c_get_num_assoc()) {
 		cvmx_dprintf("ERROR: cvmx_l2c_get_tag association out of range\n");
 		return tag;
@@ -767,10 +734,12 @@ uint32_t cvmx_l2c_address_to_index(uint64_t addr)
 
 	if (OCTEON_IS_MODEL(OCTEON_CN6XXX)) {
 		union cvmx_l2c_ctl l2c_ctl;
+
 		l2c_ctl.u64 = cvmx_read_csr(CVMX_L2C_CTL);
 		indxalias = !l2c_ctl.s.disidxalias;
 	} else {
 		union cvmx_l2c_cfg l2c_cfg;
+
 		l2c_cfg.u64 = cvmx_read_csr(CVMX_L2C_CFG);
 		indxalias = l2c_cfg.s.idxalias;
 	}
@@ -778,6 +747,7 @@ uint32_t cvmx_l2c_address_to_index(uint64_t addr)
 	if (indxalias) {
 		if (OCTEON_IS_MODEL(OCTEON_CN63XX)) {
 			uint32_t a_14_12 = (idx / (CVMX_L2C_MEMBANK_SELECT_SIZE/(1<<CVMX_L2C_IDX_ADDR_SHIFT))) & 0x7;
+
 			idx ^= idx / cvmx_l2c_get_num_sets();
 			idx ^= a_14_12;
 		} else {
@@ -801,6 +771,7 @@ int cvmx_l2c_get_cache_size_bytes(void)
 int cvmx_l2c_get_set_bits(void)
 {
 	int l2_set_bits;
+
 	if (OCTEON_IS_MODEL(OCTEON_CN56XX) || OCTEON_IS_MODEL(OCTEON_CN58XX))
 		l2_set_bits = 11;	/* 2048 sets */
 	else if (OCTEON_IS_MODEL(OCTEON_CN38XX) || OCTEON_IS_MODEL(OCTEON_CN63XX))
@@ -828,6 +799,7 @@ int cvmx_l2c_get_num_sets(void)
 int cvmx_l2c_get_num_assoc(void)
 {
 	int l2_assoc;
+
 	if (OCTEON_IS_MODEL(OCTEON_CN56XX) ||
 	    OCTEON_IS_MODEL(OCTEON_CN52XX) ||
 	    OCTEON_IS_MODEL(OCTEON_CN58XX) ||
@@ -869,16 +841,17 @@ int cvmx_l2c_get_num_assoc(void)
 		else if (mio_fus_dat3.s.l2c_crip == 1)
 			l2_assoc = 12;
 	} else {
-		union cvmx_l2d_fus3 val;
-		val.u64 = cvmx_read_csr(CVMX_L2D_FUS3);
+		uint64_t l2d_fus3;
+
+		l2d_fus3 = cvmx_read_csr(CVMX_L2D_FUS3);
 		/*
 		 * Using shifts here, as bit position names are
 		 * different for each model but they all mean the
 		 * same.
 		 */
-		if ((val.u64 >> 35) & 0x1)
+		if ((l2d_fus3 >> 35) & 0x1)
 			l2_assoc = l2_assoc >> 2;
-		else if ((val.u64 >> 34) & 0x1)
+		else if ((l2d_fus3 >> 34) & 0x1)
 			l2_assoc = l2_assoc >> 1;
 	}
 	return l2_assoc;

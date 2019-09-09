@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * u_ether_configfs.h
  *
@@ -6,11 +7,7 @@
  * Copyright (c) 2013 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
- * Author: Andrzej Pietrasiewicz <andrzej.p@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * Author: Andrzej Pietrasiewicz <andrzejtp2010@gmail.com>
  */
 
 #ifndef __U_ETHER_CONFIGFS_H
@@ -108,7 +105,7 @@
 		mutex_lock(&opts->lock);				\
 		qmult = gether_get_qmult(opts->net);			\
 		mutex_unlock(&opts->lock);				\
-		return sprintf(page, "%d", qmult);			\
+		return sprintf(page, "%d\n", qmult);			\
 	}								\
 									\
 	static ssize_t _f_##_opts_qmult_store(struct config_item *item, \
@@ -152,5 +149,40 @@ out:									\
 	}								\
 									\
 	CONFIGFS_ATTR_RO(_f_##_opts_, ifname)
+
+#define USB_ETHER_CONFIGFS_ITEM_ATTR_U8_RW(_f_, _n_)			\
+	static ssize_t _f_##_opts_##_n_##_show(struct config_item *item,\
+					       char *page)		\
+	{								\
+		struct f_##_f_##_opts *opts = to_f_##_f_##_opts(item);	\
+		int ret;						\
+									\
+		mutex_lock(&opts->lock);				\
+		ret = sprintf(page, "%02x\n", opts->_n_);		\
+		mutex_unlock(&opts->lock);				\
+									\
+		return ret;						\
+	}								\
+									\
+	static ssize_t _f_##_opts_##_n_##_store(struct config_item *item,\
+						const char *page,	\
+						size_t len)		\
+	{								\
+		struct f_##_f_##_opts *opts = to_f_##_f_##_opts(item);	\
+		int ret;						\
+		u8 val;							\
+									\
+		mutex_lock(&opts->lock);				\
+		ret = sscanf(page, "%02hhx", &val);			\
+		if (ret > 0) {						\
+			opts->_n_ = val;				\
+			ret = len;					\
+		}							\
+		mutex_unlock(&opts->lock);				\
+									\
+		return ret;						\
+	}								\
+									\
+	CONFIGFS_ATTR(_f_##_opts_, _n_)
 
 #endif /* __U_ETHER_CONFIGFS_H */

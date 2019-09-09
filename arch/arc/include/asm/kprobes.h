@@ -1,13 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef _ARC_KPROBES_H
 #define _ARC_KPROBES_H
+
+#include <asm-generic/kprobes.h>
 
 #ifdef CONFIG_KPROBES
 
@@ -43,8 +42,6 @@ struct prev_kprobe {
 
 struct kprobe_ctlblk {
 	unsigned int kprobe_status;
-	struct pt_regs jprobe_saved_regs;
-	char jprobes_stack[MAX_STACK_SIZE];
 	struct prev_kprobe prev_kprobe;
 };
 
@@ -52,9 +49,7 @@ int kprobe_fault_handler(struct pt_regs *regs, unsigned long cause);
 void kretprobe_trampoline(void);
 void trap_is_kprobe(unsigned long address, struct pt_regs *regs);
 #else
-static void trap_is_kprobe(unsigned long address, struct pt_regs *regs)
-{
-}
-#endif
+#define trap_is_kprobe(address, regs)
+#endif /* CONFIG_KPROBES */
 
-#endif
+#endif /* _ARC_KPROBES_H */

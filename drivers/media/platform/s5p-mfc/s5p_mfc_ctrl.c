@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * linux/drivers/media/platform/s5p-mfc/s5p_mfc_ctrl.c
  *
  * Copyright (c) 2010 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/delay.h>
@@ -26,51 +22,22 @@
 /* Allocate memory for firmware */
 int s5p_mfc_alloc_firmware(struct s5p_mfc_dev *dev)
 {
-	void *bank2_virt;
-	dma_addr_t bank2_dma_addr;
+	struct s5p_mfc_priv_buf *fw_buf = &dev->fw_buf;
+	int err;
 
-	dev->fw_size = dev->variant->buf_size->fw;
+	fw_buf->size = dev->variant->buf_size->fw;
 
-	if (dev->fw_virt_addr) {
+	if (fw_buf->virt) {
 		mfc_err("Attempting to allocate firmware when it seems that it is already loaded\n");
 		return -ENOMEM;
 	}
 
-	dev->fw_virt_addr = dma_alloc_coherent(dev->mem_dev_l, dev->fw_size,
-					&dev->bank1, GFP_KERNEL);
-
-	if (!dev->fw_virt_addr) {
+	err = s5p_mfc_alloc_priv_buf(dev, BANK_L_CTX, &dev->fw_buf);
+	if (err) {
 		mfc_err("Allocating bitprocessor buffer failed\n");
-		return -ENOMEM;
+		return err;
 	}
 
-	if (HAS_PORTNUM(dev) && IS_TWOPORT(dev)) {
-		bank2_virt = dma_alloc_coherent(dev->mem_dev_r, 1 << MFC_BASE_ALIGN_ORDER,
-					&bank2_dma_addr, GFP_KERNEL);
-
-		if (!bank2_virt) {
-			mfc_err("Allocating bank2 base failed\n");
-			dma_free_coherent(dev->mem_dev_l, dev->fw_size,
-				dev->fw_virt_addr, dev->bank1);
-			dev->fw_virt_addr = NULL;
-			return -ENOMEM;
-		}
-
-		/* Valid buffers passed to MFC encoder with LAST_FRAME command
-		 * should not have address of bank2 - MFC will treat it as a null frame.
-		 * To avoid such situation we set bank2 address below the pool address.
-		 */
-		dev->bank2 = bank2_dma_addr - (1 << MFC_BASE_ALIGN_ORDER);
-
-		dma_free_coherent(dev->mem_dev_r, 1 << MFC_BASE_ALIGN_ORDER,
-			bank2_virt, bank2_dma_addr);
-
-	} else {
-		/* In this case bank2 can point to the same address as bank1.
-		 * Firmware will always occupy the beginning of this area so it is
-		 * impossible having a video frame buffer with zero address. */
-		dev->bank2 = dev->bank1;
-	}
 	return 0;
 }
 
@@ -80,15 +47,18 @@ int s5p_mfc_load_firmware(struct s5p_mfc_dev *dev)
 	struct firmware *fw_blob;
 	int i, err = -EINVAL;
 
-	/* Firmare has to be present as a separate file or compiled
+	/* Firmware has to be present as a separate file or compiled
 	 * into kernel. */
 	mfc_debug_enter();
+
+	if (dev->fw_get_done)
+		return 0;
 
 	for (i = MFC_FW_MAX_VERSIONS - 1; i >= 0; i--) {
 		if (!dev->variant->fw_name[i])
 			continue;
 		err = request_firmware((const struct firmware **)&fw_blob,
-				dev->variant->fw_name[i], dev->v4l2_dev.dev);
+				dev->variant->fw_name[i], &dev->plat_dev->dev);
 		if (!err) {
 			dev->fw_ver = (enum s5p_mfc_fw_ver) i;
 			break;
@@ -99,18 +69,14 @@ int s5p_mfc_load_firmware(struct s5p_mfc_dev *dev)
 		mfc_err("Firmware is not present in the /lib/firmware directory nor compiled in kernel\n");
 		return -EINVAL;
 	}
-	if (fw_blob->size > dev->fw_size) {
+	if (fw_blob->size > dev->fw_buf.size) {
 		mfc_err("MFC firmware is too big to be loaded\n");
 		release_firmware(fw_blob);
 		return -ENOMEM;
 	}
-	if (!dev->fw_virt_addr) {
-		mfc_err("MFC firmware is not allocated\n");
-		release_firmware(fw_blob);
-		return -EINVAL;
-	}
-	memcpy(dev->fw_virt_addr, fw_blob->data, fw_blob->size);
+	memcpy(dev->fw_buf.virt, fw_blob->data, fw_blob->size);
 	wmb();
+	dev->fw_get_done = true;
 	release_firmware(fw_blob);
 	mfc_debug_leave();
 	return 0;
@@ -121,11 +87,8 @@ int s5p_mfc_release_firmware(struct s5p_mfc_dev *dev)
 {
 	/* Before calling this function one has to make sure
 	 * that MFC is no longer processing */
-	if (!dev->fw_virt_addr)
-		return -EINVAL;
-	dma_free_coherent(dev->mem_dev_l, dev->fw_size, dev->fw_virt_addr,
-						dev->bank1);
-	dev->fw_virt_addr = NULL;
+	s5p_mfc_release_priv_buf(dev, &dev->fw_buf);
+	dev->fw_get_done = false;
 	return 0;
 }
 
@@ -210,13 +173,18 @@ int s5p_mfc_reset(struct s5p_mfc_dev *dev)
 static inline void s5p_mfc_init_memctrl(struct s5p_mfc_dev *dev)
 {
 	if (IS_MFCV6_PLUS(dev)) {
-		mfc_write(dev, dev->bank1, S5P_FIMV_RISC_BASE_ADDRESS_V6);
-		mfc_debug(2, "Base Address : %pad\n", &dev->bank1);
+		mfc_write(dev, dev->dma_base[BANK_L_CTX],
+			  S5P_FIMV_RISC_BASE_ADDRESS_V6);
+		mfc_debug(2, "Base Address : %pad\n",
+			  &dev->dma_base[BANK_L_CTX]);
 	} else {
-		mfc_write(dev, dev->bank1, S5P_FIMV_MC_DRAMBASE_ADR_A);
-		mfc_write(dev, dev->bank2, S5P_FIMV_MC_DRAMBASE_ADR_B);
+		mfc_write(dev, dev->dma_base[BANK_L_CTX],
+			  S5P_FIMV_MC_DRAMBASE_ADR_A);
+		mfc_write(dev, dev->dma_base[BANK_R_CTX],
+			  S5P_FIMV_MC_DRAMBASE_ADR_B);
 		mfc_debug(2, "Bank1: %pad, Bank2: %pad\n",
-				&dev->bank1, &dev->bank2);
+			  &dev->dma_base[BANK_L_CTX],
+			  &dev->dma_base[BANK_R_CTX]);
 	}
 }
 
@@ -240,7 +208,7 @@ int s5p_mfc_init_hw(struct s5p_mfc_dev *dev)
 	int ret;
 
 	mfc_debug_enter();
-	if (!dev->fw_virt_addr) {
+	if (!dev->fw_buf.virt) {
 		mfc_err("Firmware memory is not allocated.\n");
 		return -EINVAL;
 	}
@@ -267,6 +235,10 @@ int s5p_mfc_init_hw(struct s5p_mfc_dev *dev)
 	}
 	else
 		mfc_write(dev, 0x3ff, S5P_FIMV_SW_RESET);
+
+	if (IS_MFCV10(dev))
+		mfc_write(dev, 0x0, S5P_FIMV_MFC_CLOCK_OFF_V10);
+
 	mfc_debug(2, "Will now wait for completion of firmware transfer\n");
 	if (s5p_mfc_wait_for_done_dev(dev, S5P_MFC_R2H_CMD_FW_STATUS_RET)) {
 		mfc_err("Failed to load firmware\n");
@@ -427,7 +399,7 @@ int s5p_mfc_wakeup(struct s5p_mfc_dev *dev)
 	s5p_mfc_clear_cmds(dev);
 	s5p_mfc_clean_dev_int_flags(dev);
 	/* 3. Send MFC wakeup command and wait for completion*/
-	if (IS_MFCV8(dev))
+	if (IS_MFCV8_PLUS(dev))
 		ret = s5p_mfc_v8_wait_wakeup(dev);
 	else
 		ret = s5p_mfc_wait_wakeup(dev);

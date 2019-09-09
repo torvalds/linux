@@ -1,12 +1,10 @@
-TEST_PROGS := test-vphn
+# SPDX-License-Identifier: GPL-2.0-only
+TEST_GEN_PROGS := test-vphn
 
-CFLAGS += -m64
+CFLAGS += -m64 -I$(CURDIR)
 
-all: $(TEST_PROGS)
-
-$(TEST_PROGS): ../harness.c
-
+top_srcdir = ../../../../..
 include ../../lib.mk
 
-clean:
-	rm -f $(TEST_PROGS)
+$(TEST_GEN_PROGS): ../harness.c
+

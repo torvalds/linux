@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for ELAN eKTF2127 i2c touchscreen controller
  *
  * For this driver the layout of the Chipone icn8318 i2c
  * touchscreencontroller is used.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  *
  * Author:
  * Michel Verlaan <michel.verl@gmail.com>
@@ -51,7 +47,7 @@ struct ektf2127_ts {
 	struct touchscreen_properties prop;
 };
 
-static void ektf2127_parse_coordinates(const u8* buf, unsigned int touch_count,
+static void ektf2127_parse_coordinates(const u8 *buf, unsigned int touch_count,
 				       struct input_mt_pos *touches)
 {
 	int index = 0;

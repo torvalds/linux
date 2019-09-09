@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *    pata_artop.c - ARTOP ATA controller driver
  *
@@ -242,7 +243,7 @@ static void artop6210_set_dmamode (struct ata_port *ap, struct ata_device *adev)
 
 static void artop6260_set_dmamode (struct ata_port *ap, struct ata_device *adev)
 {
-	unsigned int pio	= adev->pio_mode - XFER_PIO_0;
+	unsigned int pio;
 	struct pci_dev *pdev	= to_pci_dev(ap->host->dev);
 	u8 ultra;
 

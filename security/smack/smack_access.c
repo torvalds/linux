@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2007 Casey Schaufler <casey@schaufler-ca.com>
  *
- *      This program is free software; you can redistribute it and/or modify
- *      it under the terms of the GNU General Public License as published by
- *      the Free Software Foundation, version 2.
- *
  * Author:
  *      Casey Schaufler <casey@schaufler-ca.com>
- *
  */
 
 #include <linux/types.h>
@@ -34,11 +30,6 @@ struct smack_known smack_known_star = {
 struct smack_known smack_known_floor = {
 	.smk_known	= "_",
 	.smk_secid	= 5,
-};
-
-struct smack_known smack_known_invalid = {
-	.smk_known	= "",
-	.smk_secid	= 6,
 };
 
 struct smack_known smack_known_web = {
@@ -280,7 +271,7 @@ out_audit:
 int smk_curacc(struct smack_known *obj_known,
 	       u32 mode, struct smk_audit_info *a)
 {
-	struct task_smack *tsp = current_security();
+	struct task_smack *tsp = smack_cred(current_cred());
 
 	return smk_tskacc(tsp, obj_known, mode, a);
 }
@@ -509,7 +500,7 @@ int smk_netlbl_mls(int level, char *catset, struct netlbl_lsm_secattr *sap,
 			if ((m & *cp) == 0)
 				continue;
 			rc = netlbl_catmap_setbit(&sap->attr.mls.cat,
-						  cat, GFP_ATOMIC);
+						  cat, GFP_KERNEL);
 			if (rc < 0) {
 				netlbl_catmap_free(sap->attr.mls.cat);
 				return rc;
@@ -615,7 +606,7 @@ struct smack_known *smack_from_secid(const u32 secid)
 	 * of a secid that is not on the list.
 	 */
 	rcu_read_unlock();
-	return &smack_known_invalid;
+	return &smack_known_huh;
 }
 
 /*
@@ -628,39 +619,60 @@ struct smack_known *smack_from_secid(const u32 secid)
 LIST_HEAD(smack_onlycap_list);
 DEFINE_MUTEX(smack_onlycap_lock);
 
-/*
+/**
+ * smack_privileged_cred - are all privilege requirements met by cred
+ * @cap: The requested capability
+ * @cred: the credential to use
+ *
  * Is the task privileged and allowed to be privileged
  * by the onlycap rule.
  *
- * Returns 1 if the task is allowed to be privileged, 0 if it's not.
+ * Returns true if the task is allowed to be privileged, false if it's not.
  */
-int smack_privileged(int cap)
+bool smack_privileged_cred(int cap, const struct cred *cred)
 {
-	struct smack_known *skp = smk_of_current();
+	struct task_smack *tsp = smack_cred(cred);
+	struct smack_known *skp = tsp->smk_task;
 	struct smack_known_list_elem *sklep;
+	int rc;
 
-	/*
-	 * All kernel tasks are privileged
-	 */
-	if (unlikely(current->flags & PF_KTHREAD))
-		return 1;
-
-	if (!capable(cap))
-		return 0;
+	rc = cap_capable(cred, &init_user_ns, cap, CAP_OPT_NONE);
+	if (rc)
+		return false;
 
 	rcu_read_lock();
 	if (list_empty(&smack_onlycap_list)) {
 		rcu_read_unlock();
-		return 1;
+		return true;
 	}
 
 	list_for_each_entry_rcu(sklep, &smack_onlycap_list, list) {
 		if (sklep->smk_label == skp) {
 			rcu_read_unlock();
-			return 1;
+			return true;
 		}
 	}
 	rcu_read_unlock();
 
-	return 0;
+	return false;
+}
+
+/**
+ * smack_privileged - are all privilege requirements met
+ * @cap: The requested capability
+ *
+ * Is the task privileged and allowed to be privileged
+ * by the onlycap rule.
+ *
+ * Returns true if the task is allowed to be privileged, false if it's not.
+ */
+bool smack_privileged(int cap)
+{
+	/*
+	 * All kernel tasks are privileged
+	 */
+	if (unlikely(current->flags & PF_KTHREAD))
+		return true;
+
+	return smack_privileged_cred(cap, current_cred());
 }

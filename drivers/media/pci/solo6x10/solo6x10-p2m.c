@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2010-2013 Bluecherry, LLC <http://www.bluecherrydvr.com>
  *
@@ -6,16 +7,6 @@
  *
  * Additional work by:
  * John Brooks <john.brooks@bluecherry.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/kernel.h>
@@ -69,14 +60,11 @@ int solo_p2m_dma_desc(struct solo_dev *solo_dev,
 	unsigned int timeout;
 	unsigned int config = 0;
 	int ret = 0;
-	int p2m_id = 0;
+	unsigned int p2m_id = 0;
 
 	/* Get next ID. According to Softlogic, 6110 has problems on !=0 P2M */
-	if (solo_dev->type != SOLO_DEV_6110 && multi_p2m) {
+	if (solo_dev->type != SOLO_DEV_6110 && multi_p2m)
 		p2m_id = atomic_inc_return(&solo_dev->p2m_count) % SOLO_NR_P2M;
-		if (p2m_id < 0)
-			p2m_id = -p2m_id;
-	}
 
 	p2m_dev = &solo_dev->p2m_dev[p2m_id];
 

@@ -1,49 +1,39 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-2.0+
 #
-# Run a series of 14 tests under KVM.  These are not particularly
-# well-selected or well-tuned, but are the current set.  Run from the
-# top level of the source tree.
-#
-# Edit the definitions below to set the locations of the various directories,
-# as well as the test duration.
+# Run a series of tests under KVM.  By default, this series is specified
+# by the relevant CFLIST file, but can be overridden by the --configs
+# command-line argument.
 #
 # Usage: kvm.sh [ options ]
 #
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, you can access it online at
-# http://www.gnu.org/licenses/gpl-2.0.html.
-#
 # Copyright (C) IBM Corporation, 2011
 #
-# Authors: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
+# Authors: Paul E. McKenney <paulmck@linux.ibm.com>
 
 scriptname=$0
 args="$*"
 
-T=/tmp/kvm.sh.$$
+T=${TMPDIR-/tmp}/kvm.sh.$$
 trap 'rm -rf $T' 0
 mkdir $T
+
+cd `dirname $scriptname`/../../../../../
 
 dur=$((30*60))
 dryrun=""
 KVM="`pwd`/tools/testing/selftests/rcutorture"; export KVM
 PATH=${KVM}/bin:$PATH; export PATH
+TORTURE_ALLOTED_CPUS=""
 TORTURE_DEFCONFIG=defconfig
 TORTURE_BOOT_IMAGE=""
 TORTURE_INITRD="$KVM/initrd"; export TORTURE_INITRD
+TORTURE_KCONFIG_ARG=""
 TORTURE_KMAKE_ARG=""
+TORTURE_QEMU_MEM=512
 TORTURE_SHUTDOWN_GRACE=180
 TORTURE_SUITE=rcu
+TORTURE_TRUST_MAKE=""
 resdir=""
 configs=""
 cpus=0
@@ -65,13 +55,16 @@ usage () {
 	echo "       --duration minutes"
 	echo "       --interactive"
 	echo "       --jitter N [ maxsleep (us) [ maxspin (us) ] ]"
+	echo "       --kconfig Kconfig-options"
 	echo "       --kmake-arg kernel-make-arguments"
 	echo "       --mac nn:nn:nn:nn:nn:nn"
+	echo "       --memory megabytes | nnnG"
 	echo "       --no-initrd"
-	echo "       --qemu-args qemu-system-..."
+	echo "       --qemu-args qemu-arguments"
 	echo "       --qemu-cmd qemu-system-..."
 	echo "       --results absolute-pathname"
 	echo "       --torture rcu"
+	echo "       --trust-make"
 	exit 1
 }
 
@@ -99,6 +92,7 @@ do
 	--cpus)
 		checkarg --cpus "(number)" "$#" "$2" '^[0-9]*$' '^--'
 		cpus=$2
+		TORTURE_ALLOTED_CPUS="$2"
 		shift
 		;;
 	--datestamp)
@@ -129,6 +123,11 @@ do
 		jitter="$2"
 		shift
 		;;
+	--kconfig)
+		checkarg --kconfig "(Kconfig options)" $# "$2" '^CONFIG_[A-Z0-9_]\+=\([ynm]\|[0-9]\+\)\( CONFIG_[A-Z0-9_]\+=\([ynm]\|[0-9]\+\)\)*$' '^error$'
+		TORTURE_KCONFIG_ARG="$2"
+		shift
+		;;
 	--kmake-arg)
 		checkarg --kmake-arg "(kernel make arguments)" $# "$2" '.*' '^error$'
 		TORTURE_KMAKE_ARG="$2"
@@ -139,11 +138,16 @@ do
 		TORTURE_QEMU_MAC=$2
 		shift
 		;;
+	--memory)
+		checkarg --memory "(memory size)" $# "$2" '^[0-9]\+[MG]\?$' error
+		TORTURE_QEMU_MEM=$2
+		shift
+		;;
 	--no-initrd)
 		TORTURE_INITRD=""; export TORTURE_INITRD
 		;;
 	--qemu-args|--qemu-arg)
-		checkarg --qemu-args "-qemu args" $# "$2" '^-' '^error'
+		checkarg --qemu-args "(qemu arguments)" $# "$2" '^-' '^error'
 		TORTURE_QEMU_ARG="$2"
 		shift
 		;;
@@ -166,6 +170,15 @@ do
 		checkarg --torture "(suite name)" "$#" "$2" '^\(lock\|rcu\|rcuperf\)$' '^--'
 		TORTURE_SUITE=$2
 		shift
+		if test "$TORTURE_SUITE" = rcuperf
+		then
+			# If you really want jitter for rcuperf, specify
+			# it after specifying rcuperf.  (But why?)
+			jitter=0
+		fi
+		;;
+	--trust-make)
+		TORTURE_TRUST_MAKE="y"
 		;;
 	*)
 		echo Unknown argument $1
@@ -174,6 +187,14 @@ do
 	esac
 	shift
 done
+
+if test -z "$TORTURE_INITRD" || tools/testing/selftests/rcutorture/bin/mkinitrd.sh
+then
+	:
+else
+	echo No initrd and unable to create one, aborting test >&2
+	exit 1
+fi
 
 CONFIGFRAG=${KVM}/configs/${TORTURE_SUITE}; export CONFIGFRAG
 
@@ -205,6 +226,7 @@ do
 	then
 		cpu_count=`configNR_CPUS.sh $CONFIGFRAG/$CF1`
 		cpu_count=`configfrag_boot_cpus "$TORTURE_BOOTARGS" "$CONFIGFRAG/$CF1" "$cpu_count"`
+		cpu_count=`configfrag_boot_maxcpus "$TORTURE_BOOTARGS" "$CONFIGFRAG/$CF1" "$cpu_count"`
 		for ((cur_rep=0;cur_rep<$config_reps;cur_rep++))
 		do
 			echo $CF1 $cpu_count >> $T/cfgcpu
@@ -214,7 +236,7 @@ do
 		exit 1
 	fi
 done
-sort -k2nr $T/cfgcpu > $T/cfgcpu.sort
+sort -k2nr $T/cfgcpu -T="$T" > $T/cfgcpu.sort
 
 # Use a greedy bin-packing algorithm, sorting the list accordingly.
 awk < $T/cfgcpu.sort > $T/cfgcpu.pack -v ncpus=$cpus '
@@ -230,7 +252,6 @@ BEGIN {
 }
 
 END {
-	alldone = 0;
 	batch = 0;
 	nc = -1;
 
@@ -271,16 +292,20 @@ cat << ___EOF___ > $T/script
 CONFIGFRAG="$CONFIGFRAG"; export CONFIGFRAG
 KVM="$KVM"; export KVM
 PATH="$PATH"; export PATH
+TORTURE_ALLOTED_CPUS="$TORTURE_ALLOTED_CPUS"; export TORTURE_ALLOTED_CPUS
 TORTURE_BOOT_IMAGE="$TORTURE_BOOT_IMAGE"; export TORTURE_BOOT_IMAGE
 TORTURE_BUILDONLY="$TORTURE_BUILDONLY"; export TORTURE_BUILDONLY
 TORTURE_DEFCONFIG="$TORTURE_DEFCONFIG"; export TORTURE_DEFCONFIG
 TORTURE_INITRD="$TORTURE_INITRD"; export TORTURE_INITRD
+TORTURE_KCONFIG_ARG="$TORTURE_KCONFIG_ARG"; export TORTURE_KCONFIG_ARG
 TORTURE_KMAKE_ARG="$TORTURE_KMAKE_ARG"; export TORTURE_KMAKE_ARG
 TORTURE_QEMU_CMD="$TORTURE_QEMU_CMD"; export TORTURE_QEMU_CMD
 TORTURE_QEMU_INTERACTIVE="$TORTURE_QEMU_INTERACTIVE"; export TORTURE_QEMU_INTERACTIVE
 TORTURE_QEMU_MAC="$TORTURE_QEMU_MAC"; export TORTURE_QEMU_MAC
+TORTURE_QEMU_MEM="$TORTURE_QEMU_MEM"; export TORTURE_QEMU_MEM
 TORTURE_SHUTDOWN_GRACE="$TORTURE_SHUTDOWN_GRACE"; export TORTURE_SHUTDOWN_GRACE
 TORTURE_SUITE="$TORTURE_SUITE"; export TORTURE_SUITE
+TORTURE_TRUST_MAKE="$TORTURE_TRUST_MAKE"; export TORTURE_TRUST_MAKE
 if ! test -e $resdir
 then
 	mkdir -p "$resdir" || :
@@ -296,13 +321,11 @@ if test -d .git
 then
 	git status >> $resdir/$ds/testid.txt
 	git rev-parse HEAD >> $resdir/$ds/testid.txt
-	if ! git diff HEAD > $T/git-diff 2>&1
-	then
-		cp $T/git-diff $resdir/$ds
-	fi
+	git diff HEAD >> $resdir/$ds/testid.txt
 fi
 ___EOF___
 awk < $T/cfgcpu.pack \
+	-v TORTURE_BUILDONLY="$TORTURE_BUILDONLY" \
 	-v CONFIGDIR="$CONFIGFRAG/" \
 	-v KVM="$KVM" \
 	-v ncpus=$cpus \
@@ -324,11 +347,11 @@ awk < $T/cfgcpu.pack \
 # Dump out the scripting required to run one test batch.
 function dump(first, pastlast, batchnum)
 {
-	print "echo ----Start batch " batchnum ": `date`";
-	print "echo ----Start batch " batchnum ": `date` >> " rd "/log";
+	print "echo ----Start batch " batchnum ": `date` | tee -a " rd "log";
+	print "needqemurun="
 	jn=1
 	for (j = first; j < pastlast; j++) {
-		builddir=KVM "/b" jn
+		builddir=KVM "/b" j - first + 1
 		cpusr[jn] = cpus[j];
 		if (cfrep[cf[j]] == "") {
 			cfr[jn] = cf[j];
@@ -341,30 +364,26 @@ function dump(first, pastlast, batchnum)
 			ovf = "-ovf";
 		else
 			ovf = "";
-		print "echo ", cfr[jn], cpusr[jn] ovf ": Starting build. `date`";
-		print "echo ", cfr[jn], cpusr[jn] ovf ": Starting build. `date` >> " rd "/log";
+		print "echo ", cfr[jn], cpusr[jn] ovf ": Starting build. `date` | tee -a " rd "log";
 		print "rm -f " builddir ".*";
 		print "touch " builddir ".wait";
-		print "mkdir " builddir " > /dev/null 2>&1 || :";
 		print "mkdir " rd cfr[jn] " || :";
 		print "kvm-test-1-run.sh " CONFIGDIR cf[j], builddir, rd cfr[jn], dur " \"" TORTURE_QEMU_ARG "\" \"" TORTURE_BOOTARGS "\" > " rd cfr[jn]  "/kvm-test-1-run.sh.out 2>&1 &"
-		print "echo ", cfr[jn], cpusr[jn] ovf ": Waiting for build to complete. `date`";
-		print "echo ", cfr[jn], cpusr[jn] ovf ": Waiting for build to complete. `date` >> " rd "/log";
+		print "echo ", cfr[jn], cpusr[jn] ovf ": Waiting for build to complete. `date` | tee -a " rd "log";
 		print "while test -f " builddir ".wait"
 		print "do"
 		print "\tsleep 1"
 		print "done"
-		print "echo ", cfr[jn], cpusr[jn] ovf ": Build complete. `date`";
-		print "echo ", cfr[jn], cpusr[jn] ovf ": Build complete. `date` >> " rd "/log";
+		print "echo ", cfr[jn], cpusr[jn] ovf ": Build complete. `date` | tee -a " rd "log";
 		jn++;
 	}
 	for (j = 1; j < jn; j++) {
 		builddir=KVM "/b" j
 		print "rm -f " builddir ".ready"
-		print "if test -z \"$TORTURE_BUILDONLY\""
+		print "if test -f \"" rd cfr[j] "/builtkernel\""
 		print "then"
-		print "\techo ----", cfr[j], cpusr[j] ovf ": Starting kernel. `date`";
-		print "\techo ----", cfr[j], cpusr[j] ovf ": Starting kernel. `date` >> " rd "/log";
+		print "\techo ----", cfr[j], cpusr[j] ovf ": Kernel present. `date` | tee -a " rd "log";
+		print "\tneedqemurun=1"
 		print "fi"
 	}
 	njitter = 0;
@@ -375,20 +394,28 @@ function dump(first, pastlast, batchnum)
 		njitter = ncpus;
 	else
 		njitter = ja[1];
-	for (j = 0; j < njitter; j++)
-		print "jitter.sh " j " " dur " " ja[2] " " ja[3] "&"
-	print "wait"
-	print "if test -z \"$TORTURE_BUILDONLY\""
+	if (TORTURE_BUILDONLY && njitter != 0) {
+		njitter = 0;
+		print "echo Build-only run, so suppressing jitter | tee -a " rd "log"
+	}
+	if (TORTURE_BUILDONLY) {
+		print "needqemurun="
+	}
+	print "if test -n \"$needqemurun\""
 	print "then"
-	print "\techo ---- All kernel runs complete. `date`";
-	print "\techo ---- All kernel runs complete. `date` >> " rd "/log";
+	print "\techo ---- Starting kernels. `date` | tee -a " rd "log";
+	for (j = 0; j < njitter; j++)
+		print "\tjitter.sh " j " " dur " " ja[2] " " ja[3] "&"
+	print "\twait"
+	print "\techo ---- All kernel runs complete. `date` | tee -a " rd "log";
+	print "else"
+	print "\twait"
+	print "\techo ---- No kernel runs. `date` | tee -a " rd "log";
 	print "fi"
 	for (j = 1; j < jn; j++) {
 		builddir=KVM "/b" j
-		print "echo ----", cfr[j], cpusr[j] ovf ": Build/run results:";
-		print "echo ----", cfr[j], cpusr[j] ovf ": Build/run results: >> " rd "/log";
-		print "cat " rd cfr[j]  "/kvm-test-1-run.sh.out";
-		print "cat " rd cfr[j]  "/kvm-test-1-run.sh.out >> " rd "/log";
+		print "echo ----", cfr[j], cpusr[j] ovf ": Build/run results: | tee -a " rd "log";
+		print "cat " rd cfr[j]  "/kvm-test-1-run.sh.out | tee -a " rd "log";
 	}
 }
 
@@ -445,3 +472,5 @@ else
 fi
 
 # Tracing: trace_event=rcu:rcu_grace_period,rcu:rcu_future_grace_period,rcu:rcu_grace_period_init,rcu:rcu_nocb_wake,rcu:rcu_preempt_task,rcu:rcu_unlock_preempted_task,rcu:rcu_quiescent_state_report,rcu:rcu_fqs,rcu:rcu_callback,rcu:rcu_kfree_callback,rcu:rcu_batch_start,rcu:rcu_invoke_callback,rcu:rcu_invoke_kfree_callback,rcu:rcu_batch_end,rcu:rcu_torture_read,rcu:rcu_barrier
+# Function-graph tracing: ftrace=function_graph ftrace_graph_filter=sched_setaffinity,migration_cpu_stop
+# Also --kconfig "CONFIG_FUNCTION_TRACER=y CONFIG_FUNCTION_GRAPH_TRACER=y"

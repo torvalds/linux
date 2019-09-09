@@ -45,13 +45,41 @@
 #include "sun8i-a23-a33.dtsi"
 
 / {
-	memory {
-		reg = <0x40000000 0x40000000>;
+	soc {
+		codec: codec@1c22c00 {
+			#sound-dai-cells = <0>;
+			compatible = "allwinner,sun8i-a23-codec";
+			reg = <0x01c22c00 0x400>;
+			interrupts = <GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&ccu CLK_BUS_CODEC>, <&ccu CLK_AC_DIG>;
+			clock-names = "apb", "codec";
+			resets = <&ccu RST_BUS_CODEC>;
+			dmas = <&dma 15>, <&dma 15>;
+			dma-names = "rx", "tx";
+			allwinner,codec-analog-controls = <&codec_analog>;
+			status = "disabled";
+		};
 	};
+};
+
+&be0 {
+	compatible = "allwinner,sun8i-a23-display-backend";
 };
 
 &ccu {
 	compatible = "allwinner,sun8i-a23-ccu";
+};
+
+&de {
+	compatible = "allwinner,sun8i-a23-display-engine";
+};
+
+&drc0 {
+	compatible = "allwinner,sun8i-a23-drc";
+};
+
+&fe0 {
+	compatible = "allwinner,sun8i-a23-display-frontend";
 };
 
 &pio {
@@ -59,6 +87,10 @@
 	interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>,
 		     <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>,
 		     <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
+};
+
+&tcon0 {
+	compatible = "allwinner,sun8i-a23-tcon";
 };
 
 &usb_otg {

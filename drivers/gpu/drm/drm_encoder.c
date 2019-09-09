@@ -21,7 +21,9 @@
  */
 
 #include <linux/export.h>
-#include <drm/drmP.h>
+
+#include <drm/drm_device.h>
+#include <drm/drm_drv.h>
 #include <drm/drm_encoder.h>
 
 #include "drm_crtc_internal.h"
@@ -30,8 +32,8 @@
  * DOC: overview
  *
  * Encoders represent the connecting element between the CRTC (as the overall
- * pixel pipeline, represented by struct &drm_crtc) and the connectors (as the
- * generic sink entity, represented by struct &drm_connector). An encoder takes
+ * pixel pipeline, represented by &struct drm_crtc) and the connectors (as the
+ * generic sink entity, represented by &struct drm_connector). An encoder takes
  * pixel data from a CRTC and converts it to a format suitable for any attached
  * connector. Encoders are objects exposed to userspace, originally to allow
  * userspace to infer cloning and connector/CRTC restrictions. Unfortunately
@@ -98,7 +100,7 @@ void drm_encoder_unregister_all(struct drm_device *dev)
  *
  * Initialises a preallocated encoder. Encoder should be subclassed as part of
  * driver encoder objects. At driver unload time drm_encoder_cleanup() should be
- * called from the driver's destroy hook in &drm_encoder_funcs.
+ * called from the driver's &drm_encoder_funcs.destroy hook.
  *
  * Returns:
  * Zero on success, error code on failure.
@@ -110,11 +112,13 @@ int drm_encoder_init(struct drm_device *dev,
 {
 	int ret;
 
-	drm_modeset_lock_all(dev);
+	/* encoder index is used with 32bit bitmasks */
+	if (WARN_ON(dev->mode_config.num_encoder >= 32))
+		return -EINVAL;
 
-	ret = drm_mode_object_get(dev, &encoder->base, DRM_MODE_OBJECT_ENCODER);
+	ret = drm_mode_object_add(dev, &encoder->base, DRM_MODE_OBJECT_ENCODER);
 	if (ret)
-		goto out_unlock;
+		return ret;
 
 	encoder->dev = dev;
 	encoder->encoder_type = encoder_type;
@@ -142,9 +146,6 @@ out_put:
 	if (ret)
 		drm_mode_object_unregister(dev, &encoder->base);
 
-out_unlock:
-	drm_modeset_unlock_all(dev);
-
 	return ret;
 }
 EXPORT_SYMBOL(drm_encoder_init);
@@ -164,12 +165,21 @@ void drm_encoder_cleanup(struct drm_encoder *encoder)
 	 * the indices on the drm_encoder after us in the encoder_list.
 	 */
 
-	drm_modeset_lock_all(dev);
+	if (encoder->bridge) {
+		struct drm_bridge *bridge = encoder->bridge;
+		struct drm_bridge *next;
+
+		while (bridge) {
+			next = bridge->next;
+			drm_bridge_detach(bridge);
+			bridge = next;
+		}
+	}
+
 	drm_mode_object_unregister(dev, &encoder->base);
 	kfree(encoder->name);
 	list_del(&encoder->head);
 	dev->mode_config.num_encoder--;
-	drm_modeset_unlock_all(dev);
 
 	memset(encoder, 0, sizeof(*encoder));
 }
@@ -180,10 +190,12 @@ static struct drm_crtc *drm_encoder_get_crtc(struct drm_encoder *encoder)
 	struct drm_connector *connector;
 	struct drm_device *dev = encoder->dev;
 	bool uses_atomic = false;
+	struct drm_connector_list_iter conn_iter;
 
 	/* For atomic drivers only state objects are synchronously updated and
 	 * protected by modeset locks, so check those first. */
-	drm_for_each_connector(connector, dev) {
+	drm_connector_list_iter_begin(dev, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
 		if (!connector->state)
 			continue;
 
@@ -192,8 +204,10 @@ static struct drm_crtc *drm_encoder_get_crtc(struct drm_encoder *encoder)
 		if (connector->state->best_encoder != encoder)
 			continue;
 
+		drm_connector_list_iter_end(&conn_iter);
 		return connector->state->crtc;
 	}
+	drm_connector_list_iter_end(&conn_iter);
 
 	/* Don't return stale data (e.g. pending async disable). */
 	if (uses_atomic)
@@ -210,15 +224,15 @@ int drm_mode_getencoder(struct drm_device *dev, void *data,
 	struct drm_crtc *crtc;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
-	encoder = drm_encoder_find(dev, enc_resp->encoder_id);
+	encoder = drm_encoder_find(dev, file_priv, enc_resp->encoder_id);
 	if (!encoder)
 		return -ENOENT;
 
 	drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
 	crtc = drm_encoder_get_crtc(encoder);
-	if (crtc)
+	if (crtc && drm_lease_held(file_priv, crtc->base.id))
 		enc_resp->crtc_id = crtc->base.id;
 	else
 		enc_resp->crtc_id = 0;
@@ -226,7 +240,8 @@ int drm_mode_getencoder(struct drm_device *dev, void *data,
 
 	enc_resp->encoder_type = encoder->encoder_type;
 	enc_resp->encoder_id = encoder->base.id;
-	enc_resp->possible_crtcs = encoder->possible_crtcs;
+	enc_resp->possible_crtcs = drm_lease_filter_crtcs(file_priv,
+							  encoder->possible_crtcs);
 	enc_resp->possible_clones = encoder->possible_clones;
 
 	return 0;

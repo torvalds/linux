@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * PCI Backend Xenbus Setup - handles setup with frontend and xend
  *
@@ -362,7 +363,7 @@ static int xen_pcibk_reconfigure(struct xen_pcibk_device *pdev)
 	int err = 0;
 	int num_devs;
 	int domain, bus, slot, func;
-	int substate;
+	unsigned int substate;
 	int i, len;
 	char state_str[64];
 	char dev_str[64];
@@ -395,10 +396,8 @@ static int xen_pcibk_reconfigure(struct xen_pcibk_device *pdev)
 					 "configuration");
 			goto out;
 		}
-		err = xenbus_scanf(XBT_NIL, pdev->xdev->nodename, state_str,
-				   "%d", &substate);
-		if (err != 1)
-			substate = XenbusStateUnknown;
+		substate = xenbus_read_unsigned(pdev->xdev->nodename, state_str,
+						XenbusStateUnknown);
 
 		switch (substate) {
 		case XenbusStateInitialising:
@@ -545,7 +544,7 @@ static void xen_pcibk_frontend_changed(struct xenbus_device *xdev,
 		xenbus_switch_state(xdev, XenbusStateClosed);
 		if (xenbus_dev_is_online(xdev))
 			break;
-		/* fall through if not online */
+		/* fall through - if not online */
 	case XenbusStateUnknown:
 		dev_dbg(&xdev->dev, "frontend is gone! unregister device\n");
 		device_unregister(&xdev->dev);
@@ -654,7 +653,7 @@ out:
 }
 
 static void xen_pcibk_be_watch(struct xenbus_watch *watch,
-			     const char **vec, unsigned int len)
+			       const char *path, const char *token)
 {
 	struct xen_pcibk_device *pdev =
 	    container_of(watch, struct xen_pcibk_device, be_watch);
@@ -698,7 +697,7 @@ static int xen_pcibk_xenbus_probe(struct xenbus_device *dev,
 	/* We need to force a call to our callback here in case
 	 * xend already configured us!
 	 */
-	xen_pcibk_be_watch(&pdev->be_watch, NULL, 0);
+	xen_pcibk_be_watch(&pdev->be_watch, NULL, NULL);
 
 out:
 	return err;

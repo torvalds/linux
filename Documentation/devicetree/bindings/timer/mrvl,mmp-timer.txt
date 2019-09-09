@@ -1,0 +1,17 @@
+* Marvell MMP Timer controller
+
+Required properties:
+- compatible : Should be "mrvl,mmp-timer".
+- reg : Address and length of the register set of timer controller.
+- interrupts : Should be the interrupt number.
+
+Optional properties:
+- clocks : Should contain a single entry describing the clock input.
+
+Example:
+	timer0: timer@d4014000 {
+		compatible = "mrvl,mmp-timer";
+		reg = <0xd4014000 0x100>;
+		interrupts = <13>;
+		clocks = <&coreclk 2>;
+	};

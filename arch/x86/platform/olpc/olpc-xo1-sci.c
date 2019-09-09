@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Support for OLPC XO-1 System Control Interrupts (SCI)
  *
  * Copyright (C) 2010 One Laptop per Child
  * Copyright (C) 2006 Red Hat, Inc.
  * Copyright (C) 2006 Advanced Micro Devices, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/cs5535.h>
@@ -109,7 +105,7 @@ static void detect_lid_state(void)
 	 * the edge detector hookup on the gpio inputs on the geode is
 	 * odd, to say the least.  See http://dev.laptop.org/ticket/5703
 	 * for details, but in a nutshell:  we don't use the edge
-	 * detectors.  instead, we make use of an anomoly:  with the both
+	 * detectors.  instead, we make use of an anomaly:  with the both
 	 * edge detectors turned off, we still get an edge event on a
 	 * positive edge transition.  to take advantage of this, we use the
 	 * front-end inverter to ensure that that's the edge we're always

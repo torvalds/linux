@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /**
  * eCryptfs: Linux filesystem encryption layer
  *
@@ -6,21 +7,6 @@
  * Copyright (C) 2004-2007 International Business Machines Corp.
  *   Author(s): Michael A. Halcrow <mahalcro@us.ibm.com>
  *              Michael C. Thompsion <mcthomps@us.ibm.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
- * 02111-1307, USA.
  */
 
 #include <linux/file.h>
@@ -64,7 +50,6 @@ static int ecryptfs_inode_set(struct inode *inode, void *opaque)
 	/* i_size will be overwritten for encrypted regular files */
 	fsstack_copy_inode_size(inode, lower_inode);
 	inode->i_ino = lower_inode->i_ino;
-	inode->i_version++;
 	inode->i_mapping->a_ops = &ecryptfs_aops;
 
 	if (S_ISLNK(inode->i_mode))
@@ -284,8 +269,7 @@ ecryptfs_create(struct inode *directory_inode, struct dentry *ecryptfs_dentry,
 		iget_failed(ecryptfs_inode);
 		goto out;
 	}
-	unlock_new_inode(ecryptfs_inode);
-	d_instantiate(ecryptfs_dentry, ecryptfs_inode);
+	d_instantiate_new(ecryptfs_dentry, ecryptfs_inode);
 out:
 	return rc;
 }
@@ -334,9 +318,6 @@ static struct dentry *ecryptfs_lookup_interpose(struct dentry *dentry,
 
 	dentry_info = kmem_cache_alloc(ecryptfs_dentry_info_cache, GFP_KERNEL);
 	if (!dentry_info) {
-		printk(KERN_ERR "%s: Out of memory whilst attempting "
-		       "to allocate ecryptfs_dentry_info struct\n",
-			__func__);
 		dput(lower_dentry);
 		return ERR_PTR(-ENOMEM);
 	}
@@ -399,8 +380,7 @@ static struct dentry *ecryptfs_lookup(struct inode *ecryptfs_dir_inode,
 
 	mount_crypt_stat = &ecryptfs_superblock_to_private(
 				ecryptfs_dentry->d_sb)->mount_crypt_stat;
-	if (mount_crypt_stat
-	    && (mount_crypt_stat->flags & ECRYPTFS_GLOBAL_ENCRYPT_FILENAMES)) {
+	if (mount_crypt_stat->flags & ECRYPTFS_GLOBAL_ENCRYPT_FILENAMES) {
 		rc = ecryptfs_encrypt_and_encode_filename(
 			&encrypted_and_encoded_name, &len,
 			mount_crypt_stat, name, len);
@@ -599,11 +579,16 @@ ecryptfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	lower_new_dir_dentry = dget_parent(lower_new_dentry);
 	target_inode = d_inode(new_dentry);
 	trap = lock_rename(lower_old_dir_dentry, lower_new_dir_dentry);
-	/* source should not be ancestor of target */
-	if (trap == lower_old_dentry) {
-		rc = -EINVAL;
+	rc = -EINVAL;
+	if (lower_old_dentry->d_parent != lower_old_dir_dentry)
 		goto out_lock;
-	}
+	if (lower_new_dentry->d_parent != lower_new_dir_dentry)
+		goto out_lock;
+	if (d_unhashed(lower_old_dentry) || d_unhashed(lower_new_dentry))
+		goto out_lock;
+	/* source should not be ancestor of target */
+	if (trap == lower_old_dentry)
+		goto out_lock;
 	/* target should not be ancestor of source */
 	if (trap == lower_new_dentry) {
 		rc = -ENOTEMPTY;
@@ -631,28 +616,23 @@ out_lock:
 
 static char *ecryptfs_readlink_lower(struct dentry *dentry, size_t *bufsiz)
 {
+	DEFINE_DELAYED_CALL(done);
 	struct dentry *lower_dentry = ecryptfs_dentry_to_lower(dentry);
-	char *lower_buf;
+	const char *link;
 	char *buf;
-	mm_segment_t old_fs;
 	int rc;
 
-	lower_buf = kmalloc(PATH_MAX, GFP_KERNEL);
-	if (!lower_buf)
-		return ERR_PTR(-ENOMEM);
-	old_fs = get_fs();
-	set_fs(get_ds());
-	rc = d_inode(lower_dentry)->i_op->readlink(lower_dentry,
-						   (char __user *)lower_buf,
-						   PATH_MAX);
-	set_fs(old_fs);
-	if (rc < 0)
-		goto out;
+	link = vfs_get_link(lower_dentry, &done);
+	if (IS_ERR(link))
+		return ERR_CAST(link);
+
 	rc = ecryptfs_decode_and_decrypt_filename(&buf, bufsiz, dentry->d_sb,
-						  lower_buf, rc);
-out:
-	kfree(lower_buf);
-	return rc ? ERR_PTR(rc) : buf;
+						  link, strlen(link));
+	do_delayed_call(&done);
+	if (rc)
+		return ERR_PTR(rc);
+
+	return buf;
 }
 
 static const char *ecryptfs_get_link(struct dentry *dentry,
@@ -964,9 +944,10 @@ out:
 	return rc;
 }
 
-static int ecryptfs_getattr_link(struct vfsmount *mnt, struct dentry *dentry,
-				 struct kstat *stat)
+static int ecryptfs_getattr_link(const struct path *path, struct kstat *stat,
+				 u32 request_mask, unsigned int flags)
 {
+	struct dentry *dentry = path->dentry;
 	struct ecryptfs_mount_crypt_stat *mount_crypt_stat;
 	int rc = 0;
 
@@ -988,13 +969,15 @@ static int ecryptfs_getattr_link(struct vfsmount *mnt, struct dentry *dentry,
 	return rc;
 }
 
-static int ecryptfs_getattr(struct vfsmount *mnt, struct dentry *dentry,
-			    struct kstat *stat)
+static int ecryptfs_getattr(const struct path *path, struct kstat *stat,
+			    u32 request_mask, unsigned int flags)
 {
+	struct dentry *dentry = path->dentry;
 	struct kstat lower_stat;
 	int rc;
 
-	rc = vfs_getattr(ecryptfs_dentry_to_lower_path(dentry), &lower_stat);
+	rc = vfs_getattr(ecryptfs_dentry_to_lower_path(dentry), &lower_stat,
+			 request_mask, flags);
 	if (!rc) {
 		fsstack_copy_attr_all(d_inode(dentry),
 				      ecryptfs_inode_to_lower(d_inode(dentry)));
@@ -1089,7 +1072,6 @@ out:
 }
 
 const struct inode_operations ecryptfs_symlink_iops = {
-	.readlink = generic_readlink,
 	.get_link = ecryptfs_get_link,
 	.permission = ecryptfs_permission,
 	.setattr = ecryptfs_setattr,
@@ -1139,7 +1121,7 @@ static int ecryptfs_xattr_set(const struct xattr_handler *handler,
 	}
 }
 
-const struct xattr_handler ecryptfs_xattr_handler = {
+static const struct xattr_handler ecryptfs_xattr_handler = {
 	.prefix = "",  /* match anything */
 	.get = ecryptfs_xattr_get,
 	.set = ecryptfs_xattr_set,

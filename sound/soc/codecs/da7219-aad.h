@@ -1,14 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * da7219-aad.h - DA7322 ASoC AAD Driver
  *
  * Copyright (c) 2015 Dialog Semiconductor Ltd.
  *
  * Author: Adam Thomson <Adam.Thomson.Opensource@diasemi.com>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #ifndef __DA7219_AAD_H
@@ -189,7 +185,7 @@ enum da7219_aad_event_regs {
 
 /* Private data */
 struct da7219_aad_priv {
-	struct snd_soc_codec *codec;
+	struct snd_soc_component *component;
 	int irq;
 
 	u8 micbias_pulse_lvl;
@@ -206,14 +202,14 @@ struct da7219_aad_priv {
 };
 
 /* AAD control */
-void da7219_aad_jack_det(struct snd_soc_codec *codec, struct snd_soc_jack *jack);
+void da7219_aad_jack_det(struct snd_soc_component *component, struct snd_soc_jack *jack);
 
 /* Suspend/Resume */
-void da7219_aad_suspend(struct snd_soc_codec *codec);
-void da7219_aad_resume(struct snd_soc_codec *codec);
+void da7219_aad_suspend(struct snd_soc_component *component);
+void da7219_aad_resume(struct snd_soc_component *component);
 
 /* Init/Exit */
-int da7219_aad_init(struct snd_soc_codec *codec);
-void da7219_aad_exit(struct snd_soc_codec *codec);
+int da7219_aad_init(struct snd_soc_component *component);
+void da7219_aad_exit(struct snd_soc_component *component);
 
 #endif /* __DA7219_AAD_H */

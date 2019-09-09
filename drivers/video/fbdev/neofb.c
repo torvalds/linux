@@ -2122,14 +2122,7 @@ static void neofb_remove(struct pci_dev *dev)
 	DBG("neofb_remove");
 
 	if (info) {
-		/*
-		 * If unregister_framebuffer fails, then
-		 * we will be leaving hooks that could cause
-		 * oopsen laying around.
-		 */
-		if (unregister_framebuffer(info))
-			printk(KERN_WARNING
-			       "neofb: danger danger!  Oopsen imminent!\n");
+		unregister_framebuffer(info);
 
 		neo_unmap_video(info);
 		fb_destroy_modedb(info->monspecs.modedb);
@@ -2138,7 +2131,7 @@ static void neofb_remove(struct pci_dev *dev)
 	}
 }
 
-static struct pci_device_id neofb_devices[] = {
+static const struct pci_device_id neofb_devices[] = {
 	{PCI_VENDOR_ID_NEOMAGIC, PCI_CHIP_NM2070,
 	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, FB_ACCEL_NEOMAGIC_NM2070},
 

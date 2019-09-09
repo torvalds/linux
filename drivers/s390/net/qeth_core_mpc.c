@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *    Copyright IBM Corp. 2007
  *    Author(s): Frank Pavlic <fpavlic@de.ibm.com>,
@@ -124,56 +125,41 @@ unsigned char DM_ACT[] = {
 
 unsigned char IPA_PDU_HEADER[] = {
 	0x00, 0xe0, 0x00, 0x00,  0x77, 0x77, 0x77, 0x77,
-	0x00, 0x00, 0x00, 0x14,  0x00, 0x00,
-		(IPA_PDU_HEADER_SIZE+sizeof(struct qeth_ipa_cmd)) / 256,
-		(IPA_PDU_HEADER_SIZE+sizeof(struct qeth_ipa_cmd)) % 256,
+	0x00, 0x00, 0x00, 0x14,  0x00, 0x00, 0x00, 0x00,
 	0x10, 0x00, 0x00, 0x01,  0x00, 0x00, 0x00, 0x00,
 	0xc1, 0x03, 0x00, 0x01,  0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00,  0x00, 0x24,
-		sizeof(struct qeth_ipa_cmd) / 256,
-		sizeof(struct qeth_ipa_cmd) % 256,
-	0x00,
-		sizeof(struct qeth_ipa_cmd) / 256,
-		sizeof(struct qeth_ipa_cmd) % 256,
-	0x05,
-	0x77, 0x77, 0x77, 0x77,
+	0x00, 0x00, 0x00, 0x00,  0x00, 0x24, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x05,  0x77, 0x77, 0x77, 0x77,
 	0x00, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x00,
-	0x01, 0x00,
-		sizeof(struct qeth_ipa_cmd) / 256,
-		sizeof(struct qeth_ipa_cmd) % 256,
-	0x00, 0x00, 0x00, 0x40,
+	0x01, 0x00, 0x00, 0x00,  0x00, 0x00, 0x00, 0x40,
 };
-EXPORT_SYMBOL_GPL(IPA_PDU_HEADER);
-
-unsigned char WRITE_CCW[] = {
-	0x01, CCW_FLAG_SLI, 0, 0,
-	0, 0, 0, 0
-};
-
-unsigned char READ_CCW[] = {
-	0x02, CCW_FLAG_SLI, 0, 0,
-	0, 0, 0, 0
-};
-
 
 struct ipa_rc_msg {
 	enum qeth_ipa_return_codes rc;
-	char *msg;
+	const char *msg;
 };
 
-static struct ipa_rc_msg qeth_ipa_rc_msg[] = {
+static const struct ipa_rc_msg qeth_ipa_rc_msg[] = {
 	{IPA_RC_SUCCESS,		"success"},
 	{IPA_RC_NOTSUPP,		"Command not supported"},
 	{IPA_RC_IP_TABLE_FULL,		"Add Addr IP Table Full - ipv6"},
 	{IPA_RC_UNKNOWN_ERROR,		"IPA command failed - reason unknown"},
 	{IPA_RC_UNSUPPORTED_COMMAND,	"Command not supported"},
+	{IPA_RC_VNICC_OOSEQ,		"Command issued out of sequence"},
+	{IPA_RC_INVALID_FORMAT,		"invalid format or length"},
 	{IPA_RC_DUP_IPV6_REMOTE, "ipv6 address already registered remote"},
+	{IPA_RC_SBP_IQD_NOT_CONFIGURED,	"Not configured for bridgeport"},
 	{IPA_RC_DUP_IPV6_HOME,		"ipv6 address already registered"},
 	{IPA_RC_UNREGISTERED_ADDR,	"Address not registered"},
 	{IPA_RC_NO_ID_AVAILABLE,	"No identifiers available"},
 	{IPA_RC_ID_NOT_FOUND,		"Identifier not found"},
+	{IPA_RC_SBP_IQD_ANO_DEV_PRIMARY, "Primary bridgeport exists already"},
+	{IPA_RC_SBP_IQD_CURRENT_SECOND,	"Bridgeport is currently secondary"},
+	{IPA_RC_SBP_IQD_LIMIT_SECOND, "Limit of secondary bridgeports reached"},
 	{IPA_RC_INVALID_IP_VERSION,	"IP version incorrect"},
+	{IPA_RC_SBP_IQD_CURRENT_PRIMARY, "Bridgeport is currently primary"},
 	{IPA_RC_LAN_FRAME_MISMATCH,	"LAN and frame mismatch"},
+	{IPA_RC_SBP_IQD_NO_QDIO_QUEUES,	"QDIO queues not established"},
 	{IPA_RC_L2_UNSUPPORTED_CMD,	"Unsupported layer 2 command"},
 	{IPA_RC_L2_DUP_MAC,		"Duplicate MAC address"},
 	{IPA_RC_L2_ADDR_TABLE_FULL,	"Layer2 address table full"},
@@ -185,6 +171,15 @@ static struct ipa_rc_msg qeth_ipa_rc_msg[] = {
 	{IPA_RC_L2_INVALID_VLAN_ID,	"L2 invalid vlan id"},
 	{IPA_RC_L2_DUP_VLAN_ID,		"L2 duplicate vlan id"},
 	{IPA_RC_L2_VLAN_ID_NOT_FOUND,	"L2 vlan id not found"},
+	{IPA_RC_VNICC_VNICBP,		"VNIC is BridgePort"},
+	{IPA_RC_SBP_OSA_NOT_CONFIGURED,	"Not configured for bridgeport"},
+	{IPA_RC_SBP_OSA_OS_MISMATCH,	"OS mismatch"},
+	{IPA_RC_SBP_OSA_ANO_DEV_PRIMARY, "Primary bridgeport exists already"},
+	{IPA_RC_SBP_OSA_CURRENT_SECOND,	"Bridgeport is currently secondary"},
+	{IPA_RC_SBP_OSA_LIMIT_SECOND, "Limit of secondary bridgeports reached"},
+	{IPA_RC_SBP_OSA_NOT_AUTHD_BY_ZMAN, "Not authorized by zManager"},
+	{IPA_RC_SBP_OSA_CURRENT_PRIMARY, "Bridgeport is currently primary"},
+	{IPA_RC_SBP_OSA_NO_QDIO_QUEUES,	"QDIO queues not established"},
 	{IPA_RC_DATA_MISMATCH,		"Data field mismatch (v4/v6 mixed)"},
 	{IPA_RC_INVALID_MTU_SIZE,	"Invalid MTU size"},
 	{IPA_RC_INVALID_LANTYPE,	"Invalid LAN type"},
@@ -206,29 +201,27 @@ static struct ipa_rc_msg qeth_ipa_rc_msg[] = {
 	{IPA_RC_LAN_OFFLINE,		"STRTLAN_LAN_DISABLED - LAN offline"},
 	{IPA_RC_VEPA_TO_VEB_TRANSITION,	"Adj. switch disabled port mode RR"},
 	{IPA_RC_INVALID_IP_VERSION2,	"Invalid IP version"},
-	{IPA_RC_ENOMEM,			"Memory problem"},
+	/* default for qeth_get_ipa_msg(): */
 	{IPA_RC_FFFF,			"Unknown Error"}
 };
 
-
-
-char *qeth_get_ipa_msg(enum qeth_ipa_return_codes rc)
+const char *qeth_get_ipa_msg(enum qeth_ipa_return_codes rc)
 {
-	int x = 0;
-	qeth_ipa_rc_msg[sizeof(qeth_ipa_rc_msg) /
-			sizeof(struct ipa_rc_msg) - 1].rc = rc;
-	while (qeth_ipa_rc_msg[x].rc != rc)
-		x++;
+	int x;
+
+	for (x = 0; x < ARRAY_SIZE(qeth_ipa_rc_msg) - 1; x++)
+		if (qeth_ipa_rc_msg[x].rc == rc)
+			return qeth_ipa_rc_msg[x].msg;
 	return qeth_ipa_rc_msg[x].msg;
 }
 
 
 struct ipa_cmd_names {
 	enum qeth_ipa_cmds cmd;
-	char *name;
+	const char *name;
 };
 
-static struct ipa_cmd_names qeth_ipa_cmd_names[] = {
+static const struct ipa_cmd_names qeth_ipa_cmd_names[] = {
 	{IPA_CMD_STARTLAN,	"startlan"},
 	{IPA_CMD_STOPLAN,	"stoplan"},
 	{IPA_CMD_SETVMAC,	"setvmac"},
@@ -237,6 +230,7 @@ static struct ipa_cmd_names qeth_ipa_cmd_names[] = {
 	{IPA_CMD_DELGMAC,	"delgmac"},
 	{IPA_CMD_SETVLAN,	"setvlan"},
 	{IPA_CMD_DELVLAN,	"delvlan"},
+	{IPA_CMD_VNICC,		"vnic_characteristics"},
 	{IPA_CMD_SETBRIDGEPORT_OSA,	"set_bridge_port(osa)"},
 	{IPA_CMD_SETCCID,	"setccid"},
 	{IPA_CMD_DELCCID,	"delccid"},
@@ -259,13 +253,12 @@ static struct ipa_cmd_names qeth_ipa_cmd_names[] = {
 	{IPA_CMD_UNKNOWN,	"unknown"},
 };
 
-char *qeth_get_ipa_cmd_name(enum qeth_ipa_cmds cmd)
+const char *qeth_get_ipa_cmd_name(enum qeth_ipa_cmds cmd)
 {
-	int x = 0;
-	qeth_ipa_cmd_names[
-		sizeof(qeth_ipa_cmd_names) /
-			sizeof(struct ipa_cmd_names)-1].cmd = cmd;
-	while (qeth_ipa_cmd_names[x].cmd != cmd)
-		x++;
+	int x;
+
+	for (x = 0; x < ARRAY_SIZE(qeth_ipa_cmd_names) - 1; x++)
+		if (qeth_ipa_cmd_names[x].cmd == cmd)
+			return qeth_ipa_cmd_names[x].name;
 	return qeth_ipa_cmd_names[x].name;
 }

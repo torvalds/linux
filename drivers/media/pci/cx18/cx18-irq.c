@@ -1,23 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  cx18 interrupt handling
  *
  *  Copyright (C) 2007  Hans Verkuil <hverkuil@xs4all.nl>
  *  Copyright (C) 2008  Andy Walls <awalls@md.metrocast.net>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
- *  02111-1307  USA
  */
 
 #include "cx18-driver.h"
@@ -59,8 +45,8 @@ irqreturn_t cx18_irq_handler(int irq, void *dev_id)
 		cx18_write_reg_expect(cx, hw2, HW2_INT_CLR_STATUS, ~hw2, hw2);
 
 	if (sw1 || sw2 || hw2)
-		CX18_DEBUG_HI_IRQ("received interrupts "
-				  "SW1: %x  SW2: %x  HW2: %x\n", sw1, sw2, hw2);
+		CX18_DEBUG_HI_IRQ("received interrupts SW1: %x	SW2: %x  HW2: %x\n",
+				  sw1, sw2, hw2);
 
 	/*
 	 * SW1 responses have to happen first.  The sending XPU times out the

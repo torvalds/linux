@@ -1,26 +1,11 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
- *  zcrypt 2.1.0
- *
  *  Copyright IBM Corp. 2001, 2006
  *  Author(s): Robert Burroughs
  *	       Eric Rossman (edrossma@us.ibm.com)
  *
  *  Hotplug & misc device support: Jochen Roehrig (roehrig@de.ibm.com)
  *  Major cleanup & driver split: Martin Schwidefsky <schwidefsky@de.ibm.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #ifndef _ZCRYPT_CCA_KEY_H_
@@ -44,29 +29,9 @@ struct cca_token_hdr {
 	unsigned char  version;
 	unsigned short token_length;
 	unsigned char  reserved[4];
-} __attribute__((packed));
+} __packed;
 
 #define CCA_TKN_HDR_ID_EXT 0x1E
-
-/**
- * mapping for the cca private ME section
- */
-struct cca_private_ext_ME_sec {
-	unsigned char  section_identifier;
-	unsigned char  version;
-	unsigned short section_length;
-	unsigned char  private_key_hash[20];
-	unsigned char  reserved1[4];
-	unsigned char  key_format;
-	unsigned char  reserved2;
-	unsigned char  key_name_hash[20];
-	unsigned char  key_use_flags[4];
-	unsigned char  reserved3[6];
-	unsigned char  reserved4[24];
-	unsigned char  confounder[24];
-	unsigned char  exponent[128];
-	unsigned char  modulus[128];
-} __attribute__((packed));
 
 #define CCA_PVT_USAGE_ALL 0x80
 
@@ -84,7 +49,7 @@ struct cca_public_sec {
 	unsigned short exponent_len;
 	unsigned short modulus_bit_len;
 	unsigned short modulus_byte_len;    /* In a private key, this is 0 */
-} __attribute__((packed));
+} __packed;
 
 /**
  * mapping for the cca private CRT key 'token'
@@ -118,81 +83,10 @@ struct cca_pvt_ext_CRT_sec {
 	unsigned short pad_len;
 	unsigned char  reserved4[52];
 	unsigned char  confounder[8];
-} __attribute__((packed));
+} __packed;
 
 #define CCA_PVT_EXT_CRT_SEC_ID_PVT 0x08
 #define CCA_PVT_EXT_CRT_SEC_FMT_CL 0x40
-
-/**
- * Set up private key fields of a type6 MEX message.
- * Note that all numerics in the key token are big-endian,
- * while the entries in the key block header are little-endian.
- *
- * @mex: pointer to user input data
- * @p: pointer to memory area for the key
- *
- * Returns the size of the key area or -EFAULT
- */
-static inline int zcrypt_type6_mex_key_de(struct ica_rsa_modexpo *mex,
-					  void *p, int big_endian)
-{
-	static struct cca_token_hdr static_pvt_me_hdr = {
-		.token_identifier	=  0x1E,
-		.token_length		=  0x0183,
-	};
-	static struct cca_private_ext_ME_sec static_pvt_me_sec = {
-		.section_identifier	=  0x02,
-		.section_length		=  0x016C,
-		.key_use_flags		= {0x80,0x00,0x00,0x00},
-	};
-	static struct cca_public_sec static_pub_me_sec = {
-		.section_identifier	=  0x04,
-		.section_length		=  0x000F,
-		.exponent_len		=  0x0003,
-	};
-	static char pk_exponent[3] = { 0x01, 0x00, 0x01 };
-	struct {
-		struct T6_keyBlock_hdr t6_hdr;
-		struct cca_token_hdr pvtMeHdr;
-		struct cca_private_ext_ME_sec pvtMeSec;
-		struct cca_public_sec pubMeSec;
-		char exponent[3];
-	} __attribute__((packed)) *key = p;
-	unsigned char *temp;
-
-	memset(key, 0, sizeof(*key));
-
-	if (big_endian) {
-		key->t6_hdr.blen = cpu_to_be16(0x189);
-		key->t6_hdr.ulen = cpu_to_be16(0x189 - 2);
-	} else {
-		key->t6_hdr.blen = cpu_to_le16(0x189);
-		key->t6_hdr.ulen = cpu_to_le16(0x189 - 2);
-	}
-	key->pvtMeHdr = static_pvt_me_hdr;
-	key->pvtMeSec = static_pvt_me_sec;
-	key->pubMeSec = static_pub_me_sec;
-	/*
-	 * In a private key, the modulus doesn't appear in the public
-	 * section. So, an arbitrary public exponent of 0x010001 will be
-	 * used.
-	 */
-	memcpy(key->exponent, pk_exponent, 3);
-
-	/* key parameter block */
-	temp = key->pvtMeSec.exponent +
-		sizeof(key->pvtMeSec.exponent) - mex->inputdatalength;
-	if (copy_from_user(temp, mex->b_key, mex->inputdatalength))
-		return -EFAULT;
-
-	/* modulus */
-	temp = key->pvtMeSec.modulus +
-		sizeof(key->pvtMeSec.modulus) - mex->inputdatalength;
-	if (copy_from_user(temp, mex->n_modulus, mex->inputdatalength))
-		return -EFAULT;
-	key->pubMeSec.modulus_bit_len = 8 * mex->inputdatalength;
-	return sizeof(*key);
-}
 
 /**
  * Set up private key fields of a type6 MEX message. The _pad variant
@@ -203,10 +97,9 @@ static inline int zcrypt_type6_mex_key_de(struct ica_rsa_modexpo *mex,
  * @mex: pointer to user input data
  * @p: pointer to memory area for the key
  *
- * Returns the size of the key area or -EFAULT
+ * Returns the size of the key area or negative errno value.
  */
-static inline int zcrypt_type6_mex_key_en(struct ica_rsa_modexpo *mex,
-					  void *p, int big_endian)
+static inline int zcrypt_type6_mex_key_en(struct ica_rsa_modexpo *mex, void *p)
 {
 	static struct cca_token_hdr static_pub_hdr = {
 		.token_identifier	=  0x1E,
@@ -219,9 +112,18 @@ static inline int zcrypt_type6_mex_key_en(struct ica_rsa_modexpo *mex,
 		struct cca_token_hdr pubHdr;
 		struct cca_public_sec pubSec;
 		char exponent[0];
-	} __attribute__((packed)) *key = p;
+	} __packed *key = p;
 	unsigned char *temp;
 	int i;
+
+	/*
+	 * The inputdatalength was a selection criteria in the dispatching
+	 * function zcrypt_rsa_modexpo(). However, do a plausibility check
+	 * here to make sure the following copy_from_user() can't be utilized
+	 * to compromise the system.
+	 */
+	if (WARN_ON_ONCE(mex->inputdatalength > 512))
+		return -EINVAL;
 
 	memset(key, 0, sizeof(*key));
 
@@ -251,13 +153,8 @@ static inline int zcrypt_type6_mex_key_en(struct ica_rsa_modexpo *mex,
 					2*mex->inputdatalength - i;
 	key->pubHdr.token_length =
 		key->pubSec.section_length + sizeof(key->pubHdr);
-	if (big_endian) {
-		key->t6_hdr.ulen = cpu_to_be16(key->pubHdr.token_length + 4);
-		key->t6_hdr.blen = cpu_to_be16(key->pubHdr.token_length + 6);
-	} else {
-		key->t6_hdr.ulen = cpu_to_le16(key->pubHdr.token_length + 4);
-		key->t6_hdr.blen = cpu_to_le16(key->pubHdr.token_length + 6);
-	}
+	key->t6_hdr.ulen = key->pubHdr.token_length + 4;
+	key->t6_hdr.blen = key->pubHdr.token_length + 6;
 	return sizeof(*key) + 2*mex->inputdatalength - i;
 }
 
@@ -271,8 +168,7 @@ static inline int zcrypt_type6_mex_key_en(struct ica_rsa_modexpo *mex,
  *
  * Returns the size of the key area or -EFAULT
  */
-static inline int zcrypt_type6_crt_key(struct ica_rsa_modexpo_crt *crt,
-				       void *p, int big_endian)
+static inline int zcrypt_type6_crt_key(struct ica_rsa_modexpo_crt *crt, void *p)
 {
 	static struct cca_public_sec static_cca_pub_sec = {
 		.section_identifier = 4,
@@ -285,9 +181,18 @@ static inline int zcrypt_type6_crt_key(struct ica_rsa_modexpo_crt *crt,
 		struct cca_token_hdr token;
 		struct cca_pvt_ext_CRT_sec pvt;
 		char key_parts[0];
-	} __attribute__((packed)) *key = p;
+	} __packed *key = p;
 	struct cca_public_sec *pub;
 	int short_len, long_len, pad_len, key_len, size;
+
+	/*
+	 * The inputdatalength was a selection criteria in the dispatching
+	 * function zcrypt_rsa_crt(). However, do a plausibility check
+	 * here to make sure the following copy_from_user() can't be utilized
+	 * to compromise the system.
+	 */
+	if (WARN_ON_ONCE(crt->inputdatalength > 512))
+		return -EINVAL;
 
 	memset(key, 0, sizeof(*key));
 
@@ -298,13 +203,8 @@ static inline int zcrypt_type6_crt_key(struct ica_rsa_modexpo_crt *crt,
 	size = sizeof(*key) + key_len + sizeof(*pub) + 3;
 
 	/* parameter block.key block */
-	if (big_endian) {
-		key->t6_hdr.blen = cpu_to_be16(size);
-		key->t6_hdr.ulen = cpu_to_be16(size - 2);
-	} else {
-		key->t6_hdr.blen = cpu_to_le16(size);
-		key->t6_hdr.ulen = cpu_to_le16(size - 2);
-	}
+	key->t6_hdr.blen = size;
+	key->t6_hdr.ulen = size - 2;
 
 	/* key token header */
 	key->token.token_identifier = CCA_TKN_HDR_ID_EXT;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  linux/arch/h8300/kernel/cpu/timer/timer8.c
  *
@@ -101,15 +102,7 @@ static inline struct timer8_priv *ced_to_priv(struct clock_event_device *ced)
 
 static void timer8_clock_event_start(struct timer8_priv *p, unsigned long delta)
 {
-	struct clock_event_device *ced = &p->ced;
-
 	timer8_start(p);
-
-	ced->shift = 32;
-	ced->mult = div_sc(p->rate, NSEC_PER_SEC, ced->shift);
-	ced->max_delta_ns = clockevent_delta2ns(0xffff, ced);
-	ced->min_delta_ns = clockevent_delta2ns(0x0001, ced);
-
 	timer8_set_next(p, delta);
 }
 
@@ -215,4 +208,4 @@ free_clk:
 	return ret;
 }
 
-CLOCKSOURCE_OF_DECLARE(h8300_8bit, "renesas,8bit-timer", h8300_8timer_init);
+TIMER_OF_DECLARE(h8300_8bit, "renesas,8bit-timer", h8300_8timer_init);

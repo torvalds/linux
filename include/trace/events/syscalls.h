@@ -1,5 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM raw_syscalls
+#undef TRACE_INCLUDE_FILE
 #define TRACE_INCLUDE_FILE syscalls
 
 #if !defined(_TRACE_EVENTS_SYSCALLS_H) || defined(TRACE_HEADER_MULTI_READ)
@@ -26,7 +28,7 @@ TRACE_EVENT_FN(sys_enter,
 
 	TP_fast_assign(
 		__entry->id	= id;
-		syscall_get_arguments(current, regs, 0, 6, __entry->args);
+		syscall_get_arguments(current, regs, __entry->args);
 	),
 
 	TP_printk("NR %ld (%lx, %lx, %lx, %lx, %lx, %lx)",

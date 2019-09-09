@@ -1,11 +1,5 @@
-/* This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+// SPDX-License-Identifier: GPL-2.0-only
+/*
  *
  * Authors:
  * Alexander Aring <aar@pengutronix.de>
@@ -80,11 +74,11 @@ void ieee802154_xmit_complete(struct ieee802154_hw *hw, struct sk_buff *skb,
 
 		if (skb->len > max_sifs_size)
 			hrtimer_start(&local->ifs_timer,
-				      ktime_set(0, hw->phy->lifs_period * NSEC_PER_USEC),
+				      hw->phy->lifs_period * NSEC_PER_USEC,
 				      HRTIMER_MODE_REL);
 		else
 			hrtimer_start(&local->ifs_timer,
-				      ktime_set(0, hw->phy->sifs_period * NSEC_PER_USEC),
+				      hw->phy->sifs_period * NSEC_PER_USEC,
 				      HRTIMER_MODE_REL);
 	} else {
 		ieee802154_wake_queue(hw);

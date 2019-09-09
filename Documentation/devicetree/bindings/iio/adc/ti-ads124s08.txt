@@ -1,0 +1,25 @@
+* Texas Instruments' ads124s08 and ads124s06 ADC chip
+
+Required properties:
+ - compatible :
+	"ti,ads124s08"
+	"ti,ads124s06"
+ - reg : spi chip select number for the device
+
+Recommended properties:
+ - spi-max-frequency : Definition as per
+		Documentation/devicetree/bindings/spi/spi-bus.txt
+ - spi-cpha : Definition as per
+		Documentation/devicetree/bindings/spi/spi-bus.txt
+
+Optional properties:
+ - reset-gpios : GPIO pin used to reset the device.
+
+Example:
+adc@0 {
+	compatible = "ti,ads124s08";
+	reg = <0>;
+	spi-max-frequency = <1000000>;
+	spi-cpha;
+	reset-gpios = <&gpio1 16 GPIO_ACTIVE_LOW>;
+};

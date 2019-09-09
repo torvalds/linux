@@ -1,29 +1,28 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2012 Avionic Design GmbH
  * Copyright (C) 2012 NVIDIA CORPORATION.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/clk.h>
 #include <linux/debugfs.h>
 #include <linux/gpio.h>
 #include <linux/hdmi.h>
+#include <linux/math64.h>
+#include <linux/of_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
 #include <linux/reset.h>
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_probe_helper.h>
 
-#include <sound/hda_verbs.h>
-
+#include "hda.h"
 #include "hdmi.h"
 #include "drm.h"
 #include "dc.h"
+#include "trace.h"
 
 #define HDMI_ELD_BUFFER_SIZE 96
 
@@ -67,16 +66,13 @@ struct tegra_hdmi {
 	const struct tegra_hdmi_config *config;
 
 	unsigned int audio_source;
-	unsigned int audio_sample_rate;
-	unsigned int audio_channels;
+	struct tegra_hda_format format;
 
 	unsigned int pixel_clock;
 	bool stereo;
 	bool dvi;
 
 	struct drm_info_list *debugfs_files;
-	struct drm_minor *minor;
-	struct dentry *debugfs;
 };
 
 static inline struct tegra_hdmi *
@@ -100,78 +96,26 @@ enum {
 };
 
 static inline u32 tegra_hdmi_readl(struct tegra_hdmi *hdmi,
-				   unsigned long offset)
+				   unsigned int offset)
 {
-	return readl(hdmi->regs + (offset << 2));
+	u32 value = readl(hdmi->regs + (offset << 2));
+
+	trace_hdmi_readl(hdmi->dev, offset, value);
+
+	return value;
 }
 
 static inline void tegra_hdmi_writel(struct tegra_hdmi *hdmi, u32 value,
-				     unsigned long offset)
+				     unsigned int offset)
 {
+	trace_hdmi_writel(hdmi->dev, offset, value);
 	writel(value, hdmi->regs + (offset << 2));
 }
 
 struct tegra_hdmi_audio_config {
-	unsigned int pclk;
 	unsigned int n;
 	unsigned int cts;
 	unsigned int aval;
-};
-
-static const struct tegra_hdmi_audio_config tegra_hdmi_audio_32k[] = {
-	{  25200000, 4096,  25200, 24000 },
-	{  27000000, 4096,  27000, 24000 },
-	{  74250000, 4096,  74250, 24000 },
-	{ 148500000, 4096, 148500, 24000 },
-	{         0,    0,      0,     0 },
-};
-
-static const struct tegra_hdmi_audio_config tegra_hdmi_audio_44_1k[] = {
-	{  25200000, 5880,  26250, 25000 },
-	{  27000000, 5880,  28125, 25000 },
-	{  74250000, 4704,  61875, 20000 },
-	{ 148500000, 4704, 123750, 20000 },
-	{         0,    0,      0,     0 },
-};
-
-static const struct tegra_hdmi_audio_config tegra_hdmi_audio_48k[] = {
-	{  25200000, 6144,  25200, 24000 },
-	{  27000000, 6144,  27000, 24000 },
-	{  74250000, 6144,  74250, 24000 },
-	{ 148500000, 6144, 148500, 24000 },
-	{         0,    0,      0,     0 },
-};
-
-static const struct tegra_hdmi_audio_config tegra_hdmi_audio_88_2k[] = {
-	{  25200000, 11760,  26250, 25000 },
-	{  27000000, 11760,  28125, 25000 },
-	{  74250000,  9408,  61875, 20000 },
-	{ 148500000,  9408, 123750, 20000 },
-	{         0,     0,      0,     0 },
-};
-
-static const struct tegra_hdmi_audio_config tegra_hdmi_audio_96k[] = {
-	{  25200000, 12288,  25200, 24000 },
-	{  27000000, 12288,  27000, 24000 },
-	{  74250000, 12288,  74250, 24000 },
-	{ 148500000, 12288, 148500, 24000 },
-	{         0,     0,      0,     0 },
-};
-
-static const struct tegra_hdmi_audio_config tegra_hdmi_audio_176_4k[] = {
-	{  25200000, 23520,  26250, 25000 },
-	{  27000000, 23520,  28125, 25000 },
-	{  74250000, 18816,  61875, 20000 },
-	{ 148500000, 18816, 123750, 20000 },
-	{         0,     0,      0,     0 },
-};
-
-static const struct tegra_hdmi_audio_config tegra_hdmi_audio_192k[] = {
-	{  25200000, 24576,  25200, 24000 },
-	{  27000000, 24576,  27000, 24000 },
-	{  74250000, 24576,  74250, 24000 },
-	{ 148500000, 24576, 148500, 24000 },
-	{         0,     0,      0,     0 },
 };
 
 static const struct tmds_config tegra20_tmds_config[] = {
@@ -411,52 +355,53 @@ static const struct tmds_config tegra124_tmds_config[] = {
 	},
 };
 
-static const struct tegra_hdmi_audio_config *
-tegra_hdmi_get_audio_config(unsigned int sample_rate, unsigned int pclk)
+static int
+tegra_hdmi_get_audio_config(unsigned int audio_freq, unsigned int pix_clock,
+			    struct tegra_hdmi_audio_config *config)
 {
-	const struct tegra_hdmi_audio_config *table;
+	const unsigned int afreq = 128 * audio_freq;
+	const unsigned int min_n = afreq / 1500;
+	const unsigned int max_n = afreq / 300;
+	const unsigned int ideal_n = afreq / 1000;
+	int64_t min_err = (uint64_t)-1 >> 1;
+	unsigned int min_delta = -1;
+	int n;
 
-	switch (sample_rate) {
-	case 32000:
-		table = tegra_hdmi_audio_32k;
-		break;
+	memset(config, 0, sizeof(*config));
+	config->n = -1;
 
-	case 44100:
-		table = tegra_hdmi_audio_44_1k;
-		break;
+	for (n = min_n; n <= max_n; n++) {
+		uint64_t cts_f, aval_f;
+		unsigned int delta;
+		int64_t cts, err;
 
-	case 48000:
-		table = tegra_hdmi_audio_48k;
-		break;
+		/* compute aval in 48.16 fixed point */
+		aval_f = ((int64_t)24000000 << 16) * n;
+		do_div(aval_f, afreq);
+		/* It should round without any rest */
+		if (aval_f & 0xFFFF)
+			continue;
 
-	case 88200:
-		table = tegra_hdmi_audio_88_2k;
-		break;
+		/* Compute cts in 48.16 fixed point */
+		cts_f = ((int64_t)pix_clock << 16) * n;
+		do_div(cts_f, afreq);
+		/* Round it to the nearest integer */
+		cts = (cts_f & ~0xFFFF) + ((cts_f & BIT(15)) << 1);
 
-	case 96000:
-		table = tegra_hdmi_audio_96k;
-		break;
+		delta = abs(n - ideal_n);
 
-	case 176400:
-		table = tegra_hdmi_audio_176_4k;
-		break;
-
-	case 192000:
-		table = tegra_hdmi_audio_192k;
-		break;
-
-	default:
-		return NULL;
+		/* Compute the absolute error */
+		err = abs((int64_t)cts_f - cts);
+		if (err < min_err || (err == min_err && delta < min_delta)) {
+			config->n = n;
+			config->cts = cts >> 16;
+			config->aval = aval_f >> 16;
+			min_delta = delta;
+			min_err = err;
+		}
 	}
 
-	while (table->pclk) {
-		if (table->pclk == pclk)
-			return table;
-
-		table++;
-	}
-
-	return NULL;
+	return config->n != -1 ? 0 : -EINVAL;
 }
 
 static void tegra_hdmi_setup_audio_fs_tables(struct tegra_hdmi *hdmi)
@@ -503,7 +448,7 @@ static void tegra_hdmi_write_aval(struct tegra_hdmi *hdmi, u32 value)
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(regs); i++) {
-		if (regs[i].sample_rate == hdmi->audio_sample_rate) {
+		if (regs[i].sample_rate == hdmi->format.sample_rate) {
 			tegra_hdmi_writel(hdmi, value, regs[i].offset);
 			break;
 		}
@@ -512,8 +457,9 @@ static void tegra_hdmi_write_aval(struct tegra_hdmi *hdmi, u32 value)
 
 static int tegra_hdmi_setup_audio(struct tegra_hdmi *hdmi)
 {
-	const struct tegra_hdmi_audio_config *config;
+	struct tegra_hdmi_audio_config config;
 	u32 source, value;
+	int err;
 
 	switch (hdmi->audio_source) {
 	case HDA:
@@ -557,7 +503,7 @@ static int tegra_hdmi_setup_audio(struct tegra_hdmi *hdmi)
 		 * play back system startup sounds early. It is possibly not
 		 * needed on Linux at all.
 		 */
-		if (hdmi->audio_channels == 2)
+		if (hdmi->format.channels == 2)
 			value = SOR_AUDIO_CNTRL0_INJECT_NULLSMPL;
 		else
 			value = 0;
@@ -588,25 +534,28 @@ static int tegra_hdmi_setup_audio(struct tegra_hdmi *hdmi)
 		tegra_hdmi_writel(hdmi, value, HDMI_NV_PDISP_SOR_AUDIO_SPARE0);
 	}
 
-	config = tegra_hdmi_get_audio_config(hdmi->audio_sample_rate,
-					     hdmi->pixel_clock);
-	if (!config) {
+	err = tegra_hdmi_get_audio_config(hdmi->format.sample_rate,
+					  hdmi->pixel_clock, &config);
+	if (err < 0) {
 		dev_err(hdmi->dev,
 			"cannot set audio to %u Hz at %u Hz pixel clock\n",
-			hdmi->audio_sample_rate, hdmi->pixel_clock);
-		return -EINVAL;
+			hdmi->format.sample_rate, hdmi->pixel_clock);
+		return err;
 	}
+
+	dev_dbg(hdmi->dev, "audio: pixclk=%u, n=%u, cts=%u, aval=%u\n",
+		hdmi->pixel_clock, config.n, config.cts, config.aval);
 
 	tegra_hdmi_writel(hdmi, 0, HDMI_NV_PDISP_HDMI_ACR_CTRL);
 
 	value = AUDIO_N_RESETF | AUDIO_N_GENERATE_ALTERNATE |
-		AUDIO_N_VALUE(config->n - 1);
+		AUDIO_N_VALUE(config.n - 1);
 	tegra_hdmi_writel(hdmi, value, HDMI_NV_PDISP_AUDIO_N);
 
-	tegra_hdmi_writel(hdmi, ACR_SUBPACK_N(config->n) | ACR_ENABLE,
+	tegra_hdmi_writel(hdmi, ACR_SUBPACK_N(config.n) | ACR_ENABLE,
 			  HDMI_NV_PDISP_HDMI_ACR_0441_SUBPACK_HIGH);
 
-	tegra_hdmi_writel(hdmi, ACR_SUBPACK_CTS(config->cts),
+	tegra_hdmi_writel(hdmi, ACR_SUBPACK_CTS(config.cts),
 			  HDMI_NV_PDISP_HDMI_ACR_0441_SUBPACK_LOW);
 
 	value = SPARE_HW_CTS | SPARE_FORCE_SW_CTS | SPARE_CTS_RESET_VAL(1);
@@ -617,7 +566,7 @@ static int tegra_hdmi_setup_audio(struct tegra_hdmi *hdmi)
 	tegra_hdmi_writel(hdmi, value, HDMI_NV_PDISP_AUDIO_N);
 
 	if (hdmi->config->has_hda)
-		tegra_hdmi_write_aval(hdmi, config->aval);
+		tegra_hdmi_write_aval(hdmi, config.aval);
 
 	tegra_hdmi_setup_audio_fs_tables(hdmi);
 
@@ -734,7 +683,8 @@ static void tegra_hdmi_setup_avi_infoframe(struct tegra_hdmi *hdmi,
 	u8 buffer[17];
 	ssize_t err;
 
-	err = drm_hdmi_avi_infoframe_from_display_mode(&frame, mode);
+	err = drm_hdmi_avi_infoframe_from_display_mode(&frame,
+						       &hdmi->output.connector, mode);
 	if (err < 0) {
 		dev_err(hdmi->dev, "failed to setup AVI infoframe: %zd\n", err);
 		return;
@@ -780,7 +730,7 @@ static void tegra_hdmi_setup_audio_infoframe(struct tegra_hdmi *hdmi)
 		return;
 	}
 
-	frame.channels = hdmi->audio_channels;
+	frame.channels = hdmi->format.channels;
 
 	err = hdmi_audio_infoframe_pack(&frame, buffer, sizeof(buffer));
 	if (err < 0) {
@@ -901,14 +851,258 @@ tegra_hdmi_connector_detect(struct drm_connector *connector, bool force)
 	return status;
 }
 
+#define DEBUGFS_REG32(_name) { .name = #_name, .offset = _name }
+
+static const struct debugfs_reg32 tegra_hdmi_regs[] = {
+	DEBUGFS_REG32(HDMI_CTXSW),
+	DEBUGFS_REG32(HDMI_NV_PDISP_SOR_STATE0),
+	DEBUGFS_REG32(HDMI_NV_PDISP_SOR_STATE1),
+	DEBUGFS_REG32(HDMI_NV_PDISP_SOR_STATE2),
+	DEBUGFS_REG32(HDMI_NV_PDISP_RG_HDCP_AN_MSB),
+	DEBUGFS_REG32(HDMI_NV_PDISP_RG_HDCP_AN_LSB),
+	DEBUGFS_REG32(HDMI_NV_PDISP_RG_HDCP_CN_MSB),
+	DEBUGFS_REG32(HDMI_NV_PDISP_RG_HDCP_CN_LSB),
+	DEBUGFS_REG32(HDMI_NV_PDISP_RG_HDCP_AKSV_MSB),
+	DEBUGFS_REG32(HDMI_NV_PDISP_RG_HDCP_AKSV_LSB),
+	DEBUGFS_REG32(HDMI_NV_PDISP_RG_HDCP_BKSV_MSB),
+	DEBUGFS_REG32(HDMI_NV_PDISP_RG_HDCP_BKSV_LSB),
+	DEBUGFS_REG32(HDMI_NV_PDISP_RG_HDCP_CKSV_MSB),
+	DEBUGFS_REG32(HDMI_NV_PDISP_RG_HDCP_CKSV_LSB),
+	DEBUGFS_REG32(HDMI_NV_PDISP_RG_HDCP_DKSV_MSB),
+	DEBUGFS_REG32(HDMI_NV_PDISP_RG_HDCP_DKSV_LSB),
+	DEBUGFS_REG32(HDMI_NV_PDISP_RG_HDCP_CTRL),
+	DEBUGFS_REG32(HDMI_NV_PDISP_RG_HDCP_CMODE),
+	DEBUGFS_REG32(HDMI_NV_PDISP_RG_HDCP_MPRIME_MSB),
+	DEBUGFS_REG32(HDMI_NV_PDISP_RG_HDCP_MPRIME_LSB),
+	DEBUGFS_REG32(HDMI_NV_PDISP_RG_HDCP_SPRIME_MSB),
+	DEBUGFS_REG32(HDMI_NV_PDISP_RG_HDCP_SPRIME_LSB2),
+	DEBUGFS_REG32(HDMI_NV_PDISP_RG_HDCP_SPRIME_LSB1),
+	DEBUGFS_REG32(HDMI_NV_PDISP_RG_HDCP_RI),
+	DEBUGFS_REG32(HDMI_NV_PDISP_RG_HDCP_CS_MSB),
+	DEBUGFS_REG32(HDMI_NV_PDISP_RG_HDCP_CS_LSB),
+	DEBUGFS_REG32(HDMI_NV_PDISP_HDMI_AUDIO_EMU0),
+	DEBUGFS_REG32(HDMI_NV_PDISP_HDMI_AUDIO_EMU_RDATA0),
+	DEBUGFS_REG32(HDMI_NV_PDISP_HDMI_AUDIO_EMU1),
+	DEBUGFS_REG32(HDMI_NV_PDISP_HDMI_AUDIO_EMU2),
+	DEBUGFS_REG32(HDMI_NV_PDISP_HDMI_AUDIO_INFOFRAME_CTRL),
+	DEBUGFS_REG32(HDMI_NV_PDISP_HDMI_AUDIO_INFOFRAME_STATUS),
+	DEBUGFS_REG32(HDMI_NV_PDISP_HDMI_AUDIO_INFOFRAME_HEADER),
+	DEBUGFS_REG32(HDMI_NV_PDISP_HDMI_AUDIO_INFOFRAME_SUBPACK0_LOW),
+	DEBUGFS_REG32(HDMI_NV_PDISP_HDMI_AUDIO_INFOFRAME_SUBPACK0_HIGH),
+	DEBUGFS_REG32(HDMI_NV_PDISP_HDMI_AVI_INFOFRAME_CTRL),
+	DEBUGFS_REG32(HDMI_NV_PDISP_HDMI_AVI_INFOFRAME_STATUS),
+	DEBUGFS_REG32(HDMI_NV_PDISP_HDMI_AVI_INFOFRAME_HEADER),
+	DEBUGFS_REG32(HDMI_NV_PDISP_HDMI_AVI_INFOFRAME_SUBPACK0_LOW),
+	DEBUGFS_REG32(HDMI_NV_PDISP_HDMI_AVI_INFOFRAME_SUBPACK0_HIGH),
+	DEBUGFS_REG32(HDMI_NV_PDISP_HDMI_AVI_INFOFRAME_SUBPACK1_LOW),
+	DEBUGFS_REG32(HDMI_NV_PDISP_HDMI_AVI_INFOFRAME_SUBPACK1_HIGH),
+	DEBUGFS_REG32(HDMI_NV_PDISP_HDMI_GENERIC_CTRL),
+	DEBUGFS_REG32(HDMI_NV_PDISP_HDMI_GENERIC_STATUS),
+	DEBUGFS_REG32(HDMI_NV_PDISP_HDMI_GENERIC_HEADER),
+	DEBUGFS_REG32(HDMI_NV_PDISP_HDMI_GENERIC_SUBPACK0_LOW),
+	DEBUGFS_REG32(HDMI_NV_PDISP_HDMI_GENERIC_SUBPACK0_HIGH),
+	DEBUGFS_REG32(HDMI_NV_PDISP_HDMI_GENERIC_SUBPACK1_LOW),
+	DEBUGFS_REG32(HDMI_NV_PDISP_HDMI_GENERIC_SUBPACK1_HIGH),
+	DEBUGFS_REG32(HDMI_NV_PDISP_HDMI_GENERIC_SUBPACK2_LOW),
+	DEBUGFS_REG32(HDMI_NV_PDISP_HDMI_GENERIC_SUBPACK2_HIGH),
+	DEBUGFS_REG32(HDMI_NV_PDISP_HDMI_GENERIC_SUBPACK3_LOW),
+	DEBUGFS_REG32(HDMI_NV_PDISP_HDMI_GENERIC_SUBPACK3_HIGH),
+	DEBUGFS_REG32(HDMI_NV_PDISP_HDMI_ACR_CTRL),
+	DEBUGFS_REG32(HDMI_NV_PDISP_HDMI_ACR_0320_SUBPACK_LOW),
+	DEBUGFS_REG32(HDMI_NV_PDISP_HDMI_ACR_0320_SUBPACK_HIGH),
+	DEBUGFS_REG32(HDMI_NV_PDISP_HDMI_ACR_0441_SUBPACK_LOW),
+	DEBUGFS_REG32(HDMI_NV_PDISP_HDMI_ACR_0441_SUBPACK_HIGH),
+	DEBUGFS_REG32(HDMI_NV_PDISP_HDMI_ACR_0882_SUBPACK_LOW),
+	DEBUGFS_REG32(HDMI_NV_PDISP_HDMI_ACR_0882_SUBPACK_HIGH),
+	DEBUGFS_REG32(HDMI_NV_PDISP_HDMI_ACR_1764_SUBPACK_LOW),
+	DEBUGFS_REG32(HDMI_NV_PDISP_HDMI_ACR_1764_SUBPACK_HIGH),
+	DEBUGFS_REG32(HDMI_NV_PDISP_HDMI_ACR_0480_SUBPACK_LOW),
+	DEBUGFS_REG32(HDMI_NV_PDISP_HDMI_ACR_0480_SUBPACK_HIGH),
+	DEBUGFS_REG32(HDMI_NV_PDISP_HDMI_ACR_0960_SUBPACK_LOW),
+	DEBUGFS_REG32(HDMI_NV_PDISP_HDMI_ACR_0960_SUBPACK_HIGH),
+	DEBUGFS_REG32(HDMI_NV_PDISP_HDMI_ACR_1920_SUBPACK_LOW),
+	DEBUGFS_REG32(HDMI_NV_PDISP_HDMI_ACR_1920_SUBPACK_HIGH),
+	DEBUGFS_REG32(HDMI_NV_PDISP_HDMI_CTRL),
+	DEBUGFS_REG32(HDMI_NV_PDISP_HDMI_VSYNC_KEEPOUT),
+	DEBUGFS_REG32(HDMI_NV_PDISP_HDMI_VSYNC_WINDOW),
+	DEBUGFS_REG32(HDMI_NV_PDISP_HDMI_GCP_CTRL),
+	DEBUGFS_REG32(HDMI_NV_PDISP_HDMI_GCP_STATUS),
+	DEBUGFS_REG32(HDMI_NV_PDISP_HDMI_GCP_SUBPACK),
+	DEBUGFS_REG32(HDMI_NV_PDISP_HDMI_CHANNEL_STATUS1),
+	DEBUGFS_REG32(HDMI_NV_PDISP_HDMI_CHANNEL_STATUS2),
+	DEBUGFS_REG32(HDMI_NV_PDISP_HDMI_EMU0),
+	DEBUGFS_REG32(HDMI_NV_PDISP_HDMI_EMU1),
+	DEBUGFS_REG32(HDMI_NV_PDISP_HDMI_EMU1_RDATA),
+	DEBUGFS_REG32(HDMI_NV_PDISP_HDMI_SPARE),
+	DEBUGFS_REG32(HDMI_NV_PDISP_HDMI_SPDIF_CHN_STATUS1),
+	DEBUGFS_REG32(HDMI_NV_PDISP_HDMI_SPDIF_CHN_STATUS2),
+	DEBUGFS_REG32(HDMI_NV_PDISP_HDMI_HDCPRIF_ROM_CTRL),
+	DEBUGFS_REG32(HDMI_NV_PDISP_SOR_CAP),
+	DEBUGFS_REG32(HDMI_NV_PDISP_SOR_PWR),
+	DEBUGFS_REG32(HDMI_NV_PDISP_SOR_TEST),
+	DEBUGFS_REG32(HDMI_NV_PDISP_SOR_PLL0),
+	DEBUGFS_REG32(HDMI_NV_PDISP_SOR_PLL1),
+	DEBUGFS_REG32(HDMI_NV_PDISP_SOR_PLL2),
+	DEBUGFS_REG32(HDMI_NV_PDISP_SOR_CSTM),
+	DEBUGFS_REG32(HDMI_NV_PDISP_SOR_LVDS),
+	DEBUGFS_REG32(HDMI_NV_PDISP_SOR_CRCA),
+	DEBUGFS_REG32(HDMI_NV_PDISP_SOR_CRCB),
+	DEBUGFS_REG32(HDMI_NV_PDISP_SOR_BLANK),
+	DEBUGFS_REG32(HDMI_NV_PDISP_SOR_SEQ_CTL),
+	DEBUGFS_REG32(HDMI_NV_PDISP_SOR_SEQ_INST(0)),
+	DEBUGFS_REG32(HDMI_NV_PDISP_SOR_SEQ_INST(1)),
+	DEBUGFS_REG32(HDMI_NV_PDISP_SOR_SEQ_INST(2)),
+	DEBUGFS_REG32(HDMI_NV_PDISP_SOR_SEQ_INST(3)),
+	DEBUGFS_REG32(HDMI_NV_PDISP_SOR_SEQ_INST(4)),
+	DEBUGFS_REG32(HDMI_NV_PDISP_SOR_SEQ_INST(5)),
+	DEBUGFS_REG32(HDMI_NV_PDISP_SOR_SEQ_INST(6)),
+	DEBUGFS_REG32(HDMI_NV_PDISP_SOR_SEQ_INST(7)),
+	DEBUGFS_REG32(HDMI_NV_PDISP_SOR_SEQ_INST(8)),
+	DEBUGFS_REG32(HDMI_NV_PDISP_SOR_SEQ_INST(9)),
+	DEBUGFS_REG32(HDMI_NV_PDISP_SOR_SEQ_INST(10)),
+	DEBUGFS_REG32(HDMI_NV_PDISP_SOR_SEQ_INST(11)),
+	DEBUGFS_REG32(HDMI_NV_PDISP_SOR_SEQ_INST(12)),
+	DEBUGFS_REG32(HDMI_NV_PDISP_SOR_SEQ_INST(13)),
+	DEBUGFS_REG32(HDMI_NV_PDISP_SOR_SEQ_INST(14)),
+	DEBUGFS_REG32(HDMI_NV_PDISP_SOR_SEQ_INST(15)),
+	DEBUGFS_REG32(HDMI_NV_PDISP_SOR_VCRCA0),
+	DEBUGFS_REG32(HDMI_NV_PDISP_SOR_VCRCA1),
+	DEBUGFS_REG32(HDMI_NV_PDISP_SOR_CCRCA0),
+	DEBUGFS_REG32(HDMI_NV_PDISP_SOR_CCRCA1),
+	DEBUGFS_REG32(HDMI_NV_PDISP_SOR_EDATAA0),
+	DEBUGFS_REG32(HDMI_NV_PDISP_SOR_EDATAA1),
+	DEBUGFS_REG32(HDMI_NV_PDISP_SOR_COUNTA0),
+	DEBUGFS_REG32(HDMI_NV_PDISP_SOR_COUNTA1),
+	DEBUGFS_REG32(HDMI_NV_PDISP_SOR_DEBUGA0),
+	DEBUGFS_REG32(HDMI_NV_PDISP_SOR_DEBUGA1),
+	DEBUGFS_REG32(HDMI_NV_PDISP_SOR_TRIG),
+	DEBUGFS_REG32(HDMI_NV_PDISP_SOR_MSCHECK),
+	DEBUGFS_REG32(HDMI_NV_PDISP_SOR_LANE_DRIVE_CURRENT),
+	DEBUGFS_REG32(HDMI_NV_PDISP_AUDIO_DEBUG0),
+	DEBUGFS_REG32(HDMI_NV_PDISP_AUDIO_DEBUG1),
+	DEBUGFS_REG32(HDMI_NV_PDISP_AUDIO_DEBUG2),
+	DEBUGFS_REG32(HDMI_NV_PDISP_AUDIO_FS(0)),
+	DEBUGFS_REG32(HDMI_NV_PDISP_AUDIO_FS(1)),
+	DEBUGFS_REG32(HDMI_NV_PDISP_AUDIO_FS(2)),
+	DEBUGFS_REG32(HDMI_NV_PDISP_AUDIO_FS(3)),
+	DEBUGFS_REG32(HDMI_NV_PDISP_AUDIO_FS(4)),
+	DEBUGFS_REG32(HDMI_NV_PDISP_AUDIO_FS(5)),
+	DEBUGFS_REG32(HDMI_NV_PDISP_AUDIO_FS(6)),
+	DEBUGFS_REG32(HDMI_NV_PDISP_AUDIO_PULSE_WIDTH),
+	DEBUGFS_REG32(HDMI_NV_PDISP_AUDIO_THRESHOLD),
+	DEBUGFS_REG32(HDMI_NV_PDISP_AUDIO_CNTRL0),
+	DEBUGFS_REG32(HDMI_NV_PDISP_AUDIO_N),
+	DEBUGFS_REG32(HDMI_NV_PDISP_HDCPRIF_ROM_TIMING),
+	DEBUGFS_REG32(HDMI_NV_PDISP_SOR_REFCLK),
+	DEBUGFS_REG32(HDMI_NV_PDISP_CRC_CONTROL),
+	DEBUGFS_REG32(HDMI_NV_PDISP_INPUT_CONTROL),
+	DEBUGFS_REG32(HDMI_NV_PDISP_SCRATCH),
+	DEBUGFS_REG32(HDMI_NV_PDISP_PE_CURRENT),
+	DEBUGFS_REG32(HDMI_NV_PDISP_KEY_CTRL),
+	DEBUGFS_REG32(HDMI_NV_PDISP_KEY_DEBUG0),
+	DEBUGFS_REG32(HDMI_NV_PDISP_KEY_DEBUG1),
+	DEBUGFS_REG32(HDMI_NV_PDISP_KEY_DEBUG2),
+	DEBUGFS_REG32(HDMI_NV_PDISP_KEY_HDCP_KEY_0),
+	DEBUGFS_REG32(HDMI_NV_PDISP_KEY_HDCP_KEY_1),
+	DEBUGFS_REG32(HDMI_NV_PDISP_KEY_HDCP_KEY_2),
+	DEBUGFS_REG32(HDMI_NV_PDISP_KEY_HDCP_KEY_3),
+	DEBUGFS_REG32(HDMI_NV_PDISP_KEY_HDCP_KEY_TRIG),
+	DEBUGFS_REG32(HDMI_NV_PDISP_KEY_SKEY_INDEX),
+	DEBUGFS_REG32(HDMI_NV_PDISP_SOR_AUDIO_CNTRL0),
+	DEBUGFS_REG32(HDMI_NV_PDISP_SOR_AUDIO_SPARE0),
+	DEBUGFS_REG32(HDMI_NV_PDISP_SOR_AUDIO_HDA_CODEC_SCRATCH0),
+	DEBUGFS_REG32(HDMI_NV_PDISP_SOR_AUDIO_HDA_CODEC_SCRATCH1),
+	DEBUGFS_REG32(HDMI_NV_PDISP_SOR_AUDIO_HDA_ELD_BUFWR),
+	DEBUGFS_REG32(HDMI_NV_PDISP_SOR_AUDIO_HDA_PRESENSE),
+	DEBUGFS_REG32(HDMI_NV_PDISP_INT_STATUS),
+	DEBUGFS_REG32(HDMI_NV_PDISP_INT_MASK),
+	DEBUGFS_REG32(HDMI_NV_PDISP_INT_ENABLE),
+	DEBUGFS_REG32(HDMI_NV_PDISP_SOR_IO_PEAK_CURRENT),
+};
+
+static int tegra_hdmi_show_regs(struct seq_file *s, void *data)
+{
+	struct drm_info_node *node = s->private;
+	struct tegra_hdmi *hdmi = node->info_ent->data;
+	struct drm_crtc *crtc = hdmi->output.encoder.crtc;
+	struct drm_device *drm = node->minor->dev;
+	unsigned int i;
+	int err = 0;
+
+	drm_modeset_lock_all(drm);
+
+	if (!crtc || !crtc->state->active) {
+		err = -EBUSY;
+		goto unlock;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(tegra_hdmi_regs); i++) {
+		unsigned int offset = tegra_hdmi_regs[i].offset;
+
+		seq_printf(s, "%-56s %#05x %08x\n", tegra_hdmi_regs[i].name,
+			   offset, tegra_hdmi_readl(hdmi, offset));
+	}
+
+unlock:
+	drm_modeset_unlock_all(drm);
+	return err;
+}
+
+static struct drm_info_list debugfs_files[] = {
+	{ "regs", tegra_hdmi_show_regs, 0, NULL },
+};
+
+static int tegra_hdmi_late_register(struct drm_connector *connector)
+{
+	struct tegra_output *output = connector_to_output(connector);
+	unsigned int i, count = ARRAY_SIZE(debugfs_files);
+	struct drm_minor *minor = connector->dev->primary;
+	struct dentry *root = connector->debugfs_entry;
+	struct tegra_hdmi *hdmi = to_hdmi(output);
+	int err;
+
+	hdmi->debugfs_files = kmemdup(debugfs_files, sizeof(debugfs_files),
+				      GFP_KERNEL);
+	if (!hdmi->debugfs_files)
+		return -ENOMEM;
+
+	for (i = 0; i < count; i++)
+		hdmi->debugfs_files[i].data = hdmi;
+
+	err = drm_debugfs_create_files(hdmi->debugfs_files, count, root, minor);
+	if (err < 0)
+		goto free;
+
+	return 0;
+
+free:
+	kfree(hdmi->debugfs_files);
+	hdmi->debugfs_files = NULL;
+
+	return err;
+}
+
+static void tegra_hdmi_early_unregister(struct drm_connector *connector)
+{
+	struct tegra_output *output = connector_to_output(connector);
+	struct drm_minor *minor = connector->dev->primary;
+	unsigned int count = ARRAY_SIZE(debugfs_files);
+	struct tegra_hdmi *hdmi = to_hdmi(output);
+
+	drm_debugfs_remove_files(hdmi->debugfs_files, count, minor);
+	kfree(hdmi->debugfs_files);
+	hdmi->debugfs_files = NULL;
+}
+
 static const struct drm_connector_funcs tegra_hdmi_connector_funcs = {
-	.dpms = drm_atomic_helper_connector_dpms,
 	.reset = drm_atomic_helper_connector_reset,
 	.detect = tegra_hdmi_connector_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = tegra_output_connector_destroy,
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
+	.late_register = tegra_hdmi_late_register,
+	.early_unregister = tegra_hdmi_early_unregister,
 };
 
 static enum drm_mode_status
@@ -1063,9 +1257,15 @@ static void tegra_hdmi_encoder_enable(struct drm_encoder *encoder)
 
 	hdmi->dvi = !tegra_output_is_hdmi(output);
 	if (!hdmi->dvi) {
-		err = tegra_hdmi_setup_audio(hdmi);
-		if (err < 0)
-			hdmi->dvi = true;
+		/*
+		 * Make sure that the audio format has been configured before
+		 * enabling audio, otherwise we may try to divide by zero.
+		*/
+		if (hdmi->format.sample_rate > 0) {
+			err = tegra_hdmi_setup_audio(hdmi);
+			if (err < 0)
+				hdmi->dvi = true;
+		}
 	}
 
 	if (hdmi->config->has_hda)
@@ -1217,254 +1417,6 @@ static const struct drm_encoder_helper_funcs tegra_hdmi_encoder_helper_funcs = {
 	.atomic_check = tegra_hdmi_encoder_atomic_check,
 };
 
-static int tegra_hdmi_show_regs(struct seq_file *s, void *data)
-{
-	struct drm_info_node *node = s->private;
-	struct tegra_hdmi *hdmi = node->info_ent->data;
-	struct drm_crtc *crtc = hdmi->output.encoder.crtc;
-	struct drm_device *drm = node->minor->dev;
-	int err = 0;
-
-	drm_modeset_lock_all(drm);
-
-	if (!crtc || !crtc->state->active) {
-		err = -EBUSY;
-		goto unlock;
-	}
-
-#define DUMP_REG(name)						\
-	seq_printf(s, "%-56s %#05x %08x\n", #name, name,	\
-		   tegra_hdmi_readl(hdmi, name))
-
-	DUMP_REG(HDMI_CTXSW);
-	DUMP_REG(HDMI_NV_PDISP_SOR_STATE0);
-	DUMP_REG(HDMI_NV_PDISP_SOR_STATE1);
-	DUMP_REG(HDMI_NV_PDISP_SOR_STATE2);
-	DUMP_REG(HDMI_NV_PDISP_RG_HDCP_AN_MSB);
-	DUMP_REG(HDMI_NV_PDISP_RG_HDCP_AN_LSB);
-	DUMP_REG(HDMI_NV_PDISP_RG_HDCP_CN_MSB);
-	DUMP_REG(HDMI_NV_PDISP_RG_HDCP_CN_LSB);
-	DUMP_REG(HDMI_NV_PDISP_RG_HDCP_AKSV_MSB);
-	DUMP_REG(HDMI_NV_PDISP_RG_HDCP_AKSV_LSB);
-	DUMP_REG(HDMI_NV_PDISP_RG_HDCP_BKSV_MSB);
-	DUMP_REG(HDMI_NV_PDISP_RG_HDCP_BKSV_LSB);
-	DUMP_REG(HDMI_NV_PDISP_RG_HDCP_CKSV_MSB);
-	DUMP_REG(HDMI_NV_PDISP_RG_HDCP_CKSV_LSB);
-	DUMP_REG(HDMI_NV_PDISP_RG_HDCP_DKSV_MSB);
-	DUMP_REG(HDMI_NV_PDISP_RG_HDCP_DKSV_LSB);
-	DUMP_REG(HDMI_NV_PDISP_RG_HDCP_CTRL);
-	DUMP_REG(HDMI_NV_PDISP_RG_HDCP_CMODE);
-	DUMP_REG(HDMI_NV_PDISP_RG_HDCP_MPRIME_MSB);
-	DUMP_REG(HDMI_NV_PDISP_RG_HDCP_MPRIME_LSB);
-	DUMP_REG(HDMI_NV_PDISP_RG_HDCP_SPRIME_MSB);
-	DUMP_REG(HDMI_NV_PDISP_RG_HDCP_SPRIME_LSB2);
-	DUMP_REG(HDMI_NV_PDISP_RG_HDCP_SPRIME_LSB1);
-	DUMP_REG(HDMI_NV_PDISP_RG_HDCP_RI);
-	DUMP_REG(HDMI_NV_PDISP_RG_HDCP_CS_MSB);
-	DUMP_REG(HDMI_NV_PDISP_RG_HDCP_CS_LSB);
-	DUMP_REG(HDMI_NV_PDISP_HDMI_AUDIO_EMU0);
-	DUMP_REG(HDMI_NV_PDISP_HDMI_AUDIO_EMU_RDATA0);
-	DUMP_REG(HDMI_NV_PDISP_HDMI_AUDIO_EMU1);
-	DUMP_REG(HDMI_NV_PDISP_HDMI_AUDIO_EMU2);
-	DUMP_REG(HDMI_NV_PDISP_HDMI_AUDIO_INFOFRAME_CTRL);
-	DUMP_REG(HDMI_NV_PDISP_HDMI_AUDIO_INFOFRAME_STATUS);
-	DUMP_REG(HDMI_NV_PDISP_HDMI_AUDIO_INFOFRAME_HEADER);
-	DUMP_REG(HDMI_NV_PDISP_HDMI_AUDIO_INFOFRAME_SUBPACK0_LOW);
-	DUMP_REG(HDMI_NV_PDISP_HDMI_AUDIO_INFOFRAME_SUBPACK0_HIGH);
-	DUMP_REG(HDMI_NV_PDISP_HDMI_AVI_INFOFRAME_CTRL);
-	DUMP_REG(HDMI_NV_PDISP_HDMI_AVI_INFOFRAME_STATUS);
-	DUMP_REG(HDMI_NV_PDISP_HDMI_AVI_INFOFRAME_HEADER);
-	DUMP_REG(HDMI_NV_PDISP_HDMI_AVI_INFOFRAME_SUBPACK0_LOW);
-	DUMP_REG(HDMI_NV_PDISP_HDMI_AVI_INFOFRAME_SUBPACK0_HIGH);
-	DUMP_REG(HDMI_NV_PDISP_HDMI_AVI_INFOFRAME_SUBPACK1_LOW);
-	DUMP_REG(HDMI_NV_PDISP_HDMI_AVI_INFOFRAME_SUBPACK1_HIGH);
-	DUMP_REG(HDMI_NV_PDISP_HDMI_GENERIC_CTRL);
-	DUMP_REG(HDMI_NV_PDISP_HDMI_GENERIC_STATUS);
-	DUMP_REG(HDMI_NV_PDISP_HDMI_GENERIC_HEADER);
-	DUMP_REG(HDMI_NV_PDISP_HDMI_GENERIC_SUBPACK0_LOW);
-	DUMP_REG(HDMI_NV_PDISP_HDMI_GENERIC_SUBPACK0_HIGH);
-	DUMP_REG(HDMI_NV_PDISP_HDMI_GENERIC_SUBPACK1_LOW);
-	DUMP_REG(HDMI_NV_PDISP_HDMI_GENERIC_SUBPACK1_HIGH);
-	DUMP_REG(HDMI_NV_PDISP_HDMI_GENERIC_SUBPACK2_LOW);
-	DUMP_REG(HDMI_NV_PDISP_HDMI_GENERIC_SUBPACK2_HIGH);
-	DUMP_REG(HDMI_NV_PDISP_HDMI_GENERIC_SUBPACK3_LOW);
-	DUMP_REG(HDMI_NV_PDISP_HDMI_GENERIC_SUBPACK3_HIGH);
-	DUMP_REG(HDMI_NV_PDISP_HDMI_ACR_CTRL);
-	DUMP_REG(HDMI_NV_PDISP_HDMI_ACR_0320_SUBPACK_LOW);
-	DUMP_REG(HDMI_NV_PDISP_HDMI_ACR_0320_SUBPACK_HIGH);
-	DUMP_REG(HDMI_NV_PDISP_HDMI_ACR_0441_SUBPACK_LOW);
-	DUMP_REG(HDMI_NV_PDISP_HDMI_ACR_0441_SUBPACK_HIGH);
-	DUMP_REG(HDMI_NV_PDISP_HDMI_ACR_0882_SUBPACK_LOW);
-	DUMP_REG(HDMI_NV_PDISP_HDMI_ACR_0882_SUBPACK_HIGH);
-	DUMP_REG(HDMI_NV_PDISP_HDMI_ACR_1764_SUBPACK_LOW);
-	DUMP_REG(HDMI_NV_PDISP_HDMI_ACR_1764_SUBPACK_HIGH);
-	DUMP_REG(HDMI_NV_PDISP_HDMI_ACR_0480_SUBPACK_LOW);
-	DUMP_REG(HDMI_NV_PDISP_HDMI_ACR_0480_SUBPACK_HIGH);
-	DUMP_REG(HDMI_NV_PDISP_HDMI_ACR_0960_SUBPACK_LOW);
-	DUMP_REG(HDMI_NV_PDISP_HDMI_ACR_0960_SUBPACK_HIGH);
-	DUMP_REG(HDMI_NV_PDISP_HDMI_ACR_1920_SUBPACK_LOW);
-	DUMP_REG(HDMI_NV_PDISP_HDMI_ACR_1920_SUBPACK_HIGH);
-	DUMP_REG(HDMI_NV_PDISP_HDMI_CTRL);
-	DUMP_REG(HDMI_NV_PDISP_HDMI_VSYNC_KEEPOUT);
-	DUMP_REG(HDMI_NV_PDISP_HDMI_VSYNC_WINDOW);
-	DUMP_REG(HDMI_NV_PDISP_HDMI_GCP_CTRL);
-	DUMP_REG(HDMI_NV_PDISP_HDMI_GCP_STATUS);
-	DUMP_REG(HDMI_NV_PDISP_HDMI_GCP_SUBPACK);
-	DUMP_REG(HDMI_NV_PDISP_HDMI_CHANNEL_STATUS1);
-	DUMP_REG(HDMI_NV_PDISP_HDMI_CHANNEL_STATUS2);
-	DUMP_REG(HDMI_NV_PDISP_HDMI_EMU0);
-	DUMP_REG(HDMI_NV_PDISP_HDMI_EMU1);
-	DUMP_REG(HDMI_NV_PDISP_HDMI_EMU1_RDATA);
-	DUMP_REG(HDMI_NV_PDISP_HDMI_SPARE);
-	DUMP_REG(HDMI_NV_PDISP_HDMI_SPDIF_CHN_STATUS1);
-	DUMP_REG(HDMI_NV_PDISP_HDMI_SPDIF_CHN_STATUS2);
-	DUMP_REG(HDMI_NV_PDISP_HDMI_HDCPRIF_ROM_CTRL);
-	DUMP_REG(HDMI_NV_PDISP_SOR_CAP);
-	DUMP_REG(HDMI_NV_PDISP_SOR_PWR);
-	DUMP_REG(HDMI_NV_PDISP_SOR_TEST);
-	DUMP_REG(HDMI_NV_PDISP_SOR_PLL0);
-	DUMP_REG(HDMI_NV_PDISP_SOR_PLL1);
-	DUMP_REG(HDMI_NV_PDISP_SOR_PLL2);
-	DUMP_REG(HDMI_NV_PDISP_SOR_CSTM);
-	DUMP_REG(HDMI_NV_PDISP_SOR_LVDS);
-	DUMP_REG(HDMI_NV_PDISP_SOR_CRCA);
-	DUMP_REG(HDMI_NV_PDISP_SOR_CRCB);
-	DUMP_REG(HDMI_NV_PDISP_SOR_BLANK);
-	DUMP_REG(HDMI_NV_PDISP_SOR_SEQ_CTL);
-	DUMP_REG(HDMI_NV_PDISP_SOR_SEQ_INST(0));
-	DUMP_REG(HDMI_NV_PDISP_SOR_SEQ_INST(1));
-	DUMP_REG(HDMI_NV_PDISP_SOR_SEQ_INST(2));
-	DUMP_REG(HDMI_NV_PDISP_SOR_SEQ_INST(3));
-	DUMP_REG(HDMI_NV_PDISP_SOR_SEQ_INST(4));
-	DUMP_REG(HDMI_NV_PDISP_SOR_SEQ_INST(5));
-	DUMP_REG(HDMI_NV_PDISP_SOR_SEQ_INST(6));
-	DUMP_REG(HDMI_NV_PDISP_SOR_SEQ_INST(7));
-	DUMP_REG(HDMI_NV_PDISP_SOR_SEQ_INST(8));
-	DUMP_REG(HDMI_NV_PDISP_SOR_SEQ_INST(9));
-	DUMP_REG(HDMI_NV_PDISP_SOR_SEQ_INST(10));
-	DUMP_REG(HDMI_NV_PDISP_SOR_SEQ_INST(11));
-	DUMP_REG(HDMI_NV_PDISP_SOR_SEQ_INST(12));
-	DUMP_REG(HDMI_NV_PDISP_SOR_SEQ_INST(13));
-	DUMP_REG(HDMI_NV_PDISP_SOR_SEQ_INST(14));
-	DUMP_REG(HDMI_NV_PDISP_SOR_SEQ_INST(15));
-	DUMP_REG(HDMI_NV_PDISP_SOR_VCRCA0);
-	DUMP_REG(HDMI_NV_PDISP_SOR_VCRCA1);
-	DUMP_REG(HDMI_NV_PDISP_SOR_CCRCA0);
-	DUMP_REG(HDMI_NV_PDISP_SOR_CCRCA1);
-	DUMP_REG(HDMI_NV_PDISP_SOR_EDATAA0);
-	DUMP_REG(HDMI_NV_PDISP_SOR_EDATAA1);
-	DUMP_REG(HDMI_NV_PDISP_SOR_COUNTA0);
-	DUMP_REG(HDMI_NV_PDISP_SOR_COUNTA1);
-	DUMP_REG(HDMI_NV_PDISP_SOR_DEBUGA0);
-	DUMP_REG(HDMI_NV_PDISP_SOR_DEBUGA1);
-	DUMP_REG(HDMI_NV_PDISP_SOR_TRIG);
-	DUMP_REG(HDMI_NV_PDISP_SOR_MSCHECK);
-	DUMP_REG(HDMI_NV_PDISP_SOR_LANE_DRIVE_CURRENT);
-	DUMP_REG(HDMI_NV_PDISP_AUDIO_DEBUG0);
-	DUMP_REG(HDMI_NV_PDISP_AUDIO_DEBUG1);
-	DUMP_REG(HDMI_NV_PDISP_AUDIO_DEBUG2);
-	DUMP_REG(HDMI_NV_PDISP_AUDIO_FS(0));
-	DUMP_REG(HDMI_NV_PDISP_AUDIO_FS(1));
-	DUMP_REG(HDMI_NV_PDISP_AUDIO_FS(2));
-	DUMP_REG(HDMI_NV_PDISP_AUDIO_FS(3));
-	DUMP_REG(HDMI_NV_PDISP_AUDIO_FS(4));
-	DUMP_REG(HDMI_NV_PDISP_AUDIO_FS(5));
-	DUMP_REG(HDMI_NV_PDISP_AUDIO_FS(6));
-	DUMP_REG(HDMI_NV_PDISP_AUDIO_PULSE_WIDTH);
-	DUMP_REG(HDMI_NV_PDISP_AUDIO_THRESHOLD);
-	DUMP_REG(HDMI_NV_PDISP_AUDIO_CNTRL0);
-	DUMP_REG(HDMI_NV_PDISP_AUDIO_N);
-	DUMP_REG(HDMI_NV_PDISP_HDCPRIF_ROM_TIMING);
-	DUMP_REG(HDMI_NV_PDISP_SOR_REFCLK);
-	DUMP_REG(HDMI_NV_PDISP_CRC_CONTROL);
-	DUMP_REG(HDMI_NV_PDISP_INPUT_CONTROL);
-	DUMP_REG(HDMI_NV_PDISP_SCRATCH);
-	DUMP_REG(HDMI_NV_PDISP_PE_CURRENT);
-	DUMP_REG(HDMI_NV_PDISP_KEY_CTRL);
-	DUMP_REG(HDMI_NV_PDISP_KEY_DEBUG0);
-	DUMP_REG(HDMI_NV_PDISP_KEY_DEBUG1);
-	DUMP_REG(HDMI_NV_PDISP_KEY_DEBUG2);
-	DUMP_REG(HDMI_NV_PDISP_KEY_HDCP_KEY_0);
-	DUMP_REG(HDMI_NV_PDISP_KEY_HDCP_KEY_1);
-	DUMP_REG(HDMI_NV_PDISP_KEY_HDCP_KEY_2);
-	DUMP_REG(HDMI_NV_PDISP_KEY_HDCP_KEY_3);
-	DUMP_REG(HDMI_NV_PDISP_KEY_HDCP_KEY_TRIG);
-	DUMP_REG(HDMI_NV_PDISP_KEY_SKEY_INDEX);
-	DUMP_REG(HDMI_NV_PDISP_SOR_AUDIO_CNTRL0);
-	DUMP_REG(HDMI_NV_PDISP_SOR_AUDIO_SPARE0);
-	DUMP_REG(HDMI_NV_PDISP_SOR_AUDIO_HDA_CODEC_SCRATCH0);
-	DUMP_REG(HDMI_NV_PDISP_SOR_AUDIO_HDA_CODEC_SCRATCH1);
-	DUMP_REG(HDMI_NV_PDISP_SOR_AUDIO_HDA_ELD_BUFWR);
-	DUMP_REG(HDMI_NV_PDISP_SOR_AUDIO_HDA_PRESENSE);
-	DUMP_REG(HDMI_NV_PDISP_INT_STATUS);
-	DUMP_REG(HDMI_NV_PDISP_INT_MASK);
-	DUMP_REG(HDMI_NV_PDISP_INT_ENABLE);
-	DUMP_REG(HDMI_NV_PDISP_SOR_IO_PEAK_CURRENT);
-
-#undef DUMP_REG
-
-unlock:
-	drm_modeset_unlock_all(drm);
-	return err;
-}
-
-static struct drm_info_list debugfs_files[] = {
-	{ "regs", tegra_hdmi_show_regs, 0, NULL },
-};
-
-static int tegra_hdmi_debugfs_init(struct tegra_hdmi *hdmi,
-				   struct drm_minor *minor)
-{
-	unsigned int i;
-	int err;
-
-	hdmi->debugfs = debugfs_create_dir("hdmi", minor->debugfs_root);
-	if (!hdmi->debugfs)
-		return -ENOMEM;
-
-	hdmi->debugfs_files = kmemdup(debugfs_files, sizeof(debugfs_files),
-				      GFP_KERNEL);
-	if (!hdmi->debugfs_files) {
-		err = -ENOMEM;
-		goto remove;
-	}
-
-	for (i = 0; i < ARRAY_SIZE(debugfs_files); i++)
-		hdmi->debugfs_files[i].data = hdmi;
-
-	err = drm_debugfs_create_files(hdmi->debugfs_files,
-				       ARRAY_SIZE(debugfs_files),
-				       hdmi->debugfs, minor);
-	if (err < 0)
-		goto free;
-
-	hdmi->minor = minor;
-
-	return 0;
-
-free:
-	kfree(hdmi->debugfs_files);
-	hdmi->debugfs_files = NULL;
-remove:
-	debugfs_remove(hdmi->debugfs);
-	hdmi->debugfs = NULL;
-
-	return err;
-}
-
-static void tegra_hdmi_debugfs_exit(struct tegra_hdmi *hdmi)
-{
-	drm_debugfs_remove_files(hdmi->debugfs_files, ARRAY_SIZE(debugfs_files),
-				 hdmi->minor);
-	hdmi->minor = NULL;
-
-	kfree(hdmi->debugfs_files);
-	hdmi->debugfs_files = NULL;
-
-	debugfs_remove(hdmi->debugfs);
-	hdmi->debugfs = NULL;
-}
-
 static int tegra_hdmi_init(struct host1x_client *client)
 {
 	struct drm_device *drm = dev_get_drvdata(client->parent);
@@ -1485,7 +1437,7 @@ static int tegra_hdmi_init(struct host1x_client *client)
 	drm_encoder_helper_add(&hdmi->output.encoder,
 			       &tegra_hdmi_encoder_helper_funcs);
 
-	drm_mode_connector_attach_encoder(&hdmi->output.connector,
+	drm_connector_attach_encoder(&hdmi->output.connector,
 					  &hdmi->output.encoder);
 	drm_connector_register(&hdmi->output.connector);
 
@@ -1496,12 +1448,6 @@ static int tegra_hdmi_init(struct host1x_client *client)
 	}
 
 	hdmi->output.encoder.possible_crtcs = 0x3;
-
-	if (IS_ENABLED(CONFIG_DEBUG_FS)) {
-		err = tegra_hdmi_debugfs_init(hdmi, drm->primary);
-		if (err < 0)
-			dev_err(client->dev, "debugfs setup failed: %d\n", err);
-	}
 
 	err = regulator_enable(hdmi->hdmi);
 	if (err < 0) {
@@ -1534,9 +1480,6 @@ static int tegra_hdmi_exit(struct host1x_client *client)
 	regulator_disable(hdmi->vdd);
 	regulator_disable(hdmi->pll);
 	regulator_disable(hdmi->hdmi);
-
-	if (IS_ENABLED(CONFIG_DEBUG_FS))
-		tegra_hdmi_debugfs_exit(hdmi);
 
 	return 0;
 }
@@ -1595,24 +1538,6 @@ static const struct of_device_id tegra_hdmi_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, tegra_hdmi_of_match);
 
-static void hda_format_parse(unsigned int format, unsigned int *rate,
-			     unsigned int *channels)
-{
-	unsigned int mul, div;
-
-	if (format & AC_FMT_BASE_44K)
-		*rate = 44100;
-	else
-		*rate = 48000;
-
-	mul = (format & AC_FMT_MULT_MASK) >> AC_FMT_MULT_SHIFT;
-	div = (format & AC_FMT_DIV_MASK) >> AC_FMT_DIV_SHIFT;
-
-	*rate = *rate * (mul + 1) / (div + 1);
-
-	*channels = (format & AC_FMT_CHAN_MASK) >> AC_FMT_CHAN_SHIFT;
-}
-
 static irqreturn_t tegra_hdmi_irq(int irq, void *data)
 {
 	struct tegra_hdmi *hdmi = data;
@@ -1629,14 +1554,9 @@ static irqreturn_t tegra_hdmi_irq(int irq, void *data)
 		value = tegra_hdmi_readl(hdmi, HDMI_NV_PDISP_SOR_AUDIO_HDA_CODEC_SCRATCH0);
 
 		if (value & SOR_AUDIO_HDA_CODEC_SCRATCH0_VALID) {
-			unsigned int sample_rate, channels;
-
 			format = value & SOR_AUDIO_HDA_CODEC_SCRATCH0_FMT_MASK;
 
-			hda_format_parse(format, &sample_rate, &channels);
-
-			hdmi->audio_sample_rate = sample_rate;
-			hdmi->audio_channels = channels;
+			tegra_hda_parse_format(format, &hdmi->format);
 
 			err = tegra_hdmi_setup_audio(hdmi);
 			if (err < 0) {
@@ -1658,25 +1578,18 @@ static irqreturn_t tegra_hdmi_irq(int irq, void *data)
 
 static int tegra_hdmi_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *match;
 	struct tegra_hdmi *hdmi;
 	struct resource *regs;
 	int err;
-
-	match = of_match_node(tegra_hdmi_of_match, pdev->dev.of_node);
-	if (!match)
-		return -ENODEV;
 
 	hdmi = devm_kzalloc(&pdev->dev, sizeof(*hdmi), GFP_KERNEL);
 	if (!hdmi)
 		return -ENOMEM;
 
-	hdmi->config = match->data;
+	hdmi->config = of_device_get_match_data(&pdev->dev);
 	hdmi->dev = &pdev->dev;
 
 	hdmi->audio_source = AUTO;
-	hdmi->audio_sample_rate = 48000;
-	hdmi->audio_channels = 2;
 	hdmi->stereo = false;
 	hdmi->dvi = false;
 

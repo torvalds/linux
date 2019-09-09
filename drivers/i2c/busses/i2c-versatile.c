@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  i2c-versatile.c
  *
  *  Copyright (C) 2006 ARM Ltd.
  *  written by Russell King, Deep Blue Solutions Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -55,7 +52,7 @@ static int i2c_versatile_getscl(void *data)
 	return !!(readl(i2c->base + I2C_CONTROL) & SCL);
 }
 
-static struct i2c_algo_bit_data i2c_versatile_algo = {
+static const struct i2c_algo_bit_data i2c_versatile_algo = {
 	.setsda	= i2c_versatile_setsda,
 	.setscl = i2c_versatile_setscl,
 	.getsda	= i2c_versatile_getsda,

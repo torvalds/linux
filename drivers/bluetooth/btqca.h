@@ -1,30 +1,19 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  Bluetooth supports for Qualcomm Atheros ROME chips
  *
  *  Copyright (c) 2015 The Linux Foundation. All rights reserved.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2
- *  as published by the Free Software Foundation
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  */
 
 #define EDL_PATCH_CMD_OPCODE		(0xFC00)
 #define EDL_NVM_ACCESS_OPCODE		(0xFC0B)
+#define EDL_WRITE_BD_ADDR_OPCODE	(0xFC14)
 #define EDL_PATCH_CMD_LEN		(1)
 #define EDL_PATCH_VER_REQ_CMD		(0x19)
 #define EDL_PATCH_TLV_REQ_CMD		(0x1E)
 #define EDL_NVM_ACCESS_SET_REQ_CMD	(0x01)
 #define MAX_SIZE_PER_TLV_SEGMENT	(243)
+#define QCA_PRE_SHUTDOWN_CMD		(0xFC08)
 
 #define EDL_CMD_REQ_RES_EVT		(0x00)
 #define EDL_PATCH_VER_RES_EVT		(0x19)
@@ -37,7 +26,13 @@
 #define EDL_TAG_ID_HCI			(17)
 #define EDL_TAG_ID_DEEP_SLEEP		(27)
 
-enum qca_bardrate {
+#define QCA_WCN3990_POWERON_PULSE	0xFC
+#define QCA_WCN3990_POWEROFF_PULSE	0xC0
+
+#define QCA_HCI_CC_OPCODE		0xFC00
+#define QCA_HCI_CC_SUCCESS		0x00
+
+enum qca_baudrate {
 	QCA_BAUDRATE_115200 	= 0,
 	QCA_BAUDRATE_57600,
 	QCA_BAUDRATE_38400,
@@ -61,6 +56,13 @@ enum qca_bardrate {
 	QCA_BAUDRATE_RESERVED
 };
 
+enum rome_tlv_dnld_mode {
+	ROME_SKIP_EVT_NONE,
+	ROME_SKIP_EVT_VSE,
+	ROME_SKIP_EVT_CC,
+	ROME_SKIP_EVT_VSE_CC
+};
+
 enum rome_tlv_type {
 	TLV_TYPE_PATCH = 1,
 	TLV_TYPE_NVM
@@ -70,6 +72,8 @@ struct rome_config {
 	u8 type;
 	char fwname[64];
 	uint8_t user_baud_rate;
+	enum rome_tlv_dnld_mode dnld_mode;
+	enum rome_tlv_dnld_mode dnld_type;
 };
 
 struct edl_event_hdr {
@@ -94,7 +98,8 @@ struct tlv_type_patch {
 	__le32 data_length;
 	__u8   format_version;
 	__u8   signature;
-	__le16 reserved1;
+	__u8   download_mode;
+	__u8   reserved1;
 	__le16 product_id;
 	__le16 rom_build;
 	__le16 patch_version;
@@ -115,11 +120,27 @@ struct tlv_type_hdr {
 	__u8   data[0];
 } __packed;
 
+enum qca_btsoc_type {
+	QCA_INVALID = -1,
+	QCA_AR3002,
+	QCA_ROME,
+	QCA_WCN3990,
+	QCA_WCN3998,
+};
+
 #if IS_ENABLED(CONFIG_BT_QCA)
 
 int qca_set_bdaddr_rome(struct hci_dev *hdev, const bdaddr_t *bdaddr);
-int qca_uart_setup_rome(struct hci_dev *hdev, uint8_t baudrate);
-
+int qca_uart_setup(struct hci_dev *hdev, uint8_t baudrate,
+		   enum qca_btsoc_type soc_type, u32 soc_ver,
+		   const char *firmware_name);
+int qca_read_soc_version(struct hci_dev *hdev, u32 *soc_version);
+int qca_set_bdaddr(struct hci_dev *hdev, const bdaddr_t *bdaddr);
+int qca_send_pre_shutdown_cmd(struct hci_dev *hdev);
+static inline bool qca_is_wcn399x(enum qca_btsoc_type soc_type)
+{
+	return soc_type == QCA_WCN3990 || soc_type == QCA_WCN3998;
+}
 #else
 
 static inline int qca_set_bdaddr_rome(struct hci_dev *hdev, const bdaddr_t *bdaddr)
@@ -127,9 +148,30 @@ static inline int qca_set_bdaddr_rome(struct hci_dev *hdev, const bdaddr_t *bdad
 	return -EOPNOTSUPP;
 }
 
-static inline int qca_uart_setup_rome(struct hci_dev *hdev, int speed)
+static inline int qca_uart_setup(struct hci_dev *hdev, uint8_t baudrate,
+				 enum qca_btsoc_type soc_type, u32 soc_ver,
+				 const char *firmware_name)
 {
 	return -EOPNOTSUPP;
 }
 
+static inline int qca_read_soc_version(struct hci_dev *hdev, u32 *soc_version)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int qca_set_bdaddr(struct hci_dev *hdev, const bdaddr_t *bdaddr)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline bool qca_is_wcn399x(enum qca_btsoc_type soc_type)
+{
+	return false;
+}
+
+static inline int qca_send_pre_shutdown_cmd(struct hci_dev *hdev)
+{
+	return -EOPNOTSUPP;
+}
 #endif

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* time.c: UltraSparc timer and TOD clock support.
  *
  * Copyright (C) 1997, 2008 David S. Miller (davem@davemloft.net)
@@ -27,12 +28,10 @@
 #include <linux/jiffies.h>
 #include <linux/cpufreq.h>
 #include <linux/percpu.h>
-#include <linux/miscdevice.h>
 #include <linux/rtc/m48t59.h>
 #include <linux/kernel_stat.h>
 #include <linux/clockchips.h>
 #include <linux/clocksource.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/ftrace.h>
 
@@ -45,15 +44,14 @@
 #include <asm/smp.h>
 #include <asm/sections.h>
 #include <asm/cpudata.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/irq_regs.h>
+#include <asm/cacheflush.h>
 
 #include "entry.h"
+#include "kernel.h"
 
 DEFINE_SPINLOCK(rtc_lock);
-
-#define TICK_PRIV_BIT	(1UL << 63)
-#define TICKCMP_IRQ_BIT	(1UL << 63)
 
 #ifdef CONFIG_SMP
 unsigned long profile_pc(struct pt_regs *regs)
@@ -164,13 +162,44 @@ static unsigned long tick_add_tick(unsigned long adj)
 	return new_tick;
 }
 
-static struct sparc64_tick_ops tick_operations __read_mostly = {
+/* Searches for cpu clock frequency with given cpuid in OpenBoot tree */
+static unsigned long cpuid_to_freq(phandle node, int cpuid)
+{
+	bool is_cpu_node = false;
+	unsigned long freq = 0;
+	char type[128];
+
+	if (!node)
+		return freq;
+
+	if (prom_getproperty(node, "device_type", type, sizeof(type)) != -1)
+		is_cpu_node = (strcmp(type, "cpu") == 0);
+
+	/* try upa-portid then cpuid to get cpuid, see prom_64.c */
+	if (is_cpu_node && (prom_getint(node, "upa-portid") == cpuid ||
+			    prom_getint(node, "cpuid") == cpuid))
+		freq = prom_getintdefault(node, "clock-frequency", 0);
+	if (!freq)
+		freq = cpuid_to_freq(prom_getchild(node), cpuid);
+	if (!freq)
+		freq = cpuid_to_freq(prom_getsibling(node), cpuid);
+
+	return freq;
+}
+
+static unsigned long tick_get_frequency(void)
+{
+	return cpuid_to_freq(prom_root_node, hard_smp_processor_id());
+}
+
+static struct sparc64_tick_ops tick_operations __cacheline_aligned = {
 	.name		=	"tick",
 	.init_tick	=	tick_init_tick,
 	.disable_irq	=	tick_disable_irq,
 	.get_tick	=	tick_get_tick,
 	.add_tick	=	tick_add_tick,
 	.add_compare	=	tick_add_compare,
+	.get_frequency	=	tick_get_frequency,
 	.softint_mask	=	1UL << 0,
 };
 
@@ -250,6 +279,11 @@ static int stick_add_compare(unsigned long adj)
 	return ((long)(new_tick - (orig_tick+adj))) > 0L;
 }
 
+static unsigned long stick_get_frequency(void)
+{
+	return prom_getintdefault(prom_root_node, "stick-frequency", 0);
+}
+
 static struct sparc64_tick_ops stick_operations __read_mostly = {
 	.name		=	"stick",
 	.init_tick	=	stick_init_tick,
@@ -257,6 +291,7 @@ static struct sparc64_tick_ops stick_operations __read_mostly = {
 	.get_tick	=	stick_get_tick,
 	.add_tick	=	stick_add_tick,
 	.add_compare	=	stick_add_compare,
+	.get_frequency	=	stick_get_frequency,
 	.softint_mask	=	1UL << 16,
 };
 
@@ -277,9 +312,6 @@ static struct sparc64_tick_ops stick_operations __read_mostly = {
  * 2) write high
  * 3) write low
  */
-#define HBIRD_STICKCMP_ADDR	0x1fe0000f060UL
-#define HBIRD_STICK_ADDR	0x1fe0000f070UL
-
 static unsigned long __hbird_read_stick(void)
 {
 	unsigned long ret, tmp1, tmp2, tmp3;
@@ -381,6 +413,11 @@ static int hbtick_add_compare(unsigned long adj)
 	return ((long)(val2 - val)) > 0L;
 }
 
+static unsigned long hbtick_get_frequency(void)
+{
+	return prom_getintdefault(prom_root_node, "stick-frequency", 0);
+}
+
 static struct sparc64_tick_ops hbtick_operations __read_mostly = {
 	.name		=	"hbtick",
 	.init_tick	=	hbtick_init_tick,
@@ -388,10 +425,9 @@ static struct sparc64_tick_ops hbtick_operations __read_mostly = {
 	.get_tick	=	hbtick_get_tick,
 	.add_tick	=	hbtick_add_tick,
 	.add_compare	=	hbtick_add_compare,
+	.get_frequency	=	hbtick_get_frequency,
 	.softint_mask	=	1UL << 0,
 };
-
-static unsigned long timer_ticks_per_nsec_quotient __read_mostly;
 
 unsigned long cmos_regs;
 EXPORT_SYMBOL(cmos_regs);
@@ -409,8 +445,8 @@ static int rtc_probe(struct platform_device *op)
 {
 	struct resource *r;
 
-	printk(KERN_INFO "%s: RTC regs at 0x%llx\n",
-	       op->dev.of_node->full_name, op->resource[0].start);
+	printk(KERN_INFO "%pOF: RTC regs at 0x%llx\n",
+	       op->dev.of_node, op->resource[0].start);
 
 	/* The CMOS RTC driver only accepts IORESOURCE_IO, so cons
 	 * up a fake resource so that the probe works for all cases.
@@ -465,8 +501,8 @@ static struct platform_device rtc_bq4802_device = {
 static int bq4802_probe(struct platform_device *op)
 {
 
-	printk(KERN_INFO "%s: BQ4802 regs at 0x%llx\n",
-	       op->dev.of_node->full_name, op->resource[0].start);
+	printk(KERN_INFO "%pOF: BQ4802 regs at 0x%llx\n",
+	       op->dev.of_node, op->resource[0].start);
 
 	rtc_bq4802_device.resource = &op->resource[0];
 	return platform_device_register(&rtc_bq4802_device);
@@ -525,12 +561,12 @@ static int mostek_probe(struct platform_device *op)
 	/* On an Enterprise system there can be multiple mostek clocks.
 	 * We should only match the one that is on the central FHC bus.
 	 */
-	if (!strcmp(dp->parent->name, "fhc") &&
-	    strcmp(dp->parent->parent->name, "central") != 0)
+	if (of_node_name_eq(dp->parent, "fhc") &&
+	    !of_node_name_eq(dp->parent->parent, "central"))
 		return -ENODEV;
 
-	printk(KERN_INFO "%s: Mostek regs at 0x%llx\n",
-	       dp->full_name, op->resource[0].start);
+	printk(KERN_INFO "%pOF: Mostek regs at 0x%llx\n",
+	       dp, op->resource[0].start);
 
 	m48t59_rtc.resource = &op->resource[0];
 	return platform_device_register(&m48t59_rtc);
@@ -582,34 +618,17 @@ static int __init clock_init(void)
  */
 fs_initcall(clock_init);
 
-/* This is gets the master TICK_INT timer going. */
-static unsigned long sparc64_init_timers(void)
+/* Return true if this is Hummingbird, aka Ultra-IIe */
+static bool is_hummingbird(void)
 {
-	struct device_node *dp;
-	unsigned long freq;
+	unsigned long ver, manuf, impl;
 
-	dp = of_find_node_by_path("/");
-	if (tlb_type == spitfire) {
-		unsigned long ver, manuf, impl;
+	__asm__ __volatile__ ("rdpr %%ver, %0"
+			      : "=&r" (ver));
+	manuf = ((ver >> 48) & 0xffff);
+	impl = ((ver >> 32) & 0xffff);
 
-		__asm__ __volatile__ ("rdpr %%ver, %0"
-				      : "=&r" (ver));
-		manuf = ((ver >> 48) & 0xffff);
-		impl = ((ver >> 32) & 0xffff);
-		if (manuf == 0x17 && impl == 0x13) {
-			/* Hummingbird, aka Ultra-IIe */
-			tick_ops = &hbtick_operations;
-			freq = of_getintprop_default(dp, "stick-frequency", 0);
-		} else {
-			tick_ops = &tick_operations;
-			freq = local_cpu_data().clock_tick;
-		}
-	} else {
-		tick_ops = &stick_operations;
-		freq = of_getintprop_default(dp, "stick-frequency", 0);
-	}
-
-	return freq;
+	return (manuf == 0x17 && impl == 0x13);
 }
 
 struct freq_table {
@@ -634,19 +653,23 @@ static int sparc64_cpufreq_notifier(struct notifier_block *nb, unsigned long val
 				    void *data)
 {
 	struct cpufreq_freqs *freq = data;
-	unsigned int cpu = freq->cpu;
-	struct freq_table *ft = &per_cpu(sparc64_freq_table, cpu);
+	unsigned int cpu;
+	struct freq_table *ft;
 
-	if (!ft->ref_freq) {
-		ft->ref_freq = freq->old;
-		ft->clock_tick_ref = cpu_data(cpu).clock_tick;
-	}
-	if ((val == CPUFREQ_PRECHANGE  && freq->old < freq->new) ||
-	    (val == CPUFREQ_POSTCHANGE && freq->old > freq->new)) {
-		cpu_data(cpu).clock_tick =
-			cpufreq_scale(ft->clock_tick_ref,
-				      ft->ref_freq,
-				      freq->new);
+	for_each_cpu(cpu, freq->policy->cpus) {
+		ft = &per_cpu(sparc64_freq_table, cpu);
+
+		if (!ft->ref_freq) {
+			ft->ref_freq = freq->old;
+			ft->clock_tick_ref = cpu_data(cpu).clock_tick;
+		}
+
+		if ((val == CPUFREQ_PRECHANGE  && freq->old < freq->new) ||
+		    (val == CPUFREQ_POSTCHANGE && freq->old > freq->new)) {
+			cpu_data(cpu).clock_tick =
+				cpufreq_scale(ft->clock_tick_ref, ft->ref_freq,
+					      freq->new);
+		}
 	}
 
 	return 0;
@@ -671,12 +694,12 @@ core_initcall(register_sparc64_cpufreq_notifier);
 static int sparc64_next_event(unsigned long delta,
 			      struct clock_event_device *evt)
 {
-	return tick_ops->add_compare(delta) ? -ETIME : 0;
+	return tick_operations.add_compare(delta) ? -ETIME : 0;
 }
 
 static int sparc64_timer_shutdown(struct clock_event_device *evt)
 {
-	tick_ops->disable_irq();
+	tick_operations.disable_irq();
 	return 0;
 }
 
@@ -693,7 +716,7 @@ static DEFINE_PER_CPU(struct clock_event_device, sparc64_events);
 void __irq_entry timer_interrupt(int irq, struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
-	unsigned long tick_mask = tick_ops->softint_mask;
+	unsigned long tick_mask = tick_operations.softint_mask;
 	int cpu = smp_processor_id();
 	struct clock_event_device *evt = &per_cpu(sparc64_events, cpu);
 
@@ -728,7 +751,7 @@ void setup_sparc64_timer(void)
 			     : "=r" (pstate)
 			     : "i" (PSTATE_IE));
 
-	tick_ops->init_tick();
+	tick_operations.init_tick();
 
 	/* Restore PSTATE_IE. */
 	__asm__ __volatile__("wrpr	%0, 0x0, %%pstate"
@@ -755,12 +778,10 @@ static unsigned long tb_ticks_per_usec __read_mostly;
 
 void __delay(unsigned long loops)
 {
-	unsigned long bclock, now;
+	unsigned long bclock = get_tick();
 
-	bclock = tick_ops->get_tick();
-	do {
-		now = tick_ops->get_tick();
-	} while ((now-bclock) < loops);
+	while ((get_tick() - bclock) < loops)
+		;
 }
 EXPORT_SYMBOL(__delay);
 
@@ -770,34 +791,85 @@ void udelay(unsigned long usecs)
 }
 EXPORT_SYMBOL(udelay);
 
-static cycle_t clocksource_tick_read(struct clocksource *cs)
+static u64 clocksource_tick_read(struct clocksource *cs)
 {
-	return tick_ops->get_tick();
+	return get_tick();
+}
+
+static void __init get_tick_patch(void)
+{
+	unsigned int *addr, *instr, i;
+	struct get_tick_patch *p;
+
+	if (tlb_type == spitfire && is_hummingbird())
+		return;
+
+	for (p = &__get_tick_patch; p < &__get_tick_patch_end; p++) {
+		instr = (tlb_type == spitfire) ? p->tick : p->stick;
+		addr = (unsigned int *)(unsigned long)p->addr;
+		for (i = 0; i < GET_TICK_NINSTR; i++) {
+			addr[i] = instr[i];
+			/* ensure that address is modified before flush */
+			wmb();
+			flushi(&addr[i]);
+		}
+	}
+}
+
+static void __init init_tick_ops(struct sparc64_tick_ops *ops)
+{
+	unsigned long freq, quotient, tick;
+
+	freq = ops->get_frequency();
+	quotient = clocksource_hz2mult(freq, SPARC64_NSEC_PER_CYC_SHIFT);
+	tick = ops->get_tick();
+
+	ops->offset = (tick * quotient) >> SPARC64_NSEC_PER_CYC_SHIFT;
+	ops->ticks_per_nsec_quotient = quotient;
+	ops->frequency = freq;
+	tick_operations = *ops;
+	get_tick_patch();
+}
+
+void __init time_init_early(void)
+{
+	if (tlb_type == spitfire) {
+		if (is_hummingbird()) {
+			init_tick_ops(&hbtick_operations);
+			clocksource_tick.archdata.vclock_mode = VCLOCK_NONE;
+		} else {
+			init_tick_ops(&tick_operations);
+			clocksource_tick.archdata.vclock_mode = VCLOCK_TICK;
+		}
+	} else {
+		init_tick_ops(&stick_operations);
+		clocksource_tick.archdata.vclock_mode = VCLOCK_STICK;
+	}
 }
 
 void __init time_init(void)
 {
-	unsigned long freq = sparc64_init_timers();
+	unsigned long freq;
 
+	freq = tick_operations.frequency;
 	tb_ticks_per_usec = freq / USEC_PER_SEC;
 
-	timer_ticks_per_nsec_quotient =
-		clocksource_hz2mult(freq, SPARC64_NSEC_PER_CYC_SHIFT);
-
-	clocksource_tick.name = tick_ops->name;
+	clocksource_tick.name = tick_operations.name;
 	clocksource_tick.read = clocksource_tick_read;
 
 	clocksource_register_hz(&clocksource_tick, freq);
 	printk("clocksource: mult[%x] shift[%d]\n",
 	       clocksource_tick.mult, clocksource_tick.shift);
 
-	sparc64_clockevent.name = tick_ops->name;
+	sparc64_clockevent.name = tick_operations.name;
 	clockevents_calc_mult_shift(&sparc64_clockevent, freq, 4);
 
 	sparc64_clockevent.max_delta_ns =
 		clockevent_delta2ns(0x7fffffffffffffffUL, &sparc64_clockevent);
+	sparc64_clockevent.max_delta_ticks = 0x7fffffffffffffffUL;
 	sparc64_clockevent.min_delta_ns =
 		clockevent_delta2ns(0xF, &sparc64_clockevent);
+	sparc64_clockevent.min_delta_ticks = 0xF;
 
 	printk("clockevent: mult[%x] shift[%d]\n",
 	       sparc64_clockevent.mult, sparc64_clockevent.shift);
@@ -807,14 +879,21 @@ void __init time_init(void)
 
 unsigned long long sched_clock(void)
 {
-	unsigned long ticks = tick_ops->get_tick();
+	unsigned long quotient = tick_operations.ticks_per_nsec_quotient;
+	unsigned long offset = tick_operations.offset;
 
-	return (ticks * timer_ticks_per_nsec_quotient)
-		>> SPARC64_NSEC_PER_CYC_SHIFT;
+	/* Use barrier so the compiler emits the loads first and overlaps load
+	 * latency with reading tick, because reading %tick/%stick is a
+	 * post-sync instruction that will flush and restart subsequent
+	 * instructions after it commits.
+	 */
+	barrier();
+
+	return ((get_tick() * quotient) >> SPARC64_NSEC_PER_CYC_SHIFT) - offset;
 }
 
 int read_current_timer(unsigned long *timer_val)
 {
-	*timer_val = tick_ops->get_tick();
+	*timer_val = get_tick();
 	return 0;
 }

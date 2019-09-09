@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  sst_ipc.c - Intel SST Driver for audio engine
  *
@@ -7,15 +8,6 @@
  *		Dharageswari R <dharageswari.r@intel.com>
  *		KP Jeeja <jeeja.kp@intel.com>
  *  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; version 2 of the License.
- *
- *  This program is distributed in the hope that it will be useful, but
- *  WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  General Public License for more details.
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
@@ -236,6 +228,19 @@ static void process_fw_init(struct intel_sst_drv *sst_drv_ctx,
 		retval = init->result;
 		goto ret;
 	}
+	if (memcmp(&sst_drv_ctx->fw_version, &init->fw_version,
+		   sizeof(init->fw_version)))
+		dev_info(sst_drv_ctx->dev, "FW Version %02x.%02x.%02x.%02x\n",
+			init->fw_version.type, init->fw_version.major,
+			init->fw_version.minor, init->fw_version.build);
+	dev_dbg(sst_drv_ctx->dev, "Build date %s Time %s\n",
+			init->build_info.date, init->build_info.time);
+
+	/* Save FW version */
+	sst_drv_ctx->fw_version.type = init->fw_version.type;
+	sst_drv_ctx->fw_version.major = init->fw_version.major;
+	sst_drv_ctx->fw_version.minor = init->fw_version.minor;
+	sst_drv_ctx->fw_version.build = init->fw_version.build;
 
 ret:
 	sst_wake_up_block(sst_drv_ctx, retval, FW_DWNL_ID, 0 , NULL, 0);
@@ -249,10 +254,8 @@ static void process_fw_async_msg(struct intel_sst_drv *sst_drv_ctx,
 	u32 data_size, i;
 	void *data_offset;
 	struct stream_info *stream;
-	union ipc_header_high msg_high;
 	u32 msg_low, pipe_id;
 
-	msg_high = msg->mrfld_header.p.header_high;
 	msg_low = msg->mrfld_header.p.header_low_payload;
 	msg_id = ((struct ipc_dsp_hdr *)msg->mailbox_data)->cmd_id;
 	data_offset = (msg->mailbox_data + sizeof(struct ipc_dsp_hdr));

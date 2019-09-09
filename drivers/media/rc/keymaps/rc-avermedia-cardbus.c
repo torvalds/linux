@@ -1,14 +1,9 @@
-/* avermedia-cardbus.h - Keytable for avermedia_cardbus Remote Controller
- *
- * keymap imported from ir-keymaps.c
- *
- * Copyright (c) 2010 by Mauro Carvalho Chehab
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- */
+// SPDX-License-Identifier: GPL-2.0+
+// avermedia-cardbus.h - Keytable for avermedia_cardbus Remote Controller
+//
+// keymap imported from ir-keymaps.c
+//
+// Copyright (c) 2010 by Mauro Carvalho Chehab
 
 #include <media/rc-map.h>
 #include <linux/module.h>
@@ -20,19 +15,19 @@ static struct rc_map_table avermedia_cardbus[] = {
 	{ 0x01, KEY_TUNER },		/* TV/FM */
 	{ 0x03, KEY_TEXT },		/* Teletext */
 	{ 0x04, KEY_EPG },
-	{ 0x05, KEY_1 },
-	{ 0x06, KEY_2 },
-	{ 0x07, KEY_3 },
+	{ 0x05, KEY_NUMERIC_1 },
+	{ 0x06, KEY_NUMERIC_2 },
+	{ 0x07, KEY_NUMERIC_3 },
 	{ 0x08, KEY_AUDIO },
-	{ 0x09, KEY_4 },
-	{ 0x0a, KEY_5 },
-	{ 0x0b, KEY_6 },
+	{ 0x09, KEY_NUMERIC_4 },
+	{ 0x0a, KEY_NUMERIC_5 },
+	{ 0x0b, KEY_NUMERIC_6 },
 	{ 0x0c, KEY_ZOOM },		/* Full screen */
-	{ 0x0d, KEY_7 },
-	{ 0x0e, KEY_8 },
-	{ 0x0f, KEY_9 },
+	{ 0x0d, KEY_NUMERIC_7 },
+	{ 0x0e, KEY_NUMERIC_8 },
+	{ 0x0f, KEY_NUMERIC_9 },
 	{ 0x10, KEY_PAGEUP },		/* 16-CH PREV */
-	{ 0x11, KEY_0 },
+	{ 0x11, KEY_NUMERIC_0 },
 	{ 0x12, KEY_INFO },
 	{ 0x13, KEY_AGAIN },		/* CH RTN - channel return */
 	{ 0x14, KEY_MUTE },
@@ -74,10 +69,10 @@ static struct rc_map_table avermedia_cardbus[] = {
 
 static struct rc_map_list avermedia_cardbus_map = {
 	.map = {
-		.scan    = avermedia_cardbus,
-		.size    = ARRAY_SIZE(avermedia_cardbus),
-		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
-		.name    = RC_MAP_AVERMEDIA_CARDBUS,
+		.scan     = avermedia_cardbus,
+		.size     = ARRAY_SIZE(avermedia_cardbus),
+		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.name     = RC_MAP_AVERMEDIA_CARDBUS,
 	}
 };
 

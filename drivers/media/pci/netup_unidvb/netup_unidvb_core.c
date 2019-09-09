@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * netup_unidvb_core.c
  *
@@ -6,16 +7,6 @@
  * Copyright (C) 2014 NetUP Inc.
  * Copyright (C) 2014 Sergey Kozlov <serjk@netup.ru>
  * Copyright (C) 2014 Abylay Ospan <aospan@netup.ru>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/init.h>
@@ -82,11 +73,11 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
  * @start_addr_lo:	DMA ring buffer start address, lower part
  * @start_addr_hi:	DMA ring buffer start address, higher part
  * @size:		DMA ring buffer size register
-			Bits [0-7]:	DMA packet size, 188 bytes
-			Bits [16-23]:	packets count in block, 128 packets
-			Bits [24-31]:	blocks count, 8 blocks
+ *			* Bits [0-7]:	DMA packet size, 188 bytes
+ *			* Bits [16-23]:	packets count in block, 128 packets
+ *			* Bits [24-31]:	blocks count, 8 blocks
  * @timeout:		DMA timeout in units of 8ns
-			For example, value of 375000000 equals to 3 sec
+ *			For example, value of 375000000 equals to 3 sec
  * @curr_addr_lo:	Current ring buffer head address, lower part
  * @curr_addr_hi:	Current ring buffer head address, higher part
  * @stat_pkt_received:	Statistic register, not tested
@@ -122,7 +113,8 @@ static void netup_unidvb_queue_cleanup(struct netup_dma *dma);
 
 static struct cxd2841er_config demod_config = {
 	.i2c_addr = 0xc8,
-	.xtal = SONY_XTAL_24000
+	.xtal = SONY_XTAL_24000,
+	.flags = CXD2841ER_USE_GATECTRL | CXD2841ER_ASCOT
 };
 
 static struct horus3a_config horus3a_conf = {
@@ -637,9 +629,9 @@ static void netup_unidvb_queue_cleanup(struct netup_dma *dma)
 	spin_unlock_irqrestore(&dma->lock, flags);
 }
 
-static void netup_unidvb_dma_timeout(unsigned long data)
+static void netup_unidvb_dma_timeout(struct timer_list *t)
 {
-	struct netup_dma *dma = (struct netup_dma *)data;
+	struct netup_dma *dma = from_timer(dma, t, timeout);
 	struct netup_unidvb_dev *ndev = dma->ndev;
 
 	dev_dbg(&ndev->pci_dev->dev, "%s()\n", __func__);
@@ -663,9 +655,7 @@ static int netup_unidvb_dma_init(struct netup_unidvb_dev *ndev, int num)
 	spin_lock_init(&dma->lock);
 	INIT_WORK(&dma->work, netup_unidvb_dma_worker);
 	INIT_LIST_HEAD(&dma->free_buffers);
-	dma->timeout.function = netup_unidvb_dma_timeout;
-	dma->timeout.data = (unsigned long)dma;
-	init_timer(&dma->timeout);
+	timer_setup(&dma->timeout, netup_unidvb_dma_timeout, 0);
 	dma->ring_buffer_size = ndev->dma_size / 2;
 	dma->addr_virt = ndev->dma_virt + dma->ring_buffer_size * num;
 	dma->addr_phys = (dma_addr_t)((u64)ndev->dma_phys +
@@ -863,7 +853,7 @@ static int netup_unidvb_initdev(struct pci_dev *pci_dev,
 		PCI_EXP_DEVCTL_NOSNOOP_EN, 0);
 	/* Adjust PCIe completion timeout. */
 	pcie_capability_clear_and_set_word(pci_dev,
-		PCI_EXP_DEVCTL2, 0xf, 0x2);
+		PCI_EXP_DEVCTL2, PCI_EXP_DEVCTL2_COMP_TIMEOUT, 0x2);
 
 	if (netup_unidvb_request_mmio(pci_dev)) {
 		dev_err(&pci_dev->dev,
@@ -1014,7 +1004,7 @@ static void netup_unidvb_finidev(struct pci_dev *pci_dev)
 }
 
 
-static struct pci_device_id netup_unidvb_pci_tbl[] = {
+static const struct pci_device_id netup_unidvb_pci_tbl[] = {
 	{ PCI_DEVICE(0x1b55, 0x18f6) }, /* hw rev. 1.3 */
 	{ PCI_DEVICE(0x1b55, 0x18f7) }, /* hw rev. 1.4 */
 	{ 0, }
@@ -1030,15 +1020,4 @@ static struct pci_driver netup_unidvb_pci_driver = {
 	.resume   = NULL,
 };
 
-static int __init netup_unidvb_init(void)
-{
-	return pci_register_driver(&netup_unidvb_pci_driver);
-}
-
-static void __exit netup_unidvb_fini(void)
-{
-	pci_unregister_driver(&netup_unidvb_pci_driver);
-}
-
-module_init(netup_unidvb_init);
-module_exit(netup_unidvb_fini);
+module_pci_driver(netup_unidvb_pci_driver);

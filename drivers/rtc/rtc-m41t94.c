@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for ST M41T94 SPI RTC
  *
  * Copyright (C) 2008 Kim B. Heino
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -99,8 +96,7 @@ static int m41t94_read_time(struct device *dev, struct rtc_time *tm)
 		tm->tm_hour, tm->tm_mday,
 		tm->tm_mon, tm->tm_year, tm->tm_wday);
 
-	/* initial clock setting can be undefined */
-	return rtc_valid_tm(tm);
+	return 0;
 }
 
 static const struct rtc_class_ops m41t94_rtc_ops = {

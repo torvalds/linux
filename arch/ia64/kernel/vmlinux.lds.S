@@ -1,7 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 
 #include <asm/cache.h>
 #include <asm/ptrace.h>
 #include <asm/pgtable.h>
+#include <asm/thread_info.h>
 
 #include <asm-generic/vmlinux.lds.h>
 
@@ -107,7 +109,9 @@ SECTIONS {
 	RODATA
 
 	.opd : AT(ADDR(.opd) - LOAD_OFFSET) {
+		__start_opd = .;
 		*(.opd)
+		__end_opd = .;
 	}
 
 	/*
@@ -191,6 +195,8 @@ SECTIONS {
 		*(.gnu.linkonce.d*)
 		CONSTRUCTORS
 	}
+
+	BUG_TABLE
 
 	. = ALIGN(16);	/* gp must be 16-byte aligned for exc. table */
 	.got : AT(ADDR(.got) - LOAD_OFFSET) {

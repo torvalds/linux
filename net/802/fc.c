@@ -1,16 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * NET3:	Fibre Channel device handling subroutines
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  *
  *		Vineet Abraham <vma@iol.unh.edu>
  *		v 1.0 03/22/99
  */
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
@@ -49,7 +45,7 @@ static int fc_header(struct sk_buff *skb, struct net_device *dev,
 		struct fcllc *fcllc;
 
 		hdr_len = sizeof(struct fch_hdr) + sizeof(struct fcllc);
-		fch = (struct fch_hdr *)skb_push(skb, hdr_len);
+		fch = skb_push(skb, hdr_len);
 		fcllc = (struct fcllc *)(fch+1);
 		fcllc->dsap = fcllc->ssap = EXTENDED_SAP;
 		fcllc->llc = UI_CMD;
@@ -59,7 +55,7 @@ static int fc_header(struct sk_buff *skb, struct net_device *dev,
 	else
 	{
 		hdr_len = sizeof(struct fch_hdr);
-		fch = (struct fch_hdr *)skb_push(skb, hdr_len);
+		fch = skb_push(skb, hdr_len);
 	}
 
 	if(saddr)

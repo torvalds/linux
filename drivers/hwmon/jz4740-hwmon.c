@@ -1,16 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2009-2010, Lars-Peter Clausen <lars@metafoo.de>
  * JZ4740 SoC HWMON driver
- *
- * This program is free software; you can redistribute it and/or modify it
- * under  the terms of the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the License, or (at your
- * option) any later version.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
 #include <linux/err.h>
@@ -44,8 +35,8 @@ static irqreturn_t jz4740_hwmon_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static ssize_t jz4740_hwmon_read_adcin(struct device *dev,
-	struct device_attribute *dev_attr, char *buf)
+static ssize_t in0_input_show(struct device *dev,
+			      struct device_attribute *dev_attr, char *buf)
 {
 	struct jz4740_hwmon *hwmon = dev_get_drvdata(dev);
 	struct platform_device *pdev = hwmon->pdev;
@@ -79,7 +70,7 @@ static ssize_t jz4740_hwmon_read_adcin(struct device *dev,
 	return ret;
 }
 
-static DEVICE_ATTR(in0_input, S_IRUGO, jz4740_hwmon_read_adcin, NULL);
+static DEVICE_ATTR_RO(in0_input);
 
 static struct attribute *jz4740_attrs[] = {
 	&dev_attr_in0_input.attr,
@@ -94,7 +85,6 @@ static int jz4740_hwmon_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct jz4740_hwmon *hwmon;
 	struct device *hwmon_dev;
-	struct resource *mem;
 
 	hwmon = devm_kzalloc(dev, sizeof(*hwmon), GFP_KERNEL);
 	if (!hwmon)
@@ -109,8 +99,7 @@ static int jz4740_hwmon_probe(struct platform_device *pdev)
 		return hwmon->irq;
 	}
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	hwmon->base = devm_ioremap_resource(&pdev->dev, mem);
+	hwmon->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(hwmon->base))
 		return PTR_ERR(hwmon->base);
 

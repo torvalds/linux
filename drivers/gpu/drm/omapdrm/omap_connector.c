@@ -1,25 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * drivers/gpu/drm/omapdrm/omap_connector.c
- *
- * Copyright (C) 2011 Texas Instruments
+ * Copyright (C) 2011 Texas Instruments Incorporated - http://www.ti.com/
  * Author: Rob Clark <rob@ti.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_panel.h>
+#include <drm/drm_probe_helper.h>
 
 #include "omap_drv.h"
 
@@ -31,9 +19,70 @@
 
 struct omap_connector {
 	struct drm_connector base;
-	struct omap_dss_device *dssdev;
+	struct omap_dss_device *output;
+	struct omap_dss_device *hpd;
 	bool hdmi_mode;
 };
+
+static void omap_connector_hpd_notify(struct drm_connector *connector,
+				      enum drm_connector_status status)
+{
+	struct omap_connector *omap_connector = to_omap_connector(connector);
+	struct omap_dss_device *dssdev;
+
+	if (status != connector_status_disconnected)
+		return;
+
+	/*
+	 * Notify all devics in the pipeline of disconnection. This is required
+	 * to let the HDMI encoders reset their internal state related to
+	 * connection status, such as the CEC address.
+	 */
+	for (dssdev = omap_connector->output; dssdev; dssdev = dssdev->next) {
+		if (dssdev->ops && dssdev->ops->hdmi.lost_hotplug)
+			dssdev->ops->hdmi.lost_hotplug(dssdev);
+	}
+}
+
+static void omap_connector_hpd_cb(void *cb_data,
+				  enum drm_connector_status status)
+{
+	struct omap_connector *omap_connector = cb_data;
+	struct drm_connector *connector = &omap_connector->base;
+	struct drm_device *dev = connector->dev;
+	enum drm_connector_status old_status;
+
+	mutex_lock(&dev->mode_config.mutex);
+	old_status = connector->status;
+	connector->status = status;
+	mutex_unlock(&dev->mode_config.mutex);
+
+	if (old_status == status)
+		return;
+
+	omap_connector_hpd_notify(connector, status);
+
+	drm_kms_helper_hotplug_event(dev);
+}
+
+void omap_connector_enable_hpd(struct drm_connector *connector)
+{
+	struct omap_connector *omap_connector = to_omap_connector(connector);
+	struct omap_dss_device *hpd = omap_connector->hpd;
+
+	if (hpd)
+		hpd->ops->register_hpd_cb(hpd, omap_connector_hpd_cb,
+					  omap_connector);
+}
+
+void omap_connector_disable_hpd(struct drm_connector *connector)
+{
+	struct omap_connector *omap_connector = to_omap_connector(connector);
+	struct omap_dss_device *hpd = omap_connector->hpd;
+
+	if (hpd)
+		hpd->ops->unregister_hpd_cb(hpd);
+}
 
 bool omap_connector_get_hdmi_mode(struct drm_connector *connector)
 {
@@ -42,221 +91,199 @@ bool omap_connector_get_hdmi_mode(struct drm_connector *connector)
 	return omap_connector->hdmi_mode;
 }
 
-void copy_timings_omap_to_drm(struct drm_display_mode *mode,
-		struct omap_video_timings *timings)
+static struct omap_dss_device *
+omap_connector_find_device(struct drm_connector *connector,
+			   enum omap_dss_device_ops_flag op)
 {
-	mode->clock = timings->pixelclock / 1000;
+	struct omap_connector *omap_connector = to_omap_connector(connector);
+	struct omap_dss_device *dssdev = NULL;
+	struct omap_dss_device *d;
 
-	mode->hdisplay = timings->x_res;
-	mode->hsync_start = mode->hdisplay + timings->hfp;
-	mode->hsync_end = mode->hsync_start + timings->hsw;
-	mode->htotal = mode->hsync_end + timings->hbp;
+	for (d = omap_connector->output; d; d = d->next) {
+		if (d->ops_flags & op)
+			dssdev = d;
+	}
 
-	mode->vdisplay = timings->y_res;
-	mode->vsync_start = mode->vdisplay + timings->vfp;
-	mode->vsync_end = mode->vsync_start + timings->vsw;
-	mode->vtotal = mode->vsync_end + timings->vbp;
-
-	mode->flags = 0;
-
-	if (timings->interlace)
-		mode->flags |= DRM_MODE_FLAG_INTERLACE;
-
-	if (timings->double_pixel)
-		mode->flags |= DRM_MODE_FLAG_DBLCLK;
-
-	if (timings->hsync_level == OMAPDSS_SIG_ACTIVE_HIGH)
-		mode->flags |= DRM_MODE_FLAG_PHSYNC;
-	else
-		mode->flags |= DRM_MODE_FLAG_NHSYNC;
-
-	if (timings->vsync_level == OMAPDSS_SIG_ACTIVE_HIGH)
-		mode->flags |= DRM_MODE_FLAG_PVSYNC;
-	else
-		mode->flags |= DRM_MODE_FLAG_NVSYNC;
-}
-
-void copy_timings_drm_to_omap(struct omap_video_timings *timings,
-		struct drm_display_mode *mode)
-{
-	timings->pixelclock = mode->clock * 1000;
-
-	timings->x_res = mode->hdisplay;
-	timings->hfp = mode->hsync_start - mode->hdisplay;
-	timings->hsw = mode->hsync_end - mode->hsync_start;
-	timings->hbp = mode->htotal - mode->hsync_end;
-
-	timings->y_res = mode->vdisplay;
-	timings->vfp = mode->vsync_start - mode->vdisplay;
-	timings->vsw = mode->vsync_end - mode->vsync_start;
-	timings->vbp = mode->vtotal - mode->vsync_end;
-
-	timings->interlace = !!(mode->flags & DRM_MODE_FLAG_INTERLACE);
-	timings->double_pixel = !!(mode->flags & DRM_MODE_FLAG_DBLCLK);
-
-	if (mode->flags & DRM_MODE_FLAG_PHSYNC)
-		timings->hsync_level = OMAPDSS_SIG_ACTIVE_HIGH;
-	else
-		timings->hsync_level = OMAPDSS_SIG_ACTIVE_LOW;
-
-	if (mode->flags & DRM_MODE_FLAG_PVSYNC)
-		timings->vsync_level = OMAPDSS_SIG_ACTIVE_HIGH;
-	else
-		timings->vsync_level = OMAPDSS_SIG_ACTIVE_LOW;
-
-	timings->data_pclk_edge = OMAPDSS_DRIVE_SIG_RISING_EDGE;
-	timings->de_level = OMAPDSS_SIG_ACTIVE_HIGH;
-	timings->sync_pclk_edge = OMAPDSS_DRIVE_SIG_FALLING_EDGE;
+	return dssdev;
 }
 
 static enum drm_connector_status omap_connector_detect(
 		struct drm_connector *connector, bool force)
 {
-	struct omap_connector *omap_connector = to_omap_connector(connector);
-	struct omap_dss_device *dssdev = omap_connector->dssdev;
-	struct omap_dss_driver *dssdrv = dssdev->driver;
-	enum drm_connector_status ret;
+	struct omap_dss_device *dssdev;
+	enum drm_connector_status status;
 
-	if (dssdrv->detect) {
-		if (dssdrv->detect(dssdev))
-			ret = connector_status_connected;
-		else
-			ret = connector_status_disconnected;
-	} else if (dssdev->type == OMAP_DISPLAY_TYPE_DPI ||
-			dssdev->type == OMAP_DISPLAY_TYPE_DBI ||
-			dssdev->type == OMAP_DISPLAY_TYPE_SDI ||
-			dssdev->type == OMAP_DISPLAY_TYPE_DSI) {
-		ret = connector_status_connected;
+	dssdev = omap_connector_find_device(connector,
+					    OMAP_DSS_DEVICE_OP_DETECT);
+
+	if (dssdev) {
+		status = dssdev->ops->detect(dssdev)
+		       ? connector_status_connected
+		       : connector_status_disconnected;
+
+		omap_connector_hpd_notify(connector, status);
 	} else {
-		ret = connector_status_unknown;
+		switch (connector->connector_type) {
+		case DRM_MODE_CONNECTOR_DPI:
+		case DRM_MODE_CONNECTOR_LVDS:
+		case DRM_MODE_CONNECTOR_DSI:
+			status = connector_status_connected;
+			break;
+		default:
+			status = connector_status_unknown;
+			break;
+		}
 	}
 
-	VERB("%s: %d (force=%d)", omap_connector->dssdev->name, ret, force);
+	VERB("%s: %d (force=%d)", connector->name, status, force);
 
-	return ret;
+	return status;
 }
 
 static void omap_connector_destroy(struct drm_connector *connector)
 {
 	struct omap_connector *omap_connector = to_omap_connector(connector);
-	struct omap_dss_device *dssdev = omap_connector->dssdev;
 
-	DBG("%s", omap_connector->dssdev->name);
+	DBG("%s", connector->name);
+
+	if (omap_connector->hpd) {
+		struct omap_dss_device *hpd = omap_connector->hpd;
+
+		hpd->ops->unregister_hpd_cb(hpd);
+		omapdss_device_put(hpd);
+		omap_connector->hpd = NULL;
+	}
+
 	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
-	kfree(omap_connector);
 
-	omap_dss_put_device(dssdev);
+	omapdss_device_put(omap_connector->output);
+
+	kfree(omap_connector);
 }
 
 #define MAX_EDID  512
 
+static int omap_connector_get_modes_edid(struct drm_connector *connector,
+					 struct omap_dss_device *dssdev)
+{
+	struct omap_connector *omap_connector = to_omap_connector(connector);
+	enum drm_connector_status status;
+	void *edid;
+	int n;
+
+	status = omap_connector_detect(connector, false);
+	if (status != connector_status_connected)
+		goto no_edid;
+
+	edid = kzalloc(MAX_EDID, GFP_KERNEL);
+	if (!edid)
+		goto no_edid;
+
+	if (dssdev->ops->read_edid(dssdev, edid, MAX_EDID) <= 0 ||
+	    !drm_edid_is_valid(edid)) {
+		kfree(edid);
+		goto no_edid;
+	}
+
+	drm_connector_update_edid_property(connector, edid);
+	n = drm_add_edid_modes(connector, edid);
+
+	omap_connector->hdmi_mode = drm_detect_hdmi_monitor(edid);
+
+	kfree(edid);
+	return n;
+
+no_edid:
+	drm_connector_update_edid_property(connector, NULL);
+	return 0;
+}
+
 static int omap_connector_get_modes(struct drm_connector *connector)
 {
 	struct omap_connector *omap_connector = to_omap_connector(connector);
-	struct omap_dss_device *dssdev = omap_connector->dssdev;
-	struct omap_dss_driver *dssdrv = dssdev->driver;
-	struct drm_device *dev = connector->dev;
-	int n = 0;
+	struct omap_dss_device *dssdev;
 
-	DBG("%s", omap_connector->dssdev->name);
+	DBG("%s", connector->name);
 
-	/* if display exposes EDID, then we parse that in the normal way to
-	 * build table of supported modes.. otherwise (ie. fixed resolution
-	 * LCD panels) we just return a single mode corresponding to the
-	 * currently configured timings:
+	/*
+	 * If display exposes EDID, then we parse that in the normal way to
+	 * build table of supported modes.
 	 */
-	if (dssdrv->read_edid) {
-		void *edid = kzalloc(MAX_EDID, GFP_KERNEL);
+	dssdev = omap_connector_find_device(connector,
+					    OMAP_DSS_DEVICE_OP_EDID);
+	if (dssdev)
+		return omap_connector_get_modes_edid(connector, dssdev);
 
-		if ((dssdrv->read_edid(dssdev, edid, MAX_EDID) > 0) &&
-				drm_edid_is_valid(edid)) {
-			drm_mode_connector_update_edid_property(
-					connector, edid);
-			n = drm_add_edid_modes(connector, edid);
+	/*
+	 * Otherwise if the display pipeline reports modes (e.g. with a fixed
+	 * resolution panel or an analog TV output), query it.
+	 */
+	dssdev = omap_connector_find_device(connector,
+					    OMAP_DSS_DEVICE_OP_MODES);
+	if (dssdev)
+		return dssdev->ops->get_modes(dssdev, connector);
 
-			omap_connector->hdmi_mode =
-				drm_detect_hdmi_monitor(edid);
-		} else {
-			drm_mode_connector_update_edid_property(
-					connector, NULL);
-		}
+	/*
+	 * Otherwise if the display pipeline uses a drm_panel, we delegate the
+	 * operation to the panel API.
+	 */
+	if (omap_connector->output->panel)
+		return drm_panel_get_modes(omap_connector->output->panel);
 
-		kfree(edid);
-	} else {
-		struct drm_display_mode *mode = drm_mode_create(dev);
-		struct omap_video_timings timings = {0};
-
-		dssdrv->get_timings(dssdev, &timings);
-
-		copy_timings_omap_to_drm(mode, &timings);
-
-		mode->type = DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED;
-		drm_mode_set_name(mode);
-		drm_mode_probed_add(connector, mode);
-
-		n = 1;
-	}
-
-	return n;
+	/*
+	 * We can't retrieve modes, which can happen for instance for a DVI or
+	 * VGA output with the DDC bus unconnected. The KMS core will add the
+	 * default modes.
+	 */
+	return 0;
 }
 
-static int omap_connector_mode_valid(struct drm_connector *connector,
+enum drm_mode_status omap_connector_mode_fixup(struct omap_dss_device *dssdev,
+					const struct drm_display_mode *mode,
+					struct drm_display_mode *adjusted_mode)
+{
+	int ret;
+
+	drm_mode_copy(adjusted_mode, mode);
+
+	for (; dssdev; dssdev = dssdev->next) {
+		if (!dssdev->ops->check_timings)
+			continue;
+
+		ret = dssdev->ops->check_timings(dssdev, adjusted_mode);
+		if (ret)
+			return MODE_BAD;
+	}
+
+	return MODE_OK;
+}
+
+static enum drm_mode_status omap_connector_mode_valid(struct drm_connector *connector,
 				 struct drm_display_mode *mode)
 {
 	struct omap_connector *omap_connector = to_omap_connector(connector);
-	struct omap_dss_device *dssdev = omap_connector->dssdev;
-	struct omap_dss_driver *dssdrv = dssdev->driver;
-	struct omap_video_timings timings = {0};
-	struct drm_device *dev = connector->dev;
-	struct drm_display_mode *new_mode;
-	int r, ret = MODE_BAD;
+	struct drm_display_mode new_mode = { { 0 } };
+	enum drm_mode_status status;
 
-	copy_timings_drm_to_omap(&timings, mode);
-	mode->vrefresh = drm_mode_vrefresh(mode);
+	status = omap_connector_mode_fixup(omap_connector->output, mode,
+					   &new_mode);
+	if (status != MODE_OK)
+		goto done;
 
-	/*
-	 * if the panel driver doesn't have a check_timings, it's most likely
-	 * a fixed resolution panel, check if the timings match with the
-	 * panel's timings
-	 */
-	if (dssdrv->check_timings) {
-		r = dssdrv->check_timings(dssdev, &timings);
-	} else {
-		struct omap_video_timings t = {0};
+	/* Check if vrefresh is still valid. */
+	if (drm_mode_vrefresh(mode) != drm_mode_vrefresh(&new_mode))
+		status = MODE_NOCLOCK;
 
-		dssdrv->get_timings(dssdev, &t);
+done:
+	DBG("connector: mode %s: " DRM_MODE_FMT,
+			(status == MODE_OK) ? "valid" : "invalid",
+			DRM_MODE_ARG(mode));
 
-		if (memcmp(&timings, &t, sizeof(struct omap_video_timings)))
-			r = -EINVAL;
-		else
-			r = 0;
-	}
-
-	if (!r) {
-		/* check if vrefresh is still valid */
-		new_mode = drm_mode_duplicate(dev, mode);
-		new_mode->clock = timings.pixelclock / 1000;
-		new_mode->vrefresh = 0;
-		if (mode->vrefresh == drm_mode_vrefresh(new_mode))
-			ret = MODE_OK;
-		drm_mode_destroy(dev, new_mode);
-	}
-
-	DBG("connector: mode %s: "
-			"%d:\"%s\" %d %d %d %d %d %d %d %d %d %d 0x%x 0x%x",
-			(ret == MODE_OK) ? "valid" : "invalid",
-			mode->base.id, mode->name, mode->vrefresh, mode->clock,
-			mode->hdisplay, mode->hsync_start,
-			mode->hsync_end, mode->htotal,
-			mode->vdisplay, mode->vsync_start,
-			mode->vsync_end, mode->vtotal, mode->type, mode->flags);
-
-	return ret;
+	return status;
 }
 
 static const struct drm_connector_funcs omap_connector_funcs = {
-	.dpms = drm_atomic_helper_connector_dpms,
 	.reset = drm_atomic_helper_connector_reset,
 	.detect = omap_connector_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
@@ -270,42 +297,77 @@ static const struct drm_connector_helper_funcs omap_connector_helper_funcs = {
 	.mode_valid = omap_connector_mode_valid,
 };
 
+static int omap_connector_get_type(struct omap_dss_device *output)
+{
+	struct omap_dss_device *display;
+	enum omap_display_type type;
+
+	display = omapdss_display_get(output);
+	type = display->type;
+	omapdss_device_put(display);
+
+	switch (type) {
+	case OMAP_DISPLAY_TYPE_HDMI:
+		return DRM_MODE_CONNECTOR_HDMIA;
+	case OMAP_DISPLAY_TYPE_DVI:
+		return DRM_MODE_CONNECTOR_DVID;
+	case OMAP_DISPLAY_TYPE_DSI:
+		return DRM_MODE_CONNECTOR_DSI;
+	case OMAP_DISPLAY_TYPE_DPI:
+	case OMAP_DISPLAY_TYPE_DBI:
+		return DRM_MODE_CONNECTOR_DPI;
+	case OMAP_DISPLAY_TYPE_VENC:
+		/* TODO: This could also be composite */
+		return DRM_MODE_CONNECTOR_SVIDEO;
+	case OMAP_DISPLAY_TYPE_SDI:
+		return DRM_MODE_CONNECTOR_LVDS;
+	default:
+		return DRM_MODE_CONNECTOR_Unknown;
+	}
+}
+
 /* initialize connector */
 struct drm_connector *omap_connector_init(struct drm_device *dev,
-		int connector_type, struct omap_dss_device *dssdev,
-		struct drm_encoder *encoder)
+					  struct omap_dss_device *output,
+					  struct drm_encoder *encoder)
 {
 	struct drm_connector *connector = NULL;
 	struct omap_connector *omap_connector;
+	struct omap_dss_device *dssdev;
 
-	DBG("%s", dssdev->name);
+	DBG("%s", output->name);
 
-	omap_dss_get_device(dssdev);
-
-	omap_connector = kzalloc(sizeof(struct omap_connector), GFP_KERNEL);
+	omap_connector = kzalloc(sizeof(*omap_connector), GFP_KERNEL);
 	if (!omap_connector)
 		goto fail;
 
-	omap_connector->dssdev = dssdev;
+	omap_connector->output = omapdss_device_get(output);
 
 	connector = &omap_connector->base;
-
-	drm_connector_init(dev, connector, &omap_connector_funcs,
-				connector_type);
-	drm_connector_helper_add(connector, &omap_connector_helper_funcs);
-
-#if 0 /* enable when dss2 supports hotplug */
-	if (dssdev->caps & OMAP_DSS_DISPLAY_CAP_HPD)
-		connector->polled = 0;
-	else
-#endif
-		connector->polled = DRM_CONNECTOR_POLL_CONNECT |
-				DRM_CONNECTOR_POLL_DISCONNECT;
-
 	connector->interlace_allowed = 1;
 	connector->doublescan_allowed = 0;
 
-	drm_connector_register(connector);
+	drm_connector_init(dev, connector, &omap_connector_funcs,
+			   omap_connector_get_type(output));
+	drm_connector_helper_add(connector, &omap_connector_helper_funcs);
+
+	/*
+	 * Initialize connector status handling. First try to find a device that
+	 * supports hot-plug reporting. If it fails, fall back to a device that
+	 * support polling. If that fails too, we don't support hot-plug
+	 * detection at all.
+	 */
+	dssdev = omap_connector_find_device(connector, OMAP_DSS_DEVICE_OP_HPD);
+	if (dssdev) {
+		omap_connector->hpd = omapdss_device_get(dssdev);
+		connector->polled = DRM_CONNECTOR_POLL_HPD;
+	} else {
+		dssdev = omap_connector_find_device(connector,
+						    OMAP_DSS_DEVICE_OP_DETECT);
+		if (dssdev)
+			connector->polled = DRM_CONNECTOR_POLL_CONNECT |
+					    DRM_CONNECTOR_POLL_DISCONNECT;
+	}
 
 	return connector;
 

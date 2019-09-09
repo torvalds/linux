@@ -17,6 +17,8 @@
 #ifndef __SOC_TI_KEYSTONE_NAVIGATOR_DMA_H__
 #define __SOC_TI_KEYSTONE_NAVIGATOR_DMA_H__
 
+#include <linux/dmaengine.h>
+
 /*
  * PKTDMA descriptor manipulation macros for host packet descriptor
  */
@@ -41,6 +43,8 @@
 #define KNAV_DMA_DESC_RETQ_SHIFT		0
 #define KNAV_DMA_DESC_RETQ_MASK			MASK(14)
 #define KNAV_DMA_DESC_BUF_LEN_MASK		MASK(22)
+#define KNAV_DMA_DESC_EFLAGS_MASK		MASK(4)
+#define KNAV_DMA_DESC_EFLAGS_SHIFT		20
 
 #define KNAV_DMA_NUM_EPIB_WORDS			4
 #define KNAV_DMA_NUM_PS_WORDS			16
@@ -163,6 +167,8 @@ struct knav_dma_desc {
 void *knav_dma_open_channel(struct device *dev, const char *name,
 				struct knav_dma_cfg *config);
 void knav_dma_close_channel(void *channel);
+int knav_dma_get_flow(void *channel);
+bool knav_dma_device_ready(void);
 #else
 static inline void *knav_dma_open_channel(struct device *dev, const char *name,
 				struct knav_dma_cfg *config)
@@ -171,6 +177,16 @@ static inline void *knav_dma_open_channel(struct device *dev, const char *name,
 }
 static inline void knav_dma_close_channel(void *channel)
 {}
+
+static inline int knav_dma_get_flow(void *channel)
+{
+	return -EINVAL;
+}
+
+static inline bool knav_dma_device_ready(void)
+{
+	return false;
+}
 
 #endif
 

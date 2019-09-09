@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /* Copyright (c) 2015 6WIND S.A.
  * Author: Nicolas Dichtel <nicolas.dichtel@6wind.com>
  *
@@ -15,6 +16,8 @@ enum {
 	NETNSA_NSID,
 	NETNSA_PID,
 	NETNSA_FD,
+	NETNSA_TARGET_NSID,
+	NETNSA_CURRENT_NSID,
 	__NETNSA_MAX,
 };
 

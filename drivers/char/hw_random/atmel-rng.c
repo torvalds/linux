@@ -8,6 +8,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/clk.h>
@@ -48,6 +49,16 @@ static int atmel_trng_read(struct hwrng *rng, void *buf, size_t max,
 		return 0;
 }
 
+static void atmel_trng_enable(struct atmel_trng *trng)
+{
+	writel(TRNG_KEY | 1, trng->base + TRNG_CR);
+}
+
+static void atmel_trng_disable(struct atmel_trng *trng)
+{
+	writel(TRNG_KEY, trng->base + TRNG_CR);
+}
+
 static int atmel_trng_probe(struct platform_device *pdev)
 {
 	struct atmel_trng *trng;
@@ -71,7 +82,7 @@ static int atmel_trng_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	writel(TRNG_KEY | 1, trng->base + TRNG_CR);
+	atmel_trng_enable(trng);
 	trng->rng.name = pdev->name;
 	trng->rng.read = atmel_trng_read;
 
@@ -84,7 +95,7 @@ static int atmel_trng_probe(struct platform_device *pdev)
 	return 0;
 
 err_register:
-	clk_disable(trng->clk);
+	clk_disable_unprepare(trng->clk);
 	return ret;
 }
 
@@ -94,7 +105,7 @@ static int atmel_trng_remove(struct platform_device *pdev)
 
 	hwrng_unregister(&trng->rng);
 
-	writel(TRNG_KEY, trng->base + TRNG_CR);
+	atmel_trng_disable(trng);
 	clk_disable_unprepare(trng->clk);
 
 	return 0;
@@ -105,6 +116,7 @@ static int atmel_trng_suspend(struct device *dev)
 {
 	struct atmel_trng *trng = dev_get_drvdata(dev);
 
+	atmel_trng_disable(trng);
 	clk_disable_unprepare(trng->clk);
 
 	return 0;
@@ -113,8 +125,15 @@ static int atmel_trng_suspend(struct device *dev)
 static int atmel_trng_resume(struct device *dev)
 {
 	struct atmel_trng *trng = dev_get_drvdata(dev);
+	int ret;
 
-	return clk_prepare_enable(trng->clk);
+	ret = clk_prepare_enable(trng->clk);
+	if (ret)
+		return ret;
+
+	atmel_trng_enable(trng);
+
+	return 0;
 }
 
 static const struct dev_pm_ops atmel_trng_pm_ops = {

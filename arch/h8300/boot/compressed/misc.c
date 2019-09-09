@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * arch/h8300/boot/compressed/misc.c
  *
@@ -9,7 +10,7 @@
  * Adapted for h8300 by Yoshinori Sato 2006
  */
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /*
  * gzip declarations

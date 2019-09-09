@@ -1,22 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2010 ST-Ericsson AB
  * Mian Yousaf Kaukab <mian.yousaf.kaukab@stericsson.com>
  *
  * Based on omap2430.c
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
@@ -30,7 +17,7 @@
 
 #include "musb_core.h"
 
-static struct musb_hdrc_config ux500_musb_hdrc_config = {
+static const struct musb_hdrc_config ux500_musb_hdrc_config = {
 	.multipoint	= true,
 	.dyn_fifo	= true,
 	.num_eps	= 16,
@@ -75,7 +62,6 @@ static void ux500_musb_set_vbus(struct musb *musb, int is_on)
 
 		} else {
 			musb->is_active = 1;
-			musb->xceiv->otg->default_a = 1;
 			musb->xceiv->otg->state = OTG_STATE_A_WAIT_VRISE;
 			devctl |= MUSB_DEVCTL_SESSION;
 			MUSB_HST_MODE(musb);
@@ -86,7 +72,6 @@ static void ux500_musb_set_vbus(struct musb *musb, int is_on)
 		/* NOTE: we're skipping A_WAIT_VFALL -> A_IDLE and jumping
 		 * right to B_IDLE...
 		 */
-		musb->xceiv->otg->default_a = 0;
 		devctl &= ~MUSB_DEVCTL_SESSION;
 		MUSB_DEV_MODE(musb);
 	}

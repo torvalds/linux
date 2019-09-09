@@ -1,19 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
 	Copyright (C) 2004 - 2009 Ivo van Doorn <IvDoorn@gmail.com>
 	<http://rt2x00.serialmonkey.com>
 
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 2 of the License, or
-	(at your option) any later version.
-
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-	GNU General Public License for more details.
-
-	You should have received a copy of the GNU General Public License
-	along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -43,7 +32,7 @@ int rt2x00mmio_regbusy_read(struct rt2x00_dev *rt2x00dev,
 		return 0;
 
 	for (i = 0; i < REGISTER_BUSY_COUNT; i++) {
-		rt2x00mmio_register_read(rt2x00dev, offset, reg);
+		*reg = rt2x00mmio_register_read(rt2x00dev, offset);
 		if (!rt2x00_get_field32(*reg, field))
 			return 1;
 		udelay(REGISTER_BUSY_DELAY);
@@ -101,7 +90,7 @@ void rt2x00mmio_flush_queue(struct data_queue *queue, bool drop)
 	unsigned int i;
 
 	for (i = 0; !rt2x00queue_empty(queue) && i < 10; i++)
-		msleep(10);
+		msleep(50);
 }
 EXPORT_SYMBOL_GPL(rt2x00mmio_flush_queue);
 
@@ -119,9 +108,9 @@ static int rt2x00mmio_alloc_queue_dma(struct rt2x00_dev *rt2x00dev,
 	/*
 	 * Allocate DMA memory for descriptor and buffer.
 	 */
-	addr = dma_zalloc_coherent(rt2x00dev->dev,
-				   queue->limit * queue->desc_size, &dma,
-				   GFP_KERNEL);
+	addr = dma_alloc_coherent(rt2x00dev->dev,
+				  queue->limit * queue->desc_size, &dma,
+				  GFP_KERNEL);
 	if (!addr)
 		return -ENOMEM;
 

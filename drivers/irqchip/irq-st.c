@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Copyright (C) 2014 STMicroelectronics – All Rights Reserved
  *
  *  Author: Lee Jones <lee.jones@linaro.org>
  *
  *  This is a re-write of Christophe Kerello's PMU driver.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <dt-bindings/interrupt-controller/irq-st.h>
@@ -180,7 +177,7 @@ static int st_irq_syscfg_probe(struct platform_device *pdev)
 	return st_irq_syscfg_enable(pdev);
 }
 
-static int st_irq_syscfg_resume(struct device *dev)
+static int __maybe_unused st_irq_syscfg_resume(struct device *dev)
 {
 	struct st_irq_syscfg *ddata = dev_get_drvdata(dev);
 

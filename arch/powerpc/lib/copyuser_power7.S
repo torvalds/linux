@@ -1,23 +1,16 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * Copyright (C) IBM Corporation, 2011
  *
  * Author: Anton Blanchard <anton@au.ibm.com>
  */
 #include <asm/ppc_asm.h>
+
+#ifndef SELFTEST_CASE
+/* 0 == don't use VMX, 1 == use VMX */
+#define SELFTEST_CASE	0
+#endif
 
 #ifdef __BIG_ENDIAN__
 #define LVS(VRT,RA,RB)		lvsl	VRT,RA,RB
@@ -29,35 +22,23 @@
 
 	.macro err1
 100:
-	.section __ex_table,"a"
-	.align 3
-	.llong 100b,.Ldo_err1
-	.previous
+	EX_TABLE(100b,.Ldo_err1)
 	.endm
 
 	.macro err2
 200:
-	.section __ex_table,"a"
-	.align 3
-	.llong 200b,.Ldo_err2
-	.previous
+	EX_TABLE(200b,.Ldo_err2)
 	.endm
 
 #ifdef CONFIG_ALTIVEC
 	.macro err3
 300:
-	.section __ex_table,"a"
-	.align 3
-	.llong 300b,.Ldo_err3
-	.previous
+	EX_TABLE(300b,.Ldo_err3)
 	.endm
 
 	.macro err4
 400:
-	.section __ex_table,"a"
-	.align 3
-	.llong 400b,.Ldo_err4
-	.previous
+	EX_TABLE(400b,.Ldo_err4)
 	.endm
 
 
@@ -92,24 +73,20 @@
 
 
 _GLOBAL(__copy_tofrom_user_power7)
+	cmpldi	r5,16
+	cmpldi	cr1,r5,3328
+
+	std	r3,-STACKFRAMESIZE+STK_REG(R31)(r1)
+	std	r4,-STACKFRAMESIZE+STK_REG(R30)(r1)
+	std	r5,-STACKFRAMESIZE+STK_REG(R29)(r1)
+
+	blt	.Lshort_copy
+
 #ifdef CONFIG_ALTIVEC
-	cmpldi	r5,16
-	cmpldi	cr1,r5,4096
-
-	std	r3,-STACKFRAMESIZE+STK_REG(R31)(r1)
-	std	r4,-STACKFRAMESIZE+STK_REG(R30)(r1)
-	std	r5,-STACKFRAMESIZE+STK_REG(R29)(r1)
-
-	blt	.Lshort_copy
+test_feature = SELFTEST_CASE
+BEGIN_FTR_SECTION
 	bgt	cr1,.Lvmx_copy
-#else
-	cmpldi	r5,16
-
-	std	r3,-STACKFRAMESIZE+STK_REG(R31)(r1)
-	std	r4,-STACKFRAMESIZE+STK_REG(R30)(r1)
-	std	r5,-STACKFRAMESIZE+STK_REG(R29)(r1)
-
-	blt	.Lshort_copy
+END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 #endif
 
 .Lnonvmx_copy:
@@ -290,8 +267,8 @@ err1;	stb	r0,0(r3)
 	addi	r1,r1,STACKFRAMESIZE
 	b	.Lnonvmx_copy
 
-#ifdef CONFIG_ALTIVEC
 .Lvmx_copy:
+#ifdef CONFIG_ALTIVEC
 	mflr	r0
 	std	r0,16(r1)
 	stdu	r1,-STACKFRAMESIZE(r1)
@@ -324,17 +301,14 @@ err1;	stb	r0,0(r3)
 	lis	r8,0x8000	/* GO=1 */
 	clrldi	r8,r8,32
 
-.machine push
-.machine "power4"
 	/* setup read stream 0 */
-	dcbt	r0,r6,0b01000   /* addr from */
-	dcbt	r0,r7,0b01010   /* length and depth from */
+	dcbt	0,r6,0b01000   /* addr from */
+	dcbt	0,r7,0b01010   /* length and depth from */
 	/* setup write stream 1 */
-	dcbtst	r0,r9,0b01000   /* addr to */
-	dcbtst	r0,r10,0b01010  /* length and depth to */
+	dcbtst	0,r9,0b01000   /* addr to */
+	dcbtst	0,r10,0b01010  /* length and depth to */
 	eieio
-	dcbt	r0,r8,0b01010	/* all streams GO */
-.machine pop
+	dcbt	0,r8,0b01010	/* all streams GO */
 
 	beq	cr1,.Lunwind_stack_nonvmx_copy
 
@@ -388,26 +362,26 @@ err3;	std	r0,0(r3)
 	li	r11,48
 
 	bf	cr7*4+3,5f
-err3;	lvx	v1,r0,r4
+err3;	lvx	v1,0,r4
 	addi	r4,r4,16
-err3;	stvx	v1,r0,r3
+err3;	stvx	v1,0,r3
 	addi	r3,r3,16
 
 5:	bf	cr7*4+2,6f
-err3;	lvx	v1,r0,r4
+err3;	lvx	v1,0,r4
 err3;	lvx	v0,r4,r9
 	addi	r4,r4,32
-err3;	stvx	v1,r0,r3
+err3;	stvx	v1,0,r3
 err3;	stvx	v0,r3,r9
 	addi	r3,r3,32
 
 6:	bf	cr7*4+1,7f
-err3;	lvx	v3,r0,r4
+err3;	lvx	v3,0,r4
 err3;	lvx	v2,r4,r9
 err3;	lvx	v1,r4,r10
 err3;	lvx	v0,r4,r11
 	addi	r4,r4,64
-err3;	stvx	v3,r0,r3
+err3;	stvx	v3,0,r3
 err3;	stvx	v2,r3,r9
 err3;	stvx	v1,r3,r10
 err3;	stvx	v0,r3,r11
@@ -433,7 +407,7 @@ err3;	stvx	v0,r3,r11
 	 */
 	.align	5
 8:
-err4;	lvx	v7,r0,r4
+err4;	lvx	v7,0,r4
 err4;	lvx	v6,r4,r9
 err4;	lvx	v5,r4,r10
 err4;	lvx	v4,r4,r11
@@ -442,7 +416,7 @@ err4;	lvx	v2,r4,r14
 err4;	lvx	v1,r4,r15
 err4;	lvx	v0,r4,r16
 	addi	r4,r4,128
-err4;	stvx	v7,r0,r3
+err4;	stvx	v7,0,r3
 err4;	stvx	v6,r3,r9
 err4;	stvx	v5,r3,r10
 err4;	stvx	v4,r3,r11
@@ -463,29 +437,29 @@ err4;	stvx	v0,r3,r16
 	mtocrf	0x01,r6
 
 	bf	cr7*4+1,9f
-err3;	lvx	v3,r0,r4
+err3;	lvx	v3,0,r4
 err3;	lvx	v2,r4,r9
 err3;	lvx	v1,r4,r10
 err3;	lvx	v0,r4,r11
 	addi	r4,r4,64
-err3;	stvx	v3,r0,r3
+err3;	stvx	v3,0,r3
 err3;	stvx	v2,r3,r9
 err3;	stvx	v1,r3,r10
 err3;	stvx	v0,r3,r11
 	addi	r3,r3,64
 
 9:	bf	cr7*4+2,10f
-err3;	lvx	v1,r0,r4
+err3;	lvx	v1,0,r4
 err3;	lvx	v0,r4,r9
 	addi	r4,r4,32
-err3;	stvx	v1,r0,r3
+err3;	stvx	v1,0,r3
 err3;	stvx	v0,r3,r9
 	addi	r3,r3,32
 
 10:	bf	cr7*4+3,11f
-err3;	lvx	v1,r0,r4
+err3;	lvx	v1,0,r4
 	addi	r4,r4,16
-err3;	stvx	v1,r0,r3
+err3;	stvx	v1,0,r3
 	addi	r3,r3,16
 
 	/* Up to 15B to go */
@@ -565,25 +539,25 @@ err3;	lvx	v0,0,r4
 	addi	r4,r4,16
 
 	bf	cr7*4+3,5f
-err3;	lvx	v1,r0,r4
+err3;	lvx	v1,0,r4
 	VPERM(v8,v0,v1,v16)
 	addi	r4,r4,16
-err3;	stvx	v8,r0,r3
+err3;	stvx	v8,0,r3
 	addi	r3,r3,16
 	vor	v0,v1,v1
 
 5:	bf	cr7*4+2,6f
-err3;	lvx	v1,r0,r4
+err3;	lvx	v1,0,r4
 	VPERM(v8,v0,v1,v16)
 err3;	lvx	v0,r4,r9
 	VPERM(v9,v1,v0,v16)
 	addi	r4,r4,32
-err3;	stvx	v8,r0,r3
+err3;	stvx	v8,0,r3
 err3;	stvx	v9,r3,r9
 	addi	r3,r3,32
 
 6:	bf	cr7*4+1,7f
-err3;	lvx	v3,r0,r4
+err3;	lvx	v3,0,r4
 	VPERM(v8,v0,v3,v16)
 err3;	lvx	v2,r4,r9
 	VPERM(v9,v3,v2,v16)
@@ -592,7 +566,7 @@ err3;	lvx	v1,r4,r10
 err3;	lvx	v0,r4,r11
 	VPERM(v11,v1,v0,v16)
 	addi	r4,r4,64
-err3;	stvx	v8,r0,r3
+err3;	stvx	v8,0,r3
 err3;	stvx	v9,r3,r9
 err3;	stvx	v10,r3,r10
 err3;	stvx	v11,r3,r11
@@ -618,7 +592,7 @@ err3;	stvx	v11,r3,r11
 	 */
 	.align	5
 8:
-err4;	lvx	v7,r0,r4
+err4;	lvx	v7,0,r4
 	VPERM(v8,v0,v7,v16)
 err4;	lvx	v6,r4,r9
 	VPERM(v9,v7,v6,v16)
@@ -635,7 +609,7 @@ err4;	lvx	v1,r4,r15
 err4;	lvx	v0,r4,r16
 	VPERM(v15,v1,v0,v16)
 	addi	r4,r4,128
-err4;	stvx	v8,r0,r3
+err4;	stvx	v8,0,r3
 err4;	stvx	v9,r3,r9
 err4;	stvx	v10,r3,r10
 err4;	stvx	v11,r3,r11
@@ -656,7 +630,7 @@ err4;	stvx	v15,r3,r16
 	mtocrf	0x01,r6
 
 	bf	cr7*4+1,9f
-err3;	lvx	v3,r0,r4
+err3;	lvx	v3,0,r4
 	VPERM(v8,v0,v3,v16)
 err3;	lvx	v2,r4,r9
 	VPERM(v9,v3,v2,v16)
@@ -665,27 +639,27 @@ err3;	lvx	v1,r4,r10
 err3;	lvx	v0,r4,r11
 	VPERM(v11,v1,v0,v16)
 	addi	r4,r4,64
-err3;	stvx	v8,r0,r3
+err3;	stvx	v8,0,r3
 err3;	stvx	v9,r3,r9
 err3;	stvx	v10,r3,r10
 err3;	stvx	v11,r3,r11
 	addi	r3,r3,64
 
 9:	bf	cr7*4+2,10f
-err3;	lvx	v1,r0,r4
+err3;	lvx	v1,0,r4
 	VPERM(v8,v0,v1,v16)
 err3;	lvx	v0,r4,r9
 	VPERM(v9,v1,v0,v16)
 	addi	r4,r4,32
-err3;	stvx	v8,r0,r3
+err3;	stvx	v8,0,r3
 err3;	stvx	v9,r3,r9
 	addi	r3,r3,32
 
 10:	bf	cr7*4+3,11f
-err3;	lvx	v1,r0,r4
+err3;	lvx	v1,0,r4
 	VPERM(v8,v0,v1,v16)
 	addi	r4,r4,16
-err3;	stvx	v8,r0,r3
+err3;	stvx	v8,0,r3
 	addi	r3,r3,16
 
 	/* Up to 15B to go */

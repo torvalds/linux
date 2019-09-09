@@ -1,12 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Hauppauge HD PVR USB driver
  *
  * Copyright (C) 2008      Janne Grunau (j@jannau.net)
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License as
- *	published by the Free Software Foundation, version 2.
- *
  */
 
 #include <linux/usb.h>
@@ -215,7 +211,7 @@ enum {
 	 */
 
 	/* :0 s 38 01 1700 0003 0001 1 = 00
-	 * VIDEO STANDARD or FREQUNCY 0 = 60hz, 1 = 50hz
+	 * VIDEO STANDARD or FREQUENCY 0 = 60hz, 1 = 50hz
 	 */
 
 	/* :0 s 38 01 3100 0003 0004 4 = 03030000
@@ -232,15 +228,15 @@ enum {
 
 
 /* :0 s 38 d3 0000 0000 0001 1 = 00 */
-/* 		ret = usb_control_msg(dev->udev, */
-/* 				      usb_sndctrlpipe(dev->udev, 0), */
-/* 				      0xd3, 0x38, */
-/* 				      0, 0, */
-/* 				      "\0", 1, */
-/* 				      1000); */
+/*		ret = usb_control_msg(dev->udev, */
+/*				      usb_sndctrlpipe(dev->udev, 0), */
+/*				      0xd3, 0x38, */
+/*				      0, 0, */
+/*				      "\0", 1, */
+/*				      1000); */
 
-/* 		info("control request returned %d", ret); */
-/* 		msleep(5000); */
+/*		info("control request returned %d", ret); */
+/*		msleep(5000); */
 
 
 	/* :0 s b8 81 1400 0003 0005 5 <
@@ -320,8 +316,7 @@ int hdpvr_cancel_queue(struct hdpvr_device *dev);
 /* i2c adapter registration */
 int hdpvr_register_i2c_adapter(struct hdpvr_device *dev);
 
-struct i2c_client *hdpvr_register_ir_rx_i2c(struct hdpvr_device *dev);
-struct i2c_client *hdpvr_register_ir_tx_i2c(struct hdpvr_device *dev);
+struct i2c_client *hdpvr_register_ir_i2c(struct hdpvr_device *dev);
 
 /*========================================================================*/
 /* buffer management */

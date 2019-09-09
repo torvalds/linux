@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * IDE ioctls handling.
  */
@@ -125,9 +126,10 @@ static int ide_cmd_ioctl(ide_drive_t *drive, unsigned long arg)
 	if (NULL == (void *) arg) {
 		struct request *rq;
 
-		rq = blk_get_request(drive->queue, READ, __GFP_RECLAIM);
-		rq->cmd_type = REQ_TYPE_ATA_TASKFILE;
-		err = blk_execute_rq(drive->queue, NULL, rq, 0);
+		rq = blk_get_request(drive->queue, REQ_OP_DRV_IN, 0);
+		ide_req(rq)->type = ATA_PRIV_TASKFILE;
+		blk_execute_rq(drive->queue, NULL, rq, 0);
+		err = scsi_req(rq)->result ? -EIO : 0;
 		blk_put_request(rq);
 
 		return err;
@@ -221,12 +223,12 @@ static int generic_drive_reset(ide_drive_t *drive)
 	struct request *rq;
 	int ret = 0;
 
-	rq = blk_get_request(drive->queue, READ, __GFP_RECLAIM);
-	rq->cmd_type = REQ_TYPE_DRV_PRIV;
-	rq->cmd_len = 1;
-	rq->cmd[0] = REQ_DRIVE_RESET;
-	if (blk_execute_rq(drive->queue, NULL, rq, 1))
-		ret = rq->errors;
+	rq = blk_get_request(drive->queue, REQ_OP_DRV_IN, 0);
+	ide_req(rq)->type = ATA_PRIV_MISC;
+	scsi_req(rq)->cmd_len = 1;
+	scsi_req(rq)->cmd[0] = REQ_DRIVE_RESET;
+	blk_execute_rq(drive->queue, NULL, rq, 1);
+	ret = scsi_req(rq)->result;
 	blk_put_request(rq);
 	return ret;
 }

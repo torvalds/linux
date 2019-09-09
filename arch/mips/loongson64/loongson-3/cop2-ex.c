@@ -13,6 +13,7 @@
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/notifier.h>
+#include <linux/ptrace.h>
 
 #include <asm/fpu.h>
 #include <asm/cop2.h>
@@ -42,11 +43,8 @@ static int loongson_cu2_call(struct notifier_block *nfb, unsigned long action,
 		/* If FPU is owned, we needn't init or restore fp */
 		if (!fpu_owned) {
 			set_thread_flag(TIF_USEDFPU);
-			if (!used_math()) {
-				_init_fpu(current->thread.fpu.fcr31);
-				set_used_math();
-			} else
-				_restore_fp(current);
+			init_fp_ctx(current);
+			_restore_fp(current);
 		}
 		preempt_enable();
 

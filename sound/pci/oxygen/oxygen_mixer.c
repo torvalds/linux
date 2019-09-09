@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * C-Media CMI8788 driver - mixer code
  *
  * Copyright (c) Clemens Ladisch <clemens@ladisch.de>
- *
- *
- *  This driver is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License, version 2.
- *
- *  This driver is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this driver; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 #include <linux/mutex.h>
@@ -1052,10 +1040,10 @@ static int add_controls(struct oxygen *chip,
 		[CONTROL_CD_CAPTURE_SWITCH] = "CD Capture Switch",
 		[CONTROL_AUX_CAPTURE_SWITCH] = "Aux Capture Switch",
 	};
-	unsigned int i, j;
+	unsigned int i;
 	struct snd_kcontrol_new template;
 	struct snd_kcontrol *ctl;
-	int err;
+	int j, err;
 
 	for (i = 0; i < count; ++i) {
 		template = controls[i];
@@ -1086,11 +1074,11 @@ static int add_controls(struct oxygen *chip,
 		err = snd_ctl_add(chip->card, ctl);
 		if (err < 0)
 			return err;
-		for (j = 0; j < CONTROL_COUNT; ++j)
-			if (!strcmp(ctl->id.name, known_ctl_names[j])) {
-				chip->controls[j] = ctl;
-				ctl->private_free = oxygen_any_ctl_free;
-			}
+		j = match_string(known_ctl_names, CONTROL_COUNT, ctl->id.name);
+		if (j >= 0) {
+			chip->controls[j] = ctl;
+			ctl->private_free = oxygen_any_ctl_free;
+		}
 	}
 	return 0;
 }

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/compiler.h>
 #include <linux/bitmap.h>
 #include "tests.h"
@@ -15,8 +16,6 @@ static unsigned long *get_bitmap(const char *str, int nbits)
 	bm = bitmap_alloc(nbits);
 
 	if (map && bm) {
-		bitmap_zero(bm, nbits);
-
 		for (i = 0; i < map->nr; i++)
 			set_bit(map->map[i], bm);
 	}
@@ -40,7 +39,7 @@ static int test_bitmap(const char *str)
 	return ret;
 }
 
-int test__bitmap_print(int subtest __maybe_unused)
+int test__bitmap_print(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	TEST_ASSERT_VAL("failed to convert map", test_bitmap("1"));
 	TEST_ASSERT_VAL("failed to convert map", test_bitmap("1,5"));

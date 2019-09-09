@@ -1,24 +1,10 @@
-/*
- *  tm6000-core.c - driver for TM5600/TM6000/TM6010 USB video capture devices
- *
- *  Copyright (C) 2006-2007 Mauro Carvalho Chehab <mchehab@infradead.org>
- *
- *  Copyright (C) 2007 Michel Ludwig <michel.ludwig@gmail.com>
- *      - DVB-T support
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation version 2
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- */
+// SPDX-License-Identifier: GPL-2.0
+// tm6000-core.c - driver for TM5600/TM6000/TM6010 USB video capture devices
+//
+// Copyright (c) 2006-2007 Mauro Carvalho Chehab <mchehab@kernel.org>
+//
+// Copyright (c) 2007 Michel Ludwig <michel.ludwig@gmail.com>
+//     - DVB-T support
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -602,8 +588,8 @@ int tm6000_init(struct tm6000_core *dev)
 	for (i = 0; i < size; i++) {
 		rc = tm6000_set_reg(dev, tab[i].req, tab[i].reg, tab[i].val);
 		if (rc < 0) {
-			printk(KERN_ERR "Error %i while setting req %d, "
-					"reg %d to value %d\n", rc,
+			printk(KERN_ERR "Error %i while setting req %d, reg %d to value %d\n",
+			       rc,
 					tab[i].req, tab[i].reg, tab[i].val);
 			return rc;
 		}
@@ -682,7 +668,7 @@ int tm6000_set_audio_rinput(struct tm6000_core *dev)
 			areg_f0 = 0x04;
 			break;
 		default:
-			printk(KERN_INFO "%s: audio input dosn't support\n",
+			printk(KERN_INFO "%s: audio input doesn't support\n",
 				dev->name);
 			return 0;
 			break;
@@ -704,7 +690,7 @@ int tm6000_set_audio_rinput(struct tm6000_core *dev)
 			areg_eb = 0x04;
 			break;
 		default:
-			printk(KERN_INFO "%s: audio input dosn't support\n",
+			printk(KERN_INFO "%s: audio input doesn't support\n",
 				dev->name);
 			return 0;
 			break;
@@ -761,9 +747,8 @@ int tm6000_tvaudio_set_mute(struct tm6000_core *dev, u8 mute)
 		if (dev->dev_type == TM6010)
 			tm6010_set_mute_sif(dev, mute);
 		else {
-			printk(KERN_INFO "ERROR: TM5600 and TM6000 don't has"
-					" SIF audio inputs. Please check the %s"
-					" configuration.\n", dev->name);
+			printk(KERN_INFO "ERROR: TM5600 and TM6000 don't has SIF audio inputs. Please check the %s configuration.\n",
+			       dev->name);
 			return -EINVAL;
 		}
 		break;
@@ -822,9 +807,8 @@ void tm6000_set_volume(struct tm6000_core *dev, int vol)
 		if (dev->dev_type == TM6010)
 			tm6010_set_volume_sif(dev, vol);
 		else
-			printk(KERN_INFO "ERROR: TM5600 and TM6000 don't has"
-					" SIF audio inputs. Please check the %s"
-					" configuration.\n", dev->name);
+			printk(KERN_INFO "ERROR: TM5600 and TM6000 don't has SIF audio inputs. Please check the %s configuration.\n",
+			       dev->name);
 		break;
 	case TM6000_AMUX_ADC1:
 	case TM6000_AMUX_ADC2:

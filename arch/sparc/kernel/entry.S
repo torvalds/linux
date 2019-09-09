@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* arch/sparc/kernel/entry.S:  Sparc trap low-level entry points.
  *
  * Copyright (C) 1995, 2007 David S. Miller (davem@davemloft.net)
@@ -800,25 +801,10 @@ SUN_PI_(lda	[%l4] ASI_M_MMUREGS, %l5)	! read sfsr last
 	RESTORE_ALL
 
 	.align	4
-	.globl	sys_nis_syscall
-sys_nis_syscall:
-	mov	%o7, %l5
-	add	%sp, STACKFRAME_SZ, %o0		! pt_regs *regs arg
-	call	c_sys_nis_syscall
-	 mov	%l5, %o7
-
 sunos_execv:
 	.globl	sunos_execv
 	b	sys_execve
 	 clr	%i2
-
-	.align	4
-	.globl	sys_sparc_pipe
-sys_sparc_pipe:
-	mov	%o7, %l5
-	add	%sp, STACKFRAME_SZ, %o0		! pt_regs *regs arg
-	call	sparc_pipe
-	 mov	%l5, %o7
 
 	.align	4
 	.globl	sys_sigstack

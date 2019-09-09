@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2009-2010 Freescale Semiconductor, Inc. All Rights Reserved.
  * Copyright (C) 2014 Oleksij Rempel <linux@rempel-privat.de>
  *	Add Alphascale ASM9260 support.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 #include <linux/kernel.h>
@@ -131,12 +118,16 @@ static struct irq_chip mxs_icoll_chip = {
 	.irq_ack = icoll_ack_irq,
 	.irq_mask = icoll_mask_irq,
 	.irq_unmask = icoll_unmask_irq,
+	.flags = IRQCHIP_MASK_ON_SUSPEND |
+		 IRQCHIP_SKIP_SET_WAKE,
 };
 
 static struct irq_chip asm9260_icoll_chip = {
 	.irq_ack = icoll_ack_irq,
 	.irq_mask = asm9260_mask_irq,
 	.irq_unmask = asm9260_unmask_irq,
+	.flags = IRQCHIP_MASK_ON_SUSPEND |
+		 IRQCHIP_SKIP_SET_WAKE,
 };
 
 asmlinkage void __exception_irq_entry icoll_handle_irq(struct pt_regs *regs)
@@ -175,7 +166,7 @@ static void __init icoll_add_domain(struct device_node *np,
 					     &icoll_irq_domain_ops, NULL);
 
 	if (!icoll_domain)
-		panic("%s: unable to create irq domain", np->full_name);
+		panic("%pOF: unable to create irq domain", np);
 }
 
 static void __iomem * __init icoll_init_iobase(struct device_node *np)
@@ -184,7 +175,7 @@ static void __iomem * __init icoll_init_iobase(struct device_node *np)
 
 	icoll_base = of_io_request_and_map(np, 0, np->name);
 	if (IS_ERR(icoll_base))
-		panic("%s: unable to map resource", np->full_name);
+		panic("%pOF: unable to map resource", np);
 	return icoll_base;
 }
 

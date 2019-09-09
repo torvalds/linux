@@ -1,11 +1,12 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config VIDEO_USBTV
-        tristate "USBTV007 video capture support"
-        depends on VIDEO_V4L2 && SND
-        select SND_PCM
-        select VIDEOBUF2_VMALLOC
+	tristate "USBTV007 video capture support"
+	depends on VIDEO_V4L2 && SND
+	select SND_PCM
+	select VIDEOBUF2_VMALLOC
 
-        ---help---
-          This is a video4linux2 driver for USBTV007 based video capture devices.
+	help
+	  This is a video4linux2 driver for USBTV007 based video capture devices.
 
-          To compile this driver as a module, choose M here: the
-          module will be called usbtv
+	  To compile this driver as a module, choose M here: the
+	  module will be called usbtv

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_MMU_NOTIFIER_H
 #define _LINUX_MMU_NOTIFIER_H
 
@@ -8,6 +9,36 @@
 
 struct mmu_notifier;
 struct mmu_notifier_ops;
+
+/**
+ * enum mmu_notifier_event - reason for the mmu notifier callback
+ * @MMU_NOTIFY_UNMAP: either munmap() that unmap the range or a mremap() that
+ * move the range
+ *
+ * @MMU_NOTIFY_CLEAR: clear page table entry (many reasons for this like
+ * madvise() or replacing a page by another one, ...).
+ *
+ * @MMU_NOTIFY_PROTECTION_VMA: update is due to protection change for the range
+ * ie using the vma access permission (vm_page_prot) to update the whole range
+ * is enough no need to inspect changes to the CPU page table (mprotect()
+ * syscall)
+ *
+ * @MMU_NOTIFY_PROTECTION_PAGE: update is due to change in read/write flag for
+ * pages in the range so to mirror those changes the user must inspect the CPU
+ * page table (from the end callback).
+ *
+ * @MMU_NOTIFY_SOFT_DIRTY: soft dirty accounting (still same page and same
+ * access flags). User should soft dirty the page in the end callback to make
+ * sure that anyone relying on soft dirtyness catch pages that might be written
+ * through non CPU mappings.
+ */
+enum mmu_notifier_event {
+	MMU_NOTIFY_UNMAP = 0,
+	MMU_NOTIFY_CLEAR,
+	MMU_NOTIFY_PROTECTION_VMA,
+	MMU_NOTIFY_PROTECTION_PAGE,
+	MMU_NOTIFY_SOFT_DIRTY,
+};
 
 #ifdef CONFIG_MMU_NOTIFIER
 
@@ -22,6 +53,17 @@ struct mmu_notifier_mm {
 	struct hlist_head list;
 	/* to serialize the list modifications and hlist_unhashed */
 	spinlock_t lock;
+};
+
+#define MMU_NOTIFIER_RANGE_BLOCKABLE (1 << 0)
+
+struct mmu_notifier_range {
+	struct vm_area_struct *vma;
+	struct mm_struct *mm;
+	unsigned long start;
+	unsigned long end;
+	unsigned flags;
+	enum mmu_notifier_event event;
 };
 
 struct mmu_notifier_ops {
@@ -95,17 +137,6 @@ struct mmu_notifier_ops {
 			   pte_t pte);
 
 	/*
-	 * Before this is invoked any secondary MMU is still ok to
-	 * read/write to the page previously pointed to by the Linux
-	 * pte because the page hasn't been freed yet and it won't be
-	 * freed until this returns. If required set_page_dirty has to
-	 * be called internally to this method.
-	 */
-	void (*invalidate_page)(struct mmu_notifier *mn,
-				struct mm_struct *mm,
-				unsigned long address);
-
-	/*
 	 * invalidate_range_start() and invalidate_range_end() must be
 	 * paired and are called only when the mmap_sem and/or the
 	 * locks protecting the reverse maps are held. If the subsystem
@@ -147,13 +178,18 @@ struct mmu_notifier_ops {
 	 * page. Pages will no longer be referenced by the linux
 	 * address space but may still be referenced by sptes until
 	 * the last refcount is dropped.
+	 *
+	 * If blockable argument is set to false then the callback cannot
+	 * sleep and has to return with -EAGAIN. 0 should be returned
+	 * otherwise. Please note that if invalidate_range_start approves
+	 * a non-blocking behavior then the same applies to
+	 * invalidate_range_end.
+	 *
 	 */
-	void (*invalidate_range_start)(struct mmu_notifier *mn,
-				       struct mm_struct *mm,
-				       unsigned long start, unsigned long end);
+	int (*invalidate_range_start)(struct mmu_notifier *mn,
+				      const struct mmu_notifier_range *range);
 	void (*invalidate_range_end)(struct mmu_notifier *mn,
-				     struct mm_struct *mm,
-				     unsigned long start, unsigned long end);
+				     const struct mmu_notifier_range *range);
 
 	/*
 	 * invalidate_range() is either called between
@@ -166,10 +202,8 @@ struct mmu_notifier_ops {
 	 * shared page-tables, it not necessary to implement the
 	 * invalidate_range_start()/end() notifiers, as
 	 * invalidate_range() alread catches the points in time when an
-	 * external TLB range needs to be flushed.
-	 *
-	 * The invalidate_range() function is called under the ptl
-	 * spin-lock and not allowed to sleep.
+	 * external TLB range needs to be flushed. For more in depth
+	 * discussion on this see Documentation/vm/mmu_notifier.rst
 	 *
 	 * Note that this function might be called with just a sub-range
 	 * of what was passed to invalidate_range_start()/end(), if
@@ -220,14 +254,19 @@ extern int __mmu_notifier_test_young(struct mm_struct *mm,
 				     unsigned long address);
 extern void __mmu_notifier_change_pte(struct mm_struct *mm,
 				      unsigned long address, pte_t pte);
-extern void __mmu_notifier_invalidate_page(struct mm_struct *mm,
-					  unsigned long address);
-extern void __mmu_notifier_invalidate_range_start(struct mm_struct *mm,
-				  unsigned long start, unsigned long end);
-extern void __mmu_notifier_invalidate_range_end(struct mm_struct *mm,
-				  unsigned long start, unsigned long end);
+extern int __mmu_notifier_invalidate_range_start(struct mmu_notifier_range *r);
+extern void __mmu_notifier_invalidate_range_end(struct mmu_notifier_range *r,
+				  bool only_end);
 extern void __mmu_notifier_invalidate_range(struct mm_struct *mm,
 				  unsigned long start, unsigned long end);
+extern bool
+mmu_notifier_range_update_to_read_only(const struct mmu_notifier_range *range);
+
+static inline bool
+mmu_notifier_range_blockable(const struct mmu_notifier_range *range)
+{
+	return (range->flags & MMU_NOTIFIER_RANGE_BLOCKABLE);
+}
 
 static inline void mmu_notifier_release(struct mm_struct *mm)
 {
@@ -268,25 +307,37 @@ static inline void mmu_notifier_change_pte(struct mm_struct *mm,
 		__mmu_notifier_change_pte(mm, address, pte);
 }
 
-static inline void mmu_notifier_invalidate_page(struct mm_struct *mm,
-					  unsigned long address)
+static inline void
+mmu_notifier_invalidate_range_start(struct mmu_notifier_range *range)
 {
-	if (mm_has_notifiers(mm))
-		__mmu_notifier_invalidate_page(mm, address);
+	if (mm_has_notifiers(range->mm)) {
+		range->flags |= MMU_NOTIFIER_RANGE_BLOCKABLE;
+		__mmu_notifier_invalidate_range_start(range);
+	}
 }
 
-static inline void mmu_notifier_invalidate_range_start(struct mm_struct *mm,
-				  unsigned long start, unsigned long end)
+static inline int
+mmu_notifier_invalidate_range_start_nonblock(struct mmu_notifier_range *range)
 {
-	if (mm_has_notifiers(mm))
-		__mmu_notifier_invalidate_range_start(mm, start, end);
+	if (mm_has_notifiers(range->mm)) {
+		range->flags &= ~MMU_NOTIFIER_RANGE_BLOCKABLE;
+		return __mmu_notifier_invalidate_range_start(range);
+	}
+	return 0;
 }
 
-static inline void mmu_notifier_invalidate_range_end(struct mm_struct *mm,
-				  unsigned long start, unsigned long end)
+static inline void
+mmu_notifier_invalidate_range_end(struct mmu_notifier_range *range)
 {
-	if (mm_has_notifiers(mm))
-		__mmu_notifier_invalidate_range_end(mm, start, end);
+	if (mm_has_notifiers(range->mm))
+		__mmu_notifier_invalidate_range_end(range, false);
+}
+
+static inline void
+mmu_notifier_invalidate_range_only_end(struct mmu_notifier_range *range)
+{
+	if (mm_has_notifiers(range->mm))
+		__mmu_notifier_invalidate_range_end(range, true);
 }
 
 static inline void mmu_notifier_invalidate_range(struct mm_struct *mm,
@@ -305,6 +356,23 @@ static inline void mmu_notifier_mm_destroy(struct mm_struct *mm)
 {
 	if (mm_has_notifiers(mm))
 		__mmu_notifier_mm_destroy(mm);
+}
+
+
+static inline void mmu_notifier_range_init(struct mmu_notifier_range *range,
+					   enum mmu_notifier_event event,
+					   unsigned flags,
+					   struct vm_area_struct *vma,
+					   struct mm_struct *mm,
+					   unsigned long start,
+					   unsigned long end)
+{
+	range->vma = vma;
+	range->event = event;
+	range->mm = mm;
+	range->start = start;
+	range->end = end;
+	range->flags = flags;
 }
 
 #define ptep_clear_flush_young_notify(__vma, __address, __ptep)		\
@@ -381,16 +449,17 @@ static inline void mmu_notifier_mm_destroy(struct mm_struct *mm)
 	___pmd;								\
 })
 
-#define pmdp_huge_get_and_clear_notify(__mm, __haddr, __pmd)		\
+#define pudp_huge_clear_flush_notify(__vma, __haddr, __pud)		\
 ({									\
-	unsigned long ___haddr = __haddr & HPAGE_PMD_MASK;		\
-	pmd_t ___pmd;							\
+	unsigned long ___haddr = __haddr & HPAGE_PUD_MASK;		\
+	struct mm_struct *___mm = (__vma)->vm_mm;			\
+	pud_t ___pud;							\
 									\
-	___pmd = pmdp_huge_get_and_clear(__mm, __haddr, __pmd);		\
-	mmu_notifier_invalidate_range(__mm, ___haddr,			\
-				      ___haddr + HPAGE_PMD_SIZE);	\
+	___pud = pudp_huge_clear_flush(__vma, __haddr, __pud);		\
+	mmu_notifier_invalidate_range(___mm, ___haddr,			\
+				      ___haddr + HPAGE_PUD_SIZE);	\
 									\
-	___pmd;								\
+	___pud;								\
 })
 
 /*
@@ -415,9 +484,35 @@ static inline void mmu_notifier_mm_destroy(struct mm_struct *mm)
 
 extern void mmu_notifier_call_srcu(struct rcu_head *rcu,
 				   void (*func)(struct rcu_head *rcu));
-extern void mmu_notifier_synchronize(void);
 
 #else /* CONFIG_MMU_NOTIFIER */
+
+struct mmu_notifier_range {
+	unsigned long start;
+	unsigned long end;
+};
+
+static inline void _mmu_notifier_range_init(struct mmu_notifier_range *range,
+					    unsigned long start,
+					    unsigned long end)
+{
+	range->start = start;
+	range->end = end;
+}
+
+#define mmu_notifier_range_init(range,event,flags,vma,mm,start,end)  \
+	_mmu_notifier_range_init(range, start, end)
+
+static inline bool
+mmu_notifier_range_blockable(const struct mmu_notifier_range *range)
+{
+	return true;
+}
+
+static inline int mm_has_notifiers(struct mm_struct *mm)
+{
+	return 0;
+}
 
 static inline void mmu_notifier_release(struct mm_struct *mm)
 {
@@ -441,18 +536,24 @@ static inline void mmu_notifier_change_pte(struct mm_struct *mm,
 {
 }
 
-static inline void mmu_notifier_invalidate_page(struct mm_struct *mm,
-					  unsigned long address)
+static inline void
+mmu_notifier_invalidate_range_start(struct mmu_notifier_range *range)
 {
 }
 
-static inline void mmu_notifier_invalidate_range_start(struct mm_struct *mm,
-				  unsigned long start, unsigned long end)
+static inline int
+mmu_notifier_invalidate_range_start_nonblock(struct mmu_notifier_range *range)
+{
+	return 0;
+}
+
+static inline
+void mmu_notifier_invalidate_range_end(struct mmu_notifier_range *range)
 {
 }
 
-static inline void mmu_notifier_invalidate_range_end(struct mm_struct *mm,
-				  unsigned long start, unsigned long end)
+static inline void
+mmu_notifier_invalidate_range_only_end(struct mmu_notifier_range *range)
 {
 }
 
@@ -469,13 +570,15 @@ static inline void mmu_notifier_mm_destroy(struct mm_struct *mm)
 {
 }
 
+#define mmu_notifier_range_update_to_read_only(r) false
+
 #define ptep_clear_flush_young_notify ptep_clear_flush_young
 #define pmdp_clear_flush_young_notify pmdp_clear_flush_young
 #define ptep_clear_young_notify ptep_test_and_clear_young
 #define pmdp_clear_young_notify pmdp_test_and_clear_young
 #define	ptep_clear_flush_notify ptep_clear_flush
 #define pmdp_huge_clear_flush_notify pmdp_huge_clear_flush
-#define pmdp_huge_get_and_clear_notify pmdp_huge_get_and_clear
+#define pudp_huge_clear_flush_notify pudp_huge_clear_flush
 #define set_pte_at_notify set_pte_at
 
 #endif /* CONFIG_MMU_NOTIFIER */

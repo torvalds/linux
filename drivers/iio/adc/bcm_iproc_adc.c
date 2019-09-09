@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2016 Broadcom
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation (the "GPL").
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License version 2 (GPLv2) for more details.
- *
- * You should have received a copy of the GNU General Public License
- * version 2 (GPLv2) along with this source code.
  */
 
 #include <linux/module.h>
@@ -143,7 +132,7 @@ static void iproc_adc_reg_dump(struct iio_dev *indio_dev)
 	iproc_adc_dbg_reg(dev, adc_priv, IPROC_SOFT_BYPASS_DATA);
 }
 
-static irqreturn_t iproc_adc_interrupt_handler(int irq, void *data)
+static irqreturn_t iproc_adc_interrupt_thread(int irq, void *data)
 {
 	u32 channel_intr_status;
 	u32 intr_status;
@@ -167,7 +156,7 @@ static irqreturn_t iproc_adc_interrupt_handler(int irq, void *data)
 	return IRQ_NONE;
 }
 
-static irqreturn_t iproc_adc_interrupt_thread(int irq, void *data)
+static irqreturn_t iproc_adc_interrupt_handler(int irq, void *data)
 {
 	irqreturn_t retval = IRQ_NONE;
 	struct iproc_adc_priv *adc_priv;
@@ -181,7 +170,7 @@ static irqreturn_t iproc_adc_interrupt_thread(int irq, void *data)
 	adc_priv = iio_priv(indio_dev);
 
 	regmap_read(adc_priv->regmap, IPROC_INTERRUPT_STATUS, &intr_status);
-	dev_dbg(&indio_dev->dev, "iproc_adc_interrupt_thread(),INTRPT_STS:%x\n",
+	dev_dbg(&indio_dev->dev, "iproc_adc_interrupt_handler(),INTRPT_STS:%x\n",
 			intr_status);
 
 	intr_channels = (intr_status & IPROC_ADC_INTR_MASK) >> IPROC_ADC_INTR;
@@ -492,7 +481,6 @@ static int iproc_adc_read_raw(struct iio_dev *indio_dev,
 
 static const struct iio_info iproc_adc_iio_info = {
 	.read_raw = &iproc_adc_read_raw,
-	.driver_module = THIS_MODULE,
 };
 
 #define IPROC_ADC_CHANNEL(_index, _id) {                \
@@ -566,8 +554,8 @@ static int iproc_adc_probe(struct platform_device *pdev)
 	}
 
 	ret = devm_request_threaded_irq(&pdev->dev, adc_priv->irqno,
-				iproc_adc_interrupt_thread,
 				iproc_adc_interrupt_handler,
+				iproc_adc_interrupt_thread,
 				IRQF_SHARED, "iproc-adc", indio_dev);
 	if (ret) {
 		dev_err(&pdev->dev, "request_irq error %d\n", ret);

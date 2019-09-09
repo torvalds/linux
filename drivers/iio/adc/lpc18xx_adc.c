@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * IIO ADC driver for NXP LPC18xx ADC
  *
  * Copyright (C) 2016 Joachim Eastwood <manabian@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * UNSUPPORTED hardware features:
  *  - Hardware triggers
@@ -116,7 +113,6 @@ static int lpc18xx_adc_read_raw(struct iio_dev *indio_dev,
 
 static const struct iio_info lpc18xx_adc_info = {
 	.read_raw = lpc18xx_adc_read_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static int lpc18xx_adc_probe(struct platform_device *pdev)

@@ -1,13 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2009-2011, Code Aurora Forum. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/module.h>
@@ -515,7 +507,7 @@ static int pmic8xxx_kp_probe(struct platform_device *pdev)
 	int rc;
 	unsigned int ctrl_val;
 
-	rc = matrix_keypad_parse_of_params(&pdev->dev, &rows, &cols);
+	rc = matrix_keypad_parse_properties(&pdev->dev, &rows, &cols);
 	if (rc)
 		return rc;
 
@@ -697,6 +689,5 @@ module_platform_driver(pmic8xxx_kp_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("PMIC8XXX keypad driver");
-MODULE_VERSION("1.0");
 MODULE_ALIAS("platform:pmic8xxx_keypad");
 MODULE_AUTHOR("Trilok Soni <tsoni@codeaurora.org>");

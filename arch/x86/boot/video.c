@@ -1,11 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* -*- linux-c -*- ------------------------------------------------------- *
  *
  *   Copyright (C) 1991, 1992 Linus Torvalds
  *   Copyright 2007 rPath, Inc. - All Rights Reserved
  *   Copyright 2009 Intel Corporation; author H. Peter Anvin
- *
- *   This file is part of the Linux kernel, and is made available under
- *   the terms of the GNU General Public License version 2.
  *
  * ----------------------------------------------------------------------- */
 
@@ -115,7 +113,7 @@ static unsigned int get_entry(void)
 		} else if ((key >= '0' && key <= '9') ||
 			   (key >= 'A' && key <= 'Z') ||
 			   (key >= 'a' && key <= 'z')) {
-			if (len < sizeof entry_buf) {
+			if (len < sizeof(entry_buf)) {
 				entry_buf[len++] = key;
 				putchar(key);
 			}

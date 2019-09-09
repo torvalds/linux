@@ -1,12 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * rt5670.h  --  RT5670 ALSA SoC audio driver
  *
  * Copyright 2014 Realtek Microelectronics
  * Author: Bard Liao <bardliao@realtek.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef __RT5670_H__
@@ -1816,6 +1813,10 @@
 #define RT5670_ZCD_HP_DIS			(0x0 << 15)
 #define RT5670_ZCD_HP_EN			(0x1 << 15)
 
+/* General Control 3 (0xfc) */
+#define RT5670_TDM_DATA_MODE_SEL		(0x1 << 11)
+#define RT5670_TDM_DATA_MODE_NOR		(0x0 << 11)
+#define RT5670_TDM_DATA_MODE_50FS		(0x1 << 11)
 
 /* Codec Private Register definition */
 /* 3D Speaker Control (0x63) */
@@ -1914,6 +1915,7 @@ enum {
 #define RT5670_IF1_ADC1_IN2_SFT			11
 #define RT5670_IF1_ADC2_IN1_SEL			(0x1 << 10)
 #define RT5670_IF1_ADC2_IN1_SFT			10
+#define RT5670_MCLK_DET				(0x1 << 3)
 
 /* General Control2 (0xfb) */
 #define RT5670_RXDC_SRC_MASK			(0x1 << 7)
@@ -1981,11 +1983,11 @@ enum {
 	RT5670_DOWN_RATE_FILTER = (0x1 << 7),
 };
 
-int rt5670_sel_asrc_clk_src(struct snd_soc_codec *codec,
+int rt5670_sel_asrc_clk_src(struct snd_soc_component *component,
 			    unsigned int filter_mask, unsigned int clk_src);
 
 struct rt5670_priv {
-	struct snd_soc_codec *codec;
+	struct snd_soc_component *component;
 	struct rt5670_platform_data pdata;
 	struct regmap *regmap;
 	struct snd_soc_jack *jack;
@@ -2007,8 +2009,8 @@ struct rt5670_priv {
 	int jack_type_saved;
 };
 
-void rt5670_jack_suspend(struct snd_soc_codec *codec);
-void rt5670_jack_resume(struct snd_soc_codec *codec);
-int rt5670_set_jack_detect(struct snd_soc_codec *codec,
+void rt5670_jack_suspend(struct snd_soc_component *component);
+void rt5670_jack_resume(struct snd_soc_component *component);
+int rt5670_set_jack_detect(struct snd_soc_component *component,
 	struct snd_soc_jack *jack);
 #endif /* __RT5670_H__ */

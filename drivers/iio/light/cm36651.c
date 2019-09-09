@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2013 Samsung Electronics Co., Ltd.
  * Author: Beomho Seo <beomho.seo@samsung.com>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General Public License version 2, as published
- * by the Free Software Foundation.
  */
 
 #include <linux/delay.h>
@@ -612,7 +609,6 @@ static const struct attribute_group cm36651_attribute_group = {
 };
 
 static const struct iio_info cm36651_info = {
-	.driver_module		= THIS_MODULE,
 	.read_raw		= &cm36651_read_raw,
 	.write_raw		= &cm36651_write_raw,
 	.read_event_value	= &cm36651_read_prox_thresh,

@@ -1,4 +1,11 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 .. _NET_ADD_IF:
 
@@ -41,43 +48,13 @@ created.
 The struct :c:type:`dvb_net_if`::ifnum field will be
 filled with the number of the created interface.
 
-.. c:type:: dvb_net_if
-
-.. flat-table:: struct dvb_net_if
-    :header-rows:  1
-    :stub-columns: 0
-
-
-    -  .. row 1
-
-       -  ID
-
-       -  Description
-
-    -  .. row 2
-
-       -  pid
-
-       -  Packet ID (PID) of the MPEG-TS that contains data
-
-    -  .. row 3
-
-       -  ifnum
-
-       -  number of the DVB interface.
-
-    -  .. row 4
-
-       -  feedtype
-
-       -  Encapsulation type of the feed. It can be:
-	  ``DVB_NET_FEEDTYPE_MPE`` for MPE encoding or
-	  ``DVB_NET_FEEDTYPE_ULE`` for ULE encoding.
-
-
 Return Value
 ============
 
-On success 0 is returned, on error -1 and the ``errno`` variable is set
-appropriately. The generic error codes are described at the
+On success 0 is returned, and :c:type:`ca_slot_info` is filled.
+
+On error -1 is returned, and the ``errno`` variable is set
+appropriately.
+
+The generic error codes are described at the
 :ref:`Generic Error Codes <gen-errors>` chapter.

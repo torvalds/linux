@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Common support for CompuLab CM-T3x CoMs
  */
@@ -42,12 +43,14 @@
 	hsusb1_phy: hsusb1_phy {
 		compatible = "usb-nop-xceiv";
 		vcc-supply = <&hsusb1_power>;
+		#phy-cells = <0>;
 	};
 
 	/* HS USB Host PHY on PORT 2 */
 	hsusb2_phy: hsusb2_phy {
 		compatible = "usb-nop-xceiv";
 		vcc-supply = <&hsusb2_power>;
+		#phy-cells = <0>;
 	};
 
 	ads7846reg: ads7846-reg {
@@ -57,7 +60,7 @@
 		regulator-max-microvolt = <3300000>;
 	};
 
-	tv0: connector {
+	tv0: svideo-connector {
 		compatible = "svideo-connector";
 		label = "tv";
 
@@ -188,7 +191,7 @@
 	clock-frequency = <400000>;
 
 	at24@50 {
-		compatible = "at24,24c02";
+		compatible = "atmel,24c02";
 		pagesize = <16>;
 		reg = <0x50>;
 	};
@@ -303,19 +306,19 @@
 			label = "xloader";
 			reg = <0 0x80000>;
 		};
-		partition@0x80000 {
+		partition@80000 {
 			label = "uboot";
 			reg = <0x80000 0x1e0000>;
 		};
-		partition@0x260000 {
+		partition@260000 {
 			label = "uboot environment";
 			reg = <0x260000 0x40000>;
 		};
-		partition@0x2a0000 {
+		partition@2a0000 {
 			label = "linux";
 			reg = <0x2a0000 0x400000>;
 		};
-		partition@0x6a0000 {
+		partition@6a0000 {
 			label = "rootfs";
 			reg = <0x6a0000 0x1f880000>;
 		};

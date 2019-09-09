@@ -1,32 +1,21 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /**************************************************************************
  * Copyright (c) 2011, Intel Corporation.
  * All Rights Reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
- *
  **************************************************************************/
 
 #include <linux/backlight.h>
-#include <drm/drmP.h>
+#include <linux/delay.h>
+
 #include <drm/drm.h>
-#include <drm/gma_drm.h>
-#include "psb_drv.h"
-#include "psb_reg.h"
-#include "psb_intel_reg.h"
-#include "intel_bios.h"
+
 #include "cdv_device.h"
 #include "gma_device.h"
+#include "intel_bios.h"
+#include "psb_drv.h"
+#include "psb_intel_reg.h"
+#include "psb_reg.h"
 
 #define VGA_SR_INDEX		0x3c4
 #define VGA_SR_DATA		0x3c5
@@ -185,21 +174,22 @@ static int cdv_backlight_init(struct drm_device *dev)
  *	for this and the MID devices.
  */
 
-static inline u32 CDV_MSG_READ32(uint port, uint offset)
+static inline u32 CDV_MSG_READ32(int domain, uint port, uint offset)
 {
 	int mcr = (0x10<<24) | (port << 16) | (offset << 8);
 	uint32_t ret_val = 0;
-	struct pci_dev *pci_root = pci_get_bus_and_slot(0, 0);
+	struct pci_dev *pci_root = pci_get_domain_bus_and_slot(domain, 0, 0);
 	pci_write_config_dword(pci_root, 0xD0, mcr);
 	pci_read_config_dword(pci_root, 0xD4, &ret_val);
 	pci_dev_put(pci_root);
 	return ret_val;
 }
 
-static inline void CDV_MSG_WRITE32(uint port, uint offset, u32 value)
+static inline void CDV_MSG_WRITE32(int domain, uint port, uint offset,
+				   u32 value)
 {
 	int mcr = (0x11<<24) | (port << 16) | (offset << 8) | 0xF0;
-	struct pci_dev *pci_root = pci_get_bus_and_slot(0, 0);
+	struct pci_dev *pci_root = pci_get_domain_bus_and_slot(domain, 0, 0);
 	pci_write_config_dword(pci_root, 0xD4, value);
 	pci_write_config_dword(pci_root, 0xD0, mcr);
 	pci_dev_put(pci_root);
@@ -216,11 +206,12 @@ static void cdv_init_pm(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	u32 pwr_cnt;
+	int domain = pci_domain_nr(dev->pdev->bus);
 	int i;
 
-	dev_priv->apm_base = CDV_MSG_READ32(PSB_PUNIT_PORT,
+	dev_priv->apm_base = CDV_MSG_READ32(domain, PSB_PUNIT_PORT,
 							PSB_APMBA) & 0xFFFF;
-	dev_priv->ospm_base = CDV_MSG_READ32(PSB_PUNIT_PORT,
+	dev_priv->ospm_base = CDV_MSG_READ32(domain, PSB_PUNIT_PORT,
 							PSB_OSPMBA) & 0xFFFF;
 
 	/* Power status */
@@ -251,7 +242,7 @@ static void cdv_errata(struct drm_device *dev)
 	 *	Bonus Launch to work around the issue, by degrading
 	 *	performance.
 	 */
-	 CDV_MSG_WRITE32(3, 0x30, 0x08027108);
+	 CDV_MSG_WRITE32(pci_domain_nr(dev->pdev->bus), 3, 0x30, 0x08027108);
 }
 
 /**
@@ -483,7 +474,7 @@ void cdv_intel_attach_force_audio_property(struct drm_connector *connector)
 			return;
 
 		for (i = 0; i < ARRAY_SIZE(force_audio_names); i++)
-			drm_property_add_enum(prop, i, i-1, force_audio_names[i]);
+			drm_property_add_enum(prop, i-1, force_audio_names[i]);
 
 		dev_priv->force_audio_property = prop;
 	}
@@ -512,7 +503,7 @@ void cdv_intel_attach_broadcast_rgb_property(struct drm_connector *connector)
 			return;
 
 		for (i = 0; i < ARRAY_SIZE(broadcast_rgb_names); i++)
-			drm_property_add_enum(prop, i, i, broadcast_rgb_names[i]);
+			drm_property_add_enum(prop, i, broadcast_rgb_names[i]);
 
 		dev_priv->broadcast_rgb_property = prop;
 	}

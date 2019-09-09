@@ -1,23 +1,14 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 #ifndef _NET_DN_NSP_H
 #define _NET_DN_NSP_H
 /******************************************************************************
     (c) 1995-1998 E.M. Serrat		emserrat@geocities.com
     
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
 *******************************************************************************/
 /* dn_nsp.c functions prototyping */
 
 void dn_nsp_send_data_ack(struct sock *sk);
 void dn_nsp_send_oth_ack(struct sock *sk);
-void dn_nsp_delayed_ack(struct sock *sk);
 void dn_send_conn_ack(struct sock *sk);
 void dn_send_conn_conf(struct sock *sk, gfp_t gfp);
 void dn_nsp_send_disc(struct sock *sk, unsigned char type,

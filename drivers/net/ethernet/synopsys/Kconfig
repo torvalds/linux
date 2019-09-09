@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Synopsys network device configuration
 #
@@ -15,13 +16,27 @@ config NET_VENDOR_SYNOPSYS
 
 if NET_VENDOR_SYNOPSYS
 
-config SYNOPSYS_DWC_ETH_QOS
-	tristate "Sypnopsys DWC Ethernet QOS v4.10a support"
-	select PHYLIB
+config DWC_XLGMAC
+	tristate "Synopsys DWC Enterprise Ethernet (XLGMAC) driver support"
+	depends on HAS_IOMEM && HAS_DMA
+	select BITREVERSE
 	select CRC32
-	select MII
-	depends on OF && HAS_DMA
 	---help---
-	  This driver supports the DWC Ethernet QoS from Synopsys
+	  This driver supports the Synopsys DesignWare Cores Enterprise
+	  Ethernet (dwc-xlgmac).
+
+if DWC_XLGMAC
+
+config DWC_XLGMAC_PCI
+	tristate "XLGMAC PCI bus support"
+	depends on DWC_XLGMAC && PCI
+	---help---
+	  This selects the pci bus support for the dwc-xlgmac driver.
+	  This driver was tested on Synopsys XLGMAC IP Prototyping Kit.
+
+	  If you have a controller with this interface, say Y or M here.
+	  If unsure, say N.
+
+endif # DWC_XLGMAC
 
 endif # NET_VENDOR_SYNOPSYS

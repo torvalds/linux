@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *   S/390 common I/O routines -- blacklisting of specific devices
  *
@@ -17,7 +18,7 @@
 #include <linux/ctype.h>
 #include <linux/device.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/cio.h>
 #include <asm/ipl.h>
 

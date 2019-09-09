@@ -1,12 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright 2010 IBM Corp, Benjamin Herrenschmidt <benh@kernel.crashing.org>
  *
  * Generic idle routine for Book3E processors
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/threads.h>
@@ -17,6 +13,7 @@
 #include <asm/processor.h>
 #include <asm/thread_info.h>
 #include <asm/epapr_hcalls.h>
+#include <asm/hw_irq.h>
 
 /* 64-bit version only for now */
 #ifdef CONFIG_PPC64
@@ -35,7 +32,7 @@ _GLOBAL(\name)
 	 */
 	lbz	r3,PACAIRQHAPPENED(r13)
 	cmpwi	cr0,r3,0
-	bnelr
+	bne	2f
 
 	/* Now we are going to mark ourselves as soft and hard enabled in
 	 * order to be able to take interrupts while asleep. We inform lockdep
@@ -46,8 +43,8 @@ _GLOBAL(\name)
 	bl	trace_hardirqs_on
 	addi    r1,r1,128
 #endif
-	li	r0,1
-	stb	r0,PACASOFTIRQEN(r13)
+	li	r0,IRQS_ENABLED
+	stb	r0,PACAIRQSOFTMASK(r13)
 	
 	/* Interrupts will make use return to LR, so get something we want
 	 * in there
@@ -62,7 +59,7 @@ _GLOBAL(\name)
 1:	/* Let's set the _TLF_NAPPING flag so interrupts make us return
 	 * to the right spot
 	*/
-	CURRENT_THREAD_INFO(r11, r1)
+	ld	r11, PACACURRENT(r13)
 	ld	r10,TI_LOCAL_FLAGS(r11)
 	ori	r10,r10,_TLF_NAPPING
 	std	r10,TI_LOCAL_FLAGS(r11)
@@ -71,6 +68,11 @@ _GLOBAL(\name)
 	wrteei	1
 	\loop
 
+2:
+	lbz	r10,PACAIRQHAPPENED(r13)
+	ori	r10,r10,PACA_IRQ_HARD_DIS
+	stb	r10,PACAIRQHAPPENED(r13)
+	blr
 .endm
 
 .macro BOOK3E_IDLE_LOOP

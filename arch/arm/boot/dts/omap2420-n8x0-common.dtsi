@@ -1,9 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0
 #include "omap2420.dtsi"
 
 / {
 	memory@80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x8000000>; /* 128 MB */
+	};
+
+	chosen {
+		stdout-path = &uart3;
 	};
 
 	ocp {
@@ -15,8 +20,8 @@
 				>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			retu_mfd: retu@1 {
-				compatible = "retu-mfd";
+			retu: retu@1 {
+				compatible = "nokia,retu";
 				interrupt-parent = <&gpio4>;
 				interrupts = <12 IRQ_TYPE_EDGE_RISING>;
 				reg = <0x1>;
@@ -47,6 +52,7 @@
 	onenand@0,0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
+		compatible = "ti,omap2-onenand";
 		reg = <0 0 0x20000>;	/* CS0, offset 0, IO size 128K */
 
 		gpmc,sync-read;

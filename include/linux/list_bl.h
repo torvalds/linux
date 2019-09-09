@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_LIST_BL_H
 #define _LINUX_LIST_BL_H
 
@@ -83,6 +84,32 @@ static inline void hlist_bl_add_head(struct hlist_bl_node *n,
 		first->pprev = &n->next;
 	n->pprev = &h->first;
 	hlist_bl_set_first(h, n);
+}
+
+static inline void hlist_bl_add_before(struct hlist_bl_node *n,
+				       struct hlist_bl_node *next)
+{
+	struct hlist_bl_node **pprev = next->pprev;
+
+	n->pprev = pprev;
+	n->next = next;
+	next->pprev = &n->next;
+
+	/* pprev may be `first`, so be careful not to lose the lock bit */
+	WRITE_ONCE(*pprev,
+		   (struct hlist_bl_node *)
+			((uintptr_t)n | ((uintptr_t)*pprev & LIST_BL_LOCKMASK)));
+}
+
+static inline void hlist_bl_add_behind(struct hlist_bl_node *n,
+				       struct hlist_bl_node *prev)
+{
+	n->next = prev->next;
+	n->pprev = &prev->next;
+	prev->next = n;
+
+	if (n->next)
+		n->next->pprev = &n->next;
 }
 
 static inline void __hlist_bl_del(struct hlist_bl_node *n)

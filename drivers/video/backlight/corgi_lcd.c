@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  LCD/Backlight Driver for Sharp Zaurus Handhelds (various models)
  *
@@ -8,11 +9,6 @@
  *  Copyright (c) 2008 Marvell International Ltd.
  *	Converted to SPI device based LCD/Backlight device driver
  *	by Eric Miao <eric.miao@marvell.com>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
- *
  */
 
 #include <linux/module.h>
@@ -177,7 +173,7 @@ static int corgi_ssp_lcdtg_send(struct corgi_lcd *lcd, int adrs, uint8_t data)
 	struct spi_message msg;
 	struct spi_transfer xfer = {
 		.len		= 1,
-		.cs_change	= 1,
+		.cs_change	= 0,
 		.tx_buf		= lcd->buf,
 	};
 

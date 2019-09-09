@@ -1,25 +1,26 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Userland implementation of gettimeofday() for 32 bits processes in a
  * s390 kernel for use in the vDSO
  *
  *  Copyright IBM Corp. 2008
  *  Author(s): Martin Schwidefsky (schwidefsky@de.ibm.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License (version 2 only)
- * as published by the Free Software Foundation.
  */
 #include <asm/vdso.h>
 #include <asm/asm-offsets.h>
 #include <asm/unistd.h>
+#include <asm/dwarf.h>
+#include <asm/ptrace.h>
 
 	.text
 	.align 4
 	.globl __kernel_gettimeofday
 	.type  __kernel_gettimeofday,@function
 __kernel_gettimeofday:
-	.cfi_startproc
+	CFI_STARTPROC
 	ahi	%r15,-16
+	CFI_ADJUST_CFA_OFFSET 16
+	CFI_VAL_OFFSET 15, -STACK_FRAME_OVERHEAD
 	basr	%r5,0
 0:	al	%r5,13f-0b(%r5)			/* get &_vdso_data */
 1:	ltr	%r3,%r3				/* check if tz is NULL */
@@ -31,8 +32,27 @@ __kernel_gettimeofday:
 	tml	%r4,0x0001			/* pending update ? loop */
 	jnz	1b
 	stcke	0(%r15)				/* Store TOD clock */
-	lm	%r0,%r1,1(%r15)
-	s	%r0,__VDSO_XTIME_STAMP(%r5)	/* TOD - cycle_last */
+	lm	%r0,%r1,__VDSO_TS_END(%r5)	/* TOD steering end time */
+	s	%r0,1(%r15)
+	sl	%r1,5(%r15)
+	brc	3,14f
+	ahi	%r0,-1
+14:	ltr	%r0,%r0				/* past end of steering? */
+	jm	16f
+	srdl	%r0,15				/* 1 per 2^16 */
+	tm	__VDSO_TS_DIR+3(%r5),0x01	/* steering direction? */
+	jz	15f
+	lcr	%r0,%r0				/* negative TOD offset */
+	lcr	%r1,%r1
+	je	15f
+	ahi	%r0,-1
+15:	a	%r0,1(%r15)			/* add TOD timestamp */
+	al	%r1,5(%r15)
+	brc	12,17f
+	ahi	%r0,1
+	j	17f
+16:	lm	%r0,%r1,1(%r15)			/* load TOD timestamp */
+17:	s	%r0,__VDSO_XTIME_STAMP(%r5)	/* TOD - cycle_last */
 	sl	%r1,__VDSO_XTIME_STAMP+4(%r5)
 	brc	3,3f
 	ahi	%r0,-1
@@ -73,9 +93,11 @@ __kernel_gettimeofday:
 	st	%r0,4(%r2)			/* store tv->tv_usec */
 10:	slr	%r2,%r2
 	ahi	%r15,16
+	CFI_ADJUST_CFA_OFFSET -16
+	CFI_RESTORE 15
 	br	%r14
+	CFI_ENDPROC
 11:	.long	1000000000
 12:	.long	274877907
 13:	.long	_vdso_data - 0b
-	.cfi_endproc
 	.size	__kernel_gettimeofday,.-__kernel_gettimeofday

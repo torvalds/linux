@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for BCM6328 memory-mapped LEDs, based on leds-syscon.c
  *
  * Copyright 2015 Álvaro Fernández Rojas <noltari@gmail.com>
  * Copyright 2015 Jonas Gorski <jogo@openwrt.org>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 #include <linux/io.h>
 #include <linux/leds.h>
@@ -242,7 +238,7 @@ static int bcm6328_hwled(struct device *dev, struct device_node *nc, u32 reg,
 
 		spin_lock_irqsave(lock, flags);
 		val = bcm6328_led_read(addr);
-		val |= (BIT(reg) << (((sel % 4) * 4) + 16));
+		val |= (BIT(reg % 4) << (((sel % 4) * 4) + 16));
 		bcm6328_led_write(addr, val);
 		spin_unlock_irqrestore(lock, flags);
 	}
@@ -269,7 +265,7 @@ static int bcm6328_hwled(struct device *dev, struct device_node *nc, u32 reg,
 
 		spin_lock_irqsave(lock, flags);
 		val = bcm6328_led_read(addr);
-		val |= (BIT(reg) << ((sel % 4) * 4));
+		val |= (BIT(reg % 4) << ((sel % 4) * 4));
 		bcm6328_led_write(addr, val);
 		spin_unlock_irqrestore(lock, flags);
 	}

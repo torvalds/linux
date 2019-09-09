@@ -1,13 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2013-2016, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 /* Qualcomm Technologies, Inc. EMAC Ethernet Controller MAC layer support
@@ -24,58 +16,6 @@
 #include <net/ip6_checksum.h>
 #include "emac.h"
 #include "emac-sgmii.h"
-
-/* EMAC base register offsets */
-#define EMAC_MAC_CTRL			0x001480
-#define EMAC_WOL_CTRL0			0x0014a0
-#define EMAC_RSS_KEY0			0x0014b0
-#define EMAC_H1TPD_BASE_ADDR_LO		0x0014e0
-#define EMAC_H2TPD_BASE_ADDR_LO		0x0014e4
-#define EMAC_H3TPD_BASE_ADDR_LO		0x0014e8
-#define EMAC_INTER_SRAM_PART9		0x001534
-#define EMAC_DESC_CTRL_0		0x001540
-#define EMAC_DESC_CTRL_1		0x001544
-#define EMAC_DESC_CTRL_2		0x001550
-#define EMAC_DESC_CTRL_10		0x001554
-#define EMAC_DESC_CTRL_12		0x001558
-#define EMAC_DESC_CTRL_13		0x00155c
-#define EMAC_DESC_CTRL_3		0x001560
-#define EMAC_DESC_CTRL_4		0x001564
-#define EMAC_DESC_CTRL_5		0x001568
-#define EMAC_DESC_CTRL_14		0x00156c
-#define EMAC_DESC_CTRL_15		0x001570
-#define EMAC_DESC_CTRL_16		0x001574
-#define EMAC_DESC_CTRL_6		0x001578
-#define EMAC_DESC_CTRL_8		0x001580
-#define EMAC_DESC_CTRL_9		0x001584
-#define EMAC_DESC_CTRL_11		0x001588
-#define EMAC_TXQ_CTRL_0			0x001590
-#define EMAC_TXQ_CTRL_1			0x001594
-#define EMAC_TXQ_CTRL_2			0x001598
-#define EMAC_RXQ_CTRL_0			0x0015a0
-#define EMAC_RXQ_CTRL_1			0x0015a4
-#define EMAC_RXQ_CTRL_2			0x0015a8
-#define EMAC_RXQ_CTRL_3			0x0015ac
-#define EMAC_BASE_CPU_NUMBER		0x0015b8
-#define EMAC_DMA_CTRL			0x0015c0
-#define EMAC_MAILBOX_0			0x0015e0
-#define EMAC_MAILBOX_5			0x0015e4
-#define EMAC_MAILBOX_6			0x0015e8
-#define EMAC_MAILBOX_13			0x0015ec
-#define EMAC_MAILBOX_2			0x0015f4
-#define EMAC_MAILBOX_3			0x0015f8
-#define EMAC_MAILBOX_11			0x00160c
-#define EMAC_AXI_MAST_CTRL		0x001610
-#define EMAC_MAILBOX_12			0x001614
-#define EMAC_MAILBOX_9			0x001618
-#define EMAC_MAILBOX_10			0x00161c
-#define EMAC_ATHR_HEADER_CTRL		0x001620
-#define EMAC_CLK_GATE_CTRL		0x001814
-#define EMAC_MISC_CTRL			0x001990
-#define EMAC_MAILBOX_7			0x0019e0
-#define EMAC_MAILBOX_8			0x0019e4
-#define EMAC_MAILBOX_15			0x001bd4
-#define EMAC_MAILBOX_16			0x001bd8
 
 /* EMAC_MAC_CTRL */
 #define SINGLE_PAUSE_MODE       	0x10000000
@@ -102,14 +42,6 @@
 #define TXFC                            0x00000004
 #define RXEN                            0x00000002
 #define TXEN                            0x00000001
-
-
-/* EMAC_WOL_CTRL0 */
-#define LK_CHG_PME			0x20
-#define LK_CHG_EN			0x10
-#define MG_FRAME_PME			0x8
-#define MG_FRAME_EN			0x4
-#define WK_FRAME_EN			0x1
 
 /* EMAC_DESC_CTRL_3 */
 #define RFD_RING_SIZE_BMSK                                       0xfff
@@ -314,8 +246,6 @@ struct emac_skb_cb {
 	RX_PKT_INT2     |\
 	RX_PKT_INT3)
 
-#define EMAC_MAC_IRQ_RES                                    	"core0"
-
 void emac_mac_multicast_addr_set(struct emac_adapter *adpt, u8 *addr)
 {
 	u32 crc32, bit, reg, mta;
@@ -371,22 +301,12 @@ void emac_mac_mode_config(struct emac_adapter *adpt)
 /* Config descriptor rings */
 static void emac_mac_dma_rings_config(struct emac_adapter *adpt)
 {
-	static const unsigned short tpd_q_offset[] = {
-		EMAC_DESC_CTRL_8,        EMAC_H1TPD_BASE_ADDR_LO,
-		EMAC_H2TPD_BASE_ADDR_LO, EMAC_H3TPD_BASE_ADDR_LO};
-	static const unsigned short rfd_q_offset[] = {
-		EMAC_DESC_CTRL_2,        EMAC_DESC_CTRL_10,
-		EMAC_DESC_CTRL_12,       EMAC_DESC_CTRL_13};
-	static const unsigned short rrd_q_offset[] = {
-		EMAC_DESC_CTRL_5,        EMAC_DESC_CTRL_14,
-		EMAC_DESC_CTRL_15,       EMAC_DESC_CTRL_16};
-
 	/* TPD (Transmit Packet Descriptor) */
 	writel(upper_32_bits(adpt->tx_q.tpd.dma_addr),
 	       adpt->base + EMAC_DESC_CTRL_1);
 
 	writel(lower_32_bits(adpt->tx_q.tpd.dma_addr),
-	       adpt->base + tpd_q_offset[0]);
+	       adpt->base + EMAC_DESC_CTRL_8);
 
 	writel(adpt->tx_q.tpd.count & TPD_RING_SIZE_BMSK,
 	       adpt->base + EMAC_DESC_CTRL_9);
@@ -396,9 +316,9 @@ static void emac_mac_dma_rings_config(struct emac_adapter *adpt)
 	       adpt->base + EMAC_DESC_CTRL_0);
 
 	writel(lower_32_bits(adpt->rx_q.rfd.dma_addr),
-	       adpt->base + rfd_q_offset[0]);
+	       adpt->base + EMAC_DESC_CTRL_2);
 	writel(lower_32_bits(adpt->rx_q.rrd.dma_addr),
-	       adpt->base + rrd_q_offset[0]);
+	       adpt->base + EMAC_DESC_CTRL_5);
 
 	writel(adpt->rx_q.rfd.count & RFD_RING_SIZE_BMSK,
 	       adpt->base + EMAC_DESC_CTRL_3);
@@ -558,7 +478,7 @@ void emac_mac_reset(struct emac_adapter *adpt)
 	emac_reg_update32(adpt->base + EMAC_DMA_MAS_CTRL, 0, INT_RD_CLR_EN);
 }
 
-void emac_mac_start(struct emac_adapter *adpt)
+static void emac_mac_start(struct emac_adapter *adpt)
 {
 	struct phy_device *phydev = adpt->phydev;
 	u32 mac, csr1;
@@ -575,10 +495,19 @@ void emac_mac_start(struct emac_adapter *adpt)
 
 	mac |= TXEN | RXEN;     /* enable RX/TX */
 
-	/* We don't have ethtool support yet, so force flow-control mode
-	 * to 'full' always.
+	/* Configure MAC flow control. If set to automatic, then match
+	 * whatever the PHY does. Otherwise, enable or disable it, depending
+	 * on what the user configured via ethtool.
 	 */
-	mac |= TXFC | RXFC;
+	mac &= ~(RXFC | TXFC);
+
+	if (adpt->automatic) {
+		/* If it's set to automatic, then update our local values */
+		adpt->rx_flow_control = phydev->pause;
+		adpt->tx_flow_control = phydev->pause != phydev->asym_pause;
+	}
+	mac |= adpt->rx_flow_control ? RXFC : 0;
+	mac |= adpt->tx_flow_control ? TXFC : 0;
 
 	/* setup link speed */
 	mac &= ~SPEED_MASK;
@@ -604,6 +533,28 @@ void emac_mac_start(struct emac_adapter *adpt)
 	mac &= ~(HUGEN | VLAN_STRIP | TPAUSE | SIMR | HUGE | MULTI_ALL |
 		 DEBUG_MODE | SINGLE_PAUSE_MODE);
 
+	/* Enable single-pause-frame mode if requested.
+	 *
+	 * If enabled, the EMAC will send a single pause frame when the RX
+	 * queue is full.  This normally leads to packet loss because
+	 * the pause frame disables the remote MAC only for 33ms (the quanta),
+	 * and then the remote MAC continues sending packets even though
+	 * the RX queue is still full.
+	 *
+	 * If disabled, the EMAC sends a pause frame every 31ms until the RX
+	 * queue is no longer full.  Normally, this is the preferred
+	 * method of operation.  However, when the system is hung (e.g.
+	 * cores are halted), the EMAC interrupt handler is never called
+	 * and so the RX queue fills up quickly and stays full.  The resuling
+	 * non-stop "flood" of pause frames sometimes has the effect of
+	 * disabling nearby switches.  In some cases, other nearby switches
+	 * are also affected, shutting down the entire network.
+	 *
+	 * The user can enable or disable single-pause-frame mode
+	 * via ethtool.
+	 */
+	mac |= adpt->single_pause_mode ? SINGLE_PAUSE_MODE : 0;
+
 	writel_relaxed(csr1, adpt->csr + EMAC_EMAC_WRAPPER_CSR1);
 
 	writel_relaxed(mac, adpt->base + EMAC_MAC_CTRL);
@@ -620,8 +571,6 @@ void emac_mac_start(struct emac_adapter *adpt)
 
 	emac_reg_update32(adpt->base + EMAC_ATHR_HEADER_CTRL,
 			  (HEADER_ENABLE | HEADER_CNT_EN), 0);
-
-	emac_reg_update32(adpt->csr + EMAC_EMAC_WRAPPER_CSR2, 0, WOL_EN);
 }
 
 void emac_mac_stop(struct emac_adapter *adpt)
@@ -726,10 +675,11 @@ static int emac_tx_q_desc_alloc(struct emac_adapter *adpt,
 				struct emac_tx_queue *tx_q)
 {
 	struct emac_ring_header *ring_header = &adpt->ring_header;
+	int node = dev_to_node(adpt->netdev->dev.parent);
 	size_t size;
 
 	size = sizeof(struct emac_buffer) * tx_q->tpd.count;
-	tx_q->tpd.tpbuff = kzalloc(size, GFP_KERNEL);
+	tx_q->tpd.tpbuff = kzalloc_node(size, GFP_KERNEL, node);
 	if (!tx_q->tpd.tpbuff)
 		return -ENOMEM;
 
@@ -766,11 +716,12 @@ static void emac_rx_q_bufs_free(struct emac_adapter *adpt)
 static int emac_rx_descs_alloc(struct emac_adapter *adpt)
 {
 	struct emac_ring_header *ring_header = &adpt->ring_header;
+	int node = dev_to_node(adpt->netdev->dev.parent);
 	struct emac_rx_queue *rx_q = &adpt->rx_q;
 	size_t size;
 
 	size = sizeof(struct emac_buffer) * rx_q->rfd.count;
-	rx_q->rfd.rfbuff = kzalloc(size, GFP_KERNEL);
+	rx_q->rfd.rfbuff = kzalloc_node(size, GFP_KERNEL, node);
 	if (!rx_q->rfd.rfbuff)
 		return -ENOMEM;
 
@@ -817,7 +768,7 @@ int emac_mac_rx_tx_rings_alloc_all(struct emac_adapter *adpt)
 			    8 + 2 * 8; /* 8 byte per one Tx and two Rx rings */
 
 	ring_header->used = 0;
-	ring_header->v_addr = dma_zalloc_coherent(dev, ring_header->size,
+	ring_header->v_addr = dma_alloc_coherent(dev, ring_header->size,
 						 &ring_header->dma_addr,
 						 GFP_KERNEL);
 	if (!ring_header->v_addr)
@@ -931,7 +882,8 @@ static void emac_mac_rx_descs_refill(struct emac_adapter *adpt,
 
 		curr_rxbuf->dma_addr =
 			dma_map_single(adpt->netdev->dev.parent, skb->data,
-				       curr_rxbuf->length, DMA_FROM_DEVICE);
+				       adpt->rxbuf_size, DMA_FROM_DEVICE);
+
 		ret = dma_mapping_error(adpt->netdev->dev.parent,
 					curr_rxbuf->dma_addr);
 		if (ret) {
@@ -964,10 +916,13 @@ static void emac_adjust_link(struct net_device *netdev)
 	struct emac_adapter *adpt = netdev_priv(netdev);
 	struct phy_device *phydev = netdev->phydev;
 
-	if (phydev->link)
+	if (phydev->link) {
 		emac_mac_start(adpt);
-	else
+		emac_sgmii_link_change(adpt, true);
+	} else {
+		emac_sgmii_link_change(adpt, false);
 		emac_mac_stop(adpt);
+	}
 
 	phy_print_status(phydev);
 }
@@ -976,34 +931,26 @@ static void emac_adjust_link(struct net_device *netdev)
 int emac_mac_up(struct emac_adapter *adpt)
 {
 	struct net_device *netdev = adpt->netdev;
-	struct emac_irq	*irq = &adpt->irq;
 	int ret;
 
 	emac_mac_rx_tx_ring_reset_all(adpt);
 	emac_mac_config(adpt);
-
-	ret = request_irq(irq->irq, emac_isr, 0, EMAC_MAC_IRQ_RES, irq);
-	if (ret) {
-		netdev_err(adpt->netdev, "could not request %s irq\n",
-			   EMAC_MAC_IRQ_RES);
-		return ret;
-	}
-
 	emac_mac_rx_descs_refill(adpt, &adpt->rx_q);
 
+	adpt->phydev->irq = PHY_POLL;
 	ret = phy_connect_direct(netdev, adpt->phydev, emac_adjust_link,
 				 PHY_INTERFACE_MODE_SGMII);
 	if (ret) {
 		netdev_err(adpt->netdev, "could not connect phy\n");
-		free_irq(irq->irq, irq);
 		return ret;
 	}
+
+	phy_attached_print(adpt->phydev, NULL);
 
 	/* enable mac irq */
 	writel((u32)~DIS_INT, adpt->base + EMAC_INT_STATUS);
 	writel(adpt->irq.mask, adpt->base + EMAC_INT_MASK);
 
-	adpt->phydev->irq = PHY_IGNORE_INTERRUPT;
 	phy_start(adpt->phydev);
 
 	napi_enable(&adpt->rx_q.napi);
@@ -1029,7 +976,6 @@ void emac_mac_down(struct emac_adapter *adpt)
 	writel(DIS_INT, adpt->base + EMAC_INT_STATUS);
 	writel(0, adpt->base + EMAC_INT_MASK);
 	synchronize_irq(adpt->irq.irq);
-	free_irq(adpt->irq.irq, &adpt->irq);
 
 	phy_disconnect(adpt->phydev);
 
@@ -1206,7 +1152,6 @@ void emac_mac_rx_process(struct emac_adapter *adpt, struct emac_rx_queue *rx_q,
 		emac_receive_skb(rx_q, skb, (u16)RRD_CVALN_TAG(&rrd),
 				 (bool)RRD_CVTAG(&rrd));
 
-		netdev->last_rx = jiffies;
 		(*num_pkts)++;
 	} while (*num_pkts < max_pkts);
 
@@ -1242,16 +1187,16 @@ void emac_mac_tx_process(struct emac_adapter *adpt, struct emac_tx_queue *tx_q)
 	while (tx_q->tpd.consume_idx != hw_consume_idx) {
 		tpbuf = GET_TPD_BUFFER(tx_q, tx_q->tpd.consume_idx);
 		if (tpbuf->dma_addr) {
-			dma_unmap_single(adpt->netdev->dev.parent,
-					 tpbuf->dma_addr, tpbuf->length,
-					 DMA_TO_DEVICE);
+			dma_unmap_page(adpt->netdev->dev.parent,
+				       tpbuf->dma_addr, tpbuf->length,
+				       DMA_TO_DEVICE);
 			tpbuf->dma_addr = 0;
 		}
 
 		if (tpbuf->skb) {
 			pkts_compl++;
 			bytes_compl += tpbuf->skb->len;
-			dev_kfree_skb_irq(tpbuf->skb);
+			dev_consume_skb_irq(tpbuf->skb);
 			tpbuf->skb = NULL;
 		}
 
@@ -1401,9 +1346,11 @@ static void emac_tx_fill_tpd(struct emac_adapter *adpt,
 
 		tpbuf = GET_TPD_BUFFER(tx_q, tx_q->tpd.produce_idx);
 		tpbuf->length = mapped_len;
-		tpbuf->dma_addr = dma_map_single(adpt->netdev->dev.parent,
-						 skb->data, tpbuf->length,
-						 DMA_TO_DEVICE);
+		tpbuf->dma_addr = dma_map_page(adpt->netdev->dev.parent,
+					       virt_to_page(skb->data),
+					       offset_in_page(skb->data),
+					       tpbuf->length,
+					       DMA_TO_DEVICE);
 		ret = dma_mapping_error(adpt->netdev->dev.parent,
 					tpbuf->dma_addr);
 		if (ret)
@@ -1419,9 +1366,12 @@ static void emac_tx_fill_tpd(struct emac_adapter *adpt,
 	if (mapped_len < len) {
 		tpbuf = GET_TPD_BUFFER(tx_q, tx_q->tpd.produce_idx);
 		tpbuf->length = len - mapped_len;
-		tpbuf->dma_addr = dma_map_single(adpt->netdev->dev.parent,
-						 skb->data + mapped_len,
-						 tpbuf->length, DMA_TO_DEVICE);
+		tpbuf->dma_addr = dma_map_page(adpt->netdev->dev.parent,
+					       virt_to_page(skb->data +
+							    mapped_len),
+					       offset_in_page(skb->data +
+							      mapped_len),
+					       tpbuf->length, DMA_TO_DEVICE);
 		ret = dma_mapping_error(adpt->netdev->dev.parent,
 					tpbuf->dma_addr);
 		if (ret)

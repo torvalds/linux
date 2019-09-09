@@ -1,8 +1,8 @@
-libperf-$(CONFIG_DWARF_UNWIND) += regs_load.o
-libperf-$(CONFIG_DWARF_UNWIND) += dwarf-unwind.o
+perf-$(CONFIG_DWARF_UNWIND) += regs_load.o
+perf-$(CONFIG_DWARF_UNWIND) += dwarf-unwind.o
 
-libperf-y += arch-tests.o
-libperf-y += rdpmc.o
-libperf-y += perf-time-to-tsc.o
-libperf-$(CONFIG_AUXTRACE) += insn-x86.o
-libperf-y += intel-cqm.o
+perf-y += arch-tests.o
+perf-y += rdpmc.o
+perf-y += perf-time-to-tsc.o
+perf-$(CONFIG_AUXTRACE) += insn-x86.o intel-pt-pkt-decoder-test.o
+perf-$(CONFIG_X86_64) += bp-modify.o

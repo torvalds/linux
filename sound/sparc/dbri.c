@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for DBRI sound chip found on Sparcs.
  * Copyright (C) 2004, 2005 Martin Habets (mhabets@users.sourceforge.net)
@@ -304,7 +305,7 @@ struct snd_dbri {
 	spinlock_t lock;
 
 	struct dbri_dma *dma;	/* Pointer to our DMA block */
-	u32 dma_dvma;		/* DBRI visible DMA address */
+	dma_addr_t dma_dvma;	/* DBRI visible DMA address */
 
 	void __iomem *regs;	/* dbri HW regs */
 	int dbri_irqp;		/* intr queue pointer */
@@ -657,12 +658,14 @@ static void dbri_cmdwait(struct snd_dbri *dbri)
  */
 static s32 *dbri_cmdlock(struct snd_dbri *dbri, int len)
 {
+	u32 dvma_addr = (u32)dbri->dma_dvma;
+
 	/* Space for 2 WAIT cmds (replaced later by 1 JUMP cmd) */
 	len += 2;
 	spin_lock(&dbri->cmdlock);
 	if (dbri->cmdptr - dbri->dma->cmd + len < DBRI_NO_CMDS - 2)
 		return dbri->cmdptr + 2;
-	else if (len < sbus_readl(dbri->regs + REG8) - dbri->dma_dvma)
+	else if (len < sbus_readl(dbri->regs + REG8) - dvma_addr)
 		return dbri->dma->cmd;
 	else
 		printk(KERN_ERR "DBRI: no space for commands.");
@@ -680,6 +683,7 @@ static s32 *dbri_cmdlock(struct snd_dbri *dbri, int len)
  */
 static void dbri_cmdsend(struct snd_dbri *dbri, s32 *cmd, int len)
 {
+	u32 dvma_addr = (u32)dbri->dma_dvma;
 	s32 tmp, addr;
 	static int wait_id = 0;
 
@@ -689,7 +693,7 @@ static void dbri_cmdsend(struct snd_dbri *dbri, s32 *cmd, int len)
 	*(cmd+1) = DBRI_CMD(D_WAIT, 1, wait_id);
 
 	/* Replace the last command with JUMP */
-	addr = dbri->dma_dvma + (cmd - len - dbri->dma->cmd) * sizeof(s32);
+	addr = dvma_addr + (cmd - len - dbri->dma->cmd) * sizeof(s32);
 	*(dbri->cmdptr+1) = addr;
 	*(dbri->cmdptr) = DBRI_CMD(D_JUMP, 0, 0);
 
@@ -747,6 +751,7 @@ static void dbri_reset(struct snd_dbri *dbri)
 /* Lock must not be held before calling this */
 static void dbri_initialize(struct snd_dbri *dbri)
 {
+	u32 dvma_addr = (u32)dbri->dma_dvma;
 	s32 *cmd;
 	u32 dma_addr;
 	unsigned long flags;
@@ -764,7 +769,7 @@ static void dbri_initialize(struct snd_dbri *dbri)
 	/*
 	 * Initialize the interrupt ring buffer.
 	 */
-	dma_addr = dbri->dma_dvma + dbri_dma_off(intr, 0);
+	dma_addr = dvma_addr + dbri_dma_off(intr, 0);
 	dbri->dma->intr[0] = dma_addr;
 	dbri->dbri_irqp = 1;
 	/*
@@ -778,7 +783,7 @@ static void dbri_initialize(struct snd_dbri *dbri)
 	dbri->cmdptr = cmd;
 	*(cmd++) = DBRI_CMD(D_WAIT, 1, 0);
 	*(cmd++) = DBRI_CMD(D_WAIT, 1, 0);
-	dma_addr = dbri->dma_dvma + dbri_dma_off(cmd, 0);
+	dma_addr = dvma_addr + dbri_dma_off(cmd, 0);
 	sbus_writel(dma_addr, dbri->regs + REG8);
 	spin_unlock(&dbri->cmdlock);
 
@@ -1077,6 +1082,7 @@ static void recv_fixed(struct snd_dbri *dbri, int pipe, volatile __u32 *ptr)
 static int setup_descs(struct snd_dbri *dbri, int streamno, unsigned int period)
 {
 	struct dbri_streaminfo *info = &dbri->stream_info[streamno];
+	u32 dvma_addr = (u32)dbri->dma_dvma;
 	__u32 dvma_buffer;
 	int desc;
 	int len;
@@ -1177,7 +1183,7 @@ static int setup_descs(struct snd_dbri *dbri, int streamno, unsigned int period)
 		else {
 			dbri->next_desc[last_desc] = desc;
 			dbri->dma->desc[last_desc].nda =
-			    dbri->dma_dvma + dbri_dma_off(desc, desc);
+			    dvma_addr + dbri_dma_off(desc, desc);
 		}
 
 		last_desc = desc;
@@ -1192,7 +1198,7 @@ static int setup_descs(struct snd_dbri *dbri, int streamno, unsigned int period)
 	}
 
 	dbri->dma->desc[last_desc].nda =
-	    dbri->dma_dvma + dbri_dma_off(desc, first_desc);
+	    dvma_addr + dbri_dma_off(desc, first_desc);
 	dbri->next_desc[last_desc] = first_desc;
 	dbri->pipes[info->pipe].first_desc = first_desc;
 	dbri->pipes[info->pipe].desc = first_desc;
@@ -1697,6 +1703,7 @@ interrupts are disabled.
 static void xmit_descs(struct snd_dbri *dbri)
 {
 	struct dbri_streaminfo *info;
+	u32 dvma_addr;
 	s32 *cmd;
 	unsigned long flags;
 	int first_td;
@@ -1704,6 +1711,7 @@ static void xmit_descs(struct snd_dbri *dbri)
 	if (dbri == NULL)
 		return;		/* Disabled */
 
+	dvma_addr = (u32)dbri->dma_dvma;
 	info = &dbri->stream_info[DBRI_REC];
 	spin_lock_irqsave(&dbri->lock, flags);
 
@@ -1718,7 +1726,7 @@ static void xmit_descs(struct snd_dbri *dbri)
 			*(cmd++) = DBRI_CMD(D_SDP, 0,
 					    dbri->pipes[info->pipe].sdp
 					    | D_SDP_P | D_SDP_EVERY | D_SDP_C);
-			*(cmd++) = dbri->dma_dvma +
+			*(cmd++) = dvma_addr +
 				   dbri_dma_off(desc, first_td);
 			dbri_cmdsend(dbri, cmd, 2);
 
@@ -1740,7 +1748,7 @@ static void xmit_descs(struct snd_dbri *dbri)
 			*(cmd++) = DBRI_CMD(D_SDP, 0,
 					    dbri->pipes[info->pipe].sdp
 					    | D_SDP_P | D_SDP_EVERY | D_SDP_C);
-			*(cmd++) = dbri->dma_dvma +
+			*(cmd++) = dvma_addr +
 				   dbri_dma_off(desc, first_td);
 			dbri_cmdsend(dbri, cmd, 2);
 
@@ -1973,7 +1981,7 @@ static irqreturn_t snd_dbri_interrupt(int irq, void *dev_id)
 /****************************************************************************
 		PCM Interface
 ****************************************************************************/
-static struct snd_pcm_hardware snd_dbri_pcm_hw = {
+static const struct snd_pcm_hardware snd_dbri_pcm_hw = {
 	.info		= SNDRV_PCM_INFO_MMAP |
 			  SNDRV_PCM_INFO_INTERLEAVED |
 			  SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -2206,7 +2214,7 @@ static snd_pcm_uframes_t snd_dbri_pointer(struct snd_pcm_substream *substream)
 	return ret;
 }
 
-static struct snd_pcm_ops snd_dbri_ops = {
+static const struct snd_pcm_ops snd_dbri_ops = {
 	.open = snd_dbri_open,
 	.close = snd_dbri_close,
 	.ioctl = snd_pcm_lib_ioctl,
@@ -2236,12 +2244,9 @@ static int snd_dbri_pcm(struct snd_card *card)
 	pcm->info_flags = 0;
 	strcpy(pcm->name, card->shortname);
 
-	if ((err = snd_pcm_lib_preallocate_pages_for_all(pcm,
-			SNDRV_DMA_TYPE_CONTINUOUS,
-			snd_dma_continuous_data(GFP_KERNEL),
-			64 * 1024, 64 * 1024)) < 0)
-		return err;
-
+	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_CONTINUOUS,
+					      snd_dma_continuous_data(GFP_KERNEL),
+					      64 * 1024, 64 * 1024);
 	return 0;
 }
 
@@ -2503,16 +2508,10 @@ static void dbri_debug_read(struct snd_info_entry *entry,
 static void snd_dbri_proc(struct snd_card *card)
 {
 	struct snd_dbri *dbri = card->private_data;
-	struct snd_info_entry *entry;
 
-	if (!snd_card_proc_new(card, "regs", &entry))
-		snd_info_set_text_ops(entry, dbri, dbri_regs_read);
-
+	snd_card_ro_proc_new(card, "regs", dbri, dbri_regs_read);
 #ifdef DBRI_DEBUG
-	if (!snd_card_proc_new(card, "debug", &entry)) {
-		snd_info_set_text_ops(entry, dbri, dbri_debug_read);
-		entry->mode = S_IFREG | S_IRUGO;	/* Readable only. */
-	}
+	snd_card_ro_proc_new(card, "debug", dbri, dbri_debug_read);
 #endif
 }
 
@@ -2534,12 +2533,12 @@ static int snd_dbri_create(struct snd_card *card,
 	dbri->op = op;
 	dbri->irq = irq;
 
-	dbri->dma = dma_zalloc_coherent(&op->dev, sizeof(struct dbri_dma),
-					&dbri->dma_dvma, GFP_ATOMIC);
+	dbri->dma = dma_alloc_coherent(&op->dev, sizeof(struct dbri_dma),
+				       &dbri->dma_dvma, GFP_KERNEL);
 	if (!dbri->dma)
 		return -ENOMEM;
 
-	dprintk(D_GEN, "DMA Cmd Block 0x%p (0x%08x)\n",
+	dprintk(D_GEN, "DMA Cmd Block 0x%p (%pad)\n",
 		dbri->dma, dbri->dma_dvma);
 
 	/* Map the registers into memory. */

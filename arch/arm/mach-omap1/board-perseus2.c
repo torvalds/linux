@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/arch/arm/mach-omap1/board-perseus2.c
  *
@@ -5,10 +6,6 @@
  *
  * Original OMAP730 support by Jean Pihet <j-pihet@ti.com>
  * Updated for 2.6 by Kevin Hilman <kjh@hilman.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/gpio.h>
 #include <linux/kernel.h>
@@ -16,8 +13,7 @@
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/mtd/mtd.h>
-#include <linux/mtd/nand.h>
-#include <linux/mtd/partitions.h>
+#include <linux/mtd/platnand.h>
 #include <linux/mtd/physmap.h>
 #include <linux/input.h>
 #include <linux/smc91x.h>
@@ -144,7 +140,7 @@ static struct platform_device nor_device = {
 
 #define P2_NAND_RB_GPIO_PIN	62
 
-static int nand_dev_ready(struct mtd_info *mtd)
+static int nand_dev_ready(struct nand_chip *chip)
 {
 	return gpio_get_value(P2_NAND_RB_GPIO_PIN);
 }
@@ -225,7 +221,7 @@ static struct platform_device *devices[] __initdata = {
 	&kp_device,
 };
 
-static struct omap_lcd_config perseus2_lcd_config __initdata = {
+static const struct omap_lcd_config perseus2_lcd_config __initconst = {
 	.ctrl_name	= "internal",
 };
 

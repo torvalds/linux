@@ -1,17 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
- *
+ * Copyright (c) 2003-2018, Intel Corporation. All rights reserved.
  * Intel Management Engine Interface (Intel MEI) Linux driver
- * Copyright (c) 2003-2012, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
  */
 
 #ifndef _MEI_HBM_H_
@@ -26,6 +16,7 @@ struct mei_cl;
  *
  * @MEI_HBM_IDLE : protocol not started
  * @MEI_HBM_STARTING : start request message was sent
+ * @MEI_HBM_DR_SETUP : dma ring setup request message was sent
  * @MEI_HBM_ENUM_CLIENTS : enumeration request was sent
  * @MEI_HBM_CLIENT_PROPERTIES : acquiring clients properties
  * @MEI_HBM_STARTED : enumeration was completed
@@ -34,6 +25,7 @@ struct mei_cl;
 enum mei_hbm_state {
 	MEI_HBM_IDLE = 0,
 	MEI_HBM_STARTING,
+	MEI_HBM_DR_SETUP,
 	MEI_HBM_ENUM_CLIENTS,
 	MEI_HBM_CLIENT_PROPERTIES,
 	MEI_HBM_STARTED,

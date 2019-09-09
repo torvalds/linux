@@ -1,22 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
 	STB0899 Multistandard Frontend driver
 	Copyright (C) Manu Abraham (abraham.manu@gmail.com)
 
 	Copyright (C) ST Microelectronics
 
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 2 of the License, or
-	(at your option) any later version.
-
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU General Public License for more details.
-
-	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the Free Software
-	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
 #ifndef __STB0899_DRV_H
@@ -25,7 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 #define STB0899_TSMODE_SERIAL		1
 #define STB0899_CLKPOL_FALLING		2
@@ -82,7 +70,7 @@ enum stb0899_inversion {
  * 1. POWER ON/OFF		(index 0)
  * 2. FE_HAS_LOCK/LOCK_LOSS	(index 1)
  *
- * @gpio 	= one of the above listed GPIO's
+ * @gpio	= one of the above listed GPIO's
  * @level	= output state: pulled up or low
  */
 struct stb0899_postproc {

@@ -1,0 +1,297 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ * Keymile kmcent2 Device Tree Source, based on T1040RDB DTS
+ *
+ * (C) Copyright 2016
+ * Valentin Longchamp, Keymile AG, valentin.longchamp@keymile.com
+ *
+ * Copyright 2014 - 2015 Freescale Semiconductor Inc.
+ */
+
+/include/ "t104xsi-pre.dtsi"
+
+/ {
+	model = "keymile,kmcent2";
+	compatible = "keymile,kmcent2";
+
+	aliases {
+		front_phy = &front_phy;
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		bman_fbpr: bman-fbpr {
+			size = <0 0x1000000>;
+			alignment = <0 0x1000000>;
+		};
+		qman_fqd: qman-fqd {
+			size = <0 0x400000>;
+			alignment = <0 0x400000>;
+		};
+		qman_pfdr: qman-pfdr {
+			size = <0 0x2000000>;
+			alignment = <0 0x2000000>;
+		};
+	};
+
+	ifc: localbus@ffe124000 {
+		reg = <0xf 0xfe124000 0 0x2000>;
+		ranges = <0 0 0xf 0xe8000000 0x04000000
+			  1 0 0xf 0xfa000000 0x00010000
+			  2 0 0xf 0xfb000000 0x00010000
+			  4 0 0xf 0xc0000000 0x08000000
+			  6 0 0xf 0xd0000000 0x08000000
+			  7 0 0xf 0xd8000000 0x08000000>;
+
+		nor@0,0 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "cfi-flash";
+			reg = <0x0 0x0 0x04000000>;
+			bank-width = <2>;
+			device-width = <2>;
+		};
+
+		nand@1,0 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "fsl,ifc-nand";
+			reg = <0x1 0x0 0x10000>;
+		};
+
+		board-control@2,0 {
+			compatible = "keymile,qriox";
+			reg = <0x2 0x0 0x80>;
+		};
+
+		chassis-mgmt@6,0 {
+			compatible = "keymile,bfticu";
+			reg = <6 0 0x100>;
+			interrupt-controller;
+			interrupt-parent = <&mpic>;
+			interrupts = <11 1 0 0>;
+			#interrupt-cells = <1>;
+		};
+
+	};
+
+	memory {
+		device_type = "memory";
+	};
+
+	dcsr: dcsr@f00000000 {
+		ranges = <0x00000000 0xf 0x00000000 0x01072000>;
+	};
+
+	bportals: bman-portals@ff4000000 {
+		ranges = <0x0 0xf 0xf4000000 0x2000000>;
+	};
+
+	qportals: qman-portals@ff6000000 {
+		ranges = <0x0 0xf 0xf6000000 0x2000000>;
+	};
+
+	soc: soc@ffe000000 {
+		ranges = <0x00000000 0xf 0xfe000000 0x1000000>;
+		reg = <0xf 0xfe000000 0 0x00001000>;
+
+		spi@110000 {
+			network-clock@1 {
+				compatible = "zarlink,zl30364";
+				reg = <1>;
+				spi-max-frequency = <1000000>;
+			};
+		};
+
+		sdhc@114000 {
+			status = "disabled";
+		};
+
+		i2c@118000 {
+			clock-frequency = <100000>;
+
+			mux@70 {
+				compatible = "nxp,pca9547";
+				reg = <0x70>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				i2c-mux-idle-disconnect;
+
+				i2c@0 {
+					reg = <0>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					eeprom@54 {
+						compatible = "atmel,24c02";
+						reg = <0x54>;
+						pagesize = <2>;
+						read-only;
+						label = "ddr3-spd";
+					};
+				};
+
+				i2c@7 {
+					reg = <7>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					temp-sensor@48 {
+						compatible = "national,lm75";
+						reg = <0x48>;
+						label = "SENSOR_0";
+					};
+					temp-sensor@4a {
+						compatible = "national,lm75";
+						reg = <0x4a>;
+						label = "SENSOR_2";
+					};
+					temp-sensor@4b {
+						compatible = "national,lm75";
+						reg = <0x4b>;
+						label = "SENSOR_3";
+					};
+				};
+			};
+		};
+
+		i2c@118100 {
+			clock-frequency = <100000>;
+
+			eeprom@50 {
+				compatible = "atmel,24c08";
+				reg = <0x50>;
+				pagesize = <16>;
+			};
+
+			eeprom@54 {
+				compatible = "atmel,24c08";
+				reg = <0x54>;
+				pagesize = <16>;
+			};
+		};
+
+		i2c@119000 {
+			status = "disabled";
+		};
+
+		i2c@119100 {
+			status = "disabled";
+		};
+
+		serial2: serial@11d500 {
+			status = "disabled";
+		};
+
+		serial3: serial@11d600 {
+			status = "disabled";
+		};
+
+		usb0: usb@210000 {
+			status = "disabled";
+		};
+		usb1: usb@211000 {
+			status = "disabled";
+		};
+
+		display@180000 {
+			status = "disabled";
+		};
+
+		sata@220000 {
+			status = "disabled";
+		};
+		sata@221000 {
+			status = "disabled";
+		};
+
+		fman@400000 {
+			ethernet@e0000 {
+				fixed-link = <0 1 1000 0 0>;
+				phy-connection-type = "sgmii";
+			};
+
+			ethernet@e2000 {
+				fixed-link = <1 1 1000 0 0>;
+				phy-connection-type = "sgmii";
+			};
+
+			ethernet@e4000 {
+				status = "disabled";
+			};
+
+			ethernet@e6000 {
+				status = "disabled";
+			};
+
+			ethernet@e8000 {
+				phy-handle = <&front_phy>;
+				phy-connection-type = "rgmii";
+			};
+
+			mdio0: mdio@fc000 {
+				front_phy: ethernet-phy@11 {
+					reg = <0x11>;
+				};
+			};
+		};
+	};
+
+
+	pci0: pcie@ffe240000 {
+		reg = <0xf 0xfe240000 0 0x10000>;
+		ranges = <0x02000000 0 0xe0000000 0xc 0x00000000 0x0 0x20000000
+			  0x01000000 0 0x00000000 0xf 0xf8000000 0x0 0x00010000>;
+		pcie@0 {
+			ranges = <0x02000000 0 0xe0000000
+				  0x02000000 0 0xe0000000
+				  0 0x20000000
+
+				  0x01000000 0 0x00000000
+				  0x01000000 0 0x00000000
+				  0 0x00010000>;
+		};
+	};
+
+	pci1: pcie@ffe250000 {
+		status = "disabled";
+	};
+
+	pci2: pcie@ffe260000 {
+		status = "disabled";
+	};
+
+	pci3: pcie@ffe270000 {
+		status = "disabled";
+	};
+
+	qe: qe@ffe140000 {
+		ranges = <0x0 0xf 0xfe140000 0x40000>;
+		reg = <0xf 0xfe140000 0 0x480>;
+		brg-frequency = <0>;
+		bus-frequency = <0>;
+
+		si1: si@700 {
+			compatible = "fsl,t1040-qe-si";
+			reg = <0x700 0x80>;
+		};
+
+		siram1: siram@1000 {
+			compatible = "fsl,t1040-qe-siram";
+			reg = <0x1000 0x800>;
+		};
+
+		ucc_hdlc: ucc@2000 {
+			device_type = "hdlc";
+			compatible = "fsl,ucc-hdlc";
+			rx-clock-name = "clk9";
+			tx-clock-name = "clk9";
+			fsl,hdlc-bus;
+		};
+	};
+};
+
+#include "t1040si-post.dtsi"

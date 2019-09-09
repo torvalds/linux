@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # CDC drivers
 #
@@ -12,16 +13,6 @@ config AD7150
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad7150.
-
-config AD7152
-	tristate "Analog Devices ad7152/3 capacitive sensor driver"
-	depends on I2C
-	help
-	  Say yes here to build support for Analog Devices capacitive sensors.
-	  (ad7152, ad7153) Provides direct access via sysfs.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called ad7152.
 
 config AD7746
 	tristate "Analog Devices AD7745, AD7746 AD7747 capacitive sensor driver"

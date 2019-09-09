@@ -1,16 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (C) 2009-2010, Lars-Peter Clausen <lars@metafoo.de>
  *  JZ4740 platform devices
- *
- *  This program is free software; you can redistribute it and/or modify it
- *  under  the terms of the GNU General	 Public License as published by the
- *  Free Software Foundation;  either version 2 of the License, or (at your
- *  option) any later version.
- *
- *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
 #include <linux/clk.h>
@@ -29,8 +20,6 @@
 
 #include <linux/serial_core.h>
 #include <linux/serial_8250.h>
-
-#include "clock.h"
 
 /* USB Device Controller */
 struct platform_device jz4740_udc_xceiv_device = {
@@ -86,27 +75,6 @@ struct platform_device jz4740_mmc_device = {
 	},
 	.num_resources	= ARRAY_SIZE(jz4740_mmc_resources),
 	.resource	= jz4740_mmc_resources,
-};
-
-/* RTC controller */
-static struct resource jz4740_rtc_resources[] = {
-	{
-		.start	= JZ4740_RTC_BASE_ADDR,
-		.end	= JZ4740_RTC_BASE_ADDR + 0x38 - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	{
-		.start	= JZ4740_IRQ_RTC,
-		.end	= JZ4740_IRQ_RTC,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device jz4740_rtc_device = {
-	.name		= "jz4740-rtc",
-	.id		= -1,
-	.num_resources	= ARRAY_SIZE(jz4740_rtc_resources),
-	.resource	= jz4740_rtc_resources,
 };
 
 /* I2C controller */
@@ -252,22 +220,6 @@ struct platform_device jz4740_adc_device = {
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(jz4740_adc_resources),
 	.resource	= jz4740_adc_resources,
-};
-
-/* Watchdog */
-static struct resource jz4740_wdt_resources[] = {
-	{
-		.start = JZ4740_WDT_BASE_ADDR,
-		.end   = JZ4740_WDT_BASE_ADDR + 0x10 - 1,
-		.flags = IORESOURCE_MEM,
-	},
-};
-
-struct platform_device jz4740_wdt_device = {
-	.name	       = "jz4740-wdt",
-	.id	       = -1,
-	.num_resources = ARRAY_SIZE(jz4740_wdt_resources),
-	.resource      = jz4740_wdt_resources,
 };
 
 /* PWM */

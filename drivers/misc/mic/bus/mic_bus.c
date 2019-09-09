@@ -1,19 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Intel MIC Platform Software Stack (MPSS)
  *
  * Copyright(c) 2014 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * The full GNU General Public License is included in this distribution in
- * the file called "COPYING".
  *
  * Intel MIC Bus driver.
  *
@@ -143,7 +132,7 @@ static void mbus_release_dev(struct device *d)
 }
 
 struct mbus_device *
-mbus_register_device(struct device *pdev, int id, struct dma_map_ops *dma_ops,
+mbus_register_device(struct device *pdev, int id, const struct dma_map_ops *dma_ops,
 		     struct mbus_hw_ops *hw_ops, int index,
 		     void __iomem *mmio_va)
 {
@@ -158,7 +147,7 @@ mbus_register_device(struct device *pdev, int id, struct dma_map_ops *dma_ops,
 	mbdev->dev.parent = pdev;
 	mbdev->id.device = id;
 	mbdev->id.vendor = MBUS_DEV_ANY_ID;
-	mbdev->dev.archdata.dma_ops = dma_ops;
+	mbdev->dev.dma_ops = dma_ops;
 	mbdev->dev.dma_mask = &mbdev->dev.coherent_dma_mask;
 	dma_set_mask(&mbdev->dev, DMA_BIT_MASK(64));
 	mbdev->dev.release = mbus_release_dev;

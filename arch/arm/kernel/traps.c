@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/arch/arm/kernel/traps.c
  *
  *  Copyright (C) 1995-2009 Russell King
  *  Fragments that appear the same as linux/arch/i386/kernel/traps.c (C) Linus Torvalds
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  *  'traps.c' handles hardware exceptions after we have saved some state in
  *  'linux/arch/arm/lib/traps.S'.  Mostly a debugging aid, but will probably
@@ -19,12 +16,15 @@
 #include <linux/uaccess.h>
 #include <linux/hardirq.h>
 #include <linux/kdebug.h>
+#include <linux/kprobes.h>
 #include <linux/module.h>
 #include <linux/kexec.h>
 #include <linux/bug.h>
 #include <linux/delay.h>
 #include <linux/init.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
+#include <linux/sched/debug.h>
+#include <linux/sched/task_stack.h>
 #include <linux/irq.h>
 
 #include <linux/atomic.h>
@@ -70,8 +70,28 @@ void dump_backtrace_entry(unsigned long where, unsigned long from, unsigned long
 	printk("Function entered at [<%08lx>] from [<%08lx>]\n", where, from);
 #endif
 
-	if (in_exception_text(where))
+	if (in_entry_text(from))
 		dump_mem("", "Exception stack", frame + 4, frame + 4 + sizeof(struct pt_regs));
+}
+
+void dump_backtrace_stm(u32 *stack, u32 instruction)
+{
+	char str[80], *p;
+	unsigned int x;
+	int reg;
+
+	for (reg = 10, x = 0, p = str; reg >= 0; reg--) {
+		if (instruction & BIT(reg)) {
+			p += sprintf(p, " r%d:%08x", reg, *stack--);
+			if (++x == 6) {
+				x = 0;
+				p = str;
+				printk("%s\n", str);
+			}
+		}
+	}
+	if (p != str)
+		printk("%s\n", str);
 }
 
 #ifndef CONFIG_ARM_UNWIND
@@ -132,30 +152,26 @@ static void dump_mem(const char *lvl, const char *str, unsigned long bottom,
 	set_fs(fs);
 }
 
-static void dump_instr(const char *lvl, struct pt_regs *regs)
+static void __dump_instr(const char *lvl, struct pt_regs *regs)
 {
 	unsigned long addr = instruction_pointer(regs);
 	const int thumb = thumb_mode(regs);
 	const int width = thumb ? 4 : 8;
-	mm_segment_t fs;
 	char str[sizeof("00000000 ") * 5 + 2 + 1], *p = str;
 	int i;
 
 	/*
-	 * We need to switch to kernel mode so that we can use __get_user
-	 * to safely read from kernel space.  Note that we now dump the
-	 * code first, just in case the backtrace kills us.
+	 * Note that we now dump the code first, just in case the backtrace
+	 * kills us.
 	 */
-	fs = get_fs();
-	set_fs(KERNEL_DS);
 
 	for (i = -4; i < 1 + !!thumb; i++) {
 		unsigned int val, bad;
 
 		if (thumb)
-			bad = __get_user(val, &((u16 *)addr)[i]);
+			bad = get_user(val, &((u16 *)addr)[i]);
 		else
-			bad = __get_user(val, &((u32 *)addr)[i]);
+			bad = get_user(val, &((u32 *)addr)[i]);
 
 		if (!bad)
 			p += sprintf(p, i == 0 ? "(%0*x) " : "%0*x ",
@@ -166,8 +182,20 @@ static void dump_instr(const char *lvl, struct pt_regs *regs)
 		}
 	}
 	printk("%sCode: %s\n", lvl, str);
+}
 
-	set_fs(fs);
+static void dump_instr(const char *lvl, struct pt_regs *regs)
+{
+	mm_segment_t fs;
+
+	if (!user_mode(regs)) {
+		fs = get_fs();
+		set_fs(KERNEL_DS);
+		__dump_instr(lvl, regs);
+		set_fs(fs);
+	} else {
+		__dump_instr(lvl, regs);
+	}
 }
 
 #ifdef CONFIG_ARM_UNWIND
@@ -334,13 +362,14 @@ void die(const char *str, struct pt_regs *regs, int err)
 }
 
 void arm_notify_die(const char *str, struct pt_regs *regs,
-		struct siginfo *info, unsigned long err, unsigned long trap)
+		int signo, int si_code, void __user *addr,
+		unsigned long err, unsigned long trap)
 {
 	if (user_mode(regs)) {
 		current->thread.error_code = err;
 		current->thread.trap_no = trap;
 
-		force_sig_info(info->si_signo, info, current);
+		force_sig_fault(signo, si_code, addr);
 	} else {
 		die(str, regs, err);
 	}
@@ -387,7 +416,8 @@ void unregister_undef_hook(struct undef_hook *hook)
 	raw_spin_unlock_irqrestore(&undef_lock, flags);
 }
 
-static int call_undef_hook(struct pt_regs *regs, unsigned int instr)
+static nokprobe_inline
+int call_undef_hook(struct pt_regs *regs, unsigned int instr)
 {
 	struct undef_hook *hook;
 	unsigned long flags;
@@ -403,10 +433,9 @@ static int call_undef_hook(struct pt_regs *regs, unsigned int instr)
 	return fn ? fn(regs, instr) : 1;
 }
 
-asmlinkage void __exception do_undefinstr(struct pt_regs *regs)
+asmlinkage void do_undefinstr(struct pt_regs *regs)
 {
 	unsigned int instr;
-	siginfo_t info;
 	void __user *pc;
 
 	pc = (void __user *)instruction_pointer(regs);
@@ -452,14 +481,10 @@ die_sig:
 		dump_instr(KERN_INFO, regs);
 	}
 #endif
-
-	info.si_signo = SIGILL;
-	info.si_errno = 0;
-	info.si_code  = ILL_ILLOPC;
-	info.si_addr  = pc;
-
-	arm_notify_die("Oops - undefined instruction", regs, &info, 0, 6);
+	arm_notify_die("Oops - undefined instruction", regs,
+		       SIGILL, ILL_ILLOPC, pc, 0, 6);
 }
+NOKPROBE_SYMBOL(do_undefinstr)
 
 /*
  * Handle FIQ similarly to NMI on x86 systems.
@@ -505,8 +530,6 @@ asmlinkage void bad_mode(struct pt_regs *regs, int reason)
 
 static int bad_syscall(int n, struct pt_regs *regs)
 {
-	siginfo_t info;
-
 	if ((current->personality & PER_MASK) != PER_LINUX) {
 		send_sig(SIGSEGV, current, 1);
 		return regs->ARM_r0;
@@ -520,13 +543,10 @@ static int bad_syscall(int n, struct pt_regs *regs)
 	}
 #endif
 
-	info.si_signo = SIGILL;
-	info.si_errno = 0;
-	info.si_code  = ILL_ILLTRP;
-	info.si_addr  = (void __user *)instruction_pointer(regs) -
-			 (thumb_mode(regs) ? 2 : 4);
-
-	arm_notify_die("Oops - bad syscall", regs, &info, n, 0);
+	arm_notify_die("Oops - bad syscall", regs, SIGILL, ILL_ILLTRP,
+		       (void __user *)instruction_pointer(regs) -
+			 (thumb_mode(regs) ? 2 : 4),
+		       n, 0);
 
 	return regs->ARM_r0;
 }
@@ -559,7 +579,7 @@ do_cache_op(unsigned long start, unsigned long end, int flags)
 	if (end < start || flags)
 		return -EINVAL;
 
-	if (!access_ok(VERIFY_READ, start, end - start))
+	if (!access_ok(start, end - start))
 		return -EFAULT;
 
 	return __do_cache_op(start, end);
@@ -572,24 +592,18 @@ do_cache_op(unsigned long start, unsigned long end, int flags)
 #define NR(x) ((__ARM_NR_##x) - __ARM_NR_BASE)
 asmlinkage int arm_syscall(int no, struct pt_regs *regs)
 {
-	siginfo_t info;
-
 	if ((no >> 16) != (__ARM_NR_BASE>> 16))
 		return bad_syscall(no, regs);
 
 	switch (no & 0xffff) {
 	case 0: /* branch through 0 */
-		info.si_signo = SIGSEGV;
-		info.si_errno = 0;
-		info.si_code  = SEGV_MAPERR;
-		info.si_addr  = NULL;
-
-		arm_notify_die("branch through zero", regs, &info, 0, 0);
+		arm_notify_die("branch through zero", regs,
+			       SIGSEGV, SEGV_MAPERR, NULL, 0, 0);
 		return 0;
 
 	case NR(breakpoint): /* SWI BREAK_POINT */
 		regs->ARM_pc -= thumb_mode(regs) ? 2 : 4;
-		ptrace_break(current, regs);
+		ptrace_break(regs);
 		return regs->ARM_r0;
 
 	/*
@@ -625,6 +639,9 @@ asmlinkage int arm_syscall(int no, struct pt_regs *regs)
 		set_tls(regs->ARM_r0);
 		return 0;
 
+	case NR(get_tls):
+		return current_thread_info()->tp_value[0];
+
 	default:
 		/* Calls 9f00xx..9f07ff are defined to return -ENOSYS
 		   if not implemented, rather than raising SIGILL.  This
@@ -649,13 +666,10 @@ asmlinkage int arm_syscall(int no, struct pt_regs *regs)
 		}
 	}
 #endif
-	info.si_signo = SIGILL;
-	info.si_errno = 0;
-	info.si_code  = ILL_ILLTRP;
-	info.si_addr  = (void __user *)instruction_pointer(regs) -
-			 (thumb_mode(regs) ? 2 : 4);
-
-	arm_notify_die("Oops - bad syscall(2)", regs, &info, no, 0);
+	arm_notify_die("Oops - bad syscall(2)", regs, SIGILL, ILL_ILLTRP,
+		       (void __user *)instruction_pointer(regs) -
+			 (thumb_mode(regs) ? 2 : 4),
+		       no, 0);
 	return 0;
 }
 
@@ -705,23 +719,19 @@ asmlinkage void
 baddataabort(int code, unsigned long instr, struct pt_regs *regs)
 {
 	unsigned long addr = instruction_pointer(regs);
-	siginfo_t info;
 
 #ifdef CONFIG_DEBUG_USER
 	if (user_debug & UDBG_BADABORT) {
+		pr_err("8<--- cut here ---\n");
 		pr_err("[%d] %s: bad data abort: code %d instr 0x%08lx\n",
 		       task_pid_nr(current), current->comm, code, instr);
 		dump_instr(KERN_ERR, regs);
-		show_pte(current->mm, addr);
+		show_pte(KERN_ERR, current->mm, addr);
 	}
 #endif
 
-	info.si_signo = SIGILL;
-	info.si_errno = 0;
-	info.si_code  = ILL_ILLOPC;
-	info.si_addr  = (void __user *)addr;
-
-	arm_notify_die("unknown data abort code", regs, &info, instr, 0);
+	arm_notify_die("unknown data abort code", regs,
+		       SIGILL, ILL_ILLOPC, (void __user *)addr, instr, 0);
 }
 
 void __readwrite_bug(const char *fn)
@@ -760,7 +770,6 @@ void abort(void)
 	/* if that doesn't kill us, halt */
 	panic("Oops failed to kill thread");
 }
-EXPORT_SYMBOL(abort);
 
 void __init trap_init(void)
 {

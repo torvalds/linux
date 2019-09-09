@@ -153,8 +153,9 @@ static int spear_cpufreq_target(struct cpufreq_policy *policy,
 static int spear_cpufreq_init(struct cpufreq_policy *policy)
 {
 	policy->clk = spear_cpufreq.clk;
-	return cpufreq_generic_init(policy, spear_cpufreq.freq_tbl,
+	cpufreq_generic_init(policy, spear_cpufreq.freq_tbl,
 			spear_cpufreq.transition_latency);
+	return 0;
 }
 
 static struct cpufreq_driver spear_cpufreq_driver = {
@@ -177,7 +178,7 @@ static int spear_cpufreq_probe(struct platform_device *pdev)
 
 	np = of_cpu_device_node_get(0);
 	if (!np) {
-		pr_err("No cpu node found");
+		pr_err("No cpu node found\n");
 		return -ENODEV;
 	}
 
@@ -187,7 +188,7 @@ static int spear_cpufreq_probe(struct platform_device *pdev)
 
 	prop = of_find_property(np, "cpufreq_tbl", NULL);
 	if (!prop || !prop->value) {
-		pr_err("Invalid cpufreq_tbl");
+		pr_err("Invalid cpufreq_tbl\n");
 		ret = -ENODEV;
 		goto out_put_node;
 	}
@@ -195,7 +196,7 @@ static int spear_cpufreq_probe(struct platform_device *pdev)
 	cnt = prop->length / sizeof(u32);
 	val = prop->value;
 
-	freq_tbl = kzalloc(sizeof(*freq_tbl) * (cnt + 1), GFP_KERNEL);
+	freq_tbl = kcalloc(cnt + 1, sizeof(*freq_tbl), GFP_KERNEL);
 	if (!freq_tbl) {
 		ret = -ENOMEM;
 		goto out_put_node;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
@@ -5,12 +6,6 @@
 #include <net/net_namespace.h>
 #include <linux/if_arp.h>
 #include <net/rtnetlink.h>
-
-struct pcpu_lstats {
-	u64 packets;
-	u64 bytes;
-	struct u64_stats_sync syncp;
-};
 
 static netdev_tx_t nlmon_xmit(struct sk_buff *skb, struct net_device *dev)
 {
@@ -25,24 +20,6 @@ static netdev_tx_t nlmon_xmit(struct sk_buff *skb, struct net_device *dev)
 	dev_kfree_skb(skb);
 
 	return NETDEV_TX_OK;
-}
-
-static int nlmon_is_valid_mtu(int new_mtu)
-{
-	/* Note that in netlink we do not really have an upper limit. On
-	 * default, we use NLMSG_GOODSIZE. Here at least we should make
-	 * sure that it's at least the header size.
-	 */
-	return new_mtu >= (int) sizeof(struct nlmsghdr);
-}
-
-static int nlmon_change_mtu(struct net_device *dev, int new_mtu)
-{
-	if (!nlmon_is_valid_mtu(new_mtu))
-		return -EINVAL;
-
-	dev->mtu = new_mtu;
-	return 0;
 }
 
 static int nlmon_dev_init(struct net_device *dev)
@@ -76,7 +53,7 @@ static int nlmon_close(struct net_device *dev)
 	return netlink_remove_tap(&nlmon->nt);
 }
 
-static struct rtnl_link_stats64 *
+static void
 nlmon_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 {
 	int i;
@@ -104,8 +81,6 @@ nlmon_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 
 	stats->rx_bytes = bytes;
 	stats->tx_bytes = 0;
-
-	return stats;
 }
 
 static u32 always_on(struct net_device *dev)
@@ -124,7 +99,6 @@ static const struct net_device_ops nlmon_ops = {
 	.ndo_stop = nlmon_close,
 	.ndo_start_xmit = nlmon_xmit,
 	.ndo_get_stats64 = nlmon_get_stats64,
-	.ndo_change_mtu = nlmon_change_mtu,
 };
 
 static void nlmon_setup(struct net_device *dev)
@@ -134,7 +108,7 @@ static void nlmon_setup(struct net_device *dev)
 
 	dev->netdev_ops	= &nlmon_ops;
 	dev->ethtool_ops = &nlmon_ethtool_ops;
-	dev->destructor	= free_netdev;
+	dev->needs_free_netdev = true;
 
 	dev->features = NETIF_F_SG | NETIF_F_FRAGLIST |
 			NETIF_F_HIGHDMA | NETIF_F_LLTX;
@@ -145,9 +119,11 @@ static void nlmon_setup(struct net_device *dev)
 	 * expected in most cases.
 	 */
 	dev->mtu = NLMSG_GOODSIZE;
+	dev->min_mtu = sizeof(struct nlmsghdr);
 }
 
-static int nlmon_validate(struct nlattr *tb[], struct nlattr *data[])
+static int nlmon_validate(struct nlattr *tb[], struct nlattr *data[],
+			  struct netlink_ext_ack *extack)
 {
 	if (tb[IFLA_ADDRESS])
 		return -EINVAL;

@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  linux/drivers/acorn/net/ether3.h
  *
  *  Copyright (C) 1995-2000 Russell King
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  *  network driver for Acorn/ANT Ether3 cards
  */
@@ -165,6 +162,7 @@ struct dev_priv {
     unsigned char tx_tail;		/* buffer nr of transmitting packet	 */
     unsigned int rx_head;		/* address to fetch next packet from	 */
     struct timer_list timer;
+    struct net_device *dev;
     int broken;				/* 0 = ok, 1 = something went wrong	 */
 };
 

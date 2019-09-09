@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Greybus audio driver
  * Copyright 2015-2016 Google Inc.
  * Copyright 2015-2016 Linaro Ltd.
- *
- * Released under the GPLv2 only.
  */
 
 #include "audio_codec.h"
@@ -114,6 +113,7 @@ static int gbaudio_map_widgetname(struct gbaudio_module_info *module,
 				  const char *name)
 {
 	struct gbaudio_widget *widget;
+
 	list_for_each_entry(widget, &module->widget_list, list) {
 		if (!strncmp(widget->name, name, NAME_SIZE))
 			return widget->id;
@@ -140,13 +140,14 @@ static const char **gb_generate_enum_strings(struct gbaudio_module_info *gb,
 {
 	const char **strings;
 	int i;
+	unsigned int items;
 	__u8 *data;
 
-	strings = devm_kzalloc(gb->dev, sizeof(char *) * gbenum->items,
-			       GFP_KERNEL);
+	items = le32_to_cpu(gbenum->items);
+	strings = devm_kcalloc(gb->dev, items, sizeof(char *), GFP_KERNEL);
 	data = gbenum->names;
 
-	for (i = 0; i < gbenum->items; i++) {
+	for (i = 0; i < items; i++) {
 		strings[i] = (const char *)data;
 		while (*data != '\0')
 			data++;
@@ -157,7 +158,7 @@ static const char **gb_generate_enum_strings(struct gbaudio_module_info *gb,
 }
 
 static int gbcodec_mixer_ctl_info(struct snd_kcontrol *kcontrol,
-		     struct snd_ctl_elem_info *uinfo)
+				  struct snd_ctl_elem_info *uinfo)
 {
 	unsigned int max;
 	const char *name;
@@ -184,11 +185,11 @@ static int gbcodec_mixer_ctl_info(struct snd_kcontrol *kcontrol,
 	switch (info->type) {
 	case GB_AUDIO_CTL_ELEM_TYPE_BOOLEAN:
 	case GB_AUDIO_CTL_ELEM_TYPE_INTEGER:
-		uinfo->value.integer.min = info->value.integer.min;
-		uinfo->value.integer.max = info->value.integer.max;
+		uinfo->value.integer.min = le32_to_cpu(info->value.integer.min);
+		uinfo->value.integer.max = le32_to_cpu(info->value.integer.max);
 		break;
 	case GB_AUDIO_CTL_ELEM_TYPE_ENUMERATED:
-		max = info->value.enumerated.items;
+		max = le32_to_cpu(info->value.enumerated.items);
 		uinfo->value.enumerated.items = max;
 		if (uinfo->value.enumerated.item > max - 1)
 			uinfo->value.enumerated.item = max - 1;
@@ -208,7 +209,7 @@ static int gbcodec_mixer_ctl_info(struct snd_kcontrol *kcontrol,
 }
 
 static int gbcodec_mixer_ctl_get(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol)
+				 struct snd_ctl_elem_value *ucontrol)
 {
 	int ret;
 	struct gb_audio_ctl_elem_info *info;
@@ -248,17 +249,17 @@ static int gbcodec_mixer_ctl_get(struct snd_kcontrol *kcontrol,
 	case GB_AUDIO_CTL_ELEM_TYPE_BOOLEAN:
 	case GB_AUDIO_CTL_ELEM_TYPE_INTEGER:
 		ucontrol->value.integer.value[0] =
-			gbvalue.value.integer_value[0];
+			le32_to_cpu(gbvalue.value.integer_value[0]);
 		if (data->vcount == 2)
 			ucontrol->value.integer.value[1] =
-				gbvalue.value.integer_value[1];
+				le32_to_cpu(gbvalue.value.integer_value[1]);
 		break;
 	case GB_AUDIO_CTL_ELEM_TYPE_ENUMERATED:
 		ucontrol->value.enumerated.item[0] =
-			gbvalue.value.enumerated_item[0];
+			le32_to_cpu(gbvalue.value.enumerated_item[0]);
 		if (data->vcount == 2)
 			ucontrol->value.enumerated.item[1] =
-				gbvalue.value.enumerated_item[1];
+				le32_to_cpu(gbvalue.value.enumerated_item[1]);
 		break;
 	default:
 		dev_err(codec->dev, "Invalid type: %d for %s:kcontrol\n",
@@ -270,7 +271,7 @@ static int gbcodec_mixer_ctl_get(struct snd_kcontrol *kcontrol,
 }
 
 static int gbcodec_mixer_ctl_put(struct snd_kcontrol *kcontrol,
-			      struct snd_ctl_elem_value *ucontrol)
+				 struct snd_ctl_elem_value *ucontrol)
 {
 	int ret = 0;
 	struct gb_audio_ctl_elem_info *info;
@@ -295,17 +296,17 @@ static int gbcodec_mixer_ctl_put(struct snd_kcontrol *kcontrol,
 	case GB_AUDIO_CTL_ELEM_TYPE_BOOLEAN:
 	case GB_AUDIO_CTL_ELEM_TYPE_INTEGER:
 		gbvalue.value.integer_value[0] =
-			ucontrol->value.integer.value[0];
+			cpu_to_le32(ucontrol->value.integer.value[0]);
 		if (data->vcount == 2)
 			gbvalue.value.integer_value[1] =
-				ucontrol->value.integer.value[1];
+				cpu_to_le32(ucontrol->value.integer.value[1]);
 		break;
 	case GB_AUDIO_CTL_ELEM_TYPE_ENUMERATED:
 		gbvalue.value.enumerated_item[0] =
-			ucontrol->value.enumerated.item[0];
+			cpu_to_le32(ucontrol->value.enumerated.item[0]);
 		if (data->vcount == 2)
 			gbvalue.value.enumerated_item[1] =
-				ucontrol->value.enumerated.item[1];
+				cpu_to_le32(ucontrol->value.enumerated.item[1]);
 		break;
 	default:
 		dev_err(codec->dev, "Invalid type: %d for %s:kcontrol\n",
@@ -346,7 +347,7 @@ static int gbcodec_mixer_ctl_put(struct snd_kcontrol *kcontrol,
  * of DAPM related sequencing, etc.
  */
 static int gbcodec_mixer_dapm_ctl_info(struct snd_kcontrol *kcontrol,
-		     struct snd_ctl_elem_info *uinfo)
+				       struct snd_ctl_elem_info *uinfo)
 {
 	int platform_max, platform_min;
 	struct gbaudio_ctl_pvt *data;
@@ -360,8 +361,8 @@ static int gbcodec_mixer_dapm_ctl_info(struct snd_kcontrol *kcontrol,
 	info = (struct gb_audio_ctl_elem_info *)data->info;
 
 	/* update uinfo */
-	platform_max = info->value.integer.max;
-	platform_min = info->value.integer.min;
+	platform_max = le32_to_cpu(info->value.integer.max);
+	platform_min = le32_to_cpu(info->value.integer.min);
 
 	if (platform_max == 1 &&
 	    !strnstr(kcontrol->id.name, " Volume", NAME_SIZE))
@@ -370,18 +371,14 @@ static int gbcodec_mixer_dapm_ctl_info(struct snd_kcontrol *kcontrol,
 		uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 
 	uinfo->count = data->vcount;
-	uinfo->value.integer.min = 0;
-	if (info->value.integer.min < 0 &&
-	    (uinfo->type == SNDRV_CTL_ELEM_TYPE_INTEGER))
-		uinfo->value.integer.max = platform_max - platform_min;
-	else
-		uinfo->value.integer.max = platform_max;
+	uinfo->value.integer.min = platform_min;
+	uinfo->value.integer.max = platform_max;
 
 	return 0;
 }
 
 static int gbcodec_mixer_dapm_ctl_get(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol)
+				      struct snd_ctl_elem_value *ucontrol)
 {
 	int ret;
 	struct gb_audio_ctl_elem_info *info;
@@ -423,13 +420,14 @@ static int gbcodec_mixer_dapm_ctl_get(struct snd_kcontrol *kcontrol,
 		return ret;
 	}
 	/* update ucontrol */
-	ucontrol->value.integer.value[0] = gbvalue.value.integer_value[0];
+	ucontrol->value.integer.value[0] =
+		le32_to_cpu(gbvalue.value.integer_value[0]);
 
 	return ret;
 }
 
 static int gbcodec_mixer_dapm_ctl_put(struct snd_kcontrol *kcontrol,
-			      struct snd_ctl_elem_value *ucontrol)
+				      struct snd_ctl_elem_value *ucontrol)
 {
 	int ret, wi, max, connect;
 	unsigned int mask, val;
@@ -457,7 +455,7 @@ static int gbcodec_mixer_dapm_ctl_put(struct snd_kcontrol *kcontrol,
 			 "GB: Control '%s' is stereo, which is not supported\n",
 			 kcontrol->id.name);
 
-	max = info->value.integer.max;
+	max = le32_to_cpu(info->value.integer.max);
 	mask = (1 << fls(max)) - 1;
 	val = ucontrol->value.integer.value[0] & mask;
 	connect = !!val;
@@ -473,7 +471,7 @@ static int gbcodec_mixer_dapm_ctl_put(struct snd_kcontrol *kcontrol,
 							connect);
 		}
 		gbvalue.value.integer_value[0] =
-			ucontrol->value.integer.value[0];
+			cpu_to_le32(ucontrol->value.integer.value[0]);
 
 		ret = gb_pm_runtime_get_sync(bundle);
 		if (ret)
@@ -503,7 +501,7 @@ static int gbcodec_mixer_dapm_ctl_put(struct snd_kcontrol *kcontrol,
 	.private_value = (unsigned long)data}
 
 static int gbcodec_event_spk(struct snd_soc_dapm_widget *w,
-					struct snd_kcontrol *k, int event)
+			     struct snd_kcontrol *k, int event)
 {
 	/* Ensure GB speaker is connected */
 
@@ -511,7 +509,7 @@ static int gbcodec_event_spk(struct snd_soc_dapm_widget *w,
 }
 
 static int gbcodec_event_hp(struct snd_soc_dapm_widget *w,
-					struct snd_kcontrol *k, int event)
+			    struct snd_kcontrol *k, int event)
 {
 	/* Ensure GB module supports jack slot */
 
@@ -519,7 +517,7 @@ static int gbcodec_event_hp(struct snd_soc_dapm_widget *w,
 }
 
 static int gbcodec_event_int_mic(struct snd_soc_dapm_widget *w,
-					struct snd_kcontrol *k, int event)
+				 struct snd_kcontrol *k, int event)
 {
 	/* Ensure GB module supports jack slot */
 
@@ -587,10 +585,11 @@ static int gbcodec_enum_ctl_get(struct snd_kcontrol *kcontrol,
 		return ret;
 	}
 
-	ucontrol->value.enumerated.item[0] = gbvalue.value.enumerated_item[0];
+	ucontrol->value.enumerated.item[0] =
+		le32_to_cpu(gbvalue.value.enumerated_item[0]);
 	if (e->shift_l != e->shift_r)
 		ucontrol->value.enumerated.item[1] =
-			gbvalue.value.enumerated_item[1];
+			le32_to_cpu(gbvalue.value.enumerated_item[1]);
 
 	return 0;
 }
@@ -616,13 +615,14 @@ static int gbcodec_enum_ctl_put(struct snd_kcontrol *kcontrol,
 
 	if (ucontrol->value.enumerated.item[0] > e->max - 1)
 		return -EINVAL;
-	gbvalue.value.enumerated_item[0] = ucontrol->value.enumerated.item[0];
+	gbvalue.value.enumerated_item[0] =
+		cpu_to_le32(ucontrol->value.enumerated.item[0]);
 
 	if (e->shift_l != e->shift_r) {
 		if (ucontrol->value.enumerated.item[1] > e->max - 1)
 			return -EINVAL;
 		gbvalue.value.enumerated_item[1] =
-			ucontrol->value.enumerated.item[1];
+			cpu_to_le32(ucontrol->value.enumerated.item[1]);
 	}
 
 	bundle = to_gb_bundle(module->dev);
@@ -659,13 +659,13 @@ static int gbaudio_tplg_create_enum_kctl(struct gbaudio_module_info *gb,
 	gb_enum = &ctl->info.value.enumerated;
 
 	/* since count=1, and reg is dummy */
-	gbe->max = gb_enum->items;
+	gbe->max = le32_to_cpu(gb_enum->items);
 	gbe->texts = gb_generate_enum_strings(gb, gb_enum);
 
 	/* debug enum info */
-	dev_dbg(gb->dev, "Max:%d, name_length:%d\n", gb_enum->items,
-		 gb_enum->names_length);
-	for (i = 0; i < gb_enum->items; i++)
+	dev_dbg(gb->dev, "Max:%d, name_length:%d\n", gbe->max,
+		le16_to_cpu(gb_enum->names_length));
+	for (i = 0; i < gbe->max; i++)
 		dev_dbg(gb->dev, "src[%d]: %s\n", i, gbe->texts[i]);
 
 	*kctl = (struct snd_kcontrol_new)
@@ -694,7 +694,7 @@ static int gbaudio_tplg_create_kcontrol(struct gbaudio_module_info *gb,
 			if (!ctldata)
 				return -ENOMEM;
 			ctldata->ctl_id = ctl->id;
-			ctldata->data_cport = ctl->data_cport;
+			ctldata->data_cport = le16_to_cpu(ctl->data_cport);
 			ctldata->access = ctl->access;
 			ctldata->vcount = ctl->count_values;
 			ctldata->info = &ctl->info;
@@ -868,13 +868,13 @@ static int gbaudio_tplg_create_enum_ctl(struct gbaudio_module_info *gb,
 	gb_enum = &ctl->info.value.enumerated;
 
 	/* since count=1, and reg is dummy */
-	gbe->max = gb_enum->items;
+	gbe->max = le32_to_cpu(gb_enum->items);
 	gbe->texts = gb_generate_enum_strings(gb, gb_enum);
 
 	/* debug enum info */
-	dev_dbg(gb->dev, "Max:%d, name_length:%d\n", gb_enum->items,
-		 gb_enum->names_length);
-	for (i = 0; i < gb_enum->items; i++)
+	dev_dbg(gb->dev, "Max:%d, name_length:%d\n", gbe->max,
+		le16_to_cpu(gb_enum->names_length));
+	for (i = 0; i < gbe->max; i++)
 		dev_dbg(gb->dev, "src[%d]: %s\n", i, gbe->texts[i]);
 
 	*kctl = (struct snd_kcontrol_new)
@@ -884,8 +884,8 @@ static int gbaudio_tplg_create_enum_ctl(struct gbaudio_module_info *gb,
 }
 
 static int gbaudio_tplg_create_mixer_ctl(struct gbaudio_module_info *gb,
-					     struct snd_kcontrol_new *kctl,
-					     struct gb_audio_control *ctl)
+					 struct snd_kcontrol_new *kctl,
+					 struct gb_audio_control *ctl)
 {
 	struct gbaudio_ctl_pvt *ctldata;
 
@@ -894,7 +894,7 @@ static int gbaudio_tplg_create_mixer_ctl(struct gbaudio_module_info *gb,
 	if (!ctldata)
 		return -ENOMEM;
 	ctldata->ctl_id = ctl->id;
-	ctldata->data_cport = ctl->data_cport;
+	ctldata->data_cport = le16_to_cpu(ctl->data_cport);
 	ctldata->access = ctl->access;
 	ctldata->vcount = ctl->count_values;
 	ctldata->info = &ctl->info;
@@ -905,8 +905,8 @@ static int gbaudio_tplg_create_mixer_ctl(struct gbaudio_module_info *gb,
 }
 
 static int gbaudio_tplg_create_wcontrol(struct gbaudio_module_info *gb,
-					     struct snd_kcontrol_new *kctl,
-					     struct gb_audio_control *ctl)
+					struct snd_kcontrol_new *kctl,
+					struct gb_audio_control *ctl)
 {
 	int ret;
 
@@ -923,7 +923,6 @@ static int gbaudio_tplg_create_wcontrol(struct gbaudio_module_info *gb,
 		break;
 	default:
 		return -EINVAL;
-
 	}
 
 	dev_dbg(gb->dev, "%s:%d DAPM control created, ret:%d\n", ctl->name,
@@ -996,7 +995,7 @@ static int gbaudio_tplg_create_widget(struct gbaudio_module_info *module,
 
 	ret = gbaudio_validate_kcontrol_count(w);
 	if (ret) {
-		dev_err(module->dev, "Inavlid kcontrol count=%d for %s\n",
+		dev_err(module->dev, "Invalid kcontrol count=%d for %s\n",
 			w->ncontrols, w->name);
 		return ret;
 	}
@@ -1040,12 +1039,14 @@ static int gbaudio_tplg_create_widget(struct gbaudio_module_info *module,
 			csize = offsetof(struct gb_audio_control, info);
 			csize += offsetof(struct gb_audio_ctl_elem_info, value);
 			csize += offsetof(struct gb_audio_enumerated, names);
-			csize += gbenum->names_length;
+			csize += le16_to_cpu(gbenum->names_length);
 			control->texts = (const char * const *)
 				gb_generate_enum_strings(module, gbenum);
-			control->items = gbenum->items;
-		} else
+			control->items = le32_to_cpu(gbenum->items);
+		} else {
 			csize = sizeof(struct gb_audio_control);
+		}
+
 		*w_size += csize;
 		curr = (void *)curr + csize;
 		list_add(&control->list, &module->widget_ctl_list);
@@ -1084,9 +1085,10 @@ static int gbaudio_tplg_create_widget(struct gbaudio_module_info *module,
 	case snd_soc_dapm_switch:
 		*dw = (struct snd_soc_dapm_widget)
 			SND_SOC_DAPM_SWITCH_E(w->name, SND_SOC_NOPM, 0, 0,
-					    widget_kctls, gbaudio_widget_event,
-					    SND_SOC_DAPM_PRE_PMU |
-					    SND_SOC_DAPM_POST_PMD);
+					      widget_kctls,
+					      gbaudio_widget_event,
+					      SND_SOC_DAPM_PRE_PMU |
+					      SND_SOC_DAPM_POST_PMD);
 		break;
 	case snd_soc_dapm_pga:
 		*dw = (struct snd_soc_dapm_widget)
@@ -1098,16 +1100,16 @@ static int gbaudio_tplg_create_widget(struct gbaudio_module_info *module,
 	case snd_soc_dapm_mixer:
 		*dw = (struct snd_soc_dapm_widget)
 			SND_SOC_DAPM_MIXER_E(w->name, SND_SOC_NOPM, 0, 0, NULL,
-					   0, gbaudio_widget_event,
-					   SND_SOC_DAPM_PRE_PMU |
-					   SND_SOC_DAPM_POST_PMD);
+					     0, gbaudio_widget_event,
+					     SND_SOC_DAPM_PRE_PMU |
+					     SND_SOC_DAPM_POST_PMD);
 		break;
 	case snd_soc_dapm_mux:
 		*dw = (struct snd_soc_dapm_widget)
 			SND_SOC_DAPM_MUX_E(w->name, SND_SOC_NOPM, 0, 0,
-					 widget_kctls, gbaudio_widget_event,
-					 SND_SOC_DAPM_PRE_PMU |
-					 SND_SOC_DAPM_POST_PMD);
+					   widget_kctls, gbaudio_widget_event,
+					   SND_SOC_DAPM_PRE_PMU |
+					   SND_SOC_DAPM_POST_PMD);
 		break;
 	case snd_soc_dapm_aif_in:
 		*dw = (struct snd_soc_dapm_widget)
@@ -1143,7 +1145,7 @@ error:
 }
 
 static int gbaudio_tplg_process_kcontrols(struct gbaudio_module_info *module,
-				   struct gb_audio_control *controls)
+					  struct gb_audio_control *controls)
 {
 	int i, csize, ret;
 	struct snd_kcontrol_new *dapm_kctls;
@@ -1186,12 +1188,13 @@ static int gbaudio_tplg_process_kcontrols(struct gbaudio_module_info *module,
 			csize = offsetof(struct gb_audio_control, info);
 			csize += offsetof(struct gb_audio_ctl_elem_info, value);
 			csize += offsetof(struct gb_audio_enumerated, names);
-			csize += gbenum->names_length;
+			csize += le16_to_cpu(gbenum->names_length);
 			control->texts = (const char * const *)
 				gb_generate_enum_strings(module, gbenum);
-			control->items = gbenum->items;
-		} else
+			control->items = le32_to_cpu(gbenum->items);
+		} else {
 			csize = sizeof(struct gb_audio_control);
+		}
 
 		list_add(&control->list, &module->ctl_list);
 		dev_dbg(module->dev, "%d:%s created of type %d\n", curr->id,
@@ -1212,7 +1215,7 @@ error:
 }
 
 static int gbaudio_tplg_process_widgets(struct gbaudio_module_info *module,
-				   struct gb_audio_widget *widgets)
+					struct gb_audio_widget *widgets)
 {
 	int i, ret, w_size;
 	struct snd_soc_dapm_widget *dapm_widgets;
@@ -1261,7 +1264,7 @@ error:
 }
 
 static int gbaudio_tplg_process_routes(struct gbaudio_module_info *module,
-				   struct gb_audio_route *routes)
+				       struct gb_audio_route *routes)
 {
 	int i, ret;
 	struct snd_soc_dapm_route *dapm_routes;
@@ -1297,8 +1300,8 @@ static int gbaudio_tplg_process_routes(struct gbaudio_module_info *module,
 		}
 		dapm_routes->control =
 			gbaudio_map_controlid(module,
-						      curr->control_id,
-						      curr->index);
+					      curr->control_id,
+					      curr->index);
 		if ((curr->control_id !=  GBAUDIO_INVALID_ID) &&
 		    !dapm_routes->control) {
 			dev_err(module->dev, "%d:%d:%d:%d - Invalid control\n",
@@ -1308,7 +1311,7 @@ static int gbaudio_tplg_process_routes(struct gbaudio_module_info *module,
 			goto error;
 		}
 		dev_dbg(module->dev, "Route {%s, %s, %s}\n", dapm_routes->sink,
-			(dapm_routes->control) ? dapm_routes->control:"NULL",
+			(dapm_routes->control) ? dapm_routes->control : "NULL",
 			dapm_routes->source);
 		dapm_routes++;
 		curr++;
@@ -1322,7 +1325,7 @@ error:
 }
 
 static int gbaudio_tplg_process_header(struct gbaudio_module_info *module,
-				 struct gb_audio_topology *tplg_data)
+				       struct gb_audio_topology *tplg_data)
 {
 	/* fetch no. of kcontrols, widgets & routes */
 	module->num_controls = tplg_data->num_controls;
@@ -1331,11 +1334,12 @@ static int gbaudio_tplg_process_header(struct gbaudio_module_info *module,
 
 	/* update block offset */
 	module->dai_offset = (unsigned long)&tplg_data->data;
-	module->control_offset = module->dai_offset + tplg_data->size_dais;
+	module->control_offset = module->dai_offset +
+					le32_to_cpu(tplg_data->size_dais);
 	module->widget_offset = module->control_offset +
-		tplg_data->size_controls;
+					le32_to_cpu(tplg_data->size_controls);
 	module->route_offset = module->widget_offset +
-		tplg_data->size_widgets;
+					le32_to_cpu(tplg_data->size_widgets);
 
 	dev_dbg(module->dev, "DAI offset is 0x%lx\n", module->dai_offset);
 	dev_dbg(module->dev, "control offset is %lx\n",
@@ -1347,12 +1351,13 @@ static int gbaudio_tplg_process_header(struct gbaudio_module_info *module,
 }
 
 int gbaudio_tplg_parse_data(struct gbaudio_module_info *module,
-			       struct gb_audio_topology *tplg_data)
+			    struct gb_audio_topology *tplg_data)
 {
 	int ret;
 	struct gb_audio_control *controls;
 	struct gb_audio_widget *widgets;
 	struct gb_audio_route *routes;
+	unsigned int jack_type;
 
 	if (!tplg_data)
 		return -EINVAL;
@@ -1395,10 +1400,10 @@ int gbaudio_tplg_parse_data(struct gbaudio_module_info *module,
 	dev_dbg(module->dev, "Route parsing finished\n");
 
 	/* parse jack capabilities */
-	if (tplg_data->jack_type) {
-		module->jack_mask = tplg_data->jack_type & GBCODEC_JACK_MASK;
-		module->button_mask = tplg_data->jack_type &
-			GBCODEC_JACK_BUTTON_MASK;
+	jack_type = le32_to_cpu(tplg_data->jack_type);
+	if (jack_type) {
+		module->jack_mask = jack_type & GBCODEC_JACK_MASK;
+		module->button_mask = jack_type & GBCODEC_JACK_BUTTON_MASK;
 	}
 
 	return ret;

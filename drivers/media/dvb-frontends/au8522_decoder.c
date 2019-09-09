@@ -1,28 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Auvitek AU8522 QAM/8VSB demodulator driver and video decoder
  *
  * Copyright (C) 2009 Devin Heitmueller <dheitmueller@linuxtv.org>
  * Copyright (C) 2005-2008 Auvitek International, Ltd.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * As published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
  */
 
 /* Developer notes:
  *
- * VBI support is not yet working
  * Enough is implemented here for CVBS and S-Video inputs, but the actual
  *  analog demodulator code isn't implemented (not needed for xc5000 since it
  *  has its own demodulator and outputs CVBS)
@@ -184,42 +169,6 @@ static inline struct au8522_state *to_state(struct v4l2_subdev *sd)
 	return container_of(sd, struct au8522_state, sd);
 }
 
-static void setup_vbi(struct au8522_state *state, int aud_input)
-{
-	int i;
-
-	/* These are set to zero regardless of what mode we're in */
-	au8522_writereg(state, AU8522_TVDEC_VBI_CTRL_H_REG017H, 0x00);
-	au8522_writereg(state, AU8522_TVDEC_VBI_CTRL_L_REG018H, 0x00);
-	au8522_writereg(state, AU8522_TVDEC_VBI_USER_TOTAL_BITS_REG019H, 0x00);
-	au8522_writereg(state, AU8522_TVDEC_VBI_USER_TUNIT_H_REG01AH, 0x00);
-	au8522_writereg(state, AU8522_TVDEC_VBI_USER_TUNIT_L_REG01BH, 0x00);
-	au8522_writereg(state, AU8522_TVDEC_VBI_USER_THRESH1_REG01CH, 0x00);
-	au8522_writereg(state, AU8522_TVDEC_VBI_USER_FRAME_PAT2_REG01EH, 0x00);
-	au8522_writereg(state, AU8522_TVDEC_VBI_USER_FRAME_PAT1_REG01FH, 0x00);
-	au8522_writereg(state, AU8522_TVDEC_VBI_USER_FRAME_PAT0_REG020H, 0x00);
-	au8522_writereg(state, AU8522_TVDEC_VBI_USER_FRAME_MASK2_REG021H,
-			0x00);
-	au8522_writereg(state, AU8522_TVDEC_VBI_USER_FRAME_MASK1_REG022H,
-			0x00);
-	au8522_writereg(state, AU8522_TVDEC_VBI_USER_FRAME_MASK0_REG023H,
-			0x00);
-
-	/* Setup the VBI registers */
-	for (i = 0x30; i < 0x60; i++)
-		au8522_writereg(state, i, 0x40);
-
-	/* For some reason, every register is 0x40 except register 0x44
-	   (confirmed via the HVR-950q USB capture) */
-	au8522_writereg(state, 0x44, 0x60);
-
-	/* Enable VBI (we always do this regardless of whether the user is
-	   viewing closed caption info) */
-	au8522_writereg(state, AU8522_TVDEC_VBI_CTRL_H_REG017H,
-			AU8522_TVDEC_VBI_CTRL_H_REG017H_CCON);
-
-}
-
 static void setup_decoder_defaults(struct au8522_state *state, bool is_svideo)
 {
 	int i;
@@ -322,16 +271,12 @@ static void setup_decoder_defaults(struct au8522_state *state, bool is_svideo)
 			AU8522_TOREGAAGC_REG0E5H_CVBS);
 	au8522_writereg(state, AU8522_REG016H, AU8522_REG016H_CVBS);
 
-	setup_vbi(state, 0);
-
-	if (is_svideo) {
-		/* Despite what the table says, for the HVR-950q we still need
-		   to be in CVBS mode for the S-Video input (reason unknown). */
-		/* filter_coef_type = 3; */
-		filter_coef_type = 5;
-	} else {
-		filter_coef_type = 5;
-	}
+	/*
+	 * Despite what the table says, for the HVR-950q we still need
+	 * to be in CVBS mode for the S-Video input (reason unknown).
+	 */
+	/* filter_coef_type = 3; */
+	filter_coef_type = 5;
 
 	/* Load the Video Decoder Filter Coefficients */
 	for (i = 0; i < NUM_FILTER_COEF; i++) {
@@ -461,30 +406,29 @@ static void set_audio_input(struct au8522_state *state)
 				lpfilter_coef[i].reg_val[0]);
 	}
 
-	/* Setup audio */
-	au8522_writereg(state, AU8522_AUDIO_VOLUME_L_REG0F2H, 0x00);
-	au8522_writereg(state, AU8522_AUDIO_VOLUME_R_REG0F3H, 0x00);
-	au8522_writereg(state, AU8522_AUDIO_VOLUME_REG0F4H, 0x00);
-	au8522_writereg(state, AU8522_I2C_CONTROL_REG1_REG091H, 0x80);
-	au8522_writereg(state, AU8522_I2C_CONTROL_REG0_REG090H, 0x84);
-	msleep(150);
-	au8522_writereg(state, AU8522_SYSTEM_MODULE_CONTROL_0_REG0A4H, 0x00);
-	msleep(10);
-	au8522_writereg(state, AU8522_SYSTEM_MODULE_CONTROL_0_REG0A4H,
-			AU8522_SYSTEM_MODULE_CONTROL_0_REG0A4H_CVBS);
-	msleep(50);
+	/* Set the volume */
 	au8522_writereg(state, AU8522_AUDIO_VOLUME_L_REG0F2H, 0x7F);
 	au8522_writereg(state, AU8522_AUDIO_VOLUME_R_REG0F3H, 0x7F);
 	au8522_writereg(state, AU8522_AUDIO_VOLUME_REG0F4H, 0xff);
-	msleep(80);
-	au8522_writereg(state, AU8522_AUDIO_VOLUME_L_REG0F2H, 0x7F);
-	au8522_writereg(state, AU8522_AUDIO_VOLUME_R_REG0F3H, 0x7F);
+
+	/* Not sure what this does */
 	au8522_writereg(state, AU8522_REG0F9H, AU8522_REG0F9H_AUDIO);
+
+	/* Setup the audio mode to stereo DBX */
 	au8522_writereg(state, AU8522_AUDIO_MODE_REG0F1H, 0x82);
 	msleep(70);
-	au8522_writereg(state, AU8522_SYSTEM_MODULE_CONTROL_1_REG0A5H, 0x09);
+
+	/* Start the audio processing module */
+	au8522_writereg(state, AU8522_SYSTEM_MODULE_CONTROL_0_REG0A4H, 0x9d);
+
+	/* Set the audio frequency to 48 KHz */
 	au8522_writereg(state, AU8522_AUDIOFREQ_REG606H, 0x03);
+
+	/* Set the I2S parameters (WS, LSB, mode, sample rate */
 	au8522_writereg(state, AU8522_I2S_CTRL_2_REG112H, 0xc2);
+
+	/* Enable the I2S output */
+	au8522_writereg(state, AU8522_SYSTEM_MODULE_CONTROL_1_REG0A5H, 0x09);
 }
 
 /* ----------------------------------------------------------------------- */
@@ -668,10 +612,12 @@ static int au8522_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 	int val = 0;
 	struct au8522_state *state = to_state(sd);
 	u8 lock_status;
+	u8 pll_status;
 
 	/* Interrogate the decoder to see if we are getting a real signal */
 	lock_status = au8522_readreg(state, 0x00);
-	if (lock_status == 0xa2)
+	pll_status = au8522_readreg(state, 0x7e);
+	if ((lock_status == 0xa2) && (pll_status & 0x10))
 		vt->signal = 0xffff;
 	else
 		vt->signal = 0x00;
@@ -763,10 +709,12 @@ static int au8522_probe(struct i2c_client *client,
 	v4l2_i2c_subdev_init(sd, client, &au8522_ops);
 #if defined(CONFIG_MEDIA_CONTROLLER)
 
-	state->pads[DEMOD_PAD_IF_INPUT].flags = MEDIA_PAD_FL_SINK;
-	state->pads[DEMOD_PAD_VID_OUT].flags = MEDIA_PAD_FL_SOURCE;
-	state->pads[DEMOD_PAD_VBI_OUT].flags = MEDIA_PAD_FL_SOURCE;
-	state->pads[DEMOD_PAD_AUDIO_OUT].flags = MEDIA_PAD_FL_SOURCE;
+	state->pads[AU8522_PAD_IF_INPUT].flags = MEDIA_PAD_FL_SINK;
+	state->pads[AU8522_PAD_IF_INPUT].sig_type = PAD_SIGNAL_ANALOG;
+	state->pads[AU8522_PAD_VID_OUT].flags = MEDIA_PAD_FL_SOURCE;
+	state->pads[AU8522_PAD_VID_OUT].sig_type = PAD_SIGNAL_DV;
+	state->pads[AU8522_PAD_AUDIO_OUT].flags = MEDIA_PAD_FL_SOURCE;
+	state->pads[AU8522_PAD_AUDIO_OUT].sig_type = PAD_SIGNAL_AUDIO;
 	sd->entity.function = MEDIA_ENT_F_ATV_DECODER;
 
 	ret = media_entity_pads_init(&sd->entity, ARRAY_SIZE(state->pads),

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (c) 2009 Peter Holik
  *
@@ -9,18 +10,6 @@
  */
 
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or.
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/module.h>
@@ -106,11 +95,11 @@ static struct sk_buff *int51x1_tx_fixup(struct usbnet *dev,
 	pack_len += need_tail;
 	pack_len &= 0x07ff;
 
-	len = (__le16 *) __skb_push(skb, INT51X1_HEADER_SIZE);
+	len = __skb_push(skb, INT51X1_HEADER_SIZE);
 	*len = cpu_to_le16(pack_len);
 
 	if(need_tail)
-		memset(__skb_put(skb, need_tail), 0, need_tail);
+		__skb_put_zero(skb, need_tail);
 
 	return skb;
 }
@@ -144,6 +133,7 @@ static const struct net_device_ops int51x1_netdev_ops = {
 	.ndo_start_xmit		= usbnet_start_xmit,
 	.ndo_tx_timeout		= usbnet_tx_timeout,
 	.ndo_change_mtu		= usbnet_change_mtu,
+	.ndo_get_stats64	= usbnet_get_stats64,
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_rx_mode	= int51x1_set_multicast,

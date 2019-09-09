@@ -1,12 +1,51 @@
 #! /usr/bin/env perl
-# Copyright 2014-2016 The OpenSSL Project Authors. All Rights Reserved.
-#
-# Licensed under the OpenSSL license (the "License").  You may not use
-# this file except in compliance with the License.  You can obtain a copy
-# in the file LICENSE in the source distribution or at
-# https://www.openssl.org/source/license.html
+# SPDX-License-Identifier: GPL-2.0
 
+# This code is taken from CRYPTOGAMs[1] and is included here using the option
+# in the license to distribute the code under the GPL. Therefore this program
+# is free software; you can redistribute it and/or modify it under the terms of
+# the GNU General Public License version 2 as published by the Free Software
+# Foundation.
 #
+# [1] https://www.openssl.org/~appro/cryptogams/
+
+# Copyright (c) 2006-2017, CRYPTOGAMS by <appro@openssl.org>
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#
+#       * Redistributions of source code must retain copyright notices,
+#         this list of conditions and the following disclaimer.
+#
+#       * Redistributions in binary form must reproduce the above
+#         copyright notice, this list of conditions and the following
+#         disclaimer in the documentation and/or other materials
+#         provided with the distribution.
+#
+#       * Neither the name of the CRYPTOGAMS nor the names of its
+#         copyright holder and contributors may be used to endorse or
+#         promote products derived from this software without specific
+#         prior written permission.
+#
+# ALTERNATIVELY, provided that this notice is retained in full, this
+# product may be distributed under the terms of the GNU General Public
+# License (GPL), in which case the provisions of the GPL apply INSTEAD OF
+# those given above.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
 # ====================================================================
 # Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
 # project. The module is, however, dual licensed under OpenSSL and
@@ -1247,6 +1286,24 @@ ___
 
 #########################################################################
 {{{	# CTR procedure[s]						#
+
+####################### WARNING: Here be dragons! #######################
+#
+# This code is written as 'ctr32', based on a 32-bit counter used
+# upstream. The kernel does *not* use a 32-bit counter. The kernel uses
+# a 128-bit counter.
+#
+# This leads to subtle changes from the upstream code: the counter
+# is incremented with vaddu_q_m rather than vaddu_w_m. This occurs in
+# both the bulk (8 blocks at a time) path, and in the individual block
+# path. Be aware of this when doing updates.
+#
+# See:
+# 1d4aa0b4c181 ("crypto: vmx - Fixing AES-CTR counter bug")
+# 009b30ac7444 ("crypto: vmx - CTR: always increment IV as quadword")
+# https://github.com/openssl/openssl/pull/8942
+#
+#########################################################################
 my ($inp,$out,$len,$key,$ivp,$x10,$rounds,$idx)=map("r$_",(3..10));
 my ($rndkey0,$rndkey1,$inout,$tmp)=		map("v$_",(0..3));
 my ($ivec,$inptail,$inpperm,$outhead,$outperm,$outmask,$keyperm,$one)=
@@ -1318,7 +1375,7 @@ Loop_ctr32_enc:
 	addi		$idx,$idx,16
 	bdnz		Loop_ctr32_enc
 
-	vadduwm		$ivec,$ivec,$one
+	vadduqm		$ivec,$ivec,$one	# Kernel change for 128-bit
 	 vmr		$dat,$inptail
 	 lvx		$inptail,0,$inp
 	 addi		$inp,$inp,16
@@ -1462,7 +1519,7 @@ Load_ctr32_enc_key:
 	$SHL		$len,$len,4
 
 	vadduqm		$out1,$ivec,$one	# counter values ...
-	vadduqm		$out2,$ivec,$two
+	vadduqm		$out2,$ivec,$two	# (do all ctr adds as 128-bit)
 	vxor		$out0,$ivec,$rndkey0	# ... xored with rndkey[0]
 	 le?li		$idx,8
 	vadduqm		$out3,$out1,$two
@@ -1815,7 +1872,7 @@ Lctr32_enc8x_three:
 	stvx_u		$out1,$x10,$out
 	stvx_u		$out2,$x20,$out
 	addi		$out,$out,0x30
-	b		Lcbc_dec8x_done
+	b		Lctr32_enc8x_done
 
 .align	5
 Lctr32_enc8x_two:
@@ -1827,7 +1884,7 @@ Lctr32_enc8x_two:
 	stvx_u		$out0,$x00,$out
 	stvx_u		$out1,$x10,$out
 	addi		$out,$out,0x20
-	b		Lcbc_dec8x_done
+	b		Lctr32_enc8x_done
 
 .align	5
 Lctr32_enc8x_one:

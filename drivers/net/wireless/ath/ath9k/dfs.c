@@ -41,7 +41,7 @@ static const int BIN_DELTA_MAX		= 10;
 
 /* we need at least 3 deltas / 4 samples for a reliable chirp detection */
 #define NUM_DIFFS 3
-static const int FFT_NUM_SAMPLES	= (NUM_DIFFS + 1);
+#define FFT_NUM_SAMPLES		(NUM_DIFFS + 1)
 
 /* Threshold for difference of delta peaks */
 static const int MAX_DIFF		= 2;
@@ -114,7 +114,7 @@ static bool ath9k_check_chirping(struct ath_softc *sc, u8 *data,
 
 		ath_dbg(common, DFS, "HT40: datalen=%d, num_fft_packets=%d\n",
 			datalen, num_fft_packets);
-		if (num_fft_packets < (FFT_NUM_SAMPLES)) {
+		if (num_fft_packets < FFT_NUM_SAMPLES) {
 			ath_dbg(common, DFS, "not enough packets for chirp\n");
 			return false;
 		}
@@ -123,11 +123,9 @@ static bool ath9k_check_chirping(struct ath_softc *sc, u8 *data,
 			fft = (struct ath9k_dfs_fft_40 *) (data + 2);
 			ath_dbg(common, DFS, "fixing datalen by 2\n");
 		}
-		if (IS_CHAN_HT40MINUS(ah->curchan)) {
-			int temp = is_ctl;
-			is_ctl = is_ext;
-			is_ext = temp;
-		}
+		if (IS_CHAN_HT40MINUS(ah->curchan))
+			swap(is_ctl, is_ext);
+
 		for (i = 0; i < FFT_NUM_SAMPLES; i++)
 			max_bin[i] = ath9k_get_max_index_ht40(fft + i, is_ctl,
 							      is_ext);
@@ -138,7 +136,7 @@ static bool ath9k_check_chirping(struct ath_softc *sc, u8 *data,
 			return false;
 		ath_dbg(common, DFS, "HT20: datalen=%d, num_fft_packets=%d\n",
 			datalen, num_fft_packets);
-		if (num_fft_packets < (FFT_NUM_SAMPLES)) {
+		if (num_fft_packets < FFT_NUM_SAMPLES) {
 			ath_dbg(common, DFS, "not enough packets for chirp\n");
 			return false;
 		}
@@ -279,7 +277,7 @@ ath9k_dfs_process_radar_pulse(struct ath_softc *sc, struct pulse_event *pe)
 	DFS_STAT_INC(sc, pulses_processed);
 	if (pd == NULL)
 		return;
-	if (!pd->add_pulse(pd, pe))
+	if (!pd->add_pulse(pd, pe, NULL))
 		return;
 	DFS_STAT_INC(sc, radar_detected);
 	ieee80211_radar_detected(sc->hw);
@@ -326,7 +324,7 @@ void ath9k_dfs_process_phyerr(struct ath_softc *sc, void *data,
 	if (ard.ext_rssi & 0x80)
 		ard.ext_rssi = 0;
 
-	vdata_end = (char *)data + datalen;
+	vdata_end = data + datalen;
 	ard.pulse_bw_info = vdata_end[-1];
 	ard.pulse_length_ext = vdata_end[-2];
 	ard.pulse_length_pri = vdata_end[-3];

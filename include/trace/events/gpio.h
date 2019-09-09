@@ -1,9 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM gpio
-
-#ifndef CONFIG_TRACING_EVENTS_GPIO
-#define NOTRACE
-#endif
 
 #if !defined(_TRACE_GPIO_H) || defined(TRACE_HEADER_MULTI_READ)
 #define _TRACE_GPIO_H

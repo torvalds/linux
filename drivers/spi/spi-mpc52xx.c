@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * MPC52xx SPI bus driver.
  *
  * Copyright (C) 2008 Secret Lab Technologies Ltd.
- *
- * This file is released under the GPLv2
  *
  * This is the driver for the MPC5200's dedicated SPI controller.
  *
@@ -437,8 +436,9 @@ static int mpc52xx_spi_probe(struct platform_device *op)
 	ms->gpio_cs_count = of_gpio_count(op->dev.of_node);
 	if (ms->gpio_cs_count > 0) {
 		master->num_chipselect = ms->gpio_cs_count;
-		ms->gpio_cs = kmalloc(ms->gpio_cs_count * sizeof(unsigned int),
-				GFP_KERNEL);
+		ms->gpio_cs = kmalloc_array(ms->gpio_cs_count,
+					    sizeof(*ms->gpio_cs),
+					    GFP_KERNEL);
 		if (!ms->gpio_cs) {
 			rc = -ENOMEM;
 			goto err_alloc_gpio;
@@ -446,10 +446,9 @@ static int mpc52xx_spi_probe(struct platform_device *op)
 
 		for (i = 0; i < ms->gpio_cs_count; i++) {
 			gpio_cs = of_get_gpio(op->dev.of_node, i);
-			if (gpio_cs < 0) {
+			if (!gpio_is_valid(gpio_cs)) {
 				dev_err(&op->dev,
-					"could not parse the gpio field "
-					"in oftree\n");
+					"could not parse the gpio field in oftree\n");
 				rc = -ENODEV;
 				goto err_gpio;
 			}
@@ -457,8 +456,8 @@ static int mpc52xx_spi_probe(struct platform_device *op)
 			rc = gpio_request(gpio_cs, dev_name(&op->dev));
 			if (rc) {
 				dev_err(&op->dev,
-					"can't request spi cs gpio #%d "
-					"on gpio line %d\n", i, gpio_cs);
+					"can't request spi cs gpio #%d on gpio line %d\n",
+					i, gpio_cs);
 				goto err_gpio;
 			}
 

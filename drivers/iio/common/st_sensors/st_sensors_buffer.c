@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * STMicroelectronics sensors buffer library driver
  *
  * Copyright 2012-2013 STMicroelectronics Inc.
  *
  * Denis Ciocca <denis.ciocca@st.com>
- *
- * Licensed under the GPL-2.
  */
 
 #include <linux/kernel.h>
@@ -30,7 +29,9 @@ static int st_sensors_get_buffer_element(struct iio_dev *indio_dev, u8 *buf)
 
 	for_each_set_bit(i, indio_dev->active_scan_mask, num_data_channels) {
 		const struct iio_chan_spec *channel = &indio_dev->channels[i];
-		unsigned int bytes_to_read = channel->scan_type.realbits >> 3;
+		unsigned int bytes_to_read =
+			DIV_ROUND_UP(channel->scan_type.realbits +
+				     channel->scan_type.shift, 8);
 		unsigned int storage_bytes =
 			channel->scan_type.storagebits >> 3;
 

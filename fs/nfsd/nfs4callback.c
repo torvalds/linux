@@ -39,6 +39,7 @@
 #include "state.h"
 #include "netns.h"
 #include "xdr4cb.h"
+#include "xdr4.h"
 
 #define NFSDDBG_FACILITY                NFSDDBG_PROC
 
@@ -58,16 +59,6 @@ struct nfs4_cb_compound_hdr {
 	/* res */
 	int		status;
 };
-
-/*
- * Handle decode buffer overflows out-of-line.
- */
-static void print_overflow_msg(const char *func, const struct xdr_stream *xdr)
-{
-	dprintk("NFS: %s prematurely hit the end of our receive buffer. "
-		"Remaining buffer length is %tu words.\n",
-		func, xdr->end - xdr->p);
-}
 
 static __be32 *xdr_encode_empty_array(__be32 *p)
 {
@@ -105,6 +96,7 @@ enum nfs_cb_opnum4 {
 	OP_CB_WANTS_CANCELLED		= 12,
 	OP_CB_NOTIFY_LOCK		= 13,
 	OP_CB_NOTIFY_DEVICEID		= 14,
+	OP_CB_OFFLOAD			= 15,
 	OP_CB_ILLEGAL			= 10044
 };
 
@@ -223,8 +215,8 @@ static int nfs_cb_stat_to_errno(int status)
 	return -status;
 }
 
-static int decode_cb_op_status(struct xdr_stream *xdr, enum nfs_opnum4 expected,
-			       int *status)
+static int decode_cb_op_status(struct xdr_stream *xdr,
+			       enum nfs_cb_opnum4 expected, int *status)
 {
 	__be32 *p;
 	u32 op;
@@ -238,7 +230,6 @@ static int decode_cb_op_status(struct xdr_stream *xdr, enum nfs_opnum4 expected,
 	*status = nfs_cb_stat_to_errno(be32_to_cpup(p));
 	return 0;
 out_overflow:
-	print_overflow_msg(__func__, xdr);
 	return -EIO;
 out_unexpected:
 	dprintk("NFSD: Callback server returned operation %d but "
@@ -303,10 +294,10 @@ static int decode_cb_compound4res(struct xdr_stream *xdr,
 	p = xdr_inline_decode(xdr, length + 4);
 	if (unlikely(p == NULL))
 		goto out_overflow;
+	p += XDR_QUADLEN(length);
 	hdr->nops = be32_to_cpup(p);
 	return 0;
 out_overflow:
-	print_overflow_msg(__func__, xdr);
 	return -EIO;
 }
 
@@ -396,12 +387,9 @@ static int decode_cb_sequence4resok(struct xdr_stream *xdr,
 				    struct nfsd4_callback *cb)
 {
 	struct nfsd4_session *session = cb->cb_clp->cl_cb_session;
-	struct nfs4_sessionid id;
-	int status;
+	int status = -ESERVERFAULT;
 	__be32 *p;
 	u32 dummy;
-
-	status = -ESERVERFAULT;
 
 	/*
 	 * If the server returns different values for sessionID, slotID or
@@ -410,9 +398,8 @@ static int decode_cb_sequence4resok(struct xdr_stream *xdr,
 	p = xdr_inline_decode(xdr, NFS4_MAX_SESSIONID_LEN + 4 + 4 + 4 + 4);
 	if (unlikely(p == NULL))
 		goto out_overflow;
-	memcpy(id.data, p, NFS4_MAX_SESSIONID_LEN);
-	if (memcmp(id.data, session->se_sessionid.data,
-					NFS4_MAX_SESSIONID_LEN) != 0) {
+
+	if (memcmp(p, session->se_sessionid.data, NFS4_MAX_SESSIONID_LEN)) {
 		dprintk("NFS: %s Invalid session id\n", __func__);
 		goto out;
 	}
@@ -438,7 +425,6 @@ out:
 	cb->cb_seq_status = status;
 	return status;
 out_overflow:
-	print_overflow_msg(__func__, xdr);
 	status = -EIO;
 	goto out;
 }
@@ -471,7 +457,7 @@ static int decode_cb_sequence4res(struct xdr_stream *xdr,
  * NB: Without this zero space reservation, callbacks over krb5p fail
  */
 static void nfs4_xdr_enc_cb_null(struct rpc_rqst *req, struct xdr_stream *xdr,
-				 void *__unused)
+				 const void *__unused)
 {
 	xdr_reserve_space(xdr, 0);
 }
@@ -480,8 +466,9 @@ static void nfs4_xdr_enc_cb_null(struct rpc_rqst *req, struct xdr_stream *xdr,
  * 20.2. Operation 4: CB_RECALL - Recall a Delegation
  */
 static void nfs4_xdr_enc_cb_recall(struct rpc_rqst *req, struct xdr_stream *xdr,
-				   const struct nfsd4_callback *cb)
+				   const void *data)
 {
+	const struct nfsd4_callback *cb = data;
 	const struct nfs4_delegation *dp = cb_to_delegation(cb);
 	struct nfs4_cb_compound_hdr hdr = {
 		.ident = cb->cb_clp->cl_cb_ident,
@@ -515,8 +502,9 @@ static int nfs4_xdr_dec_cb_null(struct rpc_rqst *req, struct xdr_stream *xdr,
  */
 static int nfs4_xdr_dec_cb_recall(struct rpc_rqst *rqstp,
 				  struct xdr_stream *xdr,
-				  struct nfsd4_callback *cb)
+				  void *data)
 {
+	struct nfsd4_callback *cb = data;
 	struct nfs4_cb_compound_hdr hdr;
 	int status;
 
@@ -588,8 +576,9 @@ static void encode_cb_layout4args(struct xdr_stream *xdr,
 
 static void nfs4_xdr_enc_cb_layout(struct rpc_rqst *req,
 				   struct xdr_stream *xdr,
-				   const struct nfsd4_callback *cb)
+				   const void *data)
 {
+	const struct nfsd4_callback *cb = data;
 	const struct nfs4_layout_stateid *ls =
 		container_of(cb, struct nfs4_layout_stateid, ls_recall);
 	struct nfs4_cb_compound_hdr hdr = {
@@ -605,8 +594,9 @@ static void nfs4_xdr_enc_cb_layout(struct rpc_rqst *req,
 
 static int nfs4_xdr_dec_cb_layout(struct rpc_rqst *rqstp,
 				  struct xdr_stream *xdr,
-				  struct nfsd4_callback *cb)
+				  void *data)
 {
+	struct nfsd4_callback *cb = data;
 	struct nfs4_cb_compound_hdr hdr;
 	int status;
 
@@ -634,8 +624,9 @@ static void encode_stateowner(struct xdr_stream *xdr, struct nfs4_stateowner *so
 
 static void nfs4_xdr_enc_cb_notify_lock(struct rpc_rqst *req,
 					struct xdr_stream *xdr,
-					const struct nfsd4_callback *cb)
+					const void *data)
 {
+	const struct nfsd4_callback *cb = data;
 	const struct nfsd4_blocked_lock *nbl =
 		container_of(cb, struct nfsd4_blocked_lock, nbl_cb);
 	struct nfs4_lockowner *lo = (struct nfs4_lockowner *)nbl->nbl_lock.fl_owner;
@@ -662,8 +653,9 @@ static void nfs4_xdr_enc_cb_notify_lock(struct rpc_rqst *req,
 
 static int nfs4_xdr_dec_cb_notify_lock(struct rpc_rqst *rqstp,
 					struct xdr_stream *xdr,
-					struct nfsd4_callback *cb)
+					void *data)
 {
+	struct nfsd4_callback *cb = data;
 	struct nfs4_cb_compound_hdr hdr;
 	int status;
 
@@ -680,29 +672,126 @@ static int nfs4_xdr_dec_cb_notify_lock(struct rpc_rqst *rqstp,
 }
 
 /*
+ * struct write_response4 {
+ *	stateid4	wr_callback_id<1>;
+ *	length4		wr_count;
+ *	stable_how4	wr_committed;
+ *	verifier4	wr_writeverf;
+ * };
+ * union offload_info4 switch (nfsstat4 coa_status) {
+ *	case NFS4_OK:
+ *		write_response4	coa_resok4;
+ *	default:
+ *	length4		coa_bytes_copied;
+ * };
+ * struct CB_OFFLOAD4args {
+ *	nfs_fh4		coa_fh;
+ *	stateid4	coa_stateid;
+ *	offload_info4	coa_offload_info;
+ * };
+ */
+static void encode_offload_info4(struct xdr_stream *xdr,
+				 __be32 nfserr,
+				 const struct nfsd4_copy *cp)
+{
+	__be32 *p;
+
+	p = xdr_reserve_space(xdr, 4);
+	*p++ = nfserr;
+	if (!nfserr) {
+		p = xdr_reserve_space(xdr, 4 + 8 + 4 + NFS4_VERIFIER_SIZE);
+		p = xdr_encode_empty_array(p);
+		p = xdr_encode_hyper(p, cp->cp_res.wr_bytes_written);
+		*p++ = cpu_to_be32(cp->cp_res.wr_stable_how);
+		p = xdr_encode_opaque_fixed(p, cp->cp_res.wr_verifier.data,
+					    NFS4_VERIFIER_SIZE);
+	} else {
+		p = xdr_reserve_space(xdr, 8);
+		/* We always return success if bytes were written */
+		p = xdr_encode_hyper(p, 0);
+	}
+}
+
+static void encode_cb_offload4args(struct xdr_stream *xdr,
+				   __be32 nfserr,
+				   const struct knfsd_fh *fh,
+				   const struct nfsd4_copy *cp,
+				   struct nfs4_cb_compound_hdr *hdr)
+{
+	__be32 *p;
+
+	p = xdr_reserve_space(xdr, 4);
+	*p++ = cpu_to_be32(OP_CB_OFFLOAD);
+	encode_nfs_fh4(xdr, fh);
+	encode_stateid4(xdr, &cp->cp_res.cb_stateid);
+	encode_offload_info4(xdr, nfserr, cp);
+
+	hdr->nops++;
+}
+
+static void nfs4_xdr_enc_cb_offload(struct rpc_rqst *req,
+				    struct xdr_stream *xdr,
+				    const void *data)
+{
+	const struct nfsd4_callback *cb = data;
+	const struct nfsd4_copy *cp =
+		container_of(cb, struct nfsd4_copy, cp_cb);
+	struct nfs4_cb_compound_hdr hdr = {
+		.ident = 0,
+		.minorversion = cb->cb_clp->cl_minorversion,
+	};
+
+	encode_cb_compound4args(xdr, &hdr);
+	encode_cb_sequence4args(xdr, cb, &hdr);
+	encode_cb_offload4args(xdr, cp->nfserr, &cp->fh, cp, &hdr);
+	encode_cb_nops(&hdr);
+}
+
+static int nfs4_xdr_dec_cb_offload(struct rpc_rqst *rqstp,
+				   struct xdr_stream *xdr,
+				   void *data)
+{
+	struct nfsd4_callback *cb = data;
+	struct nfs4_cb_compound_hdr hdr;
+	int status;
+
+	status = decode_cb_compound4res(xdr, &hdr);
+	if (unlikely(status))
+		return status;
+
+	if (cb) {
+		status = decode_cb_sequence4res(xdr, cb);
+		if (unlikely(status || cb->cb_seq_status))
+			return status;
+	}
+	return decode_cb_op_status(xdr, OP_CB_OFFLOAD, &cb->cb_status);
+}
+/*
  * RPC procedure tables
  */
 #define PROC(proc, call, argtype, restype)				\
 [NFSPROC4_CLNT_##proc] = {						\
 	.p_proc    = NFSPROC4_CB_##call,				\
-	.p_encode  = (kxdreproc_t)nfs4_xdr_enc_##argtype,		\
-	.p_decode  = (kxdrdproc_t)nfs4_xdr_dec_##restype,		\
+	.p_encode  = nfs4_xdr_enc_##argtype,		\
+	.p_decode  = nfs4_xdr_dec_##restype,				\
 	.p_arglen  = NFS4_enc_##argtype##_sz,				\
 	.p_replen  = NFS4_dec_##restype##_sz,				\
 	.p_statidx = NFSPROC4_CB_##call,				\
 	.p_name    = #proc,						\
 }
 
-static struct rpc_procinfo nfs4_cb_procedures[] = {
+static const struct rpc_procinfo nfs4_cb_procedures[] = {
 	PROC(CB_NULL,	NULL,		cb_null,	cb_null),
 	PROC(CB_RECALL,	COMPOUND,	cb_recall,	cb_recall),
 #ifdef CONFIG_NFSD_PNFS
 	PROC(CB_LAYOUT,	COMPOUND,	cb_layout,	cb_layout),
 #endif
 	PROC(CB_NOTIFY_LOCK,	COMPOUND,	cb_notify_lock,	cb_notify_lock),
+	PROC(CB_OFFLOAD,	COMPOUND,	cb_offload,	cb_offload),
 };
 
-static struct rpc_version nfs_cb_version4 = {
+static unsigned int nfs4_cb_counts[ARRAY_SIZE(nfs4_cb_procedures)];
+static const struct rpc_version nfs_cb_version4 = {
 /*
  * Note on the callback rpc program version number: despite language in rfc
  * 5661 section 18.36.3 requiring servers to use 4 in this field, the
@@ -712,11 +801,12 @@ static struct rpc_version nfs_cb_version4 = {
  */
 	.number			= 1,
 	.nrprocs		= ARRAY_SIZE(nfs4_cb_procedures),
-	.procs			= nfs4_cb_procedures
+	.procs			= nfs4_cb_procedures,
+	.counts			= nfs4_cb_counts,
 };
 
-static const struct rpc_version *nfs_cb_version[] = {
-	&nfs_cb_version4,
+static const struct rpc_version *nfs_cb_version[2] = {
+	[1] = &nfs_cb_version4,
 };
 
 static const struct rpc_program cb_program;
@@ -741,29 +831,23 @@ static int max_cb_time(struct net *net)
 	return max(nn->nfsd4_lease/10, (time_t)1) * HZ;
 }
 
-static struct rpc_cred *callback_cred;
-
-int set_callback_cred(void)
-{
-	if (callback_cred)
-		return 0;
-	callback_cred = rpc_lookup_machine_cred("nfs");
-	if (!callback_cred)
-		return -ENOMEM;
-	return 0;
-}
-
-static struct rpc_cred *get_backchannel_cred(struct nfs4_client *clp, struct rpc_clnt *client, struct nfsd4_session *ses)
+static const struct cred *get_backchannel_cred(struct nfs4_client *clp, struct rpc_clnt *client, struct nfsd4_session *ses)
 {
 	if (clp->cl_minorversion == 0) {
-		return get_rpccred(callback_cred);
-	} else {
-		struct rpc_auth *auth = client->cl_auth;
-		struct auth_cred acred = {};
+		client->cl_principal = clp->cl_cred.cr_targ_princ ?
+			clp->cl_cred.cr_targ_princ : "nfs";
 
-		acred.uid = ses->se_cb_sec.uid;
-		acred.gid = ses->se_cb_sec.gid;
-		return auth->au_ops->lookup_cred(client->cl_auth, &acred, 0);
+		return get_cred(rpc_machine_cred());
+	} else {
+		struct cred *kcred;
+
+		kcred = prepare_kernel_cred(NULL);
+		if (!kcred)
+			return NULL;
+
+		kcred->uid = ses->se_cb_sec.uid;
+		kcred->gid = ses->se_cb_sec.gid;
+		return kcred;
 	}
 }
 
@@ -782,11 +866,12 @@ static int setup_callback_client(struct nfs4_client *clp, struct nfs4_cb_conn *c
 		.saddress	= (struct sockaddr *) &conn->cb_saddr,
 		.timeout	= &timeparms,
 		.program	= &cb_program,
-		.version	= 0,
+		.version	= 1,
 		.flags		= (RPC_CLNT_CREATE_NOPING | RPC_CLNT_CREATE_QUIET),
+		.cred		= current_cred(),
 	};
 	struct rpc_clnt *client;
-	struct rpc_cred *cred;
+	const struct cred *cred;
 
 	if (clp->cl_minorversion == 0) {
 		if (!clp->cl_cred.cr_principal &&
@@ -816,9 +901,9 @@ static int setup_callback_client(struct nfs4_client *clp, struct nfs4_cb_conn *c
 		return PTR_ERR(client);
 	}
 	cred = get_backchannel_cred(clp, client, ses);
-	if (IS_ERR(cred)) {
+	if (!cred) {
 		rpc_shutdown_client(client);
-		return PTR_ERR(cred);
+		return -ENOMEM;
 	}
 	clp->cl_cb_client = client;
 	clp->cl_cb_cred = cred;
@@ -926,8 +1011,9 @@ static void nfsd4_cb_prepare(struct rpc_task *task, void *calldata)
 	cb->cb_seq_status = 1;
 	cb->cb_status = 0;
 	if (minorversion) {
-		if (!nfsd41_cb_get_slot(clp, task))
+		if (!cb->cb_holds_slot && !nfsd41_cb_get_slot(clp, task))
 			return;
+		cb->cb_holds_slot = true;
 	}
 	rpc_call_start(task);
 }
@@ -948,11 +1034,14 @@ static bool nfsd4_cb_sequence_done(struct rpc_task *task, struct nfsd4_callback 
 		 * the submission code will error out, so we don't need to
 		 * handle that case here.
 		 */
-		if (task->tk_flags & RPC_TASK_KILLED)
+		if (RPC_SIGNALLED(task))
 			goto need_restart;
 
 		return true;
 	}
+
+	if (!cb->cb_holds_slot)
+		goto need_restart;
 
 	switch (cb->cb_seq_status) {
 	case 0:
@@ -967,6 +1056,7 @@ static bool nfsd4_cb_sequence_done(struct rpc_task *task, struct nfsd4_callback 
 		break;
 	case -ESERVERFAULT:
 		++session->se_cb_seq_nr;
+		/* Fall through */
 	case 1:
 	case -NFS4ERR_BADSESSION:
 		nfsd4_mark_cb_fault(cb->cb_clp, cb->cb_seq_status);
@@ -991,12 +1081,13 @@ static bool nfsd4_cb_sequence_done(struct rpc_task *task, struct nfsd4_callback 
 			cb->cb_seq_status);
 	}
 
+	cb->cb_holds_slot = false;
 	clear_bit(0, &clp->cl_cb_slot_busy);
 	rpc_wake_up_next(&clp->cl_cb_waitq);
 	dprintk("%s: freed slot, new seqid=%d\n", __func__,
 		clp->cl_cb_session->se_cb_seq_nr);
 
-	if (task->tk_flags & RPC_TASK_KILLED)
+	if (RPC_SIGNALLED(task))
 		goto need_restart;
 out:
 	return ret;
@@ -1032,10 +1123,11 @@ static void nfsd4_cb_done(struct rpc_task *task, void *calldata)
 		rpc_restart_call_prepare(task);
 		return;
 	case 1:
-		break;
-	case -1:
-		/* Network partition? */
-		nfsd4_mark_cb_down(clp, task->tk_status);
+		switch (task->tk_status) {
+		case -EIO:
+		case -ETIMEDOUT:
+			nfsd4_mark_cb_down(clp, task->tk_status);
+		}
 		break;
 	default:
 		BUG();
@@ -1061,7 +1153,7 @@ static const struct rpc_call_ops nfsd4_cb_ops = {
 
 int nfsd4_create_callback_queue(void)
 {
-	callback_wq = create_singlethread_workqueue("nfsd4_callbacks");
+	callback_wq = alloc_ordered_workqueue("nfsd4_callbacks", 0);
 	if (!callback_wq)
 		return -ENOMEM;
 	return 0;
@@ -1115,7 +1207,7 @@ static void nfsd4_process_cb_update(struct nfsd4_callback *cb)
 	if (clp->cl_cb_client) {
 		rpc_shutdown_client(clp->cl_cb_client);
 		clp->cl_cb_client = NULL;
-		put_rpccred(clp->cl_cb_cred);
+		put_cred(clp->cl_cb_cred);
 		clp->cl_cb_cred = NULL;
 	}
 	if (clp->cl_cb_conn.cb_xprt) {
@@ -1198,6 +1290,7 @@ void nfsd4_init_cb(struct nfsd4_callback *cb, struct nfs4_client *clp,
 	cb->cb_seq_status = 1;
 	cb->cb_status = 0;
 	cb->cb_need_restart = false;
+	cb->cb_holds_slot = false;
 }
 
 void nfsd4_run_cb(struct nfsd4_callback *cb)

@@ -1,7 +1,9 @@
-Started by Paul Jackson <pj@sgi.com>
-
+====================
 The robust futex ABI
---------------------
+====================
+
+:Author: Started by Paul Jackson <pj@sgi.com>
+
 
 Robust_futexes provide a mechanism that is used in addition to normal
 futexes, for kernel assist of cleanup of held locks on task exit.
@@ -32,7 +34,7 @@ probably causing deadlock or other such failure of the other threads
 waiting on the same locks.
 
 A thread that anticipates possibly using robust_futexes should first
-issue the system call:
+issue the system call::
 
     asmlinkage long
     sys_set_robust_list(struct robust_list_head __user *head, size_t len);
@@ -91,7 +93,7 @@ that lock using the futex mechanism.
 When a thread has invoked the above system call to indicate it
 anticipates using robust_futexes, the kernel stores the passed in 'head'
 pointer for that task.  The task may retrieve that value later on by
-using the system call:
+using the system call::
 
     asmlinkage long
     sys_get_robust_list(int pid, struct robust_list_head __user **head_ptr,
@@ -135,6 +137,7 @@ manipulating this list), the user code must observe the following
 protocol on 'lock entry' insertion and removal:
 
 On insertion:
+
  1) set the 'list_op_pending' word to the address of the 'lock entry'
     to be inserted,
  2) acquire the futex lock,
@@ -143,6 +146,7 @@ On insertion:
  4) clear the 'list_op_pending' word.
 
 On removal:
+
  1) set the 'list_op_pending' word to the address of the 'lock entry'
     to be removed,
  2) remove the lock entry for this lock from the 'head' list,

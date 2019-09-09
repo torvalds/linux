@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /* Texas Instruments Triple 8-/10-BIT 165-/110-MSPS Video and Graphics
  * Digitizer with Horizontal PLL registers
  *
@@ -5,23 +6,9 @@
  * Author: Santiago Nunez-Corrales <santiago.nunez@ridgerun.com>
  *
  * This code is partially based upon the TVP5150 driver
- * written by Mauro Carvalho Chehab (mchehab@infradead.org),
+ * written by Mauro Carvalho Chehab <mchehab@kernel.org>,
  * the TVP514x driver written by Vaibhav Hiremath <hvaibhav@ti.com>
  * and the TVP7002 driver in the TI LSP 2.10.00.14
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 /* Naming conventions
@@ -113,15 +100,15 @@
 #define TVP7002_L_FRAME_STAT_LSBS	0x37
 #define TVP7002_L_FRAME_STAT_MSBS	0x38
 #define TVP7002_CLK_L_STAT_LSBS		0x39
-#define TVP7002_CLK_L_STAT_MSBS      	0x3a
+#define TVP7002_CLK_L_STAT_MSBS		0x3a
 #define TVP7002_HSYNC_W			0x3b
 #define TVP7002_VSYNC_W                 0x3c
-#define TVP7002_L_LENGTH_TOL 		0x3d
+#define TVP7002_L_LENGTH_TOL		0x3d
 /* Reserved 0x3e */
 #define TVP7002_VIDEO_BWTH_CTL		0x3f
 #define TVP7002_AVID_START_PIXEL_LSBS	0x40
 #define TVP7002_AVID_START_PIXEL_MSBS   0x41
-#define TVP7002_AVID_STOP_PIXEL_LSBS  	0x42
+#define TVP7002_AVID_STOP_PIXEL_LSBS	0x42
 #define TVP7002_AVID_STOP_PIXEL_MSBS    0x43
 #define TVP7002_VBLK_F_0_START_L_OFF	0x44
 #define TVP7002_VBLK_F_1_START_L_OFF    0x45

@@ -1,5 +1,4 @@
-#include "sched.h"
-
+// SPDX-License-Identifier: GPL-2.0
 /*
  * stop-task scheduling class.
  *
@@ -8,6 +7,7 @@
  *
  * See kernel/stop_machine.c
  */
+#include "sched.h"
 
 #ifdef CONFIG_SMP
 static int
@@ -24,7 +24,7 @@ check_preempt_curr_stop(struct rq *rq, struct task_struct *p, int flags)
 }
 
 static struct task_struct *
-pick_next_task_stop(struct rq *rq, struct task_struct *prev, struct pin_cookie cookie)
+pick_next_task_stop(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
 {
 	struct task_struct *stop = rq->stop;
 
@@ -71,9 +71,17 @@ static void put_prev_task_stop(struct rq *rq, struct task_struct *prev)
 	account_group_exec_runtime(curr, delta_exec);
 
 	curr->se.exec_start = rq_clock_task(rq);
-	cpuacct_charge(curr, delta_exec);
+	cgroup_account_cputime(curr, delta_exec);
 }
 
+/*
+ * scheduler tick hitting a task of our scheduling class.
+ *
+ * NOTE: This function can be called remotely by the tick offload that
+ * goes along full dynticks. Therefore no local assumption can be made
+ * and everything must be accessed through the @rq and @curr passed in
+ * parameters.
+ */
 static void task_tick_stop(struct rq *rq, struct task_struct *curr, int queued)
 {
 }

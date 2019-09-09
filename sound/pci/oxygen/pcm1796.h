@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef PCM1796_H_INCLUDED
 #define PCM1796_H_INCLUDED
 
@@ -9,7 +10,6 @@
 #define PCM1796_MUTE		0x01
 #define PCM1796_DME		0x02
 #define PCM1796_DMF_MASK	0x0c
-#define PCM1796_DMF_DISABLED	0x00
 #define PCM1796_DMF_48		0x04
 #define PCM1796_DMF_441		0x08
 #define PCM1796_DMF_32		0x0c

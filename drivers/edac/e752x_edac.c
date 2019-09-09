@@ -24,9 +24,8 @@
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
 #include <linux/edac.h>
-#include "edac_core.h"
+#include "edac_module.h"
 
-#define E752X_REVISION	" Ver: 2.0.2"
 #define EDAC_MOD_STR	"e752x_edac"
 
 static int report_non_memory_errors;
@@ -1303,7 +1302,6 @@ static int e752x_probe1(struct pci_dev *pdev, int dev_idx)
 		(EDAC_FLAG_NONE | EDAC_FLAG_SECDED | EDAC_FLAG_S4ECD4ED);
 	/* FIXME - what if different memory types are in different csrows? */
 	mci->mod_name = EDAC_MOD_STR;
-	mci->mod_ver = E752X_REVISION;
 	mci->pdev = &pdev->dev;
 
 	edac_dbg(3, "init pvt\n");
@@ -1448,8 +1446,8 @@ static int __init e752x_init(void)
 
 	edac_dbg(3, "\n");
 
-       /* Ensure that the OPSTATE is set correctly for POLL or NMI */
-       opstate_init();
+	/* Ensure that the OPSTATE is set correctly for POLL or NMI */
+	opstate_init();
 
 	pci_rc = pci_register_driver(&e752x_driver);
 	return (pci_rc < 0) ? pci_rc : 0;

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: MIT */
 #ifndef __NVBIOS_M0205_H__
 #define __NVBIOS_M0205_H__
 struct nvbios_M0205T {

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Micro Crystal RV-3029 / RV-3049 rtc class driver
  *
@@ -5,11 +6,6 @@
  *         Michael Buesch <m@bues.ch>
  *
  * based on previously existing rtc class drivers
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/module.h>
@@ -282,13 +278,13 @@ static int rv3029_eeprom_read(struct device *dev, u8 reg,
 static int rv3029_eeprom_write(struct device *dev, u8 reg,
 			       u8 const buf[], size_t len)
 {
-	int ret, err;
+	int ret;
 	size_t i;
 	u8 tmp;
 
-	err = rv3029_eeprom_enter(dev);
-	if (err < 0)
-		return err;
+	ret = rv3029_eeprom_enter(dev);
+	if (ret < 0)
+		return ret;
 
 	for (i = 0; i < len; i++, reg++) {
 		ret = rv3029_read_regs(dev, reg, &tmp, 1);
@@ -304,11 +300,11 @@ static int rv3029_eeprom_write(struct device *dev, u8 reg,
 			break;
 	}
 
-	err = rv3029_eeprom_exit(dev);
-	if (err < 0)
-		return err;
+	ret = rv3029_eeprom_exit(dev);
+	if (ret < 0)
+		return ret;
 
-	return ret;
+	return 0;
 }
 
 static int rv3029_eeprom_update_bits(struct device *dev,
@@ -868,16 +864,27 @@ static int rv3029_i2c_probe(struct i2c_client *client,
 	return rv3029_probe(&client->dev, regmap, client->irq, client->name);
 }
 
-static struct i2c_device_id rv3029_id[] = {
+static const struct i2c_device_id rv3029_id[] = {
 	{ "rv3029", 0 },
 	{ "rv3029c2", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, rv3029_id);
 
+static const struct of_device_id rv3029_of_match[] = {
+	{ .compatible = "microcrystal,rv3029" },
+	/* Backward compatibility only, do not use compatibles below: */
+	{ .compatible = "rv3029" },
+	{ .compatible = "rv3029c2" },
+	{ .compatible = "mc,rv3029c2" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, rv3029_of_match);
+
 static struct i2c_driver rv3029_driver = {
 	.driver = {
 		.name = "rtc-rv3029c2",
+		.of_match_table = of_match_ptr(rv3029_of_match),
 	},
 	.probe		= rv3029_i2c_probe,
 	.id_table	= rv3029_id,

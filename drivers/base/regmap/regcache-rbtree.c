@@ -1,14 +1,10 @@
-/*
- * Register cache access API - rbtree caching support
- *
- * Copyright 2011 Wolfson Microelectronics plc
- *
- * Author: Dimitris Papastamos <dp@opensource.wolfsonmicro.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Register cache access API - rbtree caching support
+//
+// Copyright 2011 Wolfson Microelectronics plc
+//
+// Author: Dimitris Papastamos <dp@opensource.wolfsonmicro.com>
 
 #include <linux/debugfs.h>
 #include <linux/device.h>
@@ -33,7 +29,7 @@ struct regcache_rbtree_node {
 	unsigned int blklen;
 	/* the actual rbtree node holding this block */
 	struct rb_node node;
-} __attribute__ ((packed));
+};
 
 struct regcache_rbtree_ctx {
 	struct rb_root root;
@@ -81,7 +77,7 @@ static struct regcache_rbtree_node *regcache_rbtree_lookup(struct regmap *map,
 
 	node = rbtree_ctx->root.rb_node;
 	while (node) {
-		rbnode = container_of(node, struct regcache_rbtree_node, node);
+		rbnode = rb_entry(node, struct regcache_rbtree_node, node);
 		regcache_rbtree_get_base_top_reg(map, rbnode, &base_reg,
 						 &top_reg);
 		if (reg >= base_reg && reg <= top_reg) {
@@ -108,8 +104,7 @@ static int regcache_rbtree_insert(struct regmap *map, struct rb_root *root,
 	parent = NULL;
 	new = &root->rb_node;
 	while (*new) {
-		rbnode_tmp = container_of(*new, struct regcache_rbtree_node,
-					  node);
+		rbnode_tmp = rb_entry(*new, struct regcache_rbtree_node, node);
 		/* base and top registers of the current rbnode */
 		regcache_rbtree_get_base_top_reg(map, rbnode_tmp, &base_reg_tmp,
 						 &top_reg_tmp);
@@ -152,7 +147,7 @@ static int rbtree_show(struct seq_file *s, void *ignored)
 
 	for (node = rb_first(&rbtree_ctx->root); node != NULL;
 	     node = rb_next(node)) {
-		n = container_of(node, struct regcache_rbtree_node, node);
+		n = rb_entry(node, struct regcache_rbtree_node, node);
 		mem_size += sizeof(*n);
 		mem_size += (n->blklen * map->cache_word_size);
 		mem_size += BITS_TO_LONGS(n->blklen) * sizeof(long);
@@ -178,17 +173,7 @@ static int rbtree_show(struct seq_file *s, void *ignored)
 	return 0;
 }
 
-static int rbtree_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, rbtree_show, inode->i_private);
-}
-
-static const struct file_operations rbtree_fops = {
-	.open		= rbtree_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(rbtree);
 
 static void rbtree_debugfs_init(struct regmap *map)
 {

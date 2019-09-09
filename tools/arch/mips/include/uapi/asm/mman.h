@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef TOOLS_ARCH_MIPS_UAPI_ASM_MMAN_FIX_H
 #define TOOLS_ARCH_MIPS_UAPI_ASM_MMAN_FIX_H
 #define MADV_DODUMP	17
@@ -27,8 +28,6 @@
 #define MAP_NONBLOCK	0x20000
 #define MAP_NORESERVE	0x0400
 #define MAP_POPULATE	0x10000
-#define MAP_PRIVATE	0x002
-#define MAP_SHARED	0x001
 #define MAP_STACK	0x40000
 #define PROT_EXEC	0x04
 #define PROT_GROWSDOWN	0x01000000

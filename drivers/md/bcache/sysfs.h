@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _BCACHE_SYSFS_H_
 #define _BCACHE_SYSFS_H_
 
@@ -43,9 +44,9 @@ STORE(fn)								\
 	static struct attribute sysfs_##_name =				\
 		{ .name = #_name, .mode = _mode }
 
-#define write_attribute(n)	__sysfs_attribute(n, S_IWUSR)
-#define read_attribute(n)	__sysfs_attribute(n, S_IRUGO)
-#define rw_attribute(n)		__sysfs_attribute(n, S_IRUGO|S_IWUSR)
+#define write_attribute(n)	__sysfs_attribute(n, 0200)
+#define read_attribute(n)	__sysfs_attribute(n, 0444)
+#define rw_attribute(n)		__sysfs_attribute(n, 0644)
 
 #define sysfs_printf(file, fmt, ...)					\
 do {									\
@@ -78,11 +79,28 @@ do {									\
 		return strtoul_safe(buf, var) ?: (ssize_t) size;	\
 } while (0)
 
+#define sysfs_strtoul_bool(file, var)					\
+do {									\
+	if (attr == &sysfs_ ## file) {					\
+		unsigned long v = strtoul_or_return(buf);		\
+									\
+		var = v ? 1 : 0;					\
+		return size;						\
+	}								\
+} while (0)
+
 #define sysfs_strtoul_clamp(file, var, min, max)			\
 do {									\
-	if (attr == &sysfs_ ## file)					\
-		return strtoul_safe_clamp(buf, var, min, max)		\
-			?: (ssize_t) size;				\
+	if (attr == &sysfs_ ## file) {					\
+		unsigned long v = 0;					\
+		ssize_t ret;						\
+		ret = strtoul_safe_clamp(buf, v, min, max);		\
+		if (!ret) {						\
+			var = v;					\
+			return size;					\
+		}							\
+		return ret;						\
+	}								\
 } while (0)
 
 #define strtoul_or_return(cp)						\

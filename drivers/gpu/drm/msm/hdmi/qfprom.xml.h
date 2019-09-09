@@ -8,19 +8,19 @@ http://github.com/freedreno/envytools/
 git clone https://github.com/freedreno/envytools.git
 
 The rules-ng-ng source files this header was generated from are:
-- /home/robclark/src/freedreno/envytools/rnndb/msm.xml                 (    676 bytes, from 2015-05-20 20:03:14)
-- /home/robclark/src/freedreno/envytools/rnndb/freedreno_copyright.xml (   1572 bytes, from 2016-02-10 17:07:21)
-- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp4.xml            (  20915 bytes, from 2015-05-20 20:03:14)
-- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp_common.xml      (   2849 bytes, from 2015-09-18 12:07:28)
-- /home/robclark/src/freedreno/envytools/rnndb/mdp/mdp5.xml            (  37194 bytes, from 2015-09-18 12:07:28)
-- /home/robclark/src/freedreno/envytools/rnndb/dsi/dsi.xml             (  27887 bytes, from 2015-10-22 16:34:52)
-- /home/robclark/src/freedreno/envytools/rnndb/dsi/sfpb.xml            (    602 bytes, from 2015-10-22 16:35:02)
-- /home/robclark/src/freedreno/envytools/rnndb/dsi/mmss_cc.xml         (   1686 bytes, from 2015-05-20 20:03:14)
-- /home/robclark/src/freedreno/envytools/rnndb/hdmi/qfprom.xml         (    600 bytes, from 2015-05-20 20:03:07)
-- /home/robclark/src/freedreno/envytools/rnndb/hdmi/hdmi.xml           (  41472 bytes, from 2016-01-22 18:18:18)
-- /home/robclark/src/freedreno/envytools/rnndb/edp/edp.xml             (  10416 bytes, from 2015-05-20 20:03:14)
+- /home/robclark/src/envytools/rnndb/msm.xml                 (    676 bytes, from 2018-07-03 19:37:13)
+- /home/robclark/src/envytools/rnndb/freedreno_copyright.xml (   1572 bytes, from 2018-07-03 19:37:13)
+- /home/robclark/src/envytools/rnndb/mdp/mdp4.xml            (  20915 bytes, from 2018-07-03 19:37:13)
+- /home/robclark/src/envytools/rnndb/mdp/mdp_common.xml      (   2849 bytes, from 2018-07-03 19:37:13)
+- /home/robclark/src/envytools/rnndb/mdp/mdp5.xml            (  37411 bytes, from 2018-07-03 19:37:13)
+- /home/robclark/src/envytools/rnndb/dsi/dsi.xml             (  37239 bytes, from 2018-07-03 19:37:13)
+- /home/robclark/src/envytools/rnndb/dsi/sfpb.xml            (    602 bytes, from 2018-07-03 19:37:13)
+- /home/robclark/src/envytools/rnndb/dsi/mmss_cc.xml         (   1686 bytes, from 2018-07-03 19:37:13)
+- /home/robclark/src/envytools/rnndb/hdmi/qfprom.xml         (    600 bytes, from 2018-07-03 19:37:13)
+- /home/robclark/src/envytools/rnndb/hdmi/hdmi.xml           (  41799 bytes, from 2018-07-03 19:37:13)
+- /home/robclark/src/envytools/rnndb/edp/edp.xml             (  10416 bytes, from 2018-07-03 19:37:13)
 
-Copyright (C) 2013-2015 by the following authors:
+Copyright (C) 2013-2018 by the following authors:
 - Rob Clark <robdclark@gmail.com> (robclark)
 - Ilia Mirkin <imirkin@alum.mit.edu> (imirkin)
 

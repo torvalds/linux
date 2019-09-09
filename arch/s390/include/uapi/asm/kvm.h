@@ -1,13 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef __LINUX_KVM_S390_H
 #define __LINUX_KVM_S390_H
 /*
  * KVM s390 specific structures and definitions
  *
- * Copyright IBM Corp. 2008
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License (version 2 only)
- * as published by the Free Software Foundation.
+ * Copyright IBM Corp. 2008, 2018
  *
  *    Author(s): Carsten Otte <cotte@de.ibm.com>
  *               Christian Borntraeger <borntraeger@de.ibm.com>
@@ -26,6 +23,9 @@
 #define KVM_DEV_FLIC_ADAPTER_REGISTER	6
 #define KVM_DEV_FLIC_ADAPTER_MODIFY	7
 #define KVM_DEV_FLIC_CLEAR_IO_IRQ	8
+#define KVM_DEV_FLIC_AISM		9
+#define KVM_DEV_FLIC_AIRQ_INJECT	10
+#define KVM_DEV_FLIC_AISM_ALL		11
 /*
  * We can have up to 4*64k pending subchannels + 8 adapter interrupts,
  * as well as up  to ASYNC_PF_PER_VCPU*KVM_MAX_VCPUS pfault done interrupts.
@@ -41,7 +41,19 @@ struct kvm_s390_io_adapter {
 	__u8 isc;
 	__u8 maskable;
 	__u8 swap;
-	__u8 pad;
+	__u8 flags;
+};
+
+#define KVM_S390_ADAPTER_SUPPRESSIBLE 0x01
+
+struct kvm_s390_ais_req {
+	__u8 isc;
+	__u16 mode;
+};
+
+struct kvm_s390_ais_all {
+	__u8 simm;
+	__u8 nimm;
 };
 
 #define KVM_S390_IO_ADAPTER_MASK 1
@@ -61,6 +73,7 @@ struct kvm_s390_io_adapter_req {
 #define KVM_S390_VM_TOD			1
 #define KVM_S390_VM_CRYPTO		2
 #define KVM_S390_VM_CPU_MODEL		3
+#define KVM_S390_VM_MIGRATION		4
 
 /* kvm attributes for mem_ctrl */
 #define KVM_S390_VM_MEM_ENABLE_CMMA	0
@@ -72,6 +85,12 @@ struct kvm_s390_io_adapter_req {
 /* kvm attributes for KVM_S390_VM_TOD */
 #define KVM_S390_VM_TOD_LOW		0
 #define KVM_S390_VM_TOD_HIGH		1
+#define KVM_S390_VM_TOD_EXT		2
+
+struct kvm_s390_vm_tod_clock {
+	__u8  epoch_idx;
+	__u64 tod;
+};
 
 /* kvm attributes for KVM_S390_VM_CPU_MODEL */
 /* processor related attributes are r/w */
@@ -110,6 +129,7 @@ struct kvm_s390_vm_cpu_machine {
 #define KVM_S390_VM_CPU_FEAT_CMMA	10
 #define KVM_S390_VM_CPU_FEAT_PFMFI	11
 #define KVM_S390_VM_CPU_FEAT_SIGPIF	12
+#define KVM_S390_VM_CPU_FEAT_KSS	13
 struct kvm_s390_vm_cpu_feat {
 	__u64 feat[16];
 };
@@ -131,7 +151,11 @@ struct kvm_s390_vm_cpu_subfunc {
 	__u8 kmo[16];		/* with MSA4 */
 	__u8 pcc[16];		/* with MSA4 */
 	__u8 ppno[16];		/* with MSA5 */
-	__u8 reserved[1824];
+	__u8 kma[16];		/* with MSA8 */
+	__u8 kdsa[16];		/* with MSA9 */
+	__u8 sortl[32];		/* with STFLE.150 */
+	__u8 dfltcc[32];	/* with STFLE.151 */
+	__u8 reserved[1728];
 };
 
 /* kvm attributes for crypto */
@@ -139,6 +163,13 @@ struct kvm_s390_vm_cpu_subfunc {
 #define KVM_S390_VM_CRYPTO_ENABLE_DEA_KW	1
 #define KVM_S390_VM_CRYPTO_DISABLE_AES_KW	2
 #define KVM_S390_VM_CRYPTO_DISABLE_DEA_KW	3
+#define KVM_S390_VM_CRYPTO_ENABLE_APIE		4
+#define KVM_S390_VM_CRYPTO_DISABLE_APIE		5
+
+/* kvm attributes for migration mode */
+#define KVM_S390_VM_MIGRATION_STOP	0
+#define KVM_S390_VM_MIGRATION_START	1
+#define KVM_S390_VM_MIGRATION_STATUS	2
 
 /* for KVM_GET_REGS and KVM_SET_REGS */
 struct kvm_regs {
@@ -197,6 +228,12 @@ struct kvm_guest_debug_arch {
 #define KVM_SYNC_VRS    (1UL << 6)
 #define KVM_SYNC_RICCB  (1UL << 7)
 #define KVM_SYNC_FPRS   (1UL << 8)
+#define KVM_SYNC_GSCB   (1UL << 9)
+#define KVM_SYNC_BPBC   (1UL << 10)
+#define KVM_SYNC_ETOKEN (1UL << 11)
+/* length and alignment of the sdnx as a power of two */
+#define SDNXC 8
+#define SDNXL (1UL << SDNXC)
 /* definition of registers in kvm_run */
 struct kvm_sync_regs {
 	__u64 prefix;	/* prefix register */
@@ -217,8 +254,20 @@ struct kvm_sync_regs {
 	};
 	__u8  reserved[512];	/* for future vector expansion */
 	__u32 fpc;		/* valid on KVM_SYNC_VRS or KVM_SYNC_FPRS */
-	__u8 padding[52];	/* riccb needs to be 64byte aligned */
+	__u8 bpbc : 1;		/* bp mode */
+	__u8 reserved2 : 7;
+	__u8 padding1[51];	/* riccb needs to be 64byte aligned */
 	__u8 riccb[64];		/* runtime instrumentation controls block */
+	__u8 padding2[192];	/* sdnx needs to be 256byte aligned */
+	union {
+		__u8 sdnx[SDNXL];  /* state description annex */
+		struct {
+			__u64 reserved1[2];
+			__u64 gscb[4];
+			__u64 etoken;
+			__u64 etoken_extension;
+		};
+	};
 };
 
 #define KVM_REG_S390_TODPR	(KVM_REG_S390 | KVM_REG_SIZE_U32 | 0x1)

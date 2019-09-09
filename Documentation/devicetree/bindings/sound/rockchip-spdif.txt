@@ -9,7 +9,9 @@ Required properties:
 - compatible: should be one of the following:
    - "rockchip,rk3066-spdif"
    - "rockchip,rk3188-spdif"
+   - "rockchip,rk3228-spdif"
    - "rockchip,rk3288-spdif"
+   - "rockchip,rk3328-spdif"
    - "rockchip,rk3366-spdif"
    - "rockchip,rk3368-spdif"
    - "rockchip,rk3399-spdif"
@@ -31,7 +33,7 @@ Required properties on RK3288:
 
 Example for the rk3188 SPDIF controller:
 
-spdif: spdif@0x1011e000 {
+spdif: spdif@1011e000 {
 	compatible = "rockchip,rk3188-spdif", "rockchip,rk3066-spdif";
 	reg = <0x1011e000 0x2000>;
 	interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
@@ -39,6 +41,5 @@ spdif: spdif@0x1011e000 {
 	dma-names = "tx";
 	clock-names = "hclk", "mclk";
 	clocks = <&cru HCLK_SPDIF>, <&cru SCLK_SPDIF>;
-	status = "disabled";
 	#sound-dai-cells = <0>;
 };

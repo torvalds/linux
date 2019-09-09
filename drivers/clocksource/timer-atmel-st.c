@@ -1,22 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * linux/arch/arm/mach-at91/at91rm9200_time.c
  *
  *  Copyright (C) 2003 SAN People
  *  Copyright (C) 2003 ATMEL
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/kernel.h>
@@ -92,7 +79,7 @@ static irqreturn_t at91rm9200_timer_interrupt(int irq, void *dev_id)
 	return IRQ_NONE;
 }
 
-static cycle_t read_clk32k(struct clocksource *cs)
+static u64 read_clk32k(struct clocksource *cs)
 {
 	return read_CRTR();
 }
@@ -260,5 +247,5 @@ static int __init atmel_st_timer_init(struct device_node *node)
 	/* register clocksource */
 	return clocksource_register_hz(&clk32k, sclk_rate);
 }
-CLOCKSOURCE_OF_DECLARE(atmel_st_timer, "atmel,at91rm9200-st",
+TIMER_OF_DECLARE(atmel_st_timer, "atmel,at91rm9200-st",
 		       atmel_st_timer_init);

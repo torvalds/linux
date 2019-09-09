@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *  Profiling infrastructure declarations.
  *
@@ -14,6 +15,7 @@
 #ifndef GCOV_H
 #define GCOV_H GCOV_H
 
+#include <linux/module.h>
 #include <linux/types.h>
 
 /*
@@ -45,6 +47,7 @@ unsigned int gcov_info_version(struct gcov_info *info);
 struct gcov_info *gcov_info_next(struct gcov_info *info);
 void gcov_info_link(struct gcov_info *info);
 void gcov_info_unlink(struct gcov_info *prev, struct gcov_info *info);
+bool gcov_info_within_module(struct gcov_info *info, struct module *mod);
 
 /* Base interface. */
 enum gcov_action {
@@ -81,5 +84,8 @@ struct gcov_link {
 	const char *ext;
 };
 extern const struct gcov_link gcov_link[];
+
+extern int gcov_events_enabled;
+extern struct mutex gcov_lock;
 
 #endif /* GCOV_H */

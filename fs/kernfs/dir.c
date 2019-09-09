@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * fs/kernfs/dir.c - kernfs directory implementation
  *
  * Copyright (c) 2001-3 Patrick Mochel
  * Copyright (c) 2007 SUSE Linux Products GmbH
  * Copyright (c) 2007, 2013 Tejun Heo <tj@kernel.org>
- *
- * This file is released under the GPLv2.
  */
 
 #include <linux/sched.h>
@@ -21,6 +20,7 @@
 DEFINE_MUTEX(kernfs_mutex);
 static DEFINE_SPINLOCK(kernfs_rename_lock);	/* kn->parent and ->name */
 static char kernfs_pr_cont_buf[PATH_MAX];	/* protected by rename_lock */
+static DEFINE_SPINLOCK(kernfs_idr_lock);	/* root->ino_idr */
 
 #define rb_to_kn(X) rb_entry((X), struct kernfs_node, rb)
 
@@ -41,6 +41,9 @@ static bool kernfs_lockdep(struct kernfs_node *kn)
 
 static int kernfs_name_locked(struct kernfs_node *kn, char *buf, size_t buflen)
 {
+	if (!kn)
+		return strlcpy(buf, "(null)", buflen);
+
 	return strlcpy(buf, kn->parent ? kn->name : "/", buflen);
 }
 
@@ -110,6 +113,8 @@ static struct kernfs_node *kernfs_common_ancestor(struct kernfs_node *a,
  * kn_to:   /n1/n2/n3         [depth=3]
  * result:  /../..
  *
+ * [3] when @kn_to is NULL result will be "(null)"
+ *
  * Returns the length of the full path.  If the full length is equal to or
  * greater than @buflen, @buf contains the truncated path with the trailing
  * '\0'.  On error, -errno is returned.
@@ -122,6 +127,9 @@ static int kernfs_path_from_node_locked(struct kernfs_node *kn_to,
 	const char parent_str[] = "/..";
 	size_t depth_from, depth_to, len = 0;
 	int i, j;
+
+	if (!kn_to)
+		return strlcpy(buf, "(null)", buflen);
 
 	if (!kn_from)
 		kn_from = kernfs_root(kn_to)->kn;
@@ -165,6 +173,8 @@ static int kernfs_path_from_node_locked(struct kernfs_node *kn_to,
  * Copies the name of @kn into @buf of @buflen bytes.  The behavior is
  * similar to strlcpy().  It returns the length of @kn's name and if @buf
  * isn't long enough, it's filled upto @buflen-1 and nul terminated.
+ *
+ * Fills buffer with "(null)" if @kn is NULL.
  *
  * This function can be called from any context.
  */
@@ -468,7 +478,7 @@ static void kernfs_drain(struct kernfs_node *kn)
 		rwsem_release(&kn->dep_map, 1, _RET_IP_);
 	}
 
-	kernfs_unmap_bin_file(kn);
+	kernfs_drain_open_files(kn);
 
 	mutex_lock(&kernfs_mutex);
 }
@@ -497,6 +507,10 @@ void kernfs_put(struct kernfs_node *kn)
 	struct kernfs_node *parent;
 	struct kernfs_root *root;
 
+	/*
+	 * kernfs_node is freed with ->count 0, kernfs_find_and_get_node_by_ino
+	 * depends on this to filter reused stale node
+	 */
 	if (!kn || !atomic_dec_and_test(&kn->count))
 		return;
 	root = kernfs_root(kn);
@@ -517,13 +531,12 @@ void kernfs_put(struct kernfs_node *kn)
 	kfree_const(kn->name);
 
 	if (kn->iattr) {
-		if (kn->iattr->ia_secdata)
-			security_release_secctx(kn->iattr->ia_secdata,
-						kn->iattr->ia_secdata_len);
 		simple_xattrs_free(&kn->iattr->xattrs);
+		kmem_cache_free(kernfs_iattrs_cache, kn->iattr);
 	}
-	kfree(kn->iattr);
-	ida_simple_remove(&root->ino_ida, kn->ino);
+	spin_lock(&kernfs_idr_lock);
+	idr_remove(&root->ino_idr, kn->id.ino);
+	spin_unlock(&kernfs_idr_lock);
 	kmem_cache_free(kernfs_node_cache, kn);
 
 	kn = parent;
@@ -532,7 +545,7 @@ void kernfs_put(struct kernfs_node *kn)
 			goto repeat;
 	} else {
 		/* just released the root kn, free @root too */
-		ida_destroy(&root->ino_ida);
+		idr_destroy(&root->ino_idr);
 		kfree(root);
 	}
 }
@@ -549,7 +562,7 @@ static int kernfs_dop_revalidate(struct dentry *dentry, unsigned int flags)
 	if (d_really_is_negative(dentry))
 		goto out_bad_unlocked;
 
-	kn = dentry->d_fsdata;
+	kn = kernfs_dentry_node(dentry);
 	mutex_lock(&kernfs_mutex);
 
 	/* The kernfs node has been deactivated */
@@ -557,7 +570,7 @@ static int kernfs_dop_revalidate(struct dentry *dentry, unsigned int flags)
 		goto out_bad;
 
 	/* The kernfs node has been moved? */
-	if (dentry->d_parent->d_fsdata != kn->parent)
+	if (kernfs_dentry_node(dentry->d_parent) != kn->parent)
 		goto out_bad;
 
 	/* The kernfs node has been renamed */
@@ -577,14 +590,8 @@ out_bad_unlocked:
 	return 0;
 }
 
-static void kernfs_dop_release(struct dentry *dentry)
-{
-	kernfs_put(dentry->d_fsdata);
-}
-
 const struct dentry_operations kernfs_dops = {
 	.d_revalidate	= kernfs_dop_revalidate,
-	.d_release	= kernfs_dop_release,
 };
 
 /**
@@ -600,16 +607,21 @@ const struct dentry_operations kernfs_dops = {
  */
 struct kernfs_node *kernfs_node_from_dentry(struct dentry *dentry)
 {
-	if (dentry->d_sb->s_op == &kernfs_sops)
-		return dentry->d_fsdata;
+	if (dentry->d_sb->s_op == &kernfs_sops &&
+	    !d_really_is_negative(dentry))
+		return kernfs_dentry_node(dentry);
 	return NULL;
 }
 
 static struct kernfs_node *__kernfs_new_node(struct kernfs_root *root,
+					     struct kernfs_node *parent,
 					     const char *name, umode_t mode,
+					     kuid_t uid, kgid_t gid,
 					     unsigned flags)
 {
 	struct kernfs_node *kn;
+	u32 gen;
+	int cursor;
 	int ret;
 
 	name = kstrdup_const(name, GFP_KERNEL);
@@ -620,12 +632,25 @@ static struct kernfs_node *__kernfs_new_node(struct kernfs_root *root,
 	if (!kn)
 		goto err_out1;
 
-	ret = ida_simple_get(&root->ino_ida, 1, 0, GFP_KERNEL);
+	idr_preload(GFP_KERNEL);
+	spin_lock(&kernfs_idr_lock);
+	cursor = idr_get_cursor(&root->ino_idr);
+	ret = idr_alloc_cyclic(&root->ino_idr, kn, 1, 0, GFP_ATOMIC);
+	if (ret >= 0 && ret < cursor)
+		root->next_generation++;
+	gen = root->next_generation;
+	spin_unlock(&kernfs_idr_lock);
+	idr_preload_end();
 	if (ret < 0)
 		goto err_out2;
-	kn->ino = ret;
+	kn->id.ino = ret;
+	kn->id.generation = gen;
 
-	atomic_set(&kn->count, 1);
+	/*
+	 * set ino first. This RELEASE is paired with atomic_inc_not_zero in
+	 * kernfs_find_and_get_node_by_ino
+	 */
+	atomic_set_release(&kn->count, 1);
 	atomic_set(&kn->active, KN_DEACTIVATED_BIAS);
 	RB_CLEAR_NODE(&kn->rb);
 
@@ -633,8 +658,28 @@ static struct kernfs_node *__kernfs_new_node(struct kernfs_root *root,
 	kn->mode = mode;
 	kn->flags = flags;
 
+	if (!uid_eq(uid, GLOBAL_ROOT_UID) || !gid_eq(gid, GLOBAL_ROOT_GID)) {
+		struct iattr iattr = {
+			.ia_valid = ATTR_UID | ATTR_GID,
+			.ia_uid = uid,
+			.ia_gid = gid,
+		};
+
+		ret = __kernfs_setattr(kn, &iattr);
+		if (ret < 0)
+			goto err_out3;
+	}
+
+	if (parent) {
+		ret = security_kernfs_init_security(parent, kn);
+		if (ret)
+			goto err_out3;
+	}
+
 	return kn;
 
+ err_out3:
+	idr_remove(&root->ino_idr, kn->id.ino);
  err_out2:
 	kmem_cache_free(kernfs_node_cache, kn);
  err_out1:
@@ -644,16 +689,66 @@ static struct kernfs_node *__kernfs_new_node(struct kernfs_root *root,
 
 struct kernfs_node *kernfs_new_node(struct kernfs_node *parent,
 				    const char *name, umode_t mode,
+				    kuid_t uid, kgid_t gid,
 				    unsigned flags)
 {
 	struct kernfs_node *kn;
 
-	kn = __kernfs_new_node(kernfs_root(parent), name, mode, flags);
+	kn = __kernfs_new_node(kernfs_root(parent), parent,
+			       name, mode, uid, gid, flags);
 	if (kn) {
 		kernfs_get(parent);
 		kn->parent = parent;
 	}
 	return kn;
+}
+
+/*
+ * kernfs_find_and_get_node_by_ino - get kernfs_node from inode number
+ * @root: the kernfs root
+ * @ino: inode number
+ *
+ * RETURNS:
+ * NULL on failure. Return a kernfs node with reference counter incremented
+ */
+struct kernfs_node *kernfs_find_and_get_node_by_ino(struct kernfs_root *root,
+						    unsigned int ino)
+{
+	struct kernfs_node *kn;
+
+	rcu_read_lock();
+	kn = idr_find(&root->ino_idr, ino);
+	if (!kn)
+		goto out;
+
+	/*
+	 * Since kernfs_node is freed in RCU, it's possible an old node for ino
+	 * is freed, but reused before RCU grace period. But a freed node (see
+	 * kernfs_put) or an incompletedly initialized node (see
+	 * __kernfs_new_node) should have 'count' 0. We can use this fact to
+	 * filter out such node.
+	 */
+	if (!atomic_inc_not_zero(&kn->count)) {
+		kn = NULL;
+		goto out;
+	}
+
+	/*
+	 * The node could be a new node or a reused node. If it's a new node,
+	 * we are ok. If it's reused because of RCU (because of
+	 * SLAB_TYPESAFE_BY_RCU), the __kernfs_new_node always sets its 'ino'
+	 * before 'count'. So if 'count' is uptodate, 'ino' should be uptodate,
+	 * hence we can use 'ino' to filter stale node.
+	 */
+	if (kn->id.ino != ino)
+		goto out;
+	rcu_read_unlock();
+
+	return kn;
+out:
+	rcu_read_unlock();
+	kernfs_put(kn);
+	return NULL;
 }
 
 /**
@@ -702,9 +797,8 @@ int kernfs_add_one(struct kernfs_node *kn)
 	/* Update timestamps on the parent */
 	ps_iattr = parent->iattr;
 	if (ps_iattr) {
-		struct iattr *ps_iattrs = &ps_iattr->ia_iattr;
-		ktime_get_real_ts(&ps_iattrs->ia_ctime);
-		ps_iattrs->ia_mtime = ps_iattrs->ia_ctime;
+		ktime_get_real_ts64(&ps_iattr->ia_ctime);
+		ps_iattr->ia_mtime = ps_iattr->ia_ctime;
 	}
 
 	mutex_unlock(&kernfs_mutex);
@@ -865,13 +959,15 @@ struct kernfs_root *kernfs_create_root(struct kernfs_syscall_ops *scops,
 	if (!root)
 		return ERR_PTR(-ENOMEM);
 
-	ida_init(&root->ino_ida);
+	idr_init(&root->ino_idr);
 	INIT_LIST_HEAD(&root->supers);
+	root->next_generation = 1;
 
-	kn = __kernfs_new_node(root, "", S_IFDIR | S_IRUGO | S_IXUGO,
+	kn = __kernfs_new_node(root, NULL, "", S_IFDIR | S_IRUGO | S_IXUGO,
+			       GLOBAL_ROOT_UID, GLOBAL_ROOT_GID,
 			       KERNFS_DIR);
 	if (!kn) {
-		ida_destroy(&root->ino_ida);
+		idr_destroy(&root->ino_idr);
 		kfree(root);
 		return ERR_PTR(-ENOMEM);
 	}
@@ -907,6 +1003,8 @@ void kernfs_destroy_root(struct kernfs_root *root)
  * @parent: parent in which to create a new directory
  * @name: name of the new directory
  * @mode: mode of the new directory
+ * @uid: uid of the new directory
+ * @gid: gid of the new directory
  * @priv: opaque data associated with the new directory
  * @ns: optional namespace tag of the directory
  *
@@ -914,13 +1012,15 @@ void kernfs_destroy_root(struct kernfs_root *root)
  */
 struct kernfs_node *kernfs_create_dir_ns(struct kernfs_node *parent,
 					 const char *name, umode_t mode,
+					 kuid_t uid, kgid_t gid,
 					 void *priv, const void *ns)
 {
 	struct kernfs_node *kn;
 	int rc;
 
 	/* allocate */
-	kn = kernfs_new_node(parent, name, mode | S_IFDIR, KERNFS_DIR);
+	kn = kernfs_new_node(parent, name, mode | S_IFDIR,
+			     uid, gid, KERNFS_DIR);
 	if (!kn)
 		return ERR_PTR(-ENOMEM);
 
@@ -951,7 +1051,8 @@ struct kernfs_node *kernfs_create_empty_dir(struct kernfs_node *parent,
 	int rc;
 
 	/* allocate */
-	kn = kernfs_new_node(parent, name, S_IRUGO|S_IXUGO|S_IFDIR, KERNFS_DIR);
+	kn = kernfs_new_node(parent, name, S_IRUGO|S_IXUGO|S_IFDIR,
+			     GLOBAL_ROOT_UID, GLOBAL_ROOT_GID, KERNFS_DIR);
 	if (!kn)
 		return ERR_PTR(-ENOMEM);
 
@@ -974,7 +1075,7 @@ static struct dentry *kernfs_iop_lookup(struct inode *dir,
 					unsigned int flags)
 {
 	struct dentry *ret;
-	struct kernfs_node *parent = dentry->d_parent->d_fsdata;
+	struct kernfs_node *parent = dir->i_private;
 	struct kernfs_node *kn;
 	struct inode *inode;
 	const void *ns = NULL;
@@ -991,8 +1092,6 @@ static struct dentry *kernfs_iop_lookup(struct inode *dir,
 		ret = NULL;
 		goto out_unlock;
 	}
-	kernfs_get(kn);
-	dentry->d_fsdata = kn;
 
 	/* attach dentry and inode */
 	inode = kernfs_get_inode(dir->i_sb, kn);
@@ -1029,7 +1128,7 @@ static int kernfs_iop_mkdir(struct inode *dir, struct dentry *dentry,
 
 static int kernfs_iop_rmdir(struct inode *dir, struct dentry *dentry)
 {
-	struct kernfs_node *kn  = dentry->d_fsdata;
+	struct kernfs_node *kn  = kernfs_dentry_node(dentry);
 	struct kernfs_syscall_ops *scops = kernfs_root(kn)->syscall_ops;
 	int ret;
 
@@ -1049,7 +1148,7 @@ static int kernfs_iop_rename(struct inode *old_dir, struct dentry *old_dentry,
 			     struct inode *new_dir, struct dentry *new_dentry,
 			     unsigned int flags)
 {
-	struct kernfs_node *kn  = old_dentry->d_fsdata;
+	struct kernfs_node *kn = kernfs_dentry_node(old_dentry);
 	struct kernfs_node *new_parent = new_dir->i_private;
 	struct kernfs_syscall_ops *scops = kernfs_root(kn)->syscall_ops;
 	int ret;
@@ -1231,9 +1330,8 @@ static void __kernfs_remove(struct kernfs_node *kn)
 
 			/* update timestamps on the parent */
 			if (ps_iattr) {
-				ktime_get_real_ts(&ps_iattr->ia_iattr.ia_ctime);
-				ps_iattr->ia_iattr.ia_mtime =
-					ps_iattr->ia_iattr.ia_ctime;
+				ktime_get_real_ts64(&ps_iattr->ia_ctime);
+				ps_iattr->ia_mtime = ps_iattr->ia_ctime;
 			}
 
 			kernfs_put(pos);
@@ -1562,7 +1660,7 @@ static struct kernfs_node *kernfs_dir_next_pos(const void *ns,
 static int kernfs_fop_readdir(struct file *file, struct dir_context *ctx)
 {
 	struct dentry *dentry = file->f_path.dentry;
-	struct kernfs_node *parent = dentry->d_fsdata;
+	struct kernfs_node *parent = kernfs_dentry_node(dentry);
 	struct kernfs_node *pos = file->private_data;
 	const void *ns = NULL;
 
@@ -1579,7 +1677,7 @@ static int kernfs_fop_readdir(struct file *file, struct dir_context *ctx)
 		const char *name = pos->name;
 		unsigned int type = dt_type(pos);
 		int len = strlen(name);
-		ino_t ino = pos->ino;
+		ino_t ino = pos->id.ino;
 
 		ctx->pos = pos->hash;
 		file->private_data = pos;

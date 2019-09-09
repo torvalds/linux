@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2007 David Gibson, IBM Corporation.
  *
@@ -11,11 +12,6 @@
  * Copyright (C) 2009 Wind River Systems, Inc.
  *   Updated for supporting PPC405EX on Kilauea.
  *   Tiejun Chen <tiejun.chen@windriver.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 #include <stddef.h>
 #include "types.h"
@@ -564,7 +560,7 @@ void ibm405gp_fixup_clocks(unsigned int sys_clk, unsigned int ser_clk)
 		fbdv = 16;
 	cbdv = ((pllmr & 0x00060000) >> 17) + 1; /* CPU:PLB */
 	opdv = ((pllmr & 0x00018000) >> 15) + 1; /* PLB:OPB */
-	ppdv = ((pllmr & 0x00001800) >> 13) + 1; /* PLB:PCI */
+	ppdv = ((pllmr & 0x00006000) >> 13) + 1; /* PLB:PCI */
 	epdv = ((pllmr & 0x00001800) >> 11) + 2; /* PLB:EBC */
 	udiv = ((cpc0_cr0 & 0x3e) >> 1) + 1;
 

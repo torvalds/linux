@@ -1,5 +1,2 @@
-include include/uapi/asm-generic/Kbuild.asm
-
-header-y += elf.h
-
+# SPDX-License-Identifier: GPL-2.0
 generic-y += ucontext.h

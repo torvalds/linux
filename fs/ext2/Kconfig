@@ -1,6 +1,6 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config EXT2_FS
 	tristate "Second extended fs support"
-	select FS_IOMAP if FS_DAX
 	help
 	  Ext2 is a standard Linux file system for hard disks.
 
@@ -14,8 +14,7 @@ config EXT2_FS_XATTR
 	depends on EXT2_FS
 	help
 	  Extended attributes are name:value pairs associated with inodes by
-	  the kernel or by users (see the attr(5) manual page, or visit
-	  <http://acl.bestbits.at/> for details).
+	  the kernel or by users (see the attr(5) manual page for details).
 
 	  If unsure, say N.
 
@@ -26,9 +25,6 @@ config EXT2_FS_POSIX_ACL
 	help
 	  Posix Access Control Lists (ACLs) support permissions for users and
 	  groups beyond the owner/group/world scheme.
-
-	  To learn more about Access Control Lists, visit the Posix ACLs for
-	  Linux website <http://acl.bestbits.at/>.
 
 	  If you don't know what Access Control Lists are, say N
 

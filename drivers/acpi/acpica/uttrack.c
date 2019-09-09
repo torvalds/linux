@@ -1,45 +1,11 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /******************************************************************************
  *
  * Module Name: uttrack - Memory allocation tracking routines (debug only)
  *
+ * Copyright (C) 2000 - 2019, Intel Corp.
+ *
  *****************************************************************************/
-
-/*
- * Copyright (C) 2000 - 2016, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
 
 /*
  * These procedures are used for tracking memory leaks in the subsystem, and
@@ -402,8 +368,8 @@ acpi_ut_track_allocation(struct acpi_debug_mem_block *allocation,
 	allocation->component = component;
 	allocation->line = line;
 
-	strncpy(allocation->module, module, ACPI_MAX_MODULE_NAME);
-	allocation->module[ACPI_MAX_MODULE_NAME - 1] = 0;
+	acpi_ut_safe_strncpy(allocation->module, (char *)module,
+			     ACPI_MAX_MODULE_NAME);
 
 	if (!element) {
 
@@ -591,6 +557,10 @@ void acpi_ut_dump_allocations(u32 component, const char *module)
 		return_VOID;
 	}
 
+	if (!acpi_gbl_global_list) {
+		goto exit;
+	}
+
 	element = acpi_gbl_global_list->list_head;
 	while (element) {
 		if ((element->component & component) &&
@@ -602,7 +572,7 @@ void acpi_ut_dump_allocations(u32 component, const char *module)
 
 			if (element->size <
 			    sizeof(struct acpi_common_descriptor)) {
-				acpi_os_printf("%p Length 0x%04X %9.9s-%u "
+				acpi_os_printf("%p Length 0x%04X %9.9s-%4.4u "
 					       "[Not a Descriptor - too small]\n",
 					       descriptor, element->size,
 					       element->module, element->line);
@@ -612,11 +582,23 @@ void acpi_ut_dump_allocations(u32 component, const char *module)
 				if (ACPI_GET_DESCRIPTOR_TYPE(descriptor) !=
 				    ACPI_DESC_TYPE_CACHED) {
 					acpi_os_printf
-					    ("%p Length 0x%04X %9.9s-%u [%s] ",
+					    ("%p Length 0x%04X %9.9s-%4.4u [%s] ",
 					     descriptor, element->size,
 					     element->module, element->line,
 					     acpi_ut_get_descriptor_name
 					     (descriptor));
+
+					/* Optional object hex dump */
+
+					if (acpi_gbl_verbose_leak_dump) {
+						acpi_os_printf("\n");
+						acpi_ut_dump_buffer((u8 *)
+								    descriptor,
+								    element->
+								    size,
+								    DB_BYTE_DISPLAY,
+								    0);
+					}
 
 					/* Validate the descriptor type using Type field and length */
 
@@ -705,6 +687,7 @@ void acpi_ut_dump_allocations(u32 component, const char *module)
 		element = element->next;
 	}
 
+exit:
 	(void)acpi_ut_release_mutex(ACPI_MTX_MEMORY);
 
 	/* Print summary */
@@ -712,7 +695,7 @@ void acpi_ut_dump_allocations(u32 component, const char *module)
 	if (!num_outstanding) {
 		ACPI_INFO(("No outstanding allocations"));
 	} else {
-		ACPI_ERROR((AE_INFO, "%u(0x%X) Outstanding allocations",
+		ACPI_ERROR((AE_INFO, "%u (0x%X) Outstanding cache allocations",
 			    num_outstanding, num_outstanding));
 	}
 

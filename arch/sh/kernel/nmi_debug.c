@@ -1,14 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2007 Atmel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/delay.h>
 #include <linux/kdebug.h>
 #include <linux/notifier.h>
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
 #include <linux/hardirq.h>
 
 enum nmi_action {

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __NET_SYSFS_H__
 #define __NET_SYSFS_H__
 

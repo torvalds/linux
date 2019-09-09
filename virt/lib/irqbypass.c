@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * IRQ offload/bypass manager
  *
  * Copyright (C) 2015 Red Hat, Inc.
  * Copyright (c) 2015 Linaro Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Various virtualization hardware acceleration techniques allow bypassing or
  * offloading interrupts received from devices around the host kernel.  Posted
@@ -195,7 +192,7 @@ int irq_bypass_register_consumer(struct irq_bypass_consumer *consumer)
 	mutex_lock(&lock);
 
 	list_for_each_entry(tmp, &consumers, node) {
-		if (tmp->token == consumer->token) {
+		if (tmp->token == consumer->token || tmp == consumer) {
 			mutex_unlock(&lock);
 			module_put(THIS_MODULE);
 			return -EBUSY;
@@ -245,7 +242,7 @@ void irq_bypass_unregister_consumer(struct irq_bypass_consumer *consumer)
 	mutex_lock(&lock);
 
 	list_for_each_entry(tmp, &consumers, node) {
-		if (tmp->token != consumer->token)
+		if (tmp != consumer)
 			continue;
 
 		list_for_each_entry(producer, &producers, node) {

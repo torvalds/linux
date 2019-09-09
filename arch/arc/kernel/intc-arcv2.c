@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2014 Synopsys, Inc. (www.synopsys.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/interrupt.h>
@@ -14,7 +10,15 @@
 #include <linux/irqchip.h>
 #include <asm/irq.h>
 
-static int irq_prio;
+#define NR_EXCEPTIONS	16
+
+struct bcr_irq_arcv2 {
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	unsigned int pad:3, firq:1, prio:4, exts:8, irqs:8, ver:8;
+#else
+	unsigned int ver:8, irqs:8, exts:8, prio:4, firq:1, pad:3;
+#endif
+};
 
 /*
  * Early Hardware specific Interrupt setup
@@ -24,15 +28,8 @@ static int irq_prio;
  */
 void arc_init_IRQ(void)
 {
-	unsigned int tmp;
-
-	struct irq_build {
-#ifdef CONFIG_CPU_BIG_ENDIAN
-		unsigned int pad:3, firq:1, prio:4, exts:8, irqs:8, ver:8;
-#else
-		unsigned int ver:8, irqs:8, exts:8, prio:4, firq:1, pad:3;
-#endif
-	} irq_bcr;
+	unsigned int tmp, irq_prio, i;
+	struct bcr_irq_arcv2 irq_bcr;
 
 	struct aux_irq_ctrl {
 #ifdef CONFIG_CPU_BIG_ENDIAN
@@ -48,11 +45,13 @@ void arc_init_IRQ(void)
 
 	*(unsigned int *)&ictrl = 0;
 
+#ifndef CONFIG_ARC_IRQ_NO_AUTOSAVE
 	ictrl.save_nr_gpr_pairs = 6;	/* r0 to r11 (r12 saved manually) */
 	ictrl.save_blink = 1;
 	ictrl.save_lp_regs = 1;		/* LP_COUNT, LP_START, LP_END */
 	ictrl.save_u_to_u = 0;		/* user ctxt saved on kernel stack */
 	ictrl.save_idx_regs = 1;	/* JLI, LDI, EI */
+#endif
 
 	WRITE_AUX(AUX_IRQ_CTRL, ictrl);
 
@@ -67,33 +66,53 @@ void arc_init_IRQ(void)
 
 	irq_prio = irq_bcr.prio;	/* Encoded as N-1 for N levels */
 	pr_info("archs-intc\t: %d priority levels (default %d)%s\n",
-		irq_prio + 1, irq_prio,
+		irq_prio + 1, ARCV2_IRQ_DEF_PRIO,
 		irq_bcr.firq ? " FIRQ (not used)":"");
 
+	/*
+	 * Set a default priority for all available interrupts to prevent
+	 * switching of register banks if Fast IRQ and multiple register banks
+	 * are supported by CPU.
+	 * Also disable private-per-core IRQ lines so faulty external HW won't
+	 * trigger interrupt that kernel is not ready to handle.
+	 */
+	for (i = NR_EXCEPTIONS; i < irq_bcr.irqs + NR_EXCEPTIONS; i++) {
+		write_aux_reg(AUX_IRQ_SELECT, i);
+		write_aux_reg(AUX_IRQ_PRIORITY, ARCV2_IRQ_DEF_PRIO);
+
+		/*
+		 * Only mask cpu private IRQs here.
+		 * "common" interrupts are masked at IDU, otherwise it would
+		 * need to be unmasked at each cpu, with IPIs
+		 */
+		if (i < FIRST_EXT_IRQ)
+			write_aux_reg(AUX_IRQ_ENABLE, 0);
+	}
+
 	/* setup status32, don't enable intr yet as kernel doesn't want */
-	tmp = read_aux_reg(0xa);
-	tmp |= STATUS_AD_MASK | (irq_prio << 1);
+	tmp = read_aux_reg(ARC_REG_STATUS32);
+	tmp |= ARCV2_IRQ_DEF_PRIO << 1;
 	tmp &= ~STATUS_IE_MASK;
 	asm volatile("kflag %0	\n"::"r"(tmp));
 }
 
 static void arcv2_irq_mask(struct irq_data *data)
 {
-	write_aux_reg(AUX_IRQ_SELECT, data->irq);
+	write_aux_reg(AUX_IRQ_SELECT, data->hwirq);
 	write_aux_reg(AUX_IRQ_ENABLE, 0);
 }
 
 static void arcv2_irq_unmask(struct irq_data *data)
 {
-	write_aux_reg(AUX_IRQ_SELECT, data->irq);
+	write_aux_reg(AUX_IRQ_SELECT, data->hwirq);
 	write_aux_reg(AUX_IRQ_ENABLE, 1);
 }
 
 void arcv2_irq_enable(struct irq_data *data)
 {
 	/* set default priority */
-	write_aux_reg(AUX_IRQ_SELECT, data->irq);
-	write_aux_reg(AUX_IRQ_PRIORITY, irq_prio);
+	write_aux_reg(AUX_IRQ_SELECT, data->hwirq);
+	write_aux_reg(AUX_IRQ_PRIORITY, ARCV2_IRQ_DEF_PRIO);
 
 	/*
 	 * hw auto enables (linux unmask) all by default
@@ -117,7 +136,7 @@ static int arcv2_irq_map(struct irq_domain *d, unsigned int irq,
 	 * core intc IRQs [16, 23]:
 	 * Statically assigned always private-per-core (Timers, WDT, IPI, PCT)
 	 */
-	if (hw < 24) {
+	if (hw < FIRST_EXT_IRQ) {
 		/*
 		 * A subsequent request_percpu_irq() fails if percpu_devid is
 		 * not set. That in turns sets NOAUTOEN, meaning each core needs
@@ -142,11 +161,16 @@ static int __init
 init_onchip_IRQ(struct device_node *intc, struct device_node *parent)
 {
 	struct irq_domain *root_domain;
+	struct bcr_irq_arcv2 irq_bcr;
+	unsigned int nr_cpu_irqs;
+
+	READ_BCR(ARC_REG_IRQ_BCR, irq_bcr);
+	nr_cpu_irqs = irq_bcr.irqs + NR_EXCEPTIONS;
 
 	if (parent)
 		panic("DeviceTree incore intc not a root irq controller\n");
 
-	root_domain = irq_domain_add_linear(intc, NR_CPU_IRQS, &arcv2_irq_ops, NULL);
+	root_domain = irq_domain_add_linear(intc, nr_cpu_irqs, &arcv2_irq_ops, NULL);
 	if (!root_domain)
 		panic("root irq domain not avail\n");
 

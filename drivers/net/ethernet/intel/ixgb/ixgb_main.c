@@ -1,30 +1,5 @@
-/*******************************************************************************
-
-  Intel PRO/10GbE Linux driver
-  Copyright(c) 1999 - 2008 Intel Corporation.
-
-  This program is free software; you can redistribute it and/or modify it
-  under the terms and conditions of the GNU General Public License,
-  version 2, as published by the Free Software Foundation.
-
-  This program is distributed in the hope it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details.
-
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-
-  The full GNU General Public License is included in this distribution in
-  the file called "COPYING".
-
-  Contact Information:
-  Linux NICS <linux.nics@intel.com>
-  e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
-  Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
-
-*******************************************************************************/
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright(c) 1999 - 2008 Intel Corporation. */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -83,10 +58,9 @@ static void ixgb_setup_rctl(struct ixgb_adapter *adapter);
 static void ixgb_clean_tx_ring(struct ixgb_adapter *adapter);
 static void ixgb_clean_rx_ring(struct ixgb_adapter *adapter);
 static void ixgb_set_multi(struct net_device *netdev);
-static void ixgb_watchdog(unsigned long data);
+static void ixgb_watchdog(struct timer_list *t);
 static netdev_tx_t ixgb_xmit_frame(struct sk_buff *skb,
 				   struct net_device *netdev);
-static struct net_device_stats *ixgb_get_stats(struct net_device *netdev);
 static int ixgb_change_mtu(struct net_device *netdev, int new_mtu);
 static int ixgb_set_mac(struct net_device *netdev, void *p);
 static irqreturn_t ixgb_intr(int irq, void *data);
@@ -106,11 +80,6 @@ static int ixgb_vlan_rx_add_vid(struct net_device *netdev,
 static int ixgb_vlan_rx_kill_vid(struct net_device *netdev,
 				 __be16 proto, u16 vid);
 static void ixgb_restore_vlan(struct ixgb_adapter *adapter);
-
-#ifdef CONFIG_NET_POLL_CONTROLLER
-/* for netdump / net console */
-static void ixgb_netpoll(struct net_device *dev);
-#endif
 
 static pci_ers_result_t ixgb_io_error_detected (struct pci_dev *pdev,
                              enum pci_channel_state state);
@@ -133,7 +102,7 @@ static struct pci_driver ixgb_driver = {
 
 MODULE_AUTHOR("Intel Corporation, <linux.nics@intel.com>");
 MODULE_DESCRIPTION("Intel(R) PRO/10GbE Network Driver");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_VERSION(DRV_VERSION);
 
 #define DEFAULT_MSG_ENABLE (NETIF_MSG_DRV|NETIF_MSG_PROBE|NETIF_MSG_LINK)
@@ -367,7 +336,6 @@ static const struct net_device_ops ixgb_netdev_ops = {
 	.ndo_open 		= ixgb_open,
 	.ndo_stop		= ixgb_close,
 	.ndo_start_xmit		= ixgb_xmit_frame,
-	.ndo_get_stats		= ixgb_get_stats,
 	.ndo_set_rx_mode	= ixgb_set_multi,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= ixgb_set_mac,
@@ -375,9 +343,6 @@ static const struct net_device_ops ixgb_netdev_ops = {
 	.ndo_tx_timeout		= ixgb_tx_timeout,
 	.ndo_vlan_rx_add_vid	= ixgb_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= ixgb_vlan_rx_kill_vid,
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	.ndo_poll_controller	= ixgb_netpoll,
-#endif
 	.ndo_fix_features       = ixgb_fix_features,
 	.ndo_set_features       = ixgb_set_features,
 };
@@ -487,6 +452,10 @@ ixgb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		netdev->vlan_features |= NETIF_F_HIGHDMA;
 	}
 
+	/* MTU range: 68 - 16114 */
+	netdev->min_mtu = ETH_MIN_MTU;
+	netdev->max_mtu = IXGB_MAX_JUMBO_FRAME_SIZE - ETH_HLEN;
+
 	/* make sure the EEPROM is good */
 
 	if (!ixgb_validate_eeprom_checksum(&adapter->hw)) {
@@ -506,9 +475,7 @@ ixgb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	adapter->part_num = ixgb_get_ee_pba_number(&adapter->hw);
 
-	init_timer(&adapter->watchdog_timer);
-	adapter->watchdog_timer.function = ixgb_watchdog;
-	adapter->watchdog_timer.data = (unsigned long)adapter;
+	timer_setup(&adapter->watchdog_timer, ixgb_watchdog, 0);
 
 	INIT_WORK(&adapter->tx_timeout_task, ixgb_tx_timeout_task);
 
@@ -713,8 +680,8 @@ ixgb_setup_tx_resources(struct ixgb_adapter *adapter)
 	txdr->size = txdr->count * sizeof(struct ixgb_tx_desc);
 	txdr->size = ALIGN(txdr->size, 4096);
 
-	txdr->desc = dma_zalloc_coherent(&pdev->dev, txdr->size, &txdr->dma,
-					 GFP_KERNEL);
+	txdr->desc = dma_alloc_coherent(&pdev->dev, txdr->size, &txdr->dma,
+					GFP_KERNEL);
 	if (!txdr->desc) {
 		vfree(txdr->buffer_info);
 		return -ENOMEM;
@@ -803,7 +770,6 @@ ixgb_setup_rx_resources(struct ixgb_adapter *adapter)
 		vfree(rxdr->buffer_info);
 		return -ENOMEM;
 	}
-	memset(rxdr->desc, 0, rxdr->size);
 
 	rxdr->next_to_clean = 0;
 	rxdr->next_to_use = 0;
@@ -1118,8 +1084,9 @@ ixgb_set_multi(struct net_device *netdev)
 		rctl |= IXGB_RCTL_MPE;
 		IXGB_WRITE_REG(hw, RCTL, rctl);
 	} else {
-		u8 *mta = kmalloc(IXGB_MAX_NUM_MULTICAST_ADDRESSES *
-			      ETH_ALEN, GFP_ATOMIC);
+		u8 *mta = kmalloc_array(ETH_ALEN,
+				        IXGB_MAX_NUM_MULTICAST_ADDRESSES,
+				        GFP_ATOMIC);
 		u8 *addr;
 		if (!mta)
 			goto alloc_failed;
@@ -1150,9 +1117,9 @@ alloc_failed:
  **/
 
 static void
-ixgb_watchdog(unsigned long data)
+ixgb_watchdog(struct timer_list *t)
 {
-	struct ixgb_adapter *adapter = (struct ixgb_adapter *)data;
+	struct ixgb_adapter *adapter = from_timer(adapter, t, watchdog_timer);
 	struct net_device *netdev = adapter->netdev;
 	struct ixgb_desc_ring *txdr = &adapter->tx_ring;
 
@@ -1593,20 +1560,6 @@ ixgb_tx_timeout_task(struct work_struct *work)
 }
 
 /**
- * ixgb_get_stats - Get System Network Statistics
- * @netdev: network interface device structure
- *
- * Returns the address of the device statistics structure.
- * The statistics are actually updated from the timer callback.
- **/
-
-static struct net_device_stats *
-ixgb_get_stats(struct net_device *netdev)
-{
-	return &netdev->stats;
-}
-
-/**
  * ixgb_change_mtu - Change the Maximum Transfer Unit
  * @netdev: network interface device structure
  * @new_mtu: new value for maximum frame size
@@ -1619,18 +1572,6 @@ ixgb_change_mtu(struct net_device *netdev, int new_mtu)
 {
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
 	int max_frame = new_mtu + ENET_HEADER_SIZE + ENET_FCS_LENGTH;
-	int old_max_frame = netdev->mtu + ENET_HEADER_SIZE + ENET_FCS_LENGTH;
-
-	/* MTU < 68 is an error for IPv4 traffic, just don't allow it */
-	if ((new_mtu < 68) ||
-	    (max_frame > IXGB_MAX_JUMBO_FRAME_SIZE + ENET_FCS_LENGTH)) {
-		netif_err(adapter, probe, adapter->netdev,
-			  "Invalid MTU setting %d\n", new_mtu);
-		return -EINVAL;
-	}
-
-	if (old_max_frame == max_frame)
-		return 0;
 
 	if (netif_running(netdev))
 		ixgb_down(adapter, true);
@@ -1825,7 +1766,7 @@ ixgb_clean(struct napi_struct *napi, int budget)
 
 	/* If budget not fully consumed, exit the polling mode */
 	if (work_done < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		if (!test_bit(__IXGB_DOWN, &adapter->flags))
 			ixgb_irq_enable(adapter);
 	}
@@ -2245,23 +2186,6 @@ ixgb_restore_vlan(struct ixgb_adapter *adapter)
 	for_each_set_bit(vid, adapter->active_vlans, VLAN_N_VID)
 		ixgb_vlan_rx_add_vid(adapter->netdev, htons(ETH_P_8021Q), vid);
 }
-
-#ifdef CONFIG_NET_POLL_CONTROLLER
-/*
- * Polling 'interrupt' - used by things like netconsole to send skbs
- * without having to re-enable interrupts. It's not called while
- * the interrupt routine is executing.
- */
-
-static void ixgb_netpoll(struct net_device *dev)
-{
-	struct ixgb_adapter *adapter = netdev_priv(dev);
-
-	disable_irq(adapter->pdev->irq);
-	ixgb_intr(adapter->pdev->irq, dev);
-	enable_irq(adapter->pdev->irq);
-}
-#endif
 
 /**
  * ixgb_io_error_detected - called when PCI error is detected

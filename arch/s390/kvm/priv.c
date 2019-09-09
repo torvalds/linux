@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * handling privileged instructions
  *
- * Copyright IBM Corp. 2008, 2013
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License (version 2 only)
- * as published by the Free Software Foundation.
+ * Copyright IBM Corp. 2008, 2018
  *
  *    Author(s): Carsten Otte <cotte@de.ibm.com>
  *               Christian Borntraeger <borntraeger@de.ibm.com>
@@ -15,6 +12,8 @@
 #include <linux/gfp.h>
 #include <linux/errno.h>
 #include <linux/compat.h>
+#include <linux/mm_types.h>
+
 #include <asm/asm-offsets.h>
 #include <asm/facility.h>
 #include <asm/current.h>
@@ -22,20 +21,24 @@
 #include <asm/ebcdic.h>
 #include <asm/sysinfo.h>
 #include <asm/pgtable.h>
+#include <asm/page-states.h>
 #include <asm/pgalloc.h>
 #include <asm/gmap.h>
 #include <asm/io.h>
 #include <asm/ptrace.h>
-#include <asm/compat.h>
 #include <asm/sclp.h>
+#include <asm/ap.h>
 #include "gaccess.h"
 #include "kvm-s390.h"
 #include "trace.h"
 
 static int handle_ri(struct kvm_vcpu *vcpu)
 {
+	vcpu->stat.instruction_ri++;
+
 	if (test_kvm_facility(vcpu->kvm, 64)) {
-		vcpu->arch.sie_block->ecb3 |= 0x01;
+		VCPU_EVENT(vcpu, 3, "%s", "ENABLE: RI (lazy)");
+		vcpu->arch.sie_block->ecb3 |= ECB3_RI;
 		kvm_s390_retry_instr(vcpu);
 		return 0;
 	} else
@@ -50,12 +53,44 @@ int kvm_s390_handle_aa(struct kvm_vcpu *vcpu)
 		return -EOPNOTSUPP;
 }
 
+static int handle_gs(struct kvm_vcpu *vcpu)
+{
+	vcpu->stat.instruction_gs++;
+
+	if (test_kvm_facility(vcpu->kvm, 133)) {
+		VCPU_EVENT(vcpu, 3, "%s", "ENABLE: GS (lazy)");
+		preempt_disable();
+		__ctl_set_bit(2, 4);
+		current->thread.gs_cb = (struct gs_cb *)&vcpu->run->s.regs.gscb;
+		restore_gs_cb(current->thread.gs_cb);
+		preempt_enable();
+		vcpu->arch.sie_block->ecb |= ECB_GS;
+		vcpu->arch.sie_block->ecd |= ECD_HOSTREGMGMT;
+		vcpu->arch.gs_enabled = 1;
+		kvm_s390_retry_instr(vcpu);
+		return 0;
+	} else
+		return kvm_s390_inject_program_int(vcpu, PGM_OPERATION);
+}
+
+int kvm_s390_handle_e3(struct kvm_vcpu *vcpu)
+{
+	int code = vcpu->arch.sie_block->ipb & 0xff;
+
+	if (code == 0x49 || code == 0x4d)
+		return handle_gs(vcpu);
+	else
+		return -EOPNOTSUPP;
+}
 /* Handle SCK (SET CLOCK) interception */
 static int handle_set_clock(struct kvm_vcpu *vcpu)
 {
+	struct kvm_s390_vm_tod_clock gtod = { 0 };
 	int rc;
-	ar_t ar;
-	u64 op2, val;
+	u8 ar;
+	u64 op2;
+
+	vcpu->stat.instruction_sck++;
 
 	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)
 		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
@@ -63,12 +98,12 @@ static int handle_set_clock(struct kvm_vcpu *vcpu)
 	op2 = kvm_s390_get_base_disp_s(vcpu, &ar);
 	if (op2 & 7)	/* Operand must be on a doubleword boundary */
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
-	rc = read_guest(vcpu, op2, ar, &val, sizeof(val));
+	rc = read_guest(vcpu, op2, ar, &gtod.tod, sizeof(gtod.tod));
 	if (rc)
 		return kvm_s390_inject_prog_cond(vcpu, rc);
 
-	VCPU_EVENT(vcpu, 3, "SCK: setting guest TOD to 0x%llx", val);
-	kvm_s390_set_tod_clock(vcpu->kvm, val);
+	VCPU_EVENT(vcpu, 3, "SCK: setting guest TOD to 0x%llx", gtod.tod);
+	kvm_s390_set_tod_clock(vcpu->kvm, &gtod);
 
 	kvm_s390_set_psw_cc(vcpu, 0);
 	return 0;
@@ -79,7 +114,7 @@ static int handle_set_prefix(struct kvm_vcpu *vcpu)
 	u64 operand2;
 	u32 address;
 	int rc;
-	ar_t ar;
+	u8 ar;
 
 	vcpu->stat.instruction_spx++;
 
@@ -117,7 +152,7 @@ static int handle_store_prefix(struct kvm_vcpu *vcpu)
 	u64 operand2;
 	u32 address;
 	int rc;
-	ar_t ar;
+	u8 ar;
 
 	vcpu->stat.instruction_stpx++;
 
@@ -147,7 +182,7 @@ static int handle_store_cpu_address(struct kvm_vcpu *vcpu)
 	u16 vcpu_id = vcpu->vcpu_id;
 	u64 ga;
 	int rc;
-	ar_t ar;
+	u8 ar;
 
 	vcpu->stat.instruction_stap++;
 
@@ -168,46 +203,58 @@ static int handle_store_cpu_address(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
-static int __skey_check_enable(struct kvm_vcpu *vcpu)
+int kvm_s390_skey_check_enable(struct kvm_vcpu *vcpu)
 {
-	int rc = 0;
+	int rc;
 
 	trace_kvm_s390_skey_related_inst(vcpu);
-	if (!(vcpu->arch.sie_block->ictl & (ICTL_ISKE | ICTL_SSKE | ICTL_RRBE)))
-		return rc;
+	/* Already enabled? */
+	if (vcpu->arch.skey_enabled)
+		return 0;
 
 	rc = s390_enable_skey();
 	VCPU_EVENT(vcpu, 3, "enabling storage keys for guest: %d", rc);
-	if (!rc)
+	if (rc)
+		return rc;
+
+	if (kvm_s390_test_cpuflags(vcpu, CPUSTAT_KSS))
+		kvm_s390_clear_cpuflags(vcpu, CPUSTAT_KSS);
+	if (!vcpu->kvm->arch.use_skf)
+		vcpu->arch.sie_block->ictl |= ICTL_ISKE | ICTL_SSKE | ICTL_RRBE;
+	else
 		vcpu->arch.sie_block->ictl &= ~(ICTL_ISKE | ICTL_SSKE | ICTL_RRBE);
-	return rc;
+	vcpu->arch.skey_enabled = true;
+	return 0;
 }
 
 static int try_handle_skey(struct kvm_vcpu *vcpu)
 {
 	int rc;
 
-	vcpu->stat.instruction_storage_key++;
-	rc = __skey_check_enable(vcpu);
+	rc = kvm_s390_skey_check_enable(vcpu);
 	if (rc)
 		return rc;
-	if (sclp.has_skey) {
+	if (vcpu->kvm->arch.use_skf) {
 		/* with storage-key facility, SIE interprets it for us */
 		kvm_s390_retry_instr(vcpu);
 		VCPU_EVENT(vcpu, 4, "%s", "retrying storage key operation");
 		return -EAGAIN;
 	}
-	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)
-		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
 	return 0;
 }
 
 static int handle_iske(struct kvm_vcpu *vcpu)
 {
-	unsigned long addr;
+	unsigned long gaddr, vmaddr;
 	unsigned char key;
 	int reg1, reg2;
+	bool unlocked;
 	int rc;
+
+	vcpu->stat.instruction_iske++;
+
+	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)
+		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
 
 	rc = try_handle_skey(vcpu);
 	if (rc)
@@ -215,18 +262,30 @@ static int handle_iske(struct kvm_vcpu *vcpu)
 
 	kvm_s390_get_regs_rre(vcpu, &reg1, &reg2);
 
-	addr = vcpu->run->s.regs.gprs[reg2] & PAGE_MASK;
-	addr = kvm_s390_logical_to_effective(vcpu, addr);
-	addr = kvm_s390_real_to_abs(vcpu, addr);
-	addr = gfn_to_hva(vcpu->kvm, gpa_to_gfn(addr));
-	if (kvm_is_error_hva(addr))
+	gaddr = vcpu->run->s.regs.gprs[reg2] & PAGE_MASK;
+	gaddr = kvm_s390_logical_to_effective(vcpu, gaddr);
+	gaddr = kvm_s390_real_to_abs(vcpu, gaddr);
+	vmaddr = gfn_to_hva(vcpu->kvm, gpa_to_gfn(gaddr));
+	if (kvm_is_error_hva(vmaddr))
 		return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
-
+retry:
+	unlocked = false;
 	down_read(&current->mm->mmap_sem);
-	rc = get_guest_storage_key(current->mm, addr, &key);
+	rc = get_guest_storage_key(current->mm, vmaddr, &key);
+
+	if (rc) {
+		rc = fixup_user_fault(current, current->mm, vmaddr,
+				      FAULT_FLAG_WRITE, &unlocked);
+		if (!rc) {
+			up_read(&current->mm->mmap_sem);
+			goto retry;
+		}
+	}
 	up_read(&current->mm->mmap_sem);
-	if (rc)
+	if (rc == -EFAULT)
 		return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
+	if (rc < 0)
+		return rc;
 	vcpu->run->s.regs.gprs[reg1] &= ~0xff;
 	vcpu->run->s.regs.gprs[reg1] |= key;
 	return 0;
@@ -234,9 +293,15 @@ static int handle_iske(struct kvm_vcpu *vcpu)
 
 static int handle_rrbe(struct kvm_vcpu *vcpu)
 {
-	unsigned long addr;
+	unsigned long vmaddr, gaddr;
 	int reg1, reg2;
+	bool unlocked;
 	int rc;
+
+	vcpu->stat.instruction_rrbe++;
+
+	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)
+		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
 
 	rc = try_handle_skey(vcpu);
 	if (rc)
@@ -244,19 +309,29 @@ static int handle_rrbe(struct kvm_vcpu *vcpu)
 
 	kvm_s390_get_regs_rre(vcpu, &reg1, &reg2);
 
-	addr = vcpu->run->s.regs.gprs[reg2] & PAGE_MASK;
-	addr = kvm_s390_logical_to_effective(vcpu, addr);
-	addr = kvm_s390_real_to_abs(vcpu, addr);
-	addr = gfn_to_hva(vcpu->kvm, gpa_to_gfn(addr));
-	if (kvm_is_error_hva(addr))
+	gaddr = vcpu->run->s.regs.gprs[reg2] & PAGE_MASK;
+	gaddr = kvm_s390_logical_to_effective(vcpu, gaddr);
+	gaddr = kvm_s390_real_to_abs(vcpu, gaddr);
+	vmaddr = gfn_to_hva(vcpu->kvm, gpa_to_gfn(gaddr));
+	if (kvm_is_error_hva(vmaddr))
 		return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
-
+retry:
+	unlocked = false;
 	down_read(&current->mm->mmap_sem);
-	rc = reset_guest_reference_bit(current->mm, addr);
+	rc = reset_guest_reference_bit(current->mm, vmaddr);
+	if (rc < 0) {
+		rc = fixup_user_fault(current, current->mm, vmaddr,
+				      FAULT_FLAG_WRITE, &unlocked);
+		if (!rc) {
+			up_read(&current->mm->mmap_sem);
+			goto retry;
+		}
+	}
 	up_read(&current->mm->mmap_sem);
-	if (rc < 0)
+	if (rc == -EFAULT)
 		return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
-
+	if (rc < 0)
+		return rc;
 	kvm_s390_set_psw_cc(vcpu, rc);
 	return 0;
 }
@@ -271,7 +346,13 @@ static int handle_sske(struct kvm_vcpu *vcpu)
 	unsigned long start, end;
 	unsigned char key, oldkey;
 	int reg1, reg2;
+	bool unlocked;
 	int rc;
+
+	vcpu->stat.instruction_sske++;
+
+	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)
+		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
 
 	rc = try_handle_skey(vcpu);
 	if (rc)
@@ -291,27 +372,36 @@ static int handle_sske(struct kvm_vcpu *vcpu)
 	start = kvm_s390_logical_to_effective(vcpu, start);
 	if (m3 & SSKE_MB) {
 		/* start already designates an absolute address */
-		end = (start + (1UL << 20)) & ~((1UL << 20) - 1);
+		end = (start + _SEGMENT_SIZE) & ~(_SEGMENT_SIZE - 1);
 	} else {
 		start = kvm_s390_real_to_abs(vcpu, start);
 		end = start + PAGE_SIZE;
 	}
 
 	while (start != end) {
-		unsigned long addr = gfn_to_hva(vcpu->kvm, gpa_to_gfn(start));
+		unsigned long vmaddr = gfn_to_hva(vcpu->kvm, gpa_to_gfn(start));
+		unlocked = false;
 
-		if (kvm_is_error_hva(addr))
+		if (kvm_is_error_hva(vmaddr))
 			return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
 
 		down_read(&current->mm->mmap_sem);
-		rc = cond_set_guest_storage_key(current->mm, addr, key, &oldkey,
+		rc = cond_set_guest_storage_key(current->mm, vmaddr, key, &oldkey,
 						m3 & SSKE_NQ, m3 & SSKE_MR,
 						m3 & SSKE_MC);
+
+		if (rc < 0) {
+			rc = fixup_user_fault(current, current->mm, vmaddr,
+					      FAULT_FLAG_WRITE, &unlocked);
+			rc = !rc ? -EAGAIN : rc;
+		}
 		up_read(&current->mm->mmap_sem);
-		if (rc < 0)
+		if (rc == -EFAULT)
 			return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
+		if (rc < 0)
+			return rc;
 		start += PAGE_SIZE;
-	};
+	}
 
 	if (m3 & (SSKE_MC | SSKE_MR)) {
 		if (m3 & SSKE_MB) {
@@ -324,7 +414,7 @@ static int handle_sske(struct kvm_vcpu *vcpu)
 		}
 	}
 	if (m3 & SSKE_MB) {
-		if (psw_bits(vcpu->arch.sie_block->gpsw).eaba == PSW_AMODE_64BIT)
+		if (psw_bits(vcpu->arch.sie_block->gpsw).eaba == PSW_BITS_AMODE_64BIT)
 			vcpu->run->s.regs.gprs[reg2] &= ~PAGE_MASK;
 		else
 			vcpu->run->s.regs.gprs[reg2] &= ~0xfffff000UL;
@@ -337,7 +427,7 @@ static int handle_sske(struct kvm_vcpu *vcpu)
 static int handle_ipte_interlock(struct kvm_vcpu *vcpu)
 {
 	vcpu->stat.instruction_ipte_interlock++;
-	if (psw_bits(vcpu->arch.sie_block->gpsw).p)
+	if (psw_bits(vcpu->arch.sie_block->gpsw).pstate)
 		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
 	wait_event(vcpu->kvm->arch.ipte_wq, !ipte_lock_held(vcpu));
 	kvm_s390_retry_instr(vcpu);
@@ -349,6 +439,8 @@ static int handle_test_block(struct kvm_vcpu *vcpu)
 {
 	gpa_t addr;
 	int reg2;
+
+	vcpu->stat.instruction_tb++;
 
 	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)
 		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
@@ -380,7 +472,9 @@ static int handle_tpi(struct kvm_vcpu *vcpu)
 	u32 tpi_data[3];
 	int rc;
 	u64 addr;
-	ar_t ar;
+	u8 ar;
+
+	vcpu->stat.instruction_tpi++;
 
 	addr = kvm_s390_get_base_disp_s(vcpu, &ar);
 	if (addr & 3)
@@ -442,6 +536,8 @@ static int handle_tsch(struct kvm_vcpu *vcpu)
 	struct kvm_s390_interrupt_info *inti = NULL;
 	const u64 isc_mask = 0xffUL << 24; /* all iscs set */
 
+	vcpu->stat.instruction_tsch++;
+
 	/* a valid schid has at least one bit set */
 	if (vcpu->run->s.regs.gprs[1])
 		inti = kvm_s390_get_io_int(vcpu->kvm, isc_mask,
@@ -485,6 +581,7 @@ static int handle_io_inst(struct kvm_vcpu *vcpu)
 		if (vcpu->arch.sie_block->ipa == 0xb235)
 			return handle_tsch(vcpu);
 		/* Handle in userspace. */
+		vcpu->stat.instruction_io_other++;
 		return -EOPNOTSUPP;
 	} else {
 		/*
@@ -494,6 +591,89 @@ static int handle_io_inst(struct kvm_vcpu *vcpu)
 		kvm_s390_set_psw_cc(vcpu, 3);
 		return 0;
 	}
+}
+
+/*
+ * handle_pqap: Handling pqap interception
+ * @vcpu: the vcpu having issue the pqap instruction
+ *
+ * We now support PQAP/AQIC instructions and we need to correctly
+ * answer the guest even if no dedicated driver's hook is available.
+ *
+ * The intercepting code calls a dedicated callback for this instruction
+ * if a driver did register one in the CRYPTO satellite of the
+ * SIE block.
+ *
+ * If no callback is available, the queues are not available, return this
+ * response code to the caller and set CC to 3.
+ * Else return the response code returned by the callback.
+ */
+static int handle_pqap(struct kvm_vcpu *vcpu)
+{
+	struct ap_queue_status status = {};
+	unsigned long reg0;
+	int ret;
+	uint8_t fc;
+
+	/* Verify that the AP instruction are available */
+	if (!ap_instructions_available())
+		return -EOPNOTSUPP;
+	/* Verify that the guest is allowed to use AP instructions */
+	if (!(vcpu->arch.sie_block->eca & ECA_APIE))
+		return -EOPNOTSUPP;
+	/*
+	 * The only possibly intercepted functions when AP instructions are
+	 * available for the guest are AQIC and TAPQ with the t bit set
+	 * since we do not set IC.3 (FIII) we currently will only intercept
+	 * the AQIC function code.
+	 */
+	reg0 = vcpu->run->s.regs.gprs[0];
+	fc = (reg0 >> 24) & 0xff;
+	if (WARN_ON_ONCE(fc != 0x03))
+		return -EOPNOTSUPP;
+
+	/* PQAP instruction is allowed for guest kernel only */
+	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)
+		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
+
+	/* Common PQAP instruction specification exceptions */
+	/* bits 41-47 must all be zeros */
+	if (reg0 & 0x007f0000UL)
+		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
+	/* APFT not install and T bit set */
+	if (!test_kvm_facility(vcpu->kvm, 15) && (reg0 & 0x00800000UL))
+		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
+	/* APXA not installed and APID greater 64 or APQI greater 16 */
+	if (!(vcpu->kvm->arch.crypto.crycbd & 0x02) && (reg0 & 0x0000c0f0UL))
+		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
+
+	/* AQIC function code specific exception */
+	/* facility 65 not present for AQIC function code */
+	if (!test_kvm_facility(vcpu->kvm, 65))
+		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
+
+	/*
+	 * Verify that the hook callback is registered, lock the owner
+	 * and call the hook.
+	 */
+	if (vcpu->kvm->arch.crypto.pqap_hook) {
+		if (!try_module_get(vcpu->kvm->arch.crypto.pqap_hook->owner))
+			return -EOPNOTSUPP;
+		ret = vcpu->kvm->arch.crypto.pqap_hook->hook(vcpu);
+		module_put(vcpu->kvm->arch.crypto.pqap_hook->owner);
+		if (!ret && vcpu->run->s.regs.gprs[1] & 0x00ff0000)
+			kvm_s390_set_psw_cc(vcpu, 3);
+		return ret;
+	}
+	/*
+	 * A vfio_driver must register a hook.
+	 * No hook means no driver to enable the SIE CRYCB and no queues.
+	 * We send this response to the guest.
+	 */
+	status.response_code = 0x01;
+	memcpy(&vcpu->run->s.regs.gprs[1], &status, sizeof(status));
+	kvm_s390_set_psw_cc(vcpu, 3);
+	return 0;
 }
 
 static int handle_stfl(struct kvm_vcpu *vcpu)
@@ -548,7 +728,9 @@ int kvm_s390_handle_lpsw(struct kvm_vcpu *vcpu)
 	psw_compat_t new_psw;
 	u64 addr;
 	int rc;
-	ar_t ar;
+	u8 ar;
+
+	vcpu->stat.instruction_lpsw++;
 
 	if (gpsw->mask & PSW_MASK_PSTATE)
 		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
@@ -575,7 +757,9 @@ static int handle_lpswe(struct kvm_vcpu *vcpu)
 	psw_t new_psw;
 	u64 addr;
 	int rc;
-	ar_t ar;
+	u8 ar;
+
+	vcpu->stat.instruction_lpswe++;
 
 	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)
 		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
@@ -597,7 +781,7 @@ static int handle_stidp(struct kvm_vcpu *vcpu)
 	u64 stidp_data = vcpu->kvm->arch.model.cpuid;
 	u64 operand2;
 	int rc;
-	ar_t ar;
+	u8 ar;
 
 	vcpu->stat.instruction_stidp++;
 
@@ -644,7 +828,7 @@ static void handle_stsi_3_2_2(struct kvm_vcpu *vcpu, struct sysinfo_3_2_2 *mem)
 	ASCEBC(mem->vm[0].cpi, 16);
 }
 
-static void insert_stsi_usr_data(struct kvm_vcpu *vcpu, u64 addr, ar_t ar,
+static void insert_stsi_usr_data(struct kvm_vcpu *vcpu, u64 addr, u8 ar,
 				 u8 fc, u8 sel1, u16 sel2)
 {
 	vcpu->run->exit_reason = KVM_EXIT_S390_STSI;
@@ -663,7 +847,7 @@ static int handle_stsi(struct kvm_vcpu *vcpu)
 	unsigned long mem = 0;
 	u64 operand2;
 	int rc = 0;
-	ar_t ar;
+	u8 ar;
 
 	vcpu->stat.instruction_stsi++;
 	VCPU_EVENT(vcpu, 3, "STSI: fc: %u sel1: %u sel2: %u", fc, sel1, sel2);
@@ -731,59 +915,69 @@ out:
 	return rc;
 }
 
-static const intercept_handler_t b2_handlers[256] = {
-	[0x02] = handle_stidp,
-	[0x04] = handle_set_clock,
-	[0x10] = handle_set_prefix,
-	[0x11] = handle_store_prefix,
-	[0x12] = handle_store_cpu_address,
-	[0x14] = kvm_s390_handle_vsie,
-	[0x21] = handle_ipte_interlock,
-	[0x29] = handle_iske,
-	[0x2a] = handle_rrbe,
-	[0x2b] = handle_sske,
-	[0x2c] = handle_test_block,
-	[0x30] = handle_io_inst,
-	[0x31] = handle_io_inst,
-	[0x32] = handle_io_inst,
-	[0x33] = handle_io_inst,
-	[0x34] = handle_io_inst,
-	[0x35] = handle_io_inst,
-	[0x36] = handle_io_inst,
-	[0x37] = handle_io_inst,
-	[0x38] = handle_io_inst,
-	[0x39] = handle_io_inst,
-	[0x3a] = handle_io_inst,
-	[0x3b] = handle_io_inst,
-	[0x3c] = handle_io_inst,
-	[0x50] = handle_ipte_interlock,
-	[0x5f] = handle_io_inst,
-	[0x74] = handle_io_inst,
-	[0x76] = handle_io_inst,
-	[0x7d] = handle_stsi,
-	[0xb1] = handle_stfl,
-	[0xb2] = handle_lpswe,
-};
-
 int kvm_s390_handle_b2(struct kvm_vcpu *vcpu)
 {
-	intercept_handler_t handler;
-
-	/*
-	 * A lot of B2 instructions are priviledged. Here we check for
-	 * the privileged ones, that we can handle in the kernel.
-	 * Anything else goes to userspace.
-	 */
-	handler = b2_handlers[vcpu->arch.sie_block->ipa & 0x00ff];
-	if (handler)
-		return handler(vcpu);
-
-	return -EOPNOTSUPP;
+	switch (vcpu->arch.sie_block->ipa & 0x00ff) {
+	case 0x02:
+		return handle_stidp(vcpu);
+	case 0x04:
+		return handle_set_clock(vcpu);
+	case 0x10:
+		return handle_set_prefix(vcpu);
+	case 0x11:
+		return handle_store_prefix(vcpu);
+	case 0x12:
+		return handle_store_cpu_address(vcpu);
+	case 0x14:
+		return kvm_s390_handle_vsie(vcpu);
+	case 0x21:
+	case 0x50:
+		return handle_ipte_interlock(vcpu);
+	case 0x29:
+		return handle_iske(vcpu);
+	case 0x2a:
+		return handle_rrbe(vcpu);
+	case 0x2b:
+		return handle_sske(vcpu);
+	case 0x2c:
+		return handle_test_block(vcpu);
+	case 0x30:
+	case 0x31:
+	case 0x32:
+	case 0x33:
+	case 0x34:
+	case 0x35:
+	case 0x36:
+	case 0x37:
+	case 0x38:
+	case 0x39:
+	case 0x3a:
+	case 0x3b:
+	case 0x3c:
+	case 0x5f:
+	case 0x74:
+	case 0x76:
+		return handle_io_inst(vcpu);
+	case 0x56:
+		return handle_sthyi(vcpu);
+	case 0x7d:
+		return handle_stsi(vcpu);
+	case 0xaf:
+		return handle_pqap(vcpu);
+	case 0xb1:
+		return handle_stfl(vcpu);
+	case 0xb2:
+		return handle_lpswe(vcpu);
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static int handle_epsw(struct kvm_vcpu *vcpu)
 {
 	int reg1, reg2;
+
+	vcpu->stat.instruction_epsw++;
 
 	kvm_s390_get_regs_rre(vcpu, &reg1, &reg2);
 
@@ -854,53 +1048,62 @@ static int handle_pfmf(struct kvm_vcpu *vcpu)
 	case 0x00000000:
 		/* only 4k frames specify a real address */
 		start = kvm_s390_real_to_abs(vcpu, start);
-		end = (start + (1UL << 12)) & ~((1UL << 12) - 1);
+		end = (start + PAGE_SIZE) & ~(PAGE_SIZE - 1);
 		break;
 	case 0x00001000:
-		end = (start + (1UL << 20)) & ~((1UL << 20) - 1);
+		end = (start + _SEGMENT_SIZE) & ~(_SEGMENT_SIZE - 1);
 		break;
 	case 0x00002000:
 		/* only support 2G frame size if EDAT2 is available and we are
 		   not in 24-bit addressing mode */
 		if (!test_kvm_facility(vcpu->kvm, 78) ||
-		    psw_bits(vcpu->arch.sie_block->gpsw).eaba == PSW_AMODE_24BIT)
+		    psw_bits(vcpu->arch.sie_block->gpsw).eaba == PSW_BITS_AMODE_24BIT)
 			return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
-		end = (start + (1UL << 31)) & ~((1UL << 31) - 1);
+		end = (start + _REGION3_SIZE) & ~(_REGION3_SIZE - 1);
 		break;
 	default:
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
 	}
 
 	while (start != end) {
-		unsigned long useraddr;
+		unsigned long vmaddr;
+		bool unlocked = false;
 
 		/* Translate guest address to host address */
-		useraddr = gfn_to_hva(vcpu->kvm, gpa_to_gfn(start));
-		if (kvm_is_error_hva(useraddr))
+		vmaddr = gfn_to_hva(vcpu->kvm, gpa_to_gfn(start));
+		if (kvm_is_error_hva(vmaddr))
 			return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
 
 		if (vcpu->run->s.regs.gprs[reg1] & PFMF_CF) {
-			if (clear_user((void __user *)useraddr, PAGE_SIZE))
+			if (kvm_clear_guest(vcpu->kvm, start, PAGE_SIZE))
 				return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
 		}
 
 		if (vcpu->run->s.regs.gprs[reg1] & PFMF_SK) {
-			int rc = __skey_check_enable(vcpu);
+			int rc = kvm_s390_skey_check_enable(vcpu);
 
 			if (rc)
 				return rc;
 			down_read(&current->mm->mmap_sem);
-			rc = cond_set_guest_storage_key(current->mm, useraddr,
+			rc = cond_set_guest_storage_key(current->mm, vmaddr,
 							key, NULL, nq, mr, mc);
+			if (rc < 0) {
+				rc = fixup_user_fault(current, current->mm, vmaddr,
+						      FAULT_FLAG_WRITE, &unlocked);
+				rc = !rc ? -EAGAIN : rc;
+			}
 			up_read(&current->mm->mmap_sem);
-			if (rc < 0)
+			if (rc == -EFAULT)
 				return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
+			if (rc == -EAGAIN)
+				continue;
+			if (rc < 0)
+				return rc;
 		}
-
 		start += PAGE_SIZE;
 	}
 	if (vcpu->run->s.regs.gprs[reg1] & PFMF_FSC) {
-		if (psw_bits(vcpu->arch.sie_block->gpsw).eaba == PSW_AMODE_64BIT) {
+		if (psw_bits(vcpu->arch.sie_block->gpsw).eaba == PSW_BITS_AMODE_64BIT) {
 			vcpu->run->s.regs.gprs[reg2] = end;
 		} else {
 			vcpu->run->s.regs.gprs[reg2] &= ~0xffffffffUL;
@@ -911,13 +1114,78 @@ static int handle_pfmf(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
+/*
+ * Must be called with relevant read locks held (kvm->mm->mmap_sem, kvm->srcu)
+ */
+static inline int __do_essa(struct kvm_vcpu *vcpu, const int orc)
+{
+	int r1, r2, nappended, entries;
+	unsigned long gfn, hva, res, pgstev, ptev;
+	unsigned long *cbrlo;
+
+	/*
+	 * We don't need to set SD.FPF.SK to 1 here, because if we have a
+	 * machine check here we either handle it or crash
+	 */
+
+	kvm_s390_get_regs_rre(vcpu, &r1, &r2);
+	gfn = vcpu->run->s.regs.gprs[r2] >> PAGE_SHIFT;
+	hva = gfn_to_hva(vcpu->kvm, gfn);
+	entries = (vcpu->arch.sie_block->cbrlo & ~PAGE_MASK) >> 3;
+
+	if (kvm_is_error_hva(hva))
+		return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
+
+	nappended = pgste_perform_essa(vcpu->kvm->mm, hva, orc, &ptev, &pgstev);
+	if (nappended < 0) {
+		res = orc ? 0x10 : 0;
+		vcpu->run->s.regs.gprs[r1] = res; /* Exception Indication */
+		return 0;
+	}
+	res = (pgstev & _PGSTE_GPS_USAGE_MASK) >> 22;
+	/*
+	 * Set the block-content state part of the result. 0 means resident, so
+	 * nothing to do if the page is valid. 2 is for preserved pages
+	 * (non-present and non-zero), and 3 for zero pages (non-present and
+	 * zero).
+	 */
+	if (ptev & _PAGE_INVALID) {
+		res |= 2;
+		if (pgstev & _PGSTE_GPS_ZERO)
+			res |= 1;
+	}
+	if (pgstev & _PGSTE_GPS_NODAT)
+		res |= 0x20;
+	vcpu->run->s.regs.gprs[r1] = res;
+	/*
+	 * It is possible that all the normal 511 slots were full, in which case
+	 * we will now write in the 512th slot, which is reserved for host use.
+	 * In both cases we let the normal essa handling code process all the
+	 * slots, including the reserved one, if needed.
+	 */
+	if (nappended > 0) {
+		cbrlo = phys_to_virt(vcpu->arch.sie_block->cbrlo & PAGE_MASK);
+		cbrlo[entries] = gfn << PAGE_SHIFT;
+	}
+
+	if (orc) {
+		struct kvm_memory_slot *ms = gfn_to_memslot(vcpu->kvm, gfn);
+
+		/* Increment only if we are really flipping the bit */
+		if (ms && !test_and_set_bit(gfn - ms->base_gfn, kvm_second_dirty_bitmap(ms)))
+			atomic64_inc(&vcpu->kvm->arch.cmma_dirty_pages);
+	}
+
+	return nappended;
+}
+
 static int handle_essa(struct kvm_vcpu *vcpu)
 {
 	/* entries expected to be 1FF */
 	int entries = (vcpu->arch.sie_block->cbrlo & ~PAGE_MASK) >> 3;
 	unsigned long *cbrlo;
 	struct gmap *gmap;
-	int i;
+	int i, orc;
 
 	VCPU_EVENT(vcpu, 4, "ESSA: release %d pages", entries);
 	gmap = vcpu->arch.gmap;
@@ -927,12 +1195,53 @@ static int handle_essa(struct kvm_vcpu *vcpu)
 
 	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)
 		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
-
-	if (((vcpu->arch.sie_block->ipb & 0xf0000000) >> 28) > 6)
+	/* Check for invalid operation request code */
+	orc = (vcpu->arch.sie_block->ipb & 0xf0000000) >> 28;
+	/* ORCs 0-6 are always valid */
+	if (orc > (test_kvm_facility(vcpu->kvm, 147) ? ESSA_SET_STABLE_NODAT
+						: ESSA_SET_STABLE_IF_RESIDENT))
 		return kvm_s390_inject_program_int(vcpu, PGM_SPECIFICATION);
 
-	/* Retry the ESSA instruction */
-	kvm_s390_retry_instr(vcpu);
+	if (!vcpu->kvm->arch.migration_mode) {
+		/*
+		 * CMMA is enabled in the KVM settings, but is disabled in
+		 * the SIE block and in the mm_context, and we are not doing
+		 * a migration. Enable CMMA in the mm_context.
+		 * Since we need to take a write lock to write to the context
+		 * to avoid races with storage keys handling, we check if the
+		 * value really needs to be written to; if the value is
+		 * already correct, we do nothing and avoid the lock.
+		 */
+		if (vcpu->kvm->mm->context.uses_cmm == 0) {
+			down_write(&vcpu->kvm->mm->mmap_sem);
+			vcpu->kvm->mm->context.uses_cmm = 1;
+			up_write(&vcpu->kvm->mm->mmap_sem);
+		}
+		/*
+		 * If we are here, we are supposed to have CMMA enabled in
+		 * the SIE block. Enabling CMMA works on a per-CPU basis,
+		 * while the context use_cmma flag is per process.
+		 * It's possible that the context flag is enabled and the
+		 * SIE flag is not, so we set the flag always; if it was
+		 * already set, nothing changes, otherwise we enable it
+		 * on this CPU too.
+		 */
+		vcpu->arch.sie_block->ecb2 |= ECB2_CMMA;
+		/* Retry the ESSA instruction */
+		kvm_s390_retry_instr(vcpu);
+	} else {
+		int srcu_idx;
+
+		down_read(&vcpu->kvm->mm->mmap_sem);
+		srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
+		i = __do_essa(vcpu, orc);
+		srcu_read_unlock(&vcpu->kvm->srcu, srcu_idx);
+		up_read(&vcpu->kvm->mm->mmap_sem);
+		if (i < 0)
+			return i;
+		/* Account for the possible extra cbrl entry */
+		entries += i;
+	}
 	vcpu->arch.sie_block->cbrlo &= PAGE_MASK;	/* reset nceo */
 	cbrlo = phys_to_virt(vcpu->arch.sie_block->cbrlo);
 	down_read(&gmap->mm->mmap_sem);
@@ -942,25 +1251,22 @@ static int handle_essa(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
-static const intercept_handler_t b9_handlers[256] = {
-	[0x8a] = handle_ipte_interlock,
-	[0x8d] = handle_epsw,
-	[0x8e] = handle_ipte_interlock,
-	[0x8f] = handle_ipte_interlock,
-	[0xab] = handle_essa,
-	[0xaf] = handle_pfmf,
-};
-
 int kvm_s390_handle_b9(struct kvm_vcpu *vcpu)
 {
-	intercept_handler_t handler;
-
-	/* This is handled just as for the B2 instructions. */
-	handler = b9_handlers[vcpu->arch.sie_block->ipa & 0x00ff];
-	if (handler)
-		return handler(vcpu);
-
-	return -EOPNOTSUPP;
+	switch (vcpu->arch.sie_block->ipa & 0x00ff) {
+	case 0x8a:
+	case 0x8e:
+	case 0x8f:
+		return handle_ipte_interlock(vcpu);
+	case 0x8d:
+		return handle_epsw(vcpu);
+	case 0xab:
+		return handle_essa(vcpu);
+	case 0xaf:
+		return handle_pfmf(vcpu);
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 int kvm_s390_handle_lctl(struct kvm_vcpu *vcpu)
@@ -970,7 +1276,7 @@ int kvm_s390_handle_lctl(struct kvm_vcpu *vcpu)
 	int reg, rc, nr_regs;
 	u32 ctl_array[16];
 	u64 ga;
-	ar_t ar;
+	u8 ar;
 
 	vcpu->stat.instruction_lctl++;
 
@@ -1009,7 +1315,7 @@ int kvm_s390_handle_stctl(struct kvm_vcpu *vcpu)
 	int reg, rc, nr_regs;
 	u32 ctl_array[16];
 	u64 ga;
-	ar_t ar;
+	u8 ar;
 
 	vcpu->stat.instruction_stctl++;
 
@@ -1043,7 +1349,7 @@ static int handle_lctlg(struct kvm_vcpu *vcpu)
 	int reg, rc, nr_regs;
 	u64 ctl_array[16];
 	u64 ga;
-	ar_t ar;
+	u8 ar;
 
 	vcpu->stat.instruction_lctlg++;
 
@@ -1081,7 +1387,7 @@ static int handle_stctg(struct kvm_vcpu *vcpu)
 	int reg, rc, nr_regs;
 	u64 ctl_array[16];
 	u64 ga;
-	ar_t ar;
+	u8 ar;
 
 	vcpu->stat.instruction_stctg++;
 
@@ -1108,22 +1414,20 @@ static int handle_stctg(struct kvm_vcpu *vcpu)
 	return rc ? kvm_s390_inject_prog_cond(vcpu, rc) : 0;
 }
 
-static const intercept_handler_t eb_handlers[256] = {
-	[0x2f] = handle_lctlg,
-	[0x25] = handle_stctg,
-	[0x60] = handle_ri,
-	[0x61] = handle_ri,
-	[0x62] = handle_ri,
-};
-
 int kvm_s390_handle_eb(struct kvm_vcpu *vcpu)
 {
-	intercept_handler_t handler;
-
-	handler = eb_handlers[vcpu->arch.sie_block->ipb & 0xff];
-	if (handler)
-		return handler(vcpu);
-	return -EOPNOTSUPP;
+	switch (vcpu->arch.sie_block->ipb & 0x000000ff) {
+	case 0x25:
+		return handle_stctg(vcpu);
+	case 0x2f:
+		return handle_lctlg(vcpu);
+	case 0x60:
+	case 0x61:
+	case 0x62:
+		return handle_ri(vcpu);
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static int handle_tprot(struct kvm_vcpu *vcpu)
@@ -1132,7 +1436,7 @@ static int handle_tprot(struct kvm_vcpu *vcpu)
 	unsigned long hva, gpa;
 	int ret = 0, cc = 0;
 	bool writable;
-	ar_t ar;
+	u8 ar;
 
 	vcpu->stat.instruction_tprot++;
 
@@ -1183,15 +1487,19 @@ out_unlock:
 
 int kvm_s390_handle_e5(struct kvm_vcpu *vcpu)
 {
-	/* For e5xx... instructions we only handle TPROT */
-	if ((vcpu->arch.sie_block->ipa & 0x00ff) == 0x01)
+	switch (vcpu->arch.sie_block->ipa & 0x00ff) {
+	case 0x01:
 		return handle_tprot(vcpu);
-	return -EOPNOTSUPP;
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static int handle_sckpf(struct kvm_vcpu *vcpu)
 {
 	u32 value;
+
+	vcpu->stat.instruction_sckpf++;
 
 	if (vcpu->arch.sie_block->gpsw.mask & PSW_MASK_PSTATE)
 		return kvm_s390_inject_program_int(vcpu, PGM_PRIVILEGED_OP);
@@ -1208,22 +1516,21 @@ static int handle_sckpf(struct kvm_vcpu *vcpu)
 
 static int handle_ptff(struct kvm_vcpu *vcpu)
 {
+	vcpu->stat.instruction_ptff++;
+
 	/* we don't emulate any control instructions yet */
 	kvm_s390_set_psw_cc(vcpu, 3);
 	return 0;
 }
 
-static const intercept_handler_t x01_handlers[256] = {
-	[0x04] = handle_ptff,
-	[0x07] = handle_sckpf,
-};
-
 int kvm_s390_handle_01(struct kvm_vcpu *vcpu)
 {
-	intercept_handler_t handler;
-
-	handler = x01_handlers[vcpu->arch.sie_block->ipa & 0x00ff];
-	if (handler)
-		return handler(vcpu);
-	return -EOPNOTSUPP;
+	switch (vcpu->arch.sie_block->ipa & 0x00ff) {
+	case 0x04:
+		return handle_ptff(vcpu);
+	case 0x07:
+		return handle_sckpf(vcpu);
+	default:
+		return -EOPNOTSUPP;
+	}
 }

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * This file contains instructions for testing by the test titled:
  *
@@ -1343,6 +1344,26 @@ int main(void)
 	asm volatile("xrstors 0x12345678(%rax,%rcx,8)");
 	asm volatile("xrstors 0x12345678(%r8,%rcx,8)");
 
+	/* ptwrite */
+
+	asm volatile("ptwrite (%rax)");
+	asm volatile("ptwrite (%r8)");
+	asm volatile("ptwrite (0x12345678)");
+	asm volatile("ptwrite 0x12345678(%rax,%rcx,8)");
+	asm volatile("ptwrite 0x12345678(%r8,%rcx,8)");
+
+	asm volatile("ptwritel (%rax)");
+	asm volatile("ptwritel (%r8)");
+	asm volatile("ptwritel (0x12345678)");
+	asm volatile("ptwritel 0x12345678(%rax,%rcx,8)");
+	asm volatile("ptwritel 0x12345678(%r8,%rcx,8)");
+
+	asm volatile("ptwriteq (%rax)");
+	asm volatile("ptwriteq (%r8)");
+	asm volatile("ptwriteq (0x12345678)");
+	asm volatile("ptwriteq 0x12345678(%rax,%rcx,8)");
+	asm volatile("ptwriteq 0x12345678(%r8,%rcx,8)");
+
 #else  /* #ifdef __x86_64__ */
 
 	/* bound r32, mem (same op code as EVEX prefix) */
@@ -2652,6 +2673,16 @@ int main(void)
 	asm volatile("xrstors (%eax)");
 	asm volatile("xrstors (0x12345678)");
 	asm volatile("xrstors 0x12345678(%eax,%ecx,8)");
+
+	/* ptwrite */
+
+	asm volatile("ptwrite (%eax)");
+	asm volatile("ptwrite (0x12345678)");
+	asm volatile("ptwrite 0x12345678(%eax,%ecx,8)");
+
+	asm volatile("ptwritel (%eax)");
+	asm volatile("ptwritel (0x12345678)");
+	asm volatile("ptwritel 0x12345678(%eax,%ecx,8)");
 
 #endif /* #ifndef __x86_64__ */
 

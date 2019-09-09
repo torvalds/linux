@@ -1,19 +1,21 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) Fuzhou Rockchip Electronics Co.Ltd
  * Author:Mark Yao <mark.yao@rock-chips.com>
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef _ROCKCHIP_DRM_VOP_H
 #define _ROCKCHIP_DRM_VOP_H
+
+/*
+ * major: IP major version, used for IP structure
+ * minor: big feature change under same structure
+ */
+#define VOP_VERSION(major, minor)	((major) << 8 | (minor))
+#define VOP_MAJOR(version)		((version) >> 8)
+#define VOP_MINOR(version)		((version) & 0xff)
+
+#define NUM_YUV2YUV_COEFFICIENTS 12
 
 enum vop_data_format {
 	VOP_FMT_ARGB8888 = 0,
@@ -24,51 +26,62 @@ enum vop_data_format {
 	VOP_FMT_YUV444SP,
 };
 
-struct vop_reg_data {
-	uint32_t offset;
-	uint32_t value;
-};
-
 struct vop_reg {
-	uint32_t offset;
-	uint32_t shift;
 	uint32_t mask;
+	uint16_t offset;
+	uint8_t shift;
 	bool write_mask;
+	bool relaxed;
 };
 
-struct vop_ctrl {
-	struct vop_reg standby;
-	struct vop_reg data_blank;
-	struct vop_reg gate_en;
-	struct vop_reg mmu_en;
-	struct vop_reg rgb_en;
+struct vop_modeset {
+	struct vop_reg htotal_pw;
+	struct vop_reg hact_st_end;
+	struct vop_reg hpost_st_end;
+	struct vop_reg vtotal_pw;
+	struct vop_reg vact_st_end;
+	struct vop_reg vpost_st_end;
+};
+
+struct vop_output {
+	struct vop_reg pin_pol;
+	struct vop_reg dp_pin_pol;
+	struct vop_reg edp_pin_pol;
+	struct vop_reg hdmi_pin_pol;
+	struct vop_reg mipi_pin_pol;
+	struct vop_reg rgb_pin_pol;
+	struct vop_reg dp_en;
 	struct vop_reg edp_en;
 	struct vop_reg hdmi_en;
 	struct vop_reg mipi_en;
-	struct vop_reg out_mode;
-	struct vop_reg dither_down;
-	struct vop_reg dither_up;
-	struct vop_reg pin_pol;
-	struct vop_reg rgb_pin_pol;
-	struct vop_reg hdmi_pin_pol;
-	struct vop_reg edp_pin_pol;
-	struct vop_reg mipi_pin_pol;
+	struct vop_reg mipi_dual_channel_en;
+	struct vop_reg rgb_en;
+};
 
-	struct vop_reg htotal_pw;
-	struct vop_reg hact_st_end;
-	struct vop_reg vtotal_pw;
-	struct vop_reg vact_st_end;
-	struct vop_reg hpost_st_end;
-	struct vop_reg vpost_st_end;
-
-	struct vop_reg line_flag_num[2];
-
+struct vop_common {
 	struct vop_reg cfg_done;
+	struct vop_reg dsp_blank;
+	struct vop_reg data_blank;
+	struct vop_reg pre_dither_down;
+	struct vop_reg dither_down_sel;
+	struct vop_reg dither_down_mode;
+	struct vop_reg dither_down_en;
+	struct vop_reg dither_up;
+	struct vop_reg gate_en;
+	struct vop_reg mmu_en;
+	struct vop_reg out_mode;
+	struct vop_reg standby;
+};
+
+struct vop_misc {
+	struct vop_reg global_regdone_en;
 };
 
 struct vop_intr {
 	const int *intrs;
 	uint32_t nintrs;
+
+	struct vop_reg line_flag_num[2];
 	struct vop_reg enable;
 	struct vop_reg clear;
 	struct vop_reg status;
@@ -107,12 +120,17 @@ struct vop_scl_regs {
 	struct vop_reg scale_cbcr_y;
 };
 
+struct vop_yuv2yuv_phy {
+	struct vop_reg y2r_coefficients[NUM_YUV2YUV_COEFFICIENTS];
+};
+
 struct vop_win_phy {
 	const struct vop_scl_regs *scl;
 	const uint32_t *data_formats;
 	uint32_t nformats;
 
 	struct vop_reg enable;
+	struct vop_reg gate;
 	struct vop_reg format;
 	struct vop_reg rb_swap;
 	struct vop_reg act_info;
@@ -122,9 +140,18 @@ struct vop_win_phy {
 	struct vop_reg uv_mst;
 	struct vop_reg yrgb_vir;
 	struct vop_reg uv_vir;
+	struct vop_reg y_mir_en;
+	struct vop_reg x_mir_en;
 
 	struct vop_reg dst_alpha_ctl;
 	struct vop_reg src_alpha_ctl;
+	struct vop_reg channel;
+};
+
+struct vop_win_yuv2yuv_data {
+	uint32_t base;
+	const struct vop_yuv2yuv_phy *phy;
+	struct vop_reg y2r_en;
 };
 
 struct vop_win_data {
@@ -134,12 +161,19 @@ struct vop_win_data {
 };
 
 struct vop_data {
-	const struct vop_reg_data *init_table;
-	unsigned int table_size;
-	const struct vop_ctrl *ctrl;
+	uint32_t version;
 	const struct vop_intr *intr;
+	const struct vop_common *common;
+	const struct vop_misc *misc;
+	const struct vop_modeset *modeset;
+	const struct vop_output *output;
+	const struct vop_win_yuv2yuv_data *win_yuv2yuv;
 	const struct vop_win_data *win;
 	unsigned int win_size;
+
+#define VOP_FEATURE_OUTPUT_RGB10	BIT(0)
+#define VOP_FEATURE_INTERNAL_RGB	BIT(1)
+	u64 feature;
 };
 
 /* interrupt define */
@@ -189,6 +223,9 @@ struct vop_data {
 #define ROCKCHIP_OUT_MODE_P565	2
 /* for use special outface */
 #define ROCKCHIP_OUT_MODE_AAAA	15
+
+/* output flags */
+#define ROCKCHIP_OUTPUT_DSI_DUAL	BIT(0)
 
 enum alpha_mode {
 	ALPHA_STRAIGHT,
@@ -244,6 +281,23 @@ enum scale_down_mode {
 	SCALE_DOWN_AVG = 0x1
 };
 
+enum dither_down_mode {
+	RGB888_TO_RGB565 = 0x0,
+	RGB888_TO_RGB666 = 0x1
+};
+
+enum dither_down_mode_sel {
+	DITHER_DOWN_ALLEGRO = 0x0,
+	DITHER_DOWN_FRC = 0x1
+};
+
+enum vop_pol {
+	HSYNC_POSITIVE = 0,
+	VSYNC_POSITIVE = 1,
+	DEN_NEGATIVE   = 2,
+	DCLK_INVERT    = 3
+};
+
 #define FRAC_16_16(mult, div)    (((mult) << 16) / (div))
 #define SCL_FT_DEFAULT_FIXPOINT_SHIFT	12
 #define SCL_MAX_VSKIPLINES		4
@@ -269,6 +323,9 @@ static inline uint16_t scl_get_bili_dn_vskip(int src_h, int dst_h,
 	int act_height;
 
 	act_height = (src_h + vskiplines - 1) / vskiplines;
+
+	if (act_height == dst_h)
+		return GET_SCL_FT_BILI_DN(src_h, dst_h) / vskiplines;
 
 	return GET_SCL_FT_BILI_DN(act_height, dst_h);
 }
@@ -298,16 +355,19 @@ static inline int scl_vop_cal_lb_mode(int width, bool is_yuv)
 {
 	int lb_mode;
 
-	if (width > 2560)
-		lb_mode = LB_RGB_3840X2;
-	else if (width > 1920)
-		lb_mode = LB_RGB_2560X4;
-	else if (!is_yuv)
-		lb_mode = LB_RGB_1920X5;
-	else if (width > 1280)
-		lb_mode = LB_YUV_3840X5;
-	else
-		lb_mode = LB_YUV_2560X8;
+	if (is_yuv) {
+		if (width > 1280)
+			lb_mode = LB_YUV_3840X5;
+		else
+			lb_mode = LB_YUV_2560X8;
+	} else {
+		if (width > 2560)
+			lb_mode = LB_RGB_3840X2;
+		else if (width > 1920)
+			lb_mode = LB_RGB_2560X4;
+		else
+			lb_mode = LB_RGB_1920X5;
+	}
 
 	return lb_mode;
 }

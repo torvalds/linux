@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * DVB USB Linux driver for AME DTV-5100 USB2.0 DVB-T
  *
@@ -5,20 +6,6 @@
  * http://royale.zerezo.com/dtv5100/
  *
  * Inspired by gl861.c and au6610.c drivers
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include "dtv5100.h"
@@ -31,9 +18,14 @@ module_param_named(debug, dvb_usb_dtv5100_debug, int, 0644);
 MODULE_PARM_DESC(debug, "set debugging level" DVB_USB_DEBUG_STATUS);
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
+struct dtv5100_state {
+	unsigned char data[80];
+};
+
 static int dtv5100_i2c_msg(struct dvb_usb_device *d, u8 addr,
 			   u8 *wbuf, u16 wlen, u8 *rbuf, u16 rlen)
 {
+	struct dtv5100_state *st = d->priv;
 	u8 request;
 	u8 type;
 	u16 value;
@@ -60,9 +52,10 @@ static int dtv5100_i2c_msg(struct dvb_usb_device *d, u8 addr,
 	}
 	index = (addr << 8) + wbuf[0];
 
+	memcpy(st->data, rbuf, rlen);
 	msleep(1); /* avoid I2C errors */
 	return usb_control_msg(d->udev, usb_rcvctrlpipe(d->udev, 0), request,
-			       type, value, index, rbuf, rlen,
+			       type, value, index, st->data, rlen,
 			       DTV5100_USB_TIMEOUT);
 }
 
@@ -176,7 +169,7 @@ static struct dvb_usb_device_properties dtv5100_properties = {
 	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
 	.usb_ctrl = DEVICE_SPECIFIC,
 
-	.size_of_priv = 0,
+	.size_of_priv = sizeof(struct dtv5100_state),
 
 	.num_adapters = 1,
 	.adapter = {{

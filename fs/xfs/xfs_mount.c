@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2005 Silicon Graphics, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -24,9 +12,6 @@
 #include "xfs_bit.h"
 #include "xfs_sb.h"
 #include "xfs_mount.h"
-#include "xfs_defer.h"
-#include "xfs_da_format.h"
-#include "xfs_da_btree.h"
 #include "xfs_inode.h"
 #include "xfs_dir2.h"
 #include "xfs_ialloc.h"
@@ -39,12 +24,13 @@
 #include "xfs_error.h"
 #include "xfs_quota.h"
 #include "xfs_fsops.h"
-#include "xfs_trace.h"
 #include "xfs_icache.h"
 #include "xfs_sysfs.h"
 #include "xfs_rmap_btree.h"
 #include "xfs_refcount_btree.h"
 #include "xfs_reflink.h"
+#include "xfs_extent_busy.h"
+#include "xfs_health.h"
 
 
 static DEFINE_MUTEX(xfs_uuid_table_mutex);
@@ -72,17 +58,20 @@ xfs_uuid_mount(
 	uuid_t			*uuid = &mp->m_sb.sb_uuid;
 	int			hole, i;
 
+	/* Publish UUID in struct super_block */
+	uuid_copy(&mp->m_super->s_uuid, uuid);
+
 	if (mp->m_flags & XFS_MOUNT_NOUUID)
 		return 0;
 
-	if (uuid_is_nil(uuid)) {
-		xfs_warn(mp, "Filesystem has nil UUID - can't mount");
+	if (uuid_is_null(uuid)) {
+		xfs_warn(mp, "Filesystem has null UUID - can't mount");
 		return -EINVAL;
 	}
 
 	mutex_lock(&xfs_uuid_table_mutex);
 	for (i = 0, hole = -1; i < xfs_uuid_table_size; i++) {
-		if (uuid_is_nil(&xfs_uuid_table[i])) {
+		if (uuid_is_null(&xfs_uuid_table[i])) {
 			hole = i;
 			continue;
 		}
@@ -119,7 +108,7 @@ xfs_uuid_unmount(
 
 	mutex_lock(&xfs_uuid_table_mutex);
 	for (i = 0; i < xfs_uuid_table_size; i++) {
-		if (uuid_is_nil(&xfs_uuid_table[i]))
+		if (uuid_is_null(&xfs_uuid_table[i]))
 			continue;
 		if (!uuid_equal(uuid, &xfs_uuid_table[i]))
 			continue;
@@ -157,6 +146,9 @@ xfs_free_perag(
 		spin_unlock(&mp->m_perag_lock);
 		ASSERT(pag);
 		ASSERT(atomic_read(&pag->pag_ref) == 0);
+		xfs_iunlink_destroy(pag);
+		xfs_buf_hash_destroy(pag);
+		mutex_destroy(&pag->pag_ici_reclaim_lock);
 		call_rcu(&pag->rcu_head, __xfs_free_perag);
 	}
 }
@@ -168,7 +160,7 @@ xfs_free_perag(
 int
 xfs_sb_validate_fsb_count(
 	xfs_sb_t	*sbp,
-	__uint64_t	nblocks)
+	uint64_t	nblocks)
 {
 	ASSERT(PAGE_SHIFT >= sbp->sb_blocklog);
 	ASSERT(sbp->sb_blocklog >= BBSHIFT);
@@ -186,7 +178,7 @@ xfs_initialize_perag(
 	xfs_agnumber_t	*maxagi)
 {
 	xfs_agnumber_t	index;
-	xfs_agnumber_t	first_initialised = 0;
+	xfs_agnumber_t	first_initialised = NULLAGNUMBER;
 	xfs_perag_t	*pag;
 	int		error = -ENOMEM;
 
@@ -201,22 +193,24 @@ xfs_initialize_perag(
 			xfs_perag_put(pag);
 			continue;
 		}
-		if (!first_initialised)
-			first_initialised = index;
 
 		pag = kmem_zalloc(sizeof(*pag), KM_MAYFAIL);
 		if (!pag)
-			goto out_unwind;
+			goto out_unwind_new_pags;
 		pag->pag_agno = index;
 		pag->pag_mount = mp;
 		spin_lock_init(&pag->pag_ici_lock);
 		mutex_init(&pag->pag_ici_reclaim_lock);
 		INIT_RADIX_TREE(&pag->pag_ici_root, GFP_ATOMIC);
-		spin_lock_init(&pag->pag_buf_lock);
-		pag->pag_buf_tree = RB_ROOT;
+		if (xfs_buf_hash_init(pag))
+			goto out_free_pag;
+		init_waitqueue_head(&pag->pagb_wait);
+		spin_lock_init(&pag->pagb_lock);
+		pag->pagb_count = 0;
+		pag->pagb_tree = RB_ROOT;
 
 		if (radix_tree_preload(GFP_NOFS))
-			goto out_unwind;
+			goto out_hash_destroy;
 
 		spin_lock(&mp->m_perag_lock);
 		if (radix_tree_insert(&mp->m_perag_tree, index, pag)) {
@@ -224,10 +218,17 @@ xfs_initialize_perag(
 			spin_unlock(&mp->m_perag_lock);
 			radix_tree_preload_end();
 			error = -EEXIST;
-			goto out_unwind;
+			goto out_hash_destroy;
 		}
 		spin_unlock(&mp->m_perag_lock);
 		radix_tree_preload_end();
+		/* first new pag is fully initialized */
+		if (first_initialised == NULLAGNUMBER)
+			first_initialised = index;
+		error = xfs_iunlink_init(pag);
+		if (error)
+			goto out_hash_destroy;
+		spin_lock_init(&pag->pag_state_lock);
 	}
 
 	index = xfs_set_inode_alloc(mp, agcount);
@@ -238,10 +239,20 @@ xfs_initialize_perag(
 	mp->m_ag_prealloc_blocks = xfs_prealloc_blocks(mp);
 	return 0;
 
-out_unwind:
+out_hash_destroy:
+	xfs_buf_hash_destroy(pag);
+out_free_pag:
+	mutex_destroy(&pag->pag_ici_reclaim_lock);
 	kmem_free(pag);
-	for (; index > first_initialised; index--) {
+out_unwind_new_pags:
+	/* unwind any prior newly initialized pags */
+	for (index = first_initialised; index < agcount; index++) {
 		pag = radix_tree_delete(&mp->m_perag_tree, index);
+		if (!pag)
+			break;
+		xfs_buf_hash_destroy(pag);
+		xfs_iunlink_destroy(pag);
+		mutex_destroy(&pag->pag_ici_reclaim_lock);
 		kmem_free(pag);
 	}
 	return error;
@@ -415,30 +426,6 @@ xfs_update_alignment(xfs_mount_t *mp)
 }
 
 /*
- * Set the maximum inode count for this filesystem
- */
-STATIC void
-xfs_set_maxicount(xfs_mount_t *mp)
-{
-	xfs_sb_t	*sbp = &(mp->m_sb);
-	__uint64_t	icount;
-
-	if (sbp->sb_imax_pct) {
-		/*
-		 * Make sure the maximum inode count is a multiple
-		 * of the units we allocate inodes in.
-		 */
-		icount = sbp->sb_dblocks * sbp->sb_imax_pct;
-		do_div(icount, 100);
-		do_div(icount, mp->m_ialloc_blks);
-		mp->m_maxicount = (icount * mp->m_ialloc_blks)  <<
-				   sbp->sb_inopblog;
-	} else {
-		mp->m_maxicount = 0;
-	}
-}
-
-/*
  * Set the default minimum read and write sizes unless
  * already specified in a mount option.
  * We use smaller I/O sizes when the file system
@@ -487,35 +474,11 @@ xfs_set_low_space_thresholds(
 	int i;
 
 	for (i = 0; i < XFS_LOWSP_MAX; i++) {
-		__uint64_t space = mp->m_sb.sb_dblocks;
+		uint64_t space = mp->m_sb.sb_dblocks;
 
 		do_div(space, 100);
 		mp->m_low_space[i] = space * (i + 1);
 	}
-}
-
-
-/*
- * Set whether we're using inode alignment.
- */
-STATIC void
-xfs_set_inoalignment(xfs_mount_t *mp)
-{
-	if (xfs_sb_version_hasalign(&mp->m_sb) &&
-	    mp->m_sb.sb_inoalignmt >=
-	    XFS_B_TO_FSBT(mp, mp->m_inode_cluster_size))
-		mp->m_inoalign_mask = mp->m_sb.sb_inoalignmt - 1;
-	else
-		mp->m_inoalign_mask = 0;
-	/*
-	 * If we are using stripe alignment, check whether
-	 * the stripe unit is a multiple of the inode alignment
-	 */
-	if (mp->m_dalign && mp->m_inoalign_mask &&
-	    !(mp->m_dalign & mp->m_inoalign_mask))
-		mp->m_sinoalign = mp->m_dalign;
-	else
-		mp->m_sinoalign = 0;
 }
 
 /*
@@ -584,10 +547,10 @@ xfs_mount_reset_sbqflags(
 	return xfs_sync_sb(mp, false);
 }
 
-__uint64_t
+uint64_t
 xfs_default_resblks(xfs_mount_t *mp)
 {
-	__uint64_t resblks;
+	uint64_t resblks;
 
 	/*
 	 * We default to 5% or 8192 fsbs of space reserved, whichever is
@@ -598,8 +561,59 @@ xfs_default_resblks(xfs_mount_t *mp)
 	 */
 	resblks = mp->m_sb.sb_dblocks;
 	do_div(resblks, 20);
-	resblks = min_t(__uint64_t, resblks, 8192);
+	resblks = min_t(uint64_t, resblks, 8192);
 	return resblks;
+}
+
+/* Ensure the summary counts are correct. */
+STATIC int
+xfs_check_summary_counts(
+	struct xfs_mount	*mp)
+{
+	/*
+	 * The AG0 superblock verifier rejects in-progress filesystems,
+	 * so we should never see the flag set this far into mounting.
+	 */
+	if (mp->m_sb.sb_inprogress) {
+		xfs_err(mp, "sb_inprogress set after log recovery??");
+		WARN_ON(1);
+		return -EFSCORRUPTED;
+	}
+
+	/*
+	 * Now the log is mounted, we know if it was an unclean shutdown or
+	 * not. If it was, with the first phase of recovery has completed, we
+	 * have consistent AG blocks on disk. We have not recovered EFIs yet,
+	 * but they are recovered transactionally in the second recovery phase
+	 * later.
+	 *
+	 * If the log was clean when we mounted, we can check the summary
+	 * counters.  If any of them are obviously incorrect, we can recompute
+	 * them from the AGF headers in the next step.
+	 */
+	if (XFS_LAST_UNMOUNT_WAS_CLEAN(mp) &&
+	    (mp->m_sb.sb_fdblocks > mp->m_sb.sb_dblocks ||
+	     !xfs_verify_icount(mp, mp->m_sb.sb_icount) ||
+	     mp->m_sb.sb_ifree > mp->m_sb.sb_icount))
+		xfs_fs_mark_sick(mp, XFS_SICK_FS_COUNTERS);
+
+	/*
+	 * We can safely re-initialise incore superblock counters from the
+	 * per-ag data. These may not be correct if the filesystem was not
+	 * cleanly unmounted, so we waited for recovery to finish before doing
+	 * this.
+	 *
+	 * If the filesystem was cleanly unmounted or the previous check did
+	 * not flag anything weird, then we can trust the values in the
+	 * superblock to be correct and we don't need to do anything here.
+	 * Otherwise, recalculate the summary counters.
+	 */
+	if ((!xfs_sb_version_haslazysbcount(&mp->m_sb) ||
+	     XFS_LAST_UNMOUNT_WAS_CLEAN(mp)) &&
+	    !xfs_fs_has_sickness(mp, XFS_SICK_FS_COUNTERS))
+		return 0;
+
+	return xfs_initialize_perag_data(mp, mp->m_sb.sb_agcount);
 }
 
 /*
@@ -618,7 +632,8 @@ xfs_mountfs(
 {
 	struct xfs_sb		*sbp = &(mp->m_sb);
 	struct xfs_inode	*rip;
-	__uint64_t		resblks;
+	struct xfs_ino_geometry	*igeo = M_IGEO(mp);
+	uint64_t		resblks;
 	uint			quotamount = 0;
 	uint			quotaflags = 0;
 	int			error = 0;
@@ -684,14 +699,12 @@ xfs_mountfs(
 	xfs_alloc_compute_maxlevels(mp);
 	xfs_bmap_compute_maxlevels(mp, XFS_DATA_FORK);
 	xfs_bmap_compute_maxlevels(mp, XFS_ATTR_FORK);
-	xfs_ialloc_compute_maxlevels(mp);
+	xfs_ialloc_setup_geometry(mp);
 	xfs_rmapbt_compute_maxlevels(mp);
 	xfs_refcountbt_compute_maxlevels(mp);
 
-	xfs_set_maxicount(mp);
-
 	/* enable fail_at_unmount as default */
-	mp->m_fail_unmount = 1;
+	mp->m_fail_unmount = true;
 
 	error = xfs_sysfs_init(&mp->m_kobj, &xfs_mp_ktype, NULL, mp->m_fsname);
 	if (error)
@@ -706,10 +719,13 @@ xfs_mountfs(
 	if (error)
 		goto out_del_stats;
 
+	error = xfs_errortag_init(mp);
+	if (error)
+		goto out_remove_error_sysfs;
 
 	error = xfs_uuid_mount(mp);
 	if (error)
-		goto out_remove_error_sysfs;
+		goto out_remove_errortag;
 
 	/*
 	 * Set the minimum read and write sizes
@@ -720,44 +736,20 @@ xfs_mountfs(
 	xfs_set_low_space_thresholds(mp);
 
 	/*
-	 * Set the inode cluster size.
-	 * This may still be overridden by the file system
-	 * block size if it is larger than the chosen cluster size.
-	 *
-	 * For v5 filesystems, scale the cluster size with the inode size to
-	 * keep a constant ratio of inode per cluster buffer, but only if mkfs
-	 * has set the inode alignment value appropriately for larger cluster
-	 * sizes.
-	 */
-	mp->m_inode_cluster_size = XFS_INODE_BIG_CLUSTER_SIZE;
-	if (xfs_sb_version_hascrc(&mp->m_sb)) {
-		int	new_size = mp->m_inode_cluster_size;
-
-		new_size *= mp->m_sb.sb_inodesize / XFS_DINODE_MIN_SIZE;
-		if (mp->m_sb.sb_inoalignmt >= XFS_B_TO_FSBT(mp, new_size))
-			mp->m_inode_cluster_size = new_size;
-	}
-
-	/*
 	 * If enabled, sparse inode chunk alignment is expected to match the
 	 * cluster size. Full inode chunk alignment must match the chunk size,
 	 * but that is checked on sb read verification...
 	 */
 	if (xfs_sb_version_hassparseinodes(&mp->m_sb) &&
 	    mp->m_sb.sb_spino_align !=
-			XFS_B_TO_FSBT(mp, mp->m_inode_cluster_size)) {
+			XFS_B_TO_FSBT(mp, igeo->inode_cluster_size_raw)) {
 		xfs_warn(mp,
 	"Sparse inode block alignment (%u) must match cluster size (%llu).",
 			 mp->m_sb.sb_spino_align,
-			 XFS_B_TO_FSBT(mp, mp->m_inode_cluster_size));
+			 XFS_B_TO_FSBT(mp, igeo->inode_cluster_size_raw));
 		error = -EINVAL;
 		goto out_remove_uuid;
 	}
-
-	/*
-	 * Set inode alignment fields
-	 */
-	xfs_set_inoalignment(mp);
 
 	/*
 	 * Check that the data (and log if separate) is an ok size.
@@ -779,9 +771,10 @@ xfs_mountfs(
 	 *  Copies the low order bits of the timestamp and the randomly
 	 *  set "sequence" number out of a UUID.
 	 */
-	uuid_getnodeuniq(&sbp->sb_uuid, mp->m_fixedfsid);
-
-	mp->m_dmevmask = 0;	/* not persistent; set after each mount */
+	mp->m_fixedfsid[0] =
+		(get_unaligned_be16(&sbp->sb_uuid.b[8]) << 16) |
+		 get_unaligned_be16(&sbp->sb_uuid.b[4]);
+	mp->m_fixedfsid[1] = get_unaligned_be32(&sbp->sb_uuid.b[0]);
 
 	error = xfs_da_mount(mp);
 	if (error) {
@@ -797,8 +790,6 @@ xfs_mountfs(
 	/*
 	 * Allocate and initialize the per-ag data.
 	 */
-	spin_lock_init(&mp->m_perag_lock);
-	INIT_RADIX_TREE(&mp->m_perag_tree, GFP_ATOMIC);
 	error = xfs_initialize_perag(mp, sbp->sb_agcount, &mp->m_maxagi);
 	if (error) {
 		xfs_warn(mp, "Failed per-ag init: %d", error);
@@ -825,40 +816,21 @@ xfs_mountfs(
 		goto out_fail_wait;
 	}
 
-	/*
-	 * Now the log is mounted, we know if it was an unclean shutdown or
-	 * not. If it was, with the first phase of recovery has completed, we
-	 * have consistent AG blocks on disk. We have not recovered EFIs yet,
-	 * but they are recovered transactionally in the second recovery phase
-	 * later.
-	 *
-	 * Hence we can safely re-initialise incore superblock counters from
-	 * the per-ag data. These may not be correct if the filesystem was not
-	 * cleanly unmounted, so we need to wait for recovery to finish before
-	 * doing this.
-	 *
-	 * If the filesystem was cleanly unmounted, then we can trust the
-	 * values in the superblock to be correct and we don't need to do
-	 * anything here.
-	 *
-	 * If we are currently making the filesystem, the initialisation will
-	 * fail as the perag data is in an undefined state.
-	 */
-	if (xfs_sb_version_haslazysbcount(&mp->m_sb) &&
-	    !XFS_LAST_UNMOUNT_WAS_CLEAN(mp) &&
-	     !mp->m_sb.sb_inprogress) {
-		error = xfs_initialize_perag_data(mp, sbp->sb_agcount);
-		if (error)
-			goto out_log_dealloc;
-	}
+	/* Make sure the summary counts are ok. */
+	error = xfs_check_summary_counts(mp);
+	if (error)
+		goto out_log_dealloc;
 
 	/*
 	 * Get and sanity-check the root inode.
 	 * Save the pointer to it in the mount structure.
 	 */
-	error = xfs_iget(mp, NULL, sbp->sb_rootino, 0, XFS_ILOCK_EXCL, &rip);
+	error = xfs_iget(mp, NULL, sbp->sb_rootino, XFS_IGET_UNTRUSTED,
+			 XFS_ILOCK_EXCL, &rip);
 	if (error) {
-		xfs_warn(mp, "failed to read root inode");
+		xfs_warn(mp,
+			"Failed to read root inode 0x%llx, error %d",
+			sbp->sb_rootino, -error);
 		goto out_log_dealloc;
 	}
 
@@ -924,15 +896,6 @@ xfs_mountfs(
 				goto out_rtunmount;
 		}
 	}
-
-	/*
-	 * During the second phase of log recovery, we need iget and
-	 * iput to behave like they do for an active filesystem.
-	 * xfs_fs_drop_inode needs to be able to prevent the deletion
-	 * of inodes before we're done replaying log items on those
-	 * inodes.
-	 */
-	mp->m_super->s_flags |= MS_ACTIVE;
 
 	/*
 	 * Finish recovering the file system.  This part needed to be delayed
@@ -1009,12 +972,25 @@ xfs_mountfs(
  out_quota:
 	xfs_qm_unmount_quotas(mp);
  out_rtunmount:
-	mp->m_super->s_flags &= ~MS_ACTIVE;
 	xfs_rtunmount_inodes(mp);
  out_rele_rip:
-	IRELE(rip);
+	xfs_irele(rip);
+	/* Clean out dquots that might be in memory after quotacheck. */
+	xfs_qm_unmount(mp);
+	/*
+	 * Cancel all delayed reclaim work and reclaim the inodes directly.
+	 * We have to do this /after/ rtunmount and qm_unmount because those
+	 * two will have scheduled delayed reclaim for the rt/quota inodes.
+	 *
+	 * This is slightly different from the unmountfs call sequence
+	 * because we could be tearing down a partially set up mount.  In
+	 * particular, if log_mount_finish fails we bail out without calling
+	 * qm_unmount_quotas and therefore rely on qm_unmount to release the
+	 * quota inodes.
+	 */
 	cancel_delayed_work_sync(&mp->m_reclaim_work);
 	xfs_reclaim_inodes(mp, SYNC_WAIT);
+	xfs_health_unmount(mp);
  out_log_dealloc:
 	mp->m_flags |= XFS_MOUNT_UNMOUNTING;
 	xfs_log_mount_cancel(mp);
@@ -1028,6 +1004,8 @@ xfs_mountfs(
 	xfs_da_unmount(mp);
  out_remove_uuid:
 	xfs_uuid_unmount(mp);
+ out_remove_errortag:
+	xfs_errortag_del(mp);
  out_remove_error_sysfs:
 	xfs_error_sysfs_del(mp);
  out_del_stats:
@@ -1046,16 +1024,14 @@ void
 xfs_unmountfs(
 	struct xfs_mount	*mp)
 {
-	__uint64_t		resblks;
+	uint64_t		resblks;
 	int			error;
 
-	cancel_delayed_work_sync(&mp->m_eofblocks_work);
-	cancel_delayed_work_sync(&mp->m_cowblocks_work);
-
+	xfs_stop_block_reaping(mp);
 	xfs_fs_unreserve_ag_blocks(mp);
 	xfs_qm_unmount_quotas(mp);
 	xfs_rtunmount_inodes(mp);
-	IRELE(mp->m_rootip);
+	xfs_irele(mp->m_rootip);
 
 	/*
 	 * We can potentially deadlock here if we have an inode cluster
@@ -1068,6 +1044,13 @@ xfs_unmountfs(
 	 * need to force the log first.
 	 */
 	xfs_log_force(mp, XFS_LOG_SYNC);
+
+	/*
+	 * Wait for all busy extents to be freed, including completion of
+	 * any discard operation.
+	 */
+	xfs_extent_busy_wait_all(mp);
+	flush_workqueue(xfs_discard_wq);
 
 	/*
 	 * We now need to tell the world we are unmounting. This will allow
@@ -1090,6 +1073,7 @@ xfs_unmountfs(
 	 */
 	cancel_delayed_work_sync(&mp->m_reclaim_work);
 	xfs_reclaim_inodes(mp, SYNC_WAIT);
+	xfs_health_unmount(mp);
 
 	xfs_qm_unmount(mp);
 
@@ -1124,10 +1108,11 @@ xfs_unmountfs(
 	xfs_uuid_unmount(mp);
 
 #if defined(DEBUG)
-	xfs_errortag_clearall(mp, 0);
+	xfs_errortag_clearall(mp);
 #endif
 	xfs_free_perag(mp);
 
+	xfs_errortag_del(mp);
 	xfs_error_sysfs_del(mp);
 	xfs_sysfs_del(&mp->m_stats.xs_kobj);
 	xfs_sysfs_del(&mp->m_kobj);
@@ -1188,7 +1173,7 @@ xfs_mod_icount(
 	struct xfs_mount	*mp,
 	int64_t			delta)
 {
-	__percpu_counter_add(&mp->m_icount, delta, XFS_ICOUNT_BATCH);
+	percpu_counter_add_batch(&mp->m_icount, delta, XFS_ICOUNT_BATCH);
 	if (__percpu_counter_compare(&mp->m_icount, 0, XFS_ICOUNT_BATCH) < 0) {
 		ASSERT(0);
 		percpu_counter_add(&mp->m_icount, -delta);
@@ -1267,7 +1252,7 @@ xfs_mod_fdblocks(
 	else
 		batch = XFS_FDBLOCKS_BATCH;
 
-	__percpu_counter_add(&mp->m_fdblocks, delta, batch);
+	percpu_counter_add_batch(&mp->m_fdblocks, delta, batch);
 	if (__percpu_counter_compare(&mp->m_fdblocks, mp->m_alloc_set_aside,
 				     XFS_FDBLOCKS_BATCH) >= 0) {
 		/* we had space! */
@@ -1320,24 +1305,14 @@ xfs_mod_frextents(
  * xfs_getsb() is called to obtain the buffer for the superblock.
  * The buffer is returned locked and read in from disk.
  * The buffer should be released with a call to xfs_brelse().
- *
- * If the flags parameter is BUF_TRYLOCK, then we'll only return
- * the superblock buffer if it can be locked without sleeping.
- * If it can't then we'll return NULL.
  */
 struct xfs_buf *
 xfs_getsb(
-	struct xfs_mount	*mp,
-	int			flags)
+	struct xfs_mount	*mp)
 {
 	struct xfs_buf		*bp = mp->m_sb_bp;
 
-	if (!xfs_buf_trylock(bp)) {
-		if (flags & XBF_TRYLOCK)
-			return NULL;
-		xfs_buf_lock(bp);
-	}
-
+	xfs_buf_lock(bp);
 	xfs_buf_hold(bp);
 	ASSERT(bp->b_flags & XBF_DONE);
 	return bp;
@@ -1374,4 +1349,36 @@ xfs_dev_is_read_only(
 		return -EROFS;
 	}
 	return 0;
+}
+
+/* Force the summary counters to be recalculated at next mount. */
+void
+xfs_force_summary_recalc(
+	struct xfs_mount	*mp)
+{
+	if (!xfs_sb_version_haslazysbcount(&mp->m_sb))
+		return;
+
+	xfs_fs_mark_sick(mp, XFS_SICK_FS_COUNTERS);
+}
+
+/*
+ * Update the in-core delayed block counter.
+ *
+ * We prefer to update the counter without having to take a spinlock for every
+ * counter update (i.e. batching).  Each change to delayed allocation
+ * reservations can change can easily exceed the default percpu counter
+ * batching, so we use a larger batch factor here.
+ *
+ * Note that we don't currently have any callers requiring fast summation
+ * (e.g. percpu_counter_read) so we can use a big batch value here.
+ */
+#define XFS_DELALLOC_BATCH	(4096)
+void
+xfs_mod_delalloc(
+	struct xfs_mount	*mp,
+	int64_t			delta)
+{
+	percpu_counter_add_batch(&mp->m_delalloc_blks, delta,
+			XFS_DELALLOC_BATCH);
 }

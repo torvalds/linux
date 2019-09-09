@@ -12,7 +12,11 @@ generators can be found in [1].
 ==I2C device node==
 
 Required properties:
-- compatible: shall be one of "silabs,si5351{a,a-msop,b,c}".
+- compatible: shall be one of the following:
+	"silabs,si5351a" - Si5351a, QFN20 package
+	"silabs,si5351a-msop" - Si5351a, MSOP10 package
+	"silabs,si5351b" - Si5351b, QFN20 package
+	"silabs,si5351c" - Si5351c, QFN20 package
 - reg: i2c device address, shall be 0x60 or 0x61.
 - #clock-cells: from common clock binding; shall be set to 1.
 - clocks: from common clock binding; list of parent clock
@@ -45,6 +49,7 @@ Optional child node properties:
 - silabs,multisynth-source: source pll A(0) or B(1) of corresponding multisynth
   divider.
 - silabs,pll-master: boolean, multisynth can change pll frequency.
+- silabs,pll-reset: boolean, clock output can reset its pll.
 - silabs,disable-state : clock output disable state, shall be
   0 = clock output is driven LOW when disabled
   1 = clock output is driven HIGH when disabled

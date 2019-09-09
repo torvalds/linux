@@ -17,6 +17,7 @@
 #include <linux/crypto.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <asm/unaligned.h>
 
 static inline u64 mlt(u64 a, u64 b)
 {
@@ -33,16 +34,11 @@ static inline u32 and(u32 v, u32 mask)
 	return v & mask;
 }
 
-static inline u32 le32_to_cpuvp(const void *p)
-{
-	return le32_to_cpup(p);
-}
-
 int crypto_poly1305_init(struct shash_desc *desc)
 {
 	struct poly1305_desc_ctx *dctx = shash_desc_ctx(desc);
 
-	memset(dctx->h, 0, sizeof(dctx->h));
+	poly1305_core_init(&dctx->h);
 	dctx->buflen = 0;
 	dctx->rset = false;
 	dctx->sset = false;
@@ -51,47 +47,37 @@ int crypto_poly1305_init(struct shash_desc *desc)
 }
 EXPORT_SYMBOL_GPL(crypto_poly1305_init);
 
-int crypto_poly1305_setkey(struct crypto_shash *tfm,
-			   const u8 *key, unsigned int keylen)
-{
-	/* Poly1305 requires a unique key for each tag, which implies that
-	 * we can't set it on the tfm that gets accessed by multiple users
-	 * simultaneously. Instead we expect the key as the first 32 bytes in
-	 * the update() call. */
-	return -ENOTSUPP;
-}
-EXPORT_SYMBOL_GPL(crypto_poly1305_setkey);
-
-static void poly1305_setrkey(struct poly1305_desc_ctx *dctx, const u8 *key)
+void poly1305_core_setkey(struct poly1305_key *key, const u8 *raw_key)
 {
 	/* r &= 0xffffffc0ffffffc0ffffffc0fffffff */
-	dctx->r[0] = (le32_to_cpuvp(key +  0) >> 0) & 0x3ffffff;
-	dctx->r[1] = (le32_to_cpuvp(key +  3) >> 2) & 0x3ffff03;
-	dctx->r[2] = (le32_to_cpuvp(key +  6) >> 4) & 0x3ffc0ff;
-	dctx->r[3] = (le32_to_cpuvp(key +  9) >> 6) & 0x3f03fff;
-	dctx->r[4] = (le32_to_cpuvp(key + 12) >> 8) & 0x00fffff;
+	key->r[0] = (get_unaligned_le32(raw_key +  0) >> 0) & 0x3ffffff;
+	key->r[1] = (get_unaligned_le32(raw_key +  3) >> 2) & 0x3ffff03;
+	key->r[2] = (get_unaligned_le32(raw_key +  6) >> 4) & 0x3ffc0ff;
+	key->r[3] = (get_unaligned_le32(raw_key +  9) >> 6) & 0x3f03fff;
+	key->r[4] = (get_unaligned_le32(raw_key + 12) >> 8) & 0x00fffff;
 }
+EXPORT_SYMBOL_GPL(poly1305_core_setkey);
 
-static void poly1305_setskey(struct poly1305_desc_ctx *dctx, const u8 *key)
-{
-	dctx->s[0] = le32_to_cpuvp(key +  0);
-	dctx->s[1] = le32_to_cpuvp(key +  4);
-	dctx->s[2] = le32_to_cpuvp(key +  8);
-	dctx->s[3] = le32_to_cpuvp(key + 12);
-}
-
+/*
+ * Poly1305 requires a unique key for each tag, which implies that we can't set
+ * it on the tfm that gets accessed by multiple users simultaneously. Instead we
+ * expect the key as the first 32 bytes in the update() call.
+ */
 unsigned int crypto_poly1305_setdesckey(struct poly1305_desc_ctx *dctx,
 					const u8 *src, unsigned int srclen)
 {
 	if (!dctx->sset) {
 		if (!dctx->rset && srclen >= POLY1305_BLOCK_SIZE) {
-			poly1305_setrkey(dctx, src);
+			poly1305_core_setkey(&dctx->r, src);
 			src += POLY1305_BLOCK_SIZE;
 			srclen -= POLY1305_BLOCK_SIZE;
 			dctx->rset = true;
 		}
 		if (srclen >= POLY1305_BLOCK_SIZE) {
-			poly1305_setskey(dctx, src);
+			dctx->s[0] = get_unaligned_le32(src +  0);
+			dctx->s[1] = get_unaligned_le32(src +  4);
+			dctx->s[2] = get_unaligned_le32(src +  8);
+			dctx->s[3] = get_unaligned_le32(src + 12);
 			src += POLY1305_BLOCK_SIZE;
 			srclen -= POLY1305_BLOCK_SIZE;
 			dctx->sset = true;
@@ -101,47 +87,43 @@ unsigned int crypto_poly1305_setdesckey(struct poly1305_desc_ctx *dctx,
 }
 EXPORT_SYMBOL_GPL(crypto_poly1305_setdesckey);
 
-static unsigned int poly1305_blocks(struct poly1305_desc_ctx *dctx,
-				    const u8 *src, unsigned int srclen,
-				    u32 hibit)
+static void poly1305_blocks_internal(struct poly1305_state *state,
+				     const struct poly1305_key *key,
+				     const void *src, unsigned int nblocks,
+				     u32 hibit)
 {
 	u32 r0, r1, r2, r3, r4;
 	u32 s1, s2, s3, s4;
 	u32 h0, h1, h2, h3, h4;
 	u64 d0, d1, d2, d3, d4;
-	unsigned int datalen;
 
-	if (unlikely(!dctx->sset)) {
-		datalen = crypto_poly1305_setdesckey(dctx, src, srclen);
-		src += srclen - datalen;
-		srclen = datalen;
-	}
+	if (!nblocks)
+		return;
 
-	r0 = dctx->r[0];
-	r1 = dctx->r[1];
-	r2 = dctx->r[2];
-	r3 = dctx->r[3];
-	r4 = dctx->r[4];
+	r0 = key->r[0];
+	r1 = key->r[1];
+	r2 = key->r[2];
+	r3 = key->r[3];
+	r4 = key->r[4];
 
 	s1 = r1 * 5;
 	s2 = r2 * 5;
 	s3 = r3 * 5;
 	s4 = r4 * 5;
 
-	h0 = dctx->h[0];
-	h1 = dctx->h[1];
-	h2 = dctx->h[2];
-	h3 = dctx->h[3];
-	h4 = dctx->h[4];
+	h0 = state->h[0];
+	h1 = state->h[1];
+	h2 = state->h[2];
+	h3 = state->h[3];
+	h4 = state->h[4];
 
-	while (likely(srclen >= POLY1305_BLOCK_SIZE)) {
-
+	do {
 		/* h += m[i] */
-		h0 += (le32_to_cpuvp(src +  0) >> 0) & 0x3ffffff;
-		h1 += (le32_to_cpuvp(src +  3) >> 2) & 0x3ffffff;
-		h2 += (le32_to_cpuvp(src +  6) >> 4) & 0x3ffffff;
-		h3 += (le32_to_cpuvp(src +  9) >> 6) & 0x3ffffff;
-		h4 += (le32_to_cpuvp(src + 12) >> 8) | hibit;
+		h0 += (get_unaligned_le32(src +  0) >> 0) & 0x3ffffff;
+		h1 += (get_unaligned_le32(src +  3) >> 2) & 0x3ffffff;
+		h2 += (get_unaligned_le32(src +  6) >> 4) & 0x3ffffff;
+		h3 += (get_unaligned_le32(src +  9) >> 6) & 0x3ffffff;
+		h4 += (get_unaligned_le32(src + 12) >> 8) | hibit;
 
 		/* h *= r */
 		d0 = mlt(h0, r0) + mlt(h1, s4) + mlt(h2, s3) +
@@ -164,16 +146,36 @@ static unsigned int poly1305_blocks(struct poly1305_desc_ctx *dctx,
 		h1 += h0 >> 26;       h0 = h0 & 0x3ffffff;
 
 		src += POLY1305_BLOCK_SIZE;
-		srclen -= POLY1305_BLOCK_SIZE;
+	} while (--nblocks);
+
+	state->h[0] = h0;
+	state->h[1] = h1;
+	state->h[2] = h2;
+	state->h[3] = h3;
+	state->h[4] = h4;
+}
+
+void poly1305_core_blocks(struct poly1305_state *state,
+			  const struct poly1305_key *key,
+			  const void *src, unsigned int nblocks)
+{
+	poly1305_blocks_internal(state, key, src, nblocks, 1 << 24);
+}
+EXPORT_SYMBOL_GPL(poly1305_core_blocks);
+
+static void poly1305_blocks(struct poly1305_desc_ctx *dctx,
+			    const u8 *src, unsigned int srclen, u32 hibit)
+{
+	unsigned int datalen;
+
+	if (unlikely(!dctx->sset)) {
+		datalen = crypto_poly1305_setdesckey(dctx, src, srclen);
+		src += srclen - datalen;
+		srclen = datalen;
 	}
 
-	dctx->h[0] = h0;
-	dctx->h[1] = h1;
-	dctx->h[2] = h2;
-	dctx->h[3] = h3;
-	dctx->h[4] = h4;
-
-	return srclen;
+	poly1305_blocks_internal(&dctx->h, &dctx->r,
+				 src, srclen / POLY1305_BLOCK_SIZE, hibit);
 }
 
 int crypto_poly1305_update(struct shash_desc *desc,
@@ -197,9 +199,9 @@ int crypto_poly1305_update(struct shash_desc *desc,
 	}
 
 	if (likely(srclen >= POLY1305_BLOCK_SIZE)) {
-		bytes = poly1305_blocks(dctx, src, srclen, 1 << 24);
-		src += srclen - bytes;
-		srclen = bytes;
+		poly1305_blocks(dctx, src, srclen, 1 << 24);
+		src += srclen - (srclen % POLY1305_BLOCK_SIZE);
+		srclen %= POLY1305_BLOCK_SIZE;
 	}
 
 	if (unlikely(srclen)) {
@@ -211,31 +213,18 @@ int crypto_poly1305_update(struct shash_desc *desc,
 }
 EXPORT_SYMBOL_GPL(crypto_poly1305_update);
 
-int crypto_poly1305_final(struct shash_desc *desc, u8 *dst)
+void poly1305_core_emit(const struct poly1305_state *state, void *dst)
 {
-	struct poly1305_desc_ctx *dctx = shash_desc_ctx(desc);
-	__le32 *mac = (__le32 *)dst;
 	u32 h0, h1, h2, h3, h4;
 	u32 g0, g1, g2, g3, g4;
 	u32 mask;
-	u64 f = 0;
-
-	if (unlikely(!dctx->sset))
-		return -ENOKEY;
-
-	if (unlikely(dctx->buflen)) {
-		dctx->buf[dctx->buflen++] = 1;
-		memset(dctx->buf + dctx->buflen, 0,
-		       POLY1305_BLOCK_SIZE - dctx->buflen);
-		poly1305_blocks(dctx, dctx->buf, POLY1305_BLOCK_SIZE, 0);
-	}
 
 	/* fully carry h */
-	h0 = dctx->h[0];
-	h1 = dctx->h[1];
-	h2 = dctx->h[2];
-	h3 = dctx->h[3];
-	h4 = dctx->h[4];
+	h0 = state->h[0];
+	h1 = state->h[1];
+	h2 = state->h[2];
+	h3 = state->h[3];
+	h4 = state->h[4];
 
 	h2 += (h1 >> 26);     h1 = h1 & 0x3ffffff;
 	h3 += (h2 >> 26);     h2 = h2 & 0x3ffffff;
@@ -265,16 +254,40 @@ int crypto_poly1305_final(struct shash_desc *desc, u8 *dst)
 	h4 = (h4 & mask) | g4;
 
 	/* h = h % (2^128) */
-	h0 = (h0 >>  0) | (h1 << 26);
-	h1 = (h1 >>  6) | (h2 << 20);
-	h2 = (h2 >> 12) | (h3 << 14);
-	h3 = (h3 >> 18) | (h4 <<  8);
+	put_unaligned_le32((h0 >>  0) | (h1 << 26), dst +  0);
+	put_unaligned_le32((h1 >>  6) | (h2 << 20), dst +  4);
+	put_unaligned_le32((h2 >> 12) | (h3 << 14), dst +  8);
+	put_unaligned_le32((h3 >> 18) | (h4 <<  8), dst + 12);
+}
+EXPORT_SYMBOL_GPL(poly1305_core_emit);
+
+int crypto_poly1305_final(struct shash_desc *desc, u8 *dst)
+{
+	struct poly1305_desc_ctx *dctx = shash_desc_ctx(desc);
+	__le32 digest[4];
+	u64 f = 0;
+
+	if (unlikely(!dctx->sset))
+		return -ENOKEY;
+
+	if (unlikely(dctx->buflen)) {
+		dctx->buf[dctx->buflen++] = 1;
+		memset(dctx->buf + dctx->buflen, 0,
+		       POLY1305_BLOCK_SIZE - dctx->buflen);
+		poly1305_blocks(dctx, dctx->buf, POLY1305_BLOCK_SIZE, 0);
+	}
+
+	poly1305_core_emit(&dctx->h, digest);
 
 	/* mac = (h + s) % (2^128) */
-	f = (f >> 32) + h0 + dctx->s[0]; mac[0] = cpu_to_le32(f);
-	f = (f >> 32) + h1 + dctx->s[1]; mac[1] = cpu_to_le32(f);
-	f = (f >> 32) + h2 + dctx->s[2]; mac[2] = cpu_to_le32(f);
-	f = (f >> 32) + h3 + dctx->s[3]; mac[3] = cpu_to_le32(f);
+	f = (f >> 32) + le32_to_cpu(digest[0]) + dctx->s[0];
+	put_unaligned_le32(f, dst + 0);
+	f = (f >> 32) + le32_to_cpu(digest[1]) + dctx->s[1];
+	put_unaligned_le32(f, dst + 4);
+	f = (f >> 32) + le32_to_cpu(digest[2]) + dctx->s[2];
+	put_unaligned_le32(f, dst + 8);
+	f = (f >> 32) + le32_to_cpu(digest[3]) + dctx->s[3];
+	put_unaligned_le32(f, dst + 12);
 
 	return 0;
 }
@@ -285,14 +298,11 @@ static struct shash_alg poly1305_alg = {
 	.init		= crypto_poly1305_init,
 	.update		= crypto_poly1305_update,
 	.final		= crypto_poly1305_final,
-	.setkey		= crypto_poly1305_setkey,
 	.descsize	= sizeof(struct poly1305_desc_ctx),
 	.base		= {
 		.cra_name		= "poly1305",
 		.cra_driver_name	= "poly1305-generic",
 		.cra_priority		= 100,
-		.cra_flags		= CRYPTO_ALG_TYPE_SHASH,
-		.cra_alignmask		= sizeof(u32) - 1,
 		.cra_blocksize		= POLY1305_BLOCK_SIZE,
 		.cra_module		= THIS_MODULE,
 	},
@@ -308,7 +318,7 @@ static void __exit poly1305_mod_exit(void)
 	crypto_unregister_shash(&poly1305_alg);
 }
 
-module_init(poly1305_mod_init);
+subsys_initcall(poly1305_mod_init);
 module_exit(poly1305_mod_exit);
 
 MODULE_LICENSE("GPL");

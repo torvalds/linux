@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * SPI controller driver for the Mikrotik RB4xx boards
  *
@@ -6,11 +7,6 @@
  *
  * This file was based on the patches for Linux 2.6.27.39 published by
  * MikroTik for their RouterBoard 4xx series devices.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/kernel.h>
@@ -159,7 +155,7 @@ static int rb4xx_spi_probe(struct platform_device *pdev)
 	master->bus_num = 0;
 	master->num_chipselect = 3;
 	master->mode_bits = SPI_TX_DUAL;
-	master->bits_per_word_mask = BIT(7);
+	master->bits_per_word_mask = SPI_BPW_MASK(8);
 	master->flags = SPI_MASTER_MUST_TX;
 	master->transfer_one = rb4xx_transfer_one;
 	master->set_cs = rb4xx_set_cs;

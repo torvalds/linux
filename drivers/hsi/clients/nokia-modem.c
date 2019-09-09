@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * nokia-modem.c
  *
  * HSI client driver for Nokia N900 modem.
  *
  * Copyright (C) 2014 Sebastian Reichel <sre@kernel.org>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
  */
 
 #include <linux/gpio/consumer.h>
@@ -102,12 +89,10 @@ static int nokia_modem_gpio_probe(struct device *dev)
 		return -EINVAL;
 	}
 
-	modem->gpios = devm_kzalloc(dev, gpio_count *
-				sizeof(struct nokia_modem_gpio), GFP_KERNEL);
-	if (!modem->gpios) {
-		dev_err(dev, "Could not allocate memory for gpios\n");
+	modem->gpios = devm_kcalloc(dev, gpio_count, sizeof(*modem->gpios),
+				    GFP_KERNEL);
+	if (!modem->gpios)
 		return -ENOMEM;
-	}
 
 	modem->gpio_amount = gpio_count;
 
@@ -156,10 +141,9 @@ static int nokia_modem_probe(struct device *dev)
 	}
 
 	modem = devm_kzalloc(dev, sizeof(*modem), GFP_KERNEL);
-	if (!modem) {
-		dev_err(dev, "Could not allocate memory for nokia_modem_device\n");
+	if (!modem)
 		return -ENOMEM;
-	}
+
 	dev_set_drvdata(dev, modem);
 	modem->device = dev;
 
@@ -182,7 +166,7 @@ static int nokia_modem_probe(struct device *dev)
 	}
 	enable_irq_wake(irq);
 
-	if(pm) {
+	if (pm) {
 		err = nokia_modem_gpio_probe(dev);
 		if (err < 0) {
 			dev_err(dev, "Could not probe GPIOs\n");

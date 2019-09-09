@@ -1,23 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Intel SoC Core Telemetry Driver
  * Copyright (C) 2015, Intel Corporation.
  * All Rights Reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
  * Telemetry Framework provides platform related PM and performance statistics.
  * This file provides the core telemetry API implementation.
  */
-#include <linux/module.h>
-#include <linux/init.h>
 #include <linux/device.h>
+#include <linux/module.h>
 
 #include <asm/intel_telemetry.h>
 
@@ -461,4 +452,4 @@ module_exit(telemetry_module_exit);
 
 MODULE_AUTHOR("Souvik Kumar Chakravarty <souvik.k.chakravarty@intel.com>");
 MODULE_DESCRIPTION("Intel SoC Telemetry Interface");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");

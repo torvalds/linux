@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for Allwinner sunXi IR controller
  *
@@ -7,16 +8,6 @@
  * Based on sun5i-ir.c:
  * Copyright (C) 2007-2012 Daniel Wang
  * Allwinner Technology Co., Ltd. <www.allwinnertech.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
  */
 
 #include <linux/clk.h>
@@ -72,12 +63,8 @@
 /* CIR_REG register idle threshold */
 #define REG_CIR_ITHR(val)    (((val) << 8) & (GENMASK(15, 8)))
 
-/* Required frequency for IR0 or IR1 clock in CIR mode */
+/* Required frequency for IR0 or IR1 clock in CIR mode (default) */
 #define SUNXI_IR_BASE_CLK     8000000
-/* Frequency after IR internal divider  */
-#define SUNXI_IR_CLK          (SUNXI_IR_BASE_CLK / 64)
-/* Sample period in ns */
-#define SUNXI_IR_SAMPLE       (1000000000ul / SUNXI_IR_CLK)
 /* Noise threshold in samples  */
 #define SUNXI_IR_RXNOISE      1
 /* Idle Threshold in samples */
@@ -103,7 +90,7 @@ static irqreturn_t sunxi_ir_irq(int irqno, void *dev_id)
 	unsigned char dt;
 	unsigned int cnt, rc;
 	struct sunxi_ir *ir = dev_id;
-	DEFINE_IR_RAW_EVENT(rawir);
+	struct ir_raw_event rawir = {};
 
 	spin_lock(&ir->ir_lock);
 
@@ -122,7 +109,8 @@ static irqreturn_t sunxi_ir_irq(int irqno, void *dev_id)
 			/* for each bit in fifo */
 			dt = readb(ir->base + SUNXI_IR_RXFIFO_REG);
 			rawir.pulse = (dt & 0x80) != 0;
-			rawir.duration = ((dt & 0x7f) + 1) * SUNXI_IR_SAMPLE;
+			rawir.duration = ((dt & 0x7f) + 1) *
+					 ir->rc->rx_resolution;
 			ir_raw_event_store_with_filter(ir->rc, &rawir);
 		}
 	}
@@ -148,6 +136,7 @@ static int sunxi_ir_probe(struct platform_device *pdev)
 	struct device_node *dn = dev->of_node;
 	struct resource *res;
 	struct sunxi_ir *ir;
+	u32 b_clk_freq = SUNXI_IR_BASE_CLK;
 
 	ir = devm_kzalloc(dev, sizeof(struct sunxi_ir), GFP_KERNEL);
 	if (!ir)
@@ -172,24 +161,23 @@ static int sunxi_ir_probe(struct platform_device *pdev)
 		return PTR_ERR(ir->clk);
 	}
 
-	/* Reset (optional) */
-	ir->rst = devm_reset_control_get_optional(dev, NULL);
-	if (IS_ERR(ir->rst)) {
-		ret = PTR_ERR(ir->rst);
-		if (ret == -EPROBE_DEFER)
-			return ret;
-		ir->rst = NULL;
-	} else {
-		ret = reset_control_deassert(ir->rst);
-		if (ret)
-			return ret;
-	}
+	/* Base clock frequency (optional) */
+	of_property_read_u32(dn, "clock-frequency", &b_clk_freq);
 
-	ret = clk_set_rate(ir->clk, SUNXI_IR_BASE_CLK);
+	/* Reset (optional) */
+	ir->rst = devm_reset_control_get_optional_exclusive(dev, NULL);
+	if (IS_ERR(ir->rst))
+		return PTR_ERR(ir->rst);
+	ret = reset_control_deassert(ir->rst);
+	if (ret)
+		return ret;
+
+	ret = clk_set_rate(ir->clk, b_clk_freq);
 	if (ret) {
 		dev_err(dev, "set ir base clock failed!\n");
 		goto exit_reset_assert;
 	}
+	dev_dbg(dev, "set base clock frequency to %d Hz.\n", b_clk_freq);
 
 	if (clk_prepare_enable(ir->apb_clk)) {
 		dev_err(dev, "try to enable apb_ir_clk failed\n");
@@ -207,12 +195,11 @@ static int sunxi_ir_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	ir->base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(ir->base)) {
-		dev_err(dev, "failed to map registers\n");
 		ret = PTR_ERR(ir->base);
 		goto exit_clkdisable_clk;
 	}
 
-	ir->rc = rc_allocate_device();
+	ir->rc = rc_allocate_device(RC_DRIVER_IR_RAW);
 	if (!ir->rc) {
 		dev_err(dev, "failed to allocate device\n");
 		ret = -ENOMEM;
@@ -220,7 +207,7 @@ static int sunxi_ir_probe(struct platform_device *pdev)
 	}
 
 	ir->rc->priv = ir;
-	ir->rc->input_name = SUNXI_IR_DEV;
+	ir->rc->device_name = SUNXI_IR_DEV;
 	ir->rc->input_phys = "sunxi-ir/input0";
 	ir->rc->input_id.bustype = BUS_HOST;
 	ir->rc->input_id.vendor = 0x0001;
@@ -229,9 +216,9 @@ static int sunxi_ir_probe(struct platform_device *pdev)
 	ir->map_name = of_get_property(dn, "linux,rc-map-name", NULL);
 	ir->rc->map_name = ir->map_name ?: RC_MAP_EMPTY;
 	ir->rc->dev.parent = dev;
-	ir->rc->driver_type = RC_DRIVER_IR_RAW;
-	ir->rc->allowed_protocols = RC_BIT_ALL;
-	ir->rc->rx_resolution = SUNXI_IR_SAMPLE;
+	ir->rc->allowed_protocols = RC_PROTO_BIT_ALL_IR_DECODER;
+	/* Frequency after IR internal divider with sample period in ns */
+	ir->rc->rx_resolution = (1000000000ul / (b_clk_freq / 64));
 	ir->rc->timeout = MS_TO_NS(SUNXI_IR_TIMEOUT);
 	ir->rc->driver_name = SUNXI_IR_DEV;
 
@@ -292,8 +279,7 @@ exit_clkdisable_clk:
 exit_clkdisable_apb_clk:
 	clk_disable_unprepare(ir->apb_clk);
 exit_reset_assert:
-	if (ir->rst)
-		reset_control_assert(ir->rst);
+	reset_control_assert(ir->rst);
 
 	return ret;
 }
@@ -305,8 +291,7 @@ static int sunxi_ir_remove(struct platform_device *pdev)
 
 	clk_disable_unprepare(ir->clk);
 	clk_disable_unprepare(ir->apb_clk);
-	if (ir->rst)
-		reset_control_assert(ir->rst);
+	reset_control_assert(ir->rst);
 
 	spin_lock_irqsave(&ir->ir_lock, flags);
 	/* disable IR IRQ */

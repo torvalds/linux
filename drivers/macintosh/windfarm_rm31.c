@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Windfarm PowerMac thermal control.
  * Control loops for RackMack3,1 (Xserve G5)
  *
  * Copyright (C) 2012 Benjamin Herrenschmidt, IBM Corp.
- *
- * Use and redistribute under the terms of the GNU GPL v2.
  */
 #include <linux/types.h>
 #include <linux/errno.h>
@@ -338,7 +337,7 @@ static int cpu_setup_pid(int cpu)
 }
 
 /* Backside/U3 fan */
-static struct wf_pid_param backside_param = {
+static const struct wf_pid_param backside_param = {
 	.interval	= 1,
 	.history_len	= 2,
 	.gd		= 0x00500000,
@@ -351,7 +350,7 @@ static struct wf_pid_param backside_param = {
 };
 
 /* DIMMs temperature (clamp the backside fan) */
-static struct wf_pid_param dimms_param = {
+static const struct wf_pid_param dimms_param = {
 	.interval	= 1,
 	.history_len	= 20,
 	.gd		= 0,
@@ -514,7 +513,7 @@ static void rm31_tick(void)
 	int i, last_failure;
 
 	if (!started) {
-		started = 1;
+		started = true;
 		printk(KERN_INFO "windfarm: CPUs control loops started.\n");
 		for (i = 0; i < nr_chips; ++i) {
 			if (cpu_setup_pid(i) < 0) {

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	X.25 Packet Layer release 002
  *
@@ -6,12 +7,6 @@
  *	screw up. It might even work.
  *
  *	This code REQUIRES 2.1.15 or higher
- *
- *	This module:
- *		This module is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  *
  *	History
  *	X.25 001	Jonathan Naylor	  Started coding.
@@ -29,14 +24,14 @@
 #include <linux/slab.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/init.h>
 #include <net/x25.h>
 
 LIST_HEAD(x25_neigh_list);
 DEFINE_RWLOCK(x25_neigh_list_lock);
 
-static void x25_t20timer_expiry(unsigned long);
+static void x25_t20timer_expiry(struct timer_list *);
 
 static void x25_transmit_restart_confirmation(struct x25_neigh *nb);
 static void x25_transmit_restart_request(struct x25_neigh *nb);
@@ -49,9 +44,9 @@ static inline void x25_start_t20timer(struct x25_neigh *nb)
 	mod_timer(&nb->t20timer, jiffies + nb->t20);
 }
 
-static void x25_t20timer_expiry(unsigned long param)
+static void x25_t20timer_expiry(struct timer_list *t)
 {
-	struct x25_neigh *nb = (struct x25_neigh *)param;
+	struct x25_neigh *nb = from_timer(nb, t, t20timer);
 
 	x25_transmit_restart_request(nb);
 
@@ -252,7 +247,7 @@ void x25_link_device_up(struct net_device *dev)
 		return;
 
 	skb_queue_head_init(&nb->queue);
-	setup_timer(&nb->t20timer, x25_t20timer_expiry, (unsigned long)nb);
+	timer_setup(&nb->t20timer, x25_t20timer_expiry, 0);
 
 	dev_hold(dev);
 	nb->dev      = dev;
@@ -266,7 +261,7 @@ void x25_link_device_up(struct net_device *dev)
 				       X25_MASK_PACKET_SIZE |
 				       X25_MASK_WINDOW_SIZE;
 	nb->t20      = sysctl_x25_restart_request_timeout;
-	atomic_set(&nb->refcnt, 1);
+	refcount_set(&nb->refcnt, 1);
 
 	write_lock_bh(&x25_neigh_list_lock);
 	list_add(&nb->node, &x25_neigh_list);

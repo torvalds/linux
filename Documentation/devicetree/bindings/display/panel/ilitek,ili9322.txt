@@ -1,0 +1,49 @@
+Ilitek ILI9322 TFT panel driver with SPI control bus
+
+This is a driver for 320x240 TFT panels, accepting a variety of input
+streams that get adapted and scaled to the panel. The panel output has
+960 TFT source driver pins and 240 TFT gate driver pins, VCOM, VCOML and
+VCOMH outputs.
+
+Required properties:
+  - compatible: "dlink,dir-685-panel", "ilitek,ili9322"
+    (full system-specific compatible is always required to look up configuration)
+  - reg: address of the panel on the SPI bus
+
+Optional properties:
+  - vcc-supply: core voltage supply, see regulator/regulator.txt
+  - iovcc-supply: voltage supply for the interface input/output signals,
+    see regulator/regulator.txt
+  - vci-supply: voltage supply for analog parts, see regulator/regulator.txt
+  - reset-gpios: a GPIO spec for the reset pin, see gpio/gpio.txt
+
+  The following optional properties only apply to RGB and YUV input modes and
+  can be omitted for BT.656 input modes:
+
+  - pixelclk-active: see display/panel/display-timing.txt
+  - de-active: see display/panel/display-timing.txt
+  - hsync-active: see display/panel/display-timing.txt
+  - vsync-active: see display/panel/display-timing.txt
+
+The panel must obey the rules for a SPI slave device as specified in
+spi/spi-bus.txt
+
+The device node can contain one 'port' child node with one child
+'endpoint' node, according to the bindings defined in
+media/video-interfaces.txt. This node should describe panel's video bus.
+
+Example:
+
+panel: display@0 {
+	compatible = "dlink,dir-685-panel", "ilitek,ili9322";
+	reg = <0>;
+	vcc-supply = <&vdisp>;
+	iovcc-supply = <&vdisp>;
+	vci-supply = <&vdisp>;
+
+	port {
+		panel_in: endpoint {
+			remote-endpoint = <&display_out>;
+		};
+	};
+};

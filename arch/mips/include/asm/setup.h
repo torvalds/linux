@@ -1,8 +1,11 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _MIPS_SETUP_H
 #define _MIPS_SETUP_H
 
+#include <linux/types.h>
 #include <uapi/asm/setup.h>
 
+extern void prom_putchar(char);
 extern void setup_early_printk(void);
 
 #ifdef CONFIG_EARLY_PRINTK_8250

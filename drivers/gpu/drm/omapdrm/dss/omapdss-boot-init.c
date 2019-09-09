@@ -1,18 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2014 Texas Instruments
+ * Copyright (C) 2014 Texas Instruments Incorporated - http://www.ti.com/
  * Author: Tomi Valkeinen <tomi.valkeinen@ti.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -119,8 +108,7 @@ static void __init omapdss_omapify_node(struct device_node *node)
 
 static void __init omapdss_add_to_list(struct device_node *node, bool root)
 {
-	struct dss_conv_node *n = kmalloc(sizeof(struct dss_conv_node),
-		GFP_KERNEL);
+	struct dss_conv_node *n = kmalloc(sizeof(*n), GFP_KERNEL);
 	if (n) {
 		n->node = node;
 		n->root = root;
@@ -185,6 +173,23 @@ static const struct of_device_id omapdss_of_match[] __initconst = {
 	{},
 };
 
+static const struct of_device_id omapdss_of_fixups_whitelist[] __initconst = {
+	{ .compatible = "composite-video-connector" },
+	{ .compatible = "hdmi-connector" },
+	{ .compatible = "lgphilips,lb035q02" },
+	{ .compatible = "nec,nl8048hl11" },
+	{ .compatible = "panel-dsi-cm" },
+	{ .compatible = "sharp,ls037v7dw01" },
+	{ .compatible = "sony,acx565akm" },
+	{ .compatible = "svideo-connector" },
+	{ .compatible = "ti,opa362" },
+	{ .compatible = "ti,tpd12s015" },
+	{ .compatible = "toppoly,td028ttec1" },
+	{ .compatible = "tpo,td028ttec1" },
+	{ .compatible = "tpo,td043mtea1" },
+	{},
+};
+
 static int __init omapdss_boot_init(void)
 {
 	struct device_node *dss, *child;
@@ -211,7 +216,7 @@ static int __init omapdss_boot_init(void)
 		n = list_first_entry(&dss_conv_list, struct dss_conv_node,
 			list);
 
-		if (!n->root)
+		if (of_match_node(omapdss_of_fixups_whitelist, n->node))
 			omapdss_omapify_node(n->node);
 
 		list_del(&n->list);

@@ -7,19 +7,21 @@
 #define __UM_MMU_CONTEXT_H
 
 #include <linux/sched.h>
+#include <linux/mm_types.h>
+
 #include <asm/mmu.h>
 
 extern void uml_setup_stubs(struct mm_struct *mm);
 /*
  * Needed since we do not use the asm-generic/mm_hooks.h:
  */
-static inline void arch_dup_mmap(struct mm_struct *oldmm, struct mm_struct *mm)
+static inline int arch_dup_mmap(struct mm_struct *oldmm, struct mm_struct *mm)
 {
 	uml_setup_stubs(mm);
+	return 0;
 }
 extern void arch_exit_mmap(struct mm_struct *mm);
 static inline void arch_unmap(struct mm_struct *mm,
-			struct vm_area_struct *vma,
 			unsigned long start, unsigned long end)
 {
 }
@@ -30,12 +32,6 @@ static inline void arch_bprm_mm_init(struct mm_struct *mm,
 
 static inline bool arch_vma_access_permitted(struct vm_area_struct *vma,
 		bool write, bool execute, bool foreign)
-{
-	/* by default, allow everything */
-	return true;
-}
-
-static inline bool arch_pte_access_permitted(pte_t pte, bool write)
 {
 	/* by default, allow everything */
 	return true;
@@ -56,7 +52,7 @@ static inline void activate_mm(struct mm_struct *old, struct mm_struct *new)
 	 * when the new ->mm is used for the first time.
 	 */
 	__switch_mm(&new->context.id);
-	down_write(&new->mmap_sem);
+	down_write_nested(&new->mmap_sem, 1);
 	uml_setup_stubs(new);
 	up_write(&new->mmap_sem);
 }

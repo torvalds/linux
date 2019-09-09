@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * ieee802154 6lowpan in net namespaces
  */
@@ -15,7 +16,7 @@ struct netns_sysctl_lowpan {
 
 struct netns_ieee802154_lowpan {
 	struct netns_sysctl_lowpan sysctl;
-	struct netns_frags	frags;
+	struct fqdir		*fqdir;
 };
 
 #endif

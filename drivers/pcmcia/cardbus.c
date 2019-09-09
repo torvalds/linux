@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * cardbus.c -- 16-bit PCMCIA core support
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * The initial developer of the original code is David A. Hinds
  * <dahinds@users.sourceforge.net>.  Portions created by David A. Hinds
@@ -77,9 +74,8 @@ int __ref cb_alloc(struct pcmcia_socket *s)
 
 	max = bus->busn_res.start;
 	for (pass = 0; pass < 2; pass++)
-		list_for_each_entry(dev, &bus->devices, bus_list)
-			if (pci_is_bridge(dev))
-				max = pci_scan_bridge(bus, dev, max, pass);
+		for_each_pci_bridge(dev, bus)
+			max = pci_scan_bridge(bus, dev, max, pass);
 
 	/*
 	 * Size all resources below the CardBus controller.

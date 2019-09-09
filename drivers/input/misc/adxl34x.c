@@ -1,10 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * ADXL345/346 Three-Axis Digital Accelerometers
  *
  * Enter bugs at http://blackfin.uclinux.org/
  *
  * Copyright (C) 2009 Michael Hennerich, Analog Devices Inc.
- * Licensed under the GPL-2 or later.
  */
 
 #include <linux/device.h>
@@ -796,7 +796,7 @@ struct adxl34x *adxl34x_probe(struct device *dev, int irq,
 
 	if (pdata->watermark) {
 		ac->int_mask |= WATERMARK;
-		if (!FIFO_MODE(pdata->fifo_mode))
+		if (FIFO_MODE(pdata->fifo_mode) == FIFO_BYPASS)
 			ac->pdata.fifo_mode |= FIFO_STREAM;
 	} else {
 		ac->int_mask |= DATA_READY;

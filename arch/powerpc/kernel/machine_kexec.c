@@ -1,12 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Code to handle transition of Linux booting another kernel.
  *
  * Copyright (C) 2002-2003 Eric Biederman  <ebiederm@xmission.com>
  * GameCube/ppc32 port Copyright (C) 2004 Albert Herranz
  * Copyright (C) 2005 IBM Corporation.
- *
- * This source code is licensed under the GNU General Public License,
- * Version 2.  See the file COPYING for more details.
  */
 
 #include <linux/kexec.h>
@@ -17,6 +15,7 @@
 #include <linux/irq.h>
 #include <linux/ftrace.h>
 
+#include <asm/kdump.h>
 #include <asm/machdep.h>
 #include <asm/pgalloc.h>
 #include <asm/prom.h>
@@ -98,12 +97,14 @@ void machine_kexec(struct kimage *image)
 	int save_ftrace_enabled;
 
 	save_ftrace_enabled = __ftrace_enabled_save();
+	this_cpu_disable_ftrace();
 
 	if (ppc_md.machine_kexec)
 		ppc_md.machine_kexec(image);
 	else
 		default_machine_kexec(image);
 
+	this_cpu_enable_ftrace();
 	__ftrace_enabled_restore(save_ftrace_enabled);
 
 	/* Fall back to normal restart if we're still alive. */
@@ -186,7 +187,12 @@ void __init reserve_crashkernel(void)
 			(unsigned long)(crashk_res.start >> 20),
 			(unsigned long)(memblock_phys_mem_size() >> 20));
 
-	memblock_reserve(crashk_res.start, crash_size);
+	if (!memblock_is_region_memory(crashk_res.start, crash_size) ||
+	    memblock_reserve(crashk_res.start, crash_size)) {
+		pr_err("Failed to reserve memory for crashkernel!\n");
+		crashk_res.start = crashk_res.end = 0;
+		return;
+	}
 }
 
 int overlaps_crashkernel(unsigned long start, unsigned long size)

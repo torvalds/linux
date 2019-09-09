@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2005-2014 Brocade Communications Systems, Inc.
  * Copyright (c) 2014- QLogic Corporation.
@@ -5,15 +6,6 @@
  * www.qlogic.com
  *
  * Linux driver for QLogic BR-series Fibre Channel Host Bus Adapter.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License (GPL) Version 2 as
- * published by the Free Software Foundation
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 
 #include "bfad_drv.h"
@@ -23,13 +15,6 @@
 #include "bfa_modules.h"
 
 BFA_TRC_FILE(HAL, FCXP);
-BFA_MODULE(fcdiag);
-BFA_MODULE(fcxp);
-BFA_MODULE(sgpg);
-BFA_MODULE(lps);
-BFA_MODULE(fcport);
-BFA_MODULE(rport);
-BFA_MODULE(uf);
 
 /*
  * LPS related definitions
@@ -121,15 +106,6 @@ static void	bfa_fcxp_queue(struct bfa_fcxp_s *fcxp,
 /*
  * forward declarations for LPS functions
  */
-static void bfa_lps_meminfo(struct bfa_iocfc_cfg_s *cfg,
-		struct bfa_meminfo_s *minfo, struct bfa_s *bfa);
-static void bfa_lps_attach(struct bfa_s *bfa, void *bfad,
-				struct bfa_iocfc_cfg_s *cfg,
-				struct bfa_pcidev_s *pcidev);
-static void bfa_lps_detach(struct bfa_s *bfa);
-static void bfa_lps_start(struct bfa_s *bfa);
-static void bfa_lps_stop(struct bfa_s *bfa);
-static void bfa_lps_iocdisable(struct bfa_s *bfa);
 static void bfa_lps_login_rsp(struct bfa_s *bfa,
 				struct bfi_lps_login_rsp_s *rsp);
 static void bfa_lps_no_res(struct bfa_lps_s *first_lps, u8 count);
@@ -304,18 +280,6 @@ plkd_validate_logrec(struct bfa_plog_rec_s *pl_rec)
 	return 0;
 }
 
-static u64
-bfa_get_log_time(void)
-{
-	u64 system_time = 0;
-	struct timeval tv;
-	do_gettimeofday(&tv);
-
-	/* We are interested in seconds only. */
-	system_time = tv.tv_sec;
-	return system_time;
-}
-
 static void
 bfa_plog_add(struct bfa_plog_s *plog, struct bfa_plog_rec_s *pl_rec)
 {
@@ -336,7 +300,7 @@ bfa_plog_add(struct bfa_plog_s *plog, struct bfa_plog_rec_s *pl_rec)
 
 	memcpy(pl_recp, pl_rec, sizeof(struct bfa_plog_rec_s));
 
-	pl_recp->tv = bfa_get_log_time();
+	pl_recp->tv = ktime_get_real_seconds();
 	BFA_PL_LOG_REC_INCR(plog->tail);
 
 	if (plog->head == plog->tail)
@@ -366,8 +330,8 @@ bfa_plog_str(struct bfa_plog_s *plog, enum bfa_plog_mid mid,
 		lp.eid = event;
 		lp.log_type = BFA_PL_LOG_TYPE_STRING;
 		lp.misc = misc;
-		strncpy(lp.log_entry.string_log, log_str,
-			BFA_PL_STRING_LOG_SZ - 1);
+		strlcpy(lp.log_entry.string_log, log_str,
+			BFA_PL_STRING_LOG_SZ);
 		lp.log_entry.string_log[BFA_PL_STRING_LOG_SZ - 1] = '\0';
 		bfa_plog_add(plog, &lp);
 	}
@@ -484,7 +448,7 @@ claim_fcxps_mem(struct bfa_fcxp_mod_s *mod)
 	bfa_mem_kva_curp(mod) = (void *)fcxp;
 }
 
-static void
+void
 bfa_fcxp_meminfo(struct bfa_iocfc_cfg_s *cfg, struct bfa_meminfo_s *minfo,
 		struct bfa_s *bfa)
 {
@@ -522,7 +486,7 @@ bfa_fcxp_meminfo(struct bfa_iocfc_cfg_s *cfg, struct bfa_meminfo_s *minfo,
 		cfg->fwcfg.num_fcxp_reqs * sizeof(struct bfa_fcxp_s));
 }
 
-static void
+void
 bfa_fcxp_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 		struct bfa_pcidev_s *pcidev)
 {
@@ -544,22 +508,7 @@ bfa_fcxp_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 	claim_fcxps_mem(mod);
 }
 
-static void
-bfa_fcxp_detach(struct bfa_s *bfa)
-{
-}
-
-static void
-bfa_fcxp_start(struct bfa_s *bfa)
-{
-}
-
-static void
-bfa_fcxp_stop(struct bfa_s *bfa)
-{
-}
-
-static void
+void
 bfa_fcxp_iocdisable(struct bfa_s *bfa)
 {
 	struct bfa_fcxp_mod_s *mod = BFA_FCXP_MOD(bfa);
@@ -1510,7 +1459,7 @@ bfa_lps_sm_logowait(struct bfa_lps_s *lps, enum bfa_lps_event event)
 /*
  * return memory requirement
  */
-static void
+void
 bfa_lps_meminfo(struct bfa_iocfc_cfg_s *cfg, struct bfa_meminfo_s *minfo,
 		struct bfa_s *bfa)
 {
@@ -1527,7 +1476,7 @@ bfa_lps_meminfo(struct bfa_iocfc_cfg_s *cfg, struct bfa_meminfo_s *minfo,
 /*
  * bfa module attach at initialization time
  */
-static void
+void
 bfa_lps_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 	struct bfa_pcidev_s *pcidev)
 {
@@ -1557,25 +1506,10 @@ bfa_lps_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 	}
 }
 
-static void
-bfa_lps_detach(struct bfa_s *bfa)
-{
-}
-
-static void
-bfa_lps_start(struct bfa_s *bfa)
-{
-}
-
-static void
-bfa_lps_stop(struct bfa_s *bfa)
-{
-}
-
 /*
  * IOC in disabled state -- consider all lps offline
  */
-static void
+void
 bfa_lps_iocdisable(struct bfa_s *bfa)
 {
 	struct bfa_lps_mod_s	*mod = BFA_LPS_MOD(bfa);
@@ -3055,7 +2989,7 @@ bfa_fcport_queue_cb(struct bfa_fcport_ln_s *ln, enum bfa_port_linkstate event)
 #define FCPORT_STATS_DMA_SZ (BFA_ROUNDUP(sizeof(union bfa_fcport_stats_u), \
 							BFA_CACHELINE_SZ))
 
-static void
+void
 bfa_fcport_meminfo(struct bfa_iocfc_cfg_s *cfg, struct bfa_meminfo_s *minfo,
 		   struct bfa_s *bfa)
 {
@@ -3086,14 +3020,13 @@ bfa_fcport_mem_claim(struct bfa_fcport_s *fcport)
 /*
  * Memory initialization.
  */
-static void
+void
 bfa_fcport_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 		struct bfa_pcidev_s *pcidev)
 {
 	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(bfa);
 	struct bfa_port_cfg_s *port_cfg = &fcport->cfg;
 	struct bfa_fcport_ln_s *ln = &fcport->ln;
-	struct timeval tv;
 
 	fcport->bfa = bfa;
 	ln->fcport = fcport;
@@ -3106,8 +3039,7 @@ bfa_fcport_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 	/*
 	 * initialize time stamp for stats reset
 	 */
-	do_gettimeofday(&tv);
-	fcport->stats_reset_time = tv.tv_sec;
+	fcport->stats_reset_time = ktime_get_seconds();
 	fcport->stats_dma_ready = BFA_FALSE;
 
 	/*
@@ -3131,34 +3063,16 @@ bfa_fcport_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 	bfa_reqq_winit(&fcport->reqq_wait, bfa_fcport_qresume, fcport);
 }
 
-static void
-bfa_fcport_detach(struct bfa_s *bfa)
-{
-}
-
-/*
- * Called when IOC is ready.
- */
-static void
+void
 bfa_fcport_start(struct bfa_s *bfa)
 {
 	bfa_sm_send_event(BFA_FCPORT_MOD(bfa), BFA_FCPORT_SM_START);
 }
 
 /*
- * Called before IOC is stopped.
- */
-static void
-bfa_fcport_stop(struct bfa_s *bfa)
-{
-	bfa_sm_send_event(BFA_FCPORT_MOD(bfa), BFA_FCPORT_SM_STOP);
-	bfa_trunk_iocdisable(bfa);
-}
-
-/*
  * Called when IOC failure is detected.
  */
-static void
+void
 bfa_fcport_iocdisable(struct bfa_s *bfa)
 {
 	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(bfa);
@@ -3359,9 +3273,7 @@ __bfa_cb_fcport_stats_get(void *cbarg, bfa_boolean_t complete)
 	union bfa_fcport_stats_u *ret;
 
 	if (complete) {
-		struct timeval tv;
-		if (fcport->stats_status == BFA_STATUS_OK)
-			do_gettimeofday(&tv);
+		time64_t time = ktime_get_seconds();
 
 		list_for_each_safe(qe, qen, &fcport->stats_pending_q) {
 			bfa_q_deq(&fcport->stats_pending_q, &qe);
@@ -3376,7 +3288,7 @@ __bfa_cb_fcport_stats_get(void *cbarg, bfa_boolean_t complete)
 					bfa_fcport_fcoe_stats_swap(&ret->fcoe,
 							&fcport->stats->fcoe);
 					ret->fcoe.secs_reset =
-					tv.tv_sec - fcport->stats_reset_time;
+						time - fcport->stats_reset_time;
 				}
 			}
 			bfa_cb_queue_status(fcport->bfa, &cb->hcb_qe,
@@ -3437,13 +3349,10 @@ __bfa_cb_fcport_stats_clr(void *cbarg, bfa_boolean_t complete)
 	struct list_head *qe, *qen;
 
 	if (complete) {
-		struct timeval tv;
-
 		/*
 		 * re-initialize time stamp for stats reset
 		 */
-		do_gettimeofday(&tv);
-		fcport->stats_reset_time = tv.tv_sec;
+		fcport->stats_reset_time = ktime_get_seconds();
 		list_for_each_safe(qe, qen, &fcport->statsclr_pending_q) {
 			bfa_q_deq(&fcport->statsclr_pending_q, &qe);
 			cb = (struct bfa_cb_pending_q_s *)qe;
@@ -4886,7 +4795,7 @@ bfa_rport_qresume(void *cbarg)
 	bfa_sm_send_event(rp, BFA_RPORT_SM_QRESUME);
 }
 
-static void
+void
 bfa_rport_meminfo(struct bfa_iocfc_cfg_s *cfg, struct bfa_meminfo_s *minfo,
 		struct bfa_s *bfa)
 {
@@ -4900,7 +4809,7 @@ bfa_rport_meminfo(struct bfa_iocfc_cfg_s *cfg, struct bfa_meminfo_s *minfo,
 		cfg->fwcfg.num_rports * sizeof(struct bfa_rport_s));
 }
 
-static void
+void
 bfa_rport_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 		struct bfa_pcidev_s *pcidev)
 {
@@ -4940,22 +4849,7 @@ bfa_rport_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 	bfa_mem_kva_curp(mod) = (u8 *) rp;
 }
 
-static void
-bfa_rport_detach(struct bfa_s *bfa)
-{
-}
-
-static void
-bfa_rport_start(struct bfa_s *bfa)
-{
-}
-
-static void
-bfa_rport_stop(struct bfa_s *bfa)
-{
-}
-
-static void
+void
 bfa_rport_iocdisable(struct bfa_s *bfa)
 {
 	struct bfa_rport_mod_s *mod = BFA_RPORT_MOD(bfa);
@@ -5246,7 +5140,7 @@ bfa_rport_unset_lunmask(struct bfa_s *bfa, struct bfa_rport_s *rp)
 /*
  * Compute and return memory needed by FCP(im) module.
  */
-static void
+void
 bfa_sgpg_meminfo(struct bfa_iocfc_cfg_s *cfg, struct bfa_meminfo_s *minfo,
 		struct bfa_s *bfa)
 {
@@ -5281,7 +5175,7 @@ bfa_sgpg_meminfo(struct bfa_iocfc_cfg_s *cfg, struct bfa_meminfo_s *minfo,
 		cfg->drvcfg.num_sgpgs * sizeof(struct bfa_sgpg_s));
 }
 
-static void
+void
 bfa_sgpg_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 		struct bfa_pcidev_s *pcidev)
 {
@@ -5342,26 +5236,6 @@ bfa_sgpg_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 	}
 
 	bfa_mem_kva_curp(mod) = (u8 *) hsgpg;
-}
-
-static void
-bfa_sgpg_detach(struct bfa_s *bfa)
-{
-}
-
-static void
-bfa_sgpg_start(struct bfa_s *bfa)
-{
-}
-
-static void
-bfa_sgpg_stop(struct bfa_s *bfa)
-{
-}
-
-static void
-bfa_sgpg_iocdisable(struct bfa_s *bfa)
-{
 }
 
 bfa_status_t
@@ -5547,7 +5421,7 @@ uf_mem_claim(struct bfa_uf_mod_s *ufm)
 	claim_uf_post_msgs(ufm);
 }
 
-static void
+void
 bfa_uf_meminfo(struct bfa_iocfc_cfg_s *cfg, struct bfa_meminfo_s *minfo,
 		struct bfa_s *bfa)
 {
@@ -5575,7 +5449,7 @@ bfa_uf_meminfo(struct bfa_iocfc_cfg_s *cfg, struct bfa_meminfo_s *minfo,
 		(sizeof(struct bfa_uf_s) + sizeof(struct bfi_uf_buf_post_s)));
 }
 
-static void
+void
 bfa_uf_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 		struct bfa_pcidev_s *pcidev)
 {
@@ -5588,11 +5462,6 @@ bfa_uf_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 	INIT_LIST_HEAD(&ufm->uf_unused_q);
 
 	uf_mem_claim(ufm);
-}
-
-static void
-bfa_uf_detach(struct bfa_s *bfa)
-{
 }
 
 static struct bfa_uf_s *
@@ -5682,12 +5551,7 @@ uf_recv(struct bfa_s *bfa, struct bfi_uf_frm_rcvd_s *m)
 		bfa_cb_queue(bfa, &uf->hcb_qe, __bfa_cb_uf_recv, uf);
 }
 
-static void
-bfa_uf_stop(struct bfa_s *bfa)
-{
-}
-
-static void
+void
 bfa_uf_iocdisable(struct bfa_s *bfa)
 {
 	struct bfa_uf_mod_s *ufm = BFA_UF_MOD(bfa);
@@ -5704,7 +5568,7 @@ bfa_uf_iocdisable(struct bfa_s *bfa)
 	}
 }
 
-static void
+void
 bfa_uf_start(struct bfa_s *bfa)
 {
 	bfa_uf_post_all(BFA_UF_MOD(bfa));
@@ -5845,13 +5709,7 @@ bfa_fcdiag_set_busy_status(struct bfa_fcdiag_s *fcdiag)
 		fcport->diag_busy = BFA_FALSE;
 }
 
-static void
-bfa_fcdiag_meminfo(struct bfa_iocfc_cfg_s *cfg, struct bfa_meminfo_s *meminfo,
-		struct bfa_s *bfa)
-{
-}
-
-static void
+void
 bfa_fcdiag_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 		struct bfa_pcidev_s *pcidev)
 {
@@ -5870,7 +5728,7 @@ bfa_fcdiag_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 	memset(&dport->result, 0, sizeof(struct bfa_diag_dport_result_s));
 }
 
-static void
+void
 bfa_fcdiag_iocdisable(struct bfa_s *bfa)
 {
 	struct bfa_fcdiag_s *fcdiag = BFA_FCDIAG_MOD(bfa);
@@ -5885,21 +5743,6 @@ bfa_fcdiag_iocdisable(struct bfa_s *bfa)
 	}
 
 	bfa_sm_send_event(dport, BFA_DPORT_SM_HWFAIL);
-}
-
-static void
-bfa_fcdiag_detach(struct bfa_s *bfa)
-{
-}
-
-static void
-bfa_fcdiag_start(struct bfa_s *bfa)
-{
-}
-
-static void
-bfa_fcdiag_stop(struct bfa_s *bfa)
-{
 }
 
 static void
@@ -6278,13 +6121,13 @@ bfa_fcdiag_lb_is_running(struct bfa_s *bfa)
 /*
  *	D-port
  */
-#define bfa_dport_result_start(__dport, __mode) do {			\
-		(__dport)->result.start_time = bfa_get_log_time();	\
-		(__dport)->result.status = DPORT_TEST_ST_INPRG;		\
-		(__dport)->result.mode = (__mode);			\
-		(__dport)->result.rp_pwwn = (__dport)->rp_pwwn;		\
-		(__dport)->result.rp_nwwn = (__dport)->rp_nwwn;		\
-		(__dport)->result.lpcnt = (__dport)->lpcnt;		\
+#define bfa_dport_result_start(__dport, __mode) do {				\
+		(__dport)->result.start_time = ktime_get_real_seconds();	\
+		(__dport)->result.status = DPORT_TEST_ST_INPRG;			\
+		(__dport)->result.mode = (__mode);				\
+		(__dport)->result.rp_pwwn = (__dport)->rp_pwwn;			\
+		(__dport)->result.rp_nwwn = (__dport)->rp_nwwn;			\
+		(__dport)->result.lpcnt = (__dport)->lpcnt;			\
 } while (0)
 
 static bfa_boolean_t bfa_dport_send_req(struct bfa_dport_s *dport,
@@ -6718,7 +6561,7 @@ bfa_dport_scn(struct bfa_dport_s *dport, struct bfi_diag_dport_scn_s *msg)
 
 	switch (dport->i2hmsg.scn.state) {
 	case BFI_DPORT_SCN_TESTCOMP:
-		dport->result.end_time = bfa_get_log_time();
+		dport->result.end_time = ktime_get_real_seconds();
 		bfa_trc(dport->bfa, dport->result.end_time);
 
 		dport->result.status = msg->info.testcomp.status;
@@ -6765,7 +6608,7 @@ bfa_dport_scn(struct bfa_dport_s *dport, struct bfi_diag_dport_scn_s *msg)
 	case BFI_DPORT_SCN_SUBTESTSTART:
 		subtesttype = msg->info.teststart.type;
 		dport->result.subtest[subtesttype].start_time =
-			bfa_get_log_time();
+			ktime_get_real_seconds();
 		dport->result.subtest[subtesttype].status =
 			DPORT_TEST_ST_INPRG;
 

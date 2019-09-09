@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (C) 2014 Alexander Shiyan <shc_work@mail.ru>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/of_platform.h>
@@ -37,7 +33,6 @@ static const char * const imx1_dt_board_compat[] __initconst = {
 };
 
 DT_MACHINE_START(IMX1_DT, "Freescale i.MX1 (Device Tree Support)")
-	.map_io		= debug_ll_io_init,
 	.init_early	= imx1_init_early,
 	.init_irq	= imx1_init_irq,
 	.dt_compat	= imx1_dt_board_compat,

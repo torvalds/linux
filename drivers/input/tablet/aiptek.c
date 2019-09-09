@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Native support for the Aiptek HyperPen USB Tablets
  *  (4000U/5000U/6000U/8000U/12000U)
@@ -54,20 +55,6 @@
  *      so therefore it's easier to document them all as one subsystem.
  *      Please visit the project's "home page", located at,
  *      http://aiptektablet.sourceforge.net.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #include <linux/jiffies.h>
@@ -75,15 +62,8 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/usb/input.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/unaligned.h>
-
-/*
- * Version Information
- */
-#define DRIVER_VERSION "v2.3 (May 2, 2007)"
-#define DRIVER_AUTHOR  "Bryan W. Headley/Chris Atenasio/Cedric Brun/Rene van Paassen"
-#define DRIVER_DESC    "Aiptek HyperPen USB Tablet Driver (Linux 2.6.x)"
 
 /*
  * Aiptek status packet:
@@ -1676,7 +1656,7 @@ static struct attribute *aiptek_attributes[] = {
 	NULL
 };
 
-static struct attribute_group aiptek_attribute_group = {
+static const struct attribute_group aiptek_attribute_group = {
 	.attrs	= aiptek_attributes,
 };
 
@@ -1719,7 +1699,7 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
         }
 
 	aiptek->data = usb_alloc_coherent(usbdev, AIPTEK_PACKET_LENGTH,
-					  GFP_ATOMIC, &aiptek->data_dma);
+					  GFP_KERNEL, &aiptek->data_dma);
         if (!aiptek->data) {
 		dev_warn(&intf->dev, "cannot allocate usb buffer\n");
 		goto fail1;
@@ -1941,8 +1921,8 @@ static struct usb_driver aiptek_driver = {
 
 module_usb_driver(aiptek_driver);
 
-MODULE_AUTHOR(DRIVER_AUTHOR);
-MODULE_DESCRIPTION(DRIVER_DESC);
+MODULE_AUTHOR("Bryan W. Headley/Chris Atenasio/Cedric Brun/Rene van Paassen");
+MODULE_DESCRIPTION("Aiptek HyperPen USB Tablet Driver");
 MODULE_LICENSE("GPL");
 
 module_param(programmableDelay, int, 0);

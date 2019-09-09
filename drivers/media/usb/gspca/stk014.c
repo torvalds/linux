@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Syntek DV4000 (STK014) subdriver
  *
  * Copyright (C) 2008 Jean-Francois Moine (http://moinejf.free.fr)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -294,8 +281,8 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	set_par(gspca_dev, 0x01000000);
 	set_par(gspca_dev, 0x01000000);
 	if (gspca_dev->usb_err >= 0)
-		PDEBUG(D_STREAM, "camera started alt: 0x%02x",
-				gspca_dev->alt);
+		gspca_dbg(gspca_dev, D_STREAM, "camera started alt: 0x%02x\n",
+			  gspca_dev->alt);
 out:
 	return gspca_dev->usb_err;
 }
@@ -316,7 +303,7 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, 0x0640, 0);
 	reg_w(gspca_dev, 0x0650, 0);
 	reg_w(gspca_dev, 0x0660, 0);
-	PDEBUG(D_STREAM, "camera stopped");
+	gspca_dbg(gspca_dev, D_STREAM, "camera stopped\n");
 }
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,

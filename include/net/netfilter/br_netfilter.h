@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _BR_NETFILTER_H_
 #define _BR_NETFILTER_H_
 
@@ -5,12 +6,12 @@
 
 static inline struct nf_bridge_info *nf_bridge_alloc(struct sk_buff *skb)
 {
-	skb->nf_bridge = kzalloc(sizeof(struct nf_bridge_info), GFP_ATOMIC);
+	struct nf_bridge_info *b = skb_ext_add(skb, SKB_EXT_BRIDGE_NF);
 
-	if (likely(skb->nf_bridge))
-		atomic_set(&(skb->nf_bridge->use), 1);
+	if (b)
+		memset(b, 0, sizeof(*b));
 
-	return skb->nf_bridge;
+	return b;
 }
 
 void nf_bridge_update_protocol(struct sk_buff *skb);
@@ -20,12 +21,6 @@ int br_nf_hook_thresh(unsigned int hook, struct net *net, struct sock *sk,
 		      struct net_device *outdev,
 		      int (*okfn)(struct net *, struct sock *,
 				  struct sk_buff *));
-
-static inline struct nf_bridge_info *
-nf_bridge_info_get(const struct sk_buff *skb)
-{
-	return skb->nf_bridge;
-}
 
 unsigned int nf_bridge_encap_header_len(const struct sk_buff *skb);
 
@@ -47,8 +42,8 @@ static inline struct rtable *bridge_parent_rtable(const struct net_device *dev)
 	return port ? &port->br->fake_rtable : NULL;
 }
 
-struct net_device *setup_pre_routing(struct sk_buff *skb);
-void br_netfilter_enable(void);
+struct net_device *setup_pre_routing(struct sk_buff *skb,
+				     const struct net *net);
 
 #if IS_ENABLED(CONFIG_IPV6)
 int br_validate_ipv6(struct net *net, struct sk_buff *skb);

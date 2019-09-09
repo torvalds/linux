@@ -1,5 +1,8 @@
 ADI AXI-I2S controller
 
+The core can be generated with transmit (playback), only receive
+(capture) or both directions enabled.
+
 Required properties:
  - compatible : Must be "adi,axi-i2s-1.00.a"
  - reg : Must contain I2S core's registers location and length
@@ -9,8 +12,8 @@ Required properties:
  - clock-names : "axi" for the clock to the AXI interface, "ref" for the sample
    rate reference clock.
  - dmas: Pairs of phandle and specifier for the DMA channels that are used by
-   the core. The core expects two dma channels, one for transmit and one for
-   receive.
+   the core. The core expects two dma channels if both transmit and receive are
+   enabled, one channel otherwise.
  - dma-names : "tx" for the transmit channel, "rx" for the receive channel.
 
 For more details on the 'dma', 'dma-names', 'clock' and 'clock-names' properties
@@ -21,7 +24,7 @@ please check:
 
 Example:
 
-	i2s: i2s@0x77600000 {
+	i2s: i2s@77600000 {
 		compatible = "adi,axi-i2s-1.00.a";
 		reg = <0x77600000 0x1000>;
 		clocks = <&clk 15>, <&audio_clock>;

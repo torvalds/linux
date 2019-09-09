@@ -1,45 +1,11 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /******************************************************************************
  *
  * Module Name: dsfield - Dispatcher field routines
  *
+ * Copyright (C) 2000 - 2019, Intel Corp.
+ *
  *****************************************************************************/
-
-/*
- * Copyright (C) 2000 - 2016, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
 
 #include <acpi/acpi.h>
 #include "accommon.h"
@@ -48,6 +14,10 @@
 #include "acinterp.h"
 #include "acnamesp.h"
 #include "acparser.h"
+
+#ifdef ACPI_EXEC_APP
+#include "aecommon.h"
+#endif
 
 #define _COMPONENT          ACPI_DISPATCHER
 ACPI_MODULE_NAME("dsfield")
@@ -184,6 +154,7 @@ acpi_ds_create_buffer_field(union acpi_parse_object *op,
 		/* Execute flag should always be set when this function is entered */
 
 		if (!(walk_state->parse_flags & ACPI_PARSE_EXECUTE)) {
+			ACPI_ERROR((AE_INFO, "Parse execute mode is not set"));
 			return_ACPI_STATUS(AE_AML_INTERNAL);
 		}
 
@@ -208,7 +179,8 @@ acpi_ds_create_buffer_field(union acpi_parse_object *op,
 					ACPI_IMODE_LOAD_PASS1, flags,
 					walk_state, &node);
 		if (ACPI_FAILURE(status)) {
-			ACPI_ERROR_NAMESPACE(arg->common.value.string, status);
+			ACPI_ERROR_NAMESPACE(walk_state->scope_info,
+					     arg->common.value.string, status);
 			return_ACPI_STATUS(status);
 		}
 	}
@@ -290,6 +262,13 @@ acpi_ds_get_field_names(struct acpi_create_field_info *info,
 	acpi_status status;
 	u64 position;
 	union acpi_parse_object *child;
+
+#ifdef ACPI_EXEC_APP
+	u64 value = 0;
+	union acpi_operand_object *result_desc;
+	union acpi_operand_object *obj_desc;
+	char *name_path;
+#endif
 
 	ACPI_FUNCTION_TRACE_PTR(ds_get_field_names, info);
 
@@ -382,7 +361,9 @@ acpi_ds_get_field_names(struct acpi_create_field_info *info,
 							walk_state,
 							&info->connection_node);
 				if (ACPI_FAILURE(status)) {
-					ACPI_ERROR_NAMESPACE(child->common.
+					ACPI_ERROR_NAMESPACE(walk_state->
+							     scope_info,
+							     child->common.
 							     value.name,
 							     status);
 					return_ACPI_STATUS(status);
@@ -401,7 +382,8 @@ acpi_ds_get_field_names(struct acpi_create_field_info *info,
 						ACPI_NS_DONT_OPEN_SCOPE,
 						walk_state, &info->field_node);
 			if (ACPI_FAILURE(status)) {
-				ACPI_ERROR_NAMESPACE((char *)&arg->named.name,
+				ACPI_ERROR_NAMESPACE(walk_state->scope_info,
+						     (char *)&arg->named.name,
 						     status);
 				return_ACPI_STATUS(status);
 			} else {
@@ -420,6 +402,25 @@ acpi_ds_get_field_names(struct acpi_create_field_info *info,
 					if (ACPI_FAILURE(status)) {
 						return_ACPI_STATUS(status);
 					}
+#ifdef ACPI_EXEC_APP
+					name_path =
+					    acpi_ns_get_external_pathname(info->
+									  field_node);
+					obj_desc =
+					    acpi_ut_create_integer_object
+					    (value);
+					if (ACPI_SUCCESS
+					    (ae_lookup_init_file_entry
+					     (name_path, &value))) {
+						acpi_ex_write_data_to_field
+						    (obj_desc,
+						     acpi_ns_get_attached_object
+						     (info->field_node),
+						     &result_desc);
+					}
+					acpi_ut_remove_reference(obj_desc);
+					ACPI_FREE(name_path);
+#endif
 				}
 			}
 
@@ -497,7 +498,8 @@ acpi_ds_create_field(union acpi_parse_object *op,
 							&region_node);
 #endif
 		if (ACPI_FAILURE(status)) {
-			ACPI_ERROR_NAMESPACE(arg->common.value.name, status);
+			ACPI_ERROR_NAMESPACE(walk_state->scope_info,
+					     arg->common.value.name, status);
 			return_ACPI_STATUS(status);
 		}
 	}
@@ -516,6 +518,13 @@ acpi_ds_create_field(union acpi_parse_object *op,
 	info.region_node = region_node;
 
 	status = acpi_ds_get_field_names(&info, walk_state, arg->common.next);
+	if (info.region_node->object->region.space_id ==
+	    ACPI_ADR_SPACE_PLATFORM_COMM
+	    && !(region_node->object->field.internal_pcc_buffer =
+		 ACPI_ALLOCATE_ZEROED(info.region_node->object->region.
+				      length))) {
+		return_ACPI_STATUS(AE_NO_MEMORY);
+	}
 	return_ACPI_STATUS(status);
 }
 
@@ -556,6 +565,7 @@ acpi_ds_init_field_objects(union acpi_parse_object *op,
 			return_ACPI_STATUS(AE_OK);
 		}
 
+		ACPI_ERROR((AE_INFO, "Parse deferred mode is not set"));
 		return_ACPI_STATUS(AE_AML_INTERNAL);
 	}
 
@@ -600,7 +610,9 @@ acpi_ds_init_field_objects(union acpi_parse_object *op,
 	    !(walk_state->parse_flags & ACPI_PARSE_MODULE_LEVEL)) {
 		flags |= ACPI_NS_TEMPORARY;
 	}
-
+#ifdef ACPI_EXEC_APP
+	flags |= ACPI_NS_OVERRIDE_IF_FOUND;
+#endif
 	/*
 	 * Walk the list of entries in the field_list
 	 * Note: field_list can be of zero length. In this case, Arg will be NULL.
@@ -616,7 +628,8 @@ acpi_ds_init_field_objects(union acpi_parse_object *op,
 						ACPI_IMODE_LOAD_PASS1, flags,
 						walk_state, &node);
 			if (ACPI_FAILURE(status)) {
-				ACPI_ERROR_NAMESPACE((char *)&arg->named.name,
+				ACPI_ERROR_NAMESPACE(walk_state->scope_info,
+						     (char *)&arg->named.name,
 						     status);
 				if (status != AE_ALREADY_EXISTS) {
 					return_ACPI_STATUS(status);
@@ -679,7 +692,8 @@ acpi_ds_create_bank_field(union acpi_parse_object *op,
 							&region_node);
 #endif
 		if (ACPI_FAILURE(status)) {
-			ACPI_ERROR_NAMESPACE(arg->common.value.name, status);
+			ACPI_ERROR_NAMESPACE(walk_state->scope_info,
+					     arg->common.value.name, status);
 			return_ACPI_STATUS(status);
 		}
 	}
@@ -693,7 +707,8 @@ acpi_ds_create_bank_field(union acpi_parse_object *op,
 			   ACPI_NS_SEARCH_PARENT, walk_state,
 			   &info.register_node);
 	if (ACPI_FAILURE(status)) {
-		ACPI_ERROR_NAMESPACE(arg->common.value.string, status);
+		ACPI_ERROR_NAMESPACE(walk_state->scope_info,
+				     arg->common.value.string, status);
 		return_ACPI_STATUS(status);
 	}
 
@@ -763,7 +778,8 @@ acpi_ds_create_index_field(union acpi_parse_object *op,
 			   ACPI_NS_SEARCH_PARENT, walk_state,
 			   &info.register_node);
 	if (ACPI_FAILURE(status)) {
-		ACPI_ERROR_NAMESPACE(arg->common.value.string, status);
+		ACPI_ERROR_NAMESPACE(walk_state->scope_info,
+				     arg->common.value.string, status);
 		return_ACPI_STATUS(status);
 	}
 
@@ -776,7 +792,8 @@ acpi_ds_create_index_field(union acpi_parse_object *op,
 			   ACPI_NS_SEARCH_PARENT, walk_state,
 			   &info.data_register_node);
 	if (ACPI_FAILURE(status)) {
-		ACPI_ERROR_NAMESPACE(arg->common.value.string, status);
+		ACPI_ERROR_NAMESPACE(walk_state->scope_info,
+				     arg->common.value.string, status);
 		return_ACPI_STATUS(status);
 	}
 

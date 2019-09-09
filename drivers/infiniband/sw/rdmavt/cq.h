@@ -2,7 +2,7 @@
 #define DEF_RVTCQ_H
 
 /*
- * Copyright(c) 2016 Intel Corporation.
+ * Copyright(c) 2016 - 2018 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -51,14 +51,12 @@
 #include <rdma/rdma_vt.h>
 #include <rdma/rdmavt_cq.h>
 
-struct ib_cq *rvt_create_cq(struct ib_device *ibdev,
-			    const struct ib_cq_init_attr *attr,
-			    struct ib_ucontext *context,
-			    struct ib_udata *udata);
-int rvt_destroy_cq(struct ib_cq *ibcq);
+int rvt_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
+		  struct ib_udata *udata);
+void rvt_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata);
 int rvt_req_notify_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags notify_flags);
 int rvt_resize_cq(struct ib_cq *ibcq, int cqe, struct ib_udata *udata);
 int rvt_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *entry);
-int rvt_driver_cq_init(struct rvt_dev_info *rdi);
-void rvt_cq_exit(struct rvt_dev_info *rdi);
+int rvt_driver_cq_init(void);
+void rvt_cq_exit(void);
 #endif          /* DEF_RVTCQ_H */

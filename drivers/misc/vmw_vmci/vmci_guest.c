@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * VMware VMCI Driver
  *
  * Copyright (C) 2012 VMware, Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation version 2 and no later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
  */
 
 #include <linux/vmw_vmci_defs.h>
@@ -54,10 +46,7 @@ struct vmci_guest_device {
 	struct device *dev;	/* PCI device we are attached to */
 	void __iomem *iobase;
 
-	unsigned int irq;
-	unsigned int intr_type;
 	bool exclusive_vectors;
-	struct msix_entry msix_entries[VMCI_MAX_INTRS];
 
 	struct tasklet_struct datagram_tasklet;
 	struct tasklet_struct bm_tasklet;
@@ -66,6 +55,13 @@ struct vmci_guest_device {
 	void *notification_bitmap;
 	dma_addr_t notification_base;
 };
+
+static bool use_ppn64;
+
+bool vmci_use_ppn64(void)
+{
+	return use_ppn64;
+}
 
 /* vmci_dev singleton device and supporting data*/
 struct pci_dev *vmci_pdev;
@@ -369,30 +365,6 @@ static void vmci_process_bitmap(unsigned long data)
 }
 
 /*
- * Enable MSI-X.  Try exclusive vectors first, then shared vectors.
- */
-static int vmci_enable_msix(struct pci_dev *pdev,
-			    struct vmci_guest_device *vmci_dev)
-{
-	int i;
-	int result;
-
-	for (i = 0; i < VMCI_MAX_INTRS; ++i) {
-		vmci_dev->msix_entries[i].entry = i;
-		vmci_dev->msix_entries[i].vector = i;
-	}
-
-	result = pci_enable_msix_exact(pdev,
-				       vmci_dev->msix_entries, VMCI_MAX_INTRS);
-	if (result == 0)
-		vmci_dev->exclusive_vectors = true;
-	else if (result == -ENOSPC)
-		result = pci_enable_msix_exact(pdev, vmci_dev->msix_entries, 1);
-
-	return result;
-}
-
-/*
  * Interrupt handler for legacy or MSI interrupt, or for first MSI-X
  * interrupt (vector VMCI_INTR_DATAGRAM).
  */
@@ -406,7 +378,7 @@ static irqreturn_t vmci_interrupt(int irq, void *_dev)
 	 * Otherwise we must read the ICR to determine what to do.
 	 */
 
-	if (dev->intr_type == VMCI_INTR_TYPE_MSIX && dev->exclusive_vectors) {
+	if (dev->exclusive_vectors) {
 		tasklet_schedule(&dev->datagram_tasklet);
 	} else {
 		unsigned int icr;
@@ -459,6 +431,7 @@ static int vmci_guest_probe_device(struct pci_dev *pdev,
 	struct vmci_guest_device *vmci_dev;
 	void __iomem *iobase;
 	unsigned int capabilities;
+	unsigned int caps_in_use;
 	unsigned long cmd;
 	int vmci_err;
 	int error;
@@ -491,7 +464,6 @@ static int vmci_guest_probe_device(struct pci_dev *pdev,
 	}
 
 	vmci_dev->dev = &pdev->dev;
-	vmci_dev->intr_type = VMCI_INTR_TYPE_INTX;
 	vmci_dev->exclusive_vectors = false;
 	vmci_dev->iobase = iobase;
 
@@ -524,6 +496,23 @@ static int vmci_guest_probe_device(struct pci_dev *pdev,
 		error = -ENXIO;
 		goto err_free_data_buffer;
 	}
+	caps_in_use = VMCI_CAPS_DATAGRAM;
+
+	/*
+	 * Use 64-bit PPNs if the device supports.
+	 *
+	 * There is no check for the return value of dma_set_mask_and_coherent
+	 * since this driver can handle the default mask values if
+	 * dma_set_mask_and_coherent fails.
+	 */
+	if (capabilities & VMCI_CAPS_PPN64) {
+		dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
+		use_ppn64 = true;
+		caps_in_use |= VMCI_CAPS_PPN64;
+	} else {
+		dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(44));
+		use_ppn64 = false;
+	}
 
 	/*
 	 * If the hardware supports notifications, we will use that as
@@ -538,14 +527,14 @@ static int vmci_guest_probe_device(struct pci_dev *pdev,
 				 "Unable to allocate notification bitmap\n");
 		} else {
 			memset(vmci_dev->notification_bitmap, 0, PAGE_SIZE);
-			capabilities |= VMCI_CAPS_NOTIFICATIONS;
+			caps_in_use |= VMCI_CAPS_NOTIFICATIONS;
 		}
 	}
 
-	dev_info(&pdev->dev, "Using capabilities 0x%x\n", capabilities);
+	dev_info(&pdev->dev, "Using capabilities 0x%x\n", caps_in_use);
 
 	/* Let the host know which capabilities we intend to use. */
-	iowrite32(capabilities, vmci_dev->iobase + VMCI_CAPS_ADDR);
+	iowrite32(caps_in_use, vmci_dev->iobase + VMCI_CAPS_ADDR);
 
 	/* Set up global device so that we can start sending datagrams */
 	spin_lock_irq(&vmci_dev_spinlock);
@@ -557,13 +546,13 @@ static int vmci_guest_probe_device(struct pci_dev *pdev,
 	 * Register notification bitmap with device if that capability is
 	 * used.
 	 */
-	if (capabilities & VMCI_CAPS_NOTIFICATIONS) {
+	if (caps_in_use & VMCI_CAPS_NOTIFICATIONS) {
 		unsigned long bitmap_ppn =
 			vmci_dev->notification_base >> PAGE_SHIFT;
 		if (!vmci_dbell_register_notification_bitmap(bitmap_ppn)) {
 			dev_warn(&pdev->dev,
-				 "VMCI device unable to register notification bitmap with PPN 0x%x\n",
-				 (u32) bitmap_ppn);
+				 "VMCI device unable to register notification bitmap with PPN 0x%lx\n",
+				 bitmap_ppn);
 			error = -ENXIO;
 			goto err_remove_vmci_dev_g;
 		}
@@ -592,26 +581,26 @@ static int vmci_guest_probe_device(struct pci_dev *pdev,
 	 * Enable interrupts.  Try MSI-X first, then MSI, and then fallback on
 	 * legacy interrupts.
 	 */
-	if (!vmci_disable_msix && !vmci_enable_msix(pdev, vmci_dev)) {
-		vmci_dev->intr_type = VMCI_INTR_TYPE_MSIX;
-		vmci_dev->irq = vmci_dev->msix_entries[0].vector;
-	} else if (!vmci_disable_msi && !pci_enable_msi(pdev)) {
-		vmci_dev->intr_type = VMCI_INTR_TYPE_MSI;
-		vmci_dev->irq = pdev->irq;
+	error = pci_alloc_irq_vectors(pdev, VMCI_MAX_INTRS, VMCI_MAX_INTRS,
+			PCI_IRQ_MSIX);
+	if (error < 0) {
+		error = pci_alloc_irq_vectors(pdev, 1, 1,
+				PCI_IRQ_MSIX | PCI_IRQ_MSI | PCI_IRQ_LEGACY);
+		if (error < 0)
+			goto err_remove_bitmap;
 	} else {
-		vmci_dev->intr_type = VMCI_INTR_TYPE_INTX;
-		vmci_dev->irq = pdev->irq;
+		vmci_dev->exclusive_vectors = true;
 	}
 
 	/*
 	 * Request IRQ for legacy or MSI interrupts, or for first
 	 * MSI-X vector.
 	 */
-	error = request_irq(vmci_dev->irq, vmci_interrupt, IRQF_SHARED,
-			    KBUILD_MODNAME, vmci_dev);
+	error = request_irq(pci_irq_vector(pdev, 0), vmci_interrupt,
+			    IRQF_SHARED, KBUILD_MODNAME, vmci_dev);
 	if (error) {
 		dev_err(&pdev->dev, "Irq %u in use: %d\n",
-			vmci_dev->irq, error);
+			pci_irq_vector(pdev, 0), error);
 		goto err_disable_msi;
 	}
 
@@ -622,13 +611,13 @@ static int vmci_guest_probe_device(struct pci_dev *pdev,
 	 * between the vectors.
 	 */
 	if (vmci_dev->exclusive_vectors) {
-		error = request_irq(vmci_dev->msix_entries[1].vector,
+		error = request_irq(pci_irq_vector(pdev, 1),
 				    vmci_interrupt_bm, 0, KBUILD_MODNAME,
 				    vmci_dev);
 		if (error) {
 			dev_err(&pdev->dev,
 				"Failed to allocate irq %u: %d\n",
-				vmci_dev->msix_entries[1].vector, error);
+				pci_irq_vector(pdev, 1), error);
 			goto err_free_irq;
 		}
 	}
@@ -639,7 +628,7 @@ static int vmci_guest_probe_device(struct pci_dev *pdev,
 
 	/* Enable specific interrupt bits. */
 	cmd = VMCI_IMR_DATAGRAM;
-	if (capabilities & VMCI_CAPS_NOTIFICATIONS)
+	if (caps_in_use & VMCI_CAPS_NOTIFICATIONS)
 		cmd |= VMCI_IMR_NOTIFICATION;
 	iowrite32(cmd, vmci_dev->iobase + VMCI_IMR_ADDR);
 
@@ -651,15 +640,12 @@ static int vmci_guest_probe_device(struct pci_dev *pdev,
 	return 0;
 
 err_free_irq:
-	free_irq(vmci_dev->irq, vmci_dev);
+	free_irq(pci_irq_vector(pdev, 0), vmci_dev);
 	tasklet_kill(&vmci_dev->datagram_tasklet);
 	tasklet_kill(&vmci_dev->bm_tasklet);
 
 err_disable_msi:
-	if (vmci_dev->intr_type == VMCI_INTR_TYPE_MSIX)
-		pci_disable_msix(pdev);
-	else if (vmci_dev->intr_type == VMCI_INTR_TYPE_MSI)
-		pci_disable_msi(pdev);
+	pci_free_irq_vectors(pdev);
 
 	vmci_err = vmci_event_unsubscribe(ctx_update_sub_id);
 	if (vmci_err < VMCI_SUCCESS)
@@ -719,14 +705,10 @@ static void vmci_guest_remove_device(struct pci_dev *pdev)
 	 * MSI-X, we might have multiple vectors, each with their own
 	 * IRQ, which we must free too.
 	 */
-	free_irq(vmci_dev->irq, vmci_dev);
-	if (vmci_dev->intr_type == VMCI_INTR_TYPE_MSIX) {
-		if (vmci_dev->exclusive_vectors)
-			free_irq(vmci_dev->msix_entries[1].vector, vmci_dev);
-		pci_disable_msix(pdev);
-	} else if (vmci_dev->intr_type == VMCI_INTR_TYPE_MSI) {
-		pci_disable_msi(pdev);
-	}
+	if (vmci_dev->exclusive_vectors)
+		free_irq(pci_irq_vector(pdev, 1), vmci_dev);
+	free_irq(pci_irq_vector(pdev, 0), vmci_dev);
+	pci_free_irq_vectors(pdev);
 
 	tasklet_kill(&vmci_dev->datagram_tasklet);
 	tasklet_kill(&vmci_dev->bm_tasklet);

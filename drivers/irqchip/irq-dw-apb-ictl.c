@@ -79,24 +79,24 @@ static int __init dw_apb_ictl_init(struct device_node *np,
 	/* Map the parent interrupt for the chained handler */
 	irq = irq_of_parse_and_map(np, 0);
 	if (irq <= 0) {
-		pr_err("%s: unable to parse irq\n", np->full_name);
+		pr_err("%pOF: unable to parse irq\n", np);
 		return -EINVAL;
 	}
 
 	ret = of_address_to_resource(np, 0, &r);
 	if (ret) {
-		pr_err("%s: unable to get resource\n", np->full_name);
+		pr_err("%pOF: unable to get resource\n", np);
 		return ret;
 	}
 
 	if (!request_mem_region(r.start, resource_size(&r), np->full_name)) {
-		pr_err("%s: unable to request mem region\n", np->full_name);
+		pr_err("%pOF: unable to request mem region\n", np);
 		return -ENOMEM;
 	}
 
 	iobase = ioremap(r.start, resource_size(&r));
 	if (!iobase) {
-		pr_err("%s: unable to map resource\n", np->full_name);
+		pr_err("%pOF: unable to map resource\n", np);
 		ret = -ENOMEM;
 		goto err_release;
 	}
@@ -105,7 +105,7 @@ static int __init dw_apb_ictl_init(struct device_node *np,
 	 * DW IP can be configured to allow 2-64 irqs. We can determine
 	 * the number of irqs supported by writing into enable register
 	 * and look for bits not set, as corresponding flip-flops will
-	 * have been removed by sythesis tool.
+	 * have been removed by synthesis tool.
 	 */
 
 	/* mask and enable all interrupts */
@@ -123,7 +123,7 @@ static int __init dw_apb_ictl_init(struct device_node *np,
 	domain = irq_domain_add_linear(np, nrirqs,
 				       &irq_generic_chip_ops, NULL);
 	if (!domain) {
-		pr_err("%s: unable to add irq domain\n", np->full_name);
+		pr_err("%pOF: unable to add irq domain\n", np);
 		ret = -ENOMEM;
 		goto err_unmap;
 	}
@@ -132,7 +132,7 @@ static int __init dw_apb_ictl_init(struct device_node *np,
 					     handle_level_irq, clr, 0,
 					     IRQ_GC_INIT_MASK_CACHE);
 	if (ret) {
-		pr_err("%s: unable to alloc irq domain gc\n", np->full_name);
+		pr_err("%pOF: unable to alloc irq domain gc\n", np);
 		goto err_unmap;
 	}
 

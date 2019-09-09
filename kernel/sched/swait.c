@@ -1,5 +1,8 @@
-#include <linux/sched.h>
-#include <linux/swait.h>
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * <linux/swait.h> (simple wait queues ) implementation:
+ */
+#include "sched.h"
 
 void __init_swait_queue_head(struct swait_queue_head *q, const char *name,
 			     struct lock_class_key *key)
@@ -29,18 +32,15 @@ void swake_up_locked(struct swait_queue_head *q)
 }
 EXPORT_SYMBOL(swake_up_locked);
 
-void swake_up(struct swait_queue_head *q)
+void swake_up_one(struct swait_queue_head *q)
 {
 	unsigned long flags;
-
-	if (!swait_active(q))
-		return;
 
 	raw_spin_lock_irqsave(&q->lock, flags);
 	swake_up_locked(q);
 	raw_spin_unlock_irqrestore(&q->lock, flags);
 }
-EXPORT_SYMBOL(swake_up);
+EXPORT_SYMBOL(swake_up_one);
 
 /*
  * Does not allow usage from IRQ disabled, since we must be able to
@@ -50,9 +50,6 @@ void swake_up_all(struct swait_queue_head *q)
 {
 	struct swait_queue *curr;
 	LIST_HEAD(tmp);
-
-	if (!swait_active(q))
-		return;
 
 	raw_spin_lock_irq(&q->lock);
 	list_splice_init(&q->task_list, &tmp);
@@ -72,14 +69,14 @@ void swake_up_all(struct swait_queue_head *q)
 }
 EXPORT_SYMBOL(swake_up_all);
 
-void __prepare_to_swait(struct swait_queue_head *q, struct swait_queue *wait)
+static void __prepare_to_swait(struct swait_queue_head *q, struct swait_queue *wait)
 {
 	wait->task = current;
 	if (list_empty(&wait->task_list))
-		list_add(&wait->task_list, &q->task_list);
+		list_add_tail(&wait->task_list, &q->task_list);
 }
 
-void prepare_to_swait(struct swait_queue_head *q, struct swait_queue *wait, int state)
+void prepare_to_swait_exclusive(struct swait_queue_head *q, struct swait_queue *wait, int state)
 {
 	unsigned long flags;
 
@@ -88,16 +85,28 @@ void prepare_to_swait(struct swait_queue_head *q, struct swait_queue *wait, int 
 	set_current_state(state);
 	raw_spin_unlock_irqrestore(&q->lock, flags);
 }
-EXPORT_SYMBOL(prepare_to_swait);
+EXPORT_SYMBOL(prepare_to_swait_exclusive);
 
 long prepare_to_swait_event(struct swait_queue_head *q, struct swait_queue *wait, int state)
 {
-	if (signal_pending_state(state, current))
-		return -ERESTARTSYS;
+	unsigned long flags;
+	long ret = 0;
 
-	prepare_to_swait(q, wait, state);
+	raw_spin_lock_irqsave(&q->lock, flags);
+	if (signal_pending_state(state, current)) {
+		/*
+		 * See prepare_to_wait_event(). TL;DR, subsequent swake_up_one()
+		 * must not see us.
+		 */
+		list_del_init(&wait->task_list);
+		ret = -ERESTARTSYS;
+	} else {
+		__prepare_to_swait(q, wait);
+		set_current_state(state);
+	}
+	raw_spin_unlock_irqrestore(&q->lock, flags);
 
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL(prepare_to_swait_event);
 

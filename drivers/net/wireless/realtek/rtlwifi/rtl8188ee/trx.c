@@ -1,27 +1,5 @@
-/******************************************************************************
- *
- * Copyright(c) 2009-2013  Realtek Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
- *
- * Contact Information:
- * wlanfae <wlanfae@realtek.com>
- * Realtek Corporation, No. 2, Innovation Road II, Hsinchu Science Park,
- * Hsinchu 300, Taiwan.
- *
- * Larry Finger <Larry.Finger@lwfinger.net>
- *
- *****************************************************************************/
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright(c) 2009-2013  Realtek Corporation.*/
 
 #include "../wifi.h"
 #include "../pci.h"
@@ -29,7 +7,6 @@
 #include "../stats.h"
 #include "reg.h"
 #include "def.h"
-#include "phy.h"
 #include "trx.h"
 #include "led.h"
 #include "dm.h"
@@ -395,8 +372,9 @@ bool rtl88ee_rx_query_desc(struct ieee80211_hw *hw,
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rx_fwinfo_88e *p_drvinfo;
 	struct ieee80211_hdr *hdr;
-
+	u8 wake_match;
 	u32 phystatus = GET_RX_DESC_PHYST(pdesc);
+
 	status->packet_report_type = (u8)GET_RX_STATUS_DESC_RPT_SEL(pdesc);
 	if (status->packet_report_type == TX_REPORT2)
 		status->length = (u16)GET_RX_RPT2_DESC_PKT_LEN(pdesc);
@@ -416,24 +394,24 @@ bool rtl88ee_rx_query_desc(struct ieee80211_hw *hw,
 				(GET_RX_DESC_FAGGR(pdesc) == 1));
 	if (status->packet_report_type == NORMAL_RX)
 		status->timestamp_low = GET_RX_DESC_TSFL(pdesc);
-	status->rx_is40Mhzpacket = (bool) GET_RX_DESC_BW(pdesc);
+	status->rx_is40mhzpacket = (bool)GET_RX_DESC_BW(pdesc);
 	status->is_ht = (bool)GET_RX_DESC_RXHT(pdesc);
 
 	status->is_cck = RTL8188_RX_HAL_IS_CCK_RATE(status->rate);
 
 	status->macid = GET_RX_DESC_MACID(pdesc);
-	if (GET_RX_STATUS_DESC_MAGIC_MATCH(pdesc))
-		status->wake_match = BIT(2);
+	if (GET_RX_STATUS_DESC_PATTERN_MATCH(pdesc))
+		wake_match = BIT(2);
 	else if (GET_RX_STATUS_DESC_MAGIC_MATCH(pdesc))
-		status->wake_match = BIT(1);
+		wake_match = BIT(1);
 	else if (GET_RX_STATUS_DESC_UNICAST_MATCH(pdesc))
-		status->wake_match = BIT(0);
+		wake_match = BIT(0);
 	else
-		status->wake_match = 0;
-	if (status->wake_match)
+		wake_match = 0;
+	if (wake_match)
 		RT_TRACE(rtlpriv, COMP_RXDESC, DBG_LOUD,
 		"GGGGGGGGGGGGGet Wakeup Packet!! WakeMatch=%d\n",
-		status->wake_match);
+		wake_match);
 	rx_status->freq = hw->conf.chandef.chan->center_freq;
 	rx_status->band = hw->conf.chandef.chan->band;
 
@@ -443,11 +421,11 @@ bool rtl88ee_rx_query_desc(struct ieee80211_hw *hw,
 	if (status->crc)
 		rx_status->flag |= RX_FLAG_FAILED_FCS_CRC;
 
-	if (status->rx_is40Mhzpacket)
-		rx_status->flag |= RX_FLAG_40MHZ;
+	if (status->rx_is40mhzpacket)
+		rx_status->bw = RATE_INFO_BW_40;
 
 	if (status->is_ht)
-		rx_status->flag |= RX_FLAG_HT;
+		rx_status->encoding = RX_ENC_HT;
 
 	rx_status->flag |= RX_FLAG_MACTIME_START;
 
@@ -760,7 +738,7 @@ void rtl88ee_set_desc(struct ieee80211_hw *hw, u8 *pdesc,
 			SET_TX_DESC_NEXT_DESC_ADDRESS(pdesc, *(u32 *)val);
 			break;
 		default:
-			RT_ASSERT(false, "ERR txdesc :%d not process\n",
+			WARN_ONCE(true, "rtl8188ee: ERR txdesc :%d not processed\n",
 				  desc_name);
 			break;
 		}
@@ -779,14 +757,15 @@ void rtl88ee_set_desc(struct ieee80211_hw *hw, u8 *pdesc,
 			SET_RX_DESC_EOR(pdesc, 1);
 			break;
 		default:
-			RT_ASSERT(false, "ERR rxdesc :%d not process\n",
+			WARN_ONCE(true, "rtl8188ee: ERR rxdesc :%d not processed\n",
 				  desc_name);
 			break;
 		}
 	}
 }
 
-u32 rtl88ee_get_desc(u8 *pdesc, bool istx, u8 desc_name)
+u64 rtl88ee_get_desc(struct ieee80211_hw *hw,
+		     u8 *pdesc, bool istx, u8 desc_name)
 {
 	u32 ret = 0;
 
@@ -799,7 +778,7 @@ u32 rtl88ee_get_desc(u8 *pdesc, bool istx, u8 desc_name)
 			ret = GET_TX_DESC_TX_BUFFER_ADDRESS(pdesc);
 			break;
 		default:
-			RT_ASSERT(false, "ERR txdesc :%d not process\n",
+			WARN_ONCE(true, "rtl8188ee: ERR txdesc :%d not processed\n",
 				  desc_name);
 			break;
 		}
@@ -815,7 +794,7 @@ u32 rtl88ee_get_desc(u8 *pdesc, bool istx, u8 desc_name)
 			ret = GET_RX_DESC_BUFF_ADDR(pdesc);
 			break;
 		default:
-			RT_ASSERT(false, "ERR rxdesc :%d not process\n",
+			WARN_ONCE(true, "rtl8188ee: ERR rxdesc :%d not processed\n",
 				  desc_name);
 			break;
 		}
@@ -828,7 +807,7 @@ bool rtl88ee_is_tx_desc_closed(struct ieee80211_hw *hw, u8 hw_queue, u16 index)
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 	struct rtl8192_tx_ring *ring = &rtlpci->tx_ring[hw_queue];
 	u8 *entry = (u8 *)(&ring->desc[ring->idx]);
-	u8 own = (u8)rtl88ee_get_desc(entry, true, HW_DESC_OWN);
+	u8 own = (u8)rtl88ee_get_desc(hw, entry, true, HW_DESC_OWN);
 
 	/*beacon packet will only use the first
 	 *descriptor defautly,and the own may not
@@ -848,11 +827,4 @@ void rtl88ee_tx_polling(struct ieee80211_hw *hw, u8 hw_queue)
 		rtl_write_word(rtlpriv, REG_PCIE_CTRL_REG,
 			       BIT(0) << (hw_queue));
 	}
-}
-
-u32 rtl88ee_rx_command_packet(struct ieee80211_hw *hw,
-			      const struct rtl_stats *status,
-			      struct sk_buff *skb)
-{
-	return 0;
 }

@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Released under the GPLv2 only.
+ */
+
 #include <linux/module.h>
 #include <linux/string.h>
 #include <linux/bitops.h>
@@ -65,9 +70,8 @@ struct urb *usb_alloc_urb(int iso_packets, gfp_t mem_flags)
 {
 	struct urb *urb;
 
-	urb = kmalloc(sizeof(struct urb) +
-		iso_packets * sizeof(struct usb_iso_packet_descriptor),
-		mem_flags);
+	urb = kmalloc(struct_size(urb, iso_frame_desc, iso_packets),
+		      mem_flags);
 	if (!urb)
 		return NULL;
 	usb_init_urb(urb);
@@ -181,6 +185,31 @@ void usb_unanchor_urb(struct urb *urb)
 EXPORT_SYMBOL_GPL(usb_unanchor_urb);
 
 /*-------------------------------------------------------------------*/
+
+static const int pipetypes[4] = {
+	PIPE_CONTROL, PIPE_ISOCHRONOUS, PIPE_BULK, PIPE_INTERRUPT
+};
+
+/**
+ * usb_urb_ep_type_check - sanity check of endpoint in the given urb
+ * @urb: urb to be checked
+ *
+ * This performs a light-weight sanity check for the endpoint in the
+ * given urb.  It returns 0 if the urb contains a valid endpoint, otherwise
+ * a negative error code.
+ */
+int usb_urb_ep_type_check(const struct urb *urb)
+{
+	const struct usb_host_endpoint *ep;
+
+	ep = usb_pipe_endpoint(urb->dev, urb->pipe);
+	if (!ep)
+		return -EINVAL;
+	if (usb_pipetype(urb->pipe) != pipetypes[usb_endpoint_type(&ep->desc)])
+		return -EINVAL;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(usb_urb_ep_type_check);
 
 /**
  * usb_submit_urb - issue an asynchronous transfer request for an endpoint
@@ -321,9 +350,6 @@ EXPORT_SYMBOL_GPL(usb_unanchor_urb);
  */
 int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 {
-	static int			pipetypes[4] = {
-		PIPE_CONTROL, PIPE_ISOCHRONOUS, PIPE_BULK, PIPE_INTERRUPT
-	};
 	int				xfertype, max;
 	struct usb_device		*dev;
 	struct usb_host_endpoint	*ep;
@@ -333,7 +359,7 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 	if (!urb || !urb->complete)
 		return -EINVAL;
 	if (urb->hcpriv) {
-		WARN_ONCE(1, "URB %p submitted while active\n", urb);
+		WARN_ONCE(1, "URB %pK submitted while active\n", urb);
 		return -EBUSY;
 	}
 
@@ -406,12 +432,17 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 			max *= mult;
 		}
 
-		/* "high bandwidth" mode, 1-3 packets/uframe? */
-		if (dev->speed == USB_SPEED_HIGH) {
-			int	mult = 1 + ((max >> 11) & 0x03);
-			max &= 0x07ff;
-			max *= mult;
+		if (dev->speed == USB_SPEED_SUPER_PLUS &&
+		    USB_SS_SSP_ISOC_COMP(ep->ss_ep_comp.bmAttributes)) {
+			struct usb_ssp_isoc_ep_comp_descriptor *isoc_ep_comp;
+
+			isoc_ep_comp = &ep->ssp_isoc_ep_comp;
+			max = le32_to_cpu(isoc_ep_comp->dwBytesPerInterval);
 		}
+
+		/* "high bandwidth" mode, 1-3 packets/uframe? */
+		if (dev->speed == USB_SPEED_HIGH)
+			max *= usb_endpoint_maxp_mult(&ep->desc);
 
 		if (urb->number_of_packets <= 0)
 			return -EINVAL;
@@ -442,7 +473,7 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 	 */
 
 	/* Check that the pipe's type matches the endpoint's type */
-	if (usb_pipetype(urb->pipe) != pipetypes[xfertype])
+	if (usb_urb_ep_type_check(urb))
 		dev_WARN(&dev->dev, "BOGUS urb xfer, pipe %x != type %x\n",
 			usb_pipetype(urb->pipe), pipetypes[xfertype]);
 
@@ -454,9 +485,6 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 	case USB_ENDPOINT_XFER_INT:
 		if (is_out)
 			allowed |= URB_ZERO_PACKET;
-		/* FALLTHROUGH */
-	case USB_ENDPOINT_XFER_CONTROL:
-		allowed |= URB_NO_FSBR;	/* only affects UHCI */
 		/* FALLTHROUGH */
 	default:			/* all non-iso endpoints */
 		if (!is_out)
@@ -490,6 +518,7 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 			if ((urb->interval < 6)
 				&& (xfertype == USB_ENDPOINT_XFER_INT))
 				return -EINVAL;
+			/* fall through */
 		default:
 			if (urb->interval <= 0)
 				return -EINVAL;

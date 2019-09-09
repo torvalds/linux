@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * acpi_lpat.c - LPAT table processing functions
  *
  * Copyright (C) 2015 Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/export.h>
@@ -22,10 +14,10 @@
  * LPAT conversion table
  *
  * @lpat_table: the temperature_raw mapping table structure
- * @raw: the raw value, used as a key to get the temerature from the
+ * @raw: the raw value, used as a key to get the temperature from the
  *       above mapping table
  *
- * A positive converted temperarure value will be returned on success,
+ * A positive converted temperature value will be returned on success,
  * a negative errno will be returned in error cases.
  */
 int acpi_lpat_raw_to_temp(struct acpi_lpat_conversion_table *lpat_table,
@@ -55,11 +47,11 @@ EXPORT_SYMBOL_GPL(acpi_lpat_raw_to_temp);
  * acpi_lpat_temp_to_raw(): Return raw value from temperature through
  * LPAT conversion table
  *
- * @lpat: the temperature_raw mapping table
+ * @lpat_table: the temperature_raw mapping table
  * @temp: the temperature, used as a key to get the raw value from the
  *        above mapping table
  *
- * A positive converted temperature value will be returned on success,
+ * The raw value will be returned on success,
  * a negative errno will be returned in error cases.
  */
 int acpi_lpat_temp_to_raw(struct acpi_lpat_conversion_table *lpat_table,

@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
 /*
  * Broadcom BCM470X / BCM5301X ARM platform code.
  * DTS for Asus RT-N18U
  *
  * Copyright (C) 2014 Rafał Miłecki <zajec5@gmail.com>
- *
- * Licensed under the GNU/GPL. See COPYING for details.
  */
 
 /dts-v1/;
@@ -20,8 +19,10 @@
 		bootargs = "console=ttyS0,115200";
 	};
 
-	memory {
-		reg = <0x00000000 0x08000000>;
+	memory@0 {
+		device_type = "memory";
+		reg = <0x00000000 0x08000000
+		       0x88000000 0x08000000>;
 	};
 
 	leds {
@@ -36,7 +37,6 @@
 		usb2 {
 			label = "bcm53xx:blue:usb2";
 			gpios = <&chipcommon 3 GPIO_ACTIVE_LOW>;
-			linux,default-trigger = "default-off";
 		};
 
 		wan {
@@ -54,14 +54,11 @@
 		usb3 {
 			label = "bcm53xx:blue:usb3";
 			gpios = <&chipcommon 14 GPIO_ACTIVE_LOW>;
-			linux,default-trigger = "default-off";
 		};
 	};
 
 	gpio-keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 
 		restart {
 			label = "Reset";
@@ -75,4 +72,8 @@
 			gpios = <&chipcommon 11 GPIO_ACTIVE_LOW>;
 		};
 	};
+};
+
+&usb3_phy {
+	status = "okay";
 };

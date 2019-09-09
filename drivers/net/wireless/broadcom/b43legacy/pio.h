@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef B43legacy_PIO_H_
 #define B43legacy_PIO_H_
 
@@ -91,7 +92,6 @@ void b43legacy_pio_write(struct b43legacy_pioqueue *queue,
 		       u16 offset, u16 value)
 {
 	b43legacy_write16(queue->dev, queue->mmio_base + offset, value);
-	mmiowb();
 }
 
 

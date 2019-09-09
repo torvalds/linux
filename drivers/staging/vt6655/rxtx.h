@@ -1,20 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
  * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  *
  * File: rxtx.h
  *
@@ -191,10 +178,10 @@ struct vnt_tx_short_buf_head {
 	__le16 time_stamp_off;
 } __packed;
 
-int vnt_generate_fifo_header(struct vnt_private *, u32,
-			     struct vnt_tx_desc *head_td, struct sk_buff *);
-int vnt_beacon_make(struct vnt_private *, struct ieee80211_vif *);
-int vnt_beacon_enable(struct vnt_private *, struct ieee80211_vif *,
-		      struct ieee80211_bss_conf *);
+int vnt_generate_fifo_header(struct vnt_private *priv, u32 dma_idx,
+			     struct vnt_tx_desc *head_td, struct sk_buff *skb);
+int vnt_beacon_make(struct vnt_private *priv, struct ieee80211_vif *vif);
+int vnt_beacon_enable(struct vnt_private *priv, struct ieee80211_vif *vif,
+		      struct ieee80211_bss_conf *conf);
 
 #endif /* __RXTX_H__ */

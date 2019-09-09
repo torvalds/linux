@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /**
  * IBM Accelerator Family 'GenWQE'
  *
@@ -7,15 +8,6 @@
  * Author: Joerg-Stephan Vogt <jsvogt@de.ibm.com>
  * Author: Michael Jung <mijung@gmx.net>
  * Author: Michael Ruettger <michael@ibmra.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License (version 2 only)
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
  */
 
 /*
@@ -27,7 +19,6 @@
  */
 
 #include <linux/types.h>
-#include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/wait.h>
 #include <linux/pci.h>
@@ -500,7 +491,7 @@ int __genwqe_wait_ddcb(struct genwqe_dev *cd, struct ddcb_requ *req)
 
 	rc = wait_event_interruptible_timeout(queue->ddcb_waitqs[ddcb_no],
 				ddcb_requ_finished(cd, req),
-				genwqe_ddcb_software_timeout * HZ);
+				GENWQE_DDCB_SOFTWARE_TIMEOUT * HZ);
 
 	/*
 	 * We need to distinguish 3 cases here:
@@ -633,7 +624,7 @@ int __genwqe_purge_ddcb(struct genwqe_dev *cd, struct ddcb_requ *req)
 	__be32 old, new;
 
 	/* unsigned long flags; */
-	if (genwqe_ddcb_software_timeout <= 0) {
+	if (GENWQE_DDCB_SOFTWARE_TIMEOUT <= 0) {
 		dev_err(&pci_dev->dev,
 			"[%s] err: software timeout is not set!\n", __func__);
 		return -EFAULT;
@@ -641,7 +632,7 @@ int __genwqe_purge_ddcb(struct genwqe_dev *cd, struct ddcb_requ *req)
 
 	pddcb = &queue->ddcb_vaddr[req->num];
 
-	for (t = 0; t < genwqe_ddcb_software_timeout * 10; t++) {
+	for (t = 0; t < GENWQE_DDCB_SOFTWARE_TIMEOUT * 10; t++) {
 
 		spin_lock_irqsave(&queue->ddcb_lock, flags);
 
@@ -718,7 +709,7 @@ go_home:
 
 	dev_err(&pci_dev->dev,
 		"[%s] err: DDCB#%d not purged and not completed after %d seconds QSTAT=%016llx!!\n",
-		__func__, req->num, genwqe_ddcb_software_timeout,
+		__func__, req->num, GENWQE_DDCB_SOFTWARE_TIMEOUT,
 		queue_status);
 
 	print_ddcb_info(cd, req->queue);
@@ -778,7 +769,7 @@ int __genwqe_enqueue_ddcb(struct genwqe_dev *cd, struct ddcb_requ *req,
 	/* FIXME circumvention to improve performance when no irq is
 	 * there.
 	 */
-	if (genwqe_polling_enabled)
+	if (GENWQE_POLLING_ENABLED)
 		genwqe_check_ddcb_queue(cd, queue);
 
 	/*
@@ -878,7 +869,7 @@ int __genwqe_enqueue_ddcb(struct genwqe_dev *cd, struct ddcb_requ *req,
 	pddcb->icrc_hsi_shi_32 = cpu_to_be32((u32)icrc << 16);
 
 	/* enable DDCB completion irq */
-	if (!genwqe_polling_enabled)
+	if (!GENWQE_POLLING_ENABLED)
 		pddcb->icrc_hsi_shi_32 |= DDCB_INTR_BE32;
 
 	dev_dbg(&pci_dev->dev, "INPUT DDCB#%d\n", req->num);
@@ -1028,10 +1019,10 @@ static int setup_ddcb_queue(struct genwqe_dev *cd, struct ddcb_queue *queue)
 	unsigned int queue_size;
 	struct pci_dev *pci_dev = cd->pci_dev;
 
-	if (genwqe_ddcb_max < 2)
+	if (GENWQE_DDCB_MAX < 2)
 		return -EINVAL;
 
-	queue_size = roundup(genwqe_ddcb_max * sizeof(struct ddcb), PAGE_SIZE);
+	queue_size = roundup(GENWQE_DDCB_MAX * sizeof(struct ddcb), PAGE_SIZE);
 
 	queue->ddcbs_in_flight = 0;  /* statistics */
 	queue->ddcbs_max_in_flight = 0;
@@ -1040,7 +1031,7 @@ static int setup_ddcb_queue(struct genwqe_dev *cd, struct ddcb_queue *queue)
 	queue->wait_on_busy = 0;
 
 	queue->ddcb_seq	  = 0x100; /* start sequence number */
-	queue->ddcb_max	  = genwqe_ddcb_max; /* module parameter */
+	queue->ddcb_max	  = GENWQE_DDCB_MAX;
 	queue->ddcb_vaddr = __genwqe_alloc_consistent(cd, queue_size,
 						&queue->ddcb_daddr);
 	if (queue->ddcb_vaddr == NULL) {
@@ -1048,15 +1039,16 @@ static int setup_ddcb_queue(struct genwqe_dev *cd, struct ddcb_queue *queue)
 			"[%s] **err: could not allocate DDCB **\n", __func__);
 		return -ENOMEM;
 	}
-	queue->ddcb_req = kzalloc(sizeof(struct ddcb_requ *) *
-				  queue->ddcb_max, GFP_KERNEL);
+	queue->ddcb_req = kcalloc(queue->ddcb_max, sizeof(struct ddcb_requ *),
+				  GFP_KERNEL);
 	if (!queue->ddcb_req) {
 		rc = -ENOMEM;
 		goto free_ddcbs;
 	}
 
-	queue->ddcb_waitqs = kzalloc(sizeof(wait_queue_head_t) *
-				     queue->ddcb_max, GFP_KERNEL);
+	queue->ddcb_waitqs = kcalloc(queue->ddcb_max,
+				     sizeof(wait_queue_head_t),
+				     GFP_KERNEL);
 	if (!queue->ddcb_waitqs) {
 		rc = -ENOMEM;
 		goto free_requs;
@@ -1194,7 +1186,7 @@ static int genwqe_card_thread(void *data)
 
 		genwqe_check_ddcb_queue(cd, &cd->queue);
 
-		if (genwqe_polling_enabled) {
+		if (GENWQE_POLLING_ENABLED) {
 			rc = wait_event_interruptible_timeout(
 				cd->queue_waitq,
 				genwqe_ddcbs_in_flight(cd) ||
@@ -1340,7 +1332,7 @@ static int queue_wake_up_all(struct genwqe_dev *cd)
 int genwqe_finish_queue(struct genwqe_dev *cd)
 {
 	int i, rc = 0, in_flight;
-	int waitmax = genwqe_ddcb_software_timeout;
+	int waitmax = GENWQE_DDCB_SOFTWARE_TIMEOUT;
 	struct pci_dev *pci_dev = cd->pci_dev;
 	struct ddcb_queue *queue = &cd->queue;
 

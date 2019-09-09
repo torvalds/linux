@@ -1,7 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
  *
  * Copyright (C) 2015 Nikolay Martynov <mar.kolya@gmail.com>
  * Copyright (C) 2015 John Crispin <john@phrozen.org>
@@ -9,12 +7,10 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/module.h>
 
 #include <asm/mipsregs.h>
 #include <asm/smp-ops.h>
-#include <asm/mips-cm.h>
-#include <asm/mips-cpc.h>
+#include <asm/mips-cps.h>
 #include <asm/mach-ralink/ralink_regs.h>
 #include <asm/mach-ralink/mt7621.h>
 
@@ -172,35 +168,11 @@ void prom_soc_init(struct ralink_soc_info *soc_info)
 	u32 n1;
 	u32 rev;
 
-	n0 = __raw_readl(sysc + SYSC_REG_CHIP_NAME0);
-	n1 = __raw_readl(sysc + SYSC_REG_CHIP_NAME1);
-
-	if (n0 == MT7621_CHIP_NAME0 && n1 == MT7621_CHIP_NAME1) {
-		name = "MT7621";
-		soc_info->compatible = "mtk,mt7621-soc";
-	} else {
-		panic("mt7621: unknown SoC, n0:%08x n1:%08x\n", n0, n1);
-	}
-
-	rev = __raw_readl(sysc + SYSC_REG_CHIP_REV);
-
-	snprintf(soc_info->sys_type, RAMIPS_SYS_TYPE_LEN,
-		"MediaTek %s ver:%u eco:%u",
-		name,
-		(rev >> CHIP_REV_VER_SHIFT) & CHIP_REV_VER_MASK,
-		(rev & CHIP_REV_ECO_MASK));
-
-	soc_info->mem_size_min = MT7621_DDR2_SIZE_MIN;
-	soc_info->mem_size_max = MT7621_DDR2_SIZE_MAX;
-	soc_info->mem_base = MT7621_DRAM_BASE;
-
-	rt2880_pinmux_data = mt7621_pinmux_data;
-
 	/* Early detection of CMP support */
 	mips_cm_probe();
 	mips_cpc_probe();
 
-	if (mips_cm_numiocu()) {
+	if (mips_cps_numiocu(0)) {
 		/*
 		 * mips_cm_probe() wipes out bootloader
 		 * config for CM regions and we have to configure them
@@ -215,7 +187,33 @@ void prom_soc_init(struct ralink_soc_info *soc_info)
 		write_gcr_reg0_base(MT7621_PALMBUS_BASE);
 		write_gcr_reg0_mask(~MT7621_PALMBUS_SIZE |
 				    CM_GCR_REGn_MASK_CMTGT_IOCU0);
+		__sync();
 	}
+
+	n0 = __raw_readl(sysc + SYSC_REG_CHIP_NAME0);
+	n1 = __raw_readl(sysc + SYSC_REG_CHIP_NAME1);
+
+	if (n0 == MT7621_CHIP_NAME0 && n1 == MT7621_CHIP_NAME1) {
+		name = "MT7621";
+		soc_info->compatible = "mtk,mt7621-soc";
+	} else {
+		panic("mt7621: unknown SoC, n0:%08x n1:%08x\n", n0, n1);
+	}
+	ralink_soc = MT762X_SOC_MT7621AT;
+	rev = __raw_readl(sysc + SYSC_REG_CHIP_REV);
+
+	snprintf(soc_info->sys_type, RAMIPS_SYS_TYPE_LEN,
+		"MediaTek %s ver:%u eco:%u",
+		name,
+		(rev >> CHIP_REV_VER_SHIFT) & CHIP_REV_VER_MASK,
+		(rev & CHIP_REV_ECO_MASK));
+
+	soc_info->mem_size_min = MT7621_DDR2_SIZE_MIN;
+	soc_info->mem_size_max = MT7621_DDR2_SIZE_MAX;
+	soc_info->mem_base = MT7621_DRAM_BASE;
+
+	rt2880_pinmux_data = mt7621_pinmux_data;
+
 
 	if (!register_cps_smp_ops())
 		return;

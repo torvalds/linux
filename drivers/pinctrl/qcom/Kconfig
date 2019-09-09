@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 if (ARCH_QCOM || COMPILE_TEST)
 
 config PINCTRL_MSM
@@ -39,6 +40,16 @@ config PINCTRL_IPQ8064
 	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
 	  Qualcomm TLMM block found in the Qualcomm IPQ8064 platform.
 
+config PINCTRL_IPQ8074
+	tristate "Qualcomm Technologies, Inc. IPQ8074 pin controller driver"
+	depends on GPIOLIB && OF
+	select PINCTRL_MSM
+	help
+	  This is the pinctrl, pinmux, pinconf and gpiolib driver for
+	  the Qualcomm Technologies Inc. TLMM block found on the
+	  Qualcomm Technologies Inc. IPQ8074 platform. Select this for
+	  IPQ8074.
+
 config PINCTRL_MSM8660
 	tristate "Qualcomm 8660 pin controller driver"
 	depends on GPIOLIB && OF
@@ -79,6 +90,15 @@ config PINCTRL_MSM8916
 	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
 	  Qualcomm TLMM block found on the Qualcomm 8916 platform.
 
+config PINCTRL_MSM8994
+	tristate "Qualcomm 8994 pin controller driver"
+	depends on GPIOLIB && OF
+	select PINCTRL_MSM
+	help
+	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
+	  Qualcomm TLMM block found in the Qualcomm 8994 platform. The
+	  Qualcomm 8992 platform is also supported by this driver.
+
 config PINCTRL_MSM8996
 	tristate "Qualcomm MSM8996 pin controller driver"
 	depends on GPIOLIB && OF
@@ -86,6 +106,22 @@ config PINCTRL_MSM8996
 	help
 	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
 	  Qualcomm TLMM block found in the Qualcomm MSM8996 platform.
+
+config PINCTRL_MSM8998
+	tristate "Qualcomm MSM8998 pin controller driver"
+	depends on GPIOLIB && OF
+	select PINCTRL_MSM
+	help
+	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
+	  Qualcomm TLMM block found in the Qualcomm MSM8998 platform.
+
+config PINCTRL_QCS404
+	tristate "Qualcomm QCS404 pin controller driver"
+	depends on GPIOLIB && OF
+	select PINCTRL_MSM
+	help
+	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
+	  TLMM block found in the Qualcomm QCS404 platform.
 
 config PINCTRL_QDF2XXX
 	tristate "Qualcomm Technologies QDF2xxx pin controller driver"
@@ -102,6 +138,7 @@ config PINCTRL_QCOM_SPMI_PMIC
        select PINMUX
        select PINCONF
        select GENERIC_PINCONF
+       select IRQ_DOMAIN_HIERARCHY
        help
          This is the pinctrl, pinmux, pinconf and gpiolib driver for the
          Qualcomm GPIO and MPP blocks found in the Qualcomm PMIC's chips,
@@ -114,10 +151,38 @@ config PINCTRL_QCOM_SSBI_PMIC
        select PINMUX
        select PINCONF
        select GENERIC_PINCONF
+       select IRQ_DOMAIN_HIERARCHY
        help
          This is the pinctrl, pinmux, pinconf and gpiolib driver for the
          Qualcomm GPIO and MPP blocks found in the Qualcomm PMIC's chips,
          which are using SSBI for communication with SoC. Example PMIC's
          devices are pm8058 and pm8921.
+
+config PINCTRL_SDM660
+       tristate "Qualcomm Technologies Inc SDM660 pin controller driver"
+       depends on GPIOLIB && OF
+       select PINCTRL_MSM
+       help
+         This is the pinctrl, pinmux, pinconf and gpiolib driver for the
+         Qualcomm Technologies Inc TLMM block found on the Qualcomm
+         Technologies Inc SDM660 platform.
+
+config PINCTRL_SDM845
+       tristate "Qualcomm Technologies Inc SDM845 pin controller driver"
+       depends on GPIOLIB && (OF || ACPI)
+       select PINCTRL_MSM
+       help
+         This is the pinctrl, pinmux, pinconf and gpiolib driver for the
+         Qualcomm Technologies Inc TLMM block found on the Qualcomm
+         Technologies Inc SDM845 platform.
+
+config PINCTRL_SM8150
+       tristate "Qualcomm Technologies Inc SM8150 pin controller driver"
+       depends on GPIOLIB && OF
+       select PINCTRL_MSM
+       help
+         This is the pinctrl, pinmux, pinconf and gpiolib driver for the
+         Qualcomm Technologies Inc TLMM block found on the Qualcomm
+         Technologies Inc SM8150 platform.
 
 endif

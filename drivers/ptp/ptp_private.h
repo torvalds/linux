@@ -1,27 +1,15 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * PTP 1588 clock support - private declarations for the core module.
  *
  * Copyright (C) 2010 OMICRON electronics GmbH
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 #ifndef _PTP_PRIVATE_H_
 #define _PTP_PRIVATE_H_
 
 #include <linux/cdev.h>
 #include <linux/device.h>
+#include <linux/kthread.h>
 #include <linux/mutex.h>
 #include <linux/posix-clock.h>
 #include <linux/ptp_clock.h>
@@ -54,6 +42,10 @@ struct ptp_clock {
 	struct device_attribute *pin_dev_attr;
 	struct attribute **pin_attr;
 	struct attribute_group pin_attr_group;
+	/* 1st entry is a pointer to the real group, 2nd is NULL terminator */
+	const struct attribute_group *pin_attr_groups[2];
+	struct kthread_worker *kworker;
+	struct kthread_delayed_work aux_work;
 };
 
 /*
@@ -85,7 +77,7 @@ int ptp_open(struct posix_clock *pc, fmode_t fmode);
 ssize_t ptp_read(struct posix_clock *pc,
 		 uint flags, char __user *buf, size_t cnt);
 
-uint ptp_poll(struct posix_clock *pc,
+__poll_t ptp_poll(struct posix_clock *pc,
 	      struct file *fp, poll_table *wait);
 
 /*
@@ -94,8 +86,7 @@ uint ptp_poll(struct posix_clock *pc,
 
 extern const struct attribute_group *ptp_groups[];
 
-int ptp_cleanup_sysfs(struct ptp_clock *ptp);
-
-int ptp_populate_sysfs(struct ptp_clock *ptp);
+int ptp_populate_pin_groups(struct ptp_clock *ptp);
+void ptp_cleanup_pin_groups(struct ptp_clock *ptp);
 
 #endif

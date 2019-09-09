@@ -74,12 +74,12 @@ struct mbxfb_info {
 
 	u32 pseudo_palette[MAX_PALETTES];
 #ifdef CONFIG_FB_MBX_DEBUG
-	void *debugfs_data;
+	struct dentry *debugfs_dir;
 #endif
 
 };
 
-static struct fb_var_screeninfo mbxfb_default = {
+static const struct fb_var_screeninfo mbxfb_default = {
 	.xres = 640,
 	.yres = 480,
 	.xres_virtual = 640,
@@ -102,7 +102,7 @@ static struct fb_var_screeninfo mbxfb_default = {
 	.sync = FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
 };
 
-static struct fb_fix_screeninfo mbxfb_fix = {
+static const struct fb_fix_screeninfo mbxfb_fix = {
 	.id = "MBX",
 	.type = FB_TYPE_PACKED_PIXELS,
 	.visual = FB_VISUAL_TRUECOLOR,
@@ -899,10 +899,8 @@ static int mbxfb_probe(struct platform_device *dev)
 	}
 
 	fbi = framebuffer_alloc(sizeof(struct mbxfb_info), &dev->dev);
-	if (fbi == NULL) {
-		dev_err(&dev->dev, "framebuffer_alloc failed\n");
+	if (!fbi)
 		return -ENOMEM;
-	}
 
 	mfbi = fbi->par;
 	fbi->pseudo_palette = mfbi->pseudo_palette;

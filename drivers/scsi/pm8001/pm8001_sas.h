@@ -58,7 +58,7 @@
 #include "pm8001_defs.h"
 
 #define DRV_NAME		"pm80xx"
-#define DRV_VERSION		"0.1.38"
+#define DRV_VERSION		"0.1.39"
 #define PM8001_FAIL_LOGGING	0x01 /* Error message logging */
 #define PM8001_INIT_LOGGING	0x02 /* driver init logging */
 #define PM8001_DISC_LOGGING	0x04 /* discovery layer logging */
@@ -103,7 +103,6 @@ do {						\
 #define PM8001_READ_VPD
 
 
-#define DEV_IS_EXPANDER(type)	((type == SAS_EDGE_EXPANDER_DEVICE) || (type == SAS_FANOUT_EXPANDER_DEVICE))
 #define IS_SPCV_12G(dev)	((dev->device == 0X8074)		\
 				|| (dev->device == 0X8076)		\
 				|| (dev->device == 0X8077)		\
@@ -197,7 +196,7 @@ struct pm8001_dispatch {
 	int (*chip_ioremap)(struct pm8001_hba_info *pm8001_ha);
 	void (*chip_iounmap)(struct pm8001_hba_info *pm8001_ha);
 	irqreturn_t (*isr)(struct pm8001_hba_info *pm8001_ha, u8 vec);
-	u32 (*is_our_interupt)(struct pm8001_hba_info *pm8001_ha);
+	u32 (*is_our_interrupt)(struct pm8001_hba_info *pm8001_ha);
 	int (*isr_process_oq)(struct pm8001_hba_info *pm8001_ha, u8 vec);
 	void (*interrupt_enable)(struct pm8001_hba_info *pm8001_ha, u8 vec);
 	void (*interrupt_disable)(struct pm8001_hba_info *pm8001_ha, u8 vec);
@@ -263,7 +262,14 @@ struct pm8001_phy {
 	u8			phy_state;
 	enum sas_linkrate	minimum_linkrate;
 	enum sas_linkrate	maximum_linkrate;
+	struct completion	*reset_completion;
+	bool			port_reset_status;
+	bool			reset_success;
 };
+
+/* port reset status */
+#define PORT_RESET_SUCCESS	0x00
+#define PORT_RESET_TMO		0x01
 
 struct pm8001_device {
 	enum sas_device_type	dev_type;
@@ -404,6 +410,8 @@ union main_cfg_table {
 	u32			port_recovery_timer;
 	u32			interrupt_reassertion_delay;
 	u32			fatal_n_non_fatal_dump;	        /* 0x28 */
+	u32			ila_version;
+	u32			inc_fw_version;
 	} pm80xx_tbl;
 };
 
@@ -521,8 +529,6 @@ struct pm8001_hba_info {
 	struct pm8001_device	*devices;
 	struct pm8001_ccb_info	*ccb_info;
 #ifdef PM8001_USE_MSIX
-	struct msix_entry	msix_entries[PM8001_MAX_MSIX_VEC];
-					/*for msi-x interrupt*/
 	int			number_of_intr;/*will be used in remove()*/
 #endif
 #ifdef PM8001_USE_TASKLET
@@ -531,8 +537,10 @@ struct pm8001_hba_info {
 	u32			logging_level;
 	u32			fw_status;
 	u32			smp_exp_mode;
+	bool			controller_fatal_error;
 	const struct firmware 	*fw_image;
 	struct isr_param irq_vector[PM8001_MAX_MSIX_VEC];
+	u32			reset_in_progress;
 };
 
 struct pm8001_work {

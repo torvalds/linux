@@ -1,19 +1,10 @@
+/* SPDX-License-Identifier: LGPL-2.0+ */
 /*
  * comedi.h
  * header file for COMEDI user API
  *
  * COMEDI - Linux Control and Measurement Device Interface
  * Copyright (C) 1998-2001 David A. Schleef <ds@schleef.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU Lesser General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef _COMEDI_H
@@ -116,6 +107,7 @@
 #define INSN_WRITE		(1 | INSN_MASK_WRITE)
 #define INSN_BITS		(2 | INSN_MASK_READ | INSN_MASK_WRITE)
 #define INSN_CONFIG		(3 | INSN_MASK_READ | INSN_MASK_WRITE)
+#define INSN_DEVICE_CONFIG	(INSN_CONFIG | INSN_MASK_SPECIAL)
 #define INSN_GTOD		(4 | INSN_MASK_READ | INSN_MASK_SPECIAL)
 #define INSN_WAIT		(5 | INSN_MASK_WRITE | INSN_MASK_SPECIAL)
 #define INSN_INTTRIG		(6 | INSN_MASK_WRITE | INSN_MASK_SPECIAL)
@@ -245,6 +237,22 @@ enum comedi_subdevice_type {
 /* configuration instructions */
 
 /**
+ * enum comedi_io_direction - COMEDI I/O directions
+ * @COMEDI_INPUT:	Input.
+ * @COMEDI_OUTPUT:	Output.
+ * @COMEDI_OPENDRAIN:	Open-drain (or open-collector) output.
+ *
+ * These are used by the %INSN_CONFIG_DIO_QUERY configuration instruction to
+ * report a direction.  They may also be used in other places where a direction
+ * needs to be specified.
+ */
+enum comedi_io_direction {
+	COMEDI_INPUT = 0,
+	COMEDI_OUTPUT = 1,
+	COMEDI_OPENDRAIN = 2
+};
+
+/**
  * enum configuration_ids - COMEDI configuration instruction codes
  * @INSN_CONFIG_DIO_INPUT:	Configure digital I/O as input.
  * @INSN_CONFIG_DIO_OUTPUT:	Configure digital I/O as output.
@@ -294,11 +302,13 @@ enum comedi_subdevice_type {
  * @INSN_CONFIG_PWM_SET_H_BRIDGE: Set PWM H bridge duty cycle and polarity for
  *				a relay simultaneously.
  * @INSN_CONFIG_PWM_GET_H_BRIDGE: Get PWM H bridge duty cycle and polarity.
+ * @INSN_CONFIG_GET_CMD_TIMING_CONSTRAINTS: Get the hardware timing restraints,
+ *				regardless of trigger sources.
  */
 enum configuration_ids {
-	INSN_CONFIG_DIO_INPUT = 0,
-	INSN_CONFIG_DIO_OUTPUT = 1,
-	INSN_CONFIG_DIO_OPENDRAIN = 2,
+	INSN_CONFIG_DIO_INPUT = COMEDI_INPUT,
+	INSN_CONFIG_DIO_OUTPUT = COMEDI_OUTPUT,
+	INSN_CONFIG_DIO_OPENDRAIN = COMEDI_OPENDRAIN,
 	INSN_CONFIG_ANALOG_TRIG = 16,
 /*	INSN_CONFIG_WAVEFORM = 17, */
 /*	INSN_CONFIG_TRIG = 18, */
@@ -337,7 +347,25 @@ enum configuration_ids {
 	INSN_CONFIG_PWM_GET_PERIOD = 5001,
 	INSN_CONFIG_GET_PWM_STATUS = 5002,
 	INSN_CONFIG_PWM_SET_H_BRIDGE = 5003,
-	INSN_CONFIG_PWM_GET_H_BRIDGE = 5004
+	INSN_CONFIG_PWM_GET_H_BRIDGE = 5004,
+	INSN_CONFIG_GET_CMD_TIMING_CONSTRAINTS = 5005,
+};
+
+/**
+ * enum device_configuration_ids - COMEDI configuration instruction codes global
+ * to an entire device.
+ * @INSN_DEVICE_CONFIG_TEST_ROUTE:	Validate the possibility of a
+ *					globally-named route
+ * @INSN_DEVICE_CONFIG_CONNECT_ROUTE:	Connect a globally-named route
+ * @INSN_DEVICE_CONFIG_DISCONNECT_ROUTE:Disconnect a globally-named route
+ * @INSN_DEVICE_CONFIG_GET_ROUTES:	Get a list of all globally-named routes
+ *					that are valid for a particular device.
+ */
+enum device_config_route_ids {
+	INSN_DEVICE_CONFIG_TEST_ROUTE = 0,
+	INSN_DEVICE_CONFIG_CONNECT_ROUTE = 1,
+	INSN_DEVICE_CONFIG_DISCONNECT_ROUTE = 2,
+	INSN_DEVICE_CONFIG_GET_ROUTES = 3,
 };
 
 /**
@@ -394,22 +422,6 @@ enum comedi_digital_trig_op {
 	COMEDI_DIGITAL_TRIG_DISABLE = 0,
 	COMEDI_DIGITAL_TRIG_ENABLE_EDGES = 1,
 	COMEDI_DIGITAL_TRIG_ENABLE_LEVELS = 2
-};
-
-/**
- * enum comedi_io_direction - COMEDI I/O directions
- * @COMEDI_INPUT:	Input.
- * @COMEDI_OUTPUT:	Output.
- * @COMEDI_OPENDRAIN:	Open-drain (or open-collector) output.
- *
- * These are used by the %INSN_CONFIG_DIO_QUERY configuration instruction to
- * report a direction.  They may also be used in other places where a direction
- * needs to be specified.
- */
-enum comedi_io_direction {
-	COMEDI_INPUT = 0,
-	COMEDI_OUTPUT = 1,
-	COMEDI_OPENDRAIN = 2
 };
 
 /**
@@ -937,6 +949,160 @@ enum i8254_mode {
 	I8254_BINARY = 0
 };
 
+/* *** BEGIN GLOBALLY-NAMED NI TERMINALS/SIGNALS *** */
+
+/*
+ * Common National Instruments Terminal/Signal names.
+ * Some of these have no NI_ prefix as they are useful for non-NI hardware, such
+ * as those that utilize the PXI/RTSI trigger lines.
+ *
+ * NOTE ABOUT THE CHOICE OF NAMES HERE AND THE CAMELSCRIPT:
+ *   The choice to use CamelScript and the exact names below is for
+ *   maintainability, clarity, similarity to manufacturer's documentation,
+ *   _and_ a mitigation for confusion that has plagued the use of these drivers
+ *   for years!
+ *
+ *   More detail:
+ *   There have been significant confusions over the past many years for users
+ *   when trying to understand how to connect to/from signals and terminals on
+ *   NI hardware using comedi.  The major reason for this is that the actual
+ *   register values were exposed and required to be used by users.  Several
+ *   major reasons exist why this caused major confusion for users:
+ *   1) The register values are _NOT_ in user documentation, but rather in
+ *     arcane locations, such as a few register programming manuals that are
+ *     increasingly hard to find and the NI MHDDK (comments in in example code).
+ *     There is no one place to find the various valid values of the registers.
+ *   2) The register values are _NOT_ completely consistent.  There is no way to
+ *     gain any sense of intuition of which values, or even enums one should use
+ *     for various registers.  There was some attempt in prior use of comedi to
+ *     name enums such that a user might know which enums should be used for
+ *     varying purposes, but the end-user had to gain a knowledge of register
+ *     values to correctly wield this approach.
+ *   3) The names for signals and registers found in the various register level
+ *     programming manuals and vendor-provided documentation are _not_ even
+ *     close to the same names that are in the end-user documentation.
+ *
+ *   Similar, albeit less, confusion plagued NI's previous version of their own
+ *   drivers.  Earlier than 2003, NI greatly simplified the situation for users
+ *   by releasing a new API that abstracted the names of signals/terminals to a
+ *   common and intuitive set of names.
+ *
+ *   The names below mirror the names chosen and well documented by NI.  These
+ *   names are exposed to the user via the comedilib user library.  By keeping
+ *   the names below, in spite of the use of CamelScript, maintenance will be
+ *   greatly eased and confusion for users _and_ comedi developers will be
+ *   greatly reduced.
+ */
+
+/*
+ * Base of abstracted NI names.
+ * The first 16 bits of *_arg are reserved for channel selection.
+ * Since we only actually need the first 4 or 5 bits for all register values on
+ * NI select registers anyways, we'll identify all values >= (1<<15) as being an
+ * abstracted NI signal/terminal name.
+ * These values are also used/returned by INSN_DEVICE_CONFIG_TEST_ROUTE,
+ * INSN_DEVICE_CONFIG_CONNECT_ROUTE, INSN_DEVICE_CONFIG_DISCONNECT_ROUTE,
+ * and INSN_DEVICE_CONFIG_GET_ROUTES.
+ */
+#define NI_NAMES_BASE	0x8000u
+
+#define _TERM_N(base, n, x)	((base) + ((x) & ((n) - 1)))
+
+/*
+ * not necessarily all allowed 64 PFIs are valid--certainly not for all devices
+ */
+#define NI_PFI(x)		_TERM_N(NI_NAMES_BASE, 64, x)
+/* 8 trigger lines by standard, Some devices cannot talk to all eight. */
+#define TRIGGER_LINE(x)		_TERM_N(NI_PFI(-1) + 1, 8, x)
+/* 4 RTSI shared MUXes to route signals to/from TRIGGER_LINES on NI hardware */
+#define NI_RTSI_BRD(x)		_TERM_N(TRIGGER_LINE(-1) + 1, 4, x)
+
+/* *** Counter/timer names : 8 counters max *** */
+#define NI_MAX_COUNTERS		8
+#define NI_COUNTER_NAMES_BASE	(NI_RTSI_BRD(-1)  + 1)
+#define NI_CtrSource(x)	      _TERM_N(NI_COUNTER_NAMES_BASE, NI_MAX_COUNTERS, x)
+/* Gate, Aux, A,B,Z are all treated, at times as gates */
+#define NI_GATES_NAMES_BASE	(NI_CtrSource(-1) + 1)
+#define NI_CtrGate(x)		_TERM_N(NI_GATES_NAMES_BASE, NI_MAX_COUNTERS, x)
+#define NI_CtrAux(x)		_TERM_N(NI_CtrGate(-1)  + 1, NI_MAX_COUNTERS, x)
+#define NI_CtrA(x)		_TERM_N(NI_CtrAux(-1)   + 1, NI_MAX_COUNTERS, x)
+#define NI_CtrB(x)		_TERM_N(NI_CtrA(-1)     + 1, NI_MAX_COUNTERS, x)
+#define NI_CtrZ(x)		_TERM_N(NI_CtrB(-1)     + 1, NI_MAX_COUNTERS, x)
+#define NI_GATES_NAMES_MAX	NI_CtrZ(-1)
+#define NI_CtrArmStartTrigger(x) _TERM_N(NI_CtrZ(-1)    + 1, NI_MAX_COUNTERS, x)
+#define NI_CtrInternalOutput(x) \
+		      _TERM_N(NI_CtrArmStartTrigger(-1) + 1, NI_MAX_COUNTERS, x)
+/** external pin(s) labeled conveniently as Ctr<i>Out. */
+#define NI_CtrOut(x)   _TERM_N(NI_CtrInternalOutput(-1) + 1, NI_MAX_COUNTERS, x)
+/** For Buffered sampling of ctr -- x series capability. */
+#define NI_CtrSampleClock(x)	_TERM_N(NI_CtrOut(-1)   + 1, NI_MAX_COUNTERS, x)
+#define NI_COUNTER_NAMES_MAX	NI_CtrSampleClock(-1)
+
+enum ni_common_signal_names {
+	/* PXI_Star: this is a non-NI-specific signal */
+	PXI_Star = NI_COUNTER_NAMES_MAX + 1,
+	PXI_Clk10,
+	PXIe_Clk100,
+	NI_AI_SampleClock,
+	NI_AI_SampleClockTimebase,
+	NI_AI_StartTrigger,
+	NI_AI_ReferenceTrigger,
+	NI_AI_ConvertClock,
+	NI_AI_ConvertClockTimebase,
+	NI_AI_PauseTrigger,
+	NI_AI_HoldCompleteEvent,
+	NI_AI_HoldComplete,
+	NI_AI_ExternalMUXClock,
+	NI_AI_STOP, /* pulse signal that occurs when a update is finished(?) */
+	NI_AO_SampleClock,
+	NI_AO_SampleClockTimebase,
+	NI_AO_StartTrigger,
+	NI_AO_PauseTrigger,
+	NI_DI_SampleClock,
+	NI_DI_SampleClockTimebase,
+	NI_DI_StartTrigger,
+	NI_DI_ReferenceTrigger,
+	NI_DI_PauseTrigger,
+	NI_DI_InputBufferFull,
+	NI_DI_ReadyForStartEvent,
+	NI_DI_ReadyForTransferEventBurst,
+	NI_DI_ReadyForTransferEventPipelined,
+	NI_DO_SampleClock,
+	NI_DO_SampleClockTimebase,
+	NI_DO_StartTrigger,
+	NI_DO_PauseTrigger,
+	NI_DO_OutputBufferFull,
+	NI_DO_DataActiveEvent,
+	NI_DO_ReadyForStartEvent,
+	NI_DO_ReadyForTransferEvent,
+	NI_MasterTimebase,
+	NI_20MHzTimebase,
+	NI_80MHzTimebase,
+	NI_100MHzTimebase,
+	NI_200MHzTimebase,
+	NI_100kHzTimebase,
+	NI_10MHzRefClock,
+	NI_FrequencyOutput,
+	NI_ChangeDetectionEvent,
+	NI_AnalogComparisonEvent,
+	NI_WatchdogExpiredEvent,
+	NI_WatchdogExpirationTrigger,
+	NI_SCXI_Trig1,
+	NI_LogicLow,
+	NI_LogicHigh,
+	NI_ExternalStrobe,
+	NI_PFI_DO,
+	NI_CaseGround,
+	/* special internal signal used as variable source for RTSI bus: */
+	NI_RGOUT0,
+
+	/* just a name to make the next more convenient, regardless of above */
+	_NI_NAMES_MAX_PLUS_1,
+	NI_NUM_NAMES = _NI_NAMES_MAX_PLUS_1 - NI_NAMES_BASE,
+};
+
+/* *** END GLOBALLY-NAMED NI TERMINALS/SIGNALS *** */
+
 #define NI_USUAL_PFI_SELECT(x)	(((x) < 10) ? (0x1 + (x)) : (0xb + (x)))
 #define NI_USUAL_RTSI_SELECT(x)	(((x) < 7) ? (0xb + (x)) : 0x1b)
 
@@ -1104,18 +1270,19 @@ enum ni_gpct_other_select {
 enum ni_gpct_arm_source {
 	NI_GPCT_ARM_IMMEDIATE = 0x0,
 	/*
-	 * Start both the counter and the adjacent pared
-	 * counter simultaneously
+	 * Start both the counter and the adjacent paired counter simultaneously
 	 */
 	NI_GPCT_ARM_PAIRED_IMMEDIATE = 0x1,
 	/*
-	 * NI doesn't document bits for selecting hardware arm triggers.
-	 * If the NI_GPCT_ARM_UNKNOWN bit is set, we will pass the least
-	 * significant bits (3 bits for 660x or 5 bits for m-series)
-	 * through to the hardware.  This will at least allow someone to
-	 * figure out what the bits do later.
+	 * If the NI_GPCT_HW_ARM bit is set, we will pass the least significant
+	 * bits (3 bits for 660x or 5 bits for m-series) through to the
+	 * hardware. To select a hardware trigger, pass the appropriate select
+	 * bit, e.g.,
+	 * NI_GPCT_HW_ARM | NI_GPCT_AI_START1_GATE_SELECT or
+	 * NI_GPCT_HW_ARM | NI_GPCT_PFI_GATE_SELECT(pfi_number)
 	 */
-	NI_GPCT_ARM_UNKNOWN = 0x1000,
+	NI_GPCT_HW_ARM = 0x1000,
+	NI_GPCT_ARM_UNKNOWN = NI_GPCT_HW_ARM,	/* for backward compatibility */
 };
 
 /* digital filtering options for ni 660x for use with INSN_CONFIG_FILTER. */

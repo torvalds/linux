@@ -1,18 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright(c) 2008 - 2011 Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  *
  * Maintained at www.Open-FCoE.org
  */
@@ -32,13 +20,13 @@ MODULE_AUTHOR("Open-FCoE.org");
 MODULE_DESCRIPTION("FIP discovery protocol and FCoE transport for FCoE HBAs");
 MODULE_LICENSE("GPL v2");
 
-static int fcoe_transport_create(const char *, struct kernel_param *);
-static int fcoe_transport_destroy(const char *, struct kernel_param *);
+static int fcoe_transport_create(const char *, const struct kernel_param *);
+static int fcoe_transport_destroy(const char *, const struct kernel_param *);
 static int fcoe_transport_show(char *buffer, const struct kernel_param *kp);
 static struct fcoe_transport *fcoe_transport_lookup(struct net_device *device);
 static struct fcoe_transport *fcoe_netdev_map_lookup(struct net_device *device);
-static int fcoe_transport_enable(const char *, struct kernel_param *);
-static int fcoe_transport_disable(const char *, struct kernel_param *);
+static int fcoe_transport_enable(const char *, const struct kernel_param *);
+static int fcoe_transport_disable(const char *, const struct kernel_param *);
 static int libfcoe_device_notification(struct notifier_block *notifier,
 				    ulong event, void *ptr);
 
@@ -455,9 +443,11 @@ EXPORT_SYMBOL_GPL(fcoe_check_wait_queue);
  *
  * Calls fcoe_check_wait_queue on timeout
  */
-void fcoe_queue_timer(ulong lport)
+void fcoe_queue_timer(struct timer_list *t)
 {
-	fcoe_check_wait_queue((struct fc_lport *)lport, NULL);
+	struct fcoe_port *port = from_timer(port, t, timer);
+
+	fcoe_check_wait_queue(port->lport, NULL);
 }
 EXPORT_SYMBOL_GPL(fcoe_queue_timer);
 
@@ -853,7 +843,6 @@ out_nodev:
 	mutex_unlock(&ft_mutex);
 	return rc;
 }
-EXPORT_SYMBOL(fcoe_ctlr_destroy_store);
 
 /**
  * fcoe_transport_create() - Create a fcoe interface
@@ -865,12 +854,13 @@ EXPORT_SYMBOL(fcoe_ctlr_destroy_store);
  *
  * Returns: 0 for success
  */
-static int fcoe_transport_create(const char *buffer, struct kernel_param *kp)
+static int fcoe_transport_create(const char *buffer,
+				 const struct kernel_param *kp)
 {
 	int rc = -ENODEV;
 	struct net_device *netdev = NULL;
 	struct fcoe_transport *ft = NULL;
-	enum fip_state fip_mode = (enum fip_state)(long)kp->arg;
+	enum fip_mode fip_mode = (enum fip_mode)kp->arg;
 
 	mutex_lock(&ft_mutex);
 
@@ -930,7 +920,8 @@ out_nodev:
  *
  * Returns: 0 for success
  */
-static int fcoe_transport_destroy(const char *buffer, struct kernel_param *kp)
+static int fcoe_transport_destroy(const char *buffer,
+				  const struct kernel_param *kp)
 {
 	int rc = -ENODEV;
 	struct net_device *netdev = NULL;
@@ -974,7 +965,8 @@ out_nodev:
  *
  * Returns: 0 for success
  */
-static int fcoe_transport_disable(const char *buffer, struct kernel_param *kp)
+static int fcoe_transport_disable(const char *buffer,
+				  const struct kernel_param *kp)
 {
 	int rc = -ENODEV;
 	struct net_device *netdev = NULL;
@@ -1008,7 +1000,8 @@ out_nodev:
  *
  * Returns: 0 for success
  */
-static int fcoe_transport_enable(const char *buffer, struct kernel_param *kp)
+static int fcoe_transport_enable(const char *buffer,
+				 const struct kernel_param *kp)
 {
 	int rc = -ENODEV;
 	struct net_device *netdev = NULL;

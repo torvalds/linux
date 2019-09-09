@@ -93,6 +93,7 @@ static void bluecard_detach(struct pcmcia_device *p_dev);
 
 /* Hardware states */
 #define CARD_READY             1
+#define CARD_ACTIVITY	       2
 #define CARD_HAS_PCCARD_ID     4
 #define CARD_HAS_POWER_LED     5
 #define CARD_HAS_ACTIVITY_LED  6
@@ -155,21 +156,19 @@ static void bluecard_detach(struct pcmcia_device *p_dev);
 /* ======================== LED handling routines ======================== */
 
 
-static void bluecard_activity_led_timeout(u_long arg)
+static void bluecard_activity_led_timeout(struct timer_list *t)
 {
-	struct bluecard_info *info = (struct bluecard_info *)arg;
+	struct bluecard_info *info = from_timer(info, t, timer);
 	unsigned int iobase = info->p_dev->resource[0]->start;
 
-	if (!test_bit(CARD_HAS_PCCARD_ID, &(info->hw_state)))
-		return;
-
-	if (test_bit(CARD_HAS_ACTIVITY_LED, &(info->hw_state))) {
-		/* Disable activity LED */
-		outb(0x08 | 0x20, iobase + 0x30);
-	} else {
-		/* Disable power LED */
-		outb(0x00, iobase + 0x30);
+	if (test_bit(CARD_ACTIVITY, &(info->hw_state))) {
+		/* leave LED in inactive state for HZ/10 for blink effect */
+		clear_bit(CARD_ACTIVITY, &(info->hw_state));
+		mod_timer(&(info->timer), jiffies + HZ / 10);
 	}
+
+	/* Disable activity LED, enable power LED */
+	outb(0x08 | 0x20, iobase + 0x30);
 }
 
 
@@ -177,22 +176,22 @@ static void bluecard_enable_activity_led(struct bluecard_info *info)
 {
 	unsigned int iobase = info->p_dev->resource[0]->start;
 
-	if (!test_bit(CARD_HAS_PCCARD_ID, &(info->hw_state)))
+	/* don't disturb running blink timer */
+	if (timer_pending(&(info->timer)))
 		return;
 
+	set_bit(CARD_ACTIVITY, &(info->hw_state));
+
 	if (test_bit(CARD_HAS_ACTIVITY_LED, &(info->hw_state))) {
-		/* Enable activity LED */
-		outb(0x10 | 0x40, iobase + 0x30);
-
-		/* Stop the LED after HZ/4 */
-		mod_timer(&(info->timer), jiffies + HZ / 4);
+		/* Enable activity LED, keep power LED enabled */
+		outb(0x18 | 0x60, iobase + 0x30);
 	} else {
-		/* Enable power LED */
-		outb(0x08 | 0x20, iobase + 0x30);
-
-		/* Stop the LED after HZ/2 */
-		mod_timer(&(info->timer), jiffies + HZ / 2);
+		/* Disable power LED */
+		outb(0x00, iobase + 0x30);
 	}
+
+	/* Stop the LED after HZ/10 */
+	mod_timer(&(info->timer), jiffies + HZ / 10);
 }
 
 
@@ -303,9 +302,7 @@ static void bluecard_write_wakeup(struct bluecard_info *info)
 			}
 
 			/* Wait until the command reaches the baseband */
-			prepare_to_wait(&wq, &wait, TASK_INTERRUPTIBLE);
-			schedule_timeout(HZ/10);
-			finish_wait(&wq, &wait);
+			mdelay(100);
 
 			/* Set baud on baseband */
 			info->ctrl_reg &= ~0x03;
@@ -317,9 +314,7 @@ static void bluecard_write_wakeup(struct bluecard_info *info)
 			outb(info->ctrl_reg, iobase + REG_CONTROL);
 
 			/* Wait before the next HCI packet can be send */
-			prepare_to_wait(&wq, &wait, TASK_INTERRUPTIBLE);
-			schedule_timeout(HZ);
-			finish_wait(&wq, &wait);
+			mdelay(1000);
 		}
 
 		if (len == skb->len) {
@@ -448,7 +443,7 @@ static void bluecard_receive(struct bluecard_info *info,
 
 		} else {
 
-			*skb_put(info->rx_skb, 1) = buf[i];
+			skb_put_u8(info->rx_skb, buf[i]);
 			info->rx_count--;
 
 			if (info->rx_count == 0) {
@@ -570,7 +565,7 @@ static int bluecard_hci_set_baud_rate(struct hci_dev *hdev, int baud)
 	/* Ericsson baud rate command */
 	unsigned char cmd[] = { HCI_COMMAND_PKT, 0x09, 0xfc, 0x01, 0x03 };
 
-	skb = bt_skb_alloc(HCI_MAX_FRAME_SIZE, GFP_ATOMIC);
+	skb = bt_skb_alloc(HCI_MAX_FRAME_SIZE, GFP_KERNEL);
 	if (!skb) {
 		BT_ERR("Can't allocate mem for new packet");
 		return -1;
@@ -597,7 +592,7 @@ static int bluecard_hci_set_baud_rate(struct hci_dev *hdev, int baud)
 		break;
 	}
 
-	memcpy(skb_put(skb, sizeof(cmd)), cmd, sizeof(cmd));
+	skb_put_data(skb, cmd, sizeof(cmd));
 
 	skb_queue_tail(&(info->txq), skb);
 
@@ -625,16 +620,13 @@ static int bluecard_hci_flush(struct hci_dev *hdev)
 static int bluecard_hci_open(struct hci_dev *hdev)
 {
 	struct bluecard_info *info = hci_get_drvdata(hdev);
+	unsigned int iobase = info->p_dev->resource[0]->start;
 
 	if (test_bit(CARD_HAS_PCCARD_ID, &(info->hw_state)))
 		bluecard_hci_set_baud_rate(hdev, DEFAULT_BAUD_RATE);
 
-	if (test_bit(CARD_HAS_PCCARD_ID, &(info->hw_state))) {
-		unsigned int iobase = info->p_dev->resource[0]->start;
-
-		/* Enable LED */
-		outb(0x08 | 0x20, iobase + 0x30);
-	}
+	/* Enable power LED */
+	outb(0x08 | 0x20, iobase + 0x30);
 
 	return 0;
 }
@@ -643,15 +635,15 @@ static int bluecard_hci_open(struct hci_dev *hdev)
 static int bluecard_hci_close(struct hci_dev *hdev)
 {
 	struct bluecard_info *info = hci_get_drvdata(hdev);
+	unsigned int iobase = info->p_dev->resource[0]->start;
 
 	bluecard_hci_flush(hdev);
 
-	if (test_bit(CARD_HAS_PCCARD_ID, &(info->hw_state))) {
-		unsigned int iobase = info->p_dev->resource[0]->start;
+	/* Stop LED timer */
+	del_timer_sync(&(info->timer));
 
-		/* Disable LED */
-		outb(0x00, iobase + 0x30);
-	}
+	/* Disable power LED */
+	outb(0x00, iobase + 0x30);
 
 	return 0;
 }
@@ -695,9 +687,7 @@ static int bluecard_open(struct bluecard_info *info)
 
 	spin_lock_init(&(info->lock));
 
-	init_timer(&(info->timer));
-	info->timer.function = &bluecard_activity_led_timeout;
-	info->timer.data = (u_long)info;
+	timer_setup(&info->timer, bluecard_activity_led_timeout, 0);
 
 	skb_queue_head_init(&(info->txq));
 

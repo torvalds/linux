@@ -1,20 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Pinctrl data for Wondermedia WM8650 SoC
  *
  * Copyright (c) 2013 Tony Prisk <linux@prisktech.co.nz>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #include <linux/io.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
@@ -327,10 +319,8 @@ static int wm8650_pinctrl_probe(struct platform_device *pdev)
 	struct wmt_pinctrl_data *data;
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
-	if (!data) {
-		dev_err(&pdev->dev, "failed to allocate data\n");
+	if (!data)
 		return -ENOMEM;
-	}
 
 	data->banks = wm8650_banks;
 	data->nbanks = ARRAY_SIZE(wm8650_banks);
@@ -342,11 +332,6 @@ static int wm8650_pinctrl_probe(struct platform_device *pdev)
 	return wmt_pinctrl_probe(pdev, data);
 }
 
-static int wm8650_pinctrl_remove(struct platform_device *pdev)
-{
-	return wmt_pinctrl_remove(pdev);
-}
-
 static const struct of_device_id wmt_pinctrl_of_match[] = {
 	{ .compatible = "wm,wm8650-pinctrl" },
 	{ /* sentinel */ },
@@ -354,16 +339,10 @@ static const struct of_device_id wmt_pinctrl_of_match[] = {
 
 static struct platform_driver wmt_pinctrl_driver = {
 	.probe	= wm8650_pinctrl_probe,
-	.remove	= wm8650_pinctrl_remove,
 	.driver = {
 		.name	= "pinctrl-wm8650",
 		.of_match_table	= wmt_pinctrl_of_match,
+		.suppress_bind_attrs = true,
 	},
 };
-
-module_platform_driver(wmt_pinctrl_driver);
-
-MODULE_AUTHOR("Tony Prisk <linux@prisktech.co.nz>");
-MODULE_DESCRIPTION("Wondermedia WM8650 Pincontrol driver");
-MODULE_LICENSE("GPL v2");
-MODULE_DEVICE_TABLE(of, wmt_pinctrl_of_match);
+builtin_platform_driver(wmt_pinctrl_driver);

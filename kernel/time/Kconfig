@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Timer subsystem related configuration options
 #
@@ -12,6 +13,10 @@ config CLOCKSOURCE_WATCHDOG
 config ARCH_CLOCKSOURCE_DATA
 	bool
 
+# Architecture has extra clocksource init called from registration
+config ARCH_CLOCKSOURCE_INIT
+	bool
+
 # Clocksources require validation of the clocksource against the last
 # cycle update - x86/TSC misfeature
 config CLOCKSOURCE_VALIDATE_LAST_CYCLE
@@ -19,10 +24,6 @@ config CLOCKSOURCE_VALIDATE_LAST_CYCLE
 
 # Timekeeping vsyscall support
 config GENERIC_TIME_VSYSCALL
-	bool
-
-# Timekeeping vsyscall support
-config GENERIC_TIME_VSYSCALL_OLD
 	bool
 
 # Old style timekeeping
@@ -56,7 +57,7 @@ menu "Timers subsystem"
 
 # Core internal switch. Selected by NO_HZ_COMMON / HIGH_RES_TIMERS. This is
 # only related to the tick functionality. Oneshot clockevent devices
-# are supported independ of this.
+# are supported independent of this.
 config TICK_ONESHOT
 	bool
 
@@ -99,6 +100,7 @@ config NO_HZ_FULL
 	select RCU_NOCB_CPU
 	select VIRT_CPU_ACCOUNTING_GEN
 	select IRQ_WORK
+	select CPU_ISOLATION
 	help
 	 Adaptively try to shutdown the tick whenever possible, even when
 	 the CPU is running tasks. Typically this requires running a single
@@ -116,65 +118,34 @@ config NO_HZ_FULL
 
 endchoice
 
-config NO_HZ_FULL_ALL
-       bool "Full dynticks system on all CPUs by default (except CPU 0)"
-       depends on NO_HZ_FULL
-       help
-         If the user doesn't pass the nohz_full boot option to
-	 define the range of full dynticks CPUs, consider that all
-	 CPUs in the system are full dynticks by default.
-	 Note the boot CPU will still be kept outside the range to
-	 handle the timekeeping duty.
+config CONTEXT_TRACKING
+       bool
 
-config NO_HZ_FULL_SYSIDLE
-	bool "Detect full-system idle state for full dynticks system"
-	depends on NO_HZ_FULL
-	default n
+config CONTEXT_TRACKING_FORCE
+	bool "Force context tracking"
+	depends on CONTEXT_TRACKING
+	default y if !NO_HZ_FULL
 	help
-	 At least one CPU must keep the scheduling-clock tick running for
-	 timekeeping purposes whenever there is a non-idle CPU, where
-	 "non-idle" also includes dynticks CPUs as long as they are
-	 running non-idle tasks.  Because the underlying adaptive-tick
-	 support cannot distinguish between all CPUs being idle and
-	 all CPUs each running a single task in dynticks mode, the
-	 underlying support simply ensures that there is always a CPU
-	 handling the scheduling-clock tick, whether or not all CPUs
-	 are idle.  This Kconfig option enables scalable detection of
-	 the all-CPUs-idle state, thus allowing the scheduling-clock
-	 tick to be disabled when all CPUs are idle.  Note that scalable
-	 detection of the all-CPUs-idle state means that larger systems
-	 will be slower to declare the all-CPUs-idle state.
+	  The major pre-requirement for full dynticks to work is to
+	  support the context tracking subsystem. But there are also
+	  other dependencies to provide in order to make the full
+	  dynticks working.
 
-	 Say Y if you would like to help debug all-CPUs-idle detection.
+	  This option stands for testing when an arch implements the
+	  context tracking backend but doesn't yet fullfill all the
+	  requirements to make the full dynticks feature working.
+	  Without the full dynticks, there is no way to test the support
+	  for context tracking and the subsystems that rely on it: RCU
+	  userspace extended quiescent state and tickless cputime
+	  accounting. This option copes with the absence of the full
+	  dynticks subsystem by forcing the context tracking on all
+	  CPUs in the system.
 
-	 Say N if you are unsure.
+	  Say Y only if you're working on the development of an
+	  architecture backend for the context tracking.
 
-config NO_HZ_FULL_SYSIDLE_SMALL
-	int "Number of CPUs above which large-system approach is used"
-	depends on NO_HZ_FULL_SYSIDLE
-	range 1 NR_CPUS
-	default 8
-	help
-	 The full-system idle detection mechanism takes a lazy approach
-	 on large systems, as is required to attain decent scalability.
-	 However, on smaller systems, scalability is not anywhere near as
-	 large a concern as is energy efficiency.  The sysidle subsystem
-	 therefore uses a fast but non-scalable algorithm for small
-	 systems and a lazier but scalable algorithm for large systems.
-	 This Kconfig parameter defines the number of CPUs in the largest
-	 system that will be considered to be "small".
-
-	 The default value will be fine in most cases.	Battery-powered
-	 systems that (1) enable NO_HZ_FULL_SYSIDLE, (2) have larger
-	 numbers of CPUs, and (3) are suffering from battery-lifetime
-	 problems due to long sysidle latencies might wish to experiment
-	 with larger values for this Kconfig parameter.  On the other
-	 hand, they might be even better served by disabling NO_HZ_FULL
-	 entirely, given that NO_HZ_FULL is intended for HPC and
-	 real-time workloads that at present do not tend to be run on
-	 battery-powered systems.
-
-	 Take the default if you are unsure.
+	  Say N otherwise, this option brings an overhead that you
+	  don't want in production.
 
 config NO_HZ
 	bool "Old Idle dynticks config"

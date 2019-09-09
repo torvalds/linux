@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2011, 2012 Patrick McHardy <kaber@trash.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -112,6 +109,7 @@ static struct xt_target ip6t_npt_target_reg[] __read_mostly = {
 		.table		= "mangle",
 		.target		= ip6t_snpt_tg,
 		.targetsize	= sizeof(struct ip6t_npt_tginfo),
+		.usersize	= offsetof(struct ip6t_npt_tginfo, adjustment),
 		.checkentry	= ip6t_npt_checkentry,
 		.family		= NFPROTO_IPV6,
 		.hooks		= (1 << NF_INET_LOCAL_IN) |
@@ -123,6 +121,7 @@ static struct xt_target ip6t_npt_target_reg[] __read_mostly = {
 		.table		= "mangle",
 		.target		= ip6t_dnpt_tg,
 		.targetsize	= sizeof(struct ip6t_npt_tginfo),
+		.usersize	= offsetof(struct ip6t_npt_tginfo, adjustment),
 		.checkentry	= ip6t_npt_checkentry,
 		.family		= NFPROTO_IPV6,
 		.hooks		= (1 << NF_INET_PRE_ROUTING) |

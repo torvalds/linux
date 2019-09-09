@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  toshiba_acpi.c - Toshiba Laptop ACPI Extras
  *
@@ -5,19 +6,6 @@
  *  Copyright (C) 2008 Philip Langdale
  *  Copyright (C) 2010 Pierre Ducroquet
  *  Copyright (C) 2014-2016 Azael Avalos
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  The full GNU General Public License is included in this distribution in
- *  the file called "COPYING".
  *
  *  The devolpment page for this driver is located at
  *  http://memebeam.org/toys/ToshibaAcpiDriver.
@@ -34,6 +22,7 @@
 #define TOSHIBA_ACPI_VERSION	"0.24"
 #define PROC_INTERFACE_VERSION	1
 
+#include <linux/compiler.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -1502,14 +1491,9 @@ static ssize_t video_proc_write(struct file *file, const char __user *buf,
 	int ret;
 	u32 video_out;
 
-	cmd = kmalloc(count + 1, GFP_KERNEL);
-	if (!cmd)
-		return -ENOMEM;
-	if (copy_from_user(cmd, buf, count)) {
-		kfree(cmd);
-		return -EFAULT;
-	}
-	cmd[count] = '\0';
+	cmd = memdup_user_nul(buf, count);
+	if (IS_ERR(cmd))
+		return PTR_ERR(cmd);
 
 	buffer = cmd;
 
@@ -1687,25 +1671,12 @@ static const struct file_operations keys_proc_fops = {
 	.write		= keys_proc_write,
 };
 
-static int version_proc_show(struct seq_file *m, void *v)
+static int __maybe_unused version_proc_show(struct seq_file *m, void *v)
 {
 	seq_printf(m, "driver:                  %s\n", TOSHIBA_ACPI_VERSION);
 	seq_printf(m, "proc_interface:          %d\n", PROC_INTERFACE_VERSION);
 	return 0;
 }
-
-static int version_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, version_proc_show, PDE_DATA(inode));
-}
-
-static const struct file_operations version_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= version_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
 
 /*
  * Proc and module init
@@ -1727,8 +1698,8 @@ static void create_toshiba_proc_entries(struct toshiba_acpi_dev *dev)
 	if (dev->hotkey_dev)
 		proc_create_data("keys", S_IRUGO | S_IWUSR, toshiba_proc_dir,
 				 &keys_proc_fops, dev);
-	proc_create_data("version", S_IRUGO, toshiba_proc_dir,
-			 &version_proc_fops, dev);
+	proc_create_single_data("version", S_IRUGO, toshiba_proc_dir,
+			version_proc_show, dev);
 }
 
 static void remove_toshiba_proc_entries(struct toshiba_acpi_dev *dev)
@@ -1854,6 +1825,7 @@ static ssize_t kbd_backlight_mode_store(struct device *dev,
 			return ret;
 
 		toshiba->kbd_mode = mode;
+		toshiba_acpi->kbd_mode = mode;
 
 		/*
 		 * Some laptop models with the second generation backlit
@@ -1870,7 +1842,7 @@ static ssize_t kbd_backlight_mode_store(struct device *dev,
 		 * event via genetlink.
 		 */
 		if (toshiba->kbd_type == 2 &&
-		    !toshiba_acpi->kbd_event_generated)
+		    !toshiba->kbd_event_generated)
 			schedule_work(&kbd_bl_work);
 	}
 
@@ -2424,23 +2396,28 @@ static umode_t toshiba_sysfs_is_visible(struct kobject *kobj,
 	return exists ? attr->mode : 0;
 }
 
-static struct attribute_group toshiba_attr_group = {
+static const struct attribute_group toshiba_attr_group = {
 	.is_visible = toshiba_sysfs_is_visible,
 	.attrs = toshiba_attributes,
 };
 
 static void toshiba_acpi_kbd_bl_work(struct work_struct *work)
 {
-	struct acpi_device *acpi_dev = toshiba_acpi->acpi_dev;
-
 	/* Update the sysfs entries */
-	if (sysfs_update_group(&acpi_dev->dev.kobj,
+	if (sysfs_update_group(&toshiba_acpi->acpi_dev->dev.kobj,
 			       &toshiba_attr_group))
 		pr_err("Unable to update sysfs entries\n");
 
+	/* Notify LED subsystem about keyboard backlight change */
+	if (toshiba_acpi->kbd_type == 2 &&
+	    toshiba_acpi->kbd_mode != SCI_KBD_MODE_AUTO)
+		led_classdev_notify_brightness_hw_changed(&toshiba_acpi->kbd_led,
+				(toshiba_acpi->kbd_mode == SCI_KBD_MODE_ON) ?
+				LED_FULL : LED_OFF);
+
 	/* Emulate the keyboard backlight event */
-	acpi_bus_generate_netlink_event(acpi_dev->pnp.device_class,
-					dev_name(&acpi_dev->dev),
+	acpi_bus_generate_netlink_event(toshiba_acpi->acpi_dev->pnp.device_class,
+					dev_name(&toshiba_acpi->acpi_dev->dev),
 					0x92, 0);
 }
 
@@ -2515,7 +2492,6 @@ static const struct iio_chan_spec toshiba_iio_accel_channels[] = {
 };
 
 static const struct iio_info toshiba_iio_accel_info = {
-	.driver_module = THIS_MODULE,
 	.read_raw = &toshiba_iio_accel_read_raw,
 };
 
@@ -2849,7 +2825,7 @@ static int toshiba_acpi_setup_keyboard(struct toshiba_acpi_dev *dev)
 		error = i8042_install_filter(toshiba_acpi_i8042_filter);
 		if (error) {
 			pr_err("Error installing key filter\n");
-			goto err_free_keymap;
+			goto err_free_dev;
 		}
 
 		dev->ntfy_supported = 1;
@@ -2880,8 +2856,6 @@ static int toshiba_acpi_setup_keyboard(struct toshiba_acpi_dev *dev)
  err_remove_filter:
 	if (dev->ntfy_supported)
 		i8042_remove_filter(toshiba_acpi_i8042_filter);
- err_free_keymap:
-	sparse_keymap_free(dev->hotkey_dev);
  err_free_dev:
 	input_free_device(dev->hotkey_dev);
 	dev->hotkey_dev = NULL;
@@ -3018,10 +2992,8 @@ static int toshiba_acpi_remove(struct acpi_device *acpi_dev)
 		cancel_work_sync(&dev->hotkey_work);
 	}
 
-	if (dev->hotkey_dev) {
+	if (dev->hotkey_dev)
 		input_unregister_device(dev->hotkey_dev);
-		sparse_keymap_free(dev->hotkey_dev);
-	}
 
 	backlight_device_unregister(dev->backlight_dev);
 
@@ -3142,9 +3114,12 @@ static int toshiba_acpi_add(struct acpi_device *acpi_dev)
 	/*
 	 * Only register the LED if KBD illumination is supported
 	 * and the keyboard backlight operation mode is set to FN-Z
+	 * or we detect a second gen keyboard backlight
 	 */
-	if (dev->kbd_illum_supported && dev->kbd_mode == SCI_KBD_MODE_FNZ) {
+	if (dev->kbd_illum_supported &&
+	    (dev->kbd_mode == SCI_KBD_MODE_FNZ || dev->kbd_type == 2)) {
 		dev->kbd_led.name = "toshiba::kbd_backlight";
+		dev->kbd_led.flags = LED_BRIGHT_HW_CHANGED;
 		dev->kbd_led.max_brightness = 1;
 		dev->kbd_led.brightness_set = toshiba_kbd_backlight_set;
 		dev->kbd_led.brightness_get = toshiba_kbd_backlight_get;
@@ -3260,11 +3235,16 @@ static void toshiba_acpi_notify(struct acpi_device *acpi_dev, u32 event)
 		pr_info("SATA power event received %x\n", event);
 		break;
 	case 0x92: /* Keyboard backlight mode changed */
-		toshiba_acpi->kbd_event_generated = true;
+		dev->kbd_event_generated = true;
 		/* Update sysfs entries */
 		if (sysfs_update_group(&acpi_dev->dev.kobj,
 				       &toshiba_attr_group))
 			pr_err("Unable to update sysfs entries\n");
+		/* Notify LED subsystem about keyboard backlight change */
+		if (dev->kbd_type == 2 && dev->kbd_mode != SCI_KBD_MODE_AUTO)
+			led_classdev_notify_brightness_hw_changed(&dev->kbd_led,
+					(dev->kbd_mode == SCI_KBD_MODE_ON) ?
+					LED_FULL : LED_OFF);
 		break;
 	case 0x85: /* Unknown */
 	case 0x8d: /* Unknown */

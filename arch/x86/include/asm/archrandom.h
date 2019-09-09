@@ -1,23 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * This file is part of the Linux kernel.
  *
  * Copyright (c) 2011-2014, Intel Corporation
  * Authors: Fenghua Yu <fenghua.yu@intel.com>,
  *          H. Peter Anvin <hpa@linux.intel.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
- *
  */
 
 #ifndef ASM_X86_ARCHRANDOM_H
@@ -45,7 +32,7 @@ static inline bool rdrand_long(unsigned long *v)
 	bool ok;
 	unsigned int retry = RDRAND_RETRY_LOOPS;
 	do {
-		asm volatile(RDRAND_LONG "\n\t"
+		asm volatile(RDRAND_LONG
 			     CC_SET(c)
 			     : CC_OUT(c) (ok), "=a" (*v));
 		if (ok)
@@ -59,7 +46,7 @@ static inline bool rdrand_int(unsigned int *v)
 	bool ok;
 	unsigned int retry = RDRAND_RETRY_LOOPS;
 	do {
-		asm volatile(RDRAND_INT "\n\t"
+		asm volatile(RDRAND_INT
 			     CC_SET(c)
 			     : CC_OUT(c) (ok), "=a" (*v));
 		if (ok)
@@ -71,7 +58,7 @@ static inline bool rdrand_int(unsigned int *v)
 static inline bool rdseed_long(unsigned long *v)
 {
 	bool ok;
-	asm volatile(RDSEED_LONG "\n\t"
+	asm volatile(RDSEED_LONG
 		     CC_SET(c)
 		     : CC_OUT(c) (ok), "=a" (*v));
 	return ok;
@@ -80,7 +67,7 @@ static inline bool rdseed_long(unsigned long *v)
 static inline bool rdseed_int(unsigned int *v)
 {
 	bool ok;
-	asm volatile(RDSEED_INT "\n\t"
+	asm volatile(RDSEED_INT
 		     CC_SET(c)
 		     : CC_OUT(c) (ok), "=a" (*v));
 	return ok;

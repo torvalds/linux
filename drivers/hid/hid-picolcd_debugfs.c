@@ -1,20 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /***************************************************************************
  *   Copyright (C) 2010-2012 by Bruno Prémont <bonbons@linux-vserver.org>  *
  *                                                                         *
  *   Based on Logitech G13 driver (v0.4)                                   *
  *     Copyright (C) 2009 by Rick L. Vinyard, Jr. <rvinyard@cs.nmsu.edu>   *
  *                                                                         *
- *   This program is free software: you can redistribute it and/or modify  *
- *   it under the terms of the GNU General Public License as published by  *
- *   the Free Software Foundation, version 2 of the License.               *
- *                                                                         *
- *   This driver is distributed in the hope that it will be useful, but    *
- *   WITHOUT ANY WARRANTY; without even the implied warranty of            *
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU      *
- *   General Public License for more details.                              *
- *                                                                         *
- *   You should have received a copy of the GNU General Public License     *
- *   along with this software. If not see <http://www.gnu.org/licenses/>.  *
  ***************************************************************************/
 
 #include <linux/hid.h>
@@ -736,7 +726,7 @@ void picolcd_debug_raw_event(struct picolcd_data *data,
 		}
 		break;
 	case REPORT_MEMORY:
-		/* Data buffer in response to REPORT_READ_MEMORY or REPORT_WRTIE_MEMORY */
+		/* Data buffer in response to REPORT_READ_MEMORY or REPORT_WRITE_MEMORY */
 		snprintf(buff, BUFF_SZ, "report %s (%d, size=%d)\n",
 			"REPORT_MEMORY", report->id, size-1);
 		hid_debug_event(hdev, buff);

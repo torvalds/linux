@@ -1,21 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for Digigram VXpocket V2/440 soundcards
  *
  * Copyright (c) 2002 by Takashi Iwai <tiwai@suse.de>
 
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 
@@ -155,7 +143,7 @@ static int snd_vxpocket_new(struct snd_card *card, int ibl,
 	}
 	chip->ibl.size = ibl;
 
-	vxp = (struct snd_vxpocket *)chip;
+	vxp = to_vxpocket(chip);
 
 	vxp->p_dev = link;
 	link->priv = chip;
@@ -187,7 +175,7 @@ static int snd_vxpocket_assign_resources(struct vx_core *chip, int port, int irq
 {
 	int err;
 	struct snd_card *card = chip->card;
-	struct snd_vxpocket *vxp = (struct snd_vxpocket *)chip;
+	struct snd_vxpocket *vxp = to_vxpocket(chip);
 
 	snd_printdd(KERN_DEBUG "vxpocket assign resources: port = 0x%x, irq = %d\n", port, irq);
 	vxp->port = port;

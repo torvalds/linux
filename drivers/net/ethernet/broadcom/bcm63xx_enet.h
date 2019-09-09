@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef BCM63XX_ENET_H_
 #define BCM63XX_ENET_H_
 
@@ -8,7 +9,6 @@
 #include <linux/platform_device.h>
 
 #include <bcm63xx_regs.h>
-#include <bcm63xx_irq.h>
 #include <bcm63xx_io.h>
 #include <bcm63xx_iudma.h>
 
@@ -192,9 +192,6 @@ struct bcm_enet_mib_counters {
 
 
 struct bcm_enet_priv {
-
-	/* mac id (from platform device id) */
-	int mac_id;
 
 	/* base remapped address of device */
 	void __iomem *base;

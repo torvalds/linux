@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  pSeries firmware setup code.
  *
@@ -14,11 +15,6 @@
  *    Copyright (C) 2005 Stephen Rothwell, IBM Corporation
  *
  *  Copyright 2006 IBM Corporation.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 
@@ -64,6 +60,9 @@ hypertas_fw_features_table[] = {
 	{FW_FEATURE_VPHN,		"hcall-vphn"},
 	{FW_FEATURE_SET_MODE,		"hcall-set-mode"},
 	{FW_FEATURE_BEST_ENERGY,	"hcall-best-energy-1*"},
+	{FW_FEATURE_HPT_RESIZE,		"hcall-hpt-resize"},
+	{FW_FEATURE_BLOCK_REMOVE,	"hcall-block-remove"},
+	{FW_FEATURE_PAPR_SCM,		"hcall-scm"},
 };
 
 /* Build up the firmware features bitmask using the contents of
@@ -113,6 +112,8 @@ static __initdata struct vec5_fw_feature
 vec5_fw_features_table[] = {
 	{FW_FEATURE_TYPE1_AFFINITY,	OV5_TYPE1_AFFINITY},
 	{FW_FEATURE_PRRN,		OV5_PRRN},
+	{FW_FEATURE_DRMEM_V2,		OV5_DRMEM_V2},
+	{FW_FEATURE_DRC_INFO,		OV5_DRC_INFO},
 };
 
 static void __init fw_vec5_feature_init(const char *vec5, unsigned long len)
@@ -126,7 +127,7 @@ static void __init fw_vec5_feature_init(const char *vec5, unsigned long len)
 		index = OV5_INDX(vec5_fw_features_table[i].feature);
 		feat = OV5_FEAT(vec5_fw_features_table[i].feature);
 
-		if (vec5[index] & feat)
+		if (index < len && (vec5[index] & feat))
 			powerpc_firmware_features |=
 				vec5_fw_features_table[i].val;
 	}

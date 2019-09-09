@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR MIT) */
 /******************************************************************************
  * privcmd.h
  *
@@ -77,6 +78,26 @@ struct privcmd_mmapbatch_v2 {
 	int __user *err;  /* array of error codes */
 };
 
+struct privcmd_dm_op_buf {
+	void __user *uptr;
+	size_t size;
+};
+
+struct privcmd_dm_op {
+	domid_t dom;
+	__u16 num;
+	const struct privcmd_dm_op_buf __user *ubufs;
+};
+
+struct privcmd_mmap_resource {
+	domid_t dom;
+	__u32 type;
+	__u32 id;
+	__u32 idx;
+	__u64 num;
+	__u64 addr;
+};
+
 /*
  * @cmd: IOCTL_PRIVCMD_HYPERCALL
  * @arg: &privcmd_hypercall_t
@@ -98,5 +119,11 @@ struct privcmd_mmapbatch_v2 {
 	_IOC(_IOC_NONE, 'P', 3, sizeof(struct privcmd_mmapbatch))
 #define IOCTL_PRIVCMD_MMAPBATCH_V2				\
 	_IOC(_IOC_NONE, 'P', 4, sizeof(struct privcmd_mmapbatch_v2))
+#define IOCTL_PRIVCMD_DM_OP					\
+	_IOC(_IOC_NONE, 'P', 5, sizeof(struct privcmd_dm_op))
+#define IOCTL_PRIVCMD_RESTRICT					\
+	_IOC(_IOC_NONE, 'P', 6, sizeof(domid_t))
+#define IOCTL_PRIVCMD_MMAP_RESOURCE				\
+	_IOC(_IOC_NONE, 'P', 7, sizeof(struct privcmd_mmap_resource))
 
 #endif /* __LINUX_PUBLIC_PRIVCMD_H__ */

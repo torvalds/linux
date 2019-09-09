@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /* SCTP kernel implementation
  * (C) Copyright IBM Corp. 2001, 2004
  * Copyright (c) 1999-2000 Cisco, Inc.
@@ -10,22 +11,6 @@
  * sctp_ulpq is the interface between the Upper Layer Protocol, or ULP,
  * and the core SCTP state machine.  This is the component which handles
  * reassembly and ordering.
- *
- * This SCTP implementation is free software;
- * you can redistribute it and/or modify it under the terms of
- * the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This SCTP implementation  is distributed in the hope that it
- * will be useful, but WITHOUT ANY WARRANTY; without even the implied
- *                 ************************
- * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- * See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with GNU CC; see the file COPYING.  If not, see
- * <http://www.gnu.org/licenses/>.
  *
  * Please send any bug reports or fixes you make to the
  * email addresses:
@@ -45,6 +30,7 @@ struct sctp_ulpq {
 	char pd_mode;
 	struct sctp_association *asoc;
 	struct sk_buff_head reasm;
+	struct sk_buff_head reasm_uo;
 	struct sk_buff_head lobby;
 };
 
@@ -58,7 +44,7 @@ void sctp_ulpq_free(struct sctp_ulpq *);
 int sctp_ulpq_tail_data(struct sctp_ulpq *, struct sctp_chunk *, gfp_t);
 
 /* Add a new event for propagation to the ULP. */
-int sctp_ulpq_tail_event(struct sctp_ulpq *, struct sctp_ulpevent *ev);
+int sctp_ulpq_tail_event(struct sctp_ulpq *, struct sk_buff_head *skb_list);
 
 /* Renege previously received chunks.  */
 void sctp_ulpq_renege(struct sctp_ulpq *, struct sctp_chunk *, gfp_t);
@@ -76,11 +62,8 @@ int sctp_clear_pd(struct sock *sk, struct sctp_association *asoc);
 void sctp_ulpq_skip(struct sctp_ulpq *ulpq, __u16 sid, __u16 ssn);
 
 void sctp_ulpq_reasm_flushtsn(struct sctp_ulpq *, __u32);
+
+__u16 sctp_ulpq_renege_list(struct sctp_ulpq *ulpq,
+			    struct sk_buff_head *list, __u16 needed);
+
 #endif /* __sctp_ulpqueue_h__ */
-
-
-
-
-
-
-

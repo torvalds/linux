@@ -1,0 +1,147 @@
+Qualcomm RPM/RPMh Power domains
+
+For RPM/RPMh Power domains, we communicate a performance state to RPM/RPMh
+which then translates it into a corresponding voltage on a rail
+
+Required Properties:
+ - compatible: Should be one of the following
+	* qcom,msm8996-rpmpd: RPM Power domain for the msm8996 family of SoC
+	* qcom,msm8998-rpmpd: RPM Power domain for the msm8998 family of SoC
+	* qcom,qcs404-rpmpd: RPM Power domain for the qcs404 family of SoC
+	* qcom,sdm845-rpmhpd: RPMh Power domain for the sdm845 family of SoC
+ - #power-domain-cells: number of cells in Power domain specifier
+	must be 1.
+ - operating-points-v2: Phandle to the OPP table for the Power domain.
+	Refer to Documentation/devicetree/bindings/power/power_domain.txt
+	and Documentation/devicetree/bindings/opp/opp.txt for more details
+
+Refer to <dt-bindings/power/qcom-rpmpd.h> for the level values for
+various OPPs for different platforms as well as Power domain indexes
+
+Example: rpmh power domain controller and OPP table
+
+#include <dt-bindings/power/qcom-rpmhpd.h>
+
+opp-level values specified in the OPP tables for RPMh power domains
+should use the RPMH_REGULATOR_LEVEL_* constants from
+<dt-bindings/power/qcom-rpmhpd.h>
+
+	rpmhpd: power-controller {
+		compatible = "qcom,sdm845-rpmhpd";
+		#power-domain-cells = <1>;
+		operating-points-v2 = <&rpmhpd_opp_table>;
+
+		rpmhpd_opp_table: opp-table {
+			compatible = "operating-points-v2";
+
+			rpmhpd_opp_ret: opp1 {
+				opp-level = <RPMH_REGULATOR_LEVEL_RETENTION>;
+			};
+
+			rpmhpd_opp_min_svs: opp2 {
+				opp-level = <RPMH_REGULATOR_LEVEL_MIN_SVS>;
+			};
+
+			rpmhpd_opp_low_svs: opp3 {
+				opp-level = <RPMH_REGULATOR_LEVEL_LOW_SVS>;
+			};
+
+			rpmhpd_opp_svs: opp4 {
+				opp-level = <RPMH_REGULATOR_LEVEL_SVS>;
+			};
+
+			rpmhpd_opp_svs_l1: opp5 {
+				opp-level = <RPMH_REGULATOR_LEVEL_SVS_L1>;
+			};
+
+			rpmhpd_opp_nom: opp6 {
+				opp-level = <RPMH_REGULATOR_LEVEL_NOM>;
+			};
+
+			rpmhpd_opp_nom_l1: opp7 {
+				opp-level = <RPMH_REGULATOR_LEVEL_NOM_L1>;
+			};
+
+			rpmhpd_opp_nom_l2: opp8 {
+				opp-level = <RPMH_REGULATOR_LEVEL_NOM_L2>;
+			};
+
+			rpmhpd_opp_turbo: opp9 {
+				opp-level = <RPMH_REGULATOR_LEVEL_TURBO>;
+			};
+
+			rpmhpd_opp_turbo_l1: opp10 {
+				opp-level = <RPMH_REGULATOR_LEVEL_TURBO_L1>;
+			};
+		};
+	};
+
+Example: rpm power domain controller and OPP table
+
+	rpmpd: power-controller {
+		compatible = "qcom,msm8996-rpmpd";
+		#power-domain-cells = <1>;
+		operating-points-v2 = <&rpmpd_opp_table>;
+
+		rpmpd_opp_table: opp-table {
+			compatible = "operating-points-v2";
+
+			rpmpd_opp_low: opp1 {
+				opp-level = <1>;
+			};
+
+			rpmpd_opp_ret: opp2 {
+				opp-level = <2>;
+			};
+
+			rpmpd_opp_svs: opp3 {
+				opp-level = <3>;
+			};
+
+			rpmpd_opp_normal: opp4 {
+				opp-level = <4>;
+			};
+
+			rpmpd_opp_high: opp5 {
+				opp-level = <5>;
+			};
+
+			rpmpd_opp_turbo: opp6 {
+				opp-level = <6>;
+			};
+		};
+	};
+
+Example: Client/Consumer device using OPP table
+
+	leaky-device0@12350000 {
+		compatible = "foo,i-leak-current";
+		reg = <0x12350000 0x1000>;
+		power-domains = <&rpmhpd SDM845_MX>;
+		operating-points-v2 = <&leaky_opp_table>;
+	};
+
+
+	leaky_opp_table: opp-table {
+		compatible = "operating-points-v2";
+
+		opp1 {
+			opp-hz = /bits/ 64 <144000>;
+			required-opps = <&rpmhpd_opp_low>;
+		};
+
+		opp2 {
+			opp-hz = /bits/ 64 <400000>;
+			required-opps = <&rpmhpd_opp_ret>;
+		};
+
+		opp3 {
+			opp-hz = /bits/ 64 <20000000>;
+			required-opps = <&rpmpd_opp_svs>;
+		};
+
+		opp4 {
+			opp-hz = /bits/ 64 <25000000>;
+			required-opps = <&rpmpd_opp_normal>;
+		};
+	};

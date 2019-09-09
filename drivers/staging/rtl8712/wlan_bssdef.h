@@ -1,19 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2010 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
  *
  * Modifications for inclusion into the Linux staging tree are
  * Copyright(c) 2010 Larry Finger. All rights reserved.
@@ -53,9 +41,9 @@ struct NDIS_802_11_CONFIGURATION_FH {
 };
 
 /*
-	FW will only save the channel number in DSConfig.
-	ODI Handler will convert the channel number to freq. number.
-*/
+ * FW will only save the channel number in DSConfig.
+ * ODI Handler will convert the channel number to freq. number.
+ */
 struct NDIS_802_11_CONFIGURATION {
 	u32 Length;             /* Length of structure */
 	u32 BeaconPeriod;       /* units are Kusec */
@@ -83,7 +71,7 @@ struct wlan_bssid_ex {
 	unsigned char  MacAddress[6];
 	u8  Reserved[2];
 	struct ndis_802_11_ssid  Ssid;
-	u32 Privacy;
+	__le32 Privacy;
 	s32 Rssi;
 	enum NDIS_802_11_NETWORK_TYPE  NetworkTypeInUse;
 	struct NDIS_802_11_CONFIGURATION  Configuration;

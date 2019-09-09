@@ -1,22 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Driver for Zarlink ZL10039 DVB-S tuner
  *
  *  Copyright 2007 Jan D. Louw <jd.louw@mweb.co.za>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
@@ -25,7 +11,7 @@
 #include <linux/slab.h>
 #include <linux/dvb/frontend.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "zl10039.h"
 
 static int debug;
@@ -138,7 +124,9 @@ static inline int zl10039_writereg(struct zl10039_state *state,
 				const enum zl10039_reg_addr reg,
 				const u8 val)
 {
-	return zl10039_write(state, reg, &val, 1);
+	const u8 tmp = val; /* see gcc.gnu.org/bugzilla/show_bug.cgi?id=81715 */
+
+	return zl10039_write(state, reg, &tmp, 1);
 }
 
 static int zl10039_init(struct dvb_frontend *fe)
@@ -152,8 +140,7 @@ static int zl10039_init(struct dvb_frontend *fe)
 	/* Reset logic */
 	ret = zl10039_writereg(state, GENERAL, 0x40);
 	if (ret < 0) {
-		dprintk("Note: i2c write error normal when resetting the "
-			"tuner\n");
+		dprintk("Note: i2c write error normal when resetting the tuner\n");
 	}
 	/* Wake up */
 	ret = zl10039_writereg(state, GENERAL, 0x01);
@@ -245,14 +232,13 @@ error:
 	return ret;
 }
 
-static int zl10039_release(struct dvb_frontend *fe)
+static void zl10039_release(struct dvb_frontend *fe)
 {
 	struct zl10039_state *state = fe->tuner_priv;
 
 	dprintk("%s\n", __func__);
 	kfree(state);
 	fe->tuner_priv = NULL;
-	return 0;
 }
 
 static const struct dvb_tuner_ops zl10039_ops = {
@@ -292,8 +278,9 @@ struct dvb_frontend *zl10039_attach(struct dvb_frontend *fe,
 	state->id = state->id & 0x0f;
 	switch (state->id) {
 	case ID_ZL10039:
-		strcpy(fe->ops.tuner_ops.info.name,
-			"Zarlink ZL10039 DVB-S tuner");
+		strscpy(fe->ops.tuner_ops.info.name,
+			"Zarlink ZL10039 DVB-S tuner",
+			sizeof(fe->ops.tuner_ops.info.name));
 		break;
 	default:
 		dprintk("Chip ID=%x does not match a known type\n", state->id);

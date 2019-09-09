@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Bosch BMC150 three-axis magnetic field sensor driver
  *
@@ -6,15 +7,6 @@
  * This code is based on bmm050_api.c authored by contact@bosch.sensortec.com:
  *
  * (C) Copyright 2011~2014 Bosch Sensortec GmbH All Rights Reserved
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #include <linux/module.h>
@@ -143,6 +135,7 @@ struct bmc150_magn_data {
 	 */
 	struct mutex mutex;
 	struct regmap *regmap;
+	struct iio_mount_matrix orientation;
 	/* 4 x 32 bits for x, y z, 4 bytes align, 64 bits timestamp */
 	s32 buffer[6];
 	struct iio_trigger *dready_trig;
@@ -612,6 +605,20 @@ static ssize_t bmc150_magn_show_samp_freq_avail(struct device *dev,
 	return len;
 }
 
+static const struct iio_mount_matrix *
+bmc150_magn_get_mount_matrix(const struct iio_dev *indio_dev,
+			      const struct iio_chan_spec *chan)
+{
+	struct bmc150_magn_data *data = iio_priv(indio_dev);
+
+	return &data->orientation;
+}
+
+static const struct iio_chan_spec_ext_info bmc150_magn_ext_info[] = {
+	IIO_MOUNT_MATRIX(IIO_SHARED_BY_DIR, bmc150_magn_get_mount_matrix),
+	{ }
+};
+
 static IIO_DEV_ATTR_SAMP_FREQ_AVAIL(bmc150_magn_show_samp_freq_avail);
 
 static struct attribute *bmc150_magn_attributes[] = {
@@ -638,6 +645,7 @@ static const struct attribute_group bmc150_magn_attrs_group = {
 		.storagebits = 32,					\
 		.endianness = IIO_LE					\
 	},								\
+	.ext_info = bmc150_magn_ext_info,				\
 }
 
 static const struct iio_chan_spec bmc150_magn_channels[] = {
@@ -651,7 +659,6 @@ static const struct iio_info bmc150_magn_info = {
 	.attrs = &bmc150_magn_attrs_group,
 	.read_raw = bmc150_magn_read_raw,
 	.write_raw = bmc150_magn_write_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static const unsigned long bmc150_magn_scan_masks[] = {
@@ -811,7 +818,6 @@ err_unlock:
 static const struct iio_trigger_ops bmc150_magn_trigger_ops = {
 	.set_trigger_state = bmc150_magn_data_rdy_trigger_set_state,
 	.try_reenable = bmc150_magn_trig_try_reen,
-	.owner = THIS_MODULE,
 };
 
 static int bmc150_magn_buffer_preenable(struct iio_dev *indio_dev)
@@ -862,6 +868,11 @@ int bmc150_magn_probe(struct device *dev, struct regmap *regmap,
 	data->regmap = regmap;
 	data->irq = irq;
 	data->dev = dev;
+
+	ret = iio_read_mount_matrix(dev, "mount-matrix",
+				&data->orientation);
+	if (ret)
+		return ret;
 
 	if (!name && ACPI_HANDLE(dev))
 		name = bmc150_magn_match_acpi_device(dev);

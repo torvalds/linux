@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * linux/fs/nfs/nfs4namespace.c
  *
@@ -136,6 +137,7 @@ static size_t nfs_parse_server_name(char *string, size_t len,
 
 /**
  * nfs_find_best_sec - Find a security mechanism supported locally
+ * @clnt: pointer to rpc_clnt
  * @server: NFS server struct
  * @flavors: List of security tuples returned by SECINFO procedure
  *
@@ -269,8 +271,6 @@ static struct vfsmount *try_location(struct nfs_clone_mount *mountdata,
 		if (mountdata->addrlen == 0)
 			continue;
 
-		rpc_set_port(mountdata->addr, NFS_PORT);
-
 		memcpy(page2, buf->data, buf->len);
 		page2[buf->len] = '\0';
 		mountdata->hostname = page2;
@@ -279,7 +279,7 @@ static struct vfsmount *try_location(struct nfs_clone_mount *mountdata,
 				mountdata->hostname,
 				mountdata->mnt_path);
 
-		mnt = vfs_kern_mount(&nfs4_referral_fs_type, 0, page, mountdata);
+		mnt = vfs_submount(mountdata->dentry, &nfs4_referral_fs_type, page, mountdata);
 		if (!IS_ERR(mnt))
 			break;
 	}
@@ -289,8 +289,8 @@ static struct vfsmount *try_location(struct nfs_clone_mount *mountdata,
 
 /**
  * nfs_follow_referral - set up mountpoint when hitting a referral on moved error
- * @dentry - parent directory
- * @locations - array of NFSv4 server location information
+ * @dentry: parent directory
+ * @locations: array of NFSv4 server location information
  *
  */
 static struct vfsmount *nfs_follow_referral(struct dentry *dentry,
@@ -340,7 +340,6 @@ static struct vfsmount *nfs_follow_referral(struct dentry *dentry,
 out:
 	free_page((unsigned long) page);
 	free_page((unsigned long) page2);
-	dprintk("%s: done\n", __func__);
 	return mnt;
 }
 
@@ -358,11 +357,9 @@ static struct vfsmount *nfs_do_refmount(struct rpc_clnt *client, struct dentry *
 	int err;
 
 	/* BUG_ON(IS_ROOT(dentry)); */
-	dprintk("%s: enter\n", __func__);
-
 	page = alloc_page(GFP_KERNEL);
 	if (page == NULL)
-		goto out;
+		return mnt;
 
 	fs_locations = kmalloc(sizeof(struct nfs4_fs_locations), GFP_KERNEL);
 	if (fs_locations == NULL)
@@ -386,8 +383,6 @@ static struct vfsmount *nfs_do_refmount(struct rpc_clnt *client, struct dentry *
 out_free:
 	__free_page(page);
 	kfree(fs_locations);
-out:
-	dprintk("%s: done\n", __func__);
 	return mnt;
 }
 

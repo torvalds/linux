@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /**
  * Copyright (c) ????		Jochen Schäuble <psionic@psionic.de>
  * Copyright (c) 2003-2004	Joern Engel <joern@wh.fh-wedel.de>
@@ -39,13 +40,6 @@ static int phram_erase(struct mtd_info *mtd, struct erase_info *instr)
 
 	memset(start + instr->addr, 0xff, instr->len);
 
-	/*
-	 * This'll catch a few races. Free the thing before returning :)
-	 * I don't feel at all ashamed. This kind of thing is possible anyway
-	 * with flash, but unlikely.
-	 */
-	instr->state = MTD_ERASE_DONE;
-	mtd_erase_callback(instr);
 	return 0;
 }
 
@@ -154,8 +148,10 @@ static int parse_num64(uint64_t *num64, char *token)
 			switch (token[len - 2]) {
 			case 'G':
 				shift += 10;
+				/* fall through */
 			case 'M':
 				shift += 10;
+				/* fall through */
 			case 'k':
 				shift += 10;
 				token[len - 2] = 0;
@@ -266,7 +262,7 @@ static int phram_setup(const char *val)
 	return ret;
 }
 
-static int phram_param_call(const char *val, struct kernel_param *kp)
+static int phram_param_call(const char *val, const struct kernel_param *kp)
 {
 #ifdef MODULE
 	return phram_setup(val);

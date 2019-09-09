@@ -1,15 +1,5 @@
-/*
- * Copyright (c) 2013, The Linux Foundation. All rights reserved.
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0 */
+/* Copyright (c) 2013, 2018, The Linux Foundation. All rights reserved. */
 
 #ifndef __QCOM_CLK_RCG_H__
 #define __QCOM_CLK_RCG_H__
@@ -17,22 +7,14 @@
 #include <linux/clk-provider.h>
 #include "clk-regmap.h"
 
+#define F(f, s, h, m, n) { (f), (s), (2 * (h) - 1), (m), (n) }
+
 struct freq_tbl {
 	unsigned long freq;
 	u8 src;
 	u8 pre_div;
 	u16 m;
 	u16 n;
-};
-
-/**
- * struct parent_map - map table for PLL source select configuration values
- * @src: source PLL
- * @cfg: configuration value
- */
-struct parent_map {
-	u8 src;
-	u8 cfg;
 };
 
 /**
@@ -89,7 +71,6 @@ struct src_sel {
  * @freq_tbl: frequency table
  * @clkr: regmap clock handle
  * @lock: register lock
- *
  */
 struct clk_rcg {
 	u32		ns_reg;
@@ -125,7 +106,6 @@ extern const struct clk_ops clk_rcg_lcc_ops;
  * @freq_tbl: frequency table
  * @clkr: regmap clock handle
  * @lock: register lock
- *
  */
 struct clk_dyn_rcg {
 	u32	ns_reg[2];
@@ -154,30 +134,43 @@ extern const struct clk_ops clk_dyn_rcg_ops;
  * @cmd_rcgr: corresponds to *_CMD_RCGR
  * @mnd_width: number of bits in m/n/d values
  * @hid_width: number of bits in half integer divider
+ * @safe_src_index: safe src index value
  * @parent_map: map from software's parent index to hardware's src_sel field
  * @freq_tbl: frequency table
- * @current_freq: last cached frequency when using branches with shared RCGs
  * @clkr: regmap clock handle
- *
+ * @cfg_off: defines the cfg register offset from the CMD_RCGR + CFG_REG
  */
 struct clk_rcg2 {
 	u32			cmd_rcgr;
 	u8			mnd_width;
 	u8			hid_width;
+	u8			safe_src_index;
 	const struct parent_map	*parent_map;
 	const struct freq_tbl	*freq_tbl;
-	unsigned long		current_freq;
 	struct clk_regmap	clkr;
+	u8			cfg_off;
 };
 
 #define to_clk_rcg2(_hw) container_of(to_clk_regmap(_hw), struct clk_rcg2, clkr)
 
 extern const struct clk_ops clk_rcg2_ops;
-extern const struct clk_ops clk_rcg2_shared_ops;
+extern const struct clk_ops clk_rcg2_floor_ops;
 extern const struct clk_ops clk_edp_pixel_ops;
 extern const struct clk_ops clk_byte_ops;
 extern const struct clk_ops clk_byte2_ops;
 extern const struct clk_ops clk_pixel_ops;
 extern const struct clk_ops clk_gfx3d_ops;
+extern const struct clk_ops clk_rcg2_shared_ops;
 
+struct clk_rcg_dfs_data {
+	struct clk_rcg2 *rcg;
+	struct clk_init_data *init;
+};
+
+#define DEFINE_RCG_DFS(r) \
+	{ .rcg = &r##_src, .init = &r##_init }
+
+extern int qcom_cc_register_rcg_dfs(struct regmap *regmap,
+				    const struct clk_rcg_dfs_data *rcgs,
+				    size_t len);
 #endif

@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* nf_nat_helper.c - generic support functions for NAT helpers
  *
  * (C) 2000-2002 Harald Welte <laforge@netfilter.org>
  * (C) 2003-2006 Netfilter Core Team <coreteam@netfilter.org>
  * (C) 2007-2012 Patrick McHardy <kaber@trash.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/module.h>
 #include <linux/gfp.h>
@@ -22,9 +19,6 @@
 #include <net/netfilter/nf_conntrack_expect.h>
 #include <net/netfilter/nf_conntrack_seqadj.h>
 #include <net/netfilter/nf_nat.h>
-#include <net/netfilter/nf_nat_l3proto.h>
-#include <net/netfilter/nf_nat_l4proto.h>
-#include <net/netfilter/nf_nat_core.h>
 #include <net/netfilter/nf_nat_helper.h>
 
 /* Frobs data inside this packet, which is linear. */
@@ -37,7 +31,7 @@ static void mangle_contents(struct sk_buff *skb,
 {
 	unsigned char *data;
 
-	BUG_ON(skb_is_nonlinear(skb));
+	SKB_LINEAR_ASSERT(skb);
 	data = skb_network_header(skb) + dataoff;
 
 	/* move post-replacement */
@@ -60,7 +54,7 @@ static void mangle_contents(struct sk_buff *skb,
 		__skb_trim(skb, skb->len + rep_len - match_len);
 	}
 
-	if (nf_ct_l3num((struct nf_conn *)skb->nfct) == NFPROTO_IPV4) {
+	if (nf_ct_l3num((struct nf_conn *)skb_nfct(skb)) == NFPROTO_IPV4) {
 		/* fix IP hdr checksum information */
 		ip_hdr(skb)->tot_len = htons(skb->len);
 		ip_send_check(ip_hdr(skb));
@@ -70,15 +64,15 @@ static void mangle_contents(struct sk_buff *skb,
 }
 
 /* Unusual, but possible case. */
-static int enlarge_skb(struct sk_buff *skb, unsigned int extra)
+static bool enlarge_skb(struct sk_buff *skb, unsigned int extra)
 {
 	if (skb->len + extra > 65535)
-		return 0;
+		return false;
 
 	if (pskb_expand_head(skb, 0, extra - skb_tailroom(skb), GFP_ATOMIC))
-		return 0;
+		return false;
 
-	return 1;
+	return true;
 }
 
 /* Generic function for mangling variable-length address changes inside
@@ -89,28 +83,25 @@ static int enlarge_skb(struct sk_buff *skb, unsigned int extra)
  * skb enlargement, ...
  *
  * */
-int __nf_nat_mangle_tcp_packet(struct sk_buff *skb,
-			       struct nf_conn *ct,
-			       enum ip_conntrack_info ctinfo,
-			       unsigned int protoff,
-			       unsigned int match_offset,
-			       unsigned int match_len,
-			       const char *rep_buffer,
-			       unsigned int rep_len, bool adjust)
+bool __nf_nat_mangle_tcp_packet(struct sk_buff *skb,
+				struct nf_conn *ct,
+				enum ip_conntrack_info ctinfo,
+				unsigned int protoff,
+				unsigned int match_offset,
+				unsigned int match_len,
+				const char *rep_buffer,
+				unsigned int rep_len, bool adjust)
 {
-	const struct nf_nat_l3proto *l3proto;
 	struct tcphdr *tcph;
 	int oldlen, datalen;
 
-	if (!skb_make_writable(skb, skb->len))
-		return 0;
+	if (skb_ensure_writable(skb, skb->len))
+		return false;
 
 	if (rep_len > match_len &&
 	    rep_len - match_len > skb_tailroom(skb) &&
 	    !enlarge_skb(skb, rep_len - match_len))
-		return 0;
-
-	SKB_LINEAR_ASSERT(skb);
+		return false;
 
 	tcph = (void *)skb->data + protoff;
 
@@ -120,15 +111,14 @@ int __nf_nat_mangle_tcp_packet(struct sk_buff *skb,
 
 	datalen = skb->len - protoff;
 
-	l3proto = __nf_nat_l3proto_find(nf_ct_l3num(ct));
-	l3proto->csum_recalc(skb, IPPROTO_TCP, tcph, &tcph->check,
-			     datalen, oldlen);
+	nf_nat_csum_recalc(skb, nf_ct_l3num(ct), IPPROTO_TCP,
+			   tcph, &tcph->check, datalen, oldlen);
 
 	if (adjust && rep_len != match_len)
 		nf_ct_seqadj_set(ct, ctinfo, tcph->seq,
 				 (int)rep_len - (int)match_len);
 
-	return 1;
+	return true;
 }
 EXPORT_SYMBOL(__nf_nat_mangle_tcp_packet);
 
@@ -142,7 +132,7 @@ EXPORT_SYMBOL(__nf_nat_mangle_tcp_packet);
  * XXX - This function could be merged with nf_nat_mangle_tcp_packet which
  *       should be fairly easy to do.
  */
-int
+bool
 nf_nat_mangle_udp_packet(struct sk_buff *skb,
 			 struct nf_conn *ct,
 			 enum ip_conntrack_info ctinfo,
@@ -152,17 +142,16 @@ nf_nat_mangle_udp_packet(struct sk_buff *skb,
 			 const char *rep_buffer,
 			 unsigned int rep_len)
 {
-	const struct nf_nat_l3proto *l3proto;
 	struct udphdr *udph;
 	int datalen, oldlen;
 
-	if (!skb_make_writable(skb, skb->len))
-		return 0;
+	if (skb_ensure_writable(skb, skb->len))
+		return false;
 
 	if (rep_len > match_len &&
 	    rep_len - match_len > skb_tailroom(skb) &&
 	    !enlarge_skb(skb, rep_len - match_len))
-		return 0;
+		return false;
 
 	udph = (void *)skb->data + protoff;
 
@@ -176,13 +165,12 @@ nf_nat_mangle_udp_packet(struct sk_buff *skb,
 
 	/* fix udp checksum if udp checksum was previously calculated */
 	if (!udph->check && skb->ip_summed != CHECKSUM_PARTIAL)
-		return 1;
+		return true;
 
-	l3proto = __nf_nat_l3proto_find(nf_ct_l3num(ct));
-	l3proto->csum_recalc(skb, IPPROTO_UDP, udph, &udph->check,
-			     datalen, oldlen);
+	nf_nat_csum_recalc(skb, nf_ct_l3num(ct), IPPROTO_UDP,
+			   udph, &udph->check, datalen, oldlen);
 
-	return 1;
+	return true;
 }
 EXPORT_SYMBOL(nf_nat_mangle_udp_packet);
 
@@ -191,7 +179,7 @@ EXPORT_SYMBOL(nf_nat_mangle_udp_packet);
 void nf_nat_follow_master(struct nf_conn *ct,
 			  struct nf_conntrack_expect *exp)
 {
-	struct nf_nat_range range;
+	struct nf_nat_range2 range;
 
 	/* This must be a fresh one. */
 	BUG_ON(ct->status & IPS_NAT_DONE_MASK);

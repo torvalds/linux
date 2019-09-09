@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config FSL_DPAA2_ETH
+	tristate "Freescale DPAA2 Ethernet"
+	depends on FSL_MC_BUS && FSL_MC_DPIO
+	help
+	  This is the DPAA2 Ethernet driver supporting Freescale SoCs
+	  with DPAA2 (DataPath Acceleration Architecture v2).
+	  The driver manages network objects discovered on the Freescale
+	  MC bus.
+
+config FSL_DPAA2_PTP_CLOCK
+	tristate "Freescale DPAA2 PTP Clock"
+	depends on FSL_DPAA2_ETH && PTP_1588_CLOCK_QORIQ
+	default y
+	help
+	  This driver adds support for using the DPAA2 1588 timer module
+	  as a PTP clock.

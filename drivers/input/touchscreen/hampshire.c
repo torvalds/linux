@@ -1,16 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Hampshire serial touchscreen driver
  *
  * Copyright (c) 2010 Adam Bennett
  * Based on the dynapro driver (c) Tias Guns
- *
  */
 
-/*
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- */
 
 /*
  * 2010/04/08 Adam Bennett <abennett72@gmail.com>
@@ -163,7 +158,7 @@ static int hampshire_connect(struct serio *serio, struct serio_driver *drv)
  * The serio driver structure.
  */
 
-static struct serio_device_id hampshire_serio_ids[] = {
+static const struct serio_device_id hampshire_serio_ids[] = {
 	{
 		.type	= SERIO_RS232,
 		.proto	= SERIO_HAMPSHIRE,

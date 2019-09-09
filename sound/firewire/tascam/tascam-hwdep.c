@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * tascam-hwdep.c - a part of driver for TASCAM FireWire series
  *
  * Copyright (c) 2015 Takashi Sakamoto
- *
- * Licensed under the terms of the GNU General Public License, version 2.
  */
 
 /*
@@ -16,18 +15,93 @@
 
 #include "tascam.h"
 
+static long tscm_hwdep_read_locked(struct snd_tscm *tscm, char __user *buf,
+				   long count, loff_t *offset)
+{
+	struct snd_firewire_event_lock_status event = {
+		.type = SNDRV_FIREWIRE_EVENT_LOCK_STATUS,
+	};
+
+	event.status = (tscm->dev_lock_count > 0);
+	tscm->dev_lock_changed = false;
+	count = min_t(long, count, sizeof(event));
+
+	spin_unlock_irq(&tscm->lock);
+
+	if (copy_to_user(buf, &event, count))
+		return -EFAULT;
+
+	return count;
+}
+
+static long tscm_hwdep_read_queue(struct snd_tscm *tscm, char __user *buf,
+				  long remained, loff_t *offset)
+{
+	char __user *pos = buf;
+	unsigned int type = SNDRV_FIREWIRE_EVENT_TASCAM_CONTROL;
+	struct snd_firewire_tascam_change *entries = tscm->queue;
+	long count;
+
+	// At least, one control event can be copied.
+	if (remained < sizeof(type) + sizeof(*entries)) {
+		spin_unlock_irq(&tscm->lock);
+		return -EINVAL;
+	}
+
+	// Copy the type field later.
+	count = sizeof(type);
+	remained -= sizeof(type);
+	pos += sizeof(type);
+
+	while (true) {
+		unsigned int head_pos;
+		unsigned int tail_pos;
+		unsigned int length;
+
+		if (tscm->pull_pos == tscm->push_pos)
+			break;
+		else if (tscm->pull_pos < tscm->push_pos)
+			tail_pos = tscm->push_pos;
+		else
+			tail_pos = SND_TSCM_QUEUE_COUNT;
+		head_pos = tscm->pull_pos;
+
+		length = (tail_pos - head_pos) * sizeof(*entries);
+		if (remained < length)
+			length = rounddown(remained, sizeof(*entries));
+		if (length == 0)
+			break;
+
+		spin_unlock_irq(&tscm->lock);
+		if (copy_to_user(pos, &entries[head_pos], length))
+			return -EFAULT;
+
+		spin_lock_irq(&tscm->lock);
+
+		tscm->pull_pos = tail_pos % SND_TSCM_QUEUE_COUNT;
+
+		count += length;
+		remained -= length;
+		pos += length;
+	}
+
+	spin_unlock_irq(&tscm->lock);
+
+	if (copy_to_user(buf, &type, sizeof(type)))
+		return -EFAULT;
+
+	return count;
+}
+
 static long hwdep_read(struct snd_hwdep *hwdep, char __user *buf, long count,
 		       loff_t *offset)
 {
 	struct snd_tscm *tscm = hwdep->private_data;
 	DEFINE_WAIT(wait);
-	union snd_firewire_event event = {
-		.lock_status.type = SNDRV_FIREWIRE_EVENT_LOCK_STATUS,
-	};
 
 	spin_lock_irq(&tscm->lock);
 
-	while (!tscm->dev_lock_changed) {
+	while (!tscm->dev_lock_changed && tscm->push_pos == tscm->pull_pos) {
 		prepare_to_wait(&tscm->hwdep_wait, &wait, TASK_INTERRUPTIBLE);
 		spin_unlock_irq(&tscm->lock);
 		schedule();
@@ -37,30 +111,30 @@ static long hwdep_read(struct snd_hwdep *hwdep, char __user *buf, long count,
 		spin_lock_irq(&tscm->lock);
 	}
 
-	event.lock_status.status = (tscm->dev_lock_count > 0);
-	tscm->dev_lock_changed = false;
-
-	spin_unlock_irq(&tscm->lock);
-
-	count = min_t(long, count, sizeof(event.lock_status));
-
-	if (copy_to_user(buf, &event, count))
-		return -EFAULT;
+	// NOTE: The acquired lock should be released in callee side.
+	if (tscm->dev_lock_changed) {
+		count = tscm_hwdep_read_locked(tscm, buf, count, offset);
+	} else if (tscm->push_pos != tscm->pull_pos) {
+		count = tscm_hwdep_read_queue(tscm, buf, count, offset);
+	} else {
+		spin_unlock_irq(&tscm->lock);
+		count = 0;
+	}
 
 	return count;
 }
 
-static unsigned int hwdep_poll(struct snd_hwdep *hwdep, struct file *file,
+static __poll_t hwdep_poll(struct snd_hwdep *hwdep, struct file *file,
 			       poll_table *wait)
 {
 	struct snd_tscm *tscm = hwdep->private_data;
-	unsigned int events;
+	__poll_t events;
 
 	poll_wait(file, &tscm->hwdep_wait, wait);
 
 	spin_lock_irq(&tscm->lock);
-	if (tscm->dev_lock_changed)
-		events = POLLIN | POLLRDNORM;
+	if (tscm->dev_lock_changed || tscm->push_pos != tscm->pull_pos)
+		events = EPOLLIN | EPOLLRDNORM;
 	else
 		events = 0;
 	spin_unlock_irq(&tscm->lock);
@@ -123,6 +197,14 @@ static int hwdep_unlock(struct snd_tscm *tscm)
 	return err;
 }
 
+static int tscm_hwdep_state(struct snd_tscm *tscm, void __user *arg)
+{
+	if (copy_to_user(arg, tscm->state, sizeof(tscm->state)))
+		return -EFAULT;
+
+	return 0;
+}
+
 static int hwdep_release(struct snd_hwdep *hwdep, struct file *file)
 {
 	struct snd_tscm *tscm = hwdep->private_data;
@@ -147,6 +229,8 @@ static int hwdep_ioctl(struct snd_hwdep *hwdep, struct file *file,
 		return hwdep_lock(tscm);
 	case SNDRV_FIREWIRE_IOCTL_UNLOCK:
 		return hwdep_unlock(tscm);
+	case SNDRV_FIREWIRE_IOCTL_TASCAM_STATE:
+		return tscm_hwdep_state(tscm, (void __user *)arg);
 	default:
 		return -ENOIOCTLCMD;
 	}
@@ -163,16 +247,15 @@ static int hwdep_compat_ioctl(struct snd_hwdep *hwdep, struct file *file,
 #define hwdep_compat_ioctl NULL
 #endif
 
-static const struct snd_hwdep_ops hwdep_ops = {
-	.read		= hwdep_read,
-	.release	= hwdep_release,
-	.poll		= hwdep_poll,
-	.ioctl		= hwdep_ioctl,
-	.ioctl_compat	= hwdep_compat_ioctl,
-};
-
 int snd_tscm_create_hwdep_device(struct snd_tscm *tscm)
 {
+	static const struct snd_hwdep_ops ops = {
+		.read		= hwdep_read,
+		.release	= hwdep_release,
+		.poll		= hwdep_poll,
+		.ioctl		= hwdep_ioctl,
+		.ioctl_compat	= hwdep_compat_ioctl,
+	};
 	struct snd_hwdep *hwdep;
 	int err;
 
@@ -182,9 +265,11 @@ int snd_tscm_create_hwdep_device(struct snd_tscm *tscm)
 
 	strcpy(hwdep->name, "Tascam");
 	hwdep->iface = SNDRV_HWDEP_IFACE_FW_TASCAM;
-	hwdep->ops = hwdep_ops;
+	hwdep->ops = ops;
 	hwdep->private_data = tscm;
 	hwdep->exclusive = true;
+
+	tscm->hwdep = hwdep;
 
 	return err;
 }

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*******************************************************************************
  * This file contains the iSCSI Target specific Task Management functions.
  *
@@ -5,15 +6,6 @@
  *
  * Author: Nicholas A. Bellinger <nab@linux-iscsi.org>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  ******************************************************************************/
 
 #include <asm/unaligned.h>
@@ -440,14 +432,14 @@ static int iscsit_task_reassign_complete(
 		break;
 	default:
 		 pr_err("Illegal iSCSI Opcode 0x%02x during"
-			" command realligence\n", cmd->iscsi_opcode);
+			" command reallegiance\n", cmd->iscsi_opcode);
 		return -1;
 	}
 
 	if (ret != 0)
 		return ret;
 
-	pr_debug("Completed connection realligence for Opcode: 0x%02x,"
+	pr_debug("Completed connection reallegiance for Opcode: 0x%02x,"
 		" ITT: 0x%08x to CID: %hu.\n", cmd->iscsi_opcode,
 			cmd->init_task_tag, conn->cid);
 

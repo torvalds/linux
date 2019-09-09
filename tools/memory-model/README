@@ -1,0 +1,272 @@
+		=====================================
+		LINUX KERNEL MEMORY CONSISTENCY MODEL
+		=====================================
+
+============
+INTRODUCTION
+============
+
+This directory contains the memory consistency model (memory model, for
+short) of the Linux kernel, written in the "cat" language and executable
+by the externally provided "herd7" simulator, which exhaustively explores
+the state space of small litmus tests.
+
+In addition, the "klitmus7" tool (also externally provided) may be used
+to convert a litmus test to a Linux kernel module, which in turn allows
+that litmus test to be exercised within the Linux kernel.
+
+
+============
+REQUIREMENTS
+============
+
+Version 7.52 or higher of the "herd7" and "klitmus7" tools must be
+downloaded separately:
+
+  https://github.com/herd/herdtools7
+
+See "herdtools7/INSTALL.md" for installation instructions.
+
+Note that although these tools usually provide backwards compatibility,
+this is not absolutely guaranteed.  Therefore, if a later version does
+not work, please try using the exact version called out above.
+
+
+==================
+BASIC USAGE: HERD7
+==================
+
+The memory model is used, in conjunction with "herd7", to exhaustively
+explore the state space of small litmus tests.
+
+For example, to run SB+fencembonceonces.litmus against the memory model:
+
+  $ herd7 -conf linux-kernel.cfg litmus-tests/SB+fencembonceonces.litmus
+
+Here is the corresponding output:
+
+  Test SB+fencembonceonces Allowed
+  States 3
+  0:r0=0; 1:r0=1;
+  0:r0=1; 1:r0=0;
+  0:r0=1; 1:r0=1;
+  No
+  Witnesses
+  Positive: 0 Negative: 3
+  Condition exists (0:r0=0 /\ 1:r0=0)
+  Observation SB+fencembonceonces Never 0 3
+  Time SB+fencembonceonces 0.01
+  Hash=d66d99523e2cac6b06e66f4c995ebb48
+
+The "Positive: 0 Negative: 3" and the "Never 0 3" each indicate that
+this litmus test's "exists" clause can not be satisfied.
+
+See "herd7 -help" or "herdtools7/doc/" for more information.
+
+
+=====================
+BASIC USAGE: KLITMUS7
+=====================
+
+The "klitmus7" tool converts a litmus test into a Linux kernel module,
+which may then be loaded and run.
+
+For example, to run SB+fencembonceonces.litmus against hardware:
+
+  $ mkdir mymodules
+  $ klitmus7 -o mymodules litmus-tests/SB+fencembonceonces.litmus
+  $ cd mymodules ; make
+  $ sudo sh run.sh
+
+The corresponding output includes:
+
+  Test SB+fencembonceonces Allowed
+  Histogram (3 states)
+  644580  :>0:r0=1; 1:r0=0;
+  644328  :>0:r0=0; 1:r0=1;
+  711092  :>0:r0=1; 1:r0=1;
+  No
+  Witnesses
+  Positive: 0, Negative: 2000000
+  Condition exists (0:r0=0 /\ 1:r0=0) is NOT validated
+  Hash=d66d99523e2cac6b06e66f4c995ebb48
+  Observation SB+fencembonceonces Never 0 2000000
+  Time SB+fencembonceonces 0.16
+
+The "Positive: 0 Negative: 2000000" and the "Never 0 2000000" indicate
+that during two million trials, the state specified in this litmus
+test's "exists" clause was not reached.
+
+And, as with "herd7", please see "klitmus7 -help" or "herdtools7/doc/"
+for more information.
+
+
+====================
+DESCRIPTION OF FILES
+====================
+
+Documentation/cheatsheet.txt
+	Quick-reference guide to the Linux-kernel memory model.
+
+Documentation/explanation.txt
+	Describes the memory model in detail.
+
+Documentation/recipes.txt
+	Lists common memory-ordering patterns.
+
+Documentation/references.txt
+	Provides background reading.
+
+linux-kernel.bell
+	Categorizes the relevant instructions, including memory
+	references, memory barriers, atomic read-modify-write operations,
+	lock acquisition/release, and RCU operations.
+
+	More formally, this file (1) lists the subtypes of the various
+	event types used by the memory model and (2) performs RCU
+	read-side critical section nesting analysis.
+
+linux-kernel.cat
+	Specifies what reorderings are forbidden by memory references,
+	memory barriers, atomic read-modify-write operations, and RCU.
+
+	More formally, this file specifies what executions are forbidden
+	by the memory model.  Allowed executions are those which
+	satisfy the model's "coherence", "atomic", "happens-before",
+	"propagation", and "rcu" axioms, which are defined in the file.
+
+linux-kernel.cfg
+	Convenience file that gathers the common-case herd7 command-line
+	arguments.
+
+linux-kernel.def
+	Maps from C-like syntax to herd7's internal litmus-test
+	instruction-set architecture.
+
+litmus-tests
+	Directory containing a few representative litmus tests, which
+	are listed in litmus-tests/README.  A great deal more litmus
+	tests are available at https://github.com/paulmckrcu/litmus.
+
+lock.cat
+	Provides a front-end analysis of lock acquisition and release,
+	for example, associating a lock acquisition with the preceding
+	and following releases and checking for self-deadlock.
+
+	More formally, this file defines a performance-enhanced scheme
+	for generation of the possible reads-from and coherence order
+	relations on the locking primitives.
+
+README
+	This file.
+
+scripts	Various scripts, see scripts/README.
+
+
+===========
+LIMITATIONS
+===========
+
+The Linux-kernel memory model has the following limitations:
+
+1.	Compiler optimizations are not modeled.  Of course, the use
+	of READ_ONCE() and WRITE_ONCE() limits the compiler's ability
+	to optimize, but there is Linux-kernel code that uses bare C
+	memory accesses.  Handling this code is on the to-do list.
+	For more information, see Documentation/explanation.txt (in
+	particular, the "THE PROGRAM ORDER RELATION: po AND po-loc"
+	and "A WARNING" sections).
+
+	Note that this limitation in turn limits LKMM's ability to
+	accurately model address, control, and data dependencies.
+	For example, if the compiler can deduce the value of some variable
+	carrying a dependency, then the compiler can break that dependency
+	by substituting a constant of that value.
+
+2.	Multiple access sizes for a single variable are not supported,
+	and neither are misaligned or partially overlapping accesses.
+
+3.	Exceptions and interrupts are not modeled.  In some cases,
+	this limitation can be overcome by modeling the interrupt or
+	exception with an additional process.
+
+4.	I/O such as MMIO or DMA is not supported.
+
+5.	Self-modifying code (such as that found in the kernel's
+	alternatives mechanism, function tracer, Berkeley Packet Filter
+	JIT compiler, and module loader) is not supported.
+
+6.	Complete modeling of all variants of atomic read-modify-write
+	operations, locking primitives, and RCU is not provided.
+	For example, call_rcu() and rcu_barrier() are not supported.
+	However, a substantial amount of support is provided for these
+	operations, as shown in the linux-kernel.def file.
+
+	a.	When rcu_assign_pointer() is passed NULL, the Linux
+		kernel provides no ordering, but LKMM models this
+		case as a store release.
+
+	b.	The "unless" RMW operations are not currently modeled:
+		atomic_long_add_unless(), atomic_add_unless(),
+		atomic_inc_unless_negative(), and
+		atomic_dec_unless_positive().  These can be emulated
+		in litmus tests, for example, by using atomic_cmpxchg().
+
+	c.	The call_rcu() function is not modeled.  It can be
+		emulated in litmus tests by adding another process that
+		invokes synchronize_rcu() and the body of the callback
+		function, with (for example) a release-acquire from
+		the site of the emulated call_rcu() to the beginning
+		of the additional process.
+
+	d.	The rcu_barrier() function is not modeled.  It can be
+		emulated in litmus tests emulating call_rcu() via
+		(for example) a release-acquire from the end of each
+		additional call_rcu() process to the site of the
+		emulated rcu-barrier().
+
+	e.	Although sleepable RCU (SRCU) is now modeled, there
+		are some subtle differences between its semantics and
+		those in the Linux kernel.  For example, the kernel
+		might interpret the following sequence as two partially
+		overlapping SRCU read-side critical sections:
+
+			 1  r1 = srcu_read_lock(&my_srcu);
+			 2  do_something_1();
+			 3  r2 = srcu_read_lock(&my_srcu);
+			 4  do_something_2();
+			 5  srcu_read_unlock(&my_srcu, r1);
+			 6  do_something_3();
+			 7  srcu_read_unlock(&my_srcu, r2);
+
+		In contrast, LKMM will interpret this as a nested pair of
+		SRCU read-side critical sections, with the outer critical
+		section spanning lines 1-7 and the inner critical section
+		spanning lines 3-5.
+
+		This difference would be more of a concern had anyone
+		identified a reasonable use case for partially overlapping
+		SRCU read-side critical sections.  For more information,
+		please see: https://paulmck.livejournal.com/40593.html
+
+	f.	Reader-writer locking is not modeled.  It can be
+		emulated in litmus tests using atomic read-modify-write
+		operations.
+
+The "herd7" tool has some additional limitations of its own, apart from
+the memory model:
+
+1.	Non-trivial data structures such as arrays or structures are
+	not supported.	However, pointers are supported, allowing trivial
+	linked lists to be constructed.
+
+2.	Dynamic memory allocation is not supported, although this can
+	be worked around in some cases by supplying multiple statically
+	allocated variables.
+
+Some of these limitations may be overcome in the future, but others are
+more likely to be addressed by incorporating the Linux-kernel memory model
+into other tools.
+
+Finally, please note that LKMM is subject to change as hardware, use cases,
+and compilers evolve.

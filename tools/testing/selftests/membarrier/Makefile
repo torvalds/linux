@@ -1,10 +1,7 @@
+# SPDX-License-Identifier: GPL-2.0-only
 CFLAGS += -g -I../../../../usr/include/
 
-TEST_PROGS := membarrier_test
-
-all: $(TEST_PROGS)
+TEST_GEN_PROGS := membarrier_test
 
 include ../lib.mk
 
-clean:
-	$(RM) $(TEST_PROGS)

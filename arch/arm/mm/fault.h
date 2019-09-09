@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ARCH_ARM_FAULT_H
 #define __ARCH_ARM_FAULT_H
 
@@ -11,11 +12,15 @@
 #define FSR_FS5_0		(0x3f)
 
 #ifdef CONFIG_ARM_LPAE
+#define FSR_FS_AEA		17
+
 static inline int fsr_fs(unsigned int fsr)
 {
 	return fsr & FSR_FS5_0;
 }
 #else
+#define FSR_FS_AEA		22
+
 static inline int fsr_fs(unsigned int fsr)
 {
 	return (fsr & FSR_FS3_0) | (fsr & FSR_FS4) >> 6;

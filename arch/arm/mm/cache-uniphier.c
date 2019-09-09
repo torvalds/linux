@@ -1,20 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2015-2016 Socionext Inc.
  *   Author: Masahiro Yamada <yamada.masahiro@socionext.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #define pr_fmt(fmt)		"uniphier: " fmt
 
+#include <linux/bitops.h>
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/log2.h>
@@ -71,8 +63,7 @@
  * @ctrl_base: virtual base address of control registers
  * @rev_base: virtual base address of revision registers
  * @op_base: virtual base address of operation registers
- * @way_present_mask: each bit specifies if the way is present
- * @way_locked_mask: each bit specifies if the way is locked
+ * @way_mask: each bit specifies if the way is present
  * @nsets: number of associativity sets
  * @line_size: line size in bytes
  * @range_op_max_size: max size that can be handled by a single range operation
@@ -83,8 +74,7 @@ struct uniphier_cache_data {
 	void __iomem *rev_base;
 	void __iomem *op_base;
 	void __iomem *way_ctrl_base;
-	u32 way_present_mask;
-	u32 way_locked_mask;
+	u32 way_mask;
 	u32 nsets;
 	u32 line_size;
 	u32 range_op_max_size;
@@ -234,17 +224,13 @@ static void __uniphier_cache_enable(struct uniphier_cache_data *data, bool on)
 	writel_relaxed(val, data->ctrl_base + UNIPHIER_SSCC);
 }
 
-static void __init __uniphier_cache_set_locked_ways(
-					struct uniphier_cache_data *data,
-					u32 way_mask)
+static void __init __uniphier_cache_set_active_ways(
+					struct uniphier_cache_data *data)
 {
 	unsigned int cpu;
 
-	data->way_locked_mask = way_mask & data->way_present_mask;
-
 	for_each_possible_cpu(cpu)
-		writel_relaxed(~data->way_locked_mask & data->way_present_mask,
-			       data->way_ctrl_base + 4 * cpu);
+		writel_relaxed(data->way_mask, data->way_ctrl_base + 4 * cpu);
 }
 
 static void uniphier_cache_maint_range(unsigned long start, unsigned long end,
@@ -307,7 +293,7 @@ static void __init uniphier_cache_enable(void)
 
 	list_for_each_entry(data, &uniphier_cache_list, list) {
 		__uniphier_cache_enable(data, true);
-		__uniphier_cache_set_locked_ways(data, 0);
+		__uniphier_cache_set_active_ways(data);
 	}
 }
 
@@ -382,8 +368,8 @@ static int __init __uniphier_cache_init(struct device_node *np,
 		goto err;
 	}
 
-	data->way_present_mask =
-		((u32)1 << cache_size / data->nsets / data->line_size) - 1;
+	data->way_mask = GENMASK(cache_size / data->nsets / data->line_size - 1,
+				 0);
 
 	data->ctrl_base = of_iomap(np, 0);
 	if (!data->ctrl_base) {

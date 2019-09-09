@@ -28,7 +28,7 @@
 #include <linux/bcma/bcma.h>
 #include <bcm47xx.h>
 
-int __init pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
+int pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	return 0;
 }

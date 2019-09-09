@@ -1,10 +1,15 @@
 NVIDIA Tegra PCIe controller
 
 Required properties:
-- compatible: For Tegra20, must contain "nvidia,tegra20-pcie".  For Tegra30,
-  "nvidia,tegra30-pcie".  For Tegra124, must contain "nvidia,tegra124-pcie".
-  Otherwise, must contain "nvidia,<chip>-pcie", plus one of the above, where
-  <chip> is tegra132 or tegra210.
+- compatible: Must be:
+  - "nvidia,tegra20-pcie": for Tegra20
+  - "nvidia,tegra30-pcie": for Tegra30
+  - "nvidia,tegra124-pcie": for Tegra124 and Tegra132
+  - "nvidia,tegra210-pcie": for Tegra210
+  - "nvidia,tegra186-pcie": for Tegra186
+- power-domains: To ungate power partition by BPMP powergate driver. Must
+  contain BPMP phandle and PCIe power partition ID. This is required only
+  for Tegra186.
 - device_type: Must be "pci"
 - reg: A list of physical base address and length for each set of controller
   registers. Must contain an entry for each entry in the reg-names property.
@@ -60,6 +65,14 @@ Required properties:
   - afi
   - pcie_x
 
+Optional properties:
+- pinctrl-names: A list of pinctrl state names. Must contain the following
+  entries:
+  - "default": active state, puts PCIe I/O out of deep power down state
+  - "idle": puts PCIe I/O into deep power down state
+- pinctrl-0: phandle for the default/active state of pin configurations.
+- pinctrl-1: phandle for the idle state of pin configurations.
+
 Required properties on Tegra124 and later (deprecated):
 - phys: Must contain an entry for each entry in phy-names.
 - phy-names: Must include the following entries:
@@ -109,6 +122,30 @@ Power supplies for Tegra124:
     supply 2.8-3.3 V.
   - avdd-pll-erefe-supply: Power supply for PLLE (shared with USB3). Must
     supply 1.05 V.
+
+Power supplies for Tegra210:
+- Required:
+  - avdd-pll-uerefe-supply: Power supply for PLLE (shared with USB3). Must
+    supply 1.05 V.
+  - hvddio-pex-supply: High-voltage supply for PCIe I/O and PCIe output
+    clocks. Must supply 1.8 V.
+  - dvddio-pex-supply: Power supply for digital PCIe I/O. Must supply 1.05 V.
+  - dvdd-pex-pll-supply: Power supply for dedicated (internal) PCIe PLL. Must
+    supply 1.05 V.
+  - hvdd-pex-pll-e-supply: High-voltage supply for PLLE (shared with USB3).
+    Must supply 3.3 V.
+  - vddio-pex-ctl-supply: Power supply for PCIe control I/O partition. Must
+    supply 1.8 V.
+
+Power supplies for Tegra186:
+- Required:
+  - dvdd-pex-supply: Power supply for digital PCIe I/O. Must supply 1.05 V.
+  - hvdd-pex-pll-supply: High-voltage supply for PLLE (shared with USB3). Must
+    supply 1.8 V.
+  - hvdd-pex-supply: High-voltage supply for PCIe I/O and PCIe output clocks.
+    Must supply 1.8 V.
+  - vddio-pexctl-aud-supply: Power supply for PCIe side band signals. Must
+    supply 1.8 V.
 
 Root ports are defined as subnodes of the PCIe controller node.
 
@@ -241,7 +278,7 @@ Tegra30:
 
 SoC DTSI:
 
-	pcie-controller@00003000 {
+	pcie-controller@3000 {
 		compatible = "nvidia,tegra30-pcie";
 		device_type = "pci";
 		reg = <0x00003000 0x00000800   /* PADS registers */
@@ -320,7 +357,7 @@ SoC DTSI:
 
 Board DTS:
 
-	pcie-controller@00003000 {
+	pcie-controller@3000 {
 		status = "okay";
 
 		avdd-pexa-supply = <&ldo1_reg>;
@@ -346,7 +383,7 @@ Tegra124:
 
 SoC DTSI:
 
-	pcie-controller@01003000 {
+	pcie-controller@1003000 {
 		compatible = "nvidia,tegra124-pcie";
 		device_type = "pci";
 		reg = <0x0 0x01003000 0x0 0x00000800   /* PADS registers */
@@ -411,7 +448,7 @@ SoC DTSI:
 
 Board DTS:
 
-	pcie-controller@01003000 {
+	pcie-controller@1003000 {
 		status = "okay";
 
 		avddio-pex-supply = <&vdd_1v05_run>;
@@ -434,5 +471,212 @@ Board DTS:
 			phys = <&{/padctl@7009f000/pads/pcie/lanes/pcie-2}>;
 			phy-names = "pcie-0";
 			status = "okay";
+		};
+	};
+
+Tegra210:
+---------
+
+SoC DTSI:
+
+	pcie-controller@1003000 {
+		compatible = "nvidia,tegra210-pcie";
+		device_type = "pci";
+		reg = <0x0 0x01003000 0x0 0x00000800   /* PADS registers */
+		       0x0 0x01003800 0x0 0x00000800   /* AFI registers */
+		       0x0 0x02000000 0x0 0x10000000>; /* configuration space */
+		reg-names = "pads", "afi", "cs";
+		interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>, /* controller interrupt */
+			     <GIC_SPI 99 IRQ_TYPE_LEVEL_HIGH>; /* MSI interrupt */
+		interrupt-names = "intr", "msi";
+
+		#interrupt-cells = <1>;
+		interrupt-map-mask = <0 0 0 0>;
+		interrupt-map = <0 0 0 0 &gic GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
+
+		bus-range = <0x00 0xff>;
+		#address-cells = <3>;
+		#size-cells = <2>;
+
+		ranges = <0x82000000 0 0x01000000 0x0 0x01000000 0 0x00001000   /* port 0 configuration space */
+			  0x82000000 0 0x01001000 0x0 0x01001000 0 0x00001000   /* port 1 configuration space */
+			  0x81000000 0 0x0        0x0 0x12000000 0 0x00010000   /* downstream I/O (64 KiB) */
+			  0x82000000 0 0x13000000 0x0 0x13000000 0 0x0d000000   /* non-prefetchable memory (208 MiB) */
+			  0xc2000000 0 0x20000000 0x0 0x20000000 0 0x20000000>; /* prefetchable memory (512 MiB) */
+
+		clocks = <&tegra_car TEGRA210_CLK_PCIE>,
+			 <&tegra_car TEGRA210_CLK_AFI>,
+			 <&tegra_car TEGRA210_CLK_PLL_E>,
+			 <&tegra_car TEGRA210_CLK_CML0>;
+		clock-names = "pex", "afi", "pll_e", "cml";
+		resets = <&tegra_car 70>,
+			 <&tegra_car 72>,
+			 <&tegra_car 74>;
+		reset-names = "pex", "afi", "pcie_x";
+		status = "disabled";
+
+		pci@1,0 {
+			device_type = "pci";
+			assigned-addresses = <0x82000800 0 0x01000000 0 0x1000>;
+			reg = <0x000800 0 0 0 0>;
+			status = "disabled";
+
+			#address-cells = <3>;
+			#size-cells = <2>;
+			ranges;
+
+			nvidia,num-lanes = <4>;
+		};
+
+		pci@2,0 {
+			device_type = "pci";
+			assigned-addresses = <0x82001000 0 0x01001000 0 0x1000>;
+			reg = <0x001000 0 0 0 0>;
+			status = "disabled";
+
+			#address-cells = <3>;
+			#size-cells = <2>;
+			ranges;
+
+			nvidia,num-lanes = <1>;
+		};
+	};
+
+Board DTS:
+
+	pcie-controller@1003000 {
+		status = "okay";
+
+		avdd-pll-uerefe-supply = <&avdd_1v05_pll>;
+		hvddio-pex-supply = <&vdd_1v8>;
+		dvddio-pex-supply = <&vdd_pex_1v05>;
+		dvdd-pex-pll-supply = <&vdd_pex_1v05>;
+		hvdd-pex-pll-e-supply = <&vdd_1v8>;
+		vddio-pex-ctl-supply = <&vdd_1v8>;
+
+		pci@1,0 {
+			phys = <&{/padctl@7009f000/pads/pcie/lanes/pcie-0}>,
+			       <&{/padctl@7009f000/pads/pcie/lanes/pcie-1}>,
+			       <&{/padctl@7009f000/pads/pcie/lanes/pcie-2}>,
+			       <&{/padctl@7009f000/pads/pcie/lanes/pcie-3}>;
+			phy-names = "pcie-0", "pcie-1", "pcie-2", "pcie-3";
+			status = "okay";
+		};
+
+		pci@2,0 {
+			phys = <&{/padctl@7009f000/pads/pcie/lanes/pcie-4}>;
+			phy-names = "pcie-0";
+			status = "okay";
+		};
+	};
+
+Tegra186:
+---------
+
+SoC DTSI:
+
+	pcie@10003000 {
+		compatible = "nvidia,tegra186-pcie";
+		power-domains = <&bpmp TEGRA186_POWER_DOMAIN_PCX>;
+		device_type = "pci";
+		reg = <0x0 0x10003000 0x0 0x00000800   /* PADS registers */
+		       0x0 0x10003800 0x0 0x00000800   /* AFI registers */
+		       0x0 0x40000000 0x0 0x10000000>; /* configuration space */
+		reg-names = "pads", "afi", "cs";
+
+		interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>, /* controller interrupt */
+			     <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>; /* MSI interrupt */
+		interrupt-names = "intr", "msi";
+
+		#interrupt-cells = <1>;
+		interrupt-map-mask = <0 0 0 0>;
+		interrupt-map = <0 0 0 0 &gic GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>;
+
+		bus-range = <0x00 0xff>;
+		#address-cells = <3>;
+		#size-cells = <2>;
+
+		ranges = <0x82000000 0 0x10000000 0x0 0x10000000 0 0x00001000   /* port 0 configuration space */
+			  0x82000000 0 0x10001000 0x0 0x10001000 0 0x00001000   /* port 1 configuration space */
+			  0x82000000 0 0x10004000 0x0 0x10004000 0 0x00001000   /* port 2 configuration space */
+			  0x81000000 0 0x0        0x0 0x50000000 0 0x00010000   /* downstream I/O (64 KiB) */
+			  0x82000000 0 0x50100000 0x0 0x50100000 0 0x07F00000   /* non-prefetchable memory (127 MiB) */
+			  0xc2000000 0 0x58000000 0x0 0x58000000 0 0x28000000>; /* prefetchable memory (640 MiB) */
+
+		clocks = <&bpmp TEGRA186_CLK_AFI>,
+			 <&bpmp TEGRA186_CLK_PCIE>,
+			 <&bpmp TEGRA186_CLK_PLLE>;
+		clock-names = "afi", "pex", "pll_e";
+
+		resets = <&bpmp TEGRA186_RESET_AFI>,
+			 <&bpmp TEGRA186_RESET_PCIE>,
+			 <&bpmp TEGRA186_RESET_PCIEXCLK>;
+		reset-names = "afi", "pex", "pcie_x";
+
+		status = "disabled";
+
+		pci@1,0 {
+			device_type = "pci";
+			assigned-addresses = <0x82000800 0 0x10000000 0 0x1000>;
+			reg = <0x000800 0 0 0 0>;
+			status = "disabled";
+
+			#address-cells = <3>;
+			#size-cells = <2>;
+			ranges;
+
+			nvidia,num-lanes = <2>;
+		};
+
+		pci@2,0 {
+			device_type = "pci";
+			assigned-addresses = <0x82001000 0 0x10001000 0 0x1000>;
+			reg = <0x001000 0 0 0 0>;
+			status = "disabled";
+
+			#address-cells = <3>;
+			#size-cells = <2>;
+			ranges;
+
+			nvidia,num-lanes = <1>;
+		};
+
+		pci@3,0 {
+			device_type = "pci";
+			assigned-addresses = <0x82001800 0 0x10004000 0 0x1000>;
+			reg = <0x001800 0 0 0 0>;
+			status = "disabled";
+
+			#address-cells = <3>;
+			#size-cells = <2>;
+			ranges;
+
+			nvidia,num-lanes = <1>;
+		};
+	};
+
+Board DTS:
+
+	pcie@10003000 {
+		status = "okay";
+
+		dvdd-pex-supply = <&vdd_pex>;
+		hvdd-pex-pll-supply = <&vdd_1v8>;
+		hvdd-pex-supply = <&vdd_1v8>;
+		vddio-pexctl-aud-supply = <&vdd_1v8>;
+
+		pci@1,0 {
+			nvidia,num-lanes = <4>;
+			status = "okay";
+		};
+
+		pci@2,0 {
+			nvidia,num-lanes = <0>;
+			status = "disabled";
+		};
+
+		pci@3,0 {
+			nvidia,num-lanes = <1>;
+			status = "disabled";
 		};
 	};

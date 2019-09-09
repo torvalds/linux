@@ -225,14 +225,6 @@ static struct syscore_ops i8259_syscore_ops = {
 	.shutdown = i8259A_shutdown,
 };
 
-static int __init i8259A_init_sysfs(void)
-{
-	register_syscore_ops(&i8259_syscore_ops);
-	return 0;
-}
-
-device_initcall(i8259A_init_sysfs);
-
 static void init_8259A(int auto_eoi)
 {
 	unsigned long flags;
@@ -289,14 +281,14 @@ static struct resource pic1_io_resource = {
 	.name = "pic1",
 	.start = PIC_MASTER_CMD,
 	.end = PIC_MASTER_IMR,
-	.flags = IORESOURCE_BUSY
+	.flags = IORESOURCE_IO | IORESOURCE_BUSY
 };
 
 static struct resource pic2_io_resource = {
 	.name = "pic2",
 	.start = PIC_SLAVE_CMD,
 	.end = PIC_SLAVE_IMR,
-	.flags = IORESOURCE_BUSY
+	.flags = IORESOURCE_IO | IORESOURCE_BUSY
 };
 
 static int i8259A_irq_domain_map(struct irq_domain *d, unsigned int virq,
@@ -307,7 +299,7 @@ static int i8259A_irq_domain_map(struct irq_domain *d, unsigned int virq,
 	return 0;
 }
 
-static struct irq_domain_ops i8259A_ops = {
+static const struct irq_domain_ops i8259A_ops = {
 	.map = i8259A_irq_domain_map,
 	.xlate = irq_domain_xlate_onecell,
 };
@@ -332,6 +324,7 @@ struct irq_domain * __init __init_i8259_irqs(struct device_node *node)
 		panic("Failed to add i8259 IRQ domain");
 
 	setup_irq(I8259A_IRQ_BASE + PIC_CASCADE_IR, &irq2);
+	register_syscore_ops(&i8259_syscore_ops);
 	return domain;
 }
 

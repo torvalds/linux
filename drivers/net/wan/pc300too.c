@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Cyclades PC300 synchronous serial card driver for Linux
  *
  * Copyright (C) 2000-2008 Krzysztof Halasa <khc@pm.waw.pl>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License
- * as published by the Free Software Foundation.
  *
  * For information see <http://www.kernel.org/pub/linux/utils/net/hdlc/>.
  *
@@ -291,7 +288,6 @@ static void pc300_pci_remove_one(struct pci_dev *pdev)
 static const struct net_device_ops pc300_ops = {
 	.ndo_open       = pc300_open,
 	.ndo_stop       = pc300_close,
-	.ndo_change_mtu = hdlc_change_mtu,
 	.ndo_start_xmit = hdlc_start_xmit,
 	.ndo_do_ioctl   = pc300_ioctl,
 };
@@ -347,6 +343,7 @@ static int pc300_pci_init_one(struct pci_dev *pdev,
 	    card->rambase == NULL) {
 		pr_err("ioremap() failed\n");
 		pc300_pci_remove_one(pdev);
+		return -ENOMEM;
 	}
 
 	/* PLX PCI 9050 workaround for local configuration register read bug */

@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2014, Michael Ellerman, IBM Corp.
- * Licensed under GPLv2.
  */
 
 #include <sched.h>
@@ -98,5 +98,6 @@ static int lost_exception(void)
 
 int main(void)
 {
+	test_harness_set_timeout(300);
 	return test_harness(lost_exception, "lost_exception");
 }

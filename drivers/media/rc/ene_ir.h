@@ -1,22 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * driver for ENE KB3926 B/C/D/E/F CIR (also known as ENE0XXX)
  *
  * Copyright (C) 2010 Maxim Levitsky <maximlevitsky@gmail.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307
- * USA
  */
 #include <linux/spinlock.h>
 
@@ -123,7 +109,7 @@
 #define ENE_CIRDAT_IN		0xFEC7
 
 
-/* RLC configuration - sample period (1us resulution) + idle mode */
+/* RLC configuration - sample period (1us resolution) + idle mode */
 #define ENE_CIRRLC_CFG		0xFEC8
 #define ENE_CIRRLC_CFG_OVERFLOW	0x80	/* interrupt on overflows if set */
 #define ENE_DEFAULT_SAMPLE_PERIOD 50

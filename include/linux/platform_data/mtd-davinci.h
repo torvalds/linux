@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * mach-davinci/nand.h
  *
@@ -9,26 +10,12 @@
  *   Dirk Behme <Dirk.Behme@gmail.com>
  *
  * --------------------------------------------------------------------------
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #ifndef __ARCH_ARM_DAVINCI_NAND_H
 #define __ARCH_ARM_DAVINCI_NAND_H
 
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 
 #define NANDFCR_OFFSET		0x60
 #define NANDFSR_OFFSET		0x64
@@ -55,6 +42,16 @@
 struct davinci_nand_pdata {		/* platform_data */
 	uint32_t		mask_ale;
 	uint32_t		mask_cle;
+
+	/*
+	 * 0-indexed chip-select number of the asynchronous
+	 * interface to which the NAND device has been connected.
+	 *
+	 * So, if you have NAND connected to CS3 of DA850, you
+	 * will pass '1' here. Since the asynchronous interface
+	 * on DA850 starts from CS2.
+	 */
+	uint32_t		core_chipsel;
 
 	/* for packages using two chipselects */
 	uint32_t		mask_chipsel;

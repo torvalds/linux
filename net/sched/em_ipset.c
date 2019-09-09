@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * net/sched/em_ipset.c	ipset ematch
  *
  * Copyright (c) 2012 Florian Westphal <fw@strlen.de>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
  */
 
 #include <linux/gfp.h>
@@ -57,17 +54,20 @@ static int em_ipset_match(struct sk_buff *skb, struct tcf_ematch *em,
 	struct xt_action_param acpar;
 	const struct xt_set_info *set = (const void *) em->data;
 	struct net_device *dev, *indev = NULL;
+	struct nf_hook_state state = {
+		.net	= em->net,
+	};
 	int ret, network_offset;
 
 	switch (tc_skb_protocol(skb)) {
 	case htons(ETH_P_IP):
-		acpar.family = NFPROTO_IPV4;
+		state.pf = NFPROTO_IPV4;
 		if (!pskb_network_may_pull(skb, sizeof(struct iphdr)))
 			return 0;
 		acpar.thoff = ip_hdrlen(skb);
 		break;
 	case htons(ETH_P_IPV6):
-		acpar.family = NFPROTO_IPV6;
+		state.pf = NFPROTO_IPV6;
 		if (!pskb_network_may_pull(skb, sizeof(struct ipv6hdr)))
 			return 0;
 		/* doesn't call ipv6_find_hdr() because ipset doesn't use thoff, yet */
@@ -77,9 +77,7 @@ static int em_ipset_match(struct sk_buff *skb, struct tcf_ematch *em,
 		return 0;
 	}
 
-	acpar.hooknum = 0;
-
-	opt.family = acpar.family;
+	opt.family = state.pf;
 	opt.dim = set->dim;
 	opt.flags = set->flags;
 	opt.cmdflags = 0;
@@ -95,9 +93,9 @@ static int em_ipset_match(struct sk_buff *skb, struct tcf_ematch *em,
 	if (skb->skb_iif)
 		indev = dev_get_by_index_rcu(em->net, skb->skb_iif);
 
-	acpar.net     = em->net;
-	acpar.in      = indev ? indev : dev;
-	acpar.out     = dev;
+	state.in      = indev ? indev : dev;
+	state.out     = dev;
+	acpar.state   = &state;
 
 	ret = ip_set_test(set->index, skb, &acpar, &opt);
 

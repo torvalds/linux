@@ -1,15 +1,10 @@
-/*
- * wm831x-dcdc.c  --  DC-DC buck convertor driver for the WM831x series
- *
- * Copyright 2009 Wolfson Microelectronics PLC.
- *
- * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
- *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// wm831x-dcdc.c  --  DC-DC buck converter driver for the WM831x series
+//
+// Copyright 2009 Wolfson Microelectronics PLC.
+//
+// Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -20,7 +15,7 @@
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/slab.h>
 
 #include <linux/mfd/wm831x/core.h>
@@ -55,7 +50,7 @@ struct wm831x_dcdc {
 	int base;
 	struct wm831x *wm831x;
 	struct regulator_dev *regulator;
-	int dvs_gpio;
+	struct gpio_desc *dvs_gpiod;
 	int dvs_gpio_state;
 	int on_vsel;
 	int dvs_vsel;
@@ -183,9 +178,11 @@ static irqreturn_t wm831x_dcdc_uv_irq(int irq, void *data)
 {
 	struct wm831x_dcdc *dcdc = data;
 
+	regulator_lock(dcdc->regulator);
 	regulator_notifier_call_chain(dcdc->regulator,
 				      REGULATOR_EVENT_UNDER_VOLTAGE,
 				      NULL);
+	regulator_unlock(dcdc->regulator);
 
 	return IRQ_HANDLED;
 }
@@ -194,9 +191,11 @@ static irqreturn_t wm831x_dcdc_oc_irq(int irq, void *data)
 {
 	struct wm831x_dcdc *dcdc = data;
 
+	regulator_lock(dcdc->regulator);
 	regulator_notifier_call_chain(dcdc->regulator,
 				      REGULATOR_EVENT_OVER_CURRENT,
 				      NULL);
+	regulator_unlock(dcdc->regulator);
 
 	return IRQ_HANDLED;
 }
@@ -205,33 +204,10 @@ static irqreturn_t wm831x_dcdc_oc_irq(int irq, void *data)
  * BUCKV specifics
  */
 
-static int wm831x_buckv_list_voltage(struct regulator_dev *rdev,
-				      unsigned selector)
-{
-	if (selector <= 0x8)
-		return 600000;
-	if (selector <= WM831X_BUCKV_MAX_SELECTOR)
-		return 600000 + ((selector - 0x8) * 12500);
-	return -EINVAL;
-}
-
-static int wm831x_buckv_map_voltage(struct regulator_dev *rdev,
-				   int min_uV, int max_uV)
-{
-	u16 vsel;
-
-	if (min_uV < 600000)
-		vsel = 0;
-	else if (min_uV <= 1800000)
-		vsel = DIV_ROUND_UP(min_uV - 600000, 12500) + 8;
-	else
-		return -EINVAL;
-
-	if (wm831x_buckv_list_voltage(rdev, vsel) > max_uV)
-		return -EINVAL;
-
-	return vsel;
-}
+static const struct regulator_linear_range wm831x_buckv_ranges[] = {
+	REGULATOR_LINEAR_RANGE(600000, 0, 0x7, 0),
+	REGULATOR_LINEAR_RANGE(600000, 0x8, 0x68, 12500),
+};
 
 static int wm831x_buckv_set_dvs(struct regulator_dev *rdev, int state)
 {
@@ -241,7 +217,7 @@ static int wm831x_buckv_set_dvs(struct regulator_dev *rdev, int state)
 		return 0;
 
 	dcdc->dvs_gpio_state = state;
-	gpio_set_value(dcdc->dvs_gpio, state);
+	gpiod_set_value(dcdc->dvs_gpiod, state);
 
 	/* Should wait for DVS state change to be asserted if we have
 	 * a GPIO for it, for now assume the device is configured
@@ -261,10 +237,10 @@ static int wm831x_buckv_set_voltage_sel(struct regulator_dev *rdev,
 	int ret;
 
 	/* If this value is already set then do a GPIO update if we can */
-	if (dcdc->dvs_gpio && dcdc->on_vsel == vsel)
+	if (dcdc->dvs_gpiod && dcdc->on_vsel == vsel)
 		return wm831x_buckv_set_dvs(rdev, 0);
 
-	if (dcdc->dvs_gpio && dcdc->dvs_vsel == vsel)
+	if (dcdc->dvs_gpiod && dcdc->dvs_vsel == vsel)
 		return wm831x_buckv_set_dvs(rdev, 1);
 
 	/* Always set the ON status to the minimum voltage */
@@ -273,7 +249,7 @@ static int wm831x_buckv_set_voltage_sel(struct regulator_dev *rdev,
 		return ret;
 	dcdc->on_vsel = vsel;
 
-	if (!dcdc->dvs_gpio)
+	if (!dcdc->dvs_gpiod)
 		return ret;
 
 	/* Kick the voltage transition now */
@@ -309,7 +285,7 @@ static int wm831x_buckv_set_suspend_voltage(struct regulator_dev *rdev,
 	u16 reg = dcdc->base + WM831X_DCDC_SLEEP_CONTROL;
 	int vsel;
 
-	vsel = wm831x_buckv_map_voltage(rdev, uV, uV);
+	vsel = regulator_map_voltage_linear_range(rdev, uV, uV);
 	if (vsel < 0)
 		return vsel;
 
@@ -320,59 +296,25 @@ static int wm831x_buckv_get_voltage_sel(struct regulator_dev *rdev)
 {
 	struct wm831x_dcdc *dcdc = rdev_get_drvdata(rdev);
 
-	if (dcdc->dvs_gpio && dcdc->dvs_gpio_state)
+	if (dcdc->dvs_gpiod && dcdc->dvs_gpio_state)
 		return dcdc->dvs_vsel;
 	else
 		return dcdc->on_vsel;
 }
 
 /* Current limit options */
-static u16 wm831x_dcdc_ilim[] = {
-	125, 250, 375, 500, 625, 750, 875, 1000
+static const unsigned int wm831x_dcdc_ilim[] = {
+	125000, 250000, 375000, 500000, 625000, 750000, 875000, 1000000
 };
-
-static int wm831x_buckv_set_current_limit(struct regulator_dev *rdev,
-					   int min_uA, int max_uA)
-{
-	struct wm831x_dcdc *dcdc = rdev_get_drvdata(rdev);
-	struct wm831x *wm831x = dcdc->wm831x;
-	u16 reg = dcdc->base + WM831X_DCDC_CONTROL_2;
-	int i;
-
-	for (i = ARRAY_SIZE(wm831x_dcdc_ilim) - 1; i >= 0; i--) {
-		if ((min_uA <= wm831x_dcdc_ilim[i]) &&
-		    (wm831x_dcdc_ilim[i] <= max_uA))
-			return wm831x_set_bits(wm831x, reg,
-					       WM831X_DC1_HC_THR_MASK,
-						i << WM831X_DC1_HC_THR_SHIFT);
-	}
-
-	return -EINVAL;
-}
-
-static int wm831x_buckv_get_current_limit(struct regulator_dev *rdev)
-{
-	struct wm831x_dcdc *dcdc = rdev_get_drvdata(rdev);
-	struct wm831x *wm831x = dcdc->wm831x;
-	u16 reg = dcdc->base + WM831X_DCDC_CONTROL_2;
-	int val;
-
-	val = wm831x_reg_read(wm831x, reg);
-	if (val < 0)
-		return val;
-
-	val = (val & WM831X_DC1_HC_THR_MASK) >> WM831X_DC1_HC_THR_SHIFT;
-	return wm831x_dcdc_ilim[val];
-}
 
 static const struct regulator_ops wm831x_buckv_ops = {
 	.set_voltage_sel = wm831x_buckv_set_voltage_sel,
 	.get_voltage_sel = wm831x_buckv_get_voltage_sel,
-	.list_voltage = wm831x_buckv_list_voltage,
-	.map_voltage = wm831x_buckv_map_voltage,
+	.list_voltage = regulator_list_voltage_linear_range,
+	.map_voltage = regulator_map_voltage_linear_range,
 	.set_suspend_voltage = wm831x_buckv_set_suspend_voltage,
-	.set_current_limit = wm831x_buckv_set_current_limit,
-	.get_current_limit = wm831x_buckv_get_current_limit,
+	.set_current_limit = regulator_set_current_limit_regmap,
+	.get_current_limit = regulator_get_current_limit_regmap,
 
 	.is_enabled = regulator_is_enabled_regmap,
 	.enable = regulator_enable_regmap,
@@ -395,7 +337,7 @@ static void wm831x_buckv_dvs_init(struct platform_device *pdev,
 	int ret;
 	u16 ctrl;
 
-	if (!pdata || !pdata->dvs_gpio)
+	if (!pdata)
 		return;
 
 	/* gpiolib won't let us read the GPIO status so pick the higher
@@ -403,16 +345,13 @@ static void wm831x_buckv_dvs_init(struct platform_device *pdev,
 	 */
 	dcdc->dvs_gpio_state = pdata->dvs_init_state;
 
-	ret = devm_gpio_request_one(&pdev->dev, pdata->dvs_gpio,
-				    dcdc->dvs_gpio_state ? GPIOF_INIT_HIGH : 0,
-				    "DCDC DVS");
-	if (ret < 0) {
-		dev_err(wm831x->dev, "Failed to get %s DVS GPIO: %d\n",
-			dcdc->name, ret);
+	dcdc->dvs_gpiod = devm_gpiod_get(&pdev->dev, "dvs",
+			dcdc->dvs_gpio_state ? GPIOD_OUT_HIGH : GPIOD_OUT_LOW);
+	if (IS_ERR(dcdc->dvs_gpiod)) {
+		dev_err(wm831x->dev, "Failed to get %s DVS GPIO: %ld\n",
+			dcdc->name, PTR_ERR(dcdc->dvs_gpiod));
 		return;
 	}
-
-	dcdc->dvs_gpio = pdata->dvs_gpio;
 
 	switch (pdata->dvs_control_src) {
 	case 1:
@@ -492,10 +431,16 @@ static int wm831x_buckv_probe(struct platform_device *pdev)
 	dcdc->desc.id = id;
 	dcdc->desc.type = REGULATOR_VOLTAGE;
 	dcdc->desc.n_voltages = WM831X_BUCKV_MAX_SELECTOR + 1;
+	dcdc->desc.linear_ranges = wm831x_buckv_ranges;
+	dcdc->desc.n_linear_ranges = ARRAY_SIZE(wm831x_buckv_ranges);
 	dcdc->desc.ops = &wm831x_buckv_ops;
 	dcdc->desc.owner = THIS_MODULE;
 	dcdc->desc.enable_reg = WM831X_DCDC_ENABLE;
 	dcdc->desc.enable_mask = 1 << id;
+	dcdc->desc.csel_reg = dcdc->base + WM831X_DCDC_CONTROL_2;
+	dcdc->desc.csel_mask = WM831X_DC1_HC_THR_MASK;
+	dcdc->desc.n_current_limits = ARRAY_SIZE(wm831x_dcdc_ilim);
+	dcdc->desc.curr_table = wm831x_dcdc_ilim;
 
 	ret = wm831x_reg_read(wm831x, dcdc->base + WM831X_DCDC_ON_CONFIG);
 	if (ret < 0) {

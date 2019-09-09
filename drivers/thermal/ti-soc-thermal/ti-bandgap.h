@@ -1,24 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * OMAP4 Bandgap temperature sensor driver
  *
  * Copyright (C) 2011 Texas Instruments Incorporated - http://www.ti.com/
  * Contact:
  *   Eduardo Valentin <eduardo.valentin@ti.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
- *
  */
 #ifndef __TI_BANDGAP_H
 #define __TI_BANDGAP_H
@@ -78,11 +64,8 @@
  * @bgap_mask_ctrl: BANDGAP_MASK_CTRL register offset
  * @mask_hot_mask: mask to bandgap_mask_ctrl.mask_hot
  * @mask_cold_mask: mask to bandgap_mask_ctrl.mask_cold
- * @mask_sidlemode_mask: mask to bandgap_mask_ctrl.mask_sidlemode
  * @mask_counter_delay_mask: mask to bandgap_mask_ctrl.mask_counter_delay
  * @mask_freeze_mask: mask to bandgap_mask_ctrl.mask_free
- * @mask_clear_mask: mask to bandgap_mask_ctrl.mask_clear
- * @mask_clear_accum_mask: mask to bandgap_mask_ctrl.mask_clear_accum
  * @bgap_mode_ctrl: BANDGAP_MODE_CTRL register offset
  * @mode_ctrl_mask: mask to bandgap_mode_ctrl.mode_ctrl
  * @bgap_counter: BANDGAP_COUNTER register offset
@@ -91,21 +74,13 @@
  * @threshold_thot_mask: mask to bandgap_threhold.thot
  * @threshold_tcold_mask: mask to bandgap_threhold.tcold
  * @tshut_threshold: TSHUT_THRESHOLD register offset (TSHUT thresholds)
- * @tshut_efuse_mask: mask to tshut_threshold.tshut_efuse
- * @tshut_efuse_shift: shift to tshut_threshold.tshut_efuse
  * @tshut_hot_mask: mask to tshut_threhold.thot
  * @tshut_cold_mask: mask to tshut_threhold.thot
  * @bgap_status: BANDGAP_STATUS register offset
- * @status_clean_stop_mask: mask to bandgap_status.clean_stop
- * @status_bgap_alert_mask: mask to bandgap_status.bandgap_alert
  * @status_hot_mask: mask to bandgap_status.hot
  * @status_cold_mask: mask to bandgap_status.cold
- * @bgap_cumul_dtemp: BANDGAP_CUMUL_DTEMP register offset
- * @ctrl_dtemp_0: CTRL_DTEMP0 register offset
  * @ctrl_dtemp_1: CTRL_DTEMP1 register offset
  * @ctrl_dtemp_2: CTRL_DTEMP2 register offset
- * @ctrl_dtemp_3: CTRL_DTEMP3 register offset
- * @ctrl_dtemp_4: CTRL_DTEMP4 register offset
  * @bgap_efuse: BANDGAP_EFUSE register offset
  *
  * The register offsets and bitfields might change across
@@ -121,17 +96,14 @@ struct temp_sensor_registers {
 	u32	temp_sensor_ctrl;
 	u32	bgap_tempsoff_mask;
 	u32	bgap_soc_mask;
-	u32	bgap_eocz_mask; /* not used: but needs revisit */
+	u32	bgap_eocz_mask;
 	u32	bgap_dtemp_mask;
 
 	u32	bgap_mask_ctrl;
 	u32	mask_hot_mask;
 	u32	mask_cold_mask;
-	u32	mask_sidlemode_mask; /* not used: but may be needed for pm */
 	u32	mask_counter_delay_mask;
 	u32	mask_freeze_mask;
-	u32	mask_clear_mask; /* not used: but needed for trending */
-	u32	mask_clear_accum_mask; /* not used: but needed for trending */
 
 	u32	bgap_mode_ctrl;
 	u32	mode_ctrl_mask;
@@ -144,23 +116,15 @@ struct temp_sensor_registers {
 	u32	threshold_tcold_mask;
 
 	u32	tshut_threshold;
-	u32	tshut_efuse_mask; /* not used */
-	u32	tshut_efuse_shift; /* not used */
 	u32	tshut_hot_mask;
 	u32	tshut_cold_mask;
 
 	u32	bgap_status;
-	u32	status_clean_stop_mask; /* not used: but needed for trending */
-	u32	status_bgap_alert_mask; /* not used */
 	u32	status_hot_mask;
 	u32	status_cold_mask;
 
-	u32	bgap_cumul_dtemp; /* not used: but needed for trending */
-	u32	ctrl_dtemp_0; /* not used: but needed for trending */
-	u32	ctrl_dtemp_1; /* not used: but needed for trending */
-	u32	ctrl_dtemp_2; /* not used: but needed for trending */
-	u32	ctrl_dtemp_3; /* not used: but needed for trending */
-	u32	ctrl_dtemp_4; /* not used: but needed for trending */
+	u32	ctrl_dtemp_1;
+	u32	ctrl_dtemp_2;
 	u32	bgap_efuse;
 };
 
@@ -172,11 +136,6 @@ struct temp_sensor_registers {
  * @t_cold: temperature to trigger a thermal alert (low initial value)
  * @min_freq: sensor minimum clock rate
  * @max_freq: sensor maximum clock rate
- * @max_temp: sensor maximum temperature
- * @min_temp: sensor minimum temperature
- * @hyst_val: temperature hysteresis considered while converting ADC values
- * @update_int1: update interval
- * @update_int2: update interval
  *
  * This data structure will hold the required thresholds and temperature limits
  * for a specific temperature sensor, like shutdown temperature, alert
@@ -189,11 +148,6 @@ struct temp_sensor_data {
 	u32	t_cold;
 	u32	min_freq;
 	u32	max_freq;
-	int     max_temp;
-	int     min_temp;
-	int     hyst_val;
-	u32     update_int1; /* not used */
-	u32     update_int2; /* not used */
 };
 
 struct ti_bandgap_data;
@@ -254,8 +208,6 @@ struct ti_bandgap {
  * @ts_data: pointer to struct with thresholds, limits of temperature sensor
  * @registers: pointer to the list of register offsets and bitfields
  * @domain: the name of the domain where the sensor is located
- * @slope: sensor gradient slope info for hotspot extrapolation equation
- * @constant: sensor gradient const info for hotspot extrapolation equation
  * @slope_pcb: sensor gradient slope info for hotspot extrapolation equation
  *             with no external influence
  * @constant_pcb: sensor gradient const info for hotspot extrapolation equation
@@ -274,8 +226,6 @@ struct ti_temp_sensor {
 	struct temp_sensor_registers	*registers;
 	char				*domain;
 	/* for hotspot extrapolation */
-	const int			slope;
-	const int			constant;
 	const int			slope_pcb;
 	const int			constant_pcb;
 	int (*register_cooling)(struct ti_bandgap *bgp, int id);
@@ -320,8 +270,6 @@ struct ti_temp_sensor {
  *
  * TI_BANDGAP_FEATURE_ERRATA_814 - used to workaorund when the bandgap device
  *	has Errata 814
- * TI_BANDGAP_FEATURE_ERRATA_813 - used to workaorund when the bandgap device
- *	has Errata 813
  * TI_BANDGAP_FEATURE_UNRELIABLE - used when the sensor readings are too
  *	inaccurate.
  * TI_BANDGAP_HAS(b, f) - macro to check if a bandgap device is capable of a
@@ -338,8 +286,7 @@ struct ti_temp_sensor {
 #define TI_BANDGAP_FEATURE_COUNTER_DELAY	BIT(8)
 #define TI_BANDGAP_FEATURE_HISTORY_BUFFER	BIT(9)
 #define TI_BANDGAP_FEATURE_ERRATA_814		BIT(10)
-#define TI_BANDGAP_FEATURE_ERRATA_813		BIT(11)
-#define TI_BANDGAP_FEATURE_UNRELIABLE		BIT(12)
+#define TI_BANDGAP_FEATURE_UNRELIABLE		BIT(11)
 #define TI_BANDGAP_HAS(b, f)			\
 			((b)->conf->features & TI_BANDGAP_FEATURE_ ## f)
 

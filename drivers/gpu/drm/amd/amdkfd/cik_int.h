@@ -20,8 +20,8 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef HSA_RADEON_CIK_INT_H_INCLUDED
-#define HSA_RADEON_CIK_INT_H_INCLUDED
+#ifndef CIK_INT_H_INCLUDED
+#define CIK_INT_H_INCLUDED
 
 #include <linux/types.h>
 
@@ -32,10 +32,12 @@ struct cik_ih_ring_entry {
 	uint32_t reserved;
 };
 
-#define CIK_INTSRC_DEQUEUE_COMPLETE	0xC6
 #define CIK_INTSRC_CP_END_OF_PIPE	0xB5
 #define CIK_INTSRC_CP_BAD_OPCODE	0xB7
+#define CIK_INTSRC_SDMA_TRAP		0xE0
 #define CIK_INTSRC_SQ_INTERRUPT_MSG	0xEF
+#define CIK_INTSRC_GFX_PAGE_INV_FAULT	0x92
+#define CIK_INTSRC_GFX_MEM_PROT_FAULT	0x93
 
 #endif
 

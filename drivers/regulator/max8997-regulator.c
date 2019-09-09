@@ -1,25 +1,11 @@
-/*
- * max8997.c - Regulator driver for the Maxim 8997/8966
- *
- * Copyright (C) 2011 Samsung Electronics
- * MyungJoo Ham <myungjoo.ham@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
- * This driver is based on max8998.c
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// max8997.c - Regulator driver for the Maxim 8997/8966
+//
+// Copyright (C) 2011 Samsung Electronics
+// MyungJoo Ham <myungjoo.ham@samsung.com>
+//
+// This driver is based on max8998.c
 
 #include <linux/bug.h>
 #include <linux/err.h>
@@ -165,8 +151,7 @@ static int max8997_list_voltage(struct regulator_dev *rdev,
 	int rid = rdev_get_id(rdev);
 	int val;
 
-	if (rid >= ARRAY_SIZE(reg_voltage_map) ||
-			rid < 0)
+	if (rid < 0 || rid >= ARRAY_SIZE(reg_voltage_map))
 		return -EINVAL;
 
 	desc = reg_voltage_map[rid];
@@ -428,12 +413,9 @@ static int max8997_set_voltage_charger_cv(struct regulator_dev *rdev,
 	if (max_uV < 4000000 || min_uV > 4350000)
 		return -EINVAL;
 
-	if (min_uV <= 4000000) {
-		if (max_uV >= 4000000)
-			return -EINVAL;
-		else
-			val = 0x1;
-	} else if (min_uV <= 4200000 && max_uV >= 4200000)
+	if (min_uV <= 4000000)
+		val = 0x1;
+	else if (min_uV <= 4200000 && max_uV >= 4200000)
 		val = 0x0;
 	else {
 		lb = (min_uV - 4000001) / 20000 + 2;
@@ -932,8 +914,9 @@ static int max8997_pmic_dt_parse_pdata(struct platform_device *pdev,
 	/* count the number of regulators to be supported in pmic */
 	pdata->num_regulators = of_get_child_count(regulators_np);
 
-	rdata = devm_kzalloc(&pdev->dev, sizeof(*rdata) *
-				pdata->num_regulators, GFP_KERNEL);
+	rdata = devm_kcalloc(&pdev->dev,
+			     pdata->num_regulators, sizeof(*rdata),
+			     GFP_KERNEL);
 	if (!rdata) {
 		of_node_put(regulators_np);
 		return -ENOMEM;
@@ -942,12 +925,12 @@ static int max8997_pmic_dt_parse_pdata(struct platform_device *pdev,
 	pdata->regulators = rdata;
 	for_each_child_of_node(regulators_np, reg_np) {
 		for (i = 0; i < ARRAY_SIZE(regulators); i++)
-			if (!of_node_cmp(reg_np->name, regulators[i].name))
+			if (of_node_name_eq(reg_np, regulators[i].name))
 				break;
 
 		if (i == ARRAY_SIZE(regulators)) {
-			dev_warn(&pdev->dev, "don't know how to configure regulator %s\n",
-				 reg_np->name);
+			dev_warn(&pdev->dev, "don't know how to configure regulator %pOFn\n",
+				 reg_np);
 			continue;
 		}
 

@@ -71,7 +71,7 @@ nvkm_perfdom_find(struct nvkm_pm *pm, int di)
 	return NULL;
 }
 
-struct nvkm_perfsig *
+static struct nvkm_perfsig *
 nvkm_perfsig_find(struct nvkm_pm *pm, u8 di, u8 si, struct nvkm_perfdom **pdom)
 {
 	struct nvkm_perfdom *dom = *pdom;
@@ -462,7 +462,7 @@ nvkm_perfmon_mthd_query_domain(struct nvkm_perfmon *perfmon,
 
 		args->v0.id         = di;
 		args->v0.signal_nr  = nvkm_perfdom_count_perfsig(dom);
-		strncpy(args->v0.name, dom->name, sizeof(args->v0.name));
+		strncpy(args->v0.name, dom->name, sizeof(args->v0.name) - 1);
 
 		/* Currently only global counters (PCOUNTER) are implemented
 		 * but this will be different for local counters (MP). */
@@ -514,7 +514,7 @@ nvkm_perfmon_mthd_query_signal(struct nvkm_perfmon *perfmon,
 				 "/%s/%02x", dom->name, si);
 		} else {
 			strncpy(args->v0.name, sig->name,
-				sizeof(args->v0.name));
+				sizeof(args->v0.name) - 1);
 		}
 
 		args->v0.signal = si;
@@ -572,7 +572,7 @@ nvkm_perfmon_mthd_query_source(struct nvkm_perfmon *perfmon,
 
 		args->v0.source = sig->source[si];
 		args->v0.mask   = src->mask;
-		strncpy(args->v0.name, src->name, sizeof(args->v0.name));
+		strncpy(args->v0.name, src->name, sizeof(args->v0.name) - 1);
 	}
 
 	if (++si < source_nr) {
@@ -699,7 +699,7 @@ nvkm_pm_oclass_get(struct nvkm_oclass *oclass, int index,
 	return 1;
 }
 
-int
+static int
 nvkm_perfsrc_new(struct nvkm_pm *pm, struct nvkm_perfsig *sig,
 		 const struct nvkm_specsrc *spec)
 {
@@ -779,8 +779,8 @@ nvkm_perfdom_new(struct nvkm_pm *pm, const char *name, u32 mask,
 
 		sdom = spec;
 		while (sdom->signal_nr) {
-			dom = kzalloc(sizeof(*dom) + sdom->signal_nr *
-				      sizeof(*dom->signal), GFP_KERNEL);
+			dom = kzalloc(struct_size(dom, signal, sdom->signal_nr),
+				      GFP_KERNEL);
 			if (!dom)
 				return -ENOMEM;
 

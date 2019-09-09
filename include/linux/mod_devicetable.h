@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Device tables which are exported to userspace via
  * scripts/mod/file2alias.c.  You must keep that file in sync with this
@@ -15,6 +16,25 @@ typedef unsigned long kernel_ulong_t;
 
 #define PCI_ANY_ID (~0)
 
+/**
+ * struct pci_device_id - PCI device ID structure
+ * @vendor:		Vendor ID to match (or PCI_ANY_ID)
+ * @device:		Device ID to match (or PCI_ANY_ID)
+ * @subvendor:		Subsystem vendor ID to match (or PCI_ANY_ID)
+ * @subdevice:		Subsystem device ID to match (or PCI_ANY_ID)
+ * @class:		Device class, subclass, and "interface" to match.
+ *			See Appendix D of the PCI Local Bus Spec or
+ *			include/linux/pci_ids.h for a full list of classes.
+ *			Most drivers do not need to specify class/class_mask
+ *			as vendor/device is normally sufficient.
+ * @class_mask:		Limit which sub-fields of the class field are compared.
+ *			See drivers/scsi/sym53c8xx_2/ for example of usage.
+ * @driver_data:	Data private to the driver.
+ *			Most drivers don't need to use driver_data field.
+ *			Best practice is to use driver_data as an index
+ *			into a static list of equivalent device types,
+ *			instead of using it as a pointer.
+ */
 struct pci_device_id {
 	__u32 vendor, device;		/* Vendor and device ID or PCI_ANY_ID*/
 	__u32 subvendor, subdevice;	/* Subsystem ID's or PCI_ANY_ID */
@@ -175,7 +195,8 @@ struct ap_device_id {
 	kernel_ulong_t driver_info;
 };
 
-#define AP_DEVICE_ID_MATCH_DEVICE_TYPE		0x01
+#define AP_DEVICE_ID_MATCH_CARD_TYPE		0x01
+#define AP_DEVICE_ID_MATCH_QUEUE_TYPE		0x02
 
 /* s390 css bus devices (subchannels) */
 struct css_device_id {
@@ -227,6 +248,12 @@ struct hda_device_id {
 	unsigned long driver_data;
 };
 
+struct sdw_device_id {
+	__u16 mfg_id;
+	__u16 part_id;
+	kernel_ulong_t driver_data;
+};
+
 /*
  * Struct used for matching a device
  */
@@ -249,17 +276,17 @@ struct pcmcia_device_id {
 	__u16		match_flags;
 
 	__u16		manf_id;
-	__u16 		card_id;
+	__u16		card_id;
 
-	__u8  		func_id;
+	__u8		func_id;
 
 	/* for real multi-function devices */
-	__u8  		function;
+	__u8		function;
 
 	/* for pseudo multi-function devices */
-	__u8  		device_no;
+	__u8		device_no;
 
-	__u32 		prod_id_hash[4];
+	__u32		prod_id_hash[4];
 
 	/* not matched against in kernelspace */
 	const char *	prod_id[4];
@@ -292,6 +319,7 @@ struct pcmcia_device_id {
 #define INPUT_DEVICE_ID_SND_MAX		0x07
 #define INPUT_DEVICE_ID_FF_MAX		0x7f
 #define INPUT_DEVICE_ID_SW_MAX		0x0f
+#define INPUT_DEVICE_ID_PROP_MAX	0x1f
 
 #define INPUT_DEVICE_ID_MATCH_BUS	1
 #define INPUT_DEVICE_ID_MATCH_VENDOR	2
@@ -307,6 +335,7 @@ struct pcmcia_device_id {
 #define INPUT_DEVICE_ID_MATCH_SNDBIT	0x0400
 #define INPUT_DEVICE_ID_MATCH_FFBIT	0x0800
 #define INPUT_DEVICE_ID_MATCH_SWBIT	0x1000
+#define INPUT_DEVICE_ID_MATCH_PROPBIT	0x2000
 
 struct input_device_id {
 
@@ -326,6 +355,7 @@ struct input_device_id {
 	kernel_ulong_t sndbit[INPUT_DEVICE_ID_SND_MAX / BITS_PER_LONG + 1];
 	kernel_ulong_t ffbit[INPUT_DEVICE_ID_FF_MAX / BITS_PER_LONG + 1];
 	kernel_ulong_t swbit[INPUT_DEVICE_ID_SW_MAX / BITS_PER_LONG + 1];
+	kernel_ulong_t propbit[INPUT_DEVICE_ID_PROP_MAX / BITS_PER_LONG + 1];
 
 	kernel_ulong_t driver_info;
 };
@@ -427,6 +457,33 @@ struct i2c_device_id {
 	kernel_ulong_t driver_data;	/* Data private to the driver */
 };
 
+/* pci_epf */
+
+#define PCI_EPF_NAME_SIZE	20
+#define PCI_EPF_MODULE_PREFIX	"pci_epf:"
+
+struct pci_epf_device_id {
+	char name[PCI_EPF_NAME_SIZE];
+	kernel_ulong_t driver_data;
+};
+
+/* i3c */
+
+#define I3C_MATCH_DCR			0x1
+#define I3C_MATCH_MANUF			0x2
+#define I3C_MATCH_PART			0x4
+#define I3C_MATCH_EXTRA_INFO		0x8
+
+struct i3c_device_id {
+	__u8 match_flags;
+	__u8 dcr;
+	__u16 manuf_id;
+	__u16 part_id;
+	__u16 extra_info;
+
+	const void *data;
+};
+
 /* spi */
 
 #define SPI_NAME_SIZE	32
@@ -434,6 +491,30 @@ struct i2c_device_id {
 
 struct spi_device_id {
 	char name[SPI_NAME_SIZE];
+	kernel_ulong_t driver_data;	/* Data private to the driver */
+};
+
+/* SLIMbus */
+
+#define SLIMBUS_NAME_SIZE	32
+#define SLIMBUS_MODULE_PREFIX	"slim:"
+
+struct slim_device_id {
+	__u16 manf_id, prod_code;
+	__u16 dev_index, instance;
+
+	/* Data private to the driver */
+	kernel_ulong_t driver_data;
+};
+
+#define APR_NAME_SIZE	32
+#define APR_MODULE_PREFIX "apr:"
+
+struct apr_device_id {
+	char name[APR_NAME_SIZE];
+	__u32 domain_id;
+	__u32 svc_id;
+	__u32 svc_version;
 	kernel_ulong_t driver_data;	/* Data private to the driver */
 };
 
@@ -456,6 +537,8 @@ enum dmi_field {
 	DMI_PRODUCT_VERSION,
 	DMI_PRODUCT_SERIAL,
 	DMI_PRODUCT_UUID,
+	DMI_PRODUCT_SKU,
+	DMI_PRODUCT_FAMILY,
 	DMI_BOARD_VENDOR,
 	DMI_BOARD_NAME,
 	DMI_BOARD_VERSION,
@@ -467,6 +550,7 @@ enum dmi_field {
 	DMI_CHASSIS_SERIAL,
 	DMI_CHASSIS_ASSET_TAG,
 	DMI_STRING_MAX,
+	DMI_OEM_STRING,	/* special case - will not be in dmi_ident */
 };
 
 struct dmi_strmatch {
@@ -500,6 +584,7 @@ struct platform_device_id {
 	kernel_ulong_t driver_data;
 };
 
+#define MDIO_NAME_SIZE		32
 #define MDIO_MODULE_PREFIX	"mdio:"
 
 #define MDIO_ID_FMT "%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d"
@@ -516,7 +601,7 @@ struct platform_device_id {
 /**
  * struct mdio_device_id - identifies PHY devices on an MDIO/MII bus
  * @phy_id: The result of
- *     (mdio_read(&MII_PHYSID1) << 16 | mdio_read(&PHYSID2)) & @phy_id_mask
+ *     (mdio_read(&MII_PHYSID1) << 16 | mdio_read(&MII_PHYSID2)) & @phy_id_mask
  *     for this PHY type
  * @phy_id_mask: Defines the significant bits of @phy_id.  A value of 0
  *     is used to terminate an array of struct mdio_device_id.
@@ -661,8 +746,6 @@ struct ulpi_device_id {
  * struct fsl_mc_device_id - MC object device identifier
  * @vendor: vendor ID
  * @obj_type: MC object type
- * @ver_major: MC object version major number
- * @ver_minor: MC object version minor number
  *
  * Type of entries in the "device Id" table for MC object devices supported by
  * a MC object device driver. The last entry of the table has vendor set to 0x0
@@ -672,5 +755,70 @@ struct fsl_mc_device_id {
 	const char obj_type[16];
 };
 
+/**
+ * struct tb_service_id - Thunderbolt service identifiers
+ * @match_flags: Flags used to match the structure
+ * @protocol_key: Protocol key the service supports
+ * @protocol_id: Protocol id the service supports
+ * @protocol_version: Version of the protocol
+ * @protocol_revision: Revision of the protocol software
+ * @driver_data: Driver specific data
+ *
+ * Thunderbolt XDomain services are exposed as devices where each device
+ * carries the protocol information the service supports. Thunderbolt
+ * XDomain service drivers match against that information.
+ */
+struct tb_service_id {
+	__u32 match_flags;
+	char protocol_key[8 + 1];
+	__u32 protocol_id;
+	__u32 protocol_version;
+	__u32 protocol_revision;
+	kernel_ulong_t driver_data;
+};
+
+#define TBSVC_MATCH_PROTOCOL_KEY	0x0001
+#define TBSVC_MATCH_PROTOCOL_ID		0x0002
+#define TBSVC_MATCH_PROTOCOL_VERSION	0x0004
+#define TBSVC_MATCH_PROTOCOL_REVISION	0x0008
+
+/* USB Type-C Alternate Modes */
+
+#define TYPEC_ANY_MODE	0x7
+
+/**
+ * struct typec_device_id - USB Type-C alternate mode identifiers
+ * @svid: Standard or Vendor ID
+ * @mode: Mode index
+ * @driver_data: Driver specific data
+ */
+struct typec_device_id {
+	__u16 svid;
+	__u8 mode;
+	kernel_ulong_t driver_data;
+};
+
+/**
+ * struct tee_client_device_id - tee based device identifier
+ * @uuid: For TEE based client devices we use the device uuid as
+ *        the identifier.
+ */
+struct tee_client_device_id {
+	uuid_t uuid;
+};
+
+/* WMI */
+
+#define WMI_MODULE_PREFIX	"wmi:"
+
+/**
+ * struct wmi_device_id - WMI device identifier
+ * @guid_string: 36 char string of the form fa50ff2b-f2e8-45de-83fa-65417f2f49ba
+ * @context: pointer to driver specific data
+ */
+struct wmi_device_id {
+	const char guid_string[UUID_STRING_LEN+1];
+	const void *context;
+};
 
 #endif /* LINUX_MOD_DEVICETABLE_H */

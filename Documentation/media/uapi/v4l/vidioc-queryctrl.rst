@@ -1,4 +1,11 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 .. _VIDIOC_QUERYCTRL:
 
@@ -32,6 +39,8 @@ Arguments
     File descriptor returned by :ref:`open() <func-open>`.
 
 ``argp``
+    Pointer to struct :c:type:`v4l2_queryctl`, :c:type:`v4l2_query_ext_ctrl`
+    or :c:type`v4l2_querymenu` (depending on the ioctl).
 
 
 Description
@@ -274,7 +283,7 @@ See also the examples in :ref:`control`.
 
 
 
-.. tabularcolumns:: |p{1.2cm}|p{0.6cm}|p{1.6cm}|p{13.5cm}|
+.. tabularcolumns:: |p{1.2cm}|p{1.0cm}|p{1.7cm}|p{13.0cm}|
 
 .. _v4l2-querymenu:
 
@@ -301,12 +310,12 @@ See also the examples in :ref:`control`.
       - ``name``\ [32]
       - Name of the menu item, a NUL-terminated ASCII string. This
 	information is intended for the user. This field is valid for
-	``V4L2_CTRL_FLAG_MENU`` type controls.
+	``V4L2_CTRL_TYPE_MENU`` type controls.
     * -
       - __s64
       - ``value``
       - Value of the integer menu item. This field is valid for
-	``V4L2_CTRL_FLAG_INTEGER_MENU`` type controls.
+	``V4L2_CTRL_TYPE_INTEGER_MENU`` type controls.
     * - __u32
       -
       - ``reserved``
@@ -422,8 +431,48 @@ See also the examples in :ref:`control`.
       - any
       - An unsigned 32-bit valued control ranging from minimum to maximum
 	inclusive. The step value indicates the increment between values.
-
-
+    * - ``V4L2_CTRL_TYPE_MPEG2_SLICE_PARAMS``
+      - n/a
+      - n/a
+      - n/a
+      - A struct :c:type:`v4l2_ctrl_mpeg2_slice_params`, containing MPEG-2
+	slice parameters for stateless video decoders.
+    * - ``V4L2_CTRL_TYPE_MPEG2_QUANTIZATION``
+      - n/a
+      - n/a
+      - n/a
+      - A struct :c:type:`v4l2_ctrl_mpeg2_quantization`, containing MPEG-2
+	quantization matrices for stateless video decoders.
+    * - ``V4L2_CTRL_TYPE_H264_SPS``
+      - n/a
+      - n/a
+      - n/a
+      - A struct :c:type:`v4l2_ctrl_h264_sps`, containing H264
+	sequence parameters for stateless video decoders.
+    * - ``V4L2_CTRL_TYPE_H264_PPS``
+      - n/a
+      - n/a
+      - n/a
+      - A struct :c:type:`v4l2_ctrl_h264_pps`, containing H264
+	picture parameters for stateless video decoders.
+    * - ``V4L2_CTRL_TYPE_H264_SCALING_MATRIX``
+      - n/a
+      - n/a
+      - n/a
+      - A struct :c:type:`v4l2_ctrl_h264_scaling_matrix`, containing H264
+	scaling matrices for stateless video decoders.
+    * - ``V4L2_CTRL_TYPE_H264_SLICE_PARAMS``
+      - n/a
+      - n/a
+      - n/a
+      - A struct :c:type:`v4l2_ctrl_h264_slice_params`, containing H264
+	slice parameters for stateless video decoders.
+    * - ``V4L2_CTRL_TYPE_H264_DECODE_PARAMS``
+      - n/a
+      - n/a
+      - n/a
+      - A struct :c:type:`v4l2_ctrl_h264_decode_params`, containing H264
+	decode parameters for stateless video decoders.
 
 .. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
@@ -507,6 +556,19 @@ See also the examples in :ref:`control`.
 	represents an action on the hardware. For example: clearing an
 	error flag or triggering the flash. All the controls of the type
 	``V4L2_CTRL_TYPE_BUTTON`` have this flag set.
+    * .. _FLAG_MODIFY_LAYOUT:
+
+      - ``V4L2_CTRL_FLAG_MODIFY_LAYOUT``
+      - 0x0400
+      - Changing this control value may modify the layout of the
+        buffer (for video devices) or the media bus format (for sub-devices).
+
+	A typical example would be the ``V4L2_CID_ROTATE`` control.
+
+	Note that typically controls with this flag will also set the
+	``V4L2_CTRL_FLAG_GRABBED`` flag when buffers are allocated or
+	streaming is in progress since most drivers do not support changing
+	the format in that case.
 
 
 Return Value

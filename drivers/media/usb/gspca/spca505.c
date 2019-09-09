@@ -1,22 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * SPCA505 chip based cameras initialization data
  *
  * V4L2 by Jean-Francis Moine <http://moinejf.free.fr>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -555,8 +541,8 @@ static int reg_write(struct gspca_dev *gspca_dev,
 			req,
 			USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			value, index, NULL, 0, 500);
-	PDEBUG(D_USBO, "reg write: 0x%02x,0x%02x:0x%02x, %d",
-		req, index, value, ret);
+	gspca_dbg(gspca_dev, D_USBO, "reg write: 0x%02x,0x%02x:0x%02x, %d\n",
+		  req, index, value, ret);
 	if (ret < 0)
 		pr_err("reg write: error %d\n", ret);
 	return ret;
@@ -654,7 +640,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	ret = reg_read(gspca_dev, 0x06, 0x16);
 
 	if (ret < 0) {
-		PERR("register read failed err: %d", ret);
+		gspca_err(gspca_dev, "register read failed err: %d\n", ret);
 		return ret;
 	}
 	if (ret != 0x0101) {

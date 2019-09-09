@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 #ifndef __SOUND_ICE1712_H
 #define __SOUND_ICE1712_H
 
@@ -5,21 +6,6 @@
  *   ALSA driver for ICEnsemble ICE1712 (Envy24)
  *
  *	Copyright (c) 2000 Jaroslav Kysela <perex@perex.cz>
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <linux/io.h>
@@ -218,8 +204,9 @@
 
 
 /*
- *
+ * I2C EEPROM Address
  */
+#define ICE_I2C_EEPROM_ADDR		0xA0
 
 struct snd_ice1712;
 
@@ -348,7 +335,7 @@ struct snd_ice1712 {
 
 	struct mutex open_mutex;
 	struct snd_pcm_substream *pcm_reserved[4];
-	struct snd_pcm_hw_constraint_list *hw_rates; /* card-specific rate constraints */
+	const struct snd_pcm_hw_constraint_list *hw_rates; /* card-specific rate constraints */
 
 	unsigned int akm_codecs;
 	struct snd_akm4xxx *akm;

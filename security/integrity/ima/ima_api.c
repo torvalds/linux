@@ -1,23 +1,19 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2008 IBM Corporation
  *
  * Author: Mimi Zohar <zohar@us.ibm.com>
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation, version 2 of the
- * License.
- *
  * File: ima_api.c
  *	Implements must_appraise_or_measure, collect_measurement,
  *	appraise_measurement, store_measurement and store_template.
  */
-#include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/file.h>
 #include <linux/fs.h>
 #include <linux/xattr.h>
 #include <linux/evm.h>
+#include <linux/iversion.h>
 
 #include "ima.h"
 
@@ -38,10 +34,16 @@ void ima_free_template_entry(struct ima_template_entry *entry)
  * ima_alloc_init_template - create and initialize a new template entry
  */
 int ima_alloc_init_template(struct ima_event_data *event_data,
-			    struct ima_template_entry **entry)
+			    struct ima_template_entry **entry,
+			    struct ima_template_desc *desc)
 {
-	struct ima_template_desc *template_desc = ima_template_desc_current();
+	struct ima_template_desc *template_desc;
 	int i, result = 0;
+
+	if (desc)
+		template_desc = desc;
+	else
+		template_desc = ima_template_desc_current();
 
 	*entry = kzalloc(sizeof(**entry) + template_desc->num_fields *
 			 sizeof(struct ima_field_data), GFP_NOFS);
@@ -50,7 +52,8 @@ int ima_alloc_init_template(struct ima_event_data *event_data,
 
 	(*entry)->template_desc = template_desc;
 	for (i = 0; i < template_desc->num_fields; i++) {
-		struct ima_template_field *field = template_desc->fields[i];
+		const struct ima_template_field *field =
+			template_desc->fields[i];
 		u32 len;
 
 		result = field->field_init(event_data,
@@ -132,15 +135,17 @@ void ima_add_violation(struct file *file, const unsigned char *filename,
 {
 	struct ima_template_entry *entry;
 	struct inode *inode = file_inode(file);
-	struct ima_event_data event_data = {iint, file, filename, NULL, 0,
-					    cause};
+	struct ima_event_data event_data = { .iint = iint,
+					     .file = file,
+					     .filename = filename,
+					     .violation = cause };
 	int violation = 1;
 	int result;
 
 	/* can overflow, only indicator */
 	atomic_long_inc(&ima_htable.violations);
 
-	result = ima_alloc_init_template(&event_data, &entry);
+	result = ima_alloc_init_template(&event_data, &entry, NULL);
 	if (result < 0) {
 		result = -ENOMEM;
 		goto err_out;
@@ -157,27 +162,35 @@ err_out:
 /**
  * ima_get_action - appraise & measure decision based on policy.
  * @inode: pointer to inode to measure
- * @mask: contains the permission mask (MAY_READ, MAY_WRITE, MAY_EXECUTE)
+ * @cred: pointer to credentials structure to validate
+ * @secid: secid of the task being validated
+ * @mask: contains the permission mask (MAY_READ, MAY_WRITE, MAY_EXEC,
+ *        MAY_APPEND)
  * @func: caller identifier
  * @pcr: pointer filled in if matched measure policy sets pcr=
+ * @template_desc: pointer filled in if matched measure policy sets template=
  *
  * The policy is defined in terms of keypairs:
  *		subj=, obj=, type=, func=, mask=, fsmagic=
  *	subj,obj, and type: are LSM specific.
- *	func: FILE_CHECK | BPRM_CHECK | MMAP_CHECK | MODULE_CHECK
+ *	func: FILE_CHECK | BPRM_CHECK | CREDS_CHECK | MMAP_CHECK | MODULE_CHECK
+ *	| KEXEC_CMDLINE
  *	mask: contains the permission mask
  *	fsmagic: hex value
  *
  * Returns IMA_MEASURE, IMA_APPRAISE mask.
  *
  */
-int ima_get_action(struct inode *inode, int mask, enum ima_hooks func, int *pcr)
+int ima_get_action(struct inode *inode, const struct cred *cred, u32 secid,
+		   int mask, enum ima_hooks func, int *pcr,
+		   struct ima_template_desc **template_desc)
 {
-	int flags = IMA_MEASURE | IMA_AUDIT | IMA_APPRAISE;
+	int flags = IMA_MEASURE | IMA_AUDIT | IMA_APPRAISE | IMA_HASH;
 
 	flags &= ima_policy_flag;
 
-	return ima_match_policy(inode, func, mask, flags, pcr);
+	return ima_match_policy(inode, cred, secid, func, mask, flags, pcr,
+				template_desc);
 }
 
 /*
@@ -198,42 +211,59 @@ int ima_collect_measurement(struct integrity_iint_cache *iint,
 	struct inode *inode = file_inode(file);
 	const char *filename = file->f_path.dentry->d_name.name;
 	int result = 0;
+	int length;
+	void *tmpbuf;
+	u64 i_version;
 	struct {
 		struct ima_digest_data hdr;
 		char digest[IMA_MAX_DIGEST_SIZE];
 	} hash;
 
-	if (!(iint->flags & IMA_COLLECTED)) {
-		u64 i_version = file_inode(file)->i_version;
+	if (iint->flags & IMA_COLLECTED)
+		goto out;
 
-		if (file->f_flags & O_DIRECT) {
-			audit_cause = "failed(directio)";
-			result = -EACCES;
-			goto out;
-		}
+	/*
+	 * Dectecting file change is based on i_version. On filesystems
+	 * which do not support i_version, support is limited to an initial
+	 * measurement/appraisal/audit.
+	 */
+	i_version = inode_query_iversion(inode);
+	hash.hdr.algo = algo;
 
-		hash.hdr.algo = algo;
+	/* Initialize hash digest to 0's in case of failure */
+	memset(&hash.digest, 0, sizeof(hash.digest));
 
-		result = (!buf) ?  ima_calc_file_hash(file, &hash.hdr) :
-			ima_calc_buffer_hash(buf, size, &hash.hdr);
-		if (!result) {
-			int length = sizeof(hash.hdr) + hash.hdr.length;
-			void *tmpbuf = krealloc(iint->ima_hash, length,
-						GFP_NOFS);
-			if (tmpbuf) {
-				iint->ima_hash = tmpbuf;
-				memcpy(iint->ima_hash, &hash, length);
-				iint->version = i_version;
-				iint->flags |= IMA_COLLECTED;
-			} else
-				result = -ENOMEM;
-		}
+	if (buf)
+		result = ima_calc_buffer_hash(buf, size, &hash.hdr);
+	else
+		result = ima_calc_file_hash(file, &hash.hdr);
+
+	if (result && result != -EBADF && result != -EINVAL)
+		goto out;
+
+	length = sizeof(hash.hdr) + hash.hdr.length;
+	tmpbuf = krealloc(iint->ima_hash, length, GFP_NOFS);
+	if (!tmpbuf) {
+		result = -ENOMEM;
+		goto out;
 	}
+
+	iint->ima_hash = tmpbuf;
+	memcpy(iint->ima_hash, &hash, length);
+	iint->version = i_version;
+
+	/* Possibly temporary failure due to type of read (eg. O_DIRECT) */
+	if (!result)
+		iint->flags |= IMA_COLLECTED;
 out:
-	if (result)
+	if (result) {
+		if (file->f_flags & O_DIRECT)
+			audit_cause = "failed(directio)";
+
 		integrity_audit_msg(AUDIT_INTEGRITY_DATA, inode,
 				    filename, "collect_data", audit_cause,
 				    result, 0);
+	}
 	return result;
 }
 
@@ -255,21 +285,25 @@ out:
 void ima_store_measurement(struct integrity_iint_cache *iint,
 			   struct file *file, const unsigned char *filename,
 			   struct evm_ima_xattr_data *xattr_value,
-			   int xattr_len, int pcr)
+			   int xattr_len, int pcr,
+			   struct ima_template_desc *template_desc)
 {
 	static const char op[] = "add_template_measure";
 	static const char audit_cause[] = "ENOMEM";
 	int result = -ENOMEM;
 	struct inode *inode = file_inode(file);
 	struct ima_template_entry *entry;
-	struct ima_event_data event_data = {iint, file, filename, xattr_value,
-					    xattr_len, NULL};
+	struct ima_event_data event_data = { .iint = iint,
+					     .file = file,
+					     .filename = filename,
+					     .xattr_value = xattr_value,
+					     .xattr_len = xattr_len };
 	int violation = 0;
 
 	if (iint->measured_pcrs & (0x1 << pcr))
 		return;
 
-	result = ima_alloc_init_template(&event_data, &entry);
+	result = ima_alloc_init_template(&event_data, &entry, template_desc);
 	if (result < 0) {
 		integrity_audit_msg(AUDIT_INTEGRITY_PCR, inode, filename,
 				    op, audit_cause, result, 0);
@@ -277,7 +311,7 @@ void ima_store_measurement(struct integrity_iint_cache *iint,
 	}
 
 	result = ima_store_template(entry, violation, inode, filename, pcr);
-	if (!result || result == -EEXIST) {
+	if ((!result || result == -EEXIST) && !(file->f_flags & O_DIRECT)) {
 		iint->flags |= IMA_MEASURED;
 		iint->measured_pcrs |= (0x1 << pcr);
 	}
@@ -289,36 +323,50 @@ void ima_audit_measurement(struct integrity_iint_cache *iint,
 			   const unsigned char *filename)
 {
 	struct audit_buffer *ab;
-	char hash[(iint->ima_hash->length * 2) + 1];
+	char *hash;
 	const char *algo_name = hash_algo_name[iint->ima_hash->algo];
-	char algo_hash[sizeof(hash) + strlen(algo_name) + 2];
 	int i;
 
 	if (iint->flags & IMA_AUDITED)
+		return;
+
+	hash = kzalloc((iint->ima_hash->length * 2) + 1, GFP_KERNEL);
+	if (!hash)
 		return;
 
 	for (i = 0; i < iint->ima_hash->length; i++)
 		hex_byte_pack(hash + (i * 2), iint->ima_hash->digest[i]);
 	hash[i * 2] = '\0';
 
-	ab = audit_log_start(current->audit_context, GFP_KERNEL,
+	ab = audit_log_start(audit_context(), GFP_KERNEL,
 			     AUDIT_INTEGRITY_RULE);
 	if (!ab)
-		return;
+		goto out;
 
 	audit_log_format(ab, "file=");
 	audit_log_untrustedstring(ab, filename);
-	audit_log_format(ab, " hash=");
-	snprintf(algo_hash, sizeof(algo_hash), "%s:%s", algo_name, hash);
-	audit_log_untrustedstring(ab, algo_hash);
+	audit_log_format(ab, " hash=\"%s:%s\"", algo_name, hash);
 
-	audit_log_task_info(ab, current);
+	audit_log_task_info(ab);
 	audit_log_end(ab);
 
 	iint->flags |= IMA_AUDITED;
+out:
+	kfree(hash);
+	return;
 }
 
-const char *ima_d_path(const struct path *path, char **pathbuf)
+/*
+ * ima_d_path - return a pointer to the full pathname
+ *
+ * Attempt to return a pointer to the full pathname for use in the
+ * IMA measurement list, IMA audit records, and auditing logs.
+ *
+ * On failure, return a pointer to a copy of the filename, not dname.
+ * Returning a pointer to dname, could result in using the pointer
+ * after the memory has been freed.
+ */
+const char *ima_d_path(const struct path *path, char **pathbuf, char *namebuf)
 {
 	char *pathname = NULL;
 
@@ -331,5 +379,11 @@ const char *ima_d_path(const struct path *path, char **pathbuf)
 			pathname = NULL;
 		}
 	}
-	return pathname ?: (const char *)path->dentry->d_name.name;
+
+	if (!pathname) {
+		strlcpy(namebuf, path->dentry->d_name.name, NAME_MAX);
+		pathname = namebuf;
+	}
+
+	return pathname;
 }

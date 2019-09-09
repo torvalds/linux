@@ -1,22 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *		Pixart PAC7311 library
  *		Copyright (C) 2005 Thomas Kaiser thomas@kaiser-linux.li
  *
  * V4L2 by Jean-Francois Moine <http://moinejf.free.fr>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 /* Some documentation about various registers as determined by trial and error.
@@ -262,7 +249,7 @@ static void reg_w_var(struct gspca_dev *gspca_dev,
 			break;
 		default:
 			if (len > USB_BUF_SZ) {
-				PERR("Incorrect variable sequence");
+				gspca_err(gspca_dev, "Incorrect variable sequence\n");
 				return;
 			}
 			while (len > 0) {

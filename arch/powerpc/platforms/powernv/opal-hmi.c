@@ -1,18 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * OPAL hypervisor Maintenance interrupt handling support in PowreNV.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; If not, see <http://www.gnu.org/licenses/>.
+ * OPAL hypervisor Maintenance interrupt handling support in PowerNV.
  *
  * Copyright 2014 IBM Corporation
  * Author: Mahesh Salgaonkar <mahesh@linux.vnet.ibm.com>
@@ -29,6 +17,8 @@
 #include <asm/opal.h>
 #include <asm/cputable.h>
 #include <asm/machdep.h>
+
+#include "powernv.h"
 
 static int opal_hmi_handler_nb_init;
 struct OpalHmiEvtNode {
@@ -147,6 +137,43 @@ static void print_nx_checkstop_reason(const char *level,
 					xstop_reason[i].description);
 }
 
+static void print_npu_checkstop_reason(const char *level,
+					struct OpalHMIEvent *hmi_evt)
+{
+	uint8_t reason, reason_count, i;
+
+	/*
+	 * We may not have a checkstop reason on some combination of
+	 * hardware and/or skiboot version
+	 */
+	if (!hmi_evt->u.xstop_error.xstop_reason) {
+		printk("%s	NPU checkstop on chip %x\n", level,
+			be32_to_cpu(hmi_evt->u.xstop_error.u.chip_id));
+		return;
+	}
+
+	/*
+	 * NPU2 has 3 FIRs. Reason encoded on a byte as:
+	 *   2 bits for the FIR number
+	 *   6 bits for the bit number
+	 * It may be possible to find several reasons.
+	 *
+	 * We don't display a specific message per FIR bit as there
+	 * are too many and most are meaningless without the workbook
+	 * and/or hw team help anyway.
+	 */
+	reason_count = sizeof(hmi_evt->u.xstop_error.xstop_reason) /
+		sizeof(reason);
+	for (i = 0; i < reason_count; i++) {
+		reason = (hmi_evt->u.xstop_error.xstop_reason >> (8 * i)) & 0xFF;
+		if (reason)
+			printk("%s	NPU checkstop on chip %x: FIR%d bit %d is set\n",
+				level,
+				be32_to_cpu(hmi_evt->u.xstop_error.u.chip_id),
+				reason >> 6, reason & 0x3F);
+	}
+}
+
 static void print_checkstop_reason(const char *level,
 					struct OpalHMIEvent *hmi_evt)
 {
@@ -157,6 +184,9 @@ static void print_checkstop_reason(const char *level,
 		break;
 	case CHECKSTOP_TYPE_NX:
 		print_nx_checkstop_reason(level, hmi_evt);
+		break;
+	case CHECKSTOP_TYPE_NPU:
+		print_npu_checkstop_reason(level, hmi_evt);
 		break;
 	default:
 		printk("%s	Unknown Malfunction Alert of type %d\n",
@@ -175,12 +205,13 @@ static void print_hmi_event_info(struct OpalHMIEvent *hmi_evt)
 		"Processor recovery occurred for masked error",
 		"Timer facility experienced an error",
 		"TFMR SPR is corrupted",
-		"UPS (Uniterrupted Power System) Overflow indication",
+		"UPS (Uninterrupted Power System) Overflow indication",
 		"An XSCOM operation failure",
 		"An XSCOM operation completed",
 		"SCOM has set a reserved FIR bit to cause recovery",
 		"Debug trigger has set a reserved FIR bit to cause recovery",
-		"A hypervisor resource error occurred"
+		"A hypervisor resource error occurred",
+		"CAPP recovery process is in progress",
 	};
 
 	/* Print things out */
@@ -266,8 +297,6 @@ static void hmi_event_handler(struct work_struct *work)
 	spin_unlock_irqrestore(&opal_hmi_evt_lock, flags);
 
 	if (unrecoverable) {
-		int ret;
-
 		/* Pull all HMI events from OPAL before we panic. */
 		while (opal_get_msg(__pa(&msg), sizeof(msg)) == OPAL_SUCCESS) {
 			u32 type;
@@ -283,23 +312,7 @@ static void hmi_event_handler(struct work_struct *work)
 			print_hmi_event_info(hmi_evt);
 		}
 
-		/*
-		 * Unrecoverable HMI exception. We need to inform BMC/OCC
-		 * about this error so that it can collect relevant data
-		 * for error analysis before rebooting.
-		 */
-		ret = opal_cec_reboot2(OPAL_REBOOT_PLATFORM_ERROR,
-			"Unrecoverable HMI exception");
-		if (ret == OPAL_UNSUPPORTED) {
-			pr_emerg("Reboot type %d not supported\n",
-						OPAL_REBOOT_PLATFORM_ERROR);
-		}
-
-		/*
-		 * Fall through and panic if opal_cec_reboot2() returns
-		 * OPAL_UNSUPPORTED.
-		 */
-		panic("Unrecoverable HMI exception");
+		pnv_platform_error_reboot(NULL, "Unrecoverable HMI exception");
 	}
 }
 
@@ -329,7 +342,7 @@ static int opal_handle_hmi_event(struct notifier_block *nb,
 		pr_err("HMI: out of memory, Opal message event not handled\n");
 		return -ENOMEM;
 	}
-	memcpy(&msg_node->hmi_evt, hmi_evt, sizeof(struct OpalHMIEvent));
+	memcpy(&msg_node->hmi_evt, hmi_evt, sizeof(*hmi_evt));
 
 	spin_lock_irqsave(&opal_hmi_evt_lock, flags);
 	list_add(&msg_node->list, &opal_hmi_evt_list);

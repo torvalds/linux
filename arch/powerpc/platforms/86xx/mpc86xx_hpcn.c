@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * MPC86xx HPCN board specific routines
  *
@@ -5,11 +6,6 @@
  * Initial author: Xianghua Xiao <x.xiao@freescale.com>
  *
  * Copyright 2006 Freescale Semiconductor Inc.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/stddef.h>
@@ -101,7 +97,7 @@ static int __init mpc86xx_hpcn_probe(void)
 
 	/* Be nice and don't give silent boot death.  Delete this in 2.6.27 */
 	if (of_machine_is_compatible("mpc86xx")) {
-		pr_warning("WARNING: your dts/dtb is old. You must update before the next kernel release\n");
+		pr_warn("WARNING: your dts/dtb is old. You must update before the next kernel release.\n");
 		return 1;
 	}
 
@@ -121,7 +117,6 @@ static int __init declare_of_platform_devices(void)
 	return 0;
 }
 machine_arch_initcall(mpc86xx_hpcn, declare_of_platform_devices);
-machine_arch_initcall(mpc86xx_hpcn, swiotlb_setup_bus_notifier);
 
 define_machine(mpc86xx_hpcn) {
 	.name			= "MPC86xx HPCN",

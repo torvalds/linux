@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _FS_CEPH_LIBCEPH_H
 #define _FS_CEPH_LIBCEPH_H
 
@@ -14,6 +15,7 @@
 #include <linux/wait.h>
 #include <linux/writeback.h>
 #include <linux/slab.h>
+#include <linux/refcount.h>
 
 #include <linux/ceph/types.h>
 #include <linux/ceph/messenger.h>
@@ -33,6 +35,7 @@
 #define CEPH_OPT_NOMSGAUTH	  (1<<4) /* don't require msg signing feat */
 #define CEPH_OPT_TCP_NODELAY	  (1<<5) /* TCP_NODELAY on TCP sockets */
 #define CEPH_OPT_NOMSGSIGN	  (1<<6) /* don't sign msgs */
+#define CEPH_OPT_ABORT_ON_FULL	  (1<<7) /* abort w/ ENOSPC when full */
 
 #define CEPH_OPT_DEFAULT   (CEPH_OPT_TCP_NODELAY)
 
@@ -48,9 +51,10 @@ struct ceph_options {
 	unsigned long mount_timeout;		/* jiffies */
 	unsigned long osd_idle_ttl;		/* jiffies */
 	unsigned long osd_keepalive_timeout;	/* jiffies */
+	unsigned long osd_request_timeout;	/* jiffies */
 
 	/*
-	 * any type that can't be simply compared or doesn't need need
+	 * any type that can't be simply compared or doesn't need
 	 * to be compared should go beyond this point,
 	 * ceph_compare_options() should be updated accordingly
 	 */
@@ -68,6 +72,7 @@ struct ceph_options {
 #define CEPH_MOUNT_TIMEOUT_DEFAULT	msecs_to_jiffies(60 * 1000)
 #define CEPH_OSD_KEEPALIVE_DEFAULT	msecs_to_jiffies(5 * 1000)
 #define CEPH_OSD_IDLE_TTL_DEFAULT	msecs_to_jiffies(60 * 1000)
+#define CEPH_OSD_REQUEST_TIMEOUT_DEFAULT 0  /* no timeout */
 
 #define CEPH_MONC_HUNT_INTERVAL		msecs_to_jiffies(3 * 1000)
 #define CEPH_MONC_PING_INTERVAL		msecs_to_jiffies(10 * 1000)
@@ -77,20 +82,17 @@ struct ceph_options {
 
 #define CEPH_MSG_MAX_FRONT_LEN	(16*1024*1024)
 #define CEPH_MSG_MAX_MIDDLE_LEN	(16*1024*1024)
-#define CEPH_MSG_MAX_DATA_LEN	(16*1024*1024)
-
-#define CEPH_AUTH_NAME_DEFAULT   "guest"
 
 /*
- * Delay telling the MDS we no longer want caps, in case we reopen
- * the file.  Delay a minimum amount of time, even if we send a cap
- * message for some other reason.  Otherwise, take the oppotunity to
- * update the mds to avoid sending another message later.
+ * The largest possible rbd data object is 32M.
+ * The largest possible rbd object map object is 64M.
+ *
+ * There is no limit on the size of cephfs objects, but it has to obey
+ * rsize and wsize mount options anyway.
  */
-#define CEPH_CAPS_WANTED_DELAY_MIN_DEFAULT      5  /* cap release delay */
-#define CEPH_CAPS_WANTED_DELAY_MAX_DEFAULT     60  /* cap release delay */
+#define CEPH_MSG_MAX_DATA_LEN	(64*1024*1024)
 
-#define CEPH_CAP_RELEASE_SAFETY_DEFAULT        (CEPH_CAPS_PER_RELEASE * 4)
+#define CEPH_AUTH_NAME_DEFAULT   "guest"
 
 /* mount state */
 enum {
@@ -159,7 +161,7 @@ struct ceph_client {
  * dirtied.
  */
 struct ceph_snap_context {
-	atomic_t nref;
+	refcount_t nref;
 	u64 seq;
 	u32 num_snaps;
 	u64 snaps[];
@@ -181,10 +183,11 @@ static inline int calc_pages_for(u64 off, u64 len)
 		(off >> PAGE_SHIFT);
 }
 
-/*
- * These are not meant to be generic - an integer key is assumed.
- */
-#define DEFINE_RB_INSDEL_FUNCS(name, type, keyfld, nodefld)		\
+#define RB_BYVAL(a)      (a)
+#define RB_BYPTR(a)      (&(a))
+#define RB_CMP3WAY(a, b) ((a) < (b) ? -1 : (a) > (b))
+
+#define DEFINE_RB_INSDEL_FUNCS2(name, type, keyfld, cmpexp, keyexp, nodefld) \
 static void insert_##name(struct rb_root *root, type *t)		\
 {									\
 	struct rb_node **n = &root->rb_node;				\
@@ -194,11 +197,13 @@ static void insert_##name(struct rb_root *root, type *t)		\
 									\
 	while (*n) {							\
 		type *cur = rb_entry(*n, type, nodefld);		\
+		int cmp;						\
 									\
 		parent = *n;						\
-		if (t->keyfld < cur->keyfld)				\
+		cmp = cmpexp(keyexp(t->keyfld), keyexp(cur->keyfld));	\
+		if (cmp < 0)						\
 			n = &(*n)->rb_left;				\
-		else if (t->keyfld > cur->keyfld)			\
+		else if (cmp > 0)					\
 			n = &(*n)->rb_right;				\
 		else							\
 			BUG();						\
@@ -214,19 +219,24 @@ static void erase_##name(struct rb_root *root, type *t)			\
 	RB_CLEAR_NODE(&t->nodefld);					\
 }
 
-#define DEFINE_RB_LOOKUP_FUNC(name, type, keyfld, nodefld)		\
-extern type __lookup_##name##_key;					\
-static type *lookup_##name(struct rb_root *root,			\
-			   typeof(__lookup_##name##_key.keyfld) key)	\
+/*
+ * @lookup_param_type is a parameter and not constructed from (@type,
+ * @keyfld) with typeof() because adding const is too unwieldy.
+ */
+#define DEFINE_RB_LOOKUP_FUNC2(name, type, keyfld, cmpexp, keyexp,	\
+			       lookup_param_type, nodefld)		\
+static type *lookup_##name(struct rb_root *root, lookup_param_type key)	\
 {									\
 	struct rb_node *n = root->rb_node;				\
 									\
 	while (n) {							\
 		type *cur = rb_entry(n, type, nodefld);			\
+		int cmp;						\
 									\
-		if (key < cur->keyfld)					\
+		cmp = cmpexp(key, keyexp(cur->keyfld));			\
+		if (cmp < 0)						\
 			n = n->rb_left;					\
-		else if (key > cur->keyfld)				\
+		else if (cmp > 0)					\
 			n = n->rb_right;				\
 		else							\
 			return cur;					\
@@ -234,6 +244,23 @@ static type *lookup_##name(struct rb_root *root,			\
 									\
 	return NULL;							\
 }
+
+#define DEFINE_RB_FUNCS2(name, type, keyfld, cmpexp, keyexp,		\
+			 lookup_param_type, nodefld)			\
+DEFINE_RB_INSDEL_FUNCS2(name, type, keyfld, cmpexp, keyexp, nodefld)	\
+DEFINE_RB_LOOKUP_FUNC2(name, type, keyfld, cmpexp, keyexp,		\
+		       lookup_param_type, nodefld)
+
+/*
+ * Shorthands for integer keys.
+ */
+#define DEFINE_RB_INSDEL_FUNCS(name, type, keyfld, nodefld)		\
+DEFINE_RB_INSDEL_FUNCS2(name, type, keyfld, RB_CMP3WAY, RB_BYVAL, nodefld)
+
+#define DEFINE_RB_LOOKUP_FUNC(name, type, keyfld, nodefld)		\
+extern type __lookup_##name##_key;					\
+DEFINE_RB_LOOKUP_FUNC2(name, type, keyfld, RB_CMP3WAY, RB_BYVAL,	\
+		       typeof(__lookup_##name##_key.keyfld), nodefld)
 
 #define DEFINE_RB_FUNCS(name, type, keyfld, nodefld)			\
 DEFINE_RB_INSDEL_FUNCS(name, type, keyfld, nodefld)			\
@@ -244,6 +271,7 @@ extern struct kmem_cache *ceph_cap_cachep;
 extern struct kmem_cache *ceph_cap_flush_cachep;
 extern struct kmem_cache *ceph_dentry_cachep;
 extern struct kmem_cache *ceph_file_cachep;
+extern struct kmem_cache *ceph_dir_file_cachep;
 
 /* ceph_common.c */
 extern bool libceph_compatible(void *data);
@@ -256,27 +284,23 @@ extern struct ceph_options *ceph_parse_options(char *options,
 			      const char *dev_name, const char *dev_name_end,
 			      int (*parse_extra_token)(char *c, void *private),
 			      void *private);
-int ceph_print_client_options(struct seq_file *m, struct ceph_client *client);
+int ceph_print_client_options(struct seq_file *m, struct ceph_client *client,
+			      bool show_all);
 extern void ceph_destroy_options(struct ceph_options *opt);
 extern int ceph_compare_options(struct ceph_options *new_opt,
 				struct ceph_client *client);
-extern struct ceph_client *ceph_create_client(struct ceph_options *opt,
-					      void *private,
-					      u64 supported_features,
-					      u64 required_features);
+struct ceph_client *ceph_create_client(struct ceph_options *opt, void *private);
 struct ceph_entity_addr *ceph_client_addr(struct ceph_client *client);
 u64 ceph_client_gid(struct ceph_client *client);
 extern void ceph_destroy_client(struct ceph_client *client);
 extern int __ceph_open_session(struct ceph_client *client,
 			       unsigned long started);
 extern int ceph_open_session(struct ceph_client *client);
+int ceph_wait_for_latest_osdmap(struct ceph_client *client,
+				unsigned long timeout);
 
 /* pagevec.c */
 extern void ceph_release_page_vector(struct page **pages, int num_pages);
-
-extern struct page **ceph_get_direct_page_vector(const void __user *data,
-						 int num_pages,
-						 bool write_page);
 extern void ceph_put_page_vector(struct page **pages, int num_pages,
 				 bool dirty);
 extern struct page **ceph_alloc_page_vector(int num_pages, gfp_t flags);

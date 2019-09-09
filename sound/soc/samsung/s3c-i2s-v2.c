@@ -1,18 +1,14 @@
-/* ALSA Soc Audio Layer - I2S core for newer Samsung SoCs.
- *
- * Copyright (c) 2006 Wolfson Microelectronics PLC.
- *	Graeme Gregory graeme.gregory@wolfsonmicro.com
- *	linux@wolfsonmicro.com
- *
- * Copyright (c) 2008, 2007, 2004-2005 Simtec Electronics
- *	http://armlinux.simtec.co.uk/
- *	Ben Dooks <ben@simtec.co.uk>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// ALSA Soc Audio Layer - I2S core for newer Samsung SoCs.
+//
+// Copyright (c) 2006 Wolfson Microelectronics PLC.
+//	Graeme Gregory graeme.gregory@wolfsonmicro.com
+//	linux@wolfsonmicro.com
+//
+// Copyright (c) 2008, 2007, 2004-2005 Simtec Electronics
+//	http://armlinux.simtec.co.uk/
+//	Ben Dooks <ben@simtec.co.uk>
 
 #include <linux/module.h>
 #include <linux/delay.h>
@@ -27,7 +23,7 @@
 
 #undef S3C_IIS_V2_SUPPORTED
 
-#if defined(CONFIG_CPU_S3C2412) || defined(CONFIG_CPU_S3C2413) \
+#if defined(CONFIG_CPU_S3C2412) \
 	|| defined(CONFIG_ARCH_S3C64XX) || defined(CONFIG_CPU_S5PV210)
 #define S3C_IIS_V2_SUPPORTED
 #endif
@@ -71,7 +67,6 @@ static inline void dbg_showcon(const char *fn, u32 con)
 {
 }
 #endif
-
 
 /* Turn on or off the transmission path. */
 static void s3c2412_snd_txctrl(struct s3c_i2sv2_info *i2s, int on)
@@ -635,11 +630,10 @@ int s3c_i2sv2_probe(struct snd_soc_dai *dai,
 	i2s->iis_pclk = clk_get(dev, "iis");
 	if (IS_ERR(i2s->iis_pclk)) {
 		dev_err(dev, "failed to get iis_clock\n");
-		iounmap(i2s->regs);
 		return -ENOENT;
 	}
 
-	clk_enable(i2s->iis_pclk);
+	clk_prepare_enable(i2s->iis_pclk);
 
 	/* Mark ourselves as in TXRX mode so we can run through our cleanup
 	 * process without warnings. */
@@ -652,6 +646,15 @@ int s3c_i2sv2_probe(struct snd_soc_dai *dai,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(s3c_i2sv2_probe);
+
+void s3c_i2sv2_cleanup(struct snd_soc_dai *dai,
+		      struct s3c_i2sv2_info *i2s)
+{
+	clk_disable_unprepare(i2s->iis_pclk);
+	clk_put(i2s->iis_pclk);
+	i2s->iis_pclk = NULL;
+}
+EXPORT_SYMBOL_GPL(s3c_i2sv2_cleanup);
 
 #ifdef CONFIG_PM
 static int s3c2412_i2s_suspend(struct snd_soc_dai *dai)

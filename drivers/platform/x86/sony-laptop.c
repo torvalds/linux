@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * ACPI Sony Notebook Control Driver (SNC and SPIC)
  *
@@ -25,21 +26,6 @@
  * Copyright (C) 2000 Andrew Tridgell <tridge@valinux.com>
  *
  * Earlier work by Werner Almesberger, Paul `Rusty' Russell and Paul Mackerras.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -68,7 +54,7 @@
 #include <linux/poll.h>
 #include <linux/miscdevice.h>
 #endif
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <acpi/video.h>
 
 #define dprintk(fmt, ...)			\
@@ -222,7 +208,7 @@ struct sony_laptop_keypress {
 /* Correspondance table between sonypi events
  * and input layer indexes in the keymap
  */
-static int sony_laptop_input_index[] = {
+static const int sony_laptop_input_index[] = {
 	-1,	/*  0 no event */
 	-1,	/*  1 SONYPI_EVENT_JOGDIAL_DOWN */
 	-1,	/*  2 SONYPI_EVENT_JOGDIAL_UP */
@@ -363,7 +349,7 @@ static int sony_laptop_input_keycode_map[] = {
 };
 
 /* release buttons after a short delay if pressed */
-static void do_sony_laptop_release_key(unsigned long unused)
+static void do_sony_laptop_release_key(struct timer_list *unused)
 {
 	struct sony_laptop_keypress kp;
 	unsigned long flags;
@@ -470,7 +456,7 @@ static int sony_laptop_setup_input(struct acpi_device *acpi_device)
 		goto err_dec_users;
 	}
 
-	setup_timer(&sony_laptop_input.release_key_timer,
+	timer_setup(&sony_laptop_input.release_key_timer,
 		    do_sony_laptop_release_key, 0);
 
 	/* input keys */
@@ -1627,7 +1613,7 @@ static const struct rfkill_ops sony_rfkill_ops = {
 static int sony_nc_setup_rfkill(struct acpi_device *device,
 				enum sony_nc_rfkill nc_type)
 {
-	int err = 0;
+	int err;
 	struct rfkill *rfk;
 	enum rfkill_type type;
 	const char *name;
@@ -1660,17 +1646,19 @@ static int sony_nc_setup_rfkill(struct acpi_device *device,
 	if (!rfk)
 		return -ENOMEM;
 
-	if (sony_call_snc_handle(sony_rfkill_handle, 0x200, &result) < 0) {
+	err = sony_call_snc_handle(sony_rfkill_handle, 0x200, &result);
+	if (err < 0) {
 		rfkill_destroy(rfk);
-		return -1;
+		return err;
 	}
 	hwblock = !(result & 0x1);
 
-	if (sony_call_snc_handle(sony_rfkill_handle,
-				sony_rfkill_address[nc_type],
-				&result) < 0) {
+	err = sony_call_snc_handle(sony_rfkill_handle,
+				   sony_rfkill_address[nc_type],
+				   &result);
+	if (err < 0) {
 		rfkill_destroy(rfk);
-		return -1;
+		return err;
 	}
 	swblock = !(result & 0x2);
 
@@ -4032,7 +4020,7 @@ static struct attribute *spic_attributes[] = {
 	NULL
 };
 
-static struct attribute_group spic_attribute_group = {
+static const struct attribute_group spic_attribute_group = {
 	.attrs = spic_attributes
 };
 
@@ -4122,11 +4110,11 @@ static ssize_t sonypi_misc_read(struct file *file, char __user *buf,
 	return ret;
 }
 
-static unsigned int sonypi_misc_poll(struct file *file, poll_table *wait)
+static __poll_t sonypi_misc_poll(struct file *file, poll_table *wait)
 {
 	poll_wait(file, &sonypi_compat.fifo_proc_list, wait);
 	if (kfifo_len(&sonypi_compat.fifo))
-		return POLLIN | POLLRDNORM;
+		return EPOLLIN | EPOLLRDNORM;
 	return 0;
 }
 
@@ -4390,7 +4378,7 @@ sony_pic_read_possible_resource(struct acpi_resource *resource, void *context)
 				list_add(&interrupt->list, &dev->interrupts);
 				interrupt->irq.triggering = p->triggering;
 				interrupt->irq.polarity = p->polarity;
-				interrupt->irq.sharable = p->sharable;
+				interrupt->irq.shareable = p->shareable;
 				interrupt->irq.interrupt_count = 1;
 				interrupt->irq.interrupts[0] = p->interrupts[i];
 			}
@@ -4422,14 +4410,16 @@ sony_pic_read_possible_resource(struct acpi_resource *resource, void *context)
 			}
 			return AE_OK;
 		}
-	default:
-		dprintk("Resource %d isn't an IRQ nor an IO port\n",
-			resource->type);
 
 	case ACPI_RESOURCE_TYPE_END_TAG:
 		return AE_OK;
+
+	default:
+		dprintk("Resource %d isn't an IRQ nor an IO port\n",
+			resource->type);
+		return AE_CTRL_TERMINATE;
+
 	}
-	return AE_CTRL_TERMINATE;
 }
 
 static int sony_pic_possible_resources(struct acpi_device *device)
@@ -4544,7 +4534,7 @@ static int sony_pic_enable(struct acpi_device *device,
 		memcpy(&resource->res3.data.irq, &irq->irq,
 				sizeof(struct acpi_resource_irq));
 		/* we requested a shared irq */
-		resource->res3.data.irq.sharable = ACPI_SHARED;
+		resource->res3.data.irq.shareable = ACPI_SHARED;
 
 		resource->res4.type = ACPI_RESOURCE_TYPE_END_TAG;
 		resource->res4.length = sizeof(struct acpi_resource);
@@ -4563,7 +4553,7 @@ static int sony_pic_enable(struct acpi_device *device,
 		memcpy(&resource->res2.data.irq, &irq->irq,
 				sizeof(struct acpi_resource_irq));
 		/* we requested a shared irq */
-		resource->res2.data.irq.sharable = ACPI_SHARED;
+		resource->res2.data.irq.shareable = ACPI_SHARED;
 
 		resource->res3.type = ACPI_RESOURCE_TYPE_END_TAG;
 		resource->res3.length = sizeof(struct acpi_resource);
@@ -4777,7 +4767,7 @@ static int sony_pic_add(struct acpi_device *device)
 					irq->irq.interrupts[0],
 					irq->irq.triggering,
 					irq->irq.polarity,
-					irq->irq.sharable);
+					irq->irq.shareable);
 			spic_dev.cur_irq = irq;
 			break;
 		}
@@ -4880,7 +4870,7 @@ static struct acpi_driver sony_pic_driver = {
 	.drv.pm = &sony_pic_pm,
 };
 
-static struct dmi_system_id __initdata sonypi_dmi_table[] = {
+static const struct dmi_system_id sonypi_dmi_table[] __initconst = {
 	{
 		.ident = "Sony Vaio",
 		.matches = {

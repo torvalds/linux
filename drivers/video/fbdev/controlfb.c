@@ -48,9 +48,7 @@
 #include <linux/nvram.h>
 #include <linux/adb.h>
 #include <linux/cuda.h>
-#include <asm/io.h>
 #include <asm/prom.h>
-#include <asm/pgtable.h>
 #include <asm/btext.h>
 
 #include "macmodes.h"
@@ -184,7 +182,7 @@ int init_module(void)
 	int ret = -ENXIO;
 
 	dp = of_find_node_by_name(NULL, "control");
-	if (dp != 0 && !control_of_init(dp))
+	if (dp && !control_of_init(dp))
 		ret = 0;
 	of_node_put(dp);
 
@@ -413,35 +411,23 @@ static int __init init_control(struct fb_info_control *p)
 	full = p->total_vram == 0x400000;
 
 	/* Try to pick a video mode out of NVRAM if we have one. */
-#ifdef CONFIG_NVRAM
-	if (default_cmode == CMODE_NVRAM) {
+	cmode = default_cmode;
+	if (IS_REACHABLE(CONFIG_NVRAM) && cmode == CMODE_NVRAM)
 		cmode = nvram_read_byte(NV_CMODE);
-		if(cmode < CMODE_8 || cmode > CMODE_32)
-			cmode = CMODE_8;
-	} else
-#endif
-		cmode=default_cmode;
-#ifdef CONFIG_NVRAM
-	if (default_vmode == VMODE_NVRAM) {
+	if (cmode < CMODE_8 || cmode > CMODE_32)
+		cmode = CMODE_8;
+
+	vmode = default_vmode;
+	if (IS_REACHABLE(CONFIG_NVRAM) && vmode == VMODE_NVRAM)
 		vmode = nvram_read_byte(NV_VMODE);
-		if (vmode < 1 || vmode > VMODE_MAX ||
-		    control_mac_modes[vmode - 1].m[full] < cmode) {
-			sense = read_control_sense(p);
-			printk("Monitor sense value = 0x%x, ", sense);
-			vmode = mac_map_monitor_sense(sense);
-			if (control_mac_modes[vmode - 1].m[full] < cmode)
-				vmode = VMODE_640_480_60;
-		}
-	} else
-#endif
-	{
-		vmode=default_vmode;
-		if (control_mac_modes[vmode - 1].m[full] < cmode) {
-			if (cmode > CMODE_8)
-				cmode--;
-			else
-				vmode = VMODE_640_480_60;
-		}
+	if (vmode < 1 || vmode > VMODE_MAX ||
+	    control_mac_modes[vmode - 1].m[full] < cmode) {
+		sense = read_control_sense(p);
+		printk(KERN_CONT "Monitor sense value = 0x%x, ", sense);
+		vmode = mac_map_monitor_sense(sense);
+		if (control_mac_modes[vmode - 1].m[full] < 0)
+			vmode = VMODE_640_480_60;
+		cmode = min(cmode, control_mac_modes[vmode - 1].m[full]);
 	}
 
 	/* Initialize info structure */
@@ -594,7 +580,7 @@ static int __init control_init(void)
 	control_setup(option);
 
 	dp = of_find_node_by_name(NULL, "control");
-	if (dp != 0 && !control_of_init(dp))
+	if (dp && !control_of_init(dp))
 		ret = 0;
 	of_node_put(dp);
 
@@ -697,8 +683,8 @@ static int __init control_of_init(struct device_node *dp)
 		return -ENXIO;
 	}
 	p = kzalloc(sizeof(*p), GFP_KERNEL);
-	if (p == 0)
-		return -ENXIO;
+	if (!p)
+		return -ENOMEM;
 	control_fb = p;	/* save it for cleanups */
 
 	/* Map in frame buffer and registers */
@@ -715,8 +701,7 @@ static int __init control_of_init(struct device_node *dp)
 		goto error_out;
 	}
 	/* map at most 8MB for the frame buffer */
-	p->frame_buffer = __ioremap(p->frame_buffer_phys, 0x800000,
-				    _PAGE_WRITETHRU);
+	p->frame_buffer = ioremap_wt(p->frame_buffer_phys, 0x800000);
 
 	if (!p->control_regs_phys ||
 	    !request_mem_region(p->control_regs_phys, p->control_regs_size,

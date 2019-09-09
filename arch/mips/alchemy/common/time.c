@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2008-2009 Manuel Lauss <manuel.lauss@gmail.com>
  *
@@ -9,19 +10,6 @@
  * Copyright (C) 1999,2000 MIPS Technologies, Inc.  All rights reserved.
  *
  * ########################################################################
- *
- *  This program is free software; you can distribute it and/or modify it
- *  under the terms of the GNU General Public License (Version 2) as
- *  published by the Free Software Foundation.
- *
- *  This program is distributed in the hope it will be useful, but WITHOUT
- *  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- *  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- *  for more details.
- *
- *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  59 Temple Place - Suite 330, Boston MA 02111-1307, USA.
  *
  * ########################################################################
  *
@@ -44,7 +32,7 @@
 /* 32kHz clock enabled and detected */
 #define CNTR_OK (SYS_CNTRL_E0 | SYS_CNTRL_32S)
 
-static cycle_t au1x_counter1_read(struct clocksource *cs)
+static u64 au1x_counter1_read(struct clocksource *cs)
 {
 	return alchemy_rdsys(AU1000_SYS_RTCREAD);
 }
@@ -81,7 +69,7 @@ static struct clock_event_device au1x_rtcmatch2_clockdev = {
 	.features	= CLOCK_EVT_FEAT_ONESHOT,
 	.rating		= 1500,
 	.set_next_event = au1x_rtcmatch2_set_next_event,
-	.cpumask	= cpu_all_mask,
+	.cpumask	= cpu_possible_mask,
 };
 
 static struct irqaction au1x_rtcmatch2_irqaction = {
@@ -138,7 +126,9 @@ static int __init alchemy_time_init(unsigned int m2int)
 	cd->shift = 32;
 	cd->mult = div_sc(32768, NSEC_PER_SEC, cd->shift);
 	cd->max_delta_ns = clockevent_delta2ns(0xffffffff, cd);
-	cd->min_delta_ns = clockevent_delta2ns(9, cd);	/* ~0.28ms */
+	cd->max_delta_ticks = 0xffffffff;
+	cd->min_delta_ns = clockevent_delta2ns(9, cd);
+	cd->min_delta_ticks = 9;	/* ~0.28ms */
 	clockevents_register_device(cd);
 	setup_irq(m2int, &au1x_rtcmatch2_irqaction);
 

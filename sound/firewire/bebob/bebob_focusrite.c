@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * bebob_focusrite.c - a part of driver for BeBoB based devices
  *
  * Copyright (c) 2013-2014 Takashi Sakamoto
- *
- * Licensed under the terms of the GNU General Public License, version 2.
  */
 
 #include "./bebob.h"
@@ -103,12 +102,12 @@ saffire_write_quad(struct snd_bebob *bebob, u64 offset, u32 value)
 				  &data, sizeof(__be32), 0);
 }
 
-static enum snd_bebob_clock_type saffirepro_10_clk_src_types[] = {
+static const enum snd_bebob_clock_type saffirepro_10_clk_src_types[] = {
 	SND_BEBOB_CLOCK_TYPE_INTERNAL,
 	SND_BEBOB_CLOCK_TYPE_EXTERNAL,	/* S/PDIF */
 	SND_BEBOB_CLOCK_TYPE_EXTERNAL,	/* Word Clock */
 };
-static enum snd_bebob_clock_type saffirepro_26_clk_src_types[] = {
+static const enum snd_bebob_clock_type saffirepro_26_clk_src_types[] = {
 	SND_BEBOB_CLOCK_TYPE_INTERNAL,
 	SND_BEBOB_CLOCK_TYPE_EXTERNAL,	/* S/PDIF */
 	SND_BEBOB_CLOCK_TYPE_EXTERNAL,	/* ADAT1 */
@@ -201,7 +200,7 @@ end:
 }
 
 const struct snd_bebob_spec saffire_le_spec;
-static enum snd_bebob_clock_type saffire_both_clk_src_types[] = {
+static const enum snd_bebob_clock_type saffire_both_clk_src_types[] = {
 	SND_BEBOB_CLOCK_TYPE_INTERNAL,
 	SND_BEBOB_CLOCK_TYPE_EXTERNAL,
 };

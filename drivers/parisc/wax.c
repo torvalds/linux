@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	WAX Device Driver
  *
  *	(c) Copyright 2000 The Puffin Group Inc.
- *
- *	This program is free software; you can redistribute it and/or modify
- *	it under the terms of the GNU General Public License as published by
- *      the Free Software Foundation; either version 2 of the License, or
- *      (at your option) any later version.
  *
  *	by Helge Deller <deller@gmx.de>
  */
@@ -125,14 +121,14 @@ static int __init wax_init_chip(struct parisc_device *dev)
 	return ret;
 }
 
-static struct parisc_device_id wax_tbl[] = {
+static const struct parisc_device_id wax_tbl[] __initconst = {
   	{ HPHW_BA, HVERSION_REV_ANY_ID, HVERSION_ANY_ID, 0x0008e },
 	{ 0, }
 };
 
 MODULE_DEVICE_TABLE(parisc, wax_tbl);
 
-struct parisc_driver wax_driver = {
+struct parisc_driver wax_driver __refdata = {
 	.name =		"wax",
 	.id_table =	wax_tbl,
 	.probe =	wax_init_chip,

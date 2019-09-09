@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (c) 2014 Anna Schumaker <Anna.Schumaker@Netapp.com>
  */
@@ -19,5 +20,8 @@ loff_t nfs42_proc_llseek(struct file *, loff_t, int);
 int nfs42_proc_layoutstats_generic(struct nfs_server *,
 				   struct nfs42_layoutstat_data *);
 int nfs42_proc_clone(struct file *, struct file *, loff_t, loff_t, loff_t);
+int nfs42_proc_layouterror(struct pnfs_layout_segment *lseg,
+			   const struct nfs42_layout_error *errors,
+			   size_t n);
 
 #endif /* __LINUX_FS_NFS_NFS4_2_H */

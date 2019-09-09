@@ -1,29 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/hdmi.h>
 #include "hdmi.h"
-
-
-/* Supported HDMI Audio channels */
-#define MSM_HDMI_AUDIO_CHANNEL_2		0
-#define MSM_HDMI_AUDIO_CHANNEL_4		1
-#define MSM_HDMI_AUDIO_CHANNEL_6		2
-#define MSM_HDMI_AUDIO_CHANNEL_8		3
 
 /* maps MSM_HDMI_AUDIO_CHANNEL_n consts used by audio driver to # of channels: */
 static int nchannels[] = { 2, 4, 6, 8 };
@@ -182,10 +164,10 @@ int msm_hdmi_audio_update(struct hdmi *hdmi)
 		/* configure infoframe: */
 		hdmi_audio_infoframe_pack(info, buf, sizeof(buf));
 		hdmi_write(hdmi, REG_HDMI_AUDIO_INFO0,
-				(buf[3] <<  0) || (buf[4] <<  8) ||
-				(buf[5] << 16) || (buf[6] << 24));
+				(buf[3] <<  0) | (buf[4] <<  8) |
+				(buf[5] << 16) | (buf[6] << 24));
 		hdmi_write(hdmi, REG_HDMI_AUDIO_INFO1,
-				(buf[7] <<  0) || (buf[8] << 8));
+				(buf[7] <<  0) | (buf[8] << 8));
 
 		hdmi_write(hdmi, REG_HDMI_GC, 0);
 

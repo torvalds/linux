@@ -1,23 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for Microchip MRF24J40 802.15.4 Wireless-PAN Networking controller
  *
  * Copyright (C) 2012 Alan Ott <alan@signal11.us>
  *                    Signal 11 Software
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/spi/spi.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/regmap.h>
 #include <linux/ieee802154.h>
 #include <linux/irq.h>
@@ -634,7 +626,7 @@ static void mrf24j40_stop(struct ieee802154_hw *hw)
 
 	/* Set TXNIE and RXIE. Disable Interrupts */
 	regmap_update_bits(devrec->regmap_short, REG_INTCON,
-			   BIT_TXNIE | BIT_TXNIE, BIT_TXNIE | BIT_TXNIE);
+			   BIT_TXNIE | BIT_RXIE, BIT_TXNIE | BIT_RXIE);
 }
 
 static int mrf24j40_set_channel(struct ieee802154_hw *hw, u8 page, u8 channel)
@@ -773,7 +765,7 @@ static void mrf24j40_handle_rx_read_buf_complete(void *context)
 		return;
 	}
 
-	memcpy(skb_put(skb, len), rx_local_buf, len);
+	skb_put_data(skb, rx_local_buf, len);
 	ieee802154_rx_irqsafe(devrec->hw, skb, 0);
 
 #ifdef DEBUG
@@ -1329,7 +1321,8 @@ static int mrf24j40_probe(struct spi_device *spi)
 	if (spi->max_speed_hz > MAX_SPI_SPEED_HZ) {
 		dev_warn(&spi->dev, "spi clock above possible maximum: %d",
 			 MAX_SPI_SPEED_HZ);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err_register_device;
 	}
 
 	ret = mrf24j40_hw_init(devrec);

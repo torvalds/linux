@@ -137,49 +137,6 @@ static const u8 bl_exit[] = { 0x00, 0xff, 0xa5, 0x00, 0x01, 0x02, 0x03, 0x04,
 
 
  /* for byte read/write command */
-#define CMD_RESET      0
-#define CMD_POWER_MODE 1
-#define CMD_DEV_STATUS 2
-#define CMD_REPORT_MAX_BASELINE 3
-#define CMD_REPORT_MIN_BASELINE 4
-#define SMBUS_BYTE_CMD(cmd) (((cmd) & 0x3f) << 1)
-#define CYAPA_SMBUS_RESET         SMBUS_BYTE_CMD(CMD_RESET)
-#define CYAPA_SMBUS_POWER_MODE    SMBUS_BYTE_CMD(CMD_POWER_MODE)
-#define CYAPA_SMBUS_DEV_STATUS    SMBUS_BYTE_CMD(CMD_DEV_STATUS)
-#define CYAPA_SMBUS_MAX_BASELINE  SMBUS_BYTE_CMD(CMD_REPORT_MAX_BASELINE)
-#define CYAPA_SMBUS_MIN_BASELINE  SMBUS_BYTE_CMD(CMD_REPORT_MIN_BASELINE)
-
- /* for group registers read/write command */
-#define REG_GROUP_DATA 0
-#define REG_GROUP_CMD 2
-#define REG_GROUP_QUERY 3
-#define SMBUS_GROUP_CMD(grp) (0x80 | (((grp) & 0x07) << 3))
-#define CYAPA_SMBUS_GROUP_DATA	 SMBUS_GROUP_CMD(REG_GROUP_DATA)
-#define CYAPA_SMBUS_GROUP_CMD	 SMBUS_GROUP_CMD(REG_GROUP_CMD)
-#define CYAPA_SMBUS_GROUP_QUERY	 SMBUS_GROUP_CMD(REG_GROUP_QUERY)
-
- /* for register block read/write command */
-#define CMD_BL_STATUS 0
-#define CMD_BL_HEAD 1
-#define CMD_BL_CMD 2
-#define CMD_BL_DATA 3
-#define CMD_BL_ALL 4
-#define CMD_BLK_PRODUCT_ID 5
-#define CMD_BLK_HEAD 6
-#define SMBUS_BLOCK_CMD(cmd) (0xc0 | (((cmd) & 0x1f) << 1))
-
-/* register block read/write command in bootloader mode */
-#define CYAPA_SMBUS_BL_STATUS  SMBUS_BLOCK_CMD(CMD_BL_STATUS)
-#define CYAPA_SMBUS_BL_HEAD    SMBUS_BLOCK_CMD(CMD_BL_HEAD)
-#define CYAPA_SMBUS_BL_CMD     SMBUS_BLOCK_CMD(CMD_BL_CMD)
-#define CYAPA_SMBUS_BL_DATA    SMBUS_BLOCK_CMD(CMD_BL_DATA)
-#define CYAPA_SMBUS_BL_ALL     SMBUS_BLOCK_CMD(CMD_BL_ALL)
-
-/* register block read/write command in operational mode */
-#define CYAPA_SMBUS_BLK_PRODUCT_ID SMBUS_BLOCK_CMD(CMD_BLK_PRODUCT_ID)
-#define CYAPA_SMBUS_BLK_HEAD SMBUS_BLOCK_CMD(CMD_BLK_HEAD)
-
- /* for byte read/write command */
 #define CMD_RESET 0
 #define CMD_POWER_MODE 1
 #define CMD_DEV_STATUS 2
@@ -562,7 +519,7 @@ static int cyapa_gen3_bl_exit(struct cyapa *cyapa)
 	 * Wait for bootloader to exit, and operation mode to start.
 	 * Normally, this takes at least 50 ms.
 	 */
-	usleep_range(50000, 100000);
+	msleep(50);
 	/*
 	 * In addition, when a device boots for the first time after being
 	 * updated to new firmware, it must first calibrate its sensors, which
@@ -789,7 +746,7 @@ static ssize_t cyapa_gen3_do_calibrate(struct device *dev,
 				     const char *buf, size_t count)
 {
 	struct cyapa *cyapa = dev_get_drvdata(dev);
-	int tries;
+	unsigned long timeout;
 	int ret;
 
 	ret = cyapa_read_byte(cyapa, CYAPA_CMD_DEV_STATUS);
@@ -812,31 +769,28 @@ static ssize_t cyapa_gen3_do_calibrate(struct device *dev,
 		goto out;
 	}
 
-	tries = 20;  /* max recalibration timeout 2s. */
+	/* max recalibration timeout 2s. */
+	timeout = jiffies + 2 * HZ;
 	do {
 		/*
 		 * For this recalibration, the max time will not exceed 2s.
 		 * The average time is approximately 500 - 700 ms, and we
 		 * will check the status every 100 - 200ms.
 		 */
-		usleep_range(100000, 200000);
-
+		msleep(100);
 		ret = cyapa_read_byte(cyapa, CYAPA_CMD_DEV_STATUS);
 		if (ret < 0) {
-			dev_err(dev, "Error reading dev status: %d\n",
-				ret);
+			dev_err(dev, "Error reading dev status: %d\n", ret);
 			goto out;
 		}
-		if ((ret & CYAPA_DEV_NORMAL) == CYAPA_DEV_NORMAL)
-			break;
-	} while (--tries);
+		if ((ret & CYAPA_DEV_NORMAL) == CYAPA_DEV_NORMAL) {
+			dev_dbg(dev, "Calibration successful.\n");
+			goto out;
+		}
+	} while (time_is_after_jiffies(timeout));
 
-	if (tries == 0) {
-		dev_err(dev, "Failed to calibrate. Timeout.\n");
-		ret = -ETIMEDOUT;
-		goto out;
-	}
-	dev_dbg(dev, "Calibration successful.\n");
+	dev_err(dev, "Failed to calibrate. Timeout.\n");
+	ret = -ETIMEDOUT;
 
 out:
 	return ret < 0 ? ret : count;
@@ -1113,7 +1067,7 @@ static int cyapa_gen3_do_operational_check(struct cyapa *cyapa)
 			return error;
 		}
 
-	/* Fallthrough state */
+	/* Fall through */
 	case CYAPA_STATE_BL_IDLE:
 		/* Try to get firmware version in bootloader mode. */
 		cyapa_gen3_bl_query_data(cyapa);
@@ -1124,7 +1078,7 @@ static int cyapa_gen3_do_operational_check(struct cyapa *cyapa)
 			return error;
 		}
 
-	/* Fallthrough state */
+	/* Fall through */
 	case CYAPA_STATE_OP:
 		/*
 		 * Reading query data before going back to the full mode

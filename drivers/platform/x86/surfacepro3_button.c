@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * power/home/volume button support for
  * Microsoft Surface Pro 3/4 tablet.
  *
  * Copyright (c) 2015 Intel Corporation.
  * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; version 2
- * of the License.
  */
 
 #include <linux/kernel.h>
@@ -119,7 +115,7 @@ static void surface_button_notify(struct acpi_device *device, u32 event)
 	if (key_code == KEY_RESERVED)
 		return;
 	if (pressed)
-		pm_wakeup_event(&device->dev, 0);
+		pm_wakeup_dev_event(&device->dev, 0, button->suspended);
 	if (button->suspended)
 		return;
 	input_report_key(input, key_code, pressed?1:0);
@@ -185,6 +181,8 @@ static int surface_button_add(struct acpi_device *device)
 	error = input_register_device(input);
 	if (error)
 		goto err_free_input;
+
+	device_init_wakeup(&device->dev, true);
 	dev_info(&device->dev,
 			"%s [%s]\n", name, acpi_device_bid(device));
 	return 0;

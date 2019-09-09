@@ -1,21 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  PS3 AV backend support.
  *
  *  Copyright (C) 2007 Sony Computer Entertainment Inc.
  *  Copyright 2007 Sony Corp.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; version 2 of the License.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/kernel.h>
@@ -44,7 +32,6 @@ static struct ps3av {
 	struct mutex mutex;
 	struct work_struct work;
 	struct completion done;
-	struct workqueue_struct *wq;
 	int open_count;
 	struct ps3_system_bus_device *dev;
 
@@ -485,7 +472,7 @@ static int ps3av_set_videomode(void)
 	ps3av_set_av_video_mute(PS3AV_CMD_MUTE_ON);
 
 	/* wake up ps3avd to do the actual video mode setting */
-	queue_work(ps3av->wq, &ps3av->work);
+	schedule_work(&ps3av->work);
 
 	return 0;
 }
@@ -956,11 +943,6 @@ static int ps3av_probe(struct ps3_system_bus_device *dev)
 	INIT_WORK(&ps3av->work, ps3avd);
 	init_completion(&ps3av->done);
 	complete(&ps3av->done);
-	ps3av->wq = create_singlethread_workqueue("ps3avd");
-	if (!ps3av->wq) {
-		res = -ENOMEM;
-		goto fail;
-	}
 
 	switch (ps3_os_area_get_av_multi_out()) {
 	case PS3_PARAM_AV_MULTI_OUT_NTSC:
@@ -1018,8 +1000,7 @@ static int ps3av_remove(struct ps3_system_bus_device *dev)
 	dev_dbg(&dev->core, " -> %s:%d\n", __func__, __LINE__);
 	if (ps3av) {
 		ps3av_cmd_fin();
-		if (ps3av->wq)
-			destroy_workqueue(ps3av->wq);
+		flush_work(&ps3av->work);
 		kfree(ps3av);
 		ps3av = NULL;
 	}

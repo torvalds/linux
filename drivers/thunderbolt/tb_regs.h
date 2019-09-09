@@ -1,11 +1,13 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Thunderbolt Cactus Ridge driver - Port/Switch config area registers
+ * Thunderbolt driver - Port/Switch config area registers
  *
  * Every thunderbolt device consists (logically) of a switch with multiple
  * ports. Every port contains up to four config regions (HOPS, PORT, SWITCH,
  * COUNTERS) which are used to configure the device.
  *
  * Copyright (c) 2014 Andreas Noever <andreas.noever@gmail.com>
+ * Copyright (C) 2018, Intel Corporation
  */
 
 #ifndef _TB_REGS
@@ -23,15 +25,22 @@
  */
 #define TB_MAX_CONFIG_RW_LENGTH 60
 
-enum tb_cap {
-	TB_CAP_PHY		= 0x0001,
-	TB_CAP_TIME1		= 0x0003,
-	TB_CAP_PCIE		= 0x0004,
-	TB_CAP_I2C		= 0x0005,
-	TB_CAP_PLUG_EVENTS	= 0x0105, /* also EEPROM */
-	TB_CAP_TIME2		= 0x0305,
-	TB_CAP_IECS		= 0x0405,
-	TB_CAP_LINK_CONTROLLER	= 0x0605, /* also IECS */
+enum tb_switch_cap {
+	TB_SWITCH_CAP_VSE		= 0x05,
+};
+
+enum tb_switch_vse_cap {
+	TB_VSE_CAP_PLUG_EVENTS		= 0x01, /* also EEPROM */
+	TB_VSE_CAP_TIME2		= 0x03,
+	TB_VSE_CAP_IECS			= 0x04,
+	TB_VSE_CAP_LINK_CONTROLLER	= 0x06, /* also IECS */
+};
+
+enum tb_port_cap {
+	TB_PORT_CAP_PHY			= 0x01,
+	TB_PORT_CAP_TIME1		= 0x03,
+	TB_PORT_CAP_ADAP		= 0x04,
+	TB_PORT_CAP_VSE			= 0x05,
 };
 
 enum tb_port_state {
@@ -49,15 +58,34 @@ struct tb_cap_basic {
 	u8 cap; /* if cap == 0x05 then we have a extended capability */
 } __packed;
 
+/**
+ * struct tb_cap_extended_short - Switch extended short capability
+ * @next: Pointer to the next capability. If @next and @length are zero
+ *	  then we have a long cap.
+ * @cap: Base capability ID (see &enum tb_switch_cap)
+ * @vsec_id: Vendor specific capability ID (see &enum switch_vse_cap)
+ * @length: Length of this capability
+ */
 struct tb_cap_extended_short {
-	u8 next; /* if next and length are zero then we have a long cap */
-	enum tb_cap cap:16;
+	u8 next;
+	u8 cap;
+	u8 vsec_id;
 	u8 length;
 } __packed;
 
+/**
+ * struct tb_cap_extended_long - Switch extended long capability
+ * @zero1: This field should be zero
+ * @cap: Base capability ID (see &enum tb_switch_cap)
+ * @vsec_id: Vendor specific capability ID (see &enum switch_vse_cap)
+ * @zero2: This field should be zero
+ * @next: Pointer to the next capability
+ * @length: Length of this capability
+ */
 struct tb_cap_extended_long {
 	u8 zero1;
-	enum tb_cap cap:16;
+	u8 cap;
+	u8 vsec_id;
 	u8 zero2;
 	u16 next;
 	u16 length;
@@ -175,13 +203,45 @@ struct tb_regs_port_header {
 	/* DWORD 5 */
 	u32 max_in_hop_id:11;
 	u32 max_out_hop_id:11;
-	u32 __unkown4:10;
+	u32 __unknown4:10;
 	/* DWORD 6 */
 	u32 __unknown5;
 	/* DWORD 7 */
 	u32 __unknown6;
 
 } __packed;
+
+/* DWORD 4 */
+#define TB_PORT_NFC_CREDITS_MASK	GENMASK(19, 0)
+#define TB_PORT_MAX_CREDITS_SHIFT	20
+#define TB_PORT_MAX_CREDITS_MASK	GENMASK(26, 20)
+/* DWORD 5 */
+#define TB_PORT_LCA_SHIFT		22
+#define TB_PORT_LCA_MASK		GENMASK(28, 22)
+
+/* Display Port adapter registers */
+
+/* DWORD 0 */
+#define TB_DP_VIDEO_HOPID_SHIFT		16
+#define TB_DP_VIDEO_HOPID_MASK		GENMASK(26, 16)
+#define TB_DP_AUX_EN			BIT(30)
+#define TB_DP_VIDEO_EN			BIT(31)
+/* DWORD 1 */
+#define TB_DP_AUX_TX_HOPID_MASK		GENMASK(10, 0)
+#define TB_DP_AUX_RX_HOPID_SHIFT	11
+#define TB_DP_AUX_RX_HOPID_MASK		GENMASK(21, 11)
+/* DWORD 2 */
+#define TB_DP_HDP			BIT(6)
+/* DWORD 3 */
+#define TB_DP_HPDC			BIT(9)
+/* DWORD 4 */
+#define TB_DP_LOCAL_CAP			0x4
+/* DWORD 5 */
+#define TB_DP_REMOTE_CAP		0x5
+
+/* PCIe adapter registers */
+
+#define TB_PCI_EN			BIT(31)
 
 /* Hop register from TB_CFG_HOPS. 8 byte per entry. */
 struct tb_regs_hop {
@@ -206,8 +266,24 @@ struct tb_regs_hop {
 	bool egress_fc:1;
 	bool ingress_shared_buffer:1;
 	bool egress_shared_buffer:1;
-	u32 unknown3:4; /* set to zero */
+	bool pending:1;
+	u32 unknown3:3; /* set to zero */
 } __packed;
 
+/* Common link controller registers */
+#define TB_LC_DESC			0x02
+#define TB_LC_DESC_NLC_MASK		GENMASK(3, 0)
+#define TB_LC_DESC_SIZE_SHIFT		8
+#define TB_LC_DESC_SIZE_MASK		GENMASK(15, 8)
+#define TB_LC_DESC_PORT_SIZE_SHIFT	16
+#define TB_LC_DESC_PORT_SIZE_MASK	GENMASK(27, 16)
+#define TB_LC_FUSE			0x03
+
+/* Link controller registers */
+#define TB_LC_SX_CTRL			0x96
+#define TB_LC_SX_CTRL_L1C		BIT(16)
+#define TB_LC_SX_CTRL_L2C		BIT(20)
+#define TB_LC_SX_CTRL_UPSTREAM		BIT(30)
+#define TB_LC_SX_CTRL_SLP		BIT(31)
 
 #endif

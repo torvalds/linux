@@ -156,7 +156,6 @@ ioc4_clock_calibrate(struct ioc4_driver_data *idd)
 
 	/* Reset to power-on state */
 	writel(0, &idd->idd_misc_regs->int_out.raw);
-	mmiowb();
 
 	/* Set up square wave */
 	int_out.raw = 0;
@@ -164,7 +163,6 @@ ioc4_clock_calibrate(struct ioc4_driver_data *idd)
 	int_out.fields.mode = IOC4_INT_OUT_MODE_TOGGLE;
 	int_out.fields.diag = 0;
 	writel(int_out.raw, &idd->idd_misc_regs->int_out.raw);
-	mmiowb();
 
 	/* Check square wave period averaged over some number of cycles */
 	start = ktime_get_ns();
@@ -454,7 +452,7 @@ ioc4_remove(struct pci_dev *pdev)
 	kfree(idd);
 }
 
-static struct pci_device_id ioc4_id_table[] = {
+static const struct pci_device_id ioc4_id_table[] = {
 	{PCI_VENDOR_ID_SGI, PCI_DEVICE_ID_SGI_IOC4, PCI_ANY_ID,
 	 PCI_ANY_ID, 0x0b4000, 0xFFFFFF},
 	{0}

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Copyright (C) 1994-1998	    Linus Torvalds & authors (see below)
  *  Copyright (C) 2003-2005, 2007   Bartlomiej Zolnierkiewicz
@@ -244,7 +245,7 @@ struct chs_geom {
 static unsigned int ide_disks;
 static struct chs_geom ide_disks_chs[MAX_HWIFS * MAX_DRIVES];
 
-static int ide_set_disk_chs(const char *str, struct kernel_param *kp)
+static int ide_set_disk_chs(const char *str, const struct kernel_param *kp)
 {
 	unsigned int a, b, c = 0, h = 0, s = 0, i, j = 1;
 
@@ -328,7 +329,7 @@ static void ide_dev_apply_params(ide_drive_t *drive, u8 unit)
 
 static unsigned int ide_ignore_cable;
 
-static int ide_set_ignore_cable(const char *s, struct kernel_param *kp)
+static int ide_set_ignore_cable(const char *s, const struct kernel_param *kp)
 {
 	int i, j = 1;
 

@@ -17,8 +17,14 @@ processor ID) and a string identifier.
 	Value type: <prop-encoded-array>
 	Definition: one entry specifying the smp2p notification interrupt
 
-- qcom,ipc:
+- mboxes:
 	Usage: required
+	Value type: <prop-encoded-array>
+	Definition: reference to the associated doorbell in APCS, as described
+		    in mailbox/mailbox.txt
+
+- qcom,ipc:
+	Usage: required, unless mboxes is specified
 	Value type: <prop-encoded-array>
 	Definition: three entries specifying the outgoing ipc bit used for
 		    signaling the remote end of the smp2p edge:
@@ -35,12 +41,12 @@ processor ID) and a string identifier.
 - qcom,local-pid:
 	Usage: required
 	Value type: <u32>
-	Definition: specifies the identfier of the local endpoint of this edge
+	Definition: specifies the identifier of the local endpoint of this edge
 
 - qcom,remote-pid:
 	Usage: required
 	Value type: <u32>
-	Definition: specifies the identfier of the remote endpoint of this edge
+	Definition: specifies the identifier of the remote endpoint of this edge
 
 = SUBNODES
 Each SMP2P pair contain a set of inbound and outbound entries, these are

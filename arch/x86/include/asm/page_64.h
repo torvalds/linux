@@ -1,13 +1,19 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_PAGE_64_H
 #define _ASM_X86_PAGE_64_H
 
 #include <asm/page_64_types.h>
 
 #ifndef __ASSEMBLY__
+#include <asm/alternative.h>
 
 /* duplicated to the one in bootmem.h */
 extern unsigned long max_pfn;
 extern unsigned long phys_base;
+
+extern unsigned long page_offset_base;
+extern unsigned long vmalloc_base;
+extern unsigned long vmemmap_base;
 
 static inline unsigned long __phys_addr_nodebug(unsigned long x)
 {
@@ -34,7 +40,20 @@ extern unsigned long __phys_addr_symbol(unsigned long);
 #define pfn_valid(pfn)          ((pfn) < max_pfn)
 #endif
 
-void clear_page(void *page);
+void clear_page_orig(void *page);
+void clear_page_rep(void *page);
+void clear_page_erms(void *page);
+
+static inline void clear_page(void *page)
+{
+	alternative_call_2(clear_page_orig,
+			   clear_page_rep, X86_FEATURE_REP_GOOD,
+			   clear_page_erms, X86_FEATURE_ERMS,
+			   "=D" (page),
+			   "0" (page)
+			   : "cc", "memory", "rax", "rcx");
+}
+
 void copy_page(void *to, void *from);
 
 #endif	/* !__ASSEMBLY__ */

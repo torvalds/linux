@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *    character device frontend for tape device driver
  *
@@ -18,7 +19,7 @@
 #include <linux/mtio.h>
 #include <linux/compat.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define TAPE_DBF_AREA	tape_core_dbf
 
@@ -289,7 +290,7 @@ tapechar_open (struct inode *inode, struct file *filp)
 	rc = tape_open(device);
 	if (rc == 0) {
 		filp->private_data = device;
-		nonseekable_open(inode, filp);
+		stream_open(inode, filp);
 	} else
 		tape_put_device(device);
 

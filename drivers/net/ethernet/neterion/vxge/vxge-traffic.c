@@ -12,6 +12,7 @@
  * Copyright(c) 2002-2010 Exar Corp.
  ******************************************************************************/
 #include <linux/etherdevice.h>
+#include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/prefetch.h>
 
 #include "vxge-traffic.h"
@@ -1209,9 +1210,6 @@ void vxge_hw_ring_rxd_pre_post(struct __vxge_hw_ring *ring, void *rxdh)
 void vxge_hw_ring_rxd_post_post(struct __vxge_hw_ring *ring, void *rxdh)
 {
 	struct vxge_hw_ring_rxd_1 *rxdp = (struct vxge_hw_ring_rxd_1 *)rxdh;
-	struct __vxge_hw_channel *channel;
-
-	channel = &ring->channel;
 
 	rxdp->control_0	= VXGE_HW_RING_RXD_LIST_OWN_ADAPTER;
 
@@ -1359,10 +1357,7 @@ exit:
 enum vxge_hw_status vxge_hw_ring_handle_tcode(
 	struct __vxge_hw_ring *ring, void *rxdh, u8 t_code)
 {
-	struct __vxge_hw_channel *channel;
 	enum vxge_hw_status status = VXGE_HW_OK;
-
-	channel = &ring->channel;
 
 	/* If the t_code is not supported and if the
 	 * t_code is other than 0x5 (unparseable packet
@@ -1399,20 +1394,12 @@ exit:
 static void __vxge_hw_non_offload_db_post(struct __vxge_hw_fifo *fifo,
 	u64 txdl_ptr, u32 num_txds, u32 no_snoop)
 {
-	struct __vxge_hw_channel *channel;
-
-	channel = &fifo->channel;
-
 	writeq(VXGE_HW_NODBW_TYPE(VXGE_HW_NODBW_TYPE_NODBW) |
 		VXGE_HW_NODBW_LAST_TXD_NUMBER(num_txds) |
 		VXGE_HW_NODBW_GET_NO_SNOOP(no_snoop),
 		&fifo->nofl_db->control_0);
 
-	mmiowb();
-
 	writeq(txdl_ptr, &fifo->nofl_db->txdl_ptr);
-
-	mmiowb();
 }
 
 /**
@@ -1506,9 +1493,6 @@ void vxge_hw_fifo_txdl_buffer_set(struct __vxge_hw_fifo *fifo,
 {
 	struct __vxge_hw_fifo_txdl_priv *txdl_priv;
 	struct vxge_hw_fifo_txd *txdp, *txdp_last;
-	struct __vxge_hw_channel *channel;
-
-	channel = &fifo->channel;
 
 	txdl_priv = __vxge_hw_fifo_txdl_priv(fifo, txdlh);
 	txdp = (struct vxge_hw_fifo_txd *)txdlh  +  txdl_priv->frags;
@@ -1554,9 +1538,6 @@ void vxge_hw_fifo_txdl_post(struct __vxge_hw_fifo *fifo, void *txdlh)
 	struct __vxge_hw_fifo_txdl_priv *txdl_priv;
 	struct vxge_hw_fifo_txd *txdp_last;
 	struct vxge_hw_fifo_txd *txdp_first;
-	struct __vxge_hw_channel *channel;
-
-	channel = &fifo->channel;
 
 	txdl_priv = __vxge_hw_fifo_txdl_priv(fifo, txdlh);
 	txdp_first = txdlh;
@@ -1672,10 +1653,7 @@ enum vxge_hw_status vxge_hw_fifo_handle_tcode(struct __vxge_hw_fifo *fifo,
 					      void *txdlh,
 					      enum vxge_hw_fifo_tcode t_code)
 {
-	struct __vxge_hw_channel *channel;
-
 	enum vxge_hw_status status = VXGE_HW_OK;
-	channel = &fifo->channel;
 
 	if (((t_code & 0x7) < 0) || ((t_code & 0x7) > 0x4)) {
 		status = VXGE_HW_ERR_INVALID_TCODE;
@@ -1713,16 +1691,9 @@ exit:
  */
 void vxge_hw_fifo_txdl_free(struct __vxge_hw_fifo *fifo, void *txdlh)
 {
-	struct __vxge_hw_fifo_txdl_priv *txdl_priv;
-	u32 max_frags;
 	struct __vxge_hw_channel *channel;
 
 	channel = &fifo->channel;
-
-	txdl_priv = __vxge_hw_fifo_txdl_priv(fifo,
-			(struct vxge_hw_fifo_txd *)txdlh);
-
-	max_frags = fifo->config->max_frags;
 
 	vxge_hw_channel_dtr_free(channel, txdlh);
 }
@@ -2280,7 +2251,7 @@ void vxge_hw_vpath_msix_clear(struct __vxge_hw_vpath_handle *vp, int msix_id)
 {
 	struct __vxge_hw_device *hldev = vp->vpath->hldev;
 
-	if ((hldev->config.intr_mode == VXGE_HW_INTR_MODE_MSIX_ONE_SHOT))
+	if (hldev->config.intr_mode == VXGE_HW_INTR_MODE_MSIX_ONE_SHOT)
 		__vxge_hw_pio_mem_write32_upper(
 			(u32) vxge_bVALn(vxge_mBIT((msix_id >> 2)), 0, 32),
 			&hldev->common_reg->clr_msix_one_shot_vec[msix_id % 4]);

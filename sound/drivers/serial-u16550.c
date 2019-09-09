@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *   serial.c
  *   Copyright (c) by Jaroslav Kysela <perex@perex.cz>,
@@ -6,20 +7,6 @@
  *		      Hannu Savolainen
  *
  *   This code is based on the code from ALSA 0.5.9, but heavily rewritten.
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  *
  * Sat Mar 31 17:27:57 PST 2001 tim.mann@compaq.com 
  *      Added support for the Midiator MS-124T and for the MS-124W in
@@ -84,9 +71,9 @@ module_param_array(id, charp, NULL, 0444);
 MODULE_PARM_DESC(id, "ID string for Serial MIDI.");
 module_param_array(enable, bool, NULL, 0444);
 MODULE_PARM_DESC(enable, "Enable UART16550A chip.");
-module_param_array(port, long, NULL, 0444);
+module_param_hw_array(port, long, ioport, NULL, 0444);
 MODULE_PARM_DESC(port, "Port # for UART16550A chip.");
-module_param_array(irq, int, NULL, 0444);
+module_param_hw_array(irq, int, irq, NULL, 0444);
 MODULE_PARM_DESC(irq, "IRQ # for UART16550A chip.");
 module_param_array(speed, int, NULL, 0444);
 MODULE_PARM_DESC(speed, "Speed in bauds.");
@@ -309,12 +296,12 @@ static irqreturn_t snd_uart16550_interrupt(int irq, void *dev_id)
 }
 
 /* When the polling mode, this function calls snd_uart16550_io_loop. */
-static void snd_uart16550_buffer_timer(unsigned long data)
+static void snd_uart16550_buffer_timer(struct timer_list *t)
 {
 	unsigned long flags;
 	struct snd_uart16550 *uart;
 
-	uart = (struct snd_uart16550 *)data;
+	uart = from_timer(uart, t, buffer_timer);
 	spin_lock_irqsave(&uart->open_lock, flags);
 	snd_uart16550_del_timer(uart);
 	snd_uart16550_io_loop(uart);
@@ -752,14 +739,14 @@ static void snd_uart16550_output_trigger(struct snd_rawmidi_substream *substream
 		snd_uart16550_output_write(substream);
 }
 
-static struct snd_rawmidi_ops snd_uart16550_output =
+static const struct snd_rawmidi_ops snd_uart16550_output =
 {
 	.open =		snd_uart16550_output_open,
 	.close =	snd_uart16550_output_close,
 	.trigger =	snd_uart16550_output_trigger,
 };
 
-static struct snd_rawmidi_ops snd_uart16550_input =
+static const struct snd_rawmidi_ops snd_uart16550_input =
 {
 	.open =		snd_uart16550_input_open,
 	.close =	snd_uart16550_input_close,
@@ -828,8 +815,7 @@ static int snd_uart16550_create(struct snd_card *card,
 	uart->prev_in = 0;
 	uart->rstatus = 0;
 	memset(uart->prev_status, 0x80, sizeof(unsigned char) * SNDRV_SERIAL_MAX_OUTS);
-	setup_timer(&uart->buffer_timer, snd_uart16550_buffer_timer,
-		    (unsigned long)uart);
+	timer_setup(&uart->buffer_timer, snd_uart16550_buffer_timer, 0);
 	uart->timer_running = 0;
 
 	/* Register device */

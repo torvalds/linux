@@ -1,27 +1,5 @@
-/******************************************************************************
- *
- * Copyright(c) 2009-2014  Realtek Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
- *
- * Contact Information:
- * wlanfae <wlanfae@realtek.com>
- * Realtek Corporation, No. 2, Innovation Road II, Hsinchu Science Park,
- * Hsinchu 300, Taiwan.
- *
- * Larry Finger <Larry.Finger@lwfinger.net>
- *
- *****************************************************************************/
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright(c) 2009-2014  Realtek Corporation.*/
 
 #include "../wifi.h"
 #include "../pci.h"
@@ -322,7 +300,7 @@ bool rtl8723be_rx_query_desc(struct ieee80211_hw *hw,
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rx_fwinfo_8723be *p_drvinfo;
 	struct ieee80211_hdr *hdr;
-
+	u8 wake_match;
 	u32 phystatus = GET_RX_DESC_PHYST(pdesc);
 
 	status->length = (u16)GET_RX_DESC_PKT_LEN(pdesc);
@@ -338,7 +316,7 @@ bool rtl8723be_rx_query_desc(struct ieee80211_hw *hw,
 	status->isampdu = (bool)(GET_RX_DESC_PAGGR(pdesc) == 1);
 	status->isfirst_ampdu = (bool)(GET_RX_DESC_PAGGR(pdesc) == 1);
 	status->timestamp_low = GET_RX_DESC_TSFL(pdesc);
-	status->rx_is40Mhzpacket = (bool)GET_RX_DESC_BW(pdesc);
+	status->rx_is40mhzpacket = (bool)GET_RX_DESC_BW(pdesc);
 	status->bandwidth = (u8)GET_RX_DESC_BW(pdesc);
 	status->macid = GET_RX_DESC_MACID(pdesc);
 	status->is_ht = (bool)GET_RX_DESC_RXHT(pdesc);
@@ -351,18 +329,18 @@ bool rtl8723be_rx_query_desc(struct ieee80211_hw *hw,
 		status->packet_report_type = NORMAL_RX;
 
 
-	if (GET_RX_STATUS_DESC_MAGIC_MATCH(pdesc))
-		status->wake_match = BIT(2);
+	if (GET_RX_STATUS_DESC_PATTERN_MATCH(pdesc))
+		wake_match = BIT(2);
 	else if (GET_RX_STATUS_DESC_MAGIC_MATCH(pdesc))
-		status->wake_match = BIT(1);
+		wake_match = BIT(1);
 	else if (GET_RX_STATUS_DESC_UNICAST_MATCH(pdesc))
-		status->wake_match = BIT(0);
+		wake_match = BIT(0);
 	else
-		status->wake_match = 0;
-	if (status->wake_match)
+		wake_match = 0;
+	if (wake_match)
 		RT_TRACE(rtlpriv, COMP_RXDESC, DBG_LOUD,
 		"GGGGGGGGGGGGGet Wakeup Packet!! WakeMatch=%d\n",
-		status->wake_match);
+		wake_match);
 	rx_status->freq = hw->conf.chandef.chan->center_freq;
 	rx_status->band = hw->conf.chandef.chan->band;
 
@@ -372,11 +350,11 @@ bool rtl8723be_rx_query_desc(struct ieee80211_hw *hw,
 	if (status->crc)
 		rx_status->flag |= RX_FLAG_FAILED_FCS_CRC;
 
-	if (status->rx_is40Mhzpacket)
-		rx_status->flag |= RX_FLAG_40MHZ;
+	if (status->rx_is40mhzpacket)
+		rx_status->bw = RATE_INFO_BW_40;
 
 	if (status->is_ht)
-		rx_status->flag |= RX_FLAG_HT;
+		rx_status->encoding = RX_ENC_HT;
 
 	rx_status->flag |= RX_FLAG_MACTIME_START;
 
@@ -431,6 +409,7 @@ void rtl8723be_tx_fill_desc(struct ieee80211_hw *hw,
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 	struct rtl_hal *rtlhal = rtl_hal(rtlpriv);
+	struct rtlwifi_tx_info *tx_info = rtl_tx_skb_cb_info(skb);
 	u8 *pdesc = (u8 *)pdesc_tx;
 	u16 seq_number;
 	__le16 fc = hdr->frame_control;
@@ -487,6 +466,7 @@ void rtl8723be_tx_fill_desc(struct ieee80211_hw *hw,
 		} else {
 			SET_TX_DESC_OFFSET(pdesc, USB_HWDESC_HEADER_LEN);
 		}
+
 
 		/* ptcb_desc->use_driver_rate = true; */
 		SET_TX_DESC_TX_RATE(pdesc, ptcb_desc->hw_rate);
@@ -575,6 +555,8 @@ void rtl8723be_tx_fill_desc(struct ieee80211_hw *hw,
 				SET_TX_DESC_HTC(pdesc, 1);
 			}
 		}
+		/* tx report */
+		rtl_set_tx_report(ptcb_desc, pdesc, hw, tx_info);
 	}
 
 	SET_TX_DESC_FIRST_SEG(pdesc, (firstseg ? 1 : 0));
@@ -666,8 +648,8 @@ void rtl8723be_set_desc(struct ieee80211_hw *hw, u8 *pdesc,
 			SET_TX_DESC_NEXT_DESC_ADDRESS(pdesc, *(u32 *)val);
 			break;
 		default:
-			RT_ASSERT(false, "ERR txdesc :%d not process\n",
-					  desc_name);
+			WARN_ONCE(true, "rtl8723be: ERR txdesc :%d not processed\n",
+				  desc_name);
 			break;
 		}
 	} else {
@@ -685,14 +667,15 @@ void rtl8723be_set_desc(struct ieee80211_hw *hw, u8 *pdesc,
 			SET_RX_DESC_EOR(pdesc, 1);
 			break;
 		default:
-			RT_ASSERT(false, "ERR rxdesc :%d not process\n",
-					  desc_name);
+			WARN_ONCE(true, "rtl8723be: ERR rxdesc :%d not process\n",
+				  desc_name);
 			break;
 		}
 	}
 }
 
-u32 rtl8723be_get_desc(u8 *pdesc, bool istx, u8 desc_name)
+u64 rtl8723be_get_desc(struct ieee80211_hw *hw,
+		       u8 *pdesc, bool istx, u8 desc_name)
 {
 	u32 ret = 0;
 
@@ -705,8 +688,8 @@ u32 rtl8723be_get_desc(u8 *pdesc, bool istx, u8 desc_name)
 			ret = GET_TX_DESC_TX_BUFFER_ADDRESS(pdesc);
 			break;
 		default:
-			RT_ASSERT(false, "ERR txdesc :%d not process\n",
-					  desc_name);
+			WARN_ONCE(true, "rtl8723be: ERR txdesc :%d not process\n",
+				  desc_name);
 			break;
 		}
 	} else {
@@ -721,7 +704,7 @@ u32 rtl8723be_get_desc(u8 *pdesc, bool istx, u8 desc_name)
 			ret = GET_RX_DESC_BUFF_ADDR(pdesc);
 			break;
 		default:
-			RT_ASSERT(false, "ERR rxdesc :%d not process\n",
+			WARN_ONCE(true, "rtl8723be: ERR rxdesc :%d not processed\n",
 				  desc_name);
 			break;
 		}
@@ -735,7 +718,7 @@ bool rtl8723be_is_tx_desc_closed(struct ieee80211_hw *hw,
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 	struct rtl8192_tx_ring *ring = &rtlpci->tx_ring[hw_queue];
 	u8 *entry = (u8 *)(&ring->desc[ring->idx]);
-	u8 own = (u8)rtl8723be_get_desc(entry, true, HW_DESC_OWN);
+	u8 own = (u8)rtl8723be_get_desc(hw, entry, true, HW_DESC_OWN);
 
 	/*beacon packet will only use the first
 	 *descriptor defautly,and the own may not
@@ -755,29 +738,4 @@ void rtl8723be_tx_polling(struct ieee80211_hw *hw, u8 hw_queue)
 		rtl_write_word(rtlpriv, REG_PCIE_CTRL_REG,
 			       BIT(0) << (hw_queue));
 	}
-}
-
-u32 rtl8723be_rx_command_packet(struct ieee80211_hw *hw,
-				const struct rtl_stats *status,
-				struct sk_buff *skb)
-{
-	u32 result = 0;
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-
-	switch (status->packet_report_type) {
-	case NORMAL_RX:
-			result = 0;
-			break;
-	case C2H_PACKET:
-			rtl8723be_c2h_packet_handler(hw, skb->data,
-						     (u8)skb->len);
-			result = 1;
-			break;
-	default:
-			RT_TRACE(rtlpriv, COMP_RECV, DBG_TRACE,
-				 "No this packet type!!\n");
-			break;
-	}
-
-	return result;
 }

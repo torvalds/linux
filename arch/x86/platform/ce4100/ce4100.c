@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Intel CE4100  platform specific setup code
  *
  * (C) Copyright 2010 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; version 2
- * of the License.
  */
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -22,11 +18,6 @@
 #include <asm/io.h>
 #include <asm/io_apic.h>
 #include <asm/emergency-restart.h>
-
-static int ce4100_i8042_detect(void)
-{
-	return 0;
-}
 
 /*
  * The CE4100 platform has an internal 8051 Microcontroller which is
@@ -89,7 +80,7 @@ static void ce4100_mem_serial_out(struct uart_port *p, int offset, int value)
 }
 
 static void ce4100_serial_fixup(int port, struct uart_port *up,
-	unsigned short *capabilites)
+	u32 *capabilities)
 {
 #ifdef CONFIG_EARLY_PRINTK
 	/*
@@ -116,7 +107,7 @@ static void ce4100_serial_fixup(int port, struct uart_port *up,
 	up->serial_in = ce4100_mem_serial_in;
 	up->serial_out = ce4100_mem_serial_out;
 
-	*capabilites |= (1 << 12);
+	*capabilities |= (1 << 12);
 }
 
 static __init void sdv_serial_fixup(void)
@@ -145,7 +136,6 @@ static void sdv_pci_init(void)
 void __init x86_ce4100_early_setup(void)
 {
 	x86_init.oem.arch_setup = sdv_arch_setup;
-	x86_platform.i8042_detect = ce4100_i8042_detect;
 	x86_init.resources.probe_roms = x86_init_noop;
 	x86_init.mpparse.get_smp_config = x86_init_uint_noop;
 	x86_init.mpparse.find_smp_config = x86_init_noop;

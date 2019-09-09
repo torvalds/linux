@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Sally Floyd's High Speed TCP (RFC 3649) congestion control
  *
@@ -150,16 +151,16 @@ static void hstcp_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 static u32 hstcp_ssthresh(struct sock *sk)
 {
 	const struct tcp_sock *tp = tcp_sk(sk);
-	const struct hstcp *ca = inet_csk_ca(sk);
+	struct hstcp *ca = inet_csk_ca(sk);
 
 	/* Do multiplicative decrease */
 	return max(tp->snd_cwnd - ((tp->snd_cwnd * hstcp_aimd_vals[ca->ai].md) >> 8), 2U);
 }
 
-
 static struct tcp_congestion_ops tcp_highspeed __read_mostly = {
 	.init		= hstcp_init,
 	.ssthresh	= hstcp_ssthresh,
+	.undo_cwnd	= tcp_reno_undo_cwnd,
 	.cong_avoid	= hstcp_cong_avoid,
 
 	.owner		= THIS_MODULE,

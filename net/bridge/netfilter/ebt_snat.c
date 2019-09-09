@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  ebt_snat
  *
@@ -21,7 +22,7 @@ ebt_snat_tg(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct ebt_nat_info *info = par->targinfo;
 
-	if (!skb_make_writable(skb, 0))
+	if (skb_ensure_writable(skb, ETH_ALEN * 2))
 		return EBT_DROP;
 
 	ether_addr_copy(eth_hdr(skb)->h_source, info->mac);
@@ -51,7 +52,7 @@ static int ebt_snat_tg_check(const struct xt_tgchk_param *par)
 	if (BASE_CHAIN && tmp == EBT_RETURN)
 		return -EINVAL;
 
-	if (tmp < -NUM_STANDARD_TARGETS || tmp >= 0)
+	if (ebt_invalid_target(tmp))
 		return -EINVAL;
 	tmp = info->target | EBT_VERDICT_BITS;
 	if ((tmp & ~NAT_ARP_BIT) != ~NAT_ARP_BIT)

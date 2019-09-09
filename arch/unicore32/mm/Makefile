@@ -1,11 +1,10 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Makefile for the linux unicore-specific parts of the memory manager.
 #
 
 obj-y				:= extable.o fault.o init.o pgd.o mmu.o
 obj-y				+= flush.o ioremap.o
-
-obj-$(CONFIG_SWIOTLB)		+= dma-swiotlb.o
 
 obj-$(CONFIG_MODULES)		+= proc-syms.o
 

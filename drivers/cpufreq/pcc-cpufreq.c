@@ -268,7 +268,7 @@ static int pcc_get_offset(int cpu)
 	if (!pccp || pccp->type != ACPI_TYPE_PACKAGE) {
 		ret = -ENODEV;
 		goto out_free;
-	};
+	}
 
 	offset = &(pccp->package.elements[0]);
 	if (!offset || offset->type != ACPI_TYPE_INTEGER) {
@@ -580,13 +580,26 @@ static int __init pcc_cpufreq_init(void)
 {
 	int ret;
 
+	/* Skip initialization if another cpufreq driver is there. */
+	if (cpufreq_get_current_driver())
+		return -EEXIST;
+
 	if (acpi_disabled)
-		return 0;
+		return -ENODEV;
 
 	ret = pcc_cpufreq_probe();
 	if (ret) {
 		pr_debug("pcc_cpufreq_init: PCCH evaluation failed\n");
 		return ret;
+	}
+
+	if (num_present_cpus() > 4) {
+		pcc_cpufreq_driver.flags |= CPUFREQ_NO_AUTO_DYNAMIC_SWITCHING;
+		pr_err("%s: Too many CPUs, dynamic performance scaling disabled\n",
+		       __func__);
+		pr_err("%s: Try to enable another scaling driver through BIOS settings\n",
+		       __func__);
+		pr_err("%s: and complain to the system vendor\n", __func__);
 	}
 
 	ret = cpufreq_register_driver(&pcc_cpufreq_driver);

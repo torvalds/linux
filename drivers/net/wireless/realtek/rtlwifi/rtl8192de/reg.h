@@ -1,31 +1,5 @@
-/******************************************************************************
- *
- * Copyright(c) 2009-2012  Realtek Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
- *
- * Contact Information:
- * wlanfae <wlanfae@realtek.com>
- * Realtek Corporation, No. 2, Innovation Road II, Hsinchu Science Park,
- * Hsinchu 300, Taiwan.
- *
- * Larry Finger <Larry.Finger@lwfinger.net>
- *
- *****************************************************************************/
+/* SPDX-License-Identifier: GPL-2.0 */
+/* Copyright(c) 2009-2012  Realtek Corporation.*/
 
 #ifndef __RTL92D_REG_H__
 #define __RTL92D_REG_H__
@@ -259,7 +233,6 @@
 #define REG_RD_NAV_NXT			0x0544
 #define REG_NAV_PROT_LEN		0x0546
 #define REG_BCN_CTRL			0x0550
-#define REG_USTIME_TSF			0x0551
 #define REG_MBID_NUM			0x0552
 #define REG_DUAL_TSF_RST		0x0553
 #define REG_BCN_INTERVAL		0x0554
@@ -267,6 +240,7 @@
 #define REG_DRVERLYINT			0x0558
 #define REG_BCNDMATIM			0x0559
 #define REG_ATIMWND			0x055A
+#define REG_USTIME_TSF			0x055C
 #define REG_BCN_MAX_ERR			0x055D
 #define REG_RXTSF_OFFSET_CCK		0x055E
 #define REG_RXTSF_OFFSET_OFDM		0x055F
@@ -756,7 +730,7 @@
 
 /* SYS_FUNC_EN */
 #define FEN_BBRSTB				BIT(0)
-#define FEN_BB_GLB_RSTn				BIT(1)
+#define FEN_BB_GLB_RSTN				BIT(1)
 #define FEN_USBA				BIT(2)
 #define FEN_UPLL				BIT(3)
 #define FEN_USBD				BIT(4)
@@ -777,7 +751,7 @@
 #define PFM_ALDN				BIT(1)
 #define PFM_LDKP				BIT(2)
 #define PFM_WOWL				BIT(3)
-#define EnPDN					BIT(4)
+#define ENPDN					BIT(4)
 #define PDN_PL					BIT(5)
 #define APFM_ONMAC				BIT(8)
 #define APFM_OFF				BIT(9)
@@ -914,7 +888,7 @@
 /* MCUFWDL  */
 #define MCUFWDL_EN				BIT(0)
 #define MCUFWDL_RDY				BIT(1)
-#define FWDL_ChkSum_rpt				BIT(2)
+#define FWDL_CHKSUM_RPT				BIT(2)
 #define MACINI_RDY				BIT(3)
 #define BBINI_RDY				BIT(4)
 #define RFINI_RDY				BIT(5)
@@ -1037,7 +1011,7 @@
 #define	RFPGA0_XA_LSSIPARAMETER			0x840
 #define	RFPGA0_XB_LSSIPARAMETER			0x844
 
-#define	RFPGA0_RFWAkEUPPARAMETER		0x850
+#define	RFPGA0_RFWAKEUPPARAMETER		0x850
 #define	RFPGA0_RFSLEEPUPPARAMETER		0x854
 
 #define	RFPGA0_XAB_SWITCHCONTROL		0x858
@@ -1139,14 +1113,14 @@
 #define	ROFDM0_AGCRSSITABLE			0xc78
 #define	ROFDM0_HTSTFAGC				0xc7c
 
-#define	ROFDM0_XATxIQIMBALANCE			0xc80
-#define	ROFDM0_XATxAFE				0xc84
-#define	ROFDM0_XBTxIQIMBALANCE			0xc88
-#define	ROFDM0_XBTxAFE				0xc8c
-#define	ROFDM0_XCTxIQIMBALANCE			0xc90
-#define	ROFDM0_XCTxAFE				0xc94
-#define	ROFDM0_XDTxIQIMBALANCE			0xc98
-#define	ROFDM0_XDTxAFE				0xc9c
+#define	ROFDM0_XATXIQIMBALANCE			0xc80
+#define	ROFDM0_XATXAFE				0xc84
+#define	ROFDM0_XBTXIQIMBALANCE			0xc88
+#define	ROFDM0_XBTXAFE				0xc8c
+#define	ROFDM0_XCTXIQIMBALANCE			0xc90
+#define	ROFDM0_XCTXAFE				0xc94
+#define	ROFDM0_XDTXIQIMBALANCE			0xc98
+#define	ROFDM0_XDTXAFE				0xc9c
 
 #define	ROFDM0_RXHPPARAMETER			0xce0
 #define	ROFDM0_TXPSEUDONOISEWGT			0xce4
@@ -1190,7 +1164,7 @@
 #define	ROFDM_AGCREPORT				0xdd0
 #define	ROFDM_RXSNR				0xdd4
 #define	ROFDM_RXEVMCSI				0xdd8
-#define	ROFDM_SIGReport				0xddc
+#define	ROFDM_SIGREPORT				0xddc
 
 /* 8. PageE(0xE00) */
 #define	RTXAGC_A_RATE18_06			0xe00
@@ -1232,7 +1206,7 @@
 #define	RF_IPA					0x15
 #define	RF_POW_ABILITY				0x17
 #define	RF_MODE_AG				0x18
-#define	rRfChannel				0x18
+#define	rfchannel				0x18
 #define	RF_CHNLBW				0x18
 #define	RF_TOP					0x19
 

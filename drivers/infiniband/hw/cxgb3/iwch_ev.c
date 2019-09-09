@@ -48,34 +48,35 @@ static void post_qp_event(struct iwch_dev *rnicp, struct iwch_cq *chp,
 	struct iwch_qp *qhp;
 	unsigned long flag;
 
-	spin_lock(&rnicp->lock);
-	qhp = get_qhp(rnicp, CQE_QPID(rsp_msg->cqe));
+	xa_lock(&rnicp->qps);
+	qhp = xa_load(&rnicp->qps, CQE_QPID(rsp_msg->cqe));
 
 	if (!qhp) {
-		printk(KERN_ERR "%s unaffiliated error 0x%x qpid 0x%x\n",
+		pr_err("%s unaffiliated error 0x%x qpid 0x%x\n",
 		       __func__, CQE_STATUS(rsp_msg->cqe),
 		       CQE_QPID(rsp_msg->cqe));
-		spin_unlock(&rnicp->lock);
+		xa_unlock(&rnicp->qps);
 		return;
 	}
 
 	if ((qhp->attr.state == IWCH_QP_STATE_ERROR) ||
 	    (qhp->attr.state == IWCH_QP_STATE_TERMINATE)) {
-		PDBG("%s AE received after RTS - "
-		     "qp state %d qpid 0x%x status 0x%x\n", __func__,
-		     qhp->attr.state, qhp->wq.qpid, CQE_STATUS(rsp_msg->cqe));
-		spin_unlock(&rnicp->lock);
+		pr_debug("%s AE received after RTS - qp state %d qpid 0x%x status 0x%x\n",
+			 __func__,
+			 qhp->attr.state, qhp->wq.qpid,
+			 CQE_STATUS(rsp_msg->cqe));
+		xa_unlock(&rnicp->qps);
 		return;
 	}
 
-	printk(KERN_ERR "%s - AE qpid 0x%x opcode %d status 0x%x "
-	       "type %d wrid.hi 0x%x wrid.lo 0x%x \n", __func__,
+	pr_err("%s - AE qpid 0x%x opcode %d status 0x%x type %d wrid.hi 0x%x wrid.lo 0x%x\n",
+	       __func__,
 	       CQE_QPID(rsp_msg->cqe), CQE_OPCODE(rsp_msg->cqe),
 	       CQE_STATUS(rsp_msg->cqe), CQE_TYPE(rsp_msg->cqe),
 	       CQE_WRID_HI(rsp_msg->cqe), CQE_WRID_LOW(rsp_msg->cqe));
 
 	atomic_inc(&qhp->refcnt);
-	spin_unlock(&rnicp->lock);
+	xa_unlock(&rnicp->qps);
 
 	if (qhp->attr.state == IWCH_QP_STATE_RTS) {
 		attrs.next_state = IWCH_QP_STATE_TERMINATE;
@@ -113,22 +114,21 @@ void iwch_ev_dispatch(struct cxio_rdev *rdev_p, struct sk_buff *skb)
 	unsigned long flag;
 
 	rnicp = (struct iwch_dev *) rdev_p->ulp;
-	spin_lock(&rnicp->lock);
+	xa_lock(&rnicp->qps);
 	chp = get_chp(rnicp, cqid);
-	qhp = get_qhp(rnicp, CQE_QPID(rsp_msg->cqe));
+	qhp = xa_load(&rnicp->qps, CQE_QPID(rsp_msg->cqe));
 	if (!chp || !qhp) {
-		printk(KERN_ERR MOD "BAD AE cqid 0x%x qpid 0x%x opcode %d "
-		       "status 0x%x type %d wrid.hi 0x%x wrid.lo 0x%x \n",
+		pr_err("BAD AE cqid 0x%x qpid 0x%x opcode %d status 0x%x type %d wrid.hi 0x%x wrid.lo 0x%x\n",
 		       cqid, CQE_QPID(rsp_msg->cqe),
 		       CQE_OPCODE(rsp_msg->cqe), CQE_STATUS(rsp_msg->cqe),
 		       CQE_TYPE(rsp_msg->cqe), CQE_WRID_HI(rsp_msg->cqe),
 		       CQE_WRID_LOW(rsp_msg->cqe));
-		spin_unlock(&rnicp->lock);
+		xa_unlock(&rnicp->qps);
 		goto out;
 	}
 	iwch_qp_add_ref(&qhp->ibqp);
 	atomic_inc(&chp->refcnt);
-	spin_unlock(&rnicp->lock);
+	xa_unlock(&rnicp->qps);
 
 	/*
 	 * 1) completion of our sending a TERMINATE.
@@ -137,12 +137,12 @@ void iwch_ev_dispatch(struct cxio_rdev *rdev_p, struct sk_buff *skb)
 	if ((CQE_OPCODE(rsp_msg->cqe) == T3_TERMINATE) &&
 	    (CQE_STATUS(rsp_msg->cqe) == 0)) {
 		if (SQ_TYPE(rsp_msg->cqe)) {
-			PDBG("%s QPID 0x%x ep %p disconnecting\n",
-			     __func__, qhp->wq.qpid, qhp->ep);
+			pr_debug("%s QPID 0x%x ep %p disconnecting\n",
+				 __func__, qhp->wq.qpid, qhp->ep);
 			iwch_ep_disconnect(qhp->ep, 0, GFP_ATOMIC);
 		} else {
-			PDBG("%s post REQ_ERR AE QPID 0x%x\n", __func__,
-			     qhp->wq.qpid);
+			pr_debug("%s post REQ_ERR AE QPID 0x%x\n", __func__,
+				 qhp->wq.qpid);
 			post_qp_event(rnicp, chp, rsp_msg,
 				      IB_EVENT_QP_REQ_ERR, 0);
 			iwch_ep_disconnect(qhp->ep, 0, GFP_ATOMIC);
@@ -218,7 +218,7 @@ void iwch_ev_dispatch(struct cxio_rdev *rdev_p, struct sk_buff *skb)
 		break;
 
 	default:
-		printk(KERN_ERR MOD "Unknown T3 status 0x%x QPID 0x%x\n",
+		pr_err("Unknown T3 status 0x%x QPID 0x%x\n",
 		       CQE_STATUS(rsp_msg->cqe), qhp->wq.qpid);
 		post_qp_event(rnicp, chp, rsp_msg, IB_EVENT_QP_FATAL, 1);
 		break;

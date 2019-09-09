@@ -1,22 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * sma cpu5 watchdog driver
  *
  * Copyright (C) 2003 Heiko Ronsdorf <hero@ihg.uni-duisburg.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -69,7 +55,7 @@ static struct {
 
 /* generic helper functions */
 
-static void cpu5wdt_trigger(unsigned long unused)
+static void cpu5wdt_trigger(struct timer_list *unused)
 {
 	if (verbose > 2)
 		pr_debug("trigger at %i ticks\n", ticks);
@@ -140,7 +126,7 @@ static int cpu5wdt_open(struct inode *inode, struct file *file)
 {
 	if (test_and_set_bit(0, &cpu5wdt_device.inuse))
 		return -EBUSY;
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 static int cpu5wdt_release(struct inode *inode, struct file *file)
@@ -224,7 +210,7 @@ static int cpu5wdt_init(void)
 
 	init_completion(&cpu5wdt_device.stop);
 	cpu5wdt_device.queue = 0;
-	setup_timer(&cpu5wdt_device.timer, cpu5wdt_trigger, 0);
+	timer_setup(&cpu5wdt_device.timer, cpu5wdt_trigger, 0);
 	cpu5wdt_device.default_ticks = ticks;
 
 	if (!request_region(port, CPU5WDT_EXTENT, PFX)) {
@@ -289,7 +275,7 @@ MODULE_DESCRIPTION("sma cpu5 watchdog driver");
 MODULE_SUPPORTED_DEVICE("sma cpu5 watchdog");
 MODULE_LICENSE("GPL");
 
-module_param(port, int, 0);
+module_param_hw(port, int, ioport, 0);
 MODULE_PARM_DESC(port, "base address of watchdog card, default is 0x91");
 
 module_param(verbose, int, 0);

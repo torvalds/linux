@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  linux/drivers/net/wireless/libertas/if_sdio.c
  *
  *  Copyright 2007-2008 Pierre Ossman
  *
  * Inspired by if_cs.c, Copyright 2007 Holger Schurig
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or (at
- * your option) any later version.
  *
  * This hardware has more or less no CMD53 support, so all registers
  * must be accessed using sdio_readb()/sdio_writeb().
@@ -211,8 +207,6 @@ static int if_sdio_handle_cmd(struct if_sdio_card *card,
 	unsigned long flags;
 	u8 i;
 
-	lbs_deb_enter(LBS_DEB_SDIO);
-
 	if (size > LBS_CMD_BUFFER_SIZE) {
 		lbs_deb_sdio("response packet too large (%d bytes)\n",
 			(int)size);
@@ -233,7 +227,6 @@ static int if_sdio_handle_cmd(struct if_sdio_card *card,
 	ret = 0;
 
 out:
-	lbs_deb_leave_args(LBS_DEB_SDIO, "ret %d", ret);
 	return ret;
 }
 
@@ -242,9 +235,6 @@ static int if_sdio_handle_data(struct if_sdio_card *card,
 {
 	int ret;
 	struct sk_buff *skb;
-	char *data;
-
-	lbs_deb_enter(LBS_DEB_SDIO);
 
 	if (size > MRVDRV_ETH_RX_PACKET_BUFFER_SIZE) {
 		lbs_deb_sdio("response packet too large (%d bytes)\n",
@@ -261,17 +251,13 @@ static int if_sdio_handle_data(struct if_sdio_card *card,
 
 	skb_reserve(skb, NET_IP_ALIGN);
 
-	data = skb_put(skb, size);
-
-	memcpy(data, buffer, size);
+	skb_put_data(skb, buffer, size);
 
 	lbs_process_rxed_packet(card->priv, skb);
 
 	ret = 0;
 
 out:
-	lbs_deb_leave_args(LBS_DEB_SDIO, "ret %d", ret);
-
 	return ret;
 }
 
@@ -280,8 +266,6 @@ static int if_sdio_handle_event(struct if_sdio_card *card,
 {
 	int ret;
 	u32 event;
-
-	lbs_deb_enter(LBS_DEB_SDIO);
 
 	if (card->model == MODEL_8385) {
 		event = sdio_readb(card->func, IF_SDIO_EVENT, &ret);
@@ -307,8 +291,6 @@ static int if_sdio_handle_event(struct if_sdio_card *card,
 	ret = 0;
 
 out:
-	lbs_deb_leave_args(LBS_DEB_SDIO, "ret %d", ret);
-
 	return ret;
 }
 
@@ -336,8 +318,6 @@ static int if_sdio_card_to_host(struct if_sdio_card *card)
 {
 	int ret;
 	u16 size, type, chunk;
-
-	lbs_deb_enter(LBS_DEB_SDIO);
 
 	size = if_sdio_read_rx_len(card, &ret);
 	if (ret)
@@ -410,8 +390,6 @@ out:
 	if (ret)
 		pr_err("problem fetching packet from firmware\n");
 
-	lbs_deb_leave_args(LBS_DEB_SDIO, "ret %d", ret);
-
 	return ret;
 }
 
@@ -421,8 +399,6 @@ static void if_sdio_host_to_card_worker(struct work_struct *work)
 	struct if_sdio_packet *packet;
 	int ret;
 	unsigned long flags;
-
-	lbs_deb_enter(LBS_DEB_SDIO);
 
 	card = container_of(work, struct if_sdio_card, packet_worker);
 
@@ -451,8 +427,6 @@ static void if_sdio_host_to_card_worker(struct work_struct *work)
 
 		kfree(packet);
 	}
-
-	lbs_deb_leave(LBS_DEB_SDIO);
 }
 
 /********************************************************************/
@@ -470,8 +444,6 @@ static int if_sdio_prog_helper(struct if_sdio_card *card,
 	u32 chunk_size;
 	const u8 *firmware;
 	size_t size;
-
-	lbs_deb_enter(LBS_DEB_SDIO);
 
 	chunk_buffer = kzalloc(64, GFP_KERNEL);
 	if (!chunk_buffer) {
@@ -556,7 +528,6 @@ out:
 	if (ret)
 		pr_err("failed to load helper firmware\n");
 
-	lbs_deb_leave_args(LBS_DEB_SDIO, "ret %d", ret);
 	return ret;
 }
 
@@ -569,8 +540,6 @@ static int if_sdio_prog_real(struct if_sdio_card *card,
 	u32 chunk_size;
 	const u8 *firmware;
 	size_t size, req_size;
-
-	lbs_deb_enter(LBS_DEB_SDIO);
 
 	chunk_buffer = kzalloc(512, GFP_KERNEL);
 	if (!chunk_buffer) {
@@ -691,7 +660,6 @@ out:
 	if (ret)
 		pr_err("failed to load firmware\n");
 
-	lbs_deb_leave_args(LBS_DEB_SDIO, "ret %d", ret);
 	return ret;
 }
 
@@ -724,8 +692,6 @@ static int if_sdio_prog_firmware(struct if_sdio_card *card)
 {
 	int ret;
 	u16 scratch;
-
-	lbs_deb_enter(LBS_DEB_SDIO);
 
 	/*
 	 * Disable interrupts
@@ -769,7 +735,6 @@ static int if_sdio_prog_firmware(struct if_sdio_card *card)
 				     fw_table, if_sdio_do_prog_firmware);
 
 out:
-	lbs_deb_leave_args(LBS_DEB_SDIO, "ret %d", ret);
 	return ret;
 }
 
@@ -948,8 +913,6 @@ static int if_sdio_host_to_card(struct lbs_private *priv,
 	u16 size;
 	unsigned long flags;
 
-	lbs_deb_enter_args(LBS_DEB_SDIO, "type %d, bytes %d", type, nb);
-
 	card = priv->card;
 
 	if (nb > (65536 - sizeof(struct if_sdio_packet) - 4)) {
@@ -1013,8 +976,6 @@ static int if_sdio_host_to_card(struct lbs_private *priv,
 	ret = 0;
 
 out:
-	lbs_deb_leave_args(LBS_DEB_SDIO, "ret %d", ret);
-
 	return ret;
 }
 
@@ -1040,7 +1001,6 @@ static int if_sdio_exit_deep_sleep(struct lbs_private *priv)
 	struct if_sdio_card *card = priv->card;
 	int ret = -1;
 
-	lbs_deb_enter(LBS_DEB_SDIO);
 	sdio_claim_host(card->func);
 
 	sdio_writeb(card->func, HOST_POWER_UP, CONFIGURATION_REG, &ret);
@@ -1048,7 +1008,7 @@ static int if_sdio_exit_deep_sleep(struct lbs_private *priv)
 		netdev_err(priv->dev, "sdio_writeb failed!\n");
 
 	sdio_release_host(card->func);
-	lbs_deb_leave_args(LBS_DEB_SDIO, "ret %d", ret);
+
 	return ret;
 }
 
@@ -1057,7 +1017,6 @@ static int if_sdio_reset_deep_sleep_wakeup(struct lbs_private *priv)
 	struct if_sdio_card *card = priv->card;
 	int ret = -1;
 
-	lbs_deb_enter(LBS_DEB_SDIO);
 	sdio_claim_host(card->func);
 
 	sdio_writeb(card->func, 0, CONFIGURATION_REG, &ret);
@@ -1065,7 +1024,7 @@ static int if_sdio_reset_deep_sleep_wakeup(struct lbs_private *priv)
 		netdev_err(priv->dev, "sdio_writeb failed!\n");
 
 	sdio_release_host(card->func);
-	lbs_deb_leave_args(LBS_DEB_SDIO, "ret %d", ret);
+
 	return ret;
 
 }
@@ -1143,19 +1102,17 @@ static void if_sdio_interrupt(struct sdio_func *func)
 	struct if_sdio_card *card;
 	u8 cause;
 
-	lbs_deb_enter(LBS_DEB_SDIO);
-
 	card = sdio_get_drvdata(func);
 
 	cause = sdio_readb(card->func, IF_SDIO_H_INT_STATUS, &ret);
 	if (ret || !cause)
-		goto out;
+		return;
 
 	lbs_deb_sdio("interrupt: 0x%X\n", (unsigned)cause);
 
 	sdio_writeb(card->func, ~cause, IF_SDIO_H_INT_STATUS, &ret);
 	if (ret)
-		goto out;
+		return;
 
 	/*
 	 * Ignore the define name, this really means the card has
@@ -1169,13 +1126,8 @@ static void if_sdio_interrupt(struct sdio_func *func)
 	if (cause & IF_SDIO_H_INT_UPLD) {
 		ret = if_sdio_card_to_host(card);
 		if (ret)
-			goto out;
+			return;
 	}
-
-	ret = 0;
-
-out:
-	lbs_deb_leave_args(LBS_DEB_SDIO, "ret %d", ret);
 }
 
 static int if_sdio_probe(struct sdio_func *func,
@@ -1186,8 +1138,6 @@ static int if_sdio_probe(struct sdio_func *func,
 	int ret, i;
 	unsigned int model;
 	struct if_sdio_packet *packet;
-
-	lbs_deb_enter(LBS_DEB_SDIO);
 
 	for (i = 0;i < func->card->num_info;i++) {
 		if (sscanf(func->card->info[i],
@@ -1252,8 +1202,8 @@ static int if_sdio_probe(struct sdio_func *func,
 
 
 	priv = lbs_add_card(card, &func->dev);
-	if (!priv) {
-		ret = -ENOMEM;
+	if (IS_ERR(priv)) {
+		ret = PTR_ERR(priv);
 		goto free;
 	}
 
@@ -1273,8 +1223,6 @@ static int if_sdio_probe(struct sdio_func *func,
 		goto err_activate_card;
 
 out:
-	lbs_deb_leave_args(LBS_DEB_SDIO, "ret %d", ret);
-
 	return ret;
 
 err_activate_card:
@@ -1297,8 +1245,6 @@ static void if_sdio_remove(struct sdio_func *func)
 {
 	struct if_sdio_card *card;
 	struct if_sdio_packet *packet;
-
-	lbs_deb_enter(LBS_DEB_SDIO);
 
 	card = sdio_get_drvdata(func);
 
@@ -1335,21 +1281,28 @@ static void if_sdio_remove(struct sdio_func *func)
 	}
 
 	kfree(card);
-	lbs_deb_leave(LBS_DEB_SDIO);
 }
 
 static int if_sdio_suspend(struct device *dev)
 {
 	struct sdio_func *func = dev_to_sdio_func(dev);
-	int ret;
 	struct if_sdio_card *card = sdio_get_drvdata(func);
+	struct lbs_private *priv = card->priv;
+	int ret;
 
 	mmc_pm_flag_t flags = sdio_get_host_pm_caps(func);
+	priv->power_up_on_resume = false;
 
 	/* If we're powered off anyway, just let the mmc layer remove the
 	 * card. */
-	if (!lbs_iface_active(card->priv))
-		return -ENOSYS;
+	if (!lbs_iface_active(priv)) {
+		if (priv->fw_ready) {
+			priv->power_up_on_resume = true;
+			if_sdio_power_off(card);
+		}
+
+		return 0;
+	}
 
 	dev_info(dev, "%s: suspend: PM flags = 0x%x\n",
 		 sdio_func_id(func), flags);
@@ -1357,9 +1310,18 @@ static int if_sdio_suspend(struct device *dev)
 	/* If we aren't being asked to wake on anything, we should bail out
 	 * and let the SD stack power down the card.
 	 */
-	if (card->priv->wol_criteria == EHS_REMOVE_WAKEUP) {
+	if (priv->wol_criteria == EHS_REMOVE_WAKEUP) {
 		dev_info(dev, "Suspend without wake params -- powering down card\n");
-		return -ENOSYS;
+		if (priv->fw_ready) {
+			ret = lbs_suspend(priv);
+			if (ret)
+				return ret;
+
+			priv->power_up_on_resume = true;
+			if_sdio_power_off(card);
+		}
+
+		return 0;
 	}
 
 	if (!(flags & MMC_PM_KEEP_POWER)) {
@@ -1372,7 +1334,7 @@ static int if_sdio_suspend(struct device *dev)
 	if (ret)
 		return ret;
 
-	ret = lbs_suspend(card->priv);
+	ret = lbs_suspend(priv);
 	if (ret)
 		return ret;
 
@@ -1386,6 +1348,11 @@ static int if_sdio_resume(struct device *dev)
 	int ret;
 
 	dev_info(dev, "%s: resume: we're back\n", sdio_func_id(func));
+
+	if (card->priv->power_up_on_resume) {
+		if_sdio_power_on(card);
+		wait_event(card->pwron_waitq, card->priv->fw_ready);
+	}
 
 	ret = lbs_resume(card->priv);
 
@@ -1415,8 +1382,6 @@ static int __init if_sdio_init_module(void)
 {
 	int ret = 0;
 
-	lbs_deb_enter(LBS_DEB_SDIO);
-
 	printk(KERN_INFO "libertas_sdio: Libertas SDIO driver\n");
 	printk(KERN_INFO "libertas_sdio: Copyright Pierre Ossman\n");
 
@@ -1425,23 +1390,17 @@ static int __init if_sdio_init_module(void)
 	/* Clear the flag in case user removes the card. */
 	user_rmmod = 0;
 
-	lbs_deb_leave_args(LBS_DEB_SDIO, "ret %d", ret);
-
 	return ret;
 }
 
 static void __exit if_sdio_exit_module(void)
 {
-	lbs_deb_enter(LBS_DEB_SDIO);
-
 	/* Set the flag as user is removing this module. */
 	user_rmmod = 1;
 
 	cancel_work_sync(&card_reset_work);
 
 	sdio_unregister_driver(&if_sdio_driver);
-
-	lbs_deb_leave(LBS_DEB_SDIO);
 }
 
 module_init(if_sdio_init_module);

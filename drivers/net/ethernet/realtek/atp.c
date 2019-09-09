@@ -151,8 +151,8 @@ MODULE_LICENSE("GPL");
 
 module_param(max_interrupt_work, int, 0);
 module_param(debug, int, 0);
-module_param_array(io, int, NULL, 0);
-module_param_array(irq, int, NULL, 0);
+module_param_hw_array(io, int, ioport, NULL, 0);
+module_param_hw_array(irq, int, irq, NULL, 0);
 module_param_array(xcvr, int, NULL, 0);
 MODULE_PARM_DESC(max_interrupt_work, "ATP maximum events handled per interrupt");
 MODULE_PARM_DESC(debug, "ATP debug level (0-7)");
@@ -170,7 +170,8 @@ struct net_local {
     spinlock_t lock;
     struct net_device *next_module;
     struct timer_list timer;	/* Media selection timer. */
-    long last_rx_time;		/* Last Rx, in jiffies, to handle Rx hang. */
+    struct net_device *dev;	/* Timer dev. */
+    unsigned long last_rx_time;	/* Last Rx, in jiffies, to handle Rx hang. */
     int saved_tx_size;
     unsigned int tx_unit_busy:1;
     unsigned char re_tx,	/* Number of packet retransmissions. */
@@ -184,7 +185,7 @@ struct net_local {
 #define TIMED_CHECKER (HZ/4)
 #ifdef TIMED_CHECKER
 #include <linux/timer.h>
-static void atp_timed_checker(unsigned long ignored);
+static void atp_timed_checker(struct timer_list *t);
 #endif
 
 /* Index to functions, as function prototypes. */
@@ -245,7 +246,6 @@ static const struct net_device_ops atp_netdev_ops = {
 	.ndo_start_xmit		= atp_send_packet,
 	.ndo_set_rx_mode	= set_rx_mode,
 	.ndo_tx_timeout		= tx_timeout,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 };
@@ -439,10 +439,9 @@ static int net_open(struct net_device *dev)
 
 	hardware_init(dev);
 
-	init_timer(&lp->timer);
+	lp->dev = dev;
+	timer_setup(&lp->timer, atp_timed_checker, 0);
 	lp->timer.expires = jiffies + TIMED_CHECKER;
-	lp->timer.data = (unsigned long)dev;
-	lp->timer.function = atp_timed_checker;    /* timer handler */
 	add_timer(&lp->timer);
 
 	netif_start_queue(dev);
@@ -455,14 +454,14 @@ static void hardware_init(struct net_device *dev)
 {
 	struct net_local *lp = netdev_priv(dev);
 	long ioaddr = dev->base_addr;
-    int i;
+	int i;
 
 	/* Turn off the printer multiplexer on the 8012. */
 	for (i = 0; i < 8; i++)
 		outb(mux_8012[i], ioaddr + PAR_DATA);
 	write_reg_high(ioaddr, CMR1, CMR1h_RESET);
 
-    for (i = 0; i < 6; i++)
+	for (i = 0; i < 6; i++)
 		write_reg_byte(ioaddr, PAR0 + i, dev->dev_addr[i]);
 
 	write_reg_high(ioaddr, CMR2, lp->addr_mode);
@@ -472,18 +471,18 @@ static void hardware_init(struct net_device *dev)
 			   (read_nibble(ioaddr, CMR2_h) >> 3) & 0x0f);
 	}
 
-    write_reg(ioaddr, CMR2, CMR2_IRQOUT);
-    write_reg_high(ioaddr, CMR1, CMR1h_RxENABLE | CMR1h_TxENABLE);
+	write_reg(ioaddr, CMR2, CMR2_IRQOUT);
+	write_reg_high(ioaddr, CMR1, CMR1h_RxENABLE | CMR1h_TxENABLE);
 
 	/* Enable the interrupt line from the serial port. */
 	outb(Ctrl_SelData + Ctrl_IRQEN, ioaddr + PAR_CONTROL);
 
 	/* Unmask the interesting interrupts. */
-    write_reg(ioaddr, IMR, ISR_RxOK | ISR_TxErr | ISR_TxOK);
-    write_reg_high(ioaddr, IMR, ISRh_RxErr);
+	write_reg(ioaddr, IMR, ISR_RxOK | ISR_TxErr | ISR_TxOK);
+	write_reg_high(ioaddr, IMR, ISRh_RxErr);
 
 	lp->tx_unit_busy = 0;
-    lp->pac_cnt_in_tx_buf = 0;
+	lp->pac_cnt_in_tx_buf = 0;
 	lp->saved_tx_size = 0;
 }
 
@@ -611,10 +610,12 @@ static irqreturn_t atp_interrupt(int irq, void *dev_instance)
 	write_reg(ioaddr, CMR2, CMR2_NULL);
 	write_reg(ioaddr, IMR, 0);
 
-	if (net_debug > 5) printk(KERN_DEBUG "%s: In interrupt ", dev->name);
-    while (--boguscount > 0) {
+	if (net_debug > 5)
+		printk(KERN_DEBUG "%s: In interrupt ", dev->name);
+	while (--boguscount > 0) {
 		int status = read_nibble(ioaddr, ISR);
-		if (net_debug > 5) printk("loop status %02x..", status);
+		if (net_debug > 5)
+			printk("loop status %02x..", status);
 
 		if (status & (ISR_RxOK<<3)) {
 			handled = 1;
@@ -641,7 +642,8 @@ static irqreturn_t atp_interrupt(int irq, void *dev_instance)
 			} while (--boguscount > 0);
 		} else if (status & ((ISR_TxErr + ISR_TxOK)<<3)) {
 			handled = 1;
-			if (net_debug > 6)  printk("handling Tx done..");
+			if (net_debug > 6)
+				printk("handling Tx done..");
 			/* Clear the Tx interrupt.  We should check for too many failures
 			   and reinitialize the adapter. */
 			write_reg(ioaddr, ISR, ISR_TxErr + ISR_TxOK);
@@ -669,11 +671,11 @@ static irqreturn_t atp_interrupt(int irq, void *dev_instance)
 			}
 			num_tx_since_rx++;
 		} else if (num_tx_since_rx > 8 &&
-			   time_after(jiffies, dev->last_rx + HZ)) {
+			   time_after(jiffies, lp->last_rx_time + HZ)) {
 			if (net_debug > 2)
 				printk(KERN_DEBUG "%s: Missed packet? No Rx after %d Tx and "
 					   "%ld jiffies status %02x  CMR1 %02x.\n", dev->name,
-					   num_tx_since_rx, jiffies - dev->last_rx, status,
+					   num_tx_since_rx, jiffies - lp->last_rx_time, status,
 					   (read_nibble(ioaddr, CMR1) >> 3) & 15);
 			dev->stats.rx_missed_errors++;
 			hardware_init(dev);
@@ -681,7 +683,7 @@ static irqreturn_t atp_interrupt(int irq, void *dev_instance)
 			break;
 		} else
 			break;
-    }
+	}
 
 	/* This following code fixes a rare (and very difficult to track down)
 	   problem where the adapter forgets its ethernet address. */
@@ -695,7 +697,7 @@ static irqreturn_t atp_interrupt(int irq, void *dev_instance)
 	}
 
 	/* Tell the adapter that it can go back to using the output line as IRQ. */
-    write_reg(ioaddr, CMR2, CMR2_IRQOUT);
+	write_reg(ioaddr, CMR2, CMR2_IRQOUT);
 	/* Enable the physical interrupt line, which is sure to be low until.. */
 	outb(Ctrl_SelData + Ctrl_IRQEN, ioaddr + PAR_CONTROL);
 	/* .. we enable the interrupt sources. */
@@ -711,11 +713,11 @@ static irqreturn_t atp_interrupt(int irq, void *dev_instance)
 #ifdef TIMED_CHECKER
 /* This following code fixes a rare (and very difficult to track down)
    problem where the adapter forgets its ethernet address. */
-static void atp_timed_checker(unsigned long data)
+static void atp_timed_checker(struct timer_list *t)
 {
-	struct net_device *dev = (struct net_device *)data;
+	struct net_local *lp = from_timer(lp, t, timer);
+	struct net_device *dev = lp->dev;
 	long ioaddr = dev->base_addr;
-	struct net_local *lp = netdev_priv(dev);
 	int tickssofar = jiffies - lp->last_rx_time;
 	int i;
 
@@ -790,7 +792,6 @@ static void net_rx(struct net_device *dev)
 		read_block(ioaddr, pkt_len, skb_put(skb,pkt_len), dev->if_port);
 		skb->protocol = eth_type_trans(skb, dev);
 		netif_rx(skb);
-		dev->last_rx = jiffies;
 		dev->stats.rx_packets++;
 		dev->stats.rx_bytes += pkt_len;
 	}

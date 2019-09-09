@@ -1,22 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Driver for the NXP SAA7164 PCIe bridge
  *
  *  Copyright (c) 2010-2015 Steven Toth <stoth@kernellabs.com>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/init.h>
@@ -689,7 +675,7 @@ struct saa7164_subid saa7164_subids[] = {
 		.subvendor = 0x0070,
 		.subdevice = 0xf111,
 		.card      = SAA7164_BOARD_HAUPPAUGE_HVR2255,
-		/* Prototype card left here for documenation purposes.
+		/* Prototype card left here for documentation purposes.
 		.card      = SAA7164_BOARD_HAUPPAUGE_HVR2255proto,
 		*/
 	}, {
@@ -726,8 +712,8 @@ void saa7164_card_list(struct saa7164_dev *dev)
 			dev->name, dev->name, dev->name, dev->name);
 	}
 
-	printk(KERN_ERR "%s: Here are valid choices for the card=<n> insmod "
-		"option:\n", dev->name);
+	printk(KERN_ERR "%s: Here are valid choices for the card=<n> insmod option:\n",
+	       dev->name);
 
 	for (i = 0; i < saa7164_bcount; i++)
 		printk(KERN_ERR "%s:    card=%d -> %s\n",
@@ -784,9 +770,7 @@ static void hauppauge_eeprom(struct saa7164_dev *dev, u8 *eeprom_data)
 {
 	struct tveeprom tv;
 
-	/* TODO: Assumption: eeprom on bus 0 */
-	tveeprom_hauppauge_analog(&dev->i2c_bus[0].i2c_client, &tv,
-		eeprom_data);
+	tveeprom_hauppauge_analog(&tv, eeprom_data);
 
 	/* Make sure we support the board model */
 	switch (tv.model) {
@@ -872,7 +856,7 @@ void saa7164_card_setup(struct saa7164_dev *dev)
  * access to I2C. Instead we have to communicate through the device f/w for
  * register access to 'processing units'. Each unit has a unique
  * id, regardless of how the physical implementation occurs across
- * the three physical i2c busses. The being said if we want leverge of
+ * the three physical i2c buses. The being said if we want leverge of
  * the existing kernel drivers for tuners and demods we have to 'speak i2c',
  * to this bridge implements 3 virtual i2c buses. This is a helper function
  * for those.

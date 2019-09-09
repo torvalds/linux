@@ -113,10 +113,10 @@ struct xenvif_stats {
 	 * A subset of struct net_device_stats that contains only the
 	 * fields that are updated in netback.c for each queue.
 	 */
-	unsigned int rx_bytes;
-	unsigned int rx_packets;
-	unsigned int tx_bytes;
-	unsigned int tx_packets;
+	u64 rx_bytes;
+	u64 rx_packets;
+	u64 tx_bytes;
+	u64 tx_packets;
 
 	/* Additional stats used by xenvif */
 	unsigned long rx_gso_checksum_fixup;
@@ -199,6 +199,7 @@ struct xenvif_queue { /* Per-queue data for xenvif */
 	unsigned long   remaining_credit;
 	struct timer_list credit_timeout;
 	u64 credit_window_start;
+	bool rate_limited;
 
 	/* Statistics */
 	struct xenvif_stats stats;
@@ -240,10 +241,27 @@ struct xenvif_hash_cache {
 struct xenvif_hash {
 	unsigned int alg;
 	u32 flags;
+	bool mapping_sel;
 	u8 key[XEN_NETBK_MAX_HASH_KEY_SIZE];
-	u32 mapping[XEN_NETBK_MAX_HASH_MAPPING_SIZE];
+	u32 mapping[2][XEN_NETBK_MAX_HASH_MAPPING_SIZE];
 	unsigned int size;
 	struct xenvif_hash_cache cache;
+};
+
+struct backend_info {
+	struct xenbus_device *dev;
+	struct xenvif *vif;
+
+	/* This is the state that will be reflected in xenstore when any
+	 * active hotplug script completes.
+	 */
+	enum xenbus_state state;
+
+	enum xenbus_state frontend_state;
+	struct xenbus_watch hotplug_status_watch;
+	u8 have_hotplug_status_watch:1;
+
+	const char *hotplug_script;
 };
 
 struct xenvif {
@@ -281,6 +299,8 @@ struct xenvif {
 	struct xenbus_watch credit_watch;
 	struct xenbus_watch mcast_ctrl_watch;
 
+	struct backend_info *be;
+
 	spinlock_t lock;
 
 #ifdef CONFIG_DEBUG_FS
@@ -306,7 +326,7 @@ static inline struct xenbus_device *xenvif_to_xenbus_device(struct xenvif *vif)
 	return to_xenbus_device(vif->dev->dev.parent);
 }
 
-void xenvif_tx_credit_callback(unsigned long data);
+void xenvif_tx_credit_callback(struct timer_list *t);
 
 struct xenvif *xenvif_alloc(struct device *parent,
 			    domid_t domid,

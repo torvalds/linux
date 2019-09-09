@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Helper functions for jack-detection kcontrols
  *
  * Copyright (c) 2011 Takashi Iwai <tiwai@suse.de>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
  */
 
 #include <linux/kernel.h>
@@ -23,7 +19,7 @@ static int jack_detect_kctl_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static struct snd_kcontrol_new jack_detect_kctl = {
+static const struct snd_kcontrol_new jack_detect_kctl = {
 	/* name is filled later */
 	.iface = SNDRV_CTL_ELEM_IFACE_CARD,
 	.access = SNDRV_CTL_ELEM_ACCESS_READ,

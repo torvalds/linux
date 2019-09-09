@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* linux/drivers/video/sm501fb.c
  *
  * Copyright (c) 2006 Simtec Electronics
  *	Vincent Sanders <vince@simtec.co.uk>
  *	Ben Dooks <ben@simtec.co.uk>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Framebuffer driver for the Silicon Motion SM501
  */
@@ -31,7 +28,7 @@
 #include <linux/console.h>
 #include <linux/io.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/div64.h>
 
 #ifdef CONFIG_PM
@@ -46,7 +43,7 @@
 static char *fb_mode = "640x480-16@60";
 static unsigned long default_bpp = 16;
 
-static struct fb_videomode sm501_default_mode = {
+static const struct fb_videomode sm501_default_mode = {
 	.refresh	= 60,
 	.xres		= 640,
 	.yres		= 480,
@@ -1008,6 +1005,7 @@ static int sm501fb_blank_crt(int blank_mode, struct fb_info *info)
 	case FB_BLANK_POWERDOWN:
 		ctrl &= ~SM501_DC_CRT_CONTROL_ENABLE;
 		sm501_misc_control(fbi->dev->parent, SM501_MISC_DAC_POWER, 0);
+		/* fall through */
 
 	case FB_BLANK_NORMAL:
 		ctrl |= SM501_DC_CRT_CONTROL_BLANK;
@@ -1600,6 +1598,7 @@ static int sm501fb_start(struct sm501fb_info *info,
 	info->fbmem = ioremap(res->start, resource_size(res));
 	if (info->fbmem == NULL) {
 		dev_err(dev, "cannot remap framebuffer\n");
+		ret = -ENXIO;
 		goto err_mem_res;
 	}
 
@@ -1866,10 +1865,8 @@ static int sm501fb_probe_one(struct sm501fb_info *info,
 	}
 
 	fbi = framebuffer_alloc(sizeof(struct sm501fb_par), info->dev);
-	if (fbi == NULL) {
-		dev_err(info->dev, "cannot allocate %s framebuffer\n", name);
+	if (!fbi)
 		return -ENOMEM;
-	}
 
 	par = fbi->par;
 	par->info = info;
@@ -1887,6 +1884,9 @@ static void sm501_free_init_fb(struct sm501fb_info *info,
 				enum sm501_controller head)
 {
 	struct fb_info *fbi = info->fb[head];
+
+	if (!fbi)
+		return;
 
 	fb_dealloc_cmap(&fbi->cmap);
 }
@@ -1927,8 +1927,7 @@ static int sm501fb_probe(struct platform_device *pdev)
 	int ret;
 
 	/* allocate our framebuffers */
-
-	info = kzalloc(sizeof(struct sm501fb_info), GFP_KERNEL);
+	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info) {
 		dev_err(dev, "failed to allocate state\n");
 		return -ENOMEM;
@@ -2075,8 +2074,10 @@ static int sm501fb_remove(struct platform_device *pdev)
 	sm501_free_init_fb(info, HEAD_CRT);
 	sm501_free_init_fb(info, HEAD_PANEL);
 
-	unregister_framebuffer(fbinfo_crt);
-	unregister_framebuffer(fbinfo_pnl);
+	if (fbinfo_crt)
+		unregister_framebuffer(fbinfo_crt);
+	if (fbinfo_pnl)
+		unregister_framebuffer(fbinfo_pnl);
 
 	sm501fb_stop(info);
 	kfree(info);
@@ -2093,8 +2094,12 @@ static int sm501fb_suspend_fb(struct sm501fb_info *info,
 			      enum sm501_controller head)
 {
 	struct fb_info *fbi = info->fb[head];
-	struct sm501fb_par *par = fbi->par;
+	struct sm501fb_par *par;
 
+	if (!fbi)
+		return 0;
+
+	par = fbi->par;
 	if (par->screen.size == 0)
 		return 0;
 
@@ -2140,8 +2145,12 @@ static void sm501fb_resume_fb(struct sm501fb_info *info,
 			      enum sm501_controller head)
 {
 	struct fb_info *fbi = info->fb[head];
-	struct sm501fb_par *par = fbi->par;
+	struct sm501fb_par *par;
 
+	if (!fbi)
+		return;
+
+	par = fbi->par;
 	if (par->screen.size == 0)
 		return;
 

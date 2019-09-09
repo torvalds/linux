@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  w83627ehf - Driver for the hardware monitoring functionality of
  *		the Winbond W83627EHF Super-I/O chip
@@ -16,20 +17,6 @@
  *
  *  This driver also supports the W83627EHG, which is the lead-free
  *  version of the W83627EHF.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  *  Supports the following chips:
  *
@@ -135,11 +122,16 @@ superio_select(int ioreg, int ld)
 	outb(ld, ioreg + 1);
 }
 
-static inline void
+static inline int
 superio_enter(int ioreg)
 {
+	if (!request_muxed_region(ioreg, 2, DRVNAME))
+		return -EBUSY;
+
 	outb(0x87, ioreg);
 	outb(0x87, ioreg);
+
+	return 0;
 }
 
 static inline void
@@ -148,6 +140,7 @@ superio_exit(int ioreg)
 	outb(0xaa, ioreg);
 	outb(0x02, ioreg);
 	outb(0x02, ioreg + 1);
+	release_region(ioreg, 2);
 }
 
 /*
@@ -1687,14 +1680,14 @@ store_##reg(struct device *dev, struct device_attribute *attr, \
 
 fan_time_functions(fan_stop_time, FAN_STOP_TIME)
 
-static ssize_t show_name(struct device *dev, struct device_attribute *attr,
+static ssize_t name_show(struct device *dev, struct device_attribute *attr,
 			 char *buf)
 {
 	struct w83627ehf_data *data = dev_get_drvdata(dev);
 
 	return sprintf(buf, "%s\n", data->name);
 }
-static DEVICE_ATTR(name, S_IRUGO, show_name, NULL);
+static DEVICE_ATTR_RO(name);
 
 static struct sensor_device_attribute sda_sf3_arrays_fan4[] = {
 	SENSOR_ATTR(pwm4_stop_time, S_IWUSR | S_IRUGO, show_fan_stop_time,
@@ -1754,12 +1747,12 @@ static struct sensor_device_attribute sda_sf3_max_step_arrays[] = {
 };
 
 static ssize_t
-show_vid(struct device *dev, struct device_attribute *attr, char *buf)
+cpu0_vid_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct w83627ehf_data *data = dev_get_drvdata(dev);
 	return sprintf(buf, "%d\n", vid_from_reg(data->vid, data->vrm));
 }
-static DEVICE_ATTR(cpu0_vid, S_IRUGO, show_vid, NULL);
+static DEVICE_ATTR_RO(cpu0_vid);
 
 
 /* Case open detection */
@@ -1970,8 +1963,6 @@ w83627ehf_check_fan_inputs(const struct w83627ehf_sio_data *sio_data,
 		return;
 	}
 
-	superio_enter(sio_data->sioreg);
-
 	/* fan4 and fan5 share some pins with the GPIO and serial flash */
 	if (sio_data->kind == nct6775) {
 		/* On NCT6775, fan4 shares pins with the fdc interface */
@@ -2012,8 +2003,6 @@ w83627ehf_check_fan_inputs(const struct w83627ehf_sio_data *sio_data,
 		fan5pin = !(superio_inb(sio_data->sioreg, 0x24) & 0x02);
 		fan4min = fan4pin;
 	}
-
-	superio_exit(sio_data->sioreg);
 
 	data->has_fan = data->has_fan_min = 0x03; /* fan1 and fan2 */
 	data->has_fan |= (fan3pin << 2);
@@ -2352,7 +2341,11 @@ static int w83627ehf_probe(struct platform_device *pdev)
 	w83627ehf_init_device(data, sio_data->kind);
 
 	data->vrm = vid_which_vrm();
-	superio_enter(sio_data->sioreg);
+
+	err = superio_enter(sio_data->sioreg);
+	if (err)
+		goto exit_release;
+
 	/* Read VID value */
 	if (sio_data->kind == w83667hg || sio_data->kind == w83667hg_b ||
 	    sio_data->kind == nct6775 || sio_data->kind == nct6776) {
@@ -2364,8 +2357,10 @@ static int w83627ehf_probe(struct platform_device *pdev)
 		superio_select(sio_data->sioreg, W83667HG_LD_VID);
 		data->vid = superio_inb(sio_data->sioreg, 0xe3);
 		err = device_create_file(dev, &dev_attr_cpu0_vid);
-		if (err)
+		if (err) {
+			superio_exit(sio_data->sioreg);
 			goto exit_release;
+		}
 	} else if (sio_data->kind != w83627uhg) {
 		superio_select(sio_data->sioreg, W83627EHF_LD_HWM);
 		if (superio_inb(sio_data->sioreg, SIO_REG_VID_CTRL) & 0x80) {
@@ -2401,8 +2396,10 @@ static int w83627ehf_probe(struct platform_device *pdev)
 				data->vid &= 0x3f;
 
 			err = device_create_file(dev, &dev_attr_cpu0_vid);
-			if (err)
+			if (err) {
+				superio_exit(sio_data->sioreg);
 				goto exit_release;
+			}
 		} else {
 			dev_info(dev,
 				 "VID pins in output mode, CPU VID not available\n");
@@ -2424,9 +2421,9 @@ static int w83627ehf_probe(struct platform_device *pdev)
 		pr_info("Enabled fan debounce for chip %s\n", data->name);
 	}
 
-	superio_exit(sio_data->sioreg);
-
 	w83627ehf_check_fan_inputs(sio_data, data);
+
+	superio_exit(sio_data->sioreg);
 
 	/* Read fan clock dividers immediately */
 	w83627ehf_update_fan_div_common(dev, data);
@@ -2712,8 +2709,11 @@ static int __init w83627ehf_find(int sioaddr, unsigned short *addr,
 
 	u16 val;
 	const char *sio_name;
+	int err;
 
-	superio_enter(sioaddr);
+	err = superio_enter(sioaddr);
+	if (err)
+		return err;
 
 	if (force_id)
 		val = force_id;

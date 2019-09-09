@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_SPARC_DMA_H
 #define _ASM_SPARC_DMA_H
 
@@ -90,54 +91,10 @@ extern int isa_dma_bridge_buggy;
 #endif
 
 #ifdef CONFIG_SPARC32
-
-/* Routines for data transfer buffers. */
 struct device;
-struct scatterlist;
 
-struct sparc32_dma_ops {
-	__u32 (*get_scsi_one)(struct device *, char *, unsigned long);
-	void (*get_scsi_sgl)(struct device *, struct scatterlist *, int);
-	void (*release_scsi_one)(struct device *, __u32, unsigned long);
-	void (*release_scsi_sgl)(struct device *, struct scatterlist *,int);
-#ifdef CONFIG_SBUS
-	int (*map_dma_area)(struct device *, dma_addr_t *, unsigned long, unsigned long, int);
-	void (*unmap_dma_area)(struct device *, unsigned long, int);
-#endif
-};
-extern const struct sparc32_dma_ops *sparc32_dma_ops;
-
-#define mmu_get_scsi_one(dev,vaddr,len) \
-	sparc32_dma_ops->get_scsi_one(dev, vaddr, len)
-#define mmu_get_scsi_sgl(dev,sg,sz) \
-	sparc32_dma_ops->get_scsi_sgl(dev, sg, sz)
-#define mmu_release_scsi_one(dev,vaddr,len) \
-	sparc32_dma_ops->release_scsi_one(dev, vaddr,len)
-#define mmu_release_scsi_sgl(dev,sg,sz) \
-	sparc32_dma_ops->release_scsi_sgl(dev, sg, sz)
-
-#ifdef CONFIG_SBUS
-/*
- * mmu_map/unmap are provided by iommu/iounit; Invalid to call on IIep.
- *
- * The mmu_map_dma_area establishes two mappings in one go.
- * These mappings point to pages normally mapped at 'va' (linear address).
- * First mapping is for CPU visible address at 'a', uncached.
- * This is an alias, but it works because it is an uncached mapping.
- * Second mapping is for device visible address, or "bus" address.
- * The bus address is returned at '*pba'.
- *
- * These functions seem distinct, but are hard to split.
- * On sun4m, page attributes depend on the CPU type, so we have to
- * know if we are mapping RAM or I/O, so it has to be an additional argument
- * to a separate mapping function for CPU visible mappings.
- */
-#define sbus_map_dma_area(dev,pba,va,a,len) \
-	sparc32_dma_ops->map_dma_area(dev, pba, va, a, len)
-#define sbus_unmap_dma_area(dev,ba,len) \
-	sparc32_dma_ops->unmap_dma_area(dev, ba, len)
-#endif /* CONFIG_SBUS */
-
+unsigned long sparc_dma_alloc_resource(struct device *dev, size_t len);
+bool sparc_dma_free_resource(void *cpu_addr, size_t size);
 #endif
 
 #endif /* !(_ASM_SPARC_DMA_H) */

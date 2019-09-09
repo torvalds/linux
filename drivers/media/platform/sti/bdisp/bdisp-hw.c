@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) STMicroelectronics SA 2014
  * Authors: Fabien Dessenne <fabien.dessenne@st.com> for STMicroelectronics.
- * License terms:  GNU General Public License (GPL), version 2
  */
 
 #include <linux/delay.h>
@@ -455,7 +455,7 @@ int bdisp_hw_alloc_nodes(struct bdisp_ctx *ctx)
 
 	/* Allocate all the nodes within a single memory page */
 	base = dma_alloc_attrs(dev, node_size * MAX_NB_NODE, &paddr,
-			       GFP_KERNEL | GFP_DMA, DMA_ATTR_WRITE_COMBINE);
+			       GFP_KERNEL, DMA_ATTR_WRITE_COMBINE);
 	if (!base) {
 		dev_err(dev, "%s no mem\n", __func__);
 		return -ENOMEM;
@@ -510,7 +510,7 @@ int bdisp_hw_alloc_filters(struct device *dev)
 
 	/* Allocate all the filters within a single memory page */
 	size = (BDISP_HF_NB * NB_H_FILTER) + (BDISP_VF_NB * NB_V_FILTER);
-	base = dma_alloc_attrs(dev, size, &paddr, GFP_KERNEL | GFP_DMA,
+	base = dma_alloc_attrs(dev, size, &paddr, GFP_KERNEL,
 			       DMA_ATTR_WRITE_COMBINE);
 	if (!base)
 		return -ENOMEM;
@@ -1064,7 +1064,7 @@ static void bdisp_hw_save_request(struct bdisp_ctx *ctx)
 		if (!copy_node[i]) {
 			copy_node[i] = devm_kzalloc(ctx->bdisp_dev->dev,
 						    sizeof(*copy_node[i]),
-						    GFP_KERNEL);
+						    GFP_ATOMIC);
 			if (!copy_node[i])
 				return;
 		}

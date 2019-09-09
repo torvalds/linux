@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* kgdb.c: KGDB support for 32-bit sparc.
  *
  * Copyright (C) 2008 David S. Miller <davem@davemloft.net>
@@ -121,7 +122,7 @@ int kgdb_arch_handle_exception(int e_vector, int signo, int err_code,
 			linux_regs->pc = addr;
 			linux_regs->npc = addr + 4;
 		}
-		/* fallthru */
+		/* fall through */
 
 	case 'D':
 	case 'k':
@@ -165,7 +166,7 @@ void kgdb_arch_set_pc(struct pt_regs *regs, unsigned long ip)
 	regs->npc = regs->pc + 4;
 }
 
-struct kgdb_arch arch_kgdb_ops = {
+const struct kgdb_arch arch_kgdb_ops = {
 	/* Breakpoint instruction: ta 0x7d */
 	.gdb_bpt_instr		= { 0x91, 0xd0, 0x20, 0x7d },
 };

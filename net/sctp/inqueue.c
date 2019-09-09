@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* SCTP kernel implementation
  * Copyright (c) 1999-2000 Cisco, Inc.
  * Copyright (c) 1999-2001 Motorola, Inc.
@@ -10,22 +11,6 @@
  * An SCTP inqueue is a queue into which you push SCTP packets
  * (which might be bundles or fragments of chunks) and out of which you
  * pop SCTP whole chunks.
- *
- * This SCTP implementation is free software;
- * you can redistribute it and/or modify it under the terms of
- * the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This SCTP implementation is distributed in the hope that it
- * will be useful, but WITHOUT ANY WARRANTY; without even the implied
- *                 ************************
- * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- * See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with GNU CC; see the file COPYING.  If not, see
- * <http://www.gnu.org/licenses/>.
  *
  * Please send any bug reports or fixes you make to the
  * email address(es):
@@ -99,7 +84,7 @@ void sctp_inq_push(struct sctp_inq *q, struct sctp_chunk *chunk)
 struct sctp_chunkhdr *sctp_inq_peek(struct sctp_inq *queue)
 {
 	struct sctp_chunk *chunk;
-	sctp_chunkhdr_t *ch = NULL;
+	struct sctp_chunkhdr *ch = NULL;
 
 	chunk = queue->in_progress;
 	/* If there is no more chunks in this packet, say so */
@@ -108,7 +93,7 @@ struct sctp_chunkhdr *sctp_inq_peek(struct sctp_inq *queue)
 	    chunk->pdiscard)
 		    return NULL;
 
-	ch = (sctp_chunkhdr_t *)chunk->chunk_end;
+	ch = (struct sctp_chunkhdr *)chunk->chunk_end;
 
 	return ch;
 }
@@ -122,7 +107,7 @@ struct sctp_chunkhdr *sctp_inq_peek(struct sctp_inq *queue)
 struct sctp_chunk *sctp_inq_pop(struct sctp_inq *queue)
 {
 	struct sctp_chunk *chunk;
-	sctp_chunkhdr_t *ch = NULL;
+	struct sctp_chunkhdr *ch = NULL;
 
 	/* The assumption is that we are safe to process the chunks
 	 * at this time.
@@ -151,7 +136,7 @@ struct sctp_chunk *sctp_inq_pop(struct sctp_inq *queue)
 			chunk = queue->in_progress = NULL;
 		} else {
 			/* Nothing to do. Next chunk in the packet, please. */
-			ch = (sctp_chunkhdr_t *) chunk->chunk_end;
+			ch = (struct sctp_chunkhdr *)chunk->chunk_end;
 			/* Force chunk->skb->data to chunk->chunk_end.  */
 			skb_pull(chunk->skb, chunk->chunk_end - chunk->skb->data);
 			/* We are guaranteed to pull a SCTP header. */
@@ -170,7 +155,7 @@ next_chunk:
 
 		chunk = list_entry(entry, struct sctp_chunk, list);
 
-		if ((skb_shinfo(chunk->skb)->gso_type & SKB_GSO_SCTP) == SKB_GSO_SCTP) {
+		if (skb_is_gso(chunk->skb) && skb_is_gso_sctp(chunk->skb)) {
 			/* GSO-marked skbs but without frags, handle
 			 * them normally
 			 */
@@ -195,7 +180,7 @@ next_chunk:
 
 new_skb:
 		/* This is the first chunk in the packet.  */
-		ch = (sctp_chunkhdr_t *) chunk->skb->data;
+		ch = (struct sctp_chunkhdr *)chunk->skb->data;
 		chunk->singleton = 1;
 		chunk->data_accepted = 0;
 		chunk->pdiscard = 0;
@@ -214,11 +199,10 @@ new_skb:
 
 	chunk->chunk_hdr = ch;
 	chunk->chunk_end = ((__u8 *)ch) + SCTP_PAD4(ntohs(ch->length));
-	skb_pull(chunk->skb, sizeof(sctp_chunkhdr_t));
+	skb_pull(chunk->skb, sizeof(*ch));
 	chunk->subh.v = NULL; /* Subheader is no longer valid.  */
 
-	if (chunk->chunk_end + sizeof(sctp_chunkhdr_t) <
-	    skb_tail_pointer(chunk->skb)) {
+	if (chunk->chunk_end + sizeof(*ch) <= skb_tail_pointer(chunk->skb)) {
 		/* This is not a singleton */
 		chunk->singleton = 0;
 	} else if (chunk->chunk_end > skb_tail_pointer(chunk->skb)) {

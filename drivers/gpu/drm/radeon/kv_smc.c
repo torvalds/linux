@@ -22,7 +22,6 @@
  * Authors: Alex Deucher
  */
 
-#include "drmP.h"
 #include "radeon.h"
 #include "cikd.h"
 #include "kv_dpm.h"

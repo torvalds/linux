@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Misc strange devices
 #
@@ -8,7 +9,6 @@ config SENSORS_LIS3LV02D
 	tristate
 	depends on INPUT
 	select INPUT_POLLDEV
-	default n
 
 config AD525X_DPOT
 	tristate "Analog Devices Digital Potentiometers"
@@ -53,40 +53,14 @@ config AD525X_DPOT_SPI
 
 config ATMEL_TCLIB
 	bool "Atmel AT32/AT91 Timer/Counter Library"
-	depends on (AVR32 || ARCH_AT91)
+	depends on ARCH_AT91
 	help
 	  Select this if you want a library to allocate the Timer/Counter
 	  blocks found on many Atmel processors.  This facilitates using
 	  these blocks by different drivers despite processor differences.
 
-config ATMEL_TCB_CLKSRC
-	bool "TC Block Clocksource"
-	depends on ATMEL_TCLIB
-	default y
-	help
-	  Select this to get a high precision clocksource based on a
-	  TC block with a 5+ MHz base clock rate.  Two timer channels
-	  are combined to make a single 32-bit timer.
-
-	  When GENERIC_CLOCKEVENTS is defined, the third timer channel
-	  may be used as a clock event device supporting oneshot mode
-	  (delays of up to two seconds) based on the 32 KiHz clock.
-
-config ATMEL_TCB_CLKSRC_BLOCK
-	int
-	depends on ATMEL_TCB_CLKSRC
-	prompt "TC Block" if CPU_AT32AP700X
-	default 0
-	range 0 1
-	help
-	  Some chips provide more than one TC block, so you have the
-	  choice of which one to use for the clock framework.  The other
-	  TC can be used for other purposes, such as PWM generation and
-	  interval timing.
-
 config DUMMY_IRQ
 	tristate "Dummy IRQ handler"
-	default n
 	---help---
 	  This module accepts a single 'irq' parameter, which it should register for.
 	  The sole purpose of this module is to help with debugging of systems on
@@ -114,6 +88,20 @@ config IBM_ASM
 	  for information on the specific driver level and support statement
 	  for your IBM server.
 
+config IBMVMC
+	tristate "IBM Virtual Management Channel support"
+	depends on PPC_PSERIES
+	help
+	  This is the IBM POWER Virtual Management Channel
+
+	  This driver is to be used for the POWER Virtual
+	  Management Channel virtual adapter on the PowerVM
+	  platform. It provides both request/response and
+	  async message support through the /dev/ibmvmc node.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ibmvmc.
+
 config PHANTOM
 	tristate "Sensable PHANToM (PCI)"
 	depends on PCI
@@ -128,7 +116,6 @@ config PHANTOM
 config INTEL_MID_PTI
 	tristate "Parallel Trace Interface for MIPI P1149.7 cJTAG standard"
 	depends on PCI && TTY && (X86_INTEL_MID || COMPILE_TEST)
-	default n
 	help
 	  The PTI (Parallel Trace Interface) driver directs
 	  trace data routed from various parts in the system out
@@ -192,7 +179,7 @@ config ICS932S401
 
 config ATMEL_SSC
 	tristate "Device driver for Atmel SSC peripheral"
-	depends on HAS_IOMEM && (AVR32 || ARCH_AT91 || COMPILE_TEST)
+	depends on HAS_IOMEM && (ARCH_AT91 || COMPILE_TEST)
 	---help---
 	  This option enables device driver support for Atmel Synchronized
 	  Serial Communication peripheral (SSC).
@@ -204,7 +191,6 @@ config ATMEL_SSC
 
 config ENCLOSURE_SERVICES
 	tristate "Enclosure Services"
-	default n
 	help
 	  Provides support for intelligent enclosures (bays which
 	  contain storage devices).  You also need either a host
@@ -228,7 +214,6 @@ config SGI_XP
 config CS5535_MFGPT
 	tristate "CS5535/CS5536 Geode Multi-Function General Purpose Timer (MFGPT) support"
 	depends on MFD_CS5535
-	default n
 	help
 	  This driver provides access to MFGPT functionality for other
 	  drivers that need timers.  MFGPTs are available in the CS5535 and
@@ -261,7 +246,6 @@ config CS5535_CLOCK_EVENT_SRC
 config HP_ILO
 	tristate "Channel interface driver for the HP iLO processor"
 	depends on PCI
-	default n
 	help
 	  The channel interface driver allows applications to communicate
 	  with iLO management processors present on HP ProLiant servers.
@@ -282,10 +266,20 @@ config QCOM_COINCELL
 	  to maintain PMIC register and RTC state in the absence of
 	  external power.
 
+config QCOM_FASTRPC
+	tristate "Qualcomm FastRPC"
+	depends on ARCH_QCOM || COMPILE_TEST
+	depends on RPMSG
+	select DMA_SHARED_BUFFER
+	help
+	  Provides a communication mechanism that allows for clients to
+	  make remote method invocations across processor boundary to
+	  applications DSP processor. Say M if you want to enable this
+	  module.
+
 config SGI_GRU
 	tristate "SGI GRU driver"
 	depends on X86_UV && SMP
-	default n
 	select MMU_NOTIFIER
 	---help---
 	The GRU is a hardware resource located in the system chipset. The GRU
@@ -300,7 +294,6 @@ config SGI_GRU
 config SGI_GRU_DEBUG
 	bool  "SGI GRU driver debug"
 	depends on SGI_GRU
-	default n
 	---help---
 	This option enables additional debugging code for the SGI GRU driver.
 	If you are unsure, say N.
@@ -358,7 +351,6 @@ config SENSORS_BH1770
 config SENSORS_APDS990X
 	 tristate "APDS990X combined als and proximity sensors"
 	 depends on I2C
-	 default n
 	 ---help---
 	   Say Y here if you want to build a driver for Avago APDS990x
 	   combined ambient light and proximity sensor chip.
@@ -386,26 +378,16 @@ config DS1682
 config SPEAR13XX_PCIE_GADGET
 	bool "PCIe gadget support for SPEAr13XX platform"
 	depends on ARCH_SPEAR13XX && BROKEN
-	default n
 	help
 	 This option enables gadget support for PCIe controller. If
 	 board file defines any controller as PCIe endpoint then a sysfs
 	 entry will be created for that controller. User can use these
 	 sysfs node to configure PCIe EP as per his requirements.
 
-config TI_DAC7512
-	tristate "Texas Instruments DAC7512"
-	depends on SPI && SYSFS
-	help
-	  If you say yes here you get support for the Texas Instruments
-	  DAC7512 16-bit digital-to-analog converter.
-
-	  This driver can also be built as a module. If so, the module
-	  will be called ti_dac7512.
-
 config VMWARE_BALLOON
 	tristate "VMware Balloon Driver"
 	depends on VMWARE_VMCI && X86 && HYPERVISOR_GUEST
+	select MEMORY_BALLOON
 	help
 	  This is VMware physical memory management driver which acts
 	  like a "balloon" that can be inflated to reclaim physical pages
@@ -418,16 +400,6 @@ config VMWARE_BALLOON
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called vmw_balloon.
-
-config ARM_CHARLCD
-	bool "ARM Ltd. Character LCD Driver"
-	depends on PLAT_VERSATILE
-	help
-	  This is a driver for the character LCD found on the ARM Ltd.
-	  Versatile and RealView Platform Baseboards. It doesn't do
-	  very much more than display the text "ARM Linux" on the first
-	  line and the Linux version on the second line, but that's
-	  still useful.
 
 config PCH_PHUB
 	tristate "Intel EG20T PCH/LAPIS Semicon IOH(ML7213/ML7223/ML7831) PHUB"
@@ -450,15 +422,6 @@ config PCH_PHUB
 	  To compile this driver as a module, choose M here: the module will
 	  be called pch_phub.
 
-config USB_SWITCH_FSA9480
-	tristate "FSA9480 USB Switch"
-	depends on I2C
-	help
-	  The FSA9480 is a USB port accessory detector and switch.
-	  The FSA9480 is fully controlled using I2C and enables USB data,
-	  stereo and mono audio, video, microphone and UART data to use
-	  a common connector port.
-
 config LATTICE_ECP3_CONFIG
 	tristate "Lattice ECP3 FPGA bitstream configuration via SPI"
 	depends on SPI && SYSFS
@@ -474,10 +437,14 @@ config SRAM
 	bool "Generic on-chip SRAM driver"
 	depends on HAS_IOMEM
 	select GENERIC_ALLOCATOR
+	select SRAM_EXEC if ARM
 	help
 	  This driver allows you to declare a memory region to be managed by
 	  the genalloc API. It is supposed to be used for small on-chip SRAM
 	  areas found on many SoCs.
+
+config SRAM_EXEC
+	bool
 
 config VEXPRESS_SYSCFG
 	bool "Versatile Express System Configuration driver"
@@ -487,284 +454,39 @@ config VEXPRESS_SYSCFG
 	  ARM Ltd. Versatile Express uses specialised platform configuration
 	  bus. System Configuration interface is one of the possible means
 	  of generating transactions on this bus.
-config PANEL
-	tristate "Parallel port LCD/Keypad Panel support"
-	depends on PARPORT
+
+config PCI_ENDPOINT_TEST
+	depends on PCI
+	select CRC32
+	tristate "PCI Endpoint Test driver"
 	---help---
-	  Say Y here if you have an HD44780 or KS-0074 LCD connected to your
-	  parallel port. This driver also features 4 and 6-key keypads. The LCD
-	  is accessible through the /dev/lcd char device (10, 156), and the
-	  keypad through /dev/keypad (10, 185). Both require misc device to be
-	  enabled. This code can either be compiled as a module, or linked into
-	  the kernel and started at boot. If you don't understand what all this
-	  is about, say N.
+           Enable this configuration option to enable the host side test driver
+           for PCI Endpoint.
 
-config PANEL_PARPORT
-	int "Default parallel port number (0=LPT1)"
-	depends on PANEL
-	range 0 255
-	default "0"
-	---help---
-	  This is the index of the parallel port the panel is connected to. One
-	  driver instance only supports one parallel port, so if your keypad
-	  and LCD are connected to two separate ports, you have to start two
-	  modules with different arguments. Numbering starts with '0' for LPT1,
-	  and so on.
+config XILINX_SDFEC
+	tristate "Xilinx SDFEC 16"
+	depends on HAS_IOMEM
+	help
+	  This option enables support for the Xilinx SDFEC (Soft Decision
+	  Forward Error Correction) driver. This enables a char driver
+	  for the SDFEC.
 
-config PANEL_PROFILE
-	int "Default panel profile (0-5, 0=custom)"
-	depends on PANEL
-	range 0 5
-	default "5"
-	---help---
-	  To ease configuration, the driver supports different configuration
-	  profiles for past and recent wirings. These profiles can also be
-	  used to define an approximative configuration, completed by a few
-	  other options. Here are the profiles :
+	  You may select this driver if your design instantiates the
+	  SDFEC(16nm) hardened block. To compile this as a module choose M.
 
-	    0 = custom (see further)
-	    1 = 2x16 parallel LCD, old keypad
-	    2 = 2x16 serial LCD (KS-0074), new keypad
-	    3 = 2x16 parallel LCD (Hantronix), no keypad
-	    4 = 2x16 parallel LCD (Nexcom NSA1045) with Nexcom's keypad
-	    5 = 2x40 parallel LCD (old one), with old keypad
+	  If unsure, say N.
 
-	  Custom configurations allow you to define how your display is
-	  wired to the parallel port, and how it works. This is only intended
-	  for experts.
+config MISC_RTSX
+	tristate
+	default MISC_RTSX_PCI || MISC_RTSX_USB
 
-config PANEL_KEYPAD
-	depends on PANEL && PANEL_PROFILE="0"
-	int "Keypad type (0=none, 1=old 6 keys, 2=new 6 keys, 3=Nexcom 4 keys)"
-	range 0 3
-	default 0
-	---help---
-	  This enables and configures a keypad connected to the parallel port.
-	  The keys will be read from character device 10,185. Valid values are :
-
-	    0 : do not enable this driver
-	    1 : old 6 keys keypad
-	    2 : new 6 keys keypad, as used on the server at www.ant-computing.com
-	    3 : Nexcom NSA1045's 4 keys keypad
-
-	  New profiles can be described in the driver source. The driver also
-	  supports simultaneous keys pressed when the keypad supports them.
-
-config PANEL_LCD
-	depends on PANEL && PANEL_PROFILE="0"
-	int "LCD type (0=none, 1=custom, 2=old //, 3=ks0074, 4=hantronix, 5=Nexcom)"
-	range 0 5
-	default 0
-	---help---
-	   This enables and configures an LCD connected to the parallel port.
-	   The driver includes an interpreter for escape codes starting with
-	   '\e[L' which are specific to the LCD, and a few ANSI codes. The
-	   driver will be registered as character device 10,156, usually
-	   under the name '/dev/lcd'. There are a total of 6 supported types :
-
-	     0 : do not enable the driver
-	     1 : custom configuration and wiring (see further)
-	     2 : 2x16 & 2x40 parallel LCD (old wiring)
-	     3 : 2x16 serial LCD (KS-0074 based)
-	     4 : 2x16 parallel LCD (Hantronix wiring)
-	     5 : 2x16 parallel LCD (Nexcom wiring)
-
-	   When type '1' is specified, other options will appear to configure
-	   more precise aspects (wiring, dimensions, protocol, ...). Please note
-	   that those values changed from the 2.4 driver for better consistency.
-
-config PANEL_LCD_HEIGHT
-	depends on PANEL && PANEL_PROFILE="0" && PANEL_LCD="1"
-	int "Number of lines on the LCD (1-2)"
-	range 1 2
-	default 2
-	---help---
-	  This is the number of visible character lines on the LCD in custom profile.
-	  It can either be 1 or 2.
-
-config PANEL_LCD_WIDTH
-	depends on PANEL && PANEL_PROFILE="0" && PANEL_LCD="1"
-	int "Number of characters per line on the LCD (1-40)"
-	range 1 40
-	default 40
-	---help---
-	  This is the number of characters per line on the LCD in custom profile.
-	  Common values are 16,20,24,40.
-
-config PANEL_LCD_BWIDTH
-	depends on PANEL && PANEL_PROFILE="0" && PANEL_LCD="1"
-	int "Internal LCD line width (1-40, 40 by default)"
-	range 1 40
-	default 40
-	---help---
-	  Most LCDs use a standard controller which supports hardware lines of 40
-	  characters, although sometimes only 16, 20 or 24 of them are really wired
-	  to the terminal. This results in some non-visible but addressable characters,
-	  and is the case for most parallel LCDs. Other LCDs, and some serial ones,
-	  however, use the same line width internally as what is visible. The KS0074
-	  for example, uses 16 characters per line for 16 visible characters per line.
-
-	  This option lets you configure the value used by your LCD in 'custom' profile.
-	  If you don't know, put '40' here.
-
-config PANEL_LCD_HWIDTH
-	depends on PANEL && PANEL_PROFILE="0" && PANEL_LCD="1"
-	int "Hardware LCD line width (1-64, 64 by default)"
-	range 1 64
-	default 64
-	---help---
-	  Most LCDs use a single address bit to differentiate line 0 and line 1. Since
-	  some of them need to be able to address 40 chars with the lower bits, they
-	  often use the immediately superior power of 2, which is 64, to address the
-	  next line.
-
-	  If you don't know what your LCD uses, in doubt let 16 here for a 2x16, and
-	  64 here for a 2x40.
-
-config PANEL_LCD_CHARSET
-	depends on PANEL && PANEL_PROFILE="0" && PANEL_LCD="1"
-	int "LCD character set (0=normal, 1=KS0074)"
-	range 0 1
-	default 0
-	---help---
-	  Some controllers such as the KS0074 use a somewhat strange character set
-	  where many symbols are at unusual places. The driver knows how to map
-	  'standard' ASCII characters to the character sets used by these controllers.
-	  Valid values are :
-
-	     0 : normal (untranslated) character set
-	     1 : KS0074 character set
-
-	  If you don't know, use the normal one (0).
-
-config PANEL_LCD_PROTO
-	depends on PANEL && PANEL_PROFILE="0" && PANEL_LCD="1"
-	int "LCD communication mode (0=parallel 8 bits, 1=serial)"
-	range 0 1
-	default 0
-	---help---
-	  This driver now supports any serial or parallel LCD wired to a parallel
-	  port. But before assigning signals, the driver needs to know if it will
-	  be driving a serial LCD or a parallel one. Serial LCDs only use 2 wires
-	  (SDA/SCL), while parallel ones use 2 or 3 wires for the control signals
-	  (E, RS, sometimes RW), and 4 or 8 for the data. Use 0 here for a 8 bits
-	  parallel LCD, and 1 for a serial LCD.
-
-config PANEL_LCD_PIN_E
-	depends on PANEL && PANEL_PROFILE="0" && PANEL_LCD="1" && PANEL_LCD_PROTO="0"
-        int "Parallel port pin number & polarity connected to the LCD E signal (-17...17) "
-	range -17 17
-	default 14
-	---help---
-	  This describes the number of the parallel port pin to which the LCD 'E'
-	  signal has been connected. It can be :
-
-	          0 : no connection (eg: connected to ground)
-	      1..17 : directly connected to any of these pins on the DB25 plug
-	    -1..-17 : connected to the same pin through an inverter (eg: transistor).
-
-	  Default for the 'E' pin in custom profile is '14' (AUTOFEED).
-
-config PANEL_LCD_PIN_RS
-	depends on PANEL && PANEL_PROFILE="0" && PANEL_LCD="1" && PANEL_LCD_PROTO="0"
-        int "Parallel port pin number & polarity connected to the LCD RS signal (-17...17) "
-	range -17 17
-	default 17
-	---help---
-	  This describes the number of the parallel port pin to which the LCD 'RS'
-	  signal has been connected. It can be :
-
-	          0 : no connection (eg: connected to ground)
-	      1..17 : directly connected to any of these pins on the DB25 plug
-	    -1..-17 : connected to the same pin through an inverter (eg: transistor).
-
-	  Default for the 'RS' pin in custom profile is '17' (SELECT IN).
-
-config PANEL_LCD_PIN_RW
-	depends on PANEL && PANEL_PROFILE="0" && PANEL_LCD="1" && PANEL_LCD_PROTO="0"
-        int "Parallel port pin number & polarity connected to the LCD RW signal (-17...17) "
-	range -17 17
-	default 16
-	---help---
-	  This describes the number of the parallel port pin to which the LCD 'RW'
-	  signal has been connected. It can be :
-
-	          0 : no connection (eg: connected to ground)
-	      1..17 : directly connected to any of these pins on the DB25 plug
-	    -1..-17 : connected to the same pin through an inverter (eg: transistor).
-
-	  Default for the 'RW' pin in custom profile is '16' (INIT).
-
-config PANEL_LCD_PIN_SCL
-	depends on PANEL && PANEL_PROFILE="0" && PANEL_LCD="1" && PANEL_LCD_PROTO!="0"
-        int "Parallel port pin number & polarity connected to the LCD SCL signal (-17...17) "
-	range -17 17
-	default 1
-	---help---
-	  This describes the number of the parallel port pin to which the serial
-	  LCD 'SCL' signal has been connected. It can be :
-
-	          0 : no connection (eg: connected to ground)
-	      1..17 : directly connected to any of these pins on the DB25 plug
-	    -1..-17 : connected to the same pin through an inverter (eg: transistor).
-
-	  Default for the 'SCL' pin in custom profile is '1' (STROBE).
-
-config PANEL_LCD_PIN_SDA
-	depends on PANEL && PANEL_PROFILE="0" && PANEL_LCD="1" && PANEL_LCD_PROTO!="0"
-        int "Parallel port pin number & polarity connected to the LCD SDA signal (-17...17) "
-	range -17 17
-	default 2
-	---help---
-	  This describes the number of the parallel port pin to which the serial
-	  LCD 'SDA' signal has been connected. It can be :
-
-	          0 : no connection (eg: connected to ground)
-	      1..17 : directly connected to any of these pins on the DB25 plug
-	    -1..-17 : connected to the same pin through an inverter (eg: transistor).
-
-	  Default for the 'SDA' pin in custom profile is '2' (D0).
-
-config PANEL_LCD_PIN_BL
-	depends on PANEL && PANEL_PROFILE="0" && PANEL_LCD="1"
-        int "Parallel port pin number & polarity connected to the LCD backlight signal (-17...17) "
-	range -17 17
-	default 0
-	---help---
-	  This describes the number of the parallel port pin to which the LCD 'BL' signal
-          has been connected. It can be :
-
-	          0 : no connection (eg: connected to ground)
-	      1..17 : directly connected to any of these pins on the DB25 plug
-	    -1..-17 : connected to the same pin through an inverter (eg: transistor).
-
-	  Default for the 'BL' pin in custom profile is '0' (uncontrolled).
-
-config PANEL_CHANGE_MESSAGE
-	depends on PANEL
-	bool "Change LCD initialization message ?"
-	default "n"
-	---help---
-	  This allows you to replace the boot message indicating the kernel version
-	  and the driver version with a custom message. This is useful on appliances
-	  where a simple 'Starting system' message can be enough to stop a customer
-	  from worrying.
-
-	  If you say 'Y' here, you'll be able to choose a message yourself. Otherwise,
-	  say 'N' and keep the default message with the version.
-
-config PANEL_BOOT_MESSAGE
-	depends on PANEL && PANEL_CHANGE_MESSAGE="y"
-	string "New initialization message"
-	default ""
-	---help---
-	  This allows you to replace the boot message indicating the kernel version
-	  and the driver version with a custom message. This is useful on appliances
-	  where a simple 'Starting system' message can be enough to stop a customer
-	  from worrying.
-
-	  An empty message will only clear the display at driver init time. Any other
-	  printf()-formatted message is valid with newline and escape codes.
+config PVPANIC
+	tristate "pvpanic device support"
+	depends on HAS_IOMEM && (ACPI || OF)
+	help
+	  This driver provides support for the pvpanic device.  pvpanic is
+	  a paravirtualized device provided by QEMU; it lets a virtual machine
+	  (guest) communicate panic events to the host.
 
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
@@ -778,4 +500,7 @@ source "drivers/misc/mic/Kconfig"
 source "drivers/misc/genwqe/Kconfig"
 source "drivers/misc/echo/Kconfig"
 source "drivers/misc/cxl/Kconfig"
+source "drivers/misc/ocxl/Kconfig"
+source "drivers/misc/cardreader/Kconfig"
+source "drivers/misc/habanalabs/Kconfig"
 endmenu

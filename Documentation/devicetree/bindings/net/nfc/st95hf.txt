@@ -17,9 +17,6 @@ Required properties:
 
 - enable-gpio: GPIO line to enable ST95HF transceiver.
 
-- interrupt-parent : Standard way to specify the controller to which
-	ST95HF transceiver's interrupt is routed.
-
 - interrupts : Standard way to define ST95HF transceiver's out
 	interrupt.
 
@@ -35,12 +32,10 @@ spi@9840000 {
 	#address-cells = <1>;
 	#size-cells = <0>;
 	cs-gpios = <&pio0 4>;
-	status = "okay";
 
 	st95hf@0{
 		reg = <0>;
 		compatible = "st,st95hf";
-		status = "okay";
 		spi-max-frequency = <1000000>;
 		enable-gpio = <&pio4 0>;
 		interrupt-parent = <&pio0>;

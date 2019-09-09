@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config DVB_B2C2_FLEXCOP_USB
 	tristate "Technisat/B2C2 Air/Sky/Cable2PC USB"
 	depends on DVB_CORE && I2C
@@ -10,6 +11,6 @@ config DVB_B2C2_FLEXCOP_USB_DEBUG
 	bool "Enable debug for the B2C2 FlexCop drivers"
 	depends on DVB_B2C2_FLEXCOP_USB
 	select DVB_B2C2_FLEXCOP_DEBUG
-	   help
-	Say Y if you want to enable the module option to control debug messages
-	of all B2C2 FlexCop drivers.
+	help
+	  Say Y if you want to enable the module option to control debug messages
+	  of all B2C2 FlexCop drivers.

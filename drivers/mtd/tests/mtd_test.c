@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #define pr_fmt(fmt) "mtd_test: " fmt
 
 #include <linux/module.h>
@@ -13,7 +14,6 @@ int mtdtest_erase_eraseblock(struct mtd_info *mtd, unsigned int ebnum)
 	loff_t addr = (loff_t)ebnum * mtd->erasesize;
 
 	memset(&ei, 0, sizeof(struct erase_info));
-	ei.mtd  = mtd;
 	ei.addr = addr;
 	ei.len  = mtd->erasesize;
 
@@ -23,10 +23,6 @@ int mtdtest_erase_eraseblock(struct mtd_info *mtd, unsigned int ebnum)
 		return err;
 	}
 
-	if (ei.state == MTD_ERASE_FAILED) {
-		pr_info("some erase error occurred at EB %d\n", ebnum);
-		return -EIO;
-	}
 	return 0;
 }
 

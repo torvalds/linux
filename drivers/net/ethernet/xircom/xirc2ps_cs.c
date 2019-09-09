@@ -88,7 +88,7 @@
 #include <pcmcia/ciscode.h>
 
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #ifndef MANFID_COMPAQ
   #define MANFID_COMPAQ 	   0x0138
@@ -466,7 +466,6 @@ static const struct net_device_ops netdev_ops = {
 	.ndo_set_config		= do_config,
 	.ndo_do_ioctl		= do_ioctl,
 	.ndo_set_rx_mode	= set_multicast_list,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 };
@@ -1782,7 +1781,7 @@ static int __init setup_xirc2ps_cs(char *str)
 	 */
 	int ints[10] = { -1 };
 
-	str = get_options(str, 9, ints);
+	str = get_options(str, ARRAY_SIZE(ints), ints);
 
 #define MAYBE_SET(X,Y) if (ints[0] >= Y && ints[Y] != -1) { X = ints[Y]; }
 	MAYBE_SET(if_port, 3);

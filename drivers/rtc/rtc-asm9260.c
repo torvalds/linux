@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2016 Oleksij Rempel <linux@rempel-privat.de>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License,
- * or (at your option) any later version.
  */
 
 #include <linux/clk.h>
@@ -327,6 +323,7 @@ static const struct of_device_id asm9260_dt_ids[] = {
 	{ .compatible = "alphascale,asm9260-rtc", },
 	{}
 };
+MODULE_DEVICE_TABLE(of, asm9260_dt_ids);
 
 static struct platform_driver asm9260_rtc_driver = {
 	.probe		= asm9260_rtc_probe,

@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * USB 7 Segment Driver
  *
  * Copyright (C) 2008 Harrison Metzger <harrisonmetz@gmail.com>
  * Based on usbled.c by Greg Kroah-Hartman (greg@kroah.com)
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License as
- *	published by the Free Software Foundation, version 2.
- *
  */
 
 #include <linux/kernel.h>
@@ -33,7 +29,7 @@ static const struct usb_device_id id_table[] = {
 MODULE_DEVICE_TABLE(usb, id_table);
 
 /* the different text display modes the device is capable of */
-static char *display_textmodes[] = {"raw", "hex", "ascii", NULL};
+static const char *display_textmodes[] = {"raw", "hex", "ascii"};
 
 struct usb_sevsegdev {
 	struct usb_device *udev;
@@ -169,7 +165,7 @@ static void update_display_visual(struct usb_sevsegdev *mydev, gfp_t mf)
 }
 
 #define MYDEV_ATTR_SIMPLE_UNSIGNED(name, update_fcn)		\
-static ssize_t show_attr_##name(struct device *dev, 		\
+static ssize_t name##_show(struct device *dev,			\
 	struct device_attribute *attr, char *buf) 		\
 {								\
 	struct usb_interface *intf = to_usb_interface(dev);	\
@@ -178,7 +174,7 @@ static ssize_t show_attr_##name(struct device *dev, 		\
 	return sprintf(buf, "%u\n", mydev->name);		\
 }								\
 								\
-static ssize_t set_attr_##name(struct device *dev, 		\
+static ssize_t name##_store(struct device *dev,			\
 	struct device_attribute *attr, const char *buf, size_t count) \
 {								\
 	struct usb_interface *intf = to_usb_interface(dev);	\
@@ -189,9 +185,9 @@ static ssize_t set_attr_##name(struct device *dev, 		\
 								\
 	return count;						\
 }								\
-static DEVICE_ATTR(name, S_IRUGO | S_IWUSR, show_attr_##name, set_attr_##name);
+static DEVICE_ATTR_RW(name);
 
-static ssize_t show_attr_text(struct device *dev,
+static ssize_t text_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct usb_interface *intf = to_usb_interface(dev);
@@ -200,7 +196,7 @@ static ssize_t show_attr_text(struct device *dev,
 	return snprintf(buf, mydev->textlength, "%s\n", mydev->text);
 }
 
-static ssize_t set_attr_text(struct device *dev,
+static ssize_t text_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct usb_interface *intf = to_usb_interface(dev);
@@ -220,9 +216,9 @@ static ssize_t set_attr_text(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR(text, S_IRUGO | S_IWUSR, show_attr_text, set_attr_text);
+static DEVICE_ATTR_RW(text);
 
-static ssize_t show_attr_decimals(struct device *dev,
+static ssize_t decimals_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct usb_interface *intf = to_usb_interface(dev);
@@ -244,7 +240,7 @@ static ssize_t show_attr_decimals(struct device *dev,
 	return sizeof(mydev->decimals) + 1;
 }
 
-static ssize_t set_attr_decimals(struct device *dev,
+static ssize_t decimals_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct usb_interface *intf = to_usb_interface(dev);
@@ -269,9 +265,9 @@ static ssize_t set_attr_decimals(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR(decimals, S_IRUGO | S_IWUSR, show_attr_decimals, set_attr_decimals);
+static DEVICE_ATTR_RW(decimals);
 
-static ssize_t show_attr_textmode(struct device *dev,
+static ssize_t textmode_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct usb_interface *intf = to_usb_interface(dev);
@@ -280,7 +276,7 @@ static ssize_t show_attr_textmode(struct device *dev,
 
 	buf[0] = 0;
 
-	for (i = 0; display_textmodes[i]; i++) {
+	for (i = 0; i < ARRAY_SIZE(display_textmodes); i++) {
 		if (mydev->textmode == i) {
 			strcat(buf, " [");
 			strcat(buf, display_textmodes[i]);
@@ -297,25 +293,23 @@ static ssize_t show_attr_textmode(struct device *dev,
 	return strlen(buf);
 }
 
-static ssize_t set_attr_textmode(struct device *dev,
+static ssize_t textmode_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct usb_interface *intf = to_usb_interface(dev);
 	struct usb_sevsegdev *mydev = usb_get_intfdata(intf);
 	int i;
 
-	for (i = 0; display_textmodes[i]; i++) {
-		if (sysfs_streq(display_textmodes[i], buf)) {
-			mydev->textmode = i;
-			update_display_visual(mydev, GFP_KERNEL);
-			return count;
-		}
-	}
+	i = sysfs_match_string(display_textmodes, buf);
+	if (i < 0)
+		return i;
 
-	return -EINVAL;
+	mydev->textmode = i;
+	update_display_visual(mydev, GFP_KERNEL);
+	return count;
 }
 
-static DEVICE_ATTR(textmode, S_IRUGO | S_IWUSR, show_attr_textmode, set_attr_textmode);
+static DEVICE_ATTR_RW(textmode);
 
 
 MYDEV_ATTR_SIMPLE_UNSIGNED(powered, update_display_powered);
@@ -332,7 +326,7 @@ static struct attribute *dev_attrs[] = {
 	NULL
 };
 
-static struct attribute_group dev_attr_grp = {
+static const struct attribute_group dev_attr_grp = {
 	.attrs = dev_attrs,
 };
 

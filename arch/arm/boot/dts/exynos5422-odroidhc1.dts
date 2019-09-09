@@ -1,0 +1,234 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Hardkernel Odroid HC1 board device tree source
+ *
+ * Copyright (c) 2017 Marek Szyprowski
+ * Copyright (c) 2017 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
+ */
+
+/dts-v1/;
+#include "exynos5422-odroid-core.dtsi"
+
+/ {
+	model = "Hardkernel Odroid HC1";
+	compatible = "hardkernel,odroid-hc1", "samsung,exynos5800", \
+		     "samsung,exynos5";
+
+	pwmleds {
+		compatible = "pwm-leds";
+
+		blueled {
+			label = "blue:heartbeat";
+			pwms = <&pwm 2 2000000 0>;
+			pwm-names = "pwm2";
+			max_brightness = <255>;
+			linux,default-trigger = "heartbeat";
+		};
+	};
+
+	thermal-zones {
+		cpu0_thermal: cpu0-thermal {
+			thermal-sensors = <&tmu_cpu0 0>;
+			trips {
+				cpu0_alert0: cpu-alert-0 {
+					temperature = <70000>; /* millicelsius */
+					hysteresis = <10000>; /* millicelsius */
+					type = "active";
+				};
+				cpu0_alert1: cpu-alert-1 {
+					temperature = <85000>; /* millicelsius */
+					hysteresis = <10000>; /* millicelsius */
+					type = "active";
+				};
+				cpu0_crit0: cpu-crit-0 {
+					temperature = <120000>; /* millicelsius */
+					hysteresis = <0>; /* millicelsius */
+					type = "critical";
+				};
+			};
+
+			cooling-maps {
+				/*
+				 * When reaching cpu0_alert0, reduce CPU
+				 * by 2 steps. On Exynos5422/5800 that would
+				 * be: 1600 MHz and 1100 MHz.
+				 */
+				map0 {
+					trip = <&cpu0_alert0>;
+					cooling-device = <&cpu0 0 2>,
+							 <&cpu1 0 2>,
+							 <&cpu2 0 2>,
+							 <&cpu3 0 2>,
+							 <&cpu4 0 2>,
+							 <&cpu5 0 2>,
+							 <&cpu6 0 2>,
+							 <&cpu7 0 2>;
+				};
+				/*
+				 * When reaching cpu0_alert1, reduce CPU
+				 * further, down to 600 MHz (12 steps for big,
+				 * 7 steps for LITTLE).
+				 */
+				map1 {
+					trip = <&cpu0_alert1>;
+					cooling-device = <&cpu0 3 7>,
+							 <&cpu1 3 7>,
+							 <&cpu2 3 7>,
+							 <&cpu3 3 7>,
+							 <&cpu4 3 12>,
+							 <&cpu5 3 12>,
+							 <&cpu6 3 12>,
+							 <&cpu7 3 12>;
+				};
+			};
+		};
+		cpu1_thermal: cpu1-thermal {
+			thermal-sensors = <&tmu_cpu1 0>;
+			trips {
+				cpu1_alert0: cpu-alert-0 {
+					temperature = <70000>;
+					hysteresis = <10000>;
+					type = "active";
+				};
+				cpu1_alert1: cpu-alert-1 {
+					temperature = <85000>;
+					hysteresis = <10000>;
+					type = "active";
+				};
+				cpu1_crit0: cpu-crit-0 {
+					temperature = <120000>;
+					hysteresis = <0>;
+					type = "critical";
+				};
+			};
+			cooling-maps {
+				map0 {
+					trip = <&cpu1_alert0>;
+					cooling-device = <&cpu0 0 2>,
+							 <&cpu1 0 2>,
+							 <&cpu2 0 2>,
+							 <&cpu3 0 2>,
+							 <&cpu4 0 2>,
+							 <&cpu5 0 2>,
+							 <&cpu6 0 2>,
+							 <&cpu7 0 2>;
+				};
+				map1 {
+					trip = <&cpu1_alert1>;
+					cooling-device = <&cpu0 3 7>,
+							 <&cpu1 3 7>,
+							 <&cpu2 3 7>,
+							 <&cpu3 3 7>,
+							 <&cpu4 3 12>,
+							 <&cpu5 3 12>,
+							 <&cpu6 3 12>,
+							 <&cpu7 3 12>;
+				};
+			};
+		};
+		cpu2_thermal: cpu2-thermal {
+			thermal-sensors = <&tmu_cpu2 0>;
+			trips {
+				cpu2_alert0: cpu-alert-0 {
+					temperature = <70000>;
+					hysteresis = <10000>;
+					type = "active";
+				};
+				cpu2_alert1: cpu-alert-1 {
+					temperature = <85000>;
+					hysteresis = <10000>;
+					type = "active";
+				};
+				cpu2_crit0: cpu-crit-0 {
+					temperature = <120000>;
+					hysteresis = <0>;
+					type = "critical";
+				};
+			};
+			cooling-maps {
+				map0 {
+					trip = <&cpu2_alert0>;
+					cooling-device = <&cpu0 0 2>,
+							 <&cpu1 0 2>,
+							 <&cpu2 0 2>,
+							 <&cpu3 0 2>,
+							 <&cpu4 0 2>,
+							 <&cpu5 0 2>,
+							 <&cpu6 0 2>,
+							 <&cpu7 0 2>;
+				};
+				map1 {
+					trip = <&cpu2_alert1>;
+					cooling-device = <&cpu0 3 7>,
+							 <&cpu1 3 7>,
+							 <&cpu2 3 7>,
+							 <&cpu3 3 7>,
+							 <&cpu4 3 12>,
+							 <&cpu5 3 12>,
+							 <&cpu6 3 12>,
+							 <&cpu7 3 12>;
+				};
+			};
+		};
+		cpu3_thermal: cpu3-thermal {
+			thermal-sensors = <&tmu_cpu3 0>;
+			trips {
+				cpu3_alert0: cpu-alert-0 {
+					temperature = <70000>;
+					hysteresis = <10000>;
+					type = "active";
+				};
+				cpu3_alert1: cpu-alert-1 {
+					temperature = <85000>;
+					hysteresis = <10000>;
+					type = "active";
+				};
+				cpu3_crit0: cpu-crit-0 {
+					temperature = <120000>;
+					hysteresis = <0>;
+					type = "critical";
+				};
+			};
+			cooling-maps {
+				map0 {
+					trip = <&cpu3_alert0>;
+					cooling-device = <&cpu0 0 2>,
+							 <&cpu1 0 2>,
+							 <&cpu2 0 2>,
+							 <&cpu3 0 2>,
+							 <&cpu4 0 2>,
+							 <&cpu5 0 2>,
+							 <&cpu6 0 2>,
+							 <&cpu7 0 2>;
+				};
+				map1 {
+					trip = <&cpu3_alert1>;
+					cooling-device = <&cpu0 3 7>,
+							 <&cpu1 3 7>,
+							 <&cpu2 3 7>,
+							 <&cpu3 3 7>,
+							 <&cpu4 3 12>,
+							 <&cpu5 3 12>,
+							 <&cpu6 3 12>,
+							 <&cpu7 3 12>;
+				};
+			};
+		};
+	};
+
+};
+
+&pwm {
+	/*
+	 * PWM 2 -- Blue LED
+	 */
+	pinctrl-0 = <&pwm2_out>;
+	pinctrl-names = "default";
+	samsung,pwm-outputs = <2>;
+	status = "okay";
+};
+
+&usbdrd_dwc3_1 {
+	dr_mode = "host";
+};

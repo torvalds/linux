@@ -1,0 +1,23 @@
+Mediatek mfgcfg controller
+============================
+
+The Mediatek mfgcfg controller provides various clocks to the system.
+
+Required Properties:
+
+- compatible: Should be one of:
+	- "mediatek,mt2712-mfgcfg", "syscon"
+	- "mediatek,mt8183-mfgcfg", "syscon"
+- #clock-cells: Must be 1
+
+The mfgcfg controller uses the common clk binding from
+Documentation/devicetree/bindings/clock/clock-bindings.txt
+The available clocks are defined in dt-bindings/clock/mt*-clk.h.
+
+Example:
+
+mfgcfg: syscon@13000000 {
+	compatible = "mediatek,mt2712-mfgcfg", "syscon";
+	reg = <0 0x13000000 0 0x1000>;
+	#clock-cells = <1>;
+};

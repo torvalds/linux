@@ -1,21 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
     tda18271-maps.c - driver for the Philips / NXP TDA18271 silicon tuner
 
     Copyright (C) 2007, 2008 Michael Krufky <mkrufky@linuxtv.org>
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
 #include "tda18271-priv.h"
@@ -1024,11 +1012,7 @@ int tda18271_lookup_rf_band(struct dvb_frontend *fe, u32 *freq, u8 *rf_band)
 
 	while ((map[i].rfmax * 1000) < *freq) {
 		if (tda18271_debug & DBG_ADV)
-			tda_map("(%d) rfmax = %d < freq = %d, "
-				"rf1_def = %d, rf2_def = %d, rf3_def = %d, "
-				"rf1 = %d, rf2 = %d, rf3 = %d, "
-				"rf_a1 = %d, rf_a2 = %d, "
-				"rf_b1 = %d, rf_b2 = %d\n",
+			tda_map("(%d) rfmax = %d < freq = %d, rf1_def = %d, rf2_def = %d, rf3_def = %d, rf1 = %d, rf2 = %d, rf3 = %d, rf_a1 = %d, rf_a2 = %d, rf_b1 = %d, rf_b2 = %d\n",
 				i, map[i].rfmax * 1000, *freq,
 				map[i].rf1_def, map[i].rf2_def, map[i].rf3_def,
 				map[i].rf1, map[i].rf2, map[i].rf3,
@@ -1186,7 +1170,7 @@ fail:
 
 /*---------------------------------------------------------------------*/
 
-static struct tda18271_std_map tda18271c1_std_map = {
+static const struct tda18271_std_map tda18271c1_std_map = {
 	.fm_radio = { .if_freq = 1250, .fm_rfn = 1, .agc_mode = 3, .std = 0,
 		      .if_lvl = 0, .rfagc_top = 0x2c, }, /* EP3[4:0] 0x18 */
 	.atv_b    = { .if_freq = 6750, .fm_rfn = 0, .agc_mode = 1, .std = 6,
@@ -1219,7 +1203,7 @@ static struct tda18271_std_map tda18271c1_std_map = {
 		      .if_lvl = 1, .rfagc_top = 0x37, }, /* EP3[4:0] 0x1f */
 };
 
-static struct tda18271_std_map tda18271c2_std_map = {
+static const struct tda18271_std_map tda18271c2_std_map = {
 	.fm_radio = { .if_freq = 1250, .fm_rfn = 1, .agc_mode = 3, .std = 0,
 		      .if_lvl = 0, .rfagc_top = 0x2c, }, /* EP3[4:0] 0x18 */
 	.atv_b    = { .if_freq = 6000, .fm_rfn = 0, .agc_mode = 1, .std = 5,

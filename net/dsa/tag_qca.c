@@ -1,17 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2015, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/etherdevice.h>
+
 #include "dsa_priv.h"
 
 #define QCA_HDR_LEN	2
@@ -37,14 +30,14 @@
 
 static struct sk_buff *qca_tag_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct dsa_slave_priv *p = netdev_priv(dev);
+	struct dsa_port *dp = dsa_slave_to_port(dev);
 	u16 *phdr, hdr;
 
 	dev->stats.tx_packets++;
 	dev->stats.tx_bytes += skb->len;
 
 	if (skb_cow_head(skb, 0) < 0)
-		goto out_free;
+		return NULL;
 
 	skb_push(skb, QCA_HDR_LEN);
 
@@ -53,36 +46,22 @@ static struct sk_buff *qca_tag_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* Set the version field, and set destination port information */
 	hdr = QCA_HDR_VERSION << QCA_HDR_XMIT_VERSION_S |
-		QCA_HDR_XMIT_FROM_CPU |
-		BIT(p->port);
+		QCA_HDR_XMIT_FROM_CPU | BIT(dp->index);
 
 	*phdr = htons(hdr);
 
 	return skb;
-
-out_free:
-	kfree_skb(skb);
-	return NULL;
 }
 
-static int qca_tag_rcv(struct sk_buff *skb, struct net_device *dev,
-		       struct packet_type *pt, struct net_device *orig_dev)
+static struct sk_buff *qca_tag_rcv(struct sk_buff *skb, struct net_device *dev,
+				   struct packet_type *pt)
 {
-	struct dsa_switch_tree *dst = dev->dsa_ptr;
-	struct dsa_switch *ds;
 	u8 ver;
 	int port;
 	__be16 *phdr, hdr;
 
-	if (unlikely(!dst))
-		goto out_drop;
-
-	skb = skb_unshare(skb, GFP_ATOMIC);
-	if (!skb)
-		goto out;
-
 	if (unlikely(!pskb_may_pull(skb, QCA_HDR_LEN)))
-		goto out_drop;
+		return NULL;
 
 	/* The QCA header is added by the switch between src addr and Ethertype
 	 * At this point, skb->data points to ethertype so header should be
@@ -94,45 +73,42 @@ static int qca_tag_rcv(struct sk_buff *skb, struct net_device *dev,
 	/* Make sure the version is correct */
 	ver = (hdr & QCA_HDR_RECV_VERSION_MASK) >> QCA_HDR_RECV_VERSION_S;
 	if (unlikely(ver != QCA_HDR_VERSION))
-		goto out_drop;
+		return NULL;
 
 	/* Remove QCA tag and recalculate checksum */
 	skb_pull_rcsum(skb, QCA_HDR_LEN);
 	memmove(skb->data - ETH_HLEN, skb->data - ETH_HLEN - QCA_HDR_LEN,
 		ETH_HLEN - QCA_HDR_LEN);
 
-	/* This protocol doesn't support cascading multiple switches so it's
-	 * safe to assume the switch is first in the tree
-	 */
-	ds = dst->ds[0];
-	if (!ds)
-		goto out_drop;
-
 	/* Get source port information */
 	port = (hdr & QCA_HDR_RECV_SOURCE_PORT_MASK);
-	if (!ds->ports[port].netdev)
-		goto out_drop;
 
-	/* Update skb & forward the frame accordingly */
-	skb_push(skb, ETH_HLEN);
-	skb->pkt_type = PACKET_HOST;
-	skb->dev = ds->ports[port].netdev;
-	skb->protocol = eth_type_trans(skb, skb->dev);
+	skb->dev = dsa_master_find_slave(dev, 0, port);
+	if (!skb->dev)
+		return NULL;
 
-	skb->dev->stats.rx_packets++;
-	skb->dev->stats.rx_bytes += skb->len;
+	return skb;
+}
 
-	netif_receive_skb(skb);
+static int qca_tag_flow_dissect(const struct sk_buff *skb, __be16 *proto,
+                                int *offset)
+{
+	*offset = QCA_HDR_LEN;
+	*proto = ((__be16 *)skb->data)[0];
 
-	return 0;
-
-out_drop:
-	kfree_skb(skb);
-out:
 	return 0;
 }
 
-const struct dsa_device_ops qca_netdev_ops = {
+static const struct dsa_device_ops qca_netdev_ops = {
+	.name	= "qca",
+	.proto	= DSA_TAG_PROTO_QCA,
 	.xmit	= qca_tag_xmit,
 	.rcv	= qca_tag_rcv,
+	.flow_dissect = qca_tag_flow_dissect,
+	.overhead = QCA_HDR_LEN,
 };
+
+MODULE_LICENSE("GPL");
+MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_QCA);
+
+module_dsa_tag_driver(qca_netdev_ops);

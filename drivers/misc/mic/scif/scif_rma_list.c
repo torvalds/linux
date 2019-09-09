@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Intel MIC Platform Software Stack (MPSS)
  *
  * Copyright(c) 2015 Intel Corporation.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
  * Intel SCIF driver.
- *
  */
 #include "scif_main.h"
 #include <linux/mmu_notifier.h>
@@ -277,7 +268,7 @@ retry:
 		 * Need to restart list traversal if there has been
 		 * an asynchronous list entry deletion.
 		 */
-		if (ACCESS_ONCE(ep->rma_info.async_list_del))
+		if (READ_ONCE(ep->rma_info.async_list_del))
 			goto retry;
 	}
 	mutex_unlock(&ep->rma_info.rma_lock);

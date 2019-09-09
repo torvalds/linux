@@ -60,25 +60,31 @@
  */
 void i915_check_vgpu(struct drm_i915_private *dev_priv)
 {
-	uint64_t magic;
-	uint32_t version;
+	struct intel_uncore *uncore = &dev_priv->uncore;
+	u64 magic;
+	u16 version_major;
 
 	BUILD_BUG_ON(sizeof(struct vgt_if) != VGT_PVINFO_SIZE);
 
-	magic = __raw_i915_read64(dev_priv, vgtif_reg(magic));
+	magic = __raw_uncore_read64(uncore, vgtif_reg(magic));
 	if (magic != VGT_MAGIC)
 		return;
 
-	version = INTEL_VGT_IF_VERSION_ENCODE(
-		__raw_i915_read16(dev_priv, vgtif_reg(version_major)),
-		__raw_i915_read16(dev_priv, vgtif_reg(version_minor)));
-	if (version != INTEL_VGT_IF_VERSION) {
+	version_major = __raw_uncore_read16(uncore, vgtif_reg(version_major));
+	if (version_major < VGT_VERSION_MAJOR) {
 		DRM_INFO("VGT interface version mismatch!\n");
 		return;
 	}
 
+	dev_priv->vgpu.caps = __raw_uncore_read32(uncore, vgtif_reg(vgt_caps));
+
 	dev_priv->vgpu.active = true;
 	DRM_INFO("Virtual GPU for Intel GVT-g detected.\n");
+}
+
+bool intel_vgpu_has_full_ppgtt(struct drm_i915_private *dev_priv)
+{
+	return dev_priv->vgpu.caps & VGT_CAPS_FULL_PPGTT;
 }
 
 struct _balloon_info_ {
@@ -91,6 +97,21 @@ struct _balloon_info_ {
 };
 
 static struct _balloon_info_ bl_info;
+
+static void vgt_deballoon_space(struct i915_ggtt *ggtt,
+				struct drm_mm_node *node)
+{
+	if (!drm_mm_node_allocated(node))
+		return;
+
+	DRM_DEBUG_DRIVER("deballoon space: range [0x%llx - 0x%llx] %llu KiB.\n",
+			 node->start,
+			 node->start + node->size,
+			 node->size / 1024);
+
+	ggtt->vm.reserved -= node->size;
+	drm_mm_remove_node(node);
+}
 
 /**
  * intel_vgt_deballoon - deballoon reserved graphics address trunks
@@ -108,30 +129,29 @@ void intel_vgt_deballoon(struct drm_i915_private *dev_priv)
 
 	DRM_DEBUG("VGT deballoon.\n");
 
-	for (i = 0; i < 4; i++) {
-		if (bl_info.space[i].allocated)
-			drm_mm_remove_node(&bl_info.space[i]);
-	}
-
-	memset(&bl_info, 0, sizeof(bl_info));
+	for (i = 0; i < 4; i++)
+		vgt_deballoon_space(&dev_priv->ggtt, &bl_info.space[i]);
 }
 
-static int vgt_balloon_space(struct drm_mm *mm,
+static int vgt_balloon_space(struct i915_ggtt *ggtt,
 			     struct drm_mm_node *node,
 			     unsigned long start, unsigned long end)
 {
 	unsigned long size = end - start;
+	int ret;
 
-	if (start == end)
+	if (start >= end)
 		return -EINVAL;
 
 	DRM_INFO("balloon space: range [ 0x%lx - 0x%lx ] %lu KiB.\n",
 		 start, end, size / 1024);
+	ret = i915_gem_gtt_reserve(&ggtt->vm, node,
+				   size, start, I915_COLOR_UNEVICTABLE,
+				   0);
+	if (!ret)
+		ggtt->vm.reserved += size;
 
-	node->start = start;
-	node->size = size;
-
-	return drm_mm_reserve_node(mm, node);
+	return ret;
 }
 
 /**
@@ -181,7 +201,7 @@ static int vgt_balloon_space(struct drm_mm *mm,
 int intel_vgt_balloon(struct drm_i915_private *dev_priv)
 {
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
-	unsigned long ggtt_end = ggtt->base.start + ggtt->base.total;
+	unsigned long ggtt_end = ggtt->vm.total;
 
 	unsigned long mappable_base, mappable_size, mappable_end;
 	unsigned long unmappable_base, unmappable_size, unmappable_end;
@@ -204,8 +224,7 @@ int intel_vgt_balloon(struct drm_i915_private *dev_priv)
 	DRM_INFO("Unmappable graphic memory: base 0x%lx size %ldKiB\n",
 		 unmappable_base, unmappable_size / 1024);
 
-	if (mappable_base < ggtt->base.start ||
-	    mappable_end > ggtt->mappable_end ||
+	if (mappable_end > ggtt->mappable_end ||
 	    unmappable_base < ggtt->mappable_end ||
 	    unmappable_end > ggtt_end) {
 		DRM_ERROR("Invalid ballooning configuration!\n");
@@ -214,53 +233,47 @@ int intel_vgt_balloon(struct drm_i915_private *dev_priv)
 
 	/* Unmappable graphic memory ballooning */
 	if (unmappable_base > ggtt->mappable_end) {
-		ret = vgt_balloon_space(&ggtt->base.mm,
-					&bl_info.space[2],
-					ggtt->mappable_end,
-					unmappable_base);
+		ret = vgt_balloon_space(ggtt, &bl_info.space[2],
+					ggtt->mappable_end, unmappable_base);
 
 		if (ret)
 			goto err;
 	}
 
-	/*
-	 * No need to partition out the last physical page,
-	 * because it is reserved to the guard page.
-	 */
-	if (unmappable_end < ggtt_end - PAGE_SIZE) {
-		ret = vgt_balloon_space(&ggtt->base.mm,
-					&bl_info.space[3],
-					unmappable_end,
-					ggtt_end - PAGE_SIZE);
+	if (unmappable_end < ggtt_end) {
+		ret = vgt_balloon_space(ggtt, &bl_info.space[3],
+					unmappable_end, ggtt_end);
 		if (ret)
-			goto err;
+			goto err_upon_mappable;
 	}
 
 	/* Mappable graphic memory ballooning */
-	if (mappable_base > ggtt->base.start) {
-		ret = vgt_balloon_space(&ggtt->base.mm,
-					&bl_info.space[0],
-					ggtt->base.start, mappable_base);
+	if (mappable_base) {
+		ret = vgt_balloon_space(ggtt, &bl_info.space[0],
+					0, mappable_base);
 
 		if (ret)
-			goto err;
+			goto err_upon_unmappable;
 	}
 
 	if (mappable_end < ggtt->mappable_end) {
-		ret = vgt_balloon_space(&ggtt->base.mm,
-					&bl_info.space[1],
-					mappable_end,
-					ggtt->mappable_end);
+		ret = vgt_balloon_space(ggtt, &bl_info.space[1],
+					mappable_end, ggtt->mappable_end);
 
 		if (ret)
-			goto err;
+			goto err_below_mappable;
 	}
 
 	DRM_INFO("VGT balloon successfully\n");
 	return 0;
 
+err_below_mappable:
+	vgt_deballoon_space(ggtt, &bl_info.space[0]);
+err_upon_unmappable:
+	vgt_deballoon_space(ggtt, &bl_info.space[3]);
+err_upon_mappable:
+	vgt_deballoon_space(ggtt, &bl_info.space[2]);
 err:
 	DRM_ERROR("VGT balloon fail\n");
-	intel_vgt_deballoon(dev_priv);
 	return ret;
 }

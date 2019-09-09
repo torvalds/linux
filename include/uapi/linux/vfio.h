@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  * VFIO API definition
  *
@@ -198,10 +199,24 @@ struct vfio_device_info {
 #define VFIO_DEVICE_FLAGS_PCI	(1 << 1)	/* vfio-pci device */
 #define VFIO_DEVICE_FLAGS_PLATFORM (1 << 2)	/* vfio-platform device */
 #define VFIO_DEVICE_FLAGS_AMBA  (1 << 3)	/* vfio-amba device */
+#define VFIO_DEVICE_FLAGS_CCW	(1 << 4)	/* vfio-ccw device */
+#define VFIO_DEVICE_FLAGS_AP	(1 << 5)	/* vfio-ap device */
 	__u32	num_regions;	/* Max region index + 1 */
 	__u32	num_irqs;	/* Max IRQ index + 1 */
 };
 #define VFIO_DEVICE_GET_INFO		_IO(VFIO_TYPE, VFIO_BASE + 7)
+
+/*
+ * Vendor driver using Mediated device framework should provide device_api
+ * attribute in supported type attribute groups. Device API string should be one
+ * of the following corresponding to device flags in vfio_device_info structure.
+ */
+
+#define VFIO_DEVICE_API_PCI_STRING		"vfio-pci"
+#define VFIO_DEVICE_API_PLATFORM_STRING		"vfio-platform"
+#define VFIO_DEVICE_API_AMBA_STRING		"vfio-amba"
+#define VFIO_DEVICE_API_CCW_STRING		"vfio-ccw"
+#define VFIO_DEVICE_API_AP_STRING		"vfio-ap"
 
 /**
  * VFIO_DEVICE_GET_REGION_INFO - _IOWR(VFIO_TYPE, VFIO_BASE + 8,
@@ -287,6 +302,112 @@ struct vfio_region_info_cap_type {
 #define VFIO_REGION_SUBTYPE_INTEL_IGD_OPREGION	(1)
 #define VFIO_REGION_SUBTYPE_INTEL_IGD_HOST_CFG	(2)
 #define VFIO_REGION_SUBTYPE_INTEL_IGD_LPC_CFG	(3)
+
+#define VFIO_REGION_TYPE_GFX                    (1)
+#define VFIO_REGION_SUBTYPE_GFX_EDID            (1)
+
+/**
+ * struct vfio_region_gfx_edid - EDID region layout.
+ *
+ * Set display link state and EDID blob.
+ *
+ * The EDID blob has monitor information such as brand, name, serial
+ * number, physical size, supported video modes and more.
+ *
+ * This special region allows userspace (typically qemu) set a virtual
+ * EDID for the virtual monitor, which allows a flexible display
+ * configuration.
+ *
+ * For the edid blob spec look here:
+ *    https://en.wikipedia.org/wiki/Extended_Display_Identification_Data
+ *
+ * On linux systems you can find the EDID blob in sysfs:
+ *    /sys/class/drm/${card}/${connector}/edid
+ *
+ * You can use the edid-decode ulility (comes with xorg-x11-utils) to
+ * decode the EDID blob.
+ *
+ * @edid_offset: location of the edid blob, relative to the
+ *               start of the region (readonly).
+ * @edid_max_size: max size of the edid blob (readonly).
+ * @edid_size: actual edid size (read/write).
+ * @link_state: display link state (read/write).
+ * VFIO_DEVICE_GFX_LINK_STATE_UP: Monitor is turned on.
+ * VFIO_DEVICE_GFX_LINK_STATE_DOWN: Monitor is turned off.
+ * @max_xres: max display width (0 == no limitation, readonly).
+ * @max_yres: max display height (0 == no limitation, readonly).
+ *
+ * EDID update protocol:
+ *   (1) set link-state to down.
+ *   (2) update edid blob and size.
+ *   (3) set link-state to up.
+ */
+struct vfio_region_gfx_edid {
+	__u32 edid_offset;
+	__u32 edid_max_size;
+	__u32 edid_size;
+	__u32 max_xres;
+	__u32 max_yres;
+	__u32 link_state;
+#define VFIO_DEVICE_GFX_LINK_STATE_UP    1
+#define VFIO_DEVICE_GFX_LINK_STATE_DOWN  2
+};
+
+#define VFIO_REGION_TYPE_CCW			(2)
+/* ccw sub-types */
+#define VFIO_REGION_SUBTYPE_CCW_ASYNC_CMD	(1)
+
+/*
+ * 10de vendor sub-type
+ *
+ * NVIDIA GPU NVlink2 RAM is coherent RAM mapped onto the host address space.
+ */
+#define VFIO_REGION_SUBTYPE_NVIDIA_NVLINK2_RAM	(1)
+
+/*
+ * 1014 vendor sub-type
+ *
+ * IBM NPU NVlink2 ATSD (Address Translation Shootdown) register of NPU
+ * to do TLB invalidation on a GPU.
+ */
+#define VFIO_REGION_SUBTYPE_IBM_NVLINK2_ATSD	(1)
+
+/*
+ * The MSIX mappable capability informs that MSIX data of a BAR can be mmapped
+ * which allows direct access to non-MSIX registers which happened to be within
+ * the same system page.
+ *
+ * Even though the userspace gets direct access to the MSIX data, the existing
+ * VFIO_DEVICE_SET_IRQS interface must still be used for MSIX configuration.
+ */
+#define VFIO_REGION_INFO_CAP_MSIX_MAPPABLE	3
+
+/*
+ * Capability with compressed real address (aka SSA - small system address)
+ * where GPU RAM is mapped on a system bus. Used by a GPU for DMA routing
+ * and by the userspace to associate a NVLink bridge with a GPU.
+ */
+#define VFIO_REGION_INFO_CAP_NVLINK2_SSATGT	4
+
+struct vfio_region_info_cap_nvlink2_ssatgt {
+	struct vfio_info_cap_header header;
+	__u64 tgt;
+};
+
+/*
+ * Capability with an NVLink link speed. The value is read by
+ * the NVlink2 bridge driver from the bridge's "ibm,nvlink-speed"
+ * property in the device tree. The value is fixed in the hardware
+ * and failing to provide the correct value results in the link
+ * not working with no indication from the driver why.
+ */
+#define VFIO_REGION_INFO_CAP_NVLINK2_LNKSPD	5
+
+struct vfio_region_info_cap_nvlink2_lnkspd {
+	struct vfio_info_cap_header header;
+	__u32 link_speed;
+	__u32 __pad;
+};
 
 /**
  * VFIO_DEVICE_GET_IRQ_INFO - _IOWR(VFIO_TYPE, VFIO_BASE + 9,
@@ -436,6 +557,22 @@ enum {
 	VFIO_PCI_NUM_IRQS
 };
 
+/*
+ * The vfio-ccw bus driver makes use of the following fixed region and
+ * IRQ index mapping. Unimplemented regions return a size of zero.
+ * Unimplemented IRQ types return a count of zero.
+ */
+
+enum {
+	VFIO_CCW_CONFIG_REGION_INDEX,
+	VFIO_CCW_NUM_REGIONS
+};
+
+enum {
+	VFIO_CCW_IO_IRQ_INDEX,
+	VFIO_CCW_NUM_IRQS
+};
+
 /**
  * VFIO_DEVICE_GET_PCI_HOT_RESET_INFO - _IORW(VFIO_TYPE, VFIO_BASE + 12,
  *					      struct vfio_pci_hot_reset_info)
@@ -473,6 +610,95 @@ struct vfio_pci_hot_reset {
 };
 
 #define VFIO_DEVICE_PCI_HOT_RESET	_IO(VFIO_TYPE, VFIO_BASE + 13)
+
+/**
+ * VFIO_DEVICE_QUERY_GFX_PLANE - _IOW(VFIO_TYPE, VFIO_BASE + 14,
+ *                                    struct vfio_device_query_gfx_plane)
+ *
+ * Set the drm_plane_type and flags, then retrieve the gfx plane info.
+ *
+ * flags supported:
+ * - VFIO_GFX_PLANE_TYPE_PROBE and VFIO_GFX_PLANE_TYPE_DMABUF are set
+ *   to ask if the mdev supports dma-buf. 0 on support, -EINVAL on no
+ *   support for dma-buf.
+ * - VFIO_GFX_PLANE_TYPE_PROBE and VFIO_GFX_PLANE_TYPE_REGION are set
+ *   to ask if the mdev supports region. 0 on support, -EINVAL on no
+ *   support for region.
+ * - VFIO_GFX_PLANE_TYPE_DMABUF or VFIO_GFX_PLANE_TYPE_REGION is set
+ *   with each call to query the plane info.
+ * - Others are invalid and return -EINVAL.
+ *
+ * Note:
+ * 1. Plane could be disabled by guest. In that case, success will be
+ *    returned with zero-initialized drm_format, size, width and height
+ *    fields.
+ * 2. x_hot/y_hot is set to 0xFFFFFFFF if no hotspot information available
+ *
+ * Return: 0 on success, -errno on other failure.
+ */
+struct vfio_device_gfx_plane_info {
+	__u32 argsz;
+	__u32 flags;
+#define VFIO_GFX_PLANE_TYPE_PROBE (1 << 0)
+#define VFIO_GFX_PLANE_TYPE_DMABUF (1 << 1)
+#define VFIO_GFX_PLANE_TYPE_REGION (1 << 2)
+	/* in */
+	__u32 drm_plane_type;	/* type of plane: DRM_PLANE_TYPE_* */
+	/* out */
+	__u32 drm_format;	/* drm format of plane */
+	__u64 drm_format_mod;   /* tiled mode */
+	__u32 width;	/* width of plane */
+	__u32 height;	/* height of plane */
+	__u32 stride;	/* stride of plane */
+	__u32 size;	/* size of plane in bytes, align on page*/
+	__u32 x_pos;	/* horizontal position of cursor plane */
+	__u32 y_pos;	/* vertical position of cursor plane*/
+	__u32 x_hot;    /* horizontal position of cursor hotspot */
+	__u32 y_hot;    /* vertical position of cursor hotspot */
+	union {
+		__u32 region_index;	/* region index */
+		__u32 dmabuf_id;	/* dma-buf id */
+	};
+};
+
+#define VFIO_DEVICE_QUERY_GFX_PLANE _IO(VFIO_TYPE, VFIO_BASE + 14)
+
+/**
+ * VFIO_DEVICE_GET_GFX_DMABUF - _IOW(VFIO_TYPE, VFIO_BASE + 15, __u32)
+ *
+ * Return a new dma-buf file descriptor for an exposed guest framebuffer
+ * described by the provided dmabuf_id. The dmabuf_id is returned from VFIO_
+ * DEVICE_QUERY_GFX_PLANE as a token of the exposed guest framebuffer.
+ */
+
+#define VFIO_DEVICE_GET_GFX_DMABUF _IO(VFIO_TYPE, VFIO_BASE + 15)
+
+/**
+ * VFIO_DEVICE_IOEVENTFD - _IOW(VFIO_TYPE, VFIO_BASE + 16,
+ *                              struct vfio_device_ioeventfd)
+ *
+ * Perform a write to the device at the specified device fd offset, with
+ * the specified data and width when the provided eventfd is triggered.
+ * vfio bus drivers may not support this for all regions, for all widths,
+ * or at all.  vfio-pci currently only enables support for BAR regions,
+ * excluding the MSI-X vector table.
+ *
+ * Return: 0 on success, -errno on failure.
+ */
+struct vfio_device_ioeventfd {
+	__u32	argsz;
+	__u32	flags;
+#define VFIO_DEVICE_IOEVENTFD_8		(1 << 0) /* 1-byte write */
+#define VFIO_DEVICE_IOEVENTFD_16	(1 << 1) /* 2-byte write */
+#define VFIO_DEVICE_IOEVENTFD_32	(1 << 2) /* 4-byte write */
+#define VFIO_DEVICE_IOEVENTFD_64	(1 << 3) /* 8-byte write */
+#define VFIO_DEVICE_IOEVENTFD_SIZE_MASK	(0xf)
+	__u64	offset;			/* device fd offset of write */
+	__u64	data;			/* data to be written */
+	__s32	fd;			/* -1 for de-assignment */
+};
+
+#define VFIO_DEVICE_IOEVENTFD		_IO(VFIO_TYPE, VFIO_BASE + 16)
 
 /* -------- API for Type1 VFIO IOMMU -------- */
 

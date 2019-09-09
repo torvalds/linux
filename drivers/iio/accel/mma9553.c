@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Freescale MMA9553L Intelligent Pedometer driver
  * Copyright (c) 2014, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #include <linux/module.h>
@@ -987,7 +979,6 @@ static const struct iio_chan_spec mma9553_channels[] = {
 };
 
 static const struct iio_info mma9553_info = {
-	.driver_module = THIS_MODULE,
 	.read_raw = mma9553_read_raw,
 	.write_raw = mma9553_write_raw,
 	.read_event_config = mma9553_read_event_config,

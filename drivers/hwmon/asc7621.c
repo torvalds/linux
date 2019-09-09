@@ -1,20 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * asc7621.c - Part of lm_sensors, Linux kernel modules for hardware monitoring
  * Copyright (c) 2007, 2010 George Joseph  <george.joseph@fairview5.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
@@ -512,7 +499,7 @@ static ssize_t show_pwm_ac(struct device *dev,
 {
 	SETUP_SHOW_DATA_PARAM(dev, attr);
 	u8 config, altbit, regval;
-	const u8 map[] = {
+	static const u8 map[] = {
 		0x01, 0x02, 0x04, 0x1f, 0x00, 0x06, 0x07, 0x10,
 		0x08, 0x0f, 0x1f, 0x1f, 0x1f, 0x1f, 0x1f, 0x1f
 	};
@@ -533,7 +520,7 @@ static ssize_t store_pwm_ac(struct device *dev,
 	SETUP_STORE_DATA_PARAM(dev, attr);
 	unsigned long reqval;
 	u8 currval, config, altbit, newval;
-	const u16 map[] = {
+	static const u16 map[] = {
 		0x04, 0x00, 0x01, 0xff, 0x02, 0xff, 0x05, 0x06,
 		0x08, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x0f,
 		0x07, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
@@ -579,7 +566,6 @@ static ssize_t show_pwm_enable(struct device *dev,
 	mutex_unlock(&data->update_lock);
 
 	val = config | (altbit << 3);
-	newval = 0;
 
 	if (val == 3 || val >= 10)
 		newval = 255;

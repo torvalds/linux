@@ -1,17 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  TW5864 driver - video encoding functions
  *
  *  Copyright (C) 2016 Bluecherry, LLC <maintainers@bluecherrydvr.com>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
  */
 
 #include <linux/module.h>
@@ -330,6 +321,15 @@ static int tw5864_enable_input(struct tw5864_input *input)
 	tw_indir_writeb(TW5864_INDIR_OUT_PIC_WIDTH(nr), input->width / 4);
 	tw_indir_writeb(TW5864_INDIR_OUT_PIC_HEIGHT(nr), input->height / 4);
 
+	/*
+	 * Crop width from 720 to 704.
+	 * Above register settings need value 720 involved.
+	 */
+	input->width = 704;
+	tw_indir_writeb(TW5864_INDIR_CROP_ETC,
+			tw_indir_readb(TW5864_INDIR_CROP_ETC) |
+			TW5864_INDIR_CROP_ETC_CROP_EN);
+
 	tw_writel(TW5864_DSP_PIC_MAX_MB,
 		  ((input->width / 16) << 8) | (input->height / 16));
 
@@ -532,10 +532,11 @@ static int tw5864_fmt_vid_cap(struct file *file, void *priv,
 {
 	struct tw5864_input *input = video_drvdata(file);
 
-	f->fmt.pix.width = 720;
+	f->fmt.pix.width = 704;
 	switch (input->std) {
 	default:
 		WARN_ON_ONCE(1);
+		return -EINVAL;
 	case STD_NTSC:
 		f->fmt.pix.height = 480;
 		break;
@@ -600,7 +601,7 @@ static int tw5864_querycap(struct file *file, void *priv,
 {
 	struct tw5864_input *input = video_drvdata(file);
 
-	strcpy(cap->driver, "tw5864");
+	strscpy(cap->driver, "tw5864", sizeof(cap->driver));
 	snprintf(cap->card, sizeof(cap->card), "TW5864 Encoder %d",
 		 input->nr);
 	sprintf(cap->bus_info, "PCI:%s", pci_name(input->root->pci));
@@ -655,15 +656,14 @@ static int tw5864_subscribe_event(struct v4l2_fh *fh,
 				  const struct v4l2_event_subscription *sub)
 {
 	switch (sub->type) {
-	case V4L2_EVENT_CTRL:
-		return v4l2_ctrl_subscribe_event(fh, sub);
 	case V4L2_EVENT_MOTION_DET:
 		/*
 		 * Allow for up to 30 events (1 second for NTSC) to be stored.
 		 */
 		return v4l2_event_subscribe(fh, sub, 30, NULL);
+	default:
+		return v4l2_ctrl_subscribe_event(fh, sub);
 	}
-	return -EINVAL;
 }
 
 static void tw5864_frame_interval_set(struct tw5864_input *input)
@@ -708,6 +708,8 @@ static void tw5864_frame_interval_set(struct tw5864_input *input)
 static int tw5864_frameinterval_get(struct tw5864_input *input,
 				    struct v4l2_fract *frameinterval)
 {
+	struct tw5864_dev *dev = input->root;
+
 	switch (input->std) {
 	case STD_NTSC:
 		frameinterval->numerator = 1001;
@@ -719,8 +721,8 @@ static int tw5864_frameinterval_get(struct tw5864_input *input,
 		frameinterval->denominator = 25;
 		break;
 	default:
-		WARN(1, "tw5864_frameinterval_get requested for unknown std %d\n",
-		     input->std);
+		dev_warn(&dev->pci->dev, "tw5864_frameinterval_get requested for unknown std %d\n",
+			 input->std);
 		return -EINVAL;
 	}
 
@@ -738,7 +740,7 @@ static int tw5864_enum_framesizes(struct file *file, void *priv,
 		return -EINVAL;
 
 	fsize->type = V4L2_FRMSIZE_TYPE_DISCRETE;
-	fsize->discrete.width = 720;
+	fsize->discrete.width = 704;
 	fsize->discrete.height = input->std == STD_NTSC ? 480 : 576;
 
 	return 0;
@@ -1384,12 +1386,12 @@ static void tw5864_handle_frame(struct tw5864_h264_frame *frame)
 	input->vb = NULL;
 	spin_unlock_irqrestore(&input->slock, flags);
 
-	v4l2_buf = to_vb2_v4l2_buffer(&vb->vb.vb2_buf);
-
 	if (!vb) { /* Gone because of disabling */
 		dev_dbg(&dev->pci->dev, "vb is empty, dropping frame\n");
 		return;
 	}
+
+	v4l2_buf = to_vb2_v4l2_buffer(&vb->vb.vb2_buf);
 
 	/*
 	 * Check for space.

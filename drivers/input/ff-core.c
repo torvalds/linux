@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Force feedback support for Linux input subsystem
  *
@@ -6,19 +7,6 @@
  */
 
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 /* #define DEBUG */
@@ -237,9 +225,15 @@ int input_ff_erase(struct input_dev *dev, int effect_id, struct file *file)
 EXPORT_SYMBOL_GPL(input_ff_erase);
 
 /*
- * flush_effects - erase all effects owned by a file handle
+ * input_ff_flush - erase all effects owned by a file handle
+ * @dev: input device to erase effect from
+ * @file: purported owner of the effects
+ *
+ * This function erases all force-feedback effects associated with
+ * the given owner from specified device. Note that @file may be %NULL,
+ * in which case all effects will be erased.
  */
-static int flush_effects(struct input_dev *dev, struct file *file)
+int input_ff_flush(struct input_dev *dev, struct file *file)
 {
 	struct ff_device *ff = dev->ff;
 	int i;
@@ -255,6 +249,7 @@ static int flush_effects(struct input_dev *dev, struct file *file)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(input_ff_flush);
 
 /**
  * input_ff_event() - generic handler for force-feedback events
@@ -343,7 +338,7 @@ int input_ff_create(struct input_dev *dev, unsigned int max_effects)
 	mutex_init(&ff->mutex);
 
 	dev->ff = ff;
-	dev->flush = flush_effects;
+	dev->flush = input_ff_flush;
 	dev->event = input_ff_event;
 	__set_bit(EV_FF, dev->evbit);
 

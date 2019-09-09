@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * comedi/comedi_compat32.c
  * 32-bit ioctl compatibility for 64-bit comedi kernel module.
@@ -7,16 +8,6 @@
  *
  * COMEDI - Linux Control and Measurement Device Interface
  * Copyright (C) 1997-2007 David A. Schleef <ds@schleef.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/uaccess.h>
@@ -43,7 +34,7 @@
 struct comedi32_chaninfo_struct {
 	unsigned int subdev;
 	compat_uptr_t maxdata_list;	/* 32-bit 'unsigned int *' */
-	compat_uptr_t flaglist;		/* 32-bit 'unsigned int *' */
+	compat_uptr_t flaglist;	/* 32-bit 'unsigned int *' */
 	compat_uptr_t rangelist;	/* 32-bit 'unsigned int *' */
 	unsigned int unused[4];
 };
@@ -66,16 +57,16 @@ struct comedi32_cmd_struct {
 	unsigned int scan_end_arg;
 	unsigned int stop_src;
 	unsigned int stop_arg;
-	compat_uptr_t chanlist;		/* 32-bit 'unsigned int *' */
+	compat_uptr_t chanlist;	/* 32-bit 'unsigned int *' */
 	unsigned int chanlist_len;
-	compat_uptr_t data;		/* 32-bit 'short *' */
+	compat_uptr_t data;	/* 32-bit 'short *' */
 	unsigned int data_len;
 };
 
 struct comedi32_insn_struct {
 	unsigned int insn;
 	unsigned int n;
-	compat_uptr_t data;		/* 32-bit 'unsigned int *' */
+	compat_uptr_t data;	/* 32-bit 'unsigned int *' */
 	unsigned int subdev;
 	unsigned int chanspec;
 	unsigned int unused[3];
@@ -83,7 +74,7 @@ struct comedi32_insn_struct {
 
 struct comedi32_insnlist_struct {
 	unsigned int n_insns;
-	compat_uptr_t insns;		/* 32-bit 'struct comedi_insn *' */
+	compat_uptr_t insns;	/* 32-bit 'struct comedi_insn *' */
 };
 
 /* Handle translated ioctl. */
@@ -111,8 +102,8 @@ static int compat_chaninfo(struct file *file, unsigned long arg)
 	chaninfo = compat_alloc_user_space(sizeof(*chaninfo));
 
 	/* Copy chaninfo structure.  Ignore unused members. */
-	if (!access_ok(VERIFY_READ, chaninfo32, sizeof(*chaninfo32)) ||
-	    !access_ok(VERIFY_WRITE, chaninfo, sizeof(*chaninfo)))
+	if (!access_ok(chaninfo32, sizeof(*chaninfo32)) ||
+	    !access_ok(chaninfo, sizeof(*chaninfo)))
 		return -EFAULT;
 
 	err = 0;
@@ -145,8 +136,8 @@ static int compat_rangeinfo(struct file *file, unsigned long arg)
 	rangeinfo = compat_alloc_user_space(sizeof(*rangeinfo));
 
 	/* Copy rangeinfo structure. */
-	if (!access_ok(VERIFY_READ, rangeinfo32, sizeof(*rangeinfo32)) ||
-	    !access_ok(VERIFY_WRITE, rangeinfo, sizeof(*rangeinfo)))
+	if (!access_ok(rangeinfo32, sizeof(*rangeinfo32)) ||
+	    !access_ok(rangeinfo, sizeof(*rangeinfo)))
 		return -EFAULT;
 
 	err = 0;
@@ -172,8 +163,8 @@ static int get_compat_cmd(struct comedi_cmd __user *cmd,
 	} temp;
 
 	/* Copy cmd structure. */
-	if (!access_ok(VERIFY_READ, cmd32, sizeof(*cmd32)) ||
-	    !access_ok(VERIFY_WRITE, cmd, sizeof(*cmd)))
+	if (!access_ok(cmd32, sizeof(*cmd32)) ||
+	    !access_ok(cmd, sizeof(*cmd)))
 		return -EFAULT;
 
 	err = 0;
@@ -203,7 +194,7 @@ static int get_compat_cmd(struct comedi_cmd __user *cmd,
 	err |= __put_user(temp.uint, &cmd->stop_arg);
 	err |= __get_user(temp.uptr, &cmd32->chanlist);
 	err |= __put_user((unsigned int __force *)compat_ptr(temp.uptr),
-			&cmd->chanlist);
+			  &cmd->chanlist);
 	err |= __get_user(temp.uint, &cmd32->chanlist_len);
 	err |= __put_user(temp.uint, &cmd->chanlist_len);
 	err |= __get_user(temp.uptr, &cmd32->data);
@@ -226,8 +217,8 @@ static int put_compat_cmd(struct comedi32_cmd_struct __user *cmd32,
 	 * Assume the pointer values are already valid.
 	 * (Could use ptr_to_compat() to set them.)
 	 */
-	if (!access_ok(VERIFY_READ, cmd, sizeof(*cmd)) ||
-	    !access_ok(VERIFY_WRITE, cmd32, sizeof(*cmd32)))
+	if (!access_ok(cmd, sizeof(*cmd)) ||
+	    !access_ok(cmd32, sizeof(*cmd32)))
 		return -EFAULT;
 
 	err = 0;
@@ -326,8 +317,8 @@ static int get_compat_insn(struct comedi_insn __user *insn,
 
 	/* Copy insn structure.  Ignore the unused members. */
 	err = 0;
-	if (!access_ok(VERIFY_READ, insn32, sizeof(*insn32)) ||
-	    !access_ok(VERIFY_WRITE, insn, sizeof(*insn)))
+	if (!access_ok(insn32, sizeof(*insn32)) ||
+	    !access_ok(insn, sizeof(*insn)))
 		return -EFAULT;
 
 	err |= __get_user(temp.uint, &insn32->insn);
@@ -359,7 +350,7 @@ static int compat_insnlist(struct file *file, unsigned long arg)
 	insnlist32 = compat_ptr(arg);
 
 	/* Get 32-bit insnlist structure.  */
-	if (!access_ok(VERIFY_READ, insnlist32, sizeof(*insnlist32)))
+	if (!access_ok(insnlist32, sizeof(*insnlist32)))
 		return -EFAULT;
 
 	err = 0;
@@ -374,7 +365,7 @@ static int compat_insnlist(struct file *file, unsigned long arg)
 					     insn[n_insns]));
 
 	/* Set native insnlist structure. */
-	if (!access_ok(VERIFY_WRITE, &s->insnlist, sizeof(s->insnlist)))
+	if (!access_ok(&s->insnlist, sizeof(s->insnlist)))
 		return -EFAULT;
 
 	err |= __put_user(n_insns, &s->insnlist.n_insns);

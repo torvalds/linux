@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * CUSE: Character device in Userspace
  *
  * Copyright (C) 2008-2009  SUSE Linux Products GmbH
  * Copyright (C) 2008-2009  Tejun Heo <tj@kernel.org>
- *
- * This file is released under the GPLv2.
  *
  * CUSE enables character devices to be implemented from userland much
  * like FUSE allows filesystems.  On initialization /dev/cuse is
@@ -33,6 +32,8 @@
  * closed.
  */
 
+#define pr_fmt(fmt) "CUSE: " fmt
+
 #include <linux/fuse.h>
 #include <linux/cdev.h>
 #include <linux/device.h>
@@ -48,6 +49,7 @@
 #include <linux/stat.h>
 #include <linux/module.h>
 #include <linux/uio.h>
+#include <linux/user_namespace.h>
 
 #include "fuse_i.h"
 
@@ -90,7 +92,7 @@ static struct list_head *cuse_conntbl_head(dev_t devt)
 
 static ssize_t cuse_read_iter(struct kiocb *kiocb, struct iov_iter *to)
 {
-	struct fuse_io_priv io = FUSE_IO_PRIV_SYNC(kiocb->ki_filp);
+	struct fuse_io_priv io = FUSE_IO_PRIV_SYNC(kiocb);
 	loff_t pos = 0;
 
 	return fuse_direct_io(&io, to, &pos, FUSE_DIO_CUSE);
@@ -98,7 +100,7 @@ static ssize_t cuse_read_iter(struct kiocb *kiocb, struct iov_iter *to)
 
 static ssize_t cuse_write_iter(struct kiocb *kiocb, struct iov_iter *from)
 {
-	struct fuse_io_priv io = FUSE_IO_PRIV_SYNC(kiocb->ki_filp);
+	struct fuse_io_priv io = FUSE_IO_PRIV_SYNC(kiocb);
 	loff_t pos = 0;
 	/*
 	 * No locking or generic_write_checks(), the server is
@@ -140,10 +142,11 @@ static int cuse_open(struct inode *inode, struct file *file)
 
 static int cuse_release(struct inode *inode, struct file *file)
 {
+	struct fuse_inode *fi = get_fuse_inode(inode);
 	struct fuse_file *ff = file->private_data;
 	struct fuse_conn *fc = ff->fc;
 
-	fuse_sync_release(ff, file->f_flags);
+	fuse_sync_release(fi, ff, file->f_flags);
 	fuse_conn_put(fc);
 
 	return 0;
@@ -223,7 +226,7 @@ static int cuse_parse_one(char **pp, char *end, char **keyp, char **valp)
 		return 0;
 
 	if (end[-1] != '\0') {
-		printk(KERN_ERR "CUSE: info not properly terminated\n");
+		pr_err("info not properly terminated\n");
 		return -EINVAL;
 	}
 
@@ -240,7 +243,7 @@ static int cuse_parse_one(char **pp, char *end, char **keyp, char **valp)
 		key = strstrip(key);
 
 	if (!strlen(key)) {
-		printk(KERN_ERR "CUSE: zero length info key specified\n");
+		pr_err("zero length info key specified\n");
 		return -EINVAL;
 	}
 
@@ -280,12 +283,11 @@ static int cuse_parse_devinfo(char *p, size_t len, struct cuse_devinfo *devinfo)
 		if (strcmp(key, "DEVNAME") == 0)
 			devinfo->name = val;
 		else
-			printk(KERN_WARNING "CUSE: unknown device info \"%s\"\n",
-			       key);
+			pr_warn("unknown device info \"%s\"\n", key);
 	}
 
 	if (!devinfo->name || !strlen(devinfo->name)) {
-		printk(KERN_ERR "CUSE: DEVNAME unspecified\n");
+		pr_err("DEVNAME unspecified\n");
 		return -EINVAL;
 	}
 
@@ -339,7 +341,7 @@ static void cuse_process_init_reply(struct fuse_conn *fc, struct fuse_req *req)
 	else
 		rc = register_chrdev_region(devt, 1, devinfo.name);
 	if (rc) {
-		printk(KERN_ERR "CUSE: failed to register chrdev region\n");
+		pr_err("failed to register chrdev region\n");
 		goto err;
 	}
 
@@ -498,7 +500,11 @@ static int cuse_channel_open(struct inode *inode, struct file *file)
 	if (!cc)
 		return -ENOMEM;
 
-	fuse_conn_init(&cc->fc);
+	/*
+	 * Limit the cuse channel to requests that can
+	 * be represented in file->f_cred->user_ns.
+	 */
+	fuse_conn_init(&cc->fc, file->f_cred->user_ns);
 
 	fud = fuse_dev_alloc(&cc->fc);
 	if (!fud) {

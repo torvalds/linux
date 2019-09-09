@@ -1,22 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Driver for Freescale MC44S803 Low Power CMOS Broadband Tuner
  *
  *  Copyright (c) 2009 Jochen Friedrich <jochen@scram.de>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.=
  */
 
 #include <linux/module.h>
@@ -25,7 +11,7 @@
 #include <linux/i2c.h>
 #include <linux/slab.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 #include "mc44s803.h"
 #include "mc44s803_priv.h"
@@ -80,14 +66,12 @@ static int mc44s803_readreg(struct mc44s803_priv *priv, u8 reg, u32 *val)
 	return 0;
 }
 
-static int mc44s803_release(struct dvb_frontend *fe)
+static void mc44s803_release(struct dvb_frontend *fe)
 {
 	struct mc44s803_priv *priv = fe->tuner_priv;
 
 	fe->tuner_priv = NULL;
 	kfree(priv);
-
-	return 0;
 }
 
 static int mc44s803_init(struct dvb_frontend *fe)
@@ -306,10 +290,10 @@ static int mc44s803_get_if_frequency(struct dvb_frontend *fe, u32 *frequency)
 
 static const struct dvb_tuner_ops mc44s803_tuner_ops = {
 	.info = {
-		.name           = "Freescale MC44S803",
-		.frequency_min  =   48000000,
-		.frequency_max  = 1000000000,
-		.frequency_step =     100000,
+		.name              = "Freescale MC44S803",
+		.frequency_min_hz  =   48 * MHz,
+		.frequency_max_hz  = 1000 * MHz,
+		.frequency_step_hz =  100 * kHz,
 	},
 
 	.release       = mc44s803_release,
@@ -349,8 +333,8 @@ struct dvb_frontend *mc44s803_attach(struct dvb_frontend *fe,
 	id = MC44S803_REG_MS(reg, MC44S803_ID);
 
 	if (id != 0x14) {
-		mc_printk(KERN_ERR, "unsupported ID "
-		       "(%x should be 0x14)\n", id);
+		mc_printk(KERN_ERR, "unsupported ID (%x should be 0x14)\n",
+			  id);
 		goto error;
 	}
 

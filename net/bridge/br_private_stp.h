@@ -1,13 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *	Linux ethernet bridge
  *
  *	Authors:
  *	Lennert Buytenhek		<buytenh@gnu.org>
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
  */
 
 #ifndef _BR_PRIVATE_STP_H
@@ -61,6 +57,7 @@ void br_received_tcn_bpdu(struct net_bridge_port *p);
 void br_transmit_config(struct net_bridge_port *p);
 void br_transmit_tcn(struct net_bridge *br);
 void br_topology_change_detection(struct net_bridge *br);
+void __br_set_topology_change(struct net_bridge *br, unsigned char val);
 
 /* br_stp_bpdu.c */
 void br_send_config_bpdu(struct net_bridge_port *, struct br_config_bpdu *);

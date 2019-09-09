@@ -1,19 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*******************************************************************************
 
   EZNPS CPU startup Code
   Copyright(c) 2012 EZchip Technologies.
 
-  This program is free software; you can redistribute it and/or modify it
-  under the terms and conditions of the GNU General Public License,
-  version 2, as published by the Free Software Foundation.
-
-  This program is distributed in the hope it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
-  more details.
-
-  The full GNU General Public License is included in this distribution in
-  the file called "COPYING".
 
 *******************************************************************************/
 #include <linux/linkage.h>
@@ -27,7 +17,7 @@
 	.align 1024	; HW requierment for restart first PC
 
 ENTRY(res_service)
-#ifdef CONFIG_EZNPS_MTM_EXT
+#if defined(CONFIG_EZNPS_MTM_EXT) && defined(CONFIG_EZNPS_SHARED_AUX_REGS)
 	; There is no work for HW thread id != 0
 	lr	r3, [CTOP_AUX_THREAD_ID]
 	cmp	r3, 0

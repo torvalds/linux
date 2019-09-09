@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * HDMI PHY
  *
  * Copyright (C) 2013 Texas Instruments Incorporated
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 
 #include <linux/kernel.h>
@@ -13,6 +10,8 @@
 #include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
+#include <linux/seq_file.h>
+
 #include <video/omapfb_dss.h>
 
 #include "dss.h"
@@ -189,47 +188,30 @@ static const struct hdmi_phy_features omap54xx_phy_feats = {
 	.max_phy	=	186000000,
 };
 
-static int hdmi_phy_init_features(struct platform_device *pdev)
+static const struct hdmi_phy_features *hdmi_phy_get_features(void)
 {
-	struct hdmi_phy_features *dst;
-	const struct hdmi_phy_features *src;
-
-	dst = devm_kzalloc(&pdev->dev, sizeof(*dst), GFP_KERNEL);
-	if (!dst) {
-		dev_err(&pdev->dev, "Failed to allocate HDMI PHY Features\n");
-		return -ENOMEM;
-	}
-
 	switch (omapdss_get_version()) {
 	case OMAPDSS_VER_OMAP4430_ES1:
 	case OMAPDSS_VER_OMAP4430_ES2:
 	case OMAPDSS_VER_OMAP4:
-		src = &omap44xx_phy_feats;
-		break;
+		return &omap44xx_phy_feats;
 
 	case OMAPDSS_VER_OMAP5:
 	case OMAPDSS_VER_DRA7xx:
-		src = &omap54xx_phy_feats;
-		break;
+		return &omap54xx_phy_feats;
 
 	default:
-		return -ENODEV;
+		return NULL;
 	}
-
-	memcpy(dst, src, sizeof(*dst));
-	phy_feat = dst;
-
-	return 0;
 }
 
 int hdmi_phy_init(struct platform_device *pdev, struct hdmi_phy_data *phy)
 {
-	int r;
 	struct resource *res;
 
-	r = hdmi_phy_init_features(pdev);
-	if (r)
-		return r;
+	phy_feat = hdmi_phy_get_features();
+	if (!phy_feat)
+		return -ENODEV;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "phy");
 	if (!res) {

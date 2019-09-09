@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * test-all.c: Try to build all the main testcases at once.
  *
@@ -33,6 +34,14 @@
 # include "test-libelf-mmap.c"
 #undef main
 
+#define main main_test_get_current_dir_name
+# include "test-get_current_dir_name.c"
+#undef main
+
+#define main main_test_gettid
+# include "test-gettid.c"
+#undef main
+
 #define main main_test_glibc
 # include "test-glibc.c"
 #undef main
@@ -43,6 +52,10 @@
 
 #define main main_test_dwarf_getlocations
 # include "test-dwarf_getlocations.c"
+#undef main
+
+#define main main_test_eventfd
+# include "test-eventfd.c"
 #undef main
 
 #define main main_test_libelf_getphdrnum
@@ -117,6 +130,14 @@
 # include "test-pthread-attr-setaffinity-np.c"
 #undef main
 
+#define main main_test_pthread_barrier
+# include "test-pthread-barrier.c"
+#undef main
+
+#define main main_test_sched_getcpu
+# include "test-sched_getcpu.c"
+#undef main
+
 # if 0
 /*
  * Disable libbabeltrace check for test-all, because the requested
@@ -149,6 +170,26 @@
 # include "test-sdt.c"
 #undef main
 
+#define main main_test_setns
+# include "test-setns.c"
+#undef main
+
+#define main main_test_libaio
+# include "test-libaio.c"
+#undef main
+
+#define main main_test_reallocarray
+# include "test-reallocarray.c"
+#undef main
+
+#define main main_test_disassembler_four_args
+# include "test-disassembler-four-args.c"
+#undef main
+
+#define main main_test_libzstd
+# include "test-libzstd.c"
+#undef main
+
 int main(int argc, char *argv[])
 {
 	main_test_libpython();
@@ -157,9 +198,12 @@ int main(int argc, char *argv[])
 	main_test_hello();
 	main_test_libelf();
 	main_test_libelf_mmap();
+	main_test_get_current_dir_name();
+	main_test_gettid();
 	main_test_glibc();
 	main_test_dwarf();
 	main_test_dwarf_getlocations();
+	main_test_eventfd();
 	main_test_libelf_getphdrnum();
 	main_test_libelf_gelf_getnote();
 	main_test_libelf_getshdrstrndx();
@@ -178,11 +222,18 @@ int main(int argc, char *argv[])
 	main_test_sync_compare_and_swap(argc, argv);
 	main_test_zlib();
 	main_test_pthread_attr_setaffinity_np();
+	main_test_pthread_barrier();
 	main_test_lzma();
 	main_test_get_cpuid();
 	main_test_bpf();
 	main_test_libcrypto();
+	main_test_sched_getcpu();
 	main_test_sdt();
+	main_test_setns();
+	main_test_libaio();
+	main_test_reallocarray();
+	main_test_disassembler_four_args();
+	main_test_libzstd();
 
 	return 0;
 }

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*	Copyright (C) 2009 - 2010 Ivo van Doorn <IvDoorn@gmail.com>
  *	Copyright (C) 2009 Alban Browaeys <prahal@yahoo.com>
  *	Copyright (C) 2009 Felix Fietkau <nbd@openwrt.org>
@@ -7,19 +8,6 @@
  *	Copyright (C) 2009 Xose Vazquez Perez <xose.vazquez@gmail.com>
  *	Copyright (C) 2009 Bart Zolnierkiewicz <bzolnier@gmail.com>
  *	<http://rt2x00.serialmonkey.com>
- *
- *	This program is free software; you can redistribute it and/or modify
- *	it under the terms of the GNU General Public License as published by
- *	the Free Software Foundation; either version 2 of the License, or
- *	(at your option) any later version.
- *
- *	This program is distributed in the hope that it will be useful,
- *	but WITHOUT ANY WARRANTY; without even the implied warranty of
- *	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- *	GNU General Public License for more details.
- *
- *	You should have received a copy of the GNU General Public License
- *	along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 /*	Module: rt2800mmio
@@ -126,6 +114,8 @@
 #define RXD_W3_PLCP_SIGNAL		FIELD32(0x00020000)
 #define RXD_W3_PLCP_RSSI		FIELD32(0x00040000)
 
+unsigned int rt2800mmio_get_dma_done(struct data_queue *queue);
+
 /* TX descriptor initialization */
 __le32 *rt2800mmio_get_txwi(struct queue_entry *entry);
 void rt2800mmio_write_tx_desc(struct queue_entry *entry,
@@ -148,10 +138,12 @@ void rt2800mmio_toggle_irq(struct rt2x00_dev *rt2x00dev,
 /* Queue handlers */
 void rt2800mmio_start_queue(struct data_queue *queue);
 void rt2800mmio_kick_queue(struct data_queue *queue);
+void rt2800mmio_flush_queue(struct data_queue *queue, bool drop);
 void rt2800mmio_stop_queue(struct data_queue *queue);
 void rt2800mmio_queue_init(struct data_queue *queue);
 
 /* Initialization functions */
+int rt2800mmio_probe_hw(struct rt2x00_dev *rt2x00dev);
 bool rt2800mmio_get_entry_state(struct queue_entry *entry);
 void rt2800mmio_clear_entry(struct queue_entry *entry);
 int rt2800mmio_init_queues(struct rt2x00_dev *rt2x00dev);

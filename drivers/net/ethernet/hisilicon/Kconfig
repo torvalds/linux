@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # HISILICON device configuration
 #
@@ -5,7 +6,7 @@
 config NET_VENDOR_HISILICON
 	bool "Hisilicon devices"
 	default y
-	depends on (OF || ACPI) && HAS_DMA
+	depends on OF || ACPI
 	depends on ARM || ARM64 || COMPILE_TEST
 	---help---
 	  If you have a network (Ethernet) card belonging to this class, say Y.
@@ -45,6 +46,16 @@ config HIP04_ETH
 	  If you wish to compile a kernel for a hardware with hisilicon p04 SoC and
 	  want to use the internal ethernet then you should answer Y to this.
 
+config HI13X1_GMAC
+	bool "Hisilicon HI13X1 Network Device Support"
+	depends on HIP04_ETH
+	help
+	  If you wish to compile a kernel for a hardware with hisilicon hi13x1_gamc
+	  then you should answer Y to this. This makes this driver suitable for use
+	  on certain boards such as the HI13X1.
+
+	  If you are unsure, say N.
+
 config HNS_MDIO
 	tristate
 	select PHYLIB
@@ -75,5 +86,55 @@ config HNS_ENET
 	---help---
 	  This selects the general ethernet driver for HNS.  This module make
 	  use of any HNS AE driver, such as HNS_DSAF
+
+config HNS3
+	tristate "Hisilicon Network Subsystem Support HNS3 (Framework)"
+	depends on PCI
+	---help---
+	  This selects the framework support for Hisilicon Network Subsystem 3.
+	  This layer facilitates clients like ENET, RoCE and user-space ethernet
+	  drivers(like ODP)to register with HNAE devices and their associated
+	  operations.
+
+if HNS3
+
+config HNS3_HCLGE
+	tristate "Hisilicon HNS3 HCLGE Acceleration Engine & Compatibility Layer Support"
+	default m
+	depends on PCI_MSI
+	---help---
+	  This selects the HNS3_HCLGE network acceleration engine & its hardware
+	  compatibility layer. The engine would be used in Hisilicon hip08 family of
+	  SoCs and further upcoming SoCs.
+
+config HNS3_DCB
+	bool "Hisilicon HNS3 Data Center Bridge Support"
+	default n
+	depends on HNS3_HCLGE && DCB
+	---help---
+	  Say Y here if you want to use Data Center Bridging (DCB) in the HNS3 driver.
+
+	  If unsure, say N.
+
+config HNS3_HCLGEVF
+	tristate "Hisilicon HNS3VF Acceleration Engine & Compatibility Layer Support"
+	depends on PCI_MSI
+	depends on HNS3_HCLGE
+    ---help---
+	  This selects the HNS3 VF drivers network acceleration engine & its hardware
+	  compatibility layer. The engine would be used in Hisilicon hip08 family of
+	  SoCs and further upcoming SoCs.
+
+config HNS3_ENET
+	tristate "Hisilicon HNS3 Ethernet Device Support"
+	default m
+	depends on 64BIT && PCI
+	depends on INET
+	---help---
+	  This selects the Ethernet Driver for Hisilicon Network Subsystem 3 for hip08
+	  family of SoCs. This module depends upon HNAE3 driver to access the HNAE3
+	  devices and their associated operations.
+
+endif #HNS3
 
 endif # NET_VENDOR_HISILICON

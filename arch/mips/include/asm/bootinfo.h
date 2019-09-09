@@ -79,6 +79,8 @@ enum loongson_machine_type {
  */
 #define  MACH_INGENIC_JZ4730	0	/* JZ4730 SOC		*/
 #define  MACH_INGENIC_JZ4740	1	/* JZ4740 SOC		*/
+#define  MACH_INGENIC_JZ4770	2	/* JZ4770 SOC		*/
+#define  MACH_INGENIC_JZ4780	3	/* JZ4780 SOC		*/
 
 extern char *system_type;
 const char *get_system_type(void);
@@ -90,6 +92,7 @@ extern unsigned long mips_machtype;
 #define BOOT_MEM_ROM_DATA	2
 #define BOOT_MEM_RESERVED	3
 #define BOOT_MEM_INIT_RAM	4
+#define BOOT_MEM_NOMAP		5
 
 /*
  * A memory map that's built upon what was determined
@@ -164,6 +167,19 @@ static inline void plat_swiotlb_setup(void) {}
  * Return: Pointer to the flattened device tree blob.
  */
 extern void *plat_get_fdt(void);
+
+#ifdef CONFIG_RELOCATABLE
+
+/**
+ * plat_fdt_relocated() - Update platform's information about relocated dtb
+ *
+ * This function provides a platform-independent API to set platform's
+ * information about relocated DTB if it needs to be moved due to kernel
+ * relocation occurring at boot.
+ */
+void plat_fdt_relocated(void *new_location);
+
+#endif /* CONFIG_RELOCATABLE */
 #endif /* CONFIG_USE_OF */
 
 #endif /* _ASM_BOOTINFO_H */

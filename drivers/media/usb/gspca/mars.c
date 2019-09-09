@@ -1,22 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *		Mars-Semi MR97311A library
  *		Copyright (C) 2005 <bradlch@hotmail.com>
  *
  * V4L2 by Jean-Francois Moine <http://moinejf.free.fr>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -382,8 +369,8 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			    || data[5 + p] == 0x65
 			    || data[5 + p] == 0x66
 			    || data[5 + p] == 0x67) {
-				PDEBUG(D_PACK, "sof offset: %d len: %d",
-					p, len);
+				gspca_dbg(gspca_dev, D_PACK, "sof offset: %d len: %d\n",
+					  p, len);
 				gspca_frame_add(gspca_dev, LAST_PACKET,
 						data, p);
 

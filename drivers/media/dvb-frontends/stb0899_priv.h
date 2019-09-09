@@ -1,28 +1,16 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
 	STB0899 Multistandard Frontend driver
 	Copyright (C) Manu Abraham (abraham.manu@gmail.com)
 
 	Copyright (C) ST Microelectronics
 
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 2 of the License, or
-	(at your option) any later version.
-
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU General Public License for more details.
-
-	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the Free Software
-	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
 #ifndef __STB0899_PRIV_H
 #define __STB0899_PRIV_H
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "stb0899_drv.h"
 
 #define FE_ERROR				0
@@ -252,7 +240,7 @@ extern int stb0899_write_s2reg(struct stb0899_state *state,
 extern int stb0899_i2c_gate_ctrl(struct dvb_frontend *fe, int enable);
 
 
-#define STB0899_READ_S2REG(DEVICE, REG) 	(_stb0899_read_s2reg(state, DEVICE, STB0899_BASE_##REG, STB0899_OFF0_##REG))
+#define STB0899_READ_S2REG(DEVICE, REG)		(_stb0899_read_s2reg(state, DEVICE, STB0899_BASE_##REG, STB0899_OFF0_##REG))
 //#define STB0899_WRITE_S2REG(DEVICE, REG, DATA)	(_stb0899_write_s2reg(state, DEVICE, STB0899_BASE_##REG, STB0899_OFF0_##REG, DATA))
 
 /* stb0899_algo.c	*/

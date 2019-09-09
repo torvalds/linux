@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * C-Media CMI8788 driver for C-Media's reference design and similar models
  *
  * Copyright (c) Clemens Ladisch <clemens@ladisch.de>
- *
- *
- *  This driver is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License, version 2.
- *
- *  This driver is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this driver; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 /*
@@ -767,6 +755,8 @@ static int get_oxygen_model(struct oxygen *chip,
 		[MODEL_FANTASIA]	= "TempoTec HiFier Fantasia",
 		[MODEL_SERENADE]	= "TempoTec HiFier Serenade",
 		[MODEL_HG2PCI]		= "CMI8787-HG2PCI",
+		[MODEL_XONAR_DG]        = "Xonar DG",
+		[MODEL_XONAR_DGX]       = "Xonar DGX",
 	};
 
 	chip->model = model_generic;
@@ -829,12 +819,8 @@ static int get_oxygen_model(struct oxygen *chip,
 		chip->model.dac_channels_mixer = 2;
 		break;
 	case MODEL_XONAR_DG:
-		chip->model = model_xonar_dg;
-		chip->model.shortname = "Xonar DG";
-		break;
 	case MODEL_XONAR_DGX:
 		chip->model = model_xonar_dg;
-		chip->model.shortname = "Xonar DGX";
 		break;
 	}
 	if (id->driver_data == MODEL_MERIDIAN ||

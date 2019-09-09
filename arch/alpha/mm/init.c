@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  linux/arch/alpha/mm/init.c
  *
@@ -18,11 +19,11 @@
 #include <linux/mm.h>
 #include <linux/swap.h>
 #include <linux/init.h>
-#include <linux/bootmem.h> /* max_low_pfn */
+#include <linux/memblock.h> /* max_low_pfn */
 #include <linux/vmalloc.h>
 #include <linux/gfp.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
 #include <asm/hwrpb.h>
@@ -281,20 +282,6 @@ mem_init(void)
 {
 	set_max_mapnr(max_low_pfn);
 	high_memory = (void *) __va(max_low_pfn * PAGE_SIZE);
-	free_all_bootmem();
+	memblock_free_all();
 	mem_init_print_info(NULL);
 }
-
-void
-free_initmem(void)
-{
-	free_initmem_default(-1);
-}
-
-#ifdef CONFIG_BLK_DEV_INITRD
-void
-free_initrd_mem(unsigned long start, unsigned long end)
-{
-	free_reserved_area((void *)start, (void *)end, -1, "initrd");
-}
-#endif

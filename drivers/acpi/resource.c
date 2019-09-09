@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * drivers/acpi/resource.c - ACPI device resources interpretation.
  *
@@ -5,15 +6,6 @@
  * Author: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as published
- *  by the Free Software Foundation.
- *
- *  This program is distributed in the hope that it will be useful, but
- *  WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  General Public License for more details.
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
@@ -41,6 +33,19 @@ static inline bool acpi_iospace_resource_valid(struct resource *res)
  */
 static inline bool
 acpi_iospace_resource_valid(struct resource *res) { return true; }
+#endif
+
+#if IS_ENABLED(CONFIG_ACPI_GENERIC_GSI)
+static inline bool is_gsi(struct acpi_resource_extended_irq *ext_irq)
+{
+	return ext_irq->resource_source.string_length == 0 &&
+	       ext_irq->producer_consumer == ACPI_CONSUMER;
+}
+#else
+static inline bool is_gsi(struct acpi_resource_extended_irq *ext_irq)
+{
+	return true;
+}
 #endif
 
 static bool acpi_dev_resource_len_valid(u64 start, u64 end, u64 len, bool io)
@@ -368,6 +373,7 @@ unsigned int acpi_dev_get_irq_type(int triggering, int polarity)
 	case ACPI_ACTIVE_BOTH:
 		if (triggering == ACPI_EDGE_SENSITIVE)
 			return IRQ_TYPE_EDGE_BOTH;
+		/* fall through */
 	default:
 		return IRQ_TYPE_NONE;
 	}
@@ -393,7 +399,7 @@ static void acpi_dev_get_irqresource(struct resource *res, u32 gsi,
 	}
 
 	/*
-	 * In IO-APIC mode, use overrided attribute. Two reasons:
+	 * In IO-APIC mode, use overridden attribute. Two reasons:
 	 * 1. BIOS bug in DSDT
 	 * 2. BIOS uses IO-APIC mode Interrupt Source Override
 	 *
@@ -462,7 +468,7 @@ bool acpi_dev_resource_interrupt(struct acpi_resource *ares, int index,
 		}
 		acpi_dev_get_irqresource(res, irq->interrupts[index],
 					 irq->triggering, irq->polarity,
-					 irq->sharable, true);
+					 irq->shareable, true);
 		break;
 	case ACPI_RESOURCE_TYPE_EXTENDED_IRQ:
 		ext_irq = &ares->data.extended_irq;
@@ -470,9 +476,12 @@ bool acpi_dev_resource_interrupt(struct acpi_resource *ares, int index,
 			acpi_dev_irqresource_disabled(res, 0);
 			return false;
 		}
-		acpi_dev_get_irqresource(res, ext_irq->interrupts[index],
+		if (is_gsi(ext_irq))
+			acpi_dev_get_irqresource(res, ext_irq->interrupts[index],
 					 ext_irq->triggering, ext_irq->polarity,
-					 ext_irq->sharable, false);
+					 ext_irq->shareable, false);
+		else
+			acpi_dev_irqresource_disabled(res, 0);
 		break;
 	default:
 		res->flags = 0;
@@ -557,6 +566,35 @@ static acpi_status acpi_dev_process_resource(struct acpi_resource *ares,
 	return AE_OK;
 }
 
+static int __acpi_dev_get_resources(struct acpi_device *adev,
+				    struct list_head *list,
+				    int (*preproc)(struct acpi_resource *, void *),
+				    void *preproc_data, char *method)
+{
+	struct res_proc_context c;
+	acpi_status status;
+
+	if (!adev || !adev->handle || !list_empty(list))
+		return -EINVAL;
+
+	if (!acpi_has_method(adev->handle, method))
+		return 0;
+
+	c.list = list;
+	c.preproc = preproc;
+	c.preproc_data = preproc_data;
+	c.count = 0;
+	c.error = 0;
+	status = acpi_walk_resources(adev->handle, method,
+				     acpi_dev_process_resource, &c);
+	if (ACPI_FAILURE(status)) {
+		acpi_dev_free_resource_list(list);
+		return c.error ? c.error : -EIO;
+	}
+
+	return c.count;
+}
+
 /**
  * acpi_dev_get_resources - Get current resources of a device.
  * @adev: ACPI device node to get the resources for.
@@ -585,30 +623,45 @@ int acpi_dev_get_resources(struct acpi_device *adev, struct list_head *list,
 			   int (*preproc)(struct acpi_resource *, void *),
 			   void *preproc_data)
 {
-	struct res_proc_context c;
-	acpi_status status;
-
-	if (!adev || !adev->handle || !list_empty(list))
-		return -EINVAL;
-
-	if (!acpi_has_method(adev->handle, METHOD_NAME__CRS))
-		return 0;
-
-	c.list = list;
-	c.preproc = preproc;
-	c.preproc_data = preproc_data;
-	c.count = 0;
-	c.error = 0;
-	status = acpi_walk_resources(adev->handle, METHOD_NAME__CRS,
-				     acpi_dev_process_resource, &c);
-	if (ACPI_FAILURE(status)) {
-		acpi_dev_free_resource_list(list);
-		return c.error ? c.error : -EIO;
-	}
-
-	return c.count;
+	return __acpi_dev_get_resources(adev, list, preproc, preproc_data,
+					METHOD_NAME__CRS);
 }
 EXPORT_SYMBOL_GPL(acpi_dev_get_resources);
+
+static int is_memory(struct acpi_resource *ares, void *not_used)
+{
+	struct resource_win win;
+	struct resource *res = &win.res;
+
+	memset(&win, 0, sizeof(win));
+
+	return !(acpi_dev_resource_memory(ares, res)
+	       || acpi_dev_resource_address_space(ares, &win)
+	       || acpi_dev_resource_ext_address_space(ares, &win));
+}
+
+/**
+ * acpi_dev_get_dma_resources - Get current DMA resources of a device.
+ * @adev: ACPI device node to get the resources for.
+ * @list: Head of the resultant list of resources (must be empty).
+ *
+ * Evaluate the _DMA method for the given device node and process its
+ * output.
+ *
+ * The resultant struct resource objects are put on the list pointed to
+ * by @list, that must be empty initially, as members of struct
+ * resource_entry objects.  Callers of this routine should use
+ * %acpi_dev_free_resource_list() to free that list.
+ *
+ * The number of resources in the output list is returned on success,
+ * an error code reflecting the error condition is returned otherwise.
+ */
+int acpi_dev_get_dma_resources(struct acpi_device *adev, struct list_head *list)
+{
+	return __acpi_dev_get_resources(adev, list, is_memory, NULL,
+					METHOD_NAME__DMA);
+}
+EXPORT_SYMBOL_GPL(acpi_dev_get_dma_resources);
 
 /**
  * acpi_dev_filter_resource_type - Filter ACPI resource according to resource
@@ -664,3 +717,60 @@ int acpi_dev_filter_resource_type(struct acpi_resource *ares,
 	return (type & types) ? 0 : 1;
 }
 EXPORT_SYMBOL_GPL(acpi_dev_filter_resource_type);
+
+static int acpi_dev_consumes_res(struct acpi_device *adev, struct resource *res)
+{
+	struct list_head resource_list;
+	struct resource_entry *rentry;
+	int ret, found = 0;
+
+	INIT_LIST_HEAD(&resource_list);
+	ret = acpi_dev_get_resources(adev, &resource_list, NULL, NULL);
+	if (ret < 0)
+		return 0;
+
+	list_for_each_entry(rentry, &resource_list, node) {
+		if (resource_contains(rentry->res, res)) {
+			found = 1;
+			break;
+		}
+
+	}
+
+	acpi_dev_free_resource_list(&resource_list);
+	return found;
+}
+
+static acpi_status acpi_res_consumer_cb(acpi_handle handle, u32 depth,
+					 void *context, void **ret)
+{
+	struct resource *res = context;
+	struct acpi_device **consumer = (struct acpi_device **) ret;
+	struct acpi_device *adev;
+
+	if (acpi_bus_get_device(handle, &adev))
+		return AE_OK;
+
+	if (acpi_dev_consumes_res(adev, res)) {
+		*consumer = adev;
+		return AE_CTRL_TERMINATE;
+	}
+
+	return AE_OK;
+}
+
+/**
+ * acpi_resource_consumer - Find the ACPI device that consumes @res.
+ * @res: Resource to search for.
+ *
+ * Search the current resource settings (_CRS) of every ACPI device node
+ * for @res.  If we find an ACPI device whose _CRS includes @res, return
+ * it.  Otherwise, return NULL.
+ */
+struct acpi_device *acpi_resource_consumer(struct resource *res)
+{
+	struct acpi_device *consumer = NULL;
+
+	acpi_get_devices(NULL, acpi_res_consumer_cb, res, (void **) &consumer);
+	return consumer;
+}

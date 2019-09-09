@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2015, Linaro Limited, Shannon Zhao
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/platform_device.h>
@@ -58,17 +47,21 @@ static int xen_map_device_mmio(const struct resource *resources,
 	xen_pfn_t *gpfns;
 	xen_ulong_t *idxs;
 	int *errs;
-	struct xen_add_to_physmap_range xatp;
 
 	for (i = 0; i < count; i++) {
+		struct xen_add_to_physmap_range xatp = {
+			.domid = DOMID_SELF,
+			.space = XENMAPSPACE_dev_mmio
+		};
+
 		r = &resources[i];
 		nr = DIV_ROUND_UP(resource_size(r), XEN_PAGE_SIZE);
 		if ((resource_type(r) != IORESOURCE_MEM) || (nr == 0))
 			continue;
 
-		gpfns = kzalloc(sizeof(xen_pfn_t) * nr, GFP_KERNEL);
-		idxs = kzalloc(sizeof(xen_ulong_t) * nr, GFP_KERNEL);
-		errs = kzalloc(sizeof(int) * nr, GFP_KERNEL);
+		gpfns = kcalloc(nr, sizeof(xen_pfn_t), GFP_KERNEL);
+		idxs = kcalloc(nr, sizeof(xen_ulong_t), GFP_KERNEL);
+		errs = kcalloc(nr, sizeof(int), GFP_KERNEL);
 		if (!gpfns || !idxs || !errs) {
 			kfree(gpfns);
 			kfree(idxs);
@@ -87,9 +80,7 @@ static int xen_map_device_mmio(const struct resource *resources,
 			idxs[j] = XEN_PFN_DOWN(r->start) + j;
 		}
 
-		xatp.domid = DOMID_SELF;
 		xatp.size = nr;
-		xatp.space = XENMAPSPACE_dev_mmio;
 
 		set_xen_guest_handle(xatp.gpfns, gpfns);
 		set_xen_guest_handle(xatp.idxs, idxs);

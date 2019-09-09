@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * LP8755 High Performance Power Management Unit : System Interface Driver
  * (based on rev. 0.26)
  * Copyright 2012 Texas Instruments
  *
  * Author: Daniel(Geon Si) Jeong <daniel.jeong@ti.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/module.h>
@@ -99,7 +95,7 @@ static int lp8755_buck_enable_time(struct regulator_dev *rdev)
 
 	ret = lp8755_read(pchip, 0x12 + id, &regval);
 	if (ret < 0) {
-		dev_err(pchip->dev, "i2c acceess error %s\n", __func__);
+		dev_err(pchip->dev, "i2c access error %s\n", __func__);
 		return ret;
 	}
 	return (regval & 0xff) * 100;
@@ -144,7 +140,7 @@ static int lp8755_buck_set_mode(struct regulator_dev *rdev, unsigned int mode)
 		goto err_i2c;
 	return ret;
 err_i2c:
-	dev_err(pchip->dev, "i2c acceess error %s\n", __func__);
+	dev_err(pchip->dev, "i2c access error %s\n", __func__);
 	return ret;
 }
 
@@ -175,7 +171,7 @@ static unsigned int lp8755_buck_get_mode(struct regulator_dev *rdev)
 	return REGULATOR_MODE_NORMAL;
 
 err_i2c:
-	dev_err(pchip->dev, "i2c acceess error %s\n", __func__);
+	dev_err(pchip->dev, "i2c access error %s\n", __func__);
 	return 0;
 }
 
@@ -223,11 +219,11 @@ static int lp8755_buck_set_ramp(struct regulator_dev *rdev, int ramp)
 		goto err_i2c;
 	return ret;
 err_i2c:
-	dev_err(pchip->dev, "i2c acceess error %s\n", __func__);
+	dev_err(pchip->dev, "i2c access error %s\n", __func__);
 	return ret;
 }
 
-static struct regulator_ops lp8755_buck_ops = {
+static const struct regulator_ops lp8755_buck_ops = {
 	.map_voltage = regulator_map_voltage_linear,
 	.list_voltage = regulator_list_voltage_linear,
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
@@ -295,7 +291,7 @@ static int lp8755_init_data(struct lp8755_chip *pchip)
 	return ret;
 
 out_i2c_error:
-	dev_err(pchip->dev, "i2c acceess error %s\n", __func__);
+	dev_err(pchip->dev, "i2c access error %s\n", __func__);
 	return ret;
 }
 
@@ -315,7 +311,7 @@ out_i2c_error:
 	.vsel_mask = LP8755_BUCK_VOUT_M,\
 }
 
-static struct regulator_desc lp8755_regulators[] = {
+static const struct regulator_desc lp8755_regulators[] = {
 	lp8755_buck_desc(0),
 	lp8755_buck_desc(1),
 	lp8755_buck_desc(2),
@@ -372,10 +368,13 @@ static irqreturn_t lp8755_irq_handler(int irq, void *data)
 	for (icnt = 0; icnt < LP8755_BUCK_MAX; icnt++)
 		if ((flag0 & (0x4 << icnt))
 		    && (pchip->irqmask & (0x04 << icnt))
-		    && (pchip->rdev[icnt] != NULL))
+		    && (pchip->rdev[icnt] != NULL)) {
+			regulator_lock(pchip->rdev[icnt]);
 			regulator_notifier_call_chain(pchip->rdev[icnt],
 						      LP8755_EVENT_PWR_FAULT,
 						      NULL);
+			regulator_unlock(pchip->rdev[icnt]);
+		}
 
 	/* read flag1 register */
 	ret = lp8755_read(pchip, 0x0E, &flag1);
@@ -386,25 +385,31 @@ static irqreturn_t lp8755_irq_handler(int irq, void *data)
 	if (ret < 0)
 		goto err_i2c;
 
-	/* send OCP event to all regualtor devices */
+	/* send OCP event to all regulator devices */
 	if ((flag1 & 0x01) && (pchip->irqmask & 0x01))
 		for (icnt = 0; icnt < LP8755_BUCK_MAX; icnt++)
-			if (pchip->rdev[icnt] != NULL)
+			if (pchip->rdev[icnt] != NULL) {
+				regulator_lock(pchip->rdev[icnt]);
 				regulator_notifier_call_chain(pchip->rdev[icnt],
 							      LP8755_EVENT_OCP,
 							      NULL);
+				regulator_unlock(pchip->rdev[icnt]);
+			}
 
-	/* send OVP event to all regualtor devices */
+	/* send OVP event to all regulator devices */
 	if ((flag1 & 0x02) && (pchip->irqmask & 0x02))
 		for (icnt = 0; icnt < LP8755_BUCK_MAX; icnt++)
-			if (pchip->rdev[icnt] != NULL)
+			if (pchip->rdev[icnt] != NULL) {
+				regulator_lock(pchip->rdev[icnt]);
 				regulator_notifier_call_chain(pchip->rdev[icnt],
 							      LP8755_EVENT_OVP,
 							      NULL);
+				regulator_unlock(pchip->rdev[icnt]);
+			}
 	return IRQ_HANDLED;
 
 err_i2c:
-	dev_err(pchip->dev, "i2c acceess error %s\n", __func__);
+	dev_err(pchip->dev, "i2c access error %s\n", __func__);
 	return IRQ_NONE;
 }
 
@@ -420,7 +425,7 @@ static int lp8755_int_config(struct lp8755_chip *pchip)
 
 	ret = lp8755_read(pchip, 0x0F, &regval);
 	if (ret < 0) {
-		dev_err(pchip->dev, "i2c acceess error %s\n", __func__);
+		dev_err(pchip->dev, "i2c access error %s\n", __func__);
 		return ret;
 	}
 

@@ -6,27 +6,59 @@ axp202 (X-Powers)
 axp209 (X-Powers)
 axp221 (X-Powers)
 axp223 (X-Powers)
+axp803 (X-Powers)
+axp806 (X-Powers)
 axp809 (X-Powers)
+axp813 (X-Powers)
+
+The AXP813 is 2 chips packaged into 1. The 2 chips do not share anything
+other than the packaging. Pins are routed separately. As such they should
+be treated as separate entities. The other half is an AC100 RTC/codec
+combo chip. Please see ./ac100.txt for its bindings.
 
 Required properties:
-- compatible: "x-powers,axp152", "x-powers,axp202", "x-powers,axp209",
-	      "x-powers,axp221", "x-powers,axp223", "x-powers,axp806",
-	      "x-powers,axp809"
+- compatible: should be one of:
+    * "x-powers,axp152"
+    * "x-powers,axp202"
+    * "x-powers,axp209"
+    * "x-powers,axp221"
+    * "x-powers,axp223"
+    * "x-powers,axp803"
+    * "x-powers,axp806"
+    * "x-powers,axp805", "x-powers,axp806"
+    * "x-powers,axp809"
+    * "x-powers,axp813"
 - reg: The I2C slave address or RSB hardware address for the AXP chip
-- interrupt-parent: The parent interrupt controller
 - interrupts: SoC NMI / GPIO interrupt connected to the PMIC's IRQ pin
 - interrupt-controller: The PMIC has its own internal IRQs
 - #interrupt-cells: Should be set to 1
 
+Supported common regulator properties, see ../regulator/regulator.txt for
+more information:
+- regulator-ramp-delay: sets the ramp up delay in uV/us
+			AXP20x/DCDC2: 1600, 800
+			AXP20x/LDO3:  1600, 800
+- regulator-soft-start:	enable the output at the lowest possible voltage and
+			only then set the desired voltage
+			AXP20x/LDO3: software-based implementation
+
 Optional properties:
 - x-powers,dcdc-freq: defines the work frequency of DC-DC in KHz
 		      AXP152/20X: range:  750-1875, Default: 1.5 MHz
-		      AXP22X/80X: range: 1800-4050, Default: 3   MHz
+		      AXP22X/8XX: range: 1800-4050, Default: 3   MHz
 
-- x-powers,drive-vbus-en: axp221 / axp223 only boolean, set this when the
-		  N_VBUSEN pin is used as an output pin to control an external
-		  regulator to drive the OTG VBus, rather then as an input pin
-		  which signals whether the board is driving OTG VBus or not.
+- x-powers,drive-vbus-en: boolean, set this when the N_VBUSEN pin is
+			  used as an output pin to control an external
+			  regulator to drive the OTG VBus, rather then
+			  as an input pin which signals whether the
+			  board is driving OTG VBus or not.
+			  (axp221 / axp223 / axp803/ axp813 only)
+
+- x-powers,self-working-mode and
+  x-powers,master-mode: Boolean (axp806 only). Set either of these when the
+			PMIC is wired for self-working mode or master mode.
+			If neither is set then slave mode is assumed.
+			This corresponds to how the MODESET pin is wired.
 
 - <input>-supply: a phandle to the regulator supply node. May be omitted if
 		  inputs are unregulated, such as using the IPSOUT output
@@ -86,6 +118,34 @@ LDO_IO1		: LDO		: ips-supply		: GPIO 1
 RTC_LDO		: LDO		: ips-supply		: always on
 DRIVEVBUS	: Enable output	: drivevbus-supply	: external regulator
 
+AXP803 regulators, type, and corresponding input supply names:
+
+Regulator	  Type		  Supply Name		  Notes
+---------	  ----		  -----------		  -----
+DCDC1		: DC-DC buck	: vin1-supply
+DCDC2		: DC-DC buck	: vin2-supply		: poly-phase capable
+DCDC3		: DC-DC	buck	: vin3-supply		: poly-phase capable
+DCDC4		: DC-DC	buck	: vin4-supply
+DCDC5		: DC-DC	buck	: vin5-supply		: poly-phase capable
+DCDC6		: DC-DC	buck	: vin6-supply		: poly-phase capable
+DC1SW		: On/Off Switch	:			: DCDC1 secondary output
+ALDO1		: LDO		: aldoin-supply		: shared supply
+ALDO2		: LDO		: aldoin-supply		: shared supply
+ALDO3		: LDO		: aldoin-supply		: shared supply
+DLDO1		: LDO		: dldoin-supply		: shared supply
+DLDO2		: LDO		: dldoin-supply		: shared supply
+DLDO3		: LDO		: dldoin-supply		: shared supply
+DLDO4		: LDO		: dldoin-supply		: shared supply
+ELDO1		: LDO		: eldoin-supply		: shared supply
+ELDO2		: LDO		: eldoin-supply		: shared supply
+ELDO3		: LDO		: eldoin-supply		: shared supply
+FLDO1		: LDO		: fldoin-supply		: shared supply
+FLDO2		: LDO		: fldoin-supply		: shared supply
+LDO_IO0		: LDO		: ips-supply		: GPIO 0
+LDO_IO1		: LDO		: ips-supply		: GPIO 1
+RTC_LDO		: LDO		: ips-supply		: always on
+DRIVEVBUS	: Enable output	: drivevbus-supply	: external regulator
+
 AXP806 regulators, type, and corresponding input supply names:
 
 Regulator	  Type		  Supply Name		  Notes
@@ -133,6 +193,36 @@ LDO_IO0		: LDO		: ips-supply		: GPIO 0
 LDO_IO1		: LDO		: ips-supply		: GPIO 1
 RTC_LDO		: LDO		: ips-supply		: always on
 SW		: On/Off Switch : swin-supply
+
+AXP813 regulators, type, and corresponding input supply names:
+
+Regulator	  Type		  Supply Name		  Notes
+---------	  ----		  -----------		  -----
+DCDC1		: DC-DC buck	: vin1-supply
+DCDC2		: DC-DC buck	: vin2-supply		: poly-phase capable
+DCDC3		: DC-DC	buck	: vin3-supply		: poly-phase capable
+DCDC4		: DC-DC	buck	: vin4-supply
+DCDC5		: DC-DC	buck	: vin5-supply		: poly-phase capable
+DCDC6		: DC-DC	buck	: vin6-supply		: poly-phase capable
+DCDC7		: DC-DC	buck	: vin7-supply
+ALDO1		: LDO		: aldoin-supply		: shared supply
+ALDO2		: LDO		: aldoin-supply		: shared supply
+ALDO3		: LDO		: aldoin-supply		: shared supply
+DLDO1		: LDO		: dldoin-supply		: shared supply
+DLDO2		: LDO		: dldoin-supply		: shared supply
+DLDO3		: LDO		: dldoin-supply		: shared supply
+DLDO4		: LDO		: dldoin-supply		: shared supply
+ELDO1		: LDO		: eldoin-supply		: shared supply
+ELDO2		: LDO		: eldoin-supply		: shared supply
+ELDO3		: LDO		: eldoin-supply		: shared supply
+FLDO1		: LDO		: fldoin-supply		: shared supply
+FLDO2		: LDO		: fldoin-supply		: shared supply
+FLDO3		: LDO		: fldoin-supply		: shared supply
+LDO_IO0		: LDO		: ips-supply		: GPIO 0
+LDO_IO1		: LDO		: ips-supply		: GPIO 1
+RTC_LDO		: LDO		: ips-supply		: always on
+SW		: On/Off Switch : swin-supply
+DRIVEVBUS	: Enable output	: drivevbus-supply	: external regulator
 
 Example:
 

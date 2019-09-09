@@ -71,26 +71,6 @@ typedef union {
 #include <asm/octeon/cvmx-helper-xaui.h>
 
 /**
- * cvmx_override_pko_queue_priority(int ipd_port, uint64_t
- * priorities[16]) is a function pointer. It is meant to allow
- * customization of the PKO queue priorities based on the port
- * number. Users should set this pointer to a function before
- * calling any cvmx-helper operations.
- */
-extern void (*cvmx_override_pko_queue_priority) (int pko_port,
-						 uint64_t priorities[16]);
-
-/**
- * cvmx_override_ipd_port_setup(int ipd_port) is a function
- * pointer. It is meant to allow customization of the IPD port
- * setup before packet input/output comes online. It is called
- * after cvmx-helper does the default IPD configuration, but
- * before IPD is enabled. Users should set this pointer to a
- * function before calling any cvmx-helper operations.
- */
-extern void (*cvmx_override_ipd_port_setup) (int ipd_port);
-
-/**
  * This function enables the IPD and also enables the packet interfaces.
  * The packet interfaces (RGMII and SPI) must be enabled after the
  * IPD.	 This should be called by the user program after any additional
@@ -156,17 +136,6 @@ extern cvmx_helper_interface_mode_t cvmx_helper_interface_get_mode(int
 								   interface);
 
 /**
- * Auto configure an IPD/PKO port link state and speed. This
- * function basically does the equivalent of:
- * cvmx_helper_link_set(ipd_port, cvmx_helper_link_get(ipd_port));
- *
- * @ipd_port: IPD/PKO port to auto configure
- *
- * Returns Link state after configure
- */
-extern cvmx_helper_link_info_t cvmx_helper_link_autoconf(int ipd_port);
-
-/**
  * Return the link state of an IPD/PKO port as returned by
  * auto negotiation. The result of this function may not match
  * Octeon's link config if auto negotiation has changed since
@@ -182,8 +151,7 @@ extern cvmx_helper_link_info_t cvmx_helper_link_get(int ipd_port);
  * Configure an IPD/PKO port for the specified link state. This
  * function does not influence auto negotiation at the PHY level.
  * The passed link state must always match the link state returned
- * by cvmx_helper_link_get(). It is normally best to use
- * cvmx_helper_link_autoconf() instead.
+ * by cvmx_helper_link_get().
  *
  * @ipd_port:  IPD/PKO port to configure
  * @link_info: The new link state
@@ -206,21 +174,5 @@ extern int cvmx_helper_link_set(int ipd_port,
  */
 extern int cvmx_helper_interface_probe(int interface);
 extern int cvmx_helper_interface_enumerate(int interface);
-
-/**
- * Configure a port for internal and/or external loopback. Internal loopback
- * causes packets sent by the port to be received by Octeon. External loopback
- * causes packets received from the wire to sent out again.
- *
- * @ipd_port: IPD/PKO port to loopback.
- * @enable_internal:
- *		   Non zero if you want internal loopback
- * @enable_external:
- *		   Non zero if you want external loopback
- *
- * Returns Zero on success, negative on failure.
- */
-extern int cvmx_helper_configure_loopback(int ipd_port, int enable_internal,
-					  int enable_external);
 
 #endif /* __CVMX_HELPER_H__ */

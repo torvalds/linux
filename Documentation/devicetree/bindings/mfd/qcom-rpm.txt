@@ -234,7 +234,7 @@ see regulator.txt - with additional custom properties described below:
 - qcom,switch-mode-frequency:
 	Usage: required
 	Value type: <u32>
-	Definition: Frequency (Hz) of the swith mode power supply;
+	Definition: Frequency (Hz) of the switch mode power supply;
 		    must be one of:
 		    19200000, 9600000, 6400000, 4800000, 3840000, 3200000,
 		    2740000, 2400000, 2130000, 1920000, 1750000, 1600000,

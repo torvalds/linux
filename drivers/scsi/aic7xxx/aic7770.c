@@ -42,15 +42,9 @@
  * $FreeBSD$
  */
 
-#ifdef __linux__
 #include "aic7xxx_osm.h"
 #include "aic7xxx_inline.h"
 #include "aic7xxx_93cx6.h"
-#else
-#include <dev/aic7xxx/aic7xxx_osm.h>
-#include <dev/aic7xxx/aic7xxx_inline.h>
-#include <dev/aic7xxx/aic7xxx_93cx6.h>
-#endif
 
 #define ID_AIC7770	0x04907770
 #define ID_AHA_274x	0x04907771

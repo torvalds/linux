@@ -47,7 +47,7 @@
 #include <xen/xen.h>
 #include <xen/features.h>
 
-#include "xenbus_probe.h"
+#include "xenbus.h"
 
 #define XENBUS_PAGES(_grants)	(DIV_ROUND_UP(_grants, XEN_PFN_PER_PAGE))
 
@@ -115,7 +115,7 @@ EXPORT_SYMBOL_GPL(xenbus_strstate);
 int xenbus_watch_path(struct xenbus_device *dev, const char *path,
 		      struct xenbus_watch *watch,
 		      void (*callback)(struct xenbus_watch *,
-				       const char **, unsigned int))
+				       const char *, const char *))
 {
 	int err;
 
@@ -153,7 +153,7 @@ EXPORT_SYMBOL_GPL(xenbus_watch_path);
 int xenbus_watch_pathfmt(struct xenbus_device *dev,
 			 struct xenbus_watch *watch,
 			 void (*callback)(struct xenbus_watch *,
-					const char **, unsigned int),
+					  const char *, const char *),
 			 const char *pathfmt, ...)
 {
 	int err;
@@ -259,52 +259,31 @@ int xenbus_frontend_closed(struct xenbus_device *dev)
 }
 EXPORT_SYMBOL_GPL(xenbus_frontend_closed);
 
-/**
- * Return the path to the error node for the given device, or NULL on failure.
- * If the value returned is non-NULL, then it is the caller's to kfree.
- */
-static char *error_path(struct xenbus_device *dev)
-{
-	return kasprintf(GFP_KERNEL, "error/%s", dev->nodename);
-}
-
-
 static void xenbus_va_dev_error(struct xenbus_device *dev, int err,
 				const char *fmt, va_list ap)
 {
 	unsigned int len;
-	char *printf_buffer = NULL;
-	char *path_buffer = NULL;
+	char *printf_buffer;
+	char *path_buffer;
 
 #define PRINTF_BUFFER_SIZE 4096
+
 	printf_buffer = kmalloc(PRINTF_BUFFER_SIZE, GFP_KERNEL);
-	if (printf_buffer == NULL)
-		goto fail;
+	if (!printf_buffer)
+		return;
 
 	len = sprintf(printf_buffer, "%i ", -err);
-	vsnprintf(printf_buffer+len, PRINTF_BUFFER_SIZE-len, fmt, ap);
+	vsnprintf(printf_buffer + len, PRINTF_BUFFER_SIZE - len, fmt, ap);
 
 	dev_err(&dev->dev, "%s\n", printf_buffer);
 
-	path_buffer = error_path(dev);
+	path_buffer = kasprintf(GFP_KERNEL, "error/%s", dev->nodename);
+	if (path_buffer)
+		xenbus_write(XBT_NIL, path_buffer, "error", printf_buffer);
 
-	if (path_buffer == NULL) {
-		dev_err(&dev->dev, "failed to write error node for %s (%s)\n",
-		       dev->nodename, printf_buffer);
-		goto fail;
-	}
-
-	if (xenbus_write(XBT_NIL, path_buffer, "error", printf_buffer) != 0) {
-		dev_err(&dev->dev, "failed to write error node for %s (%s)\n",
-		       dev->nodename, printf_buffer);
-		goto fail;
-	}
-
-fail:
 	kfree(printf_buffer);
 	kfree(path_buffer);
 }
-
 
 /**
  * xenbus_dev_error
@@ -538,64 +517,6 @@ static int __xenbus_map_ring(struct xenbus_device *dev,
 	return err;
 }
 
-static int xenbus_map_ring_valloc_pv(struct xenbus_device *dev,
-				     grant_ref_t *gnt_refs,
-				     unsigned int nr_grefs,
-				     void **vaddr)
-{
-	struct xenbus_map_node *node;
-	struct vm_struct *area;
-	pte_t *ptes[XENBUS_MAX_RING_GRANTS];
-	phys_addr_t phys_addrs[XENBUS_MAX_RING_GRANTS];
-	int err = GNTST_okay;
-	int i;
-	bool leaked;
-
-	*vaddr = NULL;
-
-	if (nr_grefs > XENBUS_MAX_RING_GRANTS)
-		return -EINVAL;
-
-	node = kzalloc(sizeof(*node), GFP_KERNEL);
-	if (!node)
-		return -ENOMEM;
-
-	area = alloc_vm_area(XEN_PAGE_SIZE * nr_grefs, ptes);
-	if (!area) {
-		kfree(node);
-		return -ENOMEM;
-	}
-
-	for (i = 0; i < nr_grefs; i++)
-		phys_addrs[i] = arbitrary_virt_to_machine(ptes[i]).maddr;
-
-	err = __xenbus_map_ring(dev, gnt_refs, nr_grefs, node->handles,
-				phys_addrs,
-				GNTMAP_host_map | GNTMAP_contains_pte,
-				&leaked);
-	if (err)
-		goto failed;
-
-	node->nr_handles = nr_grefs;
-	node->pv.area = area;
-
-	spin_lock(&xenbus_valloc_lock);
-	list_add(&node->next, &xenbus_valloc_pages);
-	spin_unlock(&xenbus_valloc_lock);
-
-	*vaddr = area->addr;
-	return 0;
-
-failed:
-	if (!leaked)
-		free_vm_area(area);
-	else
-		pr_alert("leaking VM area %p size %u page(s)", area, nr_grefs);
-
-	kfree(node);
-	return err;
-}
-
 struct map_ring_valloc_hvm
 {
 	unsigned int idx;
@@ -744,6 +665,65 @@ int xenbus_unmap_ring_vfree(struct xenbus_device *dev, void *vaddr)
 }
 EXPORT_SYMBOL_GPL(xenbus_unmap_ring_vfree);
 
+#ifdef CONFIG_XEN_PV
+static int xenbus_map_ring_valloc_pv(struct xenbus_device *dev,
+				     grant_ref_t *gnt_refs,
+				     unsigned int nr_grefs,
+				     void **vaddr)
+{
+	struct xenbus_map_node *node;
+	struct vm_struct *area;
+	pte_t *ptes[XENBUS_MAX_RING_GRANTS];
+	phys_addr_t phys_addrs[XENBUS_MAX_RING_GRANTS];
+	int err = GNTST_okay;
+	int i;
+	bool leaked;
+
+	*vaddr = NULL;
+
+	if (nr_grefs > XENBUS_MAX_RING_GRANTS)
+		return -EINVAL;
+
+	node = kzalloc(sizeof(*node), GFP_KERNEL);
+	if (!node)
+		return -ENOMEM;
+
+	area = alloc_vm_area(XEN_PAGE_SIZE * nr_grefs, ptes);
+	if (!area) {
+		kfree(node);
+		return -ENOMEM;
+	}
+
+	for (i = 0; i < nr_grefs; i++)
+		phys_addrs[i] = arbitrary_virt_to_machine(ptes[i]).maddr;
+
+	err = __xenbus_map_ring(dev, gnt_refs, nr_grefs, node->handles,
+				phys_addrs,
+				GNTMAP_host_map | GNTMAP_contains_pte,
+				&leaked);
+	if (err)
+		goto failed;
+
+	node->nr_handles = nr_grefs;
+	node->pv.area = area;
+
+	spin_lock(&xenbus_valloc_lock);
+	list_add(&node->next, &xenbus_valloc_pages);
+	spin_unlock(&xenbus_valloc_lock);
+
+	*vaddr = area->addr;
+	return 0;
+
+failed:
+	if (!leaked)
+		free_vm_area(area);
+	else
+		pr_alert("leaking VM area %p size %u page(s)", area, nr_grefs);
+
+	kfree(node);
+	return err;
+}
+
 static int xenbus_unmap_ring_vfree_pv(struct xenbus_device *dev, void *vaddr)
 {
 	struct xenbus_map_node *node;
@@ -806,6 +786,12 @@ static int xenbus_unmap_ring_vfree_pv(struct xenbus_device *dev, void *vaddr)
 	kfree(node);
 	return err;
 }
+
+static const struct xenbus_ring_ops ring_ops_pv = {
+	.map = xenbus_map_ring_valloc_pv,
+	.unmap = xenbus_unmap_ring_vfree_pv,
+};
+#endif
 
 struct unmap_ring_vfree_hvm
 {
@@ -935,11 +921,6 @@ enum xenbus_state xenbus_read_driver_state(const char *path)
 }
 EXPORT_SYMBOL_GPL(xenbus_read_driver_state);
 
-static const struct xenbus_ring_ops ring_ops_pv = {
-	.map = xenbus_map_ring_valloc_pv,
-	.unmap = xenbus_unmap_ring_vfree_pv,
-};
-
 static const struct xenbus_ring_ops ring_ops_hvm = {
 	.map = xenbus_map_ring_valloc_hvm,
 	.unmap = xenbus_unmap_ring_vfree_hvm,
@@ -947,8 +928,10 @@ static const struct xenbus_ring_ops ring_ops_hvm = {
 
 void __init xenbus_ring_ops_init(void)
 {
+#ifdef CONFIG_XEN_PV
 	if (!xen_feature(XENFEAT_auto_translated_physmap))
 		ring_ops = &ring_ops_pv;
 	else
+#endif
 		ring_ops = &ring_ops_hvm;
 }

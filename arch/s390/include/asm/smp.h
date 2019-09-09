@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *    Copyright IBM Corp. 1999, 2012
  *    Author(s): Denis Joseph Barrow,
@@ -8,9 +9,6 @@
 #define __ASM_SMP_H
 
 #include <asm/sigp.h>
-
-#ifdef CONFIG_SMP
-
 #include <asm/lowcore.h>
 
 #define raw_smp_processor_id()	(S390_lowcore.cpu_nr)
@@ -27,6 +25,7 @@ extern void arch_send_call_function_ipi_mask(const struct cpumask *mask);
 
 extern void smp_call_online_cpu(void (*func)(void *), void *);
 extern void smp_call_ipl_cpu(void (*func)(void *), void *);
+extern void smp_emergency_stop(void);
 
 extern int smp_find_processor_id(u16 address);
 extern int smp_store_status(int cpu);
@@ -36,28 +35,7 @@ extern void smp_yield_cpu(int cpu);
 extern void smp_cpu_set_polarization(int cpu, int val);
 extern int smp_cpu_get_polarization(int cpu);
 extern void smp_fill_possible_mask(void);
-
-#else /* CONFIG_SMP */
-
-#define smp_cpu_mtid	0
-
-static inline void smp_call_ipl_cpu(void (*func)(void *), void *data)
-{
-	func(data);
-}
-
-static inline void smp_call_online_cpu(void (*func)(void *), void *data)
-{
-	func(data);
-}
-
-static inline int smp_find_processor_id(u16 address) { return 0; }
-static inline int smp_store_status(int cpu) { return 0; }
-static inline int smp_vcpu_scheduled(int cpu) { return 1; }
-static inline void smp_yield_cpu(int cpu) { }
-static inline void smp_fill_possible_mask(void) { }
-
-#endif /* CONFIG_SMP */
+extern void smp_detect_cpus(void);
 
 static inline void smp_stop_cpu(void)
 {
@@ -69,14 +47,15 @@ static inline void smp_stop_cpu(void)
 	}
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
+/* Return thread 0 CPU number as base CPU */
+static inline int smp_get_base_cpu(int cpu)
+{
+	return cpu - (cpu % (smp_cpu_mtid + 1));
+}
+
 extern int smp_rescan_cpus(void);
 extern void __noreturn cpu_die(void);
 extern void __cpu_die(unsigned int cpu);
 extern int __cpu_disable(void);
-#else
-static inline int smp_rescan_cpus(void) { return 0; }
-static inline void cpu_die(void) { }
-#endif
 
 #endif /* __ASM_SMP_H */

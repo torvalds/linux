@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * tsys01.c - Support for Measurement-Specialties tsys01 temperature sensor
  *
  * Copyright (c) 2015 Measurement-Specialties
- *
- * Licensed under the GPL-2.
  *
  * Datasheet:
  *  http://www.meas-spec.com/downloads/TSYS01_Digital_Temperature_Sensor.pdf
@@ -111,7 +110,6 @@ static const struct iio_chan_spec tsys01_channels[] = {
 
 static const struct iio_info tsys01_info = {
 	.read_raw = tsys01_read_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static bool tsys01_crc_valid(u16 *n_prom)
@@ -214,11 +212,18 @@ static const struct i2c_device_id tsys01_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, tsys01_id);
 
+static const struct of_device_id tsys01_of_match[] = {
+	{ .compatible = "meas,tsys01", },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, tsys01_of_match);
+
 static struct i2c_driver tsys01_driver = {
 	.probe = tsys01_i2c_probe,
 	.id_table = tsys01_id,
 	.driver = {
 		   .name = "tsys01",
+		   .of_match_table = of_match_ptr(tsys01_of_match),
 		   },
 };
 

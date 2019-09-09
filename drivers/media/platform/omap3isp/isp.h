@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * isp.h
  *
@@ -8,10 +9,6 @@
  *
  * Contacts: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
  *	     Sakari Ailus <sakari.ailus@iki.fi>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef OMAP3_ISP_CORE_H
@@ -23,7 +20,6 @@
 #include <linux/clk-provider.h>
 #include <linux/device.h>
 #include <linux/io.h>
-#include <linux/iommu.h>
 #include <linux/platform_device.h>
 #include <linux/wait.h>
 
@@ -221,16 +217,15 @@ struct isp_device {
 
 	unsigned int sbl_resources;
 	unsigned int subclk_resources;
-
-#define ISP_MAX_SUBDEVS		8
-	struct v4l2_subdev *subdevs[ISP_MAX_SUBDEVS];
 };
 
 struct isp_async_subdev {
-	struct v4l2_subdev *sd;
-	struct isp_bus_cfg bus;
 	struct v4l2_async_subdev asd;
+	struct isp_bus_cfg bus;
 };
+
+#define v4l2_subdev_to_bus_cfg(sd) \
+	(&container_of((sd)->asd, struct isp_async_subdev, asd)->bus)
 
 #define v4l2_dev_to_isp_device(dev) \
 	container_of(dev, struct isp_device, v4l2_dev)

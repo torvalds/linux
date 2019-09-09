@@ -1,10 +1,11 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _PROBE_FINDER_H
 #define _PROBE_FINDER_H
 
 #include <stdbool.h>
-#include "util.h"
 #include "intlist.h"
 #include "probe-event.h"
+#include <linux/ctype.h>
 
 #define MAX_PROBE_BUFFER	1024
 #define MAX_PROBES		 128
@@ -45,6 +46,9 @@ int debuginfo__find_trace_events(struct debuginfo *dbg,
 /* Find a perf_probe_point from debuginfo */
 int debuginfo__find_probe_point(struct debuginfo *dbg, unsigned long addr,
 				struct perf_probe_point *ppt);
+
+int debuginfo__get_text_offset(struct debuginfo *dbg, Dwarf_Addr *offs,
+			       bool adjust_offset);
 
 /* Find a line range */
 int debuginfo__find_line_range(struct debuginfo *dbg, struct line_range *lr);

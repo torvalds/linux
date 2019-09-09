@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for Silicon Labs C8051F300 microcontroller.
  *
@@ -11,17 +12,6 @@
  * GPIO3 - busy		- P0.0 F300
  *
  * Copyright (C) 2009 Igor M. Liplianin <liplianin@me.by>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *
- * GNU General Public License for more details.
  */
 
 #include "cx23885.h"
@@ -122,7 +112,7 @@ static u8 f300_xfer(struct dvb_frontend *fe, u8 *buf)
 	}
 
 	if (i > 7) {
-		printk(KERN_ERR "%s: timeout, the slave no response\n",
+		pr_err("%s: timeout, the slave no response\n",
 								__func__);
 		ret = 1; /* timeout, the slave no response */
 	} else { /* the slave not busy, prepare for getting data */

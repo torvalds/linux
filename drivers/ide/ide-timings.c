@@ -1,20 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (c) 1999-2001 Vojtech Pavlik
  *  Copyright (c) 2007-2008 Bartlomiej Zolnierkiewicz
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
  * Should you need to contact me, the author, you can do so either by
  * e-mail - mail your message to <vojtech@ucw.cz>, or by paper mail:
@@ -104,19 +91,19 @@ u16 ide_pio_cycle_time(ide_drive_t *drive, u8 pio)
 EXPORT_SYMBOL_GPL(ide_pio_cycle_time);
 
 #define ENOUGH(v, unit)		(((v) - 1) / (unit) + 1)
-#define EZ(v, unit)		((v) ? ENOUGH(v, unit) : 0)
+#define EZ(v, unit)		((v) ? ENOUGH((v) * 1000, unit) : 0)
 
 static void ide_timing_quantize(struct ide_timing *t, struct ide_timing *q,
 				int T, int UT)
 {
-	q->setup   = EZ(t->setup   * 1000,  T);
-	q->act8b   = EZ(t->act8b   * 1000,  T);
-	q->rec8b   = EZ(t->rec8b   * 1000,  T);
-	q->cyc8b   = EZ(t->cyc8b   * 1000,  T);
-	q->active  = EZ(t->active  * 1000,  T);
-	q->recover = EZ(t->recover * 1000,  T);
-	q->cycle   = EZ(t->cycle   * 1000,  T);
-	q->udma    = EZ(t->udma    * 1000, UT);
+	q->setup   = EZ(t->setup,   T);
+	q->act8b   = EZ(t->act8b,   T);
+	q->rec8b   = EZ(t->rec8b,   T);
+	q->cyc8b   = EZ(t->cyc8b,   T);
+	q->active  = EZ(t->active,  T);
+	q->recover = EZ(t->recover, T);
+	q->cycle   = EZ(t->cycle,   T);
+	q->udma    = EZ(t->udma,    UT);
 }
 
 void ide_timing_merge(struct ide_timing *a, struct ide_timing *b,

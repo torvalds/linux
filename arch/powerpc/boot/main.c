@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) Paul Mackerras 1997.
  *
  * Updates for PPC64 by Todd Inglett, Dave Engebretsen & Peter Bergner.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 #include <stdarg.h>
 #include <stddef.h>
@@ -232,8 +228,12 @@ void start(void)
 		console_ops.close();
 
 	kentry = (kernel_entry_t) vmlinux.addr;
-	if (ft_addr)
-		kentry(ft_addr, 0, NULL);
+	if (ft_addr) {
+		if(platform_ops.kentry)
+			platform_ops.kentry(ft_addr, vmlinux.addr);
+		else
+			kentry(ft_addr, 0, NULL);
+	}
 	else
 		kentry((unsigned long)initrd.addr, initrd.size,
 		       loader_info.promptr);

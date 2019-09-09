@@ -11,11 +11,16 @@ tree tools/perf/pmu-events/arch/foo.
 	- Regular files with '.json' extension in the name are assumed to be
 	  JSON files, each of which describes a set of PMU events.
 
-	- Regular files with basename starting with 'mapfile.csv' are assumed
-	  to be a CSV file that maps a specific CPU to its set of PMU events.
-	  (see below for mapfile format)
+	- The CSV file that maps a specific CPU to its set of PMU events is to
+	  be named 'mapfile.csv' (see below for mapfile format).
 
 	- Directories are traversed, but all other files are ignored.
+
+	- To reduce JSON event duplication per architecture, platform JSONs may
+	  use "ArchStdEvent" keyword to dereference an "Architecture standard
+	  events", defined in architecture standard JSONs.
+	  Architecture standard JSONs must be located in the architecture root
+	  folder. Matching is based on the "EventName" field.
 
 The PMU events supported by a CPU model are expected to grouped into topics
 such as Pipelining, Cache, Memory, Floating-point etc. All events for a topic
@@ -28,6 +33,10 @@ sub directory. Thus for the Silvermont X86 CPU:
 	$ ls tools/perf/pmu-events/arch/x86/Silvermont_core
 	Cache.json 	Memory.json 	Virtual-Memory.json
 	Frontend.json 	Pipeline.json
+
+The JSONs folder for a CPU model/family may be placed in the root arch
+folder, or may be placed in a vendor sub-folder under the arch folder
+for instances where the arch and vendor are not the same.
 
 Using the JSON files and the mapfile, 'jevents' generates the C source file,
 'pmu-events.c', which encodes the two sets of tables:
@@ -84,10 +93,6 @@ users to specify events by their name:
 	$ perf stat -e pm_1plus_ppc_cmpl sleep 1
 
 where 'pm_1plus_ppc_cmpl' is a Power8 PMU event.
-
-In case of errors when processing files in the tools/perf/pmu-events/arch
-directory, 'jevents' tries to create an empty mapping file to allow the perf
-build to succeed even if the PMU event aliases cannot be used.
 
 However some errors in processing may cause the perf build to fail.
 

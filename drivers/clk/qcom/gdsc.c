@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2015, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * Copyright (c) 2015, 2017-2018, The Linux Foundation. All rights reserved.
  */
 
 #include <linux/bitops.h>
@@ -30,6 +22,13 @@
 #define SW_OVERRIDE_MASK	BIT(2)
 #define HW_CONTROL_MASK		BIT(1)
 #define SW_COLLAPSE_MASK	BIT(0)
+#define GMEM_CLAMP_IO_MASK	BIT(0)
+#define GMEM_RESET_MASK		BIT(4)
+
+/* CFG_GDSCR */
+#define GDSC_POWER_UP_COMPLETE		BIT(16)
+#define GDSC_POWER_DOWN_COMPLETE	BIT(15)
+#define CFG_GDSCR_OFFSET		0x4
 
 /* Wait 2^n CXO cycles between all states. Here, n=2 (4 cycles). */
 #define EN_REST_WAIT_VAL	(0x2 << 20)
@@ -39,35 +38,86 @@
 #define RETAIN_MEM		BIT(14)
 #define RETAIN_PERIPH		BIT(13)
 
-#define TIMEOUT_US		100
+#define TIMEOUT_US		500
 
 #define domain_to_gdsc(domain) container_of(domain, struct gdsc, pd)
 
-static int gdsc_is_enabled(struct gdsc *sc, unsigned int reg)
+enum gdsc_status {
+	GDSC_OFF,
+	GDSC_ON
+};
+
+/* Returns 1 if GDSC status is status, 0 if not, and < 0 on error */
+static int gdsc_check_status(struct gdsc *sc, enum gdsc_status status)
 {
+	unsigned int reg;
 	u32 val;
 	int ret;
+
+	if (sc->flags & POLL_CFG_GDSCR)
+		reg = sc->gdscr + CFG_GDSCR_OFFSET;
+	else if (sc->gds_hw_ctrl)
+		reg = sc->gds_hw_ctrl;
+	else
+		reg = sc->gdscr;
 
 	ret = regmap_read(sc->regmap, reg, &val);
 	if (ret)
 		return ret;
 
-	return !!(val & PWR_ON_MASK);
+	if (sc->flags & POLL_CFG_GDSCR) {
+		switch (status) {
+		case GDSC_ON:
+			return !!(val & GDSC_POWER_UP_COMPLETE);
+		case GDSC_OFF:
+			return !!(val & GDSC_POWER_DOWN_COMPLETE);
+		}
+	}
+
+	switch (status) {
+	case GDSC_ON:
+		return !!(val & PWR_ON_MASK);
+	case GDSC_OFF:
+		return !(val & PWR_ON_MASK);
+	}
+
+	return -EINVAL;
 }
 
-static int gdsc_toggle_logic(struct gdsc *sc, bool en)
+static int gdsc_hwctrl(struct gdsc *sc, bool en)
+{
+	u32 val = en ? HW_CONTROL_MASK : 0;
+
+	return regmap_update_bits(sc->regmap, sc->gdscr, HW_CONTROL_MASK, val);
+}
+
+static int gdsc_poll_status(struct gdsc *sc, enum gdsc_status status)
+{
+	ktime_t start;
+
+	start = ktime_get();
+	do {
+		if (gdsc_check_status(sc, status))
+			return 0;
+	} while (ktime_us_delta(ktime_get(), start) < TIMEOUT_US);
+
+	if (gdsc_check_status(sc, status))
+		return 0;
+
+	return -ETIMEDOUT;
+}
+
+static int gdsc_toggle_logic(struct gdsc *sc, enum gdsc_status status)
 {
 	int ret;
-	u32 val = en ? 0 : SW_COLLAPSE_MASK;
-	ktime_t start;
-	unsigned int status_reg = sc->gdscr;
+	u32 val = (status == GDSC_ON) ? 0 : SW_COLLAPSE_MASK;
 
 	ret = regmap_update_bits(sc->regmap, sc->gdscr, SW_COLLAPSE_MASK, val);
 	if (ret)
 		return ret;
 
 	/* If disabling votable gdscs, don't poll on status */
-	if ((sc->flags & VOTABLE) && !en) {
+	if ((sc->flags & VOTABLE) && status == GDSC_OFF) {
 		/*
 		 * Add a short delay here to ensure that an enable
 		 * right after it was disabled does not put it in an
@@ -78,7 +128,6 @@ static int gdsc_toggle_logic(struct gdsc *sc, bool en)
 	}
 
 	if (sc->gds_hw_ctrl) {
-		status_reg = sc->gds_hw_ctrl;
 		/*
 		 * The gds hw controller asserts/de-asserts the status bit soon
 		 * after it receives a power on/off request from a master.
@@ -92,16 +141,9 @@ static int gdsc_toggle_logic(struct gdsc *sc, bool en)
 		udelay(1);
 	}
 
-	start = ktime_get();
-	do {
-		if (gdsc_is_enabled(sc, status_reg) == en)
-			return 0;
-	} while (ktime_us_delta(ktime_get(), start) < TIMEOUT_US);
-
-	if (gdsc_is_enabled(sc, status_reg) == en)
-		return 0;
-
-	return -ETIMEDOUT;
+	ret = gdsc_poll_status(sc, status);
+	WARN(ret, "%s status stuck at 'o%s'", sc->pd.name, status ? "ff" : "n");
+	return ret;
 }
 
 static inline int gdsc_deassert_reset(struct gdsc *sc)
@@ -140,6 +182,26 @@ static inline void gdsc_clear_mem_on(struct gdsc *sc)
 		regmap_update_bits(sc->regmap, sc->cxcs[i], mask, 0);
 }
 
+static inline void gdsc_deassert_clamp_io(struct gdsc *sc)
+{
+	regmap_update_bits(sc->regmap, sc->clamp_io_ctrl,
+			   GMEM_CLAMP_IO_MASK, 0);
+}
+
+static inline void gdsc_assert_clamp_io(struct gdsc *sc)
+{
+	regmap_update_bits(sc->regmap, sc->clamp_io_ctrl,
+			   GMEM_CLAMP_IO_MASK, 1);
+}
+
+static inline void gdsc_assert_reset_aon(struct gdsc *sc)
+{
+	regmap_update_bits(sc->regmap, sc->clamp_io_ctrl,
+			   GMEM_RESET_MASK, 1);
+	udelay(1);
+	regmap_update_bits(sc->regmap, sc->clamp_io_ctrl,
+			   GMEM_RESET_MASK, 0);
+}
 static int gdsc_enable(struct generic_pm_domain *domain)
 {
 	struct gdsc *sc = domain_to_gdsc(domain);
@@ -148,7 +210,19 @@ static int gdsc_enable(struct generic_pm_domain *domain)
 	if (sc->pwrsts == PWRSTS_ON)
 		return gdsc_deassert_reset(sc);
 
-	ret = gdsc_toggle_logic(sc, true);
+	if (sc->flags & SW_RESET) {
+		gdsc_assert_reset(sc);
+		udelay(1);
+		gdsc_deassert_reset(sc);
+	}
+
+	if (sc->flags & CLAMP_IO) {
+		if (sc->flags & AON_RESET)
+			gdsc_assert_reset_aon(sc);
+		gdsc_deassert_clamp_io(sc);
+	}
+
+	ret = gdsc_toggle_logic(sc, GDSC_ON);
 	if (ret)
 		return ret;
 
@@ -164,27 +238,68 @@ static int gdsc_enable(struct generic_pm_domain *domain)
 	 */
 	udelay(1);
 
+	/* Turn on HW trigger mode if supported */
+	if (sc->flags & HW_CTRL) {
+		ret = gdsc_hwctrl(sc, true);
+		if (ret)
+			return ret;
+		/*
+		 * Wait for the GDSC to go through a power down and
+		 * up cycle.  In case a firmware ends up polling status
+		 * bits for the gdsc, it might read an 'on' status before
+		 * the GDSC can finish the power cycle.
+		 * We wait 1us before returning to ensure the firmware
+		 * can't immediately poll the status bits.
+		 */
+		udelay(1);
+	}
+
 	return 0;
 }
 
 static int gdsc_disable(struct generic_pm_domain *domain)
 {
 	struct gdsc *sc = domain_to_gdsc(domain);
+	int ret;
 
 	if (sc->pwrsts == PWRSTS_ON)
 		return gdsc_assert_reset(sc);
 
+	/* Turn off HW trigger mode if supported */
+	if (sc->flags & HW_CTRL) {
+		ret = gdsc_hwctrl(sc, false);
+		if (ret < 0)
+			return ret;
+		/*
+		 * Wait for the GDSC to go through a power down and
+		 * up cycle.  In case we end up polling status
+		 * bits for the gdsc before the power cycle is completed
+		 * it might read an 'on' status wrongly.
+		 */
+		udelay(1);
+
+		ret = gdsc_poll_status(sc, GDSC_ON);
+		if (ret)
+			return ret;
+	}
+
 	if (sc->pwrsts & PWRSTS_OFF)
 		gdsc_clear_mem_on(sc);
 
-	return gdsc_toggle_logic(sc, false);
+	ret = gdsc_toggle_logic(sc, GDSC_OFF);
+	if (ret)
+		return ret;
+
+	if (sc->flags & CLAMP_IO)
+		gdsc_assert_clamp_io(sc);
+
+	return 0;
 }
 
 static int gdsc_init(struct gdsc *sc)
 {
 	u32 mask, val;
 	int on, ret;
-	unsigned int reg;
 
 	/*
 	 * Disable HW trigger: collapse/restore occur based on registers writes.
@@ -200,13 +315,12 @@ static int gdsc_init(struct gdsc *sc)
 
 	/* Force gdsc ON if only ON state is supported */
 	if (sc->pwrsts == PWRSTS_ON) {
-		ret = gdsc_toggle_logic(sc, true);
+		ret = gdsc_toggle_logic(sc, GDSC_ON);
 		if (ret)
 			return ret;
 	}
 
-	reg = sc->gds_hw_ctrl ? sc->gds_hw_ctrl : sc->gdscr;
-	on = gdsc_is_enabled(sc, reg);
+	on = gdsc_check_status(sc, GDSC_ON);
 	if (on < 0)
 		return on;
 
@@ -217,13 +331,23 @@ static int gdsc_init(struct gdsc *sc)
 	if ((sc->flags & VOTABLE) && on)
 		gdsc_enable(&sc->pd);
 
+	/* If ALWAYS_ON GDSCs are not ON, turn them ON */
+	if (sc->flags & ALWAYS_ON) {
+		if (!on)
+			gdsc_enable(&sc->pd);
+		on = true;
+		sc->pd.flags |= GENPD_FLAG_ALWAYS_ON;
+	}
+
 	if (on || (sc->pwrsts & PWRSTS_RET))
 		gdsc_force_mem_on(sc);
 	else
 		gdsc_clear_mem_on(sc);
 
-	sc->pd.power_off = gdsc_disable;
-	sc->pd.power_on = gdsc_enable;
+	if (!sc->pd.power_off)
+		sc->pd.power_off = gdsc_disable;
+	if (!sc->pd.power_on)
+		sc->pd.power_on = gdsc_enable;
 	pm_genpd_init(&sc->pd, NULL, !on);
 
 	return 0;

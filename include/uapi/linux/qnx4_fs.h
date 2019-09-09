@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *  Name                         : qnx4_fs.h
  *  Author                       : Richard Frowijn

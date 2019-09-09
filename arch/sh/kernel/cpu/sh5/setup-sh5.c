@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * SH5-101/SH5-103 CPU Setup
  *
  *  Copyright (C) 2009  Paul Mundt
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 #include <linux/platform_device.h>
 #include <linux/init.h>
@@ -17,8 +14,8 @@
 #include <asm/addrspace.h>
 
 static struct plat_sci_port scif0_platform_data = {
-	.flags		= UPF_BOOT_AUTOCONF | UPF_IOREMAP,
-	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE,
+	.flags		= UPF_IOREMAP,
+	.scscr		= SCSCR_REIE,
 	.type		= PORT_SCIF,
 };
 

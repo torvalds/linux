@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/arch/arm/mach-omap2/id.c
  *
@@ -8,10 +9,6 @@
  *
  * Copyright (C) 2009-11 Texas Instruments
  * Added OMAP4 support - Santosh Shilimkar <santosh.shilimkar@ti.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -199,17 +196,21 @@ void __init omap2xxx_check_revision(void)
 
 	pr_info("%s", soc_name);
 	if ((omap_rev() >> 8) & 0x0f)
-		pr_info("%s", soc_rev);
-	pr_info("\n");
+		pr_cont("%s", soc_rev);
+	pr_cont("\n");
 }
 
 #define OMAP3_SHOW_FEATURE(feat)		\
 	if (omap3_has_ ##feat())		\
-		printk(#feat" ");
+		n += scnprintf(buf + n, sizeof(buf) - n, #feat " ");
 
 static void __init omap3_cpuinfo(void)
 {
 	const char *cpu_name;
+	char buf[64];
+	int n = 0;
+
+	memset(buf, 0, sizeof(buf));
 
 	/*
 	 * OMAP3430 and OMAP3530 are assumed to be same.
@@ -219,7 +220,15 @@ static void __init omap3_cpuinfo(void)
 	 * and CPU class bits.
 	 */
 	if (soc_is_omap3630()) {
-		cpu_name = "OMAP3630";
+		if (omap3_has_iva() && omap3_has_sgx()) {
+			cpu_name = (omap3_has_isp()) ? "OMAP3630/DM3730" : "OMAP3621";
+		} else if (omap3_has_iva()) {
+			cpu_name = "DM3725";
+		} else if (omap3_has_sgx()) {
+			cpu_name = "OMAP3615/AM3715";
+		} else {
+			cpu_name = (omap3_has_isp()) ? "AM3703" : "OMAP3611";
+		}
 	} else if (soc_is_am35xx()) {
 		cpu_name = (omap3_has_sgx()) ? "AM3517" : "AM3505";
 	} else if (soc_is_ti816x()) {
@@ -241,10 +250,10 @@ static void __init omap3_cpuinfo(void)
 		cpu_name = "OMAP3503";
 	}
 
-	sprintf(soc_name, "%s", cpu_name);
+	scnprintf(soc_name, sizeof(soc_name), "%s", cpu_name);
 
 	/* Print verbose information */
-	pr_info("%s %s (", soc_name, soc_rev);
+	n += scnprintf(buf, sizeof(buf) - n, "%s %s (", soc_name, soc_rev);
 
 	OMAP3_SHOW_FEATURE(l2cache);
 	OMAP3_SHOW_FEATURE(iva);
@@ -252,8 +261,10 @@ static void __init omap3_cpuinfo(void)
 	OMAP3_SHOW_FEATURE(neon);
 	OMAP3_SHOW_FEATURE(isp);
 	OMAP3_SHOW_FEATURE(192mhz_clk);
-
-	printk(")\n");
+	if (*(buf + n - 1) == ' ')
+		n--;
+	n += scnprintf(buf + n, sizeof(buf) - n, ")\n");
+	pr_info("%s", buf);
 }
 
 #define OMAP3_CHECK_FEATURE(status,feat)				\
@@ -643,12 +654,34 @@ void __init dra7xxx_check_revision(void)
 {
 	u32 idcode;
 	u16 hawkeye;
-	u8 rev;
+	u8 rev, package;
+	struct omap_die_id odi;
 
+	omap_get_die_id(&odi);
+	package = (odi.id_2 >> 16) & 0x3;
 	idcode = read_tap_reg(OMAP_TAP_IDCODE);
 	hawkeye = (idcode >> 12) & 0xffff;
 	rev = (idcode >> 28) & 0xff;
 	switch (hawkeye) {
+	case 0xbb50:
+		switch (rev) {
+		case 0:
+		default:
+			switch (package) {
+			case 0x2:
+				omap_revision = DRA762_ABZ_REV_ES1_0;
+				break;
+			case 0x3:
+				omap_revision = DRA762_ACD_REV_ES1_0;
+				break;
+			default:
+				omap_revision = DRA762_REV_ES1_0;
+				break;
+			}
+			break;
+		}
+		break;
+
 	case 0xb990:
 		switch (rev) {
 		case 0:
@@ -670,8 +703,11 @@ void __init dra7xxx_check_revision(void)
 			omap_revision = DRA722_REV_ES1_0;
 			break;
 		case 1:
-		default:
 			omap_revision = DRA722_REV_ES2_0;
+			break;
+		case 2:
+		default:
+			omap_revision = DRA722_REV_ES2_1;
 			break;
 		}
 		break;

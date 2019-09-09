@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	elanfreq:	cpufreq driver for the AMD ELAN family
  *
@@ -7,13 +8,7 @@
  *
  *      All Rights Reserved.
  *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
- *
  *	2002-02-13: - initial revision for 2.4.18-pre9 by Robert Schwebel
- *
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -165,10 +160,8 @@ static int elanfreq_cpu_init(struct cpufreq_policy *policy)
 		if (pos->frequency > max_freq)
 			pos->frequency = CPUFREQ_ENTRY_INVALID;
 
-	/* cpuinfo and default policy values */
-	policy->cpuinfo.transition_latency = CPUFREQ_ETERNAL;
-
-	return cpufreq_table_validate_and_show(policy, elanfreq_table);
+	policy->freq_table = elanfreq_table;
+	return 0;
 }
 
 
@@ -196,6 +189,7 @@ __setup("elanfreq=", elanfreq_setup);
 
 static struct cpufreq_driver elanfreq_driver = {
 	.get		= elanfreq_get_cpu_frequency,
+	.flags		= CPUFREQ_NO_AUTO_DYNAMIC_SWITCHING,
 	.verify		= cpufreq_generic_frequency_table_verify,
 	.target_index	= elanfreq_target,
 	.init		= elanfreq_cpu_init,

@@ -1,22 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Squashfs - a compressed read only filesystem for Linux
  *
  * Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008
  * Phillip Lougher <phillip@squashfs.org.uk>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2,
- * or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * fragment.c
  */
@@ -49,11 +36,16 @@ int squashfs_frag_lookup(struct super_block *sb, unsigned int fragment,
 				u64 *fragment_block)
 {
 	struct squashfs_sb_info *msblk = sb->s_fs_info;
-	int block = SQUASHFS_FRAGMENT_INDEX(fragment);
-	int offset = SQUASHFS_FRAGMENT_INDEX_OFFSET(fragment);
-	u64 start_block = le64_to_cpu(msblk->fragment_index[block]);
+	int block, offset, size;
 	struct squashfs_fragment_entry fragment_entry;
-	int size;
+	u64 start_block;
+
+	if (fragment >= msblk->fragments)
+		return -EIO;
+	block = SQUASHFS_FRAGMENT_INDEX(fragment);
+	offset = SQUASHFS_FRAGMENT_INDEX_OFFSET(fragment);
+
+	start_block = le64_to_cpu(msblk->fragment_index[block]);
 
 	size = squashfs_read_metadata(sb, &fragment_entry, &start_block,
 					&offset, sizeof(fragment_entry));
@@ -61,9 +53,7 @@ int squashfs_frag_lookup(struct super_block *sb, unsigned int fragment,
 		return size;
 
 	*fragment_block = le64_to_cpu(fragment_entry.start_block);
-	size = le32_to_cpu(fragment_entry.size);
-
-	return size;
+	return squashfs_block_size(fragment_entry.size);
 }
 
 

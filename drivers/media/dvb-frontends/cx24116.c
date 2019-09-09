@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
     Conexant cx24116/cx24118 - DVBS/S2 Satellite demod/tuner driver
 
@@ -19,19 +20,6 @@
 	    Fill set_voltage with actually control voltage code.
 	    Correct set tone to not affect voltage.
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
 #include <linux/slab.h>
@@ -41,7 +29,7 @@
 #include <linux/init.h>
 #include <linux/firmware.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "cx24116.h"
 
 static int debug;
@@ -209,8 +197,8 @@ static int cx24116_writereg(struct cx24116_state *state, int reg, int data)
 
 	err = i2c_transfer(state->i2c, &msg, 1);
 	if (err != 1) {
-		printk(KERN_ERR "%s: writereg error(err == %i, reg == 0x%02x,"
-			 " value == 0x%02x)\n", __func__, err, reg, data);
+		printk(KERN_ERR "%s: writereg error(err == %i, reg == 0x%02x, value == 0x%02x)\n",
+		       __func__, err, reg, data);
 		return -EREMOTEIO;
 	}
 
@@ -221,16 +209,13 @@ static int cx24116_writereg(struct cx24116_state *state, int reg, int data)
 static int cx24116_writeregN(struct cx24116_state *state, int reg,
 			     const u8 *data, u16 len)
 {
-	int ret = -EREMOTEIO;
+	int ret;
 	struct i2c_msg msg;
 	u8 *buf;
 
 	buf = kmalloc(len + 1, GFP_KERNEL);
-	if (buf == NULL) {
-		printk("Unable to kmalloc\n");
-		ret = -ENOMEM;
-		goto error;
-	}
+	if (!buf)
+		return -ENOMEM;
 
 	*(buf) = reg;
 	memcpy(buf + 1, data, len);
@@ -251,7 +236,6 @@ static int cx24116_writeregN(struct cx24116_state *state, int reg,
 		ret = -EREMOTEIO;
 	}
 
-error:
 	kfree(buf);
 
 	return ret;
@@ -498,8 +482,8 @@ static int cx24116_firmware_ondemand(struct dvb_frontend *fe)
 		printk(KERN_INFO "%s: Waiting for firmware upload(2)...\n",
 			__func__);
 		if (ret) {
-			printk(KERN_ERR "%s: No firmware uploaded "
-				"(timeout or file not found?)\n", __func__);
+			printk(KERN_ERR "%s: No firmware uploaded (timeout or file not found?)\n",
+			       __func__);
 			return ret;
 		}
 
@@ -967,7 +951,7 @@ static int cx24116_send_diseqc_msg(struct dvb_frontend *fe,
 
 	/* Validate length */
 	if (d->msg_len > sizeof(d->msg))
-                return -EINVAL;
+		return -EINVAL;
 
 	/* Dump DiSEqC message */
 	if (debug) {
@@ -1116,20 +1100,20 @@ static void cx24116_release(struct dvb_frontend *fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops cx24116_ops;
+static const struct dvb_frontend_ops cx24116_ops;
 
 struct dvb_frontend *cx24116_attach(const struct cx24116_config *config,
 	struct i2c_adapter *i2c)
 {
-	struct cx24116_state *state = NULL;
+	struct cx24116_state *state;
 	int ret;
 
 	dprintk("%s\n", __func__);
 
 	/* allocate memory for the internal state */
-	state = kzalloc(sizeof(struct cx24116_state), GFP_KERNEL);
+	state = kzalloc(sizeof(*state), GFP_KERNEL);
 	if (state == NULL)
-		goto error1;
+		return NULL;
 
 	state->config = config;
 	state->i2c = i2c;
@@ -1138,8 +1122,9 @@ struct dvb_frontend *cx24116_attach(const struct cx24116_config *config,
 	ret = (cx24116_readreg(state, 0xFF) << 8) |
 		cx24116_readreg(state, 0xFE);
 	if (ret != 0x0501) {
+		kfree(state);
 		printk(KERN_INFO "Invalid probe, probably not a CX24116 device\n");
-		goto error2;
+		return NULL;
 	}
 
 	/* create dvb_frontend */
@@ -1147,9 +1132,6 @@ struct dvb_frontend *cx24116_attach(const struct cx24116_config *config,
 		sizeof(struct dvb_frontend_ops));
 	state->frontend.demodulator_priv = state;
 	return &state->frontend;
-
-error2: kfree(state);
-error1: return NULL;
 }
 EXPORT_SYMBOL(cx24116_attach);
 
@@ -1462,19 +1444,19 @@ static int cx24116_tune(struct dvb_frontend *fe, bool re_tune,
 	return cx24116_read_status(fe, status);
 }
 
-static int cx24116_get_algo(struct dvb_frontend *fe)
+static enum dvbfe_algo cx24116_get_algo(struct dvb_frontend *fe)
 {
 	return DVBFE_ALGO_HW;
 }
 
-static struct dvb_frontend_ops cx24116_ops = {
+static const struct dvb_frontend_ops cx24116_ops = {
 	.delsys = { SYS_DVBS, SYS_DVBS2 },
 	.info = {
 		.name = "Conexant CX24116/CX24118",
-		.frequency_min = 950000,
-		.frequency_max = 2150000,
-		.frequency_stepsize = 1011, /* kHz for QPSK frontends */
-		.frequency_tolerance = 5000,
+		.frequency_min_hz = 950 * MHz,
+		.frequency_max_hz = 2150 * MHz,
+		.frequency_stepsize_hz = 1011 * kHz,
+		.frequency_tolerance_hz = 5 * MHz,
 		.symbol_rate_min = 1000000,
 		.symbol_rate_max = 45000000,
 		.caps = FE_CAN_INVERSION_AUTO |

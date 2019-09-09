@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /******************************************************************************
  *
  *	(C)Copyright 1998,1999 SysKonnect,
  *	a business unit of Schneider & Koch & Co. Datensysteme GmbH.
  *
  *	See the file "skfddi.c" for further information.
- *
- *	This program is free software; you can redistribute it and/or modify
- *	it under the terms of the GNU General Public License as published by
- *	the Free Software Foundation; either version 2 of the License, or
- *	(at your option) any later version.
  *
  *	The information in this file is provided "AS IS" without warranty.
  *
@@ -726,7 +722,7 @@ void mac2_irq(struct s_smc *smc, u_short code_s2u, u_short code_s2l)
 	if (code_s2u & FM_SMYBEC)
 		queue_event(smc,EVENT_RMT,RM_MY_BEACON) ;
 	if (change_s2u & code_s2u & FM_SLOCLM) {
-		DB_RMTN(2,"RMT : lower claim received\n",0,0) ;
+		DB_RMTN(2, "RMT : lower claim received");
 	}
 	if ((code_s2u & FM_SMYCLM) && !(code_s2l & FM_SDUPCLM)) {
 		/*
@@ -746,7 +742,7 @@ void mac2_irq(struct s_smc *smc, u_short code_s2u, u_short code_s2l)
 		queue_event(smc,EVENT_RMT,RM_VALID_CLAIM) ;
 	}
 	if (change_s2u & code_s2u & FM_SHICLM) {
-		DB_RMTN(2,"RMT : higher claim received\n",0,0) ;
+		DB_RMTN(2, "RMT : higher claim received");
 	}
 	if ( (code_s2l & FM_STRTEXP) ||
 	     (code_s2l & FM_STRTEXR) )
@@ -1334,7 +1330,7 @@ void rtm_irq(struct s_smc *smc)
 	outpw(ADDR(B2_RTM_CRTL),TIM_CL_IRQ) ;		/* clear IRQ */
 	if (inpw(ADDR(B2_RTM_CRTL)) & TIM_RES_TOK) {
 		outpw(FM_A(FM_CMDREG1),FM_ICL) ;	/* force claim */
-		DB_RMT("RMT: fddiPATHT_Rmode expired\n",0,0) ;
+		DB_RMT("RMT: fddiPATHT_Rmode expired");
 		AIX_EVENT(smc, (u_long) FDDI_RING_STATUS,
 				(u_long) FDDI_SMT_EVENT,
 				(u_long) FDDI_RTT, smt_get_event_word(smc));
@@ -1353,8 +1349,8 @@ void rtm_set_timer(struct s_smc *smc)
 	/*
 	 * MIB timer and hardware timer have the same resolution of 80nS
 	 */
-	DB_RMT("RMT: setting new fddiPATHT_Rmode, t = %d ns\n",
-		(int) smc->mib.a[PATH0].fddiPATHT_Rmode,0) ;
+	DB_RMT("RMT: setting new fddiPATHT_Rmode, t = %d ns",
+	       (int)smc->mib.a[PATH0].fddiPATHT_Rmode);
 	outpd(ADDR(B2_RTM_INI),smc->mib.a[PATH0].fddiPATHT_Rmode) ;
 }
 
@@ -1469,13 +1465,13 @@ static void smt_split_up_fifo(struct s_smc *smc)
 	smc->hw.fp.fifo.rx2_fifo_start = smc->hw.fp.fifo.tx_a0_start +
 		smc->hw.fp.fifo.tx_a0_size ;
 
-	DB_SMT("FIFO split: mode = %x\n",smc->hw.fp.fifo.fifo_config_mode,0) ;
-	DB_SMT("rbc_ram_start =	%x	 rbc_ram_end = 	%x\n",
-		smc->hw.fp.fifo.rbc_ram_start, smc->hw.fp.fifo.rbc_ram_end) ;
-	DB_SMT("rx1_fifo_start = %x	 tx_s_start = 	%x\n",
-		smc->hw.fp.fifo.rx1_fifo_start, smc->hw.fp.fifo.tx_s_start) ;
-	DB_SMT("tx_a0_start =	%x	 rx2_fifo_start = 	%x\n",
-		smc->hw.fp.fifo.tx_a0_start, smc->hw.fp.fifo.rx2_fifo_start) ;
+	DB_SMT("FIFO split: mode = %x", smc->hw.fp.fifo.fifo_config_mode);
+	DB_SMT("rbc_ram_start =	%x	 rbc_ram_end = 	%x",
+	       smc->hw.fp.fifo.rbc_ram_start, smc->hw.fp.fifo.rbc_ram_end);
+	DB_SMT("rx1_fifo_start = %x	 tx_s_start = 	%x",
+	       smc->hw.fp.fifo.rx1_fifo_start, smc->hw.fp.fifo.tx_s_start);
+	DB_SMT("tx_a0_start =	%x	 rx2_fifo_start = 	%x",
+	       smc->hw.fp.fifo.tx_a0_start, smc->hw.fp.fifo.rx2_fifo_start);
 }
 
 void formac_reinit_tx(struct s_smc *smc)

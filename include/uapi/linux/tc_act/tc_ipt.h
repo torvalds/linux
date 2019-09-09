@@ -1,10 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef __LINUX_TC_IPT_H
 #define __LINUX_TC_IPT_H
 
 #include <linux/pkt_cls.h>
-
-#define TCA_ACT_IPT 6
-#define TCA_ACT_XT 10
 
 enum {
 	TCA_IPT_UNSPEC,

@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  include/linux/irqchip/arm-gic.h
  *
  *  Copyright (C) 2002 ARM Limited, All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #ifndef __LINUX_IRQCHIP_ARM_GIC_H
 #define __LINUX_IRQCHIP_ARM_GIC_H
@@ -25,7 +22,18 @@
 #define GICC_ENABLE			0x1
 #define GICC_INT_PRI_THRESHOLD		0xf0
 
-#define GIC_CPU_CTRL_EOImodeNS		(1 << 9)
+#define GIC_CPU_CTRL_EnableGrp0_SHIFT	0
+#define GIC_CPU_CTRL_EnableGrp0		(1 << GIC_CPU_CTRL_EnableGrp0_SHIFT)
+#define GIC_CPU_CTRL_EnableGrp1_SHIFT	1
+#define GIC_CPU_CTRL_EnableGrp1		(1 << GIC_CPU_CTRL_EnableGrp1_SHIFT)
+#define GIC_CPU_CTRL_AckCtl_SHIFT	2
+#define GIC_CPU_CTRL_AckCtl		(1 << GIC_CPU_CTRL_AckCtl_SHIFT)
+#define GIC_CPU_CTRL_FIQEn_SHIFT	3
+#define GIC_CPU_CTRL_FIQEn		(1 << GIC_CPU_CTRL_FIQEn_SHIFT)
+#define GIC_CPU_CTRL_CBPR_SHIFT		4
+#define GIC_CPU_CTRL_CBPR		(1 << GIC_CPU_CTRL_CBPR_SHIFT)
+#define GIC_CPU_CTRL_EOImodeNS_SHIFT	9
+#define GIC_CPU_CTRL_EOImodeNS		(1 << GIC_CPU_CTRL_EOImodeNS_SHIFT)
 
 #define GICC_IAR_INT_ID_MASK		0x3ff
 #define GICC_INT_SPURIOUS		1023
@@ -54,11 +62,16 @@
 #define GICD_INT_EN_CLR_X32		0xffffffff
 #define GICD_INT_EN_SET_SGI		0x0000ffff
 #define GICD_INT_EN_CLR_PPI		0xffff0000
-#define GICD_INT_DEF_PRI		0xa0
-#define GICD_INT_DEF_PRI_X4		((GICD_INT_DEF_PRI << 24) |\
-					(GICD_INT_DEF_PRI << 16) |\
-					(GICD_INT_DEF_PRI << 8) |\
-					GICD_INT_DEF_PRI)
+
+#define GICD_IIDR_IMPLEMENTER_SHIFT	0
+#define GICD_IIDR_IMPLEMENTER_MASK	(0xfff << GICD_IIDR_IMPLEMENTER_SHIFT)
+#define GICD_IIDR_REVISION_SHIFT	12
+#define GICD_IIDR_REVISION_MASK		(0xf << GICD_IIDR_REVISION_SHIFT)
+#define GICD_IIDR_VARIANT_SHIFT		16
+#define GICD_IIDR_VARIANT_MASK		(0xf << GICD_IIDR_VARIANT_SHIFT)
+#define GICD_IIDR_PRODUCT_ID_SHIFT	24
+#define GICD_IIDR_PRODUCT_ID_MASK	(0xff << GICD_IIDR_PRODUCT_ID_SHIFT)
+
 
 #define GICH_HCR			0x0
 #define GICH_VTR			0x4
@@ -73,6 +86,7 @@
 
 #define GICH_HCR_EN			(1 << 0)
 #define GICH_HCR_UIE			(1 << 1)
+#define GICH_HCR_NPIE			(1 << 3)
 
 #define GICH_LR_VIRTUALID		(0x3ff << 0)
 #define GICH_LR_PHYSID_CPUID_SHIFT	(10)
@@ -82,10 +96,22 @@
 #define GICH_LR_PENDING_BIT		(1 << 28)
 #define GICH_LR_ACTIVE_BIT		(1 << 29)
 #define GICH_LR_EOI			(1 << 19)
+#define GICH_LR_GROUP1			(1 << 30)
 #define GICH_LR_HW			(1 << 31)
 
-#define GICH_VMCR_CTRL_SHIFT		0
-#define GICH_VMCR_CTRL_MASK		(0x21f << GICH_VMCR_CTRL_SHIFT)
+#define GICH_VMCR_ENABLE_GRP0_SHIFT	0
+#define GICH_VMCR_ENABLE_GRP0_MASK	(1 << GICH_VMCR_ENABLE_GRP0_SHIFT)
+#define GICH_VMCR_ENABLE_GRP1_SHIFT	1
+#define GICH_VMCR_ENABLE_GRP1_MASK	(1 << GICH_VMCR_ENABLE_GRP1_SHIFT)
+#define GICH_VMCR_ACK_CTL_SHIFT		2
+#define GICH_VMCR_ACK_CTL_MASK		(1 << GICH_VMCR_ACK_CTL_SHIFT)
+#define GICH_VMCR_FIQ_EN_SHIFT		3
+#define GICH_VMCR_FIQ_EN_MASK		(1 << GICH_VMCR_FIQ_EN_SHIFT)
+#define GICH_VMCR_CBPR_SHIFT		4
+#define GICH_VMCR_CBPR_MASK		(1 << GICH_VMCR_CBPR_SHIFT)
+#define GICH_VMCR_EOI_MODE_SHIFT	9
+#define GICH_VMCR_EOI_MODE_MASK		(1 << GICH_VMCR_EOI_MODE_SHIFT)
+
 #define GICH_VMCR_PRIMASK_SHIFT		27
 #define GICH_VMCR_PRIMASK_MASK		(0x1f << GICH_VMCR_PRIMASK_SHIFT)
 #define GICH_VMCR_BINPOINT_SHIFT	21
@@ -95,6 +121,9 @@
 
 #define GICH_MISR_EOI			(1 << 0)
 #define GICH_MISR_U			(1 << 1)
+
+#define GICV_PMR_PRIORITY_SHIFT		3
+#define GICV_PMR_PRIORITY_MASK		(0x1f << GICV_PMR_PRIORITY_SHIFT)
 
 #ifndef __ASSEMBLY__
 
@@ -126,11 +155,7 @@ int gic_of_init_child(struct device *dev, struct gic_chip_data **gic, int irq);
  * Legacy platforms not converted to DT yet must use this to init
  * their GIC
  */
-void gic_init(unsigned int nr, int start,
-	      void __iomem *dist , void __iomem *cpu);
-
-int gicv2m_init(struct fwnode_handle *parent_handle,
-		struct irq_domain *parent);
+void gic_init(void __iomem *dist , void __iomem *cpu);
 
 void gic_send_sgi(unsigned int cpu_id, unsigned int irq);
 int gic_get_cpu_id(unsigned int cpu);

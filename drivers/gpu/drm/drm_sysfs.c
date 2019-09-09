@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 
 /*
  * drm_sysfs.c - Modifications to drm_sysfs_class.c to support
@@ -7,23 +8,41 @@
  * Copyright (c) 2004 Jon Smirl <jonsmirl@gmail.com>
  * Copyright (c) 2003-2004 Greg Kroah-Hartman <greg@kroah.com>
  * Copyright (c) 2003-2004 IBM Corp.
- *
- * This file is released under the GPLv2
- *
  */
 
 #include <linux/device.h>
-#include <linux/kdev_t.h>
-#include <linux/gfp.h>
 #include <linux/err.h>
 #include <linux/export.h>
+#include <linux/gfp.h>
+#include <linux/kdev_t.h>
+#include <linux/slab.h>
 
+#include <drm/drm_connector.h>
+#include <drm/drm_device.h>
+#include <drm/drm_file.h>
+#include <drm/drm_modes.h>
+#include <drm/drm_print.h>
+#include <drm/drm_property.h>
 #include <drm/drm_sysfs.h>
-#include <drm/drmP.h>
+
 #include "drm_internal.h"
 
 #define to_drm_minor(d) dev_get_drvdata(d)
 #define to_drm_connector(d) dev_get_drvdata(d)
+
+/**
+ * DOC: overview
+ *
+ * DRM provides very little additional support to drivers for sysfs
+ * interactions, beyond just all the standard stuff. Drivers who want to expose
+ * additional sysfs properties and property groups can attach them at either
+ * &drm_device.dev or &drm_connector.kdev.
+ *
+ * Registration is automatically handled when calling drm_dev_register(), or
+ * drm_connector_register() in case of hot-plugged connectors. Unregistration is
+ * also automatically handled by drm_dev_unregister() and
+ * drm_connector_unregister().
+ */
 
 static struct device_type drm_sysfs_device_minor = {
 	.name = "drm_minor"
@@ -64,6 +83,7 @@ int drm_sysfs_init(void)
 	}
 
 	drm_class->devnode = drm_devnode;
+	drm_setup_hdcp_srm(drm_class);
 	return 0;
 }
 
@@ -76,6 +96,7 @@ void drm_sysfs_destroy(void)
 {
 	if (IS_ERR_OR_NULL(drm_class))
 		return;
+	drm_teardown_hdcp_srm(drm_class);
 	class_remove_file(drm_class, &class_attr_version.attr);
 	class_destroy(drm_class);
 	drm_class = NULL;
@@ -250,15 +271,6 @@ static const struct attribute_group *connector_dev_groups[] = {
 	NULL
 };
 
-/**
- * drm_sysfs_connector_add - add a connector to sysfs
- * @connector: connector to add
- *
- * Create a connector device in sysfs, along with its associated connector
- * properties (so far, connection status, dpms, mode list & edid) and
- * generate a hotplug event so userspace knows there's a new connector
- * available.
- */
 int drm_sysfs_connector_add(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
@@ -285,19 +297,6 @@ int drm_sysfs_connector_add(struct drm_connector *connector)
 	return 0;
 }
 
-/**
- * drm_sysfs_connector_remove - remove an connector device from sysfs
- * @connector: connector to remove
- *
- * Remove @connector and its associated attributes from sysfs.  Note that
- * the device model core will take care of sending the "remove" uevent
- * at this time, so we don't need to do it.
- *
- * Note:
- * This routine should only be called if the connector was previously
- * successfully registered.  If @connector hasn't been registered yet,
- * you'll likely see a panic somewhere deep in sysfs code when called.
- */
 void drm_sysfs_connector_remove(struct drm_connector *connector)
 {
 	if (!connector->kdev)
@@ -307,6 +306,16 @@ void drm_sysfs_connector_remove(struct drm_connector *connector)
 
 	device_unregister(connector->kdev);
 	connector->kdev = NULL;
+}
+
+void drm_sysfs_lease_event(struct drm_device *dev)
+{
+	char *event_string = "LEASE=1";
+	char *envp[] = { event_string, NULL };
+
+	DRM_DEBUG("generating lease event\n");
+
+	kobject_uevent_env(&dev->primary->kdev->kobj, KOBJ_CHANGE, envp);
 }
 
 /**
@@ -333,29 +342,13 @@ static void drm_sysfs_release(struct device *dev)
 	kfree(dev);
 }
 
-/**
- * drm_sysfs_minor_alloc() - Allocate sysfs device for given minor
- * @minor: minor to allocate sysfs device for
- *
- * This allocates a new sysfs device for @minor and returns it. The device is
- * not registered nor linked. The caller has to use device_add() and
- * device_del() to register and unregister it.
- *
- * Note that dev_get_drvdata() on the new device will return the minor.
- * However, the device does not hold a ref-count to the minor nor to the
- * underlying drm_device. This is unproblematic as long as you access the
- * private data only in sysfs callbacks. device_del() disables those
- * synchronously, so they cannot be called after you cleanup a minor.
- */
 struct device *drm_sysfs_minor_alloc(struct drm_minor *minor)
 {
 	const char *minor_str;
 	struct device *kdev;
 	int r;
 
-	if (minor->type == DRM_MINOR_CONTROL)
-		minor_str = "controlD%d";
-	else if (minor->type == DRM_MINOR_RENDER)
+	if (minor->type == DRM_MINOR_RENDER)
 		minor_str = "renderD%d";
 	else
 		minor_str = "card%d";
@@ -384,15 +377,13 @@ err_free:
 }
 
 /**
- * drm_class_device_register - Register a struct device in the drm class.
+ * drm_class_device_register - register new device with the DRM sysfs class
+ * @dev: device to register
  *
- * @dev: pointer to struct device to register.
- *
- * @dev should have all relevant members pre-filled with the exception
- * of the class member. In particular, the device_type member must
- * be set.
+ * Registers a new &struct device within the DRM sysfs class. Essentially only
+ * used by ttm to have a place for its global settings. Drivers should never use
+ * this.
  */
-
 int drm_class_device_register(struct device *dev)
 {
 	if (!drm_class || IS_ERR(drm_class))
@@ -403,6 +394,14 @@ int drm_class_device_register(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(drm_class_device_register);
 
+/**
+ * drm_class_device_unregister - unregister device with the DRM sysfs class
+ * @dev: device to unregister
+ *
+ * Unregisters a &struct device from the DRM sysfs class. Essentially only used
+ * by ttm to have a place for its global settings. Drivers should never use
+ * this.
+ */
 void drm_class_device_unregister(struct device *dev)
 {
 	return device_unregister(dev);

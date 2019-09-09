@@ -84,10 +84,10 @@ void pnic_lnk_change(struct net_device *dev, int csr5)
 	}
 }
 
-void pnic_timer(unsigned long data)
+void pnic_timer(struct timer_list *t)
 {
-	struct net_device *dev = (struct net_device *)data;
-	struct tulip_private *tp = netdev_priv(dev);
+	struct tulip_private *tp = from_timer(tp, t, timer);
+	struct net_device *dev = tp->dev;
 	void __iomem *ioaddr = tp->base_addr;
 	int next_tick = 60*HZ;
 

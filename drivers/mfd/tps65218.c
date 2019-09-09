@@ -33,19 +33,17 @@
 
 #define TPS65218_PASSWORD_REGS_UNLOCK   0x7D
 
-/**
- * tps65218_reg_read: Read a single tps65218 register.
- *
- * @tps: Device to read from.
- * @reg: Register to read.
- * @val: Contians the value
- */
-int tps65218_reg_read(struct tps65218 *tps, unsigned int reg,
-			unsigned int *val)
-{
-	return regmap_read(tps->regmap, reg, val);
-}
-EXPORT_SYMBOL_GPL(tps65218_reg_read);
+static const struct mfd_cell tps65218_cells[] = {
+	{
+		.name = "tps65218-pwrbutton",
+		.of_compatible = "ti,tps65218-pwrbutton",
+	},
+	{
+		.name = "tps65218-gpio",
+		.of_compatible = "ti,tps65218-gpio",
+	},
+	{ .name = "tps65218-regulator", },
+};
 
 /**
  * tps65218_reg_write: Write a single tps65218 register.
@@ -93,7 +91,7 @@ static int tps65218_update_bits(struct tps65218 *tps, unsigned int reg,
 	int ret;
 	unsigned int data;
 
-	ret = tps65218_reg_read(tps, reg, &data);
+	ret = regmap_read(tps->regmap, reg, &data);
 	if (ret) {
 		dev_err(tps->dev, "Read from reg 0x%x failed\n", reg);
 		return ret;
@@ -213,20 +211,89 @@ static const struct of_device_id of_tps65218_match_table[] = {
 };
 MODULE_DEVICE_TABLE(of, of_tps65218_match_table);
 
+static int tps65218_voltage_set_strict(struct tps65218 *tps)
+{
+	u32 strict;
+
+	if (of_property_read_u32(tps->dev->of_node,
+				 "ti,strict-supply-voltage-supervision",
+				 &strict))
+		return 0;
+
+	if (strict != 0 && strict != 1) {
+		dev_err(tps->dev,
+			"Invalid ti,strict-supply-voltage-supervision value\n");
+		return -EINVAL;
+	}
+
+	tps65218_update_bits(tps, TPS65218_REG_CONFIG1,
+			     TPS65218_CONFIG1_STRICT,
+			     strict ? TPS65218_CONFIG1_STRICT : 0,
+			     TPS65218_PROTECT_L1);
+	return 0;
+}
+
+static int tps65218_voltage_set_uv_hyst(struct tps65218 *tps)
+{
+	u32 hyst;
+
+	if (of_property_read_u32(tps->dev->of_node,
+				 "ti,under-voltage-hyst-microvolt", &hyst))
+		return 0;
+
+	if (hyst != 400000 && hyst != 200000) {
+		dev_err(tps->dev,
+			"Invalid ti,under-voltage-hyst-microvolt value\n");
+		return -EINVAL;
+	}
+
+	tps65218_update_bits(tps, TPS65218_REG_CONFIG2,
+			     TPS65218_CONFIG2_UVLOHYS,
+			     hyst == 400000 ? TPS65218_CONFIG2_UVLOHYS : 0,
+			     TPS65218_PROTECT_L1);
+	return 0;
+}
+
+static int tps65218_voltage_set_uvlo(struct tps65218 *tps)
+{
+	u32 uvlo;
+	int uvloval;
+
+	if (of_property_read_u32(tps->dev->of_node,
+				 "ti,under-voltage-limit-microvolt", &uvlo))
+		return 0;
+
+	switch (uvlo) {
+	case 2750000:
+		uvloval = TPS65218_CONFIG1_UVLO_2750000;
+		break;
+	case 2950000:
+		uvloval = TPS65218_CONFIG1_UVLO_2950000;
+		break;
+	case 3250000:
+		uvloval = TPS65218_CONFIG1_UVLO_3250000;
+		break;
+	case 3350000:
+		uvloval = TPS65218_CONFIG1_UVLO_3350000;
+		break;
+	default:
+		dev_err(tps->dev,
+			"Invalid ti,under-voltage-limit-microvolt value\n");
+		return -EINVAL;
+	}
+
+	tps65218_update_bits(tps, TPS65218_REG_CONFIG1,
+			     TPS65218_CONFIG1_UVLO_MASK, uvloval,
+			     TPS65218_PROTECT_L1);
+	return 0;
+}
+
 static int tps65218_probe(struct i2c_client *client,
 				const struct i2c_device_id *ids)
 {
 	struct tps65218 *tps;
-	const struct of_device_id *match;
 	int ret;
 	unsigned int chipid;
-
-	match = of_match_device(of_tps65218_match_table, &client->dev);
-	if (!match) {
-		dev_err(&client->dev,
-			"Failed to find matching dt id\n");
-		return -EINVAL;
-	}
 
 	tps = devm_kzalloc(&client->dev, sizeof(*tps), GFP_KERNEL);
 	if (!tps)
@@ -245,13 +312,13 @@ static int tps65218_probe(struct i2c_client *client,
 
 	mutex_init(&tps->tps_lock);
 
-	ret = regmap_add_irq_chip(tps->regmap, tps->irq,
-			IRQF_ONESHOT, 0, &tps65218_irq_chip,
-			&tps->irq_data);
+	ret = devm_regmap_add_irq_chip(&client->dev, tps->regmap, tps->irq,
+				       IRQF_ONESHOT, 0, &tps65218_irq_chip,
+				       &tps->irq_data);
 	if (ret < 0)
 		return ret;
 
-	ret = tps65218_reg_read(tps, TPS65218_REG_CHIPID, &chipid);
+	ret = regmap_read(tps->regmap, TPS65218_REG_CHIPID, &chipid);
 	if (ret) {
 		dev_err(tps->dev, "Failed to read chipid: %d\n", ret);
 		return ret;
@@ -259,26 +326,23 @@ static int tps65218_probe(struct i2c_client *client,
 
 	tps->rev = chipid & TPS65218_CHIPID_REV_MASK;
 
-	ret = of_platform_populate(client->dev.of_node, NULL, NULL,
-				   &client->dev);
-	if (ret < 0)
-		goto err_irq;
+	ret = tps65218_voltage_set_strict(tps);
+	if (ret)
+		return ret;
 
-	return 0;
+	ret = tps65218_voltage_set_uvlo(tps);
+	if (ret)
+		return ret;
 
-err_irq:
-	regmap_del_irq_chip(tps->irq, tps->irq_data);
+	ret = tps65218_voltage_set_uv_hyst(tps);
+	if (ret)
+		return ret;
+
+	ret = mfd_add_devices(tps->dev, PLATFORM_DEVID_AUTO, tps65218_cells,
+			      ARRAY_SIZE(tps65218_cells), NULL, 0,
+			      regmap_irq_get_domain(tps->irq_data));
 
 	return ret;
-}
-
-static int tps65218_remove(struct i2c_client *client)
-{
-	struct tps65218 *tps = i2c_get_clientdata(client);
-
-	regmap_del_irq_chip(tps->irq, tps->irq_data);
-
-	return 0;
 }
 
 static const struct i2c_device_id tps65218_id_table[] = {
@@ -293,7 +357,6 @@ static struct i2c_driver tps65218_driver = {
 		.of_match_table = of_tps65218_match_table,
 	},
 	.probe		= tps65218_probe,
-	.remove		= tps65218_remove,
 	.id_table       = tps65218_id_table,
 };
 

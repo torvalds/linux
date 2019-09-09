@@ -24,16 +24,19 @@
 #endif
 
 /**
- * struct vb2_v4l2_buffer - video buffer information for v4l2
+ * struct vb2_v4l2_buffer - video buffer information for v4l2.
  *
- * @vb2_buf:	video buffer 2
- * @flags:	buffer informational flags
- * @field:	enum v4l2_field; field order of the image in the buffer
- * @timecode:	frame timecode
- * @sequence:	sequence count of this frame
+ * @vb2_buf:	embedded struct &vb2_buffer.
+ * @flags:	buffer informational flags.
+ * @field:	field order of the image in the buffer, as defined by
+ *		&enum v4l2_field.
+ * @timecode:	frame timecode.
+ * @sequence:	sequence count of this frame.
+ * @request_fd:	the request_fd associated with this buffer
+ * @planes:	plane information (userptr/fd, length, bytesused, data_offset).
  *
  * Should contain enough information to be able to cover all the fields
- * of struct v4l2_buffer at videodev2.h
+ * of &struct v4l2_buffer at ``videodev2.h``.
  */
 struct vb2_v4l2_buffer {
 	struct vb2_buffer	vb2_buf;
@@ -42,6 +45,8 @@ struct vb2_v4l2_buffer {
 	__u32			field;
 	struct v4l2_timecode	timecode;
 	__u32			sequence;
+	__s32			request_fd;
+	struct vb2_plane	planes[VB2_MAX_PLANES];
 };
 
 /*
@@ -50,15 +55,31 @@ struct vb2_v4l2_buffer {
 #define to_vb2_v4l2_buffer(vb) \
 	container_of(vb, struct vb2_v4l2_buffer, vb2_buf)
 
+/**
+ * vb2_find_timestamp() - Find buffer with given timestamp in the queue
+ *
+ * @q:		pointer to &struct vb2_queue with videobuf2 queue.
+ * @timestamp:	the timestamp to find.
+ * @start_idx:	the start index (usually 0) in the buffer array to start
+ *		searching from. Note that there may be multiple buffers
+ *		with the same timestamp value, so you can restart the search
+ *		by setting @start_idx to the previously found index + 1.
+ *
+ * Returns the buffer index of the buffer with the given @timestamp, or
+ * -1 if no buffer with @timestamp was found.
+ */
+int vb2_find_timestamp(const struct vb2_queue *q, u64 timestamp,
+		       unsigned int start_idx);
+
 int vb2_querybuf(struct vb2_queue *q, struct v4l2_buffer *b);
 
 /**
  * vb2_reqbufs() - Wrapper for vb2_core_reqbufs() that also verifies
  * the memory and type values.
  *
- * @q:		videobuf2 queue
- * @req:	struct passed from userspace to vidioc_reqbufs handler
- *		in driver
+ * @q:		pointer to &struct vb2_queue with videobuf2 queue.
+ * @req:	&struct v4l2_requestbuffers passed from userspace to
+ *		&v4l2_ioctl_ops->vidioc_reqbufs handler in driver.
  */
 int vb2_reqbufs(struct vb2_queue *q, struct v4l2_requestbuffers *req);
 
@@ -66,94 +87,107 @@ int vb2_reqbufs(struct vb2_queue *q, struct v4l2_requestbuffers *req);
  * vb2_create_bufs() - Wrapper for vb2_core_create_bufs() that also verifies
  * the memory and type values.
  *
- * @q:		videobuf2 queue
- * @create:	creation parameters, passed from userspace to vidioc_create_bufs
- *		handler in driver
+ * @q:		pointer to &struct vb2_queue with videobuf2 queue.
+ * @create:	creation parameters, passed from userspace to
+ *		&v4l2_ioctl_ops->vidioc_create_bufs handler in driver
  */
 int vb2_create_bufs(struct vb2_queue *q, struct v4l2_create_buffers *create);
 
 /**
  * vb2_prepare_buf() - Pass ownership of a buffer from userspace to the kernel
  *
- * @q:		videobuf2 queue
- * @b:		buffer structure passed from userspace to vidioc_prepare_buf
- *		handler in driver
+ * @q:		pointer to &struct vb2_queue with videobuf2 queue.
+ * @mdev:	pointer to &struct media_device, may be NULL.
+ * @b:		buffer structure passed from userspace to
+ *		&v4l2_ioctl_ops->vidioc_prepare_buf handler in driver
  *
- * Should be called from vidioc_prepare_buf ioctl handler of a driver.
+ * Should be called from &v4l2_ioctl_ops->vidioc_prepare_buf ioctl handler
+ * of a driver.
+ *
  * This function:
  *
  * #) verifies the passed buffer,
- * #) calls buf_prepare callback in the driver (if provided), in which
- *    driver-specific buffer initialization can be performed.
+ * #) calls &vb2_ops->buf_prepare callback in the driver (if provided),
+ *    in which driver-specific buffer initialization can be performed.
+ * #) if @b->request_fd is non-zero and @mdev->ops->req_queue is set,
+ *    then bind the prepared buffer to the request.
  *
  * The return values from this function are intended to be directly returned
- * from vidioc_prepare_buf handler in driver.
+ * from &v4l2_ioctl_ops->vidioc_prepare_buf handler in driver.
  */
-int vb2_prepare_buf(struct vb2_queue *q, struct v4l2_buffer *b);
+int vb2_prepare_buf(struct vb2_queue *q, struct media_device *mdev,
+		    struct v4l2_buffer *b);
 
 /**
  * vb2_qbuf() - Queue a buffer from userspace
- * @q:		videobuf2 queue
- * @b:		buffer structure passed from userspace to VIDIOC_QBUF() handler
- *		in driver
+ * @q:		pointer to &struct vb2_queue with videobuf2 queue.
+ * @mdev:	pointer to &struct media_device, may be NULL.
+ * @b:		buffer structure passed from userspace to
+ *		&v4l2_ioctl_ops->vidioc_qbuf handler in driver
  *
- * Should be called from VIDIOC_QBUF() ioctl handler of a driver.
+ * Should be called from &v4l2_ioctl_ops->vidioc_qbuf handler of a driver.
  *
  * This function:
  *
- * #) verifies the passed buffer,
- * #) if necessary, calls buf_prepare callback in the driver (if provided), in
- *    which driver-specific buffer initialization can be performed,
- * #) if streaming is on, queues the buffer in driver by the means of buf_queue
- *    callback for processing.
+ * #) verifies the passed buffer;
+ * #) if @b->request_fd is non-zero and @mdev->ops->req_queue is set,
+ *    then bind the buffer to the request.
+ * #) if necessary, calls &vb2_ops->buf_prepare callback in the driver
+ *    (if provided), in which driver-specific buffer initialization can
+ *    be performed;
+ * #) if streaming is on, queues the buffer in driver by the means of
+ *    &vb2_ops->buf_queue callback for processing.
  *
  * The return values from this function are intended to be directly returned
- * from VIDIOC_QBUF() handler in driver.
+ * from &v4l2_ioctl_ops->vidioc_qbuf handler in driver.
  */
-int vb2_qbuf(struct vb2_queue *q, struct v4l2_buffer *b);
+int vb2_qbuf(struct vb2_queue *q, struct media_device *mdev,
+	     struct v4l2_buffer *b);
 
 /**
  * vb2_expbuf() - Export a buffer as a file descriptor
- * @q:		videobuf2 queue
- * @eb:		export buffer structure passed from userspace to VIDIOC_EXPBUF()
- *		handler in driver
+ * @q:		pointer to &struct vb2_queue with videobuf2 queue.
+ * @eb:		export buffer structure passed from userspace to
+ *		&v4l2_ioctl_ops->vidioc_expbuf handler in driver
  *
  * The return values from this function are intended to be directly returned
- * from VIDIOC_EXPBUF() handler in driver.
+ * from &v4l2_ioctl_ops->vidioc_expbuf handler in driver.
  */
 int vb2_expbuf(struct vb2_queue *q, struct v4l2_exportbuffer *eb);
 
 /**
  * vb2_dqbuf() - Dequeue a buffer to the userspace
- * @q:		videobuf2 queue
- * @b:		buffer structure passed from userspace to VIDIOC_DQBUF() handler
- *		in driver
+ * @q:		pointer to &struct vb2_queue with videobuf2 queue.
+ * @b:		buffer structure passed from userspace to
+ *		&v4l2_ioctl_ops->vidioc_dqbuf handler in driver
  * @nonblocking: if true, this call will not sleep waiting for a buffer if no
  *		 buffers ready for dequeuing are present. Normally the driver
- *		 would be passing (file->f_flags & O_NONBLOCK) here
+ *		 would be passing (&file->f_flags & %O_NONBLOCK) here
  *
- * Should be called from VIDIOC_DQBUF() ioctl handler of a driver.
+ * Should be called from &v4l2_ioctl_ops->vidioc_dqbuf ioctl handler
+ * of a driver.
  *
  * This function:
  *
- * #) verifies the passed buffer,
- * #) calls buf_finish callback in the driver (if provided), in which
+ * #) verifies the passed buffer;
+ * #) calls &vb2_ops->buf_finish callback in the driver (if provided), in which
  *    driver can perform any additional operations that may be required before
- *    returning the buffer to userspace, such as cache sync,
+ *    returning the buffer to userspace, such as cache sync;
  * #) the buffer struct members are filled with relevant information for
  *    the userspace.
  *
  * The return values from this function are intended to be directly returned
- * from VIDIOC_DQBUF() handler in driver.
+ * from &v4l2_ioctl_ops->vidioc_dqbuf handler in driver.
  */
 int vb2_dqbuf(struct vb2_queue *q, struct v4l2_buffer *b, bool nonblocking);
 
 /**
  * vb2_streamon - start streaming
- * @q:		videobuf2 queue
- * @type:	type argument passed from userspace to vidioc_streamon handler
+ * @q:		pointer to &struct vb2_queue with videobuf2 queue.
+ * @type:	type argument passed from userspace to vidioc_streamon handler,
+ *		as defined by &enum v4l2_buf_type.
  *
- * Should be called from vidioc_streamon handler of a driver.
+ * Should be called from &v4l2_ioctl_ops->vidioc_streamon handler of a driver.
  *
  * This function:
  *
@@ -161,13 +195,13 @@ int vb2_dqbuf(struct vb2_queue *q, struct v4l2_buffer *b, bool nonblocking);
  * 2) passes any previously queued buffers to the driver and starts streaming
  *
  * The return values from this function are intended to be directly returned
- * from vidioc_streamon handler in the driver.
+ * from &v4l2_ioctl_ops->vidioc_streamon handler in the driver.
  */
 int vb2_streamon(struct vb2_queue *q, enum v4l2_buf_type type);
 
 /**
  * vb2_streamoff - stop streaming
- * @q:		videobuf2 queue
+ * @q:		pointer to &struct vb2_queue with videobuf2 queue.
  * @type:	type argument passed from userspace to vidioc_streamoff handler
  *
  * Should be called from vidioc_streamoff handler of a driver.
@@ -186,7 +220,7 @@ int vb2_streamoff(struct vb2_queue *q, enum v4l2_buf_type type);
 
 /**
  * vb2_queue_init() - initialize a videobuf2 queue
- * @q:		videobuf2 queue; this structure should be allocated in driver
+ * @q:		pointer to &struct vb2_queue with videobuf2 queue.
  *
  * The vb2_queue structure should be allocated by the driver. The driver is
  * responsible of clearing it's content and setting initial values for some
@@ -199,7 +233,7 @@ int __must_check vb2_queue_init(struct vb2_queue *q);
 
 /**
  * vb2_queue_release() - stop streaming, release the queue and free memory
- * @q:		videobuf2 queue
+ * @q:		pointer to &struct vb2_queue with videobuf2 queue.
  *
  * This function stops streaming and performs necessary clean ups, including
  * freeing video buffer memory. The driver is responsible for freeing
@@ -209,7 +243,7 @@ void vb2_queue_release(struct vb2_queue *q);
 
 /**
  * vb2_poll() - implements poll userspace operation
- * @q:		videobuf2 queue
+ * @q:		pointer to &struct vb2_queue with videobuf2 queue.
  * @file:	file argument passed to the poll file operation handler
  * @wait:	wait argument passed to the poll file operation handler
  *
@@ -226,8 +260,7 @@ void vb2_queue_release(struct vb2_queue *q);
  * The return values from this function are intended to be directly returned
  * from poll handler in driver.
  */
-unsigned int vb2_poll(struct vb2_queue *q, struct file *file,
-		      poll_table *wait);
+__poll_t vb2_poll(struct vb2_queue *q, struct file *file, poll_table *wait);
 
 /*
  * The following functions are not part of the vb2 core API, but are simple
@@ -262,7 +295,7 @@ ssize_t vb2_fop_write(struct file *file, const char __user *buf,
 		size_t count, loff_t *ppos);
 ssize_t vb2_fop_read(struct file *file, char __user *buf,
 		size_t count, loff_t *ppos);
-unsigned int vb2_fop_poll(struct file *file, poll_table *wait);
+__poll_t vb2_fop_poll(struct file *file, poll_table *wait);
 #ifndef CONFIG_MMU
 unsigned long vb2_fop_get_unmapped_area(struct file *file, unsigned long addr,
 		unsigned long len, unsigned long pgoff, unsigned long flags);
@@ -271,7 +304,7 @@ unsigned long vb2_fop_get_unmapped_area(struct file *file, unsigned long addr,
 /**
  * vb2_ops_wait_prepare - helper function to lock a struct &vb2_queue
  *
- * @vq: pointer to struct vb2_queue
+ * @vq: pointer to &struct vb2_queue
  *
  * ..note:: only use if vq->lock is non-NULL.
  */
@@ -280,10 +313,14 @@ void vb2_ops_wait_prepare(struct vb2_queue *vq);
 /**
  * vb2_ops_wait_finish - helper function to unlock a struct &vb2_queue
  *
- * @vq: pointer to struct vb2_queue
+ * @vq: pointer to &struct vb2_queue
  *
  * ..note:: only use if vq->lock is non-NULL.
  */
 void vb2_ops_wait_finish(struct vb2_queue *vq);
+
+struct media_request;
+int vb2_request_validate(struct media_request *req);
+void vb2_request_queue(struct media_request *req);
 
 #endif /* _MEDIA_VIDEOBUF2_V4L2_H */

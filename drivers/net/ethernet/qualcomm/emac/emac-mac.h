@@ -1,13 +1,5 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* Copyright (c) 2013-2016, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 /* EMAC DMA HW engine uses three rings:
@@ -114,8 +106,9 @@ struct emac_tpd {
 #define TPD_INSTC_SET(tpd, val)		BITS_SET((tpd)->word[3], 17, 17, val)
 /* High-14bit Buffer Address, So, the 64b-bit address is
  * {DESC_CTRL_11_TX_DATA_HIADDR[17:0],(register) BUFFER_ADDR_H, BUFFER_ADDR_L}
+ * Extend TPD_BUFFER_ADDR_H to [31, 18], because we never enable timestamping.
  */
-#define TPD_BUFFER_ADDR_H_SET(tpd, val)	BITS_SET((tpd)->word[3], 18, 30, val)
+#define TPD_BUFFER_ADDR_H_SET(tpd, val)	BITS_SET((tpd)->word[3], 18, 31, val)
 /* Format D. Word offset from the 1st byte of this packet to start to calculate
  * the custom checksum.
  */
@@ -230,7 +223,6 @@ struct emac_adapter;
 int  emac_mac_up(struct emac_adapter *adpt);
 void emac_mac_down(struct emac_adapter *adpt);
 void emac_mac_reset(struct emac_adapter *adpt);
-void emac_mac_start(struct emac_adapter *adpt);
 void emac_mac_stop(struct emac_adapter *adpt);
 void emac_mac_mode_config(struct emac_adapter *adpt);
 void emac_mac_rx_process(struct emac_adapter *adpt, struct emac_rx_queue *rx_q,

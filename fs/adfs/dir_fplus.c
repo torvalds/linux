@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/fs/adfs/dir_fplus.c
  *
  *  Copyright (C) 1997-1999 Russell King
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
-#include <linux/buffer_head.h>
 #include <linux/slab.h>
 #include "adfs.h"
 #include "dir_fplus.h"
@@ -40,17 +36,15 @@ adfs_fplus_read(struct super_block *sb, unsigned int id, unsigned int sz, struct
 	h = (struct adfs_bigdirheader *)dir->bh_fplus[0]->b_data;
 	size = le32_to_cpu(h->bigdirsize);
 	if (size != sz) {
-		printk(KERN_WARNING "adfs: adfs_fplus_read:"
-					" directory header size %X\n"
-					" does not match directory size %X\n",
-					size, sz);
+		adfs_msg(sb, KERN_WARNING,
+			 "directory header size %X does not match directory size %X",
+			 size, sz);
 	}
 
 	if (h->bigdirversion[0] != 0 || h->bigdirversion[1] != 0 ||
 	    h->bigdirversion[2] != 0 || size & 2047 ||
 	    h->bigdirstartname != cpu_to_le32(BIGDIRSTARTNAME)) {
-		printk(KERN_WARNING "adfs: dir object %X has"
-					" malformed dir header\n", id);
+		adfs_error(sb, "dir %06x has malformed header", id);
 		goto out;
 	}
 
@@ -61,9 +55,10 @@ adfs_fplus_read(struct super_block *sb, unsigned int id, unsigned int sz, struct
 			kcalloc(size, sizeof(struct buffer_head *),
 				GFP_KERNEL);
 		if (!bh_fplus) {
+			adfs_msg(sb, KERN_ERR,
+				 "not enough memory for dir object %X (%d blocks)",
+				 id, size);
 			ret = -ENOMEM;
-			adfs_error(sb, "not enough memory for"
-					" dir object %X (%d blocks)", id, size);
 			goto out;
 		}
 		dir->bh_fplus = bh_fplus;
@@ -94,8 +89,7 @@ adfs_fplus_read(struct super_block *sb, unsigned int id, unsigned int sz, struct
 	if (t->bigdirendname != cpu_to_le32(BIGDIRENDNAME) ||
 	    t->bigdirendmasseq != h->startmasseq ||
 	    t->reserved[0] != 0 || t->reserved[1] != 0) {
-		printk(KERN_WARNING "adfs: dir object %X has "
-					"malformed dir end\n", id);
+		adfs_error(sb, "dir %06x has malformed tail", id);
 		goto out;
 	}
 
@@ -169,7 +163,7 @@ adfs_fplus_getnext(struct adfs_dir *dir, struct object_info *obj)
 		(struct adfs_bigdirheader *) dir->bh_fplus[0]->b_data;
 	struct adfs_bigdirentry bde;
 	unsigned int offset;
-	int i, ret = -ENOENT;
+	int ret = -ENOENT;
 
 	if (dir->pos >= le32_to_cpu(h->bigdirentries))
 		goto out;
@@ -183,7 +177,7 @@ adfs_fplus_getnext(struct adfs_dir *dir, struct object_info *obj)
 	obj->loadaddr = le32_to_cpu(bde.bigdirload);
 	obj->execaddr = le32_to_cpu(bde.bigdirexec);
 	obj->size     = le32_to_cpu(bde.bigdirlen);
-	obj->file_id  = le32_to_cpu(bde.bigdirindaddr);
+	obj->indaddr  = le32_to_cpu(bde.bigdirindaddr);
 	obj->attr     = le32_to_cpu(bde.bigdirattr);
 	obj->name_len = le32_to_cpu(bde.bigdirobnamelen);
 
@@ -193,27 +187,7 @@ adfs_fplus_getnext(struct adfs_dir *dir, struct object_info *obj)
 	offset += le32_to_cpu(bde.bigdirobnameptr);
 
 	dir_memcpy(dir, offset, obj->name, obj->name_len);
-	for (i = 0; i < obj->name_len; i++)
-		if (obj->name[i] == '/')
-			obj->name[i] = '.';
-
-	obj->filetype = -1;
-
-	/*
-	 * object is a file and is filetyped and timestamped?
-	 * RISC OS 12-bit filetype is stored in load_address[19:8]
-	 */
-	if ((0 == (obj->attr & ADFS_NDA_DIRECTORY)) &&
-		(0xfff00000 == (0xfff00000 & obj->loadaddr))) {
-		obj->filetype = (__u16) ((0x000fff00 & obj->loadaddr) >> 8);
-
-		/* optionally append the ,xyz hex filetype suffix */
-		if (ADFS_SB(dir->sb)->s_ftsuffix)
-			obj->name_len +=
-				append_filetype_suffix(
-					&obj->name[obj->name_len],
-					obj->filetype);
-	}
+	adfs_object_fixup(dir, obj);
 
 	dir->pos += 1;
 	ret = 0;

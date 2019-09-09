@@ -1,7 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
  *
  * Copyright (C) 2011 Thomas Langer <thomas.langer@lantiq.com>
  * Copyright (C) 2011 John Crispin <john@phrozen.org>
@@ -24,7 +22,7 @@
 
 /* GPE frequency selection */
 #define GPPC_OFFSET		24
-#define GPEFREQ_MASK		0x00000C0
+#define GPEFREQ_MASK		0x0000C00
 #define GPEFREQ_OFFSET		10
 /* Clock status register */
 #define SYSCTL_CLKS		0x0000

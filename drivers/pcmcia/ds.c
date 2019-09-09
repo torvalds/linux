@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ds.c -- 16-bit PCMCIA core support
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * The initial developer of the original code is David A. Hinds
  * <dahinds@users.sourceforge.net>.  Portions created by David A. Hinds
@@ -67,7 +64,7 @@ static void pcmcia_check_driver(struct pcmcia_driver *p_drv)
 			       "be 0x%x\n", p_drv->name, did->prod_id[i],
 			       did->prod_id_hash[i], hash);
 			printk(KERN_DEBUG "pcmcia: see "
-				"Documentation/pcmcia/devicetable.txt for "
+				"Documentation/pcmcia/devicetable.rst for "
 				"details\n");
 		}
 		did++;
@@ -95,7 +92,7 @@ struct pcmcia_dynid {
  * and causes the driver to probe for all devices again.
  */
 static ssize_t
-pcmcia_store_new_id(struct device_driver *driver, const char *buf, size_t count)
+new_id_store(struct device_driver *driver, const char *buf, size_t count)
 {
 	struct pcmcia_dynid *dynid;
 	struct pcmcia_driver *pdrv = to_pcmcia_drv(driver);
@@ -133,7 +130,7 @@ pcmcia_store_new_id(struct device_driver *driver, const char *buf, size_t count)
 		return retval;
 	return count;
 }
-static DRIVER_ATTR(new_id, S_IWUSR, NULL, pcmcia_store_new_id);
+static DRIVER_ATTR_WO(new_id);
 
 static void
 pcmcia_free_dynids(struct pcmcia_driver *drv)

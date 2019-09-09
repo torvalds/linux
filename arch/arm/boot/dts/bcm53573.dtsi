@@ -1,0 +1,201 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+/*
+ * Copyright (C) 2016 Rafał Miłecki <rafal@milecki.pl>
+ */
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	interrupt-parent = <&gic>;
+
+	aliases {
+		serial0 = &uart0;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a7";
+			reg = <0x0>;
+		};
+	};
+
+	mpcore@18310000 {
+		compatible = "simple-bus";
+		ranges = <0x00000000 0x18310000 0x00008000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		gic: interrupt-controller@1000 {
+			compatible = "arm,cortex-a7-gic";
+			#interrupt-cells = <3>;
+			#address-cells = <0>;
+			interrupt-controller;
+			reg = <0x1000 0x1000>,
+			      <0x2000 0x0100>;
+		};
+	};
+
+	timer {
+		compatible = "arm,armv7-timer";
+		interrupts = <GIC_PPI 13 IRQ_TYPE_LEVEL_LOW>,
+			     <GIC_PPI 14 IRQ_TYPE_LEVEL_LOW>,
+			     <GIC_PPI 11 IRQ_TYPE_LEVEL_LOW>,
+			     <GIC_PPI 10 IRQ_TYPE_LEVEL_LOW>;
+	};
+
+	clocks {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		alp: oscillator {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <40000000>;
+		};
+	};
+
+	axi@18000000 {
+		compatible = "brcm,bus-axi";
+		reg = <0x18000000 0x1000>;
+		ranges = <0x00000000 0x18000000 0x00100000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		#interrupt-cells = <1>;
+		interrupt-map-mask = <0x000fffff 0xffff>;
+		interrupt-map =
+			/* ChipCommon */
+			<0x00000000 0 &gic GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>,
+
+			/* IEEE 802.11 0 */
+			<0x00001000 0 &gic GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>,
+
+			/* PCIe Controller 0 */
+			<0x00002000 0 &gic GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>,
+			<0x00002000 1 &gic GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>,
+			<0x00002000 2 &gic GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>,
+			<0x00002000 3 &gic GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>,
+			<0x00002000 4 &gic GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>,
+			<0x00002000 5 &gic GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>,
+
+			/* USB 2.0 Controller */
+			<0x00004000 0 &gic GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>,
+
+			/* Ethernet Controller 0 */
+			<0x00005000 0 &gic GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>,
+
+			/* IEEE 802.11 1 */
+			<0x0000a000 0 &gic GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>,
+
+			/* Ethernet Controller 1 */
+			<0x0000b000 0 &gic GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>;
+
+		chipcommon: chipcommon@0 {
+			compatible = "simple-bus";
+			reg = <0x00000000 0x1000>;
+			ranges;
+
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+
+			uart0: serial@300 {
+				compatible = "ns16550a";
+				reg = <0x0300 0x100>;
+				interrupt-parent = <&gic>;
+				interrupts = <GIC_PPI 16 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&alp>;
+				status = "okay";
+			};
+		};
+
+		pcie0: pcie@2000 {
+			reg = <0x00002000 0x1000>;
+		};
+
+		usb2: usb2@4000 {
+			reg = <0x4000 0x1000>;
+			ranges;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			ehci: ehci@4000 {
+				compatible = "generic-ehci";
+				reg = <0x4000 0x1000>;
+				interrupt-parent = <&gic>;
+				interrupts = <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>;
+
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				ehci_port1: port@1 {
+					reg = <1>;
+					#trigger-source-cells = <0>;
+				};
+
+				ehci_port2: port@2 {
+					reg = <2>;
+					#trigger-source-cells = <0>;
+				};
+			};
+
+			ohci: ohci@d000 {
+				#usb-cells = <0>;
+
+				compatible = "generic-ohci";
+				reg = <0xd000 0x1000>;
+				interrupt-parent = <&gic>;
+				interrupts = <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>;
+
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				ohci_port1: port@1 {
+					reg = <1>;
+					#trigger-source-cells = <0>;
+				};
+
+				ohci_port2: port@2 {
+					reg = <2>;
+					#trigger-source-cells = <0>;
+				};
+			};
+		};
+
+		gmac0: ethernet@5000 {
+			reg = <0x5000 0x1000>;
+		};
+
+		gmac1: ethernet@b000 {
+			reg = <0xb000 0x1000>;
+		};
+
+		pmu@12000 {
+			compatible = "simple-mfd", "syscon";
+			reg = <0x00012000 0x00001000>;
+
+			ilp: ilp {
+				compatible = "brcm,bcm53573-ilp";
+				clocks = <&alp>;
+				#clock-cells = <0>;
+				clock-output-names = "ilp";
+			};
+		};
+	};
+};

@@ -36,7 +36,6 @@ Boston, MA 02111-1307, USA.  */
 #include <linux/linkage.h>
 #include <asm/assembler.h>
 #include <asm/unwind.h>
-#include <asm/export.h>
 
 .macro ARM_DIV_BODY dividend, divisor, result, curbit
 
@@ -97,7 +96,7 @@ Boston, MA 02111-1307, USA.  */
 	subhs	\dividend, \dividend, \divisor, lsr #3
 	orrhs	\result,   \result,   \curbit,  lsr #3
 	cmp	\dividend, #0			@ Early termination?
-	movnes	\curbit,   \curbit,  lsr #4	@ No, any more bits to do?
+	movsne	\curbit,   \curbit,  lsr #4	@ No, any more bits to do?
 	movne	\divisor,  \divisor, lsr #4
 	bne	1b
 
@@ -183,7 +182,7 @@ Boston, MA 02111-1307, USA.  */
 	subhs	\dividend, \dividend, \divisor, lsr #3
 	cmp	\dividend, #1
 	mov	\divisor, \divisor, lsr #4
-	subges	\order, \order, #4
+	subsge	\order, \order, #4
 	bge	1b
 
 	tst	\order, #3
@@ -239,8 +238,6 @@ UNWIND(.fnstart)
 UNWIND(.fnend)
 ENDPROC(__udivsi3)
 ENDPROC(__aeabi_uidiv)
-EXPORT_SYMBOL(__udivsi3)
-EXPORT_SYMBOL(__aeabi_uidiv)
 
 ENTRY(__umodsi3)
 UNWIND(.fnstart)
@@ -259,7 +256,6 @@ UNWIND(.fnstart)
 
 UNWIND(.fnend)
 ENDPROC(__umodsi3)
-EXPORT_SYMBOL(__umodsi3)
 
 #ifdef CONFIG_ARM_PATCH_IDIV
 	.align 3
@@ -307,8 +303,6 @@ UNWIND(.fnstart)
 UNWIND(.fnend)
 ENDPROC(__divsi3)
 ENDPROC(__aeabi_idiv)
-EXPORT_SYMBOL(__divsi3)
-EXPORT_SYMBOL(__aeabi_idiv)
 
 ENTRY(__modsi3)
 UNWIND(.fnstart)
@@ -333,7 +327,6 @@ UNWIND(.fnstart)
 
 UNWIND(.fnend)
 ENDPROC(__modsi3)
-EXPORT_SYMBOL(__modsi3)
 
 #ifdef CONFIG_AEABI
 
@@ -350,7 +343,6 @@ UNWIND(.save {r0, r1, ip, lr}	)
 
 UNWIND(.fnend)
 ENDPROC(__aeabi_uidivmod)
-EXPORT_SYMBOL(__aeabi_uidivmod)
 
 ENTRY(__aeabi_idivmod)
 UNWIND(.fnstart)
@@ -364,7 +356,6 @@ UNWIND(.save {r0, r1, ip, lr}	)
 
 UNWIND(.fnend)
 ENDPROC(__aeabi_idivmod)
-EXPORT_SYMBOL(__aeabi_idivmod)
 
 #endif
 

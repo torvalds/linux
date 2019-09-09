@@ -1,10 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Xilinx XADC driver
  *
  * Copyright 2013 Analog Devices Inc.
  *  Author: Lars-Peter Clauen <lars@metafoo.de>
- *
- * Licensed under the GPL-2.
  */
 
 #ifndef __IIO_XILINX_XADC__
@@ -68,16 +67,17 @@ struct xadc {
 	spinlock_t lock;
 
 	struct completion completion;
+	int irq;
 };
 
 struct xadc_ops {
-	int (*read)(struct xadc *, unsigned int, uint16_t *);
-	int (*write)(struct xadc *, unsigned int, uint16_t);
+	int (*read)(struct xadc *xadc, unsigned int reg, uint16_t *val);
+	int (*write)(struct xadc *xadc, unsigned int reg, uint16_t val);
 	int (*setup)(struct platform_device *pdev, struct iio_dev *indio_dev,
 			int irq);
-	void (*update_alarm)(struct xadc *, unsigned int);
-	unsigned long (*get_dclk_rate)(struct xadc *);
-	irqreturn_t (*interrupt_handler)(int, void *);
+	void (*update_alarm)(struct xadc *xadc, unsigned int alarm);
+	unsigned long (*get_dclk_rate)(struct xadc *xadc);
+	irqreturn_t (*interrupt_handler)(int irq, void *devid);
 
 	unsigned int flags;
 };

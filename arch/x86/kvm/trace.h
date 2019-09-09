@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #if !defined(_TRACE_KVM_H) || defined(TRACE_HEADER_MULTI_READ)
 #define _TRACE_KVM_H
 
@@ -151,8 +152,8 @@ TRACE_EVENT(kvm_fast_mmio,
  */
 TRACE_EVENT(kvm_cpuid,
 	TP_PROTO(unsigned int function, unsigned long rax, unsigned long rbx,
-		 unsigned long rcx, unsigned long rdx),
-	TP_ARGS(function, rax, rbx, rcx, rdx),
+		 unsigned long rcx, unsigned long rdx, bool found),
+	TP_ARGS(function, rax, rbx, rcx, rdx, found),
 
 	TP_STRUCT__entry(
 		__field(	unsigned int,	function	)
@@ -160,6 +161,7 @@ TRACE_EVENT(kvm_cpuid,
 		__field(	unsigned long,	rbx		)
 		__field(	unsigned long,	rcx		)
 		__field(	unsigned long,	rdx		)
+		__field(	bool,		found		)
 	),
 
 	TP_fast_assign(
@@ -168,11 +170,13 @@ TRACE_EVENT(kvm_cpuid,
 		__entry->rbx		= rbx;
 		__entry->rcx		= rcx;
 		__entry->rdx		= rdx;
+		__entry->found		= found;
 	),
 
-	TP_printk("func %x rax %lx rbx %lx rcx %lx rdx %lx",
+	TP_printk("func %x rax %lx rbx %lx rcx %lx rdx %lx, cpuid entry %s",
 		  __entry->function, __entry->rax,
-		  __entry->rbx, __entry->rcx, __entry->rdx)
+		  __entry->rbx, __entry->rcx, __entry->rdx,
+		  __entry->found ? "found" : "not found")
 );
 
 #define AREG(x) { APIC_##x, "APIC_" #x }
@@ -434,13 +438,13 @@ TRACE_EVENT(kvm_apic_ipi,
 );
 
 TRACE_EVENT(kvm_apic_accept_irq,
-	    TP_PROTO(__u32 apicid, __u16 dm, __u8 tm, __u8 vec),
+	    TP_PROTO(__u32 apicid, __u16 dm, __u16 tm, __u8 vec),
 	    TP_ARGS(apicid, dm, tm, vec),
 
 	TP_STRUCT__entry(
 		__field(	__u32,		apicid		)
 		__field(	__u16,		dm		)
-		__field(	__u8,		tm		)
+		__field(	__u16,		tm		)
 		__field(	__u8,		vec		)
 	),
 
@@ -1250,24 +1254,26 @@ TRACE_EVENT(kvm_hv_stimer_callback,
  * Tracepoint for stimer_expiration.
  */
 TRACE_EVENT(kvm_hv_stimer_expiration,
-	TP_PROTO(int vcpu_id, int timer_index, int msg_send_result),
-	TP_ARGS(vcpu_id, timer_index, msg_send_result),
+	TP_PROTO(int vcpu_id, int timer_index, int direct, int msg_send_result),
+	TP_ARGS(vcpu_id, timer_index, direct, msg_send_result),
 
 	TP_STRUCT__entry(
 		__field(int, vcpu_id)
 		__field(int, timer_index)
+		__field(int, direct)
 		__field(int, msg_send_result)
 	),
 
 	TP_fast_assign(
 		__entry->vcpu_id = vcpu_id;
 		__entry->timer_index = timer_index;
+		__entry->direct = direct;
 		__entry->msg_send_result = msg_send_result;
 	),
 
-	TP_printk("vcpu_id %d timer %d msg send result %d",
+	TP_printk("vcpu_id %d timer %d direct %d send result %d",
 		  __entry->vcpu_id, __entry->timer_index,
-		  __entry->msg_send_result)
+		  __entry->direct, __entry->msg_send_result)
 );
 
 /*
@@ -1359,14 +1365,107 @@ TRACE_EVENT(kvm_hv_timer_state,
 			__entry->vcpu_id = vcpu_id;
 			__entry->hv_timer_in_use = hv_timer_in_use;
 			),
-		TP_printk("vcpu_id %x hv_timer %x\n",
+		TP_printk("vcpu_id %x hv_timer %x",
 			__entry->vcpu_id,
 			__entry->hv_timer_in_use)
+);
+
+/*
+ * Tracepoint for kvm_hv_flush_tlb.
+ */
+TRACE_EVENT(kvm_hv_flush_tlb,
+	TP_PROTO(u64 processor_mask, u64 address_space, u64 flags),
+	TP_ARGS(processor_mask, address_space, flags),
+
+	TP_STRUCT__entry(
+		__field(u64, processor_mask)
+		__field(u64, address_space)
+		__field(u64, flags)
+	),
+
+	TP_fast_assign(
+		__entry->processor_mask = processor_mask;
+		__entry->address_space = address_space;
+		__entry->flags = flags;
+	),
+
+	TP_printk("processor_mask 0x%llx address_space 0x%llx flags 0x%llx",
+		  __entry->processor_mask, __entry->address_space,
+		  __entry->flags)
+);
+
+/*
+ * Tracepoint for kvm_hv_flush_tlb_ex.
+ */
+TRACE_EVENT(kvm_hv_flush_tlb_ex,
+	TP_PROTO(u64 valid_bank_mask, u64 format, u64 address_space, u64 flags),
+	TP_ARGS(valid_bank_mask, format, address_space, flags),
+
+	TP_STRUCT__entry(
+		__field(u64, valid_bank_mask)
+		__field(u64, format)
+		__field(u64, address_space)
+		__field(u64, flags)
+	),
+
+	TP_fast_assign(
+		__entry->valid_bank_mask = valid_bank_mask;
+		__entry->format = format;
+		__entry->address_space = address_space;
+		__entry->flags = flags;
+	),
+
+	TP_printk("valid_bank_mask 0x%llx format 0x%llx "
+		  "address_space 0x%llx flags 0x%llx",
+		  __entry->valid_bank_mask, __entry->format,
+		  __entry->address_space, __entry->flags)
+);
+
+/*
+ * Tracepoints for kvm_hv_send_ipi.
+ */
+TRACE_EVENT(kvm_hv_send_ipi,
+	TP_PROTO(u32 vector, u64 processor_mask),
+	TP_ARGS(vector, processor_mask),
+
+	TP_STRUCT__entry(
+		__field(u32, vector)
+		__field(u64, processor_mask)
+	),
+
+	TP_fast_assign(
+		__entry->vector = vector;
+		__entry->processor_mask = processor_mask;
+	),
+
+	TP_printk("vector %x processor_mask 0x%llx",
+		  __entry->vector, __entry->processor_mask)
+);
+
+TRACE_EVENT(kvm_hv_send_ipi_ex,
+	TP_PROTO(u32 vector, u64 format, u64 valid_bank_mask),
+	TP_ARGS(vector, format, valid_bank_mask),
+
+	TP_STRUCT__entry(
+		__field(u32, vector)
+		__field(u64, format)
+		__field(u64, valid_bank_mask)
+	),
+
+	TP_fast_assign(
+		__entry->vector = vector;
+		__entry->format = format;
+		__entry->valid_bank_mask = valid_bank_mask;
+	),
+
+	TP_printk("vector %x format %llx valid_bank_mask 0x%llx",
+		  __entry->vector, __entry->format,
+		  __entry->valid_bank_mask)
 );
 #endif /* _TRACE_KVM_H */
 
 #undef TRACE_INCLUDE_PATH
-#define TRACE_INCLUDE_PATH arch/x86/kvm
+#define TRACE_INCLUDE_PATH ../../arch/x86/kvm
 #undef TRACE_INCLUDE_FILE
 #define TRACE_INCLUDE_FILE trace
 

@@ -1,18 +1,7 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (c) 2005-2011 Atheros Communications Inc.
- * Copyright (c) 2011-2013 Qualcomm Atheros, Inc.
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
  */
 
 #include <linux/slab.h>
@@ -137,6 +126,8 @@ static const enum htt_t2h_msg_type htt_10_4_t2h_msg_types[] = {
 				HTT_T2H_MSG_TYPE_STATS_NOUPLOAD,
 	[HTT_10_4_T2H_MSG_TYPE_TX_MODE_SWITCH_IND] =
 				HTT_T2H_MSG_TYPE_TX_MODE_SWITCH_IND,
+	[HTT_10_4_T2H_MSG_TYPE_PEER_STATS] =
+				HTT_T2H_MSG_TYPE_PEER_STATS,
 };
 
 int ath10k_htt_connect(struct ath10k_htt *htt)
@@ -205,6 +196,9 @@ int ath10k_htt_init(struct ath10k *ar)
 		WARN_ON(1);
 		return -EINVAL;
 	}
+	ath10k_htt_set_tx_ops(htt);
+	ath10k_htt_set_rx_ops(htt);
+
 	return 0;
 }
 
@@ -256,7 +250,7 @@ int ath10k_htt_setup(struct ath10k_htt *htt)
 	if (status)
 		return status;
 
-	status = ath10k_htt_send_rx_ring_cfg_ll(htt);
+	status = ath10k_htt_send_rx_ring_cfg(htt);
 	if (status) {
 		ath10k_warn(ar, "failed to setup rx ring: %d\n",
 			    status);

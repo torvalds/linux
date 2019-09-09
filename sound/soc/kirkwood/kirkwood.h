@@ -1,16 +1,14 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * kirkwood.h
  *
  * (c) 2010 Arnaud Patard <apatard@mandriva.com>
- *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
  */
 
 #ifndef _KIRKWOOD_AUDIO_H
 #define _KIRKWOOD_AUDIO_H
+
+#define DRV_NAME	"mvebu-audio"
 
 #define KIRKWOOD_RECORD_WIN			0
 #define KIRKWOOD_PLAYBACK_WIN			1
@@ -143,6 +141,6 @@ struct kirkwood_dma_data {
 	int burst;
 };
 
-extern struct snd_soc_platform_driver kirkwood_soc_platform;
+extern const struct snd_soc_component_driver kirkwood_soc_component;
 
 #endif

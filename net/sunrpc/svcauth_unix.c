@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/types.h>
 #include <linux/sched.h>
 #include <linux/module.h>
@@ -37,12 +38,18 @@ struct unix_domain {
 extern struct auth_ops svcauth_null;
 extern struct auth_ops svcauth_unix;
 
-static void svcauth_unix_domain_release(struct auth_domain *dom)
+static void svcauth_unix_domain_release_rcu(struct rcu_head *head)
 {
+	struct auth_domain *dom = container_of(head, struct auth_domain, rcu_head);
 	struct unix_domain *ud = container_of(dom, struct unix_domain, h);
 
 	kfree(dom->name);
 	kfree(ud);
+}
+
+static void svcauth_unix_domain_release(struct auth_domain *dom)
+{
+	call_rcu(&dom->rcu_head, svcauth_unix_domain_release_rcu);
 }
 
 struct auth_domain *unix_domain_find(char *name)
@@ -50,7 +57,7 @@ struct auth_domain *unix_domain_find(char *name)
 	struct auth_domain *rv;
 	struct unix_domain *new = NULL;
 
-	rv = auth_domain_lookup(name, NULL);
+	rv = auth_domain_find(name);
 	while(1) {
 		if (rv) {
 			if (new && rv != &new->h)
@@ -91,6 +98,7 @@ struct ip_map {
 	char			m_class[8]; /* e.g. "nfsd" */
 	struct in6_addr		m_addr;
 	struct unix_domain	*m_client;
+	struct rcu_head		m_rcu;
 };
 
 static void ip_map_put(struct kref *kref)
@@ -101,7 +109,7 @@ static void ip_map_put(struct kref *kref)
 	if (test_bit(CACHE_VALID, &item->flags) &&
 	    !test_bit(CACHE_NEGATIVE, &item->flags))
 		auth_domain_put(&im->m_client->h);
-	kfree(im);
+	kfree_rcu(im, m_rcu);
 }
 
 static inline int hash_ip6(const struct in6_addr *ip)
@@ -280,9 +288,9 @@ static struct ip_map *__ip_map_lookup(struct cache_detail *cd, char *class,
 
 	strcpy(ip.m_class, class);
 	ip.m_addr = *addr;
-	ch = sunrpc_cache_lookup(cd, &ip.h,
-				 hash_str(class, IP_HASHBITS) ^
-				 hash_ip6(addr));
+	ch = sunrpc_cache_lookup_rcu(cd, &ip.h,
+				     hash_str(class, IP_HASHBITS) ^
+				     hash_ip6(addr));
 
 	if (ch)
 		return container_of(ch, struct ip_map, h);
@@ -403,7 +411,7 @@ svcauth_unix_info_release(struct svc_xprt *xpt)
 /****************************************************************************
  * auth.unix.gid cache
  * simple cache to map a UID to a list of GIDs
- * because AUTH_UNIX aka AUTH_SYS has a max of 16
+ * because AUTH_UNIX aka AUTH_SYS has a max of UNX_NGROUPS
  */
 #define	GID_HASHBITS	8
 #define	GID_HASHMAX	(1<<GID_HASHBITS)
@@ -412,6 +420,7 @@ struct unix_gid {
 	struct cache_head	h;
 	kuid_t			uid;
 	struct group_info	*gi;
+	struct rcu_head		rcu;
 };
 
 static int unix_gid_hash(kuid_t uid)
@@ -426,7 +435,7 @@ static void unix_gid_put(struct kref *kref)
 	if (test_bit(CACHE_VALID, &item->flags) &&
 	    !test_bit(CACHE_NEGATIVE, &item->flags))
 		put_group_info(ug->gi);
-	kfree(ug);
+	kfree_rcu(ug, rcu);
 }
 
 static int unix_gid_match(struct cache_head *corig, struct cache_head *cnew)
@@ -492,7 +501,7 @@ static int unix_gid_parse(struct cache_detail *cd,
 	rv = get_int(&mesg, &id);
 	if (rv)
 		return -EINVAL;
-	uid = make_kuid(&init_user_ns, id);
+	uid = make_kuid(current_user_ns(), id);
 	ug.uid = uid;
 
 	expiry = get_expiry(&mesg);
@@ -514,12 +523,13 @@ static int unix_gid_parse(struct cache_detail *cd,
 		err = -EINVAL;
 		if (rv)
 			goto out;
-		kgid = make_kgid(&init_user_ns, gid);
+		kgid = make_kgid(current_user_ns(), gid);
 		if (!gid_valid(kgid))
 			goto out;
 		ug.gi->gid[i] = kgid;
 	}
 
+	groups_sort(ug.gi);
 	ugp = unix_gid_lookup(cd, uid);
 	if (ugp) {
 		struct cache_head *ch;
@@ -546,7 +556,7 @@ static int unix_gid_show(struct seq_file *m,
 			 struct cache_detail *cd,
 			 struct cache_head *h)
 {
-	struct user_namespace *user_ns = &init_user_ns;
+	struct user_namespace *user_ns = m->file->f_cred->user_ns;
 	struct unix_gid *ug;
 	int i;
 	int glen;
@@ -569,7 +579,7 @@ static int unix_gid_show(struct seq_file *m,
 	return 0;
 }
 
-static struct cache_detail unix_gid_cache_template = {
+static const struct cache_detail unix_gid_cache_template = {
 	.owner		= THIS_MODULE,
 	.hash_size	= GID_HASHMAX,
 	.name		= "auth.unix.gid",
@@ -618,7 +628,7 @@ static struct unix_gid *unix_gid_lookup(struct cache_detail *cd, kuid_t uid)
 	struct cache_head *ch;
 
 	ug.uid = uid;
-	ch = sunrpc_cache_lookup(cd, &ug.h, unix_gid_hash(uid));
+	ch = sunrpc_cache_lookup_rcu(cd, &ug.h, unix_gid_hash(uid));
 	if (ch)
 		return container_of(ch, struct unix_gid, h);
 	else
@@ -787,6 +797,7 @@ svcauth_unix_accept(struct svc_rqst *rqstp, __be32 *authp)
 	struct kvec	*argv = &rqstp->rq_arg.head[0];
 	struct kvec	*resv = &rqstp->rq_res.head[0];
 	struct svc_cred	*cred = &rqstp->rq_cred;
+	struct user_namespace *userns;
 	u32		slen, i;
 	int		len   = argv->iov_len;
 
@@ -807,18 +818,21 @@ svcauth_unix_accept(struct svc_rqst *rqstp, __be32 *authp)
 	 * (export-specific) anonymous id by nfsd_setuser.
 	 * Supplementary gid's will be left alone.
 	 */
-	cred->cr_uid = make_kuid(&init_user_ns, svc_getnl(argv)); /* uid */
-	cred->cr_gid = make_kgid(&init_user_ns, svc_getnl(argv)); /* gid */
+	userns = (rqstp->rq_xprt && rqstp->rq_xprt->xpt_cred) ?
+		rqstp->rq_xprt->xpt_cred->user_ns : &init_user_ns;
+	cred->cr_uid = make_kuid(userns, svc_getnl(argv)); /* uid */
+	cred->cr_gid = make_kgid(userns, svc_getnl(argv)); /* gid */
 	slen = svc_getnl(argv);			/* gids length */
-	if (slen > 16 || (len -= (slen + 2)*4) < 0)
+	if (slen > UNX_NGROUPS || (len -= (slen + 2)*4) < 0)
 		goto badcred;
 	cred->cr_group_info = groups_alloc(slen);
 	if (cred->cr_group_info == NULL)
 		return SVC_CLOSE;
 	for (i = 0; i < slen; i++) {
-		kgid_t kgid = make_kgid(&init_user_ns, svc_getnl(argv));
+		kgid_t kgid = make_kgid(userns, svc_getnl(argv));
 		cred->cr_group_info->gid[i] = kgid;
 	}
+	groups_sort(cred->cr_group_info);
 	if (svc_getu32(argv) != htonl(RPC_AUTH_NULL) || svc_getu32(argv) != 0) {
 		*authp = rpc_autherr_badverf;
 		return SVC_DENIED;
@@ -862,7 +876,7 @@ struct auth_ops svcauth_unix = {
 	.set_client	= svcauth_unix_set_client,
 };
 
-static struct cache_detail ip_map_cache_template = {
+static const struct cache_detail ip_map_cache_template = {
 	.owner		= THIS_MODULE,
 	.hash_size	= IP_HASHMAX,
 	.name		= "auth.unix.ip",

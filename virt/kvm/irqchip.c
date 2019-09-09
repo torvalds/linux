@@ -1,21 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * irqchip.c: Common API for in kernel interrupt controllers
  * Copyright (c) 2007, Intel Corporation.
  * Copyright 2010 Red Hat, Inc. and/or its affiliates.
  * Copyright (c) 2013, Alexander Graf <agraf@suse.de>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 59 Temple
- * Place - Suite 330, Boston, MA 02111-1307 USA.
  *
  * This file is derived from virt/kvm/irq_comm.c.
  *
@@ -142,35 +130,40 @@ static int setup_routing_entry(struct kvm *kvm,
 			       struct kvm_kernel_irq_routing_entry *e,
 			       const struct kvm_irq_routing_entry *ue)
 {
-	int r = -EINVAL;
 	struct kvm_kernel_irq_routing_entry *ei;
+	int r;
+	u32 gsi = array_index_nospec(ue->gsi, KVM_MAX_IRQ_ROUTES);
 
 	/*
 	 * Do not allow GSI to be mapped to the same irqchip more than once.
 	 * Allow only one to one mapping between GSI and non-irqchip routing.
 	 */
-	hlist_for_each_entry(ei, &rt->map[ue->gsi], link)
+	hlist_for_each_entry(ei, &rt->map[gsi], link)
 		if (ei->type != KVM_IRQ_ROUTING_IRQCHIP ||
 		    ue->type != KVM_IRQ_ROUTING_IRQCHIP ||
 		    ue->u.irqchip.irqchip == ei->irqchip.irqchip)
-			return r;
+			return -EINVAL;
 
-	e->gsi = ue->gsi;
+	e->gsi = gsi;
 	e->type = ue->type;
 	r = kvm_set_routing_entry(kvm, e, ue);
 	if (r)
-		goto out;
+		return r;
 	if (e->type == KVM_IRQ_ROUTING_IRQCHIP)
 		rt->chip[e->irqchip.irqchip][e->irqchip.pin] = e->gsi;
 
 	hlist_add_head(&e->link, &rt->map[e->gsi]);
-	r = 0;
-out:
-	return r;
+
+	return 0;
 }
 
 void __attribute__((weak)) kvm_arch_irq_routing_update(struct kvm *kvm)
 {
+}
+
+bool __weak kvm_arch_can_set_irq_routing(struct kvm *kvm)
+{
+	return true;
 }
 
 int kvm_set_irq_routing(struct kvm *kvm,
@@ -191,9 +184,7 @@ int kvm_set_irq_routing(struct kvm *kvm,
 
 	nr_rt_entries += 1;
 
-	new = kzalloc(sizeof(*new) + (nr_rt_entries * sizeof(struct hlist_head)),
-		      GFP_KERNEL);
-
+	new = kzalloc(struct_size(new, map, nr_rt_entries), GFP_KERNEL_ACCOUNT);
 	if (!new)
 		return -ENOMEM;
 
@@ -204,7 +195,7 @@ int kvm_set_irq_routing(struct kvm *kvm,
 
 	for (i = 0; i < nr; ++i) {
 		r = -ENOMEM;
-		e = kzalloc(sizeof(*e), GFP_KERNEL);
+		e = kzalloc(sizeof(*e), GFP_KERNEL_ACCOUNT);
 		if (!e)
 			goto out;
 
@@ -226,7 +217,7 @@ int kvm_set_irq_routing(struct kvm *kvm,
 	}
 
 	mutex_lock(&kvm->irq_lock);
-	old = kvm->irq_routing;
+	old = rcu_dereference_protected(kvm->irq_routing, 1);
 	rcu_assign_pointer(kvm->irq_routing, new);
 	kvm_irq_routing_update(kvm);
 	kvm_arch_irq_routing_update(kvm);

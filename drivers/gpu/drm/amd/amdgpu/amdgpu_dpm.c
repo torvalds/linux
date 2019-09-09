@@ -22,95 +22,117 @@
  * Authors: Alex Deucher
  */
 
-#include "drmP.h"
 #include "amdgpu.h"
 #include "amdgpu_atombios.h"
 #include "amdgpu_i2c.h"
 #include "amdgpu_dpm.h"
 #include "atom.h"
+#include "amd_pcie.h"
 
 void amdgpu_dpm_print_class_info(u32 class, u32 class2)
 {
-	printk("\tui class: ");
+	const char *s;
+
 	switch (class & ATOM_PPLIB_CLASSIFICATION_UI_MASK) {
 	case ATOM_PPLIB_CLASSIFICATION_UI_NONE:
 	default:
-		printk("none\n");
+		s = "none";
 		break;
 	case ATOM_PPLIB_CLASSIFICATION_UI_BATTERY:
-		printk("battery\n");
+		s = "battery";
 		break;
 	case ATOM_PPLIB_CLASSIFICATION_UI_BALANCED:
-		printk("balanced\n");
+		s = "balanced";
 		break;
 	case ATOM_PPLIB_CLASSIFICATION_UI_PERFORMANCE:
-		printk("performance\n");
+		s = "performance";
 		break;
 	}
-	printk("\tinternal class: ");
+	printk("\tui class: %s\n", s);
+	printk("\tinternal class:");
 	if (((class & ~ATOM_PPLIB_CLASSIFICATION_UI_MASK) == 0) &&
 	    (class2 == 0))
-		printk("none");
+		pr_cont(" none");
 	else {
 		if (class & ATOM_PPLIB_CLASSIFICATION_BOOT)
-			printk("boot ");
+			pr_cont(" boot");
 		if (class & ATOM_PPLIB_CLASSIFICATION_THERMAL)
-			printk("thermal ");
+			pr_cont(" thermal");
 		if (class & ATOM_PPLIB_CLASSIFICATION_LIMITEDPOWERSOURCE)
-			printk("limited_pwr ");
+			pr_cont(" limited_pwr");
 		if (class & ATOM_PPLIB_CLASSIFICATION_REST)
-			printk("rest ");
+			pr_cont(" rest");
 		if (class & ATOM_PPLIB_CLASSIFICATION_FORCED)
-			printk("forced ");
+			pr_cont(" forced");
 		if (class & ATOM_PPLIB_CLASSIFICATION_3DPERFORMANCE)
-			printk("3d_perf ");
+			pr_cont(" 3d_perf");
 		if (class & ATOM_PPLIB_CLASSIFICATION_OVERDRIVETEMPLATE)
-			printk("ovrdrv ");
+			pr_cont(" ovrdrv");
 		if (class & ATOM_PPLIB_CLASSIFICATION_UVDSTATE)
-			printk("uvd ");
+			pr_cont(" uvd");
 		if (class & ATOM_PPLIB_CLASSIFICATION_3DLOW)
-			printk("3d_low ");
+			pr_cont(" 3d_low");
 		if (class & ATOM_PPLIB_CLASSIFICATION_ACPI)
-			printk("acpi ");
+			pr_cont(" acpi");
 		if (class & ATOM_PPLIB_CLASSIFICATION_HD2STATE)
-			printk("uvd_hd2 ");
+			pr_cont(" uvd_hd2");
 		if (class & ATOM_PPLIB_CLASSIFICATION_HDSTATE)
-			printk("uvd_hd ");
+			pr_cont(" uvd_hd");
 		if (class & ATOM_PPLIB_CLASSIFICATION_SDSTATE)
-			printk("uvd_sd ");
+			pr_cont(" uvd_sd");
 		if (class2 & ATOM_PPLIB_CLASSIFICATION2_LIMITEDPOWERSOURCE_2)
-			printk("limited_pwr2 ");
+			pr_cont(" limited_pwr2");
 		if (class2 & ATOM_PPLIB_CLASSIFICATION2_ULV)
-			printk("ulv ");
+			pr_cont(" ulv");
 		if (class2 & ATOM_PPLIB_CLASSIFICATION2_MVC)
-			printk("uvd_mvc ");
+			pr_cont(" uvd_mvc");
 	}
-	printk("\n");
+	pr_cont("\n");
 }
 
 void amdgpu_dpm_print_cap_info(u32 caps)
 {
-	printk("\tcaps: ");
+	printk("\tcaps:");
 	if (caps & ATOM_PPLIB_SINGLE_DISPLAY_ONLY)
-		printk("single_disp ");
+		pr_cont(" single_disp");
 	if (caps & ATOM_PPLIB_SUPPORTS_VIDEO_PLAYBACK)
-		printk("video ");
+		pr_cont(" video");
 	if (caps & ATOM_PPLIB_DISALLOW_ON_DC)
-		printk("no_dc ");
-	printk("\n");
+		pr_cont(" no_dc");
+	pr_cont("\n");
 }
 
 void amdgpu_dpm_print_ps_status(struct amdgpu_device *adev,
 				struct amdgpu_ps *rps)
 {
-	printk("\tstatus: ");
+	printk("\tstatus:");
 	if (rps == adev->pm.dpm.current_ps)
-		printk("c ");
+		pr_cont(" c");
 	if (rps == adev->pm.dpm.requested_ps)
-		printk("r ");
+		pr_cont(" r");
 	if (rps == adev->pm.dpm.boot_ps)
-		printk("b ");
-	printk("\n");
+		pr_cont(" b");
+	pr_cont("\n");
+}
+
+void amdgpu_dpm_get_active_displays(struct amdgpu_device *adev)
+{
+	struct drm_device *ddev = adev->ddev;
+	struct drm_crtc *crtc;
+	struct amdgpu_crtc *amdgpu_crtc;
+
+	adev->pm.dpm.new_active_crtcs = 0;
+	adev->pm.dpm.new_active_crtc_count = 0;
+	if (adev->mode_info.num_crtc && adev->mode_info.mode_config_initialized) {
+		list_for_each_entry(crtc,
+				    &ddev->mode_config.crtc_list, head) {
+			amdgpu_crtc = to_amdgpu_crtc(crtc);
+			if (amdgpu_crtc->enabled) {
+				adev->pm.dpm.new_active_crtcs |= (1 << amdgpu_crtc->crtc_id);
+				adev->pm.dpm.new_active_crtc_count++;
+			}
+		}
+	}
 }
 
 
@@ -159,61 +181,6 @@ u32 amdgpu_dpm_get_vrefresh(struct amdgpu_device *adev)
 	}
 
 	return vrefresh;
-}
-
-void amdgpu_calculate_u_and_p(u32 i, u32 r_c, u32 p_b,
-			      u32 *p, u32 *u)
-{
-	u32 b_c = 0;
-	u32 i_c;
-	u32 tmp;
-
-	i_c = (i * r_c) / 100;
-	tmp = i_c >> p_b;
-
-	while (tmp) {
-		b_c++;
-		tmp >>= 1;
-	}
-
-	*u = (b_c + 1) / 2;
-	*p = i_c / (1 << (2 * (*u)));
-}
-
-int amdgpu_calculate_at(u32 t, u32 h, u32 fh, u32 fl, u32 *tl, u32 *th)
-{
-	u32 k, a, ah, al;
-	u32 t1;
-
-	if ((fl == 0) || (fh == 0) || (fl > fh))
-		return -EINVAL;
-
-	k = (100 * fh) / fl;
-	t1 = (t * (k - 100));
-	a = (1000 * (100 * h + t1)) / (10000 + (t1 / 100));
-	a = (a + 5) / 10;
-	ah = ((a * t) + 5000) / 10000;
-	al = a - ah;
-
-	*th = t - ah;
-	*tl = t + al;
-
-	return 0;
-}
-
-bool amdgpu_is_uvd_state(u32 class, u32 class2)
-{
-	if (class & ATOM_PPLIB_CLASSIFICATION_UVDSTATE)
-		return true;
-	if (class & ATOM_PPLIB_CLASSIFICATION_HD2STATE)
-		return true;
-	if (class & ATOM_PPLIB_CLASSIFICATION_HDSTATE)
-		return true;
-	if (class & ATOM_PPLIB_CLASSIFICATION_SDSTATE)
-		return true;
-	if (class2 & ATOM_PPLIB_CLASSIFICATION2_MVC)
-		return true;
-	return false;
 }
 
 bool amdgpu_is_internal_thermal_sensor(enum amdgpu_int_thermal_type sensor)
@@ -430,7 +397,7 @@ int amdgpu_parse_extended_power_table(struct amdgpu_device *adev)
 			ATOM_PPLIB_PhaseSheddingLimits_Record *entry;
 
 			adev->pm.dpm.dyn_state.phase_shedding_limits_table.entries =
-				kzalloc(psl->ucNumEntries *
+				kcalloc(psl->ucNumEntries,
 					sizeof(struct amdgpu_phase_shedding_limits_entry),
 					GFP_KERNEL);
 			if (!adev->pm.dpm.dyn_state.phase_shedding_limits_table.entries) {
@@ -553,9 +520,10 @@ int amdgpu_parse_extended_power_table(struct amdgpu_device *adev)
 				entry = (ATOM_PPLIB_VCE_Clock_Voltage_Limit_Record *)
 					((u8 *)entry + sizeof(ATOM_PPLIB_VCE_Clock_Voltage_Limit_Record));
 			}
-			for (i = 0; i < states->numEntries; i++) {
-				if (i >= AMDGPU_MAX_VCE_LEVELS)
-					break;
+			adev->pm.dpm.num_of_vce_states =
+					states->numEntries > AMD_MAX_VCE_LEVELS ?
+					AMD_MAX_VCE_LEVELS : states->numEntries;
+			for (i = 0; i < adev->pm.dpm.num_of_vce_states; i++) {
 				vce_clk = (VCEClockInfo *)
 					((u8 *)&array->entries[0] +
 					 (state_entry->ucVCEClockInfoIndex * sizeof(VCEClockInfo)));
@@ -913,9 +881,11 @@ enum amdgpu_pcie_gen amdgpu_get_pcie_gen_support(struct amdgpu_device *adev,
 	case AMDGPU_PCIE_GEN3:
 		return AMDGPU_PCIE_GEN3;
 	default:
-		if ((sys_mask & DRM_PCIE_SPEED_80) && (default_gen == AMDGPU_PCIE_GEN3))
+		if ((sys_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN3) &&
+		    (default_gen == AMDGPU_PCIE_GEN3))
 			return AMDGPU_PCIE_GEN3;
-		else if ((sys_mask & DRM_PCIE_SPEED_50) && (default_gen == AMDGPU_PCIE_GEN2))
+		else if ((sys_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN2) &&
+			 (default_gen == AMDGPU_PCIE_GEN2))
 			return AMDGPU_PCIE_GEN2;
 		else
 			return AMDGPU_PCIE_GEN1;
@@ -923,35 +893,76 @@ enum amdgpu_pcie_gen amdgpu_get_pcie_gen_support(struct amdgpu_device *adev,
 	return AMDGPU_PCIE_GEN1;
 }
 
-u16 amdgpu_get_pcie_lane_support(struct amdgpu_device *adev,
-				 u16 asic_lanes,
-				 u16 default_lanes)
+struct amd_vce_state*
+amdgpu_get_vce_clock_state(void *handle, u32 idx)
 {
-	switch (asic_lanes) {
-	case 0:
-	default:
-		return default_lanes;
-	case 1:
-		return 1;
-	case 2:
-		return 2;
-	case 4:
-		return 4;
-	case 8:
-		return 8;
-	case 12:
-		return 12;
-	case 16:
-		return 16;
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	if (idx < adev->pm.dpm.num_of_vce_states)
+		return &adev->pm.dpm.vce_states[idx];
+
+	return NULL;
+}
+
+int amdgpu_dpm_get_sclk(struct amdgpu_device *adev, bool low)
+{
+	uint32_t clk_freq;
+	int ret = 0;
+	if (is_support_sw_smu(adev)) {
+		ret = smu_get_dpm_freq_range(&adev->smu, SMU_GFXCLK,
+					     low ? &clk_freq : NULL,
+					     !low ? &clk_freq : NULL);
+		if (ret)
+			return 0;
+		return clk_freq * 100;
+
+	} else {
+		return (adev)->powerplay.pp_funcs->get_sclk((adev)->powerplay.pp_handle, (low));
 	}
 }
 
-u8 amdgpu_encode_pci_lane_width(u32 lanes)
+int amdgpu_dpm_get_mclk(struct amdgpu_device *adev, bool low)
 {
-	u8 encoded_lanes[] = { 0, 1, 2, 0, 3, 0, 0, 0, 4, 0, 0, 0, 5, 0, 0, 0, 6 };
+	uint32_t clk_freq;
+	int ret = 0;
+	if (is_support_sw_smu(adev)) {
+		ret = smu_get_dpm_freq_range(&adev->smu, SMU_UCLK,
+					     low ? &clk_freq : NULL,
+					     !low ? &clk_freq : NULL);
+		if (ret)
+			return 0;
+		return clk_freq * 100;
 
-	if (lanes > 16)
-		return 0;
+	} else {
+		return (adev)->powerplay.pp_funcs->get_mclk((adev)->powerplay.pp_handle, (low));
+	}
+}
 
-	return encoded_lanes[lanes];
+int amdgpu_dpm_set_powergating_by_smu(struct amdgpu_device *adev, uint32_t block_type, bool gate)
+{
+	int ret = 0;
+	bool swsmu = is_support_sw_smu(adev);
+
+	switch (block_type) {
+	case AMD_IP_BLOCK_TYPE_GFX:
+	case AMD_IP_BLOCK_TYPE_UVD:
+	case AMD_IP_BLOCK_TYPE_VCN:
+	case AMD_IP_BLOCK_TYPE_VCE:
+		if (swsmu)
+			ret = smu_dpm_set_power_gate(&adev->smu, block_type, gate);
+		else
+			ret = ((adev)->powerplay.pp_funcs->set_powergating_by_smu(
+				(adev)->powerplay.pp_handle, block_type, gate));
+		break;
+	case AMD_IP_BLOCK_TYPE_GMC:
+	case AMD_IP_BLOCK_TYPE_ACP:
+	case AMD_IP_BLOCK_TYPE_SDMA:
+		ret = ((adev)->powerplay.pp_funcs->set_powergating_by_smu(
+				(adev)->powerplay.pp_handle, block_type, gate));
+		break;
+	default:
+		break;
+	}
+
+	return ret;
 }

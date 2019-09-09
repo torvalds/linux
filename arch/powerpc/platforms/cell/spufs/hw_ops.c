@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* hw_ops.c - query/set operations on active SPU context.
  *
  * Copyright (C) IBM 2005
  * Author: Mark Nutter <mnutter@us.ibm.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/errno.h>
@@ -56,11 +43,10 @@ static u32 spu_hw_mbox_stat_read(struct spu_context *ctx)
 	return in_be32(&ctx->spu->problem->mb_stat_R);
 }
 
-static unsigned int spu_hw_mbox_stat_poll(struct spu_context *ctx,
-					  unsigned int events)
+static __poll_t spu_hw_mbox_stat_poll(struct spu_context *ctx, __poll_t events)
 {
 	struct spu *spu = ctx->spu;
-	int ret = 0;
+	__poll_t ret = 0;
 	u32 stat;
 
 	spin_lock_irq(&spu->register_lock);
@@ -71,17 +57,17 @@ static unsigned int spu_hw_mbox_stat_poll(struct spu_context *ctx,
 	   but first mark any pending interrupts as done so
 	   we don't get woken up unnecessarily */
 
-	if (events & (POLLIN | POLLRDNORM)) {
+	if (events & (EPOLLIN | EPOLLRDNORM)) {
 		if (stat & 0xff0000)
-			ret |= POLLIN | POLLRDNORM;
+			ret |= EPOLLIN | EPOLLRDNORM;
 		else {
 			spu_int_stat_clear(spu, 2, CLASS2_MAILBOX_INTR);
 			spu_int_mask_or(spu, 2, CLASS2_ENABLE_MAILBOX_INTR);
 		}
 	}
-	if (events & (POLLOUT | POLLWRNORM)) {
+	if (events & (EPOLLOUT | EPOLLWRNORM)) {
 		if (stat & 0x00ff00)
-			ret = POLLOUT | POLLWRNORM;
+			ret = EPOLLOUT | EPOLLWRNORM;
 		else {
 			spu_int_stat_clear(spu, 2,
 					CLASS2_MAILBOX_THRESHOLD_INTR);

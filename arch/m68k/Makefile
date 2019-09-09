@@ -58,7 +58,10 @@ cpuflags-$(CONFIG_M5206e)	:= $(call cc-option,-mcpu=5206e,-m5200)
 cpuflags-$(CONFIG_M5206)	:= $(call cc-option,-mcpu=5206,-m5200)
 
 KBUILD_AFLAGS += $(cpuflags-y)
-KBUILD_CFLAGS += $(cpuflags-y) -pipe
+KBUILD_CFLAGS += $(cpuflags-y)
+
+KBUILD_CFLAGS += -pipe -ffreestanding
+
 ifdef CONFIG_MMU
 # without -fno-strength-reduce the 53c7xx.c driver fails ;-(
 KBUILD_CFLAGS += -fno-strength-reduce -ffixed-a2
@@ -69,7 +72,7 @@ KBUILD_CFLAGS += -D__uClinux__
 KBUILD_AFLAGS += -D__uClinux__
 endif
 
-LDFLAGS := -m m68kelf
+KBUILD_LDFLAGS := -m m68kelf
 KBUILD_LDFLAGS_MODULE += -T $(srctree)/arch/m68k/kernel/module.lds
 
 ifdef CONFIG_SUN3
@@ -153,6 +156,9 @@ endif
 
 archclean:
 	rm -f vmlinux.gz vmlinux.bz2
+
+archheaders:
+	$(Q)$(MAKE) $(build)=arch/m68k/kernel/syscalls all
 
 install:
 	sh $(srctree)/arch/m68k/install.sh $(KERNELRELEASE) vmlinux.gz System.map "$(INSTALL_PATH)"

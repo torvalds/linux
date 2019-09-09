@@ -1,16 +1,5 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * Copyright SUSE Linux Products GmbH 2009
  *
@@ -23,6 +12,7 @@
 #include <asm/page.h>
 #include <asm/asm-offsets.h>
 #include <asm/exception-64s.h>
+#include <asm/asm-compat.h>
 
 #if defined(CONFIG_PPC_BOOK3S_64)
 #ifdef PPC64_ELF_ABI_v2
@@ -96,7 +86,7 @@ kvm_start_entry:
 
 kvm_start_lightweight:
 	/* Copy registers into shadow vcpu so we can access them in real mode */
-	GET_SHADOW_VCPU(r3)
+	mr	r3, r4
 	bl	FUNC(kvmppc_copy_to_svcpu)
 	nop
 	REST_GPR(4, r1)
@@ -165,9 +155,7 @@ after_sprg3_load:
 	stw	r12, VCPU_TRAP(r3)
 
 	/* Transfer reg values from shadow vcpu back to vcpu struct */
-	/* On 64-bit, interrupts are still off at this point */
 
-	GET_SHADOW_VCPU(r4)
 	bl	FUNC(kvmppc_copy_from_svcpu)
 	nop
 

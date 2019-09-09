@@ -1,15 +1,10 @@
-/*
- * soc-jack.c  --  ALSA SoC jack handling
- *
- * Copyright 2008 Wolfson Microelectronics PLC.
- *
- * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
- *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// soc-jack.c  --  ALSA SoC jack handling
+//
+// Copyright 2008 Wolfson Microelectronics PLC.
+//
+// Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
 
 #include <sound/jack.h>
 #include <sound/soc.h>
@@ -19,7 +14,32 @@
 #include <linux/workqueue.h>
 #include <linux/delay.h>
 #include <linux/export.h>
+#include <linux/suspend.h>
 #include <trace/events/asoc.h>
+
+struct jack_gpio_tbl {
+	int count;
+	struct snd_soc_jack *jack;
+	struct snd_soc_jack_gpio *gpios;
+};
+
+/**
+ * snd_soc_component_set_jack - configure component jack.
+ * @component: COMPONENTs
+ * @jack: structure to use for the jack
+ * @data: can be used if codec driver need extra data for configuring jack
+ *
+ * Configures and enables jack detection function.
+ */
+int snd_soc_component_set_jack(struct snd_soc_component *component,
+			       struct snd_soc_jack *jack, void *data)
+{
+	if (component->driver->set_jack)
+		return component->driver->set_jack(component, jack, data);
+
+	return -ENOTSUPP;
+}
+EXPORT_SYMBOL_GPL(snd_soc_component_set_jack);
 
 /**
  * snd_soc_card_jack_new - Create a new jack
@@ -293,6 +313,49 @@ static void gpio_work(struct work_struct *work)
 	snd_soc_jack_gpio_detect(gpio);
 }
 
+static int snd_soc_jack_pm_notifier(struct notifier_block *nb,
+				    unsigned long action, void *data)
+{
+	struct snd_soc_jack_gpio *gpio =
+			container_of(nb, struct snd_soc_jack_gpio, pm_notifier);
+
+	switch (action) {
+	case PM_POST_SUSPEND:
+	case PM_POST_HIBERNATION:
+	case PM_POST_RESTORE:
+		/*
+		 * Use workqueue so we do not have to care about running
+		 * concurrently with work triggered by the interrupt handler.
+		 */
+		queue_delayed_work(system_power_efficient_wq, &gpio->work, 0);
+		break;
+	}
+
+	return NOTIFY_DONE;
+}
+
+static void jack_free_gpios(struct snd_soc_jack *jack, int count,
+			    struct snd_soc_jack_gpio *gpios)
+{
+	int i;
+
+	for (i = 0; i < count; i++) {
+		gpiod_unexport(gpios[i].desc);
+		unregister_pm_notifier(&gpios[i].pm_notifier);
+		free_irq(gpiod_to_irq(gpios[i].desc), &gpios[i]);
+		cancel_delayed_work_sync(&gpios[i].work);
+		gpiod_put(gpios[i].desc);
+		gpios[i].jack = NULL;
+	}
+}
+
+static void jack_devres_free_gpios(struct device *dev, void *res)
+{
+	struct jack_gpio_tbl *tbl = res;
+
+	jack_free_gpios(tbl->jack, tbl->count, tbl->gpios);
+}
+
 /**
  * snd_soc_jack_add_gpios - Associate GPIO pins with an ASoC jack
  *
@@ -307,6 +370,14 @@ int snd_soc_jack_add_gpios(struct snd_soc_jack *jack, int count,
 			struct snd_soc_jack_gpio *gpios)
 {
 	int i, ret;
+	struct jack_gpio_tbl *tbl;
+
+	tbl = devres_alloc(jack_devres_free_gpios, sizeof(*tbl), GFP_KERNEL);
+	if (!tbl)
+		return -ENOMEM;
+	tbl->jack = jack;
+	tbl->count = count;
+	tbl->gpios = gpios;
 
 	for (i = 0; i < count; i++) {
 		if (!gpios[i].name) {
@@ -369,6 +440,13 @@ got_gpio:
 					i, ret);
 		}
 
+		/*
+		 * Register PM notifier so we do not miss state transitions
+		 * happening while system is asleep.
+		 */
+		gpios[i].pm_notifier.notifier_call = snd_soc_jack_pm_notifier;
+		register_pm_notifier(&gpios[i].pm_notifier);
+
 		/* Expose GPIO value over sysfs for diagnostic purposes */
 		gpiod_export(gpios[i].desc, false);
 
@@ -377,12 +455,14 @@ got_gpio:
 				      msecs_to_jiffies(gpios[i].debounce_time));
 	}
 
+	devres_add(jack->card->dev, tbl);
 	return 0;
 
 err:
 	gpio_free(gpios[i].gpio);
 undo:
-	snd_soc_jack_free_gpios(jack, i, gpios);
+	jack_free_gpios(jack, i, gpios);
+	devres_free(tbl);
 
 	return ret;
 }
@@ -424,15 +504,8 @@ EXPORT_SYMBOL_GPL(snd_soc_jack_add_gpiods);
 void snd_soc_jack_free_gpios(struct snd_soc_jack *jack, int count,
 			struct snd_soc_jack_gpio *gpios)
 {
-	int i;
-
-	for (i = 0; i < count; i++) {
-		gpiod_unexport(gpios[i].desc);
-		free_irq(gpiod_to_irq(gpios[i].desc), &gpios[i]);
-		cancel_delayed_work_sync(&gpios[i].work);
-		gpiod_put(gpios[i].desc);
-		gpios[i].jack = NULL;
-	}
+	jack_free_gpios(jack, count, gpios);
+	devres_destroy(jack->card->dev, jack_devres_free_gpios, NULL, NULL);
 }
 EXPORT_SYMBOL_GPL(snd_soc_jack_free_gpios);
 #endif	/* CONFIG_GPIOLIB */

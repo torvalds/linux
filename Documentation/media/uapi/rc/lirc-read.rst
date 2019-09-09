@@ -1,4 +1,11 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 .. _lirc-read:
 
@@ -44,17 +51,20 @@ descriptor ``fd`` into the buffer starting at ``buf``.  If ``count`` is zero,
 :ref:`read() <lirc-read>` returns zero and has no other results. If ``count``
 is greater than ``SSIZE_MAX``, the result is unspecified.
 
-The lircd userspace daemon reads raw IR data from the LIRC chardev. The
-exact format of the data depends on what modes a driver supports, and
-what mode has been selected. lircd obtains supported modes and sets the
-active mode via the ioctl interface, detailed at :ref:`lirc_func`.
-The generally preferred mode for receive is
-:ref:`LIRC_MODE_MODE2 <lirc-mode-mode2>`, in which packets containing an
-int value describing an IR signal are read from the chardev.
+The exact format of the data depends on what :ref:`lirc_modes` a driver
+uses. Use :ref:`lirc_get_features` to get the supported mode, and use
+:ref:`lirc_set_rec_mode` set the current active mode.
 
-See also
-`http://www.lirc.org/html/technical.html <http://www.lirc.org/html/technical.html>`__
-for more info.
+The mode :ref:`LIRC_MODE_MODE2 <lirc-mode-mode2>` is for raw IR,
+in which packets containing an unsigned int value describing an IR signal are
+read from the chardev.
+
+Alternatively, :ref:`LIRC_MODE_SCANCODE <lirc-mode-scancode>` can be available,
+in this mode scancodes which are either decoded by software decoders, or
+by hardware decoders. The :c:type:`rc_proto` member is set to the
+protocol used for transmission, and ``scancode`` to the decoded scancode,
+and the ``keycode`` set to the keycode or ``KEY_RESERVED``.
+
 
 Return Value
 ============

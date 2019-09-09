@@ -113,7 +113,7 @@ static irqreturn_t bcma_gpio_irq_handler(int irq, void *dev_id)
 		return IRQ_NONE;
 
 	for_each_set_bit(gpio, &irqs, gc->ngpio)
-		generic_handle_irq(irq_find_mapping(gc->irqdomain, gpio));
+		generic_handle_irq(irq_find_mapping(gc->irq.domain, gpio));
 	bcma_chipco_gpio_polarity(cc, irqs, val & irqs);
 
 	return IRQ_HANDLED;
@@ -183,15 +183,15 @@ int bcma_gpio_init(struct bcma_drv_cc *cc)
 	chip->direction_input	= bcma_gpio_direction_input;
 	chip->direction_output	= bcma_gpio_direction_output;
 	chip->owner		= THIS_MODULE;
-	chip->parent		= bcma_bus_get_host_dev(bus);
+	chip->parent		= bus->dev;
 #if IS_BUILTIN(CONFIG_OF)
-	if (cc->core->bus->hosttype == BCMA_HOSTTYPE_SOC)
-		chip->of_node	= cc->core->dev.of_node;
+	chip->of_node		= cc->core->dev.of_node;
 #endif
 	switch (bus->chipinfo.id) {
 	case BCMA_CHIP_ID_BCM4707:
 	case BCMA_CHIP_ID_BCM5357:
 	case BCMA_CHIP_ID_BCM53572:
+	case BCMA_CHIP_ID_BCM53573:
 	case BCMA_CHIP_ID_BCM47094:
 		chip->ngpio	= 32;
 		break;

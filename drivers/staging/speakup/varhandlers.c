@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/ctype.h>
 #include "spk_types.h"
 #include "spk_priv.h"
@@ -44,6 +45,7 @@ static struct st_var_header var_headers[] = {
 	{ "lang", LANG, VAR_NUM, NULL, NULL },
 	{ "chartab", CHARTAB, VAR_PROC, NULL, NULL },
 	{ "direct", DIRECT, VAR_NUM, NULL, NULL },
+	{ "pause", PAUSE, VAR_STRING, spk_str_pause, NULL },
 };
 
 static struct st_var_header *var_ptrs[MAXVARS] = { NULL, NULL, NULL };
@@ -98,7 +100,7 @@ void speakup_register_var(struct var_t *var)
 		}
 	}
 	p_header = var_ptrs[var->var_id];
-	if (p_header->data != NULL)
+	if (p_header->data)
 		return;
 	p_header->data = var;
 	switch (p_header->var_type) {
@@ -177,7 +179,6 @@ int spk_set_num_var(int input, struct st_var_header *var, int how)
 {
 	int val;
 	int *p_val = var->p_val;
-	int l;
 	char buf[32];
 	char *cp;
 	struct var_t *var_data = var->data;
@@ -210,11 +211,11 @@ int spk_set_num_var(int input, struct st_var_header *var, int how)
 		return -ERANGE;
 
 	var_data->u.n.value = val;
-	if (var->var_type == VAR_TIME && p_val != NULL) {
+	if (var->var_type == VAR_TIME && p_val) {
 		*p_val = msecs_to_jiffies(val);
 		return 0;
 	}
-	if (p_val != NULL)
+	if (p_val)
 		*p_val = val;
 	if (var->var_id == PUNC_LEVEL) {
 		spk_punc_mask = spk_punc_masks[val];
@@ -235,10 +236,10 @@ int spk_set_num_var(int input, struct st_var_header *var, int how)
 	else
 		cp = buf;
 	if (!var_data->u.n.out_str)
-		l = sprintf(cp, var_data->u.n.synth_fmt, (int)val);
+		sprintf(cp, var_data->u.n.synth_fmt, (int)val);
 	else
-		l = sprintf(cp,
-			var_data->u.n.synth_fmt, var_data->u.n.out_str[val]);
+		sprintf(cp, var_data->u.n.synth_fmt,
+			var_data->u.n.out_str[val]);
 	synth_printf("%s", cp);
 	return 0;
 }
@@ -259,14 +260,16 @@ int spk_set_string_var(const char *page, struct st_var_header *var, int len)
 		if (var->p_val != var_data->u.s.default_val)
 			strcpy((char *)var->p_val, var_data->u.s.default_val);
 		return -ERESTART;
-	} else if (var->p_val)
+	} else if (var->p_val) {
 		strcpy((char *)var->p_val, page);
-	else
+	} else {
 		return -E2BIG;
+	}
 	return 0;
 }
 
-/* spk_set_mask_bits sets or clears the punc/delim/repeat bits,
+/*
+ * spk_set_mask_bits sets or clears the punc/delim/repeat bits,
  * if input is null uses the defaults.
  * values for how: 0 clears bits of chars supplied,
  * 1 clears allk, 2 sets bits for chars
@@ -281,17 +284,18 @@ int spk_set_mask_bits(const char *input, const int which, const int how)
 			spk_chartab[*cp] &= ~mask;
 	}
 	cp = (u_char *)input;
-	if (!cp)
+	if (!cp) {
 		cp = spk_punc_info[which].value;
-	else {
+	} else {
 		for (; *cp; cp++) {
 			if (*cp < SPACE)
 				break;
 			if (mask < PUNC) {
 				if (!(spk_chartab[*cp] & PUNC))
 					break;
-			} else if (spk_chartab[*cp] & B_NUM)
+			} else if (spk_chartab[*cp] & B_NUM) {
 				break;
+			}
 		}
 		if (*cp)
 			return -EINVAL;
@@ -325,6 +329,7 @@ char *spk_s2uchar(char *start, char *dest)
 {
 	int val;
 
+	/* Do not replace with kstrtoul: here we need start to be updated */
 	val = simple_strtoul(skip_spaces(start), &start, 10);
 	if (*start == ',')
 		start++;

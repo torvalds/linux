@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config VIDEO_CX23885
 	tristate "Conexant cx23885 (2388x successor) support"
 	depends on DVB_CORE && VIDEO_DEV && PCI && I2C && INPUT && SND
@@ -43,7 +44,7 @@ config VIDEO_CX23885
 	select MEDIA_TUNER_SI2157 if MEDIA_SUBDRV_AUTOSELECT
 	select MEDIA_TUNER_M88RS6000T if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_TUNER_DIB0070 if MEDIA_SUBDRV_AUTOSELECT
-	---help---
+	help
 	  This is a video4linux driver for Conexant 23885 based
 	  TV cards.
 
@@ -54,7 +55,7 @@ config MEDIA_ALTERA_CI
 	tristate "Altera FPGA based CI module"
 	depends on VIDEO_CX23885 && DVB_CORE
 	select ALTERA_STAPL
-	---help---
+	help
 	  An Altera FPGA CI module for NetUP Dual DVB-T/C RF CI card.
 
 	  To compile this driver as a module, choose M here: the

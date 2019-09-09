@@ -1,13 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * arch/arm/mach-ep93xx/soc.h
  *
  * Copyright (C) 2012 Open Kernel Labs <www.ok-labs.com>
  * Copyright (C) 2012 Ryan Mallon <rmallon@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or (at
- * your option) any later version.
  */
 
 #ifndef _EP93XX_SOC_H
@@ -95,6 +91,7 @@
 #define EP93XX_KEY_MATRIX_PHYS_BASE	EP93XX_APB_PHYS(0x000f0000)
 #define EP93XX_KEY_MATRIX_BASE		EP93XX_APB_IOMEM(0x000f0000)
 
+#define EP93XX_ADC_PHYS_BASE		EP93XX_APB_PHYS(0x00100000)
 #define EP93XX_ADC_BASE			EP93XX_APB_IOMEM(0x00100000)
 #define EP93XX_TOUCHSCREEN_BASE		EP93XX_APB_IOMEM(0x00100000)
 

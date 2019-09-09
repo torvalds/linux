@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef LINUX_BCMA_PRIVATE_H_
 #define LINUX_BCMA_PRIVATE_H_
 
@@ -9,13 +10,13 @@
 #include <linux/delay.h>
 
 #define bcma_err(bus, fmt, ...) \
-	pr_err("bus%d: " fmt, (bus)->num, ##__VA_ARGS__)
+	dev_err((bus)->dev, "bus%d: " fmt, (bus)->num, ##__VA_ARGS__)
 #define bcma_warn(bus, fmt, ...) \
-	pr_warn("bus%d: " fmt, (bus)->num, ##__VA_ARGS__)
+	dev_warn((bus)->dev, "bus%d: " fmt, (bus)->num, ##__VA_ARGS__)
 #define bcma_info(bus, fmt, ...) \
-	pr_info("bus%d: " fmt, (bus)->num, ##__VA_ARGS__)
+	dev_info((bus)->dev, "bus%d: " fmt, (bus)->num, ##__VA_ARGS__)
 #define bcma_debug(bus, fmt, ...) \
-	pr_debug("bus%d: " fmt, (bus)->num, ##__VA_ARGS__)
+	dev_dbg((bus)->dev, "bus%d: " fmt, (bus)->num, ##__VA_ARGS__)
 
 struct bcma_bus;
 
@@ -32,7 +33,6 @@ int __init bcma_bus_early_register(struct bcma_bus *bus);
 int bcma_bus_suspend(struct bcma_bus *bus);
 int bcma_bus_resume(struct bcma_bus *bus);
 #endif
-struct device *bcma_bus_get_host_dev(struct bcma_bus *bus);
 
 /* scan.c */
 void bcma_detect_chip(struct bcma_bus *bus);
@@ -45,6 +45,9 @@ int bcma_sprom_get(struct bcma_bus *bus);
 void bcma_core_chipcommon_early_init(struct bcma_drv_cc *cc);
 void bcma_core_chipcommon_init(struct bcma_drv_cc *cc);
 void bcma_chipco_bcm4331_ext_pa_lines_ctl(struct bcma_drv_cc *cc, bool enable);
+#ifdef CONFIG_BCMA_DRIVER_MIPS
+void bcma_chipco_serial_init(struct bcma_drv_cc *cc);
+#endif /* CONFIG_BCMA_DRIVER_MIPS */
 
 /* driver_chipcommon_b.c */
 int bcma_core_chipcommon_b_init(struct bcma_drv_cc_b *ccb);

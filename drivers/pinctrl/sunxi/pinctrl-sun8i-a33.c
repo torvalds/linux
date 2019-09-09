@@ -12,7 +12,7 @@
  * warranty of any kind, whether express or implied.
  */
 
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -481,11 +481,14 @@ static const struct sunxi_desc_pin sun8i_a33_pins[] = {
 		  SUNXI_FUNCTION(0x3, "uart3")),	/* CTS */
 };
 
+static const unsigned int sun8i_a33_pinctrl_irq_bank_map[] = { 1, 2 };
+
 static const struct sunxi_pinctrl_desc sun8i_a33_pinctrl_data = {
 	.pins = sun8i_a33_pins,
 	.npins = ARRAY_SIZE(sun8i_a33_pins),
 	.irq_banks = 2,
-	.irq_bank_base = 1,
+	.irq_bank_map = sun8i_a33_pinctrl_irq_bank_map,
+	.disable_strict_mode = true,
 };
 
 static int sun8i_a33_pinctrl_probe(struct platform_device *pdev)
@@ -498,7 +501,6 @@ static const struct of_device_id sun8i_a33_pinctrl_match[] = {
 	{ .compatible = "allwinner,sun8i-a33-pinctrl", },
 	{}
 };
-MODULE_DEVICE_TABLE(of, sun8i_a33_pinctrl_match);
 
 static struct platform_driver sun8i_a33_pinctrl_driver = {
 	.probe	= sun8i_a33_pinctrl_probe,
@@ -507,8 +509,4 @@ static struct platform_driver sun8i_a33_pinctrl_driver = {
 		.of_match_table	= sun8i_a33_pinctrl_match,
 	},
 };
-module_platform_driver(sun8i_a33_pinctrl_driver);
-
-MODULE_AUTHOR("Vishnu Patekar <vishnupatekar0510@gmail.com>");
-MODULE_DESCRIPTION("Allwinner a33 pinctrl driver");
-MODULE_LICENSE("GPL");
+builtin_platform_driver(sun8i_a33_pinctrl_driver);

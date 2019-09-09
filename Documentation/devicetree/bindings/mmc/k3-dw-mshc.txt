@@ -12,6 +12,9 @@ extensions to the Synopsys Designware Mobile Storage Host Controller.
 Required Properties:
 
 * compatible: should be one of the following.
+  - "hisilicon,hi3660-dw-mshc": for controllers with hi3660 specific extensions.
+  - "hisilicon,hi3670-dw-mshc", "hisilicon,hi3660-dw-mshc": for controllers
+     with hi3670 specific extensions.
   - "hisilicon,hi4511-dw-mshc": for controllers with hi4511 specific extensions.
   - "hisilicon,hi6220-dw-mshc": for controllers with hi6220 specific extensions.
 
@@ -35,7 +38,6 @@ Example:
 
 	/* Board portion */
 	dwmmc0@fcd03000 {
-		num-slots = <1>;
 		vmmc-supply = <&ldo12>;
 		fifo-depth = <0x100>;
 		pinctrl-names = "default";
@@ -51,7 +53,6 @@ Example:
 
 	dwmmc_1: dwmmc1@f723e000 {
 		compatible = "hisilicon,hi6220-dw-mshc";
-		num-slots = <0x1>;
 		bus-width = <0x4>;
 		disable-wp;
 		cap-sd-highspeed;

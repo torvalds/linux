@@ -1,17 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * AirSpy SDR driver
  *
  * Copyright (C) 2014 Antti Palosaari <crope@iki.fi>
- *
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation; either version 2 of the License, or
- *    (at your option) any later version.
- *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
  */
 
 #include <linux/module.h>
@@ -619,13 +610,9 @@ static int airspy_querycap(struct file *file, void *fh,
 {
 	struct airspy *s = video_drvdata(file);
 
-	strlcpy(cap->driver, KBUILD_MODNAME, sizeof(cap->driver));
-	strlcpy(cap->card, s->vdev.name, sizeof(cap->card));
+	strscpy(cap->driver, KBUILD_MODNAME, sizeof(cap->driver));
+	strscpy(cap->card, s->vdev.name, sizeof(cap->card));
 	usb_make_path(s->udev, cap->bus_info, sizeof(cap->bus_info));
-	cap->device_caps = V4L2_CAP_SDR_CAPTURE | V4L2_CAP_STREAMING |
-			V4L2_CAP_READWRITE | V4L2_CAP_TUNER;
-	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
-
 	return 0;
 }
 
@@ -635,7 +622,7 @@ static int airspy_enum_fmt_sdr_cap(struct file *file, void *priv,
 	if (f->index >= NUM_FORMATS)
 		return -EINVAL;
 
-	strlcpy(f->description, formats[f->index].name, sizeof(f->description));
+	strscpy(f->description, formats[f->index].name, sizeof(f->description));
 	f->pixelformat = formats[f->index].pixelformat;
 
 	return 0;
@@ -720,14 +707,14 @@ static int airspy_g_tuner(struct file *file, void *priv, struct v4l2_tuner *v)
 	int ret;
 
 	if (v->index == 0) {
-		strlcpy(v->name, "AirSpy ADC", sizeof(v->name));
+		strscpy(v->name, "AirSpy ADC", sizeof(v->name));
 		v->type = V4L2_TUNER_ADC;
 		v->capability = V4L2_TUNER_CAP_1HZ | V4L2_TUNER_CAP_FREQ_BANDS;
 		v->rangelow  = bands[0].rangelow;
 		v->rangehigh = bands[0].rangehigh;
 		ret = 0;
 	} else if (v->index == 1) {
-		strlcpy(v->name, "AirSpy RF", sizeof(v->name));
+		strscpy(v->name, "AirSpy RF", sizeof(v->name));
 		v->type = V4L2_TUNER_RF;
 		v->capability = V4L2_TUNER_CAP_1HZ | V4L2_TUNER_CAP_FREQ_BANDS;
 		v->rangelow  = bands_rf[0].rangelow;
@@ -859,7 +846,7 @@ static const struct v4l2_file_operations airspy_fops = {
 	.unlocked_ioctl           = video_ioctl2,
 };
 
-static struct video_device airspy_template = {
+static const struct video_device airspy_template = {
 	.name                     = "AirSpy SDR",
 	.release                  = video_device_release_empty,
 	.fops                     = &airspy_fops,
@@ -1066,6 +1053,8 @@ static int airspy_probe(struct usb_interface *intf,
 	s->v4l2_dev.ctrl_handler = &s->hdl;
 	s->vdev.v4l2_dev = &s->v4l2_dev;
 	s->vdev.lock = &s->v4l2_lock;
+	s->vdev.device_caps = V4L2_CAP_SDR_CAPTURE | V4L2_CAP_STREAMING |
+			      V4L2_CAP_READWRITE | V4L2_CAP_TUNER;
 
 	ret = video_register_device(&s->vdev, VFL_TYPE_SDR, -1);
 	if (ret) {
@@ -1087,7 +1076,7 @@ err_free_mem:
 }
 
 /* USB device ID list */
-static struct usb_device_id airspy_id_table[] = {
+static const struct usb_device_id airspy_id_table[] = {
 	{ USB_DEVICE(0x1d50, 0x60a1) }, /* AirSpy */
 	{ }
 };

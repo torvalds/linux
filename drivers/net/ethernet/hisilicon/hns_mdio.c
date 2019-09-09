@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (c) 2014-2015 Hisilicon Limited.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/acpi.h>
@@ -23,17 +19,9 @@
 #include <linux/phy.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
-#include <linux/spinlock_types.h>
 
 #define MDIO_DRV_NAME "Hi-HNS_MDIO"
 #define MDIO_BUS_NAME "Hisilicon MII Bus"
-#define MDIO_DRV_VERSION "1.3.0"
-#define MDIO_COPYRIGHT "Copyright(c) 2015 Huawei Corporation."
-#define MDIO_DRV_STRING MDIO_BUS_NAME
-#define MDIO_DEFAULT_DEVICE_DESCR MDIO_BUS_NAME
-
-#define MDIO_CTL_DEV_ADDR(x)	(x & 0x1f)
-#define MDIO_CTL_PORT_ADDR(x)	((x & 0x1f) << 5)
 
 #define MDIO_TIMEOUT			1000000
 
@@ -47,7 +35,7 @@ struct hns_mdio_sc_reg {
 };
 
 struct hns_mdio_device {
-	void *vbase;		/* mdio reg base address */
+	u8 __iomem *vbase;		/* mdio reg base address */
 	struct regmap *subctrl_vbase;
 	struct hns_mdio_sc_reg sc_reg;
 };
@@ -64,9 +52,7 @@ struct hns_mdio_device {
 #define MDIO_CMD_DEVAD_S	0
 #define MDIO_CMD_PRTAD_M	0x1f
 #define MDIO_CMD_PRTAD_S	5
-#define MDIO_CMD_OP_M		0x3
 #define MDIO_CMD_OP_S		10
-#define MDIO_CMD_ST_M		0x3
 #define MDIO_CMD_ST_S		12
 #define MDIO_CMD_START_B	14
 
@@ -106,21 +92,17 @@ enum mdio_c45_op_seq {
 #define MDIO_SC_CLK_ST		0x531C
 #define MDIO_SC_RESET_ST	0x5A1C
 
-static void mdio_write_reg(void *base, u32 reg, u32 value)
+static void mdio_write_reg(u8 __iomem *base, u32 reg, u32 value)
 {
-	u8 __iomem *reg_addr = (u8 __iomem *)base;
-
-	writel_relaxed(value, reg_addr + reg);
+	writel_relaxed(value, base + reg);
 }
 
 #define MDIO_WRITE_REG(a, reg, value) \
 	mdio_write_reg((a)->vbase, (reg), (value))
 
-static u32 mdio_read_reg(void *base, u32 reg)
+static u32 mdio_read_reg(u8 __iomem *base, u32 reg)
 {
-	u8 __iomem *reg_addr = (u8 __iomem *)base;
-
-	return readl_relaxed(reg_addr + reg);
+	return readl_relaxed(base + reg);
 }
 
 #define mdio_set_field(origin, mask, shift, val) \
@@ -131,7 +113,7 @@ static u32 mdio_read_reg(void *base, u32 reg)
 
 #define mdio_get_field(origin, mask, shift) (((origin) >> (shift)) & (mask))
 
-static void mdio_set_reg_field(void *base, u32 reg, u32 mask, u32 shift,
+static void mdio_set_reg_field(u8 __iomem *base, u32 reg, u32 mask, u32 shift,
 			       u32 val)
 {
 	u32 origin = mdio_read_reg(base, reg);
@@ -143,7 +125,7 @@ static void mdio_set_reg_field(void *base, u32 reg, u32 mask, u32 shift,
 #define MDIO_SET_REG_FIELD(dev, reg, mask, shift, val) \
 	mdio_set_reg_field((dev)->vbase, (reg), (mask), (shift), (val))
 
-static u32 mdio_get_reg_field(void *base, u32 reg, u32 mask, u32 shift)
+static u32 mdio_get_reg_field(u8 __iomem *base, u32 reg, u32 mask, u32 shift)
 {
 	u32 origin;
 
@@ -185,18 +167,20 @@ static int mdio_sc_cfg_reg_write(struct hns_mdio_device *mdio_dev,
 static int hns_mdio_wait_ready(struct mii_bus *bus)
 {
 	struct hns_mdio_device *mdio_dev = bus->priv;
+	u32 cmd_reg_value;
 	int i;
-	u32 cmd_reg_value = 1;
 
 	/* waitting for MDIO_COMMAND_REG 's mdio_start==0 */
 	/* after that can do read or write*/
-	for (i = 0; cmd_reg_value; i++) {
+	for (i = 0; i < MDIO_TIMEOUT; i++) {
 		cmd_reg_value = MDIO_GET_REG_BIT(mdio_dev,
 						 MDIO_COMMAND_REG,
 						 MDIO_CMD_START_B);
-		if (i == MDIO_TIMEOUT)
-			return -ETIMEDOUT;
+		if (!cmd_reg_value)
+			break;
 	}
+	if ((i == MDIO_TIMEOUT) && cmd_reg_value)
+		return -ETIMEDOUT;
 
 	return 0;
 }
@@ -269,7 +253,7 @@ static int hns_mdio_write(struct mii_bus *bus,
 
 		/* config the data needed writing */
 		cmd_reg_cfg = devad;
-		op = MDIO_C45_WRITE_ADDR;
+		op = MDIO_C45_WRITE_DATA;
 	}
 
 	MDIO_SET_REG_FIELD(mdio_dev, MDIO_WDATA_REG, MDIO_WDATA_DATA_M,
@@ -329,7 +313,7 @@ static int hns_mdio_read(struct mii_bus *bus, int phy_id, int regnum)
 		}
 
 		hns_mdio_cmd_write(mdio_dev, is_c45,
-				   MDIO_C45_WRITE_ADDR, phy_id, devad);
+				   MDIO_C45_READ, phy_id, devad);
 	}
 
 	/* Step 5: waitting for MDIO_COMMAND_REG 's mdio_start==0,*/
@@ -433,7 +417,6 @@ static int hns_mdio_probe(struct platform_device *pdev)
 {
 	struct hns_mdio_device *mdio_dev;
 	struct mii_bus *new_bus;
-	struct resource *res;
 	int ret = -ENODEV;
 
 	if (!pdev) {
@@ -458,8 +441,7 @@ static int hns_mdio_probe(struct platform_device *pdev)
 	new_bus->priv = mdio_dev;
 	new_bus->parent = &pdev->dev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	mdio_dev->vbase = devm_ioremap_resource(&pdev->dev, res);
+	mdio_dev->vbase = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(mdio_dev->vbase)) {
 		ret = PTR_ERR(mdio_dev->vbase);
 		return ret;

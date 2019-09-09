@@ -1,21 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Wistron laptop button driver
  * Copyright (C) 2005 Miloslav Trmac <mitr@volny.cz>
  * Copyright (C) 2005 Bernhard Rosenkraenzer <bero@arklinux.org>
  * Copyright (C) 2005 Dmitry Torokhov <dtor@mail.ru>
- *
- * You can redistribute and/or modify this program under the terms of the
- * GNU General Public License version 2 as published by the Free Software
- * Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
- * Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 59 Temple Place Suite 330, Boston, MA 02111-1307, USA.
  */
 #include <linux/io.h>
 #include <linux/dmi.h>
@@ -1243,12 +1231,10 @@ static int setup_input_dev(void)
 
 	error = input_register_polled_device(wistron_idev);
 	if (error)
-		goto err_free_keymap;
+		goto err_free_dev;
 
 	return 0;
 
- err_free_keymap:
-	sparse_keymap_free(input_dev);
  err_free_dev:
 	input_free_polled_device(wistron_idev);
 	return error;
@@ -1300,7 +1286,6 @@ static int wistron_remove(struct platform_device *dev)
 {
 	wistron_led_remove();
 	input_unregister_polled_device(wistron_idev);
-	sparse_keymap_free(wistron_idev->input);
 	input_free_polled_device(wistron_idev);
 	bios_detach();
 

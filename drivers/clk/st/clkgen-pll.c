@@ -1,11 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2014 STMicroelectronics (R&D) Limited
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
  */
 
 /*
@@ -613,7 +608,7 @@ static struct clk * __init clkgen_pll_register(const char *parent_name,
 	init.name = clk_name;
 	init.ops = pll_data->ops;
 
-	init.flags = pll_flags | CLK_IS_BASIC | CLK_GET_RATE_NOCACHE;
+	init.flags = pll_flags | CLK_GET_RATE_NOCACHE;
 	init.parent_names = &parent_name;
 	init.num_parents  = 1;
 
@@ -738,7 +733,7 @@ static void __init clkgen_c32_pll_setup(struct device_node *np,
 		return;
 
 	clk_data->clk_num = num_odfs;
-	clk_data->clks = kzalloc(clk_data->clk_num * sizeof(struct clk *),
+	clk_data->clks = kcalloc(clk_data->clk_num, sizeof(struct clk *),
 				 GFP_KERNEL);
 
 	if (!clk_data->clks)

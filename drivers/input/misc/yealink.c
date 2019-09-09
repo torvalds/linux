@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * drivers/usb/input/yealink.c
  *
  * Copyright (c) 2005 Henk Vergonet <Henk.Vergonet@gmail.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 /*
  * Description:
@@ -56,8 +43,6 @@
 #include "yealink.h"
 
 #define DRIVER_VERSION "yld-20051230"
-#define DRIVER_AUTHOR "Henk Vergonet"
-#define DRIVER_DESC "Yealink phone driver"
 
 #define YEALINK_POLLING_FREQUENCY	10	/* in [Hz] */
 
@@ -798,7 +783,7 @@ static struct attribute *yld_attributes[] = {
 	NULL
 };
 
-static struct attribute_group yld_attr_group = {
+static const struct attribute_group yld_attr_group = {
 	.attrs = yld_attributes
 };
 
@@ -875,6 +860,10 @@ static int usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	int ret, pipe, i;
 
 	interface = intf->cur_altsetting;
+
+	if (interface->desc.bNumEndpoints < 1)
+		return -ENODEV;
+
 	endpoint = &interface->endpoint[0].desc;
 	if (!usb_endpoint_is_int_in(endpoint))
 		return -ENODEV;
@@ -892,12 +881,12 @@ static int usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 	/* allocate usb buffers */
 	yld->irq_data = usb_alloc_coherent(udev, USB_PKT_LEN,
-					   GFP_ATOMIC, &yld->irq_dma);
+					   GFP_KERNEL, &yld->irq_dma);
 	if (yld->irq_data == NULL)
 		return usb_cleanup(yld, -ENOMEM);
 
 	yld->ctl_data = usb_alloc_coherent(udev, USB_PKT_LEN,
-					   GFP_ATOMIC, &yld->ctl_dma);
+					   GFP_KERNEL, &yld->ctl_dma);
 	if (!yld->ctl_data)
 		return usb_cleanup(yld, -ENOMEM);
 
@@ -1002,6 +991,6 @@ module_usb_driver(yealink_driver);
 
 MODULE_DEVICE_TABLE (usb, usb_table);
 
-MODULE_AUTHOR(DRIVER_AUTHOR);
-MODULE_DESCRIPTION(DRIVER_DESC);
+MODULE_AUTHOR("Henk Vergonet");
+MODULE_DESCRIPTION("Yealink phone driver");
 MODULE_LICENSE("GPL");

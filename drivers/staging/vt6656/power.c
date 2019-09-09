@@ -1,17 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
  * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  *
  * File: power.c
  *
@@ -74,16 +64,15 @@ void vnt_enable_power_saving(struct vnt_private *priv, u16 listen_interval)
 	vnt_mac_reg_bits_on(priv, MAC_REG_PSCTL, PSCTL_GO2DOZE);
 
 	if (listen_interval >= 2) {
-
 		/* clear always listen beacon */
 		vnt_mac_reg_bits_off(priv, MAC_REG_PSCTL, PSCTL_ALBCN);
 
 		/* first time set listen next beacon */
 		vnt_mac_reg_bits_on(priv, MAC_REG_PSCTL, PSCTL_LNBCN);
-	} else
-
+	} else {
 		/* always listen beacon */
 		vnt_mac_reg_bits_on(priv, MAC_REG_PSCTL, PSCTL_ALBCN);
+	}
 
 	dev_dbg(&priv->usb->dev,  "PS:Power Saving Mode Enable...\n");
 }
@@ -100,7 +89,6 @@ void vnt_enable_power_saving(struct vnt_private *priv, u16 listen_interval)
 
 void vnt_disable_power_saving(struct vnt_private *priv)
 {
-
 	/* disable power saving hw function */
 	vnt_control_out(priv, MESSAGE_TYPE_DISABLE_PS, 0,
 			0, 0, NULL);

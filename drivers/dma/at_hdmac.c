@@ -1,13 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for the Atmel AHB DMA Controller (aka HDMA or DMAC on AT91 systems)
  *
  * Copyright (C) 2008 Atmel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
  *
  * This supports the Atmel AHB DMA Controller found in several Atmel SoCs.
  * The only Atmel DMA Controller that is not covered by this driver is the one
@@ -111,9 +106,8 @@ static struct at_desc *atc_alloc_descriptor(struct dma_chan *chan,
 	struct at_dma	*atdma = to_at_dma(chan->device);
 	dma_addr_t phys;
 
-	desc = dma_pool_alloc(atdma->dma_desc_pool, gfp_flags, &phys);
+	desc = dma_pool_zalloc(atdma->dma_desc_pool, gfp_flags, &phys);
 	if (desc) {
-		memset(desc, 0, sizeof(struct at_desc));
 		INIT_LIST_HEAD(&desc->tx_list);
 		dma_async_tx_descriptor_init(&desc->txd, chan);
 		/* txd.flags will be overwritten in prep functions */
@@ -135,7 +129,6 @@ static struct at_desc *atc_desc_get(struct at_dma_chan *atchan)
 	struct at_desc *ret = NULL;
 	unsigned long flags;
 	unsigned int i = 0;
-	LIST_HEAD(tmp_list);
 
 	spin_lock_irqsave(&atchan->lock, flags);
 	list_for_each_entry_safe(desc, _desc, &atchan->free_list, desc_node) {
@@ -709,7 +702,7 @@ atc_prep_dma_interleaved(struct dma_chan *chan,
 			 unsigned long flags)
 {
 	struct at_dma_chan	*atchan = to_at_dma_chan(chan);
-	struct data_chunk	*first = xt->sgl;
+	struct data_chunk	*first;
 	struct at_desc		*desc = NULL;
 	size_t			xfer_count;
 	unsigned int		dwidth;
@@ -720,6 +713,8 @@ atc_prep_dma_interleaved(struct dma_chan *chan,
 
 	if (unlikely(!xt || xt->numf != 1 || !xt->frame_size))
 		return NULL;
+
+	first = xt->sgl;
 
 	dev_info(chan2dev(chan),
 		 "%s: src=%pad, dest=%pad, numf=%d, frame_size=%d, flags=0x%lx\n",
@@ -1204,138 +1199,6 @@ err:
 }
 
 /**
- * atc_prep_dma_sg - prepare memory to memory scather-gather operation
- * @chan: the channel to prepare operation on
- * @dst_sg: destination scatterlist
- * @dst_nents: number of destination scatterlist entries
- * @src_sg: source scatterlist
- * @src_nents: number of source scatterlist entries
- * @flags: tx descriptor status flags
- */
-static struct dma_async_tx_descriptor *
-atc_prep_dma_sg(struct dma_chan *chan,
-		struct scatterlist *dst_sg, unsigned int dst_nents,
-		struct scatterlist *src_sg, unsigned int src_nents,
-		unsigned long flags)
-{
-	struct at_dma_chan	*atchan = to_at_dma_chan(chan);
-	struct at_desc		*desc = NULL;
-	struct at_desc		*first = NULL;
-	struct at_desc		*prev = NULL;
-	unsigned int		src_width;
-	unsigned int		dst_width;
-	size_t			xfer_count;
-	u32			ctrla;
-	u32			ctrlb;
-	size_t			dst_len = 0, src_len = 0;
-	dma_addr_t		dst = 0, src = 0;
-	size_t			len = 0, total_len = 0;
-
-	if (unlikely(dst_nents == 0 || src_nents == 0))
-		return NULL;
-
-	if (unlikely(dst_sg == NULL || src_sg == NULL))
-		return NULL;
-
-	ctrlb =   ATC_DEFAULT_CTRLB | ATC_IEN
-		| ATC_SRC_ADDR_MODE_INCR
-		| ATC_DST_ADDR_MODE_INCR
-		| ATC_FC_MEM2MEM;
-
-	/*
-	 * loop until there is either no more source or no more destination
-	 * scatterlist entry
-	 */
-	while (true) {
-
-		/* prepare the next transfer */
-		if (dst_len == 0) {
-
-			/* no more destination scatterlist entries */
-			if (!dst_sg || !dst_nents)
-				break;
-
-			dst = sg_dma_address(dst_sg);
-			dst_len = sg_dma_len(dst_sg);
-
-			dst_sg = sg_next(dst_sg);
-			dst_nents--;
-		}
-
-		if (src_len == 0) {
-
-			/* no more source scatterlist entries */
-			if (!src_sg || !src_nents)
-				break;
-
-			src = sg_dma_address(src_sg);
-			src_len = sg_dma_len(src_sg);
-
-			src_sg = sg_next(src_sg);
-			src_nents--;
-		}
-
-		len = min_t(size_t, src_len, dst_len);
-		if (len == 0)
-			continue;
-
-		/* take care for the alignment */
-		src_width = dst_width = atc_get_xfer_width(src, dst, len);
-
-		ctrla = ATC_SRC_WIDTH(src_width) |
-			ATC_DST_WIDTH(dst_width);
-
-		/*
-		 * The number of transfers to set up refer to the source width
-		 * that depends on the alignment.
-		 */
-		xfer_count = len >> src_width;
-		if (xfer_count > ATC_BTSIZE_MAX) {
-			xfer_count = ATC_BTSIZE_MAX;
-			len = ATC_BTSIZE_MAX << src_width;
-		}
-
-		/* create the transfer */
-		desc = atc_desc_get(atchan);
-		if (!desc)
-			goto err_desc_get;
-
-		desc->lli.saddr = src;
-		desc->lli.daddr = dst;
-		desc->lli.ctrla = ctrla | xfer_count;
-		desc->lli.ctrlb = ctrlb;
-
-		desc->txd.cookie = 0;
-		desc->len = len;
-
-		atc_desc_chain(&first, &prev, desc);
-
-		/* update the lengths and addresses for the next loop cycle */
-		dst_len -= len;
-		src_len -= len;
-		dst += len;
-		src += len;
-
-		total_len += len;
-	}
-
-	/* First descriptor of the chain embedds additional information */
-	first->txd.cookie = -EBUSY;
-	first->total_len = total_len;
-
-	/* set end-of-link to the last link descriptor of list*/
-	set_desc_eol(desc);
-
-	first->txd.flags = flags; /* client is in control of this ack */
-
-	return &first->txd;
-
-err_desc_get:
-	atc_desc_put(atchan, first);
-	return NULL;
-}
-
-/**
  * atc_dma_cyclic_check_values
  * Check for too big/unaligned periods and unaligned DMA buffer
  */
@@ -1451,7 +1314,7 @@ atc_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t buf_addr, size_t buf_len,
 	if (unlikely(!is_slave_direction(direction)))
 		goto err_out;
 
-	if (sconfig->direction == DMA_MEM_TO_DEV)
+	if (direction == DMA_MEM_TO_DEV)
 		reg_width = convert_buswidth(sconfig->dst_addr_width);
 	else
 		reg_width = convert_buswidth(sconfig->src_addr_width);
@@ -1518,8 +1381,6 @@ static int atc_pause(struct dma_chan *chan)
 	int			chan_id = atchan->chan_common.chan_id;
 	unsigned long		flags;
 
-	LIST_HEAD(list);
-
 	dev_vdbg(chan2dev(chan), "%s\n", __func__);
 
 	spin_lock_irqsave(&atchan->lock, flags);
@@ -1538,8 +1399,6 @@ static int atc_resume(struct dma_chan *chan)
 	struct at_dma		*atdma = to_at_dma(chan->device);
 	int			chan_id = atchan->chan_common.chan_id;
 	unsigned long		flags;
-
-	LIST_HEAD(list);
 
 	dev_vdbg(chan2dev(chan), "%s\n", __func__);
 
@@ -1772,6 +1631,12 @@ static void atc_free_chan_resources(struct dma_chan *chan)
 	atchan->descs_allocated = 0;
 	atchan->status = 0;
 
+	/*
+	 * Free atslave allocated in at_dma_xlate()
+	 */
+	kfree(chan->private);
+	chan->private = NULL;
+
 	dev_vdbg(chan2dev(chan), "free_chan_resources: done\n");
 }
 
@@ -1806,7 +1671,7 @@ static struct dma_chan *at_dma_xlate(struct of_phandle_args *dma_spec,
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
 
-	atslave = devm_kzalloc(&dmac_pdev->dev, sizeof(*atslave), GFP_KERNEL);
+	atslave = kzalloc(sizeof(*atslave), GFP_KERNEL);
 	if (!atslave)
 		return NULL;
 
@@ -1934,14 +1799,12 @@ static int __init at_dma_probe(struct platform_device *pdev)
 
 	/* setup platform data for each SoC */
 	dma_cap_set(DMA_MEMCPY, at91sam9rl_config.cap_mask);
-	dma_cap_set(DMA_SG, at91sam9rl_config.cap_mask);
 	dma_cap_set(DMA_INTERLEAVE, at91sam9g45_config.cap_mask);
 	dma_cap_set(DMA_MEMCPY, at91sam9g45_config.cap_mask);
 	dma_cap_set(DMA_MEMSET, at91sam9g45_config.cap_mask);
 	dma_cap_set(DMA_MEMSET_SG, at91sam9g45_config.cap_mask);
 	dma_cap_set(DMA_PRIVATE, at91sam9g45_config.cap_mask);
 	dma_cap_set(DMA_SLAVE, at91sam9g45_config.cap_mask);
-	dma_cap_set(DMA_SG, at91sam9g45_config.cap_mask);
 
 	/* get DMA parameters from controller type */
 	plat_dat = at_dma_get_driver_data(pdev);
@@ -2079,16 +1942,12 @@ static int __init at_dma_probe(struct platform_device *pdev)
 		atdma->dma_common.residue_granularity = DMA_RESIDUE_GRANULARITY_BURST;
 	}
 
-	if (dma_has_cap(DMA_SG, atdma->dma_common.cap_mask))
-		atdma->dma_common.device_prep_dma_sg = atc_prep_dma_sg;
-
 	dma_writel(atdma, EN, AT_DMA_ENABLE);
 
-	dev_info(&pdev->dev, "Atmel AHB DMA Controller ( %s%s%s%s), %d channels\n",
+	dev_info(&pdev->dev, "Atmel AHB DMA Controller ( %s%s%s), %d channels\n",
 	  dma_has_cap(DMA_MEMCPY, atdma->dma_common.cap_mask) ? "cpy " : "",
 	  dma_has_cap(DMA_MEMSET, atdma->dma_common.cap_mask) ? "set " : "",
 	  dma_has_cap(DMA_SLAVE, atdma->dma_common.cap_mask)  ? "slave " : "",
-	  dma_has_cap(DMA_SG, atdma->dma_common.cap_mask)  ? "sg-cpy " : "",
 	  plat_dat->nr_channels);
 
 	dma_async_device_register(&atdma->dma_common);
@@ -2137,6 +1996,8 @@ static int at_dma_remove(struct platform_device *pdev)
 	struct resource		*io;
 
 	at_dma_off(atdma);
+	if (pdev->dev.of_node)
+		of_dma_controller_free(pdev->dev.of_node);
 	dma_async_device_unregister(&atdma->dma_common);
 
 	dma_pool_destroy(atdma->memset_pool);
@@ -2178,8 +2039,7 @@ static void at_dma_shutdown(struct platform_device *pdev)
 
 static int at_dma_prepare(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct at_dma *atdma = platform_get_drvdata(pdev);
+	struct at_dma *atdma = dev_get_drvdata(dev);
 	struct dma_chan *chan, *_chan;
 
 	list_for_each_entry_safe(chan, _chan, &atdma->dma_common.channels,
@@ -2213,8 +2073,7 @@ static void atc_suspend_cyclic(struct at_dma_chan *atchan)
 
 static int at_dma_suspend_noirq(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct at_dma *atdma = platform_get_drvdata(pdev);
+	struct at_dma *atdma = dev_get_drvdata(dev);
 	struct dma_chan *chan, *_chan;
 
 	/* preserve data */
@@ -2255,8 +2114,7 @@ static void atc_resume_cyclic(struct at_dma_chan *atchan)
 
 static int at_dma_resume_noirq(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct at_dma *atdma = platform_get_drvdata(pdev);
+	struct at_dma *atdma = dev_get_drvdata(dev);
 	struct dma_chan *chan, *_chan;
 
 	/* bring back DMA controller */

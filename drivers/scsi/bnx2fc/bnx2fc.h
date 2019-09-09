@@ -1,7 +1,8 @@
 /* bnx2fc.h: QLogic Linux FCoE offload driver.
  *
  * Copyright (c) 2008-2013 Broadcom Corporation
- * Copyright (c) 2014-2015 QLogic Corporation
+ * Copyright (c) 2014-2016 QLogic Corporation
+ * Copyright (c) 2016-2017 Cavium Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -39,7 +40,7 @@
 #include <linux/bitops.h>
 #include <linux/log2.h>
 #include <linux/interrupt.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/io.h>
 
 #include <scsi/scsi.h>
@@ -65,7 +66,7 @@
 #include "bnx2fc_constants.h"
 
 #define BNX2FC_NAME		"bnx2fc"
-#define BNX2FC_VERSION		"2.10.3"
+#define BNX2FC_VERSION		"2.12.10"
 
 #define PFX			"bnx2fc: "
 
@@ -74,8 +75,9 @@
 #define BNX2X_DOORBELL_PCI_BAR		2
 
 #define BNX2FC_MAX_BD_LEN		0xffff
-#define BNX2FC_BD_SPLIT_SZ		0x8000
-#define BNX2FC_MAX_BDS_PER_CMD		256
+#define BNX2FC_BD_SPLIT_SZ		0xffff
+#define BNX2FC_MAX_BDS_PER_CMD		255
+#define BNX2FC_FW_MAX_BDS_PER_CMD	255
 
 #define BNX2FC_SQ_WQES_MAX	256
 
@@ -191,6 +193,7 @@ struct bnx2fc_hba {
 	struct bnx2fc_cmd_mgr *cmd_mgr;
 	spinlock_t hba_lock;
 	struct mutex hba_mutex;
+	struct mutex hba_stats_mutex;
 	unsigned long adapter_state;
 		#define ADAPTER_STATE_UP		0
 		#define ADAPTER_STATE_GOING_DOWN	1
@@ -431,8 +434,10 @@ struct bnx2fc_cmd {
 	void (*cb_func)(struct bnx2fc_els_cb_arg *cb_arg);
 	struct bnx2fc_els_cb_arg *cb_arg;
 	struct delayed_work timeout_work; /* timer for ULP timeouts */
-	struct completion tm_done;
-	int wait_for_comp;
+	struct completion abts_done;
+	struct completion cleanup_done;
+	int wait_for_abts_comp;
+	int wait_for_cleanup_comp;
 	u16 xid;
 	struct fcoe_err_report_entry err_entry;
 	struct fcoe_task_ctx_entry *task;
@@ -453,6 +458,7 @@ struct bnx2fc_cmd {
 #define BNX2FC_FLAG_ELS_TIMEOUT		0xb
 #define BNX2FC_FLAG_CMD_LOST		0xc
 #define BNX2FC_FLAG_SRR_SENT		0xd
+#define BNX2FC_FLAG_ISSUE_CLEANUP_REQ	0xe
 	u8 rec_retry;
 	u8 srr_retry;
 	u32 srr_offset;
@@ -537,7 +543,6 @@ void bnx2fc_init_task(struct bnx2fc_cmd *io_req,
 void bnx2fc_add_2_sq(struct bnx2fc_rport *tgt, u16 xid);
 void bnx2fc_ring_doorbell(struct bnx2fc_rport *tgt);
 int bnx2fc_eh_abort(struct scsi_cmnd *sc_cmd);
-int bnx2fc_eh_host_reset(struct scsi_cmnd *sc_cmd);
 int bnx2fc_eh_target_reset(struct scsi_cmnd *sc_cmd);
 int bnx2fc_eh_device_reset(struct scsi_cmnd *sc_cmd);
 void bnx2fc_rport_event_handler(struct fc_lport *lport,

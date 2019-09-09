@@ -28,10 +28,22 @@ Required properties:
 	* "fsl,p4080-clockgen"
 	* "fsl,p5020-clockgen"
 	* "fsl,p5040-clockgen"
+	* "fsl,t1023-clockgen"
+	* "fsl,t1024-clockgen"
+	* "fsl,t1040-clockgen"
+	* "fsl,t1042-clockgen"
+	* "fsl,t2080-clockgen"
+	* "fsl,t2081-clockgen"
 	* "fsl,t4240-clockgen"
 	* "fsl,b4420-clockgen"
 	* "fsl,b4860-clockgen"
+	* "fsl,ls1012a-clockgen"
 	* "fsl,ls1021a-clockgen"
+	* "fsl,ls1028a-clockgen"
+	* "fsl,ls1043a-clockgen"
+	* "fsl,ls1046a-clockgen"
+	* "fsl,ls1088a-clockgen"
+	* "fsl,ls2080a-clockgen"
 	Chassis-version clock strings include:
 	* "fsl,qoriq-clockgen-1.0": for chassis 1.0 clocks
 	* "fsl,qoriq-clockgen-2.0": for chassis 2.0 clocks
@@ -52,6 +64,11 @@ Optional properties:
 - clocks: If clock-frequency is not specified, sysclk may be provided
 	as an input clock.  Either clock-frequency or clocks must be
 	provided.
+	A second input clock, called "coreclk", may be provided if
+	core PLLs are based on a different input clock from the
+	platform PLL.
+- clock-names: Required if a coreclk is present.  Valid names are
+	"sysclk" and "coreclk".
 
 2. Clock Provider
 
@@ -67,7 +84,9 @@ second cell is the clock index for the specified type.
 	1	cmux		index (n in CLKCnCSR)
 	2	hwaccel		index (n in CLKCGnHWACSR)
 	3	fman		0 for fm1, 1 for fm2
-	4	platform pll	0=pll, 1=pll/2, 2=pll/3, 3=pll/4
+	4	platform pll	n=pll/(n+1). For example, when n=1,
+				that means output_freq=PLL_freq/2.
+	5	coreclk		must be 0
 
 3. Example
 

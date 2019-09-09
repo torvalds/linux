@@ -1,18 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2006-2008 Nokia Corporation
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; see the file COPYING. If not, write to the Free Software
- * Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * Test page read and write on MTD device.
  *
@@ -127,7 +115,7 @@ static int crosstest(void)
 	unsigned char *pp1, *pp2, *pp3, *pp4;
 
 	pr_info("crosstest\n");
-	pp1 = kzalloc(pgsize * 4, GFP_KERNEL);
+	pp1 = kcalloc(pgsize, 4, GFP_KERNEL);
 	if (!pp1)
 		return -ENOMEM;
 	pp2 = pp1 + pgsize;
@@ -435,9 +423,13 @@ static int __init mtd_pagetest_init(void)
 	if (err)
 		goto out;
 
-	err = erasecrosstest();
-	if (err)
-		goto out;
+	if (ebcnt > 1) {
+		err = erasecrosstest();
+		if (err)
+			goto out;
+	} else {
+		pr_info("skipping erasecrosstest, 2 erase blocks needed\n");
+	}
 
 	err = erasetest();
 	if (err)

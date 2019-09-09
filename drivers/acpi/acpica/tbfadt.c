@@ -1,45 +1,11 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /******************************************************************************
  *
  * Module Name: tbfadt   - FADT table utilities
  *
+ * Copyright (C) 2000 - 2019, Intel Corp.
+ *
  *****************************************************************************/
-
-/*
- * Copyright (C) 2000 - 2016, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
 
 #include <acpi/acpi.h>
 #include "accommon.h"
@@ -311,6 +277,8 @@ void acpi_tb_parse_fadt(void)
 {
 	u32 length;
 	struct acpi_table_header *table;
+	struct acpi_table_desc *fadt_desc;
+	acpi_status status;
 
 	/*
 	 * The FADT has multiple versions with different lengths,
@@ -319,14 +287,12 @@ void acpi_tb_parse_fadt(void)
 	 * Get a local copy of the FADT and convert it to a common format
 	 * Map entire FADT, assumed to be smaller than one page.
 	 */
-	length = acpi_gbl_root_table_list.tables[acpi_gbl_fadt_index].length;
-
-	table =
-	    acpi_os_map_memory(acpi_gbl_root_table_list.
-			       tables[acpi_gbl_fadt_index].address, length);
-	if (!table) {
+	fadt_desc = &acpi_gbl_root_table_list.tables[acpi_gbl_fadt_index];
+	status = acpi_tb_get_table(fadt_desc, &table);
+	if (ACPI_FAILURE(status)) {
 		return;
 	}
+	length = fadt_desc->length;
 
 	/*
 	 * Validate the FADT checksum before we copy the table. Ignore
@@ -340,7 +306,7 @@ void acpi_tb_parse_fadt(void)
 
 	/* All done with the real FADT, unmap it */
 
-	acpi_os_unmap_memory(table, length);
+	acpi_tb_put_table(fadt_desc);
 
 	/* Obtain the DSDT and FACS tables via their addresses within the FADT */
 
@@ -449,8 +415,8 @@ void acpi_tb_create_local_fadt(struct acpi_table_header *table, u32 length)
  * The 64-bit X fields are optional extensions to the original 32-bit FADT
  * V1.0 fields. Even if they are present in the FADT, they are optional and
  * are unused if the BIOS sets them to zero. Therefore, we must copy/expand
- * 32-bit V1.0 fields to the 64-bit X fields if the the 64-bit X field is
- * originally zero.
+ * 32-bit V1.0 fields to the 64-bit X fields if the 64-bit X field is originally
+ * zero.
  *
  * For ACPI 1.0 FADTs (that contain no 64-bit addresses), all 32-bit address
  * fields are expanded to the corresponding 64-bit X fields in the internal
@@ -480,19 +446,17 @@ static void acpi_tb_convert_fadt(void)
 	u32 i;
 
 	/*
-	 * For ACPI 1.0 FADTs (revision 1), ensure that reserved fields which
+	 * For ACPI 1.0 FADTs (revision 1 or 2), ensure that reserved fields which
 	 * should be zero are indeed zero. This will workaround BIOSs that
 	 * inadvertently place values in these fields.
 	 *
 	 * The ACPI 1.0 reserved fields that will be zeroed are the bytes located
 	 * at offset 45, 55, 95, and the word located at offset 109, 110.
 	 *
-	 * Note: The FADT revision value is unreliable because of BIOS errors.
-	 * The table length is instead used as the final word on the version.
-	 *
-	 * Note: FADT revision 3 is the ACPI 2.0 version of the FADT.
+	 * Note: The FADT revision value is unreliable. Only the length can be
+	 * trusted.
 	 */
-	if (acpi_gbl_FADT.header.length <= ACPI_FADT_V3_SIZE) {
+	if (acpi_gbl_FADT.header.length <= ACPI_FADT_V2_SIZE) {
 		acpi_gbl_FADT.preferred_profile = 0;
 		acpi_gbl_FADT.pstate_control = 0;
 		acpi_gbl_FADT.cst_control = 0;
@@ -592,7 +556,7 @@ static void acpi_tb_convert_fadt(void)
 				 * 64-bit X length field.
 				 * Note: If the legacy length field is > 0xFF bits, ignore
 				 * this check. (GPE registers can be larger than the
-				 * 64-bit GAS structure can accomodate, 0xFF bits).
+				 * 64-bit GAS structure can accommodate, 0xFF bits).
 				 */
 				if ((ACPI_MUL_8(length) <= ACPI_UINT8_MAX) &&
 				    (address64->bit_width !=

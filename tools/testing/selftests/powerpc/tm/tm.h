@@ -1,6 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright 2015, Michael Ellerman, IBM Corp.
- * Licensed under GPLv2.
  */
 
 #ifndef _SELFTESTS_POWERPC_TM_TM_H
@@ -10,7 +10,7 @@
 #include <asm/cputable.h>
 #include <stdbool.h>
 
-#include "../utils.h"
+#include "utils.h"
 
 static inline bool have_htm(void)
 {
@@ -45,6 +45,20 @@ static inline bool failure_is_persistent(void)
 static inline bool failure_is_syscall(void)
 {
 	return (failure_code() & TM_CAUSE_SYSCALL) == TM_CAUSE_SYSCALL;
+}
+
+static inline bool failure_is_unavailable(void)
+{
+	return (failure_code() & TM_CAUSE_FAC_UNAV) == TM_CAUSE_FAC_UNAV;
+}
+
+static inline bool failure_is_reschedule(void)
+{
+	if ((failure_code() & TM_CAUSE_RESCHED) == TM_CAUSE_RESCHED ||
+	    (failure_code() & TM_CAUSE_KVM_RESCHED) == TM_CAUSE_KVM_RESCHED)
+		return true;
+
+	return false;
 }
 
 static inline bool failure_is_nesting(void)

@@ -83,16 +83,15 @@ Pseudo-code using rcu_barrier() is as follows:
    2. Execute rcu_barrier().
    3. Allow the module to be unloaded.
 
-There are also rcu_barrier_bh(), rcu_barrier_sched(), and srcu_barrier()
-functions for the other flavors of RCU, and you of course must match
-the flavor of rcu_barrier() with that of call_rcu().  If your module
-uses multiple flavors of call_rcu(), then it must also use multiple
+There is also an srcu_barrier() function for SRCU, and you of course
+must match the flavor of rcu_barrier() with that of call_rcu().  If your
+module uses multiple flavors of call_rcu(), then it must also use multiple
 flavors of rcu_barrier() when unloading that module.  For example, if
-it uses call_rcu_bh(), call_srcu() on srcu_struct_1, and call_srcu() on
+it uses call_rcu(), call_srcu() on srcu_struct_1, and call_srcu() on
 srcu_struct_2(), then the following three lines of code will be required
 when unloading:
 
- 1 rcu_barrier_bh();
+ 1 rcu_barrier();
  2 srcu_barrier(&srcu_struct_1);
  3 srcu_barrier(&srcu_struct_2);
 
@@ -185,12 +184,12 @@ module invokes call_rcu() from timers, you will need to first cancel all
 the timers, and only then invoke rcu_barrier() to wait for any remaining
 RCU callbacks to complete.
 
-Of course, if you module uses call_rcu_bh(), you will need to invoke
-rcu_barrier_bh() before unloading.  Similarly, if your module uses
-call_rcu_sched(), you will need to invoke rcu_barrier_sched() before
-unloading.  If your module uses call_rcu(), call_rcu_bh(), -and-
-call_rcu_sched(), then you will need to invoke each of rcu_barrier(),
-rcu_barrier_bh(), and rcu_barrier_sched().
+Of course, if you module uses call_rcu(), you will need to invoke
+rcu_barrier() before unloading.  Similarly, if your module uses
+call_srcu(), you will need to invoke srcu_barrier() before unloading,
+and on the same srcu_struct structure.  If your module uses call_rcu()
+-and- call_srcu(), then you will need to invoke rcu_barrier() -and-
+srcu_barrier().
 
 
 Implementing rcu_barrier()
@@ -223,8 +222,8 @@ shown below. Note that the final "1" in on_each_cpu()'s argument list
 ensures that all the calls to rcu_barrier_func() will have completed
 before on_each_cpu() returns. Line 9 then waits for the completion.
 
-This code was rewritten in 2008 to support rcu_barrier_bh() and
-rcu_barrier_sched() in addition to the original rcu_barrier().
+This code was rewritten in 2008 and several times thereafter, but this
+still gives the general idea.
 
 The rcu_barrier_func() runs on each CPU, where it invokes call_rcu()
 to post an RCU callback, as follows:
@@ -262,6 +261,11 @@ Quick Quiz #2: What happens if CPU 0's rcu_barrier_func() executes
 	value one), but the other CPU's rcu_barrier_func() invocations
 	are delayed for a full grace period? Couldn't this result in
 	rcu_barrier() returning prematurely?
+
+The current rcu_barrier() implementation is more complex, due to the need
+to avoid disturbing idle CPUs (especially on battery-powered systems)
+and the need to minimally disturb non-idle CPUs in real-time systems.
+However, the code above illustrates the concepts.
 
 
 rcu_barrier() Summary

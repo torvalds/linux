@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * NOTE: This example is works on x86 and powerpc.
  * Here's a sample kernel module showing the use of kprobes to dump a
@@ -38,14 +39,14 @@ static int handler_pre(struct kprobe *p, struct pt_regs *regs)
 	pr_info("<%s> pre_handler: p->addr = 0x%p, epc = 0x%lx, status = 0x%lx\n",
 		p->symbol_name, p->addr, regs->cp0_epc, regs->cp0_status);
 #endif
-#ifdef CONFIG_TILEGX
-	pr_info("<%s> pre_handler: p->addr = 0x%p, pc = 0x%lx, ex1 = 0x%lx\n",
-		p->symbol_name, p->addr, regs->pc, regs->ex1);
-#endif
 #ifdef CONFIG_ARM64
 	pr_info("<%s> pre_handler: p->addr = 0x%p, pc = 0x%lx,"
 			" pstate = 0x%lx\n",
 		p->symbol_name, p->addr, (long)regs->pc, (long)regs->pstate);
+#endif
+#ifdef CONFIG_S390
+	pr_info("<%s> pre_handler: p->addr, 0x%p, ip = 0x%lx, flags = 0x%lx\n",
+		p->symbol_name, p->addr, regs->psw.addr, regs->flags);
 #endif
 
 	/* A dump_stack() here will give a stack backtrace */
@@ -68,13 +69,13 @@ static void handler_post(struct kprobe *p, struct pt_regs *regs,
 	pr_info("<%s> post_handler: p->addr = 0x%p, status = 0x%lx\n",
 		p->symbol_name, p->addr, regs->cp0_status);
 #endif
-#ifdef CONFIG_TILEGX
-	pr_info("<%s> post_handler: p->addr = 0x%p, ex1 = 0x%lx\n",
-		p->symbol_name, p->addr, regs->ex1);
-#endif
 #ifdef CONFIG_ARM64
 	pr_info("<%s> post_handler: p->addr = 0x%p, pstate = 0x%lx\n",
 		p->symbol_name, p->addr, (long)regs->pstate);
+#endif
+#ifdef CONFIG_S390
+	pr_info("<%s> pre_handler: p->addr, 0x%p, flags = 0x%lx\n",
+		p->symbol_name, p->addr, regs->flags);
 #endif
 }
 

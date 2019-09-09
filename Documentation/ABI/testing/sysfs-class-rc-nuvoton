@@ -1,7 +1,7 @@
 What:		/sys/class/rc/rcN/wakeup_data
 Date:		Mar 2016
 KernelVersion:	4.6
-Contact:	Mauro Carvalho Chehab <m.chehab@samsung.com>
+Contact:	Mauro Carvalho Chehab <mchehab+samsung@kernel.org>
 Description:
 		Reading this file returns the stored CIR wakeup sequence.
 		It starts with a pulse, followed by a space, pulse etc.

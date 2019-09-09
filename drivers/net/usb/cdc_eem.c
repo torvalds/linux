@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * USB CDC EEM network interface driver
  * Copyright (C) 2009 Oberthur Technologies
  * by Omar Laazimani, Olivier Condemine
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/module.h>
@@ -83,11 +71,8 @@ static int eem_bind(struct usbnet *dev, struct usb_interface *intf)
 	int status = 0;
 
 	status = usbnet_get_endpoints(dev, intf);
-	if (status < 0) {
-		usb_set_intfdata(intf, NULL);
-		usb_driver_release_interface(driver_of(intf), intf);
+	if (status < 0)
 		return status;
-	}
 
 	/* no jumbogram (16K) support for now */
 

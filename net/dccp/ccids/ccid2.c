@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (c) 2005, 2006 Andrea Bittau <a.bittau@cs.ucl.ac.uk>
  *
  *  Changes to meet Linux coding standards, and DCCP infrastructure fixes.
  *
  *  Copyright (c) 2006 Arnaldo Carvalho de Melo <acme@conectiva.com.br>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 /*
@@ -46,7 +33,8 @@ static int ccid2_hc_tx_alloc_seq(struct ccid2_hc_tx_sock *hc)
 		return -ENOMEM;
 
 	/* allocate buffer and initialize linked list */
-	seqp = kmalloc(CCID2_SEQBUF_LEN * sizeof(struct ccid2_seq), gfp_any());
+	seqp = kmalloc_array(CCID2_SEQBUF_LEN, sizeof(struct ccid2_seq),
+			     gfp_any());
 	if (seqp == NULL)
 		return -ENOMEM;
 
@@ -126,10 +114,20 @@ static void ccid2_change_l_seq_window(struct sock *sk, u64 val)
 						  DCCPF_SEQ_WMAX));
 }
 
-static void ccid2_hc_tx_rto_expire(unsigned long data)
+static void dccp_tasklet_schedule(struct sock *sk)
 {
-	struct sock *sk = (struct sock *)data;
-	struct ccid2_hc_tx_sock *hc = ccid2_hc_tx_sk(sk);
+	struct tasklet_struct *t = &dccp_sk(sk)->dccps_xmitlet;
+
+	if (!test_and_set_bit(TASKLET_STATE_SCHED, &t->state)) {
+		sock_hold(sk);
+		__tasklet_schedule(t);
+	}
+}
+
+static void ccid2_hc_tx_rto_expire(struct timer_list *t)
+{
+	struct ccid2_hc_tx_sock *hc = from_timer(hc, t, tx_rtotimer);
+	struct sock *sk = hc->sk;
 	const bool sender_was_blocked = ccid2_cwnd_network_limited(hc);
 
 	bh_lock_sock(sk);
@@ -139,6 +137,9 @@ static void ccid2_hc_tx_rto_expire(unsigned long data)
 	}
 
 	ccid2_pr_debug("RTO_EXPIRE\n");
+
+	if (sk->sk_state == DCCP_CLOSED)
+		goto out;
 
 	/* back-off timer */
 	hc->tx_rto <<= 1;
@@ -163,7 +164,7 @@ static void ccid2_hc_tx_rto_expire(unsigned long data)
 
 	/* if we were blocked before, we may now send cwnd=1 packet */
 	if (sender_was_blocked)
-		tasklet_schedule(&dccp_sk(sk)->dccps_xmitlet);
+		dccp_tasklet_schedule(sk);
 	/* restart backed-off timer */
 	sk_reset_timer(sk, &hc->tx_rtotimer, jiffies + hc->tx_rto);
 out:
@@ -215,14 +216,16 @@ static void ccid2_cwnd_restart(struct sock *sk, const u32 now)
 	struct ccid2_hc_tx_sock *hc = ccid2_hc_tx_sk(sk);
 	u32 cwnd = hc->tx_cwnd, restart_cwnd,
 	    iwnd = rfc3390_bytes_to_packets(dccp_sk(sk)->dccps_mss_cache);
+	s32 delta = now - hc->tx_lsndtime;
 
 	hc->tx_ssthresh = max(hc->tx_ssthresh, (cwnd >> 1) + (cwnd >> 2));
 
 	/* don't reduce cwnd below the initial window (IW) */
 	restart_cwnd = min(cwnd, iwnd);
-	cwnd >>= (now - hc->tx_lsndtime) / hc->tx_rto;
-	hc->tx_cwnd = max(cwnd, restart_cwnd);
 
+	while ((delta -= hc->tx_rto) >= 0 && cwnd > restart_cwnd)
+		cwnd >>= 1;
+	hc->tx_cwnd = max(cwnd, restart_cwnd);
 	hc->tx_cwnd_stamp = now;
 	hc->tx_cwnd_used  = 0;
 
@@ -233,7 +236,7 @@ static void ccid2_hc_tx_packet_sent(struct sock *sk, unsigned int len)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 	struct ccid2_hc_tx_sock *hc = ccid2_hc_tx_sk(sk);
-	const u32 now = ccid2_time_stamp;
+	const u32 now = ccid2_jiffies32;
 	struct ccid2_seq *next;
 
 	/* slow-start after idle periods (RFC 2581, RFC 2861) */
@@ -466,7 +469,7 @@ static void ccid2_new_ack(struct sock *sk, struct ccid2_seq *seqp,
 	 * The cleanest solution is to not use the ccid2s_sent field at all
 	 * and instead use DCCP timestamps: requires changes in other places.
 	 */
-	ccid2_rtt_estimator(sk, ccid2_time_stamp - seqp->ccid2s_sent);
+	ccid2_rtt_estimator(sk, ccid2_jiffies32 - seqp->ccid2s_sent);
 }
 
 static void ccid2_congestion_event(struct sock *sk, struct ccid2_seq *seqp)
@@ -478,7 +481,7 @@ static void ccid2_congestion_event(struct sock *sk, struct ccid2_seq *seqp)
 		return;
 	}
 
-	hc->tx_last_cong = ccid2_time_stamp;
+	hc->tx_last_cong = ccid2_jiffies32;
 
 	hc->tx_cwnd      = hc->tx_cwnd / 2 ? : 1U;
 	hc->tx_ssthresh  = max(hc->tx_cwnd, 2U);
@@ -703,7 +706,7 @@ static void ccid2_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 done:
 	/* check if incoming Acks allow pending packets to be sent */
 	if (sender_was_blocked && !ccid2_cwnd_network_limited(hc))
-		tasklet_schedule(&dccp_sk(sk)->dccps_xmitlet);
+		dccp_tasklet_schedule(sk);
 	dccp_ackvec_parsed_cleanup(&hc->tx_av_chunks);
 }
 
@@ -731,10 +734,10 @@ static int ccid2_hc_tx_init(struct ccid *ccid, struct sock *sk)
 
 	hc->tx_rto	 = DCCP_TIMEOUT_INIT;
 	hc->tx_rpdupack  = -1;
-	hc->tx_last_cong = hc->tx_lsndtime = hc->tx_cwnd_stamp = ccid2_time_stamp;
+	hc->tx_last_cong = hc->tx_lsndtime = hc->tx_cwnd_stamp = ccid2_jiffies32;
 	hc->tx_cwnd_used = 0;
-	setup_timer(&hc->tx_rtotimer, ccid2_hc_tx_rto_expire,
-			(unsigned long)sk);
+	hc->sk		 = sk;
+	timer_setup(&hc->tx_rtotimer, ccid2_hc_tx_rto_expire, 0);
 	INIT_LIST_HEAD(&hc->tx_av_chunks);
 	return 0;
 }
@@ -749,6 +752,7 @@ static void ccid2_hc_tx_exit(struct sock *sk)
 	for (i = 0; i < hc->tx_seqbufc; i++)
 		kfree(hc->tx_seqbuf[i]);
 	hc->tx_seqbufc = 0;
+	dccp_ackvec_parsed_cleanup(&hc->tx_av_chunks);
 }
 
 static void ccid2_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)

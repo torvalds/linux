@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Epson HWA742 LCD controller driver
  *
@@ -5,20 +6,6 @@
  * Authors:     Juha Yrjölä   <juha.yrjola@nokia.com>
  *	        Imre Deak     <imre.deak@nokia.com>
  * YUV support: Jussi Laako   <jussi.laako@nokia.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 #include <linux/module.h>
 #include <linux/mm.h>
@@ -474,7 +461,7 @@ static void auto_update_complete(void *data)
 			  jiffies + HWA742_AUTO_UPDATE_TIME);
 }
 
-static void hwa742_update_window_auto(unsigned long arg)
+static void hwa742_update_window_auto(struct timer_list *unused)
 {
 	LIST_HEAD(req_list);
 	struct hwa742_request *last;
@@ -1002,9 +989,7 @@ static int hwa742_init(struct omapfb_device *fbdev, int ext_mode,
 	hwa742.auto_update_window.height = fbdev->panel->y_res;
 	hwa742.auto_update_window.format = 0;
 
-	init_timer(&hwa742.auto_update_timer);
-	hwa742.auto_update_timer.function = hwa742_update_window_auto;
-	hwa742.auto_update_timer.data = 0;
+	timer_setup(&hwa742.auto_update_timer, hwa742_update_window_auto, 0);
 
 	hwa742.prev_color_mode = -1;
 	hwa742.prev_flags = 0;

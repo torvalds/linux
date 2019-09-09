@@ -1,15 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
    Copyright (c) 2010,2011 Code Aurora Forum.  All rights reserved.
    Copyright (c) 2011,2012 Intel Corp.
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License version 2 and
-   only version 2 as published by the Free Software Foundation.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
 */
 
 #include <net/bluetooth/bluetooth.h>
@@ -63,7 +56,7 @@ static void a2mp_send(struct amp_mgr *mgr, u8 code, u8 ident, u16 len, void *dat
 
 	memset(&msg, 0, sizeof(msg));
 
-	iov_iter_kvec(&msg.msg_iter, WRITE | ITER_KVEC, &iv, 1, total_len);
+	iov_iter_kvec(&msg.msg_iter, WRITE, &iv, 1, total_len);
 
 	l2cap_chan_send(chan, &msg, total_len);
 
@@ -174,7 +167,7 @@ static int a2mp_discover_req(struct amp_mgr *mgr, struct sk_buff *skb,
 			num_ctrl++;
 	}
 
-	len = num_ctrl * sizeof(struct a2mp_cl) + sizeof(*rsp);
+	len = struct_size(rsp, cl, num_ctrl);
 	rsp = kmalloc(len, GFP_ATOMIC);
 	if (!rsp) {
 		read_unlock(&hci_dev_list_lock);
@@ -239,7 +232,7 @@ static int a2mp_discover_rsp(struct amp_mgr *mgr, struct sk_buff *skb,
 		}
 
 		len -= sizeof(*cl);
-		cl = (void *) skb_pull(skb, sizeof(*cl));
+		cl = skb_pull(skb, sizeof(*cl));
 	}
 
 	/* Fall back to L2CAP init sequence */
@@ -279,7 +272,7 @@ static int a2mp_change_notify(struct amp_mgr *mgr, struct sk_buff *skb,
 	while (skb->len >= sizeof(*cl)) {
 		BT_DBG("Controller id %d type %d status %d", cl->id, cl->type,
 		       cl->status);
-		cl = (struct a2mp_cl *) skb_pull(skb, sizeof(*cl));
+		cl = skb_pull(skb, sizeof(*cl));
 	}
 
 	/* TODO send A2MP_CHANGE_RSP */
@@ -573,7 +566,7 @@ static int a2mp_discphyslink_req(struct amp_mgr *mgr, struct sk_buff *skb,
 	hcon = hci_conn_hash_lookup_ba(hdev, AMP_LINK,
 				       &mgr->l2cap_conn->hcon->dst);
 	if (!hcon) {
-		BT_ERR("No phys link exist");
+		bt_dev_err(hdev, "no phys link exist");
 		rsp.status = A2MP_STATUS_NO_PHYSICAL_LINK_EXISTS;
 		goto clean;
 	}
@@ -810,7 +803,7 @@ static struct l2cap_chan *a2mp_chan_open(struct l2cap_conn *conn, bool locked)
 /* AMP Manager functions */
 struct amp_mgr *amp_mgr_get(struct amp_mgr *mgr)
 {
-	BT_DBG("mgr %p orig refcnt %d", mgr, atomic_read(&mgr->kref.refcount));
+	BT_DBG("mgr %p orig refcnt %d", mgr, kref_read(&mgr->kref));
 
 	kref_get(&mgr->kref);
 
@@ -833,7 +826,7 @@ static void amp_mgr_destroy(struct kref *kref)
 
 int amp_mgr_put(struct amp_mgr *mgr)
 {
-	BT_DBG("mgr %p orig refcnt %d", mgr, atomic_read(&mgr->kref.refcount));
+	BT_DBG("mgr %p orig refcnt %d", mgr, kref_read(&mgr->kref));
 
 	return kref_put(&mgr->kref, &amp_mgr_destroy);
 }

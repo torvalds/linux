@@ -1,6 +1,5 @@
-#ifdef CONFIG_DEBUG_FS
 /*
- * Copyright (c) 2013 Intel Corporation.  All rights reserved.
+ * Copyright (c) 2013 - 2017 Intel Corporation.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -66,15 +65,6 @@ static const struct file_operations _##name##_file_ops = { \
 	.llseek  = seq_lseek, \
 	.release = seq_release \
 };
-
-#define DEBUGFS_FILE_CREATE(name) \
-do { \
-	struct dentry *ent; \
-	ent = debugfs_create_file(#name , 0400, ibd->qib_ibdev_dbg, \
-		ibd, &_##name##_file_ops); \
-	if (!ent) \
-		pr_warn("create of " #name " failed\n"); \
-} while (0)
 
 static void *_opcode_stats_seq_start(struct seq_file *s, loff_t *pos)
 {
@@ -191,10 +181,10 @@ DEBUGFS_FILE(ctx_stats)
 static void *_qp_stats_seq_start(struct seq_file *s, loff_t *pos)
 	__acquires(RCU)
 {
-	struct qib_qp_iter *iter;
+	struct rvt_qp_iter *iter;
 	loff_t n = *pos;
 
-	iter = qib_qp_iter_init(s->private);
+	iter = rvt_qp_iter_init(s->private, 0, NULL);
 
 	/* stop calls rcu_read_unlock */
 	rcu_read_lock();
@@ -203,7 +193,7 @@ static void *_qp_stats_seq_start(struct seq_file *s, loff_t *pos)
 		return NULL;
 
 	do {
-		if (qib_qp_iter_next(iter)) {
+		if (rvt_qp_iter_next(iter)) {
 			kfree(iter);
 			return NULL;
 		}
@@ -216,11 +206,11 @@ static void *_qp_stats_seq_next(struct seq_file *s, void *iter_ptr,
 				   loff_t *pos)
 	__must_hold(RCU)
 {
-	struct qib_qp_iter *iter = iter_ptr;
+	struct rvt_qp_iter *iter = iter_ptr;
 
 	(*pos)++;
 
-	if (qib_qp_iter_next(iter)) {
+	if (rvt_qp_iter_next(iter)) {
 		kfree(iter);
 		return NULL;
 	}
@@ -236,7 +226,7 @@ static void _qp_stats_seq_stop(struct seq_file *s, void *iter_ptr)
 
 static int _qp_stats_seq_show(struct seq_file *s, void *iter_ptr)
 {
-	struct qib_qp_iter *iter = iter_ptr;
+	struct rvt_qp_iter *iter = iter_ptr;
 
 	if (!iter)
 		return 0;
@@ -250,17 +240,17 @@ DEBUGFS_FILE(qp_stats)
 
 void qib_dbg_ibdev_init(struct qib_ibdev *ibd)
 {
+	struct dentry *root;
 	char name[10];
 
 	snprintf(name, sizeof(name), "qib%d", dd_from_dev(ibd)->unit);
-	ibd->qib_ibdev_dbg = debugfs_create_dir(name, qib_dbg_root);
-	if (!ibd->qib_ibdev_dbg) {
-		pr_warn("create of %s failed\n", name);
-		return;
-	}
-	DEBUGFS_FILE_CREATE(opcode_stats);
-	DEBUGFS_FILE_CREATE(ctx_stats);
-	DEBUGFS_FILE_CREATE(qp_stats);
+	root = debugfs_create_dir(name, qib_dbg_root);
+	ibd->qib_ibdev_dbg = root;
+
+	debugfs_create_file("opcode_stats", 0400, root, ibd,
+			    &_opcode_stats_file_ops);
+	debugfs_create_file("ctx_stats", 0400, root, ibd, &_ctx_stats_file_ops);
+	debugfs_create_file("qp_stats", 0400, root, ibd, &_qp_stats_file_ops);
 }
 
 void qib_dbg_ibdev_exit(struct qib_ibdev *ibd)
@@ -275,8 +265,6 @@ out:
 void qib_dbg_init(void)
 {
 	qib_dbg_root = debugfs_create_dir(QIB_DRV_NAME, NULL);
-	if (!qib_dbg_root)
-		pr_warn("init of debugfs failed\n");
 }
 
 void qib_dbg_exit(void)
@@ -284,6 +272,3 @@ void qib_dbg_exit(void)
 	debugfs_remove_recursive(qib_dbg_root);
 	qib_dbg_root = NULL;
 }
-
-#endif
-

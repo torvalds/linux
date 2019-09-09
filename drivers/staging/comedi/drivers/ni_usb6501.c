@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * comedi/drivers/ni_usb6501.c
  * Comedi driver for National Instruments USB-6501
  *
  * COMEDI - Linux Control and Measurement Device Interface
  * Copyright (C) 2014 Luca Ellero <luca.ellero@brickedbrain.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 /*
@@ -45,7 +36,7 @@
  *	byte 3 is the total packet length
  *
  *	byte 4 is always 00
- *	byte 5 is is the total packet length - 4
+ *	byte 5 is the total packet length - 4
  *	byte 6 is always 01
  *	byte 7 is the command
  *
@@ -472,10 +463,8 @@ static int ni6501_alloc_usb_buffers(struct comedi_device *dev)
 
 	size = usb_endpoint_maxp(devpriv->ep_tx);
 	devpriv->usb_tx_buf = kzalloc(size, GFP_KERNEL);
-	if (!devpriv->usb_tx_buf) {
-		kfree(devpriv->usb_rx_buf);
+	if (!devpriv->usb_tx_buf)
 		return -ENOMEM;
-	}
 
 	return 0;
 }
@@ -527,6 +516,9 @@ static int ni6501_auto_attach(struct comedi_device *dev,
 	if (!devpriv)
 		return -ENOMEM;
 
+	mutex_init(&devpriv->mut);
+	usb_set_intfdata(intf, devpriv);
+
 	ret = ni6501_find_endpoints(dev);
 	if (ret)
 		return ret;
@@ -534,9 +526,6 @@ static int ni6501_auto_attach(struct comedi_device *dev,
 	ret = ni6501_alloc_usb_buffers(dev);
 	if (ret)
 		return ret;
-
-	mutex_init(&devpriv->mut);
-	usb_set_intfdata(intf, devpriv);
 
 	ret = comedi_alloc_subdevices(dev, 2);
 	if (ret)
@@ -573,14 +562,12 @@ static void ni6501_detach(struct comedi_device *dev)
 	if (!devpriv)
 		return;
 
-	mutex_lock(&devpriv->mut);
+	mutex_destroy(&devpriv->mut);
 
 	usb_set_intfdata(intf, NULL);
 
 	kfree(devpriv->usb_rx_buf);
 	kfree(devpriv->usb_tx_buf);
-
-	mutex_unlock(&devpriv->mut);
 }
 
 static struct comedi_driver ni6501_driver = {

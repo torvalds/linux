@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2006 Patrick McHardy <kaber@trash.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Based on ipt_random and ipt_nth by Fabrice MARIE <fabrice@netfilter.org>.
  */
@@ -84,6 +81,7 @@ static struct xt_match xt_statistic_mt_reg __read_mostly = {
 	.checkentry = statistic_mt_check,
 	.destroy    = statistic_mt_destroy,
 	.matchsize  = sizeof(struct xt_statistic_info),
+	.usersize   = offsetof(struct xt_statistic_info, master),
 	.me         = THIS_MODULE,
 };
 

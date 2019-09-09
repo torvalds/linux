@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Industrial I/O event handling
  *
  * Copyright (c) 2008 Jonathan Cameron
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  *
  * Based on elements of hwmon and input subsystems.
  */
@@ -80,7 +77,7 @@ int iio_push_event(struct iio_dev *indio_dev, u64 ev_code, s64 timestamp)
 
 		copied = kfifo_put(&ev_int->det_events, ev);
 		if (copied != 0)
-			wake_up_poll(&ev_int->wait, POLLIN);
+			wake_up_poll(&ev_int->wait, EPOLLIN);
 	}
 
 	return 0;
@@ -92,15 +89,15 @@ EXPORT_SYMBOL(iio_push_event);
  * @filep:	File structure pointer to identify the device
  * @wait:	Poll table pointer to add the wait queue on
  *
- * Return: (POLLIN | POLLRDNORM) if data is available for reading
+ * Return: (EPOLLIN | EPOLLRDNORM) if data is available for reading
  *	   or a negative error code on failure
  */
-static unsigned int iio_event_poll(struct file *filep,
+static __poll_t iio_event_poll(struct file *filep,
 			     struct poll_table_struct *wait)
 {
 	struct iio_dev *indio_dev = filep->private_data;
 	struct iio_event_interface *ev_int = indio_dev->event_interface;
-	unsigned int events = 0;
+	__poll_t events = 0;
 
 	if (!indio_dev->info)
 		return events;
@@ -108,7 +105,7 @@ static unsigned int iio_event_poll(struct file *filep,
 	poll_wait(filep, &ev_int->wait, wait);
 
 	if (!kfifo_is_empty(&ev_int->det_events))
-		events = POLLIN | POLLRDNORM;
+		events = EPOLLIN | EPOLLRDNORM;
 
 	return events;
 }

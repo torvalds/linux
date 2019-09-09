@@ -14,19 +14,13 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/i2c-omap.h>
-
 #include "omap_hwmod.h"
-#include <linux/platform_data/gpio-omap.h>
-#include <linux/platform_data/spi-omap2-mcspi.h>
-
 #include "omap_hwmod_common_data.h"
 
 #include "control.h"
 #include "cm33xx.h"
 #include "prm33xx.h"
 #include "prm-regbits-33xx.h"
-#include "i2c.h"
 #include "wd_timer.h"
 #include "omap_hwmod_33xx_43xx_common_data.h"
 
@@ -233,28 +227,6 @@ static struct omap_hwmod am33xx_control_hwmod = {
 	},
 };
 
-/* gpio0 */
-static struct omap_hwmod_opt_clk gpio0_opt_clks[] = {
-	{ .role = "dbclk", .clk = "gpio0_dbclk" },
-};
-
-static struct omap_hwmod am33xx_gpio0_hwmod = {
-	.name		= "gpio1",
-	.class		= &am33xx_gpio_hwmod_class,
-	.clkdm_name	= "l4_wkup_clkdm",
-	.flags		= HWMOD_CONTROL_OPT_CLKS_IN_RESET,
-	.main_clk	= "dpll_core_m4_div2_ck",
-	.prcm		= {
-		.omap4	= {
-			.clkctrl_offs	= AM33XX_CM_WKUP_GPIO0_CLKCTRL_OFFSET,
-			.modulemode	= MODULEMODE_SWCTRL,
-		},
-	},
-	.opt_clks	= gpio0_opt_clks,
-	.opt_clks_cnt	= ARRAY_SIZE(gpio0_opt_clks),
-	.dev_attr	= &gpio_dev_attr,
-};
-
 /* lcdc */
 static struct omap_hwmod_class_sysconfig lcdc_sysc = {
 	.rev_offs	= 0x0,
@@ -320,20 +292,11 @@ static struct omap_hwmod am33xx_usbss_hwmod = {
  * Interfaces
  */
 
-static struct omap_hwmod_addr_space am33xx_emif_addrs[] = {
-	{
-		.pa_start	= 0x4c000000,
-		.pa_end		= 0x4c000fff,
-		.flags		= ADDR_TYPE_RT
-	},
-	{ }
-};
 /* l3 main -> emif */
 static struct omap_hwmod_ocp_if am33xx_l3_main__emif = {
 	.master		= &am33xx_l3_main_hwmod,
 	.slave		= &am33xx_emif_hwmod,
 	.clk		= "dpll_core_m4_ck",
-	.addr		= am33xx_emif_addrs,
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
@@ -370,20 +333,10 @@ static struct omap_hwmod_ocp_if am33xx_l4_hs__pruss = {
 };
 
 /* l3_main -> debugss */
-static struct omap_hwmod_addr_space am33xx_debugss_addrs[] = {
-	{
-		.pa_start	= 0x4b000000,
-		.pa_end		= 0x4b000000 + SZ_16M - 1,
-		.flags		= ADDR_TYPE_RT
-	},
-	{ }
-};
-
 static struct omap_hwmod_ocp_if am33xx_l3_main__debugss = {
 	.master		= &am33xx_l3_main_hwmod,
 	.slave		= &am33xx_debugss_hwmod,
 	.clk		= "dpll_core_m4_ck",
-	.addr		= am33xx_debugss_addrs,
 	.user		= OCP_USER_MPU,
 };
 
@@ -411,37 +364,11 @@ static struct omap_hwmod_ocp_if am33xx_l4_wkup__control = {
 	.user		= OCP_USER_MPU,
 };
 
-/* L4 WKUP -> I2C1 */
-static struct omap_hwmod_ocp_if am33xx_l4_wkup__i2c1 = {
-	.master		= &am33xx_l4_wkup_hwmod,
-	.slave		= &am33xx_i2c1_hwmod,
-	.clk		= "dpll_core_m4_div2_ck",
-	.user		= OCP_USER_MPU,
-};
-
-/* L4 WKUP -> GPIO1 */
-static struct omap_hwmod_ocp_if am33xx_l4_wkup__gpio0 = {
-	.master		= &am33xx_l4_wkup_hwmod,
-	.slave		= &am33xx_gpio0_hwmod,
-	.clk		= "dpll_core_m4_div2_ck",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
 /* L4 WKUP -> ADC_TSC */
-static struct omap_hwmod_addr_space am33xx_adc_tsc_addrs[] = {
-	{
-		.pa_start	= 0x44E0D000,
-		.pa_end		= 0x44E0D000 + SZ_8K - 1,
-		.flags		= ADDR_TYPE_RT
-	},
-	{ }
-};
-
 static struct omap_hwmod_ocp_if am33xx_l4_wkup__adc_tsc = {
 	.master		= &am33xx_l4_wkup_hwmod,
 	.slave		= &am33xx_adc_tsc_hwmod,
 	.clk		= "dpll_core_m4_div2_ck",
-	.addr		= am33xx_adc_tsc_addrs,
 	.user		= OCP_USER_MPU,
 };
 
@@ -452,20 +379,10 @@ static struct omap_hwmod_ocp_if am33xx_l4_hs__cpgmac0 = {
 	.user		= OCP_USER_MPU,
 };
 
-static struct omap_hwmod_addr_space am33xx_lcdc_addr_space[] = {
-	{
-		.pa_start	= 0x4830E000,
-		.pa_end		= 0x4830E000 + SZ_8K - 1,
-		.flags		= ADDR_TYPE_RT,
-	},
-	{ }
-};
-
 static struct omap_hwmod_ocp_if am33xx_l3_main__lcdc = {
 	.master		= &am33xx_l3_main_hwmod,
 	.slave		= &am33xx_lcdc_hwmod,
 	.clk		= "dpll_core_m4_ck",
-	.addr		= am33xx_lcdc_addr_space,
 	.user		= OCP_USER_MPU,
 };
 
@@ -473,14 +390,6 @@ static struct omap_hwmod_ocp_if am33xx_l3_main__lcdc = {
 static struct omap_hwmod_ocp_if am33xx_l4_wkup__timer1 = {
 	.master		= &am33xx_l4_wkup_hwmod,
 	.slave		= &am33xx_timer1_hwmod,
-	.clk		= "dpll_core_m4_div2_ck",
-	.user		= OCP_USER_MPU,
-};
-
-/* l4 wkup -> uart1 */
-static struct omap_hwmod_ocp_if am33xx_l4_wkup__uart1 = {
-	.master		= &am33xx_l4_wkup_hwmod,
-	.slave		= &am33xx_uart1_hwmod,
 	.clk		= "dpll_core_m4_div2_ck",
 	.user		= OCP_USER_MPU,
 };
@@ -503,41 +412,6 @@ static struct omap_hwmod_ocp_if am33xx_l3_s__usbss = {
 	.flags		= OCPIF_SWSUP_IDLE,
 };
 
-/* rng */
-static struct omap_hwmod_class_sysconfig am33xx_rng_sysc = {
-	.rev_offs	= 0x1fe0,
-	.sysc_offs	= 0x1fe4,
-	.sysc_flags	= SYSC_HAS_AUTOIDLE | SYSC_HAS_SIDLEMODE,
-	.idlemodes	= SIDLE_FORCE | SIDLE_NO,
-	.sysc_fields	= &omap_hwmod_sysc_type1,
-};
-
-static struct omap_hwmod_class am33xx_rng_hwmod_class = {
-	.name		= "rng",
-	.sysc		= &am33xx_rng_sysc,
-};
-
-static struct omap_hwmod am33xx_rng_hwmod = {
-	.name		= "rng",
-	.class		= &am33xx_rng_hwmod_class,
-	.clkdm_name	= "l4ls_clkdm",
-	.flags		= HWMOD_SWSUP_SIDLE,
-	.main_clk	= "rng_fck",
-	.prcm		= {
-		.omap4	= {
-			.clkctrl_offs	= AM33XX_CM_PER_RNG_CLKCTRL_OFFSET,
-			.modulemode	= MODULEMODE_SWCTRL,
-		},
-	},
-};
-
-static struct omap_hwmod_ocp_if am33xx_l4_per__rng = {
-	.master		= &am33xx_l4_ls_hwmod,
-	.slave		= &am33xx_rng_hwmod,
-	.clk		= "rng_fck",
-	.user		= OCP_USER_MPU,
-};
-
 static struct omap_hwmod_ocp_if *am33xx_hwmod_ocp_ifs[] __initdata = {
 	&am33xx_l3_main__emif,
 	&am33xx_mpu__l3_main,
@@ -557,27 +431,16 @@ static struct omap_hwmod_ocp_if *am33xx_hwmod_ocp_ifs[] __initdata = {
 	&am33xx_l4_wkup__control,
 	&am33xx_l4_wkup__smartreflex0,
 	&am33xx_l4_wkup__smartreflex1,
-	&am33xx_l4_wkup__uart1,
 	&am33xx_l4_wkup__timer1,
 	&am33xx_l4_wkup__rtc,
-	&am33xx_l4_wkup__i2c1,
-	&am33xx_l4_wkup__gpio0,
 	&am33xx_l4_wkup__adc_tsc,
 	&am33xx_l4_wkup__wd_timer1,
 	&am33xx_l4_hs__pruss,
 	&am33xx_l4_per__dcan0,
 	&am33xx_l4_per__dcan1,
-	&am33xx_l4_per__gpio1,
-	&am33xx_l4_per__gpio2,
-	&am33xx_l4_per__gpio3,
-	&am33xx_l4_per__i2c2,
-	&am33xx_l4_per__i2c3,
 	&am33xx_l4_per__mailbox,
 	&am33xx_l4_ls__mcasp0,
 	&am33xx_l4_ls__mcasp1,
-	&am33xx_l4_ls__mmc0,
-	&am33xx_l4_ls__mmc1,
-	&am33xx_l3_s__mmc2,
 	&am33xx_l4_ls__timer2,
 	&am33xx_l4_ls__timer3,
 	&am33xx_l4_ls__timer4,
@@ -585,11 +448,6 @@ static struct omap_hwmod_ocp_if *am33xx_hwmod_ocp_ifs[] __initdata = {
 	&am33xx_l4_ls__timer6,
 	&am33xx_l4_ls__timer7,
 	&am33xx_l3_main__tpcc,
-	&am33xx_l4_ls__uart2,
-	&am33xx_l4_ls__uart3,
-	&am33xx_l4_ls__uart4,
-	&am33xx_l4_ls__uart5,
-	&am33xx_l4_ls__uart6,
 	&am33xx_l4_ls__spinlock,
 	&am33xx_l4_ls__elm,
 	&am33xx_l4_ls__epwmss0,

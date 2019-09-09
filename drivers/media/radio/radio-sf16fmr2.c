@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* SF16-FMR2 and SF16-FMD2 radio driver for Linux
  * Copyright (c) 2011 Ondrej Zary
  *
@@ -7,7 +8,7 @@
  */
 
 #include <linux/delay.h>
-#include <linux/module.h>	/* Modules 			*/
+#include <linux/module.h>	/* Modules			*/
 #include <linux/init.h>		/* Initdata			*/
 #include <linux/slab.h>
 #include <linux/ioport.h>	/* request_region		*/
@@ -197,7 +198,7 @@ static int fmr2_tea_ext_init(struct snd_tea575x *tea)
 	return 0;
 }
 
-static struct pnp_device_id fmr2_pnp_ids[] = {
+static const struct pnp_device_id fmr2_pnp_ids[] = {
 	{ .id = "MFRad13" }, /* tuner subdevice of SF16-FMD2 */
 	{ .id = "" }
 };
@@ -213,8 +214,8 @@ static int fmr2_probe(struct fmr2 *fmr2, struct device *pdev, int io)
 		if (io == fmr2_cards[i]->io)
 			return -EBUSY;
 
-	strlcpy(fmr2->v4l2_dev.name, "radio-sf16fmr2",
-			sizeof(fmr2->v4l2_dev.name)),
+	strscpy(fmr2->v4l2_dev.name, "radio-sf16fmr2",
+		sizeof(fmr2->v4l2_dev.name)),
 	fmr2->io = io;
 
 	if (!request_region(fmr2->io, 2, fmr2->v4l2_dev.name)) {
@@ -234,7 +235,7 @@ static int fmr2_probe(struct fmr2 *fmr2, struct device *pdev, int io)
 	fmr2->tea.radio_nr = radio_nr[num_fmr2_cards];
 	fmr2->tea.ops = &fmr2_tea_ops;
 	fmr2->tea.ext_init = fmr2_tea_ext_init;
-	strlcpy(fmr2->tea.card, card_name, sizeof(fmr2->tea.card));
+	strscpy(fmr2->tea.card, card_name, sizeof(fmr2->tea.card));
 	snprintf(fmr2->tea.bus_info, sizeof(fmr2->tea.bus_info), "%s:%s",
 			fmr2->is_fmd2 ? "PnP" : "ISA", dev_name(pdev));
 

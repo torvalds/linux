@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/arch/arm/lib/uaccess_with_memcpy.c
  *
  *  Written by: Lennert Buytenhek and Nicolas Pitre
  *  Copyright (C) 2009 Marvell Semiconductor
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/kernel.h>
@@ -19,7 +16,6 @@
 #include <linux/gfp.h>
 #include <linux/highmem.h>
 #include <linux/hugetlb.h>
-#include <linux/export.h>
 #include <asm/current.h>
 #include <asm/page.h>
 
@@ -91,7 +87,7 @@ __copy_to_user_memcpy(void __user *to, const void *from, unsigned long n)
 	unsigned long ua_flags;
 	int atomic;
 
-	if (unlikely(segment_eq(get_fs(), KERNEL_DS))) {
+	if (uaccess_kernel()) {
 		memcpy((void *)to, from, n);
 		return 0;
 	}
@@ -153,18 +149,18 @@ arm_copy_to_user(void __user *to, const void *from, unsigned long n)
 		n = __copy_to_user_std(to, from, n);
 		uaccess_restore(ua_flags);
 	} else {
-		n = __copy_to_user_memcpy(to, from, n);
+		n = __copy_to_user_memcpy(uaccess_mask_range_ptr(to, n),
+					  from, n);
 	}
 	return n;
 }
-EXPORT_SYMBOL(arm_copy_to_user);
 	
 static unsigned long noinline
 __clear_user_memset(void __user *addr, unsigned long n)
 {
 	unsigned long ua_flags;
 
-	if (unlikely(segment_eq(get_fs(), KERNEL_DS))) {
+	if (uaccess_kernel()) {
 		memset((void *)addr, 0, n);
 		return 0;
 	}
@@ -215,7 +211,6 @@ unsigned long arm_clear_user(void __user *addr, unsigned long n)
 	}
 	return n;
 }
-EXPORT_SYMBOL(arm_clear_user);
 
 #if 0
 

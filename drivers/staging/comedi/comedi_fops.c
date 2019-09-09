@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * comedi/comedi_fops.c
  * comedi kernel module
  *
  * COMEDI - Linux Control and Measurement Device Interface
  * Copyright (C) 1997-2000 David A. Schleef <ds@schleef.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -23,20 +14,16 @@
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/fcntl.h>
 #include <linux/delay.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
-#include <linux/kmod.h>
 #include <linux/poll.h>
-#include <linux/init.h>
 #include <linux/device.h>
-#include <linux/vmalloc.h>
 #include <linux/fs.h>
 #include "comedidev.h"
 #include <linux/cdev.h>
-#include <linux/stat.h>
 
 #include <linux/io.h>
 #include <linux/uaccess.h>
@@ -73,15 +60,15 @@ struct comedi_file {
 	struct comedi_subdevice *read_subdev;
 	struct comedi_subdevice *write_subdev;
 	unsigned int last_detach_count;
-	bool last_attached:1;
+	unsigned int last_attached:1;
 };
 
 #define COMEDI_NUM_MINORS 0x100
 #define COMEDI_NUM_SUBDEVICE_MINORS	\
 	(COMEDI_NUM_MINORS - COMEDI_NUM_BOARD_MINORS)
 
-static int comedi_num_legacy_minors;
-module_param(comedi_num_legacy_minors, int, 0444);
+static unsigned short comedi_num_legacy_minors;
+module_param(comedi_num_legacy_minors, ushort, 0444);
 MODULE_PARM_DESC(comedi_num_legacy_minors,
 		 "number of comedi minor devices to reserve for non-auto-configured devices (default 0)"
 		);
@@ -92,8 +79,8 @@ MODULE_PARM_DESC(comedi_default_buf_size_kb,
 		 "default asynchronous buffer size in KiB (default "
 		 __MODULE_STRING(CONFIG_COMEDI_DEFAULT_BUF_SIZE_KB) ")");
 
-unsigned int comedi_default_buf_maxsize_kb
-	= CONFIG_COMEDI_DEFAULT_BUF_MAXSIZE_KB;
+unsigned int comedi_default_buf_maxsize_kb =
+	CONFIG_COMEDI_DEFAULT_BUF_MAXSIZE_KB;
 module_param(comedi_default_buf_maxsize_kb, uint, 0644);
 MODULE_PARM_DESC(comedi_default_buf_maxsize_kb,
 		 "default maximum size of asynchronous buffer in KiB (default "
@@ -177,6 +164,7 @@ static bool comedi_clear_board_dev(struct comedi_device *dev)
 	unsigned int i = dev->minor;
 	bool cleared = false;
 
+	lockdep_assert_held(&dev->mutex);
 	mutex_lock(&comedi_board_minor_table_lock);
 	if (dev == comedi_board_minor_table[i]) {
 		comedi_board_minor_table[i] = NULL;
@@ -273,6 +261,7 @@ comedi_read_subdevice(const struct comedi_device *dev, unsigned int minor)
 {
 	struct comedi_subdevice *s;
 
+	lockdep_assert_held(&dev->mutex);
 	if (minor >= COMEDI_NUM_BOARD_MINORS) {
 		s = comedi_subdevice_from_minor(dev, minor);
 		if (!s || (s->subdev_flags & SDF_CMD_READ))
@@ -286,6 +275,7 @@ comedi_write_subdevice(const struct comedi_device *dev, unsigned int minor)
 {
 	struct comedi_subdevice *s;
 
+	lockdep_assert_held(&dev->mutex);
 	if (minor >= COMEDI_NUM_BOARD_MINORS) {
 		s = comedi_subdevice_from_minor(dev, minor);
 		if (!s || (s->subdev_flags & SDF_CMD_WRITE))
@@ -348,6 +338,8 @@ static int resize_async_buffer(struct comedi_device *dev,
 {
 	struct comedi_async *async = s->async;
 	int retval;
+
+	lockdep_assert_held(&dev->mutex);
 
 	if (new_size > async->max_bufsize)
 		return -EPERM;
@@ -739,6 +731,7 @@ static void do_become_nonbusy(struct comedi_device *dev,
 {
 	struct comedi_async *async = s->async;
 
+	lockdep_assert_held(&dev->mutex);
 	comedi_update_subdevice_runflags(s, COMEDI_SRF_RUNNING, 0);
 	if (async) {
 		comedi_buf_reset(s);
@@ -749,7 +742,7 @@ static void do_become_nonbusy(struct comedi_device *dev,
 		wake_up_interruptible_all(&async->wait_head);
 	} else {
 		dev_err(dev->class_dev,
-			"BUG: (?) do_become_nonbusy called with async=NULL\n");
+			"BUG: (?) %s called with async=NULL\n", __func__);
 		s->busy = NULL;
 	}
 }
@@ -758,6 +751,7 @@ static int do_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	int ret = 0;
 
+	lockdep_assert_held(&dev->mutex);
 	if (comedi_is_subdevice_running(s) && s->cancel)
 		ret = s->cancel(dev, s);
 
@@ -771,6 +765,7 @@ void comedi_device_cancel_all(struct comedi_device *dev)
 	struct comedi_subdevice *s;
 	int i;
 
+	lockdep_assert_held(&dev->mutex);
 	if (!dev->attached)
 		return;
 
@@ -786,6 +781,7 @@ static int is_device_busy(struct comedi_device *dev)
 	struct comedi_subdevice *s;
 	int i;
 
+	lockdep_assert_held(&dev->mutex);
 	if (!dev->attached)
 		return 0;
 
@@ -818,6 +814,7 @@ static int do_devconfig_ioctl(struct comedi_device *dev,
 {
 	struct comedi_devconfig it;
 
+	lockdep_assert_held(&dev->mutex);
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
@@ -873,6 +870,7 @@ static int do_bufconfig_ioctl(struct comedi_device *dev,
 	struct comedi_subdevice *s;
 	int retval = 0;
 
+	lockdep_assert_held(&dev->mutex);
 	if (copy_from_user(&bc, arg, sizeof(bc)))
 		return -EFAULT;
 
@@ -933,6 +931,7 @@ static int do_devinfo_ioctl(struct comedi_device *dev,
 	struct comedi_subdevice *s;
 	struct comedi_devinfo devinfo;
 
+	lockdep_assert_held(&dev->mutex);
 	memset(&devinfo, 0, sizeof(devinfo));
 
 	/* fill devinfo structure */
@@ -979,6 +978,7 @@ static int do_subdinfo_ioctl(struct comedi_device *dev,
 	struct comedi_subdinfo *tmp, *us;
 	struct comedi_subdevice *s;
 
+	lockdep_assert_held(&dev->mutex);
 	tmp = kcalloc(dev->n_subdevices, sizeof(*tmp), GFP_KERNEL);
 	if (!tmp)
 		return -ENOMEM;
@@ -1052,6 +1052,7 @@ static int do_chaninfo_ioctl(struct comedi_device *dev,
 	struct comedi_subdevice *s;
 	struct comedi_chaninfo it;
 
+	lockdep_assert_held(&dev->mutex);
 	if (copy_from_user(&it, arg, sizeof(it)))
 		return -EFAULT;
 
@@ -1111,6 +1112,7 @@ static int do_bufinfo_ioctl(struct comedi_device *dev,
 	int retval = 0;
 	bool become_nonbusy = false;
 
+	lockdep_assert_held(&dev->mutex);
 	if (copy_from_user(&bi, arg, sizeof(bi)))
 		return -EFAULT;
 
@@ -1222,11 +1224,16 @@ static int check_insn_config_length(struct comedi_insn *insn,
 		break;
 	case INSN_CONFIG_PWM_OUTPUT:
 	case INSN_CONFIG_ANALOG_TRIG:
+	case INSN_CONFIG_TIMER_1:
 		if (insn->n == 5)
 			return 0;
 		break;
 	case INSN_CONFIG_DIGITAL_TRIG:
 		if (insn->n == 6)
+			return 0;
+		break;
+	case INSN_CONFIG_GET_CMD_TIMING_CONSTRAINTS:
+		if (insn->n >= 4)
 			return 0;
 		break;
 		/*
@@ -1243,6 +1250,58 @@ static int check_insn_config_length(struct comedi_insn *insn,
 	return -EINVAL;
 }
 
+static int check_insn_device_config_length(struct comedi_insn *insn,
+					   unsigned int *data)
+{
+	if (insn->n < 1)
+		return -EINVAL;
+
+	switch (data[0]) {
+	case INSN_DEVICE_CONFIG_TEST_ROUTE:
+	case INSN_DEVICE_CONFIG_CONNECT_ROUTE:
+	case INSN_DEVICE_CONFIG_DISCONNECT_ROUTE:
+		if (insn->n == 3)
+			return 0;
+		break;
+	case INSN_DEVICE_CONFIG_GET_ROUTES:
+		/*
+		 * Big enough for config_id and the length of the userland
+		 * memory buffer.  Additional length should be in factors of 2
+		 * to communicate any returned route pairs (source,destination).
+		 */
+		if (insn->n >= 2)
+			return 0;
+		break;
+	}
+	return -EINVAL;
+}
+
+/**
+ * get_valid_routes() - Calls low-level driver get_valid_routes function to
+ *			either return a count of valid routes to user, or copy
+ *			of list of all valid device routes to buffer in
+ *			userspace.
+ * @dev: comedi device pointer
+ * @data: data from user insn call.  The length of the data must be >= 2.
+ *	  data[0] must contain the INSN_DEVICE_CONFIG config_id.
+ *	  data[1](input) contains the number of _pairs_ for which memory is
+ *		  allotted from the user.  If the user specifies '0', then only
+ *		  the number of pairs available is returned.
+ *	  data[1](output) returns either the number of pairs available (if none
+ *		  where requested) or the number of _pairs_ that are copied back
+ *		  to the user.
+ *	  data[2::2] returns each (source, destination) pair.
+ *
+ * Return: -EINVAL if low-level driver does not allocate and return routes as
+ *	   expected.  Returns 0 otherwise.
+ */
+static int get_valid_routes(struct comedi_device *dev, unsigned int *data)
+{
+	lockdep_assert_held(&dev->mutex);
+	data[1] = dev->get_valid_routes(dev, data[1], data + 2);
+	return 0;
+}
+
 static int parse_insn(struct comedi_device *dev, struct comedi_insn *insn,
 		      unsigned int *data, void *file)
 {
@@ -1250,6 +1309,7 @@ static int parse_insn(struct comedi_device *dev, struct comedi_insn *insn,
 	int ret = 0;
 	int i;
 
+	lockdep_assert_held(&dev->mutex);
 	if (insn->insn & INSN_MASK_SPECIAL) {
 		/* a non-subdevice instruction */
 
@@ -1305,6 +1365,24 @@ static int parse_insn(struct comedi_device *dev, struct comedi_insn *insn,
 			ret = s->async->inttrig(dev, s, data[0]);
 			if (ret >= 0)
 				ret = 1;
+			break;
+		case INSN_DEVICE_CONFIG:
+			ret = check_insn_device_config_length(insn, data);
+			if (ret)
+				break;
+
+			if (data[0] == INSN_DEVICE_CONFIG_GET_ROUTES) {
+				/*
+				 * data[1] should be the number of _pairs_ that
+				 * the memory can hold.
+				 */
+				data[1] = (insn->n - 2) / 2;
+				ret = get_valid_routes(dev, data);
+				break;
+			}
+
+			/* other global device config instructions. */
+			ret = dev->insn_device_config(dev, insn, data);
 			break;
 		default:
 			dev_dbg(dev->class_dev, "invalid insn\n");
@@ -1440,24 +1518,21 @@ out:
  *	data (for reads) to insns[].data pointers
  */
 /* arbitrary limits */
-#define MAX_SAMPLES 256
+#define MIN_SAMPLES 16
+#define MAX_SAMPLES 65536
 static int do_insnlist_ioctl(struct comedi_device *dev,
 			     struct comedi_insnlist __user *arg, void *file)
 {
 	struct comedi_insnlist insnlist;
 	struct comedi_insn *insns = NULL;
 	unsigned int *data = NULL;
+	unsigned int max_n_data_required = MIN_SAMPLES;
 	int i = 0;
 	int ret = 0;
 
+	lockdep_assert_held(&dev->mutex);
 	if (copy_from_user(&insnlist, arg, sizeof(insnlist)))
 		return -EFAULT;
-
-	data = kmalloc_array(MAX_SAMPLES, sizeof(unsigned int), GFP_KERNEL);
-	if (!data) {
-		ret = -ENOMEM;
-		goto error;
-	}
 
 	insns = kcalloc(insnlist.n_insns, sizeof(*insns), GFP_KERNEL);
 	if (!insns) {
@@ -1472,13 +1547,26 @@ static int do_insnlist_ioctl(struct comedi_device *dev,
 		goto error;
 	}
 
-	for (i = 0; i < insnlist.n_insns; i++) {
+	/* Determine maximum memory needed for all instructions. */
+	for (i = 0; i < insnlist.n_insns; ++i) {
 		if (insns[i].n > MAX_SAMPLES) {
 			dev_dbg(dev->class_dev,
 				"number of samples too large\n");
 			ret = -EINVAL;
 			goto error;
 		}
+		max_n_data_required = max(max_n_data_required, insns[i].n);
+	}
+
+	/* Allocate scratch space for all instruction data. */
+	data = kmalloc_array(max_n_data_required, sizeof(unsigned int),
+			     GFP_KERNEL);
+	if (!data) {
+		ret = -ENOMEM;
+		goto error;
+	}
+
+	for (i = 0; i < insnlist.n_insns; ++i) {
 		if (insns[i].insn & INSN_MASK_WRITE) {
 			if (copy_from_user(data, insns[i].data,
 					   insns[i].n * sizeof(unsigned int))) {
@@ -1532,22 +1620,27 @@ static int do_insn_ioctl(struct comedi_device *dev,
 {
 	struct comedi_insn insn;
 	unsigned int *data = NULL;
+	unsigned int n_data = MIN_SAMPLES;
 	int ret = 0;
 
-	data = kmalloc_array(MAX_SAMPLES, sizeof(unsigned int), GFP_KERNEL);
+	lockdep_assert_held(&dev->mutex);
+	if (copy_from_user(&insn, arg, sizeof(insn)))
+		return -EFAULT;
+
+	n_data = max(n_data, insn.n);
+
+	/* This is where the behavior of insn and insnlist deviate. */
+	if (insn.n > MAX_SAMPLES) {
+		insn.n = MAX_SAMPLES;
+		n_data = MAX_SAMPLES;
+	}
+
+	data = kmalloc_array(n_data, sizeof(unsigned int), GFP_KERNEL);
 	if (!data) {
 		ret = -ENOMEM;
 		goto error;
 	}
 
-	if (copy_from_user(&insn, arg, sizeof(insn))) {
-		ret = -EFAULT;
-		goto error;
-	}
-
-	/* This is where the behavior of insn and insnlist deviate. */
-	if (insn.n > MAX_SAMPLES)
-		insn.n = MAX_SAMPLES;
 	if (insn.insn & INSN_MASK_WRITE) {
 		if (copy_from_user(data,
 				   insn.data,
@@ -1581,6 +1674,7 @@ static int __comedi_get_user_cmd(struct comedi_device *dev,
 {
 	struct comedi_subdevice *s;
 
+	lockdep_assert_held(&dev->mutex);
 	if (copy_from_user(cmd, arg, sizeof(*cmd))) {
 		dev_dbg(dev->class_dev, "bad cmd address\n");
 		return -EFAULT;
@@ -1639,6 +1733,7 @@ static int __comedi_get_user_chanlist(struct comedi_device *dev,
 	unsigned int *chanlist;
 	int ret;
 
+	lockdep_assert_held(&dev->mutex);
 	cmd->chanlist = NULL;
 	chanlist = memdup_user(user_chanlist,
 			       cmd->chanlist_len * sizeof(unsigned int));
@@ -1679,6 +1774,8 @@ static int do_cmd_ioctl(struct comedi_device *dev,
 	struct comedi_async *async;
 	unsigned int __user *user_chanlist;
 	int ret;
+
+	lockdep_assert_held(&dev->mutex);
 
 	/* get the user's cmd and do some simple validation */
 	ret = __comedi_get_user_cmd(dev, arg, &cmd);
@@ -1787,6 +1884,8 @@ static int do_cmdtest_ioctl(struct comedi_device *dev,
 	unsigned int __user *user_chanlist;
 	int ret;
 
+	lockdep_assert_held(&dev->mutex);
+
 	/* get the user's cmd and do some simple validation */
 	ret = __comedi_get_user_cmd(dev, arg, &cmd);
 	if (ret)
@@ -1840,6 +1939,7 @@ static int do_lock_ioctl(struct comedi_device *dev, unsigned long arg,
 	unsigned long flags;
 	struct comedi_subdevice *s;
 
+	lockdep_assert_held(&dev->mutex);
 	if (arg >= dev->n_subdevices)
 		return -EINVAL;
 	s = &dev->subdevices[arg];
@@ -1872,6 +1972,7 @@ static int do_unlock_ioctl(struct comedi_device *dev, unsigned long arg,
 {
 	struct comedi_subdevice *s;
 
+	lockdep_assert_held(&dev->mutex);
 	if (arg >= dev->n_subdevices)
 		return -EINVAL;
 	s = &dev->subdevices[arg];
@@ -1906,6 +2007,7 @@ static int do_cancel_ioctl(struct comedi_device *dev, unsigned long arg,
 {
 	struct comedi_subdevice *s;
 
+	lockdep_assert_held(&dev->mutex);
 	if (arg >= dev->n_subdevices)
 		return -EINVAL;
 	s = &dev->subdevices[arg];
@@ -1939,6 +2041,7 @@ static int do_poll_ioctl(struct comedi_device *dev, unsigned long arg,
 {
 	struct comedi_subdevice *s;
 
+	lockdep_assert_held(&dev->mutex);
 	if (arg >= dev->n_subdevices)
 		return -EINVAL;
 	s = &dev->subdevices[arg];
@@ -1974,6 +2077,7 @@ static int do_setrsubd_ioctl(struct comedi_device *dev, unsigned long arg,
 	struct comedi_file *cfp = file->private_data;
 	struct comedi_subdevice *s_old, *s_new;
 
+	lockdep_assert_held(&dev->mutex);
 	if (arg >= dev->n_subdevices)
 		return -EINVAL;
 
@@ -2016,6 +2120,7 @@ static int do_setwsubd_ioctl(struct comedi_device *dev, unsigned long arg,
 	struct comedi_file *cfp = file->private_data;
 	struct comedi_subdevice *s_old, *s_new;
 
+	lockdep_assert_held(&dev->mutex);
 	if (arg >= dev->n_subdevices)
 		return -EINVAL;
 
@@ -2169,9 +2274,24 @@ static void comedi_vm_close(struct vm_area_struct *area)
 	comedi_buf_map_put(bm);
 }
 
+static int comedi_vm_access(struct vm_area_struct *vma, unsigned long addr,
+			    void *buf, int len, int write)
+{
+	struct comedi_buf_map *bm = vma->vm_private_data;
+	unsigned long offset =
+	    addr - vma->vm_start + (vma->vm_pgoff << PAGE_SHIFT);
+
+	if (len < 0)
+		return -EINVAL;
+	if (len > vma->vm_end - addr)
+		len = vma->vm_end - addr;
+	return comedi_buf_map_access(bm, offset, buf, len, write);
+}
+
 static const struct vm_operations_struct comedi_vm_ops = {
 	.open = comedi_vm_open,
 	.close = comedi_vm_close,
+	.access = comedi_vm_access,
 };
 
 static int comedi_mmap(struct file *file, struct vm_area_struct *vma)
@@ -2181,11 +2301,12 @@ static int comedi_mmap(struct file *file, struct vm_area_struct *vma)
 	struct comedi_subdevice *s;
 	struct comedi_async *async;
 	struct comedi_buf_map *bm = NULL;
+	struct comedi_buf_page *buf;
 	unsigned long start = vma->vm_start;
 	unsigned long size;
 	int n_pages;
 	int i;
-	int retval;
+	int retval = 0;
 
 	/*
 	 * 'trylock' avoids circular dependency with current->mm->mmap_sem
@@ -2241,33 +2362,45 @@ static int comedi_mmap(struct file *file, struct vm_area_struct *vma)
 		retval = -EINVAL;
 		goto done;
 	}
-	for (i = 0; i < n_pages; ++i) {
-		struct comedi_buf_page *buf = &bm->page_list[i];
+	if (bm->dma_dir != DMA_NONE) {
+		/*
+		 * DMA buffer was allocated as a single block.
+		 * Address is in page_list[0].
+		 */
+		buf = &bm->page_list[0];
+		retval = dma_mmap_coherent(bm->dma_hw_dev, vma, buf->virt_addr,
+					   buf->dma_addr, n_pages * PAGE_SIZE);
+	} else {
+		for (i = 0; i < n_pages; ++i) {
+			unsigned long pfn;
 
-		if (remap_pfn_range(vma, start,
-				    page_to_pfn(virt_to_page(buf->virt_addr)),
-				    PAGE_SIZE, PAGE_SHARED)) {
-			retval = -EAGAIN;
-			goto done;
+			buf = &bm->page_list[i];
+			pfn = page_to_pfn(virt_to_page(buf->virt_addr));
+			retval = remap_pfn_range(vma, start, pfn, PAGE_SIZE,
+						 PAGE_SHARED);
+			if (retval)
+				break;
+
+			start += PAGE_SIZE;
 		}
-		start += PAGE_SIZE;
 	}
 
-	vma->vm_ops = &comedi_vm_ops;
-	vma->vm_private_data = bm;
+	if (retval == 0) {
+		vma->vm_ops = &comedi_vm_ops;
+		vma->vm_private_data = bm;
 
-	vma->vm_ops->open(vma);
+		vma->vm_ops->open(vma);
+	}
 
-	retval = 0;
 done:
 	up_read(&dev->attach_lock);
 	comedi_buf_map_put(bm);	/* put reference to buf map - okay if NULL */
 	return retval;
 }
 
-static unsigned int comedi_poll(struct file *file, poll_table *wait)
+static __poll_t comedi_poll(struct file *file, poll_table *wait)
 {
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 	struct comedi_file *cfp = file->private_data;
 	struct comedi_device *dev = cfp->dev;
 	struct comedi_subdevice *s, *s_read;
@@ -2286,7 +2419,7 @@ static unsigned int comedi_poll(struct file *file, poll_table *wait)
 		if (s->busy != file || !comedi_is_subdevice_running(s) ||
 		    (s->async->cmd.flags & CMDF_WRITE) ||
 		    comedi_buf_read_n_available(s) > 0)
-			mask |= POLLIN | POLLRDNORM;
+			mask |= EPOLLIN | EPOLLRDNORM;
 	}
 
 	s = comedi_file_write_subdevice(file);
@@ -2298,7 +2431,7 @@ static unsigned int comedi_poll(struct file *file, poll_table *wait)
 		if (s->busy != file || !comedi_is_subdevice_running(s) ||
 		    !(s->async->cmd.flags & CMDF_WRITE) ||
 		    comedi_buf_write_n_available(s) >= bps)
-			mask |= POLLOUT | POLLWRNORM;
+			mask |= EPOLLOUT | EPOLLWRNORM;
 	}
 
 done:
@@ -2385,6 +2518,7 @@ static ssize_t comedi_write(struct file *file, const char __user *buf,
 			continue;
 		}
 
+		set_current_state(TASK_RUNNING);
 		wp = async->buf_write_ptr;
 		n1 = min(n, async->prealloc_bufsz - wp);
 		n2 = n - n1;
@@ -2517,6 +2651,8 @@ static ssize_t comedi_read(struct file *file, char __user *buf, size_t nbytes,
 			}
 			continue;
 		}
+
+		set_current_state(TASK_RUNNING);
 		rp = async->buf_read_ptr;
 		n1 = min(n, async->prealloc_bufsz - rp);
 		n2 = n - n1;
@@ -2861,8 +2997,7 @@ static int __init comedi_init(void)
 
 	pr_info("version " COMEDI_RELEASE " - http://www.comedi.org\n");
 
-	if (comedi_num_legacy_minors < 0 ||
-	    comedi_num_legacy_minors > COMEDI_NUM_BOARD_MINORS) {
+	if (comedi_num_legacy_minors > COMEDI_NUM_BOARD_MINORS) {
 		pr_err("invalid value for module parameter \"comedi_num_legacy_minors\".  Valid values are 0 through %i.\n",
 		       COMEDI_NUM_BOARD_MINORS);
 		return -EINVAL;
@@ -2871,35 +3006,28 @@ static int __init comedi_init(void)
 	retval = register_chrdev_region(MKDEV(COMEDI_MAJOR, 0),
 					COMEDI_NUM_MINORS, "comedi");
 	if (retval)
-		return -EIO;
+		return retval;
+
 	cdev_init(&comedi_cdev, &comedi_fops);
 	comedi_cdev.owner = THIS_MODULE;
 
 	retval = kobject_set_name(&comedi_cdev.kobj, "comedi");
-	if (retval) {
-		unregister_chrdev_region(MKDEV(COMEDI_MAJOR, 0),
-					 COMEDI_NUM_MINORS);
-		return retval;
-	}
+	if (retval)
+		goto out_unregister_chrdev_region;
 
-	if (cdev_add(&comedi_cdev, MKDEV(COMEDI_MAJOR, 0), COMEDI_NUM_MINORS)) {
-		unregister_chrdev_region(MKDEV(COMEDI_MAJOR, 0),
-					 COMEDI_NUM_MINORS);
-		return -EIO;
-	}
+	retval = cdev_add(&comedi_cdev, MKDEV(COMEDI_MAJOR, 0),
+			  COMEDI_NUM_MINORS);
+	if (retval)
+		goto out_unregister_chrdev_region;
+
 	comedi_class = class_create(THIS_MODULE, "comedi");
 	if (IS_ERR(comedi_class)) {
+		retval = PTR_ERR(comedi_class);
 		pr_err("failed to create class\n");
-		cdev_del(&comedi_cdev);
-		unregister_chrdev_region(MKDEV(COMEDI_MAJOR, 0),
-					 COMEDI_NUM_MINORS);
-		return PTR_ERR(comedi_class);
+		goto out_cdev_del;
 	}
 
 	comedi_class->dev_groups = comedi_dev_groups;
-
-	/* XXX requires /proc interface */
-	comedi_proc_init();
 
 	/* create devices files for legacy/manual use */
 	for (i = 0; i < comedi_num_legacy_minors; i++) {
@@ -2907,17 +3035,27 @@ static int __init comedi_init(void)
 
 		dev = comedi_alloc_board_minor(NULL);
 		if (IS_ERR(dev)) {
-			comedi_cleanup_board_minors();
-			cdev_del(&comedi_cdev);
-			unregister_chrdev_region(MKDEV(COMEDI_MAJOR, 0),
-						 COMEDI_NUM_MINORS);
-			return PTR_ERR(dev);
+			retval = PTR_ERR(dev);
+			goto out_cleanup_board_minors;
 		}
 		/* comedi_alloc_board_minor() locked the mutex */
+		lockdep_assert_held(&dev->mutex);
 		mutex_unlock(&dev->mutex);
 	}
 
+	/* XXX requires /proc interface */
+	comedi_proc_init();
+
 	return 0;
+
+out_cleanup_board_minors:
+	comedi_cleanup_board_minors();
+	class_destroy(comedi_class);
+out_cdev_del:
+	cdev_del(&comedi_cdev);
+out_unregister_chrdev_region:
+	unregister_chrdev_region(MKDEV(COMEDI_MAJOR, 0), COMEDI_NUM_MINORS);
+	return retval;
 }
 module_init(comedi_init);
 

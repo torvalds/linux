@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * PL-2301/2302 USB host-to-host link cables
  * Copyright (C) 2000-2005 by David Brownell
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 // #define	DEBUG			// error path messages, extra info
@@ -102,7 +90,7 @@ static int pl_reset(struct usbnet *dev)
 }
 
 static const struct driver_info	prolific_info = {
-	.description =	"Prolific PL-2301/PL-2302/PL-25A1",
+	.description =	"Prolific PL-2301/PL-2302/PL-25A1/PL-27A1",
 	.flags =	FLAG_POINTTOPOINT | FLAG_NO_SETINT,
 		/* some PL-2302 versions seem to fail usb_set_interface() */
 	.reset =	pl_reset,
@@ -139,6 +127,17 @@ static const struct usb_device_id	products [] = {
 					 * Host-to-Host Cable
 					 */
 	.driver_info =  (unsigned long) &prolific_info,
+
+},
+
+/* super speed cables */
+{
+	USB_DEVICE(0x067b, 0x27a1),     /* PL-27A1, no eeprom
+					 * also: goobay Active USB 3.0
+					 * Data Link,
+					 * Unitek Y-3501
+					 */
+	.driver_info =  (unsigned long) &prolific_info,
 },
 
 	{ },		// END
@@ -158,5 +157,5 @@ static struct usb_driver plusb_driver = {
 module_usb_driver(plusb_driver);
 
 MODULE_AUTHOR("David Brownell");
-MODULE_DESCRIPTION("Prolific PL-2301/2302/25A1 USB Host to Host Link Driver");
+MODULE_DESCRIPTION("Prolific PL-2301/2302/25A1/27A1 USB Host to Host Link Driver");
 MODULE_LICENSE("GPL");

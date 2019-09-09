@@ -523,6 +523,7 @@ static void allow_maximum_power(struct thermal_zone_device *tz)
 	struct thermal_instance *instance;
 	struct power_allocator_params *params = tz->governor_data;
 
+	mutex_lock(&tz->lock);
 	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
 		if ((instance->trip != params->trip_max_desired_temperature) ||
 		    (!cdev_is_power_actor(instance->cdev)))
@@ -534,6 +535,7 @@ static void allow_maximum_power(struct thermal_zone_device *tz)
 		mutex_unlock(&instance->cdev->lock);
 		thermal_cdev_update(instance->cdev);
 	}
+	mutex_unlock(&tz->lock);
 }
 
 /**
@@ -649,13 +651,4 @@ static struct thermal_governor thermal_gov_power_allocator = {
 	.unbind_from_tz	= power_allocator_unbind,
 	.throttle	= power_allocator_throttle,
 };
-
-int thermal_gov_power_allocator_register(void)
-{
-	return thermal_register_governor(&thermal_gov_power_allocator);
-}
-
-void thermal_gov_power_allocator_unregister(void)
-{
-	thermal_unregister_governor(&thermal_gov_power_allocator);
-}
+THERMAL_GOVERNOR_DECLARE(thermal_gov_power_allocator);

@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2014, NVIDIA CORPORATION.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #include <linux/delay.h>
@@ -873,6 +865,10 @@ static const struct of_device_id tegra_xusb_padctl_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, tegra_xusb_padctl_of_match);
 
+/* predeclare these in order to silence sparse */
+int tegra_xusb_padctl_legacy_probe(struct platform_device *pdev);
+int tegra_xusb_padctl_legacy_remove(struct platform_device *pdev);
+
 int tegra_xusb_padctl_legacy_probe(struct platform_device *pdev)
 {
 	struct tegra_xusb_padctl *padctl;
@@ -897,7 +893,7 @@ int tegra_xusb_padctl_legacy_probe(struct platform_device *pdev)
 	if (IS_ERR(padctl->regs))
 		return PTR_ERR(padctl->regs);
 
-	padctl->rst = devm_reset_control_get(&pdev->dev, NULL);
+	padctl->rst = devm_reset_control_get_exclusive(&pdev->dev, NULL);
 	if (IS_ERR(padctl->rst))
 		return PTR_ERR(padctl->rst);
 

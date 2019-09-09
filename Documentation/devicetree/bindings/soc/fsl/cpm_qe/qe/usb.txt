@@ -6,7 +6,6 @@ Required properties:
   length, the next two two cells should contain PRAM location and
   length.
 - interrupts : should contain USB interrupt.
-- interrupt-parent : interrupt source phandle.
 - fsl,fullspeed-clock : specifies the full speed USB clock source:
   "none": clock source is disabled
   "brg1" through "brg16": clock source is BRG1-BRG16, respectively

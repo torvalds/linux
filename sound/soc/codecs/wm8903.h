@@ -1,13 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * wm8903.h - WM8903 audio codec interface
  *
  * Copyright 2008 Wolfson Microelectronics PLC.
  * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
- *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
  */
 
 #ifndef _WM8903_H
@@ -15,7 +11,7 @@
 
 #include <linux/i2c.h>
 
-extern int wm8903_mic_detect(struct snd_soc_codec *codec,
+extern int wm8903_mic_detect(struct snd_soc_component *component,
 			     struct snd_soc_jack *jack,
 			     int det, int shrt);
 

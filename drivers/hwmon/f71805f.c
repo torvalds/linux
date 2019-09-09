@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * f71805f.c - driver for the Fintek F71805F/FG and F71872F/FG Super-I/O
  *             chips integrated hardware monitoring features
@@ -12,20 +13,6 @@
  *
  * The F71806F/FG is essentially the same as the F71872F/FG. It even has
  * the same chip ID, so the driver can't differentiate between.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -96,17 +83,23 @@ superio_select(int base, int ld)
 	outb(ld, base + 1);
 }
 
-static inline void
+static inline int
 superio_enter(int base)
 {
+	if (!request_muxed_region(base, 2, DRVNAME))
+		return -EBUSY;
+
 	outb(0x87, base);
 	outb(0x87, base);
+
+	return 0;
 }
 
 static inline void
 superio_exit(int base)
 {
 	outb(0xaa, base);
+	release_region(base, 2);
 }
 
 /*
@@ -946,7 +939,7 @@ static ssize_t set_temp_hyst(struct device *dev, struct device_attribute
 	return count;
 }
 
-static ssize_t show_alarms_in(struct device *dev, struct device_attribute
+static ssize_t alarms_in_show(struct device *dev, struct device_attribute
 			      *devattr, char *buf)
 {
 	struct f71805f_data *data = f71805f_update_device(dev);
@@ -954,7 +947,7 @@ static ssize_t show_alarms_in(struct device *dev, struct device_attribute
 	return sprintf(buf, "%lu\n", data->alarms & 0x7ff);
 }
 
-static ssize_t show_alarms_fan(struct device *dev, struct device_attribute
+static ssize_t alarms_fan_show(struct device *dev, struct device_attribute
 			       *devattr, char *buf)
 {
 	struct f71805f_data *data = f71805f_update_device(dev);
@@ -962,7 +955,7 @@ static ssize_t show_alarms_fan(struct device *dev, struct device_attribute
 	return sprintf(buf, "%lu\n", (data->alarms >> 16) & 0x07);
 }
 
-static ssize_t show_alarms_temp(struct device *dev, struct device_attribute
+static ssize_t alarms_temp_show(struct device *dev, struct device_attribute
 				*devattr, char *buf)
 {
 	struct f71805f_data *data = f71805f_update_device(dev);
@@ -980,7 +973,7 @@ static ssize_t show_alarm(struct device *dev, struct device_attribute
 	return sprintf(buf, "%lu\n", (data->alarms >> bitnr) & 1);
 }
 
-static ssize_t show_name(struct device *dev, struct device_attribute
+static ssize_t name_show(struct device *dev, struct device_attribute
 			 *devattr, char *buf)
 {
 	struct f71805f_data *data = dev_get_drvdata(dev);
@@ -1176,11 +1169,11 @@ static SENSOR_DEVICE_ATTR(temp3_alarm, S_IRUGO, show_alarm, NULL, 13);
 static SENSOR_DEVICE_ATTR(fan1_alarm, S_IRUGO, show_alarm, NULL, 16);
 static SENSOR_DEVICE_ATTR(fan2_alarm, S_IRUGO, show_alarm, NULL, 17);
 static SENSOR_DEVICE_ATTR(fan3_alarm, S_IRUGO, show_alarm, NULL, 18);
-static DEVICE_ATTR(alarms_in, S_IRUGO, show_alarms_in, NULL);
-static DEVICE_ATTR(alarms_fan, S_IRUGO, show_alarms_fan, NULL);
-static DEVICE_ATTR(alarms_temp, S_IRUGO, show_alarms_temp, NULL);
+static DEVICE_ATTR_RO(alarms_in);
+static DEVICE_ATTR_RO(alarms_fan);
+static DEVICE_ATTR_RO(alarms_temp);
 
-static DEVICE_ATTR(name, S_IRUGO, show_name, NULL);
+static DEVICE_ATTR_RO(name);
 
 static struct attribute *f71805f_attributes[] = {
 	&sensor_dev_attr_in0_input.dev_attr.attr,
@@ -1561,7 +1554,7 @@ exit:
 static int __init f71805f_find(int sioaddr, unsigned short *address,
 			       struct f71805f_sio_data *sio_data)
 {
-	int err = -ENODEV;
+	int err;
 	u16 devid;
 
 	static const char * const names[] = {
@@ -1569,8 +1562,11 @@ static int __init f71805f_find(int sioaddr, unsigned short *address,
 		"F71872F/FG or F71806F/FG",
 	};
 
-	superio_enter(sioaddr);
+	err = superio_enter(sioaddr);
+	if (err)
+		return err;
 
+	err = -ENODEV;
 	devid = superio_inw(sioaddr, SIO_REG_MANID);
 	if (devid != SIO_FINTEK_ID)
 		goto exit;

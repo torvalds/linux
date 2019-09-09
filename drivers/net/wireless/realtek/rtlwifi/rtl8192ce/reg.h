@@ -1,31 +1,5 @@
-/******************************************************************************
- *
- * Copyright(c) 2009-2012  Realtek Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
- *
- * Contact Information:
- * wlanfae <wlanfae@realtek.com>
- * Realtek Corporation, No. 2, Innovation Road II, Hsinchu Science Park,
- * Hsinchu 300, Taiwan.
- *
- * Larry Finger <Larry.Finger@lwfinger.net>
- *
- *****************************************************************************/
+/* SPDX-License-Identifier: GPL-2.0 */
+/* Copyright(c) 2009-2012  Realtek Corporation.*/
 
 #ifndef __RTL92C_REG_H__
 #define __RTL92C_REG_H__
@@ -231,7 +205,6 @@
 #define REG_RD_NAV_NXT				0x0544
 #define REG_NAV_PROT_LEN			0x0546
 #define REG_BCN_CTRL				0x0550
-#define REG_USTIME_TSF				0x0551
 #define REG_MBID_NUM				0x0552
 #define REG_DUAL_TSF_RST			0x0553
 #define REG_BCN_INTERVAL			0x0554
@@ -239,6 +212,7 @@
 #define REG_DRVERLYINT				0x0558
 #define REG_BCNDMATIM				0x0559
 #define REG_ATIMWND				0x055A
+#define REG_USTIME_TSF				0x055C
 #define REG_BCN_MAX_ERR				0x055D
 #define REG_RXTSF_OFFSET_CCK			0x055E
 #define REG_RXTSF_OFFSET_OFDM			0x055F
@@ -706,7 +680,7 @@
 #define PWC_EV12V				BIT(15)
 
 #define FEN_BBRSTB				BIT(0)
-#define FEN_BB_GLB_RSTn				BIT(1)
+#define FEN_BB_GLB_RSTN				BIT(1)
 #define FEN_USBA				BIT(2)
 #define FEN_UPLL				BIT(3)
 #define FEN_USBD				BIT(4)
@@ -726,7 +700,7 @@
 #define PFM_ALDN				BIT(1)
 #define PFM_LDKP				BIT(2)
 #define PFM_WOWL				BIT(3)
-#define EnPDN					BIT(4)
+#define ENPDN					BIT(4)
 #define PDN_PL					BIT(5)
 #define APFM_ONMAC				BIT(8)
 #define APFM_OFF				BIT(9)
@@ -841,19 +815,19 @@
 #define LDOE25_EN				BIT(31)
 
 #define RSM_EN					BIT(0)
-#define Timer_EN				BIT(4)
+#define TIMER_EN				BIT(4)
 
 #define TRSW0EN					BIT(2)
 #define TRSW1EN					BIT(3)
 #define EROM_EN					BIT(4)
-#define EnBT					BIT(5)
-#define EnUart					BIT(8)
-#define Uart_910				BIT(9)
-#define EnPMAC					BIT(10)
+#define ENBT					BIT(5)
+#define ENUART					BIT(8)
+#define UART_910				BIT(9)
+#define ENPMAC					BIT(10)
 #define SIC_SWRST				BIT(11)
-#define EnSIC					BIT(12)
+#define ENSIC					BIT(12)
 #define SIC_23					BIT(13)
-#define EnHDP					BIT(14)
+#define ENHDP					BIT(14)
 #define SIC_LBK					BIT(15)
 
 #define LED0PL					BIT(4)
@@ -862,7 +836,7 @@
 
 #define MCUFWDL_EN				BIT(0)
 #define MCUFWDL_RDY				BIT(1)
-#define FWDL_ChkSum_rpt				BIT(2)
+#define FWDL_CHKSUM_RPT				BIT(2)
 #define MACINI_RDY				BIT(3)
 #define BBINI_RDY				BIT(4)
 #define RFINI_RDY				BIT(5)
@@ -1080,13 +1054,13 @@
 #define	DIS_TSF_UDT0_NORMAL_CHIP		BIT(4)
 #define	DIS_TSF_UDT0_TEST_CHIP			BIT(5)
 
-#define	AcmHw_HwEn				BIT(0)
-#define	AcmHw_BeqEn				BIT(1)
-#define	AcmHw_ViqEn				BIT(2)
-#define	AcmHw_VoqEn				BIT(3)
-#define	AcmHw_BeqStatus				BIT(4)
-#define	AcmHw_ViqStatus				BIT(5)
-#define	AcmHw_VoqStatus				BIT(6)
+#define	ACMHW_HWEN				BIT(0)
+#define	ACMHW_BEQEN				BIT(1)
+#define	ACMHW_VIQEN				BIT(2)
+#define	ACMHW_VOQEN				BIT(3)
+#define	ACMHW_BEQSTATUS				BIT(4)
+#define	ACMHW_VIQSTATUS				BIT(5)
+#define	ACMHW_VOQSTATUS				BIT(6)
 
 #define APSDOFF					BIT(6)
 #define APSDOFF_STATUS				BIT(7)
@@ -1125,7 +1099,7 @@
 #define BM_DATA_EN				BIT(17)
 #define MFBEN					BIT(22)
 #define LSIGEN					BIT(23)
-#define EnMBID					BIT(24)
+#define ENMBID					BIT(24)
 #define APP_BASSN				BIT(27)
 #define APP_PHYSTS				BIT(28)
 #define APP_ICV					BIT(29)
@@ -1154,12 +1128,12 @@
 #define RXERR_RPT_RST				BIT(27)
 #define _RXERR_RPT_SEL(type)			((type) << 28)
 
-#define	SCR_TxUseDK				BIT(0)
-#define	SCR_RxUseDK				BIT(1)
-#define	SCR_TxEncEnable				BIT(2)
-#define	SCR_RxDecEnable				BIT(3)
-#define	SCR_SKByA2				BIT(4)
-#define	SCR_NoSKMC				BIT(5)
+#define	SCR_TXUSEDK				BIT(0)
+#define	SCR_RXUSEDK				BIT(1)
+#define	SCR_TXENCENABLE				BIT(2)
+#define	SCR_RXDECENABLE				BIT(3)
+#define	SCR_SKBYA2				BIT(4)
+#define	SCR_NOSKMC				BIT(5)
 #define SCR_TXBCUSEDK				BIT(6)
 #define SCR_RXBCUSEDK				BIT(7)
 
@@ -1212,7 +1186,7 @@
 #define	RPMAC_CCKPLCPHEADER			0x144
 #define	RPMAC_CCKCRC16				0x148
 #define	RPMAC_OFDMRXCRC32OK			0x170
-#define	RPMAC_OFDMRXCRC32Er			0x174
+#define	RPMAC_OFDMRXCRC32ER			0x174
 #define	RPMAC_OFDMRXPARITYER			0x178
 #define	RPMAC_OFDMRXCRC8ER			0x17c
 #define	RPMAC_CCKCRXRC16ER			0x180
@@ -1250,8 +1224,8 @@
 #define	RFPGA0_XAB_RFINTERFACESW		0x870
 #define	RFPGA0_XCD_RFINTERFACESW		0x874
 
-#define	rFPGA0_XAB_RFPARAMETER			0x878
-#define	rFPGA0_XCD_RFPARAMETER			0x87c
+#define	RFPGA0_XAB_RFPARAMETER			0x878
+#define	RFPGA0_XCD_RFPARAMETER			0x87c
 
 #define	RFPGA0_ANALOGPARAMETER1			0x880
 #define	RFPGA0_ANALOGPARAMETER2			0x884
@@ -1525,8 +1499,8 @@
 #define	BCCKTXCRC16				0xffff
 #define	BCCKTXSTATUS				0x1
 #define	BOFDMTXSTATUS				0x2
-#define IS_BB_REG_OFFSET_92S(_Offset)		\
-	((_Offset >= 0x800) && (_Offset <= 0xfff))
+#define IS_BB_REG_OFFSET_92S(_offset)		\
+	(((_offset) >= 0x800) && ((_offset) <= 0xfff))
 
 #define	BRFMOD					0x1
 #define	BJAPANMODE				0x2
@@ -1719,7 +1693,6 @@
 #define	BCCK_RF_EXTEND				0x20000000
 #define	BCCK_RXAGC_SATLEVEL			0x1f000000
 #define	BCCK_RXAGC_SATCOUNT			0xe0
-#define	bCCKRxRFSettle				0x1f
 #define	BCCK_FIXED_RXAGC			0x8000
 #define	BCCK_ANTENNA_POLARITY			0x2000
 #define	BCCK_TXFILTER_TYPE			0x0c00

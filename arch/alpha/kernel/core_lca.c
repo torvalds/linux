@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *	linux/arch/alpha/kernel/core_lca.c
  *
@@ -274,7 +275,8 @@ lca_init_arch(void)
 	 * Note that we do not try to save any of the DMA window CSRs
 	 * before setting them, since we cannot read those CSRs on LCA.
 	 */
-	hose->sg_isa = iommu_arena_new(hose, 0x00800000, 0x00800000, 0);
+	hose->sg_isa = iommu_arena_new(hose, 0x00800000, 0x00800000,
+				       SMP_CACHE_BYTES);
 	hose->sg_pci = NULL;
 	__direct_map_base = 0x40000000;
 	__direct_map_size = 0x40000000;

@@ -1,19 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * HCI based Driver for Inside Secure microread NFC Chip
  *
  * Copyright (C) 2013  Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -419,7 +408,7 @@ static int microread_im_transceive(struct nfc_hci_dev *hdev,
 	pr_info("data exchange to gate 0x%x\n", target->hci_reader_gate);
 
 	if (target->hci_reader_gate == MICROREAD_GATE_ID_P2P_INITIATOR) {
-		*skb_push(skb, 1) = 0;
+		*(u8 *)skb_push(skb, 1) = 0;
 
 		return nfc_hci_send_event(hdev, target->hci_reader_gate,
 				     MICROREAD_EVT_P2P_INITIATOR_EXCHANGE_TO_RF,
@@ -441,8 +430,8 @@ static int microread_im_transceive(struct nfc_hci_dev *hdev,
 
 		crc = crc_ccitt(0xffff, skb->data, skb->len);
 		crc = ~crc;
-		*skb_put(skb, 1) = crc & 0xff;
-		*skb_put(skb, 1) = crc >> 8;
+		skb_put_u8(skb, crc & 0xff);
+		skb_put_u8(skb, crc >> 8);
 		break;
 	case MICROREAD_GATE_ID_MREAD_NFC_T3:
 		control_bits = 0xDB;
@@ -453,7 +442,7 @@ static int microread_im_transceive(struct nfc_hci_dev *hdev,
 		return 1;
 	}
 
-	*skb_push(skb, 1) = control_bits;
+	*(u8 *)skb_push(skb, 1) = control_bits;
 
 	info->async_cb_type = MICROREAD_CB_TYPE_READER_ALL;
 	info->async_cb = cb;

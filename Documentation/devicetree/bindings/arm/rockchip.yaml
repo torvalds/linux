@@ -1,0 +1,476 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm/rockchip.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Rockchip platforms device tree bindings
+
+maintainers:
+  - Heiko Stuebner <heiko@sntech.de>
+
+properties:
+  $nodename:
+    const: '/'
+  compatible:
+    oneOf:
+
+      - description: 96boards RK3399 Ficus (ROCK960 Enterprise Edition)
+        items:
+          - const: vamrs,ficus
+          - const: rockchip,rk3399
+
+      - description: 96boards RK3399 Rock960 (ROCK960 Consumer Edition)
+        items:
+          - const: vamrs,rock960
+          - const: rockchip,rk3399
+
+      - description: Amarula Vyasa RK3288
+        items:
+          - const: amarula,vyasa-rk3288
+          - const: rockchip,rk3288
+
+      - description: Asus Tinker board
+        items:
+          - const: asus,rk3288-tinker
+          - const: rockchip,rk3288
+
+      - description: Asus Tinker board S
+        items:
+          - const: asus,rk3288-tinker-s
+          - const: rockchip,rk3288
+
+      - description: bq Curie 2 tablet
+        items:
+          - const: mundoreader,bq-curie2
+          - const: rockchip,rk3066a
+
+      - description: bq Edison 2 Quad-Core tablet
+        items:
+          - const: mundoreader,bq-edison2qc
+          - const: rockchip,rk3188
+
+      - description: ChipSPARK PopMetal-RK3288
+        items:
+          - const: chipspark,popmetal-rk3288
+          - const: rockchip,rk3288
+
+      - description: ChipSPARK Rayeager PX2
+        items:
+          - const: chipspark,rayeager-px2
+          - const: rockchip,rk3066a
+
+      - description: Elgin RV1108 R1
+        items:
+          - const: elgin,rv1108-r1
+          - const: rockchip,rv1108
+
+      - description: Firefly Firefly-RK3288
+        items:
+          - enum:
+              - firefly,firefly-rk3288
+              - firefly,firefly-rk3288-beta
+          - const: rockchip,rk3288
+
+      - description: Firefly Firefly-RK3288 Reload
+        items:
+          - const: firefly,firefly-rk3288-reload
+          - const: rockchip,rk3288
+
+      - description: Firefly Firefly-RK3399
+        items:
+          - const: firefly,firefly-rk3399
+          - const: rockchip,rk3399
+
+      - description: Firefly roc-rk3328-cc
+        items:
+          - const: firefly,roc-rk3328-cc
+          - const: rockchip,rk3328
+
+      - description: Firefly ROC-RK3399-PC
+        items:
+          - const: firefly,roc-rk3399-pc
+          - const: rockchip,rk3399
+
+      - description: FriendlyElec NanoPi4 series boards
+        items:
+          - enum:
+              - friendlyarm,nanopc-t4
+              - friendlyarm,nanopi-m4
+              - friendlyarm,nanopi-neo4
+          - const: rockchip,rk3399
+
+      - description: GeekBuying GeekBox
+        items:
+          - const: geekbuying,geekbox
+          - const: rockchip,rk3368
+
+      - description: Google Bob (Asus Chromebook Flip C101PA)
+        items:
+          - const: google,bob-rev13
+          - const: google,bob-rev12
+          - const: google,bob-rev11
+          - const: google,bob-rev10
+          - const: google,bob-rev9
+          - const: google,bob-rev8
+          - const: google,bob-rev7
+          - const: google,bob-rev6
+          - const: google,bob-rev5
+          - const: google,bob-rev4
+          - const: google,bob
+          - const: google,gru
+          - const: rockchip,rk3399
+
+      - description: Google Brain (dev-board)
+        items:
+          - const: google,veyron-brain-rev0
+          - const: google,veyron-brain
+          - const: google,veyron
+          - const: rockchip,rk3288
+
+      - description: Google Gru (dev-board)
+        items:
+          - const: google,gru-rev15
+          - const: google,gru-rev14
+          - const: google,gru-rev13
+          - const: google,gru-rev12
+          - const: google,gru-rev11
+          - const: google,gru-rev10
+          - const: google,gru-rev9
+          - const: google,gru-rev8
+          - const: google,gru-rev7
+          - const: google,gru-rev6
+          - const: google,gru-rev5
+          - const: google,gru-rev4
+          - const: google,gru-rev3
+          - const: google,gru-rev2
+          - const: google,gru
+          - const: rockchip,rk3399
+
+      - description: Google Jaq (Haier Chromebook 11 and more w/ uSD)
+        items:
+          - const: google,veyron-jaq-rev5
+          - const: google,veyron-jaq-rev4
+          - const: google,veyron-jaq-rev3
+          - const: google,veyron-jaq-rev2
+          - const: google,veyron-jaq-rev1
+          - const: google,veyron-jaq
+          - const: google,veyron
+          - const: rockchip,rk3288
+
+      - description: Google Jerry (Hisense Chromebook C11 and more)
+        items:
+          - const: google,veyron-jerry-rev15
+          - const: google,veyron-jerry-rev14
+          - const: google,veyron-jerry-rev13
+          - const: google,veyron-jerry-rev12
+          - const: google,veyron-jerry-rev11
+          - const: google,veyron-jerry-rev10
+          - const: google,veyron-jerry-rev7
+          - const: google,veyron-jerry-rev6
+          - const: google,veyron-jerry-rev5
+          - const: google,veyron-jerry-rev4
+          - const: google,veyron-jerry-rev3
+          - const: google,veyron-jerry
+          - const: google,veyron
+          - const: rockchip,rk3288
+
+      - description: Google Kevin (Samsung Chromebook Plus)
+        items:
+          - const: google,kevin-rev15
+          - const: google,kevin-rev14
+          - const: google,kevin-rev13
+          - const: google,kevin-rev12
+          - const: google,kevin-rev11
+          - const: google,kevin-rev10
+          - const: google,kevin-rev9
+          - const: google,kevin-rev8
+          - const: google,kevin-rev7
+          - const: google,kevin-rev6
+          - const: google,kevin
+          - const: google,gru
+          - const: rockchip,rk3399
+
+      - description: Google Mickey (Asus Chromebit CS10)
+        items:
+          - const: google,veyron-mickey-rev8
+          - const: google,veyron-mickey-rev7
+          - const: google,veyron-mickey-rev6
+          - const: google,veyron-mickey-rev5
+          - const: google,veyron-mickey-rev4
+          - const: google,veyron-mickey-rev3
+          - const: google,veyron-mickey-rev2
+          - const: google,veyron-mickey-rev1
+          - const: google,veyron-mickey-rev0
+          - const: google,veyron-mickey
+          - const: google,veyron
+          - const: rockchip,rk3288
+
+      - description: Google Mighty (Haier Chromebook 11 and more w/ SD)
+        items:
+          - const: google,veyron-mighty-rev5
+          - const: google,veyron-mighty-rev4
+          - const: google,veyron-mighty-rev3
+          - const: google,veyron-mighty-rev2
+          - const: google,veyron-mighty-rev1
+          - const: google,veyron-mighty
+          - const: google,veyron
+          - const: rockchip,rk3288
+
+      - description: Google Minnie (Asus Chromebook Flip C100P)
+        items:
+          - const: google,veyron-minnie-rev4
+          - const: google,veyron-minnie-rev3
+          - const: google,veyron-minnie-rev2
+          - const: google,veyron-minnie-rev1
+          - const: google,veyron-minnie-rev0
+          - const: google,veyron-minnie
+          - const: google,veyron
+          - const: rockchip,rk3288
+
+      - description: Google Pinky (dev-board)
+        items:
+          - const: google,veyron-pinky-rev2
+          - const: google,veyron-pinky
+          - const: google,veyron
+          - const: rockchip,rk3288
+
+      - description: Google Scarlet - Kingdisplay (Acer Chromebook Tab 10)
+        items:
+          - const: google,scarlet-rev15-sku7
+          - const: google,scarlet-rev15
+          - const: google,scarlet-rev14-sku7
+          - const: google,scarlet-rev14
+          - const: google,scarlet-rev13-sku7
+          - const: google,scarlet-rev13
+          - const: google,scarlet-rev12-sku7
+          - const: google,scarlet-rev12
+          - const: google,scarlet-rev11-sku7
+          - const: google,scarlet-rev11
+          - const: google,scarlet-rev10-sku7
+          - const: google,scarlet-rev10
+          - const: google,scarlet-rev9-sku7
+          - const: google,scarlet-rev9
+          - const: google,scarlet-rev8-sku7
+          - const: google,scarlet-rev8
+          - const: google,scarlet-rev7-sku7
+          - const: google,scarlet-rev7
+          - const: google,scarlet-rev6-sku7
+          - const: google,scarlet-rev6
+          - const: google,scarlet-rev5-sku7
+          - const: google,scarlet-rev5
+          - const: google,scarlet-rev4-sku7
+          - const: google,scarlet-rev4
+          - const: google,scarlet-rev3-sku7
+          - const: google,scarlet-rev3
+          - const: google,scarlet
+          - const: google,gru
+          - const: rockchip,rk3399
+
+      - description: Google Scarlet - Innolux display (Acer Chromebook Tab 10)
+        items:
+          - const: google,scarlet-rev15-sku6
+          - const: google,scarlet-rev15
+          - const: google,scarlet-rev14-sku6
+          - const: google,scarlet-rev14
+          - const: google,scarlet-rev13-sku6
+          - const: google,scarlet-rev13
+          - const: google,scarlet-rev12-sku6
+          - const: google,scarlet-rev12
+          - const: google,scarlet-rev11-sku6
+          - const: google,scarlet-rev11
+          - const: google,scarlet-rev10-sku6
+          - const: google,scarlet-rev10
+          - const: google,scarlet-rev9-sku6
+          - const: google,scarlet-rev9
+          - const: google,scarlet-rev8-sku6
+          - const: google,scarlet-rev8
+          - const: google,scarlet-rev7-sku6
+          - const: google,scarlet-rev7
+          - const: google,scarlet-rev6-sku6
+          - const: google,scarlet-rev6
+          - const: google,scarlet-rev5-sku6
+          - const: google,scarlet-rev5
+          - const: google,scarlet-rev4-sku6
+          - const: google,scarlet-rev4
+          - const: google,scarlet
+          - const: google,gru
+          - const: rockchip,rk3399
+
+      - description: Google Speedy (Asus C201 Chromebook)
+        items:
+          - const: google,veyron-speedy-rev9
+          - const: google,veyron-speedy-rev8
+          - const: google,veyron-speedy-rev7
+          - const: google,veyron-speedy-rev6
+          - const: google,veyron-speedy-rev5
+          - const: google,veyron-speedy-rev4
+          - const: google,veyron-speedy-rev3
+          - const: google,veyron-speedy-rev2
+          - const: google,veyron-speedy
+          - const: google,veyron
+          - const: rockchip,rk3288
+
+      - description: Haoyu MarsBoard RK3066
+        items:
+          - const: haoyu,marsboard-rk3066
+          - const: rockchip,rk3066a
+
+      - description: Hugsun X99 TV Box
+        items:
+          - const: hugsun,x99
+          - const: rockchip,rk3399
+
+      - description: Khadas Edge series boards
+        items:
+          - enum:
+              - khadas,edge
+              - khadas,edge-captain
+              - khadas,edge-v
+          - const: rockchip,rk3399
+
+      - description: mqmaker MiQi
+        items:
+          - const: mqmaker,miqi
+          - const: rockchip,rk3288
+
+      - description: Netxeon R89 board
+        items:
+          - const: netxeon,r89
+          - const: rockchip,rk3288
+
+      - description: Orange Pi RK3399 board
+        items:
+          - const: rockchip,rk3399-orangepi
+          - const: rockchip,rk3399
+
+      - description: Phytec phyCORE-RK3288 Rapid Development Kit
+        items:
+          - const: phytec,rk3288-pcm-947
+          - const: phytec,rk3288-phycore-som
+          - const: rockchip,rk3288
+
+      - description: Pine64 Rock64
+        items:
+          - const: pine64,rock64
+          - const: rockchip,rk3328
+
+      - description: Pine64 RockPro64
+        items:
+          - const: pine64,rockpro64
+          - const: rockchip,rk3399
+
+      - description: Radxa Rock
+        items:
+          - const: radxa,rock
+          - const: rockchip,rk3188
+
+      - description: Radxa ROCK Pi 4
+        items:
+          - const: radxa,rockpi4
+          - const: rockchip,rk3399
+
+      - description: Radxa Rock2 Square
+        items:
+          - const: radxa,rock2-square
+          - const: rockchip,rk3288
+
+      - description: Rikomagic MK808 v1
+        items:
+          - const: rikomagic,mk808
+          - const: rockchip,rk3066a
+
+      - description: Rockchip Kylin
+        items:
+          - const: rockchip,kylin-rk3036
+          - const: rockchip,rk3036
+
+      - description: Rockchip PX3 Evaluation board
+        items:
+          - const: rockchip,px3-evb
+          - const: rockchip,px3
+          - const: rockchip,rk3188
+
+      - description: Rockchip PX30 Evaluation board
+        items:
+          - const: rockchip,px30-evb
+          - const: rockchip,px30
+
+      - description: Rockchip PX5 Evaluation board
+        items:
+          - const: rockchip,px5-evb
+          - const: rockchip,px5
+          - const: rockchip,rk3368
+
+      - description: Rockchip R88
+        items:
+          - const: rockchip,r88
+          - const: rockchip,rk3368
+
+      - description: Rockchip RK3228 Evaluation board
+        items:
+          - const: rockchip,rk3228-evb
+          - const: rockchip,rk3228
+
+      - description: Rockchip RK3229 Evaluation board
+        items:
+          - const: rockchip,rk3229-evb
+          - const: rockchip,rk3229
+
+      - description: Rockchip RK3288 Evaluation board
+        items:
+          - enum:
+              - rockchip,rk3288-evb-act8846
+              - rockchip,rk3288-evb-rk808
+          - const: rockchip,rk3288
+
+      - description: Rockchip RK3288 Fennec
+        items:
+          - const: rockchip,rk3288-fennec
+          - const: rockchip,rk3288
+
+      - description: Rockchip RK3328 Evaluation board
+        items:
+          - const: rockchip,rk3328-evb
+          - const: rockchip,rk3328
+
+      - description: Rockchip RK3368 Evaluation board (act8846 pmic)
+        items:
+          - const: rockchip,rk3368-evb-act8846
+          - const: rockchip,rk3368
+
+      - description: Rockchip RK3399 Evaluation board
+        items:
+          - const: rockchip,rk3399-evb
+          - const: rockchip,rk3399
+
+      - description: Rockchip RK3399 Sapphire standalone
+        items:
+          - const: rockchip,rk3399-sapphire
+          - const: rockchip,rk3399
+
+      - description: Rockchip RK3399 Sapphire with Excavator Baseboard
+        items:
+          - const: rockchip,rk3399-sapphire-excavator
+          - const: rockchip,rk3399
+
+      - description: Rockchip RV1108 Evaluation board
+        items:
+          - const: rockchip,rv1108-evb
+          - const: rockchip,rv1108
+
+      - description: Theobroma Systems RK3368-uQ7 with Haikou baseboard
+        items:
+          - const: tsd,rk3368-uq7-haikou
+          - const: rockchip,rk3368
+
+      - description: Theobroma Systems RK3399-Q7 with Haikou baseboard
+        items:
+          - const: tsd,rk3399-q7-haikou
+          - const: rockchip,rk3399
+
+      - description: Tronsmart Orion R68 Meta
+        items:
+          - const: tronsmart,orion-r68-meta
+          - const: rockchip,rk3368
+...

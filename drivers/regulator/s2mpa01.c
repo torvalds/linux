@@ -1,13 +1,7 @@
-/*
- * Copyright (c) 2013 Samsung Electronics Co., Ltd
- *		http://www.samsung.com
- *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
- *
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// Copyright (c) 2013 Samsung Electronics Co., Ltd
+//		http://www.samsung.com
 
 #include <linux/bug.h>
 #include <linux/err.h>
@@ -22,8 +16,6 @@
 #include <linux/regulator/of_regulator.h>
 #include <linux/mfd/samsung/core.h>
 #include <linux/mfd/samsung/s2mpa01.h>
-
-#define S2MPA01_REGULATOR_CNT ARRAY_SIZE(regulators)
 
 struct s2mpa01_info {
 	int ramp_delay24;
@@ -212,7 +204,7 @@ ramp_disable:
 				  1 << enable_shift, 0);
 }
 
-static struct regulator_ops s2mpa01_ldo_ops = {
+static const struct regulator_ops s2mpa01_ldo_ops = {
 	.list_voltage		= regulator_list_voltage_linear,
 	.map_voltage		= regulator_map_voltage_linear,
 	.is_enabled		= regulator_is_enabled_regmap,
@@ -223,7 +215,7 @@ static struct regulator_ops s2mpa01_ldo_ops = {
 	.set_voltage_time_sel	= regulator_set_voltage_time_sel,
 };
 
-static struct regulator_ops s2mpa01_buck_ops = {
+static const struct regulator_ops s2mpa01_buck_ops = {
 	.list_voltage		= regulator_list_voltage_linear,
 	.map_voltage		= regulator_map_voltage_linear,
 	.is_enabled		= regulator_is_enabled_regmap,
@@ -237,6 +229,8 @@ static struct regulator_ops s2mpa01_buck_ops = {
 
 #define regulator_desc_ldo(num, step) {			\
 	.name		= "LDO"#num,			\
+	.of_match	= of_match_ptr("LDO"#num),	\
+	.regulators_node = of_match_ptr("regulators"),	\
 	.id		= S2MPA01_LDO##num,		\
 	.ops		= &s2mpa01_ldo_ops,		\
 	.type		= REGULATOR_VOLTAGE,		\
@@ -252,6 +246,8 @@ static struct regulator_ops s2mpa01_buck_ops = {
 
 #define regulator_desc_buck1_4(num)	{			\
 	.name		= "BUCK"#num,				\
+	.of_match	= of_match_ptr("BUCK"#num),		\
+	.regulators_node = of_match_ptr("regulators"),		\
 	.id		= S2MPA01_BUCK##num,			\
 	.ops		= &s2mpa01_buck_ops,			\
 	.type		= REGULATOR_VOLTAGE,			\
@@ -268,6 +264,8 @@ static struct regulator_ops s2mpa01_buck_ops = {
 
 #define regulator_desc_buck5	{				\
 	.name		= "BUCK5",				\
+	.of_match	= of_match_ptr("BUCK5"),		\
+	.regulators_node = of_match_ptr("regulators"),		\
 	.id		= S2MPA01_BUCK5,			\
 	.ops		= &s2mpa01_buck_ops,			\
 	.type		= REGULATOR_VOLTAGE,			\
@@ -284,6 +282,8 @@ static struct regulator_ops s2mpa01_buck_ops = {
 
 #define regulator_desc_buck6_10(num, min, step) {			\
 	.name		= "BUCK"#num,				\
+	.of_match	= of_match_ptr("BUCK"#num),		\
+	.regulators_node = of_match_ptr("regulators"),		\
 	.id		= S2MPA01_BUCK##num,			\
 	.ops		= &s2mpa01_buck_ops,			\
 	.type		= REGULATOR_VOLTAGE,			\
@@ -303,13 +303,13 @@ static const struct regulator_desc regulators[] = {
 	regulator_desc_ldo(2, STEP_50_MV),
 	regulator_desc_ldo(3, STEP_50_MV),
 	regulator_desc_ldo(4, STEP_50_MV),
-	regulator_desc_ldo(5, STEP_50_MV),
+	regulator_desc_ldo(5, STEP_25_MV),
 	regulator_desc_ldo(6, STEP_25_MV),
 	regulator_desc_ldo(7, STEP_50_MV),
 	regulator_desc_ldo(8, STEP_50_MV),
 	regulator_desc_ldo(9, STEP_50_MV),
 	regulator_desc_ldo(10, STEP_50_MV),
-	regulator_desc_ldo(11, STEP_25_MV),
+	regulator_desc_ldo(11, STEP_50_MV),
 	regulator_desc_ldo(12, STEP_50_MV),
 	regulator_desc_ldo(13, STEP_50_MV),
 	regulator_desc_ldo(14, STEP_50_MV),
@@ -320,11 +320,11 @@ static const struct regulator_desc regulators[] = {
 	regulator_desc_ldo(19, STEP_50_MV),
 	regulator_desc_ldo(20, STEP_50_MV),
 	regulator_desc_ldo(21, STEP_50_MV),
-	regulator_desc_ldo(22, STEP_25_MV),
-	regulator_desc_ldo(23, STEP_25_MV),
+	regulator_desc_ldo(22, STEP_50_MV),
+	regulator_desc_ldo(23, STEP_50_MV),
 	regulator_desc_ldo(24, STEP_50_MV),
 	regulator_desc_ldo(25, STEP_50_MV),
-	regulator_desc_ldo(26, STEP_50_MV),
+	regulator_desc_ldo(26, STEP_25_MV),
 	regulator_desc_buck1_4(1),
 	regulator_desc_buck1_4(2),
 	regulator_desc_buck1_4(3),
@@ -341,8 +341,6 @@ static int s2mpa01_pmic_probe(struct platform_device *pdev)
 {
 	struct sec_pmic_dev *iodev = dev_get_drvdata(pdev->dev.parent);
 	struct sec_platform_data *pdata = dev_get_platdata(iodev->dev);
-	struct of_regulator_match rdata[S2MPA01_REGULATOR_MAX] = { };
-	struct device_node *reg_np = NULL;
 	struct regulator_config config = { };
 	struct s2mpa01_info *s2mpa01;
 	int i;
@@ -351,38 +349,15 @@ static int s2mpa01_pmic_probe(struct platform_device *pdev)
 	if (!s2mpa01)
 		return -ENOMEM;
 
-	for (i = 0; i < S2MPA01_REGULATOR_CNT; i++)
-		rdata[i].name = regulators[i].name;
-
-	if (iodev->dev->of_node) {
-		reg_np = of_get_child_by_name(iodev->dev->of_node,
-							"regulators");
-			if (!reg_np) {
-				dev_err(&pdev->dev,
-					"could not find regulators sub-node\n");
-				return -EINVAL;
-			}
-
-		of_regulator_match(&pdev->dev, reg_np, rdata,
-						S2MPA01_REGULATOR_MAX);
-		of_node_put(reg_np);
-	}
-
-	platform_set_drvdata(pdev, s2mpa01);
-
-	config.dev = &pdev->dev;
+	config.dev = iodev->dev;
 	config.regmap = iodev->regmap_pmic;
 	config.driver_data = s2mpa01;
 
 	for (i = 0; i < S2MPA01_REGULATOR_MAX; i++) {
 		struct regulator_dev *rdev;
+
 		if (pdata)
 			config.init_data = pdata->regulators[i].initdata;
-		else
-			config.init_data = rdata[i].init_data;
-
-		if (reg_np)
-			config.of_node = rdata[i].of_node;
 
 		rdev = devm_regulator_register(&pdev->dev,
 						&regulators[i], &config);

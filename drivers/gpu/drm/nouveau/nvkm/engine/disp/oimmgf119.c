@@ -22,16 +22,11 @@
  * Authors: Ben Skeggs
  */
 #include "channv50.h"
-#include "rootnv50.h"
 
-#include <nvif/class.h>
-
-const struct nv50_disp_pioc_oclass
-gf119_disp_oimm_oclass = {
-	.base.oclass = GF110_DISP_OVERLAY,
-	.base.minver = 0,
-	.base.maxver = 0,
-	.ctor = nv50_disp_oimm_new,
-	.func = &gf119_disp_pioc_func,
-	.chid = 9,
-};
+int
+gf119_disp_oimm_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
+		    struct nv50_disp *disp, struct nvkm_object **pobject)
+{
+	return nv50_disp_oimm_new_(&gf119_disp_pioc_func, disp, 9, 9,
+				   oclass, argv, argc, pobject);
+}

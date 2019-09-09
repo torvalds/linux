@@ -1,45 +1,9 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /*******************************************************************************
  *
  * Module Name: rsirq - IRQ resource descriptors
  *
  ******************************************************************************/
-
-/*
- * Copyright (C) 2000 - 2016, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
 
 #include <acpi/acpi.h>
 #include "accommon.h"
@@ -90,7 +54,7 @@ struct acpi_rsconvert_info acpi_rs_get_irq[9] = {
 	 AML_OFFSET(irq.flags),
 	 3},
 
-	{ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET(data.irq.sharable),
+	{ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET(data.irq.shareable),
 	 AML_OFFSET(irq.flags),
 	 4},
 
@@ -128,7 +92,7 @@ struct acpi_rsconvert_info acpi_rs_set_irq[14] = {
 	 AML_OFFSET(irq.flags),
 	 3},
 
-	{ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET(data.irq.sharable),
+	{ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET(data.irq.shareable),
 	 AML_OFFSET(irq.flags),
 	 4},
 
@@ -175,7 +139,7 @@ struct acpi_rsconvert_info acpi_rs_set_irq[14] = {
 	 ACPI_ACTIVE_HIGH},
 
 	{ACPI_RSC_EXIT_NE, ACPI_RSC_COMPARE_VALUE,
-	 ACPI_RS_OFFSET(data.irq.sharable),
+	 ACPI_RS_OFFSET(data.irq.shareable),
 	 ACPI_EXCLUSIVE},
 
 	/* We can optimize to a 2-byte irq_no_flags() descriptor */
@@ -214,7 +178,7 @@ struct acpi_rsconvert_info acpi_rs_convert_ext_irq[10] = {
 	 AML_OFFSET(extended_irq.flags),
 	 2},
 
-	{ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET(data.extended_irq.sharable),
+	{ACPI_RSC_1BITFLAG, ACPI_RS_OFFSET(data.extended_irq.shareable),
 	 AML_OFFSET(extended_irq.flags),
 	 3},
 

@@ -1,27 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
-* This code is licenced under 
-* the General Public Licence
-* version 2
 *
 * Copyright Adrian McMenamin 2005, 2006, 2007
 * <adrian@mcmen.demon.co.uk>
 * Requires firmware (BSD licenced) available from:
 * http://linuxdc.cvs.sourceforge.net/linuxdc/linux-sh-dc/sound/oss/aica/firmware/
 * or the maintainer
-*
-* This program is free software; you can redistribute it and/or modify
-* it under the terms of version 2 of the GNU General Public License as published by
-* the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program; if not, write to the Free Software
-* Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-*
 */
 
 #include <linux/init.h>
@@ -211,7 +195,7 @@ static void aica_chn_halt(void)
 }
 
 /* ALSA code below */
-static struct snd_pcm_hardware snd_pcm_aica_playback_hw = {
+static const struct snd_pcm_hardware snd_pcm_aica_playback_hw = {
 	.info = (SNDRV_PCM_INFO_NONINTERLEAVED),
 	.formats =
 	    (SNDRV_PCM_FMTBIT_S8 | SNDRV_PCM_FMTBIT_S16_LE |
@@ -299,14 +283,14 @@ static void run_spu_dma(struct work_struct *work)
 	}
 }
 
-static void aica_period_elapsed(unsigned long timer_var)
+static void aica_period_elapsed(struct timer_list *t)
 {
+	struct snd_card_aica *dreamcastcard = from_timer(dreamcastcard,
+							      t, timer);
+	struct snd_pcm_substream *substream = dreamcastcard->substream;
 	/*timer function - so cannot sleep */
 	int play_period;
 	struct snd_pcm_runtime *runtime;
-	struct snd_pcm_substream *substream;
-	struct snd_card_aica *dreamcastcard;
-	substream = (struct snd_pcm_substream *) timer_var;
 	runtime = substream->runtime;
 	dreamcastcard = substream->pcm->private_data;
 	/* Have we played out an additional period? */
@@ -335,13 +319,6 @@ static void spu_begin_dma(struct snd_pcm_substream *substream)
 	dreamcastcard = substream->pcm->private_data;
 	/*get the queue to do the work */
 	schedule_work(&(dreamcastcard->spu_dma_work));
-	/* Timer may already be running */
-	if (unlikely(dreamcastcard->timer.data)) {
-		mod_timer(&dreamcastcard->timer, jiffies + 4);
-		return;
-	}
-	setup_timer(&dreamcastcard->timer, aica_period_elapsed,
-		    (unsigned long) substream);
 	mod_timer(&dreamcastcard->timer, jiffies + 4);
 }
 
@@ -379,8 +356,8 @@ static int snd_aicapcm_pcm_close(struct snd_pcm_substream
 {
 	struct snd_card_aica *dreamcastcard = substream->pcm->private_data;
 	flush_work(&(dreamcastcard->spu_dma_work));
-	if (dreamcastcard->timer.data)
-		del_timer(&dreamcastcard->timer);
+	del_timer(&dreamcastcard->timer);
+	dreamcastcard->substream = NULL;
 	kfree(dreamcastcard->channel);
 	spu_disable();
 	return 0;
@@ -436,7 +413,7 @@ static unsigned long snd_aicapcm_pcm_pointer(struct snd_pcm_substream
 	return readl(AICA_CONTROL_CHANNEL_SAMPLE_NUMBER);
 }
 
-static struct snd_pcm_ops snd_aicapcm_playback_ops = {
+static const struct snd_pcm_ops snd_aicapcm_playback_ops = {
 	.open = snd_aicapcm_pcm_open,
 	.close = snd_aicapcm_pcm_close,
 	.ioctl = snd_pcm_lib_ioctl,
@@ -464,14 +441,12 @@ static int __init snd_aicapcmchip(struct snd_card_aica
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK,
 			&snd_aicapcm_playback_ops);
 	/* Allocate the DMA buffers */
-	err =
-	    snd_pcm_lib_preallocate_pages_for_all(pcm,
-						  SNDRV_DMA_TYPE_CONTINUOUS,
-						  snd_dma_continuous_data
-						  (GFP_KERNEL),
-						  AICA_BUFFER_SIZE,
-						  AICA_BUFFER_SIZE);
-	return err;
+	snd_pcm_lib_preallocate_pages_for_all(pcm,
+					      SNDRV_DMA_TYPE_CONTINUOUS,
+					      snd_dma_continuous_data(GFP_KERNEL),
+					      AICA_BUFFER_SIZE,
+					      AICA_BUFFER_SIZE);
+	return 0;
 }
 
 /* Mixer controls */
@@ -535,7 +510,7 @@ static int aica_pcmvolume_put(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
-static struct snd_kcontrol_new snd_aica_pcmswitch_control = {
+static const struct snd_kcontrol_new snd_aica_pcmswitch_control = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "PCM Playback Switch",
 	.index = 0,
@@ -544,7 +519,7 @@ static struct snd_kcontrol_new snd_aica_pcmswitch_control = {
 	.put = aica_pcmswitch_put
 };
 
-static struct snd_kcontrol_new snd_aica_pcmvolume_control = {
+static const struct snd_kcontrol_new snd_aica_pcmvolume_control = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "PCM Playback Volume",
 	.index = 0,
@@ -600,7 +575,7 @@ static int snd_aica_probe(struct platform_device *devptr)
 {
 	int err;
 	struct snd_card_aica *dreamcastcard;
-	dreamcastcard = kmalloc(sizeof(struct snd_card_aica), GFP_KERNEL);
+	dreamcastcard = kzalloc(sizeof(struct snd_card_aica), GFP_KERNEL);
 	if (unlikely(!dreamcastcard))
 		return -ENOMEM;
 	err = snd_card_new(&devptr->dev, index, SND_AICA_DRIVER,
@@ -615,12 +590,11 @@ static int snd_aica_probe(struct platform_device *devptr)
 	       "Yamaha AICA Super Intelligent Sound Processor for SEGA Dreamcast");
 	/* Prepare to use the queue */
 	INIT_WORK(&(dreamcastcard->spu_dma_work), run_spu_dma);
+	timer_setup(&dreamcastcard->timer, aica_period_elapsed, 0);
 	/* Load the PCM 'chip' */
 	err = snd_aicapcmchip(dreamcastcard, 0);
 	if (unlikely(err < 0))
 		goto freedreamcast;
-	dreamcastcard->timer.data = 0;
-	dreamcastcard->channel = NULL;
 	/* Add basic controls */
 	err = add_aicamixer_controls(dreamcastcard);
 	if (unlikely(err < 0))

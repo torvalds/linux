@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/drivers/firmware/edd.c
  *  Copyright (C) 2002, 2003, 2004 Dell Inc.
@@ -17,16 +18,6 @@
  *
  * Please see http://linux.dell.com/edd/results.html for
  * the list of BIOSs which have been reported to implement EDD.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License v2.0 as published by
- * the Free Software Foundation
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/module.h>
@@ -669,10 +660,10 @@ edd_get_pci_dev(struct edd_device *edev)
 	struct edd_info *info = edd_dev_get_info(edev);
 
 	if (edd_dev_is_type(edev, "PCI") || edd_dev_is_type(edev, "XPRS")) {
-		return pci_get_bus_and_slot(info->params.interface_path.pci.bus,
-				     PCI_DEVFN(info->params.interface_path.pci.slot,
-					       info->params.interface_path.pci.
-					       function));
+		return pci_get_domain_bus_and_slot(0,
+				info->params.interface_path.pci.bus,
+				PCI_DEVFN(info->params.interface_path.pci.slot,
+				info->params.interface_path.pci.function));
 	}
 	return NULL;
 }
@@ -748,13 +739,11 @@ edd_init(void)
 	int rc=0;
 	struct edd_device *edev;
 
+	if (!edd_num_devices())
+		return -ENODEV;
+
 	printk(KERN_INFO "BIOS EDD facility v%s %s, %d devices found\n",
 	       EDD_VERSION, EDD_DATE, edd_num_devices());
-
-	if (!edd_num_devices()) {
-		printk(KERN_INFO "EDD information not available.\n");
-		return -ENODEV;
-	}
 
 	edd_kset = kset_create_and_add("edd", NULL, firmware_kobj);
 	if (!edd_kset)

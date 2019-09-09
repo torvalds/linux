@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _BGMAC_H
 #define _BGMAC_H
 
@@ -213,6 +214,22 @@
 /* BCMA GMAC core specific IO Control (BCMA_IOCTL) flags */
 #define BGMAC_BCMA_IOCTL_SW_CLKEN		0x00000004	/* PHY Clock Enable */
 #define BGMAC_BCMA_IOCTL_SW_RESET		0x00000008	/* PHY Reset */
+/* The IOCTL values appear to be different in NS, NSP, and NS2, and do not match
+ * the values directly above
+ */
+#define BGMAC_CLK_EN				BIT(0)
+#define BGMAC_RESERVED_0			BIT(1)
+#define BGMAC_SOURCE_SYNC_MODE_EN		BIT(2)
+#define BGMAC_DEST_SYNC_MODE_EN			BIT(3)
+#define BGMAC_TX_CLK_OUT_INVERT_EN		BIT(4)
+#define BGMAC_DIRECT_GMII_MODE			BIT(5)
+#define BGMAC_CLK_250_SEL			BIT(6)
+#define BGMAC_AWCACHE				(0xf << 7)
+#define BGMAC_RESERVED_1			(0x1f << 11)
+#define BGMAC_ARCACHE				(0xf << 16)
+#define BGMAC_AWUSER				(0x3f << 20)
+#define BGMAC_ARUSER				(0x3f << 26)
+#define BGMAC_RESERVED				BIT(31)
 
 /* BCMA GMAC core specific IO status (BCMA_IOST) flags */
 #define BGMAC_BCMA_IOST_ATTACHED		0x00000800
@@ -386,7 +403,7 @@
 
 #define BGMAC_WEIGHT	64
 
-#define ETHER_MAX_LEN   1518
+#define ETHER_MAX_LEN	(ETH_FRAME_LEN + ETH_FCS_LEN)
 
 /* Feature Flags */
 #define BGMAC_FEAT_TX_MASK_SETUP	BIT(0)
@@ -409,6 +426,7 @@
 #define BGMAC_FEAT_CC4_IF_SW_TYPE	BIT(17)
 #define BGMAC_FEAT_CC4_IF_SW_TYPE_RGMII	BIT(18)
 #define BGMAC_FEAT_CC7_IF_TYPE_RGMII	BIT(19)
+#define BGMAC_FEAT_IDM_MASK		BIT(20)
 
 struct bgmac_slot_info {
 	union {
@@ -461,8 +479,9 @@ struct bgmac_rx_header {
 struct bgmac {
 	union {
 		struct {
-			void *base;
-			void *idm_base;
+			void __iomem *base;
+			void __iomem *idm_base;
+			void __iomem *nicpm_base;
 		} plat;
 		struct {
 			struct bcma_device *core;
@@ -473,7 +492,6 @@ struct bgmac {
 
 	struct device *dev;
 	struct device *dma_dev;
-	unsigned char mac_addr[ETH_ALEN];
 	u32 feature_flags;
 
 	struct net_device *net_dev;
@@ -513,12 +531,18 @@ struct bgmac {
 	u32 (*get_bus_clock)(struct bgmac *bgmac);
 	void (*cmn_maskset32)(struct bgmac *bgmac, u16 offset, u32 mask,
 			      u32 set);
+	int (*phy_connect)(struct bgmac *bgmac);
 };
 
-int bgmac_enet_probe(struct bgmac *info);
+struct bgmac *bgmac_alloc(struct device *dev);
+int bgmac_enet_probe(struct bgmac *bgmac);
 void bgmac_enet_remove(struct bgmac *bgmac);
+void bgmac_adjust_link(struct net_device *net_dev);
+int bgmac_phy_connect_direct(struct bgmac *bgmac);
+int bgmac_enet_suspend(struct bgmac *bgmac);
+int bgmac_enet_resume(struct bgmac *bgmac);
 
-struct mii_bus *bcma_mdio_mii_register(struct bcma_device *core, u8 phyaddr);
+struct mii_bus *bcma_mdio_mii_register(struct bgmac *bgmac);
 void bcma_mdio_mii_unregister(struct mii_bus *mii_bus);
 
 static inline u32 bgmac_read(struct bgmac *bgmac, u16 offset)
@@ -582,5 +606,10 @@ static inline void bgmac_mask(struct bgmac *bgmac, u16 offset, u32 mask)
 static inline void bgmac_set(struct bgmac *bgmac, u16 offset, u32 set)
 {
 	bgmac_maskset(bgmac, offset, ~0, set);
+}
+
+static inline int bgmac_phy_connect(struct bgmac *bgmac)
+{
+	return bgmac->phy_connect(bgmac);
 }
 #endif /* _BGMAC_H */

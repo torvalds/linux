@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Core driver for TPS61050/61052 boost converters, used for while LED
  * driving, audio power amplification, white LED flash, and generic
@@ -9,8 +10,6 @@
  * Written on behalf of Linaro for ST-Ericsson
  *
  * Author: Linus Walleij <linus.walleij@linaro.org>
- *
- * License terms: GNU General Public License (GPL) version 2
  */
 
 #include <linux/module.h>
@@ -173,9 +172,17 @@ static const struct i2c_device_id tps6105x_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, tps6105x_id);
 
+static const struct of_device_id tps6105x_of_match[] = {
+	{ .compatible = "ti,tps61050" },
+	{ .compatible = "ti,tps61052" },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, tps6105x_of_match);
+
 static struct i2c_driver tps6105x_driver = {
 	.driver = {
 		.name	= "tps6105x",
+		.of_match_table = tps6105x_of_match,
 	},
 	.probe		= tps6105x_probe,
 	.remove		= tps6105x_remove,

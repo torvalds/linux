@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * f_printer.c - USB printer function driver
  *
@@ -8,11 +9,6 @@
  *
  * Copyright (C) 2003-2005 David Brownell
  * Copyright (C) 2006 Craig W. Nadler
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/module.h>
@@ -49,7 +45,6 @@
 
 #include "u_printer.h"
 
-#define PNP_STRING_LEN		1024
 #define PRINTER_MINORS		4
 #define GET_DEVICE_ID		0
 #define GET_PORT_STATUS		1
@@ -556,6 +551,7 @@ printer_write(struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 	size_t			size;	/* Amount of data in a TX request. */
 	size_t			bytes_copied = 0;
 	struct usb_request	*req;
+	int			value;
 
 	DBG(dev, "printer_write trying to send %d bytes\n", (int)len);
 
@@ -635,15 +631,19 @@ printer_write(struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 			return -EAGAIN;
 		}
 
-		if (usb_ep_queue(dev->in_ep, req, GFP_ATOMIC)) {
+		list_add(&req->list, &dev->tx_reqs_active);
+
+		/* here, we unlock, and only unlock, to avoid deadlock. */
+		spin_unlock(&dev->lock);
+		value = usb_ep_queue(dev->in_ep, req, GFP_ATOMIC);
+		spin_lock(&dev->lock);
+		if (value) {
+			list_del(&req->list);
 			list_add(&req->list, &dev->tx_reqs);
 			spin_unlock_irqrestore(&dev->lock, flags);
 			mutex_unlock(&dev->lock_printer_io);
 			return -EAGAIN;
 		}
-
-		list_add(&req->list, &dev->tx_reqs_active);
-
 	}
 
 	spin_unlock_irqrestore(&dev->lock, flags);
@@ -680,12 +680,12 @@ printer_fsync(struct file *fd, loff_t start, loff_t end, int datasync)
 	return 0;
 }
 
-static unsigned int
+static __poll_t
 printer_poll(struct file *fd, poll_table *wait)
 {
 	struct printer_dev	*dev = fd->private_data;
 	unsigned long		flags;
-	int			status = 0;
+	__poll_t		status = 0;
 
 	mutex_lock(&dev->lock_printer_io);
 	spin_lock_irqsave(&dev->lock, flags);
@@ -698,11 +698,11 @@ printer_poll(struct file *fd, poll_table *wait)
 
 	spin_lock_irqsave(&dev->lock, flags);
 	if (likely(!list_empty(&dev->tx_reqs)))
-		status |= POLLOUT | POLLWRNORM;
+		status |= EPOLLOUT | EPOLLWRNORM;
 
 	if (likely(dev->current_rx_bytes) ||
 			likely(!list_empty(&dev->rx_buffers)))
-		status |= POLLIN | POLLRDNORM;
+		status |= EPOLLIN | EPOLLRDNORM;
 
 	spin_unlock_irqrestore(&dev->lock, flags);
 
@@ -907,8 +907,7 @@ static bool gprinter_req_match(struct usb_function *f,
 	switch (ctrl->bRequest) {
 	case GET_DEVICE_ID:
 		w_index >>= 8;
-		if (w_length <= PNP_STRING_LEN &&
-		    (USB_DIR_IN & ctrl->bRequestType))
+		if (USB_DIR_IN & ctrl->bRequestType)
 			break;
 		return false;
 	case GET_PORT_STATUS:
@@ -937,6 +936,7 @@ static int printer_func_setup(struct usb_function *f,
 	struct printer_dev *dev = func_to_printer(f);
 	struct usb_composite_dev *cdev = f->config->cdev;
 	struct usb_request	*req = cdev->req;
+	u8			*buf = req->buf;
 	int			value = -EOPNOTSUPP;
 	u16			wIndex = le16_to_cpu(ctrl->wIndex);
 	u16			wValue = le16_to_cpu(ctrl->wValue);
@@ -953,10 +953,16 @@ static int printer_func_setup(struct usb_function *f,
 			if ((wIndex>>8) != dev->interface)
 				break;
 
-			value = (dev->pnp_string[0] << 8) | dev->pnp_string[1];
-			memcpy(req->buf, dev->pnp_string, value);
+			if (!dev->pnp_string) {
+				value = 0;
+				break;
+			}
+			value = strlen(dev->pnp_string);
+			buf[0] = (value >> 8) & 0xFF;
+			buf[1] = value & 0xFF;
+			memcpy(buf + 2, dev->pnp_string, value);
 			DBG(dev, "1284 PNP String: %x %s\n", value,
-					&dev->pnp_string[2]);
+			    dev->pnp_string);
 			break;
 
 		case GET_PORT_STATUS: /* Get Port Status */
@@ -964,7 +970,7 @@ static int printer_func_setup(struct usb_function *f,
 			if (wIndex != dev->interface)
 				break;
 
-			*(u8 *)req->buf = dev->printer_status;
+			buf[0] = dev->printer_status;
 			value = min_t(u16, wLength, 1);
 			break;
 
@@ -1157,10 +1163,21 @@ static ssize_t f_printer_opts_pnp_string_show(struct config_item *item,
 					      char *page)
 {
 	struct f_printer_opts *opts = to_f_printer_opts(item);
-	int result;
+	int result = 0;
 
 	mutex_lock(&opts->lock);
-	result = strlcpy(page, opts->pnp_string + 2, PNP_STRING_LEN - 2);
+	if (!opts->pnp_string)
+		goto unlock;
+
+	result = strlcpy(page, opts->pnp_string, PAGE_SIZE);
+	if (result >= PAGE_SIZE) {
+		result = PAGE_SIZE;
+	} else if (page[result - 1] != '\n' && result + 1 < PAGE_SIZE) {
+		page[result++] = '\n';
+		page[result] = '\0';
+	}
+
+unlock:
 	mutex_unlock(&opts->lock);
 
 	return result;
@@ -1170,13 +1187,24 @@ static ssize_t f_printer_opts_pnp_string_store(struct config_item *item,
 					       const char *page, size_t len)
 {
 	struct f_printer_opts *opts = to_f_printer_opts(item);
-	int result, l;
+	char *new_pnp;
+	int result;
 
 	mutex_lock(&opts->lock);
-	result = strlcpy(opts->pnp_string + 2, page, PNP_STRING_LEN - 2);
-	l = strlen(opts->pnp_string + 2) + 2;
-	opts->pnp_string[0] = (l >> 8) & 0xFF;
-	opts->pnp_string[1] = l & 0xFF;
+
+	new_pnp = kstrndup(page, len, GFP_KERNEL);
+	if (!new_pnp) {
+		result = -ENOMEM;
+		goto unlock;
+	}
+
+	if (opts->pnp_string_allocated)
+		kfree(opts->pnp_string);
+
+	opts->pnp_string_allocated = true;
+	opts->pnp_string = new_pnp;
+	result = len;
+unlock:
 	mutex_unlock(&opts->lock);
 
 	return result;
@@ -1229,7 +1257,7 @@ static struct configfs_attribute *printer_attrs[] = {
 	NULL,
 };
 
-static struct config_item_type printer_func_type = {
+static const struct config_item_type printer_func_type = {
 	.ct_item_ops	= &printer_item_ops,
 	.ct_attrs	= printer_attrs,
 	.ct_owner	= THIS_MODULE,
@@ -1265,11 +1293,13 @@ static void gprinter_free_inst(struct usb_function_instance *f)
 	mutex_lock(&printer_ida_lock);
 
 	gprinter_put_minor(opts->minor);
-	if (idr_is_empty(&printer_ida.idr))
+	if (ida_is_empty(&printer_ida))
 		gprinter_cleanup();
 
 	mutex_unlock(&printer_ida_lock);
 
+	if (opts->pnp_string_allocated)
+		kfree(opts->pnp_string);
 	kfree(opts);
 }
 
@@ -1289,7 +1319,7 @@ static struct usb_function_instance *gprinter_alloc_inst(void)
 
 	mutex_lock(&printer_ida_lock);
 
-	if (idr_is_empty(&printer_ida.idr)) {
+	if (ida_is_empty(&printer_ida)) {
 		status = gprinter_setup(PRINTER_MINORS);
 		if (status) {
 			ret = ERR_PTR(status);
@@ -1302,7 +1332,7 @@ static struct usb_function_instance *gprinter_alloc_inst(void)
 	if (opts->minor < 0) {
 		ret = ERR_PTR(opts->minor);
 		kfree(opts);
-		if (idr_is_empty(&printer_ida.idr))
+		if (ida_is_empty(&printer_ida))
 			gprinter_cleanup();
 		goto unlock;
 	}

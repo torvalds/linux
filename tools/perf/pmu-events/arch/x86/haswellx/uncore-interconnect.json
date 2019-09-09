@@ -1,0 +1,28 @@
+[
+    {
+        "BriefDescription": "QPI clock ticks",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x14",
+        "EventName": "UNC_Q_CLOCKTICKS",
+        "PerPkg": "1",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Number of data flits transmitted . Derived from unc_q_txl_flits_g0.data",
+        "Counter": "0,1,2,3",
+        "EventName": "QPI_DATA_BANDWIDTH_TX",
+        "PerPkg": "1",
+        "ScaleUnit": "8Bytes",
+        "UMask": "0x2",
+        "Unit": "QPI LL"
+    },
+    {
+        "BriefDescription": "Number of non data (control) flits transmitted . Derived from unc_q_txl_flits_g0.non_data",
+        "Counter": "0,1,2,3",
+        "EventName": "QPI_CTL_BANDWIDTH_TX",
+        "PerPkg": "1",
+        "ScaleUnit": "8Bytes",
+        "UMask": "0x4",
+        "Unit": "QPI LL"
+    }
+]

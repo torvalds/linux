@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Media entity
  *
@@ -5,19 +6,6 @@
  *
  * Contacts: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
  *	     Sakari Ailus <sakari.ailus@iki.fi>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #ifndef _MEDIA_ENTITY_H
@@ -25,6 +13,7 @@
 
 #include <linux/bitmap.h>
 #include <linux/bug.h>
+#include <linux/fwnode.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/media.h>
@@ -86,15 +75,17 @@ struct media_entity_enum {
 };
 
 /**
- * struct media_entity_graph - Media graph traversal state
+ * struct media_graph - Media graph traversal state
  *
  * @stack:		Graph traversal stack; the stack contains information
  *			on the path the media entities to be walked and the
  *			links through which they were reached.
+ * @stack.entity:	pointer to &struct media_entity at the graph.
+ * @stack.link:		pointer to &struct list_head.
  * @ent_enum:		Visited entities
  * @top:		The top of the stack
  */
-struct media_entity_graph {
+struct media_graph {
 	struct {
 		struct media_entity *entity;
 		struct list_head *link;
@@ -112,7 +103,7 @@ struct media_entity_graph {
  */
 struct media_pipeline {
 	int streaming_count;
-	struct media_entity_graph graph;
+	struct media_graph graph;
 };
 
 /**
@@ -157,11 +148,40 @@ struct media_link {
 };
 
 /**
+ * enum media_pad_signal_type - type of the signal inside a media pad
+ *
+ * @PAD_SIGNAL_DEFAULT:
+ *	Default signal. Use this when all inputs or all outputs are
+ *	uniquely identified by the pad number.
+ * @PAD_SIGNAL_ANALOG:
+ *	The pad contains an analog signal. It can be Radio Frequency,
+ *	Intermediate Frequency, a baseband signal or sub-cariers.
+ *	Tuner inputs, IF-PLL demodulators, composite and s-video signals
+ *	should use it.
+ * @PAD_SIGNAL_DV:
+ *	Contains a digital video signal, with can be a bitstream of samples
+ *	taken from an analog TV video source. On such case, it usually
+ *	contains the VBI data on it.
+ * @PAD_SIGNAL_AUDIO:
+ *	Contains an Intermediate Frequency analog signal from an audio
+ *	sub-carrier or an audio bitstream. IF signals are provided by tuners
+ *	and consumed by	audio AM/FM decoders. Bitstream audio is provided by
+ *	an audio decoder.
+ */
+enum media_pad_signal_type {
+	PAD_SIGNAL_DEFAULT = 0,
+	PAD_SIGNAL_ANALOG,
+	PAD_SIGNAL_DV,
+	PAD_SIGNAL_AUDIO,
+};
+
+/**
  * struct media_pad - A media pad graph object.
  *
  * @graph_obj:	Embedded structure containing the media object common data
  * @entity:	Entity this pad belongs to
  * @index:	Pad index in the entity pads array, numbered from 0 to n
+ * @sig_type:	Type of the signal inside a media pad
  * @flags:	Pad flags, as defined in
  *		:ref:`include/uapi/linux/media.h <media_header>`
  *		(seek for ``MEDIA_PAD_FL_*``)
@@ -170,16 +190,20 @@ struct media_pad {
 	struct media_gobj graph_obj;	/* must be first field in struct */
 	struct media_entity *entity;
 	u16 index;
+	enum media_pad_signal_type sig_type;
 	unsigned long flags;
 };
 
 /**
  * struct media_entity_operations - Media entity operations
+ * @get_fwnode_pad:	Return the pad number based on a fwnode endpoint or
+ *			a negative value on error. This operation can be used
+ *			to map a fwnode to a media pad number. Optional.
  * @link_setup:		Notify the entity of link changes. The operation can
  *			return an error, in which case link setup will be
  *			cancelled. Optional.
  * @link_validate:	Return whether a link is valid from the entity point of
- *			view. The media_entity_pipeline_start() function
+ *			view. The media_pipeline_start() function
  *			validates all links by calling this operation. Optional.
  *
  * .. note::
@@ -188,6 +212,7 @@ struct media_pad {
  *    mutex held.
  */
 struct media_entity_operations {
+	int (*get_fwnode_pad)(struct fwnode_endpoint *endpoint);
 	int (*link_setup)(struct media_entity *entity,
 			  const struct media_pad *local,
 			  const struct media_pad *remote, u32 flags);
@@ -246,6 +271,9 @@ enum media_entity_type {
  * @pipe:	Pipeline this entity belongs to.
  * @info:	Union with devnode information.  Kept just for backward
  *		compatibility.
+ * @info.dev:	Contains device major and minor info.
+ * @info.dev.major: device node major, if the device is a devnode.
+ * @info.dev.minor: device node minor, if the device is a devnode.
  * @major:	Devnode major number (zero if not applicable). Kept just
  *		for backward compatibility.
  * @minor:	Devnode minor number (zero if not applicable). Kept just
@@ -628,7 +656,29 @@ int media_entity_pads_init(struct media_entity *entity, u16 num_pads,
  * This function must be called during the cleanup phase after unregistering
  * the entity (currently, it does nothing).
  */
-static inline void media_entity_cleanup(struct media_entity *entity) {};
+#if IS_ENABLED(CONFIG_MEDIA_CONTROLLER)
+static inline void media_entity_cleanup(struct media_entity *entity) {}
+#else
+#define media_entity_cleanup(entity) do { } while (false)
+#endif
+
+/**
+ * media_get_pad_index() - retrieves a pad index from an entity
+ *
+ * @entity:	entity where the pads belong
+ * @is_sink:	true if the pad is a sink, false if it is a source
+ * @sig_type:	type of signal of the pad to be search
+ *
+ * This helper function finds the first pad index inside an entity that
+ * satisfies both @is_sink and @sig_type conditions.
+ *
+ * Return:
+ *
+ * On success, return the pad number. If the pad was not found or the media
+ * entity is a NULL pointer, return -EINVAL.
+ */
+int media_get_pad_index(struct media_entity *entity, bool is_sink,
+			enum media_pad_signal_type sig_type);
 
 /**
  * media_create_pad_link() - creates a link between two entities.
@@ -804,83 +854,81 @@ struct media_link *media_entity_find_link(struct media_pad *source,
  * Return: returns a pointer to the pad at the remote end of the first found
  * enabled link, or %NULL if no enabled link has been found.
  */
-struct media_pad *media_entity_remote_pad(struct media_pad *pad);
+struct media_pad *media_entity_remote_pad(const struct media_pad *pad);
 
 /**
- * media_entity_get - Get a reference to the parent module
+ * media_entity_get_fwnode_pad - Get pad number from fwnode
  *
  * @entity: The entity
+ * @fwnode: Pointer to the fwnode_handle which should be used to find the pad
+ * @direction_flags: Expected direction of the pad, as defined in
+ *		     :ref:`include/uapi/linux/media.h <media_header>`
+ *		     (seek for ``MEDIA_PAD_FL_*``)
  *
- * Get a reference to the parent media device module.
+ * This function can be used to resolve the media pad number from
+ * a fwnode. This is useful for devices which use more complex
+ * mappings of media pads.
  *
- * The function will return immediately if @entity is %NULL.
+ * If the entity does not implement the get_fwnode_pad() operation
+ * then this function searches the entity for the first pad that
+ * matches the @direction_flags.
  *
- * Return: returns a pointer to the entity on success or %NULL on failure.
+ * Return: returns the pad number on success or a negative error code.
  */
-struct media_entity *media_entity_get(struct media_entity *entity);
+int media_entity_get_fwnode_pad(struct media_entity *entity,
+				struct fwnode_handle *fwnode,
+				unsigned long direction_flags);
 
 /**
- * media_entity_graph_walk_init - Allocate resources used by graph walk.
+ * media_graph_walk_init - Allocate resources used by graph walk.
  *
  * @graph: Media graph structure that will be used to walk the graph
  * @mdev: Pointer to the &media_device that contains the object
  */
-__must_check int media_entity_graph_walk_init(
-	struct media_entity_graph *graph, struct media_device *mdev);
+__must_check int media_graph_walk_init(
+	struct media_graph *graph, struct media_device *mdev);
 
 /**
- * media_entity_graph_walk_cleanup - Release resources used by graph walk.
+ * media_graph_walk_cleanup - Release resources used by graph walk.
  *
  * @graph: Media graph structure that will be used to walk the graph
  */
-void media_entity_graph_walk_cleanup(struct media_entity_graph *graph);
+void media_graph_walk_cleanup(struct media_graph *graph);
 
 /**
- * media_entity_put - Release the reference to the parent module
- *
- * @entity: The entity
- *
- * Release the reference count acquired by media_entity_get().
- *
- * The function will return immediately if @entity is %NULL.
- */
-void media_entity_put(struct media_entity *entity);
-
-/**
- * media_entity_graph_walk_start - Start walking the media graph at a
+ * media_graph_walk_start - Start walking the media graph at a
  *	given entity
  *
  * @graph: Media graph structure that will be used to walk the graph
  * @entity: Starting entity
  *
- * Before using this function, media_entity_graph_walk_init() must be
+ * Before using this function, media_graph_walk_init() must be
  * used to allocate resources used for walking the graph. This
  * function initializes the graph traversal structure to walk the
  * entities graph starting at the given entity. The traversal
  * structure must not be modified by the caller during graph
  * traversal. After the graph walk, the resources must be released
- * using media_entity_graph_walk_cleanup().
+ * using media_graph_walk_cleanup().
  */
-void media_entity_graph_walk_start(struct media_entity_graph *graph,
-				   struct media_entity *entity);
+void media_graph_walk_start(struct media_graph *graph,
+			    struct media_entity *entity);
 
 /**
- * media_entity_graph_walk_next - Get the next entity in the graph
+ * media_graph_walk_next - Get the next entity in the graph
  * @graph: Media graph structure
  *
  * Perform a depth-first traversal of the given media entities graph.
  *
  * The graph structure must have been previously initialized with a call to
- * media_entity_graph_walk_start().
+ * media_graph_walk_start().
  *
  * Return: returns the next entity in the graph or %NULL if the whole graph
  * have been traversed.
  */
-struct media_entity *
-media_entity_graph_walk_next(struct media_entity_graph *graph);
+struct media_entity *media_graph_walk_next(struct media_graph *graph);
 
 /**
- * media_entity_pipeline_start - Mark a pipeline as streaming
+ * media_pipeline_start - Mark a pipeline as streaming
  * @entity: Starting entity
  * @pipe: Media pipeline to be assigned to all entities in the pipeline.
  *
@@ -889,45 +937,45 @@ media_entity_graph_walk_next(struct media_entity_graph *graph);
  * to every entity in the pipeline and stored in the media_entity pipe field.
  *
  * Calls to this function can be nested, in which case the same number of
- * media_entity_pipeline_stop() calls will be required to stop streaming. The
+ * media_pipeline_stop() calls will be required to stop streaming. The
  * pipeline pointer must be identical for all nested calls to
- * media_entity_pipeline_start().
+ * media_pipeline_start().
  */
-__must_check int media_entity_pipeline_start(struct media_entity *entity,
-					     struct media_pipeline *pipe);
+__must_check int media_pipeline_start(struct media_entity *entity,
+				      struct media_pipeline *pipe);
 /**
- * __media_entity_pipeline_start - Mark a pipeline as streaming
+ * __media_pipeline_start - Mark a pipeline as streaming
  *
  * @entity: Starting entity
  * @pipe: Media pipeline to be assigned to all entities in the pipeline.
  *
- * ..note:: This is the non-locking version of media_entity_pipeline_start()
+ * ..note:: This is the non-locking version of media_pipeline_start()
  */
-__must_check int __media_entity_pipeline_start(struct media_entity *entity,
-					       struct media_pipeline *pipe);
+__must_check int __media_pipeline_start(struct media_entity *entity,
+					struct media_pipeline *pipe);
 
 /**
- * media_entity_pipeline_stop - Mark a pipeline as not streaming
+ * media_pipeline_stop - Mark a pipeline as not streaming
  * @entity: Starting entity
  *
  * Mark all entities connected to a given entity through enabled links, either
  * directly or indirectly, as not streaming. The media_entity pipe field is
  * reset to %NULL.
  *
- * If multiple calls to media_entity_pipeline_start() have been made, the same
+ * If multiple calls to media_pipeline_start() have been made, the same
  * number of calls to this function are required to mark the pipeline as not
  * streaming.
  */
-void media_entity_pipeline_stop(struct media_entity *entity);
+void media_pipeline_stop(struct media_entity *entity);
 
 /**
- * __media_entity_pipeline_stop - Mark a pipeline as not streaming
+ * __media_pipeline_stop - Mark a pipeline as not streaming
  *
  * @entity: Starting entity
  *
- * .. note:: This is the non-locking version of media_entity_pipeline_stop()
+ * .. note:: This is the non-locking version of media_pipeline_stop()
  */
-void __media_entity_pipeline_stop(struct media_entity *entity);
+void __media_pipeline_stop(struct media_entity *entity);
 
 /**
  * media_devnode_create() - creates and initializes a device node interface

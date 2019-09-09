@@ -25,24 +25,30 @@
  *          Alex Deucher
  *          Jerome Glisse
  */
+
 #include <linux/seq_file.h>
 #include <linux/slab.h>
-#include <drm/drmP.h>
-#include <drm/radeon_drm.h>
-#include "radeon_reg.h"
-#include "radeon.h"
-#include "radeon_asic.h"
-#include "r100d.h"
-#include "rs100d.h"
-#include "rv200d.h"
-#include "rv250d.h"
-#include "atom.h"
-
 #include <linux/firmware.h>
 #include <linux/module.h>
 
+#include <drm/drm_debugfs.h>
+#include <drm/drm_device.h>
+#include <drm/drm_file.h>
+#include <drm/drm_fourcc.h>
+#include <drm/drm_pci.h>
+#include <drm/drm_vblank.h>
+#include <drm/radeon_drm.h>
+
+#include "atom.h"
 #include "r100_reg_safe.h"
+#include "r100d.h"
+#include "radeon.h"
+#include "radeon_asic.h"
+#include "radeon_reg.h"
 #include "rn50_reg_safe.h"
+#include "rs100d.h"
+#include "rv200d.h"
+#include "rv250d.h"
 
 /* Firmware Names */
 #define FIRMWARE_R100		"radeon/R100_cp.bin"
@@ -1042,11 +1048,9 @@ static int r100_cp_init_microcode(struct radeon_device *rdev)
 
 	err = request_firmware(&rdev->me_fw, fw_name, rdev->dev);
 	if (err) {
-		printk(KERN_ERR "radeon_cp: Failed to load firmware \"%s\"\n",
-		       fw_name);
+		pr_err("radeon_cp: Failed to load firmware \"%s\"\n", fw_name);
 	} else if (rdev->me_fw->size % 8) {
-		printk(KERN_ERR
-		       "radeon_cp: Bogus length %zu in firmware \"%s\"\n",
+		pr_err("radeon_cp: Bogus length %zu in firmware \"%s\"\n",
 		       rdev->me_fw->size, fw_name);
 		err = -EINVAL;
 		release_firmware(rdev->me_fw);
@@ -1087,8 +1091,7 @@ static void r100_cp_load_microcode(struct radeon_device *rdev)
 	int i, size;
 
 	if (r100_gui_wait_for_idle(rdev)) {
-		printk(KERN_WARNING "Failed to wait GUI idle while "
-		       "programming pipes. Bad things might happen.\n");
+		pr_warn("Failed to wait GUI idle while programming pipes. Bad things might happen.\n");
 	}
 
 	if (rdev->me_fw) {
@@ -1246,8 +1249,7 @@ void r100_cp_disable(struct radeon_device *rdev)
 	WREG32(RADEON_CP_CSQ_CNTL, 0);
 	WREG32(R_000770_SCRATCH_UMSK, 0);
 	if (r100_gui_wait_for_idle(rdev)) {
-		printk(KERN_WARNING "Failed to wait GUI idle while "
-		       "programming pipes. Bad things might happen.\n");
+		pr_warn("Failed to wait GUI idle while programming pipes. Bad things might happen.\n");
 	}
 }
 
@@ -1460,7 +1462,7 @@ int r100_cs_packet_parse_vline(struct radeon_cs_parser *p)
 	header = radeon_get_ib_value(p, h_idx);
 	crtc_id = radeon_get_ib_value(p, h_idx + 5);
 	reg = R100_CP_PACKET0_GET_REG(header);
-	crtc = drm_crtc_find(p->rdev->ddev, crtc_id);
+	crtc = drm_crtc_find(p->rdev->ddev, p->filp, crtc_id);
 	if (!crtc) {
 		DRM_ERROR("cannot find crtc %d\n", crtc_id);
 		return -ENOENT;
@@ -1881,8 +1883,7 @@ static int r100_packet0_check(struct radeon_cs_parser *p,
 		track->tex_dirty = true;
 		break;
 	default:
-		printk(KERN_ERR "Forbidden register 0x%04X in cs at %d\n",
-		       reg, idx);
+		pr_err("Forbidden register 0x%04X in cs at %d\n", reg, idx);
 		return -EINVAL;
 	}
 	return 0;
@@ -2475,7 +2476,7 @@ static int r100_rbbm_fifo_wait_for_entry(struct radeon_device *rdev, unsigned n)
 		if (tmp >= n) {
 			return 0;
 		}
-		DRM_UDELAY(1);
+		udelay(1);
 	}
 	return -1;
 }
@@ -2486,15 +2487,14 @@ int r100_gui_wait_for_idle(struct radeon_device *rdev)
 	uint32_t tmp;
 
 	if (r100_rbbm_fifo_wait_for_entry(rdev, 64)) {
-		printk(KERN_WARNING "radeon: wait for empty RBBM fifo failed !"
-		       " Bad things might happen.\n");
+		pr_warn("radeon: wait for empty RBBM fifo failed! Bad things might happen.\n");
 	}
 	for (i = 0; i < rdev->usec_timeout; i++) {
 		tmp = RREG32(RADEON_RBBM_STATUS);
 		if (!(tmp & RADEON_RBBM_ACTIVE)) {
 			return 0;
 		}
-		DRM_UDELAY(1);
+		udelay(1);
 	}
 	return -1;
 }
@@ -2510,7 +2510,7 @@ int r100_mc_wait_for_idle(struct radeon_device *rdev)
 		if (tmp & RADEON_MC_IDLE) {
 			return 0;
 		}
-		DRM_UDELAY(1);
+		udelay(1);
 	}
 	return -1;
 }
@@ -3225,13 +3225,19 @@ void r100_bandwidth_update(struct radeon_device *rdev)
 	radeon_update_display_priority(rdev);
 
 	if (rdev->mode_info.crtcs[0]->base.enabled) {
+		const struct drm_framebuffer *fb =
+			rdev->mode_info.crtcs[0]->base.primary->fb;
+
 		mode1 = &rdev->mode_info.crtcs[0]->base.mode;
-		pixel_bytes1 = rdev->mode_info.crtcs[0]->base.primary->fb->bits_per_pixel / 8;
+		pixel_bytes1 = fb->format->cpp[0];
 	}
 	if (!(rdev->flags & RADEON_SINGLE_CRTC)) {
 		if (rdev->mode_info.crtcs[1]->base.enabled) {
+			const struct drm_framebuffer *fb =
+				rdev->mode_info.crtcs[1]->base.primary->fb;
+
 			mode2 = &rdev->mode_info.crtcs[1]->base.mode;
-			pixel_bytes2 = rdev->mode_info.crtcs[1]->base.primary->fb->bits_per_pixel / 8;
+			pixel_bytes2 = fb->format->cpp[0];
 		}
 	}
 
@@ -3295,7 +3301,7 @@ void r100_bandwidth_update(struct radeon_device *rdev)
 		mem_trp = ((temp >> 8) & 0x7) + 1;
 		mem_tras = ((temp >> 11) & 0xf) + 4;
 	} else if (rdev->family == CHIP_RV350 ||
-		   rdev->family <= CHIP_RV380) {
+		   rdev->family == CHIP_RV380) {
 		/* rv3x0 */
 		mem_trcd = (temp & 0x7) + 3;
 		mem_trp = ((temp >> 8) & 0x7) + 3;
@@ -3669,7 +3675,7 @@ int r100_ring_test(struct radeon_device *rdev, struct radeon_ring *ring)
 		if (tmp == 0xDEADBEEF) {
 			break;
 		}
-		DRM_UDELAY(1);
+		udelay(1);
 	}
 	if (i < rdev->usec_timeout) {
 		DRM_INFO("ring test succeeded in %d usecs\n", i);
@@ -3746,7 +3752,7 @@ int r100_ib_test(struct radeon_device *rdev, struct radeon_ring *ring)
 		if (tmp == 0xDEADBEEF) {
 			break;
 		}
-		DRM_UDELAY(1);
+		udelay(1);
 	}
 	if (i < rdev->usec_timeout) {
 		DRM_INFO("ib test succeeded in %u usecs\n", i);

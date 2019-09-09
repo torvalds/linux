@@ -349,13 +349,6 @@ static unsigned int orion_wdt_get_timeleft(struct watchdog_device *wdt_dev)
 	return readl(dev->reg + dev->data->wdt_counter_offset) / dev->clk_rate;
 }
 
-static int orion_wdt_set_timeout(struct watchdog_device *wdt_dev,
-				 unsigned int timeout)
-{
-	wdt_dev->timeout = timeout;
-	return 0;
-}
-
 static const struct watchdog_info orion_wdt_info = {
 	.options = WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING | WDIOF_MAGICCLOSE,
 	.identity = "Orion Watchdog",
@@ -366,7 +359,6 @@ static const struct watchdog_ops orion_wdt_ops = {
 	.start = orion_wdt_start,
 	.stop = orion_wdt_stop,
 	.ping = orion_wdt_ping,
-	.set_timeout = orion_wdt_set_timeout,
 	.get_timeleft = orion_wdt_get_timeleft,
 };
 
@@ -395,7 +387,7 @@ static void __iomem *orion_wdt_ioremap_rstout(struct platform_device *pdev,
 
 	rstout = internal_regs + ORION_RSTOUT_MASK_OFFSET;
 
-	WARN(1, FW_BUG "falling back to harcoded RSTOUT reg %pa\n", &rstout);
+	WARN(1, FW_BUG "falling back to hardcoded RSTOUT reg %pa\n", &rstout);
 	return devm_ioremap(&pdev->dev, rstout, 0x4);
 }
 
@@ -502,8 +494,7 @@ static int orion_wdt_get_regs(struct platform_device *pdev,
 		   of_device_is_compatible(node, "marvell,armada-xp-wdt")) {
 
 		/* Dedicated RSTOUT register, can be requested. */
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-		dev->rstout = devm_ioremap_resource(&pdev->dev, res);
+		dev->rstout = devm_platform_ioremap_resource(pdev, 1);
 		if (IS_ERR(dev->rstout))
 			return PTR_ERR(dev->rstout);
 
@@ -511,8 +502,7 @@ static int orion_wdt_get_regs(struct platform_device *pdev,
 		   of_device_is_compatible(node, "marvell,armada-380-wdt")) {
 
 		/* Dedicated RSTOUT register, can be requested. */
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-		dev->rstout = devm_ioremap_resource(&pdev->dev, res);
+		dev->rstout = devm_platform_ioremap_resource(pdev, 1);
 		if (IS_ERR(dev->rstout))
 			return PTR_ERR(dev->rstout);
 
@@ -576,11 +566,13 @@ static int orion_wdt_probe(struct platform_device *pdev)
 	/*
 	 * Let's make sure the watchdog is fully stopped, unless it's
 	 * explicitly enabled. This may be the case if the module was
-	 * removed and re-insterted, or if the bootloader explicitly
+	 * removed and re-inserted, or if the bootloader explicitly
 	 * set a running watchdog before booting the kernel.
 	 */
 	if (!orion_wdt_enabled(&dev->wdt))
 		orion_wdt_stop(&dev->wdt);
+	else
+		set_bit(WDOG_HW_RUNNING, &dev->wdt.status);
 
 	/* Request the IRQ only after the watchdog is disabled */
 	irq = platform_get_irq(pdev, 0);
@@ -651,5 +643,5 @@ module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
 				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:orion_wdt");

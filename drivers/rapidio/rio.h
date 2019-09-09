@@ -1,13 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * RapidIO interconnect services
  *
  * Copyright 2005 MontaVista Software, Inc.
  * Matt Porter <mporter@kernel.crashing.org>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/device.h>
@@ -27,8 +23,6 @@ extern u32 rio_mport_get_efb(struct rio_mport *port, int local, u16 destid,
 			     u8 hopcount, u32 from);
 extern int rio_mport_chk_dev_access(struct rio_mport *mport, u16 destid,
 				    u8 hopcount);
-extern int rio_create_sysfs_dev_files(struct rio_dev *rdev);
-extern void rio_remove_sysfs_dev_files(struct rio_dev *rdev);
 extern int rio_lock_device(struct rio_mport *port, u16 destid,
 			u8 hopcount, int wait_ms);
 extern int rio_unlock_device(struct rio_mport *port, u16 destid, u8 hopcount);

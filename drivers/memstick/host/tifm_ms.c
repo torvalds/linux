@@ -1,15 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  TI FlashMedia driver
  *
  *  Copyright (C) 2007 Alex Dubov <oakad@yahoo.com>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  * Special thanks to Carlos Corbacho for providing various MemoryStick cards
  * that made this driver possible.
- *
  */
 
 #include <linux/tifm.h>
@@ -166,9 +162,11 @@ static unsigned int tifm_ms_write_data(struct tifm_ms *host,
 	case 3:
 		host->io_word |= buf[off + 2] << 16;
 		host->io_pos++;
+		/* fall through */
 	case 2:
 		host->io_word |= buf[off + 1] << 8;
 		host->io_pos++;
+		/* fall through */
 	case 1:
 		host->io_word |= buf[off];
 		host->io_pos++;
@@ -254,7 +252,6 @@ static unsigned int tifm_ms_transfer_data(struct tifm_ms *host)
 static int tifm_ms_issue_cmd(struct tifm_ms *host)
 {
 	struct tifm_dev *sock = host->dev;
-	unsigned char *data;
 	unsigned int data_len, cmd, sys_param;
 
 	host->cmd_flags = 0;
@@ -262,8 +259,6 @@ static int tifm_ms_issue_cmd(struct tifm_ms *host)
 	host->io_pos = 0;
 	host->io_word = 0;
 	host->cmd_flags = 0;
-
-	data = host->req->data;
 
 	host->use_dma = !no_dma;
 
@@ -538,9 +533,9 @@ static int tifm_ms_set_param(struct memstick_host *msh,
 	return 0;
 }
 
-static void tifm_ms_abort(unsigned long data)
+static void tifm_ms_abort(struct timer_list *t)
 {
-	struct tifm_ms *host = (struct tifm_ms *)data;
+	struct tifm_ms *host = from_timer(host, t, timer);
 
 	dev_dbg(&host->dev->dev, "status %x\n",
 		readl(host->dev->addr + SOCK_MS_STATUS));
@@ -575,7 +570,7 @@ static int tifm_ms_probe(struct tifm_dev *sock)
 	host->dev = sock;
 	host->timeout_jiffies = msecs_to_jiffies(1000);
 
-	setup_timer(&host->timer, tifm_ms_abort, (unsigned long)host);
+	timer_setup(&host->timer, tifm_ms_abort, 0);
 	tasklet_init(&host->notify, tifm_ms_req_tasklet, (unsigned long)msh);
 
 	msh->request = tifm_ms_submit_req;

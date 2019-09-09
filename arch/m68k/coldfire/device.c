@@ -14,11 +14,14 @@
 #include <linux/spi/spi.h>
 #include <linux/gpio.h>
 #include <linux/fec.h>
+#include <linux/dmaengine.h>
 #include <asm/traps.h>
 #include <asm/coldfire.h>
 #include <asm/mcfsim.h>
 #include <asm/mcfuart.h>
 #include <asm/mcfqspi.h>
+#include <linux/platform_data/edma.h>
+#include <linux/platform_data/dma-mcf-edma.h>
 
 /*
  *	All current ColdFire parts contain from 2, 3, 4 or 10 UARTS.
@@ -135,7 +138,11 @@ static struct platform_device mcf_fec0 = {
 	.id			= 0,
 	.num_resources		= ARRAY_SIZE(mcf_fec0_resources),
 	.resource		= mcf_fec0_resources,
-	.dev.platform_data	= FEC_PDATA,
+	.dev = {
+		.dma_mask		= &mcf_fec0.dev.coherent_dma_mask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+		.platform_data		= FEC_PDATA,
+	}
 };
 
 #ifdef MCFFEC_BASE1
@@ -167,7 +174,11 @@ static struct platform_device mcf_fec1 = {
 	.id			= 1,
 	.num_resources		= ARRAY_SIZE(mcf_fec1_resources),
 	.resource		= mcf_fec1_resources,
-	.dev.platform_data	= FEC_PDATA,
+	.dev = {
+		.dma_mask		= &mcf_fec1.dev.coherent_dma_mask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+		.platform_data		= FEC_PDATA,
+	}
 };
 #endif /* MCFFEC_BASE1 */
 #endif /* CONFIG_FEC */
@@ -327,6 +338,222 @@ static struct platform_device mcf_qspi = {
 };
 #endif /* IS_ENABLED(CONFIG_SPI_COLDFIRE_QSPI) */
 
+#if IS_ENABLED(CONFIG_I2C_IMX)
+static struct resource mcf_i2c0_resources[] = {
+	{
+		.start          = MCFI2C_BASE0,
+		.end            = MCFI2C_BASE0 + MCFI2C_SIZE0 - 1,
+		.flags          = IORESOURCE_MEM,
+	},
+	{
+		.start          = MCF_IRQ_I2C0,
+		.end            = MCF_IRQ_I2C0,
+		.flags          = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device mcf_i2c0 = {
+	.name                   = "imx1-i2c",
+	.id                     = 0,
+	.num_resources          = ARRAY_SIZE(mcf_i2c0_resources),
+	.resource               = mcf_i2c0_resources,
+};
+#ifdef MCFI2C_BASE1
+
+static struct resource mcf_i2c1_resources[] = {
+	{
+		.start          = MCFI2C_BASE1,
+		.end            = MCFI2C_BASE1 + MCFI2C_SIZE1 - 1,
+		.flags          = IORESOURCE_MEM,
+	},
+	{
+		.start          = MCF_IRQ_I2C1,
+		.end            = MCF_IRQ_I2C1,
+		.flags          = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device mcf_i2c1 = {
+	.name                   = "imx1-i2c",
+	.id                     = 1,
+	.num_resources          = ARRAY_SIZE(mcf_i2c1_resources),
+	.resource               = mcf_i2c1_resources,
+};
+
+#endif /* MCFI2C_BASE1 */
+
+#ifdef MCFI2C_BASE2
+
+static struct resource mcf_i2c2_resources[] = {
+	{
+		.start          = MCFI2C_BASE2,
+		.end            = MCFI2C_BASE2 + MCFI2C_SIZE2 - 1,
+		.flags          = IORESOURCE_MEM,
+	},
+	{
+		.start          = MCF_IRQ_I2C2,
+		.end            = MCF_IRQ_I2C2,
+		.flags          = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device mcf_i2c2 = {
+	.name                   = "imx1-i2c",
+	.id                     = 2,
+	.num_resources          = ARRAY_SIZE(mcf_i2c2_resources),
+	.resource               = mcf_i2c2_resources,
+};
+
+#endif /* MCFI2C_BASE2 */
+
+#ifdef MCFI2C_BASE3
+
+static struct resource mcf_i2c3_resources[] = {
+	{
+		.start          = MCFI2C_BASE3,
+		.end            = MCFI2C_BASE3 + MCFI2C_SIZE3 - 1,
+		.flags          = IORESOURCE_MEM,
+	},
+	{
+		.start          = MCF_IRQ_I2C3,
+		.end            = MCF_IRQ_I2C3,
+		.flags          = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device mcf_i2c3 = {
+	.name                   = "imx1-i2c",
+	.id                     = 3,
+	.num_resources          = ARRAY_SIZE(mcf_i2c3_resources),
+	.resource               = mcf_i2c3_resources,
+};
+
+#endif /* MCFI2C_BASE3 */
+
+#ifdef MCFI2C_BASE4
+
+static struct resource mcf_i2c4_resources[] = {
+	{
+		.start          = MCFI2C_BASE4,
+		.end            = MCFI2C_BASE4 + MCFI2C_SIZE4 - 1,
+		.flags          = IORESOURCE_MEM,
+	},
+	{
+		.start          = MCF_IRQ_I2C4,
+		.end            = MCF_IRQ_I2C4,
+		.flags          = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device mcf_i2c4 = {
+	.name                   = "imx1-i2c",
+	.id                     = 4,
+	.num_resources          = ARRAY_SIZE(mcf_i2c4_resources),
+	.resource               = mcf_i2c4_resources,
+};
+
+#endif /* MCFI2C_BASE4 */
+
+#ifdef MCFI2C_BASE5
+
+static struct resource mcf_i2c5_resources[] = {
+	{
+		.start          = MCFI2C_BASE5,
+		.end            = MCFI2C_BASE5 + MCFI2C_SIZE5 - 1,
+		.flags          = IORESOURCE_MEM,
+	},
+	{
+		.start          = MCF_IRQ_I2C5,
+		.end            = MCF_IRQ_I2C5,
+		.flags          = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device mcf_i2c5 = {
+	.name                   = "imx1-i2c",
+	.id                     = 5,
+	.num_resources          = ARRAY_SIZE(mcf_i2c5_resources),
+	.resource               = mcf_i2c5_resources,
+};
+
+#endif /* MCFI2C_BASE5 */
+#endif /* IS_ENABLED(CONFIG_I2C_IMX) */
+
+#if IS_ENABLED(CONFIG_MCF_EDMA)
+
+static const struct dma_slave_map mcf_edma_map[] = {
+	{ "dreq0", "rx-tx", MCF_EDMA_FILTER_PARAM(0) },
+	{ "dreq1", "rx-tx", MCF_EDMA_FILTER_PARAM(1) },
+	{ "uart.0", "rx", MCF_EDMA_FILTER_PARAM(2) },
+	{ "uart.0", "tx", MCF_EDMA_FILTER_PARAM(3) },
+	{ "uart.1", "rx", MCF_EDMA_FILTER_PARAM(4) },
+	{ "uart.1", "tx", MCF_EDMA_FILTER_PARAM(5) },
+	{ "uart.2", "rx", MCF_EDMA_FILTER_PARAM(6) },
+	{ "uart.2", "tx", MCF_EDMA_FILTER_PARAM(7) },
+	{ "timer0", "rx-tx", MCF_EDMA_FILTER_PARAM(8) },
+	{ "timer1", "rx-tx", MCF_EDMA_FILTER_PARAM(9) },
+	{ "timer2", "rx-tx", MCF_EDMA_FILTER_PARAM(10) },
+	{ "timer3", "rx-tx", MCF_EDMA_FILTER_PARAM(11) },
+	{ "fsl-dspi.0", "rx", MCF_EDMA_FILTER_PARAM(12) },
+	{ "fsl-dspi.0", "tx", MCF_EDMA_FILTER_PARAM(13) },
+	{ "fsl-dspi.1", "rx", MCF_EDMA_FILTER_PARAM(14) },
+	{ "fsl-dspi.1", "tx", MCF_EDMA_FILTER_PARAM(15) },
+};
+
+static struct mcf_edma_platform_data mcf_edma_data = {
+	.dma_channels		= 64,
+	.slave_map		= mcf_edma_map,
+	.slavecnt		= ARRAY_SIZE(mcf_edma_map),
+};
+
+static struct resource mcf_edma_resources[] = {
+	{
+		.start		= MCFEDMA_BASE,
+		.end		= MCFEDMA_BASE + MCFEDMA_SIZE - 1,
+		.flags		= IORESOURCE_MEM,
+	},
+	{
+		.start		= MCFEDMA_IRQ_INTR0,
+		.end		= MCFEDMA_IRQ_INTR0 + 15,
+		.flags		= IORESOURCE_IRQ,
+		.name		= "edma-tx-00-15",
+	},
+	{
+		.start		= MCFEDMA_IRQ_INTR16,
+		.end		= MCFEDMA_IRQ_INTR16 + 39,
+		.flags		= IORESOURCE_IRQ,
+		.name		= "edma-tx-16-55",
+	},
+	{
+		.start		= MCFEDMA_IRQ_INTR56,
+		.end		= MCFEDMA_IRQ_INTR56,
+		.flags		= IORESOURCE_IRQ,
+		.name		= "edma-tx-56-63",
+	},
+	{
+		.start		= MCFEDMA_IRQ_ERR,
+		.end		= MCFEDMA_IRQ_ERR,
+		.flags		= IORESOURCE_IRQ,
+		.name		= "edma-err",
+	},
+};
+
+static u64 mcf_edma_dmamask = DMA_BIT_MASK(32);
+
+static struct platform_device mcf_edma = {
+	.name			= "mcf-edma",
+	.id			= 0,
+	.num_resources		= ARRAY_SIZE(mcf_edma_resources),
+	.resource		= mcf_edma_resources,
+	.dev = {
+		.dma_mask = &mcf_edma_dmamask,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
+		.platform_data = &mcf_edma_data,
+	}
+};
+
+#endif /* IS_ENABLED(CONFIG_MCF_EDMA) */
+
 static struct platform_device *mcf_devices[] __initdata = {
 	&mcf_uart,
 #if IS_ENABLED(CONFIG_FEC)
@@ -337,6 +564,27 @@ static struct platform_device *mcf_devices[] __initdata = {
 #endif
 #if IS_ENABLED(CONFIG_SPI_COLDFIRE_QSPI)
 	&mcf_qspi,
+#endif
+#if IS_ENABLED(CONFIG_I2C_IMX)
+	&mcf_i2c0,
+#ifdef MCFI2C_BASE1
+	&mcf_i2c1,
+#endif
+#ifdef MCFI2C_BASE2
+	&mcf_i2c2,
+#endif
+#ifdef MCFI2C_BASE3
+	&mcf_i2c3,
+#endif
+#ifdef MCFI2C_BASE4
+	&mcf_i2c4,
+#endif
+#ifdef MCFI2C_BASE5
+	&mcf_i2c5,
+#endif
+#endif
+#if IS_ENABLED(CONFIG_MCF_EDMA)
+	&mcf_edma,
 #endif
 };
 

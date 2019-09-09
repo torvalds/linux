@@ -1,27 +1,5 @@
-/******************************************************************************
- *
- * Copyright(c) 2009-2014  Realtek Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
- *
- * Contact Information:
- * wlanfae <wlanfae@realtek.com>
- * Realtek Corporation, No. 2, Innovation Road II, Hsinchu Science Park,
- * Hsinchu 300, Taiwan.
- *
- * Larry Finger <Larry.Finger@lwfinger.net>
- *
- *****************************************************************************/
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright(c) 2009-2014  Realtek Corporation.*/
 
 #include "../wifi.h"
 #include "../base.h"
@@ -883,12 +861,8 @@ static void rtl8723be_dm_txpower_tracking_callback_thermalmeter(
 	if ((rtldm->power_index_offset[RF90_PATH_A] != 0) &&
 	    (rtldm->txpower_track_control)) {
 		rtldm->done_txpower = true;
-		if (thermalvalue > rtlefuse->eeprom_thermalmeter)
-			rtl8723be_dm_tx_power_track_set_power(hw, BBSWING, 0,
-							     index_for_channel);
-		else
-			rtl8723be_dm_tx_power_track_set_power(hw, BBSWING, 0,
-							     index_for_channel);
+		rtl8723be_dm_tx_power_track_set_power(hw, BBSWING, 0,
+						      index_for_channel);
 
 		rtldm->swing_idx_cck_base = rtldm->swing_idx_cck;
 		rtldm->swing_idx_ofdm_base[RF90_PATH_A] =
@@ -988,7 +962,8 @@ static void rtl8723be_dm_refresh_rate_adaptive_mask(struct ieee80211_hw *hw)
 			sta = rtl_find_sta(hw, mac->bssid);
 			if (sta)
 				rtlpriv->cfg->ops->update_rate_tbl(hw, sta,
-							   p_ra->ratr_state);
+							   p_ra->ratr_state,
+							   true);
 			rcu_read_unlock();
 
 			p_ra->pre_ratr_state = p_ra->ratr_state;
@@ -1020,11 +995,8 @@ static void rtl8723be_dm_check_edca_turbo(struct ieee80211_hw *hw)
 	u32 edca_be = 0x5ea42b;
 	u32 iot_peer = 0;
 	bool b_is_cur_rdlstate;
-	bool b_last_is_cur_rdlstate = false;
 	bool b_bias_on_rx = false;
 	bool b_edca_turbo_on = false;
-
-	b_last_is_cur_rdlstate = rtlpriv->dm.is_cur_rdlstate;
 
 	cur_txok_cnt = rtlpriv->stats.txbytesunicast - last_txok_cnt;
 	cur_rxok_cnt = rtlpriv->stats.rxbytesunicast - last_rxok_cnt;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * linux/fs/reiserfs/xattr.c
  *
@@ -184,6 +185,7 @@ struct reiserfs_dentry_buf {
 	struct dir_context ctx;
 	struct dentry *xadir;
 	int count;
+	int err;
 	struct dentry *dentries[8];
 };
 
@@ -206,6 +208,7 @@ fill_with_dentries(struct dir_context *ctx, const char *name, int namelen,
 
 	dentry = lookup_one_len(name, dbuf->xadir, namelen);
 	if (IS_ERR(dentry)) {
+		dbuf->err = PTR_ERR(dentry);
 		return PTR_ERR(dentry);
 	} else if (d_really_is_negative(dentry)) {
 		/* A directory entry exists, but no file? */
@@ -214,6 +217,7 @@ fill_with_dentries(struct dir_context *ctx, const char *name, int namelen,
 			       "not found for file %pd.\n",
 			       dentry, dbuf->xadir);
 		dput(dentry);
+		dbuf->err = -EIO;
 		return -EIO;
 	}
 
@@ -261,6 +265,10 @@ static int reiserfs_for_each_xattr(struct inode *inode,
 		err = reiserfs_readdir_inode(d_inode(dir), &buf.ctx);
 		if (err)
 			break;
+		if (buf.err) {
+			err = buf.err;
+			break;
+		}
 		if (!buf.count)
 			break;
 		for (i = 0; !err && i < buf.count && buf.dentries[i]; i++) {
@@ -442,6 +450,15 @@ fail:
 
 static inline __u32 xattr_hash(const char *msg, int len)
 {
+	/*
+	 * csum_partial() gives different results for little-endian and
+	 * big endian hosts. Images created on little-endian hosts and
+	 * mounted on big-endian hosts(and vice versa) will see csum mismatches
+	 * when trying to fetch xattrs. Treating the hash as __wsum_t would
+	 * lower the frequency of mismatch.  This is an endianness bug in
+	 * reiserfs.  The return statement would result in a sparse warning. Do
+	 * not fix the sparse warning so as to not hide a reminder of the bug.
+	 */
 	return csum_partial(msg, len, 0);
 }
 
@@ -450,10 +467,10 @@ int reiserfs_commit_write(struct file *f, struct page *page,
 
 static void update_ctime(struct inode *inode)
 {
-	struct timespec now = current_time(inode);
+	struct timespec64 now = current_time(inode);
 
 	if (inode_unhashed(inode) || !inode->i_nlink ||
-	    timespec_equal(&inode->i_ctime, &now))
+	    timespec64_equal(&inode->i_ctime, &now))
 		return;
 
 	inode->i_ctime = current_time(inode);
@@ -791,8 +808,10 @@ static int listxattr_filler(struct dir_context *ctx, const char *name,
 			return 0;
 		size = namelen + 1;
 		if (b->buf) {
-			if (size > b->size)
+			if (b->pos + size > b->size) {
+				b->pos = -ERANGE;
 				return -ERANGE;
+			}
 			memcpy(b->buf + b->pos, name, namelen);
 			b->buf[b->pos + namelen] = 0;
 		}
@@ -958,7 +977,7 @@ int reiserfs_lookup_privroot(struct super_block *s)
 
 /*
  * We need to take a copy of the mount flags since things like
- * MS_RDONLY don't get set until *after* we're called.
+ * SB_RDONLY don't get set until *after* we're called.
  * mount_flags != mount_options
  */
 int reiserfs_xattr_init(struct super_block *s, int mount_flags)
@@ -970,7 +989,7 @@ int reiserfs_xattr_init(struct super_block *s, int mount_flags)
 	if (err)
 		goto error;
 
-	if (d_really_is_negative(privroot) && !(mount_flags & MS_RDONLY)) {
+	if (d_really_is_negative(privroot) && !(mount_flags & SB_RDONLY)) {
 		inode_lock(d_inode(s->s_root));
 		err = create_privroot(REISERFS_SB(s)->priv_root);
 		inode_unlock(d_inode(s->s_root));
@@ -998,11 +1017,11 @@ error:
 		clear_bit(REISERFS_POSIXACL, &REISERFS_SB(s)->s_mount_opt);
 	}
 
-	/* The super_block MS_POSIXACL must mirror the (no)acl mount option. */
+	/* The super_block SB_POSIXACL must mirror the (no)acl mount option. */
 	if (reiserfs_posixacl(s))
-		s->s_flags |= MS_POSIXACL;
+		s->s_flags |= SB_POSIXACL;
 	else
-		s->s_flags &= ~MS_POSIXACL;
+		s->s_flags &= ~SB_POSIXACL;
 
 	return err;
 }

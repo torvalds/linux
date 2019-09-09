@@ -50,6 +50,7 @@ enum {
 	MLX5_INTERFACE_ATTACHED,
 };
 
+
 void mlx5_add_device(struct mlx5_interface *intf, struct mlx5_priv *priv)
 {
 	struct mlx5_device_context *dev_ctx;
@@ -63,18 +64,20 @@ void mlx5_add_device(struct mlx5_interface *intf, struct mlx5_priv *priv)
 		return;
 
 	dev_ctx->intf = intf;
-	dev_ctx->context = intf->add(dev);
-	set_bit(MLX5_INTERFACE_ADDED, &dev_ctx->state);
-	if (intf->attach)
-		set_bit(MLX5_INTERFACE_ATTACHED, &dev_ctx->state);
 
+	dev_ctx->context = intf->add(dev);
 	if (dev_ctx->context) {
+		set_bit(MLX5_INTERFACE_ADDED, &dev_ctx->state);
+		if (intf->attach)
+			set_bit(MLX5_INTERFACE_ATTACHED, &dev_ctx->state);
+
 		spin_lock_irq(&priv->ctx_lock);
 		list_add_tail(&dev_ctx->list, &priv->ctx_list);
 		spin_unlock_irq(&priv->ctx_lock);
-	} else {
-		kfree(dev_ctx);
 	}
+
+	if (!dev_ctx->context)
+		kfree(dev_ctx);
 }
 
 static struct mlx5_device_context *mlx5_get_device(struct mlx5_interface *intf,
@@ -119,12 +122,15 @@ static void mlx5_attach_interface(struct mlx5_interface *intf, struct mlx5_priv 
 	if (intf->attach) {
 		if (test_bit(MLX5_INTERFACE_ATTACHED, &dev_ctx->state))
 			return;
-		intf->attach(dev, dev_ctx->context);
+		if (intf->attach(dev, dev_ctx->context))
+			return;
 		set_bit(MLX5_INTERFACE_ATTACHED, &dev_ctx->state);
 	} else {
 		if (test_bit(MLX5_INTERFACE_ADDED, &dev_ctx->state))
 			return;
 		dev_ctx->context = intf->add(dev);
+		if (!dev_ctx->context)
+			return;
 		set_bit(MLX5_INTERFACE_ADDED, &dev_ctx->state);
 	}
 }
@@ -207,7 +213,7 @@ void mlx5_unregister_device(struct mlx5_core_dev *dev)
 	struct mlx5_interface *intf;
 
 	mutex_lock(&mlx5_intf_mutex);
-	list_for_each_entry(intf, &intf_list, list)
+	list_for_each_entry_reverse(intf, &intf_list, list)
 		mlx5_remove_device(intf, priv);
 	list_del(&priv->dev_list);
 	mutex_unlock(&mlx5_intf_mutex);
@@ -242,27 +248,34 @@ void mlx5_unregister_interface(struct mlx5_interface *intf)
 }
 EXPORT_SYMBOL(mlx5_unregister_interface);
 
-void *mlx5_get_protocol_dev(struct mlx5_core_dev *mdev, int protocol)
+/* Must be called with intf_mutex held */
+static bool mlx5_has_added_dev_by_protocol(struct mlx5_core_dev *mdev, int protocol)
 {
-	struct mlx5_priv *priv = &mdev->priv;
 	struct mlx5_device_context *dev_ctx;
-	unsigned long flags;
-	void *result = NULL;
+	struct mlx5_interface *intf;
+	bool found = false;
 
-	spin_lock_irqsave(&priv->ctx_lock, flags);
-
-	list_for_each_entry(dev_ctx, &mdev->priv.ctx_list, list)
-		if ((dev_ctx->intf->protocol == protocol) &&
-		    dev_ctx->intf->get_dev) {
-			result = dev_ctx->intf->get_dev(dev_ctx->context);
+	list_for_each_entry(intf, &intf_list, list) {
+		if (intf->protocol == protocol) {
+			dev_ctx = mlx5_get_device(intf, &mdev->priv);
+			if (dev_ctx && test_bit(MLX5_INTERFACE_ADDED, &dev_ctx->state))
+				found = true;
 			break;
 		}
+	}
 
-	spin_unlock_irqrestore(&priv->ctx_lock, flags);
-
-	return result;
+	return found;
 }
-EXPORT_SYMBOL(mlx5_get_protocol_dev);
+
+void mlx5_reload_interface(struct mlx5_core_dev *mdev, int protocol)
+{
+	mutex_lock(&mlx5_intf_mutex);
+	if (mlx5_has_added_dev_by_protocol(mdev, protocol)) {
+		mlx5_remove_dev_by_protocol(mdev, protocol);
+		mlx5_add_dev_by_protocol(mdev, protocol);
+	}
+	mutex_unlock(&mlx5_intf_mutex);
+}
 
 /* Must be called with intf_mutex held */
 void mlx5_add_dev_by_protocol(struct mlx5_core_dev *dev, int protocol)
@@ -288,22 +301,30 @@ void mlx5_remove_dev_by_protocol(struct mlx5_core_dev *dev, int protocol)
 		}
 }
 
-static u16 mlx5_gen_pci_id(struct mlx5_core_dev *dev)
+static u32 mlx5_gen_pci_id(struct mlx5_core_dev *dev)
 {
-	return (u16)((dev->pdev->bus->number << 8) |
+	return (u32)((pci_domain_nr(dev->pdev->bus) << 16) |
+		     (dev->pdev->bus->number << 8) |
 		     PCI_SLOT(dev->pdev->devfn));
 }
 
 /* Must be called with intf_mutex held */
 struct mlx5_core_dev *mlx5_get_next_phys_dev(struct mlx5_core_dev *dev)
 {
-	u16 pci_id = mlx5_gen_pci_id(dev);
 	struct mlx5_core_dev *res = NULL;
 	struct mlx5_core_dev *tmp_dev;
 	struct mlx5_priv *priv;
+	u32 pci_id;
 
+	if (!mlx5_core_is_pf(dev))
+		return NULL;
+
+	pci_id = mlx5_gen_pci_id(dev);
 	list_for_each_entry(priv, &mlx5_dev_list, dev_list) {
 		tmp_dev = container_of(priv, struct mlx5_core_dev, priv);
+		if (!mlx5_core_is_pf(tmp_dev))
+			continue;
+
 		if ((dev != tmp_dev) && (mlx5_gen_pci_id(tmp_dev) == pci_id)) {
 			res = tmp_dev;
 			break;
@@ -313,21 +334,6 @@ struct mlx5_core_dev *mlx5_get_next_phys_dev(struct mlx5_core_dev *dev)
 	return res;
 }
 
-void mlx5_core_event(struct mlx5_core_dev *dev, enum mlx5_dev_event event,
-		     unsigned long param)
-{
-	struct mlx5_priv *priv = &dev->priv;
-	struct mlx5_device_context *dev_ctx;
-	unsigned long flags;
-
-	spin_lock_irqsave(&priv->ctx_lock, flags);
-
-	list_for_each_entry(dev_ctx, &priv->ctx_list, list)
-		if (dev_ctx->intf->event)
-			dev_ctx->intf->event(dev, dev_ctx->context, event, param);
-
-	spin_unlock_irqrestore(&priv->ctx_lock, flags);
-}
 
 void mlx5_dev_list_lock(void)
 {

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/arch/arm/mach-omap1/board-h2-mmc.c
  *
@@ -6,15 +7,11 @@
  *
  * This code is based on linux/arch/arm/mach-omap2/board-n800-mmc.c, which is:
  * Copyright (C) 2006 Nokia Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/gpio.h>
 #include <linux/platform_device.h>
 #include <linux/platform_data/gpio-omap.h>
-#include <linux/i2c/tps65010.h>
+#include <linux/mfd/tps65010.h>
 
 #include "board-h2.h"
 #include "mmc.h"

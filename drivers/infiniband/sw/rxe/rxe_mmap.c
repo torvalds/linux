@@ -36,6 +36,7 @@
 #include <linux/mm.h>
 #include <linux/errno.h>
 #include <asm/pgtable.h>
+#include <rdma/uverbs_ioctl.h>
 
 #include "rxe.h"
 #include "rxe_loc.h"
@@ -76,7 +77,7 @@ static void rxe_vma_close(struct vm_area_struct *vma)
 	kref_put(&ip->ref, rxe_mmap_release);
 }
 
-static struct vm_operations_struct rxe_vm_ops = {
+static const struct vm_operations_struct rxe_vm_ops = {
 	.open = rxe_vma_open,
 	.close = rxe_vma_close,
 };
@@ -140,12 +141,13 @@ done:
 /*
  * Allocate information for rxe_mmap
  */
-struct rxe_mmap_info *rxe_create_mmap_info(struct rxe_dev *rxe,
-					   u32 size,
-					   struct ib_ucontext *context,
-					   void *obj)
+struct rxe_mmap_info *rxe_create_mmap_info(struct rxe_dev *rxe, u32 size,
+					   struct ib_udata *udata, void *obj)
 {
 	struct rxe_mmap_info *ip;
+
+	if (!udata)
+		return ERR_PTR(-EINVAL);
 
 	ip = kmalloc(sizeof(*ip), GFP_KERNEL);
 	if (!ip)
@@ -156,16 +158,18 @@ struct rxe_mmap_info *rxe_create_mmap_info(struct rxe_dev *rxe,
 	spin_lock_bh(&rxe->mmap_offset_lock);
 
 	if (rxe->mmap_offset == 0)
-		rxe->mmap_offset = PAGE_SIZE;
+		rxe->mmap_offset = ALIGN(PAGE_SIZE, SHMLBA);
 
 	ip->info.offset = rxe->mmap_offset;
-	rxe->mmap_offset += size;
+	rxe->mmap_offset += ALIGN(size, SHMLBA);
 
 	spin_unlock_bh(&rxe->mmap_offset_lock);
 
 	INIT_LIST_HEAD(&ip->pending_mmaps);
 	ip->info.size = size;
-	ip->context = context;
+	ip->context =
+		container_of(udata, struct uverbs_attr_bundle, driver_udata)
+			->context;
 	ip->obj = obj;
 	kref_init(&ip->ref);
 

@@ -213,7 +213,7 @@ static void sci_task_request_build_ssp_task_iu(struct isci_request *ireq)
  * @task_context:
  *
  */
-static void scu_ssp_reqeust_construct_task_context(
+static void scu_ssp_request_construct_task_context(
 	struct isci_request *ireq,
 	struct scu_task_context *task_context)
 {
@@ -224,7 +224,7 @@ static void scu_ssp_reqeust_construct_task_context(
 	idev = ireq->target_device;
 	iport = idev->owning_port;
 
-	/* Fill in the TC with the its required data */
+	/* Fill in the TC with its required data */
 	task_context->abort = 0;
 	task_context->priority = 0;
 	task_context->initiator_request = 1;
@@ -425,7 +425,7 @@ static void scu_ssp_io_request_construct_task_context(struct isci_request *ireq,
 	u8 prot_type = scsi_get_prot_type(scmd);
 	u8 prot_op = scsi_get_prot_op(scmd);
 
-	scu_ssp_reqeust_construct_task_context(ireq, task_context);
+	scu_ssp_request_construct_task_context(ireq, task_context);
 
 	task_context->ssp_command_iu_length =
 		sizeof(struct ssp_cmd_iu) / sizeof(u32);
@@ -472,7 +472,7 @@ static void scu_ssp_task_request_construct_task_context(struct isci_request *ire
 {
 	struct scu_task_context *task_context = ireq->tc;
 
-	scu_ssp_reqeust_construct_task_context(ireq, task_context);
+	scu_ssp_request_construct_task_context(ireq, task_context);
 
 	task_context->control_frame                = 1;
 	task_context->priority                     = SCU_TASK_PRIORITY_HIGH;
@@ -495,7 +495,7 @@ static void scu_ssp_task_request_construct_task_context(struct isci_request *ire
  * the command buffer is complete. none Revisit task context construction to
  * determine what is common for SSP/SMP/STP task context structures.
  */
-static void scu_sata_reqeust_construct_task_context(
+static void scu_sata_request_construct_task_context(
 	struct isci_request *ireq,
 	struct scu_task_context *task_context)
 {
@@ -506,7 +506,7 @@ static void scu_sata_reqeust_construct_task_context(
 	idev = ireq->target_device;
 	iport = idev->owning_port;
 
-	/* Fill in the TC with the its required data */
+	/* Fill in the TC with its required data */
 	task_context->abort = 0;
 	task_context->priority = SCU_TASK_PRIORITY_NORMAL;
 	task_context->initiator_request = 1;
@@ -562,7 +562,7 @@ static void scu_stp_raw_request_construct_task_context(struct isci_request *ireq
 {
 	struct scu_task_context *task_context = ireq->tc;
 
-	scu_sata_reqeust_construct_task_context(ireq, task_context);
+	scu_sata_request_construct_task_context(ireq, task_context);
 
 	task_context->control_frame         = 0;
 	task_context->priority              = SCU_TASK_PRIORITY_NORMAL;
@@ -613,7 +613,7 @@ static void sci_stp_optimized_request_construct(struct isci_request *ireq,
 	struct scu_task_context *task_context = ireq->tc;
 
 	/* Build the STP task context structure */
-	scu_sata_reqeust_construct_task_context(ireq, task_context);
+	scu_sata_request_construct_task_context(ireq, task_context);
 
 	/* Copy over the SGL elements */
 	sci_request_build_sgl(ireq);
@@ -894,7 +894,7 @@ sci_io_request_terminate(struct isci_request *ireq)
 		 * and don't wait for the task response.
 		 */
 		sci_change_state(&ireq->sm, SCI_REQ_ABORTING);
-		/* Fall through and handle like ABORTING... */
+		/* Fall through - and handle like ABORTING... */
 	case SCI_REQ_ABORTING:
 		if (!isci_remote_device_is_safe_to_abort(ireq->target_device))
 			set_bit(IREQ_PENDING_ABORT, &ireq->flags);
@@ -1401,7 +1401,7 @@ static enum sci_status sci_stp_request_pio_data_out_transmit_data(struct isci_re
  * @data_buffer: The buffer of data to be copied.
  * @length: The length of the data transfer.
  *
- * Copy the data from the buffer for the length specified to the IO reqeust SGL
+ * Copy the data from the buffer for the length specified to the IO request SGL
  * specified data region. enum sci_status
  */
 static enum sci_status
@@ -1626,9 +1626,9 @@ static enum sci_status atapi_d2h_reg_frame_handler(struct isci_request *ireq,
 
 	if (status == SCI_SUCCESS) {
 		if (ireq->stp.rsp.status & ATA_ERR)
-			status = SCI_IO_FAILURE_RESPONSE_VALID;
+			status = SCI_FAILURE_IO_RESPONSE_VALID;
 	} else {
-		status = SCI_IO_FAILURE_RESPONSE_VALID;
+		status = SCI_FAILURE_IO_RESPONSE_VALID;
 	}
 
 	if (status != SCI_SUCCESS) {
@@ -2473,7 +2473,7 @@ static void isci_request_process_response_iu(
 		"%s: resp_iu = %p "
 		"resp_iu->status = 0x%x,\nresp_iu->datapres = %d "
 		"resp_iu->response_data_len = %x, "
-		"resp_iu->sense_data_len = %x\nrepsonse data: ",
+		"resp_iu->sense_data_len = %x\nresponse data: ",
 		__func__,
 		resp_iu,
 		resp_iu->status,
@@ -3101,7 +3101,7 @@ sci_io_request_construct(struct isci_host *ihost,
 		/* pass */;
 	else if (dev_is_sata(dev))
 		memset(&ireq->stp.cmd, 0, sizeof(ireq->stp.cmd));
-	else if (dev_is_expander(dev))
+	else if (dev_is_expander(dev->dev_type))
 		/* pass */;
 	else
 		return SCI_FAILURE_UNSUPPORTED_PROTOCOL;
@@ -3235,7 +3235,7 @@ sci_io_request_construct_smp(struct device *dev,
 	iport = idev->owning_port;
 
 	/*
-	 * Fill in the TC with the its required data
+	 * Fill in the TC with its required data
 	 * 00h
 	 */
 	task_context->priority = 0;

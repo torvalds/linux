@@ -1,17 +1,14 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _NF_TABLES_IPV4_H_
 #define _NF_TABLES_IPV4_H_
 
 #include <net/netfilter/nf_tables.h>
 #include <net/ip.h>
 
-static inline void
-nft_set_pktinfo_ipv4(struct nft_pktinfo *pkt,
-		     struct sk_buff *skb,
-		     const struct nf_hook_state *state)
+static inline void nft_set_pktinfo_ipv4(struct nft_pktinfo *pkt,
+					struct sk_buff *skb)
 {
 	struct iphdr *ip;
-
-	nft_set_pktinfo(pkt, skb, state);
 
 	ip = ip_hdr(pkt->skb);
 	pkt->tprot_set = true;
@@ -20,10 +17,8 @@ nft_set_pktinfo_ipv4(struct nft_pktinfo *pkt,
 	pkt->xt.fragoff = ntohs(ip->frag_off) & IP_OFFSET;
 }
 
-static inline int
-__nft_set_pktinfo_ipv4_validate(struct nft_pktinfo *pkt,
-				struct sk_buff *skb,
-				const struct nf_hook_state *state)
+static inline int __nft_set_pktinfo_ipv4_validate(struct nft_pktinfo *pkt,
+						  struct sk_buff *skb)
 {
 	struct iphdr *iph, _iph;
 	u32 len, thoff;
@@ -51,16 +46,11 @@ __nft_set_pktinfo_ipv4_validate(struct nft_pktinfo *pkt,
 	return 0;
 }
 
-static inline void
-nft_set_pktinfo_ipv4_validate(struct nft_pktinfo *pkt,
-			      struct sk_buff *skb,
-			      const struct nf_hook_state *state)
+static inline void nft_set_pktinfo_ipv4_validate(struct nft_pktinfo *pkt,
+						 struct sk_buff *skb)
 {
-	nft_set_pktinfo(pkt, skb, state);
-	if (__nft_set_pktinfo_ipv4_validate(pkt, skb, state) < 0)
-		nft_set_pktinfo_proto_unspec(pkt, skb);
+	if (__nft_set_pktinfo_ipv4_validate(pkt, skb) < 0)
+		nft_set_pktinfo_unspec(pkt, skb);
 }
-
-extern struct nft_af_info nft_af_ipv4;
 
 #endif

@@ -44,6 +44,17 @@ struct rds_ib_mr *rds_ib_alloc_fmr(struct rds_ib_device *rds_ibdev, int npages)
 	else
 		pool = rds_ibdev->mr_1m_pool;
 
+	if (atomic_read(&pool->dirty_count) >= pool->max_items / 10)
+		queue_delayed_work(rds_ib_mr_wq, &pool->flush_worker, 10);
+
+	/* Switch pools if one of the pool is reaching upper limit */
+	if (atomic_read(&pool->dirty_count) >=  pool->max_items * 9 / 10) {
+		if (pool->pool_type == RDS_IB_MR_8K_POOL)
+			pool = rds_ibdev->mr_1m_pool;
+		else
+			pool = rds_ibdev->mr_8k_pool;
+	}
+
 	ibmr = rds_ib_try_reuse_ibmr(pool);
 	if (ibmr)
 		return ibmr;
@@ -78,17 +89,15 @@ struct rds_ib_mr *rds_ib_alloc_fmr(struct rds_ib_device *rds_ibdev, int npages)
 	return ibmr;
 
 out_no_cigar:
-	if (ibmr) {
-		if (fmr->fmr)
-			ib_dealloc_fmr(fmr->fmr);
-		kfree(ibmr);
-	}
+	kfree(ibmr);
 	atomic_dec(&pool->item_count);
+
 	return ERR_PTR(err);
 }
 
-int rds_ib_map_fmr(struct rds_ib_device *rds_ibdev, struct rds_ib_mr *ibmr,
-		   struct scatterlist *sg, unsigned int nents)
+static int rds_ib_map_fmr(struct rds_ib_device *rds_ibdev,
+			  struct rds_ib_mr *ibmr, struct scatterlist *sg,
+			  unsigned int nents)
 {
 	struct ib_device *dev = rds_ibdev->dev;
 	struct rds_ib_fmr *fmr = &ibmr->u.fmr;
@@ -110,38 +119,48 @@ int rds_ib_map_fmr(struct rds_ib_device *rds_ibdev, struct rds_ib_mr *ibmr,
 	page_cnt = 0;
 
 	for (i = 0; i < sg_dma_len; ++i) {
-		unsigned int dma_len = ib_sg_dma_len(dev, &scat[i]);
-		u64 dma_addr = ib_sg_dma_address(dev, &scat[i]);
+		unsigned int dma_len = sg_dma_len(&scat[i]);
+		u64 dma_addr = sg_dma_address(&scat[i]);
 
 		if (dma_addr & ~PAGE_MASK) {
-			if (i > 0)
+			if (i > 0) {
+				ib_dma_unmap_sg(dev, sg, nents,
+						DMA_BIDIRECTIONAL);
 				return -EINVAL;
-			else
+			} else {
 				++page_cnt;
+			}
 		}
 		if ((dma_addr + dma_len) & ~PAGE_MASK) {
-			if (i < sg_dma_len - 1)
+			if (i < sg_dma_len - 1) {
+				ib_dma_unmap_sg(dev, sg, nents,
+						DMA_BIDIRECTIONAL);
 				return -EINVAL;
-			else
+			} else {
 				++page_cnt;
+			}
 		}
 
 		len += dma_len;
 	}
 
 	page_cnt += len >> PAGE_SHIFT;
-	if (page_cnt > ibmr->pool->fmr_attr.max_pages)
+	if (page_cnt > ibmr->pool->fmr_attr.max_pages) {
+		ib_dma_unmap_sg(dev, sg, nents, DMA_BIDIRECTIONAL);
 		return -EINVAL;
+	}
 
-	dma_pages = kmalloc_node(sizeof(u64) * page_cnt, GFP_ATOMIC,
-				 rdsibdev_to_node(rds_ibdev));
-	if (!dma_pages)
+	dma_pages = kmalloc_array_node(sizeof(u64), page_cnt, GFP_ATOMIC,
+				       rdsibdev_to_node(rds_ibdev));
+	if (!dma_pages) {
+		ib_dma_unmap_sg(dev, sg, nents, DMA_BIDIRECTIONAL);
 		return -ENOMEM;
+	}
 
 	page_cnt = 0;
 	for (i = 0; i < sg_dma_len; ++i) {
-		unsigned int dma_len = ib_sg_dma_len(dev, &scat[i]);
-		u64 dma_addr = ib_sg_dma_address(dev, &scat[i]);
+		unsigned int dma_len = sg_dma_len(&scat[i]);
+		u64 dma_addr = sg_dma_address(&scat[i]);
 
 		for (j = 0; j < dma_len; j += PAGE_SIZE)
 			dma_pages[page_cnt++] =
@@ -149,8 +168,10 @@ int rds_ib_map_fmr(struct rds_ib_device *rds_ibdev, struct rds_ib_mr *ibmr,
 	}
 
 	ret = ib_map_phys_fmr(fmr->fmr, dma_pages, page_cnt, io_addr);
-	if (ret)
+	if (ret) {
+		ib_dma_unmap_sg(dev, sg, nents, DMA_BIDIRECTIONAL);
 		goto out;
+	}
 
 	/* Success - we successfully remapped the MR, so we can
 	 * safely tear down the old mapping.

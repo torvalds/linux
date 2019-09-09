@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*******************************************************************************
  * Modern ConfigFS group context specific iSCSI statistics based on original
  * iscsi_target_mib.c code
@@ -6,15 +7,6 @@
  *
  * Author: Nicholas A. Bellinger <nab@linux-iscsi.org>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  ******************************************************************************/
 
 #include <linux/configfs.h>
@@ -187,7 +179,7 @@ static struct configfs_attribute *iscsi_stat_instance_attrs[] = {
 	NULL,
 };
 
-struct config_item_type iscsi_stat_instance_cit = {
+const struct config_item_type iscsi_stat_instance_cit = {
 	.ct_attrs		= iscsi_stat_instance_attrs,
 	.ct_owner		= THIS_MODULE,
 };
@@ -249,7 +241,7 @@ static struct configfs_attribute *iscsi_stat_sess_err_attrs[] = {
 	NULL,
 };
 
-struct config_item_type iscsi_stat_sess_err_cit = {
+const struct config_item_type iscsi_stat_sess_err_cit = {
 	.ct_attrs		= iscsi_stat_sess_err_attrs,
 	.ct_owner		= THIS_MODULE,
 };
@@ -328,10 +320,10 @@ static ssize_t iscsi_stat_tgt_attr_fail_intr_name_show(struct config_item *item,
 {
 	struct iscsi_tiqn *tiqn = iscsi_tgt_attr_tiqn(item);
 	struct iscsi_login_stats *lstat = &tiqn->login_stats;
-	unsigned char buf[224];
+	unsigned char buf[ISCSI_IQN_LEN];
 
 	spin_lock(&lstat->lock);
-	snprintf(buf, 224, "%s", lstat->last_intr_fail_name[0] ?
+	snprintf(buf, ISCSI_IQN_LEN, "%s", lstat->last_intr_fail_name[0] ?
 				lstat->last_intr_fail_name : NONE);
 	spin_unlock(&lstat->lock);
 
@@ -390,7 +382,7 @@ static struct configfs_attribute *iscsi_stat_tgt_attr_attrs[] = {
 	NULL,
 };
 
-struct config_item_type iscsi_stat_tgt_attr_cit = {
+const struct config_item_type iscsi_stat_tgt_attr_cit = {
 	.ct_attrs		= iscsi_stat_tgt_attr_attrs,
 	.ct_owner		= THIS_MODULE,
 };
@@ -522,7 +514,7 @@ static struct configfs_attribute *iscsi_stat_login_stats_attrs[] = {
 	NULL,
 };
 
-struct config_item_type iscsi_stat_login_cit = {
+const struct config_item_type iscsi_stat_login_cit = {
 	.ct_attrs		= iscsi_stat_login_stats_attrs,
 	.ct_owner		= THIS_MODULE,
 };
@@ -579,7 +571,7 @@ static struct configfs_attribute *iscsi_stat_logout_stats_attrs[] = {
 	NULL,
 };
 
-struct config_item_type iscsi_stat_logout_cit = {
+const struct config_item_type iscsi_stat_logout_cit = {
 	.ct_attrs		= iscsi_stat_logout_stats_attrs,
 	.ct_owner		= THIS_MODULE,
 };
@@ -801,7 +793,7 @@ static struct configfs_attribute *iscsi_stat_sess_stats_attrs[] = {
 	NULL,
 };
 
-struct config_item_type iscsi_stat_sess_cit = {
+const struct config_item_type iscsi_stat_sess_cit = {
 	.ct_attrs		= iscsi_stat_sess_stats_attrs,
 	.ct_owner		= THIS_MODULE,
 };

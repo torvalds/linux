@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  arch/arm/mach-rpc/include/mach/hardware.h
  *
  *  Copyright (C) 1996-1999 Russell King.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  *  This file contains the hardware definitions of the RiscPC series machines.
  */
@@ -25,8 +22,8 @@
  *  *_SIZE  is the size of the region
  *  *_BASE  is the virtual address
  */
-#define RAM_SIZE		0x10000000
-#define RAM_START		0x10000000
+#define RPC_RAM_SIZE		0x10000000
+#define RPC_RAM_START		0x10000000
 
 #define EASI_SIZE		0x08000000	/* EASI I/O */
 #define EASI_START		0x08000000

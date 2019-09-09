@@ -1,21 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * VMware VMCI Driver
  *
  * Copyright (C) 2012 VMware, Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation version 2 and no later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
  */
 
 #include <linux/vmw_vmci_defs.h>
 #include <linux/vmw_vmci_api.h>
-#include <linux/moduleparam.h>
 #include <linux/miscdevice.h>
 #include <linux/interrupt.h>
 #include <linux/highmem.h>
@@ -24,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/sched.h>
+#include <linux/cred.h>
 #include <linux/slab.h>
 #include <linux/file.h>
 #include <linux/init.h>
@@ -165,11 +157,11 @@ static int vmci_host_close(struct inode *inode, struct file *filp)
  * This is used to wake up the VMX when a VMCI call arrives, or
  * to wake up select() or poll() at the next clock tick.
  */
-static unsigned int vmci_host_poll(struct file *filp, poll_table *wait)
+static __poll_t vmci_host_poll(struct file *filp, poll_table *wait)
 {
 	struct vmci_host_dev *vmci_host_dev = filp->private_data;
 	struct vmci_ctx *context = vmci_host_dev->context;
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 
 	if (vmci_host_dev->ct_type == VMCIOBJ_CONTEXT) {
 		/* Check for VMCI calls to this VM context. */
@@ -181,7 +173,7 @@ static unsigned int vmci_host_poll(struct file *filp, poll_table *wait)
 		if (context->pending_datagrams > 0 ||
 		    vmci_handle_arr_get_size(
 				context->pending_doorbell_array) > 0) {
-			mask = POLLIN;
+			mask = EPOLLIN;
 		}
 		spin_unlock(&context->lock);
 	}
@@ -236,13 +228,13 @@ static int vmci_host_setup_notify(struct vmci_ctx *context,
 	 * about the size.
 	 */
 	BUILD_BUG_ON(sizeof(bool) != sizeof(u8));
-	if (!access_ok(VERIFY_WRITE, (void __user *)uva, sizeof(u8)))
+	if (!access_ok((void __user *)uva, sizeof(u8)))
 		return VMCI_ERROR_GENERIC;
 
 	/*
 	 * Lock physical page backing a given user VA.
 	 */
-	retval = get_user_pages_fast(uva, 1, 1, &context->notify_page);
+	retval = get_user_pages_fast(uva, 1, FOLL_WRITE, &context->notify_page);
 	if (retval != 1) {
 		context->notify_page = NULL;
 		return VMCI_ERROR_GENERIC;
@@ -447,14 +439,11 @@ static int vmci_host_do_alloc_queuepair(struct vmci_host_dev *vmci_host_dev,
 	struct vmci_handle handle;
 	int vmci_status;
 	int __user *retptr;
-	u32 cid;
 
 	if (vmci_host_dev->ct_type != VMCIOBJ_CONTEXT) {
 		vmci_ioctl_err("only valid for contexts\n");
 		return -EINVAL;
 	}
-
-	cid = vmci_ctx_get_id(vmci_host_dev->context);
 
 	if (vmci_host_dev->user_version < VMCI_VERSION_NOVMVM) {
 		struct vmci_qp_alloc_info_vmvm alloc_info;
@@ -753,19 +742,10 @@ static int vmci_host_do_ctx_set_cpt_state(struct vmci_host_dev *vmci_host_dev,
 	if (copy_from_user(&set_info, uptr, sizeof(set_info)))
 		return -EFAULT;
 
-	cpt_buf = kmalloc(set_info.buf_size, GFP_KERNEL);
-	if (!cpt_buf) {
-		vmci_ioctl_err(
-			"cannot allocate memory to set cpt state (type=%d)\n",
-			set_info.cpt_type);
-		return -ENOMEM;
-	}
-
-	if (copy_from_user(cpt_buf, (void __user *)(uintptr_t)set_info.cpt_buf,
-			   set_info.buf_size)) {
-		retval = -EFAULT;
-		goto out;
-	}
+	cpt_buf = memdup_user((void __user *)(uintptr_t)set_info.cpt_buf,
+				set_info.buf_size);
+	if (IS_ERR(cpt_buf))
+		return PTR_ERR(cpt_buf);
 
 	cid = vmci_ctx_get_id(vmci_host_dev->context);
 	set_info.result = vmci_ctx_set_chkpt_state(cid, set_info.cpt_type,
@@ -773,7 +753,6 @@ static int vmci_host_do_ctx_set_cpt_state(struct vmci_host_dev *vmci_host_dev,
 
 	retval = copy_to_user(uptr, &set_info, sizeof(set_info)) ? -EFAULT : 0;
 
-out:
 	kfree(cpt_buf);
 	return retval;
 }

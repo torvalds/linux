@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (c) 2000-2002 Vojtech Pavlik <vojtech@ucw.cz>
  *  Copyright (c) 2001-2002, 2007 Johann Deneux <johann.deneux@gmail.com>
@@ -5,26 +6,7 @@
  *  USB/RS232 I-Force joysticks and wheels.
  */
 
-/*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
- * Should you need to contact me, the author, you can do so either by
- * e-mail - mail your message to <vojtech@ucw.cz>, or by paper mail:
- * Vojtech Pavlik, Simunkova 1594, Prague 8, 182 00 Czech Republic
- */
-
+#include <asm/unaligned.h>
 #include "iforce.h"
 
 static struct {
@@ -33,14 +15,10 @@ static struct {
 } iforce_hat_to_axis[16] = {{ 0,-1}, { 1,-1}, { 1, 0}, { 1, 1}, { 0, 1}, {-1, 1}, {-1, 0}, {-1,-1}};
 
 
-void iforce_dump_packet(char *msg, u16 cmd, unsigned char *data)
+void iforce_dump_packet(struct iforce *iforce, char *msg, u16 cmd, unsigned char *data)
 {
-	int i;
-
-	printk(KERN_DEBUG __FILE__ ": %s cmd = %04x, data = ", msg, cmd);
-	for (i = 0; i < LO(cmd); i++)
-		printk("%02x ", data[i]);
-	printk("\n");
+	dev_dbg(iforce->dev->dev.parent, "%s %s cmd = %04x, data = %*ph\n",
+		__func__, msg, cmd, LO(cmd), data);
 }
 
 /*
@@ -99,27 +77,12 @@ int iforce_send_packet(struct iforce *iforce, u16 cmd, unsigned char* data)
 /*
  * If necessary, start the transmission
  */
-	switch (iforce->bus) {
+	if (empty)
+		iforce->xport_ops->xmit(iforce);
 
-#ifdef CONFIG_JOYSTICK_IFORCE_232
-		case IFORCE_232:
-		if (empty)
-			iforce_serial_xmit(iforce);
-		break;
-#endif
-#ifdef CONFIG_JOYSTICK_IFORCE_USB
-		case IFORCE_USB:
-
-		if (iforce->usbdev && empty &&
-			!test_and_set_bit(IFORCE_XMIT_RUNNING, iforce->xmit_flags)) {
-
-			iforce_usb_xmit(iforce);
-		}
-		break;
-#endif
-	}
 	return 0;
 }
+EXPORT_SYMBOL(iforce_send_packet);
 
 /* Start or stop an effect */
 int iforce_control_playback(struct iforce* iforce, u16 id, unsigned int value)
@@ -153,157 +116,96 @@ static int mark_core_as_ready(struct iforce *iforce, unsigned short addr)
 	return -1;
 }
 
-void iforce_process_packet(struct iforce *iforce, u16 cmd, unsigned char *data)
+static void iforce_report_hats_buttons(struct iforce *iforce, u8 *data)
 {
 	struct input_dev *dev = iforce->dev;
 	int i;
-	static int being_used = 0;
 
-	if (being_used)
-		dev_warn(&iforce->dev->dev,
-			 "re-entrant call to iforce_process %d\n", being_used);
-	being_used++;
+	input_report_abs(dev, ABS_HAT0X, iforce_hat_to_axis[data[6] >> 4].x);
+	input_report_abs(dev, ABS_HAT0Y, iforce_hat_to_axis[data[6] >> 4].y);
 
-#ifdef CONFIG_JOYSTICK_IFORCE_232
-	if (HI(iforce->expect_packet) == HI(cmd)) {
-		iforce->expect_packet = 0;
-		iforce->ecmd = cmd;
-		memcpy(iforce->edata, data, IFORCE_MAX_LENGTH);
+	for (i = 0; iforce->type->btn[i] >= 0; i++)
+		input_report_key(dev, iforce->type->btn[i],
+				 data[(i >> 3) + 5] & (1 << (i & 7)));
+
+	/* If there are untouched bits left, interpret them as the second hat */
+	if (i <= 8) {
+		u8 btns = data[6];
+
+		if (test_bit(ABS_HAT1X, dev->absbit)) {
+			if (btns & BIT(3))
+				input_report_abs(dev, ABS_HAT1X, -1);
+			else if (btns & BIT(1))
+				input_report_abs(dev, ABS_HAT1X, 1);
+			else
+				input_report_abs(dev, ABS_HAT1X, 0);
+		}
+
+		if (test_bit(ABS_HAT1Y, dev->absbit)) {
+			if (btns & BIT(0))
+				input_report_abs(dev, ABS_HAT1Y, -1);
+			else if (btns & BIT(2))
+				input_report_abs(dev, ABS_HAT1Y, 1);
+			else
+				input_report_abs(dev, ABS_HAT1Y, 0);
+		}
 	}
-#endif
-	wake_up(&iforce->wait);
-
-	if (!iforce->type) {
-		being_used--;
-		return;
-	}
-
-	switch (HI(cmd)) {
-
-		case 0x01:	/* joystick position data */
-		case 0x03:	/* wheel position data */
-			if (HI(cmd) == 1) {
-				input_report_abs(dev, ABS_X, (__s16) (((__s16)data[1] << 8) | data[0]));
-				input_report_abs(dev, ABS_Y, (__s16) (((__s16)data[3] << 8) | data[2]));
-				input_report_abs(dev, ABS_THROTTLE, 255 - data[4]);
-				if (LO(cmd) >= 8 && test_bit(ABS_RUDDER ,dev->absbit))
-					input_report_abs(dev, ABS_RUDDER, (__s8)data[7]);
-			} else {
-				input_report_abs(dev, ABS_WHEEL, (__s16) (((__s16)data[1] << 8) | data[0]));
-				input_report_abs(dev, ABS_GAS,   255 - data[2]);
-				input_report_abs(dev, ABS_BRAKE, 255 - data[3]);
-			}
-
-			input_report_abs(dev, ABS_HAT0X, iforce_hat_to_axis[data[6] >> 4].x);
-			input_report_abs(dev, ABS_HAT0Y, iforce_hat_to_axis[data[6] >> 4].y);
-
-			for (i = 0; iforce->type->btn[i] >= 0; i++)
-				input_report_key(dev, iforce->type->btn[i], data[(i >> 3) + 5] & (1 << (i & 7)));
-
-			/* If there are untouched bits left, interpret them as the second hat */
-			if (i <= 8) {
-				int btns = data[6];
-				if (test_bit(ABS_HAT1X, dev->absbit)) {
-					if (btns & 8) input_report_abs(dev, ABS_HAT1X, -1);
-					else if (btns & 2) input_report_abs(dev, ABS_HAT1X, 1);
-					else input_report_abs(dev, ABS_HAT1X, 0);
-				}
-				if (test_bit(ABS_HAT1Y, dev->absbit)) {
-					if (btns & 1) input_report_abs(dev, ABS_HAT1Y, -1);
-					else if (btns & 4) input_report_abs(dev, ABS_HAT1Y, 1);
-					else input_report_abs(dev, ABS_HAT1Y, 0);
-				}
-			}
-
-			input_sync(dev);
-
-			break;
-
-		case 0x02:	/* status report */
-			input_report_key(dev, BTN_DEAD, data[0] & 0x02);
-			input_sync(dev);
-
-			/* Check if an effect was just started or stopped */
-			i = data[1] & 0x7f;
-			if (data[1] & 0x80) {
-				if (!test_and_set_bit(FF_CORE_IS_PLAYED, iforce->core_effects[i].flags)) {
-					/* Report play event */
-					input_report_ff_status(dev, i, FF_STATUS_PLAYING);
-				}
-			} else if (test_and_clear_bit(FF_CORE_IS_PLAYED, iforce->core_effects[i].flags)) {
-				/* Report stop event */
-				input_report_ff_status(dev, i, FF_STATUS_STOPPED);
-			}
-			if (LO(cmd) > 3) {
-				int j;
-				for (j = 3; j < LO(cmd); j += 2)
-					mark_core_as_ready(iforce, data[j] | (data[j+1]<<8));
-			}
-			break;
-	}
-	being_used--;
 }
 
-int iforce_get_id_packet(struct iforce *iforce, char *packet)
+void iforce_process_packet(struct iforce *iforce,
+			   u8 packet_id, u8 *data, size_t len)
 {
-	switch (iforce->bus) {
+	struct input_dev *dev = iforce->dev;
+	int i, j;
 
-	case IFORCE_USB: {
-#ifdef CONFIG_JOYSTICK_IFORCE_USB
-		int status;
+	switch (packet_id) {
 
-		iforce->cr.bRequest = packet[0];
-		iforce->ctrl->dev = iforce->usbdev;
+	case 0x01:	/* joystick position data */
+		input_report_abs(dev, ABS_X,
+				 (__s16) get_unaligned_le16(data));
+		input_report_abs(dev, ABS_Y,
+				 (__s16) get_unaligned_le16(data + 2));
+		input_report_abs(dev, ABS_THROTTLE, 255 - data[4]);
 
-		status = usb_submit_urb(iforce->ctrl, GFP_ATOMIC);
-		if (status) {
-			dev_err(&iforce->intf->dev,
-				"usb_submit_urb failed %d\n", status);
-			return -1;
-		}
+		if (len >= 8 && test_bit(ABS_RUDDER ,dev->absbit))
+			input_report_abs(dev, ABS_RUDDER, (__s8)data[7]);
 
-		wait_event_interruptible_timeout(iforce->wait,
-			iforce->ctrl->status != -EINPROGRESS, HZ);
+		iforce_report_hats_buttons(iforce, data);
 
-		if (iforce->ctrl->status) {
-			dev_dbg(&iforce->intf->dev,
-				"iforce->ctrl->status = %d\n",
-				iforce->ctrl->status);
-			usb_unlink_urb(iforce->ctrl);
-			return -1;
-		}
-#else
-		printk(KERN_DEBUG "iforce_get_id_packet: iforce->bus = USB!\n");
-#endif
-		}
+		input_sync(dev);
 		break;
 
-	case IFORCE_232:
+	case 0x03:	/* wheel position data */
+		input_report_abs(dev, ABS_WHEEL,
+				 (__s16) get_unaligned_le16(data));
+		input_report_abs(dev, ABS_GAS,   255 - data[2]);
+		input_report_abs(dev, ABS_BRAKE, 255 - data[3]);
 
-#ifdef CONFIG_JOYSTICK_IFORCE_232
-		iforce->expect_packet = FF_CMD_QUERY;
-		iforce_send_packet(iforce, FF_CMD_QUERY, packet);
+		iforce_report_hats_buttons(iforce, data);
 
-		wait_event_interruptible_timeout(iforce->wait,
-			!iforce->expect_packet, HZ);
-
-		if (iforce->expect_packet) {
-			iforce->expect_packet = 0;
-			return -1;
-		}
-#else
-		dev_err(&iforce->dev->dev,
-			"iforce_get_id_packet: iforce->bus = SERIO!\n");
-#endif
+		input_sync(dev);
 		break;
 
-	default:
-		dev_err(&iforce->dev->dev,
-			"iforce_get_id_packet: iforce->bus = %d\n",
-			iforce->bus);
+	case 0x02:	/* status report */
+		input_report_key(dev, BTN_DEAD, data[0] & 0x02);
+		input_sync(dev);
+
+		/* Check if an effect was just started or stopped */
+		i = data[1] & 0x7f;
+		if (data[1] & 0x80) {
+			if (!test_and_set_bit(FF_CORE_IS_PLAYED, iforce->core_effects[i].flags)) {
+				/* Report play event */
+				input_report_ff_status(dev, i, FF_STATUS_PLAYING);
+			}
+		} else if (test_and_clear_bit(FF_CORE_IS_PLAYED, iforce->core_effects[i].flags)) {
+			/* Report stop event */
+			input_report_ff_status(dev, i, FF_STATUS_STOPPED);
+		}
+
+		for (j = 3; j < len; j += 2)
+			mark_core_as_ready(iforce, get_unaligned_le16(data + j));
+
 		break;
 	}
-
-	return -(iforce->edata[0] != packet[0]);
 }
-
+EXPORT_SYMBOL(iforce_process_packet);

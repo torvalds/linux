@@ -25,10 +25,21 @@
 
 #include <drm/drm_mm.h>
 #include <linux/mm.h>
-#include <linux/module.h>
 #include <linux/rbtree.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
+
+/* We make up offsets for buffer objects so we can recognize them at
+ * mmap time. pgoff in mmap is an unsigned long, so we need to make sure
+ * that the faked up offset will fit
+ */
+#if BITS_PER_LONG == 64
+#define DRM_FILE_PAGE_OFFSET_START ((0xFFFFFFFFUL >> PAGE_SHIFT) + 1)
+#define DRM_FILE_PAGE_OFFSET_SIZE ((0xFFFFFFFFUL >> PAGE_SHIFT) * 256)
+#else
+#define DRM_FILE_PAGE_OFFSET_START ((0xFFFFFFFUL >> PAGE_SHIFT) + 1)
+#define DRM_FILE_PAGE_OFFSET_SIZE ((0xFFFFFFFUL >> PAGE_SHIFT) * 16)
+#endif
 
 struct drm_file;
 
@@ -42,6 +53,7 @@ struct drm_vma_offset_node {
 	rwlock_t vm_lock;
 	struct drm_mm_node vm_node;
 	struct rb_root vm_files;
+	bool readonly:1;
 };
 
 struct drm_vma_offset_manager {
@@ -153,7 +165,7 @@ static inline void drm_vma_node_reset(struct drm_vma_offset_node *node)
  * Start address of @node for page-based addressing. 0 if the node does not
  * have an offset allocated.
  */
-static inline unsigned long drm_vma_node_start(struct drm_vma_offset_node *node)
+static inline unsigned long drm_vma_node_start(const struct drm_vma_offset_node *node)
 {
 	return node->vm_node.start;
 }

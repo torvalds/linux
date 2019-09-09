@@ -1,9 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * zfcp device driver
  *
  * Global definitions for the zfcp device driver.
  *
- * Copyright IBM Corp. 2002, 2010
+ * Copyright IBM Corp. 2002, 2017
  */
 
 #ifndef ZFCP_DEF_H
@@ -40,24 +41,16 @@
 #include "zfcp_fc.h"
 #include "zfcp_qdio.h"
 
-struct zfcp_reqlist;
-
-/********************* SCSI SPECIFIC DEFINES *********************************/
-#define ZFCP_SCSI_ER_TIMEOUT                    (10*HZ)
-
 /********************* FSF SPECIFIC DEFINES *********************************/
 
 /* ATTENTION: value must not be used by hardware */
 #define FSF_QTCB_UNSOLICITED_STATUS		0x6305
 
-/* timeout value for "default timer" for fsf requests */
-#define ZFCP_FSF_REQUEST_TIMEOUT (60*HZ)
-
 /*************** ADAPTER/PORT/UNIT AND FSF_REQ STATUS FLAGS ******************/
 
 /*
- * Note, the leftmost status byte is common among adapter, port
- * and unit
+ * Note, the leftmost 12 status bits (3 nibbles) are common among adapter, port
+ * and unit. This is a mask for bitwise 'and' with status values.
  */
 #define ZFCP_COMMON_FLAGS			0xfff00000
 
@@ -96,7 +89,49 @@ struct zfcp_reqlist;
 
 /************************* STRUCTURE DEFINITIONS *****************************/
 
-struct zfcp_fsf_req;
+/**
+ * enum zfcp_erp_act_type - Type of ERP action object.
+ * @ZFCP_ERP_ACTION_REOPEN_LUN: LUN recovery.
+ * @ZFCP_ERP_ACTION_REOPEN_PORT: Port recovery.
+ * @ZFCP_ERP_ACTION_REOPEN_PORT_FORCED: Forced port recovery.
+ * @ZFCP_ERP_ACTION_REOPEN_ADAPTER: Adapter recovery.
+ *
+ * Values must fit into u8 because of code dependencies:
+ * zfcp_dbf_rec_trig(), &zfcp_dbf_rec_trigger.want, &zfcp_dbf_rec_trigger.need;
+ * zfcp_dbf_rec_run_lvl(), zfcp_dbf_rec_run(), &zfcp_dbf_rec_running.rec_action.
+ */
+enum zfcp_erp_act_type {
+	ZFCP_ERP_ACTION_REOPEN_LUN	   = 1,
+	ZFCP_ERP_ACTION_REOPEN_PORT	   = 2,
+	ZFCP_ERP_ACTION_REOPEN_PORT_FORCED = 3,
+	ZFCP_ERP_ACTION_REOPEN_ADAPTER	   = 4,
+};
+
+/*
+ * Values must fit into u16 because of code dependencies:
+ * zfcp_dbf_rec_run_lvl(), zfcp_dbf_rec_run(), zfcp_dbf_rec_run_wka(),
+ * &zfcp_dbf_rec_running.rec_step.
+ */
+enum zfcp_erp_steps {
+	ZFCP_ERP_STEP_UNINITIALIZED	= 0x0000,
+	ZFCP_ERP_STEP_PHYS_PORT_CLOSING	= 0x0010,
+	ZFCP_ERP_STEP_PORT_CLOSING	= 0x0100,
+	ZFCP_ERP_STEP_PORT_OPENING	= 0x0800,
+	ZFCP_ERP_STEP_LUN_CLOSING	= 0x1000,
+	ZFCP_ERP_STEP_LUN_OPENING	= 0x2000,
+};
+
+struct zfcp_erp_action {
+	struct list_head list;
+	enum zfcp_erp_act_type type;  /* requested action code */
+	struct zfcp_adapter *adapter; /* device which should be recovered */
+	struct zfcp_port *port;
+	struct scsi_device *sdev;
+	u32		status;	      /* recovery status */
+	enum zfcp_erp_steps	step;	/* active step of this erp action */
+	unsigned long		fsf_req_id;
+	struct timer_list timer;
+};
 
 /* holds various memory pools of an adapter */
 struct zfcp_adapter_mempool {
@@ -108,37 +143,6 @@ struct zfcp_adapter_mempool {
 	mempool_t *sr_data;
 	mempool_t *gid_pn;
 	mempool_t *qtcb_pool;
-};
-
-struct zfcp_erp_action {
-	struct list_head list;
-	int action;	              /* requested action code */
-	struct zfcp_adapter *adapter; /* device which should be recovered */
-	struct zfcp_port *port;
-	struct scsi_device *sdev;
-	u32		status;	      /* recovery status */
-	u32 step;	              /* active step of this erp action */
-	unsigned long		fsf_req_id;
-	struct timer_list timer;
-};
-
-struct fsf_latency_record {
-	u32 min;
-	u32 max;
-	u64 sum;
-};
-
-struct latency_cont {
-	struct fsf_latency_record channel;
-	struct fsf_latency_record fabric;
-	u64 counter;
-};
-
-struct zfcp_latencies {
-	struct latency_cont read;
-	struct latency_cont write;
-	struct latency_cont cmd;
-	spinlock_t lock;
 };
 
 struct zfcp_adapter {
@@ -219,6 +223,25 @@ struct zfcp_port {
 	unsigned int		starget_id;
 };
 
+struct zfcp_latency_record {
+	u32 min;
+	u32 max;
+	u64 sum;
+};
+
+struct zfcp_latency_cont {
+	struct zfcp_latency_record channel;
+	struct zfcp_latency_record fabric;
+	u64 counter;
+};
+
+struct zfcp_latencies {
+	struct zfcp_latency_cont read;
+	struct zfcp_latency_cont write;
+	struct zfcp_latency_cont cmd;
+	spinlock_t lock;
+};
+
 /**
  * struct zfcp_unit - LUN configured via zfcp sysfs
  * @dev: struct device for sysfs representation and reference counting
@@ -286,9 +309,7 @@ static inline u64 zfcp_scsi_dev_lun(struct scsi_device *sdev)
  * @qdio_req: qdio queue related values
  * @completion: used to signal the completion of the request
  * @status: status of the request
- * @fsf_command: FSF command issued
  * @qtcb: associated QTCB
- * @seq_no: sequence number of this request
  * @data: private data
  * @timer: timer data of this request
  * @erp_action: reference to erp action if request issued on behalf of ERP
@@ -303,9 +324,7 @@ struct zfcp_fsf_req {
 	struct zfcp_qdio_req	qdio_req;
 	struct completion	completion;
 	u32			status;
-	u32			fsf_command;
 	struct fsf_qtcb		*qtcb;
-	u32			seq_no;
 	void			*data;
 	struct timer_list	timer;
 	struct zfcp_erp_action	*erp_action;
@@ -318,6 +337,11 @@ static inline
 int zfcp_adapter_multi_buffer_active(struct zfcp_adapter *adapter)
 {
 	return atomic_read(&adapter->status) & ZFCP_STATUS_ADAPTER_MB_ACT;
+}
+
+static inline bool zfcp_fsf_req_is_status_read_buffer(struct zfcp_fsf_req *req)
+{
+	return req->qtcb == NULL;
 }
 
 #endif /* ZFCP_DEF_H */

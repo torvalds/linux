@@ -1,10 +1,10 @@
-/* pci-stub - simple stub driver to reserve a pci device
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Simple stub driver to reserve a PCI device
  *
  * Copyright (C) 2008 Red Hat, Inc.
  * Author:
  *	Chris Wright
- *
- * This work is licensed under the terms of the GNU GPL, version 2.
  *
  * Usage is simple, allocate a new id to the stub driver and bind the
  * device to it.  For example:
@@ -28,7 +28,7 @@ MODULE_PARM_DESC(ids, "Initial PCI IDs to add to the stub driver, format is "
 
 static int pci_stub_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	dev_info(&dev->dev, "claimed by stub\n");
+	pci_info(dev, "claimed by stub\n");
 	return 0;
 }
 
@@ -66,20 +66,18 @@ static int __init pci_stub_init(void)
 				&class, &class_mask);
 
 		if (fields < 2) {
-			printk(KERN_WARNING
-			       "pci-stub: invalid id string \"%s\"\n", id);
+			pr_warn("pci-stub: invalid ID string \"%s\"\n", id);
 			continue;
 		}
 
-		printk(KERN_INFO
-		       "pci-stub: add %04X:%04X sub=%04X:%04X cls=%08X/%08X\n",
+		pr_info("pci-stub: add %04X:%04X sub=%04X:%04X cls=%08X/%08X\n",
 		       vendor, device, subvendor, subdevice, class, class_mask);
 
 		rc = pci_add_dynid(&stub_driver, vendor, device,
 				   subvendor, subdevice, class, class_mask, 0);
 		if (rc)
-			printk(KERN_WARNING
-			       "pci-stub: failed to add dynamic id (%d)\n", rc);
+			pr_warn("pci-stub: failed to add dynamic ID (%d)\n",
+				rc);
 	}
 
 	return 0;

@@ -1,24 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * vim: noexpandtab ts=8 sts=0 sw=8:
  *
  * configfs_example_macros.c - This file is a demonstration module
  *      containing a number of configfs subsystems.  It uses the helper
  *      macros defined by configfs.h
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public
- * License as published by the Free Software Foundation; either
- * version 2 of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public
- * License along with this program; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 021110-1307, USA.
  *
  * Based on sysfs:
  * 	sysfs is Copyright (C) 2001, 2002, 2003 Patrick Mochel
@@ -115,7 +101,7 @@ static struct configfs_attribute *childless_attrs[] = {
 	NULL,
 };
 
-static struct config_item_type childless_type = {
+static const struct config_item_type childless_type = {
 	.ct_attrs	= childless_attrs,
 	.ct_owner	= THIS_MODULE,
 };
@@ -193,7 +179,7 @@ static struct configfs_item_operations simple_child_item_ops = {
 	.release		= simple_child_release,
 };
 
-static struct config_item_type simple_child_type = {
+static const struct config_item_type simple_child_type = {
 	.ct_item_ops	= &simple_child_item_ops,
 	.ct_attrs	= simple_child_attrs,
 	.ct_owner	= THIS_MODULE,
@@ -261,7 +247,7 @@ static struct configfs_group_operations simple_children_group_ops = {
 	.make_item	= simple_children_make_item,
 };
 
-static struct config_item_type simple_children_type = {
+static const struct config_item_type simple_children_type = {
 	.ct_item_ops	= &simple_children_item_ops,
 	.ct_group_ops	= &simple_children_group_ops,
 	.ct_attrs	= simple_children_attrs,
@@ -331,7 +317,7 @@ static struct configfs_group_operations group_children_group_ops = {
 	.make_group	= group_children_make_group,
 };
 
-static struct config_item_type group_children_type = {
+static const struct config_item_type group_children_type = {
 	.ct_group_ops	= &group_children_group_ops,
 	.ct_attrs	= group_children_attrs,
 	.ct_owner	= THIS_MODULE,

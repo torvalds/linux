@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * drivers/clocksource/arm_global_timer.c
  *
  * Copyright (C) 2013 STMicroelectronics (R&D) Limited.
  * Author: Stuart Menefy <stuart.menefy@st.com>
  * Author: Srinivas Kandagatla <srinivas.kandagatla@st.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/init.h>
@@ -195,7 +192,7 @@ static int gt_dying_cpu(unsigned int cpu)
 	return 0;
 }
 
-static cycle_t gt_clocksource_read(struct clocksource *cs)
+static u64 gt_clocksource_read(struct clocksource *cs)
 {
 	return gt_counter_read();
 }
@@ -316,7 +313,7 @@ static int __init global_timer_of_register(struct device_node *np)
 		goto out_irq;
 	
 	err = cpuhp_setup_state(CPUHP_AP_ARM_GLOBAL_TIMER_STARTING,
-				"AP_ARM_GLOBAL_TIMER_STARTING",
+				"clockevents/arm/global_timer:starting",
 				gt_starting_cpu, gt_dying_cpu);
 	if (err)
 		goto out_irq;
@@ -339,5 +336,5 @@ out_unmap:
 }
 
 /* Only tested on r2p2 and r3p0  */
-CLOCKSOURCE_OF_DECLARE(arm_gt, "arm,cortex-a9-global-timer",
+TIMER_OF_DECLARE(arm_gt, "arm,cortex-a9-global-timer",
 			global_timer_of_register);

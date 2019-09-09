@@ -1,16 +1,5 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * Copyright SUSE Linux Products GmbH 2009
  *
@@ -24,6 +13,9 @@
 #define XICS_XIRR		4
 #define XICS_MFRR		0xc
 #define XICS_IPI		2	/* interrupt source # for IPIs */
+
+/* LPIDs we support with this build -- runtime limit may be lower */
+#define KVMPPC_NR_LPIDS			(LPID_RSVD + 1)
 
 /* Maximum number of threads per physical core */
 #define MAX_SMT_THREADS		8
@@ -81,7 +73,17 @@ struct kvm_split_mode {
 	u8		subcore_size;
 	u8		do_nap;
 	u8		napped[MAX_SMT_THREADS];
-	struct kvmppc_vcore *master_vcs[MAX_SUBCORES];
+	struct kvmppc_vcore *vc[MAX_SUBCORES];
+	/* Bits for changing lpcr on P9 */
+	unsigned long	lpcr_req;
+	unsigned long	lpidr_req;
+	unsigned long	host_lpcr;
+	u32		do_set;
+	u32		do_restore;
+	union {
+		u32	allphases;
+		u8	phase[4];
+	} lpcr_sync;
 };
 
 /*
@@ -107,10 +109,14 @@ struct kvmppc_host_state {
 	u8 hwthread_req;
 	u8 hwthread_state;
 	u8 host_ipi;
-	u8 ptid;
+	u8 ptid;		/* thread number within subcore when split */
+	u8 tid;			/* thread number within whole core */
+	u8 fake_suspend;
 	struct kvm_vcpu *kvm_vcpu;
 	struct kvmppc_vcore *kvm_vcore;
-	unsigned long xics_phys;
+	void __iomem *xics_phys;
+	void __iomem *xive_tima_phys;
+	void __iomem *xive_tima_virt;
 	u32 saved_xirr;
 	u64 dabr;
 	u64 host_mmcr[7];	/* MMCR 0,1,A, SIAR, SDAR, MMCR2, SIER */

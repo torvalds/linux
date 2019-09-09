@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * drivers/net/ethernet/ibm/emac/rgmii.c
  *
@@ -14,12 +15,6 @@
  * Based on original work by
  * 	Matt Porter <mporter@kernel.crashing.org>
  * 	Copyright 2004 MontaVista Software, Inc.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- *
  */
 #include <linux/slab.h>
 #include <linux/kernel.h>
@@ -52,43 +47,28 @@
 /* RGMII bridge supports only GMII/TBI and RGMII/RTBI PHYs */
 static inline int rgmii_valid_mode(int phy_mode)
 {
-	return  phy_mode == PHY_MODE_GMII ||
-		phy_mode == PHY_MODE_MII ||
-		phy_mode == PHY_MODE_RGMII ||
-		phy_mode == PHY_MODE_TBI ||
-		phy_mode == PHY_MODE_RTBI;
-}
-
-static inline const char *rgmii_mode_name(int mode)
-{
-	switch (mode) {
-	case PHY_MODE_RGMII:
-		return "RGMII";
-	case PHY_MODE_TBI:
-		return "TBI";
-	case PHY_MODE_GMII:
-		return "GMII";
-	case PHY_MODE_MII:
-		return "MII";
-	case PHY_MODE_RTBI:
-		return "RTBI";
-	default:
-		BUG();
-	}
+	return  phy_interface_mode_is_rgmii(phy_mode) ||
+		phy_mode == PHY_INTERFACE_MODE_GMII ||
+		phy_mode == PHY_INTERFACE_MODE_MII ||
+		phy_mode == PHY_INTERFACE_MODE_TBI ||
+		phy_mode == PHY_INTERFACE_MODE_RTBI;
 }
 
 static inline u32 rgmii_mode_mask(int mode, int input)
 {
 	switch (mode) {
-	case PHY_MODE_RGMII:
+	case PHY_INTERFACE_MODE_RGMII:
+	case PHY_INTERFACE_MODE_RGMII_ID:
+	case PHY_INTERFACE_MODE_RGMII_RXID:
+	case PHY_INTERFACE_MODE_RGMII_TXID:
 		return RGMII_FER_RGMII(input);
-	case PHY_MODE_TBI:
+	case PHY_INTERFACE_MODE_TBI:
 		return RGMII_FER_TBI(input);
-	case PHY_MODE_GMII:
+	case PHY_INTERFACE_MODE_GMII:
 		return RGMII_FER_GMII(input);
-	case PHY_MODE_MII:
+	case PHY_INTERFACE_MODE_MII:
 		return RGMII_FER_MII(input);
-	case PHY_MODE_RTBI:
+	case PHY_INTERFACE_MODE_RTBI:
 		return RGMII_FER_RTBI(input);
 	default:
 		BUG();
@@ -104,8 +84,8 @@ int rgmii_attach(struct platform_device *ofdev, int input, int mode)
 
 	/* Check if we need to attach to a RGMII */
 	if (input < 0 || !rgmii_valid_mode(mode)) {
-		printk(KERN_ERR "%s: unsupported settings !\n",
-		       ofdev->dev.of_node->full_name);
+		printk(KERN_ERR "%pOF: unsupported settings !\n",
+		       ofdev->dev.of_node);
 		return -ENODEV;
 	}
 
@@ -114,8 +94,8 @@ int rgmii_attach(struct platform_device *ofdev, int input, int mode)
 	/* Enable this input */
 	out_be32(&p->fer, in_be32(&p->fer) | rgmii_mode_mask(mode, input));
 
-	printk(KERN_NOTICE "%s: input %d in %s mode\n",
-	       ofdev->dev.of_node->full_name, input, rgmii_mode_name(mode));
+	printk(KERN_NOTICE "%pOF: input %d in %s mode\n",
+	       ofdev->dev.of_node, input, phy_modes(mode));
 
 	++dev->users;
 
@@ -249,8 +229,7 @@ static int rgmii_probe(struct platform_device *ofdev)
 
 	rc = -ENXIO;
 	if (of_address_to_resource(np, 0, &regs)) {
-		printk(KERN_ERR "%s: Can't get registers address\n",
-		       np->full_name);
+		printk(KERN_ERR "%pOF: Can't get registers address\n", np);
 		goto err_free;
 	}
 
@@ -258,8 +237,7 @@ static int rgmii_probe(struct platform_device *ofdev)
 	dev->base = (struct rgmii_regs __iomem *)ioremap(regs.start,
 						 sizeof(struct rgmii_regs));
 	if (dev->base == NULL) {
-		printk(KERN_ERR "%s: Can't map device registers!\n",
-		       np->full_name);
+		printk(KERN_ERR "%pOF: Can't map device registers!\n", np);
 		goto err_free;
 	}
 
@@ -278,8 +256,8 @@ static int rgmii_probe(struct platform_device *ofdev)
 	out_be32(&dev->base->fer, 0);
 
 	printk(KERN_INFO
-	       "RGMII %s initialized with%s MDIO support\n",
-	       ofdev->dev.of_node->full_name,
+	       "RGMII %pOF initialized with%s MDIO support\n",
+	       ofdev->dev.of_node,
 	       (dev->flags & EMAC_RGMII_FLAG_HAS_MDIO) ? "" : "out");
 
 	wmb();

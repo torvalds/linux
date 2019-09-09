@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Clock driver for the ARM Integrator/IM-PD1 board
  * Copyright (C) 2012-2013 Linus Walleij
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/clk-provider.h>
 #include <linux/clkdev.h>
@@ -12,6 +9,7 @@
 #include <linux/io.h>
 #include <linux/platform_data/clk-integrator.h>
 
+#include "icst.h"
 #include "clk-icst.h"
 
 #define IMPD1_OSC1	0x00

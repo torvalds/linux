@@ -1,15 +1,10 @@
-/*
- * imx27 pinctrl driver based on imx pinmux core
- *
- * Copyright (C) 2013 Pengutronix
- *
- * Author: Markus Pargmann <mpa@pengutronix.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// imx27 pinctrl driver based on imx pinmux core
+//
+// Copyright (C) 2013 Pengutronix
+//
+// Author: Markus Pargmann <mpa@pengutronix.de>
 
 #include <linux/err.h>
 #include <linux/init.h>

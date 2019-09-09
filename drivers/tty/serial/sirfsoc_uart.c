@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Driver for CSR SiRFprimaII onboard UARTs.
  *
  * Copyright (c) 2011 Cambridge Silicon Radio Limited, a CSR plc group company.
- *
- * Licensed under GPLv2 or later.
  */
 
 #include <linux/module.h>
@@ -1061,7 +1060,7 @@ static void sirfsoc_uart_config_port(struct uart_port *port, int flags)
 	}
 }
 
-static struct uart_ops sirfsoc_uart_ops = {
+static const struct uart_ops sirfsoc_uart_ops = {
 	.tx_empty	= sirfsoc_uart_tx_empty,
 	.get_mctrl	= sirfsoc_uart_get_mctrl,
 	.set_mctrl	= sirfsoc_uart_set_mctrl,
@@ -1253,7 +1252,7 @@ next_hrt:
 	return HRTIMER_RESTART;
 }
 
-static struct of_device_id sirfsoc_uart_ids[] = {
+static const struct of_device_id sirfsoc_uart_ids[] = {
 	{ .compatible = "sirf,prima2-uart", .data = &sirfsoc_uart,},
 	{ .compatible = "sirf,atlas7-uart", .data = &sirfsoc_uart},
 	{ .compatible = "sirf,prima2-usp-uart", .data = &sirfsoc_usp},
@@ -1284,6 +1283,11 @@ static int sirfsoc_uart_probe(struct platform_device *pdev)
 		goto err;
 	}
 	sirfport->port.line = of_alias_get_id(np, "serial");
+	if (sirfport->port.line >= ARRAY_SIZE(sirf_ports)) {
+		dev_err(&pdev->dev, "serial%d out of range\n",
+			sirfport->port.line);
+		return -EINVAL;
+	}
 	sirf_ports[sirfport->port.line] = sirfport;
 	sirfport->port.iotype = UPIO_MEM;
 	sirfport->port.flags = UPF_BOOT_AUTOCONF;

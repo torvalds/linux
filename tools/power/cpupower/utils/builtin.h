@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef BUILTIN_H
 #define BUILTIN_H
 

@@ -1,16 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Parallel port to Walkera WK-0701 TX joystick
  *
  *  Copyright (c) 2008 Peter Popovec
  *
- *  More about driver:  <file:Documentation/input/walkera0701.txt>
+ *  More about driver:  <file:Documentation/input/devices/walkera0701.rst>
  */
 
-/*
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
-*/
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -165,7 +161,7 @@ static void walkera0701_irq_handler(void *handler_data)
 				RESERVE + BIN1_PULSE - BIN0_PULSE)	/* frame sync .. */
 		w->counter = 0;
 
-	hrtimer_start(&w->timer, ktime_set(0, BIN_SAMPLE), HRTIMER_MODE_REL);
+	hrtimer_start(&w->timer, BIN_SAMPLE, HRTIMER_MODE_REL);
 }
 
 static enum hrtimer_restart timer_handler(struct hrtimer

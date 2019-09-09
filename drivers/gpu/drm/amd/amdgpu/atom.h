@@ -26,12 +26,14 @@
 #define ATOM_H
 
 #include <linux/types.h>
-#include <drm/drmP.h>
+
+struct drm_device;
 
 #define ATOM_BIOS_MAGIC		0xAA55
 #define ATOM_ATI_MAGIC_PTR	0x30
 #define ATOM_ATI_MAGIC		" 761295520"
 #define ATOM_ROM_TABLE_PTR	0x48
+#define ATOM_ROM_PART_NUMBER_PTR	0x6E
 
 #define ATOM_ROM_MAGIC		"ATOM"
 #define ATOM_ROM_MAGIC_PTR	4
@@ -139,6 +141,7 @@ struct atom_context {
 	int io_mode;
 	uint32_t *scratch;
 	int scratch_size_bytes;
+	char vbios_version[20];
 };
 
 extern int amdgpu_atom_debug;
@@ -151,7 +154,6 @@ bool amdgpu_atom_parse_data_header(struct atom_context *ctx, int index, uint16_t
 			    uint8_t *frev, uint8_t *crev, uint16_t *data_start);
 bool amdgpu_atom_parse_cmd_header(struct atom_context *ctx, int index,
 			   uint8_t *frev, uint8_t *crev);
-int amdgpu_atom_allocate_fb_scratch(struct atom_context *ctx);
 #include "atom-types.h"
 #include "atombios.h"
 #include "ObjectID.h"

@@ -1,24 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Routines for control of the AK4113 via I2C/4-wire serial interface
  *  IEC958 (S/PDIF) receiver by Asahi Kasei
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *  Copyright (c) by Pavel Hofman <pavel.hofman@ivitera.com>
- *
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <linux/slab.h>
@@ -199,12 +184,11 @@ static int snd_ak4113_in_error_get(struct snd_kcontrol *kcontrol,
 				   struct snd_ctl_elem_value *ucontrol)
 {
 	struct ak4113 *chip = snd_kcontrol_chip(kcontrol);
-	long *ptr;
 
 	spin_lock_irq(&chip->lock);
-	ptr = (long *)(((char *)chip) + kcontrol->private_value);
-	ucontrol->value.integer.value[0] = *ptr;
-	*ptr = 0;
+	ucontrol->value.integer.value[0] =
+		chip->errors[kcontrol->private_value];
+	chip->errors[kcontrol->private_value] = 0;
 	spin_unlock_irq(&chip->lock);
 	return 0;
 }
@@ -373,7 +357,7 @@ static struct snd_kcontrol_new snd_ak4113_iec958_controls[] = {
 		SNDRV_CTL_ELEM_ACCESS_VOLATILE,
 	.info =		snd_ak4113_in_error_info,
 	.get =		snd_ak4113_in_error_get,
-	.private_value = offsetof(struct ak4113, parity_errors),
+	.private_value = AK4113_PARITY_ERRORS,
 },
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
@@ -382,7 +366,7 @@ static struct snd_kcontrol_new snd_ak4113_iec958_controls[] = {
 		SNDRV_CTL_ELEM_ACCESS_VOLATILE,
 	.info =		snd_ak4113_in_error_info,
 	.get =		snd_ak4113_in_error_get,
-	.private_value = offsetof(struct ak4113, v_bit_errors),
+	.private_value = AK4113_V_BIT_ERRORS,
 },
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
@@ -391,7 +375,7 @@ static struct snd_kcontrol_new snd_ak4113_iec958_controls[] = {
 		SNDRV_CTL_ELEM_ACCESS_VOLATILE,
 	.info =		snd_ak4113_in_error_info,
 	.get =		snd_ak4113_in_error_get,
-	.private_value = offsetof(struct ak4113, ccrc_errors),
+	.private_value = AK4113_CCRC_ERRORS,
 },
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
@@ -400,7 +384,7 @@ static struct snd_kcontrol_new snd_ak4113_iec958_controls[] = {
 		SNDRV_CTL_ELEM_ACCESS_VOLATILE,
 	.info =		snd_ak4113_in_error_info,
 	.get =		snd_ak4113_in_error_get,
-	.private_value = offsetof(struct ak4113, qcrc_errors),
+	.private_value = AK4113_QCRC_ERRORS,
 },
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
@@ -493,9 +477,8 @@ static void snd_ak4113_proc_regs_read(struct snd_info_entry *entry,
 
 static void snd_ak4113_proc_init(struct ak4113 *ak4113)
 {
-	struct snd_info_entry *entry;
-	if (!snd_card_proc_new(ak4113->card, "ak4113", &entry))
-		snd_info_set_text_ops(entry, ak4113, snd_ak4113_proc_regs_read);
+	snd_card_ro_proc_new(ak4113->card, "ak4113", ak4113,
+			     snd_ak4113_proc_regs_read);
 }
 
 int snd_ak4113_build(struct ak4113 *ak4113,
@@ -551,13 +534,13 @@ int snd_ak4113_check_rate_and_errors(struct ak4113 *ak4113, unsigned int flags)
 	rcs2 = reg_read(ak4113, AK4113_REG_RCS2);
 	spin_lock_irqsave(&ak4113->lock, _flags);
 	if (rcs0 & AK4113_PAR)
-		ak4113->parity_errors++;
+		ak4113->errors[AK4113_PARITY_ERRORS]++;
 	if (rcs0 & AK4113_V)
-		ak4113->v_bit_errors++;
+		ak4113->errors[AK4113_V_BIT_ERRORS]++;
 	if (rcs2 & AK4113_CCRC)
-		ak4113->ccrc_errors++;
+		ak4113->errors[AK4113_CCRC_ERRORS]++;
 	if (rcs2 & AK4113_QCRC)
-		ak4113->qcrc_errors++;
+		ak4113->errors[AK4113_QCRC_ERRORS]++;
 	c0 = (ak4113->rcs0 & (AK4113_QINT | AK4113_CINT | AK4113_STC |
 				AK4113_AUDION | AK4113_AUTO | AK4113_UNLCK)) ^
 		(rcs0 & (AK4113_QINT | AK4113_CINT | AK4113_STC |

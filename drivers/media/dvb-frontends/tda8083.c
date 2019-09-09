@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
     Driver for Philips TDA8083 based QPSK Demodulator
 
@@ -8,19 +9,6 @@
     adoption to the new DVB frontend API and diagnostic ioctl's
     by Holger Waechtler <holger@convergence.de>
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 */
 
@@ -30,7 +18,7 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/jiffies.h>
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "tda8083.h"
 
 
@@ -421,7 +409,7 @@ static void tda8083_release(struct dvb_frontend* fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops tda8083_ops;
+static const struct dvb_frontend_ops tda8083_ops;
 
 struct dvb_frontend* tda8083_attach(const struct tda8083_config* config,
 				    struct i2c_adapter* i2c)
@@ -449,14 +437,13 @@ error:
 	return NULL;
 }
 
-static struct dvb_frontend_ops tda8083_ops = {
+static const struct dvb_frontend_ops tda8083_ops = {
 	.delsys = { SYS_DVBS },
 	.info = {
 		.name			= "Philips TDA8083 DVB-S",
-		.frequency_min		= 920000,     /* TDA8060 */
-		.frequency_max		= 2200000,    /* TDA8060 */
-		.frequency_stepsize	= 125,   /* kHz for QPSK frontends */
-	/*      .frequency_tolerance	= ???,*/
+		.frequency_min_hz	=  920 * MHz,     /* TDA8060 */
+		.frequency_max_hz	= 2200 * MHz,    /* TDA8060 */
+		.frequency_stepsize_hz	=  125 * kHz,
 		.symbol_rate_min	= 12000000,
 		.symbol_rate_max	= 30000000,
 	/*      .symbol_rate_tolerance	= ???,*/

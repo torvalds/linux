@@ -1,21 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
 	Copyright (C) 2010 Willow Garage <http://www.willowgarage.com>
 	Copyright (C) 2004 - 2010 Ivo van Doorn <IvDoorn@gmail.com>
 	Copyright (C) 2004 - 2009 Gertjan van Wingerde <gwingerde@gmail.com>
 	<http://rt2x00.serialmonkey.com>
 
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 2 of the License, or
-	(at your option) any later version.
-
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-	GNU General Public License for more details.
-
-	You should have received a copy of the GNU General Public License
-	along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -39,6 +28,7 @@
 #include <linux/hrtimer.h>
 #include <linux/average.h>
 #include <linux/usb.h>
+#include <linux/clk.h>
 
 #include <net/mac80211.h>
 
@@ -68,10 +58,10 @@
 	printk(KERN_ERR KBUILD_MODNAME ": %s: Error - " fmt,		\
 	       __func__, ##__VA_ARGS__)
 #define rt2x00_err(dev, fmt, ...)					\
-	wiphy_err((dev)->hw->wiphy, "%s: Error - " fmt,			\
+	wiphy_err_ratelimited((dev)->hw->wiphy, "%s: Error - " fmt,	\
 		  __func__, ##__VA_ARGS__)
 #define rt2x00_warn(dev, fmt, ...)					\
-	wiphy_warn((dev)->hw->wiphy, "%s: Warning - " fmt,		\
+	wiphy_warn_ratelimited((dev)->hw->wiphy, "%s: Warning - " fmt,	\
 		   __func__, ##__VA_ARGS__)
 #define rt2x00_info(dev, fmt, ...)					\
 	wiphy_info((dev)->hw->wiphy, "%s: Info - " fmt,			\
@@ -169,9 +159,11 @@ struct rt2x00_chip {
 #define RT3572		0x3572
 #define RT3593		0x3593
 #define RT3883		0x3883	/* WSOC */
+#define RT5350		0x5350  /* WSOC 2.4GHz */
 #define RT5390		0x5390  /* 2.4GHz */
 #define RT5392		0x5392  /* 2.4GHz */
 #define RT5592		0x5592
+#define RT6352		0x6352  /* WSOC 2.4GHz */
 
 	u16 rf;
 	u16 rev;
@@ -255,7 +247,7 @@ struct link_qual {
 	int tx_failed;
 };
 
-DECLARE_EWMA(rssi, 1024, 8)
+DECLARE_EWMA(rssi, 10, 8)
 
 /*
  * Antenna settings about the currently active link.
@@ -333,6 +325,8 @@ struct link {
 	 * to bring the device/driver back into the desired state.
 	 */
 	struct delayed_work watchdog_work;
+	unsigned int watchdog_interval;
+	bool watchdog_disabled;
 
 	/*
 	 * Work structure for scheduling periodic AGC adjustments.
@@ -623,11 +617,12 @@ struct rt2x00lib_ops {
 	void (*config) (struct rt2x00_dev *rt2x00dev,
 			struct rt2x00lib_conf *libconf,
 			const unsigned int changed_flags);
+	void (*pre_reset_hw) (struct rt2x00_dev *rt2x00dev);
 	int (*sta_add) (struct rt2x00_dev *rt2x00dev,
 			struct ieee80211_vif *vif,
 			struct ieee80211_sta *sta);
 	int (*sta_remove) (struct rt2x00_dev *rt2x00dev,
-			   int wcid);
+			   struct ieee80211_sta *sta);
 };
 
 /*
@@ -662,6 +657,8 @@ enum rt2x00_state_flags {
 	DEVICE_STATE_STARTED,
 	DEVICE_STATE_ENABLED_RADIO,
 	DEVICE_STATE_SCANNING,
+	DEVICE_STATE_FLUSHING,
+	DEVICE_STATE_RESET,
 
 	/*
 	 * Driver configuration
@@ -669,7 +666,6 @@ enum rt2x00_state_flags {
 	CONFIG_CHANNEL_HT40,
 	CONFIG_POWERSAVING,
 	CONFIG_HT_DISABLED,
-	CONFIG_QOS_DISABLED,
 	CONFIG_MONITORING,
 
 	/*
@@ -716,6 +712,9 @@ enum rt2x00_capability_flags {
 	CAPABILITY_DOUBLE_ANTENNA,
 	CAPABILITY_BT_COEXIST,
 	CAPABILITY_VCO_RECALIBRATION,
+	CAPABILITY_EXTERNAL_PA_TX0,
+	CAPABILITY_EXTERNAL_PA_TX1,
+	CAPABILITY_RESTART_HW,
 };
 
 /*
@@ -833,6 +832,10 @@ struct rt2x00_dev {
 	 */
 	struct mutex csr_mutex;
 
+	/*
+	 * Mutex to synchronize config and link tuner.
+	 */
+	struct mutex conf_mutex;
 	/*
 	 * Current packet filter configuration for the device.
 	 * This contains all currently active FIF_* flags send
@@ -1005,6 +1008,10 @@ struct rt2x00_dev {
 	unsigned int extra_tx_headroom;
 
 	struct usb_anchor *anchor;
+	unsigned int num_proto_errs;
+
+	/* Clock for System On Chip devices. */
+	struct clk *clk;
 };
 
 struct rt2x00_bar_list_entry {
@@ -1037,11 +1044,11 @@ struct rt2x00_bar_list_entry {
  * Generic RF access.
  * The RF is being accessed by word index.
  */
-static inline void rt2x00_rf_read(struct rt2x00_dev *rt2x00dev,
-				  const unsigned int word, u32 *data)
+static inline u32 rt2x00_rf_read(struct rt2x00_dev *rt2x00dev,
+				 const unsigned int word)
 {
 	BUG_ON(word < 1 || word > rt2x00dev->ops->rf_size / sizeof(u32));
-	*data = rt2x00dev->rf[word - 1];
+	return rt2x00dev->rf[word - 1];
 }
 
 static inline void rt2x00_rf_write(struct rt2x00_dev *rt2x00dev,
@@ -1060,10 +1067,10 @@ static inline void *rt2x00_eeprom_addr(struct rt2x00_dev *rt2x00dev,
 	return (void *)&rt2x00dev->eeprom[word];
 }
 
-static inline void rt2x00_eeprom_read(struct rt2x00_dev *rt2x00dev,
-				      const unsigned int word, u16 *data)
+static inline u16 rt2x00_eeprom_read(struct rt2x00_dev *rt2x00dev,
+				     const unsigned int word)
 {
-	*data = le16_to_cpu(rt2x00dev->eeprom[word]);
+	return le16_to_cpu(rt2x00dev->eeprom[word]);
 }
 
 static inline void rt2x00_eeprom_write(struct rt2x00_dev *rt2x00dev,
@@ -1264,6 +1271,12 @@ rt2x00_has_cap_vco_recalibration(struct rt2x00_dev *rt2x00dev)
 	return rt2x00_has_cap_flag(rt2x00dev, CAPABILITY_VCO_RECALIBRATION);
 }
 
+static inline bool
+rt2x00_has_cap_restart_hw(struct rt2x00_dev *rt2x00dev)
+{
+	return rt2x00_has_cap_flag(rt2x00dev, CAPABILITY_RESTART_HW);
+}
+
 /**
  * rt2x00queue_map_txskb - Map a skb into DMA for TX purposes.
  * @entry: Pointer to &struct queue_entry
@@ -1385,15 +1398,15 @@ void rt2x00queue_flush_queues(struct rt2x00_dev *rt2x00dev, bool drop);
  * rt2x00debug_dump_frame - Dump a frame to userspace through debugfs.
  * @rt2x00dev: Pointer to &struct rt2x00_dev.
  * @type: The type of frame that is being dumped.
- * @skb: The skb containing the frame to be dumped.
+ * @entry: The queue entry containing the frame to be dumped.
  */
 #ifdef CONFIG_RT2X00_LIB_DEBUGFS
 void rt2x00debug_dump_frame(struct rt2x00_dev *rt2x00dev,
-			    enum rt2x00_dump_type type, struct sk_buff *skb);
+			    enum rt2x00_dump_type type, struct queue_entry *entry);
 #else
 static inline void rt2x00debug_dump_frame(struct rt2x00_dev *rt2x00dev,
 					  enum rt2x00_dump_type type,
-					  struct sk_buff *skb)
+					  struct queue_entry *entry)
 {
 }
 #endif /* CONFIG_RT2X00_LIB_DEBUGFS */
@@ -1403,6 +1416,7 @@ static inline void rt2x00debug_dump_frame(struct rt2x00_dev *rt2x00dev,
  */
 u32 rt2x00lib_get_bssidx(struct rt2x00_dev *rt2x00dev,
 			 struct ieee80211_vif *vif);
+void rt2x00lib_set_mac_address(struct rt2x00_dev *rt2x00dev, u8 *eeprom_mac_addr);
 
 /*
  * Interrupt context handlers.
@@ -1413,6 +1427,8 @@ void rt2x00lib_dmastart(struct queue_entry *entry);
 void rt2x00lib_dmadone(struct queue_entry *entry);
 void rt2x00lib_txdone(struct queue_entry *entry,
 		      struct txdone_entry_desc *txdesc);
+void rt2x00lib_txdone_nomatch(struct queue_entry *entry,
+			      struct txdone_entry_desc *txdesc);
 void rt2x00lib_txdone_noinfo(struct queue_entry *entry, u32 status);
 void rt2x00lib_rxdone(struct queue_entry *entry, gfp_t gfp);
 
@@ -1442,10 +1458,6 @@ int rt2x00mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 #else
 #define rt2x00mac_set_key	NULL
 #endif /* CONFIG_RT2X00_LIB_CRYPTO */
-int rt2x00mac_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		      struct ieee80211_sta *sta);
-int rt2x00mac_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-			 struct ieee80211_sta *sta);
 void rt2x00mac_sw_scan_start(struct ieee80211_hw *hw,
 			     struct ieee80211_vif *vif,
 			     const u8 *mac_addr);

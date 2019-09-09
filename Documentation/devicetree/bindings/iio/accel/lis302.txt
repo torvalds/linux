@@ -5,7 +5,7 @@ that apply in on the generic device (independent from the bus).
 
 
 Required properties for the SPI bindings:
- - compatible: 		should be set to "st,lis3lv02d_spi"
+ - compatible: 		should be set to "st,lis3lv02d-spi"
  - reg:			the chipselect index
  - spi-max-frequency:	maximal bus speed, should be set to 1000000 unless
 			constrained by external circuitry
@@ -64,7 +64,7 @@ Optional properties for all bus drivers:
 
 Example for a SPI device node:
 
-	lis302@0 {
+	accelerometer@0 {
 		compatible = "st,lis302dl-spi";
 		reg = <0>;
 		spi-max-frequency = <1000000>;
@@ -89,7 +89,7 @@ Example for a SPI device node:
 
 Example for a I2C device node:
 
-	lis331dlh: lis331dlh@18 {
+	lis331dlh: accelerometer@18 {
 		compatible = "st,lis331dlh", "st,lis3lv02d";
 		reg = <0x18>;
 		Vdd-supply = <&lis3_reg>;

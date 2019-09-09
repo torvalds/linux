@@ -1,23 +1,21 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *    driver for Microsemi PQI-based storage controllers
- *    Copyright (c) 2016 Microsemi Corporation
+ *    Copyright (c) 2019 Microchip Technology Inc. and its subsidiaries
+ *    Copyright (c) 2016-2018 Microsemi Corporation
  *    Copyright (c) 2016 PMC-Sierra, Inc.
  *
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation; version 2 of the License.
- *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
- *    NON INFRINGEMENT.  See the GNU General Public License for more details.
- *
- *    Questions/Comments/Bugfixes to esc.storagedev@microsemi.com
+ *    Questions/Comments/Bugfixes to storagedev@microchip.com
  *
  */
 
+#include <linux/io-64-nonatomic-lo-hi.h>
+
 #if !defined(_SMARTPQI_H)
 #define _SMARTPQI_H
+
+#include <scsi/scsi_host.h>
+#include <linux/bsg-lib.h>
 
 #pragma pack(1)
 
@@ -61,7 +59,7 @@ struct pqi_device_registers {
 /*
  * controller registers
  *
- * These are defined by the PMC implementation.
+ * These are defined by the Microsemi implementation.
  *
  * Some registers (those named sis_*) are only used when in
  * legacy SIS mode before we transition the controller into
@@ -95,11 +93,23 @@ struct pqi_ctrl_registers {
 	struct pqi_device_registers pqi_registers;	/* 4000h */
 };
 
+#if ((HZ) < 1000)
+#define PQI_HZ  1000
+#else
+#define PQI_HZ  (HZ)
+#endif
+
 #define PQI_DEVICE_REGISTERS_OFFSET	0x4000
 
 enum pqi_io_path {
 	RAID_PATH = 0,
 	AIO_PATH = 1
+};
+
+enum pqi_irq_mode {
+	IRQ_MODE_NONE,
+	IRQ_MODE_INTX,
+	IRQ_MODE_MSIX
 };
 
 struct pqi_sg_descriptor {
@@ -339,6 +349,10 @@ struct pqi_event_config {
 
 #define PQI_MAX_EVENT_DESCRIPTORS	255
 
+#define PQI_EVENT_OFA_MEMORY_ALLOCATION	0x0
+#define PQI_EVENT_OFA_QUIESCE		0x1
+#define PQI_EVENT_OFA_CANCELLED		0x2
+
 struct pqi_event_response {
 	struct pqi_iu_header header;
 	u8	event_type;
@@ -346,7 +360,17 @@ struct pqi_event_response {
 	u8	request_acknowlege : 1;
 	__le16	event_id;
 	__le32	additional_event_id;
-	u8	data[16];
+	union {
+		struct {
+			__le32	bytes_requested;
+			u8	reserved[12];
+		} ofa_memory_allocation;
+
+		struct {
+			__le16	reason;		/* reason for cancellation */
+			u8	reserved[14];
+		} ofa_cancelled;
+	} data;
 };
 
 struct pqi_event_acknowledge_request {
@@ -381,6 +405,54 @@ struct pqi_task_management_response {
 	u8	response_code;
 };
 
+struct pqi_vendor_general_request {
+	struct pqi_iu_header header;
+	__le16	request_id;
+	__le16	function_code;
+	union {
+		struct {
+			__le16	first_section;
+			__le16	last_section;
+			u8	reserved[48];
+		} config_table_update;
+
+		struct {
+			__le64	buffer_address;
+			__le32	buffer_length;
+			u8	reserved[40];
+		} ofa_memory_allocation;
+	} data;
+};
+
+struct pqi_vendor_general_response {
+	struct pqi_iu_header header;
+	__le16	request_id;
+	__le16	function_code;
+	__le16	status;
+	u8	reserved[2];
+};
+
+#define PQI_VENDOR_GENERAL_CONFIG_TABLE_UPDATE	0
+#define PQI_VENDOR_GENERAL_HOST_MEMORY_UPDATE	1
+
+#define PQI_OFA_VERSION			1
+#define PQI_OFA_SIGNATURE		"OFA_QRM"
+#define PQI_OFA_MAX_SG_DESCRIPTORS	64
+
+#define PQI_OFA_MEMORY_DESCRIPTOR_LENGTH \
+	(offsetof(struct pqi_ofa_memory, sg_descriptor) + \
+	(PQI_OFA_MAX_SG_DESCRIPTORS * sizeof(struct pqi_sg_descriptor)))
+
+struct pqi_ofa_memory {
+	__le64	signature;	/* "OFA_QRM" */
+	__le16	version;	/* version of this struct(1 = 1st version) */
+	u8	reserved[62];
+	__le32	bytes_allocated;	/* total allocated memory in bytes */
+	__le16	num_memory_descriptors;
+	u8	reserved1[2];
+	struct pqi_sg_descriptor sg_descriptor[1];
+};
+
 struct pqi_aio_error_info {
 	u8	status;
 	u8	service_response;
@@ -411,6 +483,7 @@ struct pqi_raid_error_info {
 #define PQI_REQUEST_IU_GENERAL_ADMIN			0x60
 #define PQI_REQUEST_IU_REPORT_VENDOR_EVENT_CONFIG	0x72
 #define PQI_REQUEST_IU_SET_VENDOR_EVENT_CONFIG		0x73
+#define PQI_REQUEST_IU_VENDOR_GENERAL			0x75
 #define PQI_REQUEST_IU_ACKNOWLEDGE_VENDOR_EVENT		0xf6
 
 #define PQI_RESPONSE_IU_GENERAL_MANAGEMENT		0x81
@@ -422,6 +495,7 @@ struct pqi_raid_error_info {
 #define PQI_RESPONSE_IU_AIO_PATH_IO_ERROR		0xf3
 #define PQI_RESPONSE_IU_AIO_PATH_DISABLED		0xf4
 #define PQI_RESPONSE_IU_VENDOR_EVENT			0xf5
+#define PQI_RESPONSE_IU_VENDOR_GENERAL			0xf7
 
 #define PQI_GENERAL_ADMIN_FUNCTION_REPORT_DEVICE_CAPABILITY	0x0
 #define PQI_GENERAL_ADMIN_FUNCTION_CREATE_IQ			0x10
@@ -475,6 +549,8 @@ struct pqi_raid_error_info {
 #define CISS_CMD_STATUS_TMF			0xd
 #define CISS_CMD_STATUS_AIO_DISABLED		0xe
 
+#define PQI_CMD_STATUS_ABORTED	CISS_CMD_STATUS_ABORTED
+
 #define PQI_NUM_EVENT_QUEUE_ELEMENTS	32
 #define PQI_EVENT_OQ_ELEMENT_LENGTH	sizeof(struct pqi_event_response)
 
@@ -482,9 +558,9 @@ struct pqi_raid_error_info {
 #define PQI_EVENT_TYPE_HARDWARE			0x2
 #define PQI_EVENT_TYPE_PHYSICAL_DEVICE		0x4
 #define PQI_EVENT_TYPE_LOGICAL_DEVICE		0x5
+#define PQI_EVENT_TYPE_OFA			0xfb
 #define PQI_EVENT_TYPE_AIO_STATE_CHANGE		0xfd
 #define PQI_EVENT_TYPE_AIO_CONFIG_CHANGE	0xfe
-#define PQI_EVENT_TYPE_HEARTBEAT		0xff
 
 #pragma pack()
 
@@ -547,6 +623,7 @@ typedef u32 pqi_index_t;
 #define SOP_TASK_ATTRIBUTE_ACA			4
 
 #define SOP_TMF_COMPLETE		0x0
+#define SOP_TMF_REJECTED		0x4
 #define SOP_TMF_FUNCTION_SUCCEEDED	0x8
 
 /* additional CDB bytes usage field codes */
@@ -574,8 +651,8 @@ struct pqi_admin_queues_aligned {
 struct pqi_admin_queues {
 	void		*iq_element_array;
 	void		*oq_element_array;
-	volatile pqi_index_t *iq_ci;
-	volatile pqi_index_t *oq_pi;
+	pqi_index_t	*iq_ci;
+	pqi_index_t __iomem *oq_pi;
 	dma_addr_t	iq_element_array_bus_addr;
 	dma_addr_t	oq_element_array_bus_addr;
 	dma_addr_t	iq_ci_bus_addr;
@@ -599,8 +676,8 @@ struct pqi_queue_group {
 	dma_addr_t	oq_element_array_bus_addr;
 	__le32 __iomem	*iq_pi[2];
 	pqi_index_t	iq_pi_copy[2];
-	volatile pqi_index_t *iq_ci[2];
-	volatile pqi_index_t *oq_pi;
+	pqi_index_t __iomem	*iq_ci[2];
+	pqi_index_t __iomem	*oq_pi;
 	dma_addr_t	iq_ci_bus_addr[2];
 	dma_addr_t	oq_pi_bus_addr;
 	__le32 __iomem	*oq_ci;
@@ -613,7 +690,7 @@ struct pqi_event_queue {
 	u16		oq_id;
 	u16		int_msg_num;
 	void		*oq_element_array;
-	volatile pqi_index_t *oq_pi;
+	pqi_index_t __iomem	*oq_pi;
 	dma_addr_t	oq_element_array_bus_addr;
 	dma_addr_t	oq_pi_bus_addr;
 	__le32 __iomem	*oq_ci;
@@ -629,17 +706,122 @@ struct pqi_encryption_info {
 	u32	encrypt_tweak_upper;
 };
 
-#define PQI_MAX_OUTSTANDING_REQUESTS	((u32)~0)
-#define PQI_MAX_TRANSFER_SIZE		(4 * 1024U * 1024U)
+#pragma pack(1)
+
+#define PQI_CONFIG_TABLE_SIGNATURE	"CFGTABLE"
+#define PQI_CONFIG_TABLE_MAX_LENGTH	((u16)~0)
+
+/* configuration table section IDs */
+#define PQI_CONFIG_TABLE_ALL_SECTIONS			(-1)
+#define PQI_CONFIG_TABLE_SECTION_GENERAL_INFO		0
+#define PQI_CONFIG_TABLE_SECTION_FIRMWARE_FEATURES	1
+#define PQI_CONFIG_TABLE_SECTION_FIRMWARE_ERRATA	2
+#define PQI_CONFIG_TABLE_SECTION_DEBUG			3
+#define PQI_CONFIG_TABLE_SECTION_HEARTBEAT		4
+#define PQI_CONFIG_TABLE_SECTION_SOFT_RESET		5
+
+struct pqi_config_table {
+	u8	signature[8];		/* "CFGTABLE" */
+	__le32	first_section_offset;	/* offset in bytes from the base */
+					/* address of this table to the */
+					/* first section */
+};
+
+struct pqi_config_table_section_header {
+	__le16	section_id;		/* as defined by the */
+					/* PQI_CONFIG_TABLE_SECTION_* */
+					/* manifest constants above */
+	__le16	next_section_offset;	/* offset in bytes from base */
+					/* address of the table of the */
+					/* next section or 0 if last entry */
+};
+
+struct pqi_config_table_general_info {
+	struct pqi_config_table_section_header header;
+	__le32	section_length;		/* size of this section in bytes */
+					/* including the section header */
+	__le32	max_outstanding_requests;	/* max. outstanding */
+						/* commands supported by */
+						/* the controller */
+	__le32	max_sg_size;		/* max. transfer size of a single */
+					/* command */
+	__le32	max_sg_per_request;	/* max. number of scatter-gather */
+					/* entries supported in a single */
+					/* command */
+};
+
+struct pqi_config_table_firmware_features {
+	struct pqi_config_table_section_header header;
+	__le16	num_elements;
+	u8	features_supported[];
+/*	u8	features_requested_by_host[]; */
+/*	u8	features_enabled[]; */
+};
+
+#define PQI_FIRMWARE_FEATURE_OFA			0
+#define PQI_FIRMWARE_FEATURE_SMP			1
+#define PQI_FIRMWARE_FEATURE_SOFT_RESET_HANDSHAKE	11
+
+struct pqi_config_table_debug {
+	struct pqi_config_table_section_header header;
+	__le32	scratchpad;
+};
+
+struct pqi_config_table_heartbeat {
+	struct pqi_config_table_section_header header;
+	__le32	heartbeat_counter;
+};
+
+struct pqi_config_table_soft_reset {
+	struct pqi_config_table_section_header header;
+	u8 soft_reset_status;
+};
+
+#define PQI_SOFT_RESET_INITIATE		0x1
+#define PQI_SOFT_RESET_ABORT		0x2
+
+enum pqi_soft_reset_status {
+	RESET_INITIATE_FIRMWARE,
+	RESET_INITIATE_DRIVER,
+	RESET_ABORT,
+	RESET_NORESPONSE,
+	RESET_TIMEDOUT
+};
+
+union pqi_reset_register {
+	struct {
+		u32	reset_type : 3;
+		u32	reserved : 2;
+		u32	reset_action : 3;
+		u32	hold_in_pd1 : 1;
+		u32	reserved2 : 23;
+	} bits;
+	u32	all_bits;
+};
+
+#define PQI_RESET_ACTION_RESET		0x1
+
+#define PQI_RESET_TYPE_NO_RESET		0x0
+#define PQI_RESET_TYPE_SOFT_RESET	0x1
+#define PQI_RESET_TYPE_FIRM_RESET	0x2
+#define PQI_RESET_TYPE_HARD_RESET	0x3
+
+#define PQI_RESET_ACTION_COMPLETED	0x2
+
+#define PQI_RESET_POLL_INTERVAL_MSECS	100
+
+#define PQI_MAX_OUTSTANDING_REQUESTS		((u32)~0)
+#define PQI_MAX_OUTSTANDING_REQUESTS_KDUMP	32
+#define PQI_MAX_TRANSFER_SIZE			(1024U * 1024U)
+#define PQI_MAX_TRANSFER_SIZE_KDUMP		(512 * 1024U)
 
 #define RAID_MAP_MAX_ENTRIES		1024
 
 #define PQI_PHYSICAL_DEVICE_BUS		0
 #define PQI_RAID_VOLUME_BUS		1
 #define PQI_HBA_BUS			2
-#define PQI_MAX_BUS			PQI_HBA_BUS
-
-#pragma pack(1)
+#define PQI_EXTERNAL_RAID_VOLUME_BUS	3
+#define PQI_MAX_BUS			PQI_EXTERNAL_RAID_VOLUME_BUS
 
 struct report_lun_header {
 	__be32	list_length;
@@ -668,7 +850,6 @@ struct report_phys_lun_extended_entry {
 };
 
 /* for device_flags field of struct report_phys_lun_extended_entry */
-#define REPORT_PHYS_LUN_DEV_FLAG_NON_DISK	0x1
 #define REPORT_PHYS_LUN_DEV_FLAG_AIO_ENABLED	0x8
 
 struct report_phys_lun_extended {
@@ -725,15 +906,19 @@ struct pqi_scsi_dev {
 	u8	scsi3addr[8];
 	__be64	wwid;
 	u8	volume_id[16];
+	u8	unique_id[16];
 	u8	is_physical_device : 1;
+	u8	is_external_raid_device : 1;
+	u8	is_expander_smp_device : 1;
 	u8	target_lun_valid : 1;
-	u8	expose_device : 1;
-	u8	no_uld_attach : 1;
-	u8	aio_enabled : 1;	/* only valid for physical disks */
 	u8	device_gone : 1;
 	u8	new_device : 1;
 	u8	keep_device : 1;
 	u8	volume_offline : 1;
+	bool	aio_enabled;		/* only valid for physical disks */
+	bool	in_reset;
+	bool	in_remove;
+	bool	device_offline;
 	u8	vendor[8];		/* bytes 8-15 of inquiry data */
 	u8	model[16];		/* bytes 16-31 of inquiry data */
 	u64	sas_address;
@@ -747,12 +932,11 @@ struct pqi_scsi_dev {
 	u8	bay;
 	u8	box[8];
 	u16	phys_connector[8];
-	int	offload_configured;	/* I/O accel RAID offload configured */
-	int	offload_enabled;	/* I/O accel RAID offload enabled */
-	int	offload_enabled_pending;
-	int	offload_to_mirror;	/* Send next I/O accelerator RAID */
-					/* offload request to mirror drive. */
-	struct raid_map *raid_map;	/* I/O accelerator RAID map */
+	bool	raid_bypass_configured;	/* RAID bypass configured */
+	bool	raid_bypass_enabled;	/* RAID bypass enabled */
+	int	offload_to_mirror;	/* Send next RAID bypass request */
+					/* to mirror drive. */
+	struct raid_map *raid_map;	/* RAID bypass map */
 
 	struct pqi_sas_port *sas_port;
 	struct scsi_device *sdev;
@@ -761,14 +945,18 @@ struct pqi_scsi_dev {
 	struct list_head new_device_list_entry;
 	struct list_head add_list_entry;
 	struct list_head delete_list_entry;
+
+	atomic_t scsi_cmds_outstanding;
 };
 
 /* VPD inquiry pages */
 #define SCSI_VPD_SUPPORTED_PAGES	0x0	/* standard page */
 #define SCSI_VPD_DEVICE_ID		0x83	/* standard page */
 #define CISS_VPD_LV_DEVICE_GEOMETRY	0xc1	/* vendor-specific page */
-#define CISS_VPD_LV_OFFLOAD_STATUS	0xc2	/* vendor-specific page */
+#define CISS_VPD_LV_BYPASS_STATUS	0xc2	/* vendor-specific page */
 #define CISS_VPD_LV_STATUS		0xc3	/* vendor-specific page */
+#define SCSI_VPD_HEADER_SZ		4
+#define SCSI_VPD_DEVICE_ID_IDX		8	/* Index of page id in page */
 
 #define VPD_PAGE	(1 << 8)
 
@@ -831,6 +1019,7 @@ struct pqi_sas_node {
 struct pqi_sas_port {
 	struct list_head port_list_entry;
 	u64	sas_address;
+	struct pqi_scsi_dev *device;
 	struct sas_port *port;
 	int	next_phy_index;
 	struct list_head phy_list_head;
@@ -851,7 +1040,9 @@ struct pqi_io_request {
 	void (*io_complete_callback)(struct pqi_io_request *io_request,
 		void *context);
 	void		*context;
+	u8		raid_bypass : 1;
 	int		status;
+	struct pqi_queue_group *queue_group;
 	struct scsi_cmnd *scmd;
 	void		*error_info;
 	struct pqi_sg_descriptor *sg_chain_buffer;
@@ -860,14 +1051,6 @@ struct pqi_io_request {
 	struct list_head request_list_entry;
 };
 
-/* for indexing into the pending_events[] field of struct pqi_ctrl_info */
-#define PQI_EVENT_HEARTBEAT		0
-#define PQI_EVENT_HOTPLUG		1
-#define PQI_EVENT_HARDWARE		2
-#define PQI_EVENT_PHYSICAL_DEVICE	3
-#define PQI_EVENT_LOGICAL_DEVICE	4
-#define PQI_EVENT_AIO_STATE_CHANGE	5
-#define PQI_EVENT_AIO_CONFIG_CHANGE	6
 #define PQI_NUM_SUPPORTED_EVENTS	7
 
 struct pqi_event {
@@ -875,6 +1058,8 @@ struct pqi_event {
 	u8	event_type;
 	__le16	event_id;
 	__le32	additional_event_id;
+	__le32	ofa_bytes_requested;
+	__le16	ofa_cancel_reason;
 };
 
 #define PQI_RESERVED_IO_SLOTS_LUN_RESET			1
@@ -911,7 +1096,7 @@ struct pqi_ctrl_info {
 	dma_addr_t	error_buffer_dma_handle;
 	size_t		sg_chain_buffer_length;
 	unsigned int	num_queue_groups;
-	unsigned int	num_active_queue_groups;
+	u16		max_hw_queue_index;
 	u16		num_elements_per_iq;
 	u16		num_elements_per_oq;
 	u16		max_inbound_iu_length_per_firmware;
@@ -926,20 +1111,25 @@ struct pqi_ctrl_info {
 	struct pqi_admin_queues admin_queues;
 	struct pqi_queue_group queue_groups[PQI_MAX_QUEUE_GROUPS];
 	struct pqi_event_queue event_queue;
+	enum pqi_irq_mode irq_mode;
 	int		max_msix_vectors;
 	int		num_msix_vectors_enabled;
 	int		num_msix_vectors_initialized;
-	u32		msix_vectors[PQI_MAX_MSIX_VECTORS];
-	void		*intr_data[PQI_MAX_MSIX_VECTORS];
 	int		event_irq;
 	struct Scsi_Host *scsi_host;
 
 	struct mutex	scan_mutex;
+	struct mutex	lun_reset_mutex;
+	struct mutex	ofa_mutex; /* serialize ofa */
+	bool		controller_online;
+	bool		block_requests;
+	bool		in_shutdown;
+	bool		in_ofa;
 	u8		inbound_spanning_supported : 1;
 	u8		outbound_spanning_supported : 1;
 	u8		pqi_mode_enabled : 1;
-	u8		controller_online : 1;
-	u8		heartbeat_timer_started : 1;
+	u8		pqi_reset_quiesce_supported : 1;
+	u8		soft_reset_handshake_supported : 1;
 
 	struct list_head scsi_device_list;
 	spinlock_t	scsi_device_list_lock;
@@ -953,20 +1143,33 @@ struct pqi_ctrl_info {
 	struct pqi_io_request *io_request_pool;
 	u16		next_io_request_slot;
 
-	struct pqi_event pending_events[PQI_NUM_SUPPORTED_EVENTS];
+	struct pqi_event events[PQI_NUM_SUPPORTED_EVENTS];
 	struct work_struct event_work;
 
 	atomic_t	num_interrupts;
 	int		previous_num_interrupts;
-	unsigned int	num_heartbeats_requested;
+	u32		previous_heartbeat_count;
+	__le32 __iomem	*heartbeat_counter;
+	u8 __iomem	*soft_reset_status;
 	struct timer_list heartbeat_timer;
+	struct work_struct ctrl_offline_work;
 
 	struct semaphore sync_request_sem;
-	struct semaphore lun_reset_sem;
+	atomic_t	num_busy_threads;
+	atomic_t	num_blocked_threads;
+	wait_queue_head_t block_requests_wait;
+
+	struct list_head raid_bypass_retry_list;
+	spinlock_t	raid_bypass_retry_list_lock;
+	struct work_struct raid_bypass_retry_work;
+
+	struct          pqi_ofa_memory *pqi_ofa_mem_virt_addr;
+	dma_addr_t      pqi_ofa_mem_dma_handle;
+	void            **pqi_ofa_chunk_virt_addr;
 };
 
 enum pqi_ctrl_mode {
-	UNKNOWN,
+	SIS_MODE = 0,
 	PQI_MODE
 };
 
@@ -974,9 +1177,6 @@ enum pqi_ctrl_mode {
  * assume worst case: SATA queue depth of 31 minus 4 internal firmware commands
  */
 #define PQI_PHYSICAL_DISK_DEFAULT_MAX_QUEUE_DEPTH	27
-
-/* 0 = no limit */
-#define PQI_LOGICAL_DRIVE_DEFAULT_MAX_QUEUE_DEPTH	0
 
 /* CISS commands */
 #define CISS_READ		0xc0
@@ -995,16 +1195,21 @@ enum pqi_ctrl_mode {
 #define BMIC_WRITE				0x27
 #define BMIC_SENSE_CONTROLLER_PARAMETERS	0x64
 #define BMIC_SENSE_SUBSYSTEM_INFORMATION	0x66
+#define BMIC_CSMI_PASSTHRU			0x68
 #define BMIC_WRITE_HOST_WELLNESS		0xa5
-#define BMIC_CACHE_FLUSH			0xc2
+#define BMIC_FLUSH_CACHE			0xc2
+#define BMIC_SET_DIAG_OPTIONS			0xf4
+#define BMIC_SENSE_DIAG_OPTIONS			0xf5
 
-#define SA_CACHE_FLUSH				0x01
+#define CSMI_CC_SAS_SMP_PASSTHRU		0X17
+
+#define SA_FLUSH_CACHE				0x1
 
 #define MASKED_DEVICE(lunid)			((lunid)[3] & 0xc0)
-#define CISS_GET_BUS(lunid)			((lunid)[7] & 0x3f)
+#define CISS_GET_LEVEL_2_BUS(lunid)		((lunid)[7] & 0x3f)
 #define CISS_GET_LEVEL_2_TARGET(lunid)		((lunid)[6])
 #define CISS_GET_DRIVE_NUMBER(lunid)		\
-	(((CISS_GET_BUS((lunid)) - 1) << 8) +	\
+	(((CISS_GET_LEVEL_2_BUS((lunid)) - 1) << 8) + \
 	CISS_GET_LEVEL_2_TARGET((lunid)))
 
 #define NO_TIMEOUT		((unsigned long) -1)
@@ -1023,6 +1228,10 @@ struct bmic_identify_controller {
 	u8	controller_mode;
 	u8	reserved3[32];
 };
+
+#define SA_EXPANDER_SMP_DEVICE		0x05
+/*SCSI Invalid Device Type for SAS devices*/
+#define PQI_SAS_SCSI_INVALID_DEVTYPE	0xff
 
 struct bmic_identify_physical_device {
 	u8	scsi_bus;		/* SCSI Bus number on controller */
@@ -1071,9 +1280,9 @@ struct bmic_identify_physical_device {
 	u8	multi_lun_device_lun_count;
 	u8	minimum_good_fw_revision[8];
 	u8	unique_inquiry_bytes[20];
-	u8	current_temperature_degreesC;
-	u8	temperature_threshold_degreesC;
-	u8	max_temperature_degreesC;
+	u8	current_temperature_degrees;
+	u8	temperature_threshold_degrees;
+	u8	max_temperature_degrees;
 	u8	logical_blocks_per_phys_block_exp;
 	__le16	current_queue_depth_limit;
 	u8	switch_name[10];
@@ -1086,13 +1295,120 @@ struct bmic_identify_physical_device {
 	u8	smart_carrier_authentication;
 	u8	smart_carrier_app_fw_version;
 	u8	smart_carrier_bootloader_fw_version;
+	u8	sanitize_flags;
+	u8	encryption_key_flags;
 	u8	encryption_key_name[64];
 	__le32	misc_drive_flags;
 	__le16	dek_index;
-	u8	padding[112];
+	__le16	hba_drive_encryption_flags;
+	__le16	max_overwrite_time;
+	__le16	max_block_erase_time;
+	__le16	max_crypto_erase_time;
+	u8	connector_info[5];
+	u8	connector_name[8][8];
+	u8	page_83_identifier[16];
+	u8	maximum_link_rate[256];
+	u8	negotiated_physical_link_rate[256];
+	u8	box_connector_name[8];
+	u8	padding_to_multiple_of_512[9];
+};
+
+struct bmic_smp_request {
+	u8	frame_type;
+	u8	function;
+	u8	allocated_response_length;
+	u8	request_length;
+	u8	additional_request_bytes[1016];
+};
+
+struct  bmic_smp_response {
+	u8	frame_type;
+	u8	function;
+	u8	function_result;
+	u8	response_length;
+	u8	additional_response_bytes[1016];
+};
+
+struct bmic_csmi_ioctl_header {
+	__le32	header_length;
+	u8	signature[8];
+	__le32	timeout;
+	__le32	control_code;
+	__le32	return_code;
+	__le32	length;
+};
+
+struct bmic_csmi_smp_passthru {
+	u8	phy_identifier;
+	u8	port_identifier;
+	u8	connection_rate;
+	u8	reserved;
+	__be64	destination_sas_address;
+	__le32	request_length;
+	struct bmic_smp_request request;
+	u8	connection_status;
+	u8	reserved1[3];
+	__le32	response_length;
+	struct bmic_smp_response response;
+};
+
+struct bmic_csmi_smp_passthru_buffer {
+	struct bmic_csmi_ioctl_header ioctl_header;
+	struct bmic_csmi_smp_passthru parameters;
+};
+
+struct bmic_flush_cache {
+	u8	disable_flag;
+	u8	system_power_action;
+	u8	ndu_flush;
+	u8	shutdown_event;
+	u8	reserved[28];
+};
+
+/* for shutdown_event member of struct bmic_flush_cache */
+enum bmic_flush_cache_shutdown_event {
+	NONE_CACHE_FLUSH_ONLY = 0,
+	SHUTDOWN = 1,
+	HIBERNATE = 2,
+	SUSPEND = 3,
+	RESTART = 4
+};
+
+struct bmic_diag_options {
+	__le32 options;
 };
 
 #pragma pack()
+
+static inline struct pqi_ctrl_info *shost_to_hba(struct Scsi_Host *shost)
+{
+	void *hostdata = shost_priv(shost);
+
+	return *((struct pqi_ctrl_info **)hostdata);
+}
+
+static inline bool pqi_ctrl_offline(struct pqi_ctrl_info *ctrl_info)
+{
+	return !ctrl_info->controller_online;
+}
+
+static inline void pqi_ctrl_busy(struct pqi_ctrl_info *ctrl_info)
+{
+	atomic_inc(&ctrl_info->num_busy_threads);
+}
+
+static inline void pqi_ctrl_unbusy(struct pqi_ctrl_info *ctrl_info)
+{
+	atomic_dec(&ctrl_info->num_busy_threads);
+}
+
+static inline bool pqi_ctrl_blocked(struct pqi_ctrl_info *ctrl_info)
+{
+	return ctrl_info->block_requests;
+}
+
+void pqi_sas_smp_handler(struct bsg_job *job, struct Scsi_Host *shost,
+	struct sas_rphy *rphy);
 
 int pqi_add_sas_host(struct Scsi_Host *shost, struct pqi_ctrl_info *ctrl_info);
 void pqi_delete_sas_host(struct pqi_ctrl_info *ctrl_info);
@@ -1101,36 +1417,11 @@ int pqi_add_sas_device(struct pqi_sas_node *pqi_sas_node,
 void pqi_remove_sas_device(struct pqi_scsi_dev *device);
 struct pqi_scsi_dev *pqi_find_device_by_sas_rphy(
 	struct pqi_ctrl_info *ctrl_info, struct sas_rphy *rphy);
+void pqi_prep_for_scsi_done(struct scsi_cmnd *scmd);
+int pqi_csmi_smp_passthru(struct pqi_ctrl_info *ctrl_info,
+	struct bmic_csmi_smp_passthru_buffer *buffer, size_t buffer_length,
+	struct pqi_raid_error_info *error_info);
 
 extern struct sas_function_template pqi_sas_transport_functions;
-
-#if !defined(readq)
-#define readq readq
-static inline u64 readq(const volatile void __iomem *addr)
-{
-	u32 lower32;
-	u32 upper32;
-
-	lower32 = readl(addr);
-	upper32 = readl(addr + 4);
-
-	return ((u64)upper32 << 32) | lower32;
-}
-#endif
-
-#if !defined(writeq)
-#define writeq writeq
-static inline void writeq(u64 value, volatile void __iomem *addr)
-{
-	u32 lower32;
-	u32 upper32;
-
-	lower32 = lower_32_bits(value);
-	upper32 = upper_32_bits(value);
-
-	writel(lower32, addr);
-	writel(upper32, addr + 4);
-}
-#endif
 
 #endif /* _SMARTPQI_H */

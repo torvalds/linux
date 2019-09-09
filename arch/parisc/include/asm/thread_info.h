@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_PARISC_THREAD_INFO_H
 #define _ASM_PARISC_THREAD_INFO_H
 
@@ -24,9 +25,6 @@ struct thread_info {
 	.preempt_count	= INIT_PREEMPT_COUNT,	\
 }
 
-#define init_thread_info        (init_thread_union.thread_info)
-#define init_stack              (init_thread_union.stack)
-
 /* how to get the thread information struct from C */
 #define current_thread_info()	((struct thread_info *)mfctl(30))
 
@@ -34,7 +32,12 @@ struct thread_info {
 
 /* thread information allocation */
 
+#ifdef CONFIG_IRQSTACKS
 #define THREAD_SIZE_ORDER	2 /* PA-RISC requires at least 16k stack */
+#else
+#define THREAD_SIZE_ORDER	3 /* PA-RISC requires at least 32k stack */
+#endif
+
 /* Be sure to hunt all references to this down when you change the size of
  * the kernel stack */
 #define THREAD_SIZE             (PAGE_SIZE << THREAD_SIZE_ORDER)
@@ -49,7 +52,6 @@ struct thread_info {
 #define TIF_POLLING_NRFLAG	3	/* true if poll_idle() is polling TIF_NEED_RESCHED */
 #define TIF_32BIT               4       /* 32 bit binary */
 #define TIF_MEMDIE		5	/* is terminating due to OOM killer */
-#define TIF_RESTORE_SIGMASK	6	/* restore saved signal mask */
 #define TIF_SYSCALL_AUDIT	7	/* syscall auditing active */
 #define TIF_NOTIFY_RESUME	8	/* callback before returning to user */
 #define TIF_SINGLESTEP		9	/* single stepping? */

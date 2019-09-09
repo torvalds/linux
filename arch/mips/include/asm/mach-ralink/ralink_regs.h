@@ -1,17 +1,16 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  Ralink SoC register definitions
  *
  *  Copyright (C) 2013 John Crispin <john@phrozen.org>
  *  Copyright (C) 2008-2010 Gabor Juhos <juhosg@openwrt.org>
  *  Copyright (C) 2008 Imre Kaloz <kaloz@openwrt.org>
- *
- *  This program is free software; you can redistribute it and/or modify it
- *  under the terms of the GNU General Public License version 2 as published
- *  by the Free Software Foundation.
  */
 
 #ifndef _RALINK_REGS_H_
 #define _RALINK_REGS_H_
+
+#include <linux/io.h>
 
 enum ralink_soc_type {
 	RALINK_UNKNOWN = 0,

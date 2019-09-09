@@ -1,8 +1,9 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Makefile for the drm device driver.  This driver provides support for the
 # Direct Rendering Infrastructure (DRI) in XFree86 4.1.0 and higher.
 
-ccflags-y := -Iinclude/drm -Idrivers/gpu/drm/amd/include
+ccflags-y := -Idrivers/gpu/drm/amd/include
 
 hostprogs-y := mkregtable
 clean-files := rn50_reg_safe.h r100_reg_safe.h r200_reg_safe.h rv515_reg_safe.h r300_reg_safe.h r420_reg_safe.h rs600_reg_safe.h r600_reg_safe.h evergreen_reg_safe.h cayman_reg_safe.h
@@ -102,13 +103,9 @@ radeon-y += \
 radeon-y += \
 	radeon_vce.o \
 	vce_v1_0.o \
-	vce_v2_0.o \
-	radeon_kfd.o
+	vce_v2_0.o
 
-radeon-$(CONFIG_COMPAT) += radeon_ioc32.o
 radeon-$(CONFIG_VGA_SWITCHEROO) += radeon_atpx_handler.o
 radeon-$(CONFIG_ACPI) += radeon_acpi.o
 
 obj-$(CONFIG_DRM_RADEON)+= radeon.o
-
-CFLAGS_radeon_trace_points.o := -I$(src)

@@ -2,13 +2,13 @@
 
 The VSP is a video processing engine that supports up-/down-scaling, alpha
 blending, color space conversion and various other image processing features.
-It can be found in the Renesas R-Car second generation SoCs.
+It can be found in the Renesas R-Car Gen2, R-Car Gen3, RZ/G1, and RZ/G2 SoCs.
 
 Required properties:
 
   - compatible: Must contain one of the following values
-    - "renesas,vsp1" for the R-Car Gen2 VSP1
-    - "renesas,vsp2" for the R-Car Gen3 VSP2
+    - "renesas,vsp1" for the R-Car Gen2 and RZ/G1 VSP1
+    - "renesas,vsp2" for the R-Car Gen3 and RZ/G2 VSP2
 
   - reg: Base address and length of the registers block for the VSP.
   - interrupts: VSP interrupt specifier.
@@ -22,7 +22,7 @@ Optional properties:
 
 Example: R8A7790 (R-Car H2) VSP1-S node
 
-	vsp1@fe928000 {
+	vsp@fe928000 {
 		compatible = "renesas,vsp1";
 		reg = <0 0xfe928000 0 0x8000>;
 		interrupts = <0 267 IRQ_TYPE_LEVEL_HIGH>;

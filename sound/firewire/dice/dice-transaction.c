@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * dice_transaction.c - a part of driver for Dice based devices
  *
  * Copyright (c) Clemens Ladisch
  * Copyright (c) 2014 Takashi Sakamoto
- *
- * Licensed under the terms of the GNU General Public License, version 2.
  */
 
 #include "dice.h"
@@ -265,7 +264,7 @@ int snd_dice_transaction_reinit(struct snd_dice *dice)
 static int get_subaddrs(struct snd_dice *dice)
 {
 	static const int min_values[10] = {
-		10, 0x64 / 4,
+		10, 0x60 / 4,
 		10, 0x18 / 4,
 		10, 0x18 / 4,
 		0, 0,
@@ -301,33 +300,40 @@ static int get_subaddrs(struct snd_dice *dice)
 		}
 	}
 
-	/*
-	 * Check that the implemented DICE driver specification major version
-	 * number matches.
-	 */
-	err = snd_fw_transaction(dice->unit, TCODE_READ_QUADLET_REQUEST,
-				 DICE_PRIVATE_SPACE +
-				 be32_to_cpu(pointers[0]) * 4 + GLOBAL_VERSION,
-				 &version, sizeof(version), 0);
-	if (err < 0)
-		goto end;
+	if (be32_to_cpu(pointers[1]) > 0x18) {
+		/*
+		 * Check that the implemented DICE driver specification major
+		 * version number matches.
+		 */
+		err = snd_fw_transaction(dice->unit, TCODE_READ_QUADLET_REQUEST,
+				DICE_PRIVATE_SPACE +
+				be32_to_cpu(pointers[0]) * 4 + GLOBAL_VERSION,
+				&version, sizeof(version), 0);
+		if (err < 0)
+			goto end;
 
-	if ((version & cpu_to_be32(0xff000000)) != cpu_to_be32(0x01000000)) {
-		dev_err(&dice->unit->device,
-			"unknown DICE version: 0x%08x\n", be32_to_cpu(version));
-		err = -ENODEV;
-		goto end;
+		if ((version & cpu_to_be32(0xff000000)) !=
+						cpu_to_be32(0x01000000)) {
+			dev_err(&dice->unit->device,
+				"unknown DICE version: 0x%08x\n",
+				be32_to_cpu(version));
+			err = -ENODEV;
+			goto end;
+		}
+
+		/* Set up later. */
+		dice->clock_caps = 1;
 	}
 
 	dice->global_offset = be32_to_cpu(pointers[0]) * 4;
 	dice->tx_offset = be32_to_cpu(pointers[2]) * 4;
 	dice->rx_offset = be32_to_cpu(pointers[4]) * 4;
-	dice->sync_offset = be32_to_cpu(pointers[6]) * 4;
-	dice->rsrv_offset = be32_to_cpu(pointers[8]) * 4;
 
-	/* Set up later. */
-	if (be32_to_cpu(pointers[1]) * 4 >= GLOBAL_CLOCK_CAPABILITIES + 4)
-		dice->clock_caps = 1;
+	/* Old firmware doesn't support these fields. */
+	if (pointers[7])
+		dice->sync_offset = be32_to_cpu(pointers[6]) * 4;
+	if (pointers[9])
+		dice->rsrv_offset = be32_to_cpu(pointers[8]) * 4;
 end:
 	kfree(pointers);
 	return err;

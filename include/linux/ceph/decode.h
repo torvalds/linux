@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __CEPH_DECODE_H
 #define __CEPH_DECODE_H
 
@@ -133,16 +134,82 @@ bad:
 }
 
 /*
- * struct ceph_timespec <-> struct timespec
+ * skip helpers
  */
-static inline void ceph_decode_timespec(struct timespec *ts,
-					const struct ceph_timespec *tv)
+#define ceph_decode_skip_n(p, end, n, bad)			\
+	do {							\
+		ceph_decode_need(p, end, n, bad);		\
+                *p += n;					\
+	} while (0)
+
+#define ceph_decode_skip_64(p, end, bad)			\
+ceph_decode_skip_n(p, end, sizeof(u64), bad)
+
+#define ceph_decode_skip_32(p, end, bad)			\
+ceph_decode_skip_n(p, end, sizeof(u32), bad)
+
+#define ceph_decode_skip_16(p, end, bad)			\
+ceph_decode_skip_n(p, end, sizeof(u16), bad)
+
+#define ceph_decode_skip_8(p, end, bad)				\
+ceph_decode_skip_n(p, end, sizeof(u8), bad)
+
+#define ceph_decode_skip_string(p, end, bad)			\
+	do {							\
+		u32 len;					\
+								\
+		ceph_decode_32_safe(p, end, len, bad);		\
+		ceph_decode_skip_n(p, end, len, bad);		\
+	} while (0)
+
+#define ceph_decode_skip_set(p, end, type, bad)			\
+	do {							\
+		u32 len;					\
+								\
+		ceph_decode_32_safe(p, end, len, bad);		\
+		while (len--)					\
+			ceph_decode_skip_##type(p, end, bad);	\
+	} while (0)
+
+#define ceph_decode_skip_map(p, end, ktype, vtype, bad)		\
+	do {							\
+		u32 len;					\
+								\
+		ceph_decode_32_safe(p, end, len, bad);		\
+		while (len--) {					\
+			ceph_decode_skip_##ktype(p, end, bad);	\
+			ceph_decode_skip_##vtype(p, end, bad);	\
+		}						\
+	} while (0)
+
+#define ceph_decode_skip_map_of_map(p, end, ktype1, ktype2, vtype2, bad) \
+	do {							\
+		u32 len;					\
+								\
+		ceph_decode_32_safe(p, end, len, bad);		\
+		while (len--) {					\
+			ceph_decode_skip_##ktype1(p, end, bad);	\
+			ceph_decode_skip_map(p, end, ktype2, vtype2, bad); \
+		}						\
+	} while (0)
+
+/*
+ * struct ceph_timespec <-> struct timespec64
+ */
+static inline void ceph_decode_timespec64(struct timespec64 *ts,
+					  const struct ceph_timespec *tv)
 {
-	ts->tv_sec = (__kernel_time_t)le32_to_cpu(tv->tv_sec);
+	/*
+	 * This will still overflow in year 2106.  We could extend
+	 * the protocol to steal two more bits from tv_nsec to
+	 * add three more 136 year epochs after that the way ext4
+	 * does if necessary.
+	 */
+	ts->tv_sec = (time64_t)le32_to_cpu(tv->tv_sec);
 	ts->tv_nsec = (long)le32_to_cpu(tv->tv_nsec);
 }
-static inline void ceph_encode_timespec(struct ceph_timespec *tv,
-					const struct timespec *ts)
+static inline void ceph_encode_timespec64(struct ceph_timespec *tv,
+					  const struct timespec64 *ts)
 {
 	tv->tv_sec = cpu_to_le32((u32)ts->tv_sec);
 	tv->tv_nsec = cpu_to_le32((u32)ts->tv_nsec);
@@ -151,18 +218,27 @@ static inline void ceph_encode_timespec(struct ceph_timespec *tv,
 /*
  * sockaddr_storage <-> ceph_sockaddr
  */
-static inline void ceph_encode_addr(struct ceph_entity_addr *a)
+#define CEPH_ENTITY_ADDR_TYPE_NONE	0
+#define CEPH_ENTITY_ADDR_TYPE_LEGACY	__cpu_to_le32(1)
+
+static inline void ceph_encode_banner_addr(struct ceph_entity_addr *a)
 {
 	__be16 ss_family = htons(a->in_addr.ss_family);
 	a->in_addr.ss_family = *(__u16 *)&ss_family;
+
+	/* Banner addresses require TYPE_NONE */
+	a->type = CEPH_ENTITY_ADDR_TYPE_NONE;
 }
-static inline void ceph_decode_addr(struct ceph_entity_addr *a)
+static inline void ceph_decode_banner_addr(struct ceph_entity_addr *a)
 {
 	__be16 ss_family = *(__be16 *)&a->in_addr.ss_family;
 	a->in_addr.ss_family = ntohs(ss_family);
 	WARN_ON(a->in_addr.ss_family == 512);
+	a->type = CEPH_ENTITY_ADDR_TYPE_LEGACY;
 }
 
+extern int ceph_decode_entity_addr(void **p, void *end,
+				   struct ceph_entity_addr *addr);
 /*
  * encoders
  */

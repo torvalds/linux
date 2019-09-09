@@ -1,6 +1,6 @@
 * Marvell Armada 7K/8K PCIe interface
 
-This PCIe host controller is based on the Synopsis Designware PCIe IP
+This PCIe host controller is based on the Synopsys DesignWare PCIe IP
 and thus inherits all the common properties defined in designware-pcie.txt.
 
 Required properties:
@@ -12,7 +12,10 @@ Required properties:
    - "ctrl" for the control register region
    - "config" for the config space region
 - interrupts: Interrupt specifier for the PCIe controler
-- clocks: reference to the PCIe controller clock
+- clocks: reference to the PCIe controller clocks
+- clock-names: mandatory if there is a second clock, in this case the
+   name must be "core" for the first clock and "reg" for the second
+   one
 
 Example:
 
@@ -34,5 +37,4 @@ Example:
 		interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
 		num-lanes = <1>;
 		clocks = <&cpm_syscon0 1 13>;
-		status = "disabled";
 	};

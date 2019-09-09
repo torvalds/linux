@@ -1,20 +1,17 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Pistachio clocksource/timer setup
  *
  * Copyright (C) 2014 Google, Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
  */
 
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/clocksource.h>
 #include <linux/init.h>
-#include <linux/irqchip/mips-gic.h>
 #include <linux/of.h>
 
+#include <asm/mips-cps.h>
 #include <asm/time.h>
 
 unsigned int get_c0_compare_int(void)
@@ -39,7 +36,7 @@ void __init plat_time_init(void)
 	struct clk *clk;
 
 	of_clk_init(NULL);
-	clocksource_probe();
+	timer_probe();
 
 	np = of_get_cpu_node(0, NULL);
 	if (!np) {

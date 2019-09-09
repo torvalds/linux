@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Touchright serial touchscreen driver
  *
@@ -8,11 +9,6 @@
  * and Dan Streetman <ddstreet@ieee.org>
  */
 
-/*
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
- */
 
 #include <linux/errno.h>
 #include <linux/kernel.h>
@@ -152,7 +148,7 @@ static int tr_connect(struct serio *serio, struct serio_driver *drv)
  * The serio driver structure.
  */
 
-static struct serio_device_id tr_serio_ids[] = {
+static const struct serio_device_id tr_serio_ids[] = {
 	{
 		.type	= SERIO_RS232,
 		.proto	= SERIO_TOUCHRIGHT,

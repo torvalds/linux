@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2010-2014 Michael Krufky (mkrufky@linuxtv.org)
  *
- *   This program is free software; you can redistribute it and/or modify it
- *   under the terms of the GNU General Public License as published by the Free
- *   Software Foundation, version 2.
- *
- * see Documentation/dvb/README.dvb-usb for more information
+ * see Documentation/media/dvb-drivers/dvb-usb.rst for more information
  */
 
 #ifndef _DVB_USB_MXL111SF_H_
@@ -18,6 +15,9 @@
 #include "dvb_usb.h"
 #include <media/tveeprom.h>
 #include <media/media-entity.h>
+
+/* Max transfer size done by I2C transfer functions */
+#define MXL_MAX_XFER_SIZE  64
 
 #define MXL_EP1_REG_READ     1
 #define MXL_EP2_REG_WRITE    2
@@ -47,6 +47,12 @@ struct mxl111sf_adap_state {
 	int ep6_clockphase;
 	int (*fe_init)(struct dvb_frontend *);
 	int (*fe_sleep)(struct dvb_frontend *);
+};
+
+enum mxl111sf_pads {
+	MXL111SF_PAD_RF_INPUT,
+	MXL111SF_PAD_OUTPUT,
+	MXL111SF_NUM_PADS
 };
 
 struct mxl111sf_state {
@@ -86,9 +92,12 @@ struct mxl111sf_state {
 	struct mutex fe_lock;
 	u8 num_frontends;
 	struct mxl111sf_adap_state adap_state[3];
+	u8 sndbuf[MXL_MAX_XFER_SIZE];
+	u8 rcvbuf[MXL_MAX_XFER_SIZE];
+	struct mutex msg_lock;
 #ifdef CONFIG_MEDIA_CONTROLLER_DVB
 	struct media_entity tuner;
-	struct media_pad tuner_pads[2];
+	struct media_pad tuner_pads[MXL111SF_NUM_PADS];
 #endif
 };
 
@@ -108,7 +117,7 @@ int mxl111sf_ctrl_program_regs(struct mxl111sf_state *state,
 
 /* needed for hardware i2c functions in mxl111sf-i2c.c:
  * mxl111sf_i2c_send_data / mxl111sf_i2c_get_data */
-int mxl111sf_ctrl_msg(struct dvb_usb_device *d,
+int mxl111sf_ctrl_msg(struct mxl111sf_state *state,
 		      u8 cmd, u8 *wbuf, int wlen, u8 *rbuf, int rlen);
 
 #define mxl_printk(kern, fmt, arg...) \

@@ -1,15 +1,8 @@
-/*
- * Copyright 2013 Greg Ungerer <gerg@uclinux.org>
- * Copyright 2011 Freescale Semiconductor, Inc.
- * Copyright 2011 Linaro Ltd.
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// Copyright 2013 Greg Ungerer <gerg@uclinux.org>
+// Copyright 2011 Freescale Semiconductor, Inc.
+// Copyright 2011 Linaro Ltd.
 
 /dts-v1/;
 #include "imx50.dtsi"
@@ -18,7 +11,8 @@
 	model = "Freescale i.MX50 Evaluation Kit";
 	compatible = "fsl,imx50-evk", "fsl,imx50";
 
-	memory {
+	memory@70000000 {
+		device_type = "memory";
 		reg = <0x70000000 0x80000000>;
 	};
 };
@@ -26,7 +20,6 @@
 &cspi {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_cspi>;
-	fsl,spi-num-chipselects = <2>;
 	cs-gpios = <&gpio4 11 0>, <&gpio4 13 0>;
 	status = "okay";
 
@@ -54,7 +47,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_fec>;
 	phy-mode = "rmii";
-	phy-reset-gpios = <&gpio4 12 0>;
+	phy-reset-gpios = <&gpio4 12 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
 
@@ -103,14 +96,6 @@
 };
 
 &usbh1 {
-	status = "okay";
-};
-
-&usbh2 {
-	status = "okay";
-};
-
-&usbh3 {
 	status = "okay";
 };
 

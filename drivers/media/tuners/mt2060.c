@@ -1,22 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Driver for Microtune MT2060 "Single chip dual conversion broadband tuner"
  *
  *  Copyright (c) 2006 Olivier DANET <odanet@caramail.com>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.=
  */
 
 /* In that file, frequencies are expressed in kiloHertz to avoid 32 bits overflows */
@@ -27,7 +13,7 @@
 #include <linux/i2c.h>
 #include <linux/slab.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 
 #include "mt2060.h"
 #include "mt2060_priv.h"
@@ -42,43 +28,89 @@ MODULE_PARM_DESC(debug, "Turn on/off debugging (default:off).");
 static int mt2060_readreg(struct mt2060_priv *priv, u8 reg, u8 *val)
 {
 	struct i2c_msg msg[2] = {
-		{ .addr = priv->cfg->i2c_address, .flags = 0,        .buf = &reg, .len = 1 },
-		{ .addr = priv->cfg->i2c_address, .flags = I2C_M_RD, .buf = val,  .len = 1 },
+		{ .addr = priv->cfg->i2c_address, .flags = 0, .len = 1 },
+		{ .addr = priv->cfg->i2c_address, .flags = I2C_M_RD, .len = 1 },
 	};
+	int rc = 0;
+	u8 *b;
+
+	b = kmalloc(2, GFP_KERNEL);
+	if (!b)
+		return -ENOMEM;
+
+	b[0] = reg;
+	b[1] = 0;
+
+	msg[0].buf = b;
+	msg[1].buf = b + 1;
 
 	if (i2c_transfer(priv->i2c, msg, 2) != 2) {
 		printk(KERN_WARNING "mt2060 I2C read failed\n");
-		return -EREMOTEIO;
+		rc = -EREMOTEIO;
 	}
-	return 0;
+	*val = b[1];
+	kfree(b);
+
+	return rc;
 }
 
 // Writes a single register
 static int mt2060_writereg(struct mt2060_priv *priv, u8 reg, u8 val)
 {
-	u8 buf[2] = { reg, val };
 	struct i2c_msg msg = {
-		.addr = priv->cfg->i2c_address, .flags = 0, .buf = buf, .len = 2
+		.addr = priv->cfg->i2c_address, .flags = 0, .len = 2
 	};
+	u8 *buf;
+	int rc = 0;
+
+	buf = kmalloc(2, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	buf[0] = reg;
+	buf[1] = val;
+
+	msg.buf = buf;
 
 	if (i2c_transfer(priv->i2c, &msg, 1) != 1) {
 		printk(KERN_WARNING "mt2060 I2C write failed\n");
-		return -EREMOTEIO;
+		rc = -EREMOTEIO;
 	}
-	return 0;
+	kfree(buf);
+	return rc;
 }
 
 // Writes a set of consecutive registers
 static int mt2060_writeregs(struct mt2060_priv *priv,u8 *buf, u8 len)
 {
+	int rem, val_len;
+	u8 *xfer_buf;
+	int rc = 0;
 	struct i2c_msg msg = {
-		.addr = priv->cfg->i2c_address, .flags = 0, .buf = buf, .len = len
+		.addr = priv->cfg->i2c_address, .flags = 0
 	};
-	if (i2c_transfer(priv->i2c, &msg, 1) != 1) {
-		printk(KERN_WARNING "mt2060 I2C write failed (len=%i)\n",(int)len);
-		return -EREMOTEIO;
+
+	xfer_buf = kmalloc(16, GFP_KERNEL);
+	if (!xfer_buf)
+		return -ENOMEM;
+
+	msg.buf = xfer_buf;
+
+	for (rem = len - 1; rem > 0; rem -= priv->i2c_max_regs) {
+		val_len = min_t(int, rem, priv->i2c_max_regs);
+		msg.len = 1 + val_len;
+		xfer_buf[0] = buf[0] + len - 1 - rem;
+		memcpy(&xfer_buf[1], &buf[1 + len - 1 - rem], val_len);
+
+		if (i2c_transfer(priv->i2c, &msg, 1) != 1) {
+			printk(KERN_WARNING "mt2060 I2C write failed (len=%i)\n", val_len);
+			rc = -EREMOTEIO;
+			break;
+		}
 	}
-	return 0;
+
+	kfree(xfer_buf);
+	return rc;
 }
 
 // Initialisation sequences
@@ -306,9 +338,16 @@ static int mt2060_init(struct dvb_frontend *fe)
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1); /* open i2c_gate */
 
+	if (priv->sleep) {
+		ret = mt2060_writereg(priv, REG_MISC_CTRL, 0x20);
+		if (ret)
+			goto err_i2c_gate_ctrl;
+	}
+
 	ret = mt2060_writereg(priv, REG_VGAG,
 			      (priv->cfg->clock_out << 6) | 0x33);
 
+err_i2c_gate_ctrl:
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 0); /* close i2c_gate */
 
@@ -325,26 +364,31 @@ static int mt2060_sleep(struct dvb_frontend *fe)
 
 	ret = mt2060_writereg(priv, REG_VGAG,
 			      (priv->cfg->clock_out << 6) | 0x30);
+	if (ret)
+		goto err_i2c_gate_ctrl;
 
+	if (priv->sleep)
+		ret = mt2060_writereg(priv, REG_MISC_CTRL, 0xe8);
+
+err_i2c_gate_ctrl:
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 0); /* close i2c_gate */
 
 	return ret;
 }
 
-static int mt2060_release(struct dvb_frontend *fe)
+static void mt2060_release(struct dvb_frontend *fe)
 {
 	kfree(fe->tuner_priv);
 	fe->tuner_priv = NULL;
-	return 0;
 }
 
 static const struct dvb_tuner_ops mt2060_tuner_ops = {
 	.info = {
-		.name           = "Microtune MT2060",
-		.frequency_min  =  48000000,
-		.frequency_max  = 860000000,
-		.frequency_step =     50000,
+		.name              = "Microtune MT2060",
+		.frequency_min_hz  =  48 * MHz,
+		.frequency_max_hz  = 860 * MHz,
+		.frequency_step_hz =  50 * kHz,
 	},
 
 	.release       = mt2060_release,
@@ -370,6 +414,7 @@ struct dvb_frontend * mt2060_attach(struct dvb_frontend *fe, struct i2c_adapter 
 	priv->cfg      = cfg;
 	priv->i2c      = i2c;
 	priv->if1_freq = if1;
+	priv->i2c_max_regs = ~0;
 
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1); /* open i2c_gate */
@@ -396,6 +441,98 @@ struct dvb_frontend * mt2060_attach(struct dvb_frontend *fe, struct i2c_adapter 
 	return fe;
 }
 EXPORT_SYMBOL(mt2060_attach);
+
+static int mt2060_probe(struct i2c_client *client,
+			const struct i2c_device_id *id)
+{
+	struct mt2060_platform_data *pdata = client->dev.platform_data;
+	struct dvb_frontend *fe;
+	struct mt2060_priv *dev;
+	int ret;
+	u8 chip_id;
+
+	dev_dbg(&client->dev, "\n");
+
+	if (!pdata) {
+		dev_err(&client->dev, "Cannot proceed without platform data\n");
+		ret = -EINVAL;
+		goto err;
+	}
+
+	dev = devm_kzalloc(&client->dev, sizeof(*dev), GFP_KERNEL);
+	if (!dev) {
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	fe = pdata->dvb_frontend;
+	dev->config.i2c_address = client->addr;
+	dev->config.clock_out = pdata->clock_out;
+	dev->cfg = &dev->config;
+	dev->i2c = client->adapter;
+	dev->if1_freq = pdata->if1 ? pdata->if1 : 1220;
+	dev->client = client;
+	dev->i2c_max_regs = pdata->i2c_write_max ? pdata->i2c_write_max - 1 : ~0;
+	dev->sleep = true;
+
+	ret = mt2060_readreg(dev, REG_PART_REV, &chip_id);
+	if (ret) {
+		ret = -ENODEV;
+		goto err;
+	}
+
+	dev_dbg(&client->dev, "chip id=%02x\n", chip_id);
+
+	if (chip_id != PART_REV) {
+		ret = -ENODEV;
+		goto err;
+	}
+
+	/* Power on, calibrate, sleep */
+	ret = mt2060_writereg(dev, REG_MISC_CTRL, 0x20);
+	if (ret)
+		goto err;
+	mt2060_calibrate(dev);
+	ret = mt2060_writereg(dev, REG_MISC_CTRL, 0xe8);
+	if (ret)
+		goto err;
+
+	dev_info(&client->dev, "Microtune MT2060 successfully identified\n");
+	memcpy(&fe->ops.tuner_ops, &mt2060_tuner_ops, sizeof(fe->ops.tuner_ops));
+	fe->ops.tuner_ops.release = NULL;
+	fe->tuner_priv = dev;
+	i2c_set_clientdata(client, dev);
+
+	return 0;
+err:
+	dev_dbg(&client->dev, "failed=%d\n", ret);
+	return ret;
+}
+
+static int mt2060_remove(struct i2c_client *client)
+{
+	dev_dbg(&client->dev, "\n");
+
+	return 0;
+}
+
+static const struct i2c_device_id mt2060_id_table[] = {
+	{"mt2060", 0},
+	{}
+};
+MODULE_DEVICE_TABLE(i2c, mt2060_id_table);
+
+static struct i2c_driver mt2060_driver = {
+	.driver = {
+		.name = "mt2060",
+		.suppress_bind_attrs = true,
+	},
+	.probe		= mt2060_probe,
+	.remove		= mt2060_remove,
+	.id_table	= mt2060_id_table,
+};
+
+module_i2c_driver(mt2060_driver);
 
 MODULE_AUTHOR("Olivier DANET");
 MODULE_DESCRIPTION("Microtune MT2060 silicon tuner driver");

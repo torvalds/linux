@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * dts file for AppliedMicro (APM) X-Gene Shadowcat SOC
  *
  * Copyright (C) 2015, Applied Micro Circuits Corporation
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
  */
 
 / {
@@ -19,9 +15,9 @@
 		#address-cells = <2>;
 		#size-cells = <0>;
 
-		cpu@000 {
+		cpu@0 {
 			device_type = "cpu";
-			compatible = "apm,strega", "arm,armv8";
+			compatible = "apm,strega";
 			reg = <0x0 0x000>;
 			enable-method = "spin-table";
 			cpu-release-addr = <0x1 0x0000fff8>;
@@ -29,9 +25,9 @@
 			#clock-cells = <1>;
 			clocks = <&pmd0clk 0>;
 		};
-		cpu@001 {
+		cpu@1 {
 			device_type = "cpu";
-			compatible = "apm,strega", "arm,armv8";
+			compatible = "apm,strega";
 			reg = <0x0 0x001>;
 			enable-method = "spin-table";
 			cpu-release-addr = <0x1 0x0000fff8>;
@@ -41,7 +37,7 @@
 		};
 		cpu@100 {
 			device_type = "cpu";
-			compatible = "apm,strega", "arm,armv8";
+			compatible = "apm,strega";
 			reg = <0x0 0x100>;
 			enable-method = "spin-table";
 			cpu-release-addr = <0x1 0x0000fff8>;
@@ -51,7 +47,7 @@
 		};
 		cpu@101 {
 			device_type = "cpu";
-			compatible = "apm,strega", "arm,armv8";
+			compatible = "apm,strega";
 			reg = <0x0 0x101>;
 			enable-method = "spin-table";
 			cpu-release-addr = <0x1 0x0000fff8>;
@@ -61,7 +57,7 @@
 		};
 		cpu@200 {
 			device_type = "cpu";
-			compatible = "apm,strega", "arm,armv8";
+			compatible = "apm,strega";
 			reg = <0x0 0x200>;
 			enable-method = "spin-table";
 			cpu-release-addr = <0x1 0x0000fff8>;
@@ -71,7 +67,7 @@
 		};
 		cpu@201 {
 			device_type = "cpu";
-			compatible = "apm,strega", "arm,armv8";
+			compatible = "apm,strega";
 			reg = <0x0 0x201>;
 			enable-method = "spin-table";
 			cpu-release-addr = <0x1 0x0000fff8>;
@@ -81,7 +77,7 @@
 		};
 		cpu@300 {
 			device_type = "cpu";
-			compatible = "apm,strega", "arm,armv8";
+			compatible = "apm,strega";
 			reg = <0x0 0x300>;
 			enable-method = "spin-table";
 			cpu-release-addr = <0x1 0x0000fff8>;
@@ -91,7 +87,7 @@
 		};
 		cpu@301 {
 			device_type = "cpu";
-			compatible = "apm,strega", "arm,armv8";
+			compatible = "apm,strega";
 			reg = <0x0 0x301>;
 			enable-method = "spin-table";
 			cpu-release-addr = <0x1 0x0000fff8>;
@@ -125,7 +121,7 @@
 		      <0x0 0x780a0000 0x0 0x20000>,	/* GIC CPU */
 		      <0x0 0x780c0000 0x0 0x10000>,	/* GIC VCPU Control */
 		      <0x0 0x780e0000 0x0 0x20000>;	/* GIC VCPU */
-		v2m0: v2m@00000 {
+		v2m0: v2m@0 {
 			compatible = "arm,gic-v2m-frame";
 			msi-controller;
 			reg = <0x0 0x0 0x0 0x1000>;
@@ -626,6 +622,7 @@
 				  0x43000000 0xe0 0x00000000 0xe0 0x00000000 0x20 0x00000000>; /* mem */
 			dma-ranges = <0x42000000 0x80 0x00000000 0x80 0x00000000 0x00 0x80000000
 				      0x42000000 0x00 0x00000000 0x00 0x00000000 0x80 0x00000000>;
+			bus-range = <0x00 0xff>;
 			interrupt-map-mask = <0x0 0x0 0x0 0x7>;
 			interrupt-map = <0x0 0x0 0x0 0x1 &gic 0x0 0x0 0x0 0x10 0x4
 					 0x0 0x0 0x0 0x2 &gic 0x0 0x0 0x0 0x11 0x4
@@ -651,6 +648,7 @@
 				  0x43000000 0xb0 0x00000000 0xb0 0x00000000 0x10 0x00000000>; /* mem */
 			dma-ranges = <0x42000000 0x80 0x00000000 0x80 0x00000000 0x00 0x80000000
 				      0x42000000 0x00 0x00000000 0x00 0x00000000 0x80 0x00000000>;
+			bus-range = <0x00 0xff>;
 			interrupt-map-mask = <0x0 0x0 0x0 0x7>;
 			interrupt-map = <0x0 0x0 0x0 0x1 &gic 0x0 0x0 0x0 0x16 0x4
 					 0x0 0x0 0x0 0x2 &gic 0x0 0x0 0x0 0x17 0x4

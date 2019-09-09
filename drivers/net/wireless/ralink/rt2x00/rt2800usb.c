@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
 	Copyright (C) 2010 Willow Garage <http://www.willowgarage.com>
 	Copyright (C) 2009 - 2010 Ivo van Doorn <IvDoorn@gmail.com>
@@ -7,18 +8,6 @@
 	Copyright (C) 2009 Axel Kollhofer <rain_maker@root-forum.org>
 	<http://rt2x00.serialmonkey.com>
 
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 2 of the License, or
-	(at your option) any later version.
-
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-	GNU General Public License for more details.
-
-	You should have received a copy of the GNU General Public License
-	along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -43,7 +32,7 @@
  * Allow hardware encryption to be disabled.
  */
 static bool modparam_nohwcrypt;
-module_param_named(nohwcrypt, modparam_nohwcrypt, bool, S_IRUGO);
+module_param_named(nohwcrypt, modparam_nohwcrypt, bool, 0444);
 MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption.");
 
 static bool rt2800usb_hwcrypt_disabled(struct rt2x00_dev *rt2x00dev)
@@ -61,12 +50,12 @@ static void rt2800usb_start_queue(struct data_queue *queue)
 
 	switch (queue->qid) {
 	case QID_RX:
-		rt2x00usb_register_read(rt2x00dev, MAC_SYS_CTRL, &reg);
+		reg = rt2x00usb_register_read(rt2x00dev, MAC_SYS_CTRL);
 		rt2x00_set_field32(&reg, MAC_SYS_CTRL_ENABLE_RX, 1);
 		rt2x00usb_register_write(rt2x00dev, MAC_SYS_CTRL, reg);
 		break;
 	case QID_BEACON:
-		rt2x00usb_register_read(rt2x00dev, BCN_TIME_CFG, &reg);
+		reg = rt2x00usb_register_read(rt2x00dev, BCN_TIME_CFG);
 		rt2x00_set_field32(&reg, BCN_TIME_CFG_TSF_TICKING, 1);
 		rt2x00_set_field32(&reg, BCN_TIME_CFG_TBTT_ENABLE, 1);
 		rt2x00_set_field32(&reg, BCN_TIME_CFG_BEACON_GEN, 1);
@@ -84,12 +73,12 @@ static void rt2800usb_stop_queue(struct data_queue *queue)
 
 	switch (queue->qid) {
 	case QID_RX:
-		rt2x00usb_register_read(rt2x00dev, MAC_SYS_CTRL, &reg);
+		reg = rt2x00usb_register_read(rt2x00dev, MAC_SYS_CTRL);
 		rt2x00_set_field32(&reg, MAC_SYS_CTRL_ENABLE_RX, 0);
 		rt2x00usb_register_write(rt2x00dev, MAC_SYS_CTRL, reg);
 		break;
 	case QID_BEACON:
-		rt2x00usb_register_read(rt2x00dev, BCN_TIME_CFG, &reg);
+		reg = rt2x00usb_register_read(rt2x00dev, BCN_TIME_CFG);
 		rt2x00_set_field32(&reg, BCN_TIME_CFG_TSF_TICKING, 0);
 		rt2x00_set_field32(&reg, BCN_TIME_CFG_TBTT_ENABLE, 0);
 		rt2x00_set_field32(&reg, BCN_TIME_CFG_BEACON_GEN, 0);
@@ -98,51 +87,6 @@ static void rt2800usb_stop_queue(struct data_queue *queue)
 	default:
 		break;
 	}
-}
-
-/*
- * test if there is an entry in any TX queue for which DMA is done
- * but the TX status has not been returned yet
- */
-static bool rt2800usb_txstatus_pending(struct rt2x00_dev *rt2x00dev)
-{
-	struct data_queue *queue;
-
-	tx_queue_for_each(rt2x00dev, queue) {
-		if (rt2x00queue_get_entry(queue, Q_INDEX_DMA_DONE) !=
-		    rt2x00queue_get_entry(queue, Q_INDEX_DONE))
-			return true;
-	}
-	return false;
-}
-
-static inline bool rt2800usb_entry_txstatus_timeout(struct queue_entry *entry)
-{
-	bool tout;
-
-	if (!test_bit(ENTRY_DATA_STATUS_PENDING, &entry->flags))
-		return false;
-
-	tout = time_after(jiffies, entry->last_action + msecs_to_jiffies(100));
-	if (unlikely(tout))
-		rt2x00_dbg(entry->queue->rt2x00dev,
-			   "TX status timeout for entry %d in queue %d\n",
-			   entry->entry_idx, entry->queue->qid);
-	return tout;
-
-}
-
-static bool rt2800usb_txstatus_timeout(struct rt2x00_dev *rt2x00dev)
-{
-	struct data_queue *queue;
-	struct queue_entry *entry;
-
-	tx_queue_for_each(rt2x00dev, queue) {
-		entry = rt2x00queue_get_entry(queue, Q_INDEX_DONE);
-		if (rt2800usb_entry_txstatus_timeout(entry))
-			return true;
-	}
-	return false;
 }
 
 #define TXSTATUS_READ_INTERVAL 1000000
@@ -171,13 +115,13 @@ static bool rt2800usb_tx_sta_fifo_read_completed(struct rt2x00_dev *rt2x00dev,
 	}
 
 	/* Check if there is any entry that timedout waiting on TX status */
-	if (rt2800usb_txstatus_timeout(rt2x00dev))
+	if (rt2800_txstatus_timeout(rt2x00dev))
 		queue_work(rt2x00dev->workqueue, &rt2x00dev->txdone_work);
 
-	if (rt2800usb_txstatus_pending(rt2x00dev)) {
+	if (rt2800_txstatus_pending(rt2x00dev)) {
 		/* Read register after 1 ms */
 		hrtimer_start(&rt2x00dev->txstatus_timer,
-			      ktime_set(0, TXSTATUS_READ_INTERVAL),
+			      TXSTATUS_READ_INTERVAL,
 			      HRTIMER_MODE_REL);
 		return false;
 	}
@@ -189,7 +133,7 @@ stop_reading:
 	 * clear_bit someone could do rt2x00usb_interrupt_txdone, so recheck
 	 * here again if status reading is needed.
 	 */
-	if (rt2800usb_txstatus_pending(rt2x00dev) &&
+	if (rt2800_txstatus_pending(rt2x00dev) &&
 	    !test_and_set_bit(TX_STATUS_READING, &rt2x00dev->flags))
 		return true;
 	else
@@ -204,7 +148,7 @@ static void rt2800usb_async_read_tx_status(struct rt2x00_dev *rt2x00dev)
 
 	/* Read TX_STA_FIFO register after 2 ms */
 	hrtimer_start(&rt2x00dev->txstatus_timer,
-		      ktime_set(0, 2*TXSTATUS_READ_INTERVAL),
+		      2 * TXSTATUS_READ_INTERVAL,
 		      HRTIMER_MODE_REL);
 }
 
@@ -333,15 +277,13 @@ static int rt2800usb_init_registers(struct rt2x00_dev *rt2x00dev)
 	if (rt2800_wait_csr_ready(rt2x00dev))
 		return -EBUSY;
 
-	rt2x00usb_register_read(rt2x00dev, PBF_SYS_CTRL, &reg);
+	reg = rt2x00usb_register_read(rt2x00dev, PBF_SYS_CTRL);
 	rt2x00usb_register_write(rt2x00dev, PBF_SYS_CTRL, reg & ~0x00002000);
 
 	reg = 0;
 	rt2x00_set_field32(&reg, MAC_SYS_CTRL_RESET_CSR, 1);
 	rt2x00_set_field32(&reg, MAC_SYS_CTRL_RESET_BBP, 1);
 	rt2x00usb_register_write(rt2x00dev, MAC_SYS_CTRL, reg);
-
-	rt2x00usb_register_write(rt2x00dev, USB_DMA_CFG, 0x00000000);
 
 	rt2x00usb_vendor_request_sw(rt2x00dev, USB_DEVICE_MODE, 0,
 				    USB_MODE_RESET, REGISTER_TIMEOUT);
@@ -353,12 +295,11 @@ static int rt2800usb_init_registers(struct rt2x00_dev *rt2x00dev)
 
 static int rt2800usb_enable_radio(struct rt2x00_dev *rt2x00dev)
 {
-	u32 reg;
+	u32 reg = 0;
 
 	if (unlikely(rt2800_wait_wpdma_ready(rt2x00dev)))
 		return -EIO;
 
-	rt2x00usb_register_read(rt2x00dev, USB_DMA_CFG, &reg);
 	rt2x00_set_field32(&reg, USB_DMA_CFG_PHY_CLEAR, 0);
 	rt2x00_set_field32(&reg, USB_DMA_CFG_RX_BULK_AGG_EN, 0);
 	rt2x00_set_field32(&reg, USB_DMA_CFG_RX_BULK_AGG_TIMEOUT, 128);
@@ -438,45 +379,12 @@ static int rt2800usb_set_device_state(struct rt2x00_dev *rt2x00dev,
 	return retval;
 }
 
-/*
- * Watchdog handlers
- */
-static void rt2800usb_watchdog(struct rt2x00_dev *rt2x00dev)
+static unsigned int rt2800usb_get_dma_done(struct data_queue *queue)
 {
-	unsigned int i;
-	u32 reg;
+	struct queue_entry *entry;
 
-	rt2x00usb_register_read(rt2x00dev, TXRXQ_PCNT, &reg);
-	if (rt2x00_get_field32(reg, TXRXQ_PCNT_TX0Q)) {
-		rt2x00_warn(rt2x00dev, "TX HW queue 0 timed out, invoke forced kick\n");
-
-		rt2x00usb_register_write(rt2x00dev, PBF_CFG, 0xf40012);
-
-		for (i = 0; i < 10; i++) {
-			udelay(10);
-			if (!rt2x00_get_field32(reg, TXRXQ_PCNT_TX0Q))
-				break;
-		}
-
-		rt2x00usb_register_write(rt2x00dev, PBF_CFG, 0xf40006);
-	}
-
-	rt2x00usb_register_read(rt2x00dev, TXRXQ_PCNT, &reg);
-	if (rt2x00_get_field32(reg, TXRXQ_PCNT_TX1Q)) {
-		rt2x00_warn(rt2x00dev, "TX HW queue 1 timed out, invoke forced kick\n");
-
-		rt2x00usb_register_write(rt2x00dev, PBF_CFG, 0xf4000a);
-
-		for (i = 0; i < 10; i++) {
-			udelay(10);
-			if (!rt2x00_get_field32(reg, TXRXQ_PCNT_TX1Q))
-				break;
-		}
-
-		rt2x00usb_register_write(rt2x00dev, PBF_CFG, 0xf40006);
-	}
-
-	rt2x00usb_watchdog(rt2x00dev);
+	entry = rt2x00queue_get_entry(queue, Q_INDEX_DMA_DONE);
+	return entry->entry_idx;
 }
 
 /*
@@ -500,7 +408,7 @@ static void rt2800usb_write_tx_desc(struct queue_entry *entry,
 	/*
 	 * Initialize TXINFO descriptor
 	 */
-	rt2x00_desc_read(txi, 0, &word);
+	word = rt2x00_desc_read(txi, 0);
 
 	/*
 	 * The size of TXINFO_W0_USB_DMA_TX_PKT_LEN is
@@ -545,135 +453,24 @@ static int rt2800usb_get_tx_data_len(struct queue_entry *entry)
 /*
  * TX control handlers
  */
-static enum txdone_entry_desc_flags
-rt2800usb_txdone_entry_check(struct queue_entry *entry, u32 reg)
-{
-	__le32 *txwi;
-	u32 word;
-	int wcid, ack, pid;
-	int tx_wcid, tx_ack, tx_pid, is_agg;
-
-	/*
-	 * This frames has returned with an IO error,
-	 * so the status report is not intended for this
-	 * frame.
-	 */
-	if (test_bit(ENTRY_DATA_IO_FAILED, &entry->flags))
-		return TXDONE_FAILURE;
-
-	wcid	= rt2x00_get_field32(reg, TX_STA_FIFO_WCID);
-	ack	= rt2x00_get_field32(reg, TX_STA_FIFO_TX_ACK_REQUIRED);
-	pid	= rt2x00_get_field32(reg, TX_STA_FIFO_PID_TYPE);
-	is_agg	= rt2x00_get_field32(reg, TX_STA_FIFO_TX_AGGRE);
-
-	/*
-	 * Validate if this TX status report is intended for
-	 * this entry by comparing the WCID/ACK/PID fields.
-	 */
-	txwi = rt2800usb_get_txwi(entry);
-
-	rt2x00_desc_read(txwi, 1, &word);
-	tx_wcid = rt2x00_get_field32(word, TXWI_W1_WIRELESS_CLI_ID);
-	tx_ack  = rt2x00_get_field32(word, TXWI_W1_ACK);
-	tx_pid  = rt2x00_get_field32(word, TXWI_W1_PACKETID);
-
-	if (wcid != tx_wcid || ack != tx_ack || (!is_agg && pid != tx_pid)) {
-		rt2x00_dbg(entry->queue->rt2x00dev,
-			   "TX status report missed for queue %d entry %d\n",
-			   entry->queue->qid, entry->entry_idx);
-		return TXDONE_UNKNOWN;
-	}
-
-	return TXDONE_SUCCESS;
-}
-
-static void rt2800usb_txdone(struct rt2x00_dev *rt2x00dev)
-{
-	struct data_queue *queue;
-	struct queue_entry *entry;
-	u32 reg;
-	u8 qid;
-	enum txdone_entry_desc_flags done_status;
-
-	while (kfifo_get(&rt2x00dev->txstatus_fifo, &reg)) {
-		/*
-		 * TX_STA_FIFO_PID_QUEUE is a 2-bit field, thus qid is
-		 * guaranteed to be one of the TX QIDs .
-		 */
-		qid = rt2x00_get_field32(reg, TX_STA_FIFO_PID_QUEUE);
-		queue = rt2x00queue_get_tx_queue(rt2x00dev, qid);
-
-		if (unlikely(rt2x00queue_empty(queue))) {
-			rt2x00_dbg(rt2x00dev, "Got TX status for an empty queue %u, dropping\n",
-				   qid);
-			break;
-		}
-
-		entry = rt2x00queue_get_entry(queue, Q_INDEX_DONE);
-
-		if (unlikely(test_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags) ||
-			     !test_bit(ENTRY_DATA_STATUS_PENDING, &entry->flags))) {
-			rt2x00_warn(rt2x00dev, "Data pending for entry %u in queue %u\n",
-				    entry->entry_idx, qid);
-			break;
-		}
-
-		done_status = rt2800usb_txdone_entry_check(entry, reg);
-		if (likely(done_status == TXDONE_SUCCESS))
-			rt2800_txdone_entry(entry, reg, rt2800usb_get_txwi(entry));
-		else
-			rt2x00lib_txdone_noinfo(entry, done_status);
-	}
-}
-
-static void rt2800usb_txdone_nostatus(struct rt2x00_dev *rt2x00dev)
-{
-	struct data_queue *queue;
-	struct queue_entry *entry;
-
-	/*
-	 * Process any trailing TX status reports for IO failures,
-	 * we loop until we find the first non-IO error entry. This
-	 * can either be a frame which is free, is being uploaded,
-	 * or has completed the upload but didn't have an entry
-	 * in the TX_STAT_FIFO register yet.
-	 */
-	tx_queue_for_each(rt2x00dev, queue) {
-		while (!rt2x00queue_empty(queue)) {
-			entry = rt2x00queue_get_entry(queue, Q_INDEX_DONE);
-
-			if (test_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags) ||
-			    !test_bit(ENTRY_DATA_STATUS_PENDING, &entry->flags))
-				break;
-
-			if (test_bit(ENTRY_DATA_IO_FAILED, &entry->flags))
-				rt2x00lib_txdone_noinfo(entry, TXDONE_FAILURE);
-			else if (rt2800usb_entry_txstatus_timeout(entry))
-				rt2x00lib_txdone_noinfo(entry, TXDONE_UNKNOWN);
-			else
-				break;
-		}
-	}
-}
-
 static void rt2800usb_work_txdone(struct work_struct *work)
 {
 	struct rt2x00_dev *rt2x00dev =
 	    container_of(work, struct rt2x00_dev, txdone_work);
 
 	while (!kfifo_is_empty(&rt2x00dev->txstatus_fifo) ||
-	       rt2800usb_txstatus_timeout(rt2x00dev)) {
+	       rt2800_txstatus_timeout(rt2x00dev)) {
 
-		rt2800usb_txdone(rt2x00dev);
+		rt2800_txdone(rt2x00dev, UINT_MAX);
 
-		rt2800usb_txdone_nostatus(rt2x00dev);
+		rt2800_txdone_nostatus(rt2x00dev);
 
 		/*
 		 * The hw may delay sending the packet after DMA complete
 		 * if the medium is busy, thus the TX_STA_FIFO entry is
 		 * also delayed -> use a timer to retrieve it.
 		 */
-		if (rt2800usb_txstatus_pending(rt2x00dev))
+		if (rt2800_txstatus_pending(rt2x00dev))
 			rt2800usb_async_read_tx_status(rt2x00dev);
 	}
 }
@@ -701,7 +498,7 @@ static void rt2800usb_fill_rxdone(struct queue_entry *entry,
 	 * | RXINFO | RXWI | header | L2 pad | payload | pad | RXD | USB pad |
 	 *          |<------------ rx_pkt_len -------------->|
 	 */
-	rt2x00_desc_read(rxi, 0, &word);
+	word = rt2x00_desc_read(rxi, 0);
 	rx_pkt_len = rt2x00_get_field32(word, RXINFO_W0_USB_DMA_RX_PKT_LEN);
 
 	/*
@@ -725,7 +522,7 @@ static void rt2800usb_fill_rxdone(struct queue_entry *entry,
 	/*
 	 * It is now safe to read the descriptor on all architectures.
 	 */
-	rt2x00_desc_read(rxd, 0, &word);
+	word = rt2x00_desc_read(rxd, 0);
 
 	if (rt2x00_get_field32(word, RXD_W0_CRC_ERROR))
 		rxdesc->flags |= RX_FLAG_FAILED_FCS_CRC;
@@ -747,10 +544,19 @@ static void rt2800usb_fill_rxdone(struct queue_entry *entry,
 		 */
 		rxdesc->flags |= RX_FLAG_MMIC_STRIPPED;
 
-		if (rxdesc->cipher_status == RX_CRYPTO_SUCCESS)
+		if (rxdesc->cipher_status == RX_CRYPTO_SUCCESS) {
 			rxdesc->flags |= RX_FLAG_DECRYPTED;
-		else if (rxdesc->cipher_status == RX_CRYPTO_FAIL_MIC)
+		} else if (rxdesc->cipher_status == RX_CRYPTO_FAIL_MIC) {
+			/*
+			 * In order to check the Michael Mic, the packet must have
+			 * been decrypted.  Mac80211 doesnt check the MMIC failure
+			 * flag to initiate MMIC countermeasures if the decoded flag
+			 * has not been set.
+			 */
+			rxdesc->flags |= RX_FLAG_DECRYPTED;
+
 			rxdesc->flags |= RX_FLAG_MMIC_ERROR;
+		}
 	}
 
 	if (rt2x00_get_field32(word, RXD_W0_MY_BSS))
@@ -837,8 +643,8 @@ static const struct ieee80211_ops rt2800usb_mac80211_ops = {
 	.get_stats		= rt2x00mac_get_stats,
 	.get_key_seq		= rt2800_get_key_seq,
 	.set_rts_threshold	= rt2800_set_rts_threshold,
-	.sta_add		= rt2x00mac_sta_add,
-	.sta_remove		= rt2x00mac_sta_remove,
+	.sta_add		= rt2800_sta_add,
+	.sta_remove		= rt2800_sta_remove,
 	.bss_info_changed	= rt2x00mac_bss_info_changed,
 	.conf_tx		= rt2800_conf_tx,
 	.get_tsf		= rt2800_get_tsf,
@@ -863,6 +669,7 @@ static const struct rt2800_ops rt2800usb_rt2800_ops = {
 	.drv_write_firmware	= rt2800usb_write_firmware,
 	.drv_init_registers	= rt2800usb_init_registers,
 	.drv_get_txwi		= rt2800usb_get_txwi,
+	.drv_get_dma_done	= rt2800usb_get_dma_done,
 };
 
 static const struct rt2x00lib_ops rt2800usb_rt2x00_ops = {
@@ -880,7 +687,7 @@ static const struct rt2x00lib_ops rt2800usb_rt2x00_ops = {
 	.link_tuner		= rt2800_link_tuner,
 	.gain_calibration	= rt2800_gain_calibration,
 	.vco_calibration	= rt2800_vco_calibration,
-	.watchdog		= rt2800usb_watchdog,
+	.watchdog		= rt2800_watchdog,
 	.start_queue		= rt2800usb_start_queue,
 	.kick_queue		= rt2x00usb_kick_queue,
 	.stop_queue		= rt2800usb_stop_queue,
@@ -899,8 +706,7 @@ static const struct rt2x00lib_ops rt2800usb_rt2x00_ops = {
 	.config_erp		= rt2800_config_erp,
 	.config_ant		= rt2800_config_ant,
 	.config			= rt2800_config,
-	.sta_add		= rt2800_sta_add,
-	.sta_remove		= rt2800_sta_remove,
+	.pre_reset_hw		= rt2800_pre_reset_hw,
 };
 
 static void rt2800usb_queue_init(struct data_queue *queue)
@@ -965,7 +771,7 @@ static const struct rt2x00_ops rt2800usb_ops = {
 /*
  * rt2800usb module information.
  */
-static struct usb_device_id rt2800usb_device_table[] = {
+static const struct usb_device_id rt2800usb_device_table[] = {
 	/* Abocom */
 	{ USB_DEVICE(0x07b8, 0x2870) },
 	{ USB_DEVICE(0x07b8, 0x2770) },
@@ -1206,6 +1012,8 @@ static struct usb_device_id rt2800usb_device_table[] = {
 	{ USB_DEVICE(0x2001, 0x3c17) },
 	/* Panasonic */
 	{ USB_DEVICE(0x083a, 0xb511) },
+	/* Accton/Arcadyan/Epson */
+	{ USB_DEVICE(0x083a, 0xb512) },
 	/* Philips */
 	{ USB_DEVICE(0x0471, 0x20dd) },
 	/* Ralink */

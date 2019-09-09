@@ -1,0 +1,66 @@
+TFP410 DPI to DVI encoder
+=========================
+
+Required properties:
+- compatible: "ti,tfp410"
+
+Optional properties:
+- powerdown-gpios: power-down gpio
+- reg: I2C address. If and only if present the device node should be placed
+  into the I2C controller node where the TFP410 I2C is connected to.
+- ti,deskew: data de-skew in 350ps increments, from -4 to +3, as configured
+  through th DK[3:1] pins. This property shall be present only if the TFP410
+  is not connected through I2C.
+
+Required nodes:
+
+This device has two video ports. Their connections are modeled using the OF
+graph bindings specified in [1]. Each port node shall have a single endpoint.
+
+- Port 0 is the DPI input port. Its endpoint subnode shall contain a
+  pclk-sample and bus-width property and a remote-endpoint property as specified
+  in [1].
+  - If pclk-sample is not defined, pclk-sample = 0 should be assumed for
+    backward compatibility.
+  - If bus-width is not defined then bus-width = 24 should be assumed for
+    backward compatibility.
+    bus-width = 24: 24 data lines are connected and single-edge mode
+    bus-width = 12: 12 data lines are connected and dual-edge mode
+
+- Port 1 is the DVI output port. Its endpoint subnode shall contain a
+  remote-endpoint property is specified in [1].
+
+[1] Documentation/devicetree/bindings/media/video-interfaces.txt
+
+
+Example
+-------
+
+tfp410: encoder@0 {
+	compatible = "ti,tfp410";
+	powerdown-gpios = <&twl_gpio 2 GPIO_ACTIVE_LOW>;
+	ti,deskew = <4>;
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+
+			tfp410_in: endpoint@0 {
+				pclk-sample = <1>;
+				bus-width = <24>;
+				remote-endpoint = <&dpi_out>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+
+			tfp410_out: endpoint@0 {
+				remote-endpoint = <&dvi_connector_in>;
+			};
+		};
+	};
+};

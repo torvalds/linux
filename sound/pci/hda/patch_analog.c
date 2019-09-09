@@ -1,22 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * HD audio interface patch for AD1882, AD1884, AD1981HD, AD1983, AD1984,
  *   AD1986A, AD1988
  *
  * Copyright (c) 2005-2007 Takashi Iwai <tiwai@suse.de>
- *
- *  This driver is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This driver is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 #include <linux/init.h>
@@ -24,7 +11,7 @@
 #include <linux/module.h>
 
 #include <sound/core.h>
-#include "hda_codec.h"
+#include <sound/hda_codec.h>
 #include "hda_local.h"
 #include "hda_auto_parser.h"
 #include "hda_beep.h"
@@ -148,7 +135,7 @@ static void ad_vmaster_eapd_hook(void *private_data, int enabled)
 		return;
 	if (codec->inv_eapd)
 		enabled = !enabled;
-	snd_hda_codec_update_cache(codec, spec->eapd_nid, 0,
+	snd_hda_codec_write_cache(codec, spec->eapd_nid, 0,
 				   AC_VERB_SET_EAPD_BTLENABLE,
 				   enabled ? 0x02 : 0x00);
 }
@@ -505,7 +492,7 @@ static int ad1983_auto_smux_enum_put(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
-static struct snd_kcontrol_new ad1983_auto_smux_mixer = {
+static const struct snd_kcontrol_new ad1983_auto_smux_mixer = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "IEC958 Playback Source",
 	.info = ad1983_auto_smux_enum_info,
@@ -788,7 +775,7 @@ static int ad1988_auto_smux_enum_put(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
-static struct snd_kcontrol_new ad1988_auto_smux_mixer = {
+static const struct snd_kcontrol_new ad1988_auto_smux_mixer = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "IEC958 Playback Source",
 	.info = ad1988_auto_smux_enum_info,
@@ -991,7 +978,7 @@ static void ad1884_vmaster_hp_gpio_hook(void *private_data, int enabled)
 
 	if (spec->eapd_nid)
 		ad_vmaster_eapd_hook(private_data, enabled);
-	snd_hda_codec_update_cache(codec, 0x01, 0,
+	snd_hda_codec_write_cache(codec, 0x01, 0,
 				   AC_VERB_SET_GPIO_DATA,
 				   enabled ? 0x00 : 0x02);
 }

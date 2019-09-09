@@ -26,7 +26,7 @@
 static unsigned int hci_muxed;
 static unsigned int flow_control;
 static unsigned int break_control;
-static unsigned int reset_n_io;
+static int reset_n_io = -EINVAL;
 
 /*
 ** NFCMRVL NCI OPS
@@ -73,10 +73,9 @@ static int nfcmrvl_uart_parse_dt(struct device_node *node,
 	struct device_node *matched_node;
 	int ret;
 
-	matched_node = of_find_compatible_node(node, NULL, "marvell,nfc-uart");
+	matched_node = of_get_compatible_child(node, "marvell,nfc-uart");
 	if (!matched_node) {
-		matched_node = of_find_compatible_node(node, NULL,
-						       "mrvl,nfc-uart");
+		matched_node = of_get_compatible_child(node, "mrvl,nfc-uart");
 		if (!matched_node)
 			return -ENODEV;
 	}
@@ -84,6 +83,7 @@ static int nfcmrvl_uart_parse_dt(struct device_node *node,
 	ret = nfcmrvl_parse_dt(matched_node, pdata);
 	if (ret < 0) {
 		pr_err("Failed to get generic entries\n");
+		of_node_put(matched_node);
 		return ret;
 	}
 
@@ -97,6 +97,8 @@ static int nfcmrvl_uart_parse_dt(struct device_node *node,
 	else
 		pdata->break_control = 0;
 
+	of_node_put(matched_node);
+
 	return 0;
 }
 
@@ -109,6 +111,7 @@ static int nfcmrvl_nci_uart_open(struct nci_uart *nu)
 	struct nfcmrvl_private *priv;
 	struct nfcmrvl_platform_data *pdata = NULL;
 	struct nfcmrvl_platform_data config;
+	struct device *dev = nu->tty->dev;
 
 	/*
 	 * Platform data cannot be used here since usually it is already used
@@ -116,9 +119,8 @@ static int nfcmrvl_nci_uart_open(struct nci_uart *nu)
 	 * and check if DT entries were added.
 	 */
 
-	if (nu->tty->dev->parent && nu->tty->dev->parent->of_node)
-		if (nfcmrvl_uart_parse_dt(nu->tty->dev->parent->of_node,
-					  &config) == 0)
+	if (dev && dev->parent && dev->parent->of_node)
+		if (nfcmrvl_uart_parse_dt(dev->parent->of_node, &config) == 0)
 			pdata = &config;
 
 	if (!pdata) {
@@ -131,7 +133,7 @@ static int nfcmrvl_nci_uart_open(struct nci_uart *nu)
 	}
 
 	priv = nfcmrvl_nci_register_dev(NFCMRVL_PHY_UART, nu, &uart_ops,
-					nu->tty->dev, pdata);
+					dev, pdata);
 	if (IS_ERR(priv))
 		return PTR_ERR(priv);
 
@@ -229,5 +231,5 @@ MODULE_PARM_DESC(break_control, "Tell if UART driver must drive break signal.");
 module_param(hci_muxed, uint, 0);
 MODULE_PARM_DESC(hci_muxed, "Tell if transport is muxed in HCI one.");
 
-module_param(reset_n_io, uint, 0);
+module_param(reset_n_io, int, 0);
 MODULE_PARM_DESC(reset_n_io, "GPIO that is wired to RESET_N signal.");

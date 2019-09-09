@@ -26,10 +26,32 @@
 #define __NR_syscall 4000
 #endif
 
+static inline bool mips_syscall_is_indirect(struct task_struct *task,
+					    struct pt_regs *regs)
+{
+	/* O32 ABI syscall() - Either 64-bit with O32 or 32-bit */
+	return (IS_ENABLED(CONFIG_32BIT) ||
+		test_tsk_thread_flag(task, TIF_32BIT_REGS)) &&
+		(regs->regs[2] == __NR_syscall);
+}
+
 static inline long syscall_get_nr(struct task_struct *task,
 				  struct pt_regs *regs)
 {
 	return current_thread_info()->syscall;
+}
+
+static inline void mips_syscall_update_nr(struct task_struct *task,
+					  struct pt_regs *regs)
+{
+	/*
+	 * v0 is the system call number, except for O32 ABI syscall(), where it
+	 * ends up in a0.
+	 */
+	if (mips_syscall_is_indirect(task, regs))
+		task_thread_info(task)->syscall = regs->regs[4];
+	else
+		task_thread_info(task)->syscall = regs->regs[2];
 }
 
 static inline unsigned long mips_get_syscall_arg(unsigned long *arg,
@@ -51,7 +73,7 @@ static inline unsigned long mips_get_syscall_arg(unsigned long *arg,
 #ifdef CONFIG_64BIT
 	case 4: case 5: case 6: case 7:
 #ifdef CONFIG_MIPS32_O32
-		if (test_thread_flag(TIF_32BIT_REGS))
+		if (test_tsk_thread_flag(task, TIF_32BIT_REGS))
 			return get_user(*arg, (int *)usp + n);
 		else
 #endif
@@ -65,6 +87,12 @@ static inline unsigned long mips_get_syscall_arg(unsigned long *arg,
 	}
 
 	unreachable();
+}
+
+static inline long syscall_get_error(struct task_struct *task,
+				     struct pt_regs *regs)
+{
+	return regs->regs[7] ? -regs->regs[2] : 0;
 }
 
 static inline long syscall_get_return_value(struct task_struct *task,
@@ -85,7 +113,7 @@ static inline void syscall_set_return_value(struct task_struct *task,
 {
 	if (error) {
 		regs->regs[2] = -error;
-		regs->regs[7] = -1;
+		regs->regs[7] = 1;
 	} else {
 		regs->regs[2] = val;
 		regs->regs[7] = 0;
@@ -94,14 +122,14 @@ static inline void syscall_set_return_value(struct task_struct *task,
 
 static inline void syscall_get_arguments(struct task_struct *task,
 					 struct pt_regs *regs,
-					 unsigned int i, unsigned int n,
 					 unsigned long *args)
 {
+	unsigned int i = 0;
+	unsigned int n = 6;
 	int ret;
-	/* O32 ABI syscall() - Either 64-bit with O32 or 32-bit */
-	if ((IS_ENABLED(CONFIG_32BIT) ||
-	    test_tsk_thread_flag(task, TIF_32BIT_REGS)) &&
-	    (regs->regs[2] == __NR_syscall))
+
+	/* O32 ABI syscall() */
+	if (mips_syscall_is_indirect(task, regs))
 		i++;
 
 	while (n--)
@@ -119,14 +147,14 @@ extern const unsigned long sys_call_table[];
 extern const unsigned long sys32_call_table[];
 extern const unsigned long sysn32_call_table[];
 
-static inline int syscall_get_arch(void)
+static inline int syscall_get_arch(struct task_struct *task)
 {
 	int arch = AUDIT_ARCH_MIPS;
 #ifdef CONFIG_64BIT
-	if (!test_thread_flag(TIF_32BIT_REGS)) {
+	if (!test_tsk_thread_flag(task, TIF_32BIT_REGS)) {
 		arch |= __AUDIT_ARCH_64BIT;
 		/* N32 sets only TIF_32BIT_ADDR */
-		if (test_thread_flag(TIF_32BIT_ADDR))
+		if (test_tsk_thread_flag(task, TIF_32BIT_ADDR))
 			arch |= __AUDIT_ARCH_CONVENTION_MIPS64_N32;
 	}
 #endif

@@ -1,10 +1,23 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2014-2015 Broadcom
  * Copyright (C) 2013 Red Hat
+ */
+
+/**
+ * DOC: Broadcom VC4 Graphics Driver
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * The Broadcom VideoCore 4 (present in the Raspberry Pi) contains a
+ * OpenGL ES 2.0-compatible 3D engine called V3D, and a highly
+ * configurable display output pipeline that supports HDMI, DSI, DPI,
+ * and Composite TV output.
+ *
+ * The 3D engine also has an interface for submitting arbitrary
+ * compute shader-style jobs using the same shader processor as is
+ * used for vertex and fragment shaders in GLES 2.0.  However, given
+ * that the hardware isn't able to expose any standard interfaces like
+ * OpenGL compute shaders or OpenCL, it isn't supported by this
+ * driver.
  */
 
 #include <linux/clk.h>
@@ -15,8 +28,9 @@
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
-#include "drm_fb_cma_helper.h"
+#include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_atomic_helper.h>
 
 #include "uapi/drm/vc4_drm.h"
 #include "vc4_drv.h"
@@ -55,29 +69,37 @@ static int vc4_get_param_ioctl(struct drm_device *dev, void *data,
 	if (args->pad != 0)
 		return -EINVAL;
 
+	if (!vc4->v3d)
+		return -ENODEV;
+
 	switch (args->param) {
 	case DRM_VC4_PARAM_V3D_IDENT0:
-		ret = pm_runtime_get_sync(&vc4->v3d->pdev->dev);
-		if (ret < 0)
+		ret = vc4_v3d_pm_get(vc4);
+		if (ret)
 			return ret;
 		args->value = V3D_READ(V3D_IDENT0);
-		pm_runtime_put(&vc4->v3d->pdev->dev);
+		vc4_v3d_pm_put(vc4);
 		break;
 	case DRM_VC4_PARAM_V3D_IDENT1:
-		ret = pm_runtime_get_sync(&vc4->v3d->pdev->dev);
-		if (ret < 0)
+		ret = vc4_v3d_pm_get(vc4);
+		if (ret)
 			return ret;
 		args->value = V3D_READ(V3D_IDENT1);
-		pm_runtime_put(&vc4->v3d->pdev->dev);
+		vc4_v3d_pm_put(vc4);
 		break;
 	case DRM_VC4_PARAM_V3D_IDENT2:
-		ret = pm_runtime_get_sync(&vc4->v3d->pdev->dev);
-		if (ret < 0)
+		ret = vc4_v3d_pm_get(vc4);
+		if (ret)
 			return ret;
 		args->value = V3D_READ(V3D_IDENT2);
-		pm_runtime_put(&vc4->v3d->pdev->dev);
+		vc4_v3d_pm_put(vc4);
 		break;
 	case DRM_VC4_PARAM_SUPPORTS_BRANCHES:
+	case DRM_VC4_PARAM_SUPPORTS_ETC1:
+	case DRM_VC4_PARAM_SUPPORTS_THREADED_FS:
+	case DRM_VC4_PARAM_SUPPORTS_FIXED_RCL_ORDER:
+	case DRM_VC4_PARAM_SUPPORTS_MADVISE:
+	case DRM_VC4_PARAM_SUPPORTS_PERFMON:
 		args->value = true;
 		break;
 	default:
@@ -88,12 +110,36 @@ static int vc4_get_param_ioctl(struct drm_device *dev, void *data,
 	return 0;
 }
 
-static void vc4_lastclose(struct drm_device *dev)
+static int vc4_open(struct drm_device *dev, struct drm_file *file)
+{
+	struct vc4_file *vc4file;
+
+	vc4file = kzalloc(sizeof(*vc4file), GFP_KERNEL);
+	if (!vc4file)
+		return -ENOMEM;
+
+	vc4_perfmon_open_file(vc4file);
+	file->driver_priv = vc4file;
+	return 0;
+}
+
+static void vc4_close(struct drm_device *dev, struct drm_file *file)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
+	struct vc4_file *vc4file = file->driver_priv;
 
-	drm_fbdev_cma_restore_mode(vc4->fbdev);
+	if (vc4file->bin_bo_used)
+		vc4_v3d_bin_bo_put(vc4);
+
+	vc4_perfmon_close_file(vc4file);
+	kfree(vc4file);
 }
+
+static const struct vm_operations_struct vc4_vm_ops = {
+	.fault = vc4_fault,
+	.open = drm_gem_vm_open,
+	.close = drm_gem_vm_close,
+};
 
 static const struct file_operations vc4_drm_fops = {
 	.owner = THIS_MODULE,
@@ -103,9 +149,7 @@ static const struct file_operations vc4_drm_fops = {
 	.mmap = vc4_mmap,
 	.poll = drm_poll,
 	.read = drm_read,
-#ifdef CONFIG_COMPAT
 	.compat_ioctl = drm_compat_ioctl,
-#endif
 	.llseek = noop_llseek,
 };
 
@@ -119,49 +163,51 @@ static const struct drm_ioctl_desc vc4_drm_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(VC4_GET_HANG_STATE, vc4_get_hang_state_ioctl,
 			  DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF_DRV(VC4_GET_PARAM, vc4_get_param_ioctl, DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(VC4_SET_TILING, vc4_set_tiling_ioctl, DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(VC4_GET_TILING, vc4_get_tiling_ioctl, DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(VC4_LABEL_BO, vc4_label_bo_ioctl, DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(VC4_GEM_MADVISE, vc4_gem_madvise_ioctl, DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(VC4_PERFMON_CREATE, vc4_perfmon_create_ioctl, DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(VC4_PERFMON_DESTROY, vc4_perfmon_destroy_ioctl, DRM_RENDER_ALLOW),
+	DRM_IOCTL_DEF_DRV(VC4_PERFMON_GET_VALUES, vc4_perfmon_get_values_ioctl, DRM_RENDER_ALLOW),
 };
 
 static struct drm_driver vc4_drm_driver = {
 	.driver_features = (DRIVER_MODESET |
 			    DRIVER_ATOMIC |
 			    DRIVER_GEM |
-			    DRIVER_HAVE_IRQ |
 			    DRIVER_RENDER |
-			    DRIVER_PRIME),
-	.lastclose = vc4_lastclose,
+			    DRIVER_PRIME |
+			    DRIVER_SYNCOBJ),
+	.open = vc4_open,
+	.postclose = vc4_close,
 	.irq_handler = vc4_irq,
 	.irq_preinstall = vc4_irq_preinstall,
 	.irq_postinstall = vc4_irq_postinstall,
 	.irq_uninstall = vc4_irq_uninstall,
 
-	.enable_vblank = vc4_enable_vblank,
-	.disable_vblank = vc4_disable_vblank,
-	.get_vblank_counter = drm_vblank_no_hw_counter,
 	.get_scanout_position = vc4_crtc_get_scanoutpos,
-	.get_vblank_timestamp = vc4_crtc_get_vblank_timestamp,
+	.get_vblank_timestamp = drm_calc_vbltimestamp_from_scanoutpos,
 
 #if defined(CONFIG_DEBUG_FS)
 	.debugfs_init = vc4_debugfs_init,
-	.debugfs_cleanup = vc4_debugfs_cleanup,
 #endif
 
 	.gem_create_object = vc4_create_object,
 	.gem_free_object_unlocked = vc4_free_object,
-	.gem_vm_ops = &drm_gem_cma_vm_ops,
+	.gem_vm_ops = &vc4_vm_ops,
 
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 	.gem_prime_import = drm_gem_prime_import,
 	.gem_prime_export = vc4_prime_export,
 	.gem_prime_get_sg_table	= drm_gem_cma_prime_get_sg_table,
-	.gem_prime_import_sg_table = drm_gem_cma_prime_import_sg_table,
+	.gem_prime_import_sg_table = vc4_prime_import_sg_table,
 	.gem_prime_vmap = vc4_prime_vmap,
 	.gem_prime_vunmap = drm_gem_cma_prime_vunmap,
 	.gem_prime_mmap = vc4_prime_mmap,
 
 	.dumb_create = vc4_dumb_create,
-	.dumb_map_offset = drm_gem_cma_dumb_map_offset,
-	.dumb_destroy = drm_gem_dumb_destroy,
 
 	.ioctls = vc4_drm_ioctls,
 	.num_ioctls = ARRAY_SIZE(vc4_drm_ioctls),
@@ -201,29 +247,12 @@ static void vc4_match_add_drivers(struct device *dev,
 	}
 }
 
-static void vc4_kick_out_firmware_fb(void)
-{
-	struct apertures_struct *ap;
-
-	ap = alloc_apertures(1);
-	if (!ap)
-		return;
-
-	/* Since VC4 is a UMA device, the simplefb node may have been
-	 * located anywhere in memory.
-	 */
-	ap->ranges[0].base = 0;
-	ap->ranges[0].size = ~0;
-
-	drm_fb_helper_remove_conflicting_framebuffers(ap, "vc4drmfb", false);
-	kfree(ap);
-}
-
 static int vc4_drm_bind(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct drm_device *drm;
 	struct vc4_dev *vc4;
+	struct device_node *node;
 	int ret = 0;
 
 	dev->coherent_dma_mask = DMA_BIT_MASK(32);
@@ -232,14 +261,25 @@ static int vc4_drm_bind(struct device *dev)
 	if (!vc4)
 		return -ENOMEM;
 
+	/* If VC4 V3D is missing, don't advertise render nodes. */
+	node = of_find_matching_node_and_match(NULL, vc4_v3d_dt_match, NULL);
+	if (!node || !of_device_is_available(node))
+		vc4_drm_driver.driver_features &= ~DRIVER_RENDER;
+	of_node_put(node);
+
 	drm = drm_dev_alloc(&vc4_drm_driver, dev);
 	if (IS_ERR(drm))
 		return PTR_ERR(drm);
 	platform_set_drvdata(pdev, drm);
 	vc4->dev = drm;
 	drm->dev_private = vc4;
+	INIT_LIST_HEAD(&vc4->debugfs_list);
 
-	vc4_bo_cache_init(drm);
+	mutex_init(&vc4->bin_bo_lock);
+
+	ret = vc4_bo_cache_init(drm);
+	if (ret)
+		goto dev_put;
 
 	drm_mode_config_init(drm);
 
@@ -249,13 +289,17 @@ static int vc4_drm_bind(struct device *dev)
 	if (ret)
 		goto gem_destroy;
 
-	vc4_kick_out_firmware_fb();
+	drm_fb_helper_remove_conflicting_framebuffers(NULL, "vc4drmfb", false);
+
+	ret = vc4_kms_load(drm);
+	if (ret < 0)
+		goto unbind_all;
 
 	ret = drm_dev_register(drm, 0);
 	if (ret < 0)
 		goto unbind_all;
 
-	vc4_kms_load(drm);
+	drm_fbdev_generic_setup(drm, 16);
 
 	return 0;
 
@@ -263,23 +307,27 @@ unbind_all:
 	component_unbind_all(dev, drm);
 gem_destroy:
 	vc4_gem_destroy(drm);
-	drm_dev_unref(drm);
 	vc4_bo_cache_destroy(drm);
+dev_put:
+	drm_dev_put(drm);
 	return ret;
 }
 
 static void vc4_drm_unbind(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct drm_device *drm = platform_get_drvdata(pdev);
+	struct drm_device *drm = dev_get_drvdata(dev);
 	struct vc4_dev *vc4 = to_vc4_dev(drm);
 
-	if (vc4->fbdev)
-		drm_fbdev_cma_fini(vc4->fbdev);
+	drm_dev_unregister(drm);
+
+	drm_atomic_helper_shutdown(drm);
 
 	drm_mode_config_cleanup(drm);
 
-	drm_put_dev(drm);
+	drm_atomic_private_obj_fini(&vc4->load_tracker);
+	drm_atomic_private_obj_fini(&vc4->ctm_manager);
+
+	drm_dev_put(drm);
 }
 
 static const struct component_master_ops vc4_drm_ops = {
@@ -289,7 +337,10 @@ static const struct component_master_ops vc4_drm_ops = {
 
 static struct platform_driver *const component_drivers[] = {
 	&vc4_hdmi_driver,
+	&vc4_vec_driver,
 	&vc4_dpi_driver,
+	&vc4_dsi_driver,
+	&vc4_txp_driver,
 	&vc4_hvs_driver,
 	&vc4_crtc_driver,
 	&vc4_v3d_driver,
@@ -315,6 +366,7 @@ static int vc4_platform_drm_remove(struct platform_device *pdev)
 
 static const struct of_device_id vc4_of_match[] = {
 	{ .compatible = "brcm,bcm2835-vc4", },
+	{ .compatible = "brcm,cygnus-vc4", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, vc4_of_match);
@@ -330,26 +382,20 @@ static struct platform_driver vc4_platform_driver = {
 
 static int __init vc4_drm_register(void)
 {
-	int i, ret;
+	int ret;
 
-	for (i = 0; i < ARRAY_SIZE(component_drivers); i++) {
-		ret = platform_driver_register(component_drivers[i]);
-		if (ret) {
-			while (--i >= 0)
-				platform_driver_unregister(component_drivers[i]);
-			return ret;
-		}
-	}
+	ret = platform_register_drivers(component_drivers,
+					ARRAY_SIZE(component_drivers));
+	if (ret)
+		return ret;
+
 	return platform_driver_register(&vc4_platform_driver);
 }
 
 static void __exit vc4_drm_unregister(void)
 {
-	int i;
-
-	for (i = ARRAY_SIZE(component_drivers) - 1; i >= 0; i--)
-		platform_driver_unregister(component_drivers[i]);
-
+	platform_unregister_drivers(component_drivers,
+				    ARRAY_SIZE(component_drivers));
 	platform_driver_unregister(&vc4_platform_driver);
 }
 

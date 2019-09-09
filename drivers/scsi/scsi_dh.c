@@ -1,19 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * SCSI device handler infrastruture.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * Copyright IBM Corporation, 2007
  *      Authors:
@@ -56,10 +43,16 @@ static const struct scsi_dh_blist scsi_dh_blist[] = {
 	{"IBM", "1815",			"rdac", },
 	{"IBM", "1818",			"rdac", },
 	{"IBM", "3526",			"rdac", },
-	{"SGI", "TP9",			"rdac", },
+	{"IBM", "3542",			"rdac", },
+	{"IBM", "3552",			"rdac", },
+	{"SGI", "TP9300",		"rdac", },
+	{"SGI", "TP9400",		"rdac", },
+	{"SGI", "TP9500",		"rdac", },
+	{"SGI", "TP9700",		"rdac", },
 	{"SGI", "IS",			"rdac", },
-	{"STK", "OPENstorage D280",	"rdac", },
+	{"STK", "OPENstorage",		"rdac", },
 	{"STK", "FLEXLINE 380",		"rdac", },
+	{"STK", "BladeCtlr",		"rdac", },
 	{"SUN", "CSM",			"rdac", },
 	{"SUN", "LCSM100",		"rdac", },
 	{"SUN", "STK6580_6780",		"rdac", },
@@ -69,6 +62,7 @@ static const struct scsi_dh_blist scsi_dh_blist[] = {
 	{"NETAPP", "INF-01-00",		"rdac", },
 	{"LSI", "INF-01-00",		"rdac", },
 	{"ENGENIO", "INF-01-00",	"rdac", },
+	{"LENOVO", "DE_Series",		"rdac", },
 	{NULL, NULL,			NULL },
 };
 
@@ -109,6 +103,9 @@ static struct scsi_device_handler *scsi_dh_lookup(const char *name)
 {
 	struct scsi_device_handler *dh;
 
+	if (!name || strlen(name) == 0)
+		return NULL;
+
 	dh = __scsi_dh_lookup(name);
 	if (!dh) {
 		request_module("scsi_dh_%s", name);
@@ -126,20 +123,36 @@ static struct scsi_device_handler *scsi_dh_lookup(const char *name)
 static int scsi_dh_handler_attach(struct scsi_device *sdev,
 				  struct scsi_device_handler *scsi_dh)
 {
-	int error;
+	int error, ret = 0;
 
 	if (!try_module_get(scsi_dh->module))
 		return -EINVAL;
 
 	error = scsi_dh->attach(sdev);
-	if (error) {
-		sdev_printk(KERN_ERR, sdev, "%s: Attach failed (%d)\n",
-			    scsi_dh->name, error);
+	if (error != SCSI_DH_OK) {
+		switch (error) {
+		case SCSI_DH_NOMEM:
+			ret = -ENOMEM;
+			break;
+		case SCSI_DH_RES_TEMP_UNAVAIL:
+			ret = -EAGAIN;
+			break;
+		case SCSI_DH_DEV_UNSUPP:
+		case SCSI_DH_NOSYS:
+			ret = -ENODEV;
+			break;
+		default:
+			ret = -EINVAL;
+			break;
+		}
+		if (ret != -ENODEV)
+			sdev_printk(KERN_ERR, sdev, "%s: Attach failed (%d)\n",
+				    scsi_dh->name, error);
 		module_put(scsi_dh->module);
 	} else
 		sdev->handler = scsi_dh;
 
-	return error;
+	return ret;
 }
 
 /*
@@ -153,18 +166,20 @@ static void scsi_dh_handler_detach(struct scsi_device *sdev)
 	module_put(sdev->handler->module);
 }
 
-int scsi_dh_add_device(struct scsi_device *sdev)
+void scsi_dh_add_device(struct scsi_device *sdev)
 {
 	struct scsi_device_handler *devinfo = NULL;
 	const char *drv;
-	int err = 0;
 
 	drv = scsi_dh_find_driver(sdev);
 	if (drv)
 		devinfo = __scsi_dh_lookup(drv);
+	/*
+	 * device_handler is optional, so ignore errors
+	 * from scsi_dh_handler_attach()
+	 */
 	if (devinfo)
-		err = scsi_dh_handler_attach(sdev, devinfo);
-	return err;
+		(void)scsi_dh_handler_attach(sdev, devinfo);
 }
 
 void scsi_dh_release_device(struct scsi_device *sdev)
@@ -219,20 +234,6 @@ int scsi_unregister_device_handler(struct scsi_device_handler *scsi_dh)
 }
 EXPORT_SYMBOL_GPL(scsi_unregister_device_handler);
 
-static struct scsi_device *get_sdev_from_queue(struct request_queue *q)
-{
-	struct scsi_device *sdev;
-	unsigned long flags;
-
-	spin_lock_irqsave(q->queue_lock, flags);
-	sdev = q->queuedata;
-	if (!sdev || !get_device(&sdev->sdev_gendev))
-		sdev = NULL;
-	spin_unlock_irqrestore(q->queue_lock, flags);
-
-	return sdev;
-}
-
 /*
  * scsi_dh_activate - activate the path associated with the scsi_device
  *      corresponding to the given request queue.
@@ -251,7 +252,7 @@ int scsi_dh_activate(struct request_queue *q, activate_complete fn, void *data)
 	struct scsi_device *sdev;
 	int err = SCSI_DH_NOSYS;
 
-	sdev = get_sdev_from_queue(q);
+	sdev = scsi_device_from_queue(q);
 	if (!sdev) {
 		if (fn)
 			fn(data, err);
@@ -298,7 +299,7 @@ int scsi_dh_set_params(struct request_queue *q, const char *params)
 	struct scsi_device *sdev;
 	int err = -SCSI_DH_NOSYS;
 
-	sdev = get_sdev_from_queue(q);
+	sdev = scsi_device_from_queue(q);
 	if (!sdev)
 		return err;
 
@@ -321,7 +322,7 @@ int scsi_dh_attach(struct request_queue *q, const char *name)
 	struct scsi_device_handler *scsi_dh;
 	int err = 0;
 
-	sdev = get_sdev_from_queue(q);
+	sdev = scsi_device_from_queue(q);
 	if (!sdev)
 		return -ENODEV;
 
@@ -359,7 +360,7 @@ const char *scsi_dh_attached_handler_name(struct request_queue *q, gfp_t gfp)
 	struct scsi_device *sdev;
 	const char *handler_name = NULL;
 
-	sdev = get_sdev_from_queue(q);
+	sdev = scsi_device_from_queue(q);
 	if (!sdev)
 		return NULL;
 

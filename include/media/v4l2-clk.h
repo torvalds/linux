@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * V4L2 clock service
  *
  * Copyright (C) 2012-2013, Guennadi Liakhovetski <g.liakhovetski@gmx.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * ATTENTION: This is a temporary API and it shall be replaced by the generic
  * clock API, when the latter becomes widely available.
@@ -70,7 +67,7 @@ static inline struct v4l2_clk *v4l2_clk_register_fixed(const char *dev_id,
 #define v4l2_clk_name_i2c(name, size, adap, client) snprintf(name, size, \
 			  "%d-%04x", adap, client)
 
-#define v4l2_clk_name_of(name, size, of_full_name) snprintf(name, size, \
-			  "of-%s", of_full_name)
+#define v4l2_clk_name_of(name, size, node) snprintf(name, size, \
+			  "of-%pOF", node)
 
 #endif

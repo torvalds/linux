@@ -1,17 +1,20 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * amd5536.h -- header for AMD 5536 UDC high/full speed USB device controller
  *
  * Copyright (C) 2007 AMD (http://www.amd.com)
  * Author: Thomas Dahlmann
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #ifndef AMD5536UDC_H
 #define AMD5536UDC_H
+
+/* debug control */
+/* #define UDC_VERBOSE */
+
+#include <linux/extcon.h>
+#include <linux/usb/ch9.h>
+#include <linux/usb/gadget.h>
 
 /* various constants */
 #define UDC_RDE_TIMER_SECONDS		1
@@ -21,6 +24,9 @@
 /* Hs AMD5536 chip rev. */
 #define UDC_HSA0_REV 1
 #define UDC_HSB1_REV 2
+
+/* Broadcom chip rev. */
+#define UDC_BCM_REV 10
 
 /*
  * SETUP usb commands
@@ -106,6 +112,7 @@
 #define UDC_DEVCTL_BRLEN_MASK			0x00ff0000
 #define UDC_DEVCTL_BRLEN_OFS			16
 
+#define UDC_DEVCTL_SRX_FLUSH			14
 #define UDC_DEVCTL_CSR_DONE			13
 #define UDC_DEVCTL_DEVNAK			12
 #define UDC_DEVCTL_SD				10
@@ -545,8 +552,8 @@ struct udc {
 	u32 __iomem			*txfifo;
 
 	/* DMA desc pools */
-	struct pci_pool			*data_requests;
-	struct pci_pool			*stp_requests;
+	struct dma_pool			*data_requests;
+	struct dma_pool			*stp_requests;
 
 	/* device data */
 	unsigned long			phys_addr;
@@ -557,6 +564,16 @@ struct udc {
 	u16				cur_config;
 	u16				cur_intf;
 	u16				cur_alt;
+
+	/* for platform device and extcon support */
+	struct device			*dev;
+	struct phy			*udc_phy;
+	struct extcon_dev		*edev;
+	struct extcon_specific_cable_nb	extcon_nb;
+	struct notifier_block		nb;
+	struct delayed_work		drd_work;
+	struct workqueue_struct		*drd_wq;
+	u32				conn_type;
 };
 
 #define to_amd5536_udc(g)	(container_of((g), struct udc, gadget))
@@ -567,6 +584,37 @@ union udc_setup_data {
 	struct usb_ctrlrequest	request;
 };
 
+/* Function declarations */
+int udc_enable_dev_setup_interrupts(struct udc *dev);
+int udc_mask_unused_interrupts(struct udc *dev);
+irqreturn_t udc_irq(int irq, void *pdev);
+void gadget_release(struct device *pdev);
+void empty_req_queue(struct udc_ep *ep);
+void udc_basic_init(struct udc *dev);
+void free_dma_pools(struct udc *dev);
+int init_dma_pools(struct udc *dev);
+void udc_remove(struct udc *dev);
+int udc_probe(struct udc *dev);
+
+/* DMA usage flag */
+static bool use_dma = 1;
+/* packet per buffer dma */
+static bool use_dma_ppb = 1;
+/* with per descr. update */
+static bool use_dma_ppb_du;
+/* full speed only mode */
+static bool use_fullspeed;
+
+/* module parameters */
+module_param(use_dma, bool, S_IRUGO);
+MODULE_PARM_DESC(use_dma, "true for DMA");
+module_param(use_dma_ppb, bool, S_IRUGO);
+MODULE_PARM_DESC(use_dma_ppb, "true for DMA in packet per buffer mode");
+module_param(use_dma_ppb_du, bool, S_IRUGO);
+MODULE_PARM_DESC(use_dma_ppb_du,
+	"true for DMA in packet per buffer mode with descriptor update");
+module_param(use_fullspeed, bool, S_IRUGO);
+MODULE_PARM_DESC(use_fullspeed, "true for fullspeed only");
 /*
  *---------------------------------------------------------------------------
  * SET and GET bitfields in u32 values
@@ -603,7 +651,7 @@ union udc_setup_data {
 
 /* debug macros ------------------------------------------------------------*/
 
-#define DBG(udc , args...)	dev_dbg(&(udc)->pdev->dev, args)
+#define DBG(udc , args...)	dev_dbg(udc->dev, args)
 
 #ifdef UDC_VERBOSE
 #define VDBG			DBG

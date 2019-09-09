@@ -1,0 +1,5709 @@
+/* SPDX-License-Identifier: GPL-2.0
+ * Marvell OcteonTx2 RVU Admin Function driver
+ *
+ * Copyright (C) 2018 Marvell International Ltd.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#ifndef NPC_PROFILE_H
+#define NPC_PROFILE_H
+
+#define NPC_ETYPE_IP		0x0800
+#define NPC_ETYPE_IP6		0x86dd
+#define NPC_ETYPE_ARP		0x0806
+#define NPC_ETYPE_RARP		0x8035
+#define NPC_ETYPE_MPLSU		0x8847
+#define NPC_ETYPE_MPLSM		0x8848
+#define NPC_ETYPE_ETAG		0x893f
+#define NPC_ETYPE_CTAG		0x8100
+#define NPC_ETYPE_SBTAG		0x88a8
+#define NPC_ETYPE_ITAG		0x88e7
+#define NPC_ETYPE_PTP		0x88f7
+#define NPC_ETYPE_FCOE		0x8906
+#define NPC_ETYPE_QINQ		0x9100
+#define NPC_ETYPE_TRANS_ETH_BR	0x6558
+#define NPC_ETYPE_PPP		0x880b
+#define NPC_ETYPE_NSH		0x894f
+
+#define NPC_IPNH_HOP		0
+#define NPC_IPNH_ICMP		1
+#define NPC_IPNH_IGMP		2
+#define NPC_IPNH_IP		4
+#define NPC_IPNH_TCP		6
+#define NPC_IPNH_UDP		17
+#define NPC_IPNH_IP6		41
+#define NPC_IPNH_ROUT		43
+#define NPC_IPNH_FRAG		44
+#define NPC_IPNH_GRE		47
+#define NPC_IPNH_ESP		50
+#define NPC_IPNH_AH		51
+#define NPC_IPNH_ICMP6		58
+#define NPC_IPNH_NONH		59
+#define NPC_IPNH_DEST		60
+#define NPC_IPNH_SCTP		132
+#define NPC_IPNH_MPLS		137
+
+#define NPC_UDP_PORT_GTPC	2123
+#define NPC_UDP_PORT_GTPU	2152
+#define NPC_UDP_PORT_VXLAN	4789
+#define NPC_UDP_PORT_VXLANGPE	4790
+#define NPC_UDP_PORT_GENEVE	6081
+
+#define NPC_VXLANGPE_NP_IP	0x1
+#define NPC_VXLANGPE_NP_IP6	0x2
+#define NPC_VXLANGPE_NP_ETH	0x3
+#define NPC_VXLANGPE_NP_NSH	0x4
+#define NPC_VXLANGPE_NP_MPLS	0x5
+#define NPC_VXLANGPE_NP_GBP	0x6
+#define NPC_VXLANGPE_NP_VBNG	0x7
+
+#define NPC_NSH_NP_IP		0x1
+#define NPC_NSH_NP_IP6		0x2
+#define NPC_NSH_NP_ETH		0x3
+#define NPC_NSH_NP_NSH		0x4
+#define NPC_NSH_NP_MPLS		0x5
+
+#define NPC_TCP_PORT_HTTP	80
+#define NPC_TCP_PORT_HTTPS	443
+#define NPC_TCP_PORT_PPTP	1723
+
+#define NPC_MPLS_S		0x0100
+
+#define NPC_IP_VER_4		0x4000
+#define NPC_IP_VER_6		0x6000
+#define NPC_IP_VER_MASK		0xf000
+#define NPC_IP_HDR_LEN_5	0x0500
+#define NPC_IP_HDR_LEN_MASK	0x0f00
+
+#define NPC_GRE_F_CSUM		(0x1 << 15)
+#define NPC_GRE_F_ROUTE		(0x1 << 14)
+#define NPC_GRE_F_KEY		(0x1 << 13)
+#define NPC_GRE_F_SEQ		(0x1 << 12)
+#define NPC_GRE_F_ACK		(0x1 << 7)
+#define NPC_GRE_FLAG_MASK	(NPC_GRE_F_CSUM | NPC_GRE_F_ROUTE | \
+				 NPC_GRE_F_KEY | NPC_GRE_F_SEQ | NPC_GRE_F_ACK)
+#define NPC_GRE_VER_MASK	0x0003
+#define NPC_GRE_VER_1		0x0001
+
+#define NPC_VXLAN_I		0x0800
+
+#define NPC_VXLANGPE_VER	(0x3 << 12)
+#define NPC_VXLANGPE_I		(0x1 << 11)
+#define NPC_VXLANGPE_P		(0x1 << 10)
+#define NPC_VXLANGPE_B		(0x1 << 9)
+#define NPC_VXLANGPE_NP_MASK	0x00ff
+
+#define NPC_NSH_NP_MASK		0x00ff
+
+#define NPC_GENEVE_F_OAM	(0x1 << 7)
+#define NPC_GENEVE_F_CRI_OPT	(0x1 << 6)
+
+#define NPC_GTP_PT_GTP		(0x1 << 12)
+#define NPC_GTP_PT_MASK		(0x1 << 12)
+#define NPC_GTP_VER1		(0x1 << 13)
+#define NPC_GTP_VER_MASK	(0x7 << 13)
+#define NPC_GTP_MT_G_PDU	0xff
+#define NPC_GTP_MT_MASK		0xff
+
+#define NPC_TCP_DATA_OFFSET_5		0x5000
+#define NPC_TCP_DATA_OFFSET_MASK	0xf000
+
+enum npc_kpu_parser_state {
+	NPC_S_NA = 0,
+	NPC_S_KPU1_ETHER,
+	NPC_S_KPU1_PKI,
+	NPC_S_KPU2_CTAG,
+	NPC_S_KPU2_SBTAG,
+	NPC_S_KPU2_QINQ,
+	NPC_S_KPU2_ETAG,
+	NPC_S_KPU2_ITAG,
+	NPC_S_KPU3_CTAG,
+	NPC_S_KPU3_STAG,
+	NPC_S_KPU3_QINQ,
+	NPC_S_KPU3_ITAG,
+	NPC_S_KPU4_MPLS,
+	NPC_S_KPU4_NSH,
+	NPC_S_KPU5_IP,
+	NPC_S_KPU5_IP6,
+	NPC_S_KPU5_ARP,
+	NPC_S_KPU5_RARP,
+	NPC_S_KPU5_PTP,
+	NPC_S_KPU5_FCOE,
+	NPC_S_KPU5_MPLS,
+	NPC_S_KPU5_MPLS_PL,
+	NPC_S_KPU5_NSH,
+	NPC_S_KPU6_IP6_EXT,
+	NPC_S_KPU7_IP6_EXT,
+	NPC_S_KPU8_TCP,
+	NPC_S_KPU8_UDP,
+	NPC_S_KPU8_SCTP,
+	NPC_S_KPU8_ICMP,
+	NPC_S_KPU8_IGMP,
+	NPC_S_KPU8_ICMP6,
+	NPC_S_KPU8_GRE,
+	NPC_S_KPU8_ESP,
+	NPC_S_KPU8_AH,
+	NPC_S_KPU9_TU_MPLS_IN_GRE_VXLAN,
+	NPC_S_KPU9_TU_MPLS,
+	NPC_S_KPU9_TU_NSH,
+	NPC_S_KPU10_TU_MPLS_PL,
+	NPC_S_KPU10_TU_MPLS,
+	NPC_S_KPU10_TU_NSH,
+	NPC_S_KPU11_TU_ETHER,
+	NPC_S_KPU11_TU_PPP,
+	NPC_S_KPU11_TU_MPLS_IN_NSH,
+	NPC_S_KPU11_TU_3RD_NSH,
+	NPC_S_KPU12_TU_IP,
+	NPC_S_KPU12_TU_IP6,
+	NPC_S_KPU12_TU_ARP,
+	NPC_S_KPU13_TU_IP6_EXT,
+	NPC_S_KPU14_TU_IP6_EXT,
+	NPC_S_KPU15_TU_TCP,
+	NPC_S_KPU15_TU_UDP,
+	NPC_S_KPU15_TU_SCTP,
+	NPC_S_KPU15_TU_ICMP,
+	NPC_S_KPU15_TU_IGMP,
+	NPC_S_KPU15_TU_ICMP6,
+	NPC_S_KPU15_TU_ESP,
+	NPC_S_KPU15_TU_AH,
+	NPC_S_KPU16_HTTP_DATA,
+	NPC_S_KPU16_HTTPS_DATA,
+	NPC_S_KPU16_PPTP_DATA,
+	NPC_S_KPU16_TCP_DATA,
+	NPC_S_KPU16_UDP_DATA,
+	NPC_S_LAST /* has to be the last item */
+};
+
+enum npc_kpu_parser_flag {
+	NPC_F_NA = 0,
+	NPC_F_PKI,
+	NPC_F_PKI_VLAN,
+	NPC_F_PKI_ETAG,
+	NPC_F_PKI_ITAG,
+	NPC_F_PKI_MPLS,
+	NPC_F_PKI_NSH,
+	NPC_F_ETYPE_UNK,
+	NPC_F_ETHER_VLAN,
+	NPC_F_ETHER_ETAG,
+	NPC_F_ETHER_ITAG,
+	NPC_F_ETHER_MPLS,
+	NPC_F_ETHER_NSH,
+	NPC_F_STAG_CTAG,
+	NPC_F_STAG_CTAG_UNK,
+	NPC_F_STAG_STAG_CTAG,
+	NPC_F_STAG_STAG_STAG,
+	NPC_F_QINQ_CTAG,
+	NPC_F_QINQ_CTAG_UNK,
+	NPC_F_QINQ_QINQ_CTAG,
+	NPC_F_QINQ_QINQ_QINQ,
+	NPC_F_BTAG_ITAG,
+	NPC_F_BTAG_ITAG_STAG,
+	NPC_F_BTAG_ITAG_CTAG,
+	NPC_F_BTAG_ITAG_UNK,
+	NPC_F_ETAG_CTAG,
+	NPC_F_ETAG_BTAG_ITAG,
+	NPC_F_ETAG_STAG,
+	NPC_F_ETAG_QINQ,
+	NPC_F_ETAG_ITAG,
+	NPC_F_ETAG_ITAG_STAG,
+	NPC_F_ETAG_ITAG_CTAG,
+	NPC_F_ETAG_ITAG_UNK,
+	NPC_F_ITAG_STAG_CTAG,
+	NPC_F_ITAG_STAG,
+	NPC_F_ITAG_CTAG,
+	NPC_F_MPLS_4_LABELS,
+	NPC_F_MPLS_3_LABELS,
+	NPC_F_MPLS_2_LABELS,
+	NPC_F_IP_HAS_OPTIONS,
+	NPC_F_IP_IP_IN_IP,
+	NPC_F_IP_6TO4,
+	NPC_F_IP_MPLS_IN_IP,
+	NPC_F_IP_UNK_PROTO,
+	NPC_F_IP_IP_IN_IP_HAS_OPTIONS,
+	NPC_F_IP_6TO4_HAS_OPTIONS,
+	NPC_F_IP_MPLS_IN_IP_HAS_OPTIONS,
+	NPC_F_IP_UNK_PROTO_HAS_OPTIONS,
+	NPC_F_IP6_HAS_EXT,
+	NPC_F_IP6_TUN_IP6,
+	NPC_F_IP6_MPLS_IN_IP,
+	NPC_F_TCP_HAS_OPTIONS,
+	NPC_F_TCP_HTTP,
+	NPC_F_TCP_HTTPS,
+	NPC_F_TCP_PPTP,
+	NPC_F_TCP_UNK_PORT,
+	NPC_F_TCP_HTTP_HAS_OPTIONS,
+	NPC_F_TCP_HTTPS_HAS_OPTIONS,
+	NPC_F_TCP_PPTP_HAS_OPTIONS,
+	NPC_F_TCP_UNK_PORT_HAS_OPTIONS,
+	NPC_F_UDP_VXLAN,
+	NPC_F_UDP_VXLAN_NOVNI,
+	NPC_F_UDP_VXLAN_NOVNI_NSH,
+	NPC_F_UDP_VXLANGPE,
+	NPC_F_UDP_VXLANGPE_NSH,
+	NPC_F_UDP_VXLANGPE_MPLS,
+	NPC_F_UDP_VXLANGPE_NOVNI,
+	NPC_F_UDP_VXLANGPE_NOVNI_NSH,
+	NPC_F_UDP_VXLANGPE_NOVNI_MPLS,
+	NPC_F_UDP_VXLANGPE_UNK,
+	NPC_F_UDP_VXLANGPE_NONP,
+	NPC_F_UDP_GTP_GTPC,
+	NPC_F_UDP_GTP_GTPU_G_PDU,
+	NPC_F_UDP_GTP_GTPU_UNK,
+	NPC_F_UDP_UNK_PORT,
+	NPC_F_UDP_GENEVE,
+	NPC_F_UDP_GENEVE_OAM,
+	NPC_F_UDP_GENEVE_CRI_OPT,
+	NPC_F_UDP_GENEVE_OAM_CRI_OPT,
+	NPC_F_GRE_NVGRE,
+	NPC_F_GRE_HAS_SRE,
+	NPC_F_GRE_HAS_CSUM,
+	NPC_F_GRE_HAS_KEY,
+	NPC_F_GRE_HAS_SEQ,
+	NPC_F_GRE_HAS_CSUM_KEY,
+	NPC_F_GRE_HAS_CSUM_SEQ,
+	NPC_F_GRE_HAS_KEY_SEQ,
+	NPC_F_GRE_HAS_CSUM_KEY_SEQ,
+	NPC_F_GRE_HAS_ROUTE,
+	NPC_F_GRE_UNK_PROTO,
+	NPC_F_GRE_VER1,
+	NPC_F_GRE_VER1_HAS_SEQ,
+	NPC_F_GRE_VER1_HAS_ACK,
+	NPC_F_GRE_VER1_HAS_SEQ_ACK,
+	NPC_F_GRE_VER1_UNK_PROTO,
+	NPC_F_TU_ETHER_UNK,
+	NPC_F_TU_ETHER_CTAG,
+	NPC_F_TU_ETHER_CTAG_UNK,
+	NPC_F_TU_ETHER_STAG_CTAG,
+	NPC_F_TU_ETHER_STAG_CTAG_UNK,
+	NPC_F_TU_ETHER_STAG,
+	NPC_F_TU_ETHER_STAG_UNK,
+	NPC_F_TU_ETHER_QINQ_CTAG,
+	NPC_F_TU_ETHER_QINQ_CTAG_UNK,
+	NPC_F_TU_ETHER_QINQ,
+	NPC_F_TU_ETHER_QINQ_UNK,
+	NPC_F_LAST /* has to be the last item */
+};
+
+enum npc_kpu_err_code {
+	NPC_EC_NOERR = 0, /* has to be zero */
+	NPC_EC_UNK,
+	NPC_EC_L2_K1,
+	NPC_EC_L2_K2,
+	NPC_EC_L2_K3,
+	NPC_EC_L2_K3_ETYPE_UNK,
+	NPC_EC_L2_MPLS_2MANY,
+	NPC_EC_L2_K4,
+	NPC_EC_IP_VER,
+	NPC_EC_IP6_VER,
+	NPC_EC_VXLAN,
+	NPC_EC_NVGRE,
+	NPC_EC_GRE,
+	NPC_EC_GRE_VER1,
+	NPC_EC_L4,
+	NPC_EC_LAST /* has to be the last item */
+};
+
+enum NPC_ERRLEV_E {
+	NPC_ERRLEV_RE = 0,
+	NPC_ERRLEV_LA = 1,
+	NPC_ERRLEV_LB = 2,
+	NPC_ERRLEV_LC = 3,
+	NPC_ERRLEV_LD = 4,
+	NPC_ERRLEV_LE = 5,
+	NPC_ERRLEV_LF = 6,
+	NPC_ERRLEV_LG = 7,
+	NPC_ERRLEV_LH = 8,
+	NPC_ERRLEV_R9 = 9,
+	NPC_ERRLEV_R10 = 10,
+	NPC_ERRLEV_R11 = 11,
+	NPC_ERRLEV_R12 = 12,
+	NPC_ERRLEV_R13 = 13,
+	NPC_ERRLEV_R14 = 14,
+	NPC_ERRLEV_NIX = 15,
+	NPC_ERRLEV_ENUM_LAST = 16,
+};
+
+static struct npc_kpu_profile_action ikpu_action_entries[] = {
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 14, 16,
+		0, 0, NPC_S_KPU1_ETHER, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 1, 0xff,
+		0, 0,
+	},
+};
+
+static struct npc_kpu_profile_cam kpu1_cam_entries[] = {
+	{
+		NPC_S_KPU1_ETHER, 0xff, NPC_ETYPE_IP, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU1_ETHER, 0xff, NPC_ETYPE_IP6, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU1_ETHER, 0xff, NPC_ETYPE_ARP, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU1_ETHER, 0xff, NPC_ETYPE_RARP, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU1_ETHER, 0xff, NPC_ETYPE_PTP, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU1_ETHER, 0xff, NPC_ETYPE_FCOE, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU1_ETHER, 0xff, NPC_ETYPE_CTAG, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU1_ETHER, 0xff, NPC_ETYPE_SBTAG, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU1_ETHER, 0xff, NPC_ETYPE_QINQ, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU1_ETHER, 0xff, NPC_ETYPE_ETAG, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU1_ETHER, 0xff, NPC_ETYPE_ITAG, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU1_ETHER, 0xff, NPC_ETYPE_MPLSU, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU1_ETHER, 0xff, NPC_ETYPE_MPLSM, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU1_ETHER, 0xff, NPC_ETYPE_NSH, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU1_ETHER, 0xff, 0x0000, 0xfc00,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU1_ETHER, 0xff, 0x0400, 0xfe00,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU1_ETHER, 0xff, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU1_PKI, 0xff, NPC_ETYPE_IP, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU1_PKI, 0xff, NPC_ETYPE_IP6, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU1_PKI, 0xff, NPC_ETYPE_ARP, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU1_PKI, 0xff, NPC_ETYPE_RARP, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU1_PKI, 0xff, NPC_ETYPE_PTP, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU1_PKI, 0xff, NPC_ETYPE_FCOE, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU1_PKI, 0xff, NPC_ETYPE_CTAG, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU1_PKI, 0xff, NPC_ETYPE_SBTAG, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU1_PKI, 0xff, NPC_ETYPE_QINQ, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU1_PKI, 0xff, NPC_ETYPE_ETAG, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU1_PKI, 0xff, NPC_ETYPE_ITAG, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU1_PKI, 0xff, NPC_ETYPE_MPLSU, 0xffff,
+		0x0010, 0x0010, 0x0000, 0xffff,
+	},
+	{
+		NPC_S_KPU1_PKI, 0xff, NPC_ETYPE_MPLSM, 0xffff,
+		0x0010, 0x0010, 0x0000, 0xffff,
+	},
+	{
+		NPC_S_KPU1_PKI, 0xff, NPC_ETYPE_NSH, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU1_PKI, 0xff, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_NA, 0X00, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+};
+
+static struct npc_kpu_profile_cam kpu2_cam_entries[] = {
+	{
+		NPC_S_KPU2_CTAG, 0xff, NPC_ETYPE_IP, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_CTAG, 0xff, NPC_ETYPE_IP6, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_CTAG, 0xff, NPC_ETYPE_ARP, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_CTAG, 0xff, NPC_ETYPE_RARP, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_CTAG, 0xff, NPC_ETYPE_PTP, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_CTAG, 0xff, NPC_ETYPE_FCOE, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_CTAG, 0xff, NPC_ETYPE_MPLSU, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_CTAG, 0xff, NPC_ETYPE_MPLSM, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_CTAG, 0xff, NPC_ETYPE_NSH, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_CTAG, 0xff, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_SBTAG, 0xff, NPC_ETYPE_CTAG, 0xffff,
+		NPC_ETYPE_IP, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_SBTAG, 0xff, NPC_ETYPE_CTAG, 0xffff,
+		NPC_ETYPE_IP6, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_SBTAG, 0xff, NPC_ETYPE_CTAG, 0xffff,
+		NPC_ETYPE_ARP, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_SBTAG, 0xff, NPC_ETYPE_CTAG, 0xffff,
+		NPC_ETYPE_RARP, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_SBTAG, 0xff, NPC_ETYPE_CTAG, 0xffff,
+		NPC_ETYPE_PTP, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_SBTAG, 0xff, NPC_ETYPE_CTAG, 0xffff,
+		NPC_ETYPE_FCOE, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_SBTAG, 0xff, NPC_ETYPE_CTAG, 0xffff,
+		NPC_ETYPE_MPLSU, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_SBTAG, 0xff, NPC_ETYPE_CTAG, 0xffff,
+		NPC_ETYPE_MPLSM, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_SBTAG, 0xff, NPC_ETYPE_CTAG, 0xffff,
+		NPC_ETYPE_NSH, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_SBTAG, 0xff, NPC_ETYPE_CTAG, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_SBTAG, 0xff, NPC_ETYPE_SBTAG, 0xffff,
+		NPC_ETYPE_CTAG, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_SBTAG, 0xff, NPC_ETYPE_SBTAG, 0xffff,
+		NPC_ETYPE_SBTAG, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_SBTAG, 0xff, NPC_ETYPE_ITAG, 0xffff,
+		0x0000, 0x0000, NPC_ETYPE_IP, 0xffff,
+	},
+	{
+		NPC_S_KPU2_SBTAG, 0xff, NPC_ETYPE_ITAG, 0xffff,
+		0x0000, 0x0000, NPC_ETYPE_IP6, 0xffff,
+	},
+	{
+		NPC_S_KPU2_SBTAG, 0xff, NPC_ETYPE_ITAG, 0xffff,
+		0x0000, 0x0000, NPC_ETYPE_ARP, 0xffff,
+	},
+	{
+		NPC_S_KPU2_SBTAG, 0xff, NPC_ETYPE_ITAG, 0xffff,
+		0x0000, 0x0000, NPC_ETYPE_RARP, 0xffff,
+	},
+	{
+		NPC_S_KPU2_SBTAG, 0xff, NPC_ETYPE_ITAG, 0xffff,
+		0x0000, 0x0000, NPC_ETYPE_PTP, 0xffff,
+	},
+	{
+		NPC_S_KPU2_SBTAG, 0xff, NPC_ETYPE_ITAG, 0xffff,
+		0x0000, 0x0000, NPC_ETYPE_FCOE, 0xffff,
+	},
+	{
+		NPC_S_KPU2_SBTAG, 0xff, NPC_ETYPE_ITAG, 0xffff,
+		0x0000, 0x0000, NPC_ETYPE_MPLSU, 0xffff,
+	},
+	{
+		NPC_S_KPU2_SBTAG, 0xff, NPC_ETYPE_ITAG, 0xffff,
+		0x0000, 0x0000, NPC_ETYPE_MPLSM, 0xffff,
+	},
+	{
+		NPC_S_KPU2_SBTAG, 0xff, NPC_ETYPE_ITAG, 0xffff,
+		0x0000, 0x0000, NPC_ETYPE_NSH, 0xffff,
+	},
+	{
+		NPC_S_KPU2_SBTAG, 0xff, NPC_ETYPE_ITAG, 0xffff,
+		0x0000, 0x0000, NPC_ETYPE_SBTAG, 0xffff,
+	},
+	{
+		NPC_S_KPU2_SBTAG, 0xff, NPC_ETYPE_ITAG, 0xffff,
+		0x0000, 0x0000, NPC_ETYPE_CTAG, 0xffff,
+	},
+	{
+		NPC_S_KPU2_SBTAG, 0xff, NPC_ETYPE_ITAG, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_SBTAG, 0xff, NPC_ETYPE_IP, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_SBTAG, 0xff, NPC_ETYPE_IP6, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_SBTAG, 0xff, NPC_ETYPE_ARP, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_SBTAG, 0xff, NPC_ETYPE_RARP, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_SBTAG, 0xff, NPC_ETYPE_PTP, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_SBTAG, 0xff, NPC_ETYPE_FCOE, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_SBTAG, 0xff, NPC_ETYPE_MPLSU, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_SBTAG, 0xff, NPC_ETYPE_MPLSM, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_SBTAG, 0xff, NPC_ETYPE_NSH, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_SBTAG, 0xff, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_QINQ, 0xff, NPC_ETYPE_CTAG, 0xffff,
+		NPC_ETYPE_IP, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_QINQ, 0xff, NPC_ETYPE_CTAG, 0xffff,
+		NPC_ETYPE_IP6, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_QINQ, 0xff, NPC_ETYPE_CTAG, 0xffff,
+		NPC_ETYPE_ARP, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_QINQ, 0xff, NPC_ETYPE_CTAG, 0xffff,
+		NPC_ETYPE_RARP, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_QINQ, 0xff, NPC_ETYPE_CTAG, 0xffff,
+		NPC_ETYPE_PTP, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_QINQ, 0xff, NPC_ETYPE_CTAG, 0xffff,
+		NPC_ETYPE_FCOE, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_QINQ, 0xff, NPC_ETYPE_CTAG, 0xffff,
+		NPC_ETYPE_MPLSU, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_QINQ, 0xff, NPC_ETYPE_CTAG, 0xffff,
+		NPC_ETYPE_MPLSM, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_QINQ, 0xff, NPC_ETYPE_CTAG, 0xffff,
+		NPC_ETYPE_NSH, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_QINQ, 0xff, NPC_ETYPE_CTAG, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_QINQ, 0xff, NPC_ETYPE_QINQ, 0xffff,
+		NPC_ETYPE_CTAG, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_QINQ, 0xff, NPC_ETYPE_QINQ, 0xffff,
+		NPC_ETYPE_QINQ, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_QINQ, 0xff, NPC_ETYPE_IP, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_QINQ, 0xff, NPC_ETYPE_IP6, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_QINQ, 0xff, NPC_ETYPE_ARP, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_QINQ, 0xff, NPC_ETYPE_RARP, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_QINQ, 0xff, NPC_ETYPE_PTP, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_QINQ, 0xff, NPC_ETYPE_FCOE, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_QINQ, 0xff, NPC_ETYPE_MPLSU, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_QINQ, 0xff, NPC_ETYPE_MPLSM, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_QINQ, 0xff, NPC_ETYPE_NSH, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_QINQ, 0xff, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_ETAG, 0xff, NPC_ETYPE_IP, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_ETAG, 0xff, NPC_ETYPE_IP6, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_ETAG, 0xff, NPC_ETYPE_ARP, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_ETAG, 0xff, NPC_ETYPE_RARP, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_ETAG, 0xff, NPC_ETYPE_PTP, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_ETAG, 0xff, NPC_ETYPE_FCOE, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_ETAG, 0xff, NPC_ETYPE_MPLSU, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_ETAG, 0xff, NPC_ETYPE_MPLSM, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_ETAG, 0xff, NPC_ETYPE_NSH, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_ETAG, 0xff, NPC_ETYPE_CTAG, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_ETAG, 0xff, NPC_ETYPE_SBTAG, 0xffff,
+		NPC_ETYPE_ITAG, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_ETAG, 0xff, NPC_ETYPE_SBTAG, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_ETAG, 0xff, NPC_ETYPE_QINQ, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_ETAG, 0xff, NPC_ETYPE_ITAG, 0xffff,
+		0x0000, 0x0000, NPC_ETYPE_IP, 0xffff,
+	},
+	{
+		NPC_S_KPU2_ETAG, 0xff, NPC_ETYPE_ITAG, 0xffff,
+		0x0000, 0x0000, NPC_ETYPE_IP6, 0xffff,
+	},
+	{
+		NPC_S_KPU2_ETAG, 0xff, NPC_ETYPE_ITAG, 0xffff,
+		0x0000, 0x0000, NPC_ETYPE_ARP, 0xffff,
+	},
+	{
+		NPC_S_KPU2_ETAG, 0xff, NPC_ETYPE_ITAG, 0xffff,
+		0x0000, 0x0000, NPC_ETYPE_SBTAG, 0xffff,
+	},
+	{
+		NPC_S_KPU2_ETAG, 0xff, NPC_ETYPE_ITAG, 0xffff,
+		0x0000, 0x0000, NPC_ETYPE_CTAG, 0xffff,
+	},
+	{
+		NPC_S_KPU2_ETAG, 0xff, NPC_ETYPE_ITAG, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_ETAG, 0xff, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_ITAG, 0xff, NPC_ETYPE_IP, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_ITAG, 0xff, NPC_ETYPE_IP6, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_ITAG, 0xff, NPC_ETYPE_ARP, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_ITAG, 0xff, NPC_ETYPE_RARP, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_ITAG, 0xff, NPC_ETYPE_SBTAG, 0xffff,
+		NPC_ETYPE_CTAG, 0xffff, NPC_ETYPE_IP, 0xffff,
+	},
+	{
+		NPC_S_KPU2_ITAG, 0xff, NPC_ETYPE_SBTAG, 0xffff,
+		NPC_ETYPE_CTAG, 0xffff, NPC_ETYPE_IP6, 0xffff,
+	},
+	{
+		NPC_S_KPU2_ITAG, 0xff, NPC_ETYPE_SBTAG, 0xffff,
+		NPC_ETYPE_CTAG, 0xffff, NPC_ETYPE_ARP, 0xffff,
+	},
+	{
+		NPC_S_KPU2_ITAG, 0xff, NPC_ETYPE_SBTAG, 0xffff,
+		NPC_ETYPE_CTAG, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_ITAG, 0xff, NPC_ETYPE_SBTAG, 0xffff,
+		NPC_ETYPE_IP, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_ITAG, 0xff, NPC_ETYPE_SBTAG, 0xffff,
+		NPC_ETYPE_IP6, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_ITAG, 0xff, NPC_ETYPE_SBTAG, 0xffff,
+		NPC_ETYPE_ARP, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_ITAG, 0xff, NPC_ETYPE_SBTAG, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_ITAG, 0xff, NPC_ETYPE_CTAG, 0xffff,
+		NPC_ETYPE_IP, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_ITAG, 0xff, NPC_ETYPE_CTAG, 0xffff,
+		NPC_ETYPE_IP6, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_ITAG, 0xff, NPC_ETYPE_CTAG, 0xffff,
+		NPC_ETYPE_ARP, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_ITAG, 0xff, NPC_ETYPE_CTAG, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU2_ITAG, 0xff, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_NA, 0X00, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+};
+
+static struct npc_kpu_profile_cam kpu3_cam_entries[] = {
+	{
+		NPC_S_KPU3_CTAG, 0xff, NPC_ETYPE_IP, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU3_CTAG, 0xff, NPC_ETYPE_IP6, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU3_CTAG, 0xff, NPC_ETYPE_ARP, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU3_CTAG, 0xff, NPC_ETYPE_RARP, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU3_CTAG, 0xff, NPC_ETYPE_PTP, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU3_CTAG, 0xff, NPC_ETYPE_FCOE, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU3_CTAG, 0xff, NPC_ETYPE_MPLSU, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU3_CTAG, 0xff, NPC_ETYPE_MPLSM, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU3_CTAG, 0xff, NPC_ETYPE_NSH, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU3_CTAG, 0xff, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU3_STAG, 0xff, NPC_ETYPE_CTAG, 0xffff,
+		NPC_ETYPE_IP, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU3_STAG, 0xff, NPC_ETYPE_CTAG, 0xffff,
+		NPC_ETYPE_IP6, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU3_STAG, 0xff, NPC_ETYPE_CTAG, 0xffff,
+		NPC_ETYPE_ARP, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU3_STAG, 0xff, NPC_ETYPE_CTAG, 0xffff,
+		NPC_ETYPE_RARP, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU3_STAG, 0xff, NPC_ETYPE_CTAG, 0xffff,
+		NPC_ETYPE_PTP, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU3_STAG, 0xff, NPC_ETYPE_CTAG, 0xffff,
+		NPC_ETYPE_FCOE, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU3_STAG, 0xff, NPC_ETYPE_CTAG, 0xffff,
+		NPC_ETYPE_MPLSU, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU3_STAG, 0xff, NPC_ETYPE_CTAG, 0xffff,
+		NPC_ETYPE_MPLSM, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU3_STAG, 0xff, NPC_ETYPE_CTAG, 0xffff,
+		NPC_ETYPE_NSH, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU3_STAG, 0xff, NPC_ETYPE_IP, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU3_STAG, 0xff, NPC_ETYPE_IP6, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU3_STAG, 0xff, NPC_ETYPE_ARP, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU3_STAG, 0xff, NPC_ETYPE_RARP, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU3_STAG, 0xff, NPC_ETYPE_MPLSU, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU3_STAG, 0xff, NPC_ETYPE_MPLSM, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU3_STAG, 0xff, NPC_ETYPE_NSH, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU3_STAG, 0xff, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU3_QINQ, 0xff, NPC_ETYPE_CTAG, 0xffff,
+		NPC_ETYPE_IP, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU3_QINQ, 0xff, NPC_ETYPE_CTAG, 0xffff,
+		NPC_ETYPE_IP6, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU3_QINQ, 0xff, NPC_ETYPE_CTAG, 0xffff,
+		NPC_ETYPE_ARP, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU3_QINQ, 0xff, NPC_ETYPE_CTAG, 0xffff,
+		NPC_ETYPE_RARP, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU3_QINQ, 0xff, NPC_ETYPE_CTAG, 0xffff,
+		NPC_ETYPE_PTP, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU3_QINQ, 0xff, NPC_ETYPE_CTAG, 0xffff,
+		NPC_ETYPE_FCOE, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU3_QINQ, 0xff, NPC_ETYPE_CTAG, 0xffff,
+		NPC_ETYPE_MPLSU, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU3_QINQ, 0xff, NPC_ETYPE_CTAG, 0xffff,
+		NPC_ETYPE_MPLSM, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU3_QINQ, 0xff, NPC_ETYPE_CTAG, 0xffff,
+		NPC_ETYPE_NSH, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU3_QINQ, 0xff, NPC_ETYPE_IP, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU3_QINQ, 0xff, NPC_ETYPE_IP6, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU3_QINQ, 0xff, NPC_ETYPE_ARP, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU3_QINQ, 0xff, NPC_ETYPE_RARP, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU3_QINQ, 0xff, NPC_ETYPE_PTP, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU3_QINQ, 0xff, NPC_ETYPE_FCOE, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU3_QINQ, 0xff, NPC_ETYPE_MPLSU, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU3_QINQ, 0xff, NPC_ETYPE_MPLSM, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU3_QINQ, 0xff, NPC_ETYPE_NSH, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU3_QINQ, 0xff, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU3_ITAG, 0xff, NPC_ETYPE_IP, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU3_ITAG, 0xff, NPC_ETYPE_IP6, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU3_ITAG, 0xff, NPC_ETYPE_ARP, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU3_ITAG, 0xff, NPC_ETYPE_RARP, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU3_ITAG, 0xff, NPC_ETYPE_SBTAG, 0xffff,
+		NPC_ETYPE_CTAG, 0xffff, NPC_ETYPE_IP, 0xffff,
+	},
+	{
+		NPC_S_KPU3_ITAG, 0xff, NPC_ETYPE_SBTAG, 0xffff,
+		NPC_ETYPE_CTAG, 0xffff, NPC_ETYPE_IP6, 0xffff,
+	},
+	{
+		NPC_S_KPU3_ITAG, 0xff, NPC_ETYPE_SBTAG, 0xffff,
+		NPC_ETYPE_CTAG, 0xffff, NPC_ETYPE_ARP, 0xffff,
+	},
+	{
+		NPC_S_KPU3_ITAG, 0xff, NPC_ETYPE_SBTAG, 0xffff,
+		NPC_ETYPE_IP, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU3_ITAG, 0xff, NPC_ETYPE_SBTAG, 0xffff,
+		NPC_ETYPE_IP6, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU3_ITAG, 0xff, NPC_ETYPE_SBTAG, 0xffff,
+		NPC_ETYPE_ARP, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU3_ITAG, 0xff, NPC_ETYPE_SBTAG, 0xffff,
+		NPC_ETYPE_CTAG, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU3_ITAG, 0xff, NPC_ETYPE_SBTAG, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU3_ITAG, 0xff, NPC_ETYPE_CTAG, 0xffff,
+		NPC_ETYPE_IP, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU3_ITAG, 0xff, NPC_ETYPE_CTAG, 0xffff,
+		NPC_ETYPE_IP6, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU3_ITAG, 0xff, NPC_ETYPE_CTAG, 0xffff,
+		NPC_ETYPE_ARP, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU3_ITAG, 0xff, NPC_ETYPE_CTAG, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU3_ITAG, 0xff, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_NA, 0X00, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+};
+
+static struct npc_kpu_profile_cam kpu4_cam_entries[] = {
+	{
+		NPC_S_KPU4_MPLS, 0xff, NPC_MPLS_S, NPC_MPLS_S,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU4_MPLS, 0xff, 0x0000, NPC_MPLS_S,
+		NPC_MPLS_S, NPC_MPLS_S, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU4_MPLS, 0xff, 0x0000, NPC_MPLS_S,
+		0x0000, NPC_MPLS_S, NPC_MPLS_S, NPC_MPLS_S,
+	},
+	{
+		NPC_S_KPU4_MPLS, 0xff, 0x0000, NPC_MPLS_S,
+		0x0000, NPC_MPLS_S, 0x0000, NPC_MPLS_S,
+	},
+	{
+		NPC_S_KPU4_NSH, 0xff, NPC_NSH_NP_IP, NPC_NSH_NP_MASK,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU4_NSH, 0xff, NPC_NSH_NP_IP6, NPC_NSH_NP_MASK,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU4_NSH, 0xff, NPC_NSH_NP_ETH, NPC_NSH_NP_MASK,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU4_NSH, 0xff, NPC_NSH_NP_NSH, NPC_NSH_NP_MASK,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU4_NSH, 0xff, NPC_NSH_NP_MPLS, NPC_NSH_NP_MASK,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_NA, 0X00, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+};
+
+static struct npc_kpu_profile_cam kpu5_cam_entries[] = {
+	{
+		NPC_S_KPU5_IP, 0xff, NPC_IPNH_TCP, 0x00ff,
+		NPC_IP_VER_4 | NPC_IP_HDR_LEN_5,
+		NPC_IP_VER_MASK | NPC_IP_HDR_LEN_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU5_IP, 0xff, NPC_IPNH_UDP, 0x00ff,
+		NPC_IP_VER_4 | NPC_IP_HDR_LEN_5,
+		NPC_IP_VER_MASK | NPC_IP_HDR_LEN_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU5_IP, 0xff, NPC_IPNH_SCTP, 0x00ff,
+		NPC_IP_VER_4 | NPC_IP_HDR_LEN_5,
+		NPC_IP_VER_MASK | NPC_IP_HDR_LEN_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU5_IP, 0xff, NPC_IPNH_ICMP, 0x00ff,
+		NPC_IP_VER_4 | NPC_IP_HDR_LEN_5,
+		NPC_IP_VER_MASK | NPC_IP_HDR_LEN_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU5_IP, 0xff, NPC_IPNH_IGMP, 0x00ff,
+		NPC_IP_VER_4 | NPC_IP_HDR_LEN_5,
+		NPC_IP_VER_MASK | NPC_IP_HDR_LEN_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU5_IP, 0xff, NPC_IPNH_ESP, 0x00ff,
+		NPC_IP_VER_4 | NPC_IP_HDR_LEN_5,
+		NPC_IP_VER_MASK | NPC_IP_HDR_LEN_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU5_IP, 0xff, NPC_IPNH_AH, 0x00ff,
+		NPC_IP_VER_4 | NPC_IP_HDR_LEN_5,
+		NPC_IP_VER_MASK | NPC_IP_HDR_LEN_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU5_IP, 0xff, NPC_IPNH_GRE, 0x00ff,
+		NPC_IP_VER_4 | NPC_IP_HDR_LEN_5,
+		NPC_IP_VER_MASK | NPC_IP_HDR_LEN_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU5_IP, 0xff, NPC_IPNH_IP, 0x00ff,
+		NPC_IP_VER_4 | NPC_IP_HDR_LEN_5,
+		NPC_IP_VER_MASK | NPC_IP_HDR_LEN_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU5_IP, 0xff, NPC_IPNH_IP6, 0x00ff,
+		NPC_IP_VER_4 | NPC_IP_HDR_LEN_5,
+		NPC_IP_VER_MASK | NPC_IP_HDR_LEN_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU5_IP, 0xff, NPC_IPNH_MPLS, 0x00ff,
+		NPC_IP_VER_4 | NPC_IP_HDR_LEN_5,
+		NPC_IP_VER_MASK | NPC_IP_HDR_LEN_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU5_IP, 0xff, 0x0000, 0x0000,
+		NPC_IP_VER_4 | NPC_IP_HDR_LEN_5,
+		NPC_IP_VER_MASK | NPC_IP_HDR_LEN_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU5_IP, 0xff, NPC_IPNH_TCP, 0x00ff,
+		NPC_IP_VER_4, NPC_IP_VER_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU5_IP, 0xff, NPC_IPNH_UDP, 0x00ff,
+		NPC_IP_VER_4, NPC_IP_VER_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU5_IP, 0xff, NPC_IPNH_SCTP, 0x00ff,
+		NPC_IP_VER_4, NPC_IP_VER_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU5_IP, 0xff, NPC_IPNH_ICMP, 0x00ff,
+		NPC_IP_VER_4, NPC_IP_VER_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU5_IP, 0xff, NPC_IPNH_IGMP, 0x00ff,
+		NPC_IP_VER_4, NPC_IP_VER_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU5_IP, 0xff, NPC_IPNH_ESP, 0x00ff,
+		NPC_IP_VER_4, NPC_IP_VER_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU5_IP, 0xff, NPC_IPNH_AH, 0x00ff,
+		NPC_IP_VER_4, NPC_IP_VER_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU5_IP, 0xff, NPC_IPNH_GRE, 0x00ff,
+		NPC_IP_VER_4, NPC_IP_VER_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU5_IP, 0xff, NPC_IPNH_IP, 0x00ff,
+		NPC_IP_VER_4, NPC_IP_VER_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU5_IP, 0xff, NPC_IPNH_IP6, 0x00ff,
+		NPC_IP_VER_4, NPC_IP_VER_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU5_IP, 0xff, NPC_IPNH_MPLS, 0x00ff,
+		NPC_IP_VER_4, NPC_IP_VER_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU5_IP, 0xff, 0x0000, 0x0000,
+		NPC_IP_VER_4, NPC_IP_VER_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU5_IP, 0xff, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU5_ARP, 0xff, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU5_RARP, 0xff, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU5_PTP, 0xff, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU5_FCOE, 0xff, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU5_IP6, 0xff, NPC_IPNH_TCP << 8, 0xff00,
+		NPC_IP_VER_6, NPC_IP_VER_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU5_IP6, 0xff, NPC_IPNH_UDP << 8, 0xff00,
+		NPC_IP_VER_6, NPC_IP_VER_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU5_IP6, 0xff, NPC_IPNH_SCTP << 8, 0xff00,
+		NPC_IP_VER_6, NPC_IP_VER_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU5_IP6, 0xff, NPC_IPNH_ICMP << 8, 0xff00,
+		NPC_IP_VER_6, NPC_IP_VER_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU5_IP6, 0xff, NPC_IPNH_ICMP6 << 8, 0xff00,
+		NPC_IP_VER_6, NPC_IP_VER_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU5_IP6, 0xff, NPC_IPNH_ESP << 8, 0xff00,
+		NPC_IP_VER_6, NPC_IP_VER_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU5_IP6, 0xff, NPC_IPNH_AH << 8, 0xff00,
+		NPC_IP_VER_6, NPC_IP_VER_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU5_IP6, 0xff, NPC_IPNH_GRE << 8, 0xff00,
+		NPC_IP_VER_6, NPC_IP_VER_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU5_IP6, 0xff, NPC_IPNH_IP6 << 8, 0xff00,
+		NPC_IP_VER_6, NPC_IP_VER_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU5_IP6, 0xff, NPC_IPNH_MPLS << 8, 0xff00,
+		NPC_IP_VER_6, NPC_IP_VER_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU5_IP6, 0xff, 0x0000, 0x0000,
+		NPC_IP_VER_6, NPC_IP_VER_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU5_IP6, 0xff, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU5_MPLS, 0xff, NPC_MPLS_S, NPC_MPLS_S,
+		NPC_IP_VER_4, NPC_IP_VER_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU5_MPLS, 0xff, NPC_MPLS_S, NPC_MPLS_S,
+		NPC_IP_VER_6, NPC_IP_VER_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU5_MPLS, 0xff, NPC_MPLS_S, NPC_MPLS_S,
+		0x0000, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU5_MPLS, 0xff, NPC_MPLS_S, NPC_MPLS_S,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU5_MPLS, 0xff, 0x0000, NPC_MPLS_S,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU5_MPLS_PL, 0xff, NPC_IP_VER_4, NPC_IP_VER_MASK,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU5_MPLS_PL, 0xff, NPC_IP_VER_6, NPC_IP_VER_MASK,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU5_MPLS_PL, 0xff, 0x0000, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU5_MPLS_PL, 0xff, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU5_NSH, 0xff, NPC_NSH_NP_IP, NPC_NSH_NP_MASK,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU5_NSH, 0xff, NPC_NSH_NP_IP6, NPC_NSH_NP_MASK,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU5_NSH, 0xff, NPC_NSH_NP_ETH, NPC_NSH_NP_MASK,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU5_NSH, 0xff, NPC_NSH_NP_NSH, NPC_NSH_NP_MASK,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU5_NSH, 0xff, NPC_NSH_NP_MPLS, NPC_NSH_NP_MASK,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_NA, 0X00, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+};
+
+static struct npc_kpu_profile_cam kpu6_cam_entries[] = {
+	{
+		NPC_S_KPU6_IP6_EXT, 0xff, 0x0000, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000,
+	},
+};
+
+static struct npc_kpu_profile_cam kpu7_cam_entries[] = {
+	{
+		NPC_S_KPU7_IP6_EXT, 0xff, 0x0000, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000,
+	},
+};
+
+static struct npc_kpu_profile_cam kpu8_cam_entries[] = {
+	{
+		NPC_S_KPU8_TCP, 0xff, NPC_TCP_PORT_HTTP, 0xffff,
+		NPC_TCP_DATA_OFFSET_5, NPC_TCP_DATA_OFFSET_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_TCP, 0xff, NPC_TCP_PORT_HTTPS, 0xffff,
+		NPC_TCP_DATA_OFFSET_5, NPC_TCP_DATA_OFFSET_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_TCP, 0xff, NPC_TCP_PORT_PPTP, 0xffff,
+		NPC_TCP_DATA_OFFSET_5, NPC_TCP_DATA_OFFSET_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_TCP, 0xff, 0x0000, 0x0000,
+		NPC_TCP_DATA_OFFSET_5, NPC_TCP_DATA_OFFSET_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_TCP, 0xff, NPC_TCP_PORT_HTTP, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_TCP, 0xff, NPC_TCP_PORT_HTTPS, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_TCP, 0xff, NPC_TCP_PORT_PPTP, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_TCP, 0xff, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_UDP, 0xff, NPC_UDP_PORT_VXLAN, 0xffff,
+		NPC_VXLAN_I, NPC_VXLAN_I, 0x0000, 0xffff,
+	},
+	{
+		NPC_S_KPU8_UDP, 0xff, NPC_UDP_PORT_VXLAN, 0xffff,
+		0x0000, 0xffff, 0x0000, 0xffff,
+	},
+	{
+		NPC_S_KPU8_UDP, 0xff, NPC_UDP_PORT_VXLAN, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_UDP, 0xff, NPC_UDP_PORT_VXLANGPE, 0xffff,
+		NPC_VXLANGPE_P | NPC_VXLANGPE_I,
+		NPC_VXLANGPE_P | NPC_VXLANGPE_I,
+		NPC_VXLANGPE_NP_IP, NPC_VXLANGPE_NP_MASK,
+	},
+	{
+		NPC_S_KPU8_UDP, 0xff, NPC_UDP_PORT_VXLANGPE, 0xffff,
+		NPC_VXLANGPE_P | NPC_VXLANGPE_I,
+		NPC_VXLANGPE_P | NPC_VXLANGPE_I,
+		NPC_VXLANGPE_NP_IP6, NPC_VXLANGPE_NP_MASK,
+	},
+	{
+		NPC_S_KPU8_UDP, 0xff, NPC_UDP_PORT_VXLANGPE, 0xffff,
+		NPC_VXLANGPE_P | NPC_VXLANGPE_I,
+		NPC_VXLANGPE_P | NPC_VXLANGPE_I,
+		NPC_VXLANGPE_NP_ETH, NPC_VXLANGPE_NP_MASK,
+	},
+	{
+		NPC_S_KPU8_UDP, 0xff, NPC_UDP_PORT_VXLANGPE, 0xffff,
+		NPC_VXLANGPE_P | NPC_VXLANGPE_I,
+		NPC_VXLANGPE_P | NPC_VXLANGPE_I,
+		NPC_VXLANGPE_NP_NSH, NPC_VXLANGPE_NP_MASK,
+	},
+	{
+		NPC_S_KPU8_UDP, 0xff, NPC_UDP_PORT_VXLANGPE, 0xffff,
+		NPC_VXLANGPE_P | NPC_VXLANGPE_I,
+		NPC_VXLANGPE_P | NPC_VXLANGPE_I,
+		NPC_VXLANGPE_NP_MPLS, NPC_VXLANGPE_NP_MASK,
+	},
+	{
+		NPC_S_KPU8_UDP, 0xff, NPC_UDP_PORT_VXLANGPE, 0xffff,
+		NPC_VXLANGPE_P, NPC_VXLANGPE_P | NPC_VXLANGPE_I,
+		NPC_VXLANGPE_NP_IP, NPC_VXLANGPE_NP_MASK,
+	},
+	{
+		NPC_S_KPU8_UDP, 0xff, NPC_UDP_PORT_VXLANGPE, 0xffff,
+		NPC_VXLANGPE_P, NPC_VXLANGPE_P | NPC_VXLANGPE_I,
+		NPC_VXLANGPE_NP_IP6, NPC_VXLANGPE_NP_MASK,
+	},
+	{
+		NPC_S_KPU8_UDP, 0xff, NPC_UDP_PORT_VXLANGPE, 0xffff,
+		NPC_VXLANGPE_P, NPC_VXLANGPE_P | NPC_VXLANGPE_I,
+		NPC_VXLANGPE_NP_ETH, NPC_VXLANGPE_NP_MASK,
+	},
+	{
+		NPC_S_KPU8_UDP, 0xff, NPC_UDP_PORT_VXLANGPE, 0xffff,
+		NPC_VXLANGPE_P, NPC_VXLANGPE_P | NPC_VXLANGPE_I,
+		NPC_VXLANGPE_NP_NSH, NPC_VXLANGPE_NP_MASK,
+	},
+	{
+		NPC_S_KPU8_UDP, 0xff, NPC_UDP_PORT_VXLANGPE, 0xffff,
+		NPC_VXLANGPE_P, NPC_VXLANGPE_P | NPC_VXLANGPE_I,
+		NPC_VXLANGPE_NP_MPLS, NPC_VXLANGPE_NP_MASK,
+	},
+	{
+		NPC_S_KPU8_UDP, 0xff, NPC_UDP_PORT_VXLANGPE, 0xffff,
+		NPC_VXLANGPE_P, NPC_VXLANGPE_P, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_UDP, 0xff, NPC_UDP_PORT_VXLANGPE, 0xffff,
+		0x0000, NPC_VXLANGPE_P, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_UDP, 0xff, NPC_UDP_PORT_GENEVE, 0xffff,
+		0x0000, NPC_GENEVE_F_OAM | NPC_GENEVE_F_CRI_OPT,
+		NPC_ETYPE_TRANS_ETH_BR, 0xffff,
+	},
+	{
+		NPC_S_KPU8_UDP, 0xff, NPC_UDP_PORT_GENEVE, 0xffff,
+		NPC_GENEVE_F_OAM, NPC_GENEVE_F_OAM | NPC_GENEVE_F_CRI_OPT,
+		NPC_ETYPE_TRANS_ETH_BR, 0xffff,
+	},
+	{
+		NPC_S_KPU8_UDP, 0xff, NPC_UDP_PORT_GENEVE, 0xffff,
+		NPC_GENEVE_F_CRI_OPT, NPC_GENEVE_F_OAM | NPC_GENEVE_F_CRI_OPT,
+		NPC_ETYPE_TRANS_ETH_BR, 0xffff,
+	},
+	{
+		NPC_S_KPU8_UDP, 0xff, NPC_UDP_PORT_GENEVE, 0xffff,
+		NPC_GENEVE_F_OAM | NPC_GENEVE_F_CRI_OPT,
+		NPC_GENEVE_F_OAM | NPC_GENEVE_F_CRI_OPT,
+		NPC_ETYPE_TRANS_ETH_BR, 0xffff,
+	},
+	{
+		NPC_S_KPU8_UDP, 0xff, NPC_UDP_PORT_GENEVE, 0xffff,
+		0x0000, NPC_GENEVE_F_OAM | NPC_GENEVE_F_CRI_OPT,
+		NPC_ETYPE_IP, 0xffff,
+	},
+	{
+		NPC_S_KPU8_UDP, 0xff, NPC_UDP_PORT_GENEVE, 0xffff,
+		NPC_GENEVE_F_OAM, NPC_GENEVE_F_OAM | NPC_GENEVE_F_CRI_OPT,
+		NPC_ETYPE_IP, 0xffff,
+	},
+	{
+		NPC_S_KPU8_UDP, 0xff, NPC_UDP_PORT_GENEVE, 0xffff,
+		NPC_GENEVE_F_CRI_OPT, NPC_GENEVE_F_OAM | NPC_GENEVE_F_CRI_OPT,
+		NPC_ETYPE_IP, 0xffff,
+	},
+	{
+		NPC_S_KPU8_UDP, 0xff, NPC_UDP_PORT_GENEVE, 0xffff,
+		NPC_GENEVE_F_OAM | NPC_GENEVE_F_CRI_OPT,
+		NPC_GENEVE_F_OAM | NPC_GENEVE_F_CRI_OPT, NPC_ETYPE_IP, 0xffff,
+	},
+	{
+		NPC_S_KPU8_UDP, 0xff, NPC_UDP_PORT_GENEVE, 0xffff,
+		0x0000, NPC_GENEVE_F_OAM | NPC_GENEVE_F_CRI_OPT,
+		NPC_ETYPE_IP6, 0xffff,
+	},
+	{
+		NPC_S_KPU8_UDP, 0xff, NPC_UDP_PORT_GENEVE, 0xffff,
+		NPC_GENEVE_F_OAM, NPC_GENEVE_F_OAM | NPC_GENEVE_F_CRI_OPT,
+		NPC_ETYPE_IP6, 0xffff,
+	},
+	{
+		NPC_S_KPU8_UDP, 0xff, NPC_UDP_PORT_GENEVE, 0xffff,
+		NPC_GENEVE_F_CRI_OPT,
+		NPC_GENEVE_F_OAM | NPC_GENEVE_F_CRI_OPT, NPC_ETYPE_IP6, 0xffff,
+	},
+	{
+		NPC_S_KPU8_UDP, 0xff, NPC_UDP_PORT_GENEVE, 0xffff,
+		NPC_GENEVE_F_OAM | NPC_GENEVE_F_CRI_OPT,
+		NPC_GENEVE_F_OAM | NPC_GENEVE_F_CRI_OPT, NPC_ETYPE_IP6, 0xffff,
+	},
+	{
+		NPC_S_KPU8_UDP, 0xff, NPC_UDP_PORT_GTPC, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_UDP, 0xff, NPC_UDP_PORT_GTPU, 0xffff,
+		NPC_GTP_PT_GTP | NPC_GTP_VER1 | NPC_GTP_MT_G_PDU,
+		NPC_GTP_PT_MASK | NPC_GTP_VER_MASK | NPC_GTP_MT_MASK,
+		0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_UDP, 0xff, NPC_UDP_PORT_GTPU, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_UDP, 0xff, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_SCTP, 0xff, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_ICMP, 0xff, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_IGMP, 0xff, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_ICMP6, 0xff, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_ESP, 0xff, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_AH, 0xff, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_GRE, 0xff, NPC_ETYPE_TRANS_ETH_BR, 0xffff,
+		NPC_GRE_F_KEY, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_GRE, 0xff, NPC_ETYPE_TRANS_ETH_BR, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_GRE, 0xff, NPC_ETYPE_MPLSU, 0xffff,
+		0x0000, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_GRE, 0xff, NPC_ETYPE_MPLSU, 0xffff,
+		NPC_GRE_F_CSUM, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_GRE, 0xff, NPC_ETYPE_MPLSU, 0xffff,
+		NPC_GRE_F_KEY, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_GRE, 0xff, NPC_ETYPE_MPLSU, 0xffff,
+		NPC_GRE_F_SEQ, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_GRE, 0xff, NPC_ETYPE_MPLSU, 0xffff,
+		NPC_GRE_F_CSUM | NPC_GRE_F_KEY, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_GRE, 0xff, NPC_ETYPE_MPLSU, 0xffff,
+		NPC_GRE_F_CSUM | NPC_GRE_F_SEQ, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_GRE, 0xff, NPC_ETYPE_MPLSU, 0xffff,
+		NPC_GRE_F_KEY | NPC_GRE_F_SEQ, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_GRE, 0xff, NPC_ETYPE_MPLSU, 0xffff,
+		NPC_GRE_F_CSUM | NPC_GRE_F_KEY | NPC_GRE_F_SEQ,
+		0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_GRE, 0xff, NPC_ETYPE_MPLSM, 0xffff,
+		0x0000, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_GRE, 0xff, NPC_ETYPE_MPLSM, 0xffff,
+		NPC_GRE_F_CSUM, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_GRE, 0xff, NPC_ETYPE_MPLSM, 0xffff,
+		NPC_GRE_F_KEY, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_GRE, 0xff, NPC_ETYPE_MPLSM, 0xffff,
+		NPC_GRE_F_SEQ, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_GRE, 0xff, NPC_ETYPE_MPLSM, 0xffff,
+		NPC_GRE_F_CSUM | NPC_GRE_F_KEY, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_GRE, 0xff, NPC_ETYPE_MPLSM, 0xffff,
+		NPC_GRE_F_CSUM | NPC_GRE_F_SEQ, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_GRE, 0xff, NPC_ETYPE_MPLSM, 0xffff,
+		NPC_GRE_F_KEY | NPC_GRE_F_SEQ, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_GRE, 0xff, NPC_ETYPE_MPLSM, 0xffff,
+		NPC_GRE_F_CSUM | NPC_GRE_F_KEY | NPC_GRE_F_SEQ,
+		0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_GRE, 0xff, NPC_ETYPE_NSH, 0xffff,
+		0x0000, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_GRE, 0xff, NPC_ETYPE_NSH, 0xffff,
+		NPC_GRE_F_CSUM, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_GRE, 0xff, NPC_ETYPE_NSH, 0xffff,
+		NPC_GRE_F_KEY, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_GRE, 0xff, NPC_ETYPE_NSH, 0xffff,
+		NPC_GRE_F_SEQ, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_GRE, 0xff, NPC_ETYPE_NSH, 0xffff,
+		NPC_GRE_F_CSUM | NPC_GRE_F_KEY, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_GRE, 0xff, NPC_ETYPE_NSH, 0xffff,
+		NPC_GRE_F_CSUM | NPC_GRE_F_SEQ, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_GRE, 0xff, NPC_ETYPE_NSH, 0xffff,
+		NPC_GRE_F_KEY | NPC_GRE_F_SEQ, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_GRE, 0xff, NPC_ETYPE_NSH, 0xffff,
+		NPC_GRE_F_CSUM | NPC_GRE_F_KEY | NPC_GRE_F_SEQ,
+		0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_GRE, 0xff, NPC_ETYPE_IP, 0xffff,
+		0x0000, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_GRE, 0xff, NPC_ETYPE_IP, 0xffff,
+		NPC_GRE_F_CSUM, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_GRE, 0xff, NPC_ETYPE_IP, 0xffff,
+		NPC_GRE_F_KEY, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_GRE, 0xff, NPC_ETYPE_IP, 0xffff,
+		NPC_GRE_F_SEQ, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_GRE, 0xff, NPC_ETYPE_IP, 0xffff,
+		NPC_GRE_F_CSUM | NPC_GRE_F_KEY, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_GRE, 0xff, NPC_ETYPE_IP, 0xffff,
+		NPC_GRE_F_CSUM | NPC_GRE_F_SEQ, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_GRE, 0xff, NPC_ETYPE_IP, 0xffff,
+		NPC_GRE_F_KEY | NPC_GRE_F_SEQ, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_GRE, 0xff, NPC_ETYPE_IP, 0xffff,
+		NPC_GRE_F_CSUM | NPC_GRE_F_KEY | NPC_GRE_F_SEQ,
+		0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_GRE, 0xff, NPC_ETYPE_IP6, 0xffff,
+		0x0000, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_GRE, 0xff, NPC_ETYPE_IP6, 0xffff,
+		NPC_GRE_F_CSUM, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_GRE, 0xff, NPC_ETYPE_IP6, 0xffff,
+		NPC_GRE_F_KEY, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_GRE, 0xff, NPC_ETYPE_IP6, 0xffff,
+		NPC_GRE_F_SEQ, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_GRE, 0xff, NPC_ETYPE_IP6, 0xffff,
+		NPC_GRE_F_CSUM | NPC_GRE_F_KEY, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_GRE, 0xff, NPC_ETYPE_IP6, 0xffff,
+		NPC_GRE_F_CSUM | NPC_GRE_F_SEQ, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_GRE, 0xff, NPC_ETYPE_IP6, 0xffff,
+		NPC_GRE_F_KEY | NPC_GRE_F_SEQ, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_GRE, 0xff, NPC_ETYPE_IP6, 0xffff,
+		NPC_GRE_F_CSUM | NPC_GRE_F_KEY | NPC_GRE_F_SEQ,
+		0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_GRE, 0xff, 0x0000, 0xffff,
+		NPC_GRE_F_ROUTE, 0x4fff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_GRE, 0xff, 0x0000, 0xffff,
+		0x0000, 0x4fff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_GRE, 0xff, 0x0000, 0xffff,
+		0x0000, 0x0003, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_GRE, 0xff, NPC_ETYPE_PPP, 0xffff,
+		NPC_GRE_F_KEY | NPC_GRE_VER_1, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_GRE, 0xff, NPC_ETYPE_PPP, 0xffff,
+		NPC_GRE_F_KEY | NPC_GRE_F_SEQ | NPC_GRE_VER_1,
+		0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_GRE, 0xff, NPC_ETYPE_PPP, 0xffff,
+		NPC_GRE_F_KEY | NPC_GRE_F_ACK | NPC_GRE_VER_1,
+		0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_GRE, 0xff, NPC_ETYPE_PPP, 0xffff,
+		NPC_GRE_F_KEY | NPC_GRE_F_SEQ | NPC_GRE_F_ACK | NPC_GRE_VER_1,
+		0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_GRE, 0xff, 0x0000, 0xffff,
+		0x2001, 0xef7f, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU8_GRE, 0xff, 0x0000, 0xffff,
+		0x0001, 0x0003, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_NA, 0X00, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+};
+
+static struct npc_kpu_profile_cam kpu9_cam_entries[] = {
+	{
+		NPC_S_KPU9_TU_MPLS_IN_GRE_VXLAN, 0xff, NPC_MPLS_S, NPC_MPLS_S,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU9_TU_MPLS_IN_GRE_VXLAN, 0xff, 0x0000, NPC_MPLS_S,
+		NPC_MPLS_S, NPC_MPLS_S, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU9_TU_MPLS_IN_GRE_VXLAN, 0xff, 0x0000, NPC_MPLS_S,
+		0x0000, NPC_MPLS_S, NPC_MPLS_S, NPC_MPLS_S,
+	},
+	{
+		NPC_S_KPU9_TU_MPLS_IN_GRE_VXLAN, 0xff, 0x0000, NPC_MPLS_S,
+		0x0000, NPC_MPLS_S, 0x0000, NPC_MPLS_S,
+	},
+	{
+		NPC_S_KPU9_TU_MPLS, 0xff, NPC_MPLS_S, NPC_MPLS_S,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU9_TU_MPLS, 0xff, 0x0000, NPC_MPLS_S,
+		NPC_MPLS_S, NPC_MPLS_S, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU9_TU_MPLS, 0xff, 0x0000, NPC_MPLS_S,
+		0x0000, NPC_MPLS_S, NPC_MPLS_S, NPC_MPLS_S,
+	},
+	{
+		NPC_S_KPU9_TU_MPLS, 0xff, 0x0000, NPC_MPLS_S,
+		0x0000, NPC_MPLS_S, 0x0000, NPC_MPLS_S,
+	},
+	{
+		NPC_S_KPU9_TU_NSH, 0xff, NPC_NSH_NP_IP, NPC_NSH_NP_MASK,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU9_TU_NSH, 0xff, NPC_NSH_NP_IP6, NPC_NSH_NP_MASK,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU9_TU_NSH, 0xff, NPC_NSH_NP_ETH, NPC_NSH_NP_MASK,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU9_TU_NSH, 0xff, NPC_NSH_NP_NSH, NPC_NSH_NP_MASK,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU9_TU_NSH, 0xff, NPC_NSH_NP_MPLS, NPC_NSH_NP_MASK,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_NA, 0X00, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+};
+
+static struct npc_kpu_profile_cam kpu10_cam_entries[] = {
+	{
+		NPC_S_KPU10_TU_MPLS, 0xff, NPC_MPLS_S, NPC_MPLS_S,
+		NPC_IP_VER_4, NPC_IP_VER_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU10_TU_MPLS, 0xff, NPC_MPLS_S, NPC_MPLS_S,
+		NPC_IP_VER_6, NPC_IP_VER_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU10_TU_MPLS, 0xff, NPC_MPLS_S, NPC_MPLS_S,
+		0x0000, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU10_TU_MPLS, 0xff, NPC_MPLS_S, NPC_MPLS_S,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU10_TU_MPLS, 0xff, 0x0000, NPC_MPLS_S,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU10_TU_MPLS_PL, 0xff, NPC_IP_VER_4, NPC_IP_VER_MASK,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU10_TU_MPLS_PL, 0xff, NPC_IP_VER_6, NPC_IP_VER_MASK,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU10_TU_MPLS_PL, 0xff, 0x0000, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU10_TU_MPLS_PL, 0xff, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU10_TU_NSH, 0xff, NPC_NSH_NP_IP, NPC_NSH_NP_MASK,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU10_TU_NSH, 0xff, NPC_NSH_NP_IP6, NPC_NSH_NP_MASK,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU10_TU_NSH, 0xff, NPC_NSH_NP_ETH, NPC_NSH_NP_MASK,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU10_TU_NSH, 0xff, NPC_NSH_NP_NSH, NPC_NSH_NP_MASK,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU10_TU_NSH, 0xff, NPC_NSH_NP_MPLS, NPC_NSH_NP_MASK,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_NA, 0X00, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+};
+
+static struct npc_kpu_profile_cam kpu11_cam_entries[] = {
+	{
+		NPC_S_KPU11_TU_ETHER, 0xff, NPC_ETYPE_IP, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU11_TU_ETHER, 0xff, NPC_ETYPE_IP6, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU11_TU_ETHER, 0xff, NPC_ETYPE_ARP, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU11_TU_ETHER, 0xff, NPC_ETYPE_CTAG, 0xffff,
+		NPC_ETYPE_IP, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU11_TU_ETHER, 0xff, NPC_ETYPE_CTAG, 0xffff,
+		NPC_ETYPE_IP6, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU11_TU_ETHER, 0xff, NPC_ETYPE_CTAG, 0xffff,
+		NPC_ETYPE_ARP, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU11_TU_ETHER, 0xff, NPC_ETYPE_CTAG, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU11_TU_ETHER, 0xff, NPC_ETYPE_SBTAG, 0xffff,
+		NPC_ETYPE_CTAG, 0xffff, NPC_ETYPE_IP, 0xffff,
+	},
+	{
+		NPC_S_KPU11_TU_ETHER, 0xff, NPC_ETYPE_SBTAG, 0xffff,
+		NPC_ETYPE_CTAG, 0xffff, NPC_ETYPE_IP6, 0xffff,
+	},
+	{
+		NPC_S_KPU11_TU_ETHER, 0xff, NPC_ETYPE_SBTAG, 0xffff,
+		NPC_ETYPE_CTAG, 0xffff, NPC_ETYPE_ARP, 0xffff,
+	},
+	{
+		NPC_S_KPU11_TU_ETHER, 0xff, NPC_ETYPE_SBTAG, 0xffff,
+		NPC_ETYPE_CTAG, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU11_TU_ETHER, 0xff, NPC_ETYPE_SBTAG, 0xffff,
+		NPC_ETYPE_IP, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU11_TU_ETHER, 0xff, NPC_ETYPE_SBTAG, 0xffff,
+		NPC_ETYPE_IP6, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU11_TU_ETHER, 0xff, NPC_ETYPE_SBTAG, 0xffff,
+		NPC_ETYPE_ARP, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU11_TU_ETHER, 0xff, NPC_ETYPE_SBTAG, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU11_TU_ETHER, 0xff, NPC_ETYPE_QINQ, 0xffff,
+		NPC_ETYPE_CTAG, 0xffff, NPC_ETYPE_IP, 0xffff,
+	},
+	{
+		NPC_S_KPU11_TU_ETHER, 0xff, NPC_ETYPE_QINQ, 0xffff,
+		NPC_ETYPE_CTAG, 0xffff, NPC_ETYPE_IP6, 0xffff,
+	},
+	{
+		NPC_S_KPU11_TU_ETHER, 0xff, NPC_ETYPE_QINQ, 0xffff,
+		NPC_ETYPE_CTAG, 0xffff, NPC_ETYPE_ARP, 0xffff,
+	},
+	{
+		NPC_S_KPU11_TU_ETHER, 0xff, NPC_ETYPE_QINQ, 0xffff,
+		NPC_ETYPE_CTAG, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU11_TU_ETHER, 0xff, NPC_ETYPE_QINQ, 0xffff,
+		NPC_ETYPE_IP, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU11_TU_ETHER, 0xff, NPC_ETYPE_QINQ, 0xffff,
+		NPC_ETYPE_IP6, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU11_TU_ETHER, 0xff, NPC_ETYPE_QINQ, 0xffff,
+		NPC_ETYPE_ARP, 0xffff, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU11_TU_ETHER, 0xff, NPC_ETYPE_QINQ, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU11_TU_ETHER, 0xff, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU11_TU_PPP, 0xff, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU11_TU_MPLS_IN_NSH, 0xff, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU11_TU_3RD_NSH, 0xff, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_NA, 0X00, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+};
+
+static struct npc_kpu_profile_cam kpu12_cam_entries[] = {
+	{
+		NPC_S_KPU12_TU_IP, 0xff, NPC_IPNH_TCP, 0x00ff,
+		NPC_IP_VER_4 | NPC_IP_HDR_LEN_5,
+		NPC_IP_VER_MASK | NPC_IP_HDR_LEN_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU12_TU_IP, 0xff, NPC_IPNH_UDP, 0x00ff,
+		NPC_IP_VER_4 | NPC_IP_HDR_LEN_5,
+		NPC_IP_VER_MASK | NPC_IP_HDR_LEN_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU12_TU_IP, 0xff, NPC_IPNH_SCTP, 0x00ff,
+		NPC_IP_VER_4 | NPC_IP_HDR_LEN_5,
+		NPC_IP_VER_MASK | NPC_IP_HDR_LEN_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU12_TU_IP, 0xff, NPC_IPNH_ICMP, 0x00ff,
+		NPC_IP_VER_4 | NPC_IP_HDR_LEN_5,
+		NPC_IP_VER_MASK | NPC_IP_HDR_LEN_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU12_TU_IP, 0xff, NPC_IPNH_IGMP, 0x00ff,
+		NPC_IP_VER_4 | NPC_IP_HDR_LEN_5,
+		NPC_IP_VER_MASK | NPC_IP_HDR_LEN_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU12_TU_IP, 0xff, NPC_IPNH_ESP, 0x00ff,
+		NPC_IP_VER_4 | NPC_IP_HDR_LEN_5,
+		NPC_IP_VER_MASK | NPC_IP_HDR_LEN_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU12_TU_IP, 0xff, NPC_IPNH_AH, 0x00ff,
+		NPC_IP_VER_4 | NPC_IP_HDR_LEN_5,
+		NPC_IP_VER_MASK | NPC_IP_HDR_LEN_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU12_TU_IP, 0xff, 0x0000, 0x0000,
+		NPC_IP_VER_4 | NPC_IP_HDR_LEN_5,
+		NPC_IP_VER_MASK | NPC_IP_HDR_LEN_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU12_TU_IP, 0xff, NPC_IPNH_TCP, 0x00ff,
+		NPC_IP_VER_4, NPC_IP_VER_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU12_TU_IP, 0xff, NPC_IPNH_UDP, 0x00ff,
+		NPC_IP_VER_4, NPC_IP_VER_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU12_TU_IP, 0xff, NPC_IPNH_SCTP, 0x00ff,
+		NPC_IP_VER_4, NPC_IP_VER_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU12_TU_IP, 0xff, NPC_IPNH_ICMP, 0x00ff,
+		NPC_IP_VER_4, NPC_IP_VER_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU12_TU_IP, 0xff, NPC_IPNH_IGMP, 0x00ff,
+		NPC_IP_VER_4, NPC_IP_VER_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU12_TU_IP, 0xff, NPC_IPNH_ESP, 0x00ff,
+		NPC_IP_VER_4, NPC_IP_VER_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU12_TU_IP, 0xff, NPC_IPNH_AH, 0x00ff,
+		NPC_IP_VER_4, NPC_IP_VER_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU12_TU_IP, 0xff, 0x0000, 0x0000,
+		NPC_IP_VER_4, NPC_IP_VER_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU12_TU_IP, 0xff, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU12_TU_ARP, 0xff, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU12_TU_IP6, 0xff, NPC_IPNH_TCP << 8, 0xff00,
+		NPC_IP_VER_6, NPC_IP_VER_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU12_TU_IP6, 0xff, NPC_IPNH_UDP << 8, 0xff00,
+		NPC_IP_VER_6, NPC_IP_VER_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU12_TU_IP6, 0xff, NPC_IPNH_SCTP << 8, 0xff00,
+		NPC_IP_VER_6, NPC_IP_VER_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU12_TU_IP6, 0xff, NPC_IPNH_ICMP << 8, 0xff00,
+		NPC_IP_VER_6, NPC_IP_VER_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU12_TU_IP6, 0xff, NPC_IPNH_ICMP6 << 8, 0xff00,
+		NPC_IP_VER_6, NPC_IP_VER_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU12_TU_IP6, 0xff, NPC_IPNH_ESP << 8, 0xff00,
+		NPC_IP_VER_6, NPC_IP_VER_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU12_TU_IP6, 0xff, NPC_IPNH_AH << 8, 0xff00,
+		NPC_IP_VER_6, NPC_IP_VER_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU12_TU_IP6, 0xff, 0x0000, 0x0000,
+		NPC_IP_VER_6, NPC_IP_VER_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU12_TU_IP6, 0xff, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_NA, 0X00, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+};
+
+static struct npc_kpu_profile_cam kpu13_cam_entries[] = {
+	{
+		NPC_S_KPU13_TU_IP6_EXT, 0xff, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+};
+
+static struct npc_kpu_profile_cam kpu14_cam_entries[] = {
+	{
+		NPC_S_KPU14_TU_IP6_EXT, 0xff, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+};
+
+static struct npc_kpu_profile_cam kpu15_cam_entries[] = {
+	{
+		NPC_S_KPU15_TU_TCP, 0xff, NPC_TCP_PORT_HTTP, 0xffff,
+		NPC_TCP_DATA_OFFSET_5, NPC_TCP_DATA_OFFSET_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU15_TU_TCP, 0xff, NPC_TCP_PORT_HTTPS, 0xffff,
+		NPC_TCP_DATA_OFFSET_5, NPC_TCP_DATA_OFFSET_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU15_TU_TCP, 0xff, NPC_TCP_PORT_PPTP, 0xffff,
+		NPC_TCP_DATA_OFFSET_5, NPC_TCP_DATA_OFFSET_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU15_TU_TCP, 0xff, 0x0000, 0x0000,
+		NPC_TCP_DATA_OFFSET_5, NPC_TCP_DATA_OFFSET_MASK, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU15_TU_TCP, 0xff, NPC_TCP_PORT_HTTP, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU15_TU_TCP, 0xff, NPC_TCP_PORT_HTTPS, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU15_TU_TCP, 0xff, NPC_TCP_PORT_PPTP, 0xffff,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU15_TU_TCP, 0xff, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU15_TU_UDP, 0xff, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU15_TU_SCTP, 0xff, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU15_TU_ICMP, 0xff, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU15_TU_IGMP, 0xff, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU15_TU_ICMP6, 0xff, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU15_TU_ESP, 0xff, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU15_TU_AH, 0xff, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_NA, 0X00, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+};
+
+static struct npc_kpu_profile_cam kpu16_cam_entries[] = {
+	{
+		NPC_S_KPU16_TCP_DATA, 0xff, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU16_HTTP_DATA, 0xff, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU16_HTTPS_DATA, 0xff, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU16_PPTP_DATA, 0xff, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+	{
+		NPC_S_KPU16_UDP_DATA, 0xff, 0x0000, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0000,
+	},
+};
+
+static struct npc_kpu_profile_action kpu1_action_entries[] = {
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 8, 0, 0,
+		3, 0, NPC_S_KPU5_IP, 14, 1,
+		NPC_LID_LA, NPC_LT_LA_ETHER, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 6, 0, 0,
+		3, 0, NPC_S_KPU5_IP6, 14, 1,
+		NPC_LID_LA, NPC_LT_LA_ETHER, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		3, 0, NPC_S_KPU5_ARP, 14, 1,
+		NPC_LID_LA, NPC_LT_LA_ETHER, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		3, 0, NPC_S_KPU5_RARP, 14, 1,
+		NPC_LID_LA, NPC_LT_LA_ETHER, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		3, 0, NPC_S_KPU5_PTP, 14, 1,
+		NPC_LID_LA, NPC_LT_LA_ETHER, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		3, 0, NPC_S_KPU5_FCOE, 14, 1,
+		NPC_LID_LA, NPC_LT_LA_ETHER, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 0,
+		0, 0, NPC_S_KPU2_CTAG, 14, 1,
+		NPC_LID_LA, NPC_LT_LA_ETHER, NPC_F_ETHER_VLAN, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 20,
+		0, 0, NPC_S_KPU2_SBTAG, 14, 1,
+		NPC_LID_LA, NPC_LT_LA_ETHER, NPC_F_ETHER_VLAN, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 0,
+		0, 0, NPC_S_KPU2_QINQ, 14, 1,
+		NPC_LID_LA, NPC_LT_LA_ETHER, NPC_F_ETHER_VLAN, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 6, 10, 24,
+		0, 0, NPC_S_KPU2_ETAG, 14, 1,
+		NPC_LID_LA, NPC_LT_LA_ETHER, NPC_F_ETHER_ETAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 16, 20, 24,
+		0, 0, NPC_S_KPU2_ITAG, 14, 1,
+		NPC_LID_LA, NPC_LT_LA_ETHER, NPC_F_ETHER_ITAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 10,
+		2, 0, NPC_S_KPU4_MPLS, 14, 1,
+		NPC_LID_LA, NPC_LT_LA_ETHER, NPC_F_ETHER_MPLS, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 10,
+		2, 0, NPC_S_KPU4_MPLS, 14, 1,
+		NPC_LID_LA, NPC_LT_LA_ETHER, NPC_F_ETHER_MPLS, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 0, 0,
+		2, 0, NPC_S_KPU4_NSH, 14, 1,
+		NPC_LID_LA, NPC_LT_LA_ETHER, NPC_F_ETHER_NSH, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 1,
+		NPC_LID_LA, NPC_LT_LA_8023, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 1,
+		NPC_LID_LA, NPC_LT_LA_8023, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 1,
+		NPC_LID_LA, NPC_LT_LA_ETHER, NPC_F_ETYPE_UNK, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 8, 0, 0,
+		3, 0, NPC_S_KPU5_IP, 14, 1,
+		NPC_LID_LA, NPC_LT_LA_ETHER, NPC_F_PKI, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 6, 0, 0,
+		3, 0, NPC_S_KPU5_IP6, 14, 1,
+		NPC_LID_LA, NPC_LT_LA_ETHER, NPC_F_PKI, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		3, 0, NPC_S_KPU5_ARP, 14, 1,
+		NPC_LID_LA, NPC_LT_LA_ETHER, NPC_F_PKI, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		3, 0, NPC_S_KPU5_RARP, 14, 1,
+		NPC_LID_LA, NPC_LT_LA_ETHER, NPC_F_PKI, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		3, 0, NPC_S_KPU5_PTP, 14, 1,
+		NPC_LID_LA, NPC_LT_LA_ETHER, NPC_F_PKI, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		3, 0, NPC_S_KPU5_FCOE, 14, 1,
+		NPC_LID_LA, NPC_LT_LA_ETHER, NPC_F_PKI, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 0,
+		0, 0, NPC_S_KPU2_CTAG, 14, 1,
+		NPC_LID_LA, NPC_LT_LA_ETHER, NPC_F_PKI_VLAN, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 20,
+		0, 0, NPC_S_KPU2_SBTAG, 14, 1,
+		NPC_LID_LA, NPC_LT_LA_ETHER, NPC_F_PKI_VLAN, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 0,
+		0, 0, NPC_S_KPU2_QINQ, 14, 1,
+		NPC_LID_LA, NPC_LT_LA_ETHER, NPC_F_PKI_VLAN, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 6, 10, 24,
+		0, 0, NPC_S_KPU2_ETAG, 14, 1,
+		NPC_LID_LA, NPC_LT_LA_ETHER, NPC_F_PKI_ETAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 16, 20, 24,
+		0, 0, NPC_S_KPU2_ITAG, 14, 1,
+		NPC_LID_LA, NPC_LT_LA_ETHER, NPC_F_PKI_ITAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 10,
+		2, 0, NPC_S_KPU4_MPLS, 14, 1,
+		NPC_LID_LA, NPC_LT_LA_ETHER, NPC_F_PKI_MPLS, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 10,
+		2, 0, NPC_S_KPU4_MPLS, 14, 1,
+		NPC_LID_LA, NPC_LT_LA_ETHER, NPC_F_PKI_MPLS, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 10,
+		2, 0, NPC_S_KPU4_NSH, 14, 1,
+		NPC_LID_LA, NPC_LT_LA_ETHER, NPC_F_PKI_NSH, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 1,
+		NPC_LID_LA, NPC_LT_LA_ETHER, NPC_F_ETYPE_UNK, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_LA, NPC_EC_L2_K1, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 0,
+		NPC_LID_LA, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+};
+
+static struct npc_kpu_profile_action kpu2_action_entries[] = {
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 8, 0, 0,
+		2, 0, NPC_S_KPU5_IP, 4, 1,
+		NPC_LID_LB, NPC_LT_LB_CTAG, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 6, 0, 0,
+		2, 0, NPC_S_KPU5_IP6, 4, 1,
+		NPC_LID_LB, NPC_LT_LB_CTAG, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU5_ARP, 4, 1,
+		NPC_LID_LB, NPC_LT_LB_CTAG, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU5_RARP, 4, 1,
+		NPC_LID_LB, NPC_LT_LB_CTAG, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU5_PTP, 4, 1,
+		NPC_LID_LB, NPC_LT_LB_CTAG, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU5_FCOE, 4, 1,
+		NPC_LID_LB, NPC_LT_LB_CTAG, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 10,
+		1, 0, NPC_S_KPU4_MPLS, 4, 1,
+		NPC_LID_LB, NPC_LT_LB_CTAG, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 10,
+		1, 0, NPC_S_KPU4_MPLS, 4, 1,
+		NPC_LID_LB, NPC_LT_LB_CTAG, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 0, 0,
+		1, 0, NPC_S_KPU4_NSH, 4, 1,
+		NPC_LID_LB, NPC_LT_LB_CTAG, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 1,
+		NPC_LID_LB, NPC_LT_LB_CTAG, NPC_F_ETYPE_UNK, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 8, 0, 0,
+		2, 0, NPC_S_KPU5_IP, 8, 1,
+		NPC_LID_LB, NPC_LT_LB_STAG, NPC_F_STAG_CTAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 6, 0, 0,
+		2, 0, NPC_S_KPU5_IP6, 8, 1,
+		NPC_LID_LB, NPC_LT_LB_STAG, NPC_F_STAG_CTAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU5_ARP, 8, 1,
+		NPC_LID_LB, NPC_LT_LB_STAG, NPC_F_STAG_CTAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU5_RARP, 8, 1,
+		NPC_LID_LB, NPC_LT_LB_STAG, NPC_F_STAG_CTAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU5_PTP, 8, 1,
+		NPC_LID_LB, NPC_LT_LB_STAG, NPC_F_STAG_CTAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU5_FCOE, 8, 1,
+		NPC_LID_LB, NPC_LT_LB_STAG, NPC_F_STAG_CTAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 10,
+		1, 0, NPC_S_KPU4_MPLS, 8, 1,
+		NPC_LID_LB, NPC_LT_LB_STAG, NPC_F_STAG_CTAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 10,
+		1, 0, NPC_S_KPU4_MPLS, 8, 1,
+		NPC_LID_LB, NPC_LT_LB_STAG, NPC_F_STAG_CTAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 0, 0,
+		1, 0, NPC_S_KPU4_NSH, 8, 1,
+		NPC_LID_LB, NPC_LT_LB_STAG, NPC_F_STAG_CTAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 1,
+		NPC_LID_LB, NPC_LT_LB_STAG, NPC_F_STAG_CTAG_UNK, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 0,
+		0, 0, NPC_S_KPU3_CTAG, 8, 1,
+		NPC_LID_LB, NPC_LT_LB_STAG, NPC_F_STAG_STAG_CTAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 0,
+		0, 0, NPC_S_KPU3_STAG, 8, 1,
+		NPC_LID_LB, NPC_LT_LB_STAG, NPC_F_STAG_STAG_STAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 8, 0, 0,
+		2, 0, NPC_S_KPU5_IP, 22, 1,
+		NPC_LID_LB, NPC_LT_LB_BTAG, NPC_F_BTAG_ITAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 6, 0, 0,
+		2, 0, NPC_S_KPU5_IP6, 22, 1,
+		NPC_LID_LB, NPC_LT_LB_BTAG, NPC_F_BTAG_ITAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU5_ARP, 22, 1,
+		NPC_LID_LB, NPC_LT_LB_BTAG, NPC_F_BTAG_ITAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU5_RARP, 22, 1,
+		NPC_LID_LB, NPC_LT_LB_BTAG, NPC_F_BTAG_ITAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU5_PTP, 22, 1,
+		NPC_LID_LB, NPC_LT_LB_BTAG, NPC_F_BTAG_ITAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU5_FCOE, 22, 1,
+		NPC_LID_LB, NPC_LT_LB_BTAG, NPC_F_BTAG_ITAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 10,
+		1, 0, NPC_S_KPU4_MPLS, 22, 1,
+		NPC_LID_LB, NPC_LT_LB_BTAG, NPC_F_BTAG_ITAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 10,
+		1, 0, NPC_S_KPU4_MPLS, 22, 1,
+		NPC_LID_LB, NPC_LT_LB_BTAG, NPC_F_BTAG_ITAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 0, 0,
+		1, 0, NPC_S_KPU4_NSH, 22, 1,
+		NPC_LID_LB, NPC_LT_LB_BTAG, NPC_F_BTAG_ITAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 0, 0,
+		0, 0, NPC_S_KPU3_STAG, 22, 1,
+		NPC_LID_LB, NPC_LT_LB_BTAG, NPC_F_BTAG_ITAG_STAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 0, 0,
+		0, 0, NPC_S_KPU3_CTAG, 22, 1,
+		NPC_LID_LB, NPC_LT_LB_BTAG, NPC_F_BTAG_ITAG_CTAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 1,
+		NPC_LID_LB, NPC_LT_LB_BTAG, NPC_F_BTAG_ITAG_UNK, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 8, 0, 0,
+		2, 0, NPC_S_KPU5_IP, 4, 1,
+		NPC_LID_LB, NPC_LT_LB_STAG, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 6, 0, 0,
+		2, 0, NPC_S_KPU5_IP6, 4, 1,
+		NPC_LID_LB, NPC_LT_LB_STAG, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU5_ARP, 4, 1,
+		NPC_LID_LB, NPC_LT_LB_STAG, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU5_RARP, 4, 1,
+		NPC_LID_LB, NPC_LT_LB_STAG, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU5_PTP, 4, 1,
+		NPC_LID_LB, NPC_LT_LB_STAG, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU5_FCOE, 4, 1,
+		NPC_LID_LB, NPC_LT_LB_STAG, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 10,
+		1, 0, NPC_S_KPU4_MPLS, 4, 1,
+		NPC_LID_LB, NPC_LT_LB_STAG, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 10,
+		1, 0, NPC_S_KPU4_MPLS, 4, 1,
+		NPC_LID_LB, NPC_LT_LB_STAG, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 0, 0,
+		1, 0, NPC_S_KPU4_NSH, 4, 1,
+		NPC_LID_LB, NPC_LT_LB_STAG, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 1,
+		NPC_LID_LB, NPC_LT_LB_STAG, NPC_F_ETYPE_UNK, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 8, 0, 0,
+		2, 0, NPC_S_KPU5_IP, 8, 1,
+		NPC_LID_LB, NPC_LT_LB_QINQ, NPC_F_QINQ_CTAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 6, 0, 0,
+		2, 0, NPC_S_KPU5_IP6, 8, 1,
+		NPC_LID_LB, NPC_LT_LB_QINQ, NPC_F_QINQ_CTAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU5_ARP, 8, 1,
+		NPC_LID_LB, NPC_LT_LB_QINQ, NPC_F_QINQ_CTAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU5_RARP, 8, 1,
+		NPC_LID_LB, NPC_LT_LB_QINQ, NPC_F_QINQ_CTAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU5_PTP, 8, 1,
+		NPC_LID_LB, NPC_LT_LB_QINQ, NPC_F_QINQ_CTAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU5_FCOE, 8, 1,
+		NPC_LID_LB, NPC_LT_LB_QINQ, NPC_F_QINQ_CTAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 10,
+		1, 0, NPC_S_KPU4_MPLS, 8, 1,
+		NPC_LID_LB, NPC_LT_LB_QINQ, NPC_F_QINQ_CTAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 10,
+		1, 0, NPC_S_KPU4_MPLS, 8, 1,
+		NPC_LID_LB, NPC_LT_LB_QINQ, NPC_F_QINQ_CTAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 0, 0,
+		1, 0, NPC_S_KPU4_NSH, 8, 1,
+		NPC_LID_LB, NPC_LT_LB_QINQ, NPC_F_QINQ_CTAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 1,
+		NPC_LID_LB, NPC_LT_LB_QINQ, NPC_F_QINQ_CTAG_UNK, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 0,
+		0, 0, NPC_S_KPU3_CTAG, 8, 1,
+		NPC_LID_LB, NPC_LT_LB_QINQ, NPC_F_QINQ_QINQ_CTAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 0,
+		0, 0, NPC_S_KPU3_QINQ, 8, 1,
+		NPC_LID_LB, NPC_LT_LB_QINQ, NPC_F_QINQ_QINQ_QINQ, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 8, 0, 0,
+		2, 0, NPC_S_KPU5_IP, 4, 1,
+		NPC_LID_LB, NPC_LT_LB_QINQ, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 6, 0, 0,
+		2, 0, NPC_S_KPU5_IP6, 4, 1,
+		NPC_LID_LB, NPC_LT_LB_QINQ, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU5_ARP, 4, 1,
+		NPC_LID_LB, NPC_LT_LB_QINQ, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU5_RARP, 4, 1,
+		NPC_LID_LB, NPC_LT_LB_QINQ, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU5_PTP, 4, 1,
+		NPC_LID_LB, NPC_LT_LB_QINQ, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU5_FCOE, 4, 1,
+		NPC_LID_LB, NPC_LT_LB_QINQ, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 10,
+		1, 0, NPC_S_KPU4_MPLS, 4, 1,
+		NPC_LID_LB, NPC_LT_LB_QINQ, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 10,
+		1, 0, NPC_S_KPU4_MPLS, 4, 1,
+		NPC_LID_LB, NPC_LT_LB_QINQ, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 0, 0,
+		1, 0, NPC_S_KPU4_NSH, 4, 1,
+		NPC_LID_LB, NPC_LT_LB_QINQ, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 1,
+		NPC_LID_LB, NPC_LT_LB_QINQ, NPC_F_ETYPE_UNK, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 8, 0, 0,
+		2, 0, NPC_S_KPU5_IP, 8, 1,
+		NPC_LID_LB, NPC_LT_LB_ETAG, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 6, 0, 0,
+		2, 0, NPC_S_KPU5_IP6, 8, 1,
+		NPC_LID_LB, NPC_LT_LB_ETAG, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU5_ARP, 8, 1,
+		NPC_LID_LB, NPC_LT_LB_ETAG, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU5_RARP, 8, 1,
+		NPC_LID_LB, NPC_LT_LB_ETAG, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU5_PTP, 8, 1,
+		NPC_LID_LB, NPC_LT_LB_ETAG, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU5_FCOE, 8, 1,
+		NPC_LID_LB, NPC_LT_LB_ETAG, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 10,
+		1, 0, NPC_S_KPU4_MPLS, 8, 1,
+		NPC_LID_LB, NPC_LT_LB_ETAG, 1, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 10,
+		1, 0, NPC_S_KPU4_MPLS, 8, 1,
+		NPC_LID_LB, NPC_LT_LB_ETAG, 2, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 10,
+		1, 0, NPC_S_KPU4_NSH, 8, 1,
+		NPC_LID_LB, NPC_LT_LB_ETAG, 2, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 0, 0,
+		0, 0, NPC_S_KPU3_CTAG, 8, 1,
+		NPC_LID_LB, NPC_LT_LB_ETAG, NPC_F_ETAG_CTAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 16, 20, 24,
+		0, 0, NPC_S_KPU3_ITAG, 12, 1,
+		NPC_LID_LB, NPC_LT_LB_ETAG, NPC_F_ETAG_BTAG_ITAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 0,
+		0, 0, NPC_S_KPU3_STAG, 8, 1,
+		NPC_LID_LB, NPC_LT_LB_ETAG, NPC_F_ETAG_STAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 0,
+		0, 0, NPC_S_KPU3_QINQ, 8, 1,
+		NPC_LID_LB, NPC_LT_LB_ETAG, NPC_F_ETAG_QINQ, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 8, 0, 0,
+		2, 0, NPC_S_KPU5_IP, 26, 1,
+		NPC_LID_LB, NPC_LT_LB_ETAG, NPC_F_ETAG_ITAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 6, 0, 0,
+		2, 0, NPC_S_KPU5_IP6, 26, 1,
+		NPC_LID_LB, NPC_LT_LB_ETAG, NPC_F_ETAG_ITAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU5_ARP, 26, 1,
+		NPC_LID_LB, NPC_LT_LB_ETAG, NPC_F_ETAG_ITAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 0, 0,
+		0, 0, NPC_S_KPU3_STAG, 26, 1,
+		NPC_LID_LB, NPC_LT_LB_ETAG, NPC_F_ETAG_ITAG_STAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 0, 0,
+		0, 0, NPC_S_KPU3_CTAG, 26, 1,
+		NPC_LID_LB, NPC_LT_LB_ETAG, NPC_F_ETAG_ITAG_CTAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 1,
+		NPC_LID_LB, NPC_LT_LB_ETAG, NPC_F_ETAG_ITAG_UNK, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 1,
+		NPC_LID_LB, NPC_LT_LB_ETAG, NPC_F_ETYPE_UNK, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 8, 0, 0,
+		2, 0, NPC_S_KPU5_IP, 18, 1,
+		NPC_LID_LB, NPC_LT_LB_ITAG, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 6, 0, 0,
+		2, 0, NPC_S_KPU5_IP6, 18, 1,
+		NPC_LID_LB, NPC_LT_LB_ITAG, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU5_ARP, 18, 1,
+		NPC_LID_LB, NPC_LT_LB_ITAG, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU5_RARP, 18, 1,
+		NPC_LID_LB, NPC_LT_LB_ITAG, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 8, 0, 0,
+		2, 0, NPC_S_KPU5_IP, 26, 1,
+		NPC_LID_LB, NPC_LT_LB_ITAG, NPC_F_ITAG_STAG_CTAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 6, 0, 0,
+		2, 0, NPC_S_KPU5_IP6, 26, 1,
+		NPC_LID_LB, NPC_LT_LB_ITAG, NPC_F_ITAG_STAG_CTAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU5_ARP, 26, 1,
+		NPC_LID_LB, NPC_LT_LB_ITAG, NPC_F_ITAG_STAG_CTAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_LB, NPC_EC_L2_K3_ETYPE_UNK, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 8, 0, 0,
+		2, 0, NPC_S_KPU5_IP, 22, 1,
+		NPC_LID_LB, NPC_LT_LB_ITAG, NPC_F_ITAG_STAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 6, 0, 0,
+		2, 0, NPC_S_KPU5_IP6, 22, 1,
+		NPC_LID_LB, NPC_LT_LB_ITAG, NPC_F_ITAG_STAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU5_ARP, 22, 1,
+		NPC_LID_LB, NPC_LT_LB_ITAG, NPC_F_ITAG_STAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_LB, NPC_EC_L2_K3_ETYPE_UNK, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 8, 0, 0,
+		2, 0, NPC_S_KPU5_IP, 22, 1,
+		NPC_LID_LB, NPC_LT_LB_ITAG, NPC_F_ITAG_CTAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 6, 0, 0,
+		2, 0, NPC_S_KPU5_IP6, 22, 1,
+		NPC_LID_LB, NPC_LT_LB_ITAG, NPC_F_ITAG_CTAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU5_ARP, 22, 1,
+		NPC_LID_LB, NPC_LT_LB_ITAG, NPC_F_ITAG_CTAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_LB, NPC_EC_L2_K3_ETYPE_UNK, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_LB, NPC_EC_L2_K3_ETYPE_UNK, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_LB, NPC_EC_L2_K3, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+};
+
+static struct npc_kpu_profile_action kpu3_action_entries[] = {
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 8, 0, 0,
+		1, 0, NPC_S_KPU5_IP, 4, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 6, 0, 0,
+		1, 0, NPC_S_KPU5_IP6, 4, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		1, 0, NPC_S_KPU5_ARP, 4, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		1, 0, NPC_S_KPU5_RARP, 4, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		1, 0, NPC_S_KPU5_PTP, 4, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		1, 0, NPC_S_KPU5_FCOE, 4, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 10,
+		0, 0, NPC_S_KPU4_MPLS, 4, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 10,
+		0, 0, NPC_S_KPU4_MPLS, 4, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 0, 0,
+		0, 0, NPC_S_KPU4_NSH, 4, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_LB, NPC_EC_L2_K3_ETYPE_UNK, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 8, 0, 0,
+		1, 0, NPC_S_KPU5_IP, 8, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 6, 0, 0,
+		1, 0, NPC_S_KPU5_IP6, 8, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		1, 0, NPC_S_KPU5_ARP, 8, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		1, 0, NPC_S_KPU5_RARP, 8, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		1, 0, NPC_S_KPU5_PTP, 8, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		1, 0, NPC_S_KPU5_FCOE, 8, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 10,
+		0, 0, NPC_S_KPU4_MPLS, 8, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 10,
+		0, 0, NPC_S_KPU4_MPLS, 8, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 0, 0,
+		0, 0, NPC_S_KPU4_NSH, 8, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 8, 0, 0,
+		1, 0, NPC_S_KPU5_IP, 4, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 6, 0, 0,
+		1, 0, NPC_S_KPU5_IP6, 4, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		1, 0, NPC_S_KPU5_ARP, 4, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		1, 0, NPC_S_KPU5_RARP, 4, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 10,
+		0, 0, NPC_S_KPU4_MPLS, 4, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 10,
+		0, 0, NPC_S_KPU4_MPLS, 4, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 0, 0,
+		0, 0, NPC_S_KPU4_NSH, 4, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_LB, NPC_EC_L2_K3_ETYPE_UNK, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 8, 0, 0,
+		1, 0, NPC_S_KPU5_IP, 8, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 6, 0, 0,
+		1, 0, NPC_S_KPU5_IP6, 8, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		1, 0, NPC_S_KPU5_ARP, 8, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		1, 0, NPC_S_KPU5_RARP, 8, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		1, 0, NPC_S_KPU5_PTP, 8, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		1, 0, NPC_S_KPU5_FCOE, 8, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 10,
+		0, 0, NPC_S_KPU4_MPLS, 8, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 10,
+		0, 0, NPC_S_KPU4_MPLS, 8, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 0, 0,
+		0, 0, NPC_S_KPU4_NSH, 8, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 8, 0, 0,
+		1, 0, NPC_S_KPU5_IP, 4, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 6, 0, 0,
+		1, 0, NPC_S_KPU5_IP6, 4, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		1, 0, NPC_S_KPU5_ARP, 4, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		1, 0, NPC_S_KPU5_RARP, 4, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		1, 0, NPC_S_KPU5_PTP, 4, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		1, 0, NPC_S_KPU5_FCOE, 4, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 10,
+		0, 0, NPC_S_KPU4_MPLS, 4, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 10,
+		0, 0, NPC_S_KPU4_MPLS, 4, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 0, 0,
+		0, 0, NPC_S_KPU4_NSH, 4, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_LB, NPC_EC_L2_K3_ETYPE_UNK, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 8, 0, 0,
+		2, 0, NPC_S_KPU5_IP, 18, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 6, 0, 0,
+		2, 0, NPC_S_KPU5_IP6, 18, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU5_ARP, 18, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU5_RARP, 18, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 8, 0, 0,
+		1, 0, NPC_S_KPU5_IP, 26, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 6, 0, 0,
+		1, 0, NPC_S_KPU5_IP6, 26, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		1, 0, NPC_S_KPU5_ARP, 26, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 8, 0, 0,
+		1, 0, NPC_S_KPU5_IP, 22, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 6, 0, 0,
+		1, 0, NPC_S_KPU5_IP6, 22, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		1, 0, NPC_S_KPU5_ARP, 22, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_LB, NPC_EC_L2_K3_ETYPE_UNK, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_LB, NPC_EC_L2_K3_ETYPE_UNK, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 8, 0, 0,
+		1, 0, NPC_S_KPU5_IP, 22, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 6, 0, 0,
+		1, 0, NPC_S_KPU5_IP6, 22, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		1, 0, NPC_S_KPU5_ARP, 22, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_LB, NPC_EC_L2_K3_ETYPE_UNK, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_LB, NPC_EC_L2_K3_ETYPE_UNK, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_LB, NPC_EC_L2_K3, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+};
+
+static struct npc_kpu_profile_action kpu4_action_entries[] = {
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 0, NPC_S_KPU5_MPLS_PL, 4, 1,
+		NPC_LID_LC, NPC_LT_LC_MPLS, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 0, NPC_S_KPU5_MPLS_PL, 8, 1,
+		NPC_LID_LC, NPC_LT_LC_MPLS, NPC_F_MPLS_2_LABELS, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 0, NPC_S_KPU5_MPLS_PL, 12, 1,
+		NPC_LID_LC, NPC_LT_LC_MPLS, NPC_F_MPLS_3_LABELS, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 4, 0,
+		0, 0, NPC_S_KPU5_MPLS, 12, 1,
+		NPC_LID_LC, NPC_LT_LC_MPLS, NPC_F_MPLS_4_LABELS, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 8, 0, 0,
+		7, 0, NPC_S_KPU12_TU_IP, 0, 1,
+		NPC_LID_LC, NPC_LT_LC_NSH, 0, 1, 0x3f,
+		0, 2,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 6, 0, 0,
+		7, 0, NPC_S_KPU12_TU_IP6, 0, 1,
+		NPC_LID_LC, NPC_LT_LC_NSH, 0, 1, 0x3f,
+		0, 2,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 16, 20,
+		6, 0, NPC_S_KPU11_TU_ETHER, 0, 1,
+		NPC_LID_LC, NPC_LT_LC_NSH, 0, 1, 0x3f,
+		0, 2,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 0, 0,
+		0, 0, NPC_S_KPU5_NSH, 0, 1,
+		NPC_LID_LC, NPC_LT_LC_NSH, 0, 1, 0x3f,
+		0, 2,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		4, 0, NPC_S_KPU9_TU_MPLS, 0, 1,
+		NPC_LID_LC, NPC_LT_LC_NSH, 0, 1, 0x3f,
+		0, 2,
+	},
+	{
+		NPC_ERRLEV_LB, NPC_EC_L2_K4, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 0,
+		NPC_LID_LC, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+};
+
+static struct npc_kpu_profile_action kpu5_action_entries[] = {
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 12, 0,
+		2, 0, NPC_S_KPU8_TCP, 20, 1,
+		NPC_LID_LC, NPC_LT_LC_IP, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 8, 10,
+		2, 0, NPC_S_KPU8_UDP, 20, 1,
+		NPC_LID_LC, NPC_LT_LC_IP, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU8_SCTP, 20, 1,
+		NPC_LID_LC, NPC_LT_LC_IP, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU8_ICMP, 20, 1,
+		NPC_LID_LC, NPC_LT_LC_IP, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU8_IGMP, 20, 1,
+		NPC_LID_LC, NPC_LT_LC_IP, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 0, NPC_S_KPU8_ESP, 20, 1,
+		NPC_LID_LC, NPC_LT_LC_IP, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 0, NPC_S_KPU8_AH, 20, 1,
+		NPC_LID_LC, NPC_LT_LC_IP, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 0, 0,
+		2, 0, NPC_S_KPU8_GRE, 20, 1,
+		NPC_LID_LC, NPC_LT_LC_IP, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 8, 0, 0,
+		6, 0, NPC_S_KPU12_TU_IP, 20, 1,
+		NPC_LID_LC, NPC_LT_LC_IP, NPC_F_IP_IP_IN_IP, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 6, 0, 0,
+		6, 0, NPC_S_KPU12_TU_IP6, 20, 1,
+		NPC_LID_LC, NPC_LT_LC_IP, NPC_F_IP_6TO4, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 10,
+		3, 0, NPC_S_KPU9_TU_MPLS, 20, 1,
+		NPC_LID_LC, NPC_LT_LC_IP, NPC_F_IP_MPLS_IN_IP, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 1,
+		NPC_LID_LC, NPC_LT_LC_IP, NPC_F_IP_UNK_PROTO, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 12, 0,
+		2, 0, NPC_S_KPU8_TCP, 0, 1,
+		NPC_LID_LC, NPC_LT_LC_IP, NPC_F_IP_HAS_OPTIONS, 0, 0xf,
+		0, 2,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 8, 10,
+		2, 0, NPC_S_KPU8_UDP, 0, 1,
+		NPC_LID_LC, NPC_LT_LC_IP, NPC_F_IP_HAS_OPTIONS, 0, 0xf,
+		0, 2,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU8_SCTP, 0, 1,
+		NPC_LID_LC, NPC_LT_LC_IP, NPC_F_IP_HAS_OPTIONS, 0, 0xf,
+		0, 2,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU8_ICMP, 0, 1,
+		NPC_LID_LC, NPC_LT_LC_IP, NPC_F_IP_HAS_OPTIONS, 0, 0xf,
+		0, 2,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU8_IGMP, 0, 1,
+		NPC_LID_LC, NPC_LT_LC_IP, NPC_F_IP_HAS_OPTIONS, 0, 0xf,
+		0, 2,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 0, NPC_S_KPU8_ESP, 0, 1,
+		NPC_LID_LC, NPC_LT_LC_IP, NPC_F_IP_HAS_OPTIONS, 0, 0xf,
+		0, 2,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 0, NPC_S_KPU8_AH, 0, 1,
+		NPC_LID_LC, NPC_LT_LC_IP, NPC_F_IP_HAS_OPTIONS, 0, 0xf,
+		0, 2,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 0, 0,
+		2, 0, NPC_S_KPU8_GRE, 0, 1,
+		NPC_LID_LC, NPC_LT_LC_IP, NPC_F_IP_HAS_OPTIONS, 0, 0xf,
+		0, 2,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 8, 0, 0,
+		6, 0, NPC_S_KPU12_TU_IP, 0, 1,
+		NPC_LID_LC, NPC_LT_LC_IP, NPC_F_IP_IP_IN_IP_HAS_OPTIONS, 0, 0xf,
+		0, 2,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 6, 0, 0,
+		6, 0, NPC_S_KPU12_TU_IP6, 0, 1,
+		NPC_LID_LC, NPC_LT_LC_IP, NPC_F_IP_6TO4_HAS_OPTIONS, 0, 0xf,
+		0, 2,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 10,
+		3, 0, NPC_S_KPU9_TU_MPLS, 20, 1,
+		NPC_LID_LC, NPC_LT_LC_IP, NPC_F_IP_MPLS_IN_IP_HAS_OPTIONS,
+		0, 0xf, 0, 2,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 1,
+		NPC_LID_LC, NPC_LT_LC_IP, NPC_F_IP_UNK_PROTO_HAS_OPTIONS, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_LC, NPC_EC_IP_VER, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 1,
+		NPC_LID_LC, NPC_LT_LC_IP, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 1,
+		NPC_LID_LC, NPC_LT_LC_ARP, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 1,
+		NPC_LID_LC, NPC_LT_LC_RARP, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 1,
+		NPC_LID_LC, NPC_LT_LC_PTP, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 1,
+		NPC_LID_LC, NPC_LT_LC_FCOE, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 12, 0,
+		2, 0, NPC_S_KPU8_TCP, 40, 1,
+		NPC_LID_LC, NPC_LT_LC_IP6, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 8, 10,
+		2, 0, NPC_S_KPU8_UDP, 40, 1,
+		NPC_LID_LC, NPC_LT_LC_IP6, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU8_SCTP, 40, 1,
+		NPC_LID_LC, NPC_LT_LC_IP6, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU8_ICMP, 40, 1,
+		NPC_LID_LC, NPC_LT_LC_IP6, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU8_ICMP6, 40, 1,
+		NPC_LID_LC, NPC_LT_LC_IP6, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU8_ESP, 40, 1,
+		NPC_LID_LC, NPC_LT_LC_IP6, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU8_AH, 40, 1,
+		NPC_LID_LC, NPC_LT_LC_IP6, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU8_GRE, 40, 1,
+		NPC_LID_LC, NPC_LT_LC_IP6, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 6, 0, 0,
+		6, 0, NPC_S_KPU12_TU_IP6, 40, 1,
+		NPC_LID_LC, NPC_LT_LC_IP6, NPC_F_IP6_TUN_IP6, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 10,
+		3, 0, NPC_S_KPU9_TU_MPLS, 40, 1,
+		NPC_LID_LC, NPC_LT_LC_IP6, NPC_F_IP6_MPLS_IN_IP, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 0, 0,
+		0, 0, NPC_S_KPU6_IP6_EXT, 0, 1,
+		NPC_LID_LC, NPC_LT_LC_IP6, NPC_F_IP6_HAS_EXT, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_LC, NPC_EC_IP6_VER, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 1,
+		NPC_LID_LC, NPC_LT_LC_IP6, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 8, 0, 0,
+		6, 0, NPC_S_KPU12_TU_IP, 4, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 6, 0, 0,
+		6, 0, NPC_S_KPU12_TU_IP6, 4, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 16, 20,
+		5, 0, NPC_S_KPU11_TU_ETHER, 8, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 16, 20,
+		5, 0, NPC_S_KPU11_TU_ETHER, 4, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_LB, NPC_EC_L2_MPLS_2MANY, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 8, 0, 0,
+		6, 0, NPC_S_KPU12_TU_IP, 0, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 6, 0, 0,
+		6, 0, NPC_S_KPU12_TU_IP6, 0, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 16, 20,
+		5, 0, NPC_S_KPU11_TU_ETHER, 4, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 16, 20,
+		5, 0, NPC_S_KPU11_TU_ETHER, 0, 0,
+		NPC_LID_LB, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 8, 0, 0,
+		6, 0, NPC_S_KPU12_TU_IP, 0, 0,
+		NPC_LID_LD, NPC_LT_NA, 0, 1, 0x3f,
+		0, 2,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 6, 0, 0,
+		6, 0, NPC_S_KPU12_TU_IP6, 0, 0,
+		NPC_LID_LD, NPC_LT_NA, 0, 1, 0x3f,
+		0, 2,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 16, 20,
+		5, 0, NPC_S_KPU11_TU_ETHER, 0, 0,
+		NPC_LID_LD, NPC_LT_NA, 0, 1, 0x3f,
+		0, 2,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 0, 0,
+		5, 0, NPC_S_KPU11_TU_3RD_NSH, 0, 0,
+		NPC_LID_LD, NPC_LT_NA, 0, 1, 0x3f,
+		0, 2,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		3, 0, NPC_S_KPU9_TU_MPLS, 0, 0,
+		NPC_LID_LD, NPC_LT_NA, 0, 1, 0x3f,
+		0, 2,
+	},
+	{
+		NPC_ERRLEV_LC, NPC_EC_UNK, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 0,
+		NPC_LID_LC, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+};
+
+static struct npc_kpu_profile_action kpu6_action_entries[] = {
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 0,
+		NPC_LID_LC, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+};
+
+static struct npc_kpu_profile_action kpu7_action_entries[] = {
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 0,
+		NPC_LID_LC, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+};
+
+static struct npc_kpu_profile_action kpu8_action_entries[] = {
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		7, 0, NPC_S_KPU16_HTTP_DATA, 20, 1,
+		NPC_LID_LD, NPC_LT_LD_TCP, NPC_F_TCP_HTTP, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		7, 0, NPC_S_KPU16_HTTPS_DATA, 20, 1,
+		NPC_LID_LD, NPC_LT_LD_TCP, NPC_F_TCP_HTTPS, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		7, 0, NPC_S_KPU16_PPTP_DATA, 20, 1,
+		NPC_LID_LD, NPC_LT_LD_TCP, NPC_F_TCP_PPTP, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		7, 0, NPC_S_KPU16_TCP_DATA, 20, 1,
+		NPC_LID_LD, NPC_LT_LD_TCP, NPC_F_TCP_UNK_PORT, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		7, 0, NPC_S_KPU16_HTTP_DATA, 0, 1,
+		NPC_LID_LD, NPC_LT_LD_TCP, NPC_F_TCP_HTTP_HAS_OPTIONS,
+		12, 0xf0, 1, 2,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		7, 0, NPC_S_KPU16_HTTPS_DATA, 0, 1,
+		NPC_LID_LD, NPC_LT_LD_TCP, NPC_F_TCP_HTTPS_HAS_OPTIONS,
+		12, 0xf0, 1, 2,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		7, 0, NPC_S_KPU16_PPTP_DATA, 0, 1,
+		NPC_LID_LD, NPC_LT_LD_TCP, NPC_F_TCP_PPTP_HAS_OPTIONS,
+		12, 0xf0, 1, 2,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		7, 0, NPC_S_KPU16_TCP_DATA, 0, 1,
+		NPC_LID_LD, NPC_LT_LD_TCP, NPC_F_TCP_UNK_PORT_HAS_OPTIONS,
+		12, 0xf0, 1, 2,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 16, 20,
+		2, 0, NPC_S_KPU11_TU_ETHER, 16, 1,
+		NPC_LID_LD, NPC_LT_LD_UDP, NPC_F_UDP_VXLAN, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 16, 20,
+		2, 0, NPC_S_KPU11_TU_ETHER, 16, 1,
+		NPC_LID_LD, NPC_LT_LD_UDP, NPC_F_UDP_VXLAN_NOVNI, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_LD, NPC_EC_VXLAN, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 0,
+		NPC_LID_LD, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 8, 0, 0,
+		3, 0, NPC_S_KPU12_TU_IP, 16, 1,
+		NPC_LID_LD, NPC_LT_LD_UDP, NPC_F_UDP_VXLANGPE, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 6, 0, 0,
+		3, 0, NPC_S_KPU12_TU_IP6, 16, 1,
+		NPC_LID_LD, NPC_LT_LD_UDP, NPC_F_UDP_VXLANGPE, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 16, 20,
+		2, 0, NPC_S_KPU11_TU_ETHER, 16, 1,
+		NPC_LID_LD, NPC_LT_LD_UDP, NPC_F_UDP_VXLANGPE, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 0, 0,
+		0, 0, NPC_S_KPU9_TU_NSH, 16, 1,
+		NPC_LID_LD, NPC_LT_LD_UDP, NPC_F_UDP_VXLANGPE_NSH, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 10,
+		0, 0, NPC_S_KPU9_TU_MPLS_IN_GRE_VXLAN, 16, 1,
+		NPC_LID_LD, NPC_LT_LD_UDP, NPC_F_UDP_VXLANGPE_MPLS, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 8, 0, 0,
+		3, 0, NPC_S_KPU12_TU_IP, 16, 1,
+		NPC_LID_LD, NPC_LT_LD_UDP, NPC_F_UDP_VXLANGPE_NOVNI, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 6, 0, 0,
+		3, 0, NPC_S_KPU12_TU_IP6, 16, 1,
+		NPC_LID_LD, NPC_LT_LD_UDP, NPC_F_UDP_VXLANGPE_NOVNI, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 16, 20,
+		2, 0, NPC_S_KPU11_TU_ETHER, 16, 1,
+		NPC_LID_LD, NPC_LT_LD_UDP, NPC_F_UDP_VXLANGPE_NOVNI, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 0, 0,
+		0, 0, NPC_S_KPU9_TU_NSH, 16, 1,
+		NPC_LID_LD, NPC_LT_LD_UDP, NPC_F_UDP_VXLANGPE_NOVNI_NSH, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 10,
+		0, 0, NPC_S_KPU9_TU_MPLS_IN_GRE_VXLAN, 16, 1,
+		NPC_LID_LD, NPC_LT_LD_UDP, NPC_F_UDP_VXLANGPE_NOVNI_MPLS, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 1,
+		NPC_LID_LD, NPC_LT_LD_UDP, NPC_F_UDP_VXLANGPE_UNK, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 1,
+		NPC_LID_LD, NPC_LT_LD_UDP, NPC_F_UDP_VXLANGPE_NONP, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 16, 20,
+		2, 0, NPC_S_KPU11_TU_ETHER, 16, 1,
+		NPC_LID_LD, NPC_LT_LD_UDP, NPC_F_UDP_GENEVE, 8, 0x3f,
+		0, 2,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 16, 20,
+		2, 0, NPC_S_KPU11_TU_ETHER, 16, 1,
+		NPC_LID_LD, NPC_LT_LD_UDP, NPC_F_UDP_GENEVE_OAM, 8, 0x3f,
+		0, 2,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 16, 20,
+		2, 0, NPC_S_KPU11_TU_ETHER, 16, 1,
+		NPC_LID_LD, NPC_LT_LD_UDP, NPC_F_UDP_GENEVE_CRI_OPT, 8, 0x3f,
+		0, 2,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 16, 20,
+		2, 0, NPC_S_KPU11_TU_ETHER, 16, 1,
+		NPC_LID_LD, NPC_LT_LD_UDP, NPC_F_UDP_GENEVE_OAM_CRI_OPT,
+		8, 0x3f, 0, 2,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 8, 0, 0,
+		3, 0, NPC_S_KPU12_TU_IP, 16, 1,
+		NPC_LID_LD, NPC_LT_LD_UDP, NPC_F_UDP_GENEVE, 8, 0x3f,
+		0, 2,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 8, 0, 0,
+		3, 0, NPC_S_KPU12_TU_IP, 16, 1,
+		NPC_LID_LD, NPC_LT_LD_UDP, NPC_F_UDP_GENEVE_OAM,
+		8, 0x3f, 0, 2,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 8, 0, 0,
+		3, 0, NPC_S_KPU12_TU_IP, 16, 1,
+		NPC_LID_LD, NPC_LT_LD_UDP, NPC_F_UDP_GENEVE_CRI_OPT,
+		8, 0x3f, 0, 2,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 8, 0, 0,
+		3, 0, NPC_S_KPU12_TU_IP, 16, 1,
+		NPC_LID_LD, NPC_LT_LD_UDP, NPC_F_UDP_GENEVE_OAM_CRI_OPT,
+		8, 0x3f, 0, 2,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 6, 0, 0,
+		3, 0, NPC_S_KPU12_TU_IP6, 16, 1,
+		NPC_LID_LD, NPC_LT_LD_UDP, NPC_F_UDP_GENEVE, 8, 0x3f,
+		0, 2,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 6, 0, 0,
+		3, 0, NPC_S_KPU12_TU_IP6, 16, 1,
+		NPC_LID_LD, NPC_LT_LD_UDP, NPC_F_UDP_GENEVE_OAM, 8, 0x3f,
+		0, 2,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 6, 0, 0,
+		3, 0, NPC_S_KPU12_TU_IP6, 16, 1,
+		NPC_LID_LD, NPC_LT_LD_UDP, NPC_F_UDP_GENEVE_CRI_OPT,
+		8, 0x3f, 0, 2,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 6, 0, 0,
+		3, 0, NPC_S_KPU12_TU_IP6, 16, 1,
+		NPC_LID_LD, NPC_LT_LD_UDP, NPC_F_UDP_GENEVE_OAM_CRI_OPT,
+		8, 0x3f, 0, 2,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 1,
+		NPC_LID_LD, NPC_LT_LD_UDP, NPC_F_UDP_GTP_GTPC, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 8, 0, 0,
+		3, 0, NPC_S_KPU12_TU_IP, 16, 1,
+		NPC_LID_LD, NPC_LT_LD_UDP, NPC_F_UDP_GTP_GTPU_G_PDU, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 1,
+		NPC_LID_LD, NPC_LT_LD_UDP, NPC_F_UDP_GTP_GTPU_UNK, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		7, 0, NPC_S_KPU16_UDP_DATA, 8, 1,
+		NPC_LID_LD, NPC_LT_LD_UDP, NPC_F_UDP_UNK_PORT, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 1,
+		NPC_LID_LD, NPC_LT_LD_SCTP, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 1,
+		NPC_LID_LD, NPC_LT_LD_ICMP, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 1,
+		NPC_LID_LD, NPC_LT_LD_IGMP, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 1,
+		NPC_LID_LD, NPC_LT_LD_ICMP6, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 1,
+		NPC_LID_LD, NPC_LT_LD_ESP, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 1,
+		NPC_LID_LD, NPC_LT_LD_AH, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 16, 20,
+		2, 0, NPC_S_KPU11_TU_ETHER, 8, 1,
+		NPC_LID_LD, NPC_LT_LD_GRE, NPC_F_GRE_NVGRE, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_LD, NPC_EC_NVGRE, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 0,
+		NPC_LID_LD, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 10,
+		0, 0, NPC_S_KPU9_TU_MPLS_IN_GRE_VXLAN, 4, 1,
+		NPC_LID_LD, NPC_LT_LD_GRE_MPLS, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 10,
+		0, 0, NPC_S_KPU9_TU_MPLS_IN_GRE_VXLAN, 8, 1,
+		NPC_LID_LD, NPC_LT_LD_GRE_MPLS, NPC_F_GRE_HAS_CSUM, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 10,
+		0, 0, NPC_S_KPU9_TU_MPLS_IN_GRE_VXLAN, 8, 1,
+		NPC_LID_LD, NPC_LT_LD_GRE_MPLS, NPC_F_GRE_HAS_KEY, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 10,
+		0, 0, NPC_S_KPU9_TU_MPLS_IN_GRE_VXLAN, 8, 1,
+		NPC_LID_LD, NPC_LT_LD_GRE_MPLS, NPC_F_GRE_HAS_SEQ, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 10,
+		0, 0, NPC_S_KPU9_TU_MPLS_IN_GRE_VXLAN, 12, 1,
+		NPC_LID_LD, NPC_LT_LD_GRE_MPLS, NPC_F_GRE_HAS_CSUM_KEY, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 10,
+		0, 0, NPC_S_KPU9_TU_MPLS_IN_GRE_VXLAN, 12, 1,
+		NPC_LID_LD, NPC_LT_LD_GRE_MPLS, NPC_F_GRE_HAS_CSUM_SEQ, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 10,
+		0, 0, NPC_S_KPU9_TU_MPLS_IN_GRE_VXLAN, 12, 1,
+		NPC_LID_LD, NPC_LT_LD_GRE_MPLS, NPC_F_GRE_HAS_KEY_SEQ, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 10,
+		0, 0, NPC_S_KPU9_TU_MPLS_IN_GRE_VXLAN, 16, 1,
+		NPC_LID_LD, NPC_LT_LD_GRE_MPLS, NPC_F_GRE_HAS_CSUM_KEY_SEQ,
+		0, 0, 0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 10,
+		0, 0, NPC_S_KPU9_TU_MPLS_IN_GRE_VXLAN, 4, 1,
+		NPC_LID_LD, NPC_LT_LD_GRE_MPLS, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 10,
+		0, 0, NPC_S_KPU9_TU_MPLS_IN_GRE_VXLAN, 8, 1,
+		NPC_LID_LD, NPC_LT_LD_GRE_MPLS, NPC_F_GRE_HAS_CSUM, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 10,
+		0, 0, NPC_S_KPU9_TU_MPLS_IN_GRE_VXLAN, 8, 1,
+		NPC_LID_LD, NPC_LT_LD_GRE_MPLS, NPC_F_GRE_HAS_KEY, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 10,
+		0, 0, NPC_S_KPU9_TU_MPLS_IN_GRE_VXLAN, 8, 1,
+		NPC_LID_LD, NPC_LT_LD_GRE_MPLS, NPC_F_GRE_HAS_SEQ, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 10,
+		0, 0, NPC_S_KPU9_TU_MPLS_IN_GRE_VXLAN, 12, 1,
+		NPC_LID_LD, NPC_LT_LD_GRE_MPLS, NPC_F_GRE_HAS_CSUM_KEY, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 10,
+		0, 0, NPC_S_KPU9_TU_MPLS_IN_GRE_VXLAN, 12, 1,
+		NPC_LID_LD, NPC_LT_LD_GRE_MPLS, NPC_F_GRE_HAS_CSUM_SEQ, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 10,
+		0, 0, NPC_S_KPU9_TU_MPLS_IN_GRE_VXLAN, 12, 1,
+		NPC_LID_LD, NPC_LT_LD_GRE_MPLS, NPC_F_GRE_HAS_KEY_SEQ, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 6, 10,
+		0, 0, NPC_S_KPU9_TU_MPLS_IN_GRE_VXLAN, 16, 1,
+		NPC_LID_LD, NPC_LT_LD_GRE_MPLS, NPC_F_GRE_HAS_CSUM_KEY_SEQ,
+		0, 0, 0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 0, 0,
+		0, 0, NPC_S_KPU9_TU_NSH, 4, 1,
+		NPC_LID_LD, NPC_LT_LD_GRE_NSH, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 0, 0,
+		0, 0, NPC_S_KPU9_TU_NSH, 8, 1,
+		NPC_LID_LD, NPC_LT_LD_GRE_NSH, NPC_F_GRE_HAS_CSUM, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 0, 0,
+		0, 0, NPC_S_KPU9_TU_NSH, 8, 1,
+		NPC_LID_LD, NPC_LT_LD_GRE_NSH, NPC_F_GRE_HAS_KEY, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 0, 0,
+		0, 0, NPC_S_KPU9_TU_NSH, 8, 1,
+		NPC_LID_LD, NPC_LT_LD_GRE_NSH, NPC_F_GRE_HAS_SEQ, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 0, 0,
+		0, 0, NPC_S_KPU9_TU_NSH, 12, 1,
+		NPC_LID_LD, NPC_LT_LD_GRE_NSH, NPC_F_GRE_HAS_CSUM_KEY, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 0, 0,
+		0, 0, NPC_S_KPU9_TU_NSH, 12, 1,
+		NPC_LID_LD, NPC_LT_LD_GRE_NSH, NPC_F_GRE_HAS_CSUM_SEQ, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 0, 0,
+		0, 0, NPC_S_KPU9_TU_NSH, 12, 1,
+		NPC_LID_LD, NPC_LT_LD_GRE_NSH, NPC_F_GRE_HAS_KEY_SEQ, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 0, 0,
+		0, 0, NPC_S_KPU9_TU_NSH, 16, 1,
+		NPC_LID_LD, NPC_LT_LD_GRE_NSH, NPC_F_GRE_HAS_CSUM_KEY_SEQ, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 8, 0, 0,
+		3, 0, NPC_S_KPU12_TU_IP, 4, 1,
+		NPC_LID_LD, NPC_LT_LD_GRE, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 8, 0, 0,
+		3, 0, NPC_S_KPU12_TU_IP, 8, 1,
+		NPC_LID_LD, NPC_LT_LD_GRE, NPC_F_GRE_HAS_CSUM, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 8, 0, 0,
+		3, 0, NPC_S_KPU12_TU_IP, 8, 1,
+		NPC_LID_LD, NPC_LT_LD_GRE, NPC_F_GRE_HAS_KEY, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 8, 0, 0,
+		3, 0, NPC_S_KPU12_TU_IP, 8, 1,
+		NPC_LID_LD, NPC_LT_LD_GRE, NPC_F_GRE_HAS_SEQ, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 8, 0, 0,
+		3, 0, NPC_S_KPU12_TU_IP, 12, 1,
+		NPC_LID_LD, NPC_LT_LD_GRE, NPC_F_GRE_HAS_CSUM_KEY, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 8, 0, 0,
+		3, 0, NPC_S_KPU12_TU_IP, 12, 1,
+		NPC_LID_LD, NPC_LT_LD_GRE, NPC_F_GRE_HAS_CSUM_SEQ, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 8, 0, 0,
+		3, 0, NPC_S_KPU12_TU_IP, 12, 1,
+		NPC_LID_LD, NPC_LT_LD_GRE, NPC_F_GRE_HAS_KEY_SEQ, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 8, 0, 0,
+		3, 0, NPC_S_KPU12_TU_IP, 16, 1,
+		NPC_LID_LD, NPC_LT_LD_GRE, NPC_F_GRE_HAS_CSUM_KEY_SEQ, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 6, 0, 0,
+		3, 0, NPC_S_KPU12_TU_IP6, 4, 1,
+		NPC_LID_LD, NPC_LT_LD_GRE, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 6, 0, 0,
+		3, 0, NPC_S_KPU12_TU_IP6, 8, 1,
+		NPC_LID_LD, NPC_LT_LD_GRE, NPC_F_GRE_HAS_CSUM, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 6, 0, 0,
+		3, 0, NPC_S_KPU12_TU_IP6, 8, 1,
+		NPC_LID_LD, NPC_LT_LD_GRE, NPC_F_GRE_HAS_KEY, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 6, 0, 0,
+		3, 0, NPC_S_KPU12_TU_IP6, 8, 1,
+		NPC_LID_LD, NPC_LT_LD_GRE, NPC_F_GRE_HAS_SEQ, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 6, 0, 0,
+		3, 0, NPC_S_KPU12_TU_IP6, 12, 1,
+		NPC_LID_LD, NPC_LT_LD_GRE, NPC_F_GRE_HAS_CSUM_KEY, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 6, 0, 0,
+		3, 0, NPC_S_KPU12_TU_IP6, 12, 1,
+		NPC_LID_LD, NPC_LT_LD_GRE, NPC_F_GRE_HAS_CSUM_SEQ, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 6, 0, 0,
+		3, 0, NPC_S_KPU12_TU_IP6, 12, 1,
+		NPC_LID_LD, NPC_LT_LD_GRE, NPC_F_GRE_HAS_KEY_SEQ, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 6, 0, 0,
+		3, 0, NPC_S_KPU12_TU_IP6, 16, 1,
+		NPC_LID_LD, NPC_LT_LD_GRE, NPC_F_GRE_HAS_CSUM_KEY_SEQ, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 1,
+		NPC_LID_LD, NPC_LT_LD_GRE, NPC_F_GRE_HAS_ROUTE, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 1,
+		NPC_LID_LD, NPC_LT_LD_GRE, NPC_F_GRE_UNK_PROTO, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_LD, NPC_EC_GRE, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 0,
+		NPC_LID_LD, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU11_TU_PPP, 8, 1,
+		NPC_LID_LD, NPC_LT_LD_GRE, NPC_F_GRE_VER1, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU11_TU_PPP, 12, 1,
+		NPC_LID_LD, NPC_LT_LD_GRE, NPC_F_GRE_VER1_HAS_SEQ, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU11_TU_PPP, 12, 1,
+		NPC_LID_LD, NPC_LT_LD_GRE, NPC_F_GRE_VER1_HAS_ACK, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU11_TU_PPP, 16, 1,
+		NPC_LID_LD, NPC_LT_LD_GRE, NPC_F_GRE_VER1_HAS_SEQ_ACK, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 1,
+		NPC_LID_LD, NPC_LT_LD_GRE, NPC_F_GRE_VER1_UNK_PROTO, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_LD, NPC_EC_GRE_VER1, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 0,
+		NPC_LID_LD, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_LD, NPC_EC_UNK, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 0,
+		NPC_LID_LD, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+};
+
+static struct npc_kpu_profile_action kpu9_action_entries[] = {
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 0, NPC_S_KPU10_TU_MPLS_PL, 4, 0,
+		NPC_LID_LD, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 0, NPC_S_KPU10_TU_MPLS_PL, 8, 0,
+		NPC_LID_LD, NPC_LT_NA, NPC_F_MPLS_2_LABELS, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 0, NPC_S_KPU10_TU_MPLS_PL, 12, 0,
+		NPC_LID_LD, NPC_LT_NA, NPC_F_MPLS_3_LABELS, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 4, 0,
+		0, 0, NPC_S_KPU10_TU_MPLS, 12, 0,
+		NPC_LID_LD, NPC_LT_NA, NPC_F_MPLS_4_LABELS, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 0, NPC_S_KPU10_TU_MPLS_PL, 4, 1,
+		NPC_LID_LD, NPC_LT_LD_TU_MPLS, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 0, NPC_S_KPU10_TU_MPLS_PL, 8, 1,
+		NPC_LID_LD, NPC_LT_LD_TU_MPLS, NPC_F_MPLS_2_LABELS, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 0, NPC_S_KPU10_TU_MPLS_PL, 12, 1,
+		NPC_LID_LD, NPC_LT_LD_TU_MPLS, NPC_F_MPLS_3_LABELS, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 4, 0,
+		0, 0, NPC_S_KPU10_TU_MPLS, 12, 1,
+		NPC_LID_LD, NPC_LT_LD_TU_MPLS, NPC_F_MPLS_4_LABELS, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 8, 0, 0,
+		2, 0, NPC_S_KPU12_TU_IP, 0, 0,
+		NPC_LID_LD, NPC_LT_NA, 0, 1, 0x3f,
+		0, 2,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 6, 0, 0,
+		2, 0, NPC_S_KPU12_TU_IP6, 0, 0,
+		NPC_LID_LD, NPC_LT_NA, 0, 1, 0x3f,
+		0, 2,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 16, 20,
+		1, 0, NPC_S_KPU11_TU_ETHER, 0, 0,
+		NPC_LID_LD, NPC_LT_NA, 0, 1, 0x3f,
+		0, 2,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 0, 0,
+		0, 0, NPC_S_KPU10_TU_NSH, 0, 0,
+		NPC_LID_LD, NPC_LT_NA, 0, 1, 0x3f,
+		0, 2,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		1, 0, NPC_S_KPU11_TU_MPLS_IN_NSH, 0, 0,
+		NPC_LID_LD, NPC_LT_NA, 0, 1, 0x3f,
+		0, 2,
+	},
+	{
+		NPC_ERRLEV_LE, NPC_EC_UNK, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 0,
+		NPC_LID_LD, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+};
+
+static struct npc_kpu_profile_action kpu10_action_entries[] = {
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 8, 0, 0,
+		1, 0, NPC_S_KPU12_TU_IP, 4, 0,
+		NPC_LID_LD, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 6, 0, 0,
+		1, 0, NPC_S_KPU12_TU_IP6, 4, 0,
+		NPC_LID_LD, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 16, 20,
+		0, 0, NPC_S_KPU11_TU_ETHER, 8, 0,
+		NPC_LID_LD, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 16, 20,
+		0, 0, NPC_S_KPU11_TU_ETHER, 4, 0,
+		NPC_LID_LD, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_LB, NPC_EC_L2_MPLS_2MANY, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 0,
+		NPC_LID_LD, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 8, 0, 0,
+		1, 0, NPC_S_KPU12_TU_IP, 0, 0,
+		NPC_LID_LD, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 6, 0, 0,
+		1, 0, NPC_S_KPU12_TU_IP6, 0, 0,
+		NPC_LID_LD, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 16, 20,
+		0, 0, NPC_S_KPU11_TU_ETHER, 4, 0,
+		NPC_LID_LD, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 16, 20,
+		0, 0, NPC_S_KPU11_TU_ETHER, 0, 0,
+		NPC_LID_LD, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 8, 0, 0,
+		1, 0, NPC_S_KPU12_TU_IP, 0, 0,
+		NPC_LID_LD, NPC_LT_NA, 0, 1, 0x3f,
+		0, 2,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 6, 0, 0,
+		1, 0, NPC_S_KPU12_TU_IP6, 0, 0,
+		NPC_LID_LD, NPC_LT_NA, 0, 1, 0x3f,
+		0, 2,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 12, 16, 20,
+		0, 0, NPC_S_KPU11_TU_ETHER, 0, 0,
+		NPC_LID_LD, NPC_LT_NA, 0, 1, 0x3f,
+		0, 2,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 0, 0,
+		0, 0, NPC_S_KPU11_TU_3RD_NSH, 0, 0,
+		NPC_LID_LD, NPC_LT_NA, 0, 1, 0x3f,
+		0, 2,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 0, NPC_S_KPU11_TU_MPLS_IN_NSH, 0, 0,
+		NPC_LID_LD, NPC_LT_NA, 0, 1, 0x3f,
+		0, 2,
+	},
+	{
+		NPC_ERRLEV_LE, NPC_EC_UNK, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 0,
+		NPC_LID_LD, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+};
+
+static struct npc_kpu_profile_action kpu11_action_entries[] = {
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 8, 0, 0,
+		0, 0, NPC_S_KPU12_TU_IP, 14, 1,
+		NPC_LID_LE, NPC_LT_LE_TU_ETHER, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 6, 0, 0,
+		0, 0, NPC_S_KPU12_TU_IP6, 14, 1,
+		NPC_LID_LE, NPC_LT_LE_TU_ETHER, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 0, NPC_S_KPU12_TU_ARP, 14, 1,
+		NPC_LID_LE, NPC_LT_LE_TU_ETHER, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 8, 0, 0,
+		0, 0, NPC_S_KPU12_TU_IP, 18, 1,
+		NPC_LID_LE, NPC_LT_LE_TU_ETHER, NPC_F_TU_ETHER_CTAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 6, 0, 0,
+		0, 0, NPC_S_KPU12_TU_IP6, 18, 1,
+		NPC_LID_LE, NPC_LT_LE_TU_ETHER, NPC_F_TU_ETHER_CTAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 0, NPC_S_KPU12_TU_ARP, 18, 1,
+		NPC_LID_LE, NPC_LT_LE_TU_ETHER, NPC_F_TU_ETHER_CTAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 1,
+		NPC_LID_LE, NPC_LT_LE_TU_ETHER, NPC_F_TU_ETHER_CTAG_UNK, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 8, 0, 0,
+		0, 0, NPC_S_KPU12_TU_IP, 22, 1,
+		NPC_LID_LE, NPC_LT_LE_TU_ETHER, NPC_F_TU_ETHER_STAG_CTAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 6, 0, 0,
+		0, 0, NPC_S_KPU12_TU_IP6, 22, 1,
+		NPC_LID_LE, NPC_LT_LE_TU_ETHER, NPC_F_TU_ETHER_STAG_CTAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 0, NPC_S_KPU12_TU_ARP, 22, 1,
+		NPC_LID_LE, NPC_LT_LE_TU_ETHER, NPC_F_TU_ETHER_STAG_CTAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 1,
+		NPC_LID_LE, NPC_LT_LE_TU_ETHER,
+		NPC_F_TU_ETHER_STAG_CTAG_UNK, 0, 0, 0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 8, 0, 0,
+		0, 0, NPC_S_KPU12_TU_IP, 18, 1,
+		NPC_LID_LE, NPC_LT_LE_TU_ETHER, NPC_F_TU_ETHER_STAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 6, 0, 0,
+		0, 0, NPC_S_KPU12_TU_IP6, 18, 1,
+		NPC_LID_LE, NPC_LT_LE_TU_ETHER, NPC_F_TU_ETHER_STAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 0, NPC_S_KPU12_TU_ARP, 18, 1,
+		NPC_LID_LE, NPC_LT_LE_TU_ETHER, NPC_F_TU_ETHER_STAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 1,
+		NPC_LID_LE, NPC_LT_LE_TU_ETHER, NPC_F_TU_ETHER_STAG_UNK, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 8, 0, 0,
+		0, 0, NPC_S_KPU12_TU_IP, 22, 1,
+		NPC_LID_LE, NPC_LT_LE_TU_ETHER, NPC_F_TU_ETHER_QINQ_CTAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 6, 0, 0,
+		0, 0, NPC_S_KPU12_TU_IP6, 22, 1,
+		NPC_LID_LE, NPC_LT_LE_TU_ETHER, NPC_F_TU_ETHER_QINQ_CTAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 0, NPC_S_KPU12_TU_ARP, 22, 1,
+		NPC_LID_LE, NPC_LT_LE_TU_ETHER, NPC_F_TU_ETHER_QINQ_CTAG, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 1,
+		NPC_LID_LE, NPC_LT_LE_TU_ETHER,
+		NPC_F_TU_ETHER_QINQ_CTAG_UNK, 0, 0, 0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 8, 0, 0,
+		0, 0, NPC_S_KPU12_TU_IP, 18, 1,
+		NPC_LID_LE, NPC_LT_LE_TU_ETHER, NPC_F_TU_ETHER_QINQ, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 6, 0, 0,
+		0, 0, NPC_S_KPU12_TU_IP6, 18, 1,
+		NPC_LID_LE, NPC_LT_LE_TU_ETHER, NPC_F_TU_ETHER_QINQ, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 0, NPC_S_KPU12_TU_ARP, 18, 1,
+		NPC_LID_LE, NPC_LT_LE_TU_ETHER, NPC_F_TU_ETHER_QINQ, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 1,
+		NPC_LID_LE, NPC_LT_LE_TU_ETHER, NPC_F_TU_ETHER_QINQ_UNK, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 1,
+		NPC_LID_LE, NPC_LT_LE_TU_ETHER, NPC_F_TU_ETHER_UNK, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 1,
+		NPC_LID_LE, NPC_LT_LE_TU_PPP, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 1,
+		NPC_LID_LE, NPC_LT_LE_TU_MPLS_IN_NSH, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 1,
+		NPC_LID_LE, NPC_LT_LE_TU_3RD_NSH, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_LE, NPC_EC_UNK, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 0,
+		NPC_LID_LE, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+};
+
+static struct npc_kpu_profile_action kpu12_action_entries[] = {
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 12, 0,
+		2, 0, NPC_S_KPU15_TU_TCP, 20, 1,
+		NPC_LID_LF, NPC_LT_LF_TU_IP, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 0, 0,
+		2, 0, NPC_S_KPU15_TU_UDP, 20, 1,
+		NPC_LID_LF, NPC_LT_LF_TU_IP, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU15_TU_SCTP, 20, 1,
+		NPC_LID_LF, NPC_LT_LF_TU_IP, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU15_TU_ICMP, 20, 1,
+		NPC_LID_LF, NPC_LT_LF_TU_IP, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU15_TU_IGMP, 20, 1,
+		NPC_LID_LF, NPC_LT_LF_TU_IP, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU15_TU_ESP, 20, 1,
+		NPC_LID_LF, NPC_LT_LF_TU_IP, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU15_TU_AH, 20, 1,
+		NPC_LID_LF, NPC_LT_LF_TU_IP, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 1,
+		NPC_LID_LF, NPC_LT_LF_TU_IP, NPC_F_IP_UNK_PROTO, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 12, 0,
+		2, 0, NPC_S_KPU15_TU_TCP, 0, 1,
+		NPC_LID_LF, NPC_LT_LF_TU_IP, NPC_F_IP_HAS_OPTIONS, 0, 0xf,
+		0, 2,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 0, 0,
+		2, 0, NPC_S_KPU15_TU_UDP, 0, 1,
+		NPC_LID_LF, NPC_LT_LF_TU_IP, NPC_F_IP_HAS_OPTIONS, 0, 0xf,
+		0, 2,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU15_TU_SCTP, 0, 1,
+		NPC_LID_LF, NPC_LT_LF_TU_IP, NPC_F_IP_HAS_OPTIONS, 0, 0xf,
+		0, 2,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU15_TU_ICMP, 0, 1,
+		NPC_LID_LF, NPC_LT_LF_TU_IP, NPC_F_IP_HAS_OPTIONS, 0, 0xf,
+		0, 2,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU15_TU_IGMP, 0, 1,
+		NPC_LID_LF, NPC_LT_LF_TU_IP, NPC_F_IP_HAS_OPTIONS, 0, 0xf,
+		0, 2,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU15_TU_ESP, 0, 1,
+		NPC_LID_LF, NPC_LT_LF_TU_IP, NPC_F_IP_HAS_OPTIONS, 0, 0xf,
+		0, 2,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU15_TU_AH, 0, 1,
+		NPC_LID_LF, NPC_LT_LF_TU_IP, NPC_F_IP_HAS_OPTIONS, 0, 0xf,
+		0, 2,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 1,
+		NPC_LID_LF, NPC_LT_LF_TU_IP,
+		NPC_F_IP_UNK_PROTO_HAS_OPTIONS, 0, 0, 0, 0,
+	},
+	{
+		NPC_ERRLEV_LF, NPC_EC_IP_VER, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 1,
+		NPC_LID_LF, NPC_LT_LF_TU_IP, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 1,
+		NPC_LID_LF, NPC_LT_LF_TU_ARP, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 12, 0,
+		2, 0, NPC_S_KPU15_TU_TCP, 40, 1,
+		NPC_LID_LF, NPC_LT_LF_TU_IP6, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 0, 0,
+		2, 0, NPC_S_KPU15_TU_UDP, 40, 1,
+		NPC_LID_LF, NPC_LT_LF_TU_IP6, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU15_TU_SCTP, 40, 1,
+		NPC_LID_LF, NPC_LT_LF_TU_IP6, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU15_TU_ICMP, 40, 1,
+		NPC_LID_LF, NPC_LT_LF_TU_IP6, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU15_TU_ICMP6, 40, 1,
+		NPC_LID_LF, NPC_LT_LF_TU_IP6, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU15_TU_ESP, 40, 1,
+		NPC_LID_LC, NPC_LT_LF_TU_IP6, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		2, 0, NPC_S_KPU15_TU_AH, 40, 1,
+		NPC_LID_LC, NPC_LT_LF_TU_IP6, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 2, 0, 0,
+		0, 0, NPC_S_KPU13_TU_IP6_EXT, 0, 1,
+		NPC_LID_LF, NPC_LT_LF_TU_IP6, NPC_F_IP6_HAS_EXT, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_LF, NPC_EC_IP6_VER, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 1,
+		NPC_LID_LF, NPC_LT_LF_TU_IP6, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_LF, NPC_EC_UNK, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 0,
+		NPC_LID_LF, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+};
+
+static struct npc_kpu_profile_action kpu13_action_entries[] = {
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 0,
+		NPC_LID_LC, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+};
+
+static struct npc_kpu_profile_action kpu14_action_entries[] = {
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 0,
+		NPC_LID_LC, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+};
+
+static struct npc_kpu_profile_action kpu15_action_entries[] = {
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 0, NPC_S_KPU16_HTTP_DATA, 20, 1,
+		NPC_LID_LG, NPC_LT_LG_TU_TCP, NPC_F_TCP_HTTP, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 0, NPC_S_KPU16_HTTPS_DATA, 20, 1,
+		NPC_LID_LG, NPC_LT_LG_TU_TCP, NPC_F_TCP_HTTPS, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 0, NPC_S_KPU16_PPTP_DATA, 20, 1,
+		NPC_LID_LD, NPC_LT_LG_TU_TCP, NPC_F_TCP_PPTP, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 0, NPC_S_KPU16_TCP_DATA, 20, 1,
+		NPC_LID_LG, NPC_LT_LG_TU_TCP, NPC_F_TCP_UNK_PORT, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 0, NPC_S_KPU16_HTTP_DATA, 0, 1,
+		NPC_LID_LG, NPC_LT_LG_TU_TCP, NPC_F_TCP_HTTP_HAS_OPTIONS,
+		12, 0xf0, 1, 2,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 0, NPC_S_KPU16_HTTPS_DATA, 0, 1,
+		NPC_LID_LG, NPC_LT_LG_TU_TCP, NPC_F_TCP_HTTPS_HAS_OPTIONS,
+		12, 0xf0, 1, 2,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 0, NPC_S_KPU16_PPTP_DATA, 0, 1,
+		NPC_LID_LG, NPC_LT_LG_TU_TCP, NPC_F_TCP_PPTP_HAS_OPTIONS,
+		12, 0xf0, 1, 2,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 0, NPC_S_KPU16_TCP_DATA, 0, 1,
+		NPC_LID_LG, NPC_LT_LG_TU_TCP, NPC_F_TCP_UNK_PORT_HAS_OPTIONS,
+		12, 0xf0, 1, 2,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 0, NPC_S_KPU16_UDP_DATA, 8, 1,
+		NPC_LID_LG, NPC_LT_LG_TU_UDP, NPC_F_UDP_UNK_PORT, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 1,
+		NPC_LID_LG, NPC_LT_LG_TU_SCTP, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 1,
+		NPC_LID_LG, NPC_LT_LG_TU_ICMP, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 1,
+		NPC_LID_LG, NPC_LT_LG_TU_IGMP, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 1,
+		NPC_LID_LG, NPC_LT_LG_TU_ICMP6, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 1,
+		NPC_LID_LG, NPC_LT_LG_TU_ESP, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 1,
+		NPC_LID_LG, NPC_LT_LG_TU_AH, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_LG, NPC_EC_L4, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 0,
+		NPC_LID_LG, NPC_LT_NA, 0, 0, 0,
+		0, 0,
+	},
+};
+
+static struct npc_kpu_profile_action kpu16_action_entries[] = {
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 1,
+		NPC_LID_LH, NPC_LT_LH_TCP_DATA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 1,
+		NPC_LID_LH, NPC_LT_LH_HTTP_DATA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 1,
+		NPC_LID_LH, NPC_LT_LH_HTTPS_DATA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 1,
+		NPC_LID_LH, NPC_LT_LH_PPTP_DATA, 0, 0, 0,
+		0, 0,
+	},
+	{
+		NPC_ERRLEV_RE, NPC_EC_NOERR, 0, 0, 0,
+		0, 1, NPC_S_NA, 0, 1,
+		NPC_LID_LH, NPC_LT_LH_UDP_DATA, 0, 0, 0,
+		0, 0,
+	},
+};
+
+static struct npc_kpu_profile npc_kpu_profiles[] = {
+	{
+		ARRAY_SIZE(kpu1_cam_entries),
+		ARRAY_SIZE(kpu1_action_entries),
+		&kpu1_cam_entries[0],
+		&kpu1_action_entries[0],
+	},
+	{
+		ARRAY_SIZE(kpu2_cam_entries),
+		ARRAY_SIZE(kpu2_action_entries),
+		&kpu2_cam_entries[0],
+		&kpu2_action_entries[0],
+	},
+	{
+		ARRAY_SIZE(kpu3_cam_entries),
+		ARRAY_SIZE(kpu3_action_entries),
+		&kpu3_cam_entries[0],
+		&kpu3_action_entries[0],
+	},
+	{
+		ARRAY_SIZE(kpu4_cam_entries),
+		ARRAY_SIZE(kpu4_action_entries),
+		&kpu4_cam_entries[0],
+		&kpu4_action_entries[0],
+	},
+	{
+		ARRAY_SIZE(kpu5_cam_entries),
+		ARRAY_SIZE(kpu5_action_entries),
+		&kpu5_cam_entries[0],
+		&kpu5_action_entries[0],
+	},
+	{
+		ARRAY_SIZE(kpu6_cam_entries),
+		ARRAY_SIZE(kpu6_action_entries),
+		&kpu6_cam_entries[0],
+		&kpu6_action_entries[0],
+	},
+	{
+		ARRAY_SIZE(kpu7_cam_entries),
+		ARRAY_SIZE(kpu7_action_entries),
+		&kpu7_cam_entries[0],
+		&kpu7_action_entries[0],
+	},
+	{
+		ARRAY_SIZE(kpu8_cam_entries),
+		ARRAY_SIZE(kpu8_action_entries),
+		&kpu8_cam_entries[0],
+		&kpu8_action_entries[0],
+	},
+	{
+		ARRAY_SIZE(kpu9_cam_entries),
+		ARRAY_SIZE(kpu9_action_entries),
+		&kpu9_cam_entries[0],
+		&kpu9_action_entries[0],
+	},
+	{
+		ARRAY_SIZE(kpu10_cam_entries),
+		ARRAY_SIZE(kpu10_action_entries),
+		&kpu10_cam_entries[0],
+		&kpu10_action_entries[0],
+	},
+	{
+		ARRAY_SIZE(kpu11_cam_entries),
+		ARRAY_SIZE(kpu11_action_entries),
+		&kpu11_cam_entries[0],
+		&kpu11_action_entries[0],
+	},
+	{
+		ARRAY_SIZE(kpu12_cam_entries),
+		ARRAY_SIZE(kpu12_action_entries),
+		&kpu12_cam_entries[0],
+		&kpu12_action_entries[0],
+	},
+	{
+		ARRAY_SIZE(kpu13_cam_entries),
+		ARRAY_SIZE(kpu13_action_entries),
+		&kpu13_cam_entries[0],
+		&kpu13_action_entries[0],
+	},
+	{
+		ARRAY_SIZE(kpu14_cam_entries),
+		ARRAY_SIZE(kpu14_action_entries),
+		&kpu14_cam_entries[0],
+		&kpu14_action_entries[0],
+	},
+	{
+		ARRAY_SIZE(kpu15_cam_entries),
+		ARRAY_SIZE(kpu15_action_entries),
+		&kpu15_cam_entries[0],
+		&kpu15_action_entries[0],
+	},
+	{
+		ARRAY_SIZE(kpu16_cam_entries),
+		ARRAY_SIZE(kpu16_action_entries),
+		&kpu16_cam_entries[0],
+		&kpu16_action_entries[0],
+	},
+};
+
+#endif /* NPC_PROFILE_H */

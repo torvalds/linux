@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * IEEE754 floating point
  * double precision internal header file
@@ -5,19 +6,6 @@
 /*
  * MIPS floating point support
  * Copyright (C) 1994-2000 Algorithmics Ltd.
- *
- *  This program is free software; you can distribute it and/or modify it
- *  under the terms of the GNU General Public License (Version 2) as
- *  published by the Free Software Foundation.
- *
- *  This program is distributed in the hope it will be useful, but WITHOUT
- *  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- *  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- *  for more details.
- *
- *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA.
  */
 
 #include <linux/compiler.h>
@@ -54,6 +42,9 @@ static inline int ieee754dp_finite(union ieee754dp x)
 
 #define XDPSRS1(v)	\
 	(((v) >> 1) | ((v) & 1))
+
+/* 32bit * 32bit => 64bit unsigned integer multiplication */
+#define DPXMULT(x, y)	((u64)(x) * (u64)y)
 
 /* convert denormal to normalized with extended exponent */
 #define DPDNORMx(m,e) \

@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Common Device Tree Source for IGEPv2
  *
  * Copyright (C) 2014 Javier Martinez Canillas <javier@osg.samsung.com>
  * Copyright (C) 2014 Enric Balletbo i Serra <eballetbo@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include "omap3-igep.dtsi"
@@ -58,6 +55,7 @@
 		compatible = "usb-nop-xceiv";
 		reset-gpios = <&gpio1 24 GPIO_ACTIVE_LOW>; /* gpio_24 */
 		vcc-supply = <&hsusb1_power>;
+		#phy-cells = <0>;
 	};
 
 	tfp410: encoder {

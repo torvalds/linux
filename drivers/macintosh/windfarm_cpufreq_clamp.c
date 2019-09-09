@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
@@ -63,7 +64,7 @@ static s32 clamp_max(struct wf_control *ct)
 	return 1;
 }
 
-static struct wf_control_ops clamp_ops = {
+static const struct wf_control_ops clamp_ops = {
 	.set_value	= clamp_set,
 	.get_value	= clamp_get,
 	.get_min	= clamp_min,

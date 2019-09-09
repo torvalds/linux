@@ -1,20 +1,15 @@
-/* linux/arch/arm/mach-s3c2440/mach-at2440evb.c
- *
- * Copyright (c) 2008 Ramax Lo <ramaxlo@gmail.com>
- *      Based on mach-anubis.c by Ben Dooks <ben@simtec.co.uk>
- *      and modifications by SBZ <sbz@spgui.org> and
- *      Weibing <http://weibing.blogbus.com>
- *
- * For product information, visit http://www.arm.com/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
-*/
+// SPDX-License-Identifier: GPL-2.0
+//
+// Copyright (c) 2008 Ramax Lo <ramaxlo@gmail.com>
+//      Based on mach-anubis.c by Ben Dooks <ben@simtec.co.uk>
+//      and modifications by SBZ <sbz@spgui.org> and
+//      Weibing <http://weibing.blogbus.com>
+//
+// For product information, visit http://www.arm.com/
 
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/interrupt.h>
 #include <linux/list.h>
 #include <linux/timer.h>
@@ -41,7 +36,7 @@
 #include <linux/platform_data/i2c-s3c2410.h>
 
 #include <linux/mtd/mtd.h>
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 #include <linux/mtd/nand_ecc.h>
 #include <linux/mtd/partitions.h>
 
@@ -114,6 +109,7 @@ static struct s3c2410_platform_nand __initdata at2440evb_nand_info = {
 	.twrph1		= 40,
 	.nr_sets	= ARRAY_SIZE(at2440evb_nand_sets),
 	.sets		= at2440evb_nand_sets,
+	.ecc_mode       = NAND_ECC_SOFT,
 };
 
 /* DM9000AEP 10/100 ethernet controller */
@@ -140,7 +136,16 @@ static struct platform_device at2440evb_device_eth = {
 };
 
 static struct s3c24xx_mci_pdata at2440evb_mci_pdata __initdata = {
-	.gpio_detect	= S3C2410_GPG(10),
+	/* Intentionally left blank */
+};
+
+static struct gpiod_lookup_table at2440evb_mci_gpio_table = {
+	.dev_id = "s3c2410-sdi",
+	.table = {
+		/* Card detect S3C2410_GPG(10) */
+		GPIO_LOOKUP("GPG", 10, "cd", GPIO_ACTIVE_LOW),
+		{ },
+	},
 };
 
 /* 7" LCD panel */
@@ -204,6 +209,7 @@ static void __init at2440evb_init_time(void)
 static void __init at2440evb_init(void)
 {
 	s3c24xx_fb_set_platdata(&at2440evb_fb_info);
+	gpiod_add_lookup_table(&at2440evb_mci_gpio_table);
 	s3c24xx_mci_set_platdata(&at2440evb_mci_pdata);
 	s3c_nand_set_platdata(&at2440evb_nand_info);
 	s3c_i2c0_set_platdata(NULL);

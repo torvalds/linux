@@ -1,7 +1,5 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
  *
  * Parts of this file are based on Ralink's 2.6.21 BSP
  *
@@ -115,9 +113,14 @@
 #define MT7620_GPIO_MODE_WDT_MASK	0x3
 #define MT7620_GPIO_MODE_WDT_SHIFT	21
 
+#define MT7620_GPIO_MODE_MDIO		0
+#define MT7620_GPIO_MODE_MDIO_REFCLK	1
+#define MT7620_GPIO_MODE_MDIO_GPIO	2
+#define MT7620_GPIO_MODE_MDIO_MASK	0x3
+#define MT7620_GPIO_MODE_MDIO_SHIFT	7
+
 #define MT7620_GPIO_MODE_I2C		0
 #define MT7620_GPIO_MODE_UART1		5
-#define MT7620_GPIO_MODE_MDIO		8
 #define MT7620_GPIO_MODE_RGMII1		9
 #define MT7620_GPIO_MODE_RGMII2		10
 #define MT7620_GPIO_MODE_SPI		11

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Sam440ep board specific routines based off bamboo.c code
  * original copyrights below
@@ -11,11 +12,6 @@
  *
  * Modified from bamboo.c for sam440ep:
  * Copyright 2008 Giuseppe Coviello <gicoviello@gmail.com>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 #include <linux/init.h>
 #include <linux/of_platform.h>
@@ -70,7 +66,7 @@ static struct i2c_board_info sam440ep_rtc_info = {
 	.irq = -1,
 };
 
-static int sam440ep_setup_rtc(void)
+static int __init sam440ep_setup_rtc(void)
 {
 	return i2c_register_board_info(0, &sam440ep_rtc_info, 1);
 }

@@ -138,7 +138,6 @@ void mwifiex_ralist_add(struct mwifiex_private *priv, const u8 *ra)
 	struct mwifiex_ra_list_tbl *ra_list;
 	struct mwifiex_adapter *adapter = priv->adapter;
 	struct mwifiex_sta_node *node;
-	unsigned long flags;
 
 
 	for (i = 0; i < MAX_NUM_TID; ++i) {
@@ -163,7 +162,7 @@ void mwifiex_ralist_add(struct mwifiex_private *priv, const u8 *ra)
 				ra_list->is_11n_enabled = IS_11N_ENABLED(priv);
 			}
 		} else {
-			spin_lock_irqsave(&priv->sta_list_spinlock, flags);
+			spin_lock_bh(&priv->sta_list_spinlock);
 			node = mwifiex_get_sta_entry(priv, ra);
 			if (node)
 				ra_list->tx_paused = node->tx_pause;
@@ -171,7 +170,7 @@ void mwifiex_ralist_add(struct mwifiex_private *priv, const u8 *ra)
 				      mwifiex_is_sta_11n_enabled(priv, node);
 			if (ra_list->is_11n_enabled)
 				ra_list->max_amsdu = node->max_amsdu;
-			spin_unlock_irqrestore(&priv->sta_list_spinlock, flags);
+			spin_unlock_bh(&priv->sta_list_spinlock);
 		}
 
 		mwifiex_dbg(adapter, DATA, "data: ralist %p: is_11n_enabled=%d\n",
@@ -240,7 +239,7 @@ mwifiex_wmm_setup_queue_priorities(struct mwifiex_private *priv,
 	mwifiex_dbg(priv->adapter, INFO,
 		    "info: WMM Parameter IE: version=%d,\t"
 		    "qos_info Parameter Set Count=%d, Reserved=%#x\n",
-		    wmm_ie->vend_hdr.version, wmm_ie->qos_info_bitmap &
+		    wmm_ie->version, wmm_ie->qos_info_bitmap &
 		    IEEE80211_WMM_IE_AP_QOSINFO_PARAM_SET_CNT_MASK,
 		    wmm_ie->reserved);
 
@@ -359,7 +358,8 @@ static enum mwifiex_wmm_ac_e
 mwifiex_wmm_convert_tos_to_ac(struct mwifiex_adapter *adapter, u32 tos)
 {
 	/* Map of TOS UP values to WMM AC */
-	const enum mwifiex_wmm_ac_e tos_to_ac[] = { WMM_AC_BE,
+	static const enum mwifiex_wmm_ac_e tos_to_ac[] = {
+		WMM_AC_BE,
 		WMM_AC_BK,
 		WMM_AC_BK,
 		WMM_AC_BE,
@@ -503,8 +503,10 @@ mwifiex_wmm_del_pkts_in_ralist_node(struct mwifiex_private *priv,
 	struct mwifiex_adapter *adapter = priv->adapter;
 	struct sk_buff *skb, *tmp;
 
-	skb_queue_walk_safe(&ra_list->skb_head, skb, tmp)
+	skb_queue_walk_safe(&ra_list->skb_head, skb, tmp) {
+		skb_unlink(skb, &ra_list->skb_head);
 		mwifiex_write_data_complete(adapter, skb, 0, -1);
+	}
 }
 
 /*
@@ -580,11 +582,10 @@ static int mwifiex_free_ack_frame(int id, void *p, void *data)
 void
 mwifiex_clean_txrx(struct mwifiex_private *priv)
 {
-	unsigned long flags;
 	struct sk_buff *skb, *tmp;
 
 	mwifiex_11n_cleanup_reorder_tbl(priv);
-	spin_lock_irqsave(&priv->wmm.ra_list_spinlock, flags);
+	spin_lock_bh(&priv->wmm.ra_list_spinlock);
 
 	mwifiex_wmm_cleanup_queues(priv);
 	mwifiex_11n_delete_all_tx_ba_stream_tbl(priv);
@@ -596,15 +597,19 @@ mwifiex_clean_txrx(struct mwifiex_private *priv)
 	memcpy(tos_to_tid, ac_to_tid, sizeof(tos_to_tid));
 
 	if (priv->adapter->if_ops.clean_pcie_ring &&
-	    !priv->adapter->surprise_removed)
+	    !test_bit(MWIFIEX_SURPRISE_REMOVED, &priv->adapter->work_flags))
 		priv->adapter->if_ops.clean_pcie_ring(priv->adapter);
-	spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock, flags);
+	spin_unlock_bh(&priv->wmm.ra_list_spinlock);
 
-	skb_queue_walk_safe(&priv->tdls_txq, skb, tmp)
+	skb_queue_walk_safe(&priv->tdls_txq, skb, tmp) {
+		skb_unlink(skb, &priv->tdls_txq);
 		mwifiex_write_data_complete(priv->adapter, skb, 0, -1);
+	}
 
-	skb_queue_walk_safe(&priv->bypass_txq, skb, tmp)
+	skb_queue_walk_safe(&priv->bypass_txq, skb, tmp) {
+		skb_unlink(skb, &priv->bypass_txq);
 		mwifiex_write_data_complete(priv->adapter, skb, 0, -1);
+	}
 	atomic_set(&priv->adapter->bypass_tx_pending, 0);
 
 	idr_for_each(&priv->ack_status_frames, mwifiex_free_ack_frame, NULL);
@@ -635,10 +640,9 @@ void mwifiex_update_ralist_tx_pause(struct mwifiex_private *priv, u8 *mac,
 {
 	struct mwifiex_ra_list_tbl *ra_list;
 	u32 pkt_cnt = 0, tx_pkts_queued;
-	unsigned long flags;
 	int i;
 
-	spin_lock_irqsave(&priv->wmm.ra_list_spinlock, flags);
+	spin_lock_bh(&priv->wmm.ra_list_spinlock);
 
 	for (i = 0; i < MAX_NUM_TID; ++i) {
 		ra_list = mwifiex_wmm_get_ralist_node(priv, i, mac);
@@ -664,21 +668,20 @@ void mwifiex_update_ralist_tx_pause(struct mwifiex_private *priv, u8 *mac,
 		atomic_set(&priv->wmm.tx_pkts_queued, tx_pkts_queued);
 		atomic_set(&priv->wmm.highest_queued_prio, HIGH_PRIO_TID);
 	}
-	spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock, flags);
+	spin_unlock_bh(&priv->wmm.ra_list_spinlock);
 }
 
-/* This function update non-tdls peer ralist tx_pause while
- * tdls channel swithing
+/* This function updates non-tdls peer ralist tx_pause while
+ * tdls channel switching
  */
 void mwifiex_update_ralist_tx_pause_in_tdls_cs(struct mwifiex_private *priv,
 					       u8 *mac, u8 tx_pause)
 {
 	struct mwifiex_ra_list_tbl *ra_list;
 	u32 pkt_cnt = 0, tx_pkts_queued;
-	unsigned long flags;
 	int i;
 
-	spin_lock_irqsave(&priv->wmm.ra_list_spinlock, flags);
+	spin_lock_bh(&priv->wmm.ra_list_spinlock);
 
 	for (i = 0; i < MAX_NUM_TID; ++i) {
 		list_for_each_entry(ra_list, &priv->wmm.tid_tbl_ptr[i].ra_list,
@@ -709,7 +712,7 @@ void mwifiex_update_ralist_tx_pause_in_tdls_cs(struct mwifiex_private *priv,
 		atomic_set(&priv->wmm.tx_pkts_queued, tx_pkts_queued);
 		atomic_set(&priv->wmm.highest_queued_prio, HIGH_PRIO_TID);
 	}
-	spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock, flags);
+	spin_unlock_bh(&priv->wmm.ra_list_spinlock);
 }
 
 /*
@@ -741,10 +744,9 @@ void
 mwifiex_wmm_del_peer_ra_list(struct mwifiex_private *priv, const u8 *ra_addr)
 {
 	struct mwifiex_ra_list_tbl *ra_list;
-	unsigned long flags;
 	int i;
 
-	spin_lock_irqsave(&priv->wmm.ra_list_spinlock, flags);
+	spin_lock_bh(&priv->wmm.ra_list_spinlock);
 
 	for (i = 0; i < MAX_NUM_TID; ++i) {
 		ra_list = mwifiex_wmm_get_ralist_node(priv, i, ra_addr);
@@ -760,7 +762,7 @@ mwifiex_wmm_del_peer_ra_list(struct mwifiex_private *priv, const u8 *ra_addr)
 		list_del(&ra_list->list);
 		kfree(ra_list);
 	}
-	spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock, flags);
+	spin_unlock_bh(&priv->wmm.ra_list_spinlock);
 }
 
 /*
@@ -811,7 +813,6 @@ mwifiex_wmm_add_buf_txqueue(struct mwifiex_private *priv,
 	u32 tid;
 	struct mwifiex_ra_list_tbl *ra_list;
 	u8 ra[ETH_ALEN], tid_down;
-	unsigned long flags;
 	struct list_head list_head;
 	int tdls_status = TDLS_NOT_SETUP;
 	struct ethhdr *eth_hdr = (struct ethhdr *)skb->data;
@@ -837,7 +838,7 @@ mwifiex_wmm_add_buf_txqueue(struct mwifiex_private *priv,
 
 	tid = skb->priority;
 
-	spin_lock_irqsave(&priv->wmm.ra_list_spinlock, flags);
+	spin_lock_bh(&priv->wmm.ra_list_spinlock);
 
 	tid_down = mwifiex_wmm_downgrade_tid(priv, tid);
 
@@ -857,17 +858,12 @@ mwifiex_wmm_add_buf_txqueue(struct mwifiex_private *priv,
 			break;
 		case TDLS_SETUP_INPROGRESS:
 			skb_queue_tail(&priv->tdls_txq, skb);
-			spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock,
-					       flags);
+			spin_unlock_bh(&priv->wmm.ra_list_spinlock);
 			return;
 		default:
 			list_head = priv->wmm.tid_tbl_ptr[tid_down].ra_list;
-			if (!list_empty(&list_head))
-				ra_list = list_first_entry(
-					&list_head, struct mwifiex_ra_list_tbl,
-					list);
-			else
-				ra_list = NULL;
+			ra_list = list_first_entry_or_null(&list_head,
+					struct mwifiex_ra_list_tbl, list);
 			break;
 		}
 	} else {
@@ -878,7 +874,7 @@ mwifiex_wmm_add_buf_txqueue(struct mwifiex_private *priv,
 	}
 
 	if (!ra_list) {
-		spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock, flags);
+		spin_unlock_bh(&priv->wmm.ra_list_spinlock);
 		mwifiex_write_data_complete(adapter, skb, 0, -1);
 		return;
 	}
@@ -898,7 +894,7 @@ mwifiex_wmm_add_buf_txqueue(struct mwifiex_private *priv,
 	else
 		atomic_inc(&priv->wmm.tx_pkts_queued);
 
-	spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock, flags);
+	spin_unlock_bh(&priv->wmm.ra_list_spinlock);
 }
 
 /*
@@ -1089,7 +1085,6 @@ mwifiex_wmm_get_highest_priolist_ptr(struct mwifiex_adapter *adapter,
 	struct mwifiex_ra_list_tbl *ptr;
 	struct mwifiex_tid_tbl *tid_ptr;
 	atomic_t *hqp;
-	unsigned long flags_ra;
 	int i, j;
 
 	/* check the BSS with highest priority first */
@@ -1099,6 +1094,7 @@ mwifiex_wmm_get_highest_priolist_ptr(struct mwifiex_adapter *adapter,
 				    &adapter->bss_prio_tbl[j].bss_prio_head,
 				    list) {
 
+try_again:
 			priv_tmp = adapter->bss_prio_tbl[j].bss_prio_cur->priv;
 
 			if (((priv_tmp->bss_mode != NL80211_IFTYPE_ADHOC) &&
@@ -1114,8 +1110,7 @@ mwifiex_wmm_get_highest_priolist_ptr(struct mwifiex_adapter *adapter,
 			hqp = &priv_tmp->wmm.highest_queued_prio;
 			for (i = atomic_read(hqp); i >= LOW_PRIO_TID; --i) {
 
-				spin_lock_irqsave(&priv_tmp->wmm.
-						  ra_list_spinlock, flags_ra);
+				spin_lock_bh(&priv_tmp->wmm.ra_list_spinlock);
 
 				tid_ptr = &(priv_tmp)->wmm.
 					tid_tbl_ptr[tos_to_tid[i]];
@@ -1130,12 +1125,20 @@ mwifiex_wmm_get_highest_priolist_ptr(struct mwifiex_adapter *adapter,
 						goto found;
 				}
 
-				spin_unlock_irqrestore(&priv_tmp->wmm.
-						       ra_list_spinlock,
-						       flags_ra);
+				spin_unlock_bh(&priv_tmp->wmm.ra_list_spinlock);
 			}
-		}
 
+			if (atomic_read(&priv_tmp->wmm.tx_pkts_queued) != 0) {
+				atomic_set(&priv_tmp->wmm.highest_queued_prio,
+					   HIGH_PRIO_TID);
+				/* Iterate current private once more, since
+				 * there still exist packets in data queue
+				 */
+				goto try_again;
+			} else
+				atomic_set(&priv_tmp->wmm.highest_queued_prio,
+					   NO_PKT_PRIO_TID);
+		}
 	}
 
 	return NULL;
@@ -1144,7 +1147,7 @@ found:
 	/* holds ra_list_spinlock */
 	if (atomic_read(hqp) > i)
 		atomic_set(hqp, i);
-	spin_unlock_irqrestore(&priv_tmp->wmm.ra_list_spinlock, flags_ra);
+	spin_unlock_bh(&priv_tmp->wmm.ra_list_spinlock);
 
 	*priv = priv_tmp;
 	*tid = tos_to_tid[i];
@@ -1168,24 +1171,23 @@ void mwifiex_rotate_priolists(struct mwifiex_private *priv,
 	struct mwifiex_adapter *adapter = priv->adapter;
 	struct mwifiex_bss_prio_tbl *tbl = adapter->bss_prio_tbl;
 	struct mwifiex_tid_tbl *tid_ptr = &priv->wmm.tid_tbl_ptr[tid];
-	unsigned long flags;
 
-	spin_lock_irqsave(&tbl[priv->bss_priority].bss_prio_lock, flags);
+	spin_lock_bh(&tbl[priv->bss_priority].bss_prio_lock);
 	/*
 	 * dirty trick: we remove 'head' temporarily and reinsert it after
 	 * curr bss node. imagine list to stay fixed while head is moved
 	 */
 	list_move(&tbl[priv->bss_priority].bss_prio_head,
 		  &tbl[priv->bss_priority].bss_prio_cur->list);
-	spin_unlock_irqrestore(&tbl[priv->bss_priority].bss_prio_lock, flags);
+	spin_unlock_bh(&tbl[priv->bss_priority].bss_prio_lock);
 
-	spin_lock_irqsave(&priv->wmm.ra_list_spinlock, flags);
+	spin_lock_bh(&priv->wmm.ra_list_spinlock);
 	if (mwifiex_is_ralist_valid(priv, ra, tid)) {
 		priv->wmm.packets_out[tid]++;
 		/* same as above */
 		list_move(&tid_ptr->ra_list, &ra->list);
 	}
-	spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock, flags);
+	spin_unlock_bh(&priv->wmm.ra_list_spinlock);
 }
 
 /*
@@ -1222,8 +1224,7 @@ mwifiex_is_11n_aggragation_possible(struct mwifiex_private *priv,
  */
 static void
 mwifiex_send_single_packet(struct mwifiex_private *priv,
-			   struct mwifiex_ra_list_tbl *ptr, int ptr_index,
-			   unsigned long ra_list_flags)
+			   struct mwifiex_ra_list_tbl *ptr, int ptr_index)
 			   __releases(&priv->wmm.ra_list_spinlock)
 {
 	struct sk_buff *skb, *skb_next;
@@ -1232,8 +1233,7 @@ mwifiex_send_single_packet(struct mwifiex_private *priv,
 	struct mwifiex_txinfo *tx_info;
 
 	if (skb_queue_empty(&ptr->skb_head)) {
-		spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock,
-				       ra_list_flags);
+		spin_unlock_bh(&priv->wmm.ra_list_spinlock);
 		mwifiex_dbg(adapter, DATA, "data: nothing to send\n");
 		return;
 	}
@@ -1251,18 +1251,17 @@ mwifiex_send_single_packet(struct mwifiex_private *priv,
 	else
 		skb_next = NULL;
 
-	spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock, ra_list_flags);
+	spin_unlock_bh(&priv->wmm.ra_list_spinlock);
 
 	tx_param.next_pkt_len = ((skb_next) ? skb_next->len +
 				sizeof(struct txpd) : 0);
 
 	if (mwifiex_process_tx(priv, skb, &tx_param) == -EBUSY) {
 		/* Queue the packet back at the head */
-		spin_lock_irqsave(&priv->wmm.ra_list_spinlock, ra_list_flags);
+		spin_lock_bh(&priv->wmm.ra_list_spinlock);
 
 		if (!mwifiex_is_ralist_valid(priv, ptr, ptr_index)) {
-			spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock,
-					       ra_list_flags);
+			spin_unlock_bh(&priv->wmm.ra_list_spinlock);
 			mwifiex_write_data_complete(adapter, skb, 0, -1);
 			return;
 		}
@@ -1272,8 +1271,7 @@ mwifiex_send_single_packet(struct mwifiex_private *priv,
 		ptr->total_pkt_count++;
 		ptr->ba_pkt_count++;
 		tx_info->flags |= MWIFIEX_BUF_FLAG_REQUEUED_PKT;
-		spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock,
-				       ra_list_flags);
+		spin_unlock_bh(&priv->wmm.ra_list_spinlock);
 	} else {
 		mwifiex_rotate_priolists(priv, ptr, ptr_index);
 		atomic_dec(&priv->wmm.tx_pkts_queued);
@@ -1309,8 +1307,7 @@ mwifiex_is_ptr_processed(struct mwifiex_private *priv,
  */
 static void
 mwifiex_send_processed_packet(struct mwifiex_private *priv,
-			      struct mwifiex_ra_list_tbl *ptr, int ptr_index,
-			      unsigned long ra_list_flags)
+			      struct mwifiex_ra_list_tbl *ptr, int ptr_index)
 				__releases(&priv->wmm.ra_list_spinlock)
 {
 	struct mwifiex_tx_param tx_param;
@@ -1320,17 +1317,17 @@ mwifiex_send_processed_packet(struct mwifiex_private *priv,
 	struct mwifiex_txinfo *tx_info;
 
 	if (skb_queue_empty(&ptr->skb_head)) {
-		spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock,
-				       ra_list_flags);
+		spin_unlock_bh(&priv->wmm.ra_list_spinlock);
 		return;
 	}
 
 	skb = skb_dequeue(&ptr->skb_head);
 
 	if (adapter->data_sent || adapter->tx_lock_flag) {
-		spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock,
-				       ra_list_flags);
+		ptr->total_pkt_count--;
+		spin_unlock_bh(&priv->wmm.ra_list_spinlock);
 		skb_queue_tail(&adapter->tx_data_q, skb);
+		atomic_dec(&priv->wmm.tx_pkts_queued);
 		atomic_inc(&adapter->tx_queued);
 		return;
 	}
@@ -1342,15 +1339,15 @@ mwifiex_send_processed_packet(struct mwifiex_private *priv,
 
 	tx_info = MWIFIEX_SKB_TXCB(skb);
 
-	spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock, ra_list_flags);
+	spin_unlock_bh(&priv->wmm.ra_list_spinlock);
 
+	tx_param.next_pkt_len =
+		((skb_next) ? skb_next->len +
+		 sizeof(struct txpd) : 0);
 	if (adapter->iface_type == MWIFIEX_USB) {
 		ret = adapter->if_ops.host_to_card(adapter, priv->usb_port,
-						   skb, NULL);
+						   skb, &tx_param);
 	} else {
-		tx_param.next_pkt_len =
-			((skb_next) ? skb_next->len +
-			 sizeof(struct txpd) : 0);
 		ret = adapter->if_ops.host_to_card(adapter, MWIFIEX_TYPE_DATA,
 						   skb, &tx_param);
 	}
@@ -1358,11 +1355,10 @@ mwifiex_send_processed_packet(struct mwifiex_private *priv,
 	switch (ret) {
 	case -EBUSY:
 		mwifiex_dbg(adapter, ERROR, "data: -EBUSY is returned\n");
-		spin_lock_irqsave(&priv->wmm.ra_list_spinlock, ra_list_flags);
+		spin_lock_bh(&priv->wmm.ra_list_spinlock);
 
 		if (!mwifiex_is_ralist_valid(priv, ptr, ptr_index)) {
-			spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock,
-					       ra_list_flags);
+			spin_unlock_bh(&priv->wmm.ra_list_spinlock);
 			mwifiex_write_data_complete(adapter, skb, 0, -1);
 			return;
 		}
@@ -1370,8 +1366,7 @@ mwifiex_send_processed_packet(struct mwifiex_private *priv,
 		skb_queue_tail(&ptr->skb_head, skb);
 
 		tx_info->flags |= MWIFIEX_BUF_FLAG_REQUEUED_PKT;
-		spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock,
-				       ra_list_flags);
+		spin_unlock_bh(&priv->wmm.ra_list_spinlock);
 		break;
 	case -1:
 		mwifiex_dbg(adapter, ERROR, "host_to_card failed: %#x\n", ret);
@@ -1388,6 +1383,9 @@ mwifiex_send_processed_packet(struct mwifiex_private *priv,
 	if (ret != -EBUSY) {
 		mwifiex_rotate_priolists(priv, ptr, ptr_index);
 		atomic_dec(&priv->wmm.tx_pkts_queued);
+		spin_lock_bh(&priv->wmm.ra_list_spinlock);
+		ptr->total_pkt_count--;
+		spin_unlock_bh(&priv->wmm.ra_list_spinlock);
 	}
 }
 
@@ -1403,7 +1401,6 @@ mwifiex_dequeue_tx_packet(struct mwifiex_adapter *adapter)
 	int ptr_index = 0;
 	u8 ra[ETH_ALEN];
 	int tid_del = 0, tid = 0;
-	unsigned long flags;
 
 	ptr = mwifiex_wmm_get_highest_priolist_ptr(adapter, &priv, &ptr_index);
 	if (!ptr)
@@ -1413,14 +1410,14 @@ mwifiex_dequeue_tx_packet(struct mwifiex_adapter *adapter)
 
 	mwifiex_dbg(adapter, DATA, "data: tid=%d\n", tid);
 
-	spin_lock_irqsave(&priv->wmm.ra_list_spinlock, flags);
+	spin_lock_bh(&priv->wmm.ra_list_spinlock);
 	if (!mwifiex_is_ralist_valid(priv, ptr, ptr_index)) {
-		spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock, flags);
+		spin_unlock_bh(&priv->wmm.ra_list_spinlock);
 		return -1;
 	}
 
 	if (mwifiex_is_ptr_processed(priv, ptr)) {
-		mwifiex_send_processed_packet(priv, ptr, ptr_index, flags);
+		mwifiex_send_processed_packet(priv, ptr, ptr_index);
 		/* ra_list_spinlock has been freed in
 		   mwifiex_send_processed_packet() */
 		return 0;
@@ -1435,12 +1432,12 @@ mwifiex_dequeue_tx_packet(struct mwifiex_adapter *adapter)
 			mwifiex_is_amsdu_allowed(priv, tid) &&
 			mwifiex_is_11n_aggragation_possible(priv, ptr,
 							adapter->tx_buf_size))
-			mwifiex_11n_aggregate_pkt(priv, ptr, ptr_index, flags);
+			mwifiex_11n_aggregate_pkt(priv, ptr, ptr_index);
 			/* ra_list_spinlock has been freed in
 			 * mwifiex_11n_aggregate_pkt()
 			 */
 		else
-			mwifiex_send_single_packet(priv, ptr, ptr_index, flags);
+			mwifiex_send_single_packet(priv, ptr, ptr_index);
 			/* ra_list_spinlock has been freed in
 			 * mwifiex_send_single_packet()
 			 */
@@ -1461,11 +1458,11 @@ mwifiex_dequeue_tx_packet(struct mwifiex_adapter *adapter)
 		if (mwifiex_is_amsdu_allowed(priv, tid) &&
 		    mwifiex_is_11n_aggragation_possible(priv, ptr,
 							adapter->tx_buf_size))
-			mwifiex_11n_aggregate_pkt(priv, ptr, ptr_index, flags);
+			mwifiex_11n_aggregate_pkt(priv, ptr, ptr_index);
 			/* ra_list_spinlock has been freed in
 			   mwifiex_11n_aggregate_pkt() */
 		else
-			mwifiex_send_single_packet(priv, ptr, ptr_index, flags);
+			mwifiex_send_single_packet(priv, ptr, ptr_index);
 			/* ra_list_spinlock has been freed in
 			   mwifiex_send_single_packet() */
 	}

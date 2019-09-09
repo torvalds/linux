@@ -1,18 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Comedi driver for Data Translation DT2811
  *
  * COMEDI - Linux Control and Measurement Device Interface
  * Copyright (C) David A. Schleef <ds@schleef.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 /*
@@ -61,7 +52,7 @@
 #define DT2811_ADCSR_ADBUSY		BIT(5)	/* r      1=A/D busy */
 #define DT2811_ADCSR_CLRERROR		BIT(4)
 #define DT2811_ADCSR_DMAENB		BIT(3)	/* r/w    1=dma ena */
-#define DT2811_ADCSR_INTENB		BIT(2)	/* r/w    1=interupts ena */
+#define DT2811_ADCSR_INTENB		BIT(2)	/* r/w    1=interrupts ena */
 #define DT2811_ADCSR_ADMODE(x)		(((x) & 0x3) << 0)
 
 #define DT2811_ADGCR_REG		0x01	/* r/w  A/D Gain/Channel */
@@ -316,7 +307,7 @@ static int dt2811_ai_cmd(struct comedi_device *dev,
 static unsigned int dt2811_ns_to_timer(unsigned int *nanosec,
 				       unsigned int flags)
 {
-	unsigned long long ns = *nanosec;
+	unsigned long long ns;
 	unsigned int ns_lo = COMEDI_MIN_SPEED;
 	unsigned int ns_hi = 0;
 	unsigned int divisor_hi = 0;

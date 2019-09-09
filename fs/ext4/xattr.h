@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
   File: fs/ext4/xattr.h
 
@@ -44,7 +45,7 @@ struct ext4_xattr_entry {
 	__u8	e_name_len;	/* length of name */
 	__u8	e_name_index;	/* attribute name index */
 	__le16	e_value_offs;	/* offset in disk block of value */
-	__le32	e_value_block;	/* disk block attribute is stored on (n/i) */
+	__le32	e_value_inum;	/* inode in which the value is stored */
 	__le32	e_value_size;	/* size of attribute value */
 	__le32	e_hash;		/* hash value of name and value */
 	char	e_name[0];	/* attribute name */
@@ -69,6 +70,24 @@ struct ext4_xattr_entry {
 		EXT4_I(inode)->i_extra_isize))
 #define IFIRST(hdr) ((struct ext4_xattr_entry *)((hdr)+1))
 
+/*
+ * XATTR_SIZE_MAX is currently 64k, but for the purposes of checking
+ * for file system consistency errors, we use a somewhat bigger value.
+ * This allows XATTR_SIZE_MAX to grow in the future, but by using this
+ * instead of INT_MAX for certain consistency checks, we don't need to
+ * worry about arithmetic overflows.  (Actually XATTR_SIZE_MAX is
+ * defined in include/uapi/linux/limits.h, so changing it is going
+ * not going to be trivial....)
+ */
+#define EXT4_XATTR_SIZE_MAX (1 << 24)
+
+/*
+ * The minimum size of EA value when you start storing it in an external inode
+ * size of block - size of header - size of 1 entry - 4 null bytes
+*/
+#define EXT4_XATTR_MIN_LARGE_EA_SIZE(b)					\
+	((b) - EXT4_XATTR_LEN(3) - sizeof(struct ext4_xattr_header) - 4)
+
 #define BHDR(bh) ((struct ext4_xattr_header *)((bh)->b_data))
 #define ENTRY(ptr) ((struct ext4_xattr_entry *)(ptr))
 #define BFIRST(bh) ENTRY(BHDR(bh)+1)
@@ -77,10 +96,11 @@ struct ext4_xattr_entry {
 #define EXT4_ZERO_XATTR_VALUE ((void *)-1)
 
 struct ext4_xattr_info {
-	int name_index;
 	const char *name;
 	const void *value;
 	size_t value_len;
+	int name_index;
+	int in_inode;
 };
 
 struct ext4_xattr_search {
@@ -96,19 +116,64 @@ struct ext4_xattr_ibody_find {
 	struct ext4_iloc iloc;
 };
 
+struct ext4_xattr_inode_array {
+	unsigned int count;		/* # of used items in the array */
+	struct inode *inodes[0];
+};
+
 extern const struct xattr_handler ext4_xattr_user_handler;
 extern const struct xattr_handler ext4_xattr_trusted_handler;
 extern const struct xattr_handler ext4_xattr_security_handler;
 
 #define EXT4_XATTR_NAME_ENCRYPTION_CONTEXT "c"
 
+/*
+ * The EXT4_STATE_NO_EXPAND is overloaded and used for two purposes.
+ * The first is to signal that there the inline xattrs and data are
+ * taking up so much space that we might as well not keep trying to
+ * expand it.  The second is that xattr_sem is taken for writing, so
+ * we shouldn't try to recurse into the inode expansion.  For this
+ * second case, we need to make sure that we take save and restore the
+ * NO_EXPAND state flag appropriately.
+ */
+static inline void ext4_write_lock_xattr(struct inode *inode, int *save)
+{
+	down_write(&EXT4_I(inode)->xattr_sem);
+	*save = ext4_test_inode_state(inode, EXT4_STATE_NO_EXPAND);
+	ext4_set_inode_state(inode, EXT4_STATE_NO_EXPAND);
+}
+
+static inline int ext4_write_trylock_xattr(struct inode *inode, int *save)
+{
+	if (down_write_trylock(&EXT4_I(inode)->xattr_sem) == 0)
+		return 0;
+	*save = ext4_test_inode_state(inode, EXT4_STATE_NO_EXPAND);
+	ext4_set_inode_state(inode, EXT4_STATE_NO_EXPAND);
+	return 1;
+}
+
+static inline void ext4_write_unlock_xattr(struct inode *inode, int *save)
+{
+	if (*save == 0)
+		ext4_clear_inode_state(inode, EXT4_STATE_NO_EXPAND);
+	up_write(&EXT4_I(inode)->xattr_sem);
+}
+
 extern ssize_t ext4_listxattr(struct dentry *, char *, size_t);
 
 extern int ext4_xattr_get(struct inode *, int, const char *, void *, size_t);
 extern int ext4_xattr_set(struct inode *, int, const char *, const void *, size_t, int);
 extern int ext4_xattr_set_handle(handle_t *, struct inode *, int, const char *, const void *, size_t, int);
+extern int ext4_xattr_set_credits(struct inode *inode, size_t value_len,
+				  bool is_create, int *credits);
+extern int __ext4_xattr_set_credits(struct super_block *sb, struct inode *inode,
+				struct buffer_head *block_bh, size_t value_len,
+				bool is_create);
 
-extern void ext4_xattr_delete_inode(handle_t *, struct inode *);
+extern int ext4_xattr_delete_inode(handle_t *handle, struct inode *inode,
+				   struct ext4_xattr_inode_array **array,
+				   int extra_credits);
+extern void ext4_xattr_inode_array_free(struct ext4_xattr_inode_array *array);
 
 extern int ext4_expand_extra_isize_ea(struct inode *inode, int new_extra_isize,
 			    struct ext4_inode *raw_inode, handle_t *handle);
@@ -137,3 +202,11 @@ static inline int ext4_init_security(handle_t *handle, struct inode *inode,
 	return 0;
 }
 #endif
+
+#ifdef CONFIG_LOCKDEP
+extern void ext4_xattr_inode_set_class(struct inode *ea_inode);
+#else
+static inline void ext4_xattr_inode_set_class(struct inode *ea_inode) { }
+#endif
+
+extern int ext4_get_inode_usage(struct inode *inode, qsize_t *usage);

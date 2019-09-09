@@ -1,12 +1,9 @@
+# SPDX-License-Identifier: GPL-2.0-only
 # tools/power/acpi/tools/acpidump/Makefile - ACPI tool Makefile
 #
 # Copyright (c) 2015, Intel Corporation
 #   Author: Lv Zheng <lv.zheng@intel.com>
 #
-# This program is free software; you can redistribute it and/or
-# modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation; version 2
-# of the License.
 
 include ../../Makefile.config
 
@@ -19,9 +16,7 @@ vpath %.c \
 	./\
 	../../common\
 	../../os_specific/service_layers
-CFLAGS += -DACPI_DUMP_APP -I.\
-	-I../../../../../drivers/acpi/acpica\
-	-I../../../../../include
+CFLAGS += -DACPI_DUMP_APP -I.
 TOOL_OBJS = \
 	apdump.o\
 	apfiles.o\
@@ -41,6 +36,7 @@ TOOL_OBJS = \
 	utnonansi.o\
 	utprint.o\
 	utstring.o\
+	utstrsuppt.o\
 	utstrtoul64.o\
 	utxferror.o\
 	oslinuxtbl.o\
@@ -49,7 +45,9 @@ TOOL_OBJS = \
 
 include ../../Makefile.rules
 
-install-man: ../../man/acpidump.8
-	$(INSTALL_DATA) -D $< $(DESTDIR)${mandir}/man8/acpidump.8
+install-man: $(srctree)/man/acpidump.8
+	$(ECHO) "  INST    " acpidump.8
+	$(QUIET) $(INSTALL_DATA) -D $< $(DESTDIR)$(mandir)/man8/acpidump.8
 uninstall-man:
-	- rm -f $(DESTDIR)${mandir}/man8/acpidump.8
+	$(ECHO) "  UNINST  " acpidump.8
+	$(QUIET) rm -f $(DESTDIR)$(mandir)/man8/acpidump.8

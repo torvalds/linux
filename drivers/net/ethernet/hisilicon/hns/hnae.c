@@ -1,17 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (c) 2014-2015 Hisilicon Limited.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/dma-mapping.h>
 #include <linux/interrupt.h>
+#include <linux/of.h>
 #include <linux/skbuff.h>
 #include <linux/slab.h>
-
 #include "hnae.h"
 
 #define cls_to_ae_dev(dev) container_of(dev, struct hnae_ae_dev, cls_dev)
@@ -57,11 +53,15 @@ static int hnae_alloc_buffer(struct hnae_ring *ring, struct hnae_desc_cb *cb)
 
 static void hnae_free_buffer(struct hnae_ring *ring, struct hnae_desc_cb *cb)
 {
+	if (unlikely(!cb->priv))
+		return;
+
 	if (cb->type == DESC_TYPE_SKB)
 		dev_kfree_skb_any((struct sk_buff *)cb->priv);
 	else if (unlikely(is_rx_ring(ring)))
 		put_page((struct page *)cb->priv);
-	memset(cb, 0, sizeof(*cb));
+
+	cb->priv = NULL;
 }
 
 static int hnae_map_buffer(struct hnae_ring *ring, struct hnae_desc_cb *cb)
@@ -80,7 +80,7 @@ static void hnae_unmap_buffer(struct hnae_ring *ring, struct hnae_desc_cb *cb)
 	if (cb->type == DESC_TYPE_SKB)
 		dma_unmap_single(ring_to_dev(ring), cb->dma, cb->length,
 				 ring_to_dma_dir(ring));
-	else
+	else if (cb->length)
 		dma_unmap_page(ring_to_dev(ring), cb->dma, cb->length,
 			       ring_to_dma_dir(ring));
 }
@@ -146,7 +146,6 @@ out_buffer_fail:
 /* free desc along with its attached buffer */
 static void hnae_free_desc(struct hnae_ring *ring)
 {
-	hnae_free_buffers(ring);
 	dma_unmap_single(ring_to_dev(ring), ring->desc_dma_addr,
 			 ring->desc_num * sizeof(ring->desc[0]),
 			 ring_to_dma_dir(ring));
@@ -179,6 +178,9 @@ static int hnae_alloc_desc(struct hnae_ring *ring)
 /* fini ring, also free the buffer for the ring */
 static void hnae_fini_ring(struct hnae_ring *ring)
 {
+	if (is_rx_ring(ring))
+		hnae_free_buffers(ring);
+
 	hnae_free_desc(ring);
 	kfree(ring->desc_cb);
 	ring->desc_cb = NULL;
@@ -197,6 +199,8 @@ hnae_init_ring(struct hnae_queue *q, struct hnae_ring *ring, int flags)
 
 	ring->q = q;
 	ring->flags = flags;
+	spin_lock_init(&ring->lock);
+	ring->coal_param = q->handle->coal_param;
 	assert(!ring->desc && !ring->desc_cb && !ring->desc_dma_addr);
 
 	/* not matter for tx or rx ring, the ntc and ntc start from 0 */
@@ -332,8 +336,10 @@ struct hnae_handle *hnae_get_handle(struct device *owner_dev,
 		return ERR_PTR(-ENODEV);
 
 	handle = dev->ops->get_handle(dev, port_id);
-	if (IS_ERR(handle))
+	if (IS_ERR(handle)) {
+		put_device(&dev->cls_dev);
 		return handle;
+	}
 
 	handle->dev = dev;
 	handle->owner_dev = owner_dev;
@@ -356,6 +362,8 @@ out_when_init_queue:
 	for (j = i - 1; j >= 0; j--)
 		hnae_fini_queue(handle->qs[j]);
 
+	put_device(&dev->cls_dev);
+
 	return ERR_PTR(-ENOMEM);
 }
 EXPORT_SYMBOL(hnae_get_handle);
@@ -377,6 +385,8 @@ void hnae_put_handle(struct hnae_handle *h)
 		dev->ops->put_handle(h);
 
 	module_put(dev->owner);
+
+	put_device(&dev->cls_dev);
 }
 EXPORT_SYMBOL(hnae_put_handle);
 

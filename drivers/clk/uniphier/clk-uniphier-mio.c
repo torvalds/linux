@@ -1,17 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2016 Socionext Inc.
  *   Author: Masahiro Yamada <yamada.masahiro@socionext.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
+
+#include <linux/stddef.h>
 
 #include "clk-uniphier.h"
 
@@ -73,23 +66,18 @@
 #define UNIPHIER_MIO_CLK_USB2_PHY(idx, ch)				\
 	UNIPHIER_CLK_GATE("usb2" #ch "-phy", (idx), "usb2", 0x20 + 0x200 * (ch), 29)
 
-#define UNIPHIER_MIO_CLK_DMAC(idx)					\
-	UNIPHIER_CLK_GATE("miodmac", (idx), "stdmac", 0x20, 25)
-
-const struct uniphier_clk_data uniphier_sld3_mio_clk_data[] = {
+const struct uniphier_clk_data uniphier_ld4_mio_clk_data[] = {
 	UNIPHIER_MIO_CLK_SD_FIXED,
 	UNIPHIER_MIO_CLK_SD(0, 0),
 	UNIPHIER_MIO_CLK_SD(1, 1),
 	UNIPHIER_MIO_CLK_SD(2, 2),
-	UNIPHIER_MIO_CLK_DMAC(7),
+	UNIPHIER_CLK_GATE("miodmac", 7, NULL, 0x20, 25),
 	UNIPHIER_MIO_CLK_USB2(8, 0),
 	UNIPHIER_MIO_CLK_USB2(9, 1),
 	UNIPHIER_MIO_CLK_USB2(10, 2),
-	UNIPHIER_MIO_CLK_USB2(11, 3),
 	UNIPHIER_MIO_CLK_USB2_PHY(12, 0),
 	UNIPHIER_MIO_CLK_USB2_PHY(13, 1),
 	UNIPHIER_MIO_CLK_USB2_PHY(14, 2),
-	UNIPHIER_MIO_CLK_USB2_PHY(15, 3),
 	{ /* sentinel */ }
 };
 

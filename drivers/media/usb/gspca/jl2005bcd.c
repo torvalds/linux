@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Jeilin JL2005B/C/D library
  *
  * Copyright (C) 2011 Theodore Kilgore <kilgota@auburn.edu>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #define MODULE_NAME "jl2005bcd"
@@ -153,7 +140,8 @@ static int jl2005c_start_new_frame(struct gspca_dev *gspca_dev)
 			return retval;
 		i++;
 	}
-	PDEBUG(D_FRAM, "frame_brightness is 0x%02x", gspca_dev->usb_buf[0]);
+	gspca_dbg(gspca_dev, D_FRAM, "frame_brightness is 0x%02x\n",
+		  gspca_dev->usb_buf[0]);
 	return retval;
 }
 
@@ -180,10 +168,11 @@ static int jl2005c_get_firmware_id(struct gspca_dev *gspca_dev)
 	int retval = -1;
 	unsigned char regs_to_read[] = {0x57, 0x02, 0x03, 0x5d, 0x5e, 0x5f};
 
-	PDEBUG(D_PROBE, "Running jl2005c_get_firmware_id");
+	gspca_dbg(gspca_dev, D_PROBE, "Running jl2005c_get_firmware_id\n");
 	/* Read the first ID byte once for warmup */
 	retval = jl2005c_read_reg(gspca_dev, regs_to_read[0]);
-	PDEBUG(D_PROBE, "response is %02x", gspca_dev->usb_buf[0]);
+	gspca_dbg(gspca_dev, D_PROBE, "response is %02x\n",
+		  gspca_dev->usb_buf[0]);
 	if (retval < 0)
 		return retval;
 	/* Now actually get the ID string */
@@ -193,13 +182,13 @@ static int jl2005c_get_firmware_id(struct gspca_dev *gspca_dev)
 			return retval;
 		sd->firmware_id[i] = gspca_dev->usb_buf[0];
 	}
-	PDEBUG(D_PROBE, "firmware ID is %02x%02x%02x%02x%02x%02x",
-						sd->firmware_id[0],
-						sd->firmware_id[1],
-						sd->firmware_id[2],
-						sd->firmware_id[3],
-						sd->firmware_id[4],
-						sd->firmware_id[5]);
+	gspca_dbg(gspca_dev, D_PROBE, "firmware ID is %02x%02x%02x%02x%02x%02x\n",
+		  sd->firmware_id[0],
+		  sd->firmware_id[1],
+		  sd->firmware_id[2],
+		  sd->firmware_id[3],
+		  sd->firmware_id[4],
+		  sd->firmware_id[5]);
 	return 0;
 }
 
@@ -299,10 +288,7 @@ static int jl2005c_stream_start_cif_small(struct gspca_dev *gspca_dev)
 
 static int jl2005c_stop(struct gspca_dev *gspca_dev)
 {
-	int retval;
-
-	retval = jl2005c_write_reg(gspca_dev, 0x07, 0x00);
-	return retval;
+	return jl2005c_write_reg(gspca_dev, 0x07, 0x00);
 }
 
 /*
@@ -326,7 +312,7 @@ static void jl2005c_dostream(struct work_struct *work)
 	int ret;
 	u8 *buffer;
 
-	buffer = kmalloc(JL2005C_MAX_TRANSFER, GFP_KERNEL | GFP_DMA);
+	buffer = kmalloc(JL2005C_MAX_TRANSFER, GFP_KERNEL);
 	if (!buffer) {
 		pr_err("Couldn't allocate USB buffer\n");
 		goto quit_stream;
@@ -348,9 +334,9 @@ static void jl2005c_dostream(struct work_struct *work)
 				usb_rcvbulkpipe(gspca_dev->dev, 0x82),
 				buffer, JL2005C_MAX_TRANSFER, &act_len,
 				JL2005C_DATA_TIMEOUT);
-			PDEBUG(D_PACK,
-				"Got %d bytes out of %d for header",
-					act_len, JL2005C_MAX_TRANSFER);
+			gspca_dbg(gspca_dev, D_PACK,
+				  "Got %d bytes out of %d for header\n",
+				  act_len, JL2005C_MAX_TRANSFER);
 			if (ret < 0 || act_len < JL2005C_MAX_TRANSFER)
 				goto quit_stream;
 			/* Check whether we actually got the first blodk */
@@ -361,7 +347,8 @@ static void jl2005c_dostream(struct work_struct *work)
 			/* total size to fetch is byte 7, times blocksize
 			 * of which we already got act_len */
 			bytes_left = buffer[0x07] * dev->block_size - act_len;
-			PDEBUG(D_PACK, "bytes_left = 0x%x", bytes_left);
+			gspca_dbg(gspca_dev, D_PACK, "bytes_left = 0x%x\n",
+				  bytes_left);
 			/* We keep the header. It has other information, too.*/
 			packet_type = FIRST_PACKET;
 			gspca_frame_add(gspca_dev, packet_type,
@@ -377,9 +364,9 @@ static void jl2005c_dostream(struct work_struct *work)
 				JL2005C_DATA_TIMEOUT);
 			if (ret < 0 || act_len < data_len)
 				goto quit_stream;
-			PDEBUG(D_PACK,
-				"Got %d bytes out of %d for frame",
-						data_len, bytes_left);
+			gspca_dbg(gspca_dev, D_PACK,
+				  "Got %d bytes out of %d for frame\n",
+				  data_len, bytes_left);
 			bytes_left -= data_len;
 			if (bytes_left == 0) {
 				packet_type = LAST_PACKET;
@@ -456,19 +443,19 @@ static int sd_start(struct gspca_dev *gspca_dev)
 
 	switch (gspca_dev->pixfmt.width) {
 	case 640:
-		PDEBUG(D_STREAM, "Start streaming at vga resolution");
+		gspca_dbg(gspca_dev, D_STREAM, "Start streaming at vga resolution\n");
 		jl2005c_stream_start_vga_lg(gspca_dev);
 		break;
 	case 320:
-		PDEBUG(D_STREAM, "Start streaming at qvga resolution");
+		gspca_dbg(gspca_dev, D_STREAM, "Start streaming at qvga resolution\n");
 		jl2005c_stream_start_vga_small(gspca_dev);
 		break;
 	case 352:
-		PDEBUG(D_STREAM, "Start streaming at cif resolution");
+		gspca_dbg(gspca_dev, D_STREAM, "Start streaming at cif resolution\n");
 		jl2005c_stream_start_cif_lg(gspca_dev);
 		break;
 	case 176:
-		PDEBUG(D_STREAM, "Start streaming at qcif resolution");
+		gspca_dbg(gspca_dev, D_STREAM, "Start streaming at qcif resolution\n");
 		jl2005c_stream_start_cif_small(gspca_dev);
 		break;
 	default:

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
  *
@@ -27,6 +28,7 @@ typedef unsigned long elf_greg_t;
 typedef unsigned long elf_fpregset_t;
 
 #define ELF_NGREG	(sizeof(struct user_regs_struct) / sizeof(elf_greg_t))
+#define ELF_ARCV2REG	(sizeof(struct user_regs_arcv2) / sizeof(elf_greg_t))
 
 typedef elf_greg_t elf_gregset_t[ELF_NGREG];
 

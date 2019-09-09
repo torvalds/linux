@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
 
     bttv - Bt848 frame grabber driver
@@ -7,19 +8,6 @@
 
     (c) 2000-2002 Gerd Knorr <kraxel@bytesex.org>
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
 #ifndef _BTTVP_H_
@@ -122,6 +110,7 @@ struct bttv_format {
 
 struct bttv_ir {
 	struct rc_dev           *dev;
+	struct bttv		*btv;
 	struct timer_list       timer;
 
 	char                    name[32];
@@ -140,7 +129,7 @@ struct bttv_ir {
 	bool			rc5_gpio;   /* Is RC5 legacy GPIO enabled? */
 	u32                     last_bit;   /* last raw bit seen */
 	u32                     code;       /* raw code under construction */
-	ktime_t          				base_time;  /* time of last seen code */
+	ktime_t						base_time;  /* time of last seen code */
 	bool                    active;     /* building raw code */
 };
 
@@ -281,7 +270,7 @@ int bttv_try_fmt_vbi_cap(struct file *file, void *fh, struct v4l2_format *f);
 int bttv_g_fmt_vbi_cap(struct file *file, void *fh, struct v4l2_format *f);
 int bttv_s_fmt_vbi_cap(struct file *file, void *fh, struct v4l2_format *f);
 
-extern struct videobuf_queue_ops bttv_vbi_qops;
+extern const struct videobuf_queue_ops bttv_vbi_qops;
 
 /* ---------------------------------------------------------- */
 /* bttv-gpio.c */
@@ -399,8 +388,8 @@ struct bttv {
 	int                        i2c_state, i2c_rc;
 	int                        i2c_done;
 	wait_queue_head_t          i2c_queue;
-	struct v4l2_subdev 	  *sd_msp34xx;
-	struct v4l2_subdev 	  *sd_tvaudio;
+	struct v4l2_subdev	  *sd_msp34xx;
+	struct v4l2_subdev	  *sd_tvaudio;
 	struct v4l2_subdev	  *sd_tda7432;
 
 	/* video4linux (1) */

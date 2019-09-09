@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ROHM 1780GLI Ambient Light Sensor Driver
  *
@@ -128,7 +129,6 @@ static int bh1780_read_raw(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info bh1780_info = {
-	.driver_module = THIS_MODULE,
 	.read_raw = bh1780_read_raw,
 	.debugfs_reg_access = bh1780_debugfs_reg_access,
 };
@@ -146,7 +146,7 @@ static int bh1780_probe(struct i2c_client *client,
 {
 	int ret;
 	struct bh1780_data *bh1780;
-	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
+	struct i2c_adapter *adapter = client->adapter;
 	struct iio_dev *indio_dev;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE))

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 
 /* Various wrappers to make the kernel .S file build in user-space: */
 
@@ -5,6 +6,7 @@
 #define altinstr_replacement text
 #define globl p2align 4; .globl
 #define _ASM_EXTABLE_FAULT(x, y)
+#define _ASM_EXTABLE(x, y)
 
 #include "../../arch/x86/lib/memcpy_64.S"
 /*

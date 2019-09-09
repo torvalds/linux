@@ -1,15 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2012 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  *
  ******************************************************************************/
 /*-----------------------------------------------------------------------------
@@ -32,11 +24,16 @@
 #include <rtw_recv.h>
 #include <hal_intf.h>
 #include <hal_com.h>
-#include <rtw_qos.h>
 #include <rtw_security.h>
 #include <rtw_pwrctrl.h>
 #include <rtw_eeprom.h>
 #include <sta_info.h>
+
+struct qos_priv {
+	/* bit mask option: u-apsd, s-apsd, ts, block ack... */
+	unsigned int qos_option;
+};
+
 #include <rtw_mlme.h>
 #include <rtw_debug.h>
 #include <rtw_rf.h>
@@ -65,8 +62,6 @@ struct registry_priv {
 	u8	ips_mode;
 	u8	smart_ps;
 	u8	mp_mode;
-	u8	software_encrypt;
-	u8	software_decrypt;
 	u8	acm_method;
 	  /* UAPSD */
 	u8	wmm_enable;
@@ -130,7 +125,8 @@ struct dvobj_priv {
 static inline struct device *dvobj_to_dev(struct dvobj_priv *dvobj)
 {
 	/* todo: get interface type from dvobj and the return
-	 * the dev accordingly */
+	 * the dev accordingly
+	 */
 	return &dvobj->pusbintf->dev;
 };
 
@@ -156,8 +152,6 @@ struct adapter {
 	u8	hw_init_completed;
 
 	void *cmdThread;
-	void (*intf_start)(struct adapter *adapter);
-	void (*intf_stop)(struct adapter *adapter);
 	struct  net_device *pnetdev;
 	struct  net_device *pmondev;
 
@@ -170,7 +164,6 @@ struct adapter {
 	u8 bFWReady;
 	u8 bReadPortCancel;
 	u8 bWritePortCancel;
-	u8 bRxRSSIDisplay;
 
 	struct mutex hw_init_mutex;
 };

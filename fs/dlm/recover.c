@@ -1,12 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /******************************************************************************
 *******************************************************************************
 **
 **  Copyright (C) Sistina Software, Inc.  1997-2003  All rights reserved.
 **  Copyright (C) 2004-2005 Red Hat, Inc.  All rights reserved.
 **
-**  This copyrighted material is made available to anyone wishing to use,
-**  modify, copy, or redistribute it subject to the terms and conditions
-**  of the GNU General Public License v.2.
 **
 *******************************************************************************
 ******************************************************************************/
@@ -52,6 +50,10 @@ int dlm_wait_function(struct dlm_ls *ls, int (*testfn) (struct dlm_ls *ls))
 					dlm_config.ci_recover_timer * HZ);
 		if (rv)
 			break;
+		if (test_bit(LSFL_RCOM_WAIT, &ls->ls_flags)) {
+			log_debug(ls, "dlm_wait_function timed out");
+			return -ETIMEDOUT;
+		}
 	}
 
 	if (dlm_recovery_stopped(ls)) {

@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Keypad driver for Analog Devices ADP5520 MFD PMICs
  *
  * Copyright 2009 Analog Devices Inc.
- *
- * Licensed under the GPL-2 or later.
  */
 
 #include <linux/module.h>
@@ -106,8 +105,6 @@ static int adp5520_keys_probe(struct platform_device *pdev)
 	input->name = pdev->name;
 	input->phys = "adp5520-keys/input0";
 	input->dev.parent = &pdev->dev;
-
-	input_set_drvdata(input, dev);
 
 	input->id.bustype = BUS_I2C;
 	input->id.vendor = 0x0001;

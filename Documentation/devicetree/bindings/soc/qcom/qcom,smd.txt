@@ -22,8 +22,14 @@ The edge is described by the following properties:
 	Definition: should specify the IRQ used by the remote processor to
 		    signal this processor about communication related updates
 
-- qcom,ipc:
+- mboxes:
 	Usage: required
+	Value type: <prop-encoded-array>
+	Definition: reference to the associated doorbell in APCS, as described
+		    in mailbox/mailbox.txt
+
+- qcom,ipc:
+	Usage: required, unless mboxes is specified
 	Value type: <prop-encoded-array>
 	Definition: three entries specifying the outgoing ipc bit used for
 		    signaling the remote processor:
@@ -42,6 +48,13 @@ The edge is described by the following properties:
 	Value type: <u32>
 	Definition: the identifier for the remote processor as known by the rest
 		    of the system.
+
+- label:
+	Usage: optional
+	Value type: <string>
+	Definition: name of the edge, used for debugging and identification
+		    purposes. The node name will be used if this is not
+		    present.
 
 = SMD DEVICES
 

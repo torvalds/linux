@@ -1,18 +1,20 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Driver for the Synopsys DesignWare AHB DMA Controller
  *
  * Copyright (C) 2005-2007 Atmel Corporation
  * Copyright (C) 2010-2011 ST Microelectronics
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * Copyright (C) 2016 Intel Corporation
  */
 
+#include <linux/bitops.h>
 #include <linux/interrupt.h>
 #include <linux/dmaengine.h>
 
-#define DW_DMA_MAX_NR_CHANNELS	8
+#include <linux/io-64-nonatomic-hi-lo.h>
+
+#include "internal.h"
+
 #define DW_DMA_MAX_NR_REQUESTS	16
 
 /* flow controller */
@@ -84,9 +86,9 @@ struct dw_dma_regs {
 	DW_REG(ID);
 	DW_REG(TEST);
 
-	/* reserved */
-	DW_REG(__reserved0);
-	DW_REG(__reserved1);
+	/* iDMA 32-bit support */
+	DW_REG(CLASS_PRIORITY0);
+	DW_REG(CLASS_PRIORITY1);
 
 	/* optional encoded params, 0x3c8..0x3f7 */
 	u32	__reserved;
@@ -98,21 +100,18 @@ struct dw_dma_regs {
 
 	/* top-level parameters */
 	u32	DW_PARAMS;
+
+	/* component ID */
+	u32	COMP_TYPE;
+	u32	COMP_VERSION;
+
+	/* iDMA 32-bit support */
+	DW_REG(FIFO_PARTITION0);
+	DW_REG(FIFO_PARTITION1);
+
+	DW_REG(SAI_ERR);
+	DW_REG(GLOBAL_CFG);
 };
-
-/*
- * Big endian I/O access when reading and writing to the DMA controller
- * registers.  This is needed on some platforms, like the Atmel AVR32
- * architecture.
- */
-
-#ifdef CONFIG_DW_DMAC_BIG_ENDIAN_IO
-#define dma_readl_native ioread32be
-#define dma_writel_native iowrite32be
-#else
-#define dma_readl_native readl
-#define dma_writel_native writel
-#endif
 
 /* Bitfields in DW_PARAMS */
 #define DW_PARAMS_NR_CHAN	8		/* number of channels */
@@ -169,8 +168,9 @@ enum dw_dma_msize {
 #define DWC_CTLL_LLP_S_EN	(1 << 28)	/* src block chain */
 
 /* Bitfields in CTL_HI */
-#define DWC_CTLH_DONE		0x00001000
-#define DWC_CTLH_BLOCK_TS_MASK	0x00000fff
+#define DWC_CTLH_BLOCK_TS_MASK	GENMASK(11, 0)
+#define DWC_CTLH_BLOCK_TS(x)	((x) & DWC_CTLH_BLOCK_TS_MASK)
+#define DWC_CTLH_DONE		(1 << 12)
 
 /* Bitfields in CFG_LO */
 #define DWC_CFGL_CH_PRIOR_MASK	(0x7 << 5)	/* priority mask */
@@ -197,6 +197,10 @@ enum dw_dma_msize {
 #define DWC_CFGH_FCMODE		(1 << 0)
 #define DWC_CFGH_FIFO_MODE	(1 << 1)
 #define DWC_CFGH_PROTCTL(x)	((x) << 2)
+#define DWC_CFGH_PROTCTL_DATA	(0 << 2)	/* data access - always set */
+#define DWC_CFGH_PROTCTL_PRIV	(1 << 2)	/* privileged -> AHB HPROT[1] */
+#define DWC_CFGH_PROTCTL_BUFFER	(2 << 2)	/* bufferable -> AHB HPROT[2] */
+#define DWC_CFGH_PROTCTL_CACHE	(4 << 2)	/* cacheable  -> AHB HPROT[3] */
 #define DWC_CFGH_DS_UPD_EN	(1 << 5)
 #define DWC_CFGH_SS_UPD_EN	(1 << 6)
 #define DWC_CFGH_SRC_PER(x)	((x) << 7)
@@ -212,6 +216,43 @@ enum dw_dma_msize {
 
 /* Bitfields in CFG */
 #define DW_CFG_DMA_EN		(1 << 0)
+
+/* iDMA 32-bit support */
+
+/* bursts size */
+enum idma32_msize {
+	IDMA32_MSIZE_1,
+	IDMA32_MSIZE_2,
+	IDMA32_MSIZE_4,
+	IDMA32_MSIZE_8,
+	IDMA32_MSIZE_16,
+	IDMA32_MSIZE_32,
+};
+
+/* Bitfields in CTL_HI */
+#define IDMA32C_CTLH_BLOCK_TS_MASK	GENMASK(16, 0)
+#define IDMA32C_CTLH_BLOCK_TS(x)	((x) & IDMA32C_CTLH_BLOCK_TS_MASK)
+#define IDMA32C_CTLH_DONE		(1 << 17)
+
+/* Bitfields in CFG_LO */
+#define IDMA32C_CFGL_DST_BURST_ALIGN	(1 << 0)	/* dst burst align */
+#define IDMA32C_CFGL_SRC_BURST_ALIGN	(1 << 1)	/* src burst align */
+#define IDMA32C_CFGL_CH_DRAIN		(1 << 10)	/* drain FIFO */
+#define IDMA32C_CFGL_DST_OPT_BL		(1 << 20)	/* optimize dst burst length */
+#define IDMA32C_CFGL_SRC_OPT_BL		(1 << 21)	/* optimize src burst length */
+
+/* Bitfields in CFG_HI */
+#define IDMA32C_CFGH_SRC_PER(x)		((x) << 0)
+#define IDMA32C_CFGH_DST_PER(x)		((x) << 4)
+#define IDMA32C_CFGH_RD_ISSUE_THD(x)	((x) << 8)
+#define IDMA32C_CFGH_RW_ISSUE_THD(x)	((x) << 18)
+#define IDMA32C_CFGH_SRC_PER_EXT(x)	((x) << 28)	/* src peripheral extension */
+#define IDMA32C_CFGH_DST_PER_EXT(x)	((x) << 30)	/* dst peripheral extension */
+
+/* Bitfields in FIFO_PARTITION */
+#define IDMA32C_FP_PSIZE_CH0(x)		((x) << 0)
+#define IDMA32C_FP_PSIZE_CH1(x)		((x) << 13)
+#define IDMA32C_FP_UPDATE		(1 << 26)
 
 enum dw_dmac_flags {
 	DW_DMA_IS_CYCLIC = 0,
@@ -236,7 +277,6 @@ struct dw_dma_chan {
 	unsigned long		flags;
 	struct list_head	active_list;
 	struct list_head	queue;
-	struct dw_cyclic_desc	*cdesc;
 
 	unsigned int		descs_allocated;
 
@@ -258,9 +298,9 @@ __dwc_regs(struct dw_dma_chan *dwc)
 }
 
 #define channel_readl(dwc, name) \
-	dma_readl_native(&(__dwc_regs(dwc)->name))
+	readl(&(__dwc_regs(dwc)->name))
 #define channel_writel(dwc, name, val) \
-	dma_writel_native((val), &(__dwc_regs(dwc)->name))
+	writel((val), &(__dwc_regs(dwc)->name))
 
 static inline struct dw_dma_chan *to_dw_dma_chan(struct dma_chan *chan)
 {
@@ -269,6 +309,7 @@ static inline struct dw_dma_chan *to_dw_dma_chan(struct dma_chan *chan)
 
 struct dw_dma {
 	struct dma_device	dma;
+	char			name[20];
 	void __iomem		*regs;
 	struct dma_pool		*desc_pool;
 	struct tasklet_struct	tasklet;
@@ -277,6 +318,21 @@ struct dw_dma {
 	struct dw_dma_chan	*chan;
 	u8			all_chan_mask;
 	u8			in_use;
+
+	/* Channel operations */
+	void	(*initialize_chan)(struct dw_dma_chan *dwc);
+	void	(*suspend_chan)(struct dw_dma_chan *dwc, bool drain);
+	void	(*resume_chan)(struct dw_dma_chan *dwc, bool drain);
+	u32	(*prepare_ctllo)(struct dw_dma_chan *dwc);
+	void	(*encode_maxburst)(struct dw_dma_chan *dwc, u32 *maxburst);
+	u32	(*bytes2block)(struct dw_dma_chan *dwc, size_t bytes,
+			       unsigned int width, size_t *len);
+	size_t	(*block2bytes)(struct dw_dma_chan *dwc, u32 block, u32 width);
+
+	/* Device operations */
+	void (*set_device_name)(struct dw_dma *dw, int id);
+	void (*disable)(struct dw_dma *dw);
+	void (*enable)(struct dw_dma *dw);
 
 	/* platform data */
 	struct dw_dma_platform_data	*pdata;
@@ -288,9 +344,14 @@ static inline struct dw_dma_regs __iomem *__dw_regs(struct dw_dma *dw)
 }
 
 #define dma_readl(dw, name) \
-	dma_readl_native(&(__dw_regs(dw)->name))
+	readl(&(__dw_regs(dw)->name))
 #define dma_writel(dw, name, val) \
-	dma_writel_native((val), &(__dw_regs(dw)->name))
+	writel((val), &(__dw_regs(dw)->name))
+
+#define idma32_readq(dw, name)				\
+	hi_lo_readq(&(__dw_regs(dw)->name))
+#define idma32_writeq(dw, name, val)			\
+	hi_lo_writeq((val), &(__dw_regs(dw)->name))
 
 #define channel_set_bit(dw, reg, mask) \
 	dma_writel(dw, reg, ((mask) << 8) | (mask))
@@ -302,43 +363,30 @@ static inline struct dw_dma *to_dw_dma(struct dma_device *ddev)
 	return container_of(ddev, struct dw_dma, dma);
 }
 
-#ifdef CONFIG_DW_DMAC_BIG_ENDIAN_IO
-typedef __be32 __dw32;
-#else
-typedef __le32 __dw32;
-#endif
-
 /* LLI == Linked List Item; a.k.a. DMA block descriptor */
 struct dw_lli {
 	/* values that are not changed by hardware */
-	__dw32		sar;
-	__dw32		dar;
-	__dw32		llp;		/* chain to next lli */
-	__dw32		ctllo;
+	__le32		sar;
+	__le32		dar;
+	__le32		llp;		/* chain to next lli */
+	__le32		ctllo;
 	/* values that may get written back: */
-	__dw32		ctlhi;
+	__le32		ctlhi;
 	/* sstat and dstat can snapshot peripheral register state.
 	 * silicon config may discard either or both...
 	 */
-	__dw32		sstat;
-	__dw32		dstat;
+	__le32		sstat;
+	__le32		dstat;
 };
 
 struct dw_desc {
 	/* FIRST values the hardware uses */
 	struct dw_lli			lli;
 
-#ifdef CONFIG_DW_DMAC_BIG_ENDIAN_IO
-#define lli_set(d, reg, v)		((d)->lli.reg |= cpu_to_be32(v))
-#define lli_clear(d, reg, v)		((d)->lli.reg &= ~cpu_to_be32(v))
-#define lli_read(d, reg)		be32_to_cpu((d)->lli.reg)
-#define lli_write(d, reg, v)		((d)->lli.reg = cpu_to_be32(v))
-#else
 #define lli_set(d, reg, v)		((d)->lli.reg |= cpu_to_le32(v))
 #define lli_clear(d, reg, v)		((d)->lli.reg &= ~cpu_to_le32(v))
 #define lli_read(d, reg)		le32_to_cpu((d)->lli.reg)
 #define lli_write(d, reg, v)		((d)->lli.reg = cpu_to_le32(v))
-#endif
 
 	/* THEN values for driver housekeeping */
 	struct list_head		desc_node;

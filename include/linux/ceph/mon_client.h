@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _FS_CEPH_MON_CLIENT_H
 #define _FS_CEPH_MON_CLIENT_H
 
@@ -103,7 +104,6 @@ struct ceph_mon_client {
 #endif
 };
 
-extern struct ceph_monmap *ceph_monmap_decode(void *p, void *end);
 extern int ceph_monmap_contains(struct ceph_monmap *m,
 				struct ceph_entity_addr *addr);
 
@@ -133,8 +133,8 @@ void ceph_monc_renew_subs(struct ceph_mon_client *monc);
 extern int ceph_monc_wait_osdmap(struct ceph_mon_client *monc, u32 epoch,
 				 unsigned long timeout);
 
-extern int ceph_monc_do_statfs(struct ceph_mon_client *monc,
-			       struct ceph_statfs *buf);
+int ceph_monc_do_statfs(struct ceph_mon_client *monc, u64 data_pool,
+			struct ceph_statfs *buf);
 
 int ceph_monc_get_version(struct ceph_mon_client *monc, const char *what,
 			  u64 *newest);

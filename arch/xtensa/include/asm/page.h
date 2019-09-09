@@ -14,7 +14,6 @@
 #include <asm/processor.h>
 #include <asm/types.h>
 #include <asm/cache.h>
-#include <platform/hardware.h>
 #include <asm/kmem_layout.h>
 
 /*
@@ -31,12 +30,10 @@
 #define MAX_LOW_PFN	(PHYS_PFN(XCHAL_KSEG_PADDR) + \
 			 PHYS_PFN(XCHAL_KSEG_SIZE))
 #else
-#define PAGE_OFFSET	PLATFORM_DEFAULT_MEM_START
-#define PHYS_OFFSET	PLATFORM_DEFAULT_MEM_START
+#define PAGE_OFFSET	_AC(CONFIG_DEFAULT_MEM_START, UL)
+#define PHYS_OFFSET	_AC(CONFIG_DEFAULT_MEM_START, UL)
 #define MAX_LOW_PFN	PHYS_PFN(0xfffffffful)
 #endif
-
-#define PGTABLE_START	0x80000000
 
 /*
  * Cache aliasing:
@@ -164,8 +161,21 @@ void copy_user_highpage(struct page *to, struct page *from,
 
 #define ARCH_PFN_OFFSET		(PHYS_OFFSET >> PAGE_SHIFT)
 
+#ifdef CONFIG_MMU
+static inline unsigned long ___pa(unsigned long va)
+{
+	unsigned long off = va - PAGE_OFFSET;
+
+	if (off >= XCHAL_KSEG_SIZE)
+		off -= XCHAL_KSEG_SIZE;
+
+	return off + PHYS_OFFSET;
+}
+#define __pa(x)	___pa((unsigned long)(x))
+#else
 #define __pa(x)	\
 	((unsigned long) (x) - PAGE_OFFSET + PHYS_OFFSET)
+#endif
 #define __va(x)	\
 	((void *)((unsigned long) (x) - PHYS_OFFSET + PAGE_OFFSET))
 #define pfn_valid(pfn) \

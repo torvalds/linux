@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for keys on TCA6416 I2C IO expander
  *
  * Copyright (C) 2010 Texas Instruments
  *
  * Author : Sriramakrishnan.A.G. <srk@ti.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/types.h>
@@ -219,9 +216,7 @@ static int tca6416_keypad_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
-	chip = kzalloc(sizeof(struct tca6416_keypad_chip) +
-		       pdata->nbuttons * sizeof(struct tca6416_button),
-		       GFP_KERNEL);
+	chip = kzalloc(struct_size(chip, buttons, pdata->nbuttons), GFP_KERNEL);
 	input = input_allocate_device();
 	if (!chip || !input) {
 		error = -ENOMEM;

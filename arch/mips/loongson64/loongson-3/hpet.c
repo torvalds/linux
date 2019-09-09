@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/percpu.h>
@@ -241,16 +242,18 @@ void __init setup_hpet_timer(void)
 	cd->cpumask = cpumask_of(cpu);
 	clockevent_set_clock(cd, HPET_FREQ);
 	cd->max_delta_ns = clockevent_delta2ns(0x7fffffff, cd);
+	cd->max_delta_ticks = 0x7fffffff;
 	cd->min_delta_ns = clockevent_delta2ns(HPET_MIN_PROG_DELTA, cd);
+	cd->min_delta_ticks = HPET_MIN_PROG_DELTA;
 
 	clockevents_register_device(cd);
 	setup_irq(HPET_T0_IRQ, &hpet_irq);
 	pr_info("hpet clock event device register\n");
 }
 
-static cycle_t hpet_read_counter(struct clocksource *cs)
+static u64 hpet_read_counter(struct clocksource *cs)
 {
-	return (cycle_t)hpet_read(HPET_COUNTER);
+	return (u64)hpet_read(HPET_COUNTER);
 }
 
 static void hpet_suspend(struct clocksource *cs)

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * linux/drivers/mmc/core/sdio_irq.c
  *
@@ -6,15 +7,11 @@
  * Copyright:   MontaVista Software Inc.
  *
  * Copyright 2008 Pierre Ossman
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or (at
- * your option) any later version.
  */
 
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <uapi/linux/sched/types.h>
 #include <linux/kthread.h>
 #include <linux/export.h>
 #include <linux/wait.h>
@@ -27,6 +24,8 @@
 #include <linux/mmc/sdio_func.h>
 
 #include "sdio_ops.h"
+#include "core.h"
+#include "card.h"
 
 static int process_sdio_pending_irqs(struct mmc_host *host)
 {
@@ -34,6 +33,10 @@ static int process_sdio_pending_irqs(struct mmc_host *host)
 	int i, ret, count;
 	unsigned char pending;
 	struct sdio_func *func;
+
+	/* Don't process SDIO IRQs if the card is suspended. */
+	if (mmc_card_suspended(card))
+		return 0;
 
 	/*
 	 * Optimization, if there is only 1 function interrupt registered
@@ -89,14 +92,31 @@ static int process_sdio_pending_irqs(struct mmc_host *host)
 	return ret;
 }
 
-void sdio_run_irqs(struct mmc_host *host)
+static void sdio_run_irqs(struct mmc_host *host)
 {
 	mmc_claim_host(host);
-	host->sdio_irq_pending = true;
-	process_sdio_pending_irqs(host);
+	if (host->sdio_irqs) {
+		host->sdio_irq_pending = true;
+		process_sdio_pending_irqs(host);
+		if (host->ops->ack_sdio_irq)
+			host->ops->ack_sdio_irq(host);
+	}
 	mmc_release_host(host);
 }
-EXPORT_SYMBOL_GPL(sdio_run_irqs);
+
+void sdio_irq_work(struct work_struct *work)
+{
+	struct mmc_host *host =
+		container_of(work, struct mmc_host, sdio_irq_work.work);
+
+	sdio_run_irqs(host);
+}
+
+void sdio_signal_irq(struct mmc_host *host)
+{
+	queue_delayed_work(system_wq, &host->sdio_irq_work, 0);
+}
+EXPORT_SYMBOL_GPL(sdio_signal_irq);
 
 static int sdio_irq_thread(void *_host)
 {
@@ -134,7 +154,8 @@ static int sdio_irq_thread(void *_host)
 		 * holding of the host lock does not cover too much work
 		 * that doesn't require that lock to be held.
 		 */
-		ret = __mmc_claim_host(host, &host->sdio_irq_thread_abort);
+		ret = __mmc_claim_host(host, NULL,
+				       &host->sdio_irq_thread_abort);
 		if (ret)
 			break;
 		ret = process_sdio_pending_irqs(host);
@@ -214,7 +235,9 @@ static int sdio_card_irq_put(struct mmc_card *card)
 	struct mmc_host *host = card->host;
 
 	WARN_ON(!host->claimed);
-	BUG_ON(host->sdio_irqs < 1);
+
+	if (host->sdio_irqs < 1)
+		return -EINVAL;
 
 	if (!--host->sdio_irqs) {
 		if (!(host->caps2 & MMC_CAP2_SDIO_IRQ_NOTHREAD)) {
@@ -253,16 +276,16 @@ static void sdio_single_irq_set(struct mmc_card *card)
  *
  *	Claim and activate the IRQ for the given SDIO function. The provided
  *	handler will be called when that IRQ is asserted.  The host is always
- *	claimed already when the handler is called so the handler must not
- *	call sdio_claim_host() nor sdio_release_host().
+ *	claimed already when the handler is called so the handler should not
+ *	call sdio_claim_host() or sdio_release_host().
  */
 int sdio_claim_irq(struct sdio_func *func, sdio_irq_handler_t *handler)
 {
 	int ret;
 	unsigned char reg;
 
-	BUG_ON(!func);
-	BUG_ON(!func->card);
+	if (!func)
+		return -EINVAL;
 
 	pr_debug("SDIO: Enabling IRQ for %s...\n", sdio_func_id(func));
 
@@ -304,8 +327,8 @@ int sdio_release_irq(struct sdio_func *func)
 	int ret;
 	unsigned char reg;
 
-	BUG_ON(!func);
-	BUG_ON(!func->card);
+	if (!func)
+		return -EINVAL;
 
 	pr_debug("SDIO: Disabling IRQ for %s...\n", sdio_func_id(func));
 

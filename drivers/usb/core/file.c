@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * drivers/usb/core/file.c
  *
@@ -13,6 +14,7 @@
  *     (usb_device_id matching changes by Adam J. Richter)
  * (C) Copyright Greg Kroah-Hartman 2002-2003
  *
+ * Released under the GPLv2 only.
  */
 
 #include <linux/module.h>
@@ -27,6 +29,7 @@
 #define MAX_USB_MINORS	256
 static const struct file_operations *usb_minors[MAX_USB_MINORS];
 static DECLARE_RWSEM(minor_rwsem);
+static DEFINE_MUTEX(init_usb_class_mutex);
 
 static int usb_open(struct inode *inode, struct file *file)
 {
@@ -109,8 +112,9 @@ static void release_usb_class(struct kref *kref)
 
 static void destroy_usb_class(void)
 {
-	if (usb_class)
-		kref_put(&usb_class->kref, release_usb_class);
+	mutex_lock(&init_usb_class_mutex);
+	kref_put(&usb_class->kref, release_usb_class);
+	mutex_unlock(&init_usb_class_mutex);
 }
 
 int usb_major_init(void)
@@ -171,7 +175,10 @@ int usb_register_dev(struct usb_interface *intf,
 	if (intf->minor >= 0)
 		return -EADDRINUSE;
 
+	mutex_lock(&init_usb_class_mutex);
 	retval = init_usb_class();
+	mutex_unlock(&init_usb_class_mutex);
+
 	if (retval)
 		return retval;
 
@@ -186,9 +193,10 @@ int usb_register_dev(struct usb_interface *intf,
 		intf->minor = minor;
 		break;
 	}
-	up_write(&minor_rwsem);
-	if (intf->minor < 0)
+	if (intf->minor < 0) {
+		up_write(&minor_rwsem);
 		return -EXFULL;
+	}
 
 	/* create a usb class device for this usb interface */
 	snprintf(name, sizeof(name), class_driver->name, minor - minor_base);
@@ -196,12 +204,11 @@ int usb_register_dev(struct usb_interface *intf,
 				      MKDEV(USB_MAJOR, minor), class_driver,
 				      "%s", kbasename(name));
 	if (IS_ERR(intf->usb_dev)) {
-		down_write(&minor_rwsem);
 		usb_minors[minor] = NULL;
 		intf->minor = -1;
-		up_write(&minor_rwsem);
 		retval = PTR_ERR(intf->usb_dev);
 	}
+	up_write(&minor_rwsem);
 	return retval;
 }
 EXPORT_SYMBOL_GPL(usb_register_dev);
@@ -227,12 +234,12 @@ void usb_deregister_dev(struct usb_interface *intf,
 		return;
 
 	dev_dbg(&intf->dev, "removing %d minor\n", intf->minor);
+	device_destroy(usb_class->class, MKDEV(USB_MAJOR, intf->minor));
 
 	down_write(&minor_rwsem);
 	usb_minors[intf->minor] = NULL;
 	up_write(&minor_rwsem);
 
-	device_destroy(usb_class->class, MKDEV(USB_MAJOR, intf->minor));
 	intf->usb_dev = NULL;
 	intf->minor = -1;
 	destroy_usb_class();

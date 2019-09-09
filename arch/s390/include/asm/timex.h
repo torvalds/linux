@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *  S390 version
  *    Copyright IBM Corp. 1999
@@ -14,6 +15,8 @@
 
 /* The value of the TOD clock for 1.1.1970. */
 #define TOD_UNIX_EPOCH 0x7d91048bca000000ULL
+
+extern u64 clock_comparator_max;
 
 /* Inline functions for clock register access. */
 static inline int set_tod_clock(__u64 time)
@@ -52,11 +55,9 @@ static inline void store_clock_comparator(__u64 *time)
 
 void clock_comparator_work(void);
 
-void __init ptff_init(void);
+void __init time_early_init(void);
 
 extern unsigned char ptff_function_mask[16];
-extern unsigned long lpar_offset;
-extern unsigned long initial_leap_seconds;
 
 /* Function codes for the ptff instruction. */
 #define PTFF_QAF	0x00	/* query available functions */
@@ -100,28 +101,35 @@ struct ptff_qui {
 	unsigned int pad_0x5c[41];
 } __packed;
 
-static inline int ptff(void *ptff_block, size_t len, unsigned int func)
-{
-	typedef struct { char _[len]; } addrtype;
-	register unsigned int reg0 asm("0") = func;
-	register unsigned long reg1 asm("1") = (unsigned long) ptff_block;
-	int rc;
-
-	asm volatile(
-		"	.word	0x0104\n"
-		"	ipm	%0\n"
-		"	srl	%0,28\n"
-		: "=d" (rc), "+m" (*(addrtype *) ptff_block)
-		: "d" (reg0), "d" (reg1) : "cc");
-	return rc;
-}
+/*
+ * ptff - Perform timing facility function
+ * @ptff_block: Pointer to ptff parameter block
+ * @len: Length of parameter block
+ * @func: Function code
+ * Returns: Condition code (0 on success)
+ */
+#define ptff(ptff_block, len, func)					\
+({									\
+	struct addrtype { char _[len]; };				\
+	register unsigned int reg0 asm("0") = func;			\
+	register unsigned long reg1 asm("1") = (unsigned long) (ptff_block);\
+	int rc;								\
+									\
+	asm volatile(							\
+		"	.word	0x0104\n"				\
+		"	ipm	%0\n"					\
+		"	srl	%0,28\n"				\
+		: "=d" (rc), "+m" (*(struct addrtype *) reg1)		\
+		: "d" (reg0), "d" (reg1) : "cc");			\
+	rc;								\
+})
 
 static inline unsigned long long local_tick_disable(void)
 {
 	unsigned long long old;
 
 	old = S390_lowcore.clock_comparator;
-	S390_lowcore.clock_comparator = -1ULL;
+	S390_lowcore.clock_comparator = clock_comparator_max;
 	set_clock_comparator(S390_lowcore.clock_comparator);
 	return old;
 }
@@ -169,32 +177,24 @@ static inline cycles_t get_cycles(void)
 	return (cycles_t) get_tod_clock() >> 2;
 }
 
-int get_phys_clock(unsigned long long *clock);
+int get_phys_clock(unsigned long *clock);
 void init_cpu_timer(void);
 unsigned long long monotonic_clock(void);
 
-void tod_to_timeval(__u64 todval, struct timespec64 *xt);
-
-static inline
-void stck_to_timespec64(unsigned long long stck, struct timespec64 *ts)
-{
-	tod_to_timeval(stck - TOD_UNIX_EPOCH, ts);
-}
-
-extern u64 sched_clock_base_cc;
+extern unsigned char tod_clock_base[16] __aligned(8);
 
 /**
  * get_clock_monotonic - returns current time in clock rate units
  *
  * The caller must ensure that preemption is disabled.
- * The clock and sched_clock_base get changed via stop_machine.
+ * The clock and tod_clock_base get changed via stop_machine.
  * Therefore preemption must be disabled when calling this
  * function, otherwise the returned value is not guaranteed to
  * be monotonic.
  */
 static inline unsigned long long get_tod_clock_monotonic(void)
 {
-	return get_tod_clock() - sched_clock_base_cc;
+	return get_tod_clock() - *(unsigned long long *) &tod_clock_base[1];
 }
 
 /**
@@ -209,20 +209,44 @@ static inline unsigned long long get_tod_clock_monotonic(void)
  *    ns = (todval * 125) >> 9;
  *
  * In order to avoid an overflow with the multiplication we can rewrite this.
- * With a split todval == 2^32 * th + tl (th upper 32 bits, tl lower 32 bits)
+ * With a split todval == 2^9 * th + tl (th upper 55 bits, tl lower 9 bits)
  * we end up with
  *
- *    ns = ((2^32 * th + tl) * 125 ) >> 9;
- * -> ns = (2^23 * th * 125) + ((tl * 125) >> 9);
+ *    ns = ((2^9 * th + tl) * 125 ) >> 9;
+ * -> ns = (th * 125) + ((tl * 125) >> 9);
  *
  */
 static inline unsigned long long tod_to_ns(unsigned long long todval)
 {
-	unsigned long long ns;
+	return ((todval >> 9) * 125) + (((todval & 0x1ff) * 125) >> 9);
+}
 
-	ns = ((todval >> 32) << 23) * 125;
-	ns += ((todval & 0xffffffff) * 125) >> 9;
-	return ns;
+/**
+ * tod_after - compare two 64 bit TOD values
+ * @a: first 64 bit TOD timestamp
+ * @b: second 64 bit TOD timestamp
+ *
+ * Returns: true if a is later than b
+ */
+static inline int tod_after(unsigned long long a, unsigned long long b)
+{
+	if (MACHINE_HAS_SCC)
+		return (long long) a > (long long) b;
+	return a > b;
+}
+
+/**
+ * tod_after_eq - compare two 64 bit TOD values
+ * @a: first 64 bit TOD timestamp
+ * @b: second 64 bit TOD timestamp
+ *
+ * Returns: true if a is later than b
+ */
+static inline int tod_after_eq(unsigned long long a, unsigned long long b)
+{
+	if (MACHINE_HAS_SCC)
+		return (long long) a >= (long long) b;
+	return a >= b;
 }
 
 #endif

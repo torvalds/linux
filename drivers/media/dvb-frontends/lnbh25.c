@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * lnbh25.c
  *
@@ -6,16 +7,6 @@
  * Copyright (C) 2014 NetUP Inc.
  * Copyright (C) 2014 Sergey Kozlov <serjk@netup.ru>
  * Copyright (C) 2014 Abylay Ospan <aospan@netup.ru>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/module.h>
@@ -23,7 +14,7 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "lnbh25.h"
 
 /**
@@ -76,8 +67,8 @@ static int lnbh25_read_vmon(struct lnbh25_priv *priv)
 			return ret;
 		}
 	}
-	print_hex_dump_bytes("lnbh25_read_vmon: ",
-		DUMP_PREFIX_OFFSET, status, sizeof(status));
+	dev_dbg(&priv->i2c->dev, "%s(): %*ph\n",
+		__func__, (int) sizeof(status), status);
 	if ((status[0] & (LNBH25_STATUS_OFL | LNBH25_STATUS_VMON)) != 0) {
 		dev_err(&priv->i2c->dev,
 			"%s(): voltage in failure state, status reg 0x%x\n",
@@ -178,7 +169,7 @@ struct dvb_frontend *lnbh25_attach(struct dvb_frontend *fe,
 	fe->ops.release_sec = lnbh25_release;
 	fe->ops.set_voltage = lnbh25_set_voltage;
 
-	dev_err(&i2c->dev, "%s(): attached at I2C addr 0x%02x\n",
+	dev_info(&i2c->dev, "%s(): attached at I2C addr 0x%02x\n",
 		__func__, priv->i2c_address);
 	return fe;
 }

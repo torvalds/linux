@@ -1,25 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * tboot.c: main implementation of helper functions used by kernel for
  *          runtime support of Intel(R) Trusted Execution Technology
  *
  * Copyright (c) 2006-2009, Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
- *
  */
 
-#include <linux/dma_remapping.h>
+#include <linux/intel-iommu.h>
 #include <linux/init_task.h>
 #include <linux/spinlock.h>
 #include <linux/export.h>
@@ -42,7 +29,7 @@
 #include <asm/fixmap.h>
 #include <asm/proto.h>
 #include <asm/setup.h>
-#include <asm/e820.h>
+#include <asm/e820/api.h>
 #include <asm/io.h>
 
 #include "../realmode/rm/wakeup.h"
@@ -68,9 +55,9 @@ void __init tboot_probe(void)
 	 * also verify that it is mapped as we expect it before calling
 	 * set_fixmap(), to reduce chance of garbage value causing crash
 	 */
-	if (!e820_any_mapped(boot_params.tboot_addr,
-			     boot_params.tboot_addr, E820_RESERVED)) {
-		pr_warning("non-0 tboot_addr but it is not of type E820_RESERVED\n");
+	if (!e820__mapped_any(boot_params.tboot_addr,
+			     boot_params.tboot_addr, E820_TYPE_RESERVED)) {
+		pr_warning("non-0 tboot_addr but it is not of type E820_TYPE_RESERVED\n");
 		return;
 	}
 
@@ -118,12 +105,16 @@ static int map_tboot_page(unsigned long vaddr, unsigned long pfn,
 			  pgprot_t prot)
 {
 	pgd_t *pgd;
+	p4d_t *p4d;
 	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
 
 	pgd = pgd_offset(&tboot_mm, vaddr);
-	pud = pud_alloc(&tboot_mm, pgd, vaddr);
+	p4d = p4d_alloc(&tboot_mm, pgd, vaddr);
+	if (!p4d)
+		return -1;
+	pud = pud_alloc(&tboot_mm, p4d, vaddr);
 	if (!pud)
 		return -1;
 	pmd = pmd_alloc(&tboot_mm, pud, vaddr);
@@ -134,6 +125,17 @@ static int map_tboot_page(unsigned long vaddr, unsigned long pfn,
 		return -1;
 	set_pte_at(&tboot_mm, vaddr, pte, pfn_pte(pfn, prot));
 	pte_unmap(pte);
+
+	/*
+	 * PTI poisons low addresses in the kernel page tables in the
+	 * name of making them unusable for userspace.  To execute
+	 * code at such a low address, the poison must be cleared.
+	 *
+	 * Note: 'pgd' actually gets set in p4d_alloc() _or_
+	 * pud_alloc() depending on 4/5-level paging.
+	 */
+	pgd->pgd &= ~_PAGE_NX;
+
 	return 0;
 }
 
@@ -188,12 +190,12 @@ static int tboot_setup_sleep(void)
 
 	tboot->num_mac_regions = 0;
 
-	for (i = 0; i < e820->nr_map; i++) {
-		if ((e820->map[i].type != E820_RAM)
-		 && (e820->map[i].type != E820_RESERVED_KERN))
+	for (i = 0; i < e820_table->nr_entries; i++) {
+		if ((e820_table->entries[i].type != E820_TYPE_RAM)
+		 && (e820_table->entries[i].type != E820_TYPE_RESERVED_KERN))
 			continue;
 
-		add_mac_region(e820->map[i].addr, e820->map[i].size);
+		add_mac_region(e820_table->entries[i].addr, e820_table->entries[i].size);
 	}
 
 	tboot->acpi_sinfo.kernel_s3_resume_vector =
@@ -408,7 +410,7 @@ static __init int tboot_late_init(void)
 	tboot_create_trampoline();
 
 	atomic_set(&ap_wfs_count, 0);
-	cpuhp_setup_state(CPUHP_AP_X86_TBOOT_DYING, "AP_X86_TBOOT_DYING", NULL,
+	cpuhp_setup_state(CPUHP_AP_X86_TBOOT_DYING, "x86/tboot:dying", NULL,
 			  tboot_dying_cpu);
 #ifdef CONFIG_DEBUG_FS
 	debugfs_create_file("tboot_log", S_IRUSR,
@@ -509,6 +511,9 @@ int tboot_force_iommu(void)
 {
 	if (!tboot_enabled())
 		return 0;
+
+	if (intel_iommu_tboot_noforce)
+		return 1;
 
 	if (no_iommu || swiotlb || dmar_disabled)
 		pr_warning("Forcing Intel-IOMMU to enabled\n");

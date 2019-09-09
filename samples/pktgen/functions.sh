@@ -119,3 +119,80 @@ function root_check_run_with_sudo() {
 	err 4 "cannot perform sudo run of $0"
     fi
 }
+
+# Exact input device's NUMA node info
+function get_iface_node()
+{
+    local node=$(</sys/class/net/$1/device/numa_node)
+    if [[ $node == -1 ]]; then
+        echo 0
+    else
+        echo $node
+    fi
+}
+
+# Given an Dev/iface, get its queues' irq numbers
+function get_iface_irqs()
+{
+	local IFACE=$1
+	local queues="${IFACE}-.*TxRx"
+
+	irqs=$(grep "$queues" /proc/interrupts | cut -f1 -d:)
+	[ -z "$irqs" ] && irqs=$(grep $IFACE /proc/interrupts | cut -f1 -d:)
+	[ -z "$irqs" ] && irqs=$(for i in `ls -Ux /sys/class/net/$IFACE/device/msi_irqs` ;\
+	    do grep "$i:.*TxRx" /proc/interrupts | grep -v fdir | cut -f 1 -d : ;\
+	    done)
+	[ -z "$irqs" ] && err 3 "Could not find interrupts for $IFACE"
+
+	echo $irqs
+}
+
+# Given a NUMA node, return cpu ids belonging to it.
+function get_node_cpus()
+{
+	local node=$1
+	local node_cpu_list
+	local node_cpu_range_list=`cut -f1- -d, --output-delimiter=" " \
+	                  /sys/devices/system/node/node$node/cpulist`
+
+	for cpu_range in $node_cpu_range_list
+	do
+	    node_cpu_list="$node_cpu_list "`seq -s " " ${cpu_range//-/ }`
+	done
+
+	echo $node_cpu_list
+}
+
+# Given a single or range of port(s), return minimum and maximum port number.
+function parse_ports()
+{
+    local port_str=$1
+    local port_list
+    local min_port
+    local max_port
+
+    IFS="-" read -ra port_list <<< $port_str
+
+    min_port=${port_list[0]}
+    max_port=${port_list[1]:-$min_port}
+
+    echo $min_port $max_port
+}
+
+# Given a minimum and maximum port, verify port number.
+function validate_ports()
+{
+    local min_port=$1
+    local max_port=$2
+
+    # 0 < port < 65536
+    if [[ $min_port -gt 0 && $min_port -lt 65536 ]]; then
+	if [[ $max_port -gt 0 && $max_port -lt 65536 ]]; then
+	    if [[ $min_port -le $max_port ]]; then
+		return 0
+	    fi
+	fi
+    fi
+
+    err 5 "Invalid port(s): $min_port-$max_port"
+}

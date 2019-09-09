@@ -1,9 +1,5 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* Copyright 2011-2014 Autronica Fire and Security AS
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
  *
  * Author(s):
  *	2011-2014 Arvid Brodin, arvid.brodin@alten.se
@@ -16,9 +12,11 @@
 
 struct hsr_node;
 
+void hsr_del_self_node(struct list_head *self_node_db);
+void hsr_del_nodes(struct list_head *node_db);
 struct hsr_node *hsr_add_node(struct list_head *node_db, unsigned char addr[],
 			      u16 seq_out);
-struct hsr_node *hsr_get_node(struct list_head *node_db, struct sk_buff *skb,
+struct hsr_node *hsr_get_node(struct hsr_port *port, struct sk_buff *skb,
 			      bool is_sup);
 void hsr_handle_sup_frame(struct sk_buff *skb, struct hsr_node *node_curr,
 			  struct hsr_port *port);
@@ -33,7 +31,7 @@ void hsr_register_frame_in(struct hsr_node *node, struct hsr_port *port,
 int hsr_register_frame_out(struct hsr_port *port, struct hsr_node *node,
 			   u16 sequence_nr);
 
-void hsr_prune_nodes(unsigned long data);
+void hsr_prune_nodes(struct timer_list *t);
 
 int hsr_create_self_node(struct list_head *self_node_db,
 			 unsigned char addr_a[ETH_ALEN],
@@ -50,5 +48,17 @@ int hsr_get_node_data(struct hsr_priv *hsr,
 		      u16 *if1_seq,
 		      int *if2_age,
 		      u16 *if2_seq);
+
+struct hsr_node {
+	struct list_head	mac_list;
+	unsigned char		macaddress_A[ETH_ALEN];
+	unsigned char		macaddress_B[ETH_ALEN];
+	/* Local slave through which AddrB frames are received from this node */
+	enum hsr_port_type	addr_B_port;
+	unsigned long		time_in[HSR_PT_PORTS];
+	bool			time_in_stale[HSR_PT_PORTS];
+	u16			seq_out[HSR_PT_PORTS];
+	struct rcu_head		rcu_head;
+};
 
 #endif /* __HSR_FRAMEREG_H */

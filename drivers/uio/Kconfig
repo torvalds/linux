@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menuconfig UIO
 	tristate "Userspace I/O drivers"
 	depends on MMU
@@ -155,4 +156,13 @@ config UIO_MF624
 
 	  If you compile this as a module, it will be called uio_mf624.
 
+config UIO_HV_GENERIC
+	tristate "Generic driver for Hyper-V VMBus"
+	depends on HYPERV
+	help
+	  Generic driver that you can bind, dynamically, to any
+	  Hyper-V VMBus device. It is useful to provide direct access
+	  to network and storage devices from userspace.
+
+	  If you compile this as a module, it will be called uio_hv_generic.
 endif

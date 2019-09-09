@@ -1,99 +1,39 @@
+// SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause)
 /*
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * GPL LICENSE SUMMARY
- *
  * Copyright (c) 2016 BayLibre, SAS.
  * Author: Neil Armstrong <narmstrong@baylibre.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
- * The full GNU General Public License is included in this distribution
- * in the file called COPYING.
- *
- * BSD LICENSE
- *
- * Copyright (c) 2016 BayLibre, SAS.
- * Author: Neil Armstrong <narmstrong@baylibre.com>
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
- *   * Redistributions in binary form must reproduce the above copyright
- *     notice, this list of conditions and the following disclaimer in
- *     the documentation and/or other materials provided with the
- *     distribution.
- *   * Neither the name of Intel Corporation nor the names of its
- *     contributors may be used to endorse or promote products derived
- *     from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include <linux/clk-provider.h>
-#include <linux/of_address.h>
 #include <linux/platform_device.h>
-#include <linux/reset-controller.h>
-#include <linux/init.h>
-#include <dt-bindings/clock/gxbb-aoclkc.h>
-#include <dt-bindings/reset/gxbb-aoclkc.h>
+#include <linux/mfd/syscon.h>
+#include "meson-aoclk.h"
+#include "gxbb-aoclk.h"
 
-static DEFINE_SPINLOCK(gxbb_aoclk_lock);
+#include "clk-regmap.h"
+#include "clk-dualdiv.h"
 
-struct gxbb_aoclk_reset_controller {
-	struct reset_controller_dev reset;
-	unsigned int *data;
-	void __iomem *base;
-};
+#define IN_PREFIX "ao-in-"
 
-static int gxbb_aoclk_do_reset(struct reset_controller_dev *rcdev,
-			       unsigned long id)
-{
-	struct gxbb_aoclk_reset_controller *reset =
-		container_of(rcdev, struct gxbb_aoclk_reset_controller, reset);
-
-	writel(BIT(reset->data[id]), reset->base);
-
-	return 0;
-}
-
-static const struct reset_control_ops gxbb_aoclk_reset_ops = {
-	.reset = gxbb_aoclk_do_reset,
-};
+/* AO Configuration Clock registers offsets */
+#define AO_RTI_PWR_CNTL_REG1	0x0c
+#define AO_RTI_PWR_CNTL_REG0	0x10
+#define AO_RTI_GEN_CNTL_REG0	0x40
+#define AO_OSCIN_CNTL		0x58
+#define AO_CRT_CLK_CNTL1	0x68
+#define AO_RTC_ALT_CLK_CNTL0	0x94
+#define AO_RTC_ALT_CLK_CNTL1	0x98
 
 #define GXBB_AO_GATE(_name, _bit)					\
-static struct clk_gate _name##_ao = {					\
-	.reg = (void __iomem *)0,					\
-	.bit_idx = (_bit),						\
-	.lock = &gxbb_aoclk_lock,					\
+static struct clk_regmap _name##_ao = {					\
+	.data = &(struct clk_regmap_gate_data) {			\
+		.offset = AO_RTI_GEN_CNTL_REG0,				\
+		.bit_idx = (_bit),					\
+	},								\
 	.hw.init = &(struct clk_init_data) {				\
 		.name = #_name "_ao",					\
-		.ops = &clk_gate_ops,					\
-		.parent_names = (const char *[]){ "clk81" },		\
+		.ops = &clk_regmap_gate_ops,				\
+		.parent_names = (const char *[]){ IN_PREFIX "mpeg-clk" }, \
 		.num_parents = 1,					\
-		.flags = (CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED),	\
+		.flags = CLK_IGNORE_UNUSED,				\
 	},								\
 }
 
@@ -104,7 +44,178 @@ GXBB_AO_GATE(uart1, 3);
 GXBB_AO_GATE(uart2, 5);
 GXBB_AO_GATE(ir_blaster, 6);
 
-static unsigned int gxbb_aoclk_reset[] = {
+static struct clk_regmap ao_cts_oscin = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = AO_RTI_PWR_CNTL_REG0,
+		.bit_idx = 6,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "ao_cts_oscin",
+		.ops = &clk_regmap_gate_ro_ops,
+		.parent_names = (const char *[]){ IN_PREFIX "xtal" },
+		.num_parents = 1,
+	},
+};
+
+static struct clk_regmap ao_32k_pre = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = AO_RTC_ALT_CLK_CNTL0,
+		.bit_idx = 31,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "ao_32k_pre",
+		.ops = &clk_regmap_gate_ops,
+		.parent_names = (const char *[]){ "ao_cts_oscin" },
+		.num_parents = 1,
+	},
+};
+
+static const struct meson_clk_dualdiv_param gxbb_32k_div_table[] = {
+	{
+		.dual	= 1,
+		.n1	= 733,
+		.m1	= 8,
+		.n2	= 732,
+		.m2	= 11,
+	}, {}
+};
+
+static struct clk_regmap ao_32k_div = {
+	.data = &(struct meson_clk_dualdiv_data){
+		.n1 = {
+			.reg_off = AO_RTC_ALT_CLK_CNTL0,
+			.shift   = 0,
+			.width   = 12,
+		},
+		.n2 = {
+			.reg_off = AO_RTC_ALT_CLK_CNTL0,
+			.shift   = 12,
+			.width   = 12,
+		},
+		.m1 = {
+			.reg_off = AO_RTC_ALT_CLK_CNTL1,
+			.shift   = 0,
+			.width   = 12,
+		},
+		.m2 = {
+			.reg_off = AO_RTC_ALT_CLK_CNTL1,
+			.shift   = 12,
+			.width   = 12,
+		},
+		.dual = {
+			.reg_off = AO_RTC_ALT_CLK_CNTL0,
+			.shift   = 28,
+			.width   = 1,
+		},
+		.table = gxbb_32k_div_table,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "ao_32k_div",
+		.ops = &meson_clk_dualdiv_ops,
+		.parent_names = (const char *[]){ "ao_32k_pre" },
+		.num_parents = 1,
+	},
+};
+
+static struct clk_regmap ao_32k_sel = {
+	.data = &(struct clk_regmap_mux_data) {
+		.offset = AO_RTC_ALT_CLK_CNTL1,
+		.mask = 0x1,
+		.shift = 24,
+		.flags = CLK_MUX_ROUND_CLOSEST,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "ao_32k_sel",
+		.ops = &clk_regmap_mux_ops,
+		.parent_names = (const char *[]){ "ao_32k_div",
+						  "ao_32k_pre" },
+		.num_parents = 2,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap ao_32k = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = AO_RTC_ALT_CLK_CNTL0,
+		.bit_idx = 30,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "ao_32k",
+		.ops = &clk_regmap_gate_ops,
+		.parent_names = (const char *[]){ "ao_32k_sel" },
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap ao_cts_rtc_oscin = {
+	.data = &(struct clk_regmap_mux_data) {
+		.offset = AO_RTI_PWR_CNTL_REG0,
+		.mask = 0x7,
+		.shift = 10,
+		.table = (u32[]){ 1, 2, 3, 4 },
+		.flags = CLK_MUX_ROUND_CLOSEST,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "ao_cts_rtc_oscin",
+		.ops = &clk_regmap_mux_ops,
+		.parent_names = (const char *[]){ IN_PREFIX "ext-32k-0",
+						  IN_PREFIX "ext-32k-1",
+						  IN_PREFIX "ext-32k-2",
+						  "ao_32k" },
+		.num_parents = 4,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap ao_clk81 = {
+	.data = &(struct clk_regmap_mux_data) {
+		.offset = AO_RTI_PWR_CNTL_REG0,
+		.mask = 0x1,
+		.shift = 0,
+		.flags = CLK_MUX_ROUND_CLOSEST,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "ao_clk81",
+		.ops = &clk_regmap_mux_ro_ops,
+		.parent_names = (const char *[]){ IN_PREFIX "mpeg-clk",
+						  "ao_cts_rtc_oscin" },
+		.num_parents = 2,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap ao_cts_cec = {
+	.data = &(struct clk_regmap_mux_data) {
+		.offset = AO_CRT_CLK_CNTL1,
+		.mask = 0x1,
+		.shift = 27,
+		.flags = CLK_MUX_ROUND_CLOSEST,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "ao_cts_cec",
+		.ops = &clk_regmap_mux_ops,
+		/*
+		 * FIXME: The 'fixme' parent obviously does not exist.
+		 *
+		 * ATM, CCF won't call get_parent() if num_parents is 1. It
+		 * does not allow NULL as a parent name either.
+		 *
+		 * On this particular mux, we only know the input #1 parent
+		 * but, on boot, unknown input #0 is set, so it is critical
+		 * to call .get_parent() on it
+		 *
+		 * Until CCF gets fixed, adding this fake parent that won't
+		 * ever be registered should work around the problem
+		 */
+		.parent_names = (const char *[]){ "fixme",
+						  "ao_cts_rtc_oscin" },
+		.num_parents = 2,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static const unsigned int gxbb_aoclk_reset[] = {
 	[RESET_AO_REMOTE] = 16,
 	[RESET_AO_I2C_MASTER] = 18,
 	[RESET_AO_I2C_SLAVE] = 19,
@@ -113,16 +224,24 @@ static unsigned int gxbb_aoclk_reset[] = {
 	[RESET_AO_IR_BLASTER] = 23,
 };
 
-static struct clk_gate *gxbb_aoclk_gate[] = {
-	[CLKID_AO_REMOTE] = &remote_ao,
-	[CLKID_AO_I2C_MASTER] = &i2c_master_ao,
-	[CLKID_AO_I2C_SLAVE] = &i2c_slave_ao,
-	[CLKID_AO_UART1] = &uart1_ao,
-	[CLKID_AO_UART2] = &uart2_ao,
-	[CLKID_AO_IR_BLASTER] = &ir_blaster_ao,
+static struct clk_regmap *gxbb_aoclk[] = {
+	&remote_ao,
+	&i2c_master_ao,
+	&i2c_slave_ao,
+	&uart1_ao,
+	&uart2_ao,
+	&ir_blaster_ao,
+	&ao_cts_oscin,
+	&ao_32k_pre,
+	&ao_32k_div,
+	&ao_32k_sel,
+	&ao_32k,
+	&ao_cts_rtc_oscin,
+	&ao_clk81,
+	&ao_cts_cec,
 };
 
-static struct clk_hw_onecell_data gxbb_aoclk_onecell_data = {
+static const struct clk_hw_onecell_data gxbb_aoclk_onecell_data = {
 	.hws = {
 		[CLKID_AO_REMOTE] = &remote_ao.hw,
 		[CLKID_AO_I2C_MASTER] = &i2c_master_ao.hw,
@@ -130,59 +249,48 @@ static struct clk_hw_onecell_data gxbb_aoclk_onecell_data = {
 		[CLKID_AO_UART1] = &uart1_ao.hw,
 		[CLKID_AO_UART2] = &uart2_ao.hw,
 		[CLKID_AO_IR_BLASTER] = &ir_blaster_ao.hw,
+		[CLKID_AO_CEC_32K] = &ao_cts_cec.hw,
+		[CLKID_AO_CTS_OSCIN] = &ao_cts_oscin.hw,
+		[CLKID_AO_32K_PRE] = &ao_32k_pre.hw,
+		[CLKID_AO_32K_DIV] = &ao_32k_div.hw,
+		[CLKID_AO_32K_SEL] = &ao_32k_sel.hw,
+		[CLKID_AO_32K] = &ao_32k.hw,
+		[CLKID_AO_CTS_RTC_OSCIN] = &ao_cts_rtc_oscin.hw,
+		[CLKID_AO_CLK81] = &ao_clk81.hw,
 	},
-	.num = ARRAY_SIZE(gxbb_aoclk_gate),
+	.num = NR_CLKS,
 };
 
-static int gxbb_aoclkc_probe(struct platform_device *pdev)
-{
-	struct resource *res;
-	void __iomem *base;
-	int ret, clkid;
-	struct device *dev = &pdev->dev;
-	struct gxbb_aoclk_reset_controller *rstc;
+static const struct meson_aoclk_input gxbb_aoclk_inputs[] = {
+	{ .name = "xtal",	.required = true,  },
+	{ .name = "mpeg-clk",	.required = true,  },
+	{. name = "ext-32k-0",	.required = false, },
+	{. name = "ext-32k-1",	.required = false, },
+	{. name = "ext-32k-2",	.required = false, },
+};
 
-	rstc = devm_kzalloc(dev, sizeof(*rstc), GFP_KERNEL);
-	if (!rstc)
-		return -ENOMEM;
-
-	/* Generic clocks */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(base))
-		return PTR_ERR(base);
-
-	/* Reset Controller */
-	rstc->base = base;
-	rstc->data = gxbb_aoclk_reset;
-	rstc->reset.ops = &gxbb_aoclk_reset_ops;
-	rstc->reset.nr_resets = ARRAY_SIZE(gxbb_aoclk_reset);
-	rstc->reset.of_node = dev->of_node;
-	ret = devm_reset_controller_register(dev, &rstc->reset);
-
-	/*
-	 * Populate base address and register all clks
-	 */
-	for (clkid = 0; clkid < gxbb_aoclk_onecell_data.num; clkid++) {
-		gxbb_aoclk_gate[clkid]->reg = base;
-
-		ret = devm_clk_hw_register(dev,
-					gxbb_aoclk_onecell_data.hws[clkid]);
-		if (ret)
-			return ret;
-	}
-
-	return of_clk_add_hw_provider(dev->of_node, of_clk_hw_onecell_get,
-			&gxbb_aoclk_onecell_data);
-}
+static const struct meson_aoclk_data gxbb_aoclkc_data = {
+	.reset_reg	= AO_RTI_GEN_CNTL_REG0,
+	.num_reset	= ARRAY_SIZE(gxbb_aoclk_reset),
+	.reset		= gxbb_aoclk_reset,
+	.num_clks	= ARRAY_SIZE(gxbb_aoclk),
+	.clks		= gxbb_aoclk,
+	.hw_data	= &gxbb_aoclk_onecell_data,
+	.inputs		= gxbb_aoclk_inputs,
+	.num_inputs	= ARRAY_SIZE(gxbb_aoclk_inputs),
+	.input_prefix	= IN_PREFIX,
+};
 
 static const struct of_device_id gxbb_aoclkc_match_table[] = {
-	{ .compatible = "amlogic,gxbb-aoclkc" },
+	{
+		.compatible	= "amlogic,meson-gx-aoclkc",
+		.data		= &gxbb_aoclkc_data,
+	},
 	{ }
 };
 
 static struct platform_driver gxbb_aoclkc_driver = {
-	.probe		= gxbb_aoclkc_probe,
+	.probe		= meson_aoclkc_probe,
 	.driver		= {
 		.name	= "gxbb-aoclkc",
 		.of_match_table = gxbb_aoclkc_match_table,

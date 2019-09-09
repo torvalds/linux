@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 if BCM47XX
 
 config BCM47XX_SSB
@@ -14,9 +15,9 @@ config BCM47XX_SSB
 	select SSB_DRIVER_GPIO
 	default y
 	help
-	 Add support for old Broadcom BCM47xx boards with Sonics Silicon Backplane support.
+	  Add support for old Broadcom BCM47xx boards with Sonics Silicon Backplane support.
 
-	 This will generate an image with support for SSB and MIPS32 R1 instruction set.
+	  This will generate an image with support for SSB and MIPS32 R1 instruction set.
 
 config BCM47XX_BCMA
 	bool "BCMA Support for Broadcom BCM47XX"
@@ -30,8 +31,8 @@ config BCM47XX_BCMA
 	select BCMA_DRIVER_GPIO
 	default y
 	help
-	 Add support for new Broadcom BCM47xx boards with Broadcom specific Advanced Microcontroller Bus.
+	  Add support for new Broadcom BCM47xx boards with Broadcom specific Advanced Microcontroller Bus.
 
-	 This will generate an image with support for BCMA and MIPS32 R2 instruction set.
+	  This will generate an image with support for BCMA and MIPS32 R2 instruction set.
 
 endif

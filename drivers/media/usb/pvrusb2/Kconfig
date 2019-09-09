@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config VIDEO_PVRUSB2
 	tristate "Hauppauge WinTV-PVR USB2 support"
 	depends on VIDEO_V4L2 && I2C
@@ -9,7 +10,7 @@ config VIDEO_PVRUSB2
 	select VIDEO_MSP3400
 	select VIDEO_WM8775
 	select VIDEO_CS53L32A
-	---help---
+	help
 	  This is a video4linux driver for Conexant 23416 based
 	  usb2 personal video recorder devices.
 
@@ -20,7 +21,7 @@ config VIDEO_PVRUSB2_SYSFS
 	bool "pvrusb2 sysfs support"
 	default y
 	depends on VIDEO_PVRUSB2 && SYSFS
-	---help---
+	help
 	  This option enables the operation of a sysfs based
 	  interface for query and control of the pvrusb2 driver.
 
@@ -40,11 +41,12 @@ config VIDEO_PVRUSB2_DVB
 	select DVB_S5H1409 if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_S5H1411 if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_TDA10048 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_LGDT3306A if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_SI2168 if MEDIA_SUBDRV_AUTOSELECT
 	select MEDIA_TUNER_TDA18271 if MEDIA_SUBDRV_AUTOSELECT
 	select MEDIA_TUNER_SIMPLE if MEDIA_SUBDRV_AUTOSELECT
 	select MEDIA_TUNER_TDA8290 if MEDIA_SUBDRV_AUTOSELECT
-	---help---
-
+	help
 	  This option enables a DVB interface for the pvrusb2 driver.
 	  If your device does not support digital television, this
 	  feature will have no affect on the driver's operation.
@@ -54,7 +56,7 @@ config VIDEO_PVRUSB2_DVB
 config VIDEO_PVRUSB2_DEBUGIFC
 	bool "pvrusb2 debug interface"
 	depends on VIDEO_PVRUSB2_SYSFS
-	---help---
+	help
 	  This option enables the inclusion of a debug interface
 	  in the pvrusb2 driver, hosted through sysfs.
 

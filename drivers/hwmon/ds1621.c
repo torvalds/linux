@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * ds1621.c - Part of lm_sensors, Linux kernel modules for hardware
  *	      monitoring
@@ -18,20 +19,6 @@
  * Since the DS1621 was the first chipset supported by this driver,
  * most comments will refer to this chipset, but are actually general
  * and concern all supported chipsets, unless mentioned otherwise.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
@@ -234,7 +221,7 @@ static struct ds1621_data *ds1621_update_client(struct device *dev)
 	return data;
 }
 
-static ssize_t show_temp(struct device *dev, struct device_attribute *da,
+static ssize_t temp_show(struct device *dev, struct device_attribute *da,
 			 char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
@@ -243,8 +230,8 @@ static ssize_t show_temp(struct device *dev, struct device_attribute *da,
 		       DS1621_TEMP_FROM_REG(data->temp[attr->index]));
 }
 
-static ssize_t set_temp(struct device *dev, struct device_attribute *da,
-			const char *buf, size_t count)
+static ssize_t temp_store(struct device *dev, struct device_attribute *da,
+			  const char *buf, size_t count)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
 	struct ds1621_data *data = dev_get_drvdata(dev);
@@ -263,14 +250,14 @@ static ssize_t set_temp(struct device *dev, struct device_attribute *da,
 	return count;
 }
 
-static ssize_t show_alarms(struct device *dev, struct device_attribute *da,
+static ssize_t alarms_show(struct device *dev, struct device_attribute *da,
 			   char *buf)
 {
 	struct ds1621_data *data = ds1621_update_client(dev);
 	return sprintf(buf, "%d\n", ALARMS_FROM_REG(data->conf));
 }
 
-static ssize_t show_alarm(struct device *dev, struct device_attribute *da,
+static ssize_t alarm_show(struct device *dev, struct device_attribute *da,
 			  char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
@@ -278,15 +265,16 @@ static ssize_t show_alarm(struct device *dev, struct device_attribute *da,
 	return sprintf(buf, "%d\n", !!(data->conf & attr->index));
 }
 
-static ssize_t show_convrate(struct device *dev, struct device_attribute *da,
-			  char *buf)
+static ssize_t update_interval_show(struct device *dev,
+				    struct device_attribute *da, char *buf)
 {
 	struct ds1621_data *data = dev_get_drvdata(dev);
 	return scnprintf(buf, PAGE_SIZE, "%hu\n", data->update_interval);
 }
 
-static ssize_t set_convrate(struct device *dev, struct device_attribute *da,
-			    const char *buf, size_t count)
+static ssize_t update_interval_store(struct device *dev,
+				     struct device_attribute *da,
+				     const char *buf, size_t count)
 {
 	struct ds1621_data *data = dev_get_drvdata(dev);
 	struct i2c_client *client = data->client;
@@ -315,17 +303,14 @@ static ssize_t set_convrate(struct device *dev, struct device_attribute *da,
 	return count;
 }
 
-static DEVICE_ATTR(alarms, S_IRUGO, show_alarms, NULL);
-static DEVICE_ATTR(update_interval, S_IWUSR | S_IRUGO, show_convrate,
-		   set_convrate);
+static DEVICE_ATTR_RO(alarms);
+static DEVICE_ATTR_RW(update_interval);
 
-static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, show_temp, NULL, 0);
-static SENSOR_DEVICE_ATTR(temp1_min, S_IWUSR | S_IRUGO, show_temp, set_temp, 1);
-static SENSOR_DEVICE_ATTR(temp1_max, S_IWUSR | S_IRUGO, show_temp, set_temp, 2);
-static SENSOR_DEVICE_ATTR(temp1_min_alarm, S_IRUGO, show_alarm, NULL,
-		DS1621_ALARM_TEMP_LOW);
-static SENSOR_DEVICE_ATTR(temp1_max_alarm, S_IRUGO, show_alarm, NULL,
-		DS1621_ALARM_TEMP_HIGH);
+static SENSOR_DEVICE_ATTR_RO(temp1_input, temp, 0);
+static SENSOR_DEVICE_ATTR_RW(temp1_min, temp, 1);
+static SENSOR_DEVICE_ATTR_RW(temp1_max, temp, 2);
+static SENSOR_DEVICE_ATTR_RO(temp1_min_alarm, alarm, DS1621_ALARM_TEMP_LOW);
+static SENSOR_DEVICE_ATTR_RO(temp1_max_alarm, alarm, DS1621_ALARM_TEMP_HIGH);
 
 static struct attribute *ds1621_attributes[] = {
 	&sensor_dev_attr_temp1_input.dev_attr.attr,

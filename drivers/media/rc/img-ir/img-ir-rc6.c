@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * ImgTec IR Decoder setup for Philips RC-6 protocol.
  *
  * Copyright 2012-2014 Imagination Technologies Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
  */
 
 #include "img-ir-hw.h"
@@ -54,7 +50,7 @@ static int img_ir_rc6_scancode(int len, u64 raw, u64 enabled_protocols,
 	if (mode)
 		return -EINVAL;
 
-	request->protocol = RC_TYPE_RC6_0;
+	request->protocol = RC_PROTO_RC6_0;
 	request->scancode = addr << 8 | cmd;
 	request->toggle	  = trl2;
 	return IMG_IR_SCANCODE;
@@ -73,7 +69,7 @@ static int img_ir_rc6_filter(const struct rc_scancode_filter *in,
  * see http://www.sbprojects.com/knowledge/ir/rc6.php
  */
 struct img_ir_decoder img_ir_rc6 = {
-	.type		= RC_BIT_RC6_0,
+	.type		= RC_PROTO_BIT_RC6_0,
 	.control	= {
 		.bitorien	= 1,
 		.code_type	= IMG_IR_CODETYPE_BIPHASE,

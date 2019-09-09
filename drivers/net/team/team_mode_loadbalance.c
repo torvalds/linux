@@ -1,11 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * drivers/net/team/team_mode_loadbalance.c - Load-balancing mode for team
  * Copyright (c) 2012 Jiri Pirko <jpirko@redhat.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -137,7 +133,13 @@ static struct team_port *lb_htpm_select_tx_port(struct team *team,
 						struct sk_buff *skb,
 						unsigned char hash)
 {
-	return rcu_dereference_bh(LB_HTPM_PORT_BY_HASH(lb_priv, hash));
+	struct team_port *port;
+
+	port = rcu_dereference_bh(LB_HTPM_PORT_BY_HASH(lb_priv, hash));
+	if (likely(port))
+		return port;
+	/* If no valid port in the table, fall back to simple hash */
+	return lb_hash_select_tx_port(team, lb_priv, skb, hash);
 }
 
 struct lb_select_tx_port {
@@ -317,6 +319,20 @@ static int lb_bpf_func_set(struct team *team, struct team_gsetter_ctx *ctx)
 		bpf_prog_destroy(orig_fp);
 	}
 	return 0;
+}
+
+static void lb_bpf_func_free(struct team *team)
+{
+	struct lb_priv *lb_priv = get_lb_priv(team);
+	struct bpf_prog *fp;
+
+	if (!lb_priv->ex->orig_fprog)
+		return;
+
+	__fprog_destroy(lb_priv->ex->orig_fprog);
+	fp = rcu_dereference_protected(lb_priv->fp,
+				       lockdep_is_held(&team->lock));
+	bpf_prog_destroy(fp);
 }
 
 static int lb_tx_method_get(struct team *team, struct team_gsetter_ctx *ctx)
@@ -633,6 +649,7 @@ static void lb_exit(struct team *team)
 
 	team_options_unregister(team, lb_options,
 				ARRAY_SIZE(lb_options));
+	lb_bpf_func_free(team);
 	cancel_delayed_work_sync(&lb_priv->ex->stats.refresh_dw);
 	free_percpu(lb_priv->pcpu_stats);
 	kfree(lb_priv->ex);
@@ -695,4 +712,4 @@ module_exit(lb_cleanup_module);
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Jiri Pirko <jpirko@redhat.com>");
 MODULE_DESCRIPTION("Load-balancing mode for team");
-MODULE_ALIAS("team-mode-loadbalance");
+MODULE_ALIAS_TEAM_MODE("loadbalance");

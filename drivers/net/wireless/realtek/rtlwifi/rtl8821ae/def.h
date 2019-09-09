@@ -1,27 +1,5 @@
-/******************************************************************************
- *
- * Copyright(c) 2009-2010  Realtek Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
- *
- * Contact Information:
- * wlanfae <wlanfae@realtek.com>
- * Realtek Corporation, No. 2, Innovation Road II, Hsinchu Science Park,
- * Hsinchu 300, Taiwan.
- *
- * Larry Finger <Larry.Finger@lwfinger.net>
- *
- *****************************************************************************/
+/* SPDX-License-Identifier: GPL-2.0 */
+/* Copyright(c) 2009-2010  Realtek Corporation.*/
 
 #ifndef __RTL8821AE_DEF_H__
 #define __RTL8821AE_DEF_H__
@@ -296,31 +274,6 @@ enum interface_select_pci {
 	INTF_SEL3_RSV = 3,
 };
 
-enum hal_fw_c2h_cmd_id {
-	HAL_FW_C2H_CMD_READ_MACREG = 0,
-	HAL_FW_C2H_CMD_READ_BBREG = 1,
-	HAL_FW_C2H_CMD_READ_RFREG = 2,
-	HAL_FW_C2H_CMD_READ_EEPROM = 3,
-	HAL_FW_C2H_CMD_READ_EFUSE = 4,
-	HAL_FW_C2H_CMD_READ_CAM = 5,
-	HAL_FW_C2H_CMD_GET_BASICRATE = 6,
-	HAL_FW_C2H_CMD_GET_DATARATE = 7,
-	HAL_FW_C2H_CMD_SURVEY = 8,
-	HAL_FW_C2H_CMD_SURVEYDONE = 9,
-	HAL_FW_C2H_CMD_JOINBSS = 10,
-	HAL_FW_C2H_CMD_ADDSTA = 11,
-	HAL_FW_C2H_CMD_DELSTA = 12,
-	HAL_FW_C2H_CMD_ATIMDONE = 13,
-	HAL_FW_C2H_CMD_TX_REPORT = 14,
-	HAL_FW_C2H_CMD_CCX_REPORT = 15,
-	HAL_FW_C2H_CMD_DTM_REPORT = 16,
-	HAL_FW_C2H_CMD_TX_RATE_STATISTICS = 17,
-	HAL_FW_C2H_CMD_C2HLBK = 18,
-	HAL_FW_C2H_CMD_C2HDBG = 19,
-	HAL_FW_C2H_CMD_C2HFEEDBACK = 20,
-	HAL_FW_C2H_CMD_MAX
-};
-
 enum rtl_desc_qsel {
 	QSLT_BK = 0x2,
 	QSLT_BE = 0x0,
@@ -330,14 +283,6 @@ enum rtl_desc_qsel {
 	QSLT_HIGH = 0x11,
 	QSLT_MGNT = 0x12,
 	QSLT_CMD = 0x13,
-};
-
-enum rx_packet_type {
-	NORMAL_RX,
-	TX_REPORT1,
-	TX_REPORT2,
-	HIS_REPORT,
-	C2H_PACKET,
 };
 
 struct phy_sts_cck_8821ae_t {

@@ -1,20 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  kernel/sched/cpudl.c
  *
  *  Global CPU deadline management
  *
  *  Author: Juri Lelli <j.lelli@sssup.it>
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; version 2
- *  of the License.
  */
-
-#include <linux/gfp.h>
-#include <linux/kernel.h>
-#include <linux/slab.h>
-#include "cpudeadline.h"
+#include "sched.h"
 
 static inline int parent(int i)
 {
@@ -42,8 +34,9 @@ static void cpudl_heapify_down(struct cpudl *cp, int idx)
 		return;
 
 	/* adapted from lib/prio_heap.c */
-	while(1) {
+	while (1) {
 		u64 largest_dl;
+
 		l = left_child(idx);
 		r = right_child(idx);
 		largest = idx;
@@ -119,35 +112,36 @@ static inline int cpudl_maximum(struct cpudl *cp)
  * @p: the task
  * @later_mask: a mask to fill in with the selected CPUs (or NULL)
  *
- * Returns: int - best CPU (heap maximum if suitable)
+ * Returns: int - CPUs were found
  */
 int cpudl_find(struct cpudl *cp, struct task_struct *p,
 	       struct cpumask *later_mask)
 {
-	int best_cpu = -1;
 	const struct sched_dl_entity *dl_se = &p->dl;
 
 	if (later_mask &&
-	    cpumask_and(later_mask, cp->free_cpus, tsk_cpus_allowed(p))) {
-		best_cpu = cpumask_any(later_mask);
-		goto out;
-	} else if (cpumask_test_cpu(cpudl_maximum(cp), tsk_cpus_allowed(p)) &&
-			dl_time_before(dl_se->deadline, cp->elements[0].dl)) {
-		best_cpu = cpudl_maximum(cp);
-		if (later_mask)
-			cpumask_set_cpu(best_cpu, later_mask);
+	    cpumask_and(later_mask, cp->free_cpus, p->cpus_ptr)) {
+		return 1;
+	} else {
+		int best_cpu = cpudl_maximum(cp);
+
+		WARN_ON(best_cpu != -1 && !cpu_present(best_cpu));
+
+		if (cpumask_test_cpu(best_cpu, p->cpus_ptr) &&
+		    dl_time_before(dl_se->deadline, cp->elements[0].dl)) {
+			if (later_mask)
+				cpumask_set_cpu(best_cpu, later_mask);
+
+			return 1;
+		}
 	}
-
-out:
-	WARN_ON(best_cpu != -1 && !cpu_present(best_cpu));
-
-	return best_cpu;
+	return 0;
 }
 
 /*
- * cpudl_clear - remove a cpu from the cpudl max-heap
+ * cpudl_clear - remove a CPU from the cpudl max-heap
  * @cp: the cpudl max-heap context
- * @cpu: the target cpu
+ * @cpu: the target CPU
  *
  * Notes: assumes cpu_rq(cpu)->lock is locked
  *
@@ -186,8 +180,8 @@ void cpudl_clear(struct cpudl *cp, int cpu)
 /*
  * cpudl_set - update the cpudl max-heap
  * @cp: the cpudl max-heap context
- * @cpu: the target cpu
- * @dl: the new earliest deadline for this cpu
+ * @cpu: the target CPU
+ * @dl: the new earliest deadline for this CPU
  *
  * Notes: assumes cpu_rq(cpu)->lock is locked
  *
@@ -205,6 +199,7 @@ void cpudl_set(struct cpudl *cp, int cpu, u64 dl)
 	old_idx = cp->elements[cpu].idx;
 	if (old_idx == IDX_INVALID) {
 		int new_idx = cp->size++;
+
 		cp->elements[new_idx].dl = dl;
 		cp->elements[new_idx].cpu = cpu;
 		cp->elements[cpu].idx = new_idx;
@@ -221,7 +216,7 @@ void cpudl_set(struct cpudl *cp, int cpu, u64 dl)
 /*
  * cpudl_set_freecpu - Set the cpudl.free_cpus
  * @cp: the cpudl max-heap context
- * @cpu: rd attached cpu
+ * @cpu: rd attached CPU
  */
 void cpudl_set_freecpu(struct cpudl *cp, int cpu)
 {
@@ -231,7 +226,7 @@ void cpudl_set_freecpu(struct cpudl *cp, int cpu)
 /*
  * cpudl_clear_freecpu - Clear the cpudl.free_cpus
  * @cp: the cpudl max-heap context
- * @cpu: rd attached cpu
+ * @cpu: rd attached CPU
  */
 void cpudl_clear_freecpu(struct cpudl *cp, int cpu)
 {
@@ -246,7 +241,6 @@ int cpudl_init(struct cpudl *cp)
 {
 	int i;
 
-	memset(cp, 0, sizeof(*cp));
 	raw_spin_lock_init(&cp->lock);
 	cp->size = 0;
 

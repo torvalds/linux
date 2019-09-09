@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /* (C) 1999-2003 Nemosoft Unv.
    (C) 2004-2006 Luc Saillard (luc@saillard.org)
 
@@ -7,19 +8,6 @@
    The decompression routines have been implemented by reverse-engineering the
    Nemosoft binary pwcx module. Caveat emptor.
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
-   (at your option) any later version.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
 #ifndef PWC_H
@@ -50,20 +38,20 @@
 
 /* Version block */
 #define PWC_VERSION	"10.0.15"
-#define PWC_NAME 	"pwc"
+#define PWC_NAME	"pwc"
 #define PFX		PWC_NAME ": "
 
 
 /* Trace certain actions in the driver */
-#define PWC_DEBUG_LEVEL_MODULE	(1<<0)
-#define PWC_DEBUG_LEVEL_PROBE	(1<<1)
-#define PWC_DEBUG_LEVEL_OPEN	(1<<2)
-#define PWC_DEBUG_LEVEL_READ	(1<<3)
-#define PWC_DEBUG_LEVEL_MEMORY	(1<<4)
-#define PWC_DEBUG_LEVEL_FLOW	(1<<5)
-#define PWC_DEBUG_LEVEL_SIZE	(1<<6)
-#define PWC_DEBUG_LEVEL_IOCTL	(1<<7)
-#define PWC_DEBUG_LEVEL_TRACE	(1<<8)
+#define PWC_DEBUG_LEVEL_MODULE	BIT(0)
+#define PWC_DEBUG_LEVEL_PROBE	BIT(1)
+#define PWC_DEBUG_LEVEL_OPEN	BIT(2)
+#define PWC_DEBUG_LEVEL_READ	BIT(3)
+#define PWC_DEBUG_LEVEL_MEMORY	BIT(4)
+#define PWC_DEBUG_LEVEL_FLOW	BIT(5)
+#define PWC_DEBUG_LEVEL_SIZE	BIT(6)
+#define PWC_DEBUG_LEVEL_IOCTL	BIT(7)
+#define PWC_DEBUG_LEVEL_TRACE	BIT(8)
 
 #define PWC_DEBUG_MODULE(fmt, args...) PWC_DEBUG(MODULE, fmt, ##args)
 #define PWC_DEBUG_PROBE(fmt, args...) PWC_DEBUG(PROBE, fmt, ##args)
@@ -120,10 +108,10 @@
 #define MAX_ISO_BUFS		3
 #define ISO_FRAMES_PER_DESC	10
 #define ISO_MAX_FRAME_SIZE	960
-#define ISO_BUFFER_SIZE 	(ISO_FRAMES_PER_DESC * ISO_MAX_FRAME_SIZE)
+#define ISO_BUFFER_SIZE		(ISO_FRAMES_PER_DESC * ISO_MAX_FRAME_SIZE)
 
 /* Maximum size after decompression is 640x480 YUV data, 1.5 * 640 * 480 */
-#define PWC_FRAME_SIZE 		(460800 + TOUCAM_HEADER_SIZE + TOUCAM_TRAILER_SIZE)
+#define PWC_FRAME_SIZE		(460800 + TOUCAM_HEADER_SIZE + TOUCAM_TRAILER_SIZE)
 
 /* Absolute minimum and maximum number of buffers available for mmap() */
 #define MIN_FRAMES		2

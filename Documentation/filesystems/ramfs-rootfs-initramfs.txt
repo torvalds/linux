@@ -105,7 +105,7 @@ All this differs from the old initrd in several ways:
   - The old initrd file was a gzipped filesystem image (in some file format,
     such as ext2, that needed a driver built into the kernel), while the new
     initramfs archive is a gzipped cpio archive (like tar only simpler,
-    see cpio(1) and Documentation/early-userspace/buffer-format.txt).  The
+    see cpio(1) and Documentation/driver-api/early-userspace/buffer-format.rst).  The
     kernel's cpio extraction code is not only extremely small, it's also
     __init text and data that can be discarded during the boot process.
 
@@ -159,12 +159,12 @@ One advantage of the configuration file is that root access is not required to
 set permissions or create device nodes in the new archive.  (Note that those
 two example "file" entries expect to find files named "init.sh" and "busybox" in
 a directory called "initramfs", under the linux-2.6.* directory.  See
-Documentation/early-userspace/README for more details.)
+Documentation/driver-api/early-userspace/early_userspace_support.rst for more details.)
 
 The kernel does not depend on external cpio tools.  If you specify a
 directory instead of a configuration file, the kernel's build infrastructure
 creates a configuration file from that directory (usr/Makefile calls
-scripts/gen_initramfs_list.sh), and proceeds to package up that directory
+usr/gen_initramfs_list.sh), and proceeds to package up that directory
 using the config file (by feeding it to usr/gen_init_cpio, which is created
 from usr/gen_init_cpio.c).  The kernel's build-time cpio creation code is
 entirely self-contained, and the kernel's boot-time extractor is also

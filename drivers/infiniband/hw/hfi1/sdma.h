@@ -1,7 +1,7 @@
 #ifndef _HFI1_SDMA_H
 #define _HFI1_SDMA_H
 /*
- * Copyright(c) 2015, 2016 Intel Corporation.
+ * Copyright(c) 2015 - 2018 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -61,16 +61,6 @@
 #define MAX_DESC 64
 /* Hardware limit for SDMA packet size */
 #define MAX_SDMA_PKT_SIZE ((16 * 1024) - 1)
-
-#define SDMA_TXREQ_S_OK        0
-#define SDMA_TXREQ_S_SENDERROR 1
-#define SDMA_TXREQ_S_ABORTED   2
-#define SDMA_TXREQ_S_SHUTDOWN  3
-
-/* flags bits */
-#define SDMA_TXREQ_F_URGENT       0x0001
-#define SDMA_TXREQ_F_AHG_COPY     0x0002
-#define SDMA_TXREQ_F_USE_AHG      0x0004
 
 #define SDMA_MAP_NONE          0
 #define SDMA_MAP_SINGLE        1
@@ -392,6 +382,7 @@ struct sdma_engine {
 	u64                     progress_int_cnt;
 
 	/* private: */
+	seqlock_t            waitlock;
 	struct list_head      dmawait;
 
 	/* CONFIG SDMA for now, just blindly duplicate */
@@ -415,11 +406,13 @@ struct sdma_engine {
 	struct list_head flushlist;
 	struct cpumask cpu_mask;
 	struct kobject kobj;
+	u32 msix_intr;
 };
 
 int sdma_init(struct hfi1_devdata *dd, u8 port);
 void sdma_start(struct hfi1_devdata *dd);
 void sdma_exit(struct hfi1_devdata *dd);
+void sdma_clean(struct hfi1_devdata *dd, size_t num_engines);
 void sdma_all_running(struct hfi1_devdata *dd);
 void sdma_all_idle(struct hfi1_devdata *dd);
 void sdma_freeze_notify(struct hfi1_devdata *dd, int go_idle);
@@ -445,7 +438,7 @@ static inline u16 sdma_descq_freecnt(struct sdma_engine *sde)
 {
 	return sde->descq_cnt -
 		(sde->descq_tail -
-		 ACCESS_ONCE(sde->descq_head)) - 1;
+		 READ_ONCE(sde->descq_head)) - 1;
 }
 
 static inline u16 sdma_descq_inprocess(struct sdma_engine *sde)
@@ -667,7 +660,13 @@ int ext_coal_sdma_tx_descs(struct hfi1_devdata *dd, struct sdma_txreq *tx,
 			   int type, void *kvaddr, struct page *page,
 			   unsigned long offset, u16 len);
 int _pad_sdma_tx_descs(struct hfi1_devdata *, struct sdma_txreq *);
-void sdma_txclean(struct hfi1_devdata *, struct sdma_txreq *);
+void __sdma_txclean(struct hfi1_devdata *, struct sdma_txreq *);
+
+static inline void sdma_txclean(struct hfi1_devdata *dd, struct sdma_txreq *tx)
+{
+	if (tx->num_desc)
+		__sdma_txclean(dd, tx);
+}
 
 /* helpers used by public routines */
 static inline void _sdma_close_tx(struct hfi1_devdata *dd,
@@ -753,7 +752,7 @@ static inline int sdma_txadd_page(
 		       DMA_TO_DEVICE);
 
 	if (unlikely(dma_mapping_error(&dd->pcidev->dev, addr))) {
-		sdma_txclean(dd, tx);
+		__sdma_txclean(dd, tx);
 		return -ENOSPC;
 	}
 
@@ -834,7 +833,7 @@ static inline int sdma_txadd_kvaddr(
 		       DMA_TO_DEVICE);
 
 	if (unlikely(dma_mapping_error(&dd->pcidev->dev, addr))) {
-		sdma_txclean(dd, tx);
+		__sdma_txclean(dd, tx);
 		return -ENOSPC;
 	}
 
@@ -842,15 +841,16 @@ static inline int sdma_txadd_kvaddr(
 			dd, SDMA_MAP_SINGLE, tx, addr, len);
 }
 
-struct iowait;
+struct iowait_work;
 
 int sdma_send_txreq(struct sdma_engine *sde,
-		    struct iowait *wait,
-		    struct sdma_txreq *tx);
+		    struct iowait_work *wait,
+		    struct sdma_txreq *tx,
+		    bool pkts_sent);
 int sdma_send_txlist(struct sdma_engine *sde,
-		     struct iowait *wait,
+		     struct iowait_work *wait,
 		     struct list_head *tx_list,
-		     u32 *count);
+		     u16 *count_out);
 
 int sdma_ahg_alloc(struct sdma_engine *sde);
 void sdma_ahg_free(struct sdma_engine *sde, int ahg_index);
@@ -960,34 +960,34 @@ void sdma_engine_interrupt(struct sdma_engine *sde, u64 status);
  *      |    mask                  |              --/  |--------------------|
  *      |--------------------------|            -/     |        *           |
  *      |    actual_vls (max 8)    |          -/       |--------------------|
- *      |--------------------------|       --/         | sde[n] -> eng n    |
+ *      |--------------------------|       --/         | sde[n-1] -> eng n  |
  *      |    vls (max 8)           |     -/            +--------------------+
  *      |--------------------------|  --/
  *      |    map[0]                |-/
- *      |--------------------------|                   +--------------------+
- *      |    map[1]                |---                |       mask         |
- *      |--------------------------|   \----           |--------------------|
- *      |           *              |        \--        | sde[0] -> eng 1+n  |
- *      |           *              |           \----   |--------------------|
- *      |           *              |                \->| sde[1] -> eng 2+n  |
- *      |--------------------------|                   |--------------------|
- *      |   map[vls - 1]           |-                  |         *          |
- *      +--------------------------+ \-                |--------------------|
- *                                     \-              | sde[m] -> eng m+n  |
- *                                       \             +--------------------+
+ *      |--------------------------|                   +---------------------+
+ *      |    map[1]                |---                |       mask          |
+ *      |--------------------------|   \----           |---------------------|
+ *      |           *              |        \--        | sde[0] -> eng 1+n   |
+ *      |           *              |           \----   |---------------------|
+ *      |           *              |                \->| sde[1] -> eng 2+n   |
+ *      |--------------------------|                   |---------------------|
+ *      |   map[vls - 1]           |-                  |         *           |
+ *      +--------------------------+ \-                |---------------------|
+ *                                     \-              | sde[m-1] -> eng m+n |
+ *                                       \             +---------------------+
  *                                        \-
  *                                          \
- *                                           \-        +--------------------+
- *                                             \-      |       mask         |
- *                                               \     |--------------------|
- *                                                \-   | sde[0] -> eng 1+m+n|
- *                                                  \- |--------------------|
- *                                                    >| sde[1] -> eng 2+m+n|
- *                                                     |--------------------|
- *                                                     |         *          |
- *                                                     |--------------------|
- *                                                     | sde[o] -> eng o+m+n|
- *                                                     +--------------------+
+ *                                           \-        +----------------------+
+ *                                             \-      |       mask           |
+ *                                               \     |----------------------|
+ *                                                \-   | sde[0] -> eng 1+m+n  |
+ *                                                  \- |----------------------|
+ *                                                    >| sde[1] -> eng 2+m+n  |
+ *                                                     |----------------------|
+ *                                                     |         *            |
+ *                                                     |----------------------|
+ *                                                     | sde[o-1] -> eng o+m+n|
+ *                                                     +----------------------+
  *
  */
 

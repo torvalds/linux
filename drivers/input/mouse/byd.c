@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * BYD TouchPad PS/2 mouse driver
  *
@@ -6,10 +7,6 @@
  * Copyright (C) 2015 Tai Chi Minh Ralph Eastwood
  * Copyright (C) 2015 Martin Wimpress
  * Copyright (C) 2015 Jay Kuri
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 
 #include <linux/delay.h>
@@ -227,6 +224,7 @@
 
 struct byd_data {
 	struct timer_list timer;
+	struct psmouse *psmouse;
 	s32 abs_x;
 	s32 abs_y;
 	typeof(jiffies) last_touch_time;
@@ -251,10 +249,10 @@ static void byd_report_input(struct psmouse *psmouse)
 	input_sync(dev);
 }
 
-static void byd_clear_touch(unsigned long data)
+static void byd_clear_touch(struct timer_list *t)
 {
-	struct psmouse *psmouse = (struct psmouse *)data;
-	struct byd_data *priv = psmouse->private;
+	struct byd_data *priv = from_timer(priv, t, timer);
+	struct psmouse *psmouse = priv->psmouse;
 
 	serio_pause_rx(psmouse->ps2dev.serio);
 	priv->touch = false;
@@ -344,7 +342,7 @@ static int byd_reset_touchpad(struct psmouse *psmouse)
 	u8 param[4];
 	size_t i;
 
-	const struct {
+	static const struct {
 		u16 command;
 		u8 arg;
 	} seq[] = {
@@ -478,7 +476,8 @@ int byd_init(struct psmouse *psmouse)
 	if (!priv)
 		return -ENOMEM;
 
-	setup_timer(&priv->timer, byd_clear_touch, (unsigned long) psmouse);
+	priv->psmouse = psmouse;
+	timer_setup(&priv->timer, byd_clear_touch, 0);
 
 	psmouse->private = priv;
 	psmouse->disconnect = byd_disconnect;

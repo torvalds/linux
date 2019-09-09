@@ -1,18 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <linux/gfp.h>
@@ -325,7 +312,6 @@ static void queue_pending_output_urbs(struct snd_usb_endpoint *ep)
 		unsigned long flags;
 		struct snd_usb_packet_info *uninitialized_var(packet);
 		struct snd_urb_ctx *ctx = NULL;
-		struct urb *urb;
 		int err, i;
 
 		spin_lock_irqsave(&ep->lock, flags);
@@ -345,7 +331,6 @@ static void queue_pending_output_urbs(struct snd_usb_endpoint *ep)
 			return;
 
 		list_del_init(&ctx->ready_list);
-		urb = ctx->urb;
 
 		/* copy over the length information */
 		for (i = 0; i < packet->packets; i++)
@@ -382,6 +367,9 @@ static void snd_complete_urb(struct urb *urb)
 		goto exit_clear;
 	/* device disconnected */
 	if (unlikely(atomic_read(&ep->chip->shutdown)))
+		goto exit_clear;
+
+	if (unlikely(!test_bit(EP_FLAG_RUNNING, &ep->flags)))
 		goto exit_clear;
 
 	if (usb_pipeout(ep->pipe)) {
@@ -534,6 +522,11 @@ static int wait_clear_urbs(struct snd_usb_endpoint *ep)
 			alive, ep->ep_num);
 	clear_bit(EP_FLAG_STOPPING, &ep->flags);
 
+	ep->data_subs = NULL;
+	ep->sync_slave = NULL;
+	ep->retire_data_urb = NULL;
+	ep->prepare_data_urb = NULL;
+
 	return 0;
 }
 
@@ -630,10 +623,24 @@ static int data_ep_set_params(struct snd_usb_endpoint *ep,
 
 	ep->datainterval = fmt->datainterval;
 	ep->stride = frame_bits >> 3;
-	ep->silence_value = pcm_format == SNDRV_PCM_FORMAT_U8 ? 0x80 : 0;
 
-	/* assume max. frequency is 25% higher than nominal */
-	ep->freqmax = ep->freqn + (ep->freqn >> 2);
+	switch (pcm_format) {
+	case SNDRV_PCM_FORMAT_U8:
+		ep->silence_value = 0x80;
+		break;
+	case SNDRV_PCM_FORMAT_DSD_U8:
+	case SNDRV_PCM_FORMAT_DSD_U16_LE:
+	case SNDRV_PCM_FORMAT_DSD_U32_LE:
+	case SNDRV_PCM_FORMAT_DSD_U16_BE:
+	case SNDRV_PCM_FORMAT_DSD_U32_BE:
+		ep->silence_value = 0x69;
+		break;
+	default:
+		ep->silence_value = 0;
+	}
+
+	/* assume max. frequency is 50% higher than nominal */
+	ep->freqmax = ep->freqn + (ep->freqn >> 1);
 	/* Round up freqmax to nearest integer in order to calculate maximum
 	 * packet size, which must represent a whole number of frames.
 	 * This is accomplished by adding 0x0.ffff before converting the
@@ -898,9 +905,7 @@ int snd_usb_endpoint_set_params(struct snd_usb_endpoint *ep,
 /**
  * snd_usb_endpoint_start: start an snd_usb_endpoint
  *
- * @ep:		the endpoint to start
- * @can_sleep:	flag indicating whether the operation is executed in
- * 		non-atomic context
+ * @ep: the endpoint to start
  *
  * A call to this function will increment the use count of the endpoint.
  * In case it is not already running, the URBs for this endpoint will be
@@ -910,7 +915,7 @@ int snd_usb_endpoint_set_params(struct snd_usb_endpoint *ep,
  *
  * Returns an error if the URB submission failed, 0 in all other cases.
  */
-int snd_usb_endpoint_start(struct snd_usb_endpoint *ep, bool can_sleep)
+int snd_usb_endpoint_start(struct snd_usb_endpoint *ep)
 {
 	int err;
 	unsigned int i;
@@ -924,8 +929,6 @@ int snd_usb_endpoint_start(struct snd_usb_endpoint *ep, bool can_sleep)
 
 	/* just to be sure */
 	deactivate_urbs(ep, false);
-	if (can_sleep)
-		wait_clear_urbs(ep);
 
 	ep->active_mask = 0;
 	ep->unlink_mask = 0;
@@ -1006,10 +1009,6 @@ void snd_usb_endpoint_stop(struct snd_usb_endpoint *ep)
 
 	if (--ep->use_count == 0) {
 		deactivate_urbs(ep, false);
-		ep->data_subs = NULL;
-		ep->sync_slave = NULL;
-		ep->retire_data_urb = NULL;
-		ep->prepare_data_urb = NULL;
 		set_bit(EP_FLAG_STOPPING, &ep->flags);
 	}
 }

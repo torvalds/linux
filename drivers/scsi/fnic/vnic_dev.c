@@ -27,6 +27,24 @@
 #include "vnic_devcmd.h"
 #include "vnic_dev.h"
 #include "vnic_stats.h"
+#include "vnic_wq.h"
+
+struct devcmd2_controller {
+	struct vnic_wq_ctrl *wq_ctrl;
+	struct vnic_dev_ring results_ring;
+	struct vnic_wq wq;
+	struct vnic_devcmd2 *cmd_ring;
+	struct devcmd2_result *result;
+	u16 next_result;
+	u16 result_size;
+	int color;
+};
+
+enum vnic_proxy_type {
+	PROXY_NONE,
+	PROXY_BY_BDF,
+	PROXY_BY_INDEX,
+};
 
 struct vnic_res {
 	void __iomem *vaddr;
@@ -48,6 +66,12 @@ struct vnic_dev {
 	dma_addr_t stats_pa;
 	struct vnic_devcmd_fw_info *fw_info;
 	dma_addr_t fw_info_pa;
+	enum vnic_proxy_type proxy;
+	u32 proxy_index;
+	u64 args[VNIC_DEVCMD_NARGS];
+	struct devcmd2_controller *devcmd2;
+	int (*devcmd_rtn)(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
+			int wait);
 };
 
 #define VNIC_MAX_RES_HDR_SIZE \
@@ -119,6 +143,7 @@ static int vnic_dev_discover_res(struct vnic_dev *vdev,
 			}
 			break;
 		case RES_TYPE_INTR_PBA_LEGACY:
+		case RES_TYPE_DEVCMD2:
 		case RES_TYPE_DEVCMD:
 			len = count;
 			break;
@@ -195,9 +220,9 @@ int vnic_dev_alloc_desc_ring(struct vnic_dev *vdev, struct vnic_dev_ring *ring,
 {
 	vnic_dev_desc_ring_size(ring, desc_count, desc_size);
 
-	ring->descs_unaligned = pci_alloc_consistent(vdev->pdev,
+	ring->descs_unaligned = dma_alloc_coherent(&vdev->pdev->dev,
 		ring->size_unaligned,
-		&ring->base_addr_unaligned);
+		&ring->base_addr_unaligned, GFP_KERNEL);
 
 	if (!ring->descs_unaligned) {
 		printk(KERN_ERR
@@ -221,7 +246,7 @@ int vnic_dev_alloc_desc_ring(struct vnic_dev *vdev, struct vnic_dev_ring *ring,
 void vnic_dev_free_desc_ring(struct vnic_dev *vdev, struct vnic_dev_ring *ring)
 {
 	if (ring->descs) {
-		pci_free_consistent(vdev->pdev,
+		dma_free_coherent(&vdev->pdev->dev,
 			ring->size_unaligned,
 			ring->descs_unaligned,
 			ring->base_addr_unaligned);
@@ -229,8 +254,7 @@ void vnic_dev_free_desc_ring(struct vnic_dev *vdev, struct vnic_dev_ring *ring)
 	}
 }
 
-int vnic_dev_cmd(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
-	u64 *a0, u64 *a1, int wait)
+int vnic_dev_cmd1(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd, int wait)
 {
 	struct vnic_devcmd __iomem *devcmd = vdev->devcmd;
 	int delay;
@@ -244,6 +268,8 @@ int vnic_dev_cmd(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
 		EBUSY,  /* ERR_EBUSY */
 	};
 	int err;
+	u64 *a0 = &vdev->args[0];
+	u64 *a1 = &vdev->args[1];
 
 	status = ioread32(&devcmd->status);
 	if (status & STAT_BUSY) {
@@ -290,6 +316,223 @@ int vnic_dev_cmd(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
 	return -ETIMEDOUT;
 }
 
+int vnic_dev_cmd2(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
+		int wait)
+{
+	struct devcmd2_controller *dc2c = vdev->devcmd2;
+	struct devcmd2_result *result;
+	u8 color;
+	unsigned int i;
+	int delay;
+	int err;
+	u32 fetch_index;
+	u32 posted;
+	u32 new_posted;
+
+	posted = ioread32(&dc2c->wq_ctrl->posted_index);
+	fetch_index = ioread32(&dc2c->wq_ctrl->fetch_index);
+
+	if (posted == 0xFFFFFFFF || fetch_index == 0xFFFFFFFF) {
+		/* Hardware surprise removal: return error */
+		pr_err("%s: devcmd2 invalid posted or fetch index on cmd %d\n",
+				pci_name(vdev->pdev), _CMD_N(cmd));
+		pr_err("%s: fetch index: %u, posted index: %u\n",
+				pci_name(vdev->pdev), fetch_index, posted);
+
+		return -ENODEV;
+
+	}
+
+	new_posted = (posted + 1) % DEVCMD2_RING_SIZE;
+
+	if (new_posted == fetch_index) {
+		pr_err("%s: devcmd2 wq full while issuing cmd %d\n",
+				pci_name(vdev->pdev), _CMD_N(cmd));
+		pr_err("%s: fetch index: %u, posted index: %u\n",
+				pci_name(vdev->pdev), fetch_index, posted);
+		return -EBUSY;
+
+	}
+	dc2c->cmd_ring[posted].cmd = cmd;
+	dc2c->cmd_ring[posted].flags = 0;
+
+	if ((_CMD_FLAGS(cmd) & _CMD_FLAGS_NOWAIT))
+		dc2c->cmd_ring[posted].flags |= DEVCMD2_FNORESULT;
+	if (_CMD_DIR(cmd) & _CMD_DIR_WRITE) {
+		for (i = 0; i < VNIC_DEVCMD_NARGS; i++)
+			dc2c->cmd_ring[posted].args[i] = vdev->args[i];
+
+	}
+
+	/* Adding write memory barrier prevents compiler and/or CPU
+	 * reordering, thus avoiding descriptor posting before
+	 * descriptor is initialized. Otherwise, hardware can read
+	 * stale descriptor fields.
+	 */
+	wmb();
+	iowrite32(new_posted, &dc2c->wq_ctrl->posted_index);
+
+	if (dc2c->cmd_ring[posted].flags & DEVCMD2_FNORESULT)
+		return 0;
+
+	result = dc2c->result + dc2c->next_result;
+	color = dc2c->color;
+
+	dc2c->next_result++;
+	if (dc2c->next_result == dc2c->result_size) {
+		dc2c->next_result = 0;
+		dc2c->color = dc2c->color ? 0 : 1;
+	}
+
+	for (delay = 0; delay < wait; delay++) {
+		udelay(100);
+		if (result->color == color) {
+			if (result->error) {
+				err = -(int) result->error;
+				if (err != ERR_ECMDUNKNOWN ||
+						cmd != CMD_CAPABILITY)
+					pr_err("%s:Error %d devcmd %d\n",
+						pci_name(vdev->pdev),
+						err, _CMD_N(cmd));
+				return err;
+			}
+			if (_CMD_DIR(cmd) & _CMD_DIR_READ) {
+				rmb(); /*prevent reorder while reding result*/
+				for (i = 0; i < VNIC_DEVCMD_NARGS; i++)
+					vdev->args[i] = result->results[i];
+			}
+			return 0;
+		}
+	}
+
+	pr_err("%s:Timed out devcmd %d\n", pci_name(vdev->pdev), _CMD_N(cmd));
+
+	return -ETIMEDOUT;
+}
+
+
+int vnic_dev_init_devcmd1(struct vnic_dev *vdev)
+{
+	vdev->devcmd = vnic_dev_get_res(vdev, RES_TYPE_DEVCMD, 0);
+	if (!vdev->devcmd)
+		return -ENODEV;
+
+	vdev->devcmd_rtn = &vnic_dev_cmd1;
+	return 0;
+}
+
+
+int vnic_dev_init_devcmd2(struct vnic_dev *vdev)
+{
+	int err;
+	unsigned int fetch_index;
+
+	if (vdev->devcmd2)
+		return 0;
+
+	vdev->devcmd2 = kzalloc(sizeof(*vdev->devcmd2), GFP_ATOMIC);
+	if (!vdev->devcmd2)
+		return -ENOMEM;
+
+	vdev->devcmd2->color = 1;
+	vdev->devcmd2->result_size = DEVCMD2_RING_SIZE;
+	err = vnic_wq_devcmd2_alloc(vdev, &vdev->devcmd2->wq,
+				DEVCMD2_RING_SIZE, DEVCMD2_DESC_SIZE);
+	if (err)
+		goto err_free_devcmd2;
+
+	fetch_index = ioread32(&vdev->devcmd2->wq.ctrl->fetch_index);
+	if (fetch_index == 0xFFFFFFFF) { /* check for hardware gone  */
+		pr_err("error in devcmd2 init");
+		return -ENODEV;
+	}
+
+	/*
+	 * Don't change fetch_index ever and
+	 * set posted_index same as fetch_index
+	 * when setting up the WQ for devcmd2.
+	 */
+	vnic_wq_init_start(&vdev->devcmd2->wq, 0, fetch_index,
+			fetch_index, 0, 0);
+
+	vnic_wq_enable(&vdev->devcmd2->wq);
+
+	err = vnic_dev_alloc_desc_ring(vdev, &vdev->devcmd2->results_ring,
+			DEVCMD2_RING_SIZE, DEVCMD2_DESC_SIZE);
+	if (err)
+		goto err_free_wq;
+
+	vdev->devcmd2->result =
+		(struct devcmd2_result *) vdev->devcmd2->results_ring.descs;
+	vdev->devcmd2->cmd_ring =
+		(struct vnic_devcmd2 *) vdev->devcmd2->wq.ring.descs;
+	vdev->devcmd2->wq_ctrl = vdev->devcmd2->wq.ctrl;
+	vdev->args[0] = (u64) vdev->devcmd2->results_ring.base_addr |
+				VNIC_PADDR_TARGET;
+	vdev->args[1] = DEVCMD2_RING_SIZE;
+
+	err = vnic_dev_cmd2(vdev, CMD_INITIALIZE_DEVCMD2, 1000);
+	if (err)
+		goto err_free_desc_ring;
+
+	vdev->devcmd_rtn = &vnic_dev_cmd2;
+
+	return 0;
+
+err_free_desc_ring:
+	vnic_dev_free_desc_ring(vdev, &vdev->devcmd2->results_ring);
+err_free_wq:
+	vnic_wq_disable(&vdev->devcmd2->wq);
+	vnic_wq_free(&vdev->devcmd2->wq);
+err_free_devcmd2:
+	kfree(vdev->devcmd2);
+	vdev->devcmd2 = NULL;
+
+	return err;
+}
+
+
+void vnic_dev_deinit_devcmd2(struct vnic_dev *vdev)
+{
+	vnic_dev_free_desc_ring(vdev, &vdev->devcmd2->results_ring);
+	vnic_wq_disable(&vdev->devcmd2->wq);
+	vnic_wq_free(&vdev->devcmd2->wq);
+	kfree(vdev->devcmd2);
+	vdev->devcmd2 = NULL;
+	vdev->devcmd_rtn = &vnic_dev_cmd1;
+}
+
+
+int vnic_dev_cmd_no_proxy(struct vnic_dev *vdev,
+	enum vnic_devcmd_cmd cmd, u64 *a0, u64 *a1, int wait)
+{
+	int err;
+
+	vdev->args[0] = *a0;
+	vdev->args[1] = *a1;
+
+	err = (*vdev->devcmd_rtn)(vdev, cmd, wait);
+
+	*a0 = vdev->args[0];
+	*a1 = vdev->args[1];
+
+	return err;
+}
+
+
+int vnic_dev_cmd(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
+	u64 *a0, u64 *a1, int wait)
+{
+	memset(vdev->args, 0, sizeof(vdev->args));
+
+	switch (vdev->proxy) {
+	case PROXY_NONE:
+	default:
+		return vnic_dev_cmd_no_proxy(vdev, cmd, a0, a1, wait);
+	}
+}
+
+
 int vnic_dev_fw_info(struct vnic_dev *vdev,
 	struct vnic_devcmd_fw_info **fw_info)
 {
@@ -298,9 +541,9 @@ int vnic_dev_fw_info(struct vnic_dev *vdev,
 	int err = 0;
 
 	if (!vdev->fw_info) {
-		vdev->fw_info = pci_alloc_consistent(vdev->pdev,
+		vdev->fw_info = dma_alloc_coherent(&vdev->pdev->dev,
 			sizeof(struct vnic_devcmd_fw_info),
-			&vdev->fw_info_pa);
+			&vdev->fw_info_pa, GFP_KERNEL);
 		if (!vdev->fw_info)
 			return -ENOMEM;
 
@@ -361,8 +604,8 @@ int vnic_dev_stats_dump(struct vnic_dev *vdev, struct vnic_stats **stats)
 	int wait = 1000;
 
 	if (!vdev->stats) {
-		vdev->stats = pci_alloc_consistent(vdev->pdev,
-			sizeof(struct vnic_stats), &vdev->stats_pa);
+		vdev->stats = dma_alloc_coherent(&vdev->pdev->dev,
+			sizeof(struct vnic_stats), &vdev->stats_pa, GFP_KERNEL);
 		if (!vdev->stats)
 			return -ENOMEM;
 	}
@@ -499,10 +742,7 @@ void vnic_dev_add_addr(struct vnic_dev *vdev, u8 *addr)
 
 	err = vnic_dev_cmd(vdev, CMD_ADDR_ADD, &a0, &a1, wait);
 	if (err)
-		printk(KERN_ERR
-			"Can't add addr [%02x:%02x:%02x:%02x:%02x:%02x], %d\n",
-			addr[0], addr[1], addr[2], addr[3], addr[4], addr[5],
-			err);
+		pr_err("Can't add addr [%pM], %d\n", addr, err);
 }
 
 void vnic_dev_del_addr(struct vnic_dev *vdev, u8 *addr)
@@ -517,10 +757,7 @@ void vnic_dev_del_addr(struct vnic_dev *vdev, u8 *addr)
 
 	err = vnic_dev_cmd(vdev, CMD_ADDR_DEL, &a0, &a1, wait);
 	if (err)
-		printk(KERN_ERR
-			"Can't del addr [%02x:%02x:%02x:%02x:%02x:%02x], %d\n",
-			addr[0], addr[1], addr[2], addr[3], addr[4], addr[5],
-			err);
+		pr_err("Can't del addr [%pM], %d\n", addr, err);
 }
 
 int vnic_dev_notify_set(struct vnic_dev *vdev, u16 intr)
@@ -529,9 +766,9 @@ int vnic_dev_notify_set(struct vnic_dev *vdev, u16 intr)
 	int wait = 1000;
 
 	if (!vdev->notify) {
-		vdev->notify = pci_alloc_consistent(vdev->pdev,
+		vdev->notify = dma_alloc_coherent(&vdev->pdev->dev,
 			sizeof(struct vnic_devcmd_notify),
-			&vdev->notify_pa);
+			&vdev->notify_pa, GFP_KERNEL);
 		if (!vdev->notify)
 			return -ENOMEM;
 	}
@@ -653,23 +890,25 @@ void vnic_dev_unregister(struct vnic_dev *vdev)
 {
 	if (vdev) {
 		if (vdev->notify)
-			pci_free_consistent(vdev->pdev,
+			dma_free_coherent(&vdev->pdev->dev,
 				sizeof(struct vnic_devcmd_notify),
 				vdev->notify,
 				vdev->notify_pa);
 		if (vdev->linkstatus)
-			pci_free_consistent(vdev->pdev,
+			dma_free_coherent(&vdev->pdev->dev,
 				sizeof(u32),
 				vdev->linkstatus,
 				vdev->linkstatus_pa);
 		if (vdev->stats)
-			pci_free_consistent(vdev->pdev,
+			dma_free_coherent(&vdev->pdev->dev,
 				sizeof(struct vnic_stats),
 				vdev->stats, vdev->stats_pa);
 		if (vdev->fw_info)
-			pci_free_consistent(vdev->pdev,
+			dma_free_coherent(&vdev->pdev->dev,
 				sizeof(struct vnic_devcmd_fw_info),
 				vdev->fw_info, vdev->fw_info_pa);
+		if (vdev->devcmd2)
+			vnic_dev_deinit_devcmd2(vdev);
 		kfree(vdev);
 	}
 }
@@ -689,13 +928,26 @@ struct vnic_dev *vnic_dev_register(struct vnic_dev *vdev,
 	if (vnic_dev_discover_res(vdev, bar))
 		goto err_out;
 
-	vdev->devcmd = vnic_dev_get_res(vdev, RES_TYPE_DEVCMD, 0);
-	if (!vdev->devcmd)
-		goto err_out;
-
 	return vdev;
 
 err_out:
 	vnic_dev_unregister(vdev);
 	return NULL;
+}
+
+int vnic_dev_cmd_init(struct vnic_dev *vdev)
+{
+	int err;
+	void *p;
+
+	p = vnic_dev_get_res(vdev, RES_TYPE_DEVCMD2, 0);
+	if (p) {
+		pr_err("fnic: DEVCMD2 resource found!\n");
+		err = vnic_dev_init_devcmd2(vdev);
+	} else {
+		pr_err("fnic: DEVCMD2 not found, fall back to Devcmd\n");
+		err = vnic_dev_init_devcmd1(vdev);
+	}
+
+	return err;
 }

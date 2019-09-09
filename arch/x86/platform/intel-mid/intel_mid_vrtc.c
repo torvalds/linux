@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * intel_mid_vrtc.c: Driver for virtual RTC device on Intel MID platform
  *
  * (C) Copyright 2009 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; version 2
- * of the License.
  *
  * Note:
  * VRTC is emulated by system controller firmware, the real HW
@@ -57,7 +53,7 @@ void vrtc_cmos_write(unsigned char val, unsigned char reg)
 }
 EXPORT_SYMBOL_GPL(vrtc_cmos_write);
 
-void vrtc_get_time(struct timespec *now)
+void vrtc_get_time(struct timespec64 *now)
 {
 	u8 sec, min, hour, mday, mon;
 	unsigned long flags;
@@ -83,18 +79,18 @@ void vrtc_get_time(struct timespec *now)
 	pr_info("vRTC: sec: %d min: %d hour: %d day: %d "
 		"mon: %d year: %d\n", sec, min, hour, mday, mon, year);
 
-	now->tv_sec = mktime(year, mon, mday, hour, min, sec);
+	now->tv_sec = mktime64(year, mon, mday, hour, min, sec);
 	now->tv_nsec = 0;
 }
 
-int vrtc_set_mmss(const struct timespec *now)
+int vrtc_set_mmss(const struct timespec64 *now)
 {
 	unsigned long flags;
 	struct rtc_time tm;
 	int year;
 	int retval = 0;
 
-	rtc_time_to_tm(now->tv_sec, &tm);
+	rtc_time64_to_tm(now->tv_sec, &tm);
 	if (!rtc_valid_tm(&tm) && tm.tm_year >= 72) {
 		/*
 		 * tm.year is the number of years since 1900, and the
@@ -110,8 +106,8 @@ int vrtc_set_mmss(const struct timespec *now)
 		vrtc_cmos_write(tm.tm_sec, RTC_SECONDS);
 		spin_unlock_irqrestore(&rtc_lock, flags);
 	} else {
-		pr_err("%s: Invalid vRTC value: write of %lx to vRTC failed\n",
-			__func__, now->tv_sec);
+		pr_err("%s: Invalid vRTC value: write of %llx to vRTC failed\n",
+			__func__, (s64)now->tv_sec);
 		retval = -EINVAL;
 	}
 	return retval;

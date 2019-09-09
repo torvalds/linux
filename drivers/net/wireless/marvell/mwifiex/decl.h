@@ -27,7 +27,7 @@
 #include <linux/timer.h>
 #include <linux/ieee80211.h>
 #include <uapi/linux/if_arp.h>
-#include <net/mac80211.h>
+#include <net/cfg80211.h>
 
 #define MWIFIEX_BSS_COEX_COUNT	     2
 #define MWIFIEX_MAX_BSS_NUM         (3)
@@ -292,6 +292,23 @@ enum rdwr_status {
 	RDWR_STATUS_SUCCESS = 0,
 	RDWR_STATUS_FAILURE = 1,
 	RDWR_STATUS_DONE = 2
+};
+
+enum mwifiex_chan_width {
+	CHAN_BW_20MHZ = 0,
+	CHAN_BW_10MHZ,
+	CHAN_BW_40MHZ,
+	CHAN_BW_80MHZ,
+	CHAN_BW_8080MHZ,
+	CHAN_BW_160MHZ,
+	CHAN_BW_5MHZ,
+};
+
+enum mwifiex_chan_offset {
+	SEC_CHAN_NONE = 0,
+	SEC_CHAN_ABOVE = 1,
+	SEC_CHAN_5MHZ = 2,
+	SEC_CHAN_BELOW = 3
 };
 
 #endif /* !_MWIFIEX_DECL_H_ */

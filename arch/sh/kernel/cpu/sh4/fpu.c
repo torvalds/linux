@@ -1,17 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Save/restore floating point context for signal handlers.
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  *
  * Copyright (C) 1999, 2000  Kaz Kojima & Niibe Yutaka
  * Copyright (C) 2006  ST Microelectronics Ltd. (denorm support)
  *
  * FIXME! These routines have not been tested for big endian case.
  */
-#include <linux/sched.h>
-#include <linux/signal.h>
+#include <linux/sched/signal.h>
 #include <linux/io.h>
 #include <cpu/fpu.h>
 #include <asm/processor.h>
@@ -425,5 +421,5 @@ BUILD_TRAP_HANDLER(fpu_error)
 		}
 	}
 
-	force_sig(SIGFPE, tsk);
+	force_sig(SIGFPE);
 }

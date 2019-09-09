@@ -30,6 +30,7 @@ Optional Properties:
 - reset-names: Only allow the following entries:
  - phy-reset
 - resets: Must contain an entry for each entry in reset-names.
+- vbus-supply: power-supply phandle for vbus power source
 
 Example:
 

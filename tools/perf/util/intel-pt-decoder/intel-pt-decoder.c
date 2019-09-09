@@ -1,16 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * intel_pt_decoder.c: Intel Processor Trace support
  * Copyright (c) 2013-2014, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
  */
 
 #ifndef _GNU_SOURCE
@@ -22,9 +13,11 @@
 #include <errno.h>
 #include <stdint.h>
 #include <inttypes.h>
+#include <linux/compiler.h>
+#include <linux/zalloc.h>
 
 #include "../cache.h"
-#include "../util.h"
+#include "../auxtrace.h"
 
 #include "intel-pt-insn-decoder.h"
 #include "intel-pt-pkt-decoder.h"
@@ -56,12 +49,33 @@ enum intel_pt_pkt_state {
 	INTEL_PT_STATE_NO_IP,
 	INTEL_PT_STATE_ERR_RESYNC,
 	INTEL_PT_STATE_IN_SYNC,
+	INTEL_PT_STATE_TNT_CONT,
 	INTEL_PT_STATE_TNT,
 	INTEL_PT_STATE_TIP,
 	INTEL_PT_STATE_TIP_PGD,
 	INTEL_PT_STATE_FUP,
 	INTEL_PT_STATE_FUP_NO_TIP,
 };
+
+static inline bool intel_pt_sample_time(enum intel_pt_pkt_state pkt_state)
+{
+	switch (pkt_state) {
+	case INTEL_PT_STATE_NO_PSB:
+	case INTEL_PT_STATE_NO_IP:
+	case INTEL_PT_STATE_ERR_RESYNC:
+	case INTEL_PT_STATE_IN_SYNC:
+	case INTEL_PT_STATE_TNT_CONT:
+		return true;
+	case INTEL_PT_STATE_TNT:
+	case INTEL_PT_STATE_TIP:
+	case INTEL_PT_STATE_TIP_PGD:
+	case INTEL_PT_STATE_FUP:
+	case INTEL_PT_STATE_FUP_NO_TIP:
+		return false;
+	default:
+		return true;
+	};
+}
 
 #ifdef INTEL_PT_STRICT
 #define INTEL_PT_STATE_ERR1	INTEL_PT_STATE_NO_PSB
@@ -81,16 +95,21 @@ struct intel_pt_decoder {
 			 uint64_t *insn_cnt_ptr, uint64_t *ip, uint64_t to_ip,
 			 uint64_t max_insn_cnt, void *data);
 	bool (*pgd_ip)(uint64_t ip, void *data);
+	int (*lookahead)(void *data, intel_pt_lookahead_cb_t cb, void *cb_data);
 	void *data;
 	struct intel_pt_state state;
 	const unsigned char *buf;
 	size_t len;
 	bool return_compression;
+	bool branch_enable;
 	bool mtc_insn;
 	bool pge;
 	bool have_tma;
 	bool have_cyc;
 	bool fixup_last_mtc;
+	bool have_last_ip;
+	bool in_psb;
+	enum intel_pt_param_flags flags;
 	uint64_t pos;
 	uint64_t last_ip;
 	uint64_t ip;
@@ -98,6 +117,8 @@ struct intel_pt_decoder {
 	uint64_t timestamp;
 	uint64_t tsc_timestamp;
 	uint64_t ref_timestamp;
+	uint64_t buf_timestamp;
+	uint64_t sample_timestamp;
 	uint64_t ret_addr;
 	uint64_t ctc_timestamp;
 	uint64_t ctc_delta;
@@ -112,12 +133,17 @@ struct intel_pt_decoder {
 	int mtc_shift;
 	struct intel_pt_stack stack;
 	enum intel_pt_pkt_state pkt_state;
+	enum intel_pt_pkt_ctx pkt_ctx;
+	enum intel_pt_pkt_ctx prev_pkt_ctx;
+	enum intel_pt_blk_type blk_type;
+	int blk_type_pos;
 	struct intel_pt_pkt packet;
 	struct intel_pt_pkt tnt;
 	int pkt_step;
 	int pkt_len;
 	int last_packet_type;
 	unsigned int cbr;
+	unsigned int cbr_seen;
 	unsigned int max_non_turbo_ratio;
 	double max_non_turbo_ratio_fp;
 	double cbr_cyc_to_tsc;
@@ -132,12 +158,28 @@ struct intel_pt_decoder {
 	uint64_t period_mask;
 	uint64_t period_ticks;
 	uint64_t last_masked_timestamp;
+	uint64_t tot_cyc_cnt;
+	uint64_t sample_tot_cyc_cnt;
+	uint64_t base_cyc_cnt;
+	uint64_t cyc_cnt_timestamp;
+	double tsc_to_cyc;
 	bool continuous_period;
 	bool overflow;
 	bool set_fup_tx_flags;
+	bool set_fup_ptw;
+	bool set_fup_mwait;
+	bool set_fup_pwre;
+	bool set_fup_exstop;
+	bool set_fup_bep;
+	bool sample_cyc;
 	unsigned int fup_tx_flags;
 	unsigned int tx_flags;
+	uint64_t fup_ptw_payload;
+	uint64_t fup_mwait_payload;
+	uint64_t fup_pwre_payload;
+	uint64_t cbr_payload;
 	uint64_t timestamp_insn_cnt;
+	uint64_t sample_insn_cnt;
 	uint64_t stuck_ip;
 	int no_progress;
 	int stuck_ip_prd;
@@ -189,8 +231,12 @@ struct intel_pt_decoder *intel_pt_decoder_new(struct intel_pt_params *params)
 	decoder->get_trace          = params->get_trace;
 	decoder->walk_insn          = params->walk_insn;
 	decoder->pgd_ip             = params->pgd_ip;
+	decoder->lookahead          = params->lookahead;
 	decoder->data               = params->data;
 	decoder->return_compression = params->return_compression;
+	decoder->branch_enable      = params->branch_enable;
+
+	decoder->flags              = params->flags;
 
 	decoder->period             = params->period;
 	decoder->period_type        = params->period_type;
@@ -213,19 +259,15 @@ struct intel_pt_decoder *intel_pt_decoder_new(struct intel_pt_params *params)
 		if (!(decoder->tsc_ctc_ratio_n % decoder->tsc_ctc_ratio_d))
 			decoder->tsc_ctc_mult = decoder->tsc_ctc_ratio_n /
 						decoder->tsc_ctc_ratio_d;
-
-		/*
-		 * Allow for timestamps appearing to backwards because a TSC
-		 * packet has slipped past a MTC packet, so allow 2 MTC ticks
-		 * or ...
-		 */
-		decoder->tsc_slip = multdiv(2 << decoder->mtc_shift,
-					decoder->tsc_ctc_ratio_n,
-					decoder->tsc_ctc_ratio_d);
 	}
-	/* ... or 0x100 paranoia */
-	if (decoder->tsc_slip < 0x100)
-		decoder->tsc_slip = 0x100;
+
+	/*
+	 * A TSC packet can slip past MTC packets so that the timestamp appears
+	 * to go backwards. One estimate is that can be up to about 40 CPU
+	 * cycles, which is certainly less than 0x1000 TSC ticks, but accept
+	 * slippage an order of magnitude more to be on the safe side.
+	 */
+	decoder->tsc_slip = 0x10000;
 
 	intel_pt_log("timestamp: mtc_shift %u\n", decoder->mtc_shift);
 	intel_pt_log("timestamp: tsc_ctc_ratio_n %u\n", decoder->tsc_ctc_ratio_n);
@@ -397,6 +439,7 @@ static uint64_t intel_pt_calc_ip(const struct intel_pt_pkt *packet,
 static inline void intel_pt_set_last_ip(struct intel_pt_decoder *decoder)
 {
 	decoder->last_ip = intel_pt_calc_ip(&decoder->packet, decoder->last_ip);
+	decoder->have_last_ip = true;
 }
 
 static inline void intel_pt_set_ip(struct intel_pt_decoder *decoder)
@@ -442,7 +485,21 @@ static int intel_pt_bad_packet(struct intel_pt_decoder *decoder)
 	return -EBADMSG;
 }
 
-static int intel_pt_get_data(struct intel_pt_decoder *decoder)
+static inline void intel_pt_update_sample_time(struct intel_pt_decoder *decoder)
+{
+	decoder->sample_timestamp = decoder->timestamp;
+	decoder->sample_insn_cnt = decoder->timestamp_insn_cnt;
+}
+
+static void intel_pt_reposition(struct intel_pt_decoder *decoder)
+{
+	decoder->ip = 0;
+	decoder->pkt_state = INTEL_PT_STATE_NO_PSB;
+	decoder->timestamp = 0;
+	decoder->have_tma = false;
+}
+
+static int intel_pt_get_data(struct intel_pt_decoder *decoder, bool reposition)
 {
 	struct intel_pt_buffer buffer = { .buf = 0, };
 	int ret;
@@ -459,12 +516,10 @@ static int intel_pt_get_data(struct intel_pt_decoder *decoder)
 		intel_pt_log("No more data\n");
 		return -ENODATA;
 	}
-	if (!buffer.consecutive) {
-		decoder->ip = 0;
-		decoder->pkt_state = INTEL_PT_STATE_NO_PSB;
+	decoder->buf_timestamp = buffer.ref_timestamp;
+	if (!buffer.consecutive || reposition) {
+		intel_pt_reposition(decoder);
 		decoder->ref_timestamp = buffer.ref_timestamp;
-		decoder->timestamp = 0;
-		decoder->have_tma = false;
 		decoder->state.trace_nr = buffer.trace_nr;
 		intel_pt_log("Reference timestamp 0x%" PRIx64 "\n",
 			     decoder->ref_timestamp);
@@ -474,10 +529,11 @@ static int intel_pt_get_data(struct intel_pt_decoder *decoder)
 	return 0;
 }
 
-static int intel_pt_get_next_data(struct intel_pt_decoder *decoder)
+static int intel_pt_get_next_data(struct intel_pt_decoder *decoder,
+				  bool reposition)
 {
 	if (!decoder->next_buf)
-		return intel_pt_get_data(decoder);
+		return intel_pt_get_data(decoder, reposition);
 
 	decoder->buf = decoder->next_buf;
 	decoder->len = decoder->next_len;
@@ -496,7 +552,7 @@ static int intel_pt_get_split_packet(struct intel_pt_decoder *decoder)
 	len = decoder->len;
 	memcpy(buf, decoder->buf, len);
 
-	ret = intel_pt_get_data(decoder);
+	ret = intel_pt_get_data(decoder, false);
 	if (ret) {
 		decoder->pos += old_len;
 		return ret < 0 ? ret : -EINVAL;
@@ -508,7 +564,8 @@ static int intel_pt_get_split_packet(struct intel_pt_decoder *decoder)
 	memcpy(buf + len, decoder->buf, n);
 	len += n;
 
-	ret = intel_pt_get_packet(buf, len, &decoder->packet);
+	decoder->prev_pkt_ctx = decoder->pkt_ctx;
+	ret = intel_pt_get_packet(buf, len, &decoder->packet, &decoder->pkt_ctx);
 	if (ret < (int)old_len) {
 		decoder->next_buf = decoder->buf;
 		decoder->next_len = decoder->len;
@@ -543,6 +600,7 @@ static int intel_pt_pkt_lookahead(struct intel_pt_decoder *decoder,
 {
 	struct intel_pt_pkt_info pkt_info;
 	const unsigned char *buf = decoder->buf;
+	enum intel_pt_pkt_ctx pkt_ctx = decoder->pkt_ctx;
 	size_t len = decoder->len;
 	int ret;
 
@@ -561,7 +619,8 @@ static int intel_pt_pkt_lookahead(struct intel_pt_decoder *decoder,
 			if (!len)
 				return INTEL_PT_NEED_MORE_BYTES;
 
-			ret = intel_pt_get_packet(buf, len, &pkt_info.packet);
+			ret = intel_pt_get_packet(buf, len, &pkt_info.packet,
+						  &pkt_ctx);
 			if (!ret)
 				return INTEL_PT_NEED_MORE_BYTES;
 			if (ret < 0)
@@ -634,6 +693,12 @@ static int intel_pt_calc_cyc_cb(struct intel_pt_pkt_info *pkt_info)
 	case INTEL_PT_PAD:
 	case INTEL_PT_VMCS:
 	case INTEL_PT_MNT:
+	case INTEL_PT_PTWRITE:
+	case INTEL_PT_PTWRITE_IP:
+	case INTEL_PT_BBP:
+	case INTEL_PT_BIP:
+	case INTEL_PT_BEP:
+	case INTEL_PT_BEP_IP:
 		return 0;
 
 	case INTEL_PT_MTC:
@@ -674,6 +739,12 @@ static int intel_pt_calc_cyc_cb(struct intel_pt_pkt_info *pkt_info)
 		break;
 
 	case INTEL_PT_TSC:
+		/*
+		 * For now, do not support using TSC packets - refer
+		 * intel_pt_calc_cyc_to_tsc().
+		 */
+		if (data->from_mtc)
+			return 1;
 		timestamp = pkt_info->packet.payload |
 			    (data->timestamp & (0xffULL << 56));
 		if (data->from_mtc && timestamp < data->timestamp &&
@@ -732,6 +803,11 @@ static int intel_pt_calc_cyc_cb(struct intel_pt_pkt_info *pkt_info)
 
 	case INTEL_PT_TIP_PGD:
 	case INTEL_PT_TRACESTOP:
+	case INTEL_PT_EXSTOP:
+	case INTEL_PT_EXSTOP_IP:
+	case INTEL_PT_MWAIT:
+	case INTEL_PT_PWRE:
+	case INTEL_PT_PWRX:
 	case INTEL_PT_OVF:
 	case INTEL_PT_BAD: /* Does not happen */
 	default:
@@ -786,6 +862,14 @@ static void intel_pt_calc_cyc_to_tsc(struct intel_pt_decoder *decoder,
 		.cbr_cyc_to_tsc = 0,
 	};
 
+	/*
+	 * For now, do not support using TSC packets for at least the reasons:
+	 * 1) timing might have stopped
+	 * 2) TSC packets within PSB+ can slip against CYC packets
+	 */
+	if (!from_mtc)
+		return;
+
 	intel_pt_pkt_lookahead(decoder, intel_pt_calc_cyc_cb, &data);
 }
 
@@ -801,14 +885,15 @@ static int intel_pt_get_next_packet(struct intel_pt_decoder *decoder)
 		decoder->len -= decoder->pkt_step;
 
 		if (!decoder->len) {
-			ret = intel_pt_get_next_data(decoder);
+			ret = intel_pt_get_next_data(decoder, false);
 			if (ret)
 				return ret;
 		}
 
+		decoder->prev_pkt_ctx = decoder->pkt_ctx;
 		ret = intel_pt_get_packet(decoder->buf, decoder->len,
-					  &decoder->packet);
-		if (ret == INTEL_PT_NEED_MORE_BYTES &&
+					  &decoder->packet, &decoder->pkt_ctx);
+		if (ret == INTEL_PT_NEED_MORE_BYTES && BITS_PER_LONG == 32 &&
 		    decoder->len < INTEL_PT_PKT_MAX_SZ && !decoder->next_buf) {
 			ret = intel_pt_get_split_packet(decoder);
 			if (ret < 0)
@@ -832,16 +917,20 @@ static uint64_t intel_pt_next_period(struct intel_pt_decoder *decoder)
 	timestamp = decoder->timestamp + decoder->timestamp_insn_cnt;
 	masked_timestamp = timestamp & decoder->period_mask;
 	if (decoder->continuous_period) {
-		if (masked_timestamp != decoder->last_masked_timestamp)
+		if (masked_timestamp > decoder->last_masked_timestamp)
 			return 1;
 	} else {
 		timestamp += 1;
 		masked_timestamp = timestamp & decoder->period_mask;
-		if (masked_timestamp != decoder->last_masked_timestamp) {
+		if (masked_timestamp > decoder->last_masked_timestamp) {
 			decoder->last_masked_timestamp = masked_timestamp;
 			decoder->continuous_period = true;
 		}
 	}
+
+	if (masked_timestamp < decoder->last_masked_timestamp)
+		return decoder->period_ticks;
+
 	return decoder->period_ticks - (timestamp - masked_timestamp);
 }
 
@@ -870,7 +959,10 @@ static void intel_pt_sample_insn(struct intel_pt_decoder *decoder)
 	case INTEL_PT_PERIOD_TICKS:
 		timestamp = decoder->timestamp + decoder->timestamp_insn_cnt;
 		masked_timestamp = timestamp & decoder->period_mask;
-		decoder->last_masked_timestamp = masked_timestamp;
+		if (masked_timestamp > decoder->last_masked_timestamp)
+			decoder->last_masked_timestamp = masked_timestamp;
+		else
+			decoder->last_masked_timestamp += decoder->period_ticks;
 		break;
 	case INTEL_PT_PERIOD_NONE:
 	case INTEL_PT_PERIOD_MTC:
@@ -897,6 +989,7 @@ static int intel_pt_walk_insn(struct intel_pt_decoder *decoder,
 
 	decoder->tot_insn_cnt += insn_cnt;
 	decoder->timestamp_insn_cnt += insn_cnt;
+	decoder->sample_insn_cnt += insn_cnt;
 	decoder->period_insn_cnt += insn_cnt;
 
 	if (err) {
@@ -980,11 +1073,81 @@ out:
 out_no_progress:
 	decoder->state.insn_op = intel_pt_insn->op;
 	decoder->state.insn_len = intel_pt_insn->length;
+	memcpy(decoder->state.insn, intel_pt_insn->buf,
+	       INTEL_PT_INSN_BUF_SZ);
 
 	if (decoder->tx_flags & INTEL_PT_IN_TX)
 		decoder->state.flags |= INTEL_PT_IN_TX;
 
 	return err;
+}
+
+static bool intel_pt_fup_event(struct intel_pt_decoder *decoder)
+{
+	bool ret = false;
+
+	if (decoder->set_fup_tx_flags) {
+		decoder->set_fup_tx_flags = false;
+		decoder->tx_flags = decoder->fup_tx_flags;
+		decoder->state.type = INTEL_PT_TRANSACTION;
+		decoder->state.from_ip = decoder->ip;
+		decoder->state.to_ip = 0;
+		decoder->state.flags = decoder->fup_tx_flags;
+		return true;
+	}
+	if (decoder->set_fup_ptw) {
+		decoder->set_fup_ptw = false;
+		decoder->state.type = INTEL_PT_PTW;
+		decoder->state.flags |= INTEL_PT_FUP_IP;
+		decoder->state.from_ip = decoder->ip;
+		decoder->state.to_ip = 0;
+		decoder->state.ptw_payload = decoder->fup_ptw_payload;
+		return true;
+	}
+	if (decoder->set_fup_mwait) {
+		decoder->set_fup_mwait = false;
+		decoder->state.type = INTEL_PT_MWAIT_OP;
+		decoder->state.from_ip = decoder->ip;
+		decoder->state.to_ip = 0;
+		decoder->state.mwait_payload = decoder->fup_mwait_payload;
+		ret = true;
+	}
+	if (decoder->set_fup_pwre) {
+		decoder->set_fup_pwre = false;
+		decoder->state.type |= INTEL_PT_PWR_ENTRY;
+		decoder->state.type &= ~INTEL_PT_BRANCH;
+		decoder->state.from_ip = decoder->ip;
+		decoder->state.to_ip = 0;
+		decoder->state.pwre_payload = decoder->fup_pwre_payload;
+		ret = true;
+	}
+	if (decoder->set_fup_exstop) {
+		decoder->set_fup_exstop = false;
+		decoder->state.type |= INTEL_PT_EX_STOP;
+		decoder->state.type &= ~INTEL_PT_BRANCH;
+		decoder->state.flags |= INTEL_PT_FUP_IP;
+		decoder->state.from_ip = decoder->ip;
+		decoder->state.to_ip = 0;
+		ret = true;
+	}
+	if (decoder->set_fup_bep) {
+		decoder->set_fup_bep = false;
+		decoder->state.type |= INTEL_PT_BLK_ITEMS;
+		decoder->state.type &= ~INTEL_PT_BRANCH;
+		decoder->state.from_ip = decoder->ip;
+		decoder->state.to_ip = 0;
+		ret = true;
+	}
+	return ret;
+}
+
+static inline bool intel_pt_fup_with_nlip(struct intel_pt_decoder *decoder,
+					  struct intel_pt_insn *intel_pt_insn,
+					  uint64_t ip, int err)
+{
+	return decoder->flags & INTEL_PT_FUP_WITH_NLIP && !err &&
+	       intel_pt_insn->branch == INTEL_PT_BR_INDIRECT &&
+	       ip == decoder->ip + intel_pt_insn->length;
 }
 
 static int intel_pt_walk_fup(struct intel_pt_decoder *decoder)
@@ -999,17 +1162,11 @@ static int intel_pt_walk_fup(struct intel_pt_decoder *decoder)
 		err = intel_pt_walk_insn(decoder, &intel_pt_insn, ip);
 		if (err == INTEL_PT_RETURN)
 			return 0;
-		if (err == -EAGAIN) {
-			if (decoder->set_fup_tx_flags) {
-				decoder->set_fup_tx_flags = false;
-				decoder->tx_flags = decoder->fup_tx_flags;
-				decoder->state.type = INTEL_PT_TRANSACTION;
-				decoder->state.from_ip = decoder->ip;
-				decoder->state.to_ip = 0;
-				decoder->state.flags = decoder->fup_tx_flags;
+		if (err == -EAGAIN ||
+		    intel_pt_fup_with_nlip(decoder, &intel_pt_insn, ip, err)) {
+			if (intel_pt_fup_event(decoder))
 				return 0;
-			}
-			return err;
+			return -EAGAIN;
 		}
 		decoder->set_fup_tx_flags = false;
 		if (err)
@@ -1049,7 +1206,7 @@ static int intel_pt_walk_tip(struct intel_pt_decoder *decoder)
 		decoder->pge = false;
 		decoder->continuous_period = false;
 		decoder->pkt_state = INTEL_PT_STATE_IN_SYNC;
-		decoder->state.to_ip = 0;
+		decoder->state.type |= INTEL_PT_TRACE_END;
 		return 0;
 	}
 	if (err == INTEL_PT_RETURN)
@@ -1063,9 +1220,13 @@ static int intel_pt_walk_tip(struct intel_pt_decoder *decoder)
 			decoder->continuous_period = false;
 			decoder->pkt_state = INTEL_PT_STATE_IN_SYNC;
 			decoder->state.from_ip = decoder->ip;
-			decoder->state.to_ip = 0;
-			if (decoder->packet.count != 0)
+			if (decoder->packet.count == 0) {
+				decoder->state.to_ip = 0;
+			} else {
+				decoder->state.to_ip = decoder->last_ip;
 				decoder->ip = decoder->last_ip;
+			}
+			decoder->state.type |= INTEL_PT_TRACE_END;
 		} else {
 			decoder->pkt_state = INTEL_PT_STATE_IN_SYNC;
 			decoder->state.from_ip = decoder->ip;
@@ -1092,7 +1253,8 @@ static int intel_pt_walk_tip(struct intel_pt_decoder *decoder)
 			decoder->pkt_state = INTEL_PT_STATE_IN_SYNC;
 			decoder->ip = to_ip;
 			decoder->state.from_ip = decoder->ip;
-			decoder->state.to_ip = 0;
+			decoder->state.to_ip = to_ip;
+			decoder->state.type |= INTEL_PT_TRACE_END;
 			return 0;
 		}
 		intel_pt_log_at("ERROR: Conditional branch when expecting indirect branch",
@@ -1136,7 +1298,9 @@ static int intel_pt_walk_tnt(struct intel_pt_decoder *decoder)
 				return -ENOENT;
 			}
 			decoder->tnt.count -= 1;
-			if (!decoder->tnt.count)
+			if (decoder->tnt.count)
+				decoder->pkt_state = INTEL_PT_STATE_TNT_CONT;
+			else
 				decoder->pkt_state = INTEL_PT_STATE_IN_SYNC;
 			decoder->tnt.payload <<= 1;
 			decoder->state.from_ip = decoder->ip;
@@ -1167,7 +1331,9 @@ static int intel_pt_walk_tnt(struct intel_pt_decoder *decoder)
 
 		if (intel_pt_insn.branch == INTEL_PT_BR_CONDITIONAL) {
 			decoder->tnt.count -= 1;
-			if (!decoder->tnt.count)
+			if (decoder->tnt.count)
+				decoder->pkt_state = INTEL_PT_STATE_TNT_CONT;
+			else
 				decoder->pkt_state = INTEL_PT_STATE_IN_SYNC;
 			if (decoder->tnt.payload & BIT63) {
 				decoder->tnt.payload <<= 1;
@@ -1186,9 +1352,12 @@ static int intel_pt_walk_tnt(struct intel_pt_decoder *decoder)
 				decoder->ip += intel_pt_insn.length;
 				return 0;
 			}
+			decoder->sample_cyc = false;
 			decoder->ip += intel_pt_insn.length;
-			if (!decoder->tnt.count)
+			if (!decoder->tnt.count) {
+				intel_pt_update_sample_time(decoder);
 				return -EAGAIN;
+			}
 			decoder->tnt.payload <<= 1;
 			continue;
 		}
@@ -1220,6 +1389,21 @@ static int intel_pt_mode_tsx(struct intel_pt_decoder *decoder, bool *no_tip)
 	return 0;
 }
 
+static uint64_t intel_pt_8b_tsc(uint64_t timestamp, uint64_t ref_timestamp)
+{
+	timestamp |= (ref_timestamp & (0xffULL << 56));
+
+	if (timestamp < ref_timestamp) {
+		if (ref_timestamp - timestamp > (1ULL << 55))
+			timestamp += (1ULL << 56);
+	} else {
+		if (timestamp - ref_timestamp > (1ULL << 55))
+			timestamp -= (1ULL << 56);
+	}
+
+	return timestamp;
+}
+
 static void intel_pt_calc_tsc_timestamp(struct intel_pt_decoder *decoder)
 {
 	uint64_t timestamp;
@@ -1227,15 +1411,8 @@ static void intel_pt_calc_tsc_timestamp(struct intel_pt_decoder *decoder)
 	decoder->have_tma = false;
 
 	if (decoder->ref_timestamp) {
-		timestamp = decoder->packet.payload |
-			    (decoder->ref_timestamp & (0xffULL << 56));
-		if (timestamp < decoder->ref_timestamp) {
-			if (decoder->ref_timestamp - timestamp > (1ULL << 55))
-				timestamp += (1ULL << 56);
-		} else {
-			if (timestamp - decoder->ref_timestamp > (1ULL << 55))
-				timestamp -= (1ULL << 56);
-		}
+		timestamp = intel_pt_8b_tsc(decoder->packet.payload,
+					    decoder->ref_timestamp);
 		decoder->tsc_timestamp = timestamp;
 		decoder->timestamp = timestamp;
 		decoder->ref_timestamp = 0;
@@ -1273,11 +1450,46 @@ static int intel_pt_overflow(struct intel_pt_decoder *decoder)
 {
 	intel_pt_log("ERROR: Buffer overflow\n");
 	intel_pt_clear_tx_flags(decoder);
-	decoder->have_tma = false;
-	decoder->cbr = 0;
+	decoder->timestamp_insn_cnt = 0;
 	decoder->pkt_state = INTEL_PT_STATE_ERR_RESYNC;
 	decoder->overflow = true;
 	return -EOVERFLOW;
+}
+
+static inline void intel_pt_mtc_cyc_cnt_pge(struct intel_pt_decoder *decoder)
+{
+	if (decoder->have_cyc)
+		return;
+
+	decoder->cyc_cnt_timestamp = decoder->timestamp;
+	decoder->base_cyc_cnt = decoder->tot_cyc_cnt;
+}
+
+static inline void intel_pt_mtc_cyc_cnt_cbr(struct intel_pt_decoder *decoder)
+{
+	decoder->tsc_to_cyc = decoder->cbr / decoder->max_non_turbo_ratio_fp;
+
+	if (decoder->pge)
+		intel_pt_mtc_cyc_cnt_pge(decoder);
+}
+
+static inline void intel_pt_mtc_cyc_cnt_upd(struct intel_pt_decoder *decoder)
+{
+	uint64_t tot_cyc_cnt, tsc_delta;
+
+	if (decoder->have_cyc)
+		return;
+
+	decoder->sample_cyc = true;
+
+	if (!decoder->pge || decoder->timestamp <= decoder->cyc_cnt_timestamp)
+		return;
+
+	tsc_delta = decoder->timestamp - decoder->cyc_cnt_timestamp;
+	tot_cyc_cnt = tsc_delta * decoder->tsc_to_cyc + decoder->base_cyc_cnt;
+
+	if (tot_cyc_cnt > decoder->tot_cyc_cnt)
+		decoder->tot_cyc_cnt = tot_cyc_cnt;
 }
 
 static void intel_pt_calc_tma(struct intel_pt_decoder *decoder)
@@ -1288,6 +1500,11 @@ static void intel_pt_calc_tma(struct intel_pt_decoder *decoder)
 
 	if (!decoder->tsc_ctc_ratio_d)
 		return;
+
+	if (decoder->pge && !decoder->in_psb)
+		intel_pt_mtc_cyc_cnt_pge(decoder);
+	else
+		intel_pt_mtc_cyc_cnt_upd(decoder);
 
 	decoder->last_mtc = (ctc >> decoder->mtc_shift) & 0xff;
 	decoder->ctc_timestamp = decoder->tsc_timestamp - fc;
@@ -1344,6 +1561,8 @@ static void intel_pt_calc_mtc_timestamp(struct intel_pt_decoder *decoder)
 	else
 		decoder->timestamp = timestamp;
 
+	intel_pt_mtc_cyc_cnt_upd(decoder);
+
 	decoder->timestamp_insn_cnt = 0;
 	decoder->last_mtc = mtc;
 
@@ -1353,17 +1572,23 @@ static void intel_pt_calc_mtc_timestamp(struct intel_pt_decoder *decoder)
 		decoder->have_calc_cyc_to_tsc = false;
 		intel_pt_calc_cyc_to_tsc(decoder, true);
 	}
+
+	intel_pt_log_to("Setting timestamp", decoder->timestamp);
 }
 
 static void intel_pt_calc_cbr(struct intel_pt_decoder *decoder)
 {
-	unsigned int cbr = decoder->packet.payload;
+	unsigned int cbr = decoder->packet.payload & 0xff;
+
+	decoder->cbr_payload = decoder->packet.payload;
 
 	if (decoder->cbr == cbr)
 		return;
 
 	decoder->cbr = cbr;
 	decoder->cbr_cyc_to_tsc = decoder->max_non_turbo_ratio_fp / cbr;
+
+	intel_pt_mtc_cyc_cnt_cbr(decoder);
 }
 
 static void intel_pt_calc_cyc_timestamp(struct intel_pt_decoder *decoder)
@@ -1373,6 +1598,9 @@ static void intel_pt_calc_cyc_timestamp(struct intel_pt_decoder *decoder)
 	decoder->have_cyc = true;
 
 	decoder->cycle_cnt += decoder->packet.payload;
+	if (decoder->pge)
+		decoder->tot_cyc_cnt += decoder->packet.payload;
+	decoder->sample_cyc = true;
 
 	if (!decoder->cyc_ref_timestamp)
 		return;
@@ -1391,6 +1619,48 @@ static void intel_pt_calc_cyc_timestamp(struct intel_pt_decoder *decoder)
 		decoder->timestamp = timestamp;
 
 	decoder->timestamp_insn_cnt = 0;
+
+	intel_pt_log_to("Setting timestamp", decoder->timestamp);
+}
+
+static void intel_pt_bbp(struct intel_pt_decoder *decoder)
+{
+	if (decoder->prev_pkt_ctx == INTEL_PT_NO_CTX) {
+		memset(decoder->state.items.mask, 0, sizeof(decoder->state.items.mask));
+		decoder->state.items.is_32_bit = false;
+	}
+	decoder->blk_type = decoder->packet.payload;
+	decoder->blk_type_pos = intel_pt_blk_type_pos(decoder->blk_type);
+	if (decoder->blk_type == INTEL_PT_GP_REGS)
+		decoder->state.items.is_32_bit = decoder->packet.count;
+	if (decoder->blk_type_pos < 0) {
+		intel_pt_log("WARNING: Unknown block type %u\n",
+			     decoder->blk_type);
+	} else if (decoder->state.items.mask[decoder->blk_type_pos]) {
+		intel_pt_log("WARNING: Duplicate block type %u\n",
+			     decoder->blk_type);
+	}
+}
+
+static void intel_pt_bip(struct intel_pt_decoder *decoder)
+{
+	uint32_t id = decoder->packet.count;
+	uint32_t bit = 1 << id;
+	int pos = decoder->blk_type_pos;
+
+	if (pos < 0 || id >= INTEL_PT_BLK_ITEM_ID_CNT) {
+		intel_pt_log("WARNING: Unknown block item %u type %d\n",
+			     id, decoder->blk_type);
+		return;
+	}
+
+	if (decoder->state.items.mask[pos] & bit) {
+		intel_pt_log("WARNING: Duplicate block item %u type %d\n",
+			     id, decoder->blk_type);
+	}
+
+	decoder->state.items.mask[pos] |= bit;
+	decoder->state.items.val[pos][id] = decoder->packet.payload;
 }
 
 /* Walk PSB+ packets when already in sync. */
@@ -1398,14 +1668,17 @@ static int intel_pt_walk_psbend(struct intel_pt_decoder *decoder)
 {
 	int err;
 
+	decoder->in_psb = true;
+
 	while (1) {
 		err = intel_pt_get_next_packet(decoder);
 		if (err)
-			return err;
+			goto out;
 
 		switch (decoder->packet.type) {
 		case INTEL_PT_PSBEND:
-			return 0;
+			err = 0;
+			goto out;
 
 		case INTEL_PT_TIP_PGD:
 		case INTEL_PT_TIP_PGE:
@@ -1414,12 +1687,25 @@ static int intel_pt_walk_psbend(struct intel_pt_decoder *decoder)
 		case INTEL_PT_TRACESTOP:
 		case INTEL_PT_BAD:
 		case INTEL_PT_PSB:
+		case INTEL_PT_PTWRITE:
+		case INTEL_PT_PTWRITE_IP:
+		case INTEL_PT_EXSTOP:
+		case INTEL_PT_EXSTOP_IP:
+		case INTEL_PT_MWAIT:
+		case INTEL_PT_PWRE:
+		case INTEL_PT_PWRX:
+		case INTEL_PT_BBP:
+		case INTEL_PT_BIP:
+		case INTEL_PT_BEP:
+		case INTEL_PT_BEP_IP:
 			decoder->have_tma = false;
 			intel_pt_log("ERROR: Unexpected packet\n");
-			return -EAGAIN;
+			err = -EAGAIN;
+			goto out;
 
 		case INTEL_PT_OVF:
-			return intel_pt_overflow(decoder);
+			err = intel_pt_overflow(decoder);
+			goto out;
 
 		case INTEL_PT_TSC:
 			intel_pt_calc_tsc_timestamp(decoder);
@@ -1443,7 +1729,8 @@ static int intel_pt_walk_psbend(struct intel_pt_decoder *decoder)
 
 		case INTEL_PT_FUP:
 			decoder->pge = true;
-			intel_pt_set_last_ip(decoder);
+			if (decoder->packet.count)
+				intel_pt_set_last_ip(decoder);
 			break;
 
 		case INTEL_PT_MODE_TSX:
@@ -1464,6 +1751,10 @@ static int intel_pt_walk_psbend(struct intel_pt_decoder *decoder)
 			break;
 		}
 	}
+out:
+	decoder->in_psb = false;
+
+	return err;
 }
 
 static int intel_pt_walk_fup_tip(struct intel_pt_decoder *decoder)
@@ -1490,27 +1781,43 @@ static int intel_pt_walk_fup_tip(struct intel_pt_decoder *decoder)
 		case INTEL_PT_PSB:
 		case INTEL_PT_TSC:
 		case INTEL_PT_TMA:
-		case INTEL_PT_CBR:
 		case INTEL_PT_MODE_TSX:
 		case INTEL_PT_BAD:
 		case INTEL_PT_PSBEND:
+		case INTEL_PT_PTWRITE:
+		case INTEL_PT_PTWRITE_IP:
+		case INTEL_PT_EXSTOP:
+		case INTEL_PT_EXSTOP_IP:
+		case INTEL_PT_MWAIT:
+		case INTEL_PT_PWRE:
+		case INTEL_PT_PWRX:
+		case INTEL_PT_BBP:
+		case INTEL_PT_BIP:
+		case INTEL_PT_BEP:
+		case INTEL_PT_BEP_IP:
 			intel_pt_log("ERROR: Missing TIP after FUP\n");
 			decoder->pkt_state = INTEL_PT_STATE_ERR3;
+			decoder->pkt_step = 0;
 			return -ENOENT;
+
+		case INTEL_PT_CBR:
+			intel_pt_calc_cbr(decoder);
+			break;
 
 		case INTEL_PT_OVF:
 			return intel_pt_overflow(decoder);
 
 		case INTEL_PT_TIP_PGD:
 			decoder->state.from_ip = decoder->ip;
-			decoder->state.to_ip = 0;
-			if (decoder->packet.count != 0) {
+			if (decoder->packet.count == 0) {
+				decoder->state.to_ip = 0;
+			} else {
 				intel_pt_set_ip(decoder);
-				intel_pt_log("Omitting PGD ip " x64_fmt "\n",
-					     decoder->ip);
+				decoder->state.to_ip = decoder->ip;
 			}
 			decoder->pge = false;
 			decoder->continuous_period = false;
+			decoder->state.type |= INTEL_PT_TRACE_END;
 			return 0;
 
 		case INTEL_PT_TIP_PGE:
@@ -1524,6 +1831,8 @@ static int intel_pt_walk_fup_tip(struct intel_pt_decoder *decoder)
 				intel_pt_set_ip(decoder);
 				decoder->state.to_ip = decoder->ip;
 			}
+			decoder->state.type |= INTEL_PT_TRACE_BEGIN;
+			intel_pt_mtc_cyc_cnt_pge(decoder);
 			return 0;
 
 		case INTEL_PT_TIP:
@@ -1594,6 +1903,7 @@ next:
 
 		case INTEL_PT_TIP_PGE: {
 			decoder->pge = true;
+			intel_pt_mtc_cyc_cnt_pge(decoder);
 			if (decoder->packet.count == 0) {
 				intel_pt_log_at("Skipping zero TIP.PGE",
 						decoder->pos);
@@ -1602,6 +1912,7 @@ next:
 			intel_pt_set_ip(decoder);
 			decoder->state.from_ip = 0;
 			decoder->state.to_ip = decoder->ip;
+			decoder->state.type |= INTEL_PT_TRACE_BEGIN;
 			return 0;
 		}
 
@@ -1622,6 +1933,15 @@ next:
 				break;
 			}
 			intel_pt_set_last_ip(decoder);
+			if (!decoder->branch_enable) {
+				decoder->ip = decoder->last_ip;
+				if (intel_pt_fup_event(decoder))
+					return 0;
+				no_tip = false;
+				break;
+			}
+			if (decoder->set_fup_mwait)
+				no_tip = true;
 			err = intel_pt_walk_fup(decoder);
 			if (err != -EAGAIN) {
 				if (err)
@@ -1647,12 +1967,21 @@ next:
 			break;
 
 		case INTEL_PT_PSB:
+			decoder->last_ip = 0;
+			decoder->have_last_ip = true;
 			intel_pt_clear_stack(&decoder->stack);
 			err = intel_pt_walk_psbend(decoder);
 			if (err == -EAGAIN)
 				goto next;
 			if (err)
 				return err;
+			/*
+			 * PSB+ CBR will not have changed but cater for the
+			 * possibility of another CBR change that gets caught up
+			 * in the PSB+.
+			 */
+			if (decoder->cbr != decoder->cbr_seen)
+				return 0;
 			break;
 
 		case INTEL_PT_PIP:
@@ -1693,6 +2022,8 @@ next:
 
 		case INTEL_PT_CBR:
 			intel_pt_calc_cbr(decoder);
+			if (decoder->cbr != decoder->cbr_seen)
+				return 0;
 			break;
 
 		case INTEL_PT_MODE_EXEC:
@@ -1719,6 +2050,98 @@ next:
 		case INTEL_PT_PAD:
 			break;
 
+		case INTEL_PT_PTWRITE_IP:
+			decoder->fup_ptw_payload = decoder->packet.payload;
+			err = intel_pt_get_next_packet(decoder);
+			if (err)
+				return err;
+			if (decoder->packet.type == INTEL_PT_FUP) {
+				decoder->set_fup_ptw = true;
+				no_tip = true;
+			} else {
+				intel_pt_log_at("ERROR: Missing FUP after PTWRITE",
+						decoder->pos);
+			}
+			goto next;
+
+		case INTEL_PT_PTWRITE:
+			decoder->state.type = INTEL_PT_PTW;
+			decoder->state.from_ip = decoder->ip;
+			decoder->state.to_ip = 0;
+			decoder->state.ptw_payload = decoder->packet.payload;
+			return 0;
+
+		case INTEL_PT_MWAIT:
+			decoder->fup_mwait_payload = decoder->packet.payload;
+			decoder->set_fup_mwait = true;
+			break;
+
+		case INTEL_PT_PWRE:
+			if (decoder->set_fup_mwait) {
+				decoder->fup_pwre_payload =
+							decoder->packet.payload;
+				decoder->set_fup_pwre = true;
+				break;
+			}
+			decoder->state.type = INTEL_PT_PWR_ENTRY;
+			decoder->state.from_ip = decoder->ip;
+			decoder->state.to_ip = 0;
+			decoder->state.pwrx_payload = decoder->packet.payload;
+			return 0;
+
+		case INTEL_PT_EXSTOP_IP:
+			err = intel_pt_get_next_packet(decoder);
+			if (err)
+				return err;
+			if (decoder->packet.type == INTEL_PT_FUP) {
+				decoder->set_fup_exstop = true;
+				no_tip = true;
+			} else {
+				intel_pt_log_at("ERROR: Missing FUP after EXSTOP",
+						decoder->pos);
+			}
+			goto next;
+
+		case INTEL_PT_EXSTOP:
+			decoder->state.type = INTEL_PT_EX_STOP;
+			decoder->state.from_ip = decoder->ip;
+			decoder->state.to_ip = 0;
+			return 0;
+
+		case INTEL_PT_PWRX:
+			decoder->state.type = INTEL_PT_PWR_EXIT;
+			decoder->state.from_ip = decoder->ip;
+			decoder->state.to_ip = 0;
+			decoder->state.pwrx_payload = decoder->packet.payload;
+			return 0;
+
+		case INTEL_PT_BBP:
+			intel_pt_bbp(decoder);
+			break;
+
+		case INTEL_PT_BIP:
+			intel_pt_bip(decoder);
+			break;
+
+		case INTEL_PT_BEP:
+			decoder->state.type = INTEL_PT_BLK_ITEMS;
+			decoder->state.from_ip = decoder->ip;
+			decoder->state.to_ip = 0;
+			return 0;
+
+		case INTEL_PT_BEP_IP:
+			err = intel_pt_get_next_packet(decoder);
+			if (err)
+				return err;
+			if (decoder->packet.type == INTEL_PT_FUP) {
+				decoder->set_fup_bep = true;
+				no_tip = true;
+			} else {
+				intel_pt_log_at("ERROR: Missing FUP after BEP",
+						decoder->pos);
+			}
+			goto next;
+
 		default:
 			return intel_pt_bug(decoder);
 		}
@@ -1727,8 +2150,9 @@ next:
 
 static inline bool intel_pt_have_ip(struct intel_pt_decoder *decoder)
 {
-	return decoder->last_ip || decoder->packet.count == 0 ||
-	       decoder->packet.count == 3 || decoder->packet.count == 6;
+	return decoder->packet.count &&
+	       (decoder->have_last_ip || decoder->packet.count == 3 ||
+		decoder->packet.count == 6);
 }
 
 /* Walk PSB+ packets to get in sync. */
@@ -1736,18 +2160,33 @@ static int intel_pt_walk_psb(struct intel_pt_decoder *decoder)
 {
 	int err;
 
+	decoder->in_psb = true;
+
 	while (1) {
 		err = intel_pt_get_next_packet(decoder);
 		if (err)
-			return err;
+			goto out;
 
 		switch (decoder->packet.type) {
 		case INTEL_PT_TIP_PGD:
 			decoder->continuous_period = false;
+			__fallthrough;
 		case INTEL_PT_TIP_PGE:
 		case INTEL_PT_TIP:
+		case INTEL_PT_PTWRITE:
+		case INTEL_PT_PTWRITE_IP:
+		case INTEL_PT_EXSTOP:
+		case INTEL_PT_EXSTOP_IP:
+		case INTEL_PT_MWAIT:
+		case INTEL_PT_PWRE:
+		case INTEL_PT_PWRX:
+		case INTEL_PT_BBP:
+		case INTEL_PT_BIP:
+		case INTEL_PT_BEP:
+		case INTEL_PT_BEP_IP:
 			intel_pt_log("ERROR: Unexpected packet\n");
-			return -ENOENT;
+			err = -ENOENT;
+			goto out;
 
 		case INTEL_PT_FUP:
 			decoder->pge = true;
@@ -1797,6 +2236,8 @@ static int intel_pt_walk_psb(struct intel_pt_decoder *decoder)
 			decoder->pge = false;
 			decoder->continuous_period = false;
 			intel_pt_clear_tx_flags(decoder);
+			__fallthrough;
+
 		case INTEL_PT_TNT:
 			decoder->have_tma = false;
 			intel_pt_log("ERROR: Unexpected packet\n");
@@ -1804,16 +2245,20 @@ static int intel_pt_walk_psb(struct intel_pt_decoder *decoder)
 				decoder->pkt_state = INTEL_PT_STATE_ERR4;
 			else
 				decoder->pkt_state = INTEL_PT_STATE_ERR3;
-			return -ENOENT;
+			err = -ENOENT;
+			goto out;
 
 		case INTEL_PT_BAD: /* Does not happen */
-			return intel_pt_bug(decoder);
+			err = intel_pt_bug(decoder);
+			goto out;
 
 		case INTEL_PT_OVF:
-			return intel_pt_overflow(decoder);
+			err = intel_pt_overflow(decoder);
+			goto out;
 
 		case INTEL_PT_PSBEND:
-			return 0;
+			err = 0;
+			goto out;
 
 		case INTEL_PT_PSB:
 		case INTEL_PT_VMCS:
@@ -1823,6 +2268,10 @@ static int intel_pt_walk_psb(struct intel_pt_decoder *decoder)
 			break;
 		}
 	}
+out:
+	decoder->in_psb = false;
+
+	return err;
 }
 
 static int intel_pt_walk_to_ip(struct intel_pt_decoder *decoder)
@@ -1837,24 +2286,37 @@ static int intel_pt_walk_to_ip(struct intel_pt_decoder *decoder)
 		switch (decoder->packet.type) {
 		case INTEL_PT_TIP_PGD:
 			decoder->continuous_period = false;
+			decoder->pge = false;
+			if (intel_pt_have_ip(decoder))
+				intel_pt_set_ip(decoder);
+			if (!decoder->ip)
+				break;
+			decoder->state.type |= INTEL_PT_TRACE_END;
+			return 0;
+
 		case INTEL_PT_TIP_PGE:
+			decoder->pge = true;
+			intel_pt_mtc_cyc_cnt_pge(decoder);
+			if (intel_pt_have_ip(decoder))
+				intel_pt_set_ip(decoder);
+			if (!decoder->ip)
+				break;
+			decoder->state.type |= INTEL_PT_TRACE_BEGIN;
+			return 0;
+
 		case INTEL_PT_TIP:
-			decoder->pge = decoder->packet.type != INTEL_PT_TIP_PGD;
+			decoder->pge = true;
+			if (intel_pt_have_ip(decoder))
+				intel_pt_set_ip(decoder);
+			if (!decoder->ip)
+				break;
+			return 0;
+
+		case INTEL_PT_FUP:
 			if (intel_pt_have_ip(decoder))
 				intel_pt_set_ip(decoder);
 			if (decoder->ip)
 				return 0;
-			break;
-
-		case INTEL_PT_FUP:
-			if (decoder->overflow) {
-				if (intel_pt_have_ip(decoder))
-					intel_pt_set_ip(decoder);
-				if (decoder->ip)
-					return 0;
-			}
-			if (decoder->packet.count)
-				intel_pt_set_last_ip(decoder);
 			break;
 
 		case INTEL_PT_MTC:
@@ -1903,6 +2365,9 @@ static int intel_pt_walk_to_ip(struct intel_pt_decoder *decoder)
 			break;
 
 		case INTEL_PT_PSB:
+			decoder->last_ip = 0;
+			decoder->have_last_ip = true;
+			intel_pt_clear_stack(&decoder->stack);
 			err = intel_pt_walk_psb(decoder);
 			if (err)
 				return err;
@@ -1918,6 +2383,17 @@ static int intel_pt_walk_to_ip(struct intel_pt_decoder *decoder)
 		case INTEL_PT_VMCS:
 		case INTEL_PT_MNT:
 		case INTEL_PT_PAD:
+		case INTEL_PT_PTWRITE:
+		case INTEL_PT_PTWRITE_IP:
+		case INTEL_PT_EXSTOP:
+		case INTEL_PT_EXSTOP_IP:
+		case INTEL_PT_MWAIT:
+		case INTEL_PT_PWRE:
+		case INTEL_PT_PWRX:
+		case INTEL_PT_BBP:
+		case INTEL_PT_BIP:
+		case INTEL_PT_BEP:
+		case INTEL_PT_BEP_IP:
 		default:
 			break;
 		}
@@ -1927,6 +2403,20 @@ static int intel_pt_walk_to_ip(struct intel_pt_decoder *decoder)
 static int intel_pt_sync_ip(struct intel_pt_decoder *decoder)
 {
 	int err;
+
+	decoder->set_fup_tx_flags = false;
+	decoder->set_fup_ptw = false;
+	decoder->set_fup_mwait = false;
+	decoder->set_fup_pwre = false;
+	decoder->set_fup_exstop = false;
+	decoder->set_fup_bep = false;
+
+	if (!decoder->branch_enable) {
+		decoder->pkt_state = INTEL_PT_STATE_IN_SYNC;
+		decoder->overflow = false;
+		decoder->state.type = 0; /* Do not have a sample */
+		return 0;
+	}
 
 	intel_pt_log("Scanning for full IP\n");
 	err = intel_pt_walk_to_ip(decoder);
@@ -1977,7 +2467,7 @@ static int intel_pt_get_split_psb(struct intel_pt_decoder *decoder,
 	decoder->pos += decoder->len;
 	decoder->len = 0;
 
-	ret = intel_pt_get_next_data(decoder);
+	ret = intel_pt_get_next_data(decoder, false);
 	if (ret)
 		return ret;
 
@@ -2003,7 +2493,7 @@ static int intel_pt_scan_for_psb(struct intel_pt_decoder *decoder)
 	intel_pt_log("Scanning for PSB\n");
 	while (1) {
 		if (!decoder->len) {
-			ret = intel_pt_get_next_data(decoder);
+			ret = intel_pt_get_next_data(decoder, false);
 			if (ret)
 				return ret;
 		}
@@ -2036,6 +2526,7 @@ static int intel_pt_sync(struct intel_pt_decoder *decoder)
 
 	decoder->pge = false;
 	decoder->continuous_period = false;
+	decoder->have_last_ip = false;
 	decoder->last_ip = 0;
 	decoder->ip = 0;
 	intel_pt_clear_stack(&decoder->stack);
@@ -2044,6 +2535,7 @@ static int intel_pt_sync(struct intel_pt_decoder *decoder)
 	if (err)
 		return err;
 
+	decoder->have_last_ip = true;
 	decoder->pkt_state = INTEL_PT_STATE_NO_IP;
 
 	err = intel_pt_walk_psb(decoder);
@@ -2062,7 +2554,7 @@ static int intel_pt_sync(struct intel_pt_decoder *decoder)
 
 static uint64_t intel_pt_est_timestamp(struct intel_pt_decoder *decoder)
 {
-	uint64_t est = decoder->timestamp_insn_cnt << 1;
+	uint64_t est = decoder->sample_insn_cnt << 1;
 
 	if (!decoder->cbr || !decoder->max_non_turbo_ratio)
 		goto out;
@@ -2070,7 +2562,7 @@ static uint64_t intel_pt_est_timestamp(struct intel_pt_decoder *decoder)
 	est *= decoder->max_non_turbo_ratio;
 	est /= decoder->cbr;
 out:
-	return decoder->timestamp + est;
+	return decoder->sample_timestamp + est;
 }
 
 const struct intel_pt_state *intel_pt_decode(struct intel_pt_decoder *decoder)
@@ -2086,8 +2578,10 @@ const struct intel_pt_state *intel_pt_decode(struct intel_pt_decoder *decoder)
 			err = intel_pt_sync(decoder);
 			break;
 		case INTEL_PT_STATE_NO_IP:
+			decoder->have_last_ip = false;
 			decoder->last_ip = 0;
-			/* Fall through */
+			decoder->ip = 0;
+			__fallthrough;
 		case INTEL_PT_STATE_ERR_RESYNC:
 			err = intel_pt_sync_ip(decoder);
 			break;
@@ -2095,6 +2589,7 @@ const struct intel_pt_state *intel_pt_decode(struct intel_pt_decoder *decoder)
 			err = intel_pt_walk_trace(decoder);
 			break;
 		case INTEL_PT_STATE_TNT:
+		case INTEL_PT_STATE_TNT_CONT:
 			err = intel_pt_walk_tnt(decoder);
 			if (err == -EAGAIN)
 				err = intel_pt_walk_trace(decoder);
@@ -2123,24 +2618,37 @@ const struct intel_pt_state *intel_pt_decode(struct intel_pt_decoder *decoder)
 		}
 	} while (err == -ENOLINK);
 
-	decoder->state.err = err ? intel_pt_ext_err(err) : 0;
-	decoder->state.timestamp = decoder->timestamp;
+	if (err) {
+		decoder->state.err = intel_pt_ext_err(err);
+		decoder->state.from_ip = decoder->ip;
+		intel_pt_update_sample_time(decoder);
+		decoder->sample_tot_cyc_cnt = decoder->tot_cyc_cnt;
+	} else {
+		decoder->state.err = 0;
+		if (decoder->cbr != decoder->cbr_seen) {
+			decoder->cbr_seen = decoder->cbr;
+			if (!decoder->state.type) {
+				decoder->state.from_ip = decoder->ip;
+				decoder->state.to_ip = 0;
+			}
+			decoder->state.type |= INTEL_PT_CBR_CHG;
+			decoder->state.cbr_payload = decoder->cbr_payload;
+			decoder->state.cbr = decoder->cbr;
+		}
+		if (intel_pt_sample_time(decoder->pkt_state)) {
+			intel_pt_update_sample_time(decoder);
+			if (decoder->sample_cyc)
+				decoder->sample_tot_cyc_cnt = decoder->tot_cyc_cnt;
+		}
+	}
+
+	decoder->state.timestamp = decoder->sample_timestamp;
 	decoder->state.est_timestamp = intel_pt_est_timestamp(decoder);
 	decoder->state.cr3 = decoder->cr3;
 	decoder->state.tot_insn_cnt = decoder->tot_insn_cnt;
-
-	if (err)
-		decoder->state.from_ip = decoder->ip;
+	decoder->state.tot_cyc_cnt = decoder->sample_tot_cyc_cnt;
 
 	return &decoder->state;
-}
-
-static bool intel_pt_at_psb(unsigned char *buf, size_t len)
-{
-	if (len < INTEL_PT_PSB_LEN)
-		return false;
-	return memmem(buf, INTEL_PT_PSB_LEN, INTEL_PT_PSB_STR,
-		      INTEL_PT_PSB_LEN);
 }
 
 /**
@@ -2231,6 +2739,7 @@ static unsigned char *intel_pt_last_psb(unsigned char *buf, size_t len)
  * @buf: buffer
  * @len: size of buffer
  * @tsc: TSC value returned
+ * @rem: returns remaining size when TSC is found
  *
  * Find a TSC packet in @buf and return the TSC value.  This function assumes
  * that @buf starts at a PSB and that PSB+ will contain TSC and so stops if a
@@ -2238,17 +2747,20 @@ static unsigned char *intel_pt_last_psb(unsigned char *buf, size_t len)
  *
  * Return: %true if TSC is found, false otherwise.
  */
-static bool intel_pt_next_tsc(unsigned char *buf, size_t len, uint64_t *tsc)
+static bool intel_pt_next_tsc(unsigned char *buf, size_t len, uint64_t *tsc,
+			      size_t *rem)
 {
+	enum intel_pt_pkt_ctx ctx = INTEL_PT_NO_CTX;
 	struct intel_pt_pkt packet;
 	int ret;
 
 	while (len) {
-		ret = intel_pt_get_packet(buf, len, &packet);
+		ret = intel_pt_get_packet(buf, len, &packet, &ctx);
 		if (ret <= 0)
 			return false;
 		if (packet.type == INTEL_PT_TSC) {
 			*tsc = packet.payload;
+			*rem = len;
 			return true;
 		}
 		if (packet.type == INTEL_PT_PSBEND)
@@ -2292,6 +2804,34 @@ static int intel_pt_tsc_cmp(uint64_t tsc1, uint64_t tsc2)
 	}
 }
 
+#define MAX_PADDING (PERF_AUXTRACE_RECORD_ALIGNMENT - 1)
+
+/**
+ * adj_for_padding - adjust overlap to account for padding.
+ * @buf_b: second buffer
+ * @buf_a: first buffer
+ * @len_a: size of first buffer
+ *
+ * @buf_a might have up to 7 bytes of padding appended. Adjust the overlap
+ * accordingly.
+ *
+ * Return: A pointer into @buf_b from where non-overlapped data starts
+ */
+static unsigned char *adj_for_padding(unsigned char *buf_b,
+				      unsigned char *buf_a, size_t len_a)
+{
+	unsigned char *p = buf_b - MAX_PADDING;
+	unsigned char *q = buf_a + len_a - MAX_PADDING;
+	int i;
+
+	for (i = MAX_PADDING; i; i--, p++, q++) {
+		if (*p != *q)
+			break;
+	}
+
+	return p;
+}
+
 /**
  * intel_pt_find_overlap_tsc - determine start of non-overlapped trace data
  *                             using TSC.
@@ -2299,6 +2839,8 @@ static int intel_pt_tsc_cmp(uint64_t tsc1, uint64_t tsc2)
  * @len_a: size of first buffer
  * @buf_b: second buffer
  * @len_b: size of second buffer
+ * @consecutive: returns true if there is data in buf_b that is consecutive
+ *               to buf_a
  *
  * If the trace contains TSC we can look at the last TSC of @buf_a and the
  * first TSC of @buf_b in order to determine if the buffers overlap, and then
@@ -2311,33 +2853,44 @@ static int intel_pt_tsc_cmp(uint64_t tsc1, uint64_t tsc2)
 static unsigned char *intel_pt_find_overlap_tsc(unsigned char *buf_a,
 						size_t len_a,
 						unsigned char *buf_b,
-						size_t len_b)
+						size_t len_b, bool *consecutive)
 {
 	uint64_t tsc_a, tsc_b;
 	unsigned char *p;
-	size_t len;
+	size_t len, rem_a, rem_b;
 
 	p = intel_pt_last_psb(buf_a, len_a);
 	if (!p)
 		return buf_b; /* No PSB in buf_a => no overlap */
 
 	len = len_a - (p - buf_a);
-	if (!intel_pt_next_tsc(p, len, &tsc_a)) {
+	if (!intel_pt_next_tsc(p, len, &tsc_a, &rem_a)) {
 		/* The last PSB+ in buf_a is incomplete, so go back one more */
 		len_a -= len;
 		p = intel_pt_last_psb(buf_a, len_a);
 		if (!p)
 			return buf_b; /* No full PSB+ => assume no overlap */
 		len = len_a - (p - buf_a);
-		if (!intel_pt_next_tsc(p, len, &tsc_a))
+		if (!intel_pt_next_tsc(p, len, &tsc_a, &rem_a))
 			return buf_b; /* No TSC in buf_a => assume no overlap */
 	}
 
 	while (1) {
 		/* Ignore PSB+ with no TSC */
-		if (intel_pt_next_tsc(buf_b, len_b, &tsc_b) &&
-		    intel_pt_tsc_cmp(tsc_a, tsc_b) < 0)
-			return buf_b; /* tsc_a < tsc_b => no overlap */
+		if (intel_pt_next_tsc(buf_b, len_b, &tsc_b, &rem_b)) {
+			int cmp = intel_pt_tsc_cmp(tsc_a, tsc_b);
+
+			/* Same TSC, so buffers are consecutive */
+			if (!cmp && rem_b >= rem_a) {
+				unsigned char *start;
+
+				*consecutive = true;
+				start = buf_b + len_b - (rem_b - rem_a);
+				return adj_for_padding(start, buf_a, len_a);
+			}
+			if (cmp < 0)
+				return buf_b; /* tsc_a < tsc_b => no overlap */
+		}
 
 		if (!intel_pt_step_psb(&buf_b, &len_b))
 			return buf_b + len_b; /* No PSB in buf_b => no data */
@@ -2351,6 +2904,8 @@ static unsigned char *intel_pt_find_overlap_tsc(unsigned char *buf_a,
  * @buf_b: second buffer
  * @len_b: size of second buffer
  * @have_tsc: can use TSC packets to detect overlap
+ * @consecutive: returns true if there is data in buf_b that is consecutive
+ *               to buf_a
  *
  * When trace samples or snapshots are recorded there is the possibility that
  * the data overlaps.  Note that, for the purposes of decoding, data is only
@@ -2361,7 +2916,7 @@ static unsigned char *intel_pt_find_overlap_tsc(unsigned char *buf_a,
  */
 unsigned char *intel_pt_find_overlap(unsigned char *buf_a, size_t len_a,
 				     unsigned char *buf_b, size_t len_b,
-				     bool have_tsc)
+				     bool have_tsc, bool *consecutive)
 {
 	unsigned char *found;
 
@@ -2373,7 +2928,8 @@ unsigned char *intel_pt_find_overlap(unsigned char *buf_a, size_t len_a,
 		return buf_b; /* No overlap */
 
 	if (have_tsc) {
-		found = intel_pt_find_overlap_tsc(buf_a, len_a, buf_b, len_b);
+		found = intel_pt_find_overlap_tsc(buf_a, len_a, buf_b, len_b,
+						  consecutive);
 		if (found)
 			return found;
 	}
@@ -2388,28 +2944,144 @@ unsigned char *intel_pt_find_overlap(unsigned char *buf_a, size_t len_a,
 	}
 
 	/* Now len_b >= len_a */
-	if (len_b > len_a) {
-		/* The leftover buffer 'b' must start at a PSB */
-		while (!intel_pt_at_psb(buf_b + len_a, len_b - len_a)) {
-			if (!intel_pt_step_psb(&buf_a, &len_a))
-				return buf_b; /* No overlap */
-		}
-	}
-
 	while (1) {
 		/* Potential overlap so check the bytes */
 		found = memmem(buf_a, len_a, buf_b, len_a);
-		if (found)
-			return buf_b + len_a;
+		if (found) {
+			*consecutive = true;
+			return adj_for_padding(buf_b + len_a, buf_a, len_a);
+		}
 
 		/* Try again at next PSB in buffer 'a' */
 		if (!intel_pt_step_psb(&buf_a, &len_a))
 			return buf_b; /* No overlap */
-
-		/* The leftover buffer 'b' must start at a PSB */
-		while (!intel_pt_at_psb(buf_b + len_a, len_b - len_a)) {
-			if (!intel_pt_step_psb(&buf_a, &len_a))
-				return buf_b; /* No overlap */
-		}
 	}
+}
+
+/**
+ * struct fast_forward_data - data used by intel_pt_ff_cb().
+ * @timestamp: timestamp to fast forward towards
+ * @buf_timestamp: buffer timestamp of last buffer with trace data earlier than
+ *                 the fast forward timestamp.
+ */
+struct fast_forward_data {
+	uint64_t timestamp;
+	uint64_t buf_timestamp;
+};
+
+/**
+ * intel_pt_ff_cb - fast forward lookahead callback.
+ * @buffer: Intel PT trace buffer
+ * @data: opaque pointer to fast forward data (struct fast_forward_data)
+ *
+ * Determine if @buffer trace is past the fast forward timestamp.
+ *
+ * Return: 1 (stop lookahead) if @buffer trace is past the fast forward
+ *         timestamp, and 0 otherwise.
+ */
+static int intel_pt_ff_cb(struct intel_pt_buffer *buffer, void *data)
+{
+	struct fast_forward_data *d = data;
+	unsigned char *buf;
+	uint64_t tsc;
+	size_t rem;
+	size_t len;
+
+	buf = (unsigned char *)buffer->buf;
+	len = buffer->len;
+
+	if (!intel_pt_next_psb(&buf, &len) ||
+	    !intel_pt_next_tsc(buf, len, &tsc, &rem))
+		return 0;
+
+	tsc = intel_pt_8b_tsc(tsc, buffer->ref_timestamp);
+
+	intel_pt_log("Buffer 1st timestamp " x64_fmt " ref timestamp " x64_fmt "\n",
+		     tsc, buffer->ref_timestamp);
+
+	/*
+	 * If the buffer contains a timestamp earlier that the fast forward
+	 * timestamp, then record it, else stop.
+	 */
+	if (tsc < d->timestamp)
+		d->buf_timestamp = buffer->ref_timestamp;
+	else
+		return 1;
+
+	return 0;
+}
+
+/**
+ * intel_pt_fast_forward - reposition decoder forwards.
+ * @decoder: Intel PT decoder
+ * @timestamp: timestamp to fast forward towards
+ *
+ * Reposition decoder at the last PSB with a timestamp earlier than @timestamp.
+ *
+ * Return: 0 on success or negative error code on failure.
+ */
+int intel_pt_fast_forward(struct intel_pt_decoder *decoder, uint64_t timestamp)
+{
+	struct fast_forward_data d = { .timestamp = timestamp };
+	unsigned char *buf;
+	size_t len;
+	int err;
+
+	intel_pt_log("Fast forward towards timestamp " x64_fmt "\n", timestamp);
+
+	/* Find buffer timestamp of buffer to fast forward to */
+	err = decoder->lookahead(decoder->data, intel_pt_ff_cb, &d);
+	if (err < 0)
+		return err;
+
+	/* Walk to buffer with same buffer timestamp */
+	if (d.buf_timestamp) {
+		do {
+			decoder->pos += decoder->len;
+			decoder->len = 0;
+			err = intel_pt_get_next_data(decoder, true);
+			/* -ENOLINK means non-consecutive trace */
+			if (err && err != -ENOLINK)
+				return err;
+		} while (decoder->buf_timestamp != d.buf_timestamp);
+	}
+
+	if (!decoder->buf)
+		return 0;
+
+	buf = (unsigned char *)decoder->buf;
+	len = decoder->len;
+
+	if (!intel_pt_next_psb(&buf, &len))
+		return 0;
+
+	/*
+	 * Walk PSBs while the PSB timestamp is less than the fast forward
+	 * timestamp.
+	 */
+	do {
+		uint64_t tsc;
+		size_t rem;
+
+		if (!intel_pt_next_tsc(buf, len, &tsc, &rem))
+			break;
+		tsc = intel_pt_8b_tsc(tsc, decoder->buf_timestamp);
+		/*
+		 * A TSC packet can slip past MTC packets but, after fast
+		 * forward, decoding starts at the TSC timestamp. That means
+		 * the timestamps may not be exactly the same as the timestamps
+		 * that would have been decoded without fast forward.
+		 */
+		if (tsc < timestamp) {
+			intel_pt_log("Fast forward to next PSB timestamp " x64_fmt "\n", tsc);
+			decoder->pos += decoder->len - len;
+			decoder->buf = buf;
+			decoder->len = len;
+			intel_pt_reposition(decoder);
+		} else {
+			break;
+		}
+	} while (intel_pt_step_psb(&buf, &len));
+
+	return 0;
 }

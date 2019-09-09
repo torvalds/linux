@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /**
  * IBM Accelerator Family 'GenWQE'
  *
@@ -7,15 +8,6 @@
  * Author: Joerg-Stephan Vogt <jsvogt@de.ibm.com>
  * Author: Michael Jung <mijung@gmx.net>
  * Author: Michael Ruettger <michael@ibmra.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License (version 2 only)
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
  */
 
 /*
@@ -29,7 +21,7 @@
 #include <linux/pci.h>
 #include <linux/string.h>
 #include <linux/fs.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/wait.h>
 #include <linux/delay.h>
 #include <linux/atomic.h>
@@ -52,7 +44,7 @@ static void genwqe_add_file(struct genwqe_dev *cd, struct genwqe_file *cfile)
 {
 	unsigned long flags;
 
-	cfile->owner = current;
+	cfile->opener = get_pid(task_tgid(current));
 	spin_lock_irqsave(&cd->file_lock, flags);
 	list_add(&cfile->list, &cd->file_list);
 	spin_unlock_irqrestore(&cd->file_lock, flags);
@@ -65,6 +57,7 @@ static int genwqe_del_file(struct genwqe_dev *cd, struct genwqe_file *cfile)
 	spin_lock_irqsave(&cd->file_lock, flags);
 	list_del(&cfile->list);
 	spin_unlock_irqrestore(&cd->file_lock, flags);
+	put_pid(cfile->opener);
 
 	return 0;
 }
@@ -226,7 +219,7 @@ static void genwqe_remove_mappings(struct genwqe_file *cfile)
 			kfree(dma_map);
 		} else if (dma_map->type == GENWQE_MAPPING_SGL_TEMP) {
 			/* we use dma_map statically from the request */
-			genwqe_user_vunmap(cd, dma_map, NULL);
+			genwqe_user_vunmap(cd, dma_map);
 		}
 	}
 }
@@ -249,7 +242,7 @@ static void genwqe_remove_pinnings(struct genwqe_file *cfile)
 		 * deleted.
 		 */
 		list_del_init(&dma_map->pin_list);
-		genwqe_user_vunmap(cd, dma_map, NULL);
+		genwqe_user_vunmap(cd, dma_map);
 		kfree(dma_map);
 	}
 }
@@ -275,7 +268,7 @@ static int genwqe_kill_fasync(struct genwqe_dev *cd, int sig)
 	return files;
 }
 
-static int genwqe_force_sig(struct genwqe_dev *cd, int sig)
+static int genwqe_terminate(struct genwqe_dev *cd)
 {
 	unsigned int files = 0;
 	unsigned long flags;
@@ -283,7 +276,7 @@ static int genwqe_force_sig(struct genwqe_dev *cd, int sig)
 
 	spin_lock_irqsave(&cd->file_lock, flags);
 	list_for_each_entry(cfile, &cd->file_list, list) {
-		force_sig(sig, cfile->owner);
+		kill_pid(cfile->opener, SIGKILL, 1);
 		files++;
 	}
 	spin_unlock_irqrestore(&cd->file_lock, flags);
@@ -304,14 +297,12 @@ static int genwqe_open(struct inode *inode, struct file *filp)
 {
 	struct genwqe_dev *cd;
 	struct genwqe_file *cfile;
-	struct pci_dev *pci_dev;
 
 	cfile = kzalloc(sizeof(*cfile), GFP_KERNEL);
 	if (cfile == NULL)
 		return -ENOMEM;
 
 	cd = container_of(inode->i_cdev, struct genwqe_dev, cdev_genwqe);
-	pci_dev = cd->pci_dev;
 	cfile->cd = cd;
 	cfile->filp = filp;
 	cfile->client = NULL;
@@ -781,6 +772,8 @@ static int genwqe_pin_mem(struct genwqe_file *cfile, struct genwqe_mem *m)
 
 	if ((m->addr == 0x0) || (m->size == 0))
 		return -EINVAL;
+	if (m->size > ULONG_MAX - PAGE_SIZE - (m->addr & ~PAGE_MASK))
+		return -EINVAL;
 
 	map_addr = (m->addr & PAGE_MASK);
 	map_size = round_up(m->size + (m->addr & ~PAGE_MASK), PAGE_SIZE);
@@ -790,7 +783,7 @@ static int genwqe_pin_mem(struct genwqe_file *cfile, struct genwqe_mem *m)
 		return -ENOMEM;
 
 	genwqe_mapping_init(dma_map, GENWQE_MAPPING_SGL_PINNED);
-	rc = genwqe_user_vmap(cd, dma_map, (void *)map_addr, map_size, NULL);
+	rc = genwqe_user_vmap(cd, dma_map, (void *)map_addr, map_size);
 	if (rc != 0) {
 		dev_err(&pci_dev->dev,
 			"[%s] genwqe_user_vmap rc=%d\n", __func__, rc);
@@ -820,7 +813,7 @@ static int genwqe_unpin_mem(struct genwqe_file *cfile, struct genwqe_mem *m)
 		return -ENOENT;
 
 	genwqe_del_pin(cfile, dma_map);
-	genwqe_user_vunmap(cd, dma_map, NULL);
+	genwqe_user_vunmap(cd, dma_map);
 	kfree(dma_map);
 	return 0;
 }
@@ -841,7 +834,7 @@ static int ddcb_cmd_cleanup(struct genwqe_file *cfile, struct ddcb_requ *req)
 
 		if (dma_mapping_used(dma_map)) {
 			__genwqe_del_mapping(cfile, dma_map);
-			genwqe_user_vunmap(cd, dma_map, req);
+			genwqe_user_vunmap(cd, dma_map);
 		}
 		if (req->sgls[i].sgl != NULL)
 			genwqe_free_sync_sgl(cd, &req->sgls[i]);
@@ -864,7 +857,6 @@ static int ddcb_cmd_fixups(struct genwqe_file *cfile, struct ddcb_requ *req)
 	struct genwqe_dev *cd = cfile->cd;
 	struct genwqe_ddcb_cmd *cmd = &req->cmd;
 	struct dma_mapping *m;
-	const char *type = "UNKNOWN";
 
 	for (i = 0, asiv_offs = 0x00; asiv_offs <= 0x58;
 	     i++, asiv_offs += 0x08) {
@@ -933,17 +925,19 @@ static int ddcb_cmd_fixups(struct genwqe_file *cfile, struct ddcb_requ *req)
 
 			m = genwqe_search_pin(cfile, u_addr, u_size, NULL);
 			if (m != NULL) {
-				type = "PINNING";
 				page_offs = (u_addr -
 					     (u64)m->u_vaddr)/PAGE_SIZE;
 			} else {
-				type = "MAPPING";
 				m = &req->dma_mappings[i];
 
 				genwqe_mapping_init(m,
 						    GENWQE_MAPPING_SGL_TEMP);
+
+				if (ats_flags == ATS_TYPE_SGL_RD)
+					m->write = 0;
+
 				rc = genwqe_user_vmap(cd, m, (void *)u_addr,
-						      u_size, req);
+						      u_size);
 				if (rc != 0)
 					goto err_out;
 
@@ -954,7 +948,7 @@ static int ddcb_cmd_fixups(struct genwqe_file *cfile, struct ddcb_requ *req)
 			/* create genwqe style scatter gather list */
 			rc = genwqe_alloc_sync_sgl(cd, &req->sgls[i],
 						   (void __user *)u_addr,
-						   u_size);
+						   u_size, m->write);
 			if (rc != 0)
 				goto err_out;
 
@@ -1007,15 +1001,12 @@ static int do_execute_ddcb(struct genwqe_file *cfile,
 {
 	int rc;
 	struct genwqe_ddcb_cmd *cmd;
-	struct ddcb_requ *req;
 	struct genwqe_dev *cd = cfile->cd;
 	struct file *filp = cfile->filp;
 
 	cmd = ddcb_requ_alloc();
 	if (cmd == NULL)
 		return -ENOMEM;
-
-	req = container_of(cmd, struct ddcb_requ, cmd);
 
 	if (copy_from_user(cmd, (void __user *)arg, sizeof(*cmd))) {
 		ddcb_requ_free(cmd);
@@ -1310,14 +1301,10 @@ int genwqe_device_create(struct genwqe_dev *cd)
 		goto err_cdev;
 	}
 
-	rc = genwqe_init_debugfs(cd);
-	if (rc != 0)
-		goto err_debugfs;
+	genwqe_init_debugfs(cd);
 
 	return 0;
 
- err_debugfs:
-	device_destroy(cd->class_genwqe, cd->devnum_genwqe);
  err_cdev:
 	cdev_del(&cd->cdev_genwqe);
  err_add:
@@ -1341,7 +1328,7 @@ static int genwqe_inform_and_stop_processes(struct genwqe_dev *cd)
 	rc = genwqe_kill_fasync(cd, SIGIO);
 	if (rc > 0) {
 		/* give kill_timeout seconds to close file descriptors ... */
-		for (i = 0; (i < genwqe_kill_timeout) &&
+		for (i = 0; (i < GENWQE_KILL_TIMEOUT) &&
 			     genwqe_open_files(cd); i++) {
 			dev_info(&pci_dev->dev, "  %d sec ...", i);
 
@@ -1356,10 +1343,10 @@ static int genwqe_inform_and_stop_processes(struct genwqe_dev *cd)
 		dev_warn(&pci_dev->dev,
 			 "[%s] send SIGKILL and wait ...\n", __func__);
 
-		rc = genwqe_force_sig(cd, SIGKILL); /* force terminate */
+		rc = genwqe_terminate(cd);
 		if (rc) {
 			/* Give kill_timout more seconds to end processes */
-			for (i = 0; (i < genwqe_kill_timeout) &&
+			for (i = 0; (i < GENWQE_KILL_TIMEOUT) &&
 				     genwqe_open_files(cd); i++) {
 				dev_warn(&pci_dev->dev, "  %d sec ...", i);
 
@@ -1396,7 +1383,7 @@ int genwqe_device_remove(struct genwqe_dev *cd)
 	 * application which will decrease this reference from
 	 * 1/unused to 0/illegal and not from 2/used 1/empty.
 	 */
-	rc = atomic_read(&cd->cdev_genwqe.kobj.kref.refcount);
+	rc = kref_read(&cd->cdev_genwqe.kobj.kref);
 	if (rc != 1) {
 		dev_err(&pci_dev->dev,
 			"[%s] err: cdev_genwqe...refcount=%d\n", __func__, rc);

@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2011 Texas Instruments Incorporated - http://www.ti.com/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 /*
@@ -23,6 +20,8 @@
 		compatible = "ti,twl4030-bci";
 		interrupts = <9>, <2>;
 		bci3v1-supply = <&vusb3v1>;
+		io-channels = <&twl_madc 11>;
+		io-channel-names = "vac";
 	};
 
 	watchdog {

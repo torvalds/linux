@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * udl_dmabuf.c
  *
  * Copyright (c) 2014 The Chromium OS Authors
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <drm/drmP.h>
@@ -29,7 +17,6 @@ struct udl_drm_dmabuf_attachment {
 };
 
 static int udl_attach_dma_buf(struct dma_buf *dmabuf,
-			      struct device *dev,
 			      struct dma_buf_attachment *attach)
 {
 	struct udl_drm_dmabuf_attachment *udl_attach;
@@ -76,6 +63,7 @@ static struct sg_table *udl_map_dma_buf(struct dma_buf_attachment *attach,
 	struct udl_drm_dmabuf_attachment *udl_attach = attach->priv;
 	struct udl_gem_object *obj = to_udl_bo(attach->dmabuf->priv);
 	struct drm_device *dev = obj->base.dev;
+	struct udl_device *udl = dev->dev_private;
 	struct scatterlist *rd, *wr;
 	struct sg_table *sgt = NULL;
 	unsigned int i;
@@ -112,7 +100,7 @@ static struct sg_table *udl_map_dma_buf(struct dma_buf_attachment *attach,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	mutex_lock(&dev->struct_mutex);
+	mutex_lock(&udl->gem_lock);
 
 	rd = obj->sg->sgl;
 	wr = sgt->sgl;
@@ -137,7 +125,7 @@ static struct sg_table *udl_map_dma_buf(struct dma_buf_attachment *attach,
 	attach->priv = udl_attach;
 
 err_unlock:
-	mutex_unlock(&dev->struct_mutex);
+	mutex_unlock(&udl->gem_lock);
 	return sgt;
 }
 
@@ -157,23 +145,8 @@ static void *udl_dmabuf_kmap(struct dma_buf *dma_buf, unsigned long page_num)
 	return NULL;
 }
 
-static void *udl_dmabuf_kmap_atomic(struct dma_buf *dma_buf,
-				    unsigned long page_num)
-{
-	/* TODO */
-
-	return NULL;
-}
-
 static void udl_dmabuf_kunmap(struct dma_buf *dma_buf,
 			      unsigned long page_num, void *addr)
-{
-	/* TODO */
-}
-
-static void udl_dmabuf_kunmap_atomic(struct dma_buf *dma_buf,
-				     unsigned long page_num,
-				     void *addr)
 {
 	/* TODO */
 }
@@ -186,15 +159,13 @@ static int udl_dmabuf_mmap(struct dma_buf *dma_buf,
 	return -EINVAL;
 }
 
-static struct dma_buf_ops udl_dmabuf_ops = {
+static const struct dma_buf_ops udl_dmabuf_ops = {
 	.attach			= udl_attach_dma_buf,
 	.detach			= udl_detach_dma_buf,
 	.map_dma_buf		= udl_map_dma_buf,
 	.unmap_dma_buf		= udl_unmap_dma_buf,
-	.kmap			= udl_dmabuf_kmap,
-	.kmap_atomic		= udl_dmabuf_kmap_atomic,
-	.kunmap			= udl_dmabuf_kunmap,
-	.kunmap_atomic		= udl_dmabuf_kunmap_atomic,
+	.map			= udl_dmabuf_kmap,
+	.unmap			= udl_dmabuf_kunmap,
 	.mmap			= udl_dmabuf_mmap,
 	.release		= drm_gem_dmabuf_release,
 };
@@ -228,7 +199,7 @@ static int udl_prime_create(struct drm_device *dev,
 		return -ENOMEM;
 
 	obj->sg = sg;
-	obj->pages = drm_malloc_ab(npages, sizeof(struct page *));
+	obj->pages = kvmalloc_array(npages, sizeof(struct page *), GFP_KERNEL);
 	if (obj->pages == NULL) {
 		DRM_ERROR("obj pages is NULL %d\n", npages);
 		return -ENOMEM;

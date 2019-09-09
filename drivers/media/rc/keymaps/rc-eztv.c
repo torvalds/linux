@@ -1,14 +1,9 @@
-/* eztv.h - Keytable for eztv Remote Controller
- *
- * keymap imported from ir-keymaps.c
- *
- * Copyright (c) 2010 by Mauro Carvalho Chehab
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- */
+// SPDX-License-Identifier: GPL-2.0+
+// eztv.h - Keytable for eztv Remote Controller
+//
+// keymap imported from ir-keymaps.c
+//
+// Copyright (c) 2010 by Mauro Carvalho Chehab
 
 #include <media/rc-map.h>
 #include <linux/module.h>
@@ -51,16 +46,16 @@ static struct rc_map_table eztv[] = {
 	{ 0x2d, KEY_PLAY },	/* play */
 	{ 0x2e, KEY_CAMERA },	/* snapshot / shuffle */
 
-	{ 0x00, KEY_0 },
-	{ 0x05, KEY_1 },
-	{ 0x06, KEY_2 },
-	{ 0x07, KEY_3 },
-	{ 0x09, KEY_4 },
-	{ 0x0a, KEY_5 },
-	{ 0x0b, KEY_6 },
-	{ 0x0d, KEY_7 },
-	{ 0x0e, KEY_8 },
-	{ 0x0f, KEY_9 },
+	{ 0x00, KEY_NUMERIC_0 },
+	{ 0x05, KEY_NUMERIC_1 },
+	{ 0x06, KEY_NUMERIC_2 },
+	{ 0x07, KEY_NUMERIC_3 },
+	{ 0x09, KEY_NUMERIC_4 },
+	{ 0x0a, KEY_NUMERIC_5 },
+	{ 0x0b, KEY_NUMERIC_6 },
+	{ 0x0d, KEY_NUMERIC_7 },
+	{ 0x0e, KEY_NUMERIC_8 },
+	{ 0x0f, KEY_NUMERIC_9 },
 
 	{ 0x2a, KEY_VOLUMEUP },
 	{ 0x11, KEY_VOLUMEDOWN },
@@ -73,10 +68,10 @@ static struct rc_map_table eztv[] = {
 
 static struct rc_map_list eztv_map = {
 	.map = {
-		.scan    = eztv,
-		.size    = ARRAY_SIZE(eztv),
-		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
-		.name    = RC_MAP_EZTV,
+		.scan     = eztv,
+		.size     = ARRAY_SIZE(eztv),
+		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.name     = RC_MAP_EZTV,
 	}
 };
 

@@ -1,12 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Header File to describe the DMA descriptors and related definitions specific
  * for DesignWare databook 4.xx.
  *
  * Copyright (C) 2015  STMicroelectronics Ltd
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
  *
  * Author: Alexandre Torgue <alexandre.torgue@st.com>
  */
@@ -59,10 +56,13 @@
 #define TDES3_CTXT_TCMSSV		BIT(26)
 
 /* TDES3 Common */
+#define	TDES3_RS1V			BIT(26)
+#define	TDES3_RS1V_SHIFT		26
 #define TDES3_LAST_DESCRIPTOR		BIT(28)
 #define TDES3_LAST_DESCRIPTOR_SHIFT	28
 #define TDES3_FIRST_DESCRIPTOR		BIT(29)
 #define TDES3_CONTEXT_TYPE		BIT(30)
+#define	TDES3_CONTEXT_TYPE_SHIFT	30
 
 /* TDS3 use for both format (read and write back) */
 #define TDES3_OWN			BIT(31)
@@ -117,6 +117,7 @@
 #define RDES3_LAST_DESCRIPTOR		BIT(28)
 #define RDES3_FIRST_DESCRIPTOR		BIT(29)
 #define RDES3_CONTEXT_DESCRIPTOR	BIT(30)
+#define RDES3_CONTEXT_DESCRIPTOR_SHIFT	30
 
 /* RDES3 (read format) */
 #define RDES3_BUFFER1_VALID_ADDR	BIT(24)

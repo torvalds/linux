@@ -1,0 +1,110 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+/*
+ * Copyright 2017 Luxul Inc.
+ */
+
+/dts-v1/;
+
+#include "bcm47081.dtsi"
+#include "bcm5301x-nand-cs0-bch4.dtsi"
+
+/ {
+	compatible = "luxul,xwr-1200v1", "brcm,bcm47081", "brcm,bcm4708";
+	model = "Luxul XWR-1200 V1";
+
+	chosen {
+		bootargs = "console=ttyS0,115200";
+	};
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x00000000 0x08000000>;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		power {
+			label = "bcm53xx:green:power";
+			gpios = <&chipcommon 0 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "default-on";
+		};
+
+		lan3 {
+			label = "bcm53xx:green:lan3";
+			gpios = <&chipcommon 1 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "none";
+		};
+
+		lan4 {
+			label = "bcm53xx:green:lan4";
+			gpios = <&chipcommon 2 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "none";
+		};
+
+		wan {
+			label = "bcm53xx:green:wan";
+			gpios = <&chipcommon 3 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "none";
+		};
+
+		lan2 {
+			label = "bcm53xx:green:lan2";
+			gpios = <&chipcommon 6 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "none";
+		};
+
+		usb {
+			label = "bcm53xx:green:usb";
+			gpios = <&chipcommon 8 GPIO_ACTIVE_LOW>;
+			trigger-sources = <&ohci_port2>, <&ehci_port2>;
+			linux,default-trigger = "usbport";
+		};
+
+		status {
+			label = "bcm53xx:green:status";
+			gpios = <&chipcommon 10 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "timer";
+		};
+
+		2ghz {
+			label = "bcm53xx:green:2ghz";
+			gpios = <&chipcommon 13 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "none";
+		};
+
+		5ghz {
+			label = "bcm53xx:green:5ghz";
+			gpios = <&chipcommon 14 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "none";
+		};
+
+		lan1 {
+			label = "bcm53xx:green:lan1";
+			gpios = <&chipcommon 15 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "none";
+		};
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		restart {
+			label = "Reset";
+			linux,code = <KEY_RESTART>;
+			gpios = <&chipcommon 11 GPIO_ACTIVE_LOW>;
+		};
+	};
+};
+
+&usb2 {
+	vcc-gpio = <&chipcommon 9 GPIO_ACTIVE_HIGH>;
+};
+
+&spi_nor {
+	status = "okay";
+};
+
+&usb3_phy {
+	status = "okay";
+};

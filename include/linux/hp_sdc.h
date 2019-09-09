@@ -281,7 +281,7 @@ typedef struct {
 	hp_sdc_transaction *tq[HP_SDC_QUEUE_LEN]; /* All pending read/writes */
 
 	int		rcurr, rqty;	/* Current read transact in process */
-	struct timeval	rtv;		/* Time when current read started */
+	ktime_t		rtime;		/* Time when current read started */
 	int		wcurr;		/* Current write transact in process */
 
 	int		dev_err;	/* carries status from registration */

@@ -23,7 +23,7 @@
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
 #include <linux/timer.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 
 #undef DEBUG /* undef me for production */
 
@@ -44,10 +44,11 @@ static void parport_ieee1284_wakeup (struct parport *port)
 	up (&port->physport->ieee1284.irq);
 }
 
-static struct parport *port_from_cookie[PARPORT_MAX];
-static void timeout_waiting_on_port (unsigned long cookie)
+static void timeout_waiting_on_port (struct timer_list *t)
 {
-	parport_ieee1284_wakeup (port_from_cookie[cookie % PARPORT_MAX]);
+	struct parport *port = from_timer(port, t, timer);
+
+	parport_ieee1284_wakeup (port);
 }
 
 /**
@@ -69,26 +70,18 @@ static void timeout_waiting_on_port (unsigned long cookie)
 int parport_wait_event (struct parport *port, signed long timeout)
 {
 	int ret;
-	struct timer_list timer;
 
 	if (!port->physport->cad->timeout)
 		/* Zero timeout is special, and we can't down() the
 		   semaphore. */
 		return 1;
 
-	init_timer_on_stack(&timer);
-	timer.expires = jiffies + timeout;
-	timer.function = timeout_waiting_on_port;
-	port_from_cookie[port->number % PARPORT_MAX] = port;
-	timer.data = port->number;
-
-	add_timer (&timer);
+	timer_setup(&port->timer, timeout_waiting_on_port, 0);
+	mod_timer(&port->timer, jiffies + timeout);
 	ret = down_interruptible (&port->physport->ieee1284.irq);
-	if (!del_timer_sync(&timer) && !ret)
+	if (!del_timer_sync(&port->timer) && !ret)
 		/* Timed out. */
 		ret = 1;
-
-	destroy_timer_on_stack(&timer);
 
 	return ret;
 }
@@ -274,7 +267,7 @@ static void parport_ieee1284_terminate (struct parport *port)
 			port->ieee1284.phase = IEEE1284_PH_FWD_IDLE;
 		}
 
-		/* fall-though.. */
+		/* fall through */
 
 	default:
 		/* Terminate from all other modes. */
@@ -622,6 +615,7 @@ ssize_t parport_write (struct parport *port, const void *buffer, size_t len)
 	case IEEE1284_MODE_NIBBLE:
 	case IEEE1284_MODE_BYTE:
 		parport_negotiate (port, IEEE1284_MODE_COMPAT);
+		/* fall through */
 	case IEEE1284_MODE_COMPAT:
 		DPRINTK (KERN_DEBUG "%s: Using compatibility mode\n",
 			 port->name);
@@ -728,7 +722,7 @@ ssize_t parport_read (struct parport *port, void *buffer, size_t len)
 		if (parport_negotiate (port, IEEE1284_MODE_NIBBLE)) {
 			return -EIO;
 		}
-		/* fall through to NIBBLE */
+		/* fall through - to NIBBLE */
 	case IEEE1284_MODE_NIBBLE:
 		DPRINTK (KERN_DEBUG "%s: Using nibble mode\n", port->name);
 		fn = port->ops->nibble_read_data;

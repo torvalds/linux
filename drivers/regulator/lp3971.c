@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Regulator driver for National Semiconductors LP3971 PMIC chip
  *
@@ -5,11 +6,6 @@
  *  Author: Marek Szyprowski <m.szyprowski@samsung.com>
  *
  * Based on wm8350.c
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/bug.h>
@@ -159,7 +155,7 @@ static int lp3971_ldo_set_voltage_sel(struct regulator_dev *dev,
 			selector << LDO_VOL_CONTR_SHIFT(ldo));
 }
 
-static struct regulator_ops lp3971_ldo_ops = {
+static const struct regulator_ops lp3971_ldo_ops = {
 	.list_voltage = regulator_list_voltage_table,
 	.map_voltage = regulator_map_voltage_ascend,
 	.is_enabled = lp3971_ldo_is_enabled,
@@ -233,7 +229,7 @@ static int lp3971_dcdc_set_voltage_sel(struct regulator_dev *dev,
 	       0 << BUCK_VOL_CHANGE_SHIFT(buck));
 }
 
-static struct regulator_ops lp3971_dcdc_ops = {
+static const struct regulator_ops lp3971_dcdc_ops = {
 	.list_voltage = regulator_list_voltage_table,
 	.map_voltage = regulator_map_voltage_ascend,
 	.is_enabled = lp3971_dcdc_is_enabled,

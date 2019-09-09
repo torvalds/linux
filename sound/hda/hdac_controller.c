@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * HD-audio controller helpers
  */
@@ -40,6 +41,8 @@ static void azx_clear_corbrp(struct hdac_bus *bus)
  */
 void snd_hdac_bus_init_cmd_io(struct hdac_bus *bus)
 {
+	WARN_ON_ONCE(!bus->rb.area);
+
 	spin_lock_irq(&bus->reg_lock);
 	/* CORB set up */
 	bus->corb.addr = bus->rb.addr;
@@ -76,6 +79,8 @@ void snd_hdac_bus_init_cmd_io(struct hdac_bus *bus)
 	snd_hdac_chip_writew(bus, RINTCNT, 1);
 	/* enable rirb dma and response irq */
 	snd_hdac_chip_writeb(bus, RIRBCTL, AZX_RBCTL_DMA_EN | AZX_RBCTL_IRQ_EN);
+	/* Accept unsolicited responses */
+	snd_hdac_chip_updatel(bus, GCTL, AZX_GCTL_UNSOL, AZX_GCTL_UNSOL);
 	spin_unlock_irq(&bus->reg_lock);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_bus_init_cmd_io);
@@ -106,7 +111,11 @@ void snd_hdac_bus_stop_cmd_io(struct hdac_bus *bus)
 	/* disable ringbuffer DMAs */
 	snd_hdac_chip_writeb(bus, RIRBCTL, 0);
 	snd_hdac_chip_writeb(bus, CORBCTL, 0);
+	spin_unlock_irq(&bus->reg_lock);
+
 	hdac_wait_for_cmd_dmas(bus);
+
+	spin_lock_irq(&bus->reg_lock);
 	/* disable unsolicited responses */
 	snd_hdac_chip_updatel(bus, GCTL, AZX_GCTL_UNSOL, 0);
 	spin_unlock_irq(&bus->reg_lock);
@@ -234,6 +243,8 @@ int snd_hdac_bus_get_response(struct hdac_bus *bus, unsigned int addr,
 
 	for (loopcounter = 0;; loopcounter++) {
 		spin_lock_irq(&bus->reg_lock);
+		if (bus->polling_mode)
+			snd_hdac_bus_update_rirb(bus);
 		if (!bus->rirb.cmds[addr]) {
 			if (res)
 				*res = bus->rirb.res[addr]; /* the last value */
@@ -268,17 +279,22 @@ int snd_hdac_bus_parse_capabilities(struct hdac_bus *bus)
 	unsigned int offset;
 	unsigned int counter = 0;
 
-	offset = snd_hdac_chip_readl(bus, LLCH);
+	offset = snd_hdac_chip_readw(bus, LLCH);
 
 	/* Lets walk the linked capabilities list */
 	do {
-		cur_cap = _snd_hdac_chip_read(l, bus, offset);
+		cur_cap = _snd_hdac_chip_readl(bus, offset);
 
 		dev_dbg(bus->dev, "Capability version: 0x%x\n",
 			(cur_cap & AZX_CAP_HDR_VER_MASK) >> AZX_CAP_HDR_VER_OFF);
 
 		dev_dbg(bus->dev, "HDA capability ID: 0x%x\n",
 			(cur_cap & AZX_CAP_HDR_ID_MASK) >> AZX_CAP_HDR_ID_OFF);
+
+		if (cur_cap == -1) {
+			dev_dbg(bus->dev, "Invalid capability reg read\n");
+			break;
+		}
 
 		switch ((cur_cap & AZX_CAP_HDR_ID_MASK) >> AZX_CAP_HDR_ID_OFF) {
 		case AZX_ML_CAP_ID:
@@ -310,7 +326,8 @@ int snd_hdac_bus_parse_capabilities(struct hdac_bus *bus)
 			break;
 
 		default:
-			dev_dbg(bus->dev, "Unknown capability %d\n", cur_cap);
+			dev_err(bus->dev, "Unknown capability %d\n", cur_cap);
+			cur_cap = 0;
 			break;
 		}
 
@@ -364,7 +381,7 @@ void snd_hdac_bus_exit_link_reset(struct hdac_bus *bus)
 {
 	unsigned long timeout;
 
-	snd_hdac_chip_updateb(bus, GCTL, 0, AZX_GCTL_RESET);
+	snd_hdac_chip_updateb(bus, GCTL, AZX_GCTL_RESET, AZX_GCTL_RESET);
 
 	timeout = jiffies + msecs_to_jiffies(100);
 	while (!snd_hdac_chip_readb(bus, GCTL) && time_before(jiffies, timeout))
@@ -373,7 +390,7 @@ void snd_hdac_bus_exit_link_reset(struct hdac_bus *bus)
 EXPORT_SYMBOL_GPL(snd_hdac_bus_exit_link_reset);
 
 /* reset codec link */
-static int azx_reset(struct hdac_bus *bus, bool full_reset)
+int snd_hdac_bus_reset_link(struct hdac_bus *bus, bool full_reset)
 {
 	if (!full_reset)
 		goto skip_reset;
@@ -398,12 +415,9 @@ static int azx_reset(struct hdac_bus *bus, bool full_reset)
  skip_reset:
 	/* check to see if controller is ready */
 	if (!snd_hdac_chip_readb(bus, GCTL)) {
-		dev_dbg(bus->dev, "azx_reset: controller not ready!\n");
+		dev_dbg(bus->dev, "controller not ready!\n");
 		return -EBUSY;
 	}
-
-	/* Accept unsolicited responses */
-	snd_hdac_chip_updatel(bus, GCTL, 0, AZX_GCTL_UNSOL);
 
 	/* detect codecs */
 	if (!bus->codec_mask) {
@@ -413,12 +427,15 @@ static int azx_reset(struct hdac_bus *bus, bool full_reset)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(snd_hdac_bus_reset_link);
 
 /* enable interrupts */
 static void azx_int_enable(struct hdac_bus *bus)
 {
 	/* enable controller CIE and GIE */
-	snd_hdac_chip_updatel(bus, INTCTL, 0, AZX_INT_CTRL_EN | AZX_INT_GLOBAL_EN);
+	snd_hdac_chip_updatel(bus, INTCTL,
+			      AZX_INT_CTRL_EN | AZX_INT_GLOBAL_EN,
+			      AZX_INT_CTRL_EN | AZX_INT_GLOBAL_EN);
 }
 
 /* disable interrupts */
@@ -467,14 +484,16 @@ bool snd_hdac_bus_init_chip(struct hdac_bus *bus, bool full_reset)
 		return false;
 
 	/* reset controller */
-	azx_reset(bus, full_reset);
+	snd_hdac_bus_reset_link(bus, full_reset);
 
-	/* initialize interrupts */
+	/* clear interrupts */
 	azx_int_clear(bus);
-	azx_int_enable(bus);
 
 	/* initialize the codec command I/O */
 	snd_hdac_bus_init_cmd_io(bus);
+
+	/* enable interrupts after CORB/RIRB buffers are initialized above */
+	azx_int_enable(bus);
 
 	/* program the position buffer */
 	if (bus->use_posbuf && bus->posbuf.addr) {

@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * ni_at_ao.c
  * Driver for NI AT-AO-6/10 boards
  *
  * COMEDI - Linux Control and Measurement Device Interface
  * Copyright (C) 2000,2002 David A. Schleef <ds@schleef.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 /*
@@ -49,43 +40,43 @@
 #define ATAO_CFG2_REG		0x02
 #define ATAO_CFG2_CALLD_NOP	(0 << 14)
 #define ATAO_CFG2_CALLD(x)	((((x) >> 3) + 1) << 14)
-#define ATAO_CFG2_FFRTEN	(1 << 13)
+#define ATAO_CFG2_FFRTEN	BIT(13)
 #define ATAO_CFG2_DACS(x)	(1 << (((x) / 2) + 8))
 #define ATAO_CFG2_LDAC(x)	(1 << (((x) / 2) + 3))
-#define ATAO_CFG2_PROMEN	(1 << 2)
-#define ATAO_CFG2_SCLK		(1 << 1)
-#define ATAO_CFG2_SDATA		(1 << 0)
+#define ATAO_CFG2_PROMEN	BIT(2)
+#define ATAO_CFG2_SCLK		BIT(1)
+#define ATAO_CFG2_SDATA		BIT(0)
 #define ATAO_CFG3_REG		0x04
-#define ATAO_CFG3_DMAMODE	(1 << 6)
-#define ATAO_CFG3_CLKOUT	(1 << 5)
-#define ATAO_CFG3_RCLKEN	(1 << 4)
-#define ATAO_CFG3_DOUTEN2	(1 << 3)
-#define ATAO_CFG3_DOUTEN1	(1 << 2)
-#define ATAO_CFG3_EN2_5V	(1 << 1)
-#define ATAO_CFG3_SCANEN	(1 << 0)
+#define ATAO_CFG3_DMAMODE	BIT(6)
+#define ATAO_CFG3_CLKOUT	BIT(5)
+#define ATAO_CFG3_RCLKEN	BIT(4)
+#define ATAO_CFG3_DOUTEN2	BIT(3)
+#define ATAO_CFG3_DOUTEN1	BIT(2)
+#define ATAO_CFG3_EN2_5V	BIT(1)
+#define ATAO_CFG3_SCANEN	BIT(0)
 #define ATAO_82C53_BASE		0x06
 #define ATAO_CFG1_REG		0x0a
-#define ATAO_CFG1_EXTINT2EN	(1 << 15)
-#define ATAO_CFG1_EXTINT1EN	(1 << 14)
-#define ATAO_CFG1_CNTINT2EN	(1 << 13)
-#define ATAO_CFG1_CNTINT1EN	(1 << 12)
-#define ATAO_CFG1_TCINTEN	(1 << 11)
-#define ATAO_CFG1_CNT1SRC	(1 << 10)
-#define ATAO_CFG1_CNT2SRC	(1 << 9)
-#define ATAO_CFG1_FIFOEN	(1 << 8)
-#define ATAO_CFG1_GRP2WR	(1 << 7)
-#define ATAO_CFG1_EXTUPDEN	(1 << 6)
-#define ATAO_CFG1_DMARQ		(1 << 5)
-#define ATAO_CFG1_DMAEN		(1 << 4)
+#define ATAO_CFG1_EXTINT2EN	BIT(15)
+#define ATAO_CFG1_EXTINT1EN	BIT(14)
+#define ATAO_CFG1_CNTINT2EN	BIT(13)
+#define ATAO_CFG1_CNTINT1EN	BIT(12)
+#define ATAO_CFG1_TCINTEN	BIT(11)
+#define ATAO_CFG1_CNT1SRC	BIT(10)
+#define ATAO_CFG1_CNT2SRC	BIT(9)
+#define ATAO_CFG1_FIFOEN	BIT(8)
+#define ATAO_CFG1_GRP2WR	BIT(7)
+#define ATAO_CFG1_EXTUPDEN	BIT(6)
+#define ATAO_CFG1_DMARQ		BIT(5)
+#define ATAO_CFG1_DMAEN		BIT(4)
 #define ATAO_CFG1_CH(x)		(((x) & 0xf) << 0)
 #define ATAO_STATUS_REG		0x0a
-#define ATAO_STATUS_FH		(1 << 6)
-#define ATAO_STATUS_FE		(1 << 5)
-#define ATAO_STATUS_FF		(1 << 4)
-#define ATAO_STATUS_INT2	(1 << 3)
-#define ATAO_STATUS_INT1	(1 << 2)
-#define ATAO_STATUS_TCINT	(1 << 1)
-#define ATAO_STATUS_PROMOUT	(1 << 0)
+#define ATAO_STATUS_FH		BIT(6)
+#define ATAO_STATUS_FE		BIT(5)
+#define ATAO_STATUS_FF		BIT(4)
+#define ATAO_STATUS_INT2	BIT(3)
+#define ATAO_STATUS_INT1	BIT(2)
+#define ATAO_STATUS_TCINT	BIT(1)
+#define ATAO_STATUS_PROMOUT	BIT(0)
 #define ATAO_FIFO_WRITE_REG	0x0c
 #define ATAO_FIFO_CLEAR_REG	0x0c
 #define ATAO_AO_REG(x)		(0x0c + ((x) * 2))
@@ -95,7 +86,7 @@
 #define ATAO_2_INT1CLR_REG	0x02
 #define ATAO_2_INT2CLR_REG	0x04
 #define ATAO_2_RTSISHFT_REG	0x06
-#define ATAO_2_RTSISHFT_RSI	(1 << 0)
+#define ATAO_2_RTSISHFT_RSI	BIT(0)
 #define ATAO_2_RTSISTRB_REG	0x07
 
 struct atao_board {
@@ -253,7 +244,7 @@ static int atao_calib_insn_write(struct comedi_device *dev,
 
 		/* write the channel and last data value to the caldac */
 		/* clock the bitstring to the caldac; MSB -> LSB */
-		for (bit = 1 << 10; bit; bit >>= 1) {
+		for (bit = BIT(10); bit; bit >>= 1) {
 			bits = (bit & bitstring) ? ATAO_CFG2_SDATA : 0;
 
 			outw(bits, dev->iobase + ATAO_CFG2_REG);

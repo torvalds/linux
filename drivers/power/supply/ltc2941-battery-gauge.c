@@ -1,6 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * I2C client/driver for the Linear Technology LTC2941 and LTC2943
- * Battery Gas Gauge IC
+ * I2C client/driver for the Linear Technology LTC2941, LTC2942, LTC2943
+ * and LTC2944 Battery Gas Gauge IC
  *
  * Copyright (C) 2014 Topic Embedded Systems
  *
@@ -9,6 +10,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/of_device.h>
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/swab.h>
@@ -33,35 +35,44 @@ enum ltc294x_reg {
 	LTC294X_REG_CONTROL		= 0x01,
 	LTC294X_REG_ACC_CHARGE_MSB	= 0x02,
 	LTC294X_REG_ACC_CHARGE_LSB	= 0x03,
-	LTC294X_REG_THRESH_HIGH_MSB	= 0x04,
-	LTC294X_REG_THRESH_HIGH_LSB	= 0x05,
-	LTC294X_REG_THRESH_LOW_MSB	= 0x06,
-	LTC294X_REG_THRESH_LOW_LSB	= 0x07,
-	LTC294X_REG_VOLTAGE_MSB	= 0x08,
-	LTC294X_REG_VOLTAGE_LSB	= 0x09,
-	LTC294X_REG_CURRENT_MSB	= 0x0E,
-	LTC294X_REG_CURRENT_LSB	= 0x0F,
-	LTC294X_REG_TEMPERATURE_MSB	= 0x14,
-	LTC294X_REG_TEMPERATURE_LSB	= 0x15,
+	LTC294X_REG_CHARGE_THR_HIGH_MSB	= 0x04,
+	LTC294X_REG_CHARGE_THR_HIGH_LSB	= 0x05,
+	LTC294X_REG_CHARGE_THR_LOW_MSB	= 0x06,
+	LTC294X_REG_CHARGE_THR_LOW_LSB	= 0x07,
+	LTC294X_REG_VOLTAGE_MSB		= 0x08,
+	LTC294X_REG_VOLTAGE_LSB		= 0x09,
+	LTC2942_REG_TEMPERATURE_MSB	= 0x0C,
+	LTC2942_REG_TEMPERATURE_LSB	= 0x0D,
+	LTC2943_REG_CURRENT_MSB		= 0x0E,
+	LTC2943_REG_CURRENT_LSB		= 0x0F,
+	LTC2943_REG_TEMPERATURE_MSB	= 0x14,
+	LTC2943_REG_TEMPERATURE_LSB	= 0x15,
 };
 
-#define LTC2943_REG_CONTROL_MODE_MASK (BIT(7) | BIT(6))
-#define LTC2943_REG_CONTROL_MODE_SCAN BIT(7)
+enum ltc294x_id {
+	LTC2941_ID,
+	LTC2942_ID,
+	LTC2943_ID,
+	LTC2944_ID,
+};
+
+#define LTC2941_REG_STATUS_CHIP_ID	BIT(7)
+
+#define LTC2942_REG_CONTROL_MODE_SCAN	(BIT(7) | BIT(6))
+#define LTC2943_REG_CONTROL_MODE_SCAN	BIT(7)
 #define LTC294X_REG_CONTROL_PRESCALER_MASK	(BIT(5) | BIT(4) | BIT(3))
 #define LTC294X_REG_CONTROL_SHUTDOWN_MASK	(BIT(0))
 #define LTC294X_REG_CONTROL_PRESCALER_SET(x) \
 	((x << 3) & LTC294X_REG_CONTROL_PRESCALER_MASK)
 #define LTC294X_REG_CONTROL_ALCC_CONFIG_DISABLED	0
-
-#define LTC2941_NUM_REGS	0x08
-#define LTC2943_NUM_REGS	0x18
+#define LTC294X_REG_CONTROL_ADC_DISABLE(x)	((x) & ~(BIT(7) | BIT(6)))
 
 struct ltc294x_info {
 	struct i2c_client *client;	/* I2C Client pointer */
 	struct power_supply *supply;	/* Supply pointer */
 	struct power_supply_desc supply_desc;	/* Supply description */
 	struct delayed_work work;	/* Work scheduler */
-	int num_regs;	/* Number of registers (chip type) */
+	enum ltc294x_id id;		/* Chip type */
 	int charge;	/* Last charge register content */
 	int r_sense;	/* mOhm */
 	int Qlsb;	/* nAh */
@@ -144,9 +155,18 @@ static int ltc294x_reset(const struct ltc294x_info *info, int prescaler_exp)
 
 	control = LTC294X_REG_CONTROL_PRESCALER_SET(prescaler_exp) |
 				LTC294X_REG_CONTROL_ALCC_CONFIG_DISABLED;
-	/* Put the 2943 into "monitor" mode, so it measures every 10 sec */
-	if (info->num_regs == LTC2943_NUM_REGS)
+	/* Put device into "monitor" mode */
+	switch (info->id) {
+	case LTC2942_ID:	/* 2942 measures every 2 sec */
+		control |= LTC2942_REG_CONTROL_MODE_SCAN;
+		break;
+	case LTC2943_ID:
+	case LTC2944_ID:	/* 2943 and 2944 measure every 10 sec */
 		control |= LTC2943_REG_CONTROL_MODE_SCAN;
+		break;
+	default:
+		break;
+	}
 
 	if (value != control) {
 		ret = ltc294x_write_regs(info->client,
@@ -164,21 +184,22 @@ error_exit:
 	return ret;
 }
 
-static int ltc294x_read_charge_register(const struct ltc294x_info *info)
-{
+static int ltc294x_read_charge_register(const struct ltc294x_info *info,
+					enum ltc294x_reg reg)
+ {
 	int ret;
 	u8 datar[2];
 
-	ret = ltc294x_read_regs(info->client,
-		LTC294X_REG_ACC_CHARGE_MSB, &datar[0], 2);
+	ret = ltc294x_read_regs(info->client, reg, &datar[0], 2);
 	if (ret < 0)
 		return ret;
 	return (datar[0] << 8) + datar[1];
 }
 
-static int ltc294x_get_charge_now(const struct ltc294x_info *info, int *val)
+static int ltc294x_get_charge(const struct ltc294x_info *info,
+				enum ltc294x_reg reg, int *val)
 {
-	int value = ltc294x_read_charge_register(info);
+	int value = ltc294x_read_charge_register(info, reg);
 
 	if (value < 0)
 		return value;
@@ -230,10 +251,29 @@ error_exit:
 	return ret < 0 ? ret : 0;
 }
 
+static int ltc294x_set_charge_thr(const struct ltc294x_info *info,
+					enum ltc294x_reg reg, int val)
+{
+	u8 dataw[2];
+	s32 value;
+
+	value = convert_uAh_to_bin(info, val);
+	/* Direction depends on how sense+/- were connected */
+	if (info->Qlsb < 0)
+		value += 0xFFFF;
+	if ((value < 0) || (value > 0xFFFF)) /* input validation */
+		return -EINVAL;
+
+	/* Set new charge value */
+	dataw[0] = I16_MSB(value);
+	dataw[1] = I16_LSB(value);
+	return ltc294x_write_regs(info->client, reg, &dataw[0], 2);
+}
+
 static int ltc294x_get_charge_counter(
 	const struct ltc294x_info *info, int *val)
 {
-	int value = ltc294x_read_charge_register(info);
+	int value = ltc294x_read_charge_register(info, LTC294X_REG_ACC_CHARGE_MSB);
 
 	if (value < 0)
 		return value;
@@ -251,7 +291,24 @@ static int ltc294x_get_voltage(const struct ltc294x_info *info, int *val)
 	ret = ltc294x_read_regs(info->client,
 		LTC294X_REG_VOLTAGE_MSB, &datar[0], 2);
 	value = (datar[0] << 8) | datar[1];
-	*val = ((value * 23600) / 0xFFFF) * 1000; /* in uV */
+	switch (info->id) {
+	case LTC2943_ID:
+		value *= 23600 * 2;
+		value /= 0xFFFF;
+		value *= 1000 / 2;
+		break;
+	case LTC2944_ID:
+		value *= 70800 / 5*4;
+		value /= 0xFFFF;
+		value *= 1000 * 5/4;
+		break;
+	default:
+		value *= 6000 * 10;
+		value /= 0xFFFF;
+		value *= 1000 / 10;
+		break;
+	}
+	*val = value;
 	return ret;
 }
 
@@ -262,27 +319,38 @@ static int ltc294x_get_current(const struct ltc294x_info *info, int *val)
 	s32 value;
 
 	ret = ltc294x_read_regs(info->client,
-		LTC294X_REG_CURRENT_MSB, &datar[0], 2);
+		LTC2943_REG_CURRENT_MSB, &datar[0], 2);
 	value = (datar[0] << 8) | datar[1];
 	value -= 0x7FFF;
+	if (info->id == LTC2944_ID)
+		value *= 64000;
+	else
+		value *= 60000;
 	/* Value is in range -32k..+32k, r_sense is usually 10..50 mOhm,
 	 * the formula below keeps everything in s32 range while preserving
 	 * enough digits */
-	*val = 1000 * ((60000 * value) / (info->r_sense * 0x7FFF)); /* in uA */
+	*val = 1000 * (value / (info->r_sense * 0x7FFF)); /* in uA */
 	return ret;
 }
 
 static int ltc294x_get_temperature(const struct ltc294x_info *info, int *val)
 {
+	enum ltc294x_reg reg;
 	int ret;
 	u8 datar[2];
 	u32 value;
 
-	ret = ltc294x_read_regs(info->client,
-		LTC294X_REG_TEMPERATURE_MSB, &datar[0], 2);
-	value = (datar[0] << 8) | datar[1];
-	/* Full-scale is 510 Kelvin, convert to centidegrees  */
-	*val = (((51000 * value) / 0xFFFF) - 27215);
+	if (info->id == LTC2942_ID) {
+		reg = LTC2942_REG_TEMPERATURE_MSB;
+		value = 6000;	/* Full-scale is 600 Kelvin */
+	} else {
+		reg = LTC2943_REG_TEMPERATURE_MSB;
+		value = 5100;	/* Full-scale is 510 Kelvin */
+	}
+	ret = ltc294x_read_regs(info->client, reg, &datar[0], 2);
+	value *= (datar[0] << 8) | datar[1];
+	/* Convert to tenths of degree Celsius */
+	*val = value / 0xFFFF - 2722;
 	return ret;
 }
 
@@ -293,8 +361,15 @@ static int ltc294x_get_property(struct power_supply *psy,
 	struct ltc294x_info *info = power_supply_get_drvdata(psy);
 
 	switch (prop) {
+	case POWER_SUPPLY_PROP_CHARGE_FULL:
+		return ltc294x_get_charge(info, LTC294X_REG_CHARGE_THR_HIGH_MSB,
+						&val->intval);
+	case POWER_SUPPLY_PROP_CHARGE_EMPTY:
+		return ltc294x_get_charge(info, LTC294X_REG_CHARGE_THR_LOW_MSB,
+						&val->intval);
 	case POWER_SUPPLY_PROP_CHARGE_NOW:
-		return ltc294x_get_charge_now(info, &val->intval);
+		return ltc294x_get_charge(info, LTC294X_REG_ACC_CHARGE_MSB,
+						&val->intval);
 	case POWER_SUPPLY_PROP_CHARGE_COUNTER:
 		return ltc294x_get_charge_counter(info, &val->intval);
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
@@ -315,6 +390,12 @@ static int ltc294x_set_property(struct power_supply *psy,
 	struct ltc294x_info *info = power_supply_get_drvdata(psy);
 
 	switch (psp) {
+	case POWER_SUPPLY_PROP_CHARGE_FULL:
+		return ltc294x_set_charge_thr(info,
+			LTC294X_REG_CHARGE_THR_HIGH_MSB, val->intval);
+	case POWER_SUPPLY_PROP_CHARGE_EMPTY:
+		return ltc294x_set_charge_thr(info,
+			LTC294X_REG_CHARGE_THR_LOW_MSB, val->intval);
 	case POWER_SUPPLY_PROP_CHARGE_NOW:
 		return ltc294x_set_charge_now(info, val->intval);
 	default:
@@ -326,6 +407,8 @@ static int ltc294x_property_is_writeable(
 	struct power_supply *psy, enum power_supply_property psp)
 {
 	switch (psp) {
+	case POWER_SUPPLY_PROP_CHARGE_FULL:
+	case POWER_SUPPLY_PROP_CHARGE_EMPTY:
 	case POWER_SUPPLY_PROP_CHARGE_NOW:
 		return 1;
 	default:
@@ -335,7 +418,7 @@ static int ltc294x_property_is_writeable(
 
 static void ltc294x_update(struct ltc294x_info *info)
 {
-	int charge = ltc294x_read_charge_register(info);
+	int charge = ltc294x_read_charge_register(info, LTC294X_REG_ACC_CHARGE_MSB);
 
 	if (charge != info->charge) {
 		info->charge = charge;
@@ -354,10 +437,12 @@ static void ltc294x_work(struct work_struct *work)
 
 static enum power_supply_property ltc294x_properties[] = {
 	POWER_SUPPLY_PROP_CHARGE_COUNTER,
+	POWER_SUPPLY_PROP_CHARGE_FULL,
+	POWER_SUPPLY_PROP_CHARGE_EMPTY,
 	POWER_SUPPLY_PROP_CHARGE_NOW,
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
-	POWER_SUPPLY_PROP_CURRENT_NOW,
 	POWER_SUPPLY_PROP_TEMP,
+	POWER_SUPPLY_PROP_CURRENT_NOW,
 };
 
 static int ltc294x_i2c_remove(struct i2c_client *client)
@@ -374,10 +459,11 @@ static int ltc294x_i2c_probe(struct i2c_client *client,
 {
 	struct power_supply_config psy_cfg = {};
 	struct ltc294x_info *info;
+	struct device_node *np;
 	int ret;
 	u32 prescaler_exp;
 	s32 r_sense;
-	struct device_node *np;
+	u8 status;
 
 	info = devm_kzalloc(&client->dev, sizeof(*info), GFP_KERNEL);
 	if (info == NULL)
@@ -387,7 +473,7 @@ static int ltc294x_i2c_probe(struct i2c_client *client,
 
 	np = of_node_get(client->dev.of_node);
 
-	info->num_regs = id->driver_data;
+	info->id = (enum ltc294x_id)of_device_get_match_data(&client->dev);
 	info->supply_desc.name = np->name;
 
 	/* r_sense can be negative, when sense+ is connected to the battery
@@ -408,7 +494,7 @@ static int ltc294x_i2c_probe(struct i2c_client *client,
 		prescaler_exp = LTC2941_MAX_PRESCALER_EXP;
 	}
 
-	if (info->num_regs == LTC2943_NUM_REGS) {
+	if (info->id == LTC2943_ID) {
 		if (prescaler_exp > LTC2943_MAX_PRESCALER_EXP)
 			prescaler_exp = LTC2943_MAX_PRESCALER_EXP;
 		info->Qlsb = ((340 * 50000) / r_sense) /
@@ -420,21 +506,39 @@ static int ltc294x_i2c_probe(struct i2c_client *client,
 				(128 / (1 << prescaler_exp));
 	}
 
+	/* Read status register to check for LTC2942 */
+	if (info->id == LTC2941_ID || info->id == LTC2942_ID) {
+		ret = ltc294x_read_regs(client, LTC294X_REG_STATUS, &status, 1);
+		if (ret < 0) {
+			dev_err(&client->dev,
+				"Could not read status register\n");
+			return ret;
+		}
+		if (status & LTC2941_REG_STATUS_CHIP_ID)
+			info->id = LTC2941_ID;
+		else
+			info->id = LTC2942_ID;
+	}
+
 	info->client = client;
 	info->supply_desc.type = POWER_SUPPLY_TYPE_BATTERY;
 	info->supply_desc.properties = ltc294x_properties;
-	if (info->num_regs >= LTC294X_REG_TEMPERATURE_LSB)
+	switch (info->id) {
+	case LTC2944_ID:
+	case LTC2943_ID:
 		info->supply_desc.num_properties =
 			ARRAY_SIZE(ltc294x_properties);
-	else if (info->num_regs >= LTC294X_REG_CURRENT_LSB)
+		break;
+	case LTC2942_ID:
 		info->supply_desc.num_properties =
 			ARRAY_SIZE(ltc294x_properties) - 1;
-	else if (info->num_regs >= LTC294X_REG_VOLTAGE_LSB)
-		info->supply_desc.num_properties =
-			ARRAY_SIZE(ltc294x_properties) - 2;
-	else
+		break;
+	case LTC2941_ID:
+	default:
 		info->supply_desc.num_properties =
 			ARRAY_SIZE(ltc294x_properties) - 3;
+		break;
+	}
 	info->supply_desc.get_property = ltc294x_get_property;
 	info->supply_desc.set_property = ltc294x_set_property;
 	info->supply_desc.property_is_writeable = ltc294x_property_is_writeable;
@@ -460,6 +564,29 @@ static int ltc294x_i2c_probe(struct i2c_client *client,
 	}
 
 	return 0;
+}
+
+static void ltc294x_i2c_shutdown(struct i2c_client *client)
+{
+	struct ltc294x_info *info = i2c_get_clientdata(client);
+	int ret;
+	u8 value;
+	u8 control;
+
+	/* The LTC2941 does not need any special handling */
+	if (info->id == LTC2941_ID)
+		return;
+
+	/* Read control register */
+	ret = ltc294x_read_regs(info->client, LTC294X_REG_CONTROL, &value, 1);
+	if (ret < 0)
+		return;
+
+	/* Disable continuous ADC conversion as this drains the battery */
+	control = LTC294X_REG_CONTROL_ADC_DISABLE(value);
+	if (control != value)
+		ltc294x_write_regs(info->client, LTC294X_REG_CONTROL,
+			&control, 1);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -491,24 +618,49 @@ static SIMPLE_DEV_PM_OPS(ltc294x_pm_ops, ltc294x_suspend, ltc294x_resume);
 
 
 static const struct i2c_device_id ltc294x_i2c_id[] = {
-	{"ltc2941", LTC2941_NUM_REGS},
-	{"ltc2943", LTC2943_NUM_REGS},
+	{ "ltc2941", LTC2941_ID, },
+	{ "ltc2942", LTC2942_ID, },
+	{ "ltc2943", LTC2943_ID, },
+	{ "ltc2944", LTC2944_ID, },
 	{ },
 };
 MODULE_DEVICE_TABLE(i2c, ltc294x_i2c_id);
 
+static const struct of_device_id ltc294x_i2c_of_match[] = {
+	{
+		.compatible = "lltc,ltc2941",
+		.data = (void *)LTC2941_ID,
+	},
+	{
+		.compatible = "lltc,ltc2942",
+		.data = (void *)LTC2942_ID,
+	},
+	{
+		.compatible = "lltc,ltc2943",
+		.data = (void *)LTC2943_ID,
+	},
+	{
+		.compatible = "lltc,ltc2944",
+		.data = (void *)LTC2944_ID,
+	},
+	{ },
+};
+MODULE_DEVICE_TABLE(of, ltc294x_i2c_of_match);
+
 static struct i2c_driver ltc294x_driver = {
 	.driver = {
 		.name	= "LTC2941",
+		.of_match_table = ltc294x_i2c_of_match,
 		.pm	= LTC294X_PM_OPS,
 	},
 	.probe		= ltc294x_i2c_probe,
 	.remove		= ltc294x_i2c_remove,
+	.shutdown	= ltc294x_i2c_shutdown,
 	.id_table	= ltc294x_i2c_id,
 };
 module_i2c_driver(ltc294x_driver);
 
 MODULE_AUTHOR("Auryn Verwegen, Topic Embedded Systems");
 MODULE_AUTHOR("Mike Looijmans, Topic Embedded Products");
-MODULE_DESCRIPTION("LTC2941/LTC2943 Battery Gas Gauge IC driver");
+MODULE_DESCRIPTION("LTC2941/LTC2942/LTC2943/LTC2944 Battery Gas Gauge IC driver");
 MODULE_LICENSE("GPL");

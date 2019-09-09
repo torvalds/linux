@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Common support for CompuLab SB-T35 used on SBC-T3530, SBC-T3517 and SBC-T3730
  */
@@ -33,7 +34,7 @@
 		};
 	};
 
-	dvi0: connector {
+	dvi0: dvi-connector {
 		compatible = "dvi-connector";
 		label = "dvi";
 
@@ -50,7 +51,6 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&sb_t35_audio_amp>;
 		gpio = <&gpio2 29 GPIO_ACTIVE_LOW>;   /* gpio_61 */
-		enable-active-low;
 		regulator-always-on;
 	};
 };
@@ -90,7 +90,7 @@
 	clock-frequency = <400000>;
 
 	at24@50 {
-		compatible = "at24,24c02";
+		compatible = "atmel,24c02";
 		pagesize = <16>;
 		reg = <0x50>;
 	};

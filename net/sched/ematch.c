@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * net/sched/ematch.c		Extended Match API
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  *
  * Authors:	Thomas Graf <tgraf@suug.ch>
  *
@@ -178,7 +174,7 @@ static int tcf_em_validate(struct tcf_proto *tp,
 	struct tcf_ematch_hdr *em_hdr = nla_data(nla);
 	int data_len = nla_len(nla) - sizeof(*em_hdr);
 	void *data = (void *) em_hdr + sizeof(*em_hdr);
-	struct net *net = dev_net(qdisc_dev(tp->q));
+	struct net *net = tp->chain->block->net;
 
 	if (!TCF_EM_REL_VALID(em_hdr->flags))
 		goto errout;
@@ -314,7 +310,8 @@ int tcf_em_tree_validate(struct tcf_proto *tp, struct nlattr *nla,
 	if (!nla)
 		return 0;
 
-	err = nla_parse_nested(tb, TCA_EMATCH_TREE_MAX, nla, em_policy);
+	err = nla_parse_nested_deprecated(tb, TCA_EMATCH_TREE_MAX, nla,
+					  em_policy, NULL);
 	if (err < 0)
 		goto errout;
 
@@ -440,14 +437,14 @@ int tcf_em_tree_dump(struct sk_buff *skb, struct tcf_ematch_tree *tree, int tlv)
 	struct nlattr *top_start;
 	struct nlattr *list_start;
 
-	top_start = nla_nest_start(skb, tlv);
+	top_start = nla_nest_start_noflag(skb, tlv);
 	if (top_start == NULL)
 		goto nla_put_failure;
 
 	if (nla_put(skb, TCA_EMATCH_TREE_HDR, sizeof(tree->hdr), &tree->hdr))
 		goto nla_put_failure;
 
-	list_start = nla_nest_start(skb, TCA_EMATCH_TREE_LIST);
+	list_start = nla_nest_start_noflag(skb, TCA_EMATCH_TREE_LIST);
 	if (list_start == NULL)
 		goto nla_put_failure;
 

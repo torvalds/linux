@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Atmel AT42QT1070 QTouch Sensor Controller
  *
@@ -8,20 +9,6 @@
  *  Base on AT42QT2160 driver by:
  *  Raphael Derosso Pereira <raphaelpereira@gmail.com>
  *  Copyright (C) 2009
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -274,9 +261,18 @@ static const struct i2c_device_id qt1070_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, qt1070_id);
 
+#ifdef CONFIG_OF
+static const struct of_device_id qt1070_of_match[] = {
+	{ .compatible = "qt1070", },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, qt1070_of_match);
+#endif
+
 static struct i2c_driver qt1070_driver = {
 	.driver	= {
 		.name	= "qt1070",
+		.of_match_table = of_match_ptr(qt1070_of_match),
 		.pm	= &qt1070_pm_ops,
 	},
 	.id_table	= qt1070_id,

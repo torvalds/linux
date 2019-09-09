@@ -1,8 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  *
  * Copyright Tomi Manninen OH2BNS (oh2bns@sral.fi)
  */
@@ -15,10 +12,10 @@
 #include <net/netrom.h>
 #include <linux/init.h>
 
-static void nr_loopback_timer(unsigned long);
+static void nr_loopback_timer(struct timer_list *);
 
 static struct sk_buff_head loopback_queue;
-static DEFINE_TIMER(loopback_timer, nr_loopback_timer, 0, 0);
+static DEFINE_TIMER(loopback_timer, nr_loopback_timer);
 
 void __init nr_loopback_init(void)
 {
@@ -48,7 +45,7 @@ int nr_loopback_queue(struct sk_buff *skb)
 	return 1;
 }
 
-static void nr_loopback_timer(unsigned long param)
+static void nr_loopback_timer(struct timer_list *unused)
 {
 	struct sk_buff *skb;
 	ax25_address *nr_dest;
@@ -70,7 +67,7 @@ static void nr_loopback_timer(unsigned long param)
 	}
 }
 
-void __exit nr_loopback_clear(void)
+void nr_loopback_clear(void)
 {
 	del_timer_sync(&loopback_timer);
 	skb_queue_purge(&loopback_queue);

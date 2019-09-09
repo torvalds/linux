@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * List of cgroup subsystems.
  *
@@ -54,6 +55,10 @@ SUBSYS(hugetlb)
 
 #if IS_ENABLED(CONFIG_CGROUP_PIDS)
 SUBSYS(pids)
+#endif
+
+#if IS_ENABLED(CONFIG_CGROUP_RDMA)
+SUBSYS(rdma)
 #endif
 
 /*

@@ -1,19 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Low Level Transport (NDLC) Driver for STMicroelectronics NFC Chip
  *
  * Copyright (C) 2014-2015  STMicroelectronics SAS. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/sched.h>
@@ -87,7 +76,7 @@ int ndlc_send(struct llt_ndlc *ndlc, struct sk_buff *skb)
 	u8 pcb = PCB_TYPE_DATAFRAME | PCB_DATAFRAME_RETRANSMIT_NO |
 		PCB_FRAME_CRC_INFO_NOTPRESENT;
 
-	*skb_push(skb, 1) = pcb;
+	*(u8 *)skb_push(skb, 1) = pcb;
 	skb_queue_tail(&ndlc->send_q, skb);
 
 	schedule_work(&ndlc->sm_work);
@@ -246,18 +235,18 @@ void ndlc_recv(struct llt_ndlc *ndlc, struct sk_buff *skb)
 }
 EXPORT_SYMBOL(ndlc_recv);
 
-static void ndlc_t1_timeout(unsigned long data)
+static void ndlc_t1_timeout(struct timer_list *t)
 {
-	struct llt_ndlc *ndlc = (struct llt_ndlc *)data;
+	struct llt_ndlc *ndlc = from_timer(ndlc, t, t1_timer);
 
 	pr_debug("\n");
 
 	schedule_work(&ndlc->sm_work);
 }
 
-static void ndlc_t2_timeout(unsigned long data)
+static void ndlc_t2_timeout(struct timer_list *t)
 {
-	struct llt_ndlc *ndlc = (struct llt_ndlc *)data;
+	struct llt_ndlc *ndlc = from_timer(ndlc, t, t2_timer);
 
 	pr_debug("\n");
 
@@ -282,13 +271,8 @@ int ndlc_probe(void *phy_id, struct nfc_phy_ops *phy_ops, struct device *dev,
 	*ndlc_id = ndlc;
 
 	/* initialize timers */
-	init_timer(&ndlc->t1_timer);
-	ndlc->t1_timer.data = (unsigned long)ndlc;
-	ndlc->t1_timer.function = ndlc_t1_timeout;
-
-	init_timer(&ndlc->t2_timer);
-	ndlc->t2_timer.data = (unsigned long)ndlc;
-	ndlc->t2_timer.function = ndlc_t2_timeout;
+	timer_setup(&ndlc->t1_timer, ndlc_t1_timeout, 0);
+	timer_setup(&ndlc->t2_timer, ndlc_t2_timeout, 0);
 
 	skb_queue_head_init(&ndlc->rcv_q);
 	skb_queue_head_init(&ndlc->send_q);

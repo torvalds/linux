@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/io.h>
@@ -67,6 +68,7 @@ void __init imx_aips_allow_unprivileged_access(
 
 	for_each_compatible_node(np, NULL, compat) {
 		aips_base_addr = of_iomap(np, 0);
+		WARN_ON(!aips_base_addr);
 		imx_set_aips(aips_base_addr);
 	}
 }
@@ -131,8 +133,20 @@ struct device * __init imx_soc_device_init(void)
 	case MXC_CPU_IMX6UL:
 		soc_id = "i.MX6UL";
 		break;
+	case MXC_CPU_IMX6ULL:
+		soc_id = "i.MX6ULL";
+		break;
+	case MXC_CPU_IMX6ULZ:
+		soc_id = "i.MX6ULZ";
+		break;
+	case MXC_CPU_IMX6SLL:
+		soc_id = "i.MX6SLL";
+		break;
 	case MXC_CPU_IMX7D:
 		soc_id = "i.MX7D";
+		break;
+	case MXC_CPU_IMX7ULP:
+		soc_id = "i.MX7ULP";
 		break;
 	default:
 		soc_id = "Unknown";

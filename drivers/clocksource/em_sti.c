@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Emma Mobile Timer Support - STI
  *
  *  Copyright (C) 2012 Magnus Damm
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/init.h>
@@ -78,14 +66,11 @@ static int em_sti_enable(struct em_sti_priv *p)
 	int ret;
 
 	/* enable clock */
-	ret = clk_prepare_enable(p->clk);
+	ret = clk_enable(p->clk);
 	if (ret) {
 		dev_err(&p->pdev->dev, "cannot enable clock\n");
 		return ret;
 	}
-
-	/* configure channel, periodic mode and maximum timeout */
-	p->rate = clk_get_rate(p->clk);
 
 	/* reset the counter */
 	em_sti_write(p, STI_SET_H, 0x40000000);
@@ -107,12 +92,12 @@ static void em_sti_disable(struct em_sti_priv *p)
 	em_sti_write(p, STI_INTENCLR, 3);
 
 	/* stop clock */
-	clk_disable_unprepare(p->clk);
+	clk_disable(p->clk);
 }
 
-static cycle_t em_sti_count(struct em_sti_priv *p)
+static u64 em_sti_count(struct em_sti_priv *p)
 {
-	cycle_t ticks;
+	u64 ticks;
 	unsigned long flags;
 
 	/* the STI hardware buffers the 48-bit count, but to
@@ -121,14 +106,14 @@ static cycle_t em_sti_count(struct em_sti_priv *p)
 	 * Always read STI_COUNT_H before STI_COUNT_L.
 	 */
 	raw_spin_lock_irqsave(&p->lock, flags);
-	ticks = (cycle_t)(em_sti_read(p, STI_COUNT_H) & 0xffff) << 32;
+	ticks = (u64)(em_sti_read(p, STI_COUNT_H) & 0xffff) << 32;
 	ticks |= em_sti_read(p, STI_COUNT_L);
 	raw_spin_unlock_irqrestore(&p->lock, flags);
 
 	return ticks;
 }
 
-static cycle_t em_sti_set_next(struct em_sti_priv *p, cycle_t next)
+static u64 em_sti_set_next(struct em_sti_priv *p, u64 next)
 {
 	unsigned long flags;
 
@@ -198,20 +183,16 @@ static struct em_sti_priv *cs_to_em_sti(struct clocksource *cs)
 	return container_of(cs, struct em_sti_priv, cs);
 }
 
-static cycle_t em_sti_clocksource_read(struct clocksource *cs)
+static u64 em_sti_clocksource_read(struct clocksource *cs)
 {
 	return em_sti_count(cs_to_em_sti(cs));
 }
 
 static int em_sti_clocksource_enable(struct clocksource *cs)
 {
-	int ret;
 	struct em_sti_priv *p = cs_to_em_sti(cs);
 
-	ret = em_sti_start(p, USER_CLOCKSOURCE);
-	if (!ret)
-		__clocksource_update_freq_hz(cs, p->rate);
-	return ret;
+	return em_sti_start(p, USER_CLOCKSOURCE);
 }
 
 static void em_sti_clocksource_disable(struct clocksource *cs)
@@ -240,8 +221,7 @@ static int em_sti_register_clocksource(struct em_sti_priv *p)
 
 	dev_info(&p->pdev->dev, "used as clock source\n");
 
-	/* Register with dummy 1 Hz value, gets updated in ->enable() */
-	clocksource_register_hz(cs, 1);
+	clocksource_register_hz(cs, p->rate);
 	return 0;
 }
 
@@ -263,7 +243,6 @@ static int em_sti_clock_event_set_oneshot(struct clock_event_device *ced)
 
 	dev_info(&p->pdev->dev, "used for oneshot clock events\n");
 	em_sti_start(p, USER_CLOCKEVENT);
-	clockevents_config(&p->ced, p->rate);
 	return 0;
 }
 
@@ -271,7 +250,7 @@ static int em_sti_clock_event_next(unsigned long delta,
 				   struct clock_event_device *ced)
 {
 	struct em_sti_priv *p = ced_to_em_sti(ced);
-	cycle_t next;
+	u64 next;
 	int safe;
 
 	next = em_sti_set_next(p, em_sti_count(p) + delta);
@@ -294,8 +273,7 @@ static void em_sti_register_clockevent(struct em_sti_priv *p)
 
 	dev_info(&p->pdev->dev, "used for clock events\n");
 
-	/* Register with dummy 1 Hz value, gets updated in ->set_state_oneshot() */
-	clockevents_config_and_register(ced, 1, 2, 0xffffffff);
+	clockevents_config_and_register(ced, p->rate, 2, 0xffffffff);
 }
 
 static int em_sti_probe(struct platform_device *pdev)
@@ -303,6 +281,7 @@ static int em_sti_probe(struct platform_device *pdev)
 	struct em_sti_priv *p;
 	struct resource *res;
 	int irq;
+	int ret;
 
 	p = devm_kzalloc(&pdev->dev, sizeof(*p), GFP_KERNEL);
 	if (p == NULL)
@@ -314,7 +293,7 @@ static int em_sti_probe(struct platform_device *pdev)
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
 		dev_err(&pdev->dev, "failed to get irq\n");
-		return -EINVAL;
+		return irq;
 	}
 
 	/* map memory, let base point to the STI instance */
@@ -323,6 +302,14 @@ static int em_sti_probe(struct platform_device *pdev)
 	if (IS_ERR(p->base))
 		return PTR_ERR(p->base);
 
+	ret = devm_request_irq(&pdev->dev, irq, em_sti_interrupt,
+			       IRQF_TIMER | IRQF_IRQPOLL | IRQF_NOBALANCING,
+			       dev_name(&pdev->dev), p);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to request low IRQ\n");
+		return ret;
+	}
+
 	/* get hold of clock */
 	p->clk = devm_clk_get(&pdev->dev, "sclk");
 	if (IS_ERR(p->clk)) {
@@ -330,12 +317,20 @@ static int em_sti_probe(struct platform_device *pdev)
 		return PTR_ERR(p->clk);
 	}
 
-	if (devm_request_irq(&pdev->dev, irq, em_sti_interrupt,
-			     IRQF_TIMER | IRQF_IRQPOLL | IRQF_NOBALANCING,
-			     dev_name(&pdev->dev), p)) {
-		dev_err(&pdev->dev, "failed to request low IRQ\n");
-		return -ENOENT;
+	ret = clk_prepare(p->clk);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "cannot prepare clock\n");
+		return ret;
 	}
+
+	ret = clk_enable(p->clk);
+	if (ret < 0) {
+		dev_err(&p->pdev->dev, "cannot enable clock\n");
+		clk_unprepare(p->clk);
+		return ret;
+	}
+	p->rate = clk_get_rate(p->clk);
+	clk_disable(p->clk);
 
 	raw_spin_lock_init(&p->lock);
 	em_sti_register_clockevent(p);

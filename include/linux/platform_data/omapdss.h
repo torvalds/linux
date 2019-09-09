@@ -1,10 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (C) 2016 Texas Instruments, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #ifndef __OMAPDSS_PDATA_H
@@ -27,7 +23,6 @@ enum omapdss_version {
 
 /* Board specific data */
 struct omap_dss_board_info {
-	const char *default_display_name;
 	int (*dsi_enable_pads)(int dsi_id, unsigned int lane_mask);
 	void (*dsi_disable_pads)(int dsi_id, unsigned int lane_mask);
 	int (*set_min_bus_tput)(struct device *dev, unsigned long r);

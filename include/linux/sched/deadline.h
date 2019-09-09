@@ -1,5 +1,4 @@
-#ifndef _SCHED_DEADLINE_H
-#define _SCHED_DEADLINE_H
+/* SPDX-License-Identifier: GPL-2.0 */
 
 /*
  * SCHED_DEADLINE tasks has negative priorities, reflecting
@@ -25,5 +24,3 @@ static inline bool dl_time_before(u64 a, u64 b)
 {
 	return (s64)(a - b) < 0;
 }
-
-#endif /* _SCHED_DEADLINE_H */

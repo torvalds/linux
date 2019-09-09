@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * super.c
  *
@@ -73,15 +74,9 @@ static struct inode *efs_alloc_inode(struct super_block *sb)
 	return &ei->vfs_inode;
 }
 
-static void efs_i_callback(struct rcu_head *head)
+static void efs_free_inode(struct inode *inode)
 {
-	struct inode *inode = container_of(head, struct inode, i_rcu);
 	kmem_cache_free(efs_inode_cachep, INODE_INFO(inode));
-}
-
-static void efs_destroy_inode(struct inode *inode)
-{
-	call_rcu(&inode->i_rcu, efs_i_callback);
 }
 
 static void init_once(void *foo)
@@ -115,13 +110,13 @@ static void destroy_inodecache(void)
 static int efs_remount(struct super_block *sb, int *flags, char *data)
 {
 	sync_filesystem(sb);
-	*flags |= MS_RDONLY;
+	*flags |= SB_RDONLY;
 	return 0;
 }
 
 static const struct super_operations efs_superblock_operations = {
 	.alloc_inode	= efs_alloc_inode,
-	.destroy_inode	= efs_destroy_inode,
+	.free_inode	= efs_free_inode,
 	.statfs		= efs_statfs,
 	.remount_fs	= efs_remount,
 };
@@ -306,11 +301,11 @@ static int efs_fill_super(struct super_block *s, void *d, int silent)
 	}
 	brelse(bh);
 
-	if (!(s->s_flags & MS_RDONLY)) {
+	if (!sb_rdonly(s)) {
 #ifdef DEBUG
 		pr_info("forcing read-only mode\n");
 #endif
-		s->s_flags |= MS_RDONLY;
+		s->s_flags |= SB_RDONLY;
 	}
 	s->s_op   = &efs_superblock_operations;
 	s->s_export_op = &efs_export_ops;

@@ -1,28 +1,18 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2013-2014, NVIDIA CORPORATION.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
  */
 
 #include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/kobject.h>
-#include <linux/module.h>
-#include <linux/platform_device.h>
+#include <linux/init.h>
+#include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/io.h>
+#include <linux/platform_device.h>
+#include <linux/slab.h>
+#include <linux/sys_soc.h>
 
 #include <soc/tegra/common.h>
 #include <soc/tegra/fuse.h>
@@ -101,6 +91,9 @@ static struct tegra_fuse *fuse = &(struct tegra_fuse) {
 };
 
 static const struct of_device_id tegra_fuse_match[] = {
+#ifdef CONFIG_ARCH_TEGRA_186_SOC
+	{ .compatible = "nvidia,tegra186-efuse", .data = &tegra186_fuse_soc },
+#endif
 #ifdef CONFIG_ARCH_TEGRA_210_SOC
 	{ .compatible = "nvidia,tegra210-efuse", .data = &tegra210_fuse_soc },
 #endif
@@ -130,14 +123,21 @@ static int tegra_fuse_probe(struct platform_device *pdev)
 
 	/* take over the memory region from the early initialization */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	fuse->phys = res->start;
 	fuse->base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(fuse->base))
-		return PTR_ERR(fuse->base);
+	if (IS_ERR(fuse->base)) {
+		err = PTR_ERR(fuse->base);
+		fuse->base = base;
+		return err;
+	}
 
 	fuse->clk = devm_clk_get(&pdev->dev, "fuse");
 	if (IS_ERR(fuse->clk)) {
-		dev_err(&pdev->dev, "failed to get FUSE clock: %ld",
-			PTR_ERR(fuse->clk));
+		if (PTR_ERR(fuse->clk) != -EPROBE_DEFER)
+			dev_err(&pdev->dev, "failed to get FUSE clock: %ld",
+				PTR_ERR(fuse->clk));
+
+		fuse->base = base;
 		return PTR_ERR(fuse->clk);
 	}
 
@@ -146,8 +146,10 @@ static int tegra_fuse_probe(struct platform_device *pdev)
 
 	if (fuse->soc->probe) {
 		err = fuse->soc->probe(fuse);
-		if (err < 0)
+		if (err < 0) {
+			fuse->base = base;
 			return err;
+		}
 	}
 
 	if (tegra_fuse_create_sysfs(&pdev->dev, fuse->soc->info->size,
@@ -168,7 +170,7 @@ static struct platform_driver tegra_fuse_driver = {
 	},
 	.probe = tegra_fuse_probe,
 };
-module_platform_driver(tegra_fuse_driver);
+builtin_platform_driver(tegra_fuse_driver);
 
 bool __init tegra_fuse_read_spare(unsigned int spare)
 {
@@ -208,6 +210,31 @@ static void tegra_enable_fuse_clk(void __iomem *base)
 	reg = readl(base + 0x14);
 	reg |= 1 << 7;
 	writel(reg, base + 0x14);
+}
+
+struct device * __init tegra_soc_device_register(void)
+{
+	struct soc_device_attribute *attr;
+	struct soc_device *dev;
+
+	attr = kzalloc(sizeof(*attr), GFP_KERNEL);
+	if (!attr)
+		return NULL;
+
+	attr->family = kasprintf(GFP_KERNEL, "Tegra");
+	attr->revision = kasprintf(GFP_KERNEL, "%d", tegra_sku_info.revision);
+	attr->soc_id = kasprintf(GFP_KERNEL, "%u", tegra_get_chip_id());
+
+	dev = soc_device_register(attr);
+	if (IS_ERR(dev)) {
+		kfree(attr->soc_id);
+		kfree(attr->revision);
+		kfree(attr->family);
+		kfree(attr);
+		return ERR_CAST(dev);
+	}
+
+	return soc_device_to_device(dev);
 }
 
 static int __init tegra_init_fuse(void)
@@ -311,6 +338,31 @@ static int __init tegra_init_fuse(void)
 	pr_debug("Tegra CPU Speedo ID %d, SoC Speedo ID %d\n",
 		 tegra_sku_info.cpu_speedo_id, tegra_sku_info.soc_speedo_id);
 
+
 	return 0;
 }
 early_initcall(tegra_init_fuse);
+
+#ifdef CONFIG_ARM64
+static int __init tegra_init_soc(void)
+{
+	struct device_node *np;
+	struct device *soc;
+
+	/* make sure we're running on Tegra */
+	np = of_find_matching_node(NULL, tegra_fuse_match);
+	if (!np)
+		return 0;
+
+	of_node_put(np);
+
+	soc = tegra_soc_device_register();
+	if (IS_ERR(soc)) {
+		pr_err("failed to register SoC device: %ld\n", PTR_ERR(soc));
+		return PTR_ERR(soc);
+	}
+
+	return 0;
+}
+device_initcall(tegra_init_soc);
+#endif

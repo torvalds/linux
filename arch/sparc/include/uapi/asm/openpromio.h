@@ -1,9 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef	_SPARC_OPENPROMIO_H
 #define	_SPARC_OPENPROMIO_H
 
 #include <linux/compiler.h>
 #include <linux/ioctl.h>
-#include <linux/types.h>
 
 /*
  * SunOS and Solaris /dev/openprom definitions. The ioctl values
@@ -12,7 +12,7 @@
 
 struct openpromio
 {
-	u_int	oprom_size;		/* Actual size of the oprom_array. */
+	unsigned int oprom_size;	/* Actual size of the oprom_array. */
 	char	oprom_array[1];		/* Holds property names and values. */
 };
 

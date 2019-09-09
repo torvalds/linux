@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Intel SOC Punit device state debug driver
  * Punit controls power management for North Complex devices (Graphics
  * blocks, Image Signal Processing, video processing, display, DSP etc.)
  *
  * Copyright (c) 2015, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
  */
 
 #include <linux/module.h>
@@ -109,39 +100,16 @@ static int punit_dev_state_show(struct seq_file *seq_file, void *unused)
 
 	return 0;
 }
-
-static int punit_dev_state_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, punit_dev_state_show, inode->i_private);
-}
-
-static const struct file_operations punit_dev_state_ops = {
-	.open		= punit_dev_state_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(punit_dev_state);
 
 static struct dentry *punit_dbg_file;
 
-static int punit_dbgfs_register(struct punit_device *punit_device)
+static void punit_dbgfs_register(struct punit_device *punit_device)
 {
-	static struct dentry *dev_state;
-
 	punit_dbg_file = debugfs_create_dir("punit_atom", NULL);
-	if (!punit_dbg_file)
-		return -ENXIO;
 
-	dev_state = debugfs_create_file("dev_power_state", S_IFREG | S_IRUGO,
-					punit_dbg_file, punit_device,
-					&punit_dev_state_ops);
-	if (!dev_state) {
-		pr_err("punit_dev_state register failed\n");
-		debugfs_remove(punit_dbg_file);
-		return -ENXIO;
-	}
-
-	return 0;
+	debugfs_create_file("dev_power_state", 0444, punit_dbg_file,
+			    punit_device, &punit_dev_state_fops);
 }
 
 static void punit_dbgfs_unregister(void)
@@ -154,8 +122,8 @@ static void punit_dbgfs_unregister(void)
 	  (kernel_ulong_t)&drv_data }
 
 static const struct x86_cpu_id intel_punit_cpu_ids[] = {
-	ICPU(INTEL_FAM6_ATOM_SILVERMONT1, punit_device_byt),
-	ICPU(INTEL_FAM6_ATOM_MERRIFIELD,  punit_device_tng),
+	ICPU(INTEL_FAM6_ATOM_SILVERMONT, punit_device_byt),
+	ICPU(INTEL_FAM6_ATOM_SILVERMONT_MID,  punit_device_tng),
 	ICPU(INTEL_FAM6_ATOM_AIRMONT,	  punit_device_cht),
 	{}
 };
@@ -165,15 +133,12 @@ MODULE_DEVICE_TABLE(x86cpu, intel_punit_cpu_ids);
 static int __init punit_atom_debug_init(void)
 {
 	const struct x86_cpu_id *id;
-	int ret;
 
 	id = x86_match_cpu(intel_punit_cpu_ids);
 	if (!id)
 		return -ENODEV;
 
-	ret = punit_dbgfs_register((struct punit_device *)id->driver_data);
-	if (ret < 0)
-		return ret;
+	punit_dbgfs_register((struct punit_device *)id->driver_data);
 
 	return 0;
 }

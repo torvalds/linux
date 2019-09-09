@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Greybus SPI library header
  *
@@ -18,7 +19,8 @@ struct spilib_ops {
 	void (*unprepare_transfer_hardware)(struct device *dev);
 };
 
-int gb_spilib_master_init(struct gb_connection *connection, struct device *dev, struct spilib_ops *ops);
+int gb_spilib_master_init(struct gb_connection *connection,
+			  struct device *dev, struct spilib_ops *ops);
 void gb_spilib_master_exit(struct gb_connection *connection);
 
 #endif /* __SPILIB_H */

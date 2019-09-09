@@ -180,7 +180,7 @@ void flush_dcache_page(struct page *page)
 	if (page == ZERO_PAGE(0))
 		return;
 
-	mapping = page_mapping(page);
+	mapping = page_mapping_file(page);
 
 	/* Flush this page if there are aliases. */
 	if (mapping && !mapping_mapped(mapping)) {
@@ -198,11 +198,14 @@ void flush_dcache_page(struct page *page)
 EXPORT_SYMBOL(flush_dcache_page);
 
 void update_mmu_cache(struct vm_area_struct *vma,
-		      unsigned long address, pte_t *pte)
+		      unsigned long address, pte_t *ptep)
 {
-	unsigned long pfn = pte_pfn(*pte);
+	pte_t pte = *ptep;
+	unsigned long pfn = pte_pfn(pte);
 	struct page *page;
 	struct address_space *mapping;
+
+	reload_tlb_page(vma, address, pte);
 
 	if (!pfn_valid(pfn))
 		return;
@@ -215,7 +218,7 @@ void update_mmu_cache(struct vm_area_struct *vma,
 	if (page == ZERO_PAGE(0))
 		return;
 
-	mapping = page_mapping(page);
+	mapping = page_mapping_file(page);
 	if (!test_and_set_bit(PG_dcache_clean, &page->flags))
 		__flush_dcache_page(mapping, page);
 

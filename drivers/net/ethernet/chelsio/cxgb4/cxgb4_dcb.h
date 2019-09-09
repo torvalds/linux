@@ -1,20 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  Copyright (C) 2013-2014 Chelsio Communications.  All rights reserved.
  *
  *  Written by Anish Bhatt (anish@chelsio.com)
- *
- *  This program is free software; you can redistribute it and/or modify it
- *  under the terms and conditions of the GNU General Public License,
- *  version 2, as published by the Free Software Foundation.
- *
- *  This program is distributed in the hope it will be useful, but WITHOUT
- *  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- *  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- *  more details.
- *
- *  The full GNU General Public License is included in this distribution in
- *  the file called "COPYING".
- *
  */
 
 #ifndef __CXGB4_DCB_H
@@ -67,7 +55,7 @@
 	do { \
 		if ((__dcb)->dcb_version == FW_PORT_DCB_VER_IEEE) \
 			cxgb4_dcb_state_fsm((__dev), \
-					    CXGB4_DCB_STATE_FW_ALLSYNCED); \
+					    CXGB4_DCB_INPUT_FW_ALLSYNCED); \
 	} while (0)
 
 /* States we can be in for a port's Data Center Bridging.
@@ -131,6 +119,7 @@ struct port_dcb_info {
 
 void cxgb4_dcb_state_init(struct net_device *);
 void cxgb4_dcb_version_init(struct net_device *);
+void cxgb4_dcb_reset(struct net_device *dev);
 void cxgb4_dcb_state_fsm(struct net_device *, enum cxgb4_dcb_state_input);
 void cxgb4_dcb_handle_fw_update(struct adapter *, const struct fw_port_cmd *);
 void cxgb4_dcb_set_caps(struct adapter *, const struct fw_port_cmd *);

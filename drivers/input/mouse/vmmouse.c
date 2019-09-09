@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for Virtual PS/2 Mouse on VMware and QEMU hypervisors.
  *
  * Copyright (C) 2014, VMware, Inc. All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  *
  * Twin device code is hugely inspired by the ALPS driver.
  * Authors:
@@ -316,11 +313,9 @@ static int vmmouse_enable(struct psmouse *psmouse)
 /*
  * Array of supported hypervisors.
  */
-static const struct hypervisor_x86 *vmmouse_supported_hypervisors[] = {
-	&x86_hyper_vmware,
-#ifdef CONFIG_KVM_GUEST
-	&x86_hyper_kvm,
-#endif
+static enum x86_hypervisor_type vmmouse_supported_hypervisors[] = {
+	X86_HYPER_VMWARE,
+	X86_HYPER_KVM,
 };
 
 /**
@@ -331,7 +326,7 @@ static bool vmmouse_check_hypervisor(void)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(vmmouse_supported_hypervisors); i++)
-		if (vmmouse_supported_hypervisors[i] == x86_hyper)
+		if (vmmouse_supported_hypervisors[i] == x86_hyper_type)
 			return true;
 
 	return false;

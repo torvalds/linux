@@ -1,25 +1,25 @@
-What:		/sys/bus/vmbus/devices/vmbus_*/id
+What:		/sys/bus/vmbus/devices/<UUID>/id
 Date:		Jul 2009
 KernelVersion:	2.6.31
 Contact:	K. Y. Srinivasan <kys@microsoft.com>
 Description:	The VMBus child_relid of the device's primary channel
 Users:		tools/hv/lsvmbus
 
-What:		/sys/bus/vmbus/devices/vmbus_*/class_id
+What:		/sys/bus/vmbus/devices/<UUID>/class_id
 Date:		Jul 2009
 KernelVersion:	2.6.31
 Contact:	K. Y. Srinivasan <kys@microsoft.com>
 Description:	The VMBus interface type GUID of the device
 Users:		tools/hv/lsvmbus
 
-What:		/sys/bus/vmbus/devices/vmbus_*/device_id
+What:		/sys/bus/vmbus/devices/<UUID>/device_id
 Date:		Jul 2009
 KernelVersion:	2.6.31
 Contact:	K. Y. Srinivasan <kys@microsoft.com>
 Description:	The VMBus interface instance GUID of the device
 Users:		tools/hv/lsvmbus
 
-What:		/sys/bus/vmbus/devices/vmbus_*/channel_vp_mapping
+What:		/sys/bus/vmbus/devices/<UUID>/channel_vp_mapping
 Date:		Jul 2015
 KernelVersion:	4.2.0
 Contact:	K. Y. Srinivasan <kys@microsoft.com>
@@ -28,16 +28,160 @@ Description:	The mapping of which primary/sub channels are bound to which
 		Format: <channel's child_relid:the bound cpu's number>
 Users:		tools/hv/lsvmbus
 
-What:		/sys/bus/vmbus/devices/vmbus_*/device
+What:		/sys/bus/vmbus/devices/<UUID>/device
 Date:		Dec. 2015
 KernelVersion:	4.5
 Contact:	K. Y. Srinivasan <kys@microsoft.com>
 Description:	The 16 bit device ID of the device
 Users:		tools/hv/lsvmbus and user level RDMA libraries
 
-What:		/sys/bus/vmbus/devices/vmbus_*/vendor
+What:		/sys/bus/vmbus/devices/<UUID>/vendor
 Date:		Dec. 2015
 KernelVersion:	4.5
 Contact:	K. Y. Srinivasan <kys@microsoft.com>
 Description:	The 16 bit vendor ID of the device
 Users:		tools/hv/lsvmbus and user level RDMA libraries
+
+What:		/sys/bus/vmbus/devices/<UUID>/numa_node
+Date:		Jul 2018
+KernelVersion:	4.19
+Contact:	Stephen Hemminger <sthemmin@microsoft.com>
+Description:	This NUMA node to which the VMBUS device is
+		attached, or -1 if the node is unknown.
+
+What:		/sys/bus/vmbus/devices/<UUID>/channels/<N>
+Date:		September. 2017
+KernelVersion:	4.14
+Contact:	Stephen Hemminger <sthemmin@microsoft.com>
+Description:	Directory for per-channel information
+		NN is the VMBUS relid associtated with the channel.
+
+What:		/sys/bus/vmbus/devices/<UUID>/channels/<N>/cpu
+Date:		September. 2017
+KernelVersion:	4.14
+Contact:	Stephen Hemminger <sthemmin@microsoft.com>
+Description:	VCPU (sub)channel is affinitized to
+Users:		tools/hv/lsvmbus and other debugging tools
+
+What:		/sys/bus/vmbus/devices/<UUID>/channels/<N>/cpu
+Date:		September. 2017
+KernelVersion:	4.14
+Contact:	Stephen Hemminger <sthemmin@microsoft.com>
+Description:	VCPU (sub)channel is affinitized to
+Users:		tools/hv/lsvmbus and other debugging tools
+
+What:		/sys/bus/vmbus/devices/<UUID>/channels/<N>/in_mask
+Date:		September. 2017
+KernelVersion:	4.14
+Contact:	Stephen Hemminger <sthemmin@microsoft.com>
+Description:	Host to guest channel interrupt mask
+Users:		Debugging tools
+
+What:		/sys/bus/vmbus/devices/<UUID>/channels/<N>/latency
+Date:		September. 2017
+KernelVersion:	4.14
+Contact:	Stephen Hemminger <sthemmin@microsoft.com>
+Description:	Channel signaling latency. This file is available only for
+		performance critical channels (storage, network, etc.) that use
+		the monitor page mechanism.
+Users:		Debugging tools
+
+What:		/sys/bus/vmbus/devices/<UUID>/channels/<N>/out_mask
+Date:		September. 2017
+KernelVersion:	4.14
+Contact:	Stephen Hemminger <sthemmin@microsoft.com>
+Description:	Guest to host channel interrupt mask
+Users:		Debugging tools
+
+What:		/sys/bus/vmbus/devices/<UUID>/channels/<N>/pending
+Date:		September. 2017
+KernelVersion:	4.14
+Contact:	Stephen Hemminger <sthemmin@microsoft.com>
+Description:	Channel interrupt pending state. This file is available only for
+		performance critical channels (storage, network, etc.) that use
+		the monitor page mechanism.
+Users:		Debugging tools
+
+What:		/sys/bus/vmbus/devices/<UUID>/channels/<N>/read_avail
+Date:		September. 2017
+KernelVersion:	4.14
+Contact:	Stephen Hemminger <sthemmin@microsoft.com>
+Description:	Bytes available to read
+Users:		Debugging tools
+
+What:		/sys/bus/vmbus/devices/<UUID>/channels/<N>/write_avail
+Date:		September. 2017
+KernelVersion:	4.14
+Contact:	Stephen Hemminger <sthemmin@microsoft.com>
+Description:	Bytes available to write
+Users:		Debugging tools
+
+What:		/sys/bus/vmbus/devices/<UUID>/channels/<N>/events
+Date:		September. 2017
+KernelVersion:	4.14
+Contact:	Stephen Hemminger <sthemmin@microsoft.com>
+Description:	Number of times we have signaled the host
+Users:		Debugging tools
+
+What:		/sys/bus/vmbus/devices/<UUID>/channels/<N>/interrupts
+Date:		September. 2017
+KernelVersion:	4.14
+Contact:	Stephen Hemminger <sthemmin@microsoft.com>
+Description:	Number of times we have taken an interrupt (incoming)
+Users:		Debugging tools
+
+What:		/sys/bus/vmbus/devices/<UUID>/channels/<N>/subchannel_id
+Date:		January. 2018
+KernelVersion:	4.16
+Contact:	Stephen Hemminger <sthemmin@microsoft.com>
+Description:	Subchannel ID associated with VMBUS channel
+Users:		Debugging tools and userspace drivers
+
+What:		/sys/bus/vmbus/devices/<UUID>/channels/<N>/monitor_id
+Date:		January. 2018
+KernelVersion:	4.16
+Contact:	Stephen Hemminger <sthemmin@microsoft.com>
+Description:	Monitor bit associated with channel. This file is available only
+		for performance critical channels (storage, network, etc.) that
+		use the monitor page mechanism.
+Users:		Debugging tools and userspace drivers
+
+What:		/sys/bus/vmbus/devices/<UUID>/channels/<N>/ring
+Date:		January. 2018
+KernelVersion:	4.16
+Contact:	Stephen Hemminger <sthemmin@microsoft.com>
+Description:	Binary file created by uio_hv_generic for ring buffer
+Users:		Userspace drivers
+
+What:           /sys/bus/vmbus/devices/<UUID>/channels/<N>/intr_in_full
+Date:           February 2019
+KernelVersion:  5.0
+Contact:        Michael Kelley <mikelley@microsoft.com>
+Description:    Number of guest to host interrupts caused by the inbound ring
+		buffer transitioning from full to not full while a packet is
+		waiting for buffer space to become available
+Users:          Debugging tools
+
+What:           /sys/bus/vmbus/devices/<UUID>/channels/<N>/intr_out_empty
+Date:           February 2019
+KernelVersion:  5.0
+Contact:        Michael Kelley <mikelley@microsoft.com>
+Description:    Number of guest to host interrupts caused by the outbound ring
+		buffer transitioning from empty to not empty
+Users:          Debugging tools
+
+What:           /sys/bus/vmbus/devices/<UUID>/channels/<N>/out_full_first
+Date:           February 2019
+KernelVersion:  5.0
+Contact:        Michael Kelley <mikelley@microsoft.com>
+Description:    Number of write operations that were the first to encounter an
+		outbound ring buffer full condition
+Users:          Debugging tools
+
+What:           /sys/bus/vmbus/devices/<UUID>/channels/<N>/out_full_total
+Date:           February 2019
+KernelVersion:  5.0
+Contact:        Michael Kelley <mikelley@microsoft.com>
+Description:    Total number of write operations that encountered an outbound
+		ring buffer full condition
+Users:          Debugging tools

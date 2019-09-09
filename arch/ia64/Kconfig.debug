@@ -1,6 +1,4 @@
-menu "Kernel hacking"
-
-source "lib/Kconfig.debug"
+# SPDX-License-Identifier: GPL-2.0
 
 choice
 	prompt "Physical memory granularity"
@@ -55,10 +53,3 @@ config IA64_DEBUG_IRQ
 	  Selecting this option turns on bug checking for the IA-64 irq_save
 	  and restore instructions.  It's useful for tracking down spinlock
 	  problems, but slow!  If you're unsure, select N.
-
-config SYSVIPC_COMPAT
-	bool
-	depends on COMPAT && SYSVIPC
-	default y
-
-endmenu

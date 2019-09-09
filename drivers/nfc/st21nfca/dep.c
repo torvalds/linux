@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2014  STMicroelectronics SAS. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <net/nfc/hci.h>
@@ -315,10 +304,10 @@ int st21nfca_tm_send_dep_res(struct nfc_hci_dev *hdev, struct sk_buff *skb)
 	int r;
 	struct st21nfca_hci_info *info = nfc_hci_get_clientdata(hdev);
 
-	*skb_push(skb, 1) = info->dep_info.curr_nfc_dep_pni;
-	*skb_push(skb, 1) = ST21NFCA_NFCIP1_DEP_RES;
-	*skb_push(skb, 1) = ST21NFCA_NFCIP1_RES;
-	*skb_push(skb, 1) = skb->len;
+	*(u8 *)skb_push(skb, 1) = info->dep_info.curr_nfc_dep_pni;
+	*(u8 *)skb_push(skb, 1) = ST21NFCA_NFCIP1_DEP_RES;
+	*(u8 *)skb_push(skb, 1) = ST21NFCA_NFCIP1_RES;
+	*(u8 *)skb_push(skb, 1) = skb->len;
 
 	r = nfc_hci_send_event(hdev, ST21NFCA_RF_CARD_F_GATE,
 			ST21NFCA_EVT_SEND_DATA, skb->data, skb->len);
@@ -400,6 +389,7 @@ static int st21nfca_tm_event_send_data(struct nfc_hci_dev *hdev,
 		default:
 			return 1;
 		}
+		break;
 	default:
 		return 1;
 	}
@@ -466,7 +456,7 @@ static void st21nfca_im_send_psl_req(struct nfc_hci_dev *hdev, u8 did, u8 bsi,
 	psl_req->brs = (0x30 & bsi << 4) | (bri & 0x03);
 	psl_req->fsl = lri;
 
-	*skb_push(skb, 1) = info->dep_info.to | 0x10;
+	*(u8 *)skb_push(skb, 1) = info->dep_info.to | 0x10;
 
 	st21nfca_im_send_pdu(info, skb);
 }
@@ -564,11 +554,11 @@ int st21nfca_im_send_atr_req(struct nfc_hci_dev *hdev, u8 *gb, size_t gb_len)
 	atr_req->ppi = ST21NFCA_LR_BITS_PAYLOAD_SIZE_254B;
 	if (gb_len) {
 		atr_req->ppi |= ST21NFCA_GB_BIT;
-		memcpy(skb_put(skb, gb_len), gb, gb_len);
+		skb_put_data(skb, gb, gb_len);
 	}
 	atr_req->length = sizeof(struct st21nfca_atr_req) + hdev->gb_len;
 
-	*skb_push(skb, 1) = info->dep_info.to | 0x10; /* timeout */
+	*(u8 *)skb_push(skb, 1) = info->dep_info.to | 0x10; /* timeout */
 
 	info->async_cb_type = ST21NFCA_CB_TYPE_READER_F;
 	info->async_cb_context = info;
@@ -619,6 +609,7 @@ static void st21nfca_im_recv_dep_res_cb(void *context, struct sk_buff *skb,
 		switch (ST21NFCA_NFC_DEP_PFB_TYPE(dep_res->pfb)) {
 		case ST21NFCA_NFC_DEP_PFB_ACK_NACK_PDU:
 			pr_err("Received a ACK/NACK PDU\n");
+			/* fall through */
 		case ST21NFCA_NFC_DEP_PFB_I_PDU:
 			info->dep_info.curr_nfc_dep_pni =
 			    ST21NFCA_NFC_DEP_PFB_PNI(dep_res->pfb + 1);
@@ -629,10 +620,10 @@ static void st21nfca_im_recv_dep_res_cb(void *context, struct sk_buff *skb,
 		case ST21NFCA_NFC_DEP_PFB_SUPERVISOR_PDU:
 			pr_err("Received a SUPERVISOR PDU\n");
 			skb_pull(skb, size);
-			*skb_push(skb, 1) = ST21NFCA_NFCIP1_DEP_REQ;
-			*skb_push(skb, 1) = ST21NFCA_NFCIP1_REQ;
-			*skb_push(skb, 1) = skb->len;
-			*skb_push(skb, 1) = info->dep_info.to | 0x10;
+			*(u8 *)skb_push(skb, 1) = ST21NFCA_NFCIP1_DEP_REQ;
+			*(u8 *)skb_push(skb, 1) = ST21NFCA_NFCIP1_REQ;
+			*(u8 *)skb_push(skb, 1) = skb->len;
+			*(u8 *)skb_push(skb, 1) = info->dep_info.to | 0x10;
 
 			st21nfca_im_send_pdu(info, skb);
 			break;
@@ -655,12 +646,12 @@ int st21nfca_im_send_dep_req(struct nfc_hci_dev *hdev, struct sk_buff *skb)
 	info->async_cb_context = info;
 	info->async_cb = st21nfca_im_recv_dep_res_cb;
 
-	*skb_push(skb, 1) = info->dep_info.curr_nfc_dep_pni;
-	*skb_push(skb, 1) = ST21NFCA_NFCIP1_DEP_REQ;
-	*skb_push(skb, 1) = ST21NFCA_NFCIP1_REQ;
-	*skb_push(skb, 1) = skb->len;
+	*(u8 *)skb_push(skb, 1) = info->dep_info.curr_nfc_dep_pni;
+	*(u8 *)skb_push(skb, 1) = ST21NFCA_NFCIP1_DEP_REQ;
+	*(u8 *)skb_push(skb, 1) = ST21NFCA_NFCIP1_REQ;
+	*(u8 *)skb_push(skb, 1) = skb->len;
 
-	*skb_push(skb, 1) = info->dep_info.to | 0x10;
+	*(u8 *)skb_push(skb, 1) = info->dep_info.to | 0x10;
 
 	return nfc_hci_send_cmd_async(hdev, ST21NFCA_RF_READER_F_GATE,
 				      ST21NFCA_WR_XCHG_DATA,

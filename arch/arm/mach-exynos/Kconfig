@@ -1,16 +1,13 @@
-# arch/arm/mach-exynos/Kconfig
+# SPDX-License-Identifier: GPL-2.0
 #
 # Copyright (c) 2010-2011 Samsung Electronics Co., Ltd.
 #		http://www.samsung.com/
-#
-# Licensed under GPLv2
 
 # Configuration options for the EXYNOS
 
 menuconfig ARCH_EXYNOS
 	bool "Samsung EXYNOS"
 	depends on ARCH_MULTI_V7
-	select ARCH_HAS_BANDGAP
 	select ARCH_HAS_HOLES_MEMORYMODEL
 	select ARCH_SUPPORTS_BIG_ENDIAN
 	select ARM_AMBA
@@ -52,6 +49,7 @@ config S5P_DEV_MFC
 
 config ARCH_EXYNOS3
 	bool "SAMSUNG EXYNOS3"
+	default y
 	select ARM_CPU_SUSPEND if PM
 	help
 	  Samsung EXYNOS3 (Cortex-A7) SoC based systems
@@ -85,18 +83,8 @@ config CPU_EXYNOS4210
 	default y
 	depends on ARCH_EXYNOS4
 
-config SOC_EXYNOS4212
-	bool "SAMSUNG EXYNOS4212"
-	default y
-	depends on ARCH_EXYNOS4
-
 config SOC_EXYNOS4412
 	bool "SAMSUNG EXYNOS4412"
-	default y
-	depends on ARCH_EXYNOS4
-
-config SOC_EXYNOS4415
-	bool "SAMSUNG EXYNOS4415"
 	default y
 	depends on ARCH_EXYNOS4
 
@@ -119,32 +107,18 @@ config SOC_EXYNOS5420
 	bool "SAMSUNG EXYNOS5420"
 	default y
 	depends on ARCH_EXYNOS5
-
-config SOC_EXYNOS5440
-	bool "SAMSUNG EXYNOS5440"
-	default y
-	depends on ARCH_EXYNOS5
-	select ARCH_DMA_ADDR_T_64BIT if ARM_LPAE
-	select HAVE_ARM_ARCH_TIMER
-	select AUTO_ZRELADDR
-	select PINCTRL_EXYNOS5440
-	select PM_OPP
-	help
-	  Enable EXYNOS5440 SoC support
+	select EXYNOS_MCPM if SMP
+	select ARM_CCI400_PORT_CTRL
+	select ARM_CPU_SUSPEND
 
 config SOC_EXYNOS5800
 	bool "SAMSUNG EXYNOS5800"
 	default y
 	depends on SOC_EXYNOS5420
 
-config EXYNOS5420_MCPM
-	bool "Exynos5420 Multi-Cluster PM support"
-	depends on MCPM && SOC_EXYNOS5420
-	select ARM_CCI400_PORT_CTRL
-	select ARM_CPU_SUSPEND
-	help
-	  This is needed to provide CPU and cluster power management
-	  on Exynos5420 implementing big.LITTLE.
+config EXYNOS_MCPM
+	bool
+	select MCPM
 
 config EXYNOS_CPU_SUSPEND
 	bool

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Driver for Feature Integration Technology Inc. (aka Fintek) LPC CIR
  *
@@ -6,21 +7,6 @@
  * Special thanks to Fintek for providing hardware and spec sheets.
  * This driver is based upon the nuvoton, ite and ene drivers for
  * similar hardware.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307
- * USA
  */
 
 #include <linux/spinlock.h>
@@ -181,7 +167,7 @@ struct fintek_dev {
 #define CIR_CR_IRCS		0x05 /* Before host writes command to IR, host
 					must set to 1. When host finshes write
 					command to IR, host must clear to 0. */
-#define CIR_CR_COMMAND_DATA	0x06 /* Host read or write comand data */
+#define CIR_CR_COMMAND_DATA	0x06 /* Host read or write command data */
 #define CIR_CR_CLASS		0x07 /* 0xff = rx-only, 0x66 = rx + 2 tx,
 					0x33 = rx + 1 tx */
 #define CIR_CR_DEV_EN		0x30 /* bit0 = 1 enables CIR */

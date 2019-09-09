@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * MAX9768 AMP driver
  *
  * Copyright (C) 2011, 2012 by Wolfram Sang, Pengutronix e.K.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; version 2 of the License.
  */
 
 #include <linux/init.h>
@@ -151,7 +148,7 @@ static int max9768_probe(struct snd_soc_component *component)
 	return 0;
 }
 
-static struct snd_soc_component_driver max9768_component_driver = {
+static const struct snd_soc_component_driver max9768_component_driver = {
 	.probe = max9768_probe,
 	.controls = max9768_volume,
 	.num_controls = ARRAY_SIZE(max9768_volume),

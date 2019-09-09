@@ -1,6 +1,7 @@
 [config]
 command = record
-args    = -e '{cycles,instructions}' kill >/dev/null 2>&1
+args    = --no-bpf-event -e '{cycles,instructions}' kill >/dev/null 2>&1
+ret     = 1
 
 [event-1:base-record]
 fd=1
@@ -17,5 +18,6 @@ sample_type=327
 read_format=4
 mmap=0
 comm=0
+task=0
 enable_on_exec=0
 disabled=0

@@ -1,11 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /* Freescale QUICC Engine HDLC Device Driver
  *
  * Copyright 2014 Freescale Semiconductor Inc.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #ifndef _UCC_HDLC_H_
@@ -78,6 +74,7 @@ struct ucc_hdlc_private {
 	u16 tsa;
 	bool hdlc_busy;
 	bool loopback;
+	bool hdlc_bus;
 
 	u8 *tx_buffer;
 	u8 *rx_buffer;
@@ -105,6 +102,7 @@ struct ucc_hdlc_private {
 
 	unsigned short encoding;
 	unsigned short parity;
+	unsigned short hmask;
 	u32 clocking;
 	spinlock_t lock;	/* lock for Tx BD and Tx buffer */
 #ifdef CONFIG_PM

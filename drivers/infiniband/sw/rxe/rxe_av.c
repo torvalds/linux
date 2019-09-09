@@ -34,21 +34,24 @@
 #include "rxe.h"
 #include "rxe_loc.h"
 
-int rxe_av_chk_attr(struct rxe_dev *rxe, struct ib_ah_attr *attr)
+void rxe_init_av(struct rdma_ah_attr *attr, struct rxe_av *av)
+{
+	rxe_av_from_attr(rdma_ah_get_port_num(attr), av, attr);
+	rxe_av_fill_ip_info(av, attr);
+	memcpy(av->dmac, attr->roce.dmac, ETH_ALEN);
+}
+
+int rxe_av_chk_attr(struct rxe_dev *rxe, struct rdma_ah_attr *attr)
 {
 	struct rxe_port *port;
 
-	if (attr->port_num != 1) {
-		pr_info("invalid port_num = %d\n", attr->port_num);
-		return -EINVAL;
-	}
-
 	port = &rxe->port;
 
-	if (attr->ah_flags & IB_AH_GRH) {
-		if (attr->grh.sgid_index > port->attr.gid_tbl_len) {
-			pr_info("invalid sgid index = %d\n",
-				attr->grh.sgid_index);
+	if (rdma_ah_get_ah_flags(attr) & IB_AH_GRH) {
+		u8 sgid_index = rdma_ah_read_grh(attr)->sgid_index;
+
+		if (sgid_index > port->attr.gid_tbl_len) {
+			pr_warn("invalid sgid index = %d\n", sgid_index);
 			return -EINVAL;
 		}
 	}
@@ -56,34 +59,44 @@ int rxe_av_chk_attr(struct rxe_dev *rxe, struct ib_ah_attr *attr)
 	return 0;
 }
 
-int rxe_av_from_attr(struct rxe_dev *rxe, u8 port_num,
-		     struct rxe_av *av, struct ib_ah_attr *attr)
+void rxe_av_from_attr(u8 port_num, struct rxe_av *av,
+		     struct rdma_ah_attr *attr)
 {
+	const struct ib_global_route *grh = rdma_ah_read_grh(attr);
+
 	memset(av, 0, sizeof(*av));
-	memcpy(&av->grh, &attr->grh, sizeof(attr->grh));
+	memcpy(av->grh.dgid.raw, grh->dgid.raw, sizeof(grh->dgid.raw));
+	av->grh.flow_label = grh->flow_label;
+	av->grh.sgid_index = grh->sgid_index;
+	av->grh.hop_limit = grh->hop_limit;
+	av->grh.traffic_class = grh->traffic_class;
 	av->port_num = port_num;
-	return 0;
 }
 
-int rxe_av_to_attr(struct rxe_dev *rxe, struct rxe_av *av,
-		   struct ib_ah_attr *attr)
+void rxe_av_to_attr(struct rxe_av *av, struct rdma_ah_attr *attr)
 {
-	memcpy(&attr->grh, &av->grh, sizeof(av->grh));
-	attr->port_num = av->port_num;
-	return 0;
+	struct ib_global_route *grh = rdma_ah_retrieve_grh(attr);
+
+	attr->type = RDMA_AH_ATTR_TYPE_ROCE;
+
+	memcpy(grh->dgid.raw, av->grh.dgid.raw, sizeof(av->grh.dgid.raw));
+	grh->flow_label = av->grh.flow_label;
+	grh->sgid_index = av->grh.sgid_index;
+	grh->hop_limit = av->grh.hop_limit;
+	grh->traffic_class = av->grh.traffic_class;
+
+	rdma_ah_set_ah_flags(attr, IB_AH_GRH);
+	rdma_ah_set_port_num(attr, av->port_num);
 }
 
-int rxe_av_fill_ip_info(struct rxe_dev *rxe,
-			struct rxe_av *av,
-			struct ib_ah_attr *attr,
-			struct ib_gid_attr *sgid_attr,
-			union ib_gid *sgid)
+void rxe_av_fill_ip_info(struct rxe_av *av, struct rdma_ah_attr *attr)
 {
-	rdma_gid2ip(&av->sgid_addr._sockaddr, sgid);
-	rdma_gid2ip(&av->dgid_addr._sockaddr, &attr->grh.dgid);
-	av->network_type = ib_gid_to_network_type(sgid_attr->gid_type, sgid);
+	const struct ib_gid_attr *sgid_attr = attr->grh.sgid_attr;
 
-	return 0;
+	rdma_gid2ip((struct sockaddr *)&av->sgid_addr, &sgid_attr->gid);
+	rdma_gid2ip((struct sockaddr *)&av->dgid_addr,
+		    &rdma_ah_read_grh(attr)->dgid);
+	av->network_type = rdma_gid_attr_network_type(sgid_attr);
 }
 
 struct rxe_av *rxe_get_av(struct rxe_pkt_info *pkt)

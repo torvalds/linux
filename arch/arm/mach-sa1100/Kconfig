@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 if ARCH_SA1100
 
 menu "SA11x0 Implementations"
@@ -5,6 +6,10 @@ menu "SA11x0 Implementations"
 config SA1100_ASSABET
 	bool "Assabet"
 	select ARM_SA1110_CPUFREQ
+	select GPIO_REG
+	select LEDS_GPIO_REGISTER
+	select REGULATOR
+	select REGULATOR_FIXED_VOLTAGE
 	help
 	  Say Y here if you are using the Intel(R) StrongARM(R) SA-1110
 	  Microprocessor Development Board (also known as the Assabet).
@@ -21,6 +26,7 @@ config ASSABET_NEPONSET
 config SA1100_CERF
 	bool "CerfBoard"
 	select ARM_SA1110_CPUFREQ
+	select LEDS_GPIO_REGISTER
 	help
 	  The Intrinsyc CerfBoard is based on the StrongARM 1110 (Discontinued).
 	  More information is available at:
@@ -117,7 +123,7 @@ config SA1100_LART
 config SA1100_NANOENGINE
 	bool "nanoEngine"
 	select ARM_SA1110_CPUFREQ
-	select PCI
+	select FORCE_PCI
 	select PCI_NANOENGINE
 	help
 	  Say Y here if you are using the Bright Star Engineering nanoEngine.
@@ -136,6 +142,8 @@ config SA1100_PLEB
 config SA1100_SHANNON
 	bool "Shannon"
 	select ARM_SA1100_CPUFREQ
+	select REGULATOR
+	select REGULATOR_FIXED_VOLTAGE
 	help
 	  The Shannon (also known as a Tuxscreen, and also as a IS2630) was a
 	  limited edition webphone produced by Philips. The Shannon is a SA1100

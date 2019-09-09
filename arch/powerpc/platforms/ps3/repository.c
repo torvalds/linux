@@ -1,21 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  PS3 repository routines.
  *
  *  Copyright (C) 2006 Sony Computer Entertainment Inc.
  *  Copyright 2006 Sony Corp.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; version 2 of the License.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <asm/lv1call.h>
@@ -101,9 +89,9 @@ static u64 make_first_field(const char *text, u64 index)
 
 static u64 make_field(const char *text, u64 index)
 {
-	u64 n;
+	u64 n = 0;
 
-	strncpy((char *)&n, text, 8);
+	memcpy((char *)&n, text, strnlen(text, sizeof(n)));
 	return n + index;
 }
 
@@ -170,14 +158,8 @@ int ps3_repository_read_bus_str(unsigned int bus_index, const char *bus_str,
 
 int ps3_repository_read_bus_id(unsigned int bus_index, u64 *bus_id)
 {
-	int result;
-
-	result = read_node(PS3_LPAR_ID_PME,
-		make_first_field("bus", bus_index),
-		make_field("id", 0),
-		0, 0,
-		bus_id, NULL);
-	return result;
+	return read_node(PS3_LPAR_ID_PME, make_first_field("bus", bus_index),
+			 make_field("id", 0), 0, 0, bus_id, NULL);
 }
 
 int ps3_repository_read_bus_type(unsigned int bus_index,
@@ -224,15 +206,9 @@ int ps3_repository_read_dev_str(unsigned int bus_index,
 int ps3_repository_read_dev_id(unsigned int bus_index, unsigned int dev_index,
 	u64 *dev_id)
 {
-	int result;
-
-	result = read_node(PS3_LPAR_ID_PME,
-		make_first_field("bus", bus_index),
-		make_field("dev", dev_index),
-		make_field("id", 0),
-		0,
-		dev_id, NULL);
-	return result;
+	return read_node(PS3_LPAR_ID_PME, make_first_field("bus", bus_index),
+			 make_field("dev", dev_index), make_field("id", 0), 0,
+			 dev_id, NULL);
 }
 
 int ps3_repository_read_dev_type(unsigned int bus_index,

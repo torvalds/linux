@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Clock tree for CSR SiRFAtlas7
  *
  * Copyright (c) 2014 Cambridge Silicon Radio Limited, a CSR plc group company.
- *
- * Licensed under GPLv2 or later.
  */
 
 #include <linux/bitops.h>
@@ -392,7 +391,7 @@ static const char * const pll_clk_parents[] = {
 	"xin",
 };
 
-static struct clk_init_data clk_cpupll_init = {
+static const struct clk_init_data clk_cpupll_init = {
 	.name = "cpupll_vco",
 	.ops = &ab_pll_ops,
 	.parent_names = pll_clk_parents,
@@ -406,7 +405,7 @@ static struct clk_pll clk_cpupll = {
 	},
 };
 
-static struct clk_init_data clk_mempll_init = {
+static const struct clk_init_data clk_mempll_init = {
 	.name = "mempll_vco",
 	.ops = &ab_pll_ops,
 	.parent_names = pll_clk_parents,
@@ -420,7 +419,7 @@ static struct clk_pll clk_mempll = {
 	},
 };
 
-static struct clk_init_data clk_sys0pll_init = {
+static const struct clk_init_data clk_sys0pll_init = {
 	.name = "sys0pll_vco",
 	.ops = &ab_pll_ops,
 	.parent_names = pll_clk_parents,
@@ -434,7 +433,7 @@ static struct clk_pll clk_sys0pll = {
 	},
 };
 
-static struct clk_init_data clk_sys1pll_init = {
+static const struct clk_init_data clk_sys1pll_init = {
 	.name = "sys1pll_vco",
 	.ops = &ab_pll_ops,
 	.parent_names = pll_clk_parents,
@@ -448,7 +447,7 @@ static struct clk_pll clk_sys1pll = {
 	},
 };
 
-static struct clk_init_data clk_sys2pll_init = {
+static const struct clk_init_data clk_sys2pll_init = {
 	.name = "sys2pll_vco",
 	.ops = &ab_pll_ops,
 	.parent_names = pll_clk_parents,
@@ -462,7 +461,7 @@ static struct clk_pll clk_sys2pll = {
 	},
 };
 
-static struct clk_init_data clk_sys3pll_init = {
+static const struct clk_init_data clk_sys3pll_init = {
 	.name = "sys3pll_vco",
 	.ops = &ab_pll_ops,
 	.parent_names = pll_clk_parents,
@@ -596,7 +595,7 @@ static const char * const audiodto_clk_parents[] = {
 	"sys3pll_clk1",
 };
 
-static struct clk_init_data clk_audiodto_init = {
+static const struct clk_init_data clk_audiodto_init = {
 	.name = "audio_dto",
 	.ops = &dto_ops,
 	.parent_names = audiodto_clk_parents,
@@ -617,7 +616,7 @@ static const char * const disp0dto_clk_parents[] = {
 	"sys3pll_clk1",
 };
 
-static struct clk_init_data clk_disp0dto_init = {
+static const struct clk_init_data clk_disp0dto_init = {
 	.name = "disp0_dto",
 	.ops = &dto_ops,
 	.parent_names = disp0dto_clk_parents,
@@ -638,7 +637,7 @@ static const char * const disp1dto_clk_parents[] = {
 	"sys3pll_clk1",
 };
 
-static struct clk_init_data clk_disp1dto_init = {
+static const struct clk_init_data clk_disp1dto_init = {
 	.name = "disp1_dto",
 	.ops = &dto_ops,
 	.parent_names = disp1dto_clk_parents,

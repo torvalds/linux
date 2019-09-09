@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * GemTek radio card driver
  *
@@ -15,14 +16,14 @@
  *    Various bugfixes and enhancements by Russell Kroll <rkroll@exploits.org>
  *
  * Converted to the radio-isa framework by Hans Verkuil <hans.verkuil@cisco.com>
- * Converted to V4L2 API by Mauro Carvalho Chehab <mchehab@infradead.org>
+ * Converted to V4L2 API by Mauro Carvalho Chehab <mchehab@kernel.org>
  *
  * Note: this card seems to swap the left and right audio channels!
  *
  * Fully tested with the Keene USB FM Transmitter and the v4l2-compliance tool.
  */
 
-#include <linux/module.h>	/* Modules 			*/
+#include <linux/module.h>	/* Modules			*/
 #include <linux/init.h>		/* Initdata			*/
 #include <linux/ioport.h>	/* request_region		*/
 #include <linux/delay.h>	/* udelay			*/
@@ -67,14 +68,10 @@ module_param(probe, bool, 0444);
 MODULE_PARM_DESC(probe, "Enable automatic device probing.");
 
 module_param(hardmute, bool, 0644);
-MODULE_PARM_DESC(hardmute, "Enable 'hard muting' by shutting down PLL, may "
-	 "reduce static noise.");
+MODULE_PARM_DESC(hardmute, "Enable 'hard muting' by shutting down PLL, may reduce static noise.");
 
 module_param_array(io, int, NULL, 0444);
-MODULE_PARM_DESC(io, "Force I/O ports for the GemTek Radio card if automatic "
-	 "probing is disabled or fails. The most common I/O ports are: 0x20c "
-	 "0x30c, 0x24c or 0x34c (0x20c, 0x248 and 0x28c have been reported to "
-	 "work for the combined sound/radiocard).");
+MODULE_PARM_DESC(io, "Force I/O ports for the GemTek Radio card if automatic probing is disabled or fails. The most common I/O ports are: 0x20c 0x30c, 0x24c or 0x34c (0x20c, 0x248 and 0x28c have been reported to work for the combined sound/radiocard).");
 
 module_param_array(radio_nr, int, NULL, 0444);
 MODULE_PARM_DESC(radio_nr, "Radio device numbers");
@@ -106,9 +103,9 @@ struct gemtek {
 	u32 bu2614data;
 };
 
-#define BU2614_FREQ_BITS 	16 /* D0..D15, Frequency data		*/
+#define BU2614_FREQ_BITS	16 /* D0..D15, Frequency data		*/
 #define BU2614_PORT_BITS	3 /* P0..P2, Output port control data	*/
-#define BU2614_VOID_BITS	4 /* unused 				*/
+#define BU2614_VOID_BITS	4 /* unused				*/
 #define BU2614_FMES_BITS	1 /* CT, Frequency measurement beginning data */
 #define BU2614_STDF_BITS	3 /* R0..R2, Standard frequency data	*/
 #define BU2614_SWIN_BITS	1 /* S, Switch between FMIN / AMIN	*/
@@ -117,7 +114,7 @@ struct gemtek {
 #define BU2614_FMUN_BITS	1 /* GT, Frequency measurement time & unlock */
 #define BU2614_TEST_BITS	1 /* TS, Test data is input		*/
 
-#define BU2614_FREQ_SHIFT 	0
+#define BU2614_FREQ_SHIFT	0
 #define BU2614_PORT_SHIFT	(BU2614_FREQ_BITS + BU2614_FREQ_SHIFT)
 #define BU2614_VOID_SHIFT	(BU2614_PORT_BITS + BU2614_PORT_SHIFT)
 #define BU2614_FMES_SHIFT	(BU2614_VOID_BITS + BU2614_VOID_SHIFT)
@@ -285,7 +282,7 @@ static const struct radio_isa_ops gemtek_ops = {
 static const int gemtek_ioports[] = { 0x20c, 0x30c, 0x24c, 0x34c, 0x248, 0x28c };
 
 #ifdef CONFIG_PNP
-static struct pnp_device_id gemtek_pnp_devices[] = {
+static const struct pnp_device_id gemtek_pnp_devices[] = {
 	/* AOpen FX-3D/Pro Radio */
 	{.id = "ADS7183", .driver_data = 0},
 	{.id = ""}

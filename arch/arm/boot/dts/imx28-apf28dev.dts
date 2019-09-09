@@ -1,12 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2012 Armadeus Systems - <support@armadeus.com>
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
  */
 
 /* APF28Dev is a docking board for the APF28 SOM */
@@ -18,7 +12,7 @@
 
 	apb@80000000 {
 		apbh@80000000 {
-			ssp0: ssp@80010000 {
+			ssp0: spi@80010000 {
 				compatible = "fsl,imx28-mmc";
 				pinctrl-names = "default";
 				pinctrl-0 = <&mmc0_4bit_pins_a
@@ -27,7 +21,7 @@
 				status = "okay";
 			};
 
-			ssp2: ssp@80014000 {
+			ssp2: spi@80014000 {
 				compatible = "fsl,imx28-spi";
 				pinctrl-names = "default";
 				pinctrl-0 = <&spi2_pins_a>;

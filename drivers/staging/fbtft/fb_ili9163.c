@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * FB driver for the ILI9163 LCD Controller
  *
@@ -5,22 +6,12 @@
  *
  * Based on ili9325.c by Noralf Tronnes and
  * .S.U.M.O.T.O.Y. by Max MC Costa (https://github.com/sumotoy/TFT_ILI9163C).
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/delay.h>
 #include <video/mipi_display.h>
 
@@ -86,8 +77,8 @@ static int init_display(struct fbtft_par *par)
 {
 	par->fbtftops.reset(par);
 
-	if (par->gpio.cs != -1)
-		gpio_set_value(par->gpio.cs, 0);  /* Activate chip */
+	if (par->gpio.cs)
+		gpiod_set_value(par->gpio.cs, 0);  /* Activate chip */
 
 	write_reg(par, MIPI_DCS_SOFT_RESET); /* software reset */
 	mdelay(500);
@@ -194,15 +185,15 @@ static int set_var(struct fbtft_par *par)
 
 	/* Colorspcae */
 	if (par->bgr)
-		mactrl_data |= (1 << 2);
+		mactrl_data |= BIT(2);
 	write_reg(par, MIPI_DCS_SET_ADDRESS_MODE, mactrl_data);
 	write_reg(par, MIPI_DCS_WRITE_MEMORY_START);
 	return 0;
 }
 
 #ifdef GAMMA_ADJ
-#define CURVE(num, idx)  curves[num * par->gamma.num_values + idx]
-static int gamma_adj(struct fbtft_par *par, unsigned long *curves)
+#define CURVE(num, idx)  curves[(num) * par->gamma.num_values + (idx)]
+static int gamma_adj(struct fbtft_par *par, u32 *curves)
 {
 	unsigned long mask[] = {
 		0x3F, 0x3F, 0x3F, 0x3F, 0x3F,

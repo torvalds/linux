@@ -28,7 +28,6 @@ Boston, MA 02110-1301, USA.  */
 
 #include <linux/linkage.h>
 #include <asm/assembler.h>
-#include <asm/export.h>
 
 #ifdef __ARMEB__
 #define al r1
@@ -53,5 +52,3 @@ ENTRY(__aeabi_llsl)
 
 ENDPROC(__ashldi3)
 ENDPROC(__aeabi_llsl)
-EXPORT_SYMBOL(__ashldi3)
-EXPORT_SYMBOL(__aeabi_llsl)

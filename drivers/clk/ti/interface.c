@@ -34,7 +34,7 @@ static const struct clk_ops ti_interface_clk_ops = {
 
 static struct clk *_register_interface(struct device *dev, const char *name,
 				       const char *parent_name,
-				       void __iomem *reg, u8 bit_idx,
+				       struct clk_omap_reg *reg, u8 bit_idx,
 				       const struct clk_hw_omap_ops *ops)
 {
 	struct clk_init_data init = { NULL };
@@ -47,8 +47,7 @@ static struct clk *_register_interface(struct device *dev, const char *name,
 
 	clk_hw->hw.init = &init;
 	clk_hw->ops = ops;
-	clk_hw->flags = MEMMAP_ADDRESSING;
-	clk_hw->enable_reg = reg;
+	memcpy(&clk_hw->enable_reg, reg, sizeof(*reg));
 	clk_hw->enable_bit = bit_idx;
 
 	init.name = name;
@@ -58,60 +57,24 @@ static struct clk *_register_interface(struct device *dev, const char *name,
 	init.num_parents = 1;
 	init.parent_names = &parent_name;
 
-	clk = clk_register(NULL, &clk_hw->hw);
+	clk = ti_clk_register_omap_hw(NULL, &clk_hw->hw, name);
 
 	if (IS_ERR(clk))
 		kfree(clk_hw);
-	else
-		omap2_init_clk_hw_omap_clocks(&clk_hw->hw);
 
 	return clk;
 }
-
-#if defined(CONFIG_ARCH_OMAP3) && defined(CONFIG_ATAGS)
-struct clk *ti_clk_register_interface(struct ti_clk *setup)
-{
-	const struct clk_hw_omap_ops *ops = &clkhwops_iclk_wait;
-	u32 reg;
-	struct clk_omap_reg *reg_setup;
-	struct ti_clk_gate *gate;
-
-	gate = setup->data;
-	reg_setup = (struct clk_omap_reg *)&reg;
-	reg_setup->index = gate->module;
-	reg_setup->offset = gate->reg;
-
-	if (gate->flags & CLKF_NO_WAIT)
-		ops = &clkhwops_iclk;
-
-	if (gate->flags & CLKF_HSOTGUSB)
-		ops = &clkhwops_omap3430es2_iclk_hsotgusb_wait;
-
-	if (gate->flags & CLKF_DSS)
-		ops = &clkhwops_omap3430es2_iclk_dss_usbhost_wait;
-
-	if (gate->flags & CLKF_SSI)
-		ops = &clkhwops_omap3430es2_iclk_ssi_wait;
-
-	if (gate->flags & CLKF_AM35XX)
-		ops = &clkhwops_am35xx_ipss_wait;
-
-	return _register_interface(NULL, setup->name, gate->parent,
-				   (void __iomem *)reg, gate->bit_shift, ops);
-}
-#endif
 
 static void __init _of_ti_interface_clk_setup(struct device_node *node,
 					      const struct clk_hw_omap_ops *ops)
 {
 	struct clk *clk;
 	const char *parent_name;
-	void __iomem *reg;
+	struct clk_omap_reg reg;
 	u8 enable_bit = 0;
 	u32 val;
 
-	reg = ti_clk_get_reg_addr(node, 0);
-	if (IS_ERR(reg))
+	if (ti_clk_get_reg_addr(node, 0, &reg))
 		return;
 
 	if (!of_property_read_u32(node, "ti,bit-shift", &val))
@@ -119,11 +82,11 @@ static void __init _of_ti_interface_clk_setup(struct device_node *node,
 
 	parent_name = of_clk_get_parent_name(node, 0);
 	if (!parent_name) {
-		pr_err("%s must have a parent\n", node->name);
+		pr_err("%pOFn must have a parent\n", node);
 		return;
 	}
 
-	clk = _register_interface(NULL, node->name, parent_name, reg,
+	clk = _register_interface(NULL, node->name, parent_name, &reg,
 				  enable_bit, ops);
 
 	if (!IS_ERR(clk))

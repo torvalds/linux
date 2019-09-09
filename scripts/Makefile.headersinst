@@ -1,139 +1,102 @@
+# SPDX-License-Identifier: GPL-2.0
 # ==========================================================================
 # Installing headers
 #
-# header-y  - list files to be installed. They are preprocessed
-#             to remove __KERNEL__ section of the file
-# genhdr-y  - Same as header-y but in a generated/ directory
+# All headers under include/uapi, include/generated/uapi,
+# arch/<arch>/include/uapi and arch/<arch>/include/generated/uapi are
+# exported.
+# They are preprocessed to remove __KERNEL__ section of the file.
 #
 # ==========================================================================
 
-# generated header directory
-gen := $(if $(gen),$(gen),$(subst include/,include/generated/,$(obj)))
-
-kbuild-file := $(srctree)/$(obj)/Kbuild
-include $(kbuild-file)
-
-# called may set destination dir (when installing to asm/)
-_dst := $(if $(destination-y),$(destination-y),$(if $(dst),$(dst),$(obj)))
-
-old-kbuild-file := $(srctree)/$(subst uapi/,,$(obj))/Kbuild
-ifneq ($(wildcard $(old-kbuild-file)),)
-include $(old-kbuild-file)
-endif
+PHONY := __headers
+__headers:
 
 include scripts/Kbuild.include
 
-installdir    := $(INSTALL_HDR_PATH)/$(subst uapi/,,$(_dst))
+src := $(srctree)/$(obj)
+gen := $(objtree)/$(subst include/,include/generated/,$(obj))
+dst := usr/include
 
-header-y      := $(sort $(header-y))
-subdirs       := $(patsubst %/,%,$(filter %/, $(header-y)))
-header-y      := $(filter-out %/, $(header-y))
+-include $(src)/Kbuild
 
-# files used to track state of install/check
-install-file  := $(installdir)/.install
-check-file    := $(installdir)/.check
+# $(filter %/, ...) is a workaround for GNU Make <= 4.2.1, where
+# $(wildcard $(src)/*/) contains not only directories but also regular files.
+src-subdirs := $(patsubst $(src)/%/,%,$(filter %/, $(wildcard $(src)/*/)))
+gen-subdirs := $(patsubst $(gen)/%/,%,$(filter %/, $(wildcard $(gen)/*/)))
+all-subdirs := $(sort $(src-subdirs) $(gen-subdirs))
 
-# generic-y list all files an architecture uses from asm-generic
-# Use this to build a list of headers which require a wrapper
-wrapper-files := $(filter $(header-y), $(generic-y))
+src-headers := $(if $(src-subdirs), $(shell cd $(src) && find $(src-subdirs) -name '*.h'))
+src-headers := $(filter-out $(no-export-headers), $(src-headers))
+gen-headers := $(if $(gen-subdirs), $(shell cd $(gen) && find $(gen-subdirs) -name '*.h'))
+gen-headers := $(filter-out $(no-export-headers), $(gen-headers))
 
-srcdir        := $(srctree)/$(obj)
-gendir        := $(objtree)/$(gen)
+# If the same header is exported from source and generated directories,
+# the former takes precedence, but this should be warned.
+duplicated := $(filter $(gen-headers), $(src-headers))
+$(if $(duplicated), $(warning duplicated header export: $(duplicated)))
 
-oldsrcdir     := $(srctree)/$(subst /uapi,,$(obj))
+gen-headers := $(filter-out $(duplicated), $(gen-headers))
 
-# all headers files for this dir
-header-y      := $(filter-out $(generic-y), $(header-y))
-all-files     := $(header-y) $(genhdr-y) $(wrapper-files)
-output-files  := $(addprefix $(installdir)/, $(all-files))
-
-input-files1  := $(foreach hdr, $(header-y), \
-		   $(if $(wildcard $(srcdir)/$(hdr)), \
-			$(wildcard $(srcdir)/$(hdr))) \
-		   )
-input-files1-name := $(notdir $(input-files1))
-input-files2  := $(foreach hdr, $(header-y), \
-		   $(if  $(wildcard $(srcdir)/$(hdr)),, \
-			$(if $(wildcard $(oldsrcdir)/$(hdr)), \
-				$(wildcard $(oldsrcdir)/$(hdr)), \
-				$(error Missing UAPI file $(srcdir)/$(hdr))) \
-		   ))
-input-files2-name := $(notdir $(input-files2))
-input-files3  := $(foreach hdr, $(genhdr-y), \
-		   $(if	$(wildcard $(gendir)/$(hdr)), \
-			$(wildcard $(gendir)/$(hdr)), \
-			$(error Missing generated UAPI file $(gendir)/$(hdr)) \
-		   ))
-input-files3-name := $(notdir $(input-files3))
+# Add dst path prefix
+all-subdirs := $(addprefix $(dst)/, $(all-subdirs))
+src-headers := $(addprefix $(dst)/, $(src-headers))
+gen-headers := $(addprefix $(dst)/, $(gen-headers))
+all-headers := $(src-headers) $(gen-headers)
 
 # Work out what needs to be removed
-oldheaders    := $(patsubst $(installdir)/%,%,$(wildcard $(installdir)/*.h))
-unwanted      := $(filter-out $(all-files),$(oldheaders))
+old-subdirs := $(wildcard $(all-subdirs))
+old-headers := $(if $(old-subdirs),$(shell find $(old-subdirs) -name '*.h'))
+unwanted    := $(filter-out $(all-headers), $(old-headers))
 
-# Prefix unwanted with full paths to $(INSTALL_HDR_PATH)
-unwanted-file := $(addprefix $(installdir)/, $(unwanted))
+# Create directories
+existing-dirs := $(sort $(dir $(old-headers)))
+wanted-dirs   := $(sort $(dir $(all-headers)))
+new-dirs      := $(filter-out $(existing-dirs), $(wanted-dirs))
+$(if $(new-dirs), $(shell mkdir -p $(new-dirs)))
 
-printdir = $(patsubst $(INSTALL_HDR_PATH)/%/,%,$(dir $@))
-
-quiet_cmd_install = INSTALL $(printdir) ($(words $(all-files))\
-                            file$(if $(word 2, $(all-files)),s))
-      cmd_install = \
-        $(CONFIG_SHELL) $< $(installdir) $(srcdir) $(input-files1-name); \
-        $(CONFIG_SHELL) $< $(installdir) $(oldsrcdir) $(input-files2-name); \
-        $(CONFIG_SHELL) $< $(installdir) $(gendir) $(input-files3-name); \
-        for F in $(wrapper-files); do                                   \
-                echo "\#include <asm-generic/$$F>" > $(installdir)/$$F;    \
-        done;                                                           \
-        touch $@
-
-quiet_cmd_remove = REMOVE  $(unwanted)
-      cmd_remove = rm -f $(unwanted-file)
-
-quiet_cmd_check = CHECK   $(printdir) ($(words $(all-files)) files)
-# Headers list can be pretty long, xargs helps to avoid
-# the "Argument list too long" error.
-      cmd_check = for f in $(all-files); do                          \
-                  echo "$(installdir)/$${f}"; done                      \
-                  | xargs                                            \
-                  $(PERL) $< $(INSTALL_HDR_PATH)/include $(SRCARCH); \
-	          touch $@
-
-PHONY += __headersinst __headerscheck
+# Rules
 
 ifndef HDRCHECK
-# Rules for installing headers
-__headersinst: $(subdirs) $(install-file)
-	@:
 
-targets += $(install-file)
-$(install-file): scripts/headers_install.sh $(input-files1) $(input-files2) $(input-files3) FORCE
-	$(if $(unwanted),$(call cmd,remove),)
-	$(if $(wildcard $(dir $@)),,$(shell mkdir -p $(dir $@)))
+quiet_cmd_install = HDRINST $@
+      cmd_install = $(CONFIG_SHELL) $(srctree)/scripts/headers_install.sh $< $@
+
+$(src-headers): $(dst)/%.h: $(src)/%.h $(srctree)/scripts/headers_install.sh FORCE
 	$(call if_changed,install)
 
-else
-__headerscheck: $(subdirs) $(check-file)
+$(gen-headers): $(dst)/%.h: $(gen)/%.h $(srctree)/scripts/headers_install.sh FORCE
+	$(call if_changed,install)
+
+quiet_cmd_remove = REMOVE  $(unwanted)
+      cmd_remove = rm -f $(unwanted)
+
+__headers: $(all-headers)
+ifneq ($(unwanted),)
+	$(call cmd,remove)
+endif
 	@:
 
-targets += $(check-file)
-$(check-file): scripts/headers_check.pl $(output-files) FORCE
-	$(call if_changed,check)
+existing-headers := $(filter $(old-headers), $(all-headers))
+
+-include $(foreach f,$(existing-headers),$(dir $(f)).$(notdir $(f)).cmd)
+
+else
+
+quiet_cmd_check = HDRCHK  $<
+      cmd_check = $(PERL) $(srctree)/scripts/headers_check.pl $(dst) $(SRCARCH) $<; touch $@
+
+check-files := $(addsuffix .chk, $(all-headers))
+
+$(check-files): $(dst)/%.chk : $(dst)/% $(srctree)/scripts/headers_check.pl
+	$(call cmd,check)
+
+__headers: $(check-files)
+	@:
 
 endif
 
-# Recursion
-.PHONY: $(subdirs)
-$(subdirs):
-	$(Q)$(MAKE) $(hdr-inst)=$(obj)/$@ dst=$(_dst)/$@
-
-targets := $(wildcard $(sort $(targets)))
-cmd_files := $(wildcard \
-             $(foreach f,$(targets),$(dir $(f)).$(notdir $(f)).cmd))
-
-ifneq ($(cmd_files),)
-	include $(cmd_files)
-endif
+PHONY += FORCE
+FORCE:
 
 .PHONY: $(PHONY)
-PHONY += FORCE
-FORCE: ;

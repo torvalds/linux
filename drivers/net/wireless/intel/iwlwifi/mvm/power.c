@@ -7,7 +7,8 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
- * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
+ * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
+ * Copyright (C) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -17,11 +18,6 @@
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110,
- * USA
  *
  * The full GNU General Public License is included in this distribution
  * in the file called COPYING.
@@ -34,7 +30,8 @@
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
- * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
+ * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
+ * Copyright (C) 2018 - 2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -75,7 +72,7 @@
 #include "iwl-debug.h"
 #include "mvm.h"
 #include "iwl-modparams.h"
-#include "fw-api-power.h"
+#include "fw/api/power.h"
 
 #define POWER_KEEP_ALIVE_PERIOD_SEC    25
 
@@ -84,6 +81,8 @@ int iwl_mvm_beacon_filter_send_cmd(struct iwl_mvm *mvm,
 				   struct iwl_beacon_filter_cmd *cmd,
 				   u32 flags)
 {
+	u16 len;
+
 	IWL_DEBUG_POWER(mvm, "ba_enable_beacon_abort is: %d\n",
 			le32_to_cpu(cmd->ba_enable_beacon_abort));
 	IWL_DEBUG_POWER(mvm, "ba_escape_timer is: %d\n",
@@ -106,9 +105,23 @@ int iwl_mvm_beacon_filter_send_cmd(struct iwl_mvm *mvm,
 			le32_to_cpu(cmd->bf_temp_fast_filter));
 	IWL_DEBUG_POWER(mvm, "bf_temp_slow_filter is: %d\n",
 			le32_to_cpu(cmd->bf_temp_slow_filter));
+	IWL_DEBUG_POWER(mvm, "bf_threshold_absolute_low is: %d, %d\n",
+			le32_to_cpu(cmd->bf_threshold_absolute_low[0]),
+			le32_to_cpu(cmd->bf_threshold_absolute_low[1]));
+
+	IWL_DEBUG_POWER(mvm, "bf_threshold_absolute_high is: %d, %d\n",
+			le32_to_cpu(cmd->bf_threshold_absolute_high[0]),
+			le32_to_cpu(cmd->bf_threshold_absolute_high[1]));
+
+	if (fw_has_api(&mvm->fw->ucode_capa,
+		       IWL_UCODE_TLV_API_BEACON_FILTER_V4))
+		len = sizeof(struct iwl_beacon_filter_cmd);
+	else
+		len = offsetof(struct iwl_beacon_filter_cmd,
+			       bf_threshold_absolute_low);
 
 	return iwl_mvm_send_cmd_pdu(mvm, REPLY_BEACON_FILTERING_CMD, flags,
-				    sizeof(struct iwl_beacon_filter_cmd), cmd);
+				    len, cmd);
 }
 
 static
@@ -174,11 +187,19 @@ static void iwl_mvm_power_configure_uapsd(struct iwl_mvm *mvm,
 	enum ieee80211_ac_numbers ac;
 	bool tid_found = false;
 
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+	/* set advanced pm flag with no uapsd ACs to enable ps-poll */
+	if (mvmvif->dbgfs_pm.use_ps_poll) {
+		cmd->flags |= cpu_to_le16(POWER_FLAGS_ADVANCE_PM_ENA_MSK);
+		return;
+	}
+#endif
+
 	for (ac = IEEE80211_AC_VO; ac <= IEEE80211_AC_BK; ac++) {
 		if (!mvmvif->queue_params[ac].uapsd)
 			continue;
 
-		if (mvm->cur_ucode != IWL_UCODE_WOWLAN)
+		if (mvm->fwrt.cur_fw_img != IWL_UCODE_WOWLAN)
 			cmd->flags |=
 				cpu_to_le16(POWER_FLAGS_ADVANCE_PM_ENA_MSK);
 
@@ -204,16 +225,6 @@ static void iwl_mvm_power_configure_uapsd(struct iwl_mvm *mvm,
 		}
 	}
 
-	if (!(cmd->flags & cpu_to_le16(POWER_FLAGS_ADVANCE_PM_ENA_MSK))) {
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-		/* set advanced pm flag with no uapsd ACs to enable ps-poll */
-		if (mvmvif->dbgfs_pm.use_ps_poll)
-			cmd->flags |=
-				cpu_to_le16(POWER_FLAGS_ADVANCE_PM_ENA_MSK);
-#endif
-		return;
-	}
-
 	cmd->flags |= cpu_to_le16(POWER_FLAGS_UAPSD_MISBEHAVING_ENA_MSK);
 
 	if (cmd->uapsd_ac_flags == (BIT(IEEE80211_AC_VO) |
@@ -222,14 +233,15 @@ static void iwl_mvm_power_configure_uapsd(struct iwl_mvm *mvm,
 				    BIT(IEEE80211_AC_BK))) {
 		cmd->flags |= cpu_to_le16(POWER_FLAGS_SNOOZE_ENA_MSK);
 		cmd->snooze_interval = cpu_to_le16(IWL_MVM_PS_SNOOZE_INTERVAL);
-		cmd->snooze_window = (mvm->cur_ucode == IWL_UCODE_WOWLAN) ?
-			cpu_to_le16(IWL_MVM_WOWLAN_PS_SNOOZE_WINDOW) :
-			cpu_to_le16(IWL_MVM_PS_SNOOZE_WINDOW);
+		cmd->snooze_window =
+			(mvm->fwrt.cur_fw_img == IWL_UCODE_WOWLAN) ?
+				cpu_to_le16(IWL_MVM_WOWLAN_PS_SNOOZE_WINDOW) :
+				cpu_to_le16(IWL_MVM_PS_SNOOZE_WINDOW);
 	}
 
 	cmd->uapsd_max_sp = mvm->hw->uapsd_max_sp_len;
 
-	if (mvm->cur_ucode == IWL_UCODE_WOWLAN || cmd->flags &
+	if (mvm->fwrt.cur_fw_img == IWL_UCODE_WOWLAN || cmd->flags &
 	    cpu_to_le16(POWER_FLAGS_SNOOZE_ENA_MSK)) {
 		cmd->rx_data_timeout_uapsd =
 			cpu_to_le32(IWL_MVM_WOWLAN_PS_RX_DATA_TIMEOUT);
@@ -504,7 +516,7 @@ static int iwl_mvm_power_send_cmd(struct iwl_mvm *mvm,
 	struct iwl_mac_power_cmd cmd = {};
 
 	iwl_mvm_power_build_cmd(mvm, vif, &cmd,
-				mvm->cur_ucode != IWL_UCODE_WOWLAN);
+				mvm->fwrt.cur_fw_img != IWL_UCODE_WOWLAN);
 	iwl_mvm_power_log(mvm, &cmd);
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	memcpy(&iwl_mvm_vif_from_mac80211(vif)->mac_pwr_cmd, &cmd, sizeof(cmd));
@@ -527,11 +539,14 @@ int iwl_mvm_power_update_device(struct iwl_mvm *mvm)
 		cmd.flags |= cpu_to_le16(DEVICE_POWER_FLAGS_POWER_SAVE_ENA_MSK);
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
-	if ((mvm->cur_ucode == IWL_UCODE_WOWLAN) ? mvm->disable_power_off_d3 :
-	    mvm->disable_power_off)
+	if ((mvm->fwrt.cur_fw_img == IWL_UCODE_WOWLAN) ?
+			mvm->disable_power_off_d3 : mvm->disable_power_off)
 		cmd.flags &=
 			cpu_to_le16(~DEVICE_POWER_FLAGS_POWER_SAVE_ENA_MSK);
 #endif
+	if (mvm->ext_clock_valid)
+		cmd.flags |= cpu_to_le16(DEVICE_POWER_FLAGS_32K_CLK_VALID_MSK);
+
 	IWL_DEBUG_POWER(mvm,
 			"Sending device power command with flags = 0x%X\n",
 			cmd.flags);
@@ -601,9 +616,8 @@ static void iwl_mvm_power_ps_disabled_iterator(void *_data, u8* mac,
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	bool *disable_ps = _data;
 
-	if (mvmvif->phy_ctxt)
-		if (mvmvif->phy_ctxt->id < MAX_PHYS)
-			*disable_ps |= mvmvif->ps_disabled;
+	if (mvmvif->phy_ctxt && mvmvif->phy_ctxt->id < NUM_PHY_CTX)
+		*disable_ps |= mvmvif->ps_disabled;
 }
 
 static void iwl_mvm_power_get_vifs_iterator(void *_data, u8 *mac,
@@ -611,6 +625,7 @@ static void iwl_mvm_power_get_vifs_iterator(void *_data, u8 *mac,
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_power_vifs *power_iterator = _data;
+	bool active = mvmvif->phy_ctxt && mvmvif->phy_ctxt->id < NUM_PHY_CTX;
 
 	switch (ieee80211_vif_type_p2p(vif)) {
 	case NL80211_IFTYPE_P2P_DEVICE:
@@ -621,34 +636,30 @@ static void iwl_mvm_power_get_vifs_iterator(void *_data, u8 *mac,
 		/* only a single MAC of the same type */
 		WARN_ON(power_iterator->ap_vif);
 		power_iterator->ap_vif = vif;
-		if (mvmvif->phy_ctxt)
-			if (mvmvif->phy_ctxt->id < MAX_PHYS)
-				power_iterator->ap_active = true;
+		if (active)
+			power_iterator->ap_active = true;
 		break;
 
 	case NL80211_IFTYPE_MONITOR:
 		/* only a single MAC of the same type */
 		WARN_ON(power_iterator->monitor_vif);
 		power_iterator->monitor_vif = vif;
-		if (mvmvif->phy_ctxt)
-			if (mvmvif->phy_ctxt->id < MAX_PHYS)
-				power_iterator->monitor_active = true;
+		if (active)
+			power_iterator->monitor_active = true;
 		break;
 
 	case NL80211_IFTYPE_P2P_CLIENT:
 		/* only a single MAC of the same type */
 		WARN_ON(power_iterator->p2p_vif);
 		power_iterator->p2p_vif = vif;
-		if (mvmvif->phy_ctxt)
-			if (mvmvif->phy_ctxt->id < MAX_PHYS)
-				power_iterator->p2p_active = true;
+		if (active)
+			power_iterator->p2p_active = true;
 		break;
 
 	case NL80211_IFTYPE_STATION:
 		power_iterator->bss_vif = vif;
-		if (mvmvif->phy_ctxt)
-			if (mvmvif->phy_ctxt->id < MAX_PHYS)
-				power_iterator->bss_active = true;
+		if (active)
+			power_iterator->bss_active = true;
 		break;
 
 	default:
@@ -939,7 +950,7 @@ static int iwl_mvm_power_set_ba(struct iwl_mvm *mvm,
 	if (!mvmvif->bf_data.bf_enabled)
 		return 0;
 
-	if (mvm->cur_ucode == IWL_UCODE_WOWLAN)
+	if (mvm->fwrt.cur_fw_img == IWL_UCODE_WOWLAN)
 		cmd.ba_escape_timer = cpu_to_le32(IWL_BA_ESCAPE_TIMER_D3);
 
 	mvmvif->bf_data.ba_enabled = !(!mvmvif->pm_enabled ||

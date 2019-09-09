@@ -1,17 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * SMI PCIe driver for DVBSky cards.
  *
  * Copyright (C) 2014 Max nibble <nibble.max@gmail.com>
- *
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation; either version 2 of the License, or
- *    (at your option) any later version.
- *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
  */
 
 #ifndef _SMI_PCIE_H_
@@ -29,12 +20,12 @@
 #include <linux/slab.h>
 #include <media/rc-core.h>
 
-#include "demux.h"
-#include "dmxdev.h"
-#include "dvb_demux.h"
-#include "dvb_frontend.h"
-#include "dvb_net.h"
-#include "dvbdev.h"
+#include <media/demux.h>
+#include <media/dmxdev.h>
+#include <media/dvb_demux.h>
+#include <media/dvb_frontend.h>
+#include <media/dvb_net.h>
+#include <media/dvbdev.h>
 
 /* -------- Register Base -------- */
 #define    MSI_CONTROL_REG_BASE                 0x0800
@@ -240,8 +231,7 @@ struct smi_rc {
 	struct smi_dev *dev;
 	struct rc_dev *rc_dev;
 	char input_phys[64];
-	char input_name[64];
-	struct work_struct work;
+	char device_name[64];
 	u8 irData[256];
 
 	int users;

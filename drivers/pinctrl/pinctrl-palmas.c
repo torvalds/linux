@@ -860,7 +860,7 @@ static int palmas_pinconf_set(struct pinctrl_dev *pctldev,
 {
 	struct palmas_pctrl_chip_info *pci = pinctrl_dev_get_drvdata(pctldev);
 	enum pin_config_param param;
-	u16 param_val;
+	u32 param_val;
 	const struct palmas_pingroup *g;
 	const struct palmas_pin_info *opt;
 	int ret;
@@ -1012,10 +1012,8 @@ static int palmas_pinctrl_probe(struct platform_device *pdev)
 	}
 
 	pci = devm_kzalloc(&pdev->dev, sizeof(*pci), GFP_KERNEL);
-	if (!pci) {
-		dev_err(&pdev->dev, "Malloc for pci failed\n");
+	if (!pci)
 		return -ENOMEM;
-	}
 
 	pci->dev = &pdev->dev;
 	pci->palmas = dev_get_drvdata(pdev->dev.parent);

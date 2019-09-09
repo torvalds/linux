@@ -1,19 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Based on arch/arm/kernel/io.c
  *
  * Copyright (C) 2012 ARM Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/export.h>
@@ -25,8 +14,7 @@
  */
 void __memcpy_fromio(void *to, const volatile void __iomem *from, size_t count)
 {
-	while (count && (!IS_ALIGNED((unsigned long)from, 8) ||
-			 !IS_ALIGNED((unsigned long)to, 8))) {
+	while (count && !IS_ALIGNED((unsigned long)from, 8)) {
 		*(u8 *)to = __raw_readb(from);
 		from++;
 		to++;
@@ -54,23 +42,22 @@ EXPORT_SYMBOL(__memcpy_fromio);
  */
 void __memcpy_toio(volatile void __iomem *to, const void *from, size_t count)
 {
-	while (count && (!IS_ALIGNED((unsigned long)to, 8) ||
-			 !IS_ALIGNED((unsigned long)from, 8))) {
-		__raw_writeb(*(volatile u8 *)from, to);
+	while (count && !IS_ALIGNED((unsigned long)to, 8)) {
+		__raw_writeb(*(u8 *)from, to);
 		from++;
 		to++;
 		count--;
 	}
 
 	while (count >= 8) {
-		__raw_writeq(*(volatile u64 *)from, to);
+		__raw_writeq(*(u64 *)from, to);
 		from += 8;
 		to += 8;
 		count -= 8;
 	}
 
 	while (count) {
-		__raw_writeb(*(volatile u8 *)from, to);
+		__raw_writeb(*(u8 *)from, to);
 		from++;
 		to++;
 		count--;

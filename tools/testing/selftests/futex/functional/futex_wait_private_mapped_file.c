@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /******************************************************************************
  *
  * Copyright FUJITSU LIMITED 2010
  * Copyright KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
- *
- *   This program is free software;  you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
  *
  * DESCRIPTION
  *      Internally, Futex has two handling mode, anon and file. The private file
@@ -34,6 +30,7 @@
 #include "logging.h"
 #include "futextest.h"
 
+#define TEST_NAME "futex-wait-private-mapped-file"
 #define PAGE_SZ 4096
 
 char pad[PAGE_SZ] = {1};
@@ -60,7 +57,7 @@ void *thr_futex_wait(void *arg)
 	ret = futex_wait(&val, 1, &wait_timeout, 0);
 	if (ret && errno != EWOULDBLOCK && errno != ETIMEDOUT) {
 		error("futex error.\n", errno);
-		print_result(RET_ERROR);
+		print_result(TEST_NAME, RET_ERROR);
 		exit(RET_ERROR);
 	}
 
@@ -96,8 +93,11 @@ int main(int argc, char **argv)
 		}
 	}
 
-	printf("%s: Test the futex value of private file mappings in FUTEX_WAIT\n",
-	       basename(argv[0]));
+	ksft_print_header();
+	ksft_set_plan(1);
+	ksft_print_msg(
+		"%s: Test the futex value of private file mappings in FUTEX_WAIT\n",
+		basename(argv[0]));
 
 	ret = pthread_create(&thr, NULL, thr_futex_wait, NULL);
 	if (ret < 0) {
@@ -120,6 +120,6 @@ int main(int argc, char **argv)
 	pthread_join(thr, NULL);
 
  out:
-	print_result(ret);
+	print_result(TEST_NAME, ret);
 	return ret;
 }

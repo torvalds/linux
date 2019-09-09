@@ -1,9 +1,11 @@
 #/*******************************************************************
 # * This file is part of the Emulex Linux Device Driver for         *
 # * Fibre Channel Host Bus Adapters.                                *
+# * Copyright (C) 2017-2018 Broadcom. All Rights Reserved. The term *
+# * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
 # * Copyright (C) 2004-2012 Emulex.  All rights reserved.           *
 # * EMULEX and SLI are trademarks of Emulex.                        *
-# * www.emulex.com                                                  *
+# * www.broadcom.com                                                *
 # *                                                                 *
 # * This program is free software; you can redistribute it and/or   *
 # * modify it under the terms of version 2 of the GNU General       *
@@ -28,6 +30,7 @@ endif
 
 obj-$(CONFIG_SCSI_LPFC) := lpfc.o
 
-lpfc-objs := lpfc_mem.o lpfc_sli.o lpfc_ct.o lpfc_els.o lpfc_hbadisc.o	\
-	lpfc_init.o lpfc_mbox.o lpfc_nportdisc.o lpfc_scsi.o lpfc_attr.o \
-	lpfc_vport.o lpfc_debugfs.o lpfc_bsg.o
+lpfc-objs := lpfc_mem.o lpfc_sli.o lpfc_ct.o lpfc_els.o \
+	lpfc_hbadisc.o	lpfc_init.o lpfc_mbox.o lpfc_nportdisc.o   \
+	lpfc_scsi.o lpfc_attr.o lpfc_vport.o lpfc_debugfs.o lpfc_bsg.o \
+	lpfc_nvme.o lpfc_nvmet.o

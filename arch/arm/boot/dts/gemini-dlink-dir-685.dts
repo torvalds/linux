@@ -1,0 +1,470 @@
+/*
+ * Device Tree file for D-Link DIR-685 Xtreme N Storage Router
+ */
+
+/dts-v1/;
+
+#include "gemini.dtsi"
+#include <dt-bindings/input/input.h>
+
+/ {
+	model = "D-Link DIR-685 Xtreme N Storage Router";
+	compatible = "dlink,dir-685", "cortina,gemini";
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	memory@0 {
+		/* 128 MB SDRAM in 2 x Hynix HY5DU121622DTP-D43 */
+		device_type = "memory";
+		reg = <0x00000000 0x8000000>;
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,19200n8 root=/dev/sda1 rw rootwait consoleblank=300";
+		stdout-path = "uart0:19200n8";
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+
+		button-esc {
+			debounce-interval = <100>;
+			wakeup-source;
+			linux,code = <KEY_ESC>;
+			label = "reset";
+			/* Collides with LPC_LAD[0], UART DCD, SSP 97RST */
+			gpios = <&gpio0 8 GPIO_ACTIVE_LOW>;
+		};
+		button-eject {
+			debounce-interval = <100>;
+			wakeup-source;
+			linux,code = <KEY_EJECTCD>;
+			label = "unmount";
+			/* Collides with LPC LFRAME, UART RTS, SSP TXD */
+			gpios = <&gpio0 13 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	vdisp: regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "display-power";
+		regulator-min-microvolt = <3600000>;
+		regulator-max-microvolt = <3600000>;
+		/* Collides with LCD E */
+		gpio = <&gpio0 16 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	spi {
+		compatible = "spi-gpio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		/* Collides with IDE pins, that's cool (we do not use them) */
+		gpio-sck = <&gpio1 5 GPIO_ACTIVE_HIGH>;
+		gpio-miso = <&gpio1 8 GPIO_ACTIVE_HIGH>;
+		gpio-mosi = <&gpio1 7 GPIO_ACTIVE_HIGH>;
+		cs-gpios = <&gpio0 20 GPIO_ACTIVE_LOW>;
+		num-chipselects = <1>;
+
+		panel: display@0 {
+			compatible = "dlink,dir-685-panel", "ilitek,ili9322";
+			reg = <0>;
+			/* 50 ns min period = 20 MHz */
+			spi-max-frequency = <20000000>;
+			spi-cpol; /* Clock active low */
+			vcc-supply = <&vdisp>;
+			iovcc-supply = <&vdisp>;
+			vci-supply = <&vdisp>;
+
+			port {
+				panel_in: endpoint {
+					remote-endpoint = <&display_out>;
+				};
+			};
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		led-wps {
+			label = "dir685:blue:WPS";
+			/* Collides with ICE */
+			gpios = <&gpio0 7 GPIO_ACTIVE_LOW>;
+			default-state = "on";
+			linux,default-trigger = "heartbeat";
+		};
+		/*
+		 * These two LEDs are on the side of the device.
+		 * For electrical reasons, both LEDs cannot be active
+		 * at the same time so only blue or orange can be on at
+		 * one time. Enabling both makes the LED go dark.
+		 * The LEDs both sit inside the unmount button and the
+		 * label on the case says "unmount".
+		 */
+		led-blue-hd {
+			label = "dir685:blue:HD";
+			/* Collides with LPC_SERIRQ, UART DTR, SSP FSC pins */
+			gpios = <&gpio0 11 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+			linux,default-trigger = "disk-read";
+		};
+		led-orange-hd {
+			label = "dir685:orange:HD";
+			/* Collides with LPC_LAD[2], UART DSR, SSP ECLK pins */
+			gpios = <&gpio0 12 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+			linux,default-trigger = "disk-write";
+		};
+	};
+
+	/*
+	 * This is a Sunon Maglev GM0502PFV2-8 cooling fan @10000 RPM.
+	 * Since the platform has no temperature sensor, this is controlled
+	 * from userspace by using the hard disks S.M.A.R.T. temperature
+	 * sensor. It is turned on when the temperature exceeds 46 degrees
+	 * and turned off when the temperatures goes below 41 degrees
+	 * (celsius).
+	 */
+	gpio-fan {
+		compatible = "gpio-fan";
+		/* Collides with IDE */
+		gpios = <&gpio1 6 GPIO_ACTIVE_HIGH>;
+		gpio-fan,speed-map = <0 0>, <10000 1>;
+		#cooling-cells = <2>;
+	};
+
+	/*
+	 * The touchpad input is connected to a GPIO bit-banged
+	 * I2C bus.
+	 */
+	gpio-i2c {
+		compatible = "i2c-gpio";
+		/* Collides with ICE */
+		sda-gpios = <&gpio0 5 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&gpio0 6 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		touchkeys@26 {
+			compatible = "dlink,dir685-touchkeys";
+			reg = <0x26>;
+			interrupt-parent = <&gpio0>;
+			/* Collides with NAND flash */
+			interrupts = <17 IRQ_TYPE_EDGE_FALLING>;
+		};
+	};
+
+	/* This is a RealTek RTL8366RB switch and PHY using SMI over GPIO */
+	switch {
+		compatible = "realtek,rtl8366rb";
+		/* 22 = MDIO (has input reads), 21 = MDC (clock, output only) */
+		mdc-gpios = <&gpio0 21 GPIO_ACTIVE_HIGH>;
+		mdio-gpios = <&gpio0 22 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio0 14 GPIO_ACTIVE_LOW>;
+		realtek,disable-leds;
+
+		switch_intc: interrupt-controller {
+			/* GPIO 15 provides the interrupt */
+			interrupt-parent = <&gpio0>;
+			interrupts = <15 IRQ_TYPE_LEVEL_LOW>;
+			interrupt-controller;
+			#address-cells = <0>;
+			#interrupt-cells = <1>;
+		};
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				label = "lan0";
+				phy-handle = <&phy0>;
+			};
+			port@1 {
+				reg = <1>;
+				label = "lan1";
+				phy-handle = <&phy1>;
+			};
+			port@2 {
+				reg = <2>;
+				label = "lan2";
+				phy-handle = <&phy2>;
+			};
+			port@3 {
+				reg = <3>;
+				label = "lan3";
+				phy-handle = <&phy3>;
+			};
+			port@4 {
+				reg = <4>;
+				label = "wan";
+				phy-handle = <&phy4>;
+			};
+			rtl8366rb_cpu_port: port@5 {
+				reg = <5>;
+				label = "cpu";
+				ethernet = <&gmac0>;
+				phy-mode = "rgmii";
+				fixed-link {
+					speed = <1000>;
+					full-duplex;
+					pause;
+				};
+			};
+
+		};
+
+		mdio {
+			compatible = "realtek,smi-mdio";
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			phy0: phy@0 {
+				reg = <0>;
+				interrupt-parent = <&switch_intc>;
+				interrupts = <0>;
+			};
+			phy1: phy@1 {
+				reg = <1>;
+				interrupt-parent = <&switch_intc>;
+				interrupts = <1>;
+			};
+			phy2: phy@2 {
+				reg = <2>;
+				interrupt-parent = <&switch_intc>;
+				interrupts = <2>;
+			};
+			phy3: phy@3 {
+				reg = <3>;
+				interrupt-parent = <&switch_intc>;
+				interrupts = <3>;
+			};
+			phy4: phy@4 {
+				reg = <4>;
+				interrupt-parent = <&switch_intc>;
+				interrupts = <12>;
+			};
+		};
+	};
+
+	soc {
+		flash@30000000 {
+			/*
+			 * Flash access collides with the Chip Enable signal for
+			 * the display panel, that reuse the parallel flash Chip
+			 * Select 1 (CS1). We switch the pin control state so we
+			 * enable these pins for flash access only when we need
+			 * then, and when disabled they can be used for GPIO which
+			 * is what the display panel needs.
+			 */
+			status = "okay";
+			pinctrl-names = "enabled", "disabled";
+			pinctrl-0 = <&pflash_default_pins>;
+			pinctrl-1 = <&pflash_disabled_pins>;
+
+			/* 32MB of flash */
+			reg = <0x30000000 0x02000000>;
+
+			partitions {
+				compatible = "fixed-partitions";
+				#address-cells = <1>;
+				#size-cells = <1>;
+
+				/*
+				 * This "RedBoot" is the Storlink derivative.
+				 */
+				partition@0 {
+					label = "RedBoot";
+					reg = <0x00000000 0x00040000>;
+					read-only;
+				};
+				/*
+				 * This firmware image contains the kernel catenated
+				 * with the squashfs root filesystem. For some reason
+				 * this is called "upgrade" on the vendor system.
+				 */
+				partition@40000 {
+					label = "upgrade";
+					reg = <0x00040000 0x01f40000>;
+					read-only;
+				};
+				/* RGDB, Residental Gateway Database? */
+				partition@1f80000 {
+					label = "rgdb";
+					reg = <0x01f80000 0x00040000>;
+					read-only;
+				};
+				/*
+				 * This partition contains MAC addresses for WAN,
+				 * WLAN and LAN, and the country code (for wireless
+				 * I guess).
+				 */
+				partition@1fc0000 {
+					label = "nvram";
+					reg = <0x01fc0000 0x00020000>;
+					read-only;
+				};
+				partition@1fe0000 {
+					label = "LangPack";
+					reg = <0x01fe0000 0x00020000>;
+					read-only;
+				};
+			};
+		};
+
+		syscon: syscon@40000000 {
+			pinctrl {
+				/*
+				 * gpio0bgrp cover line 5, 6 used by TK I2C
+				 * gpio0bgrp cover line 7 used by WPS LED
+				 * gpio0cgrp cover line 8, 13 used by keys
+				 *           and 11, 12 used by the HD LEDs
+				 *           and line 14, 15 used by RTL8366
+				 *           RESET and phy ready
+				 * gpio0egrp cover line 16 used by VDISP
+				 * gpio0fgrp cover line 17 used by TK IRQ
+				 * gpio0ggrp cover line 20 used by panel CS
+				 * gpio0hgrp cover line 21,22 used by RTL8366RB MDIO
+				 */
+				gpio0_default_pins: pinctrl-gpio0 {
+					mux {
+						function = "gpio0";
+						groups = "gpio0bgrp",
+						"gpio0cgrp",
+						"gpio0egrp",
+						"gpio0fgrp",
+						"gpio0hgrp";
+					};
+				};
+				/*
+				 * gpio1bgrp cover line 5,8,7 used by panel SPI
+				 * also line 6 used by the fan
+				 *
+				 */
+				gpio1_default_pins: pinctrl-gpio1 {
+					mux {
+						function = "gpio1";
+						groups = "gpio1bgrp";
+					};
+				};
+				/*
+				 * These GPIO groups will be mapped in over some
+				 * of the flash pins when the flash is not in
+				 * active use.
+				 */
+				pflash_disabled_pins: pinctrl-pflash-disabled {
+					mux {
+						function = "gpio0";
+						groups = "gpio0ggrp", "gpio0igrp", "gpio0jgrp",
+							 "gpio0kgrp";
+					};
+				};
+				pinctrl-gmii {
+					mux {
+						function = "gmii";
+						groups = "gmii_gmac0_grp";
+					};
+					conf0 {
+						pins = "V8 GMAC0 RXDV", "T10 GMAC1 RXDV",
+						     "Y7 GMAC0 RXC", "Y11 GMAC1 RXC",
+						     "T8 GMAC0 TXEN", "W11 GMAC1 TXEN",
+						     "U8 GMAC0 TXC", "V11 GMAC1 TXC",
+						     "W8 GMAC0 RXD0", "V9 GMAC0 RXD1",
+						     "Y8 GMAC0 RXD2", "U9 GMAC0 RXD3",
+						     "T7 GMAC0 TXD0", "U6 GMAC0 TXD1",
+						     "V7 GMAC0 TXD2", "U7 GMAC0 TXD3",
+						     "Y12 GMAC1 RXD0", "V12 GMAC1 RXD1",
+						     "T11 GMAC1 RXD2", "W12 GMAC1 RXD3",
+						     "U10 GMAC1 TXD0", "Y10 GMAC1 TXD1",
+						     "W10 GMAC1 TXD2", "T9 GMAC1 TXD3";
+						skew-delay = <7>;
+					};
+					/* Set up drive strength on GMAC0 to 16 mA */
+					conf1 {
+						groups = "gmii_gmac0_grp";
+						drive-strength = <16>;
+					};
+				};
+			};
+		};
+
+		sata: sata@46000000 {
+			cortina,gemini-ata-muxmode = <0>;
+			cortina,gemini-enable-sata-bridge;
+			status = "okay";
+		};
+
+		gpio0: gpio@4d000000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&gpio0_default_pins>;
+		};
+
+		gpio1: gpio@4e000000 {
+			pinctrl-names = "default";
+			pinctrl-0 = <&gpio1_default_pins>;
+		};
+
+		pci@50000000 {
+			status = "okay";
+			interrupt-map-mask = <0xf800 0 0 7>;
+			interrupt-map =
+				<0x4800 0 0 1 &pci_intc 0>, /* Slot 9 */
+				<0x4800 0 0 2 &pci_intc 1>,
+				<0x4800 0 0 3 &pci_intc 2>,
+				<0x4800 0 0 4 &pci_intc 3>,
+				<0x5000 0 0 1 &pci_intc 1>, /* Slot 10 */
+				<0x5000 0 0 2 &pci_intc 2>,
+				<0x5000 0 0 3 &pci_intc 3>,
+				<0x5000 0 0 4 &pci_intc 0>,
+				<0x5800 0 0 1 &pci_intc 2>, /* Slot 11 */
+				<0x5800 0 0 2 &pci_intc 3>,
+				<0x5800 0 0 3 &pci_intc 0>,
+				<0x5800 0 0 4 &pci_intc 1>,
+				<0x6000 0 0 1 &pci_intc 3>, /* Slot 12 */
+				<0x6000 0 0 2 &pci_intc 0>,
+				<0x6000 0 0 3 &pci_intc 1>,
+				<0x6000 0 0 4 &pci_intc 2>;
+		};
+
+		ethernet@60000000 {
+			status = "okay";
+
+			ethernet-port@0 {
+				phy-mode = "rgmii";
+				fixed-link {
+					speed = <1000>;
+					full-duplex;
+					pause;
+				};
+			};
+			ethernet-port@1 {
+				/* Not used in this platform */
+			};
+		};
+
+		ata@63000000 {
+			status = "okay";
+		};
+
+		display-controller@6a000000 {
+			status = "okay";
+
+			port@0 {
+				reg = <0>;
+				display_out: endpoint {
+					remote-endpoint = <&panel_in>;
+				};
+			};
+		};
+
+		usb@68000000 {
+			status = "okay";
+		};
+
+		usb@69000000 {
+			status = "okay";
+		};
+	};
+};

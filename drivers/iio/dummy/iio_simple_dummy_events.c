@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /**
  * Copyright (c) 2011 Jonathan Cameron
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  *
  * Event handling elements of industrial I/O reference driver.
  */
@@ -72,6 +69,7 @@ int iio_simple_dummy_write_event_config(struct iio_dev *indio_dev,
 				st->event_en = state;
 			else
 				return -EINVAL;
+			break;
 		default:
 			return -EINVAL;
 		}

@@ -1,19 +1,9 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (c) 2010 Broadcom Corporation
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
- * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
- * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
- * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <linux/kernel.h>
 #include <types.h>
 #include "phytbl_n.h"
 
@@ -4437,109 +4427,39 @@ static const u16 loft_lut_core1_rev0[] = {
 };
 
 const struct phytbl_info mimophytbl_info_rev0_volatile[] = {
-	{&bdi_tbl_rev0, sizeof(bdi_tbl_rev0) / sizeof(bdi_tbl_rev0[0]), 21, 0,
-	 16}
-	,
-	{&pltlut_tbl_rev0, sizeof(pltlut_tbl_rev0) / sizeof(pltlut_tbl_rev0[0]),
-	 20, 0, 32}
-	,
-	{&gainctrl_lut_core0_rev0,
-	 sizeof(gainctrl_lut_core0_rev0) / sizeof(gainctrl_lut_core0_rev0[0]),
-	 26, 192, 32}
-	,
-	{&gainctrl_lut_core1_rev0,
-	 sizeof(gainctrl_lut_core1_rev0) / sizeof(gainctrl_lut_core1_rev0[0]),
-	 27, 192, 32}
-	,
-
-	{&est_pwr_lut_core0_rev0,
-	 sizeof(est_pwr_lut_core0_rev0) / sizeof(est_pwr_lut_core0_rev0[0]), 26,
-	 0, 8}
-	,
-	{&est_pwr_lut_core1_rev0,
-	 sizeof(est_pwr_lut_core1_rev0) / sizeof(est_pwr_lut_core1_rev0[0]), 27,
-	 0, 8}
-	,
-	{&adj_pwr_lut_core0_rev0,
-	 sizeof(adj_pwr_lut_core0_rev0) / sizeof(adj_pwr_lut_core0_rev0[0]), 26,
-	 64, 8}
-	,
-	{&adj_pwr_lut_core1_rev0,
-	 sizeof(adj_pwr_lut_core1_rev0) / sizeof(adj_pwr_lut_core1_rev0[0]), 27,
-	 64, 8}
-	,
-	{&iq_lut_core0_rev0,
-	 sizeof(iq_lut_core0_rev0) / sizeof(iq_lut_core0_rev0[0]), 26, 320, 32}
-	,
-	{&iq_lut_core1_rev0,
-	 sizeof(iq_lut_core1_rev0) / sizeof(iq_lut_core1_rev0[0]), 27, 320, 32}
-	,
-	{&loft_lut_core0_rev0,
-	 sizeof(loft_lut_core0_rev0) / sizeof(loft_lut_core0_rev0[0]), 26, 448,
-	 16}
-	,
-	{&loft_lut_core1_rev0,
-	 sizeof(loft_lut_core1_rev0) / sizeof(loft_lut_core1_rev0[0]), 27, 448,
-	 16}
-	,
+	{&bdi_tbl_rev0, ARRAY_SIZE(bdi_tbl_rev0), 21, 0, 16},
+	{&pltlut_tbl_rev0, ARRAY_SIZE(pltlut_tbl_rev0), 20, 0, 32},
+	{&gainctrl_lut_core0_rev0, ARRAY_SIZE(gainctrl_lut_core0_rev0), 26, 192, 32},
+	{&gainctrl_lut_core1_rev0, ARRAY_SIZE(gainctrl_lut_core1_rev0), 27, 192, 32},
+	{&est_pwr_lut_core0_rev0, ARRAY_SIZE(est_pwr_lut_core0_rev0), 26, 0, 8},
+	{&est_pwr_lut_core1_rev0, ARRAY_SIZE(est_pwr_lut_core1_rev0), 27, 0, 8},
+	{&adj_pwr_lut_core0_rev0, ARRAY_SIZE(adj_pwr_lut_core0_rev0), 26, 64, 8},
+	{&adj_pwr_lut_core1_rev0, ARRAY_SIZE(adj_pwr_lut_core1_rev0), 27, 64, 8},
+	{&iq_lut_core0_rev0, ARRAY_SIZE(iq_lut_core0_rev0), 26, 320, 32},
+	{&iq_lut_core1_rev0, ARRAY_SIZE(iq_lut_core1_rev0), 27, 320, 32},
+	{&loft_lut_core0_rev0, ARRAY_SIZE(loft_lut_core0_rev0), 26, 448, 16},
+	{&loft_lut_core1_rev0, ARRAY_SIZE(loft_lut_core1_rev0), 27, 448, 16},
 };
 
 const struct phytbl_info mimophytbl_info_rev0[] = {
-	{&frame_struct_rev0,
-	 sizeof(frame_struct_rev0) / sizeof(frame_struct_rev0[0]), 10, 0, 32}
-	,
-	{&frame_lut_rev0, sizeof(frame_lut_rev0) / sizeof(frame_lut_rev0[0]),
-	 24, 0, 8}
-	,
-	{&tmap_tbl_rev0, sizeof(tmap_tbl_rev0) / sizeof(tmap_tbl_rev0[0]), 12,
-	 0, 32}
-	,
-	{&tdtrn_tbl_rev0, sizeof(tdtrn_tbl_rev0) / sizeof(tdtrn_tbl_rev0[0]),
-	 14, 0, 32}
-	,
-	{&intlv_tbl_rev0, sizeof(intlv_tbl_rev0) / sizeof(intlv_tbl_rev0[0]),
-	 13, 0, 32}
-	,
-	{&pilot_tbl_rev0, sizeof(pilot_tbl_rev0) / sizeof(pilot_tbl_rev0[0]),
-	 11, 0, 16}
-	,
-	{&tdi_tbl20_ant0_rev0,
-	 sizeof(tdi_tbl20_ant0_rev0) / sizeof(tdi_tbl20_ant0_rev0[0]), 19, 128,
-	 32}
-	,
-	{&tdi_tbl20_ant1_rev0,
-	 sizeof(tdi_tbl20_ant1_rev0) / sizeof(tdi_tbl20_ant1_rev0[0]), 19, 256,
-	 32}
-	,
-	{&tdi_tbl40_ant0_rev0,
-	 sizeof(tdi_tbl40_ant0_rev0) / sizeof(tdi_tbl40_ant0_rev0[0]), 19, 640,
-	 32}
-	,
-	{&tdi_tbl40_ant1_rev0,
-	 sizeof(tdi_tbl40_ant1_rev0) / sizeof(tdi_tbl40_ant1_rev0[0]), 19, 768,
-	 32}
-	,
-	{&chanest_tbl_rev0,
-	 sizeof(chanest_tbl_rev0) / sizeof(chanest_tbl_rev0[0]), 22, 0, 32}
-	,
-	{&mcs_tbl_rev0, sizeof(mcs_tbl_rev0) / sizeof(mcs_tbl_rev0[0]), 18, 0,
-	 8}
-	,
-	{&noise_var_tbl0_rev0,
-	 sizeof(noise_var_tbl0_rev0) / sizeof(noise_var_tbl0_rev0[0]), 16, 0,
-	 32}
-	,
-	{&noise_var_tbl1_rev0,
-	 sizeof(noise_var_tbl1_rev0) / sizeof(noise_var_tbl1_rev0[0]), 16, 128,
-	 32}
-	,
+	{&frame_struct_rev0, ARRAY_SIZE(frame_struct_rev0), 10, 0, 32},
+	{&frame_lut_rev0, ARRAY_SIZE(frame_lut_rev0), 24, 0, 8},
+	{&tmap_tbl_rev0, ARRAY_SIZE(tmap_tbl_rev0), 12, 0, 32},
+	{&tdtrn_tbl_rev0, ARRAY_SIZE(tdtrn_tbl_rev0), 14, 0, 32},
+	{&intlv_tbl_rev0, ARRAY_SIZE(intlv_tbl_rev0), 13, 0, 32},
+	{&pilot_tbl_rev0, ARRAY_SIZE(pilot_tbl_rev0), 11, 0, 16},
+	{&tdi_tbl20_ant0_rev0, ARRAY_SIZE(tdi_tbl20_ant0_rev0), 19, 128, 32},
+	{&tdi_tbl20_ant1_rev0, ARRAY_SIZE(tdi_tbl20_ant1_rev0), 19, 256, 32},
+	{&tdi_tbl40_ant0_rev0, ARRAY_SIZE(tdi_tbl40_ant0_rev0), 19, 640, 32},
+	{&tdi_tbl40_ant1_rev0, ARRAY_SIZE(tdi_tbl40_ant1_rev0), 19, 768, 32},
+	{&chanest_tbl_rev0, ARRAY_SIZE(chanest_tbl_rev0), 22, 0, 32},
+	{&mcs_tbl_rev0, ARRAY_SIZE(mcs_tbl_rev0), 18, 0, 8},
+	{&noise_var_tbl0_rev0, ARRAY_SIZE(noise_var_tbl0_rev0), 16, 0, 32},
+	{&noise_var_tbl1_rev0, ARRAY_SIZE(noise_var_tbl1_rev0), 16, 128, 32},
 };
 
-const u32 mimophytbl_info_sz_rev0 =
-	sizeof(mimophytbl_info_rev0) / sizeof(mimophytbl_info_rev0[0]);
-const u32 mimophytbl_info_sz_rev0_volatile =
-	sizeof(mimophytbl_info_rev0_volatile) /
-	sizeof(mimophytbl_info_rev0_volatile[0]);
+const u32 mimophytbl_info_sz_rev0 = ARRAY_SIZE(mimophytbl_info_rev0);
+const u32 mimophytbl_info_sz_rev0_volatile = ARRAY_SIZE(mimophytbl_info_rev0_volatile);
 
 static const u16 ant_swctrl_tbl_rev3[] = {
 	0x0082,
@@ -9363,132 +9283,53 @@ static const u32 papd_cal_scalars_tbl_core1_rev3[] = {
 };
 
 const struct phytbl_info mimophytbl_info_rev3_volatile[] = {
-	{&ant_swctrl_tbl_rev3,
-	 sizeof(ant_swctrl_tbl_rev3) / sizeof(ant_swctrl_tbl_rev3[0]), 9, 0, 16}
-	,
+	{&ant_swctrl_tbl_rev3, ARRAY_SIZE(ant_swctrl_tbl_rev3), 9, 0, 16},
 };
 
 const struct phytbl_info mimophytbl_info_rev3_volatile1[] = {
-	{&ant_swctrl_tbl_rev3_1,
-	 sizeof(ant_swctrl_tbl_rev3_1) / sizeof(ant_swctrl_tbl_rev3_1[0]), 9, 0,
-	 16}
-	,
+	{&ant_swctrl_tbl_rev3_1, ARRAY_SIZE(ant_swctrl_tbl_rev3_1), 9, 0, 16},
 };
 
 const struct phytbl_info mimophytbl_info_rev3_volatile2[] = {
-	{&ant_swctrl_tbl_rev3_2,
-	 sizeof(ant_swctrl_tbl_rev3_2) / sizeof(ant_swctrl_tbl_rev3_2[0]), 9, 0,
-	 16}
-	,
+	{&ant_swctrl_tbl_rev3_2, ARRAY_SIZE(ant_swctrl_tbl_rev3_2), 9, 0, 16},
 };
 
 const struct phytbl_info mimophytbl_info_rev3_volatile3[] = {
-	{&ant_swctrl_tbl_rev3_3,
-	 sizeof(ant_swctrl_tbl_rev3_3) / sizeof(ant_swctrl_tbl_rev3_3[0]), 9, 0,
-	 16}
-	,
+	{&ant_swctrl_tbl_rev3_3, ARRAY_SIZE(ant_swctrl_tbl_rev3_3), 9, 0, 16},
 };
 
 const struct phytbl_info mimophytbl_info_rev3[] = {
-	{&frame_struct_rev3,
-	 sizeof(frame_struct_rev3) / sizeof(frame_struct_rev3[0]), 10, 0, 32}
-	,
-	{&pilot_tbl_rev3, sizeof(pilot_tbl_rev3) / sizeof(pilot_tbl_rev3[0]),
-	 11, 0, 16}
-	,
-	{&tmap_tbl_rev3, sizeof(tmap_tbl_rev3) / sizeof(tmap_tbl_rev3[0]), 12,
-	 0, 32}
-	,
-	{&intlv_tbl_rev3, sizeof(intlv_tbl_rev3) / sizeof(intlv_tbl_rev3[0]),
-	 13, 0, 32}
-	,
-	{&tdtrn_tbl_rev3, sizeof(tdtrn_tbl_rev3) / sizeof(tdtrn_tbl_rev3[0]),
-	 14, 0, 32}
-	,
-	{&noise_var_tbl_rev3,
-	 sizeof(noise_var_tbl_rev3) / sizeof(noise_var_tbl_rev3[0]), 16, 0, 32}
-	,
-	{&mcs_tbl_rev3, sizeof(mcs_tbl_rev3) / sizeof(mcs_tbl_rev3[0]), 18, 0,
-	 16}
-	,
-	{&tdi_tbl20_ant0_rev3,
-	 sizeof(tdi_tbl20_ant0_rev3) / sizeof(tdi_tbl20_ant0_rev3[0]), 19, 128,
-	 32}
-	,
-	{&tdi_tbl20_ant1_rev3,
-	 sizeof(tdi_tbl20_ant1_rev3) / sizeof(tdi_tbl20_ant1_rev3[0]), 19, 256,
-	 32}
-	,
-	{&tdi_tbl40_ant0_rev3,
-	 sizeof(tdi_tbl40_ant0_rev3) / sizeof(tdi_tbl40_ant0_rev3[0]), 19, 640,
-	 32}
-	,
-	{&tdi_tbl40_ant1_rev3,
-	 sizeof(tdi_tbl40_ant1_rev3) / sizeof(tdi_tbl40_ant1_rev3[0]), 19, 768,
-	 32}
-	,
-	{&pltlut_tbl_rev3, sizeof(pltlut_tbl_rev3) / sizeof(pltlut_tbl_rev3[0]),
-	 20, 0, 32}
-	,
-	{&chanest_tbl_rev3,
-	 sizeof(chanest_tbl_rev3) / sizeof(chanest_tbl_rev3[0]), 22, 0, 32}
-	,
-	{&frame_lut_rev3, sizeof(frame_lut_rev3) / sizeof(frame_lut_rev3[0]),
-	 24, 0, 8}
-	,
-	{&est_pwr_lut_core0_rev3,
-	 sizeof(est_pwr_lut_core0_rev3) / sizeof(est_pwr_lut_core0_rev3[0]), 26,
-	 0, 8}
-	,
-	{&est_pwr_lut_core1_rev3,
-	 sizeof(est_pwr_lut_core1_rev3) / sizeof(est_pwr_lut_core1_rev3[0]), 27,
-	 0, 8}
-	,
-	{&adj_pwr_lut_core0_rev3,
-	 sizeof(adj_pwr_lut_core0_rev3) / sizeof(adj_pwr_lut_core0_rev3[0]), 26,
-	 64, 8}
-	,
-	{&adj_pwr_lut_core1_rev3,
-	 sizeof(adj_pwr_lut_core1_rev3) / sizeof(adj_pwr_lut_core1_rev3[0]), 27,
-	 64, 8}
-	,
-	{&gainctrl_lut_core0_rev3,
-	 sizeof(gainctrl_lut_core0_rev3) / sizeof(gainctrl_lut_core0_rev3[0]),
-	 26, 192, 32}
-	,
-	{&gainctrl_lut_core1_rev3,
-	 sizeof(gainctrl_lut_core1_rev3) / sizeof(gainctrl_lut_core1_rev3[0]),
-	 27, 192, 32}
-	,
-	{&iq_lut_core0_rev3,
-	 sizeof(iq_lut_core0_rev3) / sizeof(iq_lut_core0_rev3[0]), 26, 320, 32}
-	,
-	{&iq_lut_core1_rev3,
-	 sizeof(iq_lut_core1_rev3) / sizeof(iq_lut_core1_rev3[0]), 27, 320, 32}
-	,
-	{&loft_lut_core0_rev3,
-	 sizeof(loft_lut_core0_rev3) / sizeof(loft_lut_core0_rev3[0]), 26, 448,
-	 16}
-	,
-	{&loft_lut_core1_rev3,
-	 sizeof(loft_lut_core1_rev3) / sizeof(loft_lut_core1_rev3[0]), 27, 448,
-	 16}
+	{&frame_struct_rev3, ARRAY_SIZE(frame_struct_rev3), 10, 0, 32},
+	{&pilot_tbl_rev3, ARRAY_SIZE(pilot_tbl_rev3), 11, 0, 16},
+	{&tmap_tbl_rev3, ARRAY_SIZE(tmap_tbl_rev3), 12, 0, 32},
+	{&intlv_tbl_rev3, ARRAY_SIZE(intlv_tbl_rev3), 13, 0, 32},
+	{&tdtrn_tbl_rev3, ARRAY_SIZE(tdtrn_tbl_rev3), 14, 0, 32},
+	{&noise_var_tbl_rev3, ARRAY_SIZE(noise_var_tbl_rev3), 16, 0, 32},
+	{&mcs_tbl_rev3, ARRAY_SIZE(mcs_tbl_rev3), 18, 0, 16},
+	{&tdi_tbl20_ant0_rev3, ARRAY_SIZE(tdi_tbl20_ant0_rev3), 19, 128, 32},
+	{&tdi_tbl20_ant1_rev3, ARRAY_SIZE(tdi_tbl20_ant1_rev3), 19, 256, 32},
+	{&tdi_tbl40_ant0_rev3, ARRAY_SIZE(tdi_tbl40_ant0_rev3), 19, 640, 32},
+	{&tdi_tbl40_ant1_rev3, ARRAY_SIZE(tdi_tbl40_ant1_rev3), 19, 768, 32},
+	{&pltlut_tbl_rev3, ARRAY_SIZE(pltlut_tbl_rev3), 20, 0, 32},
+	{&chanest_tbl_rev3, ARRAY_SIZE(chanest_tbl_rev3), 22, 0, 32},
+	{&frame_lut_rev3, ARRAY_SIZE(frame_lut_rev3), 24, 0, 8},
+	{&est_pwr_lut_core0_rev3, ARRAY_SIZE(est_pwr_lut_core0_rev3), 26, 0, 8},
+	{&est_pwr_lut_core1_rev3, ARRAY_SIZE(est_pwr_lut_core1_rev3), 27, 0, 8},
+	{&adj_pwr_lut_core0_rev3, ARRAY_SIZE(adj_pwr_lut_core0_rev3), 26, 64, 8},
+	{&adj_pwr_lut_core1_rev3, ARRAY_SIZE(adj_pwr_lut_core1_rev3), 27, 64, 8},
+	{&gainctrl_lut_core0_rev3, ARRAY_SIZE(gainctrl_lut_core0_rev3), 26, 192, 32},
+	{&gainctrl_lut_core1_rev3, ARRAY_SIZE(gainctrl_lut_core1_rev3), 27, 192, 32},
+	{&iq_lut_core0_rev3, ARRAY_SIZE(iq_lut_core0_rev3), 26, 320, 32},
+	{&iq_lut_core1_rev3, ARRAY_SIZE(iq_lut_core1_rev3), 27, 320, 32},
+	{&loft_lut_core0_rev3, ARRAY_SIZE(loft_lut_core0_rev3), 26, 448, 16},
+	{&loft_lut_core1_rev3, ARRAY_SIZE(loft_lut_core1_rev3), 27, 448, 16}
 };
 
-const u32 mimophytbl_info_sz_rev3 =
-	sizeof(mimophytbl_info_rev3) / sizeof(mimophytbl_info_rev3[0]);
-const u32 mimophytbl_info_sz_rev3_volatile =
-	sizeof(mimophytbl_info_rev3_volatile) /
-	sizeof(mimophytbl_info_rev3_volatile[0]);
-const u32 mimophytbl_info_sz_rev3_volatile1 =
-	sizeof(mimophytbl_info_rev3_volatile1) /
-	sizeof(mimophytbl_info_rev3_volatile1[0]);
-const u32 mimophytbl_info_sz_rev3_volatile2 =
-	sizeof(mimophytbl_info_rev3_volatile2) /
-	sizeof(mimophytbl_info_rev3_volatile2[0]);
-const u32 mimophytbl_info_sz_rev3_volatile3 =
-	sizeof(mimophytbl_info_rev3_volatile3) /
-	sizeof(mimophytbl_info_rev3_volatile3[0]);
+const u32 mimophytbl_info_sz_rev3 = ARRAY_SIZE(mimophytbl_info_rev3);
+const u32 mimophytbl_info_sz_rev3_volatile = ARRAY_SIZE(mimophytbl_info_rev3_volatile);
+const u32 mimophytbl_info_sz_rev3_volatile1 = ARRAY_SIZE(mimophytbl_info_rev3_volatile1);
+const u32 mimophytbl_info_sz_rev3_volatile2 = ARRAY_SIZE(mimophytbl_info_rev3_volatile2);
+const u32 mimophytbl_info_sz_rev3_volatile3 = ARRAY_SIZE(mimophytbl_info_rev3_volatile3);
 
 static const u32 tmap_tbl_rev7[] = {
 	0x8a88aa80,
@@ -10469,162 +10310,58 @@ static const u32 papd_cal_scalars_tbl_core1_rev7[] = {
 };
 
 const struct phytbl_info mimophytbl_info_rev7[] = {
-	{&frame_struct_rev3,
-	 sizeof(frame_struct_rev3) / sizeof(frame_struct_rev3[0]), 10, 0, 32}
-	,
-	{&pilot_tbl_rev3, sizeof(pilot_tbl_rev3) / sizeof(pilot_tbl_rev3[0]),
-	 11, 0, 16}
-	,
-	{&tmap_tbl_rev7, sizeof(tmap_tbl_rev7) / sizeof(tmap_tbl_rev7[0]), 12,
-	 0, 32}
-	,
-	{&intlv_tbl_rev3, sizeof(intlv_tbl_rev3) / sizeof(intlv_tbl_rev3[0]),
-	 13, 0, 32}
-	,
-	{&tdtrn_tbl_rev3, sizeof(tdtrn_tbl_rev3) / sizeof(tdtrn_tbl_rev3[0]),
-	 14, 0, 32}
-	,
-	{&noise_var_tbl_rev7,
-	 sizeof(noise_var_tbl_rev7) / sizeof(noise_var_tbl_rev7[0]), 16, 0, 32}
-	,
-	{&mcs_tbl_rev3, sizeof(mcs_tbl_rev3) / sizeof(mcs_tbl_rev3[0]), 18, 0,
-	 16}
-	,
-	{&tdi_tbl20_ant0_rev3,
-	 sizeof(tdi_tbl20_ant0_rev3) / sizeof(tdi_tbl20_ant0_rev3[0]), 19, 128,
-	 32}
-	,
-	{&tdi_tbl20_ant1_rev3,
-	 sizeof(tdi_tbl20_ant1_rev3) / sizeof(tdi_tbl20_ant1_rev3[0]), 19, 256,
-	 32}
-	,
-	{&tdi_tbl40_ant0_rev3,
-	 sizeof(tdi_tbl40_ant0_rev3) / sizeof(tdi_tbl40_ant0_rev3[0]), 19, 640,
-	 32}
-	,
-	{&tdi_tbl40_ant1_rev3,
-	 sizeof(tdi_tbl40_ant1_rev3) / sizeof(tdi_tbl40_ant1_rev3[0]), 19, 768,
-	 32}
-	,
-	{&pltlut_tbl_rev3, sizeof(pltlut_tbl_rev3) / sizeof(pltlut_tbl_rev3[0]),
-	 20, 0, 32}
-	,
-	{&chanest_tbl_rev3,
-	 sizeof(chanest_tbl_rev3) / sizeof(chanest_tbl_rev3[0]), 22, 0, 32}
-	,
-	{&frame_lut_rev3, sizeof(frame_lut_rev3) / sizeof(frame_lut_rev3[0]),
-	 24, 0, 8}
-	,
-	{&est_pwr_lut_core0_rev3,
-	 sizeof(est_pwr_lut_core0_rev3) / sizeof(est_pwr_lut_core0_rev3[0]), 26,
-	 0, 8}
-	,
-	{&est_pwr_lut_core1_rev3,
-	 sizeof(est_pwr_lut_core1_rev3) / sizeof(est_pwr_lut_core1_rev3[0]), 27,
-	 0, 8}
-	,
-	{&adj_pwr_lut_core0_rev3,
-	 sizeof(adj_pwr_lut_core0_rev3) / sizeof(adj_pwr_lut_core0_rev3[0]), 26,
-	 64, 8}
-	,
-	{&adj_pwr_lut_core1_rev3,
-	 sizeof(adj_pwr_lut_core1_rev3) / sizeof(adj_pwr_lut_core1_rev3[0]), 27,
-	 64, 8}
-	,
-	{&gainctrl_lut_core0_rev3,
-	 sizeof(gainctrl_lut_core0_rev3) / sizeof(gainctrl_lut_core0_rev3[0]),
-	 26, 192, 32}
-	,
-	{&gainctrl_lut_core1_rev3,
-	 sizeof(gainctrl_lut_core1_rev3) / sizeof(gainctrl_lut_core1_rev3[0]),
-	 27, 192, 32}
-	,
-	{&iq_lut_core0_rev3,
-	 sizeof(iq_lut_core0_rev3) / sizeof(iq_lut_core0_rev3[0]), 26, 320, 32}
-	,
-	{&iq_lut_core1_rev3,
-	 sizeof(iq_lut_core1_rev3) / sizeof(iq_lut_core1_rev3[0]), 27, 320, 32}
-	,
-	{&loft_lut_core0_rev3,
-	 sizeof(loft_lut_core0_rev3) / sizeof(loft_lut_core0_rev3[0]), 26, 448,
-	 16}
-	,
-	{&loft_lut_core1_rev3,
-	 sizeof(loft_lut_core1_rev3) / sizeof(loft_lut_core1_rev3[0]), 27, 448,
-	 16}
-	,
+	{&frame_struct_rev3, ARRAY_SIZE(frame_struct_rev3), 10, 0, 32},
+	{&pilot_tbl_rev3, ARRAY_SIZE(pilot_tbl_rev3), 11, 0, 16},
+	{&tmap_tbl_rev7, ARRAY_SIZE(tmap_tbl_rev7), 12, 0, 32},
+	{&intlv_tbl_rev3, ARRAY_SIZE(intlv_tbl_rev3), 13, 0, 32},
+	{&tdtrn_tbl_rev3, ARRAY_SIZE(tdtrn_tbl_rev3), 14, 0, 32},
+	{&noise_var_tbl_rev7, ARRAY_SIZE(noise_var_tbl_rev7), 16, 0, 32},
+	{&mcs_tbl_rev3, ARRAY_SIZE(mcs_tbl_rev3), 18, 0, 16},
+	{&tdi_tbl20_ant0_rev3, ARRAY_SIZE(tdi_tbl20_ant0_rev3), 19, 128, 32},
+	{&tdi_tbl20_ant1_rev3, ARRAY_SIZE(tdi_tbl20_ant1_rev3), 19, 256, 32},
+	{&tdi_tbl40_ant0_rev3, ARRAY_SIZE(tdi_tbl40_ant0_rev3), 19, 640, 32},
+	{&tdi_tbl40_ant1_rev3, ARRAY_SIZE(tdi_tbl40_ant1_rev3), 19, 768, 32},
+	{&pltlut_tbl_rev3, ARRAY_SIZE(pltlut_tbl_rev3), 20, 0, 32},
+	{&chanest_tbl_rev3, ARRAY_SIZE(chanest_tbl_rev3), 22, 0, 32},
+	{&frame_lut_rev3, ARRAY_SIZE(frame_lut_rev3), 24, 0, 8},
+	{&est_pwr_lut_core0_rev3, ARRAY_SIZE(est_pwr_lut_core0_rev3), 26, 0, 8},
+	{&est_pwr_lut_core1_rev3, ARRAY_SIZE(est_pwr_lut_core1_rev3), 27, 0, 8},
+	{&adj_pwr_lut_core0_rev3, ARRAY_SIZE(adj_pwr_lut_core0_rev3), 26, 64, 8},
+	{&adj_pwr_lut_core1_rev3, ARRAY_SIZE(adj_pwr_lut_core1_rev3), 27, 64, 8},
+	{&gainctrl_lut_core0_rev3, ARRAY_SIZE(gainctrl_lut_core0_rev3), 26, 192, 32},
+	{&gainctrl_lut_core1_rev3, ARRAY_SIZE(gainctrl_lut_core1_rev3), 27, 192, 32},
+	{&iq_lut_core0_rev3, ARRAY_SIZE(iq_lut_core0_rev3), 26, 320, 32},
+	{&iq_lut_core1_rev3, ARRAY_SIZE(iq_lut_core1_rev3), 27, 320, 32},
+	{&loft_lut_core0_rev3, ARRAY_SIZE(loft_lut_core0_rev3), 26, 448, 16},
+	{&loft_lut_core1_rev3, ARRAY_SIZE(loft_lut_core1_rev3), 27, 448, 16},
 	{&papd_comp_rfpwr_tbl_core0_rev3,
-	 sizeof(papd_comp_rfpwr_tbl_core0_rev3) /
-	 sizeof(papd_comp_rfpwr_tbl_core0_rev3[0]), 26, 576, 16}
-	,
+	 ARRAY_SIZE(papd_comp_rfpwr_tbl_core0_rev3), 26, 576, 16},
 	{&papd_comp_rfpwr_tbl_core1_rev3,
-	 sizeof(papd_comp_rfpwr_tbl_core1_rev3) /
-	 sizeof(papd_comp_rfpwr_tbl_core1_rev3[0]), 27, 576, 16}
-	,
+	 ARRAY_SIZE(papd_comp_rfpwr_tbl_core1_rev3), 27, 576, 16},
 	{&papd_comp_epsilon_tbl_core0_rev7,
-	 sizeof(papd_comp_epsilon_tbl_core0_rev7) /
-	 sizeof(papd_comp_epsilon_tbl_core0_rev7[0]), 31, 0, 32}
-	,
+	 ARRAY_SIZE(papd_comp_epsilon_tbl_core0_rev7), 31, 0, 32},
 	{&papd_cal_scalars_tbl_core0_rev7,
-	 sizeof(papd_cal_scalars_tbl_core0_rev7) /
-	 sizeof(papd_cal_scalars_tbl_core0_rev7[0]), 32, 0, 32}
-	,
+	 ARRAY_SIZE(papd_cal_scalars_tbl_core0_rev7), 32, 0, 32},
 	{&papd_comp_epsilon_tbl_core1_rev7,
-	 sizeof(papd_comp_epsilon_tbl_core1_rev7) /
-	 sizeof(papd_comp_epsilon_tbl_core1_rev7[0]), 33, 0, 32}
-	,
+	 ARRAY_SIZE(papd_comp_epsilon_tbl_core1_rev7), 33, 0, 32},
 	{&papd_cal_scalars_tbl_core1_rev7,
-	 sizeof(papd_cal_scalars_tbl_core1_rev7) /
-	 sizeof(papd_cal_scalars_tbl_core1_rev7[0]), 34, 0, 32}
-	,
+	 ARRAY_SIZE(papd_cal_scalars_tbl_core1_rev7), 34, 0, 32},
 };
 
-const u32 mimophytbl_info_sz_rev7 =
-	sizeof(mimophytbl_info_rev7) / sizeof(mimophytbl_info_rev7[0]);
+const u32 mimophytbl_info_sz_rev7 = ARRAY_SIZE(mimophytbl_info_rev7);
 
 const struct phytbl_info mimophytbl_info_rev16[] = {
-	{&noise_var_tbl_rev7,
-	 sizeof(noise_var_tbl_rev7) / sizeof(noise_var_tbl_rev7[0]), 16, 0, 32}
-	,
-	{&est_pwr_lut_core0_rev3,
-	 sizeof(est_pwr_lut_core0_rev3) / sizeof(est_pwr_lut_core0_rev3[0]), 26,
-	 0, 8}
-	,
-	{&est_pwr_lut_core1_rev3,
-	 sizeof(est_pwr_lut_core1_rev3) / sizeof(est_pwr_lut_core1_rev3[0]), 27,
-	 0, 8}
-	,
-	{&adj_pwr_lut_core0_rev3,
-	 sizeof(adj_pwr_lut_core0_rev3) / sizeof(adj_pwr_lut_core0_rev3[0]), 26,
-	 64, 8}
-	,
-	{&adj_pwr_lut_core1_rev3,
-	 sizeof(adj_pwr_lut_core1_rev3) / sizeof(adj_pwr_lut_core1_rev3[0]), 27,
-	 64, 8}
-	,
-	{&gainctrl_lut_core0_rev3,
-	 sizeof(gainctrl_lut_core0_rev3) / sizeof(gainctrl_lut_core0_rev3[0]),
-	 26, 192, 32}
-	,
-	{&gainctrl_lut_core1_rev3,
-	 sizeof(gainctrl_lut_core1_rev3) / sizeof(gainctrl_lut_core1_rev3[0]),
-	 27, 192, 32}
-	,
-	{&iq_lut_core0_rev3,
-	 sizeof(iq_lut_core0_rev3) / sizeof(iq_lut_core0_rev3[0]), 26, 320, 32}
-	,
-	{&iq_lut_core1_rev3,
-	 sizeof(iq_lut_core1_rev3) / sizeof(iq_lut_core1_rev3[0]), 27, 320, 32}
-	,
-	{&loft_lut_core0_rev3,
-	 sizeof(loft_lut_core0_rev3) / sizeof(loft_lut_core0_rev3[0]), 26, 448,
-	 16}
-	,
-	{&loft_lut_core1_rev3,
-	 sizeof(loft_lut_core1_rev3) / sizeof(loft_lut_core1_rev3[0]), 27, 448,
-	 16}
-	,
+	{&noise_var_tbl_rev7, ARRAY_SIZE(noise_var_tbl_rev7), 16, 0, 32},
+	{&est_pwr_lut_core0_rev3, ARRAY_SIZE(est_pwr_lut_core0_rev3), 26, 0, 8},
+	{&est_pwr_lut_core1_rev3, ARRAY_SIZE(est_pwr_lut_core1_rev3), 27, 0, 8},
+	{&adj_pwr_lut_core0_rev3, ARRAY_SIZE(adj_pwr_lut_core0_rev3), 26, 64, 8},
+	{&adj_pwr_lut_core1_rev3, ARRAY_SIZE(adj_pwr_lut_core1_rev3), 27, 64, 8},
+	{&gainctrl_lut_core0_rev3, ARRAY_SIZE(gainctrl_lut_core0_rev3), 26, 192, 32},
+	{&gainctrl_lut_core1_rev3, ARRAY_SIZE(gainctrl_lut_core1_rev3), 27, 192, 32},
+	{&iq_lut_core0_rev3, ARRAY_SIZE(iq_lut_core0_rev3), 26, 320, 32},
+	{&iq_lut_core1_rev3, ARRAY_SIZE(iq_lut_core1_rev3), 27, 320, 32},
+	{&loft_lut_core0_rev3, ARRAY_SIZE(loft_lut_core0_rev3), 26, 448, 16},
+	{&loft_lut_core1_rev3, ARRAY_SIZE(loft_lut_core1_rev3), 27, 448, 16},
 };
 
-const u32 mimophytbl_info_sz_rev16 =
-	sizeof(mimophytbl_info_rev16) / sizeof(mimophytbl_info_rev16[0]);
+const u32 mimophytbl_info_sz_rev16 = ARRAY_SIZE(mimophytbl_info_rev16);

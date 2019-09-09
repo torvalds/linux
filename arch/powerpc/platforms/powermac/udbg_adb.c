@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -193,7 +194,7 @@ int __init udbg_adb_init(int force_btext)
 	 */
 	for_each_node_by_name(np, "keyboard") {
 		struct device_node *parent = of_get_parent(np);
-		int found = (parent && strcmp(parent->type, "adb") == 0);
+		int found = of_node_is_type(parent, "adb");
 		of_node_put(parent);
 		if (found)
 			break;

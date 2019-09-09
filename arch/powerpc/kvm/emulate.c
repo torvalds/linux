@@ -1,16 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * Copyright IBM Corp. 2007
  * Copyright 2011 Freescale Semiconductor, Inc.
@@ -39,18 +28,12 @@ void kvmppc_emulate_dec(struct kvm_vcpu *vcpu)
 	unsigned long dec_nsec;
 	unsigned long long dec_time;
 
-	pr_debug("mtDEC: %x\n", vcpu->arch.dec);
+	pr_debug("mtDEC: %lx\n", vcpu->arch.dec);
 	hrtimer_try_to_cancel(&vcpu->arch.dec_timer);
 
 #ifdef CONFIG_PPC_BOOK3S
 	/* mtdec lowers the interrupt line when positive. */
 	kvmppc_core_dequeue_dec(vcpu);
-
-	/* POWER4+ triggers a dec interrupt if the value is < 0 */
-	if (vcpu->arch.dec & 0x80000000) {
-		kvmppc_core_queue_dec(vcpu);
-		return;
-	}
 #endif
 
 #ifdef CONFIG_BOOKE
@@ -67,11 +50,10 @@ void kvmppc_emulate_dec(struct kvm_vcpu *vcpu)
 
 	dec_time = vcpu->arch.dec;
 	/*
-	 * Guest timebase ticks at the same frequency as host decrementer.
-	 * So use the host decrementer calculations for decrementer emulation.
+	 * Guest timebase ticks at the same frequency as host timebase.
+	 * So use the host timebase calculations for decrementer emulation.
 	 */
-	dec_time = dec_time << decrementer_clockevent.shift;
-	do_div(dec_time, decrementer_clockevent.mult);
+	dec_time = tb_to_ns(dec_time);
 	dec_nsec = do_div(dec_time, NSEC_PER_SEC);
 	hrtimer_start(&vcpu->arch.dec_timer,
 		ktime_set(dec_time, dec_nsec), HRTIMER_MODE_REL);
@@ -109,7 +91,7 @@ static int kvmppc_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, int rs)
 	case SPRN_TBWU: break;
 
 	case SPRN_DEC:
-		vcpu->arch.dec = spr_val;
+		vcpu->arch.dec = (u32) spr_val;
 		kvmppc_emulate_dec(vcpu);
 		break;
 
@@ -259,10 +241,18 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 
 		case OP_31_XOP_MFSPR:
 			emulated = kvmppc_emulate_mfspr(vcpu, sprn, rt);
+			if (emulated == EMULATE_AGAIN) {
+				emulated = EMULATE_DONE;
+				advance = 0;
+			}
 			break;
 
 		case OP_31_XOP_MTSPR:
 			emulated = kvmppc_emulate_mtspr(vcpu, sprn, rs);
+			if (emulated == EMULATE_AGAIN) {
+				emulated = EMULATE_DONE;
+				advance = 0;
+			}
 			break;
 
 		case OP_31_XOP_TLBSYNC:

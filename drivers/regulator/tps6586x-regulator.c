@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Regulator driver for TI TPS6586x
  *
@@ -7,10 +8,6 @@
  * Based on da903x
  * Copyright (C) 2006-2008 Marvell International Ltd.
  * Copyright (C) 2008 Compulab Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/kernel.h>
@@ -342,6 +339,7 @@ static struct tps6586x_regulator *find_regulator_info(int id, int version)
 
 	switch (version) {
 	case TPS658623:
+	case TPS658624:
 		table = tps658623_regulator;
 		num = ARRAY_SIZE(tps658623_regulator);
 		break;

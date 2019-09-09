@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
 /*
  * Copyright (c) 2016, Jamal Hadi Salim
  *
@@ -11,8 +12,6 @@
 #define __LINUX_TC_SKBMOD_H
 
 #include <linux/pkt_cls.h>
-
-#define TCA_ACT_SKBMOD 15
 
 #define SKBMOD_F_DMAC	0x1
 #define SKBMOD_F_SMAC	0x2

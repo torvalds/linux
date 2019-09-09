@@ -1,21 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /* Applied Micro X-Gene SoC Ethernet Driver
  *
  * Copyright (c) 2014, Applied Micro Circuits Corporation
  * Authors: Iyappan Subramanian <isubramanian@apm.com>
  *	    Keyur Chudgar <kchudgar@apm.com>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef __XGENE_ENET_XGMAC_H__
@@ -23,6 +11,7 @@
 
 #define X2_BLOCK_ETH_MAC_CSR_OFFSET	0x3000
 #define BLOCK_AXG_MAC_OFFSET		0x0800
+#define BLOCK_AXG_STATS_OFFSET		0x0800
 #define BLOCK_AXG_MAC_CSR_OFFSET	0x2000
 #define BLOCK_PCS_OFFSET		0x3800
 
@@ -59,7 +48,19 @@
 #define HSTMAXFRAME_LENGTH_ADDR		0x0020
 
 #define XG_MCX_RX_DV_GATE_REG_0_ADDR	0x0004
+#define XG_MCX_ECM_CFG_0_ADDR		0x0074
+#define XG_MCX_MULTI_DPF0_ADDR		0x007c
+#define XG_MCX_MULTI_DPF1_ADDR		0x0080
+#define XG_DEF_PAUSE_THRES		0x390
+#define XG_DEF_PAUSE_OFF_THRES		0x2c0
 #define XG_RSIF_CONFIG_REG_ADDR		0x00a0
+#define XG_RSIF_CLE_BUFF_THRESH                0x3
+#define RSIF_CLE_BUFF_THRESH_SET(dst, val)     xgene_set_bits(dst, val, 0, 3)
+#define XG_RSIF_CONFIG1_REG_ADDR       0x00b8
+#define XG_RSIF_PLC_CLE_BUFF_THRESH    0x1
+#define RSIF_PLC_CLE_BUFF_THRESH_SET(dst, val) xgene_set_bits(dst, val, 0, 2)
+#define XG_MCX_ECM_CONFIG0_REG_0_ADDR          0x0070
+#define XG_MCX_ICM_ECM_DROP_COUNT_REG0_ADDR    0x0124
 #define XCLE_BYPASS_REG0_ADDR           0x0160
 #define XCLE_BYPASS_REG1_ADDR           0x0164
 #define XG_CFG_BYPASS_ADDR		0x0204
@@ -70,6 +71,12 @@
 #define XG_ENET_SPARE_CFG_REG_ADDR	0x040c
 #define XG_ENET_SPARE_CFG_REG_1_ADDR	0x0410
 #define XGENET_RX_DV_GATE_REG_0_ADDR	0x0804
+#define XGENET_ECM_CONFIG0_REG_0	0x0870
+#define XGENET_ICM_ECM_DROP_COUNT_REG0	0x0924
+#define XGENET_CSR_ECM_CFG_0_ADDR	0x0880
+#define XGENET_CSR_MULTI_DPF0_ADDR	0x0888
+#define XGENET_CSR_MULTI_DPF1_ADDR	0x088c
+#define XG_RXBUF_PAUSE_THRESH		0x0020
 #define XG_MCX_ICM_CONFIG0_REG_0_ADDR	0x00e0
 #define XG_MCX_ICM_CONFIG2_REG_0_ADDR	0x00e8
 

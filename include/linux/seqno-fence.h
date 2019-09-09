@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * seqno-fence, using a dma-buf to synchronize fencing
  *
@@ -6,21 +7,12 @@
  * Authors:
  *   Rob Clark <robdclark@gmail.com>
  *   Maarten Lankhorst <maarten.lankhorst@canonical.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #ifndef __LINUX_SEQNO_FENCE_H
 #define __LINUX_SEQNO_FENCE_H
 
-#include <linux/fence.h>
+#include <linux/dma-fence.h>
 #include <linux/dma-buf.h>
 
 enum seqno_fence_condition {
@@ -29,15 +21,15 @@ enum seqno_fence_condition {
 };
 
 struct seqno_fence {
-	struct fence base;
+	struct dma_fence base;
 
-	const struct fence_ops *ops;
+	const struct dma_fence_ops *ops;
 	struct dma_buf *sync_buf;
 	uint32_t seqno_ofs;
 	enum seqno_fence_condition condition;
 };
 
-extern const struct fence_ops seqno_fence_ops;
+extern const struct dma_fence_ops seqno_fence_ops;
 
 /**
  * to_seqno_fence - cast a fence to a seqno_fence
@@ -47,7 +39,7 @@ extern const struct fence_ops seqno_fence_ops;
  * or the seqno_fence otherwise.
  */
 static inline struct seqno_fence *
-to_seqno_fence(struct fence *fence)
+to_seqno_fence(struct dma_fence *fence)
 {
 	if (fence->ops != &seqno_fence_ops)
 		return NULL;
@@ -83,9 +75,9 @@ to_seqno_fence(struct fence *fence)
  * dma-buf for sync_buf, since mapping or unmapping the sync_buf to the
  * device's vm can be expensive.
  *
- * It is recommended for creators of seqno_fence to call fence_signal
+ * It is recommended for creators of seqno_fence to call dma_fence_signal()
  * before destruction. This will prevent possible issues from wraparound at
- * time of issue vs time of check, since users can check fence_is_signaled
+ * time of issue vs time of check, since users can check dma_fence_is_signaled()
  * before submitting instructions for the hardware to wait on the fence.
  * However, when ops.enable_signaling is not called, it doesn't have to be
  * done as soon as possible, just before there's any real danger of seqno
@@ -96,18 +88,18 @@ seqno_fence_init(struct seqno_fence *fence, spinlock_t *lock,
 		 struct dma_buf *sync_buf,  uint32_t context,
 		 uint32_t seqno_ofs, uint32_t seqno,
 		 enum seqno_fence_condition cond,
-		 const struct fence_ops *ops)
+		 const struct dma_fence_ops *ops)
 {
 	BUG_ON(!fence || !sync_buf || !ops);
 	BUG_ON(!ops->wait || !ops->enable_signaling ||
 	       !ops->get_driver_name || !ops->get_timeline_name);
 
 	/*
-	 * ops is used in fence_init for get_driver_name, so needs to be
+	 * ops is used in dma_fence_init for get_driver_name, so needs to be
 	 * initialized first
 	 */
 	fence->ops = ops;
-	fence_init(&fence->base, &seqno_fence_ops, lock, context, seqno);
+	dma_fence_init(&fence->base, &seqno_fence_ops, lock, context, seqno);
 	get_dma_buf(sync_buf);
 	fence->sync_buf = sync_buf;
 	fence->seqno_ofs = seqno_ofs;

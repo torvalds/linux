@@ -1,11 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  MachZ ZF-Logic Watchdog Timer driver for Linux
- *
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version
- *  2 of the License, or (at your option) any later version.
  *
  *  The author does NOT admit liability nor provide warranty for
  *  any of this software. This material is provided "AS-IS" in
@@ -14,7 +9,6 @@
  *  Author: Fernando Fuganti <fuganti@conectiva.com.br>
  *
  *  Based on sbc60xxwdt.c by Jakob Oestergaard
- *
  *
  *  We have two timers (wd#1, wd#2) driven by a 32 KHz clock with the
  *  following periods:
@@ -121,13 +115,13 @@ module_param(action, int, 0);
 MODULE_PARM_DESC(action, "after watchdog resets, generate: "
 				"0 = RESET(*)  1 = SMI  2 = NMI  3 = SCI");
 
-static void zf_ping(unsigned long data);
+static void zf_ping(struct timer_list *unused);
 
 static int zf_action = GEN_RESET;
 static unsigned long zf_is_open;
 static char zf_expect_close;
 static DEFINE_SPINLOCK(zf_port_lock);
-static DEFINE_TIMER(zf_timer, zf_ping, 0, 0);
+static DEFINE_TIMER(zf_timer, zf_ping);
 static unsigned long next_heartbeat;
 
 
@@ -177,6 +171,7 @@ static inline void zf_set_timer(unsigned short new, unsigned char n)
 	switch (n) {
 	case WD1:
 		zf_writew(COUNTER_1, new);
+		/* fall through */
 	case WD2:
 		zf_writeb(COUNTER_2, new > 0xff ? 0xff : new);
 	default:
@@ -237,7 +232,7 @@ static void zf_timer_on(void)
 }
 
 
-static void zf_ping(unsigned long data)
+static void zf_ping(struct timer_list *unused)
 {
 	unsigned int ctrl_reg = 0;
 	unsigned long flags;
@@ -318,7 +313,7 @@ static long zf_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case WDIOC_GETBOOTSTATUS:
 		return put_user(0, p);
 	case WDIOC_KEEPALIVE:
-		zf_ping(0);
+		zf_ping(NULL);
 		break;
 	default:
 		return -ENOTTY;
@@ -333,7 +328,7 @@ static int zf_open(struct inode *inode, struct file *file)
 	if (nowayout)
 		__module_get(THIS_MODULE);
 	zf_timer_on();
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 static int zf_close(struct inode *inode, struct file *file)

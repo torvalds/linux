@@ -43,7 +43,7 @@
 			d-cache-size = <32768>;
 			dcr-controller;
 			dcr-access-method = "native";
-			status = "ok";
+			status = "okay";
 		};
 		cpu@1 {
 			device_type = "cpu";
@@ -150,6 +150,6 @@
 	};
 
 	chosen {
-		linux,stdout-path = "/plb/opb/serial@40000200";
+		stdout-path = "/plb/opb/serial@40000200";
 	};
 };

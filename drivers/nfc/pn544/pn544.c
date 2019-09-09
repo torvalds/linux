@@ -1,19 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * HCI based Driver for NXP PN544 NFC Chip
  *
  * Copyright (C) 2012  Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -649,8 +638,8 @@ static int pn544_hci_im_transceive(struct nfc_hci_dev *hdev,
 		} else
 			return 1;
 	case PN544_RF_READER_F_GATE:
-		*skb_push(skb, 1) = 0;
-		*skb_push(skb, 1) = 0;
+		*(u8 *)skb_push(skb, 1) = 0;
+		*(u8 *)skb_push(skb, 1) = 0;
 
 		info->async_cb_type = PN544_CB_TYPE_READER_F;
 		info->async_cb = cb;
@@ -665,7 +654,7 @@ static int pn544_hci_im_transceive(struct nfc_hci_dev *hdev,
 					      PN544_JEWEL_RAW_CMD, skb->data,
 					      skb->len, cb, cb_context);
 	case PN544_RF_READER_NFCIP1_INITIATOR_GATE:
-		*skb_push(skb, 1) = 0;
+		*(u8 *)skb_push(skb, 1) = 0;
 
 		return nfc_hci_send_event(hdev, target->hci_reader_gate,
 					PN544_HCI_EVT_SND_DATA, skb->data,
@@ -680,7 +669,7 @@ static int pn544_hci_tm_send(struct nfc_hci_dev *hdev, struct sk_buff *skb)
 	int r;
 
 	/* Set default false for multiple information chaining */
-	*skb_push(skb, 1) = 0;
+	*(u8 *)skb_push(skb, 1) = 0;
 
 	r = nfc_hci_send_event(hdev, PN544_RF_READER_NFCIP1_TARGET_GATE,
 			       PN544_HCI_EVT_SND_DATA, skb->data, skb->len);

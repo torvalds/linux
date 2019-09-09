@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * zswap.c - zswap driver file
  *
@@ -8,16 +9,6 @@
  * than reading from the swap device, can also improve workload performance.
  *
  * Copyright (C) 2012  Seth Jennings <sjenning@linux.vnet.ibm.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
 */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -49,6 +40,8 @@
 static u64 zswap_pool_total_size;
 /* The number of compressed pages currently stored in zswap */
 static atomic_t zswap_stored_pages = ATOMIC_INIT(0);
+/* The number of same-value filled pages currently stored in zswap */
+static atomic_t zswap_same_filled_pages = ATOMIC_INIT(0);
 
 /*
  * The statistics below are not protected from concurrent access for
@@ -76,9 +69,17 @@ static u64 zswap_duplicate_entry;
 * tunables
 **********************************/
 
+#define ZSWAP_PARAM_UNSET ""
+
 /* Enable/disable zswap (disabled by default) */
 static bool zswap_enabled;
-module_param_named(enabled, zswap_enabled, bool, 0644);
+static int zswap_enabled_param_set(const char *,
+				   const struct kernel_param *);
+static struct kernel_param_ops zswap_enabled_param_ops = {
+	.set =		zswap_enabled_param_set,
+	.get =		param_get_bool,
+};
+module_param_cb(enabled, &zswap_enabled_param_ops, &zswap_enabled, 0644);
 
 /* Crypto compressor to use */
 #define ZSWAP_COMPRESSOR_DEFAULT "lzo"
@@ -108,6 +109,11 @@ module_param_cb(zpool, &zswap_zpool_param_ops, &zswap_zpool_type, 0644);
 static unsigned int zswap_max_pool_percent = 20;
 module_param_named(max_pool_percent, zswap_max_pool_percent, uint, 0644);
 
+/* Enable/disable handling same-value filled pages (enabled by default) */
+static bool zswap_same_filled_pages_enabled = true;
+module_param_named(same_filled_pages_enabled, zswap_same_filled_pages_enabled,
+		   bool, 0644);
+
 /*********************************
 * data structures
 **********************************/
@@ -118,7 +124,7 @@ struct zswap_pool {
 	struct kref kref;
 	struct list_head list;
 	struct work_struct work;
-	struct notifier_block notifier;
+	struct hlist_node node;
 	char tfm_name[CRYPTO_MAX_ALG_NAME];
 };
 
@@ -137,9 +143,10 @@ struct zswap_pool {
  *            be held while changing the refcount.  Since the lock must
  *            be held, there is no reason to also make refcount atomic.
  * length - the length in bytes of the compressed page data.  Needed during
- *          decompression
+ *          decompression. For a same value filled page length is 0.
  * pool - the zswap_pool the entry's data is in
  * handle - zpool allocation handle that stores the compressed page data
+ * value - value of the same-value filled pages which have same content
  */
 struct zswap_entry {
 	struct rb_node rbnode;
@@ -147,7 +154,10 @@ struct zswap_entry {
 	int refcount;
 	unsigned int length;
 	struct zswap_pool *pool;
-	unsigned long handle;
+	union {
+		unsigned long handle;
+		unsigned long value;
+	};
 };
 
 struct zswap_header {
@@ -176,6 +186,12 @@ static atomic_t zswap_pools_count = ATOMIC_INIT(0);
 /* used by param callback function */
 static bool zswap_init_started;
 
+/* fatal error during init */
+static bool zswap_init_failed;
+
+/* init completed, but couldn't create the initial pool */
+static bool zswap_has_pool;
+
 /*********************************
 * helpers and fwd declarations
 **********************************/
@@ -194,8 +210,8 @@ static const struct zpool_ops zswap_zpool_ops = {
 
 static bool zswap_is_full(void)
 {
-	return totalram_pages * zswap_max_pool_percent / 100 <
-		DIV_ROUND_UP(zswap_pool_total_size, PAGE_SIZE);
+	return totalram_pages() * zswap_max_pool_percent / 100 <
+			DIV_ROUND_UP(zswap_pool_total_size, PAGE_SIZE);
 }
 
 static void zswap_update_total_size(void)
@@ -306,8 +322,12 @@ static void zswap_rb_erase(struct rb_root *root, struct zswap_entry *entry)
  */
 static void zswap_free_entry(struct zswap_entry *entry)
 {
-	zpool_free(entry->pool->zpool, entry->handle);
-	zswap_pool_put(entry->pool);
+	if (!entry->length)
+		atomic_dec(&zswap_same_filled_pages);
+	else {
+		zpool_free(entry->pool->zpool, entry->handle);
+		zswap_pool_put(entry->pool);
+	}
 	zswap_entry_cache_free(entry);
 	atomic_dec(&zswap_stored_pages);
 	zswap_update_total_size();
@@ -352,143 +372,57 @@ static struct zswap_entry *zswap_entry_find_get(struct rb_root *root,
 **********************************/
 static DEFINE_PER_CPU(u8 *, zswap_dstmem);
 
-static int __zswap_cpu_dstmem_notifier(unsigned long action, unsigned long cpu)
+static int zswap_dstmem_prepare(unsigned int cpu)
 {
 	u8 *dst;
 
-	switch (action) {
-	case CPU_UP_PREPARE:
-		dst = kmalloc_node(PAGE_SIZE * 2, GFP_KERNEL, cpu_to_node(cpu));
-		if (!dst) {
-			pr_err("can't allocate compressor buffer\n");
-			return NOTIFY_BAD;
-		}
-		per_cpu(zswap_dstmem, cpu) = dst;
-		break;
-	case CPU_DEAD:
-	case CPU_UP_CANCELED:
-		dst = per_cpu(zswap_dstmem, cpu);
-		kfree(dst);
-		per_cpu(zswap_dstmem, cpu) = NULL;
-		break;
-	default:
-		break;
-	}
-	return NOTIFY_OK;
-}
+	dst = kmalloc_node(PAGE_SIZE * 2, GFP_KERNEL, cpu_to_node(cpu));
+	if (!dst)
+		return -ENOMEM;
 
-static int zswap_cpu_dstmem_notifier(struct notifier_block *nb,
-				     unsigned long action, void *pcpu)
-{
-	return __zswap_cpu_dstmem_notifier(action, (unsigned long)pcpu);
-}
-
-static struct notifier_block zswap_dstmem_notifier = {
-	.notifier_call =	zswap_cpu_dstmem_notifier,
-};
-
-static int __init zswap_cpu_dstmem_init(void)
-{
-	unsigned long cpu;
-
-	cpu_notifier_register_begin();
-	for_each_online_cpu(cpu)
-		if (__zswap_cpu_dstmem_notifier(CPU_UP_PREPARE, cpu) ==
-		    NOTIFY_BAD)
-			goto cleanup;
-	__register_cpu_notifier(&zswap_dstmem_notifier);
-	cpu_notifier_register_done();
+	per_cpu(zswap_dstmem, cpu) = dst;
 	return 0;
-
-cleanup:
-	for_each_online_cpu(cpu)
-		__zswap_cpu_dstmem_notifier(CPU_UP_CANCELED, cpu);
-	cpu_notifier_register_done();
-	return -ENOMEM;
 }
 
-static void zswap_cpu_dstmem_destroy(void)
+static int zswap_dstmem_dead(unsigned int cpu)
 {
-	unsigned long cpu;
+	u8 *dst;
 
-	cpu_notifier_register_begin();
-	for_each_online_cpu(cpu)
-		__zswap_cpu_dstmem_notifier(CPU_UP_CANCELED, cpu);
-	__unregister_cpu_notifier(&zswap_dstmem_notifier);
-	cpu_notifier_register_done();
+	dst = per_cpu(zswap_dstmem, cpu);
+	kfree(dst);
+	per_cpu(zswap_dstmem, cpu) = NULL;
+
+	return 0;
 }
 
-static int __zswap_cpu_comp_notifier(struct zswap_pool *pool,
-				     unsigned long action, unsigned long cpu)
+static int zswap_cpu_comp_prepare(unsigned int cpu, struct hlist_node *node)
 {
+	struct zswap_pool *pool = hlist_entry(node, struct zswap_pool, node);
 	struct crypto_comp *tfm;
 
-	switch (action) {
-	case CPU_UP_PREPARE:
-		if (WARN_ON(*per_cpu_ptr(pool->tfm, cpu)))
-			break;
-		tfm = crypto_alloc_comp(pool->tfm_name, 0, 0);
-		if (IS_ERR_OR_NULL(tfm)) {
-			pr_err("could not alloc crypto comp %s : %ld\n",
-			       pool->tfm_name, PTR_ERR(tfm));
-			return NOTIFY_BAD;
-		}
-		*per_cpu_ptr(pool->tfm, cpu) = tfm;
-		break;
-	case CPU_DEAD:
-	case CPU_UP_CANCELED:
-		tfm = *per_cpu_ptr(pool->tfm, cpu);
-		if (!IS_ERR_OR_NULL(tfm))
-			crypto_free_comp(tfm);
-		*per_cpu_ptr(pool->tfm, cpu) = NULL;
-		break;
-	default:
-		break;
+	if (WARN_ON(*per_cpu_ptr(pool->tfm, cpu)))
+		return 0;
+
+	tfm = crypto_alloc_comp(pool->tfm_name, 0, 0);
+	if (IS_ERR_OR_NULL(tfm)) {
+		pr_err("could not alloc crypto comp %s : %ld\n",
+		       pool->tfm_name, PTR_ERR(tfm));
+		return -ENOMEM;
 	}
-	return NOTIFY_OK;
-}
-
-static int zswap_cpu_comp_notifier(struct notifier_block *nb,
-				   unsigned long action, void *pcpu)
-{
-	unsigned long cpu = (unsigned long)pcpu;
-	struct zswap_pool *pool = container_of(nb, typeof(*pool), notifier);
-
-	return __zswap_cpu_comp_notifier(pool, action, cpu);
-}
-
-static int zswap_cpu_comp_init(struct zswap_pool *pool)
-{
-	unsigned long cpu;
-
-	memset(&pool->notifier, 0, sizeof(pool->notifier));
-	pool->notifier.notifier_call = zswap_cpu_comp_notifier;
-
-	cpu_notifier_register_begin();
-	for_each_online_cpu(cpu)
-		if (__zswap_cpu_comp_notifier(pool, CPU_UP_PREPARE, cpu) ==
-		    NOTIFY_BAD)
-			goto cleanup;
-	__register_cpu_notifier(&pool->notifier);
-	cpu_notifier_register_done();
+	*per_cpu_ptr(pool->tfm, cpu) = tfm;
 	return 0;
-
-cleanup:
-	for_each_online_cpu(cpu)
-		__zswap_cpu_comp_notifier(pool, CPU_UP_CANCELED, cpu);
-	cpu_notifier_register_done();
-	return -ENOMEM;
 }
 
-static void zswap_cpu_comp_destroy(struct zswap_pool *pool)
+static int zswap_cpu_comp_dead(unsigned int cpu, struct hlist_node *node)
 {
-	unsigned long cpu;
+	struct zswap_pool *pool = hlist_entry(node, struct zswap_pool, node);
+	struct crypto_comp *tfm;
 
-	cpu_notifier_register_begin();
-	for_each_online_cpu(cpu)
-		__zswap_cpu_comp_notifier(pool, CPU_UP_CANCELED, cpu);
-	__unregister_cpu_notifier(&pool->notifier);
-	cpu_notifier_register_done();
+	tfm = *per_cpu_ptr(pool->tfm, cpu);
+	if (!IS_ERR_OR_NULL(tfm))
+		crypto_free_comp(tfm);
+	*per_cpu_ptr(pool->tfm, cpu) = NULL;
+	return 0;
 }
 
 /*********************************
@@ -500,7 +434,8 @@ static struct zswap_pool *__zswap_pool_current(void)
 	struct zswap_pool *pool;
 
 	pool = list_first_or_null_rcu(&zswap_pools, typeof(*pool), list);
-	WARN_ON(!pool);
+	WARN_ONCE(!pool && zswap_has_pool,
+		  "%s: no page storage pool!\n", __func__);
 
 	return pool;
 }
@@ -519,7 +454,7 @@ static struct zswap_pool *zswap_pool_current_get(void)
 	rcu_read_lock();
 
 	pool = __zswap_pool_current();
-	if (!pool || !zswap_pool_get(pool))
+	if (!zswap_pool_get(pool))
 		pool = NULL;
 
 	rcu_read_unlock();
@@ -535,7 +470,9 @@ static struct zswap_pool *zswap_pool_last_get(void)
 
 	list_for_each_entry_rcu(pool, &zswap_pools, list)
 		last = pool;
-	if (!WARN_ON(!last) && !zswap_pool_get(last))
+	WARN_ONCE(!last && zswap_has_pool,
+		  "%s: no page storage pool!\n", __func__);
+	if (!zswap_pool_get(last))
 		last = NULL;
 
 	rcu_read_unlock();
@@ -569,12 +506,22 @@ static struct zswap_pool *zswap_pool_create(char *type, char *compressor)
 	struct zswap_pool *pool;
 	char name[38]; /* 'zswap' + 32 char (max) num + \0 */
 	gfp_t gfp = __GFP_NORETRY | __GFP_NOWARN | __GFP_KSWAPD_RECLAIM;
+	int ret;
+
+	if (!zswap_has_pool) {
+		/* if either are unset, pool initialization failed, and we
+		 * need both params to be set correctly before trying to
+		 * create a pool.
+		 */
+		if (!strcmp(type, ZSWAP_PARAM_UNSET))
+			return NULL;
+		if (!strcmp(compressor, ZSWAP_PARAM_UNSET))
+			return NULL;
+	}
 
 	pool = kzalloc(sizeof(*pool), GFP_KERNEL);
-	if (!pool) {
-		pr_err("pool alloc failed\n");
+	if (!pool)
 		return NULL;
-	}
 
 	/* unique name for each pool specifically required by zsmalloc */
 	snprintf(name, 38, "zswap%x", atomic_inc_return(&zswap_pools_count));
@@ -593,7 +540,9 @@ static struct zswap_pool *zswap_pool_create(char *type, char *compressor)
 		goto error;
 	}
 
-	if (zswap_cpu_comp_init(pool))
+	ret = cpuhp_state_add_instance(CPUHP_MM_ZSWP_POOL_PREPARE,
+				       &pool->node);
+	if (ret)
 		goto error;
 	pr_debug("using %s compressor\n", pool->tfm_name);
 
@@ -617,28 +566,40 @@ error:
 
 static __init struct zswap_pool *__zswap_pool_create_fallback(void)
 {
-	if (!crypto_has_comp(zswap_compressor, 0, 0)) {
-		if (!strcmp(zswap_compressor, ZSWAP_COMPRESSOR_DEFAULT)) {
-			pr_err("default compressor %s not available\n",
-			       zswap_compressor);
-			return NULL;
-		}
+	bool has_comp, has_zpool;
+
+	has_comp = crypto_has_comp(zswap_compressor, 0, 0);
+	if (!has_comp && strcmp(zswap_compressor, ZSWAP_COMPRESSOR_DEFAULT)) {
 		pr_err("compressor %s not available, using default %s\n",
 		       zswap_compressor, ZSWAP_COMPRESSOR_DEFAULT);
 		param_free_charp(&zswap_compressor);
 		zswap_compressor = ZSWAP_COMPRESSOR_DEFAULT;
+		has_comp = crypto_has_comp(zswap_compressor, 0, 0);
 	}
-	if (!zpool_has_pool(zswap_zpool_type)) {
-		if (!strcmp(zswap_zpool_type, ZSWAP_ZPOOL_DEFAULT)) {
-			pr_err("default zpool %s not available\n",
-			       zswap_zpool_type);
-			return NULL;
-		}
+	if (!has_comp) {
+		pr_err("default compressor %s not available\n",
+		       zswap_compressor);
+		param_free_charp(&zswap_compressor);
+		zswap_compressor = ZSWAP_PARAM_UNSET;
+	}
+
+	has_zpool = zpool_has_pool(zswap_zpool_type);
+	if (!has_zpool && strcmp(zswap_zpool_type, ZSWAP_ZPOOL_DEFAULT)) {
 		pr_err("zpool %s not available, using default %s\n",
 		       zswap_zpool_type, ZSWAP_ZPOOL_DEFAULT);
 		param_free_charp(&zswap_zpool_type);
 		zswap_zpool_type = ZSWAP_ZPOOL_DEFAULT;
+		has_zpool = zpool_has_pool(zswap_zpool_type);
 	}
+	if (!has_zpool) {
+		pr_err("default zpool %s not available\n",
+		       zswap_zpool_type);
+		param_free_charp(&zswap_zpool_type);
+		zswap_zpool_type = ZSWAP_PARAM_UNSET;
+	}
+
+	if (!has_comp || !has_zpool)
+		return NULL;
 
 	return zswap_pool_create(zswap_zpool_type, zswap_compressor);
 }
@@ -647,7 +608,7 @@ static void zswap_pool_destroy(struct zswap_pool *pool)
 {
 	zswap_pool_debug("destroying", pool);
 
-	zswap_cpu_comp_destroy(pool);
+	cpuhp_state_remove_instance(CPUHP_MM_ZSWP_POOL_PREPARE, &pool->node);
 	free_percpu(pool->tfm);
 	zpool_destroy_pool(pool->zpool);
 	kfree(pool);
@@ -655,6 +616,9 @@ static void zswap_pool_destroy(struct zswap_pool *pool)
 
 static int __must_check zswap_pool_get(struct zswap_pool *pool)
 {
+	if (!pool)
+		return 0;
+
 	return kref_get_unless_zero(&pool->kref);
 }
 
@@ -706,8 +670,13 @@ static int __zswap_param_set(const char *val, const struct kernel_param *kp,
 	char *s = strstrip((char *)val);
 	int ret;
 
+	if (zswap_init_failed) {
+		pr_err("can't set param, initialization failed\n");
+		return -ENODEV;
+	}
+
 	/* no change required */
-	if (!strcmp(s, *(char **)kp->arg))
+	if (!strcmp(s, *(char **)kp->arg) && zswap_has_pool)
 		return 0;
 
 	/* if this is load-time (pre-init) param setting,
@@ -738,21 +707,26 @@ static int __zswap_param_set(const char *val, const struct kernel_param *kp,
 	pool = zswap_pool_find_get(type, compressor);
 	if (pool) {
 		zswap_pool_debug("using existing", pool);
+		WARN_ON(pool == zswap_pool_current());
 		list_del_rcu(&pool->list);
-	} else {
-		spin_unlock(&zswap_pools_lock);
-		pool = zswap_pool_create(type, compressor);
-		spin_lock(&zswap_pools_lock);
 	}
+
+	spin_unlock(&zswap_pools_lock);
+
+	if (!pool)
+		pool = zswap_pool_create(type, compressor);
 
 	if (pool)
 		ret = param_set_charp(s, kp);
 	else
 		ret = -EINVAL;
 
+	spin_lock(&zswap_pools_lock);
+
 	if (!ret) {
 		put_pool = zswap_pool_current();
 		list_add_rcu(&pool->list, &zswap_pools);
+		zswap_has_pool = true;
 	} else if (pool) {
 		/* add the possibly pre-existing pool to the end of the pools
 		 * list; if it's new (and empty) then it'll be removed and
@@ -763,6 +737,17 @@ static int __zswap_param_set(const char *val, const struct kernel_param *kp,
 	}
 
 	spin_unlock(&zswap_pools_lock);
+
+	if (!zswap_has_pool && !pool) {
+		/* if initial pool creation failed, and this pool creation also
+		 * failed, maybe both compressor and zpool params were bad.
+		 * Allow changing this param, so pool creation will succeed
+		 * when the other param is changed. We already verified this
+		 * param is ok in the zpool_has_pool() or crypto_has_comp()
+		 * checks above.
+		 */
+		ret = param_set_charp(s, kp);
+	}
 
 	/* drop the ref from either the old current pool,
 	 * or the new pool we failed to add
@@ -783,6 +768,21 @@ static int zswap_zpool_param_set(const char *val,
 				 const struct kernel_param *kp)
 {
 	return __zswap_param_set(val, kp, NULL, zswap_compressor);
+}
+
+static int zswap_enabled_param_set(const char *val,
+				   const struct kernel_param *kp)
+{
+	if (zswap_init_failed) {
+		pr_err("can't enable, initialization failed\n");
+		return -ENODEV;
+	}
+	if (!zswap_has_pool && zswap_init_started) {
+		pr_err("can't enable, no pool configured\n");
+		return -ENODEV;
+	}
+
+	return param_set_bool(val, kp);
 }
 
 /*********************************
@@ -959,6 +959,28 @@ static int zswap_shrink(void)
 	return ret;
 }
 
+static int zswap_is_page_same_filled(void *ptr, unsigned long *value)
+{
+	unsigned int pos;
+	unsigned long *page;
+
+	page = (unsigned long *)ptr;
+	for (pos = 1; pos < PAGE_SIZE / sizeof(*page); pos++) {
+		if (page[pos] != page[0])
+			return 0;
+	}
+	*value = page[0];
+	return 1;
+}
+
+static void zswap_fill_page(void *ptr, unsigned long value)
+{
+	unsigned long *page;
+
+	page = (unsigned long *)ptr;
+	memset_l(page, value, PAGE_SIZE / sizeof(unsigned long));
+}
+
 /*********************************
 * frontswap hooks
 **********************************/
@@ -970,11 +992,17 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
 	struct zswap_entry *entry, *dupentry;
 	struct crypto_comp *tfm;
 	int ret;
-	unsigned int dlen = PAGE_SIZE, len;
-	unsigned long handle;
+	unsigned int hlen, dlen = PAGE_SIZE;
+	unsigned long handle, value;
 	char *buf;
 	u8 *src, *dst;
-	struct zswap_header *zhdr;
+	struct zswap_header zhdr = { .swpentry = swp_entry(type, offset) };
+
+	/* THP isn't supported */
+	if (PageTransHuge(page)) {
+		ret = -EINVAL;
+		goto reject;
+	}
 
 	if (!zswap_enabled || !tree) {
 		ret = -ENODEV;
@@ -989,6 +1017,15 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
 			ret = -ENOMEM;
 			goto reject;
 		}
+
+		/* A second zswap_is_full() check after
+		 * zswap_shrink() to make sure it's now
+		 * under the max_pool_percent
+		 */
+		if (zswap_is_full()) {
+			ret = -ENOMEM;
+			goto reject;
+		}
 	}
 
 	/* allocate entry */
@@ -997,6 +1034,19 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
 		zswap_reject_kmemcache_fail++;
 		ret = -ENOMEM;
 		goto reject;
+	}
+
+	if (zswap_same_filled_pages_enabled) {
+		src = kmap_atomic(page);
+		if (zswap_is_page_same_filled(src, &value)) {
+			kunmap_atomic(src);
+			entry->offset = offset;
+			entry->length = 0;
+			entry->value = value;
+			atomic_inc(&zswap_same_filled_pages);
+			goto insert_entry;
+		}
+		kunmap_atomic(src);
 	}
 
 	/* if entry is successfully added, it keeps the reference */
@@ -1019,8 +1069,8 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
 	}
 
 	/* store */
-	len = dlen + sizeof(struct zswap_header);
-	ret = zpool_malloc(entry->pool->zpool, len,
+	hlen = zpool_evictable(entry->pool->zpool) ? sizeof(zhdr) : 0;
+	ret = zpool_malloc(entry->pool->zpool, hlen + dlen,
 			   __GFP_NORETRY | __GFP_NOWARN | __GFP_KSWAPD_RECLAIM,
 			   &handle);
 	if (ret == -ENOSPC) {
@@ -1031,10 +1081,9 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
 		zswap_reject_alloc_fail++;
 		goto put_dstmem;
 	}
-	zhdr = zpool_map_handle(entry->pool->zpool, handle, ZPOOL_MM_RW);
-	zhdr->swpentry = swp_entry(type, offset);
-	buf = (u8 *)(zhdr + 1);
-	memcpy(buf, dst, dlen);
+	buf = zpool_map_handle(entry->pool->zpool, handle, ZPOOL_MM_RW);
+	memcpy(buf, &zhdr, hlen);
+	memcpy(buf + hlen, dst, dlen);
 	zpool_unmap_handle(entry->pool->zpool, handle);
 	put_cpu_var(zswap_dstmem);
 
@@ -1043,6 +1092,7 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
 	entry->handle = handle;
 	entry->length = dlen;
 
+insert_entry:
 	/* map */
 	spin_lock(&tree->lock);
 	do {
@@ -1095,10 +1145,18 @@ static int zswap_frontswap_load(unsigned type, pgoff_t offset,
 	}
 	spin_unlock(&tree->lock);
 
+	if (!entry->length) {
+		dst = kmap_atomic(page);
+		zswap_fill_page(dst, entry->value);
+		kunmap_atomic(dst);
+		goto freeentry;
+	}
+
 	/* decompress */
 	dlen = PAGE_SIZE;
-	src = (u8 *)zpool_map_handle(entry->pool->zpool, entry->handle,
-			ZPOOL_MM_RO) + sizeof(struct zswap_header);
+	src = zpool_map_handle(entry->pool->zpool, entry->handle, ZPOOL_MM_RO);
+	if (zpool_evictable(entry->pool->zpool))
+		src += sizeof(struct zswap_header);
 	dst = kmap_atomic(page);
 	tfm = *get_cpu_ptr(entry->pool->tfm);
 	ret = crypto_comp_decompress(tfm, src, entry->length, dst, &dlen);
@@ -1107,6 +1165,7 @@ static int zswap_frontswap_load(unsigned type, pgoff_t offset,
 	zpool_unmap_handle(entry->pool->zpool, entry->handle);
 	BUG_ON(ret);
 
+freeentry:
 	spin_lock(&tree->lock);
 	zswap_entry_put(tree, entry);
 	spin_unlock(&tree->lock);
@@ -1161,7 +1220,7 @@ static void zswap_frontswap_init(unsigned type)
 {
 	struct zswap_tree *tree;
 
-	tree = kzalloc(sizeof(struct zswap_tree), GFP_KERNEL);
+	tree = kzalloc(sizeof(*tree), GFP_KERNEL);
 	if (!tree) {
 		pr_err("alloc failed, zswap disabled for swap type %d\n", type);
 		return;
@@ -1194,27 +1253,27 @@ static int __init zswap_debugfs_init(void)
 		return -ENODEV;
 
 	zswap_debugfs_root = debugfs_create_dir("zswap", NULL);
-	if (!zswap_debugfs_root)
-		return -ENOMEM;
 
-	debugfs_create_u64("pool_limit_hit", S_IRUGO,
-			zswap_debugfs_root, &zswap_pool_limit_hit);
-	debugfs_create_u64("reject_reclaim_fail", S_IRUGO,
-			zswap_debugfs_root, &zswap_reject_reclaim_fail);
-	debugfs_create_u64("reject_alloc_fail", S_IRUGO,
-			zswap_debugfs_root, &zswap_reject_alloc_fail);
-	debugfs_create_u64("reject_kmemcache_fail", S_IRUGO,
-			zswap_debugfs_root, &zswap_reject_kmemcache_fail);
-	debugfs_create_u64("reject_compress_poor", S_IRUGO,
-			zswap_debugfs_root, &zswap_reject_compress_poor);
-	debugfs_create_u64("written_back_pages", S_IRUGO,
-			zswap_debugfs_root, &zswap_written_back_pages);
-	debugfs_create_u64("duplicate_entry", S_IRUGO,
-			zswap_debugfs_root, &zswap_duplicate_entry);
-	debugfs_create_u64("pool_total_size", S_IRUGO,
-			zswap_debugfs_root, &zswap_pool_total_size);
-	debugfs_create_atomic_t("stored_pages", S_IRUGO,
-			zswap_debugfs_root, &zswap_stored_pages);
+	debugfs_create_u64("pool_limit_hit", 0444,
+			   zswap_debugfs_root, &zswap_pool_limit_hit);
+	debugfs_create_u64("reject_reclaim_fail", 0444,
+			   zswap_debugfs_root, &zswap_reject_reclaim_fail);
+	debugfs_create_u64("reject_alloc_fail", 0444,
+			   zswap_debugfs_root, &zswap_reject_alloc_fail);
+	debugfs_create_u64("reject_kmemcache_fail", 0444,
+			   zswap_debugfs_root, &zswap_reject_kmemcache_fail);
+	debugfs_create_u64("reject_compress_poor", 0444,
+			   zswap_debugfs_root, &zswap_reject_compress_poor);
+	debugfs_create_u64("written_back_pages", 0444,
+			   zswap_debugfs_root, &zswap_written_back_pages);
+	debugfs_create_u64("duplicate_entry", 0444,
+			   zswap_debugfs_root, &zswap_duplicate_entry);
+	debugfs_create_u64("pool_total_size", 0444,
+			   zswap_debugfs_root, &zswap_pool_total_size);
+	debugfs_create_atomic_t("stored_pages", 0444,
+				zswap_debugfs_root, &zswap_stored_pages);
+	debugfs_create_atomic_t("same_filled_pages", 0444,
+				zswap_debugfs_root, &zswap_same_filled_pages);
 
 	return 0;
 }
@@ -1238,6 +1297,7 @@ static void __exit zswap_debugfs_exit(void) { }
 static int __init init_zswap(void)
 {
 	struct zswap_pool *pool;
+	int ret;
 
 	zswap_init_started = true;
 
@@ -1246,31 +1306,44 @@ static int __init init_zswap(void)
 		goto cache_fail;
 	}
 
-	if (zswap_cpu_dstmem_init()) {
+	ret = cpuhp_setup_state(CPUHP_MM_ZSWP_MEM_PREPARE, "mm/zswap:prepare",
+				zswap_dstmem_prepare, zswap_dstmem_dead);
+	if (ret) {
 		pr_err("dstmem alloc failed\n");
 		goto dstmem_fail;
 	}
 
-	pool = __zswap_pool_create_fallback();
-	if (!pool) {
-		pr_err("pool creation failed\n");
-		goto pool_fail;
-	}
-	pr_info("loaded using pool %s/%s\n", pool->tfm_name,
-		zpool_get_type(pool->zpool));
+	ret = cpuhp_setup_state_multi(CPUHP_MM_ZSWP_POOL_PREPARE,
+				      "mm/zswap_pool:prepare",
+				      zswap_cpu_comp_prepare,
+				      zswap_cpu_comp_dead);
+	if (ret)
+		goto hp_fail;
 
-	list_add(&pool->list, &zswap_pools);
+	pool = __zswap_pool_create_fallback();
+	if (pool) {
+		pr_info("loaded using pool %s/%s\n", pool->tfm_name,
+			zpool_get_type(pool->zpool));
+		list_add(&pool->list, &zswap_pools);
+		zswap_has_pool = true;
+	} else {
+		pr_err("pool creation failed\n");
+		zswap_enabled = false;
+	}
 
 	frontswap_register_ops(&zswap_frontswap_ops);
 	if (zswap_debugfs_init())
 		pr_warn("debugfs initialization failed\n");
 	return 0;
 
-pool_fail:
-	zswap_cpu_dstmem_destroy();
+hp_fail:
+	cpuhp_remove_state(CPUHP_MM_ZSWP_MEM_PREPARE);
 dstmem_fail:
 	zswap_entry_cache_destroy();
 cache_fail:
+	/* if built-in, we aren't unloaded on failure; don't allow use */
+	zswap_init_failed = true;
+	zswap_enabled = false;
 	return -ENOMEM;
 }
 /* must be late so crypto has time to come up */

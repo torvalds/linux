@@ -1,22 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /******************************************************************************
  *
  * Copyright(c) 2005 - 2011 Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
  *
  * Contact Information:
  *  Intel Linux Wireless <ilw@linux.intel.com>
@@ -2154,13 +2139,11 @@ il4965_rs_initialize_lq(struct il_priv *il, struct ieee80211_conf *conf,
 	u8 use_green;
 	u8 active_tbl = 0;
 	u8 valid_tx_ant;
-	struct il_station_priv *sta_priv;
 
 	if (!sta || !lq_sta)
 		return;
 
 	use_green = il4965_rs_use_green(il, sta);
-	sta_priv = (void *)sta->drv_priv;
 
 	i = lq_sta->last_txrate_idx;
 
@@ -2211,7 +2194,7 @@ il4965_rs_get_rate(void *il_r, struct ieee80211_sta *sta, void *il_sta,
 
 	/* Get max rate if user set max rate */
 	if (lq_sta) {
-		lq_sta->max_rate_idx = txrc->max_rate_idx;
+		lq_sta->max_rate_idx = fls(txrc->rate_idx_mask) - 1;
 		if (sband->band == NL80211_BAND_5GHZ &&
 		    lq_sta->max_rate_idx != -1)
 			lq_sta->max_rate_idx += IL_FIRST_OFDM_RATE;
@@ -2225,10 +2208,6 @@ il4965_rs_get_rate(void *il_r, struct ieee80211_sta *sta, void *il_sta,
 		D_RATE("Rate scaling not initialized yet.\n");
 		il_sta = NULL;
 	}
-
-	/* Send management frames and NO_ACK data using lowest rate. */
-	if (rate_control_send_low(sta, il_sta, txrc))
-		return;
 
 	if (!lq_sta)
 		return;
@@ -2769,29 +2748,15 @@ static void
 il4965_rs_add_debugfs(void *il, void *il_sta, struct dentry *dir)
 {
 	struct il_lq_sta *lq_sta = il_sta;
-	lq_sta->rs_sta_dbgfs_scale_table_file =
-	    debugfs_create_file("rate_scale_table", S_IRUSR | S_IWUSR, dir,
-				lq_sta, &rs_sta_dbgfs_scale_table_ops);
-	lq_sta->rs_sta_dbgfs_stats_table_file =
-	    debugfs_create_file("rate_stats_table", S_IRUSR, dir, lq_sta,
-				&rs_sta_dbgfs_stats_table_ops);
-	lq_sta->rs_sta_dbgfs_rate_scale_data_file =
-	    debugfs_create_file("rate_scale_data", S_IRUSR, dir, lq_sta,
-				&rs_sta_dbgfs_rate_scale_data_ops);
-	lq_sta->rs_sta_dbgfs_tx_agg_tid_en_file =
-	    debugfs_create_u8("tx_agg_tid_enable", S_IRUSR | S_IWUSR, dir,
-			      &lq_sta->tx_agg_tid_en);
 
-}
-
-static void
-il4965_rs_remove_debugfs(void *il, void *il_sta)
-{
-	struct il_lq_sta *lq_sta = il_sta;
-	debugfs_remove(lq_sta->rs_sta_dbgfs_scale_table_file);
-	debugfs_remove(lq_sta->rs_sta_dbgfs_stats_table_file);
-	debugfs_remove(lq_sta->rs_sta_dbgfs_rate_scale_data_file);
-	debugfs_remove(lq_sta->rs_sta_dbgfs_tx_agg_tid_en_file);
+	debugfs_create_file("rate_scale_table", 0600, dir, lq_sta,
+			    &rs_sta_dbgfs_scale_table_ops);
+	debugfs_create_file("rate_stats_table", 0400, dir, lq_sta,
+			    &rs_sta_dbgfs_stats_table_ops);
+	debugfs_create_file("rate_scale_data", 0400, dir, lq_sta,
+			    &rs_sta_dbgfs_rate_scale_data_ops);
+	debugfs_create_u8("tx_agg_tid_enable", 0600, dir,
+			  &lq_sta->tx_agg_tid_en);
 }
 #endif
 
@@ -2818,7 +2783,6 @@ static const struct rate_control_ops rs_4965_ops = {
 	.free_sta = il4965_rs_free_sta,
 #ifdef CONFIG_MAC80211_DEBUGFS
 	.add_sta_debugfs = il4965_rs_add_debugfs,
-	.remove_sta_debugfs = il4965_rs_remove_debugfs,
 #endif
 };
 

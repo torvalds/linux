@@ -1,30 +1,5 @@
-/*******************************************************************************
-
-  Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2016 Intel Corporation.
-
-  This program is free software; you can redistribute it and/or modify it
-  under the terms and conditions of the GNU General Public License,
-  version 2, as published by the Free Software Foundation.
-
-  This program is distributed in the hope it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details.
-
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-
-  The full GNU General Public License is included in this distribution in
-  the file called "COPYING".
-
-  Contact Information:
-  Linux NICS <linux.nics@intel.com>
-  e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
-  Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
-
-*******************************************************************************/
+/* SPDX-License-Identifier: GPL-2.0 */
+/* Copyright(c) 1999 - 2018 Intel Corporation. */
 
 #ifndef _IXGBE_PHY_H_
 #define _IXGBE_PHY_H_
@@ -70,6 +45,7 @@
 #define IXGBE_SFF_SOFT_RS_SELECT_10G		0x8
 #define IXGBE_SFF_SOFT_RS_SELECT_1G		0x0
 #define IXGBE_SFF_ADDRESSING_MODE		0x4
+#define IXGBE_SFF_DDM_IMPLEMENTED		0x40
 #define IXGBE_SFF_QSFP_DA_ACTIVE_CABLE		0x1
 #define IXGBE_SFF_QSFP_DA_PASSIVE_CABLE		0x8
 #define IXGBE_SFF_QSFP_CONNECTOR_NOT_SEPARABLE	0x23
@@ -84,8 +60,9 @@
 #define IXGBE_CS4227_GLOBAL_ID_LSB		0
 #define IXGBE_CS4227_GLOBAL_ID_MSB		1
 #define IXGBE_CS4227_SCRATCH			2
-#define IXGBE_CS4223_PHY_ID			0x7003	/* Quad port */
-#define IXGBE_CS4227_PHY_ID			0x3003	/* Dual port */
+#define IXGBE_CS4227_EFUSE_PDF_SKU		0x19F
+#define IXGBE_CS4223_SKU_ID			0x0010  /* Quad port */
+#define IXGBE_CS4227_SKU_ID			0x0014  /* Dual port */
 #define IXGBE_CS4227_RESET_PENDING		0x1357
 #define IXGBE_CS4227_RESET_COMPLETE		0x5AA5
 #define IXGBE_CS4227_RETRIES			15
@@ -144,6 +121,8 @@
 /* SFP+ SFF-8472 Compliance code */
 #define IXGBE_SFF_SFF_8472_UNSUP      0x00
 
+s32 ixgbe_mii_bus_init(struct ixgbe_hw *hw);
+
 s32 ixgbe_identify_phy_generic(struct ixgbe_hw *hw);
 s32 ixgbe_reset_phy_generic(struct ixgbe_hw *hw);
 s32 ixgbe_read_phy_reg_generic(struct ixgbe_hw *hw, u32 reg_addr,
@@ -168,10 +147,6 @@ s32 ixgbe_check_phy_link_tnx(struct ixgbe_hw *hw,
 			     ixgbe_link_speed *speed,
 			     bool *link_up);
 s32 ixgbe_setup_phy_link_tnx(struct ixgbe_hw *hw);
-s32 ixgbe_get_phy_firmware_version_tnx(struct ixgbe_hw *hw,
-				       u16 *firmware_version);
-s32 ixgbe_get_phy_firmware_version_generic(struct ixgbe_hw *hw,
-					   u16 *firmware_version);
 
 s32 ixgbe_reset_phy_nl(struct ixgbe_hw *hw);
 s32 ixgbe_set_copper_phy_power(struct ixgbe_hw *hw, bool on);
@@ -195,12 +170,8 @@ s32 ixgbe_read_i2c_sff8472_generic(struct ixgbe_hw *hw, u8 byte_offset,
 				   u8 *sff8472_data);
 s32 ixgbe_write_i2c_eeprom_generic(struct ixgbe_hw *hw, u8 byte_offset,
 				   u8 eeprom_data);
-s32 ixgbe_read_i2c_combined_generic(struct ixgbe_hw *hw, u8 addr,
-				    u16 reg, u16 *val);
-s32 ixgbe_read_i2c_combined_generic_unlocked(struct ixgbe_hw *hw, u8 addr,
-					     u16 reg, u16 *val);
-s32 ixgbe_write_i2c_combined_generic(struct ixgbe_hw *hw, u8 addr,
-				     u16 reg, u16 val);
-s32 ixgbe_write_i2c_combined_generic_unlocked(struct ixgbe_hw *hw, u8 addr,
-					      u16 reg, u16 val);
+s32 ixgbe_read_i2c_combined_generic_int(struct ixgbe_hw *, u8 addr, u16 reg,
+					u16 *val, bool lock);
+s32 ixgbe_write_i2c_combined_generic_int(struct ixgbe_hw *, u8 addr, u16 reg,
+					 u16 val, bool lock);
 #endif /* _IXGBE_PHY_H_ */

@@ -1,16 +1,23 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 .. _selection-api:
 
-API for cropping, composing and scaling
-=======================================
+Cropping, composing and scaling -- the SELECTION API
+====================================================
 
 
 .. toctree::
     :maxdepth: 1
 
-    selection-api-002
-    selection-api-003
-    selection-api-004
-    selection-api-005
-    selection-api-006
+    selection-api-intro.rst
+    selection-api-targets.rst
+    selection-api-configuration.rst
+    selection-api-vs-crop-api.rst
+    selection-api-examples.rst

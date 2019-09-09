@@ -1,17 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ARCH_POWERPC_UACCESS_H
 #define _ARCH_POWERPC_UACCESS_H
 
-#ifdef __KERNEL__
-#ifndef __ASSEMBLY__
-
-#include <linux/sched.h>
-#include <linux/errno.h>
-#include <asm/asm-compat.h>
+#include <asm/ppc_asm.h>
 #include <asm/processor.h>
 #include <asm/page.h>
-
-#define VERIFY_READ	0
-#define VERIFY_WRITE	1
+#include <asm/extable.h>
+#include <asm/kup.h>
 
 /*
  * The fs value determines whether argument validity checking should be
@@ -34,9 +29,14 @@
 #define USER_DS		MAKE_MM_SEG(TASK_SIZE - 1)
 #endif
 
-#define get_ds()	(KERNEL_DS)
-#define get_fs()	(current->thread.fs)
-#define set_fs(val)	(current->thread.fs = (val))
+#define get_fs()	(current->thread.addr_limit)
+
+static inline void set_fs(mm_segment_t fs)
+{
+	current->thread.addr_limit = fs;
+	/* On user-mode return check addr_limit (fs) is correct */
+	set_thread_flag(TIF_FSCHECK);
+}
 
 #define segment_eq(a, b)	((a).seg == (b).seg)
 
@@ -52,33 +52,19 @@
 
 #else
 
-#define __access_ok(addr, size, segment)	\
-	(((addr) <= (segment).seg) &&		\
-	 (((size) == 0) || (((size) - 1) <= ((segment).seg - (addr)))))
+static inline int __access_ok(unsigned long addr, unsigned long size,
+			mm_segment_t seg)
+{
+	if (addr > seg.seg)
+		return 0;
+	return (size == 0 || size - 1 <= seg.seg - addr);
+}
 
 #endif
 
-#define access_ok(type, addr, size)		\
-	(__chk_user_ptr(addr),			\
+#define access_ok(addr, size)		\
+	(__chk_user_ptr(addr),		\
 	 __access_ok((__force unsigned long)(addr), (size), get_fs()))
-
-/*
- * The exception table consists of pairs of addresses: the first is the
- * address of an instruction that is allowed to fault, and the second is
- * the address at which the program should continue.  No registers are
- * modified, so it is entirely up to the continuation code to figure out
- * what to do.
- *
- * All the routines below use bits of fixup code that are out of line
- * with the main instruction path.  This means when everything is well,
- * we don't even have to jump over them.  Further, they do not intrude
- * on our cache or tlb entries.
- */
-
-struct exception_table_entry {
-	unsigned long insn;
-	unsigned long fixup;
-};
 
 /*
  * These are the main single-value transfer routines.  They automatically
@@ -114,9 +100,6 @@ struct exception_table_entry {
 #define __put_user_inatomic(x, ptr) \
 	__put_user_nosleep((__typeof__(*(ptr)))(x), (ptr), sizeof(*(ptr)))
 
-#define __get_user_unaligned __get_user
-#define __put_user_unaligned __put_user
-
 extern long __put_user_bad(void);
 
 /*
@@ -132,10 +115,7 @@ extern long __put_user_bad(void);
 		"3:	li %0,%3\n"				\
 		"	b 2b\n"					\
 		".previous\n"					\
-		".section __ex_table,\"a\"\n"			\
-			PPC_LONG_ALIGN "\n"			\
-			PPC_LONG "1b,3b\n"			\
-		".previous"					\
+		EX_TABLE(1b, 3b)				\
 		: "=r" (err)					\
 		: "r" (x), "b" (addr), "i" (-EFAULT), "0" (err))
 
@@ -152,11 +132,8 @@ extern long __put_user_bad(void);
 		"4:	li %0,%3\n"				\
 		"	b 3b\n"					\
 		".previous\n"					\
-		".section __ex_table,\"a\"\n"			\
-			PPC_LONG_ALIGN "\n"			\
-			PPC_LONG "1b,4b\n"			\
-			PPC_LONG "2b,4b\n"			\
-		".previous"					\
+		EX_TABLE(1b, 4b)				\
+		EX_TABLE(2b, 4b)				\
 		: "=r" (err)					\
 		: "r" (x), "b" (addr), "i" (-EFAULT), "0" (err))
 #endif /* __powerpc64__ */
@@ -164,6 +141,7 @@ extern long __put_user_bad(void);
 #define __put_user_size(x, ptr, size, retval)			\
 do {								\
 	retval = 0;						\
+	allow_write_to_user(ptr, size);				\
 	switch (size) {						\
 	  case 1: __put_user_asm(x, ptr, retval, "stb"); break;	\
 	  case 2: __put_user_asm(x, ptr, retval, "sth"); break;	\
@@ -171,6 +149,7 @@ do {								\
 	  case 8: __put_user_asm2(x, ptr, retval); break;	\
 	  default: __put_user_bad();				\
 	}							\
+	prevent_write_to_user(ptr, size);			\
 } while (0)
 
 #define __put_user_nocheck(x, ptr, size)			\
@@ -189,7 +168,7 @@ do {								\
 	long __pu_err = -EFAULT;					\
 	__typeof__(*(ptr)) __user *__pu_addr = (ptr);			\
 	might_fault();							\
-	if (access_ok(VERIFY_WRITE, __pu_addr, size))			\
+	if (access_ok(__pu_addr, size))			\
 		__put_user_size((x), __pu_addr, (size), __pu_err);	\
 	__pu_err;							\
 })
@@ -206,6 +185,23 @@ do {								\
 
 extern long __get_user_bad(void);
 
+/*
+ * This does an atomic 128 byte aligned load from userspace.
+ * Upto caller to do enable_kernel_vmx() before calling!
+ */
+#define __get_user_atomic_128_aligned(kaddr, uaddr, err)		\
+	__asm__ __volatile__(				\
+		"1:	lvx  0,0,%1	# get user\n"	\
+		" 	stvx 0,0,%2	# put kernel\n"	\
+		"2:\n"					\
+		".section .fixup,\"ax\"\n"		\
+		"3:	li %0,%3\n"			\
+		"	b 2b\n"				\
+		".previous\n"				\
+		EX_TABLE(1b, 3b)			\
+		: "=r" (err)			\
+		: "b" (uaddr), "b" (kaddr), "i" (-EFAULT), "0" (err))
+
 #define __get_user_asm(x, addr, err, op)		\
 	__asm__ __volatile__(				\
 		"1:	"op" %1,0(%2)	# get_user\n"	\
@@ -215,10 +211,7 @@ extern long __get_user_bad(void);
 		"	li %1,0\n"			\
 		"	b 2b\n"				\
 		".previous\n"				\
-		".section __ex_table,\"a\"\n"		\
-			PPC_LONG_ALIGN "\n"		\
-			PPC_LONG "1b,3b\n"		\
-		".previous"				\
+		EX_TABLE(1b, 3b)			\
 		: "=r" (err), "=r" (x)			\
 		: "b" (addr), "i" (-EFAULT), "0" (err))
 
@@ -237,11 +230,8 @@ extern long __get_user_bad(void);
 		"	li %1+1,0\n"			\
 		"	b 3b\n"				\
 		".previous\n"				\
-		".section __ex_table,\"a\"\n"		\
-			PPC_LONG_ALIGN "\n"		\
-			PPC_LONG "1b,4b\n"		\
-			PPC_LONG "2b,4b\n"		\
-		".previous"				\
+		EX_TABLE(1b, 4b)			\
+		EX_TABLE(2b, 4b)			\
 		: "=r" (err), "=&r" (x)			\
 		: "b" (addr), "i" (-EFAULT), "0" (err))
 #endif /* __powerpc64__ */
@@ -252,6 +242,7 @@ do {								\
 	__chk_user_ptr(ptr);					\
 	if (size > sizeof(x))					\
 		(x) = __get_user_bad();				\
+	allow_read_from_user(ptr, size);			\
 	switch (size) {						\
 	case 1: __get_user_asm(x, ptr, retval, "lbz"); break;	\
 	case 2: __get_user_asm(x, ptr, retval, "lhz"); break;	\
@@ -259,16 +250,25 @@ do {								\
 	case 8: __get_user_asm2(x, ptr, retval);  break;	\
 	default: (x) = __get_user_bad();			\
 	}							\
+	prevent_read_from_user(ptr, size);			\
 } while (0)
+
+/*
+ * This is a type: either unsigned long, if the argument fits into
+ * that type, or otherwise unsigned long long.
+ */
+#define __long_type(x) \
+	__typeof__(__builtin_choose_expr(sizeof(x) > sizeof(0UL), 0ULL, 0UL))
 
 #define __get_user_nocheck(x, ptr, size)			\
 ({								\
 	long __gu_err;						\
-	unsigned long __gu_val;					\
+	__long_type(*(ptr)) __gu_val;				\
 	__typeof__(*(ptr)) __user *__gu_addr = (ptr);	\
 	__chk_user_ptr(ptr);					\
 	if (!is_kernel_addr((unsigned long)__gu_addr))		\
 		might_fault();					\
+	barrier_nospec();					\
 	__get_user_size(__gu_val, __gu_addr, (size), __gu_err);	\
 	(x) = (__typeof__(*(ptr)))__gu_val;			\
 	__gu_err;						\
@@ -277,11 +277,13 @@ do {								\
 #define __get_user_check(x, ptr, size)					\
 ({									\
 	long __gu_err = -EFAULT;					\
-	unsigned long  __gu_val = 0;					\
+	__long_type(*(ptr)) __gu_val = 0;				\
 	__typeof__(*(ptr)) __user *__gu_addr = (ptr);		\
 	might_fault();							\
-	if (access_ok(VERIFY_READ, __gu_addr, (size)))			\
+	if (access_ok(__gu_addr, (size))) {		\
+		barrier_nospec();					\
 		__get_user_size(__gu_val, __gu_addr, (size), __gu_err);	\
+	}								\
 	(x) = (__force __typeof__(*(ptr)))__gu_val;				\
 	__gu_err;							\
 })
@@ -289,9 +291,10 @@ do {								\
 #define __get_user_nosleep(x, ptr, size)			\
 ({								\
 	long __gu_err;						\
-	unsigned long __gu_val;					\
+	__long_type(*(ptr)) __gu_val;				\
 	__typeof__(*(ptr)) __user *__gu_addr = (ptr);	\
 	__chk_user_ptr(ptr);					\
+	barrier_nospec();					\
 	__get_user_size(__gu_val, __gu_addr, (size), __gu_err);	\
 	(x) = (__force __typeof__(*(ptr)))__gu_val;			\
 	__gu_err;						\
@@ -303,60 +306,42 @@ do {								\
 extern unsigned long __copy_tofrom_user(void __user *to,
 		const void __user *from, unsigned long size);
 
-#ifndef __powerpc64__
-
-static inline unsigned long copy_from_user(void *to,
-		const void __user *from, unsigned long n)
+#ifdef __powerpc64__
+static inline unsigned long
+raw_copy_in_user(void __user *to, const void __user *from, unsigned long n)
 {
-	if (likely(access_ok(VERIFY_READ, from, n))) {
-		check_object_size(to, n, false);
-		return __copy_tofrom_user((__force void __user *)to, from, n);
-	}
-	memset(to, 0, n);
-	return n;
+	unsigned long ret;
+
+	barrier_nospec();
+	allow_user_access(to, from, n);
+	ret = __copy_tofrom_user(to, from, n);
+	prevent_user_access(to, from, n);
+	return ret;
 }
-
-static inline unsigned long copy_to_user(void __user *to,
-		const void *from, unsigned long n)
-{
-	if (access_ok(VERIFY_WRITE, to, n)) {
-		check_object_size(from, n, true);
-		return __copy_tofrom_user(to, (__force void __user *)from, n);
-	}
-	return n;
-}
-
-#else /* __powerpc64__ */
-
-#define __copy_in_user(to, from, size) \
-	__copy_tofrom_user((to), (from), (size))
-
-extern unsigned long copy_from_user(void *to, const void __user *from,
-				    unsigned long n);
-extern unsigned long copy_to_user(void __user *to, const void *from,
-				  unsigned long n);
-extern unsigned long copy_in_user(void __user *to, const void __user *from,
-				  unsigned long n);
-
 #endif /* __powerpc64__ */
 
-static inline unsigned long __copy_from_user_inatomic(void *to,
+static inline unsigned long raw_copy_from_user(void *to,
 		const void __user *from, unsigned long n)
 {
+	unsigned long ret;
 	if (__builtin_constant_p(n) && (n <= 8)) {
-		unsigned long ret = 1;
+		ret = 1;
 
 		switch (n) {
 		case 1:
+			barrier_nospec();
 			__get_user_size(*(u8 *)to, from, 1, ret);
 			break;
 		case 2:
+			barrier_nospec();
 			__get_user_size(*(u16 *)to, from, 2, ret);
 			break;
 		case 4:
+			barrier_nospec();
 			__get_user_size(*(u32 *)to, from, 4, ret);
 			break;
 		case 8:
+			barrier_nospec();
 			__get_user_size(*(u64 *)to, from, 8, ret);
 			break;
 		}
@@ -364,16 +349,19 @@ static inline unsigned long __copy_from_user_inatomic(void *to,
 			return 0;
 	}
 
-	check_object_size(to, n, false);
-
-	return __copy_tofrom_user((__force void __user *)to, from, n);
+	barrier_nospec();
+	allow_read_from_user(from, n);
+	ret = __copy_tofrom_user((__force void __user *)to, from, n);
+	prevent_read_from_user(from, n);
+	return ret;
 }
 
-static inline unsigned long __copy_to_user_inatomic(void __user *to,
+static inline unsigned long raw_copy_to_user(void __user *to,
 		const void *from, unsigned long n)
 {
+	unsigned long ret;
 	if (__builtin_constant_p(n) && (n <= 8)) {
-		unsigned long ret = 1;
+		ret = 1;
 
 		switch (n) {
 		case 1:
@@ -393,40 +381,32 @@ static inline unsigned long __copy_to_user_inatomic(void __user *to,
 			return 0;
 	}
 
-	check_object_size(from, n, true);
-
-	return __copy_tofrom_user(to, (__force const void __user *)from, n);
-}
-
-static inline unsigned long __copy_from_user(void *to,
-		const void __user *from, unsigned long size)
-{
-	might_fault();
-	return __copy_from_user_inatomic(to, from, size);
-}
-
-static inline unsigned long __copy_to_user(void __user *to,
-		const void *from, unsigned long size)
-{
-	might_fault();
-	return __copy_to_user_inatomic(to, from, size);
+	allow_write_to_user(to, n);
+	ret = __copy_tofrom_user(to, (__force const void __user *)from, n);
+	prevent_write_to_user(to, n);
+	return ret;
 }
 
 extern unsigned long __clear_user(void __user *addr, unsigned long size);
 
 static inline unsigned long clear_user(void __user *addr, unsigned long size)
 {
+	unsigned long ret = size;
 	might_fault();
-	if (likely(access_ok(VERIFY_WRITE, addr, size)))
-		return __clear_user(addr, size);
-	return size;
+	if (likely(access_ok(addr, size))) {
+		allow_write_to_user(addr, size);
+		ret = __clear_user(addr, size);
+		prevent_write_to_user(addr, size);
+	}
+	return ret;
 }
 
 extern long strncpy_from_user(char *dst, const char __user *src, long count);
-extern __must_check long strlen_user(const char __user *str);
 extern __must_check long strnlen_user(const char __user *str, long n);
 
-#endif  /* __ASSEMBLY__ */
-#endif /* __KERNEL__ */
+extern long __copy_from_user_flushcache(void *dst, const void __user *src,
+		unsigned size);
+extern void memcpy_page_flushcache(char *to, struct page *page, size_t offset,
+			   size_t len);
 
 #endif	/* _ARCH_POWERPC_UACCESS_H */

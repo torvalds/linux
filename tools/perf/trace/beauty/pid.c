@@ -1,4 +1,6 @@
-static size_t syscall_arg__scnprintf_pid(char *bf, size_t size, struct syscall_arg *arg)
+// SPDX-License-Identifier: LGPL-2.1
+
+size_t syscall_arg__scnprintf_pid(char *bf, size_t size, struct syscall_arg *arg)
 {
 	int pid = arg->val;
 	struct trace *trace = arg->trace;
@@ -17,5 +19,3 @@ static size_t syscall_arg__scnprintf_pid(char *bf, size_t size, struct syscall_a
 
 	return printed;
 }
-
-#define SCA_PID syscall_arg__scnprintf_pid

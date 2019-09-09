@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* linux/drivers/video/s3c-fb.c
  *
  * Copyright 2008 Openmoko Inc.
@@ -6,10 +7,6 @@
  *      http://armlinux.simtec.co.uk/
  *
  * Samsung SoC Framebuffer driver
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software FoundatIon.
 */
 
 #include <linux/kernel.h>
@@ -287,7 +284,7 @@ static int s3c_fb_check_var(struct fb_var_screeninfo *var,
 		/* 666 with one bit alpha/transparency */
 		var->transp.offset	= 18;
 		var->transp.length	= 1;
-		/* drop through */
+		/* fall through */
 	case 18:
 		var->bits_per_pixel	= 32;
 
@@ -315,7 +312,7 @@ static int s3c_fb_check_var(struct fb_var_screeninfo *var,
 	case 25:
 		var->transp.length	= var->bits_per_pixel - 24;
 		var->transp.offset	= 24;
-		/* drop through */
+		/* fall through */
 	case 24:
 		/* our 24bpp is unpacked, so 32bpp */
 		var->bits_per_pixel	= 32;
@@ -812,7 +809,7 @@ static int s3c_fb_blank(int blank_mode, struct fb_info *info)
 	case FB_BLANK_POWERDOWN:
 		wincon &= ~WINCONx_ENWIN;
 		sfb->enabled &= ~(1 << index);
-		/* fall through to FB_BLANK_NORMAL */
+		/* fall through - to FB_BLANK_NORMAL */
 
 	case FB_BLANK_NORMAL:
 		/* disable the DMA and display 0x0 (black) */
@@ -1105,14 +1102,14 @@ static int s3c_fb_alloc_memory(struct s3c_fb *sfb, struct s3c_fb_win *win)
 
 	dev_dbg(sfb->dev, "want %u bytes for window\n", size);
 
-	fbi->screen_base = dma_alloc_wc(sfb->dev, size, &map_dma, GFP_KERNEL);
-	if (!fbi->screen_base)
+	fbi->screen_buffer = dma_alloc_wc(sfb->dev, size, &map_dma, GFP_KERNEL);
+	if (!fbi->screen_buffer)
 		return -ENOMEM;
 
 	dev_dbg(sfb->dev, "mapped %x to %p\n",
-		(unsigned int)map_dma, fbi->screen_base);
+		(unsigned int)map_dma, fbi->screen_buffer);
 
-	memset(fbi->screen_base, 0x0, size);
+	memset(fbi->screen_buffer, 0x0, size);
 	fbi->fix.smem_start = map_dma;
 
 	return 0;
@@ -1129,9 +1126,9 @@ static void s3c_fb_free_memory(struct s3c_fb *sfb, struct s3c_fb_win *win)
 {
 	struct fb_info *fbi = win->fbinfo;
 
-	if (fbi->screen_base)
+	if (fbi->screen_buffer)
 		dma_free_wc(sfb->dev, PAGE_ALIGN(fbi->fix.smem_len),
-		            fbi->screen_base, fbi->fix.smem_start);
+			    fbi->screen_buffer, fbi->fix.smem_start);
 }
 
 /**
@@ -1189,10 +1186,8 @@ static int s3c_fb_probe_win(struct s3c_fb *sfb, unsigned int win_no,
 
 	fbinfo = framebuffer_alloc(sizeof(struct s3c_fb_win) +
 				   palette_size * sizeof(u32), sfb->dev);
-	if (!fbinfo) {
-		dev_err(sfb->dev, "failed to allocate framebuffer\n");
-		return -ENOENT;
-	}
+	if (!fbinfo)
+		return -ENOMEM;
 
 	windata = sfb->pdata->win[win_no];
 	initmode = *sfb->pdata->vtiming;
@@ -1383,11 +1378,9 @@ static int s3c_fb_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	sfb = devm_kzalloc(dev, sizeof(struct s3c_fb), GFP_KERNEL);
-	if (!sfb) {
-		dev_err(dev, "no memory for framebuffers\n");
+	sfb = devm_kzalloc(dev, sizeof(*sfb), GFP_KERNEL);
+	if (!sfb)
 		return -ENOMEM;
-	}
 
 	dev_dbg(dev, "allocate new framebuffer %p\n", sfb);
 
@@ -1716,63 +1709,6 @@ static struct s3c_fb_win_variant s3c_fb_data_64xx_wins[] = {
 	},
 };
 
-static struct s3c_fb_win_variant s3c_fb_data_s5p_wins[] = {
-	[0] = {
-		.has_osd_c	= 1,
-		.osd_size_off	= 0x8,
-		.palette_sz	= 256,
-		.valid_bpp	= (VALID_BPP1248 | VALID_BPP(13) |
-				   VALID_BPP(15) | VALID_BPP(16) |
-				   VALID_BPP(18) | VALID_BPP(19) |
-				   VALID_BPP(24) | VALID_BPP(25) |
-				   VALID_BPP(32)),
-	},
-	[1] = {
-		.has_osd_c	= 1,
-		.has_osd_d	= 1,
-		.osd_size_off	= 0xc,
-		.has_osd_alpha	= 1,
-		.palette_sz	= 256,
-		.valid_bpp	= (VALID_BPP1248 | VALID_BPP(13) |
-				   VALID_BPP(15) | VALID_BPP(16) |
-				   VALID_BPP(18) | VALID_BPP(19) |
-				   VALID_BPP(24) | VALID_BPP(25) |
-				   VALID_BPP(32)),
-	},
-	[2] = {
-		.has_osd_c	= 1,
-		.has_osd_d	= 1,
-		.osd_size_off	= 0xc,
-		.has_osd_alpha	= 1,
-		.palette_sz	= 256,
-		.valid_bpp	= (VALID_BPP1248 | VALID_BPP(13) |
-				   VALID_BPP(15) | VALID_BPP(16) |
-				   VALID_BPP(18) | VALID_BPP(19) |
-				   VALID_BPP(24) | VALID_BPP(25) |
-				   VALID_BPP(32)),
-	},
-	[3] = {
-		.has_osd_c	= 1,
-		.has_osd_alpha	= 1,
-		.palette_sz	= 256,
-		.valid_bpp	= (VALID_BPP1248 | VALID_BPP(13) |
-				   VALID_BPP(15) | VALID_BPP(16) |
-				   VALID_BPP(18) | VALID_BPP(19) |
-				   VALID_BPP(24) | VALID_BPP(25) |
-				   VALID_BPP(32)),
-	},
-	[4] = {
-		.has_osd_c	= 1,
-		.has_osd_alpha	= 1,
-		.palette_sz	= 256,
-		.valid_bpp	= (VALID_BPP1248 | VALID_BPP(13) |
-				   VALID_BPP(15) | VALID_BPP(16) |
-				   VALID_BPP(18) | VALID_BPP(19) |
-				   VALID_BPP(24) | VALID_BPP(25) |
-				   VALID_BPP(32)),
-	},
-};
-
 static struct s3c_fb_driverdata s3c_fb_data_64xx = {
 	.variant = {
 		.nr_windows	= 5,
@@ -1802,102 +1738,6 @@ static struct s3c_fb_driverdata s3c_fb_data_64xx = {
 	.win[2]	= &s3c_fb_data_64xx_wins[2],
 	.win[3]	= &s3c_fb_data_64xx_wins[3],
 	.win[4]	= &s3c_fb_data_64xx_wins[4],
-};
-
-static struct s3c_fb_driverdata s3c_fb_data_s5pv210 = {
-	.variant = {
-		.nr_windows	= 5,
-		.vidtcon	= VIDTCON0,
-		.wincon		= WINCON(0),
-		.winmap		= WINxMAP(0),
-		.keycon		= WKEYCON,
-		.osd		= VIDOSD_BASE,
-		.osd_stride	= 16,
-		.buf_start	= VIDW_BUF_START(0),
-		.buf_size	= VIDW_BUF_SIZE(0),
-		.buf_end	= VIDW_BUF_END(0),
-
-		.palette = {
-			[0] = 0x2400,
-			[1] = 0x2800,
-			[2] = 0x2c00,
-			[3] = 0x3000,
-			[4] = 0x3400,
-		},
-
-		.has_shadowcon	= 1,
-		.has_blendcon	= 1,
-		.has_clksel	= 1,
-		.has_fixvclk	= 1,
-	},
-	.win[0]	= &s3c_fb_data_s5p_wins[0],
-	.win[1]	= &s3c_fb_data_s5p_wins[1],
-	.win[2]	= &s3c_fb_data_s5p_wins[2],
-	.win[3]	= &s3c_fb_data_s5p_wins[3],
-	.win[4]	= &s3c_fb_data_s5p_wins[4],
-};
-
-static struct s3c_fb_driverdata s3c_fb_data_exynos4 = {
-	.variant = {
-		.nr_windows	= 5,
-		.vidtcon	= VIDTCON0,
-		.wincon		= WINCON(0),
-		.winmap		= WINxMAP(0),
-		.keycon		= WKEYCON,
-		.osd		= VIDOSD_BASE,
-		.osd_stride	= 16,
-		.buf_start	= VIDW_BUF_START(0),
-		.buf_size	= VIDW_BUF_SIZE(0),
-		.buf_end	= VIDW_BUF_END(0),
-
-		.palette = {
-			[0] = 0x2400,
-			[1] = 0x2800,
-			[2] = 0x2c00,
-			[3] = 0x3000,
-			[4] = 0x3400,
-		},
-
-		.has_shadowcon	= 1,
-		.has_blendcon	= 1,
-		.has_fixvclk	= 1,
-	},
-	.win[0]	= &s3c_fb_data_s5p_wins[0],
-	.win[1]	= &s3c_fb_data_s5p_wins[1],
-	.win[2]	= &s3c_fb_data_s5p_wins[2],
-	.win[3]	= &s3c_fb_data_s5p_wins[3],
-	.win[4]	= &s3c_fb_data_s5p_wins[4],
-};
-
-static struct s3c_fb_driverdata s3c_fb_data_exynos5 = {
-	.variant = {
-		.nr_windows	= 5,
-		.vidtcon	= FIMD_V8_VIDTCON0,
-		.wincon		= WINCON(0),
-		.winmap		= WINxMAP(0),
-		.keycon		= WKEYCON,
-		.osd		= VIDOSD_BASE,
-		.osd_stride	= 16,
-		.buf_start	= VIDW_BUF_START(0),
-		.buf_size	= VIDW_BUF_SIZE(0),
-		.buf_end	= VIDW_BUF_END(0),
-
-		.palette = {
-			[0] = 0x2400,
-			[1] = 0x2800,
-			[2] = 0x2c00,
-			[3] = 0x3000,
-			[4] = 0x3400,
-		},
-		.has_shadowcon	= 1,
-		.has_blendcon	= 1,
-		.has_fixvclk	= 1,
-	},
-	.win[0]	= &s3c_fb_data_s5p_wins[0],
-	.win[1]	= &s3c_fb_data_s5p_wins[1],
-	.win[2]	= &s3c_fb_data_s5p_wins[2],
-	.win[3]	= &s3c_fb_data_s5p_wins[3],
-	.win[4]	= &s3c_fb_data_s5p_wins[4],
 };
 
 /* S3C2443/S3C2416 style hardware */
@@ -1941,15 +1781,6 @@ static const struct platform_device_id s3c_fb_driver_ids[] = {
 	{
 		.name		= "s3c-fb",
 		.driver_data	= (unsigned long)&s3c_fb_data_64xx,
-	}, {
-		.name		= "s5pv210-fb",
-		.driver_data	= (unsigned long)&s3c_fb_data_s5pv210,
-	}, {
-		.name		= "exynos4-fb",
-		.driver_data	= (unsigned long)&s3c_fb_data_exynos4,
-	}, {
-		.name		= "exynos5-fb",
-		.driver_data	= (unsigned long)&s3c_fb_data_exynos5,
 	}, {
 		.name		= "s3c2443-fb",
 		.driver_data	= (unsigned long)&s3c_fb_data_s3c2443,

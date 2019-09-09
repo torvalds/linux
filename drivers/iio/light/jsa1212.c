@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * JSA1212 Ambient Light & Proximity Sensor Driver
  *
  * Copyright (c) 2014, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  *
  * JSA1212 I2C slave address: 0x44(ADDR tied to GND), 0x45(ADDR tied to VDD)
  *
@@ -271,7 +263,6 @@ static const struct iio_chan_spec jsa1212_channels[] = {
 };
 
 static const struct iio_info jsa1212_info = {
-	.driver_module		= THIS_MODULE,
 	.read_raw		= &jsa1212_read_raw,
 };
 

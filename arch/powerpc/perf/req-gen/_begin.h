@@ -1,6 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* Include paths to be used in interface defining headers */
 #ifndef POWERPC_PERF_REQ_GEN_H_
 #define POWERPC_PERF_REQ_GEN_H_
+
+#include <linux/stringify.h>
 
 #define CAT2_STR_(t, s) __stringify(t/s)
 #define CAT2_STR(t, s) CAT2_STR_(t, s)

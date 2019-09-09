@@ -1,24 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *   ALSA driver for ICEnsemble ICE1724 (Envy24)
  *
  *   Lowlevel functions for Terratec PHASE 22
  *
  *	Copyright (c) 2005 Misha Zhilin <misha@epiphan.com>
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 /* PHASE 22 overview:
@@ -102,13 +88,13 @@ static const unsigned char wm_vol[256] = {
 #define WM_VOL_MAX	(sizeof(wm_vol) - 1)
 #define WM_VOL_MUTE	0x8000
 
-static struct snd_akm4xxx akm_phase22 = {
+static const struct snd_akm4xxx akm_phase22 = {
 	.type = SND_AK4524,
 	.num_dacs = 2,
 	.num_adcs = 2,
 };
 
-static struct snd_ak4xxx_private akm_phase22_priv = {
+static const struct snd_ak4xxx_private akm_phase22_priv = {
 	.caddr =	2,
 	.cif =		1,
 	.data_mask =	1 << 4,

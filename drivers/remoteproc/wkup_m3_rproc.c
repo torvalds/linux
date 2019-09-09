@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * TI AMx3 Wakeup M3 Remote Processor driver
  *
@@ -5,15 +6,6 @@
  *
  * Dave Gerlach <d-gerlach@ti.com>
  * Suman Anna <s-anna@ti.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/err.h>
@@ -111,7 +103,7 @@ static void *wkup_m3_rproc_da_to_va(struct rproc *rproc, u64 da, int len)
 	return va;
 }
 
-static struct rproc_ops wkup_m3_rproc_ops = {
+static const struct rproc_ops wkup_m3_rproc_ops = {
 	.start		= wkup_m3_rproc_start,
 	.stop		= wkup_m3_rproc_stop,
 	.da_to_va	= wkup_m3_rproc_da_to_va,

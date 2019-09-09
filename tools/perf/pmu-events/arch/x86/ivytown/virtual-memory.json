@@ -1,0 +1,198 @@
+[
+    {
+        "PublicDescription": "Misses in all TLB levels that cause a page walk of any page size from demand loads.",
+        "EventCode": "0x08",
+        "Counter": "0,1,2,3",
+        "UMask": "0x81",
+        "EventName": "DTLB_LOAD_MISSES.MISS_CAUSES_A_WALK",
+        "SampleAfterValue": "100003",
+        "BriefDescription": "Demand load Miss in all translation lookaside buffer (TLB) levels causes an page walk of any page size.",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0x08",
+        "Counter": "0,1,2,3",
+        "UMask": "0x82",
+        "EventName": "DTLB_LOAD_MISSES.DEMAND_LD_WALK_COMPLETED",
+        "SampleAfterValue": "100003",
+        "BriefDescription": "Demand load Miss in all translation lookaside buffer (TLB) levels causes a page walk that completes of any page size.",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "PublicDescription": "Misses in all TLB levels that caused page walk completed of any size by demand loads.",
+        "EventCode": "0x08",
+        "Counter": "0,1,2,3",
+        "UMask": "0x82",
+        "EventName": "DTLB_LOAD_MISSES.WALK_COMPLETED",
+        "SampleAfterValue": "100003",
+        "BriefDescription": "Demand load Miss in all translation lookaside buffer (TLB) levels causes a page walk that completes of any page size.",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0x08",
+        "Counter": "0,1,2,3",
+        "UMask": "0x84",
+        "EventName": "DTLB_LOAD_MISSES.DEMAND_LD_WALK_DURATION",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Demand load cycles page miss handler (PMH) is busy with this walk.",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "PublicDescription": "Cycle PMH is busy with a walk due to demand loads.",
+        "EventCode": "0x08",
+        "Counter": "0,1,2,3",
+        "UMask": "0x84",
+        "EventName": "DTLB_LOAD_MISSES.WALK_DURATION",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Demand load cycles page miss handler (PMH) is busy with this walk.",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0x08",
+        "Counter": "0,1,2,3",
+        "UMask": "0x88",
+        "EventName": "DTLB_LOAD_MISSES.LARGE_PAGE_WALK_COMPLETED",
+        "SampleAfterValue": "100003",
+        "BriefDescription": "Page walk for a large page completed for Demand load.",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "PublicDescription": "Miss in all TLB levels causes a page walk of any page size (4K/2M/4M/1G).",
+        "EventCode": "0x49",
+        "Counter": "0,1,2,3",
+        "UMask": "0x1",
+        "EventName": "DTLB_STORE_MISSES.MISS_CAUSES_A_WALK",
+        "SampleAfterValue": "100003",
+        "BriefDescription": "Store misses in all DTLB levels that cause page walks",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "PublicDescription": "Miss in all TLB levels causes a page walk that completes of any page size (4K/2M/4M/1G).",
+        "EventCode": "0x49",
+        "Counter": "0,1,2,3",
+        "UMask": "0x2",
+        "EventName": "DTLB_STORE_MISSES.WALK_COMPLETED",
+        "SampleAfterValue": "100003",
+        "BriefDescription": "Store misses in all DTLB levels that cause completed page walks",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "PublicDescription": "Cycles PMH is busy with this walk.",
+        "EventCode": "0x49",
+        "Counter": "0,1,2,3",
+        "UMask": "0x4",
+        "EventName": "DTLB_STORE_MISSES.WALK_DURATION",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Cycles when PMH is busy with page walks",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "PublicDescription": "Store operations that miss the first TLB level but hit the second and do not cause page walks.",
+        "EventCode": "0x49",
+        "Counter": "0,1,2,3",
+        "UMask": "0x10",
+        "EventName": "DTLB_STORE_MISSES.STLB_HIT",
+        "SampleAfterValue": "100003",
+        "BriefDescription": "Store operations that miss the first TLB level but hit the second and do not cause page walks",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "EventCode": "0x4F",
+        "Counter": "0,1,2,3",
+        "UMask": "0x10",
+        "EventName": "EPT.WALK_CYCLES",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Cycle count for an Extended Page table walk.  The Extended Page Directory cache is used by Virtual Machine operating systems while the guest operating systems use the standard TLB caches.",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "PublicDescription": "Counts load operations that missed 1st level DTLB but hit the 2nd level.",
+        "EventCode": "0x5F",
+        "Counter": "0,1,2,3",
+        "UMask": "0x4",
+        "EventName": "DTLB_LOAD_MISSES.STLB_HIT",
+        "SampleAfterValue": "100003",
+        "BriefDescription": "Load operations that miss the first DTLB level but hit the second and do not cause page walks",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "PublicDescription": "Misses in all ITLB levels that cause page walks.",
+        "EventCode": "0x85",
+        "Counter": "0,1,2,3",
+        "UMask": "0x1",
+        "EventName": "ITLB_MISSES.MISS_CAUSES_A_WALK",
+        "SampleAfterValue": "100003",
+        "BriefDescription": "Misses at all ITLB levels that cause page walks",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "PublicDescription": "Misses in all ITLB levels that cause completed page walks.",
+        "EventCode": "0x85",
+        "Counter": "0,1,2,3",
+        "UMask": "0x2",
+        "EventName": "ITLB_MISSES.WALK_COMPLETED",
+        "SampleAfterValue": "100003",
+        "BriefDescription": "Misses in all ITLB levels that cause completed page walks",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "PublicDescription": "Cycle PMH is busy with a walk.",
+        "EventCode": "0x85",
+        "Counter": "0,1,2,3",
+        "UMask": "0x4",
+        "EventName": "ITLB_MISSES.WALK_DURATION",
+        "SampleAfterValue": "2000003",
+        "BriefDescription": "Cycles when PMH is busy with page walks",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "PublicDescription": "Number of cache load STLB hits. No page walk.",
+        "EventCode": "0x85",
+        "Counter": "0,1,2,3",
+        "UMask": "0x10",
+        "EventName": "ITLB_MISSES.STLB_HIT",
+        "SampleAfterValue": "100003",
+        "BriefDescription": "Operations that miss the first ITLB level but hit the second and do not cause any page walks",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "PublicDescription": "Completed page walks in ITLB due to STLB load misses for large pages.",
+        "EventCode": "0x85",
+        "Counter": "0,1,2,3",
+        "UMask": "0x80",
+        "EventName": "ITLB_MISSES.LARGE_PAGE_WALK_COMPLETED",
+        "SampleAfterValue": "100003",
+        "BriefDescription": "Completed page walks in ITLB due to STLB load misses for large pages",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "PublicDescription": "Counts the number of ITLB flushes, includes 4k/2M/4M pages.",
+        "EventCode": "0xAE",
+        "Counter": "0,1,2,3",
+        "UMask": "0x1",
+        "EventName": "ITLB.ITLB_FLUSH",
+        "SampleAfterValue": "100007",
+        "BriefDescription": "Flushing of the Instruction TLB (ITLB) pages, includes 4k/2M/4M pages.",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "PublicDescription": "DTLB flush attempts of the thread-specific entries.",
+        "EventCode": "0xBD",
+        "Counter": "0,1,2,3",
+        "UMask": "0x1",
+        "EventName": "TLB_FLUSH.DTLB_THREAD",
+        "SampleAfterValue": "100007",
+        "BriefDescription": "DTLB flush attempts of the thread-specific entries",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    },
+    {
+        "PublicDescription": "Count number of STLB flush attempts.",
+        "EventCode": "0xBD",
+        "Counter": "0,1,2,3",
+        "UMask": "0x20",
+        "EventName": "TLB_FLUSH.STLB_ANY",
+        "SampleAfterValue": "100007",
+        "BriefDescription": "STLB flush attempts",
+        "CounterHTOff": "0,1,2,3,4,5,6,7"
+    }
+]

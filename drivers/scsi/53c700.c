@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* -*- mode: c; c-basic-offset: 8 -*- */
 
 /* NCR (or Symbios) 53c700 and 53c700-66 Driver
@@ -5,19 +6,6 @@
  * Copyright (C) 2001 by James.Bottomley@HansenPartnership.com
 **-----------------------------------------------------------------------------
 **  
-**  This program is free software; you can redistribute it and/or modify
-**  it under the terms of the GNU General Public License as published by
-**  the Free Software Foundation; either version 2 of the License, or
-**  (at your option) any later version.
-**
-**  This program is distributed in the hope that it will be useful,
-**  but WITHOUT ANY WARRANTY; without even the implied warranty of
-**  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-**  GNU General Public License for more details.
-**
-**  You should have received a copy of the GNU General Public License
-**  along with this program; if not, write to the Free Software
-**  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 **
 **-----------------------------------------------------------------------------
  */
@@ -168,7 +156,6 @@ MODULE_LICENSE("GPL");
 
 STATIC int NCR_700_queuecommand(struct Scsi_Host *h, struct scsi_cmnd *);
 STATIC int NCR_700_abort(struct scsi_cmnd * SCpnt);
-STATIC int NCR_700_bus_reset(struct scsi_cmnd * SCpnt);
 STATIC int NCR_700_host_reset(struct scsi_cmnd * SCpnt);
 STATIC void NCR_700_chip_setup(struct Scsi_Host *host);
 STATIC void NCR_700_chip_reset(struct Scsi_Host *host);
@@ -296,8 +283,8 @@ NCR_700_detect(struct scsi_host_template *tpnt,
 	if(tpnt->sdev_attrs == NULL)
 		tpnt->sdev_attrs = NCR_700_dev_attrs;
 
-	memory = dma_alloc_noncoherent(hostdata->dev, TOTAL_MEM_SIZE,
-				       &pScript, GFP_KERNEL);
+	memory = dma_alloc_attrs(dev, TOTAL_MEM_SIZE, &pScript,
+				 GFP_KERNEL, DMA_ATTR_NON_CONSISTENT);
 	if(memory == NULL) {
 		printk(KERN_ERR "53c700: Failed to allocate memory for driver, detaching\n");
 		return NULL;
@@ -315,12 +302,10 @@ NCR_700_detect(struct scsi_host_template *tpnt,
 	/* Fill in the missing routines from the host template */
 	tpnt->queuecommand = NCR_700_queuecommand;
 	tpnt->eh_abort_handler = NCR_700_abort;
-	tpnt->eh_bus_reset_handler = NCR_700_bus_reset;
 	tpnt->eh_host_reset_handler = NCR_700_host_reset;
 	tpnt->can_queue = NCR_700_COMMAND_SLOTS_PER_HOST;
 	tpnt->sg_tablesize = NCR_700_SG_SEGMENTS;
 	tpnt->cmd_per_lun = NCR_700_CMD_PER_LUN;
-	tpnt->use_clustering = ENABLE_CLUSTERING;
 	tpnt->slave_configure = NCR_700_slave_configure;
 	tpnt->slave_destroy = NCR_700_slave_destroy;
 	tpnt->slave_alloc = NCR_700_slave_alloc;
@@ -410,8 +395,8 @@ NCR_700_release(struct Scsi_Host *host)
 	struct NCR_700_Host_Parameters *hostdata = 
 		(struct NCR_700_Host_Parameters *)host->hostdata[0];
 
-	dma_free_noncoherent(hostdata->dev, TOTAL_MEM_SIZE,
-			       hostdata->script, hostdata->pScript);
+	dma_free_attrs(hostdata->dev, TOTAL_MEM_SIZE, hostdata->script,
+		       hostdata->pScript, DMA_ATTR_NON_CONSISTENT);
 	return 1;
 }
 
@@ -1938,14 +1923,14 @@ NCR_700_abort(struct scsi_cmnd * SCp)
 }
 
 STATIC int
-NCR_700_bus_reset(struct scsi_cmnd * SCp)
+NCR_700_host_reset(struct scsi_cmnd * SCp)
 {
 	DECLARE_COMPLETION_ONSTACK(complete);
 	struct NCR_700_Host_Parameters *hostdata = 
 		(struct NCR_700_Host_Parameters *)SCp->device->host->hostdata[0];
 
 	scmd_printk(KERN_INFO, SCp,
-		"New error handler wants BUS reset, cmd %p\n\t", SCp);
+		"New error handler wants HOST reset, cmd %p\n\t", SCp);
 	scsi_print_command(SCp);
 
 	/* In theory, eh_complete should always be null because the
@@ -1960,6 +1945,7 @@ NCR_700_bus_reset(struct scsi_cmnd * SCp)
 
 	hostdata->eh_complete = &complete;
 	NCR_700_internal_bus_reset(SCp->device->host);
+	NCR_700_chip_reset(SCp->device->host);
 
 	spin_unlock_irq(SCp->device->host->host_lock);
 	wait_for_completion(&complete);
@@ -1971,22 +1957,6 @@ NCR_700_bus_reset(struct scsi_cmnd * SCp)
 		spi_schedule_dv_device(SCp->device);
 
 	spin_unlock_irq(SCp->device->host->host_lock);
-	return SUCCESS;
-}
-
-STATIC int
-NCR_700_host_reset(struct scsi_cmnd * SCp)
-{
-	scmd_printk(KERN_INFO, SCp, "New error handler wants HOST reset\n\t");
-	scsi_print_command(SCp);
-
-	spin_lock_irq(SCp->device->host->host_lock);
-
-	NCR_700_internal_bus_reset(SCp->device->host);
-	NCR_700_chip_reset(SCp->device->host);
-
-	spin_unlock_irq(SCp->device->host->host_lock);
-
 	return SUCCESS;
 }
 

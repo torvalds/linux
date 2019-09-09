@@ -1,22 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * A generic kernel FIFO implementation
  *
  * Copyright (C) 2013 Stefani Seibold <stefani@seibold.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
 #ifndef _LINUX_KFIFO_H
@@ -41,11 +27,11 @@
  */
 
 /*
- * Note about locking : There is no locking required until only * one reader
- * and one writer is using the fifo and no kfifo_reset() will be * called
- *  kfifo_reset_out() can be safely used, until it will be only called
+ * Note about locking: There is no locking required until only one reader
+ * and one writer is using the fifo and no kfifo_reset() will be called.
+ * kfifo_reset_out() can be safely used, until it will be only called
  * in the reader thread.
- *  For multiple writer and one reader there is only a need to lock the writer.
+ * For multiple writer and one reader there is only a need to lock the writer.
  * And vice versa for only one writer and multiple reader there is only a need
  * to lock the reader.
  */
@@ -113,7 +99,8 @@ struct kfifo_rec_ptr_2 __STRUCT_KFIFO_PTR(unsigned char, 2, void);
  * array is a part of the structure and the fifo type where the array is
  * outside of the fifo structure.
  */
-#define	__is_kfifo_ptr(fifo)	(sizeof(*fifo) == sizeof(struct __kfifo))
+#define	__is_kfifo_ptr(fifo) \
+	(sizeof(*fifo) == sizeof(STRUCT_KFIFO_PTR(typeof(*(fifo)->type))))
 
 /**
  * DECLARE_KFIFO_PTR - macro to declare a fifo pointer object
@@ -325,7 +312,7 @@ __kfifo_uint_must_check_helper( \
  *
  * This macro dynamically allocates a new fifo buffer.
  *
- * The numer of elements will be rounded-up to a power of 2.
+ * The number of elements will be rounded-up to a power of 2.
  * The fifo will be release with kfifo_free().
  * Return 0 if no error, otherwise an error code.
  */
@@ -358,9 +345,9 @@ __kfifo_int_must_check_helper( \
  * @buffer: the preallocated buffer to be used
  * @size: the size of the internal buffer, this have to be a power of 2
  *
- * This macro initialize a fifo using a preallocated buffer.
+ * This macro initializes a fifo using a preallocated buffer.
  *
- * The numer of elements will be rounded-up to a power of 2.
+ * The number of elements will be rounded-up to a power of 2.
  * Return 0 if no error, otherwise an error code.
  */
 #define kfifo_init(fifo, buffer, size) \

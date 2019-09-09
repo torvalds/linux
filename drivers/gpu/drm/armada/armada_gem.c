@@ -1,38 +1,23 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2012 Russell King
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/dma-buf.h>
 #include <linux/dma-mapping.h>
 #include <linux/shmem_fs.h>
-#include <drm/drmP.h>
 #include "armada_drm.h"
 #include "armada_gem.h"
 #include <drm/armada_drm.h>
 #include "armada_ioctlP.h"
 
-static int armada_gem_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+static vm_fault_t armada_gem_vm_fault(struct vm_fault *vmf)
 {
-	struct armada_gem_object *obj = drm_to_armada_gem(vma->vm_private_data);
-	unsigned long addr = (unsigned long)vmf->virtual_address;
+	struct drm_gem_object *gobj = vmf->vma->vm_private_data;
+	struct armada_gem_object *obj = drm_to_armada_gem(gobj);
 	unsigned long pfn = obj->phys_addr >> PAGE_SHIFT;
-	int ret;
 
-	pfn += (addr - vma->vm_start) >> PAGE_SHIFT;
-	ret = vm_insert_pfn(vma, addr, pfn);
-
-	switch (ret) {
-	case 0:
-	case -EBUSY:
-		return VM_FAULT_NOPAGE;
-	case -ENOMEM:
-		return VM_FAULT_OOM;
-	default:
-		return VM_FAULT_SIGBUS;
-	}
+	pfn += (vmf->address - vmf->vma->vm_start) >> PAGE_SHIFT;
+	return vmf_insert_pfn(vmf->vma, vmf->address, pfn);
 }
 
 const struct vm_operations_struct armada_gem_vm_ops = {
@@ -149,8 +134,8 @@ armada_gem_linear_back(struct drm_device *dev, struct armada_gem_object *obj)
 			return -ENOSPC;
 
 		mutex_lock(&priv->linear_lock);
-		ret = drm_mm_insert_node(&priv->linear, node, size, align,
-					 DRM_MM_SEARCH_DEFAULT);
+		ret = drm_mm_insert_node_generic(&priv->linear, node,
+						 size, align, 0, 0);
 		mutex_unlock(&priv->linear_lock);
 		if (ret) {
 			kfree(node);
@@ -175,6 +160,7 @@ armada_gem_linear_back(struct drm_device *dev, struct armada_gem_object *obj)
 
 		obj->phys_addr = obj->linear->start;
 		obj->dev_addr = obj->linear->start;
+		obj->mapped = true;
 	}
 
 	DRM_DEBUG_DRIVER("obj %p phys %#llx dev %#llx\n", obj,
@@ -205,14 +191,13 @@ armada_gem_alloc_private_object(struct drm_device *dev, size_t size)
 		return NULL;
 
 	drm_gem_private_object_init(dev, &obj->obj, size);
-	obj->dev_addr = DMA_ERROR_CODE;
 
 	DRM_DEBUG_DRIVER("alloc private obj %p size %zu\n", obj, size);
 
 	return obj;
 }
 
-struct armada_gem_object *armada_gem_alloc_object(struct drm_device *dev,
+static struct armada_gem_object *armada_gem_alloc_object(struct drm_device *dev,
 	size_t size)
 {
 	struct armada_gem_object *obj;
@@ -228,8 +213,6 @@ struct armada_gem_object *armada_gem_alloc_object(struct drm_device *dev,
 		kfree(obj);
 		return NULL;
 	}
-
-	obj->dev_addr = DMA_ERROR_CODE;
 
 	mapping = obj->obj.filp->f_mapping;
 	mapping_set_gfp_mask(mapping, GFP_HIGHUSER | __GFP_RECLAIMABLE);
@@ -268,44 +251,8 @@ int armada_gem_dumb_create(struct drm_file *file, struct drm_device *dev,
 	/* drop reference from allocate - handle holds it now */
 	DRM_DEBUG_DRIVER("obj %p size %zu handle %#x\n", dobj, size, handle);
  err:
-	drm_gem_object_unreference_unlocked(&dobj->obj);
+	drm_gem_object_put_unlocked(&dobj->obj);
 	return ret;
-}
-
-int armada_gem_dumb_map_offset(struct drm_file *file, struct drm_device *dev,
-	uint32_t handle, uint64_t *offset)
-{
-	struct armada_gem_object *obj;
-	int ret = 0;
-
-	obj = armada_gem_object_lookup(file, handle);
-	if (!obj) {
-		DRM_ERROR("failed to lookup gem object\n");
-		return -EINVAL;
-	}
-
-	/* Don't allow imported objects to be mapped */
-	if (obj->obj.import_attach) {
-		ret = -EINVAL;
-		goto err_unref;
-	}
-
-	ret = drm_gem_create_mmap_offset(&obj->obj);
-	if (ret == 0) {
-		*offset = drm_vma_node_offset_addr(&obj->obj.vma_node);
-		DRM_DEBUG_DRIVER("handle %#x offset %llx\n", handle, *offset);
-	}
-
- err_unref:
-	drm_gem_object_unreference_unlocked(&obj->obj);
-
-	return ret;
-}
-
-int armada_gem_dumb_destroy(struct drm_file *file, struct drm_device *dev,
-	uint32_t handle)
-{
-	return drm_gem_handle_delete(file, handle);
 }
 
 /* Private driver gem ioctls */
@@ -336,7 +283,7 @@ int armada_gem_create_ioctl(struct drm_device *dev, void *data,
 	/* drop reference from allocate - handle holds it now */
 	DRM_DEBUG_DRIVER("obj %p size %zu handle %#x\n", dobj, size, handle);
  err:
-	drm_gem_object_unreference_unlocked(&dobj->obj);
+	drm_gem_object_put_unlocked(&dobj->obj);
 	return ret;
 }
 
@@ -353,13 +300,13 @@ int armada_gem_mmap_ioctl(struct drm_device *dev, void *data,
 		return -ENOENT;
 
 	if (!dobj->obj.filp) {
-		drm_gem_object_unreference_unlocked(&dobj->obj);
+		drm_gem_object_put_unlocked(&dobj->obj);
 		return -EINVAL;
 	}
 
 	addr = vm_mmap(dobj->obj.filp, 0, args->size, PROT_READ | PROT_WRITE,
 		       MAP_SHARED, args->offset);
-	drm_gem_object_unreference_unlocked(&dobj->obj);
+	drm_gem_object_put_unlocked(&dobj->obj);
 	if (IS_ERR_VALUE(addr))
 		return addr;
 
@@ -384,7 +331,7 @@ int armada_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 
 	ptr = (char __user *)(uintptr_t)args->ptr;
 
-	if (!access_ok(VERIFY_READ, ptr, args->size))
+	if (!access_ok(ptr, args->size))
 		return -EFAULT;
 
 	ret = fault_in_pages_readable(ptr, args->size);
@@ -414,12 +361,12 @@ int armada_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 	}
 
  unref:
-	drm_gem_object_unreference_unlocked(&dobj->obj);
+	drm_gem_object_put_unlocked(&dobj->obj);
 	return ret;
 }
 
 /* Prime support */
-struct sg_table *
+static struct sg_table *
 armada_gem_prime_map_dma_buf(struct dma_buf_attachment *attach,
 	enum dma_data_direction dir)
 {
@@ -529,10 +476,8 @@ static const struct dma_buf_ops armada_gem_prime_dmabuf_ops = {
 	.map_dma_buf	= armada_gem_prime_map_dma_buf,
 	.unmap_dma_buf	= armada_gem_prime_unmap_dma_buf,
 	.release	= drm_gem_dmabuf_release,
-	.kmap_atomic	= armada_gem_dmabuf_no_kmap,
-	.kunmap_atomic	= armada_gem_dmabuf_no_kunmap,
-	.kmap		= armada_gem_dmabuf_no_kmap,
-	.kunmap		= armada_gem_dmabuf_no_kunmap,
+	.map		= armada_gem_dmabuf_no_kmap,
+	.unmap		= armada_gem_dmabuf_no_kunmap,
 	.mmap		= armada_gem_dmabuf_mmap,
 };
 
@@ -563,7 +508,7 @@ armada_gem_prime_import(struct drm_device *dev, struct dma_buf *buf)
 			 * Importing our own dmabuf(s) increases the
 			 * refcount on the gem object itself.
 			 */
-			drm_gem_object_reference(obj);
+			drm_gem_object_get(obj);
 			return obj;
 		}
 	}
@@ -594,11 +539,7 @@ int armada_gem_map_import(struct armada_gem_object *dobj)
 	int ret;
 
 	dobj->sgt = dma_buf_map_attachment(dobj->obj.import_attach,
-					  DMA_TO_DEVICE);
-	if (!dobj->sgt) {
-		DRM_ERROR("dma_buf_map_attachment() returned NULL\n");
-		return -EINVAL;
-	}
+					   DMA_TO_DEVICE);
 	if (IS_ERR(dobj->sgt)) {
 		ret = PTR_ERR(dobj->sgt);
 		dobj->sgt = NULL;
@@ -614,5 +555,6 @@ int armada_gem_map_import(struct armada_gem_object *dobj)
 		return -EINVAL;
 	}
 	dobj->dev_addr = sg_dma_address(dobj->sgt->sgl);
+	dobj->mapped = true;
 	return 0;
 }

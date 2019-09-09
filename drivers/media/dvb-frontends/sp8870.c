@@ -1,27 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
     Driver for Spase SP8870 demodulator
 
     Copyright (C) 1999 Juergen Peitz
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 */
 /*
  * This driver needs external firmware. Please use the command
- * "<kerneldir>/Documentation/dvb/get_dvb_firmware alps_tdlb7" to
+ * "<kerneldir>/scripts/get_dvb_firmware alps_tdlb7" to
  * download/extract it, and then copy it to /usr/lib/hotplug/firmware
  * or /lib/firmware (depending on configuration of firmware hotplug).
  */
@@ -35,7 +22,7 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "sp8870.h"
 
 
@@ -293,7 +280,9 @@ static int sp8870_set_frontend_parameters(struct dvb_frontend *fe)
 	sp8870_writereg(state, 0xc05, reg0xc05);
 
 	// read status reg in order to clear pending irqs
-	sp8870_readreg(state, 0x200);
+	err = sp8870_readreg(state, 0x200);
+	if (err)
+		return err;
 
 	// system controller start
 	sp8870_microcontroller_start(state);
@@ -551,7 +540,7 @@ static void sp8870_release(struct dvb_frontend* fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops sp8870_ops;
+static const struct dvb_frontend_ops sp8870_ops;
 
 struct dvb_frontend* sp8870_attach(const struct sp8870_config* config,
 				   struct i2c_adapter* i2c)
@@ -580,13 +569,13 @@ error:
 	return NULL;
 }
 
-static struct dvb_frontend_ops sp8870_ops = {
+static const struct dvb_frontend_ops sp8870_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		.name			= "Spase SP8870 DVB-T",
-		.frequency_min		= 470000000,
-		.frequency_max		= 860000000,
-		.frequency_stepsize	= 166666,
+		.frequency_min_hz	= 470 * MHz,
+		.frequency_max_hz	= 860 * MHz,
+		.frequency_stepsize_hz	= 166666,
 		.caps			= FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 |
 					  FE_CAN_FEC_3_4 | FE_CAN_FEC_5_6 |
 					  FE_CAN_FEC_7_8 | FE_CAN_FEC_AUTO |

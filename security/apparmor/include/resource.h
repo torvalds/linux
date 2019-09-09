@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * AppArmor security module
  *
@@ -5,11 +6,6 @@
  *
  * Copyright (C) 1998-2008 Novell/SUSE
  * Copyright 2009-2010 Canonical Ltd.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation, version 2 of the
- * License.
  */
 
 #ifndef __AA_RESOURCE_H
@@ -34,13 +30,13 @@ struct aa_rlimit {
 	struct rlimit limits[RLIM_NLIMITS];
 };
 
-extern struct aa_fs_entry aa_fs_entry_rlimit[];
+extern struct aa_sfs_entry aa_sfs_entry_rlimit[];
 
 int aa_map_resource(int resource);
-int aa_task_setrlimit(struct aa_profile *profile, struct task_struct *,
+int aa_task_setrlimit(struct aa_label *label, struct task_struct *task,
 		      unsigned int resource, struct rlimit *new_rlim);
 
-void __aa_transition_rlimits(struct aa_profile *old, struct aa_profile *new);
+void __aa_transition_rlimits(struct aa_label *old, struct aa_label *new);
 
 static inline void aa_free_rlimit_rules(struct aa_rlimit *rlims)
 {

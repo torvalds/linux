@@ -1,4 +1,11 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 .. _cec-func-ioctl:
 
@@ -30,7 +37,7 @@ Arguments
 
 ``request``
     CEC ioctl request code as defined in the cec.h header file, for
-    example :c:func:`CEC_ADAP_G_CAPS`.
+    example :ref:`CEC_ADAP_G_CAPS <CEC_ADAP_G_CAPS>`.
 
 ``argp``
     Pointer to a request-specific structure.
@@ -39,12 +46,7 @@ Arguments
 Description
 ===========
 
-.. note::
-
-   This documents the proposed CEC API. This API is not yet finalized
-   and is currently only available as a staging kernel module.
-
-The :c:func:`ioctl()` function manipulates cec device parameters. The
+The :c:func:`ioctl() <cec-ioctl>` function manipulates cec device parameters. The
 argument ``fd`` must be an open file descriptor.
 
 The ioctl ``request`` code specifies the cec function to be called. It

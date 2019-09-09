@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for +/-1 degree C, SMBus-Compatible Remote/Local Temperature Sensor
  * with Overtemperature Alarm
@@ -15,20 +16,6 @@
  * one external one). Complete datasheet can be
  * obtained from Maxim's website at:
  *   http://datasheets.maxim-ic.com/en/ds/MAX6642.pdf
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 
@@ -206,7 +193,7 @@ static struct max6642_data *max6642_update_device(struct device *dev)
  * Sysfs stuff
  */
 
-static ssize_t show_temp_max10(struct device *dev,
+static ssize_t temp_max10_show(struct device *dev,
 			       struct device_attribute *dev_attr, char *buf)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(dev_attr);
@@ -216,8 +203,8 @@ static ssize_t show_temp_max10(struct device *dev,
 		       temp_from_reg10(data->temp_input[attr->index]));
 }
 
-static ssize_t show_temp_max(struct device *dev, struct device_attribute *attr,
-			     char *buf)
+static ssize_t temp_max_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
 {
 	struct sensor_device_attribute_2 *attr2 = to_sensor_dev_attr_2(attr);
 	struct max6642_data *data = max6642_update_device(dev);
@@ -225,8 +212,9 @@ static ssize_t show_temp_max(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%d\n", temp_from_reg(data->temp_high[attr2->nr]));
 }
 
-static ssize_t set_temp_max(struct device *dev, struct device_attribute *attr,
-			    const char *buf, size_t count)
+static ssize_t temp_max_store(struct device *dev,
+			      struct device_attribute *attr, const char *buf,
+			      size_t count)
 {
 	struct sensor_device_attribute_2 *attr2 = to_sensor_dev_attr_2(attr);
 	struct max6642_data *data = dev_get_drvdata(dev);
@@ -245,7 +233,7 @@ static ssize_t set_temp_max(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static ssize_t show_alarm(struct device *dev, struct device_attribute *attr,
+static ssize_t alarm_show(struct device *dev, struct device_attribute *attr,
 			  char *buf)
 {
 	int bitnr = to_sensor_dev_attr(attr)->index;
@@ -253,15 +241,15 @@ static ssize_t show_alarm(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%d\n", (data->alarms >> bitnr) & 1);
 }
 
-static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, show_temp_max10, NULL, 0);
-static SENSOR_DEVICE_ATTR(temp2_input, S_IRUGO, show_temp_max10, NULL, 1);
-static SENSOR_DEVICE_ATTR_2(temp1_max, S_IWUSR | S_IRUGO, show_temp_max,
-			    set_temp_max, 0, MAX6642_REG_W_LOCAL_HIGH);
-static SENSOR_DEVICE_ATTR_2(temp2_max, S_IWUSR | S_IRUGO, show_temp_max,
-			    set_temp_max, 1, MAX6642_REG_W_REMOTE_HIGH);
-static SENSOR_DEVICE_ATTR(temp2_fault, S_IRUGO, show_alarm, NULL, 2);
-static SENSOR_DEVICE_ATTR(temp1_max_alarm, S_IRUGO, show_alarm, NULL, 6);
-static SENSOR_DEVICE_ATTR(temp2_max_alarm, S_IRUGO, show_alarm, NULL, 4);
+static SENSOR_DEVICE_ATTR_RO(temp1_input, temp_max10, 0);
+static SENSOR_DEVICE_ATTR_RO(temp2_input, temp_max10, 1);
+static SENSOR_DEVICE_ATTR_2_RW(temp1_max, temp_max, 0,
+			       MAX6642_REG_W_LOCAL_HIGH);
+static SENSOR_DEVICE_ATTR_2_RW(temp2_max, temp_max, 1,
+			       MAX6642_REG_W_REMOTE_HIGH);
+static SENSOR_DEVICE_ATTR_RO(temp2_fault, alarm, 2);
+static SENSOR_DEVICE_ATTR_RO(temp1_max_alarm, alarm, 6);
+static SENSOR_DEVICE_ATTR_RO(temp2_max_alarm, alarm, 4);
 
 static struct attribute *max6642_attrs[] = {
 	&sensor_dev_attr_temp1_input.dev_attr.attr,

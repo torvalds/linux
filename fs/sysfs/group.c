@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * fs/sysfs/group.c - Operations for adding/removing multiple files at once.
  *
@@ -5,9 +6,6 @@
  * Copyright (c) 2003 Open Source Development Lab
  * Copyright (c) 2013 Greg Kroah-Hartman
  * Copyright (c) 2013 The Linux Foundation
- *
- * This file is released undert the GPL v2.
- *
  */
 
 #include <linux/kobject.h>
@@ -33,6 +31,7 @@ static void remove_files(struct kernfs_node *parent,
 }
 
 static int create_files(struct kernfs_node *parent, struct kobject *kobj,
+			kuid_t uid, kgid_t gid,
 			const struct attribute_group *grp, int update)
 {
 	struct attribute *const *attr;
@@ -62,7 +61,7 @@ static int create_files(struct kernfs_node *parent, struct kobject *kobj,
 
 			mode &= SYSFS_PREALLOC | 0664;
 			error = sysfs_add_file_mode_ns(parent, *attr, false,
-						       mode, NULL);
+						       mode, uid, gid, NULL);
 			if (unlikely(error))
 				break;
 		}
@@ -92,7 +91,8 @@ static int create_files(struct kernfs_node *parent, struct kobject *kobj,
 			mode &= SYSFS_PREALLOC | 0664;
 			error = sysfs_add_file_mode_ns(parent,
 					&(*bin_attr)->attr, true,
-					mode, NULL);
+					mode,
+					uid, gid, NULL);
 			if (error)
 				break;
 		}
@@ -108,9 +108,12 @@ static int internal_create_group(struct kobject *kobj, int update,
 				 const struct attribute_group *grp)
 {
 	struct kernfs_node *kn;
+	kuid_t uid;
+	kgid_t gid;
 	int error;
 
-	BUG_ON(!kobj || (!update && !kobj->sd));
+	if (WARN_ON(!kobj || (!update && !kobj->sd)))
+		return -EINVAL;
 
 	/* Updates may happen before the object has been instantiated */
 	if (unlikely(update && !kobj->sd))
@@ -120,23 +123,38 @@ static int internal_create_group(struct kobject *kobj, int update,
 			kobj->name, grp->name ?: "");
 		return -EINVAL;
 	}
+	kobject_get_ownership(kobj, &uid, &gid);
 	if (grp->name) {
-		kn = kernfs_create_dir(kobj->sd, grp->name,
-				       S_IRWXU | S_IRUGO | S_IXUGO, kobj);
-		if (IS_ERR(kn)) {
-			if (PTR_ERR(kn) == -EEXIST)
-				sysfs_warn_dup(kobj->sd, grp->name);
-			return PTR_ERR(kn);
+		if (update) {
+			kn = kernfs_find_and_get(kobj->sd, grp->name);
+			if (!kn) {
+				pr_warn("Can't update unknown attr grp name: %s/%s\n",
+					kobj->name, grp->name);
+				return -EINVAL;
+			}
+		} else {
+			kn = kernfs_create_dir_ns(kobj->sd, grp->name,
+						  S_IRWXU | S_IRUGO | S_IXUGO,
+						  uid, gid, kobj, NULL);
+			if (IS_ERR(kn)) {
+				if (PTR_ERR(kn) == -EEXIST)
+					sysfs_warn_dup(kobj->sd, grp->name);
+				return PTR_ERR(kn);
+			}
 		}
 	} else
 		kn = kobj->sd;
 	kernfs_get(kn);
-	error = create_files(kn, kobj, grp, update);
+	error = create_files(kn, kobj, uid, gid, grp, update);
 	if (error) {
 		if (grp->name)
 			kernfs_remove(kn);
 	}
 	kernfs_put(kn);
+
+	if (grp->name && update)
+		kernfs_put(kn);
+
 	return error;
 }
 
@@ -157,6 +175,26 @@ int sysfs_create_group(struct kobject *kobj,
 }
 EXPORT_SYMBOL_GPL(sysfs_create_group);
 
+static int internal_create_groups(struct kobject *kobj, int update,
+				  const struct attribute_group **groups)
+{
+	int error = 0;
+	int i;
+
+	if (!groups)
+		return 0;
+
+	for (i = 0; groups[i]; i++) {
+		error = internal_create_group(kobj, update, groups[i]);
+		if (error) {
+			while (--i >= 0)
+				sysfs_remove_group(kobj, groups[i]);
+			break;
+		}
+	}
+	return error;
+}
+
 /**
  * sysfs_create_groups - given a directory kobject, create a bunch of attribute groups
  * @kobj:	The kobject to create the group on
@@ -173,23 +211,27 @@ EXPORT_SYMBOL_GPL(sysfs_create_group);
 int sysfs_create_groups(struct kobject *kobj,
 			const struct attribute_group **groups)
 {
-	int error = 0;
-	int i;
-
-	if (!groups)
-		return 0;
-
-	for (i = 0; groups[i]; i++) {
-		error = sysfs_create_group(kobj, groups[i]);
-		if (error) {
-			while (--i >= 0)
-				sysfs_remove_group(kobj, groups[i]);
-			break;
-		}
-	}
-	return error;
+	return internal_create_groups(kobj, 0, groups);
 }
 EXPORT_SYMBOL_GPL(sysfs_create_groups);
+
+/**
+ * sysfs_update_groups - given a directory kobject, create a bunch of attribute groups
+ * @kobj:	The kobject to update the group on
+ * @groups:	The attribute groups to update, NULL terminated
+ *
+ * This function update a bunch of attribute groups.  If an error occurs when
+ * updating a group, all previously updated groups will be removed together
+ * with already existing (not updated) attributes.
+ *
+ * Returns 0 on success or error code from sysfs_update_group on failure.
+ */
+int sysfs_update_groups(struct kobject *kobj,
+			const struct attribute_group **groups)
+{
+	return internal_create_groups(kobj, 1, groups);
+}
+EXPORT_SYMBOL_GPL(sysfs_update_groups);
 
 /**
  * sysfs_update_group - given a directory kobject, update an attribute group
@@ -201,7 +243,8 @@ EXPORT_SYMBOL_GPL(sysfs_create_groups);
  * of the attribute files being created already exist.  Furthermore,
  * if the visibility of the files has changed through the is_visible()
  * callback, it will update the permissions and add or remove the
- * relevant files.
+ * relevant files. Changing a group's name (subdirectory name under
+ * kobj's directory in sysfs) is not allowed.
  *
  * The primary use for this function is to call it after making a change
  * that affects group visibility.
@@ -283,6 +326,8 @@ int sysfs_merge_group(struct kobject *kobj,
 		       const struct attribute_group *grp)
 {
 	struct kernfs_node *parent;
+	kuid_t uid;
+	kgid_t gid;
 	int error = 0;
 	struct attribute *const *attr;
 	int i;
@@ -291,8 +336,11 @@ int sysfs_merge_group(struct kobject *kobj,
 	if (!parent)
 		return -ENOENT;
 
+	kobject_get_ownership(kobj, &uid, &gid);
+
 	for ((i = 0, attr = grp->attrs); *attr && !error; (++i, ++attr))
-		error = sysfs_add_file(parent, *attr, false);
+		error = sysfs_add_file_mode_ns(parent, *attr, false,
+					       (*attr)->mode, uid, gid, NULL);
 	if (error) {
 		while (--i >= 0)
 			kernfs_remove_by_name(parent, (*--attr)->name);
@@ -406,6 +454,6 @@ int __compat_only_sysfs_link_entry_to_kobj(struct kobject *kobj,
 
 	kernfs_put(entry);
 	kernfs_put(target);
-	return IS_ERR(link) ? PTR_ERR(link) : 0;
+	return PTR_ERR_OR_ZERO(link);
 }
 EXPORT_SYMBOL_GPL(__compat_only_sysfs_link_entry_to_kobj);

@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2014 Uwe Kleine-Koenig for Pengutronix
- *
- * This program is free software; you can redistribute it and/or modify it under
- * the terms of the GNU General Public License version 2 as published by the
- * Free Software Foundation.
  */
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -144,8 +141,7 @@ static void efm32_i2c_send_next_msg(struct efm32_i2c_ddata *ddata)
 	struct i2c_msg *cur_msg = &ddata->msgs[ddata->current_msg];
 
 	efm32_i2c_write32(ddata, REG_CMD, REG_CMD_START);
-	efm32_i2c_write32(ddata, REG_TXDATA, cur_msg->addr << 1 |
-			(cur_msg->flags & I2C_M_RD ? 1 : 0));
+	efm32_i2c_write32(ddata, REG_TXDATA, i2c_8bit_addr_from_msg(cur_msg));
 }
 
 static void efm32_i2c_send_next_byte(struct efm32_i2c_ddata *ddata)

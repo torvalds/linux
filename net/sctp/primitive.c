@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* SCTP kernel implementation
  * Copyright (c) 1999-2000 Cisco, Inc.
  * Copyright (c) 1999-2001 Motorola, Inc.
@@ -9,22 +10,6 @@
  * Note that the descriptions from the specification are USER level
  * functions--this file is the functions which populate the struct proto
  * for SCTP which is the BOTTOM of the sockets interface.
- *
- * This SCTP implementation is free software;
- * you can redistribute it and/or modify it under the terms of
- * the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This SCTP implementation is distributed in the hope that it
- * will be useful, but WITHOUT ANY WARRANTY; without even the implied
- *                 ************************
- * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- * See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with GNU CC; see the file COPYING.  If not, see
- * <http://www.gnu.org/licenses/>.
  *
  * Please send any bug reports or fixes you make to the
  * email address(es):
@@ -53,8 +38,8 @@
 int sctp_primitive_ ## name(struct net *net, struct sctp_association *asoc, \
 			    void *arg) { \
 	int error = 0; \
-	sctp_event_t event_type; sctp_subtype_t subtype; \
-	sctp_state_t state; \
+	enum sctp_event_type event_type; union sctp_subtype subtype; \
+	enum sctp_state state; \
 	struct sctp_endpoint *ep; \
 	\
 	event_type = SCTP_EVENT_T_PRIMITIVE; \
@@ -211,3 +196,6 @@ DECLARE_PRIMITIVE(REQUESTHEARTBEAT);
 */
 
 DECLARE_PRIMITIVE(ASCONF);
+
+/* RE-CONFIG 5.1 */
+DECLARE_PRIMITIVE(RECONF);

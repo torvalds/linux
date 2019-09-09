@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2013 NVIDIA Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/clk.h>
@@ -15,6 +12,7 @@
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
+#include <linux/pm_runtime.h>
 #include <linux/platform_device.h>
 #include <linux/reset.h>
 #include <linux/regulator/consumer.h>
@@ -25,6 +23,7 @@
 
 #include "dpaux.h"
 #include "drm.h"
+#include "trace.h"
 
 static DEFINE_MUTEX(dpaux_lock);
 static LIST_HEAD(dpaux_list);
@@ -65,14 +64,19 @@ static inline struct tegra_dpaux *work_to_dpaux(struct work_struct *work)
 }
 
 static inline u32 tegra_dpaux_readl(struct tegra_dpaux *dpaux,
-				    unsigned long offset)
+				    unsigned int offset)
 {
-	return readl(dpaux->regs + (offset << 2));
+	u32 value = readl(dpaux->regs + (offset << 2));
+
+	trace_dpaux_readl(dpaux->dev, offset, value);
+
+	return value;
 }
 
 static inline void tegra_dpaux_writel(struct tegra_dpaux *dpaux,
-				      u32 value, unsigned long offset)
+				      u32 value, unsigned int offset)
 {
+	trace_dpaux_writel(dpaux->dev, offset, value);
 	writel(value, dpaux->regs + (offset << 2));
 }
 
@@ -315,6 +319,9 @@ static int tegra_dpaux_pad_config(struct tegra_dpaux *dpaux, unsigned function)
 	case DPAUX_PADCTL_FUNC_I2C:
 		value = DPAUX_HYBRID_PADCTL_I2C_SDA_INPUT_RCV |
 			DPAUX_HYBRID_PADCTL_I2C_SCL_INPUT_RCV |
+			DPAUX_HYBRID_PADCTL_AUX_CMH(2) |
+			DPAUX_HYBRID_PADCTL_AUX_DRVZ(4) |
+			DPAUX_HYBRID_PADCTL_AUX_DRVI(0x18) |
 			DPAUX_HYBRID_PADCTL_MODE_I2C;
 		break;
 
@@ -461,52 +468,42 @@ static int tegra_dpaux_probe(struct platform_device *pdev)
 		return PTR_ERR(dpaux->clk);
 	}
 
-	err = clk_prepare_enable(dpaux->clk);
-	if (err < 0) {
-		dev_err(&pdev->dev, "failed to enable module clock: %d\n",
-			err);
-		return err;
-	}
-
-	if (dpaux->rst)
-		reset_control_deassert(dpaux->rst);
-
 	dpaux->clk_parent = devm_clk_get(&pdev->dev, "parent");
 	if (IS_ERR(dpaux->clk_parent)) {
 		dev_err(&pdev->dev, "failed to get parent clock: %ld\n",
 			PTR_ERR(dpaux->clk_parent));
-		err = PTR_ERR(dpaux->clk_parent);
-		goto assert_reset;
-	}
-
-	err = clk_prepare_enable(dpaux->clk_parent);
-	if (err < 0) {
-		dev_err(&pdev->dev, "failed to enable parent clock: %d\n",
-			err);
-		goto assert_reset;
+		return PTR_ERR(dpaux->clk_parent);
 	}
 
 	err = clk_set_rate(dpaux->clk_parent, 270000000);
 	if (err < 0) {
 		dev_err(&pdev->dev, "failed to set clock to 270 MHz: %d\n",
 			err);
-		goto disable_parent_clk;
+		return err;
 	}
 
-	dpaux->vdd = devm_regulator_get(&pdev->dev, "vdd");
+	dpaux->vdd = devm_regulator_get_optional(&pdev->dev, "vdd");
 	if (IS_ERR(dpaux->vdd)) {
-		dev_err(&pdev->dev, "failed to get VDD supply: %ld\n",
-			PTR_ERR(dpaux->vdd));
-		err = PTR_ERR(dpaux->vdd);
-		goto disable_parent_clk;
+		if (PTR_ERR(dpaux->vdd) != -ENODEV) {
+			if (PTR_ERR(dpaux->vdd) != -EPROBE_DEFER)
+				dev_err(&pdev->dev,
+					"failed to get VDD supply: %ld\n",
+					PTR_ERR(dpaux->vdd));
+
+			return PTR_ERR(dpaux->vdd);
+		}
 	}
+
+	platform_set_drvdata(pdev, dpaux);
+	pm_runtime_enable(&pdev->dev);
+	pm_runtime_get_sync(&pdev->dev);
 
 	err = devm_request_irq(dpaux->dev, dpaux->irq, tegra_dpaux_irq, 0,
 			       dev_name(dpaux->dev), dpaux);
 	if (err < 0) {
 		dev_err(dpaux->dev, "failed to request IRQ#%u: %d\n",
 			dpaux->irq, err);
-		goto disable_parent_clk;
+		return err;
 	}
 
 	disable_irq(dpaux->irq);
@@ -516,7 +513,7 @@ static int tegra_dpaux_probe(struct platform_device *pdev)
 
 	err = drm_dp_aux_register(&dpaux->aux);
 	if (err < 0)
-		goto disable_parent_clk;
+		return err;
 
 	/*
 	 * Assume that by default the DPAUX/I2C pads will be used for HDMI,
@@ -526,7 +523,7 @@ static int tegra_dpaux_probe(struct platform_device *pdev)
 	 * is no possibility to perform the I2C mode configuration in the
 	 * HDMI path.
 	 */
-	err = tegra_dpaux_pad_config(dpaux, DPAUX_HYBRID_PADCTL_MODE_I2C);
+	err = tegra_dpaux_pad_config(dpaux, DPAUX_PADCTL_FUNC_I2C);
 	if (err < 0)
 		return err;
 
@@ -539,9 +536,9 @@ static int tegra_dpaux_probe(struct platform_device *pdev)
 	dpaux->desc.owner = THIS_MODULE;
 
 	dpaux->pinctrl = devm_pinctrl_register(&pdev->dev, &dpaux->desc, dpaux);
-	if (!dpaux->pinctrl) {
+	if (IS_ERR(dpaux->pinctrl)) {
 		dev_err(&pdev->dev, "failed to register pincontrol\n");
-		return -ENODEV;
+		return PTR_ERR(dpaux->pinctrl);
 	}
 #endif
 	/* enable and clear all interrupts */
@@ -554,27 +551,20 @@ static int tegra_dpaux_probe(struct platform_device *pdev)
 	list_add_tail(&dpaux->list, &dpaux_list);
 	mutex_unlock(&dpaux_lock);
 
-	platform_set_drvdata(pdev, dpaux);
-
 	return 0;
-
-disable_parent_clk:
-	clk_disable_unprepare(dpaux->clk_parent);
-assert_reset:
-	if (dpaux->rst)
-		reset_control_assert(dpaux->rst);
-
-	clk_disable_unprepare(dpaux->clk);
-
-	return err;
 }
 
 static int tegra_dpaux_remove(struct platform_device *pdev)
 {
 	struct tegra_dpaux *dpaux = platform_get_drvdata(pdev);
 
+	cancel_work_sync(&dpaux->work);
+
 	/* make sure pads are powered down when not in use */
 	tegra_dpaux_pad_power_down(dpaux);
+
+	pm_runtime_put(&pdev->dev);
+	pm_runtime_disable(&pdev->dev);
 
 	drm_dp_aux_unregister(&dpaux->aux);
 
@@ -582,19 +572,77 @@ static int tegra_dpaux_remove(struct platform_device *pdev)
 	list_del(&dpaux->list);
 	mutex_unlock(&dpaux_lock);
 
-	cancel_work_sync(&dpaux->work);
-
-	clk_disable_unprepare(dpaux->clk_parent);
-
-	if (dpaux->rst)
-		reset_control_assert(dpaux->rst);
-
-	clk_disable_unprepare(dpaux->clk);
-
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int tegra_dpaux_suspend(struct device *dev)
+{
+	struct tegra_dpaux *dpaux = dev_get_drvdata(dev);
+	int err = 0;
+
+	if (dpaux->rst) {
+		err = reset_control_assert(dpaux->rst);
+		if (err < 0) {
+			dev_err(dev, "failed to assert reset: %d\n", err);
+			return err;
+		}
+	}
+
+	usleep_range(1000, 2000);
+
+	clk_disable_unprepare(dpaux->clk_parent);
+	clk_disable_unprepare(dpaux->clk);
+
+	return err;
+}
+
+static int tegra_dpaux_resume(struct device *dev)
+{
+	struct tegra_dpaux *dpaux = dev_get_drvdata(dev);
+	int err;
+
+	err = clk_prepare_enable(dpaux->clk);
+	if (err < 0) {
+		dev_err(dev, "failed to enable clock: %d\n", err);
+		return err;
+	}
+
+	err = clk_prepare_enable(dpaux->clk_parent);
+	if (err < 0) {
+		dev_err(dev, "failed to enable parent clock: %d\n", err);
+		goto disable_clk;
+	}
+
+	usleep_range(1000, 2000);
+
+	if (dpaux->rst) {
+		err = reset_control_deassert(dpaux->rst);
+		if (err < 0) {
+			dev_err(dev, "failed to deassert reset: %d\n", err);
+			goto disable_parent;
+		}
+
+		usleep_range(1000, 2000);
+	}
+
+	return 0;
+
+disable_parent:
+	clk_disable_unprepare(dpaux->clk_parent);
+disable_clk:
+	clk_disable_unprepare(dpaux->clk);
+	return err;
+}
+#endif
+
+static const struct dev_pm_ops tegra_dpaux_pm_ops = {
+	SET_RUNTIME_PM_OPS(tegra_dpaux_suspend, tegra_dpaux_resume, NULL)
+};
+
 static const struct of_device_id tegra_dpaux_of_match[] = {
+	{ .compatible = "nvidia,tegra194-dpaux", },
+	{ .compatible = "nvidia,tegra186-dpaux", },
 	{ .compatible = "nvidia,tegra210-dpaux", },
 	{ .compatible = "nvidia,tegra124-dpaux", },
 	{ },
@@ -605,6 +653,7 @@ struct platform_driver tegra_dpaux_driver = {
 	.driver = {
 		.name = "tegra-dpaux",
 		.of_match_table = tegra_dpaux_of_match,
+		.pm = &tegra_dpaux_pm_ops,
 	},
 	.probe = tegra_dpaux_probe,
 	.remove = tegra_dpaux_remove,

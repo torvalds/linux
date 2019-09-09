@@ -1,33 +1,14 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * mt2701-reg.h  --  Mediatek 2701 audio driver reg definition
  *
  * Copyright (c) 2016 MediaTek Inc.
  * Author: Garlic Tseng <garlic.tseng@mediatek.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef _MT2701_REG_H_
 #define _MT2701_REG_H_
 
-#include <linux/delay.h>
-#include <linux/module.h>
-#include <linux/of.h>
-#include <linux/of_address.h>
-#include <linux/pm_runtime.h>
-#include <sound/soc.h>
-#include "mt2701-afe-common.h"
-
-/*****************************************************************************
- *                  R E G I S T E R       D E F I N I T I O N
- *****************************************************************************/
 #define AUDIO_TOP_CON0 0x0000
 #define AUDIO_TOP_CON4 0x0010
 #define AUDIO_TOP_CON5 0x0014
@@ -109,18 +90,6 @@
 #define AFE_DAI_BASE 0x1370
 #define AFE_DAI_CUR 0x137c
 
-/* AUDIO_TOP_CON0 (0x0000) */
-#define AUDIO_TOP_CON0_A1SYS_A2SYS_ON	(0x3 << 0)
-#define AUDIO_TOP_CON0_PDN_AFE		(0x1 << 2)
-#define AUDIO_TOP_CON0_PDN_APLL_CK	(0x1 << 23)
-
-/* AUDIO_TOP_CON4 (0x0010) */
-#define AUDIO_TOP_CON4_I2SO1_PWN	(0x1 << 6)
-#define AUDIO_TOP_CON4_PDN_A1SYS	(0x1 << 21)
-#define AUDIO_TOP_CON4_PDN_A2SYS	(0x1 << 22)
-#define AUDIO_TOP_CON4_PDN_AFE_CONN	(0x1 << 23)
-#define AUDIO_TOP_CON4_PDN_MRGIF	(0x1 << 25)
-
 /* AFE_DAIBT_CON0 (0x001c) */
 #define AFE_DAIBT_CON0_DAIBT_EN		(0x1 << 0)
 #define AFE_DAIBT_CON0_BT_FUNC_EN	(0x1 << 1)
@@ -137,22 +106,8 @@
 #define AFE_MRGIF_CON_I2S_MODE_MASK	(0xf << 20)
 #define AFE_MRGIF_CON_I2S_MODE_32K	(0x4 << 20)
 
-/* ASYS_I2SO1_CON (0x061c) */
-#define ASYS_I2SO1_CON_FS		(0x1f << 8)
-#define ASYS_I2SO1_CON_FS_SET(x)	((x) << 8)
-#define ASYS_I2SO1_CON_MULTI_CH		(0x1 << 16)
-#define ASYS_I2SO1_CON_SIDEGEN		(0x1 << 30)
-#define ASYS_I2SO1_CON_I2S_EN		(0x1 << 0)
-/* 0:EIAJ 1:I2S */
-#define ASYS_I2SO1_CON_I2S_MODE		(0x1 << 3)
-#define ASYS_I2SO1_CON_WIDE_MODE	(0x1 << 1)
-#define ASYS_I2SO1_CON_WIDE_MODE_SET(x)	((x) << 1)
-
-/* PWR2_TOP_CON (0x0634) */
-#define PWR2_TOP_CON_INIT_VAL		(0xffe1ffff)
-
-/* ASYS_IRQ_CLR (0x07c0) */
-#define ASYS_IRQ_CLR_ALL		(0xffffffff)
+/* ASYS_TOP_CON (0x0600) */
+#define ASYS_TOP_CON_ASYS_TIMING_ON		(0x3 << 0)
 
 /* PWR2_ASM_CON1 (0x1070) */
 #define PWR2_ASM_CON1_INIT_VAL		(0x492492)
@@ -175,6 +130,7 @@
 #define ASYS_I2S_CON_FS_SET(x)		((x) << 8)
 #define ASYS_I2S_CON_RESET		(0x1 << 30)
 #define ASYS_I2S_CON_I2S_EN		(0x1 << 0)
+#define ASYS_I2S_CON_ONE_HEART_MODE	(0x1 << 16)
 #define ASYS_I2S_CON_I2S_COUPLE_MODE	(0x1 << 17)
 /* 0:EIAJ 1:I2S */
 #define ASYS_I2S_CON_I2S_MODE		(0x1 << 3)
@@ -182,5 +138,4 @@
 #define ASYS_I2S_CON_WIDE_MODE_SET(x)	((x) << 1)
 #define ASYS_I2S_IN_PHASE_FIX		(0x1 << 31)
 
-#define AFE_END_ADDR 0x15e0
 #endif

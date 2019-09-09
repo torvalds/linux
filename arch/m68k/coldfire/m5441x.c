@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *	m5441x.c -- support for Coldfire m5441x processors
  *
@@ -19,14 +20,14 @@
 DEFINE_CLK(0, "flexbus", 2, MCF_CLK);
 DEFINE_CLK(0, "mcfcan.0", 8, MCF_CLK);
 DEFINE_CLK(0, "mcfcan.1", 9, MCF_CLK);
-DEFINE_CLK(0, "mcfi2c.1", 14, MCF_CLK);
+DEFINE_CLK(0, "imx1-i2c.1", 14, MCF_CLK);
 DEFINE_CLK(0, "mcfdspi.1", 15, MCF_CLK);
 DEFINE_CLK(0, "edma", 17, MCF_CLK);
 DEFINE_CLK(0, "intc.0", 18, MCF_CLK);
 DEFINE_CLK(0, "intc.1", 19, MCF_CLK);
 DEFINE_CLK(0, "intc.2", 20, MCF_CLK);
-DEFINE_CLK(0, "mcfi2c.0", 22, MCF_CLK);
-DEFINE_CLK(0, "mcfdspi.0", 23, MCF_CLK);
+DEFINE_CLK(0, "imx1-i2c.0", 22, MCF_CLK);
+DEFINE_CLK(0, "fsl-dspi.0", 23, MCF_CLK);
 DEFINE_CLK(0, "mcfuart.0", 24, MCF_BUSCLK);
 DEFINE_CLK(0, "mcfuart.1", 25, MCF_BUSCLK);
 DEFINE_CLK(0, "mcfuart.2", 26, MCF_BUSCLK);
@@ -59,10 +60,10 @@ DEFINE_CLK(0, "switch.1", 56, MCF_CLK);
 DEFINE_CLK(0, "nand.0", 63, MCF_CLK);
 
 DEFINE_CLK(1, "mcfow.0", 2, MCF_CLK);
-DEFINE_CLK(1, "mcfi2c.2", 4, MCF_CLK);
-DEFINE_CLK(1, "mcfi2c.3", 5, MCF_CLK);
-DEFINE_CLK(1, "mcfi2c.4", 6, MCF_CLK);
-DEFINE_CLK(1, "mcfi2c.5", 7, MCF_CLK);
+DEFINE_CLK(1, "imx1-i2c.2", 4, MCF_CLK);
+DEFINE_CLK(1, "imx1-i2c.3", 5, MCF_CLK);
+DEFINE_CLK(1, "imx1-i2c.4", 6, MCF_CLK);
+DEFINE_CLK(1, "imx1-i2c.5", 7, MCF_CLK);
 DEFINE_CLK(1, "mcfuart.4", 24, MCF_BUSCLK);
 DEFINE_CLK(1, "mcfuart.5", 25, MCF_BUSCLK);
 DEFINE_CLK(1, "mcfuart.6", 26, MCF_BUSCLK);
@@ -136,9 +137,12 @@ struct clk *mcf_clks[] = {
 
 static struct clk * const enable_clks[] __initconst = {
 	/* make sure these clocks are enabled */
+	&__clk_0_15, /* dspi.1 */
+	&__clk_0_17, /* eDMA */
 	&__clk_0_18, /* intc0 */
 	&__clk_0_19, /* intc0 */
 	&__clk_0_20, /* intc0 */
+	&__clk_0_23, /* dspi.0 */
 	&__clk_0_24, /* uart0 */
 	&__clk_0_25, /* uart1 */
 	&__clk_0_26, /* uart2 */
@@ -155,8 +159,6 @@ static struct clk * const disable_clks[] __initconst = {
 	&__clk_0_8, /* can.0 */
 	&__clk_0_9, /* can.1 */
 	&__clk_0_14, /* i2c.1 */
-	&__clk_0_15, /* dspi.1 */
-	&__clk_0_17, /* eDMA */
 	&__clk_0_22, /* i2c.0 */
 	&__clk_0_23, /* dspi.0 */
 	&__clk_0_28, /* tmr.1 */
@@ -222,40 +224,3 @@ void __init config_BSP(char *commandp, int size)
 	m5441x_uarts_init();
 	m5441x_fec_init();
 }
-
-
-#if IS_ENABLED(CONFIG_RTC_DRV_M5441x)
-static struct resource m5441x_rtc_resources[] = {
-	{
-		.start		= MCFRTC_BASE,
-		.end		= MCFRTC_BASE + MCFRTC_SIZE - 1,
-		.flags		= IORESOURCE_MEM,
-	},
-	{
-		.start		= MCF_IRQ_RTC,
-		.end		= MCF_IRQ_RTC,
-		.flags		= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device m5441x_rtc = {
-	.name			= "mcfrtc",
-	.id			= 0,
-	.resource		= m5441x_rtc_resources,
-	.num_resources		= ARRAY_SIZE(m5441x_rtc_resources),
-};
-#endif
-
-static struct platform_device *m5441x_devices[] __initdata = {
-#if IS_ENABLED(CONFIG_RTC_DRV_M5441x)
-	&m5441x_rtc,
-#endif
-};
-
-static int __init init_BSP(void)
-{
-	platform_add_devices(m5441x_devices, ARRAY_SIZE(m5441x_devices));
-	return 0;
-}
-
-arch_initcall(init_BSP);

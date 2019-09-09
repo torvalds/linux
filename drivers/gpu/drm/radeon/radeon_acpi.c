@@ -21,17 +21,21 @@
  *
  */
 
-#include <linux/pci.h>
 #include <linux/acpi.h>
-#include <linux/slab.h>
-#include <linux/power_supply.h>
+#include <linux/pci.h>
 #include <linux/pm_runtime.h>
+#include <linux/power_supply.h>
+#include <linux/slab.h>
+
+#include <acpi/acpi_bus.h>
 #include <acpi/video.h>
-#include <drm/drmP.h>
+
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_probe_helper.h>
+
+#include "atom.h"
 #include "radeon.h"
 #include "radeon_acpi.h"
-#include "atom.h"
 
 #if defined(CONFIG_VGA_SWITCHEROO)
 bool radeon_atpx_dgpu_req_power_for_displays(void);
@@ -351,7 +355,7 @@ out:
  * handles it.
  * Returns NOTIFY code
  */
-int radeon_atif_handler(struct radeon_device *rdev,
+static int radeon_atif_handler(struct radeon_device *rdev,
 		struct acpi_bus_event *event)
 {
 	struct radeon_atif *atif = &rdev->atif;

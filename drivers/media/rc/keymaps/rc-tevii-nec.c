@@ -1,14 +1,9 @@
-/* tevii-nec.h - Keytable for tevii_nec Remote Controller
- *
- * keymap imported from ir-keymaps.c
- *
- * Copyright (c) 2010 by Mauro Carvalho Chehab
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- */
+// SPDX-License-Identifier: GPL-2.0+
+// tevii-nec.h - Keytable for tevii_nec Remote Controller
+//
+// keymap imported from ir-keymaps.c
+//
+// Copyright (c) 2010 by Mauro Carvalho Chehab
 
 #include <media/rc-map.h>
 #include <linux/module.h>
@@ -16,16 +11,16 @@
 static struct rc_map_table tevii_nec[] = {
 	{ 0x0a, KEY_POWER2},
 	{ 0x0c, KEY_MUTE},
-	{ 0x11, KEY_1},
-	{ 0x12, KEY_2},
-	{ 0x13, KEY_3},
-	{ 0x14, KEY_4},
-	{ 0x15, KEY_5},
-	{ 0x16, KEY_6},
-	{ 0x17, KEY_7},
-	{ 0x18, KEY_8},
-	{ 0x19, KEY_9},
-	{ 0x10, KEY_0},
+	{ 0x11, KEY_NUMERIC_1},
+	{ 0x12, KEY_NUMERIC_2},
+	{ 0x13, KEY_NUMERIC_3},
+	{ 0x14, KEY_NUMERIC_4},
+	{ 0x15, KEY_NUMERIC_5},
+	{ 0x16, KEY_NUMERIC_6},
+	{ 0x17, KEY_NUMERIC_7},
+	{ 0x18, KEY_NUMERIC_8},
+	{ 0x19, KEY_NUMERIC_9},
+	{ 0x10, KEY_NUMERIC_0},
 	{ 0x1c, KEY_MENU},
 	{ 0x0f, KEY_VOLUMEDOWN},
 	{ 0x1a, KEY_LAST},
@@ -65,10 +60,10 @@ static struct rc_map_table tevii_nec[] = {
 
 static struct rc_map_list tevii_nec_map = {
 	.map = {
-		.scan    = tevii_nec,
-		.size    = ARRAY_SIZE(tevii_nec),
-		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
-		.name    = RC_MAP_TEVII_NEC,
+		.scan     = tevii_nec,
+		.size     = ARRAY_SIZE(tevii_nec),
+		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.name     = RC_MAP_TEVII_NEC,
 	}
 };
 

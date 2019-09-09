@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  acpi.c - Architecture-Specific Low-Level ACPI Support
  *
@@ -12,24 +13,6 @@
  *  Copyright (C) 2001 Takayoshi Kochi <t-kochi@bq.jp.nec.com>
  *  Copyright (C) 2002 Erich Focht <efocht@ess.nec.de>
  *  Copyright (C) 2004 Ashok Raj <ashok.raj@intel.com>
- *
- * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
- * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
 
 #include <linux/module.h>
@@ -159,12 +142,12 @@ int acpi_request_vector(u32 int_type)
 	return vector;
 }
 
-char *__init __acpi_map_table(unsigned long phys_addr, unsigned long size)
+void __init __iomem *__acpi_map_table(unsigned long phys, unsigned long size)
 {
-	return __va(phys_addr);
+	return __va(phys);
 }
 
-void __init __acpi_unmap_table(char *map, unsigned long size)
+void __init __acpi_unmap_table(void __iomem *map, unsigned long size)
 {
 }
 
@@ -177,7 +160,7 @@ struct acpi_table_madt *acpi_madt __initdata;
 static u8 has_8259;
 
 static int __init
-acpi_parse_lapic_addr_ovr(struct acpi_subtable_header * header,
+acpi_parse_lapic_addr_ovr(union acpi_subtable_headers * header,
 			  const unsigned long end)
 {
 	struct acpi_madt_local_apic_override *lapic;
@@ -195,7 +178,7 @@ acpi_parse_lapic_addr_ovr(struct acpi_subtable_header * header,
 }
 
 static int __init
-acpi_parse_lsapic(struct acpi_subtable_header * header, const unsigned long end)
+acpi_parse_lsapic(union acpi_subtable_headers *header, const unsigned long end)
 {
 	struct acpi_madt_local_sapic *lsapic;
 
@@ -216,7 +199,7 @@ acpi_parse_lsapic(struct acpi_subtable_header * header, const unsigned long end)
 }
 
 static int __init
-acpi_parse_lapic_nmi(struct acpi_subtable_header * header, const unsigned long end)
+acpi_parse_lapic_nmi(union acpi_subtable_headers * header, const unsigned long end)
 {
 	struct acpi_madt_local_apic_nmi *lacpi_nmi;
 
@@ -230,7 +213,7 @@ acpi_parse_lapic_nmi(struct acpi_subtable_header * header, const unsigned long e
 }
 
 static int __init
-acpi_parse_iosapic(struct acpi_subtable_header * header, const unsigned long end)
+acpi_parse_iosapic(union acpi_subtable_headers * header, const unsigned long end)
 {
 	struct acpi_madt_io_sapic *iosapic;
 
@@ -245,7 +228,7 @@ acpi_parse_iosapic(struct acpi_subtable_header * header, const unsigned long end
 static unsigned int __initdata acpi_madt_rev;
 
 static int __init
-acpi_parse_plat_int_src(struct acpi_subtable_header * header,
+acpi_parse_plat_int_src(union acpi_subtable_headers * header,
 			const unsigned long end)
 {
 	struct acpi_madt_interrupt_source *plintsrc;
@@ -329,7 +312,7 @@ unsigned int get_cpei_target_cpu(void)
 }
 
 static int __init
-acpi_parse_int_src_ovr(struct acpi_subtable_header * header,
+acpi_parse_int_src_ovr(union acpi_subtable_headers * header,
 		       const unsigned long end)
 {
 	struct acpi_madt_interrupt_override *p;
@@ -350,7 +333,7 @@ acpi_parse_int_src_ovr(struct acpi_subtable_header * header,
 }
 
 static int __init
-acpi_parse_nmi_src(struct acpi_subtable_header * header, const unsigned long end)
+acpi_parse_nmi_src(union acpi_subtable_headers * header, const unsigned long end)
 {
 	struct acpi_madt_nmi_source *nmi_src;
 
@@ -504,6 +487,11 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
 	if (!(ma->flags & ACPI_SRAT_MEM_ENABLED))
 		return -1;
 
+	if (num_node_memblks >= NR_NODE_MEMBLKS) {
+		pr_err("NUMA: too many memblk ranges\n");
+		return -EINVAL;
+	}
+
 	/* record this node in proximity bitmap */
 	pxm_bit_set(pxm);
 
@@ -573,8 +561,8 @@ void __init acpi_numa_fixup(void)
 	if (!slit_table) {
 		for (i = 0; i < MAX_NUMNODES; i++)
 			for (j = 0; j < MAX_NUMNODES; j++)
-				node_distance(i, j) = i == j ? LOCAL_DISTANCE :
-							REMOTE_DISTANCE;
+				slit_distance(i, j) = i == j ?
+					LOCAL_DISTANCE : REMOTE_DISTANCE;
 		return;
 	}
 
@@ -587,7 +575,7 @@ void __init acpi_numa_fixup(void)
 			if (!pxm_bit_test(j))
 				continue;
 			node_to = pxm_to_node(j);
-			node_distance(node_from, node_to) =
+			slit_distance(node_from, node_to) =
 			    slit_table->entry[i * slit_table->locality_count + j];
 		}
 	}
@@ -887,7 +875,8 @@ static int _acpi_map_lsapic(acpi_handle handle, int physid, int *pcpu)
 }
 
 /* wrapper to silence section mismatch warning */
-int __ref acpi_map_cpu(acpi_handle handle, phys_cpuid_t physid, int *pcpu)
+int __ref acpi_map_cpu(acpi_handle handle, phys_cpuid_t physid, u32 acpi_id,
+		       int *pcpu)
 {
 	return _acpi_map_lsapic(handle, physid, pcpu);
 }

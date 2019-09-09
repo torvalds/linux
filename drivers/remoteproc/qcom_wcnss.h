@@ -1,8 +1,11 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __QCOM_WNCSS_H__
 #define __QCOM_WNCSS_H__
 
 struct qcom_iris;
 struct qcom_wcnss;
+
+extern struct platform_driver qcom_iris_driver;
 
 struct wcnss_vreg_info {
 	const char * const name;

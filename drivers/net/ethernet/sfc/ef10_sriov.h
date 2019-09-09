@@ -1,10 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /****************************************************************************
  * Driver for Solarflare network controllers and boards
  * Copyright 2015 Solarflare Communications Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation, incorporated herein by reference.
  */
 
 #ifndef EF10_SRIOV_H
@@ -55,9 +52,6 @@ int efx_ef10_sriov_get_vf_config(struct efx_nic *efx, int vf_i,
 
 int efx_ef10_sriov_set_vf_link_state(struct efx_nic *efx, int vf_i,
 				     int link_state);
-
-int efx_ef10_sriov_get_phys_port_id(struct efx_nic *efx,
-				    struct netdev_phys_item_id *ppid);
 
 int efx_ef10_vswitching_probe_pf(struct efx_nic *efx);
 int efx_ef10_vswitching_probe_vf(struct efx_nic *efx);

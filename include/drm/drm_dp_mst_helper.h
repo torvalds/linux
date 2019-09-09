@@ -24,6 +24,7 @@
 
 #include <linux/types.h>
 #include <drm/drm_dp_helper.h>
+#include <drm/drm_atomic.h>
 
 struct drm_dp_mst_branch;
 
@@ -43,7 +44,6 @@ struct drm_dp_vcpi {
 
 /**
  * struct drm_dp_mst_port - MST port
- * @kref: reference count for this port.
  * @port_num: port number
  * @input: if this port is an input port.
  * @mcs: message capability status - DP 1.2 spec.
@@ -66,7 +66,18 @@ struct drm_dp_vcpi {
  * in the MST topology.
  */
 struct drm_dp_mst_port {
-	struct kref kref;
+	/**
+	 * @topology_kref: refcount for this port's lifetime in the topology,
+	 * only the DP MST helpers should need to touch this
+	 */
+	struct kref topology_kref;
+
+	/**
+	 * @malloc_kref: refcount for the memory allocation containing this
+	 * structure. See drm_dp_mst_get_port_malloc() and
+	 * drm_dp_mst_put_port_malloc().
+	 */
+	struct kref malloc_kref;
 
 	u8 port_num;
 	bool input;
@@ -101,7 +112,6 @@ struct drm_dp_mst_port {
 
 /**
  * struct drm_dp_mst_branch - MST branch device.
- * @kref: reference count for this port.
  * @rad: Relative Address to talk to this branch device.
  * @lct: Link count total to talk to this branch device.
  * @num_ports: number of ports on the branch.
@@ -120,7 +130,19 @@ struct drm_dp_mst_port {
  * to downstream port of parent branches.
  */
 struct drm_dp_mst_branch {
-	struct kref kref;
+	/**
+	 * @topology_kref: refcount for this branch device's lifetime in the
+	 * topology, only the DP MST helpers should need to touch this
+	 */
+	struct kref topology_kref;
+
+	/**
+	 * @malloc_kref: refcount for the memory allocation containing this
+	 * structure. See drm_dp_mst_get_mstb_malloc() and
+	 * drm_dp_mst_put_mstb_malloc().
+	 */
+	struct kref malloc_kref;
+
 	u8 rad[8];
 	u8 lct;
 	int num_ports;
@@ -386,8 +408,6 @@ struct drm_dp_mst_topology_cbs {
 	void (*register_connector)(struct drm_connector *connector);
 	void (*destroy_connector)(struct drm_dp_mst_topology_mgr *mgr,
 				  struct drm_connector *connector);
-	void (*hotplug)(struct drm_dp_mst_topology_mgr *mgr);
-
 };
 
 #define DP_MAX_PAYLOAD (sizeof(unsigned long) * 8)
@@ -403,6 +423,22 @@ struct drm_dp_payload {
 	int vcpi;
 };
 
+#define to_dp_mst_topology_state(x) container_of(x, struct drm_dp_mst_topology_state, base)
+
+struct drm_dp_vcpi_allocation {
+	struct drm_dp_mst_port *port;
+	int vcpi;
+	struct list_head next;
+};
+
+struct drm_dp_mst_topology_state {
+	struct drm_private_state base;
+	struct list_head vcpis;
+	struct drm_dp_mst_topology_mgr *mgr;
+};
+
+#define to_dp_mst_topology_mgr(x) container_of(x, struct drm_dp_mst_topology_mgr, base)
+
 /**
  * struct drm_dp_mst_topology_mgr - DisplayPort MST manager
  *
@@ -412,9 +448,14 @@ struct drm_dp_payload {
  */
 struct drm_dp_mst_topology_mgr {
 	/**
+	 * @base: Base private object for atomic
+	 */
+	struct drm_private_obj base;
+
+	/**
 	 * @dev: device pointer for adding i2c devices etc.
 	 */
-	struct device *dev;
+	struct drm_device *dev;
 	/**
 	 * @cbs: callbacks for connector addition and destruction.
 	 */
@@ -479,22 +520,15 @@ struct drm_dp_mst_topology_mgr {
 	 * @pbn_div: PBN to slots divisor.
 	 */
 	int pbn_div;
-	/**
-	 * @total_slots: Total slots that can be allocated.
-	 */
-	int total_slots;
-	/**
-	 * @avail_slots: Still available slots that can be allocated.
-	 */
-	int avail_slots;
-	/**
-	 * @total_pbn: Total PBN count.
-	 */
-	int total_pbn;
 
 	/**
-	 * @qlock: protects @tx_msg_downq, the tx_slots in struct
-	 * &drm_dp_mst_branch and txmsg->state once they are queued
+	 * @funcs: Atomic helper callbacks
+	 */
+	const struct drm_private_state_funcs *funcs;
+
+	/**
+	 * @qlock: protects @tx_msg_downq, the &drm_dp_mst_branch.txslost and
+	 * &drm_dp_sideband_msg_tx.state once they are queued
 	 */
 	struct mutex qlock;
 	/**
@@ -508,8 +542,7 @@ struct drm_dp_mst_topology_mgr {
 	struct mutex payload_lock;
 	/**
 	 * @proposed_vcpis: Array of pointers for the new VCPI allocation. The
-	 * VCPI structure itself is embedded into the corresponding
-	 * &drm_dp_mst_port structure.
+	 * VCPI structure itself is &drm_dp_mst_port.vcpi.
 	 */
 	struct drm_dp_vcpi **proposed_vcpis;
 	/**
@@ -556,7 +589,10 @@ struct drm_dp_mst_topology_mgr {
 	struct work_struct destroy_connector_work;
 };
 
-int drm_dp_mst_topology_mgr_init(struct drm_dp_mst_topology_mgr *mgr, struct device *dev, struct drm_dp_aux *aux, int max_dpcd_transaction_bytes, int max_payloads, int conn_base_id);
+int drm_dp_mst_topology_mgr_init(struct drm_dp_mst_topology_mgr *mgr,
+				 struct drm_device *dev, struct drm_dp_aux *aux,
+				 int max_dpcd_transaction_bytes,
+				 int max_payloads, int conn_base_id);
 
 void drm_dp_mst_topology_mgr_destroy(struct drm_dp_mst_topology_mgr *mgr);
 
@@ -577,7 +613,8 @@ struct edid *drm_dp_mst_get_edid(struct drm_connector *connector, struct drm_dp_
 int drm_dp_calc_pbn_mode(int clock, int bpp);
 
 
-bool drm_dp_mst_allocate_vcpi(struct drm_dp_mst_topology_mgr *mgr, struct drm_dp_mst_port *port, int pbn, int *slots);
+bool drm_dp_mst_allocate_vcpi(struct drm_dp_mst_topology_mgr *mgr,
+			      struct drm_dp_mst_port *port, int pbn, int slots);
 
 int drm_dp_mst_get_vcpi_slots(struct drm_dp_mst_topology_mgr *mgr, struct drm_dp_mst_port *port);
 
@@ -604,5 +641,119 @@ void drm_dp_mst_dump_topology(struct seq_file *m,
 			      struct drm_dp_mst_topology_mgr *mgr);
 
 void drm_dp_mst_topology_mgr_suspend(struct drm_dp_mst_topology_mgr *mgr);
-int drm_dp_mst_topology_mgr_resume(struct drm_dp_mst_topology_mgr *mgr);
+int __must_check
+drm_dp_mst_topology_mgr_resume(struct drm_dp_mst_topology_mgr *mgr);
+struct drm_dp_mst_topology_state *drm_atomic_get_mst_topology_state(struct drm_atomic_state *state,
+								    struct drm_dp_mst_topology_mgr *mgr);
+int __must_check
+drm_dp_atomic_find_vcpi_slots(struct drm_atomic_state *state,
+			      struct drm_dp_mst_topology_mgr *mgr,
+			      struct drm_dp_mst_port *port, int pbn);
+int __must_check
+drm_dp_atomic_release_vcpi_slots(struct drm_atomic_state *state,
+				 struct drm_dp_mst_topology_mgr *mgr,
+				 struct drm_dp_mst_port *port);
+int drm_dp_send_power_updown_phy(struct drm_dp_mst_topology_mgr *mgr,
+				 struct drm_dp_mst_port *port, bool power_up);
+int __must_check drm_dp_mst_atomic_check(struct drm_atomic_state *state);
+
+void drm_dp_mst_get_port_malloc(struct drm_dp_mst_port *port);
+void drm_dp_mst_put_port_malloc(struct drm_dp_mst_port *port);
+
+extern const struct drm_private_state_funcs drm_dp_mst_topology_state_funcs;
+
+/**
+ * __drm_dp_mst_state_iter_get - private atomic state iterator function for
+ * macro-internal use
+ * @state: &struct drm_atomic_state pointer
+ * @mgr: pointer to the &struct drm_dp_mst_topology_mgr iteration cursor
+ * @old_state: optional pointer to the old &struct drm_dp_mst_topology_state
+ * iteration cursor
+ * @new_state: optional pointer to the new &struct drm_dp_mst_topology_state
+ * iteration cursor
+ * @i: int iteration cursor, for macro-internal use
+ *
+ * Used by for_each_oldnew_mst_mgr_in_state(),
+ * for_each_old_mst_mgr_in_state(), and for_each_new_mst_mgr_in_state(). Don't
+ * call this directly.
+ *
+ * Returns:
+ * True if the current &struct drm_private_obj is a &struct
+ * drm_dp_mst_topology_mgr, false otherwise.
+ */
+static inline bool
+__drm_dp_mst_state_iter_get(struct drm_atomic_state *state,
+			    struct drm_dp_mst_topology_mgr **mgr,
+			    struct drm_dp_mst_topology_state **old_state,
+			    struct drm_dp_mst_topology_state **new_state,
+			    int i)
+{
+	struct __drm_private_objs_state *objs_state = &state->private_objs[i];
+
+	if (objs_state->ptr->funcs != &drm_dp_mst_topology_state_funcs)
+		return false;
+
+	*mgr = to_dp_mst_topology_mgr(objs_state->ptr);
+	if (old_state)
+		*old_state = to_dp_mst_topology_state(objs_state->old_state);
+	if (new_state)
+		*new_state = to_dp_mst_topology_state(objs_state->new_state);
+
+	return true;
+}
+
+/**
+ * for_each_oldnew_mst_mgr_in_state - iterate over all DP MST topology
+ * managers in an atomic update
+ * @__state: &struct drm_atomic_state pointer
+ * @mgr: &struct drm_dp_mst_topology_mgr iteration cursor
+ * @old_state: &struct drm_dp_mst_topology_state iteration cursor for the old
+ * state
+ * @new_state: &struct drm_dp_mst_topology_state iteration cursor for the new
+ * state
+ * @__i: int iteration cursor, for macro-internal use
+ *
+ * This iterates over all DRM DP MST topology managers in an atomic update,
+ * tracking both old and new state. This is useful in places where the state
+ * delta needs to be considered, for example in atomic check functions.
+ */
+#define for_each_oldnew_mst_mgr_in_state(__state, mgr, old_state, new_state, __i) \
+	for ((__i) = 0; (__i) < (__state)->num_private_objs; (__i)++) \
+		for_each_if(__drm_dp_mst_state_iter_get((__state), &(mgr), &(old_state), &(new_state), (__i)))
+
+/**
+ * for_each_old_mst_mgr_in_state - iterate over all DP MST topology managers
+ * in an atomic update
+ * @__state: &struct drm_atomic_state pointer
+ * @mgr: &struct drm_dp_mst_topology_mgr iteration cursor
+ * @old_state: &struct drm_dp_mst_topology_state iteration cursor for the old
+ * state
+ * @__i: int iteration cursor, for macro-internal use
+ *
+ * This iterates over all DRM DP MST topology managers in an atomic update,
+ * tracking only the old state. This is useful in disable functions, where we
+ * need the old state the hardware is still in.
+ */
+#define for_each_old_mst_mgr_in_state(__state, mgr, old_state, __i) \
+	for ((__i) = 0; (__i) < (__state)->num_private_objs; (__i)++) \
+		for_each_if(__drm_dp_mst_state_iter_get((__state), &(mgr), &(old_state), NULL, (__i)))
+
+/**
+ * for_each_new_mst_mgr_in_state - iterate over all DP MST topology managers
+ * in an atomic update
+ * @__state: &struct drm_atomic_state pointer
+ * @mgr: &struct drm_dp_mst_topology_mgr iteration cursor
+ * @new_state: &struct drm_dp_mst_topology_state iteration cursor for the new
+ * state
+ * @__i: int iteration cursor, for macro-internal use
+ *
+ * This iterates over all DRM DP MST topology managers in an atomic update,
+ * tracking only the new state. This is useful in enable functions, where we
+ * need the new state the hardware should be in when the atomic commit
+ * operation has completed.
+ */
+#define for_each_new_mst_mgr_in_state(__state, mgr, new_state, __i) \
+	for ((__i) = 0; (__i) < (__state)->num_private_objs; (__i)++) \
+		for_each_if(__drm_dp_mst_state_iter_get((__state), &(mgr), NULL, &(new_state), (__i)))
+
 #endif

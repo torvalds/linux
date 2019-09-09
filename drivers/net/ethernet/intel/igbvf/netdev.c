@@ -1,28 +1,5 @@
-/*******************************************************************************
-
-  Intel(R) 82576 Virtual Function Linux driver
-  Copyright(c) 2009 - 2012 Intel Corporation.
-
-  This program is free software; you can redistribute it and/or modify it
-  under the terms and conditions of the GNU General Public License,
-  version 2, as published by the Free Software Foundation.
-
-  This program is distributed in the hope it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details.
-
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, see <http://www.gnu.org/licenses/>.
-
-  The full GNU General Public License is included in this distribution in
-  the file called "COPYING".
-
-  Contact Information:
-  e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
-  Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
-
-*******************************************************************************/
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright(c) 2009 - 2018 Intel Corporation. */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -400,8 +377,8 @@ next_desc:
 
 	adapter->total_rx_packets += total_packets;
 	adapter->total_rx_bytes += total_bytes;
-	adapter->net_stats.rx_bytes += total_bytes;
-	adapter->net_stats.rx_packets += total_packets;
+	netdev->stats.rx_bytes += total_bytes;
+	netdev->stats.rx_packets += total_packets;
 	return cleaned;
 }
 
@@ -810,7 +787,7 @@ static bool igbvf_clean_tx_irq(struct igbvf_ring *tx_ring)
 			break;
 
 		/* prevent any other reads prior to eop_desc */
-		read_barrier_depends();
+		smp_rmb();
 
 		/* if DD is not set pending work has not been completed */
 		if (!(eop_desc->wb.status & cpu_to_le32(E1000_TXD_STAT_DD)))
@@ -864,8 +841,8 @@ static bool igbvf_clean_tx_irq(struct igbvf_ring *tx_ring)
 		}
 	}
 
-	adapter->net_stats.tx_bytes += total_bytes;
-	adapter->net_stats.tx_packets += total_packets;
+	netdev->stats.tx_bytes += total_bytes;
+	netdev->stats.tx_packets += total_packets;
 	return count < tx_ring->count;
 }
 
@@ -1209,10 +1186,13 @@ static int igbvf_poll(struct napi_struct *napi, int budget)
 
 	igbvf_clean_rx_irq(adapter, &work_done, budget);
 
-	/* If not enough Rx work done, exit the polling mode */
-	if (work_done < budget) {
-		napi_complete_done(napi, work_done);
+	if (work_done == budget)
+		return budget;
 
+	/* Exit the polling mode, but don't re-enable interrupts if stack might
+	 * poll us due to busy-polling
+	 */
+	if (likely(napi_complete_done(napi, work_done))) {
 		if (adapter->requested_itr & 3)
 			igbvf_set_itr(adapter);
 
@@ -1235,7 +1215,12 @@ static void igbvf_set_rlpml(struct igbvf_adapter *adapter)
 	struct e1000_hw *hw = &adapter->hw;
 
 	max_frame_size = adapter->max_frame_size + VLAN_TAG_SIZE;
+
+	spin_lock_bh(&hw->mbx_lock);
+
 	e1000_rlpml_set_vf(hw, max_frame_size);
+
+	spin_unlock_bh(&hw->mbx_lock);
 }
 
 static int igbvf_vlan_rx_add_vid(struct net_device *netdev,
@@ -1244,10 +1229,16 @@ static int igbvf_vlan_rx_add_vid(struct net_device *netdev,
 	struct igbvf_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
 
+	spin_lock_bh(&hw->mbx_lock);
+
 	if (hw->mac.ops.set_vfta(hw, vid, true)) {
 		dev_err(&adapter->pdev->dev, "Failed to add vlan id %d\n", vid);
+		spin_unlock_bh(&hw->mbx_lock);
 		return -EINVAL;
 	}
+
+	spin_unlock_bh(&hw->mbx_lock);
+
 	set_bit(vid, adapter->active_vlans);
 	return 0;
 }
@@ -1258,11 +1249,17 @@ static int igbvf_vlan_rx_kill_vid(struct net_device *netdev,
 	struct igbvf_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
 
+	spin_lock_bh(&hw->mbx_lock);
+
 	if (hw->mac.ops.set_vfta(hw, vid, false)) {
 		dev_err(&adapter->pdev->dev,
 			"Failed to remove vlan id %d\n", vid);
+		spin_unlock_bh(&hw->mbx_lock);
 		return -EINVAL;
 	}
+
+	spin_unlock_bh(&hw->mbx_lock);
+
 	clear_bit(vid, adapter->active_vlans);
 	return 0;
 }
@@ -1428,8 +1425,60 @@ static void igbvf_set_multi(struct net_device *netdev)
 	netdev_for_each_mc_addr(ha, netdev)
 		memcpy(mta_list + (i++ * ETH_ALEN), ha->addr, ETH_ALEN);
 
+	spin_lock_bh(&hw->mbx_lock);
+
 	hw->mac.ops.update_mc_addr_list(hw, mta_list, i, 0, 0);
+
+	spin_unlock_bh(&hw->mbx_lock);
 	kfree(mta_list);
+}
+
+/**
+ * igbvf_set_uni - Configure unicast MAC filters
+ * @netdev: network interface device structure
+ *
+ * This routine is responsible for configuring the hardware for proper
+ * unicast filters.
+ **/
+static int igbvf_set_uni(struct net_device *netdev)
+{
+	struct igbvf_adapter *adapter = netdev_priv(netdev);
+	struct e1000_hw *hw = &adapter->hw;
+
+	if (netdev_uc_count(netdev) > IGBVF_MAX_MAC_FILTERS) {
+		pr_err("Too many unicast filters - No Space\n");
+		return -ENOSPC;
+	}
+
+	spin_lock_bh(&hw->mbx_lock);
+
+	/* Clear all unicast MAC filters */
+	hw->mac.ops.set_uc_addr(hw, E1000_VF_MAC_FILTER_CLR, NULL);
+
+	spin_unlock_bh(&hw->mbx_lock);
+
+	if (!netdev_uc_empty(netdev)) {
+		struct netdev_hw_addr *ha;
+
+		/* Add MAC filters one by one */
+		netdev_for_each_uc_addr(ha, netdev) {
+			spin_lock_bh(&hw->mbx_lock);
+
+			hw->mac.ops.set_uc_addr(hw, E1000_VF_MAC_FILTER_ADD,
+						ha->addr);
+
+			spin_unlock_bh(&hw->mbx_lock);
+			udelay(200);
+		}
+	}
+
+	return 0;
+}
+
+static void igbvf_set_rx_mode(struct net_device *netdev)
+{
+	igbvf_set_multi(netdev);
+	igbvf_set_uni(netdev);
 }
 
 /**
@@ -1438,7 +1487,7 @@ static void igbvf_set_multi(struct net_device *netdev)
  **/
 static void igbvf_configure(struct igbvf_adapter *adapter)
 {
-	igbvf_set_multi(adapter->netdev);
+	igbvf_set_rx_mode(adapter->netdev);
 
 	igbvf_restore_vlan(adapter);
 
@@ -1463,11 +1512,15 @@ static void igbvf_reset(struct igbvf_adapter *adapter)
 	struct net_device *netdev = adapter->netdev;
 	struct e1000_hw *hw = &adapter->hw;
 
+	spin_lock_bh(&hw->mbx_lock);
+
 	/* Allow time for pending master requests to run */
 	if (mac->ops.reset_hw(hw))
 		dev_err(&adapter->pdev->dev, "PF still resetting\n");
 
 	mac->ops.init_hw(hw);
+
+	spin_unlock_bh(&hw->mbx_lock);
 
 	if (is_valid_ether_addr(adapter->hw.mac.addr)) {
 		memcpy(netdev->dev_addr, adapter->hw.mac.addr,
@@ -1603,6 +1656,7 @@ static int igbvf_sw_init(struct igbvf_adapter *adapter)
 	igbvf_irq_disable(adapter);
 
 	spin_lock_init(&adapter->stats_lock);
+	spin_lock_init(&adapter->hw.mbx_lock);
 
 	set_bit(__IGBVF_DOWN, &adapter->state);
 	return 0;
@@ -1746,7 +1800,11 @@ static int igbvf_set_mac(struct net_device *netdev, void *p)
 
 	memcpy(hw->mac.addr, addr->sa_data, netdev->addr_len);
 
+	spin_lock_bh(&hw->mbx_lock);
+
 	hw->mac.ops.rar_set(hw, hw->mac.addr, 0);
+
+	spin_unlock_bh(&hw->mbx_lock);
 
 	if (!ether_addr_equal(addr->sa_data, hw->mac.addr))
 		return -EADDRNOTAVAIL;
@@ -1798,7 +1856,7 @@ void igbvf_update_stats(struct igbvf_adapter *adapter)
 	UPDATE_VF_COUNTER(VFGPRLBC, gprlbc);
 
 	/* Fill out the OS statistics structure */
-	adapter->net_stats.multicast = adapter->stats.mprc;
+	adapter->netdev->stats.multicast = adapter->stats.mprc;
 }
 
 static void igbvf_print_link_info(struct igbvf_adapter *adapter)
@@ -1818,7 +1876,12 @@ static bool igbvf_has_link(struct igbvf_adapter *adapter)
 	if (test_bit(__IGBVF_DOWN, &adapter->state))
 		return false;
 
+	spin_lock_bh(&hw->mbx_lock);
+
 	ret_val = hw->mac.ops.check_for_link(hw);
+
+	spin_unlock_bh(&hw->mbx_lock);
+
 	link_active = !hw->mac.get_link_status;
 
 	/* if check for link returns error we will need to reset */
@@ -1832,9 +1895,9 @@ static bool igbvf_has_link(struct igbvf_adapter *adapter)
  * igbvf_watchdog - Timer Call-back
  * @data: pointer to adapter cast into an unsigned long
  **/
-static void igbvf_watchdog(unsigned long data)
+static void igbvf_watchdog(struct timer_list *t)
 {
-	struct igbvf_adapter *adapter = (struct igbvf_adapter *)data;
+	struct igbvf_adapter *adapter = from_timer(adapter, t, watchdog_timer);
 
 	/* Do the rest outside of interrupt context */
 	schedule_work(&adapter->watchdog_task);
@@ -1965,11 +2028,15 @@ static int igbvf_tso(struct igbvf_ring *tx_ring,
 
 	/* initialize outer IP header fields */
 	if (ip.v4->version == 4) {
+		unsigned char *csum_start = skb_checksum_start(skb);
+		unsigned char *trans_start = ip.hdr + (ip.v4->ihl * 4);
+
 		/* IP header will have to cancel out any data that
 		 * is not a part of the outer IP header
 		 */
-		ip.v4->check = csum_fold(csum_add(lco_csum(skb),
-						  csum_unfold(l4.tcp->check)));
+		ip.v4->check = csum_fold(csum_partial(trans_start,
+						      csum_start - trans_start,
+						      0));
 		type_tucmd |= E1000_ADVTXD_TUCMD_IPV4;
 
 		ip.v4->tot_len = 0;
@@ -2038,6 +2105,7 @@ csum_failed:
 			type_tucmd = E1000_ADVTXD_TUCMD_L4T_SCTP;
 			break;
 		}
+		/* fall through */
 	default:
 		skb_checksum_help(skb);
 		goto csum_failed;
@@ -2211,10 +2279,6 @@ static inline void igbvf_tx_queue_adv(struct igbvf_adapter *adapter,
 	tx_ring->buffer_info[first].next_to_watch = tx_desc;
 	tx_ring->next_to_use = i;
 	writel(i, adapter->hw.hw_addr + tx_ring->tail);
-	/* we need this if more than one processor can write to our tail
-	 * at a time, it synchronizes IO on IA64/Altix systems
-	 */
-	mmiowb();
 }
 
 static netdev_tx_t igbvf_xmit_frame_ring_adv(struct sk_buff *skb,
@@ -2330,21 +2394,6 @@ static void igbvf_reset_task(struct work_struct *work)
 }
 
 /**
- * igbvf_get_stats - Get System Network Statistics
- * @netdev: network interface device structure
- *
- * Returns the address of the device statistics structure.
- * The statistics are actually updated from the timer callback.
- **/
-static struct net_device_stats *igbvf_get_stats(struct net_device *netdev)
-{
-	struct igbvf_adapter *adapter = netdev_priv(netdev);
-
-	/* only return the current stats */
-	return &adapter->net_stats;
-}
-
-/**
  * igbvf_change_mtu - Change the Maximum Transfer Unit
  * @netdev: network interface device structure
  * @new_mtu: new value for maximum frame size
@@ -2355,16 +2404,6 @@ static int igbvf_change_mtu(struct net_device *netdev, int new_mtu)
 {
 	struct igbvf_adapter *adapter = netdev_priv(netdev);
 	int max_frame = new_mtu + ETH_HLEN + ETH_FCS_LEN;
-
-	if (new_mtu < 68 || new_mtu > INT_MAX - ETH_HLEN - ETH_FCS_LEN ||
-	    max_frame > MAX_JUMBO_FRAME_SIZE)
-		return -EINVAL;
-
-#define MAX_STD_JUMBO_FRAME_SIZE 9234
-	if (max_frame > MAX_STD_JUMBO_FRAME_SIZE) {
-		dev_err(&adapter->pdev->dev, "MTU > 9216 not supported.\n");
-		return -EINVAL;
-	}
 
 	while (test_and_set_bit(__IGBVF_RESETTING, &adapter->state))
 		usleep_range(1000, 2000);
@@ -2641,8 +2680,7 @@ static const struct net_device_ops igbvf_netdev_ops = {
 	.ndo_open		= igbvf_open,
 	.ndo_stop		= igbvf_close,
 	.ndo_start_xmit		= igbvf_xmit_frame,
-	.ndo_get_stats		= igbvf_get_stats,
-	.ndo_set_rx_mode	= igbvf_set_multi,
+	.ndo_set_rx_mode	= igbvf_set_rx_mode,
 	.ndo_set_mac_address	= igbvf_set_mac,
 	.ndo_change_mtu		= igbvf_change_mtu,
 	.ndo_do_ioctl		= igbvf_ioctl,
@@ -2786,6 +2824,12 @@ static int igbvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			    NETIF_F_HW_VLAN_CTAG_RX |
 			    NETIF_F_HW_VLAN_CTAG_TX;
 
+	/* MTU range: 68 - 9216 */
+	netdev->min_mtu = ETH_MIN_MTU;
+	netdev->max_mtu = MAX_STD_JUMBO_FRAME_SIZE;
+
+	spin_lock_bh(&hw->mbx_lock);
+
 	/*reset the controller to put the device in a known good state */
 	err = hw->mac.ops.reset_hw(hw);
 	if (err) {
@@ -2802,6 +2846,8 @@ static int igbvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		       netdev->addr_len);
 	}
 
+	spin_unlock_bh(&hw->mbx_lock);
+
 	if (!is_valid_ether_addr(netdev->dev_addr)) {
 		dev_info(&pdev->dev, "Assigning random MAC address.\n");
 		eth_hw_addr_random(netdev);
@@ -2809,8 +2855,7 @@ static int igbvf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		       netdev->addr_len);
 	}
 
-	setup_timer(&adapter->watchdog_timer, &igbvf_watchdog,
-		    (unsigned long)adapter);
+	timer_setup(&adapter->watchdog_timer, igbvf_watchdog, 0);
 
 	INIT_WORK(&adapter->reset_task, igbvf_reset_task);
 	INIT_WORK(&adapter->watchdog_task, igbvf_watchdog_task);
@@ -2965,7 +3010,7 @@ module_exit(igbvf_exit_module);
 
 MODULE_AUTHOR("Intel Corporation, <e1000-devel@lists.sourceforge.net>");
 MODULE_DESCRIPTION("Intel(R) Gigabit Virtual Function Network Driver");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_VERSION(DRV_VERSION);
 
 /* netdev.c */

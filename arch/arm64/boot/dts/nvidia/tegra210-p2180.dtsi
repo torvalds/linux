@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <dt-bindings/mfd/max77620.h>
 
 #include "tegra210.dtsi"
@@ -19,6 +20,10 @@
 	memory {
 		device_type = "memory";
 		reg = <0x0 0x80000000 0x1 0x0>;
+	};
+
+	gpu@57000000 {
+		vdd-supply = <&vdd_gpu>;
 	};
 
 	/* debug port */
@@ -173,16 +178,7 @@
 
 				vddio_sdmmc: ldo2 {
 					regulator-name = "VDDIO_SDMMC";
-					/*
-					 * Technically this supply should have
-					 * a supported range from 1.8 - 3.3 V.
-					 * However, that would cause the SDHCI
-					 * driver to request 2.7 V upon access
-					 * and that in turn will cause traffic
-					 * to be broken. Leave it at 3.3 V for
-					 * now.
-					 */
-					regulator-min-microvolt = <3300000>;
+					regulator-min-microvolt = <1800000>;
 					regulator-max-microvolt = <3300000>;
 					regulator-always-on;
 					regulator-boot-on;
@@ -268,6 +264,19 @@
 		};
 	};
 
+	i2c@7000c500 {
+		/* module ID EEPROM */
+		eeprom@50 {
+			compatible = "atmel,24c02";
+			reg = <0x50>;
+
+			address-bits = <8>;
+			page-size = <8>;
+			size = <256>;
+			read-only;
+		};
+	};
+
 	pmc@7000e400 {
 		nvidia,invert-interrupt;
 	};
@@ -277,6 +286,7 @@
 		status = "okay";
 		bus-width = <8>;
 		non-removable;
+		vqmmc-supply = <&vdd_1v8>;
 	};
 
 	clocks {
@@ -289,6 +299,50 @@
 			reg = <0>;
 			#clock-cells = <0>;
 			clock-frequency = <32768>;
+		};
+	};
+
+	cpus {
+		cpu@0 {
+			enable-method = "psci";
+		};
+
+		cpu@1 {
+			enable-method = "psci";
+		};
+
+		cpu@2 {
+			enable-method = "psci";
+		};
+
+		cpu@3 {
+			enable-method = "psci";
+		};
+
+		idle-states {
+			cpu-sleep {
+				status = "okay";
+			};
+		};
+	};
+
+	psci {
+		compatible = "arm,psci-0.2";
+		method = "smc";
+	};
+
+	regulators {
+		vdd_gpu: regulator@100 {
+			compatible = "pwm-regulator";
+			reg = <100>;
+			pwms = <&pwm 1 4880>;
+			regulator-name = "VDD_GPU";
+			regulator-min-microvolt = <710000>;
+			regulator-max-microvolt = <1320000>;
+			enable-gpios = <&pmic 6 GPIO_ACTIVE_HIGH>;
+			regulator-ramp-delay = <80>;
+			regulator-enable-ramp-delay = <2000>;
+			regulator-settling-time-us = <160>;
 		};
 	};
 };

@@ -1,13 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * This file contains assembly-language implementations
  * of IP-style 1's complement checksum routines.
  *	
  *    Copyright (C) 1995-1996 Gary Thomas (gdt@linuxppc.org)
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version
- *  2 of the License, or (at your option) any later version.
  *
  * Severely hacked about by Paul Mackerras (paulus@cs.anu.edu.au).
  */
@@ -36,7 +32,7 @@ _GLOBAL(__csum_partial)
 	 * work to calculate the correct checksum, we ignore that case
 	 * and take the potential slowdown of unaligned loads.
 	 */
-	rldicl. r6,r3,64-1,64-2		/* r6 = (r3 & 0x3) >> 1 */
+	rldicl. r6,r3,64-1,64-2		/* r6 = (r3 >> 1) & 0x3 */
 	beq	.Lcsum_aligned
 
 	li	r7,4
@@ -168,8 +164,12 @@ _GLOBAL(__csum_partial)
 	beq	.Lcsum_finish
 
 	lbz	r6,0(r3)
+#ifdef __BIG_ENDIAN__
 	sldi	r9,r6,8			/* Pad the byte out to 16 bits */
 	adde	r0,r0,r9
+#else
+	adde	r0,r0,r6
+#endif
 
 .Lcsum_finish:
 	addze	r0,r0			/* add in final carry */
@@ -182,34 +182,22 @@ EXPORT_SYMBOL(__csum_partial)
 
 	.macro srcnr
 100:
-	.section __ex_table,"a"
-	.align 3
-	.llong 100b,.Lsrc_error_nr
-	.previous
+	EX_TABLE(100b,.Lsrc_error_nr)
 	.endm
 
 	.macro source
 150:
-	.section __ex_table,"a"
-	.align 3
-	.llong 150b,.Lsrc_error
-	.previous
+	EX_TABLE(150b,.Lsrc_error)
 	.endm
 
 	.macro dstnr
 200:
-	.section __ex_table,"a"
-	.align 3
-	.llong 200b,.Ldest_error_nr
-	.previous
+	EX_TABLE(200b,.Ldest_error_nr)
 	.endm
 
 	.macro dest
 250:
-	.section __ex_table,"a"
-	.align 3
-	.llong 250b,.Ldest_error
-	.previous
+	EX_TABLE(250b,.Ldest_error)
 	.endm
 
 /*
@@ -236,7 +224,7 @@ _GLOBAL(csum_partial_copy_generic)
 	 * If the source and destination are relatively unaligned we only
 	 * align the source. This keeps things simple.
 	 */
-	rldicl. r6,r3,64-1,64-2		/* r6 = (r3 & 0x3) >> 1 */
+	rldicl. r6,r3,64-1,64-2		/* r6 = (r3 >> 1) & 0x3 */
 	beq	.Lcopy_aligned
 
 	li	r9,4
@@ -398,8 +386,12 @@ dstnr;	sth	r6,0(r4)
 	beq	.Lcopy_finish
 
 srcnr;	lbz	r6,0(r3)
+#ifdef __BIG_ENDIAN__
 	sldi	r9,r6,8			/* Pad the byte out to 16 bits */
 	adde	r0,r0,r9
+#else
+	adde	r0,r0,r6
+#endif
 dstnr;	stb	r6,0(r4)
 
 .Lcopy_finish:
@@ -433,3 +425,34 @@ dstnr;	stb	r6,0(r4)
 	stw	r6,0(r8)
 	blr
 EXPORT_SYMBOL(csum_partial_copy_generic)
+
+/*
+ * __sum16 csum_ipv6_magic(const struct in6_addr *saddr,
+ *			   const struct in6_addr *daddr,
+ *			   __u32 len, __u8 proto, __wsum sum)
+ */
+
+_GLOBAL(csum_ipv6_magic)
+	ld	r8, 0(r3)
+	ld	r9, 8(r3)
+	add	r5, r5, r6
+	addc	r0, r8, r9
+	ld	r10, 0(r4)
+	ld	r11, 8(r4)
+#ifdef CONFIG_CPU_LITTLE_ENDIAN
+	rotldi	r5, r5, 8
+#endif
+	adde	r0, r0, r10
+	add	r5, r5, r7
+	adde	r0, r0, r11
+	adde	r0, r0, r5
+	addze	r0, r0
+	rotldi  r3, r0, 32		/* fold two 32 bit halves together */
+	add	r3, r0, r3
+	srdi	r0, r3, 32
+	rotlwi	r3, r0, 16		/* fold two 16 bit halves together */
+	add	r3, r0, r3
+	not	r3, r3
+	rlwinm	r3, r3, 16, 16, 31
+	blr
+EXPORT_SYMBOL(csum_ipv6_magic)

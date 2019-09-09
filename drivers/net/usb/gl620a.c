@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * GeneSys GL620USB-A based links
  * Copyright (C) 2001 by Jiun-Jie Huang <huangjj@genesyslogic.com.tw>
  * Copyright (C) 2001 by Stanislav Brabec <utx@penguin.cz>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 // #define	DEBUG			// error path messages, extra info
@@ -121,8 +109,7 @@ static int genelink_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 		if (gl_skb) {
 
 			// copy the packet data to the new skb
-			memcpy(skb_put(gl_skb, size),
-					packet->packet_data, size);
+			skb_put_data(gl_skb, packet->packet_data, size);
 			usbnet_skb_return(dev, gl_skb);
 		}
 
@@ -175,7 +162,7 @@ genelink_tx_fixup(struct usbnet *dev, struct sk_buff *skb, gfp_t flags)
 	}
 
 	// attach the packet count to the header
-	packet_count = (__le32 *) skb_push(skb, (4 + 4*1));
+	packet_count = skb_push(skb, (4 + 4 * 1));
 	packet_len = packet_count + 1;
 
 	*packet_count = cpu_to_le32(1);

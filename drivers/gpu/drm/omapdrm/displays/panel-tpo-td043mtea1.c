@@ -1,23 +1,18 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * TPO TD043MTEA1 Panel driver
  *
  * Author: Gražvydas Ignotas <notasas@gmail.com>
  * Converted to new DSS device model: Tomi Valkeinen <tomi.valkeinen@ti.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
-#include <linux/module.h>
 #include <linux/delay.h>
-#include <linux/spi/spi.h>
-#include <linux/regulator/consumer.h>
-#include <linux/gpio/consumer.h>
 #include <linux/err.h>
+#include <linux/gpio/consumer.h>
+#include <linux/module.h>
+#include <linux/regulator/consumer.h>
 #include <linux/slab.h>
-#include <linux/of_gpio.h>
+#include <linux/spi/spi.h>
 
 #include "../dss/omapdss.h"
 
@@ -54,43 +49,35 @@ static const u16 tpo_td043_def_gamma[12] = {
 
 struct panel_drv_data {
 	struct omap_dss_device	dssdev;
-	struct omap_dss_device *in;
 
-	struct omap_video_timings videomode;
-
-	int data_lines;
+	struct videomode vm;
 
 	struct spi_device *spi;
 	struct regulator *vcc_reg;
-	int nreset_gpio;
+	struct gpio_desc *reset_gpio;
 	u16 gamma[12];
 	u32 mode;
-	u32 hmirror:1;
 	u32 vmirror:1;
 	u32 powered_on:1;
 	u32 spi_suspended:1;
 	u32 power_on_resume:1;
 };
 
-static const struct omap_video_timings tpo_td043_timings = {
-	.x_res		= 800,
-	.y_res		= 480,
+static const struct videomode tpo_td043_vm = {
+	.hactive	= 800,
+	.vactive	= 480,
 
 	.pixelclock	= 36000000,
 
-	.hsw		= 1,
-	.hfp		= 68,
-	.hbp		= 214,
+	.hsync_len	= 1,
+	.hfront_porch	= 68,
+	.hback_porch	= 214,
 
-	.vsw		= 1,
-	.vfp		= 39,
-	.vbp		= 34,
+	.vsync_len	= 1,
+	.vfront_porch	= 39,
+	.vback_porch	= 34,
 
-	.vsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
-	.hsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
-	.data_pclk_edge	= OMAPDSS_DRIVE_SIG_FALLING_EDGE,
-	.de_level	= OMAPDSS_SIG_ACTIVE_HIGH,
-	.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_RISING_EDGE,
+	.flags		= DISPLAY_FLAGS_HSYNC_LOW | DISPLAY_FLAGS_VSYNC_LOW,
 };
 
 #define to_panel_data(p) container_of(p, struct panel_drv_data, dssdev)
@@ -152,22 +139,6 @@ static int tpo_td043_write_mirror(struct spi_device *spi, bool h, bool v)
 	return tpo_td043_write(spi, 4, reg4);
 }
 
-static int tpo_td043_set_hmirror(struct omap_dss_device *dssdev, bool enable)
-{
-	struct panel_drv_data *ddata = dev_get_drvdata(dssdev->dev);
-
-	ddata->hmirror = enable;
-	return tpo_td043_write_mirror(ddata->spi, ddata->hmirror,
-			ddata->vmirror);
-}
-
-static bool tpo_td043_get_hmirror(struct omap_dss_device *dssdev)
-{
-	struct panel_drv_data *ddata = dev_get_drvdata(dssdev->dev);
-
-	return ddata->hmirror;
-}
-
 static ssize_t tpo_td043_vmirror_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
@@ -189,7 +160,7 @@ static ssize_t tpo_td043_vmirror_store(struct device *dev,
 
 	val = !!val;
 
-	ret = tpo_td043_write_mirror(ddata->spi, ddata->hmirror, val);
+	ret = tpo_td043_write_mirror(ddata->spi, false, val);
 	if (ret < 0)
 		return ret;
 
@@ -282,7 +253,7 @@ static struct attribute *tpo_td043_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group tpo_td043_attr_group = {
+static const struct attribute_group tpo_td043_attr_group = {
 	.attrs = tpo_td043_attrs,
 };
 
@@ -300,16 +271,14 @@ static int tpo_td043_power_on(struct panel_drv_data *ddata)
 	/* wait for panel to stabilize */
 	msleep(160);
 
-	if (gpio_is_valid(ddata->nreset_gpio))
-		gpio_set_value(ddata->nreset_gpio, 1);
+	gpiod_set_value(ddata->reset_gpio, 0);
 
 	tpo_td043_write(ddata->spi, 2,
 			TPO_R02_MODE(ddata->mode) | TPO_R02_NCLK_RISING);
 	tpo_td043_write(ddata->spi, 3, TPO_R03_VAL_NORMAL);
 	tpo_td043_write(ddata->spi, 0x20, 0xf0);
 	tpo_td043_write(ddata->spi, 0x21, 0xf0);
-	tpo_td043_write_mirror(ddata->spi, ddata->hmirror,
-			ddata->vmirror);
+	tpo_td043_write_mirror(ddata->spi, false, ddata->vmirror);
 	tpo_td043_write_gamma(ddata->spi, ddata->gamma);
 
 	ddata->powered_on = 1;
@@ -324,8 +293,7 @@ static void tpo_td043_power_off(struct panel_drv_data *ddata)
 	tpo_td043_write(ddata->spi, 3,
 			TPO_R03_VAL_STANDBY | TPO_R03_EN_PWM);
 
-	if (gpio_is_valid(ddata->nreset_gpio))
-		gpio_set_value(ddata->nreset_gpio, 0);
+	gpiod_set_value(ddata->reset_gpio, 1);
 
 	/* wait for at least 2 vsyncs before cutting off power */
 	msleep(50);
@@ -337,52 +305,21 @@ static void tpo_td043_power_off(struct panel_drv_data *ddata)
 	ddata->powered_on = 0;
 }
 
-static int tpo_td043_connect(struct omap_dss_device *dssdev)
+static int tpo_td043_connect(struct omap_dss_device *src,
+			     struct omap_dss_device *dst)
 {
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
-	int r;
-
-	if (omapdss_device_is_connected(dssdev))
-		return 0;
-
-	r = in->ops.dpi->connect(in, dssdev);
-	if (r)
-		return r;
-
 	return 0;
 }
 
-static void tpo_td043_disconnect(struct omap_dss_device *dssdev)
+static void tpo_td043_disconnect(struct omap_dss_device *src,
+				 struct omap_dss_device *dst)
 {
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
-
-	if (!omapdss_device_is_connected(dssdev))
-		return;
-
-	in->ops.dpi->disconnect(in, dssdev);
 }
 
-static int tpo_td043_enable(struct omap_dss_device *dssdev)
+static void tpo_td043_enable(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
 	int r;
-
-	if (!omapdss_device_is_connected(dssdev))
-		return -ENODEV;
-
-	if (omapdss_device_is_enabled(dssdev))
-		return 0;
-
-	if (ddata->data_lines)
-		in->ops.dpi->set_data_lines(in, ddata->data_lines);
-	in->ops.dpi->set_timings(in, &ddata->videomode);
-
-	r = in->ops.dpi->enable(in);
-	if (r)
-		return r;
 
 	/*
 	 * If we are resuming from system suspend, SPI clocks might not be
@@ -391,107 +328,44 @@ static int tpo_td043_enable(struct omap_dss_device *dssdev)
 	if (!ddata->spi_suspended) {
 		r = tpo_td043_power_on(ddata);
 		if (r) {
-			in->ops.dpi->disable(in);
-			return r;
+			dev_err(&ddata->spi->dev, "%s: power on failed (%d)\n",
+				__func__, r);
+			return;
 		}
 	}
-
-	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
-
-	return 0;
 }
 
 static void tpo_td043_disable(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
-
-	if (!omapdss_device_is_enabled(dssdev))
-		return;
-
-	in->ops.dpi->disable(in);
 
 	if (!ddata->spi_suspended)
 		tpo_td043_power_off(ddata);
-
-	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 }
 
-static void tpo_td043_set_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
-{
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
-
-	ddata->videomode = *timings;
-	dssdev->panel.timings = *timings;
-
-	in->ops.dpi->set_timings(in, timings);
-}
-
-static void tpo_td043_get_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
+static int tpo_td043_get_modes(struct omap_dss_device *dssdev,
+			       struct drm_connector *connector)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
 
-	*timings = ddata->videomode;
+	return omapdss_display_get_modes(connector, &ddata->vm);
 }
 
-static int tpo_td043_check_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
-{
-	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
-
-	return in->ops.dpi->check_timings(in, timings);
-}
-
-static struct omap_dss_driver tpo_td043_ops = {
+static const struct omap_dss_device_ops tpo_td043_ops = {
 	.connect	= tpo_td043_connect,
 	.disconnect	= tpo_td043_disconnect,
 
 	.enable		= tpo_td043_enable,
 	.disable	= tpo_td043_disable,
 
-	.set_timings	= tpo_td043_set_timings,
-	.get_timings	= tpo_td043_get_timings,
-	.check_timings	= tpo_td043_check_timings,
-
-	.set_mirror	= tpo_td043_set_hmirror,
-	.get_mirror	= tpo_td043_get_hmirror,
-
-	.get_resolution	= omapdss_default_get_resolution,
+	.get_modes	= tpo_td043_get_modes,
 };
-
-static int tpo_td043_probe_of(struct spi_device *spi)
-{
-	struct device_node *node = spi->dev.of_node;
-	struct panel_drv_data *ddata = dev_get_drvdata(&spi->dev);
-	struct omap_dss_device *in;
-	int gpio;
-
-	gpio = of_get_named_gpio(node, "reset-gpios", 0);
-	if (!gpio_is_valid(gpio)) {
-		dev_err(&spi->dev, "failed to parse enable gpio\n");
-		return gpio;
-	}
-	ddata->nreset_gpio = gpio;
-
-	in = omapdss_of_find_source_for_first_ep(node);
-	if (IS_ERR(in)) {
-		dev_err(&spi->dev, "failed to find video source\n");
-		return PTR_ERR(in);
-	}
-
-	ddata->in = in;
-
-	return 0;
-}
 
 static int tpo_td043_probe(struct spi_device *spi)
 {
 	struct panel_drv_data *ddata;
 	struct omap_dss_device *dssdev;
+	struct gpio_desc *gpio;
 	int r;
 
 	dev_dbg(&spi->dev, "%s\n", __func__);
@@ -513,79 +387,65 @@ static int tpo_td043_probe(struct spi_device *spi)
 
 	ddata->spi = spi;
 
-	if (!spi->dev.of_node)
-		return -ENODEV;
-
-	r = tpo_td043_probe_of(spi);
-	if (r)
-		return r;
-
 	ddata->mode = TPO_R02_MODE_800x480;
 	memcpy(ddata->gamma, tpo_td043_def_gamma, sizeof(ddata->gamma));
 
 	ddata->vcc_reg = devm_regulator_get(&spi->dev, "vcc");
 	if (IS_ERR(ddata->vcc_reg)) {
 		dev_err(&spi->dev, "failed to get LCD VCC regulator\n");
-		r = PTR_ERR(ddata->vcc_reg);
-		goto err_regulator;
+		return PTR_ERR(ddata->vcc_reg);
 	}
 
-	if (gpio_is_valid(ddata->nreset_gpio)) {
-		r = devm_gpio_request_one(&spi->dev,
-				ddata->nreset_gpio, GPIOF_OUT_INIT_LOW,
-				"lcd reset");
-		if (r < 0) {
-			dev_err(&spi->dev, "couldn't request reset GPIO\n");
-			goto err_gpio_req;
-		}
+	gpio = devm_gpiod_get(&spi->dev, "reset", GPIOD_OUT_HIGH);
+	if (IS_ERR(gpio)) {
+		dev_err(&spi->dev, "failed to get reset gpio\n");
+		return PTR_ERR(gpio);
 	}
+
+	ddata->reset_gpio = gpio;
 
 	r = sysfs_create_group(&spi->dev.kobj, &tpo_td043_attr_group);
 	if (r) {
 		dev_err(&spi->dev, "failed to create sysfs files\n");
-		goto err_sysfs;
+		return r;
 	}
 
-	ddata->videomode = tpo_td043_timings;
+	ddata->vm = tpo_td043_vm;
 
 	dssdev = &ddata->dssdev;
 	dssdev->dev = &spi->dev;
-	dssdev->driver = &tpo_td043_ops;
+	dssdev->ops = &tpo_td043_ops;
 	dssdev->type = OMAP_DISPLAY_TYPE_DPI;
+	dssdev->display = true;
 	dssdev->owner = THIS_MODULE;
-	dssdev->panel.timings = ddata->videomode;
+	dssdev->of_ports = BIT(0);
+	dssdev->ops_flags = OMAP_DSS_DEVICE_OP_MODES;
 
-	r = omapdss_register_display(dssdev);
-	if (r) {
-		dev_err(&spi->dev, "Failed to register panel\n");
-		goto err_reg;
-	}
+	/*
+	 * Note: According to the panel documentation:
+	 * SYNC needs to be driven on the FALLING edge
+	 */
+	dssdev->bus_flags = DRM_BUS_FLAG_DE_HIGH
+			  | DRM_BUS_FLAG_SYNC_DRIVE_POSEDGE
+			  | DRM_BUS_FLAG_PIXDATA_DRIVE_NEGEDGE;
+
+	omapdss_display_init(dssdev);
+	omapdss_device_register(dssdev);
 
 	return 0;
-
-err_reg:
-	sysfs_remove_group(&spi->dev.kobj, &tpo_td043_attr_group);
-err_sysfs:
-err_gpio_req:
-err_regulator:
-	omap_dss_put_device(ddata->in);
-	return r;
 }
 
 static int tpo_td043_remove(struct spi_device *spi)
 {
 	struct panel_drv_data *ddata = dev_get_drvdata(&spi->dev);
 	struct omap_dss_device *dssdev = &ddata->dssdev;
-	struct omap_dss_device *in = ddata->in;
 
 	dev_dbg(&ddata->spi->dev, "%s\n", __func__);
 
-	omapdss_unregister_display(dssdev);
+	omapdss_device_unregister(dssdev);
 
-	tpo_td043_disable(dssdev);
-	tpo_td043_disconnect(dssdev);
-
-	omap_dss_put_device(in);
+	if (omapdss_device_is_enabled(dssdev))
+		tpo_td043_disable(dssdev);
 
 	sysfs_remove_group(&spi->dev.kobj, &tpo_td043_attr_group);
 

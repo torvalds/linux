@@ -1,17 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * max30100.c - Support for MAX30100 heart rate and pulse oximeter sensor
  *
- * Copyright (C) 2015 Matt Ranostay <mranostay@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
+ * Copyright (C) 2015, 2018
+ * Author: Matt Ranostay <matt.ranostay@konsulko.com>
  *
  * TODO: enable pulse length controls via device tree properties
  */
@@ -238,7 +230,7 @@ static irqreturn_t max30100_interrupt_handler(int irq, void *private)
 
 	mutex_lock(&data->lock);
 
-	while (cnt || (cnt = max30100_fifo_count(data) > 0)) {
+	while (cnt || (cnt = max30100_fifo_count(data)) > 0) {
 		ret = max30100_read_measurement(data);
 		if (ret)
 			break;
@@ -378,7 +370,7 @@ static int max30100_get_temp(struct max30100_data *data, int *val)
 	if (ret)
 		return ret;
 
-	usleep_range(35000, 50000);
+	msleep(35);
 
 	return max30100_read_temp(data, val);
 }
@@ -420,7 +412,6 @@ static int max30100_read_raw(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info max30100_info = {
-	.driver_module = THIS_MODULE,
 	.read_raw = max30100_read_raw,
 };
 
@@ -449,6 +440,7 @@ static int max30100_probe(struct i2c_client *client,
 	indio_dev->available_scan_masks = max30100_scan_masks;
 	indio_dev->modes = (INDIO_BUFFER_SOFTWARE | INDIO_DIRECT_MODE);
 	indio_dev->setup_ops = &max30100_buffer_setup_ops;
+	indio_dev->dev.parent = &client->dev;
 
 	data = iio_priv(indio_dev);
 	data->indio_dev = indio_dev;
@@ -518,6 +510,6 @@ static struct i2c_driver max30100_driver = {
 };
 module_i2c_driver(max30100_driver);
 
-MODULE_AUTHOR("Matt Ranostay <mranostay@gmail.com>");
+MODULE_AUTHOR("Matt Ranostay <matt.ranostay@konsulko.com>");
 MODULE_DESCRIPTION("MAX30100 heart rate and pulse oximeter sensor");
 MODULE_LICENSE("GPL");

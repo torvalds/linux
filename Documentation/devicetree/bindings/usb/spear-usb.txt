@@ -6,8 +6,6 @@ EHCI:
 
 Required properties:
 - compatible: "st,spear600-ehci"
-- interrupt-parent: Should be the phandle for the interrupt controller
-  that services interrupts for this device
 - interrupts: Should contain the EHCI interrupt
 
 Example:
@@ -25,8 +23,6 @@ OHCI:
 
 Required properties:
 - compatible: "st,spear600-ohci"
-- interrupt-parent: Should be the phandle for the interrupt controller
-  that services interrupts for this device
 - interrupts: Should contain the OHCI interrupt
 
 Example:

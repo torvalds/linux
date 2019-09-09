@@ -1,28 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * SQ905 subdriver
  *
  * Copyright (C) 2008, 2009 Adam Baker and Theodore Kilgore
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 /*
  * History and Acknowledgments
  *
  * The original Linux driver for SQ905 based cameras was written by
- * Marcell Lengyel and furter developed by many other contributors
+ * Marcell Lengyel and further developed by many other contributors
  * and is available from http://sourceforge.net/projects/sqcam/
  *
  * This driver takes advantage of the reverse engineering work done for
@@ -41,8 +28,7 @@
 #include <linux/slab.h>
 #include "gspca.h"
 
-MODULE_AUTHOR("Adam Baker <linux@baker-net.org.uk>, "
-		"Theodore Kilgore <kilgota@auburn.edu>");
+MODULE_AUTHOR("Adam Baker <linux@baker-net.org.uk>, Theodore Kilgore <kilgota@auburn.edu>");
 MODULE_DESCRIPTION("GSPCA/SQ905 USB Camera Driver");
 MODULE_LICENSE("GPL");
 
@@ -222,7 +208,7 @@ static void sq905_dostream(struct work_struct *work)
 	u8 *data;
 	u8 *buffer;
 
-	buffer = kmalloc(SQ905_MAX_TRANSFER, GFP_KERNEL | GFP_DMA);
+	buffer = kmalloc(SQ905_MAX_TRANSFER, GFP_KERNEL);
 	if (!buffer) {
 		pr_err("Couldn't allocate USB buffer\n");
 		goto quit_stream;
@@ -251,9 +237,9 @@ static void sq905_dostream(struct work_struct *work)
 			ret = sq905_read_data(gspca_dev, buffer, data_len, 1);
 			if (ret < 0)
 				goto quit_stream;
-			PDEBUG(D_PACK,
-				"Got %d bytes out of %d for frame",
-				data_len, bytes_left);
+			gspca_dbg(gspca_dev, D_PACK,
+				  "Got %d bytes out of %d for frame\n",
+				  data_len, bytes_left);
 			bytes_left -= data_len;
 			data = buffer;
 			if (!header_read) {
@@ -350,7 +336,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	ret = sq905_command(gspca_dev, SQ905_CLEAR);
 	if (ret < 0)
 		return ret;
-	PDEBUG(D_CONF, "SQ905 camera ID %08x detected", ident);
+	gspca_dbg(gspca_dev, D_CONF, "SQ905 camera ID %08x detected\n", ident);
 	gspca_dev->cam.cam_mode = sq905_mode;
 	gspca_dev->cam.nmodes = ARRAY_SIZE(sq905_mode);
 	if (!(ident & SQ905_HIRES_MASK))
@@ -374,20 +360,20 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	switch (gspca_dev->curr_mode) {
 	default:
 /*	case 2: */
-		PDEBUG(D_STREAM, "Start streaming at high resolution");
+		gspca_dbg(gspca_dev, D_STREAM, "Start streaming at high resolution\n");
 		ret = sq905_command(&dev->gspca_dev, SQ905_CAPTURE_HIGH);
 		break;
 	case 1:
-		PDEBUG(D_STREAM, "Start streaming at medium resolution");
+		gspca_dbg(gspca_dev, D_STREAM, "Start streaming at medium resolution\n");
 		ret = sq905_command(&dev->gspca_dev, SQ905_CAPTURE_MED);
 		break;
 	case 0:
-		PDEBUG(D_STREAM, "Start streaming at low resolution");
+		gspca_dbg(gspca_dev, D_STREAM, "Start streaming at low resolution\n");
 		ret = sq905_command(&dev->gspca_dev, SQ905_CAPTURE_LOW);
 	}
 
 	if (ret < 0) {
-		PERR("Start streaming command failed");
+		gspca_err(gspca_dev, "Start streaming command failed\n");
 		return ret;
 	}
 	/* Start the workqueue function to do the streaming */

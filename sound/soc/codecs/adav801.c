@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ADAV801 audio driver
  *
  * Copyright 2014 Analog Devices Inc.
- *
- * Licensed under the GPL-2.
  */
 
 #include <linux/module.h>
@@ -30,18 +29,11 @@ static int adav80x_spi_probe(struct spi_device *spi)
 	return adav80x_bus_probe(&spi->dev, devm_regmap_init_spi(spi, &config));
 }
 
-static int adav80x_spi_remove(struct spi_device *spi)
-{
-	snd_soc_unregister_codec(&spi->dev);
-	return 0;
-}
-
 static struct spi_driver adav80x_spi_driver = {
 	.driver = {
 		.name	= "adav801",
 	},
 	.probe		= adav80x_spi_probe,
-	.remove		= adav80x_spi_remove,
 	.id_table	= adav80x_spi_id,
 };
 module_spi_driver(adav80x_spi_driver);

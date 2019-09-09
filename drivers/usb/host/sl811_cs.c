@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * PCMCIA driver for SL811HS (as found in REX-CFU1U)
  * Filename: sl811_cs.c

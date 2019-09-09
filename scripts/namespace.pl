@@ -1,4 +1,4 @@
-#!/usr/bin/perl -w
+#!/usr/bin/env perl
 #
 #	namespace.pl.  Mon Aug 30 2004
 #
@@ -62,7 +62,7 @@
 #	  result.
 #
 
-require 5;	# at least perl 5
+use warnings;
 use strict;
 use File::Find;
 
@@ -164,7 +164,7 @@ sub linux_objects
 	s:^\./::;
 	if (/.*\.o$/ &&
 		! (
-		m:/built-in.o$:
+		m:/built-in.a$:
 		|| m:arch/x86/vdso/:
 		|| m:arch/x86/boot/:
 		|| m:arch/ia64/ia32/ia32.o$:

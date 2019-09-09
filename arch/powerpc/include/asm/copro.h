@@ -1,14 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright 2014 IBM Corp.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #ifndef _ASM_POWERPC_COPRO_H
 #define _ASM_POWERPC_COPRO_H
+
+#include <linux/mm_types.h>
 
 struct copro_slb
 {
@@ -16,7 +14,7 @@ struct copro_slb
 };
 
 int copro_handle_mm_fault(struct mm_struct *mm, unsigned long ea,
-			  unsigned long dsisr, unsigned *flt);
+			  unsigned long dsisr, vm_fault_t *flt);
 
 int copro_calculate_slb(struct mm_struct *mm, u64 ea, struct copro_slb *slb);
 

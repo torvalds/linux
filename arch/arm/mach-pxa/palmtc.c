@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/arch/arm/mach-pxa/palmtc.c
  *
@@ -8,10 +9,6 @@
  * Based on work of:
  *		Petr Blaha <p3t3@centrum.cz>
  *		Chetan S. Kumar <shivakumar.chetan@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/platform_device.h>
@@ -20,7 +17,7 @@
 #include <linux/input.h>
 #include <linux/pwm.h>
 #include <linux/pwm_backlight.h>
-#include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/input/matrix_keypad.h>
 #include <linux/ucb1400.h>
 #include <linux/power_supply.h>
@@ -120,14 +117,25 @@ static unsigned long palmtc_pin_config[] __initdata = {
 #if defined(CONFIG_MMC_PXA) || defined(CONFIG_MMC_PXA_MODULE)
 static struct pxamci_platform_data palmtc_mci_platform_data = {
 	.ocr_mask		= MMC_VDD_32_33 | MMC_VDD_33_34,
-	.gpio_power		= GPIO_NR_PALMTC_SD_POWER,
-	.gpio_card_ro		= GPIO_NR_PALMTC_SD_READONLY,
-	.gpio_card_detect	= GPIO_NR_PALMTC_SD_DETECT_N,
 	.detect_delay_ms	= 200,
+};
+
+static struct gpiod_lookup_table palmtc_mci_gpio_table = {
+	.dev_id = "pxa2xx-mci.0",
+	.table = {
+		GPIO_LOOKUP("gpio-pxa", GPIO_NR_PALMTC_SD_DETECT_N,
+			    "cd", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("gpio-pxa", GPIO_NR_PALMTC_SD_READONLY,
+			    "wp", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("gpio-pxa", GPIO_NR_PALMTC_SD_POWER,
+			    "power", GPIO_ACTIVE_HIGH),
+		{ },
+	},
 };
 
 static void __init palmtc_mmc_init(void)
 {
+	gpiod_add_lookup_table(&palmtc_mci_gpio_table);
 	pxa_set_mci_info(&palmtc_mci_platform_data);
 }
 #else

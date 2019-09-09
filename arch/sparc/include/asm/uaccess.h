@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef ___ASM_SPARC_UACCESS_H
 #define ___ASM_SPARC_UACCESS_H
 #if defined(__sparc__) && defined(__arch64__)
@@ -7,7 +8,7 @@
 #endif
 
 #define user_addr_max() \
-	(segment_eq(get_fs(), USER_DS) ? TASK_SIZE : ~0UL)
+	(uaccess_kernel() ? ~0UL : TASK_SIZE)
 
 long strncpy_from_user(char *dest, const char __user *src, long count);
 

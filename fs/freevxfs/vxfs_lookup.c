@@ -193,13 +193,9 @@ vxfs_lookup(struct inode *dip, struct dentry *dp, unsigned int flags)
 		return ERR_PTR(-ENAMETOOLONG);
 				 
 	ino = vxfs_inode_by_name(dip, dp);
-	if (ino) {
+	if (ino)
 		ip = vxfs_iget(dip->i_sb, ino);
-		if (IS_ERR(ip))
-			return ERR_CAST(ip);
-	}
-	d_add(dp, ip);
-	return NULL;
+	return d_splice_alias(ip, dp);
 }
 
 /**

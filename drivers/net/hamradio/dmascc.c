@@ -1,22 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for high-speed SCC boards (those with DMA support)
  * Copyright (C) 1997-2000 Klaus Kudielka
  *
  * S5SCC/DMA support by Janko Koleznik S52HI
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 
@@ -40,7 +27,7 @@
 #include <asm/dma.h>
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <net/ax25.h>
 #include "z8530.h"
 
@@ -274,7 +261,7 @@ static unsigned long rand;
 
 MODULE_AUTHOR("Klaus Kudielka");
 MODULE_DESCRIPTION("Driver for high-speed SCC boards");
-module_param_array(io, int, NULL, 0);
+module_param_hw_array(io, int, ioport, NULL, 0);
 MODULE_LICENSE("GPL");
 
 static void __exit dmascc_exit(void)
@@ -581,7 +568,7 @@ static int __init setup_adapter(int card_base, int type, int n)
 		priv->param.dma = -1;
 		INIT_WORK(&priv->rx_work, rx_bh);
 		dev->ml_priv = priv;
-		sprintf(dev->name, "dmascc%i", 2 * n + i);
+		snprintf(dev->name, sizeof(dev->name), "dmascc%i", 2 * n + i);
 		dev->base_addr = card_base;
 		dev->irq = irq;
 		dev->netdev_ops = &scc_netdev_ops;

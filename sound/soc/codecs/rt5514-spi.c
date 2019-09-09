@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * rt5514-spi.c  --  RT5514 SPI driver
  *
  * Copyright 2015 Realtek Semiconductor Corp.
  * Author: Oder Chiou <oder_chiou@realtek.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -20,9 +17,7 @@
 #include <linux/slab.h>
 #include <linux/gpio.h>
 #include <linux/sched.h>
-#include <linux/kthread.h>
 #include <linux/uaccess.h>
-#include <linux/miscdevice.h>
 #include <linux/regulator/consumer.h>
 #include <linux/pm_qos.h>
 #include <linux/sysfs.h>
@@ -37,6 +32,8 @@
 
 #include "rt5514-spi.h"
 
+#define DRV_NAME "rt5514-spi"
+
 static struct spi_device *rt5514_spi;
 
 struct rt5514_dsp {
@@ -45,9 +42,7 @@ struct rt5514_dsp {
 	struct mutex dma_lock;
 	struct snd_pcm_substream *substream;
 	unsigned int buf_base, buf_limit, buf_rp;
-	size_t buf_size;
-	size_t dma_offset;
-	size_t dsp_offset;
+	size_t buf_size, get_size, dma_offset;
 };
 
 static const struct snd_pcm_hardware rt5514_spi_pcm_hardware = {
@@ -82,6 +77,8 @@ static void rt5514_spi_copy_work(struct work_struct *work)
 		container_of(work, struct rt5514_dsp, copy_work.work);
 	struct snd_pcm_runtime *runtime;
 	size_t period_bytes, truncated_bytes = 0;
+	unsigned int cur_wp, remain_data;
+	u8 buf[8];
 
 	mutex_lock(&rt5514_dsp->dma_lock);
 	if (!rt5514_dsp->substream) {
@@ -91,9 +88,33 @@ static void rt5514_spi_copy_work(struct work_struct *work)
 
 	runtime = rt5514_dsp->substream->runtime;
 	period_bytes = snd_pcm_lib_period_bytes(rt5514_dsp->substream);
+	if (!period_bytes) {
+		schedule_delayed_work(&rt5514_dsp->copy_work, 5);
+		goto done;
+	}
 
-	if (rt5514_dsp->buf_size - rt5514_dsp->dsp_offset <  period_bytes)
-		period_bytes = rt5514_dsp->buf_size - rt5514_dsp->dsp_offset;
+	if (rt5514_dsp->buf_size % period_bytes)
+		rt5514_dsp->buf_size = (rt5514_dsp->buf_size / period_bytes) *
+			period_bytes;
+
+	if (rt5514_dsp->get_size >= rt5514_dsp->buf_size) {
+		rt5514_spi_burst_read(RT5514_BUFFER_VOICE_WP, (u8 *)&buf,
+			sizeof(buf));
+		cur_wp = buf[0] | buf[1] << 8 | buf[2] << 16 |
+					buf[3] << 24;
+
+		if (cur_wp >= rt5514_dsp->buf_rp)
+			remain_data = (cur_wp - rt5514_dsp->buf_rp);
+		else
+			remain_data =
+				(rt5514_dsp->buf_limit - rt5514_dsp->buf_rp) +
+				(cur_wp - rt5514_dsp->buf_base);
+
+		if (remain_data < period_bytes) {
+			schedule_delayed_work(&rt5514_dsp->copy_work, 5);
+			goto done;
+		}
+	}
 
 	if (rt5514_dsp->buf_rp + period_bytes <= rt5514_dsp->buf_limit) {
 		rt5514_spi_burst_read(rt5514_dsp->buf_rp,
@@ -114,22 +135,69 @@ static void rt5514_spi_copy_work(struct work_struct *work)
 			runtime->dma_area + rt5514_dsp->dma_offset +
 			truncated_bytes, period_bytes - truncated_bytes);
 
-			rt5514_dsp->buf_rp = rt5514_dsp->buf_base +
-				period_bytes - truncated_bytes;
+		rt5514_dsp->buf_rp = rt5514_dsp->buf_base + period_bytes -
+			truncated_bytes;
 	}
 
+	rt5514_dsp->get_size += period_bytes;
 	rt5514_dsp->dma_offset += period_bytes;
 	if (rt5514_dsp->dma_offset >= runtime->dma_bytes)
 		rt5514_dsp->dma_offset = 0;
 
-	rt5514_dsp->dsp_offset += period_bytes;
-
 	snd_pcm_period_elapsed(rt5514_dsp->substream);
 
-	if (rt5514_dsp->dsp_offset < rt5514_dsp->buf_size)
-		schedule_delayed_work(&rt5514_dsp->copy_work, 5);
+	schedule_delayed_work(&rt5514_dsp->copy_work, 5);
+
 done:
 	mutex_unlock(&rt5514_dsp->dma_lock);
+}
+
+static void rt5514_schedule_copy(struct rt5514_dsp *rt5514_dsp)
+{
+	u8 buf[8];
+
+	if (!rt5514_dsp->substream)
+		return;
+
+	rt5514_dsp->get_size = 0;
+
+	/**
+	 * The address area x1800XXXX is the register address, and it cannot
+	 * support spi burst read perfectly. So we use the spi burst read
+	 * individually to make sure the data correctly.
+	 */
+	rt5514_spi_burst_read(RT5514_BUFFER_VOICE_BASE, (u8 *)&buf,
+		sizeof(buf));
+	rt5514_dsp->buf_base = buf[0] | buf[1] << 8 | buf[2] << 16 |
+				buf[3] << 24;
+
+	rt5514_spi_burst_read(RT5514_BUFFER_VOICE_LIMIT, (u8 *)&buf,
+		sizeof(buf));
+	rt5514_dsp->buf_limit = buf[0] | buf[1] << 8 | buf[2] << 16 |
+				buf[3] << 24;
+
+	rt5514_spi_burst_read(RT5514_BUFFER_VOICE_WP, (u8 *)&buf,
+		sizeof(buf));
+	rt5514_dsp->buf_rp = buf[0] | buf[1] << 8 | buf[2] << 16 |
+				buf[3] << 24;
+
+	if (rt5514_dsp->buf_rp % 8)
+		rt5514_dsp->buf_rp = (rt5514_dsp->buf_rp / 8) * 8;
+
+	rt5514_dsp->buf_size = rt5514_dsp->buf_limit - rt5514_dsp->buf_base;
+
+	if (rt5514_dsp->buf_base && rt5514_dsp->buf_limit &&
+		rt5514_dsp->buf_rp && rt5514_dsp->buf_size)
+		schedule_delayed_work(&rt5514_dsp->copy_work, 0);
+}
+
+static irqreturn_t rt5514_spi_irq(int irq, void *data)
+{
+	struct rt5514_dsp *rt5514_dsp = data;
+
+	rt5514_schedule_copy(rt5514_dsp);
+
+	return IRQ_HANDLED;
 }
 
 /* PCM for streaming audio from the DSP buffer */
@@ -144,14 +212,23 @@ static int rt5514_spi_hw_params(struct snd_pcm_substream *substream,
 			       struct snd_pcm_hw_params *hw_params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, DRV_NAME);
 	struct rt5514_dsp *rt5514_dsp =
-			snd_soc_platform_get_drvdata(rtd->platform);
+		snd_soc_component_get_drvdata(component);
 	int ret;
+	u8 buf[8];
 
 	mutex_lock(&rt5514_dsp->dma_lock);
 	ret = snd_pcm_lib_alloc_vmalloc_buffer(substream,
 			params_buffer_bytes(hw_params));
 	rt5514_dsp->substream = substream;
+	rt5514_dsp->dma_offset = 0;
+
+	/* Read IRQ status and schedule copy accordingly. */
+	rt5514_spi_burst_read(RT5514_IRQ_CTRL, (u8 *)&buf, sizeof(buf));
+	if (buf[0] & RT5514_IRQ_STATUS_BIT)
+		rt5514_schedule_copy(rt5514_dsp);
+
 	mutex_unlock(&rt5514_dsp->dma_lock);
 
 	return ret;
@@ -160,8 +237,9 @@ static int rt5514_spi_hw_params(struct snd_pcm_substream *substream,
 static int rt5514_spi_hw_free(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, DRV_NAME);
 	struct rt5514_dsp *rt5514_dsp =
-			snd_soc_platform_get_drvdata(rtd->platform);
+		snd_soc_component_get_drvdata(component);
 
 	mutex_lock(&rt5514_dsp->dma_lock);
 	rt5514_dsp->substream = NULL;
@@ -172,66 +250,14 @@ static int rt5514_spi_hw_free(struct snd_pcm_substream *substream)
 	return snd_pcm_lib_free_vmalloc_buffer(substream);
 }
 
-static int rt5514_spi_prepare(struct snd_pcm_substream *substream)
-{
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct rt5514_dsp *rt5514_dsp =
-			snd_soc_platform_get_drvdata(rtd->platform);
-	u8 buf[8];
-
-	rt5514_dsp->dma_offset = 0;
-	rt5514_dsp->dsp_offset = 0;
-
-	/**
-	 * The address area x1800XXXX is the register address, and it cannot
-	 * support spi burst read perfectly. So we use the spi burst read
-	 * individually to make sure the data correctly.
-	*/
-	rt5514_spi_burst_read(RT5514_BUFFER_VOICE_BASE, (u8 *)&buf,
-		sizeof(buf));
-	rt5514_dsp->buf_base = buf[0] | buf[1] << 8 | buf[2] << 16 |
-				buf[3] << 24;
-
-	rt5514_spi_burst_read(RT5514_BUFFER_VOICE_LIMIT, (u8 *)&buf,
-		sizeof(buf));
-	rt5514_dsp->buf_limit = buf[0] | buf[1] << 8 | buf[2] << 16 |
-				buf[3] << 24;
-
-	rt5514_spi_burst_read(RT5514_BUFFER_VOICE_RP, (u8 *)&buf,
-		sizeof(buf));
-	rt5514_dsp->buf_rp = buf[0] | buf[1] << 8 | buf[2] << 16 |
-				buf[3] << 24;
-
-	rt5514_spi_burst_read(RT5514_BUFFER_VOICE_SIZE, (u8 *)&buf,
-		sizeof(buf));
-	rt5514_dsp->buf_size = buf[0] | buf[1] << 8 | buf[2] << 16 |
-				buf[3] << 24;
-
-	return 0;
-}
-
-static int rt5514_spi_trigger(struct snd_pcm_substream *substream, int cmd)
-{
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct rt5514_dsp *rt5514_dsp =
-			snd_soc_platform_get_drvdata(rtd->platform);
-
-	if (cmd == SNDRV_PCM_TRIGGER_START) {
-		if (rt5514_dsp->buf_base && rt5514_dsp->buf_limit &&
-			rt5514_dsp->buf_rp && rt5514_dsp->buf_size)
-			schedule_delayed_work(&rt5514_dsp->copy_work, 0);
-	}
-
-	return 0;
-}
-
 static snd_pcm_uframes_t rt5514_spi_pcm_pointer(
 		struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, DRV_NAME);
 	struct rt5514_dsp *rt5514_dsp =
-		snd_soc_platform_get_drvdata(rtd->platform);
+		snd_soc_component_get_drvdata(component);
 
 	return bytes_to_frames(runtime, rt5514_dsp->dma_offset);
 }
@@ -240,35 +266,45 @@ static const struct snd_pcm_ops rt5514_spi_pcm_ops = {
 	.open		= rt5514_spi_pcm_open,
 	.hw_params	= rt5514_spi_hw_params,
 	.hw_free	= rt5514_spi_hw_free,
-	.trigger	= rt5514_spi_trigger,
-	.prepare	= rt5514_spi_prepare,
 	.pointer	= rt5514_spi_pcm_pointer,
-	.mmap		= snd_pcm_lib_mmap_vmalloc,
 	.page		= snd_pcm_lib_get_vmalloc_page,
 };
 
-static int rt5514_spi_pcm_probe(struct snd_soc_platform *platform)
+static int rt5514_spi_pcm_probe(struct snd_soc_component *component)
 {
 	struct rt5514_dsp *rt5514_dsp;
+	int ret;
 
-	rt5514_dsp = devm_kzalloc(platform->dev, sizeof(*rt5514_dsp),
+	rt5514_dsp = devm_kzalloc(component->dev, sizeof(*rt5514_dsp),
 			GFP_KERNEL);
+	if (!rt5514_dsp)
+		return -ENOMEM;
 
 	rt5514_dsp->dev = &rt5514_spi->dev;
 	mutex_init(&rt5514_dsp->dma_lock);
 	INIT_DELAYED_WORK(&rt5514_dsp->copy_work, rt5514_spi_copy_work);
-	snd_soc_platform_set_drvdata(platform, rt5514_dsp);
+	snd_soc_component_set_drvdata(component, rt5514_dsp);
+
+	if (rt5514_spi->irq) {
+		ret = devm_request_threaded_irq(&rt5514_spi->dev,
+			rt5514_spi->irq, NULL, rt5514_spi_irq,
+			IRQF_TRIGGER_RISING | IRQF_ONESHOT, "rt5514-spi",
+			rt5514_dsp);
+		if (ret)
+			dev_err(&rt5514_spi->dev,
+				"%s Failed to reguest IRQ: %d\n", __func__,
+				ret);
+		else
+			device_init_wakeup(rt5514_dsp->dev, true);
+	}
 
 	return 0;
 }
 
-static struct snd_soc_platform_driver rt5514_spi_platform = {
+static const struct snd_soc_component_driver rt5514_spi_component = {
+	.name  = DRV_NAME,
 	.probe = rt5514_spi_pcm_probe,
 	.ops = &rt5514_spi_pcm_ops,
-};
-
-static const struct snd_soc_component_driver rt5514_spi_dai_component = {
-	.name		= "rt5514-spi-dai",
 };
 
 /**
@@ -347,6 +383,7 @@ int rt5514_spi_burst_read(unsigned int addr, u8 *rxbuf, size_t len)
 
 	return true;
 }
+EXPORT_SYMBOL_GPL(rt5514_spi_burst_read);
 
 /**
  * rt5514_spi_burst_write - Write data to SPI by rt5514 address.
@@ -410,14 +447,8 @@ static int rt5514_spi_probe(struct spi_device *spi)
 
 	rt5514_spi = spi;
 
-	ret = devm_snd_soc_register_platform(&spi->dev, &rt5514_spi_platform);
-	if (ret < 0) {
-		dev_err(&spi->dev, "Failed to register platform.\n");
-		return ret;
-	}
-
 	ret = devm_snd_soc_register_component(&spi->dev,
-					      &rt5514_spi_dai_component,
+					      &rt5514_spi_component,
 					      &rt5514_spi_dai, 1);
 	if (ret < 0) {
 		dev_err(&spi->dev, "Failed to register component.\n");
@@ -426,6 +457,41 @@ static int rt5514_spi_probe(struct spi_device *spi)
 
 	return 0;
 }
+
+static int __maybe_unused rt5514_suspend(struct device *dev)
+{
+	int irq = to_spi_device(dev)->irq;
+
+	if (device_may_wakeup(dev))
+		enable_irq_wake(irq);
+
+	return 0;
+}
+
+static int __maybe_unused rt5514_resume(struct device *dev)
+{
+	struct rt5514_dsp *rt5514_dsp = dev_get_drvdata(dev);
+	int irq = to_spi_device(dev)->irq;
+	u8 buf[8];
+
+	if (device_may_wakeup(dev))
+		disable_irq_wake(irq);
+
+	if (rt5514_dsp) {
+		if (rt5514_dsp->substream) {
+			rt5514_spi_burst_read(RT5514_IRQ_CTRL, (u8 *)&buf,
+				sizeof(buf));
+			if (buf[0] & RT5514_IRQ_STATUS_BIT)
+				rt5514_schedule_copy(rt5514_dsp);
+		}
+	}
+
+	return 0;
+}
+
+static const struct dev_pm_ops rt5514_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(rt5514_suspend, rt5514_resume)
+};
 
 static const struct of_device_id rt5514_of_match[] = {
 	{ .compatible = "realtek,rt5514", },
@@ -436,6 +502,7 @@ MODULE_DEVICE_TABLE(of, rt5514_of_match);
 static struct spi_driver rt5514_spi_driver = {
 	.driver = {
 		.name = "rt5514",
+		.pm = &rt5514_pm_ops,
 		.of_match_table = of_match_ptr(rt5514_of_match),
 	},
 	.probe = rt5514_spi_probe,

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
 
     bttv-i2c.c  --  all the i2c code is here
@@ -8,22 +9,9 @@
 			   & Marcus Metzler (mocm@thp.uni-koeln.de)
     (c) 1999-2003 Gerd Knorr <kraxel@bytesex.org>
 
-    (c) 2005 Mauro Carvalho Chehab <mchehab@infradead.org>
+    (c) 2005 Mauro Carvalho Chehab <mchehab@kernel.org>
 	- Multituner support and i2c address binding
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 */
 
@@ -44,15 +32,13 @@ static int i2c_scan;
 module_param(i2c_debug, int, 0644);
 MODULE_PARM_DESC(i2c_debug, "configure i2c debug level");
 module_param(i2c_hw,    int, 0444);
-MODULE_PARM_DESC(i2c_hw,"force use of hardware i2c support, "
-			"instead of software bitbang");
+MODULE_PARM_DESC(i2c_hw, "force use of hardware i2c support, instead of software bitbang");
 module_param(i2c_scan,  int, 0444);
 MODULE_PARM_DESC(i2c_scan,"scan i2c bus at insmod time");
 
 static unsigned int i2c_udelay = 5;
 module_param(i2c_udelay, int, 0444);
-MODULE_PARM_DESC(i2c_udelay,"soft i2c delay at insmod time, in usecs "
-		"(should be 5 or higher). Lower value means higher bus speed.");
+MODULE_PARM_DESC(i2c_udelay, "soft i2c delay at insmod time, in usecs (should be 5 or higher). Lower value means higher bus speed.");
 
 /* ----------------------------------------------------------------------- */
 /* I2C functions - bitbanging adapter (software i2c)                       */
@@ -99,7 +85,7 @@ static int bttv_bit_getsda(void *data)
 	return state;
 }
 
-static struct i2c_algo_bit_data bttv_i2c_algo_bit_template = {
+static const struct i2c_algo_bit_data bttv_i2c_algo_bit_template = {
 	.setsda  = bttv_bit_setsda,
 	.setscl  = bttv_bit_setscl,
 	.getsda  = bttv_bit_getsda,
@@ -349,13 +335,13 @@ static void do_i2c_scan(char *name, struct i2c_client *c)
 /* init + register i2c adapter */
 int init_bttv_i2c(struct bttv *btv)
 {
-	strlcpy(btv->i2c_client.name, "bttv internal", I2C_NAME_SIZE);
+	strscpy(btv->i2c_client.name, "bttv internal", I2C_NAME_SIZE);
 
 	if (i2c_hw)
 		btv->use_i2c_hw = 1;
 	if (btv->use_i2c_hw) {
 		/* bt878 */
-		strlcpy(btv->c.i2c_adap.name, "bt878",
+		strscpy(btv->c.i2c_adap.name, "bt878",
 			sizeof(btv->c.i2c_adap.name));
 		btv->c.i2c_adap.algo = &bttv_algo;
 	} else {
@@ -364,7 +350,7 @@ int init_bttv_i2c(struct bttv *btv)
 		if (i2c_udelay<5)
 			i2c_udelay=5;
 
-		strlcpy(btv->c.i2c_adap.name, "bttv",
+		strscpy(btv->c.i2c_adap.name, "bttv",
 			sizeof(btv->c.i2c_adap.name));
 		btv->i2c_algo = bttv_i2c_algo_bit_template;
 		btv->i2c_algo.udelay = i2c_udelay;

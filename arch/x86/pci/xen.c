@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Xen PCI - handle PCI (INTx) and MSI infrastructure calls for PV, HVM and
  * initial domain support. We also handle the DSDT _PRT callbacks for GSI's
@@ -168,7 +169,7 @@ static int xen_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 	if (type == PCI_CAP_ID_MSI && nvec > 1)
 		return 1;
 
-	v = kzalloc(sizeof(int) * max(1, nvec), GFP_KERNEL);
+	v = kcalloc(max(1, nvec), sizeof(int), GFP_KERNEL);
 	if (!v)
 		return -ENOMEM;
 
@@ -234,23 +235,14 @@ static int xen_hvm_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 		return 1;
 
 	for_each_pci_msi_entry(msidesc, dev) {
-		__pci_read_msi_msg(msidesc, &msg);
-		pirq = MSI_ADDR_EXT_DEST_ID(msg.address_hi) |
-			((msg.address_lo >> MSI_ADDR_DEST_ID_SHIFT) & 0xff);
-		if (msg.data != XEN_PIRQ_MSI_DATA ||
-		    xen_irq_from_pirq(pirq) < 0) {
-			pirq = xen_allocate_pirq_msi(dev, msidesc);
-			if (pirq < 0) {
-				irq = -ENODEV;
-				goto error;
-			}
-			xen_msi_compose_msg(dev, pirq, &msg);
-			__pci_write_msi_msg(msidesc, &msg);
-			dev_dbg(&dev->dev, "xen: msi bound to pirq=%d\n", pirq);
-		} else {
-			dev_dbg(&dev->dev,
-				"xen: msi already bound to pirq=%d\n", pirq);
+		pirq = xen_allocate_pirq_msi(dev, msidesc);
+		if (pirq < 0) {
+			irq = -ENODEV;
+			goto error;
 		}
+		xen_msi_compose_msg(dev, pirq, &msg);
+		__pci_write_msi_msg(msidesc, &msg);
+		dev_dbg(&dev->dev, "xen: msi bound to pirq=%d\n", pirq);
 		irq = xen_bind_pirq_msi_to_irq(dev, msidesc, pirq,
 					       (type == PCI_CAP_ID_MSI) ? nvec : 1,
 					       (type == PCI_CAP_ID_MSIX) ?
@@ -264,8 +256,8 @@ static int xen_hvm_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 	return 0;
 
 error:
-	dev_err(&dev->dev,
-		"Xen PCI frontend has not registered MSI/MSI-X support!\n");
+	dev_err(&dev->dev, "Failed to create MSI%s! ret=%d!\n",
+		type == PCI_CAP_ID_MSI ? "" : "-X", irq);
 	return irq;
 }
 
@@ -418,10 +410,8 @@ int __init pci_xen_init(void)
 	pcibios_enable_irq = xen_pcifront_enable_irq;
 	pcibios_disable_irq = NULL;
 
-#ifdef CONFIG_ACPI
 	/* Keep ACPI out of the picture */
-	acpi_noirq = 1;
-#endif
+	acpi_noirq_set();
 
 #ifdef CONFIG_PCI_MSI
 	x86_msi.setup_msi_irqs = xen_setup_msi_irqs;
@@ -456,7 +446,7 @@ void __init xen_msi_init(void)
 
 int __init pci_xen_hvm_init(void)
 {
-	if (!xen_feature(XENFEAT_hvm_pirqs))
+	if (!xen_have_vector_callback || !xen_feature(XENFEAT_hvm_pirqs))
 		return 0;
 
 #ifdef CONFIG_ACPI

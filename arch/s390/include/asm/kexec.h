@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright IBM Corp. 2005
  *
@@ -10,6 +11,7 @@
 
 #include <asm/processor.h>
 #include <asm/page.h>
+#include <asm/setup.h>
 /*
  * KEXEC_SOURCE_MEMORY_LIMIT maximum page get_free_page can return.
  * I.e. Maximum page that is mapped directly into kernel memory,
@@ -41,26 +43,38 @@
 /* The native architecture */
 #define KEXEC_ARCH KEXEC_ARCH_S390
 
-/*
- * Size for s390x ELF notes per CPU
- *
- * Seven notes plus zero note at the end: prstatus, fpregset, timer,
- * tod_cmp, tod_reg, control regs, and prefix
- */
-#define KEXEC_NOTE_BYTES \
-	(ALIGN(sizeof(struct elf_note), 4) * 8 + \
-	 ALIGN(sizeof("CORE"), 4) * 7 + \
-	 ALIGN(sizeof(struct elf_prstatus), 4) + \
-	 ALIGN(sizeof(elf_fpregset_t), 4) + \
-	 ALIGN(sizeof(u64), 4) + \
-	 ALIGN(sizeof(u64), 4) + \
-	 ALIGN(sizeof(u32), 4) + \
-	 ALIGN(sizeof(u64) * 16, 4) + \
-	 ALIGN(sizeof(u32), 4) \
-	)
+/* Allow kexec_file to load a segment to 0 */
+#define KEXEC_BUF_MEM_UNKNOWN -1
 
 /* Provide a dummy definition to avoid build failures. */
 static inline void crash_setup_regs(struct pt_regs *newregs,
 					struct pt_regs *oldregs) { }
+
+struct kimage;
+struct s390_load_data {
+	/* Pointer to the kernel buffer. Used to register cmdline etc.. */
+	void *kernel_buf;
+
+	/* Load address of the kernel_buf. */
+	unsigned long kernel_mem;
+
+	/* Parmarea in the kernel buffer. */
+	struct parmarea *parm;
+
+	/* Total size of loaded segments in memory. Used as an offset. */
+	size_t memsz;
+
+	struct ipl_report *report;
+};
+
+int s390_verify_sig(const char *kernel, unsigned long kernel_len);
+void *kexec_file_add_components(struct kimage *image,
+				int (*add_kernel)(struct kimage *image,
+						  struct s390_load_data *data));
+int arch_kexec_do_relocs(int r_type, void *loc, unsigned long val,
+			 unsigned long addr);
+
+extern const struct kexec_file_ops s390_kexec_image_ops;
+extern const struct kexec_file_ops s390_kexec_elf_ops;
 
 #endif /*_S390_KEXEC_H */

@@ -13,6 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/notifier.h>
 #include <linux/delay.h>
 #include <linux/rtc/ds1685.h>
@@ -37,6 +38,7 @@
 extern struct platform_device ip32_rtc_device;
 
 static struct timer_list power_timer, blink_timer;
+static unsigned long blink_timer_timeout;
 static int has_panicked, shutting_down;
 
 static __noreturn void ip32_poweroff(void *data)
@@ -70,11 +72,11 @@ static void ip32_machine_restart(char *cmd)
 	unreachable();
 }
 
-static void blink_timeout(unsigned long data)
+static void blink_timeout(struct timer_list *unused)
 {
 	unsigned long led = mace->perif.ctrl.misc ^ MACEISA_LED_RED;
 	mace->perif.ctrl.misc = led;
-	mod_timer(&blink_timer, jiffies + data);
+	mod_timer(&blink_timer, jiffies + blink_timer_timeout);
 }
 
 static void ip32_machine_halt(void)
@@ -82,7 +84,7 @@ static void ip32_machine_halt(void)
 	ip32_poweroff(&ip32_rtc_device);
 }
 
-static void power_timeout(unsigned long data)
+static void power_timeout(struct timer_list *unused)
 {
 	ip32_poweroff(&ip32_rtc_device);
 }
@@ -98,11 +100,10 @@ void ip32_prepare_poweroff(void)
 	}
 
 	shutting_down = 1;
-	blink_timer.data = POWERDOWN_FREQ;
-	blink_timeout(POWERDOWN_FREQ);
+	blink_timer_timeout = POWERDOWN_FREQ;
+	blink_timeout(&blink_timer);
 
-	init_timer(&power_timer);
-	power_timer.function = power_timeout;
+	timer_setup(&power_timer, power_timeout, 0);
 	power_timer.expires = jiffies + POWERDOWN_TIMEOUT * HZ;
 	add_timer(&power_timer);
 }
@@ -120,8 +121,8 @@ static int panic_event(struct notifier_block *this, unsigned long event,
 	led = mace->perif.ctrl.misc | MACEISA_LED_GREEN;
 	mace->perif.ctrl.misc = led;
 
-	blink_timer.data = PANIC_FREQ;
-	blink_timeout(PANIC_FREQ);
+	blink_timer_timeout = PANIC_FREQ;
+	blink_timeout(&blink_timer);
 
 	return NOTIFY_DONE;
 }
@@ -142,8 +143,7 @@ static __init int ip32_reboot_setup(void)
 	_machine_halt = ip32_machine_halt;
 	pm_power_off = ip32_machine_halt;
 
-	init_timer(&blink_timer);
-	blink_timer.function = blink_timeout;
+	timer_setup(&blink_timer, blink_timeout, 0);
 	atomic_notifier_chain_register(&panic_notifier_list, &panic_block);
 
 	return 0;

@@ -1,0 +1,53 @@
+// Definitions for Pi433
+/dts-v1/;
+/plugin/;
+
+/ {
+	compatible = "bcm,bcm2835", "bcm,bcm2708", "bcm,bcm2709";
+
+	fragment@0 {
+		target = <&spi0>;
+		__overlay__ {
+			status = "okay";
+
+			spidev@0{
+				status = "disabled";
+			};
+
+			spidev@1{
+				status = "disabled";
+			};
+		};
+	};
+
+	fragment@1 {
+		target = <&gpio>;
+		__overlay__ {
+			pi433_pins: pi433_pins {
+				brcm,pins = <7 25 24>;
+				brcm,function = <0 0 0>; // in in in
+			};
+		};
+	};
+
+	fragment@2 {
+		target = <&spi0>;
+		__overlay__ {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "okay";
+
+			pi433: pi433@0 {
+				compatible = "Smarthome-Wolf,pi433";
+				reg = <0>;
+				spi-max-frequency = <10000000>;
+				status = "okay";
+
+				pinctrl-0 = <&pi433_pins>;
+				DIO0-gpio = <&gpio 24 0>;
+				DIO1-gpio = <&gpio 25 0>;
+				DIO2-gpio = <&gpio  7 0>;
+			};
+		};
+	};
+};

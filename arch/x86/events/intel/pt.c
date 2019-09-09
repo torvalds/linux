@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Intel(R) Processor Trace PMU driver for perf
  * Copyright (c) 2013-2014, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  *
  * Intel PT is specified in the Intel Architecture Instruction Set Extensions
  * Programming Reference:
@@ -28,6 +20,7 @@
 #include <asm/insn.h>
 #include <asm/io.h>
 #include <asm/intel_pt.h>
+#include <asm/intel-family.h>
 
 #include "../perf_event.h"
 #include "pt.h"
@@ -35,13 +28,6 @@
 static DEFINE_PER_CPU(struct pt, pt_ctx);
 
 static struct pt_pmu pt_pmu;
-
-enum cpuid_regs {
-	CR_EAX = 0,
-	CR_ECX,
-	CR_EDX,
-	CR_EBX
-};
 
 /*
  * Capabilities of Intel PT hardware, such as number of address bits or
@@ -64,31 +50,39 @@ static struct pt_cap_desc {
 	u8		reg;
 	u32		mask;
 } pt_caps[] = {
-	PT_CAP(max_subleaf,		0, CR_EAX, 0xffffffff),
-	PT_CAP(cr3_filtering,		0, CR_EBX, BIT(0)),
-	PT_CAP(psb_cyc,			0, CR_EBX, BIT(1)),
-	PT_CAP(ip_filtering,		0, CR_EBX, BIT(2)),
-	PT_CAP(mtc,			0, CR_EBX, BIT(3)),
-	PT_CAP(ptwrite,			0, CR_EBX, BIT(4)),
-	PT_CAP(power_event_trace,	0, CR_EBX, BIT(5)),
-	PT_CAP(topa_output,		0, CR_ECX, BIT(0)),
-	PT_CAP(topa_multiple_entries,	0, CR_ECX, BIT(1)),
-	PT_CAP(single_range_output,	0, CR_ECX, BIT(2)),
-	PT_CAP(payloads_lip,		0, CR_ECX, BIT(31)),
-	PT_CAP(num_address_ranges,	1, CR_EAX, 0x3),
-	PT_CAP(mtc_periods,		1, CR_EAX, 0xffff0000),
-	PT_CAP(cycle_thresholds,	1, CR_EBX, 0xffff),
-	PT_CAP(psb_periods,		1, CR_EBX, 0xffff0000),
+	PT_CAP(max_subleaf,		0, CPUID_EAX, 0xffffffff),
+	PT_CAP(cr3_filtering,		0, CPUID_EBX, BIT(0)),
+	PT_CAP(psb_cyc,			0, CPUID_EBX, BIT(1)),
+	PT_CAP(ip_filtering,		0, CPUID_EBX, BIT(2)),
+	PT_CAP(mtc,			0, CPUID_EBX, BIT(3)),
+	PT_CAP(ptwrite,			0, CPUID_EBX, BIT(4)),
+	PT_CAP(power_event_trace,	0, CPUID_EBX, BIT(5)),
+	PT_CAP(topa_output,		0, CPUID_ECX, BIT(0)),
+	PT_CAP(topa_multiple_entries,	0, CPUID_ECX, BIT(1)),
+	PT_CAP(single_range_output,	0, CPUID_ECX, BIT(2)),
+	PT_CAP(output_subsys,		0, CPUID_ECX, BIT(3)),
+	PT_CAP(payloads_lip,		0, CPUID_ECX, BIT(31)),
+	PT_CAP(num_address_ranges,	1, CPUID_EAX, 0x3),
+	PT_CAP(mtc_periods,		1, CPUID_EAX, 0xffff0000),
+	PT_CAP(cycle_thresholds,	1, CPUID_EBX, 0xffff),
+	PT_CAP(psb_periods,		1, CPUID_EBX, 0xffff0000),
 };
 
-static u32 pt_cap_get(enum pt_capabilities cap)
+u32 intel_pt_validate_cap(u32 *caps, enum pt_capabilities capability)
 {
-	struct pt_cap_desc *cd = &pt_caps[cap];
-	u32 c = pt_pmu.caps[cd->leaf * PT_CPUID_REGS_NUM + cd->reg];
+	struct pt_cap_desc *cd = &pt_caps[capability];
+	u32 c = caps[cd->leaf * PT_CPUID_REGS_NUM + cd->reg];
 	unsigned int shift = __ffs(cd->mask);
 
 	return (c & cd->mask) >> shift;
 }
+EXPORT_SYMBOL_GPL(intel_pt_validate_cap);
+
+u32 intel_pt_validate_hw_cap(enum pt_capabilities cap)
+{
+	return intel_pt_validate_cap(pt_pmu.caps, cap);
+}
+EXPORT_SYMBOL_GPL(intel_pt_validate_hw_cap);
 
 static ssize_t pt_cap_show(struct device *cdev,
 			   struct device_attribute *attr,
@@ -98,26 +92,36 @@ static ssize_t pt_cap_show(struct device *cdev,
 		container_of(attr, struct dev_ext_attribute, attr);
 	enum pt_capabilities cap = (long)ea->var;
 
-	return snprintf(buf, PAGE_SIZE, "%x\n", pt_cap_get(cap));
+	return snprintf(buf, PAGE_SIZE, "%x\n", intel_pt_validate_hw_cap(cap));
 }
 
-static struct attribute_group pt_cap_group = {
+static struct attribute_group pt_cap_group __ro_after_init = {
 	.name	= "caps",
 };
 
+PMU_FORMAT_ATTR(pt,		"config:0"	);
 PMU_FORMAT_ATTR(cyc,		"config:1"	);
+PMU_FORMAT_ATTR(pwr_evt,	"config:4"	);
+PMU_FORMAT_ATTR(fup_on_ptw,	"config:5"	);
 PMU_FORMAT_ATTR(mtc,		"config:9"	);
 PMU_FORMAT_ATTR(tsc,		"config:10"	);
 PMU_FORMAT_ATTR(noretcomp,	"config:11"	);
+PMU_FORMAT_ATTR(ptw,		"config:12"	);
+PMU_FORMAT_ATTR(branch,		"config:13"	);
 PMU_FORMAT_ATTR(mtc_period,	"config:14-17"	);
 PMU_FORMAT_ATTR(cyc_thresh,	"config:19-22"	);
 PMU_FORMAT_ATTR(psb_period,	"config:24-27"	);
 
 static struct attribute *pt_formats_attr[] = {
+	&format_attr_pt.attr,
 	&format_attr_cyc.attr,
+	&format_attr_pwr_evt.attr,
+	&format_attr_fup_on_ptw.attr,
 	&format_attr_mtc.attr,
 	&format_attr_tsc.attr,
 	&format_attr_noretcomp.attr,
+	&format_attr_ptw.attr,
+	&format_attr_branch.attr,
 	&format_attr_mtc_period.attr,
 	&format_attr_cyc_thresh.attr,
 	&format_attr_psb_period.attr,
@@ -198,6 +202,19 @@ static int __init pt_pmu_hw_init(void)
 		pt_pmu.tsc_art_den = eax;
 	}
 
+	/* model-specific quirks */
+	switch (boot_cpu_data.x86_model) {
+	case INTEL_FAM6_BROADWELL_CORE:
+	case INTEL_FAM6_BROADWELL_XEON_D:
+	case INTEL_FAM6_BROADWELL_GT3E:
+	case INTEL_FAM6_BROADWELL_X:
+		/* not setting BRANCH_EN will #GP, erratum BDM106 */
+		pt_pmu.branch_en_always_on = true;
+		break;
+	default:
+		break;
+	}
+
 	if (boot_cpu_has(X86_FEATURE_VMX)) {
 		/*
 		 * Intel SDM, 36.5 "Tracing post-VMXON" says that
@@ -213,10 +230,10 @@ static int __init pt_pmu_hw_init(void)
 
 	for (i = 0; i < PT_CPUID_LEAVES; i++) {
 		cpuid_count(20, i,
-			    &pt_pmu.caps[CR_EAX + i*PT_CPUID_REGS_NUM],
-			    &pt_pmu.caps[CR_EBX + i*PT_CPUID_REGS_NUM],
-			    &pt_pmu.caps[CR_ECX + i*PT_CPUID_REGS_NUM],
-			    &pt_pmu.caps[CR_EDX + i*PT_CPUID_REGS_NUM]);
+			    &pt_pmu.caps[CPUID_EAX + i*PT_CPUID_REGS_NUM],
+			    &pt_pmu.caps[CPUID_EBX + i*PT_CPUID_REGS_NUM],
+			    &pt_pmu.caps[CPUID_ECX + i*PT_CPUID_REGS_NUM],
+			    &pt_pmu.caps[CPUID_EDX + i*PT_CPUID_REGS_NUM]);
 	}
 
 	ret = -ENOMEM;
@@ -264,8 +281,20 @@ fail:
 #define RTIT_CTL_PTW	(RTIT_CTL_PTW_EN	| \
 			 RTIT_CTL_FUP_ON_PTW)
 
-#define PT_CONFIG_MASK (RTIT_CTL_TSC_EN		| \
+/*
+ * Bit 0 (TraceEn) in the attr.config is meaningless as the
+ * corresponding bit in the RTIT_CTL can only be controlled
+ * by the driver; therefore, repurpose it to mean: pass
+ * through the bit that was previously assumed to be always
+ * on for PT, thereby allowing the user to *not* set it if
+ * they so wish. See also pt_event_valid() and pt_config().
+ */
+#define RTIT_CTL_PASSTHROUGH RTIT_CTL_TRACEEN
+
+#define PT_CONFIG_MASK (RTIT_CTL_TRACEEN	| \
+			RTIT_CTL_TSC_EN		| \
 			RTIT_CTL_DISRETC	| \
+			RTIT_CTL_BRANCH_EN	| \
 			RTIT_CTL_CYC_PSB	| \
 			RTIT_CTL_MTC		| \
 			RTIT_CTL_PWR_EVT_EN	| \
@@ -281,16 +310,16 @@ static bool pt_event_valid(struct perf_event *event)
 		return false;
 
 	if (config & RTIT_CTL_CYC_PSB) {
-		if (!pt_cap_get(PT_CAP_psb_cyc))
+		if (!intel_pt_validate_hw_cap(PT_CAP_psb_cyc))
 			return false;
 
-		allowed = pt_cap_get(PT_CAP_psb_periods);
+		allowed = intel_pt_validate_hw_cap(PT_CAP_psb_periods);
 		requested = (config & RTIT_CTL_PSB_FREQ) >>
 			RTIT_CTL_PSB_FREQ_OFFSET;
 		if (requested && (!(allowed & BIT(requested))))
 			return false;
 
-		allowed = pt_cap_get(PT_CAP_cycle_thresholds);
+		allowed = intel_pt_validate_hw_cap(PT_CAP_cycle_thresholds);
 		requested = (config & RTIT_CTL_CYC_THRESH) >>
 			RTIT_CTL_CYC_THRESH_OFFSET;
 		if (requested && (!(allowed & BIT(requested))))
@@ -305,10 +334,10 @@ static bool pt_event_valid(struct perf_event *event)
 		 * Spec says that setting mtc period bits while mtc bit in
 		 * CPUID is 0 will #GP, so better safe than sorry.
 		 */
-		if (!pt_cap_get(PT_CAP_mtc))
+		if (!intel_pt_validate_hw_cap(PT_CAP_mtc))
 			return false;
 
-		allowed = pt_cap_get(PT_CAP_mtc_periods);
+		allowed = intel_pt_validate_hw_cap(PT_CAP_mtc_periods);
 		if (!allowed)
 			return false;
 
@@ -320,16 +349,43 @@ static bool pt_event_valid(struct perf_event *event)
 	}
 
 	if (config & RTIT_CTL_PWR_EVT_EN &&
-	    !pt_cap_get(PT_CAP_power_event_trace))
+	    !intel_pt_validate_hw_cap(PT_CAP_power_event_trace))
 		return false;
 
 	if (config & RTIT_CTL_PTW) {
-		if (!pt_cap_get(PT_CAP_ptwrite))
+		if (!intel_pt_validate_hw_cap(PT_CAP_ptwrite))
 			return false;
 
 		/* FUPonPTW without PTW doesn't make sense */
 		if ((config & RTIT_CTL_FUP_ON_PTW) &&
 		    !(config & RTIT_CTL_PTW_EN))
+			return false;
+	}
+
+	/*
+	 * Setting bit 0 (TraceEn in RTIT_CTL MSR) in the attr.config
+	 * clears the assomption that BranchEn must always be enabled,
+	 * as was the case with the first implementation of PT.
+	 * If this bit is not set, the legacy behavior is preserved
+	 * for compatibility with the older userspace.
+	 *
+	 * Re-using bit 0 for this purpose is fine because it is never
+	 * directly set by the user; previous attempts at setting it in
+	 * the attr.config resulted in -EINVAL.
+	 */
+	if (config & RTIT_CTL_PASSTHROUGH) {
+		/*
+		 * Disallow not setting BRANCH_EN where BRANCH_EN is
+		 * always required.
+		 */
+		if (pt_pmu.branch_en_always_on &&
+		    !(config & RTIT_CTL_BRANCH_EN))
+			return false;
+	} else {
+		/*
+		 * Disallow BRANCH_EN without the PASSTHROUGH.
+		 */
+		if (config & RTIT_CTL_BRANCH_EN)
 			return false;
 	}
 
@@ -412,15 +468,30 @@ static u64 pt_config_filters(struct perf_event *event)
 
 static void pt_config(struct perf_event *event)
 {
+	struct pt *pt = this_cpu_ptr(&pt_ctx);
 	u64 reg;
 
-	if (!event->hw.itrace_started) {
-		event->hw.itrace_started = 1;
+	/* First round: clear STATUS, in particular the PSB byte counter. */
+	if (!event->hw.config) {
+		perf_event_itrace_started(event);
 		wrmsrl(MSR_IA32_RTIT_STATUS, 0);
 	}
 
 	reg = pt_config_filters(event);
-	reg |= RTIT_CTL_TOPA | RTIT_CTL_BRANCH_EN | RTIT_CTL_TRACEEN;
+	reg |= RTIT_CTL_TOPA | RTIT_CTL_TRACEEN;
+
+	/*
+	 * Previously, we had BRANCH_EN on by default, but now that PT has
+	 * grown features outside of branch tracing, it is useful to allow
+	 * the user to disable it. Setting bit 0 in the event's attr.config
+	 * allows BRANCH_EN to pass through instead of being always on. See
+	 * also the comment in pt_event_valid().
+	 */
+	if (event->attr.config & BIT(0)) {
+		reg |= event->attr.config & RTIT_CTL_BRANCH_EN;
+	} else {
+		reg |= RTIT_CTL_BRANCH_EN;
+	}
 
 	if (!event->attr.exclude_kernel)
 		reg |= RTIT_CTL_OS;
@@ -430,11 +501,15 @@ static void pt_config(struct perf_event *event)
 	reg |= (event->attr.config & PT_CONFIG_MASK);
 
 	event->hw.config = reg;
-	wrmsrl(MSR_IA32_RTIT_CTL, reg);
+	if (READ_ONCE(pt->vmx_on))
+		perf_aux_output_flag(&pt->handle, PERF_AUX_FLAG_PARTIAL);
+	else
+		wrmsrl(MSR_IA32_RTIT_CTL, reg);
 }
 
 static void pt_config_stop(struct perf_event *event)
 {
+	struct pt *pt = this_cpu_ptr(&pt_ctx);
 	u64 ctl = READ_ONCE(event->hw.config);
 
 	/* may be already stopped by a PMI */
@@ -442,7 +517,8 @@ static void pt_config_stop(struct perf_event *event)
 		return;
 
 	ctl &= ~RTIT_CTL_TRACEEN;
-	wrmsrl(MSR_IA32_RTIT_CTL, ctl);
+	if (!READ_ONCE(pt->vmx_on))
+		wrmsrl(MSR_IA32_RTIT_CTL, ctl);
 
 	WRITE_ONCE(event->hw.config, ctl);
 
@@ -522,7 +598,7 @@ static struct topa *topa_alloc(int cpu, gfp_t gfp)
 	 * In case of singe-entry ToPA, always put the self-referencing END
 	 * link as the 2nd entry in the table
 	 */
-	if (!pt_cap_get(PT_CAP_topa_multiple_entries)) {
+	if (!intel_pt_validate_hw_cap(PT_CAP_topa_multiple_entries)) {
 		TOPA_ENTRY(topa, 1)->base = topa->phys >> TOPA_SHIFT;
 		TOPA_ENTRY(topa, 1)->end = 1;
 	}
@@ -562,7 +638,7 @@ static void topa_insert_table(struct pt_buffer *buf, struct topa *topa)
 	topa->offset = last->offset + last->size;
 	buf->last = topa;
 
-	if (!pt_cap_get(PT_CAP_topa_multiple_entries))
+	if (!intel_pt_validate_hw_cap(PT_CAP_topa_multiple_entries))
 		return;
 
 	BUG_ON(last->last != TENTS_PER_PAGE - 1);
@@ -578,7 +654,7 @@ static void topa_insert_table(struct pt_buffer *buf, struct topa *topa)
 static bool topa_table_full(struct topa *topa)
 {
 	/* single-entry ToPA is a special case */
-	if (!pt_cap_get(PT_CAP_topa_multiple_entries))
+	if (!intel_pt_validate_hw_cap(PT_CAP_topa_multiple_entries))
 		return !!topa->last;
 
 	return topa->last == TENTS_PER_PAGE - 1;
@@ -614,7 +690,8 @@ static int topa_insert_pages(struct pt_buffer *buf, gfp_t gfp)
 
 	TOPA_ENTRY(topa, -1)->base = page_to_phys(p) >> TOPA_SHIFT;
 	TOPA_ENTRY(topa, -1)->size = order;
-	if (!buf->snapshot && !pt_cap_get(PT_CAP_topa_multiple_entries)) {
+	if (!buf->snapshot &&
+	    !intel_pt_validate_hw_cap(PT_CAP_topa_multiple_entries)) {
 		TOPA_ENTRY(topa, -1)->intr = 1;
 		TOPA_ENTRY(topa, -1)->stop = 1;
 	}
@@ -649,7 +726,7 @@ static void pt_topa_dump(struct pt_buffer *buf)
 				 topa->table[i].intr ? 'I' : ' ',
 				 topa->table[i].stop ? 'S' : ' ',
 				 *(u64 *)&topa->table[i]);
-			if ((pt_cap_get(PT_CAP_topa_multiple_entries) &&
+			if ((intel_pt_validate_hw_cap(PT_CAP_topa_multiple_entries) &&
 			     topa->table[i].stop) ||
 			    topa->table[i].end)
 				break;
@@ -752,9 +829,10 @@ static void pt_handle_status(struct pt *pt)
 		 * means we are already losing data; need to let the decoder
 		 * know.
 		 */
-		if (!pt_cap_get(PT_CAP_topa_multiple_entries) ||
+		if (!intel_pt_validate_hw_cap(PT_CAP_topa_multiple_entries) ||
 		    buf->output_off == sizes(TOPA_ENTRY(buf->cur, buf->cur_idx)->size)) {
-			local_inc(&buf->lost);
+			perf_aux_output_flag(&pt->handle,
+			                     PERF_AUX_FLAG_TRUNCATED);
 			advance++;
 		}
 	}
@@ -763,7 +841,8 @@ static void pt_handle_status(struct pt *pt)
 	 * Also on single-entry ToPA implementations, interrupt will come
 	 * before the output reaches its output region's boundary.
 	 */
-	if (!pt_cap_get(PT_CAP_topa_multiple_entries) && !buf->snapshot &&
+	if (!intel_pt_validate_hw_cap(PT_CAP_topa_multiple_entries) &&
+	    !buf->snapshot &&
 	    pt_buffer_region_size(buf) - buf->output_off <= TOPA_PMI_MARGIN) {
 		void *head = pt_buffer_region(buf);
 
@@ -847,12 +926,14 @@ static int pt_buffer_reset_markers(struct pt_buffer *buf,
 
 	/* can't stop in the middle of an output region */
 	if (buf->output_off + handle->size + 1 <
-	    sizes(TOPA_ENTRY(buf->cur, buf->cur_idx)->size))
+	    sizes(TOPA_ENTRY(buf->cur, buf->cur_idx)->size)) {
+		perf_aux_output_flag(handle, PERF_AUX_FLAG_TRUNCATED);
 		return -EINVAL;
+	}
 
 
 	/* single entry ToPA is handled by marking all regions STOP=1 INT=1 */
-	if (!pt_cap_get(PT_CAP_topa_multiple_entries))
+	if (!intel_pt_validate_hw_cap(PT_CAP_topa_multiple_entries))
 		return 0;
 
 	/* clear STOP and INT from current entry */
@@ -1003,7 +1084,7 @@ static int pt_buffer_init_topa(struct pt_buffer *buf, unsigned long nr_pages,
 	pt_buffer_setup_topa_index(buf);
 
 	/* link last table to the first one, unless we're double buffering */
-	if (pt_cap_get(PT_CAP_topa_multiple_entries)) {
+	if (intel_pt_validate_hw_cap(PT_CAP_topa_multiple_entries)) {
 		TOPA_ENTRY(buf->last, -1)->base = buf->first->phys >> TOPA_SHIFT;
 		TOPA_ENTRY(buf->last, -1)->end = 1;
 	}
@@ -1025,10 +1106,11 @@ static int pt_buffer_init_topa(struct pt_buffer *buf, unsigned long nr_pages,
  * Return:	Our private PT buffer structure.
  */
 static void *
-pt_buffer_setup_aux(int cpu, void **pages, int nr_pages, bool snapshot)
+pt_buffer_setup_aux(struct perf_event *event, void **pages,
+		    int nr_pages, bool snapshot)
 {
 	struct pt_buffer *buf;
-	int node, ret;
+	int node, ret, cpu = event->cpu;
 
 	if (!nr_pages)
 		return NULL;
@@ -1074,7 +1156,7 @@ static int pt_addr_filters_init(struct perf_event *event)
 	struct pt_filters *filters;
 	int node = event->cpu == -1 ? -1 : cpu_to_node(event->cpu);
 
-	if (!pt_cap_get(PT_CAP_num_address_ranges))
+	if (!intel_pt_validate_hw_cap(PT_CAP_num_address_ranges))
 		return 0;
 
 	filters = kzalloc_node(sizeof(struct pt_filters), GFP_KERNEL, node);
@@ -1107,11 +1189,15 @@ static int pt_event_addr_filters_validate(struct list_head *filters)
 	int range = 0;
 
 	list_for_each_entry(filter, filters, entry) {
-		/* PT doesn't support single address triggers */
-		if (!filter->range || !filter->size)
+		/*
+		 * PT doesn't support single address triggers and
+		 * 'start' filters.
+		 */
+		if (!filter->size ||
+		    filter->action == PERF_ADDR_FILTER_ACTION_START)
 			return -EOPNOTSUPP;
 
-		if (!filter->inode) {
+		if (!filter->path.dentry) {
 			if (!valid_kernel_ip(filter->offset))
 				return -EINVAL;
 
@@ -1119,7 +1205,7 @@ static int pt_event_addr_filters_validate(struct list_head *filters)
 				return -EINVAL;
 		}
 
-		if (++range > pt_cap_get(PT_CAP_num_address_ranges))
+		if (++range > intel_pt_validate_hw_cap(PT_CAP_num_address_ranges))
 			return -EOPNOTSUPP;
 	}
 
@@ -1129,7 +1215,8 @@ static int pt_event_addr_filters_validate(struct list_head *filters)
 static void pt_event_addr_filters_sync(struct perf_event *event)
 {
 	struct perf_addr_filters_head *head = perf_event_addr_filters(event);
-	unsigned long msr_a, msr_b, *offs = event->addr_filters_offs;
+	unsigned long msr_a, msr_b;
+	struct perf_addr_filter_range *fr = event->addr_filter_ranges;
 	struct pt_filters *filters = event->hw.addr_filters;
 	struct perf_addr_filter *filter;
 	int range = 0;
@@ -1138,17 +1225,20 @@ static void pt_event_addr_filters_sync(struct perf_event *event)
 		return;
 
 	list_for_each_entry(filter, &head->list, entry) {
-		if (filter->inode && !offs[range]) {
+		if (filter->path.dentry && !fr[range].start) {
 			msr_a = msr_b = 0;
 		} else {
 			/* apply the offset */
-			msr_a = filter->offset + offs[range];
-			msr_b = filter->size + msr_a - 1;
+			msr_a = fr[range].start;
+			msr_b = msr_a + fr[range].size - 1;
 		}
 
 		filters->filter[range].msr_a  = msr_a;
 		filters->filter[range].msr_b  = msr_b;
-		filters->filter[range].config = filter->filter ? 1 : 2;
+		if (filter->action == PERF_ADDR_FILTER_ACTION_FILTER)
+			filters->filter[range].config = 1;
+		else
+			filters->filter[range].config = 2;
 		range++;
 	}
 
@@ -1172,12 +1262,6 @@ void intel_pt_interrupt(void)
 	if (!READ_ONCE(pt->handle_nmi))
 		return;
 
-	/*
-	 * If VMX is on and PT does not support it, don't touch anything.
-	 */
-	if (READ_ONCE(pt->vmx_on))
-		return;
-
 	if (!event)
 		return;
 
@@ -1193,8 +1277,7 @@ void intel_pt_interrupt(void)
 
 	pt_update_head(pt);
 
-	perf_aux_output_end(&pt->handle, local_xchg(&buf->data_size, 0),
-			    local_xchg(&buf->lost, 0));
+	perf_aux_output_end(&pt->handle, local_xchg(&buf->data_size, 0));
 
 	if (!event->hw.state) {
 		int ret;
@@ -1209,7 +1292,7 @@ void intel_pt_interrupt(void)
 		/* snapshot counters don't use PMI, so it's safe */
 		ret = pt_buffer_reset_markers(buf, &pt->handle);
 		if (ret) {
-			perf_aux_output_end(&pt->handle, 0, true);
+			perf_aux_output_end(&pt->handle, 0);
 			return;
 		}
 
@@ -1238,12 +1321,19 @@ void intel_pt_handle_vmx(int on)
 	local_irq_save(flags);
 	WRITE_ONCE(pt->vmx_on, on);
 
-	if (on) {
-		/* prevent pt_config_stop() from writing RTIT_CTL */
-		event = pt->handle.event;
-		if (event)
-			event->hw.config = 0;
-	}
+	/*
+	 * If an AUX transaction is in progress, it will contain
+	 * gap(s), so flag it PARTIAL to inform the user.
+	 */
+	event = pt->handle.event;
+	if (event)
+		perf_aux_output_flag(&pt->handle,
+		                     PERF_AUX_FLAG_PARTIAL);
+
+	/* Turn PTs back on */
+	if (!on && event)
+		wrmsrl(MSR_IA32_RTIT_CTL, event->hw.config);
+
 	local_irq_restore(flags);
 }
 EXPORT_SYMBOL_GPL(intel_pt_handle_vmx);
@@ -1257,9 +1347,6 @@ static void pt_event_start(struct perf_event *event, int mode)
 	struct hw_perf_event *hwc = &event->hw;
 	struct pt *pt = this_cpu_ptr(&pt_ctx);
 	struct pt_buffer *buf;
-
-	if (READ_ONCE(pt->vmx_on))
-		return;
 
 	buf = perf_aux_output_begin(&pt->handle, event);
 	if (!buf)
@@ -1281,7 +1368,7 @@ static void pt_event_start(struct perf_event *event, int mode)
 	return;
 
 fail_end_stop:
-	perf_aux_output_end(&pt->handle, 0, true);
+	perf_aux_output_end(&pt->handle, 0);
 fail_stop:
 	hwc->state = PERF_HES_STOPPED;
 }
@@ -1322,8 +1409,7 @@ static void pt_event_stop(struct perf_event *event, int mode)
 			pt->handle.head =
 				local_xchg(&buf->data_size,
 					   buf->nr_pages << PAGE_SHIFT);
-		perf_aux_output_end(&pt->handle, local_xchg(&buf->data_size, 0),
-				    local_xchg(&buf->lost, 0));
+		perf_aux_output_end(&pt->handle, local_xchg(&buf->data_size, 0));
 	}
 }
 
@@ -1425,14 +1511,13 @@ static __init int pt_init(void)
 	if (ret)
 		return ret;
 
-	if (!pt_cap_get(PT_CAP_topa_output)) {
+	if (!intel_pt_validate_hw_cap(PT_CAP_topa_output)) {
 		pr_warn("ToPA output is not supported on this CPU\n");
 		return -ENODEV;
 	}
 
-	if (!pt_cap_get(PT_CAP_topa_multiple_entries))
-		pt_pmu.pmu.capabilities =
-			PERF_PMU_CAP_AUX_NO_SG | PERF_PMU_CAP_AUX_SW_DOUBLEBUF;
+	if (!intel_pt_validate_hw_cap(PT_CAP_topa_multiple_entries))
+		pt_pmu.pmu.capabilities = PERF_PMU_CAP_AUX_NO_SG;
 
 	pt_pmu.pmu.capabilities	|= PERF_PMU_CAP_EXCLUSIVE | PERF_PMU_CAP_ITRACE;
 	pt_pmu.pmu.attr_groups		 = pt_attr_groups;
@@ -1448,7 +1533,7 @@ static __init int pt_init(void)
 	pt_pmu.pmu.addr_filters_sync     = pt_event_addr_filters_sync;
 	pt_pmu.pmu.addr_filters_validate = pt_event_addr_filters_validate;
 	pt_pmu.pmu.nr_addr_filters       =
-		pt_cap_get(PT_CAP_num_address_ranges);
+		intel_pt_validate_hw_cap(PT_CAP_num_address_ranges);
 
 	ret = perf_pmu_register(&pt_pmu.pmu, "intel_pt", -1);
 

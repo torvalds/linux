@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/kthread.h>
@@ -20,6 +21,8 @@ static u64 bm_cnt;
 static u64 bm_stddev;
 static unsigned int bm_avg;
 static unsigned int bm_std;
+
+static bool ok_to_run;
 
 /*
  * This gets called in a loop recording the time it took to write
@@ -151,10 +154,18 @@ static int benchmark_event_kthread(void *arg)
 		trace_do_benchmark();
 
 		/*
-		 * We don't go to sleep, but let others
-		 * run as well.
+		 * We don't go to sleep, but let others run as well.
+		 * This is bascially a "yield()" to let any task that
+		 * wants to run, schedule in, but if the CPU is idle,
+		 * we'll keep burning cycles.
+		 *
+		 * Note the tasks_rcu_qs() version of cond_resched() will
+		 * notify synchronize_rcu_tasks() that this thread has
+		 * passed a quiescent state for rcu_tasks. Otherwise
+		 * this thread will never voluntarily schedule which would
+		 * block synchronize_rcu_tasks() indefinitely.
 		 */
-		cond_resched();
+		cond_resched_tasks_rcu_qs();
 	}
 
 	return 0;
@@ -164,11 +175,21 @@ static int benchmark_event_kthread(void *arg)
  * When the benchmark tracepoint is enabled, it calls this
  * function and the thread that calls the tracepoint is created.
  */
-void trace_benchmark_reg(void)
+int trace_benchmark_reg(void)
 {
+	if (!ok_to_run) {
+		pr_warning("trace benchmark cannot be started via kernel command line\n");
+		return -EBUSY;
+	}
+
 	bm_event_thread = kthread_run(benchmark_event_kthread,
 				      NULL, "event_benchmark");
-	WARN_ON(!bm_event_thread);
+	if (IS_ERR(bm_event_thread)) {
+		pr_warning("trace benchmark failed to create kernel thread\n");
+		return PTR_ERR(bm_event_thread);
+	}
+
+	return 0;
 }
 
 /*
@@ -182,6 +203,7 @@ void trace_benchmark_unreg(void)
 		return;
 
 	kthread_stop(bm_event_thread);
+	bm_event_thread = NULL;
 
 	strcpy(bm_str, "START");
 	bm_total = 0;
@@ -196,3 +218,12 @@ void trace_benchmark_unreg(void)
 	bm_avg = 0;
 	bm_stddev = 0;
 }
+
+static __init int ok_to_run_trace_benchmark(void)
+{
+	ok_to_run = true;
+
+	return 0;
+}
+
+early_initcall(ok_to_run_trace_benchmark);

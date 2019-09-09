@@ -1,22 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
     Dell Airplane Mode Switch driver
     Copyright (C) 2014-2015  Pali Rohár <pali.rohar@gmail.com>
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
 */
 
 #include <linux/module.h>
 #include <linux/acpi.h>
 #include <linux/rfkill.h>
 #include <linux/input.h>
+
+#include "dell-rbtn.h"
 
 enum rbtn_type {
 	RBTN_UNKNOWN,
@@ -110,7 +104,7 @@ static int rbtn_rfkill_set_block(void *data, bool blocked)
 	return -EINVAL;
 }
 
-static struct rfkill_ops rbtn_ops = {
+static const struct rfkill_ops rbtn_ops = {
 	.query = rbtn_rfkill_query,
 	.set_block = rbtn_rfkill_set_block,
 };
@@ -221,16 +215,27 @@ static const struct acpi_device_id rbtn_ids[] = {
 
 	/*
 	 * This driver can also handle the "DELLABC6" device that
-	 * appears on the XPS 13 9350, but that device is disabled
-	 * by the DSDT unless booted with acpi_osi="!Windows 2012"
-	 * acpi_osi="!Windows 2013".  Even if we boot that and bind
-	 * the driver, we seem to have inconsistent behavior in
-	 * which NetworkManager can get out of sync with the rfkill
-	 * state.
+	 * appears on the XPS 13 9350, but that device is disabled by
+	 * the DSDT unless booted with acpi_osi="!Windows 2012"
+	 * acpi_osi="!Windows 2013".
 	 *
-	 * On the XPS 13 9350 and similar laptops, we're not supposed to
-	 * use DELLABC6 at all.  Instead, we handle the rfkill button
-	 * via the intel-hid driver.
+	 * According to Mario at Dell:
+	 *
+	 *  DELLABC6 is a custom interface that was created solely to
+	 *  have airplane mode support for Windows 7.  For Windows 10
+	 *  the proper interface is to use that which is handled by
+	 *  intel-hid. A OEM airplane mode driver is not used.
+	 *
+	 *  Since the kernel doesn't identify as Windows 7 it would be
+	 *  incorrect to do attempt to use that interface.
+	 *
+	 * Even if we override _OSI and bind to DELLABC6, we end up with
+	 * inconsistent behavior in which userspace can get out of sync
+	 * with the rfkill state as it conflicts with events from
+	 * intel-hid.
+	 *
+	 * The upshot is that it is better to just ignore DELLABC6
+	 * devices.
 	 */
 
 	{ "", 0 },

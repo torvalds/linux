@@ -1,23 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *   Fujitu mb86a20s ISDB-T/ISDB-Tsb Module driver
  *
  *   Copyright (C) 2010-2013 Mauro Carvalho Chehab
  *   Copyright (C) 2009-2010 Douglas Landgraf <dougsland@redhat.com>
- *
- *   This program is free software; you can redistribute it and/or
- *   modify it under the terms of the GNU General Public License as
- *   published by the Free Software Foundation version 2.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *   General Public License for more details.
  */
 
 #include <linux/kernel.h>
 #include <asm/div64.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "mb86a20s.h"
 
 #define NUM_LAYERS 3
@@ -1967,6 +1959,7 @@ static int mb86a20s_read_status_and_stats(struct dvb_frontend *fe,
 	if (status_nr < 0) {
 		dev_err(&state->i2c->dev,
 			"%s: Can't read frontend lock status\n", __func__);
+		rc = status_nr;
 		goto error;
 	}
 
@@ -2054,12 +2047,12 @@ static void mb86a20s_release(struct dvb_frontend *fe)
 	kfree(state);
 }
 
-static int mb86a20s_get_frontend_algo(struct dvb_frontend *fe)
+static enum dvbfe_algo mb86a20s_get_frontend_algo(struct dvb_frontend *fe)
 {
-        return DVBFE_ALGO_HW;
+	return DVBFE_ALGO_HW;
 }
 
-static struct dvb_frontend_ops mb86a20s_ops;
+static const struct dvb_frontend_ops mb86a20s_ops;
 
 struct dvb_frontend *mb86a20s_attach(const struct mb86a20s_config *config,
 				    struct i2c_adapter *i2c)
@@ -2070,12 +2063,9 @@ struct dvb_frontend *mb86a20s_attach(const struct mb86a20s_config *config,
 	dev_dbg(&i2c->dev, "%s called.\n", __func__);
 
 	/* allocate memory for the internal state */
-	state = kzalloc(sizeof(struct mb86a20s_state), GFP_KERNEL);
-	if (state == NULL) {
-		dev_err(&i2c->dev,
-			"%s: unable to allocate memory for state\n", __func__);
-		goto error;
-	}
+	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	if (!state)
+		return NULL;
 
 	/* setup the state */
 	state->config = config;
@@ -2088,26 +2078,20 @@ struct dvb_frontend *mb86a20s_attach(const struct mb86a20s_config *config,
 
 	/* Check if it is a mb86a20s frontend */
 	rev = mb86a20s_readreg(state, 0);
-
-	if (rev == 0x13) {
-		dev_info(&i2c->dev,
-			 "Detected a Fujitsu mb86a20s frontend\n");
-	} else {
+	if (rev != 0x13) {
+		kfree(state);
 		dev_dbg(&i2c->dev,
 			"Frontend revision %d is unknown - aborting.\n",
 		       rev);
-		goto error;
+		return NULL;
 	}
 
+	dev_info(&i2c->dev, "Detected a Fujitsu mb86a20s frontend\n");
 	return &state->frontend;
-
-error:
-	kfree(state);
-	return NULL;
 }
 EXPORT_SYMBOL(mb86a20s_attach);
 
-static struct dvb_frontend_ops mb86a20s_ops = {
+static const struct dvb_frontend_ops mb86a20s_ops = {
 	.delsys = { SYS_ISDBT },
 	/* Use dib8000 values per default */
 	.info = {
@@ -2119,9 +2103,9 @@ static struct dvb_frontend_ops mb86a20s_ops = {
 			FE_CAN_TRANSMISSION_MODE_AUTO | FE_CAN_QAM_AUTO |
 			FE_CAN_GUARD_INTERVAL_AUTO    | FE_CAN_HIERARCHY_AUTO,
 		/* Actually, those values depend on the used tuner */
-		.frequency_min = 45000000,
-		.frequency_max = 864000000,
-		.frequency_stepsize = 62500,
+		.frequency_min_hz =  45 * MHz,
+		.frequency_max_hz = 864 * MHz,
+		.frequency_stepsize_hz = 62500,
 	},
 
 	.release = mb86a20s_release,

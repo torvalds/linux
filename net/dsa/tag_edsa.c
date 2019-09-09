@@ -1,16 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * net/dsa/tag_edsa.c - Ethertype DSA tagging
  * Copyright (c) 2008-2009 Marvell Semiconductor
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/etherdevice.h>
 #include <linux/list.h>
 #include <linux/slab.h>
+
 #include "dsa_priv.h"
 
 #define DSA_HLEN	4
@@ -18,7 +15,7 @@
 
 static struct sk_buff *edsa_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	struct dsa_slave_priv *p = netdev_priv(dev);
+	struct dsa_port *dp = dsa_slave_to_port(dev);
 	u8 *edsa_header;
 
 	/*
@@ -29,7 +26,7 @@ static struct sk_buff *edsa_xmit(struct sk_buff *skb, struct net_device *dev)
 	 */
 	if (skb->protocol == htons(ETH_P_8021Q)) {
 		if (skb_cow_head(skb, DSA_HLEN) < 0)
-			goto out_free;
+			return NULL;
 		skb_push(skb, DSA_HLEN);
 
 		memmove(skb->data, skb->data + DSA_HLEN, 2 * ETH_ALEN);
@@ -42,8 +39,8 @@ static struct sk_buff *edsa_xmit(struct sk_buff *skb, struct net_device *dev)
 		edsa_header[1] = ETH_P_EDSA & 0xff;
 		edsa_header[2] = 0x00;
 		edsa_header[3] = 0x00;
-		edsa_header[4] = 0x60 | p->parent->index;
-		edsa_header[5] = p->port << 3;
+		edsa_header[4] = 0x60 | dp->ds->index;
+		edsa_header[5] = dp->index << 3;
 
 		/*
 		 * Move CFI field from byte 6 to byte 5.
@@ -54,7 +51,7 @@ static struct sk_buff *edsa_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 	} else {
 		if (skb_cow_head(skb, EDSA_HLEN) < 0)
-			goto out_free;
+			return NULL;
 		skb_push(skb, EDSA_HLEN);
 
 		memmove(skb->data, skb->data + EDSA_HLEN, 2 * ETH_ALEN);
@@ -67,37 +64,24 @@ static struct sk_buff *edsa_xmit(struct sk_buff *skb, struct net_device *dev)
 		edsa_header[1] = ETH_P_EDSA & 0xff;
 		edsa_header[2] = 0x00;
 		edsa_header[3] = 0x00;
-		edsa_header[4] = 0x40 | p->parent->index;
-		edsa_header[5] = p->port << 3;
+		edsa_header[4] = 0x40 | dp->ds->index;
+		edsa_header[5] = dp->index << 3;
 		edsa_header[6] = 0x00;
 		edsa_header[7] = 0x00;
 	}
 
 	return skb;
-
-out_free:
-	kfree_skb(skb);
-	return NULL;
 }
 
-static int edsa_rcv(struct sk_buff *skb, struct net_device *dev,
-		    struct packet_type *pt, struct net_device *orig_dev)
+static struct sk_buff *edsa_rcv(struct sk_buff *skb, struct net_device *dev,
+				struct packet_type *pt)
 {
-	struct dsa_switch_tree *dst = dev->dsa_ptr;
-	struct dsa_switch *ds;
 	u8 *edsa_header;
 	int source_device;
 	int source_port;
 
-	if (unlikely(dst == NULL))
-		goto out_drop;
-
-	skb = skb_unshare(skb, GFP_ATOMIC);
-	if (skb == NULL)
-		goto out;
-
 	if (unlikely(!pskb_may_pull(skb, EDSA_HLEN)))
-		goto out_drop;
+		return NULL;
 
 	/*
 	 * Skip the two null bytes after the ethertype.
@@ -108,7 +92,7 @@ static int edsa_rcv(struct sk_buff *skb, struct net_device *dev,
 	 * Check that frame type is either TO_CPU or FORWARD.
 	 */
 	if ((edsa_header[0] & 0xc0) != 0x00 && (edsa_header[0] & 0xc0) != 0xc0)
-		goto out_drop;
+		return NULL;
 
 	/*
 	 * Determine source device and port.
@@ -116,19 +100,9 @@ static int edsa_rcv(struct sk_buff *skb, struct net_device *dev,
 	source_device = edsa_header[0] & 0x1f;
 	source_port = (edsa_header[1] >> 3) & 0x1f;
 
-	/*
-	 * Check that the source device exists and that the source
-	 * port is a registered DSA port.
-	 */
-	if (source_device >= DSA_MAX_SWITCHES)
-		goto out_drop;
-
-	ds = dst->ds[source_device];
-	if (!ds)
-		goto out_drop;
-
-	if (source_port >= DSA_MAX_PORTS || !ds->ports[source_port].netdev)
-		goto out_drop;
+	skb->dev = dsa_master_find_slave(dev, source_device, source_port);
+	if (!skb->dev)
+		return NULL;
 
 	/*
 	 * If the 'tagged' bit is set, convert the DSA tag to a 802.1q
@@ -182,25 +156,29 @@ static int edsa_rcv(struct sk_buff *skb, struct net_device *dev,
 			2 * ETH_ALEN);
 	}
 
-	skb->dev = ds->ports[source_port].netdev;
-	skb_push(skb, ETH_HLEN);
-	skb->pkt_type = PACKET_HOST;
-	skb->protocol = eth_type_trans(skb, skb->dev);
+	skb->offload_fwd_mark = 1;
 
-	skb->dev->stats.rx_packets++;
-	skb->dev->stats.rx_bytes += skb->len;
+	return skb;
+}
 
-	netif_receive_skb(skb);
-
-	return 0;
-
-out_drop:
-	kfree_skb(skb);
-out:
+static int edsa_tag_flow_dissect(const struct sk_buff *skb, __be16 *proto,
+				 int *offset)
+{
+	*offset = 8;
+	*proto = ((__be16 *)skb->data)[3];
 	return 0;
 }
 
-const struct dsa_device_ops edsa_netdev_ops = {
+static const struct dsa_device_ops edsa_netdev_ops = {
+	.name	= "edsa",
+	.proto	= DSA_TAG_PROTO_EDSA,
 	.xmit	= edsa_xmit,
 	.rcv	= edsa_rcv,
+	.flow_dissect   = edsa_tag_flow_dissect,
+	.overhead = EDSA_HLEN,
 };
+
+MODULE_LICENSE("GPL");
+MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_EDSA);
+
+module_dsa_tag_driver(edsa_netdev_ops);

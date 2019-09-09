@@ -1,21 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * GSS Proxy upcall module
  *
  *  Copyright (C) 2012 Simo Sorce <simo@redhat.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #ifndef _LINUX_GSS_RPC_XDR_H
@@ -179,10 +166,10 @@ struct gssx_res_accept_sec_context {
 #define gssx_dec_init_sec_context NULL
 void gssx_enc_accept_sec_context(struct rpc_rqst *req,
 				 struct xdr_stream *xdr,
-				 struct gssx_arg_accept_sec_context *args);
+				 const void *data);
 int gssx_dec_accept_sec_context(struct rpc_rqst *rqstp,
 				struct xdr_stream *xdr,
-				struct gssx_res_accept_sec_context *res);
+				void *data);
 #define gssx_enc_release_handle NULL
 #define gssx_dec_release_handle NULL
 #define gssx_enc_get_mic NULL
@@ -261,7 +248,5 @@ int gssx_dec_accept_sec_context(struct rpc_rqst *rqstp,
 #define GSSX_RES_unwrap_sz 0
 #define GSSX_ARG_wrap_size_limit_sz 0
 #define GSSX_RES_wrap_size_limit_sz 0
-
-
 
 #endif /* _LINUX_GSS_RPC_XDR_H */

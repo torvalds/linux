@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /**
  * Copyright (c) 2011 Jonathan Cameron
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  *
  * Buffer handling elements of industrial I/O reference driver.
  * Uses the kfifo buffer.
@@ -20,6 +17,7 @@
 
 #include <linux/iio/iio.h>
 #include <linux/iio/trigger_consumer.h>
+#include <linux/iio/buffer.h>
 #include <linux/iio/kfifo_buf.h>
 
 #include "iio_simple_dummy.h"
@@ -130,9 +128,6 @@ int iio_simple_dummy_configure_buffer(struct iio_dev *indio_dev)
 	}
 
 	iio_device_attach_buffer(indio_dev, buffer);
-
-	/* Enable timestamps by default */
-	buffer->scan_timestamp = true;
 
 	/*
 	 * Tell the core what device type specific functions should

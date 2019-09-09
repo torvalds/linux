@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Copyright (C) 2010, 2011 Texas Instruments Incorporated
  *  Contributed by: Mark Salter (msalter@redhat.com)
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
  */
 
 #include <linux/clockchips.h>
@@ -204,14 +201,14 @@ void __init timer64_init(void)
 
 	timer = of_iomap(np, 0);
 	if (!timer) {
-		pr_debug("%s: Cannot map timer registers.\n", np->full_name);
+		pr_debug("%pOF: Cannot map timer registers.\n", np);
 		goto out;
 	}
-	pr_debug("%s: Timer registers=%p.\n", np->full_name, timer);
+	pr_debug("%pOF: Timer registers=%p.\n", np, timer);
 
 	cd->irq	= irq_of_parse_and_map(np, 0);
 	if (cd->irq == NO_IRQ) {
-		pr_debug("%s: Cannot find interrupt.\n", np->full_name);
+		pr_debug("%pOF: Cannot find interrupt.\n", np);
 		iounmap(timer);
 		goto out;
 	}
@@ -229,12 +226,14 @@ void __init timer64_init(void)
 		dscr_set_devstate(timer64_devstate_id, DSCR_DEVSTATE_ENABLED);
 	}
 
-	pr_debug("%s: Timer irq=%d.\n", np->full_name, cd->irq);
+	pr_debug("%pOF: Timer irq=%d.\n", np, cd->irq);
 
 	clockevents_calc_mult_shift(cd, c6x_core_freq / TIMER_DIVISOR, 5);
 
 	cd->max_delta_ns	= clockevent_delta2ns(0x7fffffff, cd);
+	cd->max_delta_ticks	= 0x7fffffff;
 	cd->min_delta_ns	= clockevent_delta2ns(250, cd);
+	cd->min_delta_ticks	= 250;
 
 	cd->cpumask		= cpumask_of(smp_processor_id());
 

@@ -1,10 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menuconfig ARCH_MOXART
 	bool "MOXA ART SoC"
 	depends on ARCH_MULTI_V4
 	select CPU_FA526
 	select ARM_DMA_MEM_BUFFERABLE
-	select MOXART_TIMER
-	select GENERIC_IRQ_CHIP
+	select FARADAY_FTINTC010
+	select FTTMR010_TIMER
 	select GPIOLIB
 	select PHYLIB if NETDEVICES
 	help

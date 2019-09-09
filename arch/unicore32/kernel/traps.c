@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/arch/unicore32/kernel/traps.c
  *
@@ -5,15 +6,14 @@
  *
  * Copyright (C) 2001-2010 GUAN Xue-tao
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  *  'traps.c' handles hardware exceptions after we have saved some state.
  *  Mostly a debugging aid, but will probably kill the offending process.
  */
 #include <linux/module.h>
 #include <linux/signal.h>
+#include <linux/sched/signal.h>
+#include <linux/sched/debug.h>
+#include <linux/sched/task_stack.h>
 #include <linux/spinlock.h>
 #include <linux/personality.h>
 #include <linux/kallsyms.h>
@@ -238,13 +238,14 @@ void die(const char *str, struct pt_regs *regs, int err)
 }
 
 void uc32_notify_die(const char *str, struct pt_regs *regs,
-		struct siginfo *info, unsigned long err, unsigned long trap)
+		int sig, int code, void __user *addr,
+		unsigned long err, unsigned long trap)
 {
 	if (user_mode(regs)) {
 		current->thread.error_code = err;
 		current->thread.trap_no = trap;
 
-		force_sig_info(info->si_signo, info, current);
+		force_sig_fault(sig, code, addr);
 	} else
 		die(str, regs, err);
 }
@@ -295,7 +296,6 @@ void abort(void)
 	/* if that doesn't kill us, halt */
 	panic("Oops failed to kill thread");
 }
-EXPORT_SYMBOL(abort);
 
 void __init trap_init(void)
 {

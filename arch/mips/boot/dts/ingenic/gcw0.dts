@@ -1,0 +1,62 @@
+// SPDX-License-Identifier: GPL-2.0
+/dts-v1/;
+
+#include "jz4770.dtsi"
+
+/ {
+	compatible = "gcw,zero", "ingenic,jz4770";
+	model = "GCW Zero";
+
+	aliases {
+		serial0 = &uart0;
+		serial1 = &uart1;
+		serial2 = &uart2;
+		serial3 = &uart3;
+	};
+
+	chosen {
+		stdout-path = "serial2:57600n8";
+	};
+
+	board {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		otg_phy: otg-phy {
+			compatible = "usb-nop-xceiv";
+			clocks = <&cgu JZ4770_CLK_OTG_PHY>;
+			clock-names = "main_clk";
+		};
+	};
+};
+
+&ext {
+	clock-frequency = <12000000>;
+};
+
+&uart2 {
+	status = "okay";
+};
+
+&cgu {
+	/* Put high-speed peripherals under PLL1, such that we can change the
+	 * PLL0 frequency on demand without having to suspend peripherals.
+	 * We use a rate of 432 MHz, which is the least common multiple of
+	 * 27 MHz (required by TV encoder) and 48 MHz (required by USB host).
+	 */
+	assigned-clocks =
+		<&cgu JZ4770_CLK_PLL1>,
+		<&cgu JZ4770_CLK_UHC>;
+	assigned-clock-parents =
+		<0>,
+		<&cgu JZ4770_CLK_PLL1>;
+	assigned-clock-rates =
+		<432000000>;
+};
+
+&uhc {
+	/* The WiFi module is connected to the UHC. */
+	status = "okay";
+};

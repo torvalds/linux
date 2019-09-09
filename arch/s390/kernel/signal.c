@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *    Copyright IBM Corp. 1999, 2006
  *    Author(s): Denis Joseph Barrow (djbarrow@de.ibm.com,barrow_dj@yahoo.com)
@@ -10,6 +11,7 @@
  */
 
 #include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
 #include <linux/kernel.h>
@@ -26,7 +28,7 @@
 #include <linux/syscalls.h>
 #include <linux/compat.h>
 #include <asm/ucontext.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/lowcore.h>
 #include <asm/switch_to.h>
 #include "entry.h"
@@ -230,7 +232,7 @@ SYSCALL_DEFINE0(sigreturn)
 	load_sigregs();
 	return regs->gprs[2];
 badframe:
-	force_sig(SIGSEGV, current);
+	force_sig(SIGSEGV);
 	return 0;
 }
 
@@ -254,7 +256,7 @@ SYSCALL_DEFINE0(rt_sigreturn)
 	load_sigregs();
 	return regs->gprs[2];
 badframe:
-	force_sig(SIGSEGV, current);
+	force_sig(SIGSEGV);
 	return 0;
 }
 
@@ -359,7 +361,7 @@ static int setup_frame(int sig, struct k_sigaction *ka,
 		/* set extra registers only for synchronous signals */
 		regs->gprs[4] = regs->int_code & 127;
 		regs->gprs[5] = regs->int_parm_long;
-		regs->gprs[6] = task_thread_info(current)->last_break;
+		regs->gprs[6] = current->thread.last_break;
 	}
 	return 0;
 }
@@ -430,7 +432,7 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 	regs->gprs[2] = ksig->sig;
 	regs->gprs[3] = (unsigned long) &frame->info;
 	regs->gprs[4] = (unsigned long) &frame->uc;
-	regs->gprs[5] = task_thread_info(current)->last_break;
+	regs->gprs[5] = current->thread.last_break;
 	return 0;
 }
 
@@ -467,13 +469,13 @@ void do_signal(struct pt_regs *regs)
 	 * the debugger may change all our registers, including the system
 	 * call information.
 	 */
-	current_thread_info()->system_call =
+	current->thread.system_call =
 		test_pt_regs_flag(regs, PIF_SYSCALL) ? regs->int_code : 0;
 
 	if (get_signal(&ksig)) {
 		/* Whee!  Actually deliver the signal.  */
-		if (current_thread_info()->system_call) {
-			regs->int_code = current_thread_info()->system_call;
+		if (current->thread.system_call) {
+			regs->int_code = current->thread.system_call;
 			/* Check for system call restarting. */
 			switch (regs->gprs[2]) {
 			case -ERESTART_RESTARTBLOCK:
@@ -496,7 +498,7 @@ void do_signal(struct pt_regs *regs)
 		}
 		/* No longer in a system call */
 		clear_pt_regs_flag(regs, PIF_SYSCALL);
-
+		rseq_signal_deliver(&ksig, regs);
 		if (is_compat_task())
 			handle_signal32(&ksig, oldset, regs);
 		else
@@ -506,8 +508,8 @@ void do_signal(struct pt_regs *regs)
 
 	/* No handlers present - check for system call restart */
 	clear_pt_regs_flag(regs, PIF_SYSCALL);
-	if (current_thread_info()->system_call) {
-		regs->int_code = current_thread_info()->system_call;
+	if (current->thread.system_call) {
+		regs->int_code = current->thread.system_call;
 		switch (regs->gprs[2]) {
 		case -ERESTART_RESTARTBLOCK:
 			/* Restart with sys_restart_syscall */
@@ -535,4 +537,5 @@ void do_notify_resume(struct pt_regs *regs)
 {
 	clear_thread_flag(TIF_NOTIFY_RESUME);
 	tracehook_notify_resume(regs);
+	rseq_handle_notify_resume(NULL, regs);
 }

@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Hisilicon hi6220 SoC divider clock driver
  *
  * Copyright (c) 2015 Hisilicon Limited.
  *
  * Author: Bintian Wang <bintian.wang@huawei.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/kernel.h>
@@ -56,7 +52,7 @@ static unsigned long hi6220_clkdiv_recalc_rate(struct clk_hw *hw,
 	val &= div_mask(dclk->width);
 
 	return divider_recalc_rate(hw, parent_rate, val, dclk->table,
-				   CLK_DIVIDER_ROUND_CLOSEST);
+				   CLK_DIVIDER_ROUND_CLOSEST, dclk->width);
 }
 
 static long hi6220_clkdiv_round_rate(struct clk_hw *hw, unsigned long rate,

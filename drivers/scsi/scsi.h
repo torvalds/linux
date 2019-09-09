@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *  scsi.h Copyright (C) 1992 Drew Eckhardt 
  *         Copyright (C) 1993, 1994, 1995, 1998, 1999 Eric Youngdale
@@ -41,8 +42,5 @@ struct scsi_cmnd;
 struct scsi_device;
 struct scsi_target;
 struct scatterlist;
-
-/* obsolete typedef junk. */
-#include "scsi_typedefs.h"
 
 #endif /* _SCSI_H */

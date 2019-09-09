@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* ------------------------------------------------------------------------ *
  * i2c-parport.c I2C bus over parallel port                                 *
  * ------------------------------------------------------------------------ *
@@ -9,15 +10,6 @@
    Frodo Looijaard <frodol@dds.nl>
    Kyösti Mälkki <kmalkki@cc.hut.fi>
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
-   (at your option) any later version.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
  * ------------------------------------------------------------------------ */
 
 #define pr_fmt(fmt) "i2c-parport: " fmt
@@ -237,7 +229,6 @@ static void i2c_parport_attach(struct parport *port)
 
 	/* Setup SMBus alert if supported */
 	if (adapter_parm[type].smbus_alert) {
-		adapter->alert_data.alert_edge_triggered = 1;
 		adapter->ara = i2c_setup_smbus_alert(&adapter->adapter,
 						     &adapter->alert_data);
 		if (adapter->ara)

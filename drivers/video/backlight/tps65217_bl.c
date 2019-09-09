@@ -184,11 +184,11 @@ static struct tps65217_bl_pdata *
 tps65217_bl_parse_dt(struct platform_device *pdev)
 {
 	struct tps65217 *tps = dev_get_drvdata(pdev->dev.parent);
-	struct device_node *node = of_node_get(tps->dev->of_node);
+	struct device_node *node;
 	struct tps65217_bl_pdata *pdata, *err;
 	u32 val;
 
-	node = of_find_node_by_name(node, "backlight");
+	node = of_get_child_by_name(tps->dev->of_node, "backlight");
 	if (!node)
 		return ERR_PTR(-ENODEV);
 
@@ -239,8 +239,7 @@ tps65217_bl_parse_dt(struct platform_device *pdev)
 	}
 
 	if (!of_property_read_u32(node, "default-brightness", &val)) {
-		if (val < 0 ||
-			val > 100) {
+		if (val > 100) {
 			dev_err(&pdev->dev,
 				"invalid 'default-brightness' value in the device tree\n");
 			err = ERR_PTR(-EINVAL);
@@ -275,17 +274,9 @@ static int tps65217_bl_probe(struct platform_device *pdev)
 	struct tps65217_bl_pdata *pdata;
 	struct backlight_properties bl_props;
 
-	if (tps->dev->of_node) {
-		pdata = tps65217_bl_parse_dt(pdev);
-		if (IS_ERR(pdata))
-			return PTR_ERR(pdata);
-	} else {
-		pdata = dev_get_platdata(&pdev->dev);
-		if (!pdata) {
-			dev_err(&pdev->dev, "no platform data provided\n");
-			return -EINVAL;
-		}
-	}
+	pdata = tps65217_bl_parse_dt(pdev);
+	if (IS_ERR(pdata))
+		return PTR_ERR(pdata);
 
 	tps65217_bl = devm_kzalloc(&pdev->dev, sizeof(*tps65217_bl),
 				GFP_KERNEL);

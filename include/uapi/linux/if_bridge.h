@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
 /*
  *	Linux ethernet bridge
  *
@@ -118,6 +119,7 @@ enum {
 	IFLA_BRIDGE_FLAGS,
 	IFLA_BRIDGE_MODE,
 	IFLA_BRIDGE_VLAN_INFO,
+	IFLA_BRIDGE_VLAN_TUNNEL_INFO,
 	__IFLA_BRIDGE_MAX,
 };
 #define IFLA_BRIDGE_MAX (__IFLA_BRIDGE_MAX - 1)
@@ -133,6 +135,16 @@ struct bridge_vlan_info {
 	__u16 flags;
 	__u16 vid;
 };
+
+enum {
+	IFLA_BRIDGE_VLAN_TUNNEL_UNSPEC,
+	IFLA_BRIDGE_VLAN_TUNNEL_ID,
+	IFLA_BRIDGE_VLAN_TUNNEL_VID,
+	IFLA_BRIDGE_VLAN_TUNNEL_FLAGS,
+	__IFLA_BRIDGE_VLAN_TUNNEL_MAX,
+};
+
+#define IFLA_BRIDGE_VLAN_TUNNEL_MAX (__IFLA_BRIDGE_VLAN_TUNNEL_MAX - 1)
 
 struct bridge_vlan_xstats {
 	__u64 rx_bytes;
@@ -279,5 +291,26 @@ struct br_mcast_stats {
 
 	__u64 mcast_bytes[BR_MCAST_DIR_SIZE];
 	__u64 mcast_packets[BR_MCAST_DIR_SIZE];
+};
+
+/* bridge boolean options
+ * BR_BOOLOPT_NO_LL_LEARN - disable learning from link-local packets
+ *
+ * IMPORTANT: if adding a new option do not forget to handle
+ *            it in br_boolopt_toggle/get and bridge sysfs
+ */
+enum br_boolopt_id {
+	BR_BOOLOPT_NO_LL_LEARN,
+	BR_BOOLOPT_MAX
+};
+
+/* struct br_boolopt_multi - change multiple bridge boolean options
+ *
+ * @optval: new option values (bit per option)
+ * @optmask: options to change (bit per option)
+ */
+struct br_boolopt_multi {
+	__u32 optval;
+	__u32 optmask;
 };
 #endif /* _UAPI_LINUX_IF_BRIDGE_H */

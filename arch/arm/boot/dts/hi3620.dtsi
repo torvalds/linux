@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Hisilicon Ltd. Hi3620 SoC
  *
@@ -5,16 +6,14 @@
  * Copyright (C) 2012-2013 Linaro Ltd.
  *
  * Author: Haojian Zhuang <haojian.zhuang@linaro.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * publishhed by the Free Software Foundation.
  */
 
-#include "skeleton.dtsi"
 #include <dt-bindings/clock/hi3620-clock.h>
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
+
 	aliases {
 		serial0 = &uart0;
 		serial1 = &uart1;
@@ -537,6 +536,7 @@
 			reg = <0x803000 0x188>;
 			#address-cells = <1>;
 			#size-cells = <1>;
+			#pinctrl-cells = <1>;
 			#gpio-range-cells = <3>;
 			ranges;
 
@@ -558,6 +558,7 @@
 			reg = <0x803800 0x2dc>;
 			#address-cells = <1>;
 			#size-cells = <1>;
+			#pinctrl-cells = <1>;
 			ranges;
 
 			pinctrl-single,register-width = <32>;

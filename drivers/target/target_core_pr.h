@@ -1,9 +1,14 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef TARGET_CORE_PR_H
 #define TARGET_CORE_PR_H
+
+#include <linux/types.h>
+#include <target/target_core_base.h>
+
 /*
  * PERSISTENT_RESERVE_OUT service action codes
  *
- * spc4r17 section 6.14.2 Table 171
+ * spc5r04b section 6.15.2 Table 174
  */
 #define PRO_REGISTER				0x00
 #define PRO_RESERVE				0x01
@@ -13,10 +18,11 @@
 #define PRO_PREEMPT_AND_ABORT			0x05
 #define PRO_REGISTER_AND_IGNORE_EXISTING_KEY	0x06
 #define PRO_REGISTER_AND_MOVE			0x07
+#define PRO_REPLACE_LOST_RESERVATION	0x08
 /*
  * PERSISTENT_RESERVE_IN service action codes
  *
- * spc4r17 section 6.13.1 Table 159
+ * spc5r04b section 6.14.1 Table 162
  */
 #define PRI_READ_KEYS				0x00
 #define PRI_READ_RESERVATION			0x01
@@ -25,13 +31,13 @@
 /*
  * PERSISTENT_RESERVE_ SCOPE field
  *
- * spc4r17 section 6.13.3.3 Table 163
+ * spc5r04b section 6.14.3.2 Table 166
  */
 #define PR_SCOPE_LU_SCOPE			0x00
 /*
  * PERSISTENT_RESERVE_* TYPE field
  *
- * spc4r17 section 6.13.3.4 Table 164
+ * spc5r04b section 6.14.3.3 Table 167
  */
 #define PR_TYPE_WRITE_EXCLUSIVE			0x01
 #define PR_TYPE_EXCLUSIVE_ACCESS		0x03
@@ -52,6 +58,7 @@ extern struct kmem_cache *t10_pr_reg_cache;
 
 extern void core_pr_dump_initiator_port(struct t10_pr_registration *,
 			char *, u32);
+extern void target_release_reservation(struct se_device *dev);
 extern sense_reason_t target_scsi2_reservation_release(struct se_cmd *);
 extern sense_reason_t target_scsi2_reservation_reserve(struct se_cmd *);
 extern int core_scsi3_alloc_aptpl_registration(

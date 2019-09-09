@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * bcache stats code
  *
@@ -32,11 +33,11 @@
  * stored left shifted by 16, and scaled back in the sysfs show() function.
  */
 
-static const unsigned DAY_RESCALE		= 288;
-static const unsigned HOUR_RESCALE		= 12;
-static const unsigned FIVE_MINUTE_RESCALE	= 1;
-static const unsigned accounting_delay		= (HZ * 300) / 22;
-static const unsigned accounting_weight		= 32;
+static const unsigned int DAY_RESCALE		= 288;
+static const unsigned int HOUR_RESCALE		= 12;
+static const unsigned int FIVE_MINUTE_RESCALE	= 1;
+static const unsigned int accounting_delay	= (HZ * 300) / 22;
+static const unsigned int accounting_weight	= 32;
 
 /* sysfs reading/writing */
 
@@ -110,7 +111,7 @@ void bch_cache_accounting_clear(struct cache_accounting *acc)
 {
 	memset(&acc->total.cache_hits,
 	       0,
-	       sizeof(unsigned long) * 7);
+	       sizeof(struct cache_stats));
 }
 
 void bch_cache_accounting_destroy(struct cache_accounting *acc)
@@ -146,12 +147,12 @@ static void scale_stats(struct cache_stats *stats, unsigned long rescale_at)
 	}
 }
 
-static void scale_accounting(unsigned long data)
+static void scale_accounting(struct timer_list *t)
 {
-	struct cache_accounting *acc = (struct cache_accounting *) data;
+	struct cache_accounting *acc = from_timer(acc, t, timer);
 
 #define move_stat(name) do {						\
-	unsigned t = atomic_xchg(&acc->collector.name, 0);		\
+	unsigned int t = atomic_xchg(&acc->collector.name, 0);		\
 	t <<= 16;							\
 	acc->five_minute.name += t;					\
 	acc->hour.name += t;						\
@@ -199,6 +200,7 @@ void bch_mark_cache_accounting(struct cache_set *c, struct bcache_device *d,
 			       bool hit, bool bypass)
 {
 	struct cached_dev *dc = container_of(d, struct cached_dev, disk);
+
 	mark_cache_stats(&dc->accounting.collector, hit, bypass);
 	mark_cache_stats(&c->accounting.collector, hit, bypass);
 }
@@ -206,6 +208,7 @@ void bch_mark_cache_accounting(struct cache_set *c, struct bcache_device *d,
 void bch_mark_cache_readahead(struct cache_set *c, struct bcache_device *d)
 {
 	struct cached_dev *dc = container_of(d, struct cached_dev, disk);
+
 	atomic_inc(&dc->accounting.collector.cache_readaheads);
 	atomic_inc(&c->accounting.collector.cache_readaheads);
 }
@@ -213,6 +216,7 @@ void bch_mark_cache_readahead(struct cache_set *c, struct bcache_device *d)
 void bch_mark_cache_miss_collision(struct cache_set *c, struct bcache_device *d)
 {
 	struct cached_dev *dc = container_of(d, struct cached_dev, disk);
+
 	atomic_inc(&dc->accounting.collector.cache_miss_collisions);
 	atomic_inc(&c->accounting.collector.cache_miss_collisions);
 }
@@ -233,9 +237,7 @@ void bch_cache_accounting_init(struct cache_accounting *acc,
 	kobject_init(&acc->day.kobj,		&bch_stats_ktype);
 
 	closure_init(&acc->cl, parent);
-	init_timer(&acc->timer);
+	timer_setup(&acc->timer, scale_accounting, 0);
 	acc->timer.expires	= jiffies + accounting_delay;
-	acc->timer.data		= (unsigned long) acc;
-	acc->timer.function	= scale_accounting;
 	add_timer(&acc->timer);
 }

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Glue code for AES encryption optimized for sparc64 crypto opcodes.
  *
  * This is based largely upon arch/x86/crypto/aesni-intel_glue.c
@@ -344,8 +345,7 @@ static void ctr_crypt_final(struct crypto_sparc64_aes_ctx *ctx,
 
 	ctx->ops->ecb_encrypt(&ctx->key[0], (const u64 *)ctrblk,
 			      keystream, AES_BLOCK_SIZE);
-	crypto_xor((u8 *) keystream, src, nbytes);
-	memcpy(dst, keystream, nbytes);
+	crypto_xor_cpy(dst, (u8 *) keystream, src, nbytes);
 	crypto_inc(ctrblk, AES_BLOCK_SIZE);
 }
 
@@ -477,11 +477,6 @@ static bool __init sparc64_has_aes_opcode(void)
 
 static int __init aes_sparc64_mod_init(void)
 {
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(algs); i++)
-		INIT_LIST_HEAD(&algs[i].cra_list);
-
 	if (sparc64_has_aes_opcode()) {
 		pr_info("Using sparc64 aes opcodes optimized AES implementation\n");
 		return crypto_register_algs(algs, ARRAY_SIZE(algs));

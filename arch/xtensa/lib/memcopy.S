@@ -9,23 +9,9 @@
  * Copyright (C) 2002 - 2012 Tensilica Inc.
  */
 
-#include <variant/core.h>
-
-	.macro	src_b	r, w0, w1
-#ifdef __XTENSA_EB__
-	src	\r, \w0, \w1
-#else
-	src	\r, \w1, \w0
-#endif
-	.endm
-
-	.macro	ssa8	r
-#ifdef __XTENSA_EB__
-	ssa8b	\r
-#else
-	ssa8l	\r
-#endif
-	.endm
+#include <linux/linkage.h>
+#include <asm/asmmacro.h>
+#include <asm/core.h>
 
 /*
  * void *memcpy(void *dst, const void *src, size_t len);
@@ -93,7 +79,7 @@
 	bne	a3, a7, .Lnextbyte # continue loop if $a3:src != $a7:src_end
 #endif /* !XCHAL_HAVE_LOOPS */
 .Lbytecopydone:
-	retw
+	abi_ret_default
 
 /*
  * Destination is unaligned
@@ -123,12 +109,10 @@
 	addi	a5, a5,  2
 	j	.Ldstaligned	# dst is now aligned, return to main algorithm
 
-	.align	4
-	.global	memcpy
-	.type   memcpy,@function
-memcpy:
+ENTRY(__memcpy)
+WEAK(memcpy)
 
-	entry	sp, 16		# minimal stack frame
+	abi_entry_default
 	# a2/ dst, a3/ src, a4/ len
 	mov	a5, a2		# copy dst so that a2 is return value
 .Lcommon:
@@ -177,7 +161,7 @@ memcpy:
 	bbsi.l	a4, 2, .L3
 	bbsi.l	a4, 1, .L4
 	bbsi.l	a4, 0, .L5
-	retw
+	abi_ret_default
 .L3:
 	# copy 4 bytes
 	l32i	a6, a3,  0
@@ -186,7 +170,7 @@ memcpy:
 	addi	a5, a5,  4
 	bbsi.l	a4, 1, .L4
 	bbsi.l	a4, 0, .L5
-	retw
+	abi_ret_default
 .L4:
 	# copy 2 bytes
 	l16ui	a6, a3,  0
@@ -194,12 +178,12 @@ memcpy:
 	s16i	a6, a5,  0
 	addi	a5, a5,  2
 	bbsi.l	a4, 0, .L5
-	retw
+	abi_ret_default
 .L5:
 	# copy 1 byte
 	l8ui	a6, a3,  0
 	s8i	a6, a5,  0
-	retw
+	abi_ret_default
 
 /*
  * Destination is aligned, Source is unaligned
@@ -209,7 +193,7 @@ memcpy:
 .Lsrcunaligned:
 	_beqz	a4, .Ldone	# avoid loading anything for zero-length copies
 	# copy 16 bytes per iteration for word-aligned dst and unaligned src
-	ssa8	a3		# set shift amount from byte offset
+	__ssa8	a3		# set shift amount from byte offset
 
 /* set to 1 when running on ISS (simulator) with the
    lint or ferret client, or 0 to save a few cycles */
@@ -229,16 +213,16 @@ memcpy:
 .Loop2:
 	l32i	a7, a3,  4
 	l32i	a8, a3,  8
-	src_b	a6, a6, a7
+	__src_b	a6, a6, a7
 	s32i	a6, a5,  0
 	l32i	a9, a3, 12
-	src_b	a7, a7, a8
+	__src_b	a7, a7, a8
 	s32i	a7, a5,  4
 	l32i	a6, a3, 16
-	src_b	a8, a8, a9
+	__src_b	a8, a8, a9
 	s32i	a8, a5,  8
 	addi	a3, a3, 16
-	src_b	a9, a9, a6
+	__src_b	a9, a9, a6
 	s32i	a9, a5, 12
 	addi	a5, a5, 16
 #if !XCHAL_HAVE_LOOPS
@@ -249,10 +233,10 @@ memcpy:
 	# copy 8 bytes
 	l32i	a7, a3,  4
 	l32i	a8, a3,  8
-	src_b	a6, a6, a7
+	__src_b	a6, a6, a7
 	s32i	a6, a5,  0
 	addi	a3, a3,  8
-	src_b	a7, a7, a8
+	__src_b	a7, a7, a8
 	s32i	a7, a5,  4
 	addi	a5, a5,  8
 	mov	a6, a8
@@ -261,7 +245,7 @@ memcpy:
 	# copy 4 bytes
 	l32i	a7, a3,  4
 	addi	a3, a3,  4
-	src_b	a6, a6, a7
+	__src_b	a6, a6, a7
 	s32i	a6, a5,  0
 	addi	a5, a5,  4
 	mov	a6, a7
@@ -271,7 +255,7 @@ memcpy:
 #endif
 	bbsi.l	a4, 1, .L14
 	bbsi.l	a4, 0, .L15
-.Ldone:	retw
+.Ldone:	abi_ret_default
 .L14:
 	# copy 2 bytes
 	l8ui	a6, a3,  0
@@ -281,27 +265,29 @@ memcpy:
 	s8i	a7, a5,  1
 	addi	a5, a5,  2
 	bbsi.l	a4, 0, .L15
-	retw
+	abi_ret_default
 .L15:
 	# copy 1 byte
 	l8ui	a6, a3,  0
 	s8i	a6, a5,  0
-	retw
+	abi_ret_default
 
+ENDPROC(__memcpy)
 
 /*
  * void bcopy(const void *src, void *dest, size_t n);
  */
-	.align	4
-	.global	bcopy
-	.type   bcopy,@function
-bcopy:
-	entry	sp, 16		# minimal stack frame
+
+ENTRY(bcopy)
+
+	abi_entry_default
 	# a2=src, a3=dst, a4=len
 	mov	a5, a3
 	mov	a3, a2
 	mov	a2, a5
 	j	.Lmovecommon	# go to common code for memmove+bcopy
+
+ENDPROC(bcopy)
 
 /*
  * void *memmove(void *dst, const void *src, size_t len);
@@ -360,7 +346,7 @@ bcopy:
 				       # $a3:src != $a7:src_start
 #endif /* !XCHAL_HAVE_LOOPS */
 .Lbackbytecopydone:
-	retw
+	abi_ret_default
 
 /*
  * Destination is unaligned
@@ -391,12 +377,10 @@ bcopy:
 	j	.Lbackdstaligned	# dst is now aligned,
 					# return to main algorithm
 
-	.align	4
-	.global	memmove
-	.type   memmove,@function
-memmove:
+ENTRY(__memmove)
+WEAK(memmove)
 
-	entry	sp, 16		# minimal stack frame
+	abi_entry_default
 	# a2/ dst, a3/ src, a4/ len
 	mov	a5, a2		# copy dst so that a2 is return value
 .Lmovecommon:
@@ -451,7 +435,7 @@ memmove:
 	bbsi.l	a4, 2, .Lback3
 	bbsi.l	a4, 1, .Lback4
 	bbsi.l	a4, 0, .Lback5
-	retw
+	abi_ret_default
 .Lback3:
 	# copy 4 bytes
 	addi	a3, a3, -4
@@ -460,7 +444,7 @@ memmove:
 	s32i	a6, a5,  0
 	bbsi.l	a4, 1, .Lback4
 	bbsi.l	a4, 0, .Lback5
-	retw
+	abi_ret_default
 .Lback4:
 	# copy 2 bytes
 	addi	a3, a3, -2
@@ -468,14 +452,14 @@ memmove:
 	addi	a5, a5, -2
 	s16i	a6, a5,  0
 	bbsi.l	a4, 0, .Lback5
-	retw
+	abi_ret_default
 .Lback5:
 	# copy 1 byte
 	addi	a3, a3, -1
 	l8ui	a6, a3,  0
 	addi	a5, a5, -1
 	s8i	a6, a5,  0
-	retw
+	abi_ret_default
 
 /*
  * Destination is aligned, Source is unaligned
@@ -485,7 +469,7 @@ memmove:
 .Lbacksrcunaligned:
 	_beqz	a4, .Lbackdone	# avoid loading anything for zero-length copies
 	# copy 16 bytes per iteration for word-aligned dst and unaligned src
-	ssa8	a3		# set shift amount from byte offset
+	__ssa8	a3		# set shift amount from byte offset
 #define SIM_CHECKS_ALIGNMENT	1	/* set to 1 when running on ISS with
 					 * the lint or ferret client, or 0
 					 * to save a few cycles */
@@ -506,15 +490,15 @@ memmove:
 	l32i	a7, a3, 12
 	l32i	a8, a3,  8
 	addi	a5, a5, -16
-	src_b	a6, a7, a6
+	__src_b	a6, a7, a6
 	s32i	a6, a5, 12
 	l32i	a9, a3,  4
-	src_b	a7, a8, a7
+	__src_b	a7, a8, a7
 	s32i	a7, a5,  8
 	l32i	a6, a3,  0
-	src_b	a8, a9, a8
+	__src_b	a8, a9, a8
 	s32i	a8, a5,  4
-	src_b	a9, a6, a9
+	__src_b	a9, a6, a9
 	s32i	a9, a5,  0
 #if !XCHAL_HAVE_LOOPS
 	bne	a3, a10, .backLoop2 # continue loop if a3:src != a10:src_start
@@ -526,9 +510,9 @@ memmove:
 	l32i	a7, a3,  4
 	l32i	a8, a3,  0
 	addi	a5, a5, -8
-	src_b	a6, a7, a6
+	__src_b	a6, a7, a6
 	s32i	a6, a5,  4
-	src_b	a7, a8, a7
+	__src_b	a7, a8, a7
 	s32i	a7, a5,  0
 	mov	a6, a8
 .Lback12:
@@ -537,7 +521,7 @@ memmove:
 	addi	a3, a3, -4
 	l32i	a7, a3,  0
 	addi	a5, a5, -4
-	src_b	a6, a7, a6
+	__src_b	a6, a7, a6
 	s32i	a6, a5,  0
 	mov	a6, a7
 .Lback13:
@@ -547,7 +531,7 @@ memmove:
 	bbsi.l	a4, 1, .Lback14
 	bbsi.l	a4, 0, .Lback15
 .Lbackdone:
-	retw
+	abi_ret_default
 .Lback14:
 	# copy 2 bytes
 	addi	a3, a3, -2
@@ -557,20 +541,13 @@ memmove:
 	s8i	a6, a5,  0
 	s8i	a7, a5,  1
 	bbsi.l	a4, 0, .Lback15
-	retw
+	abi_ret_default
 .Lback15:
 	# copy 1 byte
 	addi	a3, a3, -1
 	addi	a5, a5, -1
 	l8ui	a6, a3,  0
 	s8i	a6, a5,  0
-	retw
+	abi_ret_default
 
-
-/*
- * Local Variables:
- * mode:fundamental
- * comment-start: "# "
- * comment-start-skip: "# *"
- * End:
- */
+ENDPROC(__memmove)

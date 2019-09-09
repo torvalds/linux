@@ -1,28 +1,20 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * intel-bts.c: Intel Processor Trace support
  * Copyright (c) 2013-2015, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
  */
 
+#include <errno.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/bitops.h>
 #include <linux/log2.h>
+#include <linux/zalloc.h>
 
 #include "../../util/cpumap.h"
 #include "../../util/evsel.h"
 #include "../../util/evlist.h"
 #include "../../util/session.h"
-#include "../../util/util.h"
 #include "../../util/pmu.h"
 #include "../../util/debug.h"
 #include "../../util/tsc.h"
@@ -33,10 +25,6 @@
 #define MiB(x) ((x) * 1024 * 1024)
 #define KiB_MASK(x) (KiB(x) - 1)
 #define MiB_MASK(x) (MiB(x) - 1)
-
-#define INTEL_BTS_DFLT_SAMPLE_SIZE	KiB(4)
-
-#define INTEL_BTS_MAX_SAMPLE_SIZE	KiB(60)
 
 struct intel_bts_snapshot_ref {
 	void	*ref_buf;

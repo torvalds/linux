@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Intel XScale IXP device configuration
 #
@@ -12,7 +13,7 @@ config NET_VENDOR_XSCALE
 
 	  Note that the answer to this question does not directly affect the
 	  kernel: saying N will just cause the configurator to skip all
-	  the questions about XSacle IXP devices. If you say Y, you will be
+	  the questions about XScale IXP devices. If you say Y, you will be
 	  asked for your specific card in the following questions.
 
 if NET_VENDOR_XSCALE

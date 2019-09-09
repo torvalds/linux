@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * RapidIO Tsi568 switch support
  *
@@ -8,11 +9,6 @@
  *
  * Copyright 2005 MontaVista Software, Inc.
  * Matt Porter <mporter@kernel.crashing.org>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/rio.h>
@@ -169,7 +165,7 @@ static void tsi568_remove(struct rio_dev *rdev)
 	spin_unlock(&rdev->rswitch->lock);
 }
 
-static struct rio_device_id tsi568_id_table[] = {
+static const struct rio_device_id tsi568_id_table[] = {
 	{RIO_DEVICE(RIO_DID_TSI568, RIO_VID_TUNDRA)},
 	{ 0, }	/* terminate list */
 };

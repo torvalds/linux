@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/drivers/mmc/host/mxcmmc.c - Freescale i.MX MMCI driver
  *
@@ -10,17 +11,13 @@
  *  Copyright (C) 2006 Pavel Pisa, PiKRON <ppisa@pikron.com>
  *
  *  derived from pxamci.c by Russell King
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/platform_device.h>
+#include <linux/highmem.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/blkdev.h>
@@ -30,14 +27,12 @@
 #include <linux/delay.h>
 #include <linux/clk.h>
 #include <linux/io.h>
-#include <linux/gpio.h>
 #include <linux/regulator/consumer.h>
 #include <linux/dmaengine.h>
 #include <linux/types.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_dma.h>
-#include <linux/of_gpio.h>
 #include <linux/mmc/slot-gpio.h>
 
 #include <asm/dma.h>
@@ -681,6 +676,9 @@ static void mxcmci_data_done(struct mxcmci_host *host, unsigned int stat)
 
 	spin_unlock_irqrestore(&host->lock, flags);
 
+	if (data_error)
+		return;
+
 	mxcmci_read_response(host, stat);
 	host->cmd = NULL;
 
@@ -716,7 +714,6 @@ static void mxcmci_cmd_done(struct mxcmci_host *host, unsigned int stat)
 static irqreturn_t mxcmci_irq(int irq, void *devid)
 {
 	struct mxcmci_host *host = devid;
-	unsigned long flags;
 	bool sdio_irq;
 	u32 stat;
 
@@ -728,9 +725,9 @@ static irqreturn_t mxcmci_irq(int irq, void *devid)
 
 	dev_dbg(mmc_dev(host->mmc), "%s: 0x%08x\n", __func__, stat);
 
-	spin_lock_irqsave(&host->lock, flags);
+	spin_lock(&host->lock);
 	sdio_irq = (stat & STATUS_SDIO_INT_ACTIVE) && host->use_sdio;
-	spin_unlock_irqrestore(&host->lock, flags);
+	spin_unlock(&host->lock);
 
 	if (mxcmci_use_dma(host) && (stat & (STATUS_WRITE_OP_DONE)))
 		mxcmci_writel(host, STATUS_WRITE_OP_DONE, MMC_REG_STATUS);
@@ -960,10 +957,9 @@ static bool filter(struct dma_chan *chan, void *param)
 	return true;
 }
 
-static void mxcmci_watchdog(unsigned long data)
+static void mxcmci_watchdog(struct timer_list *t)
 {
-	struct mmc_host *mmc = (struct mmc_host *)data;
-	struct mxcmci_host *host = mmc_priv(mmc);
+	struct mxcmci_host *host = from_timer(host, t, watchdog);
 	struct mmc_request *req = host->req;
 	unsigned int stat = mxcmci_readl(host, MMC_REG_STATUS);
 
@@ -1014,8 +1010,10 @@ static int mxcmci_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0)
-		return -EINVAL;
+	if (irq < 0) {
+		dev_err(&pdev->dev, "failed to get IRQ: %d\n", irq);
+		return irq;
+	}
 
 	mmc = mmc_alloc_host(sizeof(*host), &pdev->dev);
 	if (!mmc)
@@ -1070,7 +1068,7 @@ static int mxcmci_probe(struct platform_device *pdev)
 		dat3_card_detect = true;
 
 	ret = mmc_regulator_get_supply(mmc);
-	if (ret == -EPROBE_DEFER)
+	if (ret)
 		goto out_free;
 
 	if (!mmc->ocr_avail) {
@@ -1098,8 +1096,13 @@ static int mxcmci_probe(struct platform_device *pdev)
 		goto out_free;
 	}
 
-	clk_prepare_enable(host->clk_per);
-	clk_prepare_enable(host->clk_ipg);
+	ret = clk_prepare_enable(host->clk_per);
+	if (ret)
+		goto out_free;
+
+	ret = clk_prepare_enable(host->clk_ipg);
+	if (ret)
+		goto out_clk_per_put;
 
 	mxcmci_softreset(host);
 
@@ -1155,9 +1158,7 @@ static int mxcmci_probe(struct platform_device *pdev)
 			goto out_free_dma;
 	}
 
-	init_timer(&host->watchdog);
-	host->watchdog.function = &mxcmci_watchdog;
-	host->watchdog.data = (unsigned long)mmc;
+	timer_setup(&host->watchdog, mxcmci_watchdog, 0);
 
 	mmc_add_host(mmc);
 
@@ -1168,8 +1169,9 @@ out_free_dma:
 		dma_release_channel(host->dma);
 
 out_clk_put:
-	clk_disable_unprepare(host->clk_per);
 	clk_disable_unprepare(host->clk_ipg);
+out_clk_per_put:
+	clk_disable_unprepare(host->clk_per);
 
 out_free:
 	mmc_free_host(mmc);
@@ -1198,7 +1200,8 @@ static int mxcmci_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __maybe_unused mxcmci_suspend(struct device *dev)
+#ifdef CONFIG_PM_SLEEP
+static int mxcmci_suspend(struct device *dev)
 {
 	struct mmc_host *mmc = dev_get_drvdata(dev);
 	struct mxcmci_host *host = mmc_priv(mmc);
@@ -1208,15 +1211,23 @@ static int __maybe_unused mxcmci_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused mxcmci_resume(struct device *dev)
+static int mxcmci_resume(struct device *dev)
 {
 	struct mmc_host *mmc = dev_get_drvdata(dev);
 	struct mxcmci_host *host = mmc_priv(mmc);
+	int ret;
 
-	clk_prepare_enable(host->clk_per);
-	clk_prepare_enable(host->clk_ipg);
-	return 0;
+	ret = clk_prepare_enable(host->clk_per);
+	if (ret)
+		return ret;
+
+	ret = clk_prepare_enable(host->clk_ipg);
+	if (ret)
+		clk_disable_unprepare(host->clk_per);
+
+	return ret;
 }
+#endif
 
 static SIMPLE_DEV_PM_OPS(mxcmci_pm_ops, mxcmci_suspend, mxcmci_resume);
 

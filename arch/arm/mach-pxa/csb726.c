@@ -1,23 +1,19 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Support for Cogent CSB726
  *
  *  Copyright (c) 2008 Dmitry Eremin-Solenikov
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
- *
  */
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/io.h>
-#include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/platform_device.h>
 #include <linux/mtd/physmap.h>
 #include <linux/mtd/partitions.h>
 #include <linux/sm501.h>
 #include <linux/smsc911x.h>
-#include <linux/i2c/pxa-i2c.h>
+#include <linux/platform_data/i2c-pxa.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -129,9 +125,19 @@ static struct pxamci_platform_data csb726_mci = {
 	.detect_delay_ms	= 500,
 	.ocr_mask		= MMC_VDD_32_33|MMC_VDD_33_34,
 	/* FIXME setpower */
-	.gpio_card_detect	= CSB726_GPIO_MMC_DETECT,
-	.gpio_card_ro		= CSB726_GPIO_MMC_RO,
-	.gpio_power		= -1,
+};
+
+static struct gpiod_lookup_table csb726_mci_gpio_table = {
+	.dev_id = "pxa2xx-mci.0",
+	.table = {
+		/* Card detect on GPIO 100 */
+		GPIO_LOOKUP("gpio-pxa", CSB726_GPIO_MMC_DETECT,
+			    "cd", GPIO_ACTIVE_LOW),
+		/* Write protect on GPIO 101 */
+		GPIO_LOOKUP("gpio-pxa", CSB726_GPIO_MMC_RO,
+			    "wp", GPIO_ACTIVE_LOW),
+		{ },
+	},
 };
 
 static struct pxaohci_platform_data csb726_ohci_platform_data = {
@@ -264,6 +270,7 @@ static void __init csb726_init(void)
 	pxa_set_stuart_info(NULL);
 	pxa_set_i2c_info(NULL);
 	pxa27x_set_i2c_power_info(NULL);
+	gpiod_add_lookup_table(&csb726_mci_gpio_table);
 	pxa_set_mci_info(&csb726_mci);
 	pxa_set_ohci_info(&csb726_ohci_platform_data);
 	pxa_set_ac97_info(NULL);

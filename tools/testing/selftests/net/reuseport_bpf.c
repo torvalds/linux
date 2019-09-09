@@ -21,6 +21,7 @@
 #include <sys/epoll.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/resource.h>
 #include <unistd.h>
 
 #ifndef ARRAY_SIZE
@@ -190,10 +191,13 @@ static void send_from(struct test_params p, uint16_t sport, char *buf,
 	struct sockaddr * const saddr = new_any_sockaddr(p.send_family, sport);
 	struct sockaddr * const daddr =
 		new_loopback_sockaddr(p.send_family, p.recv_port);
-	const int fd = socket(p.send_family, p.protocol, 0);
+	const int fd = socket(p.send_family, p.protocol, 0), one = 1;
 
 	if (fd < 0)
 		error(1, errno, "failed to create send socket");
+
+	if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one)))
+		error(1, errno, "failed to set reuseaddr");
 
 	if (bind(fd, saddr, sockaddr_size()))
 		error(1, errno, "failed to bind send socket");
@@ -431,6 +435,26 @@ void enable_fastopen(void)
 			error(1, errno, "Unable to write tcp_fastopen sysctl");
 		close(fd);
 	}
+}
+
+static struct rlimit rlim_old;
+
+static  __attribute__((constructor)) void main_ctor(void)
+{
+	getrlimit(RLIMIT_MEMLOCK, &rlim_old);
+
+	if (rlim_old.rlim_cur != RLIM_INFINITY) {
+		struct rlimit rlim_new;
+
+		rlim_new.rlim_cur = rlim_old.rlim_cur + (1UL << 20);
+		rlim_new.rlim_max = rlim_old.rlim_max + (1UL << 20);
+		setrlimit(RLIMIT_MEMLOCK, &rlim_new);
+	}
+}
+
+static __attribute__((destructor)) void main_dtor(void)
+{
+	setrlimit(RLIMIT_MEMLOCK, &rlim_old);
 }
 
 int main(void)

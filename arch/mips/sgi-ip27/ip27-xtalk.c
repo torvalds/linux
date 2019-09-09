@@ -1,14 +1,17 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 1999, 2000 Ralf Baechle (ralf@gnu.org)
  * Copyright (C) 1999, 2000 Silcon Graphics, Inc.
  * Copyright (C) 2004 Christoph Hellwig.
- *	Released under GPL v2.
  *
  * Generic XTALK initialization code
  */
 
 #include <linux/kernel.h>
 #include <linux/smp.h>
+#include <linux/platform_device.h>
+#include <linux/platform_data/xtalk-bridge.h>
+#include <asm/sn/addrs.h>
 #include <asm/sn/types.h>
 #include <asm/sn/klconfig.h>
 #include <asm/sn/hub.h>
@@ -20,7 +23,48 @@
 #define XXBOW_WIDGET_PART_NUM	0xd000	/* Xbow in Xbridge */
 #define BASE_XBOW_PORT		8     /* Lowest external port */
 
-extern int bridge_probe(nasid_t nasid, int widget, int masterwid);
+static void bridge_platform_create(nasid_t nasid, int widget, int masterwid)
+{
+	struct xtalk_bridge_platform_data *bd;
+	struct platform_device *pdev;
+	unsigned long offset;
+
+	bd = kzalloc(sizeof(*bd), GFP_KERNEL);
+	if (!bd)
+		goto no_mem;
+	pdev = platform_device_alloc("xtalk-bridge", PLATFORM_DEVID_AUTO);
+	if (!pdev) {
+		kfree(bd);
+		goto no_mem;
+	}
+
+	offset = NODE_OFFSET(nasid);
+
+	bd->bridge_addr = RAW_NODE_SWIN_BASE(nasid, widget);
+	bd->intr_addr	= BIT_ULL(47) + 0x01800000 + PI_INT_PEND_MOD;
+	bd->nasid	= nasid;
+	bd->masterwid	= masterwid;
+
+	bd->mem.name	= "Bridge PCI MEM";
+	bd->mem.start	= offset + (widget << SWIN_SIZE_BITS);
+	bd->mem.end	= bd->mem.start + SWIN_SIZE - 1;
+	bd->mem.flags	= IORESOURCE_MEM;
+	bd->mem_offset	= offset;
+
+	bd->io.name	= "Bridge PCI IO";
+	bd->io.start	= offset + (widget << SWIN_SIZE_BITS);
+	bd->io.end	= bd->io.start + SWIN_SIZE - 1;
+	bd->io.flags	= IORESOURCE_IO;
+	bd->io_offset	= offset;
+
+	platform_device_add_data(pdev, bd, sizeof(*bd));
+	platform_device_add(pdev);
+	pr_info("xtalk:n%d/%x bridge widget\n", nasid, widget);
+	return;
+
+no_mem:
+	pr_warn("xtalk:n%d/%x bridge create out of memory\n", nasid, widget);
+}
 
 static int probe_one_port(nasid_t nasid, int widget, int masterwid)
 {
@@ -31,13 +75,10 @@ static int probe_one_port(nasid_t nasid, int widget, int masterwid)
 		(RAW_NODE_SWIN_BASE(nasid, widget) + WIDGET_ID);
 	partnum = XWIDGET_PART_NUM(widget_id);
 
-	printk(KERN_INFO "Cpu %d, Nasid 0x%x, widget 0x%x (partnum 0x%x) is ",
-			smp_processor_id(), nasid, widget, partnum);
-
 	switch (partnum) {
 	case BRIDGE_WIDGET_PART_NUM:
 	case XBRIDGE_WIDGET_PART_NUM:
-		bridge_probe(nasid, widget, masterwid);
+		bridge_platform_create(nasid, widget, masterwid);
 		break;
 	default:
 		break;
@@ -51,8 +92,6 @@ static int xbow_probe(nasid_t nasid)
 	lboard_t *brd;
 	klxbow_t *xbow_p;
 	unsigned masterwid, i;
-
-	printk("is xbow\n");
 
 	/*
 	 * found xbow, so may have multiple bridges
@@ -99,7 +138,7 @@ static int xbow_probe(nasid_t nasid)
 	return 0;
 }
 
-void xtalk_probe_node(cnodeid_t nid)
+static void xtalk_probe_node(cnodeid_t nid)
 {
 	volatile u64		hubreg;
 	nasid_t			nasid;
@@ -117,19 +156,28 @@ void xtalk_probe_node(cnodeid_t nid)
 		       (RAW_NODE_SWIN_BASE(nasid, 0x0) + WIDGET_ID);
 	partnum = XWIDGET_PART_NUM(widget_id);
 
-	printk(KERN_INFO "Cpu %d, Nasid 0x%x: partnum 0x%x is ",
-			smp_processor_id(), nasid, partnum);
-
 	switch (partnum) {
 	case BRIDGE_WIDGET_PART_NUM:
-		bridge_probe(nasid, 0x8, 0xa);
+		bridge_platform_create(nasid, 0x8, 0xa);
 		break;
 	case XBOW_WIDGET_PART_NUM:
 	case XXBOW_WIDGET_PART_NUM:
+		pr_info("xtalk:n%d/0 xbow widget\n", nasid);
 		xbow_probe(nasid);
 		break;
 	default:
-		printk(" unknown widget??\n");
+		pr_info("xtalk:n%d/0 unknown widget (0x%x)\n", nasid, partnum);
 		break;
 	}
 }
+
+static int __init xtalk_init(void)
+{
+	cnodeid_t cnode;
+
+	for_each_online_node(cnode)
+		xtalk_probe_node(cnode);
+
+	return 0;
+}
+arch_initcall(xtalk_init);

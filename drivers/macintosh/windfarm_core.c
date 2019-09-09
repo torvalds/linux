@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Windfarm PowerMac thermal control. Core
  *
  * (c) Copyright 2005 Benjamin Herrenschmidt, IBM Corp.
  *                    <benh@kernel.crashing.org>
- *
- * Released under the term of the GNU GPL v2.
  *
  * This core code tracks the list of sensors & controls, register
  * clients, and holds the kernel thread used for control.
@@ -74,8 +73,8 @@ static inline void wf_notify(int event, void *param)
 
 static int wf_critical_overtemp(void)
 {
-	static char * critical_overtemp_path = "/sbin/critical_overtemp";
-	char *argv[] = { critical_overtemp_path, NULL };
+	static char const critical_overtemp_path[] = "/sbin/critical_overtemp";
+	char *argv[] = { (char *)critical_overtemp_path, NULL };
 	static char *envp[] = { "HOME=/",
 				"TERM=linux",
 				"PATH=/sbin:/usr/sbin:/bin:/usr/bin",

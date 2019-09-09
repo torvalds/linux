@@ -1,24 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *
  *  Bluetooth support for Broadcom devices
  *
  *  Copyright (C) 2015  Intel Corporation
- *
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  */
 
 #define BCM_UART_CLOCK_48MHZ	0x01
@@ -44,8 +29,8 @@ struct bcm_set_sleep_mode {
 	__u8 tristate_control;
 	__u8 usb_auto_sleep;
 	__u8 usb_resume_timeout;
-	__u8 pulsed_host_wake;
 	__u8 break_to_host;
+	__u8 pulsed_host_wake;
 } __packed;
 
 struct bcm_set_pcm_int_params {
@@ -73,7 +58,8 @@ int btbcm_patchram(struct hci_dev *hdev, const struct firmware *fw);
 int btbcm_setup_patchram(struct hci_dev *hdev);
 int btbcm_setup_apple(struct hci_dev *hdev);
 
-int btbcm_initialize(struct hci_dev *hdev, char *fw_name, size_t len);
+int btbcm_initialize(struct hci_dev *hdev, char *fw_name, size_t len,
+		     bool reinit);
 int btbcm_finalize(struct hci_dev *hdev);
 
 #else
@@ -104,7 +90,7 @@ static inline int btbcm_setup_apple(struct hci_dev *hdev)
 }
 
 static inline int btbcm_initialize(struct hci_dev *hdev, char *fw_name,
-				   size_t len)
+				   size_t len, bool reinit)
 {
 	return 0;
 }

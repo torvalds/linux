@@ -1,13 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* 10G controller driver for Samsung SoCs
  *
  * Copyright (C) 2013 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
  * Author: Siva Reddy Kallam <siva.kallam@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef __SXGBE_COMMON_H__
@@ -384,7 +381,6 @@ struct sxgbe_tx_queue {
 	dma_addr_t *tx_skbuff_dma;
 	struct sk_buff **tx_skbuff;
 	struct timer_list txtimer;
-	spinlock_t tx_lock;	/* lock for tx queues */
 	unsigned int cur_tx;
 	unsigned int dirty_tx;
 	u32 tx_count_frames;

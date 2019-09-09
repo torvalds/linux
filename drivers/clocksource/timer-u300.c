@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2007-2009 ST-Ericsson AB
- * License terms: GNU General Public License (GPL) version 2
  * Timer COH 901 328, runs the OS timer interrupt.
  * Author: Linus Walleij <linus.walleij@stericsson.com>
  */
@@ -458,5 +458,5 @@ static int __init u300_timer_init_of(struct device_node *np)
 	return 0;
 }
 
-CLOCKSOURCE_OF_DECLARE(u300_timer, "stericsson,u300-apptimer",
+TIMER_OF_DECLARE(u300_timer, "stericsson,u300-apptimer",
 		       u300_timer_init_of);

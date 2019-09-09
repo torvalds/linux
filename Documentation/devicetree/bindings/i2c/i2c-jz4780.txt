@@ -11,14 +11,10 @@ Recommended properties:
 - pinctrl-names: should be "default";
 - pinctrl-0: phandle to pinctrl function
 
-Optional properties:
-- interrupt-parent: Should be the phandle of the interrupt controller that
-  delivers interrupts to the I2C block.
-
 Example
 
 / {
-	i2c4: i2c4@0x10054000 {
+	i2c4: i2c4@10054000 {
 		compatible = "ingenic,jz4780-i2c";
 		reg = <0x10054000 0x1000>;
 

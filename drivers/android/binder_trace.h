@@ -1,15 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2012 Google, Inc.
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #undef TRACE_SYSTEM
@@ -23,7 +14,8 @@
 struct binder_buffer;
 struct binder_node;
 struct binder_proc;
-struct binder_ref;
+struct binder_alloc;
+struct binder_ref_data;
 struct binder_thread;
 struct binder_transaction;
 
@@ -146,8 +138,8 @@ TRACE_EVENT(binder_transaction_received,
 
 TRACE_EVENT(binder_transaction_node_to_ref,
 	TP_PROTO(struct binder_transaction *t, struct binder_node *node,
-		 struct binder_ref *ref),
-	TP_ARGS(t, node, ref),
+		 struct binder_ref_data *rdata),
+	TP_ARGS(t, node, rdata),
 
 	TP_STRUCT__entry(
 		__field(int, debug_id)
@@ -160,8 +152,8 @@ TRACE_EVENT(binder_transaction_node_to_ref,
 		__entry->debug_id = t->debug_id;
 		__entry->node_debug_id = node->debug_id;
 		__entry->node_ptr = node->ptr;
-		__entry->ref_debug_id = ref->debug_id;
-		__entry->ref_desc = ref->desc;
+		__entry->ref_debug_id = rdata->debug_id;
+		__entry->ref_desc = rdata->desc;
 	),
 	TP_printk("transaction=%d node=%d src_ptr=0x%016llx ==> dest_ref=%d dest_desc=%d",
 		  __entry->debug_id, __entry->node_debug_id,
@@ -170,8 +162,9 @@ TRACE_EVENT(binder_transaction_node_to_ref,
 );
 
 TRACE_EVENT(binder_transaction_ref_to_node,
-	TP_PROTO(struct binder_transaction *t, struct binder_ref *ref),
-	TP_ARGS(t, ref),
+	TP_PROTO(struct binder_transaction *t, struct binder_node *node,
+		 struct binder_ref_data *rdata),
+	TP_ARGS(t, node, rdata),
 
 	TP_STRUCT__entry(
 		__field(int, debug_id)
@@ -182,10 +175,10 @@ TRACE_EVENT(binder_transaction_ref_to_node,
 	),
 	TP_fast_assign(
 		__entry->debug_id = t->debug_id;
-		__entry->ref_debug_id = ref->debug_id;
-		__entry->ref_desc = ref->desc;
-		__entry->node_debug_id = ref->node->debug_id;
-		__entry->node_ptr = ref->node->ptr;
+		__entry->ref_debug_id = rdata->debug_id;
+		__entry->ref_desc = rdata->desc;
+		__entry->node_debug_id = node->debug_id;
+		__entry->node_ptr = node->ptr;
 	),
 	TP_printk("transaction=%d node=%d src_ref=%d src_desc=%d ==> dest_ptr=0x%016llx",
 		  __entry->debug_id, __entry->node_debug_id,
@@ -194,9 +187,10 @@ TRACE_EVENT(binder_transaction_ref_to_node,
 );
 
 TRACE_EVENT(binder_transaction_ref_to_ref,
-	TP_PROTO(struct binder_transaction *t, struct binder_ref *src_ref,
-		 struct binder_ref *dest_ref),
-	TP_ARGS(t, src_ref, dest_ref),
+	TP_PROTO(struct binder_transaction *t, struct binder_node *node,
+		 struct binder_ref_data *src_ref,
+		 struct binder_ref_data *dest_ref),
+	TP_ARGS(t, node, src_ref, dest_ref),
 
 	TP_STRUCT__entry(
 		__field(int, debug_id)
@@ -208,7 +202,7 @@ TRACE_EVENT(binder_transaction_ref_to_ref,
 	),
 	TP_fast_assign(
 		__entry->debug_id = t->debug_id;
-		__entry->node_debug_id = src_ref->node->debug_id;
+		__entry->node_debug_id = node->debug_id;
 		__entry->src_ref_debug_id = src_ref->debug_id;
 		__entry->src_ref_desc = src_ref->desc;
 		__entry->dest_ref_debug_id = dest_ref->debug_id;
@@ -220,22 +214,40 @@ TRACE_EVENT(binder_transaction_ref_to_ref,
 		  __entry->dest_ref_debug_id, __entry->dest_ref_desc)
 );
 
-TRACE_EVENT(binder_transaction_fd,
-	TP_PROTO(struct binder_transaction *t, int src_fd, int dest_fd),
-	TP_ARGS(t, src_fd, dest_fd),
+TRACE_EVENT(binder_transaction_fd_send,
+	TP_PROTO(struct binder_transaction *t, int fd, size_t offset),
+	TP_ARGS(t, fd, offset),
 
 	TP_STRUCT__entry(
 		__field(int, debug_id)
-		__field(int, src_fd)
-		__field(int, dest_fd)
+		__field(int, fd)
+		__field(size_t, offset)
 	),
 	TP_fast_assign(
 		__entry->debug_id = t->debug_id;
-		__entry->src_fd = src_fd;
-		__entry->dest_fd = dest_fd;
+		__entry->fd = fd;
+		__entry->offset = offset;
 	),
-	TP_printk("transaction=%d src_fd=%d ==> dest_fd=%d",
-		  __entry->debug_id, __entry->src_fd, __entry->dest_fd)
+	TP_printk("transaction=%d src_fd=%d offset=%zu",
+		  __entry->debug_id, __entry->fd, __entry->offset)
+);
+
+TRACE_EVENT(binder_transaction_fd_recv,
+	TP_PROTO(struct binder_transaction *t, int fd, size_t offset),
+	TP_ARGS(t, fd, offset),
+
+	TP_STRUCT__entry(
+		__field(int, debug_id)
+		__field(int, fd)
+		__field(size_t, offset)
+	),
+	TP_fast_assign(
+		__entry->debug_id = t->debug_id;
+		__entry->fd = fd;
+		__entry->offset = offset;
+	),
+	TP_printk("transaction=%d dest_fd=%d offset=%zu",
+		  __entry->debug_id, __entry->fd, __entry->offset)
 );
 
 DECLARE_EVENT_CLASS(binder_buffer_class,
@@ -245,14 +257,17 @@ DECLARE_EVENT_CLASS(binder_buffer_class,
 		__field(int, debug_id)
 		__field(size_t, data_size)
 		__field(size_t, offsets_size)
+		__field(size_t, extra_buffers_size)
 	),
 	TP_fast_assign(
 		__entry->debug_id = buf->debug_id;
 		__entry->data_size = buf->data_size;
 		__entry->offsets_size = buf->offsets_size;
+		__entry->extra_buffers_size = buf->extra_buffers_size;
 	),
-	TP_printk("transaction=%d data_size=%zd offsets_size=%zd",
-		  __entry->debug_id, __entry->data_size, __entry->offsets_size)
+	TP_printk("transaction=%d data_size=%zd offsets_size=%zd extra_buffers_size=%zd",
+		  __entry->debug_id, __entry->data_size, __entry->offsets_size,
+		  __entry->extra_buffers_size)
 );
 
 DEFINE_EVENT(binder_buffer_class, binder_transaction_alloc_buf,
@@ -268,9 +283,9 @@ DEFINE_EVENT(binder_buffer_class, binder_transaction_failed_buffer_release,
 	TP_ARGS(buffer));
 
 TRACE_EVENT(binder_update_page_range,
-	TP_PROTO(struct binder_proc *proc, bool allocate,
-		 void *start, void *end),
-	TP_ARGS(proc, allocate, start, end),
+	TP_PROTO(struct binder_alloc *alloc, bool allocate,
+		 void __user *start, void __user *end),
+	TP_ARGS(alloc, allocate, start, end),
 	TP_STRUCT__entry(
 		__field(int, proc)
 		__field(bool, allocate)
@@ -278,15 +293,70 @@ TRACE_EVENT(binder_update_page_range,
 		__field(size_t, size)
 	),
 	TP_fast_assign(
-		__entry->proc = proc->pid;
+		__entry->proc = alloc->pid;
 		__entry->allocate = allocate;
-		__entry->offset = start - proc->buffer;
+		__entry->offset = start - alloc->buffer;
 		__entry->size = end - start;
 	),
 	TP_printk("proc=%d allocate=%d offset=%zu size=%zu",
 		  __entry->proc, __entry->allocate,
 		  __entry->offset, __entry->size)
 );
+
+DECLARE_EVENT_CLASS(binder_lru_page_class,
+	TP_PROTO(const struct binder_alloc *alloc, size_t page_index),
+	TP_ARGS(alloc, page_index),
+	TP_STRUCT__entry(
+		__field(int, proc)
+		__field(size_t, page_index)
+	),
+	TP_fast_assign(
+		__entry->proc = alloc->pid;
+		__entry->page_index = page_index;
+	),
+	TP_printk("proc=%d page_index=%zu",
+		  __entry->proc, __entry->page_index)
+);
+
+DEFINE_EVENT(binder_lru_page_class, binder_alloc_lru_start,
+	TP_PROTO(const struct binder_alloc *alloc, size_t page_index),
+	TP_ARGS(alloc, page_index));
+
+DEFINE_EVENT(binder_lru_page_class, binder_alloc_lru_end,
+	TP_PROTO(const struct binder_alloc *alloc, size_t page_index),
+	TP_ARGS(alloc, page_index));
+
+DEFINE_EVENT(binder_lru_page_class, binder_free_lru_start,
+	TP_PROTO(const struct binder_alloc *alloc, size_t page_index),
+	TP_ARGS(alloc, page_index));
+
+DEFINE_EVENT(binder_lru_page_class, binder_free_lru_end,
+	TP_PROTO(const struct binder_alloc *alloc, size_t page_index),
+	TP_ARGS(alloc, page_index));
+
+DEFINE_EVENT(binder_lru_page_class, binder_alloc_page_start,
+	TP_PROTO(const struct binder_alloc *alloc, size_t page_index),
+	TP_ARGS(alloc, page_index));
+
+DEFINE_EVENT(binder_lru_page_class, binder_alloc_page_end,
+	TP_PROTO(const struct binder_alloc *alloc, size_t page_index),
+	TP_ARGS(alloc, page_index));
+
+DEFINE_EVENT(binder_lru_page_class, binder_unmap_user_start,
+	TP_PROTO(const struct binder_alloc *alloc, size_t page_index),
+	TP_ARGS(alloc, page_index));
+
+DEFINE_EVENT(binder_lru_page_class, binder_unmap_user_end,
+	TP_PROTO(const struct binder_alloc *alloc, size_t page_index),
+	TP_ARGS(alloc, page_index));
+
+DEFINE_EVENT(binder_lru_page_class, binder_unmap_kernel_start,
+	TP_PROTO(const struct binder_alloc *alloc, size_t page_index),
+	TP_ARGS(alloc, page_index));
+
+DEFINE_EVENT(binder_lru_page_class, binder_unmap_kernel_end,
+	TP_PROTO(const struct binder_alloc *alloc, size_t page_index),
+	TP_ARGS(alloc, page_index));
 
 TRACE_EVENT(binder_command,
 	TP_PROTO(uint32_t cmd),

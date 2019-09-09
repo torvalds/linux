@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Apple Cinema Display driver
  *
  * Copyright (C) 2006  Michael Hanselmann (linux-kernel@hansmi.ch)
  *
  * Thanks to Caskey L. Dickson for his work with acdctl.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
 #include <linux/kernel.h>
@@ -63,6 +50,8 @@ static const struct usb_device_id appledisplay_table[] = {
 	{ APPLEDISPLAY_DEVICE(0x9219) },
 	{ APPLEDISPLAY_DEVICE(0x921c) },
 	{ APPLEDISPLAY_DEVICE(0x921d) },
+	{ APPLEDISPLAY_DEVICE(0x9222) },
+	{ APPLEDISPLAY_DEVICE(0x9226) },
 	{ APPLEDISPLAY_DEVICE(0x9236) },
 
 	/* Terminating entry */
@@ -80,7 +69,6 @@ struct appledisplay {
 
 	struct delayed_work work;
 	int button_pressed;
-	spinlock_t lock;
 	struct mutex sysfslock;		/* concurrent read and write */
 };
 
@@ -90,7 +78,6 @@ static void appledisplay_complete(struct urb *urb)
 {
 	struct appledisplay *pdata = urb->context;
 	struct device *dev = &pdata->udev->dev;
-	unsigned long flags;
 	int status = urb->status;
 	int retval;
 
@@ -102,6 +89,7 @@ static void appledisplay_complete(struct urb *urb)
 		dev_err(dev,
 			"OVERFLOW with data length %d, actual length is %d\n",
 			ACD_URB_BUFFER_LEN, pdata->urb->actual_length);
+		/* fall through */
 	case -ECONNRESET:
 	case -ENOENT:
 	case -ESHUTDOWN:
@@ -115,8 +103,6 @@ static void appledisplay_complete(struct urb *urb)
 		goto exit;
 	}
 
-	spin_lock_irqsave(&pdata->lock, flags);
-
 	switch(pdata->urbdata[1]) {
 	case ACD_BTN_BRIGHT_UP:
 	case ACD_BTN_BRIGHT_DOWN:
@@ -128,8 +114,6 @@ static void appledisplay_complete(struct urb *urb)
 		pdata->button_pressed = 0;
 		break;
 	}
-
-	spin_unlock_irqrestore(&pdata->lock, flags);
 
 exit:
 	retval = usb_submit_urb(pdata->urb, GFP_ATOMIC);
@@ -158,8 +142,11 @@ static int appledisplay_bl_update_status(struct backlight_device *bd)
 		pdata->msgdata, 2,
 		ACD_USB_TIMEOUT);
 	mutex_unlock(&pdata->sysfslock);
-	
-	return retval;
+
+	if (retval < 0)
+		return retval;
+	else
+		return 0;
 }
 
 static int appledisplay_bl_get_brightness(struct backlight_device *bd)
@@ -212,27 +199,20 @@ static int appledisplay_probe(struct usb_interface *iface,
 	struct backlight_properties props;
 	struct appledisplay *pdata;
 	struct usb_device *udev = interface_to_usbdev(iface);
-	struct usb_host_interface *iface_desc;
 	struct usb_endpoint_descriptor *endpoint;
 	int int_in_endpointAddr = 0;
-	int i, retval = -ENOMEM, brightness;
+	int retval, brightness;
 	char bl_name[20];
 
 	/* set up the endpoint information */
 	/* use only the first interrupt-in endpoint */
-	iface_desc = iface->cur_altsetting;
-	for (i = 0; i < iface_desc->desc.bNumEndpoints; i++) {
-		endpoint = &iface_desc->endpoint[i].desc;
-		if (!int_in_endpointAddr && usb_endpoint_is_int_in(endpoint)) {
-			/* we found an interrupt in endpoint */
-			int_in_endpointAddr = endpoint->bEndpointAddress;
-			break;
-		}
-	}
-	if (!int_in_endpointAddr) {
+	retval = usb_find_int_in_endpoint(iface->cur_altsetting, &endpoint);
+	if (retval) {
 		dev_err(&iface->dev, "Could not find int-in endpoint\n");
-		return -EIO;
+		return retval;
 	}
+
+	int_in_endpointAddr = endpoint->bEndpointAddress;
 
 	/* allocate memory for our device state and initialize it */
 	pdata = kzalloc(sizeof(struct appledisplay), GFP_KERNEL);
@@ -243,7 +223,6 @@ static int appledisplay_probe(struct usb_interface *iface,
 
 	pdata->udev = udev;
 
-	spin_lock_init(&pdata->lock);
 	INIT_DELAYED_WORK(&pdata->work, appledisplay_work);
 	mutex_init(&pdata->sysfslock);
 
@@ -275,6 +254,7 @@ static int appledisplay_probe(struct usb_interface *iface,
 		usb_rcvintpipe(udev, int_in_endpointAddr),
 		pdata->urbdata, ACD_URB_BUFFER_LEN, appledisplay_complete,
 		pdata, 1);
+	pdata->urb->transfer_flags = URB_NO_TRANSFER_DMA_MAP;
 	if (usb_submit_urb(pdata->urb, GFP_KERNEL)) {
 		retval = -EIO;
 		dev_err(&iface->dev, "Submitting URB failed\n");

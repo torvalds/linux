@@ -1,9 +1,11 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2010-2015 Emulex.  All rights reserved.                *
+ * Copyright (C) 2017-2019 Broadcom. All Rights Reserved. The term *
+ * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
+ * Copyright (C) 2010-2015 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
- * www.emulex.com                                                  *
+ * www.broadcom.com                                                *
  *                                                                 *
  * This program is free software; you can redistribute it and/or   *
  * modify it under the terms of version 2 of the GNU General       *
@@ -35,6 +37,12 @@
 #define LPFC_BSG_VENDOR_MENLO_DATA		9
 #define LPFC_BSG_VENDOR_DIAG_MODE_END		10
 #define LPFC_BSG_VENDOR_LINK_DIAG_TEST		11
+#define LPFC_BSG_VENDOR_FORCED_LINK_SPEED	14
+#define LPFC_BSG_VENDOR_RAS_GET_LWPD		16
+#define LPFC_BSG_VENDOR_RAS_GET_FWLOG		17
+#define LPFC_BSG_VENDOR_RAS_GET_CONFIG		18
+#define LPFC_BSG_VENDOR_RAS_SET_CONFIG		19
+#define LPFC_BSG_VENDOR_GET_TRUNK_INFO		20
 
 struct set_ct_event {
 	uint32_t command;
@@ -60,6 +68,7 @@ struct send_mgmt_resp {
 };
 
 
+#define DISABLE_LOOP_BACK  0x0 /* disables loop back */
 #define INTERNAL_LOOP_BACK 0x1 /* adapter short cuts the loop internally */
 #define EXTERNAL_LOOP_BACK 0x2 /* requires an external loopback plug */
 
@@ -67,6 +76,7 @@ struct diag_mode_set {
 	uint32_t command;
 	uint32_t type;
 	uint32_t timeout;
+	uint32_t physical_link;
 };
 
 struct sli4_link_diag {
@@ -282,6 +292,84 @@ struct lpfc_sli_config_mbox {
 		struct lpfc_sli_config_emb0_subsys sli_config_emb0_subsys;
 		struct lpfc_sli_config_emb1_subsys sli_config_emb1_subsys;
 	} un;
+};
+
+#define LPFC_FORCED_LINK_SPEED_NOT_SUPPORTED	0
+#define LPFC_FORCED_LINK_SPEED_SUPPORTED	1
+struct get_forced_link_speed_support {
+	uint32_t command;
+};
+struct forced_link_speed_support_reply {
+	uint8_t supported;
+};
+
+struct lpfc_bsg_ras_req {
+	uint32_t command;
+};
+
+struct lpfc_bsg_get_fwlog_req {
+	uint32_t command;
+	uint32_t read_size;
+	uint32_t read_offset;
+};
+
+struct lpfc_bsg_get_ras_lwpd {
+	uint32_t offset;
+	uint32_t wrap_count;
+};
+
+struct lpfc_bsg_set_ras_config_req {
+	uint32_t command;
+	uint8_t action;
+#define LPFC_RASACTION_STOP_LOGGING     0x00
+#define LPFC_RASACTION_START_LOGGING    0x01
+	uint8_t log_level;
+};
+
+struct lpfc_bsg_get_ras_config_reply {
+	uint8_t state;
+#define LPFC_RASLOG_STATE_STOPPED 0x00
+#define LPFC_RASLOG_STATE_RUNNING 0x01
+	uint8_t log_level;
+	uint32_t log_buff_sz;
+};
+
+struct lpfc_trunk_info {
+	uint32_t word0;
+#define lpfc_trunk_info_link_status_SHIFT      0
+#define lpfc_trunk_info_link_status_MASK       1
+#define lpfc_trunk_info_link_status_WORD       word0
+#define lpfc_trunk_info_trunk_active0_SHIFT    8
+#define lpfc_trunk_info_trunk_active0_MASK     1
+#define lpfc_trunk_info_trunk_active0_WORD     word0
+#define lpfc_trunk_info_trunk_active1_SHIFT    9
+#define lpfc_trunk_info_trunk_active1_MASK     1
+#define lpfc_trunk_info_trunk_active1_WORD     word0
+#define lpfc_trunk_info_trunk_active2_SHIFT    10
+#define lpfc_trunk_info_trunk_active2_MASK     1
+#define lpfc_trunk_info_trunk_active2_WORD     word0
+#define lpfc_trunk_info_trunk_active3_SHIFT    11
+#define lpfc_trunk_info_trunk_active3_MASK     1
+#define lpfc_trunk_info_trunk_active3_WORD     word0
+#define lpfc_trunk_info_trunk_config0_SHIFT    12
+#define lpfc_trunk_info_trunk_config0_MASK     1
+#define lpfc_trunk_info_trunk_config0_WORD     word0
+#define lpfc_trunk_info_trunk_config1_SHIFT    13
+#define lpfc_trunk_info_trunk_config1_MASK     1
+#define lpfc_trunk_info_trunk_config1_WORD     word0
+#define lpfc_trunk_info_trunk_config2_SHIFT    14
+#define lpfc_trunk_info_trunk_config2_MASK     1
+#define lpfc_trunk_info_trunk_config2_WORD     word0
+#define lpfc_trunk_info_trunk_config3_SHIFT    15
+#define lpfc_trunk_info_trunk_config3_MASK     1
+#define lpfc_trunk_info_trunk_config3_WORD     word0
+	uint16_t    port_speed;
+	uint16_t    logical_speed;
+	uint32_t    reserved3;
+};
+
+struct get_trunk_info_req {
+	uint32_t command;
 };
 
 /* driver only */

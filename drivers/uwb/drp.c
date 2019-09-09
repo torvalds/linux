@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Ultra Wide Band
  * Dynamic Reservation Protocol handling
@@ -5,18 +6,6 @@
  * Copyright (C) 2005-2006 Intel Corporation
  * Inaky Perez-Gonzalez <inaky.perez-gonzalez@intel.com>
  * Copyright (C) 2008 Cambridge Silicon Radio Ltd.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <linux/kthread.h>
 #include <linux/freezer.h>
@@ -603,9 +592,9 @@ static void uwb_cnflt_update_work(struct work_struct *work)
 	mutex_unlock(&rc->rsvs_mutex);
 }
 
-static void uwb_cnflt_timer(unsigned long arg)
+static void uwb_cnflt_timer(struct timer_list *t)
 {
-	struct uwb_cnflt_alien *cnflt = (struct uwb_cnflt_alien *)arg;
+	struct uwb_cnflt_alien *cnflt = from_timer(cnflt, t, timer);
 
 	queue_work(cnflt->rc->rsv_workq, &cnflt->cnflt_update_work);
 }
@@ -642,7 +631,7 @@ static void uwb_drp_handle_alien_drp(struct uwb_rc *rc, struct uwb_ie_drp *drp_i
 	}
 
 	INIT_LIST_HEAD(&cnflt->rc_node);
-	setup_timer(&cnflt->timer, uwb_cnflt_timer, (unsigned long)cnflt);
+	timer_setup(&cnflt->timer, uwb_cnflt_timer, 0);
 
 	cnflt->rc = rc;
 	INIT_WORK(&cnflt->cnflt_update_work, uwb_cnflt_update_work);

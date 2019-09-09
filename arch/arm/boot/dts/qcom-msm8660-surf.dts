@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <dt-bindings/input/input.h>
 
 #include "qcom-msm8660.dtsi"
@@ -48,7 +49,7 @@
 	};
 };
 
-&pmicintc {
+&pm8058 {
 	keypad@148 {
 		linux,keymap = <
 			MATRIX_KEY(0, 0, KEY_FN_F1)

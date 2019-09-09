@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2005-2014 Brocade Communications Systems, Inc.
  * Copyright (c) 2014- QLogic Corporation.
@@ -5,15 +6,6 @@
  * www.qlogic.com
  *
  * Linux driver for QLogic BR-series Fibre Channel Host Bus Adapter.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License (GPL) Version 2 as
- * published by the Free Software Foundation
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 
 #ifndef __BFA_FCPIM_H__
@@ -136,7 +128,7 @@ struct bfa_fcpim_s {
 	struct bfa_fcpim_del_itn_stats_s del_itn_stats;
 	bfa_boolean_t		ioredirect;
 	bfa_boolean_t		io_profile;
-	u32			io_profile_start_time;
+	time64_t		io_profile_start_time;
 	bfa_fcpim_profile_t     profile_comp;
 	bfa_fcpim_profile_t     profile_start;
 };
@@ -310,7 +302,7 @@ bfa_status_t bfa_fcpim_port_iostats(struct bfa_s *bfa,
 			struct bfa_itnim_iostats_s *stats, u8 lp_tag);
 void bfa_fcpim_add_stats(struct bfa_itnim_iostats_s *fcpim_stats,
 			struct bfa_itnim_iostats_s *itnim_stats);
-bfa_status_t bfa_fcpim_profile_on(struct bfa_s *bfa, u32 time);
+bfa_status_t bfa_fcpim_profile_on(struct bfa_s *bfa, time64_t time);
 bfa_status_t bfa_fcpim_profile_off(struct bfa_s *bfa);
 
 #define bfa_fcpim_ioredirect_enabled(__bfa)				\

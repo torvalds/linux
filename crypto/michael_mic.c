@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Cryptographic API
  *
  * Michael MIC (IEEE 802.11i/TKIP) keyed digest
  *
  * Copyright (c) 2004 Jouni Malinen <j@w1.fi>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <crypto/internal/hash.h>
 #include <asm/byteorder.h>
@@ -159,6 +156,7 @@ static struct shash_alg alg = {
 	.descsize		=	sizeof(struct michael_mic_desc_ctx),
 	.base			=	{
 		.cra_name		=	"michael_mic",
+		.cra_driver_name	=	"michael_mic-generic",
 		.cra_blocksize		=	8,
 		.cra_alignmask		=	3,
 		.cra_ctxsize		=	sizeof(struct michael_mic_ctx),
@@ -178,7 +176,7 @@ static void __exit michael_mic_exit(void)
 }
 
 
-module_init(michael_mic_init);
+subsys_initcall(michael_mic_init);
 module_exit(michael_mic_exit);
 
 MODULE_LICENSE("GPL v2");

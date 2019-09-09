@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Cryptographic API.
  *
@@ -6,12 +7,6 @@
  * Copyright (c) 2002 James Morris <jmorris@intercode.com.au>
  *               2002 Adam J. Richter <adam@yggdrasil.com>
  *               2004 Jean-Luc Cooke <jlcooke@certainkey.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
- *
  */
 
 #include <crypto/scatterwalk.h>
@@ -68,10 +63,6 @@ void scatterwalk_map_and_copy(void *buf, struct scatterlist *sg,
 
 	sg = scatterwalk_ffwd(tmp, sg, start);
 
-	if (sg_page(sg) == virt_to_page(buf) &&
-	    sg->offset == offset_in_page(buf))
-		return;
-
 	scatterwalk_start(&walk, sg);
 	scatterwalk_copychunks(buf, &walk, nbytes, out);
 	scatterwalk_done(&walk, out, 0);
@@ -95,7 +86,7 @@ struct scatterlist *scatterwalk_ffwd(struct scatterlist dst[2],
 
 	sg_init_table(dst, 2);
 	sg_set_page(dst, sg_page(src), src->length - len, src->offset + len);
-	scatterwalk_crypto_chain(dst, sg_next(src), 0, 2);
+	scatterwalk_crypto_chain(dst, sg_next(src), 2);
 
 	return dst;
 }

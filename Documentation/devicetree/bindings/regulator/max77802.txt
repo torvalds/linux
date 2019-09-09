@@ -71,7 +71,7 @@ has not been disabled for that state using "regulator-off-in-suspend".
 
 Example:
 
-	max77802@09 {
+	max77802@9 {
 		compatible = "maxim,max77802";
 		interrupt-parent = <&wakeup_eint>;
 		interrupts = <26 0>;

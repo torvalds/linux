@@ -12,10 +12,6 @@ Required properties:
 	       (16 for ARCHS cores, 3 for ARC700 cores)
 - clocks     : phandle to the source clock
 
-Optional properties:
-
-- interrupt-parent : phandle to parent intc
-
 Example:
 
 	timer0 {

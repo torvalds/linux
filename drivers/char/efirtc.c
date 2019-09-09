@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * EFI Time Services Driver for Linux
  *
@@ -255,35 +256,12 @@ static long efi_rtc_ioctl(struct file *file, unsigned int cmd,
 }
 
 /*
- *	We enforce only one user at a time here with the open/close.
- *	Also clear the previous interrupt data on an open, and clean
- *	up things on a close.
- */
-
-static int efi_rtc_open(struct inode *inode, struct file *file)
-{
-	/*
-	 * nothing special to do here
-	 * We do accept multiple open files at the same time as we
-	 * synchronize on the per call operation.
-	 */
-	return 0;
-}
-
-static int efi_rtc_close(struct inode *inode, struct file *file)
-{
-	return 0;
-}
-
-/*
  *	The various file operations we support.
  */
 
 static const struct file_operations efi_rtc_fops = {
 	.owner		= THIS_MODULE,
 	.unlocked_ioctl	= efi_rtc_ioctl,
-	.open		= efi_rtc_open,
-	.release	= efi_rtc_close,
 	.llseek		= no_llseek,
 };
 
@@ -358,19 +336,6 @@ static int efi_rtc_proc_show(struct seq_file *m, void *v)
 
 	return 0;
 }
-
-static int efi_rtc_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, efi_rtc_proc_show, NULL);
-}
-
-static const struct file_operations efi_rtc_proc_fops = {
-	.open		= efi_rtc_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 static int __init 
 efi_rtc_init(void)
 {
@@ -386,7 +351,7 @@ efi_rtc_init(void)
 		return ret;
 	}
 
-	dir = proc_create("driver/efirtc", 0, NULL, &efi_rtc_proc_fops);
+	dir = proc_create_single("driver/efirtc", 0, NULL, efi_rtc_proc_show);
 	if (dir == NULL) {
 		printk(KERN_ERR "efirtc: can't create /proc/driver/efirtc.\n");
 		misc_deregister(&efi_rtc_dev);

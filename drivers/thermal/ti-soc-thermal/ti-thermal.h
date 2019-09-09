@@ -1,45 +1,15 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * OMAP thermal definitions
  *
  * Copyright (C) 2012 Texas Instruments Incorporated - http://www.ti.com/
  * Contact:
  *   Eduardo Valentin <eduardo.valentin@ti.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
- *
  */
 #ifndef __TI_THERMAL_H
 #define __TI_THERMAL_H
 
 #include "ti-bandgap.h"
-
-/* sensors gradient and offsets */
-#define OMAP_GRADIENT_SLOPE_4430				0
-#define OMAP_GRADIENT_CONST_4430				20000
-#define OMAP_GRADIENT_SLOPE_4460				348
-#define OMAP_GRADIENT_CONST_4460				-9301
-#define OMAP_GRADIENT_SLOPE_4470				308
-#define OMAP_GRADIENT_CONST_4470				-7896
-
-#define OMAP_GRADIENT_SLOPE_5430_CPU				65
-#define OMAP_GRADIENT_CONST_5430_CPU				-1791
-#define OMAP_GRADIENT_SLOPE_5430_GPU				117
-#define OMAP_GRADIENT_CONST_5430_GPU				-2992
-
-#define DRA752_GRADIENT_SLOPE					0
-#define DRA752_GRADIENT_CONST					2000
 
 /* PCB sensor calculation constants */
 #define OMAP_GRADIENT_SLOPE_W_PCB_4430				0

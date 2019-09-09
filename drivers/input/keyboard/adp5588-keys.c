@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * File: drivers/input/keyboard/adp5588_keys.c
  * Description:  keypad driver for ADP5588 and ADP5587
@@ -5,7 +6,6 @@
  * Bugs: Enter bugs at http://blackfin.uclinux.org/
  *
  * Copyright (C) 2008-2010 Analog Devices Inc.
- * Licensed under the GPL-2 or later.
  */
 
 #include <linux/module.h>
@@ -20,7 +20,7 @@
 #include <linux/gpio.h>
 #include <linux/slab.h>
 
-#include <linux/i2c/adp5588.h>
+#include <linux/platform_data/adp5588.h>
 
 /* Key Event Register xy */
 #define KEY_EV_PRESSED		(1 << 7)

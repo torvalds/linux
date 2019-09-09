@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
   nubus.h: various definitions and prototypes for NuBus drivers to use.
 
@@ -113,13 +114,15 @@ enum nubus_drhw {
 	NUBUS_DRHW_SIGMA_CLRMAX   = 0x0007, /* Sigma Design ColorMax */
 	NUBUS_DRHW_APPLE_SE30     = 0x0009, /* Apple SE/30 video */
 	NUBUS_DRHW_APPLE_HRVC     = 0x0013, /* Mac II High-Res Video Card */
+	NUBUS_DRHW_APPLE_MVC      = 0x0014, /* Mac II Monochrome Video Card */
 	NUBUS_DRHW_APPLE_PVC      = 0x0017, /* Mac II Portrait Video Card */
 	NUBUS_DRHW_APPLE_RBV1     = 0x0018, /* IIci RBV video */
 	NUBUS_DRHW_APPLE_MDC      = 0x0019, /* Macintosh Display Card */
+	NUBUS_DRHW_APPLE_VSC      = 0x0020, /* Duo MiniDock ViSC framebuffer */
 	NUBUS_DRHW_APPLE_SONORA   = 0x0022, /* Sonora built-in video */
+	NUBUS_DRHW_APPLE_JET      = 0x0029, /* Jet framebuffer (DuoDock) */
 	NUBUS_DRHW_APPLE_24AC     = 0x002b, /* Mac 24AC Video Card */
 	NUBUS_DRHW_APPLE_VALKYRIE = 0x002e,
-	NUBUS_DRHW_APPLE_JET      = 0x0029, /* Jet framebuffer (DuoDock) */
 	NUBUS_DRHW_SMAC_GFX       = 0x0105, /* SuperMac GFX */
 	NUBUS_DRHW_RASTER_CB264   = 0x013B, /* RasterOps ColorBoard 264 */
 	NUBUS_DRHW_MICRON_XCEED   = 0x0146, /* Micron Exceed color */
@@ -217,28 +220,5 @@ enum nubus_display_res_id {
 	NUBUS_RESID_FIFTHMODE   = 0x0084,
 	NUBUS_RESID_SIXTHMODE   = 0x0085
 };
-
-struct nubus_dir
-{
-	unsigned char *base;
-	unsigned char *ptr;
-	int done;
-	int mask;
-};
-
-struct nubus_dirent
-{
-	unsigned char *base;
-	unsigned char type;
-	__u32 data;	/* Actually 24bits used */
-	int mask;
-};
-
-
-/* We'd like to get rid of this eventually.  Only daynaport.c uses it now. */
-static inline void *nubus_slot_addr(int slot)
-{
-	return (void *)(0xF0000000|(slot<<24));
-}
 
 #endif /* _UAPILINUX_NUBUS_H */

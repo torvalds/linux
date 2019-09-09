@@ -1,18 +1,9 @@
+// SPDX-License-Identifier: GPL-1.0+
 /*
  * Renesas USB driver
  *
  * Copyright (C) 2011 Renesas Solutions Corp.
  * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
- *
  */
 #include <linux/io.h>
 #include <linux/list.h>
@@ -349,7 +340,7 @@ static void usbhsh_pipe_detach(struct usbhsh_hpriv *hpriv,
 	pipe = usbhsh_uep_to_pipe(uep);
 
 	if (unlikely(!pipe)) {
-		dev_err(dev, "uep doens't have pipe\n");
+		dev_err(dev, "uep doesn't have pipe\n");
 	} else if (1 == uep->counter--) { /* last user */
 		struct usb_host_endpoint *ep = usbhsh_uep_to_ep(uep);
 		struct usbhsh_device *udev = usbhsh_uep_to_udev(uep);
@@ -577,7 +568,7 @@ static struct usbhsh_device *usbhsh_device_attach(struct usbhsh_hpriv *hpriv,
 		upphub	= usbhsh_device_number(hpriv, parent);
 		hubport	= usbhsh_device_hubport(udev);
 
-		dev_dbg(dev, "%s connecte to Hub [%d:%d](%p)\n", __func__,
+		dev_dbg(dev, "%s connected to Hub [%d:%d](%p)\n", __func__,
 			upphub, hubport, parent);
 	}
 
@@ -1285,7 +1276,7 @@ static int usbhsh_bus_nop(struct usb_hcd *hcd)
 	return 0;
 }
 
-static struct hc_driver usbhsh_driver = {
+static const struct hc_driver usbhsh_driver = {
 	.description =		usbhsh_hcd_name,
 	.hcd_priv_size =	sizeof(struct usbhsh_hpriv),
 

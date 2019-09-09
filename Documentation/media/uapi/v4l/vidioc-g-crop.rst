@@ -1,4 +1,11 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 .. _VIDIOC_G_CROP:
 
@@ -29,6 +36,7 @@ Arguments
     File descriptor returned by :ref:`open() <func-open>`.
 
 ``argp``
+    Pointer to struct :c:type:`v4l2_crop`.
 
 
 Description
@@ -44,12 +52,6 @@ To change the cropping rectangle applications initialize the ``type``
 and struct :c:type:`v4l2_rect` substructure named ``c`` of a
 v4l2_crop structure and call the :ref:`VIDIOC_S_CROP <VIDIOC_G_CROP>` ioctl with a pointer
 to this structure.
-
-Do not use the multiplanar buffer types. Use
-``V4L2_BUF_TYPE_VIDEO_CAPTURE`` instead of
-``V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE`` and use
-``V4L2_BUF_TYPE_VIDEO_OUTPUT`` instead of
-``V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE``.
 
 The driver first adjusts the requested dimensions against hardware
 limits, i. e. the bounds given by the capture/output window, and it
@@ -87,13 +89,23 @@ When cropping is not supported then no parameters are changed and
     * - __u32
       - ``type``
       - Type of the data stream, set by the application. Only these types
-	are valid here: ``V4L2_BUF_TYPE_VIDEO_CAPTURE``,
-	``V4L2_BUF_TYPE_VIDEO_OUTPUT`` and
-	``V4L2_BUF_TYPE_VIDEO_OVERLAY``. See :c:type:`v4l2_buf_type`.
+	are valid here: ``V4L2_BUF_TYPE_VIDEO_CAPTURE``, ``V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE``,
+	``V4L2_BUF_TYPE_VIDEO_OUTPUT``, ``V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE`` and
+	``V4L2_BUF_TYPE_VIDEO_OVERLAY``. See :c:type:`v4l2_buf_type` and the note below.
     * - struct :c:type:`v4l2_rect`
       - ``c``
       - Cropping rectangle. The same co-ordinate system as for struct
 	:c:type:`v4l2_cropcap` ``bounds`` is used.
+
+.. note::
+   Unfortunately in the case of multiplanar buffer types
+   (``V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE`` and ``V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE``)
+   this API was messed up with regards to how the :c:type:`v4l2_crop` ``type`` field
+   should be filled in. Some drivers only accepted the ``_MPLANE`` buffer type while
+   other drivers only accepted a non-multiplanar buffer type (i.e. without the
+   ``_MPLANE`` at the end).
+
+   Starting with kernel 4.13 both variations are allowed.
 
 
 Return Value

@@ -1,19 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2007-2013 Nicira, Inc.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA
  */
 
 
@@ -30,7 +17,6 @@
 #include <linux/in6.h>
 #include <linux/jiffies.h>
 #include <linux/time.h>
-#include <linux/flex_array.h>
 
 #include <net/inet_ecn.h>
 #include <net/ip_tunnels.h>
@@ -46,8 +32,11 @@ void ovs_match_init(struct sw_flow_match *match,
 
 int ovs_nla_put_key(const struct sw_flow_key *, const struct sw_flow_key *,
 		    int attr, bool is_mask, struct sk_buff *);
-int ovs_nla_get_flow_metadata(struct net *, const struct nlattr *,
-			      struct sw_flow_key *, bool log);
+int parse_flow_nlattrs(const struct nlattr *attr, const struct nlattr *a[],
+		       u64 *attrsp, bool log);
+int ovs_nla_get_flow_metadata(struct net *net,
+			      const struct nlattr *a[OVS_KEY_ATTR_MAX + 1],
+			      u64 attrs, struct sw_flow_key *key, bool log);
 
 int ovs_nla_put_identifier(const struct sw_flow *flow, struct sk_buff *skb);
 int ovs_nla_put_masked_key(const struct sw_flow *flow, struct sk_buff *skb);
@@ -75,5 +64,10 @@ int ovs_nla_put_actions(const struct nlattr *attr,
 
 void ovs_nla_free_flow_actions(struct sw_flow_actions *);
 void ovs_nla_free_flow_actions_rcu(struct sw_flow_actions *);
+
+int nsh_key_from_nlattr(const struct nlattr *attr, struct ovs_key_nsh *nsh,
+			struct ovs_key_nsh *nsh_mask);
+int nsh_hdr_from_nlattr(const struct nlattr *attr, struct nshhdr *nh,
+			size_t size);
 
 #endif /* flow_netlink.h */

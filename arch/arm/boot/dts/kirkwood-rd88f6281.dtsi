@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Marvell RD88F6181 Common Board descrition
  *
  * Andrew Lunn <andrew@lunn.ch>
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2.  This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  *
  * This file contains the definitions that are common between the two
  * variants of the Marvell Kirkwood Development Board.
@@ -51,17 +48,38 @@
 			cd-gpios = <&gpio0 28 GPIO_ACTIVE_HIGH>;
 			/* No WP GPIO */
 		};
+       };
+};
+
+&nand {
+	status = "okay";
+
+	partition@0 {
+		label = "u-boot";
+		reg = <0x0000000 0x100000>;
+		read-only;
 	};
 
-	dsa {
-		compatible = "marvell,dsa";
-		#address-cells = <2>;
+	partition@100000 {
+		label = "uImage";
+		reg = <0x0100000 0x200000>;
+	};
+
+	partition@300000 {
+		label = "rootfs";
+		reg = <0x0300000 0x500000>;
+	};
+};
+
+&mdio {
+	status = "okay";
+
+	switch: switch@0 {
+		compatible = "marvell,mv88e6085";
+		#address-cells = <1>;
 		#size-cells = <0>;
 
-		dsa,ethernet = <&eth0port>;
-		dsa,mii-bus = <&mdio>;
-
-		switch@0 {
+		ports {
 			#address-cells = <1>;
 			#size-cells = <0>;
 
@@ -88,33 +106,15 @@
 			port@5 {
 				reg = <5>;
 				label = "cpu";
+				ethernet = <&eth0port>;
+				fixed-link {
+					speed = <1000>;
+					full-duplex;
+				};
 			};
+
 		};
-       };
-};
-
-&nand {
-	status = "okay";
-
-	partition@0 {
-		label = "u-boot";
-		reg = <0x0000000 0x100000>;
-		read-only;
 	};
-
-	partition@100000 {
-		label = "uImage";
-		reg = <0x0100000 0x200000>;
-	};
-
-	partition@300000 {
-		label = "rootfs";
-		reg = <0x0300000 0x500000>;
-	};
-};
-
-&mdio {
-	status = "okay";
 };
 
 &eth0 {

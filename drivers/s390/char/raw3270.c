@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * IBM/3270 Driver - core functions.
  *
@@ -82,7 +83,7 @@ static LIST_HEAD(raw3270_devices);
 static int raw3270_registered;
 
 /* Module parameters */
-static bool tubxcorrect = 0;
+static bool tubxcorrect;
 module_param(tubxcorrect, bool, 0);
 
 /*
@@ -919,7 +920,7 @@ raw3270_deactivate_view(struct raw3270_view *view)
  * Add view to device with minor "minor".
  */
 int
-raw3270_add_view(struct raw3270_view *view, struct raw3270_fn *fn, int minor)
+raw3270_add_view(struct raw3270_view *view, struct raw3270_fn *fn, int minor, int subclass)
 {
 	unsigned long flags;
 	struct raw3270 *rp;
@@ -941,6 +942,7 @@ raw3270_add_view(struct raw3270_view *view, struct raw3270_fn *fn, int minor)
 		view->cols = rp->cols;
 		view->ascebc = rp->ascebc;
 		spin_lock_init(&view->lock);
+		lockdep_set_subclass(&view->lock, subclass);
 		list_add(&view->list, &rp->view_list);
 		rc = 0;
 		spin_unlock_irqrestore(get_ccwdev_lock(rp->cdev), flags);
@@ -1082,7 +1084,7 @@ static struct attribute * raw3270_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group raw3270_attr_group = {
+static const struct attribute_group raw3270_attr_group = {
 	.attrs = raw3270_attrs,
 };
 

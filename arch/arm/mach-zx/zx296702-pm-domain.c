@@ -1,8 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2015 Linaro Ltd.
  *
  * Author: Jun Nie <jun.nie@linaro.org>
- * License terms: GNU General Public License (GPL) version 2
  */
 #include <linux/delay.h>
 #include <linux/err.h>
@@ -169,7 +169,7 @@ static int zx296702_pd_probe(struct platform_device *pdev)
 	}
 
 	pcubase = devm_ioremap_resource(&pdev->dev, res);
-	if (!pcubase) {
+	if (IS_ERR(pcubase)) {
 		dev_err(&pdev->dev, "ioremap fail.\n");
 		return -EIO;
 	}

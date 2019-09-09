@@ -1,28 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Copyright (C) 2013-2014 Chelsio Communications.  All rights reserved.
  *
  *  Written by Anish Bhatt (anish@chelsio.com)
  *	       Casey Leedom (leedom@chelsio.com)
- *
- *  This program is free software; you can redistribute it and/or modify it
- *  under the terms and conditions of the GNU General Public License,
- *  version 2, as published by the Free Software Foundation.
- *
- *  This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- *  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- *  more details.
- *
- *  The full GNU General Public License is included in this distribution in
- *  the file called "COPYING".
- *
  */
 
 #include "cxgb4.h"
 
 /* DCBx version control
  */
-static const char * const dcb_ver_array[] = {
+const char * const dcb_ver_array[] = {
 	"Unknown",
 	"DCBx-CIN",
 	"DCBx-CEE 1.01",
@@ -40,8 +28,7 @@ static inline bool cxgb4_dcb_state_synced(enum cxgb4_dcb_state state)
 		return false;
 }
 
-/* Initialize a port's Data Center Bridging state.  Typically used after a
- * Link Down event.
+/* Initialize a port's Data Center Bridging state.
  */
 void cxgb4_dcb_state_init(struct net_device *dev)
 {
@@ -106,6 +93,33 @@ static void cxgb4_dcb_cleanup_apps(struct net_device *dev)
 	}
 }
 
+/* Reset a port's Data Center Bridging state.  Typically used after a
+ * Link Down event.
+ */
+void cxgb4_dcb_reset(struct net_device *dev)
+{
+	cxgb4_dcb_cleanup_apps(dev);
+	cxgb4_dcb_state_init(dev);
+}
+
+/* update the dcb port support, if version is IEEE then set it to
+ * FW_PORT_DCB_VER_IEEE and if DCB_CAP_DCBX_VER_CEE is already set then
+ * clear that. and if it is set to CEE then set dcb supported to
+ * DCB_CAP_DCBX_VER_CEE & if DCB_CAP_DCBX_VER_IEEE is set, clear it
+ */
+static inline void cxgb4_dcb_update_support(struct port_dcb_info *dcb)
+{
+	if (dcb->dcb_version == FW_PORT_DCB_VER_IEEE) {
+		if (dcb->supported & DCB_CAP_DCBX_VER_CEE)
+			dcb->supported &= ~DCB_CAP_DCBX_VER_CEE;
+		dcb->supported |= DCB_CAP_DCBX_VER_IEEE;
+	} else if (dcb->dcb_version == FW_PORT_DCB_VER_CEE1D01) {
+		if (dcb->supported & DCB_CAP_DCBX_VER_IEEE)
+			dcb->supported &= ~DCB_CAP_DCBX_VER_IEEE;
+		dcb->supported |= DCB_CAP_DCBX_VER_CEE;
+	}
+}
+
 /* Finite State machine for Data Center Bridging.
  */
 void cxgb4_dcb_state_fsm(struct net_device *dev,
@@ -157,6 +171,15 @@ void cxgb4_dcb_state_fsm(struct net_device *dev,
 	}
 
 	case CXGB4_DCB_STATE_FW_INCOMPLETE: {
+		if (transition_to != CXGB4_DCB_INPUT_FW_DISABLED) {
+			/* during this CXGB4_DCB_STATE_FW_INCOMPLETE state,
+			 * check if the dcb version is changed (there can be
+			 * mismatch in default config & the negotiated switch
+			 * configuration at FW, so update the dcb support
+			 * accordingly.
+			 */
+			cxgb4_dcb_update_support(dcb);
+		}
 		switch (transition_to) {
 		case CXGB4_DCB_INPUT_FW_ENABLED: {
 			/* we're alreaady in firmware DCB mode */
@@ -194,8 +217,7 @@ void cxgb4_dcb_state_fsm(struct net_device *dev,
 			 * state.  We need to reset back to a ground state
 			 * of incomplete.
 			 */
-			cxgb4_dcb_cleanup_apps(dev);
-			cxgb4_dcb_state_init(dev);
+			cxgb4_dcb_reset(dev);
 			dcb->state = CXGB4_DCB_STATE_FW_INCOMPLETE;
 			dcb->supported = CXGB4_DCBX_FW_SUPPORT;
 			linkwatch_fire_event(dev);
@@ -266,8 +288,8 @@ void cxgb4_dcb_handle_fw_update(struct adapter *adap,
 		enum cxgb4_dcb_state_input input =
 			((pcmd->u.dcb.control.all_syncd_pkd &
 			  FW_PORT_CMD_ALL_SYNCD_F)
-			 ? CXGB4_DCB_STATE_FW_ALLSYNCED
-			 : CXGB4_DCB_STATE_FW_INCOMPLETE);
+			 ? CXGB4_DCB_INPUT_FW_ALLSYNCED
+			 : CXGB4_DCB_INPUT_FW_INCOMPLETE);
 
 		if (dcb->dcb_version != FW_PORT_DCB_VER_UNKNOWN) {
 			dcb_running_version = FW_PORT_CMD_DCB_VERSION_G(

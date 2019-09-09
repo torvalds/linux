@@ -1,11 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * atusb.h - Definitions shared between kernel and ATUSB firmware
  *
  * Written 2013 by Werner Almesberger <werner@almesberger.net>
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation, version 2, or
  * (at your option) any later version.
  *
  * This file should be identical for kernel and firmware.
@@ -13,8 +11,8 @@
  * Firmware: ben-wpan/atusb/fw/include/atusb/atusb.h
  */
 
-#ifndef _ATUSB_H
-#define _ATUSB_H
+#ifndef	_ATUSB_H
+#define	_ATUSB_H
 
 #define ATUSB_VENDOR_ID	0x20b7	/* Qi Hardware*/
 #define ATUSB_PRODUCT_ID 0x1540	/* 802.15.4, device 0 */
@@ -46,9 +44,20 @@ enum atusb_requests {
 	ATUSB_SPI_WRITE2_SYNC,
 	ATUSB_RX_MODE			= 0x40, /* HardMAC group */
 	ATUSB_TX,
+	ATUSB_EUI64_WRITE		= 0x50, /* Parameter in EEPROM grp */
+	ATUSB_EUI64_READ,
 };
 
-/* Direction	bRequest		wValue		wIndex	wLength
+enum {
+	ATUSB_HW_TYPE_100813,	/* 2010-08-13 */
+	ATUSB_HW_TYPE_101216,	/* 2010-12-16 */
+	ATUSB_HW_TYPE_110131,	/* 2011-01-31, ATmega32U2-based */
+	ATUSB_HW_TYPE_RZUSB,	/* Atmel Raven USB dongle with at86rf230 */
+	ATUSB_HW_TYPE_HULUSB,	/* Busware HUL USB dongle with at86rf212 */
+};
+
+/*
+ * Direction	bRequest		wValue		wIndex	wLength
  *
  * ->host	ATUSB_ID		-		-	3
  * ->host	ATUSB_BUILD		-		-	#bytes
@@ -76,6 +85,8 @@ enum atusb_requests {
  *
  * host->	ATUSB_RX_MODE		on		-	0
  * host->	ATUSB_TX		flags		ack_seq	#bytes
+ * host->	ATUSB_EUI64_WRITE	-		-	#bytes (8)
+ * ->host	ATUSB_EUI64_READ	-		-	#bytes (8)
  */
 
 #define ATUSB_REQ_FROM_DEV	(USB_TYPE_VENDOR | USB_DIR_IN)

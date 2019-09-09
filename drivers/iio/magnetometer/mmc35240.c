@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * MMC35240 - MEMSIC 3-axis Magnetic Sensor
  *
  * Copyright (c) 2015, Intel Corporation.
- *
- * This file is subject to the terms and conditions of version 2 of
- * the GNU General Public License.  See the file COPYING in the main
- * directory of this archive for more details.
  *
  * IIO driver for MMC35240 (7-bit I2C slave address 0x30).
  *
@@ -418,7 +415,6 @@ static int mmc35240_write_raw(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info mmc35240_info = {
-	.driver_module	= THIS_MODULE,
 	.read_raw	= mmc35240_read_raw,
 	.write_raw	= mmc35240_write_raw,
 	.attrs		= &mmc35240_attribute_group,

@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * SPI bus driver for CSR SiRFprimaII
  *
  * Copyright (c) 2011 Cambridge Silicon Radio Limited, a CSR plc group company.
- *
- * Licensed under GPLv2 or later.
  */
 
 #include <linux/module.h>
@@ -1072,7 +1071,7 @@ static int spi_sirfsoc_probe(struct platform_device *pdev)
 	struct sirfsoc_spi *sspi;
 	struct spi_master *master;
 	struct resource *mem_res;
-	struct sirf_spi_comp_data *spi_comp_data;
+	const struct sirf_spi_comp_data *spi_comp_data;
 	int irq;
 	int ret;
 	const struct of_device_id *match;
@@ -1092,7 +1091,7 @@ static int spi_sirfsoc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, master);
 	sspi = spi_master_get_devdata(master);
 	sspi->fifo_full_offset = ilog2(sspi->fifo_size);
-	spi_comp_data = (struct sirf_spi_comp_data *)match->data;
+	spi_comp_data = match->data;
 	sspi->regs = spi_comp_data->regs;
 	sspi->type = spi_comp_data->type;
 	sspi->fifo_level_chk_mask = (sspi->fifo_size / 4) - 1;
@@ -1158,7 +1157,7 @@ static int spi_sirfsoc_probe(struct platform_device *pdev)
 	ret = spi_bitbang_start(&sspi->bitbang);
 	if (ret)
 		goto free_clk;
-	dev_info(&pdev->dev, "registerred, bus number = %d\n", master->bus_num);
+	dev_info(&pdev->dev, "registered, bus number = %d\n", master->bus_num);
 
 	return 0;
 free_clk:

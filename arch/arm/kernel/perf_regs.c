@@ -1,8 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/perf_event.h>
 #include <linux/bug.h>
+#include <linux/sched/task_stack.h>
 #include <asm/perf_regs.h>
 #include <asm/ptrace.h>
 

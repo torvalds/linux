@@ -1,9 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2015 Cavium, Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License
- * as published by the Free Software Foundation.
  */
 
 #ifndef NIC_REG_H
@@ -99,6 +96,7 @@
 #define   NIC_PF_ECC3_DBE_INT_W1S		(0x2708)
 #define   NIC_PF_ECC3_DBE_ENA_W1C		(0x2710)
 #define   NIC_PF_ECC3_DBE_ENA_W1S		(0x2718)
+#define   NIC_PF_INTFX_SEND_CFG			(0x4000)
 #define   NIC_PF_MCAM_0_191_ENA			(0x100000)
 #define   NIC_PF_MCAM_0_191_M_0_5_DATA		(0x110000)
 #define   NIC_PF_MCAM_CTRL			(0x120000)
@@ -106,6 +104,7 @@
 #define   NIC_PF_MPI_0_2047_CFG			(0x210000)
 #define   NIC_PF_RSSI_0_4097_RQ			(0x220000)
 #define   NIC_PF_LMAC_0_7_CFG			(0x240000)
+#define   NIC_PF_LMAC_0_7_CFG2			(0x240100)
 #define   NIC_PF_LMAC_0_7_SW_XOFF		(0x242000)
 #define   NIC_PF_LMAC_0_7_CREDIT		(0x244000)
 #define   NIC_PF_CHAN_0_255_TX_CFG		(0x400000)

@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * SuperH Pin Function Controller pinmux support.
  *
  * Copyright (C) 2012  Paul Mundt
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 
 #define DRV_NAME "sh-pfc"
@@ -75,7 +72,7 @@ static int sh_pfc_get_group_pins(struct pinctrl_dev *pctldev, unsigned selector,
 static void sh_pfc_pin_dbg_show(struct pinctrl_dev *pctldev, struct seq_file *s,
 				unsigned offset)
 {
-	seq_printf(s, "%s", DRV_NAME);
+	seq_puts(s, DRV_NAME);
 }
 
 #ifdef CONFIG_OF
@@ -290,7 +287,7 @@ static int sh_pfc_dt_node_to_map(struct pinctrl_dev *pctldev,
 	if (*num_maps)
 		return 0;
 
-	dev_err(dev, "no mapping found in node %s\n", np->full_name);
+	dev_err(dev, "no mapping found in node %pOF\n", np);
 	ret = -EINVAL;
 
 done:
@@ -349,6 +346,8 @@ static int sh_pfc_func_set_mux(struct pinctrl_dev *pctldev, unsigned selector,
 	unsigned long flags;
 	unsigned int i;
 	int ret = 0;
+
+	dev_dbg(pctldev->dev, "Configuring pin group %s\n", grp->name);
 
 	spin_lock_irqsave(&pfc->lock, flags);
 
@@ -513,7 +512,7 @@ static int sh_pfc_pinconf_get_drive_strength(struct sh_pfc *pfc,
 		return -EINVAL;
 
 	spin_lock_irqsave(&pfc->lock, flags);
-	val = sh_pfc_read_reg(pfc, reg, 32);
+	val = sh_pfc_read(pfc, reg);
 	spin_unlock_irqrestore(&pfc->lock, flags);
 
 	val = (val >> offset) & GENMASK(size - 1, 0);
@@ -550,11 +549,11 @@ static int sh_pfc_pinconf_set_drive_strength(struct sh_pfc *pfc,
 
 	spin_lock_irqsave(&pfc->lock, flags);
 
-	val = sh_pfc_read_reg(pfc, reg, 32);
+	val = sh_pfc_read(pfc, reg);
 	val &= ~GENMASK(offset + size - 1, offset);
 	val |= strength << offset;
 
-	sh_pfc_write_reg(pfc, reg, 32, val);
+	sh_pfc_write(pfc, reg, val);
 
 	spin_unlock_irqrestore(&pfc->lock, flags);
 
@@ -570,7 +569,7 @@ static bool sh_pfc_pinconf_validate(struct sh_pfc *pfc, unsigned int _pin,
 
 	switch (param) {
 	case PIN_CONFIG_BIAS_DISABLE:
-		return true;
+		return pin->configs & SH_PFC_PIN_CFG_PULL_UP_DOWN;
 
 	case PIN_CONFIG_BIAS_PULL_UP:
 		return pin->configs & SH_PFC_PIN_CFG_PULL_UP;
@@ -644,7 +643,7 @@ static int sh_pfc_pinconf_get(struct pinctrl_dev *pctldev, unsigned _pin,
 			return bit;
 
 		spin_lock_irqsave(&pfc->lock, flags);
-		val = sh_pfc_read_reg(pfc, pocctrl, 32);
+		val = sh_pfc_read(pfc, pocctrl);
 		spin_unlock_irqrestore(&pfc->lock, flags);
 
 		arg = (val & BIT(bit)) ? 3300 : 1800;
@@ -715,12 +714,12 @@ static int sh_pfc_pinconf_set(struct pinctrl_dev *pctldev, unsigned _pin,
 				return -EINVAL;
 
 			spin_lock_irqsave(&pfc->lock, flags);
-			val = sh_pfc_read_reg(pfc, pocctrl, 32);
+			val = sh_pfc_read(pfc, pocctrl);
 			if (mV == 3300)
 				val |= BIT(bit);
 			else
 				val &= ~BIT(bit);
-			sh_pfc_write_reg(pfc, pocctrl, 32, val);
+			sh_pfc_write(pfc, pocctrl, val);
 			spin_unlock_irqrestore(&pfc->lock, flags);
 
 			break;
@@ -741,13 +740,16 @@ static int sh_pfc_pinconf_group_set(struct pinctrl_dev *pctldev, unsigned group,
 	struct sh_pfc_pinctrl *pmx = pinctrl_dev_get_drvdata(pctldev);
 	const unsigned int *pins;
 	unsigned int num_pins;
-	unsigned int i;
+	unsigned int i, ret;
 
 	pins = pmx->pfc->info->groups[group].pins;
 	num_pins = pmx->pfc->info->groups[group].nr_pins;
 
-	for (i = 0; i < num_pins; ++i)
-		sh_pfc_pinconf_set(pctldev, pins[i], configs, num_configs);
+	for (i = 0; i < num_pins; ++i) {
+		ret = sh_pfc_pinconf_set(pctldev, pins[i], configs, num_configs);
+		if (ret)
+			return ret;
+	}
 
 	return 0;
 }
@@ -766,14 +768,14 @@ static int sh_pfc_map_pins(struct sh_pfc *pfc, struct sh_pfc_pinctrl *pmx)
 	unsigned int i;
 
 	/* Allocate and initialize the pins and configs arrays. */
-	pmx->pins = devm_kzalloc(pfc->dev,
-				 sizeof(*pmx->pins) * pfc->info->nr_pins,
+	pmx->pins = devm_kcalloc(pfc->dev,
+				 pfc->info->nr_pins, sizeof(*pmx->pins),
 				 GFP_KERNEL);
 	if (unlikely(!pmx->pins))
 		return -ENOMEM;
 
-	pmx->configs = devm_kzalloc(pfc->dev,
-				    sizeof(*pmx->configs) * pfc->info->nr_pins,
+	pmx->configs = devm_kcalloc(pfc->dev,
+				    pfc->info->nr_pins, sizeof(*pmx->configs),
 				    GFP_KERNEL);
 	if (unlikely(!pmx->configs))
 		return -ENOMEM;
@@ -815,6 +817,13 @@ int sh_pfc_register_pinctrl(struct sh_pfc *pfc)
 	pmx->pctl_desc.pins = pmx->pins;
 	pmx->pctl_desc.npins = pfc->info->nr_pins;
 
-	pmx->pctl = devm_pinctrl_register(pfc->dev, &pmx->pctl_desc, pmx);
-	return PTR_ERR_OR_ZERO(pmx->pctl);
+	ret = devm_pinctrl_register_and_init(pfc->dev, &pmx->pctl_desc, pmx,
+					     &pmx->pctl);
+	if (ret) {
+		dev_err(pfc->dev, "could not register: %i\n", ret);
+
+		return ret;
+	}
+
+	return pinctrl_enable(pmx->pctl);
 }

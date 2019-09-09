@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) ST-Ericsson SA 2010
  *
- * License Terms: GNU General Public License v2
  * Author: Sundar Iyer <sundar.iyer@stericsson.com> for ST-Ericsson
  *
  * AB8500 Power-On Key handler
@@ -109,7 +109,6 @@ static int ab8500_ponkey_probe(struct platform_device *pdev)
 		return error;
 	}
 
-	platform_set_drvdata(pdev, ponkey);
 	return 0;
 }
 

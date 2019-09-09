@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config ARCH_PICOXCELL
 	bool "Picochip PicoXcell"
 	depends on ARCH_MULTI_V6

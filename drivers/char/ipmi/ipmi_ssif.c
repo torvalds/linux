@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * ipmi_ssif.c
  *
@@ -13,11 +14,6 @@
  *
  * Copyright 2003 Intel Corporation
  * Copyright 2005 MontaVista Software
- *
- *  This program is free software; you can redistribute it and/or modify it
- *  under the terms of the GNU General Public License as published by the
- *  Free Software Foundation; either version 2 of the License, or (at your
- *  option) any later version.
  */
 
 /*
@@ -30,6 +26,9 @@
  * TODO: Figure out how to use SMB alerts.  This will require a new
  * interface into the I2C driver, I believe.
  */
+
+#define pr_fmt(fmt) "ipmi_ssif: " fmt
+#define dev_fmt(fmt) "ipmi_ssif: " fmt
 
 #if defined(MODVERSIONS)
 #include <linux/modversions.h>
@@ -53,8 +52,9 @@
 #include <linux/acpi.h>
 #include <linux/ctype.h>
 #include <linux/time64.h>
+#include "ipmi_si_sm.h"
+#include "ipmi_dmi.h"
 
-#define PFX "ipmi_ssif: "
 #define DEVICE_NAME "ipmi_ssif"
 
 #define IPMI_GET_SYSTEM_INTERFACE_CAPABILITIES_CMD	0x57
@@ -62,6 +62,7 @@
 #define	SSIF_IPMI_REQUEST			2
 #define	SSIF_IPMI_MULTI_PART_REQUEST_START	6
 #define	SSIF_IPMI_MULTI_PART_REQUEST_MIDDLE	7
+#define	SSIF_IPMI_MULTI_PART_REQUEST_END	8
 #define	SSIF_IPMI_RESPONSE			3
 #define	SSIF_IPMI_MULTI_PART_RESPONSE_MIDDLE	9
 
@@ -89,6 +90,12 @@
 #define SSIF_MSG_MSEC		(SSIF_MSG_USEC / 1000)
 #define SSIF_MSG_JIFFIES	((SSIF_MSG_USEC * 1000) / TICK_NSEC)
 #define SSIF_MSG_PART_JIFFIES	((SSIF_MSG_PART_USEC * 1000) / TICK_NSEC)
+
+/*
+ * Timeout for the watch, only used for get flag timer.
+ */
+#define SSIF_WATCH_MSG_TIMEOUT		msecs_to_jiffies(10)
+#define SSIF_WATCH_WATCHDOG_TIMEOUT	msecs_to_jiffies(250)
 
 enum ssif_intf_state {
 	SSIF_NORMAL,
@@ -174,13 +181,16 @@ enum ssif_stat_indexes {
 };
 
 struct ssif_addr_info {
-	unsigned short addr;
 	struct i2c_board_info binfo;
 	char *adapter_name;
 	int debug;
 	int slave_addr;
 	enum ipmi_addr_src addr_src;
 	union ipmi_smi_info_union addr_info;
+	struct device *dev;
+	struct i2c_client *client;
+
+	struct i2c_client *added_client;
 
 	struct mutex clients_mutex;
 	struct list_head clients;
@@ -194,8 +204,7 @@ typedef void (*ssif_i2c_done)(struct ssif_info *ssif_info, int result,
 			     unsigned char *data, unsigned int len);
 
 struct ssif_info {
-	ipmi_smi_t          intf;
-	int                 intf_num;
+	struct ipmi_smi     *intf;
 	spinlock_t	    lock;
 	struct ipmi_smi_msg *waiting_msg;
 	struct ipmi_smi_msg *curr_msg;
@@ -265,15 +274,16 @@ struct ssif_info {
 	unsigned char *i2c_data;
 	unsigned int i2c_size;
 
-	/* From the device id response. */
-	struct ipmi_device_id device_id;
-
 	struct timer_list retry_timer;
 	int retries_left;
+
+	long watch_timeout;		/* Timeout for flags check, 0 if off. */
+	struct timer_list watch_timer;	/* Flag fetch timer. */
 
 	/* Info from SSIF cmd */
 	unsigned char max_xmit_msg_size;
 	unsigned char max_recv_msg_size;
+	bool cmd8_works; /* See test_multipart_messages() for details. */
 	unsigned int  multi_support;
 	int           supports_pec;
 
@@ -293,8 +303,7 @@ struct ssif_info {
 	((unsigned int) atomic_read(&(ssif)->stats[SSIF_STAT_ ## stat]))
 
 static bool initialized;
-
-static atomic_t next_intf = ATOMIC_INIT(0);
+static bool platform_registered;
 
 static void return_hosed_msg(struct ssif_info *ssif_info,
 			     struct ipmi_smi_msg *msg);
@@ -319,17 +328,13 @@ static void ipmi_ssif_unlock_cond(struct ssif_info *ssif_info,
 static void deliver_recv_msg(struct ssif_info *ssif_info,
 			     struct ipmi_smi_msg *msg)
 {
-	ipmi_smi_t    intf = ssif_info->intf;
-
-	if (!intf) {
-		ipmi_free_smi_msg(msg);
-	} else if (msg->rsp_size < 0) {
+	if (msg->rsp_size < 0) {
 		return_hosed_msg(ssif_info, msg);
-		pr_err(PFX
-		       "Malformed message in deliver_recv_msg: rsp_size = %d\n",
-		       msg->rsp_size);
+		dev_err(&ssif_info->client->dev,
+			"%s: Malformed message: rsp_size = %d\n",
+		       __func__, msg->rsp_size);
 	} else {
-		ipmi_smi_msg_received(intf, msg);
+		ipmi_smi_msg_received(ssif_info->intf, msg);
 	}
 }
 
@@ -409,6 +414,7 @@ static void start_event_fetch(struct ssif_info *ssif_info, unsigned long *flags)
 	msg = ipmi_alloc_smi_msg();
 	if (!msg) {
 		ssif_info->ssif_state = SSIF_NORMAL;
+		ipmi_ssif_unlock_cond(ssif_info, flags);
 		return;
 	}
 
@@ -431,6 +437,7 @@ static void start_recv_msg_fetch(struct ssif_info *ssif_info,
 	msg = ipmi_alloc_smi_msg();
 	if (!msg) {
 		ssif_info->ssif_state = SSIF_NORMAL;
+		ipmi_ssif_unlock_cond(ssif_info, flags);
 		return;
 	}
 
@@ -454,12 +461,10 @@ static void start_recv_msg_fetch(struct ssif_info *ssif_info,
 static void handle_flags(struct ssif_info *ssif_info, unsigned long *flags)
 {
 	if (ssif_info->msg_flags & WDT_PRE_TIMEOUT_INT) {
-		ipmi_smi_t intf = ssif_info->intf;
 		/* Watchdog pre-timeout */
 		ssif_inc_stat(ssif_info, watchdog_pretimeouts);
 		start_clear_flags(ssif_info, flags);
-		if (intf)
-			ipmi_smi_watchdog_pretimeout(intf);
+		ipmi_smi_watchdog_pretimeout(ssif_info->intf);
 	} else if (ssif_info->msg_flags & RECEIVE_MSG_AVAIL)
 		/* Messages available. */
 		start_recv_msg_fetch(ssif_info, flags);
@@ -543,15 +548,16 @@ static void start_get(struct ssif_info *ssif_info)
 	if (rv < 0) {
 		/* request failed, just return the error. */
 		if (ssif_info->ssif_debug & SSIF_DEBUG_MSG)
-			pr_info("Error from i2c_non_blocking_op(5)\n");
+			dev_dbg(&ssif_info->client->dev,
+				"Error from i2c_non_blocking_op(5)\n");
 
 		msg_done_handler(ssif_info, -EIO, NULL, 0);
 	}
 }
 
-static void retry_timeout(unsigned long data)
+static void retry_timeout(struct timer_list *t)
 {
-	struct ssif_info *ssif_info = (void *) data;
+	struct ssif_info *ssif_info = from_timer(ssif_info, t, retry_timer);
 	unsigned long oflags, *flags;
 	bool waiting;
 
@@ -567,6 +573,26 @@ static void retry_timeout(unsigned long data)
 		start_get(ssif_info);
 }
 
+static void watch_timeout(struct timer_list *t)
+{
+	struct ssif_info *ssif_info = from_timer(ssif_info, t, watch_timer);
+	unsigned long oflags, *flags;
+
+	if (ssif_info->stopping)
+		return;
+
+	flags = ipmi_ssif_lock_cond(ssif_info, &oflags);
+	if (ssif_info->watch_timeout) {
+		mod_timer(&ssif_info->watch_timer,
+			  jiffies + ssif_info->watch_timeout);
+		if (SSIF_IDLE(ssif_info)) {
+			start_flag_fetch(ssif_info, flags); /* Releases lock */
+			return;
+		}
+		ssif_info->req_flags = true;
+	}
+	ipmi_ssif_unlock_cond(ssif_info, flags);
+}
 
 static void ssif_alert(struct i2c_client *client, enum i2c_alert_protocol type,
 		       unsigned int data)
@@ -615,8 +641,9 @@ static void msg_done_handler(struct ssif_info *ssif_info, int result,
 			flags = ipmi_ssif_lock_cond(ssif_info, &oflags);
 			ssif_info->waiting_alert = true;
 			ssif_info->rtc_us_timer = SSIF_MSG_USEC;
-			mod_timer(&ssif_info->retry_timer,
-				  jiffies + SSIF_MSG_JIFFIES);
+			if (!ssif_info->stopping)
+				mod_timer(&ssif_info->retry_timer,
+					  jiffies + SSIF_MSG_JIFFIES);
 			ipmi_ssif_unlock_cond(ssif_info, flags);
 			return;
 		}
@@ -624,7 +651,8 @@ static void msg_done_handler(struct ssif_info *ssif_info, int result,
 		ssif_inc_stat(ssif_info, receive_errors);
 
 		if  (ssif_info->ssif_debug & SSIF_DEBUG_MSG)
-			pr_info("Error in msg_done_handler: %d\n", result);
+			dev_dbg(&ssif_info->client->dev,
+				"%s: Error %d\n", __func__, result);
 		len = 0;
 		goto continue_op;
 	}
@@ -638,8 +666,9 @@ static void msg_done_handler(struct ssif_info *ssif_info, int result,
 
 		/* Remove the multi-part read marker. */
 		len -= 2;
+		data += 2;
 		for (i = 0; i < len; i++)
-			ssif_info->data[i] = data[i+2];
+			ssif_info->data[i] = data[i];
 		ssif_info->multi_len = len;
 		ssif_info->multi_pos = 1;
 
@@ -648,7 +677,8 @@ static void msg_done_handler(struct ssif_info *ssif_info, int result,
 				  ssif_info->recv, I2C_SMBUS_BLOCK_DATA);
 		if (rv < 0) {
 			if (ssif_info->ssif_debug & SSIF_DEBUG_MSG)
-				pr_info("Error from i2c_non_blocking_op(1)\n");
+				dev_dbg(&ssif_info->client->dev,
+					"Error from i2c_non_blocking_op(1)\n");
 
 			result = -EIO;
 		} else
@@ -661,26 +691,38 @@ static void msg_done_handler(struct ssif_info *ssif_info, int result,
 		if (len == 0) {
 			result = -EIO;
 			if (ssif_info->ssif_debug & SSIF_DEBUG_MSG)
-				pr_info(PFX "Middle message with no data\n");
+				dev_dbg(&ssif_info->client->dev,
+					"Middle message with no data\n");
 
 			goto continue_op;
 		}
 
 		blocknum = data[0];
+		len--;
+		data++;
 
-		if (ssif_info->multi_len + len - 1 > IPMI_MAX_MSG_LENGTH) {
-			/* Received message too big, abort the operation. */
-			result = -E2BIG;
+		if (blocknum != 0xff && len != 31) {
+		    /* All blocks but the last must have 31 data bytes. */
+			result = -EIO;
 			if (ssif_info->ssif_debug & SSIF_DEBUG_MSG)
-				pr_info("Received message too big\n");
+				dev_dbg(&ssif_info->client->dev,
+					"Received middle message <31\n");
 
 			goto continue_op;
 		}
 
-		/* Remove the blocknum from the data. */
-		len--;
+		if (ssif_info->multi_len + len > IPMI_MAX_MSG_LENGTH) {
+			/* Received message too big, abort the operation. */
+			result = -E2BIG;
+			if (ssif_info->ssif_debug & SSIF_DEBUG_MSG)
+				dev_dbg(&ssif_info->client->dev,
+					"Received message too big\n");
+
+			goto continue_op;
+		}
+
 		for (i = 0; i < len; i++)
-			ssif_info->data[i + ssif_info->multi_len] = data[i + 1];
+			ssif_info->data[i + ssif_info->multi_len] = data[i];
 		ssif_info->multi_len += len;
 		if (blocknum == 0xff) {
 			/* End of read */
@@ -692,6 +734,10 @@ static void msg_done_handler(struct ssif_info *ssif_info, int result,
 			 * numbers start at zero for the second block,
 			 * but multi_pos starts at one, so the +1.
 			 */
+			if (ssif_info->ssif_debug & SSIF_DEBUG_MSG)
+				dev_dbg(&ssif_info->client->dev,
+					"Received message out of sequence, expected %u, got %u\n",
+					ssif_info->multi_pos - 1, blocknum);
 			result = -EIO;
 		} else {
 			ssif_inc_stat(ssif_info, received_message_parts);
@@ -705,7 +751,7 @@ static void msg_done_handler(struct ssif_info *ssif_info, int result,
 					   I2C_SMBUS_BLOCK_DATA);
 			if (rv < 0) {
 				if (ssif_info->ssif_debug & SSIF_DEBUG_MSG)
-					pr_info(PFX
+					dev_dbg(&ssif_info->client->dev,
 						"Error from ssif_i2c_send\n");
 
 				result = -EIO;
@@ -714,6 +760,7 @@ static void msg_done_handler(struct ssif_info *ssif_info, int result,
 		}
 	}
 
+ continue_op:
 	if (result < 0) {
 		ssif_inc_stat(ssif_info, receive_errors);
 	} else {
@@ -721,10 +768,9 @@ static void msg_done_handler(struct ssif_info *ssif_info, int result,
 		ssif_inc_stat(ssif_info, received_message_parts);
 	}
 
-
- continue_op:
 	if (ssif_info->ssif_debug & SSIF_DEBUG_STATE)
-		pr_info(PFX "DONE 1: state = %d, result=%d.\n",
+		dev_dbg(&ssif_info->client->dev,
+			"DONE 1: state = %d, result=%d\n",
 			ssif_info->ssif_state, result);
 
 	flags = ipmi_ssif_lock_cond(ssif_info, &oflags);
@@ -758,12 +804,19 @@ static void msg_done_handler(struct ssif_info *ssif_info, int result,
 			 */
 			ssif_info->ssif_state = SSIF_NORMAL;
 			ipmi_ssif_unlock_cond(ssif_info, flags);
-			pr_warn(PFX "Error getting flags: %d %d, %x\n",
-			       result, len, data[2]);
+			dev_warn(&ssif_info->client->dev,
+				 "Error getting flags: %d %d, %x\n",
+				 result, len, (len >= 3) ? data[2] : 0);
 		} else if (data[0] != (IPMI_NETFN_APP_REQUEST | 1) << 2
 			   || data[1] != IPMI_GET_MSG_FLAGS_CMD) {
-			pr_warn(PFX "Invalid response getting flags: %x %x\n",
-				data[0], data[1]);
+			/*
+			 * Don't abort here, maybe it was a queued
+			 * response to a previous command.
+			 */
+			ipmi_ssif_unlock_cond(ssif_info, flags);
+			dev_warn(&ssif_info->client->dev,
+				 "Invalid response getting flags: %x %x\n",
+				 data[0], data[1]);
 		} else {
 			ssif_inc_stat(ssif_info, flag_fetches);
 			ssif_info->msg_flags = data[3];
@@ -775,12 +828,14 @@ static void msg_done_handler(struct ssif_info *ssif_info, int result,
 		/* We cleared the flags. */
 		if ((result < 0) || (len < 3) || (data[2] != 0)) {
 			/* Error clearing flags */
-			pr_warn(PFX "Error clearing flags: %d %d, %x\n",
-			       result, len, data[2]);
+			dev_warn(&ssif_info->client->dev,
+				 "Error clearing flags: %d %d, %x\n",
+				 result, len, (len >= 3) ? data[2] : 0);
 		} else if (data[0] != (IPMI_NETFN_APP_REQUEST | 1) << 2
 			   || data[1] != IPMI_CLEAR_MSG_FLAGS_CMD) {
-			pr_warn(PFX "Invalid response clearing flags: %x %x\n",
-				data[0], data[1]);
+			dev_warn(&ssif_info->client->dev,
+				 "Invalid response clearing flags: %x %x\n",
+				 data[0], data[1]);
 		}
 		ssif_info->ssif_state = SSIF_NORMAL;
 		ipmi_ssif_unlock_cond(ssif_info, flags);
@@ -796,8 +851,9 @@ static void msg_done_handler(struct ssif_info *ssif_info, int result,
 			handle_flags(ssif_info, flags);
 		} else if (msg->rsp[0] != (IPMI_NETFN_APP_REQUEST | 1) << 2
 			   || msg->rsp[1] != IPMI_READ_EVENT_MSG_BUFFER_CMD) {
-			pr_warn(PFX "Invalid response getting events: %x %x\n",
-				msg->rsp[0], msg->rsp[1]);
+			dev_warn(&ssif_info->client->dev,
+				 "Invalid response getting events: %x %x\n",
+				 msg->rsp[0], msg->rsp[1]);
 			msg->done(msg);
 			/* Take off the event flag. */
 			ssif_info->msg_flags &= ~EVENT_MSG_BUFFER_FULL;
@@ -819,8 +875,9 @@ static void msg_done_handler(struct ssif_info *ssif_info, int result,
 			handle_flags(ssif_info, flags);
 		} else if (msg->rsp[0] != (IPMI_NETFN_APP_REQUEST | 1) << 2
 			   || msg->rsp[1] != IPMI_GET_MSG_CMD) {
-			pr_warn(PFX "Invalid response clearing flags: %x %x\n",
-				msg->rsp[0], msg->rsp[1]);
+			dev_warn(&ssif_info->client->dev,
+				 "Invalid response clearing flags: %x %x\n",
+				 msg->rsp[0], msg->rsp[1]);
 			msg->done(msg);
 
 			/* Take off the msg flag. */
@@ -846,7 +903,8 @@ static void msg_done_handler(struct ssif_info *ssif_info, int result,
 		ipmi_ssif_unlock_cond(ssif_info, flags);
 
 	if (ssif_info->ssif_debug & SSIF_DEBUG_STATE)
-		pr_info(PFX "DONE 2: state = %d.\n", ssif_info->ssif_state);
+		dev_dbg(&ssif_info->client->dev,
+			"DONE 2: state = %d.\n", ssif_info->ssif_state);
 }
 
 static void msg_written_handler(struct ssif_info *ssif_info, int result,
@@ -866,8 +924,8 @@ static void msg_written_handler(struct ssif_info *ssif_info, int result,
 			ssif_inc_stat(ssif_info, send_errors);
 
 			if (ssif_info->ssif_debug & SSIF_DEBUG_MSG)
-				pr_info(PFX
-					"Out of retries in msg_written_handler\n");
+				dev_dbg(&ssif_info->client->dev,
+					"%s: Out of retries\n", __func__);
 			msg_done_handler(ssif_info, -EIO, NULL, 0);
 			return;
 		}
@@ -879,7 +937,8 @@ static void msg_written_handler(struct ssif_info *ssif_info, int result,
 		 * handle it.
 		 */
 		if (ssif_info->ssif_debug & SSIF_DEBUG_MSG)
-			pr_info("Error in msg_written_handler: %d\n", result);
+			dev_dbg(&ssif_info->client->dev,
+				"%s: Error  %d\n", __func__, result);
 
 		msg_done_handler(ssif_info, result, NULL, 0);
 		return;
@@ -891,36 +950,40 @@ static void msg_written_handler(struct ssif_info *ssif_info, int result,
 		 * in the SSIF_MULTI_n_PART case in the probe function
 		 * for details on the intricacies of this.
 		 */
-		int left;
+		int left, to_write;
+		unsigned char *data_to_send;
+		unsigned char cmd;
 
 		ssif_inc_stat(ssif_info, sent_messages_parts);
 
 		left = ssif_info->multi_len - ssif_info->multi_pos;
-		if (left > 32)
-			left = 32;
+		to_write = left;
+		if (to_write > 32)
+			to_write = 32;
 		/* Length byte. */
-		ssif_info->multi_data[ssif_info->multi_pos] = left;
-		ssif_info->multi_pos += left;
-		if (left < 32)
-			/*
-			 * Write is finished.  Note that we must end
-			 * with a write of less than 32 bytes to
-			 * complete the transaction, even if it is
-			 * zero bytes.
-			 */
+		ssif_info->multi_data[ssif_info->multi_pos] = to_write;
+		data_to_send = ssif_info->multi_data + ssif_info->multi_pos;
+		ssif_info->multi_pos += to_write;
+		cmd = SSIF_IPMI_MULTI_PART_REQUEST_MIDDLE;
+		if (ssif_info->cmd8_works) {
+			if (left == to_write) {
+				cmd = SSIF_IPMI_MULTI_PART_REQUEST_END;
+				ssif_info->multi_data = NULL;
+			}
+		} else if (to_write < 32) {
 			ssif_info->multi_data = NULL;
+		}
 
 		rv = ssif_i2c_send(ssif_info, msg_written_handler,
-				  I2C_SMBUS_WRITE,
-				  SSIF_IPMI_MULTI_PART_REQUEST_MIDDLE,
-				  ssif_info->multi_data + ssif_info->multi_pos,
-				  I2C_SMBUS_BLOCK_DATA);
+				   I2C_SMBUS_WRITE, cmd,
+				   data_to_send, I2C_SMBUS_BLOCK_DATA);
 		if (rv < 0) {
 			/* request failed, just return the error. */
 			ssif_inc_stat(ssif_info, send_errors);
 
 			if (ssif_info->ssif_debug & SSIF_DEBUG_MSG)
-				pr_info("Error from i2c_non_blocking_op(3)\n");
+				dev_dbg(&ssif_info->client->dev,
+					"Error from i2c_non_blocking_op(3)\n");
 			msg_done_handler(ssif_info, -EIO, NULL, 0);
 		}
 	} else {
@@ -941,8 +1004,9 @@ static void msg_written_handler(struct ssif_info *ssif_info, int result,
 			ssif_info->waiting_alert = true;
 			ssif_info->retries_left = SSIF_RECV_RETRIES;
 			ssif_info->rtc_us_timer = SSIF_MSG_PART_USEC;
-			mod_timer(&ssif_info->retry_timer,
-				  jiffies + SSIF_MSG_PART_JIFFIES);
+			if (!ssif_info->stopping)
+				mod_timer(&ssif_info->retry_timer,
+					  jiffies + SSIF_MSG_PART_JIFFIES);
 			ipmi_ssif_unlock_cond(ssif_info, flags);
 		}
 	}
@@ -975,7 +1039,8 @@ static int start_resend(struct ssif_info *ssif_info)
 	rv = ssif_i2c_send(ssif_info, msg_written_handler, I2C_SMBUS_WRITE,
 			  command, ssif_info->data, I2C_SMBUS_BLOCK_DATA);
 	if (rv && (ssif_info->ssif_debug & SSIF_DEBUG_MSG))
-		pr_info("Error from i2c_non_blocking_op(4)\n");
+		dev_dbg(&ssif_info->client->dev,
+			"Error from i2c_non_blocking_op(4)\n");
 	return rv;
 }
 
@@ -1044,9 +1109,10 @@ static void sender(void                *send_info,
 		struct timespec64 t;
 
 		ktime_get_real_ts64(&t);
-		pr_info("**Enqueue %02x %02x: %lld.%6.6ld\n",
-		       msg->data[0], msg->data[1],
-		       (long long) t.tv_sec, (long) t.tv_nsec / NSEC_PER_USEC);
+		dev_dbg(&ssif_info->client->dev,
+			"**Enqueue %02x %02x: %lld.%6.6ld\n",
+			msg->data[0], msg->data[1],
+			(long long)t.tv_sec, (long)t.tv_nsec / NSEC_PER_USEC);
 	}
 }
 
@@ -1063,8 +1129,7 @@ static int get_smi_info(void *send_info, struct ipmi_smi_info *data)
 }
 
 /*
- * Instead of having our own timer to periodically check the message
- * flags, we let the message handler drive us.
+ * Upper layer wants us to request events.
  */
 static void request_events(void *send_info)
 {
@@ -1075,41 +1140,37 @@ static void request_events(void *send_info)
 		return;
 
 	flags = ipmi_ssif_lock_cond(ssif_info, &oflags);
-	/*
-	 * Request flags first, not events, because the lower layer
-	 * doesn't have a way to send an attention.  But make sure
-	 * event checking still happens.
-	 */
 	ssif_info->req_events = true;
-	if (SSIF_IDLE(ssif_info))
-		start_flag_fetch(ssif_info, flags);
-	else {
-		ssif_info->req_flags = true;
-		ipmi_ssif_unlock_cond(ssif_info, flags);
+	ipmi_ssif_unlock_cond(ssif_info, flags);
+}
+
+/*
+ * Upper layer is changing the flag saying whether we need to request
+ * flags periodically or not.
+ */
+static void ssif_set_need_watch(void *send_info, unsigned int watch_mask)
+{
+	struct ssif_info *ssif_info = (struct ssif_info *) send_info;
+	unsigned long oflags, *flags;
+	long timeout = 0;
+
+	if (watch_mask & IPMI_WATCH_MASK_CHECK_MESSAGES)
+		timeout = SSIF_WATCH_MSG_TIMEOUT;
+	else if (watch_mask)
+		timeout = SSIF_WATCH_WATCHDOG_TIMEOUT;
+
+	flags = ipmi_ssif_lock_cond(ssif_info, &oflags);
+	if (timeout != ssif_info->watch_timeout) {
+		ssif_info->watch_timeout = timeout;
+		if (ssif_info->watch_timeout)
+			mod_timer(&ssif_info->watch_timer,
+				  jiffies + ssif_info->watch_timeout);
 	}
+	ipmi_ssif_unlock_cond(ssif_info, flags);
 }
 
-static int inc_usecount(void *send_info)
-{
-	struct ssif_info *ssif_info = send_info;
-
-	if (!i2c_get_adapter(ssif_info->client->adapter->nr))
-		return -ENODEV;
-
-	i2c_use_client(ssif_info->client);
-	return 0;
-}
-
-static void dec_usecount(void *send_info)
-{
-	struct ssif_info *ssif_info = send_info;
-
-	i2c_release_client(ssif_info->client);
-	i2c_put_adapter(ssif_info->client->adapter);
-}
-
-static int ssif_start_processing(void *send_info,
-				 ipmi_smi_t intf)
+static int ssif_start_processing(void            *send_info,
+				 struct ipmi_smi *intf)
 {
 	struct ssif_info *ssif_info = send_info;
 
@@ -1154,10 +1215,6 @@ static bool ssif_dbg_probe;
 module_param_named(dbg_probe, ssif_dbg_probe, bool, 0);
 MODULE_PARM_DESC(dbg_probe, "Enable debugging of probing of adapters.");
 
-static int use_thread;
-module_param(use_thread, int, 0);
-MODULE_PARM_DESC(use_thread, "Use the thread interface.");
-
 static bool ssif_tryacpi = true;
 module_param_named(tryacpi, ssif_tryacpi, bool, 0);
 MODULE_PARM_DESC(tryacpi, "Setting this to zero will disable the default scan of the interfaces identified via ACPI");
@@ -1169,10 +1226,85 @@ MODULE_PARM_DESC(trydmi, "Setting this to zero will disable the default scan of 
 static DEFINE_MUTEX(ssif_infos_mutex);
 static LIST_HEAD(ssif_infos);
 
+#define IPMI_SSIF_ATTR(name) \
+static ssize_t ipmi_##name##_show(struct device *dev,			\
+				  struct device_attribute *attr,	\
+				  char *buf)				\
+{									\
+	struct ssif_info *ssif_info = dev_get_drvdata(dev);		\
+									\
+	return snprintf(buf, 10, "%u\n", ssif_get_stat(ssif_info, name));\
+}									\
+static DEVICE_ATTR(name, S_IRUGO, ipmi_##name##_show, NULL)
+
+static ssize_t ipmi_type_show(struct device *dev,
+			      struct device_attribute *attr,
+			      char *buf)
+{
+	return snprintf(buf, 10, "ssif\n");
+}
+static DEVICE_ATTR(type, S_IRUGO, ipmi_type_show, NULL);
+
+IPMI_SSIF_ATTR(sent_messages);
+IPMI_SSIF_ATTR(sent_messages_parts);
+IPMI_SSIF_ATTR(send_retries);
+IPMI_SSIF_ATTR(send_errors);
+IPMI_SSIF_ATTR(received_messages);
+IPMI_SSIF_ATTR(received_message_parts);
+IPMI_SSIF_ATTR(receive_retries);
+IPMI_SSIF_ATTR(receive_errors);
+IPMI_SSIF_ATTR(flag_fetches);
+IPMI_SSIF_ATTR(hosed);
+IPMI_SSIF_ATTR(events);
+IPMI_SSIF_ATTR(watchdog_pretimeouts);
+IPMI_SSIF_ATTR(alerts);
+
+static struct attribute *ipmi_ssif_dev_attrs[] = {
+	&dev_attr_type.attr,
+	&dev_attr_sent_messages.attr,
+	&dev_attr_sent_messages_parts.attr,
+	&dev_attr_send_retries.attr,
+	&dev_attr_send_errors.attr,
+	&dev_attr_received_messages.attr,
+	&dev_attr_received_message_parts.attr,
+	&dev_attr_receive_retries.attr,
+	&dev_attr_receive_errors.attr,
+	&dev_attr_flag_fetches.attr,
+	&dev_attr_hosed.attr,
+	&dev_attr_events.attr,
+	&dev_attr_watchdog_pretimeouts.attr,
+	&dev_attr_alerts.attr,
+	NULL
+};
+
+static const struct attribute_group ipmi_ssif_dev_attr_group = {
+	.attrs		= ipmi_ssif_dev_attrs,
+};
+
+static void shutdown_ssif(void *send_info)
+{
+	struct ssif_info *ssif_info = send_info;
+
+	device_remove_group(&ssif_info->client->dev, &ipmi_ssif_dev_attr_group);
+	dev_set_drvdata(&ssif_info->client->dev, NULL);
+
+	/* make sure the driver is not looking for flags any more. */
+	while (ssif_info->ssif_state != SSIF_NORMAL)
+		schedule_timeout(1);
+
+	ssif_info->stopping = true;
+	del_timer_sync(&ssif_info->watch_timer);
+	del_timer_sync(&ssif_info->retry_timer);
+	if (ssif_info->thread) {
+		complete(&ssif_info->wake_thread);
+		kthread_stop(ssif_info->thread);
+	}
+}
+
 static int ssif_remove(struct i2c_client *client)
 {
 	struct ssif_info *ssif_info = i2c_get_clientdata(client);
-	int rv;
+	struct ssif_addr_info *addr_info;
 
 	if (!ssif_info)
 		return 0;
@@ -1181,30 +1313,36 @@ static int ssif_remove(struct i2c_client *client)
 	 * After this point, we won't deliver anything asychronously
 	 * to the message handler.  We can unregister ourself.
 	 */
-	rv = ipmi_unregister_smi(ssif_info->intf);
-	if (rv) {
-		pr_err(PFX "Unable to unregister device: errno=%d\n", rv);
-		return rv;
-	}
-	ssif_info->intf = NULL;
+	ipmi_unregister_smi(ssif_info->intf);
 
-	/* make sure the driver is not looking for flags any more. */
-	while (ssif_info->ssif_state != SSIF_NORMAL)
-		schedule_timeout(1);
-
-	ssif_info->stopping = true;
-	del_timer_sync(&ssif_info->retry_timer);
-	if (ssif_info->thread) {
-		complete(&ssif_info->wake_thread);
-		kthread_stop(ssif_info->thread);
+	list_for_each_entry(addr_info, &ssif_infos, link) {
+		if (addr_info->client == client) {
+			addr_info->client = NULL;
+			break;
+		}
 	}
 
-	/*
-	 * No message can be outstanding now, we have removed the
-	 * upper layer and it permitted us to do so.
-	 */
 	kfree(ssif_info);
+
 	return 0;
+}
+
+static int read_response(struct i2c_client *client, unsigned char *resp)
+{
+	int ret = -ENODEV, retry_cnt = SSIF_RECV_RETRIES;
+
+	while (retry_cnt > 0) {
+		ret = i2c_smbus_read_block_data(client, SSIF_IPMI_RESPONSE,
+						resp);
+		if (ret > 0)
+			break;
+		msleep(SSIF_MSG_MSEC);
+		retry_cnt--;
+		if (retry_cnt <= 0)
+			break;
+	}
+
+	return ret;
 }
 
 static int do_cmd(struct i2c_client *client, int len, unsigned char *msg,
@@ -1223,26 +1361,16 @@ static int do_cmd(struct i2c_client *client, int len, unsigned char *msg,
 		return -ENODEV;
 	}
 
-	ret = -ENODEV;
-	retry_cnt = SSIF_RECV_RETRIES;
-	while (retry_cnt > 0) {
-		ret = i2c_smbus_read_block_data(client, SSIF_IPMI_RESPONSE,
-						resp);
-		if (ret > 0)
-			break;
-		msleep(SSIF_MSG_MSEC);
-		retry_cnt--;
-		if (retry_cnt <= 0)
-			break;
-	}
-
+	ret = read_response(client, resp);
 	if (ret > 0) {
 		/* Validate that the response is correct. */
 		if (ret < 3 ||
 		    (resp[0] != (msg[0] | (1 << 2))) ||
 		    (resp[1] != msg[1]))
 			ret = -EINVAL;
-		else {
+		else if (ret > IPMI_MAX_MSG_LENGTH) {
+			ret = -E2BIG;
+		} else {
 			*resp_len = ret;
 			ret = 0;
 		}
@@ -1273,70 +1401,6 @@ static int ssif_detect(struct i2c_client *client, struct i2c_board_info *info)
 	kfree(resp);
 	return rv;
 }
-
-static int smi_type_proc_show(struct seq_file *m, void *v)
-{
-	seq_puts(m, "ssif\n");
-
-	return 0;
-}
-
-static int smi_type_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, smi_type_proc_show, inode->i_private);
-}
-
-static const struct file_operations smi_type_proc_ops = {
-	.open		= smi_type_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
-static int smi_stats_proc_show(struct seq_file *m, void *v)
-{
-	struct ssif_info *ssif_info = m->private;
-
-	seq_printf(m, "sent_messages:          %u\n",
-		   ssif_get_stat(ssif_info, sent_messages));
-	seq_printf(m, "sent_messages_parts:    %u\n",
-		   ssif_get_stat(ssif_info, sent_messages_parts));
-	seq_printf(m, "send_retries:           %u\n",
-		   ssif_get_stat(ssif_info, send_retries));
-	seq_printf(m, "send_errors:            %u\n",
-		   ssif_get_stat(ssif_info, send_errors));
-	seq_printf(m, "received_messages:      %u\n",
-		   ssif_get_stat(ssif_info, received_messages));
-	seq_printf(m, "received_message_parts: %u\n",
-		   ssif_get_stat(ssif_info, received_message_parts));
-	seq_printf(m, "receive_retries:        %u\n",
-		   ssif_get_stat(ssif_info, receive_retries));
-	seq_printf(m, "receive_errors:         %u\n",
-		   ssif_get_stat(ssif_info, receive_errors));
-	seq_printf(m, "flag_fetches:           %u\n",
-		   ssif_get_stat(ssif_info, flag_fetches));
-	seq_printf(m, "hosed:                  %u\n",
-		   ssif_get_stat(ssif_info, hosed));
-	seq_printf(m, "events:                 %u\n",
-		   ssif_get_stat(ssif_info, events));
-	seq_printf(m, "watchdog_pretimeouts:   %u\n",
-		   ssif_get_stat(ssif_info, watchdog_pretimeouts));
-	seq_printf(m, "alerts:                 %u\n",
-		   ssif_get_stat(ssif_info, alerts));
-	return 0;
-}
-
-static int smi_stats_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, smi_stats_proc_show, PDE_DATA(inode));
-}
-
-static const struct file_operations smi_stats_proc_ops = {
-	.open		= smi_stats_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
 
 static int strcmp_nospace(char *s1, char *s2)
 {
@@ -1405,6 +1469,134 @@ static bool check_acpi(struct ssif_info *ssif_info, struct device *dev)
 	return false;
 }
 
+static int find_slave_address(struct i2c_client *client, int slave_addr)
+{
+#ifdef CONFIG_IPMI_DMI_DECODE
+	if (!slave_addr)
+		slave_addr = ipmi_dmi_get_slave_addr(
+			SI_TYPE_INVALID,
+			i2c_adapter_id(client->adapter),
+			client->addr);
+#endif
+
+	return slave_addr;
+}
+
+static int start_multipart_test(struct i2c_client *client,
+				unsigned char *msg, bool do_middle)
+{
+	int retry_cnt = SSIF_SEND_RETRIES, ret;
+
+retry_write:
+	ret = i2c_smbus_write_block_data(client,
+					 SSIF_IPMI_MULTI_PART_REQUEST_START,
+					 32, msg);
+	if (ret) {
+		retry_cnt--;
+		if (retry_cnt > 0)
+			goto retry_write;
+		dev_err(&client->dev, "Could not write multi-part start, though the BMC said it could handle it.  Just limit sends to one part.\n");
+		return ret;
+	}
+
+	if (!do_middle)
+		return 0;
+
+	ret = i2c_smbus_write_block_data(client,
+					 SSIF_IPMI_MULTI_PART_REQUEST_MIDDLE,
+					 32, msg + 32);
+	if (ret) {
+		dev_err(&client->dev, "Could not write multi-part middle, though the BMC said it could handle it.  Just limit sends to one part.\n");
+		return ret;
+	}
+
+	return 0;
+}
+
+static void test_multipart_messages(struct i2c_client *client,
+				    struct ssif_info *ssif_info,
+				    unsigned char *resp)
+{
+	unsigned char msg[65];
+	int ret;
+	bool do_middle;
+
+	if (ssif_info->max_xmit_msg_size <= 32)
+		return;
+
+	do_middle = ssif_info->max_xmit_msg_size > 63;
+
+	memset(msg, 0, sizeof(msg));
+	msg[0] = IPMI_NETFN_APP_REQUEST << 2;
+	msg[1] = IPMI_GET_DEVICE_ID_CMD;
+
+	/*
+	 * The specification is all messed up dealing with sending
+	 * multi-part messages.  Per what the specification says, it
+	 * is impossible to send a message that is a multiple of 32
+	 * bytes, except for 32 itself.  It talks about a "start"
+	 * transaction (cmd=6) that must be 32 bytes, "middle"
+	 * transaction (cmd=7) that must be 32 bytes, and an "end"
+	 * transaction.  The "end" transaction is shown as cmd=7 in
+	 * the text, but if that's the case there is no way to
+	 * differentiate between a middle and end part except the
+	 * length being less than 32.  But there is a table at the far
+	 * end of the section (that I had never noticed until someone
+	 * pointed it out to me) that mentions it as cmd=8.
+	 *
+	 * After some thought, I think the example is wrong and the
+	 * end transaction should be cmd=8.  But some systems don't
+	 * implement cmd=8, they use a zero-length end transaction,
+	 * even though that violates the SMBus specification.
+	 *
+	 * So, to work around this, this code tests if cmd=8 works.
+	 * If it does, then we use that.  If not, it tests zero-
+	 * byte end transactions.  If that works, good.  If not,
+	 * we only allow 63-byte transactions max.
+	 */
+
+	ret = start_multipart_test(client, msg, do_middle);
+	if (ret)
+		goto out_no_multi_part;
+
+	ret = i2c_smbus_write_block_data(client,
+					 SSIF_IPMI_MULTI_PART_REQUEST_END,
+					 1, msg + 64);
+
+	if (!ret)
+		ret = read_response(client, resp);
+
+	if (ret > 0) {
+		/* End transactions work, we are good. */
+		ssif_info->cmd8_works = true;
+		return;
+	}
+
+	ret = start_multipart_test(client, msg, do_middle);
+	if (ret) {
+		dev_err(&client->dev, "Second multipart test failed.\n");
+		goto out_no_multi_part;
+	}
+
+	ret = i2c_smbus_write_block_data(client,
+					 SSIF_IPMI_MULTI_PART_REQUEST_MIDDLE,
+					 0, msg + 64);
+	if (!ret)
+		ret = read_response(client, resp);
+	if (ret > 0)
+		/* Zero-size end parts work, use those. */
+		return;
+
+	/* Limit to 63 bytes and use a short middle command to mark the end. */
+	if (ssif_info->max_xmit_msg_size > 63)
+		ssif_info->max_xmit_msg_size = 63;
+	return;
+
+out_no_multi_part:
+	ssif_info->max_xmit_msg_size = 32;
+	return;
+}
+
 /*
  * Global enables we care about.
  */
@@ -1421,7 +1613,6 @@ static int ssif_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	int               i;
 	u8		  slave_addr = 0;
 	struct ssif_addr_info *addr_info = NULL;
-
 
 	resp = kmalloc(IPMI_MAX_MSG_LENGTH, GFP_KERNEL);
 	if (!resp)
@@ -1443,27 +1634,17 @@ static int ssif_probe(struct i2c_client *client, const struct i2c_device_id *id)
 			ssif_info->addr_source = addr_info->addr_src;
 			ssif_info->ssif_debug = addr_info->debug;
 			ssif_info->addr_info = addr_info->addr_info;
+			addr_info->client = client;
 			slave_addr = addr_info->slave_addr;
 		}
 	}
 
-	pr_info(PFX "Trying %s-specified SSIF interface at i2c address 0x%x, adapter %s, slave address 0x%x\n",
-	       ipmi_addr_src_to_str(ssif_info->addr_source),
-	       client->addr, client->adapter->name, slave_addr);
+	slave_addr = find_slave_address(client, slave_addr);
 
-	/*
-	 * Do a Get Device ID command, since it comes back with some
-	 * useful info.
-	 */
-	msg[0] = IPMI_NETFN_APP_REQUEST << 2;
-	msg[1] = IPMI_GET_DEVICE_ID_CMD;
-	rv = do_cmd(client, 2, msg, &len, resp);
-	if (rv)
-		goto out;
-
-	rv = ipmi_demangle_device_id(resp, len, &ssif_info->device_id);
-	if (rv)
-		goto out;
+	dev_info(&client->dev,
+		 "Trying %s-specified SSIF interface at i2c address 0x%x, adapter %s, slave address 0x%x\n",
+		ipmi_addr_src_to_str(ssif_info->addr_source),
+		client->addr, client->adapter->name, slave_addr);
 
 	ssif_info->client = client;
 	i2c_set_clientdata(client, ssif_info);
@@ -1476,7 +1657,8 @@ static int ssif_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	if (!rv && (len >= 3) && (resp[2] == 0)) {
 		if (len < 7) {
 			if (ssif_dbg_probe)
-				pr_info(PFX "SSIF info too short: %d\n", len);
+				dev_dbg(&ssif_info->client->dev,
+					"SSIF info too short: %d\n", len);
 			goto no_support;
 		}
 
@@ -1503,26 +1685,7 @@ static int ssif_probe(struct i2c_client *client, const struct i2c_device_id *id)
 			break;
 
 		case SSIF_MULTI_n_PART:
-			/*
-			 * The specification is rather confusing at
-			 * this point, but I think I understand what
-			 * is meant.  At least I have a workable
-			 * solution.  With multi-part messages, you
-			 * cannot send a message that is a multiple of
-			 * 32-bytes in length, because the start and
-			 * middle messages are 32-bytes and the end
-			 * message must be at least one byte.  You
-			 * can't fudge on an extra byte, that would
-			 * screw up things like fru data writes.  So
-			 * we limit the length to 63 bytes.  That way
-			 * a 32-byte message gets sent as a single
-			 * part.  A larger message will be a 32-byte
-			 * start and the next message is always going
-			 * to be 1-31 bytes in length.  Not ideal, but
-			 * it should work.
-			 */
-			if (ssif_info->max_xmit_msg_size > 63)
-				ssif_info->max_xmit_msg_size = 63;
+			/* We take whatever size given, but do some testing. */
 			break;
 
 		default:
@@ -1532,8 +1695,9 @@ static int ssif_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	} else {
  no_support:
 		/* Assume no multi-part or PEC support */
-		pr_info(PFX "Error fetching SSIF: %d %d %2.2x, your system probably doesn't support this command so using defaults\n",
-		       rv, len, resp[2]);
+		dev_info(&ssif_info->client->dev,
+			 "Error fetching SSIF: %d %d %2.2x, your system probably doesn't support this command so using defaults\n",
+			rv, len, resp[2]);
 
 		ssif_info->max_xmit_msg_size = 32;
 		ssif_info->max_recv_msg_size = 32;
@@ -1541,22 +1705,26 @@ static int ssif_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		ssif_info->supports_pec = 0;
 	}
 
+	test_multipart_messages(client, ssif_info, resp);
+
 	/* Make sure the NMI timeout is cleared. */
 	msg[0] = IPMI_NETFN_APP_REQUEST << 2;
 	msg[1] = IPMI_CLEAR_MSG_FLAGS_CMD;
 	msg[2] = WDT_PRE_TIMEOUT_INT;
 	rv = do_cmd(client, 3, msg, &len, resp);
 	if (rv || (len < 3) || (resp[2] != 0))
-		pr_warn(PFX "Unable to clear message flags: %d %d %2.2x\n",
-			rv, len, resp[2]);
+		dev_warn(&ssif_info->client->dev,
+			 "Unable to clear message flags: %d %d %2.2x\n",
+			 rv, len, resp[2]);
 
 	/* Attempt to enable the event buffer. */
 	msg[0] = IPMI_NETFN_APP_REQUEST << 2;
 	msg[1] = IPMI_GET_BMC_GLOBAL_ENABLES_CMD;
 	rv = do_cmd(client, 2, msg, &len, resp);
 	if (rv || (len < 4) || (resp[2] != 0)) {
-		pr_warn(PFX "Error getting global enables: %d %d %2.2x\n",
-			rv, len, resp[2]);
+		dev_warn(&ssif_info->client->dev,
+			 "Error getting global enables: %d %d %2.2x\n",
+			 rv, len, resp[2]);
 		rv = 0; /* Not fatal */
 		goto found;
 	}
@@ -1574,8 +1742,9 @@ static int ssif_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	msg[2] = ssif_info->global_enables | IPMI_BMC_EVT_MSG_BUFF;
 	rv = do_cmd(client, 3, msg, &len, resp);
 	if (rv || (len < 2)) {
-		pr_warn(PFX "Error setting global enables: %d %d %2.2x\n",
-			rv, len, resp[2]);
+		dev_warn(&ssif_info->client->dev,
+			 "Error setting global enables: %d %d %2.2x\n",
+			 rv, len, resp[2]);
 		rv = 0; /* Not fatal */
 		goto found;
 	}
@@ -1595,8 +1764,9 @@ static int ssif_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	msg[2] = ssif_info->global_enables | IPMI_BMC_RCV_MSG_INTR;
 	rv = do_cmd(client, 3, msg, &len, resp);
 	if (rv || (len < 2)) {
-		pr_warn(PFX "Error setting global enables: %d %d %2.2x\n",
-			rv, len, resp[2]);
+		dev_warn(&ssif_info->client->dev,
+			 "Error setting global enables: %d %d %2.2x\n",
+			 rv, len, resp[2]);
 		rv = 0; /* Not fatal */
 		goto found;
 	}
@@ -1608,18 +1778,16 @@ static int ssif_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	}
 
  found:
-	ssif_info->intf_num = atomic_inc_return(&next_intf);
-
 	if (ssif_dbg_probe) {
-		pr_info("ssif_probe: i2c_probe found device at i2c address %x\n",
-			client->addr);
+		dev_dbg(&ssif_info->client->dev,
+		       "%s: i2c_probe found device at i2c address %x\n",
+		       __func__, client->addr);
 	}
 
 	spin_lock_init(&ssif_info->lock);
 	ssif_info->ssif_state = SSIF_NORMAL;
-	init_timer(&ssif_info->retry_timer);
-	ssif_info->retry_timer.data = (unsigned long) ssif_info;
-	ssif_info->retry_timer.function = retry_timeout;
+	timer_setup(&ssif_info->retry_timer, retry_timeout, 0);
+	timer_setup(&ssif_info->watch_timer, watch_timeout, 0);
 
 	for (i = 0; i < SSIF_NUM_STATS; i++)
 		atomic_set(&ssif_info->stats[i], 0);
@@ -1629,16 +1797,17 @@ static int ssif_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	ssif_info->handlers.owner = THIS_MODULE;
 	ssif_info->handlers.start_processing = ssif_start_processing;
+	ssif_info->handlers.shutdown = shutdown_ssif;
 	ssif_info->handlers.get_smi_info = get_smi_info;
 	ssif_info->handlers.sender = sender;
 	ssif_info->handlers.request_events = request_events;
-	ssif_info->handlers.inc_usecount = inc_usecount;
-	ssif_info->handlers.dec_usecount = dec_usecount;
+	ssif_info->handlers.set_need_watch = ssif_set_need_watch;
 
 	{
 		unsigned int thread_num;
 
-		thread_num = ((ssif_info->client->adapter->nr << 8) |
+		thread_num = ((i2c_adapter_id(ssif_info->client->adapter)
+			       << 8) |
 			      ssif_info->client->addr);
 		init_completion(&ssif_info->wake_thread);
 		ssif_info->thread = kthread_run(ipmi_ssif_thread, ssif_info,
@@ -1652,40 +1821,41 @@ static int ssif_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		}
 	}
 
-	rv = ipmi_register_smi(&ssif_info->handlers,
-			       ssif_info,
-			       &ssif_info->device_id,
-			       &ssif_info->client->dev,
-			       slave_addr);
-	 if (rv) {
-		pr_err(PFX "Unable to register device: error %d\n", rv);
+	dev_set_drvdata(&ssif_info->client->dev, ssif_info);
+	rv = device_add_group(&ssif_info->client->dev,
+			      &ipmi_ssif_dev_attr_group);
+	if (rv) {
+		dev_err(&ssif_info->client->dev,
+			"Unable to add device attributes: error %d\n",
+			rv);
 		goto out;
 	}
 
-	rv = ipmi_smi_add_proc_entry(ssif_info->intf, "type",
-				     &smi_type_proc_ops,
-				     ssif_info);
+	rv = ipmi_register_smi(&ssif_info->handlers,
+			       ssif_info,
+			       &ssif_info->client->dev,
+			       slave_addr);
 	if (rv) {
-		pr_err(PFX "Unable to create proc entry: %d\n", rv);
-		goto out_err_unreg;
-	}
-
-	rv = ipmi_smi_add_proc_entry(ssif_info->intf, "ssif_stats",
-				     &smi_stats_proc_ops,
-				     ssif_info);
-	if (rv) {
-		pr_err(PFX "Unable to create proc entry: %d\n", rv);
-		goto out_err_unreg;
+		dev_err(&ssif_info->client->dev,
+			"Unable to register device: error %d\n", rv);
+		goto out_remove_attr;
 	}
 
  out:
-	if (rv)
+	if (rv) {
+		if (addr_info)
+			addr_info->client = NULL;
+
+		dev_err(&ssif_info->client->dev,
+			"Unable to start IPMI SSIF: %d\n", rv);
 		kfree(ssif_info);
+	}
 	kfree(resp);
 	return rv;
 
- out_err_unreg:
-	ipmi_unregister_smi(ssif_info->intf);
+out_remove_attr:
+	device_remove_group(&ssif_info->client->dev, &ipmi_ssif_dev_attr_group);
+	dev_set_drvdata(&ssif_info->client->dev, NULL);
 	goto out;
 }
 
@@ -1696,7 +1866,8 @@ static int ssif_adapter_handler(struct device *adev, void *opaque)
 	if (adev->type != &i2c_adapter_type)
 		return 0;
 
-	i2c_new_device(to_i2c_adapter(adev), &addr_info->binfo);
+	addr_info->added_client = i2c_new_device(to_i2c_adapter(adev),
+						 &addr_info->binfo);
 
 	if (!addr_info->adapter_name)
 		return 1; /* Only try the first I2C adapter by default. */
@@ -1705,7 +1876,8 @@ static int ssif_adapter_handler(struct device *adev, void *opaque)
 
 static int new_ssif_client(int addr, char *adapter_name,
 			   int debug, int slave_addr,
-			   enum ipmi_addr_src addr_src)
+			   enum ipmi_addr_src addr_src,
+			   struct device *dev)
 {
 	struct ssif_addr_info *addr_info;
 	int rv = 0;
@@ -1738,6 +1910,10 @@ static int new_ssif_client(int addr, char *adapter_name,
 	addr_info->debug = debug;
 	addr_info->slave_addr = slave_addr;
 	addr_info->addr_src = addr_src;
+	addr_info->dev = dev;
+
+	if (dev)
+		dev_set_drvdata(dev, addr_info);
 
 	list_add_tail(&addr_info->link, &ssif_infos);
 
@@ -1766,28 +1942,28 @@ static void free_ssif_clients(void)
 static unsigned short *ssif_address_list(void)
 {
 	struct ssif_addr_info *info;
-	unsigned int count = 0, i;
+	unsigned int count = 0, i = 0;
 	unsigned short *address_list;
 
 	list_for_each_entry(info, &ssif_infos, link)
 		count++;
 
-	address_list = kzalloc(sizeof(*address_list) * (count + 1), GFP_KERNEL);
+	address_list = kcalloc(count + 1, sizeof(*address_list),
+			       GFP_KERNEL);
 	if (!address_list)
 		return NULL;
 
-	i = 0;
 	list_for_each_entry(info, &ssif_infos, link) {
 		unsigned short addr = info->binfo.addr;
 		int j;
 
 		for (j = 0; j < i; j++) {
 			if (address_list[j] == addr)
-				goto skip_addr;
+				/* Found a dup. */
+				break;
 		}
-		address_list[i] = addr;
-skip_addr:
-		i++;
+		if (j == i) /* Didn't find it in the list. */
+			address_list[i++] = addr;
 	}
 	address_list[i] = I2C_CLIENT_END;
 
@@ -1800,153 +1976,36 @@ static const struct acpi_device_id ssif_acpi_match[] = {
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, ssif_acpi_match);
-
-/*
- * Once we get an ACPI failure, we don't try any more, because we go
- * through the tables sequentially.  Once we don't find a table, there
- * are no more.
- */
-static int acpi_failure;
-
-/*
- * Defined in the IPMI 2.0 spec.
- */
-struct SPMITable {
-	s8	Signature[4];
-	u32	Length;
-	u8	Revision;
-	u8	Checksum;
-	s8	OEMID[6];
-	s8	OEMTableID[8];
-	s8	OEMRevision[4];
-	s8	CreatorID[4];
-	s8	CreatorRevision[4];
-	u8	InterfaceType;
-	u8	IPMIlegacy;
-	s16	SpecificationRevision;
-
-	/*
-	 * Bit 0 - SCI interrupt supported
-	 * Bit 1 - I/O APIC/SAPIC
-	 */
-	u8	InterruptType;
-
-	/*
-	 * If bit 0 of InterruptType is set, then this is the SCI
-	 * interrupt in the GPEx_STS register.
-	 */
-	u8	GPE;
-
-	s16	Reserved;
-
-	/*
-	 * If bit 1 of InterruptType is set, then this is the I/O
-	 * APIC/SAPIC interrupt.
-	 */
-	u32	GlobalSystemInterrupt;
-
-	/* The actual register address. */
-	struct acpi_generic_address addr;
-
-	u8	UID[4];
-
-	s8      spmi_id[1]; /* A '\0' terminated array starts here. */
-};
-
-static int try_init_spmi(struct SPMITable *spmi)
-{
-	unsigned short myaddr;
-
-	if (num_addrs >= MAX_SSIF_BMCS)
-		return -1;
-
-	if (spmi->IPMIlegacy != 1) {
-		pr_warn("IPMI: Bad SPMI legacy: %d\n", spmi->IPMIlegacy);
-		return -ENODEV;
-	}
-
-	if (spmi->InterfaceType != 4)
-		return -ENODEV;
-
-	if (spmi->addr.space_id != ACPI_ADR_SPACE_SMBUS) {
-		pr_warn(PFX "Invalid ACPI SSIF I/O Address type: %d\n",
-			spmi->addr.space_id);
-		return -EIO;
-	}
-
-	myaddr = spmi->addr.address & 0x7f;
-
-	return new_ssif_client(myaddr, NULL, 0, 0, SI_SPMI);
-}
-
-static void spmi_find_bmc(void)
-{
-	acpi_status      status;
-	struct SPMITable *spmi;
-	int              i;
-
-	if (acpi_disabled)
-		return;
-
-	if (acpi_failure)
-		return;
-
-	for (i = 0; ; i++) {
-		status = acpi_get_table(ACPI_SIG_SPMI, i+1,
-					(struct acpi_table_header **)&spmi);
-		if (status != AE_OK)
-			return;
-
-		try_init_spmi(spmi);
-	}
-}
-#else
-static void spmi_find_bmc(void) { }
 #endif
 
 #ifdef CONFIG_DMI
-static int decode_dmi(const struct dmi_device *dmi_dev)
+static int dmi_ipmi_probe(struct platform_device *pdev)
 {
-	struct dmi_header *dm = dmi_dev->device_data;
-	u8             *data = (u8 *) dm;
-	u8             len = dm->length;
-	unsigned short myaddr;
-	int            slave_addr;
+	u8 slave_addr = 0;
+	u16 i2c_addr;
+	int rv;
 
-	if (num_addrs >= MAX_SSIF_BMCS)
-		return -1;
+	if (!ssif_trydmi)
+		return -ENODEV;
 
-	if (len < 9)
-		return -1;
-
-	if (data[0x04] != 4) /* Not SSIF */
-		return -1;
-
-	if ((data[8] >> 1) == 0) {
-		/*
-		 * Some broken systems put the I2C address in
-		 * the slave address field.  We try to
-		 * accommodate them here.
-		 */
-		myaddr = data[6] >> 1;
-		slave_addr = 0;
-	} else {
-		myaddr = data[8] >> 1;
-		slave_addr = data[6];
+	rv = device_property_read_u16(&pdev->dev, "i2c-addr", &i2c_addr);
+	if (rv) {
+		dev_warn(&pdev->dev, "No i2c-addr property\n");
+		return -ENODEV;
 	}
 
-	return new_ssif_client(myaddr, NULL, 0, 0, SI_SMBIOS);
-}
+	rv = device_property_read_u8(&pdev->dev, "slave-addr", &slave_addr);
+	if (rv)
+		slave_addr = 0x20;
 
-static void dmi_iterator(void)
-{
-	const struct dmi_device *dev = NULL;
-
-	while ((dev = dmi_find_device(DMI_DEV_TYPE_IPMI, NULL, dev)))
-		decode_dmi(dev);
+	return new_ssif_client(i2c_addr, NULL, 0,
+			       slave_addr, SI_SMBIOS, &pdev->dev);
 }
 #else
-static void dmi_iterator(void) { }
+static int dmi_ipmi_probe(struct platform_device *pdev)
+{
+	return -ENODEV;
+}
 #endif
 
 static const struct i2c_device_id ssif_id[] = {
@@ -1967,6 +2026,41 @@ static struct i2c_driver ssif_i2c_driver = {
 	.detect		= ssif_detect
 };
 
+static int ssif_platform_probe(struct platform_device *dev)
+{
+	return dmi_ipmi_probe(dev);
+}
+
+static int ssif_platform_remove(struct platform_device *dev)
+{
+	struct ssif_addr_info *addr_info = dev_get_drvdata(&dev->dev);
+
+	if (!addr_info)
+		return 0;
+
+	mutex_lock(&ssif_infos_mutex);
+	i2c_unregister_device(addr_info->added_client);
+
+	list_del(&addr_info->link);
+	kfree(addr_info);
+	mutex_unlock(&ssif_infos_mutex);
+	return 0;
+}
+
+static const struct platform_device_id ssif_plat_ids[] = {
+    { "dmi-ipmi-ssif", 0 },
+    { }
+};
+
+static struct platform_driver ipmi_driver = {
+	.driver = {
+		.name = DEVICE_NAME,
+	},
+	.probe		= ssif_platform_probe,
+	.remove		= ssif_platform_remove,
+	.id_table       = ssif_plat_ids
+};
+
 static int init_ipmi_ssif(void)
 {
 	int i;
@@ -1981,20 +2075,23 @@ static int init_ipmi_ssif(void)
 	for (i = 0; i < num_addrs; i++) {
 		rv = new_ssif_client(addr[i], adapter_name[i],
 				     dbg[i], slave_addrs[i],
-				     SI_HARDCODED);
+				     SI_HARDCODED, NULL);
 		if (rv)
-			pr_err(PFX
-			       "Couldn't add hardcoded device at addr 0x%x\n",
+			pr_err("Couldn't add hardcoded device at addr 0x%x\n",
 			       addr[i]);
 	}
 
 	if (ssif_tryacpi)
 		ssif_i2c_driver.driver.acpi_match_table	=
 			ACPI_PTR(ssif_acpi_match);
-	if (ssif_trydmi)
-		dmi_iterator();
-	if (ssif_tryacpi)
-		spmi_find_bmc();
+
+	if (ssif_trydmi) {
+		rv = platform_driver_register(&ipmi_driver);
+		if (rv)
+			pr_err("Unable to register driver: %d\n", rv);
+		else
+			platform_registered = true;
+	}
 
 	ssif_i2c_driver.address_list = ssif_address_list();
 
@@ -2015,10 +2112,16 @@ static void cleanup_ipmi_ssif(void)
 
 	i2c_del_driver(&ssif_i2c_driver);
 
+	kfree(ssif_i2c_driver.address_list);
+
+	if (ssif_trydmi && platform_registered)
+		platform_driver_unregister(&ipmi_driver);
+
 	free_ssif_clients();
 }
 module_exit(cleanup_ipmi_ssif);
 
+MODULE_ALIAS("platform:dmi-ipmi-ssif");
 MODULE_AUTHOR("Todd C Davis <todd.c.davis@intel.com>, Corey Minyard <minyard@acm.org>");
 MODULE_DESCRIPTION("IPMI driver for management controllers on a SMBus");
 MODULE_LICENSE("GPL");

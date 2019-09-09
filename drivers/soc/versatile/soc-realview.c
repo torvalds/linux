@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2014 Linaro Ltd.
  *
  * Author: Linus Walleij <linus.walleij@linaro.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2, as
- * published by the Free Software Foundation.
- *
  */
 #include <linux/init.h>
 #include <linux/io.h>
@@ -85,7 +81,7 @@ static struct device_attribute realview_build_attr =
 
 static int realview_soc_probe(struct platform_device *pdev)
 {
-	static struct regmap *syscon_regmap;
+	struct regmap *syscon_regmap;
 	struct soc_device *soc_dev;
 	struct soc_device_attribute *soc_dev_attr;
 	struct device_node *np = pdev->dev.of_node;

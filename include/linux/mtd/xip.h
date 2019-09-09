@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * MTD primitives for XIP support
  *
@@ -7,10 +8,6 @@
  *
  * This XIP support for MTD has been loosely inspired
  * by an earlier patch authored by David Woodhouse.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef __LINUX_MTD_XIP_H__
@@ -30,7 +27,9 @@
  * obviously not be running from flash.  The __xipram is therefore marking
  * those functions so they get relocated to ram.
  */
-#define __xipram noinline __attribute__ ((__section__ (".data")))
+#ifdef CONFIG_XIP_KERNEL
+#define __xipram noinline __attribute__ ((__section__ (".xiptext")))
+#endif
 
 /*
  * Each architecture has to provide the following macros.  They must access
@@ -90,10 +89,10 @@
 #define xip_cpu_idle()  do { } while (0)
 #endif
 
-#else
-
-#define __xipram
-
 #endif /* CONFIG_MTD_XIP */
+
+#ifndef __xipram
+#define __xipram
+#endif
 
 #endif /* __LINUX_MTD_XIP_H__ */

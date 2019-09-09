@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Channel subsystem I/O instructions.
  */
@@ -165,13 +166,15 @@ int tpi(struct tpi_info *addr)
 int chsc(void *chsc_area)
 {
 	typedef struct { char _[4096]; } addr_type;
-	int cc;
+	int cc = -EIO;
 
 	asm volatile(
 		"	.insn	rre,0xb25f0000,%2,0\n"
-		"	ipm	%0\n"
+		"0:	ipm	%0\n"
 		"	srl	%0,28\n"
-		: "=d" (cc), "=m" (*(addr_type *) chsc_area)
+		"1:\n"
+		EX_TABLE(0b, 1b)
+		: "+d" (cc), "=m" (*(addr_type *) chsc_area)
 		: "d" (chsc_area), "m" (*(addr_type *) chsc_area)
 		: "cc");
 	trace_s390_cio_chsc(chsc_area, cc);
@@ -179,30 +182,6 @@ int chsc(void *chsc_area)
 	return cc;
 }
 EXPORT_SYMBOL(chsc);
-
-static inline int __rchp(struct chp_id chpid)
-{
-	register struct chp_id reg1 asm ("1") = chpid;
-	int ccode;
-
-	asm volatile(
-		"	lr	1,%1\n"
-		"	rchp\n"
-		"	ipm	%0\n"
-		"	srl	%0,28"
-		: "=d" (ccode) : "d" (reg1) : "cc");
-	return ccode;
-}
-
-int rchp(struct chp_id chpid)
-{
-	int ccode;
-
-	ccode = __rchp(chpid);
-	trace_s390_cio_rchp(chpid, ccode);
-
-	return ccode;
-}
 
 static inline int __rsch(struct subchannel_id schid)
 {
@@ -254,6 +233,7 @@ int hsch(struct subchannel_id schid)
 
 	return ccode;
 }
+EXPORT_SYMBOL(hsch);
 
 static inline int __xsch(struct subchannel_id schid)
 {

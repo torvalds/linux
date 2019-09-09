@@ -60,8 +60,8 @@ struct ena_stats {
 
 static const struct ena_stats ena_stats_global_strings[] = {
 	ENA_STAT_GLOBAL_ENTRY(tx_timeout),
-	ENA_STAT_GLOBAL_ENTRY(io_suspend),
-	ENA_STAT_GLOBAL_ENTRY(io_resume),
+	ENA_STAT_GLOBAL_ENTRY(suspend),
+	ENA_STAT_GLOBAL_ENTRY(resume),
 	ENA_STAT_GLOBAL_ENTRY(wd_expired),
 	ENA_STAT_GLOBAL_ENTRY(interface_up),
 	ENA_STAT_GLOBAL_ENTRY(interface_down),
@@ -80,20 +80,25 @@ static const struct ena_stats ena_stats_tx_strings[] = {
 	ENA_STAT_TX_ENTRY(tx_poll),
 	ENA_STAT_TX_ENTRY(doorbells),
 	ENA_STAT_TX_ENTRY(prepare_ctx_err),
-	ENA_STAT_TX_ENTRY(missing_tx_comp),
 	ENA_STAT_TX_ENTRY(bad_req_id),
+	ENA_STAT_TX_ENTRY(llq_buffer_copy),
+	ENA_STAT_TX_ENTRY(missed_tx),
 };
 
 static const struct ena_stats ena_stats_rx_strings[] = {
 	ENA_STAT_RX_ENTRY(cnt),
 	ENA_STAT_RX_ENTRY(bytes),
+	ENA_STAT_RX_ENTRY(rx_copybreak_pkt),
+	ENA_STAT_RX_ENTRY(csum_good),
 	ENA_STAT_RX_ENTRY(refil_partial),
 	ENA_STAT_RX_ENTRY(bad_csum),
 	ENA_STAT_RX_ENTRY(page_alloc_fail),
 	ENA_STAT_RX_ENTRY(skb_alloc_fail),
 	ENA_STAT_RX_ENTRY(dma_mapping_err),
 	ENA_STAT_RX_ENTRY(bad_desc_num),
-	ENA_STAT_RX_ENTRY(rx_copybreak_pkt),
+	ENA_STAT_RX_ENTRY(bad_req_id),
+	ENA_STAT_RX_ENTRY(empty_rx_ring),
+	ENA_STAT_RX_ENTRY(csum_unchecked),
 };
 
 static const struct ena_stats ena_stats_ena_com_strings[] = {
@@ -443,13 +448,32 @@ static void ena_get_ringparam(struct net_device *netdev,
 			      struct ethtool_ringparam *ring)
 {
 	struct ena_adapter *adapter = netdev_priv(netdev);
-	struct ena_ring *tx_ring = &adapter->tx_ring[0];
-	struct ena_ring *rx_ring = &adapter->rx_ring[0];
 
-	ring->rx_max_pending = rx_ring->ring_size;
-	ring->tx_max_pending = tx_ring->ring_size;
-	ring->rx_pending = rx_ring->ring_size;
-	ring->tx_pending = tx_ring->ring_size;
+	ring->tx_max_pending = adapter->max_tx_ring_size;
+	ring->rx_max_pending = adapter->max_rx_ring_size;
+	ring->tx_pending = adapter->tx_ring[0].ring_size;
+	ring->rx_pending = adapter->rx_ring[0].ring_size;
+}
+
+static int ena_set_ringparam(struct net_device *netdev,
+			     struct ethtool_ringparam *ring)
+{
+	struct ena_adapter *adapter = netdev_priv(netdev);
+	u32 new_tx_size, new_rx_size;
+
+	new_tx_size = ring->tx_pending < ENA_MIN_RING_SIZE ?
+			ENA_MIN_RING_SIZE : ring->tx_pending;
+	new_tx_size = rounddown_pow_of_two(new_tx_size);
+
+	new_rx_size = ring->rx_pending < ENA_MIN_RING_SIZE ?
+			ENA_MIN_RING_SIZE : ring->rx_pending;
+	new_rx_size = rounddown_pow_of_two(new_rx_size);
+
+	if (new_tx_size == adapter->requested_tx_ring_size &&
+	    new_rx_size == adapter->requested_rx_ring_size)
+		return 0;
+
+	return ena_update_queue_sizes(adapter, new_tx_size, new_rx_size);
 }
 
 static u32 ena_flow_hash_to_flow_type(u16 hash_fields)
@@ -539,12 +563,8 @@ static int ena_get_rss_hash(struct ena_com_dev *ena_dev,
 	}
 
 	rc = ena_com_get_hash_ctrl(ena_dev, proto, &hash_fields);
-	if (rc) {
-		/* If device don't have permission, return unsupported */
-		if (rc == -EPERM)
-			rc = -EOPNOTSUPP;
+	if (rc)
 		return rc;
-	}
 
 	cmd->data = ena_flow_hash_to_flow_type(hash_fields);
 
@@ -612,7 +632,7 @@ static int ena_set_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *info)
 		rc = -EOPNOTSUPP;
 	}
 
-	return (rc == -EPERM) ? -EOPNOTSUPP : rc;
+	return rc;
 }
 
 static int ena_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *info,
@@ -638,7 +658,7 @@ static int ena_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *info,
 		rc = -EOPNOTSUPP;
 	}
 
-	return (rc == -EPERM) ? -EOPNOTSUPP : rc;
+	return rc;
 }
 
 static u32 ena_get_rxfh_indir_size(struct net_device *netdev)
@@ -697,8 +717,8 @@ static int ena_set_rxfh(struct net_device *netdev, const u32 *indir,
 	if (indir) {
 		for (i = 0; i < ENA_RX_RSS_TABLE_SIZE; i++) {
 			rc = ena_com_indirect_table_fill_entry(ena_dev,
-							       ENA_IO_RXQ_IDX(indir[i]),
-							       i);
+							       i,
+							       ENA_IO_RXQ_IDX(indir[i]));
 			if (unlikely(rc)) {
 				netif_err(adapter, drv, netdev,
 					  "Cannot fill indirect table (index is too large)\n");
@@ -745,8 +765,8 @@ static void ena_get_channels(struct net_device *netdev,
 {
 	struct ena_adapter *adapter = netdev_priv(netdev);
 
-	channels->max_rx = ENA_MAX_NUM_IO_QUEUES;
-	channels->max_tx = ENA_MAX_NUM_IO_QUEUES;
+	channels->max_rx = adapter->num_queues;
+	channels->max_tx = adapter->num_queues;
 	channels->max_other = 0;
 	channels->max_combined = 0;
 	channels->rx_count = adapter->num_queues;
@@ -807,6 +827,7 @@ static const struct ethtool_ops ena_ethtool_ops = {
 	.get_coalesce		= ena_get_coalesce,
 	.set_coalesce		= ena_set_coalesce,
 	.get_ringparam		= ena_get_ringparam,
+	.set_ringparam		= ena_set_ringparam,
 	.get_sset_count         = ena_get_sset_count,
 	.get_strings		= ena_get_strings,
 	.get_ethtool_stats      = ena_get_ethtool_stats,
@@ -840,8 +861,8 @@ static void ena_dump_stats_ex(struct ena_adapter *adapter, u8 *buf)
 		return;
 	}
 
-	strings_buf = devm_kzalloc(&adapter->pdev->dev,
-				   strings_num * ETH_GSTRING_LEN,
+	strings_buf = devm_kcalloc(&adapter->pdev->dev,
+				   ETH_GSTRING_LEN, strings_num,
 				   GFP_ATOMIC);
 	if (!strings_buf) {
 		netif_err(adapter, drv, netdev,
@@ -849,8 +870,8 @@ static void ena_dump_stats_ex(struct ena_adapter *adapter, u8 *buf)
 		return;
 	}
 
-	data_buf = devm_kzalloc(&adapter->pdev->dev,
-				strings_num * sizeof(u64),
+	data_buf = devm_kcalloc(&adapter->pdev->dev,
+				strings_num, sizeof(u64),
 				GFP_ATOMIC);
 	if (!data_buf) {
 		netif_err(adapter, drv, netdev,

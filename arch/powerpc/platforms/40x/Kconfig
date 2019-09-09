@@ -1,7 +1,7 @@
+# SPDX-License-Identifier: GPL-2.0
 config ACADIA
 	bool "Acadia"
 	depends on 40x
-	default n
 	select PPC40x_SIMPLE
 	select 405EZ
 	help
@@ -10,28 +10,26 @@ config ACADIA
 config EP405
 	bool "EP405/EP405PC"
 	depends on 40x
-	default n
 	select 405GP
-	select PCI
+	select FORCE_PCI
 	help
 	  This option enables support for the EP405/EP405PC boards.
 
 config HOTFOOT
-        bool "Hotfoot"
+	bool "Hotfoot"
 	depends on 40x
-	default n
 	select PPC40x_SIMPLE
-	select PCI
-        help
-	 This option enables support for the ESTEEM 195E Hotfoot board.
+	select FORCE_PCI
+	help
+	  This option enables support for the ESTEEM 195E Hotfoot board.
 
 config KILAUEA
 	bool "Kilauea"
 	depends on 40x
-	default n
 	select 405EX
 	select PPC40x_SIMPLE
 	select PPC4xx_PCI_EXPRESS
+	select FORCE_PCI
 	select PCI_MSI
 	select PPC4xx_MSI
 	help
@@ -40,9 +38,8 @@ config KILAUEA
 config MAKALU
 	bool "Makalu"
 	depends on 40x
-	default n
 	select 405EX
-	select PCI
+	select FORCE_PCI
 	select PPC4xx_PCI_EXPRESS
 	select PPC40x_SIMPLE
 	help
@@ -53,7 +50,7 @@ config WALNUT
 	depends on 40x
 	default y
 	select 405GP
-	select PCI
+	select FORCE_PCI
 	select OF_RTC
 	help
 	  This option enables support for the IBM PPC405GP evaluation board.
@@ -61,9 +58,9 @@ config WALNUT
 config XILINX_VIRTEX_GENERIC_BOARD
 	bool "Generic Xilinx Virtex board"
 	depends on 40x
-	default n
 	select XILINX_VIRTEX_II_PRO
 	select XILINX_VIRTEX_4_FX
+	select XILINX_INTC
 	help
 	  This option enables generic support for Xilinx Virtex based boards.
 
@@ -78,17 +75,14 @@ config XILINX_VIRTEX_GENERIC_BOARD
 config OBS600
 	bool "OpenBlockS 600"
 	depends on 40x
-	default n
 	select 405EX
 	select PPC40x_SIMPLE
 	help
 	  This option enables support for PlatHome OpenBlockS 600 server
 
-
 config PPC40x_SIMPLE
 	bool "Simple PowerPC 40x board support"
 	depends on 40x
-	default n
 	help
 	  This option enables the simple PowerPC 40x platform support.
 
@@ -102,18 +96,18 @@ config 405GP
 	bool
 	select IBM405_ERR77
 	select IBM405_ERR51
-	select IBM_EMAC_ZMII
+	select IBM_EMAC_ZMII if IBM_EMAC
 
 config 405EX
 	bool
-	select IBM_EMAC_EMAC4
-	select IBM_EMAC_RGMII
+	select IBM_EMAC_EMAC4 if IBM_EMAC
+	select IBM_EMAC_RGMII if IBM_EMAC
 
 config 405EZ
 	bool
-	select IBM_EMAC_NO_FLOW_CTRL
-	select IBM_EMAC_MAL_CLR_ICINTSTAT
-	select IBM_EMAC_MAL_COMMON_ERR
+	select IBM_EMAC_NO_FLOW_CTRL if IBM_EMAC
+	select IBM_EMAC_MAL_CLR_ICINTSTAT if IBM_EMAC
+	select IBM_EMAC_MAL_COMMON_ERR if IBM_EMAC
 
 config XILINX_VIRTEX
 	bool
@@ -154,7 +148,6 @@ config IBM405_ERR51
 config APM8018X
 	bool "APM8018X"
 	depends on 40x
-	default n
 	select PPC40x_SIMPLE
 	help
 	  This option enables support for the AppliedMicro APM8018X evaluation

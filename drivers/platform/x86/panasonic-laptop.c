@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Panasonic HotKey and LCD brightness control driver
  *  (C) 2004 Hiroshi Miura <miura@da-cha.org>
@@ -7,19 +8,6 @@
  *  (C) 2006-2008 Harald Welte <laforge@gnumonks.org>
  *
  *  derived from toshiba_acpi.c, Copyright (C) 2002-2004 John Belmonte
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  publicshed by the Free Software Foundation.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307  USA
  *
  *---------------------------------------------------------------------------
  *
@@ -113,7 +101,6 @@
  *
  *      Jul.17, 2004	Hiroshi Miura <miura@da-cha.org>
  *		- v0.1  start from toshiba_acpi driver written by John Belmonte
- *
  */
 
 #include <linux/kernel.h>
@@ -226,10 +213,6 @@ struct pcc_acpi {
 	struct acpi_device	*device;
 	struct input_dev	*input_dev;
 	struct backlight_device	*backlight;
-};
-
-struct pcc_keyinput {
-	struct acpi_hotkey      *hotkey;
 };
 
 /* method access functions */
@@ -441,7 +424,7 @@ static struct attribute *pcc_sysfs_entries[] = {
 	NULL,
 };
 
-static struct attribute_group pcc_attr_group = {
+static const struct attribute_group pcc_attr_group = {
 	.name	= NULL,		/* put in device directory */
 	.attrs	= pcc_sysfs_entries,
 };
@@ -458,7 +441,7 @@ static void acpi_pcc_generate_keyinput(struct pcc_acpi *pcc)
 
 	rc = acpi_evaluate_integer(pcc->handle, METHOD_HKEY_QUERY,
 				   NULL, &result);
-	if (!ACPI_SUCCESS(rc)) {
+	if (ACPI_FAILURE(rc)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
 				 "error getting hotkey status\n"));
 		return;
@@ -520,27 +503,15 @@ static int acpi_pcc_init_input(struct pcc_acpi *pcc)
 	if (error) {
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
 				  "Unable to register input device\n"));
-		goto err_free_keymap;
+		goto err_free_dev;
 	}
 
 	pcc->input_dev = input_dev;
 	return 0;
 
- err_free_keymap:
-	sparse_keymap_free(input_dev);
  err_free_dev:
 	input_free_device(input_dev);
 	return error;
-}
-
-static void acpi_pcc_destroy_input(struct pcc_acpi *pcc)
-{
-	sparse_keymap_free(pcc->input_dev);
-	input_unregister_device(pcc->input_dev);
-	/*
-	 * No need to input_free_device() since core input API refcounts
-	 * and free()s the device.
-	 */
 }
 
 /* kernel module interface */
@@ -587,7 +558,7 @@ static int acpi_pcc_hotkey_add(struct acpi_device *device)
 		return -ENOMEM;
 	}
 
-	pcc->sinf = kzalloc(sizeof(u32) * (num_sifr + 1), GFP_KERNEL);
+	pcc->sinf = kcalloc(num_sifr + 1, sizeof(u32), GFP_KERNEL);
 	if (!pcc->sinf) {
 		result = -ENOMEM;
 		goto out_hotkey;
@@ -640,7 +611,7 @@ static int acpi_pcc_hotkey_add(struct acpi_device *device)
 out_backlight:
 	backlight_device_unregister(pcc->backlight);
 out_input:
-	acpi_pcc_destroy_input(pcc);
+	input_unregister_device(pcc->input_dev);
 out_sinf:
 	kfree(pcc->sinf);
 out_hotkey:
@@ -660,7 +631,7 @@ static int acpi_pcc_hotkey_remove(struct acpi_device *device)
 
 	backlight_device_unregister(pcc->backlight);
 
-	acpi_pcc_destroy_input(pcc);
+	input_unregister_device(pcc->input_dev);
 
 	kfree(pcc->sinf);
 	kfree(pcc);

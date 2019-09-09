@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Pinctrl driver for the Wondermedia SoC's
  *
  * Copyright (c) 2013 Tony Prisk <linux@prisktech.co.nz>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #include <linux/err.h>
@@ -18,7 +10,6 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/irq.h>
-#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
 #include <linux/pinctrl/consumer.h>
@@ -164,7 +155,7 @@ static int wmt_pmx_gpio_set_direction(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static struct pinmux_ops wmt_pinmux_ops = {
+static const struct pinmux_ops wmt_pinmux_ops = {
 	.get_functions_count = wmt_pmx_get_functions_count,
 	.get_function_name = wmt_pmx_get_function_name,
 	.get_function_groups = wmt_pmx_get_function_groups,
@@ -353,7 +344,7 @@ static int wmt_pctl_dt_node_to_map(struct pinctrl_dev *pctldev,
 	if (num_pulls)
 		maps_per_pin++;
 
-	cur_map = maps = kzalloc(num_pins * maps_per_pin * sizeof(*maps),
+	cur_map = maps = kcalloc(num_pins * maps_per_pin, sizeof(*maps),
 				 GFP_KERNEL);
 	if (!maps)
 		return -ENOMEM;
@@ -410,7 +401,7 @@ fail:
 	return err;
 }
 
-static struct pinctrl_ops wmt_pctl_ops = {
+static const struct pinctrl_ops wmt_pctl_ops = {
 	.get_groups_count = wmt_get_groups_count,
 	.get_group_name	= wmt_get_group_name,
 	.get_group_pins	= wmt_get_group_pins,
@@ -429,7 +420,7 @@ static int wmt_pinconf_set(struct pinctrl_dev *pctldev, unsigned pin,
 {
 	struct wmt_pinctrl_data *data = pinctrl_dev_get_drvdata(pctldev);
 	enum pin_config_param param;
-	u16 arg;
+	u32 arg;
 	u32 bank = WMT_BANK_FROM_PIN(pin);
 	u32 bit = WMT_BIT_FROM_PIN(pin);
 	u32 reg_pull_en = data->banks[bank].reg_pull_en;
@@ -473,7 +464,7 @@ static int wmt_pinconf_set(struct pinctrl_dev *pctldev, unsigned pin,
 	return 0;
 }
 
-static struct pinconf_ops wmt_pinconf_ops = {
+static const struct pinconf_ops wmt_pinconf_ops = {
 	.pin_config_get = wmt_pinconf_get,
 	.pin_config_set = wmt_pinconf_set,
 };
@@ -495,10 +486,8 @@ static int wmt_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
 	u32 val;
 
 	val = readl_relaxed(data->base + reg_dir);
-	if (val & BIT(bit))
-		return GPIOF_DIR_OUT;
-	else
-		return GPIOF_DIR_IN;
+	/* Return 0 == output, 1 == input */
+	return !(val & BIT(bit));
 }
 
 static int wmt_gpio_get_value(struct gpio_chip *chip, unsigned offset)
@@ -547,7 +536,7 @@ static int wmt_gpio_direction_output(struct gpio_chip *chip, unsigned offset,
 	return pinctrl_gpio_direction_output(chip->base + offset);
 }
 
-static struct gpio_chip wmt_gpio_chip = {
+static const struct gpio_chip wmt_gpio_chip = {
 	.label = "gpio-wmt",
 	.owner = THIS_MODULE,
 	.request = gpiochip_generic_request,
@@ -607,13 +596,4 @@ int wmt_pinctrl_probe(struct platform_device *pdev,
 fail_range:
 	gpiochip_remove(&data->gpio_chip);
 	return err;
-}
-
-int wmt_pinctrl_remove(struct platform_device *pdev)
-{
-	struct wmt_pinctrl_data *data = platform_get_drvdata(pdev);
-
-	gpiochip_remove(&data->gpio_chip);
-
-	return 0;
 }

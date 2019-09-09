@@ -1,11 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) STMicroelectronics SA 2014
  * Authors: Benjamin Gaignard <benjamin.gaignard@st.com>
  *          Fabien Dessenne <fabien.dessenne@st.com>
  *          for STMicroelectronics.
- * License terms:  GNU General Public License (GPL), version 2
  */
+
+#include <linux/moduleparam.h>
 #include <linux/seq_file.h>
+
+#include <drm/drm_print.h>
 
 #include "sti_compositor.h"
 #include "sti_mixer.h"
@@ -162,8 +166,7 @@ static int mixer_dbg_show(struct seq_file *s, void *arg)
 	DBGFS_DUMP(GAM_MIXER_MBP);
 	DBGFS_DUMP(GAM_MIXER_MX0);
 	mixer_dbg_mxn(s, mixer->regs + GAM_MIXER_MX0);
-	seq_puts(s, "\n");
-
+	seq_putc(s, '\n');
 	return 0;
 }
 

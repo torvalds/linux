@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/idr.h>
 #include <linux/mutex.h>
 #include <linux/device.h>
@@ -7,6 +8,7 @@
 #include <linux/interrupt.h>
 #include <linux/kdev_t.h>
 #include <linux/slab.h>
+#include <linux/ctype.h>
 
 #include "gpiolib.h"
 
@@ -105,8 +107,14 @@ static ssize_t value_show(struct device *dev,
 
 	mutex_lock(&data->mutex);
 
-	status = sprintf(buf, "%d\n", gpiod_get_value_cansleep(desc));
+	status = gpiod_get_value_cansleep(desc);
+	if (status < 0)
+		goto err;
 
+	buf[0] = '0' + status;
+	buf[1] = '\n';
+	status = 2;
+err:
 	mutex_unlock(&data->mutex);
 
 	return status;
@@ -117,7 +125,7 @@ static ssize_t value_store(struct device *dev,
 {
 	struct gpiod_data *data = dev_get_drvdata(dev);
 	struct gpio_desc *desc = data->desc;
-	ssize_t			status;
+	ssize_t status = 0;
 
 	mutex_lock(&data->mutex);
 
@@ -126,7 +134,11 @@ static ssize_t value_store(struct device *dev,
 	} else {
 		long		value;
 
-		status = kstrtol(buf, 0, &value);
+		if (size <= 2 && isdigit(buf[0]) &&
+		    (size == 1 || buf[1] == '\n'))
+			value = buf[0] - '0';
+		else
+			status = kstrtol(buf, 0, &value);
 		if (status == 0) {
 			gpiod_set_value_cansleep(desc, value);
 			status = size;
@@ -137,7 +149,7 @@ static ssize_t value_store(struct device *dev,
 
 	return status;
 }
-static DEVICE_ATTR_RW(value);
+static DEVICE_ATTR_PREALLOC(value, S_IWUSR | S_IRUGO, value_show, value_store);
 
 static irqreturn_t gpio_sysfs_irq(int irq, void *priv)
 {
@@ -468,17 +480,22 @@ static ssize_t export_store(struct class *class,
 			status = -ENODEV;
 		goto done;
 	}
-	status = gpiod_export(desc, true);
-	if (status < 0)
-		gpiod_free(desc);
-	else
-		set_bit(FLAG_SYSFS, &desc->flags);
+
+	status = gpiod_set_transitory(desc, false);
+	if (!status) {
+		status = gpiod_export(desc, true);
+		if (status < 0)
+			gpiod_free(desc);
+		else
+			set_bit(FLAG_SYSFS, &desc->flags);
+	}
 
 done:
 	if (status)
 		pr_debug("%s: status %d\n", __func__, status);
 	return status ? : len;
 }
+static CLASS_ATTR_WO(export);
 
 static ssize_t unexport_store(struct class *class,
 				struct class_attribute *attr,
@@ -514,25 +531,27 @@ done:
 		pr_debug("%s: status %d\n", __func__, status);
 	return status ? : len;
 }
+static CLASS_ATTR_WO(unexport);
 
-static struct class_attribute gpio_class_attrs[] = {
-	__ATTR(export, 0200, NULL, export_store),
-	__ATTR(unexport, 0200, NULL, unexport_store),
-	__ATTR_NULL,
+static struct attribute *gpio_class_attrs[] = {
+	&class_attr_export.attr,
+	&class_attr_unexport.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(gpio_class);
 
 static struct class gpio_class = {
 	.name =		"gpio",
 	.owner =	THIS_MODULE,
 
-	.class_attrs =	gpio_class_attrs,
+	.class_groups = gpio_class_groups,
 };
 
 
 /**
  * gpiod_export - export a GPIO through sysfs
- * @gpio: gpio to make available, already requested
- * @direction_may_change: true if userspace may change gpio direction
+ * @desc: GPIO to make available, already requested
+ * @direction_may_change: true if userspace may change GPIO direction
  * Context: arch_initcall or later
  *
  * When drivers want to make a GPIO accessible to userspace after they
@@ -640,7 +659,7 @@ static int match_export(struct device *dev, const void *desc)
  * gpiod_export_link - create a sysfs link to an exported GPIO node
  * @dev: device under which to create symlink
  * @name: name of the symlink
- * @gpio: gpio to create symlink to, already exported
+ * @desc: GPIO to create symlink to, already exported
  *
  * Set up a symlink from /sys/.../dev/name to /sys/class/gpio/gpioN
  * node. Caller is responsible for unlinking.
@@ -671,7 +690,7 @@ EXPORT_SYMBOL_GPL(gpiod_export_link);
 
 /**
  * gpiod_unexport - reverse effect of gpiod_export()
- * @gpio: gpio to make unavailable
+ * @desc: GPIO to make unavailable
  *
  * This is implicit on gpiod_free().
  */

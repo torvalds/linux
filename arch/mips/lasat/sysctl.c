@@ -1,26 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Thomas Horsten <thh@lasat.com>
  * Copyright (C) 2000 LASAT Networks A/S.
- *
- *  This program is free software; you can distribute it and/or modify it
- *  under the terms of the GNU General Public License (Version 2) as
- *  published by the Free Software Foundation.
- *
- *  This program is distributed in the hope it will be useful, but WITHOUT
- *  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- *  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- *  for more details.
- *
- *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  59 Temple Place - Suite 330, Boston MA 02111-1307, USA.
  *
  * Routines specific to the LASAT boards
  */
 #include <linux/types.h>
 #include <asm/lasat/lasat.h>
 
-#include <linux/module.h>
 #include <linux/sysctl.h>
 #include <linux/stddef.h>
 #include <linux/init.h>
@@ -74,8 +61,16 @@ int proc_dolasatrtc(struct ctl_table *table, int write,
 	if (r)
 		return r;
 
-	if (write)
-		rtc_mips_set_mmss(rtctmp);
+	if (write) {
+		/*
+		 * Due to the RTC hardware limitation, we can not actually
+		 * use the full 64-bit range here.
+		 */
+		ts.tv_sec = rtctmp;
+		ts.tv_nsec = 0;
+
+		update_persistent_clock64(ts);
+	}
 
 	return 0;
 }

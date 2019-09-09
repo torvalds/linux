@@ -1,0 +1,311 @@
+.TH SLEEPGRAPH 8
+.SH NAME
+sleepgraph \- Suspend/Resume timing analysis
+.SH SYNOPSIS
+.ft B
+.B sleepgraph
+.RB [ OPTIONS ]
+.RB [ COMMAND ]
+.SH DESCRIPTION
+\fBsleepgraph \fP is designed to assist kernel and OS developers
+in optimizing their linux stack's suspend/resume time. Using a kernel
+image built with a few extra options enabled, the tool will execute a
+suspend and capture dmesg and ftrace data until resume is complete.
+This data is transformed into a device timeline and an optional
+callgraph to give a detailed view of which devices/subsystems are
+taking the most time in suspend/resume.
+.PP
+If no specific command is given, the default behavior is to initiate
+a suspend/resume.
+.PP
+Generates output files in subdirectory: suspend-yymmdd-HHMMSS
+   html timeline   :     <hostname>_<mode>.html
+   raw dmesg file  :     <hostname>_<mode>_dmesg.txt
+   raw ftrace file :     <hostname>_<mode>_ftrace.txt
+.SH OPTIONS
+.TP
+\fB-h\fR
+Print the help text.
+.TP
+\fB-v\fR
+Print the current tool version.
+.TP
+\fB-verbose\fR
+Print extra information during execution and analysis.
+.TP
+\fB-config \fIfile\fR
+Pull arguments and config options from a file.
+.TP
+\fB-m \fImode\fR
+Mode to initiate for suspend e.g. standby, freeze, mem (default: mem).
+.TP
+\fB-o \fIname\fR
+Overrides the output subdirectory name when running a new test.
+Use {date}, {time}, {hostname} for current values.
+.sp
+e.g. suspend-{hostname}-{date}-{time}
+.TP
+\fB-rtcwake \fIt\fR | off
+Use rtcwake to autoresume after \fIt\fR seconds (default: 15). Set t to "off" to
+disable rtcwake and require a user keypress to resume.
+.TP
+\fB-addlogs\fR
+Add the dmesg and ftrace logs to the html output. They will be viewable by
+clicking buttons in the timeline.
+.TP
+\fB-turbostat\fR
+Use turbostat to execute the command in freeze mode (default: disabled). This
+will provide turbostat output in the log which will tell you which actual
+power modes were entered.
+.TP
+\fB-result \fIfile\fR
+Export a results table to a text file for parsing.
+.TP
+\fB-sync\fR
+Sync the filesystems before starting the test. This reduces the size of
+the sys_sync call which happens in the suspend_prepare phase.
+.TP
+\fB-rs \fIenable/disable\fR
+During test, enable/disable runtime suspend for all devices. The test is delayed
+by 5 seconds to allow runtime suspend changes to occur. The settings are restored
+after the test is complete.
+.TP
+\fB-display \fIon/off/standby/suspend\fR
+Switch the display to the requested mode for the test using the xset command.
+This helps maintain the consistency of test data for better comparison.
+.TP
+\fB-skiphtml\fR
+Run the test and capture the trace logs, but skip the timeline generation.
+
+.SS "advanced"
+.TP
+\fB-gzip\fR
+Gzip the trace and dmesg logs to save space. The tool can also read in gzipped
+logs for processing.
+.TP
+\fB-cmd \fIstr\fR
+Run the timeline over a custom suspend command, e.g. pm-suspend. By default
+the tool forces suspend via /sys/power/state so this allows testing over
+an OS's official suspend method. The output file will change to
+hostname_command.html and will autodetect which suspend mode was triggered.
+.TP
+\fB-filter \fI"d1,d2,..."\fR
+Filter out all but these device callbacks. These strings can be device names
+or module names. e.g. 0000:00:02.0, ata5, i915, usb, etc.
+.TP
+\fB-mindev \fIt\fR
+Discard all device callbacks shorter than \fIt\fR milliseconds (default: 0.0).
+This reduces the html file size as there can be many tiny callbacks which are barely
+visible. The value is a float: e.g. 0.001 represents 1 us.
+.TP
+\fB-proc\fR
+Add usermode process info into the timeline (default: disabled).
+.TP
+\fB-dev\fR
+Add kernel source calls and threads to the timeline (default: disabled).
+.TP
+\fB-x2\fR
+Run two suspend/resumes back to back (default: disabled).
+.TP
+\fB-x2delay \fIt\fR
+Include \fIt\fR ms delay between multiple test runs (default: 0 ms).
+.TP
+\fB-predelay \fIt\fR
+Include \fIt\fR ms delay before 1st suspend (default: 0 ms).
+.TP
+\fB-postdelay \fIt\fR
+Include \fIt\fR ms delay after last resume (default: 0 ms).
+.TP
+\fB-multi \fIn d\fR
+Execute \fIn\fR consecutive tests at \fId\fR seconds intervals. The outputs will
+be created in a new subdirectory with a summary page: suspend-xN-{date}-{time}.
+
+.SS "ftrace debug"
+.TP
+\fB-f\fR
+Use ftrace to create device callgraphs (default: disabled). This can produce
+very large outputs, i.e. 10MB - 100MB.
+.TP
+\fB-ftop\fR
+Use ftrace on the top level call: "suspend_devices_and_enter" only (default: disabled).
+This option implies -f and creates a single callgraph covering all of suspend/resume.
+.TP
+\fB-maxdepth \fIlevel\fR
+limit the callgraph trace depth to \fIlevel\fR (default: 0=all). This is
+the best way to limit the output size when using callgraphs via -f.
+.TP
+\fB-expandcg\fR
+pre-expand the callgraph data in the html output (default: disabled)
+.TP
+\fB-fadd \fIfile\fR
+Add functions to be graphed in the timeline from a list in a text file
+.TP
+\fB-mincg \fIt\fR
+Discard all callgraphs shorter than \fIt\fR milliseconds (default: 0.0).
+This reduces the html file size as there can be many tiny callgraphs
+which are barely visible in the timeline.
+The value is a float: e.g. 0.001 represents 1 us.
+.TP
+\fB-cgfilter \fI"func1,func2,..."\fR
+Reduce callgraph output in the timeline by limiting it certain devices. The
+argument can be a single device name or a comma delimited list.
+(default: none)
+.TP
+\fB-cgskip \fIfile\fR
+Reduce callgraph timeline size by skipping over uninteresting functions
+in the trace, e.g. printk or console_unlock. The functions listed
+in this file will show up as empty leaves in the callgraph with only the start/end
+times displayed. cgskip.txt is used automatically if found in the path, so
+use "off" to disable completely (default: cgskip.txt)
+.TP
+\fB-cgphase \fIp\fR
+Only show callgraph data for phase \fIp\fR (e.g. suspend_late).
+.TP
+\fB-cgtest \fIn\fR
+In an x2 run, only show callgraph data for test \fIn\fR (e.g. 0 or 1).
+.TP
+\fB-timeprec \fIn\fR
+Number of significant digits in timestamps (0:S, [3:ms], 6:us).
+.TP
+\fB-bufsize \fIN\fR
+Set trace buffer size to N kilo-bytes (default: all of free memory up to 3GB)
+
+.SH COMMANDS
+.TP
+\fB-summary \fIindir\fR
+Create a summary page of all tests in \fIindir\fR. Creates summary.html
+in the current folder. The output page is a table of tests with
+suspend and resume values sorted by suspend mode, host, and kernel.
+Includes test averages by mode and links to the test html files.
+Use -genhtml to include tests with missing html.
+.TP
+\fB-modes\fR
+List available suspend modes.
+.TP
+\fB-status\fR
+Test to see if the system is able to run this tool. Use this along
+with any options you intend to use to see if they will work.
+.TP
+\fB-fpdt\fR
+Print out the contents of the ACPI Firmware Performance Data Table.
+.TP
+\fB-battery\fR
+Print out battery status and current charge.
+.TP
+\fB-wifi\fR
+Print out wifi status and connection details.
+.TP
+\fB-xon/-xoff/-xstandby/-xsuspend\fR
+Test xset by attempting to switch the display to the given mode. This
+is the same command which will be issued by \fB-display \fImode\fR.
+.TP
+\fB-xstat\fR
+Get the current DPMS display mode.
+.TP
+\fB-sysinfo\fR
+Print out system info extracted from BIOS. Reads /dev/mem directly instead of going through dmidecode.
+.TP
+\fB-devinfo\fR
+Print out the pm settings of all devices which support runtime suspend.
+.TP
+\fB-flist\fR
+Print the list of ftrace functions currently being captured. Functions
+that are not available as symbols in the current kernel are shown in red.
+By default, the tool traces a list of important suspend/resume functions
+in order to better fill out the timeline. If the user has added their own
+with -fadd they will also be checked.
+.TP
+\fB-flistall\fR
+Print all ftrace functions capable of being captured. These are all the
+possible values you can add to trace via the -fadd argument.
+.SS "rebuild"
+.TP
+\fB-ftrace \fIfile\fR
+Create HTML output from an existing ftrace file.
+.TP
+\fB-dmesg \fIfile\fR
+Create HTML output from an existing dmesg file.
+
+.SH EXAMPLES
+.SS "simple commands"
+Check which suspend modes are currently supported.
+.IP
+\f(CW$ sleepgraph -modes\fR
+.PP
+Read the Firmware Performance Data Table (FPDT)
+.IP
+\f(CW$ sudo sleepgraph -fpdt\fR
+.PP
+Print out the current USB power topology
+.IP
+\f(CW$ sleepgraph -usbtopo
+.PP
+Verify that you can run a command with a set of arguments
+.IP
+\f(CW$ sudo sleepgraph -f -rtcwake 30 -status
+.PP
+Generate a summary of all timelines in a particular folder.
+.IP
+\f(CW$ sleepgraph -summary ~/workspace/myresults/\fR
+.PP
+
+.SS "capturing basic timelines"
+Execute a mem suspend with a 15 second wakeup. Include the logs in the html.
+.IP
+\f(CW$ sudo sleepgraph -rtcwake 15 -addlogs\fR
+.PP
+Execute a standby with a 15 second wakeup. Change the output folder name.
+.IP
+\f(CW$ sudo sleepgraph -m standby -rtcwake 15 -o "standby-{host}-{date}-{time}"\fR
+.PP
+Execute a freeze with no wakeup (require keypress). Change output folder name.
+.IP
+\f(CW$ sudo sleepgraph -m freeze -rtcwake off -o "freeze-{hostname}-{date}-{time}"\fR
+.PP
+
+.SS "capturing advanced timelines"
+Execute a suspend & include dev mode source calls, limit callbacks to 5ms or larger.
+.IP
+\f(CW$ sudo sleepgraph -m mem -rtcwake 15 -dev -mindev 5\fR
+.PP
+Run two suspends back to back, include a 500ms delay before, after, and in between runs.
+.IP
+\f(CW$ sudo sleepgraph -m mem -rtcwake 15 -x2 -predelay 500 -x2delay 500 -postdelay 500\fR
+.PP
+Do a batch run of 10 freezes with 30 seconds delay between runs.
+.IP
+\f(CW$ sudo sleepgraph -m freeze -rtcwake 15 -multi 10 30\fR
+.PP
+Execute a suspend using a custom command.
+.IP
+\f(CW$ sudo sleepgraph -cmd "echo mem > /sys/power/state" -rtcwake 15\fR
+.PP
+
+.SS "adding callgraph data"
+Add device callgraphs. Limit the trace depth and only show callgraphs 10ms or larger.
+.IP
+\f(CW$ sudo sleepgraph -m mem -rtcwake 15 -f -maxdepth 5 -mincg 10\fR
+.PP
+Capture a full callgraph across all suspend, then filter the html by a single phase.
+.IP
+\f(CW$ sudo sleepgraph -m mem -rtcwake 15 -f\fR
+.IP
+\f(CW$ sleepgraph -dmesg host_mem_dmesg.txt -ftrace host_mem_ftrace.txt -f -cgphase resume
+.PP
+
+.SS "rebuild timeline from logs"
+.PP
+Rebuild the html from a previous run's logs, using the same options.
+.IP
+\f(CW$ sleepgraph -dmesg dmesg.txt -ftrace ftrace.txt -callgraph\fR
+.PP
+Rebuild the html with different options.
+.IP
+\f(CW$ sleepgraph -dmesg dmesg.txt -ftrace ftrace.txt -addlogs -srgap\fR
+
+.SH "SEE ALSO"
+dmesg(1)
+.PP
+.SH AUTHOR
+.nf
+Written by Todd Brandt <todd.e.brandt@linux.intel.com>

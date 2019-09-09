@@ -1,30 +1,24 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright © 2006-2011 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  *
  * Authors:
  *	Eric Anholt <eric@anholt.net>
  *	Patrik Jakobsson <patrik.r.jakobsson@gmail.com>
  */
 
-#include <drm/drmP.h>
+#include <linux/delay.h>
+#include <linux/highmem.h>
+
+#include <drm/drm_crtc.h>
+#include <drm/drm_fourcc.h>
+#include <drm/drm_vblank.h>
+
+#include "framebuffer.h"
 #include "gma_display.h"
+#include "psb_drv.h"
 #include "psb_intel_drv.h"
 #include "psb_intel_reg.h"
-#include "psb_drv.h"
-#include "framebuffer.h"
 
 /**
  * Returns whether any output on the specified pipe is of the specified type
@@ -59,7 +53,8 @@ int gma_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	struct drm_device *dev = crtc->dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
-	struct psb_framebuffer *psbfb = to_psb_fb(crtc->primary->fb);
+	struct drm_framebuffer *fb = crtc->primary->fb;
+	struct gtt_range *gtt;
 	int pipe = gma_crtc->pipe;
 	const struct psb_offset *map = &dev_priv->regmap[pipe];
 	unsigned long start, offset;
@@ -70,30 +65,32 @@ int gma_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		return 0;
 
 	/* no fb bound */
-	if (!crtc->primary->fb) {
+	if (!fb) {
 		dev_err(dev->dev, "No FB bound\n");
 		goto gma_pipe_cleaner;
 	}
 
+	gtt = to_gtt_range(fb->obj[0]);
+
 	/* We are displaying this buffer, make sure it is actually loaded
 	   into the GTT */
-	ret = psb_gtt_pin(psbfb->gtt);
+	ret = psb_gtt_pin(gtt);
 	if (ret < 0)
 		goto gma_pipe_set_base_exit;
-	start = psbfb->gtt->offset;
-	offset = y * crtc->primary->fb->pitches[0] + x * (crtc->primary->fb->bits_per_pixel / 8);
+	start = gtt->offset;
+	offset = y * fb->pitches[0] + x * fb->format->cpp[0];
 
-	REG_WRITE(map->stride, crtc->primary->fb->pitches[0]);
+	REG_WRITE(map->stride, fb->pitches[0]);
 
 	dspcntr = REG_READ(map->cntr);
 	dspcntr &= ~DISPPLANE_PIXFORMAT_MASK;
 
-	switch (crtc->primary->fb->bits_per_pixel) {
+	switch (fb->format->cpp[0] * 8) {
 	case 8:
 		dspcntr |= DISPPLANE_8BPP;
 		break;
 	case 16:
-		if (crtc->primary->fb->depth == 15)
+		if (fb->format->depth == 15)
 			dspcntr |= DISPPLANE_15_16BPP;
 		else
 			dspcntr |= DISPPLANE_16BPP;
@@ -128,7 +125,7 @@ int gma_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 gma_pipe_cleaner:
 	/* If there was a previous display we can now unpin it */
 	if (old_fb)
-		psb_gtt_unpin(to_psb_fb(old_fb)->gtt);
+		psb_gtt_unpin(to_gtt_range(old_fb->obj[0]));
 
 gma_pipe_set_base_exit:
 	gma_power_end(dev);
@@ -143,50 +140,41 @@ void gma_crtc_load_lut(struct drm_crtc *crtc)
 	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
 	const struct psb_offset *map = &dev_priv->regmap[gma_crtc->pipe];
 	int palreg = map->palette;
+	u16 *r, *g, *b;
 	int i;
 
 	/* The clocks have to be on to load the palette. */
 	if (!crtc->enabled)
 		return;
 
+	r = crtc->gamma_store;
+	g = r + crtc->gamma_size;
+	b = g + crtc->gamma_size;
+
 	if (gma_power_begin(dev, false)) {
 		for (i = 0; i < 256; i++) {
 			REG_WRITE(palreg + 4 * i,
-				  ((gma_crtc->lut_r[i] +
-				  gma_crtc->lut_adj[i]) << 16) |
-				  ((gma_crtc->lut_g[i] +
-				  gma_crtc->lut_adj[i]) << 8) |
-				  (gma_crtc->lut_b[i] +
-				  gma_crtc->lut_adj[i]));
+				  (((*r++ >> 8) + gma_crtc->lut_adj[i]) << 16) |
+				  (((*g++ >> 8) + gma_crtc->lut_adj[i]) << 8) |
+				  ((*b++ >> 8) + gma_crtc->lut_adj[i]));
 		}
 		gma_power_end(dev);
 	} else {
 		for (i = 0; i < 256; i++) {
 			/* FIXME: Why pipe[0] and not pipe[..._crtc->pipe]? */
 			dev_priv->regs.pipe[0].palette[i] =
-				  ((gma_crtc->lut_r[i] +
-				  gma_crtc->lut_adj[i]) << 16) |
-				  ((gma_crtc->lut_g[i] +
-				  gma_crtc->lut_adj[i]) << 8) |
-				  (gma_crtc->lut_b[i] +
-				  gma_crtc->lut_adj[i]);
+				(((*r++ >> 8) + gma_crtc->lut_adj[i]) << 16) |
+				(((*g++ >> 8) + gma_crtc->lut_adj[i]) << 8) |
+				((*b++ >> 8) + gma_crtc->lut_adj[i]);
 		}
 
 	}
 }
 
 int gma_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green, u16 *blue,
-		       u32 size)
+		       u32 size,
+		       struct drm_modeset_acquire_ctx *ctx)
 {
-	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
-	int i;
-
-	for (i = 0; i < size; i++) {
-		gma_crtc->lut_r[i] = red[i] >> 8;
-		gma_crtc->lut_g[i] = green[i] >> 8;
-		gma_crtc->lut_b[i] = blue[i] >> 8;
-	}
-
 	gma_crtc_load_lut(crtc);
 
 	return 0;
@@ -361,7 +349,7 @@ int gma_crtc_cursor_set(struct drm_crtc *crtc,
 			gt = container_of(gma_crtc->cursor_obj,
 					  struct gtt_range, gem);
 			psb_gtt_unpin(gt);
-			drm_gem_object_unreference_unlocked(gma_crtc->cursor_obj);
+			drm_gem_object_put_unlocked(gma_crtc->cursor_obj);
 			gma_crtc->cursor_obj = NULL;
 		}
 		return 0;
@@ -437,7 +425,7 @@ int gma_crtc_cursor_set(struct drm_crtc *crtc,
 	if (gma_crtc->cursor_obj) {
 		gt = container_of(gma_crtc->cursor_obj, struct gtt_range, gem);
 		psb_gtt_unpin(gt);
-		drm_gem_object_unreference_unlocked(gma_crtc->cursor_obj);
+		drm_gem_object_put_unlocked(gma_crtc->cursor_obj);
 	}
 
 	gma_crtc->cursor_obj = obj;
@@ -445,7 +433,7 @@ unlock:
 	return ret;
 
 unref_cursor:
-	drm_gem_object_unreference_unlocked(obj);
+	drm_gem_object_put_unlocked(obj);
 	return ret;
 }
 
@@ -499,7 +487,7 @@ void gma_crtc_disable(struct drm_crtc *crtc)
 	crtc_funcs->dpms(crtc, DRM_MODE_DPMS_OFF);
 
 	if (crtc->primary->fb) {
-		gt = to_psb_fb(crtc->primary->fb)->gtt;
+		gt = to_gtt_range(crtc->primary->fb->obj[0]);
 		psb_gtt_unpin(gt);
 	}
 }
@@ -513,17 +501,18 @@ void gma_crtc_destroy(struct drm_crtc *crtc)
 	kfree(gma_crtc);
 }
 
-int gma_crtc_set_config(struct drm_mode_set *set)
+int gma_crtc_set_config(struct drm_mode_set *set,
+			struct drm_modeset_acquire_ctx *ctx)
 {
 	struct drm_device *dev = set->crtc->dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	int ret;
 
 	if (!dev_priv->rpm_enabled)
-		return drm_crtc_helper_set_config(set);
+		return drm_crtc_helper_set_config(set, ctx);
 
 	pm_runtime_forbid(&dev->pdev->dev);
-	ret = drm_crtc_helper_set_config(set);
+	ret = drm_crtc_helper_set_config(set, ctx);
 	pm_runtime_allow(&dev->pdev->dev);
 
 	return ret;
@@ -670,7 +659,7 @@ void gma_connector_attach_encoder(struct gma_connector *connector,
 				  struct gma_encoder *encoder)
 {
 	connector->encoder = encoder;
-	drm_mode_connector_attach_encoder(&connector->base,
+	drm_connector_attach_encoder(&connector->base,
 					  &encoder->base);
 }
 

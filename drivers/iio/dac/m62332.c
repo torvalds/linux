@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  m62332.c - Support for Mitsubishi m62332 DAC
  *
@@ -5,16 +6,6 @@
  *
  *  Based on max517 driver:
  *  Copyright (C) 2010, 2011 Roland Stigge <stigge@antcom.de>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
  */
 
 #include <linux/module.h>
@@ -174,7 +165,6 @@ static SIMPLE_DEV_PM_OPS(m62332_pm_ops, m62332_suspend, m62332_resume);
 static const struct iio_info m62332_info = {
 	.read_raw = m62332_read_raw,
 	.write_raw = m62332_write_raw,
-	.driver_module = THIS_MODULE,
 };
 
 #define M62332_CHANNEL(chan) {					\

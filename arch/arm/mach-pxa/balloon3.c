@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/arch/arm/mach-pxa/balloon3.c
  *
@@ -7,16 +8,13 @@
  *  Created:	June, 2006
  *  Copyright:	Toby Churchill Ltd
  *  Derived from mainstone.c, by Nico Pitre
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
  */
 
 #include <linux/export.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
+#include <linux/leds.h>
 #include <linux/sched.h>
 #include <linux/bitops.h>
 #include <linux/fb.h>
@@ -24,18 +22,17 @@
 #include <linux/ioport.h>
 #include <linux/ucb1400.h>
 #include <linux/mtd/mtd.h>
-#include <linux/mtd/partitions.h>
 #include <linux/types.h>
-#include <linux/i2c/pcf857x.h>
-#include <linux/i2c/pxa-i2c.h>
-#include <linux/mtd/nand.h>
+#include <linux/platform_data/pcf857x.h>
+#include <linux/platform_data/i2c-pxa.h>
+#include <linux/mtd/platnand.h>
 #include <linux/mtd/physmap.h>
 #include <linux/regulator/max1586.h>
 
 #include <asm/setup.h>
 #include <asm/mach-types.h>
 #include <asm/irq.h>
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -290,9 +287,6 @@ static unsigned long balloon3_mmc_pin_config[] __initdata = {
 
 static struct pxamci_platform_data balloon3_mci_platform_data = {
 	.ocr_mask		= MMC_VDD_32_33 | MMC_VDD_33_34,
-	.gpio_card_detect	= -1,
-	.gpio_card_ro		= -1,
-	.gpio_power		= -1,
 	.detect_delay_ms	= 200,
 };
 
@@ -570,9 +564,9 @@ static inline void balloon3_i2c_init(void) {}
  * NAND
  ******************************************************************************/
 #if defined(CONFIG_MTD_NAND_PLATFORM)||defined(CONFIG_MTD_NAND_PLATFORM_MODULE)
-static void balloon3_nand_cmd_ctl(struct mtd_info *mtd, int cmd, unsigned int ctrl)
+static void balloon3_nand_cmd_ctl(struct nand_chip *this, int cmd,
+				  unsigned int ctrl)
 {
-	struct nand_chip *this = mtd_to_nand(mtd);
 	uint8_t balloon3_ctl_set = 0, balloon3_ctl_clr = 0;
 
 	if (ctrl & NAND_CTRL_CHANGE) {
@@ -596,10 +590,10 @@ static void balloon3_nand_cmd_ctl(struct mtd_info *mtd, int cmd, unsigned int ct
 	}
 
 	if (cmd != NAND_CMD_NONE)
-		writeb(cmd, this->IO_ADDR_W);
+		writeb(cmd, this->legacy.IO_ADDR_W);
 }
 
-static void balloon3_nand_select_chip(struct mtd_info *mtd, int chip)
+static void balloon3_nand_select_chip(struct nand_chip *this, int chip)
 {
 	if (chip < 0 || chip > 3)
 		return;
@@ -615,7 +609,7 @@ static void balloon3_nand_select_chip(struct mtd_info *mtd, int chip)
 		BALLOON3_NAND_CONTROL_REG);
 }
 
-static int balloon3_nand_dev_ready(struct mtd_info *mtd)
+static int balloon3_nand_dev_ready(struct nand_chip *this)
 {
 	return __raw_readl(BALLOON3_NAND_STAT_REG) & BALLOON3_NAND_STAT_RNB;
 }
@@ -687,7 +681,6 @@ struct platform_nand_data balloon3_nand_pdata = {
 		.chip_delay	= 50,
 	},
 	.ctrl = {
-		.hwcontrol	= 0,
 		.dev_ready	= balloon3_nand_dev_ready,
 		.select_chip	= balloon3_nand_select_chip,
 		.cmd_ctrl	= balloon3_nand_cmd_ctl,

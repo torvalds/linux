@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2015, Sony Mobile Communications Inc.
  * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/interrupt.h>
@@ -439,14 +431,15 @@ static int smsm_get_size_info(struct qcom_smsm *smsm)
 	} *info;
 
 	info = qcom_smem_get(QCOM_SMEM_HOST_ANY, SMEM_SMSM_SIZE_INFO, &size);
-	if (PTR_ERR(info) == -ENOENT || size != sizeof(*info)) {
+	if (IS_ERR(info) && PTR_ERR(info) != -ENOENT) {
+		if (PTR_ERR(info) != -EPROBE_DEFER)
+			dev_err(smsm->dev, "unable to retrieve smsm size info\n");
+		return PTR_ERR(info);
+	} else if (IS_ERR(info) || size != sizeof(*info)) {
 		dev_warn(smsm->dev, "no smsm size info, using defaults\n");
 		smsm->num_entries = SMSM_DEFAULT_NUM_ENTRIES;
 		smsm->num_hosts = SMSM_DEFAULT_NUM_HOSTS;
 		return 0;
-	} else if (IS_ERR(info)) {
-		dev_err(smsm->dev, "unable to retrieve smsm size info\n");
-		return PTR_ERR(info);
 	}
 
 	smsm->num_entries = info->num_entries;
@@ -495,7 +488,10 @@ static int qcom_smsm_probe(struct platform_device *pdev)
 	if (!smsm->hosts)
 		return -ENOMEM;
 
-	local_node = of_find_node_with_property(pdev->dev.of_node, "#qcom,smem-state-cells");
+	for_each_child_of_node(pdev->dev.of_node, local_node) {
+		if (of_find_property(local_node, "#qcom,smem-state-cells", NULL))
+			break;
+	}
 	if (!local_node) {
 		dev_err(&pdev->dev, "no state entry\n");
 		return -EINVAL;

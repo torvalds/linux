@@ -1,12 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Performance counter support for POWER8 processors.
  *
  * Copyright 2014 Sukadev Bhattiprolu, IBM Corporation.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 /*
@@ -89,3 +85,9 @@ EVENT(PM_MRK_FILT_MATCH,			0x2013c)
 EVENT(PM_MRK_FILT_MATCH_ALT,			0x3012e)
 /* Alternate event code for PM_LD_MISS_L1 */
 EVENT(PM_LD_MISS_L1_ALT,			0x400f0)
+/*
+ * Memory Access Event -- mem_access
+ * Primary PMU event used here is PM_MRK_INST_CMPL, along with
+ * Random Load/Store Facility Sampling (RIS) in Random sampling mode (MMCRA[SM]).
+ */
+EVENT(MEM_ACCESS,				0x10401e0)

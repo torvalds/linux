@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* $XFree86: xc/programs/Xserver/hw/xfree86/drivers/nv/nv_type.h,v 1.35 2002/08/05 20:47:06 mvojkovi Exp $ */
 
 #ifndef __NV_STRUCT_H__

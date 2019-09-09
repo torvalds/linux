@@ -1,26 +1,23 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * vivid-cec.c - A Virtual Video Test Driver, cec emulation
  *
  * Copyright 2016 Cisco Systems, Inc. and/or its affiliates. All rights reserved.
- *
- * This program is free software; you may redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
  */
 
 #include <media/cec.h>
 
 #include "vivid-core.h"
 #include "vivid-cec.h"
+
+#define CEC_TIM_START_BIT_TOTAL		4500
+#define CEC_TIM_START_BIT_LOW		3700
+#define CEC_TIM_START_BIT_HIGH		800
+#define CEC_TIM_DATA_BIT_TOTAL		2400
+#define CEC_TIM_DATA_BIT_0_LOW		1500
+#define CEC_TIM_DATA_BIT_0_HIGH		900
+#define CEC_TIM_DATA_BIT_1_LOW		600
+#define CEC_TIM_DATA_BIT_1_HIGH		1800
 
 void vivid_cec_bus_free_work(struct vivid_dev *dev)
 {
@@ -34,7 +31,7 @@ void vivid_cec_bus_free_work(struct vivid_dev *dev)
 		cancel_delayed_work_sync(&cw->work);
 		spin_lock(&dev->cec_slock);
 		list_del(&cw->list);
-		cec_transmit_done(cw->adap, CEC_TX_STATUS_LOW_DRIVE, 0, 0, 1, 0);
+		cec_transmit_attempt_done(cw->adap, CEC_TX_STATUS_LOW_DRIVE);
 		kfree(cw);
 	}
 	spin_unlock(&dev->cec_slock);
@@ -64,6 +61,65 @@ static bool vivid_cec_find_dest_adap(struct vivid_dev *dev,
 	return false;
 }
 
+static void vivid_cec_pin_adap_events(struct cec_adapter *adap, ktime_t ts,
+				      const struct cec_msg *msg, bool nacked)
+{
+	unsigned int len = nacked ? 1 : msg->len;
+	unsigned int i;
+	bool bit;
+
+	if (adap == NULL)
+		return;
+
+	/*
+	 * Suffix ULL on constant 10 makes the expression
+	 * CEC_TIM_START_BIT_TOTAL + 10ULL * len * CEC_TIM_DATA_BIT_TOTAL
+	 * to be evaluated using 64-bit unsigned arithmetic (u64), which
+	 * is what ktime_sub_us expects as second argument.
+	 */
+	ts = ktime_sub_us(ts, CEC_TIM_START_BIT_TOTAL +
+			       10ULL * len * CEC_TIM_DATA_BIT_TOTAL);
+	cec_queue_pin_cec_event(adap, false, false, ts);
+	ts = ktime_add_us(ts, CEC_TIM_START_BIT_LOW);
+	cec_queue_pin_cec_event(adap, true, false, ts);
+	ts = ktime_add_us(ts, CEC_TIM_START_BIT_HIGH);
+
+	for (i = 0; i < 10 * len; i++) {
+		switch (i % 10) {
+		case 0 ... 7:
+			bit = msg->msg[i / 10] & (0x80 >> (i % 10));
+			break;
+		case 8: /* EOM */
+			bit = i / 10 == msg->len - 1;
+			break;
+		case 9: /* ACK */
+			bit = cec_msg_is_broadcast(msg) ^ nacked;
+			break;
+		}
+		cec_queue_pin_cec_event(adap, false, false, ts);
+		if (bit)
+			ts = ktime_add_us(ts, CEC_TIM_DATA_BIT_1_LOW);
+		else
+			ts = ktime_add_us(ts, CEC_TIM_DATA_BIT_0_LOW);
+		cec_queue_pin_cec_event(adap, true, false, ts);
+		if (bit)
+			ts = ktime_add_us(ts, CEC_TIM_DATA_BIT_1_HIGH);
+		else
+			ts = ktime_add_us(ts, CEC_TIM_DATA_BIT_0_HIGH);
+	}
+}
+
+static void vivid_cec_pin_events(struct vivid_dev *dev,
+				 const struct cec_msg *msg, bool nacked)
+{
+	ktime_t ts = ktime_get();
+	unsigned int i;
+
+	vivid_cec_pin_adap_events(dev->cec_rx_adap, ts, msg, nacked);
+	for (i = 0; i < MAX_OUTPUTS; i++)
+		vivid_cec_pin_adap_events(dev->cec_tx_adap[i], ts, msg, nacked);
+}
+
 static void vivid_cec_xfer_done_worker(struct work_struct *work)
 {
 	struct vivid_cec_work *cw =
@@ -84,7 +140,8 @@ static void vivid_cec_xfer_done_worker(struct work_struct *work)
 	dev->cec_xfer_start_jiffies = 0;
 	list_del(&cw->list);
 	spin_unlock(&dev->cec_slock);
-	cec_transmit_done(cw->adap, cw->tx_status, 0, valid_dest ? 0 : 1, 0, 0);
+	vivid_cec_pin_events(dev, &cw->msg, !valid_dest);
+	cec_transmit_attempt_done(cw->adap, cw->tx_status);
 
 	/* Broadcast message */
 	if (adap != dev->cec_rx_adap)
@@ -105,7 +162,7 @@ static void vivid_cec_xfer_try_worker(struct work_struct *work)
 	if (dev->cec_xfer_time_jiffies) {
 		list_del(&cw->list);
 		spin_unlock(&dev->cec_slock);
-		cec_transmit_done(cw->adap, CEC_TX_STATUS_ARB_LOST, 1, 0, 0, 0);
+		cec_transmit_attempt_done(cw->adap, CEC_TX_STATUS_ARB_LOST);
 		kfree(cw);
 	} else {
 		INIT_DELAYED_WORK(&cw->work, vivid_cec_xfer_done_worker);
@@ -118,6 +175,7 @@ static void vivid_cec_xfer_try_worker(struct work_struct *work)
 
 static int vivid_cec_adap_enable(struct cec_adapter *adap, bool enable)
 {
+	adap->cec_pin_is_high = true;
 	return 0;
 }
 
@@ -135,7 +193,7 @@ static int vivid_cec_adap_log_addr(struct cec_adapter *adap, u8 log_addr)
 static int vivid_cec_adap_transmit(struct cec_adapter *adap, u8 attempts,
 				   u32 signal_free_time, struct cec_msg *msg)
 {
-	struct vivid_dev *dev = adap->priv;
+	struct vivid_dev *dev = cec_get_drvdata(adap);
 	struct vivid_cec_work *cw = kzalloc(sizeof(*cw), GFP_KERNEL);
 	long delta_jiffies = 0;
 
@@ -166,7 +224,7 @@ static int vivid_cec_adap_transmit(struct cec_adapter *adap, u8 attempts,
 
 static int vivid_received(struct cec_adapter *adap, struct cec_msg *msg)
 {
-	struct vivid_dev *dev = adap->priv;
+	struct vivid_dev *dev = cec_get_drvdata(adap);
 	struct cec_msg reply;
 	u8 dest = cec_msg_destination(msg);
 	u8 disp_ctl;
@@ -183,11 +241,11 @@ static int vivid_received(struct cec_adapter *adap, struct cec_msg *msg)
 		cec_ops_set_osd_string(msg, &disp_ctl, osd);
 		switch (disp_ctl) {
 		case CEC_OP_DISP_CTL_DEFAULT:
-			strcpy(dev->osd, osd);
+			strscpy(dev->osd, osd, sizeof(dev->osd));
 			dev->osd_jiffies = jiffies;
 			break;
 		case CEC_OP_DISP_CTL_UNTIL_CLEARED:
-			strcpy(dev->osd, osd);
+			strscpy(dev->osd, osd, sizeof(dev->osd));
 			dev->osd_jiffies = 0;
 			break;
 		case CEC_OP_DISP_CTL_CLEAR:
@@ -216,16 +274,14 @@ static const struct cec_adap_ops vivid_cec_adap_ops = {
 
 struct cec_adapter *vivid_cec_alloc_adap(struct vivid_dev *dev,
 					 unsigned int idx,
-					 struct device *parent,
 					 bool is_source)
 {
 	char name[sizeof(dev->vid_out_dev.name) + 2];
-	u32 caps = CEC_CAP_TRANSMIT | CEC_CAP_LOG_ADDRS |
-		CEC_CAP_PASSTHROUGH | CEC_CAP_RC | CEC_CAP_MONITOR_ALL;
+	u32 caps = CEC_CAP_DEFAULTS | CEC_CAP_MONITOR_ALL | CEC_CAP_MONITOR_PIN;
 
 	snprintf(name, sizeof(name), "%s%d",
 		 is_source ? dev->vid_out_dev.name : dev->vid_cap_dev.name,
 		 idx);
 	return cec_allocate_adapter(&vivid_cec_adap_ops, dev,
-		name, caps, 1, parent);
+		name, caps, 1);
 }

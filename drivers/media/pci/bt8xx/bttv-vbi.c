@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
 
     bttv - Bt848 frame grabber driver
@@ -8,19 +9,6 @@
     Copyright (C) 2005, 2006 Michael H. Schimek <mschimek@gmx.at>
     Sponsored by OPQ Systems AB
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -233,7 +221,7 @@ static void vbi_buffer_release(struct videobuf_queue *q, struct videobuf_buffer 
 	bttv_dma_free(q,fh->btv,buf);
 }
 
-struct videobuf_queue_ops bttv_vbi_qops = {
+const struct videobuf_queue_ops bttv_vbi_qops = {
 	.buf_setup    = vbi_buffer_setup,
 	.buf_prepare  = vbi_buffer_prepare,
 	.buf_queue    = vbi_buffer_queue,

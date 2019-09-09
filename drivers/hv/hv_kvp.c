@@ -46,6 +46,19 @@
 #define WIN8_SRV_MINOR   0
 #define WIN8_SRV_VERSION     (WIN8_SRV_MAJOR << 16 | WIN8_SRV_MINOR)
 
+#define KVP_VER_COUNT 3
+static const int kvp_versions[] = {
+	WIN8_SRV_VERSION,
+	WIN7_SRV_VERSION,
+	WS2008_SRV_VERSION
+};
+
+#define FW_VER_COUNT 2
+static const int fw_versions[] = {
+	UTIL_FW_VERSION,
+	UTIL_WS2K8_FW_VERSION
+};
+
 /*
  * Global state maintained for transaction that is being processed. For a class
  * of integration services, including the "KVP service", the specified protocol
@@ -56,7 +69,7 @@
  *
  * While the request/response protocol is guaranteed by the host, we further
  * ensure this by serializing packet processing in this driver - we do not
- * read additional packets from the VMBUs until the current packet is fully
+ * read additional packets from the VMBUS until the current packet is fully
  * handled.
  */
 
@@ -99,7 +112,7 @@ static void kvp_poll_wrapper(void *channel)
 {
 	/* Transaction is finished, reset the state here to avoid races. */
 	kvp_transaction.state = HVUTIL_READY;
-	hv_kvp_onchannelcallback(channel);
+	tasklet_schedule(&((struct vmbus_channel *)channel)->callback_event);
 }
 
 static void kvp_register_done(void)
@@ -146,7 +159,7 @@ static void kvp_timeout_func(struct work_struct *dummy)
 
 static void kvp_host_handshake_func(struct work_struct *dummy)
 {
-	hv_poll_channel(kvp_transaction.recv_channel, hv_kvp_onchannelcallback);
+	tasklet_schedule(&kvp_transaction.recv_channel->callback_event);
 }
 
 static int kvp_handle_handshake(struct hv_kvp_msg *msg)
@@ -291,7 +304,7 @@ static int process_ob_ipinfo(void *in_msg, void *out_msg, int op)
 				strlen((char *)in->body.kvp_ip_val.adapter_id),
 				UTF16_HOST_ENDIAN,
 				(wchar_t *)out->kvp_ip_val.adapter_id,
-				MAX_IP_ADDR_SIZE);
+				MAX_ADAPTER_ID_SIZE);
 		if (len < 0)
 			return len;
 
@@ -340,7 +353,9 @@ static void process_ib_ipinfo(void *in_msg, void *out_msg, int op)
 
 		out->body.kvp_ip_val.dhcp_enabled = in->kvp_ip_val.dhcp_enabled;
 
-	default:
+		/* fallthrough */
+
+	case KVP_OP_GET_IP_INFO:
 		utf16s_to_utf8s((wchar_t *)in->kvp_ip_val.adapter_id,
 				MAX_ADAPTER_ID_SIZE,
 				UTF16_LITTLE_ENDIAN,
@@ -384,7 +399,7 @@ kvp_send_key(struct work_struct *dummy)
 	 * the max lengths specified. We will however, reserve room
 	 * for the string terminating character - in the utf16s_utf8s()
 	 * function we limit the size of the buffer where the converted
-	 * string is placed to HV_KVP_EXCHANGE_MAX_*_SIZE -1 to gaurantee
+	 * string is placed to HV_KVP_EXCHANGE_MAX_*_SIZE -1 to guarantee
 	 * that the strings can be properly terminated!
 	 */
 
@@ -393,6 +408,10 @@ kvp_send_key(struct work_struct *dummy)
 		process_ib_ipinfo(in_msg, message, KVP_OP_SET_IP_INFO);
 		break;
 	case KVP_OP_GET_IP_INFO:
+		/*
+		 * We only need to pass on the info of operation, adapter_id
+		 * and addr_family to the userland kvp daemon.
+		 */
 		process_ib_ipinfo(in_msg, message, KVP_OP_GET_IP_INFO);
 		break;
 	case KVP_OP_SET:
@@ -408,7 +427,7 @@ kvp_send_key(struct work_struct *dummy)
 				UTF16_LITTLE_ENDIAN,
 				message->body.kvp_set.data.value,
 				HV_KVP_EXCHANGE_MAX_VALUE_SIZE - 1) + 1;
-				break;
+			break;
 
 		case REG_U32:
 			/*
@@ -418,7 +437,7 @@ kvp_send_key(struct work_struct *dummy)
 			val32 = in_msg->body.kvp_set.data.value_u32;
 			message->body.kvp_set.data.value_size =
 				sprintf(message->body.kvp_set.data.value,
-					"%d", val32) + 1;
+					"%u", val32) + 1;
 			break;
 
 		case REG_U64:
@@ -433,7 +452,10 @@ kvp_send_key(struct work_struct *dummy)
 			break;
 
 		}
-	case KVP_OP_GET:
+
+		/*
+		 * The key is always a string - utf16 encoding.
+		 */
 		message->body.kvp_set.data.key_size =
 			utf16s_to_utf8s(
 			(wchar_t *)in_msg->body.kvp_set.data.key,
@@ -441,7 +463,18 @@ kvp_send_key(struct work_struct *dummy)
 			UTF16_LITTLE_ENDIAN,
 			message->body.kvp_set.data.key,
 			HV_KVP_EXCHANGE_MAX_KEY_SIZE - 1) + 1;
-			break;
+
+		break;
+
+	case KVP_OP_GET:
+		message->body.kvp_get.data.key_size =
+			utf16s_to_utf8s(
+			(wchar_t *)in_msg->body.kvp_get.data.key,
+			in_msg->body.kvp_get.data.key_size,
+			UTF16_LITTLE_ENDIAN,
+			message->body.kvp_get.data.key,
+			HV_KVP_EXCHANGE_MAX_KEY_SIZE - 1) + 1;
+		break;
 
 	case KVP_OP_DELETE:
 		message->body.kvp_delete.key_size =
@@ -451,12 +484,12 @@ kvp_send_key(struct work_struct *dummy)
 			UTF16_LITTLE_ENDIAN,
 			message->body.kvp_delete.key,
 			HV_KVP_EXCHANGE_MAX_KEY_SIZE - 1) + 1;
-			break;
+		break;
 
 	case KVP_OP_ENUMERATE:
 		message->body.kvp_enum_data.index =
 			in_msg->body.kvp_enum_data.index;
-			break;
+		break;
 	}
 
 	kvp_transaction.state = HVUTIL_USERSPACE_REQ;
@@ -470,8 +503,6 @@ kvp_send_key(struct work_struct *dummy)
 	}
 
 	kfree(message);
-
-	return;
 }
 
 /*
@@ -520,7 +551,7 @@ kvp_respond_to_host(struct hv_kvp_msg *msg_to_host, int error)
 	 */
 	if (error) {
 		/*
-		 * Something failed or we have timedout;
+		 * Something failed or we have timed out;
 		 * terminate the current host-side iteration.
 		 */
 		goto response_done;
@@ -594,8 +625,8 @@ response_done:
  * This callback is invoked when we get a KVP message from the host.
  * The host ensures that only one KVP transaction can be active at a time.
  * KVP implementation in Linux needs to forward the key to a user-mde
- * component to retrive the corresponding value. Consequently, we cannot
- * respond to the host in the conext of this callback. Since the host
+ * component to retrieve the corresponding value. Consequently, we cannot
+ * respond to the host in the context of this callback. Since the host
  * guarantees that at most only one transaction can be active at a time,
  * we stash away the transaction state in a set of global variables.
  */
@@ -609,23 +640,22 @@ void hv_kvp_onchannelcallback(void *context)
 	struct hv_kvp_msg *kvp_msg;
 
 	struct icmsg_hdr *icmsghdrp;
-	struct icmsg_negotiate *negop = NULL;
-	int util_fw_version;
 	int kvp_srv_version;
 	static enum {NEGO_NOT_STARTED,
 		     NEGO_IN_PROGRESS,
 		     NEGO_FINISHED} host_negotiatied = NEGO_NOT_STARTED;
 
-	if (host_negotiatied == NEGO_NOT_STARTED &&
-	    kvp_transaction.state < HVUTIL_READY) {
+	if (kvp_transaction.state < HVUTIL_READY) {
 		/*
 		 * If userspace daemon is not connected and host is asking
 		 * us to negotiate we need to delay to not lose messages.
 		 * This is important for Failover IP setting.
 		 */
-		host_negotiatied = NEGO_IN_PROGRESS;
-		schedule_delayed_work(&kvp_host_handshake_work,
+		if (host_negotiatied == NEGO_NOT_STARTED) {
+			host_negotiatied = NEGO_IN_PROGRESS;
+			schedule_delayed_work(&kvp_host_handshake_work,
 				      HV_UTIL_NEGO_TIMEOUT * HZ);
+		}
 		return;
 	}
 	if (kvp_transaction.state > HVUTIL_READY)
@@ -639,28 +669,14 @@ void hv_kvp_onchannelcallback(void *context)
 			sizeof(struct vmbuspipe_hdr)];
 
 		if (icmsghdrp->icmsgtype == ICMSGTYPE_NEGOTIATE) {
-			/*
-			 * Based on the host, select appropriate
-			 * framework and service versions we will
-			 * negotiate.
-			 */
-			switch (vmbus_proto_version) {
-			case (VERSION_WS2008):
-				util_fw_version = UTIL_WS2K8_FW_VERSION;
-				kvp_srv_version = WS2008_SRV_VERSION;
-				break;
-			case (VERSION_WIN7):
-				util_fw_version = UTIL_FW_VERSION;
-				kvp_srv_version = WIN7_SRV_VERSION;
-				break;
-			default:
-				util_fw_version = UTIL_FW_VERSION;
-				kvp_srv_version = WIN8_SRV_VERSION;
+			if (vmbus_prep_negotiate_resp(icmsghdrp,
+				 recv_buffer, fw_versions, FW_VER_COUNT,
+				 kvp_versions, KVP_VER_COUNT,
+				 NULL, &kvp_srv_version)) {
+				pr_info("KVP IC version %d.%d\n",
+					kvp_srv_version >> 16,
+					kvp_srv_version & 0xFFFF);
 			}
-			vmbus_prep_negotiate_resp(icmsghdrp, negop,
-				 recv_buffer, util_fw_version,
-				 kvp_srv_version);
-
 		} else {
 			kvp_msg = (struct hv_kvp_msg *)&recv_buffer[
 				sizeof(struct vmbuspipe_hdr) +
@@ -707,6 +723,7 @@ void hv_kvp_onchannelcallback(void *context)
 				       VM_PKT_DATA_INBAND, 0);
 
 		host_negotiatied = NEGO_FINISHED;
+		hv_poll_channel(kvp_transaction.recv_channel, kvp_poll_wrapper);
 	}
 
 }

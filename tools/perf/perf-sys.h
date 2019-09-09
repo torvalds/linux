@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _PERF_SYS_H
 #define _PERF_SYS_H
 
@@ -8,16 +9,6 @@
 #include <linux/compiler.h>
 #include <linux/perf_event.h>
 #include <asm/barrier.h>
-
-#if defined(__i386__)
-#define cpu_relax()	asm volatile("rep; nop" ::: "memory");
-#define CPUINFO_PROC	{"model name"}
-#endif
-
-#if defined(__x86_64__)
-#define cpu_relax()	asm volatile("rep; nop" ::: "memory");
-#define CPUINFO_PROC	{"model name"}
-#endif
 
 #ifdef __powerpc__
 #define CPUINFO_PROC	{"cpu"}
@@ -43,17 +34,8 @@
 #define CPUINFO_PROC	{"cpu model"}
 #endif
 
-#ifdef __ia64__
-#define cpu_relax()	asm volatile ("hint @pause" ::: "memory")
-#define CPUINFO_PROC	{"model name"}
-#endif
-
 #ifdef __arm__
 #define CPUINFO_PROC	{"model name", "Processor"}
-#endif
-
-#ifdef __aarch64__
-#define cpu_relax()	asm volatile("yield" ::: "memory")
 #endif
 
 #ifdef __mips__
@@ -64,21 +46,12 @@
 #define CPUINFO_PROC	{"Processor"}
 #endif
 
-#ifdef __metag__
-#define CPUINFO_PROC	{"CPU"}
-#endif
-
 #ifdef __xtensa__
 #define CPUINFO_PROC	{"core ID"}
 #endif
 
-#ifdef __tile__
-#define cpu_relax()	asm volatile ("mfspr zero, PASS" ::: "memory")
-#define CPUINFO_PROC    {"model name"}
-#endif
-
-#ifndef cpu_relax
-#define cpu_relax() barrier()
+#ifndef CPUINFO_PROC
+#define CPUINFO_PROC	{ "model name", }
 #endif
 
 static inline int

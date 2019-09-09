@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *   ALSA driver for RME Hammerfall DSP MADI audio interface(s)
  *
@@ -23,20 +24,8 @@
  *
  *	Modified 2011-01-25 variable period sizes on RayDAT/AIO by Adrian Knoth
  *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
+ *      Modified 2019-05-23 fix AIO single speed ADAT capture and playback
+ *      by Philippe.Bekaert@uhasselt.be
  */
 
 /* *************    Register Documentation   *******************************************************
@@ -137,6 +126,7 @@
 #include <linux/pci.h>
 #include <linux/math64.h>
 #include <linux/io.h>
+#include <linux/nospec.h>
 
 #include <sound/core.h>
 #include <sound/control.h>
@@ -1104,9 +1094,9 @@ static int hdspm_autosync_ref(struct hdspm *hdspm);
 static int hdspm_set_toggle_setting(struct hdspm *hdspm, u32 regmask, int out);
 static int snd_hdspm_set_defaults(struct hdspm *hdspm);
 static int hdspm_system_clock_mode(struct hdspm *hdspm);
-static void hdspm_set_sgbuf(struct hdspm *hdspm,
-			    struct snd_pcm_substream *substream,
-			     unsigned int reg, int channels);
+static void hdspm_set_channel_dma_addr(struct hdspm *hdspm,
+				       struct snd_pcm_substream *substream,
+				       unsigned int reg, int channels);
 
 static int hdspm_aes_sync_check(struct hdspm *hdspm, int idx);
 static int hdspm_wc_sync_check(struct hdspm *hdspm);
@@ -1521,7 +1511,7 @@ static void hdspm_silence_playback(struct hdspm *hdspm)
 	int n = hdspm->period_bytes;
 	void *buf = hdspm->playback_buffer;
 
-	if (buf == NULL)
+	if (!buf)
 		return;
 
 	for (i = 0; i < HDSPM_MAX_CHANNELS; i++) {
@@ -1946,9 +1936,9 @@ snd_hdspm_midi_input_trigger(struct snd_rawmidi_substream *substream, int up)
 	spin_unlock_irqrestore (&hdspm->lock, flags);
 }
 
-static void snd_hdspm_midi_output_timer(unsigned long data)
+static void snd_hdspm_midi_output_timer(struct timer_list *t)
 {
-	struct hdspm_midi *hmidi = (struct hdspm_midi *) data;
+	struct hdspm_midi *hmidi = from_timer(hmidi, t, timer);
 	unsigned long flags;
 
 	snd_hdspm_midi_output_write(hmidi);
@@ -1976,8 +1966,8 @@ snd_hdspm_midi_output_trigger(struct snd_rawmidi_substream *substream, int up)
 	spin_lock_irqsave (&hmidi->lock, flags);
 	if (up) {
 		if (!hmidi->istimer) {
-			setup_timer(&hmidi->timer, snd_hdspm_midi_output_timer,
-				    (unsigned long) hmidi);
+			timer_setup(&hmidi->timer,
+				    snd_hdspm_midi_output_timer, 0);
 			mod_timer(&hmidi->timer, 1 + jiffies);
 			hmidi->istimer++;
 		}
@@ -2043,14 +2033,14 @@ static int snd_hdspm_midi_output_close(struct snd_rawmidi_substream *substream)
 	return 0;
 }
 
-static struct snd_rawmidi_ops snd_hdspm_midi_output =
+static const struct snd_rawmidi_ops snd_hdspm_midi_output =
 {
 	.open =		snd_hdspm_midi_output_open,
 	.close =	snd_hdspm_midi_output_close,
 	.trigger =	snd_hdspm_midi_output_trigger,
 };
 
-static struct snd_rawmidi_ops snd_hdspm_midi_input =
+static const struct snd_rawmidi_ops snd_hdspm_midi_input =
 {
 	.open =		snd_hdspm_midi_input_open,
 	.close =	snd_hdspm_midi_input_close,
@@ -2061,7 +2051,7 @@ static int snd_hdspm_create_midi(struct snd_card *card,
 				 struct hdspm *hdspm, int id)
 {
 	int err;
-	char buf[32];
+	char buf[64];
 
 	hdspm->midi[id].id = id;
 	hdspm->midi[id].hdspm = hdspm;
@@ -2120,19 +2110,23 @@ static int snd_hdspm_create_midi(struct snd_card *card,
 	if ((id < 2) || ((2 == id) && ((MADI == hdspm->io_type) ||
 					(MADIface == hdspm->io_type)))) {
 		if ((id == 0) && (MADIface == hdspm->io_type)) {
-			sprintf(buf, "%s MIDIoverMADI", card->shortname);
+			snprintf(buf, sizeof(buf), "%s MIDIoverMADI",
+				 card->shortname);
 		} else if ((id == 2) && (MADI == hdspm->io_type)) {
-			sprintf(buf, "%s MIDIoverMADI", card->shortname);
+			snprintf(buf, sizeof(buf), "%s MIDIoverMADI",
+				 card->shortname);
 		} else {
-			sprintf(buf, "%s MIDI %d", card->shortname, id+1);
+			snprintf(buf, sizeof(buf), "%s MIDI %d",
+				 card->shortname, id+1);
 		}
 		err = snd_rawmidi_new(card, buf, id, 1, 1,
 				&hdspm->midi[id].rmidi);
 		if (err < 0)
 			return err;
 
-		sprintf(hdspm->midi[id].rmidi->name, "%s MIDI %d",
-				card->id, id+1);
+		snprintf(hdspm->midi[id].rmidi->name,
+			 sizeof(hdspm->midi[id].rmidi->name),
+			 "%s MIDI %d", card->id, id+1);
 		hdspm->midi[id].rmidi->private_data = &hdspm->midi[id];
 
 		snd_rawmidi_set_ops(hdspm->midi[id].rmidi,
@@ -2148,14 +2142,16 @@ static int snd_hdspm_create_midi(struct snd_card *card,
 			SNDRV_RAWMIDI_INFO_DUPLEX;
 	} else {
 		/* TCO MTC, read only */
-		sprintf(buf, "%s MTC %d", card->shortname, id+1);
+		snprintf(buf, sizeof(buf), "%s MTC %d",
+			 card->shortname, id+1);
 		err = snd_rawmidi_new(card, buf, id, 1, 1,
 				&hdspm->midi[id].rmidi);
 		if (err < 0)
 			return err;
 
-		sprintf(hdspm->midi[id].rmidi->name,
-				"%s MTC %d", card->id, id+1);
+		snprintf(hdspm->midi[id].rmidi->name,
+			 sizeof(hdspm->midi[id].rmidi->name),
+			 "%s MTC %d", card->id, id+1);
 		hdspm->midi[id].rmidi->private_data = &hdspm->midi[id];
 
 		snd_rawmidi_set_ops(hdspm->midi[id].rmidi,
@@ -4700,7 +4696,7 @@ static int snd_hdspm_create_controls(struct snd_card *card,
 		break;
 	}
 
-	if (NULL != list) {
+	if (list) {
 		for (idx = 0; idx < limit; idx++) {
 			err = snd_ctl_add(card,
 					snd_ctl_new1(&list[idx], hdspm));
@@ -5280,44 +5276,35 @@ static void snd_hdspm_proc_ports_out(struct snd_info_entry *entry,
 
 static void snd_hdspm_proc_init(struct hdspm *hdspm)
 {
-	struct snd_info_entry *entry;
+	void (*read)(struct snd_info_entry *, struct snd_info_buffer *) = NULL;
 
-	if (!snd_card_proc_new(hdspm->card, "hdspm", &entry)) {
-		switch (hdspm->io_type) {
-		case AES32:
-			snd_info_set_text_ops(entry, hdspm,
-					snd_hdspm_proc_read_aes32);
-			break;
-		case MADI:
-			snd_info_set_text_ops(entry, hdspm,
-					snd_hdspm_proc_read_madi);
-			break;
-		case MADIface:
-			/* snd_info_set_text_ops(entry, hdspm,
-			 snd_hdspm_proc_read_madiface); */
-			break;
-		case RayDAT:
-			snd_info_set_text_ops(entry, hdspm,
-					snd_hdspm_proc_read_raydat);
-			break;
-		case AIO:
-			break;
-		}
+	switch (hdspm->io_type) {
+	case AES32:
+		read = snd_hdspm_proc_read_aes32;
+		break;
+	case MADI:
+		read = snd_hdspm_proc_read_madi;
+		break;
+	case MADIface:
+		/* read = snd_hdspm_proc_read_madiface; */
+		break;
+	case RayDAT:
+		read = snd_hdspm_proc_read_raydat;
+		break;
+	case AIO:
+		break;
 	}
 
-	if (!snd_card_proc_new(hdspm->card, "ports.in", &entry)) {
-		snd_info_set_text_ops(entry, hdspm, snd_hdspm_proc_ports_in);
-	}
-
-	if (!snd_card_proc_new(hdspm->card, "ports.out", &entry)) {
-		snd_info_set_text_ops(entry, hdspm, snd_hdspm_proc_ports_out);
-	}
+	snd_card_ro_proc_new(hdspm->card, "hdspm", hdspm, read);
+	snd_card_ro_proc_new(hdspm->card, "ports.in", hdspm,
+			     snd_hdspm_proc_ports_in);
+	snd_card_ro_proc_new(hdspm->card, "ports.out", hdspm,
+			     snd_hdspm_proc_ports_out);
 
 #ifdef CONFIG_SND_DEBUG
 	/* debug file to read all hdspm registers */
-	if (!snd_card_proc_new(hdspm->card, "debug", &entry))
-		snd_info_set_text_ops(entry, hdspm,
-				snd_hdspm_proc_read_debug);
+	snd_card_ro_proc_new(hdspm->card, "debug", hdspm,
+			     snd_hdspm_proc_read_debug);
 #endif
 }
 
@@ -5590,11 +5577,16 @@ static int snd_hdspm_hw_params(struct snd_pcm_substream *substream,
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 
-		hdspm_set_sgbuf(hdspm, substream, HDSPM_pageAddressBufferOut,
-				params_channels(params));
+		for (i = 0; i < params_channels(params); ++i) {
+			int c = hdspm->channel_map_out[i];
 
-		for (i = 0; i < params_channels(params); ++i)
-			snd_hdspm_enable_out(hdspm, i, 1);
+			if (c < 0)
+				continue;      /* just make sure */
+			hdspm_set_channel_dma_addr(hdspm, substream,
+						   HDSPM_pageAddressBufferOut,
+						   c);
+			snd_hdspm_enable_out(hdspm, c, 1);
+		}
 
 		hdspm->playback_buffer =
 			(unsigned char *) substream->runtime->dma_area;
@@ -5602,11 +5594,16 @@ static int snd_hdspm_hw_params(struct snd_pcm_substream *substream,
 			"Allocated sample buffer for playback at %p\n",
 				hdspm->playback_buffer);
 	} else {
-		hdspm_set_sgbuf(hdspm, substream, HDSPM_pageAddressBufferIn,
-				params_channels(params));
+		for (i = 0; i < params_channels(params); ++i) {
+			int c = hdspm->channel_map_in[i];
 
-		for (i = 0; i < params_channels(params); ++i)
-			snd_hdspm_enable_in(hdspm, i, 1);
+			if (c < 0)
+				continue;
+			hdspm_set_channel_dma_addr(hdspm, substream,
+						   HDSPM_pageAddressBufferIn,
+						   c);
+			snd_hdspm_enable_in(hdspm, c, 1);
+		}
 
 		hdspm->capture_buffer =
 			(unsigned char *) substream->runtime->dma_area;
@@ -5667,19 +5664,17 @@ static int snd_hdspm_hw_free(struct snd_pcm_substream *substream)
 	struct hdspm *hdspm = snd_pcm_substream_chip(substream);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-
-		/* params_channels(params) should be enough,
-		   but to get sure in case of error */
-		for (i = 0; i < hdspm->max_channels_out; ++i)
+		/* Just disable all channels. The saving when disabling a */
+		/* smaller set is not worth the trouble. */
+		for (i = 0; i < HDSPM_MAX_CHANNELS; ++i)
 			snd_hdspm_enable_out(hdspm, i, 0);
 
 		hdspm->playback_buffer = NULL;
 	} else {
-		for (i = 0; i < hdspm->max_channels_in; ++i)
+		for (i = 0; i < HDSPM_MAX_CHANNELS; ++i)
 			snd_hdspm_enable_in(hdspm, i, 0);
 
 		hdspm->capture_buffer = NULL;
-
 	}
 
 	snd_pcm_lib_free_pages(substream);
@@ -5692,40 +5687,43 @@ static int snd_hdspm_channel_info(struct snd_pcm_substream *substream,
 		struct snd_pcm_channel_info *info)
 {
 	struct hdspm *hdspm = snd_pcm_substream_chip(substream);
+	unsigned int channel = info->channel;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		if (snd_BUG_ON(info->channel >= hdspm->max_channels_out)) {
+		if (snd_BUG_ON(channel >= hdspm->max_channels_out)) {
 			dev_info(hdspm->card->dev,
 				 "snd_hdspm_channel_info: output channel out of range (%d)\n",
-				 info->channel);
+				 channel);
 			return -EINVAL;
 		}
 
-		if (hdspm->channel_map_out[info->channel] < 0) {
+		channel = array_index_nospec(channel, hdspm->max_channels_out);
+		if (hdspm->channel_map_out[channel] < 0) {
 			dev_info(hdspm->card->dev,
 				 "snd_hdspm_channel_info: output channel %d mapped out\n",
-				 info->channel);
+				 channel);
 			return -EINVAL;
 		}
 
-		info->offset = hdspm->channel_map_out[info->channel] *
+		info->offset = hdspm->channel_map_out[channel] *
 			HDSPM_CHANNEL_BUFFER_BYTES;
 	} else {
-		if (snd_BUG_ON(info->channel >= hdspm->max_channels_in)) {
+		if (snd_BUG_ON(channel >= hdspm->max_channels_in)) {
 			dev_info(hdspm->card->dev,
 				 "snd_hdspm_channel_info: input channel out of range (%d)\n",
-				 info->channel);
+				 channel);
 			return -EINVAL;
 		}
 
-		if (hdspm->channel_map_in[info->channel] < 0) {
+		channel = array_index_nospec(channel, hdspm->max_channels_in);
+		if (hdspm->channel_map_in[channel] < 0) {
 			dev_info(hdspm->card->dev,
 				 "snd_hdspm_channel_info: input channel %d mapped out\n",
-				 info->channel);
+				 channel);
 			return -EINVAL;
 		}
 
-		info->offset = hdspm->channel_map_in[info->channel] *
+		info->offset = hdspm->channel_map_in[channel] *
 			HDSPM_CHANNEL_BUFFER_BYTES;
 	}
 
@@ -6040,11 +6038,11 @@ static int snd_hdspm_hw_rule_out_channels(struct snd_pcm_hw_params *params,
 }
 
 
-static unsigned int hdspm_aes32_sample_rates[] = {
+static const unsigned int hdspm_aes32_sample_rates[] = {
 	32000, 44100, 48000, 64000, 88200, 96000, 128000, 176400, 192000
 };
 
-static struct snd_pcm_hw_constraint_list
+static const struct snd_pcm_hw_constraint_list
 hdspm_hw_constraints_aes32_sample_rates = {
 	.count = ARRAY_SIZE(hdspm_aes32_sample_rates),
 	.list = hdspm_aes32_sample_rates,
@@ -6063,13 +6061,13 @@ static int snd_hdspm_open(struct snd_pcm_substream *substream)
 		snd_hdspm_capture_subinfo;
 
 	if (playback) {
-		if (hdspm->capture_substream == NULL)
+		if (!hdspm->capture_substream)
 			hdspm_stop_audio(hdspm);
 
 		hdspm->playback_pid = current->pid;
 		hdspm->playback_substream = substream;
 	} else {
-		if (hdspm->playback_substream == NULL)
+		if (!hdspm->playback_substream)
 			hdspm_stop_audio(hdspm);
 
 		hdspm->capture_pid = current->pid;
@@ -6215,7 +6213,7 @@ static int snd_hdspm_hwdep_ioctl(struct snd_hwdep *hw, struct file *file,
 		}
 		levels->status2 = hdspm_read(hdspm, HDSPM_statusRegister2);
 
-		s = copy_to_user(argp, levels, sizeof(struct hdspm_peak_rms));
+		s = copy_to_user(argp, levels, sizeof(*levels));
 		if (0 != s) {
 			/* dev_err(hdspm->card->dev, "copy_to_user(.., .., %lu): %lu
 			 [Levels]\n", sizeof(struct hdspm_peak_rms), s);
@@ -6260,7 +6258,7 @@ static int snd_hdspm_hwdep_ioctl(struct snd_hwdep *hw, struct file *file,
 			ltc.input_format = no_video;
 		}
 
-		s = copy_to_user(argp, &ltc, sizeof(struct hdspm_ltc));
+		s = copy_to_user(argp, &ltc, sizeof(ltc));
 		if (0 != s) {
 			/*
 			  dev_err(hdspm->card->dev, "copy_to_user(.., .., %lu): %lu [LTC]\n", sizeof(struct hdspm_ltc), s); */
@@ -6351,7 +6349,7 @@ static int snd_hdspm_hwdep_ioctl(struct snd_hwdep *hw, struct file *file,
 		if (copy_from_user(&mixer, argp, sizeof(mixer)))
 			return -EFAULT;
 		if (copy_to_user((void __user *)mixer.mixer, hdspm->mixer,
-					sizeof(struct hdspm_mixer)))
+				 sizeof(*mixer.mixer)))
 			return -EFAULT;
 		break;
 
@@ -6401,7 +6399,6 @@ static int snd_hdspm_create_hwdep(struct snd_card *card,
  ------------------------------------------------------------*/
 static int snd_hdspm_preallocate_memory(struct hdspm *hdspm)
 {
-	int err;
 	struct snd_pcm *pcm;
 	size_t wanted;
 
@@ -6409,35 +6406,24 @@ static int snd_hdspm_preallocate_memory(struct hdspm *hdspm)
 
 	wanted = HDSPM_DMA_AREA_BYTES;
 
-	err =
-	     snd_pcm_lib_preallocate_pages_for_all(pcm,
-						   SNDRV_DMA_TYPE_DEV_SG,
-						   snd_dma_pci_data(hdspm->pci),
-						   wanted,
-						   wanted);
-	if (err < 0) {
-		dev_dbg(hdspm->card->dev,
-			"Could not preallocate %zd Bytes\n", wanted);
-
-		return err;
-	} else
-		dev_dbg(hdspm->card->dev,
-			" Preallocated %zd Bytes\n", wanted);
-
+	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV_SG,
+					      snd_dma_pci_data(hdspm->pci),
+					      wanted, wanted);
+	dev_dbg(hdspm->card->dev, " Preallocated %zd Bytes\n", wanted);
 	return 0;
 }
 
-
-static void hdspm_set_sgbuf(struct hdspm *hdspm,
-			    struct snd_pcm_substream *substream,
-			     unsigned int reg, int channels)
+/* Inform the card what DMA addresses to use for the indicated channel. */
+/* Each channel got 16 4K pages allocated for DMA transfers. */
+static void hdspm_set_channel_dma_addr(struct hdspm *hdspm,
+				       struct snd_pcm_substream *substream,
+				       unsigned int reg, int channel)
 {
 	int i;
 
-	/* continuous memory segment */
-	for (i = 0; i < (channels * 16); i++)
+	for (i = channel * 16; i < channel * 16 + 16; i++)
 		hdspm_write(hdspm, reg + 4 * i,
-				snd_pcm_sgbuf_get_addr(substream, 4096 * i));
+			    snd_pcm_sgbuf_get_addr(substream, 4096 * i));
 }
 
 
@@ -6524,7 +6510,7 @@ static int snd_hdspm_create_alsa_devices(struct snd_card *card,
 	dev_dbg(card->dev, "Update mixer controls...\n");
 	hdspm_update_simple_mixer_controls(hdspm);
 
-	dev_dbg(card->dev, "Initializeing complete ???\n");
+	dev_dbg(card->dev, "Initializing complete?\n");
 
 	err = snd_card_register(card);
 	if (err < 0) {
@@ -6630,14 +6616,10 @@ static int snd_hdspm_create(struct snd_card *card,
 	hdspm->irq = pci->irq;
 
 	dev_dbg(card->dev, "kmalloc Mixer memory of %zd Bytes\n",
-			sizeof(struct hdspm_mixer));
-	hdspm->mixer = kzalloc(sizeof(struct hdspm_mixer), GFP_KERNEL);
-	if (!hdspm->mixer) {
-		dev_err(card->dev,
-			"unable to kmalloc Mixer memory of %d Bytes\n",
-				(int)sizeof(struct hdspm_mixer));
+		sizeof(*hdspm->mixer));
+	hdspm->mixer = kzalloc(sizeof(*hdspm->mixer), GFP_KERNEL);
+	if (!hdspm->mixer)
 		return -ENOMEM;
-	}
 
 	hdspm->port_names_in = NULL;
 	hdspm->port_names_out = NULL;
@@ -6772,11 +6754,10 @@ static int snd_hdspm_create(struct snd_card *card,
 		if (hdspm_read(hdspm, HDSPM_statusRegister2) &
 				HDSPM_s2_tco_detect) {
 			hdspm->midiPorts++;
-			hdspm->tco = kzalloc(sizeof(struct hdspm_tco),
-					GFP_KERNEL);
-			if (NULL != hdspm->tco) {
+			hdspm->tco = kzalloc(sizeof(*hdspm->tco), GFP_KERNEL);
+			if (hdspm->tco)
 				hdspm_tco_write(hdspm);
-			}
+
 			dev_info(card->dev, "AIO/RayDAT TCO module found\n");
 		} else {
 			hdspm->tco = NULL;
@@ -6787,11 +6768,10 @@ static int snd_hdspm_create(struct snd_card *card,
 	case AES32:
 		if (hdspm_read(hdspm, HDSPM_statusRegister) & HDSPM_tco_detect) {
 			hdspm->midiPorts++;
-			hdspm->tco = kzalloc(sizeof(struct hdspm_tco),
-					GFP_KERNEL);
-			if (NULL != hdspm->tco) {
+			hdspm->tco = kzalloc(sizeof(*hdspm->tco), GFP_KERNEL);
+			if (hdspm->tco)
 				hdspm_tco_write(hdspm);
-			}
+
 			dev_info(card->dev, "MADI/AES TCO module found\n");
 		} else {
 			hdspm->tco = NULL;
@@ -6868,8 +6848,9 @@ static int snd_hdspm_create(struct snd_card *card,
 		 * this case, we don't set card->id to avoid collisions
 		 * when running with multiple cards.
 		 */
-		if (NULL == id[hdspm->dev] && hdspm->serial != 0xFFFFFF) {
-			sprintf(card->id, "HDSPMx%06x", hdspm->serial);
+		if (!id[hdspm->dev] && hdspm->serial != 0xFFFFFF) {
+			snprintf(card->id, sizeof(card->id),
+				 "HDSPMx%06x", hdspm->serial);
 			snd_card_set_id(card, card->id);
 		}
 	}
@@ -6938,7 +6919,7 @@ static int snd_hdspm_probe(struct pci_dev *pci,
 	}
 
 	err = snd_card_new(&pci->dev, index[dev], id[dev],
-			   THIS_MODULE, sizeof(struct hdspm), &card);
+			   THIS_MODULE, sizeof(*hdspm), &card);
 	if (err < 0)
 		return err;
 
@@ -6948,35 +6929,36 @@ static int snd_hdspm_probe(struct pci_dev *pci,
 	hdspm->pci = pci;
 
 	err = snd_hdspm_create(card, hdspm);
-	if (err < 0) {
-		snd_card_free(card);
-		return err;
-	}
+	if (err < 0)
+		goto free_card;
 
 	if (hdspm->io_type != MADIface) {
-		sprintf(card->shortname, "%s_%x",
-			hdspm->card_name,
-			hdspm->serial);
-		sprintf(card->longname, "%s S/N 0x%x at 0x%lx, irq %d",
-			hdspm->card_name,
-			hdspm->serial,
-			hdspm->port, hdspm->irq);
+		snprintf(card->shortname, sizeof(card->shortname), "%s_%x",
+			hdspm->card_name, hdspm->serial);
+		snprintf(card->longname, sizeof(card->longname),
+			 "%s S/N 0x%x at 0x%lx, irq %d",
+			 hdspm->card_name, hdspm->serial,
+			 hdspm->port, hdspm->irq);
 	} else {
-		sprintf(card->shortname, "%s", hdspm->card_name);
-		sprintf(card->longname, "%s at 0x%lx, irq %d",
-				hdspm->card_name, hdspm->port, hdspm->irq);
+		snprintf(card->shortname, sizeof(card->shortname), "%s",
+			 hdspm->card_name);
+		snprintf(card->longname, sizeof(card->longname),
+			 "%s at 0x%lx, irq %d",
+			 hdspm->card_name, hdspm->port, hdspm->irq);
 	}
 
 	err = snd_card_register(card);
-	if (err < 0) {
-		snd_card_free(card);
-		return err;
-	}
+	if (err < 0)
+		goto free_card;
 
 	pci_set_drvdata(pci, card);
 
 	dev++;
 	return 0;
+
+free_card:
+	snd_card_free(card);
+	return err;
 }
 
 static void snd_hdspm_remove(struct pci_dev *pci)

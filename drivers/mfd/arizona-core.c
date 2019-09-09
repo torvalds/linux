@@ -1,30 +1,27 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Arizona core driver
  *
  * Copyright 2012 Wolfson Microelectronics plc
  *
  * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/err.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/interrupt.h>
 #include <linux/mfd/core.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <linux/of_gpio.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/regulator/machine.h>
 #include <linux/slab.h>
+#include <linux/ktime.h>
 #include <linux/platform_device.h>
 
 #include <linux/mfd/arizona/core.h>
@@ -52,8 +49,10 @@ int arizona_clk32k_enable(struct arizona *arizona)
 			if (ret != 0)
 				goto err_ref;
 			ret = clk_prepare_enable(arizona->mclk[ARIZONA_MCLK1]);
-			if (ret != 0)
-				goto err_pm;
+			if (ret != 0) {
+				pm_runtime_put_sync(arizona->dev);
+				goto err_ref;
+			}
 			break;
 		case ARIZONA_32KZ_MCLK2:
 			ret = clk_prepare_enable(arizona->mclk[ARIZONA_MCLK2]);
@@ -67,8 +66,6 @@ int arizona_clk32k_enable(struct arizona *arizona)
 					 ARIZONA_CLK_32K_ENA);
 	}
 
-err_pm:
-	pm_runtime_put_sync(arizona->dev);
 err_ref:
 	if (ret != 0)
 		arizona->clk32k_ref--;
@@ -235,28 +232,40 @@ static irqreturn_t arizona_overclocked(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+#define ARIZONA_REG_POLL_DELAY_US 7500
+
+static inline bool arizona_poll_reg_delay(ktime_t timeout)
+{
+	if (ktime_compare(ktime_get(), timeout) > 0)
+		return false;
+
+	usleep_range(ARIZONA_REG_POLL_DELAY_US / 2, ARIZONA_REG_POLL_DELAY_US);
+
+	return true;
+}
+
 static int arizona_poll_reg(struct arizona *arizona,
-			    int timeout, unsigned int reg,
+			    int timeout_ms, unsigned int reg,
 			    unsigned int mask, unsigned int target)
 {
+	ktime_t timeout = ktime_add_us(ktime_get(), timeout_ms * USEC_PER_MSEC);
 	unsigned int val = 0;
-	int ret, i;
+	int ret;
 
-	for (i = 0; i < timeout; i++) {
+	do {
 		ret = regmap_read(arizona->regmap, reg, &val);
-		if (ret != 0) {
-			dev_err(arizona->dev, "Failed to read reg %u: %d\n",
-				reg, ret);
-			continue;
-		}
 
 		if ((val & mask) == target)
 			return 0;
+	} while (arizona_poll_reg_delay(timeout));
 
-		usleep_range(1000, 5000);
+	if (ret) {
+		dev_err(arizona->dev, "Failed polling reg 0x%x: %d\n",
+			reg, ret);
+		return ret;
 	}
 
-	dev_err(arizona->dev, "Polling reg %u timed out: %x\n", reg, val);
+	dev_err(arizona->dev, "Polling reg 0x%x timed out: %x\n", reg, val);
 	return -ETIMEDOUT;
 }
 
@@ -269,7 +278,7 @@ static int arizona_wait_for_boot(struct arizona *arizona)
 	 * we won't race with the interrupt handler as it'll be blocked on
 	 * runtime resume.
 	 */
-	ret = arizona_poll_reg(arizona, 5, ARIZONA_INTERRUPT_RAW_STATUS_5,
+	ret = arizona_poll_reg(arizona, 30, ARIZONA_INTERRUPT_RAW_STATUS_5,
 			       ARIZONA_BOOT_DONE_STS, ARIZONA_BOOT_DONE_STS);
 
 	if (!ret)
@@ -284,7 +293,7 @@ static int arizona_wait_for_boot(struct arizona *arizona)
 static inline void arizona_enable_reset(struct arizona *arizona)
 {
 	if (arizona->pdata.reset)
-		gpio_set_value_cansleep(arizona->pdata.reset, 0);
+		gpiod_set_raw_value_cansleep(arizona->pdata.reset, 0);
 }
 
 static void arizona_disable_reset(struct arizona *arizona)
@@ -300,7 +309,7 @@ static void arizona_disable_reset(struct arizona *arizona)
 			break;
 		}
 
-		gpio_set_value_cansleep(arizona->pdata.reset, 1);
+		gpiod_set_raw_value_cansleep(arizona->pdata.reset, 1);
 		usleep_range(1000, 5000);
 	}
 }
@@ -339,13 +348,11 @@ static int arizona_enable_freerun_sysclk(struct arizona *arizona,
 			ret);
 		return ret;
 	}
-	ret = arizona_poll_reg(arizona, 25, ARIZONA_INTERRUPT_RAW_STATUS_5,
+	ret = arizona_poll_reg(arizona, 180, ARIZONA_INTERRUPT_RAW_STATUS_5,
 			       ARIZONA_FLL1_CLOCK_OK_STS,
 			       ARIZONA_FLL1_CLOCK_OK_STS);
-	if (ret) {
-		ret = -ETIMEDOUT;
+	if (ret)
 		goto err_fll;
-	}
 
 	ret = regmap_write(arizona->regmap, ARIZONA_SYSTEM_CLOCK_1, 0x0144);
 	if (ret) {
@@ -405,13 +412,11 @@ static int wm5102_apply_hardware_patch(struct arizona *arizona)
 		goto err;
 	}
 
-	ret = arizona_poll_reg(arizona, 5, ARIZONA_WRITE_SEQUENCER_CTRL_1,
+	ret = arizona_poll_reg(arizona, 30, ARIZONA_WRITE_SEQUENCER_CTRL_1,
 			       ARIZONA_WSEQ_BUSY, 0);
-	if (ret) {
+	if (ret)
 		regmap_write(arizona->regmap, ARIZONA_WRITE_SEQUENCER_CTRL_0,
 			     ARIZONA_WSEQ_ABORT);
-		ret = -ETIMEDOUT;
-	}
 
 err:
 	err = arizona_disable_freerun_sysclk(arizona, &state);
@@ -806,21 +811,29 @@ EXPORT_SYMBOL_GPL(arizona_of_get_type);
 static int arizona_of_get_core_pdata(struct arizona *arizona)
 {
 	struct arizona_pdata *pdata = &arizona->pdata;
-	struct property *prop;
-	const __be32 *cur;
-	u32 val;
-	u32 pdm_val[ARIZONA_MAX_PDM_SPK];
 	int ret, i;
-	int count = 0;
 
-	pdata->reset = of_get_named_gpio(arizona->dev->of_node, "wlf,reset", 0);
-	if (pdata->reset == -EPROBE_DEFER) {
-		return pdata->reset;
-	} else if (pdata->reset < 0) {
-		dev_err(arizona->dev, "Reset GPIO missing/malformed: %d\n",
-			pdata->reset);
+	/* Handle old non-standard DT binding */
+	pdata->reset = devm_gpiod_get_from_of_node(arizona->dev,
+						   arizona->dev->of_node,
+						   "wlf,reset", 0,
+						   GPIOD_OUT_LOW,
+						   "arizona /RESET");
+	if (IS_ERR(pdata->reset)) {
+		ret = PTR_ERR(pdata->reset);
 
-		pdata->reset = 0;
+		/*
+		 * Reset missing will be caught when other binding is read
+		 * but all other errors imply this binding is in use but has
+		 * encountered a problem so should be handled.
+		 */
+		if (ret == -EPROBE_DEFER)
+			return ret;
+		else if (ret != -ENOENT && ret != -ENOSYS)
+			dev_err(arizona->dev, "Reset GPIO malformed: %d\n",
+				ret);
+
+		pdata->reset = NULL;
 	}
 
 	ret = of_property_read_u32_array(arizona->dev->of_node,
@@ -844,64 +857,6 @@ static int arizona_of_get_core_pdata(struct arizona *arizona)
 		dev_err(arizona->dev, "Failed to parse GPIO defaults: %d\n",
 			ret);
 	}
-
-	of_property_for_each_u32(arizona->dev->of_node, "wlf,inmode", prop,
-				 cur, val) {
-		if (count == ARRAY_SIZE(pdata->inmode))
-			break;
-
-		pdata->inmode[count] = val;
-		count++;
-	}
-
-	count = 0;
-	of_property_for_each_u32(arizona->dev->of_node, "wlf,dmic-ref", prop,
-				 cur, val) {
-		if (count == ARRAY_SIZE(pdata->dmic_ref))
-			break;
-
-		pdata->dmic_ref[count] = val;
-		count++;
-	}
-
-	count = 0;
-	of_property_for_each_u32(arizona->dev->of_node, "wlf,out-mono", prop,
-				 cur, val) {
-		if (count == ARRAY_SIZE(pdata->out_mono))
-			break;
-
-		pdata->out_mono[count] = !!val;
-		count++;
-	}
-
-	count = 0;
-	of_property_for_each_u32(arizona->dev->of_node,
-				 "wlf,max-channels-clocked",
-				 prop, cur, val) {
-		if (count == ARRAY_SIZE(pdata->max_channels_clocked))
-			break;
-
-		pdata->max_channels_clocked[count] = val;
-		count++;
-	}
-
-	ret = of_property_read_u32_array(arizona->dev->of_node,
-					 "wlf,spk-fmt",
-					 pdm_val,
-					 ARRAY_SIZE(pdm_val));
-
-	if (ret >= 0)
-		for (count = 0; count < ARRAY_SIZE(pdata->spk_fmt); ++count)
-			pdata->spk_fmt[count] = pdm_val[count];
-
-	ret = of_property_read_u32_array(arizona->dev->of_node,
-					 "wlf,spk-mute",
-					 pdm_val,
-					 ARRAY_SIZE(pdm_val));
-
-	if (ret >= 0)
-		for (count = 0; count < ARRAY_SIZE(pdata->spk_mute); ++count)
-			pdata->spk_mute[count] = pdm_val[count];
 
 	return 0;
 }
@@ -1032,13 +987,13 @@ static const struct mfd_cell wm8998_devs[] = {
 
 int arizona_dev_init(struct arizona *arizona)
 {
-	const char * const mclk_name[] = { "mclk1", "mclk2" };
+	static const char * const mclk_name[] = { "mclk1", "mclk2" };
 	struct device *dev = arizona->dev;
 	const char *type_name = NULL;
-	unsigned int reg, val, mask;
+	unsigned int reg, val;
 	int (*apply_patch)(struct arizona *) = NULL;
 	const struct mfd_cell *subdevs = NULL;
-	int n_subdevs, ret, i;
+	int n_subdevs = 0, ret, i;
 
 	dev_set_drvdata(arizona->dev, arizona);
 	mutex_init(&arizona->clk_lock);
@@ -1122,14 +1077,19 @@ int arizona_dev_init(struct arizona *arizona)
 		goto err_early;
 	}
 
-	if (arizona->pdata.reset) {
+	if (!arizona->pdata.reset) {
 		/* Start out with /RESET low to put the chip into reset */
-		ret = devm_gpio_request_one(arizona->dev, arizona->pdata.reset,
-					    GPIOF_DIR_OUT | GPIOF_INIT_LOW,
-					    "arizona /RESET");
-		if (ret != 0) {
-			dev_err(dev, "Failed to request /RESET: %d\n", ret);
-			goto err_dcvdd;
+		arizona->pdata.reset = devm_gpiod_get(arizona->dev, "reset",
+						      GPIOD_OUT_LOW);
+		if (IS_ERR(arizona->pdata.reset)) {
+			ret = PTR_ERR(arizona->pdata.reset);
+			if (ret == -EPROBE_DEFER)
+				goto err_dcvdd;
+
+			dev_err(arizona->dev,
+				"Reset GPIO missing/malformed: %d\n", ret);
+
+			arizona->pdata.reset = NULL;
 		}
 	}
 
@@ -1438,73 +1398,6 @@ int arizona_dev_init(struct arizona *arizona)
 				   ARIZONA_MICB1_RATE, val);
 	}
 
-	for (i = 0; i < ARIZONA_MAX_INPUT; i++) {
-		/* Default for both is 0 so noop with defaults */
-		val = arizona->pdata.dmic_ref[i]
-			<< ARIZONA_IN1_DMIC_SUP_SHIFT;
-		if (arizona->pdata.inmode[i] & ARIZONA_INMODE_DMIC)
-			val |= 1 << ARIZONA_IN1_MODE_SHIFT;
-
-		switch (arizona->type) {
-		case WM8998:
-		case WM1814:
-			regmap_update_bits(arizona->regmap,
-				ARIZONA_ADC_DIGITAL_VOLUME_1L + (i * 8),
-				ARIZONA_IN1L_SRC_SE_MASK,
-				(arizona->pdata.inmode[i] & ARIZONA_INMODE_SE)
-					<< ARIZONA_IN1L_SRC_SE_SHIFT);
-
-			regmap_update_bits(arizona->regmap,
-				ARIZONA_ADC_DIGITAL_VOLUME_1R + (i * 8),
-				ARIZONA_IN1R_SRC_SE_MASK,
-				(arizona->pdata.inmode[i] & ARIZONA_INMODE_SE)
-					<< ARIZONA_IN1R_SRC_SE_SHIFT);
-
-			mask = ARIZONA_IN1_DMIC_SUP_MASK |
-				ARIZONA_IN1_MODE_MASK;
-			break;
-		default:
-			if (arizona->pdata.inmode[i] & ARIZONA_INMODE_SE)
-				val |= 1 << ARIZONA_IN1_SINGLE_ENDED_SHIFT;
-
-			mask = ARIZONA_IN1_DMIC_SUP_MASK |
-				ARIZONA_IN1_MODE_MASK |
-				ARIZONA_IN1_SINGLE_ENDED_MASK;
-			break;
-		}
-
-		regmap_update_bits(arizona->regmap,
-				   ARIZONA_IN1L_CONTROL + (i * 8),
-				   mask, val);
-	}
-
-	for (i = 0; i < ARIZONA_MAX_OUTPUT; i++) {
-		/* Default is 0 so noop with defaults */
-		if (arizona->pdata.out_mono[i])
-			val = ARIZONA_OUT1_MONO;
-		else
-			val = 0;
-
-		regmap_update_bits(arizona->regmap,
-				   ARIZONA_OUTPUT_PATH_CONFIG_1L + (i * 8),
-				   ARIZONA_OUT1_MONO, val);
-	}
-
-	for (i = 0; i < ARIZONA_MAX_PDM_SPK; i++) {
-		if (arizona->pdata.spk_mute[i])
-			regmap_update_bits(arizona->regmap,
-					   ARIZONA_PDM_SPK1_CTRL_1 + (i * 2),
-					   ARIZONA_SPK1_MUTE_ENDIAN_MASK |
-					   ARIZONA_SPK1_MUTE_SEQ1_MASK,
-					   arizona->pdata.spk_mute[i]);
-
-		if (arizona->pdata.spk_fmt[i])
-			regmap_update_bits(arizona->regmap,
-					   ARIZONA_PDM_SPK1_CTRL_2 + (i * 2),
-					   ARIZONA_SPK1_FMT_MASK,
-					   arizona->pdata.spk_fmt[i]);
-	}
-
 	pm_runtime_set_active(arizona->dev);
 	pm_runtime_enable(arizona->dev);
 
@@ -1553,6 +1446,7 @@ EXPORT_SYMBOL_GPL(arizona_dev_init);
 
 int arizona_dev_exit(struct arizona *arizona)
 {
+	disable_irq(arizona->irq);
 	pm_runtime_disable(arizona->dev);
 
 	regulator_disable(arizona->dcvdd);

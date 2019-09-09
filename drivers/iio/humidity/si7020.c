@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * si7020.c - Silicon Labs Si7013/20/21 Relative Humidity and Temp Sensors
  * Copyright (c) 2013,2014  Uplogix, Inc.
  * David Barksdale <dbarksdale@uplogix.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 /*
@@ -108,7 +100,6 @@ static const struct iio_chan_spec si7020_channels[] = {
 
 static const struct iio_info si7020_info = {
 	.read_raw = si7020_read_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static int si7020_probe(struct i2c_client *client,
@@ -154,8 +145,17 @@ static const struct i2c_device_id si7020_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, si7020_id);
 
+static const struct of_device_id si7020_dt_ids[] = {
+	{ .compatible = "silabs,si7020" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, si7020_dt_ids);
+
 static struct i2c_driver si7020_driver = {
-	.driver.name	= "si7020",
+	.driver = {
+		.name = "si7020",
+		.of_match_table = of_match_ptr(si7020_dt_ids),
+	},
 	.probe		= si7020_probe,
 	.id_table	= si7020_id,
 };

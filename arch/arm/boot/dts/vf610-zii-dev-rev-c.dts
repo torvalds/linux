@@ -1,0 +1,456 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/*
+ * Copyright (C) 2015, 2016 Zodiac Inflight Innovations
+ */
+
+/dts-v1/;
+#include "vf610-zii-dev.dtsi"
+
+/ {
+	model = "ZII VF610 Development Board, Rev C";
+	compatible = "zii,vf610dev-c", "zii,vf610dev", "fsl,vf610";
+
+	mdio-mux {
+		compatible = "mdio-mux-gpio";
+		pinctrl-0 = <&pinctrl_mdio_mux>;
+		pinctrl-names = "default";
+		gpios = <&gpio0 8  GPIO_ACTIVE_HIGH
+			 &gpio0 9  GPIO_ACTIVE_HIGH
+			 &gpio0 25 GPIO_ACTIVE_HIGH>;
+		mdio-parent-bus = <&mdio1>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		mdio_mux_1: mdio@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			switch0: switch@0 {
+				compatible = "marvell,mv88e6190";
+				pinctrl-0 = <&pinctrl_gpio_switch0>;
+				pinctrl-names = "default";
+				reg = <0>;
+				dsa,member = <0 0>;
+				eeprom-length = <65536>;
+				interrupt-parent = <&gpio0>;
+				interrupts = <27 IRQ_TYPE_LEVEL_LOW>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0>;
+						label = "cpu";
+						ethernet = <&fec1>;
+
+						fixed-link {
+							speed = <100>;
+							full-duplex;
+						};
+					};
+
+					port@1 {
+						reg = <1>;
+						label = "lan1";
+						phy-handle = <&switch0phy1>;
+					};
+
+					port@2 {
+						reg = <2>;
+						label = "lan2";
+						phy-handle = <&switch0phy2>;
+					};
+
+					port@3 {
+						reg = <3>;
+						label = "lan3";
+						phy-handle = <&switch0phy3>;
+					};
+
+					port@4 {
+						reg = <4>;
+						label = "lan4";
+						phy-handle = <&switch0phy4>;
+					};
+
+					switch0port10: port@10 {
+						reg = <10>;
+						label = "dsa";
+						phy-mode = "xaui";
+						link = <&switch1port10>;
+					};
+				};
+
+				mdio {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					switch0phy1: switch0phy@1 {
+						reg = <1>;
+						interrupt-parent = <&switch0>;
+						interrupts = <1 IRQ_TYPE_LEVEL_HIGH>;
+					};
+
+					switch0phy2: switch0phy@2 {
+						reg = <2>;
+						interrupt-parent = <&switch0>;
+						interrupts = <2 IRQ_TYPE_LEVEL_HIGH>;
+					};
+
+					switch0phy3: switch0phy@3 {
+						reg = <3>;
+						interrupt-parent = <&switch0>;
+						interrupts = <3 IRQ_TYPE_LEVEL_HIGH>;
+					};
+
+					switch0phy4: switch0phy@4 {
+						reg = <4>;
+						interrupt-parent = <&switch0>;
+						interrupts = <4 IRQ_TYPE_LEVEL_HIGH>;
+					};
+				};
+			};
+		};
+
+		mdio_mux_2: mdio@2 {
+			reg = <2>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			switch1: switch@0 {
+				compatible = "marvell,mv88e6190";
+				pinctrl-0 = <&pinctrl_gpio_switch1>;
+				pinctrl-names = "default";
+				reg = <0>;
+				dsa,member = <0 1>;
+				eeprom-length = <65536>;
+				interrupt-parent = <&gpio0>;
+				interrupts = <26 IRQ_TYPE_LEVEL_LOW>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@1 {
+						reg = <1>;
+						label = "lan5";
+						phy-handle = <&switch1phy1>;
+					};
+
+					port@2 {
+						reg = <2>;
+						label = "lan6";
+						phy-handle = <&switch1phy2>;
+					};
+
+					port@3 {
+						reg = <3>;
+						label = "lan7";
+						phy-handle = <&switch1phy3>;
+					};
+
+					port@4 {
+						reg = <4>;
+						label = "lan8";
+						phy-handle = <&switch1phy4>;
+					};
+
+					port@9 {
+						reg = <9>;
+						label = "sff2";
+						phy-mode = "sgmii";
+						managed = "in-band-status";
+						sfp = <&sff2>;
+					};
+
+					switch1port10: port@10 {
+						reg = <10>;
+						label = "dsa";
+						phy-mode = "xaui";
+						link = <&switch0port10>;
+					};
+				};
+				mdio {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					switch1phy1: switch1phy@1 {
+						reg = <1>;
+						interrupt-parent = <&switch1>;
+						interrupts = <1 IRQ_TYPE_LEVEL_HIGH>;
+					};
+
+					switch1phy2: switch1phy@2 {
+						reg = <2>;
+						interrupt-parent = <&switch1>;
+						interrupts = <2 IRQ_TYPE_LEVEL_HIGH>;
+					};
+
+					switch1phy3: switch1phy@3 {
+						reg = <3>;
+						interrupt-parent = <&switch1>;
+						interrupts = <3 IRQ_TYPE_LEVEL_HIGH>;
+					};
+
+					switch1phy4: switch1phy@4 {
+						reg = <4>;
+						interrupt-parent = <&switch1>;
+						interrupts = <4 IRQ_TYPE_LEVEL_HIGH>;
+					};
+				};
+			};
+		};
+
+		mdio_mux_4: mdio@4 {
+			reg = <4>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+	};
+
+	sff2: sff2 {
+		/* lower */
+		compatible = "sff,sff";
+		i2c-bus = <&sff2_i2c>;
+		los-gpios = <&gpio6 12 GPIO_ACTIVE_HIGH>;
+		tx-disable-gpios = <&gpio6 14 GPIO_ACTIVE_HIGH>;
+	};
+
+	sff3: sff3 {
+		/* upper */
+		compatible = "sff,sff";
+		i2c-bus = <&sff3_i2c>;
+		los-gpios = <&gpio6 13 GPIO_ACTIVE_HIGH>;
+		tx-disable-gpios = <&gpio6 15 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+&dspi0 {
+	bus-num = <0>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_dspi0>;
+	status = "okay";
+	spi-num-chipselects = <2>;
+
+	flash@0 {
+		compatible = "m25p128", "jedec,spi-nor";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		reg = <0>;
+		spi-max-frequency = <1000000>;
+	};
+
+	atzb-rf-233@1 {
+		compatible = "atmel,at86rf233";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctr_atzb_rf_233>;
+
+		spi-max-frequency = <7500000>;
+		reg = <1>;
+		interrupts = <4 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-parent = <&gpio3>;
+		xtal-trim = /bits/ 8 <0x06>;
+
+		sleep-gpio = <&gpio0 24 GPIO_ACTIVE_HIGH>;
+		reset-gpio = <&gpio6 10 GPIO_ACTIVE_HIGH>;
+
+		fsl,spi-cs-sck-delay = <180>;
+		fsl,spi-sck-cs-delay = <250>;
+	};
+};
+
+&i2c0 {
+	/*
+	 * U712
+	 *
+	 * Exposed signals:
+	 *    P1 - WE2_CMD
+	 *    P2 - WE2_CLK
+	 */
+	gpio5: io-expander@18 {
+		compatible = "nxp,pca9557";
+		reg = <0x18>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
+
+	/*
+	 * U121
+	 *
+	 * Exposed signals:
+	 *    I/O0  - ENET_SWR_EN
+	 *    I/O1  - ESW1_RESETn
+	 *    I/O2  - ARINC_RESET
+	 *    I/O3  - DD1_IO_RESET
+	 *    I/O4  - ESW2_RESETn
+	 *    I/O5  - ESW3_RESETn
+	 *    I/O6  - ESW4_RESETn
+	 *    I/O8  - TP909
+	 *    I/O9  - FEM_SEL
+	 *    I/O10 - WIFI_RESETn
+	 *    I/O11 - PHY_RSTn
+	 *    I/O12 - OPT1_SD
+	 *    I/O13 - OPT2_SD
+	 *    I/O14 - OPT1_TX_DIS
+	 *    I/O15 - OPT2_TX_DIS
+	 */
+	gpio6: sx1503@20 {
+		compatible = "semtech,sx1503q";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_sx1503_20>;
+		#gpio-cells = <2>;
+		#interrupt-cells = <2>;
+		reg = <0x20>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <23 IRQ_TYPE_EDGE_FALLING>;
+		gpio-controller;
+		interrupt-controller;
+	};
+
+	/*
+	 * U715
+	 *
+	 * Exposed signals:
+	 *     IO0 - WE1_CLK
+	 *     IO1 - WE1_CMD
+	 */
+	gpio7: io-expander@22 {
+		compatible = "nxp,pca9554";
+		reg = <0x22>;
+		gpio-controller;
+		#gpio-cells = <2>;
+
+	};
+};
+
+&i2c1 {
+	eeprom@50 {
+		compatible = "atmel,24c02";
+		reg = <0x50>;
+		read-only;
+	};
+};
+
+&i2c2 {
+	tca9548@70 {
+		compatible = "nxp,pca9548";
+		pinctrl-0 = <&pinctrl_i2c_mux_reset>;
+		pinctrl-names = "default";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x70>;
+		reset-gpios = <&gpio3 23 GPIO_ACTIVE_LOW>;
+
+		i2c@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0>;
+		};
+
+		sff2_i2c: i2c@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <1>;
+		};
+
+		sff3_i2c: i2c@2 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <2>;
+		};
+
+		i2c@3 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <3>;
+		};
+	};
+};
+
+&uart3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart3>;
+	status = "okay";
+};
+
+&gpio0 {
+	eth0_intrp {
+		gpio-hog;
+		gpios = <23 GPIO_ACTIVE_HIGH>;
+		input;
+		line-name = "sx1503-irq";
+	};
+};
+
+&gpio3 {
+	eth0_intrp {
+		gpio-hog;
+		gpios = <2 GPIO_ACTIVE_HIGH>;
+		input;
+		line-name = "eth0-intrp";
+	};
+};
+
+&fec0 {
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "okay";
+
+		ethernet-phy@0 {
+			compatible = "ethernet-phy-ieee802.3-c22";
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_fec0_phy_int>;
+
+			interrupt-parent = <&gpio3>;
+			interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
+			reg = <0>;
+		};
+	};
+};
+
+&iomuxc {
+	pinctr_atzb_rf_233: pinctrl-atzb-rf-233 {
+		fsl,pins = <
+			VF610_PAD_PTB2__GPIO_24		0x31c2
+			VF610_PAD_PTE27__GPIO_132	0x33e2
+		>;
+	};
+
+
+	pinctrl_sx1503_20: pinctrl-sx1503-20 {
+		fsl,pins = <
+			VF610_PAD_PTB1__GPIO_23		0x219d
+		>;
+	};
+
+	pinctrl_uart3: uart3grp {
+		fsl,pins = <
+			VF610_PAD_PTA20__UART3_TX	0x21a2
+			VF610_PAD_PTA21__UART3_RX	0x21a1
+		>;
+	};
+
+	pinctrl_mdio_mux: pinctrl-mdio-mux {
+		fsl,pins = <
+			VF610_PAD_PTA18__GPIO_8		0x31c2
+			VF610_PAD_PTA19__GPIO_9		0x31c2
+			VF610_PAD_PTB3__GPIO_25		0x31c2
+		>;
+	};
+
+	pinctrl_fec0_phy_int: pinctrl-fec0-phy-int {
+		fsl,pins = <
+			VF610_PAD_PTB28__GPIO_98	0x219d
+		>;
+	};
+};

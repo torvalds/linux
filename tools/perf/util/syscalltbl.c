@@ -1,30 +1,39 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * System call table mapper
  *
  * (C) 2016 Arnaldo Carvalho de Melo <acme@redhat.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #include "syscalltbl.h"
 #include <stdlib.h>
-
-#ifdef HAVE_SYSCALL_TABLE
 #include <linux/compiler.h>
+
+#ifdef HAVE_SYSCALL_TABLE_SUPPORT
+#include <linux/zalloc.h>
 #include <string.h>
-#include "util.h"
+#include "string2.h"
 
 #if defined(__x86_64__)
 #include <asm/syscalls_64.c>
 const int syscalltbl_native_max_id = SYSCALLTBL_x86_64_MAX_ID;
 static const char **syscalltbl_native = syscalltbl_x86_64;
+#elif defined(__s390x__)
+#include <asm/syscalls_64.c>
+const int syscalltbl_native_max_id = SYSCALLTBL_S390_64_MAX_ID;
+static const char **syscalltbl_native = syscalltbl_s390_64;
+#elif defined(__powerpc64__)
+#include <asm/syscalls_64.c>
+const int syscalltbl_native_max_id = SYSCALLTBL_POWERPC_64_MAX_ID;
+static const char **syscalltbl_native = syscalltbl_powerpc_64;
+#elif defined(__powerpc__)
+#include <asm/syscalls_32.c>
+const int syscalltbl_native_max_id = SYSCALLTBL_POWERPC_32_MAX_ID;
+static const char **syscalltbl_native = syscalltbl_powerpc_32;
+#elif defined(__aarch64__)
+#include <asm/syscalls.c>
+const int syscalltbl_native_max_id = SYSCALLTBL_ARM64_MAX_ID;
+static const char **syscalltbl_native = syscalltbl_arm64;
 #endif
 
 struct syscall {
@@ -105,7 +114,28 @@ int syscalltbl__id(struct syscalltbl *tbl, const char *name)
 	return sc ? sc->id : -1;
 }
 
-#else /* HAVE_SYSCALL_TABLE */
+int syscalltbl__strglobmatch_next(struct syscalltbl *tbl, const char *syscall_glob, int *idx)
+{
+	int i;
+	struct syscall *syscalls = tbl->syscalls.entries;
+
+	for (i = *idx + 1; i < tbl->syscalls.nr_entries; ++i) {
+		if (strglobmatch(syscalls[i].name, syscall_glob)) {
+			*idx = i;
+			return syscalls[i].id;
+		}
+	}
+
+	return -1;
+}
+
+int syscalltbl__strglobmatch_first(struct syscalltbl *tbl, const char *syscall_glob, int *idx)
+{
+	*idx = -1;
+	return syscalltbl__strglobmatch_next(tbl, syscall_glob, idx);
+}
+
+#else /* HAVE_SYSCALL_TABLE_SUPPORT */
 
 #include <libaudit.h>
 
@@ -131,4 +161,15 @@ int syscalltbl__id(struct syscalltbl *tbl, const char *name)
 {
 	return audit_name_to_syscall(name, tbl->audit_machine);
 }
-#endif /* HAVE_SYSCALL_TABLE */
+
+int syscalltbl__strglobmatch_next(struct syscalltbl *tbl __maybe_unused,
+				  const char *syscall_glob __maybe_unused, int *idx __maybe_unused)
+{
+	return -1;
+}
+
+int syscalltbl__strglobmatch_first(struct syscalltbl *tbl, const char *syscall_glob, int *idx)
+{
+	return syscalltbl__strglobmatch_next(tbl, syscall_glob, idx);
+}
+#endif /* HAVE_SYSCALL_TABLE_SUPPORT */

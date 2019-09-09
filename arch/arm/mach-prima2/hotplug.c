@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * CPU hotplug support for CSR Marco dual-core SMP SoCs
  *
  * Copyright (c) 2012 Cambridge Silicon Radio Limited, a CSR plc group company.
- *
- * Licensed under GPLv2 or later.
  */
 
 #include <linux/kernel.h>
@@ -11,6 +10,7 @@
 #include <linux/smp.h>
 
 #include <asm/smp_plat.h>
+#include "common.h"
 
 static inline void platform_do_lowpower(unsigned int cpu)
 {
@@ -18,7 +18,7 @@ static inline void platform_do_lowpower(unsigned int cpu)
 	for (;;) {
 		__asm__ __volatile__("dsb\n\t" "wfi\n\t"
 			: : : "memory");
-		if (pen_release == cpu_logical_map(cpu)) {
+		if (prima2_pen_release == cpu_logical_map(cpu)) {
 			/*
 			 * OK, proper wakeup, we're done
 			 */

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * DLCI/FRAD	Definitions for Frame Relay Access Devices.  DLCI devices are
  *		created for each DLCI associated with a FRAD.  The FRAD driver
@@ -14,11 +15,6 @@
  *		0.15	Mike McLagan	changed structure defs (packed)
  *					re-arranged flags
  *					added DLCI_RET vars
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  */
 #ifndef _FRAD_H_
 #define _FRAD_H_
@@ -66,8 +62,6 @@ struct dlci_local
 
 struct frad_local
 {
-   struct net_device_stats stats;
-
    /* devices which this FRAD is slaved to */
    struct net_device     *master[CONFIG_DLCI_MAX];
    short             dlci[CONFIG_DLCI_MAX];
@@ -85,6 +79,7 @@ struct frad_local
 
    /* fields that are used by the Sangoma SDLA cards */
    struct timer_list timer;
+   struct net_device *dev;
    int               type;		/* adapter type */
    int               state;		/* state of the S502/8 control latch */
    int               buffer;		/* current buffer for S508 firmware */

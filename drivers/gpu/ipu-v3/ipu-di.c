@@ -1,16 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (c) 2010 Sascha Hauer <s.hauer@pengutronix.de>
  * Copyright (C) 2005-2009 Freescale Semiconductor, Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
  */
 #include <linux/export.h>
 #include <linux/module.h>
@@ -535,7 +526,7 @@ int ipu_di_adjust_videomode(struct ipu_di *di, struct videomode *mode)
 		return -EINVAL;
 	}
 
-	dev_warn(di->ipu->dev, "videomode adapted for IPU restrictions\n");
+	dev_dbg(di->ipu->dev, "videomode adapted for IPU restrictions\n");
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ipu_di_adjust_videomode);

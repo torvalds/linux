@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _NET_IP6_TUNNEL_H
 #define _NET_IP6_TUNNEL_H
 
@@ -33,6 +34,12 @@ struct __ip6_tnl_parm {
 	__be16			o_flags;
 	__be32			i_key;
 	__be32			o_key;
+
+	__u32			fwmark;
+	__u32			index;	/* ERSPAN type II index */
+	__u8			erspan_ver;	/* ERSPAN version */
+	__u8			dir;	/* direction */
+	__u16			hwid;	/* hwid */
 };
 
 /* IPv6 tunnel */
@@ -62,6 +69,8 @@ struct ip6_tnl_encap_ops {
 	size_t (*encap_hlen)(struct ip_tunnel_encap *e);
 	int (*build_header)(struct sk_buff *skb, struct ip_tunnel_encap *e,
 			    u8 *protocol, struct flowi6 *fl6);
+	int (*err_handler)(struct sk_buff *skb, struct inet6_skb_parm *opt,
+			   u8 type, u8 code, int offset, __be32 info);
 };
 
 #ifdef CONFIG_INET
@@ -146,11 +155,15 @@ static inline void ip6tunnel_xmit(struct sock *sk, struct sk_buff *skb,
 {
 	int pkt_len, err;
 
+	memset(skb->cb, 0, sizeof(struct inet6_skb_parm));
 	pkt_len = skb->len - skb_inner_network_offset(skb);
 	err = ip6_local_out(dev_net(skb_dst(skb)->dev), sk, skb);
-	if (unlikely(net_xmit_eval(err)))
-		pkt_len = -1;
-	iptunnel_xmit_stats(dev, pkt_len);
+
+	if (dev) {
+		if (unlikely(net_xmit_eval(err)))
+			pkt_len = -1;
+		iptunnel_xmit_stats(dev, pkt_len);
+	}
 }
 #endif
 #endif

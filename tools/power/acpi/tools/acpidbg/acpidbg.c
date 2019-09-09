@@ -1,21 +1,24 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ACPI AML interfacing userspace utility
  *
  * Copyright (C) 2015, Intel Corporation
  * Authors: Lv Zheng <lv.zheng@intel.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <acpi/acpi.h>
 
 /* Headers not included by include/acpi/platform/aclinux.h */
+#include <unistd.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <error.h>
 #include <stdbool.h>
 #include <fcntl.h>
 #include <assert.h>
-#include <linux/circ_buf.h>
+#include <sys/select.h>
+#include "../../../../../include/linux/circ_buf.h"
 
 #define ACPI_AML_FILE		"/sys/kernel/debug/acpi/acpidbg"
 #define ACPI_AML_SEC_TICK	1

@@ -1,10 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Greybus CPort control protocol
  *
  * Copyright 2015 Google Inc.
  * Copyright 2015 Linaro Ltd.
- *
- * Released under the GPLv2 only.
  */
 
 #ifndef __CONTROL_H
@@ -41,20 +40,13 @@ int gb_control_get_bundle_versions(struct gb_control *control);
 int gb_control_connected_operation(struct gb_control *control, u16 cport_id);
 int gb_control_disconnected_operation(struct gb_control *control, u16 cport_id);
 int gb_control_disconnecting_operation(struct gb_control *control,
-					u16 cport_id);
+				       u16 cport_id);
 int gb_control_mode_switch_operation(struct gb_control *control);
 void gb_control_mode_switch_prepare(struct gb_control *control);
 void gb_control_mode_switch_complete(struct gb_control *control);
 int gb_control_get_manifest_size_operation(struct gb_interface *intf);
 int gb_control_get_manifest_operation(struct gb_interface *intf, void *manifest,
 				      size_t size);
-int gb_control_timesync_enable(struct gb_control *control, u8 count,
-			       u64 frame_time, u32 strobe_delay, u32 refclk);
-int gb_control_timesync_disable(struct gb_control *control);
-int gb_control_timesync_get_last_event(struct gb_control *control,
-				       u64 *frame_time);
-int gb_control_timesync_authoritative(struct gb_control *control,
-				      u64 *frame_time);
 int gb_control_bundle_suspend(struct gb_control *control, u8 bundle_id);
 int gb_control_bundle_resume(struct gb_control *control, u8 bundle_id);
 int gb_control_bundle_deactivate(struct gb_control *control, u8 bundle_id);

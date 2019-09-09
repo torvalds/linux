@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * TCP HYBLA
  *
@@ -166,6 +167,7 @@ static void hybla_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 static struct tcp_congestion_ops tcp_hybla __read_mostly = {
 	.init		= hybla_init,
 	.ssthresh	= tcp_reno_ssthresh,
+	.undo_cwnd	= tcp_reno_undo_cwnd,
 	.cong_avoid	= hybla_cong_avoid,
 	.set_state	= hybla_state,
 

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*---------------------------------------------------------------------------+
  |  polynomial_Xsig.S                                                        |
  |                                                                           |
@@ -133,3 +134,4 @@ L_accum_done:
 	popl	%esi
 	leave
 	ret
+ENDPROC(polynomial_Xsig)

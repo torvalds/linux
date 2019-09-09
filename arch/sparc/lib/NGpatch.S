@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* NGpatch.S: Patch Ultra-I routines with Niagara variant.
  *
  * Copyright (C) 2006 David S. Miller <davem@davemloft.net>
@@ -26,8 +27,8 @@
 	.type	niagara_patch_copyops,#function
 niagara_patch_copyops:
 	NG_DO_PATCH(memcpy, NGmemcpy)
-	NG_DO_PATCH(___copy_from_user, NGcopy_from_user)
-	NG_DO_PATCH(___copy_to_user, NGcopy_to_user)
+	NG_DO_PATCH(raw_copy_from_user, NGcopy_from_user)
+	NG_DO_PATCH(raw_copy_to_user, NGcopy_to_user)
 	retl
 	 nop
 	.size	niagara_patch_copyops,.-niagara_patch_copyops

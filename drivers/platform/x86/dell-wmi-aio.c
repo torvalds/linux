@@ -1,19 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  WMI hotkeys support for Dell All-In-One series
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -152,12 +139,10 @@ static int __init dell_wmi_aio_input_setup(void)
 	err = input_register_device(dell_wmi_aio_input_dev);
 	if (err) {
 		pr_info("Unable to register input device\n");
-		goto err_free_keymap;
+		goto err_free_dev;
 	}
 	return 0;
 
-err_free_keymap:
-	sparse_keymap_free(dell_wmi_aio_input_dev);
 err_free_dev:
 	input_free_device(dell_wmi_aio_input_dev);
 	return err;
@@ -192,7 +177,6 @@ static int __init dell_wmi_aio_init(void)
 	err = wmi_install_notify_handler(guid, dell_wmi_aio_notify, NULL);
 	if (err) {
 		pr_err("Unable to register notify handler - %d\n", err);
-		sparse_keymap_free(dell_wmi_aio_input_dev);
 		input_unregister_device(dell_wmi_aio_input_dev);
 		return err;
 	}
@@ -206,7 +190,6 @@ static void __exit dell_wmi_aio_exit(void)
 
 	guid = dell_wmi_aio_find();
 	wmi_remove_notify_handler(guid);
-	sparse_keymap_free(dell_wmi_aio_input_dev);
 	input_unregister_device(dell_wmi_aio_input_dev);
 }
 

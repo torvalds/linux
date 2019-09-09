@@ -1539,6 +1539,9 @@ struct reparse_symlink_data {
 	char	PathBuffer[0];
 } __attribute__((packed));
 
+/* Flag above */
+#define SYMLINK_FLAG_RELATIVE 0x00000001
+
 /* For IO_REPARSE_TAG_NFS */
 #define NFS_SPECFILE_LNK	0x00000000014B4E4C
 #define NFS_SPECFILE_CHR	0x0000000000524843
@@ -2086,17 +2089,21 @@ typedef struct dfs_referral_level_3 { /* version 4 is same, + one flag bit */
 	__u8   ServiceSiteGuid[16];  /* MBZ, ignored */
 } __attribute__((packed)) REFERRAL3;
 
-typedef struct smb_com_transaction_get_dfs_refer_rsp {
-	struct smb_hdr hdr;	/* wct = 10 */
-	struct trans2_resp t2;
-	__u16 ByteCount;
-	__u8 Pad;
+struct get_dfs_referral_rsp {
 	__le16 PathConsumed;
 	__le16 NumberOfReferrals;
 	__le32 DFSFlags;
 	REFERRAL3 referrals[1];	/* array of level 3 dfs_referral structures */
 	/* followed by the strings pointed to by the referral structures */
-} __attribute__((packed)) TRANSACTION2_GET_DFS_REFER_RSP;
+} __packed;
+
+typedef struct smb_com_transaction_get_dfs_refer_rsp {
+	struct smb_hdr hdr;	/* wct = 10 */
+	struct trans2_resp t2;
+	__u16 ByteCount;
+	__u8 Pad;
+	struct get_dfs_referral_rsp dfs_data;
+} __packed TRANSACTION2_GET_DFS_REFER_RSP;
 
 /* DFS Flags */
 #define DFSREF_REFERRAL_SERVER  0x00000001 /* all targets are DFS roots */

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * HD-audio controller (Azalia) registers and helpers
  *
@@ -78,6 +79,7 @@ enum { SDI0, SDI1, SDI2, SDI3, SDO0, SDO1, SDO2, SDO3 };
 
 /* stream register offsets from stream base */
 #define AZX_REG_SD_CTL			0x00
+#define AZX_REG_SD_CTL_3B		0x02 /* 3rd byte of SD_CTL register */
 #define AZX_REG_SD_STS			0x03
 #define AZX_REG_SD_LPIB			0x04
 #define AZX_REG_SD_CBL			0x08
@@ -106,8 +108,26 @@ enum { SDI0, SDI1, SDI2, SDI3, SDO0, SDO1, SDO2, SDO3 };
 #define AZX_REG_HSW_EM4			0x100c
 #define AZX_REG_HSW_EM5			0x1010
 
-/* Skylake/Broxton display HD-A controller Extended Mode registers */
-#define AZX_REG_SKL_EM4L		0x1040
+/* Skylake/Broxton vendor-specific registers */
+#define AZX_REG_VS_EM1			0x1000
+#define AZX_REG_VS_INRC			0x1004
+#define AZX_REG_VS_OUTRC		0x1008
+#define AZX_REG_VS_FIFOTRK		0x100C
+#define AZX_REG_VS_FIFOTRK2		0x1010
+#define AZX_REG_VS_EM2			0x1030
+#define AZX_REG_VS_EM3L			0x1038
+#define AZX_REG_VS_EM3U			0x103C
+#define AZX_REG_VS_EM4L			0x1040
+#define AZX_REG_VS_EM4U			0x1044
+#define AZX_REG_VS_LTRC			0x1048
+#define AZX_REG_VS_D0I3C		0x104A
+#define AZX_REG_VS_PCE			0x104B
+#define AZX_REG_VS_L2MAGC		0x1050
+#define AZX_REG_VS_L2LAHPT		0x1054
+#define AZX_REG_VS_SDXDPIB_XBASE	0x1084
+#define AZX_REG_VS_SDXDPIB_XINTERVAL	0x20
+#define AZX_REG_VS_SDXEFIFOS_XBASE	0x1094
+#define AZX_REG_VS_SDXEFIFOS_XINTERVAL	0x20
 
 /* PCI space */
 #define AZX_PCIREG_TCSEL		0x44
@@ -146,6 +166,7 @@ enum { SDI0, SDI1, SDI2, SDI3, SDO0, SDO1, SDO2, SDO3 };
 #define SD_INT_COMPLETE		0x04	/* completion interrupt */
 #define SD_INT_MASK		(SD_INT_DESC_ERR|SD_INT_FIFO_ERR|\
 				 SD_INT_COMPLETE)
+#define SD_CTL_STRIPE_MASK	0x3	/* stripe control mask */
 
 /* SD_STS */
 #define SD_STS_FIFO_READY	0x20	/* FIFO ready */
@@ -243,9 +264,11 @@ enum { SDI0, SDI1, SDI2, SDI3, SDO0, SDO1, SDO2, SDO3 };
 #define AZX_REG_ML_LOUTPAY		0x20
 #define AZX_REG_ML_LINPAY		0x30
 
-#define AZX_MLCTL_SPA			(1<<16)
-#define AZX_MLCTL_CPA			23
-
+#define ML_LCTL_SCF_MASK			0xF
+#define AZX_MLCTL_SPA				(0x1 << 16)
+#define AZX_MLCTL_CPA				(0x1 << 23)
+#define AZX_MLCTL_SPA_SHIFT			16
+#define AZX_MLCTL_CPA_SHIFT			23
 
 /* registers for DMA Resume Capability Structure */
 #define AZX_DRSM_CAP_ID			0x5

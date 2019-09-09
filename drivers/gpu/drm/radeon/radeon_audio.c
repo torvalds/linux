@@ -23,7 +23,7 @@
  */
 
 #include <linux/gcd.h>
-#include <drm/drmP.h>
+
 #include <drm/drm_crtc.h>
 #include "radeon.h"
 #include "atom.h"
@@ -516,21 +516,17 @@ static int radeon_audio_set_avi_packet(struct drm_encoder *encoder,
 	if (!connector)
 		return -EINVAL;
 
-	err = drm_hdmi_avi_infoframe_from_display_mode(&frame, mode);
+	err = drm_hdmi_avi_infoframe_from_display_mode(&frame, connector, mode);
 	if (err < 0) {
 		DRM_ERROR("failed to setup AVI infoframe: %d\n", err);
 		return err;
 	}
 
 	if (radeon_encoder->output_csc != RADEON_OUTPUT_CSC_BYPASS) {
-		if (drm_rgb_quant_range_selectable(radeon_connector_edid(connector))) {
-			if (radeon_encoder->output_csc == RADEON_OUTPUT_CSC_TVRGB)
-				frame.quantization_range = HDMI_QUANTIZATION_RANGE_LIMITED;
-			else
-				frame.quantization_range = HDMI_QUANTIZATION_RANGE_FULL;
-		} else {
-			frame.quantization_range = HDMI_QUANTIZATION_RANGE_DEFAULT;
-		}
+		drm_hdmi_avi_infoframe_quant_range(&frame, connector, mode,
+						   radeon_encoder->output_csc == RADEON_OUTPUT_CSC_TVRGB ?
+						   HDMI_QUANTIZATION_RANGE_LIMITED :
+						   HDMI_QUANTIZATION_RANGE_FULL);
 	}
 
 	err = hdmi_avi_infoframe_pack(&frame, buffer, sizeof(buffer));
@@ -576,9 +572,9 @@ static void radeon_audio_calc_cts(unsigned int clock, int *CTS, int *N, int freq
 
 	/* Check that we are in spec (not always possible) */
 	if (n < (128*freq/1500))
-		printk(KERN_WARNING "Calculated ACR N value is too small. You may experience audio problems.\n");
+		pr_warn("Calculated ACR N value is too small. You may experience audio problems.\n");
 	if (n > (128*freq/300))
-		printk(KERN_WARNING "Calculated ACR N value is too large. You may experience audio problems.\n");
+		pr_warn("Calculated ACR N value is too large. You may experience audio problems.\n");
 
 	*N = n;
 	*CTS = cts;

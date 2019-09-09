@@ -77,6 +77,8 @@ static struct qlcnic_hardware_ops qlcnic_sriov_vf_hw_ops = {
 	.free_mac_list			= qlcnic_sriov_vf_free_mac_list,
 	.enable_sds_intr		= qlcnic_83xx_enable_sds_intr,
 	.disable_sds_intr		= qlcnic_83xx_disable_sds_intr,
+	.encap_rx_offload               = qlcnic_83xx_encap_rx_offload,
+	.encap_tx_offload               = qlcnic_83xx_encap_tx_offload,
 };
 
 static struct qlcnic_nic_template qlcnic_sriov_vf_ops = {
@@ -128,6 +130,8 @@ static int qlcnic_sriov_virtid_fn(struct qlcnic_adapter *adapter, int vf_id)
 		return 0;
 
 	pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_SRIOV);
+	if (!pos)
+		return 0;
 	pci_read_config_word(dev, pos + PCI_SRIOV_VF_OFFSET, &offset);
 	pci_read_config_word(dev, pos + PCI_SRIOV_VF_STRIDE, &stride);
 
@@ -153,8 +157,8 @@ int qlcnic_sriov_init(struct qlcnic_adapter *adapter, int num_vfs)
 	adapter->ahw->sriov = sriov;
 	sriov->num_vfs = num_vfs;
 	bc = &sriov->bc;
-	sriov->vf_info = kzalloc(sizeof(struct qlcnic_vf_info) *
-				 num_vfs, GFP_KERNEL);
+	sriov->vf_info = kcalloc(num_vfs, sizeof(struct qlcnic_vf_info),
+				 GFP_KERNEL);
 	if (!sriov->vf_info) {
 		err = -ENOMEM;
 		goto qlcnic_free_sriov;
@@ -208,7 +212,7 @@ int qlcnic_sriov_init(struct qlcnic_adapter *adapter, int num_vfs)
 			vp->max_tx_bw = MAX_BW;
 			vp->min_tx_bw = MIN_BW;
 			vp->spoofchk = false;
-			random_ether_addr(vp->mac);
+			eth_random_addr(vp->mac);
 			dev_info(&adapter->pdev->dev,
 				 "MAC Address %pM is configured for VF %d\n",
 				 vp->mac, i);
@@ -446,7 +450,7 @@ static int qlcnic_sriov_set_guest_vlan_mode(struct qlcnic_adapter *adapter,
 		return 0;
 
 	num_vlans = sriov->num_allowed_vlans;
-	sriov->allowed_vlans = kzalloc(sizeof(u16) * num_vlans, GFP_KERNEL);
+	sriov->allowed_vlans = kcalloc(num_vlans, sizeof(u16), GFP_KERNEL);
 	if (!sriov->allowed_vlans)
 		return -ENOMEM;
 
@@ -702,7 +706,7 @@ static inline int qlcnic_sriov_alloc_bc_trans(struct qlcnic_bc_trans **trans)
 static inline int qlcnic_sriov_alloc_bc_msg(struct qlcnic_bc_hdr **hdr,
 					    u32 size)
 {
-	*hdr = kzalloc(sizeof(struct qlcnic_bc_hdr) * size, GFP_ATOMIC);
+	*hdr = kcalloc(size, sizeof(struct qlcnic_bc_hdr), GFP_ATOMIC);
 	if (!*hdr)
 		return -ENOMEM;
 
@@ -900,13 +904,11 @@ static void qlcnic_sriov_pull_bc_msg(struct qlcnic_adapter *adapter,
 				     u32 *hdr, u32 *pay, u32 size)
 {
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
-	u32 fw_mbx;
 	u8 i, max = 2, hdr_size, j;
 
 	hdr_size = (sizeof(struct qlcnic_bc_hdr) / sizeof(u32));
 	max = (size / sizeof(u32)) + hdr_size;
 
-	fw_mbx = readl(QLCNIC_MBX_FW(ahw, 0));
 	for (i = 2, j = 0; j < hdr_size; i++, j++)
 		*(hdr++) = readl(QLCNIC_MBX_FW(ahw, i));
 	for (; j < max; i++, j++)
@@ -932,7 +934,7 @@ static int __qlcnic_sriov_issue_bc_post(struct qlcnic_vf_info *vf)
 static int qlcnic_sriov_issue_bc_post(struct qlcnic_bc_trans *trans, u8 type)
 {
 	struct qlcnic_vf_info *vf = trans->vf;
-	u32 pay_size, hdr_size;
+	u32 pay_size;
 	u32 *hdr, *pay;
 	int ret;
 	u8 pci_func = trans->func_id;
@@ -943,14 +945,12 @@ static int qlcnic_sriov_issue_bc_post(struct qlcnic_bc_trans *trans, u8 type)
 	if (type == QLC_BC_COMMAND) {
 		hdr = (u32 *)(trans->req_hdr + trans->curr_req_frag);
 		pay = (u32 *)(trans->req_pay + trans->curr_req_frag);
-		hdr_size = (sizeof(struct qlcnic_bc_hdr) / sizeof(u32));
 		pay_size = qlcnic_sriov_get_bc_paysize(trans->req_pay_size,
 						       trans->curr_req_frag);
 		pay_size = (pay_size / sizeof(u32));
 	} else {
 		hdr = (u32 *)(trans->rsp_hdr + trans->curr_rsp_frag);
 		pay = (u32 *)(trans->rsp_pay + trans->curr_rsp_frag);
-		hdr_size = (sizeof(struct qlcnic_bc_hdr) / sizeof(u32));
 		pay_size = qlcnic_sriov_get_bc_paysize(trans->rsp_pay_size,
 						       trans->curr_rsp_frag);
 		pay_size = (pay_size / sizeof(u32));

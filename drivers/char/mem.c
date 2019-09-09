@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  linux/drivers/char/mem.c
  *
@@ -60,6 +61,10 @@ static inline int valid_mmap_phys_addr_range(unsigned long pfn, size_t size)
 #endif
 
 #ifdef CONFIG_STRICT_DEVMEM
+static inline int page_is_allowed(unsigned long pfn)
+{
+	return devmem_is_allowed(pfn);
+}
 static inline int range_is_allowed(unsigned long pfn, unsigned long size)
 {
 	u64 from = ((u64)pfn) << PAGE_SHIFT;
@@ -75,6 +80,10 @@ static inline int range_is_allowed(unsigned long pfn, unsigned long size)
 	return 1;
 }
 #else
+static inline int page_is_allowed(unsigned long pfn)
+{
+	return 1;
+}
 static inline int range_is_allowed(unsigned long pfn, unsigned long size)
 {
 	return 1;
@@ -98,6 +107,8 @@ static ssize_t read_mem(struct file *file, char __user *buf,
 	phys_addr_t p = *ppos;
 	ssize_t read, sz;
 	void *ptr;
+	char *bounce;
+	int err;
 
 	if (p != *ppos)
 		return 0;
@@ -120,36 +131,59 @@ static ssize_t read_mem(struct file *file, char __user *buf,
 	}
 #endif
 
+	bounce = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	if (!bounce)
+		return -ENOMEM;
+
 	while (count > 0) {
 		unsigned long remaining;
+		int allowed, probe;
 
 		sz = size_inside_page(p, count);
 
-		if (!range_is_allowed(p >> PAGE_SHIFT, count))
-			return -EPERM;
+		err = -EPERM;
+		allowed = page_is_allowed(p >> PAGE_SHIFT);
+		if (!allowed)
+			goto failed;
 
-		/*
-		 * On ia64 if a page has been mapped somewhere as uncached, then
-		 * it must also be accessed uncached by the kernel or data
-		 * corruption may occur.
-		 */
-		ptr = xlate_dev_mem_ptr(p);
-		if (!ptr)
-			return -EFAULT;
+		err = -EFAULT;
+		if (allowed == 2) {
+			/* Show zeros for restricted memory. */
+			remaining = clear_user(buf, sz);
+		} else {
+			/*
+			 * On ia64 if a page has been mapped somewhere as
+			 * uncached, then it must also be accessed uncached
+			 * by the kernel or data corruption may occur.
+			 */
+			ptr = xlate_dev_mem_ptr(p);
+			if (!ptr)
+				goto failed;
 
-		remaining = copy_to_user(buf, ptr, sz);
-		unxlate_dev_mem_ptr(p, ptr);
+			probe = probe_kernel_read(bounce, ptr, sz);
+			unxlate_dev_mem_ptr(p, ptr);
+			if (probe)
+				goto failed;
+
+			remaining = copy_to_user(buf, bounce, sz);
+		}
+
 		if (remaining)
-			return -EFAULT;
+			goto failed;
 
 		buf += sz;
 		p += sz;
 		count -= sz;
 		read += sz;
 	}
+	kfree(bounce);
 
 	*ppos += read;
 	return read;
+
+failed:
+	kfree(bounce);
+	return err;
 }
 
 static ssize_t write_mem(struct file *file, const char __user *buf,
@@ -181,30 +215,36 @@ static ssize_t write_mem(struct file *file, const char __user *buf,
 #endif
 
 	while (count > 0) {
+		int allowed;
+
 		sz = size_inside_page(p, count);
 
-		if (!range_is_allowed(p >> PAGE_SHIFT, sz))
+		allowed = page_is_allowed(p >> PAGE_SHIFT);
+		if (!allowed)
 			return -EPERM;
 
-		/*
-		 * On ia64 if a page has been mapped somewhere as uncached, then
-		 * it must also be accessed uncached by the kernel or data
-		 * corruption may occur.
-		 */
-		ptr = xlate_dev_mem_ptr(p);
-		if (!ptr) {
-			if (written)
-				break;
-			return -EFAULT;
-		}
+		/* Skip actual writing when a page is marked as restricted. */
+		if (allowed == 1) {
+			/*
+			 * On ia64 if a page has been mapped somewhere as
+			 * uncached, then it must also be accessed uncached
+			 * by the kernel or data corruption may occur.
+			 */
+			ptr = xlate_dev_mem_ptr(p);
+			if (!ptr) {
+				if (written)
+					break;
+				return -EFAULT;
+			}
 
-		copied = copy_from_user(ptr, buf, sz);
-		unxlate_dev_mem_ptr(p, ptr);
-		if (copied) {
-			written += sz - copied;
-			if (written)
-				break;
-			return -EFAULT;
+			copied = copy_from_user(ptr, buf, sz);
+			unxlate_dev_mem_ptr(p, ptr);
+			if (copied) {
+				written += sz - copied;
+				if (written)
+					break;
+				return -EFAULT;
+			}
 		}
 
 		buf += sz;
@@ -318,6 +358,15 @@ static const struct vm_operations_struct mmap_mem_ops = {
 static int mmap_mem(struct file *file, struct vm_area_struct *vma)
 {
 	size_t size = vma->vm_end - vma->vm_start;
+	phys_addr_t offset = (phys_addr_t)vma->vm_pgoff << PAGE_SHIFT;
+
+	/* Does it even fit in phys_addr_t? */
+	if (offset >> PAGE_SHIFT != vma->vm_pgoff)
+		return -EINVAL;
+
+	/* It's illegal to wrap around the end of the physical address space. */
+	if (offset + (phys_addr_t)size - 1 < offset)
+		return -EINVAL;
 
 	if (!valid_mmap_phys_addr_range(vma->vm_pgoff, size))
 		return -EINVAL;
@@ -381,9 +430,6 @@ static ssize_t read_kmem(struct file *file, char __user *buf,
 	char *kbuf; /* k-addr because vread() takes vmlist_lock rwlock */
 	int err = 0;
 
-	if (!pfn_valid(PFN_DOWN(p)))
-		return -EIO;
-
 	read = 0;
 	if (p < (unsigned long) high_memory) {
 		low_count = count;
@@ -412,6 +458,8 @@ static ssize_t read_kmem(struct file *file, char __user *buf,
 			 * by the kernel or data corruption may occur
 			 */
 			kbuf = xlate_dev_kmem_ptr((void *)p);
+			if (!virt_addr_valid(kbuf))
+				return -ENXIO;
 
 			if (copy_to_user(buf, kbuf, sz))
 				return -EFAULT;
@@ -482,6 +530,8 @@ static ssize_t do_write_kmem(unsigned long p, const char __user *buf,
 		 * corruption may occur.
 		 */
 		ptr = xlate_dev_kmem_ptr((void *)p);
+		if (!virt_addr_valid(ptr))
+			return -ENXIO;
 
 		copied = copy_from_user(ptr, buf, sz);
 		if (copied) {
@@ -511,9 +561,6 @@ static ssize_t write_kmem(struct file *file, const char __user *buf,
 	ssize_t virtr = 0;
 	char *kbuf; /* k-addr because vwrite() takes vmlist_lock rwlock */
 	int err = 0;
-
-	if (!pfn_valid(PFN_DOWN(p)))
-		return -EIO;
 
 	if (p < (unsigned long) high_memory) {
 		unsigned long to_write = min_t(unsigned long, count,
@@ -562,7 +609,7 @@ static ssize_t read_port(struct file *file, char __user *buf,
 	unsigned long i = *ppos;
 	char __user *tmp = buf;
 
-	if (!access_ok(VERIFY_WRITE, buf, count))
+	if (!access_ok(buf, count))
 		return -EFAULT;
 	while (count-- > 0 && i < 65536) {
 		if (__put_user(inb(i), tmp) < 0)
@@ -580,7 +627,7 @@ static ssize_t write_port(struct file *file, const char __user *buf,
 	unsigned long i = *ppos;
 	const char __user *tmp = buf;
 
-	if (!access_ok(VERIFY_READ, buf, count))
+	if (!access_ok(buf, count))
 		return -EFAULT;
 	while (count-- > 0 && i < 65536) {
 		char c;
@@ -661,6 +708,7 @@ static int mmap_zero(struct file *file, struct vm_area_struct *vma)
 #endif
 	if (vma->vm_flags & VM_SHARED)
 		return shmem_zero_setup(vma);
+	vma_set_anonymous(vma);
 	return 0;
 }
 
@@ -718,6 +766,7 @@ static loff_t memory_lseek(struct file *file, loff_t offset, int orig)
 	switch (orig) {
 	case SEEK_CUR:
 		offset += file->f_pos;
+		/* fall through */
 	case SEEK_SET:
 		/* to avoid userland mistaking f_pos=-9 as -EBADF=-9 */
 		if ((unsigned long long)offset >= -MAX_ERRNO) {

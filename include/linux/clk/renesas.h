@@ -1,14 +1,10 @@
-/*
+/* SPDX-License-Identifier: GPL-2.0+
+ *
  * Copyright 2013 Ideas On Board SPRL
  * Copyright 2013, 2014 Horms Solutions Ltd.
  *
  * Contact: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
  * Contact: Simon Horman <horms@verge.net.au>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #ifndef __LINUX_CLK_RENESAS_H_
@@ -19,10 +15,6 @@
 struct device;
 struct device_node;
 struct generic_pm_domain;
-
-void r8a7778_clocks_init(u32 mode);
-void r8a7779_clocks_init(u32 mode);
-void rcar_gen2_clocks_init(u32 mode);
 
 void cpg_mstp_add_clk_domain(struct device_node *np);
 #ifdef CONFIG_CLK_RENESAS_CPG_MSTP

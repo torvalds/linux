@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/slab.h>
@@ -144,42 +145,23 @@ static int ql_get_serdes_regs(struct ql_adapter *qdev,
 	xaui_direct_valid = xaui_indirect_valid = 1;
 
 	/* The XAUI needs to be read out per port */
-	if (qdev->func & 1) {
-		/* We are NIC 2	*/
-		status = ql_read_other_func_serdes_reg(qdev,
-				XG_SERDES_XAUI_HSS_PCS_START, &temp);
-		if (status)
-			temp = XG_SERDES_ADDR_XAUI_PWR_DOWN;
-		if ((temp & XG_SERDES_ADDR_XAUI_PWR_DOWN) ==
-					XG_SERDES_ADDR_XAUI_PWR_DOWN)
-			xaui_indirect_valid = 0;
+	status = ql_read_other_func_serdes_reg(qdev,
+			XG_SERDES_XAUI_HSS_PCS_START, &temp);
+	if (status)
+		temp = XG_SERDES_ADDR_XAUI_PWR_DOWN;
 
-		status = ql_read_serdes_reg(qdev,
-				XG_SERDES_XAUI_HSS_PCS_START, &temp);
-		if (status)
-			temp = XG_SERDES_ADDR_XAUI_PWR_DOWN;
+	if ((temp & XG_SERDES_ADDR_XAUI_PWR_DOWN) ==
+				XG_SERDES_ADDR_XAUI_PWR_DOWN)
+		xaui_indirect_valid = 0;
 
-		if ((temp & XG_SERDES_ADDR_XAUI_PWR_DOWN) ==
-					XG_SERDES_ADDR_XAUI_PWR_DOWN)
-			xaui_direct_valid = 0;
-	} else {
-		/* We are NIC 1	*/
-		status = ql_read_other_func_serdes_reg(qdev,
-				XG_SERDES_XAUI_HSS_PCS_START, &temp);
-		if (status)
-			temp = XG_SERDES_ADDR_XAUI_PWR_DOWN;
-		if ((temp & XG_SERDES_ADDR_XAUI_PWR_DOWN) ==
-					XG_SERDES_ADDR_XAUI_PWR_DOWN)
-			xaui_indirect_valid = 0;
+	status = ql_read_serdes_reg(qdev, XG_SERDES_XAUI_HSS_PCS_START, &temp);
 
-		status = ql_read_serdes_reg(qdev,
-				XG_SERDES_XAUI_HSS_PCS_START, &temp);
-		if (status)
-			temp = XG_SERDES_ADDR_XAUI_PWR_DOWN;
-		if ((temp & XG_SERDES_ADDR_XAUI_PWR_DOWN) ==
-					XG_SERDES_ADDR_XAUI_PWR_DOWN)
-			xaui_direct_valid = 0;
-	}
+	if (status)
+		temp = XG_SERDES_ADDR_XAUI_PWR_DOWN;
+
+	if ((temp & XG_SERDES_ADDR_XAUI_PWR_DOWN) ==
+				XG_SERDES_ADDR_XAUI_PWR_DOWN)
+		xaui_direct_valid = 0;
 
 	/*
 	 * XFI register is shared so only need to read one
@@ -724,7 +706,7 @@ static void ql_build_coredump_seg_header(
 	seg_hdr->cookie = MPI_COREDUMP_COOKIE;
 	seg_hdr->segNum = seg_number;
 	seg_hdr->segSize = seg_size;
-	memcpy(seg_hdr->description, desc, (sizeof(seg_hdr->description)) - 1);
+	strncpy(seg_hdr->description, desc, (sizeof(seg_hdr->description)) - 1);
 }
 
 /*
@@ -765,7 +747,7 @@ int ql_core_dump(struct ql_adapter *qdev, struct ql_mpi_coredump *mpi_coredump)
 		sizeof(struct mpi_coredump_global_header);
 	mpi_coredump->mpi_global_header.imageSize =
 		sizeof(struct ql_mpi_coredump);
-	memcpy(mpi_coredump->mpi_global_header.idString, "MPI Coredump",
+	strncpy(mpi_coredump->mpi_global_header.idString, "MPI Coredump",
 		sizeof(mpi_coredump->mpi_global_header.idString));
 
 	/* Get generic NIC reg dump */
@@ -1255,7 +1237,7 @@ static void ql_gen_reg_dump(struct ql_adapter *qdev,
 		sizeof(struct mpi_coredump_global_header);
 	mpi_coredump->mpi_global_header.imageSize =
 		sizeof(struct ql_reg_dump);
-	memcpy(mpi_coredump->mpi_global_header.idString, "MPI Coredump",
+	strncpy(mpi_coredump->mpi_global_header.idString, "MPI Coredump",
 		sizeof(mpi_coredump->mpi_global_header.idString));
 
 

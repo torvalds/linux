@@ -7,11 +7,13 @@
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/ptrace.h>
-#include <linux/sched.h>
+#include <linux/sched/mm.h>
+#include <linux/sched/task.h>
+#include <linux/sched/task_stack.h>
 #include <linux/slab.h>
 #include <asm/current.h>
 #include <asm/processor.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <as-layout.h>
 #include <mem_user.h>
 #include <skas.h>
@@ -30,7 +32,7 @@ void flush_thread(void)
 	if (ret) {
 		printk(KERN_ERR "flush_thread - clearing address space failed, "
 		       "err = %d\n", ret);
-		force_sig(SIGKILL, current);
+		force_sig(SIGKILL);
 	}
 	get_safe_registers(current_pt_regs()->regs.gp,
 			   current_pt_regs()->regs.fp);

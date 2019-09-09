@@ -1,7 +1,6 @@
-# kbuild trick to avoid linker error. Can be omitted if a module is built.
-obj- := dummy.o
-
-hostprogs-$(CONFIG_SAMPLE_SECCOMP) := bpf-fancy dropper bpf-direct
+# SPDX-License-Identifier: GPL-2.0
+ifndef CROSS_COMPILE
+hostprogs-y := bpf-fancy dropper bpf-direct user-trap
 
 HOSTCFLAGS_bpf-fancy.o += -I$(objtree)/usr/include
 HOSTCFLAGS_bpf-fancy.o += -idirafter $(objtree)/include
@@ -17,8 +16,11 @@ HOSTCFLAGS_bpf-direct.o += -I$(objtree)/usr/include
 HOSTCFLAGS_bpf-direct.o += -idirafter $(objtree)/include
 bpf-direct-objs := bpf-direct.o
 
+HOSTCFLAGS_user-trap.o += -I$(objtree)/usr/include
+HOSTCFLAGS_user-trap.o += -idirafter $(objtree)/include
+user-trap-objs := user-trap.o
+
 # Try to match the kernel target.
-ifndef CROSS_COMPILE
 ifndef CONFIG_64BIT
 
 # s390 has -m31 flag to build 31 bit binaries
@@ -32,17 +34,11 @@ HOSTCFLAGS_bpf-direct.o += $(MFLAG)
 HOSTCFLAGS_dropper.o += $(MFLAG)
 HOSTCFLAGS_bpf-helper.o += $(MFLAG)
 HOSTCFLAGS_bpf-fancy.o += $(MFLAG)
-HOSTLOADLIBES_bpf-direct += $(MFLAG)
-HOSTLOADLIBES_bpf-fancy += $(MFLAG)
-HOSTLOADLIBES_dropper += $(MFLAG)
+HOSTCFLAGS_user-trap.o += $(MFLAG)
+HOSTLDLIBS_bpf-direct += $(MFLAG)
+HOSTLDLIBS_bpf-fancy += $(MFLAG)
+HOSTLDLIBS_dropper += $(MFLAG)
+HOSTLDLIBS_user-trap += $(MFLAG)
 endif
 always := $(hostprogs-y)
-else
-# MIPS system calls are defined based on the -mabi that is passed
-# to the toolchain which may or may not be a valid option
-# for the host toolchain. So disable tests if target architecture
-# is MIPS but the host isn't.
-ifndef CONFIG_MIPS
-always := $(hostprogs-y)
-endif
 endif

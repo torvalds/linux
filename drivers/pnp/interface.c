@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * interface.c - contains everything related to the user interface
  *
@@ -17,7 +18,7 @@
 #include <linux/slab.h>
 #include <linux/mutex.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "base.h"
 

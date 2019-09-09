@@ -64,23 +64,6 @@ static inline u32 H(u32 x, u32 y, u32 z)
 #define ROUND2(a,b,c,d,k,s) (a = lshift(a + G(b,c,d) + k + (u32)0x5A827999,s))
 #define ROUND3(a,b,c,d,k,s) (a = lshift(a + H(b,c,d) + k + (u32)0x6ED9EBA1,s))
 
-/* XXX: this stuff can be optimized */
-static inline void le32_to_cpu_array(u32 *buf, unsigned int words)
-{
-	while (words--) {
-		__le32_to_cpus(buf);
-		buf++;
-	}
-}
-
-static inline void cpu_to_le32_array(u32 *buf, unsigned int words)
-{
-	while (words--) {
-		__cpu_to_le32s(buf);
-		buf++;
-	}
-}
-
 static void md4_transform(u32 *hash, u32 const *in)
 {
 	u32 a, b, c, d;
@@ -233,10 +216,10 @@ static struct shash_alg alg = {
 	.final		=	md4_final,
 	.descsize	=	sizeof(struct md4_ctx),
 	.base		=	{
-		.cra_name	=	"md4",
-		.cra_flags	=	CRYPTO_ALG_TYPE_SHASH,
-		.cra_blocksize	=	MD4_HMAC_BLOCK_SIZE,
-		.cra_module	=	THIS_MODULE,
+		.cra_name	 =	"md4",
+		.cra_driver_name =	"md4-generic",
+		.cra_blocksize	 =	MD4_HMAC_BLOCK_SIZE,
+		.cra_module	 =	THIS_MODULE,
 	}
 };
 
@@ -250,7 +233,7 @@ static void __exit md4_mod_fini(void)
 	crypto_unregister_shash(&alg);
 }
 
-module_init(md4_mod_init);
+subsys_initcall(md4_mod_init);
 module_exit(md4_mod_fini);
 
 MODULE_LICENSE("GPL");

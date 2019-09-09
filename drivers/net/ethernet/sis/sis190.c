@@ -714,7 +714,7 @@ static void sis190_tx_interrupt(struct net_device *dev,
 
 		sis190_unmap_tx_skb(tp->pci_dev, skb, txd);
 		tp->Tx_skbuff[entry] = NULL;
-		dev_kfree_skb_irq(skb);
+		dev_consume_skb_irq(skb);
 	}
 
 	if (tp->dirty_tx != dirty_tx) {
@@ -1018,10 +1018,10 @@ out_unlock:
 	rtnl_unlock();
 }
 
-static void sis190_phy_timer(unsigned long __opaque)
+static void sis190_phy_timer(struct timer_list *t)
 {
-	struct net_device *dev = (struct net_device *)__opaque;
-	struct sis190_private *tp = netdev_priv(dev);
+	struct sis190_private *tp = from_timer(tp, t, timer);
+	struct net_device *dev = tp->dev;
 
 	if (likely(netif_running(dev)))
 		schedule_work(&tp->phy_task);
@@ -1039,10 +1039,8 @@ static inline void sis190_request_timer(struct net_device *dev)
 	struct sis190_private *tp = netdev_priv(dev);
 	struct timer_list *timer = &tp->timer;
 
-	init_timer(timer);
+	timer_setup(timer, sis190_phy_timer, 0);
 	timer->expires = jiffies + SIS190_PHY_TIMEOUT;
-	timer->data = (unsigned long)dev;
-	timer->function = sis190_phy_timer;
 	add_timer(timer);
 }
 
@@ -1144,7 +1142,7 @@ static void sis190_down(struct net_device *dev)
 		if (!poll_locked)
 			poll_locked++;
 
-		synchronize_sched();
+		synchronize_rcu();
 
 	} while (SIS_R32(IntrMask));
 
@@ -1734,18 +1732,22 @@ static void sis190_set_speed_auto(struct net_device *dev)
 		   BMCR_ANENABLE | BMCR_ANRESTART | BMCR_RESET);
 }
 
-static int sis190_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int sis190_get_link_ksettings(struct net_device *dev,
+				     struct ethtool_link_ksettings *cmd)
 {
 	struct sis190_private *tp = netdev_priv(dev);
 
-	return mii_ethtool_gset(&tp->mii_if, cmd);
+	mii_ethtool_get_link_ksettings(&tp->mii_if, cmd);
+
+	return 0;
 }
 
-static int sis190_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int sis190_set_link_ksettings(struct net_device *dev,
+				     const struct ethtool_link_ksettings *cmd)
 {
 	struct sis190_private *tp = netdev_priv(dev);
 
-	return mii_ethtool_sset(&tp->mii_if, cmd);
+	return mii_ethtool_set_link_ksettings(&tp->mii_if, cmd);
 }
 
 static void sis190_get_drvinfo(struct net_device *dev,
@@ -1797,8 +1799,6 @@ static void sis190_set_msglevel(struct net_device *dev, u32 value)
 }
 
 static const struct ethtool_ops sis190_ethtool_ops = {
-	.get_settings	= sis190_get_settings,
-	.set_settings	= sis190_set_settings,
 	.get_drvinfo	= sis190_get_drvinfo,
 	.get_regs_len	= sis190_get_regs_len,
 	.get_regs	= sis190_get_regs,
@@ -1806,6 +1806,8 @@ static const struct ethtool_ops sis190_ethtool_ops = {
 	.get_msglevel	= sis190_get_msglevel,
 	.set_msglevel	= sis190_set_msglevel,
 	.nway_reset	= sis190_nway_reset,
+	.get_link_ksettings = sis190_get_link_ksettings,
+	.set_link_ksettings = sis190_set_link_ksettings,
 };
 
 static int sis190_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
@@ -1833,7 +1835,6 @@ static const struct net_device_ops sis190_netdev_ops = {
 	.ndo_start_xmit		= sis190_start_xmit,
 	.ndo_tx_timeout		= sis190_tx_timeout,
 	.ndo_set_rx_mode	= sis190_set_rx_mode,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_set_mac_address	= sis190_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 #ifdef CONFIG_NET_POLL_CONTROLLER

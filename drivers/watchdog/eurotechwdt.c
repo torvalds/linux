@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *	Eurotech CPU-1220/1410/1420 on board WDT driver
  *
@@ -10,11 +11,6 @@
  *
  *	(c) Copyright 1996-1997 Alan Cox <alan@lxorguk.ukuu.org.uk>,
  *						All Rights Reserved.
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
  *
  *	Neither Alan Cox nor CymruNet Ltd. admit liability nor provide
  *	warranty for any of this software. This material is provided
@@ -97,9 +93,9 @@ MODULE_PARM_DESC(nowayout,
 #define WDT_TIMER_CFG		0xf3
 
 
-module_param(io, int, 0);
+module_param_hw(io, int, ioport, 0);
 MODULE_PARM_DESC(io, "Eurotech WDT io port (default=0x3f0)");
-module_param(irq, int, 0);
+module_param_hw(irq, int, irq, 0);
 MODULE_PARM_DESC(irq, "Eurotech WDT irq (default=10)");
 module_param(ev, charp, 0);
 MODULE_PARM_DESC(ev, "Eurotech WDT event type (default is `int')");
@@ -290,7 +286,7 @@ static long eurwdt_ioctl(struct file *file,
 		eurwdt_timeout = time;
 		eurwdt_set_timeout(time);
 		spin_unlock(&eurwdt_lock);
-		/* Fall */
+		/* fall through */
 
 	case WDIOC_GETTIMEOUT:
 		return put_user(eurwdt_timeout, p);
@@ -316,7 +312,7 @@ static int eurwdt_open(struct inode *inode, struct file *file)
 	eurwdt_timeout = WDT_TIMEOUT;	/* initial timeout */
 	/* Activate the WDT */
 	eurwdt_activate_timer();
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 /**

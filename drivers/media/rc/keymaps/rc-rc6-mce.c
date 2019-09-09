@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* rc-rc6-mce.c - Keytable for Windows Media Center RC-6 remotes for use
  * with the Media Center Edition eHome Infrared Transceiver.
  *
@@ -5,11 +6,6 @@
  *
  * See http://mediacenterguides.com/book/export/html/31 for details on
  * key mappings.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <media/rc-map.h>
@@ -86,6 +82,7 @@ static struct rc_map_table rc6_mce[] = {
 	{ 0x800f045e, KEY_BLUE },
 
 	{ 0x800f0465, KEY_POWER2 },	/* TV Power */
+	{ 0x800f0469, KEY_MESSENGER },
 	{ 0x800f046e, KEY_PLAYPAUSE },
 	{ 0x800f046f, KEY_PLAYER },	/* Start media application (NEW) */
 
@@ -95,10 +92,10 @@ static struct rc_map_table rc6_mce[] = {
 
 static struct rc_map_list rc6_mce_map = {
 	.map = {
-		.scan    = rc6_mce,
-		.size    = ARRAY_SIZE(rc6_mce),
-		.rc_type = RC_TYPE_RC6_MCE,
-		.name    = RC_MAP_RC6_MCE,
+		.scan     = rc6_mce,
+		.size     = ARRAY_SIZE(rc6_mce),
+		.rc_proto = RC_PROTO_RC6_MCE,
+		.name     = RC_MAP_RC6_MCE,
 	}
 };
 

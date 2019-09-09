@@ -1,17 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2016 Free Electrons
  *
  * Maxime Ripard <maxime.ripard@free-electrons.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
  */
 
 #include <linux/clk.h>
 #include <linux/component.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
@@ -80,7 +77,7 @@ static void sun6i_drc_unbind(struct device *dev, struct device *master,
 	reset_control_assert(drc->reset);
 }
 
-static struct component_ops sun6i_drc_ops = {
+static const struct component_ops sun6i_drc_ops = {
 	.bind	= sun6i_drc_bind,
 	.unbind	= sun6i_drc_unbind,
 };
@@ -98,7 +95,11 @@ static int sun6i_drc_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id sun6i_drc_of_table[] = {
+	{ .compatible = "allwinner,sun6i-a31-drc" },
+	{ .compatible = "allwinner,sun6i-a31s-drc" },
+	{ .compatible = "allwinner,sun8i-a23-drc" },
 	{ .compatible = "allwinner,sun8i-a33-drc" },
+	{ .compatible = "allwinner,sun9i-a80-drc" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, sun6i_drc_of_table);

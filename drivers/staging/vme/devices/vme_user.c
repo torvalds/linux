@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * VMEbus User access driver
  *
@@ -7,17 +8,11 @@
  * Based on work by:
  *   Tom Armistead and Ajit Prem
  *     Copyright 2004 Motorola Inc.
- *
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/atomic.h>
+#include <linux/refcount.h>
 #include <linux/cdev.h>
 #include <linux/delay.h>
 #include <linux/device.h>
@@ -47,7 +42,8 @@ static const char driver_name[] = "vme_user";
 static int bus[VME_USER_BUS_MAX];
 static unsigned int bus_num;
 
-/* Currently Documentation/devices.txt defines the following for VME:
+/* Currently Documentation/admin-guide/devices.rst defines the
+ * following for VME:
  *
  * 221 char	VME bus
  *		  0 = /dev/bus/vme/m0		First master image
@@ -117,7 +113,7 @@ static const int type[VME_DEVS] = {	MASTER_MINOR,	MASTER_MINOR,
 
 struct vme_user_vma_priv {
 	unsigned int minor;
-	atomic_t refcnt;
+	refcount_t refcnt;
 };
 
 static ssize_t resource_to_user(int minor, char __user *buf, size_t count,
@@ -133,7 +129,7 @@ static ssize_t resource_to_user(int minor, char __user *buf, size_t count,
 	if (copied < 0)
 		return (int)copied;
 
-	if (__copy_to_user(buf, image[minor].kern_buf, (unsigned long)copied))
+	if (copy_to_user(buf, image[minor].kern_buf, (unsigned long)copied))
 		return -EFAULT;
 
 	return copied;
@@ -145,7 +141,7 @@ static ssize_t resource_from_user(unsigned int minor, const char __user *buf,
 	if (count > image[minor].size_buf)
 		count = image[minor].size_buf;
 
-	if (__copy_from_user(image[minor].kern_buf, buf, (unsigned long)count))
+	if (copy_from_user(image[minor].kern_buf, buf, (unsigned long)count))
 		return -EFAULT;
 
 	return vme_master_write(image[minor].resource, image[minor].kern_buf,
@@ -158,7 +154,7 @@ static ssize_t buffer_to_user(unsigned int minor, char __user *buf,
 	void *image_ptr;
 
 	image_ptr = image[minor].kern_buf + *ppos;
-	if (__copy_to_user(buf, image_ptr, (unsigned long)count))
+	if (copy_to_user(buf, image_ptr, (unsigned long)count))
 		return -EFAULT;
 
 	return count;
@@ -170,7 +166,7 @@ static ssize_t buffer_from_user(unsigned int minor, const char __user *buf,
 	void *image_ptr;
 
 	image_ptr = image[minor].kern_buf + *ppos;
-	if (__copy_from_user(image_ptr, buf, (unsigned long)count))
+	if (copy_from_user(image_ptr, buf, (unsigned long)count))
 		return -EFAULT;
 
 	return count;
@@ -429,7 +425,7 @@ static void vme_user_vm_open(struct vm_area_struct *vma)
 {
 	struct vme_user_vma_priv *vma_priv = vma->vm_private_data;
 
-	atomic_inc(&vma_priv->refcnt);
+	refcount_inc(&vma_priv->refcnt);
 }
 
 static void vme_user_vm_close(struct vm_area_struct *vma)
@@ -437,7 +433,7 @@ static void vme_user_vm_close(struct vm_area_struct *vma)
 	struct vme_user_vma_priv *vma_priv = vma->vm_private_data;
 	unsigned int minor = vma_priv->minor;
 
-	if (!atomic_dec_and_test(&vma_priv->refcnt))
+	if (!refcount_dec_and_test(&vma_priv->refcnt))
 		return;
 
 	mutex_lock(&image[minor].mutex);
@@ -472,7 +468,7 @@ static int vme_user_master_mmap(unsigned int minor, struct vm_area_struct *vma)
 	}
 
 	vma_priv->minor = minor;
-	atomic_set(&vma_priv->refcnt, 1);
+	refcount_set(&vma_priv->refcnt, 1);
 	vma->vm_ops = &vme_user_vm_ops;
 	vma->vm_private_data = vma_priv;
 
@@ -562,7 +558,7 @@ static int vme_user_probe(struct vme_dev *vdev)
 	vme_user_cdev->owner = THIS_MODULE;
 	err = cdev_add(vme_user_cdev, MKDEV(VME_MAJOR, 0), VME_DEVS);
 	if (err)
-		goto err_char;
+		goto err_class;
 
 	/* Request slave resources and allocate buffers (128kB wide) */
 	for (i = SLAVE_MINOR; i < (SLAVE_MAX + 1); i++) {
@@ -572,7 +568,7 @@ static int vme_user_probe(struct vme_dev *vdev)
 		 * by all windows.
 		 */
 		image[i].resource = vme_slave_request(vme_user_bridge,
-			VME_A24, VME_SCT);
+						      VME_A24, VME_SCT);
 		if (!image[i].resource) {
 			dev_warn(&vdev->dev,
 				 "Unable to allocate slave resource\n");
@@ -581,7 +577,8 @@ static int vme_user_probe(struct vme_dev *vdev)
 		}
 		image[i].size_buf = PCI_BUF_SIZE;
 		image[i].kern_buf = vme_alloc_consistent(image[i].resource,
-			image[i].size_buf, &image[i].pci_buf);
+							 image[i].size_buf,
+							 &image[i].pci_buf);
 		if (!image[i].kern_buf) {
 			dev_warn(&vdev->dev,
 				 "Unable to allocate memory for buffer\n");
@@ -599,7 +596,8 @@ static int vme_user_probe(struct vme_dev *vdev)
 	for (i = MASTER_MINOR; i < (MASTER_MAX + 1); i++) {
 		/* XXX Need to properly request attributes */
 		image[i].resource = vme_master_request(vme_user_bridge,
-			VME_A32, VME_SCT, VME_D32);
+						       VME_A32, VME_SCT,
+						       VME_D32);
 		if (!image[i].resource) {
 			dev_warn(&vdev->dev,
 				 "Unable to allocate master resource\n");
@@ -620,7 +618,7 @@ static int vme_user_probe(struct vme_dev *vdev)
 	if (IS_ERR(vme_user_sysfs_class)) {
 		dev_err(&vdev->dev, "Error creating vme_user class.\n");
 		err = PTR_ERR(vme_user_sysfs_class);
-		goto err_class;
+		goto err_master;
 	}
 
 	/* Add sysfs Entries */
@@ -644,7 +642,8 @@ static int vme_user_probe(struct vme_dev *vdev)
 
 		num = (type[i] == SLAVE_MINOR) ? i - (MASTER_MAX + 1) : i;
 		image[i].device = device_create(vme_user_sysfs_class, NULL,
-					MKDEV(VME_MAJOR, i), NULL, name, num);
+						MKDEV(VME_MAJOR, i), NULL,
+						name, num);
 		if (IS_ERR(image[i].device)) {
 			dev_info(&vdev->dev, "Error creating sysfs device\n");
 			err = PTR_ERR(image[i].device);
@@ -661,7 +660,7 @@ err_sysfs:
 	}
 	class_destroy(vme_user_sysfs_class);
 
-	/* Ensure counter set correcty to unalloc all master windows */
+	/* Ensure counter set correctly to unalloc all master windows */
 	i = MASTER_MAX + 1;
 err_master:
 	while (i > MASTER_MINOR) {
@@ -671,7 +670,7 @@ err_master:
 	}
 
 	/*
-	 * Ensure counter set correcty to unalloc all slave windows and buffers
+	 * Ensure counter set correctly to unalloc all slave windows and buffers
 	 */
 	i = SLAVE_MAX + 1;
 err_slave:
@@ -716,7 +715,7 @@ static int vme_user_remove(struct vme_dev *dev)
 	/* Unregister device driver */
 	cdev_del(vme_user_cdev);
 
-	/* Unregiser the major and minor device numbers */
+	/* Unregister the major and minor device numbers */
 	unregister_chrdev_region(MKDEV(VME_MAJOR, 0), VME_DEVS);
 
 	return 0;

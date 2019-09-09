@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  tw68 functions to handle video data
  *
@@ -13,16 +14,6 @@
  *  Refactored and updated to the latest v4l core frameworks:
  *
  *  Copyright (C) 2014 Hans Verkuil <hverkuil@xs4all.nl>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
  */
 
 #include <linux/module.h>
@@ -279,9 +270,8 @@ static int tw68_set_scale(struct tw68_dev *dev, unsigned int width,
 		height /= 2;		/* we must set for 1-frame */
 
 	pr_debug("%s: width=%d, height=%d, both=%d\n"
-		 "  tvnorm h_delay=%d, h_start=%d, h_stop=%d, "
-		 "v_delay=%d, v_start=%d, v_stop=%d\n" , __func__,
-		width, height, V4L2_FIELD_HAS_BOTH(field),
+		 "  tvnorm h_delay=%d, h_start=%d, h_stop=%d, v_delay=%d, v_start=%d, v_stop=%d\n",
+		__func__, width, height, V4L2_FIELD_HAS_BOTH(field),
 		norm->h_delay, norm->h_start, norm->h_stop,
 		norm->v_delay, norm->video_v_start,
 		norm->video_v_stop);
@@ -309,16 +299,15 @@ static int tw68_set_scale(struct tw68_dev *dev, unsigned int width,
 		V4L2_FIELD_HAS_TOP(field)    ? "T" : "",
 		V4L2_FIELD_HAS_BOTTOM(field) ? "B" : "",
 		v4l2_norm_to_name(dev->tvnorm->id));
-	pr_debug("%s: hactive=%d, hdelay=%d, hscale=%d; "
-		"vactive=%d, vdelay=%d, vscale=%d\n", __func__,
+	pr_debug("%s: hactive=%d, hdelay=%d, hscale=%d; vactive=%d, vdelay=%d, vscale=%d\n",
+		 __func__,
 		hactive, hdelay, hscale, vactive, vdelay, vscale);
 
 	comb =	((vdelay & 0x300)  >> 2) |
 		((vactive & 0x300) >> 4) |
 		((hdelay & 0x300)  >> 6) |
 		((hactive & 0x300) >> 8);
-	pr_debug("%s: setting CROP_HI=%02x, VDELAY_LO=%02x, "
-		"VACTIVE_LO=%02x, HDELAY_LO=%02x, HACTIVE_LO=%02x\n",
+	pr_debug("%s: setting CROP_HI=%02x, VDELAY_LO=%02x, VACTIVE_LO=%02x, HDELAY_LO=%02x, HACTIVE_LO=%02x\n",
 		__func__, comb, vdelay, vactive, hdelay, hactive);
 	tw_writeb(TW68_CROP_HI, comb);
 	tw_writeb(TW68_VDELAY_LO, vdelay & 0xff);
@@ -327,8 +316,8 @@ static int tw68_set_scale(struct tw68_dev *dev, unsigned int width,
 	tw_writeb(TW68_HACTIVE_LO, hactive & 0xff);
 
 	comb = ((vscale & 0xf00) >> 4) | ((hscale & 0xf00) >> 8);
-	pr_debug("%s: setting SCALE_HI=%02x, VSCALE_LO=%02x, "
-		"HSCALE_LO=%02x\n", __func__, comb, vscale, hscale);
+	pr_debug("%s: setting SCALE_HI=%02x, VSCALE_LO=%02x, HSCALE_LO=%02x\n",
+		 __func__, comb, vscale, hscale);
 	tw_writeb(TW68_SCALE_HI, comb);
 	tw_writeb(TW68_VSCALE_LO, vscale);
 	tw_writeb(TW68_HSCALE_LO, hscale);
@@ -448,7 +437,7 @@ static void tw68_buf_queue(struct vb2_buffer *vb)
 /*
  * buffer_prepare
  *
- * Set the ancilliary information into the buffer structure.  This
+ * Set the ancillary information into the buffer structure.  This
  * includes generating the necessary risc program if it hasn't already
  * been done for the current buffer format.
  * The structure fh contains the details of the format requested by the
@@ -736,16 +725,10 @@ static int tw68_querycap(struct file *file, void  *priv,
 {
 	struct tw68_dev *dev = video_drvdata(file);
 
-	strcpy(cap->driver, "tw68");
-	strlcpy(cap->card, "Techwell Capture Card",
+	strscpy(cap->driver, "tw68", sizeof(cap->driver));
+	strscpy(cap->card, "Techwell Capture Card",
 		sizeof(cap->card));
 	sprintf(cap->bus_info, "PCI:%s", pci_name(dev->pci));
-	cap->device_caps =
-		V4L2_CAP_VIDEO_CAPTURE |
-		V4L2_CAP_READWRITE |
-		V4L2_CAP_STREAMING;
-
-	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -791,7 +774,7 @@ static int tw68_enum_fmt_vid_cap(struct file *file, void  *priv,
 	if (f->index >= FORMATS)
 		return -EINVAL;
 
-	strlcpy(f->description, formats[f->index].name,
+	strscpy(f->description, formats[f->index].name,
 		sizeof(f->description));
 
 	f->pixelformat = formats[f->index].fourcc;
@@ -918,12 +901,14 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 #endif
 };
 
-static struct video_device tw68_video_template = {
+static const struct video_device tw68_video_template = {
 	.name			= "tw68_video",
 	.fops			= &video_fops,
 	.ioctl_ops		= &video_ioctl_ops,
 	.release		= video_device_release_empty,
 	.tvnorms		= TW68_NORMS,
+	.device_caps		= V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_READWRITE |
+				  V4L2_CAP_STREAMING,
 };
 
 /* ------------------------------------------------------------------ */

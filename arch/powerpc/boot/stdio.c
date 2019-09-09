@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) Paul Mackerras 1997.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 #include <stdarg.h>
 #include <stddef.h>
@@ -19,6 +15,16 @@ size_t strnlen(const char * s, size_t count)
 	for (sc = s; count-- && *sc != '\0'; ++sc)
 		/* nothing */;
 	return sc - s;
+}
+
+char *strrchr(const char *s, int c)
+{
+	const char *last = NULL;
+	do {
+		if (*s == (char)c)
+			last = s;
+	} while (*s++);
+	return (char *)last;
 }
 
 #ifdef __powerpc64__

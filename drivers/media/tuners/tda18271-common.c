@@ -1,21 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
     tda18271-common.c - driver for the Philips / NXP TDA18271 silicon tuner
 
     Copyright (C) 2007, 2008 Michael Krufky <mkrufky@linuxtv.org>
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
 #include "tda18271-priv.h"
@@ -225,7 +213,7 @@ static int __tda18271_write_regs(struct dvb_frontend *fe, int idx, int len,
 	 */
 	if (lock_i2c) {
 		tda18271_i2c_gate_ctrl(fe, 1);
-		i2c_lock_adapter(priv->i2c_props.adap);
+		i2c_lock_bus(priv->i2c_props.adap, I2C_LOCK_SEGMENT);
 	}
 	while (len) {
 		if (max > len)
@@ -246,13 +234,13 @@ static int __tda18271_write_regs(struct dvb_frontend *fe, int idx, int len,
 		len -= max;
 	}
 	if (lock_i2c) {
-		i2c_unlock_adapter(priv->i2c_props.adap);
+		i2c_unlock_bus(priv->i2c_props.adap, I2C_LOCK_SEGMENT);
 		tda18271_i2c_gate_ctrl(fe, 0);
 	}
 
 	if (ret != 1)
-		tda_err("ERROR: idx = 0x%x, len = %d, "
-			"i2c_transfer returned: %d\n", idx, max, ret);
+		tda_err("ERROR: idx = 0x%x, len = %d, i2c_transfer returned: %d\n",
+			idx, max, ret);
 
 	return (ret == 1 ? 0 : ret);
 }
@@ -300,7 +288,7 @@ int tda18271_init_regs(struct dvb_frontend *fe)
 	 * as those could cause bad things
 	 */
 	tda18271_i2c_gate_ctrl(fe, 1);
-	i2c_lock_adapter(priv->i2c_props.adap);
+	i2c_lock_bus(priv->i2c_props.adap, I2C_LOCK_SEGMENT);
 
 	/* initialize registers */
 	switch (priv->id) {
@@ -516,7 +504,7 @@ int tda18271_init_regs(struct dvb_frontend *fe)
 	/* synchronize */
 	__tda18271_write_regs(fe, R_EP1, 1, false);
 
-	i2c_unlock_adapter(priv->i2c_props.adap);
+	i2c_unlock_bus(priv->i2c_props.adap, I2C_LOCK_SEGMENT);
 	tda18271_i2c_gate_ctrl(fe, 0);
 
 	return 0;
@@ -528,14 +516,14 @@ int tda18271_init_regs(struct dvb_frontend *fe)
  *  Standby modes, EP3 [7:5]
  *
  *  | SM  || SM_LT || SM_XT || mode description
- *  |=====\\=======\\=======\\===================================
+ *  |=====\\=======\\=======\\====================================
  *  |  0  ||   0   ||   0   || normal mode
- *  |-----||-------||-------||-----------------------------------
+ *  |-----||-------||-------||------------------------------------
  *  |     ||       ||       || standby mode w/ slave tuner output
- *  |  1  ||   0   ||   0   || & loop thru & xtal oscillator on
- *  |-----||-------||-------||-----------------------------------
+ *  |  1  ||   0   ||   0   || & loop through & xtal oscillator on
+ *  |-----||-------||-------||------------------------------------
  *  |  1  ||   1   ||   0   || standby mode w/ xtal oscillator on
- *  |-----||-------||-------||-----------------------------------
+ *  |-----||-------||-------||------------------------------------
  *  |  1  ||   1   ||   1   || power off
  *
  */

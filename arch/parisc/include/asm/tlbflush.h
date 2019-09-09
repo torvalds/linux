@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _PARISC_TLBFLUSH_H
 #define _PARISC_TLBFLUSH_H
 
@@ -6,21 +7,6 @@
 #include <linux/mm.h>
 #include <linux/sched.h>
 #include <asm/mmu_context.h>
-
-
-/* This is for the serialisation of PxTLB broadcasts.  At least on the
- * N class systems, only one PxTLB inter processor broadcast can be
- * active at any one time on the Merced bus.  This tlb purge
- * synchronisation is fairly lightweight and harmless so we activate
- * it on all systems not just the N class.
-
- * It is also used to ensure PTE updates are atomic and consistent
- * with the TLB.
- */
-extern spinlock_t pa_tlb_lock;
-
-#define purge_tlb_start(flags)	spin_lock_irqsave(&pa_tlb_lock, flags)
-#define purge_tlb_end(flags)	spin_unlock_irqrestore(&pa_tlb_lock, flags)
 
 extern void flush_tlb_all(void);
 extern void flush_tlb_all_local(void *);
@@ -78,14 +64,6 @@ static inline void flush_tlb_mm(struct mm_struct *mm)
 static inline void flush_tlb_page(struct vm_area_struct *vma,
 	unsigned long addr)
 {
-	unsigned long flags, sid;
-
-	sid = vma->vm_mm->context;
-	purge_tlb_start(flags);
-	mtsp(sid, 1);
-	pdtlb(addr);
-	if (unlikely(split_tlb))
-		pitlb(addr);
-	purge_tlb_end(flags);
+	purge_tlb_entries(vma->vm_mm, addr);
 }
 #endif

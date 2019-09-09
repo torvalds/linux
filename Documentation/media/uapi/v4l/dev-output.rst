@@ -1,4 +1,11 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 .. _output:
 
@@ -40,8 +47,8 @@ Video output devices shall support :ref:`audio output <audio>`,
 :ref:`modulator <tuner>`, :ref:`controls <control>`,
 :ref:`cropping and scaling <crop>` and
 :ref:`streaming parameter <streaming-par>` ioctls as needed. The
-:ref:`video output <video>` and :ref:`video standard <standard>`
-ioctls must be supported by all video output devices.
+:ref:`video output <video>` ioctls must be supported by all video
+output devices.
 
 
 Image Format Negotiation

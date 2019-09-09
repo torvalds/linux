@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright Altera Corporation (C) 2016. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <linux/io.h>
 #include <linux/of_platform.h>
@@ -74,7 +63,7 @@ void socfpga_init_arria10_l2_ecc(void)
 	}
 
 	if (!sys_manager_base_addr) {
-		pr_err("System Mananger not mapped for L2 ECC\n");
+		pr_err("System Manager not mapped for L2 ECC\n");
 		goto exit;
 	}
 	/* Clear any pending IRQs */

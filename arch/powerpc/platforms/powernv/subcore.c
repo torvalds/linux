@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2013, Michael (Ellerman|Neuling), IBM Corporation.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #define pr_fmt(fmt)	"powernv: " fmt
@@ -18,6 +14,7 @@
 #include <linux/stop_machine.h>
 
 #include <asm/cputhreads.h>
+#include <asm/cpuidle.h>
 #include <asm/kvm_ppc.h>
 #include <asm/machdep.h>
 #include <asm/opal.h>
@@ -182,7 +179,7 @@ static void unsplit_core(void)
 	cpu = smp_processor_id();
 	if (cpu_thread_in_core(cpu) != 0) {
 		while (mfspr(SPRN_HID0) & mask)
-			power7_nap(0);
+			power7_idle_type(PNV_THREAD_NAP);
 
 		per_cpu(split_state, cpu).step = SYNC_STEP_UNSPLIT;
 		return;
@@ -279,7 +276,7 @@ void update_subcore_sibling_mask(void)
 		int offset = (tid / threads_per_subcore) * threads_per_subcore;
 		int mask = sibling_mask_first_cpu << offset;
 
-		paca[cpu].subcore_sibling_mask = mask;
+		paca_ptrs[cpu]->subcore_sibling_mask = mask;
 
 	}
 }
@@ -348,7 +345,7 @@ static int set_subcores_per_core(int new_mode)
 		state->master = 0;
 	}
 
-	get_online_cpus();
+	cpus_read_lock();
 
 	/* This cpu will update the globals before exiting stop machine */
 	this_cpu_ptr(&split_state)->master = 1;
@@ -356,9 +353,10 @@ static int set_subcores_per_core(int new_mode)
 	/* Ensure state is consistent before we call the other cpus */
 	mb();
 
-	stop_machine(cpu_update_split_mode, &new_mode, cpu_online_mask);
+	stop_machine_cpuslocked(cpu_update_split_mode, &new_mode,
+				cpu_online_mask);
 
-	put_online_cpus();
+	cpus_read_unlock();
 
 	return 0;
 }
@@ -407,7 +405,13 @@ static DEVICE_ATTR(subcores_per_core, 0644,
 
 static int subcore_init(void)
 {
-	if (!cpu_has_feature(CPU_FTR_SUBCORE))
+	unsigned pvr_ver;
+
+	pvr_ver = PVR_VER(mfspr(SPRN_PVR));
+
+	if (pvr_ver != PVR_POWER8 &&
+	    pvr_ver != PVR_POWER8E &&
+	    pvr_ver != PVR_POWER8NVL)
 		return 0;
 
 	/*

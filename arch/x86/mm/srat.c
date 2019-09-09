@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * ACPI 3.0 based NUMA setup
  * Copyright 2004 Andi Kleen, SuSE Labs.
@@ -18,7 +19,7 @@
 #include <linux/mm.h>
 #include <asm/proto.h>
 #include <asm/numa.h>
-#include <asm/e820.h>
+#include <asm/e820/api.h>
 #include <asm/apic.h>
 #include <asm/uv/uv.h>
 

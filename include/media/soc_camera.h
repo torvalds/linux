@@ -1,12 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * camera image capture (abstract) bus driver header
  *
  * Copyright (C) 2006, Sascha Hauer, Pengutronix
  * Copyright (C) 2008, Guennadi Liakhovetski <kernel@pengutronix.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef SOC_CAMERA_H
@@ -17,7 +14,6 @@
 #include <linux/mutex.h>
 #include <linux/pm.h>
 #include <linux/videodev2.h>
-#include <media/videobuf-core.h>
 #include <media/videobuf2-v4l2.h>
 #include <media/v4l2-async.h>
 #include <media/v4l2-ctrls.h>
@@ -55,10 +51,7 @@ struct soc_camera_device {
 	/* Asynchronous subdevice management */
 	struct soc_camera_async_client *sasc;
 	/* video buffer queue */
-	union {
-		struct videobuf_queue vb_vidq;
-		struct vb2_queue vb2_vidq;
-	};
+	struct vb2_queue vb2_vidq;
 };
 
 /* Host supports programmable stride */
@@ -114,17 +107,14 @@ struct soc_camera_host_ops {
 	int (*set_liveselection)(struct soc_camera_device *, struct v4l2_selection *);
 	int (*set_fmt)(struct soc_camera_device *, struct v4l2_format *);
 	int (*try_fmt)(struct soc_camera_device *, struct v4l2_format *);
-	void (*init_videobuf)(struct videobuf_queue *,
-			      struct soc_camera_device *);
 	int (*init_videobuf2)(struct vb2_queue *,
 			      struct soc_camera_device *);
-	int (*reqbufs)(struct soc_camera_device *, struct v4l2_requestbuffers *);
 	int (*querycap)(struct soc_camera_host *, struct v4l2_capability *);
 	int (*set_bus_param)(struct soc_camera_device *);
 	int (*get_parm)(struct soc_camera_device *, struct v4l2_streamparm *);
 	int (*set_parm)(struct soc_camera_device *, struct v4l2_streamparm *);
 	int (*enum_framesizes)(struct soc_camera_device *, struct v4l2_frmsizeenum *);
-	unsigned int (*poll)(struct file *, poll_table *);
+	__poll_t (*poll)(struct file *, poll_table *);
 };
 
 #define SOCAM_SENSOR_INVERT_PCLK	(1 << 0)
@@ -394,11 +384,6 @@ static inline struct v4l2_subdev *soc_camera_vdev_to_subdev(struct video_device 
 static inline struct soc_camera_device *soc_camera_from_vb2q(const struct vb2_queue *vq)
 {
 	return container_of(vq, struct soc_camera_device, vb2_vidq);
-}
-
-static inline struct soc_camera_device *soc_camera_from_vbq(const struct videobuf_queue *vq)
-{
-	return container_of(vq, struct soc_camera_device, vb_vidq);
 }
 
 static inline u32 soc_camera_grp_id(const struct soc_camera_device *icd)

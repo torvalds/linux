@@ -1,7 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #include <linux/types.h>
 #include <crypto/aes.h>
-
-#define AES_BLOCK_MASK  (~(AES_BLOCK_SIZE-1))
 
 struct aes_key {
 	u8 key[AES_MAX_KEYLENGTH];

@@ -1,60 +1,26 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Generic on-chip SRAM allocation driver
  *
  * Copyright (C) 2012 Philipp Zabel, Pengutronix
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
- * MA 02110-1301, USA.
  */
 
 #include <linux/clk.h>
+#include <linux/delay.h>
 #include <linux/genalloc.h>
 #include <linux/io.h>
 #include <linux/list_sort.h>
 #include <linux/of_address.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/regmap.h>
 #include <linux/slab.h>
+#include <linux/mfd/syscon.h>
+#include <soc/at91/atmel-secumod.h>
+
+#include "sram.h"
 
 #define SRAM_GRANULARITY	32
-
-struct sram_partition {
-	void __iomem *base;
-
-	struct gen_pool *pool;
-	struct bin_attribute battr;
-	struct mutex lock;
-};
-
-struct sram_dev {
-	struct device *dev;
-	void __iomem *virt_base;
-
-	struct gen_pool *pool;
-	struct clk *clk;
-
-	struct sram_partition *partition;
-	u32 partitions;
-};
-
-struct sram_reserve {
-	struct list_head list;
-	u32 start;
-	u32 size;
-	bool export;
-	bool pool;
-	const char *label;
-};
 
 static ssize_t sram_read(struct file *filp, struct kobject *kobj,
 			 struct bin_attribute *attr,
@@ -143,6 +109,18 @@ static int sram_add_partition(struct sram_dev *sram, struct sram_reserve *block,
 		if (ret)
 			return ret;
 	}
+	if (block->protect_exec) {
+		ret = sram_check_protect_exec(sram, block, part);
+		if (ret)
+			return ret;
+
+		ret = sram_add_pool(sram, block, start, part);
+		if (ret)
+			return ret;
+
+		sram_add_protect_exec(part);
+	}
+
 	sram->partitions++;
 
 	return 0;
@@ -194,7 +172,7 @@ static int sram_reserve_regions(struct sram_dev *sram, struct resource *res)
 	 * after the reserved blocks from the dt are processed.
 	 */
 	nblocks = (np) ? of_get_available_child_count(np) + 1 : 1;
-	rblocks = kzalloc((nblocks) * sizeof(*rblocks), GFP_KERNEL);
+	rblocks = kcalloc(nblocks, sizeof(*rblocks), GFP_KERNEL);
 	if (!rblocks)
 		return -ENOMEM;
 
@@ -205,15 +183,15 @@ static int sram_reserve_regions(struct sram_dev *sram, struct resource *res)
 		ret = of_address_to_resource(child, 0, &child_res);
 		if (ret < 0) {
 			dev_err(sram->dev,
-				"could not get address for node %s\n",
-				child->full_name);
+				"could not get address for node %pOF\n",
+				child);
 			goto err_chunks;
 		}
 
 		if (child_res.start < res->start || child_res.end > res->end) {
 			dev_err(sram->dev,
-				"reserved block %s outside the sram area\n",
-				child->full_name);
+				"reserved block %pOF outside the sram area\n",
+				child);
 			ret = -EINVAL;
 			goto err_chunks;
 		}
@@ -228,15 +206,19 @@ static int sram_reserve_regions(struct sram_dev *sram, struct resource *res)
 		if (of_find_property(child, "pool", NULL))
 			block->pool = true;
 
-		if ((block->export || block->pool) && block->size) {
+		if (of_find_property(child, "protect-exec", NULL))
+			block->protect_exec = true;
+
+		if ((block->export || block->pool || block->protect_exec) &&
+		    block->size) {
 			exports++;
 
 			label = NULL;
 			ret = of_property_read_string(child, "label", &label);
 			if (ret && ret != -EINVAL) {
 				dev_err(sram->dev,
-					"%s has invalid label name\n",
-					child->full_name);
+					"%pOF has invalid label name\n",
+					child);
 				goto err_chunks;
 			}
 			if (!label)
@@ -244,8 +226,10 @@ static int sram_reserve_regions(struct sram_dev *sram, struct resource *res)
 
 			block->label = devm_kstrdup(sram->dev,
 						    label, GFP_KERNEL);
-			if (!block->label)
+			if (!block->label) {
+				ret = -ENOMEM;
 				goto err_chunks;
+			}
 
 			dev_dbg(sram->dev, "found %sblock '%s' 0x%x-0x%x\n",
 				block->export ? "exported " : "", block->label,
@@ -267,8 +251,8 @@ static int sram_reserve_regions(struct sram_dev *sram, struct resource *res)
 	list_sort(NULL, &reserve_list, sram_reserve_cmp);
 
 	if (exports) {
-		sram->partition = devm_kzalloc(sram->dev,
-				       exports * sizeof(*sram->partition),
+		sram->partition = devm_kcalloc(sram->dev,
+				       exports, sizeof(*sram->partition),
 				       GFP_KERNEL);
 		if (!sram->partition) {
 			ret = -ENOMEM;
@@ -288,7 +272,8 @@ static int sram_reserve_regions(struct sram_dev *sram, struct resource *res)
 			goto err_chunks;
 		}
 
-		if ((block->export || block->pool) && block->size) {
+		if ((block->export || block->pool || block->protect_exec) &&
+		    block->size) {
 			ret = sram_add_partition(sram, block,
 						 res->start + block->start);
 			if (ret) {
@@ -325,14 +310,32 @@ static int sram_reserve_regions(struct sram_dev *sram, struct resource *res)
 		cur_start = block->start + block->size;
 	}
 
- err_chunks:
-	if (child)
-		of_node_put(child);
-
+err_chunks:
+	of_node_put(child);
 	kfree(rblocks);
 
 	return ret;
 }
+
+static int atmel_securam_wait(void)
+{
+	struct regmap *regmap;
+	u32 val;
+
+	regmap = syscon_regmap_lookup_by_compatible("atmel,sama5d2-secumod");
+	if (IS_ERR(regmap))
+		return -ENODEV;
+
+	return regmap_read_poll_timeout(regmap, AT91_SECUMOD_RAMRDY, val,
+					val & AT91_SECUMOD_RAMRDY_READY,
+					10000, 500000);
+}
+
+static const struct of_device_id sram_dt_ids[] = {
+	{ .compatible = "mmio-sram" },
+	{ .compatible = "atmel,sama5d2-securam", .data = atmel_securam_wait },
+	{}
+};
 
 static int sram_probe(struct platform_device *pdev)
 {
@@ -340,6 +343,7 @@ static int sram_probe(struct platform_device *pdev)
 	struct resource *res;
 	size_t size;
 	int ret;
+	int (*init_func)(void);
 
 	sram = devm_kzalloc(&pdev->dev, sizeof(*sram), GFP_KERNEL);
 	if (!sram)
@@ -372,22 +376,37 @@ static int sram_probe(struct platform_device *pdev)
 	if (IS_ERR(sram->pool))
 		return PTR_ERR(sram->pool);
 
-	ret = sram_reserve_regions(sram, res);
-	if (ret)
-		return ret;
-
 	sram->clk = devm_clk_get(sram->dev, NULL);
 	if (IS_ERR(sram->clk))
 		sram->clk = NULL;
 	else
 		clk_prepare_enable(sram->clk);
 
+	ret = sram_reserve_regions(sram, res);
+	if (ret)
+		goto err_disable_clk;
+
 	platform_set_drvdata(pdev, sram);
+
+	init_func = of_device_get_match_data(&pdev->dev);
+	if (init_func) {
+		ret = init_func();
+		if (ret)
+			goto err_free_partitions;
+	}
 
 	dev_dbg(sram->dev, "SRAM pool: %zu KiB @ 0x%p\n",
 		gen_pool_size(sram->pool) / 1024, sram->virt_base);
 
 	return 0;
+
+err_free_partitions:
+	sram_free_partitions(sram);
+err_disable_clk:
+	if (sram->clk)
+		clk_disable_unprepare(sram->clk);
+
+	return ret;
 }
 
 static int sram_remove(struct platform_device *pdev)
@@ -405,17 +424,10 @@ static int sram_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_OF
-static const struct of_device_id sram_dt_ids[] = {
-	{ .compatible = "mmio-sram" },
-	{}
-};
-#endif
-
 static struct platform_driver sram_driver = {
 	.driver = {
 		.name = "sram",
-		.of_match_table = of_match_ptr(sram_dt_ids),
+		.of_match_table = sram_dt_ids,
 	},
 	.probe = sram_probe,
 	.remove = sram_remove,

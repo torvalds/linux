@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *
  * device driver for philips saa7134 based TV cards
  * driver core
  *
  * (c) 2001-03 Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include "saa7134.h"
@@ -66,8 +53,7 @@ MODULE_PARM_DESC(latency,"pci latency timer");
 
 int saa7134_no_overlay=-1;
 module_param_named(no_overlay, saa7134_no_overlay, int, 0444);
-MODULE_PARM_DESC(no_overlay,"allow override overlay default (0 disables, 1 enables)"
-		" [some VIA/SIS chipsets are known to have problem with overlay]");
+MODULE_PARM_DESC(no_overlay, "allow override overlay default (0 disables, 1 enables) [some VIA/SIS chipsets are known to have problem with overlay]");
 
 bool saa7134_userptr;
 module_param(saa7134_userptr, bool, 0644);
@@ -343,9 +329,9 @@ void saa7134_buffer_next(struct saa7134_dev *dev,
 	}
 }
 
-void saa7134_buffer_timeout(unsigned long data)
+void saa7134_buffer_timeout(struct timer_list *t)
 {
-	struct saa7134_dmaqueue *q = (struct saa7134_dmaqueue *)data;
+	struct saa7134_dmaqueue *q = from_timer(q, t, timeout);
 	struct saa7134_dev *dev = q->dev;
 	unsigned long flags;
 
@@ -383,7 +369,7 @@ void saa7134_stop_streaming(struct saa7134_dev *dev, struct saa7134_dmaqueue *q)
 		}
 	}
 	spin_unlock_irqrestore(&dev->slock, flags);
-	saa7134_buffer_timeout((unsigned long)q); /* also calls del_timer(&q->timeout) */
+	saa7134_buffer_timeout(&q->timeout); /* also calls del_timer(&q->timeout) */
 }
 EXPORT_SYMBOL_GPL(saa7134_stop_streaming);
 
@@ -619,25 +605,25 @@ static irqreturn_t saa7134_irq(int irq, void *dev_id)
 		print_irqstatus(dev,loop,report,status);
 		if (report & SAA7134_IRQ_REPORT_PE) {
 			/* disable all parity error */
-			pr_warn("%s/irq: looping -- "
-			       "clearing PE (parity error!) enable bit\n",dev->name);
+			pr_warn("%s/irq: looping -- clearing PE (parity error!) enable bit\n",
+				dev->name);
 			saa_clearl(SAA7134_IRQ2,SAA7134_IRQ2_INTE_PE);
 		} else if (report & SAA7134_IRQ_REPORT_GPIO16) {
 			/* disable gpio16 IRQ */
-			pr_warn("%s/irq: looping -- "
-			       "clearing GPIO16 enable bit\n",dev->name);
+			pr_warn("%s/irq: looping -- clearing GPIO16 enable bit\n",
+				dev->name);
 			saa_clearl(SAA7134_IRQ2, SAA7134_IRQ2_INTE_GPIO16_P);
 			saa_clearl(SAA7134_IRQ2, SAA7134_IRQ2_INTE_GPIO16_N);
 		} else if (report & SAA7134_IRQ_REPORT_GPIO18) {
 			/* disable gpio18 IRQs */
-			pr_warn("%s/irq: looping -- "
-			       "clearing GPIO18 enable bit\n",dev->name);
+			pr_warn("%s/irq: looping -- clearing GPIO18 enable bit\n",
+				dev->name);
 			saa_clearl(SAA7134_IRQ2, SAA7134_IRQ2_INTE_GPIO18_P);
 			saa_clearl(SAA7134_IRQ2, SAA7134_IRQ2_INTE_GPIO18_N);
 		} else {
 			/* disable all irqs */
-			pr_warn("%s/irq: looping -- "
-			       "clearing all enable bits\n",dev->name);
+			pr_warn("%s/irq: looping -- clearing all enable bits\n",
+				dev->name);
 			saa_writel(SAA7134_IRQ1,0);
 			saa_writel(SAA7134_IRQ2,0);
 		}
@@ -850,12 +836,13 @@ static void saa7134_create_entities(struct saa7134_dev *dev)
 	 */
 	if (!decoder) {
 		dev->demod.name = "saa713x";
-		dev->demod_pad[DEMOD_PAD_IF_INPUT].flags = MEDIA_PAD_FL_SINK;
-		dev->demod_pad[DEMOD_PAD_VID_OUT].flags = MEDIA_PAD_FL_SOURCE;
-		dev->demod_pad[DEMOD_PAD_VBI_OUT].flags = MEDIA_PAD_FL_SOURCE;
+		dev->demod_pad[SAA7134_PAD_IF_INPUT].flags = MEDIA_PAD_FL_SINK;
+		dev->demod_pad[SAA7134_PAD_IF_INPUT].sig_type = PAD_SIGNAL_ANALOG;
+		dev->demod_pad[SAA7134_PAD_VID_OUT].flags = MEDIA_PAD_FL_SOURCE;
+		dev->demod_pad[SAA7134_PAD_VID_OUT].sig_type = PAD_SIGNAL_DV;
 		dev->demod.function = MEDIA_ENT_F_ATV_DECODER;
 
-		ret = media_entity_pads_init(&dev->demod, DEMOD_NUM_PADS,
+		ret = media_entity_pads_init(&dev->demod, SAA7134_NUM_PADS,
 					     dev->demod_pad);
 		if (ret < 0)
 			pr_err("failed to initialize demod pad!\n");
@@ -1081,18 +1068,14 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 		}
 #endif
 		if (pci_pci_problems & (PCIPCI_FAIL|PCIAGP_FAIL)) {
-			pr_info("%s: quirk: this driver and your "
-					"chipset may not work together"
-					" in overlay mode.\n",dev->name);
+			pr_info("%s: quirk: this driver and your chipset may not work together in overlay mode.\n",
+				dev->name);
 			if (!saa7134_no_overlay) {
-				pr_info("%s: quirk: overlay "
-						"mode will be disabled.\n",
+				pr_info("%s: quirk: overlay mode will be disabled.\n",
 						dev->name);
 				saa7134_no_overlay = 1;
 			} else {
-				pr_info("%s: quirk: overlay "
-						"mode will be forced. Use this"
-						" option at your own risk.\n",
+				pr_info("%s: quirk: overlay mode will be forced. Use this option at your own risk.\n",
 						dev->name);
 			}
 		}
@@ -1106,10 +1089,10 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 	/* print pci info */
 	dev->pci_rev = pci_dev->revision;
 	pci_read_config_byte(pci_dev, PCI_LATENCY_TIMER,  &dev->pci_lat);
-	pr_info("%s: found at %s, rev: %d, irq: %d, "
-	       "latency: %d, mmio: 0x%llx\n", dev->name,
-	       pci_name(pci_dev), dev->pci_rev, pci_dev->irq,
-	       dev->pci_lat,(unsigned long long)pci_resource_start(pci_dev,0));
+	pr_info("%s: found at %s, rev: %d, irq: %d, latency: %d, mmio: 0x%llx\n",
+		dev->name, pci_name(pci_dev), dev->pci_rev, pci_dev->irq,
+		dev->pci_lat,
+		(unsigned long long)pci_resource_start(pci_dev, 0));
 	pci_set_master(pci_dev);
 	err = pci_set_dma_mask(pci_dev, DMA_BIT_MASK(32));
 	if (err) {
@@ -1223,6 +1206,14 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 	dev->video_dev->ctrl_handler = &dev->ctrl_handler;
 	dev->video_dev->lock = &dev->lock;
 	dev->video_dev->queue = &dev->video_vbq;
+	dev->video_dev->device_caps = V4L2_CAP_READWRITE | V4L2_CAP_STREAMING |
+				      V4L2_CAP_VIDEO_CAPTURE;
+	if (dev->tuner_type != TUNER_ABSENT && dev->tuner_type != UNSET)
+		dev->video_dev->device_caps |= V4L2_CAP_TUNER;
+
+	if (saa7134_no_overlay <= 0)
+		dev->video_dev->device_caps |= V4L2_CAP_VIDEO_OVERLAY;
+
 	err = video_register_device(dev->video_dev,VFL_TYPE_GRABBER,
 				    video_nr[dev->nr]);
 	if (err < 0) {
@@ -1237,6 +1228,10 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 	dev->vbi_dev->ctrl_handler = &dev->ctrl_handler;
 	dev->vbi_dev->lock = &dev->lock;
 	dev->vbi_dev->queue = &dev->vbi_vbq;
+	dev->vbi_dev->device_caps = V4L2_CAP_READWRITE | V4L2_CAP_STREAMING |
+				    V4L2_CAP_VBI_CAPTURE;
+	if (dev->tuner_type != TUNER_ABSENT && dev->tuner_type != UNSET)
+		dev->vbi_dev->device_caps |= V4L2_CAP_TUNER;
 
 	err = video_register_device(dev->vbi_dev,VFL_TYPE_VBI,
 				    vbi_nr[dev->nr]);
@@ -1249,6 +1244,9 @@ static int saa7134_initdev(struct pci_dev *pci_dev,
 		dev->radio_dev = vdev_init(dev,&saa7134_radio_template,"radio");
 		dev->radio_dev->ctrl_handler = &dev->radio_ctrl_handler;
 		dev->radio_dev->lock = &dev->lock;
+		dev->radio_dev->device_caps = V4L2_CAP_RADIO | V4L2_CAP_TUNER;
+		if (dev->has_rds)
+			dev->radio_dev->device_caps |= V4L2_CAP_RDS_CAPTURE;
 		err = video_register_device(dev->radio_dev,VFL_TYPE_RADIO,
 					    radio_nr[dev->nr]);
 		if (err < 0)
@@ -1427,8 +1425,8 @@ static int saa7134_suspend(struct pci_dev *pci_dev , pm_message_t state)
 	del_timer(&dev->vbi_q.timeout);
 	del_timer(&dev->ts_q.timeout);
 
-	if (dev->remote)
-		saa7134_ir_stop(dev);
+	if (dev->remote && dev->remote->dev->users)
+		saa7134_ir_close(dev->remote->dev);
 
 	pci_save_state(pci_dev);
 	pci_set_power_state(pci_dev, pci_choose_state(pci_dev, state));
@@ -1455,8 +1453,8 @@ static int saa7134_resume(struct pci_dev *pci_dev)
 		saa7134_videoport_init(dev);
 	if (card_has_mpeg(dev))
 		saa7134_ts_init_hw(dev);
-	if (dev->remote)
-		saa7134_ir_start(dev);
+	if (dev->remote && dev->remote->dev->users)
+		saa7134_ir_open(dev->remote->dev);
 	saa7134_hw_enable1(dev);
 
 	msleep(100);

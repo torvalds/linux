@@ -1,4 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /* rtc-sun4v.c: Hypervisor based RTC for SUN4V systems.
+ *
+ * Author: David S. Miller
  *
  * Copyright (C) 2008 David S. Miller <davem@davemloft.net>
  */
@@ -6,7 +9,6 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/rtc.h>
@@ -37,7 +39,7 @@ retry:
 
 static int sun4v_read_time(struct device *dev, struct rtc_time *tm)
 {
-	rtc_time_to_tm(hypervisor_get_time(), tm);
+	rtc_time64_to_tm(hypervisor_get_time(), tm);
 	return 0;
 }
 
@@ -64,14 +66,7 @@ retry:
 
 static int sun4v_set_time(struct device *dev, struct rtc_time *tm)
 {
-	unsigned long secs;
-	int err;
-
-	err = rtc_tm_to_time(tm, &secs);
-	if (err)
-		return err;
-
-	return hypervisor_set_time(secs);
+	return hypervisor_set_time(rtc_tm_to_time64(tm));
 }
 
 static const struct rtc_class_ops sun4v_rtc_ops = {
@@ -83,13 +78,15 @@ static int __init sun4v_rtc_probe(struct platform_device *pdev)
 {
 	struct rtc_device *rtc;
 
-	rtc = devm_rtc_device_register(&pdev->dev, "sun4v",
-				&sun4v_rtc_ops, THIS_MODULE);
+	rtc = devm_rtc_allocate_device(&pdev->dev);
 	if (IS_ERR(rtc))
 		return PTR_ERR(rtc);
 
+	rtc->ops = &sun4v_rtc_ops;
+	rtc->range_max = U64_MAX;
 	platform_set_drvdata(pdev, rtc);
-	return 0;
+
+	return rtc_register_device(rtc);
 }
 
 static struct platform_driver sun4v_rtc_driver = {
@@ -98,8 +95,4 @@ static struct platform_driver sun4v_rtc_driver = {
 	},
 };
 
-module_platform_driver_probe(sun4v_rtc_driver, sun4v_rtc_probe);
-
-MODULE_AUTHOR("David S. Miller <davem@davemloft.net>");
-MODULE_DESCRIPTION("SUN4V RTC driver");
-MODULE_LICENSE("GPL");
+builtin_platform_driver_probe(sun4v_rtc_driver, sun4v_rtc_probe);

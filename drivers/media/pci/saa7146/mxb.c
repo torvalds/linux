@@ -1,24 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
     mxb - v4l2 driver for the Multimedia eXtension Board
 
     Copyright (C) 1998-2006 Michael Hunold <michael@mihu.de>
 
-    Visit http://www.themm.net/~mihu/linux/saa7146/mxb.html 
+    Visit http://www.themm.net/~mihu/linux/saa7146/mxb.html
     for further details about this card.
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -30,6 +18,7 @@
 #include <media/v4l2-common.h>
 #include <media/i2c/saa7115.h>
 #include <linux/module.h>
+#include <linux/kernel.h>
 
 #include "tea6415c.h"
 #include "tea6420.h"
@@ -398,7 +387,7 @@ static int mxb_init_done(struct saa7146_dev* dev)
 
 	/* check if the saa7740 (aka 'sound arena module') is present
 	   on the mxb. if so, we must initialize it. due to lack of
-	   informations about the saa7740, the values were reverse
+	   information about the saa7740, the values were reverse
 	   engineered. */
 	msg.addr = 0x1b;
 	msg.flags = 0;
@@ -494,7 +483,7 @@ static int vidioc_s_input(struct file *file, void *fh, unsigned int input)
 			input_port_selection[input].hps_sync);
 
 	/* prepare switching of tea6415c and saa7111a;
-	   have a look at the 'background'-file for further informations  */
+	   have a look at the 'background'-file for further information  */
 	switch (input) {
 	case TUNER:
 		i = SAA7115_COMPOSITE0;
@@ -552,7 +541,7 @@ static int vidioc_g_tuner(struct file *file, void *fh, struct v4l2_tuner *t)
 	DEB_EE("VIDIOC_G_TUNER: %d\n", t->index);
 
 	memset(t, 0, sizeof(*t));
-	strlcpy(t->name, "TV Tuner", sizeof(t->name));
+	strscpy(t->name, "TV Tuner", sizeof(t->name));
 	t->type = V4L2_TUNER_ANALOG_TV;
 	t->capability = V4L2_TUNER_CAP_NORM | V4L2_TUNER_CAP_STEREO |
 			V4L2_TUNER_CAP_LANG1 | V4L2_TUNER_CAP_LANG2 | V4L2_TUNER_CAP_SAP;
@@ -792,24 +781,24 @@ static int std_callback(struct saa7146_dev *dev, struct saa7146_standard *standa
 
 static struct saa7146_standard standard[] = {
 	{
-		.name	= "PAL-BG", 	.id	= V4L2_STD_PAL_BG,
-		.v_offset	= 0x17,	.v_field 	= 288,
-		.h_offset	= 0x14,	.h_pixels 	= 680,
+		.name	= "PAL-BG",	.id	= V4L2_STD_PAL_BG,
+		.v_offset	= 0x17,	.v_field	= 288,
+		.h_offset	= 0x14,	.h_pixels	= 680,
 		.v_max_out	= 576,	.h_max_out	= 768,
 	}, {
-		.name	= "PAL-I", 	.id	= V4L2_STD_PAL_I,
-		.v_offset	= 0x17,	.v_field 	= 288,
-		.h_offset	= 0x14,	.h_pixels 	= 680,
+		.name	= "PAL-I",	.id	= V4L2_STD_PAL_I,
+		.v_offset	= 0x17,	.v_field	= 288,
+		.h_offset	= 0x14,	.h_pixels	= 680,
 		.v_max_out	= 576,	.h_max_out	= 768,
 	}, {
-		.name	= "NTSC", 	.id	= V4L2_STD_NTSC,
-		.v_offset	= 0x16,	.v_field 	= 240,
-		.h_offset	= 0x06,	.h_pixels 	= 708,
+		.name	= "NTSC",	.id	= V4L2_STD_NTSC,
+		.v_offset	= 0x16,	.v_field	= 240,
+		.h_offset	= 0x06,	.h_pixels	= 708,
 		.v_max_out	= 480,	.h_max_out	= 640,
 	}, {
-		.name	= "SECAM", 	.id	= V4L2_STD_SECAM,
-		.v_offset	= 0x14,	.v_field 	= 288,
-		.h_offset	= 0x14,	.h_pixels 	= 720,
+		.name	= "SECAM",	.id	= V4L2_STD_SECAM,
+		.v_offset	= 0x14,	.v_field	= 288,
+		.h_offset	= 0x14,	.h_pixels	= 720,
 		.v_max_out	= 576,	.h_max_out	= 768,
 	}
 };
@@ -819,7 +808,7 @@ static struct saa7146_pci_extension_data mxb = {
 	.ext = &extension,
 };
 
-static struct pci_device_id pci_tbl[] = {
+static const struct pci_device_id pci_tbl[] = {
 	{
 		.vendor    = PCI_VENDOR_ID_PHILIPS,
 		.device	   = PCI_DEVICE_ID_PHILIPS_SAA7146,
@@ -837,7 +826,7 @@ static struct saa7146_ext_vv vv_data = {
 	.inputs		= MXB_INPUTS,
 	.capabilities	= V4L2_CAP_TUNER | V4L2_CAP_VBI_CAPTURE | V4L2_CAP_AUDIO,
 	.stds		= &standard[0],
-	.num_stds	= sizeof(standard)/sizeof(struct saa7146_standard),
+	.num_stds	= ARRAY_SIZE(standard),
 	.std_callback	= &std_callback,
 };
 

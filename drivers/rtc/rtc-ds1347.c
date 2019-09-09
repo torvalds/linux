@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* rtc-ds1347.c
  *
  * Driver for Dallas Semiconductor DS1347 Low Current, SPI Compatible
  * Real Time Clock
  *
  * Author : Raghavendra Chandra Ganiga <ravi23ganiga@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/init.h>
@@ -66,7 +62,7 @@ static int ds1347_read_time(struct device *dev, struct rtc_time *dt)
 	dt->tm_wday = bcd2bin(buf[5]) - 1;
 	dt->tm_year = bcd2bin(buf[6]) + 100;
 
-	return rtc_valid_tm(dt);
+	return 0;
 }
 
 static int ds1347_set_time(struct device *dev, struct rtc_time *dt)

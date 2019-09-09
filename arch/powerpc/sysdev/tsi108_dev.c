@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * tsi108/109 device setup code
  *
  * Maintained by Roy Zang < tie-fei.zang@freescale.com >
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/stddef.h>
@@ -18,6 +14,7 @@
 #include <linux/irq.h>
 #include <linux/export.h>
 #include <linux/device.h>
+#include <linux/etherdevice.h>
 #include <linux/platform_device.h>
 #include <linux/of_net.h>
 #include <asm/tsi108.h>
@@ -51,7 +48,7 @@ phys_addr_t get_csrbase(void)
 		const void *prop = of_get_property(tsi, "reg", &size);
 		tsi108_csr_base = of_translate_address(tsi, prop);
 		of_node_put(tsi);
-	};
+	}
 	return tsi108_csr_base;
 }
 
@@ -105,8 +102,8 @@ static int __init tsi108_eth_of_init(void)
 		}
 
 		mac_addr = of_get_mac_address(np);
-		if (mac_addr)
-			memcpy(tsi_eth_data.mac_addr, mac_addr, 6);
+		if (!IS_ERR(mac_addr))
+			ether_addr_copy(tsi_eth_data.mac_addr, mac_addr);
 
 		ph = of_get_property(np, "mdio-handle", NULL);
 		mdio = of_find_node_by_phandle(*ph);

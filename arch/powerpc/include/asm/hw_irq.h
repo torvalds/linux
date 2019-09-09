@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 1999 Cort Dougan <cort@cs.nmt.edu>
  */
@@ -26,14 +27,35 @@
 #define PACA_IRQ_DEC		0x08 /* Or FIT */
 #define PACA_IRQ_EE_EDGE	0x10 /* BookE only */
 #define PACA_IRQ_HMI		0x20
+#define PACA_IRQ_PMI		0x40
+
+/*
+ * Some soft-masked interrupts must be hard masked until they are replayed
+ * (e.g., because the soft-masked handler does not clear the exception).
+ */
+#ifdef CONFIG_PPC_BOOK3S
+#define PACA_IRQ_MUST_HARD_MASK	(PACA_IRQ_EE|PACA_IRQ_PMI)
+#else
+#define PACA_IRQ_MUST_HARD_MASK	(PACA_IRQ_EE)
+#endif
+
+/*
+ * flags for paca->irq_soft_mask
+ */
+#define IRQS_ENABLED		0
+#define IRQS_DISABLED		1 /* local_irq_disable() interrupts */
+#define IRQS_PMI_DISABLED	2
+#define IRQS_ALL_DISABLED	(IRQS_DISABLED | IRQS_PMI_DISABLED)
 
 #endif /* CONFIG_PPC64 */
 
 #ifndef __ASSEMBLY__
 
+extern void replay_system_reset(void);
 extern void __replay_interrupt(unsigned int vector);
 
 extern void timer_interrupt(struct pt_regs *);
+extern void timer_broadcast_interrupt(void);
 extern void performance_monitor_exception(struct pt_regs *regs);
 extern void WatchdogException(struct pt_regs *regs);
 extern void unknown_exception(struct pt_regs *regs);
@@ -41,46 +63,112 @@ extern void unknown_exception(struct pt_regs *regs);
 #ifdef CONFIG_PPC64
 #include <asm/paca.h>
 
-static inline unsigned long arch_local_save_flags(void)
+static inline notrace unsigned long irq_soft_mask_return(void)
 {
 	unsigned long flags;
 
 	asm volatile(
 		"lbz %0,%1(13)"
 		: "=r" (flags)
-		: "i" (offsetof(struct paca_struct, soft_enabled)));
+		: "i" (offsetof(struct paca_struct, irq_soft_mask)));
 
 	return flags;
 }
 
-static inline unsigned long arch_local_irq_disable(void)
+/*
+ * The "memory" clobber acts as both a compiler barrier
+ * for the critical section and as a clobber because
+ * we changed paca->irq_soft_mask
+ */
+static inline notrace void irq_soft_mask_set(unsigned long mask)
 {
-	unsigned long flags, zero;
+#ifdef CONFIG_PPC_IRQ_SOFT_MASK_DEBUG
+	/*
+	 * The irq mask must always include the STD bit if any are set.
+	 *
+	 * and interrupts don't get replayed until the standard
+	 * interrupt (local_irq_disable()) is unmasked.
+	 *
+	 * Other masks must only provide additional masking beyond
+	 * the standard, and they are also not replayed until the
+	 * standard interrupt becomes unmasked.
+	 *
+	 * This could be changed, but it will require partial
+	 * unmasks to be replayed, among other things. For now, take
+	 * the simple approach.
+	 */
+	WARN_ON(mask && !(mask & IRQS_DISABLED));
+#endif
 
 	asm volatile(
-		"li %1,0; lbz %0,%2(13); stb %1,%2(13)"
-		: "=r" (flags), "=&r" (zero)
-		: "i" (offsetof(struct paca_struct, soft_enabled))
+		"stb %0,%1(13)"
+		:
+		: "r" (mask),
+		  "i" (offsetof(struct paca_struct, irq_soft_mask))
+		: "memory");
+}
+
+static inline notrace unsigned long irq_soft_mask_set_return(unsigned long mask)
+{
+	unsigned long flags;
+
+#ifdef CONFIG_PPC_IRQ_SOFT_MASK_DEBUG
+	WARN_ON(mask && !(mask & IRQS_DISABLED));
+#endif
+
+	asm volatile(
+		"lbz %0,%1(13); stb %2,%1(13)"
+		: "=&r" (flags)
+		: "i" (offsetof(struct paca_struct, irq_soft_mask)),
+		  "r" (mask)
 		: "memory");
 
 	return flags;
+}
+
+static inline notrace unsigned long irq_soft_mask_or_return(unsigned long mask)
+{
+	unsigned long flags, tmp;
+
+	asm volatile(
+		"lbz %0,%2(13); or %1,%0,%3; stb %1,%2(13)"
+		: "=&r" (flags), "=r" (tmp)
+		: "i" (offsetof(struct paca_struct, irq_soft_mask)),
+		  "r" (mask)
+		: "memory");
+
+#ifdef CONFIG_PPC_IRQ_SOFT_MASK_DEBUG
+	WARN_ON((mask | flags) && !((mask | flags) & IRQS_DISABLED));
+#endif
+
+	return flags;
+}
+
+static inline unsigned long arch_local_save_flags(void)
+{
+	return irq_soft_mask_return();
+}
+
+static inline void arch_local_irq_disable(void)
+{
+	irq_soft_mask_set(IRQS_DISABLED);
 }
 
 extern void arch_local_irq_restore(unsigned long);
 
 static inline void arch_local_irq_enable(void)
 {
-	arch_local_irq_restore(1);
+	arch_local_irq_restore(IRQS_ENABLED);
 }
 
 static inline unsigned long arch_local_irq_save(void)
 {
-	return arch_local_irq_disable();
+	return irq_soft_mask_set_return(IRQS_DISABLED);
 }
 
 static inline bool arch_irqs_disabled_flags(unsigned long flags)
 {
-	return flags == 0;
+	return flags & IRQS_DISABLED;
 }
 
 static inline bool arch_irqs_disabled(void)
@@ -88,22 +176,74 @@ static inline bool arch_irqs_disabled(void)
 	return arch_irqs_disabled_flags(arch_local_save_flags());
 }
 
+#ifdef CONFIG_PPC_BOOK3S
+/*
+ * To support disabling and enabling of irq with PMI, set of
+ * new powerpc_local_irq_pmu_save() and powerpc_local_irq_restore()
+ * functions are added. These macros are implemented using generic
+ * linux local_irq_* code from include/linux/irqflags.h.
+ */
+#define raw_local_irq_pmu_save(flags)					\
+	do {								\
+		typecheck(unsigned long, flags);			\
+		flags = irq_soft_mask_or_return(IRQS_DISABLED |	\
+				IRQS_PMI_DISABLED);			\
+	} while(0)
+
+#define raw_local_irq_pmu_restore(flags)				\
+	do {								\
+		typecheck(unsigned long, flags);			\
+		arch_local_irq_restore(flags);				\
+	} while(0)
+
+#ifdef CONFIG_TRACE_IRQFLAGS
+#define powerpc_local_irq_pmu_save(flags)			\
+	 do {							\
+		raw_local_irq_pmu_save(flags);			\
+		trace_hardirqs_off();				\
+	} while(0)
+#define powerpc_local_irq_pmu_restore(flags)			\
+	do {							\
+		if (raw_irqs_disabled_flags(flags)) {		\
+			raw_local_irq_pmu_restore(flags);	\
+			trace_hardirqs_off();			\
+		} else {					\
+			trace_hardirqs_on();			\
+			raw_local_irq_pmu_restore(flags);	\
+		}						\
+	} while(0)
+#else
+#define powerpc_local_irq_pmu_save(flags)			\
+	do {							\
+		raw_local_irq_pmu_save(flags);			\
+	} while(0)
+#define powerpc_local_irq_pmu_restore(flags)			\
+	do {							\
+		raw_local_irq_pmu_restore(flags);		\
+	} while (0)
+#endif  /* CONFIG_TRACE_IRQFLAGS */
+
+#endif /* CONFIG_PPC_BOOK3S */
+
 #ifdef CONFIG_PPC_BOOK3E
 #define __hard_irq_enable()	asm volatile("wrteei 1" : : : "memory")
 #define __hard_irq_disable()	asm volatile("wrteei 0" : : : "memory")
 #else
-#define __hard_irq_enable()	__mtmsrd(local_paca->kernel_msr | MSR_EE, 1)
-#define __hard_irq_disable()	__mtmsrd(local_paca->kernel_msr, 1)
+#define __hard_irq_enable()	__mtmsrd(MSR_EE|MSR_RI, 1)
+#define __hard_irq_disable()	__mtmsrd(MSR_RI, 1)
 #endif
 
-#define hard_irq_disable()	do {			\
-	u8 _was_enabled;				\
-	__hard_irq_disable();				\
-	_was_enabled = local_paca->soft_enabled;	\
-	local_paca->soft_enabled = 0;			\
-	local_paca->irq_happened |= PACA_IRQ_HARD_DIS;	\
-	if (_was_enabled)				\
-		trace_hardirqs_off();			\
+#define hard_irq_disable()	do {					\
+	unsigned long flags;						\
+	__hard_irq_disable();						\
+	flags = irq_soft_mask_set_return(IRQS_ALL_DISABLED);		\
+	local_paca->irq_happened |= PACA_IRQ_HARD_DIS;			\
+	if (!arch_irqs_disabled_flags(flags)) {				\
+		asm ("stdx %%r1, 0, %1 ;"				\
+		     : "=m" (local_paca->saved_r1)			\
+		     : "b" (&local_paca->saved_r1));			\
+		trace_hardirqs_off();					\
+	}								\
 } while(0)
 
 static inline bool lazy_irq_pending(void)
@@ -113,22 +253,28 @@ static inline bool lazy_irq_pending(void)
 
 /*
  * This is called by asynchronous interrupts to conditionally
- * re-enable hard interrupts when soft-disabled after having
- * cleared the source of the interrupt
+ * re-enable hard interrupts after having cleared the source
+ * of the interrupt. They are kept disabled if there is a different
+ * soft-masked interrupt pending that requires hard masking.
  */
 static inline void may_hard_irq_enable(void)
 {
-	get_paca()->irq_happened &= ~PACA_IRQ_HARD_DIS;
-	if (!(get_paca()->irq_happened & PACA_IRQ_EE))
+	if (!(get_paca()->irq_happened & PACA_IRQ_MUST_HARD_MASK)) {
+		get_paca()->irq_happened &= ~PACA_IRQ_HARD_DIS;
 		__hard_irq_enable();
+	}
 }
 
 static inline bool arch_irq_disabled_regs(struct pt_regs *regs)
 {
-	return !regs->softe;
+	return (regs->softe & IRQS_DISABLED);
 }
 
 extern bool prep_irq_for_idle(void);
+extern bool prep_irq_for_idle_irqsoff(void);
+extern void irq_set_pending_from_srr1(unsigned long srr1);
+
+#define fini_irq_for_idle_irqsoff() trace_hardirqs_off();
 
 extern void force_external_irq_replay(void);
 

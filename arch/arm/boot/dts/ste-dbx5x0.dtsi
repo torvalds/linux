@@ -1,12 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2012 Linaro Ltd
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
  */
 
 #include <dt-bindings/interrupt-controller/irq.h>
@@ -14,9 +8,15 @@
 #include <dt-bindings/mfd/dbx500-prcmu.h>
 #include <dt-bindings/arm/ux500_pm_domains.h>
 #include <dt-bindings/gpio/gpio.h>
-#include "skeleton.dtsi"
+#include <dt-bindings/clock/ste-ab8500.h>
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	chosen {
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -36,6 +36,14 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a9";
 			reg = <0x300>;
+			/* cpufreq controls */
+			operating-points = <998400 0
+					    800000 0
+					    400000 0
+					    200000 0>;
+			clocks = <&prcmu_clk PRCMU_ARMSS>;
+			clock-names = "cpu";
+			clock-latency = <20000>;
 		};
 		CPU1: cpu@301 {
 			device_type = "cpu";
@@ -58,9 +66,11 @@
 			clocks = <&prcmu_clk PRCMU_APETRACECLK>, <&prcmu_clk PRCMU_APEATCLK>;
 			clock-names = "apb_pclk", "atclk";
 			cpu = <&CPU0>;
-			port {
-				ptm0_out_port: endpoint {
-					remote-endpoint = <&funnel_in_port0>;
+			out-ports {
+				port {
+					ptm0_out_port: endpoint {
+						remote-endpoint = <&funnel_in_port0>;
+					};
 				};
 			};
 		};
@@ -72,9 +82,11 @@
 			clocks = <&prcmu_clk PRCMU_APETRACECLK>, <&prcmu_clk PRCMU_APEATCLK>;
 			clock-names = "apb_pclk", "atclk";
 			cpu = <&CPU1>;
-			port {
-				ptm1_out_port: endpoint {
-					remote-endpoint = <&funnel_in_port1>;
+			out-ports {
+				port {
+					ptm1_out_port: endpoint {
+						remote-endpoint = <&funnel_in_port1>;
+					};
 				};
 			};
 		};
@@ -85,32 +97,29 @@
 
 			clocks = <&prcmu_clk PRCMU_APETRACECLK>, <&prcmu_clk PRCMU_APEATCLK>;
 			clock-names = "apb_pclk", "atclk";
-			ports {
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				/* funnel output ports */
-				port@0 {
-					reg = <0>;
+			out-ports {
+				port {
 					funnel_out_port: endpoint {
 						remote-endpoint =
 							<&replicator_in_port0>;
 					};
 				};
+			};
 
-				/* funnel input ports */
-				port@1 {
+			in-ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
 					reg = <0>;
 					funnel_in_port0: endpoint {
-						slave-mode;
 						remote-endpoint = <&ptm0_out_port>;
 					};
 				};
 
-				port@2 {
+				port@1 {
 					reg = <1>;
 					funnel_in_port1: endpoint {
-						slave-mode;
 						remote-endpoint = <&ptm1_out_port>;
 					};
 				};
@@ -122,11 +131,10 @@
 			clocks = <&prcmu_clk PRCMU_APEATCLK>;
 			clock-names = "atclk";
 
-			ports {
+			out-ports {
 				#address-cells = <1>;
 				#size-cells = <0>;
 
-				/* replicator output ports */
 				port@0 {
 					reg = <0>;
 					replicator_out_port0: endpoint {
@@ -139,12 +147,11 @@
 						remote-endpoint = <&etb_in_port>;
 					};
 				};
+			};
 
-				/* replicator input port */
-				port@2 {
-					reg = <0>;
+			in-ports {
+				port {
 					replicator_in_port0: endpoint {
-						slave-mode;
 						remote-endpoint = <&funnel_out_port>;
 					};
 				};
@@ -157,10 +164,11 @@
 
 			clocks = <&prcmu_clk PRCMU_APETRACECLK>, <&prcmu_clk PRCMU_APEATCLK>;
 			clock-names = "apb_pclk", "atclk";
-			port {
-				tpiu_in_port: endpoint {
-					slave-mode;
-					remote-endpoint = <&replicator_out_port0>;
+			in-ports {
+				port {
+					tpiu_in_port: endpoint {
+						remote-endpoint = <&replicator_out_port0>;
+					};
 				};
 			};
 		};
@@ -171,10 +179,11 @@
 
 			clocks = <&prcmu_clk PRCMU_APETRACECLK>, <&prcmu_clk PRCMU_APEATCLK>;
 			clock-names = "apb_pclk", "atclk";
-			port {
-				etb_in_port: endpoint {
-					slave-mode;
-					remote-endpoint = <&replicator_out_port1>;
+			in-ports {
+				port {
+					etb_in_port: endpoint {
+						remote-endpoint = <&replicator_out_port1>;
+					};
 				};
 			};
 		};
@@ -188,7 +197,7 @@
 			      <0xa0410100 0x100>;
 		};
 
-		scu@a04100000 {
+		scu@a0410000 {
 			compatible = "arm,cortex-a9-scu";
 			reg = <0xa0410000 0x100>;
 		};
@@ -478,7 +487,7 @@
 		};
 
 		prcmu: prcmu@80157000 {
-			compatible = "stericsson,db8500-prcmu";
+			compatible = "stericsson,db8500-prcmu", "syscon";
 			reg = <0x80157000 0x2000>, <0x801b0000 0x8000>, <0x801b8000 0x1000>;
 			reg-names = "prcmu", "prcmu-tcpm", "prcmu-tcdm";
 			interrupts = <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>;
@@ -491,13 +500,6 @@
 			prcmu-timer-4@80157450 {
 				compatible = "stericsson,db8500-prcmu-timer-4";
 				reg = <0x80157450 0xC>;
-			};
-
-			cpufreq {
-				compatible = "stericsson,cpufreq-ux500";
-				clocks = <&prcmu_clk PRCMU_ARMSS>;
-				clock-names = "armss";
-				status = "disabled";
 			};
 
 			thermal@801573c0 {
@@ -603,6 +605,11 @@
 				interrupt-controller;
 				#interrupt-cells = <2>;
 
+				ab8500_clock: clock-controller {
+					compatible = "stericsson,ab8500-clk";
+					#clock-cells = <1>;
+				};
+
 				ab8500_gpio: ab8500-gpio {
 					compatible = "stericsson,ab8500-gpio";
 					gpio-controller;
@@ -669,6 +676,8 @@
 					vddulpivio18-supply = <&ab8500_ldo_intcore_reg>;
 					v-ape-supply = <&db8500_vape_reg>;
 					musb_1v8-supply = <&db8500_vsmps2_reg>;
+					clocks = <&prcmu_clk PRCMU_SYSCLK>;
+					clock-names = "sysclk";
 				};
 
 				ab8500-ponkey {
@@ -684,6 +693,8 @@
 
 				ab8500-pwm {
 					compatible = "stericsson,ab8500-pwm";
+					clocks = <&ab8500_clock AB8500_SYSCLK_INT>;
+					clock-names = "intclk";
 				};
 
 				ab8500-debugfs {
@@ -697,6 +708,9 @@
 					V-AMIC1-supply = <&ab8500_ldo_anamic1_reg>;
 					V-AMIC2-supply = <&ab8500_ldo_anamic2_reg>;
 					V-DMIC-supply = <&ab8500_ldo_dmic_reg>;
+
+					clocks = <&ab8500_clock AB8500_SYSCLK_AUDIO>;
+					clock-names = "audioclk";
 
 					stericsson,earpeice-cmv = <950>; /* Units in mV. */
 				};
@@ -864,7 +878,7 @@
 			power-domains = <&pm_domains DOMAIN_VAPE>;
 		};
 
-		ssp@80002000 {
+		spi@80002000 {
 			compatible = "arm,pl022", "arm,primecell";
 			reg = <0x80002000 0x1000>;
 			interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
@@ -878,7 +892,7 @@
 			power-domains = <&pm_domains DOMAIN_VAPE>;
 		};
 
-		ssp@80003000 {
+		spi@80003000 {
 			compatible = "arm,pl022", "arm,primecell";
 			reg = <0x80003000 0x1000>;
 			interrupts = <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>;
@@ -1093,6 +1107,14 @@
 			status = "disabled";
 		};
 
+		sound {
+			compatible = "stericsson,snd-soc-mop500";
+			stericsson,cpu-dai = <&msp1 &msp3>;
+			stericsson,audio-codec = <&codec>;
+			clocks = <&prcmu_clk PRCMU_SYSCLK>, <&ab8500_clock AB8500_SYSCLK_ULP>, <&ab8500_clock AB8500_SYSCLK_INT>;
+			clock-names = "sysclk", "ulpclk", "intclk";
+		};
+
 		msp0: msp@80123000 {
 			compatible = "stericsson,ux500-msp-i2s";
 			reg = <0x80123000 0x1000>;
@@ -1168,26 +1190,73 @@
 			status = "disabled";
 		};
 
-		cpufreq-cooling {
-			compatible = "stericsson,db8500-cpufreq-cooling";
-			status = "disabled";
+		gpu@a0300000 {
+			/*
+			 * This block is referred to as "Smart Graphics Adapter SGA500"
+			 * in documentation but is in practice a pretty straight-forward
+			 * MALI-400 GPU block.
+			 */
+			compatible = "stericsson,db8500-mali", "arm,mali-400";
+			reg = <0xa0300000 0x10000>;
+			interrupts = <GIC_SPI 115 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 112 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "gp",
+					  "gpmmu",
+					  "pp0",
+					  "ppmmu0",
+					  "combined";
+			clocks = <&prcmu_clk PRCMU_ACLK>, <&prcmu_clk PRCMU_SGACLK>;
+			clock-names = "bus", "core";
+			mali-supply = <&db8500_sga_reg>;
+			power-domains = <&pm_domains DOMAIN_VAPE>;
 		};
 
 		mcde@a0350000 {
-			compatible = "stericsson,mcde";
-			reg = <0xa0350000 0x1000>, /* MCDE */
-			      <0xa0351000 0x1000>, /* DSI link 1 */
-			      <0xa0352000 0x1000>, /* DSI link 2 */
-			      <0xa0353000 0x1000>; /* DSI link 3 */
+			compatible = "ste,mcde";
+			reg = <0xa0350000 0x1000>;
 			interrupts = <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>;
+			epod-supply = <&db8500_b2r2_mcde_reg>;
+			vana-supply = <&ab8500_ldo_ana_reg>;
 			clocks = <&prcmu_clk PRCMU_MCDECLK>, /* Main MCDE clock */
 				 <&prcmu_clk PRCMU_LCDCLK>, /* LCD clock */
-				 <&prcmu_clk PRCMU_PLLDSI>, /* HDMI clock */
-				 <&prcmu_clk PRCMU_DSI0CLK>, /* DSI 0 */
-				 <&prcmu_clk PRCMU_DSI1CLK>, /* DSI 1 */
-				 <&prcmu_clk PRCMU_DSI0ESCCLK>, /* TVout clock 0 */
-				 <&prcmu_clk PRCMU_DSI1ESCCLK>, /* TVout clock 1 */
-				 <&prcmu_clk PRCMU_DSI2ESCCLK>; /* TVout clock 2 */
+				 <&prcmu_clk PRCMU_PLLDSI>; /* HDMI clock */
+			clock-names = "mcde", "lcd", "hdmi";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+			status = "disabled";
+
+			dsi0: dsi@a0351000 {
+				compatible = "ste,mcde-dsi";
+				reg = <0xa0351000 0x1000>;
+				vana-supply = <&ab8500_ldo_ana_reg>;
+				clocks = <&prcmu_clk PRCMU_DSI0CLK>, <&prcmu_clk PRCMU_DSI0ESCCLK>;
+				clock-names = "hs", "lp";
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+			dsi1: dsi@a0352000 {
+				compatible = "ste,mcde-dsi";
+				reg = <0xa0352000 0x1000>;
+				vana-supply = <&ab8500_ldo_ana_reg>;
+				clocks = <&prcmu_clk PRCMU_DSI1CLK>, <&prcmu_clk PRCMU_DSI1ESCCLK>;
+				clock-names = "hs", "lp";
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+			dsi2: dsi@a0353000 {
+				compatible = "ste,mcde-dsi";
+				reg = <0xa0353000 0x1000>;
+				vana-supply = <&ab8500_ldo_ana_reg>;
+				/* This DSI port only has the Low Power / Energy Save clock */
+				clocks = <&prcmu_clk PRCMU_DSI2ESCCLK>;
+				clock-names = "lp";
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
 		};
 
 		cryp@a03cb000 {

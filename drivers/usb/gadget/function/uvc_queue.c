@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *	uvc_queue.c  --  USB Video Class driver - Buffers management
  *
  *	Copyright (C) 2005-2010
  *	    Laurent Pinchart (laurent.pinchart@ideasonboard.com)
- *
- *	This program is free software; you can redistribute it and/or modify
- *	it under the terms of the GNU General Public License as published by
- *	the Free Software Foundation; either version 2 of the License, or
- *	(at your option) any later version.
  */
 
 #include <linux/atomic.h>
@@ -106,7 +102,7 @@ static void uvc_buffer_queue(struct vb2_buffer *vb)
 	spin_unlock_irqrestore(&queue->irqlock, flags);
 }
 
-static struct vb2_ops uvc_queue_qops = {
+static const struct vb2_ops uvc_queue_qops = {
 	.queue_setup = uvc_queue_setup,
 	.buf_prepare = uvc_buffer_prepare,
 	.buf_queue = uvc_buffer_queue,
@@ -170,7 +166,7 @@ int uvcg_queue_buffer(struct uvc_video_queue *queue, struct v4l2_buffer *buf)
 	unsigned long flags;
 	int ret;
 
-	ret = vb2_qbuf(&queue->queue, buf);
+	ret = vb2_qbuf(&queue->queue, NULL, buf);
 	if (ret < 0)
 		return ret;
 
@@ -197,7 +193,7 @@ int uvcg_dequeue_buffer(struct uvc_video_queue *queue, struct v4l2_buffer *buf,
  * This function implements video queue polling and is intended to be used by
  * the device poll handler.
  */
-unsigned int uvcg_queue_poll(struct uvc_video_queue *queue, struct file *file,
+__poll_t uvcg_queue_poll(struct uvc_video_queue *queue, struct file *file,
 			     poll_table *wait)
 {
 	return vb2_poll(&queue->queue, file, wait);

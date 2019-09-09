@@ -1,27 +1,28 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (C) 2015 Free Electrons
  * Copyright (C) 2015 NextThing Co
  *
  * Maxime Ripard <maxime.ripard@free-electrons.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
  */
 
 #ifndef _SUN4I_BACKEND_H_
 #define _SUN4I_BACKEND_H_
 
 #include <linux/clk.h>
+#include <linux/list.h>
+#include <linux/of.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
+
+#include "sunxi_engine.h"
 
 #define SUN4I_BACKEND_MODCTL_REG		0x800
 #define SUN4I_BACKEND_MODCTL_LINE_SEL			BIT(29)
 #define SUN4I_BACKEND_MODCTL_ITLMOD_EN			BIT(28)
 #define SUN4I_BACKEND_MODCTL_OUT_SEL			GENMASK(22, 20)
-#define SUN4I_BACKEND_MODCTL_OUT_LCD				(0 << 20)
+#define SUN4I_BACKEND_MODCTL_OUT_LCD0				(0 << 20)
+#define SUN4I_BACKEND_MODCTL_OUT_LCD1				(1 << 20)
 #define SUN4I_BACKEND_MODCTL_OUT_FE0				(6 << 20)
 #define SUN4I_BACKEND_MODCTL_OUT_FE1				(7 << 20)
 #define SUN4I_BACKEND_MODCTL_HWC_EN			BIT(16)
@@ -63,10 +64,15 @@
 #define SUN4I_BACKEND_CKMIN_REG			0x884
 #define SUN4I_BACKEND_CKCFG_REG			0x888
 #define SUN4I_BACKEND_ATTCTL_REG0(l)		(0x890 + (0x4 * (l)))
+#define SUN4I_BACKEND_ATTCTL_REG0_LAY_GLBALPHA_MASK	GENMASK(31, 24)
+#define SUN4I_BACKEND_ATTCTL_REG0_LAY_GLBALPHA(x)		((x) << 24)
 #define SUN4I_BACKEND_ATTCTL_REG0_LAY_PIPESEL_MASK	BIT(15)
 #define SUN4I_BACKEND_ATTCTL_REG0_LAY_PIPESEL(x)		((x) << 15)
 #define SUN4I_BACKEND_ATTCTL_REG0_LAY_PRISEL_MASK	GENMASK(11, 10)
 #define SUN4I_BACKEND_ATTCTL_REG0_LAY_PRISEL(x)			((x) << 10)
+#define SUN4I_BACKEND_ATTCTL_REG0_LAY_YUVEN		BIT(2)
+#define SUN4I_BACKEND_ATTCTL_REG0_LAY_VDOEN		BIT(1)
+#define SUN4I_BACKEND_ATTCTL_REG0_LAY_GLBALPHA_EN	BIT(0)
 
 #define SUN4I_BACKEND_ATTCTL_REG1(l)		(0x8a0 + (0x4 * (l)))
 #define SUN4I_BACKEND_ATTCTL_REG1_LAY_HSCAFCT		GENMASK(15, 14)
@@ -104,9 +110,27 @@
 #define SUN4I_BACKEND_SPREN_REG			0x900
 #define SUN4I_BACKEND_SPRFMTCTL_REG		0x908
 #define SUN4I_BACKEND_SPRALPHACTL_REG		0x90c
+
 #define SUN4I_BACKEND_IYUVCTL_REG		0x920
+#define SUN4I_BACKEND_IYUVCTL_FBFMT_MASK		GENMASK(14, 12)
+#define SUN4I_BACKEND_IYUVCTL_FBFMT_PACKED_YUV444		(4 << 12)
+#define SUN4I_BACKEND_IYUVCTL_FBFMT_PACKED_YUV422		(3 << 12)
+#define SUN4I_BACKEND_IYUVCTL_FBFMT_PLANAR_YUV444		(2 << 12)
+#define SUN4I_BACKEND_IYUVCTL_FBFMT_PLANAR_YUV222		(1 << 12)
+#define SUN4I_BACKEND_IYUVCTL_FBFMT_PLANAR_YUV111		(0 << 12)
+#define SUN4I_BACKEND_IYUVCTL_FBPS_MASK			GENMASK(9, 8)
+#define SUN4I_BACKEND_IYUVCTL_FBPS_YVYU				(3 << 8)
+#define SUN4I_BACKEND_IYUVCTL_FBPS_VYUY				(2 << 8)
+#define SUN4I_BACKEND_IYUVCTL_FBPS_YUYV				(1 << 8)
+#define SUN4I_BACKEND_IYUVCTL_FBPS_UYVY				(0 << 8)
+#define SUN4I_BACKEND_IYUVCTL_FBPS_VUYA				(1 << 8)
+#define SUN4I_BACKEND_IYUVCTL_FBPS_AYUV				(0 << 8)
+#define SUN4I_BACKEND_IYUVCTL_EN			BIT(0)
+
 #define SUN4I_BACKEND_IYUVADD_REG(c)		(0x930 + (0x4 * (c)))
-#define SUN4I_BACKEND_IYUVLINEWITDTH_REG(c)	(0x940 + (0x4 * (c)))
+
+#define SUN4I_BACKEND_IYUVLINEWIDTH_REG(c)	(0x940 + (0x4 * (c)))
+
 #define SUN4I_BACKEND_YGCOEF_REG(c)		(0x950 + (0x4 * (c)))
 #define SUN4I_BACKEND_YGCONS_REG		0x95c
 #define SUN4I_BACKEND_URCOEF_REG(c)		(0x960 + (0x4 * (c)))
@@ -138,8 +162,13 @@
 #define SUN4I_BACKEND_HWCCOLORTAB_OFF		0x4c00
 #define SUN4I_BACKEND_PIPE_OFF(p)		(0x5000 + (0x400 * (p)))
 
+#define SUN4I_BACKEND_NUM_LAYERS		4
+#define SUN4I_BACKEND_NUM_FRONTEND_LAYERS	1
+#define SUN4I_BACKEND_NUM_YUV_PLANES		1
+
 struct sun4i_backend {
-	struct regmap		*regs;
+	struct sunxi_engine	engine;
+	struct sun4i_frontend	*frontend;
 
 	struct reset_control	*reset;
 
@@ -149,20 +178,34 @@ struct sun4i_backend {
 
 	struct clk		*sat_clk;
 	struct reset_control	*sat_reset;
+
+	/* Protects against races in the frontend teardown */
+	spinlock_t		frontend_lock;
+	bool			frontend_teardown;
+
+	const struct sun4i_backend_quirks	*quirks;
 };
 
-void sun4i_backend_apply_color_correction(struct sun4i_backend *backend);
-void sun4i_backend_disable_color_correction(struct sun4i_backend *backend);
-
-void sun4i_backend_commit(struct sun4i_backend *backend);
+static inline struct sun4i_backend *
+engine_to_sun4i_backend(struct sunxi_engine *engine)
+{
+	return container_of(engine, struct sun4i_backend, engine);
+}
 
 void sun4i_backend_layer_enable(struct sun4i_backend *backend,
 				int layer, bool enable);
+bool sun4i_backend_format_is_supported(uint32_t fmt, uint64_t modifier);
 int sun4i_backend_update_layer_coord(struct sun4i_backend *backend,
 				     int layer, struct drm_plane *plane);
 int sun4i_backend_update_layer_formats(struct sun4i_backend *backend,
 				       int layer, struct drm_plane *plane);
 int sun4i_backend_update_layer_buffer(struct sun4i_backend *backend,
 				      int layer, struct drm_plane *plane);
+int sun4i_backend_update_layer_frontend(struct sun4i_backend *backend,
+					int layer, uint32_t in_fmt);
+int sun4i_backend_update_layer_zpos(struct sun4i_backend *backend,
+				    int layer, struct drm_plane *plane);
+void sun4i_backend_cleanup_layer(struct sun4i_backend *backend,
+				 int layer);
 
 #endif /* _SUN4I_BACKEND_H_ */

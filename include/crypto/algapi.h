@@ -1,13 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Cryptographic API for algorithms (i.e., low-level API).
  *
  * Copyright (c) 2006 Herbert Xu <herbert@gondor.apana.org.au>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option) 
- * any later version.
- *
  */
 #ifndef _CRYPTO_ALGAPI_H
 #define _CRYPTO_ALGAPI_H
@@ -16,6 +11,16 @@
 #include <linux/list.h>
 #include <linux/kernel.h>
 #include <linux/skbuff.h>
+
+/*
+ * Maximum values for blocksize and alignmask, used to allocate
+ * static buffers that are big enough for any combination of
+ * algs and architectures. Ciphers have a lower maximum size.
+ */
+#define MAX_ALGAPI_BLOCKSIZE		160
+#define MAX_ALGAPI_ALIGNMASK		63
+#define MAX_CIPHER_BLOCKSIZE		16
+#define MAX_CIPHER_ALIGNMASK		15
 
 struct crypto_aead;
 struct crypto_instance;
@@ -30,7 +35,6 @@ struct crypto_type {
 	int (*init_tfm)(struct crypto_tfm *tfm);
 	void (*show)(struct seq_file *m, struct crypto_alg *alg);
 	int (*report)(struct sk_buff *skb, struct crypto_alg *alg);
-	struct crypto_alg *(*lookup)(const char *name, u32 type, u32 mask);
 	void (*free)(struct crypto_instance *inst);
 
 	unsigned int type;
@@ -134,7 +138,9 @@ extern const struct crypto_type crypto_blkcipher_type;
 void crypto_mod_put(struct crypto_alg *alg);
 
 int crypto_register_template(struct crypto_template *tmpl);
+int crypto_register_templates(struct crypto_template *tmpls, int count);
 void crypto_unregister_template(struct crypto_template *tmpl);
+void crypto_unregister_templates(struct crypto_template *tmpls, int count);
 struct crypto_template *crypto_lookup_template(const char *name);
 
 int crypto_register_instance(struct crypto_template *tmpl,
@@ -176,24 +182,56 @@ static inline struct crypto_alg *crypto_attr_alg(struct rtattr *rta,
 int crypto_attr_u32(struct rtattr *rta, u32 *num);
 int crypto_inst_setname(struct crypto_instance *inst, const char *name,
 			struct crypto_alg *alg);
-void *crypto_alloc_instance2(const char *name, struct crypto_alg *alg,
-			     unsigned int head);
-struct crypto_instance *crypto_alloc_instance(const char *name,
-					      struct crypto_alg *alg);
+void *crypto_alloc_instance(const char *name, struct crypto_alg *alg,
+			    unsigned int head);
 
 void crypto_init_queue(struct crypto_queue *queue, unsigned int max_qlen);
 int crypto_enqueue_request(struct crypto_queue *queue,
 			   struct crypto_async_request *request);
 struct crypto_async_request *crypto_dequeue_request(struct crypto_queue *queue);
-int crypto_tfm_in_queue(struct crypto_queue *queue, struct crypto_tfm *tfm);
 static inline unsigned int crypto_queue_len(struct crypto_queue *queue)
 {
 	return queue->qlen;
 }
 
-/* These functions require the input/output to be aligned as u32. */
 void crypto_inc(u8 *a, unsigned int size);
-void crypto_xor(u8 *dst, const u8 *src, unsigned int size);
+void __crypto_xor(u8 *dst, const u8 *src1, const u8 *src2, unsigned int size);
+
+static inline void crypto_xor(u8 *dst, const u8 *src, unsigned int size)
+{
+	if (IS_ENABLED(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) &&
+	    __builtin_constant_p(size) &&
+	    (size % sizeof(unsigned long)) == 0) {
+		unsigned long *d = (unsigned long *)dst;
+		unsigned long *s = (unsigned long *)src;
+
+		while (size > 0) {
+			*d++ ^= *s++;
+			size -= sizeof(unsigned long);
+		}
+	} else {
+		__crypto_xor(dst, dst, src, size);
+	}
+}
+
+static inline void crypto_xor_cpy(u8 *dst, const u8 *src1, const u8 *src2,
+				  unsigned int size)
+{
+	if (IS_ENABLED(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) &&
+	    __builtin_constant_p(size) &&
+	    (size % sizeof(unsigned long)) == 0) {
+		unsigned long *d = (unsigned long *)dst;
+		unsigned long *s1 = (unsigned long *)src1;
+		unsigned long *s2 = (unsigned long *)src2;
+
+		while (size > 0) {
+			*d++ = *s1++ ^ *s2++;
+			size -= sizeof(unsigned long);
+		}
+	} else {
+		__crypto_xor(dst, src1, src2, size);
+	}
+}
 
 int blkcipher_walk_done(struct blkcipher_desc *desc,
 			struct blkcipher_walk *walk, int err);
@@ -332,16 +370,15 @@ static inline void *ablkcipher_request_ctx(struct ablkcipher_request *req)
 	return req->__ctx;
 }
 
-static inline int ablkcipher_tfm_in_queue(struct crypto_queue *queue,
-					  struct crypto_ablkcipher *tfm)
-{
-	return crypto_tfm_in_queue(queue, crypto_ablkcipher_tfm(tfm));
-}
-
 static inline struct crypto_alg *crypto_get_attr_alg(struct rtattr **tb,
 						     u32 type, u32 mask)
 {
 	return crypto_attr_alg(tb[1], type, mask);
+}
+
+static inline int crypto_requires_off(u32 type, u32 mask, u32 off)
+{
+	return (type ^ off) & mask & off;
 }
 
 /*
@@ -350,7 +387,7 @@ static inline struct crypto_alg *crypto_get_attr_alg(struct rtattr **tb,
  */
 static inline int crypto_requires_sync(u32 type, u32 mask)
 {
-	return (type ^ CRYPTO_ALG_ASYNC) & mask & CRYPTO_ALG_ASYNC;
+	return crypto_requires_off(type, mask, CRYPTO_ALG_ASYNC);
 }
 
 noinline unsigned long __crypto_memneq(const void *a, const void *b, size_t size);
@@ -377,5 +414,15 @@ static inline void crypto_yield(u32 flags)
 		cond_resched();
 #endif
 }
+
+int crypto_register_notifier(struct notifier_block *nb);
+int crypto_unregister_notifier(struct notifier_block *nb);
+
+/* Crypto notification events. */
+enum {
+	CRYPTO_MSG_ALG_REQUEST,
+	CRYPTO_MSG_ALG_REGISTER,
+	CRYPTO_MSG_ALG_LOADED,
+};
 
 #endif	/* _CRYPTO_ALGAPI_H */

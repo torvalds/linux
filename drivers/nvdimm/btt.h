@@ -1,20 +1,13 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Block Translation Table library
  * Copyright (c) 2014-2015, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #ifndef _LINUX_BTT_H
 #define _LINUX_BTT_H
 
+#include <linux/badblocks.h>
 #include <linux/types.h>
 
 #define BTT_SIG_LEN 16
@@ -26,6 +19,7 @@
 #define MAP_ERR_MASK (1 << MAP_ERR_SHIFT)
 #define MAP_LBA_MASK (~((1 << MAP_TRIM_SHIFT) | (1 << MAP_ERR_SHIFT)))
 #define MAP_ENT_NORMAL 0xC0000000
+#define LOG_GRP_SIZE sizeof(struct log_group)
 #define LOG_ENT_SIZE sizeof(struct log_entry)
 #define ARENA_MIN_SIZE (1UL << 24)	/* 16 MB */
 #define ARENA_MAX_SIZE (1ULL << 39)	/* 512 GB */
@@ -38,18 +32,65 @@
 #define IB_FLAG_ERROR 0x00000001
 #define IB_FLAG_ERROR_MASK 0x00000001
 
+#define ent_lba(ent) (ent & MAP_LBA_MASK)
+#define ent_e_flag(ent) (!!(ent & MAP_ERR_MASK))
+#define ent_z_flag(ent) (!!(ent & MAP_TRIM_MASK))
+#define set_e_flag(ent) (ent |= MAP_ERR_MASK)
+/* 'normal' is both e and z flags set */
+#define ent_normal(ent) (ent_e_flag(ent) && ent_z_flag(ent))
+
 enum btt_init_state {
 	INIT_UNCHECKED = 0,
 	INIT_NOTFOUND,
 	INIT_READY
 };
 
+/*
+ * A log group represents one log 'lane', and consists of four log entries.
+ * Two of the four entries are valid entries, and the remaining two are
+ * padding. Due to an old bug in the padding location, we need to perform a
+ * test to determine the padding scheme being used, and use that scheme
+ * thereafter.
+ *
+ * In kernels prior to 4.15, 'log group' would have actual log entries at
+ * indices (0, 2) and padding at indices (1, 3), where as the correct/updated
+ * format has log entries at indices (0, 1) and padding at indices (2, 3).
+ *
+ * Old (pre 4.15) format:
+ * +-----------------+-----------------+
+ * |      ent[0]     |      ent[1]     |
+ * |       16B       |       16B       |
+ * | lba/old/new/seq |       pad       |
+ * +-----------------------------------+
+ * |      ent[2]     |      ent[3]     |
+ * |       16B       |       16B       |
+ * | lba/old/new/seq |       pad       |
+ * +-----------------+-----------------+
+ *
+ * New format:
+ * +-----------------+-----------------+
+ * |      ent[0]     |      ent[1]     |
+ * |       16B       |       16B       |
+ * | lba/old/new/seq | lba/old/new/seq |
+ * +-----------------------------------+
+ * |      ent[2]     |      ent[3]     |
+ * |       16B       |       16B       |
+ * |       pad       |       pad       |
+ * +-----------------+-----------------+
+ *
+ * We detect during start-up which format is in use, and set
+ * arena->log_index[(0, 1)] with the detected format.
+ */
+
 struct log_entry {
 	__le32 lba;
 	__le32 old_map;
 	__le32 new_map;
 	__le32 seq;
-	__le64 padding[2];
+};
+
+struct log_group {
+	struct log_entry ent[4];
 };
 
 struct btt_sb {
@@ -78,6 +119,7 @@ struct free_entry {
 	u32 block;
 	u8 sub;
 	u8 seq;
+	u8 has_err;
 };
 
 struct aligned_lock {
@@ -104,6 +146,7 @@ struct aligned_lock {
  *			handle incoming writes.
  * @version_major:	Metadata layout version major.
  * @version_minor:	Metadata layout version minor.
+ * @sector_size:	The Linux sector size - 512 or 4096
  * @nextoff:		Offset in bytes to the start of the next arena.
  * @infooff:		Offset in bytes to the info block of this arena.
  * @dataoff:		Offset in bytes to the data area of this arena.
@@ -117,6 +160,8 @@ struct aligned_lock {
  * @list:		List head for list of arenas
  * @debugfs_dir:	Debugfs dentry
  * @flags:		Arena flags - may signify error states.
+ * @err_lock:		Mutex for synchronizing error clearing.
+ * @log_index:		Indices of the valid log entries in a log_group
  *
  * arena_info is a per-arena handle. Once an arena is narrowed down for an
  * IO, this struct is passed around for the duration of the IO.
@@ -131,6 +176,7 @@ struct arena_info {
 	u32 nfree;
 	u16 version_major;
 	u16 version_minor;
+	u32 sector_size;
 	/* Byte offsets to the different on-media structures */
 	u64 nextoff;
 	u64 infooff;
@@ -147,6 +193,8 @@ struct arena_info {
 	struct dentry *debugfs_dir;
 	/* Arena flags */
 	u32 flags;
+	struct mutex err_lock;
+	int log_index[2];
 };
 
 /**
@@ -166,6 +214,7 @@ struct arena_info {
  * @init_lock:		Mutex used for the BTT initialization
  * @init_state:		Flag describing the initialization state for the BTT
  * @num_arenas:		Number of arenas in the BTT instance
+ * @phys_bb:		Pointer to the namespace's badblocks structure
  */
 struct btt {
 	struct gendisk *btt_disk;
@@ -181,8 +230,11 @@ struct btt {
 	struct mutex init_lock;
 	int init_state;
 	int num_arenas;
+	struct badblocks *phys_bb;
 };
 
 bool nd_btt_arena_is_valid(struct nd_btt *nd_btt, struct btt_sb *super);
+int nd_btt_version(struct nd_btt *nd_btt, struct nd_namespace_common *ndns,
+		struct btt_sb *btt_sb);
 
 #endif

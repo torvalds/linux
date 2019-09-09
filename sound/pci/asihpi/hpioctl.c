@@ -1,17 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*******************************************************************************
     AudioScience HPI driver
     Common Linux HPI ioctl and module probe/remove functions
 
     Copyright (C) 1997-2014  AudioScience Inc. <support@audioscience.com>
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of version 2 of the GNU General Public License as
-    published by the Free Software Foundation;
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
 
 *******************************************************************************/
 #define SOURCEFILE_NAME "hpioctl.c"
@@ -33,6 +26,7 @@
 #include <linux/stringify.h>
 #include <linux/module.h>
 #include <linux/vmalloc.h>
+#include <linux/nospec.h>
 
 #ifdef MODULE_FIRMWARE
 MODULE_FIRMWARE("asihpi/dsp5000.bin");
@@ -45,14 +39,14 @@ MODULE_FIRMWARE("asihpi/dsp8900.bin");
 #endif
 
 static int prealloc_stream_buf;
-module_param(prealloc_stream_buf, int, S_IRUGO);
+module_param(prealloc_stream_buf, int, 0444);
 MODULE_PARM_DESC(prealloc_stream_buf,
 	"Preallocate size for per-adapter stream buffer");
 
 /* Allow the debug level to be changed after module load.
  E.g.   echo 2 > /sys/module/asihpi/parameters/hpiDebugLevel
 */
-module_param(hpi_debug_level, int, S_IRUGO | S_IWUSR);
+module_param(hpi_debug_level, int, 0644);
 MODULE_PARM_DESC(hpi_debug_level, "debug verbosity 0..5");
 
 /* List of adapters found */
@@ -103,6 +97,7 @@ long asihpi_hpi_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	void __user *puhr;
 	union hpi_message_buffer_v1 *hm;
 	union hpi_response_buffer_v1 *hr;
+	u16 msg_size;
 	u16 res_max_size;
 	u32 uncopied_bytes;
 	int err = 0;
@@ -127,21 +122,24 @@ long asihpi_hpi_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	}
 
 	/* Now read the message size and data from user space.  */
-	if (get_user(hm->h.size, (u16 __user *)puhm)) {
+	if (get_user(msg_size, (u16 __user *)puhm)) {
 		err = -EFAULT;
 		goto out;
 	}
-	if (hm->h.size > sizeof(*hm))
-		hm->h.size = sizeof(*hm);
+	if (msg_size > sizeof(*hm))
+		msg_size = sizeof(*hm);
 
 	/* printk(KERN_INFO "message size %d\n", hm->h.wSize); */
 
-	uncopied_bytes = copy_from_user(hm, puhm, hm->h.size);
+	uncopied_bytes = copy_from_user(hm, puhm, msg_size);
 	if (uncopied_bytes) {
 		HPI_DEBUG_LOG(ERROR, "uncopied bytes %d\n", uncopied_bytes);
 		err = -EFAULT;
 		goto out;
 	}
+
+	/* Override h.size in case it is changed between two userspace fetches */
+	hm->h.size = msg_size;
 
 	if (get_user(res_max_size, (u16 __user *)puhr)) {
 		err = -EFAULT;
@@ -182,7 +180,8 @@ long asihpi_hpi_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		struct hpi_adapter *pa = NULL;
 
 		if (hm->h.adapter_index < ARRAY_SIZE(adapters))
-			pa = &adapters[hm->h.adapter_index];
+			pa = &adapters[array_index_nospec(hm->h.adapter_index,
+							  ARRAY_SIZE(adapters))];
 
 		if (!pa || !pa->adapter || !pa->adapter->type) {
 			hpi_init_response(&hr->r0, hm->h.object,

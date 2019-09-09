@@ -1,15 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * TSI driver for Dialog DA9052
  *
  * Copyright(c) 2012 Dialog Semiconductor Ltd.
  *
  * Author: David Dajun Chen <dchen@diasemi.com>
- *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
- *
  */
 #include <linux/module.h>
 #include <linux/input.h>
@@ -26,7 +21,6 @@ struct da9052_tsi {
 	struct da9052 *da9052;
 	struct input_dev *dev;
 	struct delayed_work ts_pen_work;
-	struct mutex mutex;
 	bool stopped;
 	bool adc_on;
 };

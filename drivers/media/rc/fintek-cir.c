@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for Feature Integration Technology Inc. (aka Fintek) LPC CIR
  *
@@ -6,21 +7,6 @@
  * Special thanks to Fintek for providing hardware and spec sheets.
  * This driver is based upon the nuvoton, ite and ene drivers for
  * similar hardware.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307
- * USA
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -104,11 +90,7 @@ static inline void fintek_cir_reg_write(struct fintek_dev *fintek, u8 val, u8 of
 /* read val from cir config register */
 static u8 fintek_cir_reg_read(struct fintek_dev *fintek, u8 offset)
 {
-	u8 val;
-
-	val = inb(fintek->cir_addr + offset);
-
-	return val;
+	return inb(fintek->cir_addr + offset);
 }
 
 /* dump current cir register contents */
@@ -291,7 +273,7 @@ static int fintek_cmdsize(u8 cmd, u8 subcmd)
 /* process ir data stored in driver buffer */
 static void fintek_process_rx_ir_data(struct fintek_dev *fintek)
 {
-	DEFINE_IR_RAW_EVENT(rawir);
+	struct ir_raw_event rawir = {};
 	u8 sample;
 	bool event = false;
 	int i;
@@ -323,7 +305,6 @@ static void fintek_process_rx_ir_data(struct fintek_dev *fintek)
 			break;
 		case PARSE_IRDATA:
 			fintek->rem--;
-			init_ir_raw_event(&rawir);
 			rawir.pulse = ((sample & BUF_PULSE_BIT) != 0);
 			rawir.duration = US_TO_NS((sample & BUF_SAMPLE_MASK)
 					  * CIR_SAMPLE_PERIOD);
@@ -496,7 +477,7 @@ static int fintek_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id
 		return ret;
 
 	/* input device for IR remote (and tx) */
-	rdev = rc_allocate_device();
+	rdev = rc_allocate_device(RC_DRIVER_IR_RAW);
 	if (!rdev)
 		goto exit_free_dev_rdev;
 
@@ -538,11 +519,10 @@ static int fintek_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id
 
 	/* Set up the rc device */
 	rdev->priv = fintek;
-	rdev->driver_type = RC_DRIVER_IR_RAW;
-	rdev->allowed_protocols = RC_BIT_ALL;
+	rdev->allowed_protocols = RC_PROTO_BIT_ALL_IR_DECODER;
 	rdev->open = fintek_open;
 	rdev->close = fintek_close;
-	rdev->input_name = FINTEK_DESCRIPTION;
+	rdev->device_name = FINTEK_DESCRIPTION;
 	rdev->input_phys = "fintek/cir0";
 	rdev->input_id.bustype = BUS_HOST;
 	rdev->input_id.vendor = VENDOR_ID_FINTEK;

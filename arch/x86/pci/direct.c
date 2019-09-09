@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * direct.c - Low-level direct PCI config space access
  */
@@ -194,14 +195,13 @@ static const struct pci_raw_ops pci_direct_conf2 = {
 static int __init pci_sanity_check(const struct pci_raw_ops *o)
 {
 	u32 x = 0;
-	int year, devfn;
+	int devfn;
 
 	if (pci_probe & PCI_NO_CHECKS)
 		return 1;
 	/* Assume Type 1 works for newer systems.
 	   This handles machines that don't have anything on PCI Bus 0. */
-	dmi_get_date(DMI_BIOS_DATE, &year, NULL, NULL);
-	if (year >= 2001)
+	if (dmi_get_bios_year() >= 2001)
 		return 1;
 
 	for (devfn = 0; devfn < 0x100; devfn++) {

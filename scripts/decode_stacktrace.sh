@@ -1,4 +1,5 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-2.0
 # (c) 2014, Sasha Levin <sasha.levin@oracle.com>
 #set -x
 
@@ -27,7 +28,7 @@ parse_symbol() {
 		local objfile=${modcache[$module]}
 	else
 		[[ $modpath == "" ]] && return
-		local objfile=$(find "$modpath" -name $module.ko -print -quit)
+		local objfile=$(find "$modpath" -name "${module//_/[-_]}.ko*" -print -quit)
 		[[ $objfile == "" ]] && return
 		modcache[$module]=$objfile
 	fi
@@ -35,6 +36,13 @@ parse_symbol() {
 	# Remove the englobing parenthesis
 	symbol=${symbol#\(}
 	symbol=${symbol%\)}
+
+	# Strip segment
+	local segment
+	if [[ $symbol == *:* ]] ; then
+		segment=${symbol%%:*}:
+		symbol=${symbol#*:}
+	fi
 
 	# Strip the symbol name so that we could look it up
 	local name=${symbol%+*}
@@ -65,7 +73,7 @@ parse_symbol() {
 	if [[ "${cache[$module,$address]+isset}" == "isset" ]]; then
 		local code=${cache[$module,$address]}
 	else
-		local code=$(addr2line -i -e "$objfile" "$address")
+		local code=$(${CROSS_COMPILE}addr2line -i -e "$objfile" "$address")
 		cache[$module,$address]=$code
 	fi
 
@@ -77,13 +85,13 @@ parse_symbol() {
 	fi
 
 	# Strip out the base of the path
-	code=${code//$basepath/""}
+	code=${code#$basepath/}
 
 	# In the case of inlines, move everything to same line
 	code=${code//$'\n'/' '}
 
 	# Replace old address with pretty line numbers
-	symbol="$name ($code)"
+	symbol="$segment$name ($code)"
 }
 
 decode_code() {
@@ -139,7 +147,8 @@ handle_line() {
 
 while read line; do
 	# Let's see if we have an address in the line
-	if [[ $line =~ \[\<([^]]+)\>\]  ]]; then
+	if [[ $line =~ \[\<([^]]+)\>\] ]] ||
+	   [[ $line =~ [^+\ ]+\+0x[0-9a-f]+/0x[0-9a-f]+ ]]; then
 		# Translate address to line numbers
 		handle_line "$line"
 	# Is it a code line?

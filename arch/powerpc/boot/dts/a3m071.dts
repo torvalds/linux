@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * a3m071 board Device Tree Source
  *
@@ -8,11 +9,6 @@
  *
  * Copyright (C) 2007 Semihalf
  * Marian Balakowicz <m8@semihalf.com>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 /include/ "mpc5200b.dtsi"
@@ -105,24 +101,24 @@
 			reg = <0 0x0 0x02000000>;
 			compatible = "cfi-flash";
 			bank-width = <2>;
-			partition@0x0 {
+			partition@0 {
 				label = "u-boot";
 				reg = <0x00000000 0x00040000>;
 				read-only;
 			};
-			partition@0x00040000 {
+			partition@40000 {
 				label = "env";
 				reg = <0x00040000 0x00020000>;
 			};
-			partition@0x00060000 {
+			partition@60000 {
 				label = "dtb";
 				reg = <0x00060000 0x00020000>;
 			};
-			partition@0x00080000 {
+			partition@80000 {
 				label = "kernel";
 				reg = <0x00080000 0x00500000>;
 			};
-			partition@0x00580000 {
+			partition@580000 {
 				label = "root";
 				reg = <0x00580000 0x00A80000>;
 			};

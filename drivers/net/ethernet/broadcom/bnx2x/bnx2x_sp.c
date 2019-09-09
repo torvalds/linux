@@ -1591,7 +1591,7 @@ static int __bnx2x_vlan_mac_execute_step(struct bnx2x *bp,
 	if (rc != 0) {
 		__bnx2x_vlan_mac_h_pend(bp, o, *ramrod_flags);
 
-		/* Calling function should not diffrentiate between this case
+		/* Calling function should not differentiate between this case
 		 * and the case in which there is already a pending ramrod
 		 */
 		rc = 1;
@@ -2977,8 +2977,8 @@ static inline void bnx2x_mcast_hdl_pending_del_e2(struct bnx2x *bp,
 
 		cmd_pos->data.macs_num--;
 
-		  DP(BNX2X_MSG_SP, "Deleting MAC. %d left,cnt is %d\n",
-				   cmd_pos->data.macs_num, cnt);
+		DP(BNX2X_MSG_SP, "Deleting MAC. %d left,cnt is %d\n",
+		   cmd_pos->data.macs_num, cnt);
 
 		/* Break if we reached the maximum
 		 * number of rules.
@@ -3258,7 +3258,7 @@ static int bnx2x_mcast_validate_e2(struct bnx2x *bp,
 	/* DEL command deletes all currently configured MACs */
 	case BNX2X_MCAST_CMD_DEL:
 		o->set_registry_size(o, 0);
-		/* Don't break */
+		/* fall through */
 
 	/* RESTORE command will restore the entire multicast configuration */
 	case BNX2X_MCAST_CMD_RESTORE:
@@ -3592,13 +3592,13 @@ static int bnx2x_mcast_validate_e1(struct bnx2x *bp,
 	/* DEL command deletes all currently configured MACs */
 	case BNX2X_MCAST_CMD_DEL:
 		o->set_registry_size(o, 0);
-		/* Don't break */
+		/* fall through */
 
 	/* RESTORE command will restore the entire multicast configuration */
 	case BNX2X_MCAST_CMD_RESTORE:
 		p->mcast_list_len = reg_sz;
-		  DP(BNX2X_MSG_SP, "Command %d, p->mcast_list_len=%d\n",
-				   cmd, p->mcast_list_len);
+		DP(BNX2X_MSG_SP, "Command %d, p->mcast_list_len=%d\n",
+		   cmd, p->mcast_list_len);
 		break;
 
 	case BNX2X_MCAST_CMD_ADD:
@@ -3735,8 +3735,8 @@ static inline int bnx2x_mcast_handle_restore_cmd_e1(
 
 		i++;
 
-		  DP(BNX2X_MSG_SP, "About to configure %pM mcast MAC\n",
-		     cfg_data.mac);
+		DP(BNX2X_MSG_SP, "About to configure %pM mcast MAC\n",
+		   cfg_data.mac);
 	}
 
 	*rdata_idx = i;
@@ -5039,7 +5039,6 @@ static inline int bnx2x_q_init(struct bnx2x *bp,
 	/* As no ramrod is sent, complete the command immediately  */
 	o->complete_cmd(bp, o, BNX2X_Q_CMD_INIT);
 
-	mmiowb();
 	smp_mb();
 
 	return 0;
@@ -6149,6 +6148,7 @@ static inline int bnx2x_func_send_start(struct bnx2x *bp,
 	rdata->sd_vlan_tag	= cpu_to_le16(start_params->sd_vlan_tag);
 	rdata->path_id		= BP_PATH(bp);
 	rdata->network_cos_mode	= start_params->network_cos_mode;
+	rdata->dmae_cmd_id	= BNX2X_FW_DMAE_C;
 
 	rdata->vxlan_dst_port	= cpu_to_le16(start_params->vxlan_dst_port);
 	rdata->geneve_dst_port	= cpu_to_le16(start_params->geneve_dst_port);

@@ -1,13 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *    Copyright (C) 2006 Benjamin Herrenschmidt, IBM Corp.
  *			 <benh@kernel.crashing.org>
  *    and		 Arnd Bergmann, IBM Corp.
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version
- *  2 of the License, or (at your option) any later version.
- *
  */
 
 #undef DEBUG
@@ -45,7 +40,7 @@ static int of_pci_phb_probe(struct platform_device *dev)
 	if (ppc_md.pci_setup_phb == NULL)
 		return -ENODEV;
 
-	pr_info("Setting up PCI bus %s\n", dev->dev.of_node->full_name);
+	pr_info("Setting up PCI bus %pOF\n", dev->dev.of_node);
 
 	/* Alloc and setup PHB data structure */
 	phb = pcibios_alloc_controller(dev->dev.of_node);
@@ -114,11 +109,6 @@ static struct platform_driver of_pci_phb_driver = {
 	},
 };
 
-static __init int of_pci_phb_init(void)
-{
-	return platform_driver_register(&of_pci_phb_driver);
-}
-
-device_initcall(of_pci_phb_init);
+builtin_platform_driver(of_pci_phb_driver);
 
 #endif /* CONFIG_PPC_OF_PLATFORM_PCI */

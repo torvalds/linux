@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Aeroflex Gaisler GRETH 10/100/1G Ethernet MAC.
  *
@@ -11,11 +12,6 @@
  *
  * The Gigabit version supports scatter/gather DMA, any alignment of
  * buffers and checksum offloading.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
  *
  * Contributors: Kristoffer Glembo
  *               Daniel Hellstrom
@@ -34,6 +30,7 @@
 #include <linux/crc32.h>
 #include <linux/mii.h>
 #include <linux/of_device.h>
+#include <linux/of_net.h>
 #include <linux/of_platform.h>
 #include <linux/slab.h>
 #include <asm/cacheflush.h>
@@ -612,7 +609,6 @@ static irqreturn_t greth_interrupt(int irq, void *dev_id)
 		napi_schedule(&greth->napi);
 	}
 
-	mmiowb();
 	spin_unlock(&greth->devlock);
 
 	return retval;
@@ -806,7 +802,8 @@ static int greth_rx(struct net_device *dev, int limit)
 				if (netif_msg_pktdata(greth))
 					greth_print_rx_packet(phys_to_virt(dma_addr), pkt_len);
 
-				memcpy(skb_put(skb, pkt_len), phys_to_virt(dma_addr), pkt_len);
+				skb_put_data(skb, phys_to_virt(dma_addr),
+					     pkt_len);
 
 				skb->protocol = eth_type_trans(skb, dev);
 				dev->stats.rx_bytes += pkt_len;
@@ -1008,7 +1005,7 @@ restart_txrx_poll:
 			spin_unlock_irqrestore(&greth->devlock, flags);
 			goto restart_txrx_poll;
 		} else {
-			__napi_complete(napi);
+			napi_complete_done(napi, work_done);
 			spin_unlock_irqrestore(&greth->devlock, flags);
 		}
 	}
@@ -1277,26 +1274,17 @@ static int greth_mdio_probe(struct net_device *dev)
 	}
 
 	if (greth->gbit_mac)
-		phy->supported &= PHY_GBIT_FEATURES;
+		phy_set_max_speed(phy, SPEED_1000);
 	else
-		phy->supported &= PHY_BASIC_FEATURES;
+		phy_set_max_speed(phy, SPEED_100);
 
-	phy->advertising = phy->supported;
+	linkmode_copy(phy->advertising, phy->supported);
 
 	greth->link = 0;
 	greth->speed = 0;
 	greth->duplex = -1;
 
 	return 0;
-}
-
-static inline int phy_aneg_done(struct phy_device *phydev)
-{
-	int retval;
-
-	retval = phy_read(phydev, MII_BMSR);
-
-	return (retval < 0) ? retval : (retval & BMSR_ANEGCOMPLETE);
 }
 
 static int greth_mdio_init(struct greth_private *greth)
@@ -1440,18 +1428,18 @@ static int greth_of_probe(struct platform_device *ofdev)
 	}
 
 	/* Allocate TX descriptor ring in coherent memory */
-	greth->tx_bd_base = dma_zalloc_coherent(greth->dev, 1024,
-						&greth->tx_bd_base_phys,
-						GFP_KERNEL);
+	greth->tx_bd_base = dma_alloc_coherent(greth->dev, 1024,
+					       &greth->tx_bd_base_phys,
+					       GFP_KERNEL);
 	if (!greth->tx_bd_base) {
 		err = -ENOMEM;
 		goto error3;
 	}
 
 	/* Allocate RX descriptor ring in coherent memory */
-	greth->rx_bd_base = dma_zalloc_coherent(greth->dev, 1024,
-						&greth->rx_bd_base_phys,
-						GFP_KERNEL);
+	greth->rx_bd_base = dma_alloc_coherent(greth->dev, 1024,
+					       &greth->rx_bd_base_phys,
+					       GFP_KERNEL);
 	if (!greth->rx_bd_base) {
 		err = -ENOMEM;
 		goto error4;
@@ -1463,11 +1451,10 @@ static int greth_of_probe(struct platform_device *ofdev)
 			break;
 	}
 	if (i == 6) {
-		const unsigned char *addr;
-		int len;
-		addr = of_get_property(ofdev->dev.of_node, "local-mac-address",
-					&len);
-		if (addr != NULL && len == 6) {
+		const u8 *addr;
+
+		addr = of_get_mac_address(ofdev->dev.of_node);
+		if (!IS_ERR(addr)) {
 			for (i = 0; i < 6; i++)
 				macaddr[i] = (unsigned int) addr[i];
 		} else {

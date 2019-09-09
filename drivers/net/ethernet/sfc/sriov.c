@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /****************************************************************************
  * Driver for Solarflare network controllers and boards
  * Copyright 2014-2015 Solarflare Communications Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation, incorporated herein by reference.
  */
 #include <linux/module.h>
 #include "net_driver.h"
@@ -70,17 +67,6 @@ int efx_sriov_set_vf_link_state(struct net_device *net_dev, int vf_i,
 	if (efx->type->sriov_set_vf_link_state)
 		return efx->type->sriov_set_vf_link_state(efx, vf_i,
 							  link_state);
-	else
-		return -EOPNOTSUPP;
-}
-
-int efx_sriov_get_phys_port_id(struct net_device *net_dev,
-			       struct netdev_phys_item_id *ppid)
-{
-	struct efx_nic *efx = netdev_priv(net_dev);
-
-	if (efx->type->sriov_get_phys_port_id)
-		return efx->type->sriov_get_phys_port_id(efx, ppid);
 	else
 		return -EOPNOTSUPP;
 }

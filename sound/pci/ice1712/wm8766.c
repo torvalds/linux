@@ -1,24 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *   ALSA driver for ICEnsemble VT17xx
  *
  *   Lowlevel functions for WM8766 codec
  *
  *	Copyright (c) 2012 Ondrej Zary <linux@rainbow-software.org>
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <linux/delay.h>
@@ -254,7 +240,7 @@ static int snd_wm8766_ctl_put(struct snd_kcontrol *kcontrol,
 	int n = kcontrol->private_value;
 	u16 val, regval1, regval2;
 
-	/* this also works for enum because value is an union */
+	/* this also works for enum because value is a union */
 	regval1 = ucontrol->value.integer.value[0];
 	regval2 = ucontrol->value.integer.value[1];
 	if (wm->ctl[n].flags & WM8766_FLAG_INVERT) {

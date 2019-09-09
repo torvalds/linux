@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Greybus "Core"
  *
  * Copyright 2014-2015 Google Inc.
  * Copyright 2014-2015 Linaro Ltd.
- *
- * Released under the GPLv2 only.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -29,7 +28,7 @@ int greybus_disabled(void)
 EXPORT_SYMBOL_GPL(greybus_disabled);
 
 static bool greybus_match_one_id(struct gb_bundle *bundle,
-				     const struct greybus_bundle_id *id)
+				 const struct greybus_bundle_id *id)
 {
 	if ((id->match_flags & GREYBUS_ID_MATCH_VENDOR) &&
 	    (id->vendor != bundle->intf->vendor_id))
@@ -49,7 +48,7 @@ static bool greybus_match_one_id(struct gb_bundle *bundle,
 static const struct greybus_bundle_id *
 greybus_match_id(struct gb_bundle *bundle, const struct greybus_bundle_id *id)
 {
-	if (id == NULL)
+	if (!id)
 		return NULL;
 
 	for (; id->vendor || id->product || id->class || id->driver_info;
@@ -218,8 +217,6 @@ static int greybus_probe(struct device *dev)
 		return retval;
 	}
 
-	gb_timesync_schedule_synchronous(bundle->intf);
-
 	pm_runtime_put(&bundle->intf->dev);
 
 	return 0;
@@ -269,7 +266,7 @@ static int greybus_remove(struct device *dev)
 }
 
 int greybus_register_driver(struct greybus_driver *driver, struct module *owner,
-		const char *mod_name)
+			    const char *mod_name)
 {
 	int retval;
 
@@ -326,16 +323,8 @@ static int __init gb_init(void)
 		pr_err("gb_operation_init failed (%d)\n", retval);
 		goto error_operation;
 	}
-
-	retval = gb_timesync_init();
-	if (retval) {
-		pr_err("gb_timesync_init failed\n");
-		goto error_timesync;
-	}
 	return 0;	/* Success */
 
-error_timesync:
-	gb_operation_exit();
 error_operation:
 	gb_hd_exit();
 error_hd:
@@ -349,7 +338,6 @@ module_init(gb_init);
 
 static void __exit gb_exit(void)
 {
-	gb_timesync_exit();
 	gb_operation_exit();
 	gb_hd_exit();
 	bus_unregister(&greybus_bus_type);

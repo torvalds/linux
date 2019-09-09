@@ -1,7 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_RING_BUFFER_H
 #define _LINUX_RING_BUFFER_H
 
-#include <linux/kmemcheck.h>
 #include <linux/mm.h>
 #include <linux/seq_file.h>
 #include <linux/poll.h>
@@ -13,9 +13,7 @@ struct ring_buffer_iter;
  * Don't refer to this struct directly, use functions below.
  */
 struct ring_buffer_event {
-	kmemcheck_bitfield_begin(bitfield);
 	u32		type_len:5, time_delta:27;
-	kmemcheck_bitfield_end(bitfield);
 
 	u32		array[];
 };
@@ -36,10 +34,12 @@ struct ring_buffer_event {
  *				 array[0] = time delta (28 .. 59)
  *				 size = 8 bytes
  *
- * @RINGBUF_TYPE_TIME_STAMP:	Sync time stamp with external clock
- *				 array[0]    = tv_nsec
- *				 array[1..2] = tv_sec
- *				 size = 16 bytes
+ * @RINGBUF_TYPE_TIME_STAMP:	Absolute timestamp
+ *				 Same format as TIME_EXTEND except that the
+ *				 value is an absolute timestamp, not a delta
+ *				 event.time_delta contains bottom 27 bits
+ *				 array[0] = top (28 .. 59) bits
+ *				 size = 8 bytes
  *
  * <= @RINGBUF_TYPE_DATA_TYPE_LEN_MAX:
  *				Data record
@@ -56,16 +56,16 @@ enum ring_buffer_type {
 	RINGBUF_TYPE_DATA_TYPE_LEN_MAX = 28,
 	RINGBUF_TYPE_PADDING,
 	RINGBUF_TYPE_TIME_EXTEND,
-	/* FIXME: RINGBUF_TYPE_TIME_STAMP not implemented */
 	RINGBUF_TYPE_TIME_STAMP,
 };
 
 unsigned ring_buffer_event_length(struct ring_buffer_event *event);
 void *ring_buffer_event_data(struct ring_buffer_event *event);
+u64 ring_buffer_event_time_stamp(struct ring_buffer_event *event);
 
 /*
  * ring_buffer_discard_commit will remove an event that has not
- *   ben committed yet. If this is used, then ring_buffer_unlock_commit
+ *   been committed yet. If this is used, then ring_buffer_unlock_commit
  *   must not be called on the discarded event. This function
  *   will try to remove the event from the ring buffer completely
  *   if another event has not been written after it.
@@ -97,8 +97,8 @@ __ring_buffer_alloc(unsigned long size, unsigned flags, struct lock_class_key *k
 	__ring_buffer_alloc((size), (flags), &__key);	\
 })
 
-int ring_buffer_wait(struct ring_buffer *buffer, int cpu, bool full);
-int ring_buffer_poll_wait(struct ring_buffer *buffer, int cpu,
+int ring_buffer_wait(struct ring_buffer *buffer, int cpu, int full);
+__poll_t ring_buffer_poll_wait(struct ring_buffer *buffer, int cpu,
 			  struct file *filp, poll_table *poll_table);
 
 
@@ -117,6 +117,9 @@ int ring_buffer_unlock_commit(struct ring_buffer *buffer,
 int ring_buffer_write(struct ring_buffer *buffer,
 		      unsigned long length, void *data);
 
+void ring_buffer_nest_start(struct ring_buffer *buffer);
+void ring_buffer_nest_end(struct ring_buffer *buffer);
+
 struct ring_buffer_event *
 ring_buffer_peek(struct ring_buffer *buffer, int cpu, u64 *ts,
 		 unsigned long *lost_events);
@@ -125,7 +128,7 @@ ring_buffer_consume(struct ring_buffer *buffer, int cpu, u64 *ts,
 		    unsigned long *lost_events);
 
 struct ring_buffer_iter *
-ring_buffer_read_prepare(struct ring_buffer *buffer, int cpu);
+ring_buffer_read_prepare(struct ring_buffer *buffer, int cpu, gfp_t flags);
 void ring_buffer_read_prepare_sync(void);
 void ring_buffer_read_start(struct ring_buffer_iter *iter);
 void ring_buffer_read_finish(struct ring_buffer_iter *iter);
@@ -161,7 +164,8 @@ void ring_buffer_record_disable(struct ring_buffer *buffer);
 void ring_buffer_record_enable(struct ring_buffer *buffer);
 void ring_buffer_record_off(struct ring_buffer *buffer);
 void ring_buffer_record_on(struct ring_buffer *buffer);
-int ring_buffer_record_is_on(struct ring_buffer *buffer);
+bool ring_buffer_record_is_on(struct ring_buffer *buffer);
+bool ring_buffer_record_is_set_on(struct ring_buffer *buffer);
 void ring_buffer_record_disable_cpu(struct ring_buffer *buffer, int cpu);
 void ring_buffer_record_enable_cpu(struct ring_buffer *buffer, int cpu);
 
@@ -180,12 +184,14 @@ void ring_buffer_normalize_time_stamp(struct ring_buffer *buffer,
 				      int cpu, u64 *ts);
 void ring_buffer_set_clock(struct ring_buffer *buffer,
 			   u64 (*clock)(void));
+void ring_buffer_set_time_stamp_abs(struct ring_buffer *buffer, bool abs);
+bool ring_buffer_time_stamp_abs(struct ring_buffer *buffer);
 
-size_t ring_buffer_page_len(void *page);
-
+size_t ring_buffer_nr_pages(struct ring_buffer *buffer, int cpu);
+size_t ring_buffer_nr_dirty_pages(struct ring_buffer *buffer, int cpu);
 
 void *ring_buffer_alloc_read_page(struct ring_buffer *buffer, int cpu);
-void ring_buffer_free_read_page(struct ring_buffer *buffer, void *data);
+void ring_buffer_free_read_page(struct ring_buffer *buffer, int cpu, void *data);
 int ring_buffer_read_page(struct ring_buffer *buffer, void **data_page,
 			  size_t len, int cpu, int full);
 
@@ -197,5 +203,11 @@ int ring_buffer_print_page_header(struct trace_seq *s);
 enum ring_buffer_flags {
 	RB_FL_OVERWRITE		= 1 << 0,
 };
+
+#ifdef CONFIG_RING_BUFFER
+int trace_rb_cpu_prepare(unsigned int cpu, struct hlist_node *node);
+#else
+#define trace_rb_cpu_prepare	NULL
+#endif
 
 #endif /* _LINUX_RING_BUFFER_H */

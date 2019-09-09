@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* CacheFiles statistics
  *
  * Copyright (C) 2007 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public Licence
- * as published by the Free Software Foundation; either version
- * 2 of the Licence, or (at your option) any later version.
  */
 
 #include <linux/module.h>
@@ -85,21 +81,6 @@ static const struct seq_operations cachefiles_histogram_ops = {
 };
 
 /*
- * open "/proc/fs/cachefiles/XXX" which provide statistics summaries
- */
-static int cachefiles_histogram_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &cachefiles_histogram_ops);
-}
-
-static const struct file_operations cachefiles_histogram_fops = {
-	.open		= cachefiles_histogram_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
-};
-
-/*
  * initialise the /proc/fs/cachefiles/ directory
  */
 int __init cachefiles_proc_init(void)
@@ -109,8 +90,8 @@ int __init cachefiles_proc_init(void)
 	if (!proc_mkdir("fs/cachefiles", NULL))
 		goto error_dir;
 
-	if (!proc_create("fs/cachefiles/histogram", S_IFREG | 0444, NULL,
-			 &cachefiles_histogram_fops))
+	if (!proc_create_seq("fs/cachefiles/histogram", S_IFREG | 0444, NULL,
+			 &cachefiles_histogram_ops))
 		goto error_histogram;
 
 	_leave(" = 0");

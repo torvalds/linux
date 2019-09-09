@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef LINUX_KEXEC_INTERNAL_H
 #define LINUX_KEXEC_INTERNAL_H
 
@@ -15,28 +16,10 @@ int kimage_is_destination_range(struct kimage *image,
 extern struct mutex kexec_mutex;
 
 #ifdef CONFIG_KEXEC_FILE
-struct kexec_sha_region {
-	unsigned long start;
-	unsigned long len;
-};
-
-/*
- * Keeps track of buffer parameters as provided by caller for requesting
- * memory placement of buffer.
- */
-struct kexec_buf {
-	struct kimage *image;
-	char *buffer;
-	unsigned long bufsz;
-	unsigned long mem;
-	unsigned long memsz;
-	unsigned long buf_align;
-	unsigned long buf_min;
-	unsigned long buf_max;
-	bool top_down;		/* allocate from top of memory hole */
-};
-
+#include <linux/purgatory.h>
 void kimage_file_post_load_cleanup(struct kimage *image);
+extern char kexec_purgatory[];
+extern size_t kexec_purgatory_size;
 #else /* CONFIG_KEXEC_FILE */
 static inline void kimage_file_post_load_cleanup(struct kimage *image) { }
 #endif /* CONFIG_KEXEC_FILE */

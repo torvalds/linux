@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *	linux/arch/alpha/kernel/core_titan.c
  *
@@ -15,7 +16,7 @@
 #include <linux/sched.h>
 #include <linux/init.h>
 #include <linux/vmalloc.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 
 #include <asm/ptrace.h>
 #include <asm/smp.h>
@@ -315,10 +316,12 @@ titan_init_one_pachip_port(titan_pachip_port *port, int index)
 	 * Window 1 is direct access 1GB at 2GB
 	 * Window 2 is scatter-gather 1GB at 3GB
 	 */
-	hose->sg_isa = iommu_arena_new(hose, 0x00800000, 0x00800000, 0);
+	hose->sg_isa = iommu_arena_new(hose, 0x00800000, 0x00800000,
+				       SMP_CACHE_BYTES);
 	hose->sg_isa->align_entry = 8; /* 64KB for ISA */
 
-	hose->sg_pci = iommu_arena_new(hose, 0xc0000000, 0x40000000, 0);
+	hose->sg_pci = iommu_arena_new(hose, 0xc0000000, 0x40000000,
+				       SMP_CACHE_BYTES);
 	hose->sg_pci->align_entry = 4; /* Titan caches 4 PTEs at a time */
 
 	port->wsba[0].csr = hose->sg_isa->dma_base | 3;
@@ -461,6 +464,7 @@ titan_ioremap(unsigned long addr, unsigned long size)
 	unsigned long *ptes;
 	unsigned long pfn;
 
+#ifdef CONFIG_VGA_HOSE
 	/*
 	 * Adjust the address and hose, if necessary.
 	 */ 
@@ -468,6 +472,7 @@ titan_ioremap(unsigned long addr, unsigned long size)
 		h = pci_vga_hose->index;
 		addr += pci_vga_hose->mem_space->start;
 	}
+#endif
 
 	/*
 	 * Find the hose.

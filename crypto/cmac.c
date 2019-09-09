@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * CMAC: Cipher Block Mode for Authentication
  *
@@ -8,12 +9,6 @@
  * Based on crypto/xcbc.c:
  *  Copyright © 2006 USAGI/WIDE Project,
  *   Author: Kazunori Miyazawa <miyazawa@linux-ipv6.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
  */
 
 #include <crypto/internal/hash.h>
@@ -57,7 +52,8 @@ static int crypto_cmac_digest_setkey(struct crypto_shash *parent,
 	unsigned long alignmask = crypto_shash_alignmask(parent);
 	struct cmac_tfm_ctx *ctx = crypto_shash_ctx(parent);
 	unsigned int bs = crypto_shash_blocksize(parent);
-	__be64 *consts = PTR_ALIGN((void *)ctx->ctx, alignmask + 1);
+	__be64 *consts = PTR_ALIGN((void *)ctx->ctx,
+				   (alignmask | (__alignof__(__be64) - 1)) + 1);
 	u64 _const[2];
 	int i, err = 0;
 	u8 msb_mask, gfmask;
@@ -173,7 +169,8 @@ static int crypto_cmac_digest_final(struct shash_desc *pdesc, u8 *out)
 	struct cmac_desc_ctx *ctx = shash_desc_ctx(pdesc);
 	struct crypto_cipher *tfm = tctx->child;
 	int bs = crypto_shash_blocksize(parent);
-	u8 *consts = PTR_ALIGN((void *)tctx->ctx, alignmask + 1);
+	u8 *consts = PTR_ALIGN((void *)tctx->ctx,
+			       (alignmask | (__alignof__(__be64) - 1)) + 1);
 	u8 *odds = PTR_ALIGN((void *)ctx->ctx, alignmask + 1);
 	u8 *prev = odds + bs;
 	unsigned int offset = 0;
@@ -243,6 +240,7 @@ static int cmac_create(struct crypto_template *tmpl, struct rtattr **tb)
 	case 8:
 		break;
 	default:
+		err = -EINVAL;
 		goto out_put_alg;
 	}
 
@@ -257,7 +255,7 @@ static int cmac_create(struct crypto_template *tmpl, struct rtattr **tb)
 	if (err)
 		goto out_free_inst;
 
-	alignmask = alg->cra_alignmask | (sizeof(long) - 1);
+	alignmask = alg->cra_alignmask;
 	inst->alg.base.cra_alignmask = alignmask;
 	inst->alg.base.cra_priority = alg->cra_priority;
 	inst->alg.base.cra_blocksize = alg->cra_blocksize;
@@ -269,7 +267,9 @@ static int cmac_create(struct crypto_template *tmpl, struct rtattr **tb)
 		+ alg->cra_blocksize * 2;
 
 	inst->alg.base.cra_ctxsize =
-		ALIGN(sizeof(struct cmac_tfm_ctx), alignmask + 1)
+		ALIGN(sizeof(struct cmac_tfm_ctx), crypto_tfm_ctx_alignment())
+		+ ((alignmask | (__alignof__(__be64) - 1)) &
+		   ~(crypto_tfm_ctx_alignment() - 1))
 		+ alg->cra_blocksize * 2;
 
 	inst->alg.base.cra_init = cmac_init_tfm;
@@ -308,7 +308,7 @@ static void __exit crypto_cmac_module_exit(void)
 	crypto_unregister_template(&crypto_cmac_tmpl);
 }
 
-module_init(crypto_cmac_module_init);
+subsys_initcall(crypto_cmac_module_init);
 module_exit(crypto_cmac_module_exit);
 
 MODULE_LICENSE("GPL");

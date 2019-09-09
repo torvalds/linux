@@ -12,12 +12,14 @@ tree nodes.
 
 The first part of NFC is NAND Controller Interface (NFI) HW.
 Required NFI properties:
-- compatible:			Should be "mediatek,mtxxxx-nfc".
+- compatible:			Should be one of
+				"mediatek,mt2701-nfc",
+				"mediatek,mt2712-nfc",
+				"mediatek,mt7622-nfc".
 - reg:				Base physical address and size of NFI.
 - interrupts:			Interrupts of NFI.
 - clocks:			NFI required clocks.
 - clock-names:			NFI clocks internal name.
-- status:			Disabled default. Then set "okay" by platform.
 - ecc-engine:			Required ECC Engine node.
 - #address-cells:		NAND chip index, should be 1.
 - #size-cells:			Should be 0.
@@ -31,7 +33,6 @@ Example:
 		clocks = <&pericfg CLK_PERI_NFI>,
 			 <&pericfg CLK_PERI_NFI_PAD>;
 		clock-names = "nfi_clk", "pad_clk";
-		status = "disabled";
 		ecc-engine = <&bch>;
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -47,14 +48,19 @@ Optional:
 - nand-on-flash-bbt:	Store BBT on NAND Flash.
 - nand-ecc-mode:	the NAND ecc mode (check driver for supported modes)
 - nand-ecc-step-size:	Number of data bytes covered by a single ECC step.
-			valid values: 512 and 1024.
+			valid values:
+			512 and 1024 on mt2701 and mt2712.
+			512 only on mt7622.
 			1024 is recommended for large page NANDs.
 - nand-ecc-strength:	Number of bits to correct per ECC step.
-			The valid values that the controller supports are: 4, 6,
-			8, 10, 12, 14, 16, 18, 20, 22, 24, 28, 32, 36, 40, 44,
-			48, 52, 56, 60.
+			The valid values that each controller supports:
+			mt2701: 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 28,
+				32, 36, 40, 44, 48, 52, 56, 60.
+			mt2712: 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 28,
+				32, 36, 40, 44, 48, 52, 56, 60, 68, 72, 80.
+			mt7622: 4, 6, 8, 10, 12, 14, 16.
 			The strength should be calculated as follows:
-			E = (S - F) * 8 / 14
+			E = (S - F) * 8 / B
 			S = O / (P / Q)
 				E :	nand-ecc-strength.
 				S :	spare size per sector.
@@ -63,6 +69,15 @@ Optional:
 				O :	oob size.
 				P :	page size.
 				Q :	nand-ecc-step-size.
+				B :	number of parity bits needed to correct
+					1 bitflip.
+					According to MTK NAND controller design,
+					this number depends on max ecc step size
+					that MTK NAND controller supports.
+					If max ecc step size supported is 1024,
+					then it should be always 14. And if max
+					ecc step size is 512, then it should be
+					always 13.
 			If the result does not match any one of the listed
 			choices above, please select the smaller valid value from
 			the list.
@@ -130,7 +145,7 @@ Example:
 				read-only;
 				reg = <0x00000000 0x00400000>;
 			};
-			android@0x00400000 {
+			android@00400000 {
 				label = "android";
 				reg = <0x00400000 0x12c00000>;
 			};
@@ -141,12 +156,14 @@ Example:
 ==============
 
 Required BCH properties:
-- compatible:	Should be "mediatek,mtxxxx-ecc".
+- compatible:	Should be one of
+		"mediatek,mt2701-ecc",
+		"mediatek,mt2712-ecc",
+		"mediatek,mt7622-ecc".
 - reg:		Base physical address and size of ECC.
 - interrupts:	Interrupts of ECC.
 - clocks:	ECC required clocks.
 - clock-names:	ECC clocks internal name.
-- status:	Disabled default. Then set "okay" by platform.
 
 Example:
 
@@ -156,5 +173,4 @@ Example:
 		interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_LOW>;
 		clocks = <&pericfg CLK_PERI_NFI_ECC>;
 		clock-names = "nfiecc_clk";
-		status = "disabled";
 	};

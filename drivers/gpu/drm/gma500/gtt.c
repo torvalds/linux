@@ -1,28 +1,18 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2007, Intel Corporation.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  *
  * Authors: Thomas Hellstrom <thomas-at-tungstengraphics.com>
  *	    Alan Cox <alan@linux.intel.com>
  */
 
-#include <drm/drmP.h>
 #include <linux/shmem_fs.h>
-#include "psb_drv.h"
+
+#include <asm/set_memory.h>
+
 #include "blitter.h"
+#include "psb_drv.h"
 
 
 /*
@@ -76,6 +66,7 @@ static u32 __iomem *psb_gtt_entry(struct drm_device *dev, struct gtt_range *r)
  *	psb_gtt_insert	-	put an object into the GTT
  *	@dev: our DRM device
  *	@r: our GTT range
+ *	@resume: on resume
  *
  *	Take our preallocated GTT range and insert the GEM object into
  *	the GTT. This is protected via the gtt mutex which the caller
@@ -130,7 +121,7 @@ static int psb_gtt_insert(struct drm_device *dev, struct gtt_range *r,
  *	page table entries with the dummy page. This is protected via the gtt
  *	mutex which the caller must hold.
  */
-void psb_gtt_remove(struct drm_device *dev, struct gtt_range *r)
+static void psb_gtt_remove(struct drm_device *dev, struct gtt_range *r)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	u32 __iomem *gtt_slot;
@@ -321,6 +312,7 @@ out:
  *	@len: length (bytes) of address space required
  *	@name: resource name
  *	@backed: resource should be backed by stolen pages
+ *	@align: requested alignment
  *
  *	Ask the kernel core to find us a suitable range of addresses
  *	to use for a GTT mapping.

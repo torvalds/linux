@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
 	Copyright (C) 2009 - 2010 Ivo van Doorn <IvDoorn@gmail.com>
 	Copyright (C) 2009 Alban Browaeys <prahal@yahoo.com>
@@ -9,18 +10,6 @@
 	Copyright (C) 2009 Bart Zolnierkiewicz <bzolnier@gmail.com>
 	<http://rt2x00.serialmonkey.com>
 
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 2 of the License, or
-	(at your option) any later version.
-
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-	GNU General Public License for more details.
-
-	You should have received a copy of the GNU General Public License
-	along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -49,7 +38,7 @@
  * Allow hardware encryption to be disabled.
  */
 static bool modparam_nohwcrypt = false;
-module_param_named(nohwcrypt, modparam_nohwcrypt, bool, S_IRUGO);
+module_param_named(nohwcrypt, modparam_nohwcrypt, bool, 0444);
 MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption.");
 
 static bool rt2800pci_hwcrypt_disabled(struct rt2x00_dev *rt2x00dev)
@@ -69,7 +58,7 @@ static void rt2800pci_mcu_status(struct rt2x00_dev *rt2x00dev, const u8 token)
 		return;
 
 	for (i = 0; i < 200; i++) {
-		rt2x00mmio_register_read(rt2x00dev, H2M_MAILBOX_CID, &reg);
+		reg = rt2x00mmio_register_read(rt2x00dev, H2M_MAILBOX_CID);
 
 		if ((rt2x00_get_field32(reg, H2M_MAILBOX_CID_CMD0) == token) ||
 		    (rt2x00_get_field32(reg, H2M_MAILBOX_CID_CMD1) == token) ||
@@ -92,7 +81,7 @@ static void rt2800pci_eepromregister_read(struct eeprom_93cx6 *eeprom)
 	struct rt2x00_dev *rt2x00dev = eeprom->data;
 	u32 reg;
 
-	rt2x00mmio_register_read(rt2x00dev, E2PROM_CSR, &reg);
+	reg = rt2x00mmio_register_read(rt2x00dev, E2PROM_CSR);
 
 	eeprom->reg_data_in = !!rt2x00_get_field32(reg, E2PROM_CSR_DATA_IN);
 	eeprom->reg_data_out = !!rt2x00_get_field32(reg, E2PROM_CSR_DATA_OUT);
@@ -122,7 +111,7 @@ static int rt2800pci_read_eeprom_pci(struct rt2x00_dev *rt2x00dev)
 	struct eeprom_93cx6 eeprom;
 	u32 reg;
 
-	rt2x00mmio_register_read(rt2x00dev, E2PROM_CSR, &reg);
+	reg = rt2x00mmio_register_read(rt2x00dev, E2PROM_CSR);
 
 	eeprom.data = rt2x00dev;
 	eeprom.register_read = rt2800pci_eepromregister_read;
@@ -311,8 +300,8 @@ static const struct ieee80211_ops rt2800pci_mac80211_ops = {
 	.get_stats		= rt2x00mac_get_stats,
 	.get_key_seq		= rt2800_get_key_seq,
 	.set_rts_threshold	= rt2800_set_rts_threshold,
-	.sta_add		= rt2x00mac_sta_add,
-	.sta_remove		= rt2x00mac_sta_remove,
+	.sta_add		= rt2800_sta_add,
+	.sta_remove		= rt2800_sta_remove,
 	.bss_info_changed	= rt2x00mac_bss_info_changed,
 	.conf_tx		= rt2800_conf_tx,
 	.get_tsf		= rt2800_get_tsf,
@@ -337,6 +326,7 @@ static const struct rt2800_ops rt2800pci_rt2800_ops = {
 	.drv_write_firmware	= rt2800pci_write_firmware,
 	.drv_init_registers	= rt2800mmio_init_registers,
 	.drv_get_txwi		= rt2800mmio_get_txwi,
+	.drv_get_dma_done	= rt2800mmio_get_dma_done,
 };
 
 static const struct rt2x00lib_ops rt2800pci_rt2x00_ops = {
@@ -346,7 +336,7 @@ static const struct rt2x00lib_ops rt2800pci_rt2x00_ops = {
 	.tbtt_tasklet		= rt2800mmio_tbtt_tasklet,
 	.rxdone_tasklet		= rt2800mmio_rxdone_tasklet,
 	.autowake_tasklet	= rt2800mmio_autowake_tasklet,
-	.probe_hw		= rt2800_probe_hw,
+	.probe_hw		= rt2800mmio_probe_hw,
 	.get_firmware_name	= rt2800pci_get_firmware_name,
 	.check_firmware		= rt2800_check_firmware,
 	.load_firmware		= rt2800_load_firmware,
@@ -361,10 +351,11 @@ static const struct rt2x00lib_ops rt2800pci_rt2x00_ops = {
 	.link_tuner		= rt2800_link_tuner,
 	.gain_calibration	= rt2800_gain_calibration,
 	.vco_calibration	= rt2800_vco_calibration,
+	.watchdog		= rt2800_watchdog,
 	.start_queue		= rt2800mmio_start_queue,
 	.kick_queue		= rt2800mmio_kick_queue,
 	.stop_queue		= rt2800mmio_stop_queue,
-	.flush_queue		= rt2x00mmio_flush_queue,
+	.flush_queue		= rt2800mmio_flush_queue,
 	.write_tx_desc		= rt2800mmio_write_tx_desc,
 	.write_tx_data		= rt2800_write_tx_data,
 	.write_beacon		= rt2800_write_beacon,
@@ -377,8 +368,7 @@ static const struct rt2x00lib_ops rt2800pci_rt2x00_ops = {
 	.config_erp		= rt2800_config_erp,
 	.config_ant		= rt2800_config_ant,
 	.config			= rt2800_config,
-	.sta_add		= rt2800_sta_add,
-	.sta_remove		= rt2800_sta_remove,
+	.pre_reset_hw		= rt2800_pre_reset_hw,
 };
 
 static const struct rt2x00_ops rt2800pci_ops = {

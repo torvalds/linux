@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * DECnet       An implementation of the DECnet protocol suite for the LINUX
  *              operating system.  DECnet is implemented using the  BSD Socket
@@ -42,7 +43,7 @@
 #include <linux/notifier.h>
 #include <linux/slab.h>
 #include <linux/jiffies.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <net/net_namespace.h>
 #include <net/neighbour.h>
 #include <net/dst.h>
@@ -55,7 +56,7 @@
 #include <net/dn_neigh.h>
 #include <net/dn_fib.h>
 
-#define DN_IFREQ_SIZE (sizeof(struct ifreq) - sizeof(struct sockaddr) + sizeof(struct sockaddr_dn))
+#define DN_IFREQ_SIZE (offsetof(struct ifreq, ifr_ifru) + sizeof(struct sockaddr_dn))
 
 static char dn_rt_all_end_mcast[ETH_ALEN] = {0xAB,0x00,0x00,0x04,0x00,0x00};
 static char dn_rt_all_rt_mcast[ETH_ALEN]  = {0xAB,0x00,0x00,0x03,0x00,0x00};
@@ -201,7 +202,7 @@ static struct dn_dev_sysctl_table {
 		.extra1 = &min_t3,
 		.extra2 = &max_t3
 	},
-	{0}
+	{ }
 	},
 };
 
@@ -565,7 +566,8 @@ static const struct nla_policy dn_ifa_policy[IFA_MAX+1] = {
 	[IFA_FLAGS]		= { .type = NLA_U32 },
 };
 
-static int dn_nl_deladdr(struct sk_buff *skb, struct nlmsghdr *nlh)
+static int dn_nl_deladdr(struct sk_buff *skb, struct nlmsghdr *nlh,
+			 struct netlink_ext_ack *extack)
 {
 	struct net *net = sock_net(skb->sk);
 	struct nlattr *tb[IFA_MAX+1];
@@ -581,7 +583,8 @@ static int dn_nl_deladdr(struct sk_buff *skb, struct nlmsghdr *nlh)
 	if (!net_eq(net, &init_net))
 		goto errout;
 
-	err = nlmsg_parse(nlh, sizeof(*ifm), tb, IFA_MAX, dn_ifa_policy);
+	err = nlmsg_parse_deprecated(nlh, sizeof(*ifm), tb, IFA_MAX,
+				     dn_ifa_policy, extack);
 	if (err < 0)
 		goto errout;
 
@@ -609,7 +612,8 @@ errout:
 	return err;
 }
 
-static int dn_nl_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh)
+static int dn_nl_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh,
+			 struct netlink_ext_ack *extack)
 {
 	struct net *net = sock_net(skb->sk);
 	struct nlattr *tb[IFA_MAX+1];
@@ -625,7 +629,8 @@ static int dn_nl_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh)
 	if (!net_eq(net, &init_net))
 		return -EINVAL;
 
-	err = nlmsg_parse(nlh, sizeof(*ifm), tb, IFA_MAX, dn_ifa_policy);
+	err = nlmsg_parse_deprecated(nlh, sizeof(*ifm), tb, IFA_MAX,
+				     dn_ifa_policy, extack);
 	if (err < 0)
 		return err;
 
@@ -842,7 +847,7 @@ static void dn_send_endnode_hello(struct net_device *dev, struct dn_ifaddr *ifa)
 
 	skb->dev = dev;
 
-	msg = (struct endnode_hello_message *)skb_put(skb,sizeof(*msg));
+	msg = skb_put(skb, sizeof(*msg));
 
 	msg->msgflg  = 0x0D;
 	memcpy(msg->tiver, dn_eco_version, 3);
@@ -863,7 +868,7 @@ static void dn_send_endnode_hello(struct net_device *dev, struct dn_ifaddr *ifa)
 	msg->datalen = 0x02;
 	memset(msg->data, 0xAA, 2);
 
-	pktlen = (__le16 *)skb_push(skb,2);
+	pktlen = skb_push(skb, 2);
 	*pktlen = cpu_to_le16(skb->len - 2);
 
 	skb_reset_network_header(skb);
@@ -955,7 +960,7 @@ static void dn_send_router_hello(struct net_device *dev, struct dn_ifaddr *ifa)
 
 	skb_trim(skb, (27 + *i2));
 
-	pktlen = (__le16 *)skb_push(skb, 2);
+	pktlen = skb_push(skb, 2);
 	*pktlen = cpu_to_le16(skb->len - 2);
 
 	skb_reset_network_header(skb);
@@ -1034,14 +1039,14 @@ static void dn_eth_down(struct net_device *dev)
 
 static void dn_dev_set_timer(struct net_device *dev);
 
-static void dn_dev_timer_func(unsigned long arg)
+static void dn_dev_timer_func(struct timer_list *t)
 {
-	struct net_device *dev = (struct net_device *)arg;
-	struct dn_dev *dn_db;
+	struct dn_dev *dn_db = from_timer(dn_db, t, timer);
+	struct net_device *dev;
 	struct dn_ifaddr *ifa;
 
 	rcu_read_lock();
-	dn_db = rcu_dereference(dev->dn_ptr);
+	dev = dn_db->dev;
 	if (dn_db->t3 <= dn_db->parms.t2) {
 		if (dn_db->parms.timer3) {
 			for (ifa = rcu_dereference(dn_db->ifa_list);
@@ -1066,8 +1071,6 @@ static void dn_dev_set_timer(struct net_device *dev)
 	if (dn_db->parms.t2 > dn_db->parms.t3)
 		dn_db->parms.t2 = dn_db->parms.t3;
 
-	dn_db->timer.data = (unsigned long)dev;
-	dn_db->timer.function = dn_dev_timer_func;
 	dn_db->timer.expires = jiffies + (dn_db->parms.t2 * HZ);
 
 	add_timer(&dn_db->timer);
@@ -1096,7 +1099,7 @@ static struct dn_dev *dn_dev_create(struct net_device *dev, int *err)
 
 	rcu_assign_pointer(dev->dn_ptr, dn_db);
 	dn_db->dev = dev;
-	init_timer(&dn_db->timer);
+	timer_setup(&dn_db->timer, dn_dev_timer_func, 0);
 
 	dn_db->uptime = jiffies;
 
@@ -1360,7 +1363,7 @@ static int dn_dev_seq_show(struct seq_file *seq, void *v)
 
 		seq_printf(seq, "%-8s %1s     %04u %04u   %04lu %04lu"
 				"   %04hu    %03d %02x    %-10s %-7s %-7s\n",
-				dev->name ? dev->name : "???",
+				dev->name,
 				dn_type2asc(dn_db->parms.mode),
 				0, 0,
 				dn_db->t3, dn_db->parms.t3,
@@ -1379,20 +1382,6 @@ static const struct seq_operations dn_dev_seq_ops = {
 	.stop	= dn_dev_seq_stop,
 	.show	= dn_dev_seq_show,
 };
-
-static int dn_dev_seq_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &dn_dev_seq_ops);
-}
-
-static const struct file_operations dn_dev_seq_fops = {
-	.owner	 = THIS_MODULE,
-	.open	 = dn_dev_seq_open,
-	.read	 = seq_read,
-	.llseek	 = seq_lseek,
-	.release = seq_release,
-};
-
 #endif /* CONFIG_PROC_FS */
 
 static int addr[2];
@@ -1415,11 +1404,14 @@ void __init dn_dev_init(void)
 
 	dn_dev_devices_on();
 
-	rtnl_register(PF_DECnet, RTM_NEWADDR, dn_nl_newaddr, NULL, NULL);
-	rtnl_register(PF_DECnet, RTM_DELADDR, dn_nl_deladdr, NULL, NULL);
-	rtnl_register(PF_DECnet, RTM_GETADDR, NULL, dn_nl_dump_ifaddr, NULL);
+	rtnl_register_module(THIS_MODULE, PF_DECnet, RTM_NEWADDR,
+			     dn_nl_newaddr, NULL, 0);
+	rtnl_register_module(THIS_MODULE, PF_DECnet, RTM_DELADDR,
+			     dn_nl_deladdr, NULL, 0);
+	rtnl_register_module(THIS_MODULE, PF_DECnet, RTM_GETADDR,
+			     NULL, dn_nl_dump_ifaddr, 0);
 
-	proc_create("decnet_dev", S_IRUGO, init_net.proc_net, &dn_dev_seq_fops);
+	proc_create_seq("decnet_dev", 0444, init_net.proc_net, &dn_dev_seq_ops);
 
 #ifdef CONFIG_SYSCTL
 	{

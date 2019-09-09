@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * DVB USB Linux driver for Anysee E30 DVB-C & DVB-T USB2.0 receiver
  *
  * Copyright (C) 2007 Antti Palosaari <crope@iki.fi>
- *
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation; either version 2 of the License, or
- *    (at your option) any later version.
- *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
- *
- *    You should have received a copy of the GNU General Public License
- *    along with this program; if not, write to the Free Software
- *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  * TODO:
  * - add smart card reader support for Conditional Access (CA)
@@ -69,7 +56,7 @@ static int anysee_ctrl_msg(struct dvb_usb_device *d,
 	/* TODO FIXME: dvb_usb_generic_rw() fails rarely with error code -32
 	 * (EPIPE, Broken pipe). Function supports currently msleep() as a
 	 * parameter but I would not like to use it, since according to
-	 * Documentation/timers/timers-howto.txt it should not be used such
+	 * Documentation/timers/timers-howto.rst it should not be used such
 	 * short, under < 20ms, sleeps. Repeating failed message would be
 	 * better choice as not to add unwanted delays...
 	 * Fixing that correctly is one of those or both;
@@ -642,7 +629,7 @@ static int anysee_add_i2c_dev(struct dvb_usb_device *d, const char *type,
 		.platform_data = platform_data,
 	};
 
-	strlcpy(board_info.type, type, I2C_NAME_SIZE);
+	strscpy(board_info.type, type, I2C_NAME_SIZE);
 
 	/* find first free client */
 	for (num = 0; num < ANYSEE_I2C_CLIENT_MAX; num++) {
@@ -1146,7 +1133,7 @@ static int anysee_rc_query(struct dvb_usb_device *d)
 	if (ircode[0]) {
 		dev_dbg(&d->udev->dev, "%s: key pressed %02x\n", __func__,
 				ircode[1]);
-		rc_keydown(d->rc_dev, RC_TYPE_NEC,
+		rc_keydown(d->rc_dev, RC_PROTO_NEC,
 			   RC_SCANCODE_NEC(0x08, ircode[1]), 0);
 	}
 
@@ -1155,7 +1142,7 @@ static int anysee_rc_query(struct dvb_usb_device *d)
 
 static int anysee_get_rc_config(struct dvb_usb_device *d, struct dvb_usb_rc *rc)
 {
-	rc->allowed_protos = RC_BIT_NEC;
+	rc->allowed_protos = RC_PROTO_BIT_NEC;
 	rc->query          = anysee_rc_query;
 	rc->interval       = 250;  /* windows driver uses 500ms */
 

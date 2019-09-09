@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _M68K_SIGNAL_H
 #define _M68K_SIGNAL_H
 
@@ -61,10 +62,5 @@ static inline int __gen_sigismember(sigset_t *set, int _sig)
 	 __gen_sigismember(set,sig))
 
 #endif /* !CONFIG_CPU_HAS_NO_BITFIELDS */
-
-#ifndef __uClinux__
-extern void ptrace_signal_deliver(void);
-#define ptrace_signal_deliver ptrace_signal_deliver
-#endif /* __uClinux__ */
 
 #endif /* _M68K_SIGNAL_H */

@@ -1,19 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2010 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
  *
  * Modifications for inclusion into the Linux staging tree are
  * Copyright(c) 2010 Larry Finger. All rights reserved.
@@ -48,11 +36,11 @@ enum Power_Mgnt {
 };
 
 /*
-	BIT[2:0] = HW state
-	BIT[3] = Protocol PS state, 0: register active state,
-				    1: register sleep state
-	BIT[4] = sub-state
-*/
+ * BIT[2:0] = HW state
+ * BIT[3] = Protocol PS state, 0: register active state,
+ *				1: register sleep state
+ * BIT[4] = sub-state
+ */
 
 #define		PS_DPS				BIT(0)
 #define		PS_LCLK				(PS_DPS)

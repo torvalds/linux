@@ -1,18 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * AMD CS5535/CS5536 GPIO driver
  * Copyright (C) 2006  Advanced Micro Devices, Inc.
  * Copyright (C) 2007-2009  Andres Salomon <dilinger@collabora.co.uk>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public License
- * as published by the Free Software Foundation.
  */
 
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/io.h>
 #include <linux/cs5535.h>
 #include <asm/msr.h>
@@ -44,7 +41,7 @@ MODULE_PARM_DESC(mask, "GPIO channel mask.");
 
 /*
  * FIXME: convert this singleton driver to use the state container
- * design pattern, see Documentation/driver-model/design-patterns.txt
+ * design pattern, see Documentation/driver-api/driver-model/design-patterns.rst
  */
 static struct cs5535_gpio_chip {
 	struct gpio_chip chip;

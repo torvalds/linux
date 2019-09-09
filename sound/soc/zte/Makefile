@@ -1,2 +1,4 @@
-obj-$(CONFIG_ZX296702_SPDIF)	+= zx296702-spdif.o
-obj-$(CONFIG_ZX296702_I2S)	+= zx296702-i2s.o
+# SPDX-License-Identifier: GPL-2.0-only
+obj-$(CONFIG_ZX_SPDIF)	+= zx-spdif.o
+obj-$(CONFIG_ZX_I2S)	+= zx-i2s.o
+obj-$(CONFIG_ZX_TDM)	+= zx-tdm.o

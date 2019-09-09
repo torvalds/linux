@@ -1,4 +1,11 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 .. _control:
 
@@ -136,6 +143,12 @@ Control IDs
 
 ``V4L2_CID_GAIN`` ``(integer)``
     Gain control.
+
+    Primarily used to control gain on e.g. TV tuners but also on
+    webcams. Most devices control only digital gain with this control
+    but on some this could include analogue gain as well. Devices that
+    recognise the difference between digital and analogue gain use
+    controls ``V4L2_CID_DIGITAL_GAIN`` and ``V4L2_CID_ANALOGUE_GAIN``.
 
 ``V4L2_CID_HFLIP`` ``(boolean)``
     Mirror the picture horizontally.
@@ -312,21 +325,20 @@ more menu type controls.
 
 .. _enum_all_controls:
 
-Example: Enumerating all user controls
-======================================
+Example: Enumerating all controls
+=================================
 
 .. code-block:: c
-
 
     struct v4l2_queryctrl queryctrl;
     struct v4l2_querymenu querymenu;
 
-    static void enumerate_menu(void)
+    static void enumerate_menu(__u32 id)
     {
 	printf("  Menu items:\\n");
 
 	memset(&querymenu, 0, sizeof(querymenu));
-	querymenu.id = queryctrl.id;
+	querymenu.id = id;
 
 	for (querymenu.index = queryctrl.minimum;
 	     querymenu.index <= queryctrl.maximum;
@@ -336,6 +348,55 @@ Example: Enumerating all user controls
 	    }
 	}
     }
+
+    memset(&queryctrl, 0, sizeof(queryctrl));
+
+    queryctrl.id = V4L2_CTRL_FLAG_NEXT_CTRL;
+    while (0 == ioctl(fd, VIDIOC_QUERYCTRL, &queryctrl)) {
+	if (!(queryctrl.flags & V4L2_CTRL_FLAG_DISABLED)) {
+	    printf("Control %s\\n", queryctrl.name);
+
+	    if (queryctrl.type == V4L2_CTRL_TYPE_MENU)
+	        enumerate_menu(queryctrl.id);
+        }
+
+	queryctrl.id |= V4L2_CTRL_FLAG_NEXT_CTRL;
+    }
+    if (errno != EINVAL) {
+	perror("VIDIOC_QUERYCTRL");
+	exit(EXIT_FAILURE);
+    }
+
+Example: Enumerating all controls including compound controls
+=============================================================
+
+.. code-block:: c
+
+    struct v4l2_query_ext_ctrl query_ext_ctrl;
+
+    memset(&query_ext_ctrl, 0, sizeof(query_ext_ctrl));
+
+    query_ext_ctrl.id = V4L2_CTRL_FLAG_NEXT_CTRL | V4L2_CTRL_FLAG_NEXT_COMPOUND;
+    while (0 == ioctl(fd, VIDIOC_QUERY_EXT_CTRL, &query_ext_ctrl)) {
+	if (!(query_ext_ctrl.flags & V4L2_CTRL_FLAG_DISABLED)) {
+	    printf("Control %s\\n", query_ext_ctrl.name);
+
+	    if (query_ext_ctrl.type == V4L2_CTRL_TYPE_MENU)
+	        enumerate_menu(query_ext_ctrl.id);
+        }
+
+	query_ext_ctrl.id |= V4L2_CTRL_FLAG_NEXT_CTRL | V4L2_CTRL_FLAG_NEXT_COMPOUND;
+    }
+    if (errno != EINVAL) {
+	perror("VIDIOC_QUERY_EXT_CTRL");
+	exit(EXIT_FAILURE);
+    }
+
+Example: Enumerating all user controls (old style)
+==================================================
+
+.. code-block:: c
+
 
     memset(&queryctrl, 0, sizeof(queryctrl));
 
@@ -349,7 +410,7 @@ Example: Enumerating all user controls
 	    printf("Control %s\\n", queryctrl.name);
 
 	    if (queryctrl.type == V4L2_CTRL_TYPE_MENU)
-		enumerate_menu();
+		enumerate_menu(queryctrl.id);
 	} else {
 	    if (errno == EINVAL)
 		continue;
@@ -368,7 +429,7 @@ Example: Enumerating all user controls
 	    printf("Control %s\\n", queryctrl.name);
 
 	    if (queryctrl.type == V4L2_CTRL_TYPE_MENU)
-		enumerate_menu();
+		enumerate_menu(queryctrl.id);
 	} else {
 	    if (errno == EINVAL)
 		break;
@@ -378,32 +439,6 @@ Example: Enumerating all user controls
 	}
     }
 
-
-Example: Enumerating all user controls (alternative)
-====================================================
-
-.. code-block:: c
-
-    memset(&queryctrl, 0, sizeof(queryctrl));
-
-    queryctrl.id = V4L2_CTRL_CLASS_USER | V4L2_CTRL_FLAG_NEXT_CTRL;
-    while (0 == ioctl(fd, VIDIOC_QUERYCTRL, &queryctrl)) {
-	if (V4L2_CTRL_ID2CLASS(queryctrl.id) != V4L2_CTRL_CLASS_USER)
-	    break;
-	if (queryctrl.flags & V4L2_CTRL_FLAG_DISABLED)
-	    continue;
-
-	printf("Control %s\\n", queryctrl.name);
-
-	if (queryctrl.type == V4L2_CTRL_TYPE_MENU)
-	    enumerate_menu();
-
-	queryctrl.id |= V4L2_CTRL_FLAG_NEXT_CTRL;
-    }
-    if (errno != EINVAL) {
-	perror("VIDIOC_QUERYCTRL");
-	exit(EXIT_FAILURE);
-    }
 
 Example: Changing controls
 ==========================
@@ -464,7 +499,7 @@ Example: Changing controls
 .. [#f1]
    The use of ``V4L2_CID_PRIVATE_BASE`` is problematic because different
    drivers may use the same ``V4L2_CID_PRIVATE_BASE`` ID for different
-   controls. This makes it hard to programatically set such controls
+   controls. This makes it hard to programmatically set such controls
    since the meaning of the control with that ID is driver dependent. In
    order to resolve this drivers use unique IDs and the
    ``V4L2_CID_PRIVATE_BASE`` IDs are mapped to those unique IDs by the

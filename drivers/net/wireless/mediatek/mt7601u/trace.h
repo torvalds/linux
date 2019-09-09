@@ -1,15 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2014 Felix Fietkau <nbd@openwrt.org>
  * Copyright (C) 2015 Jakub Kicinski <kubakici@wp.pl>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2
- * as published by the Free Software Foundation
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #if !defined(__MT7601U_TRACE_H) || defined(TRACE_HEADER_MULTI_READ)
@@ -34,7 +26,7 @@
 #define REG_PR_FMT	"%04x=%08x"
 #define REG_PR_ARG	__entry->reg, __entry->val
 
-DECLARE_EVENT_CLASS(dev_reg_evt,
+DECLARE_EVENT_CLASS(dev_reg_evtu,
 	TP_PROTO(struct mt7601u_dev *dev, u32 reg, u32 val),
 	TP_ARGS(dev, reg, val),
 	TP_STRUCT__entry(
@@ -51,12 +43,12 @@ DECLARE_EVENT_CLASS(dev_reg_evt,
 	)
 );
 
-DEFINE_EVENT(dev_reg_evt, reg_read,
+DEFINE_EVENT(dev_reg_evtu, reg_read,
 	TP_PROTO(struct mt7601u_dev *dev, u32 reg, u32 val),
 	TP_ARGS(dev, reg, val)
 );
 
-DEFINE_EVENT(dev_reg_evt, reg_write,
+DEFINE_EVENT(dev_reg_evtu, reg_write,
 	TP_PROTO(struct mt7601u_dev *dev, u32 reg, u32 val),
 	TP_ARGS(dev, reg, val)
 );

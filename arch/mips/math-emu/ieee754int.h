@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * IEEE754 floating point
  * common internal header file
@@ -5,19 +6,6 @@
 /*
  * MIPS floating point support
  * Copyright (C) 1994-2000 Algorithmics Ltd.
- *
- *  This program is free software; you can distribute it and/or modify it
- *  under the terms of the GNU General Public License (Version 2) as
- *  published by the Free Software Foundation.
- *
- *  This program is distributed in the hope it will be useful, but WITHOUT
- *  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- *  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- *  for more details.
- *
- *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA.
  */
 #ifndef __IEEE754INT_H
 #define __IEEE754INT_H
@@ -25,6 +13,10 @@
 #include "ieee754.h"
 
 #define CLPAIR(x, y)	((x)*6+(y))
+
+enum maddf_flags {
+	MADDF_NEGATE_PRODUCT	= 1 << 0,
+};
 
 static inline void ieee754_clearcx(void)
 {
@@ -50,13 +42,13 @@ static inline int ieee754_class_nan(int xc)
 }
 
 #define COMPXSP \
-	unsigned xm; int xe; int xs __maybe_unused; int xc
+	unsigned int xm; int xe; int xs __maybe_unused; int xc
 
 #define COMPYSP \
-	unsigned ym; int ye; int ys; int yc
+	unsigned int ym; int ye; int ys; int yc
 
 #define COMPZSP \
-	unsigned zm; int ze; int zs; int zc
+	unsigned int zm; int ze; int zs; int zc
 
 #define EXPLODESP(v, vc, vs, ve, vm)					\
 {									\

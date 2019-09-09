@@ -32,9 +32,6 @@
 #define WLAN_NV_FILE               "wlan/prima/WCNSS_qcom_wlan_nv.bin"
 #define WCN36XX_AGGR_BUFFER_SIZE 64
 
-/* How many frames until we start a-mpdu TX session */
-#define WCN36XX_AMPDU_START_THRESH	20
-
 extern unsigned int wcn36xx_dbg_mask;
 
 enum wcn36xx_debug_mask {
@@ -53,6 +50,8 @@ enum wcn36xx_debug_mask {
 	WCN36XX_DBG_BEACON_DUMP	= 0x00001000,
 	WCN36XX_DBG_PMC		= 0x00002000,
 	WCN36XX_DBG_PMC_DUMP	= 0x00004000,
+	WCN36XX_DBG_TESTMODE		= 0x00008000,
+	WCN36XX_DBG_TESTMODE_DUMP	= 0x00010000,
 	WCN36XX_DBG_ANY		= 0xffffffff,
 };
 
@@ -91,6 +90,9 @@ enum wcn36xx_ampdu_state {
 #define WCN36XX_FLAGS(__wcn) (__wcn->hw->flags)
 #define WCN36XX_MAX_POWER(__wcn) (__wcn->hw->conf.chandef.chan->max_power)
 
+#define RF_UNKNOWN	0x0000
+#define RF_IRIS_WCN3620	0x3620
+
 static inline void buff_to_be(u32 *buf, size_t len)
 {
 	int i;
@@ -101,19 +103,6 @@ static inline void buff_to_be(u32 *buf, size_t len)
 struct nv_data {
 	int	is_valid;
 	u8	table;
-};
-
-/* Interface for platform control path
- *
- * @open: hook must be called when wcn36xx wants to open control channel.
- * @tx: sends a buffer.
- */
-struct wcn36xx_platform_ctrl_ops {
-	int (*open)(void *drv_priv, void *rsp_cb);
-	void (*close)(void);
-	int (*tx)(char *buf, size_t len);
-	int (*get_hw_mac)(u8 *addr);
-	int (*smsm_change_state)(u32 clear_mask, u32 set_mask);
 };
 
 /**
@@ -130,6 +119,7 @@ struct wcn36xx_vif {
 	bool is_joining;
 	bool sta_assoc;
 	struct wcn36xx_hal_mac_ssid ssid;
+	enum wcn36xx_hal_bss_type bss_type;
 
 	/* Power management */
 	enum wcn36xx_power_state pw_state;
@@ -139,6 +129,8 @@ struct wcn36xx_vif {
 	u8 self_sta_index;
 	u8 self_dpu_desc_index;
 	u8 self_ucast_dpu_sign;
+
+	struct list_head sta_list;
 };
 
 /**
@@ -164,6 +156,7 @@ struct wcn36xx_vif {
  * |______________|_____________|_______________|
  */
 struct wcn36xx_sta {
+	struct list_head list;
 	struct wcn36xx_vif *vif;
 	u16 aid;
 	u16 tid;
@@ -199,13 +192,24 @@ struct wcn36xx {
 	u8			crm_version[WCN36XX_HAL_VERSION_LENGTH + 1];
 	u8			wlan_version[WCN36XX_HAL_VERSION_LENGTH + 1];
 
+	bool		first_boot;
+
 	/* IRQs */
 	int			tx_irq;
 	int			rx_irq;
 	void __iomem		*ccu_base;
 	void __iomem		*dxe_base;
 
-	struct wcn36xx_platform_ctrl_ops *ctrl_ops;
+	struct rpmsg_endpoint	*smd_channel;
+
+	struct qcom_smem_state  *tx_enable_state;
+	unsigned		tx_enable_state_bit;
+	struct qcom_smem_state	*tx_rings_empty_state;
+	unsigned		tx_rings_empty_state_bit;
+
+	/* prevents concurrent FW reconfiguration */
+	struct mutex		conf_mutex;
+
 	/*
 	 * smd_buf must be protected with smd_mutex to garantee
 	 * that all messages are sent one after another
@@ -218,6 +222,13 @@ struct wcn36xx {
 	struct work_struct	hal_ind_work;
 	spinlock_t		hal_ind_lock;
 	struct list_head	hal_ind_queue;
+
+	struct work_struct	scan_work;
+	struct cfg80211_scan_request *scan_req;
+	int			scan_freq;
+	int			scan_band;
+	struct mutex		scan_lock;
+	bool			scan_aborted;
 
 	/* DXE channels */
 	struct wcn36xx_dxe_ch	dxe_tx_l_ch;	/* TX low */
@@ -234,6 +245,9 @@ struct wcn36xx {
 	struct wcn36xx_dxe_mem_pool data_mem_pool;
 
 	struct sk_buff		*tx_ack_skb;
+
+	/* RF module */
+	unsigned		rf_id;
 
 #ifdef CONFIG_WCN36XX_DEBUGFS
 	/* Debug file system entry */

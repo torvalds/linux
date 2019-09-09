@@ -1,21 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2009 Nokia Corporation
  * Author: Tomi Valkeinen <tomi.valkeinen@nokia.com>
  *
  * Some code and ideas taken from drivers/video/omap/ driver
  * by Imre Deak.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #define DSS_SUBSYS_NAME "MANAGER"
@@ -182,22 +171,16 @@ static ssize_t manager_trans_key_type_show(struct omap_overlay_manager *mgr,
 static ssize_t manager_trans_key_type_store(struct omap_overlay_manager *mgr,
 					    const char *buf, size_t size)
 {
-	enum omap_dss_trans_key_type key_type;
 	struct omap_overlay_manager_info info;
 	int r;
 
-	for (key_type = OMAP_DSS_COLOR_KEY_GFX_DST;
-			key_type < ARRAY_SIZE(trans_key_type_str); key_type++) {
-		if (sysfs_streq(buf, trans_key_type_str[key_type]))
-			break;
-	}
-
-	if (key_type == ARRAY_SIZE(trans_key_type_str))
-		return -EINVAL;
+	r = sysfs_match_string(trans_key_type_str, buf);
+	if (r < 0)
+		return r;
 
 	mgr->get_manager_info(mgr, &info);
 
-	info.trans_key_type = key_type;
+	info.trans_key_type = r;
 
 	r = mgr->set_manager_info(mgr, &info);
 	if (r)

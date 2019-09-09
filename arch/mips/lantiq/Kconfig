@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 if LANTIQ
 
 config SOC_TYPE_XWAY
@@ -12,11 +13,15 @@ choice
 config SOC_AMAZON_SE
 	bool "Amazon SE"
 	select SOC_TYPE_XWAY
+	select MFD_SYSCON
+	select MFD_CORE
 
 config SOC_XWAY
 	bool "XWAY"
 	select SOC_TYPE_XWAY
-	select HW_HAS_PCI
+	select HAVE_PCI
+	select MFD_SYSCON
+	select MFD_CORE
 
 config SOC_FALCON
 	bool "FALCON"
@@ -46,9 +51,5 @@ endchoice
 config PCI_LANTIQ
 	bool "PCI Support"
 	depends on SOC_XWAY && PCI
-
-config XRX200_PHY_FW
-	bool "XRX200 PHY firmware loader"
-	depends on SOC_XWAY
 
 endif

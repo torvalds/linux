@@ -1,3 +1,5 @@
+.. SPDX-License-Identifier: GPL-2.0
+
 The bttv driver
 ===============
 
@@ -83,7 +85,7 @@ same card listens there is much higher...
 For problems with sound:  There are a lot of different systems used
 for TV sound all over the world.  And there are also different chips
 which decode the audio signal.  Reports about sound problems ("stereo
-does'nt work") are pretty useless unless you include some details
+doesn't work") are pretty useless unless you include some details
 about your hardware and the TV sound scheme used in your country (or
 at least the country you are living in).
 
@@ -304,15 +306,15 @@ bug.  It is very helpful if you can tell where exactly it broke
 With a hard freeze you probably doesn't find anything in the logfiles.
 The only way to capture any kernel messages is to hook up a serial
 console and let some terminal application log the messages.  /me uses
-screen.  See Documentation/serial-console.txt for details on setting
+screen.  See Documentation/admin-guide/serial-console.rst for details on setting
 up a serial console.
 
-Read Documentation/oops-tracing.txt to learn how to get any useful
+Read Documentation/admin-guide/bug-hunting.rst to learn how to get any useful
 information out of a register+stack dump printed by the kernel on
 protection faults (so-called "kernel oops").
 
 If you run into some kind of deadlock, you can try to dump a call trace
-for each process using sysrq-t (see Documentation/sysrq.txt).
+for each process using sysrq-t (see Documentation/admin-guide/sysrq.rst).
 This way it is possible to figure where *exactly* some process in "D"
 state is stuck.
 
@@ -769,7 +771,7 @@ Identifying:
       - Lifeview.com.tw states (Feb. 2002):
         "The FlyVideo2000 and FlyVideo2000s product name have renamed to FlyVideo98."
         Their Bt8x8 cards are listed as discontinued.
-      - Flyvideo 2000S was probably sold as Flyvideo 3000 in some contries(Europe?).
+      - Flyvideo 2000S was probably sold as Flyvideo 3000 in some countries(Europe?).
         The new Flyvideo 2000/3000 are SAA7130/SAA7134 based.
 
 "Flyvideo II" had been the name for the 848 cards, nowadays (in Germany)

@@ -1,0 +1,83 @@
+Analog Devices AD5758 DAC device driver
+
+Required properties for the AD5758:
+	- compatible: Must be "adi,ad5758"
+	- reg: SPI chip select number for the device
+	- spi-max-frequency: Max SPI frequency to use (< 50000000)
+	- spi-cpha: is the only mode that is supported
+
+Required properties:
+
+ - adi,dc-dc-mode: Mode of operation of the dc-to-dc converter
+		   Dynamic Power Control (DPC)
+		   In this mode, the AD5758 circuitry senses the output
+		   voltage and dynamically regulates the supply voltage,
+		   VDPC+, to meet compliance requirements plus an optimized
+		   headroom voltage for the output buffer.
+
+		   Programmable Power Control (PPC)
+		   In this mode, the VDPC+ voltage is user-programmable to
+		   a fixed level that needs to accommodate the maximum output
+		   load required.
+
+		   The output of the DAC core is either converted to a
+		   current or voltage output at the VIOUT pin. Only one mode
+		   can be enabled at any one time.
+
+		   The following values are currently supported:
+			* 1: DPC current mode
+			* 2: DPC voltage mode
+			* 3: PPC current mode
+
+ Depending on the selected output mode (voltage or current) one of the
+ two properties must
+ be present:
+
+ - adi,range-microvolt: Voltage output range
+		The array of voltage output ranges must contain two fields:
+		* <0 5000000>: 0 V to 5 V voltage range
+		* <0 10000000>: 0 V to 10 V voltage range
+		* <(-5000000) 5000000>: ±5 V voltage range
+		* <(-10000000) 10000000>: ±10 V voltage range
+ - adi,range-microamp: Current output range
+		The array of current output ranges must contain two fields:
+		* <0 20000>: 0 mA to 20 mA current range
+		* <0 24000>: 0 mA to 24 mA current range
+		* <4 24000>: 4 mA to 20 mA current range
+		* <(-20000) 20000>: ±20 mA current range
+		* <(-24000) 24000>: ±24 mA current range
+		* <(-1000) 22000>: −1 mA to +22 mA current range
+
+Optional properties:
+
+ - reset-gpios : GPIO spec for the RESET pin. If specified, it will be
+		 asserted during driver probe.
+
+ - adi,dc-dc-ilim-microamp: The dc-to-dc converter current limit
+		   The following values are currently supported [uA]:
+			* 150000
+			* 200000
+			* 250000
+			* 300000
+			* 350000
+			* 400000
+
+ - adi,slew-time-us: The time it takes for the output to reach the
+ full scale [uS]
+		     The supported range is between 133us up to 1023984375us
+
+AD5758 Example:
+
+	dac@0 {
+		compatible = "adi,ad5758";
+		reg = <0>;
+		spi-max-frequency = <1000000>;
+		spi-cpha;
+
+		reset-gpios = <&gpio 22 0>;
+
+		adi,dc-dc-mode = <2>;
+		adi,range-microvolt = <0 10000000>;
+		adi,dc-dc-ilim-microamp = <200000>;
+		adi,slew-time-us = <125000>;
+	};

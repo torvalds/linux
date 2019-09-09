@@ -33,21 +33,41 @@
 extern "C" {
 #endif
 
-#define DRM_DISPLAY_INFO_LEN	32
+/**
+ * DOC: overview
+ *
+ * DRM exposes many UAPI and structure definition to have a consistent
+ * and standardized interface with user.
+ * Userspace can refer to these structure definitions and UAPI formats
+ * to communicate to driver
+ */
+
 #define DRM_CONNECTOR_NAME_LEN	32
 #define DRM_DISPLAY_MODE_LEN	32
 #define DRM_PROP_NAME_LEN	32
 
-#define DRM_MODE_TYPE_BUILTIN	(1<<0)
-#define DRM_MODE_TYPE_CLOCK_C	((1<<1) | DRM_MODE_TYPE_BUILTIN)
-#define DRM_MODE_TYPE_CRTC_C	((1<<2) | DRM_MODE_TYPE_BUILTIN)
+#define DRM_MODE_TYPE_BUILTIN	(1<<0) /* deprecated */
+#define DRM_MODE_TYPE_CLOCK_C	((1<<1) | DRM_MODE_TYPE_BUILTIN) /* deprecated */
+#define DRM_MODE_TYPE_CRTC_C	((1<<2) | DRM_MODE_TYPE_BUILTIN) /* deprecated */
 #define DRM_MODE_TYPE_PREFERRED	(1<<3)
-#define DRM_MODE_TYPE_DEFAULT	(1<<4)
+#define DRM_MODE_TYPE_DEFAULT	(1<<4) /* deprecated */
 #define DRM_MODE_TYPE_USERDEF	(1<<5)
 #define DRM_MODE_TYPE_DRIVER	(1<<6)
 
+#define DRM_MODE_TYPE_ALL	(DRM_MODE_TYPE_PREFERRED |	\
+				 DRM_MODE_TYPE_USERDEF |	\
+				 DRM_MODE_TYPE_DRIVER)
+
 /* Video mode flags */
-/* bit compatible with the xorg definitions. */
+/* bit compatible with the xrandr RR_ definitions (bits 0-13)
+ *
+ * ABI warning: Existing userspace really expects
+ * the mode flags to match the xrandr definitions. Any
+ * changes that don't match the xrandr definitions will
+ * likely need a new client cap or some other mechanism
+ * to avoid breaking existing userspace. This includes
+ * allocating new flags in the previously unused bits!
+ */
 #define DRM_MODE_FLAG_PHSYNC			(1<<0)
 #define DRM_MODE_FLAG_NHSYNC			(1<<1)
 #define DRM_MODE_FLAG_PVSYNC			(1<<2)
@@ -58,8 +78,8 @@ extern "C" {
 #define DRM_MODE_FLAG_PCSYNC			(1<<7)
 #define DRM_MODE_FLAG_NCSYNC			(1<<8)
 #define DRM_MODE_FLAG_HSKEW			(1<<9) /* hskew provided */
-#define DRM_MODE_FLAG_BCAST			(1<<10)
-#define DRM_MODE_FLAG_PIXMUX			(1<<11)
+#define DRM_MODE_FLAG_BCAST			(1<<10) /* deprecated */
+#define DRM_MODE_FLAG_PIXMUX			(1<<11) /* deprecated */
 #define DRM_MODE_FLAG_DBLCLK			(1<<12)
 #define DRM_MODE_FLAG_CLKDIV2			(1<<13)
  /*
@@ -67,7 +87,7 @@ extern "C" {
   * (define not exposed to user space).
   */
 #define DRM_MODE_FLAG_3D_MASK			(0x1f<<14)
-#define  DRM_MODE_FLAG_3D_NONE			(0<<14)
+#define  DRM_MODE_FLAG_3D_NONE		(0<<14)
 #define  DRM_MODE_FLAG_3D_FRAME_PACKING		(1<<14)
 #define  DRM_MODE_FLAG_3D_FIELD_ALTERNATIVE	(2<<14)
 #define  DRM_MODE_FLAG_3D_LINE_ALTERNATIVE	(3<<14)
@@ -77,6 +97,46 @@ extern "C" {
 #define  DRM_MODE_FLAG_3D_TOP_AND_BOTTOM	(7<<14)
 #define  DRM_MODE_FLAG_3D_SIDE_BY_SIDE_HALF	(8<<14)
 
+/* Picture aspect ratio options */
+#define DRM_MODE_PICTURE_ASPECT_NONE		0
+#define DRM_MODE_PICTURE_ASPECT_4_3		1
+#define DRM_MODE_PICTURE_ASPECT_16_9		2
+#define DRM_MODE_PICTURE_ASPECT_64_27		3
+#define DRM_MODE_PICTURE_ASPECT_256_135		4
+
+/* Content type options */
+#define DRM_MODE_CONTENT_TYPE_NO_DATA		0
+#define DRM_MODE_CONTENT_TYPE_GRAPHICS		1
+#define DRM_MODE_CONTENT_TYPE_PHOTO		2
+#define DRM_MODE_CONTENT_TYPE_CINEMA		3
+#define DRM_MODE_CONTENT_TYPE_GAME		4
+
+/* Aspect ratio flag bitmask (4 bits 22:19) */
+#define DRM_MODE_FLAG_PIC_AR_MASK		(0x0F<<19)
+#define  DRM_MODE_FLAG_PIC_AR_NONE \
+			(DRM_MODE_PICTURE_ASPECT_NONE<<19)
+#define  DRM_MODE_FLAG_PIC_AR_4_3 \
+			(DRM_MODE_PICTURE_ASPECT_4_3<<19)
+#define  DRM_MODE_FLAG_PIC_AR_16_9 \
+			(DRM_MODE_PICTURE_ASPECT_16_9<<19)
+#define  DRM_MODE_FLAG_PIC_AR_64_27 \
+			(DRM_MODE_PICTURE_ASPECT_64_27<<19)
+#define  DRM_MODE_FLAG_PIC_AR_256_135 \
+			(DRM_MODE_PICTURE_ASPECT_256_135<<19)
+
+#define  DRM_MODE_FLAG_ALL	(DRM_MODE_FLAG_PHSYNC |		\
+				 DRM_MODE_FLAG_NHSYNC |		\
+				 DRM_MODE_FLAG_PVSYNC |		\
+				 DRM_MODE_FLAG_NVSYNC |		\
+				 DRM_MODE_FLAG_INTERLACE |	\
+				 DRM_MODE_FLAG_DBLSCAN |	\
+				 DRM_MODE_FLAG_CSYNC |		\
+				 DRM_MODE_FLAG_PCSYNC |		\
+				 DRM_MODE_FLAG_NCSYNC |		\
+				 DRM_MODE_FLAG_HSKEW |		\
+				 DRM_MODE_FLAG_DBLCLK |		\
+				 DRM_MODE_FLAG_CLKDIV2 |	\
+				 DRM_MODE_FLAG_3D_MASK)
 
 /* DPMS flags */
 /* bit compatible with the xorg definitions. */
@@ -92,11 +152,6 @@ extern "C" {
 #define DRM_MODE_SCALE_CENTER		2 /* Centered, no scaling */
 #define DRM_MODE_SCALE_ASPECT		3 /* Full screen, preserve aspect */
 
-/* Picture aspect ratio options */
-#define DRM_MODE_PICTURE_ASPECT_NONE	0
-#define DRM_MODE_PICTURE_ASPECT_4_3	1
-#define DRM_MODE_PICTURE_ASPECT_16_9	2
-
 /* Dithering mode options */
 #define DRM_MODE_DITHERING_OFF	0
 #define DRM_MODE_DITHERING_ON	1
@@ -106,6 +161,62 @@ extern "C" {
 #define DRM_MODE_DIRTY_OFF      0
 #define DRM_MODE_DIRTY_ON       1
 #define DRM_MODE_DIRTY_ANNOTATE 2
+
+/* Link Status options */
+#define DRM_MODE_LINK_STATUS_GOOD	0
+#define DRM_MODE_LINK_STATUS_BAD	1
+
+/*
+ * DRM_MODE_ROTATE_<degrees>
+ *
+ * Signals that a drm plane is been rotated <degrees> degrees in counter
+ * clockwise direction.
+ *
+ * This define is provided as a convenience, looking up the property id
+ * using the name->prop id lookup is the preferred method.
+ */
+#define DRM_MODE_ROTATE_0       (1<<0)
+#define DRM_MODE_ROTATE_90      (1<<1)
+#define DRM_MODE_ROTATE_180     (1<<2)
+#define DRM_MODE_ROTATE_270     (1<<3)
+
+/*
+ * DRM_MODE_ROTATE_MASK
+ *
+ * Bitmask used to look for drm plane rotations.
+ */
+#define DRM_MODE_ROTATE_MASK (\
+		DRM_MODE_ROTATE_0  | \
+		DRM_MODE_ROTATE_90  | \
+		DRM_MODE_ROTATE_180 | \
+		DRM_MODE_ROTATE_270)
+
+/*
+ * DRM_MODE_REFLECT_<axis>
+ *
+ * Signals that the contents of a drm plane is reflected along the <axis> axis,
+ * in the same way as mirroring.
+ * See kerneldoc chapter "Plane Composition Properties" for more details.
+ *
+ * This define is provided as a convenience, looking up the property id
+ * using the name->prop id lookup is the preferred method.
+ */
+#define DRM_MODE_REFLECT_X      (1<<4)
+#define DRM_MODE_REFLECT_Y      (1<<5)
+
+/*
+ * DRM_MODE_REFLECT_MASK
+ *
+ * Bitmask used to look for drm plane reflections.
+ */
+#define DRM_MODE_REFLECT_MASK (\
+		DRM_MODE_REFLECT_X | \
+		DRM_MODE_REFLECT_Y)
+
+/* Content Protection Flags */
+#define DRM_MODE_CONTENT_PROTECTION_UNDESIRED	0
+#define DRM_MODE_CONTENT_PROTECTION_DESIRED     1
+#define DRM_MODE_CONTENT_PROTECTION_ENABLED     2
 
 struct drm_mode_modeinfo {
 	__u32 clock;
@@ -220,14 +331,16 @@ struct drm_mode_get_encoder {
 
 /* This is for connectors with multiple signal types. */
 /* Try to match DRM_MODE_CONNECTOR_X as closely as possible. */
-#define DRM_MODE_SUBCONNECTOR_Automatic	0
-#define DRM_MODE_SUBCONNECTOR_Unknown	0
-#define DRM_MODE_SUBCONNECTOR_DVID	3
-#define DRM_MODE_SUBCONNECTOR_DVIA	4
-#define DRM_MODE_SUBCONNECTOR_Composite	5
-#define DRM_MODE_SUBCONNECTOR_SVIDEO	6
-#define DRM_MODE_SUBCONNECTOR_Component	8
-#define DRM_MODE_SUBCONNECTOR_SCART	9
+enum drm_mode_subconnector {
+	DRM_MODE_SUBCONNECTOR_Automatic = 0,
+	DRM_MODE_SUBCONNECTOR_Unknown = 0,
+	DRM_MODE_SUBCONNECTOR_DVID = 3,
+	DRM_MODE_SUBCONNECTOR_DVIA = 4,
+	DRM_MODE_SUBCONNECTOR_Composite = 5,
+	DRM_MODE_SUBCONNECTOR_SVIDEO = 6,
+	DRM_MODE_SUBCONNECTOR_Component = 8,
+	DRM_MODE_SUBCONNECTOR_SCART = 9,
+};
 
 #define DRM_MODE_CONNECTOR_Unknown	0
 #define DRM_MODE_CONNECTOR_VGA		1
@@ -247,6 +360,7 @@ struct drm_mode_get_encoder {
 #define DRM_MODE_CONNECTOR_VIRTUAL      15
 #define DRM_MODE_CONNECTOR_DSI		16
 #define DRM_MODE_CONNECTOR_DPI		17
+#define DRM_MODE_CONNECTOR_WRITEBACK	18
 
 struct drm_mode_get_connector {
 
@@ -272,7 +386,7 @@ struct drm_mode_get_connector {
 	__u32 pad;
 };
 
-#define DRM_MODE_PROP_PENDING	(1<<0)
+#define DRM_MODE_PROP_PENDING	(1<<0) /* deprecated, do not use */
 #define DRM_MODE_PROP_RANGE	(1<<1)
 #define DRM_MODE_PROP_IMMUTABLE	(1<<2)
 #define DRM_MODE_PROP_ENUM	(1<<3) /* enumerated type with text strings */
@@ -392,17 +506,20 @@ struct drm_mode_fb_cmd2 {
 	 * offsets[1].  Note that offsets[0] will generally
 	 * be 0 (but this is not required).
 	 *
-	 * To accommodate tiled, compressed, etc formats, a per-plane
+	 * To accommodate tiled, compressed, etc formats, a
 	 * modifier can be specified.  The default value of zero
 	 * indicates "native" format as specified by the fourcc.
-	 * Vendor specific modifier token.  This allows, for example,
-	 * different tiling/swizzling pattern on different planes.
-	 * See discussion above of DRM_FORMAT_MOD_xxx.
+	 * Vendor specific modifier token.  Note that even though
+	 * it looks like we have a modifier per-plane, we in fact
+	 * do not. The modifier for each plane must be identical.
+	 * Thus all combinations of different data layouts for
+	 * multi plane formats must be enumerated as separate
+	 * modifiers.
 	 */
 	__u32 handles[4];
 	__u32 pitches[4]; /* pitch for each plane */
 	__u32 offsets[4]; /* offset of each plane */
-	__u64 modifier[4]; /* ie, tiling, compressed (per plane) */
+	__u64 modifier[4]; /* ie, tiling, compress */
 };
 
 #define DRM_MODE_FB_DIRTY_ANNOTATE_COPY 0x01
@@ -504,18 +621,108 @@ struct drm_mode_crtc_lut {
 };
 
 struct drm_color_ctm {
-	/* Conversion matrix in S31.32 format. */
-	__s64 matrix[9];
+	/*
+	 * Conversion matrix in S31.32 sign-magnitude
+	 * (not two's complement!) format.
+	 */
+	__u64 matrix[9];
 };
 
 struct drm_color_lut {
 	/*
-	 * Data is U0.16 fixed point format.
+	 * Values are mapped linearly to 0.0 - 1.0 range, with 0x0 == 0.0 and
+	 * 0xffff == 1.0.
 	 */
 	__u16 red;
 	__u16 green;
 	__u16 blue;
 	__u16 reserved;
+};
+
+/**
+ * struct hdr_metadata_infoframe - HDR Metadata Infoframe Data.
+ *
+ * HDR Metadata Infoframe as per CTA 861.G spec. This is expected
+ * to match exactly with the spec.
+ *
+ * Userspace is expected to pass the metadata information as per
+ * the format described in this structure.
+ */
+struct hdr_metadata_infoframe {
+	/**
+	 * @eotf: Electro-Optical Transfer Function (EOTF)
+	 * used in the stream.
+	 */
+	__u8 eotf;
+	/**
+	 * @metadata_type: Static_Metadata_Descriptor_ID.
+	 */
+	__u8 metadata_type;
+	/**
+	 * @display_primaries: Color Primaries of the Data.
+	 * These are coded as unsigned 16-bit values in units of
+	 * 0.00002, where 0x0000 represents zero and 0xC350
+	 * represents 1.0000.
+	 * @display_primaries.x: X cordinate of color primary.
+	 * @display_primaries.y: Y cordinate of color primary.
+	 */
+	struct {
+		__u16 x, y;
+		} display_primaries[3];
+	/**
+	 * @white_point: White Point of Colorspace Data.
+	 * These are coded as unsigned 16-bit values in units of
+	 * 0.00002, where 0x0000 represents zero and 0xC350
+	 * represents 1.0000.
+	 * @white_point.x: X cordinate of whitepoint of color primary.
+	 * @white_point.y: Y cordinate of whitepoint of color primary.
+	 */
+	struct {
+		__u16 x, y;
+		} white_point;
+	/**
+	 * @max_display_mastering_luminance: Max Mastering Display Luminance.
+	 * This value is coded as an unsigned 16-bit value in units of 1 cd/m2,
+	 * where 0x0001 represents 1 cd/m2 and 0xFFFF represents 65535 cd/m2.
+	 */
+	__u16 max_display_mastering_luminance;
+	/**
+	 * @min_display_mastering_luminance: Min Mastering Display Luminance.
+	 * This value is coded as an unsigned 16-bit value in units of
+	 * 0.0001 cd/m2, where 0x0001 represents 0.0001 cd/m2 and 0xFFFF
+	 * represents 6.5535 cd/m2.
+	 */
+	__u16 min_display_mastering_luminance;
+	/**
+	 * @max_cll: Max Content Light Level.
+	 * This value is coded as an unsigned 16-bit value in units of 1 cd/m2,
+	 * where 0x0001 represents 1 cd/m2 and 0xFFFF represents 65535 cd/m2.
+	 */
+	__u16 max_cll;
+	/**
+	 * @max_fall: Max Frame Average Light Level.
+	 * This value is coded as an unsigned 16-bit value in units of 1 cd/m2,
+	 * where 0x0001 represents 1 cd/m2 and 0xFFFF represents 65535 cd/m2.
+	 */
+	__u16 max_fall;
+};
+
+/**
+ * struct hdr_output_metadata - HDR output metadata
+ *
+ * Metadata Information to be passed from userspace
+ */
+struct hdr_output_metadata {
+	/**
+	 * @metadata_type: Static_Metadata_Descriptor_ID.
+	 */
+	__u32 metadata_type;
+	/**
+	 * @hdmi_metadata_type1: HDR Metadata Infoframe.
+	 */
+	union {
+		struct hdr_metadata_infoframe hdmi_metadata_type1;
+	};
 };
 
 #define DRM_MODE_PAGE_FLIP_EVENT 0x01
@@ -640,7 +847,61 @@ struct drm_mode_atomic {
 	__u64 user_data;
 };
 
+struct drm_format_modifier_blob {
+#define FORMAT_BLOB_CURRENT 1
+	/* Version of this blob format */
+	__u32 version;
+
+	/* Flags */
+	__u32 flags;
+
+	/* Number of fourcc formats supported */
+	__u32 count_formats;
+
+	/* Where in this blob the formats exist (in bytes) */
+	__u32 formats_offset;
+
+	/* Number of drm_format_modifiers */
+	__u32 count_modifiers;
+
+	/* Where in this blob the modifiers exist (in bytes) */
+	__u32 modifiers_offset;
+
+	/* __u32 formats[] */
+	/* struct drm_format_modifier modifiers[] */
+};
+
+struct drm_format_modifier {
+	/* Bitmask of formats in get_plane format list this info applies to. The
+	 * offset allows a sliding window of which 64 formats (bits).
+	 *
+	 * Some examples:
+	 * In today's world with < 65 formats, and formats 0, and 2 are
+	 * supported
+	 * 0x0000000000000005
+	 *		  ^-offset = 0, formats = 5
+	 *
+	 * If the number formats grew to 128, and formats 98-102 are
+	 * supported with the modifier:
+	 *
+	 * 0x0000007c00000000 0000000000000000
+	 *		  ^
+	 *		  |__offset = 64, formats = 0x7c00000000
+	 *
+	 */
+	__u64 formats;
+	__u32 offset;
+	__u32 pad;
+
+	/* The modifier that applies to the >get_plane format list bitmask. */
+	__u64 modifier;
+};
+
 /**
+ * struct drm_mode_create_blob - Create New block property
+ * @data: Pointer to data to copy.
+ * @length: Length of data to copy.
+ * @blob_id: new property ID.
  * Create a new 'blob' data property, copying length bytes from data pointer,
  * and returning new blob ID.
  */
@@ -654,10 +915,113 @@ struct drm_mode_create_blob {
 };
 
 /**
+ * struct drm_mode_destroy_blob - Destroy user blob
+ * @blob_id: blob_id to destroy
  * Destroy a user-created blob property.
  */
 struct drm_mode_destroy_blob {
 	__u32 blob_id;
+};
+
+/**
+ * struct drm_mode_create_lease - Create lease
+ * @object_ids: Pointer to array of object ids.
+ * @object_count: Number of object ids.
+ * @flags: flags for new FD.
+ * @lessee_id: unique identifier for lessee.
+ * @fd: file descriptor to new drm_master file.
+ * Lease mode resources, creating another drm_master.
+ */
+struct drm_mode_create_lease {
+	/** Pointer to array of object ids (__u32) */
+	__u64 object_ids;
+	/** Number of object ids */
+	__u32 object_count;
+	/** flags for new FD (O_CLOEXEC, etc) */
+	__u32 flags;
+
+	/** Return: unique identifier for lessee. */
+	__u32 lessee_id;
+	/** Return: file descriptor to new drm_master file */
+	__u32 fd;
+};
+
+/**
+ * struct drm_mode_list_lessees - List lessees
+ * @count_lessees: Number of lessees.
+ * @pad: pad.
+ * @lessees_ptr: Pointer to lessess.
+ * List lesses from a drm_master
+ */
+struct drm_mode_list_lessees {
+	/** Number of lessees.
+	 * On input, provides length of the array.
+	 * On output, provides total number. No
+	 * more than the input number will be written
+	 * back, so two calls can be used to get
+	 * the size and then the data.
+	 */
+	__u32 count_lessees;
+	__u32 pad;
+
+	/** Pointer to lessees.
+	 * pointer to __u64 array of lessee ids
+	 */
+	__u64 lessees_ptr;
+};
+
+/**
+ * struct drm_mode_get_lease - Get Lease
+ * @count_objects: Number of leased objects.
+ * @pad: pad.
+ * @objects_ptr: Pointer to objects.
+ * Get leased objects
+ */
+struct drm_mode_get_lease {
+	/** Number of leased objects.
+	 * On input, provides length of the array.
+	 * On output, provides total number. No
+	 * more than the input number will be written
+	 * back, so two calls can be used to get
+	 * the size and then the data.
+	 */
+	__u32 count_objects;
+	__u32 pad;
+
+	/** Pointer to objects.
+	 * pointer to __u32 array of object ids
+	 */
+	__u64 objects_ptr;
+};
+
+/**
+ * struct drm_mode_revoke_lease - Revoke lease
+ * @lessee_id: Unique ID of lessee.
+ * Revoke lease
+ */
+struct drm_mode_revoke_lease {
+	/** Unique ID of lessee
+	 */
+	__u32 lessee_id;
+};
+
+/**
+ * struct drm_mode_rect - Two dimensional rectangle.
+ * @x1: Horizontal starting coordinate (inclusive).
+ * @y1: Vertical starting coordinate (inclusive).
+ * @x2: Horizontal ending coordinate (exclusive).
+ * @y2: Vertical ending coordinate (exclusive).
+ *
+ * With drm subsystem using struct drm_rect to manage rectangular area this
+ * export it to user-space.
+ *
+ * Currently used by drm_mode_atomic blob property FB_DAMAGE_CLIPS.
+ */
+struct drm_mode_rect {
+	__s32 x1;
+	__s32 y1;
+	__s32 x2;
+	__s32 y2;
 };
 
 #if defined(__cplusplus)

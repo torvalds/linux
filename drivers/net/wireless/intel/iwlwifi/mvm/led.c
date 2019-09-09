@@ -6,6 +6,8 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2017        Intel Deutschland GmbH
+ * Copyright(c) 2018        Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -15,11 +17,6 @@
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110,
- * USA
  *
  * The full GNU General Public License is included in this distribution
  * in the file called COPYING.
@@ -31,6 +28,8 @@
  * BSD LICENSE
  *
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2017        Intel Deutschland GmbH
+ * Copyright(c) 2018        Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -66,26 +65,46 @@
 #include "iwl-csr.h"
 #include "mvm.h"
 
-/* Set led register on */
-static void iwl_mvm_led_enable(struct iwl_mvm *mvm)
+static void iwl_mvm_send_led_fw_cmd(struct iwl_mvm *mvm, bool on)
 {
-	iwl_write32(mvm->trans, CSR_LED_REG, CSR_LED_REG_TURN_ON);
+	struct iwl_led_cmd led_cmd = {
+		.status = cpu_to_le32(on),
+	};
+	struct iwl_host_cmd cmd = {
+		.id = WIDE_ID(LONG_GROUP, LEDS_CMD),
+		.len = { sizeof(led_cmd), },
+		.data = { &led_cmd, },
+		.flags = CMD_ASYNC,
+	};
+	int err;
+
+	if (!iwl_mvm_firmware_running(mvm))
+		return;
+
+	err = iwl_mvm_send_cmd(mvm, &cmd);
+
+	if (err)
+		IWL_WARN(mvm, "LED command failed: %d\n", err);
 }
 
-/* Set led register off */
-static void iwl_mvm_led_disable(struct iwl_mvm *mvm)
+static void iwl_mvm_led_set(struct iwl_mvm *mvm, bool on)
 {
-	iwl_write32(mvm->trans, CSR_LED_REG, CSR_LED_REG_TURN_OFF);
+	if (fw_has_capa(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_CAPA_LED_CMD_SUPPORT)) {
+		iwl_mvm_send_led_fw_cmd(mvm, on);
+		return;
+	}
+
+	iwl_write32(mvm->trans, CSR_LED_REG,
+		    on ? CSR_LED_REG_TURN_ON : CSR_LED_REG_TURN_OFF);
 }
 
 static void iwl_led_brightness_set(struct led_classdev *led_cdev,
 				   enum led_brightness brightness)
 {
 	struct iwl_mvm *mvm = container_of(led_cdev, struct iwl_mvm, led);
-	if (brightness > 0)
-		iwl_mvm_led_enable(mvm);
-	else
-		iwl_mvm_led_disable(mvm);
+
+	iwl_mvm_led_set(mvm, brightness > 0);
 }
 
 int iwl_mvm_leds_init(struct iwl_mvm *mvm)
@@ -96,6 +115,7 @@ int iwl_mvm_leds_init(struct iwl_mvm *mvm)
 	switch (mode) {
 	case IWL_LED_BLINK:
 		IWL_ERR(mvm, "Blink led mode not supported, used default\n");
+		/* fall through */
 	case IWL_LED_DEFAULT:
 	case IWL_LED_RF_STATE:
 		mode = IWL_LED_RF_STATE;
@@ -123,14 +143,31 @@ int iwl_mvm_leds_init(struct iwl_mvm *mvm)
 		return ret;
 	}
 
+	mvm->init_status |= IWL_MVM_INIT_STATUS_LEDS_INIT_COMPLETE;
 	return 0;
+}
+
+void iwl_mvm_leds_sync(struct iwl_mvm *mvm)
+{
+	if (!(mvm->init_status & IWL_MVM_INIT_STATUS_LEDS_INIT_COMPLETE))
+		return;
+
+	/*
+	 * if we control through the register, we're doing it
+	 * even when the firmware isn't up, so no need to sync
+	 */
+	if (mvm->cfg->device_family < IWL_DEVICE_FAMILY_8000)
+		return;
+
+	iwl_mvm_led_set(mvm, mvm->led.brightness > 0);
 }
 
 void iwl_mvm_leds_exit(struct iwl_mvm *mvm)
 {
-	if (iwlwifi_mod_params.led_mode == IWL_LED_DISABLE)
+	if (!(mvm->init_status & IWL_MVM_INIT_STATUS_LEDS_INIT_COMPLETE))
 		return;
 
 	led_classdev_unregister(&mvm->led);
 	kfree(mvm->led.name);
+	mvm->init_status &= ~IWL_MVM_INIT_STATUS_LEDS_INIT_COMPLETE;
 }

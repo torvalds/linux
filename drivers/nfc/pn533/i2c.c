@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for NXP PN533 NFC Chip - I2C transport layer
  *
  * Copyright (C) 2011 Instituto Nokia de Tecnologia
  * Copyright (C) 2012-2013 Tieto Poland
  * Copyright (C) 2016 HALE electronic
- *
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/device.h>
@@ -51,7 +38,7 @@ static int pn533_i2c_send_ack(struct pn533 *dev, gfp_t flags)
 {
 	struct pn533_i2c_phy *phy = dev->phy;
 	struct i2c_client *client = phy->i2c_dev;
-	u8 ack[6] = {0x00, 0x00, 0xff, 0x00, 0xff, 0x00};
+	static const u8 ack[6] = {0x00, 0x00, 0xff, 0x00, 0xff, 0x00};
 	/* spec 6.2.1.3:  Preamble, SoPC (2), ACK Code (2), Postamble */
 	int rc;
 
@@ -206,14 +193,6 @@ static int pn533_i2c_probe(struct i2c_client *client,
 	phy->i2c_dev = client;
 	i2c_set_clientdata(client, phy);
 
-	r = request_threaded_irq(client->irq, NULL, pn533_i2c_irq_thread_fn,
-				 IRQF_TRIGGER_FALLING |
-				 IRQF_SHARED | IRQF_ONESHOT,
-				 PN533_I2C_DRIVER_NAME, phy);
-
-	if (r < 0)
-		nfc_err(&client->dev, "Unable to register IRQ handler\n");
-
 	priv = pn533_register_device(PN533_DEVICE_PN532,
 				     PN533_NO_TYPE_B_PROTOCOLS,
 				     PN533_PROTO_REQ_ACK_RESP,
@@ -223,15 +202,31 @@ static int pn533_i2c_probe(struct i2c_client *client,
 
 	if (IS_ERR(priv)) {
 		r = PTR_ERR(priv);
-		goto err_register;
+		return r;
 	}
 
 	phy->priv = priv;
 
+	r = request_threaded_irq(client->irq, NULL, pn533_i2c_irq_thread_fn,
+				IRQF_TRIGGER_FALLING |
+				IRQF_SHARED | IRQF_ONESHOT,
+				PN533_I2C_DRIVER_NAME, phy);
+	if (r < 0) {
+		nfc_err(&client->dev, "Unable to register IRQ handler\n");
+		goto irq_rqst_err;
+	}
+
+	r = pn533_finalize_setup(priv);
+	if (r)
+		goto fn_setup_err;
+
 	return 0;
 
-err_register:
+fn_setup_err:
 	free_irq(client->irq, phy);
+
+irq_rqst_err:
+	pn533_unregister_device(phy->priv);
 
 	return r;
 }
@@ -242,9 +237,9 @@ static int pn533_i2c_remove(struct i2c_client *client)
 
 	dev_dbg(&client->dev, "%s\n", __func__);
 
-	pn533_unregister_device(phy->priv);
-
 	free_irq(client->irq, phy);
+
+	pn533_unregister_device(phy->priv);
 
 	return 0;
 }
@@ -256,7 +251,7 @@ static const struct of_device_id of_pn533_i2c_match[] = {
 };
 MODULE_DEVICE_TABLE(of, of_pn533_i2c_match);
 
-static struct i2c_device_id pn533_i2c_id_table[] = {
+static const struct i2c_device_id pn533_i2c_id_table[] = {
 	{ PN533_I2C_DRIVER_NAME, 0 },
 	{}
 };

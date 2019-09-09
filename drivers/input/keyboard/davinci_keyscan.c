@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * DaVinci Key Scan Driver for TI platforms
  *
@@ -6,20 +7,6 @@
  * Author: Miguel Aguilar <miguel.aguilar@ridgerun.com>
  *
  * Initial Code: Sandeep Paulraj <s-paulraj@ti.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 #include <linux/module.h>
 #include <linux/init.h>
@@ -32,10 +19,6 @@
 #include <linux/errno.h>
 #include <linux/slab.h>
 
-#include <asm/irq.h>
-
-#include <mach/hardware.h>
-#include <mach/irqs.h>
 #include <linux/platform_data/keyscan-davinci.h>
 
 /* Key scan registers */
@@ -172,7 +155,7 @@ static int __init davinci_ks_probe(struct platform_device *pdev)
 	struct input_dev *key_dev;
 	struct resource *res, *mem;
 	struct device *dev = &pdev->dev;
-	struct davinci_ks_platform_data *pdata = dev_get_platdata(&pdev->dev);
+	struct davinci_ks_platform_data *pdata = dev_get_platdata(dev);
 	int error, i;
 
 	if (pdata->device_enable) {
@@ -255,7 +238,7 @@ static int __init davinci_ks_probe(struct platform_device *pdev)
 
 	key_dev->name = "davinci_keyscan";
 	key_dev->phys = "davinci_keyscan/input0";
-	key_dev->dev.parent = &pdev->dev;
+	key_dev->dev.parent = dev;
 	key_dev->id.bustype = BUS_HOST;
 	key_dev->id.vendor = 0x0001;
 	key_dev->id.product = 0x0001;

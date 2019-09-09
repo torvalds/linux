@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  Atheros AR71XX/AR724X/AR913X specific CPU feature overrides
  *
@@ -7,11 +8,6 @@
  *  This file was derived from: include/asm-mips/cpu-features.h
  *	Copyright (C) 2003, 2004 Ralf Baechle
  *	Copyright (C) 2004 Maciej W. Rozycki
- *
- *  This program is free software; you can redistribute it and/or modify it
- *  under the terms of the GNU General Public License version 2 as published
- *  by the Free Software Foundation.
- *
  */
 #ifndef __ASM_MACH_ATH79_CPU_FEATURE_OVERRIDES_H
 #define __ASM_MACH_ATH79_CPU_FEATURE_OVERRIDES_H
@@ -36,6 +32,7 @@
 #define cpu_has_mdmx		0
 #define cpu_has_mips3d		0
 #define cpu_has_smartmips	0
+#define cpu_has_rixi		0
 
 #define cpu_has_mips32r1	1
 #define cpu_has_mips32r2	1
@@ -43,6 +40,7 @@
 #define cpu_has_mips64r2	0
 
 #define cpu_has_mipsmt		0
+#define cpu_has_userlocal	0
 
 #define cpu_has_64bits		0
 #define cpu_has_64bit_zero_reg	0
@@ -51,5 +49,9 @@
 
 #define cpu_dcache_line_size()	32
 #define cpu_icache_line_size()	32
+#define cpu_has_vtag_icache	0
+#define cpu_has_dc_aliases	1
+#define cpu_has_ic_fills_f_dc	0
+#define cpu_has_pindexed_dcache	0
 
 #endif /* __ASM_MACH_ATH79_CPU_FEATURE_OVERRIDES_H */

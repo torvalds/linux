@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * U300 clock implementation
  * Copyright (C) 2007-2012 ST-Ericsson AB
- * License terms: GNU General Public License (GPL) version 2
  * Author: Linus Walleij <linus.walleij@stericsson.com>
  * Author: Jonas Aaberg <jonas.aberg@stericsson.com>
  */
@@ -229,15 +229,15 @@
 #define U300_SYSCON_S0CCR_CLOCK_FREQ_MASK			(0x01E0)
 #define U300_SYSCON_S0CCR_CLOCK_SELECT_MASK			(0x001E)
 #define U300_SYSCON_S0CCR_CLOCK_ENABLE				(0x0001)
-#define U300_SYSCON_S0CCR_SEL_MCLK				(0x8<<1)
-#define U300_SYSCON_S0CCR_SEL_ACC_FSM_CLK			(0xA<<1)
-#define U300_SYSCON_S0CCR_SEL_PLL60_48_CLK			(0xC<<1)
-#define U300_SYSCON_S0CCR_SEL_PLL60_60_CLK			(0xD<<1)
-#define U300_SYSCON_S0CCR_SEL_ACC_PLL208_CLK			(0xE<<1)
-#define U300_SYSCON_S0CCR_SEL_APP_PLL13_CLK			(0x0<<1)
-#define U300_SYSCON_S0CCR_SEL_APP_FSM_CLK			(0x2<<1)
-#define U300_SYSCON_S0CCR_SEL_RTC_CLK				(0x4<<1)
-#define U300_SYSCON_S0CCR_SEL_APP_PLL208_CLK			(0x6<<1)
+#define U300_SYSCON_S0CCR_SEL_MCLK				(0x8 << 1)
+#define U300_SYSCON_S0CCR_SEL_ACC_FSM_CLK			(0xA << 1)
+#define U300_SYSCON_S0CCR_SEL_PLL60_48_CLK			(0xC << 1)
+#define U300_SYSCON_S0CCR_SEL_PLL60_60_CLK			(0xD << 1)
+#define U300_SYSCON_S0CCR_SEL_ACC_PLL208_CLK			(0xE << 1)
+#define U300_SYSCON_S0CCR_SEL_APP_PLL13_CLK			(0x0 << 1)
+#define U300_SYSCON_S0CCR_SEL_APP_FSM_CLK			(0x2 << 1)
+#define U300_SYSCON_S0CCR_SEL_RTC_CLK				(0x4 << 1)
+#define U300_SYSCON_S0CCR_SEL_APP_PLL208_CLK			(0x6 << 1)
 /* SYS_1_CLK_CONTROL second clock control 16 bit (R/W) */
 #define U300_SYSCON_S1CCR					(0x124)
 #define U300_SYSCON_S1CCR_FIELD_MASK				(0x43FF)
@@ -247,16 +247,16 @@
 #define U300_SYSCON_S1CCR_CLOCK_FREQ_MASK			(0x01E0)
 #define U300_SYSCON_S1CCR_CLOCK_SELECT_MASK			(0x001E)
 #define U300_SYSCON_S1CCR_CLOCK_ENABLE				(0x0001)
-#define U300_SYSCON_S1CCR_SEL_MCLK				(0x8<<1)
-#define U300_SYSCON_S1CCR_SEL_ACC_FSM_CLK			(0xA<<1)
-#define U300_SYSCON_S1CCR_SEL_PLL60_48_CLK			(0xC<<1)
-#define U300_SYSCON_S1CCR_SEL_PLL60_60_CLK			(0xD<<1)
-#define U300_SYSCON_S1CCR_SEL_ACC_PLL208_CLK			(0xE<<1)
-#define U300_SYSCON_S1CCR_SEL_ACC_PLL13_CLK			(0x0<<1)
-#define U300_SYSCON_S1CCR_SEL_APP_FSM_CLK			(0x2<<1)
-#define U300_SYSCON_S1CCR_SEL_RTC_CLK				(0x4<<1)
-#define U300_SYSCON_S1CCR_SEL_APP_PLL208_CLK			(0x6<<1)
-/* SYS_2_CLK_CONTROL third clock contol 16 bit (R/W) */
+#define U300_SYSCON_S1CCR_SEL_MCLK				(0x8 << 1)
+#define U300_SYSCON_S1CCR_SEL_ACC_FSM_CLK			(0xA << 1)
+#define U300_SYSCON_S1CCR_SEL_PLL60_48_CLK			(0xC << 1)
+#define U300_SYSCON_S1CCR_SEL_PLL60_60_CLK			(0xD << 1)
+#define U300_SYSCON_S1CCR_SEL_ACC_PLL208_CLK			(0xE << 1)
+#define U300_SYSCON_S1CCR_SEL_ACC_PLL13_CLK			(0x0 << 1)
+#define U300_SYSCON_S1CCR_SEL_APP_FSM_CLK			(0x2 << 1)
+#define U300_SYSCON_S1CCR_SEL_RTC_CLK				(0x4 << 1)
+#define U300_SYSCON_S1CCR_SEL_APP_PLL208_CLK			(0x6 << 1)
+/* SYS_2_CLK_CONTROL third clock control 16 bit (R/W) */
 #define U300_SYSCON_S2CCR					(0x128)
 #define U300_SYSCON_S2CCR_FIELD_MASK				(0xC3FF)
 #define U300_SYSCON_S2CCR_CLK_STEAL				(0x8000)
@@ -266,15 +266,15 @@
 #define U300_SYSCON_S2CCR_CLOCK_FREQ_MASK			(0x01E0)
 #define U300_SYSCON_S2CCR_CLOCK_SELECT_MASK			(0x001E)
 #define U300_SYSCON_S2CCR_CLOCK_ENABLE				(0x0001)
-#define U300_SYSCON_S2CCR_SEL_MCLK				(0x8<<1)
-#define U300_SYSCON_S2CCR_SEL_ACC_FSM_CLK			(0xA<<1)
-#define U300_SYSCON_S2CCR_SEL_PLL60_48_CLK			(0xC<<1)
-#define U300_SYSCON_S2CCR_SEL_PLL60_60_CLK			(0xD<<1)
-#define U300_SYSCON_S2CCR_SEL_ACC_PLL208_CLK			(0xE<<1)
-#define U300_SYSCON_S2CCR_SEL_ACC_PLL13_CLK			(0x0<<1)
-#define U300_SYSCON_S2CCR_SEL_APP_FSM_CLK			(0x2<<1)
-#define U300_SYSCON_S2CCR_SEL_RTC_CLK				(0x4<<1)
-#define U300_SYSCON_S2CCR_SEL_APP_PLL208_CLK			(0x6<<1)
+#define U300_SYSCON_S2CCR_SEL_MCLK				(0x8 << 1)
+#define U300_SYSCON_S2CCR_SEL_ACC_FSM_CLK			(0xA << 1)
+#define U300_SYSCON_S2CCR_SEL_PLL60_48_CLK			(0xC << 1)
+#define U300_SYSCON_S2CCR_SEL_PLL60_60_CLK			(0xD << 1)
+#define U300_SYSCON_S2CCR_SEL_ACC_PLL208_CLK			(0xE << 1)
+#define U300_SYSCON_S2CCR_SEL_ACC_PLL13_CLK			(0x0 << 1)
+#define U300_SYSCON_S2CCR_SEL_APP_FSM_CLK			(0x2 << 1)
+#define U300_SYSCON_S2CCR_SEL_RTC_CLK				(0x4 << 1)
+#define U300_SYSCON_S2CCR_SEL_APP_PLL208_CLK			(0x6 << 1)
 /* SC_PLL_IRQ_CONTROL 16bit (R/W) */
 #define U300_SYSCON_PICR					(0x0130)
 #define U300_SYSCON_PICR_MASK					(0x00FF)
@@ -378,7 +378,7 @@
  *  +- ISP Image Signal Processor (U335 only)
  *  +- CDS (U335 only)
  *  +- DMA Direct Memory Access Controller
- *  +- AAIF APP/ACC Inteface (Mobile Scalable Link, MSL)
+ *  +- AAIF APP/ACC Interface (Mobile Scalable Link, MSL)
  *  +- APEX
  *  +- VIDEO_ENC AVE2/3 Video Encoder
  *  +- XGAM Graphics Accelerator Controller
@@ -568,14 +568,14 @@ syscon_clk_recalc_rate(struct clk_hw *hw,
 	struct clk_syscon *sclk = to_syscon(hw);
 	u16 perf = syscon_get_perf();
 
-	switch(sclk->clk_val) {
+	switch (sclk->clk_val) {
 	case U300_SYSCON_SBCER_FAST_BRIDGE_CLK_EN:
 	case U300_SYSCON_SBCER_I2C0_CLK_EN:
 	case U300_SYSCON_SBCER_I2C1_CLK_EN:
 	case U300_SYSCON_SBCER_MMC_CLK_EN:
 	case U300_SYSCON_SBCER_SPI_CLK_EN:
 		/* The FAST clocks have one progression */
-		switch(perf) {
+		switch (perf) {
 		case U300_SYSCON_CCR_CLKING_PERFORMANCE_LOW_POWER:
 		case U300_SYSCON_CCR_CLKING_PERFORMANCE_LOW:
 			return 13000000;
@@ -586,7 +586,7 @@ syscon_clk_recalc_rate(struct clk_hw *hw,
 	case U300_SYSCON_SBCER_NANDIF_CLK_EN:
 	case U300_SYSCON_SBCER_XGAM_CLK_EN:
 		/* AMBA interconnect peripherals */
-		switch(perf) {
+		switch (perf) {
 		case U300_SYSCON_CCR_CLKING_PERFORMANCE_LOW_POWER:
 		case U300_SYSCON_CCR_CLKING_PERFORMANCE_LOW:
 			return 6500000;
@@ -598,7 +598,7 @@ syscon_clk_recalc_rate(struct clk_hw *hw,
 	case U300_SYSCON_SBCER_SEMI_CLK_EN:
 	case U300_SYSCON_SBCER_EMIF_CLK_EN:
 		/* EMIF speeds */
-		switch(perf) {
+		switch (perf) {
 		case U300_SYSCON_CCR_CLKING_PERFORMANCE_LOW_POWER:
 		case U300_SYSCON_CCR_CLKING_PERFORMANCE_LOW:
 			return 13000000;
@@ -609,7 +609,7 @@ syscon_clk_recalc_rate(struct clk_hw *hw,
 		}
 	case U300_SYSCON_SBCER_CPU_CLK_EN:
 		/* And the fast CPU clock */
-		switch(perf) {
+		switch (perf) {
 		case U300_SYSCON_CCR_CLKING_PERFORMANCE_LOW_POWER:
 		case U300_SYSCON_CCR_CLKING_PERFORMANCE_LOW:
 			return 13000000;
@@ -702,12 +702,10 @@ syscon_clk_register(struct device *dev, const char *name,
 	struct clk_init_data init;
 	int ret;
 
-	sclk = kzalloc(sizeof(struct clk_syscon), GFP_KERNEL);
-	if (!sclk) {
-		pr_err("could not allocate syscon clock %s\n",
-			name);
+	sclk = kzalloc(sizeof(*sclk), GFP_KERNEL);
+	if (!sclk)
 		return ERR_PTR(-ENOMEM);
-	}
+
 	init.name = name;
 	init.ops = &syscon_clk_ops;
 	init.flags = flags;
@@ -1123,12 +1121,10 @@ mclk_clk_register(struct device *dev, const char *name,
 	struct clk_init_data init;
 	int ret;
 
-	mclk = kzalloc(sizeof(struct clk_mclk), GFP_KERNEL);
-	if (!mclk) {
-		pr_err("could not allocate MMC/SD clock %s\n",
-		       name);
+	mclk = kzalloc(sizeof(*mclk), GFP_KERNEL);
+	if (!mclk)
 		return ERR_PTR(-ENOMEM);
-	}
+
 	init.name = "mclk";
 	init.ops = &mclk_ops;
 	init.flags = 0;

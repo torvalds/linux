@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 Qualcomm Atheros, Inc.
+ * Copyright (c) 2014-2017 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -27,16 +27,31 @@ enum wil_platform_event {
 	WIL_PLATFORM_EVT_POST_SUSPEND = 4,
 };
 
+enum wil_platform_features {
+	WIL_PLATFORM_FEATURE_FW_EXT_CLK_CONTROL = 0,
+	WIL_PLATFORM_FEATURE_TRIPLE_MSI = 1,
+	WIL_PLATFORM_FEATURE_MAX,
+};
+
+enum wil_platform_capa {
+	WIL_PLATFORM_CAPA_RADIO_ON_IN_SUSPEND = 0,
+	WIL_PLATFORM_CAPA_T_PWR_ON_0 = 1,
+	WIL_PLATFORM_CAPA_EXT_CLK = 2,
+	WIL_PLATFORM_CAPA_MAX,
+};
+
 /**
  * struct wil_platform_ops - wil platform module calls from this
  * driver to platform driver
  */
 struct wil_platform_ops {
 	int (*bus_request)(void *handle, uint32_t kbps /* KBytes/Sec */);
-	int (*suspend)(void *handle);
-	int (*resume)(void *handle);
+	int (*suspend)(void *handle, bool keep_device_power);
+	int (*resume)(void *handle, bool device_powered_on);
 	void (*uninit)(void *handle);
 	int (*notify)(void *handle, enum wil_platform_event evt);
+	int (*get_capa)(void *handle);
+	void (*set_features)(void *handle, int features);
 };
 
 /**

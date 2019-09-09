@@ -1,0 +1,370 @@
+// SPDX-License-Identifier: GPL-2.0
+/dts-v1/;
+
+#include <dt-bindings/input/linux-event-codes.h>
+#include <dt-bindings/input/gpio-keys.h>
+
+#include "tegra186-p3310.dtsi"
+
+/ {
+	model = "NVIDIA Jetson TX2 Developer Kit";
+	compatible = "nvidia,p2771-0000", "nvidia,tegra186";
+
+	aconnect {
+		status = "okay";
+
+		dma-controller@2930000 {
+			status = "okay";
+		};
+
+		interrupt-controller@2a40000 {
+			status = "okay";
+		};
+	};
+
+	i2c@3160000 {
+		power-monitor@42 {
+			compatible = "ti,ina3221";
+			reg = <0x42>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			channel@0 {
+				reg = <0x0>;
+				label = "VDD_MUX";
+				shunt-resistor-micro-ohms = <20000>;
+			};
+
+			channel@1 {
+				reg = <0x1>;
+				label = "VDD_5V0_IO_SYS";
+				shunt-resistor-micro-ohms = <5000>;
+			};
+
+			channel@2 {
+				reg = <0x2>;
+				label = "VDD_3V3_SYS";
+				shunt-resistor-micro-ohms = <10000>;
+			};
+		};
+
+		power-monitor@43 {
+			compatible = "ti,ina3221";
+			reg = <0x43>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			channel@0 {
+				reg = <0x0>;
+				label = "VDD_3V3_IO_SLP";
+				shunt-resistor-micro-ohms = <10000>;
+			};
+
+			channel@1 {
+				reg = <0x1>;
+				label = "VDD_1V8_IO";
+				shunt-resistor-micro-ohms = <10000>;
+			};
+
+			channel@2 {
+				reg = <0x2>;
+				label = "VDD_M2_IN";
+				shunt-resistor-micro-ohms = <10000>;
+			};
+		};
+
+		exp1: gpio@74 {
+			compatible = "ti,tca9539";
+			reg = <0x74>;
+
+			interrupt-parent = <&gpio>;
+			interrupts = <TEGRA186_MAIN_GPIO(Y, 0)
+				      GPIO_ACTIVE_LOW>;
+
+			#gpio-cells = <2>;
+			gpio-controller;
+
+			vcc-supply = <&vdd_3v3_sys>;
+		};
+
+		exp2: gpio@77 {
+			compatible = "ti,tca9539";
+			reg = <0x77>;
+
+			interrupt-parent = <&gpio>;
+			interrupts = <TEGRA186_MAIN_GPIO(Y, 6)
+				      GPIO_ACTIVE_LOW>;
+
+			#gpio-cells = <2>;
+			gpio-controller;
+
+			vcc-supply = <&vdd_1v8>;
+		};
+	};
+
+	/* SDMMC1 (SD/MMC) */
+	sdhci@3400000 {
+		status = "okay";
+
+		vmmc-supply = <&vdd_sd>;
+	};
+
+	hda@3510000 {
+		nvidia,model = "jetson-tx2-hda";
+		status = "okay";
+	};
+
+	padctl@3520000 {
+		status = "disabled";
+
+		avdd-pll-erefeut-supply = <&vdd_1v8_pll>;
+		avdd-usb-supply = <&vdd_3v3_sys>;
+		dvdd-pex-supply = <&vdd_pex>;
+		dvdd-pex-pll-supply = <&vdd_pex>;
+		hvdd-pex-supply = <&vdd_1v8>;
+		hvdd-pex-pll-supply = <&vdd_1v8>;
+		vclamp-usb-supply = <&vdd_1v8>;
+		vddio-hsic-supply = <&gnd>;
+
+		pads {
+			usb2 {
+				status = "okay";
+
+				lanes {
+					usb2-0 {
+						nvidia,function = "xusb";
+						status = "okay";
+					};
+
+					usb2-1 {
+						nvidia,function = "xusb";
+						status = "okay";
+					};
+
+					usb2-2 {
+						nvidia,function = "xusb";
+						status = "okay";
+					};
+				};
+			};
+
+			usb3 {
+				status = "okay";
+
+				lanes {
+					usb3-0 {
+						nvidia,function = "xusb";
+						status = "okay";
+					};
+
+					usb3-1 {
+						nvidia,function = "xusb";
+						status = "okay";
+					};
+
+					usb3-2 {
+						nvidia,function = "xusb";
+						status = "okay";
+					};
+				};
+			};
+		};
+
+		ports {
+			usb2-0 {
+				status = "okay";
+				mode = "otg";
+
+				vbus-supply = <&vdd_usb0>;
+			};
+
+			usb2-1 {
+				status = "okay";
+				mode = "host";
+
+				vbus-supply = <&vdd_usb1>;
+			};
+
+			usb3-0 {
+				nvidia,usb2-companion = <1>;
+				status = "okay";
+			};
+		};
+	};
+
+	usb@3530000 {
+		status = "disabled";
+
+		phys = <&{/padctl@3520000/pads/usb2/lanes/usb2-0}>,
+		       <&{/padctl@3520000/pads/usb2/lanes/usb2-1}>,
+		       <&{/padctl@3520000/pads/usb3/lanes/usb3-0}>;
+		phy-names = "usb2-0", "usb2-1", "usb3-0";
+	};
+
+	i2c@c250000 {
+		/* carrier board ID EEPROM */
+		eeprom@57 {
+			compatible = "atmel,24c02";
+			reg = <0x57>;
+
+			address-bits = <8>;
+			page-size = <8>;
+			size = <256>;
+			read-only;
+		};
+	};
+
+	pcie@10003000 {
+		status = "okay";
+
+		dvdd-pex-supply = <&vdd_pex>;
+		hvdd-pex-pll-supply = <&vdd_1v8>;
+		hvdd-pex-supply = <&vdd_1v8>;
+		vddio-pexctl-aud-supply = <&vdd_1v8>;
+
+		pci@1,0 {
+			nvidia,num-lanes = <4>;
+			status = "okay";
+		};
+
+		pci@2,0 {
+			nvidia,num-lanes = <0>;
+			status = "disabled";
+		};
+
+		pci@3,0 {
+			nvidia,num-lanes = <1>;
+			status = "disabled";
+		};
+	};
+
+	host1x@13e00000 {
+		status = "okay";
+
+		dpaux@15040000 {
+			status = "okay";
+		};
+
+		display-hub@15200000 {
+			status = "okay";
+		};
+
+		dsi@15300000 {
+			status = "disabled";
+		};
+
+		sor@15540000 {
+			status = "disabled";
+
+			nvidia,dpaux = <&dpaux1>;
+		};
+
+		sor@15580000 {
+			status = "okay";
+
+			avdd-io-supply = <&vdd_hdmi_1v05>;
+			vdd-pll-supply = <&vdd_1v8_ap>;
+			hdmi-supply = <&vdd_hdmi>;
+
+			nvidia,ddc-i2c-bus = <&ddc>;
+			nvidia,hpd-gpio = <&gpio TEGRA186_MAIN_GPIO(P, 1)
+						 GPIO_ACTIVE_LOW>;
+		};
+
+		dpaux@155c0000 {
+			status = "okay";
+		};
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		power {
+			label = "Power";
+			gpios = <&gpio_aon TEGRA186_AON_GPIO(FF, 0)
+					   GPIO_ACTIVE_LOW>;
+			linux,input-type = <EV_KEY>;
+			linux,code = <KEY_POWER>;
+			debounce-interval = <10>;
+			wakeup-event-action = <EV_ACT_ASSERTED>;
+			wakeup-source;
+		};
+
+		volume-up {
+			label = "Volume Up";
+			gpios = <&gpio_aon TEGRA186_AON_GPIO(FF, 1)
+					   GPIO_ACTIVE_LOW>;
+			linux,input-type = <EV_KEY>;
+			linux,code = <KEY_VOLUMEUP>;
+			debounce-interval = <10>;
+		};
+
+		volume-down {
+			label = "Volume Down";
+			gpios = <&gpio_aon TEGRA186_AON_GPIO(FF, 2)
+					   GPIO_ACTIVE_LOW>;
+			linux,input-type = <EV_KEY>;
+			linux,code = <KEY_VOLUMEDOWN>;
+			debounce-interval = <10>;
+		};
+	};
+
+	regulators {
+		vdd_sd: regulator@100 {
+			compatible = "regulator-fixed";
+			reg = <100>;
+
+			regulator-name = "SD_CARD_SW_PWR";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+
+			gpio = <&gpio TEGRA186_MAIN_GPIO(P, 6)
+				      GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+
+			vin-supply = <&vdd_3v3_sys>;
+		};
+
+		vdd_hdmi: regulator@101 {
+			compatible = "regulator-fixed";
+			reg = <101>;
+
+			regulator-name = "VDD_HDMI_5V0";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+
+			gpio = <&exp1 14 GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+
+			vin-supply = <&vdd_5v0_sys>;
+		};
+
+		vdd_usb0: regulator@102 {
+			compatible = "regulator-fixed";
+			reg = <102>;
+
+			regulator-name = "VDD_USB0";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+
+			gpio = <&gpio TEGRA186_MAIN_GPIO(L, 4) GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+
+			vin-supply = <&vdd_5v0_sys>;
+		};
+
+		vdd_usb1: regulator@103 {
+			compatible = "regulator-fixed";
+			reg = <103>;
+
+			regulator-name = "VDD_USB1";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+
+			gpio = <&gpio TEGRA186_MAIN_GPIO(L, 5) GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+
+			vin-supply = <&vdd_5v0_sys>;
+		};
+	};
+};

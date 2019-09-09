@@ -1,17 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Header for ni_labpc ISA/PCMCIA/PCI drivers
  *
  * Copyright (C) 2003 Frank Mori Hess <fmhess@users.sourceforge.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef _NI_LABPC_H
@@ -52,8 +43,8 @@ struct labpc_private {
 	 * function pointers so we can use inb/outb or readb/writeb as
 	 * appropriate
 	 */
-	unsigned int (*read_byte)(struct comedi_device *, unsigned long reg);
-	void (*write_byte)(struct comedi_device *,
+	unsigned int (*read_byte)(struct comedi_device *dev, unsigned long reg);
+	void (*write_byte)(struct comedi_device *dev,
 			   unsigned int byte, unsigned long reg);
 };
 

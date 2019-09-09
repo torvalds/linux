@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #include <linux/linkage.h>
 #include <linux/threads.h>
 #include <asm/asm-offsets.h>
@@ -119,6 +120,14 @@ ENDPROC(cpu_resume_after_mmu)
 	.text
 	.align
 
+#ifdef CONFIG_MCPM
+	.arm
+THUMB(	.thumb			)
+ENTRY(cpu_resume_no_hyp)
+ARM_BE8(setend be)			@ ensure we are in BE mode
+	b	no_hyp
+#endif
+
 #ifdef CONFIG_MMU
 	.arm
 ENTRY(cpu_resume_arm)
@@ -134,6 +143,7 @@ ARM_BE8(setend be)			@ ensure we are in BE mode
 	bl	__hyp_stub_install_secondary
 #endif
 	safe_svcmode_maskall r1
+no_hyp:
 	mov	r1, #0
 	ALT_SMP(mrc p15, 0, r0, c0, c0, 5)
 	ALT_UP_B(1f)
@@ -163,6 +173,9 @@ ENDPROC(cpu_resume)
 #ifdef CONFIG_MMU
 ENDPROC(cpu_resume_arm)
 #endif
+#ifdef CONFIG_MCPM
+ENDPROC(cpu_resume_no_hyp)
+#endif
 
 	.align 2
 _sleep_save_sp:
@@ -171,6 +184,7 @@ mpidr_hash_ptr:
 	.long	mpidr_hash - .			@ mpidr_hash struct offset
 
 	.data
+	.align	2
 	.type	sleep_save_sp, #object
 ENTRY(sleep_save_sp)
 	.space	SLEEP_SAVE_SP_SZ		@ struct sleep_save_sp

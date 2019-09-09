@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/debugfs.h>
 #include <linux/slab.h>
 
@@ -14,12 +15,6 @@ struct mbxfb_debugfs_data {
 	struct dentry *sdram;
 	struct dentry *misc;
 };
-
-static int open_file_generic(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-	return 0;
-}
 
 static ssize_t write_file_dummy(struct file *file, const char __user *buf,
 				size_t count, loff_t *ppos)
@@ -174,78 +169,64 @@ static ssize_t misc_read_file(struct file *file, char __user *userbuf,
 static const struct file_operations sysconf_fops = {
 	.read = sysconf_read_file,
 	.write = write_file_dummy,
-	.open = open_file_generic,
+	.open = simple_open,
 	.llseek = default_llseek,
 };
 
 static const struct file_operations clock_fops = {
 	.read = clock_read_file,
 	.write = write_file_dummy,
-	.open = open_file_generic,
+	.open = simple_open,
 	.llseek = default_llseek,
 };
 
 static const struct file_operations display_fops = {
 	.read = display_read_file,
 	.write = write_file_dummy,
-	.open = open_file_generic,
+	.open = simple_open,
 	.llseek = default_llseek,
 };
 
 static const struct file_operations gsctl_fops = {
 	.read = gsctl_read_file,
 	.write = write_file_dummy,
-	.open = open_file_generic,
+	.open = simple_open,
 	.llseek = default_llseek,
 };
 
 static const struct file_operations sdram_fops = {
 	.read = sdram_read_file,
 	.write = write_file_dummy,
-	.open = open_file_generic,
+	.open = simple_open,
 	.llseek = default_llseek,
 };
 
 static const struct file_operations misc_fops = {
 	.read = misc_read_file,
 	.write = write_file_dummy,
-	.open = open_file_generic,
+	.open = simple_open,
 	.llseek = default_llseek,
 };
 
 static void mbxfb_debugfs_init(struct fb_info *fbi)
 {
 	struct mbxfb_info *mfbi = fbi->par;
-	struct mbxfb_debugfs_data *dbg;
+	struct dentry *dir;
 
-	dbg = kzalloc(sizeof(struct mbxfb_debugfs_data), GFP_KERNEL);
-	mfbi->debugfs_data = dbg;
+	dir = debugfs_create_dir("mbxfb", NULL);
+	mfbi->debugfs_dir = dir;
 
-	dbg->dir = debugfs_create_dir("mbxfb", NULL);
-	dbg->sysconf = debugfs_create_file("sysconf", 0444, dbg->dir,
-				      fbi, &sysconf_fops);
-	dbg->clock = debugfs_create_file("clock", 0444, dbg->dir,
-				    fbi, &clock_fops);
-	dbg->display = debugfs_create_file("display", 0444, dbg->dir,
-				      fbi, &display_fops);
-	dbg->gsctl = debugfs_create_file("gsctl", 0444, dbg->dir,
-				    fbi, &gsctl_fops);
-	dbg->sdram = debugfs_create_file("sdram", 0444, dbg->dir,
-					fbi, &sdram_fops);
-	dbg->misc = debugfs_create_file("misc", 0444, dbg->dir,
-					fbi, &misc_fops);
+	debugfs_create_file("sysconf", 0444, dir, fbi, &sysconf_fops);
+	debugfs_create_file("clock", 0444, dir, fbi, &clock_fops);
+	debugfs_create_file("display", 0444, dir, fbi, &display_fops);
+	debugfs_create_file("gsctl", 0444, dir, fbi, &gsctl_fops);
+	debugfs_create_file("sdram", 0444, dir, fbi, &sdram_fops);
+	debugfs_create_file("misc", 0444, dir, fbi, &misc_fops);
 }
 
 static void mbxfb_debugfs_remove(struct fb_info *fbi)
 {
 	struct mbxfb_info *mfbi = fbi->par;
-	struct mbxfb_debugfs_data *dbg = mfbi->debugfs_data;
 
-	debugfs_remove(dbg->misc);
-	debugfs_remove(dbg->sdram);
-	debugfs_remove(dbg->gsctl);
-	debugfs_remove(dbg->display);
-	debugfs_remove(dbg->clock);
-	debugfs_remove(dbg->sysconf);
-	debugfs_remove(dbg->dir);
+	debugfs_remove_recursive(mfbi->debugfs_dir);
 }

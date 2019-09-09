@@ -1,34 +1,29 @@
-/* encore-enltv2.h - Keytable for encore_enltv2 Remote Controller
- *
- * keymap imported from ir-keymaps.c
- *
- * Copyright (c) 2010 by Mauro Carvalho Chehab
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- */
+// SPDX-License-Identifier: GPL-2.0+
+// encore-enltv2.h - Keytable for encore_enltv2 Remote Controller
+//
+// keymap imported from ir-keymaps.c
+//
+// Copyright (c) 2010 by Mauro Carvalho Chehab
 
 #include <media/rc-map.h>
 #include <linux/module.h>
 
 /* Encore ENLTV2-FM  - silver plastic - "Wand Media" written at the botton
-    Mauro Carvalho Chehab <mchehab@infradead.org> */
+    Mauro Carvalho Chehab <mchehab@kernel.org> */
 
 static struct rc_map_table encore_enltv2[] = {
 	{ 0x4c, KEY_POWER2 },
 	{ 0x4a, KEY_TUNER },
-	{ 0x40, KEY_1 },
-	{ 0x60, KEY_2 },
-	{ 0x50, KEY_3 },
-	{ 0x70, KEY_4 },
-	{ 0x48, KEY_5 },
-	{ 0x68, KEY_6 },
-	{ 0x58, KEY_7 },
-	{ 0x78, KEY_8 },
-	{ 0x44, KEY_9 },
-	{ 0x54, KEY_0 },
+	{ 0x40, KEY_NUMERIC_1 },
+	{ 0x60, KEY_NUMERIC_2 },
+	{ 0x50, KEY_NUMERIC_3 },
+	{ 0x70, KEY_NUMERIC_4 },
+	{ 0x48, KEY_NUMERIC_5 },
+	{ 0x68, KEY_NUMERIC_6 },
+	{ 0x58, KEY_NUMERIC_7 },
+	{ 0x78, KEY_NUMERIC_8 },
+	{ 0x44, KEY_NUMERIC_9 },
+	{ 0x54, KEY_NUMERIC_0 },
 
 	{ 0x64, KEY_LAST },		/* +100 */
 	{ 0x4e, KEY_AGAIN },		/* Recall */
@@ -67,10 +62,10 @@ static struct rc_map_table encore_enltv2[] = {
 
 static struct rc_map_list encore_enltv2_map = {
 	.map = {
-		.scan    = encore_enltv2,
-		.size    = ARRAY_SIZE(encore_enltv2),
-		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
-		.name    = RC_MAP_ENCORE_ENLTV2,
+		.scan     = encore_enltv2,
+		.size     = ARRAY_SIZE(encore_enltv2),
+		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.name     = RC_MAP_ENCORE_ENLTV2,
 	}
 };
 

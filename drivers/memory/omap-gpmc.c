@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * GPMC support functions
  *
@@ -7,10 +8,6 @@
  *
  * Copyright (C) 2009 Texas Instruments
  * Added OMAP4 support - Santosh Shilimkar <santosh.shilimkar@ti.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/irq.h>
 #include <linux/kernel.h>
@@ -21,6 +18,8 @@
 #include <linux/spinlock.h>
 #include <linux/io.h>
 #include <linux/gpio/driver.h>
+#include <linux/gpio/consumer.h> /* GPIO descriptor enum */
+#include <linux/gpio/machine.h>
 #include <linux/interrupt.h>
 #include <linux/irqdomain.h>
 #include <linux/platform_device.h>
@@ -32,7 +31,6 @@
 #include <linux/pm_runtime.h>
 
 #include <linux/platform_data/mtd-nand-omap2.h>
-#include <linux/platform_data/mtd-onenand-omap2.h>
 
 #include <asm/mach-types.h>
 
@@ -460,12 +458,12 @@ static int get_gpmc_timing_reg(
 		if (l)
 			time_ns_min = gpmc_clk_ticks_to_ns(l - 1, cs, cd) + 1;
 		time_ns = gpmc_clk_ticks_to_ns(l, cs, cd);
-		pr_info("gpmc,%s = <%u> /* %u ns - %u ns; %i ticks%s*/\n",
+		pr_info("gpmc,%s = <%u>; /* %u ns - %u ns; %i ticks%s*/\n",
 			name, time_ns, time_ns_min, time_ns, l,
 			invalid ? "; invalid " : " ");
 	} else {
 		/* raw format */
-		pr_info("gpmc,%s = <%u>%s\n", name, l,
+		pr_info("gpmc,%s = <%u>;%s\n", name, l,
 			invalid ? " /* invalid */" : "");
 	}
 
@@ -512,7 +510,7 @@ static void gpmc_cs_show_timings(int cs, const char *desc)
 	pr_info("gpmc cs%i access configuration:\n", cs);
 	GPMC_GET_RAW_BOOL(GPMC_CS_CONFIG1,  4,  4, "time-para-granularity");
 	GPMC_GET_RAW(GPMC_CS_CONFIG1,  8,  9, "mux-add-data");
-	GPMC_GET_RAW_MAX(GPMC_CS_CONFIG1, 12, 13,
+	GPMC_GET_RAW_SHIFT_MAX(GPMC_CS_CONFIG1, 12, 13, 1,
 			 GPMC_CONFIG1_DEVICESIZE_MAX, "device-width");
 	GPMC_GET_RAW(GPMC_CS_CONFIG1, 16, 17, "wait-pin");
 	GPMC_GET_RAW_BOOL(GPMC_CS_CONFIG1, 21, 21, "wait-on-write");
@@ -1075,11 +1073,33 @@ int gpmc_configure(int cmd, int wval)
 }
 EXPORT_SYMBOL(gpmc_configure);
 
-void gpmc_update_nand_reg(struct gpmc_nand_regs *reg, int cs)
+static bool gpmc_nand_writebuffer_empty(void)
+{
+	if (gpmc_read_reg(GPMC_STATUS) & GPMC_STATUS_EMPTYWRITEBUFFERSTATUS)
+		return true;
+
+	return false;
+}
+
+static struct gpmc_nand_ops nand_ops = {
+	.nand_writebuffer_empty = gpmc_nand_writebuffer_empty,
+};
+
+/**
+ * gpmc_omap_get_nand_ops - Get the GPMC NAND interface
+ * @regs: the GPMC NAND register map exclusive for NAND use.
+ * @cs: GPMC chip select number on which the NAND sits. The
+ *      register map returned will be specific to this chip select.
+ *
+ * Returns NULL on error e.g. invalid cs.
+ */
+struct gpmc_nand_ops *gpmc_omap_get_nand_ops(struct gpmc_nand_regs *reg, int cs)
 {
 	int i;
 
-	reg->gpmc_status = NULL;	/* deprecated */
+	if (cs >= gpmc_cs_num)
+		return NULL;
+
 	reg->gpmc_nand_command = gpmc_base + GPMC_CS0_OFFSET +
 				GPMC_CS_NAND_COMMAND + GPMC_CS_SIZE * cs;
 	reg->gpmc_nand_address = gpmc_base + GPMC_CS0_OFFSET +
@@ -1111,38 +1131,116 @@ void gpmc_update_nand_reg(struct gpmc_nand_regs *reg, int cs)
 		reg->gpmc_bch_result6[i] = gpmc_base + GPMC_ECC_BCH_RESULT_6 +
 					   i * GPMC_BCH_SIZE;
 	}
-}
-
-static bool gpmc_nand_writebuffer_empty(void)
-{
-	if (gpmc_read_reg(GPMC_STATUS) & GPMC_STATUS_EMPTYWRITEBUFFERSTATUS)
-		return true;
-
-	return false;
-}
-
-static struct gpmc_nand_ops nand_ops = {
-	.nand_writebuffer_empty = gpmc_nand_writebuffer_empty,
-};
-
-/**
- * gpmc_omap_get_nand_ops - Get the GPMC NAND interface
- * @regs: the GPMC NAND register map exclusive for NAND use.
- * @cs: GPMC chip select number on which the NAND sits. The
- *      register map returned will be specific to this chip select.
- *
- * Returns NULL on error e.g. invalid cs.
- */
-struct gpmc_nand_ops *gpmc_omap_get_nand_ops(struct gpmc_nand_regs *reg, int cs)
-{
-	if (cs >= gpmc_cs_num)
-		return NULL;
-
-	gpmc_update_nand_reg(reg, cs);
 
 	return &nand_ops;
 }
 EXPORT_SYMBOL_GPL(gpmc_omap_get_nand_ops);
+
+static void gpmc_omap_onenand_calc_sync_timings(struct gpmc_timings *t,
+						struct gpmc_settings *s,
+						int freq, int latency)
+{
+	struct gpmc_device_timings dev_t;
+	const int t_cer  = 15;
+	const int t_avdp = 12;
+	const int t_cez  = 20; /* max of t_cez, t_oez */
+	const int t_wpl  = 40;
+	const int t_wph  = 30;
+	int min_gpmc_clk_period, t_ces, t_avds, t_avdh, t_ach, t_aavdh, t_rdyo;
+
+	switch (freq) {
+	case 104:
+		min_gpmc_clk_period = 9600; /* 104 MHz */
+		t_ces   = 3;
+		t_avds  = 4;
+		t_avdh  = 2;
+		t_ach   = 3;
+		t_aavdh = 6;
+		t_rdyo  = 6;
+		break;
+	case 83:
+		min_gpmc_clk_period = 12000; /* 83 MHz */
+		t_ces   = 5;
+		t_avds  = 4;
+		t_avdh  = 2;
+		t_ach   = 6;
+		t_aavdh = 6;
+		t_rdyo  = 9;
+		break;
+	case 66:
+		min_gpmc_clk_period = 15000; /* 66 MHz */
+		t_ces   = 6;
+		t_avds  = 5;
+		t_avdh  = 2;
+		t_ach   = 6;
+		t_aavdh = 6;
+		t_rdyo  = 11;
+		break;
+	default:
+		min_gpmc_clk_period = 18500; /* 54 MHz */
+		t_ces   = 7;
+		t_avds  = 7;
+		t_avdh  = 7;
+		t_ach   = 9;
+		t_aavdh = 7;
+		t_rdyo  = 15;
+		break;
+	}
+
+	/* Set synchronous read timings */
+	memset(&dev_t, 0, sizeof(dev_t));
+
+	if (!s->sync_write) {
+		dev_t.t_avdp_w = max(t_avdp, t_cer) * 1000;
+		dev_t.t_wpl = t_wpl * 1000;
+		dev_t.t_wph = t_wph * 1000;
+		dev_t.t_aavdh = t_aavdh * 1000;
+	}
+	dev_t.ce_xdelay = true;
+	dev_t.avd_xdelay = true;
+	dev_t.oe_xdelay = true;
+	dev_t.we_xdelay = true;
+	dev_t.clk = min_gpmc_clk_period;
+	dev_t.t_bacc = dev_t.clk;
+	dev_t.t_ces = t_ces * 1000;
+	dev_t.t_avds = t_avds * 1000;
+	dev_t.t_avdh = t_avdh * 1000;
+	dev_t.t_ach = t_ach * 1000;
+	dev_t.cyc_iaa = (latency + 1);
+	dev_t.t_cez_r = t_cez * 1000;
+	dev_t.t_cez_w = dev_t.t_cez_r;
+	dev_t.cyc_aavdh_oe = 1;
+	dev_t.t_rdyo = t_rdyo * 1000 + min_gpmc_clk_period;
+
+	gpmc_calc_timings(t, s, &dev_t);
+}
+
+int gpmc_omap_onenand_set_timings(struct device *dev, int cs, int freq,
+				  int latency,
+				  struct gpmc_onenand_info *info)
+{
+	int ret;
+	struct gpmc_timings gpmc_t;
+	struct gpmc_settings gpmc_s;
+
+	gpmc_read_settings_dt(dev->of_node, &gpmc_s);
+
+	info->sync_read = gpmc_s.sync_read;
+	info->sync_write = gpmc_s.sync_write;
+	info->burst_len = gpmc_s.burst_len;
+
+	if (!gpmc_s.sync_read && !gpmc_s.sync_write)
+		return 0;
+
+	gpmc_omap_onenand_calc_sync_timings(&gpmc_t, &gpmc_s, freq, latency);
+
+	ret = gpmc_cs_program_settings(cs, &gpmc_s);
+	if (ret < 0)
+		return ret;
+
+	return gpmc_cs_set_timings(cs, &gpmc_t, &gpmc_s);
+}
+EXPORT_SYMBOL_GPL(gpmc_omap_onenand_set_timings);
 
 int gpmc_get_client_irq(unsigned irq_config)
 {
@@ -1922,43 +2020,6 @@ static void __maybe_unused gpmc_read_timings_dt(struct device_node *np,
 		of_property_read_bool(np, "gpmc,time-para-granularity");
 }
 
-#if IS_ENABLED(CONFIG_MTD_ONENAND)
-static int gpmc_probe_onenand_child(struct platform_device *pdev,
-				 struct device_node *child)
-{
-	u32 val;
-	struct omap_onenand_platform_data *gpmc_onenand_data;
-
-	if (of_property_read_u32(child, "reg", &val) < 0) {
-		dev_err(&pdev->dev, "%s has no 'reg' property\n",
-			child->full_name);
-		return -ENODEV;
-	}
-
-	gpmc_onenand_data = devm_kzalloc(&pdev->dev, sizeof(*gpmc_onenand_data),
-					 GFP_KERNEL);
-	if (!gpmc_onenand_data)
-		return -ENOMEM;
-
-	gpmc_onenand_data->cs = val;
-	gpmc_onenand_data->of_node = child;
-	gpmc_onenand_data->dma_channel = -1;
-
-	if (!of_property_read_u32(child, "dma-channel", &val))
-		gpmc_onenand_data->dma_channel = val;
-
-	gpmc_onenand_init(gpmc_onenand_data);
-
-	return 0;
-}
-#else
-static int gpmc_probe_onenand_child(struct platform_device *pdev,
-				    struct device_node *child)
-{
-	return 0;
-}
-#endif
-
 /**
  * gpmc_probe_generic_child - configures the gpmc for a child device
  * @pdev:	pointer to gpmc platform device
@@ -1981,14 +2042,14 @@ static int gpmc_probe_generic_child(struct platform_device *pdev,
 	struct gpmc_device *gpmc = platform_get_drvdata(pdev);
 
 	if (of_property_read_u32(child, "reg", &cs) < 0) {
-		dev_err(&pdev->dev, "%s has no 'reg' property\n",
-			child->full_name);
+		dev_err(&pdev->dev, "%pOF has no 'reg' property\n",
+			child);
 		return -ENODEV;
 	}
 
 	if (of_address_to_resource(child, 0, &res) < 0) {
-		dev_err(&pdev->dev, "%s has malformed 'reg' property\n",
-			child->full_name);
+		dev_err(&pdev->dev, "%pOF has malformed 'reg' property\n",
+			child);
 		return -ENODEV;
 	}
 
@@ -1998,15 +2059,15 @@ static int gpmc_probe_generic_child(struct platform_device *pdev,
 	 * timings.
 	 */
 	name = gpmc_cs_get_name(cs);
-	if (name && child->name && of_node_cmp(child->name, name) == 0)
-			goto no_timings;
+	if (name && of_node_name_eq(child, name))
+		goto no_timings;
 
 	ret = gpmc_cs_request(cs, resource_size(&res), &base);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "cannot request GPMC CS %d\n", cs);
 		return ret;
 	}
-	gpmc_cs_set_name(cs, child->name);
+	gpmc_cs_set_name(cs, child->full_name);
 
 	gpmc_read_settings_dt(child, &gpmc_s);
 	gpmc_read_timings_dt(child, &gpmc_t);
@@ -2051,11 +2112,21 @@ static int gpmc_probe_generic_child(struct platform_device *pdev,
 		goto err;
 	}
 
-	if (of_node_cmp(child->name, "nand") == 0) {
+	if (of_node_name_eq(child, "nand")) {
 		/* Warn about older DT blobs with no compatible property */
 		if (!of_property_read_bool(child, "compatible")) {
 			dev_warn(&pdev->dev,
 				 "Incompatible NAND node: missing compatible");
+			ret = -EINVAL;
+			goto err;
+		}
+	}
+
+	if (of_node_name_eq(child, "onenand")) {
+		/* Warn about older DT blobs with no compatible property */
+		if (!of_property_read_bool(child, "compatible")) {
+			dev_warn(&pdev->dev,
+				 "Incompatible OneNAND node: missing compatible");
 			ret = -EINVAL;
 			goto err;
 		}
@@ -2073,8 +2144,8 @@ static int gpmc_probe_generic_child(struct platform_device *pdev,
 			gpmc_s.device_width = GPMC_DEVWIDTH_16BIT;
 			break;
 		default:
-			dev_err(&pdev->dev, "%s: invalid 'nand-bus-width'\n",
-				child->name);
+			dev_err(&pdev->dev, "%pOFn: invalid 'nand-bus-width'\n",
+				child);
 			ret = -EINVAL;
 			goto err;
 		}
@@ -2085,8 +2156,12 @@ static int gpmc_probe_generic_child(struct platform_device *pdev,
 	} else {
 		ret = of_property_read_u32(child, "bank-width",
 					   &gpmc_s.device_width);
-		if (ret < 0)
+		if (ret < 0 && !gpmc_s.device_width) {
+			dev_err(&pdev->dev,
+				"%pOF has no 'gpmc,device-width' property\n",
+				child);
 			goto err;
+		}
 	}
 
 	/* Reserve wait pin if it is required and valid */
@@ -2094,7 +2169,9 @@ static int gpmc_probe_generic_child(struct platform_device *pdev,
 		unsigned int wait_pin = gpmc_s.wait_pin;
 
 		waitpin_desc = gpiochip_request_own_desc(&gpmc->gpio_chip,
-							 wait_pin, "WAITPIN");
+							 wait_pin, "WAITPIN",
+							 GPIO_ACTIVE_HIGH,
+							 GPIOD_IN);
 		if (IS_ERR(waitpin_desc)) {
 			dev_err(&pdev->dev, "invalid wait-pin: %d\n", wait_pin);
 			ret = PTR_ERR(waitpin_desc);
@@ -2110,8 +2187,8 @@ static int gpmc_probe_generic_child(struct platform_device *pdev,
 
 	ret = gpmc_cs_set_timings(cs, &gpmc_t, &gpmc_s);
 	if (ret) {
-		dev_err(&pdev->dev, "failed to set gpmc timings for: %s\n",
-			child->name);
+		dev_err(&pdev->dev, "failed to set gpmc timings for: %pOFn\n",
+			child);
 		goto err_cs;
 	}
 
@@ -2139,7 +2216,7 @@ no_timings:
 
 err_child_fail:
 
-	dev_err(&pdev->dev, "failed to create gpmc child %s\n", child->name);
+	dev_err(&pdev->dev, "failed to create gpmc child %pOFn\n", child);
 	ret = -ENODEV;
 
 err_cs:
@@ -2189,18 +2266,10 @@ static void gpmc_probe_dt_children(struct platform_device *pdev)
 	struct device_node *child;
 
 	for_each_available_child_of_node(pdev->dev.of_node, child) {
-
-		if (!child->name)
-			continue;
-
-		if (of_node_cmp(child->name, "onenand") == 0)
-			ret = gpmc_probe_onenand_child(pdev, child);
-		else
-			ret = gpmc_probe_generic_child(pdev, child);
-
+		ret = gpmc_probe_generic_child(pdev, child);
 		if (ret) {
-			dev_err(&pdev->dev, "failed to probe DT child '%s': %d\n",
-				child->name, ret);
+			dev_err(&pdev->dev, "failed to probe DT child '%pOFn': %d\n",
+				child, ret);
 		}
 	}
 }

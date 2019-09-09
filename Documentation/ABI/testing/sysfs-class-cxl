@@ -1,6 +1,6 @@
-Note: Attributes that are shared between devices are stored in the directory
-pointed to by the symlink device/.
-Example: The real path of the attribute /sys/class/cxl/afu0.0s/irqs_max is
+Please note that attributes that are shared between devices are stored in
+the directory pointed to by the symlink device/.
+For example, the real path of the attribute /sys/class/cxl/afu0.0s/irqs_max is
 /sys/class/cxl/afu0.0s/device/irqs_max, i.e. /sys/class/cxl/afu0.0/irqs_max.
 
 
@@ -69,7 +69,9 @@ Date:           September 2014
 Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read/write
                 Set the mode for prefaulting in segments into the segment table
-                when performing the START_WORK ioctl. Possible values:
+                when performing the START_WORK ioctl. Only applicable when
+                running under hashed page table mmu.
+                Possible values:
                         none: No prefaulting (default)
                         work_element_descriptor: Treat the work element
                                  descriptor as an effective address and
@@ -243,4 +245,12 @@ Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read only
                 Returns 1 if the psl timebase register is synchronized
                 with the core timebase register, 0 otherwise.
+Users:          https://github.com/ibm-capi/libcxl
+
+What:           /sys/class/cxl/<card>/tunneled_ops_supported
+Date:           May 2018
+Contact:        linuxppc-dev@lists.ozlabs.org
+Description:    read only
+                Returns 1 if tunneled operations are supported in capi mode,
+                0 otherwise.
 Users:          https://github.com/ibm-capi/libcxl

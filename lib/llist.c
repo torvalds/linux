@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Lock-less NULL terminated single linked list
  *
@@ -8,19 +9,6 @@
  *
  * Copyright 2010,2011 Intel Corp.
  *   Author: Huang Ying <ying.huang@intel.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 #include <linux/kernel.h>
 #include <linux/export.h>
@@ -41,7 +29,7 @@ bool llist_add_batch(struct llist_node *new_first, struct llist_node *new_last,
 	struct llist_node *first;
 
 	do {
-		new_last->next = first = ACCESS_ONCE(head->first);
+		new_last->next = first = READ_ONCE(head->first);
 	} while (cmpxchg(&head->first, first, new_first) != first);
 
 	return !first;

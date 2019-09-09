@@ -1,21 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * IO definitions for the Hexagon architecture
  *
  * Copyright (c) 2010-2013, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
  */
 
 #ifndef _ASM_IO_H
@@ -184,8 +171,6 @@ static inline void writel(u32 data, volatile void __iomem *addr)
 #define writew_relaxed __raw_writew
 #define writel_relaxed __raw_writel
 
-#define mmiowb()
-
 /*
  * Need an mtype somewhere in here, for cache type deals?
  * This is probably too long for an inline.
@@ -214,6 +199,12 @@ static inline void memcpy_toio(volatile void __iomem *dst, const void *src,
 	int count)
 {
 	memcpy((void *) dst, src, count);
+}
+
+static inline void memset_io(volatile void __iomem *addr, int value,
+			     size_t size)
+{
+	memset((void __force *)addr, value, size);
 }
 
 #define PCI_IO_ADDR	(volatile void __iomem *)
@@ -329,8 +320,6 @@ static inline void outsl(unsigned long port, const void *buffer, int count)
 		} while (--count);
 	}
 }
-
-#define flush_write_buffers() do { } while (0)
 
 #endif /* __KERNEL__ */
 

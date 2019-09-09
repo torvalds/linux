@@ -1,16 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * pv88090-regulator.h - Regulator definitions for PV88090
  * Copyright (C) 2015 Powerventure Semiconductor Ltd.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef __PV88090_REGISTERS_H__
@@ -89,10 +80,10 @@
 #define PV88090_BUCK_VDAC_RANGE_2			0x01
 
 /* PV88090_REG_BUCK_FOLD_RANGE (addr=0x61) */
-#define PV88080_BUCK_VRANGE_GAIN_SHIFT			3
-#define PV88080_BUCK_VRANGE_GAIN_MASK			0x01
+#define PV88090_BUCK_VRANGE_GAIN_SHIFT			3
+#define PV88090_BUCK_VRANGE_GAIN_MASK			0x01
 
-#define PV88080_BUCK_VRANGE_GAIN_1			0x00
-#define PV88080_BUCK_VRANGE_GAIN_2			0x01
+#define PV88090_BUCK_VRANGE_GAIN_1			0x00
+#define PV88090_BUCK_VRANGE_GAIN_2			0x01
 
 #endif	/* __PV88090_REGISTERS_H__ */

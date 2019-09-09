@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Board setup routines for the Motorola/Emerson MVME5100.
  *
@@ -8,13 +9,7 @@
  *    Matt Porter, MontaVista Software Inc.
  *    Copyright 2001 MontaVista Software Inc.
  *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- *
  * Author: Stephen Chivers <schivers@csc.com>
- *
  */
 
 #include <linux/of_platform.h>
@@ -115,7 +110,7 @@ static int __init mvme5100_add_bridge(struct device_node *dev)
 	struct pci_controller	*hose;
 	unsigned short		devid;
 
-	pr_info("Adding PCI host bridge %s\n", dev->full_name);
+	pr_info("Adding PCI host bridge %pOF\n", dev);
 
 	bus_range = of_get_property(dev, "bus-range", &len);
 

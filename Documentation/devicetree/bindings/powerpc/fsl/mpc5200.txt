@@ -195,4 +195,4 @@ External interrupts:
 
 fsl,mpc5200-mscan nodes
 -----------------------
-See file can.txt in this directory.
+See file Documentation/devicetree/bindings/powerpc/fsl/mpc5200.txt

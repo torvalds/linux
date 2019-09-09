@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 NIC_SELECT = RTL8192U
 
 ccflags-y := -std=gnu89
@@ -6,7 +7,7 @@ ccflags-y += -O2
 ccflags-y += -DCONFIG_FORCE_HARD_FLOAT=y
 ccflags-y += -DJACKSON_NEW_8187 -DJACKSON_NEW_RX
 ccflags-y += -DTHOMAS_BEACON -DTHOMAS_TASKLET -DTHOMAS_SKB -DTHOMAS_TURBO
-ccflags-y += -Idrivers/staging/rtl8192u/ieee80211
+ccflags-y += -I $(srctree)/$(src)/ieee80211
 
 r8192u_usb-y := r8192U_core.o r8180_93cx6.o r8192U_wx.o		\
 		  r8190_rtl8256.o r819xU_phy.o r819xU_firmware.o	\

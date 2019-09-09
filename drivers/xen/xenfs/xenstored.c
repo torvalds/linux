@@ -1,12 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/mm.h>
 #include <linux/fs.h>
 
 #include <xen/page.h>
+#include <xen/xenbus.h>
 
 #include "xenfs.h"
-#include "../xenbus/xenbus_comms.h"
 
 static ssize_t xsd_read(struct file *file, char __user *buf,
 			    size_t size, loff_t *off)

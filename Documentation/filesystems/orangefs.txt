@@ -21,10 +21,16 @@ Orangefs features include:
   * Stateless
 
 
-MAILING LIST
-============
+MAILING LIST ARCHIVES
+=====================
 
-http://beowulf-underground.org/mailman/listinfo/pvfs2-users
+http://lists.orangefs.org/pipermail/devel_lists.orangefs.org/
+
+
+MAILING LIST SUBMISSIONS
+========================
+
+devel@lists.orangefs.org
 
 
 DOCUMENTATION
@@ -42,54 +48,129 @@ Orangefs versions prior to 2.9.3 would not be compatible with the
 upstream version of the kernel client.
 
 
-BUILDING THE USERSPACE FILESYSTEM ON A SINGLE SERVER
-====================================================
+RUNNING ORANGEFS ON A SINGLE SERVER
+===================================
 
-When Orangefs is upstream, "--with-kernel" shouldn't be needed, but
-until then the path to where the kernel with the Orangefs kernel client
-patch was built is needed to ensure that pvfs2-client-core (the bridge
-between kernel space and user space) will build properly. You can omit
---prefix if you don't care that things are sprinkled around in
-/usr/local.
+OrangeFS is usually run in large installations with multiple servers and
+clients, but a complete filesystem can be run on a single machine for
+development and testing.
 
-./configure --prefix=/opt/ofs --with-kernel=/path/to/orangefs/kernel
+On Fedora, install orangefs and orangefs-server.
+
+dnf -y install orangefs orangefs-server
+
+There is an example server configuration file in
+/etc/orangefs/orangefs.conf.  Change localhost to your hostname if
+necessary.
+
+To generate a filesystem to run xfstests against, see below.
+
+There is an example client configuration file in /etc/pvfs2tab.  It is a
+single line.  Uncomment it and change the hostname if necessary.  This
+controls clients which use libpvfs2.  This does not control the
+pvfs2-client-core.
+
+Create the filesystem.
+
+pvfs2-server -f /etc/orangefs/orangefs.conf
+
+Start the server.
+
+systemctl start orangefs-server
+
+Test the server.
+
+pvfs2-ping -m /pvfsmnt
+
+Start the client.  The module must be compiled in or loaded before this
+point.
+
+systemctl start orangefs-client
+
+Mount the filesystem.
+
+mount -t pvfs2 tcp://localhost:3334/orangefs /pvfsmnt
+
+
+BUILDING ORANGEFS ON A SINGLE SERVER
+====================================
+
+Where OrangeFS cannot be installed from distribution packages, it may be
+built from source.
+
+You can omit --prefix if you don't care that things are sprinkled around
+in /usr/local.  As of version 2.9.6, OrangeFS uses Berkeley DB by
+default, we will probably be changing the default to LMDB soon.
+
+./configure --prefix=/opt/ofs --with-db-backend=lmdb
 
 make
 
 make install
 
-Create an orangefs config file:
+Create an orangefs config file.
+
 /opt/ofs/bin/pvfs2-genconfig /etc/pvfs2.conf
 
-  for "Enter hostnames", use the hostname, don't let it default to
-  localhost.
+Create an /etc/pvfs2tab file.
 
-create a pvfs2tab file in /etc:
-cat /etc/pvfs2tab
-tcp://myhostname:3334/orangefs /mymountpoint pvfs2 defaults,noauto 0 0
+echo tcp://localhost:3334/orangefs /pvfsmnt pvfs2 defaults,noauto 0 0 > \
+    /etc/pvfs2tab
 
-create the mount point you specified in the tab file if needed:
-mkdir /mymountpoint
+Create the mount point you specified in the tab file if needed.
 
-bootstrap the server:
-/opt/ofs/sbin/pvfs2-server /etc/pvfs2.conf -f
+mkdir /pvfsmnt
 
-start the server:
+Bootstrap the server.
+
+/opt/ofs/sbin/pvfs2-server -f /etc/pvfs2.conf
+
+Start the server.
+
 /opt/osf/sbin/pvfs2-server /etc/pvfs2.conf
 
-Now the server is running. At this point you might like to
-prove things are working with:
+Now the server should be running. Pvfs2-ls is a simple
+test to verify that the server is running.
 
-/opt/osf/bin/pvfs2-ls /mymountpoint
+/opt/ofs/bin/pvfs2-ls /pvfsmnt
 
-You might not want to enforce selinux, it doesn't seem to matter by
-linux 3.11...
+If stuff seems to be working, load the kernel module and
+turn on the client core.
 
-If stuff seems to be working, turn on the client core:
-/opt/osf/sbin/pvfs2-client -p /opt/osf/sbin/pvfs2-client-core
+/opt/ofs/sbin/pvfs2-client -p /opt/osf/sbin/pvfs2-client-core
 
 Mount your filesystem.
-mount -t pvfs2 tcp://myhostname:3334/orangefs /mymountpoint
+
+mount -t pvfs2 tcp://localhost:3334/orangefs /pvfsmnt
+
+
+RUNNING XFSTESTS
+================
+
+It is useful to use a scratch filesystem with xfstests.  This can be
+done with only one server.
+
+Make a second copy of the FileSystem section in the server configuration
+file, which is /etc/orangefs/orangefs.conf.  Change the Name to scratch.
+Change the ID to something other than the ID of the first FileSystem
+section (2 is usually a good choice).
+
+Then there are two FileSystem sections: orangefs and scratch.
+
+This change should be made before creating the filesystem.
+
+pvfs2-server -f /etc/orangefs/orangefs.conf
+
+To run xfstests, create /etc/xfsqa.config.
+
+TEST_DIR=/orangefs
+TEST_DEV=tcp://localhost:3334/orangefs
+SCRATCH_MNT=/scratch
+SCRATCH_DEV=tcp://localhost:3334/scratch
+
+Then xfstests can be run
+
+./check -pvfs2
 
 
 OPTIONS

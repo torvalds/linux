@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * SH7366 Setup
  *
  *  Copyright (C) 2008 Renesas Solutions
  *
  * Based on linux/arch/sh/kernel/cpu/sh4a/setup-sh7722.c
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 #include <linux/platform_device.h>
 #include <linux/init.h>
@@ -20,9 +17,7 @@
 #include <asm/clock.h>
 
 static struct plat_sci_port scif0_platform_data = {
-	.port_reg	= 0xa405013e,
-	.flags		= UPF_BOOT_AUTOCONF,
-	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE,
+	.scscr		= SCSCR_REIE,
 	.type		= PORT_SCIF,
 };
 

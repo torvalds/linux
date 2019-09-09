@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* Prom access routines for the sun3x */
 
 #include <linux/types.h>
@@ -106,9 +107,9 @@ void __init sun3x_prom_init(void)
 	idprom_init();
 
 	if (!((idprom->id_machtype & SM_ARCH_MASK) == SM_SUN3X)) {
-		printk("Warning: machine reports strange type %02x\n",
+		pr_warn("Machine reports strange type %02x\n",
 			idprom->id_machtype);
-		printk("Pretending it's a 3/80, but very afraid...\n");
+		pr_warn("Pretending it's a 3/80, but very afraid...\n");
 		idprom->id_machtype = SM_SUN3X | SM_3_80;
 	}
 

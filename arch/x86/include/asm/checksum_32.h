@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_X86_CHECKSUM_32_H
 #define _ASM_X86_CHECKSUM_32_H
 
@@ -181,7 +182,7 @@ static inline __wsum csum_and_copy_to_user(const void *src,
 	__wsum ret;
 
 	might_sleep();
-	if (access_ok(VERIFY_WRITE, dst, len)) {
+	if (access_ok(dst, len)) {
 		stac();
 		ret = csum_partial_copy_generic(src, (__force void *)dst,
 						len, sum, NULL, err_ptr);

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Common prep/pmac/chrp boot and setup code.
  */
@@ -17,6 +18,7 @@
 #include <linux/console.h>
 #include <linux/memblock.h>
 #include <linux/export.h>
+#include <linux/nvram.h>
 
 #include <asm/io.h>
 #include <asm/prom.h>
@@ -29,7 +31,7 @@
 #include <asm/bootx.h>
 #include <asm/btext.h>
 #include <asm/machdep.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/pmac_feature.h>
 #include <asm/sections.h>
 #include <asm/nvram.h>
@@ -39,6 +41,11 @@
 #include <asm/udbg.h>
 #include <asm/code-patching.h>
 #include <asm/cpu_has_feature.h>
+#include <asm/asm-prototypes.h>
+#include <asm/kdump.h>
+#include <asm/feature-fixups.h>
+
+#include "setup.h"
 
 #define DBG(fmt...)
 
@@ -54,45 +61,8 @@ unsigned long ISA_DMA_THRESHOLD;
 unsigned int DMA_MODE_READ;
 unsigned int DMA_MODE_WRITE;
 
-EXPORT_SYMBOL(ISA_DMA_THRESHOLD);
 EXPORT_SYMBOL(DMA_MODE_READ);
 EXPORT_SYMBOL(DMA_MODE_WRITE);
-
-/*
- * These are used in binfmt_elf.c to put aux entries on the stack
- * for each elf executable being started.
- */
-int dcache_bsize;
-int icache_bsize;
-int ucache_bsize;
-
-/*
- * We're called here very early in the boot.
- *
- * Note that the kernel may be running at an address which is different
- * from the address that it was linked at, so we must use RELOC/PTRRELOC
- * to access static data (including strings).  -- paulus
- */
-notrace unsigned long __init early_init(unsigned long dt_ptr)
-{
-	unsigned long offset = reloc_offset();
-
-	/* First zero the BSS -- use memset_io, some platforms don't have
-	 * caches on yet */
-	memset_io((void __iomem *)PTRRELOC(&__bss_start), 0,
-			__bss_stop - __bss_start);
-
-	/*
-	 * Identify the CPU type and fix up code sections
-	 * that depend on which cpu we have.
-	 */
-	identify_cpu(offset, mfspr(SPRN_PVR));
-
-	apply_feature_fixups();
-
-	return KERNELBASE + offset;
-}
-
 
 /*
  * This is run before start_kernel(), the kernel has been relocated
@@ -102,18 +72,21 @@ notrace unsigned long __init early_init(unsigned long dt_ptr)
  * We do the initial parsing of the flat device-tree and prepares
  * for the MMU to be fully initialized.
  */
-extern unsigned int memset_nocache_branch; /* Insn to be replaced by NOP */
-
 notrace void __init machine_init(u64 dt_ptr)
 {
+	unsigned int *addr = (unsigned int *)patch_site_addr(&patch__memset_nocache);
+	unsigned long insn;
+
 	/* Configure static keys first, now that we're relocated. */
 	setup_feature_keys();
 
 	/* Enable early debugging if any specified (see udbg.h) */
 	udbg_early_init();
 
-	patch_instruction((unsigned int *)&memcpy, PPC_INST_NOP);
-	patch_instruction(&memset_nocache_branch, PPC_INST_NOP);
+	patch_instruction_site(&patch__memcpy_nocache, PPC_INST_NOP);
+
+	insn = create_cond_branch(addr, branch_target(addr), 0x820000);
+	patch_instruction(addr, insn);	/* replace b by bne cr0 */
 
 	/* Do some early initialization based on the flat device tree */
 	early_init_devtree(__va(dt_ptr));
@@ -124,7 +97,7 @@ notrace void __init machine_init(u64 dt_ptr)
 }
 
 /* Checks "l2cr=xxxx" command-line option */
-int __init ppc_setup_l2cr(char *str)
+static int __init ppc_setup_l2cr(char *str)
 {
 	if (cpu_has_feature(CPU_FTR_L2CR)) {
 		unsigned long val = simple_strtoul(str, NULL, 0);
@@ -137,7 +110,7 @@ int __init ppc_setup_l2cr(char *str)
 __setup("l2cr=", ppc_setup_l2cr);
 
 /* Checks "l3cr=xxxx" command-line option */
-int __init ppc_setup_l3cr(char *str)
+static int __init ppc_setup_l3cr(char *str)
 {
 	if (cpu_has_feature(CPU_FTR_L3CR)) {
 		unsigned long val = simple_strtoul(str, NULL, 0);
@@ -148,42 +121,7 @@ int __init ppc_setup_l3cr(char *str)
 }
 __setup("l3cr=", ppc_setup_l3cr);
 
-#ifdef CONFIG_GENERIC_NVRAM
-
-/* Generic nvram hooks used by drivers/char/gen_nvram.c */
-unsigned char nvram_read_byte(int addr)
-{
-	if (ppc_md.nvram_read_val)
-		return ppc_md.nvram_read_val(addr);
-	return 0xff;
-}
-EXPORT_SYMBOL(nvram_read_byte);
-
-void nvram_write_byte(unsigned char val, int addr)
-{
-	if (ppc_md.nvram_write_val)
-		ppc_md.nvram_write_val(addr, val);
-}
-EXPORT_SYMBOL(nvram_write_byte);
-
-ssize_t nvram_get_size(void)
-{
-	if (ppc_md.nvram_size)
-		return ppc_md.nvram_size();
-	return -1;
-}
-EXPORT_SYMBOL(nvram_get_size);
-
-void nvram_sync(void)
-{
-	if (ppc_md.nvram_sync)
-		ppc_md.nvram_sync();
-}
-EXPORT_SYMBOL(nvram_sync);
-
-#endif /* CONFIG_NVRAM */
-
-int __init ppc_init(void)
+static int __init ppc_init(void)
 {
 	/* clear the progress line */
 	if (ppc_md.progress)
@@ -195,8 +133,18 @@ int __init ppc_init(void)
 	}
 	return 0;
 }
-
 arch_initcall(ppc_init);
+
+static void *__init alloc_stack(void)
+{
+	void *ptr = memblock_alloc(THREAD_SIZE, THREAD_SIZE);
+
+	if (!ptr)
+		panic("cannot allocate %d bytes for stack at %pS\n",
+		      THREAD_SIZE, (void *)_RET_IP_);
+
+	return ptr;
+}
 
 void __init irqstack_early_init(void)
 {
@@ -205,10 +153,8 @@ void __init irqstack_early_init(void)
 	/* interrupt stacks must be in lowmem, we get that for free on ppc32
 	 * as the memblock is limited to lowmem by default */
 	for_each_possible_cpu(i) {
-		softirq_ctx[i] = (struct thread_info *)
-			__va(memblock_alloc(THREAD_SIZE, THREAD_SIZE));
-		hardirq_ctx[i] = (struct thread_info *)
-			__va(memblock_alloc(THREAD_SIZE, THREAD_SIZE));
+		softirq_ctx[i] = alloc_stack();
+		hardirq_ctx[i] = alloc_stack();
 	}
 }
 
@@ -226,13 +172,10 @@ void __init exc_lvl_early_init(void)
 		hw_cpu = 0;
 #endif
 
-		critirq_ctx[hw_cpu] = (struct thread_info *)
-			__va(memblock_alloc(THREAD_SIZE, THREAD_SIZE));
+		critirq_ctx[hw_cpu] = alloc_stack();
 #ifdef CONFIG_BOOKE
-		dbgirq_ctx[hw_cpu] = (struct thread_info *)
-			__va(memblock_alloc(THREAD_SIZE, THREAD_SIZE));
-		mcheckirq_ctx[hw_cpu] = (struct thread_info *)
-			__va(memblock_alloc(THREAD_SIZE, THREAD_SIZE));
+		dbgirq_ctx[hw_cpu] = alloc_stack();
+		mcheckirq_ctx[hw_cpu] = alloc_stack();
 #endif
 	}
 }
@@ -240,7 +183,7 @@ void __init exc_lvl_early_init(void)
 
 void __init setup_power_save(void)
 {
-#ifdef CONFIG_6xx
+#ifdef CONFIG_PPC_BOOK3S_32
 	if (cpu_has_feature(CPU_FTR_CAN_DOZE) ||
 	    cpu_has_feature(CPU_FTR_CAN_NAP))
 		ppc_md.power_save = ppc6xx_idle;

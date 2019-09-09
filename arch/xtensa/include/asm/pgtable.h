@@ -1,9 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * include/asm-xtensa/pgtable.h
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Copyright (C) 2001 - 2013 Tensilica Inc.
  */
@@ -11,9 +8,10 @@
 #ifndef _XTENSA_PGTABLE_H
 #define _XTENSA_PGTABLE_H
 
-#include <asm-generic/pgtable-nopmd.h>
+#define __ARCH_USE_5LEVEL_HACK
 #include <asm/page.h>
 #include <asm/kmem_layout.h>
+#include <asm-generic/pgtable-nopmd.h>
 
 /*
  * We only use two ring levels, user and kernel space.
@@ -65,6 +63,7 @@
 #define FIRST_USER_ADDRESS	0UL
 #define FIRST_USER_PGD_NR	(FIRST_USER_ADDRESS >> PGDIR_SHIFT)
 
+#ifdef CONFIG_MMU
 /*
  * Virtual memory area. We keep a distance to other memory regions to be
  * on the safe side. We also use this area for cache aliasing.
@@ -77,6 +76,13 @@
 #define TLBTEMP_SIZE		(2 * DCACHE_WAY_SIZE)
 #else
 #define TLBTEMP_SIZE		ICACHE_WAY_SIZE
+#endif
+
+#else
+
+#define VMALLOC_START		__XTENSA_UL_CONST(0)
+#define VMALLOC_END		__XTENSA_UL_CONST(0xffffffff)
+
 #endif
 
 /*
@@ -169,6 +175,7 @@
 #define PAGE_SHARED_EXEC \
 	__pgprot(_PAGE_PRESENT | _PAGE_USER | _PAGE_WRITABLE | _PAGE_HW_EXEC)
 #define PAGE_KERNEL	   __pgprot(_PAGE_PRESENT | _PAGE_HW_WRITE)
+#define PAGE_KERNEL_RO	   __pgprot(_PAGE_PRESENT)
 #define PAGE_KERNEL_EXEC   __pgprot(_PAGE_PRESENT|_PAGE_HW_WRITE|_PAGE_HW_EXEC)
 
 #if (DCACHE_WAY_SIZE > PAGE_SIZE)

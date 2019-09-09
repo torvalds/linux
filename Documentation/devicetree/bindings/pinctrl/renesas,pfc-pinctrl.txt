@@ -13,7 +13,13 @@ Required Properties:
     - "renesas,pfc-emev2": for EMEV2 (EMMA Mobile EV2) compatible pin-controller.
     - "renesas,pfc-r8a73a4": for R8A73A4 (R-Mobile APE6) compatible pin-controller.
     - "renesas,pfc-r8a7740": for R8A7740 (R-Mobile A1) compatible pin-controller.
-    - "renesas,pfc-r8a7778": for R8A7778 (R-Mobile M1) compatible pin-controller.
+    - "renesas,pfc-r8a7743": for R8A7743 (RZ/G1M) compatible pin-controller.
+    - "renesas,pfc-r8a7744": for R8A7744 (RZ/G1N) compatible pin-controller.
+    - "renesas,pfc-r8a7745": for R8A7745 (RZ/G1E) compatible pin-controller.
+    - "renesas,pfc-r8a77470": for R8A77470 (RZ/G1C) compatible pin-controller.
+    - "renesas,pfc-r8a774a1": for R8A774A1 (RZ/G2M) compatible pin-controller.
+    - "renesas,pfc-r8a774c0": for R8A774C0 (RZ/G2E) compatible pin-controller.
+    - "renesas,pfc-r8a7778": for R8A7778 (R-Car M1) compatible pin-controller.
     - "renesas,pfc-r8a7779": for R8A7779 (R-Car H1) compatible pin-controller.
     - "renesas,pfc-r8a7790": for R8A7790 (R-Car H2) compatible pin-controller.
     - "renesas,pfc-r8a7791": for R8A7791 (R-Car M2-W) compatible pin-controller.
@@ -22,6 +28,11 @@ Required Properties:
     - "renesas,pfc-r8a7794": for R8A7794 (R-Car E2) compatible pin-controller.
     - "renesas,pfc-r8a7795": for R8A7795 (R-Car H3) compatible pin-controller.
     - "renesas,pfc-r8a7796": for R8A7796 (R-Car M3-W) compatible pin-controller.
+    - "renesas,pfc-r8a77965": for R8A77965 (R-Car M3-N) compatible pin-controller.
+    - "renesas,pfc-r8a77970": for R8A77970 (R-Car V3M) compatible pin-controller.
+    - "renesas,pfc-r8a77980": for R8A77980 (R-Car V3H) compatible pin-controller.
+    - "renesas,pfc-r8a77990": for R8A77990 (R-Car E3) compatible pin-controller.
+    - "renesas,pfc-r8a77995": for R8A77995 (R-Car D3) compatible pin-controller.
     - "renesas,pfc-sh73a0": for SH73A0 (SH-Mobile AG5) compatible pin-controller.
 
   - reg: Base address and length of each memory resource used by the pin
@@ -109,7 +120,7 @@ Examples
 
 Example 1: SH73A0 (SH-Mobile AG5) pin controller node
 
-	pfc: pfc@e6050000 {
+	pfc: pin-controller@e6050000 {
 		compatible = "renesas,pfc-sh73a0";
 		reg = <0xe6050000 0x8000>,
 		      <0xe605801c 0x1c>;
@@ -170,5 +181,4 @@ Example 4: KZM-A9-GT (SH-Mobile AG5) default pin state for the MMCIF device
 
 		bus-width = <8>;
 		vmmc-supply = <&reg_1p8v>;
-		status = "okay";
 	};

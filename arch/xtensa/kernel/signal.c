@@ -20,14 +20,13 @@
 #include <linux/ptrace.h>
 #include <linux/personality.h>
 #include <linux/tracehook.h>
+#include <linux/sched/task_stack.h>
 
 #include <asm/ucontext.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/cacheflush.h>
 #include <asm/coprocessor.h>
 #include <asm/unistd.h>
-
-#define DEBUG_SIG  0
 
 extern struct task_struct *coproc_owners[];
 
@@ -90,14 +89,14 @@ flush_window_regs_user(struct pt_regs *regs)
 			inc = 1;
 
 		} else if (m & 4) {		/* call8 */
-			if (copy_to_user((void*)(sp - 32),
-					   &regs->areg[(base + 1) * 4], 16))
+			if (copy_to_user(&SPILL_SLOT_CALL8(sp, 4),
+					 &regs->areg[(base + 1) * 4], 16))
 				goto errout;
 			inc = 2;
 
 		} else if (m & 8) {	/* call12 */
-			if (copy_to_user((void*)(sp - 48),
-					   &regs->areg[(base + 1) * 4], 32))
+			if (copy_to_user(&SPILL_SLOT_CALL12(sp, 4),
+					 &regs->areg[(base + 1) * 4], 32))
 				goto errout;
 			inc = 3;
 		}
@@ -105,7 +104,7 @@ flush_window_regs_user(struct pt_regs *regs)
 		/* Save current frame a0..a3 under next SP */
 
 		sp = regs->areg[((base + inc) * 4 + 1) % XCHAL_NUM_AREGS];
-		if (copy_to_user((void*)(sp - 16), &regs->areg[base * 4], 16))
+		if (copy_to_user(&SPILL_SLOT(sp, 0), &regs->areg[base * 4], 16))
 			goto errout;
 
 		/* Get current stack pointer for next loop iteration. */
@@ -186,13 +185,13 @@ restore_sigcontext(struct pt_regs *regs, struct rt_sigframe __user *frame)
 	COPY(sar);
 #undef COPY
 
-	/* All registers were flushed to stack. Start with a prestine frame. */
+	/* All registers were flushed to stack. Start with a pristine frame. */
 
 	regs->wmask = 1;
 	regs->windowbase = 0;
 	regs->windowstart = 1;
 
-	regs->syscall = -1;		/* disable syscall checks */
+	regs->syscall = NO_SYSCALL;	/* disable syscall checks */
 
 	/* For PS, restore only PS.CALLINC.
 	 * Assume that all other bits are either the same as for the signal
@@ -252,7 +251,7 @@ asmlinkage long xtensa_rt_sigreturn(long a0, long a1, long a2, long a3,
 
 	frame = (struct rt_sigframe __user *) regs->areg[1];
 
-	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
+	if (!access_ok(frame, sizeof(*frame)))
 		goto badframe;
 
 	if (__copy_from_user(&set, &frame->uc.uc_sigmask, sizeof(set)))
@@ -271,7 +270,7 @@ asmlinkage long xtensa_rt_sigreturn(long a0, long a1, long a2, long a3,
 	return ret;
 
 badframe:
-	force_sig(SIGSEGV, current);
+	force_sig(SIGSEGV);
 	return 0;
 }
 
@@ -349,7 +348,7 @@ static int setup_frame(struct ksignal *ksig, sigset_t *set,
 	if (regs->depc > 64)
 		panic ("Double exception sys_sigreturn\n");
 
-	if (!access_ok(VERIFY_WRITE, frame, sizeof(*frame))) {
+	if (!access_ok(frame, sizeof(*frame))) {
 		return -EFAULT;
 	}
 
@@ -398,10 +397,8 @@ static int setup_frame(struct ksignal *ksig, sigset_t *set,
 	regs->areg[8] = (unsigned long) &frame->uc;
 	regs->threadptr = tp;
 
-#if DEBUG_SIG
-	printk("SIG rt deliver (%s:%d): signal=%d sp=%p pc=%08x\n",
-		current->comm, current->pid, sig, frame, regs->pc);
-#endif
+	pr_debug("SIG rt deliver (%s:%d): signal=%d sp=%p pc=%08lx\n",
+		 current->comm, current->pid, sig, frame, regs->pc);
 
 	return 0;
 }
@@ -426,7 +423,7 @@ static void do_signal(struct pt_regs *regs)
 
 		/* Are we from a system call? */
 
-		if ((signed)regs->syscall >= 0) {
+		if (regs->syscall != NO_SYSCALL) {
 
 			/* If so, check system call restarting.. */
 
@@ -465,7 +462,7 @@ static void do_signal(struct pt_regs *regs)
 	}
 
 	/* Did we come from a system call? */
-	if ((signed) regs->syscall >= 0) {
+	if (regs->syscall != NO_SYSCALL) {
 		/* Restart the system call - no handlers present */
 		switch (regs->areg[2]) {
 		case -ERESTARTNOHAND:

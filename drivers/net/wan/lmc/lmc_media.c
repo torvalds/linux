@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* $Id: lmc_media.c,v 1.13 2000/04/11 05:25:26 asj Exp $ */
 
 #include <linux/kernel.h>
@@ -19,7 +20,7 @@
 #include <asm/io.h>
 #include <asm/dma.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "lmc.h"
 #include "lmc_var.h"
@@ -37,9 +38,6 @@
   * Rob Braun (bbraun@vix.com),
   * Michael Graff (explorer@vix.com) and
   * Matt Thomas (matt@3am-software.com).
-  *
-  * This software may be used and distributed according to the terms
-  * of the GNU General Public License version 2, incorporated herein by reference.
   */
 
 /*
@@ -95,62 +93,63 @@ static inline void write_av9110_bit (lmc_softc_t *, int);
 static void write_av9110(lmc_softc_t *, u32, u32, u32, u32, u32);
 
 lmc_media_t lmc_ds3_media = {
-  lmc_ds3_init,			/* special media init stuff */
-  lmc_ds3_default,		/* reset to default state */
-  lmc_ds3_set_status,		/* reset status to state provided */
-  lmc_dummy_set_1,		/* set clock source */
-  lmc_dummy_set2_1,		/* set line speed */
-  lmc_ds3_set_100ft,		/* set cable length */
-  lmc_ds3_set_scram,		/* set scrambler */
-  lmc_ds3_get_link_status,	/* get link status */
-  lmc_dummy_set_1,		/* set link status */
-  lmc_ds3_set_crc_length,	/* set CRC length */
-  lmc_dummy_set_1,		/* set T1 or E1 circuit type */
-  lmc_ds3_watchdog
+  .init = lmc_ds3_init,				/* special media init stuff */
+  .defaults = lmc_ds3_default,			/* reset to default state */
+  .set_status = lmc_ds3_set_status,		/* reset status to state provided */
+  .set_clock_source = lmc_dummy_set_1,		/* set clock source */
+  .set_speed = lmc_dummy_set2_1,		/* set line speed */
+  .set_cable_length = lmc_ds3_set_100ft,	/* set cable length */
+  .set_scrambler = lmc_ds3_set_scram,		/* set scrambler */
+  .get_link_status = lmc_ds3_get_link_status,	/* get link status */
+  .set_link_status = lmc_dummy_set_1,		/* set link status */
+  .set_crc_length = lmc_ds3_set_crc_length,	/* set CRC length */
+  .set_circuit_type = lmc_dummy_set_1,		/* set T1 or E1 circuit type */
+  .watchdog = lmc_ds3_watchdog
 };
 
 lmc_media_t lmc_hssi_media = {
-  lmc_hssi_init,		/* special media init stuff */
-  lmc_hssi_default,		/* reset to default state */
-  lmc_hssi_set_status,		/* reset status to state provided */
-  lmc_hssi_set_clock,		/* set clock source */
-  lmc_dummy_set2_1,		/* set line speed */
-  lmc_dummy_set_1,		/* set cable length */
-  lmc_dummy_set_1,		/* set scrambler */
-  lmc_hssi_get_link_status,	/* get link status */
-  lmc_hssi_set_link_status,	/* set link status */
-  lmc_hssi_set_crc_length,	/* set CRC length */
-  lmc_dummy_set_1,		/* set T1 or E1 circuit type */
-  lmc_hssi_watchdog
+  .init = lmc_hssi_init,			/* special media init stuff */
+  .defaults = lmc_hssi_default,			/* reset to default state */
+  .set_status = lmc_hssi_set_status,		/* reset status to state provided */
+  .set_clock_source = lmc_hssi_set_clock,	/* set clock source */
+  .set_speed = lmc_dummy_set2_1,		/* set line speed */
+  .set_cable_length = lmc_dummy_set_1,		/* set cable length */
+  .set_scrambler = lmc_dummy_set_1,		/* set scrambler */
+  .get_link_status = lmc_hssi_get_link_status,	/* get link status */
+  .set_link_status = lmc_hssi_set_link_status,	/* set link status */
+  .set_crc_length = lmc_hssi_set_crc_length,	/* set CRC length */
+  .set_circuit_type = lmc_dummy_set_1,		/* set T1 or E1 circuit type */
+  .watchdog = lmc_hssi_watchdog
 };
 
-lmc_media_t lmc_ssi_media = { lmc_ssi_init,	/* special media init stuff */
-  lmc_ssi_default,		/* reset to default state */
-  lmc_ssi_set_status,		/* reset status to state provided */
-  lmc_ssi_set_clock,		/* set clock source */
-  lmc_ssi_set_speed,		/* set line speed */
-  lmc_dummy_set_1,		/* set cable length */
-  lmc_dummy_set_1,		/* set scrambler */
-  lmc_ssi_get_link_status,	/* get link status */
-  lmc_ssi_set_link_status,	/* set link status */
-  lmc_ssi_set_crc_length,	/* set CRC length */
-  lmc_dummy_set_1,		/* set T1 or E1 circuit type */
-  lmc_ssi_watchdog
+lmc_media_t lmc_ssi_media = {
+  .init = lmc_ssi_init,				/* special media init stuff */
+  .defaults = lmc_ssi_default,			/* reset to default state */
+  .set_status = lmc_ssi_set_status,		/* reset status to state provided */
+  .set_clock_source = lmc_ssi_set_clock,	/* set clock source */
+  .set_speed = lmc_ssi_set_speed,		/* set line speed */
+  .set_cable_length = lmc_dummy_set_1,		/* set cable length */
+  .set_scrambler = lmc_dummy_set_1,		/* set scrambler */
+  .get_link_status = lmc_ssi_get_link_status,	/* get link status */
+  .set_link_status = lmc_ssi_set_link_status,	/* set link status */
+  .set_crc_length = lmc_ssi_set_crc_length,	/* set CRC length */
+  .set_circuit_type = lmc_dummy_set_1,		/* set T1 or E1 circuit type */
+  .watchdog = lmc_ssi_watchdog
 };
 
 lmc_media_t lmc_t1_media = {
-  lmc_t1_init,			/* special media init stuff */
-  lmc_t1_default,		/* reset to default state */
-  lmc_t1_set_status,		/* reset status to state provided */
-  lmc_t1_set_clock,		/* set clock source */
-  lmc_dummy_set2_1,		/* set line speed */
-  lmc_dummy_set_1,		/* set cable length */
-  lmc_dummy_set_1,		/* set scrambler */
-  lmc_t1_get_link_status,	/* get link status */
-  lmc_dummy_set_1,		/* set link status */
-  lmc_t1_set_crc_length,	/* set CRC length */
-  lmc_t1_set_circuit_type,	/* set T1 or E1 circuit type */
-  lmc_t1_watchdog
+  .init = lmc_t1_init,				/* special media init stuff */
+  .defaults = lmc_t1_default,			/* reset to default state */
+  .set_status = lmc_t1_set_status,		/* reset status to state provided */
+  .set_clock_source = lmc_t1_set_clock,		/* set clock source */
+  .set_speed = lmc_dummy_set2_1,		/* set line speed */
+  .set_cable_length = lmc_dummy_set_1,		/* set cable length */
+  .set_scrambler = lmc_dummy_set_1,		/* set scrambler */
+  .get_link_status = lmc_t1_get_link_status,	/* get link status */
+  .set_link_status = lmc_dummy_set_1,		/* set link status */
+  .set_crc_length = lmc_t1_set_crc_length,	/* set CRC length */
+  .set_circuit_type = lmc_t1_set_circuit_type,	/* set T1 or E1 circuit type */
+  .watchdog = lmc_t1_watchdog
 };
 
 static void

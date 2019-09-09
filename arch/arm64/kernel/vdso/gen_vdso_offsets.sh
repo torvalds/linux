@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
 
 #
 # Match symbols in the DSO that look like VDSO_*; produce a header file

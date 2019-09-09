@@ -1,19 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (C) 2006-2009 Texas Instruments Inc
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 #ifndef _DM644X_CCDC_REGS_H
 #define _DM644X_CCDC_REGS_H
@@ -101,7 +88,7 @@
 #define CCDC_LATCH_ON_VSYNC_DISABLE		(1 << 15)
 #define CCDC_FPC_ENABLE				(1 << 15)
 #define CCDC_FPC_DISABLE			0
-#define CCDC_FPC_FPC_NUM_MASK 			0x7FFF
+#define CCDC_FPC_FPC_NUM_MASK			0x7FFF
 #define CCDC_DATA_PACK_ENABLE			(1 << 11)
 #define CCDC_FMTCFG_VPIN_MASK			7
 #define CCDC_FMTCFG_VPIN_SHIFT			12
@@ -147,7 +134,7 @@
 #define CCDC_REC656IF_BT656_EN			3
 #define CCDC_SYN_MODE_VD_POL_NEGATIVE		(1 << 2)
 #define CCDC_CCDCFG_Y8POS_SHIFT			11
-#define CCDC_CCDCFG_BW656_10BIT 		(1 << 5)
+#define CCDC_CCDCFG_BW656_10BIT			(1 << 5)
 #define CCDC_SDOFST_FIELD_INTERLEAVED		0x249
 #define CCDC_NO_CULLING				0xffff00ff
 #endif

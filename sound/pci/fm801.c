@@ -1,17 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  The driver for the ForteMedia FM801 based soundcards
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
  */
 
 #include <linux/delay.h>
@@ -334,23 +324,23 @@ static unsigned short snd_fm801_codec_read(struct snd_ac97 *ac97, unsigned short
 	return fm801_readw(chip, AC97_DATA);
 }
 
-static unsigned int rates[] = {
+static const unsigned int rates[] = {
   5500,  8000,  9600, 11025,
   16000, 19200, 22050, 32000,
   38400, 44100, 48000
 };
 
-static struct snd_pcm_hw_constraint_list hw_constraints_rates = {
+static const struct snd_pcm_hw_constraint_list hw_constraints_rates = {
 	.count = ARRAY_SIZE(rates),
 	.list = rates,
 	.mask = 0,
 };
 
-static unsigned int channels[] = {
+static const unsigned int channels[] = {
   2, 4, 6
 };
 
-static struct snd_pcm_hw_constraint_list hw_constraints_channels = {
+static const struct snd_pcm_hw_constraint_list hw_constraints_channels = {
 	.count = ARRAY_SIZE(channels),
 	.list = channels,
 	.mask = 0,
@@ -599,7 +589,7 @@ static irqreturn_t snd_fm801_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static struct snd_pcm_hardware snd_fm801_playback =
+static const struct snd_pcm_hardware snd_fm801_playback =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -619,7 +609,7 @@ static struct snd_pcm_hardware snd_fm801_playback =
 	.fifo_size =		0,
 };
 
-static struct snd_pcm_hardware snd_fm801_capture =
+static const struct snd_pcm_hardware snd_fm801_capture =
 {
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
@@ -1068,11 +1058,19 @@ static int snd_fm801_mixer(struct fm801 *chip)
 		if ((err = snd_ac97_mixer(chip->ac97_bus, &ac97, &chip->ac97_sec)) < 0)
 			return err;
 	}
-	for (i = 0; i < FM801_CONTROLS; i++)
-		snd_ctl_add(chip->card, snd_ctl_new1(&snd_fm801_controls[i], chip));
+	for (i = 0; i < FM801_CONTROLS; i++) {
+		err = snd_ctl_add(chip->card,
+			snd_ctl_new1(&snd_fm801_controls[i], chip));
+		if (err < 0)
+			return err;
+	}
 	if (chip->multichannel) {
-		for (i = 0; i < FM801_CONTROLS_MULTI; i++)
-			snd_ctl_add(chip->card, snd_ctl_new1(&snd_fm801_controls_multi[i], chip));
+		for (i = 0; i < FM801_CONTROLS_MULTI; i++) {
+			err = snd_ctl_add(chip->card,
+				snd_ctl_new1(&snd_fm801_controls_multi[i], chip));
+			if (err < 0)
+				return err;
+		}
 	}
 	return 0;
 }
@@ -1235,8 +1233,6 @@ static int snd_fm801_create(struct snd_card *card,
 		}
 	}
 
-	snd_fm801_chip_init(chip);
-
 	if ((chip->tea575x_tuner & TUNER_ONLY) == 0) {
 		if (devm_request_irq(&pci->dev, pci->irq, snd_fm801_interrupt,
 				IRQF_SHARED, KBUILD_MODNAME, chip)) {
@@ -1247,6 +1243,8 @@ static int snd_fm801_create(struct snd_card *card,
 		chip->irq = pci->irq;
 		pci_set_master(pci);
 	}
+
+	snd_fm801_chip_init(chip);
 
 	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops)) < 0) {
 		snd_fm801_free(chip);
@@ -1400,7 +1398,6 @@ static int snd_fm801_suspend(struct device *dev)
 	if (chip->tea575x_tuner & TUNER_ONLY) {
 		/* FIXME: tea575x suspend */
 	} else {
-		snd_pcm_suspend_all(chip->pcm);
 		snd_ac97_suspend(chip->ac97);
 		snd_ac97_suspend(chip->ac97_sec);
 	}

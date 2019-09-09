@@ -48,7 +48,7 @@
 	compatible = "karo,imx6ul-tx6ul", "fsl,imx6ul";
 
 	aliases {
-		lcdif_24bit_pins_a = &pinctrl_disp0_3;
+		lcdif-24bit-pins-a = &pinctrl_disp0_3;
 		mmc0 = &usdhc1;
 		/delete-property/ mmc1;
 		serial2 = &uart3;
@@ -78,7 +78,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_enet2 &pinctrl_enet2_mdio &pinctrl_etnphy1_rst>;
 	phy-mode = "rmii";
-	phy-reset-gpios = <&gpio4 28 GPIO_ACTIVE_HIGH>;
+	phy-reset-gpios = <&gpio4 28 GPIO_ACTIVE_LOW>;
 	phy-supply = <&reg_3v3_etn>;
 	phy-handle = <&etnphy1>;
 	status = "okay";
@@ -116,7 +116,7 @@
 };
 
 &i2c2 {
-	/delete-node/ codec@0a;
+	/delete-node/ codec@a;
 	/delete-node/ touchscreen@48;
 
 	rtc: mcp7940x@6f {

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Test backward bit in event attribute, read ring buffer from end to
  * beginning
@@ -8,6 +9,7 @@
 #include <sys/prctl.h>
 #include "tests.h"
 #include "debug.h"
+#include <errno.h>
 
 #define NR_ITERS 111
 
@@ -16,7 +18,7 @@ static void testcase(void)
 	int i;
 
 	for (i = 0; i < NR_ITERS; i++) {
-		char proc_name[10];
+		char proc_name[15];
 
 		snprintf(proc_name, sizeof(proc_name), "p:%d\n", i);
 		prctl(PR_SET_NAME, proc_name);
@@ -29,10 +31,11 @@ static int count_samples(struct perf_evlist *evlist, int *sample_count,
 	int i;
 
 	for (i = 0; i < evlist->nr_mmaps; i++) {
+		struct perf_mmap *map = &evlist->overwrite_mmap[i];
 		union perf_event *event;
 
-		perf_mmap__read_catchup(&evlist->backward_mmap[i]);
-		while ((event = perf_mmap__read_backward(&evlist->backward_mmap[i])) != NULL) {
+		perf_mmap__read_init(map);
+		while ((event = perf_mmap__read_event(map)) != NULL) {
 			const u32 type = event->header.type;
 
 			switch (type) {
@@ -47,6 +50,7 @@ static int count_samples(struct perf_evlist *evlist, int *sample_count,
 				return TEST_FAIL;
 			}
 		}
+		perf_mmap__read_done(map);
 	}
 	return TEST_OK;
 }
@@ -57,7 +61,7 @@ static int do_test(struct perf_evlist *evlist, int mmap_pages,
 	int err;
 	char sbuf[STRERR_BUFSIZE];
 
-	err = perf_evlist__mmap(evlist, mmap_pages, true);
+	err = perf_evlist__mmap(evlist, mmap_pages);
 	if (err < 0) {
 		pr_debug("perf_evlist__mmap: %s\n",
 			 str_error_r(errno, sbuf, sizeof(sbuf)));
@@ -74,7 +78,7 @@ static int do_test(struct perf_evlist *evlist, int mmap_pages,
 }
 
 
-int test__backward_ring_buffer(int subtest __maybe_unused)
+int test__backward_ring_buffer(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	int ret = TEST_SKIP, err, sample_count = 0, comm_count = 0;
 	char pid[16], sbuf[STRERR_BUFSIZE];
@@ -97,7 +101,7 @@ int test__backward_ring_buffer(int subtest __maybe_unused)
 
 	evlist = perf_evlist__new();
 	if (!evlist) {
-		pr_debug("No enough memory to create evlist\n");
+		pr_debug("Not enough memory to create evlist\n");
 		return TEST_FAIL;
 	}
 

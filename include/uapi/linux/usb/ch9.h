@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  * This file holds USB constants and structures that are needed for
  * USB device APIs.  These are used by the USB device model, which is
@@ -143,6 +144,10 @@
 #define	TEST_PACKET	4
 #define	TEST_FORCE_EN	5
 
+/* Status Type */
+#define USB_STATUS_TYPE_STANDARD	0
+#define USB_STATUS_TYPE_PTM		1
+
 /*
  * New Feature Selectors as added by USB 3.0
  * See USB 3.0 spec Table 9-7
@@ -224,7 +229,8 @@ struct usb_ctrlrequest {
  * through the Linux-USB APIs, they are not converted to cpu byte
  * order; it is the responsibility of the client code to do this.
  * The single exception is when device and configuration descriptors (but
- * not other descriptors) are read from usbfs (i.e. /proc/bus/usb/BBB/DDD);
+ * not other descriptors) are read from character devices
+ * (i.e. /dev/bus/usb/BBB/DDD);
  * in this case the fields are converted to host endianness by the kernel.
  */
 
@@ -422,6 +428,12 @@ struct usb_endpoint_descriptor {
 #define USB_ENDPOINT_XFER_BULK		2
 #define USB_ENDPOINT_XFER_INT		3
 #define USB_ENDPOINT_MAX_ADJUSTABLE	0x80
+
+#define USB_ENDPOINT_MAXP_MASK	0x07ff
+#define USB_EP_MAXP_MULT_SHIFT	11
+#define USB_EP_MAXP_MULT_MASK	(3 << USB_EP_MAXP_MULT_SHIFT)
+#define USB_EP_MAXP_MULT(m) \
+	(((m) & USB_EP_MAXP_MULT_MASK) >> USB_EP_MAXP_MULT_SHIFT)
 
 /* The USB 3.0 spec redefines bits 5:4 of bmAttributes as interrupt ep type. */
 #define USB_ENDPOINT_INTRTYPE		0x30
@@ -623,11 +635,25 @@ static inline int usb_endpoint_is_isoc_out(
  * usb_endpoint_maxp - get endpoint's max packet size
  * @epd: endpoint to be checked
  *
- * Returns @epd's max packet
+ * Returns @epd's max packet bits [10:0]
  */
 static inline int usb_endpoint_maxp(const struct usb_endpoint_descriptor *epd)
 {
-	return __le16_to_cpu(epd->wMaxPacketSize);
+	return __le16_to_cpu(epd->wMaxPacketSize) & USB_ENDPOINT_MAXP_MASK;
+}
+
+/**
+ * usb_endpoint_maxp_mult - get endpoint's transactional opportunities
+ * @epd: endpoint to be checked
+ *
+ * Return @epd's wMaxPacketSize[12:11] + 1
+ */
+static inline int
+usb_endpoint_maxp_mult(const struct usb_endpoint_descriptor *epd)
+{
+	int maxp = __le16_to_cpu(epd->wMaxPacketSize);
+
+	return USB_EP_MAXP_MULT(maxp) + 1;
 }
 
 static inline int usb_endpoint_interrupt_type(
@@ -759,6 +785,7 @@ struct usb_interface_assoc_descriptor {
 	__u8  iFunction;
 } __attribute__ ((packed));
 
+#define USB_DT_INTERFACE_ASSOCIATION_SIZE	8
 
 /*-------------------------------------------------------------------------*/
 
@@ -852,6 +879,8 @@ struct usb_wireless_cap_descriptor {	/* Ultra Wide Band */
 	__le16 bmBandGroup;
 	__u8  bReserved;
 } __attribute__((packed));
+
+#define USB_DT_USB_WIRELESS_CAP_SIZE	11
 
 /* USB 2.0 Extension descriptor */
 #define	USB_CAP_TYPE_EXT		2
@@ -1045,11 +1074,12 @@ struct usb_ptm_cap_descriptor {
 	__u8  bDevCapabilityType;
 } __attribute__((packed));
 
+#define USB_DT_USB_PTM_ID_SIZE		3
 /*
  * The size of the descriptor for the Sublink Speed Attribute Count
- * (SSAC) specified in bmAttributes[4:0].
+ * (SSAC) specified in bmAttributes[4:0]. SSAC is zero-based
  */
-#define USB_DT_USB_SSP_CAP_SIZE(ssac)	(16 + ssac * 4)
+#define USB_DT_USB_SSP_CAP_SIZE(ssac)	(12 + (ssac + 1) * 4)
 
 /*-------------------------------------------------------------------------*/
 

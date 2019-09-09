@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: ISC
 ath9k-y +=	beacon.o \
 		gpio.o \
 		init.o \
@@ -60,8 +61,9 @@ obj-$(CONFIG_ATH9K_COMMON) += ath9k_common.o
 ath9k_common-y:=	common.o \
 			common-init.o \
 			common-beacon.o \
-			common-debug.o \
-			common-spectral.o
+
+ath9k_common-$(CONFIG_ATH9K_COMMON_DEBUG) += common-debug.o
+ath9k_common-$(CONFIG_ATH9K_COMMON_SPECTRAL) += common-spectral.o
 
 ath9k_htc-y +=	htc_hst.o \
 		hif_usb.o \

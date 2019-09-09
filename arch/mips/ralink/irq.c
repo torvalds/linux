@@ -1,7 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
  *
  * Copyright (C) 2009 Gabor Juhos <juhosg@openwrt.org>
  * Copyright (C) 2013 John Crispin <john@phrozen.org>
@@ -163,8 +161,8 @@ static int __init intc_of_init(struct device_node *node,
 	if (of_address_to_resource(node, 0, &res))
 		panic("Failed to get intc memory range");
 
-	if (request_mem_region(res.start, resource_size(&res),
-				res.name) < 0)
+	if (!request_mem_region(res.start, resource_size(&res),
+				res.name))
 		pr_err("Failed to request intc memory");
 
 	rt_intc_membase = ioremap_nocache(res.start,

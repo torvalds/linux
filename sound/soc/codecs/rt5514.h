@@ -1,18 +1,16 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * rt5514.h  --  RT5514 ALSA SoC audio driver
  *
  * Copyright 2015 Realtek Microelectronics
  * Author: Oder Chiou <oder_chiou@realtek.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef __RT5514_H__
 #define __RT5514_H__
 
 #include <linux/clk.h>
+#include <sound/rt5514.h>
 
 #define RT5514_DEVICE_ID			0x10ec5514
 
@@ -33,9 +31,12 @@
 #define RT5514_CLK_CTRL1			0x2104
 #define RT5514_CLK_CTRL2			0x2108
 #define RT5514_PLL3_CALIB_CTRL1			0x2110
+#define RT5514_PLL3_CALIB_CTRL4			0x2120
 #define RT5514_PLL3_CALIB_CTRL5			0x2124
+#define RT5514_PLL3_CALIB_CTRL6			0x2128
 #define RT5514_DELAY_BUF_CTRL1			0x2140
 #define RT5514_DELAY_BUF_CTRL3			0x2148
+#define RT5514_ASRC_IN_CTRL1			0x2180
 #define RT5514_DOWNFILTER0_CTRL1		0x2190
 #define RT5514_DOWNFILTER0_CTRL2		0x2194
 #define RT5514_DOWNFILTER0_CTRL3		0x2198
@@ -116,6 +117,8 @@
 #define RT5514_POW_ADCFEDL_BIT			0
 
 /* RT5514_I2S_CTRL1 (0x2010) */
+#define RT5514_TDM_MODE2			(0x1 << 30)
+#define RT5514_TDM_MODE2_SFT			30
 #define RT5514_TDM_MODE				(0x1 << 28)
 #define RT5514_TDM_MODE_SFT			28
 #define RT5514_I2S_LR_MASK			(0x1 << 26)
@@ -135,6 +138,8 @@
 #define RT5514_TDMSLOT_SEL_RX_MASK		(0x3 << 10)
 #define RT5514_TDMSLOT_SEL_RX_SFT		10
 #define RT5514_TDMSLOT_SEL_RX_4CH		(0x1 << 10)
+#define RT5514_TDMSLOT_SEL_RX_6CH		(0x2 << 10)
+#define RT5514_TDMSLOT_SEL_RX_8CH		(0x3 << 10)
 #define RT5514_CH_LEN_RX_MASK			(0x3 << 8)
 #define RT5514_CH_LEN_RX_SFT			8
 #define RT5514_CH_LEN_RX_16			(0x0 << 8)
@@ -144,6 +149,8 @@
 #define RT5514_TDMSLOT_SEL_TX_MASK		(0x3 << 6)
 #define RT5514_TDMSLOT_SEL_TX_SFT		6
 #define RT5514_TDMSLOT_SEL_TX_4CH		(0x1 << 6)
+#define RT5514_TDMSLOT_SEL_TX_6CH		(0x2 << 6)
+#define RT5514_TDMSLOT_SEL_TX_8CH		(0x3 << 6)
 #define RT5514_CH_LEN_TX_MASK			(0x3 << 4)
 #define RT5514_CH_LEN_TX_SFT			4
 #define RT5514_CH_LEN_TX_16			(0x0 << 4)
@@ -156,6 +163,18 @@
 #define RT5514_I2S_DL_20			(0x1 << 0)
 #define RT5514_I2S_DL_24			(0x2 << 0)
 #define RT5514_I2S_DL_8				(0x3 << 0)
+
+/* RT5514_I2S_CTRL2 (0x2014) */
+#define RT5514_TDM_DOCKING_MODE			(0x1 << 31)
+#define RT5514_TDM_DOCKING_MODE_SFT		31
+#define RT5514_TDM_DOCKING_VALID_CH_MASK	(0x1 << 29)
+#define RT5514_TDM_DOCKING_VALID_CH_SFT		29
+#define RT5514_TDM_DOCKING_VALID_CH2		(0x0 << 29)
+#define RT5514_TDM_DOCKING_VALID_CH4		(0x1 << 29)
+#define RT5514_TDM_DOCKING_START_MASK		(0x1 << 28)
+#define RT5514_TDM_DOCKING_START_SFT		28
+#define RT5514_TDM_DOCKING_START_SLOT0		(0x0 << 28)
+#define RT5514_TDM_DOCKING_START_SLOT4		(0x1 << 28)
 
 /* RT5514_DIG_SOURCE_CTRL (0x20a4) */
 #define RT5514_AD1_DMIC_INPUT_SEL		(0x1 << 1)
@@ -178,8 +197,14 @@
 #define RT5514_CLK_AD0_EN_BIT			23
 #define RT5514_CLK_DMIC_OUT_SEL_MASK		(0x7 << 8)
 #define RT5514_CLK_DMIC_OUT_SEL_SFT		8
+#define RT5514_CLK_AD_ANA1_SEL_MASK		(0xf << 0)
+#define RT5514_CLK_AD_ANA1_SEL_SFT		0
 
 /* RT5514_CLK_CTRL2 (0x2108) */
+#define RT5514_CLK_AD1_ASRC_EN			(0x1 << 17)
+#define RT5514_CLK_AD1_ASRC_EN_BIT		17
+#define RT5514_CLK_AD0_ASRC_EN			(0x1 << 16)
+#define RT5514_CLK_AD0_ASRC_EN_BIT		16
 #define RT5514_CLK_SYS_DIV_OUT_MASK		(0x7 << 8)
 #define RT5514_CLK_SYS_DIV_OUT_SFT		8
 #define RT5514_SEL_ADC_OSR_MASK			(0x7 << 4)
@@ -243,9 +268,10 @@ enum {
 };
 
 struct rt5514_priv {
-	struct snd_soc_codec *codec;
+	struct rt5514_platform_data pdata;
+	struct snd_soc_component *component;
 	struct regmap *i2c_regmap, *regmap;
-	struct clk *mclk;
+	struct clk *mclk, *dsp_calib_clk;
 	int sysclk;
 	int sysclk_src;
 	int lrck;
@@ -254,6 +280,7 @@ struct rt5514_priv {
 	int pll_in;
 	int pll_out;
 	int dsp_enabled;
+	unsigned int pll3_cal_value;
 };
 
 #endif /* __RT5514_H__ */

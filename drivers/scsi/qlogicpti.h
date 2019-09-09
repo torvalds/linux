@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* qlogicpti.h: Performance Technologies QlogicISP sbus card defines.
  *
  * Copyright (C) 1996 David S. Miller (davem@caipfs.rutgers.edu)
@@ -356,14 +357,13 @@ struct qlogicpti {
 
 	/* The rest of the elements are unimportant for performance. */
 	struct qlogicpti         *next;
-	__u32                     res_dvma;             /* Ptr to RESPONSE bufs (DVMA)*/
-	__u32                     req_dvma;             /* Ptr to REQUEST bufs (DVMA) */
+	dma_addr_t                res_dvma;             /* Ptr to RESPONSE bufs (DVMA)*/
+	dma_addr_t                req_dvma;             /* Ptr to REQUEST bufs (DVMA) */
 	u_char	                  fware_majrev, fware_minrev, fware_micrev;
 	struct Scsi_Host         *qhost;
 	int                       qpti_id;
 	int                       scsi_id;
 	int                       prom_node;
-	char                      prom_name[64];
 	int                       irq;
 	char                      differential, ultra, clock;
 	unsigned char             bursts;
@@ -378,7 +378,7 @@ struct qlogicpti {
 #define SREG_IMASK                0x0c   /* Interrupt level            */
 #define SREG_SPMASK               0x03   /* Mask for switch pack       */
 	unsigned char             swsreg;
-	unsigned int	
+	unsigned int
 		gotirq	:	1,	/* this instance got an irq */
 		is_pti	: 	1;	/* Non-zero if this is a PTI board. */
 };

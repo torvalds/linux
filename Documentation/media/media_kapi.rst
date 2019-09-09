@@ -1,4 +1,4 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. SPDX-License-Identifier: GPL-2.0
 
 .. include:: <isonum.txt>
 
@@ -20,7 +20,9 @@ more details.
 
 For more details see the file COPYING in the source distribution of Linux.
 
-.. class:: toc-title
+.. only:: html
+
+   .. class:: toc-title
 
         Table of Contents
 
@@ -33,3 +35,4 @@ For more details see the file COPYING in the source distribution of Linux.
     kapi/rc-core
     kapi/mc-core
     kapi/cec-core
+    kapi/csi2

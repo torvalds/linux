@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * I2C driver for PKUnity-v3 SoC
  * Code specific to PKUnity SoC and UniCore ISA
  *
  *	Maintained by GUAN Xue-tao <gxt@mprc.pku.edu.cn>
  *	Copyright (C) 2001-2010 Guan Xuetao
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -175,7 +172,7 @@ static u32 puv3_i2c_func(struct i2c_adapter *adapter)
 	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL;
 }
 
-static struct i2c_algorithm puv3_i2c_algorithm = {
+static const struct i2c_algorithm puv3_i2c_algorithm = {
 	.master_xfer	= puv3_i2c_xfer,
 	.functionality	= puv3_i2c_func,
 };

@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * A hwmon driver for the Intel 5000 series chipset FB-DIMM AMB
  * temperature sensors
  * Copyright (C) 2007 IBM
  *
  * Author: Darrick J. Wong <darrick.wong@oracle.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/module.h>
@@ -114,14 +101,14 @@ struct i5k_amb_data {
 	unsigned int num_attrs;
 };
 
-static ssize_t show_name(struct device *dev, struct device_attribute *devattr,
+static ssize_t name_show(struct device *dev, struct device_attribute *devattr,
 			 char *buf)
 {
 	return sprintf(buf, "%s\n", DRVNAME);
 }
 
 
-static DEVICE_ATTR(name, S_IRUGO, show_name, NULL);
+static DEVICE_ATTR_RO(name);
 
 static struct platform_device *amb_pdev;
 
@@ -274,8 +261,9 @@ static int i5k_amb_hwmon_init(struct platform_device *pdev)
 		num_ambs += hweight16(data->amb_present[i] & 0x7fff);
 
 	/* Set up sysfs stuff */
-	data->attrs = kzalloc(sizeof(*data->attrs) * num_ambs * KNOBS_PER_AMB,
-				GFP_KERNEL);
+	data->attrs = kzalloc(array3_size(num_ambs, KNOBS_PER_AMB,
+					  sizeof(*data->attrs)),
+			      GFP_KERNEL);
 	if (!data->attrs)
 		return -ENOMEM;
 	data->num_attrs = 0;
@@ -295,7 +283,7 @@ static int i5k_amb_hwmon_init(struct platform_device *pdev)
 			snprintf(iattr->name, AMB_SYSFS_NAME_LEN,
 				 "temp%d_label", d);
 			iattr->s_attr.dev_attr.attr.name = iattr->name;
-			iattr->s_attr.dev_attr.attr.mode = S_IRUGO;
+			iattr->s_attr.dev_attr.attr.mode = 0444;
 			iattr->s_attr.dev_attr.show = show_label;
 			iattr->s_attr.index = k;
 			sysfs_attr_init(&iattr->s_attr.dev_attr.attr);
@@ -310,7 +298,7 @@ static int i5k_amb_hwmon_init(struct platform_device *pdev)
 			snprintf(iattr->name, AMB_SYSFS_NAME_LEN,
 				 "temp%d_input", d);
 			iattr->s_attr.dev_attr.attr.name = iattr->name;
-			iattr->s_attr.dev_attr.attr.mode = S_IRUGO;
+			iattr->s_attr.dev_attr.attr.mode = 0444;
 			iattr->s_attr.dev_attr.show = show_amb_temp;
 			iattr->s_attr.index = k;
 			sysfs_attr_init(&iattr->s_attr.dev_attr.attr);
@@ -325,7 +313,7 @@ static int i5k_amb_hwmon_init(struct platform_device *pdev)
 			snprintf(iattr->name, AMB_SYSFS_NAME_LEN,
 				 "temp%d_min", d);
 			iattr->s_attr.dev_attr.attr.name = iattr->name;
-			iattr->s_attr.dev_attr.attr.mode = S_IWUSR | S_IRUGO;
+			iattr->s_attr.dev_attr.attr.mode = 0644;
 			iattr->s_attr.dev_attr.show = show_amb_min;
 			iattr->s_attr.dev_attr.store = store_amb_min;
 			iattr->s_attr.index = k;
@@ -341,7 +329,7 @@ static int i5k_amb_hwmon_init(struct platform_device *pdev)
 			snprintf(iattr->name, AMB_SYSFS_NAME_LEN,
 				 "temp%d_mid", d);
 			iattr->s_attr.dev_attr.attr.name = iattr->name;
-			iattr->s_attr.dev_attr.attr.mode = S_IWUSR | S_IRUGO;
+			iattr->s_attr.dev_attr.attr.mode = 0644;
 			iattr->s_attr.dev_attr.show = show_amb_mid;
 			iattr->s_attr.dev_attr.store = store_amb_mid;
 			iattr->s_attr.index = k;
@@ -357,7 +345,7 @@ static int i5k_amb_hwmon_init(struct platform_device *pdev)
 			snprintf(iattr->name, AMB_SYSFS_NAME_LEN,
 				 "temp%d_max", d);
 			iattr->s_attr.dev_attr.attr.name = iattr->name;
-			iattr->s_attr.dev_attr.attr.mode = S_IWUSR | S_IRUGO;
+			iattr->s_attr.dev_attr.attr.mode = 0644;
 			iattr->s_attr.dev_attr.show = show_amb_max;
 			iattr->s_attr.dev_attr.store = store_amb_max;
 			iattr->s_attr.index = k;
@@ -373,7 +361,7 @@ static int i5k_amb_hwmon_init(struct platform_device *pdev)
 			snprintf(iattr->name, AMB_SYSFS_NAME_LEN,
 				 "temp%d_alarm", d);
 			iattr->s_attr.dev_attr.attr.name = iattr->name;
-			iattr->s_attr.dev_attr.attr.mode = S_IRUGO;
+			iattr->s_attr.dev_attr.attr.mode = 0444;
 			iattr->s_attr.dev_attr.show = show_amb_alarm;
 			iattr->s_attr.index = k;
 			sysfs_attr_init(&iattr->s_attr.dev_attr.attr);
@@ -495,7 +483,7 @@ static struct {
 };
 
 #ifdef MODULE
-static struct pci_device_id i5k_amb_ids[] = {
+static const struct pci_device_id i5k_amb_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_5000_ERR) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_5400_ERR) },
 	{ 0, }

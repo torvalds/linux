@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*******************************************************************************
   This is the driver for the GMAC on-chip Ethernet controller for ST SoCs.
   DWC Ether MAC 10/100/1000 Universal version 3.41a  has been used for
@@ -7,21 +8,6 @@
 
   Copyright (C) 2007-2009  STMicroelectronics Ltd
 
-  This program is free software; you can redistribute it and/or modify it
-  under the terms and conditions of the GNU General Public License,
-  version 2, as published by the Free Software Foundation.
-
-  This program is distributed in the hope it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details.
-
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-
-  The full GNU General Public License is included in this distribution in
-  the file called "COPYING".
 
   Author: Giuseppe Cavallaro <peppe.cavallaro@st.com>
 *******************************************************************************/
@@ -43,9 +29,11 @@ static void dwmac1000_dma_axi(void __iomem *ioaddr, struct stmmac_axi *axi)
 	if (axi->axi_xit_frm)
 		value |= DMA_AXI_LPI_XIT_FRM;
 
+	value &= ~DMA_AXI_WR_OSR_LMT;
 	value |= (axi->axi_wr_osr_lmt & DMA_AXI_WR_OSR_LMT_MASK) <<
 		 DMA_AXI_WR_OSR_LMT_SHIFT;
 
+	value &= ~DMA_AXI_RD_OSR_LMT;
 	value |= (axi->axi_rd_osr_lmt & DMA_AXI_RD_OSR_LMT_MASK) <<
 		 DMA_AXI_RD_OSR_LMT_SHIFT;
 
@@ -82,49 +70,60 @@ static void dwmac1000_dma_axi(void __iomem *ioaddr, struct stmmac_axi *axi)
 	writel(value, ioaddr + DMA_AXI_BUS_MODE);
 }
 
-static void dwmac1000_dma_init(void __iomem *ioaddr, int pbl, int fb, int mb,
-			       int aal, u32 dma_tx, u32 dma_rx, int atds)
+static void dwmac1000_dma_init(void __iomem *ioaddr,
+			       struct stmmac_dma_cfg *dma_cfg, int atds)
 {
 	u32 value = readl(ioaddr + DMA_BUS_MODE);
+	int txpbl = dma_cfg->txpbl ?: dma_cfg->pbl;
+	int rxpbl = dma_cfg->rxpbl ?: dma_cfg->pbl;
 
 	/*
 	 * Set the DMA PBL (Programmable Burst Length) mode.
 	 *
 	 * Note: before stmmac core 3.50 this mode bit was 4xPBL, and
 	 * post 3.5 mode bit acts as 8*PBL.
-	 *
-	 * This configuration doesn't take care about the Separate PBL
-	 * so only the bits: 13-8 are programmed with the PBL passed from the
-	 * platform.
 	 */
-	value |= DMA_BUS_MODE_MAXPBL;
-	value &= ~DMA_BUS_MODE_PBL_MASK;
-	value |= (pbl << DMA_BUS_MODE_PBL_SHIFT);
+	if (dma_cfg->pblx8)
+		value |= DMA_BUS_MODE_MAXPBL;
+	value |= DMA_BUS_MODE_USP;
+	value &= ~(DMA_BUS_MODE_PBL_MASK | DMA_BUS_MODE_RPBL_MASK);
+	value |= (txpbl << DMA_BUS_MODE_PBL_SHIFT);
+	value |= (rxpbl << DMA_BUS_MODE_RPBL_SHIFT);
 
 	/* Set the Fixed burst mode */
-	if (fb)
+	if (dma_cfg->fixed_burst)
 		value |= DMA_BUS_MODE_FB;
 
 	/* Mixed Burst has no effect when fb is set */
-	if (mb)
+	if (dma_cfg->mixed_burst)
 		value |= DMA_BUS_MODE_MB;
 
 	if (atds)
 		value |= DMA_BUS_MODE_ATDS;
 
-	if (aal)
+	if (dma_cfg->aal)
 		value |= DMA_BUS_MODE_AAL;
 
 	writel(value, ioaddr + DMA_BUS_MODE);
 
 	/* Mask interrupts by writing to CSR7 */
 	writel(DMA_INTR_DEFAULT_MASK, ioaddr + DMA_INTR_ENA);
+}
 
-	/* RX/TX descriptor base address lists must be written into
-	 * DMA CSR3 and CSR4, respectively
-	 */
-	writel(dma_tx, ioaddr + DMA_TX_BASE_ADDR);
-	writel(dma_rx, ioaddr + DMA_RCV_BASE_ADDR);
+static void dwmac1000_dma_init_rx(void __iomem *ioaddr,
+				  struct stmmac_dma_cfg *dma_cfg,
+				  dma_addr_t dma_rx_phy, u32 chan)
+{
+	/* RX descriptor base address list must be written into DMA CSR3 */
+	writel(lower_32_bits(dma_rx_phy), ioaddr + DMA_RCV_BASE_ADDR);
+}
+
+static void dwmac1000_dma_init_tx(void __iomem *ioaddr,
+				  struct stmmac_dma_cfg *dma_cfg,
+				  dma_addr_t dma_tx_phy, u32 chan)
+{
+	/* TX descriptor base address list must be written into DMA CSR4 */
+	writel(lower_32_bits(dma_tx_phy), ioaddr + DMA_TX_BASE_ADDR);
 }
 
 static u32 dwmac1000_configure_fc(u32 csr6, int rxfifosz)
@@ -148,12 +147,40 @@ static u32 dwmac1000_configure_fc(u32 csr6, int rxfifosz)
 	return csr6;
 }
 
-static void dwmac1000_dma_operation_mode(void __iomem *ioaddr, int txmode,
-					 int rxmode, int rxfifosz)
+static void dwmac1000_dma_operation_mode_rx(void __iomem *ioaddr, int mode,
+					    u32 channel, int fifosz, u8 qmode)
 {
 	u32 csr6 = readl(ioaddr + DMA_CONTROL);
 
-	if (txmode == SF_DMA_MODE) {
+	if (mode == SF_DMA_MODE) {
+		pr_debug("GMAC: enable RX store and forward mode\n");
+		csr6 |= DMA_CONTROL_RSF;
+	} else {
+		pr_debug("GMAC: disable RX SF mode (threshold %d)\n", mode);
+		csr6 &= ~DMA_CONTROL_RSF;
+		csr6 &= DMA_CONTROL_TC_RX_MASK;
+		if (mode <= 32)
+			csr6 |= DMA_CONTROL_RTC_32;
+		else if (mode <= 64)
+			csr6 |= DMA_CONTROL_RTC_64;
+		else if (mode <= 96)
+			csr6 |= DMA_CONTROL_RTC_96;
+		else
+			csr6 |= DMA_CONTROL_RTC_128;
+	}
+
+	/* Configure flow control based on rx fifo size */
+	csr6 = dwmac1000_configure_fc(csr6, fifosz);
+
+	writel(csr6, ioaddr + DMA_CONTROL);
+}
+
+static void dwmac1000_dma_operation_mode_tx(void __iomem *ioaddr, int mode,
+					    u32 channel, int fifosz, u8 qmode)
+{
+	u32 csr6 = readl(ioaddr + DMA_CONTROL);
+
+	if (mode == SF_DMA_MODE) {
 		pr_debug("GMAC: enable TX store and forward mode\n");
 		/* Transmit COE type 2 cannot be done in cut-through mode. */
 		csr6 |= DMA_CONTROL_TSF;
@@ -162,57 +189,33 @@ static void dwmac1000_dma_operation_mode(void __iomem *ioaddr, int txmode,
 		 */
 		csr6 |= DMA_CONTROL_OSF;
 	} else {
-		pr_debug("GMAC: disabling TX SF (threshold %d)\n", txmode);
+		pr_debug("GMAC: disabling TX SF (threshold %d)\n", mode);
 		csr6 &= ~DMA_CONTROL_TSF;
 		csr6 &= DMA_CONTROL_TC_TX_MASK;
 		/* Set the transmit threshold */
-		if (txmode <= 32)
+		if (mode <= 32)
 			csr6 |= DMA_CONTROL_TTC_32;
-		else if (txmode <= 64)
+		else if (mode <= 64)
 			csr6 |= DMA_CONTROL_TTC_64;
-		else if (txmode <= 128)
+		else if (mode <= 128)
 			csr6 |= DMA_CONTROL_TTC_128;
-		else if (txmode <= 192)
+		else if (mode <= 192)
 			csr6 |= DMA_CONTROL_TTC_192;
 		else
 			csr6 |= DMA_CONTROL_TTC_256;
 	}
 
-	if (rxmode == SF_DMA_MODE) {
-		pr_debug("GMAC: enable RX store and forward mode\n");
-		csr6 |= DMA_CONTROL_RSF;
-	} else {
-		pr_debug("GMAC: disable RX SF mode (threshold %d)\n", rxmode);
-		csr6 &= ~DMA_CONTROL_RSF;
-		csr6 &= DMA_CONTROL_TC_RX_MASK;
-		if (rxmode <= 32)
-			csr6 |= DMA_CONTROL_RTC_32;
-		else if (rxmode <= 64)
-			csr6 |= DMA_CONTROL_RTC_64;
-		else if (rxmode <= 96)
-			csr6 |= DMA_CONTROL_RTC_96;
-		else
-			csr6 |= DMA_CONTROL_RTC_128;
-	}
-
-	/* Configure flow control based on rx fifo size */
-	csr6 = dwmac1000_configure_fc(csr6, rxfifosz);
-
 	writel(csr6, ioaddr + DMA_CONTROL);
 }
 
-static void dwmac1000_dump_dma_regs(void __iomem *ioaddr)
+static void dwmac1000_dump_dma_regs(void __iomem *ioaddr, u32 *reg_space)
 {
 	int i;
-	pr_info(" DMA registers\n");
-	for (i = 0; i < 22; i++) {
-		if ((i < 9) || (i > 17)) {
-			int offset = i * 4;
-			pr_err("\t Reg No. %d (offset 0x%x): 0x%08x\n", i,
-			       (DMA_BUS_MODE + offset),
-			       readl(ioaddr + DMA_BUS_MODE + offset));
-		}
-	}
+
+	for (i = 0; i < NUM_DWMAC1000_DMA_REGS; i++)
+		if ((i < 12) || (i > 17))
+			reg_space[DMA_BUS_MODE / 4 + i] =
+				readl(ioaddr + DMA_BUS_MODE + i * 4);
 }
 
 static void dwmac1000_get_hw_feature(void __iomem *ioaddr,
@@ -251,7 +254,8 @@ static void dwmac1000_get_hw_feature(void __iomem *ioaddr,
 	dma_cap->enh_desc = (hw_cap & DMA_HW_FEAT_ENHDESSEL) >> 24;
 }
 
-static void dwmac1000_rx_watchdog(void __iomem *ioaddr, u32 riwt)
+static void dwmac1000_rx_watchdog(void __iomem *ioaddr, u32 riwt,
+				  u32 number_chan)
 {
 	writel(riwt, ioaddr + DMA_RX_WATCHDOG);
 }
@@ -259,9 +263,12 @@ static void dwmac1000_rx_watchdog(void __iomem *ioaddr, u32 riwt)
 const struct stmmac_dma_ops dwmac1000_dma_ops = {
 	.reset = dwmac_dma_reset,
 	.init = dwmac1000_dma_init,
+	.init_rx_chan = dwmac1000_dma_init_rx,
+	.init_tx_chan = dwmac1000_dma_init_tx,
 	.axi = dwmac1000_dma_axi,
 	.dump_regs = dwmac1000_dump_dma_regs,
-	.dma_mode = dwmac1000_dma_operation_mode,
+	.dma_rx_mode = dwmac1000_dma_operation_mode_rx,
+	.dma_tx_mode = dwmac1000_dma_operation_mode_tx,
 	.enable_dma_transmission = dwmac_enable_dma_transmission,
 	.enable_dma_irq = dwmac_enable_dma_irq,
 	.disable_dma_irq = dwmac_disable_dma_irq,

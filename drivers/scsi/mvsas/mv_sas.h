@@ -1,26 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Marvell 88SE64xx/88SE94xx main function head file
  *
  * Copyright 2007 Red Hat, Inc.
  * Copyright 2008 Marvell. <kewei@marvell.com>
  * Copyright 2009-2011 Marvell. <yuxiangl@marvell.com>
- *
- * This file is licensed under GPLv2.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of the
- * License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307
- * USA
 */
 
 #ifndef _MV_SAS_H_
@@ -65,9 +49,6 @@ extern struct mvs_tgt_initiator mvs_tgt;
 extern struct mvs_info *tgt_mvi;
 extern const struct mvs_dispatch mvs_64xx_dispatch;
 extern const struct mvs_dispatch mvs_94xx_dispatch;
-
-#define DEV_IS_EXPANDER(type)	\
-	((type == SAS_EDGE_EXPANDER_DEVICE) || (type == SAS_FANOUT_EXPANDER_DEVICE))
 
 #define bit(n) ((u64)1 << n)
 
@@ -247,7 +228,6 @@ struct mvs_device {
 	enum sas_device_type dev_type;
 	struct mvs_info *mvi_info;
 	struct domain_device *sas_device;
-	struct timer_list timer;
 	u32 attached_phy;
 	u32 device_id;
 	u32 running_req;

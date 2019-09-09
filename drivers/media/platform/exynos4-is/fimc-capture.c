@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Samsung S5P/EXYNOS4 SoC series camera interface (camera capture) driver
  *
  * Copyright (C) 2010 - 2012 Samsung Electronics Co., Ltd.
  * Sylwester Nawrocki <s.nawrocki@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -146,6 +143,7 @@ static int fimc_stop_capture(struct fimc_dev *fimc, bool suspend)
 
 /**
  * fimc_capture_config_update - apply the camera interface configuration
+ * @ctx: FIMC capture context
  *
  * To be called from within the interrupt handler with fimc.slock
  * spinlock held. It updates the camera pixel crop, rotation and
@@ -536,7 +534,7 @@ static int fimc_capture_release(struct file *file)
 	mutex_lock(&fimc->lock);
 
 	if (close && vc->streaming) {
-		media_entity_pipeline_stop(&vc->ve.vdev.entity);
+		media_pipeline_stop(&vc->ve.vdev.entity);
 		vc->streaming = false;
 	}
 
@@ -669,10 +667,13 @@ static void fimc_capture_try_selection(struct fimc_ctx *ctx,
 		return;
 	}
 	if (target == V4L2_SEL_TGT_COMPOSE) {
+		u32 tmp_min_h = ffs(sink->width) - 3;
+		u32 tmp_min_v = ffs(sink->height) - 1;
+
 		if (ctx->rotation != 90 && ctx->rotation != 270)
 			align_h = 1;
-		max_sc_h = min(SCALER_MAX_HRATIO, 1 << (ffs(sink->width) - 3));
-		max_sc_v = min(SCALER_MAX_VRATIO, 1 << (ffs(sink->height) - 1));
+		max_sc_h = min(SCALER_MAX_HRATIO, 1 << tmp_min_h);
+		max_sc_v = min(SCALER_MAX_VRATIO, 1 << tmp_min_v);
 		min_sz = var->min_out_pixsize;
 	} else {
 		u32 depth = fimc_get_format_depth(sink->fmt);
@@ -724,13 +725,12 @@ static int fimc_cap_querycap(struct file *file, void *priv,
 {
 	struct fimc_dev *fimc = video_drvdata(file);
 
-	__fimc_vidioc_querycap(&fimc->pdev->dev, cap, V4L2_CAP_STREAMING |
-					V4L2_CAP_VIDEO_CAPTURE_MPLANE);
+	__fimc_vidioc_querycap(&fimc->pdev->dev, cap);
 	return 0;
 }
 
-static int fimc_cap_enum_fmt_mplane(struct file *file, void *priv,
-				    struct v4l2_fmtdesc *f)
+static int fimc_cap_enum_fmt(struct file *file, void *priv,
+			     struct v4l2_fmtdesc *f)
 {
 	struct fimc_fmt *fmt;
 
@@ -738,7 +738,7 @@ static int fimc_cap_enum_fmt_mplane(struct file *file, void *priv,
 			       f->index);
 	if (!fmt)
 		return -EINVAL;
-	strncpy(f->description, fmt->name, sizeof(f->description) - 1);
+	strscpy(f->description, fmt->name, sizeof(f->description));
 	f->pixelformat = fmt->fourcc;
 	if (fmt->fourcc == MEDIA_BUS_FMT_JPEG_1X8)
 		f->flags |= V4L2_FMT_FLAG_COMPRESSED;
@@ -858,6 +858,7 @@ static int fimc_pipeline_try_format(struct fimc_ctx *ctx,
  * fimc_get_sensor_frame_desc - query the sensor for media bus frame parameters
  * @sensor: pointer to the sensor subdev
  * @plane_fmt: provides plane sizes corresponding to the frame layout entries
+ * @num_planes: number of planes
  * @try: true to set the frame parameters, false to query only
  *
  * This function is used by this driver only for compressed/blob data formats.
@@ -1082,7 +1083,7 @@ static int fimc_cap_enum_input(struct file *file, void *priv,
 	fimc_md_graph_unlock(ve);
 
 	if (sd)
-		strlcpy(i->name, sd->name, sizeof(i->name));
+		strscpy(i->name, sd->name, sizeof(i->name));
 
 	return 0;
 }
@@ -1101,6 +1102,7 @@ static int fimc_cap_g_input(struct file *file, void *priv, unsigned int *i)
 /**
  * fimc_pipeline_validate - check for formats inconsistencies
  *                          between source and sink pad of each link
+ * @fimc:	the FIMC device this context applies to
  *
  * Return 0 if all formats match or -EPIPE otherwise.
  */
@@ -1195,7 +1197,7 @@ static int fimc_cap_streamon(struct file *file, void *priv,
 	if (fimc_capture_active(fimc))
 		return -EBUSY;
 
-	ret = media_entity_pipeline_start(entity, &vc->ve.pipe->mp);
+	ret = media_pipeline_start(entity, &vc->ve.pipe->mp);
 	if (ret < 0)
 		return ret;
 
@@ -1229,7 +1231,7 @@ static int fimc_cap_streamon(struct file *file, void *priv,
 	}
 
 err_p_stop:
-	media_entity_pipeline_stop(entity);
+	media_pipeline_stop(entity);
 	return ret;
 }
 
@@ -1244,7 +1246,7 @@ static int fimc_cap_streamoff(struct file *file, void *priv,
 	if (ret < 0)
 		return ret;
 
-	media_entity_pipeline_stop(&vc->ve.vdev.entity);
+	media_pipeline_stop(&vc->ve.vdev.entity);
 	vc->streaming = false;
 	return 0;
 }
@@ -1270,13 +1272,14 @@ static int fimc_cap_g_selection(struct file *file, void *fh,
 	struct fimc_ctx *ctx = fimc->vid_cap.ctx;
 	struct fimc_frame *f = &ctx->s_frame;
 
-	if (s->type != V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
+	if (s->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 
 	switch (s->target) {
 	case V4L2_SEL_TGT_COMPOSE_DEFAULT:
 	case V4L2_SEL_TGT_COMPOSE_BOUNDS:
 		f = &ctx->d_frame;
+		/* fall through */
 	case V4L2_SEL_TGT_CROP_BOUNDS:
 	case V4L2_SEL_TGT_CROP_DEFAULT:
 		s->r.left = 0;
@@ -1287,6 +1290,7 @@ static int fimc_cap_g_selection(struct file *file, void *fh,
 
 	case V4L2_SEL_TGT_COMPOSE:
 		f = &ctx->d_frame;
+		/* fall through */
 	case V4L2_SEL_TGT_CROP:
 		s->r.left = f->offs_h;
 		s->r.top = f->offs_v;
@@ -1320,7 +1324,7 @@ static int fimc_cap_s_selection(struct file *file, void *fh,
 	struct fimc_frame *f;
 	unsigned long flags;
 
-	if (s->type != V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
+	if (s->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 
 	if (s->target == V4L2_SEL_TGT_COMPOSE)
@@ -1353,7 +1357,7 @@ static int fimc_cap_s_selection(struct file *file, void *fh,
 static const struct v4l2_ioctl_ops fimc_capture_ioctl_ops = {
 	.vidioc_querycap		= fimc_cap_querycap,
 
-	.vidioc_enum_fmt_vid_cap_mplane	= fimc_cap_enum_fmt_mplane,
+	.vidioc_enum_fmt_vid_cap	= fimc_cap_enum_fmt,
 	.vidioc_try_fmt_vid_cap_mplane	= fimc_cap_try_fmt_mplane,
 	.vidioc_s_fmt_vid_cap_mplane	= fimc_cap_s_fmt_mplane,
 	.vidioc_g_fmt_vid_cap_mplane	= fimc_cap_g_fmt_mplane,
@@ -1416,7 +1420,7 @@ static int fimc_link_setup(struct media_entity *entity,
 		return 0;
 
 	return v4l2_ctrl_add_handler(&vc->ctx->ctrls.handler,
-				     sensor->ctrl_handler, NULL);
+				     sensor->ctrl_handler, NULL, true);
 }
 
 static const struct media_entity_operations fimc_sd_media_ops = {
@@ -1610,6 +1614,7 @@ static int fimc_subdev_get_selection(struct v4l2_subdev *sd,
 	switch (sel->target) {
 	case V4L2_SEL_TGT_COMPOSE_BOUNDS:
 		f = &ctx->d_frame;
+		/* fall through */
 	case V4L2_SEL_TGT_CROP_BOUNDS:
 		r->width = f->o_width;
 		r->height = f->o_height;
@@ -1695,7 +1700,7 @@ static int fimc_subdev_set_selection(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static struct v4l2_subdev_pad_ops fimc_subdev_pad_ops = {
+static const struct v4l2_subdev_pad_ops fimc_subdev_pad_ops = {
 	.enum_mbus_code = fimc_subdev_enum_mbus_code,
 	.get_selection = fimc_subdev_get_selection,
 	.set_selection = fimc_subdev_set_selection,
@@ -1703,7 +1708,7 @@ static struct v4l2_subdev_pad_ops fimc_subdev_pad_ops = {
 	.set_fmt = fimc_subdev_set_fmt,
 };
 
-static struct v4l2_subdev_ops fimc_subdev_ops = {
+static const struct v4l2_subdev_ops fimc_subdev_ops = {
 	.pad = &fimc_subdev_pad_ops,
 };
 
@@ -1756,6 +1761,7 @@ static int fimc_register_capture_device(struct fimc_dev *fimc,
 	vfd->release	= video_device_release_empty;
 	vfd->queue	= q;
 	vfd->lock	= &fimc->lock;
+	vfd->device_caps = V4L2_CAP_STREAMING | V4L2_CAP_VIDEO_CAPTURE_MPLANE;
 
 	video_set_drvdata(vfd, fimc);
 	vid_cap = &fimc->vid_cap;

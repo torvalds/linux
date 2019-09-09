@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _XFRM_HASH_H
 #define _XFRM_HASH_H
 
@@ -12,7 +13,7 @@ static inline unsigned int __xfrm4_addr_hash(const xfrm_address_t *addr)
 
 static inline unsigned int __xfrm6_addr_hash(const xfrm_address_t *addr)
 {
-	return ntohl(addr->a6[2] ^ addr->a6[3]);
+	return jhash2((__force u32 *)addr->a6, 4, 0);
 }
 
 static inline unsigned int __xfrm4_daddr_saddr_hash(const xfrm_address_t *daddr,
@@ -25,8 +26,7 @@ static inline unsigned int __xfrm4_daddr_saddr_hash(const xfrm_address_t *daddr,
 static inline unsigned int __xfrm6_daddr_saddr_hash(const xfrm_address_t *daddr,
 						    const xfrm_address_t *saddr)
 {
-	return ntohl(daddr->a6[2] ^ daddr->a6[3] ^
-		     saddr->a6[2] ^ saddr->a6[3]);
+	return __xfrm6_addr_hash(daddr) ^ __xfrm6_addr_hash(saddr);
 }
 
 static inline u32 __bits2mask32(__u8 bits)
@@ -54,8 +54,8 @@ static inline unsigned int __xfrm4_dpref_spref_hash(const xfrm_address_t *daddr,
 static inline unsigned int __xfrm6_pref_hash(const xfrm_address_t *addr,
 					     __u8 prefixlen)
 {
-	int pdw;
-	int pbi;
+	unsigned int pdw;
+	unsigned int pbi;
 	u32 initval = 0;
 
 	pdw = prefixlen >> 5;     /* num of whole u32 in prefix */

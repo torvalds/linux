@@ -1,0 +1,60 @@
+Qualcomm Bluetooth Chips
+---------------------
+
+This documents the binding structure and common properties for serial
+attached Qualcomm devices.
+
+Serial attached Qualcomm devices shall be a child node of the host UART
+device the slave device is attached to.
+
+Required properties:
+ - compatible: should contain one of the following:
+   * "qcom,qca6174-bt"
+   * "qcom,wcn3990-bt"
+   * "qcom,wcn3998-bt"
+
+Optional properties for compatible string qcom,qca6174-bt:
+
+ - enable-gpios: gpio specifier used to enable chip
+ - clocks: clock provided to the controller (SUSCLK_32KHZ)
+ - firmware-name: specify the name of nvm firmware to load
+
+Required properties for compatible string qcom,wcn399x-bt:
+
+ - vddio-supply: VDD_IO supply regulator handle.
+ - vddxo-supply: VDD_XO supply regulator handle.
+ - vddrf-supply: VDD_RF supply regulator handle.
+ - vddch0-supply: VDD_CH0 supply regulator handle.
+
+Optional properties for compatible string qcom,wcn399x-bt:
+
+ - max-speed: see Documentation/devicetree/bindings/serial/slave-device.txt
+ - firmware-name: specify the name of nvm firmware to load
+
+Examples:
+
+serial@7570000 {
+	label = "BT-UART";
+	status = "okay";
+
+	bluetooth {
+		compatible = "qcom,qca6174-bt";
+
+		enable-gpios = <&pm8994_gpios 19 GPIO_ACTIVE_HIGH>;
+		clocks = <&divclk4>;
+		firmware-name = "nvm_00440302.bin";
+	};
+};
+
+serial@898000 {
+	bluetooth {
+		compatible = "qcom,wcn3990-bt";
+
+		vddio-supply = <&vreg_s4a_1p8>;
+		vddxo-supply = <&vreg_l7a_1p8>;
+		vddrf-supply = <&vreg_l17a_1p3>;
+		vddch0-supply = <&vreg_l25a_3p3>;
+		max-speed = <3200000>;
+		firmware-name = "crnv21.bin";
+	};
+};

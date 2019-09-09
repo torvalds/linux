@@ -1,17 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2013, Steffen Trumtrar <s.trumtrar@pengutronix.de>
  *
  * based on drivers/clk/tegra/clk.h
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
  */
 
 #ifndef __SOCFPGA_CLK_H
@@ -32,6 +23,9 @@
 #define SYSMGR_SDMMC_CTRL_SET(smplsel, drvsel) \
 	((((smplsel) & 0x7) << 3) | (((drvsel) & 0x7) << 0))
 
+#define SYSMGR_SDMMC_CTRL_SET_AS10(smplsel, drvsel) \
+	((((smplsel) & 0x7) << 4) | (((drvsel) & 0x7) << 0))
+
 extern void __iomem *clk_mgr_base_addr;
 extern void __iomem *clk_mgr_a10_base_addr;
 
@@ -51,9 +45,11 @@ struct socfpga_gate_clk {
 	char *parent_name;
 	u32 fixed_div;
 	void __iomem *div_reg;
+	void __iomem *bypass_reg;
 	struct regmap *sys_mgr_base_addr;
 	u32 width;	/* only valid if div_reg != 0 */
 	u32 shift;	/* only valid if div_reg != 0 */
+	u32 bypass_shift;      /* only valid if bypass_reg != 0 */
 	u32 clk_phase[2];
 };
 
@@ -62,8 +58,10 @@ struct socfpga_periph_clk {
 	char *parent_name;
 	u32 fixed_div;
 	void __iomem *div_reg;
+	void __iomem *bypass_reg;
 	u32 width;      /* only valid if div_reg != 0 */
 	u32 shift;      /* only valid if div_reg != 0 */
+	u32 bypass_shift;      /* only valid if bypass_reg != 0 */
 };
 
 #endif /* SOCFPGA_CLK_H */

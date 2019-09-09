@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _S3C24XX_UDA134X_H_
 #define _S3C24XX_UDA134X_H_ 1
 

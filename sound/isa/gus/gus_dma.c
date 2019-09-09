@@ -1,22 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Routines for GF1 DMA control
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
- *
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <asm/dma.h>
@@ -201,10 +186,9 @@ int snd_gf1_dma_transfer_block(struct snd_gus_card * gus,
 	struct snd_gf1_dma_block *block;
 
 	block = kmalloc(sizeof(*block), atomic ? GFP_ATOMIC : GFP_KERNEL);
-	if (block == NULL) {
-		snd_printk(KERN_ERR "gf1: DMA transfer failure; not enough memory\n");
+	if (!block)
 		return -ENOMEM;
-	}
+
 	*block = *__block;
 	block->next = NULL;
 

@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *      Meson Watchdog Driver
  *
  *      Copyright (c) 2014 Carlo Caione
- *
- *      This program is free software; you can redistribute it and/or
- *      modify it under the terms of the GNU General Public License
- *      as published by the Free Software Foundation; either version
- *      2 of the License, or (at your option) any later version.
  */
 
 #include <linux/clk.h>
@@ -36,7 +32,7 @@
 #define MESON_SEC_TO_TC(s, c)	((s) * (c))
 
 static bool nowayout = WATCHDOG_NOWAYOUT;
-static unsigned int timeout = MESON_WDT_TIMEOUT;
+static unsigned int timeout;
 
 struct meson_wdt_data {
 	unsigned int enable;
@@ -155,35 +151,36 @@ static const struct watchdog_ops meson_wdt_ops = {
 
 static const struct of_device_id meson_wdt_dt_ids[] = {
 	{ .compatible = "amlogic,meson6-wdt", .data = &meson6_wdt_data },
+	{ .compatible = "amlogic,meson8-wdt", .data = &meson6_wdt_data },
 	{ .compatible = "amlogic,meson8b-wdt", .data = &meson8b_wdt_data },
+	{ .compatible = "amlogic,meson8m2-wdt", .data = &meson8b_wdt_data },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, meson_wdt_dt_ids);
 
 static int meson_wdt_probe(struct platform_device *pdev)
 {
-	struct resource *res;
+	struct device *dev = &pdev->dev;
 	struct meson_wdt_dev *meson_wdt;
 	const struct of_device_id *of_id;
 	int err;
 
-	meson_wdt = devm_kzalloc(&pdev->dev, sizeof(*meson_wdt), GFP_KERNEL);
+	meson_wdt = devm_kzalloc(dev, sizeof(*meson_wdt), GFP_KERNEL);
 	if (!meson_wdt)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	meson_wdt->wdt_base = devm_ioremap_resource(&pdev->dev, res);
+	meson_wdt->wdt_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(meson_wdt->wdt_base))
 		return PTR_ERR(meson_wdt->wdt_base);
 
-	of_id = of_match_device(meson_wdt_dt_ids, &pdev->dev);
+	of_id = of_match_device(meson_wdt_dt_ids, dev);
 	if (!of_id) {
-		dev_err(&pdev->dev, "Unable to initialize WDT data\n");
+		dev_err(dev, "Unable to initialize WDT data\n");
 		return -ENODEV;
 	}
 	meson_wdt->data = of_id->data;
 
-	meson_wdt->wdt_dev.parent = &pdev->dev;
+	meson_wdt->wdt_dev.parent = dev;
 	meson_wdt->wdt_dev.info = &meson_wdt_info;
 	meson_wdt->wdt_dev.ops = &meson_wdt_ops;
 	meson_wdt->wdt_dev.max_timeout =
@@ -195,44 +192,25 @@ static int meson_wdt_probe(struct platform_device *pdev)
 
 	watchdog_set_drvdata(&meson_wdt->wdt_dev, meson_wdt);
 
-	watchdog_init_timeout(&meson_wdt->wdt_dev, timeout, &pdev->dev);
+	watchdog_init_timeout(&meson_wdt->wdt_dev, timeout, dev);
 	watchdog_set_nowayout(&meson_wdt->wdt_dev, nowayout);
 	watchdog_set_restart_priority(&meson_wdt->wdt_dev, 128);
 
 	meson_wdt_stop(&meson_wdt->wdt_dev);
 
-	err = watchdog_register_device(&meson_wdt->wdt_dev);
+	watchdog_stop_on_reboot(&meson_wdt->wdt_dev);
+	err = devm_watchdog_register_device(dev, &meson_wdt->wdt_dev);
 	if (err)
 		return err;
 
-	platform_set_drvdata(pdev, meson_wdt);
-
-	dev_info(&pdev->dev, "Watchdog enabled (timeout=%d sec, nowayout=%d)",
+	dev_info(dev, "Watchdog enabled (timeout=%d sec, nowayout=%d)",
 		 meson_wdt->wdt_dev.timeout, nowayout);
 
 	return 0;
 }
 
-static int meson_wdt_remove(struct platform_device *pdev)
-{
-	struct meson_wdt_dev *meson_wdt = platform_get_drvdata(pdev);
-
-	watchdog_unregister_device(&meson_wdt->wdt_dev);
-
-	return 0;
-}
-
-static void meson_wdt_shutdown(struct platform_device *pdev)
-{
-	struct meson_wdt_dev *meson_wdt = platform_get_drvdata(pdev);
-
-	meson_wdt_stop(&meson_wdt->wdt_dev);
-}
-
 static struct platform_driver meson_wdt_driver = {
 	.probe		= meson_wdt_probe,
-	.remove		= meson_wdt_remove,
-	.shutdown	= meson_wdt_shutdown,
 	.driver		= {
 		.name		= DRV_NAME,
 		.of_match_table	= meson_wdt_dt_ids,

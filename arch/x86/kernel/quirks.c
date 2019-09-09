@@ -1,10 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * This file contains work-arounds for x86 and x86_64 platform bugs.
  */
+#include <linux/dmi.h>
 #include <linux/pci.h>
 #include <linux/irq.h>
 
 #include <asm/hpet.h>
+#include <asm/setup.h>
 
 #if defined(CONFIG_X86_IO_APIC) && defined(CONFIG_SMP) && defined(CONFIG_PCI)
 
@@ -643,12 +646,19 @@ static void quirk_intel_brickland_xeon_ras_cap(struct pci_dev *pdev)
 /* Skylake */
 static void quirk_intel_purley_xeon_ras_cap(struct pci_dev *pdev)
 {
-	u32 capid0;
+	u32 capid0, capid5;
 
 	pci_read_config_dword(pdev, 0x84, &capid0);
+	pci_read_config_dword(pdev, 0x98, &capid5);
 
-	if ((capid0 & 0xc0) == 0xc0)
+	/*
+	 * CAPID0{7:6} indicate whether this is an advanced RAS SKU
+	 * CAPID5{8:5} indicate that various NVDIMM usage modes are
+	 * enabled, so memory machine check recovery is also enabled.
+	 */
+	if ((capid0 & 0xc0) == 0xc0 || (capid5 & 0x1e0))
 		static_branch_inc(&mcsafe_key);
+
 }
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, 0x0ec3, quirk_intel_brickland_xeon_ras_cap);
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, 0x2fc0, quirk_intel_brickland_xeon_ras_cap);
@@ -656,3 +666,12 @@ DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, 0x6fc0, quirk_intel_brickland_xeon_
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, 0x2083, quirk_intel_purley_xeon_ras_cap);
 #endif
 #endif
+
+bool x86_apple_machine;
+EXPORT_SYMBOL(x86_apple_machine);
+
+void __init early_platform_quirks(void)
+{
+	x86_apple_machine = dmi_match(DMI_SYS_VENDOR, "Apple Inc.") ||
+			    dmi_match(DMI_SYS_VENDOR, "Apple Computer, Inc.");
+}

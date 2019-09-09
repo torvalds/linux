@@ -1,22 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* IEEE754 floating point arithmetic
  * double precision: common utilities
  */
 /*
  * MIPS floating point support
  * Copyright (C) 1994-2000 Algorithmics Ltd.
- *
- *  This program is free software; you can distribute it and/or modify it
- *  under the terms of the GNU General Public License (Version 2) as
- *  published by the Free Software Foundation.
- *
- *  This program is distributed in the hope it will be useful, but WITHOUT
- *  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- *  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- *  for more details.
- *
- *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA.
  */
 
 #include "ieee754dp.h"
@@ -26,10 +14,10 @@ union ieee754dp ieee754dp_mul(union ieee754dp x, union ieee754dp y)
 	int re;
 	int rs;
 	u64 rm;
-	unsigned lxm;
-	unsigned hxm;
-	unsigned lym;
-	unsigned hym;
+	unsigned int lxm;
+	unsigned int hxm;
+	unsigned int lym;
+	unsigned int hym;
 	u64 lrm;
 	u64 hrm;
 	u64 t;
@@ -101,6 +89,7 @@ union ieee754dp ieee754dp_mul(union ieee754dp x, union ieee754dp y)
 
 	case CLPAIR(IEEE754_CLASS_DNORM, IEEE754_CLASS_DNORM):
 		DPDNORMX;
+		/* fall through */
 
 	case CLPAIR(IEEE754_CLASS_NORM, IEEE754_CLASS_DNORM):
 		DPDNORMY;
@@ -127,9 +116,6 @@ union ieee754dp ieee754dp_mul(union ieee754dp x, union ieee754dp y)
 	/*
 	 * Multiply 64 bits xm, ym to give high 64 bits rm with stickness.
 	 */
-
-	/* 32 * 32 => 64 */
-#define DPXMULT(x, y)	((u64)(x) * (u64)y)
 
 	lxm = xm;
 	hxm = xm >> 32;

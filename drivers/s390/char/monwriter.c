@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Character device driver for writing z/VM *MONITOR service records.
  *
@@ -21,7 +22,7 @@
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/ebcdic.h>
 #include <asm/io.h>
 #include <asm/appldata.h>
@@ -57,22 +58,31 @@ struct mon_private {
 
 static int monwrite_diag(struct monwrite_hdr *myhdr, char *buffer, int fcn)
 {
-	struct appldata_product_id id;
+	struct appldata_parameter_list *parm_list;
+	struct appldata_product_id *id;
 	int rc;
 
-	strncpy(id.prod_nr, "LNXAPPL", 7);
-	id.prod_fn = myhdr->applid;
-	id.record_nr = myhdr->record_num;
-	id.version_nr = myhdr->version;
-	id.release_nr = myhdr->release;
-	id.mod_lvl = myhdr->mod_level;
-	rc = appldata_asm(&id, fcn, (void *) buffer, myhdr->datalen);
+	id = kmalloc(sizeof(*id), GFP_KERNEL);
+	parm_list = kmalloc(sizeof(*parm_list), GFP_KERNEL);
+	rc = -ENOMEM;
+	if (!id || !parm_list)
+		goto out;
+	memcpy(id->prod_nr, "LNXAPPL", 7);
+	id->prod_fn = myhdr->applid;
+	id->record_nr = myhdr->record_num;
+	id->version_nr = myhdr->version;
+	id->release_nr = myhdr->release;
+	id->mod_lvl = myhdr->mod_level;
+	rc = appldata_asm(parm_list, id, fcn,
+			  (void *) buffer, myhdr->datalen);
 	if (rc <= 0)
-		return rc;
+		goto out;
 	pr_err("Writing monitor data failed with rc=%i\n", rc);
-	if (rc == 5)
-		return -EPERM;
-	return -EINVAL;
+	rc = (rc == 5) ? -EPERM : -EINVAL;
+out:
+	kfree(id);
+	kfree(parm_list);
+	return rc;
 }
 
 static struct mon_buf *monwrite_find_hdr(struct mon_private *monpriv,

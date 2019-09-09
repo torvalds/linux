@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: GPL-2.0
+config RTL8723BS
+	tristate "Realtek RTL8723BS SDIO Wireless LAN NIC driver"
+	depends on WLAN && MMC && CFG80211
+	depends on m
+	select WIRELESS_EXT
+	select WEXT_PRIV
+	help
+	This option enables support for RTL8723BS SDIO drivers, such as
+	the wifi found on the 1st gen Intel Compute Stick, the CHIP
+	and many other Intel Atom and ARM based devices.
+	If built as a module, it will be called r8723bs.

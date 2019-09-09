@@ -1,3 +1,5 @@
+.. SPDX-License-Identifier: GPL-2.0
+
 The Virtual Video Test Driver (vivid)
 =====================================
 
@@ -262,6 +264,14 @@ all configurable using the following module options:
 	controls that select crop, compose and scale behavior are also
 	removed. Unless overridden by ccs_cap_mode and/or ccs_out_mode the
 	will default to enabling crop, compose and scaling.
+
+- allocators:
+
+	memory allocator selection, default is 0. It specifies the way buffers
+	will be allocated.
+
+		- 0: vmalloc
+		- 1: dma-contig
 
 Taken together, all these module options allow you to precisely customize
 the driver behavior and test your application with all sorts of permutations.
@@ -821,6 +831,7 @@ The following two controls are only valid for video and vbi capture.
 The following two controls are only valid for video capture.
 
 - DV Timings Signal Mode:
+
 	selects the behavior of VIDIOC_QUERY_DV_TIMINGS: what
 	should it return?
 
@@ -929,6 +940,11 @@ Digital Video Controls
 	sets the transmit mode of the HDMI output to HDMI or DVI-D. This
 	affects the reported colorspace since DVI_D outputs will always use
 	sRGB.
+
+- Display Present:
+
+	sets the presence of a "display" on the HDMI output. This affects
+	the tx_edid_present, tx_hotplug and tx_rxsense controls.
 
 
 FM Radio Receiver Controls

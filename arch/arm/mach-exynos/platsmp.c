@@ -1,16 +1,11 @@
- /*
- * Copyright (c) 2010-2011 Samsung Electronics Co., Ltd.
- *		http://www.samsung.com
- *
- * Cloned from linux/arch/arm/mach-vexpress/platsmp.c
- *
- *  Copyright (C) 2002 ARM Ltd.
- *  All Rights Reserved
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
-*/
+// SPDX-License-Identifier: GPL-2.0
+// Copyright (c) 2010-2011 Samsung Electronics Co., Ltd.
+//		http://www.samsung.com
+//
+// Cloned from linux/arch/arm/mach-vexpress/platsmp.c
+//
+//  Copyright (C) 2002 ARM Ltd.
+//  All Rights Reserved
 
 #include <linux/init.h>
 #include <linux/errno.h>
@@ -32,6 +27,9 @@
 #include "common.h"
 
 extern void exynos4_secondary_startup(void);
+
+/* XXX exynos_pen_release is cargo culted code - DO NOT COPY XXX */
+volatile int exynos_pen_release = -1;
 
 #ifdef CONFIG_HOTPLUG_CPU
 static inline void cpu_leave_lowpower(u32 core_id)
@@ -62,7 +60,7 @@ static inline void platform_do_lowpower(unsigned int cpu, int *spurious)
 
 		wfi();
 
-		if (pen_release == core_id) {
+		if (exynos_pen_release == core_id) {
 			/*
 			 * OK, proper wakeup, we're done
 			 */
@@ -168,6 +166,26 @@ int exynos_cluster_power_state(int cluster)
 		S5P_CORE_LOCAL_PWR_EN);
 }
 
+/**
+ * exynos_scu_enable : enables SCU for Cortex-A9 based system
+ */
+void exynos_scu_enable(void)
+{
+	struct device_node *np;
+	static void __iomem *scu_base;
+
+	if (!scu_base) {
+		np = of_find_compatible_node(NULL, NULL, "arm,cortex-a9-scu");
+		if (np) {
+			scu_base = of_iomap(np, 0);
+			of_node_put(np);
+		} else {
+			scu_base = ioremap(scu_a9_get_base(), SZ_4K);
+		}
+	}
+	scu_enable(scu_base);
+}
+
 static void __iomem *cpu_boot_reg_base(void)
 {
 	if (soc_is_exynos4210() && samsung_rev() == EXYNOS4210_REV_1_1)
@@ -196,13 +214,20 @@ static inline void __iomem *cpu_boot_reg(int cpu)
  */
 void exynos_core_restart(u32 core_id)
 {
+	unsigned int timeout = 16;
 	u32 val;
 
 	if (!of_machine_is_compatible("samsung,exynos3250"))
 		return;
 
-	while (!pmu_raw_readl(S5P_PMU_SPARE2))
+	while (timeout && !pmu_raw_readl(S5P_PMU_SPARE2)) {
+		timeout--;
 		udelay(10);
+	}
+	if (timeout == 0) {
+		pr_err("cpu core %u restart failed\n", core_id);
+		return;
+	}
 	udelay(10);
 
 	val = pmu_raw_readl(EXYNOS_ARM_CORE_STATUS(core_id));
@@ -213,20 +238,17 @@ void exynos_core_restart(u32 core_id)
 }
 
 /*
- * Write pen_release in a way that is guaranteed to be visible to all
- * observers, irrespective of whether they're taking part in coherency
+ * XXX CARGO CULTED CODE - DO NOT COPY XXX
+ *
+ * Write exynos_pen_release in a way that is guaranteed to be visible to
+ * all observers, irrespective of whether they're taking part in coherency
  * or not.  This is necessary for the hotplug code to work reliably.
  */
-static void write_pen_release(int val)
+static void exynos_write_pen_release(int val)
 {
-	pen_release = val;
+	exynos_pen_release = val;
 	smp_wmb();
-	sync_cache_w(&pen_release);
-}
-
-static void __iomem *scu_base_addr(void)
-{
-	return (void __iomem *)(S5P_VA_SCU);
+	sync_cache_w(&exynos_pen_release);
 }
 
 static DEFINE_SPINLOCK(boot_lock);
@@ -237,7 +259,7 @@ static void exynos_secondary_init(unsigned int cpu)
 	 * let the primary processor know we're out of the
 	 * pen, then head off into the C entry point
 	 */
-	write_pen_release(-1);
+	exynos_write_pen_release(-1);
 
 	/*
 	 * Synchronise with the boot thread.
@@ -312,12 +334,12 @@ static int exynos_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	/*
 	 * The secondary processor is waiting to be released from
 	 * the holding pen - release it, then wait for it to flag
-	 * that it has been released by resetting pen_release.
+	 * that it has been released by resetting exynos_pen_release.
 	 *
-	 * Note that "pen_release" is the hardware CPU core ID, whereas
+	 * Note that "exynos_pen_release" is the hardware CPU core ID, whereas
 	 * "cpu" is Linux's internal ID.
 	 */
-	write_pen_release(core_id);
+	exynos_write_pen_release(core_id);
 
 	if (!exynos_cpu_power_state(core_id)) {
 		exynos_cpu_power_up(core_id);
@@ -326,9 +348,9 @@ static int exynos_boot_secondary(unsigned int cpu, struct task_struct *idle)
 		/* wait max 10 ms until cpu1 is on */
 		while (exynos_cpu_power_state(core_id)
 		       != S5P_CORE_LOCAL_PWR_EN) {
-			if (timeout-- == 0)
+			if (timeout == 0)
 				break;
-
+			timeout--;
 			mdelay(1);
 		}
 
@@ -353,7 +375,7 @@ static int exynos_boot_secondary(unsigned int cpu, struct task_struct *idle)
 
 		smp_rmb();
 
-		boot_addr = virt_to_phys(exynos4_secondary_startup);
+		boot_addr = __pa_symbol(exynos4_secondary_startup);
 
 		ret = exynos_set_boot_addr(core_id, boot_addr);
 		if (ret)
@@ -366,13 +388,13 @@ static int exynos_boot_secondary(unsigned int cpu, struct task_struct *idle)
 		else
 			arch_send_wakeup_ipi_mask(cpumask_of(cpu));
 
-		if (pen_release == -1)
+		if (exynos_pen_release == -1)
 			break;
 
 		udelay(10);
 	}
 
-	if (pen_release != -1)
+	if (exynos_pen_release != -1)
 		ret = -ETIMEDOUT;
 
 	/*
@@ -382,73 +404,17 @@ static int exynos_boot_secondary(unsigned int cpu, struct task_struct *idle)
 fail:
 	spin_unlock(&boot_lock);
 
-	return pen_release != -1 ? ret : 0;
-}
-
-/*
- * Initialise the CPU possible map early - this describes the CPUs
- * which may be present or become present in the system.
- */
-
-static void __init exynos_smp_init_cpus(void)
-{
-	void __iomem *scu_base = scu_base_addr();
-	unsigned int i, ncores;
-
-	if (read_cpuid_part() == ARM_CPU_PART_CORTEX_A9)
-		ncores = scu_base ? scu_get_core_count(scu_base) : 1;
-	else
-		/*
-		 * CPU Nodes are passed thru DT and set_cpu_possible
-		 * is set by "arm_dt_init_cpu_maps".
-		 */
-		return;
-
-	/* sanity check */
-	if (ncores > nr_cpu_ids) {
-		pr_warn("SMP: %u cores greater than maximum (%u), clipping\n",
-			ncores, nr_cpu_ids);
-		ncores = nr_cpu_ids;
-	}
-
-	for (i = 0; i < ncores; i++)
-		set_cpu_possible(i, true);
+	return exynos_pen_release != -1 ? ret : 0;
 }
 
 static void __init exynos_smp_prepare_cpus(unsigned int max_cpus)
 {
-	int i;
-
 	exynos_sysram_init();
 
 	exynos_set_delayed_reset_assertion(true);
 
 	if (read_cpuid_part() == ARM_CPU_PART_CORTEX_A9)
-		scu_enable(scu_base_addr());
-
-	/*
-	 * Write the address of secondary startup into the
-	 * system-wide flags register. The boot monitor waits
-	 * until it receives a soft interrupt, and then the
-	 * secondary CPU branches to this address.
-	 *
-	 * Try using firmware operation first and fall back to
-	 * boot register if it fails.
-	 */
-	for (i = 1; i < max_cpus; ++i) {
-		unsigned long boot_addr;
-		u32 mpidr;
-		u32 core_id;
-		int ret;
-
-		mpidr = cpu_logical_map(i);
-		core_id = MPIDR_AFFINITY_LEVEL(mpidr, 0);
-		boot_addr = virt_to_phys(exynos4_secondary_startup);
-
-		ret = exynos_set_boot_addr(core_id, boot_addr);
-		if (ret)
-			break;
-	}
+		exynos_scu_enable();
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
@@ -479,7 +445,6 @@ static void exynos_cpu_die(unsigned int cpu)
 #endif /* CONFIG_HOTPLUG_CPU */
 
 const struct smp_operations exynos_smp_ops __initconst = {
-	.smp_init_cpus		= exynos_smp_init_cpus,
 	.smp_prepare_cpus	= exynos_smp_prepare_cpus,
 	.smp_secondary_init	= exynos_secondary_init,
 	.smp_boot_secondary	= exynos_boot_secondary,

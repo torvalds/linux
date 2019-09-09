@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * SAMSUNG EXYNOS5410 SoC device tree source
  *
@@ -7,15 +8,11 @@
  * SAMSUNG EXYNOS5410 SoC device nodes are listed in this file.
  * EXYNOS5410 based board files can include this file and provide
  * values for board specfic bindings.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include "exynos54xx.dtsi"
-#include "exynos-syscon-restart.dtsi"
 #include <dt-bindings/clock/exynos5410.h>
+#include <dt-bindings/clock/exynos-audss-clk.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 
 / {
@@ -82,46 +79,54 @@
 			#clock-cells = <1>;
 		};
 
+		clock_audss: audss-clock-controller@3810000 {
+			compatible = "samsung,exynos5410-audss-clock";
+			reg = <0x03810000 0x0C>;
+			#clock-cells = <1>;
+			clocks = <&fin_pll>, <&clock CLK_FOUT_EPLL>;
+			clock-names = "pll_ref", "pll_in";
+		};
+
 		tmu_cpu0: tmu@10060000 {
 			compatible = "samsung,exynos5420-tmu";
 			reg = <0x10060000 0x100>;
-			interrupts = <GIC_SPI 65 0>;
+			interrupts = <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clock CLK_TMU>;
 			clock-names = "tmu_apbif";
-			#include "exynos4412-tmu-sensor-conf.dtsi"
+			#thermal-sensor-cells = <0>;
 		};
 
 		tmu_cpu1: tmu@10064000 {
 			compatible = "samsung,exynos5420-tmu";
 			reg = <0x10064000 0x100>;
-			interrupts = <GIC_SPI 183 0>;
+			interrupts = <GIC_SPI 183 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clock CLK_TMU>;
 			clock-names = "tmu_apbif";
-			#include "exynos4412-tmu-sensor-conf.dtsi"
+			#thermal-sensor-cells = <0>;
 		};
 
 		tmu_cpu2: tmu@10068000 {
 			compatible = "samsung,exynos5420-tmu";
 			reg = <0x10068000 0x100>;
-			interrupts = <GIC_SPI 184 0>;
+			interrupts = <GIC_SPI 184 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clock CLK_TMU>;
 			clock-names = "tmu_apbif";
-			#include "exynos4412-tmu-sensor-conf.dtsi"
+			#thermal-sensor-cells = <0>;
 		};
 
 		tmu_cpu3: tmu@1006c000 {
 			compatible = "samsung,exynos5420-tmu";
 			reg = <0x1006c000 0x100>;
-			interrupts = <GIC_SPI 185 0>;
+			interrupts = <GIC_SPI 185 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clock CLK_TMU>;
 			clock-names = "tmu_apbif";
-			#include "exynos4412-tmu-sensor-conf.dtsi"
+			#thermal-sensor-cells = <0>;
 		};
 
 		mmc_0: mmc@12200000 {
 			compatible = "samsung,exynos5250-dw-mshc";
 			reg = <0x12200000 0x1000>;
-			interrupts = <0 75 0>;
+			interrupts = <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			clocks = <&clock CLK_MMC0>, <&clock CLK_SCLK_MMC0>;
@@ -133,7 +138,7 @@
 		mmc_1: mmc@12210000 {
 			compatible = "samsung,exynos5250-dw-mshc";
 			reg = <0x12210000 0x1000>;
-			interrupts = <0 76 0>;
+			interrupts = <GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			clocks = <&clock CLK_MMC1>, <&clock CLK_SCLK_MMC1>;
@@ -145,7 +150,7 @@
 		mmc_2: mmc@12220000 {
 			compatible = "samsung,exynos5250-dw-mshc";
 			reg = <0x12220000 0x1000>;
-			interrupts = <0 77 0>;
+			interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			clocks = <&clock CLK_MMC2>, <&clock CLK_SCLK_MMC2>;
@@ -157,31 +162,81 @@
 		pinctrl_0: pinctrl@13400000 {
 			compatible = "samsung,exynos5410-pinctrl";
 			reg = <0x13400000 0x1000>;
-			interrupts = <0 45 0>;
+			interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
 
 			wakeup-interrupt-controller {
 				compatible = "samsung,exynos4210-wakeup-eint";
 				interrupt-parent = <&gic>;
-				interrupts = <0 32 0>;
+				interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
 			};
 		};
 
 		pinctrl_1: pinctrl@14000000 {
 			compatible = "samsung,exynos5410-pinctrl";
 			reg = <0x14000000 0x1000>;
-			interrupts = <0 46 0>;
+			interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		pinctrl_2: pinctrl@10d10000 {
 			compatible = "samsung,exynos5410-pinctrl";
 			reg = <0x10d10000 0x1000>;
-			interrupts = <0 50 0>;
+			interrupts = <GIC_SPI 50 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
-		pinctrl_3: pinctrl@03860000 {
+		pinctrl_3: pinctrl@3860000 {
 			compatible = "samsung,exynos5410-pinctrl";
 			reg = <0x03860000 0x1000>;
-			interrupts = <0 47 0>;
+			interrupts = <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		amba {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "simple-bus";
+			interrupt-parent = <&gic>;
+			ranges;
+
+			pdma0: pdma@121a0000 {
+				compatible = "arm,pl330", "arm,primecell";
+				reg = <0x121a0000 0x1000>;
+				interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clock CLK_PDMA0>;
+				clock-names = "apb_pclk";
+				#dma-cells = <1>;
+				#dma-channels = <8>;
+				#dma-requests = <32>;
+			};
+
+			pdma1: pdma@121b0000 {
+				compatible = "arm,pl330", "arm,primecell";
+				reg = <0x121b0000 0x1000>;
+				interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clock CLK_PDMA1>;
+				clock-names = "apb_pclk";
+				#dma-cells = <1>;
+				#dma-channels = <8>;
+				#dma-requests = <32>;
+			};
+		};
+
+		audi2s0: i2s@3830000 {
+			compatible = "samsung,exynos5420-i2s";
+			reg = <0x03830000 0x100>;
+			dmas = <&pdma0 10
+				&pdma0 9
+				&pdma0 8>;
+			dma-names = "tx", "rx", "tx-sec";
+			clocks = <&clock_audss EXYNOS_I2S_BUS>,
+				<&clock_audss EXYNOS_I2S_BUS>,
+				<&clock_audss EXYNOS_SCLK_I2S>;
+			clock-names = "iis", "i2s_opclk0", "i2s_opclk1";
+			#clock-cells = <1>;
+			clock-output-names = "i2s_cdclk0";
+			#sound-dai-cells = <1>;
+			samsung,idma-addr = <0x03000000>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&audi2s0_bus>;
+			status = "disabled";
 		};
 	};
 
@@ -203,6 +258,17 @@
 		       #include "exynos5420-trip-points.dtsi"
 		};
 	};
+};
+
+&adc {
+	clocks = <&clock CLK_TSADC>;
+	clock-names = "adc";
+	samsung,syscon-phandle = <&pmu_system_controller>;
+};
+
+&arm_a15_pmu {
+	interrupt-affinity = <&cpu0>, <&cpu1>, <&cpu2>, <&cpu3>;
+	status = "okay";
 };
 
 &i2c_0 {
@@ -266,6 +332,11 @@
 	clock-names = "fin_pll", "mct";
 };
 
+&prng {
+	clocks = <&clock CLK_SSS>;
+	clock-names = "secss";
+};
+
 &pwm {
 	clocks = <&clock CLK_PWM>;
 	clock-names = "timers";
@@ -274,28 +345,35 @@
 &rtc {
 	clocks = <&clock CLK_RTC>;
 	clock-names = "rtc";
-	interrupt-parent = <&pmu_system_controller>;
 	status = "disabled";
 };
 
 &serial_0 {
 	clocks = <&clock CLK_UART0>, <&clock CLK_SCLK_UART0>;
 	clock-names = "uart", "clk_uart_baud0";
+	dmas = <&pdma0 13>, <&pdma0 14>;
+	dma-names = "rx", "tx";
 };
 
 &serial_1 {
 	clocks = <&clock CLK_UART1>, <&clock CLK_SCLK_UART1>;
 	clock-names = "uart", "clk_uart_baud0";
+	dmas = <&pdma1 15>, <&pdma1 16>;
+	dma-names = "rx", "tx";
 };
 
 &serial_2 {
 	clocks = <&clock CLK_UART2>, <&clock CLK_SCLK_UART2>;
 	clock-names = "uart", "clk_uart_baud0";
+	dmas = <&pdma0 15>, <&pdma0 16>;
+	dma-names = "rx", "tx";
 };
 
 &serial_3 {
 	clocks = <&clock CLK_UART3>, <&clock CLK_SCLK_UART3>;
 	clock-names = "uart", "clk_uart_baud0";
+	dmas = <&pdma1 17>, <&pdma1 18>;
+	dma-names = "rx", "tx";
 };
 
 &sss {
@@ -310,6 +388,11 @@
 		  1 0 0x05000000 0x20000
 		  2 0 0x06000000 0x20000
 		  3 0 0x07000000 0x20000>;
+};
+
+&trng {
+	clocks = <&clock CLK_SSS>;
+	clock-names = "secss";
 };
 
 &usbdrd3_0 {
@@ -329,7 +412,7 @@
 };
 
 &usbdrd_dwc3_1 {
-	interrupts = <GIC_SPI 200 0>;
+	interrupts = <GIC_SPI 200 IRQ_TYPE_LEVEL_HIGH>;
 };
 
 &usbdrd_phy1 {
@@ -362,3 +445,4 @@
 };
 
 #include "exynos5410-pinctrl.dtsi"
+#include "exynos-syscon-restart.dtsi"

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 .text
 #include <linux/linkage.h>
 #include <asm/segment.h>
@@ -7,7 +8,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/frame.h>
 
-# Copyright 2003 Pavel Machek <pavel@suse.cz>, distribute under GPLv2
+# Copyright 2003 Pavel Machek <pavel@suse.cz
 
 .code64
 	/*
@@ -109,6 +110,15 @@ ENTRY(do_suspend_lowlevel)
 	movq	pt_regs_r14(%rax), %r14
 	movq	pt_regs_r15(%rax), %r15
 
+#ifdef CONFIG_KASAN
+	/*
+	 * The suspend path may have poisoned some areas deeper in the stack,
+	 * which we now need to unpoison.
+	 */
+	movq	%rsp, %rdi
+	call	kasan_unpoison_task_stack_below
+#endif
+
 	xorl	%eax, %eax
 	addq	$8, %rsp
 	FRAME_END
@@ -116,12 +126,12 @@ ENTRY(do_suspend_lowlevel)
 ENDPROC(do_suspend_lowlevel)
 
 .data
-ENTRY(saved_rbp)	.quad	0
-ENTRY(saved_rsi)	.quad	0
-ENTRY(saved_rdi)	.quad	0
-ENTRY(saved_rbx)	.quad	0
+saved_rbp:		.quad	0
+saved_rsi:		.quad	0
+saved_rdi:		.quad	0
+saved_rbx:		.quad	0
 
-ENTRY(saved_rip)	.quad	0
-ENTRY(saved_rsp)	.quad	0
+saved_rip:		.quad	0
+saved_rsp:		.quad	0
 
 ENTRY(saved_magic)	.quad	0

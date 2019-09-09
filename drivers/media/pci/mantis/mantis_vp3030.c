@@ -1,32 +1,20 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
 	Mantis VP-3030 driver
 
 	Copyright (C) Manu Abraham (abraham.manu@gmail.com)
 
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 2 of the License, or
-	(at your option) any later version.
-
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU General Public License for more details.
-
-	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the Free Software
-	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/interrupt.h>
 
-#include "dmxdev.h"
-#include "dvbdev.h"
-#include "dvb_demux.h"
-#include "dvb_frontend.h"
-#include "dvb_net.h"
+#include <media/dmxdev.h>
+#include <media/dvbdev.h>
+#include <media/dvb_demux.h>
+#include <media/dvb_frontend.h>
+#include <media/dvb_net.h>
 
 #include "zl10353.h"
 #include "tda665x.h"
@@ -42,8 +30,8 @@ static struct zl10353_config mantis_vp3030_config = {
 static struct tda665x_config env57h12d5_config = {
 	.name			= "ENV57H12D5 (ET-50DT)",
 	.addr			= 0x60,
-	.frequency_min		=  47000000,
-	.frequency_max		= 862000000,
+	.frequency_min		=  47 * MHz,
+	.frequency_max		= 862 * MHz,
 	.frequency_offst	=   3616667,
 	.ref_multiplier		= 6, /* 1/6 MHz */
 	.ref_divider		= 100000, /* 1/6 MHz */

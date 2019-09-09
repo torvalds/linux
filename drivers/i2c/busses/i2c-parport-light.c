@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* ------------------------------------------------------------------------ *
  * i2c-parport-light.c I2C bus over parallel port                           *
  * ------------------------------------------------------------------------ *
@@ -9,15 +10,6 @@
    Frodo Looijaard <frodol@dds.nl>
    Kyösti Mälkki <kmalkki@cc.hut.fi>
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
-   (at your option) any later version.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
  * ------------------------------------------------------------------------ */
 
 #include <linux/kernel.h>
@@ -38,11 +30,11 @@
 static struct platform_device *pdev;
 
 static u16 base;
-module_param(base, ushort, 0);
+module_param_hw(base, ushort, ioport, 0);
 MODULE_PARM_DESC(base, "Base I/O address");
 
 static int irq;
-module_param(irq, int, 0);
+module_param_hw(irq, int, irq, 0);
 MODULE_PARM_DESC(irq, "IRQ (optional)");
 
 /* ----- Low-level parallel port access ----------------------------------- */
@@ -123,7 +115,6 @@ static struct i2c_adapter parport_adapter = {
 
 /* SMBus alert support */
 static struct i2c_smbus_alert_setup alert_data = {
-	.alert_edge_triggered	= 1,
 };
 static struct i2c_client *ara;
 static struct lineop parport_ctrl_irq = {

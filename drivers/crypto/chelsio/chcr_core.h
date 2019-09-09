@@ -39,6 +39,7 @@
 #include <crypto/algapi.h>
 #include "t4_hw.h"
 #include "cxgb4.h"
+#include "t4_msg.h"
 #include "cxgb4_uld.h"
 
 #define DRV_MODULE_NAME "chcr"
@@ -46,35 +47,179 @@
 
 #define MAX_PENDING_REQ_TO_HW 20
 #define CHCR_TEST_RESPONSE_TIMEOUT 1000
-
+#define WQ_DETACH_TM	(msecs_to_jiffies(50))
 #define PAD_ERROR_BIT		1
 #define CHK_PAD_ERR_BIT(x)	(((x) >> PAD_ERROR_BIT) & 1)
 
 #define MAC_ERROR_BIT		0
 #define CHK_MAC_ERR_BIT(x)	(((x) >> MAC_ERROR_BIT) & 1)
+#define MAX_SALT                4
+#define CIP_WR_MIN_LEN (sizeof(struct chcr_wr) + \
+		    sizeof(struct cpl_rx_phys_dsgl) + \
+		    sizeof(struct ulptx_sgl) + 16) //IV
 
+#define HASH_WR_MIN_LEN (sizeof(struct chcr_wr) + \
+			DUMMY_BYTES + \
+		    sizeof(struct ulptx_sgl))
 struct uld_ctx;
 
+struct _key_ctx {
+	__be32 ctx_hdr;
+	u8 salt[MAX_SALT];
+	__be64 iv_to_auth;
+	unsigned char key[0];
+};
+
+#define KEYCTX_TX_WR_IV_S  55
+#define KEYCTX_TX_WR_IV_M  0x1ffULL
+#define KEYCTX_TX_WR_IV_V(x) ((x) << KEYCTX_TX_WR_IV_S)
+#define KEYCTX_TX_WR_IV_G(x) \
+	(((x) >> KEYCTX_TX_WR_IV_S) & KEYCTX_TX_WR_IV_M)
+
+#define KEYCTX_TX_WR_AAD_S 47
+#define KEYCTX_TX_WR_AAD_M 0xffULL
+#define KEYCTX_TX_WR_AAD_V(x) ((x) << KEYCTX_TX_WR_AAD_S)
+#define KEYCTX_TX_WR_AAD_G(x) (((x) >> KEYCTX_TX_WR_AAD_S) & \
+				KEYCTX_TX_WR_AAD_M)
+
+#define KEYCTX_TX_WR_AADST_S 39
+#define KEYCTX_TX_WR_AADST_M 0xffULL
+#define KEYCTX_TX_WR_AADST_V(x) ((x) << KEYCTX_TX_WR_AADST_S)
+#define KEYCTX_TX_WR_AADST_G(x) \
+	(((x) >> KEYCTX_TX_WR_AADST_S) & KEYCTX_TX_WR_AADST_M)
+
+#define KEYCTX_TX_WR_CIPHER_S 30
+#define KEYCTX_TX_WR_CIPHER_M 0x1ffULL
+#define KEYCTX_TX_WR_CIPHER_V(x) ((x) << KEYCTX_TX_WR_CIPHER_S)
+#define KEYCTX_TX_WR_CIPHER_G(x) \
+	(((x) >> KEYCTX_TX_WR_CIPHER_S) & KEYCTX_TX_WR_CIPHER_M)
+
+#define KEYCTX_TX_WR_CIPHERST_S 23
+#define KEYCTX_TX_WR_CIPHERST_M 0x7f
+#define KEYCTX_TX_WR_CIPHERST_V(x) ((x) << KEYCTX_TX_WR_CIPHERST_S)
+#define KEYCTX_TX_WR_CIPHERST_G(x) \
+	(((x) >> KEYCTX_TX_WR_CIPHERST_S) & KEYCTX_TX_WR_CIPHERST_M)
+
+#define KEYCTX_TX_WR_AUTH_S 14
+#define KEYCTX_TX_WR_AUTH_M 0x1ff
+#define KEYCTX_TX_WR_AUTH_V(x) ((x) << KEYCTX_TX_WR_AUTH_S)
+#define KEYCTX_TX_WR_AUTH_G(x) \
+	(((x) >> KEYCTX_TX_WR_AUTH_S) & KEYCTX_TX_WR_AUTH_M)
+
+#define KEYCTX_TX_WR_AUTHST_S 7
+#define KEYCTX_TX_WR_AUTHST_M 0x7f
+#define KEYCTX_TX_WR_AUTHST_V(x) ((x) << KEYCTX_TX_WR_AUTHST_S)
+#define KEYCTX_TX_WR_AUTHST_G(x) \
+	(((x) >> KEYCTX_TX_WR_AUTHST_S) & KEYCTX_TX_WR_AUTHST_M)
+
+#define KEYCTX_TX_WR_AUTHIN_S 0
+#define KEYCTX_TX_WR_AUTHIN_M 0x7f
+#define KEYCTX_TX_WR_AUTHIN_V(x) ((x) << KEYCTX_TX_WR_AUTHIN_S)
+#define KEYCTX_TX_WR_AUTHIN_G(x) \
+	(((x) >> KEYCTX_TX_WR_AUTHIN_S) & KEYCTX_TX_WR_AUTHIN_M)
+
+#define WQ_RETRY	5
+struct chcr_driver_data {
+	struct list_head act_dev;
+	struct list_head inact_dev;
+	atomic_t dev_count;
+	struct mutex drv_mutex;
+	struct uld_ctx *last_dev;
+};
+
+enum chcr_state {
+	CHCR_INIT = 0,
+	CHCR_ATTACH,
+	CHCR_DETACH,
+};
+struct chcr_wr {
+	struct fw_crypto_lookaside_wr wreq;
+	struct ulp_txpkt ulptx;
+	struct ulptx_idata sc_imm;
+	struct cpl_tx_sec_pdu sec_cpl;
+	struct _key_ctx key_ctx;
+};
+
 struct chcr_dev {
-	/* Request submited to h/w and waiting for response. */
 	spinlock_t lock_chcr_dev;
-	struct crypto_queue pending_queue;
-	struct uld_ctx *u_ctx;
+	enum chcr_state state;
+	atomic_t inflight;
+	int wqretry;
+	struct delayed_work detach_work;
+	struct completion detach_comp;
 	unsigned char tx_channel_id;
 };
 
 struct uld_ctx {
 	struct list_head entry;
 	struct cxgb4_lld_info lldi;
-	struct chcr_dev *dev;
+	struct chcr_dev dev;
 };
 
-int assign_chcr_device(struct chcr_dev **dev);
+struct sge_opaque_hdr {
+	void *dev;
+	dma_addr_t addr[MAX_SKB_FRAGS + 1];
+};
+
+struct chcr_ipsec_req {
+	struct ulp_txpkt ulptx;
+	struct ulptx_idata sc_imm;
+	struct cpl_tx_sec_pdu sec_cpl;
+	struct _key_ctx key_ctx;
+};
+
+struct chcr_ipsec_wr {
+	struct fw_ulptx_wr wreq;
+	struct chcr_ipsec_req req;
+};
+
+#define ESN_IV_INSERT_OFFSET 12
+struct chcr_ipsec_aadiv {
+	__be32 spi;
+	u8 seq_no[8];
+	u8 iv[8];
+};
+
+struct ipsec_sa_entry {
+	int hmac_ctrl;
+	u16 esn;
+	u16 resv;
+	unsigned int enckey_len;
+	unsigned int kctx_len;
+	unsigned int authsize;
+	__be32 key_ctx_hdr;
+	char salt[MAX_SALT];
+	char key[2 * AES_MAX_KEY_SIZE];
+};
+
+/*
+ *      sgl_len - calculates the size of an SGL of the given capacity
+ *      @n: the number of SGL entries
+ *      Calculates the number of flits needed for a scatter/gather list that
+ *      can hold the given number of entries.
+ */
+static inline unsigned int sgl_len(unsigned int n)
+{
+	n--;
+	return (3 * n) / 2 + (n & 1) + 2;
+}
+
+static inline void *padap(struct chcr_dev *dev)
+{
+	struct uld_ctx *u_ctx = container_of(dev, struct uld_ctx, dev);
+
+	return pci_get_drvdata(u_ctx->lldi.pdev);
+}
+
+struct uld_ctx *assign_chcr_device(void);
 int chcr_send_wr(struct sk_buff *skb);
 int start_crypto(void);
 int stop_crypto(void);
 int chcr_uld_rx_handler(void *handle, const __be64 *rsp,
 			const struct pkt_gl *pgl);
+int chcr_uld_tx_handler(struct sk_buff *skb, struct net_device *dev);
 int chcr_handle_resp(struct crypto_async_request *req, unsigned char *input,
 		     int err);
+int chcr_ipsec_xmit(struct sk_buff *skb, struct net_device *dev);
+void chcr_add_xfrmops(const struct cxgb4_lld_info *lld);
 #endif /* __CHCR_CORE_H__ */

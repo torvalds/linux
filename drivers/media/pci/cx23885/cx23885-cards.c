@@ -1,19 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Driver for the Conexant CX23885 PCIe bridge
  *
  *  Copyright (c) 2006 Steven Toth <stoth@linuxtv.org>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *
- *  GNU General Public License for more details.
  */
+
+#include "cx23885.h"
 
 #include <linux/init.h>
 #include <linux/module.h>
@@ -23,7 +15,6 @@
 #include <linux/firmware.h>
 #include <misc/altera.h>
 
-#include "cx23885.h"
 #include "tuner-xc2028.h"
 #include "netup-eeprom.h"
 #include "netup-init.h"
@@ -770,10 +761,45 @@ struct cx23885_board cx23885_boards[] = {
 		.portb        = CX23885_MPEG_DVB,
 		.portc        = CX23885_MPEG_DVB,
 	},
+	[CX23885_BOARD_HAUPPAUGE_QUADHD_DVB_885] = {
+		.name       = "Hauppauge WinTV-QuadHD-DVB(885)",
+		.portb        = CX23885_MPEG_DVB,
+		.portc        = CX23885_MPEG_DVB,
+	},
 	[CX23885_BOARD_HAUPPAUGE_QUADHD_ATSC] = {
 		.name        = "Hauppauge WinTV-QuadHD-ATSC",
 		.portb        = CX23885_MPEG_DVB,
 		.portc        = CX23885_MPEG_DVB,
+	},
+	[CX23885_BOARD_HAUPPAUGE_QUADHD_ATSC_885] = {
+		.name       = "Hauppauge WinTV-QuadHD-ATSC(885)",
+		.portb        = CX23885_MPEG_DVB,
+		.portc        = CX23885_MPEG_DVB,
+	},
+	[CX23885_BOARD_HAUPPAUGE_HVR1265_K4] = {
+		.name		= "Hauppauge WinTV-HVR-1265(161111)",
+		.porta          = CX23885_ANALOG_VIDEO,
+		.portc		= CX23885_MPEG_DVB,
+		.tuner_type     = TUNER_ABSENT,
+		.force_bff	= 1,
+		.input          = {{
+			.type   = CX23885_VMUX_COMPOSITE1,
+			.vmux   =	CX25840_VIN7_CH3 |
+					CX25840_VIN4_CH2 |
+					CX25840_VIN6_CH1,
+			.amux   = CX25840_AUDIO7,
+		}, {
+			.type   = CX23885_VMUX_SVIDEO,
+			.vmux   =	CX25840_VIN7_CH3 |
+					CX25840_VIN4_CH2 |
+					CX25840_VIN8_CH1 |
+					CX25840_SVIDEO_ON,
+			.amux   = CX25840_AUDIO7,
+		} },
+	},
+	[CX23885_BOARD_HAUPPAUGE_STARBURST2] = {
+		.name		= "Hauppauge WinTV-Starburst2",
+		.portb		= CX23885_MPEG_DVB,
 	},
 };
 const unsigned int cx23885_bcount = ARRAY_SIZE(cx23885_boards);
@@ -1027,6 +1053,10 @@ struct cx23885_subid cx23885_subids[] = {
 		.subdevice = 0x7133,
 		.card      = CX23885_BOARD_HAUPPAUGE_IMPACTVCBE,
 	}, {
+		.subvendor = 0x0070,
+		.subdevice = 0x7137,
+		.card      = CX23885_BOARD_HAUPPAUGE_IMPACTVCBE,
+	}, {
 		.subvendor = 0x18ac,
 		.subdevice = 0xdb98,
 		.card      = CX23885_BOARD_DVICO_FUSIONHDTV_DVB_T_DUAL_EXP2,
@@ -1086,6 +1116,14 @@ struct cx23885_subid cx23885_subids[] = {
 		.subvendor = 0x0070,
 		.subdevice = 0x6b18,
 		.card      = CX23885_BOARD_HAUPPAUGE_QUADHD_ATSC, /* Tuner Pair 2 */
+	}, {
+		.subvendor = 0x0070,
+		.subdevice = 0x2a18,
+		.card      = CX23885_BOARD_HAUPPAUGE_HVR1265_K4, /* Hauppauge WinTV HVR-1265 (Model 161xx1, Hybrid ATSC/QAM-B) */
+	}, {
+		.subvendor = 0x0070,
+		.subdevice = 0xf02a,
+		.card      = CX23885_BOARD_HAUPPAUGE_STARBURST2,
 	},
 };
 const unsigned int cx23885_idcount = ARRAY_SIZE(cx23885_subids);
@@ -1096,26 +1134,24 @@ void cx23885_card_list(struct cx23885_dev *dev)
 
 	if (0 == dev->pci->subsystem_vendor &&
 	    0 == dev->pci->subsystem_device) {
-		printk(KERN_INFO
-			"%s: Board has no valid PCIe Subsystem ID and can't\n"
-		       "%s: be autodetected. Pass card=<n> insmod option\n"
-		       "%s: to workaround that. Redirect complaints to the\n"
-		       "%s: vendor of the TV card.  Best regards,\n"
-		       "%s:         -- tux\n",
-		       dev->name, dev->name, dev->name, dev->name, dev->name);
+		pr_info("%s: Board has no valid PCIe Subsystem ID and can't\n"
+			"%s: be autodetected. Pass card=<n> insmod option\n"
+			"%s: to workaround that. Redirect complaints to the\n"
+			"%s: vendor of the TV card.  Best regards,\n"
+			"%s:         -- tux\n",
+			dev->name, dev->name, dev->name, dev->name, dev->name);
 	} else {
-		printk(KERN_INFO
-			"%s: Your board isn't known (yet) to the driver.\n"
-		       "%s: Try to pick one of the existing card configs via\n"
-		       "%s: card=<n> insmod option.  Updating to the latest\n"
-		       "%s: version might help as well.\n",
-		       dev->name, dev->name, dev->name, dev->name);
+		pr_info("%s: Your board isn't known (yet) to the driver.\n"
+			"%s: Try to pick one of the existing card configs via\n"
+			"%s: card=<n> insmod option.  Updating to the latest\n"
+			"%s: version might help as well.\n",
+			dev->name, dev->name, dev->name, dev->name);
 	}
-	printk(KERN_INFO "%s: Here is a list of valid choices for the card=<n> insmod option:\n",
+	pr_info("%s: Here is a list of valid choices for the card=<n> insmod option:\n",
 	       dev->name);
 	for (i = 0; i < cx23885_bcount; i++)
-		printk(KERN_INFO "%s:    card=%d -> %s\n",
-		       dev->name, i, cx23885_boards[i].name);
+		pr_info("%s:    card=%d -> %s\n",
+			dev->name, i, cx23885_boards[i].name);
 }
 
 static void viewcast_eeprom(struct cx23885_dev *dev, u8 *eeprom_data)
@@ -1144,8 +1180,7 @@ static void hauppauge_eeprom(struct cx23885_dev *dev, u8 *eeprom_data)
 {
 	struct tveeprom tv;
 
-	tveeprom_hauppauge_analog(&dev->i2c_bus[0].i2c_client, &tv,
-		eeprom_data);
+	tveeprom_hauppauge_analog(&tv, eeprom_data);
 
 	/* Make sure we support the board model */
 	switch (tv.model) {
@@ -1280,38 +1315,46 @@ static void hauppauge_eeprom(struct cx23885_dev *dev, u8 *eeprom_data)
 	case 85721:
 		/* WinTV-HVR1290 (PCIe, OEM, RCA in, IR,
 			Dual channel ATSC and Basic analog */
+	case 121019:
+		/* WinTV-HVR4400 (PCIe, DVB-S2, DVB-C/T) */
+		break;
+	case 121029:
+		/* WinTV-HVR5500 (PCIe, DVB-S2, DVB-C/T) */
+		break;
 	case 150329:
 		/* WinTV-HVR5525 (PCIe, DVB-S/S2, DVB-T/T2/C) */
 		break;
-	case 166100:
+	case 161111:
+		/* WinTV-HVR-1265 K4 (PCIe, Analog/ATSC/QAM-B) */
+		break;
+	case 166100: /* 888 version, hybrid */
+	case 166200: /* 885 version, DVB only */
 		/* WinTV-QuadHD (DVB) Tuner Pair 1 (PCIe, IR, half height,
 		   DVB-T/T2/C, DVB-T/T2/C */
 		break;
-	case 166101:
+	case 166101: /* 888 version, hybrid */
+	case 166201: /* 885 version, DVB only */
 		/* WinTV-QuadHD (DVB) Tuner Pair 2 (PCIe, IR, half height,
 		   DVB-T/T2/C, DVB-T/T2/C */
 		break;
-	case 165100:
-		/*
-		 * WinTV-QuadHD (ATSC) Tuner Pair 1 (PCIe, IR, half height,
-		 * ATSC, ATSC
-		 */
+	case 165100: /* 888 version, hybrid */
+	case 165200: /* 885 version, digital only */
+		/* WinTV-QuadHD (ATSC) Tuner Pair 1 (PCIe, IR, half height,
+		 * ATSC/QAM-B, ATSC/QAM-B */
 		break;
-	case 165101:
-		/*
-		 * WinTV-QuadHD (DVB) Tuner Pair 2 (PCIe, IR, half height,
-		 * ATSC, ATSC
-		 */
+	case 165101: /* 888 version, hybrid */
+	case 165201: /* 885 version, digital only */
+		/* WinTV-QuadHD (ATSC) Tuner Pair 2 (PCIe, IR, half height,
+		 * ATSC/QAM-B, ATSC/QAM-B */
 		break;
 	default:
-		printk(KERN_WARNING "%s: warning: "
-			"unknown hauppauge model #%d\n",
+		pr_warn("%s: warning: unknown hauppauge model #%d\n",
 			dev->name, tv.model);
 		break;
 	}
 
-	printk(KERN_INFO "%s: hauppauge eeprom: model=%d\n",
-			dev->name, tv.model);
+	pr_info("%s: hauppauge eeprom: model=%d\n",
+		dev->name, tv.model);
 }
 
 /* Some TBS cards require initing a chip using a bitbanged SPI attached
@@ -1320,7 +1363,7 @@ static void hauppauge_eeprom(struct cx23885_dev *dev, u8 *eeprom_data)
 static void tbs_card_init(struct cx23885_dev *dev)
 {
 	int i;
-	const u8 buf[] = {
+	static const u8 buf[] = {
 		0xe0, 0x06, 0x66, 0x33, 0x65,
 		0x01, 0x17, 0x06, 0xde};
 
@@ -1353,8 +1396,8 @@ int cx23885_tuner_callback(void *priv, int component, int command, int arg)
 		return 0;
 
 	if (command != 0) {
-		printk(KERN_ERR "%s(): Unknown command 0x%x.\n",
-			__func__, command);
+		pr_err("%s(): Unknown command 0x%x.\n",
+		       __func__, command);
 		return -EINVAL;
 	}
 
@@ -1444,20 +1487,20 @@ void cx23885_gpio_setup(struct cx23885_dev *dev)
 
 		/* Put the demod into reset and protect the eeprom */
 		mc417_gpio_clear(dev, GPIO_15 | GPIO_14);
-		mdelay(100);
+		msleep(100);
 
 		/* Bring the demod and blaster out of reset */
 		mc417_gpio_set(dev, GPIO_15 | GPIO_14);
-		mdelay(100);
+		msleep(100);
 
 		/* Force the TDA8295A into reset and back */
 		cx23885_gpio_enable(dev, GPIO_2, 1);
 		cx23885_gpio_set(dev, GPIO_2);
-		mdelay(20);
+		msleep(20);
 		cx23885_gpio_clear(dev, GPIO_2);
-		mdelay(20);
+		msleep(20);
 		cx23885_gpio_set(dev, GPIO_2);
-		mdelay(20);
+		msleep(20);
 		break;
 	case CX23885_BOARD_HAUPPAUGE_HVR1200:
 		/* GPIO-0 tda10048 demodulator reset */
@@ -1465,9 +1508,9 @@ void cx23885_gpio_setup(struct cx23885_dev *dev)
 
 		/* Put the parts into reset and back */
 		cx_set(GP0_IO, 0x00050000);
-		mdelay(20);
+		msleep(20);
 		cx_clear(GP0_IO, 0x00000005);
-		mdelay(20);
+		msleep(20);
 		cx_set(GP0_IO, 0x00050005);
 		break;
 	case CX23885_BOARD_HAUPPAUGE_HVR1700:
@@ -1486,9 +1529,9 @@ void cx23885_gpio_setup(struct cx23885_dev *dev)
 
 		/* Put the parts into reset and back */
 		cx_set(GP0_IO, 0x00050000);
-		mdelay(20);
+		msleep(20);
 		cx_clear(GP0_IO, 0x00000005);
-		mdelay(20);
+		msleep(20);
 		cx_set(GP0_IO, 0x00050005);
 		break;
 	case CX23885_BOARD_HAUPPAUGE_HVR1400:
@@ -1498,9 +1541,9 @@ void cx23885_gpio_setup(struct cx23885_dev *dev)
 
 		/* Put the parts into reset and back */
 		cx_set(GP0_IO, 0x00050000);
-		mdelay(20);
+		msleep(20);
 		cx_clear(GP0_IO, 0x00000005);
-		mdelay(20);
+		msleep(20);
 		cx_set(GP0_IO, 0x00050005);
 		break;
 	case CX23885_BOARD_DVICO_FUSIONHDTV_7_DUAL_EXP:
@@ -1511,9 +1554,9 @@ void cx23885_gpio_setup(struct cx23885_dev *dev)
 
 		/* Put the parts into reset and back */
 		cx_set(GP0_IO, 0x000f0000);
-		mdelay(20);
+		msleep(20);
 		cx_clear(GP0_IO, 0x0000000f);
-		mdelay(20);
+		msleep(20);
 		cx_set(GP0_IO, 0x000f000f);
 		break;
 	case CX23885_BOARD_DVICO_FUSIONHDTV_DVB_T_DUAL_EXP:
@@ -1525,9 +1568,9 @@ void cx23885_gpio_setup(struct cx23885_dev *dev)
 
 		/* Put the parts into reset and back */
 		cx_set(GP0_IO, 0x000f0000);
-		mdelay(20);
+		msleep(20);
 		cx_clear(GP0_IO, 0x0000000f);
-		mdelay(20);
+		msleep(20);
 		cx_set(GP0_IO, 0x000f000f);
 		break;
 	case CX23885_BOARD_LEADTEK_WINFAST_PXDVR3200_H:
@@ -1543,9 +1586,9 @@ void cx23885_gpio_setup(struct cx23885_dev *dev)
 
 		/* Put the parts into reset and back */
 		cx_set(GP0_IO, 0x00040000);
-		mdelay(20);
+		msleep(20);
 		cx_clear(GP0_IO, 0x00000004);
-		mdelay(20);
+		msleep(20);
 		cx_set(GP0_IO, 0x00040004);
 		break;
 	case CX23885_BOARD_TBS_6920:
@@ -1555,11 +1598,11 @@ void cx23885_gpio_setup(struct cx23885_dev *dev)
 		cx_write(MC417_CTL, 0x00000036);
 		cx_write(MC417_OEN, 0x00001000);
 		cx_set(MC417_RWD, 0x00000002);
-		mdelay(200);
+		msleep(200);
 		cx_clear(MC417_RWD, 0x00000800);
-		mdelay(200);
+		msleep(200);
 		cx_set(MC417_RWD, 0x00000800);
-		mdelay(200);
+		msleep(200);
 		break;
 	case CX23885_BOARD_NETUP_DUAL_DVBS2_CI:
 		/* GPIO-0 INTA from CiMax1
@@ -1577,7 +1620,7 @@ void cx23885_gpio_setup(struct cx23885_dev *dev)
 		cx_set(GP0_IO, 0x00040000); /* GPIO as out */
 		/* GPIO1 and GPIO2 as INTA and INTB from CiMaxes, reset low */
 		cx_clear(GP0_IO, 0x00030004);
-		mdelay(100);/* reset delay */
+		msleep(100);/* reset delay */
 		cx_set(GP0_IO, 0x00040004); /* GPIO as out, reset high */
 		cx_write(MC417_CTL, 0x00000037);/* enable GPIO3-18 pins */
 		/* GPIO-15 IN as ~ACK, rest as OUT */
@@ -1600,7 +1643,7 @@ void cx23885_gpio_setup(struct cx23885_dev *dev)
 		cx23885_gpio_enable(dev, GPIO_9 | GPIO_6 | GPIO_5, 1);
 		cx23885_gpio_set(dev, GPIO_9 | GPIO_6 | GPIO_5);
 		cx23885_gpio_clear(dev, GPIO_9);
-		mdelay(20);
+		msleep(20);
 		cx23885_gpio_set(dev, GPIO_9);
 		break;
 	case CX23885_BOARD_MYGICA_X8506:
@@ -1611,18 +1654,18 @@ void cx23885_gpio_setup(struct cx23885_dev *dev)
 		/* GPIO-2 demod reset */
 		cx23885_gpio_enable(dev, GPIO_0 | GPIO_1 | GPIO_2, 1);
 		cx23885_gpio_clear(dev, GPIO_1 | GPIO_2);
-		mdelay(100);
+		msleep(100);
 		cx23885_gpio_set(dev, GPIO_0 | GPIO_1 | GPIO_2);
-		mdelay(100);
+		msleep(100);
 		break;
 	case CX23885_BOARD_MYGICA_X8558PRO:
 		/* GPIO-0 reset first ATBM8830 */
 		/* GPIO-1 reset second ATBM8830 */
 		cx23885_gpio_enable(dev, GPIO_0 | GPIO_1, 1);
 		cx23885_gpio_clear(dev, GPIO_0 | GPIO_1);
-		mdelay(100);
+		msleep(100);
 		cx23885_gpio_set(dev, GPIO_0 | GPIO_1);
-		mdelay(100);
+		msleep(100);
 		break;
 	case CX23885_BOARD_HAUPPAUGE_HVR1850:
 	case CX23885_BOARD_HAUPPAUGE_HVR1290:
@@ -1646,11 +1689,11 @@ void cx23885_gpio_setup(struct cx23885_dev *dev)
 
 		/* Put the demod into reset and protect the eeprom */
 		mc417_gpio_clear(dev, GPIO_14 | GPIO_13);
-		mdelay(100);
+		msleep(100);
 
 		/* Bring the demod out of reset */
 		mc417_gpio_set(dev, GPIO_14);
-		mdelay(100);
+		msleep(100);
 
 		/* CX24228 GPIO */
 		/* Connected to IF / Mux */
@@ -1675,7 +1718,7 @@ void cx23885_gpio_setup(struct cx23885_dev *dev)
 		cx_set(GP0_IO, 0x00060000); /* GPIO-1,2 as out */
 		/* GPIO-0 as INT, reset & TMS low */
 		cx_clear(GP0_IO, 0x00010006);
-		mdelay(100);/* reset delay */
+		msleep(100);/* reset delay */
 		cx_set(GP0_IO, 0x00000004); /* reset high */
 		cx_write(MC417_CTL, 0x00000037);/* enable GPIO-3..18 pins */
 		/* GPIO-17 is TDO in, GPIO-15 is ~RDY in, rest is out */
@@ -1694,36 +1737,36 @@ void cx23885_gpio_setup(struct cx23885_dev *dev)
 		cx23885_gpio_enable(dev, GPIO_8 | GPIO_9, 1);
 
 		cx23885_gpio_clear(dev, GPIO_8 | GPIO_9);
-		mdelay(100);
+		msleep(100);
 		cx23885_gpio_set(dev, GPIO_8 | GPIO_9);
-		mdelay(100);
+		msleep(100);
 
 		break;
 	case CX23885_BOARD_AVERMEDIA_HC81R:
 		cx_clear(MC417_CTL, 1);
 		/* GPIO-0,1,2 setup direction as output */
 		cx_set(GP0_IO, 0x00070000);
-		mdelay(10);
+		usleep_range(10000, 11000);
 		/* AF9013 demod reset */
 		cx_set(GP0_IO, 0x00010001);
-		mdelay(10);
+		usleep_range(10000, 11000);
 		cx_clear(GP0_IO, 0x00010001);
-		mdelay(10);
+		usleep_range(10000, 11000);
 		cx_set(GP0_IO, 0x00010001);
-		mdelay(10);
+		usleep_range(10000, 11000);
 		/* demod tune? */
 		cx_clear(GP0_IO, 0x00030003);
-		mdelay(10);
+		usleep_range(10000, 11000);
 		cx_set(GP0_IO, 0x00020002);
-		mdelay(10);
+		usleep_range(10000, 11000);
 		cx_set(GP0_IO, 0x00010001);
-		mdelay(10);
+		usleep_range(10000, 11000);
 		cx_clear(GP0_IO, 0x00020002);
 		/* XC3028L tuner reset */
 		cx_set(GP0_IO, 0x00040004);
 		cx_clear(GP0_IO, 0x00040004);
 		cx_set(GP0_IO, 0x00040004);
-		mdelay(60);
+		msleep(60);
 		break;
 	case CX23885_BOARD_DVBSKY_T9580:
 	case CX23885_BOARD_DVBSKY_S952:
@@ -1732,7 +1775,7 @@ void cx23885_gpio_setup(struct cx23885_dev *dev)
 		cx_write(MC417_CTL, 0x00000037);
 		cx23885_gpio_enable(dev, GPIO_2 | GPIO_11, 1);
 		cx23885_gpio_clear(dev, GPIO_2 | GPIO_11);
-		mdelay(100);
+		msleep(100);
 		cx23885_gpio_set(dev, GPIO_2 | GPIO_11);
 		break;
 	case CX23885_BOARD_DVBSKY_T980C:
@@ -1754,7 +1797,7 @@ void cx23885_gpio_setup(struct cx23885_dev *dev)
 
 		cx_set(GP0_IO, 0x00060002); /* GPIO 1/2 as output */
 		cx_clear(GP0_IO, 0x00010004); /* GPIO 0 as input */
-		mdelay(100); /* reset delay */
+		msleep(100); /* reset delay */
 		cx_set(GP0_IO, 0x00060004); /* GPIO as out, reset high */
 		cx_clear(GP0_IO, 0x00010002);
 		cx_write(MC417_CTL, 0x00000037); /* enable GPIO3-18 pins */
@@ -1775,8 +1818,7 @@ void cx23885_gpio_setup(struct cx23885_dev *dev)
 		cx23885_gpio_set(dev, GPIO_2);
 		break;
 	case CX23885_BOARD_HAUPPAUGE_HVR5525:
-	case CX23885_BOARD_HAUPPAUGE_QUADHD_DVB:
-	case CX23885_BOARD_HAUPPAUGE_QUADHD_ATSC:
+	case CX23885_BOARD_HAUPPAUGE_STARBURST2:
 		/*
 		 * HVR5525 GPIO Details:
 		 *  GPIO-00 IR_WIDE
@@ -1806,6 +1848,22 @@ void cx23885_gpio_setup(struct cx23885_dev *dev)
 		 * card does not have any GPIO's connected to subcomponents.
 		 */
 		break;
+	case CX23885_BOARD_HAUPPAUGE_HVR1265_K4:
+	case CX23885_BOARD_HAUPPAUGE_QUADHD_DVB:
+	case CX23885_BOARD_HAUPPAUGE_QUADHD_DVB_885:
+	case CX23885_BOARD_HAUPPAUGE_QUADHD_ATSC:
+	case CX23885_BOARD_HAUPPAUGE_QUADHD_ATSC_885:
+		/*
+		 * GPIO-08 TER1_RESN
+		 * GPIO-09 TER2_RESN
+		 */
+		/* Put the parts into reset and back */
+		cx23885_gpio_enable(dev, GPIO_8 | GPIO_9, 1);
+		cx23885_gpio_clear(dev, GPIO_8 | GPIO_9);
+		msleep(100);
+		cx23885_gpio_set(dev, GPIO_8 | GPIO_9);
+		msleep(100);
+		break;
 	}
 }
 
@@ -1813,13 +1871,13 @@ int cx23885_ir_init(struct cx23885_dev *dev)
 {
 	static struct v4l2_subdev_io_pin_config ir_rxtx_pin_cfg[] = {
 		{
-			.flags	  = V4L2_SUBDEV_IO_PIN_INPUT,
+			.flags	  = BIT(V4L2_SUBDEV_IO_PIN_INPUT),
 			.pin	  = CX23885_PIN_IR_RX_GPIO19,
 			.function = CX23885_PAD_IR_RX,
 			.value	  = 0,
 			.strength = CX25840_PIN_DRIVE_MEDIUM,
 		}, {
-			.flags	  = V4L2_SUBDEV_IO_PIN_OUTPUT,
+			.flags	  = BIT(V4L2_SUBDEV_IO_PIN_OUTPUT),
 			.pin	  = CX23885_PIN_IR_TX_GPIO20,
 			.function = CX23885_PAD_IR_TX,
 			.value	  = 0,
@@ -1830,7 +1888,7 @@ int cx23885_ir_init(struct cx23885_dev *dev)
 
 	static struct v4l2_subdev_io_pin_config ir_rx_pin_cfg[] = {
 		{
-			.flags	  = V4L2_SUBDEV_IO_PIN_INPUT,
+			.flags	  = BIT(V4L2_SUBDEV_IO_PIN_INPUT),
 			.pin	  = CX23885_PIN_IR_RX_GPIO19,
 			.function = CX23885_PAD_IR_RX,
 			.value	  = 0,
@@ -2051,8 +2109,12 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 	case CX23885_BOARD_HAUPPAUGE_STARBURST:
 	case CX23885_BOARD_HAUPPAUGE_IMPACTVCBE:
 	case CX23885_BOARD_HAUPPAUGE_HVR5525:
+	case CX23885_BOARD_HAUPPAUGE_HVR1265_K4:
+	case CX23885_BOARD_HAUPPAUGE_STARBURST2:
 	case CX23885_BOARD_HAUPPAUGE_QUADHD_DVB:
+	case CX23885_BOARD_HAUPPAUGE_QUADHD_DVB_885:
 	case CX23885_BOARD_HAUPPAUGE_QUADHD_ATSC:
+	case CX23885_BOARD_HAUPPAUGE_QUADHD_ATSC_885:
 		if (dev->i2c_bus[0].i2c_rc == 0)
 			hauppauge_eeprom(dev, eeprom+0xc0);
 		break;
@@ -2084,7 +2146,7 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 		ts2->gen_ctrl_val  = 0xc; /* Serial bus + punctured clock */
 		ts2->ts_clk_en_val = 0x1; /* Enable TS_CLK */
 		ts2->src_sel_val   = CX23885_SRC_SEL_PARALLEL_MPEG_VIDEO;
-		/* break omitted intentionally */
+		/* fall-through */
 	case CX23885_BOARD_DVICO_FUSIONHDTV_5_EXP:
 		ts1->gen_ctrl_val  = 0xc; /* Serial bus + punctured clock */
 		ts1->ts_clk_en_val = 0x1; /* Enable TS_CLK */
@@ -2191,6 +2253,7 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 		ts2->src_sel_val   = CX23885_SRC_SEL_PARALLEL_MPEG_VIDEO;
 		break;
 	case CX23885_BOARD_HAUPPAUGE_HVR5525:
+	case CX23885_BOARD_HAUPPAUGE_STARBURST2:
 		ts1->gen_ctrl_val  = 0x5; /* Parallel */
 		ts1->ts_clk_en_val = 0x1; /* Enable TS_CLK */
 		ts1->src_sel_val   = CX23885_SRC_SEL_PARALLEL_MPEG_VIDEO;
@@ -2198,8 +2261,11 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 		ts2->ts_clk_en_val = 0x1; /* Enable TS_CLK */
 		ts2->src_sel_val   = CX23885_SRC_SEL_PARALLEL_MPEG_VIDEO;
 		break;
+	case CX23885_BOARD_HAUPPAUGE_HVR1265_K4:
 	case CX23885_BOARD_HAUPPAUGE_QUADHD_DVB:
+	case CX23885_BOARD_HAUPPAUGE_QUADHD_DVB_885:
 	case CX23885_BOARD_HAUPPAUGE_QUADHD_ATSC:
+	case CX23885_BOARD_HAUPPAUGE_QUADHD_ATSC_885:
 		ts1->gen_ctrl_val  = 0xc; /* Serial bus + punctured clock */
 		ts1->ts_clk_en_val = 0x1; /* Enable TS_CLK */
 		ts1->src_sel_val   = CX23885_SRC_SEL_PARALLEL_MPEG_VIDEO;
@@ -2241,6 +2307,7 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 		/* Currently only enabled for the integrated IR controller */
 		if (!enable_885_ir)
 			break;
+		/* fall-through */
 	case CX23885_BOARD_HAUPPAUGE_HVR1250:
 	case CX23885_BOARD_HAUPPAUGE_HVR1800:
 	case CX23885_BOARD_HAUPPAUGE_IMPACTVCBE:
@@ -2255,6 +2322,9 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 	case CX23885_BOARD_COMPRO_VIDEOMATE_E800:
 	case CX23885_BOARD_HAUPPAUGE_HVR1255:
 	case CX23885_BOARD_HAUPPAUGE_HVR1255_22111:
+	case CX23885_BOARD_HAUPPAUGE_HVR1265_K4:
+	case CX23885_BOARD_HAUPPAUGE_QUADHD_DVB:
+	case CX23885_BOARD_HAUPPAUGE_QUADHD_ATSC:
 	case CX23885_BOARD_HAUPPAUGE_HVR1270:
 	case CX23885_BOARD_HAUPPAUGE_HVR1850:
 	case CX23885_BOARD_MYGICA_X8506:
@@ -2282,6 +2352,10 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 				&dev->i2c_bus[2].i2c_adap,
 				"cx25840", 0x88 >> 1, NULL);
 		if (dev->sd_cx25840) {
+			/* set host data for clk_freq configuration */
+			v4l2_set_subdev_hostdata(dev->sd_cx25840,
+						&dev->clk_freq);
+
 			dev->sd_cx25840->grp_id = CX23885_HW_AV_CORE;
 			v4l2_subdev_call(dev->sd_cx25840, core, load_fw);
 		}
@@ -2337,14 +2411,13 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 			filename = "dvb-netup-altera-01.fw";
 			break;
 		}
-		printk(KERN_INFO "NetUP card rev=0x%x fw_filename=%s\n",
-				cinfo.rev, filename);
+		pr_info("NetUP card rev=0x%x fw_filename=%s\n",
+			cinfo.rev, filename);
 
 		ret = request_firmware(&fw, filename, &dev->pci->dev);
 		if (ret != 0)
-			printk(KERN_ERR "did not find the firmware file. (%s) "
-			"Please see linux/Documentation/dvb/ for more details "
-			"on firmware-problems.", filename);
+			pr_err("did not find the firmware file '%s'. You can use <kernel_dir>/scripts/get_dvb_firmware to get the firmware.",
+			       filename);
 		else
 			altera_init(&netup_config, fw);
 

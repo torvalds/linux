@@ -1,22 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * A hwmon driver for ACPI 4.0 power meters
  * Copyright (C) 2009 IBM
  *
  * Author: Darrick J. Wong <darrick.wong@oracle.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/module.h>
@@ -575,8 +562,9 @@ static int read_domain_devices(struct acpi_power_meter_resource *resource)
 	if (!pss->package.count)
 		goto end;
 
-	resource->domain_devices = kzalloc(sizeof(struct acpi_device *) *
-					   pss->package.count, GFP_KERNEL);
+	resource->domain_devices = kcalloc(pss->package.count,
+					   sizeof(struct acpi_device *),
+					   GFP_KERNEL);
 	if (!resource->domain_devices) {
 		res = -ENOMEM;
 		goto end;
@@ -637,12 +625,12 @@ static int register_attrs(struct acpi_power_meter_resource *resource,
 
 	while (attrs->label) {
 		sensors->dev_attr.attr.name = attrs->label;
-		sensors->dev_attr.attr.mode = S_IRUGO;
+		sensors->dev_attr.attr.mode = 0444;
 		sensors->dev_attr.show = attrs->show;
 		sensors->index = attrs->index;
 
 		if (attrs->set) {
-			sensors->dev_attr.attr.mode |= S_IWUSR;
+			sensors->dev_attr.attr.mode |= 0200;
 			sensors->dev_attr.store = attrs->set;
 		}
 
@@ -796,7 +784,7 @@ static int read_capabilities(struct acpi_power_meter_resource *resource)
 			goto error;
 		}
 
-		*str = kzalloc(sizeof(u8) * (element->string.length + 1),
+		*str = kcalloc(element->string.length + 1, sizeof(u8),
 			       GFP_KERNEL);
 		if (!*str) {
 			res = -ENOMEM;
@@ -973,7 +961,7 @@ static int __init enable_cap_knobs(const struct dmi_system_id *d)
 	return 0;
 }
 
-static struct dmi_system_id __initdata pm_dmi_table[] = {
+static const struct dmi_system_id pm_dmi_table[] __initconst = {
 	{
 		enable_cap_knobs, "IBM Active Energy Manager",
 		{

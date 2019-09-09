@@ -1,27 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2014 IBM Corp.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/pci.h>
 #include <misc/cxl.h>
-#include <asm/pnv-pci.h>
 #include "cxl.h"
-
-static int cxl_dma_set_mask(struct pci_dev *pdev, u64 dma_mask)
-{
-	if (dma_mask < DMA_BIT_MASK(64)) {
-		pr_info("%s only 64bit DMA supported on CXL", __func__);
-		return -EIO;
-	}
-
-	*(pdev->dev.dma_mask) = dma_mask;
-	return 0;
-}
 
 static int cxl_pci_probe_mode(struct pci_bus *bus)
 {
@@ -45,6 +29,7 @@ static bool cxl_pci_enable_device_hook(struct pci_dev *dev)
 {
 	struct pci_controller *phb;
 	struct cxl_afu *afu;
+	struct cxl_context *ctx;
 
 	phb = pci_bus_to_host(dev->bus);
 	afu = (struct cxl_afu *)phb->private_data;
@@ -54,10 +39,32 @@ static bool cxl_pci_enable_device_hook(struct pci_dev *dev)
 		return false;
 	}
 
-	set_dma_ops(&dev->dev, &dma_direct_ops);
-	set_dma_offset(&dev->dev, PAGE_OFFSET);
+	dev->dev.archdata.dma_offset = PAGE_OFFSET;
 
-	return _cxl_pci_associate_default_context(dev, afu);
+	/*
+	 * Allocate a context to do cxl things too.  If we eventually do real
+	 * DMA ops, we'll need a default context to attach them to
+	 */
+	ctx = cxl_dev_context_init(dev);
+	if (IS_ERR(ctx))
+		return false;
+	dev->dev.archdata.cxl_ctx = ctx;
+
+	return (cxl_ops->afu_check_and_enable(afu) == 0);
+}
+
+static void cxl_pci_disable_device(struct pci_dev *dev)
+{
+	struct cxl_context *ctx = cxl_get_context(dev);
+
+	if (ctx) {
+		if (ctx->status == STARTED) {
+			dev_err(&dev->dev, "Default context started\n");
+			return;
+		}
+		dev->dev.archdata.cxl_ctx = NULL;
+		cxl_release_context(ctx);
+	}
 }
 
 static resource_size_t cxl_pci_window_alignment(struct pci_bus *bus,
@@ -76,23 +83,32 @@ static int cxl_pcie_cfg_record(u8 bus, u8 devfn)
 	return (bus << 8) + devfn;
 }
 
-static int cxl_pcie_config_info(struct pci_bus *bus, unsigned int devfn,
-				struct cxl_afu **_afu, int *_record)
+static inline struct cxl_afu *pci_bus_to_afu(struct pci_bus *bus)
 {
-	struct pci_controller *phb;
-	struct cxl_afu *afu;
+	struct pci_controller *phb = bus ? pci_bus_to_host(bus) : NULL;
+
+	return phb ? phb->private_data : NULL;
+}
+
+static void cxl_afu_configured_put(struct cxl_afu *afu)
+{
+	atomic_dec_if_positive(&afu->configured_state);
+}
+
+static bool cxl_afu_configured_get(struct cxl_afu *afu)
+{
+	return atomic_inc_unless_negative(&afu->configured_state);
+}
+
+static inline int cxl_pcie_config_info(struct pci_bus *bus, unsigned int devfn,
+				       struct cxl_afu *afu, int *_record)
+{
 	int record;
 
-	phb = pci_bus_to_host(bus);
-	if (phb == NULL)
-		return PCIBIOS_DEVICE_NOT_FOUND;
-
-	afu = (struct cxl_afu *)phb->private_data;
 	record = cxl_pcie_cfg_record(bus->number, devfn);
 	if (record > afu->crs_num)
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
-	*_afu = afu;
 	*_record = record;
 	return 0;
 }
@@ -106,9 +122,14 @@ static int cxl_pcie_read_config(struct pci_bus *bus, unsigned int devfn,
 	u16 val16;
 	u32 val32;
 
-	rc = cxl_pcie_config_info(bus, devfn, &afu, &record);
+	afu = pci_bus_to_afu(bus);
+	/* Grab a reader lock on afu. */
+	if (afu == NULL || !cxl_afu_configured_get(afu))
+		return PCIBIOS_DEVICE_NOT_FOUND;
+
+	rc = cxl_pcie_config_info(bus, devfn, afu, &record);
 	if (rc)
-		return rc;
+		goto out;
 
 	switch (len) {
 	case 1:
@@ -127,10 +148,9 @@ static int cxl_pcie_read_config(struct pci_bus *bus, unsigned int devfn,
 		WARN_ON(1);
 	}
 
-	if (rc)
-		return PCIBIOS_DEVICE_NOT_FOUND;
-
-	return PCIBIOS_SUCCESSFUL;
+out:
+	cxl_afu_configured_put(afu);
+	return rc ? PCIBIOS_DEVICE_NOT_FOUND : PCIBIOS_SUCCESSFUL;
 }
 
 static int cxl_pcie_write_config(struct pci_bus *bus, unsigned int devfn,
@@ -139,9 +159,14 @@ static int cxl_pcie_write_config(struct pci_bus *bus, unsigned int devfn,
 	int rc, record;
 	struct cxl_afu *afu;
 
-	rc = cxl_pcie_config_info(bus, devfn, &afu, &record);
+	afu = pci_bus_to_afu(bus);
+	/* Grab a reader lock on afu. */
+	if (afu == NULL || !cxl_afu_configured_get(afu))
+		return PCIBIOS_DEVICE_NOT_FOUND;
+
+	rc = cxl_pcie_config_info(bus, devfn, afu, &record);
 	if (rc)
-		return rc;
+		goto out;
 
 	switch (len) {
 	case 1:
@@ -157,10 +182,9 @@ static int cxl_pcie_write_config(struct pci_bus *bus, unsigned int devfn,
 		WARN_ON(1);
 	}
 
-	if (rc)
-		return PCIBIOS_SET_FAILED;
-
-	return PCIBIOS_SUCCESSFUL;
+out:
+	cxl_afu_configured_put(afu);
+	return rc ? PCIBIOS_SET_FAILED : PCIBIOS_SUCCESSFUL;
 }
 
 static struct pci_ops cxl_pcie_pci_ops =
@@ -174,13 +198,12 @@ static struct pci_controller_ops cxl_pci_controller_ops =
 {
 	.probe_mode = cxl_pci_probe_mode,
 	.enable_device_hook = cxl_pci_enable_device_hook,
-	.disable_device = _cxl_pci_disable_device,
-	.release_device = _cxl_pci_disable_device,
+	.disable_device = cxl_pci_disable_device,
+	.release_device = cxl_pci_disable_device,
 	.window_alignment = cxl_pci_window_alignment,
 	.reset_secondary_bus = cxl_pci_reset_secondary_bus,
 	.setup_msi_irqs = cxl_setup_msi_irqs,
 	.teardown_msi_irqs = cxl_teardown_msi_irqs,
-	.dma_set_mask = cxl_dma_set_mask,
 };
 
 int cxl_pci_vphb_add(struct cxl_afu *afu)
@@ -267,18 +290,13 @@ void cxl_pci_vphb_remove(struct cxl_afu *afu)
 	 */
 }
 
-static bool _cxl_pci_is_vphb_device(struct pci_controller *phb)
-{
-	return (phb->ops == &cxl_pcie_pci_ops);
-}
-
 bool cxl_pci_is_vphb_device(struct pci_dev *dev)
 {
 	struct pci_controller *phb;
 
 	phb = pci_bus_to_host(dev->bus);
 
-	return _cxl_pci_is_vphb_device(phb);
+	return (phb->ops == &cxl_pcie_pci_ops);
 }
 
 struct cxl_afu *cxl_pci_to_afu(struct pci_dev *dev)
@@ -287,13 +305,7 @@ struct cxl_afu *cxl_pci_to_afu(struct pci_dev *dev)
 
 	phb = pci_bus_to_host(dev->bus);
 
-	if (_cxl_pci_is_vphb_device(phb))
-		return (struct cxl_afu *)phb->private_data;
-
-	if (pnv_pci_on_cxl_phb(dev))
-		return pnv_cxl_phb_to_afu(phb);
-
-	return ERR_PTR(-ENODEV);
+	return (struct cxl_afu *)phb->private_data;
 }
 EXPORT_SYMBOL_GPL(cxl_pci_to_afu);
 

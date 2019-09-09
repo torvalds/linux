@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * OMAP2/3/4 powerdomain control
  *
@@ -5,10 +6,6 @@
  * Copyright (C) 2007-2011 Nokia Corporation
  *
  * Paul Walmsley
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * XXX This should be moved to the mach-omap2/ directory at the earliest
  * opportunity.
@@ -144,6 +141,7 @@ struct powerdomain {
 	s64 timer;
 	s64 state_timer[PWRDM_MAX_PWRSTS];
 #endif
+	u32 context;
 };
 
 /**
@@ -198,6 +196,8 @@ struct pwrdm_ops {
 	int	(*pwrdm_set_lowpwrstchange)(struct powerdomain *pwrdm);
 	int	(*pwrdm_wait_transition)(struct powerdomain *pwrdm);
 	int	(*pwrdm_has_voltdm)(void);
+	void	(*pwrdm_save_context)(struct powerdomain *pwrdm);
+	void	(*pwrdm_restore_context)(struct powerdomain *pwrdm);
 };
 
 int pwrdm_register_platform_funcs(struct pwrdm_ops *custom_funcs);
@@ -273,4 +273,8 @@ extern struct powerdomain gfx_omap2_pwrdm;
 extern void pwrdm_lock(struct powerdomain *pwrdm);
 extern void pwrdm_unlock(struct powerdomain *pwrdm);
 
+extern void pwrdms_save_context(void);
+extern void pwrdms_restore_context(void);
+
+extern void pwrdms_lost_power(void);
 #endif

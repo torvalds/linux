@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2010-2011,2013-2015 The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  *
  * storm.c -- ALSA SoC machine driver for QTi ipq806x-based Storm board
  */
@@ -36,8 +28,7 @@ static int storm_ops_hw_params(struct snd_pcm_substream *substream,
 
 	bitwidth = snd_pcm_format_width(format);
 	if (bitwidth < 0) {
-		dev_err(card->dev, "%s() invalid bit width given: %d\n",
-				__func__, bitwidth);
+		dev_err(card->dev, "invalid bit width given: %d\n", bitwidth);
 		return bitwidth;
 	}
 
@@ -50,23 +41,28 @@ static int storm_ops_hw_params(struct snd_pcm_substream *substream,
 
 	ret = snd_soc_dai_set_sysclk(soc_runtime->cpu_dai, 0, sysclk_freq, 0);
 	if (ret) {
-		dev_err(card->dev, "%s() error setting sysclk to %u: %d\n",
-				__func__, sysclk_freq, ret);
+		dev_err(card->dev, "error setting sysclk to %u: %d\n",
+			sysclk_freq, ret);
 		return ret;
 	}
 
 	return 0;
 }
 
-static struct snd_soc_ops storm_soc_ops = {
+static const struct snd_soc_ops storm_soc_ops = {
 	.hw_params	= storm_ops_hw_params,
 };
+
+SND_SOC_DAILINK_DEFS(hifi,
+	DAILINK_COMP_ARRAY(COMP_EMPTY()),
+	DAILINK_COMP_ARRAY(COMP_CODEC(NULL, "HiFi")),
+	DAILINK_COMP_ARRAY(COMP_EMPTY()));
 
 static struct snd_soc_dai_link storm_dai_link = {
 	.name		= "Primary",
 	.stream_name	= "Primary",
-	.codec_dai_name	= "HiFi",
 	.ops		= &storm_soc_ops,
+	SND_SOC_DAILINK_REG(hifi),
 };
 
 static int storm_parse_of(struct snd_soc_card *card)
@@ -74,18 +70,16 @@ static int storm_parse_of(struct snd_soc_card *card)
 	struct snd_soc_dai_link *dai_link = card->dai_link;
 	struct device_node *np = card->dev->of_node;
 
-	dai_link->cpu_of_node = of_parse_phandle(np, "cpu", 0);
-	if (!dai_link->cpu_of_node) {
-		dev_err(card->dev, "%s() error getting cpu phandle\n",
-				__func__);
+	dai_link->cpus->of_node = of_parse_phandle(np, "cpu", 0);
+	if (!dai_link->cpus->of_node) {
+		dev_err(card->dev, "error getting cpu phandle\n");
 		return -EINVAL;
 	}
-	dai_link->platform_of_node = dai_link->cpu_of_node;
+	dai_link->platforms->of_node = dai_link->cpus->of_node;
 
-	dai_link->codec_of_node = of_parse_phandle(np, "codec", 0);
-	if (!dai_link->codec_of_node) {
-		dev_err(card->dev, "%s() error getting codec phandle\n",
-				__func__);
+	dai_link->codecs->of_node = of_parse_phandle(np, "codec", 0);
+	if (!dai_link->codecs->of_node) {
+		dev_err(card->dev, "error getting codec phandle\n");
 		return -EINVAL;
 	}
 
@@ -102,12 +96,10 @@ static int storm_platform_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	card->dev = &pdev->dev;
-	platform_set_drvdata(pdev, card);
 
 	ret = snd_soc_of_parse_card_name(card, "qcom,model");
 	if (ret) {
-		dev_err(&pdev->dev, "%s() error parsing card name: %d\n",
-				__func__, ret);
+		dev_err(&pdev->dev, "error parsing card name: %d\n", ret);
 		return ret;
 	}
 
@@ -116,15 +108,13 @@ static int storm_platform_probe(struct platform_device *pdev)
 
 	ret = storm_parse_of(card);
 	if (ret) {
-		dev_err(&pdev->dev, "%s() error resolving dai links: %d\n",
-				__func__, ret);
+		dev_err(&pdev->dev, "error resolving dai links: %d\n", ret);
 		return ret;
 	}
 
 	ret = devm_snd_soc_register_card(&pdev->dev, card);
 	if (ret)
-		dev_err(&pdev->dev, "%s() error registering soundcard: %d\n",
-				__func__, ret);
+		dev_err(&pdev->dev, "error registering soundcard: %d\n", ret);
 
 	return ret;
 

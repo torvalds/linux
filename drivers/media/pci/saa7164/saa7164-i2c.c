@@ -1,22 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Driver for the NXP SAA7164 PCIe bridge
  *
  *  Copyright (c) 2010-2015 Steven Toth <stoth@kernellabs.com>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
@@ -82,13 +68,13 @@ static const struct i2c_algorithm saa7164_i2c_algo_template = {
 
 /* ----------------------------------------------------------------------- */
 
-static struct i2c_adapter saa7164_i2c_adap_template = {
+static const struct i2c_adapter saa7164_i2c_adap_template = {
 	.name              = "saa7164",
 	.owner             = THIS_MODULE,
 	.algo              = &saa7164_i2c_algo_template,
 };
 
-static struct i2c_client saa7164_i2c_client_template = {
+static const struct i2c_client saa7164_i2c_client_template = {
 	.name	= "saa7164 internal",
 };
 
@@ -103,7 +89,7 @@ int saa7164_i2c_register(struct saa7164_i2c *bus)
 
 	bus->i2c_adap.dev.parent = &dev->pci->dev;
 
-	strlcpy(bus->i2c_adap.name, bus->dev->name,
+	strscpy(bus->i2c_adap.name, bus->dev->name,
 		sizeof(bus->i2c_adap.name));
 
 	bus->i2c_adap.algo_data = bus;

@@ -10,8 +10,12 @@ Required properties:
       "brcm,bcm53128"
       "brcm,bcm5365"
       "brcm,bcm5395"
+      "brcm,bcm5389"
       "brcm,bcm5397"
       "brcm,bcm5398"
+
+  For the BCM11360 SoC, must be:
+      "brcm,bcm11360-srab" and the mandatory "brcm,cygnus-srab" string
 
   For the BCM5310x SoCs with an integrated switch, must be one of:
       "brcm,bcm53010-srab"
@@ -19,6 +23,14 @@ Required properties:
       "brcm,bcm53012-srab"
       "brcm,bcm53018-srab"
       "brcm,bcm53019-srab" and the mandatory "brcm,bcm5301x-srab" string
+
+  For the BCM5831X/BCM1140x SoCs with an integrated switch, must be one of:
+      "brcm,bcm11404-srab"
+      "brcm,bcm11407-srab"
+      "brcm,bcm11409-srab"
+      "brcm,bcm58310-srab"
+      "brcm,bcm58311-srab"
+      "brcm,bcm58313-srab" and the mandatory "brcm,omega-srab" string
 
   For the BCM585xx/586XX/88312 SoCs with an integrated switch, must be one of:
       "brcm,bcm58522-srab"
@@ -34,7 +46,43 @@ Required properties:
       "brcm,bcm6328-switch"
       "brcm,bcm6368-switch" and the mandatory "brcm,bcm63xx-switch"
 
-See Documentation/devicetree/bindings/dsa/dsa.txt for a list of additional
+Required properties for BCM585xx/586xx/88312 SoCs:
+
+ - reg: a total of 3 register base addresses, the first one must be the
+   Switch Register Access block base, the second is the port 5/4 mux
+   configuration register and the third one is the SGMII configuration
+   and status register base address.
+
+ - interrupts: a total of 13 interrupts must be specified, in the following
+   order: port 0-5, 7-8 link status change, then the integrated PHY interrupt,
+   then the timestamping interrupt and the sleep timer interrupts for ports
+   5,7,8.
+
+Optional properties for BCM585xx/586xx/88312 SoCs:
+
+  - reg-names: a total of 3 names matching the 3 base register address, must
+    be in the following order:
+	"srab"
+	"mux_config"
+	"sgmii_config"
+
+  - interrupt-names: a total of 13 names matching the 13 interrupts specified
+    must be in the following order:
+	"link_state_p0"
+	"link_state_p1"
+	"link_state_p2"
+	"link_state_p3"
+	"link_state_p4"
+	"link_state_p5"
+	"link_state_p7"
+	"link_state_p8"
+	"phy"
+	"ts"
+	"imp_sleep_timer_p5"
+	"imp_sleep_timer_p7"
+	"imp_sleep_timer_p8"
+
+See Documentation/devicetree/bindings/net/dsa/dsa.txt for a list of additional
 required and optional properties.
 
 Examples:

@@ -1,11 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /******************************************************************************
  *
  *   Copyright © International Business Machines  Corp., 2009
- *
- *   This program is free software;  you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
  *
  * DESCRIPTION
  *      1. Block a thread using FUTEX_WAIT
@@ -29,6 +25,8 @@
 #include <time.h>
 #include "futextest.h"
 #include "logging.h"
+
+#define TEST_NAME "futex-requeue-pi-mismatched-ops"
 
 futex_t f1 = FUTEX_INITIALIZER;
 futex_t f2 = FUTEX_INITIALIZER;
@@ -76,7 +74,9 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	printf("%s: Detect mismatched requeue_pi operations\n",
+	ksft_print_header();
+	ksft_set_plan(1);
+	ksft_print_msg("%s: Detect mismatched requeue_pi operations\n",
 	       basename(argv[0]));
 
 	if (pthread_create(&child, NULL, blocking_child, NULL)) {
@@ -130,6 +130,6 @@ int main(int argc, char *argv[])
 
  out:
 	/* If the kernel crashes, we shouldn't return at all. */
-	print_result(ret);
+	print_result(TEST_NAME, ret);
 	return ret;
 }

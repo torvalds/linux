@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  fs/ext4/extents_status.h
  *
@@ -77,6 +78,51 @@ struct ext4_es_stats {
 	struct percpu_counter es_stats_shk_cnt;
 };
 
+/*
+ * Pending cluster reservations for bigalloc file systems
+ *
+ * A cluster with a pending reservation is a logical cluster shared by at
+ * least one extent in the extents status tree with delayed and unwritten
+ * status and at least one other written or unwritten extent.  The
+ * reservation is said to be pending because a cluster reservation would
+ * have to be taken in the event all blocks in the cluster shared with
+ * written or unwritten extents were deleted while the delayed and
+ * unwritten blocks remained.
+ *
+ * The set of pending cluster reservations is an auxiliary data structure
+ * used with the extents status tree to implement reserved cluster/block
+ * accounting for bigalloc file systems.  The set is kept in memory and
+ * records all pending cluster reservations.
+ *
+ * Its primary function is to avoid the need to read extents from the
+ * disk when invalidating pages as a result of a truncate, punch hole, or
+ * collapse range operation.  Page invalidation requires a decrease in the
+ * reserved cluster count if it results in the removal of all delayed
+ * and unwritten extents (blocks) from a cluster that is not shared with a
+ * written or unwritten extent, and no decrease otherwise.  Determining
+ * whether the cluster is shared can be done by searching for a pending
+ * reservation on it.
+ *
+ * Secondarily, it provides a potentially faster method for determining
+ * whether the reserved cluster count should be increased when a physical
+ * cluster is deallocated as a result of a truncate, punch hole, or
+ * collapse range operation.  The necessary information is also present
+ * in the extents status tree, but might be more rapidly accessed in
+ * the pending reservation set in many cases due to smaller size.
+ *
+ * The pending cluster reservation set is implemented as a red-black tree
+ * with the goal of minimizing per page search time overhead.
+ */
+
+struct pending_reservation {
+	struct rb_node rb_node;
+	ext4_lblk_t lclu;
+};
+
+struct ext4_pending_tree {
+	struct rb_root root;
+};
+
 extern int __init ext4_init_es(void);
 extern void ext4_exit_es(void);
 extern void ext4_es_init_tree(struct ext4_es_tree *tree);
@@ -89,11 +135,18 @@ extern void ext4_es_cache_extent(struct inode *inode, ext4_lblk_t lblk,
 				 unsigned int status);
 extern int ext4_es_remove_extent(struct inode *inode, ext4_lblk_t lblk,
 				 ext4_lblk_t len);
-extern void ext4_es_find_delayed_extent_range(struct inode *inode,
-					ext4_lblk_t lblk, ext4_lblk_t end,
-					struct extent_status *es);
+extern void ext4_es_find_extent_range(struct inode *inode,
+				      int (*match_fn)(struct extent_status *es),
+				      ext4_lblk_t lblk, ext4_lblk_t end,
+				      struct extent_status *es);
 extern int ext4_es_lookup_extent(struct inode *inode, ext4_lblk_t lblk,
 				 struct extent_status *es);
+extern bool ext4_es_scan_range(struct inode *inode,
+			       int (*matching_fn)(struct extent_status *es),
+			       ext4_lblk_t lblk, ext4_lblk_t end);
+extern bool ext4_es_scan_clu(struct inode *inode,
+			     int (*matching_fn)(struct extent_status *es),
+			     ext4_lblk_t lblk);
 
 static inline unsigned int ext4_es_status(struct extent_status *es)
 {
@@ -123,6 +176,16 @@ static inline int ext4_es_is_delayed(struct extent_status *es)
 static inline int ext4_es_is_hole(struct extent_status *es)
 {
 	return (ext4_es_type(es) & EXTENT_STATUS_HOLE) != 0;
+}
+
+static inline int ext4_es_is_mapped(struct extent_status *es)
+{
+	return (ext4_es_is_written(es) || ext4_es_is_unwritten(es));
+}
+
+static inline int ext4_es_is_delonly(struct extent_status *es)
+{
+	return (ext4_es_is_delayed(es) && !ext4_es_is_unwritten(es));
 }
 
 static inline void ext4_es_set_referenced(struct extent_status *es)
@@ -173,5 +236,17 @@ extern int ext4_es_register_shrinker(struct ext4_sb_info *sbi);
 extern void ext4_es_unregister_shrinker(struct ext4_sb_info *sbi);
 
 extern int ext4_seq_es_shrinker_info_show(struct seq_file *seq, void *v);
+
+extern int __init ext4_init_pending(void);
+extern void ext4_exit_pending(void);
+extern void ext4_init_pending_tree(struct ext4_pending_tree *tree);
+extern void ext4_remove_pending(struct inode *inode, ext4_lblk_t lblk);
+extern bool ext4_is_pending(struct inode *inode, ext4_lblk_t lblk);
+extern int ext4_es_insert_delayed_block(struct inode *inode, ext4_lblk_t lblk,
+					bool allocated);
+extern unsigned int ext4_es_delayed_clu(struct inode *inode, ext4_lblk_t lblk,
+					ext4_lblk_t len);
+extern void ext4_es_remove_blks(struct inode *inode, ext4_lblk_t lblk,
+				ext4_lblk_t len);
 
 #endif /* _EXT4_EXTENTS_STATUS_H */

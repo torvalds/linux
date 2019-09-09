@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * bpf-script-example.c
  * Test basic LLVM building
@@ -31,8 +32,8 @@ struct bpf_map_def SEC("maps") flip_table = {
 	.max_entries = 1,
 };
 
-SEC("func=SyS_epoll_wait")
-int bpf_func__SyS_epoll_wait(void *ctx)
+SEC("func=do_epoll_wait")
+int bpf_func__SyS_epoll_pwait(void *ctx)
 {
 	int ind =0;
 	int *flag = bpf_map_lookup_elem(&flip_table, &ind);

@@ -1,3 +1,5 @@
+.. SPDX-License-Identifier: GPL-2.0
+
 Media Controller devices
 ------------------------
 
@@ -58,7 +60,7 @@ Drivers initialize entity pads by calling
 
 Drivers register entities with a media device by calling
 :c:func:`media_device_register_entity()`
-and unregistred by calling
+and unregistered by calling
 :c:func:`media_device_unregister_entity()`.
 
 Interfaces
@@ -162,13 +164,13 @@ framework provides a depth-first graph traversal API for that purpose.
    currently defined as 16.
 
 Drivers initiate a graph traversal by calling
-:c:func:`media_entity_graph_walk_start()`
+:c:func:`media_graph_walk_start()`
 
 The graph structure, provided by the caller, is initialized to start graph
 traversal at the given entity.
 
 Drivers can then retrieve the next entity by calling
-:c:func:`media_entity_graph_walk_next()`
+:c:func:`media_graph_walk_next()`
 
 When the graph traversal is complete the function will return ``NULL``.
 
@@ -206,7 +208,7 @@ Pipelines and media streams
 
 When starting streaming, drivers must notify all entities in the pipeline to
 prevent link states from being modified during streaming by calling
-:c:func:`media_entity_pipeline_start()`.
+:c:func:`media_pipeline_start()`.
 
 The function will mark all entities connected to the given entity through
 enabled links, either directly or indirectly, as streaming.
@@ -218,17 +220,17 @@ in higher-level pipeline structures and can then access the
 pipeline through the struct :c:type:`media_entity`
 pipe field.
 
-Calls to :c:func:`media_entity_pipeline_start()` can be nested.
+Calls to :c:func:`media_pipeline_start()` can be nested.
 The pipeline pointer must be identical for all nested calls to the function.
 
-:c:func:`media_entity_pipeline_start()` may return an error. In that case,
+:c:func:`media_pipeline_start()` may return an error. In that case,
 it will clean up any of the changes it did by itself.
 
 When stopping the stream, drivers must notify the entities with
-:c:func:`media_entity_pipeline_stop()`.
+:c:func:`media_pipeline_stop()`.
 
-If multiple calls to :c:func:`media_entity_pipeline_start()` have been
-made the same number of :c:func:`media_entity_pipeline_stop()` calls
+If multiple calls to :c:func:`media_pipeline_start()` have been
+made the same number of :c:func:`media_pipeline_stop()` calls
 are required to stop streaming.
 The :c:type:`media_entity`.\ ``pipe`` field is reset to ``NULL`` on the last
 nested stop call.
@@ -245,7 +247,7 @@ operation must be done with the media_device graph_mutex held.
 Link validation
 ^^^^^^^^^^^^^^^
 
-Link validation is performed by :c:func:`media_entity_pipeline_start()`
+Link validation is performed by :c:func:`media_pipeline_start()`
 for any entity which has sink pads in the pipeline. The
 :c:type:`media_entity`.\ ``link_validate()`` callback is used for that
 purpose. In ``link_validate()`` callback, entity driver should check
@@ -257,8 +259,51 @@ Subsystems should facilitate link validation by providing subsystem specific
 helper functions to provide easy access for commonly needed information, and
 in the end provide a way to use driver-specific callbacks.
 
+Media Controller Device Allocator API
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+When the media device belongs to more than one driver, the shared media
+device is allocated with the shared struct device as the key for look ups.
+
+The shared media device should stay in registered state until the last
+driver unregisters it. In addition, the media device should be released when
+all the references are released. Each driver gets a reference to the media
+device during probe, when it allocates the media device. If media device is
+already allocated, the allocate API bumps up the refcount and returns the
+existing media device. The driver puts the reference back in its disconnect
+routine when it calls :c:func:`media_device_delete()`.
+
+The media device is unregistered and cleaned up from the kref put handler to
+ensure that the media device stays in registered state until the last driver
+unregisters the media device.
+
+**Driver Usage**
+
+Drivers should use the appropriate media-core routines to manage the shared
+media device life-time handling the two states:
+1. allocate -> register -> delete
+2. get reference to already registered device -> delete
+
+call :c:func:`media_device_delete()` routine to make sure the shared media
+device delete is handled correctly.
+
+**driver probe:**
+Call :c:func:`media_device_usb_allocate()` to allocate or get a reference
+Call :c:func:`media_device_register()`, if media devnode isn't registered
+
+**driver disconnect:**
+Call :c:func:`media_device_delete()` to free the media_device. Freeing is
+handled by the kref put handler.
+
+API Definitions
+^^^^^^^^^^^^^^^
+
 .. kernel-doc:: include/media/media-device.h
 
 .. kernel-doc:: include/media/media-devnode.h
 
 .. kernel-doc:: include/media/media-entity.h
+
+.. kernel-doc:: include/media/media-request.h
+
+.. kernel-doc:: include/media/media-dev-allocator.h

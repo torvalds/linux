@@ -1,11 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * xfrm4_output.c - Common IPsec encapsulation code for IPv4.
  * Copyright (c) 2004 Herbert Xu <herbert@gondor.apana.org.au>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/if_ether.h>
@@ -29,7 +25,9 @@ static int xfrm4_tunnel_check_size(struct sk_buff *skb)
 		goto out;
 
 	mtu = dst_mtu(skb_dst(skb));
-	if (skb->len > mtu) {
+	if ((!skb_is_gso(skb) && skb->len > mtu) ||
+	    (skb_is_gso(skb) &&
+	     !skb_gso_validate_network_len(skb, ip_skb_dst_mtu(skb->sk, skb)))) {
 		skb->protocol = htons(ETH_P_IP);
 
 		if (skb->sk)
@@ -56,21 +54,6 @@ int xfrm4_extract_output(struct xfrm_state *x, struct sk_buff *skb)
 	return xfrm4_extract_header(skb);
 }
 
-int xfrm4_prepare_output(struct xfrm_state *x, struct sk_buff *skb)
-{
-	int err;
-
-	err = xfrm_inner_extract_output(x, skb);
-	if (err)
-		return err;
-
-	IPCB(skb)->flags |= IPSKB_XFRM_TUNNEL_SIZE;
-	skb->protocol = htons(ETH_P_IP);
-
-	return x->outer_mode->output2(x, skb);
-}
-EXPORT_SYMBOL(xfrm4_prepare_output);
-
 int xfrm4_output_finish(struct sock *sk, struct sk_buff *skb)
 {
 	memset(IPCB(skb), 0, sizeof(*IPCB(skb)));
@@ -85,6 +68,8 @@ int xfrm4_output_finish(struct sock *sk, struct sk_buff *skb)
 static int __xfrm4_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 {
 	struct xfrm_state *x = skb_dst(skb)->xfrm;
+	const struct xfrm_state_afinfo *afinfo;
+	int ret = -EAFNOSUPPORT;
 
 #ifdef CONFIG_NETFILTER
 	if (!x) {
@@ -93,7 +78,15 @@ static int __xfrm4_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 	}
 #endif
 
-	return x->outer_mode->afinfo->output_finish(sk, skb);
+	rcu_read_lock();
+	afinfo = xfrm_state_afinfo_get_rcu(x->outer_mode.family);
+	if (likely(afinfo))
+		ret = afinfo->output_finish(sk, skb);
+	else
+		kfree_skb(skb);
+	rcu_read_unlock();
+
+	return ret;
 }
 
 int xfrm4_output(struct net *net, struct sock *sk, struct sk_buff *skb)

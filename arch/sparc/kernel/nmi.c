@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Pseudo NMI support on sparc64 systems.
  *
  * Copyright (C) 2009 David S. Miller <davem@davemloft.net>
@@ -42,7 +43,7 @@ static int panic_on_timeout;
  */
 atomic_t nmi_active = ATOMIC_INIT(0);		/* oprofile uses this */
 EXPORT_SYMBOL(nmi_active);
-
+static int nmi_init_done;
 static unsigned int nmi_hz = HZ;
 static DEFINE_PER_CPU(short, wd_enabled);
 static int endflag __initdata;
@@ -51,7 +52,7 @@ static DEFINE_PER_CPU(unsigned int, last_irq_sum);
 static DEFINE_PER_CPU(long, alert_counter);
 static DEFINE_PER_CPU(int, nmi_touch);
 
-void touch_nmi_watchdog(void)
+void arch_touch_nmi_watchdog(void)
 {
 	if (atomic_read(&nmi_active)) {
 		int cpu;
@@ -61,10 +62,8 @@ void touch_nmi_watchdog(void)
 				per_cpu(nmi_touch, cpu) = 1;
 		}
 	}
-
-	touch_softlockup_watchdog();
 }
-EXPORT_SYMBOL(touch_nmi_watchdog);
+EXPORT_SYMBOL(arch_touch_nmi_watchdog);
 
 static void die_nmi(const char *str, struct pt_regs *regs, int do_panic)
 {
@@ -153,6 +152,8 @@ static void report_broken_nmi(int cpu, int *prev_nmi_count)
 
 void stop_nmi_watchdog(void *unused)
 {
+	if (!__this_cpu_read(wd_enabled))
+		return;
 	pcr_ops->write_pcr(0, pcr_ops->pcr_nmi_disable);
 	__this_cpu_write(wd_enabled, 0);
 	atomic_dec(&nmi_active);
@@ -166,7 +167,8 @@ static int __init check_nmi_watchdog(void)
 	if (!atomic_read(&nmi_active))
 		return 0;
 
-	prev_nmi_count = kmalloc(nr_cpu_ids * sizeof(unsigned int), GFP_KERNEL);
+	prev_nmi_count = kmalloc_array(nr_cpu_ids, sizeof(unsigned int),
+				       GFP_KERNEL);
 	if (!prev_nmi_count) {
 		err = -ENOMEM;
 		goto error;
@@ -207,6 +209,9 @@ error:
 
 void start_nmi_watchdog(void *unused)
 {
+	if (__this_cpu_read(wd_enabled))
+		return;
+
 	__this_cpu_write(wd_enabled, 1);
 	atomic_inc(&nmi_active);
 
@@ -259,6 +264,8 @@ int __init nmi_init(void)
 		}
 	}
 
+	nmi_init_done = 1;
+
 	return err;
 }
 
@@ -270,3 +277,38 @@ static int __init setup_nmi_watchdog(char *str)
 	return 0;
 }
 __setup("nmi_watchdog=", setup_nmi_watchdog);
+
+/*
+ * sparc specific NMI watchdog enable function.
+ * Enables watchdog if it is not enabled already.
+ */
+int watchdog_nmi_enable(unsigned int cpu)
+{
+	if (atomic_read(&nmi_active) == -1) {
+		pr_warn("NMI watchdog cannot be enabled or disabled\n");
+		return -1;
+	}
+
+	/*
+	 * watchdog thread could start even before nmi_init is called.
+	 * Just Return in that case. Let nmi_init finish the init
+	 * process first.
+	 */
+	if (!nmi_init_done)
+		return 0;
+
+	smp_call_function_single(cpu, start_nmi_watchdog, NULL, 1);
+
+	return 0;
+}
+/*
+ * sparc specific NMI watchdog disable function.
+ * Disables watchdog if it is not disabled already.
+ */
+void watchdog_nmi_disable(unsigned int cpu)
+{
+	if (atomic_read(&nmi_active) == -1)
+		pr_warn_once("NMI watchdog cannot be enabled or disabled\n");
+	else
+		smp_call_function_single(cpu, stop_nmi_watchdog, NULL, 1);
+}

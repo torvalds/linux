@@ -1,23 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *      MOTU Midi Timepiece ALSA Main routines
  *      Copyright by Michael T. Mayers (c) Jan 09, 2000
  *      mail: michael@tweakoz.com
  *      Thanks to John Galbraith
- *
- *      This program is free software; you can redistribute it and/or modify
- *      it under the terms of the GNU General Public License as published by
- *      the Free Software Foundation; either version 2 of the License, or
- *      (at your option) any later version.
- *
- *      This program is distributed in the hope that it will be useful,
- *      but WITHOUT ANY WARRANTY; without even the implied warranty of
- *      MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *      GNU General Public License for more details.
- *
- *      You should have received a copy of the GNU General Public License
- *      along with this program; if not, write to the Free Software
- *      Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  *
  *      This driver is for the 'Mark Of The Unicorn' (MOTU)
  *      MidiTimePiece AV multiport MIDI interface 
@@ -39,7 +25,6 @@
  *      MIDI Synchronization to Video, ADAT, SMPTE and other Clock sources
  *      128 'scene' memories, recallable from MIDI program change
  *
- *
  * ChangeLog
  * Jun 11 2001	Takashi Iwai <tiwai@suse.de>
  *      - Recoded & debugged
@@ -47,7 +32,6 @@
  *      - hwports is between 1 and 8, which specifies the number of hardware ports.
  *        The three global ports, computer, adat and broadcast ports, are created
  *        always after h/w and remote ports.
- *
  */
 
 #include <linux/init.h>
@@ -86,9 +70,9 @@ module_param(index, int, 0444);
 MODULE_PARM_DESC(index, "Index value for MotuMTPAV MIDI.");
 module_param(id, charp, 0444);
 MODULE_PARM_DESC(id, "ID string for MotuMTPAV MIDI.");
-module_param(port, long, 0444);
+module_param_hw(port, long, ioport, 0444);
 MODULE_PARM_DESC(port, "Parallel port # for MotuMTPAV MIDI.");
-module_param(irq, int, 0444);
+module_param_hw(irq, int, irq, 0444);
 MODULE_PARM_DESC(irq, "Parallel IRQ # for MotuMTPAV MIDI.");
 module_param(hwports, int, 0444);
 MODULE_PARM_DESC(hwports, "Hardware ports # for MotuMTPAV MIDI.");
@@ -406,10 +390,10 @@ static void snd_mtpav_input_trigger(struct snd_rawmidi_substream *substream, int
  * timer interrupt for outputs
  */
 
-static void snd_mtpav_output_timer(unsigned long data)
+static void snd_mtpav_output_timer(struct timer_list *t)
 {
 	unsigned long flags;
-	struct mtpav *chip = (struct mtpav *)data;
+	struct mtpav *chip = from_timer(chip, t, timer);
 	int p;
 
 	spin_lock_irqsave(&chip->spinlock, flags);
@@ -600,13 +584,13 @@ static int snd_mtpav_get_ISA(struct mtpav *mcard)
 /*
  */
 
-static struct snd_rawmidi_ops snd_mtpav_output = {
+static const struct snd_rawmidi_ops snd_mtpav_output = {
 	.open =		snd_mtpav_output_open,
 	.close =	snd_mtpav_output_close,
 	.trigger =	snd_mtpav_output_trigger,
 };
 
-static struct snd_rawmidi_ops snd_mtpav_input = {
+static const struct snd_rawmidi_ops snd_mtpav_input = {
 	.open =		snd_mtpav_input_open,
 	.close =	snd_mtpav_input_close,
 	.trigger =	snd_mtpav_input_trigger,
@@ -707,8 +691,7 @@ static int snd_mtpav_probe(struct platform_device *dev)
 	mtp_card->share_irq = 0;
 	mtp_card->inmidistate = 0;
 	mtp_card->outmidihwport = 0xffffffff;
-	setup_timer(&mtp_card->timer, snd_mtpav_output_timer,
-		    (unsigned long) mtp_card);
+	timer_setup(&mtp_card->timer, snd_mtpav_output_timer, 0);
 
 	card->private_free = snd_mtpav_free;
 

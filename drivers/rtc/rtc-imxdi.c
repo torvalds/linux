@@ -1,18 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2008-2009 Freescale Semiconductor, Inc. All Rights Reserved.
  * Copyright 2010 Orex Computed Radiography
  */
-
-/*
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
- */
-
-/* based on rtc-mc13892.c */
 
 /*
  * This driver uses the 47-bit 32 kHz counter in the Freescale DryIce block
@@ -67,7 +57,7 @@
 #define DSR_ETAD  (1 << 21)      /* External tamper A detected */
 #define DSR_EBD   (1 << 20)      /* External boot detected */
 #define DSR_SAD   (1 << 19)      /* SCC alarm detected */
-#define DSR_TTD   (1 << 18)      /* Temperatur tamper detected */
+#define DSR_TTD   (1 << 18)      /* Temperature tamper detected */
 #define DSR_CTD   (1 << 17)      /* Clock tamper detected */
 #define DSR_VTD   (1 << 16)      /* Voltage tamper detected */
 #define DSR_WBF   (1 << 10)      /* Write Busy Flag (synchronous) */
@@ -108,7 +98,6 @@
  * @pdev: pionter to platform dev
  * @rtc: pointer to rtc struct
  * @ioaddr: IO registers pointer
- * @irq: dryice normal interrupt
  * @clk: input reference clock
  * @dsr: copy of the DSR register
  * @irq_lock: interrupt enable register (DIER) lock
@@ -120,7 +109,6 @@ struct imxdi_dev {
 	struct platform_device *pdev;
 	struct rtc_device *rtc;
 	void __iomem *ioaddr;
-	int irq;
 	struct clk *clk;
 	u32 dsr;
 	spinlock_t irq_lock;
@@ -554,7 +542,7 @@ static int dryice_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	unsigned long now;
 
 	now = readl(imxdi->ioaddr + DTCMR);
-	rtc_time_to_tm(now, tm);
+	rtc_time64_to_tm(now, tm);
 
 	return 0;
 }
@@ -563,7 +551,7 @@ static int dryice_rtc_read_time(struct device *dev, struct rtc_time *tm)
  * set the seconds portion of dryice time counter and clear the
  * fractional part.
  */
-static int dryice_rtc_set_mmss(struct device *dev, unsigned long secs)
+static int dryice_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
 	struct imxdi_dev *imxdi = dev_get_drvdata(dev);
 	u32 dcr, dsr;
@@ -590,7 +578,7 @@ static int dryice_rtc_set_mmss(struct device *dev, unsigned long secs)
 	if (rc != 0)
 		return rc;
 
-	rc = di_write_wait(imxdi, secs, DTCMR);
+	rc = di_write_wait(imxdi, rtc_tm_to_time64(tm), DTCMR);
 	if (rc != 0)
 		return rc;
 
@@ -620,7 +608,7 @@ static int dryice_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	u32 dcamr;
 
 	dcamr = readl(imxdi->ioaddr + DCAMR);
-	rtc_time_to_tm(dcamr, &alarm->time);
+	rtc_time64_to_tm(dcamr, &alarm->time);
 
 	/* alarm is enabled if the interrupt is enabled */
 	alarm->enabled = (readl(imxdi->ioaddr + DIER) & DIER_CAIE) != 0;
@@ -642,21 +630,10 @@ static int dryice_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 static int dryice_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 {
 	struct imxdi_dev *imxdi = dev_get_drvdata(dev);
-	unsigned long now;
-	unsigned long alarm_time;
 	int rc;
 
-	rc = rtc_tm_to_time(&alarm->time, &alarm_time);
-	if (rc)
-		return rc;
-
-	/* don't allow setting alarm in the past */
-	now = readl(imxdi->ioaddr + DTCMR);
-	if (alarm_time < now)
-		return -EINVAL;
-
 	/* write the new alarm time */
-	rc = di_write_wait(imxdi, (u32)alarm_time, DCAMR);
+	rc = di_write_wait(imxdi, rtc_tm_to_time64(&alarm->time), DCAMR);
 	if (rc)
 		return rc;
 
@@ -668,18 +645,18 @@ static int dryice_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	return 0;
 }
 
-static struct rtc_class_ops dryice_rtc_ops = {
+static const struct rtc_class_ops dryice_rtc_ops = {
 	.read_time		= dryice_rtc_read_time,
-	.set_mmss		= dryice_rtc_set_mmss,
+	.set_time		= dryice_rtc_set_time,
 	.alarm_irq_enable	= dryice_rtc_alarm_irq_enable,
 	.read_alarm		= dryice_rtc_read_alarm,
 	.set_alarm		= dryice_rtc_set_alarm,
 };
 
 /*
- * dryice "normal" interrupt handler
+ * interrupt handler for dryice "normal" and security violation interrupt
  */
-static irqreturn_t dryice_norm_irq(int irq, void *dev_id)
+static irqreturn_t dryice_irq(int irq, void *dev_id)
 {
 	struct imxdi_dev *imxdi = dev_id;
 	u32 dsr, dier;
@@ -711,7 +688,7 @@ static irqreturn_t dryice_norm_irq(int irq, void *dev_id)
 		/*If the write wait queue is empty then there is no pending
 		  operations. It means the interrupt is for DryIce -Security.
 		  IRQ must be returned as none.*/
-		if (list_empty_careful(&imxdi->write_wait.task_list))
+		if (list_empty_careful(&imxdi->write_wait.head))
 			return rc;
 
 		/* DSR_WCF clears itself on DSR read */
@@ -765,6 +742,7 @@ static int __init dryice_rtc_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct imxdi_dev *imxdi;
+	int norm_irq, sec_irq;
 	int rc;
 
 	imxdi = devm_kzalloc(&pdev->dev, sizeof(*imxdi), GFP_KERNEL);
@@ -780,15 +758,26 @@ static int __init dryice_rtc_probe(struct platform_device *pdev)
 
 	spin_lock_init(&imxdi->irq_lock);
 
-	imxdi->irq = platform_get_irq(pdev, 0);
-	if (imxdi->irq < 0)
-		return imxdi->irq;
+	norm_irq = platform_get_irq(pdev, 0);
+	if (norm_irq < 0)
+		return norm_irq;
+
+	/* the 2nd irq is the security violation irq
+	 * make this optional, don't break the device tree ABI
+	 */
+	sec_irq = platform_get_irq(pdev, 1);
+	if (sec_irq <= 0)
+		sec_irq = IRQ_NOTCONNECTED;
 
 	init_waitqueue_head(&imxdi->write_wait);
 
 	INIT_WORK(&imxdi->work, dryice_work);
 
 	mutex_init(&imxdi->write_mutex);
+
+	imxdi->rtc = devm_rtc_allocate_device(&pdev->dev);
+	if (IS_ERR(imxdi->rtc))
+		return PTR_ERR(imxdi->rtc);
 
 	imxdi->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(imxdi->clk))
@@ -808,20 +797,28 @@ static int __init dryice_rtc_probe(struct platform_device *pdev)
 	if (rc != 0)
 		goto err;
 
-	rc = devm_request_irq(&pdev->dev, imxdi->irq, dryice_norm_irq,
-			IRQF_SHARED, pdev->name, imxdi);
+	rc = devm_request_irq(&pdev->dev, norm_irq, dryice_irq,
+			      IRQF_SHARED, pdev->name, imxdi);
 	if (rc) {
 		dev_warn(&pdev->dev, "interrupt not available.\n");
 		goto err;
 	}
 
-	platform_set_drvdata(pdev, imxdi);
-	imxdi->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
-				  &dryice_rtc_ops, THIS_MODULE);
-	if (IS_ERR(imxdi->rtc)) {
-		rc = PTR_ERR(imxdi->rtc);
-		goto err;
+	rc = devm_request_irq(&pdev->dev, sec_irq, dryice_irq,
+			      IRQF_SHARED, pdev->name, imxdi);
+	if (rc) {
+		dev_warn(&pdev->dev, "security violation interrupt not available.\n");
+		/* this is not an error, see above */
 	}
+
+	platform_set_drvdata(pdev, imxdi);
+
+	imxdi->rtc->ops = &dryice_rtc_ops;
+	imxdi->rtc->range_max = U32_MAX;
+
+	rc = rtc_register_device(imxdi->rtc);
+	if (rc)
+		goto err;
 
 	return 0;
 

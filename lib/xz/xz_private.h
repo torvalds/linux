@@ -102,6 +102,10 @@
 #	endif
 #endif
 
+#ifndef CRC32_POLY_LE
+#define CRC32_POLY_LE 0xedb88320
+#endif
+
 /*
  * Allocate memory for LZMA2 decoder. xz_dec_lzma2_reset() must be used
  * before calling xz_dec_lzma2_run().

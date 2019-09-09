@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Samsung EXYNOS4x12 FIMC-IS (Imaging Subsystem) driver
  *
  * Copyright (C) 2013 Samsung Electronics Co., Ltd.
  *
  * Author: Sylwester Nawrocki <s.nawrocki@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/clk.h>
@@ -28,7 +25,14 @@ struct fimc_is_i2c {
  * is implemented in the FIMC-IS subsystem firmware and the host CPU
  * doesn't access the I2C bus controller.
  */
-static const struct i2c_algorithm fimc_is_i2c_algorithm;
+static u32 is_i2c_func(struct i2c_adapter *adap)
+{
+	return I2C_FUNC_I2C;
+}
+
+static const struct i2c_algorithm fimc_is_i2c_algorithm = {
+	.functionality	= is_i2c_func,
+};
 
 static int fimc_is_i2c_probe(struct platform_device *pdev)
 {
@@ -50,7 +54,7 @@ static int fimc_is_i2c_probe(struct platform_device *pdev)
 	i2c_adap = &isp_i2c->adapter;
 	i2c_adap->dev.of_node = node;
 	i2c_adap->dev.parent = &pdev->dev;
-	strlcpy(i2c_adap->name, "exynos4x12-isp-i2c", sizeof(i2c_adap->name));
+	strscpy(i2c_adap->name, "exynos4x12-isp-i2c", sizeof(i2c_adap->name));
 	i2c_adap->owner = THIS_MODULE;
 	i2c_adap->algo = &fimc_is_i2c_algorithm;
 	i2c_adap->class = I2C_CLASS_SPD;
@@ -123,7 +127,7 @@ static int fimc_is_i2c_resume(struct device *dev)
 }
 #endif
 
-static struct dev_pm_ops fimc_is_i2c_pm_ops = {
+static const struct dev_pm_ops fimc_is_i2c_pm_ops = {
 	SET_RUNTIME_PM_OPS(fimc_is_i2c_runtime_suspend,
 					fimc_is_i2c_runtime_resume, NULL)
 	SET_SYSTEM_SLEEP_PM_OPS(fimc_is_i2c_suspend, fimc_is_i2c_resume)

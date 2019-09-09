@@ -62,7 +62,7 @@ For more details see description of the SPI busses bindings
 
 Example:
 
-i2c@138A000000 {
+i2c@138a000000 {
 	...
 	s5c73m3@3c {
 		compatible = "samsung,s5c73m3";

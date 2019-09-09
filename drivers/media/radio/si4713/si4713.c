@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * drivers/media/radio/si4713-i2c.c
  *
@@ -5,20 +6,6 @@
  *
  * Copyright (c) 2009 Nokia Corporation
  * Contact: Eduardo Valentin <eduardo.valentin@nokia.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #include <linux/completion.h>
@@ -716,9 +703,9 @@ static int si4713_tx_tune_status(struct si4713_device *sdev, u8 intack,
 		*power = val[5];
 		*antcap = val[6];
 		*noise = val[7];
-		v4l2_dbg(1, debug, &sdev->sd, "%s: response: %d x 10 kHz "
-				"(power %d, antcap %d, rnl %d)\n", __func__,
-				*frequency, *power, *antcap, *noise);
+		v4l2_dbg(1, debug, &sdev->sd,
+			 "%s: response: %d x 10 kHz (power %d, antcap %d, rnl %d)\n",
+			 __func__, *frequency, *power, *antcap, *noise);
 	}
 
 	return err;
@@ -758,10 +745,9 @@ static int si4713_tx_rds_buff(struct si4713_device *sdev, u8 mode, u16 rdsb,
 		v4l2_dbg(1, debug, &sdev->sd,
 			"%s: status=0x%02x\n", __func__, val[0]);
 		*cbleft = (s8)val[2] - val[3];
-		v4l2_dbg(1, debug, &sdev->sd, "%s: response: interrupts"
-				" 0x%02x cb avail: %d cb used %d fifo avail"
-				" %d fifo used %d\n", __func__, val[1],
-				val[2], val[3], val[4], val[5]);
+		v4l2_dbg(1, debug, &sdev->sd,
+			 "%s: response: interrupts 0x%02x cb avail: %d cb used %d fifo avail %d fifo used %d\n",
+			 __func__, val[1], val[2], val[3], val[4], val[5]);
 	}
 
 	return err;
@@ -1277,7 +1263,7 @@ static int si4713_g_modulator(struct v4l2_subdev *sd, struct v4l2_modulator *vm)
 	if (vm->index > 0)
 		return -EINVAL;
 
-	strncpy(vm->name, "FM Modulator", 32);
+	strscpy(vm->name, "FM Modulator", sizeof(vm->name));
 	vm->capability = V4L2_TUNER_CAP_STEREO | V4L2_TUNER_CAP_LOW |
 		V4L2_TUNER_CAP_RDS | V4L2_TUNER_CAP_RDS_CONTROLS;
 
@@ -1661,9 +1647,18 @@ static const struct i2c_device_id si4713_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, si4713_id);
 
+#if IS_ENABLED(CONFIG_OF)
+static const struct of_device_id si4713_of_match[] = {
+	{ .compatible = "silabs,si4713" },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, si4713_of_match);
+#endif
+
 static struct i2c_driver si4713_i2c_driver = {
 	.driver		= {
 		.name	= "si4713",
+		.of_match_table = of_match_ptr(si4713_of_match),
 	},
 	.probe		= si4713_probe,
 	.remove         = si4713_remove,

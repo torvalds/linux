@@ -1,7 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __FS_CEPH_MESSENGER_H
 #define __FS_CEPH_MESSENGER_H
 
-#include <linux/blk_types.h>
+#include <linux/bvec.h>
 #include <linux/kref.h>
 #include <linux/mutex.h>
 #include <linux/net.h>
@@ -30,7 +31,10 @@ struct ceph_connection_operations {
 	struct ceph_auth_handshake *(*get_authorizer) (
 				struct ceph_connection *con,
 			       int *proto, int force_new);
-	int (*verify_authorizer_reply) (struct ceph_connection *con, int len);
+	int (*add_authorizer_challenge)(struct ceph_connection *con,
+					void *challenge_buf,
+					int challenge_buf_len);
+	int (*verify_authorizer_reply) (struct ceph_connection *con);
 	int (*invalidate_authorizer)(struct ceph_connection *con);
 
 	/* there was some error on the socket (disconnect, whatever) */
@@ -43,6 +47,8 @@ struct ceph_connection_operations {
 	struct ceph_msg * (*alloc_msg) (struct ceph_connection *con,
 					struct ceph_msg_header *hdr,
 					int *skip);
+
+	void (*reencode_message) (struct ceph_msg *msg);
 
 	int (*sign_message) (struct ceph_msg *msg);
 	int (*check_message_signature) (struct ceph_msg *msg);
@@ -73,33 +79,101 @@ enum ceph_msg_data_type {
 #ifdef CONFIG_BLOCK
 	CEPH_MSG_DATA_BIO,	/* data source/destination is a bio list */
 #endif /* CONFIG_BLOCK */
+	CEPH_MSG_DATA_BVECS,	/* data source/destination is a bio_vec array */
 };
 
-static __inline__ bool ceph_msg_data_type_valid(enum ceph_msg_data_type type)
-{
-	switch (type) {
-	case CEPH_MSG_DATA_NONE:
-	case CEPH_MSG_DATA_PAGES:
-	case CEPH_MSG_DATA_PAGELIST:
 #ifdef CONFIG_BLOCK
-	case CEPH_MSG_DATA_BIO:
+
+struct ceph_bio_iter {
+	struct bio *bio;
+	struct bvec_iter iter;
+};
+
+#define __ceph_bio_iter_advance_step(it, n, STEP) do {			      \
+	unsigned int __n = (n), __cur_n;				      \
+									      \
+	while (__n) {							      \
+		BUG_ON(!(it)->iter.bi_size);				      \
+		__cur_n = min((it)->iter.bi_size, __n);			      \
+		(void)(STEP);						      \
+		bio_advance_iter((it)->bio, &(it)->iter, __cur_n);	      \
+		if (!(it)->iter.bi_size && (it)->bio->bi_next) {	      \
+			dout("__ceph_bio_iter_advance_step next bio\n");      \
+			(it)->bio = (it)->bio->bi_next;			      \
+			(it)->iter = (it)->bio->bi_iter;		      \
+		}							      \
+		__n -= __cur_n;						      \
+	}								      \
+} while (0)
+
+/*
+ * Advance @it by @n bytes.
+ */
+#define ceph_bio_iter_advance(it, n)					      \
+	__ceph_bio_iter_advance_step(it, n, 0)
+
+/*
+ * Advance @it by @n bytes, executing BVEC_STEP for each bio_vec.
+ */
+#define ceph_bio_iter_advance_step(it, n, BVEC_STEP)			      \
+	__ceph_bio_iter_advance_step(it, n, ({				      \
+		struct bio_vec bv;					      \
+		struct bvec_iter __cur_iter;				      \
+									      \
+		__cur_iter = (it)->iter;				      \
+		__cur_iter.bi_size = __cur_n;				      \
+		__bio_for_each_segment(bv, (it)->bio, __cur_iter, __cur_iter) \
+			(void)(BVEC_STEP);				      \
+	}))
+
 #endif /* CONFIG_BLOCK */
-		return true;
-	default:
-		return false;
-	}
-}
+
+struct ceph_bvec_iter {
+	struct bio_vec *bvecs;
+	struct bvec_iter iter;
+};
+
+#define __ceph_bvec_iter_advance_step(it, n, STEP) do {			      \
+	BUG_ON((n) > (it)->iter.bi_size);				      \
+	(void)(STEP);							      \
+	bvec_iter_advance((it)->bvecs, &(it)->iter, (n));		      \
+} while (0)
+
+/*
+ * Advance @it by @n bytes.
+ */
+#define ceph_bvec_iter_advance(it, n)					      \
+	__ceph_bvec_iter_advance_step(it, n, 0)
+
+/*
+ * Advance @it by @n bytes, executing BVEC_STEP for each bio_vec.
+ */
+#define ceph_bvec_iter_advance_step(it, n, BVEC_STEP)			      \
+	__ceph_bvec_iter_advance_step(it, n, ({				      \
+		struct bio_vec bv;					      \
+		struct bvec_iter __cur_iter;				      \
+									      \
+		__cur_iter = (it)->iter;				      \
+		__cur_iter.bi_size = (n);				      \
+		for_each_bvec(bv, (it)->bvecs, __cur_iter, __cur_iter)	      \
+			(void)(BVEC_STEP);				      \
+	}))
+
+#define ceph_bvec_iter_shorten(it, n) do {				      \
+	BUG_ON((n) > (it)->iter.bi_size);				      \
+	(it)->iter.bi_size = (n);					      \
+} while (0)
 
 struct ceph_msg_data {
-	struct list_head		links;	/* ceph_msg->data */
 	enum ceph_msg_data_type		type;
 	union {
 #ifdef CONFIG_BLOCK
 		struct {
-			struct bio	*bio;
-			size_t		bio_length;
+			struct ceph_bio_iter	bio_pos;
+			u32			bio_length;
 		};
 #endif /* CONFIG_BLOCK */
+		struct ceph_bvec_iter	bvec_pos;
 		struct {
 			struct page	**pages;	/* NOT OWNER. */
 			size_t		length;		/* total # bytes */
@@ -111,7 +185,6 @@ struct ceph_msg_data {
 
 struct ceph_msg_data_cursor {
 	size_t			total_resid;	/* across all data items */
-	struct list_head	*data_head;	/* = &ceph_msg->data */
 
 	struct ceph_msg_data	*data;		/* current data item */
 	size_t			resid;		/* bytes not yet consumed */
@@ -119,11 +192,9 @@ struct ceph_msg_data_cursor {
 	bool			need_crc;	/* crc update needed */
 	union {
 #ifdef CONFIG_BLOCK
-		struct {				/* bio */
-			struct bio	*bio;		/* bio from list */
-			struct bvec_iter bvec_iter;
-		};
+		struct ceph_bio_iter	bio_iter;
 #endif /* CONFIG_BLOCK */
+		struct bvec_iter	bvec_iter;
 		struct {				/* pages */
 			unsigned int	page_offset;	/* offset in page */
 			unsigned short	page_index;	/* index in array */
@@ -151,7 +222,9 @@ struct ceph_msg {
 	struct ceph_buffer *middle;
 
 	size_t				data_length;
-	struct list_head		data;
+	struct ceph_msg_data		*data;
+	int				num_data_items;
+	int				max_data_items;
 	struct ceph_msg_data_cursor	cursor;
 
 	struct ceph_connection *con;
@@ -200,9 +273,8 @@ struct ceph_connection {
 				 attempt for this connection, client */
 	u32 peer_global_seq;  /* peer's global seq for this connection */
 
+	struct ceph_auth_handshake *auth;
 	int auth_retry;       /* true if we need a newer authorizer */
-	void *auth_reply_buf;   /* where to put the authorizer reply */
-	int auth_reply_buf_len;
 
 	struct mutex mutex;
 
@@ -244,14 +316,15 @@ struct ceph_connection {
 	int in_base_pos;     /* bytes read */
 	__le64 in_temp_ack;  /* for reading an ack */
 
-	struct timespec last_keepalive_ack; /* keepalive2 ack stamp */
+	struct timespec64 last_keepalive_ack; /* keepalive2 ack stamp */
 
 	struct delayed_work work;	    /* send|recv work */
 	unsigned long       delay;          /* current delay interval */
 };
 
 
-extern const char *ceph_pr_addr(const struct sockaddr_storage *ss);
+extern const char *ceph_pr_addr(const struct ceph_entity_addr *addr);
+
 extern int ceph_parse_ips(const char *c, const char *end,
 			  struct ceph_entity_addr *addr,
 			  int max_count, int *count);
@@ -287,10 +360,14 @@ extern void ceph_msg_data_add_pages(struct ceph_msg *msg, struct page **pages,
 extern void ceph_msg_data_add_pagelist(struct ceph_msg *msg,
 				struct ceph_pagelist *pagelist);
 #ifdef CONFIG_BLOCK
-extern void ceph_msg_data_add_bio(struct ceph_msg *msg, struct bio *bio,
-				size_t length);
+void ceph_msg_data_add_bio(struct ceph_msg *msg, struct ceph_bio_iter *bio_pos,
+			   u32 length);
 #endif /* CONFIG_BLOCK */
+void ceph_msg_data_add_bvecs(struct ceph_msg *msg,
+			     struct ceph_bvec_iter *bvec_pos);
 
+struct ceph_msg *ceph_msg_new2(int type, int front_len, int max_data_items,
+			       gfp_t flags, bool can_fail);
 extern struct ceph_msg *ceph_msg_new(int type, int front_len, gfp_t flags,
 				     bool can_fail);
 

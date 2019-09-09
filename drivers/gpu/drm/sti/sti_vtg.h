@@ -1,7 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) STMicroelectronics SA 2014
  * Author: Benjamin Gaignard <benjamin.gaignard@st.com> for STMicroelectronics.
- * License terms:  GNU General Public License (GPL), version 2
  */
 
 #ifndef _STI_VTG_H_
@@ -16,6 +16,7 @@
 #define VTG_SYNC_ID_DVO         4
 
 struct sti_vtg;
+struct drm_crtc;
 struct drm_display_mode;
 struct notifier_block;
 

@@ -39,7 +39,7 @@ static int zero_map(struct dm_target *ti, struct bio *bio)
 	case REQ_OP_READ:
 		if (bio->bi_opf & REQ_RAHEAD) {
 			/* readahead of null bytes only wastes buffer cache */
-			return -EIO;
+			return DM_MAPIO_KILL;
 		}
 		zero_fill_bio(bio);
 		break;
@@ -47,7 +47,7 @@ static int zero_map(struct dm_target *ti, struct bio *bio)
 		/* writes get silently dropped */
 		break;
 	default:
-		return -EIO;
+		return DM_MAPIO_KILL;
 	}
 
 	bio_endio(bio);

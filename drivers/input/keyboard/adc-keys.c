@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Input driver for resistor ladder connected on ADC
  *
  * Copyright (c) 2016 Alexandre Belloni
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 
 #include <linux/err.h>
@@ -147,8 +144,6 @@ static int adc_keys_probe(struct platform_device *pdev)
 	error = adc_keys_load_keymap(dev, st);
 	if (error)
 		return error;
-
-	platform_set_drvdata(pdev, st);
 
 	poll_dev = devm_input_allocate_polled_device(dev);
 	if (!poll_dev) {

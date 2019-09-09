@@ -1,19 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Driver for the Conexant CX23885 PCIe bridge
  *
  *  Copyright (c) 2007 Steven Toth <stoth@linuxtv.org>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *
- *  GNU General Public License for more details.
  */
+
+#include "cx23885.h"
+#include "cx23885-video.h"
 
 #include <linux/init.h>
 #include <linux/list.h>
@@ -27,8 +20,6 @@
 #include <linux/kthread.h>
 #include <asm/div64.h>
 
-#include "cx23885.h"
-#include "cx23885-video.h"
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-event.h>
@@ -66,7 +57,8 @@ MODULE_PARM_DESC(vid_limit, "capture memory limit in megabytes");
 
 #define dprintk(level, fmt, arg...)\
 	do { if (video_debug >= level)\
-		printk(KERN_DEBUG "%s: " fmt, dev->name, ## arg);\
+		printk(KERN_DEBUG pr_fmt("%s: video:" fmt), \
+			__func__, ##arg); \
 	} while (0)
 
 /* ------------------------------------------------------------------- */
@@ -194,7 +186,7 @@ u8 cx23885_flatiron_read(struct cx23885_dev *dev, u8 reg)
 
 	ret = i2c_transfer(&dev->i2c_bus[2].i2c_adap, &msg[0], 2);
 	if (ret != 2)
-		printk(KERN_ERR "%s() error\n", __func__);
+		pr_err("%s() error\n", __func__);
 
 	return b1[0];
 }
@@ -261,6 +253,7 @@ static int cx23885_video_mux(struct cx23885_dev *dev, unsigned int input)
 		(dev->board == CX23885_BOARD_HAUPPAUGE_IMPACTVCBE) ||
 		(dev->board == CX23885_BOARD_HAUPPAUGE_HVR1255) ||
 		(dev->board == CX23885_BOARD_HAUPPAUGE_HVR1255_22111) ||
+		(dev->board == CX23885_BOARD_HAUPPAUGE_HVR1265_K4) ||
 		(dev->board == CX23885_BOARD_HAUPPAUGE_HVR1850) ||
 		(dev->board == CX23885_BOARD_MYGICA_X8507) ||
 		(dev->board == CX23885_BOARD_AVERMEDIA_HC81R) ||
@@ -634,21 +627,17 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	struct v4l2_capability *cap)
 {
 	struct cx23885_dev *dev = video_drvdata(file);
-	struct video_device *vdev = video_devdata(file);
 
-	strcpy(cap->driver, "cx23885");
-	strlcpy(cap->card, cx23885_boards[dev->board].name,
+	strscpy(cap->driver, "cx23885", sizeof(cap->driver));
+	strscpy(cap->card, cx23885_boards[dev->board].name,
 		sizeof(cap->card));
 	sprintf(cap->bus_info, "PCIe:%s", pci_name(dev->pci));
-	cap->device_caps = V4L2_CAP_READWRITE | V4L2_CAP_STREAMING | V4L2_CAP_AUDIO;
+	cap->capabilities = V4L2_CAP_READWRITE | V4L2_CAP_STREAMING |
+			    V4L2_CAP_AUDIO | V4L2_CAP_VBI_CAPTURE |
+			    V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_VBI_CAPTURE |
+			    V4L2_CAP_DEVICE_CAPS;
 	if (dev->tuner_type != TUNER_ABSENT)
-		cap->device_caps |= V4L2_CAP_TUNER;
-	if (vdev->vfl_type == VFL_TYPE_VBI)
-		cap->device_caps |= V4L2_CAP_VBI_CAPTURE;
-	else
-		cap->device_caps |= V4L2_CAP_VIDEO_CAPTURE;
-	cap->capabilities = cap->device_caps | V4L2_CAP_VBI_CAPTURE |
-		V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_DEVICE_CAPS;
+		cap->capabilities |= V4L2_CAP_TUNER;
 	return 0;
 }
 
@@ -658,30 +647,47 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
 	if (unlikely(f->index >= ARRAY_SIZE(formats)))
 		return -EINVAL;
 
-	strlcpy(f->description, formats[f->index].name,
+	strscpy(f->description, formats[f->index].name,
 		sizeof(f->description));
 	f->pixelformat = formats[f->index].fourcc;
 
 	return 0;
 }
 
-static int vidioc_cropcap(struct file *file, void *priv,
-			  struct v4l2_cropcap *cc)
+static int vidioc_g_pixelaspect(struct file *file, void *priv,
+				int type, struct v4l2_fract *f)
 {
 	struct cx23885_dev *dev = video_drvdata(file);
 	bool is_50hz = dev->tvnorm & V4L2_STD_625_50;
 
-	if (cc->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+	if (type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 
-	cc->bounds.left = 0;
-	cc->bounds.top = 0;
-	cc->bounds.width = 720;
-	cc->bounds.height = norm_maxh(dev->tvnorm);
-	cc->defrect = cc->bounds;
-	cc->pixelaspect.numerator = is_50hz ? 54 : 11;
-	cc->pixelaspect.denominator = is_50hz ? 59 : 10;
+	f->numerator = is_50hz ? 54 : 11;
+	f->denominator = is_50hz ? 59 : 10;
 
+	return 0;
+}
+
+static int vidioc_g_selection(struct file *file, void *fh,
+			      struct v4l2_selection *sel)
+{
+	struct cx23885_dev *dev = video_drvdata(file);
+
+	if (sel->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
+
+	switch (sel->target) {
+	case V4L2_SEL_TGT_CROP_BOUNDS:
+	case V4L2_SEL_TGT_CROP_DEFAULT:
+		sel->r.top = 0;
+		sel->r.left = 0;
+		sel->r.width = 720;
+		sel->r.height = norm_maxh(dev->tvnorm);
+		break;
+	default:
+		return -EINVAL;
+	}
 	return 0;
 }
 
@@ -728,7 +734,7 @@ int cx23885_enum_input(struct cx23885_dev *dev, struct v4l2_input *i)
 
 	i->index = n;
 	i->type  = V4L2_INPUT_TYPE_CAMERA;
-	strcpy(i->name, iname[INPUT(n)->type]);
+	strscpy(i->name, iname[INPUT(n)->type], sizeof(i->name));
 	i->std = CX23885_NORMS;
 	if ((CX23885_VMUX_TELEVISION == INPUT(n)->type) ||
 		(CX23885_VMUX_CABLE == INPUT(n)->type)) {
@@ -811,7 +817,6 @@ static int vidioc_log_status(struct file *file, void *priv)
 static int cx23885_query_audinput(struct file *file, void *priv,
 	struct v4l2_audio *i)
 {
-	struct cx23885_dev *dev = video_drvdata(file);
 	static const char *iname[] = {
 		[0] = "Baseband L/R 1",
 		[1] = "Baseband L/R 2",
@@ -826,7 +831,7 @@ static int cx23885_query_audinput(struct file *file, void *priv,
 
 	memset(i, 0, sizeof(*i));
 	i->index = n;
-	strcpy(i->name, iname[n]);
+	strscpy(i->name, iname[n], sizeof(i->name));
 	i->capability = V4L2_AUDCAP_STEREO;
 	return 0;
 
@@ -885,7 +890,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 	if (0 != t->index)
 		return -EINVAL;
 
-	strcpy(t->name, "Television");
+	strscpy(t->name, "Television", sizeof(t->name));
 
 	call_all(dev, tuner, g_tuner, t);
 	return 0;
@@ -992,7 +997,8 @@ static int cx23885_set_freq_via_ops(struct cx23885_dev *dev,
 
 	if ((dev->board == CX23885_BOARD_HAUPPAUGE_HVR1850) ||
 	    (dev->board == CX23885_BOARD_HAUPPAUGE_HVR1255) ||
-	    (dev->board == CX23885_BOARD_HAUPPAUGE_HVR1255_22111))
+	    (dev->board == CX23885_BOARD_HAUPPAUGE_HVR1255_22111) ||
+	    (dev->board == CX23885_BOARD_HAUPPAUGE_HVR1265_K4))
 		fe = &dev->ts1.analog_fe;
 
 	if (fe && fe->ops.tuner_ops.set_analog_params) {
@@ -1000,7 +1006,7 @@ static int cx23885_set_freq_via_ops(struct cx23885_dev *dev,
 		fe->ops.tuner_ops.set_analog_params(fe, &params);
 	}
 	else
-		printk(KERN_ERR "%s() No analog tuner, aborting\n", __func__);
+		pr_err("%s() No analog tuner, aborting\n", __func__);
 
 	/* When changing channels it is required to reset TVAUDIO */
 	msleep(100);
@@ -1021,6 +1027,7 @@ int cx23885_set_frequency(struct file *file, void *priv,
 	switch (dev->board) {
 	case CX23885_BOARD_HAUPPAUGE_HVR1255:
 	case CX23885_BOARD_HAUPPAUGE_HVR1255_22111:
+	case CX23885_BOARD_HAUPPAUGE_HVR1265_K4:
 	case CX23885_BOARD_HAUPPAUGE_HVR1850:
 		ret = cx23885_set_freq_via_ops(dev, f);
 		break;
@@ -1058,15 +1065,14 @@ int cx23885_video_irq(struct cx23885_dev *dev, u32 status)
 		if (status & VID_BC_MSK_OPC_ERR) {
 			dprintk(7, " (VID_BC_MSK_OPC_ERR 0x%08x)\n",
 				VID_BC_MSK_OPC_ERR);
-			printk(KERN_WARNING "%s: video risc op code error\n",
+			pr_warn("%s: video risc op code error\n",
 				dev->name);
 			cx23885_sram_channel_dump(dev,
 				&dev->sram_channels[SRAM_CH01]);
 		}
 
 		if (status & VID_BC_MSK_SYNC)
-			dprintk(7, " (VID_BC_MSK_SYNC 0x%08x) "
-				"video lines miss-match\n",
+			dprintk(7, " (VID_BC_MSK_SYNC 0x%08x) video lines miss-match\n",
 				VID_BC_MSK_SYNC);
 
 		if (status & VID_BC_MSK_OF)
@@ -1119,7 +1125,8 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_dqbuf         = vb2_ioctl_dqbuf,
 	.vidioc_streamon      = vb2_ioctl_streamon,
 	.vidioc_streamoff     = vb2_ioctl_streamoff,
-	.vidioc_cropcap       = vidioc_cropcap,
+	.vidioc_g_pixelaspect = vidioc_g_pixelaspect,
+	.vidioc_g_selection   = vidioc_g_selection,
 	.vidioc_s_std         = vidioc_s_std,
 	.vidioc_g_std         = vidioc_g_std,
 	.vidioc_enum_input    = vidioc_enum_input,
@@ -1146,7 +1153,7 @@ static struct video_device cx23885_vbi_template;
 static struct video_device cx23885_video_template = {
 	.name                 = "cx23885-video",
 	.fops                 = &video_fops,
-	.ioctl_ops 	      = &video_ioctl_ops,
+	.ioctl_ops	      = &video_ioctl_ops,
 	.tvnorms              = CX23885_NORMS,
 };
 
@@ -1183,7 +1190,8 @@ int cx23885_video_register(struct cx23885_dev *dev)
 
 	/* Initialize VBI template */
 	cx23885_vbi_template = cx23885_video_template;
-	strcpy(cx23885_vbi_template.name, "cx23885-vbi");
+	strscpy(cx23885_vbi_template.name, "cx23885-vbi",
+		sizeof(cx23885_vbi_template.name));
 
 	dev->tvnorm = V4L2_STD_NTSC_M;
 	dev->fmt = format_by_fourcc(V4L2_PIX_FMT_YUYV);
@@ -1294,28 +1302,36 @@ int cx23885_video_register(struct cx23885_dev *dev)
 	dev->video_dev = cx23885_vdev_init(dev, dev->pci,
 		&cx23885_video_template, "video");
 	dev->video_dev->queue = &dev->vb2_vidq;
+	dev->video_dev->device_caps = V4L2_CAP_READWRITE | V4L2_CAP_STREAMING |
+				      V4L2_CAP_AUDIO | V4L2_CAP_VIDEO_CAPTURE;
+	if (dev->tuner_type != TUNER_ABSENT)
+		dev->video_dev->device_caps |= V4L2_CAP_TUNER;
 	err = video_register_device(dev->video_dev, VFL_TYPE_GRABBER,
 				    video_nr[dev->nr]);
 	if (err < 0) {
-		printk(KERN_INFO "%s: can't register video device\n",
+		pr_info("%s: can't register video device\n",
 			dev->name);
 		goto fail_unreg;
 	}
-	printk(KERN_INFO "%s: registered device %s [v4l2]\n",
+	pr_info("%s: registered device %s [v4l2]\n",
 	       dev->name, video_device_node_name(dev->video_dev));
 
 	/* register VBI device */
 	dev->vbi_dev = cx23885_vdev_init(dev, dev->pci,
 		&cx23885_vbi_template, "vbi");
 	dev->vbi_dev->queue = &dev->vb2_vbiq;
+	dev->vbi_dev->device_caps = V4L2_CAP_READWRITE | V4L2_CAP_STREAMING |
+				    V4L2_CAP_AUDIO | V4L2_CAP_VBI_CAPTURE;
+	if (dev->tuner_type != TUNER_ABSENT)
+		dev->vbi_dev->device_caps |= V4L2_CAP_TUNER;
 	err = video_register_device(dev->vbi_dev, VFL_TYPE_VBI,
 				    vbi_nr[dev->nr]);
 	if (err < 0) {
-		printk(KERN_INFO "%s: can't register vbi device\n",
+		pr_info("%s: can't register vbi device\n",
 			dev->name);
 		goto fail_unreg;
 	}
-	printk(KERN_INFO "%s: registered device %s\n",
+	pr_info("%s: registered device %s\n",
 	       dev->name, video_device_node_name(dev->vbi_dev));
 
 	/* Register ALSA audio device */

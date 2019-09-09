@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * CXL Flash Device Driver
  *
@@ -5,11 +6,6 @@
  *             Matthew R. Ochs <mrochs@linux.vnet.ibm.com>, IBM Corporation
  *
  * Copyright (C) 2015 IBM Corporation
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #ifndef _CXLFLASH_VLUN_H
@@ -47,7 +43,7 @@
  * not stored anywhere.
  *
  * The LXT table is re-allocated whenever it needs to cross into another group.
-*/
+ */
 #define LXT_GROUP_SIZE          8
 #define LXT_NUM_GROUPS(lxt_cnt) (((lxt_cnt) + 7)/8)	/* alloc'ed groups */
 #define LXT_LUNIDX_SHIFT  8	/* LXT entry, shift for LUN index */

@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /* Copyright (C) 2011-2013 Freescale Semiconductor, Inc.
  *
  * derived from imx-hdmi.c(renamed to bridge/dw_hdmi.c now)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -16,7 +13,7 @@
 #include <linux/regmap.h>
 #include <drm/drm_of.h>
 #include <drm/drmP.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_encoder_slave.h>
 
@@ -25,6 +22,7 @@
 struct imx_hdmi {
 	struct device *dev;
 	struct drm_encoder encoder;
+	struct dw_hdmi *hdmi;
 	struct regmap *regmap;
 };
 
@@ -147,8 +145,9 @@ static const struct drm_encoder_funcs dw_hdmi_imx_encoder_funcs = {
 	.destroy = drm_encoder_cleanup,
 };
 
-static enum drm_mode_status imx6q_hdmi_mode_valid(struct drm_connector *con,
-						  struct drm_display_mode *mode)
+static enum drm_mode_status
+imx6q_hdmi_mode_valid(struct drm_connector *con,
+		      const struct drm_display_mode *mode)
 {
 	if (mode->clock < 13500)
 		return MODE_CLOCK_LOW;
@@ -159,8 +158,9 @@ static enum drm_mode_status imx6q_hdmi_mode_valid(struct drm_connector *con,
 	return MODE_OK;
 }
 
-static enum drm_mode_status imx6dl_hdmi_mode_valid(struct drm_connector *con,
-						   struct drm_display_mode *mode)
+static enum drm_mode_status
+imx6dl_hdmi_mode_valid(struct drm_connector *con,
+		       const struct drm_display_mode *mode)
 {
 	if (mode->clock < 13500)
 		return MODE_CLOCK_LOW;
@@ -175,7 +175,6 @@ static struct dw_hdmi_plat_data imx6q_hdmi_drv_data = {
 	.mpll_cfg   = imx_mpll_cfg,
 	.cur_ctr    = imx_cur_ctr,
 	.phy_config = imx_phy_config,
-	.dev_type   = IMX6Q_HDMI,
 	.mode_valid = imx6q_hdmi_mode_valid,
 };
 
@@ -183,7 +182,6 @@ static struct dw_hdmi_plat_data imx6dl_hdmi_drv_data = {
 	.mpll_cfg = imx_mpll_cfg,
 	.cur_ctr  = imx_cur_ctr,
 	.phy_config = imx_phy_config,
-	.dev_type = IMX6DL_HDMI,
 	.mode_valid = imx6dl_hdmi_mode_valid,
 };
 
@@ -207,8 +205,6 @@ static int dw_hdmi_imx_bind(struct device *dev, struct device *master,
 	struct drm_device *drm = data;
 	struct drm_encoder *encoder;
 	struct imx_hdmi *hdmi;
-	struct resource *iores;
-	int irq;
 	int ret;
 
 	if (!pdev->dev.of_node)
@@ -222,14 +218,6 @@ static int dw_hdmi_imx_bind(struct device *dev, struct device *master,
 	plat_data = match->data;
 	hdmi->dev = &pdev->dev;
 	encoder = &hdmi->encoder;
-
-	irq = platform_get_irq(pdev, 0);
-	if (irq < 0)
-		return irq;
-
-	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!iores)
-		return -ENXIO;
 
 	encoder->possible_crtcs = drm_of_find_possible_crtcs(drm, dev->of_node);
 	/*
@@ -249,14 +237,18 @@ static int dw_hdmi_imx_bind(struct device *dev, struct device *master,
 	drm_encoder_init(drm, encoder, &dw_hdmi_imx_encoder_funcs,
 			 DRM_MODE_ENCODER_TMDS, NULL);
 
-	ret = dw_hdmi_bind(dev, master, data, encoder, iores, irq, plat_data);
+	platform_set_drvdata(pdev, hdmi);
+
+	hdmi->hdmi = dw_hdmi_bind(pdev, encoder, plat_data);
 
 	/*
 	 * If dw_hdmi_bind() fails we'll never call dw_hdmi_unbind(),
 	 * which would have called the encoder cleanup.  Do it manually.
 	 */
-	if (ret)
+	if (IS_ERR(hdmi->hdmi)) {
+		ret = PTR_ERR(hdmi->hdmi);
 		drm_encoder_cleanup(encoder);
+	}
 
 	return ret;
 }
@@ -264,7 +256,9 @@ static int dw_hdmi_imx_bind(struct device *dev, struct device *master,
 static void dw_hdmi_imx_unbind(struct device *dev, struct device *master,
 			       void *data)
 {
-	return dw_hdmi_unbind(dev, master, data);
+	struct imx_hdmi *hdmi = dev_get_drvdata(dev);
+
+	dw_hdmi_unbind(hdmi->hdmi);
 }
 
 static const struct component_ops dw_hdmi_imx_ops = {

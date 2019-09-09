@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM exceptions
 
@@ -5,9 +6,10 @@
 #define _TRACE_PAGE_FAULT_H
 
 #include <linux/tracepoint.h>
+#include <asm/trace/common.h>
 
-extern void trace_irq_vector_regfunc(void);
-extern void trace_irq_vector_unregfunc(void);
+extern int trace_pagefault_reg(void);
+extern void trace_pagefault_unreg(void);
 
 DECLARE_EVENT_CLASS(x86_exceptions,
 
@@ -28,7 +30,7 @@ DECLARE_EVENT_CLASS(x86_exceptions,
 		__entry->error_code = error_code;
 	),
 
-	TP_printk("address=%pf ip=%pf error_code=0x%lx",
+	TP_printk("address=%ps ip=%ps error_code=0x%lx",
 		  (void *)__entry->address, (void *)__entry->ip,
 		  __entry->error_code) );
 
@@ -37,13 +39,13 @@ DEFINE_EVENT_FN(x86_exceptions, name,				\
 	TP_PROTO(unsigned long address,	struct pt_regs *regs,	\
 		 unsigned long error_code),			\
 	TP_ARGS(address, regs, error_code),			\
-	trace_irq_vector_regfunc,				\
-	trace_irq_vector_unregfunc);
+	trace_pagefault_reg, trace_pagefault_unreg);
 
 DEFINE_PAGE_FAULT_EVENT(page_fault_user);
 DEFINE_PAGE_FAULT_EVENT(page_fault_kernel);
 
 #undef TRACE_INCLUDE_PATH
+#undef TRACE_INCLUDE_FILE
 #define TRACE_INCLUDE_PATH .
 #define TRACE_INCLUDE_FILE exceptions
 #endif /*  _TRACE_PAGE_FAULT_H */

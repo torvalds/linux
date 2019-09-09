@@ -10,8 +10,6 @@ Required properties:
 
 Optional properties :
 
-- interrupt-parent: specifies the phandle to the parent interrupt controller
-  this one is cascaded from
 - interrupts: specifies the interrupt number, the irq line to be used
 - interrupt-names: Interrupt name string
 

@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /**
  * Copyright (C) 2008, Creative Technology Ltd. All Rights Reserved.
- *
- * This source file is released under GPL v2 license (no other versions).
- * See the COPYING file included in the main directory of this source
- * distribution for the license terms and conditions.
  *
  * @File    ctatc.c
  *
@@ -275,7 +272,7 @@ static int atc_pcm_playback_prepare(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 
 	/* Get AMIXER resource */
 	n_amixer = (n_amixer < 2) ? 2 : n_amixer;
-	apcm->amixers = kzalloc(sizeof(void *)*n_amixer, GFP_KERNEL);
+	apcm->amixers = kcalloc(n_amixer, sizeof(void *), GFP_KERNEL);
 	if (!apcm->amixers) {
 		err = -ENOMEM;
 		goto error1;
@@ -543,18 +540,18 @@ atc_pcm_capture_get_resources(struct ct_atc *atc, struct ct_atc_pcm *apcm)
 	}
 
 	if (n_srcc) {
-		apcm->srccs = kzalloc(sizeof(void *)*n_srcc, GFP_KERNEL);
+		apcm->srccs = kcalloc(n_srcc, sizeof(void *), GFP_KERNEL);
 		if (!apcm->srccs)
 			return -ENOMEM;
 	}
 	if (n_amixer) {
-		apcm->amixers = kzalloc(sizeof(void *)*n_amixer, GFP_KERNEL);
+		apcm->amixers = kcalloc(n_amixer, sizeof(void *), GFP_KERNEL);
 		if (!apcm->amixers) {
 			err = -ENOMEM;
 			goto error1;
 		}
 	}
-	apcm->srcimps = kzalloc(sizeof(void *)*n_srcimp, GFP_KERNEL);
+	apcm->srcimps = kcalloc(n_srcimp, sizeof(void *), GFP_KERNEL);
 	if (!apcm->srcimps) {
 		err = -ENOMEM;
 		goto error1;
@@ -819,7 +816,7 @@ static int spdif_passthru_playback_get_resources(struct ct_atc *atc,
 
 	/* Get AMIXER resource */
 	n_amixer = (n_amixer < 2) ? 2 : n_amixer;
-	apcm->amixers = kzalloc(sizeof(void *)*n_amixer, GFP_KERNEL);
+	apcm->amixers = kcalloc(n_amixer, sizeof(void *), GFP_KERNEL);
 	if (!apcm->amixers) {
 		err = -ENOMEM;
 		goto error1;
@@ -1378,19 +1375,19 @@ static int atc_get_resources(struct ct_atc *atc)
 	num_daios = ((atc->model == CTSB1270) ? 8 : 7);
 	num_srcs = ((atc->model == CTSB1270) ? 6 : 4);
 
-	atc->daios = kzalloc(sizeof(void *)*num_daios, GFP_KERNEL);
+	atc->daios = kcalloc(num_daios, sizeof(void *), GFP_KERNEL);
 	if (!atc->daios)
 		return -ENOMEM;
 
-	atc->srcs = kzalloc(sizeof(void *)*num_srcs, GFP_KERNEL);
+	atc->srcs = kcalloc(num_srcs, sizeof(void *), GFP_KERNEL);
 	if (!atc->srcs)
 		return -ENOMEM;
 
-	atc->srcimps = kzalloc(sizeof(void *)*num_srcs, GFP_KERNEL);
+	atc->srcimps = kcalloc(num_srcs, sizeof(void *), GFP_KERNEL);
 	if (!atc->srcimps)
 		return -ENOMEM;
 
-	atc->pcm = kzalloc(sizeof(void *)*(2*4), GFP_KERNEL);
+	atc->pcm = kcalloc(2 * 4, sizeof(void *), GFP_KERNEL);
 	if (!atc->pcm)
 		return -ENOMEM;
 
@@ -1548,17 +1545,9 @@ static void atc_connect_resources(struct ct_atc *atc)
 #ifdef CONFIG_PM_SLEEP
 static int atc_suspend(struct ct_atc *atc)
 {
-	int i;
 	struct hw *hw = atc->hw;
 
 	snd_power_change_state(atc->card, SNDRV_CTL_POWER_D3hot);
-
-	for (i = FRONT; i < NUM_PCMS; i++) {
-		if (!atc->pcms[i])
-			continue;
-
-		snd_pcm_suspend_all(atc->pcms[i]);
-	}
 
 	atc_release_resources(atc);
 

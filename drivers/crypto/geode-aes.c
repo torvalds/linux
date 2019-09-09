@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
  /* Copyright (C) 2004-2006, Advanced Micro Devices, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- */
+  */
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -30,6 +26,7 @@ static inline void
 _writefield(u32 offset, void *value)
 {
 	int i;
+
 	for (i = 0; i < 4; i++)
 		iowrite32(((u32 *) value)[i], _iobase + offset + (i * 4));
 }
@@ -39,6 +36,7 @@ static inline void
 _readfield(u32 offset, void *value)
 {
 	int i;
+
 	for (i = 0; i < 4; i++)
 		((u32 *) value)[i] = ioread32(_iobase + offset + (i * 4));
 }
@@ -259,7 +257,7 @@ static int fallback_init_cip(struct crypto_tfm *tfm)
 	struct geode_aes_op *op = crypto_tfm_ctx(tfm);
 
 	op->fallback.cip = crypto_alloc_cipher(name, 0,
-				CRYPTO_ALG_ASYNC | CRYPTO_ALG_NEED_FALLBACK);
+					       CRYPTO_ALG_NEED_FALLBACK);
 
 	if (IS_ERR(op->fallback.cip)) {
 		printk(KERN_ERR "Error allocating fallback algo %s\n", name);
@@ -515,6 +513,7 @@ static void geode_aes_remove(struct pci_dev *dev)
 static int geode_aes_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	int ret;
+
 	ret = pci_enable_device(dev);
 	if (ret)
 		return ret;
@@ -570,7 +569,7 @@ static int geode_aes_probe(struct pci_dev *dev, const struct pci_device_id *id)
 }
 
 static struct pci_device_id geode_aes_tbl[] = {
-	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_LX_AES), } ,
+	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_LX_AES), },
 	{ 0, }
 };
 

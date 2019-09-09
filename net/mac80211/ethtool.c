@@ -1,11 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * mac80211 ethtool hooks for cfg80211
  *
  * Copied from cfg.c - originally
  * Copyright 2006-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2014	Intel Corporation (Author: Johannes Berg)
- *
- * This file is GPLv2 as found in COPYING.
+ * Copyright (C) 2018 Intel Corporation
  */
 #include <linux/types.h>
 #include <net/cfg80211.h>
@@ -106,8 +106,8 @@ static void ieee80211_get_stats(struct net_device *dev,
 		if (!(sta && !WARN_ON(sta->sdata->dev != dev)))
 			goto do_survey;
 
-		sinfo.filled = 0;
-		sta_set_sinfo(sta, &sinfo);
+		memset(&sinfo, 0, sizeof(sinfo));
+		sta_set_sinfo(sta, &sinfo, false);
 
 		i = 0;
 		ADD_STA_STATS(sta);
@@ -115,16 +115,16 @@ static void ieee80211_get_stats(struct net_device *dev,
 		data[i++] = sta->sta_state;
 
 
-		if (sinfo.filled & BIT(NL80211_STA_INFO_TX_BITRATE))
-			data[i] = 100000 *
+		if (sinfo.filled & BIT_ULL(NL80211_STA_INFO_TX_BITRATE))
+			data[i] = 100000ULL *
 				cfg80211_calculate_bitrate(&sinfo.txrate);
 		i++;
-		if (sinfo.filled & BIT(NL80211_STA_INFO_RX_BITRATE))
-			data[i] = 100000 *
+		if (sinfo.filled & BIT_ULL(NL80211_STA_INFO_RX_BITRATE))
+			data[i] = 100000ULL *
 				cfg80211_calculate_bitrate(&sinfo.rxrate);
 		i++;
 
-		if (sinfo.filled & BIT(NL80211_STA_INFO_SIGNAL_AVG))
+		if (sinfo.filled & BIT_ULL(NL80211_STA_INFO_SIGNAL_AVG))
 			data[i] = (u8)sinfo.signal_avg;
 		i++;
 	} else {
@@ -133,8 +133,8 @@ static void ieee80211_get_stats(struct net_device *dev,
 			if (sta->sdata->dev != dev)
 				continue;
 
-			sinfo.filled = 0;
-			sta_set_sinfo(sta, &sinfo);
+			memset(&sinfo, 0, sizeof(sinfo));
+			sta_set_sinfo(sta, &sinfo, false);
 			i = 0;
 			ADD_STA_STATS(sta);
 		}

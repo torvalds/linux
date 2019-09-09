@@ -186,8 +186,57 @@ Contact:	Lan Tianyu <tianyu.lan@intel.com>
 Description:
 		Some platforms provide usb port connect types through ACPI.
 		This attribute is to expose these information to user space.
-		The file will read "hotplug", "wired" and "not used" if the
+		The file will read "hotplug", "hardwired" and "not used" if the
 		information is available, and "unknown" otherwise.
+
+What:		/sys/bus/usb/devices/.../(hub interface)/portX/location
+Date:		October 2018
+Contact:	Bjørn Mork <bjorn@mork.no>
+Description:
+		Some platforms provide usb port physical location through
+		firmware. This is used by the kernel to pair up logical ports
+		mapping to the same physical connector. The attribute exposes the
+		raw location value as a hex integer.
+
+
+What:		/sys/bus/usb/devices/.../(hub interface)/portX/quirks
+Date:		May 2018
+Contact:	Nicolas Boichat <drinkcat@chromium.org>
+Description:
+		In some cases, we care about time-to-active for devices
+		connected on a specific port (e.g. non-standard USB port like
+		pogo pins), where the device to be connected is known in
+		advance, and behaves well according to the specification.
+		This attribute is a bit-field that controls the behavior of
+		a specific port:
+		 - Bit 0 of this field selects the "old" enumeration scheme,
+		   as it is considerably faster (it only causes one USB reset
+		   instead of 2).
+		   The old enumeration scheme can also be selected globally
+		   using /sys/module/usbcore/parameters/old_scheme_first, but
+		   it is often not desirable as the new scheme was introduced to
+		   increase compatibility with more devices.
+		 - Bit 1 reduces TRSTRCY to the 10 ms that are required by the
+		   USB 2.0 specification, instead of the 50 ms that are normally
+		   used to help make enumeration work better on some high speed
+		   devices.
+
+What:		/sys/bus/usb/devices/.../(hub interface)/portX/over_current_count
+Date:		February 2018
+Contact:	Richard Leitner <richard.leitner@skidata.com>
+Description:
+		Most hubs are able to detect over-current situations on their
+		ports and report them to the kernel. This attribute is to expose
+		the number of over-current situation occurred on a specific port
+		to user space. This file will contain an unsigned 32 bit value
+		which wraps to 0 after its maximum is reached. This file supports
+		poll() for monitoring changes to this value in user space.
+
+		Any time this value changes the corresponding hub device will send a
+		udev event with the following attributes:
+
+		OVER_CURRENT_PORT=/sys/bus/usb/devices/.../(hub interface)/portX
+		OVER_CURRENT_COUNT=[current value of this sysfs attribute]
 
 What:		/sys/bus/usb/devices/.../(hub interface)/portX/usb3_lpm_permit
 Date:		November 2015
@@ -226,3 +275,21 @@ Description:
 		Supported values are 0 - 15.
 		More information on how besl values map to microseconds can be found in
 		USB 2.0 ECN Errata for Link Power Management, section 4.10)
+
+What:		/sys/bus/usb/devices/.../rx_lanes
+Date:		March 2018
+Contact:	Mathias Nyman <mathias.nyman@linux.intel.com>
+Description:
+		Number of rx lanes the device is using.
+		USB 3.2 adds Dual-lane support, 2 rx and 2 tx lanes over Type-C.
+		Inter-Chip SSIC devices support asymmetric lanes up to 4 lanes per
+		direction. Devices before USB 3.2 are single lane (rx_lanes = 1)
+
+What:		/sys/bus/usb/devices/.../tx_lanes
+Date:		March 2018
+Contact:	Mathias Nyman <mathias.nyman@linux.intel.com>
+Description:
+		Number of tx lanes the device is using.
+		USB 3.2 adds Dual-lane support, 2 rx and 2 tx -lanes over Type-C.
+		Inter-Chip SSIC devices support asymmetric lanes up to 4 lanes per
+		direction. Devices before USB 3.2 are single lane (tx_lanes = 1)

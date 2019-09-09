@@ -1,14 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2012-2014 Freescale Semiconductor, Inc.
  * Copyright (C) 2012 Marek Vasut <marex@denx.de>
  * on behalf of DENX Software Engineering GmbH
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
  */
 
 #include <linux/module.h>
@@ -23,9 +17,11 @@
 #include <linux/of_device.h>
 #include <linux/regmap.h>
 #include <linux/mfd/syscon.h>
+#include <linux/iopoll.h>
 
 #define DRIVER_NAME "mxs_phy"
 
+/* Register Macro */
 #define HW_USBPHY_PWD				0x00
 #define HW_USBPHY_TX				0x10
 #define HW_USBPHY_CTRL				0x30
@@ -42,6 +38,11 @@
 #define GM_USBPHY_TX_TXCAL45DP(x)            (((x) & 0xf) << 16)
 #define GM_USBPHY_TX_TXCAL45DN(x)            (((x) & 0xf) << 8)
 #define GM_USBPHY_TX_D_CAL(x)                (((x) & 0xf) << 0)
+
+/* imx7ulp */
+#define HW_USBPHY_PLL_SIC			0xa0
+#define HW_USBPHY_PLL_SIC_SET			0xa4
+#define HW_USBPHY_PLL_SIC_CLR			0xa8
 
 #define BM_USBPHY_CTRL_SFTRST			BIT(31)
 #define BM_USBPHY_CTRL_CLKGATE			BIT(30)
@@ -61,17 +62,39 @@
 #define BM_USBPHY_IP_FIX                       (BIT(17) | BIT(18))
 
 #define BM_USBPHY_DEBUG_CLKGATE			BIT(30)
+/* imx7ulp */
+#define BM_USBPHY_PLL_LOCK			BIT(31)
+#define BM_USBPHY_PLL_REG_ENABLE		BIT(21)
+#define BM_USBPHY_PLL_BYPASS			BIT(16)
+#define BM_USBPHY_PLL_POWER			BIT(12)
+#define BM_USBPHY_PLL_EN_USB_CLKS		BIT(6)
 
 /* Anatop Registers */
 #define ANADIG_ANA_MISC0			0x150
 #define ANADIG_ANA_MISC0_SET			0x154
 #define ANADIG_ANA_MISC0_CLR			0x158
 
+#define ANADIG_USB1_CHRG_DETECT_SET		0x1b4
+#define ANADIG_USB1_CHRG_DETECT_CLR		0x1b8
+#define ANADIG_USB2_CHRG_DETECT_SET		0x214
+#define ANADIG_USB1_CHRG_DETECT_EN_B		BIT(20)
+#define ANADIG_USB1_CHRG_DETECT_CHK_CHRG_B	BIT(19)
+#define ANADIG_USB1_CHRG_DETECT_CHK_CONTACT	BIT(18)
+
 #define ANADIG_USB1_VBUS_DET_STAT		0x1c0
+#define ANADIG_USB1_VBUS_DET_STAT_VBUS_VALID	BIT(3)
+
+#define ANADIG_USB1_CHRG_DET_STAT		0x1d0
+#define ANADIG_USB1_CHRG_DET_STAT_DM_STATE	BIT(2)
+#define ANADIG_USB1_CHRG_DET_STAT_CHRG_DETECTED	BIT(1)
+#define ANADIG_USB1_CHRG_DET_STAT_PLUG_CONTACT	BIT(0)
+
 #define ANADIG_USB2_VBUS_DET_STAT		0x220
 
 #define ANADIG_USB1_LOOPBACK_SET		0x1e4
 #define ANADIG_USB1_LOOPBACK_CLR		0x1e8
+#define ANADIG_USB1_LOOPBACK_UTMI_TESTSTART	BIT(0)
+
 #define ANADIG_USB2_LOOPBACK_SET		0x244
 #define ANADIG_USB2_LOOPBACK_CLR		0x248
 
@@ -158,6 +181,9 @@ static const struct mxs_phy_data imx6ul_phy_data = {
 	.flags = MXS_PHY_DISCONNECT_LINE_WITHOUT_VBUS,
 };
 
+static const struct mxs_phy_data imx7ulp_phy_data = {
+};
+
 static const struct of_device_id mxs_phy_dt_ids[] = {
 	{ .compatible = "fsl,imx6sx-usbphy", .data = &imx6sx_phy_data, },
 	{ .compatible = "fsl,imx6sl-usbphy", .data = &imx6sl_phy_data, },
@@ -165,6 +191,7 @@ static const struct of_device_id mxs_phy_dt_ids[] = {
 	{ .compatible = "fsl,imx23-usbphy", .data = &imx23_phy_data, },
 	{ .compatible = "fsl,vf610-usbphy", .data = &vf610_phy_data, },
 	{ .compatible = "fsl,imx6ul-usbphy", .data = &imx6ul_phy_data, },
+	{ .compatible = "fsl,imx7ulp-usbphy", .data = &imx7ulp_phy_data, },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, mxs_phy_dt_ids);
@@ -187,6 +214,11 @@ static inline bool is_imx6q_phy(struct mxs_phy *mxs_phy)
 static inline bool is_imx6sl_phy(struct mxs_phy *mxs_phy)
 {
 	return mxs_phy->data == &imx6sl_phy_data;
+}
+
+static inline bool is_imx7ulp_phy(struct mxs_phy *mxs_phy)
+{
+	return mxs_phy->data == &imx7ulp_phy_data;
 }
 
 /*
@@ -212,14 +244,49 @@ static void mxs_phy_tx_init(struct mxs_phy *mxs_phy)
 	}
 }
 
+static int mxs_phy_pll_enable(void __iomem *base, bool enable)
+{
+	int ret = 0;
+
+	if (enable) {
+		u32 value;
+
+		writel(BM_USBPHY_PLL_REG_ENABLE, base + HW_USBPHY_PLL_SIC_SET);
+		writel(BM_USBPHY_PLL_BYPASS, base + HW_USBPHY_PLL_SIC_CLR);
+		writel(BM_USBPHY_PLL_POWER, base + HW_USBPHY_PLL_SIC_SET);
+		ret = readl_poll_timeout(base + HW_USBPHY_PLL_SIC,
+			value, (value & BM_USBPHY_PLL_LOCK) != 0,
+			100, 10000);
+		if (ret)
+			return ret;
+
+		writel(BM_USBPHY_PLL_EN_USB_CLKS, base +
+				HW_USBPHY_PLL_SIC_SET);
+	} else {
+		writel(BM_USBPHY_PLL_EN_USB_CLKS, base +
+				HW_USBPHY_PLL_SIC_CLR);
+		writel(BM_USBPHY_PLL_POWER, base + HW_USBPHY_PLL_SIC_CLR);
+		writel(BM_USBPHY_PLL_BYPASS, base + HW_USBPHY_PLL_SIC_SET);
+		writel(BM_USBPHY_PLL_REG_ENABLE, base + HW_USBPHY_PLL_SIC_CLR);
+	}
+
+	return ret;
+}
+
 static int mxs_phy_hw_init(struct mxs_phy *mxs_phy)
 {
 	int ret;
 	void __iomem *base = mxs_phy->phy.io_priv;
 
+	if (is_imx7ulp_phy(mxs_phy)) {
+		ret = mxs_phy_pll_enable(base, true);
+		if (ret)
+			return ret;
+	}
+
 	ret = stmp_reset_block(base + HW_USBPHY_CTRL);
 	if (ret)
-		return ret;
+		goto disable_pll;
 
 	/* Power up the PHY */
 	writel(0, base + HW_USBPHY_PWD);
@@ -241,9 +308,27 @@ static int mxs_phy_hw_init(struct mxs_phy *mxs_phy)
 	if (mxs_phy->data->flags & MXS_PHY_NEED_IP_FIX)
 		writel(BM_USBPHY_IP_FIX, base + HW_USBPHY_IP_SET);
 
+	if (mxs_phy->regmap_anatop) {
+		unsigned int reg = mxs_phy->port_id ?
+			ANADIG_USB1_CHRG_DETECT_SET :
+			ANADIG_USB2_CHRG_DETECT_SET;
+		/*
+		 * The external charger detector needs to be disabled,
+		 * or the signal at DP will be poor
+		 */
+		regmap_write(mxs_phy->regmap_anatop, reg,
+			     ANADIG_USB1_CHRG_DETECT_EN_B |
+			     ANADIG_USB1_CHRG_DETECT_CHK_CHRG_B);
+	}
+
 	mxs_phy_tx_init(mxs_phy);
 
 	return 0;
+
+disable_pll:
+	if (is_imx7ulp_phy(mxs_phy))
+		mxs_phy_pll_enable(base, false);
+	return ret;
 }
 
 /* Return true if the vbus is there */
@@ -365,6 +450,9 @@ static void mxs_phy_shutdown(struct usb_phy *phy)
 	writel(BM_USBPHY_CTRL_CLKGATE,
 	       phy->io_priv + HW_USBPHY_CTRL_SET);
 
+	if (is_imx7ulp_phy(mxs_phy))
+		mxs_phy_pll_enable(phy->io_priv, false);
+
 	clk_disable_unprepare(mxs_phy->clk);
 }
 
@@ -479,6 +567,147 @@ static int mxs_phy_on_disconnect(struct usb_phy *phy,
 	return 0;
 }
 
+#define MXS_USB_CHARGER_DATA_CONTACT_TIMEOUT	100
+static int mxs_charger_data_contact_detect(struct mxs_phy *x)
+{
+	struct regmap *regmap = x->regmap_anatop;
+	int i, stable_contact_count = 0;
+	u32 val;
+
+	/* Check if vbus is valid */
+	regmap_read(regmap, ANADIG_USB1_VBUS_DET_STAT, &val);
+	if (!(val & ANADIG_USB1_VBUS_DET_STAT_VBUS_VALID)) {
+		dev_err(x->phy.dev, "vbus is not valid\n");
+		return -EINVAL;
+	}
+
+	/* Enable charger detector */
+	regmap_write(regmap, ANADIG_USB1_CHRG_DETECT_CLR,
+				ANADIG_USB1_CHRG_DETECT_EN_B);
+	/*
+	 * - Do not check whether a charger is connected to the USB port
+	 * - Check whether the USB plug has been in contact with each other
+	 */
+	regmap_write(regmap, ANADIG_USB1_CHRG_DETECT_SET,
+			ANADIG_USB1_CHRG_DETECT_CHK_CONTACT |
+			ANADIG_USB1_CHRG_DETECT_CHK_CHRG_B);
+
+	/* Check if plug is connected */
+	for (i = 0; i < MXS_USB_CHARGER_DATA_CONTACT_TIMEOUT; i++) {
+		regmap_read(regmap, ANADIG_USB1_CHRG_DET_STAT, &val);
+		if (val & ANADIG_USB1_CHRG_DET_STAT_PLUG_CONTACT) {
+			stable_contact_count++;
+			if (stable_contact_count > 5)
+				/* Data pin makes contact */
+				break;
+			else
+				usleep_range(5000, 10000);
+		} else {
+			stable_contact_count = 0;
+			usleep_range(5000, 6000);
+		}
+	}
+
+	if (i == MXS_USB_CHARGER_DATA_CONTACT_TIMEOUT) {
+		dev_err(x->phy.dev,
+			"Data pin can't make good contact.\n");
+		/* Disable charger detector */
+		regmap_write(regmap, ANADIG_USB1_CHRG_DETECT_SET,
+				ANADIG_USB1_CHRG_DETECT_EN_B |
+				ANADIG_USB1_CHRG_DETECT_CHK_CHRG_B);
+		return -ENXIO;
+	}
+
+	return 0;
+}
+
+static enum usb_charger_type mxs_charger_primary_detection(struct mxs_phy *x)
+{
+	struct regmap *regmap = x->regmap_anatop;
+	enum usb_charger_type chgr_type = UNKNOWN_TYPE;
+	u32 val;
+
+	/*
+	 * - Do check whether a charger is connected to the USB port
+	 * - Do not Check whether the USB plug has been in contact with
+	 *   each other
+	 */
+	regmap_write(regmap, ANADIG_USB1_CHRG_DETECT_CLR,
+			ANADIG_USB1_CHRG_DETECT_CHK_CONTACT |
+			ANADIG_USB1_CHRG_DETECT_CHK_CHRG_B);
+
+	msleep(100);
+
+	/* Check if it is a charger */
+	regmap_read(regmap, ANADIG_USB1_CHRG_DET_STAT, &val);
+	if (!(val & ANADIG_USB1_CHRG_DET_STAT_CHRG_DETECTED)) {
+		chgr_type = SDP_TYPE;
+		dev_dbg(x->phy.dev, "It is a standard downstream port\n");
+	}
+
+	/* Disable charger detector */
+	regmap_write(regmap, ANADIG_USB1_CHRG_DETECT_SET,
+			ANADIG_USB1_CHRG_DETECT_EN_B |
+			ANADIG_USB1_CHRG_DETECT_CHK_CHRG_B);
+
+	return chgr_type;
+}
+
+/*
+ * It must be called after DP is pulled up, which is used to
+ * differentiate DCP and CDP.
+ */
+static enum usb_charger_type mxs_charger_secondary_detection(struct mxs_phy *x)
+{
+	struct regmap *regmap = x->regmap_anatop;
+	int val;
+
+	msleep(80);
+
+	regmap_read(regmap, ANADIG_USB1_CHRG_DET_STAT, &val);
+	if (val & ANADIG_USB1_CHRG_DET_STAT_DM_STATE) {
+		dev_dbg(x->phy.dev, "It is a dedicate charging port\n");
+		return DCP_TYPE;
+	} else {
+		dev_dbg(x->phy.dev, "It is a charging downstream port\n");
+		return CDP_TYPE;
+	}
+}
+
+static enum usb_charger_type mxs_phy_charger_detect(struct usb_phy *phy)
+{
+	struct mxs_phy *mxs_phy = to_mxs_phy(phy);
+	struct regmap *regmap = mxs_phy->regmap_anatop;
+	void __iomem *base = phy->io_priv;
+	enum usb_charger_type chgr_type = UNKNOWN_TYPE;
+
+	if (!regmap)
+		return UNKNOWN_TYPE;
+
+	if (mxs_charger_data_contact_detect(mxs_phy))
+		return chgr_type;
+
+	chgr_type = mxs_charger_primary_detection(mxs_phy);
+
+	if (chgr_type != SDP_TYPE) {
+		/* Pull up DP via test */
+		writel_relaxed(BM_USBPHY_DEBUG_CLKGATE,
+				base + HW_USBPHY_DEBUG_CLR);
+		regmap_write(regmap, ANADIG_USB1_LOOPBACK_SET,
+				ANADIG_USB1_LOOPBACK_UTMI_TESTSTART);
+
+		chgr_type = mxs_charger_secondary_detection(mxs_phy);
+
+		/* Stop the test */
+		regmap_write(regmap, ANADIG_USB1_LOOPBACK_CLR,
+				ANADIG_USB1_LOOPBACK_UTMI_TESTSTART);
+		writel_relaxed(BM_USBPHY_DEBUG_CLKGATE,
+				base + HW_USBPHY_DEBUG_SET);
+	}
+
+	return chgr_type;
+}
+
 static int mxs_phy_probe(struct platform_device *pdev)
 {
 	struct resource *res;
@@ -567,6 +796,7 @@ static int mxs_phy_probe(struct platform_device *pdev)
 	mxs_phy->phy.notify_disconnect	= mxs_phy_on_disconnect;
 	mxs_phy->phy.type		= USB_PHY_TYPE_USB2;
 	mxs_phy->phy.set_wakeup		= mxs_phy_set_wakeup;
+	mxs_phy->phy.charger_detect	= mxs_phy_charger_detect;
 
 	mxs_phy->clk = clk;
 	mxs_phy->data = of_id->data;

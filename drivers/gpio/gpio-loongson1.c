@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/gpio/driver.h>
 #include <linux/platform_device.h>
+#include <linux/bitops.h>
 
 /* Loongson 1 GPIO Register Definitions */
 #define GPIO_CFG		0x0
@@ -22,11 +23,10 @@ static void __iomem *gpio_reg_base;
 
 static int ls1x_gpio_request(struct gpio_chip *gc, unsigned int offset)
 {
-	unsigned long pinmask = gc->pin2mask(gc, offset);
 	unsigned long flags;
 
 	spin_lock_irqsave(&gc->bgpio_lock, flags);
-	__raw_writel(__raw_readl(gpio_reg_base + GPIO_CFG) | pinmask,
+	__raw_writel(__raw_readl(gpio_reg_base + GPIO_CFG) | BIT(offset),
 		     gpio_reg_base + GPIO_CFG);
 	spin_unlock_irqrestore(&gc->bgpio_lock, flags);
 
@@ -35,11 +35,10 @@ static int ls1x_gpio_request(struct gpio_chip *gc, unsigned int offset)
 
 static void ls1x_gpio_free(struct gpio_chip *gc, unsigned int offset)
 {
-	unsigned long pinmask = gc->pin2mask(gc, offset);
 	unsigned long flags;
 
 	spin_lock_irqsave(&gc->bgpio_lock, flags);
-	__raw_writel(__raw_readl(gpio_reg_base + GPIO_CFG) & ~pinmask,
+	__raw_writel(__raw_readl(gpio_reg_base + GPIO_CFG) & ~BIT(offset),
 		     gpio_reg_base + GPIO_CFG);
 	spin_unlock_irqrestore(&gc->bgpio_lock, flags);
 }
@@ -48,15 +47,13 @@ static int ls1x_gpio_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct gpio_chip *gc;
-	struct resource *res;
 	int ret;
 
 	gc = devm_kzalloc(dev, sizeof(*gc), GFP_KERNEL);
 	if (!gc)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	gpio_reg_base = devm_ioremap_resource(dev, res);
+	gpio_reg_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(gpio_reg_base))
 		return PTR_ERR(gpio_reg_base);
 

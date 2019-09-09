@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config ICST
+	bool
+
 config COMMON_CLK_VERSATILE
 	bool "Clock driver for ARM Reference designs"
 	depends on ARCH_INTEGRATOR || ARCH_REALVIEW || \

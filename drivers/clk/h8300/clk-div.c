@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * H8/300 divide clock driver
  *
@@ -6,6 +7,7 @@
 
 #include <linux/clk-provider.h>
 #include <linux/err.h>
+#include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 
@@ -23,13 +25,13 @@ static void __init h8300_div_clk_setup(struct device_node *node)
 
 	num_parents = of_clk_get_parent_count(node);
 	if (!num_parents) {
-		pr_err("%s: no parent found", clk_name);
+		pr_err("%s: no parent found\n", clk_name);
 		return;
 	}
 
 	divcr = of_iomap(node, 0);
 	if (divcr == NULL) {
-		pr_err("%s: failed to map divide register", clk_name);
+		pr_err("%s: failed to map divide register\n", clk_name);
 		goto error;
 	}
 	offset = (unsigned long)divcr & 3;

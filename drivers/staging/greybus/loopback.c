@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Loopback bridge driver for the Greybus loopback module.
  *
  * Copyright 2014 Google Inc.
  * Copyright 2014 Linaro Ltd.
- *
- * Released under the GPLv2 only.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -48,8 +47,6 @@ struct gb_loopback_device {
 
 	/* We need to take a lock in atomic context */
 	spinlock_t lock;
-	struct list_head list;
-	struct list_head list_op_async;
 	wait_queue_head_t wq;
 };
 
@@ -58,12 +55,7 @@ static struct gb_loopback_device gb_dev;
 struct gb_loopback_async_operation {
 	struct gb_loopback *gb;
 	struct gb_operation *operation;
-	struct timeval ts;
-	struct timer_list timer;
-	struct list_head entry;
-	struct work_struct work;
-	struct kref kref;
-	bool pending;
+	ktime_t ts;
 	int (*completion)(struct gb_loopback_async_operation *op_async);
 };
 
@@ -72,17 +64,15 @@ struct gb_loopback {
 
 	struct dentry *file;
 	struct kfifo kfifo_lat;
-	struct kfifo kfifo_ts;
 	struct mutex mutex;
 	struct task_struct *task;
-	struct list_head entry;
 	struct device *dev;
 	wait_queue_head_t wq;
 	wait_queue_head_t wq_completion;
 	atomic_t outstanding_operations;
 
 	/* Per connection stats */
-	struct timeval ts;
+	ktime_t ts;
 	struct gb_loopback_stats latency;
 	struct gb_loopback_stats throughput;
 	struct gb_loopback_stats requests_per_second;
@@ -104,7 +94,6 @@ struct gb_loopback {
 	u32 timeout_min;
 	u32 timeout_max;
 	u32 outstanding_operations_max;
-	u32 lbid;
 	u64 elapsed_nsecs;
 	u32 apbridge_latency_ts;
 	u32 gbphy_latency_ts;
@@ -124,7 +113,7 @@ static DEFINE_IDA(loopback_ida);
 
 #define GB_LOOPBACK_FIFO_DEFAULT			8192
 
-static unsigned kfifo_depth = GB_LOOPBACK_FIFO_DEFAULT;
+static unsigned int kfifo_depth = GB_LOOPBACK_FIFO_DEFAULT;
 module_param(kfifo_depth, uint, 0444);
 
 /* Maximum size of any one send data buffer we support */
@@ -152,7 +141,7 @@ static ssize_t name##_##field##_show(struct device *dev,	\
 	/* Report 0 for min and max if no transfer successed */		\
 	if (!gb->requests_completed)					\
 		return sprintf(buf, "0\n");				\
-	return sprintf(buf, "%"#type"\n", gb->name.field);	\
+	return sprintf(buf, "%" #type "\n", gb->name.field);		\
 }									\
 static DEVICE_ATTR_RO(name##_##field)
 
@@ -187,7 +176,7 @@ static ssize_t field##_show(struct device *dev,				\
 			    char *buf)					\
 {									\
 	struct gb_loopback *gb = dev_get_drvdata(dev);			\
-	return sprintf(buf, "%"#type"\n", gb->field);			\
+	return sprintf(buf, "%" #type "\n", gb->field);			\
 }									\
 static ssize_t field##_store(struct device *dev,			\
 			    struct device_attribute *attr,		\
@@ -223,7 +212,7 @@ static ssize_t field##_show(struct device *dev,				\
 			    char *buf)					\
 {									\
 	struct gb_loopback *gb = dev_get_drvdata(dev);			\
-	return sprintf(buf, "%"#type"\n", gb->field);			\
+	return sprintf(buf, "%" #type "\n", gb->field);			\
 }									\
 static ssize_t field##_store(struct device *dev,			\
 			    struct device_attribute *attr,		\
@@ -262,7 +251,6 @@ static void gb_loopback_check_attr(struct gb_loopback *gb)
 			 gb->iteration_max, kfifo_depth);
 	}
 	kfifo_reset_out(&gb->kfifo_lat);
-	kfifo_reset_out(&gb->kfifo_ts);
 
 	switch (gb->type) {
 	case GB_LOOPBACK_TYPE_PING:
@@ -365,11 +353,8 @@ static void gb_loopback_calculate_stats(struct gb_loopback *gb, bool error);
 
 static u32 gb_loopback_nsec_to_usec_latency(u64 elapsed_nsecs)
 {
-	u32 lat;
-
 	do_div(elapsed_nsecs, NSEC_PER_USEC);
-	lat = elapsed_nsecs;
-	return lat;
+	return elapsed_nsecs;
 }
 
 static u64 __gb_loopback_calc_latency(u64 t1, u64 t2)
@@ -380,21 +365,9 @@ static u64 __gb_loopback_calc_latency(u64 t1, u64 t2)
 		return NSEC_PER_DAY - t2 + t1;
 }
 
-static u64 gb_loopback_calc_latency(struct timeval *ts, struct timeval *te)
+static u64 gb_loopback_calc_latency(ktime_t ts, ktime_t te)
 {
-	u64 t1, t2;
-
-	t1 = timeval_to_ns(ts);
-	t2 = timeval_to_ns(te);
-
-	return __gb_loopback_calc_latency(t1, t2);
-}
-
-static void gb_loopback_push_latency_ts(struct gb_loopback *gb,
-					struct timeval *ts, struct timeval *te)
-{
-	kfifo_in(&gb->kfifo_ts, (unsigned char *)ts, sizeof(*ts));
-	kfifo_in(&gb->kfifo_ts, (unsigned char *)te, sizeof(*te));
+	return __gb_loopback_calc_latency(ktime_to_ns(ts), ktime_to_ns(te));
 }
 
 static int gb_loopback_operation_sync(struct gb_loopback *gb, int type,
@@ -402,10 +375,10 @@ static int gb_loopback_operation_sync(struct gb_loopback *gb, int type,
 				      void *response, int response_size)
 {
 	struct gb_operation *operation;
-	struct timeval ts, te;
+	ktime_t ts, te;
 	int ret;
 
-	do_gettimeofday(&ts);
+	ts = ktime_get();
 	operation = gb_operation_create(gb->connection, type, request_size,
 					response_size, GFP_KERNEL);
 	if (!operation)
@@ -433,66 +406,15 @@ static int gb_loopback_operation_sync(struct gb_loopback *gb, int type,
 		}
 	}
 
-	do_gettimeofday(&te);
+	te = ktime_get();
 
 	/* Calculate the total time the message took */
-	gb_loopback_push_latency_ts(gb, &ts, &te);
-	gb->elapsed_nsecs = gb_loopback_calc_latency(&ts, &te);
+	gb->elapsed_nsecs = gb_loopback_calc_latency(ts, te);
 
 out_put_operation:
 	gb_operation_put(operation);
 
 	return ret;
-}
-
-static void __gb_loopback_async_operation_destroy(struct kref *kref)
-{
-	struct gb_loopback_async_operation *op_async;
-
-	op_async = container_of(kref, struct gb_loopback_async_operation, kref);
-
-	list_del(&op_async->entry);
-	if (op_async->operation)
-		gb_operation_put(op_async->operation);
-	atomic_dec(&op_async->gb->outstanding_operations);
-	wake_up(&op_async->gb->wq_completion);
-	kfree(op_async);
-}
-
-static void gb_loopback_async_operation_get(struct gb_loopback_async_operation
-					    *op_async)
-{
-	kref_get(&op_async->kref);
-}
-
-static void gb_loopback_async_operation_put(struct gb_loopback_async_operation
-					    *op_async)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&gb_dev.lock, flags);
-	kref_put(&op_async->kref, __gb_loopback_async_operation_destroy);
-	spin_unlock_irqrestore(&gb_dev.lock, flags);
-}
-
-static struct gb_loopback_async_operation *
-	gb_loopback_operation_find(u16 id)
-{
-	struct gb_loopback_async_operation *op_async;
-	bool found = false;
-	unsigned long flags;
-
-	spin_lock_irqsave(&gb_dev.lock, flags);
-	list_for_each_entry(op_async, &gb_dev.list_op_async, entry) {
-		if (op_async->operation->id == id) {
-			gb_loopback_async_operation_get(op_async);
-			found = true;
-			break;
-		}
-	}
-	spin_unlock_irqrestore(&gb_dev.lock, flags);
-
-	return found ? op_async : NULL;
 }
 
 static void gb_loopback_async_wait_all(struct gb_loopback *gb)
@@ -505,87 +427,42 @@ static void gb_loopback_async_operation_callback(struct gb_operation *operation)
 {
 	struct gb_loopback_async_operation *op_async;
 	struct gb_loopback *gb;
-	struct timeval te;
-	bool err = false;
+	ktime_t te;
+	int result;
 
-	do_gettimeofday(&te);
-	op_async = gb_loopback_operation_find(operation->id);
-	if (!op_async)
-		return;
-
+	te = ktime_get();
+	result = gb_operation_result(operation);
+	op_async = gb_operation_get_data(operation);
 	gb = op_async->gb;
+
 	mutex_lock(&gb->mutex);
 
-	if (!op_async->pending || gb_operation_result(operation)) {
-		err = true;
+	if (!result && op_async->completion)
+		result = op_async->completion(op_async);
+
+	if (!result) {
+		gb->elapsed_nsecs = gb_loopback_calc_latency(op_async->ts, te);
 	} else {
-		if (op_async->completion)
-			if (op_async->completion(op_async))
-				err = true;
+		gb->error++;
+		if (result == -ETIMEDOUT)
+			gb->requests_timedout++;
 	}
 
-	if (!err) {
-		gb_loopback_push_latency_ts(gb, &op_async->ts, &te);
-		gb->elapsed_nsecs = gb_loopback_calc_latency(&op_async->ts,
-							     &te);
-	}
+	gb->iteration_count++;
+	gb_loopback_calculate_stats(gb, result);
 
-	if (op_async->pending) {
-		if (err)
-			gb->error++;
-		gb->iteration_count++;
-		op_async->pending = false;
-		del_timer_sync(&op_async->timer);
-		gb_loopback_async_operation_put(op_async);
-		gb_loopback_calculate_stats(gb, err);
-	}
 	mutex_unlock(&gb->mutex);
 
 	dev_dbg(&gb->connection->bundle->dev, "complete operation %d\n",
 		operation->id);
 
-	gb_loopback_async_operation_put(op_async);
-}
+	/* Wake up waiters */
+	atomic_dec(&op_async->gb->outstanding_operations);
+	wake_up(&gb->wq_completion);
 
-static void gb_loopback_async_operation_work(struct work_struct *work)
-{
-	struct gb_loopback *gb;
-	struct gb_operation *operation;
-	struct gb_loopback_async_operation *op_async;
-
-	op_async = container_of(work, struct gb_loopback_async_operation, work);
-	gb = op_async->gb;
-	operation = op_async->operation;
-
-	mutex_lock(&gb->mutex);
-	if (op_async->pending) {
-		gb->requests_timedout++;
-		gb->error++;
-		gb->iteration_count++;
-		op_async->pending = false;
-		gb_loopback_async_operation_put(op_async);
-		gb_loopback_calculate_stats(gb, true);
-	}
-	mutex_unlock(&gb->mutex);
-
-	dev_dbg(&gb->connection->bundle->dev, "timeout operation %d\n",
-		operation->id);
-
-	gb_operation_cancel(operation, -ETIMEDOUT);
-	gb_loopback_async_operation_put(op_async);
-}
-
-static void gb_loopback_async_operation_timeout(unsigned long data)
-{
-	struct gb_loopback_async_operation *op_async;
-	u16 id = data;
-
-	op_async = gb_loopback_operation_find(id);
-	if (!op_async) {
-		pr_err("operation %d not found - time out ?\n", id);
-		return;
-	}
-	schedule_work(&op_async->work);
+	/* Release resources */
+	gb_operation_put(operation);
+	kfree(op_async);
 }
 
 static int gb_loopback_async_operation(struct gb_loopback *gb, int type,
@@ -596,14 +473,10 @@ static int gb_loopback_async_operation(struct gb_loopback *gb, int type,
 	struct gb_loopback_async_operation *op_async;
 	struct gb_operation *operation;
 	int ret;
-	unsigned long flags;
 
 	op_async = kzalloc(sizeof(*op_async), GFP_KERNEL);
 	if (!op_async)
 		return -ENOMEM;
-
-	INIT_WORK(&op_async->work, gb_loopback_async_operation_work);
-	kref_init(&op_async->kref);
 
 	operation = gb_operation_create(gb->connection, type, request_size,
 					response_size, GFP_KERNEL);
@@ -615,34 +488,24 @@ static int gb_loopback_async_operation(struct gb_loopback *gb, int type,
 	if (request_size)
 		memcpy(operation->request->payload, request, request_size);
 
+	gb_operation_set_data(operation, op_async);
+
 	op_async->gb = gb;
 	op_async->operation = operation;
 	op_async->completion = completion;
 
-	spin_lock_irqsave(&gb_dev.lock, flags);
-	list_add_tail(&op_async->entry, &gb_dev.list_op_async);
-	spin_unlock_irqrestore(&gb_dev.lock, flags);
+	op_async->ts = ktime_get();
 
-	do_gettimeofday(&op_async->ts);
-	op_async->pending = true;
 	atomic_inc(&gb->outstanding_operations);
-	mutex_lock(&gb->mutex);
 	ret = gb_operation_request_send(operation,
 					gb_loopback_async_operation_callback,
+					jiffies_to_msecs(gb->jiffy_timeout),
 					GFP_KERNEL);
-	if (ret)
-		goto error;
-
-	setup_timer(&op_async->timer, gb_loopback_async_operation_timeout,
-			(unsigned long)operation->id);
-	op_async->timer.expires = jiffies + gb->jiffy_timeout;
-	add_timer(&op_async->timer);
-
-	goto done;
-error:
-	gb_loopback_async_operation_put(op_async);
-done:
-	mutex_unlock(&gb->mutex);
+	if (ret) {
+		atomic_dec(&gb->outstanding_operations);
+		gb_operation_put(operation);
+		kfree(op_async);
+	}
 	return ret;
 }
 
@@ -856,7 +719,7 @@ static void gb_loopback_reset_stats(struct gb_loopback *gb)
 	/* Should be initialized at least once per transaction set */
 	gb->apbridge_latency_ts = 0;
 	gb->gbphy_latency_ts = 0;
-	memset(&gb->ts, 0, sizeof(struct timeval));
+	gb->ts = ktime_set(0, 0);
 }
 
 static void gb_loopback_update_stats(struct gb_loopback_stats *stats, u32 val)
@@ -939,15 +802,15 @@ static void gb_loopback_calculate_stats(struct gb_loopback *gb, bool error)
 {
 	u64 nlat;
 	u32 lat;
-	struct timeval te;
+	ktime_t te;
 
 	if (!error) {
 		gb->requests_completed++;
 		gb_loopback_calculate_latency_stats(gb);
 	}
 
-	do_gettimeofday(&te);
-	nlat = gb_loopback_calc_latency(&gb->ts, &te);
+	te = ktime_get();
+	nlat = gb_loopback_calc_latency(gb->ts, te);
 	if (nlat >= NSEC_PER_SEC || gb->iteration_count == gb->iteration_max) {
 		lat = gb_loopback_nsec_to_usec_latency(nlat);
 
@@ -1008,11 +871,22 @@ static int gb_loopback_fn(void *data)
 
 		/* Optionally terminate */
 		if (gb->send_count == gb->iteration_max) {
+			mutex_unlock(&gb->mutex);
+
+			/* Wait for synchronous and asynchronus completion */
+			gb_loopback_async_wait_all(gb);
+
+			/* Mark complete unless user-space has poked us */
+			mutex_lock(&gb->mutex);
 			if (gb->iteration_count == gb->iteration_max) {
 				gb->type = 0;
 				gb->send_count = 0;
 				sysfs_notify(&gb->dev->kobj,  NULL,
 						"iteration_count");
+				dev_dbg(&bundle->dev, "load test complete\n");
+			} else {
+				dev_dbg(&bundle->dev,
+					"continuing on with new test set\n");
 			}
 			mutex_unlock(&gb->mutex);
 			continue;
@@ -1020,22 +894,22 @@ static int gb_loopback_fn(void *data)
 		size = gb->size;
 		us_wait = gb->us_wait;
 		type = gb->type;
-		if (gb->ts.tv_usec == 0 && gb->ts.tv_sec == 0)
-			do_gettimeofday(&gb->ts);
-		mutex_unlock(&gb->mutex);
+		if (ktime_to_ns(gb->ts) == 0)
+			gb->ts = ktime_get();
 
 		/* Else operations to perform */
 		if (gb->async) {
-			if (type == GB_LOOPBACK_TYPE_PING) {
+			if (type == GB_LOOPBACK_TYPE_PING)
 				error = gb_loopback_async_ping(gb);
-			} else if (type == GB_LOOPBACK_TYPE_TRANSFER) {
+			else if (type == GB_LOOPBACK_TYPE_TRANSFER)
 				error = gb_loopback_async_transfer(gb, size);
-			} else if (type == GB_LOOPBACK_TYPE_SINK) {
+			else if (type == GB_LOOPBACK_TYPE_SINK)
 				error = gb_loopback_async_sink(gb, size);
-			}
 
-			if (error)
+			if (error) {
 				gb->error++;
+				gb->iteration_count++;
+			}
 		} else {
 			/* We are effectively single threaded here */
 			if (type == GB_LOOPBACK_TYPE_PING)
@@ -1051,8 +925,14 @@ static int gb_loopback_fn(void *data)
 			gb_loopback_calculate_stats(gb, !!error);
 		}
 		gb->send_count++;
-		if (us_wait)
-			udelay(us_wait);
+		mutex_unlock(&gb->mutex);
+
+		if (us_wait) {
+			if (us_wait < 20000)
+				usleep_range(us_wait, us_wait + 100);
+			else
+				msleep(us_wait / 1000);
+		}
 	}
 
 	gb_pm_runtime_put_autosuspend(bundle);
@@ -1090,57 +970,7 @@ static int gb_loopback_dbgfs_latency_show(struct seq_file *s, void *unused)
 	return gb_loopback_dbgfs_latency_show_common(s, &gb->kfifo_lat,
 						     &gb->mutex);
 }
-
-static int gb_loopback_latency_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, gb_loopback_dbgfs_latency_show,
-			   inode->i_private);
-}
-
-static const struct file_operations gb_loopback_debugfs_latency_ops = {
-	.open		= gb_loopback_latency_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
-static int gb_loopback_bus_id_compare(void *priv, struct list_head *lha,
-				      struct list_head *lhb)
-{
-	struct gb_loopback *a = list_entry(lha, struct gb_loopback, entry);
-	struct gb_loopback *b = list_entry(lhb, struct gb_loopback, entry);
-	struct gb_connection *ca = a->connection;
-	struct gb_connection *cb = b->connection;
-
-	if (ca->bundle->intf->interface_id < cb->bundle->intf->interface_id)
-		return -1;
-	if (cb->bundle->intf->interface_id < ca->bundle->intf->interface_id)
-		return 1;
-	if (ca->bundle->id < cb->bundle->id)
-		return -1;
-	if (cb->bundle->id < ca->bundle->id)
-		return 1;
-	if (ca->intf_cport_id < cb->intf_cport_id)
-		return -1;
-	else if (cb->intf_cport_id < ca->intf_cport_id)
-		return 1;
-
-	return 0;
-}
-
-static void gb_loopback_insert_id(struct gb_loopback *gb)
-{
-	struct gb_loopback *gb_list;
-	u32 new_lbid = 0;
-
-	/* perform an insertion sort */
-	list_add_tail(&gb->entry, &gb_dev.list);
-	list_sort(NULL, &gb_dev.list, gb_loopback_bus_id_compare);
-	list_for_each_entry(gb_list, &gb_dev.list, entry) {
-		gb_list->lbid = 1 << new_lbid;
-		new_lbid++;
-	}
-}
+DEFINE_SHOW_ATTRIBUTE(gb_loopback_dbgfs_latency);
 
 #define DEBUGFS_NAMELEN 32
 
@@ -1199,8 +1029,8 @@ static int gb_loopback_probe(struct gb_bundle *bundle,
 	/* Create per-connection sysfs and debugfs data-points */
 	snprintf(name, sizeof(name), "raw_latency_%s",
 		 dev_name(&connection->bundle->dev));
-	gb->file = debugfs_create_file(name, S_IFREG | S_IRUGO, gb_dev.root, gb,
-				       &gb_loopback_debugfs_latency_ops);
+	gb->file = debugfs_create_file(name, S_IFREG | 0444, gb_dev.root, gb,
+				       &gb_loopback_dbgfs_latency_fops);
 
 	gb->id = ida_simple_get(&loopback_ida, 0, 0, GFP_KERNEL);
 	if (gb->id < 0) {
@@ -1228,22 +1058,15 @@ static int gb_loopback_probe(struct gb_bundle *bundle,
 		retval = -ENOMEM;
 		goto out_conn;
 	}
-	if (kfifo_alloc(&gb->kfifo_ts, kfifo_depth * sizeof(struct timeval) * 2,
-			  GFP_KERNEL)) {
-		retval = -ENOMEM;
-		goto out_kfifo0;
-	}
-
 	/* Fork worker thread */
 	mutex_init(&gb->mutex);
 	gb->task = kthread_run(gb_loopback_fn, gb, "gb_loopback");
 	if (IS_ERR(gb->task)) {
 		retval = PTR_ERR(gb->task);
-		goto out_kfifo1;
+		goto out_kfifo;
 	}
 
 	spin_lock_irqsave(&gb_dev.lock, flags);
-	gb_loopback_insert_id(gb);
 	gb_dev.count++;
 	spin_unlock_irqrestore(&gb_dev.lock, flags);
 
@@ -1253,9 +1076,7 @@ static int gb_loopback_probe(struct gb_bundle *bundle,
 
 	return 0;
 
-out_kfifo1:
-	kfifo_free(&gb->kfifo_ts);
-out_kfifo0:
+out_kfifo:
 	kfifo_free(&gb->kfifo_lat);
 out_conn:
 	device_unregister(dev);
@@ -1289,7 +1110,6 @@ static void gb_loopback_disconnect(struct gb_bundle *bundle)
 		kthread_stop(gb->task);
 
 	kfifo_free(&gb->kfifo_lat);
-	kfifo_free(&gb->kfifo_ts);
 	gb_connection_latency_tag_disable(gb->connection);
 	debugfs_remove(gb->file);
 
@@ -1302,7 +1122,6 @@ static void gb_loopback_disconnect(struct gb_bundle *bundle)
 
 	spin_lock_irqsave(&gb_dev.lock, flags);
 	gb_dev.count--;
-	list_del(&gb->entry);
 	spin_unlock_irqrestore(&gb_dev.lock, flags);
 
 	device_unregister(gb->dev);
@@ -1329,8 +1148,6 @@ static int loopback_init(void)
 {
 	int retval;
 
-	INIT_LIST_HEAD(&gb_dev.list);
-	INIT_LIST_HEAD(&gb_dev.list_op_async);
 	spin_lock_init(&gb_dev.lock);
 	gb_dev.root = debugfs_create_dir("gb_loopback", NULL);
 

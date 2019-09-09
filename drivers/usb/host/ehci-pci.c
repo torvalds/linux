@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * EHCI HCD (Host Controller Driver) PCI Bus Glue.
  *
  * Copyright (c) 2000-2004 by David Brownell
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/kernel.h>
@@ -162,7 +149,7 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 		break;
 	case PCI_VENDOR_ID_AMD:
 		/* AMD PLL quirk */
-		if (usb_amd_find_chipset_info())
+		if (usb_amd_quirk_pll_check())
 			ehci->amd_pll_fix = 1;
 		/* AMD8111 EHCI doesn't work, according to AMD errata */
 		if (pdev->device == 0x7463) {
@@ -199,7 +186,7 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 		break;
 	case PCI_VENDOR_ID_ATI:
 		/* AMD PLL quirk */
-		if (usb_amd_find_chipset_info())
+		if (usb_amd_quirk_pll_check())
 			ehci->amd_pll_fix = 1;
 
 		/*
@@ -258,9 +245,8 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 	/* These workarounds need to be applied after ehci_setup() */
 	switch (pdev->vendor) {
 	case PCI_VENDOR_ID_NEC:
-		ehci->need_io_watchdog = 0;
-		break;
 	case PCI_VENDOR_ID_INTEL:
+	case PCI_VENDOR_ID_AMD:
 		ehci->need_io_watchdog = 0;
 		break;
 	case PCI_VENDOR_ID_NVIDIA:

@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2010 Matt Turner.
  * Copyright 2012 Red Hat
- *
- * This file is subject to the terms and conditions of the GNU General
- * Public License version 2. See the file COPYING in the main
- * directory of this archive for more details.
  *
  * Authors: Matthew Garrett
  *          Matt Turner
@@ -12,6 +9,7 @@
  */
 #include <linux/module.h>
 #include <drm/drmP.h>
+#include <drm/drm_util.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_crtc_helper.h>
 
@@ -22,29 +20,31 @@ static void mga_dirty_update(struct mga_fbdev *mfbdev,
 {
 	int i;
 	struct drm_gem_object *obj;
-	struct mgag200_bo *bo;
+	struct drm_gem_vram_object *gbo;
 	int src_offset, dst_offset;
-	int bpp = (mfbdev->mfb.base.bits_per_pixel + 7)/8;
-	int ret = -EBUSY;
+	int bpp = mfbdev->mfb.base.format->cpp[0];
+	int ret;
+	u8 *dst;
 	bool unmap = false;
 	bool store_for_later = false;
 	int x2, y2;
 	unsigned long flags;
 
 	obj = mfbdev->mfb.obj;
-	bo = gem_to_mga_bo(obj);
+	gbo = drm_gem_vram_of_gem(obj);
 
-	/*
-	 * try and reserve the BO, if we fail with busy
-	 * then the BO is being moved and we should
-	 * store up the damage until later.
-	 */
-	if (drm_can_sleep())
-		ret = mgag200_bo_reserve(bo, true);
-	if (ret) {
-		if (ret != -EBUSY)
-			return;
-
+	if (drm_can_sleep()) {
+		/* We pin the BO so it won't be moved during the
+		 * update. The actual location, video RAM or system
+		 * memory, is not important.
+		 */
+		ret = drm_gem_vram_pin(gbo, 0);
+		if (ret) {
+			if (ret != -EBUSY)
+				return;
+			store_for_later = true;
+		}
+	} else {
 		store_for_later = true;
 	}
 
@@ -74,25 +74,32 @@ static void mga_dirty_update(struct mga_fbdev *mfbdev,
 	mfbdev->x2 = mfbdev->y2 = 0;
 	spin_unlock_irqrestore(&mfbdev->dirty_lock, flags);
 
-	if (!bo->kmap.virtual) {
-		ret = ttm_bo_kmap(&bo->bo, 0, bo->bo.num_pages, &bo->kmap);
-		if (ret) {
+	dst = drm_gem_vram_kmap(gbo, false, NULL);
+	if (IS_ERR(dst)) {
+		DRM_ERROR("failed to kmap fb updates\n");
+		goto out;
+	} else if (!dst) {
+		dst = drm_gem_vram_kmap(gbo, true, NULL);
+		if (IS_ERR(dst)) {
 			DRM_ERROR("failed to kmap fb updates\n");
-			mgag200_bo_unreserve(bo);
-			return;
+			goto out;
 		}
 		unmap = true;
 	}
+
 	for (i = y; i <= y2; i++) {
 		/* assume equal stride for now */
-		src_offset = dst_offset = i * mfbdev->mfb.base.pitches[0] + (x * bpp);
-		memcpy_toio(bo->kmap.virtual + src_offset, mfbdev->sysram + src_offset, (x2 - x + 1) * bpp);
-
+		src_offset = dst_offset =
+			i * mfbdev->mfb.base.pitches[0] + (x * bpp);
+		memcpy_toio(dst + dst_offset, mfbdev->sysram + src_offset,
+			    (x2 - x + 1) * bpp);
 	}
-	if (unmap)
-		ttm_bo_kunmap(&bo->kmap);
 
-	mgag200_bo_unreserve(bo);
+	if (unmap)
+		drm_gem_vram_kunmap(gbo);
+
+out:
+	drm_gem_vram_unpin(gbo);
 }
 
 static void mga_fillrect(struct fb_info *info,
@@ -194,11 +201,9 @@ static int mgag200fb_create(struct drm_fb_helper *helper,
 		goto err_alloc_fbi;
 	}
 
-	info->par = mfbdev;
-
 	ret = mgag200_framebuffer_init(dev, &mfbdev->mfb, &mode_cmd, gobj);
 	if (ret)
-		goto err_framebuffer_init;
+		goto err_alloc_fbi;
 
 	mfbdev->sysram = sysram;
 	mfbdev->size = size;
@@ -208,18 +213,13 @@ static int mgag200fb_create(struct drm_fb_helper *helper,
 	/* setup helper */
 	mfbdev->helper.fb = fb;
 
-	strcpy(info->fix.id, "mgadrmfb");
-
-	info->flags = FBINFO_DEFAULT | FBINFO_CAN_FORCE_OUTPUT;
 	info->fbops = &mgag200fb_ops;
 
 	/* setup aperture base/size for vesafb takeover */
 	info->apertures->ranges[0].base = mdev->dev->mode_config.fb_base;
 	info->apertures->ranges[0].size = mdev->mc.vram_size;
 
-	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->depth);
-	drm_fb_helper_fill_var(info, &mfbdev->helper, sizes->fb_width,
-			       sizes->fb_height);
+	drm_fb_helper_fill_info(info, &mfbdev->helper, sizes);
 
 	info->screen_base = sysram;
 	info->screen_size = size;
@@ -230,12 +230,10 @@ static int mgag200fb_create(struct drm_fb_helper *helper,
 
 	return 0;
 
-err_framebuffer_init:
-	drm_fb_helper_release_fbi(helper);
 err_alloc_fbi:
 	vfree(sysram);
 err_sysram:
-	drm_gem_object_unreference_unlocked(gobj);
+	drm_gem_object_put_unlocked(gobj);
 
 	return ret;
 }
@@ -246,10 +244,9 @@ static int mga_fbdev_destroy(struct drm_device *dev,
 	struct mga_framebuffer *mfb = &mfbdev->mfb;
 
 	drm_fb_helper_unregister_fbi(&mfbdev->helper);
-	drm_fb_helper_release_fbi(&mfbdev->helper);
 
 	if (mfb->obj) {
-		drm_gem_object_unreference_unlocked(mfb->obj);
+		drm_gem_object_put_unlocked(mfb->obj);
 		mfb->obj = NULL;
 	}
 	drm_fb_helper_fini(&mfbdev->helper);
@@ -261,8 +258,6 @@ static int mga_fbdev_destroy(struct drm_device *dev,
 }
 
 static const struct drm_fb_helper_funcs mga_fb_helper_funcs = {
-	.gamma_set = mga_crtc_fb_gamma_set,
-	.gamma_get = mga_crtc_fb_gamma_get,
 	.fb_probe = mgag200fb_create,
 };
 
@@ -286,7 +281,7 @@ int mgag200_fbdev_init(struct mga_device *mdev)
 	drm_fb_helper_prepare(mdev->dev, &mfbdev->helper, &mga_fb_helper_funcs);
 
 	ret = drm_fb_helper_init(mdev->dev, &mfbdev->helper,
-				 mdev->num_crtc, MGAG200FB_CONN_LIMIT);
+				 MGAG200FB_CONN_LIMIT);
 	if (ret)
 		goto err_fb_helper;
 

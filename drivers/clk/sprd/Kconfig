@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config SPRD_COMMON_CLK
+	tristate "Clock support for Spreadtrum SoCs"
+	depends on ARCH_SPRD || COMPILE_TEST
+	default ARCH_SPRD
+	select REGMAP_MMIO
+
+if SPRD_COMMON_CLK
+
+# SoC Drivers
+
+config SPRD_SC9860_CLK
+	tristate "Support for the Spreadtrum SC9860 clocks"
+	depends on (ARM64 && ARCH_SPRD) || COMPILE_TEST
+	default ARM64 && ARCH_SPRD
+endif

@@ -1,12 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  arch/arm/include/asm/pgtable-nommu.h
  *
  *  Copyright (C) 1995-2002 Russell King
  *  Copyright (C) 2004  Hyok S. Choi
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #ifndef _ASMARM_PGTABLE_NOMMU_H
 #define _ASMARM_PGTABLE_NOMMU_H
@@ -63,9 +60,10 @@ typedef pte_t *pte_addr_t;
 /*
  * Mark the prot value as uncacheable and unbufferable.
  */
-#define pgprot_noncached(prot)	__pgprot(0)
-#define pgprot_writecombine(prot) __pgprot(0)
-#define pgprot_dmacoherent(prot) __pgprot(0)
+#define pgprot_noncached(prot)	(prot)
+#define pgprot_writecombine(prot) (prot)
+#define pgprot_dmacoherent(prot) (prot)
+#define pgprot_device(prot)	(prot)
 
 
 /*

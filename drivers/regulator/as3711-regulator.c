@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * AS3711 PMIC regulator driver, using DCDC Step Down and LDO supplies
  *
  * Copyright (C) 2012 Renesas Electronics Corporation
  * Author: Guennadi Liakhovetski, <g.liakhovetski@gmx.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the version 2 of the GNU General Public License as
- * published by the Free Software Foundation
  */
 
 #include <linux/err.h>
@@ -19,14 +16,6 @@
 #include <linux/regulator/driver.h>
 #include <linux/regulator/of_regulator.h>
 #include <linux/slab.h>
-
-struct as3711_regulator_info {
-	struct regulator_desc	desc;
-};
-
-struct as3711_regulator {
-	struct as3711_regulator_info *reg_info;
-};
 
 /*
  * The regulator API supports 4 modes of operataion: FAST, NORMAL, IDLE and
@@ -82,7 +71,7 @@ static unsigned int as3711_get_mode_sd(struct regulator_dev *rdev)
 	return -EINVAL;
 }
 
-static struct regulator_ops as3711_sd_ops = {
+static const struct regulator_ops as3711_sd_ops = {
 	.is_enabled		= regulator_is_enabled_regmap,
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
@@ -94,7 +83,7 @@ static struct regulator_ops as3711_sd_ops = {
 	.set_mode		= as3711_set_mode_sd,
 };
 
-static struct regulator_ops as3711_aldo_ops = {
+static const struct regulator_ops as3711_aldo_ops = {
 	.is_enabled		= regulator_is_enabled_regmap,
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
@@ -104,7 +93,7 @@ static struct regulator_ops as3711_aldo_ops = {
 	.map_voltage		= regulator_map_voltage_linear_range,
 };
 
-static struct regulator_ops as3711_dldo_ops = {
+static const struct regulator_ops as3711_dldo_ops = {
 	.is_enabled		= regulator_is_enabled_regmap,
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
@@ -132,7 +121,6 @@ static const struct regulator_linear_range as3711_dldo_ranges[] = {
 
 #define AS3711_REG(_id, _en_reg, _en_bit, _vmask, _sfx)			   \
 	[AS3711_REGULATOR_ ## _id] = {					   \
-	.desc = {							   \
 		.name = "as3711-regulator-" # _id,			   \
 		.id = AS3711_REGULATOR_ ## _id,				   \
 		.n_voltages = (_vmask + 1),				   \
@@ -145,10 +133,9 @@ static const struct regulator_linear_range as3711_dldo_ranges[] = {
 		.enable_mask = BIT(_en_bit),				   \
 		.linear_ranges = as3711_ ## _sfx ## _ranges,		   \
 		.n_linear_ranges = ARRAY_SIZE(as3711_ ## _sfx ## _ranges), \
-	},								   \
 }
 
-static struct as3711_regulator_info as3711_reg_info[] = {
+static const struct regulator_desc as3711_reg_desc[] = {
 	AS3711_REG(SD_1, SD_CONTROL, 0, 0x7f, sd),
 	AS3711_REG(SD_2, SD_CONTROL, 1, 0x7f, sd),
 	AS3711_REG(SD_3, SD_CONTROL, 2, 0x7f, sd),
@@ -164,7 +151,7 @@ static struct as3711_regulator_info as3711_reg_info[] = {
 	/* StepUp output voltage depends on supplying regulator */
 };
 
-#define AS3711_REGULATOR_NUM ARRAY_SIZE(as3711_reg_info)
+#define AS3711_REGULATOR_NUM ARRAY_SIZE(as3711_reg_desc)
 
 static struct of_regulator_match
 as3711_regulator_matches[AS3711_REGULATOR_NUM] = {
@@ -218,11 +205,8 @@ static int as3711_regulator_probe(struct platform_device *pdev)
 	struct as3711_regulator_pdata *pdata = dev_get_platdata(&pdev->dev);
 	struct as3711 *as3711 = dev_get_drvdata(pdev->dev.parent);
 	struct regulator_config config = {.dev = &pdev->dev,};
-	struct as3711_regulator *reg = NULL;
-	struct as3711_regulator *regs;
 	struct device_node *of_node[AS3711_REGULATOR_NUM] = {};
 	struct regulator_dev *rdev;
-	struct as3711_regulator_info *ri;
 	int ret;
 	int id;
 
@@ -239,28 +223,20 @@ static int as3711_regulator_probe(struct platform_device *pdev)
 		}
 	}
 
-	regs = devm_kzalloc(&pdev->dev, AS3711_REGULATOR_NUM *
-			sizeof(struct as3711_regulator), GFP_KERNEL);
-	if (!regs)
-		return -ENOMEM;
-
-	for (id = 0, ri = as3711_reg_info; id < AS3711_REGULATOR_NUM; ++id, ri++) {
-		reg = &regs[id];
-		reg->reg_info = ri;
-
+	for (id = 0; id < AS3711_REGULATOR_NUM; id++) {
 		config.init_data = pdata->init_data[id];
-		config.driver_data = reg;
 		config.regmap = as3711->regmap;
 		config.of_node = of_node[id];
 
-		rdev = devm_regulator_register(&pdev->dev, &ri->desc, &config);
+		rdev = devm_regulator_register(&pdev->dev, &as3711_reg_desc[id],
+					       &config);
 		if (IS_ERR(rdev)) {
 			dev_err(&pdev->dev, "Failed to register regulator %s\n",
-				ri->desc.name);
+				as3711_reg_desc[id].name);
 			return PTR_ERR(rdev);
 		}
 	}
-	platform_set_drvdata(pdev, regs);
+
 	return 0;
 }
 

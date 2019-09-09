@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* RxRPC virtual connection handler, common bits.
  *
  * Copyright (C) 2007, 2016 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -20,16 +16,18 @@
 /*
  * Time till a connection expires after last use (in seconds).
  */
-unsigned int rxrpc_connection_expiry = 10 * 60;
-
-static void rxrpc_connection_reaper(struct work_struct *work);
-
-LIST_HEAD(rxrpc_connections);
-LIST_HEAD(rxrpc_connection_proc_list);
-DEFINE_RWLOCK(rxrpc_connection_lock);
-static DECLARE_DELAYED_WORK(rxrpc_connection_reap, rxrpc_connection_reaper);
+unsigned int __read_mostly rxrpc_connection_expiry = 10 * 60;
+unsigned int __read_mostly rxrpc_closed_conn_expiry = 10;
 
 static void rxrpc_destroy_connection(struct rcu_head *);
+
+static void rxrpc_connection_timer(struct timer_list *timer)
+{
+	struct rxrpc_connection *conn =
+		container_of(timer, struct rxrpc_connection, timer);
+
+	rxrpc_queue_conn(conn);
+}
 
 /*
  * allocate a new connection
@@ -45,6 +43,7 @@ struct rxrpc_connection *rxrpc_alloc_connection(gfp_t gfp)
 		INIT_LIST_HEAD(&conn->cache_link);
 		spin_lock_init(&conn->channel_lock);
 		INIT_LIST_HEAD(&conn->waiting_calls);
+		timer_setup(&conn->timer, &rxrpc_connection_timer, 0);
 		INIT_WORK(&conn->processor, &rxrpc_process_connection);
 		INIT_LIST_HEAD(&conn->proc_link);
 		INIT_LIST_HEAD(&conn->link);
@@ -66,10 +65,14 @@ struct rxrpc_connection *rxrpc_alloc_connection(gfp_t gfp)
  * If successful, a pointer to the connection is returned, but no ref is taken.
  * NULL is returned if there is no match.
  *
+ * When searching for a service call, if we find a peer but no connection, we
+ * return that through *_peer in case we need to create a new service call.
+ *
  * The caller must be holding the RCU read lock.
  */
 struct rxrpc_connection *rxrpc_find_connection_rcu(struct rxrpc_local *local,
-						   struct sk_buff *skb)
+						   struct sk_buff *skb,
+						   struct rxrpc_peer **_peer)
 {
 	struct rxrpc_connection *conn;
 	struct rxrpc_conn_proto k;
@@ -82,11 +85,9 @@ struct rxrpc_connection *rxrpc_find_connection_rcu(struct rxrpc_local *local,
 	if (rxrpc_extract_addr_from_skb(&srx, skb) < 0)
 		goto not_found;
 
-	k.epoch	= sp->hdr.epoch;
-	k.cid	= sp->hdr.cid & RXRPC_CIDMASK;
-
-	/* We may have to handle mixing IPv4 and IPv6 */
-	if (srx.transport.family != local->srx.transport.family) {
+	if (srx.transport.family != local->srx.transport.family &&
+	    (srx.transport.family == AF_INET &&
+	     local->srx.transport.family != AF_INET6)) {
 		pr_warn_ratelimited("AF_RXRPC: Protocol mismatch %u not %u\n",
 				    srx.transport.family,
 				    local->srx.transport.family);
@@ -96,7 +97,7 @@ struct rxrpc_connection *rxrpc_find_connection_rcu(struct rxrpc_local *local,
 	k.epoch	= sp->hdr.epoch;
 	k.cid	= sp->hdr.cid & RXRPC_CIDMASK;
 
-	if (sp->hdr.flags & RXRPC_CLIENT_INITIATED) {
+	if (rxrpc_to_server(sp)) {
 		/* We need to look up service connections by the full protocol
 		 * parameter set.  We look up the peer first as an intermediate
 		 * step and then the connection from the peer's tree.
@@ -104,6 +105,7 @@ struct rxrpc_connection *rxrpc_find_connection_rcu(struct rxrpc_local *local,
 		peer = rxrpc_lookup_peer_rcu(local, &srx);
 		if (!peer)
 			goto not_found;
+		*_peer = peer;
 		conn = rxrpc_find_service_conn_rcu(peer, skb);
 		if (!conn || atomic_read(&conn->usage) == 0)
 			goto not_found;
@@ -173,14 +175,22 @@ void __rxrpc_disconnect_call(struct rxrpc_connection *conn,
 		/* Save the result of the call so that we can repeat it if necessary
 		 * through the channel, whilst disposing of the actual call record.
 		 */
-		chan->last_service_id = call->service_id;
-		if (call->abort_code) {
-			chan->last_abort = call->abort_code;
-			chan->last_type = RXRPC_PACKET_TYPE_ABORT;
-		} else {
+		trace_rxrpc_disconnect_call(call);
+		switch (call->completion) {
+		case RXRPC_CALL_SUCCEEDED:
 			chan->last_seq = call->rx_hard_ack;
 			chan->last_type = RXRPC_PACKET_TYPE_ACK;
+			break;
+		case RXRPC_CALL_LOCALLY_ABORTED:
+			chan->last_abort = call->abort_code;
+			chan->last_type = RXRPC_PACKET_TYPE_ABORT;
+			break;
+		default:
+			chan->last_abort = RX_USER_ABORT;
+			chan->last_type = RXRPC_PACKET_TYPE_ABORT;
+			break;
 		}
+
 		/* Sync with rxrpc_conn_retransmit(). */
 		smp_wmb();
 		chan->last_call = chan->call_id;
@@ -200,8 +210,10 @@ void rxrpc_disconnect_call(struct rxrpc_call *call)
 {
 	struct rxrpc_connection *conn = call->conn;
 
+	call->peer->cong_cwnd = call->cong_cwnd;
+
 	spin_lock_bh(&conn->params.peer->lock);
-	hlist_del_init(&call->error_link);
+	hlist_del_rcu(&call->error_link);
 	spin_unlock_bh(&conn->params.peer->lock);
 
 	if (rxrpc_is_client_call(call))
@@ -221,15 +233,17 @@ void rxrpc_disconnect_call(struct rxrpc_call *call)
  */
 void rxrpc_kill_connection(struct rxrpc_connection *conn)
 {
+	struct rxrpc_net *rxnet = conn->params.local->rxnet;
+
 	ASSERT(!rcu_access_pointer(conn->channels[0].call) &&
 	       !rcu_access_pointer(conn->channels[1].call) &&
 	       !rcu_access_pointer(conn->channels[2].call) &&
 	       !rcu_access_pointer(conn->channels[3].call));
 	ASSERT(list_empty(&conn->cache_link));
 
-	write_lock(&rxrpc_connection_lock);
+	write_lock(&rxnet->conn_lock);
 	list_del_init(&conn->proc_link);
-	write_unlock(&rxrpc_connection_lock);
+	write_unlock(&rxnet->conn_lock);
 
 	/* Drain the Rx queue.  Note that even though we've unpublished, an
 	 * incoming packet could still be being added to our Rx queue, so we
@@ -251,7 +265,7 @@ void rxrpc_kill_connection(struct rxrpc_connection *conn)
 bool rxrpc_queue_conn(struct rxrpc_connection *conn)
 {
 	const void *here = __builtin_return_address(0);
-	int n = __atomic_add_unless(&conn->usage, 1, 0);
+	int n = atomic_fetch_add_unless(&conn->usage, 1, 0);
 	if (n == 0)
 		return false;
 	if (rxrpc_queue_work(&conn->processor))
@@ -294,13 +308,23 @@ rxrpc_get_connection_maybe(struct rxrpc_connection *conn)
 	const void *here = __builtin_return_address(0);
 
 	if (conn) {
-		int n = __atomic_add_unless(&conn->usage, 1, 0);
+		int n = atomic_fetch_add_unless(&conn->usage, 1, 0);
 		if (n > 0)
 			trace_rxrpc_conn(conn, rxrpc_conn_got, n + 1, here);
 		else
 			conn = NULL;
 	}
 	return conn;
+}
+
+/*
+ * Set the service connection reap timer.
+ */
+static void rxrpc_set_service_reap_timer(struct rxrpc_net *rxnet,
+					 unsigned long reap_at)
+{
+	if (rxnet->live)
+		timer_reduce(&rxnet->service_conn_reap_timer, reap_at);
 }
 
 /*
@@ -314,8 +338,9 @@ void rxrpc_put_service_conn(struct rxrpc_connection *conn)
 	n = atomic_dec_return(&conn->usage);
 	trace_rxrpc_conn(conn, rxrpc_conn_put_service, n, here);
 	ASSERTCMP(n, >=, 0);
-	if (n == 0)
-		rxrpc_queue_delayed_work(&rxrpc_connection_reap, 0);
+	if (n == 1)
+		rxrpc_set_service_reap_timer(conn->params.local->rxnet,
+					     jiffies + rxrpc_connection_expiry);
 }
 
 /*
@@ -332,12 +357,16 @@ static void rxrpc_destroy_connection(struct rcu_head *rcu)
 
 	_net("DESTROY CONN %d", conn->debug_id);
 
+	del_timer_sync(&conn->timer);
 	rxrpc_purge_queue(&conn->rx_queue);
 
 	conn->security->clear(conn);
 	key_put(conn->params.key);
 	key_put(conn->server_key);
 	rxrpc_put_peer(conn->params.peer);
+
+	if (atomic_dec_and_test(&conn->params.local->rxnet->nr_conns))
+		wake_up_var(&conn->params.local->rxnet->nr_conns);
 	rxrpc_put_local(conn->params.local);
 
 	kfree(conn);
@@ -347,36 +376,43 @@ static void rxrpc_destroy_connection(struct rcu_head *rcu)
 /*
  * reap dead service connections
  */
-static void rxrpc_connection_reaper(struct work_struct *work)
+void rxrpc_service_connection_reaper(struct work_struct *work)
 {
 	struct rxrpc_connection *conn, *_p;
-	unsigned long reap_older_than, earliest, idle_timestamp, now;
+	struct rxrpc_net *rxnet =
+		container_of(work, struct rxrpc_net, service_conn_reaper);
+	unsigned long expire_at, earliest, idle_timestamp, now;
 
 	LIST_HEAD(graveyard);
 
 	_enter("");
 
 	now = jiffies;
-	reap_older_than = now - rxrpc_connection_expiry * HZ;
-	earliest = ULONG_MAX;
+	earliest = now + MAX_JIFFY_OFFSET;
 
-	write_lock(&rxrpc_connection_lock);
-	list_for_each_entry_safe(conn, _p, &rxrpc_connections, link) {
+	write_lock(&rxnet->conn_lock);
+	list_for_each_entry_safe(conn, _p, &rxnet->service_conns, link) {
 		ASSERTCMP(atomic_read(&conn->usage), >, 0);
 		if (likely(atomic_read(&conn->usage) > 1))
 			continue;
 		if (conn->state == RXRPC_CONN_SERVICE_PREALLOC)
 			continue;
 
-		idle_timestamp = READ_ONCE(conn->idle_timestamp);
-		_debug("reap CONN %d { u=%d,t=%ld }",
-		       conn->debug_id, atomic_read(&conn->usage),
-		       (long)reap_older_than - (long)idle_timestamp);
+		if (rxnet->live && !conn->params.local->dead) {
+			idle_timestamp = READ_ONCE(conn->idle_timestamp);
+			expire_at = idle_timestamp + rxrpc_connection_expiry * HZ;
+			if (conn->params.local->service_closed)
+				expire_at = idle_timestamp + rxrpc_closed_conn_expiry * HZ;
 
-		if (time_after(idle_timestamp, reap_older_than)) {
-			if (time_before(idle_timestamp, earliest))
-				earliest = idle_timestamp;
-			continue;
+			_debug("reap CONN %d { u=%d,t=%ld }",
+			       conn->debug_id, atomic_read(&conn->usage),
+			       (long)expire_at - (long)now);
+
+			if (time_before(now, expire_at)) {
+				if (time_before(expire_at, earliest))
+					earliest = expire_at;
+				continue;
+			}
 		}
 
 		/* The usage count sits at 1 whilst the object is unused on the
@@ -384,6 +420,7 @@ static void rxrpc_connection_reaper(struct work_struct *work)
 		 */
 		if (atomic_cmpxchg(&conn->usage, 1, 0) != 1)
 			continue;
+		trace_rxrpc_conn(conn, rxrpc_conn_reap_service, 0, NULL);
 
 		if (rxrpc_conn_is_client(conn))
 			BUG();
@@ -392,13 +429,12 @@ static void rxrpc_connection_reaper(struct work_struct *work)
 
 		list_move_tail(&conn->link, &graveyard);
 	}
-	write_unlock(&rxrpc_connection_lock);
+	write_unlock(&rxnet->conn_lock);
 
-	if (earliest != ULONG_MAX) {
-		_debug("reschedule reaper %ld", (long) earliest - now);
+	if (earliest != now + MAX_JIFFY_OFFSET) {
+		_debug("reschedule reaper %ld", (long)earliest - (long)now);
 		ASSERT(time_after(earliest, now));
-		rxrpc_queue_delayed_work(&rxrpc_connection_reap,
-					 earliest - now);
+		rxrpc_set_service_reap_timer(rxnet, earliest);
 	}
 
 	while (!list_empty(&graveyard)) {
@@ -417,36 +453,34 @@ static void rxrpc_connection_reaper(struct work_struct *work)
  * preemptively destroy all the service connection records rather than
  * waiting for them to time out
  */
-void __exit rxrpc_destroy_all_connections(void)
+void rxrpc_destroy_all_connections(struct rxrpc_net *rxnet)
 {
 	struct rxrpc_connection *conn, *_p;
 	bool leak = false;
 
 	_enter("");
 
-	rxrpc_destroy_all_client_connections();
+	atomic_dec(&rxnet->nr_conns);
+	rxrpc_destroy_all_client_connections(rxnet);
 
-	rxrpc_connection_expiry = 0;
-	cancel_delayed_work(&rxrpc_connection_reap);
-	rxrpc_queue_delayed_work(&rxrpc_connection_reap, 0);
+	del_timer_sync(&rxnet->service_conn_reap_timer);
+	rxrpc_queue_work(&rxnet->service_conn_reaper);
 	flush_workqueue(rxrpc_workqueue);
 
-	write_lock(&rxrpc_connection_lock);
-	list_for_each_entry_safe(conn, _p, &rxrpc_connections, link) {
+	write_lock(&rxnet->conn_lock);
+	list_for_each_entry_safe(conn, _p, &rxnet->service_conns, link) {
 		pr_err("AF_RXRPC: Leaked conn %p {%d}\n",
 		       conn, atomic_read(&conn->usage));
 		leak = true;
 	}
-	write_unlock(&rxrpc_connection_lock);
+	write_unlock(&rxnet->conn_lock);
 	BUG_ON(leak);
 
-	ASSERT(list_empty(&rxrpc_connection_proc_list));
+	ASSERT(list_empty(&rxnet->conn_proc_list));
 
-	/* Make sure the local and peer records pinned by any dying connections
-	 * are released.
+	/* We need to wait for the connections to be destroyed by RCU as they
+	 * pin things that we still need to get rid of.
 	 */
-	rcu_barrier();
-	rxrpc_destroy_client_conn_ids();
-
+	wait_var_event(&rxnet->nr_conns, !atomic_read(&rxnet->nr_conns));
 	_leave("");
 }

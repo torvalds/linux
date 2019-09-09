@@ -1,8 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0
 /* (C) 2015 Pengutronix, Alexander Aring <aar@pengutronix.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Authors:
  * Alexander Aring <aar@pengutronix.de>
@@ -45,7 +42,7 @@ struct rpi_power_domains {
 struct rpi_power_domain_packet {
 	u32 domain;
 	u32 on;
-} __packet;
+};
 
 /*
  * Asks the firmware to enable or disable power on a specific power
@@ -165,8 +162,10 @@ static int rpi_power_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	rpi_domains->xlate.domains =
-		devm_kzalloc(dev, sizeof(*rpi_domains->xlate.domains) *
-			     RPI_POWER_DOMAIN_COUNT, GFP_KERNEL);
+		devm_kcalloc(dev,
+			     RPI_POWER_DOMAIN_COUNT,
+			     sizeof(*rpi_domains->xlate.domains),
+			     GFP_KERNEL);
 	if (!rpi_domains->xlate.domains)
 		return -ENOMEM;
 

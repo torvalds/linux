@@ -1,22 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Driver for the NXP SAA7164 PCIe bridge
  *
  *  Copyright (c) 2010-2015 Steven Toth <stoth@kernellabs.com>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include "saa7164.h"
@@ -82,7 +68,7 @@ static struct s5h1411_config hauppauge_s5h1411_config = {
 	.vsb_if        = S5H1411_IF_3250,
 	.inversion     = S5H1411_INVERSION_ON,
 	.status_mode   = S5H1411_DEMODLOCKING,
-	.mpeg_timing   = S5H1411_MPEGTIMING_CONTINOUS_NONINVERTING_CLOCK,
+	.mpeg_timing   = S5H1411_MPEGTIMING_CONTINUOUS_NONINVERTING_CLOCK,
 };
 
 static struct lgdt3306a_config hauppauge_hvr2255a_config = {
@@ -124,7 +110,7 @@ static int si2157_attach(struct saa7164_port *port, struct i2c_adapter *adapter,
 
 	memset(&bi, 0, sizeof(bi));
 
-	strlcpy(bi.type, "si2157", I2C_NAME_SIZE);
+	strscpy(bi.type, "si2157", I2C_NAME_SIZE);
 	bi.platform_data = cfg;
 	bi.addr = addr8bit >> 1;
 
@@ -244,8 +230,8 @@ static int saa7164_dvb_start_port(struct saa7164_port *port)
 		/* Stop the hardware, regardless */
 		result = saa7164_api_transition_port(port, SAA_DMASTATE_STOP);
 		if ((result != SAA_OK) && (result != SAA_ERR_ALREADY_STOPPED)) {
-			printk(KERN_ERR "%s() acquire/forced stop transition "
-				"failed, res = 0x%x\n", __func__, result);
+			printk(KERN_ERR "%s() acquire/forced stop transition failed, res = 0x%x\n",
+			       __func__, result);
 		}
 		ret = -EIO;
 		goto out;
@@ -261,8 +247,8 @@ static int saa7164_dvb_start_port(struct saa7164_port *port)
 		/* Stop the hardware, regardless */
 		result = saa7164_api_transition_port(port, SAA_DMASTATE_STOP);
 		if ((result != SAA_OK) && (result != SAA_ERR_ALREADY_STOPPED)) {
-			printk(KERN_ERR "%s() pause/forced stop transition "
-				"failed, res = 0x%x\n", __func__, result);
+			printk(KERN_ERR "%s() pause/forced stop transition failed, res = 0x%x\n",
+			       __func__, result);
 		}
 
 		ret = -EIO;
@@ -279,8 +265,8 @@ static int saa7164_dvb_start_port(struct saa7164_port *port)
 		/* Stop the hardware, regardless */
 		result = saa7164_api_transition_port(port, SAA_DMASTATE_STOP);
 		if ((result != SAA_OK) && (result != SAA_ERR_ALREADY_STOPPED)) {
-			printk(KERN_ERR "%s() run/forced stop transition "
-				"failed, res = 0x%x\n", __func__, result);
+			printk(KERN_ERR "%s() run/forced stop transition failed, res = 0x%x\n",
+			       __func__, result);
 		}
 
 		ret = -EIO;
@@ -357,8 +343,7 @@ static int dvb_register(struct saa7164_port *port)
 	/* Sanity check that the PCI configuration space is active */
 	if (port->hwcfg.BARLocation == 0) {
 		result = -ENOMEM;
-		printk(KERN_ERR "%s: dvb_register_adapter failed "
-		       "(errno = %d), NO PCI configuration\n",
+		printk(KERN_ERR "%s: dvb_register_adapter failed (errno = %d), NO PCI configuration\n",
 			DRIVER_NAME, result);
 		goto fail_adapter;
 	}
@@ -386,8 +371,7 @@ static int dvb_register(struct saa7164_port *port)
 
 		if (!buf) {
 			result = -ENOMEM;
-			printk(KERN_ERR "%s: dvb_register_adapter failed "
-			       "(errno = %d), unable to allocate buffers\n",
+			printk(KERN_ERR "%s: dvb_register_adapter failed (errno = %d), unable to allocate buffers\n",
 				DRIVER_NAME, result);
 			goto fail_adapter;
 		}
@@ -401,8 +385,8 @@ static int dvb_register(struct saa7164_port *port)
 	result = dvb_register_adapter(&dvb->adapter, DRIVER_NAME, THIS_MODULE,
 			&dev->pci->dev, adapter_nr);
 	if (result < 0) {
-		printk(KERN_ERR "%s: dvb_register_adapter failed "
-		       "(errno = %d)\n", DRIVER_NAME, result);
+		printk(KERN_ERR "%s: dvb_register_adapter failed (errno = %d)\n",
+		       DRIVER_NAME, result);
 		goto fail_adapter;
 	}
 	dvb->adapter.priv = port;
@@ -410,8 +394,8 @@ static int dvb_register(struct saa7164_port *port)
 	/* register frontend */
 	result = dvb_register_frontend(&dvb->adapter, dvb->frontend);
 	if (result < 0) {
-		printk(KERN_ERR "%s: dvb_register_frontend failed "
-		       "(errno = %d)\n", DRIVER_NAME, result);
+		printk(KERN_ERR "%s: dvb_register_frontend failed (errno = %d)\n",
+		       DRIVER_NAME, result);
 		goto fail_frontend;
 	}
 
@@ -444,16 +428,16 @@ static int dvb_register(struct saa7164_port *port)
 	dvb->fe_hw.source = DMX_FRONTEND_0;
 	result = dvb->demux.dmx.add_frontend(&dvb->demux.dmx, &dvb->fe_hw);
 	if (result < 0) {
-		printk(KERN_ERR "%s: add_frontend failed "
-		       "(DMX_FRONTEND_0, errno = %d)\n", DRIVER_NAME, result);
+		printk(KERN_ERR "%s: add_frontend failed (DMX_FRONTEND_0, errno = %d)\n",
+		       DRIVER_NAME, result);
 		goto fail_fe_hw;
 	}
 
 	dvb->fe_mem.source = DMX_MEMORY_FE;
 	result = dvb->demux.dmx.add_frontend(&dvb->demux.dmx, &dvb->fe_mem);
 	if (result < 0) {
-		printk(KERN_ERR "%s: add_frontend failed "
-		       "(DMX_MEMORY_FE, errno = %d)\n", DRIVER_NAME, result);
+		printk(KERN_ERR "%s: add_frontend failed (DMX_MEMORY_FE, errno = %d)\n",
+		       DRIVER_NAME, result);
 		goto fail_fe_mem;
 	}
 
@@ -535,7 +519,7 @@ int saa7164_dvb_unregister(struct saa7164_port *port)
 	return 0;
 }
 
-/* All the DVB attach calls go here, this function get's modified
+/* All the DVB attach calls go here, this function gets modified
  * for each new card.
  */
 int saa7164_dvb_register(struct saa7164_port *port)
@@ -649,7 +633,7 @@ int saa7164_dvb_register(struct saa7164_port *port)
 			si2168_config.fe = &port->dvb.frontend;
 			si2168_config.ts_mode = SI2168_TS_SERIAL;
 			memset(&info, 0, sizeof(struct i2c_board_info));
-			strlcpy(info.type, "si2168", I2C_NAME_SIZE);
+			strscpy(info.type, "si2168", I2C_NAME_SIZE);
 			info.addr = 0xc8 >> 1;
 			info.platform_data = &si2168_config;
 			request_module(info.type);
@@ -669,7 +653,7 @@ int saa7164_dvb_register(struct saa7164_port *port)
 			si2157_config.if_port = 1;
 			si2157_config.fe = port->dvb.frontend;
 			memset(&info, 0, sizeof(struct i2c_board_info));
-			strlcpy(info.type, "si2157", I2C_NAME_SIZE);
+			strscpy(info.type, "si2157", I2C_NAME_SIZE);
 			info.addr = 0xc0 >> 1;
 			info.platform_data = &si2157_config;
 			request_module(info.type);
@@ -694,7 +678,7 @@ int saa7164_dvb_register(struct saa7164_port *port)
 			si2168_config.fe = &port->dvb.frontend;
 			si2168_config.ts_mode = SI2168_TS_SERIAL;
 			memset(&info, 0, sizeof(struct i2c_board_info));
-			strlcpy(info.type, "si2168", I2C_NAME_SIZE);
+			strscpy(info.type, "si2168", I2C_NAME_SIZE);
 			info.addr = 0xcc >> 1;
 			info.platform_data = &si2168_config;
 			request_module(info.type);
@@ -714,7 +698,7 @@ int saa7164_dvb_register(struct saa7164_port *port)
 			si2157_config.fe = port->dvb.frontend;
 			si2157_config.if_port = 1;
 			memset(&info, 0, sizeof(struct i2c_board_info));
-			strlcpy(info.type, "si2157", I2C_NAME_SIZE);
+			strscpy(info.type, "si2157", I2C_NAME_SIZE);
 			info.addr = 0xc0 >> 1;
 			info.platform_data = &si2157_config;
 			request_module(info.type);

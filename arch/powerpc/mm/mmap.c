@@ -1,23 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  flexible mmap layout support
  *
  * Copyright 2003-2004 Red Hat Inc., Durham, North Carolina.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  *
  * Started by Ingo Molnar <mingo@elte.hu>
  */
@@ -25,7 +11,8 @@
 #include <linux/personality.h>
 #include <linux/mm.h>
 #include <linux/random.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
+#include <linux/sched/mm.h>
 #include <linux/elf-randomize.h>
 #include <linux/security.h>
 #include <linux/mman.h>
@@ -33,24 +20,17 @@
 /*
  * Top of mmap area (just below the process stack).
  *
- * Leave at least a ~128 MB hole on 32bit applications.
- *
- * On 64bit applications we randomise the stack by 1GB so we need to
- * space our mmap start address by a further 1GB, otherwise there is a
- * chance the mmap area will end up closer to the stack than our ulimit
- * requires.
+ * Leave at least a ~128 MB hole.
  */
-#define MIN_GAP32 (128*1024*1024)
-#define MIN_GAP64 ((128 + 1024)*1024*1024UL)
-#define MIN_GAP ((is_32bit_task()) ? MIN_GAP32 : MIN_GAP64)
+#define MIN_GAP (128*1024*1024)
 #define MAX_GAP (TASK_SIZE/6*5)
 
-static inline int mmap_is_legacy(void)
+static inline int mmap_is_legacy(struct rlimit *rlim_stack)
 {
 	if (current->personality & ADDR_COMPAT_LAYOUT)
 		return 1;
 
-	if (rlimit(RLIMIT_STACK) == RLIM_INFINITY)
+	if (rlim_stack->rlim_cur == RLIM_INFINITY)
 		return 1;
 
 	return sysctl_legacy_va_layout;
@@ -58,27 +38,46 @@ static inline int mmap_is_legacy(void)
 
 unsigned long arch_mmap_rnd(void)
 {
-	unsigned long rnd;
+	unsigned long shift, rnd;
 
-	/* 8MB for 32bit, 1GB for 64bit */
+	shift = mmap_rnd_bits;
+#ifdef CONFIG_COMPAT
 	if (is_32bit_task())
-		rnd = get_random_long() % (1<<(23-PAGE_SHIFT));
-	else
-		rnd = get_random_long() % (1UL<<(30-PAGE_SHIFT));
+		shift = mmap_rnd_compat_bits;
+#endif
+	rnd = get_random_long() % (1ul << shift);
 
 	return rnd << PAGE_SHIFT;
 }
 
-static inline unsigned long mmap_base(unsigned long rnd)
+static inline unsigned long stack_maxrandom_size(void)
 {
-	unsigned long gap = rlimit(RLIMIT_STACK);
+	if (!(current->flags & PF_RANDOMIZE))
+		return 0;
+
+	/* 8MB for 32bit, 1GB for 64bit */
+	if (is_32bit_task())
+		return (1<<23);
+	else
+		return (1<<30);
+}
+
+static inline unsigned long mmap_base(unsigned long rnd,
+				      struct rlimit *rlim_stack)
+{
+	unsigned long gap = rlim_stack->rlim_cur;
+	unsigned long pad = stack_maxrandom_size() + stack_guard_gap;
+
+	/* Values close to RLIM_INFINITY can overflow. */
+	if (gap + pad > gap)
+		gap += pad;
 
 	if (gap < MIN_GAP)
 		gap = MIN_GAP;
 	else if (gap > MAX_GAP)
 		gap = MAX_GAP;
 
-	return PAGE_ALIGN(TASK_SIZE - gap - rnd);
+	return PAGE_ALIGN(DEFAULT_MAP_WINDOW - gap - rnd);
 }
 
 #ifdef CONFIG_PPC_RADIX_MMU
@@ -94,27 +93,37 @@ radix__arch_get_unmapped_area(struct file *filp, unsigned long addr,
 {
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma;
+	int fixed = (flags & MAP_FIXED);
+	unsigned long high_limit;
 	struct vm_unmapped_area_info info;
 
-	if (len > TASK_SIZE - mmap_min_addr)
+	high_limit = DEFAULT_MAP_WINDOW;
+	if (addr >= high_limit || (fixed && (addr + len > high_limit)))
+		high_limit = TASK_SIZE;
+
+	if (len > high_limit)
 		return -ENOMEM;
 
-	if (flags & MAP_FIXED)
+	if (fixed) {
+		if (addr > high_limit - len)
+			return -ENOMEM;
 		return addr;
+	}
 
 	if (addr) {
 		addr = PAGE_ALIGN(addr);
 		vma = find_vma(mm, addr);
-		if (TASK_SIZE - len >= addr && addr >= mmap_min_addr &&
-		    (!vma || addr + len <= vma->vm_start))
+		if (high_limit - len >= addr && addr >= mmap_min_addr &&
+		    (!vma || addr + len <= vm_start_gap(vma)))
 			return addr;
 	}
 
 	info.flags = 0;
 	info.length = len;
 	info.low_limit = mm->mmap_base;
-	info.high_limit = TASK_SIZE;
+	info.high_limit = high_limit;
 	info.align_mask = 0;
+
 	return vm_unmapped_area(&info);
 }
 
@@ -128,30 +137,41 @@ radix__arch_get_unmapped_area_topdown(struct file *filp,
 	struct vm_area_struct *vma;
 	struct mm_struct *mm = current->mm;
 	unsigned long addr = addr0;
+	int fixed = (flags & MAP_FIXED);
+	unsigned long high_limit;
 	struct vm_unmapped_area_info info;
 
-	/* requested length too big for entire address space */
-	if (len > TASK_SIZE - mmap_min_addr)
+	high_limit = DEFAULT_MAP_WINDOW;
+	if (addr >= high_limit || (fixed && (addr + len > high_limit)))
+		high_limit = TASK_SIZE;
+
+	if (len > high_limit)
 		return -ENOMEM;
 
-	if (flags & MAP_FIXED)
+	if (fixed) {
+		if (addr > high_limit - len)
+			return -ENOMEM;
 		return addr;
+	}
 
-	/* requesting a specific address */
 	if (addr) {
 		addr = PAGE_ALIGN(addr);
 		vma = find_vma(mm, addr);
-		if (TASK_SIZE - len >= addr && addr >= mmap_min_addr &&
-				(!vma || addr + len <= vma->vm_start))
+		if (high_limit - len >= addr && addr >= mmap_min_addr &&
+		    (!vma || addr + len <= vm_start_gap(vma)))
 			return addr;
 	}
 
 	info.flags = VM_UNMAPPED_AREA_TOPDOWN;
 	info.length = len;
 	info.low_limit = max(PAGE_SIZE, mmap_min_addr);
-	info.high_limit = mm->mmap_base;
+	info.high_limit = mm->mmap_base + (high_limit - DEFAULT_MAP_WINDOW);
 	info.align_mask = 0;
+
 	addr = vm_unmapped_area(&info);
+	if (!(addr & ~PAGE_MASK))
+		return addr;
+	VM_BUG_ON(addr != -ENOMEM);
 
 	/*
 	 * A failed mmap() very likely causes application failure,
@@ -159,38 +179,32 @@ radix__arch_get_unmapped_area_topdown(struct file *filp,
 	 * can happen with large stack limits and large mmap()
 	 * allocations.
 	 */
-	if (addr & ~PAGE_MASK) {
-		VM_BUG_ON(addr != -ENOMEM);
-		info.flags = 0;
-		info.low_limit = TASK_UNMAPPED_BASE;
-		info.high_limit = TASK_SIZE;
-		addr = vm_unmapped_area(&info);
-	}
-
-	return addr;
+	return radix__arch_get_unmapped_area(filp, addr0, len, pgoff, flags);
 }
 
 static void radix__arch_pick_mmap_layout(struct mm_struct *mm,
-					unsigned long random_factor)
+					unsigned long random_factor,
+					struct rlimit *rlim_stack)
 {
-	if (mmap_is_legacy()) {
+	if (mmap_is_legacy(rlim_stack)) {
 		mm->mmap_base = TASK_UNMAPPED_BASE;
 		mm->get_unmapped_area = radix__arch_get_unmapped_area;
 	} else {
-		mm->mmap_base = mmap_base(random_factor);
+		mm->mmap_base = mmap_base(random_factor, rlim_stack);
 		mm->get_unmapped_area = radix__arch_get_unmapped_area_topdown;
 	}
 }
 #else
 /* dummy */
 extern void radix__arch_pick_mmap_layout(struct mm_struct *mm,
-					unsigned long random_factor);
+					unsigned long random_factor,
+					struct rlimit *rlim_stack);
 #endif
 /*
  * This function, called very early during the creation of a new
  * process VM image, sets up which VM layout function to use:
  */
-void arch_pick_mmap_layout(struct mm_struct *mm)
+void arch_pick_mmap_layout(struct mm_struct *mm, struct rlimit *rlim_stack)
 {
 	unsigned long random_factor = 0UL;
 
@@ -198,16 +212,17 @@ void arch_pick_mmap_layout(struct mm_struct *mm)
 		random_factor = arch_mmap_rnd();
 
 	if (radix_enabled())
-		return radix__arch_pick_mmap_layout(mm, random_factor);
+		return radix__arch_pick_mmap_layout(mm, random_factor,
+						    rlim_stack);
 	/*
 	 * Fall back to the standard layout if the personality
 	 * bit is set, or if the expected stack growth is unlimited:
 	 */
-	if (mmap_is_legacy()) {
+	if (mmap_is_legacy(rlim_stack)) {
 		mm->mmap_base = TASK_UNMAPPED_BASE;
 		mm->get_unmapped_area = arch_get_unmapped_area;
 	} else {
-		mm->mmap_base = mmap_base(random_factor);
+		mm->mmap_base = mmap_base(random_factor, rlim_stack);
 		mm->get_unmapped_area = arch_get_unmapped_area_topdown;
 	}
 }

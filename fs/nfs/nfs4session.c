@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * fs/nfs/nfs4session.c
  *
@@ -55,7 +56,7 @@ static void nfs4_shrink_slot_table(struct nfs4_slot_table  *tbl, u32 newsize)
 
 /**
  * nfs4_slot_tbl_drain_complete - wake waiters when drain is complete
- * @tbl - controlling slot table
+ * @tbl: controlling slot table
  *
  */
 void nfs4_slot_tbl_drain_complete(struct nfs4_slot_table *tbl)
@@ -110,6 +111,8 @@ static struct nfs4_slot *nfs4_new_slot(struct nfs4_slot_table  *tbl,
 		slot->table = tbl;
 		slot->slot_nr = slotid;
 		slot->seq_nr = seq_init;
+		slot->seq_nr_highest_sent = seq_init;
+		slot->seq_nr_last_acked = seq_init - 1;
 	}
 	return slot;
 }
@@ -169,7 +172,7 @@ bool nfs4_try_to_lock_slot(struct nfs4_slot_table *tbl, struct nfs4_slot *slot)
 struct nfs4_slot *nfs4_lookup_slot(struct nfs4_slot_table *tbl, u32 slotid)
 {
 	if (slotid <= tbl->max_slotid)
-		return nfs4_find_or_create_slot(tbl, slotid, 1, GFP_NOWAIT);
+		return nfs4_find_or_create_slot(tbl, slotid, 0, GFP_NOWAIT);
 	return ERR_PTR(-E2BIG);
 }
 
@@ -178,12 +181,14 @@ static int nfs4_slot_get_seqid(struct nfs4_slot_table  *tbl, u32 slotid,
 	__must_hold(&tbl->slot_tbl_lock)
 {
 	struct nfs4_slot *slot;
+	int ret;
 
 	slot = nfs4_lookup_slot(tbl, slotid);
-	if (IS_ERR(slot))
-		return PTR_ERR(slot);
-	*seq_nr = slot->seq_nr;
-	return 0;
+	ret = PTR_ERR_OR_ZERO(slot);
+	if (!ret)
+		*seq_nr = slot->seq_nr;
+
+	return ret;
 }
 
 /*
@@ -196,7 +201,7 @@ static int nfs4_slot_get_seqid(struct nfs4_slot_table  *tbl, u32 slotid,
 static bool nfs4_slot_seqid_in_use(struct nfs4_slot_table *tbl,
 		u32 slotid, u32 seq_nr)
 {
-	u32 cur_seq;
+	u32 cur_seq = 0;
 	bool ret = false;
 
 	spin_lock(&tbl->slot_tbl_lock);
@@ -274,7 +279,8 @@ static void nfs4_reset_slot_table(struct nfs4_slot_table *tbl,
 	p = &tbl->slots;
 	while (*p) {
 		(*p)->seq_nr = ivalue;
-		(*p)->interrupted = 0;
+		(*p)->seq_nr_highest_sent = ivalue;
+		(*p)->seq_nr_last_acked = ivalue - 1;
 		p = &(*p)->next;
 	}
 	tbl->highest_used_slotid = NFS4_NO_SLOT;
@@ -571,12 +577,11 @@ static void nfs4_destroy_session_slot_tables(struct nfs4_session *session)
 void nfs4_destroy_session(struct nfs4_session *session)
 {
 	struct rpc_xprt *xprt;
-	struct rpc_cred *cred;
+	const struct cred *cred;
 
 	cred = nfs4_get_clid_cred(session->clp);
 	nfs4_proc_destroy_session(session, cred);
-	if (cred)
-		put_rpccred(cred);
+	put_cred(cred);
 
 	rcu_read_lock();
 	xprt = rcu_dereference(session->clp->cl_rpcclient->cl_xprt);

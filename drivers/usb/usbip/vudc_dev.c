@@ -1,21 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2015 Karol Kosik <karo9@interia.eu>
  * Copyright (C) 2015-2016 Samsung Electronics
  *               Igor Kotrasinski <i.kotrasinsk@samsung.com>
  *               Krzysztof Opasiak <k.opasiak@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/device.h>
@@ -135,16 +123,15 @@ struct vep *vudc_find_endpoint(struct vudc *udc, u8 address)
 
 /* gadget ops */
 
-/* FIXME - this will probably misbehave when suspend/resume is added */
 static int vgadget_get_frame(struct usb_gadget *_gadget)
 {
-	struct timeval now;
+	struct timespec64 now;
 	struct vudc *udc = usb_gadget_to_vudc(_gadget);
 
-	do_gettimeofday(&now);
+	ktime_get_ts64(&now);
 	return ((now.tv_sec - udc->start_time.tv_sec) * 1000 +
-			(now.tv_usec - udc->start_time.tv_usec) / 1000)
-			% 0x7FF;
+		(now.tv_nsec - udc->start_time.tv_nsec) / NSEC_PER_MSEC)
+			& 0x7FF;
 }
 
 static int vgadget_set_selfpowered(struct usb_gadget *_gadget, int value)
@@ -242,10 +229,10 @@ static const struct usb_gadget_ops vgadget_ops = {
 static int vep_enable(struct usb_ep *_ep,
 		const struct usb_endpoint_descriptor *desc)
 {
-	struct vep *ep;
-	struct vudc *udc;
-	unsigned maxp;
-	unsigned long flags;
+	struct vep	*ep;
+	struct vudc	*udc;
+	unsigned int	maxp;
+	unsigned long	flags;
 
 	ep = to_vep(_ep);
 	udc = ep_to_vudc(ep);
@@ -259,7 +246,7 @@ static int vep_enable(struct usb_ep *_ep,
 
 	spin_lock_irqsave(&udc->lock, flags);
 
-	maxp = usb_endpoint_maxp(desc) & 0x7ff;
+	maxp = usb_endpoint_maxp(desc);
 	_ep->maxpacket = maxp;
 	ep->desc = desc;
 	ep->type = usb_endpoint_type(desc);
@@ -292,12 +279,10 @@ static int vep_disable(struct usb_ep *_ep)
 static struct usb_request *vep_alloc_request(struct usb_ep *_ep,
 		gfp_t mem_flags)
 {
-	struct vep *ep;
 	struct vrequest *req;
 
 	if (!_ep)
 		return NULL;
-	ep = to_vep(_ep);
 
 	req = kzalloc(sizeof(*req), mem_flags);
 	if (!req)
@@ -312,7 +297,8 @@ static void vep_free_request(struct usb_ep *_ep, struct usb_request *_req)
 {
 	struct vrequest *req;
 
-	if (WARN_ON(!_ep || !_req))
+	/* ep is always valid here - see usb_ep_free_request() */
+	if (!_req)
 		return;
 
 	req = to_vrequest(_req);
@@ -549,30 +535,34 @@ static int init_vudc_hw(struct vudc *udc)
 		sprintf(ep->name, "ep%d%s", num,
 			i ? (is_out ? "out" : "in") : "");
 		ep->ep.name = ep->name;
-		if (i == 0) {
-			ep->ep.caps.type_control = true;
-			ep->ep.caps.dir_out = true;
-			ep->ep.caps.dir_in = true;
-		} else {
-			ep->ep.caps.type_iso = true;
-			ep->ep.caps.type_int = true;
-			ep->ep.caps.type_bulk = true;
-		}
-
-		if (is_out)
-			ep->ep.caps.dir_out = true;
-		else
-			ep->ep.caps.dir_in = true;
 
 		ep->ep.ops = &vep_ops;
-		list_add_tail(&ep->ep.ep_list, &udc->gadget.ep_list);
-		ep->halted = ep->wedged = ep->already_seen =
-			ep->setup_stage = 0;
+
 		usb_ep_set_maxpacket_limit(&ep->ep, ~0);
 		ep->ep.max_streams = 16;
 		ep->gadget = &udc->gadget;
-		ep->desc = NULL;
 		INIT_LIST_HEAD(&ep->req_queue);
+
+		if (i == 0) {
+			/* ep0 */
+			ep->ep.caps.type_control = true;
+			ep->ep.caps.dir_out = true;
+			ep->ep.caps.dir_in = true;
+
+			udc->gadget.ep0 = &ep->ep;
+		} else {
+			/* All other eps */
+			ep->ep.caps.type_iso = true;
+			ep->ep.caps.type_int = true;
+			ep->ep.caps.type_bulk = true;
+
+			if (is_out)
+				ep->ep.caps.dir_out = true;
+			else
+				ep->ep.caps.dir_in = true;
+
+			list_add_tail(&ep->ep.ep_list, &udc->gadget.ep_list);
+		}
 	}
 
 	spin_lock_init(&udc->lock);
@@ -588,9 +578,6 @@ static int init_vudc_hw(struct vudc *udc)
 	ud->eh_ops.shutdown = vudc_shutdown;
 	ud->eh_ops.reset    = vudc_device_reset;
 	ud->eh_ops.unusable = vudc_device_unusable;
-
-	udc->gadget.ep0 = &udc->ep[0].ep;
-	list_del_init(&udc->ep[0].ep.ep_list);
 
 	v_init_timer(udc);
 	return 0;

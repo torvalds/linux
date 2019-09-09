@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/kernel.h>
@@ -17,22 +18,36 @@ static int loongson3_pci_config_access(unsigned char access_type,
 		int where, u32 *data)
 {
 	unsigned char busnum = bus->number;
-	u_int64_t addr, type;
-	void *addrp;
-	int device = PCI_SLOT(devfn);
 	int function = PCI_FUNC(devfn);
+	int device = PCI_SLOT(devfn);
 	int reg = where & ~3;
+	void *addrp;
+	u64 addr;
 
-	addr = (busnum << 16) | (device << 11) | (function << 8) | reg;
-	if (busnum == 0) {
-		if (device > 31)
+	if (where < PCI_CFG_SPACE_SIZE) { /* standard config */
+		addr = (busnum << 16) | (device << 11) | (function << 8) | reg;
+		if (busnum == 0) {
+			if (device > 31)
+				return PCIBIOS_DEVICE_NOT_FOUND;
+			addrp = (void *)TO_UNCAC(HT1LO_PCICFG_BASE | addr);
+		} else {
+			addrp = (void *)TO_UNCAC(HT1LO_PCICFG_BASE_TP1 | addr);
+		}
+	} else if (where < PCI_CFG_SPACE_EXP_SIZE) {  /* extended config */
+		struct pci_dev *rootdev;
+
+		rootdev = pci_get_domain_bus_and_slot(0, 0, 0);
+		if (!rootdev)
 			return PCIBIOS_DEVICE_NOT_FOUND;
-		addrp = (void *)(TO_UNCAC(HT1LO_PCICFG_BASE) | (addr & 0xffff));
-		type = 0;
 
+		addr = pci_resource_start(rootdev, 3);
+		if (!addr)
+			return PCIBIOS_DEVICE_NOT_FOUND;
+
+		addr |= busnum << 20 | device << 15 | function << 12 | reg;
+		addrp = (void *)TO_UNCAC(addr);
 	} else {
-		addrp = (void *)(TO_UNCAC(HT1LO_PCICFG_BASE_TP1) | (addr));
-		type = 0x10000;
+		return PCIBIOS_DEVICE_NOT_FOUND;
 	}
 
 	if (access_type == PCI_ACCESS_WRITE)

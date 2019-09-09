@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * AD7298 SPI ADC driver
  *
  * Copyright 2011 Analog Devices Inc.
- *
- * Licensed under the GPL-2.
  */
 
 #include <linux/device.h>
@@ -280,7 +279,6 @@ static int ad7298_read_raw(struct iio_dev *indio_dev,
 static const struct iio_info ad7298_info = {
 	.read_raw = &ad7298_read_raw,
 	.update_scan_mode = ad7298_update_scan_mode,
-	.driver_module = THIS_MODULE,
 };
 
 static int ad7298_probe(struct spi_device *spi)
@@ -386,6 +384,6 @@ static struct spi_driver ad7298_driver = {
 };
 module_spi_driver(ad7298_driver);
 
-MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
+MODULE_AUTHOR("Michael Hennerich <michael.hennerich@analog.com>");
 MODULE_DESCRIPTION("Analog Devices AD7298 ADC");
 MODULE_LICENSE("GPL v2");

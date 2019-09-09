@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * VFIO-KVM bridge pseudo device
  *
  * Copyright (C) 2013 Red Hat, Inc.  All rights reserved.
  *     Author: Alex Williamson <alex.williamson@redhat.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/errno.h>
@@ -19,6 +16,10 @@
 #include <linux/uaccess.h>
 #include <linux/vfio.h>
 #include "vfio.h"
+
+#ifdef CONFIG_SPAPR_TCE_IOMMU
+#include <asm/kvm_ppc.h>
+#endif
 
 struct kvm_vfio_group {
 	struct list_head node;
@@ -47,6 +48,22 @@ static struct vfio_group *kvm_vfio_group_get_external_user(struct file *filep)
 	return vfio_group;
 }
 
+static bool kvm_vfio_external_group_match_file(struct vfio_group *group,
+					       struct file *filep)
+{
+	bool ret, (*fn)(struct vfio_group *, struct file *);
+
+	fn = symbol_get(vfio_external_group_match_file);
+	if (!fn)
+		return false;
+
+	ret = fn(group, filep);
+
+	symbol_put(vfio_external_group_match_file);
+
+	return ret;
+}
+
 static void kvm_vfio_group_put_external_user(struct vfio_group *vfio_group)
 {
 	void (*fn)(struct vfio_group *);
@@ -58,6 +75,19 @@ static void kvm_vfio_group_put_external_user(struct vfio_group *vfio_group)
 	fn(vfio_group);
 
 	symbol_put(vfio_group_put_external_user);
+}
+
+static void kvm_vfio_group_set_kvm(struct vfio_group *group, struct kvm *kvm)
+{
+	void (*fn)(struct vfio_group *, struct kvm *);
+
+	fn = symbol_get(vfio_group_set_kvm);
+	if (!fn)
+		return;
+
+	fn(group, kvm);
+
+	symbol_put(vfio_group_set_kvm);
 }
 
 static bool kvm_vfio_group_is_coherent(struct vfio_group *vfio_group)
@@ -75,6 +105,47 @@ static bool kvm_vfio_group_is_coherent(struct vfio_group *vfio_group)
 
 	return ret > 0;
 }
+
+#ifdef CONFIG_SPAPR_TCE_IOMMU
+static int kvm_vfio_external_user_iommu_id(struct vfio_group *vfio_group)
+{
+	int (*fn)(struct vfio_group *);
+	int ret = -EINVAL;
+
+	fn = symbol_get(vfio_external_user_iommu_id);
+	if (!fn)
+		return ret;
+
+	ret = fn(vfio_group);
+
+	symbol_put(vfio_external_user_iommu_id);
+
+	return ret;
+}
+
+static struct iommu_group *kvm_vfio_group_get_iommu_group(
+		struct vfio_group *group)
+{
+	int group_id = kvm_vfio_external_user_iommu_id(group);
+
+	if (group_id < 0)
+		return NULL;
+
+	return iommu_group_get_by_id(group_id);
+}
+
+static void kvm_spapr_tce_release_vfio_group(struct kvm *kvm,
+		struct vfio_group *vfio_group)
+{
+	struct iommu_group *grp = kvm_vfio_group_get_iommu_group(vfio_group);
+
+	if (WARN_ON_ONCE(!grp))
+		return;
+
+	kvm_spapr_tce_release_iommu_group(kvm, grp);
+	iommu_group_put(grp);
+}
+#endif
 
 /*
  * Groups can use the same or different IOMMU domains.  If the same then
@@ -145,7 +216,7 @@ static int kvm_vfio_set_group(struct kvm_device *dev, long attr, u64 arg)
 			}
 		}
 
-		kvg = kzalloc(sizeof(*kvg), GFP_KERNEL);
+		kvg = kzalloc(sizeof(*kvg), GFP_KERNEL_ACCOUNT);
 		if (!kvg) {
 			mutex_unlock(&kv->lock);
 			kvm_vfio_group_put_external_user(vfio_group);
@@ -159,6 +230,8 @@ static int kvm_vfio_set_group(struct kvm_device *dev, long attr, u64 arg)
 
 		mutex_unlock(&kv->lock);
 
+		kvm_vfio_group_set_kvm(vfio_group, dev->kvm);
+
 		kvm_vfio_update_coherency(dev);
 
 		return 0;
@@ -171,11 +244,64 @@ static int kvm_vfio_set_group(struct kvm_device *dev, long attr, u64 arg)
 		if (!f.file)
 			return -EBADF;
 
+		ret = -ENOENT;
+
+		mutex_lock(&kv->lock);
+
+		list_for_each_entry(kvg, &kv->group_list, node) {
+			if (!kvm_vfio_external_group_match_file(kvg->vfio_group,
+								f.file))
+				continue;
+
+			list_del(&kvg->node);
+			kvm_arch_end_assignment(dev->kvm);
+#ifdef CONFIG_SPAPR_TCE_IOMMU
+			kvm_spapr_tce_release_vfio_group(dev->kvm,
+							 kvg->vfio_group);
+#endif
+			kvm_vfio_group_set_kvm(kvg->vfio_group, NULL);
+			kvm_vfio_group_put_external_user(kvg->vfio_group);
+			kfree(kvg);
+			ret = 0;
+			break;
+		}
+
+		mutex_unlock(&kv->lock);
+
+		fdput(f);
+
+		kvm_vfio_update_coherency(dev);
+
+		return ret;
+
+#ifdef CONFIG_SPAPR_TCE_IOMMU
+	case KVM_DEV_VFIO_GROUP_SET_SPAPR_TCE: {
+		struct kvm_vfio_spapr_tce param;
+		struct kvm_vfio *kv = dev->private;
+		struct vfio_group *vfio_group;
+		struct kvm_vfio_group *kvg;
+		struct fd f;
+		struct iommu_group *grp;
+
+		if (copy_from_user(&param, (void __user *)arg,
+				sizeof(struct kvm_vfio_spapr_tce)))
+			return -EFAULT;
+
+		f = fdget(param.groupfd);
+		if (!f.file)
+			return -EBADF;
+
 		vfio_group = kvm_vfio_group_get_external_user(f.file);
 		fdput(f);
 
 		if (IS_ERR(vfio_group))
 			return PTR_ERR(vfio_group);
+
+		grp = kvm_vfio_group_get_iommu_group(vfio_group);
+		if (WARN_ON_ONCE(!grp)) {
+			kvm_vfio_group_put_external_user(vfio_group);
+			return -EIO;
+		}
 
 		ret = -ENOENT;
 
@@ -185,22 +311,19 @@ static int kvm_vfio_set_group(struct kvm_device *dev, long attr, u64 arg)
 			if (kvg->vfio_group != vfio_group)
 				continue;
 
-			list_del(&kvg->node);
-			kvm_vfio_group_put_external_user(kvg->vfio_group);
-			kfree(kvg);
-			ret = 0;
+			ret = kvm_spapr_tce_attach_iommu_group(dev->kvm,
+					param.tablefd, grp);
 			break;
 		}
 
-		kvm_arch_end_assignment(dev->kvm);
-
 		mutex_unlock(&kv->lock);
 
+		iommu_group_put(grp);
 		kvm_vfio_group_put_external_user(vfio_group);
 
-		kvm_vfio_update_coherency(dev);
-
 		return ret;
+	}
+#endif /* CONFIG_SPAPR_TCE_IOMMU */
 	}
 
 	return -ENXIO;
@@ -225,6 +348,9 @@ static int kvm_vfio_has_attr(struct kvm_device *dev,
 		switch (attr->attr) {
 		case KVM_DEV_VFIO_GROUP_ADD:
 		case KVM_DEV_VFIO_GROUP_DEL:
+#ifdef CONFIG_SPAPR_TCE_IOMMU
+		case KVM_DEV_VFIO_GROUP_SET_SPAPR_TCE:
+#endif
 			return 0;
 		}
 
@@ -240,6 +366,10 @@ static void kvm_vfio_destroy(struct kvm_device *dev)
 	struct kvm_vfio_group *kvg, *tmp;
 
 	list_for_each_entry_safe(kvg, tmp, &kv->group_list, node) {
+#ifdef CONFIG_SPAPR_TCE_IOMMU
+		kvm_spapr_tce_release_vfio_group(dev->kvm, kvg->vfio_group);
+#endif
+		kvm_vfio_group_set_kvm(kvg->vfio_group, NULL);
 		kvm_vfio_group_put_external_user(kvg->vfio_group);
 		list_del(&kvg->node);
 		kfree(kvg);
@@ -272,7 +402,7 @@ static int kvm_vfio_create(struct kvm_device *dev, u32 type)
 		if (tmp->ops == &kvm_vfio_ops)
 			return -EBUSY;
 
-	kv = kzalloc(sizeof(*kv), GFP_KERNEL);
+	kv = kzalloc(sizeof(*kv), GFP_KERNEL_ACCOUNT);
 	if (!kv)
 		return -ENOMEM;
 

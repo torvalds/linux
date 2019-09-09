@@ -1,18 +1,7 @@
-/*
- * ChromeOS EC communication protocol helper functions
- *
- * Copyright (C) 2015 Google, Inc
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- */
+// SPDX-License-Identifier: GPL-2.0
+// ChromeOS EC communication protocol helper functions
+//
+// Copyright (C) 2015 Google, Inc
 
 #include <linux/mfd/cros_ec.h>
 #include <linux/delay.h>
@@ -20,6 +9,8 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <asm/unaligned.h>
+
+#include "cros_ec_trace.h"
 
 #define EC_COMMAND_RETRIES	50
 
@@ -60,12 +51,27 @@ static int send_command(struct cros_ec_device *ec_dev,
 			struct cros_ec_command *msg)
 {
 	int ret;
+	int (*xfer_fxn)(struct cros_ec_device *ec, struct cros_ec_command *msg);
+
+	trace_cros_ec_cmd(msg);
 
 	if (ec_dev->proto_version > 2)
-		ret = ec_dev->pkt_xfer(ec_dev, msg);
+		xfer_fxn = ec_dev->pkt_xfer;
 	else
-		ret = ec_dev->cmd_xfer(ec_dev, msg);
+		xfer_fxn = ec_dev->cmd_xfer;
 
+	if (!xfer_fxn) {
+		/*
+		 * This error can happen if a communication error happened and
+		 * the EC is trying to use protocol v2, on an underlying
+		 * communication mechanism that does not support v2.
+		 */
+		dev_err_once(ec_dev->dev,
+			     "missing EC transfer API, cannot send command\n");
+		return -EIO;
+	}
+
+	ret = (*xfer_fxn)(ec_dev, msg);
 	if (msg->result == EC_RES_IN_PROGRESS) {
 		int i;
 		struct cros_ec_command *status_msg;
@@ -88,7 +94,9 @@ static int send_command(struct cros_ec_device *ec_dev,
 		for (i = 0; i < EC_COMMAND_RETRIES; i++) {
 			usleep_range(10000, 11000);
 
-			ret = ec_dev->cmd_xfer(ec_dev, status_msg);
+			ret = (*xfer_fxn)(ec_dev, status_msg);
+			if (ret == -EAGAIN)
+				continue;
 			if (ret < 0)
 				break;
 
@@ -149,6 +157,40 @@ int cros_ec_check_result(struct cros_ec_device *ec_dev,
 	}
 }
 EXPORT_SYMBOL(cros_ec_check_result);
+
+/*
+ * cros_ec_get_host_event_wake_mask
+ *
+ * Get the mask of host events that cause wake from suspend.
+ *
+ * @ec_dev: EC device to call
+ * @msg: message structure to use
+ * @mask: result when function returns >=0.
+ *
+ * LOCKING:
+ * the caller has ec_dev->lock mutex, or the caller knows there is
+ * no other command in progress.
+ */
+static int cros_ec_get_host_event_wake_mask(struct cros_ec_device *ec_dev,
+					    struct cros_ec_command *msg,
+					    uint32_t *mask)
+{
+	struct ec_response_host_event_mask *r;
+	int ret;
+
+	msg->command = EC_CMD_HOST_EVENT_GET_WAKE_MASK;
+	msg->version = 0;
+	msg->outsize = 0;
+	msg->insize = sizeof(*r);
+
+	ret = send_command(ec_dev, msg);
+	if (ret > 0) {
+		r = (struct ec_response_host_event_mask *)msg->data;
+		*mask = r->mask;
+	}
+
+	return ret;
+}
 
 static int cros_ec_host_command_proto_query(struct cros_ec_device *ec_dev,
 					    int devidx,
@@ -235,6 +277,22 @@ static int cros_ec_host_command_proto_query_v2(struct cros_ec_device *ec_dev)
 	return ret;
 }
 
+/*
+ * cros_ec_get_host_command_version_mask
+ *
+ * Get the version mask of a given command.
+ *
+ * @ec_dev: EC device to call
+ * @msg: message structure to use
+ * @cmd: command to get the version of.
+ * @mask: result when function returns 0.
+ *
+ * @return 0 on success, error code otherwise
+ *
+ * LOCKING:
+ * the caller has ec_dev->lock mutex or the caller knows there is
+ * no other command in progress.
+ */
 static int cros_ec_get_host_command_version_mask(struct cros_ec_device *ec_dev,
 	u16 cmd, u32 *mask)
 {
@@ -256,7 +314,7 @@ static int cros_ec_get_host_command_version_mask(struct cros_ec_device *ec_dev,
 	pver = (struct ec_params_get_cmd_versions *)msg->data;
 	pver->cmd = cmd;
 
-	ret = cros_ec_cmd_xfer(ec_dev, msg);
+	ret = send_command(ec_dev, msg);
 	if (ret > 0) {
 		rver = (struct ec_response_get_cmd_versions *)msg->data;
 		*mask = rver->version_mask;
@@ -371,6 +429,23 @@ int cros_ec_query_all(struct cros_ec_device *ec_dev)
 	else
 		ec_dev->mkbp_event_supported = 1;
 
+	/* Probe if host sleep v1 is supported for S0ix failure detection. */
+	ret = cros_ec_get_host_command_version_mask(ec_dev,
+						    EC_CMD_HOST_SLEEP_EVENT,
+						    &ver_mask);
+	ec_dev->host_sleep_v1 = (ret >= 0 && (ver_mask & EC_VER_MASK(1)));
+
+	/*
+	 * Get host event wake mask, assume all events are wake events
+	 * if unavailable.
+	 */
+	ret = cros_ec_get_host_event_wake_mask(ec_dev, proto_msg,
+					       &ec_dev->host_event_wake_mask);
+	if (ret < 0)
+		ec_dev->host_event_wake_mask = U32_MAX;
+
+	ret = 0;
+
 exit:
 	kfree(proto_msg);
 	return ret;
@@ -441,23 +516,50 @@ int cros_ec_cmd_xfer_status(struct cros_ec_device *ec_dev,
 }
 EXPORT_SYMBOL(cros_ec_cmd_xfer_status);
 
-static int get_next_event(struct cros_ec_device *ec_dev)
+static int get_next_event_xfer(struct cros_ec_device *ec_dev,
+			       struct cros_ec_command *msg,
+			       int version, uint32_t size)
 {
-	u8 buffer[sizeof(struct cros_ec_command) + sizeof(ec_dev->event_data)];
-	struct cros_ec_command *msg = (struct cros_ec_command *)&buffer;
 	int ret;
 
-	msg->version = 0;
+	msg->version = version;
 	msg->command = EC_CMD_GET_NEXT_EVENT;
-	msg->insize = sizeof(ec_dev->event_data);
+	msg->insize = size;
 	msg->outsize = 0;
 
 	ret = cros_ec_cmd_xfer(ec_dev, msg);
 	if (ret > 0) {
 		ec_dev->event_size = ret - 1;
-		memcpy(&ec_dev->event_data, msg->data,
-		       sizeof(ec_dev->event_data));
+		memcpy(&ec_dev->event_data, msg->data, ret);
 	}
+
+	return ret;
+}
+
+static int get_next_event(struct cros_ec_device *ec_dev)
+{
+	u8 buffer[sizeof(struct cros_ec_command) + sizeof(ec_dev->event_data)];
+	struct cros_ec_command *msg = (struct cros_ec_command *)&buffer;
+	static int cmd_version = 1;
+	int ret;
+
+	if (ec_dev->suspended) {
+		dev_dbg(ec_dev->dev, "Device suspended.\n");
+		return -EHOSTDOWN;
+	}
+
+	if (cmd_version == 1) {
+		ret = get_next_event_xfer(ec_dev, msg, cmd_version,
+				sizeof(struct ec_response_get_next_event_v1));
+		if (ret < 0 || msg->result != EC_RES_INVALID_VERSION)
+			return ret;
+
+		/* Fallback to version 0 for future send attempts */
+		cmd_version = 0;
+	}
+
+	ret = get_next_event_xfer(ec_dev, msg, cmd_version,
+				  sizeof(struct ec_response_get_next_event));
 
 	return ret;
 }
@@ -481,11 +583,66 @@ static int get_keyboard_state_event(struct cros_ec_device *ec_dev)
 	return ec_dev->event_size;
 }
 
-int cros_ec_get_next_event(struct cros_ec_device *ec_dev)
+int cros_ec_get_next_event(struct cros_ec_device *ec_dev, bool *wake_event)
 {
-	if (ec_dev->mkbp_event_supported)
-		return get_next_event(ec_dev);
-	else
-		return get_keyboard_state_event(ec_dev);
+	u8 event_type;
+	u32 host_event;
+	int ret;
+
+	if (!ec_dev->mkbp_event_supported) {
+		ret = get_keyboard_state_event(ec_dev);
+		if (ret <= 0)
+			return ret;
+
+		if (wake_event)
+			*wake_event = true;
+
+		return ret;
+	}
+
+	ret = get_next_event(ec_dev);
+	if (ret <= 0)
+		return ret;
+
+	if (wake_event) {
+		event_type = ec_dev->event_data.event_type;
+		host_event = cros_ec_get_host_event(ec_dev);
+
+		/*
+		 * Sensor events need to be parsed by the sensor sub-device.
+		 * Defer them, and don't report the wakeup here.
+		 */
+		if (event_type == EC_MKBP_EVENT_SENSOR_FIFO)
+			*wake_event = false;
+		/* Masked host-events should not count as wake events. */
+		else if (host_event &&
+			 !(host_event & ec_dev->host_event_wake_mask))
+			*wake_event = false;
+		/* Consider all other events as wake events. */
+		else
+			*wake_event = true;
+	}
+
+	return ret;
 }
 EXPORT_SYMBOL(cros_ec_get_next_event);
+
+u32 cros_ec_get_host_event(struct cros_ec_device *ec_dev)
+{
+	u32 host_event;
+
+	BUG_ON(!ec_dev->mkbp_event_supported);
+
+	if (ec_dev->event_data.event_type != EC_MKBP_EVENT_HOST_EVENT)
+		return 0;
+
+	if (ec_dev->event_size != sizeof(host_event)) {
+		dev_warn(ec_dev->dev, "Invalid host event size\n");
+		return 0;
+	}
+
+	host_event = get_unaligned_le32(&ec_dev->event_data.data.host_event);
+
+	return host_event;
+}
+EXPORT_SYMBOL(cros_ec_get_host_event);

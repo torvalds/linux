@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * pgtsrmmu.h:  SRMMU page table defines and code.
  *

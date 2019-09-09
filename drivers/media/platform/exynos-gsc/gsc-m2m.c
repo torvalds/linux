@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (c) 2011 - 2012 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
  * Samsung EXYNOS5 SoC series G-Scaler driver
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
- * by the Free Software Foundation, either version 2 of the License,
- * or (at your option) any later version.
  */
 
 #include <linux/module.h>
@@ -66,11 +62,28 @@ static int gsc_m2m_start_streaming(struct vb2_queue *q, unsigned int count)
 	return ret > 0 ? 0 : ret;
 }
 
+static void __gsc_m2m_cleanup_queue(struct gsc_ctx *ctx)
+{
+	struct vb2_v4l2_buffer *src_vb, *dst_vb;
+
+	while (v4l2_m2m_num_src_bufs_ready(ctx->m2m_ctx) > 0) {
+		src_vb = v4l2_m2m_src_buf_remove(ctx->m2m_ctx);
+		v4l2_m2m_buf_done(src_vb, VB2_BUF_STATE_ERROR);
+	}
+
+	while (v4l2_m2m_num_dst_bufs_ready(ctx->m2m_ctx) > 0) {
+		dst_vb = v4l2_m2m_dst_buf_remove(ctx->m2m_ctx);
+		v4l2_m2m_buf_done(dst_vb, VB2_BUF_STATE_ERROR);
+	}
+}
+
 static void gsc_m2m_stop_streaming(struct vb2_queue *q)
 {
 	struct gsc_ctx *ctx = q->drv_priv;
 
 	__gsc_m2m_job_abort(ctx);
+
+	__gsc_m2m_cleanup_queue(ctx);
 
 	pm_runtime_put(&ctx->gsc_dev->pdev->dev);
 }
@@ -277,21 +290,17 @@ static int gsc_m2m_querycap(struct file *file, void *fh,
 	struct gsc_ctx *ctx = fh_to_ctx(fh);
 	struct gsc_dev *gsc = ctx->gsc_dev;
 
-	strlcpy(cap->driver, GSC_MODULE_NAME, sizeof(cap->driver));
-	strlcpy(cap->card, GSC_MODULE_NAME " gscaler", sizeof(cap->card));
+	strscpy(cap->driver, GSC_MODULE_NAME, sizeof(cap->driver));
+	strscpy(cap->card, GSC_MODULE_NAME " gscaler", sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s",
 		 dev_name(&gsc->pdev->dev));
-	cap->device_caps = V4L2_CAP_STREAMING | V4L2_CAP_VIDEO_M2M_MPLANE |
-		V4L2_CAP_VIDEO_CAPTURE_MPLANE |	V4L2_CAP_VIDEO_OUTPUT_MPLANE;
-
-	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
-static int gsc_m2m_enum_fmt_mplane(struct file *file, void *priv,
-				struct v4l2_fmtdesc *f)
+static int gsc_m2m_enum_fmt(struct file *file, void *priv,
+			    struct v4l2_fmtdesc *f)
 {
-	return gsc_enum_fmt_mplane(f);
+	return gsc_enum_fmt(f);
 }
 
 static int gsc_m2m_g_fmt_mplane(struct file *file, void *fh,
@@ -365,14 +374,8 @@ static int gsc_m2m_reqbufs(struct file *file, void *fh,
 
 	max_cnt = (reqbufs->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) ?
 		gsc->variant->in_buf_cnt : gsc->variant->out_buf_cnt;
-	if (reqbufs->count > max_cnt) {
+	if (reqbufs->count > max_cnt)
 		return -EINVAL;
-	} else if (reqbufs->count == 0) {
-		if (reqbufs->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
-			gsc_ctx_state_lock_clear(GSC_SRC_FMT, ctx);
-		else
-			gsc_ctx_state_lock_clear(GSC_DST_FMT, ctx);
-	}
 
 	return v4l2_m2m_reqbufs(file, ctx->m2m_ctx, reqbufs);
 }
@@ -449,8 +452,8 @@ static int gsc_m2m_g_selection(struct file *file, void *fh,
 	struct gsc_frame *frame;
 	struct gsc_ctx *ctx = fh_to_ctx(fh);
 
-	if ((s->type != V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) &&
-	    (s->type != V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE))
+	if ((s->type != V4L2_BUF_TYPE_VIDEO_CAPTURE) &&
+	    (s->type != V4L2_BUF_TYPE_VIDEO_OUTPUT))
 		return -EINVAL;
 
 	frame = ctx_get_frame(ctx, s->type);
@@ -485,30 +488,27 @@ static int gsc_m2m_s_selection(struct file *file, void *fh,
 {
 	struct gsc_frame *frame;
 	struct gsc_ctx *ctx = fh_to_ctx(fh);
-	struct v4l2_crop cr;
 	struct gsc_variant *variant = ctx->gsc_dev->variant;
+	struct v4l2_selection sel = *s;
 	int ret;
 
-	cr.type = s->type;
-	cr.c = s->r;
-
-	if ((s->type != V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) &&
-	    (s->type != V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE))
+	if ((s->type != V4L2_BUF_TYPE_VIDEO_CAPTURE) &&
+	    (s->type != V4L2_BUF_TYPE_VIDEO_OUTPUT))
 		return -EINVAL;
 
-	ret = gsc_try_crop(ctx, &cr);
+	ret = gsc_try_selection(ctx, &sel);
 	if (ret)
 		return ret;
 
 	if (s->flags & V4L2_SEL_FLAG_LE &&
-	    !is_rectangle_enclosed(&cr.c, &s->r))
+	    !is_rectangle_enclosed(&sel.r, &s->r))
 		return -ERANGE;
 
 	if (s->flags & V4L2_SEL_FLAG_GE &&
-	    !is_rectangle_enclosed(&s->r, &cr.c))
+	    !is_rectangle_enclosed(&s->r, &sel.r))
 		return -ERANGE;
 
-	s->r = cr.c;
+	s->r = sel.r;
 
 	switch (s->target) {
 	case V4L2_SEL_TGT_COMPOSE_BOUNDS:
@@ -530,15 +530,15 @@ static int gsc_m2m_s_selection(struct file *file, void *fh,
 	/* Check to see if scaling ratio is within supported range */
 	if (gsc_ctx_state_is_set(GSC_DST_FMT | GSC_SRC_FMT, ctx)) {
 		if (s->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
-			ret = gsc_check_scaler_ratio(variant, cr.c.width,
-				cr.c.height, ctx->d_frame.crop.width,
+			ret = gsc_check_scaler_ratio(variant, sel.r.width,
+				sel.r.height, ctx->d_frame.crop.width,
 				ctx->d_frame.crop.height,
 				ctx->gsc_ctrls.rotate->val, ctx->out_path);
 		} else {
 			ret = gsc_check_scaler_ratio(variant,
 				ctx->s_frame.crop.width,
-				ctx->s_frame.crop.height, cr.c.width,
-				cr.c.height, ctx->gsc_ctrls.rotate->val,
+				ctx->s_frame.crop.height, sel.r.width,
+				sel.r.height, ctx->gsc_ctrls.rotate->val,
 				ctx->out_path);
 		}
 
@@ -548,7 +548,7 @@ static int gsc_m2m_s_selection(struct file *file, void *fh,
 		}
 	}
 
-	frame->crop = cr.c;
+	frame->crop = sel.r;
 
 	gsc_ctx_state_lock_set(GSC_PARAMS, ctx);
 	return 0;
@@ -556,8 +556,8 @@ static int gsc_m2m_s_selection(struct file *file, void *fh,
 
 static const struct v4l2_ioctl_ops gsc_m2m_ioctl_ops = {
 	.vidioc_querycap		= gsc_m2m_querycap,
-	.vidioc_enum_fmt_vid_cap_mplane	= gsc_m2m_enum_fmt_mplane,
-	.vidioc_enum_fmt_vid_out_mplane	= gsc_m2m_enum_fmt_mplane,
+	.vidioc_enum_fmt_vid_cap	= gsc_m2m_enum_fmt,
+	.vidioc_enum_fmt_vid_out	= gsc_m2m_enum_fmt,
 	.vidioc_g_fmt_vid_cap_mplane	= gsc_m2m_g_fmt_mplane,
 	.vidioc_g_fmt_vid_out_mplane	= gsc_m2m_g_fmt_mplane,
 	.vidioc_try_fmt_vid_cap_mplane	= gsc_m2m_try_fmt_mplane,
@@ -664,8 +664,8 @@ static int gsc_m2m_open(struct file *file)
 
 error_ctrls:
 	gsc_ctrls_delete(ctx);
-error_fh:
 	v4l2_fh_del(&ctx->fh);
+error_fh:
 	v4l2_fh_exit(&ctx->fh);
 	kfree(ctx);
 unlock:
@@ -696,15 +696,15 @@ static int gsc_m2m_release(struct file *file)
 	return 0;
 }
 
-static unsigned int gsc_m2m_poll(struct file *file,
+static __poll_t gsc_m2m_poll(struct file *file,
 					struct poll_table_struct *wait)
 {
 	struct gsc_ctx *ctx = fh_to_ctx(file->private_data);
 	struct gsc_dev *gsc = ctx->gsc_dev;
-	unsigned int ret;
+	__poll_t ret;
 
 	if (mutex_lock_interruptible(&gsc->lock))
-		return -ERESTARTSYS;
+		return EPOLLERR;
 
 	ret = v4l2_m2m_poll(file, ctx->m2m_ctx, wait);
 	mutex_unlock(&gsc->lock);
@@ -736,7 +736,7 @@ static const struct v4l2_file_operations gsc_m2m_fops = {
 	.mmap		= gsc_m2m_mmap,
 };
 
-static struct v4l2_m2m_ops gsc_m2m_ops = {
+static const struct v4l2_m2m_ops gsc_m2m_ops = {
 	.device_run	= gsc_m2m_device_run,
 	.job_abort	= gsc_m2m_job_abort,
 };
@@ -757,6 +757,8 @@ int gsc_register_m2m_device(struct gsc_dev *gsc)
 	gsc->vdev.lock		= &gsc->lock;
 	gsc->vdev.vfl_dir	= VFL_DIR_M2M;
 	gsc->vdev.v4l2_dev	= &gsc->v4l2_dev;
+	gsc->vdev.device_caps	= V4L2_CAP_STREAMING |
+				  V4L2_CAP_VIDEO_M2M_MPLANE;
 	snprintf(gsc->vdev.name, sizeof(gsc->vdev.name), "%s.%d:m2m",
 					GSC_MODULE_NAME, gsc->id);
 
@@ -766,30 +768,29 @@ int gsc_register_m2m_device(struct gsc_dev *gsc)
 	gsc->m2m.m2m_dev = v4l2_m2m_init(&gsc_m2m_ops);
 	if (IS_ERR(gsc->m2m.m2m_dev)) {
 		dev_err(&pdev->dev, "failed to initialize v4l2-m2m device\n");
-		ret = PTR_ERR(gsc->m2m.m2m_dev);
-		goto err_m2m_r1;
+		return PTR_ERR(gsc->m2m.m2m_dev);
 	}
 
 	ret = video_register_device(&gsc->vdev, VFL_TYPE_GRABBER, -1);
 	if (ret) {
 		dev_err(&pdev->dev,
 			 "%s(): failed to register video device\n", __func__);
-		goto err_m2m_r2;
+		goto err_m2m_release;
 	}
 
 	pr_debug("gsc m2m driver registered as /dev/video%d", gsc->vdev.num);
 	return 0;
 
-err_m2m_r2:
+err_m2m_release:
 	v4l2_m2m_release(gsc->m2m.m2m_dev);
-err_m2m_r1:
-	video_device_release(gsc->m2m.vfd);
 
 	return ret;
 }
 
 void gsc_unregister_m2m_device(struct gsc_dev *gsc)
 {
-	if (gsc)
+	if (gsc) {
 		v4l2_m2m_release(gsc->m2m.m2m_dev);
+		video_unregister_device(&gsc->vdev);
+	}
 }

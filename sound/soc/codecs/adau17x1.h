@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ADAU17X1_H__
 #define __ADAU17X1_H__
 
@@ -52,23 +53,20 @@ struct adau {
 	struct sigmadsp *sigmadsp;
 };
 
-int adau17x1_add_widgets(struct snd_soc_codec *codec);
-int adau17x1_add_routes(struct snd_soc_codec *codec);
+int adau17x1_add_widgets(struct snd_soc_component *component);
+int adau17x1_add_routes(struct snd_soc_component *component);
 int adau17x1_probe(struct device *dev, struct regmap *regmap,
 	enum adau17x1_type type, void (*switch_mode)(struct device *dev),
 	const char *firmware_name);
 void adau17x1_remove(struct device *dev);
-int adau17x1_set_micbias_voltage(struct snd_soc_codec *codec,
+int adau17x1_set_micbias_voltage(struct snd_soc_component *component,
 	enum adau17x1_micbias_voltage micbias);
 bool adau17x1_readable_register(struct device *dev, unsigned int reg);
 bool adau17x1_volatile_register(struct device *dev, unsigned int reg);
 bool adau17x1_precious_register(struct device *dev, unsigned int reg);
-int adau17x1_resume(struct snd_soc_codec *codec);
+int adau17x1_resume(struct snd_soc_component *component);
 
 extern const struct snd_soc_dai_ops adau17x1_dai_ops;
-
-int adau17x1_setup_firmware(struct adau *adau, unsigned int rate);
-bool adau17x1_has_dsp(struct adau *adau);
 
 #define ADAU17X1_CLOCK_CONTROL			0x4000
 #define ADAU17X1_PLL_CONTROL			0x4002
@@ -128,6 +126,8 @@ bool adau17x1_has_dsp(struct adau *adau);
 #define ADAU17X1_CONVERTER1_ADC_PAIR_MASK	0x3
 
 #define ADAU17X1_CONVERTER0_CONVSR_MASK		0x7
+
+#define ADAU17X1_CONVERTER0_ADOSR		BIT(3)
 
 
 #endif

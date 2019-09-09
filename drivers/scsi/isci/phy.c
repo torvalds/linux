@@ -315,9 +315,9 @@ sci_phy_link_layer_initialization(struct isci_phy *iphy,
 	return SCI_SUCCESS;
 }
 
-static void phy_sata_timeout(unsigned long data)
+static void phy_sata_timeout(struct timer_list *t)
 {
-	struct sci_timer *tmr = (struct sci_timer *)data;
+	struct sci_timer *tmr = from_timer(tmr, t, timer);
 	struct isci_phy *iphy = container_of(tmr, typeof(*iphy), sata_timer);
 	struct isci_host *ihost = iphy->owning_port->owning_controller;
 	unsigned long flags;
@@ -778,6 +778,7 @@ enum sci_status sci_phy_event_handler(struct isci_phy *iphy, u32 event_code)
 			break;
 		case SCU_EVENT_LINK_FAILURE:
 			scu_link_layer_set_txcomsas_timeout(iphy, SCU_SAS_LINK_LAYER_TXCOMSAS_NEGTIME_DEFAULT);
+			/* fall through */
 		case SCU_EVENT_HARD_RESET_RECEIVED:
 			/* Start the oob/sn state machine over again */
 			sci_change_state(&iphy->sm, SCI_PHY_STARTING);

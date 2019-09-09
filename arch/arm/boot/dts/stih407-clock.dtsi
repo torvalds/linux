@@ -1,37 +1,28 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2014 STMicroelectronics R&D Limited
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <dt-bindings/clock/stih407-clks.h>
 / {
+	/*
+	 * Fixed 30MHz oscillator inputs to SoC
+	 */
+	clk_sysin: clk-sysin {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <30000000>;
+	};
+
+	clk_tmdsout_hdmi: clk-tmdsout-hdmi {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <0>;
+	};
+
 	clocks {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
-
-		/*
-		 * Fixed 30MHz oscillator inputs to SoC
-		 */
-		clk_sysin: clk-sysin {
-			#clock-cells = <0>;
-			compatible = "fixed-clock";
-			clock-frequency = <30000000>;
-		};
-
-		/*
-		 * ARM Peripheral clock for timers
-		 */
-		arm_periph_clk: clk-m-a9-periphs {
-			#clock-cells = <0>;
-			compatible = "fixed-factor-clock";
-
-			clocks = <&clk_m_a9>;
-			clock-div = <2>;
-			clock-mult = <1>;
-		};
 
 		/*
 		 * A9 PLL.
@@ -62,35 +53,22 @@
 				 <&clockgen_a9_pll 0>,
 				 <&clk_s_c0_flexgen 13>,
 				 <&clk_m_a9_ext2f_div2>;
+
+
+			/*
+			 * ARM Peripheral clock for timers
+			 */
+			arm_periph_clk: clk-m-a9-periphs {
+				#clock-cells = <0>;
+				compatible = "fixed-factor-clock";
+
+				clocks = <&clk_m_a9>;
+				clock-div = <2>;
+				clock-mult = <1>;
+			};
 		};
 
-		/*
-		 * ARM Peripheral clock for timers
-		 */
-		clk_m_a9_ext2f_div2: clk-m-a9-ext2f-div2s {
-			#clock-cells = <0>;
-			compatible = "fixed-factor-clock";
-
-			clocks = <&clk_s_c0_flexgen 13>;
-
-			clock-output-names = "clk-m-a9-ext2f-div2";
-
-			clock-div = <2>;
-			clock-mult = <1>;
-		};
-
-		/*
-		 * Bootloader initialized system infrastructure clock for
-		 * serial devices.
-		 */
-		clk_ext2f_a9: clockgen-c0@13 {
-			#clock-cells = <0>;
-			compatible = "fixed-clock";
-			clock-frequency = <200000000>;
-			clock-output-names = "clk-s-icn-reg-0";
-		};
-
-		clockgen-a@090ff000 {
+		clockgen-a@90ff000 {
 			compatible = "st,clkgen-c32";
 			reg = <0x90ff000 0x1000>;
 
@@ -101,6 +79,7 @@
 				clocks = <&clk_sysin>;
 
 				clock-output-names = "clk-s-a0-pll-ofd-0";
+				clock-critical = <0>; /* clk-s-a0-pll-ofd-0 */
 			};
 
 			clk_s_a0_flexgen: clk-s-a0-flexgen {
@@ -112,6 +91,7 @@
 					 <&clk_sysin>;
 
 				clock-output-names = "clk-ic-lmi0";
+				clock-critical = <CLK_IC_LMI0>;
 			};
 		};
 
@@ -126,9 +106,10 @@
 					     "clk-s-c0-fs0-ch1",
 					     "clk-s-c0-fs0-ch2",
 					     "clk-s-c0-fs0-ch3";
+			clock-critical = <0>; /* clk-s-c0-fs0-ch0 */
 		};
 
-		clk_s_c0: clockgen-c@09103000 {
+		clk_s_c0: clockgen-c@9103000 {
 			compatible = "st,clkgen-c32";
 			reg = <0x9103000 0x1000>;
 
@@ -139,6 +120,7 @@
 				clocks = <&clk_sysin>;
 
 				clock-output-names = "clk-s-c0-pll0-odf-0";
+				clock-critical = <0>; /* clk-s-c0-pll0-odf-0 */
 			};
 
 			clk_s_c0_pll1: clk-s-c0-pll1 {
@@ -194,6 +176,27 @@
 						     "clk-main-disp",
 						     "clk-aux-disp",
 						     "clk-compo-dvp";
+				clock-critical = <CLK_PROC_STFE>,
+						 <CLK_ICN_CPU>,
+						 <CLK_TX_ICN_DMU>,
+						 <CLK_EXT2F_A9>,
+						 <CLK_ICN_LMI>,
+						 <CLK_ICN_SBC>;
+
+				/*
+				 * ARM Peripheral clock for timers
+				 */
+				clk_m_a9_ext2f_div2: clk-m-a9-ext2f-div2s {
+					#clock-cells = <0>;
+					compatible = "fixed-factor-clock";
+
+					clocks = <&clk_s_c0_flexgen 13>;
+
+					clock-output-names = "clk-m-a9-ext2f-div2";
+
+					clock-div = <2>;
+					clock-mult = <1>;
+				};
 			};
 		};
 
@@ -210,7 +213,7 @@
 					     "clk-s-d0-fs0-ch3";
 		};
 
-		clockgen-d0@09104000 {
+		clockgen-d0@9104000 {
 			compatible = "st,clkgen-c32";
 			reg = <0x9104000 0x1000>;
 
@@ -244,13 +247,7 @@
 					     "clk-s-d2-fs0-ch3";
 		};
 
-		clk_tmdsout_hdmi: clk-tmdsout-hdmi {
-			#clock-cells = <0>;
-			compatible = "fixed-clock";
-			clock-frequency = <0>;
-		};
-
-		clockgen-d2@x9106000 {
+		clockgen-d2@9106000 {
 			compatible = "st,clkgen-c32";
 			reg = <0x9106000 0x1000>;
 

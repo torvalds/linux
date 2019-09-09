@@ -1,21 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
 	Mantis PCI bridge driver
 
 	Copyright (C) Manu Abraham (abraham.manu@gmail.com)
 
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 2 of the License, or
-	(at your option) any later version.
-
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU General Public License for more details.
-
-	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the Free Software
-	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
 #ifndef __MANTIS_REG_H
@@ -166,12 +154,12 @@
 #define MANTIS_CARD_PLUGOUT		(0x01 <<  0)
 
 #define MANTIS_GPIF_BRADDR		0xa0
-#define MANTIS_GPIF_PCMCIAREG		(0x01 		<< 27)
-#define MANTIS_GPIF_PCMCIAIOM		(0x01 		<< 26)
+#define MANTIS_GPIF_PCMCIAREG		(0x01		<< 27)
+#define MANTIS_GPIF_PCMCIAIOM		(0x01		<< 26)
 #define MANTIS_GPIF_BR_ADDR		(0xfffffff	<<  0)
 
 #define MANTIS_GPIF_BRBYTES		0xa4
-#define MANTIS_GPIF_BRCNT		(0xfff 		<<  0)
+#define MANTIS_GPIF_BRCNT		(0xfff		<<  0)
 
 #define MANTIS_PCMCIA_RESET		0xa8
 #define MANTIS_PCMCIA_RSTVAL		(0xff << 0)

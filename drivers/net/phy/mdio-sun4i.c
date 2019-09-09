@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Allwinner EMAC MDIO interface driver
  *
@@ -6,10 +7,6 @@
  *
  * Based on the Linux driver provided by Allwinner:
  * Copyright (C) 1997  Sten Wang
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2. This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  */
 
 #include <linux/delay.h>
@@ -118,8 +115,10 @@ static int sun4i_mdio_probe(struct platform_device *pdev)
 
 	data->regulator = devm_regulator_get(&pdev->dev, "phy");
 	if (IS_ERR(data->regulator)) {
-		if (PTR_ERR(data->regulator) == -EPROBE_DEFER)
-			return -EPROBE_DEFER;
+		if (PTR_ERR(data->regulator) == -EPROBE_DEFER) {
+			ret = -EPROBE_DEFER;
+			goto err_out_free_mdiobus;
+		}
 
 		dev_info(&pdev->dev, "no regulator found\n");
 		data->regulator = NULL;
@@ -177,4 +176,4 @@ module_platform_driver(sun4i_mdio_driver);
 
 MODULE_DESCRIPTION("Allwinner EMAC MDIO interface driver");
 MODULE_AUTHOR("Maxime Ripard <maxime.ripard@free-electrons.com>");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");

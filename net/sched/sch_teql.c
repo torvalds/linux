@@ -1,9 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* net/sched/sch_teql.c	"True" (or "trivial") link equalizer.
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  *
  * Authors:	Alexey Kuznetsov, <kuznet@ms2.inr.ac.ru>
  */
@@ -167,7 +163,8 @@ teql_destroy(struct Qdisc *sch)
 	}
 }
 
-static int teql_qdisc_init(struct Qdisc *sch, struct nlattr *opt)
+static int teql_qdisc_init(struct Qdisc *sch, struct nlattr *opt,
+			   struct netlink_ext_ack *extack)
 {
 	struct net_device *dev = qdisc_dev(sch);
 	struct teql_master *m = (struct teql_master *)sch->ops;
@@ -401,8 +398,8 @@ static int teql_master_close(struct net_device *dev)
 	return 0;
 }
 
-static struct rtnl_link_stats64 *teql_master_stats64(struct net_device *dev,
-						     struct rtnl_link_stats64 *stats)
+static void teql_master_stats64(struct net_device *dev,
+				struct rtnl_link_stats64 *stats)
 {
 	struct teql_master *m = netdev_priv(dev);
 
@@ -410,16 +407,12 @@ static struct rtnl_link_stats64 *teql_master_stats64(struct net_device *dev,
 	stats->tx_bytes		= m->tx_bytes;
 	stats->tx_errors	= m->tx_errors;
 	stats->tx_dropped	= m->tx_dropped;
-	return stats;
 }
 
 static int teql_master_mtu(struct net_device *dev, int new_mtu)
 {
 	struct teql_master *m = netdev_priv(dev);
 	struct Qdisc *q;
-
-	if (new_mtu < 68)
-		return -EINVAL;
 
 	q = m->slaves;
 	if (q) {
@@ -460,6 +453,8 @@ static __init void teql_master_setup(struct net_device *dev)
 	dev->netdev_ops =       &teql_netdev_ops;
 	dev->type		= ARPHRD_VOID;
 	dev->mtu		= 1500;
+	dev->min_mtu		= 68;
+	dev->max_mtu		= 65535;
 	dev->tx_queue_len	= 100;
 	dev->flags		= IFF_NOARP;
 	dev->hard_header_len	= LL_MAX_HEADER;

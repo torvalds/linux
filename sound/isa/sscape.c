@@ -1,24 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *   Low-level ALSA driver for the ENSONIQ SoundScape
  *   Copyright (c) by Chris Rankin
  *
  *   This driver was written in part using information obtained from
  *   the OSS/Free SoundScape driver, written by Hannu Savolainen.
- *
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 #include <linux/init.h>
@@ -63,22 +49,22 @@ MODULE_PARM_DESC(index, "Index number for SoundScape soundcard");
 module_param_array(id, charp, NULL, 0444);
 MODULE_PARM_DESC(id, "Description for SoundScape card");
 
-module_param_array(port, long, NULL, 0444);
+module_param_hw_array(port, long, ioport, NULL, 0444);
 MODULE_PARM_DESC(port, "Port # for SoundScape driver.");
 
-module_param_array(wss_port, long, NULL, 0444);
+module_param_hw_array(wss_port, long, ioport, NULL, 0444);
 MODULE_PARM_DESC(wss_port, "WSS Port # for SoundScape driver.");
 
-module_param_array(irq, int, NULL, 0444);
+module_param_hw_array(irq, int, irq, NULL, 0444);
 MODULE_PARM_DESC(irq, "IRQ # for SoundScape driver.");
 
-module_param_array(mpu_irq, int, NULL, 0444);
+module_param_hw_array(mpu_irq, int, irq, NULL, 0444);
 MODULE_PARM_DESC(mpu_irq, "MPU401 IRQ # for SoundScape driver.");
 
-module_param_array(dma, int, NULL, 0444);
+module_param_hw_array(dma, int, dma, NULL, 0444);
 MODULE_PARM_DESC(dma, "DMA # for SoundScape driver.");
 
-module_param_array(dma2, int, NULL, 0444);
+module_param_hw_array(dma2, int, dma, NULL, 0444);
 MODULE_PARM_DESC(dma2, "DMA2 # for SoundScape driver.");
 
 module_param_array(joystick, bool, NULL, 0444);
@@ -88,7 +74,7 @@ MODULE_PARM_DESC(joystick, "Enable gameport.");
 static int isa_registered;
 static int pnp_registered;
 
-static struct pnp_card_device_id sscape_pnpids[] = {
+static const struct pnp_card_device_id sscape_pnpids[] = {
 	{ .id = "ENS3081", .devs = { { "ENS0000" } } }, /* Soundscape PnP */
 	{ .id = "ENS4081", .devs = { { "ENS1011" } } },	/* VIVO90 */
 	{ .id = "" }	/* end */
@@ -167,12 +153,13 @@ static inline struct soundscape *get_card_soundscape(struct snd_card *c)
  * I think this means that the memory has to map to
  * contiguous pages of physical memory.
  */
-static struct snd_dma_buffer *get_dmabuf(struct snd_dma_buffer *buf,
+static struct snd_dma_buffer *get_dmabuf(struct soundscape *s,
+					 struct snd_dma_buffer *buf,
 					 unsigned long size)
 {
 	if (buf) {
 		if (snd_dma_alloc_pages_fallback(SNDRV_DMA_TYPE_DEV,
-						 snd_dma_isa_data(),
+						 s->chip->card->dev,
 						 size, buf) < 0) {
 			snd_printk(KERN_ERR "sscape: Failed to allocate "
 					    "%lu bytes for DMA\n",
@@ -443,7 +430,7 @@ static int upload_dma_data(struct soundscape *s, const unsigned char *data,
 	int ret;
 	unsigned char val;
 
-	if (!get_dmabuf(&dma, PAGE_ALIGN(32 * 1024)))
+	if (!get_dmabuf(s, &dma, PAGE_ALIGN(32 * 1024)))
 		return -ENOMEM;
 
 	spin_lock_irqsave(&s->lock, flags);
@@ -671,7 +658,7 @@ __skip_change:
 	return change;
 }
 
-static struct snd_kcontrol_new midi_mixer_ctl = {
+static const struct snd_kcontrol_new midi_mixer_ctl = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "MIDI",
 	.info = sscape_midi_info,

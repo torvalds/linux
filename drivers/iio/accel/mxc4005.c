@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * 3-axis accelerometer driver for MXC4005XC Memsic sensor
  *
  * Copyright (c) 2014, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #include <linux/module.h>
@@ -264,7 +256,6 @@ static int mxc4005_write_raw(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info mxc4005_info = {
-	.driver_module	= THIS_MODULE,
 	.read_raw	= mxc4005_read_raw,
 	.write_raw	= mxc4005_write_raw,
 	.attrs		= &mxc4005_attrs_group,
@@ -376,7 +367,6 @@ static int mxc4005_trigger_try_reen(struct iio_trigger *trig)
 static const struct iio_trigger_ops mxc4005_trigger_ops = {
 	.set_trigger_state = mxc4005_set_trigger_state,
 	.try_reenable = mxc4005_trigger_try_reen,
-	.owner = THIS_MODULE,
 };
 
 static int mxc4005_chip_init(struct mxc4005_data *data)

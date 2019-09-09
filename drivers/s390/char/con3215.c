@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * 3215 line mode terminal driver.
  *
@@ -9,7 +10,6 @@
  *	      Dan Morrison, IBM Corporation <dmorriso@cse.buffalo.edu>
  */
 
-#include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kdev_t.h>
 #include <linux/tty.h>
@@ -26,7 +26,7 @@
 #include <asm/cio.h>
 #include <asm/io.h>
 #include <asm/ebcdic.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/delay.h>
 #include <asm/cpcmd.h>
 #include <asm/setup.h>
@@ -282,9 +282,9 @@ static void raw3215_start_io(struct raw3215_info *raw)
 /*
  * Function to start a delayed output after RAW3215_TIMEOUT seconds
  */
-static void raw3215_timeout(unsigned long __data)
+static void raw3215_timeout(struct timer_list *t)
 {
-	struct raw3215_info *raw = (struct raw3215_info *) __data;
+	struct raw3215_info *raw = from_timer(raw, t, timer);
 	unsigned long flags;
 
 	spin_lock_irqsave(get_ccwdev_lock(raw->cdev), flags);
@@ -398,6 +398,7 @@ static void raw3215_irq(struct ccw_device *cdev, unsigned long intparm,
 		}
 		if (dstat == 0x08)
 			break;
+		/* else, fall through */
 	case 0x04:
 		/* Device end interrupt. */
 		if ((raw = req->info) == NULL)
@@ -670,7 +671,7 @@ static struct raw3215_info *raw3215_alloc_info(void)
 		return NULL;
 	}
 
-	setup_timer(&info->timer, raw3215_timeout, (unsigned long)info);
+	timer_setup(&info->timer, raw3215_timeout, 0);
 	init_waitqueue_head(&info->empty_wait);
 	tasklet_init(&info->tlet, raw3215_wakeup, (unsigned long)info);
 	tty_port_init(&info->port);
@@ -1215,13 +1216,4 @@ static int __init tty3215_init(void)
 	tty3215_driver = driver;
 	return 0;
 }
-
-static void __exit tty3215_exit(void)
-{
-	tty_unregister_driver(tty3215_driver);
-	put_tty_driver(tty3215_driver);
-	ccw_driver_unregister(&raw3215_ccw_driver);
-}
-
-module_init(tty3215_init);
-module_exit(tty3215_exit);
+device_initcall(tty3215_init);

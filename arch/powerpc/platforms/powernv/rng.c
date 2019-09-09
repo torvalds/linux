@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2013, Michael Ellerman, IBM Corporation.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #define pr_fmt(fmt)	"powernv-rng: " fmt
@@ -16,11 +12,13 @@
 #include <linux/slab.h>
 #include <linux/smp.h>
 #include <asm/archrandom.h>
+#include <asm/cputable.h>
 #include <asm/io.h>
 #include <asm/prom.h>
 #include <asm/machdep.h>
 #include <asm/smp.h>
 
+#define DARN_ERR 0xFFFFFFFFFFFFFFFFul
 
 struct powernv_rng {
 	void __iomem *regs;
@@ -62,9 +60,44 @@ int powernv_get_random_real_mode(unsigned long *v)
 
 	rng = raw_cpu_read(powernv_rng);
 
-	*v = rng_whiten(rng, in_rm64(rng->regs_real));
+	*v = rng_whiten(rng, __raw_rm_readq(rng->regs_real));
 
 	return 1;
+}
+
+int powernv_get_random_darn(unsigned long *v)
+{
+	unsigned long val;
+
+	/* Using DARN with L=1 - 64-bit conditioned random number */
+	asm volatile(PPC_DARN(%0, 1) : "=r"(val));
+
+	if (val == DARN_ERR)
+		return 0;
+
+	*v = val;
+
+	return 1;
+}
+
+static int initialise_darn(void)
+{
+	unsigned long val;
+	int i;
+
+	if (!cpu_has_feature(CPU_FTR_ARCH_300))
+		return -ENODEV;
+
+	for (i = 0; i < 10; i++) {
+		if (powernv_get_random_darn(&val)) {
+			ppc_md.get_random_seed = powernv_get_random_darn;
+			return 0;
+		}
+	}
+
+	pr_warn("Unable to use DARN for get_random_seed()\n");
+
+	return -EIO;
 }
 
 int powernv_get_random_long(unsigned long *v)
@@ -88,7 +121,7 @@ static __init void rng_init_per_cpu(struct powernv_rng *rng,
 
 	chip_id = of_get_ibm_chip_id(dn);
 	if (chip_id == -1)
-		pr_warn("No ibm,chip-id found for %s.\n", dn->full_name);
+		pr_warn("No ibm,chip-id found for %pOF.\n", dn);
 
 	for_each_possible_cpu(cpu) {
 		if (per_cpu(powernv_rng, cpu) == NULL ||
@@ -141,14 +174,16 @@ static __init int rng_init(void)
 	for_each_compatible_node(dn, NULL, "ibm,power-rng") {
 		rc = rng_create(dn);
 		if (rc) {
-			pr_err("Failed creating rng for %s (%d).\n",
-				dn->full_name, rc);
+			pr_err("Failed creating rng for %pOF (%d).\n",
+				dn, rc);
 			continue;
 		}
 
 		/* Create devices for hwrng driver */
 		of_platform_device_create(dn, NULL, NULL);
 	}
+
+	initialise_darn();
 
 	return 0;
 }

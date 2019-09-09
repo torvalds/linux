@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Input core configuration
 #
@@ -47,7 +48,7 @@ config SERIO_SERPORT
 	  Say Y here if you plan to use an input device (mouse, joystick,
 	  tablet, 6dof) that communicates over the RS232 serial (COM) port.
 
-	  More information is available: <file:Documentation/input/input.txt>
+	  More information is available: <file:Documentation/input/input.rst>
 
 	  If unsure, say Y.
 
@@ -78,7 +79,7 @@ config SERIO_PARKBD
 	  Say Y here if you built a simple parallel port adapter to attach
 	  an additional AT keyboard, XT keyboard or PS/2 mouse.
 
-	  More information is available: <file:Documentation/input/input.txt>
+	  More information is available: <file:Documentation/input/input.rst>
 
 	  If unsure, say N.
 
@@ -95,16 +96,6 @@ config SERIO_RPCKBD
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called rpckbd.
-
-config SERIO_AT32PSIF
-	tristate "AVR32 PSIF PS/2 keyboard and mouse controller"
-	depends on AVR32
-	help
-	  Say Y here if you want to use the PSIF peripheral on AVR32 devices
-	  and connect a PS/2 keyboard and/or mouse to it.
-
-	  To compile this driver as a module, choose M here: the module will
-	  be called at32psif.
 
 config SERIO_AMBAKMI
 	tristate "AMBA KMI keyboard controller"
@@ -264,7 +255,7 @@ config SERIO_APBPS2
 
 config SERIO_OLPC_APSP
 	tristate "OLPC AP-SP input support"
-	depends on OLPC || COMPILE_TEST
+	depends on ARCH_MMP || COMPILE_TEST
 	help
 	  Say Y here if you want support for the keyboard and touchpad included
 	  in the OLPC XO-1.75 and XO-4 laptops.
@@ -291,6 +282,17 @@ config SERIO_SUN4I_PS2
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called sun4i-ps2.
+
+config SERIO_GPIO_PS2
+	tristate "GPIO PS/2 bit banging driver"
+	depends on GPIOLIB
+	help
+	  Say Y here if you want PS/2 bit banging support via GPIO.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ps2-gpio.
+
+	  If you are unsure, say N.
 
 config USERIO
 	tristate "User space serio port driver support"

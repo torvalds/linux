@@ -254,7 +254,7 @@ main(int argc, char *argv[])
 	argv += optind;
 
 	if (argc != 1) {
-		fprintf(stderr, "%s: No input file specifiled\n", appname);
+		fprintf(stderr, "%s: No input file specified\n", appname);
 		usage();
 		/* NOTREACHED */
 	}
@@ -451,8 +451,7 @@ output_code()
 	fprintf(ofile, "\n};\n\n");
 
 	fprintf(ofile,
-"static const int num_critical_sections = sizeof(critical_sections)\n"
-"				       / sizeof(*critical_sections);\n");
+	"#define NUM_CRITICAL_SECTIONS ARRAY_SIZE(critical_sections)\n");
 
 	fprintf(stderr, "%s: %d instructions used\n", appname, instrcount);
 }

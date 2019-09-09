@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Hisilicon Fast Ethernet MAC Driver
  *
  * Copyright (c) 2016 HiSilicon Technologies Co., Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/circ_buf.h>
@@ -330,7 +318,7 @@ static int hisi_femac_poll(struct napi_struct *napi, int budget)
 	} while (ints & DEF_INT_MASK);
 
 	if (work_done < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		hisi_femac_irq_enable(priv, DEF_INT_MASK &
 					(~IRQ_INT_TX_PER_PACKET));
 	}
@@ -712,7 +700,6 @@ static const struct net_device_ops hisi_femac_netdev_ops = {
 	.ndo_do_ioctl		= hisi_femac_net_ioctl,
 	.ndo_set_mac_address	= hisi_femac_set_mac_address,
 	.ndo_set_rx_mode	= hisi_femac_net_set_rx_mode,
-	.ndo_change_mtu		= eth_change_mtu,
 };
 
 static void hisi_femac_core_reset(struct hisi_femac_priv *priv)
@@ -794,7 +781,6 @@ static int hisi_femac_drv_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *node = dev->of_node;
-	struct resource *res;
 	struct net_device *ndev;
 	struct hisi_femac_priv *priv;
 	struct phy_device *phy;
@@ -806,20 +792,19 @@ static int hisi_femac_drv_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, ndev);
+	SET_NETDEV_DEV(ndev, &pdev->dev);
 
 	priv = netdev_priv(ndev);
 	priv->dev = dev;
 	priv->ndev = ndev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->port_base = devm_ioremap_resource(dev, res);
+	priv->port_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->port_base)) {
 		ret = PTR_ERR(priv->port_base);
 		goto out_free_netdev;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	priv->glb_base = devm_ioremap_resource(dev, res);
+	priv->glb_base = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(priv->glb_base)) {
 		ret = PTR_ERR(priv->glb_base);
 		goto out_free_netdev;
@@ -870,7 +855,7 @@ static int hisi_femac_drv_probe(struct platform_device *pdev)
 			   phy_modes(phy->interface));
 
 	mac_addr = of_get_mac_address(node);
-	if (mac_addr)
+	if (!IS_ERR(mac_addr))
 		ether_addr_copy(ndev->dev_addr, mac_addr);
 	if (!is_valid_ether_addr(ndev->dev_addr)) {
 		eth_hw_addr_random(ndev);
@@ -883,7 +868,6 @@ static int hisi_femac_drv_probe(struct platform_device *pdev)
 	ndev->netdev_ops = &hisi_femac_netdev_ops;
 	ndev->ethtool_ops = &hisi_femac_ethtools_ops;
 	netif_napi_add(ndev, &priv->napi, hisi_femac_poll, FEMAC_POLL_WEIGHT);
-	SET_NETDEV_DEV(ndev, &pdev->dev);
 
 	hisi_femac_port_init(priv);
 

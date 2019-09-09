@@ -1,18 +1,13 @@
-/* linux/arch/arm/mach-s5pv210/pm.c
- *
- * Copyright (c) 2010-2014 Samsung Electronics Co., Ltd.
- *		http://www.samsung.com
- *
- * S5PV210 - Power Management support
- *
- * Based on arch/arm/mach-s3c2410/pm.c
- * Copyright (c) 2006 Simtec Electronics
- *	Ben Dooks <ben@simtec.co.uk>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
-*/
+// SPDX-License-Identifier: GPL-2.0
+//
+// Copyright (c) 2010-2014 Samsung Electronics Co., Ltd.
+//		http://www.samsung.com
+//
+// S5PV210 - Power Management support
+//
+// Based on arch/arm/mach-s3c2410/pm.c
+// Copyright (c) 2006 Simtec Electronics
+//	Ben Dooks <ben@simtec.co.uk>
 
 #include <linux/init.h>
 #include <linux/suspend.h>
@@ -36,6 +31,11 @@ static struct sleep_save s5pv210_core_save[] = {
  * VIC wake-up support (TODO)
  */
 static u32 s5pv210_irqwake_intmask = 0xffffffff;
+
+static u32 s5pv210_read_eint_wakeup_mask(void)
+{
+	return __raw_readl(S5P_EINT_WAKEUP_MASK);
+}
 
 /*
  * Suspend helpers.
@@ -64,12 +64,14 @@ static void s5pv210_pm_prepare(void)
 {
 	unsigned int tmp;
 
-	/* Set wake-up mask registers */
-	__raw_writel(exynos_get_eint_wake_mask(), S5P_EINT_WAKEUP_MASK);
+	/*
+	 * Set wake-up mask registers
+	 * S5P_EINT_WAKEUP_MASK is set by pinctrl driver in late suspend.
+	 */
 	__raw_writel(s5pv210_irqwake_intmask, S5P_WAKEUP_MASK);
 
 	/* ensure at least INFORM0 has the resume address */
-	__raw_writel(virt_to_phys(s5pv210_cpu_resume), S5P_INFORM0);
+	__raw_writel(__pa_symbol(s5pv210_cpu_resume), S5P_INFORM0);
 
 	tmp = __raw_readl(S5P_SLEEP_CFG);
 	tmp &= ~(S5P_SLEEP_CFG_OSC_EN | S5P_SLEEP_CFG_USBOSC_EN);
@@ -94,6 +96,7 @@ static void s5pv210_pm_prepare(void)
  */
 static int s5pv210_suspend_enter(suspend_state_t state)
 {
+	u32 eint_wakeup_mask = s5pv210_read_eint_wakeup_mask();
 	int ret;
 
 	s3c_pm_debug_init();
@@ -101,10 +104,10 @@ static int s5pv210_suspend_enter(suspend_state_t state)
 	S3C_PMDBG("%s: suspending the system...\n", __func__);
 
 	S3C_PMDBG("%s: wakeup masks: %08x,%08x\n", __func__,
-			s5pv210_irqwake_intmask, exynos_get_eint_wake_mask());
+			s5pv210_irqwake_intmask, eint_wakeup_mask);
 
 	if (s5pv210_irqwake_intmask == -1U
-	    && exynos_get_eint_wake_mask() == -1U) {
+	    && eint_wakeup_mask == -1U) {
 		pr_err("%s: No wake-up sources!\n", __func__);
 		pr_err("%s: Aborting sleep\n", __func__);
 		return -EINVAL;
@@ -155,13 +158,6 @@ static const struct platform_suspend_ops s5pv210_suspend_ops = {
  */
 static void s5pv210_pm_resume(void)
 {
-	u32 tmp;
-
-	tmp = __raw_readl(S5P_OTHERS);
-	tmp |= (S5P_OTHERS_RET_IO | S5P_OTHERS_RET_CF |\
-		S5P_OTHERS_RET_MMC | S5P_OTHERS_RET_UART);
-	__raw_writel(tmp , S5P_OTHERS);
-
 	s3c_pm_do_restore_core(s5pv210_core_save, ARRAY_SIZE(s5pv210_core_save));
 }
 

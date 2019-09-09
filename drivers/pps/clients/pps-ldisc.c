@@ -1,22 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * pps-ldisc.c -- PPS line discipline
  *
- *
  * Copyright (C) 2008	Rodolfo Giometti <giometti@linux.it>
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -72,9 +58,9 @@ static int pps_tty_open(struct tty_struct *tty)
 
 	pps = pps_register_source(&info, PPS_CAPTUREBOTH | \
 				PPS_OFFSETASSERT | PPS_OFFSETCLEAR);
-	if (pps == NULL) {
+	if (IS_ERR(pps)) {
 		pr_err("cannot register PPS source \"%s\"\n", info.path);
-		return -ENOMEM;
+		return PTR_ERR(pps);
 	}
 	pps->lookup_cookie = tty;
 

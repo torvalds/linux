@@ -1,10 +1,22 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 .. _fe_property_parameters:
 
 ******************************
 Digital TV property parameters
 ******************************
+
+There are several different Digital TV parameters that can be used by
+:ref:`FE_SET_PROPERTY and FE_GET_PROPERTY ioctls<FE_GET_PROPERTY>`.
+This section describes each of them. Please notice, however, that only
+a subset of them are needed to setup a frontend.
 
 
 .. _DTV-UNDEFINED:
@@ -67,144 +79,36 @@ DTV_MODULATION
 ==============
 
 Specifies the frontend modulation type for delivery systems that
-supports more than one modulation type. The modulation can be one of the
-types defined by enum :c:type:`fe_modulation`.
-
-
-.. c:type:: fe_modulation
-
-Modulation property
--------------------
-
-Most of the digital TV standards currently offers more than one possible
-modulation (sometimes called as "constellation" on some standards). This
-enum contains the values used by the Kernel. Please note that not all
-modulations are supported by a given standard.
-
-
-.. flat-table:: enum fe_modulation
-    :header-rows:  1
-    :stub-columns: 0
-
-
-    -  .. row 1
-
-       -  ID
-
-       -  Description
-
-    -  .. row 2
-
-       -  .. _QPSK:
-
-	  ``QPSK``
-
-       -  QPSK modulation
-
-    -  .. row 3
-
-       -  .. _QAM-16:
-
-	  ``QAM_16``
-
-       -  16-QAM modulation
-
-    -  .. row 4
-
-       -  .. _QAM-32:
-
-	  ``QAM_32``
-
-       -  32-QAM modulation
-
-    -  .. row 5
-
-       -  .. _QAM-64:
-
-	  ``QAM_64``
-
-       -  64-QAM modulation
-
-    -  .. row 6
-
-       -  .. _QAM-128:
-
-	  ``QAM_128``
-
-       -  128-QAM modulation
-
-    -  .. row 7
-
-       -  .. _QAM-256:
-
-	  ``QAM_256``
-
-       -  256-QAM modulation
-
-    -  .. row 8
-
-       -  .. _QAM-AUTO:
-
-	  ``QAM_AUTO``
-
-       -  Autodetect QAM modulation
-
-    -  .. row 9
-
-       -  .. _VSB-8:
-
-	  ``VSB_8``
-
-       -  8-VSB modulation
-
-    -  .. row 10
-
-       -  .. _VSB-16:
-
-	  ``VSB_16``
-
-       -  16-VSB modulation
-
-    -  .. row 11
-
-       -  .. _PSK-8:
-
-	  ``PSK_8``
-
-       -  8-PSK modulation
-
-    -  .. row 12
-
-       -  .. _APSK-16:
-
-	  ``APSK_16``
-
-       -  16-APSK modulation
-
-    -  .. row 13
-
-       -  .. _APSK-32:
-
-	  ``APSK_32``
-
-       -  32-APSK modulation
-
-    -  .. row 14
-
-       -  .. _DQPSK:
-
-	  ``DQPSK``
-
-       -  DQPSK modulation
-
-    -  .. row 15
-
-       -  .. _QAM-4-NR:
-
-	  ``QAM_4_NR``
-
-       -  4-QAM-NR modulation
-
+supports more multiple modulations.
+
+The modulation can be one of the types defined by enum :c:type:`fe_modulation`.
+
+Most of the digital TV standards offers more than one possible
+modulation type.
+
+The table below presents a summary of the types of modulation types
+supported by each delivery system, as currently defined by specs.
+
+======================= =======================================================
+Standard		Modulation types
+======================= =======================================================
+ATSC (version 1)	8-VSB and 16-VSB.
+DMTB			4-QAM, 16-QAM, 32-QAM, 64-QAM and 4-QAM-NR.
+DVB-C Annex A/C		16-QAM, 32-QAM, 64-QAM and 256-QAM.
+DVB-C Annex B		64-QAM.
+DVB-T			QPSK, 16-QAM and 64-QAM.
+DVB-T2			QPSK, 16-QAM, 64-QAM and 256-QAM.
+DVB-S			No need to set. It supports only QPSK.
+DVB-S2			QPSK, 8-PSK, 16-APSK and 32-APSK.
+ISDB-T			QPSK, DQPSK, 16-QAM and 64-QAM.
+ISDB-S			8-PSK, QPSK and BPSK.
+======================= =======================================================
+
+.. note::
+
+   Please notice that some of the above modulation types may not be
+   defined currently at the Kernel. The reason is simple: no driver
+   needed such definition yet.
 
 
 .. _DTV-BANDWIDTH-HZ:
@@ -214,32 +118,42 @@ DTV_BANDWIDTH_HZ
 
 Bandwidth for the channel, in HZ.
 
+Should be set only for terrestrial delivery systems.
+
 Possible values: ``1712000``, ``5000000``, ``6000000``, ``7000000``,
 ``8000000``, ``10000000``.
 
+======================= =======================================================
+Terrestrial Standard	Possible values for bandwidth
+======================= =======================================================
+ATSC (version 1)	No need to set. It is always 6MHz.
+DMTB			No need to set. It is always 8MHz.
+DVB-T			6MHz, 7MHz and 8MHz.
+DVB-T2			1.172 MHz, 5MHz, 6MHz, 7MHz, 8MHz and 10MHz
+ISDB-T			5MHz, 6MHz, 7MHz and 8MHz, although most places
+			use 6MHz.
+======================= =======================================================
+
+
 .. note::
 
-  #. DVB-T supports 6, 7 and 8MHz.
 
-  #. DVB-T2 supports 1.172, 5, 6, 7, 8 and 10MHz.
+  #. For ISDB-Tsb, the bandwidth can vary depending on the number of
+     connected segments.
 
-  #. ISDB-T supports 5MHz, 6MHz, 7MHz and 8MHz, although most
-     places use 6MHz.
-
-  #. On DVB-C and DVB-S/S2, the bandwidth depends on the symbol rate.
-     So, the Kernel will silently ignore setting :ref:`DTV-BANDWIDTH-HZ`.
-
-  #. For DVB-C and DVB-S/S2, the Kernel will return an estimation of the
-     bandwidth, calculated from :ref:`DTV-SYMBOL-RATE` and from
-     the rolloff, with is fixed for DVB-C and DVB-S.
-
-  #. For DVB-S2, the bandwidth estimation will use :ref:`DTV-ROLLOFF`.
-
-  #. For ISDB-Tsb, it can vary depending on the number of connected
-     segments.
-
-  #. Bandwidth in ISDB-Tsb can be easily derived from other parameters
+     It can be easily derived from other parameters
      (DTV_ISDBT_SB_SEGMENT_IDX, DTV_ISDBT_SB_SEGMENT_COUNT).
+
+  #. On Satellite and Cable delivery systems, the bandwidth depends on
+     the symbol rate. So, the Kernel will silently ignore any setting
+     :ref:`DTV-BANDWIDTH-HZ`. I will however fill it back with a
+     bandwidth estimation.
+
+     Such bandwidth estimation takes into account the symbol rate set with
+     :ref:`DTV-SYMBOL-RATE`, and the rolloff factor, with is fixed for
+     DVB-C and DVB-S.
+
+     For DVB-S2, the rolloff should also be set via :ref:`DTV-ROLLOFF`.
 
 
 .. _DTV-INVERSION:
@@ -249,53 +163,7 @@ DTV_INVERSION
 
 Specifies if the frontend should do spectral inversion or not.
 
-.. c:type:: fe_spectral_inversion
-
-enum fe_modulation: Frontend spectral inversion
------------------------------------------------
-
-This parameter indicates if spectral inversion should be presumed or
-not. In the automatic setting (``INVERSION_AUTO``) the hardware will try
-to figure out the correct setting by itself. If the hardware doesn't
-support, the DVB core will try to lock at the carrier first with
-inversion off. If it fails, it will try to enable inversion.
-
-
-.. flat-table:: enum fe_modulation
-    :header-rows:  1
-    :stub-columns: 0
-
-
-    -  .. row 1
-
-       -  ID
-
-       -  Description
-
-    -  .. row 2
-
-       -  .. _INVERSION-OFF:
-
-	  ``INVERSION_OFF``
-
-       -  Don't do spectral band inversion.
-
-    -  .. row 3
-
-       -  .. _INVERSION-ON:
-
-	  ``INVERSION_ON``
-
-       -  Do spectral band inversion.
-
-    -  .. row 4
-
-       -  .. _INVERSION-AUTO:
-
-	  ``INVERSION_AUTO``
-
-       -  Autodetect spectral band inversion.
-
+The acceptable values are defined by :c:type:`fe_spectral_inversion`.
 
 
 .. _DTV-DISEQC-MASTER:
@@ -311,8 +179,9 @@ Currently not implemented.
 DTV_SYMBOL_RATE
 ===============
 
-Digital TV symbol rate, in bauds (symbols/second). Used on cable
-standards.
+Used on cable and satellite delivery systems.
+
+Digital TV symbol rate, in bauds (symbols/second).
 
 
 .. _DTV-INNER-FEC:
@@ -320,128 +189,9 @@ standards.
 DTV_INNER_FEC
 =============
 
-Used cable/satellite transmissions. The acceptable values are:
+Used on cable and satellite delivery systems.
 
-.. c:type:: fe_code_rate
-
-enum fe_code_rate: type of the Forward Error Correction.
---------------------------------------------------------
-
-.. flat-table:: enum fe_code_rate
-    :header-rows:  1
-    :stub-columns: 0
-
-
-    -  .. row 1
-
-       -  ID
-
-       -  Description
-
-    -  .. row 2
-
-       -  .. _FEC-NONE:
-
-	  ``FEC_NONE``
-
-       -  No Forward Error Correction Code
-
-    -  .. row 3
-
-       -  .. _FEC-AUTO:
-
-	  ``FEC_AUTO``
-
-       -  Autodetect Error Correction Code
-
-    -  .. row 4
-
-       -  .. _FEC-1-2:
-
-	  ``FEC_1_2``
-
-       -  Forward Error Correction Code 1/2
-
-    -  .. row 5
-
-       -  .. _FEC-2-3:
-
-	  ``FEC_2_3``
-
-       -  Forward Error Correction Code 2/3
-
-    -  .. row 6
-
-       -  .. _FEC-3-4:
-
-	  ``FEC_3_4``
-
-       -  Forward Error Correction Code 3/4
-
-    -  .. row 7
-
-       -  .. _FEC-4-5:
-
-	  ``FEC_4_5``
-
-       -  Forward Error Correction Code 4/5
-
-    -  .. row 8
-
-       -  .. _FEC-5-6:
-
-	  ``FEC_5_6``
-
-       -  Forward Error Correction Code 5/6
-
-    -  .. row 9
-
-       -  .. _FEC-6-7:
-
-	  ``FEC_6_7``
-
-       -  Forward Error Correction Code 6/7
-
-    -  .. row 10
-
-       -  .. _FEC-7-8:
-
-	  ``FEC_7_8``
-
-       -  Forward Error Correction Code 7/8
-
-    -  .. row 11
-
-       -  .. _FEC-8-9:
-
-	  ``FEC_8_9``
-
-       -  Forward Error Correction Code 8/9
-
-    -  .. row 12
-
-       -  .. _FEC-9-10:
-
-	  ``FEC_9_10``
-
-       -  Forward Error Correction Code 9/10
-
-    -  .. row 13
-
-       -  .. _FEC-2-5:
-
-	  ``FEC_2_5``
-
-       -  Forward Error Correction Code 2/5
-
-    -  .. row 14
-
-       -  .. _FEC-3-5:
-
-	  ``FEC_3_5``
-
-       -  Forward Error Correction Code 3/5
-
+The acceptable values are defined by :c:type:`fe_code_rate`.
 
 
 .. _DTV-VOLTAGE:
@@ -449,49 +199,14 @@ enum fe_code_rate: type of the Forward Error Correction.
 DTV_VOLTAGE
 ===========
 
+Used on satellite delivery systems.
+
 The voltage is usually used with non-DiSEqC capable LNBs to switch the
 polarzation (horizontal/vertical). When using DiSEqC epuipment this
 voltage has to be switched consistently to the DiSEqC commands as
 described in the DiSEqC spec.
 
-
-.. c:type:: fe_sec_voltage
-
-.. flat-table:: enum fe_sec_voltage
-    :header-rows:  1
-    :stub-columns: 0
-
-
-    -  .. row 1
-
-       -  ID
-
-       -  Description
-
-    -  .. row 2
-
-       -  .. _SEC-VOLTAGE-13:
-
-	  ``SEC_VOLTAGE_13``
-
-       -  Set DC voltage level to 13V
-
-    -  .. row 3
-
-       -  .. _SEC-VOLTAGE-18:
-
-	  ``SEC_VOLTAGE_18``
-
-       -  Set DC voltage level to 18V
-
-    -  .. row 4
-
-       -  .. _SEC-VOLTAGE-OFF:
-
-	  ``SEC_VOLTAGE_OFF``
-
-       -  Don't send any voltage to the antenna
-
+The acceptable values are defined by :c:type:`fe_sec_voltage`.
 
 
 .. _DTV-TONE:
@@ -507,50 +222,11 @@ Currently not used.
 DTV_PILOT
 =========
 
-Sets DVB-S2 pilot
+Used on DVB-S2.
 
+Sets DVB-S2 pilot.
 
-.. c:type:: fe_pilot
-
-fe_pilot type
--------------
-
-
-.. flat-table:: enum fe_pilot
-    :header-rows:  1
-    :stub-columns: 0
-
-
-    -  .. row 1
-
-       -  ID
-
-       -  Description
-
-    -  .. row 2
-
-       -  .. _PILOT-ON:
-
-	  ``PILOT_ON``
-
-       -  Pilot tones enabled
-
-    -  .. row 3
-
-       -  .. _PILOT-OFF:
-
-	  ``PILOT_OFF``
-
-       -  Pilot tones disabled
-
-    -  .. row 4
-
-       -  .. _PILOT-AUTO:
-
-	  ``PILOT_AUTO``
-
-       -  Autodetect pilot tones
-
+The acceptable values are defined by :c:type:`fe_pilot`.
 
 
 .. _DTV-ROLLOFF:
@@ -558,58 +234,11 @@ fe_pilot type
 DTV_ROLLOFF
 ===========
 
-Sets DVB-S2 rolloff
+Used on DVB-S2.
 
+Sets DVB-S2 rolloff.
 
-.. c:type:: fe_rolloff
-
-fe_rolloff type
----------------
-
-
-.. flat-table:: enum fe_rolloff
-    :header-rows:  1
-    :stub-columns: 0
-
-
-    -  .. row 1
-
-       -  ID
-
-       -  Description
-
-    -  .. row 2
-
-       -  .. _ROLLOFF-35:
-
-	  ``ROLLOFF_35``
-
-       -  Roloff factor: α=35%
-
-    -  .. row 3
-
-       -  .. _ROLLOFF-20:
-
-	  ``ROLLOFF_20``
-
-       -  Roloff factor: α=20%
-
-    -  .. row 4
-
-       -  .. _ROLLOFF-25:
-
-	  ``ROLLOFF_25``
-
-       -  Roloff factor: α=25%
-
-    -  .. row 5
-
-       -  .. _ROLLOFF-AUTO:
-
-	  ``ROLLOFF_AUTO``
-
-       -  Auto-detect the roloff factor.
-
+The acceptable values are defined by :c:type:`fe_rolloff`.
 
 
 .. _DTV-DISEQC-SLAVE-REPLY:
@@ -641,186 +270,17 @@ Currently not implemented.
 DTV_DELIVERY_SYSTEM
 ===================
 
-Specifies the type of Delivery system
+Specifies the type of the delivery system.
 
-
-.. c:type:: fe_delivery_system
-
-fe_delivery_system type
------------------------
-
-Possible values:
-
-
-.. flat-table:: enum fe_delivery_system
-    :header-rows:  1
-    :stub-columns: 0
-
-
-    -  .. row 1
-
-       -  ID
-
-       -  Description
-
-    -  .. row 2
-
-       -  .. _SYS-UNDEFINED:
-
-	  ``SYS_UNDEFINED``
-
-       -  Undefined standard. Generally, indicates an error
-
-    -  .. row 3
-
-       -  .. _SYS-DVBC-ANNEX-A:
-
-	  ``SYS_DVBC_ANNEX_A``
-
-       -  Cable TV: DVB-C following ITU-T J.83 Annex A spec
-
-    -  .. row 4
-
-       -  .. _SYS-DVBC-ANNEX-B:
-
-	  ``SYS_DVBC_ANNEX_B``
-
-       -  Cable TV: DVB-C following ITU-T J.83 Annex B spec (ClearQAM)
-
-    -  .. row 5
-
-       -  .. _SYS-DVBC-ANNEX-C:
-
-	  ``SYS_DVBC_ANNEX_C``
-
-       -  Cable TV: DVB-C following ITU-T J.83 Annex C spec
-
-    -  .. row 6
-
-       -  .. _SYS-ISDBC:
-
-	  ``SYS_ISDBC``
-
-       -  Cable TV: ISDB-C (no drivers yet)
-
-    -  .. row 7
-
-       -  .. _SYS-DVBT:
-
-	  ``SYS_DVBT``
-
-       -  Terrestral TV: DVB-T
-
-    -  .. row 8
-
-       -  .. _SYS-DVBT2:
-
-	  ``SYS_DVBT2``
-
-       -  Terrestral TV: DVB-T2
-
-    -  .. row 9
-
-       -  .. _SYS-ISDBT:
-
-	  ``SYS_ISDBT``
-
-       -  Terrestral TV: ISDB-T
-
-    -  .. row 10
-
-       -  .. _SYS-ATSC:
-
-	  ``SYS_ATSC``
-
-       -  Terrestral TV: ATSC
-
-    -  .. row 11
-
-       -  .. _SYS-ATSCMH:
-
-	  ``SYS_ATSCMH``
-
-       -  Terrestral TV (mobile): ATSC-M/H
-
-    -  .. row 12
-
-       -  .. _SYS-DTMB:
-
-	  ``SYS_DTMB``
-
-       -  Terrestrial TV: DTMB
-
-    -  .. row 13
-
-       -  .. _SYS-DVBS:
-
-	  ``SYS_DVBS``
-
-       -  Satellite TV: DVB-S
-
-    -  .. row 14
-
-       -  .. _SYS-DVBS2:
-
-	  ``SYS_DVBS2``
-
-       -  Satellite TV: DVB-S2
-
-    -  .. row 15
-
-       -  .. _SYS-TURBO:
-
-	  ``SYS_TURBO``
-
-       -  Satellite TV: DVB-S Turbo
-
-    -  .. row 16
-
-       -  .. _SYS-ISDBS:
-
-	  ``SYS_ISDBS``
-
-       -  Satellite TV: ISDB-S
-
-    -  .. row 17
-
-       -  .. _SYS-DAB:
-
-	  ``SYS_DAB``
-
-       -  Digital audio: DAB (not fully supported)
-
-    -  .. row 18
-
-       -  .. _SYS-DSS:
-
-	  ``SYS_DSS``
-
-       -  Satellite TV:"DSS (not fully supported)
-
-    -  .. row 19
-
-       -  .. _SYS-CMMB:
-
-	  ``SYS_CMMB``
-
-       -  Terrestral TV (mobile):CMMB (not fully supported)
-
-    -  .. row 20
-
-       -  .. _SYS-DVBH:
-
-	  ``SYS_DVBH``
-
-       -  Terrestral TV (mobile): DVB-H (standard deprecated)
-
+The acceptable values are defined by :c:type:`fe_delivery_system`.
 
 
 .. _DTV-ISDBT-PARTIAL-RECEPTION:
 
 DTV_ISDBT_PARTIAL_RECEPTION
 ===========================
+
+Used only on ISDB.
 
 If ``DTV_ISDBT_SOUND_BROADCASTING`` is '0' this bit-field represents
 whether the channel is in partial reception mode or not.
@@ -840,6 +300,8 @@ Possible values: 0, 1, -1 (AUTO)
 DTV_ISDBT_SOUND_BROADCASTING
 ============================
 
+Used only on ISDB.
+
 This field represents whether the other DTV_ISDBT_*-parameters are
 referring to an ISDB-T and an ISDB-Tsb channel. (See also
 ``DTV_ISDBT_PARTIAL_RECEPTION``).
@@ -851,6 +313,8 @@ Possible values: 0, 1, -1 (AUTO)
 
 DTV_ISDBT_SB_SUBCHANNEL_ID
 ==========================
+
+Used only on ISDB.
 
 This field only applies if ``DTV_ISDBT_SOUND_BROADCASTING`` is '1'.
 
@@ -887,6 +351,8 @@ Possible values: 0 .. 41, -1 (AUTO)
 DTV_ISDBT_SB_SEGMENT_IDX
 ========================
 
+Used only on ISDB.
+
 This field only applies if ``DTV_ISDBT_SOUND_BROADCASTING`` is '1'.
 
 ``DTV_ISDBT_SB_SEGMENT_IDX`` gives the index of the segment to be
@@ -903,6 +369,8 @@ Note: This value cannot be determined by an automatic channel search.
 DTV_ISDBT_SB_SEGMENT_COUNT
 ==========================
 
+Used only on ISDB.
+
 This field only applies if ``DTV_ISDBT_SOUND_BROADCASTING`` is '1'.
 
 ``DTV_ISDBT_SB_SEGMENT_COUNT`` gives the total count of connected
@@ -917,6 +385,8 @@ Note: This value cannot be determined by an automatic channel search.
 
 DTV-ISDBT-LAYER[A-C] parameters
 ===============================
+
+Used only on ISDB.
 
 ISDB-T channels can be coded hierarchically. As opposed to DVB-T in
 ISDB-T hierarchical layers can be decoded simultaneously. For that
@@ -933,6 +403,8 @@ There are 3 parameter sets, for Layers A, B and C.
 
 DTV_ISDBT_LAYER_ENABLED
 -----------------------
+
+Used only on ISDB.
 
 Hierarchical reception in ISDB-T is achieved by enabling or disabling
 layers in the decoding process. Setting all bits of
@@ -964,7 +436,13 @@ Only the values of the first 3 bits are used. Other bits will be silently ignore
 DTV_ISDBT_LAYER[A-C]_FEC
 ------------------------
 
-Possible values: ``FEC_AUTO``, ``FEC_1_2``, ``FEC_2_3``, ``FEC_3_4``,
+Used only on ISDB.
+
+The Forward Error Correction mechanism used by a given ISDB Layer, as
+defined by :c:type:`fe_code_rate`.
+
+
+Possible values are: ``FEC_AUTO``, ``FEC_1_2``, ``FEC_2_3``, ``FEC_3_4``,
 ``FEC_5_6``, ``FEC_7_8``
 
 
@@ -973,17 +451,27 @@ Possible values: ``FEC_AUTO``, ``FEC_1_2``, ``FEC_2_3``, ``FEC_3_4``,
 DTV_ISDBT_LAYER[A-C]_MODULATION
 -------------------------------
 
-Possible values: ``QAM_AUTO``, QP\ ``SK, QAM_16``, ``QAM_64``, ``DQPSK``
+Used only on ISDB.
 
-Note: If layer C is ``DQPSK`` layer B has to be ``DQPSK``. If layer B is
-``DQPSK`` and ``DTV_ISDBT_PARTIAL_RECEPTION``\ =0 layer has to be
-``DQPSK``.
+The modulation used by a given ISDB Layer, as defined by
+:c:type:`fe_modulation`.
+
+Possible values are: ``QAM_AUTO``, ``QPSK``, ``QAM_16``, ``QAM_64``, ``DQPSK``
+
+.. note::
+
+   #. If layer C is ``DQPSK``, then layer B has to be ``DQPSK``.
+
+   #. If layer B is ``DQPSK`` and ``DTV_ISDBT_PARTIAL_RECEPTION``\ = 0,
+      then layer has to be ``DQPSK``.
 
 
 .. _DTV-ISDBT-LAYER-SEGMENT-COUNT:
 
 DTV_ISDBT_LAYER[A-C]_SEGMENT_COUNT
 ----------------------------------
+
+Used only on ISDB.
 
 Possible values: 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, -1 (AUTO)
 
@@ -993,15 +481,15 @@ Note: Truth table for ``DTV_ISDBT_SOUND_BROADCASTING`` and
 .. _isdbt-layer_seg-cnt-table:
 
 .. flat-table:: Truth table for ISDB-T Sound Broadcasting
-    :header-rows:  0
+    :header-rows:  1
     :stub-columns: 0
 
 
     -  .. row 1
 
-       -  PR
+       -  Partial Reception
 
-       -  SB
+       -  Sound Broadcasting
 
        -  Layer A width
 
@@ -1074,6 +562,8 @@ Note: Truth table for ``DTV_ISDBT_SOUND_BROADCASTING`` and
 DTV_ISDBT_LAYER[A-C]_TIME_INTERLEAVING
 --------------------------------------
 
+Used only on ISDB.
+
 Valid values: 0, 1, 2, 4, -1 (AUTO)
 
 when DTV_ISDBT_SOUND_BROADCASTING is active, value 8 is also valid.
@@ -1086,7 +576,7 @@ TMCC-structure, as shown in the table below.
 .. c:type:: isdbt_layer_interleaving_table
 
 .. flat-table:: ISDB-T time interleaving modes
-    :header-rows:  0
+    :header-rows:  1
     :stub-columns: 0
 
 
@@ -1147,6 +637,8 @@ TMCC-structure, as shown in the table below.
 DTV_ATSCMH_FIC_VER
 ------------------
 
+Used only on ATSC-MH.
+
 Version number of the FIC (Fast Information Channel) signaling data.
 
 FIC is used for relaying information to allow rapid service acquisition
@@ -1159,6 +651,8 @@ Possible values: 0, 1, 2, 3, ..., 30, 31
 
 DTV_ATSCMH_PARADE_ID
 --------------------
+
+Used only on ATSC-MH.
 
 Parade identification number
 
@@ -1173,6 +667,8 @@ Possible values: 0, 1, 2, 3, ..., 126, 127
 DTV_ATSCMH_NOG
 --------------
 
+Used only on ATSC-MH.
+
 Number of MH groups per MH subframe for a designated parade.
 
 Possible values: 1, 2, 3, 4, 5, 6, 7, 8
@@ -1182,6 +678,8 @@ Possible values: 1, 2, 3, 4, 5, 6, 7, 8
 
 DTV_ATSCMH_TNOG
 ---------------
+
+Used only on ATSC-MH.
 
 Total number of MH groups including all MH groups belonging to all MH
 parades in one MH subframe.
@@ -1194,6 +692,8 @@ Possible values: 0, 1, 2, 3, ..., 30, 31
 DTV_ATSCMH_SGN
 --------------
 
+Used only on ATSC-MH.
+
 Start group number.
 
 Possible values: 0, 1, 2, 3, ..., 14, 15
@@ -1203,6 +703,8 @@ Possible values: 0, 1, 2, 3, ..., 14, 15
 
 DTV_ATSCMH_PRC
 --------------
+
+Used only on ATSC-MH.
 
 Parade repetition cycle.
 
@@ -1214,44 +716,11 @@ Possible values: 1, 2, 3, 4, 5, 6, 7, 8
 DTV_ATSCMH_RS_FRAME_MODE
 ------------------------
 
+Used only on ATSC-MH.
+
 Reed Solomon (RS) frame mode.
 
-Possible values are:
-
-.. tabularcolumns:: |p{5.0cm}|p{12.5cm}|
-
-.. c:type:: atscmh_rs_frame_mode
-
-.. flat-table:: enum atscmh_rs_frame_mode
-    :header-rows:  1
-    :stub-columns: 0
-
-
-    -  .. row 1
-
-       -  ID
-
-       -  Description
-
-    -  .. row 2
-
-       -  .. _ATSCMH-RSFRAME-PRI-ONLY:
-
-	  ``ATSCMH_RSFRAME_PRI_ONLY``
-
-       -  Single Frame: There is only a primary RS Frame for all Group
-	  Regions.
-
-    -  .. row 3
-
-       -  .. _ATSCMH-RSFRAME-PRI-SEC:
-
-	  ``ATSCMH_RSFRAME_PRI_SEC``
-
-       -  Dual Frame: There are two separate RS Frames: Primary RS Frame for
-	  Group Region A and B and Secondary RS Frame for Group Region C and
-	  D.
-
+The acceptable values are defined by :c:type:`atscmh_rs_frame_mode`.
 
 
 .. _DTV-ATSCMH-RS-FRAME-ENSEMBLE:
@@ -1259,48 +728,11 @@ Possible values are:
 DTV_ATSCMH_RS_FRAME_ENSEMBLE
 ----------------------------
 
+Used only on ATSC-MH.
+
 Reed Solomon(RS) frame ensemble.
 
-Possible values are:
-
-
-.. c:type:: atscmh_rs_frame_ensemble
-
-.. flat-table:: enum atscmh_rs_frame_ensemble
-    :header-rows:  1
-    :stub-columns: 0
-
-
-    -  .. row 1
-
-       -  ID
-
-       -  Description
-
-    -  .. row 2
-
-       -  .. _ATSCMH-RSFRAME-ENS-PRI:
-
-	  ``ATSCMH_RSFRAME_ENS_PRI``
-
-       -  Primary Ensemble.
-
-    -  .. row 3
-
-       -  .. _ATSCMH-RSFRAME-ENS-SEC:
-
-	  ``AATSCMH_RSFRAME_PRI_SEC``
-
-       -  Secondary Ensemble.
-
-    -  .. row 4
-
-       -  .. _ATSCMH-RSFRAME-RES:
-
-	  ``AATSCMH_RSFRAME_RES``
-
-       -  Reserved. Shouldn't be used.
-
+The acceptable values are defined by :c:type:`atscmh_rs_frame_ensemble`.
 
 
 .. _DTV-ATSCMH-RS-CODE-MODE-PRI:
@@ -1308,56 +740,11 @@ Possible values are:
 DTV_ATSCMH_RS_CODE_MODE_PRI
 ---------------------------
 
+Used only on ATSC-MH.
+
 Reed Solomon (RS) code mode (primary).
 
-Possible values are:
-
-
-.. c:type:: atscmh_rs_code_mode
-
-.. flat-table:: enum atscmh_rs_code_mode
-    :header-rows:  1
-    :stub-columns: 0
-
-
-    -  .. row 1
-
-       -  ID
-
-       -  Description
-
-    -  .. row 2
-
-       -  .. _ATSCMH-RSCODE-211-187:
-
-	  ``ATSCMH_RSCODE_211_187``
-
-       -  Reed Solomon code (211,187).
-
-    -  .. row 3
-
-       -  .. _ATSCMH-RSCODE-223-187:
-
-	  ``ATSCMH_RSCODE_223_187``
-
-       -  Reed Solomon code (223,187).
-
-    -  .. row 4
-
-       -  .. _ATSCMH-RSCODE-235-187:
-
-	  ``ATSCMH_RSCODE_235_187``
-
-       -  Reed Solomon code (235,187).
-
-    -  .. row 5
-
-       -  .. _ATSCMH-RSCODE-RES:
-
-	  ``ATSCMH_RSCODE_RES``
-
-       -  Reserved. Shouldn't be used.
-
+The acceptable values are defined by :c:type:`atscmh_rs_code_mode`.
 
 
 .. _DTV-ATSCMH-RS-CODE-MODE-SEC:
@@ -1365,10 +752,11 @@ Possible values are:
 DTV_ATSCMH_RS_CODE_MODE_SEC
 ---------------------------
 
+Used only on ATSC-MH.
+
 Reed Solomon (RS) code mode (secondary).
 
-Possible values are the same as documented on enum
-:c:type:`atscmh_rs_code_mode`:
+The acceptable values are defined by :c:type:`atscmh_rs_code_mode`.
 
 
 .. _DTV-ATSCMH-SCCC-BLOCK-MODE:
@@ -1376,51 +764,11 @@ Possible values are the same as documented on enum
 DTV_ATSCMH_SCCC_BLOCK_MODE
 --------------------------
 
+Used only on ATSC-MH.
+
 Series Concatenated Convolutional Code Block Mode.
 
-Possible values are:
-
-.. tabularcolumns:: |p{4.5cm}|p{13.0cm}|
-
-.. c:type:: atscmh_sccc_block_mode
-
-.. flat-table:: enum atscmh_scc_block_mode
-    :header-rows:  1
-    :stub-columns: 0
-
-
-    -  .. row 1
-
-       -  ID
-
-       -  Description
-
-    -  .. row 2
-
-       -  .. _ATSCMH-SCCC-BLK-SEP:
-
-	  ``ATSCMH_SCCC_BLK_SEP``
-
-       -  Separate SCCC: the SCCC outer code mode shall be set independently
-	  for each Group Region (A, B, C, D)
-
-    -  .. row 3
-
-       -  .. _ATSCMH-SCCC-BLK-COMB:
-
-	  ``ATSCMH_SCCC_BLK_COMB``
-
-       -  Combined SCCC: all four Regions shall have the same SCCC outer
-	  code mode.
-
-    -  .. row 4
-
-       -  .. _ATSCMH-SCCC-BLK-RES:
-
-	  ``ATSCMH_SCCC_BLK_RES``
-
-       -  Reserved. Shouldn't be used.
-
+The acceptable values are defined by :c:type:`atscmh_sccc_block_mode`.
 
 
 .. _DTV-ATSCMH-SCCC-CODE-MODE-A:
@@ -1428,54 +776,18 @@ Possible values are:
 DTV_ATSCMH_SCCC_CODE_MODE_A
 ---------------------------
 
+Used only on ATSC-MH.
+
 Series Concatenated Convolutional Code Rate.
 
-Possible values are:
-
-
-.. c:type:: atscmh_sccc_code_mode
-
-.. flat-table:: enum atscmh_sccc_code_mode
-    :header-rows:  1
-    :stub-columns: 0
-
-
-    -  .. row 1
-
-       -  ID
-
-       -  Description
-
-    -  .. row 2
-
-       -  .. _ATSCMH-SCCC-CODE-HLF:
-
-	  ``ATSCMH_SCCC_CODE_HLF``
-
-       -  The outer code rate of a SCCC Block is 1/2 rate.
-
-    -  .. row 3
-
-       -  .. _ATSCMH-SCCC-CODE-QTR:
-
-	  ``ATSCMH_SCCC_CODE_QTR``
-
-       -  The outer code rate of a SCCC Block is 1/4 rate.
-
-    -  .. row 4
-
-       -  .. _ATSCMH-SCCC-CODE-RES:
-
-	  ``ATSCMH_SCCC_CODE_RES``
-
-       -  to be documented.
-
-
+The acceptable values are defined by :c:type:`atscmh_sccc_code_mode`.
 
 .. _DTV-ATSCMH-SCCC-CODE-MODE-B:
 
 DTV_ATSCMH_SCCC_CODE_MODE_B
 ---------------------------
+
+Used only on ATSC-MH.
 
 Series Concatenated Convolutional Code Rate.
 
@@ -1488,6 +800,8 @@ Possible values are the same as documented on enum
 DTV_ATSCMH_SCCC_CODE_MODE_C
 ---------------------------
 
+Used only on ATSC-MH.
+
 Series Concatenated Convolutional Code Rate.
 
 Possible values are the same as documented on enum
@@ -1498,6 +812,8 @@ Possible values are the same as documented on enum
 
 DTV_ATSCMH_SCCC_CODE_MODE_D
 ---------------------------
+
+Used only on ATSC-MH.
 
 Series Concatenated Convolutional Code Rate.
 
@@ -1510,7 +826,7 @@ Possible values are the same as documented on enum
 DTV_API_VERSION
 ===============
 
-Returns the major/minor version of the DVB API
+Returns the major/minor version of the Digital TV API
 
 
 .. _DTV-CODE-RATE-HP:
@@ -1518,8 +834,9 @@ Returns the major/minor version of the DVB API
 DTV_CODE_RATE_HP
 ================
 
-Used on terrestrial transmissions. The acceptable values are the ones
-described at :c:type:`fe_transmit_mode`.
+Used on terrestrial transmissions.
+
+The acceptable values are defined by :c:type:`fe_transmit_mode`.
 
 
 .. _DTV-CODE-RATE-LP:
@@ -1527,8 +844,9 @@ described at :c:type:`fe_transmit_mode`.
 DTV_CODE_RATE_LP
 ================
 
-Used on terrestrial transmissions. The acceptable values are the ones
-described at :c:type:`fe_transmit_mode`.
+Used on terrestrial transmissions.
+
+The acceptable values are defined by :c:type:`fe_transmit_mode`.
 
 
 .. _DTV-GUARD-INTERVAL:
@@ -1536,242 +854,56 @@ described at :c:type:`fe_transmit_mode`.
 DTV_GUARD_INTERVAL
 ==================
 
-Possible values are:
+The acceptable values are defined by :c:type:`fe_guard_interval`.
 
+.. note::
 
-.. c:type:: fe_guard_interval
-
-Modulation guard interval
--------------------------
-
-
-.. flat-table:: enum fe_guard_interval
-    :header-rows:  1
-    :stub-columns: 0
-
-
-    -  .. row 1
-
-       -  ID
-
-       -  Description
-
-    -  .. row 2
-
-       -  .. _GUARD-INTERVAL-AUTO:
-
-	  ``GUARD_INTERVAL_AUTO``
-
-       -  Autodetect the guard interval
-
-    -  .. row 3
-
-       -  .. _GUARD-INTERVAL-1-128:
-
-	  ``GUARD_INTERVAL_1_128``
-
-       -  Guard interval 1/128
-
-    -  .. row 4
-
-       -  .. _GUARD-INTERVAL-1-32:
-
-	  ``GUARD_INTERVAL_1_32``
-
-       -  Guard interval 1/32
-
-    -  .. row 5
-
-       -  .. _GUARD-INTERVAL-1-16:
-
-	  ``GUARD_INTERVAL_1_16``
-
-       -  Guard interval 1/16
-
-    -  .. row 6
-
-       -  .. _GUARD-INTERVAL-1-8:
-
-	  ``GUARD_INTERVAL_1_8``
-
-       -  Guard interval 1/8
-
-    -  .. row 7
-
-       -  .. _GUARD-INTERVAL-1-4:
-
-	  ``GUARD_INTERVAL_1_4``
-
-       -  Guard interval 1/4
-
-    -  .. row 8
-
-       -  .. _GUARD-INTERVAL-19-128:
-
-	  ``GUARD_INTERVAL_19_128``
-
-       -  Guard interval 19/128
-
-    -  .. row 9
-
-       -  .. _GUARD-INTERVAL-19-256:
-
-	  ``GUARD_INTERVAL_19_256``
-
-       -  Guard interval 19/256
-
-    -  .. row 10
-
-       -  .. _GUARD-INTERVAL-PN420:
-
-	  ``GUARD_INTERVAL_PN420``
-
-       -  PN length 420 (1/4)
-
-    -  .. row 11
-
-       -  .. _GUARD-INTERVAL-PN595:
-
-	  ``GUARD_INTERVAL_PN595``
-
-       -  PN length 595 (1/6)
-
-    -  .. row 12
-
-       -  .. _GUARD-INTERVAL-PN945:
-
-	  ``GUARD_INTERVAL_PN945``
-
-       -  PN length 945 (1/9)
-
-
-Notes:
-
-1) If ``DTV_GUARD_INTERVAL`` is set the ``GUARD_INTERVAL_AUTO`` the
-hardware will try to find the correct guard interval (if capable) and
-will use TMCC to fill in the missing parameters.
-
-2) Intervals 1/128, 19/128 and 19/256 are used only for DVB-T2 at
-present
-
-3) DTMB specifies PN420, PN595 and PN945.
-
+   #. If ``DTV_GUARD_INTERVAL`` is set the ``GUARD_INTERVAL_AUTO`` the
+      hardware will try to find the correct guard interval (if capable) and
+      will use TMCC to fill in the missing parameters.
+   #. Intervals ``GUARD_INTERVAL_1_128``, ``GUARD_INTERVAL_19_128``
+      and ``GUARD_INTERVAL_19_256`` are used only for DVB-T2 at
+      present.
+   #. Intervals ``GUARD_INTERVAL_PN420``, ``GUARD_INTERVAL_PN595`` and
+      ``GUARD_INTERVAL_PN945`` are used only for DMTB at the present.
+      On such standard, only those intervals and ``GUARD_INTERVAL_AUTO``
+      are valid.
 
 .. _DTV-TRANSMISSION-MODE:
 
 DTV_TRANSMISSION_MODE
 =====================
 
-Specifies the number of carriers used by the standard. This is used only
-on OFTM-based standards, e. g. DVB-T/T2, ISDB-T, DTMB
 
+Used only on OFTM-based standards, e. g. DVB-T/T2, ISDB-T, DTMB.
 
-.. c:type:: fe_transmit_mode
+Specifies the FFT size (with corresponds to the approximate number of
+carriers) used by the standard.
 
-enum fe_transmit_mode: Number of carriers per channel
------------------------------------------------------
+The acceptable values are defined by :c:type:`fe_transmit_mode`.
 
-.. tabularcolumns:: |p{5.0cm}|p{12.5cm}|
+.. note::
 
-.. flat-table:: enum fe_transmit_mode
-    :header-rows:  1
-    :stub-columns: 0
+   #. ISDB-T supports three carrier/symbol-size: 8K, 4K, 2K. It is called
+      **mode** on such standard, and are numbered from 1 to 3:
 
+      ====	========	========================
+      Mode	FFT size	Transmission mode
+      ====	========	========================
+      1		2K		``TRANSMISSION_MODE_2K``
+      2		4K		``TRANSMISSION_MODE_4K``
+      3		8K		``TRANSMISSION_MODE_8K``
+      ====	========	========================
 
-    -  .. row 1
+   #. If ``DTV_TRANSMISSION_MODE`` is set the ``TRANSMISSION_MODE_AUTO``
+      the hardware will try to find the correct FFT-size (if capable) and
+      will use TMCC to fill in the missing parameters.
 
-       -  ID
+   #. DVB-T specifies 2K and 8K as valid sizes.
 
-       -  Description
+   #. DVB-T2 specifies 1K, 2K, 4K, 8K, 16K and 32K.
 
-    -  .. row 2
-
-       -  .. _TRANSMISSION-MODE-AUTO:
-
-	  ``TRANSMISSION_MODE_AUTO``
-
-       -  Autodetect transmission mode. The hardware will try to find the
-	  correct FFT-size (if capable) to fill in the missing parameters.
-
-    -  .. row 3
-
-       -  .. _TRANSMISSION-MODE-1K:
-
-	  ``TRANSMISSION_MODE_1K``
-
-       -  Transmission mode 1K
-
-    -  .. row 4
-
-       -  .. _TRANSMISSION-MODE-2K:
-
-	  ``TRANSMISSION_MODE_2K``
-
-       -  Transmission mode 2K
-
-    -  .. row 5
-
-       -  .. _TRANSMISSION-MODE-8K:
-
-	  ``TRANSMISSION_MODE_8K``
-
-       -  Transmission mode 8K
-
-    -  .. row 6
-
-       -  .. _TRANSMISSION-MODE-4K:
-
-	  ``TRANSMISSION_MODE_4K``
-
-       -  Transmission mode 4K
-
-    -  .. row 7
-
-       -  .. _TRANSMISSION-MODE-16K:
-
-	  ``TRANSMISSION_MODE_16K``
-
-       -  Transmission mode 16K
-
-    -  .. row 8
-
-       -  .. _TRANSMISSION-MODE-32K:
-
-	  ``TRANSMISSION_MODE_32K``
-
-       -  Transmission mode 32K
-
-    -  .. row 9
-
-       -  .. _TRANSMISSION-MODE-C1:
-
-	  ``TRANSMISSION_MODE_C1``
-
-       -  Single Carrier (C=1) transmission mode (DTMB)
-
-    -  .. row 10
-
-       -  .. _TRANSMISSION-MODE-C3780:
-
-	  ``TRANSMISSION_MODE_C3780``
-
-       -  Multi Carrier (C=3780) transmission mode (DTMB)
-
-
-Notes:
-
-1) ISDB-T supports three carrier/symbol-size: 8K, 4K, 2K. It is called
-'mode' in the standard: Mode 1 is 2K, mode 2 is 4K, mode 3 is 8K
-
-2) If ``DTV_TRANSMISSION_MODE`` is set the ``TRANSMISSION_MODE_AUTO``
-the hardware will try to find the correct FFT-size (if capable) and will
-use TMCC to fill in the missing parameters.
-
-3) DVB-T specifies 2K and 8K as valid sizes.
-
-4) DVB-T2 specifies 1K, 2K, 4K, 8K, 16K and 32K.
-
-5) DTMB specifies C1 and C3780.
+   #. DTMB specifies C1 and C3780.
 
 
 .. _DTV-HIERARCHY:
@@ -1779,66 +911,11 @@ use TMCC to fill in the missing parameters.
 DTV_HIERARCHY
 =============
 
-Frontend hierarchy
+Used only on DVB-T and DVB-T2.
 
+Frontend hierarchy.
 
-.. c:type:: fe_hierarchy
-
-Frontend hierarchy
-------------------
-
-
-.. flat-table:: enum fe_hierarchy
-    :header-rows:  1
-    :stub-columns: 0
-
-
-    -  .. row 1
-
-       -  ID
-
-       -  Description
-
-    -  .. row 2
-
-       -  .. _HIERARCHY-NONE:
-
-	  ``HIERARCHY_NONE``
-
-       -  No hierarchy
-
-    -  .. row 3
-
-       -  .. _HIERARCHY-AUTO:
-
-	  ``HIERARCHY_AUTO``
-
-       -  Autodetect hierarchy (if supported)
-
-    -  .. row 4
-
-       -  .. _HIERARCHY-1:
-
-	  ``HIERARCHY_1``
-
-       -  Hierarchy 1
-
-    -  .. row 5
-
-       -  .. _HIERARCHY-2:
-
-	  ``HIERARCHY_2``
-
-       -  Hierarchy 2
-
-    -  .. row 6
-
-       -  .. _HIERARCHY-4:
-
-	  ``HIERARCHY_4``
-
-       -  Hierarchy 4
-
+The acceptable values are defined by :c:type:`fe_hierarchy`.
 
 
 .. _DTV-STREAM-ID:
@@ -1846,8 +923,10 @@ Frontend hierarchy
 DTV_STREAM_ID
 =============
 
+Used on DVB-S2, DVB-T2 and ISDB-S.
+
 DVB-S2, DVB-T2 and ISDB-S support the transmission of several streams on
-a single transport stream. This property enables the DVB driver to
+a single transport stream. This property enables the digital TV driver to
 handle substream filtering, when supported by the hardware. By default,
 substream filtering is disabled.
 
@@ -1884,60 +963,17 @@ with it, rather than trying to use FE_GET_INFO. In the case of a
 legacy frontend, the result is just the same as with FE_GET_INFO, but
 in a more structured format
 
+The acceptable values are defined by :c:type:`fe_delivery_system`.
+
 
 .. _DTV-INTERLEAVING:
 
 DTV_INTERLEAVING
 ================
 
-Time interleaving to be used. Currently, used only on DTMB.
+Time interleaving to be used.
 
-
-.. c:type:: fe_interleaving
-
-.. flat-table:: enum fe_interleaving
-    :header-rows:  1
-    :stub-columns: 0
-
-
-    -  .. row 1
-
-       -  ID
-
-       -  Description
-
-    -  .. row 2
-
-       -  .. _INTERLEAVING-NONE:
-
-	  ``INTERLEAVING_NONE``
-
-       -  No interleaving.
-
-    -  .. row 3
-
-       -  .. _INTERLEAVING-AUTO:
-
-	  ``INTERLEAVING_AUTO``
-
-       -  Auto-detect interleaving.
-
-    -  .. row 4
-
-       -  .. _INTERLEAVING-240:
-
-	  ``INTERLEAVING_240``
-
-       -  Interleaving of 240 symbols.
-
-    -  .. row 5
-
-       -  .. _INTERLEAVING-720:
-
-	  ``INTERLEAVING_720``
-
-       -  Interleaving of 720 symbols.
-
+The acceptable values are defined by :c:type:`fe_interleaving`.
 
 
 .. _DTV-LNA:
@@ -1958,3 +994,21 @@ Possible values: 0, 1, LNA_AUTO
 1, LNA on
 
 use the special macro LNA_AUTO to set LNA auto
+
+
+.. _DTV-SCRAMBLING-SEQUENCE-INDEX:
+
+DTV_SCRAMBLING_SEQUENCE_INDEX
+=============================
+
+Used on DVB-S2.
+
+This 18 bit field, when present, carries the index of the DVB-S2 physical
+layer scrambling sequence as defined in clause 5.5.4 of EN 302 307.
+There is no explicit signalling method to convey scrambling sequence index
+to the receiver. If S2 satellite delivery system descriptor is available
+it can be used to read the scrambling sequence index (EN 300 468 table 41).
+
+By default, gold scrambling sequence index 0 is used.
+
+The valid scrambling sequence index range is from 0 to 262142.

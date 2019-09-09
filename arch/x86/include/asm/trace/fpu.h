@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM x86_fpu
 
@@ -12,36 +13,25 @@ DECLARE_EVENT_CLASS(x86_fpu,
 
 	TP_STRUCT__entry(
 		__field(struct fpu *, fpu)
-		__field(bool, fpregs_active)
-		__field(bool, fpstate_active)
-		__field(int, counter)
+		__field(bool, load_fpu)
 		__field(u64, xfeatures)
 		__field(u64, xcomp_bv)
 		),
 
 	TP_fast_assign(
 		__entry->fpu		= fpu;
-		__entry->fpregs_active	= fpu->fpregs_active;
-		__entry->fpstate_active	= fpu->fpstate_active;
-		__entry->counter	= fpu->counter;
+		__entry->load_fpu	= test_thread_flag(TIF_NEED_FPU_LOAD);
 		if (boot_cpu_has(X86_FEATURE_OSXSAVE)) {
 			__entry->xfeatures = fpu->state.xsave.header.xfeatures;
 			__entry->xcomp_bv  = fpu->state.xsave.header.xcomp_bv;
 		}
 	),
-	TP_printk("x86/fpu: %p fpregs_active: %d fpstate_active: %d counter: %d xfeatures: %llx xcomp_bv: %llx",
+	TP_printk("x86/fpu: %p load: %d xfeatures: %llx xcomp_bv: %llx",
 			__entry->fpu,
-			__entry->fpregs_active,
-			__entry->fpstate_active,
-			__entry->counter,
+			__entry->load_fpu,
 			__entry->xfeatures,
 			__entry->xcomp_bv
 	)
-);
-
-DEFINE_EVENT(x86_fpu, x86_fpu_state,
-	TP_PROTO(struct fpu *fpu),
-	TP_ARGS(fpu)
 );
 
 DEFINE_EVENT(x86_fpu, x86_fpu_before_save,
@@ -70,16 +60,6 @@ DEFINE_EVENT(x86_fpu, x86_fpu_regs_activated,
 );
 
 DEFINE_EVENT(x86_fpu, x86_fpu_regs_deactivated,
-	TP_PROTO(struct fpu *fpu),
-	TP_ARGS(fpu)
-);
-
-DEFINE_EVENT(x86_fpu, x86_fpu_activate_state,
-	TP_PROTO(struct fpu *fpu),
-	TP_ARGS(fpu)
-);
-
-DEFINE_EVENT(x86_fpu, x86_fpu_deactivate_state,
 	TP_PROTO(struct fpu *fpu),
 	TP_ARGS(fpu)
 );

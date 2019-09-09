@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * C-Brick Serial Port (and console) driver for SGI Altix machines.
  *
@@ -7,25 +8,6 @@
  *
  *
  * Copyright (c) 2004-2006 Silicon Graphics, Inc.  All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * Further, this software is distributed without any warranty that it is
- * free of the rightful claim of any third person regarding infringement
- * or the like.  Any license provided herein, whether implied or
- * otherwise, applies only to this software file.  Patent licenses, if
- * any, provided herein do not apply to combinations of this program with
- * other software, or any other product whatsoever.
- *
- * You should have received a copy of the GNU General Public
- * License along with this program; if not, write the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston MA 02111-1307, USA.
  *
  * Contact information:  Silicon Graphics, Inc., 1500 Crittenden Lane,
  * Mountain View, CA  94043, or:
@@ -380,7 +362,7 @@ static void snp_config_port(struct uart_port *port, int flags)
 
 /* Associate the uart functions above - given to serial core */
 
-static struct uart_ops sn_console_ops = {
+static const struct uart_ops sn_console_ops = {
 	.tx_empty = snp_tx_empty,
 	.set_mctrl = snp_set_mctrl,
 	.get_mctrl = snp_get_mctrl,
@@ -631,9 +613,9 @@ static irqreturn_t sn_sal_interrupt(int irq, void *dev_id)
  * Obviously not used in interrupt mode
  *
  */
-static void sn_sal_timer_poll(unsigned long data)
+static void sn_sal_timer_poll(struct timer_list *t)
 {
-	struct sn_cons_port *port = (struct sn_cons_port *)data;
+	struct sn_cons_port *port = from_timer(port, t, sc_timer);
 	unsigned long flags;
 
 	if (!port)
@@ -687,9 +669,7 @@ static void __init sn_sal_switch_to_asynch(struct sn_cons_port *port)
 	 * timer to poll for input and push data from the console
 	 * buffer.
 	 */
-	init_timer(&port->sc_timer);
-	port->sc_timer.function = sn_sal_timer_poll;
-	port->sc_timer.data = (unsigned long)port;
+	timer_setup(&port->sc_timer, sn_sal_timer_poll, 0);
 
 	if (IS_RUNNING_ON_SIMULATOR())
 		port->sc_interrupt_timeout = 6;
@@ -909,7 +889,7 @@ sn_sal_console_write(struct console *co, const char *s, unsigned count)
 
 	/* somebody really wants this output, might be an
 	 * oops, kdb, panic, etc.  make sure they get it. */
-	if (spin_is_locked(&port->sc_port.lock)) {
+	if (!spin_trylock_irqsave(&port->sc_port.lock, flags)) {
 		int lhead = port->sc_port.state->xmit.head;
 		int ltail = port->sc_port.state->xmit.tail;
 		int counter, got_lock = 0;
@@ -926,13 +906,11 @@ sn_sal_console_write(struct console *co, const char *s, unsigned count)
 		 */
 
 		for (counter = 0; counter < 150; mdelay(125), counter++) {
-			if (!spin_is_locked(&port->sc_port.lock)
-			    || stole_lock) {
-				if (!stole_lock) {
-					spin_lock_irqsave(&port->sc_port.lock,
-							  flags);
-					got_lock = 1;
-				}
+			if (stole_lock)
+				break;
+
+			if (spin_trylock_irqsave(&port->sc_port.lock, flags)) {
+				got_lock = 1;
 				break;
 			} else {
 				/* still locked */
@@ -959,7 +937,6 @@ sn_sal_console_write(struct console *co, const char *s, unsigned count)
 		puts_raw_fixed(port->sc_ops->sal_puts_raw, s, count);
 	} else {
 		stole_lock = 0;
-		spin_lock_irqsave(&port->sc_port.lock, flags);
 		sn_transmit_chars(port, 1);
 		spin_unlock_irqrestore(&port->sc_port.lock, flags);
 

@@ -36,6 +36,9 @@
 #include <asm/mipsregs.h>
 #include <asm/bootinfo.h>
 #include <asm/sections.h>
+#include <asm/fw/fw.h>
+#include <asm/setup.h>
+#include <asm/prom.h>
 #include <asm/time.h>
 
 #include <asm/octeon/octeon.h>
@@ -71,7 +74,7 @@ static unsigned long long reserve_low_mem;
 DEFINE_SEMAPHORE(octeon_bootbus_sem);
 EXPORT_SYMBOL(octeon_bootbus_sem);
 
-struct octeon_boot_descriptor *octeon_boot_desc_ptr;
+static struct octeon_boot_descriptor *octeon_boot_desc_ptr;
 
 struct cvmx_bootinfo *octeon_bootinfo;
 EXPORT_SYMBOL(octeon_bootinfo);
@@ -95,7 +98,7 @@ static void octeon_kexec_smp_down(void *ignored)
 	"	sync						\n"
 	"	synci	($0)					\n");
 
-	relocated_kexec_smp_wait(NULL);
+	kexec_reboot();
 }
 #endif
 
@@ -350,7 +353,7 @@ EXPORT_SYMBOL(octeon_get_io_clock_rate);
  *
  * @s:	    String to write
  */
-void octeon_write_lcd(const char *s)
+static void octeon_write_lcd(const char *s)
 {
 	if (octeon_bootinfo->led_display_base_addr) {
 		void __iomem *lcd_address =
@@ -372,16 +375,10 @@ void octeon_write_lcd(const char *s)
  *
  * Returns uart	  (0 or 1)
  */
-int octeon_get_boot_uart(void)
+static int octeon_get_boot_uart(void)
 {
-	int uart;
-#ifdef CONFIG_CAVIUM_OCTEON_2ND_KERNEL
-	uart = 1;
-#else
-	uart = (octeon_boot_desc_ptr->flags & OCTEON_BL_FLAG_CONSOLE_UART1) ?
+	return (octeon_boot_desc_ptr->flags & OCTEON_BL_FLAG_CONSOLE_UART1) ?
 		1 : 0;
-#endif
-	return uart;
 }
 
 /**
@@ -901,14 +898,10 @@ void __init prom_init(void)
 	}
 
 	if (strstr(arcs_cmdline, "console=") == NULL) {
-#ifdef CONFIG_CAVIUM_OCTEON_2ND_KERNEL
-		strcat(arcs_cmdline, " console=ttyS0,115200");
-#else
 		if (octeon_uart == 1)
 			strcat(arcs_cmdline, " console=ttyS1,115200");
 		else
 			strcat(arcs_cmdline, " console=ttyS0,115200");
-#endif
 	}
 
 	mips_hpt_frequency = octeon_get_clock_rate();
@@ -948,6 +941,29 @@ static __init void memory_exclude_page(u64 addr, u64 *mem, u64 *size)
 	}
 }
 #endif /* CONFIG_CRASH_DUMP */
+
+void __init fw_init_cmdline(void)
+{
+	int i;
+
+	octeon_boot_desc_ptr = (struct octeon_boot_descriptor *)fw_arg3;
+	for (i = 0; i < octeon_boot_desc_ptr->argc; i++) {
+		const char *arg =
+			cvmx_phys_to_ptr(octeon_boot_desc_ptr->argv[i]);
+		if (strlen(arcs_cmdline) + strlen(arg) + 1 <
+			   sizeof(arcs_cmdline) - 1) {
+			strcat(arcs_cmdline, " ");
+			strcat(arcs_cmdline, arg);
+		}
+	}
+}
+
+void __init *plat_get_fdt(void)
+{
+	octeon_bootinfo =
+		cvmx_phys_to_ptr(octeon_boot_desc_ptr->cvmx_desc_vaddr);
+	return phys_to_virt(octeon_bootinfo->fdt_addr);
+}
 
 void __init plat_mem_setup(void)
 {
@@ -1095,7 +1111,7 @@ void __init plat_mem_setup(void)
  * Emit one character to the boot UART.	 Exported for use by the
  * watchdog timer.
  */
-int prom_putchar(char c)
+void prom_putchar(char c)
 {
 	uint64_t lsrval;
 
@@ -1106,7 +1122,6 @@ int prom_putchar(char c)
 
 	/* Write the byte */
 	cvmx_write_csr(CVMX_MIO_UARTX_THR(octeon_uart), c & 0xffull);
-	return 1;
 }
 EXPORT_SYMBOL(prom_putchar);
 
@@ -1141,26 +1156,19 @@ void __init prom_free_prom_memory(void)
 }
 
 void __init octeon_fill_mac_addresses(void);
-int octeon_prune_device_tree(void);
 
-extern const char __appended_dtb;
-extern const char __dtb_octeon_3xxx_begin;
-extern const char __dtb_octeon_68xx_begin;
 void __init device_tree_init(void)
 {
 	const void *fdt;
 	bool do_prune;
 	bool fill_mac;
 
-#ifdef CONFIG_MIPS_ELF_APPENDED_DTB
-	if (!fdt_check_header(&__appended_dtb)) {
-		fdt = &__appended_dtb;
+	if (fw_passed_dtb) {
+		fdt = (void *)fw_passed_dtb;
 		do_prune = false;
 		fill_mac = true;
 		pr_info("Using appended Device Tree.\n");
-	} else
-#endif
-	if (octeon_bootinfo->minor_version >= 3 && octeon_bootinfo->fdt_addr) {
+	} else if (octeon_bootinfo->minor_version >= 3 && octeon_bootinfo->fdt_addr) {
 		fdt = phys_to_virt(octeon_bootinfo->fdt_addr);
 		if (fdt_check_header(fdt))
 			panic("Corrupt Device Tree passed to kernel.");

@@ -16,7 +16,7 @@
 #include <linux/mtd/physmap.h>
 #include <linux/mv643xx_eth.h>
 #include <linux/ethtool.h>
-#include <net/dsa.h>
+#include <linux/platform_data/dsa.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/pci.h>
@@ -101,11 +101,6 @@ static struct dsa_chip_data rd88f5181l_fxo_switch_chip_data = {
 	.port_names[7]	= "lan3",
 };
 
-static struct dsa_platform_data __initdata rd88f5181l_fxo_switch_plat_data = {
-	.nr_chips	= 1,
-	.chip		= &rd88f5181l_fxo_switch_chip_data,
-};
-
 static void __init rd88f5181l_fxo_init(void)
 {
 	/*
@@ -120,7 +115,7 @@ static void __init rd88f5181l_fxo_init(void)
 	 */
 	orion5x_ehci0_init();
 	orion5x_eth_init(&rd88f5181l_fxo_eth_data);
-	orion5x_eth_switch_init(&rd88f5181l_fxo_switch_plat_data);
+	orion5x_eth_switch_init(&rd88f5181l_fxo_switch_chip_data);
 	orion5x_uart0_init();
 
 	mvebu_mbus_add_window_by_id(ORION_MBUS_DEVBUS_BOOT_TARGET,

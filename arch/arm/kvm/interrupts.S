@@ -1,19 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2012 - Virtual Open Systems and Columbia University
  * Author: Christoffer Dall <c.dall@virtualopensystems.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
 #include <linux/linkage.h>
@@ -37,16 +25,12 @@
  * in Hyp mode (see init_hyp_mode in arch/arm/kvm/arm.c).  Return values are
  * passed in r0 (strictly 32bit).
  *
- * A function pointer with a value of 0xffffffff has a special meaning,
- * and is used to implement __hyp_get_vectors in the same way as in
- * arch/arm/kernel/hyp_stub.S.
- *
  * The calling convention follows the standard AAPCS:
  *   r0 - r3: caller save
  *   r12:     caller save
  *   rest:    callee save
  */
-ENTRY(kvm_call_hyp)
+ENTRY(__kvm_call_hyp)
 	hvc	#0
 	bx	lr
-ENDPROC(kvm_call_hyp)
+ENDPROC(__kvm_call_hyp)

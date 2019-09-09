@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* (C) 1999-2001 Paul `Rusty' Russell
  * (C) 2002-2004 Netfilter Core Team <coreteam@netfilter.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -132,9 +129,10 @@ int nf_log_dump_tcp_header(struct nf_log_buf *m, const struct sk_buff *skb,
 }
 EXPORT_SYMBOL_GPL(nf_log_dump_tcp_header);
 
-void nf_log_dump_sk_uid_gid(struct nf_log_buf *m, struct sock *sk)
+void nf_log_dump_sk_uid_gid(struct net *net, struct nf_log_buf *m,
+			    struct sock *sk)
 {
-	if (!sk || !sk_fullsock(sk))
+	if (!sk || !sk_fullsock(sk) || !net_eq(net, sock_net(sk)))
 		return;
 
 	read_lock_bh(&sk->sk_callback_lock);
@@ -155,25 +153,51 @@ nf_log_dump_packet_common(struct nf_log_buf *m, u_int8_t pf,
 			  const struct net_device *out,
 			  const struct nf_loginfo *loginfo, const char *prefix)
 {
+	const struct net_device *physoutdev __maybe_unused;
+	const struct net_device *physindev __maybe_unused;
+
 	nf_log_buf_add(m, KERN_SOH "%c%sIN=%s OUT=%s ",
 	       '0' + loginfo->u.log.level, prefix,
 	       in ? in->name : "",
 	       out ? out->name : "");
 #if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
-	if (skb->nf_bridge) {
-		const struct net_device *physindev;
-		const struct net_device *physoutdev;
-
-		physindev = nf_bridge_get_physindev(skb);
-		if (physindev && in != physindev)
-			nf_log_buf_add(m, "PHYSIN=%s ", physindev->name);
-		physoutdev = nf_bridge_get_physoutdev(skb);
-		if (physoutdev && out != physoutdev)
-			nf_log_buf_add(m, "PHYSOUT=%s ", physoutdev->name);
-	}
+	physindev = nf_bridge_get_physindev(skb);
+	if (physindev && in != physindev)
+		nf_log_buf_add(m, "PHYSIN=%s ", physindev->name);
+	physoutdev = nf_bridge_get_physoutdev(skb);
+	if (physoutdev && out != physoutdev)
+		nf_log_buf_add(m, "PHYSOUT=%s ", physoutdev->name);
 #endif
 }
 EXPORT_SYMBOL_GPL(nf_log_dump_packet_common);
+
+/* bridge and netdev logging families share this code. */
+void nf_log_l2packet(struct net *net, u_int8_t pf,
+		     __be16 protocol,
+		     unsigned int hooknum,
+		     const struct sk_buff *skb,
+		     const struct net_device *in,
+		     const struct net_device *out,
+		     const struct nf_loginfo *loginfo,
+		     const char *prefix)
+{
+	switch (protocol) {
+	case htons(ETH_P_IP):
+		nf_log_packet(net, NFPROTO_IPV4, hooknum, skb, in, out,
+			      loginfo, "%s", prefix);
+		break;
+	case htons(ETH_P_IPV6):
+		nf_log_packet(net, NFPROTO_IPV6, hooknum, skb, in, out,
+			      loginfo, "%s", prefix);
+		break;
+	case htons(ETH_P_ARP):
+	case htons(ETH_P_RARP):
+		nf_log_packet(net, NFPROTO_ARP, hooknum, skb, in, out,
+			      loginfo, "%s", prefix);
+		break;
+	}
+}
+EXPORT_SYMBOL_GPL(nf_log_l2packet);
 
 static int __init nf_log_common_init(void)
 {

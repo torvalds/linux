@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright 2013-2014 Texas Instruments, Inc.
- *
  * Keystone 2 Kepler/Hawking EVM device tree
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * Copyright (C) 2013-2017 Texas Instruments Incorporated - http://www.ti.com/
  */
 /dts-v1/;
 
@@ -16,7 +13,44 @@
 	compatible =  "ti,k2hk-evm", "ti,k2hk", "ti,keystone";
 	model = "Texas Instruments Keystone 2 Kepler/Hawking EVM";
 
-	soc {
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		dsp_common_memory: dsp-common-memory@81f800000 {
+			compatible = "shared-dma-pool";
+			reg = <0x00000008 0x1f800000 0x00000000 0x800000>;
+			reusable;
+			status = "okay";
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		debug1_1 {
+			label = "keystone:green:debug1";
+			gpios = <&gpio0 12 GPIO_ACTIVE_HIGH>; /* 12 */
+		};
+
+		debug1_2 {
+			label = "keystone:red:debug1";
+			gpios = <&gpio0 13 GPIO_ACTIVE_HIGH>; /* 13 */
+		};
+
+		debug2 {
+			label = "keystone:blue:debug2";
+			gpios = <&gpio0 14 GPIO_ACTIVE_HIGH>; /* 14 */
+		};
+
+		debug3 {
+			label = "keystone:blue:debug3";
+			gpios = <&gpio0 15 GPIO_ACTIVE_HIGH>; /* 15 */
+		};
+	};
+};
+
+&soc0 {
 		clocks {
 			refclksys: refclksys {
 				#clock-cells = <0>;
@@ -53,30 +87,6 @@
 				clock-output-names = "refclk-ddr3b";
 			};
 		};
-	};
-
-	leds {
-		compatible = "gpio-leds";
-		debug1_1 {
-			label = "keystone:green:debug1";
-			gpios = <&gpio0 12 GPIO_ACTIVE_HIGH>; /* 12 */
-		};
-
-		debug1_2 {
-			label = "keystone:red:debug1";
-			gpios = <&gpio0 13 GPIO_ACTIVE_HIGH>; /* 13 */
-		};
-
-		debug2 {
-			label = "keystone:blue:debug2";
-			gpios = <&gpio0 14 GPIO_ACTIVE_HIGH>; /* 14 */
-		};
-
-		debug3 {
-			label = "keystone:blue:debug3";
-			gpios = <&gpio0 15 GPIO_ACTIVE_HIGH>; /* 15 */
-		};
-	};
 };
 
 &usb_phy {
@@ -145,7 +155,7 @@
 
 &i2c0 {
 	dtt@50 {
-		compatible = "at,24c1024";
+		compatible = "atmel,24c1024";
 		reg = <0x50>;
 	};
 };
@@ -183,4 +193,44 @@
 		compatible = "marvell,88E1111", "ethernet-phy-ieee802.3-c22";
 		reg = <1>;
 	};
+};
+
+&dsp0 {
+	memory-region = <&dsp_common_memory>;
+	status = "okay";
+};
+
+&dsp1 {
+	memory-region = <&dsp_common_memory>;
+	status = "okay";
+};
+
+&dsp2 {
+	memory-region = <&dsp_common_memory>;
+	status = "okay";
+};
+
+&dsp3 {
+	memory-region = <&dsp_common_memory>;
+	status = "okay";
+};
+
+&dsp4 {
+	memory-region = <&dsp_common_memory>;
+	status = "okay";
+};
+
+&dsp5 {
+	memory-region = <&dsp_common_memory>;
+	status = "okay";
+};
+
+&dsp6 {
+	memory-region = <&dsp_common_memory>;
+	status = "okay";
+};
+
+&dsp7 {
+	memory-region = <&dsp_common_memory>;
+	status = "okay";
 };

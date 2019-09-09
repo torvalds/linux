@@ -1,12 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * OMAP2/3 Power Management Routines
  *
  * Copyright (C) 2008 Nokia Corporation
  * Jouni Hogander
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #ifndef __ARCH_ARM_MACH_OMAP2_PM_H
 #define __ARCH_ARM_MACH_OMAP2_PM_H
@@ -81,9 +78,8 @@ extern unsigned int omap3_do_wfi_sz;
 /* ... and its pointer from SRAM after copy */
 extern void (*omap3_do_wfi_sram)(void);
 
-/* save_secure_ram_context function pointer and size, for copy to SRAM */
-extern int save_secure_ram_context(u32 *addr);
-extern unsigned int save_secure_ram_context_sz;
+extern struct am33xx_pm_sram_addr am33xx_pm_sram;
+extern struct am33xx_pm_sram_addr am43xx_pm_sram;
 
 extern void omap3_save_scratchpad_contents(void);
 

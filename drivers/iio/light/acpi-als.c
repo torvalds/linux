@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * ACPI Ambient Light Sensor Driver
  *
@@ -10,20 +11,6 @@
  * Final cleanup and debugging:
  * Copyright (C) 2013-2014 Marek Vasut <marex@denx.de>
  * Copyright (C) 2015 Gabriele Mazzotta <gabriele.mzt@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 
 #include <linux/module.h>
@@ -171,7 +158,6 @@ static int acpi_als_read_raw(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info acpi_als_info = {
-	.driver_module		= THIS_MODULE,
 	.read_raw		= acpi_als_read_raw,
 };
 

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * drivers/media/platform/s5p-mfc/s5p_mfc_debug.h
  *
@@ -6,10 +7,6 @@
  *
  * Kamil Debski, Copyright (c) 2011 Samsung Electronics
  * http://www.samsung.com/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef S5P_MFC_DEBUG_H_
@@ -36,6 +33,12 @@ extern int mfc_debug_level;
 #define mfc_err(fmt, args...)				\
 	do {						\
 		printk(KERN_ERR "%s:%d: " fmt,		\
+		       __func__, __LINE__, ##args);	\
+	} while (0)
+
+#define mfc_err_limited(fmt, args...)			\
+	do {						\
+		printk_ratelimited(KERN_ERR "%s:%d: " fmt,	\
 		       __func__, __LINE__, ##args);	\
 	} while (0)
 

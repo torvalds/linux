@@ -42,13 +42,15 @@ Required properties:
 			  means all the settings for Receiving would be
 			  duplicated from Transmition related registers.
 
+Optional properties:
+
   - big-endian		: If this property is absent, the native endian mode
 			  will be in use as default, or the big endian mode
 			  will be in use for all the device registers.
 
 Example:
 
-esai: esai@02024000 {
+esai: esai@2024000 {
 	compatible = "fsl,imx35-esai";
 	reg = <0x02024000 0x4000>;
 	interrupts = <0 51 0x04>;
@@ -59,5 +61,4 @@ esai: esai@02024000 {
 	fsl,fifo-depth = <128>;
 	fsl,esai-synchronous;
 	big-endian;
-	status = "disabled";
 };

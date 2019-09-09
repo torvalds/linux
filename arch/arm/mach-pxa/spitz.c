@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Support for Sharp SL-Cxx00 Series of PDAs
  * Models: SL-C3000 (Spitz), SL-C1000 (Akita) and SL-C3100 (Borzoi)
@@ -5,11 +6,6 @@
  * Copyright (c) 2005 Richard Purdie
  *
  * Based on Sharp's 2.4 kernel patches/lubbock.c
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/kernel.h>
@@ -18,9 +14,10 @@
 #include <linux/delay.h>
 #include <linux/gpio_keys.h>
 #include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/leds.h>
 #include <linux/i2c.h>
-#include <linux/i2c/pxa-i2c.h>
+#include <linux/platform_data/i2c-pxa.h>
 #include <linux/platform_data/pca953x.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
@@ -31,7 +28,6 @@
 #include <linux/input/matrix_keypad.h>
 #include <linux/regulator/machine.h>
 #include <linux/io.h>
-#include <linux/module.h>
 #include <linux/reboot.h>
 #include <linux/memblock.h>
 
@@ -572,7 +568,7 @@ static struct spi_board_info spitz_spi_devices[] = {
 	},
 };
 
-static struct pxa2xx_spi_master spitz_spi_info = {
+static struct pxa2xx_spi_controller spitz_spi_info = {
 	.num_chipselect	= 3,
 };
 
@@ -616,13 +612,22 @@ static struct pxamci_platform_data spitz_mci_platform_data = {
 	.detect_delay_ms	= 250,
 	.ocr_mask		= MMC_VDD_32_33|MMC_VDD_33_34,
 	.setpower		= spitz_mci_setpower,
-	.gpio_card_detect	= SPITZ_GPIO_nSD_DETECT,
-	.gpio_card_ro		= SPITZ_GPIO_nSD_WP,
-	.gpio_power		= -1,
+};
+
+static struct gpiod_lookup_table spitz_mci_gpio_table = {
+	.dev_id = "pxa2xx-mci.0",
+	.table = {
+		GPIO_LOOKUP("gpio-pxa", SPITZ_GPIO_nSD_DETECT,
+			    "cd", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("gpio-pxa", SPITZ_GPIO_nSD_WP,
+			    "wp", GPIO_ACTIVE_LOW),
+		{ },
+	},
 };
 
 static void __init spitz_mmc_init(void)
 {
+	gpiod_add_lookup_table(&spitz_mci_gpio_table);
 	pxa_set_mci_info(&spitz_mci_platform_data);
 }
 #else
@@ -740,21 +745,6 @@ static inline void spitz_lcd_init(void) {}
  * NAND Flash
  ******************************************************************************/
 #if defined(CONFIG_MTD_NAND_SHARPSL) || defined(CONFIG_MTD_NAND_SHARPSL_MODULE)
-static struct mtd_partition spitz_nand_partitions[] = {
-	{
-		.name = "System Area",
-		.offset = 0,
-		.size = 7 * 1024 * 1024,
-	}, {
-		.name = "Root Filesystem",
-		.offset = 7 * 1024 * 1024,
-	}, {
-		.name = "Home Filesystem",
-		.offset = MTDPART_OFS_APPEND,
-		.size = MTDPART_SIZ_FULL,
-	},
-};
-
 static uint8_t scan_ff_pattern[] = { 0xff, 0xff };
 
 static struct nand_bbt_descr spitz_nand_bbt = {
@@ -809,10 +799,16 @@ static const struct mtd_ooblayout_ops akita_ooblayout_ops = {
 	.free = akita_ooblayout_free,
 };
 
+static const char * const probes[] = {
+	"cmdlinepart",
+	"ofpart",
+	"sharpslpart",
+	NULL,
+};
+
 static struct sharpsl_nand_platform_data spitz_nand_pdata = {
 	.badblock_pattern	= &spitz_nand_bbt,
-	.partitions		= spitz_nand_partitions,
-	.nr_partitions		= ARRAY_SIZE(spitz_nand_partitions),
+	.part_parsers		= probes,
 };
 
 static struct resource spitz_nand_resources[] = {
@@ -835,14 +831,7 @@ static struct platform_device spitz_nand_device = {
 
 static void __init spitz_nand_init(void)
 {
-	if (machine_is_spitz()) {
-		spitz_nand_partitions[1].size = 5 * 1024 * 1024;
-	} else if (machine_is_akita()) {
-		spitz_nand_partitions[1].size = 58 * 1024 * 1024;
-		spitz_nand_bbt.len = 1;
-		spitz_nand_pdata.ecc_layout = &akita_ooblayout_ops;
-	} else if (machine_is_borzoi()) {
-		spitz_nand_partitions[1].size = 32 * 1024 * 1024;
+	if (machine_is_akita() || machine_is_borzoi()) {
 		spitz_nand_bbt.len = 1;
 		spitz_nand_pdata.ecc_layout = &akita_ooblayout_ops;
 	}

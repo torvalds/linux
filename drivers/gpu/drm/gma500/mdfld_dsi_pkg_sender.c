@@ -24,12 +24,14 @@
  * Jackie Li<yaodong.li@intel.com>
  */
 
+#include <linux/delay.h>
 #include <linux/freezer.h>
+
 #include <video/mipi_display.h>
 
+#include "mdfld_dsi_dpi.h"
 #include "mdfld_dsi_output.h"
 #include "mdfld_dsi_pkg_sender.h"
-#include "mdfld_dsi_dpi.h"
 
 #define MDFLD_DSI_READ_MAX_COUNT		5000
 
@@ -520,7 +522,7 @@ static int __read_panel_data(struct mdfld_dsi_pkg_sender *sender, u8 data_type,
 			u8 *data, u16 len, u32 *data_out, u16 len_out, bool hs)
 {
 	unsigned long flags;
-	struct drm_device *dev = sender->dev;
+	struct drm_device *dev;
 	int i;
 	u32 gen_data_reg;
 	int retry = MDFLD_DSI_READ_MAX_COUNT;
@@ -529,6 +531,8 @@ static int __read_panel_data(struct mdfld_dsi_pkg_sender *sender, u8 data_type,
 		DRM_ERROR("Invalid parameters\n");
 		return -EINVAL;
 	}
+
+	dev = sender->dev;
 
 	/**
 	 * do reading.

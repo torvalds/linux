@@ -1,10 +1,11 @@
-/* tuner-xc2028_types
+/*
+ * SPDX-License-Identifier: GPL-2.0
+ * tuner-xc2028_types
  *
  * This file includes internal tipes to be used inside tuner-xc2028.
  * Shouldn't be included outside tuner-xc2028
  *
- * Copyright (c) 2007-2008 Mauro Carvalho Chehab (mchehab@infradead.org)
- * This code is placed under the terms of the GNU General Public License v2
+ * Copyright (c) 2007-2008 Mauro Carvalho Chehab <mchehab@kernel.org>
  */
 
 /* xc3028 firmware types */

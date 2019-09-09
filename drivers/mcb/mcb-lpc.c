@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * MEN Chameleon Bus.
  *
  * Copyright (C) 2014 MEN Mikroelektronik GmbH (www.men.de)
  * Author: Andreas Werner <andreas.werner@men.de>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; version 2 of the License.
  */
 
 #include <linux/platform_device.h>
@@ -114,6 +111,12 @@ static struct resource sc24_fpga_resource = {
 	.flags = IORESOURCE_MEM,
 };
 
+static struct resource sc31_fpga_resource = {
+	.start = 0xf000e000,
+	.end = 0xf000e000 + CHAM_HEADER_SIZE,
+	.flags = IORESOURCE_MEM,
+};
+
 static struct platform_driver mcb_lpc_driver = {
 	.driver		= {
 		.name = "mcb-lpc",
@@ -130,6 +133,15 @@ static const struct dmi_system_id mcb_lpc_dmi_table[] = {
 			DMI_MATCH(DMI_PRODUCT_VERSION, "14SC24"),
 		},
 		.driver_data = (void *)&sc24_fpga_resource,
+		.callback = mcb_lpc_create_platform_device,
+	},
+	{
+		.ident = "SC31",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "MEN"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "14SC31"),
+		},
+		.driver_data = (void *)&sc31_fpga_resource,
 		.callback = mcb_lpc_create_platform_device,
 	},
 	{}

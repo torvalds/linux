@@ -1,38 +1,35 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_probe_helper.h>
+#include <drm/drm_atomic_helper.h>
 
 #include "bochs.h"
 
-static bool enable_fbdev = true;
-module_param_named(fbdev, enable_fbdev, bool, 0444);
-MODULE_PARM_DESC(fbdev, "register fbdev device");
+static int bochs_modeset = -1;
+module_param_named(modeset, bochs_modeset, int, 0444);
+MODULE_PARM_DESC(modeset, "enable/disable kernel modesetting");
 
 /* ---------------------------------------------------------------------- */
 /* drm interface                                                          */
 
-static int bochs_unload(struct drm_device *dev)
+static void bochs_unload(struct drm_device *dev)
 {
 	struct bochs_device *bochs = dev->dev_private;
 
-	bochs_fbdev_fini(bochs);
 	bochs_kms_fini(bochs);
 	bochs_mm_fini(bochs);
 	bochs_hw_fini(dev);
 	kfree(bochs);
 	dev->dev_private = NULL;
-	return 0;
 }
 
-static int bochs_load(struct drm_device *dev, unsigned long flags)
+static int bochs_load(struct drm_device *dev)
 {
 	struct bochs_device *bochs;
 	int ret;
@@ -43,7 +40,7 @@ static int bochs_load(struct drm_device *dev, unsigned long flags)
 	dev->dev_private = bochs;
 	bochs->dev = dev;
 
-	ret = bochs_hw_init(dev, flags);
+	ret = bochs_hw_init(dev);
 	if (ret)
 		goto err;
 
@@ -55,9 +52,6 @@ static int bochs_load(struct drm_device *dev, unsigned long flags)
 	if (ret)
 		goto err;
 
-	if (enable_fbdev)
-		bochs_fbdev_init(bochs);
-
 	return 0;
 
 err:
@@ -67,33 +61,20 @@ err:
 
 static const struct file_operations bochs_fops = {
 	.owner		= THIS_MODULE,
-	.open		= drm_open,
-	.release	= drm_release,
-	.unlocked_ioctl	= drm_ioctl,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl	= drm_compat_ioctl,
-#endif
-	.poll		= drm_poll,
-	.read		= drm_read,
-	.llseek		= no_llseek,
-	.mmap           = bochs_mmap,
+	DRM_VRAM_MM_FILE_OPERATIONS
 };
 
 static struct drm_driver bochs_driver = {
-	.driver_features	= DRIVER_GEM | DRIVER_MODESET,
-	.load			= bochs_load,
-	.unload			= bochs_unload,
-	.set_busid		= drm_pci_set_busid,
+	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC |
+				  DRIVER_PRIME,
 	.fops			= &bochs_fops,
 	.name			= "bochs-drm",
 	.desc			= "bochs dispi vga interface (qemu stdvga)",
 	.date			= "20130925",
 	.major			= 1,
 	.minor			= 0,
-	.gem_free_object_unlocked = bochs_gem_free_object,
-	.dumb_create            = bochs_dumb_create,
-	.dumb_map_offset        = bochs_dumb_mmap_offset,
-	.dumb_destroy           = drm_gem_dumb_destroy,
+	DRM_GEM_VRAM_DRIVER,
+	DRM_GEM_VRAM_DRIVER_PRIME,
 };
 
 /* ---------------------------------------------------------------------- */
@@ -104,35 +85,16 @@ static int bochs_pm_suspend(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct drm_device *drm_dev = pci_get_drvdata(pdev);
-	struct bochs_device *bochs = drm_dev->dev_private;
 
-	drm_kms_helper_poll_disable(drm_dev);
-
-	if (bochs->fb.initialized) {
-		console_lock();
-		drm_fb_helper_set_suspend(&bochs->fb.helper, 1);
-		console_unlock();
-	}
-
-	return 0;
+	return drm_mode_config_helper_suspend(drm_dev);
 }
 
 static int bochs_pm_resume(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct drm_device *drm_dev = pci_get_drvdata(pdev);
-	struct bochs_device *bochs = drm_dev->dev_private;
 
-	drm_helper_resume_force_mode(drm_dev);
-
-	if (bochs->fb.initialized) {
-		console_lock();
-		drm_fb_helper_set_suspend(&bochs->fb.helper, 0);
-		console_unlock();
-	}
-
-	drm_kms_helper_poll_enable(drm_dev);
-	return 0;
+	return drm_mode_config_helper_resume(drm_dev);
 }
 #endif
 
@@ -144,25 +106,10 @@ static const struct dev_pm_ops bochs_pm_ops = {
 /* ---------------------------------------------------------------------- */
 /* pci interface                                                          */
 
-static int bochs_kick_out_firmware_fb(struct pci_dev *pdev)
-{
-	struct apertures_struct *ap;
-
-	ap = alloc_apertures(1);
-	if (!ap)
-		return -ENOMEM;
-
-	ap->ranges[0].base = pci_resource_start(pdev, 0);
-	ap->ranges[0].size = pci_resource_len(pdev, 0);
-	drm_fb_helper_remove_conflicting_framebuffers(ap, "bochsdrmfb", false);
-	kfree(ap);
-
-	return 0;
-}
-
 static int bochs_pci_probe(struct pci_dev *pdev,
 			   const struct pci_device_id *ent)
 {
+	struct drm_device *dev;
 	unsigned long fbsize;
 	int ret;
 
@@ -172,18 +119,47 @@ static int bochs_pci_probe(struct pci_dev *pdev,
 		return -ENOMEM;
 	}
 
-	ret = bochs_kick_out_firmware_fb(pdev);
+	ret = drm_fb_helper_remove_conflicting_pci_framebuffers(pdev, 0, "bochsdrmfb");
 	if (ret)
 		return ret;
 
-	return drm_get_pci_dev(pdev, ent, &bochs_driver);
+	dev = drm_dev_alloc(&bochs_driver, &pdev->dev);
+	if (IS_ERR(dev))
+		return PTR_ERR(dev);
+
+	ret = pci_enable_device(pdev);
+	if (ret)
+		goto err_free_dev;
+
+	dev->pdev = pdev;
+	pci_set_drvdata(pdev, dev);
+
+	ret = bochs_load(dev);
+	if (ret)
+		goto err_free_dev;
+
+	ret = drm_dev_register(dev, 0);
+	if (ret)
+		goto err_unload;
+
+	drm_fbdev_generic_setup(dev, 32);
+	return ret;
+
+err_unload:
+	bochs_unload(dev);
+err_free_dev:
+	drm_dev_put(dev);
+	return ret;
 }
 
 static void bochs_pci_remove(struct pci_dev *pdev)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
 
-	drm_put_dev(dev);
+	drm_atomic_helper_shutdown(dev);
+	drm_dev_unregister(dev);
+	bochs_unload(dev);
+	drm_dev_put(dev);
 }
 
 static const struct pci_device_id bochs_pci_tbl[] = {
@@ -217,12 +193,18 @@ static struct pci_driver bochs_pci_driver = {
 
 static int __init bochs_init(void)
 {
-	return drm_pci_init(&bochs_driver, &bochs_pci_driver);
+	if (vgacon_text_force() && bochs_modeset == -1)
+		return -EINVAL;
+
+	if (bochs_modeset == 0)
+		return -EINVAL;
+
+	return pci_register_driver(&bochs_pci_driver);
 }
 
 static void __exit bochs_exit(void)
 {
-	drm_pci_exit(&bochs_driver, &bochs_pci_driver);
+	pci_unregister_driver(&bochs_pci_driver);
 }
 
 module_init(bochs_init);

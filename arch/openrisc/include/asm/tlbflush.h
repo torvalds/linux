@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * OpenRISC Linux
  *
@@ -9,11 +10,6 @@
  * Copyright (C) 2003 Matjaz Breskvar <phoenix@bsemi.com>
  * Copyright (C) 2010-2011 Jonas Bonn <jonas@southpole.se>
  * et al.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #ifndef __ASM_OPENRISC_TLBFLUSH_H
@@ -33,13 +29,26 @@
  *  - flush_tlb_page(vma, vmaddr) flushes one page
  *  - flush_tlb_range(mm, start, end) flushes a range of pages
  */
+extern void local_flush_tlb_all(void);
+extern void local_flush_tlb_mm(struct mm_struct *mm);
+extern void local_flush_tlb_page(struct vm_area_struct *vma,
+				 unsigned long addr);
+extern void local_flush_tlb_range(struct vm_area_struct *vma,
+				  unsigned long start,
+				  unsigned long end);
 
-void flush_tlb_all(void);
-void flush_tlb_mm(struct mm_struct *mm);
-void flush_tlb_page(struct vm_area_struct *vma, unsigned long addr);
-void flush_tlb_range(struct vm_area_struct *vma,
-		     unsigned long start,
-		     unsigned long end);
+#ifndef CONFIG_SMP
+#define flush_tlb_all	local_flush_tlb_all
+#define flush_tlb_mm	local_flush_tlb_mm
+#define flush_tlb_page	local_flush_tlb_page
+#define flush_tlb_range	local_flush_tlb_range
+#else
+extern void flush_tlb_all(void);
+extern void flush_tlb_mm(struct mm_struct *mm);
+extern void flush_tlb_page(struct vm_area_struct *vma, unsigned long addr);
+extern void flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
+			    unsigned long end);
+#endif
 
 static inline void flush_tlb(void)
 {

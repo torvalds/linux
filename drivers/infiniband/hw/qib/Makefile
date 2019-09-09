@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 obj-$(CONFIG_INFINIBAND_QIB) += ib_qib.o
 
 ib_qib-y := qib_diag.o qib_driver.o qib_eeprom.o \

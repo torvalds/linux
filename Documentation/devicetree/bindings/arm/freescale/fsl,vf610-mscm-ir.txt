@@ -18,9 +18,6 @@ Required properties:
 			assignment of the interrupt router is required.
 			Flags get passed only when using GIC as parent. Flags
 			encoding as documented by the GIC bindings.
-- interrupt-parent:	Should be the phandle for the interrupt controller of
-			the CPU the device tree is intended to be used on. This
-			is either the node of the GIC or NVIC controller.
 
 Example:
 	mscm_ir: interrupt-controller@40001800 {

@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (C) 2000 Takashi Iwai <tiwai@suse.de>
  *
  *  Routines for control of EMU WaveTable chip
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 #include <linux/wait.h>
@@ -47,13 +34,13 @@ int snd_emux_new(struct snd_emux **remu)
 	mutex_init(&emu->register_mutex);
 
 	emu->client = -1;
-#ifdef CONFIG_SND_SEQUENCER_OSS
+#if IS_ENABLED(CONFIG_SND_SEQUENCER_OSS)
 	emu->oss_synth = NULL;
 #endif
 	emu->max_voices = 0;
 	emu->use_time = 0;
 
-	setup_timer(&emu->tlist, snd_emux_timer_callback, (unsigned long)emu);
+	timer_setup(&emu->tlist, snd_emux_timer_callback, 0);
 	emu->timer_active = 0;
 
 	*remu = emu;
@@ -123,7 +110,7 @@ int snd_emux_register(struct snd_emux *emu, struct snd_card *card, int index, ch
 	snd_emux_init_voices(emu);
 
 	snd_emux_init_seq(emu, card, index);
-#ifdef CONFIG_SND_SEQUENCER_OSS
+#if IS_ENABLED(CONFIG_SND_SEQUENCER_OSS)
 	snd_emux_init_seq_oss(emu);
 #endif
 	snd_emux_init_virmidi(emu, card);
@@ -150,7 +137,7 @@ int snd_emux_free(struct snd_emux *emu)
 
 	snd_emux_proc_free(emu);
 	snd_emux_delete_virmidi(emu);
-#ifdef CONFIG_SND_SEQUENCER_OSS
+#if IS_ENABLED(CONFIG_SND_SEQUENCER_OSS)
 	snd_emux_detach_seq_oss(emu);
 #endif
 	snd_emux_detach_seq(emu);
@@ -163,20 +150,3 @@ int snd_emux_free(struct snd_emux *emu)
 }
 
 EXPORT_SYMBOL(snd_emux_free);
-
-
-/*
- *  INIT part
- */
-
-static int __init alsa_emux_init(void)
-{
-	return 0;
-}
-
-static void __exit alsa_emux_exit(void)
-{
-}
-
-module_init(alsa_emux_init)
-module_exit(alsa_emux_exit)

@@ -1,13 +1,14 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Makefile for the Linux/MIPS kernel.
 #
 
 extra-y		:= head.o vmlinux.lds
 
-obj-y		+= cpu-probe.o branch.o elf.o entry.o genex.o idle.o irq.o \
+obj-y		+= cmpxchg.o cpu-probe.o branch.o elf.o entry.o genex.o idle.o irq.o \
 		   process.o prom.o ptrace.o reset.o setup.o signal.o \
 		   syscall.o time.o topology.o traps.o unaligned.o watch.o \
-		   vdso.o
+		   vdso.o cacheinfo.o
 
 ifdef CONFIG_FUNCTION_TRACER
 CFLAGS_REMOVE_ftrace.o = -pg
@@ -30,17 +31,19 @@ obj-$(CONFIG_SYNC_R4K)		+= sync-r4k.o
 
 obj-$(CONFIG_DEBUG_FS)		+= segment.o
 obj-$(CONFIG_STACKTRACE)	+= stacktrace.o
-obj-$(CONFIG_MODULES)		+= mips_ksyms.o module.o
-obj-$(CONFIG_MODULES_USE_ELF_RELA) += module-rela.o
+obj-$(CONFIG_MODULES)		+= module.o
 
 obj-$(CONFIG_FTRACE_SYSCALLS)	+= ftrace.o
 obj-$(CONFIG_FUNCTION_TRACER)	+= mcount.o ftrace.o
 
-obj-$(CONFIG_CPU_R4K_FPU)	+= r4k_fpu.o r4k_switch.o
-obj-$(CONFIG_CPU_R3000)		+= r2300_fpu.o r2300_switch.o
-obj-$(CONFIG_CPU_R6000)		+= r6000_fpu.o r4k_switch.o
-obj-$(CONFIG_CPU_TX39XX)	+= r2300_fpu.o r2300_switch.o
-obj-$(CONFIG_CPU_CAVIUM_OCTEON)	+= r4k_fpu.o octeon_switch.o
+sw-y				:= r4k_switch.o
+sw-$(CONFIG_CPU_R3000)		:= r2300_switch.o
+sw-$(CONFIG_CPU_TX39XX)		:= r2300_switch.o
+sw-$(CONFIG_CPU_CAVIUM_OCTEON)	:= octeon_switch.o
+obj-y				+= $(sw-y)
+
+obj-$(CONFIG_CPU_R2300_FPU)	+= r2300_fpu.o
+obj-$(CONFIG_CPU_R4K_FPU)	+= r4k_fpu.o
 
 obj-$(CONFIG_SMP)		+= smp.o
 obj-$(CONFIG_SMP_UP)		+= smp-up.o
@@ -68,7 +71,7 @@ obj-$(CONFIG_IRQ_GT641XX)	+= irq-gt641xx.o
 
 obj-$(CONFIG_KPROBES)		+= kprobes.o
 obj-$(CONFIG_32BIT)		+= scall32-o32.o
-obj-$(CONFIG_64BIT)		+= scall64-64.o
+obj-$(CONFIG_64BIT)		+= scall64-n64.o
 obj-$(CONFIG_MIPS32_COMPAT)	+= linux32.o ptrace32.o signal32.o
 obj-$(CONFIG_MIPS32_N32)	+= binfmt_elfn32.o scall64-n32.o signal_n32.o
 obj-$(CONFIG_MIPS32_O32)	+= binfmt_elfo32.o scall64-o32.o signal_o32.o
@@ -108,23 +111,5 @@ obj-$(CONFIG_MIPS_CPC)		+= mips-cpc.o
 
 obj-$(CONFIG_CPU_PM)		+= pm.o
 obj-$(CONFIG_MIPS_CPS_PM)	+= pm-cps.o
-
-#
-# DSP ASE supported for MIPS32 or MIPS64 Release 2 cores only. It is not
-# safe to unconditionnaly use the assembler -mdsp / -mdspr2 switches
-# here because the compiler may use DSP ASE instructions (such as lwx) in
-# code paths where we cannot check that the CPU we are running on supports it.
-# Proper abstraction using HAVE_AS_DSP and macros is done in
-# arch/mips/include/asm/mipsregs.h.
-#
-ifeq ($(CONFIG_CPU_MIPSR2), y)
-CFLAGS_DSP 			= -DHAVE_AS_DSP
-
-CFLAGS_signal.o			= $(CFLAGS_DSP)
-CFLAGS_signal32.o		= $(CFLAGS_DSP)
-CFLAGS_process.o		= $(CFLAGS_DSP)
-CFLAGS_branch.o			= $(CFLAGS_DSP)
-CFLAGS_ptrace.o			= $(CFLAGS_DSP)
-endif
 
 CPPFLAGS_vmlinux.lds		:= $(KBUILD_CFLAGS)

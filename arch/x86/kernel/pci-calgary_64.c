@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Derived from arch/powerpc/kernel/iommu.c
  *
@@ -7,19 +8,6 @@
  * Author: Jon Mason <jdmason@kudzu.us>
  * Author: Muli Ben-Yehuda <muli@il.ibm.com>
 
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 #define pr_fmt(fmt) "Calgary: " fmt
@@ -33,6 +21,7 @@
 #include <linux/string.h>
 #include <linux/crash_dump.h>
 #include <linux/dma-mapping.h>
+#include <linux/dma-direct.h>
 #include <linux/bitmap.h>
 #include <linux/pci_ids.h>
 #include <linux/pci.h>
@@ -154,8 +143,6 @@ static const unsigned long phb_debug_offsets[] = {
 
 #define PHB_DEBUG_STUFF_OFFSET	0x0020
 
-#define EMERGENCY_PAGES 32 /* = 128KB */
-
 unsigned int specified_table_size = TCE_TABLE_SIZE_UNSPECIFIED;
 static int translate_empty_slots __read_mostly = 0;
 static int calgary_detected __read_mostly = 0;
@@ -252,7 +239,7 @@ static unsigned long iommu_range_alloc(struct device *dev,
 			if (panic_on_overflow)
 				panic("Calgary: fix the allocator.\n");
 			else
-				return DMA_ERROR_CODE;
+				return DMA_MAPPING_ERROR;
 		}
 	}
 
@@ -271,11 +258,10 @@ static dma_addr_t iommu_alloc(struct device *dev, struct iommu_table *tbl,
 	dma_addr_t ret;
 
 	entry = iommu_range_alloc(dev, tbl, npages);
-
-	if (unlikely(entry == DMA_ERROR_CODE)) {
+	if (unlikely(entry == DMA_MAPPING_ERROR)) {
 		pr_warn("failed to allocate %u pages in iommu %p\n",
 			npages, tbl);
-		return DMA_ERROR_CODE;
+		return DMA_MAPPING_ERROR;
 	}
 
 	/* set the return dma address */
@@ -291,12 +277,10 @@ static void iommu_free(struct iommu_table *tbl, dma_addr_t dma_addr,
 	unsigned int npages)
 {
 	unsigned long entry;
-	unsigned long badend;
 	unsigned long flags;
 
 	/* were we called with bad_dma_address? */
-	badend = DMA_ERROR_CODE + (EMERGENCY_PAGES * PAGE_SIZE);
-	if (unlikely((dma_addr >= DMA_ERROR_CODE) && (dma_addr < badend))) {
+	if (unlikely(dma_addr == DMA_MAPPING_ERROR)) {
 		WARN(1, KERN_ERR "Calgary: driver tried unmapping bad DMA "
 		       "address 0x%Lx\n", dma_addr);
 		return;
@@ -380,7 +364,7 @@ static int calgary_map_sg(struct device *dev, struct scatterlist *sg,
 		npages = iommu_num_pages(vaddr, s->length, PAGE_SIZE);
 
 		entry = iommu_range_alloc(dev, tbl, npages);
-		if (entry == DMA_ERROR_CODE) {
+		if (entry == DMA_MAPPING_ERROR) {
 			/* makes sure unmap knows to stop */
 			s->dma_length = 0;
 			goto error;
@@ -398,7 +382,7 @@ static int calgary_map_sg(struct device *dev, struct scatterlist *sg,
 error:
 	calgary_unmap_sg(dev, sg, nelems, dir, 0);
 	for_each_sg(sg, s, nelems, i) {
-		sg->dma_address = DMA_ERROR_CODE;
+		sg->dma_address = DMA_MAPPING_ERROR;
 		sg->dma_length = 0;
 	}
 	return 0;
@@ -443,8 +427,6 @@ static void* calgary_alloc_coherent(struct device *dev, size_t size,
 	npages = size >> PAGE_SHIFT;
 	order = get_order(size);
 
-	flag &= ~(__GFP_DMA | __GFP_HIGHMEM | __GFP_DMA32);
-
 	/* alloc enough pages (and possibly more) */
 	ret = (void *)__get_free_pages(flag, order);
 	if (!ret)
@@ -453,7 +435,7 @@ static void* calgary_alloc_coherent(struct device *dev, size_t size,
 
 	/* set up tces to cover the allocated range */
 	mapping = iommu_alloc(dev, tbl, ret, npages, DMA_BIDIRECTIONAL);
-	if (mapping == DMA_ERROR_CODE)
+	if (mapping == DMA_MAPPING_ERROR)
 		goto free;
 	*dma_handle = mapping;
 	return ret;
@@ -478,13 +460,14 @@ static void calgary_free_coherent(struct device *dev, size_t size,
 	free_pages((unsigned long)vaddr, get_order(size));
 }
 
-static struct dma_map_ops calgary_dma_ops = {
+static const struct dma_map_ops calgary_dma_ops = {
 	.alloc = calgary_alloc_coherent,
 	.free = calgary_free_coherent,
 	.map_sg = calgary_map_sg,
 	.unmap_sg = calgary_unmap_sg,
 	.map_page = calgary_map_page,
 	.unmap_page = calgary_unmap_page,
+	.dma_supported = dma_direct_supported,
 };
 
 static inline void __iomem * busno_to_bbar(unsigned char num)
@@ -731,9 +714,6 @@ static void __init calgary_reserve_regions(struct pci_dev *dev)
 	u64 start;
 	struct iommu_table *tbl = pci_iommu(dev->bus);
 
-	/* reserve EMERGENCY_PAGES from bad_dma_address and up */
-	iommu_range_reserve(tbl, DMA_ERROR_CODE, EMERGENCY_PAGES);
-
 	/* avoid the BIOS/VGA first 640KB-1MB region */
 	/* for CalIOC2 - avoid the entire first MB */
 	if (is_calgary(dev->device)) {
@@ -889,10 +869,9 @@ static void calioc2_dump_error_regs(struct iommu_table *tbl)
 	       PHB_ROOT_COMPLEX_STATUS);
 }
 
-static void calgary_watchdog(unsigned long data)
+static void calgary_watchdog(struct timer_list *t)
 {
-	struct pci_dev *dev = (struct pci_dev *)data;
-	struct iommu_table *tbl = pci_iommu(dev->bus);
+	struct iommu_table *tbl = from_timer(tbl, t, watchdog_timer);
 	void __iomem *bbar = tbl->bbar;
 	u32 val32;
 	void __iomem *target;
@@ -1007,9 +986,7 @@ static void __init calgary_enable_translation(struct pci_dev *dev)
 	writel(cpu_to_be32(val32), target);
 	readl(target); /* flush */
 
-	init_timer(&tbl->watchdog_timer);
-	tbl->watchdog_timer.function = &calgary_watchdog;
-	tbl->watchdog_timer.data = (unsigned long)dev;
+	timer_setup(&tbl->watchdog_timer, calgary_watchdog, 0);
 	mod_timer(&tbl->watchdog_timer, jiffies);
 }
 
@@ -1177,7 +1154,7 @@ static int __init calgary_init(void)
 		tbl = find_iommu_table(&dev->dev);
 
 		if (translation_enabled(tbl))
-			dev->dev.archdata.dma_ops = &calgary_dma_ops;
+			dev->dev.dma_ops = &calgary_dma_ops;
 	}
 
 	return ret;
@@ -1201,7 +1178,7 @@ error:
 		calgary_disable_translation(dev);
 		calgary_free_bus(dev);
 		pci_dev_put(dev); /* Undo calgary_init_one()'s pci_dev_get() */
-		dev->dev.archdata.dma_ops = NULL;
+		dev->dev.dma_ops = NULL;
 	} while (1);
 
 	return ret;

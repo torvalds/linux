@@ -15,8 +15,6 @@ Required properties for dp-controller:
 		from common clock binding: handle to dp clock.
 	-clock-names:
 		from common clock binding: Shall be "dp".
-	-interrupt-parent:
-		phandle to Interrupt combiner node.
 	-phys:
 		from general PHY binding: the phandle for the PHY device.
 	-phy-names:
@@ -33,7 +31,7 @@ Optional properties for dp-controller:
 		in Documentation/devicetree/bindings/media/video-interfaces.txt,
 		please refer to the SoC specific binding document:
 		* Documentation/devicetree/bindings/display/exynos/exynos_dp.txt
-		* Documentation/devicetree/bindings/video/analogix_dp-rockchip.txt
+		* Documentation/devicetree/bindings/display/rockchip/analogix_dp-rockchip.txt
 
 [1]: Documentation/devicetree/bindings/media/video-interfaces.txt
 -------------------------------------------------------------------------------

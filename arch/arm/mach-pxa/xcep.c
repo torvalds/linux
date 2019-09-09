@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*  linux/arch/arm/mach-pxa/xcep.c
  *
  *  Support for the Iskratel Electronics XCEP platform as used in
@@ -8,15 +9,11 @@
  *  Contributions by: Matej Kenda <matej.kenda@i-tech.si>
  *  Created:    June 2006
  *  Copyright:  (C) 2006-2009 Instrumentation Technologies
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
  */
 
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
-#include <linux/i2c/pxa-i2c.h>
+#include <linux/platform_data/i2c-pxa.h>
 #include <linux/smc91x.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
@@ -32,6 +29,7 @@
 #include <mach/smemc.h>
 
 #include "generic.h"
+#include "devices.h"
 
 #define XCEP_ETH_PHYS		(PXA_CS3_PHYS + 0x00000300)
 #define XCEP_ETH_PHYS_END	(PXA_CS3_PHYS + 0x000fffff)

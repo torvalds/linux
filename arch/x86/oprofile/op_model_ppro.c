@@ -212,8 +212,8 @@ static void arch_perfmon_setup_counters(void)
 	eax.full = cpuid_eax(0xa);
 
 	/* Workaround for BIOS bugs in 6/15. Taken from perfmon2 */
-	if (eax.split.version_id == 0 && __this_cpu_read(cpu_info.x86) == 6 &&
-		__this_cpu_read(cpu_info.x86_model) == 15) {
+	if (eax.split.version_id == 0 && boot_cpu_data.x86 == 6 &&
+	    boot_cpu_data.x86_model == 15) {
 		eax.split.version_id = 2;
 		eax.split.num_counters = 2;
 		eax.split.bit_width = 40;

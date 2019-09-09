@@ -1,14 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * linux/drivers/media/platform/coda/coda_regs.h
  *
  * Copyright (C) 2012 Vista Silicon SL
  *    Javier Martin <javier.martin@vista-silicon.com>
  *    Xavier Duret
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #ifndef _REGS_CODA_H_
@@ -51,6 +47,7 @@
 #define		CODA7_STREAM_SEL_64BITS_ENDIAN	(1 << 1)
 #define		CODA_STREAM_ENDIAN_SELECT	(1 << 0)
 #define CODA_REG_BIT_FRAME_MEM_CTRL		0x110
+#define		CODA9_FRAME_ENABLE_BWB		(1 << 12)
 #define		CODA9_FRAME_TILED2LINEAR	(1 << 11)
 #define		CODA_FRAME_CHROMA_INTERLEAVE	(1 << 2)
 #define		CODA_IMAGE_ENDIAN_SELECT	(1 << 0)
@@ -124,7 +121,7 @@
 #define		CODA9_MODE_ENCODE_H264		8
 #define		CODA9_MODE_ENCODE_MP4		11
 #define		CODA9_MODE_ENCODE_MJPG		13
-#define 	CODA_MODE_INVALID		0xffff
+#define		CODA_MODE_INVALID		0xffff
 #define CODA_REG_BIT_INT_ENABLE		0x170
 #define		CODA_INT_INTERRUPT_ENABLE	(1 << 3)
 #define CODA_REG_BIT_INT_REASON			0x174
@@ -156,7 +153,9 @@
 #define CODA_CMD_DEC_SEQ_START_BYTE		0x190
 #define CODA_CMD_DEC_SEQ_PS_BB_START		0x194
 #define CODA_CMD_DEC_SEQ_PS_BB_SIZE		0x198
+#define CODA_CMD_DEC_SEQ_JPG_THUMB_EN		0x19c
 #define CODA_CMD_DEC_SEQ_MP4_ASP_CLASS		0x19c
+#define		CODA_MP4_CLASS_MPEG4			0
 #define CODA_CMD_DEC_SEQ_X264_MV_EN		0x19c
 #define CODA_CMD_DEC_SEQ_SPP_CHUNK_SIZE		0x1a0
 
@@ -178,7 +177,7 @@
 #define CODA_RET_DEC_SEQ_FRATE_DR		0x1e8
 #define CODA_RET_DEC_SEQ_JPG_PARA		0x1e4
 #define CODA_RET_DEC_SEQ_JPG_THUMB_IND		0x1e8
-#define CODA9_RET_DEC_SEQ_HEADER_REPORT		0x1ec
+#define CODA7_RET_DEC_SEQ_HEADER_REPORT		0x1ec
 
 /* Decoder Picture Run */
 #define CODA_CMD_DEC_PIC_ROT_MODE		0x180
@@ -252,7 +251,6 @@
 #define		CODA9_STD_H264					0
 #define		CODA_STD_H263					1
 #define		CODA_STD_H264					2
-#define		CODA_STD_MJPG					3
 #define		CODA9_STD_MPEG4					3
 
 #define CODA_CMD_ENC_SEQ_SRC_SIZE				0x190
@@ -290,7 +288,7 @@
 #define		CODA_264PARAM_DEBLKFILTEROFFSETALPHA_OFFSET	8
 #define		CODA_264PARAM_DEBLKFILTEROFFSETALPHA_MASK	0x0f
 #define		CODA_264PARAM_DISABLEDEBLK_OFFSET		6
-#define		CODA_264PARAM_DISABLEDEBLK_MASK		0x01
+#define		CODA_264PARAM_DISABLEDEBLK_MASK		0x03
 #define		CODA_264PARAM_CONSTRAINEDINTRAPREDFLAG_OFFSET	5
 #define		CODA_264PARAM_CONSTRAINEDINTRAPREDFLAG_MASK	0x01
 #define		CODA_264PARAM_CHROMAQPOFFSET_OFFSET		0
@@ -343,6 +341,24 @@
 #define CODA_CMD_ENC_SEQ_JPG_THUMB_EN				0x1a0
 #define CODA_CMD_ENC_SEQ_JPG_THUMB_SIZE				0x1a4
 #define CODA_CMD_ENC_SEQ_JPG_THUMB_OFFSET			0x1a8
+
+/* Encoder Parameter Change */
+#define CODA_CMD_ENC_PARAM_CHANGE_ENABLE	0x180
+#define		CODA_PARAM_CHANGE_RC_GOP			BIT(0)
+#define		CODA_PARAM_CHANGE_RC_INTRA_QP			BIT(1)
+#define		CODA_PARAM_CHANGE_RC_BITRATE			BIT(2)
+#define		CODA_PARAM_CHANGE_RC_FRAME_RATE			BIT(3)
+#define		CODA_PARAM_CHANGE_INTRA_MB_NUM			BIT(4)
+#define		CODA_PARAM_CHANGE_SLICE_MODE			BIT(5)
+#define		CODA_PARAM_CHANGE_HEC_MODE			BIT(6)
+#define CODA_CMD_ENC_PARAM_RC_GOP		0x184
+#define CODA_CMD_ENC_PARAM_RC_INTRA_QP		0x188
+#define CODA_CMD_ENC_PARAM_RC_BITRATE		0x18c
+#define CODA_CMD_ENC_PARAM_RC_FRAME_RATE	0x190
+#define CODA_CMD_ENC_PARAM_INTRA_MB_NUM		0x194
+#define CODA_CMD_ENC_PARAM_SLICE_MODE		0x198
+#define CODA_CMD_ENC_PARAM_HEC_MODE		0x19c
+#define CODA_RET_ENC_PARAM_CHANGE_SUCCESS	0x1c0
 
 /* Encoder Picture Run */
 #define CODA9_CMD_ENC_PIC_SRC_INDEX		0x180

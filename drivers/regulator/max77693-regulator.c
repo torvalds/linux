@@ -1,26 +1,12 @@
-/*
- * max77693.c - Regulator driver for the Maxim 77693 and 77843
- *
- * Copyright (C) 2013-2015 Samsung Electronics
- * Jonghwa Lee <jonghwa3.lee@samsung.com>
- * Krzysztof Kozlowski <krzk@kernel.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
- * This driver is based on max77686.c
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// max77693.c - Regulator driver for the Maxim 77693 and 77843
+//
+// Copyright (C) 2013-2015 Samsung Electronics
+// Jonghwa Lee <jonghwa3.lee@samsung.com>
+// Krzysztof Kozlowski <krzk@kernel.org>
+//
+// This driver is based on max77686.c
 
 #include <linux/err.h>
 #include <linux/slab.h>
@@ -141,7 +127,7 @@ static const unsigned int max77693_safeout_table[] = {
 	3300000,
 };
 
-static struct regulator_ops max77693_safeout_ops = {
+static const struct regulator_ops max77693_safeout_ops = {
 	.list_voltage		= regulator_list_voltage_table,
 	.is_enabled		= regulator_is_enabled_regmap,
 	.enable			= regulator_enable_regmap,
@@ -150,7 +136,7 @@ static struct regulator_ops max77693_safeout_ops = {
 	.set_voltage_sel	= regulator_set_voltage_sel_regmap,
 };
 
-static struct regulator_ops max77693_charger_ops = {
+static const struct regulator_ops max77693_charger_ops = {
 	.is_enabled		= regulator_is_enabled_regmap,
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,

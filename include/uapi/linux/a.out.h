@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _UAPI__A_OUT_GNU_H__
 #define _UAPI__A_OUT_GNU_H__
 
@@ -112,24 +113,7 @@ enum machine_type {
 #define N_TXTADDR(x) (N_MAGIC(x) == QMAGIC ? PAGE_SIZE : 0)
 #endif
 
-/* Address of data segment in memory after it is loaded.
-   Note that it is up to you to define SEGMENT_SIZE
-   on machines not listed here.  */
-#if defined(vax) || defined(hp300) || defined(pyr)
-#define SEGMENT_SIZE page_size
-#endif
-#ifdef	sony
-#define	SEGMENT_SIZE	0x2000
-#endif	/* Sony.  */
-#ifdef is68k
-#define SEGMENT_SIZE 0x20000
-#endif
-#if defined(m68k) && defined(PORTAR)
-#define PAGE_SIZE 0x400
-#define SEGMENT_SIZE PAGE_SIZE
-#endif
-
-#ifdef linux
+/* Address of data segment in memory after it is loaded. */
 #ifndef __KERNEL__
 #include <unistd.h>
 #endif
@@ -139,7 +123,6 @@ enum machine_type {
 #ifndef SEGMENT_SIZE
 #ifndef __KERNEL__
 #define SEGMENT_SIZE   getpagesize()
-#endif
 #endif
 #endif
 #endif
@@ -260,13 +243,7 @@ struct relocation_info
   unsigned int r_extern:1;
   /* Four bits that aren't used, but when writing an object file
      it is desirable to clear them.  */
-#ifdef NS32K
-  unsigned r_bsr:1;
-  unsigned r_disp:1;
-  unsigned r_pad:2;
-#else
   unsigned int r_pad:4;
-#endif
 };
 #endif /* no N_RELOCATION_INFO_DECLARED.  */
 

@@ -1,45 +1,11 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /******************************************************************************
  *
  * Module Name: tbutils - ACPI Table utilities
  *
+ * Copyright (C) 2000 - 2019, Intel Corp.
+ *
  *****************************************************************************/
-
-/*
- * Copyright (C) 2000 - 2016, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
 
 #include <acpi/acpi.h>
 #include "accommon.h"
@@ -141,9 +107,9 @@ void acpi_tb_check_dsdt_header(void)
  *
  * FUNCTION:    acpi_tb_copy_dsdt
  *
- * PARAMETERS:  table_desc          - Installed table to copy
+ * PARAMETERS:  table_index         - Index of installed table to copy
  *
- * RETURN:      None
+ * RETURN:      The copied DSDT
  *
  * DESCRIPTION: Implements a subsystem option to copy the DSDT to local memory.
  *              Some very bad BIOSs are known to either corrupt the DSDT or
@@ -239,7 +205,7 @@ acpi_tb_get_root_table_entry(u8 *table_entry, u32 table_entry_size)
  *
  * FUNCTION:    acpi_tb_parse_root_table
  *
- * PARAMETERS:  rsdp                    - Pointer to the RSDP
+ * PARAMETERS:  rsdp_address        - Pointer to the RSDP
  *
  * RETURN:      Status
  *
@@ -366,9 +332,9 @@ acpi_tb_parse_root_table(acpi_physical_address rsdp_address)
 							&table_index);
 
 		if (ACPI_SUCCESS(status) &&
-		    ACPI_COMPARE_NAME(&acpi_gbl_root_table_list.
-				      tables[table_index].signature,
-				      ACPI_SIG_FADT)) {
+		    ACPI_COMPARE_NAMESEG(&acpi_gbl_root_table_list.
+					 tables[table_index].signature,
+					 ACPI_SIG_FADT)) {
 			acpi_gbl_fadt_index = table_index;
 			acpi_tb_parse_fadt();
 		}
@@ -380,4 +346,101 @@ next_table:
 
 	acpi_os_unmap_memory(table, length);
 	return_ACPI_STATUS(AE_OK);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_tb_get_table
+ *
+ * PARAMETERS:  table_desc          - Table descriptor
+ *              out_table           - Where the pointer to the table is returned
+ *
+ * RETURN:      Status and pointer to the requested table
+ *
+ * DESCRIPTION: Increase a reference to a table descriptor and return the
+ *              validated table pointer.
+ *              If the table descriptor is an entry of the root table list,
+ *              this API must be invoked with ACPI_MTX_TABLES acquired.
+ *
+ ******************************************************************************/
+
+acpi_status
+acpi_tb_get_table(struct acpi_table_desc *table_desc,
+		  struct acpi_table_header **out_table)
+{
+	acpi_status status;
+
+	ACPI_FUNCTION_TRACE(acpi_tb_get_table);
+
+	if (table_desc->validation_count == 0) {
+
+		/* Table need to be "VALIDATED" */
+
+		status = acpi_tb_validate_table(table_desc);
+		if (ACPI_FAILURE(status)) {
+			return_ACPI_STATUS(status);
+		}
+	}
+
+	if (table_desc->validation_count < ACPI_MAX_TABLE_VALIDATIONS) {
+		table_desc->validation_count++;
+
+		/*
+		 * Detect validation_count overflows to ensure that the warning
+		 * message will only be printed once.
+		 */
+		if (table_desc->validation_count >= ACPI_MAX_TABLE_VALIDATIONS) {
+			ACPI_WARNING((AE_INFO,
+				      "Table %p, Validation count overflows\n",
+				      table_desc));
+		}
+	}
+
+	*out_table = table_desc->pointer;
+	return_ACPI_STATUS(AE_OK);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_tb_put_table
+ *
+ * PARAMETERS:  table_desc          - Table descriptor
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Decrease a reference to a table descriptor and release the
+ *              validated table pointer if no references.
+ *              If the table descriptor is an entry of the root table list,
+ *              this API must be invoked with ACPI_MTX_TABLES acquired.
+ *
+ ******************************************************************************/
+
+void acpi_tb_put_table(struct acpi_table_desc *table_desc)
+{
+
+	ACPI_FUNCTION_TRACE(acpi_tb_put_table);
+
+	if (table_desc->validation_count < ACPI_MAX_TABLE_VALIDATIONS) {
+		table_desc->validation_count--;
+
+		/*
+		 * Detect validation_count underflows to ensure that the warning
+		 * message will only be printed once.
+		 */
+		if (table_desc->validation_count >= ACPI_MAX_TABLE_VALIDATIONS) {
+			ACPI_WARNING((AE_INFO,
+				      "Table %p, Validation count underflows\n",
+				      table_desc));
+			return_VOID;
+		}
+	}
+
+	if (table_desc->validation_count == 0) {
+
+		/* Table need to be "INVALIDATED" */
+
+		acpi_tb_invalidate_table(table_desc);
+	}
+
+	return_VOID;
 }

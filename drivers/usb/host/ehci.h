@@ -1,19 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (c) 2001-2002 by David Brownell
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #ifndef __LINUX_EHCI_HCD_H
@@ -219,6 +206,7 @@ struct ehci_hcd {			/* one per controller */
 	unsigned		no_selective_suspend:1;
 	unsigned		has_fsl_port_bug:1; /* FreeScale */
 	unsigned		has_fsl_hs_errata:1;	/* Freescale HS quirk */
+	unsigned		has_fsl_susp_errata:1;	/* NXP SUSP quirk */
 	unsigned		big_endian_mmio:1;
 	unsigned		big_endian_desc:1;
 	unsigned		big_endian_capbase:1;
@@ -247,9 +235,9 @@ struct ehci_hcd {			/* one per controller */
 	/* irq statistics */
 #ifdef EHCI_STATS
 	struct ehci_stats	stats;
-#	define COUNT(x) ((x)++)
+#	define INCR(x) ((x)++)
 #else
-#	define COUNT(x)
+#	define INCR(x) do {} while (0)
 #endif
 
 	/* debug files */
@@ -708,6 +696,13 @@ ehci_port_speed(struct ehci_hcd *ehci, unsigned int portsc)
 #else
 #define ehci_has_fsl_hs_errata(e)	(0)
 #endif
+
+/*
+ * Some Freescale/NXP processors have an erratum (USB A-005697)
+ * in which we need to wait for 10ms for bus to enter suspend mode
+ * after setting SUSP bit.
+ */
+#define ehci_has_fsl_susp_errata(e)	((e)->has_fsl_susp_errata)
 
 /*
  * While most USB host controllers implement their registers in

@@ -1,17 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Clock driver for the ARM Integrator/AP, Integrator/CP, Versatile AB and
  * Versatile PB boards.
  * Copyright (C) 2012 Linus Walleij
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/clk-provider.h>
 #include <linux/err.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 
+#include "icst.h"
 #include "clk-icst.h"
 
 #define INTEGRATOR_HDR_LOCK_OFFSET	0x14

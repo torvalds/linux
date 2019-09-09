@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Support for OLPC XO-1.5 System Control Interrupts (SCI)
  *
  * Copyright (C) 2009-2010 One Laptop per Child
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/device.h>
@@ -196,6 +192,7 @@ static int xo15_sci_remove(struct acpi_device *device)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int xo15_sci_resume(struct device *dev)
 {
 	/* Enable all EC events */
@@ -207,6 +204,7 @@ static int xo15_sci_resume(struct device *dev)
 
 	return 0;
 }
+#endif
 
 static SIMPLE_DEV_PM_OPS(xo15_sci_pm, NULL, xo15_sci_resume);
 

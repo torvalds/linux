@@ -7,10 +7,9 @@
  * for more details.
  */
 
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/memblock.h>
 #include <linux/mm.h> /* mem_init */
 #include <linux/initrd.h>
 #include <linux/pagemap.h>
@@ -32,9 +31,6 @@ int mem_init_done;
 #ifndef CONFIG_MMU
 unsigned int __page_offset;
 EXPORT_SYMBOL(__page_offset);
-
-#else
-static int init_bootmem_done;
 #endif /* CONFIG_MMU */
 
 char *klimit = _end;
@@ -117,7 +113,6 @@ static void __init paging_init(void)
 
 void __init setup_memory(void)
 {
-	unsigned long map_size;
 	struct memblock_region *reg;
 
 #ifndef CONFIG_MMU
@@ -174,17 +169,6 @@ void __init setup_memory(void)
 	pr_info("%s: max_low_pfn: %#lx\n", __func__, max_low_pfn);
 	pr_info("%s: max_pfn: %#lx\n", __func__, max_pfn);
 
-	/*
-	 * Find an area to use for the bootmem bitmap.
-	 * We look for the first area which is at least
-	 * 128kB in length (128kB is enough for a bitmap
-	 * for 4GB of memory, using 4kB pages), plus 1 page
-	 * (in case the address isn't page-aligned).
-	 */
-	map_size = init_bootmem_node(NODE_DATA(0),
-		PFN_UP(TOPHYS((u32)klimit)), min_low_pfn, max_low_pfn);
-	memblock_reserve(PFN_UP(TOPHYS((u32)klimit)) << PAGE_SHIFT, map_size);
-
 	/* Add active regions with valid PFNs */
 	for_each_memblock(memory, reg) {
 		unsigned long start_pfn, end_pfn;
@@ -196,45 +180,10 @@ void __init setup_memory(void)
 				  &memblock.memory, 0);
 	}
 
-	/* free bootmem is whole main memory */
-	free_bootmem_with_active_regions(0, max_low_pfn);
-
-	/* reserve allocate blocks */
-	for_each_memblock(reserved, reg) {
-		unsigned long top = reg->base + reg->size - 1;
-
-		pr_debug("reserved - 0x%08x-0x%08x, %lx, %lx\n",
-			 (u32) reg->base, (u32) reg->size, top,
-						memory_start + lowmem_size - 1);
-
-		if (top <= (memory_start + lowmem_size - 1)) {
-			reserve_bootmem(reg->base, reg->size, BOOTMEM_DEFAULT);
-		} else if (reg->base < (memory_start + lowmem_size - 1)) {
-			unsigned long trunc_size = memory_start + lowmem_size -
-								reg->base;
-			reserve_bootmem(reg->base, trunc_size, BOOTMEM_DEFAULT);
-		}
-	}
-
 	/* XXX need to clip this if using highmem? */
 	sparse_memory_present_with_active_regions(0);
 
-#ifdef CONFIG_MMU
-	init_bootmem_done = 1;
-#endif
 	paging_init();
-}
-
-#ifdef CONFIG_BLK_DEV_INITRD
-void free_initrd_mem(unsigned long start, unsigned long end)
-{
-	free_reserved_area((void *)start, (void *)end, -1, "initrd");
-}
-#endif
-
-void free_initmem(void)
-{
-	free_initmem_default(-1);
 }
 
 void __init mem_init(void)
@@ -242,7 +191,7 @@ void __init mem_init(void)
 	high_memory = (void *)__va(memory_start + lowmem_size - 1);
 
 	/* this will put all memory onto the freelists */
-	free_all_bootmem();
+	memblock_free_all();
 #ifdef CONFIG_HIGHMEM
 	highmem_setup();
 #endif
@@ -398,40 +347,29 @@ asmlinkage void __init mmu_init(void)
 /* This is only called until mem_init is done. */
 void __init *early_get_page(void)
 {
-	void *p;
-	if (init_bootmem_done) {
-		p = alloc_bootmem_pages(PAGE_SIZE);
-	} else {
-		/*
-		 * Mem start + kernel_tlb -> here is limit
-		 * because of mem mapping from head.S
-		 */
-		p = __va(memblock_alloc_base(PAGE_SIZE, PAGE_SIZE,
-					memory_start + kernel_tlb));
-	}
-	return p;
+	/*
+	 * Mem start + kernel_tlb -> here is limit
+	 * because of mem mapping from head.S
+	 */
+	return memblock_alloc_try_nid_raw(PAGE_SIZE, PAGE_SIZE,
+				MEMBLOCK_LOW_LIMIT, memory_start + kernel_tlb,
+				NUMA_NO_NODE);
 }
 
 #endif /* CONFIG_MMU */
-
-void * __ref alloc_maybe_bootmem(size_t size, gfp_t mask)
-{
-	if (mem_init_done)
-		return kmalloc(size, mask);
-	else
-		return alloc_bootmem(size);
-}
 
 void * __ref zalloc_maybe_bootmem(size_t size, gfp_t mask)
 {
 	void *p;
 
-	if (mem_init_done)
+	if (mem_init_done) {
 		p = kzalloc(size, mask);
-	else {
-		p = alloc_bootmem(size);
-		if (p)
-			memset(p, 0, size);
+	} else {
+		p = memblock_alloc(size, SMP_CACHE_BYTES);
+		if (!p)
+			panic("%s: Failed to allocate %zu bytes\n",
+			      __func__, size);
 	}
+
 	return p;
 }

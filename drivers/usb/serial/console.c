@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * USB Serial Console driver
  *
  * Copyright (C) 2001 - 2002 Greg Kroah-Hartman (greg@kroah.com)
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License version
- *	2 as published by the Free Software Foundation.
  *
  * Thanks to Randy Dunlap for the original version of this code.
  *
@@ -104,7 +101,6 @@ static int usb_console_setup(struct console *co, char *options)
 		cflag |= PARENB;
 		break;
 	}
-	co->cflag = cflag;
 
 	/*
 	 * no need to check the index here: if the index is wrong, console
@@ -143,6 +139,7 @@ static int usb_console_setup(struct console *co, char *options)
 			tty->driver = usb_serial_tty_driver;
 			tty->index = co->index;
 			init_ldsem(&tty->ldisc_sem);
+			spin_lock_init(&tty->files_lock);
 			INIT_LIST_HEAD(&tty->tty_files);
 			kref_get(&tty->driver->kref);
 			__module_get(tty->driver->owner);
@@ -166,6 +163,7 @@ static int usb_console_setup(struct console *co, char *options)
 			serial->type->set_termios(tty, port, &dummy);
 
 			tty_port_tty_set(&port->port, NULL);
+			tty_save_termios(tty);
 			tty_kref_put(tty);
 		}
 		tty_port_set_initialized(&port->port, 1);
@@ -185,6 +183,7 @@ static int usb_console_setup(struct console *co, char *options)
 	tty_kref_put(tty);
  reset_open_count:
 	port->port.count = 0;
+	info->port = NULL;
 	usb_autopm_put_interface(serial->interface);
  error_get_interface:
 	usb_serial_put(serial);
@@ -264,8 +263,7 @@ static struct console usbcons = {
 
 void usb_serial_console_disconnect(struct usb_serial *serial)
 {
-	if (serial && serial->port && serial->port[0]
-				&& serial->port[0] == usbcons_info.port) {
+	if (serial->port[0] && serial->port[0] == usbcons_info.port) {
 		usb_serial_console_exit();
 		usb_serial_put(serial);
 	}

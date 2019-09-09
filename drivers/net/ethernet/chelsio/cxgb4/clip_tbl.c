@@ -96,7 +96,8 @@ int cxgb4_clip_get(const struct net_device *dev, const u32 *lip, u8 v6)
 		if (!ret) {
 			ce = cte;
 			read_unlock_bh(&ctbl->lock);
-			goto found;
+			refcount_inc(&ce->refcnt);
+			return 0;
 		}
 	}
 	read_unlock_bh(&ctbl->lock);
@@ -108,7 +109,7 @@ int cxgb4_clip_get(const struct net_device *dev, const u32 *lip, u8 v6)
 		list_del(&ce->list);
 		INIT_LIST_HEAD(&ce->list);
 		spin_lock_init(&ce->lock);
-		atomic_set(&ce->refcnt, 0);
+		refcount_set(&ce->refcnt, 0);
 		atomic_dec(&ctbl->nfree);
 		list_add_tail(&ce->list, &ctbl->hash_list[hash]);
 		if (v6) {
@@ -138,9 +139,7 @@ int cxgb4_clip_get(const struct net_device *dev, const u32 *lip, u8 v6)
 		return -ENOMEM;
 	}
 	write_unlock_bh(&ctbl->lock);
-found:
-	atomic_inc(&ce->refcnt);
-
+	refcount_set(&ce->refcnt, 1);
 	return 0;
 }
 EXPORT_SYMBOL(cxgb4_clip_get);
@@ -179,7 +178,7 @@ void cxgb4_clip_release(const struct net_device *dev, const u32 *lip, u8 v6)
 found:
 	write_lock_bh(&ctbl->lock);
 	spin_lock_bh(&ce->lock);
-	if (atomic_dec_and_test(&ce->refcnt)) {
+	if (refcount_dec_and_test(&ce->refcnt)) {
 		list_del(&ce->list);
 		INIT_LIST_HEAD(&ce->list);
 		list_add_tail(&ce->list, &ctbl->ce_free_head);
@@ -266,7 +265,7 @@ int clip_tbl_show(struct seq_file *seq, void *v)
 			ip[0] = '\0';
 			sprintf(ip, "%pISc", &ce->addr);
 			seq_printf(seq, "%-25s   %u\n", ip,
-				   atomic_read(&ce->refcnt));
+				   refcount_read(&ce->refcnt));
 		}
 	}
 	seq_printf(seq, "Free clip entries : %d\n", atomic_read(&ctbl->nfree));
@@ -290,8 +289,7 @@ struct clip_tbl *t4_init_clip_tbl(unsigned int clipt_start,
 	if (clipt_size < CLIPT_MIN_HASH_BUCKETS)
 		return NULL;
 
-	ctbl = t4_alloc_mem(sizeof(*ctbl) +
-			    clipt_size*sizeof(struct list_head));
+	ctbl = kvzalloc(struct_size(ctbl, hash_list, clipt_size), GFP_KERNEL);
 	if (!ctbl)
 		return NULL;
 
@@ -305,9 +303,9 @@ struct clip_tbl *t4_init_clip_tbl(unsigned int clipt_start,
 	for (i = 0; i < ctbl->clipt_size; ++i)
 		INIT_LIST_HEAD(&ctbl->hash_list[i]);
 
-	cl_list = t4_alloc_mem(clipt_size*sizeof(struct clip_entry));
+	cl_list = kvcalloc(clipt_size, sizeof(struct clip_entry), GFP_KERNEL);
 	if (!cl_list) {
-		t4_free_mem(ctbl);
+		kvfree(ctbl);
 		return NULL;
 	}
 	ctbl->cl_list = (void *)cl_list;
@@ -326,8 +324,8 @@ void t4_cleanup_clip_tbl(struct adapter *adap)
 
 	if (ctbl) {
 		if (ctbl->cl_list)
-			t4_free_mem(ctbl->cl_list);
-		t4_free_mem(ctbl);
+			kvfree(ctbl->cl_list);
+		kvfree(ctbl);
 	}
 }
 EXPORT_SYMBOL(t4_cleanup_clip_tbl);

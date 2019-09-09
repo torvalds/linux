@@ -1,17 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
- *
+ * Copyright (c) 2003-2018, Intel Corporation. All rights reserved.
  * Intel Management Engine Interface (Intel MEI) Linux driver
- * Copyright (c) 2003-2012, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
  */
 
 #ifndef _MEI_CLIENT_H_
@@ -84,24 +74,11 @@ static inline u8 mei_me_cl_ver(const struct mei_me_client *me_cl)
  */
 void mei_io_cb_free(struct mei_cl_cb *priv_cb);
 
-/**
- * mei_io_list_init - Sets up a queue list.
- *
- * @list: An instance cl callback structure
- */
-static inline void mei_io_list_init(struct mei_cl_cb *list)
-{
-	INIT_LIST_HEAD(&list->list);
-}
-void mei_io_list_flush(struct mei_cl_cb *list, struct mei_cl *cl);
-
 /*
  * MEI Host Client Functions
  */
 
 struct mei_cl *mei_cl_allocate(struct mei_device *dev);
-void mei_cl_init(struct mei_cl *cl, struct mei_device *dev);
-
 
 int mei_cl_link(struct mei_cl *cl);
 int mei_cl_unlink(struct mei_cl *cl);
@@ -110,7 +87,6 @@ struct mei_cl *mei_cl_alloc_linked(struct mei_device *dev);
 
 struct mei_cl_cb *mei_cl_read_cb(const struct mei_cl *cl,
 				 const struct file *fp);
-void mei_cl_read_cb_flush(const struct mei_cl *cl, const struct file *fp);
 struct mei_cl_cb *mei_cl_alloc_cb(struct mei_cl *cl, size_t length,
 				  enum mei_cb_file_ops type,
 				  const struct file *fp);
@@ -209,19 +185,16 @@ static inline u8 mei_cl_host_addr(const struct mei_cl *cl)
 }
 
 int mei_cl_disconnect(struct mei_cl *cl);
-void mei_cl_set_disconnected(struct mei_cl *cl);
 int mei_cl_irq_disconnect(struct mei_cl *cl, struct mei_cl_cb *cb,
-			  struct mei_cl_cb *cmpl_list);
+			  struct list_head *cmpl_list);
 int mei_cl_connect(struct mei_cl *cl, struct mei_me_client *me_cl,
 		   const struct file *file);
 int mei_cl_irq_connect(struct mei_cl *cl, struct mei_cl_cb *cb,
-			      struct mei_cl_cb *cmpl_list);
+		       struct list_head *cmpl_list);
 int mei_cl_read_start(struct mei_cl *cl, size_t length, const struct file *fp);
-int mei_cl_irq_read_msg(struct mei_cl *cl, struct mei_msg_hdr *hdr,
-			struct mei_cl_cb *cmpl_list);
-int mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb, bool blocking);
+ssize_t mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb);
 int mei_cl_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
-		     struct mei_cl_cb *cmpl_list);
+		     struct list_head *cmpl_list);
 
 void mei_cl_complete(struct mei_cl *cl, struct mei_cl_cb *cb);
 
@@ -232,7 +205,7 @@ enum mei_cb_file_ops mei_cl_notify_req2fop(u8 request);
 int mei_cl_notify_request(struct mei_cl *cl,
 			  const struct file *file, u8 request);
 int mei_cl_irq_notify(struct mei_cl *cl, struct mei_cl_cb *cb,
-		      struct mei_cl_cb *cmpl_list);
+		      struct list_head *cmpl_list);
 int mei_cl_notify_get(struct mei_cl *cl, bool block, bool *notify_ev);
 void mei_cl_notify(struct mei_cl *cl);
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <sys/mman.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -26,7 +27,7 @@ static int test_limit(void)
 	}
 
 	map = mmap(NULL, 2 * lims.rlim_max, PROT_READ | PROT_WRITE,
-		   MAP_PRIVATE | MAP_ANONYMOUS | MAP_POPULATE, 0, 0);
+		   MAP_PRIVATE | MAP_ANONYMOUS | MAP_POPULATE, -1, 0);
 	if (map != MAP_FAILED)
 		printf("mmap should have failed, but didn't\n");
 	else {

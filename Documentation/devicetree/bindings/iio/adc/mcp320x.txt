@@ -29,15 +29,29 @@ Required properties:
 				"microchip,mcp3204"
 				"microchip,mcp3208"
 				"microchip,mcp3301"
+				"microchip,mcp3550-50"
+				"microchip,mcp3550-60"
+				"microchip,mcp3551"
+				"microchip,mcp3553"
 
 			NOTE: The use of the compatibles with no vendor prefix
 			is deprecated and only listed because old DT use them.
 
+	- spi-cpha, spi-cpol (boolean):
+			Either SPI mode (0,0) or (1,1) must be used, so specify
+			none or both of spi-cpha, spi-cpol.  The MCP3550/1/3
+			is more efficient in mode (1,1) as only 3 instead of
+			4 bytes need to be read from the ADC, but not all SPI
+			masters support it.
+
+	- vref-supply:	Phandle to the external reference voltage supply.
+
 Examples:
 spi_controller {
 	mcp3x0x@0 {
-		compatible = "mcp3002";
+		compatible = "microchip,mcp3002";
 		reg = <0>;
 		spi-max-frequency = <1000000>;
+		vref-supply = <&vref_reg>;
 	};
 };

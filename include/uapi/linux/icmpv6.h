@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _UAPI_LINUX_ICMPV6_H
 #define _UAPI_LINUX_ICMPV6_H
 
@@ -89,6 +90,8 @@ struct icmp6hdr {
 #define ICMPV6_TIME_EXCEED		3
 #define ICMPV6_PARAMPROB		4
 
+#define ICMPV6_ERRMSG_MAX       127
+
 #define ICMPV6_INFOMSG_MASK		0x80
 
 #define ICMPV6_ECHO_REQUEST		128
@@ -106,6 +109,10 @@ struct icmp6hdr {
 #define ICMPV6_DHAAD_REPLY		145
 #define ICMPV6_MOBILE_PREFIX_SOL	146
 #define ICMPV6_MOBILE_PREFIX_ADV	147
+
+#define ICMPV6_MRDISC_ADV		151
+
+#define ICMPV6_MSG_MAX          255
 
 /*
  *	Codes for Destination Unreachable

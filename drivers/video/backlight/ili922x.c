@@ -1,11 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * (C) Copyright 2008
  * Stefano Babic, DENX Software Engineering, sbabic@denx.de.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
  *
  * This driver implements a lcd device for the ILITEK 922x display
  * controller. The interface to the display is SPI and the display's
@@ -251,7 +247,7 @@ static int ili922x_write(struct spi_device *spi, u8 reg, u16 value)
 	struct spi_transfer xfer_regindex, xfer_regvalue;
 	unsigned char tbuf[CMD_BUFSIZE];
 	unsigned char rbuf[CMD_BUFSIZE];
-	int ret, len = 0;
+	int ret;
 
 	memset(&xfer_regindex, 0, sizeof(struct spi_transfer));
 	memset(&xfer_regvalue, 0, sizeof(struct spi_transfer));
@@ -273,7 +269,6 @@ static int ili922x_write(struct spi_device *spi, u8 reg, u16 value)
 	ret = spi_sync(spi, &msg);
 
 	spi_message_init(&msg);
-	len = 0;
 	tbuf[0] = set_tx_byte(START_BYTE(ili922x_id, START_RS_REG,
 					 START_RW_WRITE));
 	tbuf[1] = set_tx_byte((value & 0xFF00) >> 8);

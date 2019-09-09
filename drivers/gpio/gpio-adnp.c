@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2011-2012 Avionic Design GmbH
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/gpio/driver.h>
@@ -132,8 +129,10 @@ static int adnp_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 	if (err < 0)
 		goto out;
 
-	if (err & BIT(pos))
-		err = -EACCES;
+	if (value & BIT(pos)) {
+		err = -EPERM;
+		goto out;
+	}
 
 	err = 0;
 
@@ -192,28 +191,20 @@ static void adnp_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 		mutex_lock(&adnp->i2c_lock);
 
 		err = adnp_read(adnp, GPIO_DDR(adnp) + i, &ddr);
-		if (err < 0) {
-			mutex_unlock(&adnp->i2c_lock);
-			return;
-		}
+		if (err < 0)
+			goto unlock;
 
 		err = adnp_read(adnp, GPIO_PLR(adnp) + i, &plr);
-		if (err < 0) {
-			mutex_unlock(&adnp->i2c_lock);
-			return;
-		}
+		if (err < 0)
+			goto unlock;
 
 		err = adnp_read(adnp, GPIO_IER(adnp) + i, &ier);
-		if (err < 0) {
-			mutex_unlock(&adnp->i2c_lock);
-			return;
-		}
+		if (err < 0)
+			goto unlock;
 
 		err = adnp_read(adnp, GPIO_ISR(adnp) + i, &isr);
-		if (err < 0) {
-			mutex_unlock(&adnp->i2c_lock);
-			return;
-		}
+		if (err < 0)
+			goto unlock;
 
 		mutex_unlock(&adnp->i2c_lock);
 
@@ -240,6 +231,11 @@ static void adnp_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 				   direction, level, interrupt, pending);
 		}
 	}
+
+	return;
+
+unlock:
+	mutex_unlock(&adnp->i2c_lock);
 }
 
 static int adnp_gpio_setup(struct adnp *adnp, unsigned int num_gpios)
@@ -323,7 +319,7 @@ static irqreturn_t adnp_irq(int irq, void *data)
 
 		for_each_set_bit(bit, &pending, 8) {
 			unsigned int child_irq;
-			child_irq = irq_find_mapping(adnp->gpio.irqdomain,
+			child_irq = irq_find_mapping(adnp->gpio.irq.domain,
 						     base + bit);
 			handle_nested_irq(child_irq);
 		}
@@ -430,7 +426,7 @@ static int adnp_irq_setup(struct adnp *adnp)
 	 * is chosen to match the register layout of the hardware in that
 	 * each segment contains the corresponding bits for all interrupts.
 	 */
-	adnp->irq_enable = devm_kzalloc(chip->parent, num_regs * 6,
+	adnp->irq_enable = devm_kcalloc(chip->parent, num_regs, 6,
 					GFP_KERNEL);
 	if (!adnp->irq_enable)
 		return -ENOMEM;
@@ -468,16 +464,18 @@ static int adnp_irq_setup(struct adnp *adnp)
 		return err;
 	}
 
-	err = gpiochip_irqchip_add(chip,
-				   &adnp_irq_chip,
-				   0,
-				   handle_simple_irq,
-				   IRQ_TYPE_NONE);
+	err = gpiochip_irqchip_add_nested(chip,
+					  &adnp_irq_chip,
+					  0,
+					  handle_simple_irq,
+					  IRQ_TYPE_NONE);
 	if (err) {
 		dev_err(chip->parent,
 			"could not connect irqchip to gpiochip\n");
 		return err;
 	}
+
+	gpiochip_set_nested_irqchip(chip, &adnp_irq_chip, adnp->client->irq);
 
 	return 0;
 }

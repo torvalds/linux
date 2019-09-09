@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Support for CompuLab CM-T3730
  */
@@ -69,7 +70,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc2_pins>;
 	vmmc-supply = <&wl12xx_vmmc2>;
-	vmmc_aux-supply = <&wl12xx_vaux2>;
+	vqmmc-supply = <&wl12xx_vaux2>;
 	non-removable;
 	bus-width = <4>;
 	cap-power-off-card;
@@ -80,7 +81,7 @@
 		compatible = "ti,wl1271";
 		reg = <2>;
 		interrupt-parent = <&gpio5>;
-		interrupts = <8 IRQ_TYPE_LEVEL_HIGH>; /* gpio 136 */
+		interrupts = <8 IRQ_TYPE_EDGE_RISING>; /* gpio 136 */
 		ref-clock-frequency = <38400000>;
 	};
 };

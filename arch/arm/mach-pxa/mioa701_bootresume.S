@@ -1,8 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* Bootloader to resume MIO A701
  *
  * 2007-1-12 Robert Jarzmik
- *
- * This code is licenced under the GPLv2.
 */
 
 #include <linux/linkage.h>
@@ -16,6 +15,7 @@
  *       insist on it to be truly read-only.
  */
 	.data
+	.align	2
 ENTRY(mioa701_bootstrap)
 0:
 	b	1f
@@ -34,4 +34,5 @@ ENTRY(mioa701_jumpaddr)
 
 ENTRY(mioa701_bootstrap_lg)
 	.data
+	.align	2
 	.word	2b-0b

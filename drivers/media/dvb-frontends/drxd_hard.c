@@ -1,24 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * drxd_hard.c: DVB-T Demodulator Micronas DRX3975D-A2,DRX397xD-B1
  *
  * Copyright (C) 2003-2007 Micronas
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 only, as published by the Free Software Foundation.
- *
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA
- * Or, point your browser to http://www.gnu.org/copyleft/gpl.html
  */
 
 #include <linux/kernel.h>
@@ -30,7 +14,7 @@
 #include <linux/i2c.h>
 #include <asm/div64.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "drxd.h"
 #include "drxd_firm.h"
 
@@ -332,7 +316,7 @@ static int WriteTable(struct drxd_state *state, u8 * pTable)
 {
 	int status = 0;
 
-	if (pTable == NULL)
+	if (!pTable)
 		return 0;
 
 	while (!status) {
@@ -642,8 +626,10 @@ static int SetCfgIfAgc(struct drxd_state *state, struct SCfgAgc *cfg)
 			/* == Speed == */
 			{
 				const u16 maxRur = 8;
-				const u16 slowIncrDecLUT[] = { 3, 4, 4, 5, 6 };
-				const u16 fastIncrDecLUT[] = { 14, 15, 15, 16,
+				static const u16 slowIncrDecLUT[] = {
+					3, 4, 4, 5, 6 };
+				static const u16 fastIncrDecLUT[] = {
+					14, 15, 15, 16,
 					17, 18, 18, 19,
 					20, 21, 22, 23,
 					24, 26, 27, 28,
@@ -911,9 +897,8 @@ static int load_firmware(struct drxd_state *state, const char *fw_name)
 	}
 
 	state->microcode = kmemdup(fw->data, fw->size, GFP_KERNEL);
-	if (state->microcode == NULL) {
+	if (!state->microcode) {
 		release_firmware(fw);
-		printk(KERN_ERR "drxd: firmware load failure: no memory\n");
 		return -ENOMEM;
 	}
 
@@ -975,7 +960,6 @@ static int DownloadMicrocode(struct drxd_state *state,
 static int HI_Command(struct drxd_state *state, u16 cmd, u16 * pResult)
 {
 	u32 nrRetries = 0;
-	u16 waitCmd;
 	int status;
 
 	status = Write16(state, HI_RA_RAM_SRV_CMD__A, cmd, 0);
@@ -988,8 +972,8 @@ static int HI_Command(struct drxd_state *state, u16 cmd, u16 * pResult)
 			status = -1;
 			break;
 		}
-		status = Read16(state, HI_RA_RAM_SRV_CMD__A, &waitCmd, 0);
-	} while (waitCmd != 0);
+		status = Read16(state, HI_RA_RAM_SRV_CMD__A, NULL, 0);
+	} while (status != 0);
 
 	if (status >= 0)
 		status = Read16(state, HI_RA_RAM_SRV_RES__A, pResult, 0);
@@ -1148,6 +1132,8 @@ static int EnableAndResetMB(struct drxd_state *state)
 
 static int InitCC(struct drxd_state *state)
 {
+	int status = 0;
+
 	if (state->osc_clock_freq == 0 ||
 	    state->osc_clock_freq > 20000 ||
 	    (state->osc_clock_freq % 4000) != 0) {
@@ -1155,14 +1141,17 @@ static int InitCC(struct drxd_state *state)
 		return -1;
 	}
 
-	Write16(state, CC_REG_OSC_MODE__A, CC_REG_OSC_MODE_M20, 0);
-	Write16(state, CC_REG_PLL_MODE__A, CC_REG_PLL_MODE_BYPASS_PLL |
-		CC_REG_PLL_MODE_PUMP_CUR_12, 0);
-	Write16(state, CC_REG_REF_DIVIDE__A, state->osc_clock_freq / 4000, 0);
-	Write16(state, CC_REG_PWD_MODE__A, CC_REG_PWD_MODE_DOWN_PLL, 0);
-	Write16(state, CC_REG_UPDATE__A, CC_REG_UPDATE_KEY, 0);
+	status |= Write16(state, CC_REG_OSC_MODE__A, CC_REG_OSC_MODE_M20, 0);
+	status |= Write16(state, CC_REG_PLL_MODE__A,
+				CC_REG_PLL_MODE_BYPASS_PLL |
+				CC_REG_PLL_MODE_PUMP_CUR_12, 0);
+	status |= Write16(state, CC_REG_REF_DIVIDE__A,
+				state->osc_clock_freq / 4000, 0);
+	status |= Write16(state, CC_REG_PWD_MODE__A, CC_REG_PWD_MODE_DOWN_PLL,
+				0);
+	status |= Write16(state, CC_REG_UPDATE__A, CC_REG_UPDATE_KEY, 0);
 
-	return 0;
+	return status;
 }
 
 static int ResetECOD(struct drxd_state *state)
@@ -1301,12 +1290,11 @@ static int InitFT(struct drxd_state *state)
 
 static int SC_WaitForReady(struct drxd_state *state)
 {
-	u16 curCmd;
 	int i;
 
 	for (i = 0; i < DRXD_MAX_RETRIES; i += 1) {
-		int status = Read16(state, SC_RA_RAM_CMD__A, &curCmd, 0);
-		if (status == 0 || curCmd == 0)
+		int status = Read16(state, SC_RA_RAM_CMD__A, NULL, 0);
+		if (status == 0)
 			return status;
 	}
 	return -1;
@@ -1314,15 +1302,18 @@ static int SC_WaitForReady(struct drxd_state *state)
 
 static int SC_SendCommand(struct drxd_state *state, u16 cmd)
 {
-	int status = 0;
+	int status = 0, ret;
 	u16 errCode;
 
-	Write16(state, SC_RA_RAM_CMD__A, cmd, 0);
+	status = Write16(state, SC_RA_RAM_CMD__A, cmd, 0);
+	if (status < 0)
+		return status;
+
 	SC_WaitForReady(state);
 
-	Read16(state, SC_RA_RAM_CMD_ADDR__A, &errCode, 0);
+	ret = Read16(state, SC_RA_RAM_CMD_ADDR__A, &errCode, 0);
 
-	if (errCode == 0xFFFF) {
+	if (ret < 0 || errCode == 0xFFFF) {
 		printk(KERN_ERR "Command Error\n");
 		status = -1;
 	}
@@ -1333,20 +1324,20 @@ static int SC_SendCommand(struct drxd_state *state, u16 cmd)
 static int SC_ProcStartCommand(struct drxd_state *state,
 			       u16 subCmd, u16 param0, u16 param1)
 {
-	int status = 0;
+	int ret, status = 0;
 	u16 scExec;
 
 	mutex_lock(&state->mutex);
 	do {
-		Read16(state, SC_COMM_EXEC__A, &scExec, 0);
-		if (scExec != 1) {
+		ret = Read16(state, SC_COMM_EXEC__A, &scExec, 0);
+		if (ret < 0 || scExec != 1) {
 			status = -1;
 			break;
 		}
 		SC_WaitForReady(state);
-		Write16(state, SC_RA_RAM_CMD_ADDR__A, subCmd, 0);
-		Write16(state, SC_RA_RAM_PARAM1__A, param1, 0);
-		Write16(state, SC_RA_RAM_PARAM0__A, param0, 0);
+		status |= Write16(state, SC_RA_RAM_CMD_ADDR__A, subCmd, 0);
+		status |= Write16(state, SC_RA_RAM_PARAM1__A, param1, 0);
+		status |= Write16(state, SC_RA_RAM_PARAM0__A, param0, 0);
 
 		SC_SendCommand(state, SC_RA_RAM_CMD_PROC_START);
 	} while (0);
@@ -1521,12 +1512,14 @@ static int SetDeviceTypeId(struct drxd_state *state)
 			switch (deviceId) {
 			case 4:
 				state->diversity = 1;
+				/* fall through */
 			case 3:
 			case 7:
 				state->PGA = 1;
 				break;
 			case 6:
 				state->diversity = 1;
+				/* fall through */
 			case 5:
 			case 8:
 				break;
@@ -1973,7 +1966,7 @@ static int DRX_Start(struct drxd_state *state, s32 off)
 		switch (p->transmission_mode) {
 		default:	/* Not set, detect it automatically */
 			operationMode |= SC_RA_RAM_OP_AUTO_MODE__M;
-			/* fall through , try first guess DRX_FFTMODE_8K */
+			/* fall through - try first guess DRX_FFTMODE_8K */
 		case TRANSMISSION_MODE_8K:
 			transmissionParams |= SC_RA_RAM_OP_PARAM_MODE_8K;
 			if (state->type_A) {
@@ -2140,15 +2133,13 @@ static int DRX_Start(struct drxd_state *state, s32 off)
 			}
 			break;
 		}
-		status = status;
 		if (status < 0)
 			break;
 
 		switch (p->modulation) {
 		default:
 			operationMode |= SC_RA_RAM_OP_AUTO_CONST__M;
-			/* fall through , try first guess
-			   DRX_CONSTELLATION_QAM64 */
+			/* fall through - try first guess DRX_CONSTELLATION_QAM64 */
 		case QAM_64:
 			transmissionParams |= SC_RA_RAM_OP_PARAM_CONST_QAM64;
 			if (state->type_A) {
@@ -2251,7 +2242,6 @@ static int DRX_Start(struct drxd_state *state, s32 off)
 			break;
 
 		}
-		status = status;
 		if (status < 0)
 			break;
 
@@ -2261,63 +2251,43 @@ static int DRX_Start(struct drxd_state *state, s32 off)
 		case DRX_CHANNEL_LOW:
 			transmissionParams |= SC_RA_RAM_OP_PARAM_PRIO_LO;
 			status = Write16(state, EC_SB_REG_PRIOR__A, EC_SB_REG_PRIOR_LO, 0x0000);
-			if (status < 0)
-				break;
 			break;
 		case DRX_CHANNEL_HIGH:
 			transmissionParams |= SC_RA_RAM_OP_PARAM_PRIO_HI;
 			status = Write16(state, EC_SB_REG_PRIOR__A, EC_SB_REG_PRIOR_HI, 0x0000);
-			if (status < 0)
-				break;
 			break;
-
 		}
 
 		switch (p->code_rate_HP) {
 		case FEC_1_2:
 			transmissionParams |= SC_RA_RAM_OP_PARAM_RATE_1_2;
-			if (state->type_A) {
+			if (state->type_A)
 				status = Write16(state, EC_VD_REG_SET_CODERATE__A, EC_VD_REG_SET_CODERATE_C1_2, 0x0000);
-				if (status < 0)
-					break;
-			}
 			break;
 		default:
 			operationMode |= SC_RA_RAM_OP_AUTO_RATE__M;
+			/* fall through */
 		case FEC_2_3:
 			transmissionParams |= SC_RA_RAM_OP_PARAM_RATE_2_3;
-			if (state->type_A) {
+			if (state->type_A)
 				status = Write16(state, EC_VD_REG_SET_CODERATE__A, EC_VD_REG_SET_CODERATE_C2_3, 0x0000);
-				if (status < 0)
-					break;
-			}
 			break;
 		case FEC_3_4:
 			transmissionParams |= SC_RA_RAM_OP_PARAM_RATE_3_4;
-			if (state->type_A) {
+			if (state->type_A)
 				status = Write16(state, EC_VD_REG_SET_CODERATE__A, EC_VD_REG_SET_CODERATE_C3_4, 0x0000);
-				if (status < 0)
-					break;
-			}
 			break;
 		case FEC_5_6:
 			transmissionParams |= SC_RA_RAM_OP_PARAM_RATE_5_6;
-			if (state->type_A) {
+			if (state->type_A)
 				status = Write16(state, EC_VD_REG_SET_CODERATE__A, EC_VD_REG_SET_CODERATE_C5_6, 0x0000);
-				if (status < 0)
-					break;
-			}
 			break;
 		case FEC_7_8:
 			transmissionParams |= SC_RA_RAM_OP_PARAM_RATE_7_8;
-			if (state->type_A) {
+			if (state->type_A)
 				status = Write16(state, EC_VD_REG_SET_CODERATE__A, EC_VD_REG_SET_CODERATE_C7_8, 0x0000);
-				if (status < 0)
-					break;
-			}
 			break;
 		}
-		status = status;
 		if (status < 0)
 			break;
 
@@ -2628,7 +2598,7 @@ static int DRXD_init(struct drxd_state *state, const u8 *fw, u32 fw_size)
 			break;
 
 		/* Apply I2c address patch to B1 */
-		if (!state->type_A && state->m_HiI2cPatch != NULL) {
+		if (!state->type_A && state->m_HiI2cPatch) {
 			status = WriteTable(state, state->m_HiI2cPatch);
 			if (status < 0)
 				break;
@@ -2912,14 +2882,13 @@ static void drxd_release(struct dvb_frontend *fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops drxd_ops = {
+static const struct dvb_frontend_ops drxd_ops = {
 	.delsys = { SYS_DVBT},
 	.info = {
 		 .name = "Micronas DRXD DVB-T",
-		 .frequency_min = 47125000,
-		 .frequency_max = 855250000,
-		 .frequency_stepsize = 166667,
-		 .frequency_tolerance = 0,
+		 .frequency_min_hz =  47125 * kHz,
+		 .frequency_max_hz = 855250 * kHz,
+		 .frequency_stepsize_hz = 166667,
 		 .caps = FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 |
 		 FE_CAN_FEC_3_4 | FE_CAN_FEC_5_6 | FE_CAN_FEC_7_8 |
 		 FE_CAN_FEC_AUTO |

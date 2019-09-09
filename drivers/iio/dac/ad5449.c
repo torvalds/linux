@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * AD5415, AD5426, AD5429, AD5432, AD5439, AD5443, AD5449 Digital to Analog
  * Converter driver.
  *
  * Copyright 2012 Analog Devices Inc.
  *  Author: Lars-Peter Clausen <lars@metafoo.de>
- *
- * Licensed under the GPL-2.
  */
 
 #include <linux/device.h>
@@ -193,7 +192,6 @@ static int ad5449_write_raw(struct iio_dev *indio_dev,
 static const struct iio_info ad5449_info = {
 	.read_raw = ad5449_read_raw,
 	.write_raw = ad5449_write_raw,
-	.driver_module = THIS_MODULE,
 };
 
 #define AD5449_CHANNEL(chan, bits) {				\

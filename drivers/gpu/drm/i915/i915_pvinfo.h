@@ -36,10 +36,6 @@
 #define VGT_VERSION_MAJOR 1
 #define VGT_VERSION_MINOR 0
 
-#define INTEL_VGT_IF_VERSION_ENCODE(major, minor) ((major) << 16 | (minor))
-#define INTEL_VGT_IF_VERSION \
-	INTEL_VGT_IF_VERSION_ENCODE(VGT_VERSION_MAJOR, VGT_VERSION_MINOR)
-
 /*
  * notifications from guest to vgpu device model
  */
@@ -53,12 +49,20 @@ enum vgt_g2v_type {
 	VGT_G2V_MAX,
 };
 
+/*
+ * VGT capabilities type
+ */
+#define VGT_CAPS_FULL_PPGTT		BIT(2)
+#define VGT_CAPS_HWSP_EMULATION		BIT(3)
+#define VGT_CAPS_HUGE_GTT		BIT(4)
+
 struct vgt_if {
 	u64 magic;		/* VGT_MAGIC */
-	uint16_t version_major;
-	uint16_t version_minor;
+	u16 version_major;
+	u16 version_minor;
 	u32 vgt_id;		/* ID of vGT instance */
-	u32 rsv1[12];		/* pad to offset 0x40 */
+	u32 vgt_caps;		/* VGT capabilities */
+	u32 rsv1[11];		/* pad to offset 0x40 */
 	/*
 	 *  Data structure to describe the balooning info of resources.
 	 *  Each VM can only have one portion of continuous area for now.
@@ -90,7 +94,10 @@ struct vgt_if {
 	u32 rsv5[4];
 
 	u32 g2v_notify;
-	u32 rsv6[7];
+	u32 rsv6[5];
+
+	u32 cursor_x_hot;
+	u32 cursor_y_hot;
 
 	struct {
 		u32 lo;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Common ACPI functions for hot plug platforms
  *
@@ -5,23 +6,7 @@
  *
  * All rights reserved.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or (at
- * your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
- * NON INFRINGEMENT.  See the GNU General Public License for more
- * details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  * Send feedback to <kristen.c.accardi@intel.com>
- *
  */
 
 #include <linux/module.h>
@@ -77,50 +62,51 @@ static acpi_status acpi_run_oshp(acpi_handle handle)
 /**
  * acpi_get_hp_hw_control_from_firmware
  * @dev: the pci_dev of the bridge that has a hotplug controller
- * @flags: requested control bits for _OSC
  *
  * Attempt to take hotplug control from firmware.
  */
-int acpi_get_hp_hw_control_from_firmware(struct pci_dev *pdev, u32 flags)
+int acpi_get_hp_hw_control_from_firmware(struct pci_dev *pdev)
 {
+	const struct pci_host_bridge *host;
+	const struct acpi_pci_root *root;
 	acpi_status status;
 	acpi_handle chandle, handle;
 	struct acpi_buffer string = { ACPI_ALLOCATE_BUFFER, NULL };
 
-	flags &= OSC_PCI_SHPC_NATIVE_HP_CONTROL;
-	if (!flags) {
-		err("Invalid flags %u specified!\n", flags);
-		return -EINVAL;
+	/*
+	 * If there's no ACPI host bridge (i.e., ACPI support is compiled
+	 * into the kernel but the hardware platform doesn't support ACPI),
+	 * there's nothing to do here.
+	 */
+	host = pci_find_host_bridge(pdev->bus);
+	root = acpi_pci_find_root(ACPI_HANDLE(&host->dev));
+	if (!root)
+		return 0;
+
+	/*
+	 * If _OSC exists, it determines whether we're allowed to manage
+	 * the SHPC.  We executed it while enumerating the host bridge.
+	 */
+	if (root->osc_support_set) {
+		if (host->native_shpc_hotplug)
+			return 0;
+		return -ENODEV;
 	}
 
 	/*
-	 * Per PCI firmware specification, we should run the ACPI _OSC
-	 * method to get control of hotplug hardware before using it. If
-	 * an _OSC is missing, we look for an OSHP to do the same thing.
-	 * To handle different BIOS behavior, we look for _OSC on a root
-	 * bridge preferentially (according to PCI fw spec). Later for
-	 * OSHP within the scope of the hotplug controller and its parents,
-	 * up to the host bridge under which this controller exists.
+	 * In the absence of _OSC, we're always allowed to manage the SHPC.
+	 * However, if an OSHP method is present, we must execute it so the
+	 * firmware can transfer control to the OS, e.g., direct interrupts
+	 * to the OS instead of to the firmware.
+	 *
+	 * N.B. The PCI Firmware Spec (r3.2, sec 4.8) does not endorse
+	 * searching up the ACPI hierarchy, so the loops below are suspect.
 	 */
-	handle = acpi_find_root_bridge_handle(pdev);
-	if (handle) {
-		acpi_get_name(handle, ACPI_FULL_PATHNAME, &string);
-		dbg("Trying to get hotplug control for %s\n",
-				(char *)string.pointer);
-		status = acpi_pci_osc_control_set(handle, &flags, flags);
-		if (ACPI_SUCCESS(status))
-			goto got_one;
-		if (status == AE_SUPPORT)
-			goto no_control;
-		kfree(string.pointer);
-		string = (struct acpi_buffer){ ACPI_ALLOCATE_BUFFER, NULL };
-	}
-
 	handle = ACPI_HANDLE(&pdev->dev);
 	if (!handle) {
 		/*
 		 * This hotplug controller was not listed in the ACPI name
-		 * space at all. Try to get acpi handle of parent pci bus.
+		 * space at all. Try to get ACPI handle of parent PCI bus.
 		 */
 		struct pci_bus *pbus;
 		for (pbus = pdev->bus; pbus; pbus = pbus->parent) {
@@ -132,8 +118,8 @@ int acpi_get_hp_hw_control_from_firmware(struct pci_dev *pdev, u32 flags)
 
 	while (handle) {
 		acpi_get_name(handle, ACPI_FULL_PATHNAME, &string);
-		dbg("Trying to get hotplug control for %s\n",
-		    (char *)string.pointer);
+		pci_info(pdev, "Requesting control of SHPC hotplug via OSHP (%s)\n",
+			 (char *)string.pointer);
 		status = acpi_run_oshp(handle);
 		if (ACPI_SUCCESS(status))
 			goto got_one;
@@ -144,14 +130,13 @@ int acpi_get_hp_hw_control_from_firmware(struct pci_dev *pdev, u32 flags)
 		if (ACPI_FAILURE(status))
 			break;
 	}
-no_control:
-	dbg("Cannot get control of hotplug hardware for pci %s\n",
-	    pci_name(pdev));
+
+	pci_info(pdev, "Cannot get control of SHPC hotplug\n");
 	kfree(string.pointer);
 	return -ENODEV;
 got_one:
-	dbg("Gained control for hotplug HW for pci %s (%s)\n",
-	    pci_name(pdev), (char *)string.pointer);
+	pci_info(pdev, "Gained control of SHPC hotplug (%s)\n",
+		 (char *)string.pointer);
 	kfree(string.pointer);
 	return 0;
 }

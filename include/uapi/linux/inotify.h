@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  * Inode based directory notification for Linux
  *
@@ -52,6 +53,7 @@ struct inotify_event {
 #define IN_ONLYDIR		0x01000000	/* only watch the path if it is a directory */
 #define IN_DONT_FOLLOW		0x02000000	/* don't follow a sym link */
 #define IN_EXCL_UNLINK		0x04000000	/* exclude events on unlinked objects */
+#define IN_MASK_CREATE		0x10000000	/* only create watches */
 #define IN_MASK_ADD		0x20000000	/* add to the mask of an already existing watch */
 #define IN_ISDIR		0x40000000	/* event occurred against dir */
 #define IN_ONESHOT		0x80000000	/* only send event once */
@@ -70,5 +72,13 @@ struct inotify_event {
 #define IN_CLOEXEC O_CLOEXEC
 #define IN_NONBLOCK O_NONBLOCK
 
+/*
+ * ioctl numbers: inotify uses 'I' prefix for all ioctls,
+ * except historical FIONREAD, which is based on 'T'.
+ *
+ * INOTIFY_IOC_SETNEXTWD: set desired number of next created
+ * watch descriptor.
+ */
+#define INOTIFY_IOC_SETNEXTWD	_IOW('I', 0, __s32)
 
 #endif /* _UAPI_LINUX_INOTIFY_H */

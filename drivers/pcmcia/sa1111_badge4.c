@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/drivers/pcmcia/sa1100_badge4.c
  *
@@ -6,11 +7,6 @@
  *   Christopher Hoover <ch@hpl.hp.com>
  *
  * Copyright (C) 2002 Hewlett-Packard Company
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -144,6 +140,7 @@ int pcmcia_badge4_init(struct sa1111_dev *dev)
 				 sa11xx_drv_pcmcia_add_one);
 }
 
+#ifndef MODULE
 static int __init pcmv_setup(char *s)
 {
 	int v[4];
@@ -158,3 +155,4 @@ static int __init pcmv_setup(char *s)
 }
 
 __setup("pcmv=", pcmv_setup);
+#endif

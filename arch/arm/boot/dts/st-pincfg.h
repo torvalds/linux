@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ST_PINCFG_H_
 #define _ST_PINCFG_H_
 

@@ -64,7 +64,7 @@ struct mad_rmpp_recv {
 
 	__be64 tid;
 	u32 src_qp;
-	u16 slid;
+	u32 slid;
 	u8 mgmt_class;
 	u8 class_version;
 	u8 method;
@@ -81,7 +81,7 @@ static void destroy_rmpp_recv(struct mad_rmpp_recv *rmpp_recv)
 {
 	deref_rmpp_recv(rmpp_recv);
 	wait_for_completion(&rmpp_recv->comp);
-	ib_destroy_ah(rmpp_recv->ah);
+	rdma_destroy_ah(rmpp_recv->ah, RDMA_DESTROY_AH_SLEEPABLE);
 	kfree(rmpp_recv);
 }
 
@@ -171,7 +171,7 @@ static struct ib_mad_send_buf *alloc_response_msg(struct ib_mad_agent *agent,
 				 hdr_len, 0, GFP_KERNEL,
 				 IB_MGMT_BASE_VERSION);
 	if (IS_ERR(msg))
-		ib_destroy_ah(ah);
+		rdma_destroy_ah(ah, RDMA_DESTROY_AH_SLEEPABLE);
 	else {
 		msg->ah = ah;
 		msg->context[0] = ah;
@@ -201,7 +201,7 @@ static void ack_ds_ack(struct ib_mad_agent_private *agent,
 
 	ret = ib_post_send_mad(msg, NULL);
 	if (ret) {
-		ib_destroy_ah(msg->ah);
+		rdma_destroy_ah(msg->ah, RDMA_DESTROY_AH_SLEEPABLE);
 		ib_free_send_mad(msg);
 	}
 }
@@ -209,7 +209,8 @@ static void ack_ds_ack(struct ib_mad_agent_private *agent,
 void ib_rmpp_send_handler(struct ib_mad_send_wc *mad_send_wc)
 {
 	if (mad_send_wc->send_buf->context[0] == mad_send_wc->send_buf->ah)
-		ib_destroy_ah(mad_send_wc->send_buf->ah);
+		rdma_destroy_ah(mad_send_wc->send_buf->ah,
+				RDMA_DESTROY_AH_SLEEPABLE);
 	ib_free_send_mad(mad_send_wc->send_buf);
 }
 
@@ -237,7 +238,7 @@ static void nack_recv(struct ib_mad_agent_private *agent,
 
 	ret = ib_post_send_mad(msg, NULL);
 	if (ret) {
-		ib_destroy_ah(msg->ah);
+		rdma_destroy_ah(msg->ah, RDMA_DESTROY_AH_SLEEPABLE);
 		ib_free_send_mad(msg);
 	}
 }
@@ -852,7 +853,7 @@ static int init_newwin(struct ib_mad_send_wr_private *mad_send_wr)
 	struct ib_mad_agent_private *agent = mad_send_wr->mad_agent_priv;
 	struct ib_mad_hdr *mad_hdr = mad_send_wr->send_buf.mad;
 	struct mad_rmpp_recv *rmpp_recv;
-	struct ib_ah_attr ah_attr;
+	struct rdma_ah_attr ah_attr;
 	unsigned long flags;
 	int newwin = 1;
 
@@ -867,10 +868,10 @@ static int init_newwin(struct ib_mad_send_wr_private *mad_send_wr)
 		    (rmpp_recv->method & IB_MGMT_METHOD_RESP))
 			continue;
 
-		if (ib_query_ah(mad_send_wr->send_buf.ah, &ah_attr))
+		if (rdma_query_ah(mad_send_wr->send_buf.ah, &ah_attr))
 			continue;
 
-		if (rmpp_recv->slid == ah_attr.dlid) {
+		if (rmpp_recv->slid == rdma_ah_get_dlid(&ah_attr)) {
 			newwin = rmpp_recv->repwin;
 			break;
 		}

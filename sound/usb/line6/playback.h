@@ -1,12 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Line 6 Linux USB driver
  *
  * Copyright (C) 2004-2010 Markus Grabner (grabner@icg.tugraz.at)
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License as
- *	published by the Free Software Foundation, version 2.
- *
  */
 
 #ifndef PLAYBACK_H
@@ -27,7 +23,7 @@
  */
 #define USE_CLEAR_BUFFER_WORKAROUND 1
 
-extern struct snd_pcm_ops snd_line6_playback_ops;
+extern const struct snd_pcm_ops snd_line6_playback_ops;
 
 extern int line6_create_audio_out_urbs(struct snd_line6_pcm *line6pcm);
 extern int line6_submit_audio_out_all_urbs(struct snd_line6_pcm *line6pcm);

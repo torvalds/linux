@@ -1,24 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * arch/arm/mach-ks8695/gpio.c
  *
  * Copyright (C) 2006 Andrew Victor
  * Updated to GPIOLIB, Copyright 2008 Simtec Electronics
  *                     Daniel Silverstone <dsilvers@simtec.co.uk>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/init.h>
@@ -282,22 +270,13 @@ static int ks8695_gpio_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int ks8695_gpio_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, ks8695_gpio_show, NULL);
-}
-
-static const struct file_operations ks8695_gpio_operations = {
-	.open		= ks8695_gpio_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(ks8695_gpio);
 
 static int __init ks8695_gpio_debugfs_init(void)
 {
 	/* /sys/kernel/debug/ks8695_gpio */
-	(void) debugfs_create_file("ks8695_gpio", S_IFREG | S_IRUGO, NULL, NULL, &ks8695_gpio_operations);
+	debugfs_create_file("ks8695_gpio", S_IFREG | S_IRUGO, NULL, NULL,
+				&ks8695_gpio_fops);
 	return 0;
 }
 postcore_initcall(ks8695_gpio_debugfs_init);

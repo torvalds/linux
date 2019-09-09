@@ -1,32 +1,20 @@
-/*
- * max77802.c - Regulator driver for the Maxim 77802
- *
- * Copyright (C) 2013-2014 Google, Inc
- * Simon Glass <sjg@chromium.org>
- *
- * Copyright (C) 2012 Samsung Electronics
- * Chiwoong Byun <woong.byun@samsung.com>
- * Jonghwa Lee <jonghwa3.lee@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * This driver is based on max8997.c
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// max77802.c - Regulator driver for the Maxim 77802
+//
+// Copyright (C) 2013-2014 Google, Inc
+// Simon Glass <sjg@chromium.org>
+//
+// Copyright (C) 2012 Samsung Electronics
+// Chiwoong Byun <woong.byun@samsung.com>
+// Jonghwa Lee <jonghwa3.lee@samsung.com>
+//
+// This driver is based on max8997.c
 
 #include <linux/kernel.h>
 #include <linux/bug.h>
 #include <linux/err.h>
-#include <linux/gpio.h>
 #include <linux/slab.h>
-#include <linux/gpio/consumer.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
@@ -258,9 +246,9 @@ static int max77802_set_ramp_delay_2bit(struct regulator_dev *rdev,
 	unsigned int ramp_value;
 
 	if (id > MAX77802_BUCK4) {
-			dev_warn(&rdev->dev,
-				 "%s: regulator: ramp delay not supported\n",
-				 rdev->desc->name);
+		dev_warn(&rdev->dev,
+			 "%s: regulator: ramp delay not supported\n",
+			 rdev->desc->name);
 		return -EINVAL;
 	}
 	ramp_value = max77802_find_ramp_value(rdev, ramp_table_77802_2bit,
@@ -288,7 +276,7 @@ static int max77802_set_ramp_delay_4bit(struct regulator_dev *rdev,
 /*
  * LDOs 2, 4-19, 22-35
  */
-static struct regulator_ops max77802_ldo_ops_logic1 = {
+static const struct regulator_ops max77802_ldo_ops_logic1 = {
 	.list_voltage		= regulator_list_voltage_linear,
 	.map_voltage		= regulator_map_voltage_linear,
 	.is_enabled		= regulator_is_enabled_regmap,
@@ -304,7 +292,7 @@ static struct regulator_ops max77802_ldo_ops_logic1 = {
 /*
  * LDOs 1, 20, 21, 3
  */
-static struct regulator_ops max77802_ldo_ops_logic2 = {
+static const struct regulator_ops max77802_ldo_ops_logic2 = {
 	.list_voltage		= regulator_list_voltage_linear,
 	.map_voltage		= regulator_map_voltage_linear,
 	.is_enabled		= regulator_is_enabled_regmap,
@@ -319,7 +307,7 @@ static struct regulator_ops max77802_ldo_ops_logic2 = {
 };
 
 /* BUCKS 1, 6 */
-static struct regulator_ops max77802_buck_16_dvs_ops = {
+static const struct regulator_ops max77802_buck_16_dvs_ops = {
 	.list_voltage		= regulator_list_voltage_linear,
 	.map_voltage		= regulator_map_voltage_linear,
 	.is_enabled		= regulator_is_enabled_regmap,
@@ -333,7 +321,7 @@ static struct regulator_ops max77802_buck_16_dvs_ops = {
 };
 
 /* BUCKs 2-4 */
-static struct regulator_ops max77802_buck_234_ops = {
+static const struct regulator_ops max77802_buck_234_ops = {
 	.list_voltage		= regulator_list_voltage_linear,
 	.map_voltage		= regulator_map_voltage_linear,
 	.is_enabled		= regulator_is_enabled_regmap,
@@ -348,7 +336,7 @@ static struct regulator_ops max77802_buck_234_ops = {
 };
 
 /* BUCKs 5, 7-10 */
-static struct regulator_ops max77802_buck_dvs_ops = {
+static const struct regulator_ops max77802_buck_dvs_ops = {
 	.list_voltage		= regulator_list_voltage_linear,
 	.map_voltage		= regulator_map_voltage_linear,
 	.is_enabled		= regulator_is_enabled_regmap,

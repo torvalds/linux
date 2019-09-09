@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * isac.c   ISAC specific routines
  *
  * Author       Karsten Keil <keil@isdn4linux.de>
  *
  * Copyright 2009  by Karsten Keil <keil@isdn4linux.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
 #include <linux/irqreturn.h>
@@ -172,7 +159,6 @@ isac_fill_fifo(struct isac_hw *isac)
 		pr_debug("%s: %s dbusytimer running\n", isac->name, __func__);
 		del_timer(&isac->dch.timer);
 	}
-	init_timer(&isac->dch.timer);
 	isac->dch.timer.expires = jiffies + ((DBUSY_TIMER_VALUE * HZ)/1000);
 	add_timer(&isac->dch.timer);
 	if (isac->dch.debug & DEBUG_HW_DFIFO) {
@@ -364,8 +350,8 @@ afterMONR1:
 			WriteISAC(isac, ISAC_MOCR, isac->mocr);
 			if (isac->mon_txc && (isac->mon_txp >= isac->mon_txc)) {
 				if (isac->monitor)
-					ret = isac->monitor(isac->dch.hw,
-							    MONITOR_TX_0, NULL, 0);
+					isac->monitor(isac->dch.hw,
+						      MONITOR_TX_0, NULL, 0);
 			}
 			kfree(isac->mon_tx);
 			isac->mon_tx = NULL;
@@ -375,8 +361,8 @@ afterMONR1:
 		}
 		if (isac->mon_txc && (isac->mon_txp >= isac->mon_txc)) {
 			if (isac->monitor)
-				ret = isac->monitor(isac->dch.hw,
-						    MONITOR_TX_0, NULL, 0);
+				isac->monitor(isac->dch.hw,
+					      MONITOR_TX_0, NULL, 0);
 			kfree(isac->mon_tx);
 			isac->mon_tx = NULL;
 			isac->mon_txc = 0;
@@ -397,8 +383,8 @@ AfterMOX0:
 			WriteISAC(isac, ISAC_MOCR, isac->mocr);
 			if (isac->mon_txc && (isac->mon_txp >= isac->mon_txc)) {
 				if (isac->monitor)
-					ret = isac->monitor(isac->dch.hw,
-							    MONITOR_TX_1, NULL, 0);
+					isac->monitor(isac->dch.hw,
+						      MONITOR_TX_1, NULL, 0);
 			}
 			kfree(isac->mon_tx);
 			isac->mon_tx = NULL;
@@ -408,8 +394,8 @@ AfterMOX0:
 		}
 		if (isac->mon_txc && (isac->mon_txp >= isac->mon_txc)) {
 			if (isac->monitor)
-				ret = isac->monitor(isac->dch.hw,
-						    MONITOR_TX_1, NULL, 0);
+				isac->monitor(isac->dch.hw,
+					      MONITOR_TX_1, NULL, 0);
 			kfree(isac->mon_tx);
 			isac->mon_tx = NULL;
 			isac->mon_txc = 0;
@@ -727,8 +713,9 @@ isac_release(struct isac_hw *isac)
 }
 
 static void
-dbusy_timer_handler(struct isac_hw *isac)
+dbusy_timer_handler(struct timer_list *t)
 {
+	struct isac_hw *isac = from_timer(isac, t, dch.timer);
 	int rbch, star;
 	u_long flags;
 
@@ -796,9 +783,7 @@ isac_init(struct isac_hw *isac)
 	}
 	isac->mon_tx = NULL;
 	isac->mon_rx = NULL;
-	isac->dch.timer.function = (void *) dbusy_timer_handler;
-	isac->dch.timer.data = (long)isac;
-	init_timer(&isac->dch.timer);
+	timer_setup(&isac->dch.timer, dbusy_timer_handler, 0);
 	isac->mocr = 0xaa;
 	if (isac->type & IPAC_TYPE_ISACX) {
 		/* Disable all IRQ */
@@ -1625,7 +1610,7 @@ mISDNipac_init(struct ipac_hw *ipac, void *hw)
 		ipac->hscx[i].bch.hw = hw;
 		ipac->hscx[i].ip = ipac;
 		/* default values for IOM time slots
-		 * can be overwriten by card */
+		 * can be overwritten by card */
 		ipac->hscx[i].slot = (i == 0) ? 0x2f : 0x03;
 	}
 

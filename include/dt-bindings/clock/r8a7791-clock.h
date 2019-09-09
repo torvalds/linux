@@ -1,10 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright 2013 Ideas On Board SPRL
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #ifndef __DT_BINDINGS_CLOCK_R8A7791_H__
@@ -72,6 +68,7 @@
 
 /* MSTP4 */
 #define R8A7791_CLK_IRQC		7
+#define R8A7791_CLK_INTC_SYS		8
 
 /* MSTP5 */
 #define R8A7791_CLK_AUDIO_DMAC1		1
@@ -108,6 +105,7 @@
 #define R8A7791_CLK_SATA0		15
 
 /* MSTP9 */
+#define R8A7791_CLK_GYROADC		1
 #define R8A7791_CLK_GPIO7		4
 #define R8A7791_CLK_GPIO6		5
 #define R8A7791_CLK_GPIO5		7

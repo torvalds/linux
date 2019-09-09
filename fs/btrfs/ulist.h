@@ -1,12 +1,11 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 2011 STRATO AG
  * written by Arne Jansen <sensille@gmx.net>
- * Distributed under the GNU GPL license version 2.
- *
  */
 
-#ifndef __ULIST__
-#define __ULIST__
+#ifndef BTRFS_ULIST_H
+#define BTRFS_ULIST_H
 
 #include <linux/list.h>
 #include <linux/rbtree.h>
@@ -19,9 +18,6 @@
  *
  */
 struct ulist_iterator {
-#ifdef CONFIG_BTRFS_DEBUG
-	int i;
-#endif
 	struct list_head *cur_list;  /* hint to start search */
 };
 
@@ -31,10 +27,6 @@ struct ulist_iterator {
 struct ulist_node {
 	u64 val;		/* value to store */
 	u64 aux;		/* auxiliary value saved along with the val */
-
-#ifdef CONFIG_BTRFS_DEBUG
-	int seqnum;		/* sequence number this node is added */
-#endif
 
 	struct list_head list;  /* used to link node */
 	struct rb_node rb_node;	/* used to speed up search */
@@ -51,6 +43,7 @@ struct ulist {
 };
 
 void ulist_init(struct ulist *ulist);
+void ulist_release(struct ulist *ulist);
 void ulist_reinit(struct ulist *ulist);
 struct ulist *ulist_alloc(gfp_t gfp_mask);
 void ulist_free(struct ulist *ulist);

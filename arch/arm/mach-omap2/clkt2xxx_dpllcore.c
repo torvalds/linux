@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * DPLL + CORE_CLK composite clock functions
  *
@@ -10,10 +11,6 @@
  *
  * Based on earlier work by Tuukka Tikkanen, Tony Lindgren,
  * Gordon McNutt and RidgeRun, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * XXX The DPLL and CORE clocks should be split into two separate clock
  * types.
@@ -138,7 +135,8 @@ int omap2_reprogram_dpllcore(struct clk_hw *hw, unsigned long rate,
 		if (!dd)
 			return -EINVAL;
 
-		tmpset.cm_clksel1_pll = readl_relaxed(dd->mult_div1_reg);
+		tmpset.cm_clksel1_pll =
+			omap_clk_ll_ops.clk_readl(&dd->mult_div1_reg);
 		tmpset.cm_clksel1_pll &= ~(dd->mult_mask |
 					   dd->div1_mask);
 		div = ((curr_prcm_set->xtal_speed / 1000000) - 1);

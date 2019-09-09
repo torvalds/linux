@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Mars MR97310A library
  *
@@ -24,20 +25,6 @@
  *
  * The MR97311A support in gspca/mars.c has been helpful in understanding some
  * of the registers in these cameras.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -72,8 +59,7 @@
 #define MR97310A_MIN_CLOCKDIV_MAX	8
 #define MR97310A_MIN_CLOCKDIV_DEFAULT	3
 
-MODULE_AUTHOR("Kyle Guinn <elyk03@gmail.com>,"
-	      "Theodore Kilgore <kilgota@auburn.edu>");
+MODULE_AUTHOR("Kyle Guinn <elyk03@gmail.com>,Theodore Kilgore <kilgota@auburn.edu>");
 MODULE_DESCRIPTION("GSPCA/Mars-Semi MR97310A USB Camera Driver");
 MODULE_LICENSE("GPL");
 
@@ -226,10 +212,11 @@ static int cam_get_response16(struct gspca_dev *gspca_dev, u8 reg, int verbose)
 		return err_code;
 
 	if (verbose)
-		PDEBUG(D_PROBE, "Register: %02x reads %02x%02x%02x", reg,
-		       gspca_dev->usb_buf[0],
-		       gspca_dev->usb_buf[1],
-		       gspca_dev->usb_buf[2]);
+		gspca_dbg(gspca_dev, D_PROBE, "Register: %02x reads %02x%02x%02x\n",
+			  reg,
+			  gspca_dev->usb_buf[0],
+			  gspca_dev->usb_buf[1],
+			  gspca_dev->usb_buf[2]);
 
 	return 0;
 }
@@ -289,7 +276,7 @@ static int zero_the_pointer(struct gspca_dev *gspca_dev)
 			return err_code;
 	}
 	if (status != 0x0a)
-		PERR("status is %02x", status);
+		gspca_err(gspca_dev, "status is %02x\n", status);
 
 	tries = 0;
 	while (tries < 4) {
@@ -330,7 +317,7 @@ static void stream_stop(struct gspca_dev *gspca_dev)
 	gspca_dev->usb_buf[0] = 0x01;
 	gspca_dev->usb_buf[1] = 0x00;
 	if (mr_write(gspca_dev, 2) < 0)
-		PERR("Stream Stop failed");
+		gspca_err(gspca_dev, "Stream Stop failed\n");
 }
 
 static void lcd_stop(struct gspca_dev *gspca_dev)
@@ -338,7 +325,7 @@ static void lcd_stop(struct gspca_dev *gspca_dev)
 	gspca_dev->usb_buf[0] = 0x19;
 	gspca_dev->usb_buf[1] = 0x54;
 	if (mr_write(gspca_dev, 2) < 0)
-		PERR("LCD Stop failed");
+		gspca_err(gspca_dev, "LCD Stop failed\n");
 }
 
 static int isoc_enable(struct gspca_dev *gspca_dev)
@@ -418,8 +405,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 			       gspca_dev->usb_buf[1]);
 			return -ENODEV;
 		}
-		PDEBUG(D_PROBE, "MR97310A CIF camera detected, sensor: %d",
-		       sd->sensor_type);
+		gspca_dbg(gspca_dev, D_PROBE, "MR97310A CIF camera detected, sensor: %d\n",
+			  sd->sensor_type);
 	} else {
 		sd->cam_type = CAM_TYPE_VGA;
 
@@ -463,7 +450,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 			switch (gspca_dev->usb_buf[1]) {
 			case 0x50:
 				sd->sensor_type = 0;
-				PDEBUG(D_PROBE, "sensor_type corrected to 0");
+				gspca_dbg(gspca_dev, D_PROBE, "sensor_type corrected to 0\n");
 				break;
 			case 0x20:
 				/* Nothing to do here. */
@@ -475,16 +462,16 @@ static int sd_config(struct gspca_dev *gspca_dev,
 				pr_err("Please report this\n");
 			}
 		}
-		PDEBUG(D_PROBE, "MR97310A VGA camera detected, sensor: %d",
-		       sd->sensor_type);
+		gspca_dbg(gspca_dev, D_PROBE, "MR97310A VGA camera detected, sensor: %d\n",
+			  sd->sensor_type);
 	}
 	/* Stop streaming as we've started it only to probe the sensor type. */
 	sd_stopN(gspca_dev);
 
 	if (force_sensor_type != -1) {
 		sd->sensor_type = !!force_sensor_type;
-		PDEBUG(D_PROBE, "Forcing sensor type to: %d",
-		       sd->sensor_type);
+		gspca_dbg(gspca_dev, D_PROBE, "Forcing sensor type to: %d\n",
+			  sd->sensor_type);
 	}
 
 	return 0;
@@ -524,7 +511,7 @@ static int start_cif_cam(struct gspca_dev *gspca_dev)
 	switch (gspca_dev->pixfmt.width) {
 	case 160:
 		data[9] |= 0x04;  /* reg 8, 2:1 scale down from 320 */
-		/* fall thru */
+		/* fall through */
 	case 320:
 	default:
 		data[3] = 0x28;			   /* reg 2, H size/8 */
@@ -534,7 +521,7 @@ static int start_cif_cam(struct gspca_dev *gspca_dev)
 		break;
 	case 176:
 		data[9] |= 0x04;  /* reg 8, 2:1 scale down from 352 */
-		/* fall thru */
+		/* fall through */
 	case 352:
 		data[3] = 0x2c;			   /* reg 2, H size/8 */
 		data[4] = 0x48;			   /* reg 3, V size/4 */
@@ -621,10 +608,10 @@ static int start_vga_cam(struct gspca_dev *gspca_dev)
 	switch (gspca_dev->pixfmt.width) {
 	case 160:
 		data[9] |= 0x0c;  /* reg 8, 4:1 scale down */
-		/* fall thru */
+		/* fall through */
 	case 320:
 		data[9] |= 0x04;  /* reg 8, 2:1 scale down */
-		/* fall thru */
+		/* fall through */
 	case 640:
 	default:
 		data[3] = 0x50;  /* reg 2, H size/8 */
@@ -641,7 +628,7 @@ static int start_vga_cam(struct gspca_dev *gspca_dev)
 
 	case 176:
 		data[9] |= 0x04;  /* reg 8, 2:1 scale down */
-		/* fall thru */
+		/* fall through */
 	case 352:
 		data[3] = 0x2c;  /* reg 2, H size */
 		data[4] = 0x48;  /* reg 3, V size */

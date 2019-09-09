@@ -1,6 +1,6 @@
+# SPDX-License-Identifier: GPL-2.0
 menuconfig STAGING
 	bool "Staging drivers"
-	default n
 	---help---
 	  This option allows you to select a number of drivers that are
 	  not of the "normal" Linux kernel quality level.  These drivers
@@ -16,15 +16,13 @@ menuconfig STAGING
 
 	  If you wish to work on these drivers, to help improve them, or
 	  to report problems you have with them, please see the
-	  driver_name.README file in the drivers/staging/ directory to
-	  see what needs to be worked on, and who to contact.
+	  drivers/staging/<driver_name>/TODO file to see what needs to be
+	  worked on, and who to contact.
 
 	  If in doubt, say N here.
 
 
 if STAGING
-
-source "drivers/staging/slicoss/Kconfig"
 
 source "drivers/staging/wlan-ng/Kconfig"
 
@@ -35,6 +33,8 @@ source "drivers/staging/olpc_dcon/Kconfig"
 source "drivers/staging/rtl8192u/Kconfig"
 
 source "drivers/staging/rtl8192e/Kconfig"
+
+source "drivers/staging/rtl8723bs/Kconfig"
 
 source "drivers/staging/rtl8712/Kconfig"
 
@@ -53,8 +53,6 @@ source "drivers/staging/vt6656/Kconfig"
 source "drivers/staging/iio/Kconfig"
 
 source "drivers/staging/sm750fb/Kconfig"
-
-source "drivers/staging/xgifb/Kconfig"
 
 source "drivers/staging/emxx_udc/Kconfig"
 
@@ -76,15 +74,7 @@ source "drivers/staging/goldfish/Kconfig"
 
 source "drivers/staging/netlogic/Kconfig"
 
-source "drivers/staging/mt29f_spinand/Kconfig"
-
-source "drivers/staging/lustre/Kconfig"
-
-source "drivers/staging/dgnc/Kconfig"
-
 source "drivers/staging/gs_fpgaboot/Kconfig"
-
-source "drivers/staging/skein/Kconfig"
 
 source "drivers/staging/unisys/Kconfig"
 
@@ -92,18 +82,42 @@ source "drivers/staging/clocking-wizard/Kconfig"
 
 source "drivers/staging/fbtft/Kconfig"
 
-source "drivers/staging/fsl-mc/Kconfig"
+source "drivers/staging/fsl-dpaa2/Kconfig"
 
 source "drivers/staging/wilc1000/Kconfig"
 
 source "drivers/staging/most/Kconfig"
-
-source "drivers/staging/i4l/Kconfig"
 
 source "drivers/staging/ks7010/Kconfig"
 
 source "drivers/staging/greybus/Kconfig"
 
 source "drivers/staging/vc04_services/Kconfig"
+
+source "drivers/staging/pi433/Kconfig"
+
+source "drivers/staging/mt7621-pci/Kconfig"
+
+source "drivers/staging/mt7621-pci-phy/Kconfig"
+
+source "drivers/staging/mt7621-pinctrl/Kconfig"
+
+source "drivers/staging/mt7621-dma/Kconfig"
+
+source "drivers/staging/ralink-gdma/Kconfig"
+
+source "drivers/staging/mt7621-dts/Kconfig"
+
+source "drivers/staging/gasket/Kconfig"
+
+source "drivers/staging/axis-fifo/Kconfig"
+
+source "drivers/staging/erofs/Kconfig"
+
+source "drivers/staging/fieldbus/Kconfig"
+
+source "drivers/staging/kpc2000/Kconfig"
+
+source "drivers/staging/isdn/Kconfig"
 
 endif # STAGING

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * This file contains the code that gets mapped at the upper end of each task's text
  * region.  For now, it contains the signal trampoline code only.

@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Broadcom BCM7120 style Level 2 interrupt controller driver
  *
  * Copyright (C) 2014 Broadcom Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #define pr_fmt(fmt)	KBUILD_MODNAME	": " fmt
@@ -250,12 +247,6 @@ static int __init bcm7120_l2_intc_probe(struct device_node *dn,
 	if (ret < 0)
 		goto out_free_l1_data;
 
-	for (idx = 0; idx < data->n_words; idx++) {
-		__raw_writel(data->irq_fwd_mask[idx],
-			     data->pair_base[idx] +
-			     data->en_offset[idx]);
-	}
-
 	for (irq = 0; irq < data->num_parent_irqs; irq++) {
 		ret = bcm7120_l2_intc_init_one(dn, data, irq, valid_mask);
 		if (ret)
@@ -297,6 +288,10 @@ static int __init bcm7120_l2_intc_probe(struct device_node *dn,
 		gc->reg_base = data->pair_base[idx];
 		ct->regs.mask = data->en_offset[idx];
 
+		/* gc->reg_base is defined and so is gc->writel */
+		irq_reg_writel(gc, data->irq_fwd_mask[idx],
+			       data->en_offset[idx]);
+
 		ct->chip.irq_mask = irq_gc_mask_clr_bit;
 		ct->chip.irq_unmask = irq_gc_mask_set_bit;
 		ct->chip.irq_ack = irq_gc_noop;
@@ -320,8 +315,8 @@ static int __init bcm7120_l2_intc_probe(struct device_node *dn,
 		}
 	}
 
-	pr_info("registered %s intc (mem: 0x%p, parent IRQ(s): %d)\n",
-			intc_name, data->map_base[0], data->num_parent_irqs);
+	pr_info("registered %s intc (%pOF, parent IRQ(s): %d)\n",
+		intc_name, dn, data->num_parent_irqs);
 
 	return 0;
 

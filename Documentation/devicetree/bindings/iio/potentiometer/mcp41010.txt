@@ -1,0 +1,28 @@
+* Microchip MCP41010/41050/41100/42010/42050/42100 Digital Potentiometer
+
+Datasheet publicly available at:
+http://ww1.microchip.com/downloads/en/devicedoc/11195c.pdf
+
+The node for this driver must be a child node of a SPI controller, hence
+all mandatory properties described in
+
+        Documentation/devicetree/bindings/spi/spi-bus.txt
+
+must be specified.
+
+Required properties:
+	- compatible:  	Must be one of the following, depending on the
+			model:
+			"microchip,mcp41010"
+			"microchip,mcp41050"
+			"microchip,mcp41100"
+			"microchip,mcp42010"
+			"microchip,mcp42050"
+			"microchip,mcp42100"
+
+Example:
+potentiometer@0 {
+	compatible = "microchip,mcp41010";
+	reg = <0>;
+	spi-max-frequency = <500000>;
+};

@@ -4,7 +4,6 @@ Required properties:
 - compatible: Should be "st,st21nfcb-i2c" or "st,st21nfcc-i2c".
 - clock-frequency: I²C work frequency.
 - reg: address on the bus
-- interrupt-parent: phandle for the interrupt gpio controller
 - interrupts: GPIO interrupt to which the chip is connected
 - reset-gpios: Output GPIO pin used to reset the ST21NFCB
 
@@ -20,7 +19,6 @@ Example (for ARM-based BeagleBoard xM with ST21NFCB on I2C2):
 
 &i2c2 {
 
-	status = "okay";
 
 	st21nfcb: st21nfcb@8 {
 

@@ -1,24 +1,43 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _CCU_MULT_H_
 #define _CCU_MULT_H_
 
 #include "ccu_common.h"
+#include "ccu_frac.h"
 #include "ccu_mux.h"
 
-struct _ccu_mult {
+struct ccu_mult_internal {
+	u8	offset;
 	u8	shift;
 	u8	width;
+	u8	min;
+	u8	max;
 };
 
-#define _SUNXI_CCU_MULT(_shift, _width)		\
-	{					\
-		.shift	= _shift,		\
-		.width	= _width,		\
+#define _SUNXI_CCU_MULT_OFFSET_MIN_MAX(_shift, _width, _offset, _min, _max) \
+	{								\
+		.min	= _min,						\
+		.max	= _max,						\
+		.offset	= _offset,					\
+		.shift	= _shift,					\
+		.width	= _width,					\
 	}
+
+#define _SUNXI_CCU_MULT_MIN(_shift, _width, _min)	\
+	_SUNXI_CCU_MULT_OFFSET_MIN_MAX(_shift, _width, 1, _min, 0)
+
+#define _SUNXI_CCU_MULT_OFFSET(_shift, _width, _offset)	\
+	_SUNXI_CCU_MULT_OFFSET_MIN_MAX(_shift, _width, _offset, 1, 0)
+
+#define _SUNXI_CCU_MULT(_shift, _width)		\
+	_SUNXI_CCU_MULT_OFFSET_MIN_MAX(_shift, _width, 1, 1, 0)
 
 struct ccu_mult {
 	u32			enable;
+	u32			lock;
 
-	struct _ccu_mult	mult;
+	struct ccu_frac_internal	frac;
+	struct ccu_mult_internal	mult;
 	struct ccu_mux_internal	mux;
 	struct ccu_common	common;
 };
@@ -28,6 +47,7 @@ struct ccu_mult {
 				   _flags)				\
 	struct ccu_mult _struct = {					\
 		.enable	= _gate,					\
+		.lock	= _lock,					\
 		.mult	= _SUNXI_CCU_MULT(_mshift, _mwidth),		\
 		.common	= {						\
 			.reg		= _reg,				\

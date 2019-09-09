@@ -1,16 +1,19 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /* Signature verification
  *
  * Copyright (C) 2014 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public Licence
- * as published by the Free Software Foundation; either version
- * 2 of the Licence, or (at your option) any later version.
  */
 
 #ifndef _LINUX_VERIFICATION_H
 #define _LINUX_VERIFICATION_H
+
+/*
+ * Indicate that both builtin trusted keys and secondary trusted keys
+ * should be used.
+ */
+#define VERIFY_USE_SECONDARY_KEYRING ((struct key *)1UL)
+#define VERIFY_USE_PLATFORM_KEYRING  ((struct key *)2UL)
 
 /*
  * The use to which an asymmetric key is being put.

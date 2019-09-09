@@ -1,23 +1,25 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) STMicroelectronics SA 2014
  * Authors: Benjamin Gaignard <benjamin.gaignard@st.com>
  *          Fabien Dessenne <fabien.dessenne@st.com>
  *          Vincent Abriou <vincent.abriou@st.com>
  *          for STMicroelectronics.
- * License terms:  GNU General Public License (GPL), version 2
  */
 
 #include <linux/module.h>
+#include <linux/io.h>
 #include <linux/notifier.h>
+#include <linux/of_platform.h>
 #include <linux/platform_device.h>
 
-#include <drm/drmP.h>
+#include <drm/drm_modes.h>
+#include <drm/drm_print.h>
 
 #include "sti_drv.h"
 #include "sti_vtg.h"
 
 #define VTG_MODE_MASTER         0
-#define VTG_MODE_SLAVE_BY_EXT0  1
 
 /* registers offset */
 #define VTG_MODE            0x0000
@@ -73,8 +75,6 @@
 #define AWG_DELAY_ED        (-8)
 #define AWG_DELAY_SD        (-7)
 
-static LIST_HEAD(vtg_lookup);
-
 /*
  * STI VTG register offset structure
  *
@@ -124,52 +124,35 @@ struct sti_vtg_sync_params {
 /**
  * STI VTG structure
  *
- * @dev: pointer to device driver
- * @np: device node
  * @regs: register mapping
  * @sync_params: synchronisation parameters used to generate timings
  * @irq: VTG irq
  * @irq_status: store the IRQ status value
  * @notifier_list: notifier callback
  * @crtc: the CRTC for vblank event
- * @slave: slave vtg
- * @link: List node to link the structure in lookup list
  */
 struct sti_vtg {
-	struct device *dev;
-	struct device_node *np;
 	void __iomem *regs;
 	struct sti_vtg_sync_params sync_params[VTG_MAX_SYNC_OUTPUT];
 	int irq;
 	u32 irq_status;
 	struct raw_notifier_head notifier_list;
 	struct drm_crtc *crtc;
-	struct sti_vtg *slave;
-	struct list_head link;
 };
-
-static void vtg_register(struct sti_vtg *vtg)
-{
-	list_add_tail(&vtg->link, &vtg_lookup);
-}
 
 struct sti_vtg *of_vtg_find(struct device_node *np)
 {
-	struct sti_vtg *vtg;
+	struct platform_device *pdev;
 
-	list_for_each_entry(vtg, &vtg_lookup, link) {
-		if (vtg->np == np)
-			return vtg;
-	}
-	return NULL;
+	pdev = of_find_device_by_node(np);
+	if (!pdev)
+		return NULL;
+
+	return (struct sti_vtg *)platform_get_drvdata(pdev);
 }
 
 static void vtg_reset(struct sti_vtg *vtg)
 {
-	/* reset slave and then master */
-	if (vtg->slave)
-		vtg_reset(vtg->slave);
-
 	writel(1, vtg->regs + VTG_DRST_AUTOC);
 }
 
@@ -259,10 +242,6 @@ static void vtg_set_mode(struct sti_vtg *vtg,
 {
 	unsigned int i;
 
-	if (vtg->slave)
-		vtg_set_mode(vtg->slave, VTG_MODE_SLAVE_BY_EXT0,
-			     vtg->sync_params, mode);
-
 	/* Set the number of clock cycles per line */
 	writel(mode->htotal, vtg->regs + VTG_CLKLN);
 
@@ -318,11 +297,7 @@ void sti_vtg_set_config(struct sti_vtg *vtg,
 
 	vtg_reset(vtg);
 
-	/* enable irq for the vtg vblank synchro */
-	if (vtg->slave)
-		vtg_enable_irq(vtg->slave);
-	else
-		vtg_enable_irq(vtg);
+	vtg_enable_irq(vtg);
 }
 
 /**
@@ -365,18 +340,12 @@ u32 sti_vtg_get_pixel_number(struct drm_display_mode mode, int x)
 int sti_vtg_register_client(struct sti_vtg *vtg, struct notifier_block *nb,
 			    struct drm_crtc *crtc)
 {
-	if (vtg->slave)
-		return sti_vtg_register_client(vtg->slave, nb, crtc);
-
 	vtg->crtc = crtc;
 	return raw_notifier_chain_register(&vtg->notifier_list, nb);
 }
 
 int sti_vtg_unregister_client(struct sti_vtg *vtg, struct notifier_block *nb)
 {
-	if (vtg->slave)
-		return sti_vtg_unregister_client(vtg->slave, nb);
-
 	return raw_notifier_chain_unregister(&vtg->notifier_list, nb);
 }
 
@@ -410,7 +379,6 @@ static irqreturn_t vtg_irq(int irq, void *arg)
 static int vtg_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np;
 	struct sti_vtg *vtg;
 	struct resource *res;
 	int ret;
@@ -419,9 +387,6 @@ static int vtg_probe(struct platform_device *pdev)
 	if (!vtg)
 		return -ENOMEM;
 
-	vtg->dev = dev;
-	vtg->np = pdev->dev.of_node;
-
 	/* Get Memory ressources */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
@@ -429,42 +394,31 @@ static int vtg_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 	vtg->regs = devm_ioremap_nocache(dev, res->start, resource_size(res));
-
-	np = of_parse_phandle(pdev->dev.of_node, "st,slave", 0);
-	if (np) {
-		vtg->slave = of_vtg_find(np);
-		of_node_put(np);
-
-		if (!vtg->slave)
-			return -EPROBE_DEFER;
-	} else {
-		vtg->irq = platform_get_irq(pdev, 0);
-		if (vtg->irq < 0) {
-			DRM_ERROR("Failed to get VTG interrupt\n");
-			return vtg->irq;
-		}
-
-		RAW_INIT_NOTIFIER_HEAD(&vtg->notifier_list);
-
-		ret = devm_request_threaded_irq(dev, vtg->irq, vtg_irq,
-				vtg_irq_thread, IRQF_ONESHOT,
-				dev_name(dev), vtg);
-		if (ret < 0) {
-			DRM_ERROR("Failed to register VTG interrupt\n");
-			return ret;
-		}
+	if (!vtg->regs) {
+		DRM_ERROR("failed to remap I/O memory\n");
+		return -ENOMEM;
 	}
 
-	vtg_register(vtg);
+	vtg->irq = platform_get_irq(pdev, 0);
+	if (vtg->irq < 0) {
+		DRM_ERROR("Failed to get VTG interrupt\n");
+		return vtg->irq;
+	}
+
+	RAW_INIT_NOTIFIER_HEAD(&vtg->notifier_list);
+
+	ret = devm_request_threaded_irq(dev, vtg->irq, vtg_irq,
+					vtg_irq_thread, IRQF_ONESHOT,
+					dev_name(dev), vtg);
+	if (ret < 0) {
+		DRM_ERROR("Failed to register VTG interrupt\n");
+		return ret;
+	}
+
 	platform_set_drvdata(pdev, vtg);
 
-	DRM_INFO("%s %s\n", __func__, dev_name(vtg->dev));
+	DRM_INFO("%s %s\n", __func__, dev_name(dev));
 
-	return 0;
-}
-
-static int vtg_remove(struct platform_device *pdev)
-{
 	return 0;
 }
 
@@ -481,7 +435,6 @@ struct platform_driver sti_vtg_driver = {
 		.of_match_table = vtg_of_match,
 	},
 	.probe	= vtg_probe,
-	.remove = vtg_remove,
 };
 
 MODULE_AUTHOR("Benjamin Gaignard <benjamin.gaignard@st.com>");

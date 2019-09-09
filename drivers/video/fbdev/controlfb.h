@@ -1,12 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * controlfb_hw.h: Constants of all sorts for controlfb
  *
  * Copyright (C) 1998 Daniel Jacobowitz <dan@debian.org>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  *
  * Based on an awful lot of code, including:
  *
@@ -141,5 +137,7 @@ static struct max_cmodes control_mac_modes[] = {
 	{{ 1, 2}},	/* 1152x870, 75Hz */
 	{{ 0, 1}},	/* 1280x960, 75Hz */
 	{{ 0, 1}},	/* 1280x1024, 75Hz */
+	{{ 1, 2}},	/* 1152x768, 60Hz */
+	{{ 0, 1}},	/* 1600x1024, 60Hz */
 };
 

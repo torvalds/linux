@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * IBM Hot Plug Controller Driver
  *
@@ -7,21 +8,6 @@
  * Copyright (C) 2001-2003 IBM Corp.
  *
  * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or (at
- * your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
- * NON INFRINGEMENT.  See the GNU General Public License for more
- * details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  * Send feedback to <gregkh@us.ibm.com>
  *
@@ -261,11 +247,8 @@ static int set_attention_status(struct hotplug_slot *hotplug_slot, u8 value)
 			break;
 		}
 		if (rc == 0) {
-			pslot = hotplug_slot->private;
-			if (pslot)
-				rc = ibmphp_hpc_writeslot(pslot, cmd);
-			else
-				rc = -ENODEV;
+			pslot = to_slot(hotplug_slot);
+			rc = ibmphp_hpc_writeslot(pslot, cmd);
 		}
 	} else
 		rc = -ENODEV;
@@ -287,19 +270,15 @@ static int get_attention_status(struct hotplug_slot *hotplug_slot, u8 *value)
 
 	ibmphp_lock_operations();
 	if (hotplug_slot) {
-		pslot = hotplug_slot->private;
-		if (pslot) {
-			memcpy(&myslot, pslot, sizeof(struct slot));
-			rc = ibmphp_hpc_readslot(pslot, READ_SLOTSTATUS,
-						&(myslot.status));
-			if (!rc)
-				rc = ibmphp_hpc_readslot(pslot,
-						READ_EXTSLOTSTATUS,
-						&(myslot.ext_status));
-			if (!rc)
-				*value = SLOT_ATTN(myslot.status,
-						myslot.ext_status);
-		}
+		pslot = to_slot(hotplug_slot);
+		memcpy(&myslot, pslot, sizeof(struct slot));
+		rc = ibmphp_hpc_readslot(pslot, READ_SLOTSTATUS,
+					 &myslot.status);
+		if (!rc)
+			rc = ibmphp_hpc_readslot(pslot, READ_EXTSLOTSTATUS,
+						 &myslot.ext_status);
+		if (!rc)
+			*value = SLOT_ATTN(myslot.status, myslot.ext_status);
 	}
 
 	ibmphp_unlock_operations();
@@ -317,14 +296,12 @@ static int get_latch_status(struct hotplug_slot *hotplug_slot, u8 *value)
 					(ulong) hotplug_slot, (ulong) value);
 	ibmphp_lock_operations();
 	if (hotplug_slot) {
-		pslot = hotplug_slot->private;
-		if (pslot) {
-			memcpy(&myslot, pslot, sizeof(struct slot));
-			rc = ibmphp_hpc_readslot(pslot, READ_SLOTSTATUS,
-						&(myslot.status));
-			if (!rc)
-				*value = SLOT_LATCH(myslot.status);
-		}
+		pslot = to_slot(hotplug_slot);
+		memcpy(&myslot, pslot, sizeof(struct slot));
+		rc = ibmphp_hpc_readslot(pslot, READ_SLOTSTATUS,
+					 &myslot.status);
+		if (!rc)
+			*value = SLOT_LATCH(myslot.status);
 	}
 
 	ibmphp_unlock_operations();
@@ -344,14 +321,12 @@ static int get_power_status(struct hotplug_slot *hotplug_slot, u8 *value)
 					(ulong) hotplug_slot, (ulong) value);
 	ibmphp_lock_operations();
 	if (hotplug_slot) {
-		pslot = hotplug_slot->private;
-		if (pslot) {
-			memcpy(&myslot, pslot, sizeof(struct slot));
-			rc = ibmphp_hpc_readslot(pslot, READ_SLOTSTATUS,
-						&(myslot.status));
-			if (!rc)
-				*value = SLOT_PWRGD(myslot.status);
-		}
+		pslot = to_slot(hotplug_slot);
+		memcpy(&myslot, pslot, sizeof(struct slot));
+		rc = ibmphp_hpc_readslot(pslot, READ_SLOTSTATUS,
+					 &myslot.status);
+		if (!rc)
+			*value = SLOT_PWRGD(myslot.status);
 	}
 
 	ibmphp_unlock_operations();
@@ -371,18 +346,16 @@ static int get_adapter_present(struct hotplug_slot *hotplug_slot, u8 *value)
 					(ulong) hotplug_slot, (ulong) value);
 	ibmphp_lock_operations();
 	if (hotplug_slot) {
-		pslot = hotplug_slot->private;
-		if (pslot) {
-			memcpy(&myslot, pslot, sizeof(struct slot));
-			rc = ibmphp_hpc_readslot(pslot, READ_SLOTSTATUS,
-						&(myslot.status));
-			if (!rc) {
-				present = SLOT_PRESENT(myslot.status);
-				if (present == HPC_SLOT_EMPTY)
-					*value = 0;
-				else
-					*value = 1;
-			}
+		pslot = to_slot(hotplug_slot);
+		memcpy(&myslot, pslot, sizeof(struct slot));
+		rc = ibmphp_hpc_readslot(pslot, READ_SLOTSTATUS,
+					 &myslot.status);
+		if (!rc) {
+			present = SLOT_PRESENT(myslot.status);
+			if (present == HPC_SLOT_EMPTY)
+				*value = 0;
+			else
+				*value = 1;
 		}
 	}
 
@@ -393,10 +366,10 @@ static int get_adapter_present(struct hotplug_slot *hotplug_slot, u8 *value)
 
 static int get_max_bus_speed(struct slot *slot)
 {
-	int rc;
+	int rc = 0;
 	u8 mode = 0;
 	enum pci_bus_speed speed;
-	struct pci_bus *bus = slot->hotplug_slot->pci_slot->bus;
+	struct pci_bus *bus = slot->hotplug_slot.pci_slot->bus;
 
 	debug("%s - Entry slot[%p]\n", __func__, slot);
 
@@ -596,30 +569,9 @@ static int validate(struct slot *slot_cur, int opn)
  ****************************************************************************/
 int ibmphp_update_slot_info(struct slot *slot_cur)
 {
-	struct hotplug_slot_info *info;
-	struct pci_bus *bus = slot_cur->hotplug_slot->pci_slot->bus;
-	int rc;
+	struct pci_bus *bus = slot_cur->hotplug_slot.pci_slot->bus;
 	u8 bus_speed;
 	u8 mode;
-
-	info = kmalloc(sizeof(struct hotplug_slot_info), GFP_KERNEL);
-	if (!info) {
-		err("out of system memory\n");
-		return -ENOMEM;
-	}
-
-	info->power_status = SLOT_PWRGD(slot_cur->status);
-	info->attention_status = SLOT_ATTN(slot_cur->status,
-						slot_cur->ext_status);
-	info->latch_status = SLOT_LATCH(slot_cur->status);
-	if (!SLOT_PRESENT(slot_cur->status)) {
-		info->adapter_status = 0;
-/*		info->max_adapter_speed_status = MAX_ADAPTER_NONE; */
-	} else {
-		info->adapter_status = 1;
-/*		get_max_adapter_speed_1(slot_cur->hotplug_slot,
-					&info->max_adapter_speed_status, 0); */
-	}
 
 	bus_speed = slot_cur->bus_on->current_speed;
 	mode = slot_cur->bus_on->current_bus_mode;
@@ -646,9 +598,7 @@ int ibmphp_update_slot_info(struct slot *slot_cur)
 	bus->cur_bus_speed = bus_speed;
 	// To do: bus_names
 
-	rc = pci_hp_change_slot_info(slot_cur->hotplug_slot, info);
-	kfree(info);
-	return rc;
+	return 0;
 }
 
 
@@ -689,7 +639,18 @@ static void free_slots(void)
 
 	list_for_each_entry_safe(slot_cur, next, &ibmphp_slot_head,
 				 ibm_slot_list) {
-		pci_hp_deregister(slot_cur->hotplug_slot);
+		pci_hp_del(&slot_cur->hotplug_slot);
+		slot_cur->ctrl = NULL;
+		slot_cur->bus_on = NULL;
+
+		/*
+		 * We don't want to actually remove the resources,
+		 * since ibmphp_free_resources() will do just that.
+		 */
+		ibmphp_unconfigure_card(&slot_cur, -1);
+
+		pci_hp_destroy(&slot_cur->hotplug_slot);
+		kfree(slot_cur);
 	}
 	debug("%s -- exit\n", __func__);
 }
@@ -707,7 +668,8 @@ static void ibm_unconfigure_device(struct pci_func *func)
 	pci_lock_rescan_remove();
 
 	for (j = 0; j < 0x08; j++) {
-		temp = pci_get_bus_and_slot(func->busno, (func->device << 3) | j);
+		temp = pci_get_domain_bus_and_slot(0, func->busno,
+						   (func->device << 3) | j);
 		if (temp) {
 			pci_stop_and_remove_bus_device(temp);
 			pci_dev_put(temp);
@@ -734,14 +696,12 @@ static u8 bus_structure_fixup(u8 busno)
 		return 1;
 
 	bus = kmalloc(sizeof(*bus), GFP_KERNEL);
-	if (!bus) {
-		err("%s - out of memory\n", __func__);
+	if (!bus)
 		return 1;
-	}
+
 	dev = kmalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev) {
 		kfree(bus);
-		err("%s - out of memory\n", __func__);
 		return 1;
 	}
 
@@ -780,7 +740,7 @@ static int ibm_configure_device(struct pci_func *func)
 	if (!(bus_structure_fixup(func->busno)))
 		flag = 1;
 	if (func->dev == NULL)
-		func->dev = pci_get_bus_and_slot(func->busno,
+		func->dev = pci_get_domain_bus_and_slot(0, func->busno,
 				PCI_DEVFN(func->device, func->function));
 
 	if (func->dev == NULL) {
@@ -793,7 +753,7 @@ static int ibm_configure_device(struct pci_func *func)
 		if (num)
 			pci_bus_add_devices(bus);
 
-		func->dev = pci_get_bus_and_slot(func->busno,
+		func->dev = pci_get_domain_bus_and_slot(0, func->busno,
 				PCI_DEVFN(func->device, func->function));
 		if (func->dev == NULL) {
 			err("ERROR... : pci_dev still NULL\n");
@@ -852,7 +812,7 @@ static int set_bus(struct slot *slot_cur)
 	u8 speed;
 	u8 cmd = 0x0;
 	int retval;
-	static struct pci_device_id ciobx[] = {
+	static const struct pci_device_id ciobx[] = {
 		{ PCI_DEVICE(PCI_VENDOR_ID_SERVERWORKS, 0x0101) },
 		{ },
 	};
@@ -1011,7 +971,7 @@ static int enable_slot(struct hotplug_slot *hs)
 	ibmphp_lock_operations();
 
 	debug("ENABLING SLOT........\n");
-	slot_cur = hs->private;
+	slot_cur = to_slot(hs);
 
 	rc = validate(slot_cur, ENABLE);
 	if (rc) {
@@ -1099,9 +1059,7 @@ static int enable_slot(struct hotplug_slot *hs)
 
 	slot_cur->func = kzalloc(sizeof(struct pci_func), GFP_KERNEL);
 	if (!slot_cur->func) {
-		/* We cannot do update_slot_info here, since no memory for
-		 * kmalloc n.e.ways, and update_slot_info allocates some */
-		err("out of system memory\n");
+		/* do update_slot_info here? */
 		rc = -ENOMEM;
 		goto error_power;
 	}
@@ -1174,7 +1132,7 @@ error_power:
 **************************************************************/
 static int ibmphp_disable_slot(struct hotplug_slot *hotplug_slot)
 {
-	struct slot *slot = hotplug_slot->private;
+	struct slot *slot = to_slot(hotplug_slot);
 	int rc;
 
 	ibmphp_lock_operations();
@@ -1208,7 +1166,6 @@ int ibmphp_do_disable_slot(struct slot *slot_cur)
 		/* We need this for functions that were there on bootup */
 		slot_cur->func = kzalloc(sizeof(struct pci_func), GFP_KERNEL);
 		if (!slot_cur->func) {
-			err("out of system memory\n");
 			rc = -ENOMEM;
 			goto error;
 		}
@@ -1265,7 +1222,7 @@ error:
 	goto exit;
 }
 
-struct hotplug_slot_ops ibmphp_hotplug_slot_ops = {
+const struct hotplug_slot_ops ibmphp_hotplug_slot_ops = {
 	.set_attention_status =		set_attention_status,
 	.enable_slot =			enable_slot,
 	.disable_slot =			ibmphp_disable_slot,
@@ -1306,7 +1263,6 @@ static int __init ibmphp_init(void)
 
 	ibmphp_pci_bus = kmalloc(sizeof(*ibmphp_pci_bus), GFP_KERNEL);
 	if (!ibmphp_pci_bus) {
-		err("out of memory\n");
 		rc = -ENOMEM;
 		goto exit;
 	}
@@ -1320,8 +1276,6 @@ static int __init ibmphp_init(void)
 	memcpy(ibmphp_pci_bus, bus, sizeof(*ibmphp_pci_bus));
 
 	ibmphp_debug = debug;
-
-	ibmphp_hpc_initvars();
 
 	for (i = 0; i < 16; i++)
 		irqs[i] = 0;

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
 /*
  *	mpls tunnel api
  *
@@ -16,11 +17,13 @@
 /* MPLS tunnel attributes
  * [RTA_ENCAP] = {
  *     [MPLS_IPTUNNEL_DST]
+ *     [MPLS_IPTUNNEL_TTL]
  * }
  */
 enum {
 	MPLS_IPTUNNEL_UNSPEC,
 	MPLS_IPTUNNEL_DST,
+	MPLS_IPTUNNEL_TTL,
 	__MPLS_IPTUNNEL_MAX,
 };
 #define MPLS_IPTUNNEL_MAX (__MPLS_IPTUNNEL_MAX - 1)

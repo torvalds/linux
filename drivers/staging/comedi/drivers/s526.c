@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * s526.c
  * Sensoray s526 Comedi driver
  *
  * COMEDI - Linux Control and Measurement Device Interface
  * Copyright (C) 2000 David A. Schleef <ds@schleef.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 /*
@@ -408,9 +399,8 @@ static int s526_gpct_winsn(struct comedi_device *dev,
 		 */
 		if ((data[1] <= data[0]) || !data[0])
 			return -EINVAL;
-
-		/* Fall thru to write the PULSE_WIDTH */
-
+		/* to write the PULSE_WIDTH */
+		/* fall through */
 	case INSN_CONFIG_GPCT_QUADRATURE_ENCODER:
 	case INSN_CONFIG_GPCT_SINGLE_PULSE_GENERATOR:
 		s526_gpct_write(dev, chan, data[0]);

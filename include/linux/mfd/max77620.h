@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Defining registers address and its bit definitions of MAX77620 and MAX20024
  *
  * Copyright (C) 2016 NVIDIA CORPORATION. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
  */
 
 #ifndef _MFD_MAX77620_H_
@@ -136,8 +133,8 @@
 #define MAX77620_FPS_PERIOD_MIN_US		40
 #define MAX20024_FPS_PERIOD_MIN_US		20
 
-#define MAX77620_FPS_PERIOD_MAX_US		2560
-#define MAX20024_FPS_PERIOD_MAX_US		5120
+#define MAX20024_FPS_PERIOD_MAX_US		2560
+#define MAX77620_FPS_PERIOD_MAX_US		5120
 
 #define MAX77620_REG_FPS_GPIO1			0x54
 #define MAX77620_REG_FPS_GPIO2			0x55
@@ -180,6 +177,7 @@
 #define MAX77620_SD_CFG1_FPWM_SD_MASK		BIT(2)
 #define MAX77620_SD_CFG1_FPWM_SD_SKIP		0
 #define MAX77620_SD_CFG1_FPWM_SD_FPWM		BIT(2)
+#define MAX20024_SD_CFG1_MPOK_MASK		BIT(1)
 #define MAX77620_SD_CFG1_FSRADE_SD_MASK		BIT(0)
 #define MAX77620_SD_CFG1_FSRADE_SD_DISABLE	0
 #define MAX77620_SD_CFG1_FSRADE_SD_ENABLE	BIT(0)
@@ -187,6 +185,7 @@
 /* LDO_CNFG2 */
 #define MAX77620_LDO_POWER_MODE_MASK		0xC0
 #define MAX77620_LDO_POWER_MODE_SHIFT		6
+#define MAX20024_LDO_CFG2_MPOK_MASK		BIT(2)
 #define MAX77620_LDO_CFG2_ADE_MASK		BIT(1)
 #define MAX77620_LDO_CFG2_ADE_DISABLE		0
 #define MAX77620_LDO_CFG2_ADE_ENABLE		BIT(1)
@@ -322,6 +321,7 @@ enum max77620_fps_src {
 enum max77620_chip_id {
 	MAX77620,
 	MAX20024,
+	MAX77663,
 };
 
 struct max77620_chip {

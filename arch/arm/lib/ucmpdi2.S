@@ -1,18 +1,14 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  linux/arch/arm/lib/ucmpdi2.S
  *
  *  Author:	Nicolas Pitre
  *  Created:	Oct 19, 2005
  *  Copyright:	Monta Vista Software, Inc.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
  */
 
 #include <linux/linkage.h>
 #include <asm/assembler.h>
-#include <asm/export.h>
 
 #ifdef __ARMEB__
 #define xh r0
@@ -36,7 +32,6 @@ ENTRY(__ucmpdi2)
 	ret	lr
 
 ENDPROC(__ucmpdi2)
-EXPORT_SYMBOL(__ucmpdi2)
 
 #ifdef CONFIG_AEABI
 
@@ -50,7 +45,6 @@ ENTRY(__aeabi_ulcmp)
 	ret	lr
 
 ENDPROC(__aeabi_ulcmp)
-EXPORT_SYMBOL(__aeabi_ulcmp)
 
 #endif
 

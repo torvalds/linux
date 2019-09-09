@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * PCI-E support for CNS3xxx
  *
@@ -5,10 +6,6 @@
  *		  Richard Liu <richard.liu@caviumnetworks.com>
  * Copyright 2010 MontaVista Software, LLC.
  *		  Anton Vorontsov <avorontsov@mvista.com>
- *
- * This file is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, Version 2, as
- * published by the Free Software Foundation.
  */
 
 #include <linux/init.h>
@@ -83,7 +80,7 @@ static void __iomem *cns3xxx_pci_map_bus(struct pci_bus *bus,
 	} else /* remote PCI bus */
 		base = cnspci->cfg1_regs + ((busno & 0xf) << 20);
 
-	return base + (where & 0xffc) + (devfn << 12);
+	return base + where + (devfn << 12);
 }
 
 static int cns3xxx_pci_read_config(struct pci_bus *bus, unsigned int devfn,
@@ -93,7 +90,7 @@ static int cns3xxx_pci_read_config(struct pci_bus *bus, unsigned int devfn,
 	u32 mask = (0x1ull << (size * 8)) - 1;
 	int shift = (where % 4) * 8;
 
-	ret = pci_generic_config_read32(bus, devfn, where, size, val);
+	ret = pci_generic_config_read(bus, devfn, where, size, val);
 
 	if (ret == PCIBIOS_SUCCESSFUL && !bus->number && !devfn &&
 	    (where & 0xffc) == PCI_CLASS_REVISION)

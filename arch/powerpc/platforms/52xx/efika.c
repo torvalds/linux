@@ -82,11 +82,9 @@ static void __init efika_pcisetup(void)
 		return;
 	}
 
-	for (pcictrl = NULL;;) {
-		pcictrl = of_get_next_child(root, pcictrl);
-		if ((pcictrl == NULL) || (strcmp(pcictrl->name, "pci") == 0))
+	for_each_child_of_node(root, pcictrl)
+		if (of_node_name_eq(pcictrl, "pci"))
 			break;
-	}
 
 	of_node_put(root);
 
@@ -99,7 +97,7 @@ static void __init efika_pcisetup(void)
 	bus_range = of_get_property(pcictrl, "bus-range", &len);
 	if (bus_range == NULL || len < 2 * sizeof(int)) {
 		printk(KERN_WARNING EFIKA_PLATFORM_NAME
-		       ": Can't get bus-range for %s\n", pcictrl->full_name);
+		       ": Can't get bus-range for %pOF\n", pcictrl);
 		goto out_put;
 	}
 
@@ -109,14 +107,14 @@ static void __init efika_pcisetup(void)
 	else
 		printk(KERN_INFO EFIKA_PLATFORM_NAME ": PCI buses %d..%d",
 		       bus_range[0], bus_range[1]);
-	printk(" controlled by %s\n", pcictrl->full_name);
+	printk(" controlled by %pOF\n", pcictrl);
 	printk("\n");
 
 	hose = pcibios_alloc_controller(pcictrl);
 	if (!hose) {
 		printk(KERN_WARNING EFIKA_PLATFORM_NAME
-		       ": Can't allocate PCI controller structure for %s\n",
-		       pcictrl->full_name);
+		       ": Can't allocate PCI controller structure for %pOF\n",
+		       pcictrl);
 		goto out_put;
 	}
 

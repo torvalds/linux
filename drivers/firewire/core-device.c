@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Device probing and sysfs code.
  *
  * Copyright (C) 2005-2006  Kristian Hoegsberg <krh@bitplanet.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
 #include <linux/bug.h>
@@ -970,7 +957,7 @@ static void set_broadcast_channel(struct fw_device *device, int generation)
 				device->bc_implemented = BC_IMPLEMENTED;
 				break;
 			}
-			/* else fall through to case address error */
+			/* else, fall through - to case address error */
 		case RCODE_ADDRESS_ERROR:
 			device->bc_implemented = BC_UNIMPLEMENTED;
 		}
@@ -1068,7 +1055,7 @@ static void fw_device_init(struct work_struct *work)
 
 	/*
 	 * Transition the device to running state.  If it got pulled
-	 * out from under us while we did the intialization work, we
+	 * out from under us while we did the initialization work, we
 	 * have to shut down the device again here.  Normally, though,
 	 * fw_node_event will be responsible for shutting it down when
 	 * necessary.  We have to use the atomic cmpxchg here to avoid
@@ -1231,7 +1218,7 @@ void fw_node_event(struct fw_card *card, struct fw_node *node, int event)
 			break;
 
 		/*
-		 * Do minimal intialization of the device here, the
+		 * Do minimal initialization of the device here, the
 		 * rest will happen in fw_device_init().
 		 *
 		 * Attention:  A lot of things, even fw_device_get(),

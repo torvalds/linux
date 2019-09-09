@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Greybus Firmware Download Protocol Driver.
  *
  * Copyright 2016 Google Inc.
  * Copyright 2016 Linaro Ltd.
- *
- * Released under the GPLv2 only.
  */
 
 #include <linux/firmware.h>
@@ -130,7 +129,8 @@ static void free_firmware(struct fw_download *fw_download,
 static void fw_request_timedout(struct work_struct *work)
 {
 	struct delayed_work *dwork = to_delayed_work(work);
-	struct fw_request *fw_req = container_of(dwork, struct fw_request, dwork);
+	struct fw_request *fw_req = container_of(dwork,
+						 struct fw_request, dwork);
 	struct fw_download *fw_download = fw_req->fw_download;
 
 	dev_err(fw_download->parent,
@@ -239,7 +239,8 @@ static int fw_download_find_firmware(struct gb_operation *op)
 	tag = (const char *)request->firmware_tag;
 
 	/* firmware_tag must be null-terminated */
-	if (strnlen(tag, GB_FIRMWARE_TAG_MAX_SIZE) == GB_FIRMWARE_TAG_MAX_SIZE) {
+	if (strnlen(tag, GB_FIRMWARE_TAG_MAX_SIZE) ==
+	    GB_FIRMWARE_TAG_MAX_SIZE) {
 		dev_err(fw_download->parent,
 			"firmware-tag is not null-terminated\n");
 		return -EINVAL;

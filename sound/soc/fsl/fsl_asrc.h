@@ -1,13 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * fsl_asrc.h - Freescale ASRC ALSA SoC header file
  *
  * Copyright (C) 2014 Freescale Semiconductor, Inc.
  *
  * Author: Nicolin Chen <nicoleotsuka@gmail.com>
- *
- * This file is licensed under the terms of the GNU General Public License
- * version 2. This program is licensed "as is" without any warranty of any
- * kind, whether express or implied.
  */
 
 #ifndef _FSL_ASRC_H
@@ -57,7 +54,7 @@
 #define REG_ASRDOC			0x74
 #define REG_ASRDI(i)			(REG_ASRDIA + (i << 3))
 #define REG_ASRDO(i)			(REG_ASRDOA + (i << 3))
-#define REG_ASRDx(x, i)			(x == IN ? REG_ASRDI(i) : REG_ASRDO(i))
+#define REG_ASRDx(x, i)			((x) == IN ? REG_ASRDI(i) : REG_ASRDO(i))
 
 #define REG_ASRIDRHA			0x80
 #define REG_ASRIDRLA			0x84
@@ -260,8 +257,8 @@
 #define ASRFSTi_OUTPUT_FIFO_SHIFT	12
 #define ASRFSTi_OUTPUT_FIFO_MASK	(((1 << ASRFSTi_OUTPUT_FIFO_WIDTH) - 1) << ASRFSTi_OUTPUT_FIFO_SHIFT)
 #define ASRFSTi_IAEi_SHIFT		11
-#define ASRFSTi_IAEi_MASK		(1 << ASRFSTi_OAFi_SHIFT)
-#define ASRFSTi_IAEi			(1 << ASRFSTi_OAFi_SHIFT)
+#define ASRFSTi_IAEi_MASK		(1 << ASRFSTi_IAEi_SHIFT)
+#define ASRFSTi_IAEi			(1 << ASRFSTi_IAEi_SHIFT)
 #define ASRFSTi_INPUT_FIFO_WIDTH	7
 #define ASRFSTi_INPUT_FIFO_SHIFT	0
 #define ASRFSTi_INPUT_FIFO_MASK		((1 << ASRFSTi_INPUT_FIFO_WIDTH) - 1)
@@ -462,6 +459,7 @@ struct fsl_asrc {
 	u32 regcache_cfg;
 };
 
-extern struct snd_soc_platform_driver fsl_asrc_platform;
+#define DRV_NAME "fsl-asrc-dai"
+extern struct snd_soc_component_driver fsl_asrc_component;
 struct dma_chan *fsl_asrc_get_dma_channel(struct fsl_asrc_pair *pair, bool dir);
 #endif /* _FSL_ASRC_H */

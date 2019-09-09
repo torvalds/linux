@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  jmb38x_ms.c - JMicron jmb38x MemoryStick card reader
  *
  *  Copyright (C) 2008 Alex Dubov <oakad@yahoo.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/spinlock.h>
@@ -59,6 +55,7 @@ struct jmb38x_ms_host {
 	unsigned int            block_pos;
 	unsigned long           timeout_jiffies;
 	struct timer_list       timer;
+	struct memstick_host	*msh;
 	struct memstick_request *req;
 	unsigned char           cmd_flags;
 	unsigned char           io_pos;
@@ -258,9 +255,11 @@ static unsigned int jmb38x_ms_write_data(struct jmb38x_ms_host *host,
 	case 3:
 		host->io_word[0] |= buf[off + 2] << 16;
 		host->io_pos++;
+		/* fall through */
 	case 2:
 		host->io_word[0] |= buf[off + 1] << 8;
 		host->io_pos++;
+		/* fall through */
 	case 1:
 		host->io_word[0] |= buf[off];
 		host->io_pos++;
@@ -367,7 +366,6 @@ static int jmb38x_ms_transfer_data(struct jmb38x_ms_host *host)
 static int jmb38x_ms_issue_cmd(struct memstick_host *msh)
 {
 	struct jmb38x_ms_host *host = memstick_priv(msh);
-	unsigned char *data;
 	unsigned int data_len, cmd, t_val;
 
 	if (!(STATUS_HAS_MEDIA & readl(host->addr + STATUS))) {
@@ -398,8 +396,6 @@ static int jmb38x_ms_issue_cmd(struct memstick_host *msh)
 		else
 			cmd |= TPC_WAIT_INT;
 	}
-
-	data = host->req->data;
 
 	if (!no_dma)
 		host->cmd_flags |= DMA_DATA;
@@ -592,10 +588,10 @@ static irqreturn_t jmb38x_ms_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void jmb38x_ms_abort(unsigned long data)
+static void jmb38x_ms_abort(struct timer_list *t)
 {
-	struct memstick_host *msh = (struct memstick_host *)data;
-	struct jmb38x_ms_host *host = memstick_priv(msh);
+	struct jmb38x_ms_host *host = from_timer(host, t, timer);
+	struct memstick_host *msh = host->msh;
 	unsigned long flags;
 
 	dev_dbg(&host->chip->pdev->dev, "abort\n");
@@ -643,7 +639,6 @@ static int jmb38x_ms_reset(struct jmb38x_ms_host *host)
 	writel(HOST_CONTROL_RESET_REQ | HOST_CONTROL_CLOCK_EN
 	       | readl(host->addr + HOST_CONTROL),
 	       host->addr + HOST_CONTROL);
-	mmiowb();
 
 	for (cnt = 0; cnt < 20; ++cnt) {
 		if (!(HOST_CONTROL_RESET_REQ
@@ -658,7 +653,6 @@ reset_next:
 	writel(HOST_CONTROL_RESET | HOST_CONTROL_CLOCK_EN
 	       | readl(host->addr + HOST_CONTROL),
 	       host->addr + HOST_CONTROL);
-	mmiowb();
 
 	for (cnt = 0; cnt < 20; ++cnt) {
 		if (!(HOST_CONTROL_RESET
@@ -671,7 +665,6 @@ reset_next:
 	return -EIO;
 
 reset_ok:
-	mmiowb();
 	writel(INT_STATUS_ALL, host->addr + INT_SIGNAL_ENABLE);
 	writel(INT_STATUS_ALL, host->addr + INT_STATUS_ENABLE);
 	return 0;
@@ -878,6 +871,7 @@ static struct memstick_host *jmb38x_ms_alloc_host(struct jmb38x_ms *jm, int cnt)
 		return NULL;
 
 	host = memstick_priv(msh);
+	host->msh = msh;
 	host->chip = jm;
 	host->addr = ioremap(pci_resource_start(jm->pdev, cnt),
 			     pci_resource_len(jm->pdev, cnt));
@@ -897,7 +891,7 @@ static struct memstick_host *jmb38x_ms_alloc_host(struct jmb38x_ms *jm, int cnt)
 
 	msh->caps = MEMSTICK_CAP_PAR4 | MEMSTICK_CAP_PAR8;
 
-	setup_timer(&host->timer, jmb38x_ms_abort, (unsigned long)msh);
+	timer_setup(&host->timer, jmb38x_ms_abort, 0);
 
 	if (!request_irq(host->irq, jmb38x_ms_isr, IRQF_SHARED, host->host_id,
 			 msh))
@@ -1007,7 +1001,6 @@ static void jmb38x_ms_remove(struct pci_dev *dev)
 		tasklet_kill(&host->notify);
 		writel(0, host->addr + INT_SIGNAL_ENABLE);
 		writel(0, host->addr + INT_STATUS_ENABLE);
-		mmiowb();
 		dev_dbg(&jm->pdev->dev, "interrupts off\n");
 		spin_lock_irqsave(&host->lock, flags);
 		if (host->req) {

@@ -1,19 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
 	Copyright (C) 2004 - 2010 Ivo van Doorn <IvDoorn@gmail.com>
 	<http://rt2x00.serialmonkey.com>
 
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 2 of the License, or
-	(at your option) any later version.
-
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-	GNU General Public License for more details.
-
-	You should have received a copy of the GNU General Public License
-	along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -102,7 +91,7 @@ enum skb_frame_desc_flags {
  *	of the scope of the skb->data pointer.
  * @iv: IV/EIV data used during encryption/decryption.
  * @skb_dma: (PCI-only) the DMA address associated with the sk buffer.
- * @entry: The entry to which this sk buffer belongs.
+ * @sta: The station where sk buffer was sent.
  */
 struct skb_frame_desc {
 	u8 flags;
@@ -116,8 +105,7 @@ struct skb_frame_desc {
 	__le32 iv[2];
 
 	dma_addr_t skb_dma;
-
-	struct queue_entry *entry;
+	struct ieee80211_sta *sta;
 };
 
 /**
@@ -185,6 +173,9 @@ struct rxdone_entry_desc {
 	int flags;
 	int dev_flags;
 	u16 rate_mode;
+	u16 enc_flags;
+	enum mac80211_rx_encoding encoding;
+	enum rate_info_bw bw;
 	u8 cipher;
 	u8 cipher_status;
 
@@ -216,6 +207,7 @@ enum txdone_entry_desc_flags {
 	TXDONE_FAILURE,
 	TXDONE_EXCESSIVE_RETRY,
 	TXDONE_AMPDU,
+	TXDONE_NO_ACK_REQ,
 };
 
 /**
@@ -358,7 +350,6 @@ enum queue_entry_flags {
 	ENTRY_DATA_PENDING,
 	ENTRY_DATA_IO_FAILED,
 	ENTRY_DATA_STATUS_PENDING,
-	ENTRY_DATA_STATUS_SET,
 };
 
 /**
@@ -383,8 +374,6 @@ struct queue_entry {
 	struct sk_buff *skb;
 
 	unsigned int entry_idx;
-
-	u32 status;
 
 	void *priv_data;
 };
@@ -446,6 +435,9 @@ enum data_queue_flags {
  * @length: Number of frames in queue.
  * @index: Index pointers to entry positions in the queue,
  *	use &enum queue_index to get a specific index field.
+ * @wd_count: watchdog counter number of times entry does change
+ *      in the queue
+ * @wd_idx: index of queue entry saved by watchdog
  * @txop: maximum burst time.
  * @aifs: The aifs value for outgoing frames (field ignored in RX queue).
  * @cw_min: The cw min value for outgoing frames (field ignored in RX queue).
@@ -472,6 +464,9 @@ struct data_queue {
 	unsigned short threshold;
 	unsigned short length;
 	unsigned short index[Q_INDEX_MAX];
+
+	unsigned short wd_count;
+	unsigned int wd_idx;
 
 	unsigned short txop;
 	unsigned short aifs;
@@ -639,11 +634,10 @@ static inline int rt2x00queue_dma_timeout(struct queue_entry *entry)
  * _rt2x00_desc_read - Read a word from the hardware descriptor.
  * @desc: Base descriptor address
  * @word: Word index from where the descriptor should be read.
- * @value: Address where the descriptor value should be written into.
  */
-static inline void _rt2x00_desc_read(__le32 *desc, const u8 word, __le32 *value)
+static inline __le32 _rt2x00_desc_read(__le32 *desc, const u8 word)
 {
-	*value = desc[word];
+	return desc[word];
 }
 
 /**
@@ -651,13 +645,10 @@ static inline void _rt2x00_desc_read(__le32 *desc, const u8 word, __le32 *value)
  * function will take care of the byte ordering.
  * @desc: Base descriptor address
  * @word: Word index from where the descriptor should be read.
- * @value: Address where the descriptor value should be written into.
  */
-static inline void rt2x00_desc_read(__le32 *desc, const u8 word, u32 *value)
+static inline u32 rt2x00_desc_read(__le32 *desc, const u8 word)
 {
-	__le32 tmp;
-	_rt2x00_desc_read(desc, word, &tmp);
-	*value = le32_to_cpu(tmp);
+	return le32_to_cpu(_rt2x00_desc_read(desc, word));
 }
 
 /**

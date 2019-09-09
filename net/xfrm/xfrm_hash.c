@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* xfrm_hash.c: Common hash table code.
  *
  * Copyright (C) 2006 David S. Miller (davem@davemloft.net)
@@ -5,7 +6,7 @@
 
 #include <linux/kernel.h>
 #include <linux/mm.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
 #include <linux/xfrm.h>

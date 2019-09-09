@@ -1,19 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2007-2012 Nicira, Inc.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA
  */
 
 #include <linux/netdevice.h>
@@ -30,8 +17,8 @@ static void dp_detach_port_notify(struct vport *vport)
 	struct datapath *dp;
 
 	dp = vport->dp;
-	notify = ovs_vport_cmd_build_info(vport, 0, 0,
-					  OVS_VPORT_CMD_DEL);
+	notify = ovs_vport_cmd_build_info(vport, ovs_dp_get_net(dp),
+					  0, 0, OVS_VPORT_CMD_DEL);
 	ovs_dp_detach_port(vport);
 	if (IS_ERR(notify)) {
 		genl_set_err(&dp_vport_genl_family, ovs_dp_get_net(dp), 0,
@@ -61,7 +48,7 @@ void ovs_dp_notify_wq(struct work_struct *work)
 				if (vport->ops->type == OVS_VPORT_TYPE_INTERNAL)
 					continue;
 
-				if (!(vport->dev->priv_flags & IFF_OVS_DATAPATH))
+				if (!(netif_is_ovs_port(vport->dev)))
 					dp_detach_port_notify(vport);
 			}
 		}

@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  pxa2xx_ssp.h
  *
  *  Copyright (C) 2003 Russell King, All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * This driver supports the following PXA CPU/SSP ports:-
  *
@@ -90,9 +87,9 @@
 #define SSSR_RFL_MASK	(0xf << 12)	/* Receive FIFO Level mask */
 
 #define SSCR1_TFT	(0x000003c0)	/* Transmit FIFO Threshold (mask) */
-#define SSCR1_TxTresh(x) (((x) - 1) << 6) /* level [1..16] */
+#define SSCR1_TxTresh(x) (((x) - 1) << 6)	/* level [1..16] */
 #define SSCR1_RFT	(0x00003c00)	/* Receive FIFO Threshold (mask) */
-#define SSCR1_RxTresh(x) (((x) - 1) << 10) /* level [1..16] */
+#define SSCR1_RxTresh(x) (((x) - 1) << 10)	/* level [1..16] */
 
 #define RX_THRESH_CE4100_DFLT	2
 #define TX_THRESH_CE4100_DFLT	2
@@ -106,9 +103,9 @@
 #define CE4100_SSCR1_RxTresh(x) (((x) - 1) << 10)	/* level [1..4] */
 
 /* QUARK_X1000 SSCR0 bit definition */
-#define QUARK_X1000_SSCR0_DSS	(0x1F)		/* Data Size Select (mask) */
-#define QUARK_X1000_SSCR0_DataSize(x)  ((x) - 1)	/* Data Size Select [4..32] */
-#define QUARK_X1000_SSCR0_FRF	(0x3 << 5)	/* FRame Format (mask) */
+#define QUARK_X1000_SSCR0_DSS		(0x1F << 0)	/* Data Size Select (mask) */
+#define QUARK_X1000_SSCR0_DataSize(x)	((x) - 1)	/* Data Size Select [4..32] */
+#define QUARK_X1000_SSCR0_FRF		(0x3 << 5)	/* FRame Format (mask) */
 #define QUARK_X1000_SSCR0_Motorola	(0x0 << 5)	/* Motorola's Serial Peripheral Interface (SPI) */
 
 #define RX_THRESH_QUARK_X1000_DFLT	1
@@ -121,8 +118,8 @@
 #define QUARK_X1000_SSCR1_TxTresh(x) (((x) - 1) << 6)	/* level [1..32] */
 #define QUARK_X1000_SSCR1_RFT	(0x1F << 11)	/* Receive FIFO Threshold (mask) */
 #define QUARK_X1000_SSCR1_RxTresh(x) (((x) - 1) << 11)	/* level [1..32] */
-#define QUARK_X1000_SSCR1_STRF       (1 << 17)		/* Select FIFO or EFWR */
-#define QUARK_X1000_SSCR1_EFWR	(1 << 16)		/* Enable FIFO Write/Read */
+#define QUARK_X1000_SSCR1_STRF	(1 << 17)	/* Select FIFO or EFWR */
+#define QUARK_X1000_SSCR1_EFWR	(1 << 16)	/* Enable FIFO Write/Read */
 
 /* extra bits in PXA255, PXA26x and PXA27x SSP ports */
 #define SSCR0_TISSP		(1 << 4)	/* TI Sync Serial Protocol */
@@ -171,6 +168,14 @@
 #define SSACD_SCDB		(1 << 3)	/* SSPSYSCLK Divider Bypass */
 #define SSACD_ACPS(x)		((x) << 4)	/* Audio clock PLL select */
 #define SSACD_ACDS(x)		((x) << 0)	/* Audio clock divider select */
+#define SSACD_ACDS_1		(0)
+#define SSACD_ACDS_2		(1)
+#define SSACD_ACDS_4		(2)
+#define SSACD_ACDS_8		(3)
+#define SSACD_ACDS_16		(4)
+#define SSACD_ACDS_32		(5)
+#define SSACD_SCDB_4X		(0)
+#define SSACD_SCDB_1X		(1)
 #define SSACD_SCDX8		(1 << 7)	/* SYSCLK division ratio select */
 
 /* LPSS SSP */
@@ -188,6 +193,7 @@ enum pxa_ssp_type {
 	PXA27x_SSP,
 	PXA3xx_SSP,
 	PXA168_SSP,
+	MMP2_SSP,
 	PXA910_SSP,
 	CE4100_SSP,
 	QUARK_X1000_SSP,
@@ -196,6 +202,7 @@ enum pxa_ssp_type {
 	LPSS_BSW_SSP,
 	LPSS_SPT_SSP,
 	LPSS_BXT_SSP,
+	LPSS_CNL_SSP,
 };
 
 struct ssp_device {
@@ -208,11 +215,9 @@ struct ssp_device {
 
 	const char	*label;
 	int		port_id;
-	int		type;
+	enum pxa_ssp_type type;
 	int		use_count;
 	int		irq;
-	int		drcmr_rx;
-	int		drcmr_tx;
 
 	struct device_node	*of_node;
 };

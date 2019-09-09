@@ -1,6 +1,7 @@
 [config]
 command = record
-args    = -e '{cycles,cache-misses}:S' kill >/dev/null 2>&1
+args    = --no-bpf-event -e '{cycles,cache-misses}:S' kill >/dev/null 2>&1
+ret     = 1
 
 [event-1:base-record]
 fd=1
@@ -22,7 +23,7 @@ sample_type=343
 
 # PERF_FORMAT_ID | PERF_FORMAT_GROUP
 read_format=12
-
+task=0
 mmap=0
 comm=0
 enable_on_exec=0
@@ -34,3 +35,5 @@ inherit=0
 # sampling disabled
 sample_freq=0
 sample_period=0
+freq=0
+write_backward=0

@@ -1,9 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) ST-Ericsson AB 2013
  * Authors: Vicram Arv
  *	    Dmitry Tarnyagin <dmitry.tarnyagin@lockless.no>
  *	    Sjur Brendeland
- * License terms: GNU General Public License (GPL) version 2
  */
 #include <linux/module.h>
 #include <linux/if_arp.h>
@@ -242,7 +242,7 @@ static struct sk_buff *cfv_alloc_and_copy_skb(int *err,
 
 	skb_reserve(skb, cfv->rx_hr + pad_len);
 
-	memcpy(skb_put(skb, cfpkt_len), frm + cfv->rx_hr, cfpkt_len);
+	skb_put_data(skb, frm + cfv->rx_hr, cfpkt_len);
 	return skb;
 }
 
@@ -617,7 +617,7 @@ static void cfv_netdev_setup(struct net_device *netdev)
 	netdev->tx_queue_len = 100;
 	netdev->flags = IFF_POINTOPOINT | IFF_NOARP;
 	netdev->mtu = CFV_DEF_MTU_SIZE;
-	netdev->destructor = free_netdev;
+	netdev->needs_free_netdev = true;
 }
 
 /* Create debugfs counters for the device */
@@ -629,21 +629,21 @@ static inline void debugfs_init(struct cfv_info *cfv)
 	if (IS_ERR(cfv->debugfs))
 		return;
 
-	debugfs_create_u32("rx-napi-complete", S_IRUSR, cfv->debugfs,
+	debugfs_create_u32("rx-napi-complete", 0400, cfv->debugfs,
 			   &cfv->stats.rx_napi_complete);
-	debugfs_create_u32("rx-napi-resched", S_IRUSR, cfv->debugfs,
+	debugfs_create_u32("rx-napi-resched", 0400, cfv->debugfs,
 			   &cfv->stats.rx_napi_resched);
-	debugfs_create_u32("rx-nomem", S_IRUSR, cfv->debugfs,
+	debugfs_create_u32("rx-nomem", 0400, cfv->debugfs,
 			   &cfv->stats.rx_nomem);
-	debugfs_create_u32("rx-kicks", S_IRUSR, cfv->debugfs,
+	debugfs_create_u32("rx-kicks", 0400, cfv->debugfs,
 			   &cfv->stats.rx_kicks);
-	debugfs_create_u32("tx-full-ring", S_IRUSR, cfv->debugfs,
+	debugfs_create_u32("tx-full-ring", 0400, cfv->debugfs,
 			   &cfv->stats.tx_full_ring);
-	debugfs_create_u32("tx-no-mem", S_IRUSR, cfv->debugfs,
+	debugfs_create_u32("tx-no-mem", 0400, cfv->debugfs,
 			   &cfv->stats.tx_no_mem);
-	debugfs_create_u32("tx-kicks", S_IRUSR, cfv->debugfs,
+	debugfs_create_u32("tx-kicks", 0400, cfv->debugfs,
 			   &cfv->stats.tx_kicks);
-	debugfs_create_u32("tx-flow-on", S_IRUSR, cfv->debugfs,
+	debugfs_create_u32("tx-flow-on", 0400, cfv->debugfs,
 			   &cfv->stats.tx_flow_on);
 }
 
@@ -679,7 +679,7 @@ static int cfv_probe(struct virtio_device *vdev)
 		goto err;
 
 	/* Get the TX virtio ring. This is a "guest side vring". */
-	err = vdev->config->find_vqs(vdev, 1, &cfv->vq_tx, &vq_cbs, &names);
+	err = virtio_find_vqs(vdev, 1, &cfv->vq_tx, &vq_cbs, &names, NULL);
 	if (err)
 		goto err;
 

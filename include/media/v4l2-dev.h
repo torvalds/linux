@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  *
  *	V 4 L 2   D R I V E R   H E L P E R   A P I
@@ -20,31 +21,73 @@
 
 #define VIDEO_MAJOR	81
 
-#define VFL_TYPE_GRABBER	0
-#define VFL_TYPE_VBI		1
-#define VFL_TYPE_RADIO		2
-#define VFL_TYPE_SUBDEV		3
-#define VFL_TYPE_SDR		4
-#define VFL_TYPE_TOUCH		5
-#define VFL_TYPE_MAX		6
+/**
+ * enum vfl_devnode_type - type of V4L2 device node
+ *
+ * @VFL_TYPE_GRABBER:	for video input/output devices
+ * @VFL_TYPE_VBI:	for vertical blank data (i.e. closed captions, teletext)
+ * @VFL_TYPE_RADIO:	for radio tuners
+ * @VFL_TYPE_SUBDEV:	for V4L2 subdevices
+ * @VFL_TYPE_SDR:	for Software Defined Radio tuners
+ * @VFL_TYPE_TOUCH:	for touch sensors
+ * @VFL_TYPE_MAX:	number of VFL types, must always be last in the enum
+ */
+enum vfl_devnode_type {
+	VFL_TYPE_GRABBER	= 0,
+	VFL_TYPE_VBI,
+	VFL_TYPE_RADIO,
+	VFL_TYPE_SUBDEV,
+	VFL_TYPE_SDR,
+	VFL_TYPE_TOUCH,
+	VFL_TYPE_MAX /* Shall be the last one */
+};
 
-/* Is this a receiver, transmitter or mem-to-mem? */
-/* Ignored for VFL_TYPE_SUBDEV. */
-#define VFL_DIR_RX		0
-#define VFL_DIR_TX		1
-#define VFL_DIR_M2M		2
+/**
+ * enum  vfl_direction - Identifies if a &struct video_device corresponds
+ *	to a receiver, a transmitter or a mem-to-mem device.
+ *
+ * @VFL_DIR_RX:		device is a receiver.
+ * @VFL_DIR_TX:		device is a transmitter.
+ * @VFL_DIR_M2M:	device is a memory to memory device.
+ *
+ * Note: Ignored if &enum vfl_devnode_type is %VFL_TYPE_SUBDEV.
+ */
+enum vfl_devnode_direction {
+	VFL_DIR_RX,
+	VFL_DIR_TX,
+	VFL_DIR_M2M,
+};
 
 struct v4l2_ioctl_callbacks;
 struct video_device;
 struct v4l2_device;
 struct v4l2_ctrl_handler;
 
-/* Flag to mark the video_device struct as registered.
-   Drivers can clear this flag if they want to block all future
-   device access. It is cleared by video_unregister_device. */
-#define V4L2_FL_REGISTERED	(0)
-/* file->private_data points to struct v4l2_fh */
-#define V4L2_FL_USES_V4L2_FH	(1)
+/**
+ * enum v4l2_video_device_flags - Flags used by &struct video_device
+ *
+ * @V4L2_FL_REGISTERED:
+ *	indicates that a &struct video_device is registered.
+ *	Drivers can clear this flag if they want to block all future
+ *	device access. It is cleared by video_unregister_device.
+ * @V4L2_FL_USES_V4L2_FH:
+ *	indicates that file->private_data points to &struct v4l2_fh.
+ *	This flag is set by the core when v4l2_fh_init() is called.
+ *	All new drivers should use it.
+ * @V4L2_FL_QUIRK_INVERTED_CROP:
+ *	some old M2M drivers use g/s_crop/cropcap incorrectly: crop and
+ *	compose are swapped. If this flag is set, then the selection
+ *	targets are swapped in the g/s_crop/cropcap functions in v4l2-ioctl.c.
+ *	This allows those drivers to correctly implement the selection API,
+ *	but the old crop API will still work as expected in order to preserve
+ *	backwards compatibility.
+ *	Never set this flag for new drivers.
+ */
+enum v4l2_video_device_flags {
+	V4L2_FL_REGISTERED		= 0,
+	V4L2_FL_USES_V4L2_FH		= 1,
+	V4L2_FL_QUIRK_INVERTED_CROP	= 2,
+};
 
 /* Priority helper functions */
 
@@ -151,7 +194,7 @@ struct v4l2_file_operations {
 	struct module *owner;
 	ssize_t (*read) (struct file *, char __user *, size_t, loff_t *);
 	ssize_t (*write) (struct file *, const char __user *, size_t, loff_t *);
-	unsigned int (*poll) (struct file *, struct poll_table_struct *);
+	__poll_t (*poll) (struct file *, struct poll_table_struct *);
 	long (*unlocked_ioctl) (struct file *, unsigned int, unsigned long);
 #ifdef CONFIG_COMPAT
 	long (*compat_ioctl32) (struct file *, unsigned int, unsigned long);
@@ -165,7 +208,7 @@ struct v4l2_file_operations {
 
 /*
  * Newer version of video_device, handled by videodev2.c
- * 	This version moves redundant code from video device code to
+ *	This version moves redundant code from video device code to
  *	the common handler
  */
 
@@ -188,11 +231,12 @@ struct v4l2_file_operations {
  * @prio: pointer to &struct v4l2_prio_state with device's Priority state.
  *	 If NULL, then v4l2_dev->prio will be used.
  * @name: video device name
- * @vfl_type: V4L device type
+ * @vfl_type: V4L device type, as defined by &enum vfl_devnode_type
  * @vfl_dir: V4L receiver, transmitter or m2m
  * @minor: device node 'minor'. It is set to -1 if the registration failed
  * @num: number of the video device node
- * @flags: video device flags. Use bitops to set/clear/test flags
+ * @flags: video device flags. Use bitops to set/clear/test flags.
+ *	   Contains a set of &enum v4l2_video_device_flags.
  * @index: attribute to differentiate multiple indices on one physical device
  * @fh_lock: Lock for all v4l2_fhs
  * @fh_list: List of &struct v4l2_fh
@@ -203,7 +247,6 @@ struct v4l2_file_operations {
  * @ioctl_ops: pointer to &struct v4l2_ioctl_ops with ioctl callbacks
  *
  * @valid_ioctls: bitmap with the valid ioctls for this device
- * @disable_locking: bitmap with the ioctls that don't require locking
  * @lock: pointer to &struct mutex serialization lock
  *
  * .. note::
@@ -236,8 +279,8 @@ struct video_device
 
 	/* device info */
 	char name[32];
-	int vfl_type;
-	int vfl_dir;
+	enum vfl_devnode_type vfl_type;
+	enum vfl_devnode_direction vfl_dir;
 	int minor;
 	u16 num;
 	unsigned long flags;
@@ -256,22 +299,33 @@ struct video_device
 	const struct v4l2_ioctl_ops *ioctl_ops;
 	DECLARE_BITMAP(valid_ioctls, BASE_VIDIOC_PRIVATE);
 
-	DECLARE_BITMAP(disable_locking, BASE_VIDIOC_PRIVATE);
 	struct mutex *lock;
 };
 
-#define media_entity_to_video_device(__e) \
-	container_of(__e, struct video_device, entity)
-/* dev to video-device */
+/**
+ * media_entity_to_video_device - Returns a &struct video_device from
+ *	the &struct media_entity embedded on it.
+ *
+ * @__entity: pointer to &struct media_entity
+ */
+#define media_entity_to_video_device(__entity) \
+	container_of(__entity, struct video_device, entity)
+
+/**
+ * to_video_device - Returns a &struct video_device from the
+ *	&struct device embedded on it.
+ *
+ * @cd: pointer to &struct device
+ */
 #define to_video_device(cd) container_of(cd, struct video_device, dev)
 
 /**
  * __video_register_device - register video4linux devices
  *
  * @vdev: struct video_device to register
- * @type: type of device to register
+ * @type: type of device to register, as defined by &enum vfl_devnode_type
  * @nr:   which device node number is desired:
- * 	(0 == /dev/video0, 1 == /dev/video1, ..., -1 == first free)
+ *	(0 == /dev/video0, 1 == /dev/video1, ..., -1 == first free)
  * @warn_if_nr_in_use: warn if the desired device node number
  *        was already in use and another number was chosen instead.
  * @owner: module that owns the video device node
@@ -288,43 +342,37 @@ struct video_device
  *
  * Returns 0 on success.
  *
- * Valid values for @type are:
- *
- *	- %VFL_TYPE_GRABBER - A frame grabber
- *	- %VFL_TYPE_VBI - Vertical blank data (undecoded)
- *	- %VFL_TYPE_RADIO - A radio card
- *	- %VFL_TYPE_SUBDEV - A subdevice
- *	- %VFL_TYPE_SDR - Software Defined Radio
- *	- %VFL_TYPE_TOUCH - A touch sensor
- *
  * .. note::
  *
  *	This function is meant to be used only inside the V4L2 core.
  *	Drivers should use video_register_device() or
  *	video_register_device_no_warn().
  */
-int __must_check __video_register_device(struct video_device *vdev, int type,
-		int nr, int warn_if_nr_in_use, struct module *owner);
+int __must_check __video_register_device(struct video_device *vdev,
+					 enum vfl_devnode_type type,
+					 int nr, int warn_if_nr_in_use,
+					 struct module *owner);
 
 /**
  *  video_register_device - register video4linux devices
  *
  * @vdev: struct video_device to register
- * @type: type of device to register
+ * @type: type of device to register, as defined by &enum vfl_devnode_type
  * @nr:   which device node number is desired:
- * 	(0 == /dev/video0, 1 == /dev/video1, ..., -1 == first free)
+ *	(0 == /dev/video0, 1 == /dev/video1, ..., -1 == first free)
  *
  * Internally, it calls __video_register_device(). Please see its
  * documentation for more details.
  *
  * .. note::
- * 	if video_register_device fails, the release() callback of
+ *	if video_register_device fails, the release() callback of
  *	&struct video_device structure is *not* called, so the caller
  *	is responsible for freeing any data. Usually that means that
  *	you video_device_release() should be called on failure.
  */
 static inline int __must_check video_register_device(struct video_device *vdev,
-		int type, int nr)
+						     enum vfl_devnode_type type,
+						     int nr)
 {
 	return __video_register_device(vdev, type, nr, 1, vdev->fops->owner);
 }
@@ -333,9 +381,9 @@ static inline int __must_check video_register_device(struct video_device *vdev,
  *  video_register_device_no_warn - register video4linux devices
  *
  * @vdev: struct video_device to register
- * @type: type of device to register
+ * @type: type of device to register, as defined by &enum vfl_devnode_type
  * @nr:   which device node number is desired:
- * 	(0 == /dev/video0, 1 == /dev/video1, ..., -1 == first free)
+ *	(0 == /dev/video0, 1 == /dev/video1, ..., -1 == first free)
  *
  * This function is identical to video_register_device() except that no
  * warning is issued if the desired device node number was already in use.
@@ -344,13 +392,14 @@ static inline int __must_check video_register_device(struct video_device *vdev,
  * documentation for more details.
  *
  * .. note::
- * 	if video_register_device fails, the release() callback of
+ *	if video_register_device fails, the release() callback of
  *	&struct video_device structure is *not* called, so the caller
  *	is responsible for freeing any data. Usually that means that
  *	you video_device_release() should be called on failure.
  */
-static inline int __must_check video_register_device_no_warn(
-		struct video_device *vdev, int type, int nr)
+static inline int __must_check
+video_register_device_no_warn(struct video_device *vdev,
+			      enum vfl_devnode_type type, int nr)
 {
 	return __video_register_device(vdev, type, nr, 0, vdev->fops->owner);
 }
@@ -382,7 +431,7 @@ void video_device_release(struct video_device *vdev);
 
 /**
  * video_device_release_empty - helper function to implement the
- * 	video_device->release\(\) callback.
+ *	video_device->release\(\) callback.
  *
  * @vdev: pointer to &struct video_device
  *
@@ -394,28 +443,6 @@ void video_device_release(struct video_device *vdev);
  *	Having a static video_device is a dubious construction at best.
  */
 void video_device_release_empty(struct video_device *vdev);
-
-/**
- * v4l2_is_known_ioctl - Checks if a given cmd is a known V4L ioctl
- *
- * @cmd: ioctl command
- *
- * returns true if cmd is a known V4L2 ioctl
- */
-bool v4l2_is_known_ioctl(unsigned int cmd);
-
-/** v4l2_disable_ioctl_locking - mark that a given command
- *	shouldn't use core locking
- *
- * @vdev: pointer to &struct video_device
- * @cmd: ioctl command
- */
-static inline void v4l2_disable_ioctl_locking(struct video_device *vdev,
-					      unsigned int cmd)
-{
-	if (_IOC_NR(cmd) < BASE_VIDIOC_PRIVATE)
-		set_bit(_IOC_NR(cmd), vdev->disable_locking);
-}
 
 /**
  * v4l2_disable_ioctl- mark that a given command isn't implemented.

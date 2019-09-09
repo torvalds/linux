@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for MT9T001 CMOS Image Sensor from Aptina (Micron)
  *
@@ -6,10 +7,6 @@
  * Based on the MT9M001 driver,
  *
  * Copyright (C) 2008, Guennadi Liakhovetski <kernel@pengutronix.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/clk.h>
@@ -822,15 +819,15 @@ static int mt9t001_close(struct v4l2_subdev *subdev, struct v4l2_subdev_fh *fh)
 	return mt9t001_set_power(subdev, 0);
 }
 
-static struct v4l2_subdev_core_ops mt9t001_subdev_core_ops = {
+static const struct v4l2_subdev_core_ops mt9t001_subdev_core_ops = {
 	.s_power = mt9t001_set_power,
 };
 
-static struct v4l2_subdev_video_ops mt9t001_subdev_video_ops = {
+static const struct v4l2_subdev_video_ops mt9t001_subdev_video_ops = {
 	.s_stream = mt9t001_s_stream,
 };
 
-static struct v4l2_subdev_pad_ops mt9t001_subdev_pad_ops = {
+static const struct v4l2_subdev_pad_ops mt9t001_subdev_pad_ops = {
 	.enum_mbus_code = mt9t001_enum_mbus_code,
 	.enum_frame_size = mt9t001_enum_frame_size,
 	.get_fmt = mt9t001_get_format,
@@ -839,7 +836,7 @@ static struct v4l2_subdev_pad_ops mt9t001_subdev_pad_ops = {
 	.set_selection = mt9t001_set_selection,
 };
 
-static struct v4l2_subdev_ops mt9t001_subdev_ops = {
+static const struct v4l2_subdev_ops mt9t001_subdev_ops = {
 	.core = &mt9t001_subdev_core_ops,
 	.video = &mt9t001_subdev_video_ops,
 	.pad = &mt9t001_subdev_pad_ops,
@@ -943,6 +940,7 @@ static int mt9t001_probe(struct i2c_client *client,
 	mt9t001->subdev.internal_ops = &mt9t001_subdev_internal_ops;
 	mt9t001->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 
+	mt9t001->subdev.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 	mt9t001->pad.flags = MEDIA_PAD_FL_SOURCE;
 	ret = media_entity_pads_init(&mt9t001->subdev.entity, 1, &mt9t001->pad);
 

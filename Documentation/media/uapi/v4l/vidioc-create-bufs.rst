@@ -1,4 +1,11 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 .. _VIDIOC_CREATE_BUFS:
 
@@ -26,6 +33,7 @@ Arguments
     File descriptor returned by :ref:`open() <func-open>`.
 
 ``argp``
+    Pointer to struct :c:type:`v4l2_create_buffers`.
 
 
 Description
@@ -101,7 +109,19 @@ than the number requested.
       - ``format``
       - Filled in by the application, preserved by the driver.
     * - __u32
-      - ``reserved``\ [8]
+      - ``capabilities``
+      - Set by the driver. If 0, then the driver doesn't support
+        capabilities. In that case all you know is that the driver is
+	guaranteed to support ``V4L2_MEMORY_MMAP`` and *might* support
+	other :c:type:`v4l2_memory` types. It will not support any others
+	capabilities. See :ref:`here <v4l2-buf-capabilities>` for a list of the
+	capabilities.
+
+	If you want to just query the capabilities without making any
+	other changes, then set ``count`` to 0, ``memory`` to
+	``V4L2_MEMORY_MMAP`` and ``format.type`` to the buffer type.
+    * - __u32
+      - ``reserved``\ [7]
       - A place holder for future extensions. Drivers and applications
 	must set the array to zero.
 

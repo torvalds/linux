@@ -1,0 +1,31 @@
+# SPDX-License-Identifier: GPL-2.0-only
+menuconfig ARCH_NPCM
+	bool "Nuvoton NPCM Architecture"
+	depends on ARCH_MULTI_V7
+	select PINCTRL
+
+if ARCH_NPCM
+
+config ARCH_NPCM7XX
+	bool "Support for NPCM7xx BMC (Poleg)"
+	depends on ARCH_MULTI_V7
+	select PINCTRL_NPCM7XX
+	select NPCM7XX_TIMER
+	select ARCH_REQUIRE_GPIOLIB
+	select CACHE_L2X0
+	select ARM_GIC
+	select HAVE_ARM_TWD if SMP
+	select HAVE_ARM_SCU if SMP
+	select ARM_ERRATA_764369 if SMP
+	select ARM_ERRATA_720789
+	select ARM_ERRATA_754322
+	select ARM_ERRATA_794072
+	select PL310_ERRATA_588369
+	select PL310_ERRATA_727915
+	select MFD_SYSCON
+	help
+	  General support for NPCM7xx BMC (Poleg).
+
+	  Nuvoton NPCM7xx BMC based on the Cortex A9.
+
+endif

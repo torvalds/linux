@@ -1,17 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * PIC32 RNG driver
  *
  * Joshua Henderson <joshua.henderson@microchip.com>
  * Copyright (C) 2016 Microchip Technology Inc.  All rights reserved.
- *
- * This program is free software; you can distribute it and/or modify it
- * under the terms of the GNU General Public License (Version 2) as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
  */
 
 #include <linux/clk.h>
@@ -61,9 +53,6 @@ static int pic32_rng_read(struct hwrng *rng, void *buf, size_t max,
 	u64 *data = buf;
 	u32 t;
 	unsigned int timeout = RNG_TIMEOUT;
-
-	if (max < 8)
-		return 0;
 
 	do {
 		t = readl(priv->base + RNGRCNT) & RCNT_MASK;

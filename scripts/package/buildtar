@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
 
 #
 # buildtar 0.0.4
@@ -24,20 +25,19 @@ tarball="${objtree}/linux-${KERNELRELEASE}-${ARCH}.tar"
 #
 case "${1}" in
 	tar-pkg)
-		compress="cat"
-		file_ext=""
+		opts=
 		;;
 	targz-pkg)
-		compress="gzip"
-		file_ext=".gz"
+		opts=--gzip
+		tarball=${tarball}.gz
 		;;
 	tarbz2-pkg)
-		compress="bzip2"
-		file_ext=".bz2"
+		opts=--bzip2
+		tarball=${tarball}.bz2
 		;;
 	tarxz-pkg)
-		compress="xz"
-		file_ext=".xz"
+		opts=--xz
+		tarball=${tarball}.xz
 		;;
 	*)
 		echo "Unknown tarball target \"${1}\" requested, please add it to ${0}." >&2
@@ -51,13 +51,14 @@ esac
 #
 rm -rf -- "${tmpdir}"
 mkdir -p -- "${tmpdir}/boot"
-
+dirs=boot
 
 #
 # Try to install modules
 #
-if grep -q '^CONFIG_MODULES=y' "${objtree}/.config"; then
-	make ARCH="${ARCH}" O="${objtree}" KBUILD_SRC= INSTALL_MOD_PATH="${tmpdir}" modules_install
+if grep -q '^CONFIG_MODULES=y' include/config/auto.conf; then
+	make ARCH="${ARCH}" -f ${srctree}/Makefile INSTALL_MOD_PATH="${tmpdir}" modules_install
+	dirs="$dirs lib"
 fi
 
 
@@ -65,7 +66,7 @@ fi
 # Install basic kernel files
 #
 cp -v -- "${objtree}/System.map" "${tmpdir}/boot/System.map-${KERNELRELEASE}"
-cp -v -- "${objtree}/.config" "${tmpdir}/boot/config-${KERNELRELEASE}"
+cp -v -- "${KCONFIG_CONFIG}" "${tmpdir}/boot/config-${KERNELRELEASE}"
 cp -v -- "${objtree}/vmlinux" "${tmpdir}/boot/vmlinux-${KERNELRELEASE}"
 
 
@@ -82,10 +83,6 @@ case "${ARCH}" in
 	parisc*)
 		[ -f "${KBUILD_IMAGE}" ] && cp -v -- "${KBUILD_IMAGE}" "${tmpdir}/boot/vmlinux-${KERNELRELEASE}"
 		[ -f "${objtree}/lifimage" ] && cp -v -- "${objtree}/lifimage" "${tmpdir}/boot/lifimage-${KERNELRELEASE}"
-		;;
-	vax)
-		[ -f "${objtree}/vmlinux.SYS" ] && cp -v -- "${objtree}/vmlinux.SYS" "${tmpdir}/boot/vmlinux-${KERNELRELEASE}.SYS"
-		[ -f "${objtree}/vmlinux.dsk" ] && cp -v -- "${objtree}/vmlinux.dsk" "${tmpdir}/boot/vmlinux-${KERNELRELEASE}.dsk"
 		;;
 	mips)
 		if [ -f "${objtree}/arch/mips/boot/compressed/vmlinux.bin" ]; then
@@ -108,6 +105,14 @@ case "${ARCH}" in
 			cp -v -- "${objtree}/vmlinux" "${tmpdir}/boot/vmlinux-${KERNELRELEASE}"
 		fi
 		;;
+	arm64)
+		for i in Image.bz2 Image.gz Image.lz4 Image.lzma Image.lzo ; do
+			if [ -f "${objtree}/arch/arm64/boot/${i}" ] ; then
+				cp -v -- "${objtree}/arch/arm64/boot/${i}" "${tmpdir}/boot/vmlinuz-${KERNELRELEASE}"
+				break
+			fi
+		done
+		;;
 	*)
 		[ -f "${KBUILD_IMAGE}" ] && cp -v -- "${KBUILD_IMAGE}" "${tmpdir}/boot/vmlinux-kbuild-${KERNELRELEASE}"
 		echo "" >&2
@@ -124,14 +129,12 @@ esac
 #
 # Create the tarball
 #
-(
-	opts=
-	if tar --owner=root --group=root --help >/dev/null 2>&1; then
-		opts="--owner=root --group=root"
-	fi
-	tar cf - -C "$tmpdir" boot/ lib/ $opts | ${compress} > "${tarball}${file_ext}"
-)
+if tar --owner=root --group=root --help >/dev/null 2>&1; then
+	opts="$opts --owner=root --group=root"
+fi
 
-echo "Tarball successfully created in ${tarball}${file_ext}"
+tar cf $tarball -C $tmpdir $opts $dirs
+
+echo "Tarball successfully created in $tarball"
 
 exit 0

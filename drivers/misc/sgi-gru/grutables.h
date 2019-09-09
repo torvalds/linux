@@ -1,23 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * SN Platform GRU Driver
  *
  *            GRU DRIVER TABLES, MACROS, externs, etc
  *
  *  Copyright (c) 2008 Silicon Graphics, Inc.  All Rights Reserved.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 #ifndef __GRUTABLES_H__
@@ -147,6 +134,7 @@
 #include <linux/mutex.h>
 #include <linux/wait.h>
 #include <linux/mmu_notifier.h>
+#include <linux/mm_types.h>
 #include "gru.h"
 #include "grulib.h"
 #include "gruhandles.h"
@@ -665,7 +653,7 @@ extern unsigned long gru_reserve_cb_resources(struct gru_state *gru,
 		int cbr_au_count, char *cbmap);
 extern unsigned long gru_reserve_ds_resources(struct gru_state *gru,
 		int dsr_au_count, char *dsmap);
-extern int gru_fault(struct vm_area_struct *, struct vm_fault *vmf);
+extern vm_fault_t gru_fault(struct vm_fault *vmf);
 extern struct gru_mm_struct *gru_register_mmu_notifier(void);
 extern void gru_drop_mmu_notifier(struct gru_mm_struct *gms);
 

@@ -34,6 +34,8 @@ u16 qman_ip_rev;
 EXPORT_SYMBOL(qman_ip_rev);
 u16 qm_channel_pool1 = QMAN_CHANNEL_POOL1;
 EXPORT_SYMBOL(qm_channel_pool1);
+u16 qm_channel_caam = QMAN_CHANNEL_CAAM;
+EXPORT_SYMBOL(qm_channel_caam);
 
 /* Register offsets */
 #define REG_QCSP_LIO_CFG(n)	(0x0000 + ((n) * 0x10))
@@ -271,6 +273,7 @@ static const struct qman_error_info_mdata error_mdata[] = {
 static u32 __iomem *qm_ccsr_start;
 /* A SDQCR mask comprising all the available/visible pool channels */
 static u32 qm_pools_sdqcr;
+static int __qman_probed;
 
 static inline u32 qm_ccsr_in(u32 offset)
 {
@@ -399,13 +402,35 @@ static int qm_init_pfdr(struct device *dev, u32 pfdr_start, u32 num)
 }
 
 /*
- * Ideally we would use the DMA API to turn rmem->base into a DMA address
- * (especially if iommu translations ever get involved).  Unfortunately, the
- * DMA API currently does not allow mapping anything that is not backed with
- * a struct page.
+ * QMan needs two global memory areas initialized at boot time:
+ *  1) FQD: Frame Queue Descriptors used to manage frame queues
+ *  2) PFDR: Packed Frame Queue Descriptor Records used to store frames
+ * Both areas are reserved using the device tree reserved memory framework
+ * and the addresses and sizes are initialized when the QMan device is probed
  */
 static dma_addr_t fqd_a, pfdr_a;
 static size_t fqd_sz, pfdr_sz;
+
+#ifdef CONFIG_PPC
+/*
+ * Support for PPC Device Tree backward compatibility when compatible
+ * string is set to fsl-qman-fqd and fsl-qman-pfdr
+ */
+static int zero_priv_mem(phys_addr_t addr, size_t sz)
+{
+	/* map as cacheable, non-guarded */
+	void __iomem *tmpp = ioremap_cache(addr, sz);
+
+	if (!tmpp)
+		return -ENOMEM;
+
+	memset_io(tmpp, 0, sz);
+	flush_dcache_range((unsigned long)tmpp,
+			   (unsigned long)tmpp + sz);
+	iounmap(tmpp);
+
+	return 0;
+}
 
 static int qman_fqd(struct reserved_mem *rmem)
 {
@@ -413,7 +438,6 @@ static int qman_fqd(struct reserved_mem *rmem)
 	fqd_sz = rmem->size;
 
 	WARN_ON(!(fqd_a && fqd_sz));
-
 	return 0;
 }
 RESERVEDMEM_OF_DECLARE(qman_fqd, "fsl,qman-fqd", qman_fqd);
@@ -429,27 +453,11 @@ static int qman_pfdr(struct reserved_mem *rmem)
 }
 RESERVEDMEM_OF_DECLARE(qman_pfdr, "fsl,qman-pfdr", qman_pfdr);
 
+#endif
+
 static unsigned int qm_get_fqid_maxcnt(void)
 {
 	return fqd_sz / 64;
-}
-
-/*
- * Flush this memory range from data cache so that QMAN originated
- * transactions for this memory region could be marked non-coherent.
- */
-static int zero_priv_mem(struct device *dev, struct device_node *node,
-			 phys_addr_t addr, size_t sz)
-{
-	/* map as cacheable, non-guarded */
-	void __iomem *tmpp = ioremap_prot(addr, sz, 0);
-
-	memset_io(tmpp, 0, sz);
-	flush_dcache_range((unsigned long)tmpp,
-			   (unsigned long)tmpp + sz);
-	iounmap(tmpp);
-
-	return 0;
 }
 
 static void log_edata_bits(struct device *dev, u32 bit_count)
@@ -588,7 +596,7 @@ static int qman_init_ccsr(struct device *dev)
 }
 
 #define LIO_CFG_LIODN_MASK 0x0fff0000
-void qman_liodn_fixup(u16 channel)
+void __qman_liodn_fixup(u16 channel)
 {
 	static int done;
 	static u32 liodn_offset;
@@ -679,6 +687,12 @@ static int qman_resource_init(struct device *dev)
 	return 0;
 }
 
+int qman_is_probed(void)
+{
+	return __qman_probed;
+}
+EXPORT_SYMBOL_GPL(qman_is_probed);
+
 static int fsl_qman_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -688,10 +702,12 @@ static int fsl_qman_probe(struct platform_device *pdev)
 	u16 id;
 	u8 major, minor;
 
+	__qman_probed = -1;
+
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
-		dev_err(dev, "Can't get %s property 'IORESOURCE_MEM'\n",
-			node->full_name);
+		dev_err(dev, "Can't get %pOF property 'IORESOURCE_MEM'\n",
+			node);
 		return -ENXIO;
 	}
 	qm_ccsr_start = devm_ioremap(dev, res->start, resource_size(res));
@@ -712,18 +728,53 @@ static int fsl_qman_probe(struct platform_device *pdev)
 		qman_ip_rev = QMAN_REV30;
 	else if (major == 3 && minor == 1)
 		qman_ip_rev = QMAN_REV31;
+	else if (major == 3 && minor == 2)
+		qman_ip_rev = QMAN_REV32;
 	else {
 		dev_err(dev, "Unknown QMan version\n");
 		return -ENODEV;
 	}
 
-	if ((qman_ip_rev & 0xff00) >= QMAN_REV30)
+	if ((qman_ip_rev & 0xff00) >= QMAN_REV30) {
 		qm_channel_pool1 = QMAN_CHANNEL_POOL1_REV3;
+		qm_channel_caam = QMAN_CHANNEL_CAAM_REV3;
+	}
 
-	ret = zero_priv_mem(dev, node, fqd_a, fqd_sz);
-	WARN_ON(ret);
-	if (ret)
-		return -ENODEV;
+	if (fqd_a) {
+#ifdef CONFIG_PPC
+		/*
+		 * For PPC backward DT compatibility
+		 * FQD memory MUST be zero'd by software
+		 */
+		zero_priv_mem(fqd_a, fqd_sz);
+#else
+		WARN(1, "Unexpected architecture using non shared-dma-mem reservations");
+#endif
+	} else {
+		/*
+		 * Order of memory regions is assumed as FQD followed by PFDR
+		 * in order to ensure allocations from the correct regions the
+		 * driver initializes then allocates each piece in order
+		 */
+		ret = qbman_init_private_mem(dev, 0, &fqd_a, &fqd_sz);
+		if (ret) {
+			dev_err(dev, "qbman_init_private_mem() for FQD failed 0x%x\n",
+				ret);
+			return -ENODEV;
+		}
+	}
+	dev_dbg(dev, "Allocated FQD 0x%llx 0x%zx\n", fqd_a, fqd_sz);
+
+	if (!pfdr_a) {
+		/* Setup PFDR memory */
+		ret = qbman_init_private_mem(dev, 1, &pfdr_a, &pfdr_sz);
+		if (ret) {
+			dev_err(dev, "qbman_init_private_mem() for PFDR failed 0x%x\n",
+				ret);
+			return -ENODEV;
+		}
+	}
+	dev_dbg(dev, "Allocated PFDR 0x%llx 0x%zx\n", pfdr_a, pfdr_sz);
 
 	ret = qman_init_ccsr(dev);
 	if (ret) {
@@ -733,15 +784,15 @@ static int fsl_qman_probe(struct platform_device *pdev)
 
 	err_irq = platform_get_irq(pdev, 0);
 	if (err_irq <= 0) {
-		dev_info(dev, "Can't get %s property 'interrupts'\n",
-			 node->full_name);
+		dev_info(dev, "Can't get %pOF property 'interrupts'\n",
+			 node);
 		return -ENODEV;
 	}
 	ret = devm_request_irq(dev, err_irq, qman_isr, IRQF_SHARED, "qman-err",
 			       dev);
 	if (ret)  {
-		dev_err(dev, "devm_request_irq() failed %d for '%s'\n",
-			ret, node->full_name);
+		dev_err(dev, "devm_request_irq() failed %d for '%pOF'\n",
+			ret, node);
 		return ret;
 	}
 
@@ -785,6 +836,8 @@ static int fsl_qman_probe(struct platform_device *pdev)
 	ret = qman_wq_alloc();
 	if (ret)
 		return ret;
+
+	__qman_probed = 1;
 
 	return 0;
 }

@@ -1,27 +1,19 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2014-2016, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 #include "test/nfit_test.h"
 #include <linux/blkdev.h>
 #include <pmem.h>
 #include <nd.h>
 
-long pmem_direct_access(struct block_device *bdev, sector_t sector,
-		void **kaddr, pfn_t *pfn, long size)
+long __pmem_direct_access(struct pmem_device *pmem, pgoff_t pgoff,
+		long nr_pages, void **kaddr, pfn_t *pfn)
 {
-	struct pmem_device *pmem = bdev->bd_queue->queuedata;
-	resource_size_t offset = sector * 512 + pmem->data_offset;
+	resource_size_t offset = PFN_PHYS(pgoff) + pmem->data_offset;
 
-	if (unlikely(is_bad_pmem(&pmem->bb, sector, size)))
+	if (unlikely(is_bad_pmem(&pmem->bb, PFN_PHYS(pgoff) / 512,
+					PFN_PHYS(nr_pages))))
 		return -EIO;
 
 	/*
@@ -31,24 +23,27 @@ long pmem_direct_access(struct block_device *bdev, sector_t sector,
 	if (get_nfit_res(pmem->phys_addr + offset)) {
 		struct page *page;
 
-		*kaddr = pmem->virt_addr + offset;
+		if (kaddr)
+			*kaddr = pmem->virt_addr + offset;
 		page = vmalloc_to_page(pmem->virt_addr + offset);
-		*pfn = page_to_pfn_t(page);
-		dev_dbg_ratelimited(disk_to_dev(bdev->bd_disk)->parent,
-				"%s: sector: %#llx pfn: %#lx\n", __func__,
-				(unsigned long long) sector, page_to_pfn(page));
+		if (pfn)
+			*pfn = page_to_pfn_t(page);
+		pr_debug_ratelimited("%s: pmem: %p pgoff: %#lx pfn: %#lx\n",
+				__func__, pmem, pgoff, page_to_pfn(page));
 
-		return PAGE_SIZE;
+		return 1;
 	}
 
-	*kaddr = pmem->virt_addr + offset;
-	*pfn = phys_to_pfn_t(pmem->phys_addr + offset, pmem->pfn_flags);
+	if (kaddr)
+		*kaddr = pmem->virt_addr + offset;
+	if (pfn)
+		*pfn = phys_to_pfn_t(pmem->phys_addr + offset, pmem->pfn_flags);
 
 	/*
 	 * If badblocks are present, limit known good range to the
 	 * requested range.
 	 */
 	if (unlikely(pmem->bb.count))
-		return size;
-	return pmem->size - pmem->pfn_pad - offset;
+		return nr_pages;
+	return PHYS_PFN(pmem->size - pmem->pfn_pad - offset);
 }

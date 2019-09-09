@@ -23,7 +23,7 @@
  */
 #include "priv.h"
 
-static void
+void
 gp100_ltc_intr(struct nvkm_ltc *ltc)
 {
 	struct nvkm_device *device = ltc->subdev.device;
@@ -38,17 +38,17 @@ gp100_ltc_intr(struct nvkm_ltc *ltc)
 	}
 }
 
-static int
+int
 gp100_ltc_oneinit(struct nvkm_ltc *ltc)
 {
 	struct nvkm_device *device = ltc->subdev.device;
 	ltc->ltc_nr = nvkm_rd32(device, 0x12006c);
 	ltc->lts_nr = nvkm_rd32(device, 0x17e280) >> 28;
 	/*XXX: tagram allocation - TBD */
-	return nvkm_mm_init(&ltc->tags, 0, 0, 1);
+	return 0;
 }
 
-static void
+void
 gp100_ltc_init(struct nvkm_ltc *ltc)
 {
 	/*XXX: PMU LS call to setup tagram address */

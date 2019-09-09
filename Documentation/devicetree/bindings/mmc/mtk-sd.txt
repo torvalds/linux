@@ -7,10 +7,25 @@ This file documents differences between the core properties in mmc.txt
 and the properties used by the msdc driver.
 
 Required properties:
-- compatible: Should be "mediatek,mt8173-mmc","mediatek,mt8135-mmc"
+- compatible: value should be either of the following.
+	"mediatek,mt8135-mmc": for mmc host ip compatible with mt8135
+	"mediatek,mt8173-mmc": for mmc host ip compatible with mt8173
+	"mediatek,mt8183-mmc": for mmc host ip compatible with mt8183
+	"mediatek,mt8516-mmc": for mmc host ip compatible with mt8516
+	"mediatek,mt2701-mmc": for mmc host ip compatible with mt2701
+	"mediatek,mt2712-mmc": for mmc host ip compatible with mt2712
+	"mediatek,mt7622-mmc": for MT7622 SoC
+	"mediatek,mt7623-mmc", "mediatek,mt2701-mmc": for MT7623 SoC
+	"mediatek,mt7620-mmc", for MT7621 SoC (and others)
+
+- reg: physical base address of the controller and length
 - interrupts: Should contain MSDC interrupt number
-- clocks: MSDC source clock, HCLK
-- clock-names: "source", "hclk"
+- clocks: Should contain phandle for the clock feeding the MMC controller
+- clock-names: Should contain the following:
+	"source" - source clock (required)
+	"hclk" - HCLK which used for host (required)
+	"source_cg" - independent source clock gate (required for MT2712)
+	"bus_clk" - bus clock used for internal register access (required for MT2712 MSDC0/3)
 - pinctrl-names: should be "default", "state_uhs"
 - pinctrl-0: should contain default/high speed pin ctrl
 - pinctrl-1: should contain uhs mode pin ctrl
@@ -21,6 +36,19 @@ Optional properties:
 - assigned-clocks: PLL of the source clock
 - assigned-clock-parents: parent of source clock, used for HS400 mode to get 400Mhz source clock
 - hs400-ds-delay: HS400 DS delay setting
+- mediatek,hs200-cmd-int-delay: HS200 command internal delay setting.
+				This field has total 32 stages.
+				The value is an integer from 0 to 31.
+- mediatek,hs400-cmd-int-delay: HS400 command internal delay setting
+				This field has total 32 stages.
+				The value is an integer from 0 to 31.
+- mediatek,hs400-cmd-resp-sel-rising:  HS400 command response sample selection
+				       If present,HS400 command responses are sampled on rising edges.
+				       If not present,HS400 command responses are sampled on falling edges.
+- mediatek,latch-ck: Some SoCs do not support enhance_rx, need set correct latch-ck to avoid data crc
+		     error caused by stop clock(fifo full)
+		     Valid range = [0:0x7]. if not present, default value is 0.
+		     applied to compatible "mediatek,mt2701-mmc".
 
 Examples:
 mmc0: mmc@11230000 {
@@ -38,4 +66,7 @@ mmc0: mmc@11230000 {
 	assigned-clocks = <&topckgen CLK_TOP_MSDC50_0_SEL>;
 	assigned-clock-parents = <&topckgen CLK_TOP_MSDCPLL_D2>;
 	hs400-ds-delay = <0x14015>;
+	mediatek,hs200-cmd-int-delay = <26>;
+	mediatek,hs400-cmd-int-delay = <14>;
+	mediatek,hs400-cmd-resp-sel-rising;
 };

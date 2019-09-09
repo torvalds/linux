@@ -47,7 +47,6 @@
 #include "sunxi-common-regulators.dtsi"
 
 #include <dt-bindings/gpio/gpio.h>
-#include <dt-bindings/pinctrl/sun4i-a10.h>
 
 / {
 	model = "Miniand Hackberry";
@@ -81,8 +80,6 @@
 };
 
 &emac {
-	pinctrl-names = "default";
-	pinctrl-0 = <&emac_pins_a>;
 	phy = <&phy0>;
 	status = "okay";
 };
@@ -93,7 +90,7 @@
 
 &ir0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&ir0_rx_pins_a>;
+	pinctrl-0 = <&ir0_rx_pins>;
 	status = "okay";
 };
 
@@ -107,12 +104,9 @@
 };
 
 &mmc0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_reference_design>;
 	vmmc-supply = <&reg_vcc3v3>;
 	bus-width = <4>;
-	cd-gpios = <&pio 7 1 GPIO_ACTIVE_HIGH>; /* PH1 */
-	cd-inverted;
+	cd-gpios = <&pio 7 1 GPIO_ACTIVE_LOW>; /* PH1 */
 	status = "okay";
 };
 
@@ -124,31 +118,11 @@
 	status = "okay";
 };
 
-&pio {
-	pinctrl-names = "default";
-	pinctrl-0 = <&hackberry_hogs>;
-
-	hackberry_hogs: hogs@0 {
-		allwinner,pins = "PH19";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
-	};
-
-	usb2_vbus_pin_hackberry: usb2_vbus_pin@0 {
-		allwinner,pins = "PH12";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
-	};
-};
-
 &reg_usb1_vbus {
 	status = "okay";
 };
 
 &reg_usb2_vbus {
-	pinctrl-0 = <&usb2_vbus_pin_hackberry>;
 	gpio = <&pio 7 12 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
@@ -161,6 +135,6 @@
 
 &uart0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_pins_a>;
+	pinctrl-0 = <&uart0_pb_pins>;
 	status = "okay";
 };

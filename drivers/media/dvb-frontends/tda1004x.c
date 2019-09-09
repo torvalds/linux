@@ -1,28 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
   /*
      Driver for Philips tda1004xh OFDM Demodulator
 
      (c) 2003, 2004 Andrew de Quincey & Robert Schlabbach
 
-     This program is free software; you can redistribute it and/or modify
-     it under the terms of the GNU General Public License as published by
-     the Free Software Foundation; either version 2 of the License, or
-     (at your option) any later version.
-
-     This program is distributed in the hope that it will be useful,
-     but WITHOUT ANY WARRANTY; without even the implied warranty of
-     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-
-     GNU General Public License for more details.
-
-     You should have received a copy of the GNU General Public License
-     along with this program; if not, write to the Free Software
-     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    */
 /*
  * This driver needs external firmware. Please use the commands
- * "<kerneldir>/Documentation/dvb/get_dvb_firmware tda10045",
- * "<kerneldir>/Documentation/dvb/get_dvb_firmware tda10046" to
+ * "<kerneldir>/scripts/get_dvb_firmware tda10045",
+ * "<kerneldir>/scripts/get_dvb_firmware tda10046" to
  * download/extract them, and then copy them to /usr/lib/hotplug/firmware
  * or /lib/firmware (depending on configuration of firmware hotplug).
  */
@@ -36,7 +23,7 @@
 #include <linux/string.h>
 #include <linux/slab.h>
 
-#include "dvb_frontend.h"
+#include <media/dvb_frontend.h>
 #include "tda1004x.h"
 
 static int debug;
@@ -329,7 +316,7 @@ static int tda1004x_do_upload(struct tda1004x_state *state,
 	tda1004x_write_byteI(state, dspCodeCounterReg, 0);
 	fw_msg.addr = state->config->demod_address;
 
-	i2c_lock_adapter(state->i2c);
+	i2c_lock_bus(state->i2c, I2C_LOCK_SEGMENT);
 	buf[0] = dspCodeInReg;
 	while (pos != len) {
 		// work out how much to send this time
@@ -342,14 +329,14 @@ static int tda1004x_do_upload(struct tda1004x_state *state,
 		fw_msg.len = tx_size + 1;
 		if (__i2c_transfer(state->i2c, &fw_msg, 1) != 1) {
 			printk(KERN_ERR "tda1004x: Error during firmware upload\n");
-			i2c_unlock_adapter(state->i2c);
+			i2c_unlock_bus(state->i2c, I2C_LOCK_SEGMENT);
 			return -EIO;
 		}
 		pos += tx_size;
 
 		dprintk("%s: fw_pos=0x%x\n", __func__, pos);
 	}
-	i2c_unlock_adapter(state->i2c);
+	i2c_unlock_bus(state->i2c, I2C_LOCK_SEGMENT);
 
 	/* give the DSP a chance to settle 03/10/05 Hac */
 	msleep(100);
@@ -1245,13 +1232,13 @@ static void tda1004x_release(struct dvb_frontend* fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops tda10045_ops = {
+static const struct dvb_frontend_ops tda10045_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		.name = "Philips TDA10045H DVB-T",
-		.frequency_min = 51000000,
-		.frequency_max = 858000000,
-		.frequency_stepsize = 166667,
+		.frequency_min_hz =  51 * MHz,
+		.frequency_max_hz = 858 * MHz,
+		.frequency_stepsize_hz = 166667,
 		.caps =
 		    FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 | FE_CAN_FEC_3_4 |
 		    FE_CAN_FEC_5_6 | FE_CAN_FEC_7_8 | FE_CAN_FEC_AUTO |
@@ -1315,13 +1302,13 @@ struct dvb_frontend* tda10045_attach(const struct tda1004x_config* config,
 	return &state->frontend;
 }
 
-static struct dvb_frontend_ops tda10046_ops = {
+static const struct dvb_frontend_ops tda10046_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		.name = "Philips TDA10046H DVB-T",
-		.frequency_min = 51000000,
-		.frequency_max = 858000000,
-		.frequency_stepsize = 166667,
+		.frequency_min_hz =  51 * MHz,
+		.frequency_max_hz = 858 * MHz,
+		.frequency_stepsize_hz = 166667,
 		.caps =
 		    FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 | FE_CAN_FEC_3_4 |
 		    FE_CAN_FEC_5_6 | FE_CAN_FEC_7_8 | FE_CAN_FEC_AUTO |

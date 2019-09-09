@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* cpwd.c - driver implementation for hardware watchdog
  * timers found on Sun Microsystems CP1400 and CP1500 boards.
  *
@@ -230,9 +231,9 @@ static void cpwd_resetbrokentimer(struct cpwd *p, int index)
  * interrupts within the PLD so me must continually
  * reset the timers ad infinitum.
  */
-static void cpwd_brokentimer(unsigned long data)
+static void cpwd_brokentimer(struct timer_list *unused)
 {
-	struct cpwd *p = (struct cpwd *) data;
+	struct cpwd *p = cpwd_device;
 	int id, tripped = 0;
 
 	/* kill a running timer instance, in case we
@@ -275,7 +276,7 @@ static void cpwd_stoptimer(struct cpwd *p, int index)
 
 		if (p->broken) {
 			p->devs[index].runstatus |= WD_STAT_BSTOP;
-			cpwd_brokentimer((unsigned long) p);
+			cpwd_brokentimer(NULL);
 		}
 	}
 }
@@ -394,7 +395,7 @@ static int cpwd_open(struct inode *inode, struct file *f)
 
 	mutex_unlock(&cpwd_mutex);
 
-	return nonseekable_open(inode, f);
+	return stream_open(inode, f);
 }
 
 static int cpwd_release(struct inode *inode, struct file *file)
@@ -538,12 +539,9 @@ static int cpwd_probe(struct platform_device *op)
 	if (cpwd_device)
 		return -EINVAL;
 
-	p = kzalloc(sizeof(*p), GFP_KERNEL);
-	err = -ENOMEM;
-	if (!p) {
-		pr_err("Unable to allocate struct cpwd\n");
-		goto out;
-	}
+	p = devm_kzalloc(&op->dev, sizeof(*p), GFP_KERNEL);
+	if (!p)
+		return -ENOMEM;
 
 	p->irq = op->archdata.irqs[0];
 
@@ -553,12 +551,12 @@ static int cpwd_probe(struct platform_device *op)
 			     4 * WD_TIMER_REGSZ, DRIVER_NAME);
 	if (!p->regs) {
 		pr_err("Unable to map registers\n");
-		goto out_free;
+		return -ENOMEM;
 	}
 
 	options = of_find_node_by_path("/options");
-	err = -ENODEV;
 	if (!options) {
+		err = -ENODEV;
 		pr_err("Unable to find /options node\n");
 		goto out_iounmap;
 	}
@@ -572,6 +570,8 @@ static int cpwd_probe(struct platform_device *op)
 	str_prop = of_get_property(options, "watchdog-timeout", NULL);
 	if (str_prop)
 		p->timeout = simple_strtoul(str_prop, NULL, 10);
+
+	of_node_put(options);
 
 	/* CP1400s seem to have broken PLD implementations-- the
 	 * interrupt_mask register cannot be written, so no timer
@@ -611,7 +611,7 @@ static int cpwd_probe(struct platform_device *op)
 	}
 
 	if (p->broken) {
-		setup_timer(&cpwd_timer, cpwd_brokentimer, (unsigned long)p);
+		timer_setup(&cpwd_timer, cpwd_brokentimer, 0);
 		cpwd_timer.expires	= WD_BTIMEOUT;
 
 		pr_info("PLD defect workaround enabled for model %s\n",
@@ -620,10 +620,7 @@ static int cpwd_probe(struct platform_device *op)
 
 	platform_set_drvdata(op, p);
 	cpwd_device = p;
-	err = 0;
-
-out:
-	return err;
+	return 0;
 
 out_unregister:
 	for (i--; i >= 0; i--)
@@ -632,9 +629,7 @@ out_unregister:
 out_iounmap:
 	of_iounmap(&op->resource[0], p->regs, 4 * WD_TIMER_REGSZ);
 
-out_free:
-	kfree(p);
-	goto out;
+	return err;
 }
 
 static int cpwd_remove(struct platform_device *op)
@@ -659,7 +654,6 @@ static int cpwd_remove(struct platform_device *op)
 		free_irq(p->irq, p);
 
 	of_iounmap(&op->resource[0], p->regs, 4 * WD_TIMER_REGSZ);
-	kfree(p);
 
 	cpwd_device = NULL;
 

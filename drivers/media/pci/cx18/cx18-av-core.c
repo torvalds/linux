@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  cx18 ADEC audio functions
  *
@@ -5,21 +6,6 @@
  *
  *  Copyright (C) 2007  Hans Verkuil <hverkuil@xs4all.nl>
  *  Copyright (C) 2008  Andy Walls <awalls@md.metrocast.net>
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version 2
- *  of the License, or (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- *  02110-1301, USA.
  */
 
 #include "cx18-driver.h"
@@ -241,10 +227,10 @@ static void cx18_av_initialize(struct v4l2_subdev *sd)
 	 */
 	cx18_av_and_or4(cx, CXADEC_AFE_CTRL, 0xFF000000, 0x00005D00);
 
-/* 	if(dwEnable && dw3DCombAvailable) { */
-/*      	CxDevWrReg(CXADEC_SRC_COMB_CFG, 0x7728021F); */
+/*	if(dwEnable && dw3DCombAvailable) { */
+/*		CxDevWrReg(CXADEC_SRC_COMB_CFG, 0x7728021F); */
 /*    } else { */
-/*      	CxDevWrReg(CXADEC_SRC_COMB_CFG, 0x6628021F); */
+/*		CxDevWrReg(CXADEC_SRC_COMB_CFG, 0x6628021F); */
 /*    } */
 	cx18_av_write4(cx, CXADEC_SRC_COMB_CFG, 0x6628021F);
 	default_volume = cx18_av_read(cx, 0x8d4);
@@ -324,13 +310,13 @@ void cx18_av_std_setup(struct cx18 *cx)
 		 * vblank656: half lines after line 625/mid-313 of blanked video
 		 * vblank:    half lines, after line 5/317, of blanked video
 		 * vactive:   half lines of active video +
-		 * 		5 half lines after the end of active video
+		 *		5 half lines after the end of active video
 		 *
 		 * As far as I can tell:
 		 * vblank656 starts counting from the falling edge of the first
-		 * 	vsync pulse (start of line 1 or mid-313)
+		 *	vsync pulse (start of line 1 or mid-313)
 		 * vblank starts counting from the after the 5 vsync pulses and
-		 * 	5 or 4 equalization pulses (start of line 6 or 318)
+		 *	5 or 4 equalization pulses (start of line 6 or 318)
 		 *
 		 * For 625 line systems the driver will extract VBI information
 		 * from lines 6-23 and lines 318-335 (but the slicer can only
@@ -400,9 +386,9 @@ void cx18_av_std_setup(struct cx18 *cx)
 		 *
 		 * As far as I can tell:
 		 * vblank656 starts counting from the falling edge of the first
-		 * 	vsync pulse (start of line 4 or mid-266)
+		 *	vsync pulse (start of line 4 or mid-266)
 		 * vblank starts counting from the after the 6 vsync pulses and
-		 * 	6 or 5 equalization pulses (start of line 10 or 272)
+		 *	6 or 5 equalization pulses (start of line 10 or 272)
 		 *
 		 * For 525 line systems the driver will extract VBI information
 		 * from lines 10-21 and lines 273-284.
@@ -468,21 +454,19 @@ void cx18_av_std_setup(struct cx18 *cx)
 		CX18_DEBUG_INFO_DEV(sd, "Pixel rate = %d.%06d Mpixel/sec\n",
 				    pll / 8000000, (pll / 8) % 1000000);
 
-		CX18_DEBUG_INFO_DEV(sd, "ADC XTAL/pixel clock decimation ratio "
-				    "= %d.%03d\n", src_decimation / 256,
+		CX18_DEBUG_INFO_DEV(sd, "ADC XTAL/pixel clock decimation ratio = %d.%03d\n",
+				    src_decimation / 256,
 				    ((src_decimation % 256) * 1000) / 256);
 
 		tmp = 28636360 * (u64) sc;
 		do_div(tmp, src_decimation);
 		fsc = tmp >> 13;
 		CX18_DEBUG_INFO_DEV(sd,
-				    "Chroma sub-carrier initial freq = %d.%06d "
-				    "MHz\n", fsc / 1000000, fsc % 1000000);
+				    "Chroma sub-carrier initial freq = %d.%06d MHz\n",
+				    fsc / 1000000, fsc % 1000000);
 
-		CX18_DEBUG_INFO_DEV(sd, "hblank %i, hactive %i, vblank %i, "
-				    "vactive %i, vblank656 %i, src_dec %i, "
-				    "burst 0x%02x, luma_lpf %i, uv_lpf %i, "
-				    "comb 0x%02x, sc 0x%06x\n",
+		CX18_DEBUG_INFO_DEV(sd,
+				    "hblank %i, hactive %i, vblank %i, vactive %i, vblank656 %i, src_dec %i, burst 0x%02x, luma_lpf %i, uv_lpf %i, comb 0x%02x, sc 0x%06x\n",
 				    hblank, hactive, vblank, vactive, vblank656,
 				    src_decimation, burst, luma_lpf, uv_lpf,
 				    comb, sc);
@@ -858,7 +842,7 @@ static int cx18_av_s_std(struct v4l2_subdev *sd, v4l2_std_id norm)
 	struct cx18_av_state *state = to_cx18_av_state(sd);
 	struct cx18 *cx = v4l2_get_subdevdata(sd);
 
-	u8 fmt = 0; 	/* zero is autodetect */
+	u8 fmt = 0;	/* zero is autodetect */
 	u8 pal_m = 0;
 
 	if (state->radio == 0 && state->std == norm)
@@ -1069,8 +1053,7 @@ static void log_video_status(struct cx18 *cx)
 		CX18_INFO_DEV(sd, "Specified video input:     Composite %d\n",
 			      vid_input - CX18_AV_COMPOSITE1 + 1);
 	} else {
-		CX18_INFO_DEV(sd, "Specified video input:     "
-			      "S-Video (Luma In%d, Chroma In%d)\n",
+		CX18_INFO_DEV(sd, "Specified video input:     S-Video (Luma In%d, Chroma In%d)\n",
 			      (vid_input & 0xf0) >> 4,
 			      (vid_input & 0xf00) >> 8);
 	}

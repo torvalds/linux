@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * kinect sensor device camera, gspca driver
  *
@@ -8,20 +9,6 @@
  *
  * Special thanks to Steven Toth and kernellabs.com for sponsoring a Kinect
  * sensor device which I tested the driver on.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -155,8 +142,9 @@ static int send_cmd(struct gspca_dev *gspca_dev, uint16_t cmd, void *cmdbuf,
 	memcpy(obuf+sizeof(*chdr), cmdbuf, cmd_len);
 
 	res = kinect_write(udev, obuf, cmd_len + sizeof(*chdr));
-	PDEBUG(D_USBO, "Control cmd=%04x tag=%04x len=%04x: %d", cmd,
-		sd->cam_tag, cmd_len, res);
+	gspca_dbg(gspca_dev, D_USBO, "Control cmd=%04x tag=%04x len=%04x: %d\n",
+		  cmd,
+		  sd->cam_tag, cmd_len, res);
 	if (res < 0) {
 		pr_err("send_cmd: Output control transfer failed (%d)\n", res);
 		return res;
@@ -165,8 +153,8 @@ static int send_cmd(struct gspca_dev *gspca_dev, uint16_t cmd, void *cmdbuf,
 	do {
 		actual_len = kinect_read(udev, ibuf, 0x200);
 	} while (actual_len == 0);
-	PDEBUG(D_USBO, "Control reply: %d", actual_len);
-	if (actual_len < sizeof(*rhdr)) {
+	gspca_dbg(gspca_dev, D_USBO, "Control reply: %d\n", actual_len);
+	if (actual_len < (int)sizeof(*rhdr)) {
 		pr_err("send_cmd: Input control transfer failed (%d)\n",
 		       actual_len);
 		return actual_len < 0 ? actual_len : -EREMOTEIO;
@@ -217,7 +205,7 @@ static int write_register(struct gspca_dev *gspca_dev, uint16_t reg,
 	cmd[0] = cpu_to_le16(reg);
 	cmd[1] = cpu_to_le16(data);
 
-	PDEBUG(D_USBO, "Write Reg 0x%04x <= 0x%02x", reg, data);
+	gspca_dbg(gspca_dev, D_USBO, "Write Reg 0x%04x <= 0x%02x\n", reg, data);
 	res = send_cmd(gspca_dev, 0x03, cmd, 4, reply, 4);
 	if (res < 0)
 		return res;
@@ -278,7 +266,7 @@ static int sd_config_depth(struct gspca_dev *gspca_dev,
 /* this function is called at probe and resume time */
 static int sd_init(struct gspca_dev *gspca_dev)
 {
-	PDEBUG(D_PROBE, "Kinect Camera device.");
+	gspca_dbg(gspca_dev, D_PROBE, "Kinect Camera device.\n");
 
 	return 0;
 }

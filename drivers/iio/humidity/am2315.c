@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /**
  * Aosong AM2315 relative humidity and temperature
  *
  * Copyright (c) 2016, Intel Corporation.
- *
- * This file is subject to the terms and conditions of version 2 of
- * the GNU General Public License. See the file COPYING in the main
- * directory of this archive for more details.
  *
  * 7-bit I2C address: 0x5C.
  */
@@ -215,7 +212,6 @@ static int am2315_read_raw(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info am2315_info = {
-	.driver_module		= THIS_MODULE,
 	.read_raw		= am2315_read_raw,
 };
 

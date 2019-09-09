@@ -1,22 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /* Applied Micro X-Gene SoC Ethernet Driver
  *
  * Copyright (c) 2014, Applied Micro Circuits Corporation
  * Authors: Iyappan Subramanian <isubramanian@apm.com>
  *	    Ravi Patel <rapatel@apm.com>
  *	    Keyur Chudgar <kchudgar@apm.com>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef __XGENE_ENET_MAIN_H__
@@ -41,11 +29,16 @@
 #include "../../../phy/mdio-xgene.h"
 
 #define XGENE_DRV_VERSION	"v1.0"
-#define XGENE_ENET_MAX_MTU	1536
-#define SKB_BUFFER_SIZE		(XGENE_ENET_MAX_MTU - NET_IP_ALIGN)
+#define ETHER_MIN_PACKET	64
+#define ETHER_STD_PACKET	1518
+#define XGENE_ENET_STD_MTU	1536
+#define XGENE_ENET_MAX_MTU	9600
+#define SKB_BUFFER_SIZE		(XGENE_ENET_STD_MTU - NET_IP_ALIGN)
+
 #define BUFLEN_16K	(16 * 1024)
-#define NUM_PKT_BUF	64
+#define NUM_PKT_BUF	1024
 #define NUM_BUFPOOL	32
+#define NUM_NXTBUFPOOL	8
 #define MAX_EXP_BUFFS	256
 #define NUM_MSS_REG	4
 #define XGENE_MIN_ENET_FRAME_SIZE	60
@@ -88,6 +81,12 @@ enum xgene_enet_id {
 	XGENE_ENET2
 };
 
+enum xgene_enet_buf_len {
+	SIZE_2K = 2048,
+	SIZE_4K = 4096,
+	SIZE_16K = 16384
+};
+
 /* software context of a descriptor ring */
 struct xgene_enet_desc_ring {
 	struct net_device *ndev;
@@ -107,14 +106,18 @@ struct xgene_enet_desc_ring {
 	dma_addr_t irq_mbox_dma;
 	void *irq_mbox_addr;
 	u16 dst_ring_num;
-	u8 nbufpool;
+	u16 nbufpool;
+	int npagepool;
 	u8 index;
+	u32 flags;
 	struct sk_buff *(*rx_skb);
 	struct sk_buff *(*cp_skb);
 	dma_addr_t *frag_dma_addr;
+	struct page *(*frag_page);
 	enum xgene_enet_ring_cfgsize cfgsize;
 	struct xgene_enet_desc_ring *cp_ring;
 	struct xgene_enet_desc_ring *buf_pool;
+	struct xgene_enet_desc_ring *page_pool;
 	struct napi_struct napi;
 	union {
 		void *desc_addr;
@@ -124,6 +127,8 @@ struct xgene_enet_desc_ring {
 	__le64 *exp_bufs;
 	u64 tx_packets;
 	u64 tx_bytes;
+	u64 tx_dropped;
+	u64 tx_errors;
 	u64 rx_packets;
 	u64 rx_bytes;
 	u64 rx_dropped;
@@ -141,10 +146,15 @@ struct xgene_mac_ops {
 	void (*rx_enable)(struct xgene_enet_pdata *pdata);
 	void (*tx_disable)(struct xgene_enet_pdata *pdata);
 	void (*rx_disable)(struct xgene_enet_pdata *pdata);
+	void (*get_drop_cnt)(struct xgene_enet_pdata *pdata, u32 *rx, u32 *tx);
 	void (*set_speed)(struct xgene_enet_pdata *pdata);
 	void (*set_mac_addr)(struct xgene_enet_pdata *pdata);
+	void (*set_framesize)(struct xgene_enet_pdata *pdata, int framesize);
 	void (*set_mss)(struct xgene_enet_pdata *pdata, u16 mss, u8 index);
 	void (*link_state)(struct work_struct *work);
+	void (*enable_tx_pause)(struct xgene_enet_pdata *pdata, bool enable);
+	void (*flowctl_rx)(struct xgene_enet_pdata *pdata, bool enable);
+	void (*flowctl_tx)(struct xgene_enet_pdata *pdata, bool enable);
 };
 
 struct xgene_port_ops {
@@ -152,7 +162,7 @@ struct xgene_port_ops {
 	void (*clear)(struct xgene_enet_pdata *pdata,
 		      struct xgene_enet_desc_ring *ring);
 	void (*cle_bypass)(struct xgene_enet_pdata *pdata,
-			   u32 dst_ring_num, u16 bufpool_id);
+			   u32 dst_ring_num, u16 bufpool_id, u16 nxtbufpool_id);
 	void (*shutdown)(struct xgene_enet_pdata *pdata);
 };
 
@@ -194,6 +204,7 @@ struct xgene_enet_pdata {
 	void __iomem *eth_diag_csr_addr;
 	void __iomem *mcx_mac_addr;
 	void __iomem *mcx_mac_csr_addr;
+	void __iomem *mcx_stats_addr;
 	void __iomem *base_addr;
 	void __iomem *pcs_addr;
 	void __iomem *ring_csr_addr;
@@ -201,8 +212,12 @@ struct xgene_enet_pdata {
 	int phy_mode;
 	enum xgene_enet_rm rm;
 	struct xgene_enet_cle cle;
-	struct rtnl_link_stats64 stats;
+	u64 *extd_stats;
+	u64 false_rflr;
+	u64 vlan_rjbr;
+	spinlock_t stats_lock; /* statistics lock */
 	const struct xgene_mac_ops *mac_ops;
+	spinlock_t mac_lock; /* mac lock */
 	const struct xgene_port_ops *port_ops;
 	struct xgene_ring_ops *ring_ops;
 	const struct xgene_cle_ops *cle_ops;
@@ -219,6 +234,10 @@ struct xgene_enet_pdata {
 	u8 rx_delay;
 	bool mdio_driver;
 	struct gpio_desc *sfp_rdy;
+	bool sfp_gpio_en;
+	u32 pause_autoneg;
+	bool tx_pause;
+	bool rx_pause;
 };
 
 struct xgene_indirect_ctl {
@@ -241,5 +260,6 @@ static inline u16 xgene_enet_dst_ring_num(struct xgene_enet_desc_ring *ring)
 }
 
 void xgene_enet_set_ethtool_ops(struct net_device *netdev);
+int xgene_extd_stats_init(struct xgene_enet_pdata *pdata);
 
 #endif /* __XGENE_ENET_MAIN_H__ */

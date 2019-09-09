@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  linux/arch/arm/lib/findbit.S
  *
  *  Copyright (C) 1995-2000 Russell King
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * 16th March 2001 - John Ripley <jripley@sonicblue.com>
  *   Fixed so that "size" is an exclusive not an inclusive quantity.
@@ -15,7 +12,6 @@
  */
 #include <linux/linkage.h>
 #include <asm/assembler.h>
-#include <asm/export.h>
                 .text
 
 /*
@@ -38,7 +34,6 @@ ENTRY(_find_first_zero_bit_le)
 3:		mov	r0, r1			@ no free bits
 		ret	lr
 ENDPROC(_find_first_zero_bit_le)
-EXPORT_SYMBOL(_find_first_zero_bit_le)
 
 /*
  * Purpose  : Find next 'zero' bit
@@ -59,7 +54,6 @@ ENTRY(_find_next_zero_bit_le)
 		add	r2, r2, #1		@ align bit pointer
 		b	2b			@ loop for next bit
 ENDPROC(_find_next_zero_bit_le)
-EXPORT_SYMBOL(_find_next_zero_bit_le)
 
 /*
  * Purpose  : Find a 'one' bit
@@ -81,7 +75,6 @@ ENTRY(_find_first_bit_le)
 3:		mov	r0, r1			@ no free bits
 		ret	lr
 ENDPROC(_find_first_bit_le)
-EXPORT_SYMBOL(_find_first_bit_le)
 
 /*
  * Purpose  : Find next 'one' bit
@@ -101,7 +94,6 @@ ENTRY(_find_next_bit_le)
 		add	r2, r2, #1		@ align bit pointer
 		b	2b			@ loop for next bit
 ENDPROC(_find_next_bit_le)
-EXPORT_SYMBOL(_find_next_bit_le)
 
 #ifdef __ARMEB__
 
@@ -121,7 +113,6 @@ ENTRY(_find_first_zero_bit_be)
 3:		mov	r0, r1			@ no free bits
 		ret	lr
 ENDPROC(_find_first_zero_bit_be)
-EXPORT_SYMBOL(_find_first_zero_bit_be)
 
 ENTRY(_find_next_zero_bit_be)
 		teq	r1, #0
@@ -139,7 +130,6 @@ ENTRY(_find_next_zero_bit_be)
 		add	r2, r2, #1		@ align bit pointer
 		b	2b			@ loop for next bit
 ENDPROC(_find_next_zero_bit_be)
-EXPORT_SYMBOL(_find_next_zero_bit_be)
 
 ENTRY(_find_first_bit_be)
 		teq	r1, #0
@@ -157,7 +147,6 @@ ENTRY(_find_first_bit_be)
 3:		mov	r0, r1			@ no free bits
 		ret	lr
 ENDPROC(_find_first_bit_be)
-EXPORT_SYMBOL(_find_first_bit_be)
 
 ENTRY(_find_next_bit_be)
 		teq	r1, #0
@@ -174,7 +163,6 @@ ENTRY(_find_next_bit_be)
 		add	r2, r2, #1		@ align bit pointer
 		b	2b			@ loop for next bit
 ENDPROC(_find_next_bit_be)
-EXPORT_SYMBOL(_find_next_bit_be)
 
 #endif
 

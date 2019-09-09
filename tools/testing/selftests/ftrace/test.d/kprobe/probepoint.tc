@@ -1,0 +1,39 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
+# description: Kprobe events - probe points
+
+[ -f kprobe_events ] || exit_unsupported # this is configurable
+
+TARGET_FUNC=tracefs_create_dir
+
+dec_addr() { # hexaddr
+  printf "%d" "0x"`echo $1 | tail -c 8`
+}
+
+set_offs() { # prev target next
+  A1=`dec_addr $1`
+  A2=`dec_addr $2`
+  A3=`dec_addr $3`
+  TARGET="0x$2" # an address
+  PREV=`expr $A1 - $A2` # offset to previous symbol
+  NEXT=+`expr $A3 - $A2` # offset to next symbol
+  OVERFLOW=+`printf "0x%x" ${PREV}` # overflow offset to previous symbol
+}
+
+# We have to decode symbol addresses to get correct offsets.
+# If the offset is not an instruction boundary, it cause -EILSEQ.
+set_offs `grep -A1 -B1 ${TARGET_FUNC} /proc/kallsyms | cut -f 1 -d " " | xargs`
+
+UINT_TEST=no
+# printf "%x" -1 returns (unsigned long)-1.
+if [ `printf "%x" -1 | wc -c` != 9 ]; then
+  UINT_TEST=yes
+fi
+
+echo "p:testprobe ${TARGET_FUNC}" > kprobe_events
+echo "p:testprobe ${TARGET}" > kprobe_events
+echo "p:testprobe ${TARGET_FUNC}${NEXT}" > kprobe_events
+! echo "p:testprobe ${TARGET_FUNC}${PREV}" > kprobe_events
+if [ "${UINT_TEST}" = yes ]; then
+! echo "p:testprobe ${TARGET_FUNC}${OVERFLOW}" > kprobe_events
+fi

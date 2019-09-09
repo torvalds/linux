@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause)
 /*
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -172,26 +173,6 @@ struct gb_control_disconnected_request {
 	__le16			cport_id;
 } __packed;
 /* Control protocol [dis]connected response has no payload */
-
-#define GB_TIMESYNC_MAX_STROBES			0x04
-
-struct gb_control_timesync_enable_request {
-	__u8	count;
-	__le64	frame_time;
-	__le32	strobe_delay;
-	__le32	refclk;
-} __packed;
-/* timesync enable response has no payload */
-
-struct gb_control_timesync_authoritative_request {
-	__le64	frame_time[GB_TIMESYNC_MAX_STROBES];
-} __packed;
-/* timesync authoritative response has no payload */
-
-/* timesync get_last_event_request has no payload */
-struct gb_control_timesync_get_last_event_response {
-	__le64	frame_time;
-} __packed;
 
 /*
  * All Bundle power management operations use the same request and response
@@ -897,10 +878,10 @@ struct gb_pwm_disable_request {
 /* Should match up with modes in linux/spi/spi.h */
 #define GB_SPI_MODE_CPHA		0x01		/* clock phase */
 #define GB_SPI_MODE_CPOL		0x02		/* clock polarity */
-#define GB_SPI_MODE_MODE_0		(0|0)		/* (original MicroWire) */
-#define GB_SPI_MODE_MODE_1		(0|GB_SPI_MODE_CPHA)
-#define GB_SPI_MODE_MODE_2		(GB_SPI_MODE_CPOL|0)
-#define GB_SPI_MODE_MODE_3		(GB_SPI_MODE_CPOL|GB_SPI_MODE_CPHA)
+#define GB_SPI_MODE_MODE_0		(0 | 0)		/* (original MicroWire) */
+#define GB_SPI_MODE_MODE_1		(0 | GB_SPI_MODE_CPHA)
+#define GB_SPI_MODE_MODE_2		(GB_SPI_MODE_CPOL | 0)
+#define GB_SPI_MODE_MODE_3		(GB_SPI_MODE_CPOL | GB_SPI_MODE_CPHA)
 #define GB_SPI_MODE_CS_HIGH		0x04		/* chipselect active high? */
 #define GB_SPI_MODE_LSB_FIRST		0x08		/* per-word bits-on-wire */
 #define GB_SPI_MODE_3WIRE		0x10		/* SI/SO signals shared */
@@ -1167,33 +1148,6 @@ struct gb_svc_intf_unipro_response {
 	/* 0x01 is reserved */
 #define GB_SVC_INTF_UNIPRO_FAIL				0x02
 #define GB_SVC_INTF_UNIPRO_NOT_OFF			0x03
-} __packed;
-
-struct gb_svc_timesync_enable_request {
-	__u8	count;
-	__le64	frame_time;
-	__le32	strobe_delay;
-	__le32	refclk;
-} __packed;
-/* timesync enable response has no payload */
-
-/* timesync authoritative request has no payload */
-struct gb_svc_timesync_authoritative_response {
-	__le64	frame_time[GB_TIMESYNC_MAX_STROBES];
-};
-
-struct gb_svc_timesync_wake_pins_acquire_request {
-	__le32	strobe_mask;
-};
-
-/* timesync wake pins acquire response has no payload */
-
-/* timesync wake pins release request has no payload */
-/* timesync wake pins release response has no payload */
-
-/* timesync svc ping request has no payload */
-struct gb_svc_timesync_ping_response {
-	__le64	frame_time;
 } __packed;
 
 #define GB_SVC_UNIPRO_FAST_MODE			0x01

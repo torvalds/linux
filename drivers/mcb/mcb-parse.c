@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/types.h>
 #include <linux/ioport.h>
 #include <linux/slab.h>
@@ -149,7 +150,7 @@ static int chameleon_get_bar(char __iomem **base, phys_addr_t mapbase,
 		reg = readl(*base);
 
 		bar_count = BAR_CNT(reg);
-		if (bar_count <= 0 && bar_count > CHAMELEON_BAR_MAX)
+		if (bar_count <= 0 || bar_count > CHAMELEON_BAR_MAX)
 			return -ENODEV;
 
 		c = kcalloc(bar_count, sizeof(struct chameleon_bar),
@@ -182,7 +183,7 @@ int chameleon_parse_cells(struct mcb_bus *bus, phys_addr_t mapbase,
 	int num_cells = 0;
 	uint32_t dtype;
 	int bar_count;
-	int ret = 0;
+	int ret;
 	u32 hsize;
 
 	hsize = sizeof(struct chameleon_fpga_header);
@@ -210,8 +211,10 @@ int chameleon_parse_cells(struct mcb_bus *bus, phys_addr_t mapbase,
 		 header->filename);
 
 	bar_count = chameleon_get_bar(&p, mapbase, &cb);
-	if (bar_count < 0)
+	if (bar_count < 0) {
+		ret = bar_count;
 		goto free_header;
+	}
 
 	for_each_chameleon_cell(dtype, p) {
 		switch (dtype) {

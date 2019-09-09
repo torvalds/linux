@@ -14,9 +14,8 @@
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
 #include <linux/edac.h>
-#include "edac_core.h"
+#include "edac_module.h"
 
-#define I82975X_REVISION	" Ver: 1.0.0"
 #define EDAC_MOD_STR		"i82975x_edac"
 
 #define i82975x_printk(level, fmt, arg...) \
@@ -105,7 +104,7 @@ NOTE: Only ONE of the three must be enabled
 					 *
 					 * 31:14 Base Addr of 16K memory-mapped
 					 *	configuration space
-					 * 13:1  reserverd
+					 * 13:1  reserved
 					 *  0    mem-mapped config space enable
 					 */
 
@@ -359,14 +358,6 @@ static int dual_channel_active(void __iomem *mch_window)
 	return dualch;
 }
 
-static enum dev_type i82975x_dram_type(void __iomem *mch_window, int rank)
-{
-	/*
-	 * ECC is possible on i92975x ONLY with DEV_X8
-	 */
-	return DEV_X8;
-}
-
 static void i82975x_init_csrows(struct mem_ctl_info *mci,
 		struct pci_dev *pdev, void __iomem *mch_window)
 {
@@ -376,7 +367,6 @@ static void i82975x_init_csrows(struct mem_ctl_info *mci,
 	u32 cumul_size, nr_pages;
 	int index, chan;
 	struct dimm_info *dimm;
-	enum dev_type dtype;
 
 	last_cumul_size = 0;
 
@@ -414,7 +404,6 @@ static void i82975x_init_csrows(struct mem_ctl_info *mci,
 		 *   [0-7] for single-channel; i.e. csrow->nr_channels = 1
 		 *   [0-3] for dual-channel; i.e. csrow->nr_channels = 2
 		 */
-		dtype = i82975x_dram_type(mch_window, index);
 		for (chan = 0; chan < csrow->nr_channels; chan++) {
 			dimm = mci->csrows[index]->channels[chan]->dimm;
 
@@ -424,7 +413,10 @@ static void i82975x_init_csrows(struct mem_ctl_info *mci,
 				 (chan == 0) ? 'A' : 'B',
 				 index);
 			dimm->grain = 1 << 7;	/* 128Byte cache-line resolution */
-			dimm->dtype = i82975x_dram_type(mch_window, index);
+
+			/* ECC is possible on i92975x ONLY with DEV_X8.  */
+			dimm->dtype = DEV_X8;
+
 			dimm->mtype = MEM_DDR2; /* I82975x supports only DDR2 */
 			dimm->edac_mode = EDAC_SECDED; /* only supported */
 		}
@@ -494,6 +486,10 @@ static int i82975x_probe1(struct pci_dev *pdev, int dev_idx)
 	}
 	mchbar &= 0xffffc000;	/* bits 31:14 used for 16K window */
 	mch_window = ioremap_nocache(mchbar, 0x1000);
+	if (!mch_window) {
+		edac_dbg(3, "error ioremapping MCHBAR!\n");
+		goto fail0;
+	}
 
 #ifdef i82975x_DEBUG_IOMEM
 	i82975x_printk(KERN_INFO, "MCHBAR real = %0x, remapped = %p\n",
@@ -560,7 +556,6 @@ static int i82975x_probe1(struct pci_dev *pdev, int dev_idx)
 	mci->edac_ctl_cap = EDAC_FLAG_NONE | EDAC_FLAG_SECDED;
 	mci->edac_cap = EDAC_FLAG_NONE | EDAC_FLAG_SECDED;
 	mci->mod_name = EDAC_MOD_STR;
-	mci->mod_ver = I82975X_REVISION;
 	mci->ctl_name = i82975x_devs[dev_idx].ctl_name;
 	mci->dev_name = pci_name(pdev);
 	mci->edac_check = i82975x_check;
@@ -653,8 +648,8 @@ static int __init i82975x_init(void)
 
 	edac_dbg(3, "\n");
 
-       /* Ensure that the OPSTATE is set correctly for POLL or NMI */
-       opstate_init();
+	/* Ensure that the OPSTATE is set correctly for POLL or NMI */
+	opstate_init();
 
 	pci_rc = pci_register_driver(&i82975x_driver);
 	if (pci_rc < 0)

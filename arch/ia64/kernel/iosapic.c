@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * I/O SAPIC support.
  *
@@ -89,7 +90,7 @@
 #include <linux/slab.h>
 #include <linux/smp.h>
 #include <linux/string.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 
 #include <asm/delay.h>
 #include <asm/hw_irq.h>

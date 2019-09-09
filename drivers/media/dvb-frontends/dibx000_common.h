@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef DIBX000_COMMON_H
 #define DIBX000_COMMON_H
 
@@ -46,8 +47,6 @@ extern struct i2c_adapter *dibx000_get_i2c_adapter(struct dibx000_i2c_master
 extern void dibx000_exit_i2c_master(struct dibx000_i2c_master *mst);
 extern void dibx000_reset_i2c_master(struct dibx000_i2c_master *mst);
 extern int dibx000_i2c_set_speed(struct i2c_adapter *i2c_adap, u16 speed);
-
-extern u32 systime(void);
 
 #define BAND_LBAND 0x01
 #define BAND_UHF   0x02
@@ -223,8 +222,6 @@ struct dvb_frontend_parametersContext {
 #define FE_STATUS_DATA_LOCKED         -8
 
 #define FE_CALLBACK_TIME_NEVER 0xffffffff
-
-#define ABS(x) ((x < 0) ? (-x) : (x))
 
 #define DATA_BUS_ACCESS_MODE_8BIT                 0x01
 #define DATA_BUS_ACCESS_MODE_16BIT                0x02

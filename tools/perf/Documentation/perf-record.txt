@@ -8,8 +8,8 @@ perf-record - Run a command and record its profile into perf.data
 SYNOPSIS
 --------
 [verse]
-'perf record' [-e <EVENT> | --event=EVENT] [-l] [-a] <command>
-'perf record' [-e <EVENT> | --event=EVENT] [-l] [-a] -- <command> [<options>]
+'perf record' [-e <EVENT> | --event=EVENT] [-a] <command>
+'perf record' [-e <EVENT> | --event=EVENT] [-a] -- <command> [<options>]
 
 DESCRIPTION
 -----------
@@ -45,9 +45,9 @@ OPTIONS
           param1 and param2 are defined as formats for the PMU in:
           /sys/bus/event_source/devices/<pmu>/format/*
 
-	  There are also some params which are not defined in .../<pmu>/format/*.
+	  There are also some parameters which are not defined in .../<pmu>/format/*.
 	  These params can be used to overload default config values per event.
-	  Here is a list of the params.
+	  Here are some common parameters:
 	  - 'period': Set event sampling period
 	  - 'freq': Set event sampling frequency
 	  - 'time': Disable/enable time stamping. Acceptable values are 1 for
@@ -57,8 +57,14 @@ OPTIONS
 			 FP mode, "dwarf" for DWARF mode, "lbr" for LBR mode and
 			 "no" for disable callgraph.
 	  - 'stack-size': user stack size for dwarf mode
+	  - 'name' : User defined event name. Single quotes (') may be used to
+		    escape symbols in the name from parsing by shell and tool
+		    like this: name=\'CPU_CLK_UNHALTED.THREAD:cmask=0x1\'.
+
+          See the linkperf:perf-list[1] man page for more parameters.
+
 	  Note: If user explicitly sets options which conflict with the params,
-	  the value set by the params will be overridden.
+	  the value set by the parameters will be overridden.
 
 	  Also not defined in .../<pmu>/format/* are PMU driver specific
 	  configuration parameters.  Any configuration parameter preceded by
@@ -82,13 +88,27 @@ OPTIONS
           If you want to profile write accesses in [0x1000~1008), just set
           'mem:0x1000/8:w'.
 
+        - a BPF source file (ending in .c) or a precompiled object file (ending
+          in .o) selects one or more BPF events.
+          The BPF program can attach to various perf events based on the ELF section
+          names.
+
+          When processing a '.c' file, perf searches an installed LLVM to compile it
+          into an object file first. Optional clang options can be passed via the
+          '--clang-opt' command line option, e.g.:
+
+            perf record --clang-opt "-DLINUX_VERSION_CODE=0x50000" \
+                        -e tests/bpf-script-example.c
+
+          Note: '--clang-opt' must be placed before '--event/-e'.
+
 	- a group of events surrounded by a pair of brace ("{event1,event2,...}").
 	  Each event is separated by commas and the group should be quoted to
 	  prevent the shell interpretation.  You also need to use --group on
 	  "perf report" to view group events together.
 
 --filter=<filter>::
-        Event filter. This option should follow a event selector (-e) which
+        Event filter. This option should follow an event selector (-e) which
 	selects either tracepoint event(s) or a hardware trace PMU
 	(e.g. Intel PT or CoreSight).
 
@@ -147,14 +167,14 @@ OPTIONS
 
 --exclude-perf::
 	Don't record events issued by perf itself. This option should follow
-	a event selector (-e) which selects tracepoint event(s). It adds a
+	an event selector (-e) which selects tracepoint event(s). It adds a
 	filter expression 'common_pid != $PERFPID' to filters. If other
 	'--filter' exists, the new filter expression will be combined with
 	them by '&&'.
 
 -a::
 --all-cpus::
-        System-wide collection from all CPUs.
+        System-wide collection from all CPUs (default if no target is specified).
 
 -p::
 --pid=::
@@ -188,9 +208,16 @@ OPTIONS
 -i::
 --no-inherit::
 	Child tasks do not inherit counters.
+
 -F::
 --freq=::
-	Profile at this frequency.
+	Profile at this frequency. Use 'max' to use the currently maximum
+	allowed frequency, i.e. the value in the kernel.perf_event_max_sample_rate
+	sysctl. Will throttle down to the currently maximum allowed frequency.
+	See --strict-freq.
+
+--strict-freq::
+	Fail if the specified frequency can't be used.
 
 -m::
 --mmap-pages=::
@@ -222,7 +249,7 @@ OPTIONS
 	the libunwind or libdw library) should be used instead.
 	Using the "lbr" method doesn't require any compiler options. It
 	will produce call graphs from the hardware LBR registers. The
-	main limition is that it is only available on new Intel
+	main limitation is that it is only available on new Intel
 	platforms, such as Haswell. It can only get user call chain. It
 	doesn't work with branch stack sampling at the same time.
 
@@ -246,7 +273,10 @@ OPTIONS
 
 -d::
 --data::
-	Record the sample addresses.
+	Record the sample virtual addresses.
+
+--phys-data::
+	Record the sample physical addresses.
 
 -T::
 --timestamp::
@@ -302,7 +332,11 @@ can be provided. Each cgroup is applied to the corresponding event, i.e., first 
 to first event, second cgroup to second event and so on. It is possible to provide
 an empty cgroup (monitor all the time) using, e.g., -G foo,,bar. Cgroups must have
 corresponding events, i.e., they always refer to events defined earlier on the command
-line.
+line. If the user wants to track multiple events for a specific cgroup, the user can
+use '-e e1 -e e2 -G foo,foo' or just use '-e e1 -e e2 -G foo'.
+
+If wanting to monitor, say, 'cycles' for a cgroup and also for system wide, this
+command line can be used: 'perf stat -e cycles -G cgroup_name -a -e cycles'.
 
 -b::
 --branch-any::
@@ -329,6 +363,7 @@ following filters are defined:
 	- no_tx: only when the target is not in a hardware transaction
 	- abort_tx: only when the target is a hardware transaction abort
 	- cond: conditional branches
+	- save_type: save branch type during sampling in case binary is not available later
 
 +
 The option requires at least one branch type among any, any_call, any_ret, ind_call, cond.
@@ -343,6 +378,9 @@ Note that this feature may not be available on all processors.
 Enable weightened sampling. An additional weight is recorded per sample and can be
 displayed with the weight and local_weight sort keys.  This currently works for TSX
 abort events and some memory events in precise mode on modern Intel CPUs.
+
+--namespaces::
+Record events of type PERF_RECORD_NAMESPACES.
 
 --transaction::
 Record transaction flags for transaction related events.
@@ -367,6 +405,9 @@ symbolic names, e.g. on x86, ax, si. To list the available registers use
 --intr-regs=\?. To name registers, pass a comma separated list such as
 --intr-regs=ax,bx. The list of register is architecture dependent.
 
+--user-regs::
+Similar to -I, but capture user registers at sample time. To list the available
+user registers use --user-regs=\?.
 
 --running-time::
 Record running and enabled time for read events (:S)
@@ -409,24 +450,90 @@ Specify vmlinux path which has debuginfo.
 --buildid-all::
 Record build-id of all DSOs regardless whether it's actually hit or not.
 
+--aio[=n]::
+Use <n> control blocks in asynchronous (Posix AIO) trace writing mode (default: 1, max: 4).
+Asynchronous mode is supported only when linking Perf tool with libc library
+providing implementation for Posix AIO API.
+
+--affinity=mode::
+Set affinity mask of trace reading thread according to the policy defined by 'mode' value:
+  node - thread affinity mask is set to NUMA node cpu mask of the processed mmap buffer
+  cpu  - thread affinity mask is set to cpu of the processed mmap buffer
+
+--mmap-flush=number::
+
+Specify minimal number of bytes that is extracted from mmap data pages and
+processed for output. One can specify the number using B/K/M/G suffixes.
+
+The maximal allowed value is a quarter of the size of mmaped data pages.
+
+The default option value is 1 byte which means that every time that the output
+writing thread finds some new data in the mmaped buffer the data is extracted,
+possibly compressed (-z) and written to the output, perf.data or pipe.
+
+Larger data chunks are compressed more effectively in comparison to smaller
+chunks so extraction of larger chunks from the mmap data pages is preferable
+from the perspective of output size reduction.
+
+Also at some cases executing less output write syscalls with bigger data size
+can take less time than executing more output write syscalls with smaller data
+size thus lowering runtime profiling overhead.
+
+-z::
+--compression-level[=n]::
+Produce compressed trace using specified level n (default: 1 - fastest compression,
+22 - smallest trace)
+
 --all-kernel::
 Configure all used events to run in kernel space.
 
 --all-user::
 Configure all used events to run in user space.
 
+--kernel-callchains::
+Collect callchains only from kernel space. I.e. this option sets
+perf_event_attr.exclude_callchain_user to 1.
+
+--user-callchains::
+Collect callchains only from user space. I.e. this option sets
+perf_event_attr.exclude_callchain_kernel to 1.
+
+Don't use both --kernel-callchains and --user-callchains at the same time or no
+callchains will be collected.
+
 --timestamp-filename
 Append timestamp to output file name.
 
---switch-output::
+--timestamp-boundary::
+Record timestamp boundary (time of first/last samples).
+
+--switch-output[=mode]::
 Generate multiple perf.data files, timestamp prefixed, switching to a new one
-when receiving a SIGUSR2.
+based on 'mode' value:
+  "signal" - when receiving a SIGUSR2 (default value) or
+  <size>   - when reaching the size threshold, size is expected to
+             be a number with appended unit character - B/K/M/G
+  <time>   - when reaching the time threshold, size is expected to
+             be a number with appended unit character - s/m/h/d
+
+             Note: the precision of  the size  threshold  hugely depends
+             on your configuration  - the number and size of  your  ring
+             buffers (-m). It is generally more precise for higher sizes
+             (like >5M), for lower values expect different sizes.
 
 A possible use case is to, given an external event, slice the perf.data file
 that gets then processed, possibly via a perf script, to decide if that
 particular perf.data snapshot should be kept or not.
 
 Implies --timestamp-filename, --no-buildid and --no-buildid-cache.
+The reason for the latter two is to reduce the data file switching
+overhead. You can still switch them on with:
+
+  --switch-output --no-no-buildid  --no-no-buildid-cache
+
+--switch-max-files=N::
+
+When rotating perf.data with --switch-output, only keep N files.
 
 --dry-run::
 Parse options then exit. --dry-run can be used to detect errors in cmdline

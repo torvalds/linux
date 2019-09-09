@@ -1,22 +1,13 @@
-/*
- * Register map access API - SPMI support
- *
- * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
- *
- * Based on regmap-i2c.c:
- * Copyright 2011 Wolfson Microelectronics plc
- * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Register map access API - SPMI support
+//
+// Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
+//
+// Based on regmap-i2c.c:
+// Copyright 2011 Wolfson Microelectronics plc
+// Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
+
 #include <linux/regmap.h>
 #include <linux/spmi.h>
 #include <linux/module.h>
@@ -83,7 +74,7 @@ static int regmap_spmi_base_write(void *context, const void *data,
 					     count - 1);
 }
 
-static struct regmap_bus regmap_spmi_base = {
+static const struct regmap_bus regmap_spmi_base = {
 	.read				= regmap_spmi_base_read,
 	.write				= regmap_spmi_base_write,
 	.gather_write			= regmap_spmi_base_gather_write,
@@ -203,7 +194,7 @@ static int regmap_spmi_ext_write(void *context, const void *data,
 					    count - 2);
 }
 
-static struct regmap_bus regmap_spmi_ext = {
+static const struct regmap_bus regmap_spmi_ext = {
 	.read				= regmap_spmi_ext_read,
 	.write				= regmap_spmi_ext_write,
 	.gather_write			= regmap_spmi_ext_gather_write,

@@ -1,3 +1,13 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config TEGRA_CLK_EMC
 	def_bool y
 	depends on TEGRA124_EMC
+
+config CLK_TEGRA_BPMP
+	def_bool y
+	depends on TEGRA_BPMP
+
+config TEGRA_CLK_DFLL
+	depends on ARCH_TEGRA_124_SOC || ARCH_TEGRA_210_SOC
+	select PM_OPP
+	def_bool y

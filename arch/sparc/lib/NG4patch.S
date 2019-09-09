@@ -1,7 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* NG4patch.S: Patch Ultra-I routines with Niagara-4 variant.
  *
  * Copyright (C) 2012 David S. Miller <davem@davemloft.net>
  */
+
+#include <linux/linkage.h>
 
 #define BRANCH_ALWAYS	0x10680000
 #define NOP		0x01000000
@@ -26,8 +29,8 @@
 	.type	niagara4_patch_copyops,#function
 niagara4_patch_copyops:
 	NG_DO_PATCH(memcpy, NG4memcpy)
-	NG_DO_PATCH(___copy_from_user, NG4copy_from_user)
-	NG_DO_PATCH(___copy_to_user, NG4copy_to_user)
+	NG_DO_PATCH(raw_copy_from_user, NG4copy_from_user)
+	NG_DO_PATCH(raw_copy_to_user, NG4copy_to_user)
 	retl
 	 nop
 	.size	niagara4_patch_copyops,.-niagara4_patch_copyops
@@ -52,3 +55,10 @@ niagara4_patch_pageops:
 	retl
 	 nop
 	.size	niagara4_patch_pageops,.-niagara4_patch_pageops
+
+ENTRY(niagara4_patch_fls)
+	NG_DO_PATCH(fls, NG4fls)
+	NG_DO_PATCH(__fls, __NG4fls)
+	retl
+	 nop
+ENDPROC(niagara4_patch_fls)

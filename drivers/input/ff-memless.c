@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Force feedback support for memoryless devices
  *
@@ -6,19 +7,6 @@
  */
 
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 /* #define DEBUG */
@@ -412,10 +400,10 @@ static void ml_play_effects(struct ml_device *ml)
 	ml_schedule_timer(ml);
 }
 
-static void ml_effect_timer(unsigned long timer_data)
+static void ml_effect_timer(struct timer_list *t)
 {
-	struct input_dev *dev = (struct input_dev *)timer_data;
-	struct ml_device *ml = dev->ff->private;
+	struct ml_device *ml = from_timer(ml, t, timer);
+	struct input_dev *dev = ml->dev;
 	unsigned long flags;
 
 	pr_debug("timer: updating effects\n");
@@ -526,7 +514,7 @@ int input_ff_create_memless(struct input_dev *dev, void *data,
 	ml->private = data;
 	ml->play_effect = play_effect;
 	ml->gain = 0xffff;
-	setup_timer(&ml->timer, ml_effect_timer, (unsigned long)dev);
+	timer_setup(&ml->timer, ml_effect_timer, 0);
 
 	set_bit(FF_GAIN, dev->ffbit);
 

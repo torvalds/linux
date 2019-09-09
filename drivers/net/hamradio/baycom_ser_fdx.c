@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*****************************************************************************/
 
 /*
@@ -5,24 +6,9 @@
  *
  *	Copyright (C) 1996-2000  Thomas Sailer (sailer@ife.ee.ethz.ch)
  *
- *	This program is free software; you can redistribute it and/or modify
- *	it under the terms of the GNU General Public License as published by
- *	the Free Software Foundation; either version 2 of the License, or
- *	(at your option) any later version.
- *
- *	This program is distributed in the hope that it will be useful,
- *	but WITHOUT ANY WARRANTY; without even the implied warranty of
- *	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *	GNU General Public License for more details.
- *
- *	You should have received a copy of the GNU General Public License
- *	along with this program; if not, write to the Free Software
- *	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  *  Please note that the GPL allows you to use the driver, NOT the radio.
  *  In order to use the radio, you need a license from the communications
  *  authority of your country.
- *
  *
  *  Supported modems
  *
@@ -53,7 +39,6 @@
  *  baud     baud rate (between 300 and 4800)
  *  irq      interrupt line of the port; common values are 4,3
  *
- *
  *  History:
  *   0.1  26.06.1996  Adapted from baycom.c and made network driver interface
  *        18.10.1996  Changed to new user space access routines (copy_{to,from}_user)
@@ -82,7 +67,7 @@
 #include <linux/jiffies.h>
 #include <linux/time64.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 
@@ -202,32 +187,6 @@ static inline void ser12_set_divisor(struct net_device *dev,
          * Reported by: Ignacio.Arenaza@studi.epfl.ch (Ignacio Arenaza Nuno)
          */
 }
-
-/* --------------------------------------------------------------------- */
-
-#if 0
-static inline unsigned int hweight16(unsigned int w)
-        __attribute__ ((unused));
-static inline unsigned int hweight8(unsigned int w)
-        __attribute__ ((unused));
-
-static inline unsigned int hweight16(unsigned int w)
-{
-        unsigned short res = (w & 0x5555) + ((w >> 1) & 0x5555);
-        res = (res & 0x3333) + ((res >> 2) & 0x3333);
-        res = (res & 0x0F0F) + ((res >> 4) & 0x0F0F);
-        return (res & 0x00FF) + ((res >> 8) & 0x00FF);
-}
-
-static inline unsigned int hweight8(unsigned int w)
-{
-        unsigned short res = (w & 0x55) + ((w >> 1) & 0x55);
-        res = (res & 0x33) + ((res >> 2) & 0x33);
-        return (res & 0x0F) + ((res >> 4) & 0x0F);
-}
-#endif
-
-/* --------------------------------------------------------------------- */
 
 static __inline__ void ser12_rx(struct net_device *dev, struct baycom_state *bc, struct timespec64 *ts, unsigned char curs)
 {
@@ -508,7 +467,7 @@ static int baycom_ioctl(struct net_device *dev, struct ifreq *ifr,
 
 /* --------------------------------------------------------------------- */
 
-static struct hdlcdrv_ops ser12_ops = {
+static const struct hdlcdrv_ops ser12_ops = {
 	.drvname = bc_drvname,
 	.drvinfo = bc_drvinfo,
 	.open    = ser12_open,
@@ -614,9 +573,9 @@ static int baud[NR_PORTS] = { [0 ... NR_PORTS-1] = 1200 };
 
 module_param_array(mode, charp, NULL, 0);
 MODULE_PARM_DESC(mode, "baycom operating mode; * for software DCD");
-module_param_array(iobase, int, NULL, 0);
+module_param_hw_array(iobase, int, ioport, NULL, 0);
 MODULE_PARM_DESC(iobase, "baycom io base address");
-module_param_array(irq, int, NULL, 0);
+module_param_hw_array(irq, int, irq, NULL, 0);
 MODULE_PARM_DESC(irq, "baycom irq number");
 module_param_array(baud, int, NULL, 0);
 MODULE_PARM_DESC(baud, "baycom baud rate (300 to 4800)");

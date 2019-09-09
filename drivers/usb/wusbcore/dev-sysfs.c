@@ -1,24 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * WUSB devices
  * sysfs bindings
  *
  * Copyright (C) 2007 Intel Corporation
  * Inaky Perez-Gonzalez <inaky.perez-gonzalez@intel.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
- *
  *
  * Get them out of the way...
  */
@@ -53,7 +39,7 @@ static ssize_t wusb_disconnect_store(struct device *dev,
 	wusbhc_put(wusbhc);
 	return size;
 }
-static DEVICE_ATTR(wusb_disconnect, 0200, NULL, wusb_disconnect_store);
+static DEVICE_ATTR_WO(wusb_disconnect);
 
 static ssize_t wusb_cdid_show(struct device *dev,
 			      struct device_attribute *attr, char *buf)
@@ -64,12 +50,11 @@ static ssize_t wusb_cdid_show(struct device *dev,
 	wusb_dev = wusb_dev_get_by_usb_dev(to_usb_device(dev));
 	if (wusb_dev == NULL)
 		return -ENODEV;
-	result = ckhdid_printf(buf, PAGE_SIZE, &wusb_dev->cdid);
-	strcat(buf, "\n");
+	result = sprintf(buf, "%16ph\n", wusb_dev->cdid.data);
 	wusb_dev_put(wusb_dev);
-	return result + 1;
+	return result;
 }
-static DEVICE_ATTR(wusb_cdid, 0444, wusb_cdid_show, NULL);
+static DEVICE_ATTR_RO(wusb_cdid);
 
 static ssize_t wusb_ck_store(struct device *dev,
 			     struct device_attribute *attr,
@@ -105,7 +90,7 @@ static ssize_t wusb_ck_store(struct device *dev,
 	wusbhc_put(wusbhc);
 	return result < 0 ? result : size;
 }
-static DEVICE_ATTR(wusb_ck, 0200, NULL, wusb_ck_store);
+static DEVICE_ATTR_WO(wusb_ck);
 
 static struct attribute *wusb_dev_attrs[] = {
 		&dev_attr_wusb_disconnect.attr,
@@ -114,7 +99,7 @@ static struct attribute *wusb_dev_attrs[] = {
 		NULL,
 };
 
-static struct attribute_group wusb_dev_attr_group = {
+static const struct attribute_group wusb_dev_attr_group = {
 	.name = NULL,	/* we want them in the same directory */
 	.attrs = wusb_dev_attrs,
 };

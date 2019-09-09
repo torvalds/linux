@@ -1,13 +1,8 @@
-/*
- * Lowland audio support
- *
- * Copyright 2011 Wolfson Microelectronics
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// Lowland audio support
+//
+// Copyright 2011 Wolfson Microelectronics
 
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
@@ -37,10 +32,10 @@ static struct snd_soc_jack_pin lowland_headset_pins[] = {
 
 static int lowland_wm5100_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_component *component = rtd->codec_dai->component;
 	int ret;
 
-	ret = snd_soc_codec_set_sysclk(codec, WM5100_CLK_SYSCLK,
+	ret = snd_soc_component_set_sysclk(component, WM5100_CLK_SYSCLK,
 				       WM5100_CLKSRC_MCLK1, MCLK1_RATE,
 				       SND_SOC_CLOCK_IN);
 	if (ret < 0) {
@@ -49,7 +44,7 @@ static int lowland_wm5100_init(struct snd_soc_pcm_runtime *rtd)
 	}
 
 	/* Clock OPCLK, used by the other audio components. */
-	ret = snd_soc_codec_set_sysclk(codec, WM5100_CLK_OPCLK, 0,
+	ret = snd_soc_component_set_sysclk(component, WM5100_CLK_OPCLK, 0,
 				       CLKOUT_RATE, 0);
 	if (ret < 0) {
 		pr_err("Failed to set OPCLK rate: %d\n", ret);
@@ -63,19 +58,19 @@ static int lowland_wm5100_init(struct snd_soc_pcm_runtime *rtd)
 	if (ret)
 		return ret;
 
-	wm5100_detect(codec, &lowland_headset);
+	wm5100_detect(component, &lowland_headset);
 
 	return 0;
 }
 
 static int lowland_wm9081_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_component *component = rtd->codec_dai->component;
 
 	snd_soc_dapm_nc_pin(&rtd->card->dapm, "LINEOUT");
 
 	/* At any time the WM9081 is active it will have this clock */
-	return snd_soc_codec_set_sysclk(codec, WM9081_SYSCLK_MCLK, 0,
+	return snd_soc_component_set_sysclk(component, WM9081_SYSCLK_MCLK, 0,
 					CLKOUT_RATE, 0);
 }
 
@@ -87,39 +82,45 @@ static const struct snd_soc_pcm_stream sub_params = {
 	.channels_max = 2,
 };
 
+SND_SOC_DAILINK_DEFS(cpu,
+	DAILINK_COMP_ARRAY(COMP_CPU("samsung-i2s.0")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("wm5100.1-001a", "wm5100-aif1")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("samsung-i2s.0")));
+
+SND_SOC_DAILINK_DEFS(baseband,
+	DAILINK_COMP_ARRAY(COMP_CPU("wm5100-aif2")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("wm1250-ev1.1-0027", "wm1250-ev1")));
+
+SND_SOC_DAILINK_DEFS(speaker,
+	DAILINK_COMP_ARRAY(COMP_CPU("wm5100-aif3")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("wm9081.1-006c", "wm9081-hifi")));
+
 static struct snd_soc_dai_link lowland_dai[] = {
 	{
 		.name = "CPU",
 		.stream_name = "CPU",
-		.cpu_dai_name = "samsung-i2s.0",
-		.codec_dai_name = "wm5100-aif1",
-		.platform_name = "samsung-i2s.0",
-		.codec_name = "wm5100.1-001a",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 				SND_SOC_DAIFMT_CBM_CFM,
 		.init = lowland_wm5100_init,
+		SND_SOC_DAILINK_REG(cpu),
 	},
 	{
 		.name = "Baseband",
 		.stream_name = "Baseband",
-		.cpu_dai_name = "wm5100-aif2",
-		.codec_dai_name = "wm1250-ev1",
-		.codec_name = "wm1250-ev1.1-0027",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 				SND_SOC_DAIFMT_CBM_CFM,
 		.ignore_suspend = 1,
+		SND_SOC_DAILINK_REG(baseband),
 	},
 	{
 		.name = "Sub Speaker",
 		.stream_name = "Sub Speaker",
-		.cpu_dai_name = "wm5100-aif3",
-		.codec_dai_name = "wm9081-hifi",
-		.codec_name = "wm9081.1-006c",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 				SND_SOC_DAIFMT_CBM_CFM,
 		.ignore_suspend = 1,
 		.params = &sub_params,
 		.init = lowland_wm9081_init,
+		SND_SOC_DAILINK_REG(speaker),
 	},
 };
 

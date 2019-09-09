@@ -7,10 +7,11 @@ Contents:
  - Overview.
  - Usage.
  - Mountpoints.
+ - Dynamic root.
  - Proc filesystem.
  - The cell database.
  - Security.
- - Examples.
+ - The @sys substitution.
 
 
 ========
@@ -64,8 +65,7 @@ USAGE
 When inserting the driver modules the root cell must be specified along with a
 list of volume location server IP addresses:
 
-	modprobe af_rxrpc
-	modprobe rxkad
+	modprobe rxrpc
 	modprobe kafs rootcell=cambridge.redhat.com:172.16.18.73:172.16.18.91
 
 The first module is the AF_RXRPC network protocol driver.  This provides the
@@ -92,8 +92,8 @@ Filesystems can be mounted anywhere by commands similar to the following:
 	mount -t afs "#root.cell." /afs/cambridge
 
 Where the initial character is either a hash or a percent symbol depending on
-whether you definitely want a R/W volume (hash) or whether you'd prefer a R/O
-volume, but are willing to use a R/W volume instead (percent).
+whether you definitely want a R/W volume (percent) or whether you'd prefer a
+R/O volume, but are willing to use a R/W volume instead (hash).
 
 The name of the volume can be suffixes with ".backup" or ".readonly" to
 specify connection to only volumes of those types.
@@ -126,6 +126,22 @@ This can be used by the administrator to attempt to unmount the whole AFS tree
 mounted on /afs in one go by doing:
 
 	umount /afs
+
+
+============
+DYNAMIC ROOT
+============
+
+A mount option is available to create a serverless mount that is only usable
+for dynamic lookup.  Creating such a mount can be done by, for example:
+
+	mount -t afs none /afs -o dyn
+
+This creates a mount that just has an empty directory at the root.  Attempting
+to look up a name in this directory will cause a mountpoint to be created that
+looks up a cell of the same name, for example:
+
+	ls /afs/grand.central.org/
 
 
 ===============
@@ -216,32 +232,27 @@ socket), then the operations on the file will be made with key that was used to
 open the file.
 
 
-========
-EXAMPLES
-========
+=====================
+THE @SYS SUBSTITUTION
+=====================
 
-Here's what I use to test this.  Some of the names and IP addresses are local
-to my internal DNS.  My "root.afs" partition has a mount point within it for
-some public volumes volumes.
+The list of up to 16 @sys substitutions for the current network namespace can
+be configured by writing a list to /proc/fs/afs/sysname:
 
-insmod /tmp/rxrpc.o
-insmod /tmp/rxkad.o
-insmod /tmp/kafs.o rootcell=cambridge.redhat.com:172.16.18.91
+	[root@andromeda ~]# echo foo amd64_linux_26 >/proc/fs/afs/sysname
 
-mount -t afs \%root.afs. /afs
-mount -t afs \%cambridge.redhat.com:root.cell. /afs/cambridge.redhat.com/
+or cleared entirely by writing an empty list:
 
-echo add grand.central.org 18.9.48.14:128.2.203.61:130.237.48.87 > /proc/fs/afs/cells
-mount -t afs "#grand.central.org:root.cell." /afs/grand.central.org/
-mount -t afs "#grand.central.org:root.archive." /afs/grand.central.org/archive
-mount -t afs "#grand.central.org:root.contrib." /afs/grand.central.org/contrib
-mount -t afs "#grand.central.org:root.doc." /afs/grand.central.org/doc
-mount -t afs "#grand.central.org:root.project." /afs/grand.central.org/project
-mount -t afs "#grand.central.org:root.service." /afs/grand.central.org/service
-mount -t afs "#grand.central.org:root.software." /afs/grand.central.org/software
-mount -t afs "#grand.central.org:root.user." /afs/grand.central.org/user
+	[root@andromeda ~]# echo >/proc/fs/afs/sysname
 
-umount /afs
-rmmod kafs
-rmmod rxkad
-rmmod rxrpc
+The current list for current network namespace can be retrieved by:
+
+	[root@andromeda ~]# cat /proc/fs/afs/sysname
+	foo
+	amd64_linux_26
+
+When @sys is being substituted for, each element of the list is tried in the
+order given.
+
+By default, the list will contain one item that conforms to the pattern
+"<arch>_linux_26", amd64 being the name for x86_64.

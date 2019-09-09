@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (c) 1998-2001 Vojtech Pavlik
  *
@@ -10,23 +11,6 @@
  */
 
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
- * Should you need to contact me, the author, you can do so either by
- * e-mail - mail your message to <vojtech@ucw.cz>, or by paper mail:
- * Vojtech Pavlik, Simunkova 1594, Prague 8, 182 00 Czech Republic
  */
 
 #include <linux/kernel.h>
@@ -89,9 +73,9 @@ static struct tgfx {
  * tgfx_timer() reads and analyzes TurboGraFX joystick data.
  */
 
-static void tgfx_timer(unsigned long private)
+static void tgfx_timer(struct timer_list *t)
 {
-	struct tgfx *tgfx = (void *) private;
+	struct tgfx *tgfx = from_timer(tgfx, t, timer);
 	struct input_dev *dev;
 	int data1, data2, i;
 
@@ -200,9 +184,7 @@ static void tgfx_attach(struct parport *pp)
 	mutex_init(&tgfx->sem);
 	tgfx->pd = pd;
 	tgfx->parportno = pp->number;
-	init_timer(&tgfx->timer);
-	tgfx->timer.data = (long) tgfx;
-	tgfx->timer.function = tgfx_timer;
+	timer_setup(&tgfx->timer, tgfx_timer, 0);
 
 	for (i = 0; i < n_devs; i++) {
 		if (n_buttons[i] < 1)

@@ -1,17 +1,6 @@
+/* SPDX-License-Identifier: ISC */
 /*
- * Copyright (c) 2014 Qualcomm Atheros, Inc.
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ * Copyright (c) 2014,2017 Qualcomm Atheros, Inc.
  */
 
 /* "API" level of the ath10k testmode interface. Bump it after every
@@ -33,6 +22,7 @@ enum ath10k_tm_attr {
 	ATH10K_TM_ATTR_WMI_CMDID	= 3,
 	ATH10K_TM_ATTR_VERSION_MAJOR	= 4,
 	ATH10K_TM_ATTR_VERSION_MINOR	= 5,
+	ATH10K_TM_ATTR_WMI_OP_VERSION	= 6,
 
 	/* keep last */
 	__ATH10K_TM_ATTR_AFTER_LAST,

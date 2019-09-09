@@ -71,7 +71,12 @@ Setup
        ip ru add iif vrf-blue table 10
 
 3. Set the default route for the table (and hence default route for the VRF).
-       ip route add table 10 unreachable default
+       ip route add table 10 unreachable default metric 4278198272
+
+   This high metric value ensures that the default unreachable route can
+   be overridden by a routing protocol suite.  FRRouting interprets
+   kernel metrics as a combined admin distance (upper byte) and priority
+   (lower 3 bytes).  Thus the above metric translates to [255/8192].
 
 4. Enslave L3 interfaces to a VRF device.
        ip link set dev eth1 master vrf-blue
@@ -98,17 +103,32 @@ VRF device:
 
 or to specify the output device using cmsg and IP_PKTINFO.
 
-TCP services running in the default VRF context (ie., not bound to any VRF
-device) can work across all VRF domains by enabling the tcp_l3mdev_accept
-sysctl option:
+By default the scope of the port bindings for unbound sockets is
+limited to the default VRF. That is, it will not be matched by packets
+arriving on interfaces enslaved to an l3mdev and processes may bind to
+the same port if they bind to an l3mdev.
+
+TCP & UDP services running in the default VRF context (ie., not bound
+to any VRF device) can work across all VRF domains by enabling the
+tcp_l3mdev_accept and udp_l3mdev_accept sysctl options:
+
     sysctl -w net.ipv4.tcp_l3mdev_accept=1
+    sysctl -w net.ipv4.udp_l3mdev_accept=1
+
+These options are disabled by default so that a socket in a VRF is only
+selected for packets in that VRF. There is a similar option for RAW
+sockets, which is enabled by default for reasons of backwards compatibility.
+This is so as to specify the output device with cmsg and IP_PKTINFO, but
+using a socket not bound to the corresponding VRF. This allows e.g. older ping
+implementations to be run with specifying the device but without executing it
+in the VRF. This option can be disabled so that packets received in a VRF
+context are only handled by a raw socket bound to the VRF, and packets in the
+default VRF are only handled by a socket not bound to any VRF:
+
+    sysctl -w net.ipv4.raw_l3mdev_accept=0
 
 netfilter rules on the VRF device can be used to limit access to services
 running in the default VRF context as well.
-
-The default VRF does not have limited scope with respect to port bindings.
-That is, if a process does a wildcard bind to a port in the default VRF it
-owns the port across all VRF domains within the network namespace.
 
 ################################################################################
 
@@ -255,7 +275,7 @@ older form without it.
 
    For example:
    $ ip route show vrf red
-   prohibit default
+   unreachable default  metric 4278198272
    broadcast 10.2.1.0 dev eth1  proto kernel  scope link  src 10.2.1.2
    10.2.1.0/24 dev eth1  proto kernel  scope link  src 10.2.1.2
    local 10.2.1.2 dev eth1  proto kernel  scope host  src 10.2.1.2
@@ -281,7 +301,7 @@ older form without it.
    ff00::/8 dev red  metric 256  pref medium
    ff00::/8 dev eth1  metric 256  pref medium
    ff00::/8 dev eth2  metric 256  pref medium
-
+   unreachable default dev lo  metric 4278198272  error -101 pref medium
 
 8. Route Lookup for a VRF
 
@@ -330,7 +350,7 @@ function vrf_create
     ip link add ${VRF} type vrf table ${TBID}
 
     if [ "${VRF}" != "mgmt" ]; then
-        ip route add table ${TBID} unreachable default
+        ip route add table ${TBID} unreachable default metric 4278198272
     fi
     ip link set dev ${VRF} up
 }

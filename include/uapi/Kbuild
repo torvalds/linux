@@ -1,15 +1,14 @@
-# UAPI Header export list
-# Top-level Makefile calls into asm-$(ARCH)
-# List only non-arch directories below
+# SPDX-License-Identifier: GPL-2.0
+ifeq ($(wildcard $(srctree)/arch/$(SRCARCH)/include/uapi/asm/a.out.h),)
+no-export-headers += linux/a.out.h
+endif
 
+ifeq ($(wildcard $(srctree)/arch/$(SRCARCH)/include/uapi/asm/kvm.h),)
+no-export-headers += linux/kvm.h
+endif
 
-header-y += asm-generic/
-header-y += linux/
-header-y += sound/
-header-y += mtd/
-header-y += rdma/
-header-y += video/
-header-y += drm/
-header-y += xen/
-header-y += scsi/
-header-y += misc/
+ifeq ($(wildcard $(srctree)/arch/$(SRCARCH)/include/uapi/asm/kvm_para.h),)
+ifeq ($(wildcard $(objtree)/arch/$(SRCARCH)/include/generated/uapi/asm/kvm_para.h),)
+no-export-headers += linux/kvm_para.h
+endif
+endif

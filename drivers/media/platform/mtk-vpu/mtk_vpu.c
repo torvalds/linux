@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
 * Copyright (c) 2016 MediaTek Inc.
 * Author: Andrew-CT Chen <andrew-ct.chen@mediatek.com>
-*
-* This program is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License version 2 as
-* published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU General Public License for more details.
 */
 #include <linux/clk.h>
 #include <linux/debugfs.h>
@@ -23,6 +15,7 @@
 #include <linux/of_reserved_mem.h>
 #include <linux/sched.h>
 #include <linux/sizes.h>
+#include <linux/dma-mapping.h>
 
 #include "mtk_vpu.h"
 
@@ -134,6 +127,8 @@ struct vpu_wdt {
  *
  * @signaled:		the signal of vpu initialization completed
  * @fw_ver:		VPU firmware version
+ * @dec_capability:	decoder capability which is not used for now and
+ *			the value is reserved for future use
  * @enc_capability:	encoder capability which is not used for now and
  *			the value is reserved for future use
  * @wq:			wait queue for VPU initialization status
@@ -141,6 +136,7 @@ struct vpu_wdt {
 struct vpu_run {
 	u32 signaled;
 	char fw_ver[VPU_FW_VER_LEN];
+	unsigned int	dec_capability;
 	unsigned int	enc_capability;
 	wait_queue_head_t wq;
 };
@@ -177,6 +173,7 @@ struct share_obj {
  * @extmem:		VPU extended memory information
  * @reg:		VPU TCM and configuration registers
  * @run:		VPU initialization status
+ * @wdt:		VPU watchdog workqueue
  * @ipi_desc:		VPU IPI descriptor
  * @recv_buf:		VPU DTCM share buffer for receiving. The
  *			receive buffer is only accessed in interrupt context.
@@ -190,7 +187,7 @@ struct share_obj {
  *			suppose a client is using VPU to decode VP8.
  *			If the other client wants to encode VP8,
  *			it has to wait until VP8 decode completes.
- * @wdt_refcnt		WDT reference count to make sure the watchdog can be
+ * @wdt_refcnt:		WDT reference count to make sure the watchdog can be
  *			disabled if no other client is using VPU service
  * @ack_wq:		The wait queue for each codec and mdp. When sleeping
  *			processes wake up, they will check the condition
@@ -415,6 +412,14 @@ int vpu_wdt_reg_handler(struct platform_device *pdev,
 }
 EXPORT_SYMBOL_GPL(vpu_wdt_reg_handler);
 
+unsigned int vpu_get_vdec_hw_capa(struct platform_device *pdev)
+{
+	struct mtk_vpu *vpu = platform_get_drvdata(pdev);
+
+	return vpu->run.dec_capability;
+}
+EXPORT_SYMBOL_GPL(vpu_get_vdec_hw_capa);
+
 unsigned int vpu_get_venc_hw_capa(struct platform_device *pdev)
 {
 	struct mtk_vpu *vpu = platform_get_drvdata(pdev);
@@ -455,9 +460,9 @@ struct platform_device *vpu_get_plat_device(struct platform_device *pdev)
 	}
 
 	vpu_pdev = of_find_device_by_node(vpu_node);
+	of_node_put(vpu_node);
 	if (WARN_ON(!vpu_pdev)) {
 		dev_err(dev, "vpu pdev failed\n");
-		of_node_put(vpu_node);
 		return NULL;
 	}
 
@@ -467,12 +472,12 @@ EXPORT_SYMBOL_GPL(vpu_get_plat_device);
 
 /* load vpu program/data memory */
 static int load_requested_vpu(struct mtk_vpu *vpu,
-			      const struct firmware *vpu_fw,
 			      u8 fw_type)
 {
 	size_t tcm_size = fw_type ? VPU_DTCM_SIZE : VPU_PTCM_SIZE;
 	size_t fw_size = fw_type ? VPU_D_FW_SIZE : VPU_P_FW_SIZE;
 	char *fw_name = fw_type ? VPU_D_FW : VPU_P_FW;
+	const struct firmware *vpu_fw;
 	size_t dl_size = 0;
 	size_t extra_fw_size = 0;
 	void *dest;
@@ -523,16 +528,18 @@ static int load_requested_vpu(struct mtk_vpu *vpu,
 
 int vpu_load_firmware(struct platform_device *pdev)
 {
-	struct mtk_vpu *vpu = platform_get_drvdata(pdev);
+	struct mtk_vpu *vpu;
 	struct device *dev = &pdev->dev;
-	struct vpu_run *run = &vpu->run;
-	const struct firmware *vpu_fw = NULL;
+	struct vpu_run *run;
 	int ret;
 
 	if (!pdev) {
 		dev_err(dev, "VPU platform device is invalid\n");
 		return -EINVAL;
 	}
+
+	vpu = platform_get_drvdata(pdev);
+	run = &vpu->run;
 
 	mutex_lock(&vpu->vpu_mutex);
 	if (vpu->fw_loaded) {
@@ -552,14 +559,14 @@ int vpu_load_firmware(struct platform_device *pdev)
 	run->signaled = false;
 	dev_dbg(vpu->dev, "firmware request\n");
 	/* Downloading program firmware to device*/
-	ret = load_requested_vpu(vpu, vpu_fw, P_FW);
+	ret = load_requested_vpu(vpu, P_FW);
 	if (ret < 0) {
 		dev_err(dev, "Failed to request %s, %d\n", VPU_P_FW, ret);
 		goto OUT_LOAD_FW;
 	}
 
 	/* Downloading data firmware to device */
-	ret = load_requested_vpu(vpu, vpu_fw, D_FW);
+	ret = load_requested_vpu(vpu, D_FW);
 	if (ret < 0) {
 		dev_err(dev, "Failed to request %s, %d\n", VPU_D_FW, ret);
 		goto OUT_LOAD_FW;
@@ -575,7 +582,7 @@ int vpu_load_firmware(struct platform_device *pdev)
 					       );
 	if (ret == 0) {
 		ret = -ETIME;
-		dev_err(dev, "wait vpu initialization timout!\n");
+		dev_err(dev, "wait vpu initialization timeout!\n");
 		goto OUT_LOAD_FW;
 	} else if (-ERESTARTSYS == ret) {
 		dev_err(dev, "wait vpu interrupted by a signal!\n");
@@ -599,7 +606,8 @@ static void vpu_init_ipi_handler(void *data, unsigned int len, void *priv)
 	struct vpu_run *run = (struct vpu_run *)data;
 
 	vpu->run.signaled = run->signaled;
-	strncpy(vpu->run.fw_ver, run->fw_ver, VPU_FW_VER_LEN);
+	strscpy(vpu->run.fw_ver, run->fw_ver, sizeof(vpu->run.fw_ver));
+	vpu->run.dec_capability = run->dec_capability;
 	vpu->run.enc_capability = run->enc_capability;
 	wake_up_interruptible(&vpu->run.wq);
 }
@@ -674,7 +682,7 @@ static int vpu_alloc_ext_mem(struct mtk_vpu *vpu, u32 fw_type)
 					       GFP_KERNEL);
 	if (!vpu->extmem[fw_type].va) {
 		dev_err(dev, "Failed to allocate the extended program memory\n");
-		return PTR_ERR(vpu->extmem[fw_type].va);
+		return -ENOMEM;
 	}
 
 	/* Disable extend0. Enable extend1 */
@@ -839,7 +847,7 @@ static int mtk_vpu_probe(struct platform_device *pdev)
 	/* Set PTCM to 96K and DTCM to 32K */
 	vpu_cfg_writel(vpu, 0x2, VPU_TCM_CFG);
 
-	vpu->enable_4GB = !!(totalram_pages > (SZ_2G >> PAGE_SHIFT));
+	vpu->enable_4GB = !!(totalram_pages() > (SZ_2G >> PAGE_SHIFT));
 	dev_info(dev, "4GB mode %u\n", vpu->enable_4GB);
 
 	if (vpu->enable_4GB) {
@@ -943,4 +951,4 @@ static struct platform_driver mtk_vpu_driver = {
 module_platform_driver(mtk_vpu_driver);
 
 MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("Mediatek Video Prosessor Unit driver");
+MODULE_DESCRIPTION("Mediatek Video Processor Unit driver");

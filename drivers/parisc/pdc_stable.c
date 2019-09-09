@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* 
  *    Interfaces to retrieve and set PDC Stable options (firmware)
  *
  *    Copyright (C) 2005-2006 Thibaut VARENE <varenet@parisc-linux.org>
- *
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License, version 2, as
- *    published by the Free Software Foundation.
- *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
- *
- *    You should have received a copy of the GNU General Public License
- *    along with this program; if not, write to the Free Software
- *    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  *
  *    DEV NOTE: the PDC Procedures reference states that:
  *    "A minimum of 96 bytes of Stable Storage is required. Providing more than
@@ -68,7 +55,7 @@
 
 #include <asm/pdc.h>
 #include <asm/page.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/hardware.h>
 
 #define PDCS_VERSION	"0.30"
@@ -333,11 +320,11 @@ pdcspath_hwpath_write(struct pdcspath_entry *entry, const char *buf, size_t coun
 	
 	/* Update the symlink to the real device */
 	sysfs_remove_link(&entry->kobj, "device");
+	write_unlock(&entry->rw_lock);
+
 	ret = sysfs_create_link(&entry->kobj, &entry->dev->kobj, "device");
 	WARN_ON(ret);
 
-	write_unlock(&entry->rw_lock);
-	
 	printk(KERN_INFO PDCS_PREFIX ": changed \"%s\" path to \"%s\"\n",
 		entry->name, buf);
 	
@@ -954,7 +941,7 @@ static struct attribute *pdcs_subsys_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group pdcs_attr_group = {
+static const struct attribute_group pdcs_attr_group = {
 	.attrs = pdcs_subsys_attrs,
 };
 
@@ -998,6 +985,7 @@ pdcs_register_pathentries(void)
 		/* kobject is now registered */
 		write_lock(&entry->rw_lock);
 		entry->ready = 2;
+		write_unlock(&entry->rw_lock);
 		
 		/* Add a nice symlink to the real device */
 		if (entry->dev) {
@@ -1005,7 +993,6 @@ pdcs_register_pathentries(void)
 			WARN_ON(err);
 		}
 
-		write_unlock(&entry->rw_lock);
 		kobject_uevent(&entry->kobj, KOBJ_ADD);
 	}
 	

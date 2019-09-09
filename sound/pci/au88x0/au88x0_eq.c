@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /***************************************************************************
  *            au88x0_eq.c
  *  Aureal Vortex Hardware EQ control/access.
@@ -15,19 +16,6 @@
  ****************************************************************************/
 
 /*
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU Library General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
 /*
@@ -757,7 +745,7 @@ snd_vortex_eqtoggle_put(struct snd_kcontrol *kcontrol,
 	return 1;		/* Allways changes */
 }
 
-static struct snd_kcontrol_new vortex_eqtoggle_kcontrol = {
+static const struct snd_kcontrol_new vortex_eqtoggle_kcontrol = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "EQ Enable",
 	.index = 0,
@@ -815,7 +803,7 @@ snd_vortex_eq_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucon
 	return changed;
 }
 
-static struct snd_kcontrol_new vortex_eq_kcontrol = {
+static const struct snd_kcontrol_new vortex_eq_kcontrol = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "                        .",
 	.index = 0,
@@ -855,7 +843,7 @@ snd_vortex_peaks_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *u
 	return 0;
 }
 
-static struct snd_kcontrol_new vortex_levels_kcontrol = {
+static const struct snd_kcontrol_new vortex_levels_kcontrol = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "EQ Peaks",
 	.access = SNDRV_CTL_ELEM_ACCESS_READ | SNDRV_CTL_ELEM_ACCESS_VOLATILE,

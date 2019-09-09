@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * clock scaling for the UniCore-II
  *
@@ -5,10 +6,6 @@
  *
  *	Maintained by GUAN Xue-tao <gxt@mprc.pku.edu.cn>
  *	Copyright (C) 2001-2010 Guan Xuetao
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/err.h>
@@ -58,13 +55,12 @@ static int __init ucv2_cpu_init(struct cpufreq_policy *policy)
 
 	policy->min = policy->cpuinfo.min_freq = 250000;
 	policy->max = policy->cpuinfo.max_freq = 1000000;
-	policy->cpuinfo.transition_latency = CPUFREQ_ETERNAL;
 	policy->clk = clk_get(NULL, "MAIN_CLK");
 	return PTR_ERR_OR_ZERO(policy->clk);
 }
 
 static struct cpufreq_driver ucv2_driver = {
-	.flags		= CPUFREQ_STICKY,
+	.flags		= CPUFREQ_STICKY | CPUFREQ_NO_AUTO_DYNAMIC_SWITCHING,
 	.verify		= ucv2_verify_speed,
 	.target		= ucv2_target,
 	.get		= cpufreq_generic_get,

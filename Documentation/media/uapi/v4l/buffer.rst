@@ -1,4 +1,11 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 .. _buffer:
 
@@ -13,7 +20,7 @@ Only pointers to buffers (planes) are exchanged, the data itself is not
 copied. These pointers, together with meta-information like timestamps
 or field parity, are stored in a struct :c:type:`v4l2_buffer`,
 argument to the :ref:`VIDIOC_QUERYBUF`,
-:ref:`VIDIOC_QBUF` and
+:ref:`VIDIOC_QBUF <VIDIOC_QBUF>` and
 :ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` ioctl. In the multi-planar API,
 some plane-specific members of struct :c:type:`v4l2_buffer`,
 such as pointers and sizes for each plane, are stored in struct
@@ -34,12 +41,131 @@ flags are copied from the OUTPUT video buffer to the CAPTURE video
 buffer.
 
 
+Interactions between formats, controls and buffers
+==================================================
+
+V4L2 exposes parameters that influence the buffer size, or the way data is
+laid out in the buffer. Those parameters are exposed through both formats and
+controls. One example of such a control is the ``V4L2_CID_ROTATE`` control
+that modifies the direction in which pixels are stored in the buffer, as well
+as the buffer size when the selected format includes padding at the end of
+lines.
+
+The set of information needed to interpret the content of a buffer (e.g. the
+pixel format, the line stride, the tiling orientation or the rotation) is
+collectively referred to in the rest of this section as the buffer layout.
+
+Controls that can modify the buffer layout shall set the
+``V4L2_CTRL_FLAG_MODIFY_LAYOUT`` flag.
+
+Modifying formats or controls that influence the buffer size or layout require
+the stream to be stopped. Any attempt at such a modification while the stream
+is active shall cause the ioctl setting the format or the control to return
+the ``EBUSY`` error code. In that case drivers shall also set the
+``V4L2_CTRL_FLAG_GRABBED`` flag when calling
+:c:func:`VIDIOC_QUERYCTRL` or :c:func:`VIDIOC_QUERY_EXT_CTRL` for such a
+control while the stream is active.
+
+.. note::
+
+   The :c:func:`VIDIOC_S_SELECTION` ioctl can, depending on the hardware (for
+   instance if the device doesn't include a scaler), modify the format in
+   addition to the selection rectangle. Similarly, the
+   :c:func:`VIDIOC_S_INPUT`, :c:func:`VIDIOC_S_OUTPUT`, :c:func:`VIDIOC_S_STD`
+   and :c:func:`VIDIOC_S_DV_TIMINGS` ioctls can also modify the format and
+   selection rectangles. When those ioctls result in a buffer size or layout
+   change, drivers shall handle that condition as they would handle it in the
+   :c:func:`VIDIOC_S_FMT` ioctl in all cases described in this section.
+
+Controls that only influence the buffer layout can be modified at any time
+when the stream is stopped. As they don't influence the buffer size, no
+special handling is needed to synchronize those controls with buffer
+allocation and the ``V4L2_CTRL_FLAG_GRABBED`` flag is cleared once the
+stream is stopped.
+
+Formats and controls that influence the buffer size interact with buffer
+allocation. The simplest way to handle this is for drivers to always require
+buffers to be reallocated in order to change those formats or controls. In
+that case, to perform such changes, userspace applications shall first stop
+the video stream with the :c:func:`VIDIOC_STREAMOFF` ioctl if it is running
+and free all buffers with the :c:func:`VIDIOC_REQBUFS` ioctl if they are
+allocated. After freeing all buffers the ``V4L2_CTRL_FLAG_GRABBED`` flag
+for controls is cleared. The format or controls can then be modified, and
+buffers shall then be reallocated and the stream restarted. A typical ioctl
+sequence is
+
+ #. VIDIOC_STREAMOFF
+ #. VIDIOC_REQBUFS(0)
+ #. VIDIOC_S_EXT_CTRLS
+ #. VIDIOC_S_FMT
+ #. VIDIOC_REQBUFS(n)
+ #. VIDIOC_QBUF
+ #. VIDIOC_STREAMON
+
+The second :c:func:`VIDIOC_REQBUFS` call will take the new format and control
+value into account to compute the buffer size to allocate. Applications can
+also retrieve the size by calling the :c:func:`VIDIOC_G_FMT` ioctl if needed.
+
+.. note::
+
+   The API doesn't mandate the above order for control (3.) and format (4.)
+   changes. Format and controls can be set in a different order, or even
+   interleaved, depending on the device and use case. For instance some
+   controls might behave differently for different pixel formats, in which
+   case the format might need to be set first.
+
+When reallocation is required, any attempt to modify format or controls that
+influences the buffer size while buffers are allocated shall cause the format
+or control set ioctl to return the ``EBUSY`` error. Any attempt to queue a
+buffer too small for the current format or controls shall cause the
+:c:func:`VIDIOC_QBUF` ioctl to return a ``EINVAL`` error.
+
+Buffer reallocation is an expensive operation. To avoid that cost, drivers can
+(and are encouraged to) allow format or controls that influence the buffer
+size to be changed with buffers allocated. In that case, a typical ioctl
+sequence to modify format and controls is
+
+ #. VIDIOC_STREAMOFF
+ #. VIDIOC_S_EXT_CTRLS
+ #. VIDIOC_S_FMT
+ #. VIDIOC_QBUF
+ #. VIDIOC_STREAMON
+
+For this sequence to operate correctly, queued buffers need to be large enough
+for the new format or controls. Drivers shall return a ``ENOSPC`` error in
+response to format change (:c:func:`VIDIOC_S_FMT`) or control changes
+(:c:func:`VIDIOC_S_CTRL` or :c:func:`VIDIOC_S_EXT_CTRLS`) if buffers too small
+for the new format are currently queued. As a simplification, drivers are
+allowed to return a ``EBUSY`` error from these ioctls if any buffer is
+currently queued, without checking the queued buffers sizes.
+
+Additionally, drivers shall return a ``EINVAL`` error from the
+:c:func:`VIDIOC_QBUF` ioctl if the buffer being queued is too small for the
+current format or controls. Together, these requirements ensure that queued
+buffers will always be large enough for the configured format and controls.
+
+Userspace applications can query the buffer size required for a given format
+and controls by first setting the desired control values and then trying the
+desired format. The :c:func:`VIDIOC_TRY_FMT` ioctl will return the required
+buffer size.
+
+ #. VIDIOC_S_EXT_CTRLS(x)
+ #. VIDIOC_TRY_FMT()
+ #. VIDIOC_S_EXT_CTRLS(y)
+ #. VIDIOC_TRY_FMT()
+
+The :c:func:`VIDIOC_CREATE_BUFS` ioctl can then be used to allocate buffers
+based on the queried sizes (for instance by allocating a set of buffers large
+enough for all the desired formats and controls, or by allocating separate set
+of appropriately sized buffers for each use case).
+
+
 .. c:type:: v4l2_buffer
 
 struct v4l2_buffer
 ==================
 
-.. tabularcolumns:: |p{2.8cm}|p{2.5cm}|p{1.3cm}|p{10.5cm}|
+.. tabularcolumns:: |p{2.8cm}|p{2.5cm}|p{1.6cm}|p{10.2cm}|
 
 .. cssclass:: longtable
 
@@ -104,8 +230,7 @@ struct v4l2_buffer
     * - struct :c:type:`v4l2_timecode`
       - ``timecode``
       -
-      - When ``type`` is ``V4L2_BUF_TYPE_VIDEO_CAPTURE`` and the
-	``V4L2_BUF_FLAG_TIMECODE`` flag is set in ``flags``, this
+      - When the ``V4L2_BUF_FLAG_TIMECODE`` flag is set in ``flags``, this
 	structure contains a frame timecode. In
 	:c:type:`V4L2_FIELD_ALTERNATE <v4l2_field>` mode the top and
 	bottom field contain the same timecode. Timecodes are intended to
@@ -187,10 +312,23 @@ struct v4l2_buffer
       - A place holder for future extensions. Drivers and applications
 	must set this to 0.
     * - __u32
-      - ``reserved``
+      - ``request_fd``
       -
-      - A place holder for future extensions. Drivers and applications
-	must set this to 0.
+      - The file descriptor of the request to queue the buffer to. If the flag
+        ``V4L2_BUF_FLAG_REQUEST_FD`` is set, then the buffer will be
+	queued to this request. If the flag is not set, then this field will
+	be ignored.
+
+	The ``V4L2_BUF_FLAG_REQUEST_FD`` flag and this field are only used by
+	:ref:`ioctl VIDIOC_QBUF <VIDIOC_QBUF>` and ignored by other ioctls that
+	take a :c:type:`v4l2_buffer` as argument.
+
+	Applications should not set ``V4L2_BUF_FLAG_REQUEST_FD`` for any ioctls
+	other than :ref:`VIDIOC_QBUF <VIDIOC_QBUF>`.
+
+	If the device does not support requests, then ``EBADR`` will be returned.
+	If requests are supported but an invalid request file descriptor is
+	given, then ``EINVAL`` will be returned.
 
 
 
@@ -282,7 +420,7 @@ enum v4l2_buf_type
 
 .. cssclass:: longtable
 
-.. tabularcolumns:: |p{7.2cm}|p{0.6cm}|p{9.7cm}|
+.. tabularcolumns:: |p{7.8cm}|p{0.6cm}|p{9.1cm}|
 
 .. flat-table::
     :header-rows:  0
@@ -330,6 +468,12 @@ enum v4l2_buf_type
       - 12
       - Buffer for Software Defined Radio (SDR) output stream, see
 	:ref:`sdr`.
+    * - ``V4L2_BUF_TYPE_META_CAPTURE``
+      - 13
+      - Buffer for metadata capture, see :ref:`metadata`.
+    * - ``V4L2_BUF_TYPE_META_OUTPUT``
+      - 14
+      - Buffer for metadata output, see :ref:`metadata`.
 
 
 
@@ -338,7 +482,11 @@ enum v4l2_buf_type
 Buffer Flags
 ============
 
-.. tabularcolumns:: |p{7.0cm}|p{2.2cm}|p{8.3cm}|
+.. raw:: latex
+
+    \small
+
+.. tabularcolumns:: |p{7.0cm}|p{2.1cm}|p{8.4cm}|
 
 .. cssclass:: longtable
 
@@ -392,6 +540,11 @@ Buffer Flags
 	streaming may continue as normal and the buffer may be reused
 	normally. Drivers set this flag when the ``VIDIOC_DQBUF`` ioctl is
 	called.
+    * .. _`V4L2-BUF-FLAG-IN-REQUEST`:
+
+      - ``V4L2_BUF_FLAG_IN_REQUEST``
+      - 0x00000080
+      - This buffer is part of a request that hasn't been queued yet.
     * .. _`V4L2-BUF-FLAG-KEYFRAME`:
 
       - ``V4L2_BUF_FLAG_KEYFRAME``
@@ -467,6 +620,11 @@ Buffer Flags
 	the format. Any Any subsequent call to the
 	:ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` ioctl will not block anymore,
 	but return an ``EPIPE`` error code.
+    * .. _`V4L2-BUF-FLAG-REQUEST-FD`:
+
+      - ``V4L2_BUF_FLAG_REQUEST_FD``
+      - 0x00800000
+      - The ``request_fd`` field contains a valid file descriptor.
     * .. _`V4L2-BUF-FLAG-TIMESTAMP-MASK`:
 
       - ``V4L2_BUF_FLAG_TIMESTAMP_MASK``
@@ -527,6 +685,9 @@ Buffer Flags
 	exposure of the frame has begun. This is only valid for the
 	``V4L2_BUF_TYPE_VIDEO_CAPTURE`` buffer type.
 
+.. raw:: latex
+
+    \normalsize
 
 
 .. c:type:: v4l2_memory
@@ -534,7 +695,7 @@ Buffer Flags
 enum v4l2_memory
 ================
 
-.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+.. tabularcolumns:: |p{5.0cm}|p{0.8cm}|p{11.7cm}|
 
 .. flat-table::
     :header-rows:  0
@@ -559,10 +720,10 @@ enum v4l2_memory
 Timecodes
 =========
 
-The struct :c:type:`v4l2_timecode` structure is designed to hold a
-:ref:`smpte12m` or similar timecode. (struct
-struct :c:type:`timeval` timestamps are stored in struct
-:c:type:`v4l2_buffer` field ``timestamp``.)
+The :c:type:`v4l2_buffer_timecode` structure is designed to hold a
+:ref:`smpte12m` or similar timecode.
+(struct :c:type:`timeval` timestamps are stored in the struct
+:c:type:`v4l2_buffer` ``timestamp`` field.)
 
 
 .. c:type:: v4l2_timecode
@@ -570,7 +731,7 @@ struct :c:type:`timeval` timestamps are stored in struct
 struct v4l2_timecode
 --------------------
 
-.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
+.. tabularcolumns:: |p{1.4cm}|p{2.8cm}|p{12.3cm}|
 
 .. flat-table::
     :header-rows:  0
@@ -607,7 +768,7 @@ struct v4l2_timecode
 Timecode Types
 --------------
 
-.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+.. tabularcolumns:: |p{5.6cm}|p{0.8cm}|p{11.1cm}|
 
 .. flat-table::
     :header-rows:  0

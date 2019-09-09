@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * linux/can/dev.h
  *
@@ -38,6 +39,14 @@ struct can_priv {
 	struct can_bittiming bittiming, data_bittiming;
 	const struct can_bittiming_const *bittiming_const,
 		*data_bittiming_const;
+	const u16 *termination_const;
+	unsigned int termination_const_cnt;
+	u16 termination;
+	const u32 *bitrate_const;
+	unsigned int bitrate_const_cnt;
+	const u32 *data_bitrate_const;
+	unsigned int data_bitrate_const_cnt;
+	u32 bitrate_max;
 	struct can_clock clock;
 
 	enum can_state state;
@@ -53,6 +62,7 @@ struct can_priv {
 	int (*do_set_bittiming)(struct net_device *dev);
 	int (*do_set_data_bittiming)(struct net_device *dev);
 	int (*do_set_mode)(struct net_device *dev, enum can_mode mode);
+	int (*do_set_termination)(struct net_device *dev, u16 term);
 	int (*do_get_state)(const struct net_device *dev,
 			    enum can_state *state);
 	int (*do_get_berr_counter)(const struct net_device *dev,
@@ -133,7 +143,12 @@ u8 can_dlc2len(u8 can_dlc);
 /* map the sanitized data length to an appropriate data length code */
 u8 can_len2dlc(u8 len);
 
-struct net_device *alloc_candev(int sizeof_priv, unsigned int echo_skb_max);
+struct net_device *alloc_candev_mqs(int sizeof_priv, unsigned int echo_skb_max,
+				    unsigned int txqs, unsigned int rxqs);
+#define alloc_candev(sizeof_priv, echo_skb_max) \
+	alloc_candev_mqs(sizeof_priv, echo_skb_max, 1, 1)
+#define alloc_candev_mq(sizeof_priv, echo_skb_max, count) \
+	alloc_candev_mqs(sizeof_priv, echo_skb_max, count, count)
 void free_candev(struct net_device *dev);
 
 /* a candev safe wrapper around netdev_priv */
@@ -154,8 +169,15 @@ void can_change_state(struct net_device *dev, struct can_frame *cf,
 
 void can_put_echo_skb(struct sk_buff *skb, struct net_device *dev,
 		      unsigned int idx);
+struct sk_buff *__can_get_echo_skb(struct net_device *dev, unsigned int idx, u8 *len_ptr);
 unsigned int can_get_echo_skb(struct net_device *dev, unsigned int idx);
 void can_free_echo_skb(struct net_device *dev, unsigned int idx);
+
+#ifdef CONFIG_OF
+void of_can_transceiver(struct net_device *dev);
+#else
+static inline void of_can_transceiver(struct net_device *dev) { }
+#endif
 
 struct sk_buff *alloc_can_skb(struct net_device *dev, struct can_frame **cf);
 struct sk_buff *alloc_canfd_skb(struct net_device *dev,

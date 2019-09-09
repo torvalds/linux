@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_GENERIC_PERCPU_H_
 #define _ASM_GENERIC_PERCPU_H_
 
@@ -61,10 +62,6 @@ extern void setup_per_cpu_areas(void);
 #define PER_CPU_ATTRIBUTES
 #endif
 
-#ifndef PER_CPU_DEF_ATTRIBUTES
-#define PER_CPU_DEF_ATTRIBUTES
-#endif
-
 #define raw_cpu_generic_read(pcp)					\
 ({									\
 	*raw_cpu_ptr(&(pcp));						\
@@ -115,12 +112,32 @@ do {									\
 	(__ret);							\
 })
 
+#define __this_cpu_generic_read_nopreempt(pcp)				\
+({									\
+	typeof(pcp) __ret;						\
+	preempt_disable_notrace();					\
+	__ret = READ_ONCE(*raw_cpu_ptr(&(pcp)));			\
+	preempt_enable_notrace();					\
+	__ret;								\
+})
+
+#define __this_cpu_generic_read_noirq(pcp)				\
+({									\
+	typeof(pcp) __ret;						\
+	unsigned long __flags;						\
+	raw_local_irq_save(__flags);					\
+	__ret = raw_cpu_generic_read(pcp);				\
+	raw_local_irq_restore(__flags);					\
+	__ret;								\
+})
+
 #define this_cpu_generic_read(pcp)					\
 ({									\
 	typeof(pcp) __ret;						\
-	preempt_disable();						\
-	__ret = raw_cpu_generic_read(pcp);				\
-	preempt_enable();						\
+	if (__native_word(pcp))						\
+		__ret = __this_cpu_generic_read_nopreempt(pcp);		\
+	else								\
+		__ret = __this_cpu_generic_read_noirq(pcp);		\
 	__ret;								\
 })
 

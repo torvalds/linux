@@ -1,15 +1,8 @@
-/*
- * Copyright (c) 2014 Samsung Electronics Co., Ltd.
- *		http://www.samsung.com
- *
- * arch/arm/mach-exynos/mcpm-exynos.c
- *
- * Based on arch/arm/mach-vexpress/dcscb.c
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+// Copyright (c) 2014 Samsung Electronics Co., Ltd.
+//		http://www.samsung.com
+//
+// Based on arch/arm/mach-vexpress/dcscb.c
 
 #include <linux/arm-cci.h>
 #include <linux/delay.h>
@@ -32,7 +25,7 @@
 #define EXYNOS5420_USE_ARM_CORE_DOWN_STATE	BIT(29)
 #define EXYNOS5420_USE_L2_COMMON_UP_STATE	BIT(30)
 
-static void __iomem *ns_sram_base_addr;
+static void __iomem *ns_sram_base_addr __ro_after_init;
 
 /*
  * The common v7_exit_coherency_flush API could not be used because of the
@@ -82,14 +75,25 @@ static int exynos_cpu_powerup(unsigned int cpu, unsigned int cluster)
 		 */
 		if (cluster &&
 		    cluster == MPIDR_AFFINITY_LEVEL(cpu_logical_map(0), 1)) {
+			unsigned int timeout = 16;
+
 			/*
 			 * Before we reset the Little cores, we should wait
 			 * the SPARE2 register is set to 1 because the init
 			 * codes of the iROM will set the register after
 			 * initialization.
 			 */
-			while (!pmu_raw_readl(S5P_PMU_SPARE2))
+			while (timeout && !pmu_raw_readl(S5P_PMU_SPARE2)) {
+				timeout--;
 				udelay(10);
+			}
+
+			if (timeout == 0) {
+				pr_err("cpu %u cluster %u powerup failed\n",
+				       cpu, cluster);
+				exynos_cpu_power_down(cpunr);
+				return -ETIMEDOUT;
+			}
 
 			pmu_raw_writel(EXYNOS5420_KFC_CORE_RESET(cpu),
 					EXYNOS_SWRESET);
@@ -221,7 +225,7 @@ static void exynos_mcpm_setup_entry_point(void)
 	 */
 	__raw_writel(0xe59f0000, ns_sram_base_addr);     /* ldr r0, [pc, #0] */
 	__raw_writel(0xe12fff10, ns_sram_base_addr + 4); /* bx  r0 */
-	__raw_writel(virt_to_phys(mcpm_entry_point), ns_sram_base_addr + 8);
+	__raw_writel(__pa_symbol(mcpm_entry_point), ns_sram_base_addr + 8);
 }
 
 static struct syscore_ops exynos_mcpm_syscore_ops = {

@@ -1,19 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Tegra host1x Debug
  *
  * Copyright (c) 2011-2013 NVIDIA Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #ifndef __HOST1X_DEBUG_H
 #define __HOST1X_DEBUG_H
@@ -24,22 +13,28 @@
 struct host1x;
 
 struct output {
-	void (*fn)(void *ctx, const char *str, size_t len);
+	void (*fn)(void *ctx, const char *str, size_t len, bool cont);
 	void *ctx;
 	char buf[256];
 };
 
-static inline void write_to_seqfile(void *ctx, const char *str, size_t len)
+static inline void write_to_seqfile(void *ctx, const char *str, size_t len,
+				    bool cont)
 {
 	seq_write((struct seq_file *)ctx, str, len);
 }
 
-static inline void write_to_printk(void *ctx, const char *str, size_t len)
+static inline void write_to_printk(void *ctx, const char *str, size_t len,
+				   bool cont)
 {
-	pr_info("%s", str);
+	if (cont)
+		pr_cont("%s", str);
+	else
+		pr_info("%s", str);
 }
 
 void __printf(2, 3) host1x_debug_output(struct output *o, const char *fmt, ...);
+void __printf(2, 3) host1x_debug_cont(struct output *o, const char *fmt, ...);
 
 extern unsigned int host1x_debug_trace_cmdbuf;
 

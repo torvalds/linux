@@ -1,12 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright 2013-2014 Texas Instruments, Inc.
- *
  * Keystone 2 Edison soc device tree
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * Copyright (C) 2013-2017 Texas Instruments Incorporated - http://www.ti.com/
  */
+
+#include <dt-bindings/reset/ti-syscon.h>
 
 / {
 	compatible = "ti,k2e", "ti,keystone";
@@ -43,7 +42,12 @@
 		};
 	};
 
-	soc {
+	aliases {
+		rproc0 = &dsp0;
+	};
+};
+
+&soc0 {
 		/include/ "keystone-k2e-clocks.dtsi"
 
 		usb: usb@2680000 {
@@ -82,11 +86,53 @@
 			};
 		};
 
-		dspgpio0: keystone_dsp_gpio@02620240 {
-			compatible = "ti,keystone-dsp-gpio";
-			gpio-controller;
-			#gpio-cells = <2>;
-			gpio,syscon-dev = <&devctrl 0x240>;
+		msm_ram: msmram@c000000 {
+			compatible = "mmio-sram";
+			reg = <0x0c000000 0x200000>;
+			ranges = <0x0 0x0c000000 0x200000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			sram-bm@1f0000 {
+				reg = <0x001f0000 0x8000>;
+			};
+		};
+
+		psc: power-sleep-controller@2350000 {
+			pscrst: reset-controller {
+				compatible = "ti,k2e-pscrst", "ti,syscon-reset";
+				#reset-cells = <1>;
+
+				ti,reset-bits = <
+					0xa3c 8 0xa3c 8 0x83c 8 (ASSERT_CLEAR | DEASSERT_SET | STATUS_CLEAR) /* 0: dsp0 */
+				>;
+			};
+		};
+
+		devctrl: device-state-control@2620000 {
+			dspgpio0: keystone_dsp_gpio@240 {
+				compatible = "ti,keystone-dsp-gpio";
+				reg = <0x240 0x4>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				gpio,syscon-dev = <&devctrl 0x240>;
+			};
+		};
+
+		dsp0: dsp@10800000 {
+			compatible = "ti,k2e-dsp";
+			reg = <0x10800000 0x00080000>,
+			      <0x10e00000 0x00008000>,
+			      <0x10f00000 0x00008000>;
+			reg-names = "l2sram", "l1pram", "l1dram";
+			clocks = <&clkgem0>;
+			ti,syscon-dev = <&devctrl 0x844>;
+			resets = <&pscrst 0>;
+			interrupt-parent = <&kirq0>;
+			interrupts = <0 8>;
+			interrupt-names = "vring", "exception";
+			kick-gpios = <&dspgpio0 27 0>;
+			status = "disabled";
 		};
 
 		pcie1: pcie@21020000 {
@@ -149,5 +195,4 @@
 			bus_freq	= <2500000>;
 		};
 		/include/ "keystone-k2e-netcp.dtsi"
-	};
 };

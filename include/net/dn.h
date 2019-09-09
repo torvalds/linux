@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _NET_DN_H
 #define _NET_DN_H
 
@@ -121,13 +122,6 @@ struct dn_scp                                   /* Session Control Port */
 	int (*persist_fxn)(struct sock *sk);
 	unsigned long keepalive;
 	void (*keepalive_fxn)(struct sock *sk);
-
-	/*
-	 * This stuff is for the fast timer for delayed acks
-	 */
-	struct timer_list delack_timer;
-	int delack_pending;
-	void (*delack_fxn)(struct sock *sk);
 
 };
 

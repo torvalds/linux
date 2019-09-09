@@ -1,12 +1,4 @@
-/* This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+// SPDX-License-Identifier: GPL-2.0-only
 
 #include <net/6lowpan.h>
 #include <net/ndisc.h>
@@ -47,6 +39,9 @@ int lowpan_header_create(struct sk_buff *skb, struct net_device *ldev,
 	struct lowpan_802154_neigh *llneigh = NULL;
 	const struct ipv6hdr *hdr = ipv6_hdr(skb);
 	struct neighbour *n;
+
+	if (!daddr)
+		return -EINVAL;
 
 	/* TODO:
 	 * if this package isn't ipv6 one, where should it be routed?
@@ -121,8 +116,7 @@ lowpan_alloc_frag(struct sk_buff *skb, int size,
 		*mac_cb(frag) = *mac_cb(skb);
 
 		if (frag1) {
-			memcpy(skb_put(frag, skb->mac_len),
-			       skb_mac_header(skb), skb->mac_len);
+			skb_put_data(frag, skb_mac_header(skb), skb->mac_len);
 		} else {
 			rc = wpan_dev_hard_header(frag, wdev,
 						  &master_hdr->dest,
@@ -152,8 +146,8 @@ lowpan_xmit_fragment(struct sk_buff *skb, const struct ieee802154_hdr *wpan_hdr,
 	if (IS_ERR(frag))
 		return PTR_ERR(frag);
 
-	memcpy(skb_put(frag, frag_hdrlen), frag_hdr, frag_hdrlen);
-	memcpy(skb_put(frag, len), skb_network_header(skb) + offset, len);
+	skb_put_data(frag, frag_hdr, frag_hdrlen);
+	skb_put_data(frag, skb_network_header(skb) + offset, len);
 
 	raw_dump_table(__func__, " fragment dump", frag->data, frag->len);
 
@@ -266,9 +260,24 @@ netdev_tx_t lowpan_xmit(struct sk_buff *skb, struct net_device *ldev)
 	/* We must take a copy of the skb before we modify/replace the ipv6
 	 * header as the header could be used elsewhere
 	 */
-	skb = skb_unshare(skb, GFP_ATOMIC);
-	if (!skb)
-		return NET_XMIT_DROP;
+	if (unlikely(skb_headroom(skb) < ldev->needed_headroom ||
+		     skb_tailroom(skb) < ldev->needed_tailroom)) {
+		struct sk_buff *nskb;
+
+		nskb = skb_copy_expand(skb, ldev->needed_headroom,
+				       ldev->needed_tailroom, GFP_ATOMIC);
+		if (likely(nskb)) {
+			consume_skb(skb);
+			skb = nskb;
+		} else {
+			kfree_skb(skb);
+			return NET_XMIT_DROP;
+		}
+	} else {
+		skb = skb_unshare(skb, GFP_ATOMIC);
+		if (!skb)
+			return NET_XMIT_DROP;
+	}
 
 	ret = lowpan_header(skb, ldev, &dgram_size, &dgram_offset);
 	if (ret < 0) {

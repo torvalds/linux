@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* leon_smp.c: Sparc-Leon SMP support.
  *
  * based on sun4m_smp.c
@@ -9,7 +10,7 @@
 #include <asm/head.h>
 
 #include <linux/kernel.h>
-#include <linux/sched.h>
+#include <linux/sched/mm.h>
 #include <linux/threads.h>
 #include <linux/smp.h>
 #include <linux/interrupt.h>
@@ -93,7 +94,7 @@ void leon_cpu_pre_online(void *arg)
 			     : "memory" /* paranoid */);
 
 	/* Attach to the address space of init_task. */
-	atomic_inc(&init_mm.mm_count);
+	mmgrab(&init_mm);
 	current->active_mm = &init_mm;
 
 	while (!cpumask_test_cpu(cpuid, &smp_commenced_mask))

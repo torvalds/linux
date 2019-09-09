@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *    Copyright IBM Corp. 2004, 2011
  *    Author(s): Martin Schwidefsky <schwidefsky@de.ibm.com>,
@@ -12,11 +13,12 @@
 #include <linux/seq_file.h>
 #include <linux/proc_fs.h>
 #include <linux/profile.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/ftrace.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
+#include <linux/init.h>
 #include <linux/cpu.h>
 #include <linux/irq.h>
 #include <asm/irq_regs.h>
@@ -24,6 +26,7 @@
 #include <asm/lowcore.h>
 #include <asm/irq.h>
 #include <asm/hw_irq.h>
+#include <asm/stacktrace.h>
 #include "entry.h"
 
 DEFINE_PER_CPU_SHARED_ALIGNED(struct irq_stat, irq_stat);
@@ -71,7 +74,6 @@ static const struct irq_class irqclass_sub_desc[] = {
 	{.irq = IRQEXT_CMC, .name = "CMC", .desc = "[EXT] CPU-Measurement: Counter"},
 	{.irq = IRQEXT_FTP, .name = "FTP", .desc = "[EXT] HMC FTP Service"},
 	{.irq = IRQIO_CIO,  .name = "CIO", .desc = "[I/O] Common I/O Layer Interrupt"},
-	{.irq = IRQIO_QAI,  .name = "QAI", .desc = "[I/O] QDIO Adapter Interrupt"},
 	{.irq = IRQIO_DAS,  .name = "DAS", .desc = "[I/O] DASD"},
 	{.irq = IRQIO_C15,  .name = "C15", .desc = "[I/O] 3215"},
 	{.irq = IRQIO_C70,  .name = "C70", .desc = "[I/O] 3270"},
@@ -79,13 +81,16 @@ static const struct irq_class irqclass_sub_desc[] = {
 	{.irq = IRQIO_VMR,  .name = "VMR", .desc = "[I/O] Unit Record Devices"},
 	{.irq = IRQIO_LCS,  .name = "LCS", .desc = "[I/O] LCS"},
 	{.irq = IRQIO_CTC,  .name = "CTC", .desc = "[I/O] CTC"},
-	{.irq = IRQIO_APB,  .name = "APB", .desc = "[I/O] AP Bus"},
 	{.irq = IRQIO_ADM,  .name = "ADM", .desc = "[I/O] EADM Subchannel"},
 	{.irq = IRQIO_CSC,  .name = "CSC", .desc = "[I/O] CHSC Subchannel"},
-	{.irq = IRQIO_PCI,  .name = "PCI", .desc = "[I/O] PCI Interrupt" },
-	{.irq = IRQIO_MSI,  .name = "MSI", .desc = "[I/O] MSI Interrupt" },
 	{.irq = IRQIO_VIR,  .name = "VIR", .desc = "[I/O] Virtual I/O Devices"},
-	{.irq = IRQIO_VAI,  .name = "VAI", .desc = "[I/O] Virtual I/O Devices AI"},
+	{.irq = IRQIO_QAI,  .name = "QAI", .desc = "[AIO] QDIO Adapter Interrupt"},
+	{.irq = IRQIO_APB,  .name = "APB", .desc = "[AIO] AP Bus"},
+	{.irq = IRQIO_PCF,  .name = "PCF", .desc = "[AIO] PCI Floating Interrupt"},
+	{.irq = IRQIO_PCD,  .name = "PCD", .desc = "[AIO] PCI Directed Interrupt"},
+	{.irq = IRQIO_MSI,  .name = "MSI", .desc = "[AIO] MSI Interrupt"},
+	{.irq = IRQIO_VAI,  .name = "VAI", .desc = "[AIO] Virtual I/O Devices AI"},
+	{.irq = IRQIO_GAL,  .name = "GAL", .desc = "[AIO] GIB Alert"},
 	{.irq = NMI_NMI,    .name = "NMI", .desc = "[NMI] Machine Check"},
 	{.irq = CPU_RST,    .name = "RST", .desc = "[CPU] CPU Restart"},
 };
@@ -104,12 +109,41 @@ void do_IRQ(struct pt_regs *regs, int irq)
 
 	old_regs = set_irq_regs(regs);
 	irq_enter();
-	if (S390_lowcore.int_clock >= S390_lowcore.clock_comparator)
+	if (tod_after_eq(S390_lowcore.int_clock,
+			 S390_lowcore.clock_comparator))
 		/* Serve timer interrupts first. */
 		clock_comparator_work();
 	generic_handle_irq(irq);
 	irq_exit();
 	set_irq_regs(old_regs);
+}
+
+static void show_msi_interrupt(struct seq_file *p, int irq)
+{
+	struct irq_desc *desc;
+	unsigned long flags;
+	int cpu;
+
+	irq_lock_sparse();
+	desc = irq_to_desc(irq);
+	if (!desc)
+		goto out;
+
+	raw_spin_lock_irqsave(&desc->lock, flags);
+	seq_printf(p, "%3d: ", irq);
+	for_each_online_cpu(cpu)
+		seq_printf(p, "%10u ", kstat_irqs_cpu(irq, cpu));
+
+	if (desc->irq_data.chip)
+		seq_printf(p, " %8s", desc->irq_data.chip->name);
+
+	if (desc->action)
+		seq_printf(p, "  %s", desc->action->name);
+
+	seq_putc(p, '\n');
+	raw_spin_unlock_irqrestore(&desc->lock, flags);
+out:
+	irq_unlock_sparse();
 }
 
 /*
@@ -124,7 +158,7 @@ int show_interrupts(struct seq_file *p, void *v)
 	if (index == 0) {
 		seq_puts(p, "           ");
 		for_each_online_cpu(cpu)
-			seq_printf(p, "CPU%d       ", cpu);
+			seq_printf(p, "CPU%-8d", cpu);
 		seq_putc(p, '\n');
 	}
 	if (index < NR_IRQS_BASE) {
@@ -135,9 +169,10 @@ int show_interrupts(struct seq_file *p, void *v)
 		seq_putc(p, '\n');
 		goto out;
 	}
-	if (index > NR_IRQS_BASE)
+	if (index < nr_irqs) {
+		show_msi_interrupt(p, index);
 		goto out;
-
+	}
 	for (index = 0; index < NR_ARCH_IRQS; index++) {
 		seq_printf(p, "%s: ", irqclass_sub_desc[index].name);
 		irq = irqclass_sub_desc[index].irq;
@@ -168,17 +203,8 @@ void do_softirq_own_stack(void)
 	old = current_stack_pointer();
 	/* Check against async. stack address range. */
 	new = S390_lowcore.async_stack;
-	if (((new - old) >> (PAGE_SHIFT + THREAD_ORDER)) != 0) {
-		/* Need to switch to the async. stack. */
-		new -= STACK_FRAME_OVERHEAD;
-		((struct stack_frame *) new)->back_chain = old;
-		asm volatile("   la    15,0(%0)\n"
-			     "   basr  14,%2\n"
-			     "   la    15,0(%1)\n"
-			     : : "a" (new), "a" (old),
-			         "a" (__do_softirq)
-			     : "0", "1", "2", "3", "4", "5", "14",
-			       "cc", "memory" );
+	if (((new - old) >> (PAGE_SHIFT + THREAD_SIZE_ORDER)) != 0) {
+		CALL_ON_STACK(__do_softirq, new, 0);
 	} else {
 		/* We are already on the async stack. */
 		__do_softirq();

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*******************************************************************************
 
   Copyright(c) 2004-2005 Intel Corporation. All rights reserved.
@@ -8,21 +9,6 @@
   <j@w1.fi>
   Copyright (c) 2002-2003, Jouni Malinen <j@w1.fi>
 
-  This program is free software; you can redistribute it and/or modify it
-  under the terms of version 2 of the GNU General Public License as
-  published by the Free Software Foundation.
-
-  This program is distributed in the hope that it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details.
-
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc., 59
-  Temple Place - Suite 330, Boston, MA  02111-1307, USA.
-
-  The full GNU General Public License is included in this distribution in the
-  file called LICENSE.
 
   Contact Information:
   Intel Linux Wireless <ilw@linux.intel.com>
@@ -46,7 +32,7 @@
 #include <linux/types.h>
 #include <linux/wireless.h>
 #include <linux/etherdevice.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <net/net_namespace.h>
 #include <net/arp.h>
 
@@ -117,15 +103,6 @@ static void libipw_networks_initialize(struct libipw_device *ieee)
 		list_add_tail(&ieee->networks[i]->list,
 			      &ieee->network_free_list);
 }
-
-int libipw_change_mtu(struct net_device *dev, int new_mtu)
-{
-	if ((new_mtu < 68) || (new_mtu > LIBIPW_DATA_LEN))
-		return -EINVAL;
-	dev->mtu = new_mtu;
-	return 0;
-}
-EXPORT_SYMBOL(libipw_change_mtu);
 
 struct net_device *alloc_libipw(int sizeof_priv, int monitor)
 {
@@ -285,7 +262,7 @@ static int __init libipw_init(void)
 				" proc directory\n");
 		return -EIO;
 	}
-	e = proc_create("debug_level", S_IRUGO | S_IWUSR, libipw_proc,
+	e = proc_create("debug_level", 0644, libipw_proc,
 			&debug_level_proc_fops);
 	if (!e) {
 		remove_proc_entry(DRV_PROCNAME, init_net.proc_net);

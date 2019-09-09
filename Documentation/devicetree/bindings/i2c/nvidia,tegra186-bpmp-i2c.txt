@@ -1,0 +1,42 @@
+NVIDIA Tegra186 BPMP I2C controller
+
+In Tegra186, the BPMP (Boot and Power Management Processor) owns certain HW
+devices, such as the I2C controller for the power management I2C bus. Software
+running on other CPUs must perform IPC to the BPMP in order to execute
+transactions on that I2C bus. This binding describes an I2C bus that is
+accessed in such a fashion.
+
+The BPMP I2C node must be located directly inside the main BPMP node. See
+../firmware/nvidia,tegra186-bpmp.txt for details of the BPMP binding.
+
+This node represents an I2C controller. See ../i2c/i2c.txt for details of the
+core I2C binding.
+
+Required properties:
+- compatible:
+    Array of strings.
+    One of:
+    - "nvidia,tegra186-bpmp-i2c".
+- #address-cells: Address cells for I2C device address.
+    Single-cell integer.
+    Must be <1>.
+- #size-cells:
+    Single-cell integer.
+    Must be <0>.
+- nvidia,bpmp-bus-id:
+    Single-cell integer.
+    Indicates the I2C bus number this DT node represent, as defined by the
+    BPMP firmware.
+
+Example:
+
+bpmp {
+	...
+
+	i2c {
+		compatible = "nvidia,tegra186-bpmp-i2c";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		nvidia,bpmp-bus-id = <5>;
+	};
+};

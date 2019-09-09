@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config TI_SOC_THERMAL
 	tristate "Texas Instruments SoCs temperature sensor driver"
 	help
@@ -11,7 +12,6 @@ config TI_SOC_THERMAL
 config TI_THERMAL
 	bool "Texas Instruments SoCs thermal framework support"
 	depends on TI_SOC_THERMAL
-	depends on CPU_THERMAL
 	help
 	  If you say yes here you want to get support for generic thermal
 	  framework for the Texas Instruments on die bandgap temperature sensor.

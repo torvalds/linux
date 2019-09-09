@@ -7,30 +7,37 @@ Description:
 		subsystem.
 
 What:		/sys/power/state
-Date:		May 2014
+Date:		November 2016
 Contact:	Rafael J. Wysocki <rjw@rjwysocki.net>
 Description:
 		The /sys/power/state file controls system sleep states.
 		Reading from this file returns the available sleep state
-		labels, which may be "mem", "standby", "freeze" and "disk"
-		(hibernation).  The meanings of the first three labels depend on
-		the relative_sleep_states command line argument as follows:
-		 1) relative_sleep_states = 1
-		    "mem", "standby", "freeze" represent non-hibernation sleep
-		    states from the deepest ("mem", always present) to the
-		    shallowest ("freeze").  "standby" and "freeze" may or may
-		    not be present depending on the capabilities of the
-		    platform.  "freeze" can only be present if "standby" is
-		    present.
-		 2) relative_sleep_states = 0 (default)
-		    "mem" - "suspend-to-RAM", present if supported.
-		    "standby" - "power-on suspend", present if supported.
-		    "freeze" - "suspend-to-idle", always present.
+		labels, which may be "mem" (suspend), "standby" (power-on
+		suspend), "freeze" (suspend-to-idle) and "disk" (hibernation).
 
-		Writing to this file one of these strings causes the system to
-		transition into the corresponding state, if available.  See
-		Documentation/power/states.txt for a description of what
-		"suspend-to-RAM", "power-on suspend" and "suspend-to-idle" mean.
+		Writing one of the above strings to this file causes the system
+		to transition into the corresponding state, if available.
+
+		See Documentation/admin-guide/pm/sleep-states.rst for more
+		information.
+
+What:		/sys/power/mem_sleep
+Date:		November 2016
+Contact:	Rafael J. Wysocki <rjw@rjwysocki.net>
+Description:
+		The /sys/power/mem_sleep file controls the operating mode of
+		system suspend.  Reading from it returns the available modes
+		as "s2idle" (always present), "shallow" and "deep" (present if
+		supported).  The mode that will be used on subsequent attempts
+		to suspend the system (by writing "mem" to the /sys/power/state
+		file described above) is enclosed in square brackets.
+
+		Writing one of the above strings to this file causes the mode
+		represented by it to be used on subsequent attempts to suspend
+		the system.
+
+		See Documentation/admin-guide/pm/sleep-states.rst for more
+		information.
 
 What:		/sys/power/disk
 Date:		September 2006
@@ -92,7 +99,7 @@ Description:
 		this file, the suspend image will be as small as possible.
 
 		Reading from this file will display the current image size
-		limit, which is set to 500 MB by default.
+		limit, which is set to around 2/5 of available RAM by default.
 
 What:		/sys/power/pm_trace
 Date:		August 2006
@@ -122,7 +129,7 @@ Description:
 
 What;		/sys/power/pm_trace_dev_match
 Date:		October 2010
-Contact:	James Hogan <james@albanarts.com>
+Contact:	James Hogan <jhogan@kernel.org>
 Description:
 		The /sys/power/pm_trace_dev_match file contains the name of the
 		device associated with the last PM event point saved in the RTC
@@ -268,3 +275,29 @@ Description:
 
 		This output is useful for system wakeup diagnostics of spurious
 		wakeup interrupts.
+
+What:		/sys/power/pm_debug_messages
+Date:		July 2017
+Contact:	Rafael J. Wysocki <rjw@rjwysocki.net>
+Description:
+		The /sys/power/pm_debug_messages file controls the printing
+		of debug messages from the system suspend/hiberbation
+		infrastructure to the kernel log.
+
+		Writing a "1" to this file enables the debug messages and
+		writing a "0" (default) to it disables them.  Reads from
+		this file return the current value.
+
+What:		/sys/power/resume_offset
+Date:		April 2018
+Contact:	Mario Limonciello <mario.limonciello@dell.com>
+Description:
+		This file is used for telling the kernel an offset into a disk
+		to use when hibernating the system such as with a swap file.
+
+		Reads from this file will display the current offset
+		the kernel will be using on the next hibernation
+		attempt.
+
+		Using this sysfs file will override any values that were
+		set using the kernel command line for disk offset.

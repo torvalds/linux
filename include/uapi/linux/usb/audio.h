@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  * <linux/usb/audio.h> -- USB Audio definitions.
  *
@@ -26,6 +27,7 @@
 /* bInterfaceProtocol values to denote the version of the standard used */
 #define UAC_VERSION_1			0x00
 #define UAC_VERSION_2			0x20
+#define UAC_VERSION_3			0x30
 
 /* A.2 Audio Interface Subclass Codes */
 #define USB_SUBCLASS_AUDIOCONTROL	0x01
@@ -228,6 +230,14 @@ struct uac1_output_terminal_descriptor {
 #define UAC_OUTPUT_TERMINAL_COMMUNICATION_SPEAKER	0x306
 #define UAC_OUTPUT_TERMINAL_LOW_FREQ_EFFECTS_SPEAKER	0x307
 
+/* Terminals - 2.4 Bi-directional Terminal Types */
+#define UAC_BIDIR_TERMINAL_UNDEFINED			0x400
+#define UAC_BIDIR_TERMINAL_HANDSET			0x401
+#define UAC_BIDIR_TERMINAL_HEADSET			0x402
+#define UAC_BIDIR_TERMINAL_SPEAKER_PHONE		0x403
+#define UAC_BIDIR_TERMINAL_ECHO_SUPPRESSING		0x404
+#define UAC_BIDIR_TERMINAL_ECHO_CANCELING		0x405
+
 /* Set bControlSize = 2 as default setting */
 #define UAC_DT_FEATURE_UNIT_SIZE(ch)		(7 + ((ch) + 1) * 2)
 
@@ -283,9 +293,22 @@ static inline __u8 uac_mixer_unit_iChannelNames(struct uac_mixer_unit_descriptor
 static inline __u8 *uac_mixer_unit_bmControls(struct uac_mixer_unit_descriptor *desc,
 					      int protocol)
 {
-	return (protocol == UAC_VERSION_1) ?
-		&desc->baSourceID[desc->bNrInPins + 4] :
-		&desc->baSourceID[desc->bNrInPins + 6];
+	switch (protocol) {
+	case UAC_VERSION_1:
+		return &desc->baSourceID[desc->bNrInPins + 4];
+	case UAC_VERSION_2:
+		return &desc->baSourceID[desc->bNrInPins + 6];
+	case UAC_VERSION_3:
+		return &desc->baSourceID[desc->bNrInPins + 2];
+	default:
+		return NULL;
+	}
+}
+
+static inline __u16 uac3_mixer_unit_wClusterDescrID(struct uac_mixer_unit_descriptor *desc)
+{
+	return (desc->baSourceID[desc->bNrInPins + 1] << 8) |
+		desc->baSourceID[desc->bNrInPins];
 }
 
 static inline __u8 uac_mixer_unit_iMixer(struct uac_mixer_unit_descriptor *desc)
@@ -333,7 +356,7 @@ struct uac_processing_unit_descriptor {
 	__u8 bDescriptorType;
 	__u8 bDescriptorSubtype;
 	__u8 bUnitID;
-	__u16 wProcessType;
+	__le16 wProcessType;
 	__u8 bNrInPins;
 	__u8 baSourceID[];
 } __attribute__ ((packed));
@@ -367,33 +390,101 @@ static inline __u8 uac_processing_unit_iChannelNames(struct uac_processing_unit_
 static inline __u8 uac_processing_unit_bControlSize(struct uac_processing_unit_descriptor *desc,
 						    int protocol)
 {
-	return (protocol == UAC_VERSION_1) ?
-		desc->baSourceID[desc->bNrInPins + 4] :
-		desc->baSourceID[desc->bNrInPins + 6];
+	switch (protocol) {
+	case UAC_VERSION_1:
+		return desc->baSourceID[desc->bNrInPins + 4];
+	case UAC_VERSION_2:
+		return 2; /* in UAC2, this value is constant */
+	case UAC_VERSION_3:
+		return 4; /* in UAC3, this value is constant */
+	default:
+		return 1;
+	}
 }
 
 static inline __u8 *uac_processing_unit_bmControls(struct uac_processing_unit_descriptor *desc,
 						   int protocol)
 {
-	return (protocol == UAC_VERSION_1) ?
-		&desc->baSourceID[desc->bNrInPins + 5] :
-		&desc->baSourceID[desc->bNrInPins + 7];
+	switch (protocol) {
+	case UAC_VERSION_1:
+		return &desc->baSourceID[desc->bNrInPins + 5];
+	case UAC_VERSION_2:
+		return &desc->baSourceID[desc->bNrInPins + 6];
+	case UAC_VERSION_3:
+		return &desc->baSourceID[desc->bNrInPins + 2];
+	default:
+		return NULL;
+	}
 }
 
 static inline __u8 uac_processing_unit_iProcessing(struct uac_processing_unit_descriptor *desc,
 						   int protocol)
 {
 	__u8 control_size = uac_processing_unit_bControlSize(desc, protocol);
-	return *(uac_processing_unit_bmControls(desc, protocol)
-			+ control_size);
+
+	switch (protocol) {
+	case UAC_VERSION_1:
+	case UAC_VERSION_2:
+	default:
+		return *(uac_processing_unit_bmControls(desc, protocol)
+			 + control_size);
+	case UAC_VERSION_3:
+		return 0; /* UAC3 does not have this field */
+	}
 }
 
 static inline __u8 *uac_processing_unit_specific(struct uac_processing_unit_descriptor *desc,
 						 int protocol)
 {
 	__u8 control_size = uac_processing_unit_bControlSize(desc, protocol);
-	return uac_processing_unit_bmControls(desc, protocol)
+
+	switch (protocol) {
+	case UAC_VERSION_1:
+	case UAC_VERSION_2:
+	default:
+		return uac_processing_unit_bmControls(desc, protocol)
 			+ control_size + 1;
+	case UAC_VERSION_3:
+		return uac_processing_unit_bmControls(desc, protocol)
+			+ control_size;
+	}
+}
+
+/*
+ * Extension Unit (XU) has almost compatible layout with Processing Unit, but
+ * on UAC2, it has a different bmControls size (bControlSize); it's 1 byte for
+ * XU while 2 bytes for PU.  The last iExtension field is a one-byte index as
+ * well as iProcessing field of PU.
+ */
+static inline __u8 uac_extension_unit_bControlSize(struct uac_processing_unit_descriptor *desc,
+						   int protocol)
+{
+	switch (protocol) {
+	case UAC_VERSION_1:
+		return desc->baSourceID[desc->bNrInPins + 4];
+	case UAC_VERSION_2:
+		return 1; /* in UAC2, this value is constant */
+	case UAC_VERSION_3:
+		return 4; /* in UAC3, this value is constant */
+	default:
+		return 1;
+	}
+}
+
+static inline __u8 uac_extension_unit_iExtension(struct uac_processing_unit_descriptor *desc,
+						 int protocol)
+{
+	__u8 control_size = uac_extension_unit_bControlSize(desc, protocol);
+
+	switch (protocol) {
+	case UAC_VERSION_1:
+	case UAC_VERSION_2:
+	default:
+		return *(uac_processing_unit_bmControls(desc, protocol)
+			 + control_size);
+	case UAC_VERSION_3:
+		return 0; /* UAC3 does not have this field */
+	}
 }
 
 /* 4.5.2 Class-Specific AS Interface Descriptor */
@@ -491,8 +582,8 @@ struct uac_format_type_ii_ext_descriptor {
 	__u8 bDescriptorType;
 	__u8 bDescriptorSubtype;
 	__u8 bFormatType;
-	__u16 wMaxBitRate;
-	__u16 wSamplesPerFrame;
+	__le16 wMaxBitRate;
+	__le16 wSamplesPerFrame;
 	__u8 bHeaderLength;
 	__u8 bSideBandProtocol;
 } __attribute__((packed));

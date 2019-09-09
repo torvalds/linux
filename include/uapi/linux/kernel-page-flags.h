@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _UAPILINUX_KERNEL_PAGE_FLAGS_H
 #define _UAPILINUX_KERNEL_PAGE_FLAGS_H
 
@@ -31,9 +32,9 @@
 
 #define KPF_KSM			21
 #define KPF_THP			22
-#define KPF_BALLOON		23
+#define KPF_OFFLINE		23
 #define KPF_ZERO_PAGE		24
 #define KPF_IDLE		25
-
+#define KPF_PGTABLE		26
 
 #endif /* _UAPILINUX_KERNEL_PAGE_FLAGS_H */

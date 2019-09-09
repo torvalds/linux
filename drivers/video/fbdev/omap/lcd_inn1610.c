@@ -1,22 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * LCD panel support for the TI OMAP1610 Innovator board
  *
  * Copyright (C) 2004 Nokia Corporation
  * Author: Imre Deak <imre.deak@nokia.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 
 #include <linux/module.h>
@@ -69,12 +56,7 @@ static void innovator1610_panel_disable(struct lcd_panel *panel)
 	gpio_set_value(15, 0);
 }
 
-static unsigned long innovator1610_panel_get_caps(struct lcd_panel *panel)
-{
-	return 0;
-}
-
-struct lcd_panel innovator1610_panel = {
+static struct lcd_panel innovator1610_panel = {
 	.name		= "inn1610",
 	.config		= OMAP_LCDC_PANEL_TFT,
 
@@ -95,7 +77,6 @@ struct lcd_panel innovator1610_panel = {
 	.cleanup	= innovator1610_panel_cleanup,
 	.enable		= innovator1610_panel_enable,
 	.disable	= innovator1610_panel_disable,
-	.get_caps	= innovator1610_panel_get_caps,
 };
 
 static int innovator1610_panel_probe(struct platform_device *pdev)
@@ -104,30 +85,15 @@ static int innovator1610_panel_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int innovator1610_panel_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
-static int innovator1610_panel_suspend(struct platform_device *pdev,
-				       pm_message_t mesg)
-{
-	return 0;
-}
-
-static int innovator1610_panel_resume(struct platform_device *pdev)
-{
-	return 0;
-}
-
 static struct platform_driver innovator1610_panel_driver = {
 	.probe		= innovator1610_panel_probe,
-	.remove		= innovator1610_panel_remove,
-	.suspend	= innovator1610_panel_suspend,
-	.resume		= innovator1610_panel_resume,
 	.driver		= {
 		.name	= "lcd_inn1610",
 	},
 };
 
 module_platform_driver(innovator1610_panel_driver);
+
+MODULE_AUTHOR("Imre Deak");
+MODULE_DESCRIPTION("LCD panel support for the TI OMAP1610 Innovator board");
+MODULE_LICENSE("GPL");

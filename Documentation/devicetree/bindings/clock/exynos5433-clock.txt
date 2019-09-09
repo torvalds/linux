@@ -50,6 +50,8 @@ Required Properties:
     IPs.
   - "samsung,exynos5433-cmu-cam1" - clock controller compatible for CMU_CAM1
     which generates clocks for Cortex-A5/MIPI_CSIS2/FIMC-LITE_C/FIMC-FD IPs.
+  - "samsung,exynos5433-cmu-imem"   - clock controller compatible for CMU_IMEM
+    which generates clocks for SSS (Security SubSystem) and SlimSSS IPs.
 
 - reg: physical base address of the controller and length of memory mapped
   region.
@@ -79,7 +81,7 @@ Required Properties:
 	Input clocks for fsys clock controller:
 		- oscclk
 		- sclk_ufs_mphy
-		- div_aclk_fsys_200
+		- aclk_fsys_200
 		- sclk_pcie_100_fsys
 		- sclk_ufsunipro_fsys
 		- sclk_mmc2_fsys
@@ -103,6 +105,10 @@ Required Properties:
 		- sclk_decon_eclk_disp
 		- sclk_decon_tv_vclk_disp
 		- aclk_disp_333
+
+	Input clocks for audio clock controller:
+		- oscclk
+		- fout_aud_pll
 
 	Input clocks for bus0 clock controller:
 		- aclk_bus0_400
@@ -163,6 +169,17 @@ Required Properties:
 		- aclk_cam1_333
 		- aclk_cam1_400
 		- aclk_cam1_552
+
+	Input clocks for imem clock controller:
+		- oscclk
+		- aclk_imem_sssx_266
+		- aclk_imem_266
+		- aclk_imem_200
+
+Optional properties:
+  - power-domains: a phandle to respective power domain node as described by
+	generic PM domain bindings (see power/power_domain.txt for more
+	information).
 
 Each clock is assigned an identifier and client nodes can use this identifier
 to specify the clock which they consume.
@@ -235,7 +252,7 @@ Example 2: Examples of clock controller nodes are listed below.
 
 		clock-names = "oscclk",
 			"sclk_ufs_mphy",
-			"div_aclk_fsys_200",
+			"aclk_fsys_200",
 			"sclk_pcie_100_fsys",
 			"sclk_ufsunipro_fsys",
 			"sclk_mmc2_fsys",
@@ -245,7 +262,7 @@ Example 2: Examples of clock controller nodes are listed below.
 			"sclk_usbdrd30_fsys";
 		clocks = <&xxti>,
 		       <&cmu_cpif CLK_SCLK_UFS_MPHY>,
-		       <&cmu_top CLK_DIV_ACLK_FSYS_200>,
+		       <&cmu_top CLK_ACLK_FSYS_200>,
 		       <&cmu_top CLK_SCLK_PCIE_100_FSYS>,
 		       <&cmu_top CLK_SCLK_UFSUNIPRO_FSYS>,
 		       <&cmu_top CLK_SCLK_MMC2_FSYS>,
@@ -266,6 +283,7 @@ Example 2: Examples of clock controller nodes are listed below.
 		clocks = <&xxti>,
 		       <&cmu_top CLK_ACLK_G2D_266>,
 		       <&cmu_top CLK_ACLK_G2D_400>;
+		power-domains = <&pd_g2d>;
 	};
 
 	cmu_disp: clock-controller@13b90000 {
@@ -291,12 +309,17 @@ Example 2: Examples of clock controller nodes are listed below.
 		       <&cmu_mif CLK_SCLK_DECON_ECLK_DISP>,
 		       <&cmu_mif CLK_SCLK_DECON_TV_VCLK_DISP>,
 		       <&cmu_mif CLK_ACLK_DISP_333>;
+		power-domains = <&pd_disp>;
 	};
 
 	cmu_aud: clock-controller@114c0000 {
 		compatible = "samsung,exynos5433-cmu-aud";
 		reg = <0x114c0000 0x0b04>;
 		#clock-cells = <1>;
+
+		clock-names = "oscclk", "fout_aud_pll";
+		clocks = <&xxti>, <&cmu_top CLK_FOUT_AUD_PLL>;
+		power-domains = <&pd_aud>;
 	};
 
 	cmu_bus0: clock-controller@13600000 {
@@ -333,6 +356,7 @@ Example 2: Examples of clock controller nodes are listed below.
 
 		clock-names = "oscclk", "aclk_g3d_400";
 		clocks = <&xxti>, <&cmu_top CLK_ACLK_G3D_400>;
+		power-domains = <&pd_g3d>;
 	};
 
 	cmu_gscl: clock-controller@13cf0000 {
@@ -346,6 +370,7 @@ Example 2: Examples of clock controller nodes are listed below.
 		clocks = <&xxti>,
 			<&cmu_top CLK_ACLK_GSCL_111>,
 			<&cmu_top CLK_ACLK_GSCL_333>;
+		power-domains = <&pd_gscl>;
 	};
 
 	cmu_apollo: clock-controller@11900000 {
@@ -377,6 +402,7 @@ Example 2: Examples of clock controller nodes are listed below.
 		clocks = <&xxti>,
 		       <&cmu_top CLK_SCLK_JPEG_MSCL>,
 		       <&cmu_top CLK_ACLK_MSCL_400>;
+		power-domains = <&pd_mscl>;
 	};
 
 	cmu_mfc: clock-controller@15280000 {
@@ -386,6 +412,7 @@ Example 2: Examples of clock controller nodes are listed below.
 
 		clock-names = "oscclk", "aclk_mfc_400";
 		clocks = <&xxti>, <&cmu_top CLK_ACLK_MFC_400>;
+		power-domains = <&pd_mfc>;
 	};
 
 	cmu_hevc: clock-controller@14f80000 {
@@ -395,6 +422,7 @@ Example 2: Examples of clock controller nodes are listed below.
 
 		clock-names = "oscclk", "aclk_hevc_400";
 		clocks = <&xxti>, <&cmu_top CLK_ACLK_HEVC_400>;
+		power-domains = <&pd_hevc>;
 	};
 
 	cmu_isp: clock-controller@146d0000 {
@@ -408,6 +436,7 @@ Example 2: Examples of clock controller nodes are listed below.
 		clocks = <&xxti>,
 		       <&cmu_top CLK_ACLK_ISP_DIS_400>,
 		       <&cmu_top CLK_ACLK_ISP_400>;
+		power-domains = <&pd_isp>;
 	};
 
 	cmu_cam0: clock-controller@120d0000 {
@@ -423,6 +452,7 @@ Example 2: Examples of clock controller nodes are listed below.
 		       <&cmu_top CLK_ACLK_CAM0_333>,
 		       <&cmu_top CLK_ACLK_CAM0_400>,
 		       <&cmu_top CLK_ACLK_CAM0_552>;
+		power-domains = <&pd_cam0>;
 	};
 
 	cmu_cam1: clock-controller@145d0000 {
@@ -444,12 +474,28 @@ Example 2: Examples of clock controller nodes are listed below.
 		       <&cmu_top CLK_ACLK_CAM1_333>,
 		       <&cmu_top CLK_ACLK_CAM1_400>,
 		       <&cmu_top CLK_ACLK_CAM1_552>;
+		power-domains = <&pd_cam1>;
+	};
+
+	cmu_imem: clock-controller@11060000 {
+		compatible = "samsung,exynos5433-cmu-imem";
+		reg = <0x11060000 0x1000>;
+		#clock-cells = <1>;
+
+		clock-names = "oscclk",
+			"aclk_imem_sssx_266",
+			"aclk_imem_266",
+			"aclk_imem_200";
+		clocks = <&xxti>,
+			<&cmu_top CLK_DIV_ACLK_IMEM_SSSX_266>,
+			<&cmu_top CLK_DIV_ACLK_IMEM_266>,
+			<&cmu_top CLK_DIV_ACLK_IMEM_200>;
 	};
 
 Example 3: UART controller node that consumes the clock generated by the clock
 	   controller.
 
-	serial_0: serial@14C10000 {
+	serial_0: serial@14c10000 {
 		compatible = "samsung,exynos5433-uart";
 		reg = <0x14C10000 0x100>;
 		interrupts = <0 421 0>;
@@ -458,5 +504,4 @@ Example 3: UART controller node that consumes the clock generated by the clock
 		clock-names = "uart", "clk_uart_baud0";
 		pinctrl-names = "default";
 		pinctrl-0 = <&uart0_bus>;
-		status = "disabled";
 	};

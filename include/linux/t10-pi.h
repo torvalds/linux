@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _LINUX_T10_PI_H
 #define _LINUX_T10_PI_H
 
@@ -33,10 +34,37 @@ struct t10_pi_tuple {
 	__be32 ref_tag;		/* Target LBA or indirect LBA */
 };
 
+#define T10_PI_APP_ESCAPE cpu_to_be16(0xffff)
+#define T10_PI_REF_ESCAPE cpu_to_be32(0xffffffff)
 
-extern struct blk_integrity_profile t10_pi_type1_crc;
-extern struct blk_integrity_profile t10_pi_type1_ip;
-extern struct blk_integrity_profile t10_pi_type3_crc;
-extern struct blk_integrity_profile t10_pi_type3_ip;
+static inline u32 t10_pi_ref_tag(struct request *rq)
+{
+	unsigned int shift = ilog2(queue_logical_block_size(rq->q));
+
+#ifdef CONFIG_BLK_DEV_INTEGRITY
+	if (rq->q->integrity.interval_exp)
+		shift = rq->q->integrity.interval_exp;
+#endif
+	return blk_rq_pos(rq) >> (shift - SECTOR_SHIFT) & 0xffffffff;
+}
+
+extern const struct blk_integrity_profile t10_pi_type1_crc;
+extern const struct blk_integrity_profile t10_pi_type1_ip;
+extern const struct blk_integrity_profile t10_pi_type3_crc;
+extern const struct blk_integrity_profile t10_pi_type3_ip;
+
+#ifdef CONFIG_BLK_DEV_INTEGRITY
+extern void t10_pi_prepare(struct request *rq, u8 protection_type);
+extern void t10_pi_complete(struct request *rq, u8 protection_type,
+			    unsigned int intervals);
+#else
+static inline void t10_pi_complete(struct request *rq, u8 protection_type,
+				   unsigned int intervals)
+{
+}
+static inline void t10_pi_prepare(struct request *rq, u8 protection_type)
+{
+}
+#endif
 
 #endif

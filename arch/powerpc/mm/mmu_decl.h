@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Declarations of procedures and variables shared between files
  * in arch/ppc/mm/.
@@ -11,34 +12,30 @@
  *
  *  Derived from "arch/i386/mm/init.c"
  *    Copyright (C) 1991, 1992, 1993, 1994  Linus Torvalds
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version
- *  2 of the License, or (at your option) any later version.
- *
  */
 #include <linux/mm.h>
-#include <asm/tlbflush.h>
 #include <asm/mmu.h>
 
 #ifdef CONFIG_PPC_MMU_NOHASH
+#include <asm/trace.h>
 
 /*
  * On 40x and 8xx, we directly inline tlbia and tlbivax
  */
-#if defined(CONFIG_40x) || defined(CONFIG_8xx)
+#if defined(CONFIG_40x) || defined(CONFIG_PPC_8xx)
 static inline void _tlbil_all(void)
 {
 	asm volatile ("sync; tlbia; isync" : : : "memory");
+	trace_tlbia(MMU_NO_CONTEXT);
 }
 static inline void _tlbil_pid(unsigned int pid)
 {
 	asm volatile ("sync; tlbia; isync" : : : "memory");
+	trace_tlbia(pid);
 }
 #define _tlbil_pid_noind(pid)	_tlbil_pid(pid)
 
-#else /* CONFIG_40x || CONFIG_8xx */
+#else /* CONFIG_40x || CONFIG_PPC_8xx */
 extern void _tlbil_all(void);
 extern void _tlbil_pid(unsigned int pid);
 #ifdef CONFIG_PPC_BOOK3E
@@ -46,16 +43,17 @@ extern void _tlbil_pid_noind(unsigned int pid);
 #else
 #define _tlbil_pid_noind(pid)	_tlbil_pid(pid)
 #endif
-#endif /* !(CONFIG_40x || CONFIG_8xx) */
+#endif /* !(CONFIG_40x || CONFIG_PPC_8xx) */
 
 /*
  * On 8xx, we directly inline tlbie, on others, it's extern
  */
-#ifdef CONFIG_8xx
+#ifdef CONFIG_PPC_8xx
 static inline void _tlbil_va(unsigned long address, unsigned int pid,
 			     unsigned int tsize, unsigned int ind)
 {
 	asm volatile ("tlbie %0; sync" : : "r" (address) : "memory");
+	trace_tlbie(0, 0, address, pid, 0, 0, 0);
 }
 #elif defined(CONFIG_PPC_BOOK3E)
 extern void _tlbil_va(unsigned long address, unsigned int pid,
@@ -67,7 +65,7 @@ static inline void _tlbil_va(unsigned long address, unsigned int pid,
 {
 	__tlbil_va(address, pid);
 }
-#endif /* CONFIG_8xx */
+#endif /* CONFIG_PPC_8xx */
 
 #if defined(CONFIG_PPC_BOOK3E) || defined(CONFIG_PPC_47x)
 extern void _tlbivax_bcast(unsigned long address, unsigned int pid,
@@ -80,31 +78,33 @@ static inline void _tlbivax_bcast(unsigned long address, unsigned int pid,
 }
 #endif
 
+static inline void print_system_hash_info(void) {}
+
 #else /* CONFIG_PPC_MMU_NOHASH */
 
 extern void hash_preload(struct mm_struct *mm, unsigned long ea,
-			 unsigned long access, unsigned long trap);
+			 bool is_exec, unsigned long trap);
 
 
 extern void _tlbie(unsigned long address);
 extern void _tlbia(void);
+
+void print_system_hash_info(void);
 
 #endif /* CONFIG_PPC_MMU_NOHASH */
 
 #ifdef CONFIG_PPC32
 
 extern void mapin_ram(void);
-extern int map_page(unsigned long va, phys_addr_t pa, int flags);
 extern void setbat(int index, unsigned long virt, phys_addr_t phys,
 		   unsigned int size, pgprot_t prot);
 
 extern int __map_without_bats;
-extern int __allow_ioremap_reserved;
 extern unsigned int rtas_data, rtas_size;
 
 struct hash_pte;
-extern struct hash_pte *Hash, *Hash_end;
-extern unsigned long Hash_size, Hash_mask;
+extern struct hash_pte *Hash;
+extern u8 early_hash[];
 
 #endif /* CONFIG_PPC32 */
 
@@ -129,7 +129,8 @@ extern void wii_memory_fixups(void);
  */
 #ifdef CONFIG_PPC32
 extern void MMU_init_hw(void);
-extern unsigned long mmu_mapin_ram(unsigned long top);
+void MMU_init_hw_patch(void);
+unsigned long mmu_mapin_ram(unsigned long base, unsigned long top);
 #endif
 
 #ifdef CONFIG_PPC_FSL_BOOK3E
@@ -154,7 +155,7 @@ struct tlbcam {
 };
 #endif
 
-#if defined(CONFIG_6xx) || defined(CONFIG_FSL_BOOKE) || defined(CONFIG_PPC_8xx)
+#if defined(CONFIG_PPC_BOOK3S_32) || defined(CONFIG_FSL_BOOKE) || defined(CONFIG_PPC_8xx)
 /* 6xx have BATS */
 /* FSL_BOOKE have TLBCAM */
 /* 8xx have LTLB */
@@ -163,4 +164,12 @@ unsigned long p_block_mapped(phys_addr_t pa);
 #else
 static inline phys_addr_t v_block_mapped(unsigned long va) { return 0; }
 static inline unsigned long p_block_mapped(phys_addr_t pa) { return 0; }
+#endif
+
+#if defined(CONFIG_PPC_BOOK3S_32) || defined(CONFIG_PPC_8xx)
+void mmu_mark_initmem_nx(void);
+void mmu_mark_rodata_ro(void);
+#else
+static inline void mmu_mark_initmem_nx(void) { }
+static inline void mmu_mark_rodata_ro(void) { }
 #endif

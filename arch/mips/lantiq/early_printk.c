@@ -1,13 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- *  This program is free software; you can redistribute it and/or modify it
- *  under the terms of the GNU General Public License version 2 as published
- *  by the Free Software Foundation.
  *
  *  Copyright (C) 2010 John Crispin <john@phrozen.org>
  */
 
 #include <linux/cpu.h>
 #include <lantiq_soc.h>
+#include <asm/setup.h>
 
 #define ASC_BUF		1024
 #define LTQ_ASC_FSTAT	((u32 *)(LTQ_EARLY_ASC + 0x0048))

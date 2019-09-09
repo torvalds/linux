@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * include/asm-sh/processor.h
  *
@@ -14,12 +15,6 @@
 #include <asm/page.h>
 #include <asm/types.h>
 #include <asm/hw_breakpoint.h>
-
-/*
- * Default implementation of macro that returns current
- * instruction pointer ("program counter").
- */
-#define current_text_addr() ({ void *pc; __asm__("mova	1f, %0\n.align 2\n1:":"=z" (pc)); pc; })
 
 /* Core Processor Version Register */
 #define CCN_PVR		0xff000030
@@ -135,10 +130,6 @@ extern void start_thread(struct pt_regs *regs, unsigned long new_pc, unsigned lo
 
 /* Free all resources held by a thread. */
 extern void release_thread(struct task_struct *);
-
-/* Copy and release all segment info associated with a VM */
-#define copy_segments(p, mm)	do { } while(0)
-#define release_segments(mm)	do { } while(0)
 
 /*
  * FPU lazy state save handling.

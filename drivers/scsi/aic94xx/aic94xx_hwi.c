@@ -1,27 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Aic94xx SAS/SATA driver hardware interface.
  *
  * Copyright (C) 2005 Adaptec, Inc.  All rights reserved.
  * Copyright (C) 2005 Luben Tuikov <luben_tuikov@adaptec.com>
- *
- * This file is licensed under GPLv2.
- *
- * This file is part of the aic94xx driver.
- *
- * The aic94xx driver is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of the
- * License.
- *
- * The aic94xx driver is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with the aic94xx driver; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
- *
  */
 
 #include <linux/pci.h>
@@ -220,16 +202,20 @@ static int asd_init_scbs(struct asd_ha_struct *asd_ha)
 
 	/* allocate the index array and bitmap */
 	asd_ha->seq.tc_index_bitmap_bits = asd_ha->hw_prof.max_scbs;
-	asd_ha->seq.tc_index_array = kzalloc(asd_ha->seq.tc_index_bitmap_bits*
-					     sizeof(void *), GFP_KERNEL);
+	asd_ha->seq.tc_index_array = kcalloc(asd_ha->seq.tc_index_bitmap_bits,
+					     sizeof(void *),
+					     GFP_KERNEL);
 	if (!asd_ha->seq.tc_index_array)
 		return -ENOMEM;
 
 	bitmap_bytes = (asd_ha->seq.tc_index_bitmap_bits+7)/8;
 	bitmap_bytes = BITS_TO_LONGS(bitmap_bytes*8)*sizeof(unsigned long);
 	asd_ha->seq.tc_index_bitmap = kzalloc(bitmap_bytes, GFP_KERNEL);
-	if (!asd_ha->seq.tc_index_bitmap)
+	if (!asd_ha->seq.tc_index_bitmap) {
+		kfree(asd_ha->seq.tc_index_array);
+		asd_ha->seq.tc_index_array = NULL;
 		return -ENOMEM;
+	}
 
 	spin_lock_init(&seq->tc_index_lock);
 
@@ -288,7 +274,8 @@ static int asd_alloc_edbs(struct asd_ha_struct *asd_ha, gfp_t gfp_flags)
 	struct asd_seq_data *seq = &asd_ha->seq;
 	int i;
 
-	seq->edb_arr = kmalloc(seq->num_edbs*sizeof(*seq->edb_arr), gfp_flags);
+	seq->edb_arr = kmalloc_array(seq->num_edbs, sizeof(*seq->edb_arr),
+				     gfp_flags);
 	if (!seq->edb_arr)
 		return -ENOMEM;
 
@@ -320,8 +307,8 @@ static int asd_alloc_escbs(struct asd_ha_struct *asd_ha,
 	struct asd_ascb *escb;
 	int i, escbs;
 
-	seq->escb_arr = kmalloc(seq->num_escbs*sizeof(*seq->escb_arr),
-				gfp_flags);
+	seq->escb_arr = kmalloc_array(seq->num_escbs, sizeof(*seq->escb_arr),
+				      gfp_flags);
 	if (!seq->escb_arr)
 		return -ENOMEM;
 
@@ -718,11 +705,8 @@ Out:
  */
 static void asd_chip_reset(struct asd_ha_struct *asd_ha)
 {
-	struct sas_ha_struct *sas_ha = &asd_ha->sas_ha;
-
 	ASD_DPRINTK("chip reset for %s\n", pci_name(asd_ha->pcidev));
 	asd_chip_hardrst(asd_ha);
-	sas_ha->notify_ha_event(sas_ha, HAE_RESET);
 }
 
 /* ---------- Done List Routines ---------- */
@@ -1055,14 +1039,13 @@ static struct asd_ascb *asd_ascb_alloc(struct asd_ha_struct *asd_ha,
 
 	if (ascb) {
 		ascb->dma_scb.size = sizeof(struct scb);
-		ascb->dma_scb.vaddr = dma_pool_alloc(asd_ha->scb_pool,
+		ascb->dma_scb.vaddr = dma_pool_zalloc(asd_ha->scb_pool,
 						     gfp_flags,
 						    &ascb->dma_scb.dma_handle);
 		if (!ascb->dma_scb.vaddr) {
 			kmem_cache_free(asd_ascb_cache, ascb);
 			return NULL;
 		}
-		memset(ascb->dma_scb.vaddr, 0, sizeof(struct scb));
 		asd_init_ascb(asd_ha, ascb);
 
 		spin_lock_irqsave(&seq->tc_index_lock, flags);
@@ -1175,7 +1158,6 @@ static void asd_start_scb_timers(struct list_head *list)
 	struct asd_ascb *ascb;
 	list_for_each_entry(ascb, list, list) {
 		if (!ascb->uldd_timer) {
-			ascb->timer.data = (unsigned long) ascb;
 			ascb->timer.function = asd_ascb_timedout;
 			ascb->timer.expires = jiffies + AIC94XX_SCB_TIMEOUT;
 			add_timer(&ascb->timer);

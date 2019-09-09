@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * File: socket.c
  *
@@ -7,26 +8,14 @@
  *
  * Authors: Sakari Ailus <sakari.ailus@nokia.com>
  *          Rémi Denis-Courmont
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
  */
 
 #include <linux/gfp.h>
 #include <linux/kernel.h>
 #include <linux/net.h>
 #include <linux/poll.h>
+#include <linux/sched/signal.h>
+
 #include <net/sock.h>
 #include <net/tcp_states.h>
 
@@ -303,7 +292,7 @@ out:
 }
 
 static int pn_socket_accept(struct socket *sock, struct socket *newsock,
-				int flags)
+			    int flags, bool kern)
 {
 	struct sock *sk = sock->sk;
 	struct sock *newsk;
@@ -312,7 +301,7 @@ static int pn_socket_accept(struct socket *sock, struct socket *newsock,
 	if (unlikely(sk->sk_state != TCP_LISTEN))
 		return -EINVAL;
 
-	newsk = sk->sk_prot->accept(sk, flags, &err);
+	newsk = sk->sk_prot->accept(sk, flags, &err, kern);
 	if (!newsk)
 		return err;
 
@@ -324,7 +313,7 @@ static int pn_socket_accept(struct socket *sock, struct socket *newsock,
 }
 
 static int pn_socket_getname(struct socket *sock, struct sockaddr *addr,
-				int *sockaddr_len, int peer)
+				int peer)
 {
 	struct sock *sk = sock->sk;
 	struct pn_sock *pn = pn_sk(sk);
@@ -335,32 +324,31 @@ static int pn_socket_getname(struct socket *sock, struct sockaddr *addr,
 		pn_sockaddr_set_object((struct sockaddr_pn *)addr,
 					pn->sobject);
 
-	*sockaddr_len = sizeof(struct sockaddr_pn);
-	return 0;
+	return sizeof(struct sockaddr_pn);
 }
 
-static unsigned int pn_socket_poll(struct file *file, struct socket *sock,
+static __poll_t pn_socket_poll(struct file *file, struct socket *sock,
 					poll_table *wait)
 {
 	struct sock *sk = sock->sk;
 	struct pep_sock *pn = pep_sk(sk);
-	unsigned int mask = 0;
+	__poll_t mask = 0;
 
 	poll_wait(file, sk_sleep(sk), wait);
 
 	if (sk->sk_state == TCP_CLOSE)
-		return POLLERR;
+		return EPOLLERR;
 	if (!skb_queue_empty(&sk->sk_receive_queue))
-		mask |= POLLIN | POLLRDNORM;
+		mask |= EPOLLIN | EPOLLRDNORM;
 	if (!skb_queue_empty(&pn->ctrlreq_queue))
-		mask |= POLLPRI;
+		mask |= EPOLLPRI;
 	if (!mask && sk->sk_state == TCP_CLOSE_WAIT)
-		return POLLHUP;
+		return EPOLLHUP;
 
 	if (sk->sk_state == TCP_ESTABLISHED &&
-		atomic_read(&sk->sk_wmem_alloc) < sk->sk_sndbuf &&
+		refcount_read(&sk->sk_wmem_alloc) < sk->sk_sndbuf &&
 		atomic_read(&pn->tx_credits))
-		mask |= POLLOUT | POLLWRNORM | POLLWRBAND;
+		mask |= EPOLLOUT | EPOLLWRNORM | EPOLLWRBAND;
 
 	return mask;
 }
@@ -606,38 +594,24 @@ static int pn_sock_seq_show(struct seq_file *seq, void *v)
 		struct pn_sock *pn = pn_sk(sk);
 
 		seq_printf(seq, "%2d %04X:%04X:%02X %02X %08X:%08X %5d %lu "
-			"%d %pK %d",
+			"%d %pK %u",
 			sk->sk_protocol, pn->sobject, pn->dobject,
 			pn->resource, sk->sk_state,
 			sk_wmem_alloc_get(sk), sk_rmem_alloc_get(sk),
 			from_kuid_munged(seq_user_ns(seq), sock_i_uid(sk)),
 			sock_i_ino(sk),
-			atomic_read(&sk->sk_refcnt), sk,
+			refcount_read(&sk->sk_refcnt), sk,
 			atomic_read(&sk->sk_drops));
 	}
 	seq_pad(seq, '\n');
 	return 0;
 }
 
-static const struct seq_operations pn_sock_seq_ops = {
+const struct seq_operations pn_sock_seq_ops = {
 	.start = pn_sock_seq_start,
 	.next = pn_sock_seq_next,
 	.stop = pn_sock_seq_stop,
 	.show = pn_sock_seq_show,
-};
-
-static int pn_sock_open(struct inode *inode, struct file *file)
-{
-	return seq_open_net(inode, file, &pn_sock_seq_ops,
-				sizeof(struct seq_net_private));
-}
-
-const struct file_operations pn_sock_seq_fops = {
-	.owner = THIS_MODULE,
-	.open = pn_sock_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = seq_release_net,
 };
 #endif
 
@@ -802,24 +776,10 @@ static int pn_res_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static const struct seq_operations pn_res_seq_ops = {
+const struct seq_operations pn_res_seq_ops = {
 	.start = pn_res_seq_start,
 	.next = pn_res_seq_next,
 	.stop = pn_res_seq_stop,
 	.show = pn_res_seq_show,
-};
-
-static int pn_res_open(struct inode *inode, struct file *file)
-{
-	return seq_open_net(inode, file, &pn_res_seq_ops,
-				sizeof(struct seq_net_private));
-}
-
-const struct file_operations pn_res_seq_fops = {
-	.owner = THIS_MODULE,
-	.open = pn_res_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = seq_release_net,
 };
 #endif

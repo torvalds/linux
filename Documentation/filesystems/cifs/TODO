@@ -1,4 +1,4 @@
-Version 2.03 August 1, 2014
+Version 2.14 December 21, 2018
 
 A Partial List of Missing Features
 ==================================
@@ -7,74 +7,86 @@ Contributions are welcome.  There are plenty of opportunities
 for visible, important contributions to this module.  Here
 is a partial list of the known problems and missing features:
 
-a) SMB3 (and SMB3.02) missing optional features:
-   - RDMA
-   - multichannel (started)
-   - directory leases (improved metadata caching)
-   - T10 copy offload (copy chunk is only mechanism supported)
-   - encrypted shares
+a) SMB3 (and SMB3.1.1) missing optional features:
+   - multichannel (started), integration with RDMA
+   - directory leases (improved metadata caching), started (root dir only)
+   - T10 copy offload ie "ODX" (copy chunk, and "Duplicate Extents" ioctl
+     currently the only two server side copy mechanisms supported)
 
-b) improved sparse file support
+b) improved sparse file support (fiemap and SEEK_HOLE are implemented
+but additional features would be supportable by the protocol).
 
 c) Directory entry caching relies on a 1 second timer, rather than
-using FindNotify or equivalent.  - (started)
+using Directory Leases, currently only the root file handle is cached longer
 
 d) quota support (needs minor kernel change since quota calls
 to make it to network filesystems or deviceless filesystems)
 
-e) improve support for very old servers (OS/2 and Win9x for example)
-Including support for changing the time remotely (utimes command).
+e) Additional use cases can be optimized to use "compounding"
+(e.g. open/query/close and open/setinfo/close) to reduce the number
+of roundtrips to the server and improve performance. Various cases
+(stat, statfs, create, unlink, mkdir) already have been improved by
+using compounding but more can be done.  In addition we could significantly
+reduce redundant opens by using deferred close (with handle caching leases)
+and better using reference counters on file handles.
 
-f) hook lower into the sockets api (as NFS/SunRPC does) to avoid the
-extra copy in/out of the socket buffers in some cases.
-
-g) Better optimize open (and pathbased setfilesize) to reduce the
-oplock breaks coming from windows srv.  Piggyback identical file
-opens on top of each other by incrementing reference count rather
-than resending (helps reduce server resource utilization and avoid
-spurious oplock breaks).
-
-h) Add support for storing symlink info to Windows servers
-in the Extended Attribute format their SFU clients would recognize.
-
-i) Finish inotify support so kde and gnome file list windows
+f) Finish inotify support so kde and gnome file list windows
 will autorefresh (partially complete by Asser). Needs minor kernel
 vfs change to support removing D_NOTIFY on a file.   
 
-j) Add GUI tool to configure /proc/fs/cifs settings and for display of
+g) Add GUI tool to configure /proc/fs/cifs settings and for display of
 the CIFS statistics (started)
 
-k) implement support for security and trusted categories of xattrs
+h) implement support for security and trusted categories of xattrs
 (requires minor protocol extension) to enable better support for SELINUX
 
-l) Implement O_DIRECT flag on open (already supported on mount)
+i) Add support for tree connect contexts (see MS-SMB2) a new SMB3.1.1 protocol
+   feature (may be especially useful for virtualization).
 
-m) Create UID mapping facility so server UIDs can be mapped on a per
+j) Create UID mapping facility so server UIDs can be mapped on a per
 mount or a per server basis to client UIDs or nobody if no mapping
-exists.  This is helpful when Unix extensions are negotiated to
-allow better permission checking when UIDs differ on the server
-and client.  Add new protocol request to the CIFS protocol 
-standard for asking the server for the corresponding name of a
-particular uid.
+exists. Also better integration with winbind for resolving SID owners
 
-n) DOS attrs - returned as pseudo-xattr in Samba format (check VFAT and NTFS for this too)
+k) Add tools to take advantage of more smb3 specific ioctls and features
+(passthrough ioctl/fsctl is now implemented in cifs.ko to allow sending
+various SMB3 fsctls and query info and set info calls directly from user space)
+Add tools to make setting various non-POSIX metadata attributes easier
+from tools (e.g. extending what was done in smb-info tool).
 
-o) mount check for unmatched uids
+l) encrypted file support
 
-p) Add support for new vfs entry point for fallocate
+m) improved stats gathering tools (perhaps integration with nfsometer?)
+to extend and make easier to use what is currently in /proc/fs/cifs/Stats
 
-q) Add tools to take advantage of cifs/smb3 specific ioctls and features
-such as "CopyChunk" (fast server side file copy)
+n) Add support for claims based ACLs ("DAC")
 
-r) encrypted file support
+o) mount helper GUI (to simplify the various configuration options on mount)
 
-s) improved stats gathering, tools (perhaps integration with nfsometer?)
+p) Add support for witness protocol (perhaps ioctl to cifs.ko from user space
+   tool listening on witness protocol RPC) to allow for notification of share
+   move, server failover, and server adapter changes.  And also improve other
+   failover scenarios, e.g. when client knows multiple DFS entries point to
+   different servers, and the server we are connected to has gone down.
 
-t) allow setting more NTFS/SMB3 file attributes remotely (currently limited to compressed
-file attribute via chflags)
+q) Allow mount.cifs to be more verbose in reporting errors with dialect
+or unsupported feature errors.
 
-u) mount helper GUI (to simplify the various configuration options on mount)
+r) updating cifs documentation, and user guide.
 
+s) Addressing bugs found by running a broader set of xfstests in standard
+file system xfstest suite.
+
+t) split cifs and smb3 support into separate modules so legacy (and less
+secure) CIFS dialect can be disabled in environments that don't need it
+and simplify the code.
+
+v) POSIX Extensions for SMB3.1.1 (started, create and mkdir support added
+so far).
+
+w) Add support for additional strong encryption types, and additional spnego
+authentication mechanisms (see MS-SMB2)
+
+x) Finish support for SMB3.1.1 compression
 
 KNOWN BUGS
 ====================================
@@ -93,8 +105,8 @@ Misc testing to do
 1) check out max path names and max path name components against various server
 types. Try nested symlinks (8 deep). Return max path name in stat -f information
 
-2) Improve xfstest's cifs enablement and adapt xfstests where needed to test
-cifs better
+2) Improve xfstest's cifs/smb3 enablement and adapt xfstests where needed to test
+cifs/smb3 better
 
 3) Additional performance testing and optimization using iozone and similar - 
 there are some easy changes that can be done to parallelize sequential writes,
@@ -102,3 +114,12 @@ and when signing is disabled to request larger read sizes (larger than
 negotiated size) and send larger write sizes to modern servers.
 
 4) More exhaustively test against less common servers
+
+5) Continue to extend the smb3 "buildbot" which does automated xfstesting
+against Windows, Samba and Azure currently - to add additional tests and
+to allow the buildbot to execute the tests faster. The URL for the
+buildbot is: http://smb3-test-rhel-75.southcentralus.cloudapp.azure.com
+
+6) Address various coverity warnings (most are not bugs per-se, but
+the more warnings are addressed, the easier it is to spot real
+problems that static analyzers will point out in the future).

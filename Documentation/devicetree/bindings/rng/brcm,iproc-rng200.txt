@@ -1,7 +1,10 @@
 HWRNG support for the iproc-rng200 driver
 
 Required properties:
-- compatible : "brcm,iproc-rng200"
+- compatible : Must be one of:
+	       "brcm,bcm7211-rng200"
+	       "brcm,bcm7278-rng200"
+	       "brcm,iproc-rng200"
 - reg : base address and size of control register block
 
 Example:

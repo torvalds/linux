@@ -1,22 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Intel MIC Platform Software Stack (MPSS)
  *
  * Copyright(c) 2013 Intel Corporation.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * The full GNU General Public License is included in this distribution in
- * the file called "COPYING".
- *
  * Intel MIC Host driver.
- *
  */
 #include <linux/debugfs.h>
 #include <linux/pci.h>
@@ -54,23 +42,7 @@ static int mic_smpt_show(struct seq_file *s, void *pos)
 	return 0;
 }
 
-static int mic_smpt_debug_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, mic_smpt_show, inode->i_private);
-}
-
-static int mic_smpt_debug_release(struct inode *inode, struct file *file)
-{
-	return single_release(inode, file);
-}
-
-static const struct file_operations smpt_file_ops = {
-	.owner   = THIS_MODULE,
-	.open    = mic_smpt_debug_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = mic_smpt_debug_release
-};
+DEFINE_SHOW_ATTRIBUTE(mic_smpt);
 
 static int mic_post_code_show(struct seq_file *s, void *pos)
 {
@@ -81,23 +53,7 @@ static int mic_post_code_show(struct seq_file *s, void *pos)
 	return 0;
 }
 
-static int mic_post_code_debug_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, mic_post_code_show, inode->i_private);
-}
-
-static int mic_post_code_debug_release(struct inode *inode, struct file *file)
-{
-	return single_release(inode, file);
-}
-
-static const struct file_operations post_code_ops = {
-	.owner   = THIS_MODULE,
-	.open    = mic_post_code_debug_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = mic_post_code_debug_release
-};
+DEFINE_SHOW_ATTRIBUTE(mic_post_code);
 
 static int mic_msi_irq_info_show(struct seq_file *s, void *pos)
 {
@@ -143,24 +99,7 @@ static int mic_msi_irq_info_show(struct seq_file *s, void *pos)
 	return 0;
 }
 
-static int mic_msi_irq_info_debug_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, mic_msi_irq_info_show, inode->i_private);
-}
-
-static int
-mic_msi_irq_info_debug_release(struct inode *inode, struct file *file)
-{
-	return single_release(inode, file);
-}
-
-static const struct file_operations msi_irq_info_ops = {
-	.owner   = THIS_MODULE,
-	.open    = mic_msi_irq_info_debug_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = mic_msi_irq_info_debug_release
-};
+DEFINE_SHOW_ATTRIBUTE(mic_msi_irq_info);
 
 /**
  * mic_create_debug_dir - Initialize MIC debugfs entries.
@@ -174,16 +113,15 @@ void mic_create_debug_dir(struct mic_device *mdev)
 
 	scnprintf(name, sizeof(name), "mic%d", mdev->id);
 	mdev->dbg_dir = debugfs_create_dir(name, mic_dbg);
-	if (!mdev->dbg_dir)
-		return;
 
-	debugfs_create_file("smpt", 0444, mdev->dbg_dir, mdev, &smpt_file_ops);
+	debugfs_create_file("smpt", 0444, mdev->dbg_dir, mdev,
+			    &mic_smpt_fops);
 
 	debugfs_create_file("post_code", 0444, mdev->dbg_dir, mdev,
-			    &post_code_ops);
+			    &mic_post_code_fops);
 
 	debugfs_create_file("msi_irq_info", 0444, mdev->dbg_dir, mdev,
-			    &msi_irq_info_ops);
+			    &mic_msi_irq_info_fops);
 }
 
 /**
@@ -203,8 +141,6 @@ void mic_delete_debug_dir(struct mic_device *mdev)
 void __init mic_init_debugfs(void)
 {
 	mic_dbg = debugfs_create_dir(KBUILD_MODNAME, NULL);
-	if (!mic_dbg)
-		pr_err("can't create debugfs dir\n");
 }
 
 /**

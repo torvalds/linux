@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2003-2015 Broadcom Corporation
  * All Rights Reserved
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 (GPL v2)
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 #include <linux/acpi.h>
 #include <linux/clk.h>
@@ -393,8 +385,8 @@ static int xlp_spi_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		dev_err(&pdev->dev, "no IRQ resource found\n");
-		return -EINVAL;
+		dev_err(&pdev->dev, "no IRQ resource found: %d\n", irq);
+		return irq;
 	}
 	err = devm_request_irq(&pdev->dev, irq, xlp_spi_interrupt, 0,
 			pdev->name, xspi);
@@ -442,6 +434,7 @@ static int xlp_spi_probe(struct platform_device *pdev)
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id xlp_spi_acpi_match[] = {
 	{ "BRCM900D", 0 },
+	{ "CAV900D",  0 },
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, xlp_spi_acpi_match);
@@ -451,6 +444,7 @@ static const struct of_device_id xlp_spi_dt_id[] = {
 	{ .compatible = "netlogic,xlp832-spi" },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, xlp_spi_dt_id);
 
 static struct platform_driver xlp_spi_driver = {
 	.probe	= xlp_spi_probe,

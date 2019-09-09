@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Marvell MMC/SD/SDIO driver
  *
  * Authors: Maen Suleiman, Nicolas Pitre
  * Copyright (C) 2008-2009 Marvell Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -24,7 +21,7 @@
 #include <linux/mmc/host.h>
 #include <linux/mmc/slot-gpio.h>
 
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 #include <asm/unaligned.h>
 
 #include "mvsdio.h"
@@ -125,10 +122,10 @@ static int mvsd_setup_data(struct mvsd_host *host, struct mmc_data *data)
 		return 1;
 	} else {
 		dma_addr_t phys_addr;
-		int dma_dir = (data->flags & MMC_DATA_READ) ?
-			DMA_FROM_DEVICE : DMA_TO_DEVICE;
-		host->sg_frags = dma_map_sg(mmc_dev(host->mmc), data->sg,
-					    data->sg_len, dma_dir);
+
+		host->sg_frags = dma_map_sg(mmc_dev(host->mmc),
+					    data->sg, data->sg_len,
+					    mmc_get_dma_dir(data));
 		phys_addr = sg_dma_address(data->sg);
 		mvsd_write(MVSD_SYS_ADDR_LOW, (u32)phys_addr & 0xffff);
 		mvsd_write(MVSD_SYS_ADDR_HI,  (u32)phys_addr >> 16);
@@ -143,6 +140,7 @@ static void mvsd_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	struct mmc_command *cmd = mrq->cmd;
 	u32 cmdreg = 0, xfer = 0, intr = 0;
 	unsigned long flags;
+	unsigned int timeout;
 
 	BUG_ON(host->mrq != NULL);
 	host->mrq = mrq;
@@ -234,7 +232,8 @@ static void mvsd_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	mvsd_write(MVSD_NOR_INTR_EN, host->intr_en);
 	mvsd_write(MVSD_ERR_INTR_EN, 0xffff);
 
-	mod_timer(&host->timer, jiffies + 5 * HZ);
+	timeout = cmd->busy_timeout ? cmd->busy_timeout : 5000;
+	mod_timer(&host->timer, jiffies + msecs_to_jiffies(timeout));
 
 	spin_unlock_irqrestore(&host->lock, flags);
 }
@@ -294,8 +293,7 @@ static u32 mvsd_finish_data(struct mvsd_host *host, struct mmc_data *data,
 		host->pio_size = 0;
 	} else {
 		dma_unmap_sg(mmc_dev(host->mmc), data->sg, host->sg_frags,
-			     (data->flags & MMC_DATA_READ) ?
-				DMA_FROM_DEVICE : DMA_TO_DEVICE);
+			     mmc_get_dma_dir(data));
 	}
 
 	if (err_status & MVSD_ERR_DATA_TIMEOUT)
@@ -509,9 +507,9 @@ static irqreturn_t mvsd_irq(int irq, void *dev)
 	return IRQ_NONE;
 }
 
-static void mvsd_timeout_timer(unsigned long data)
+static void mvsd_timeout_timer(struct timer_list *t)
 {
-	struct mvsd_host *host = (struct mvsd_host *)data;
+	struct mvsd_host *host = from_timer(host, t, timer);
 	void __iomem *iobase = host->base;
 	struct mmc_request *mrq;
 	unsigned long flags;
@@ -756,6 +754,8 @@ static int mvsd_probe(struct platform_device *pdev)
 	if (maxfreq)
 		mmc->f_max = maxfreq;
 
+	mmc->caps |= MMC_CAP_ERASE;
+
 	spin_lock_init(&host->lock);
 
 	host->base = devm_ioremap_resource(&pdev->dev, r);
@@ -777,7 +777,7 @@ static int mvsd_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	setup_timer(&host->timer, mvsd_timeout_timer, (unsigned long)host);
+	timer_setup(&host->timer, mvsd_timeout_timer, 0);
 	platform_set_drvdata(pdev, mmc);
 	ret = mmc_add_host(mmc);
 	if (ret)

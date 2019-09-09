@@ -1,17 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * mdt.c - meta data file for NILFS
  *
  * Copyright (C) 2005-2008 Nippon Telegraph and Telephone Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  *
  * Written by Ryusuke Konishi.
  */
@@ -57,7 +48,7 @@ nilfs_mdt_insert_new_block(struct inode *inode, unsigned long block,
 	set_buffer_mapped(bh);
 
 	kaddr = kmap_atomic(bh->b_page);
-	memset(kaddr + bh_offset(bh), 0, 1 << inode->i_blkbits);
+	memset(kaddr + bh_offset(bh), 0, i_blocksize(inode));
 	if (init_block)
 		init_block(inode, bh, kaddr);
 	flush_dcache_page(bh->b_page);
@@ -413,7 +404,7 @@ nilfs_mdt_write_page(struct page *page, struct writeback_control *wbc)
 	struct super_block *sb;
 	int err = 0;
 
-	if (inode && (inode->i_sb->s_flags & MS_RDONLY)) {
+	if (inode && sb_rdonly(inode->i_sb)) {
 		/*
 		 * It means that filesystem was remounted in read-only
 		 * mode because of error or metadata corruption. But we
@@ -501,7 +492,7 @@ void nilfs_mdt_set_entry_size(struct inode *inode, unsigned int entry_size,
 	struct nilfs_mdt_info *mi = NILFS_MDT(inode);
 
 	mi->mi_entry_size = entry_size;
-	mi->mi_entries_per_block = (1 << inode->i_blkbits) / entry_size;
+	mi->mi_entries_per_block = i_blocksize(inode) / entry_size;
 	mi->mi_first_entry_offset = DIV_ROUND_UP(header_size, entry_size);
 }
 

@@ -1,19 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 /*
@@ -73,12 +59,9 @@ static void cs46xx_dsp_proc_scb_info_read (struct snd_info_entry *entry,
 {
 	struct proc_scb_info * scb_info  = entry->private_data;
 	struct dsp_scb_descriptor * scb = scb_info->scb_desc;
-	struct dsp_spos_instance * ins;
 	struct snd_cs46xx *chip = scb_info->chip;
 	int j,col;
 	void __iomem *dst = chip->region.idx[1].remap_addr + DSP_PARAMETER_BYTE_OFFSET;
-
-	ins = chip->dsp_spos_instance;
 
 	mutex_lock(&chip->spos_mutex);
 	snd_iprintf(buffer,"%04x %s:\n",scb->address,scb->scb_name);
@@ -257,8 +240,9 @@ void cs46xx_dsp_proc_register_scb_desc (struct snd_cs46xx *chip,
 	if (ins->snd_card != NULL && ins->proc_dsp_dir != NULL &&
 	    scb->proc_info == NULL) {
   
-		if ((entry = snd_info_create_card_entry(ins->snd_card, scb->scb_name, 
-							ins->proc_dsp_dir)) != NULL) {
+		entry = snd_info_create_card_entry(ins->snd_card, scb->scb_name,
+						   ins->proc_dsp_dir);
+		if (entry) {
 			scb_info = kmalloc(sizeof(struct proc_scb_info), GFP_KERNEL);
 			if (!scb_info) {
 				snd_info_free_entry(entry);
@@ -268,18 +252,8 @@ void cs46xx_dsp_proc_register_scb_desc (struct snd_cs46xx *chip,
 
 			scb_info->chip = chip;
 			scb_info->scb_desc = scb;
-      
-			entry->content = SNDRV_INFO_CONTENT_TEXT;
-			entry->private_data = scb_info;
-			entry->mode = S_IFREG | S_IRUGO | S_IWUSR;
-      
-			entry->c.text.read = cs46xx_dsp_proc_scb_info_read;
-      
-			if (snd_info_register(entry) < 0) {
-				snd_info_free_entry(entry);
-				kfree (scb_info);
-				entry = NULL;
-			}
+			snd_info_set_text_ops(entry, scb_info,
+					      cs46xx_dsp_proc_scb_info_read);
 		}
 out:
 		scb->proc_info = entry;

@@ -1,12 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * drivers/net/ethernet/rocker/rocker_tlv.h - Rocker switch device driver
  * Copyright (c) 2014-2016 Jiri Pirko <jiri@mellanox.com>
  * Copyright (c) 2014 Scott Feldman <sfeldma@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #ifndef _ROCKER_TLV_H
@@ -139,40 +135,52 @@ rocker_tlv_start(struct rocker_desc_info *desc_info)
 int rocker_tlv_put(struct rocker_desc_info *desc_info,
 		   int attrtype, int attrlen, const void *data);
 
-static inline int rocker_tlv_put_u8(struct rocker_desc_info *desc_info,
-				    int attrtype, u8 value)
+static inline int
+rocker_tlv_put_u8(struct rocker_desc_info *desc_info, int attrtype, u8 value)
 {
-	return rocker_tlv_put(desc_info, attrtype, sizeof(u8), &value);
+	u8 tmp = value; /* work around GCC PR81715 */
+
+	return rocker_tlv_put(desc_info, attrtype, sizeof(u8), &tmp);
 }
 
-static inline int rocker_tlv_put_u16(struct rocker_desc_info *desc_info,
-				     int attrtype, u16 value)
+static inline int
+rocker_tlv_put_u16(struct rocker_desc_info *desc_info, int attrtype, u16 value)
 {
-	return rocker_tlv_put(desc_info, attrtype, sizeof(u16), &value);
+	u16 tmp = value;
+
+	return rocker_tlv_put(desc_info, attrtype, sizeof(u16), &tmp);
 }
 
-static inline int rocker_tlv_put_be16(struct rocker_desc_info *desc_info,
-				      int attrtype, __be16 value)
+static inline int
+rocker_tlv_put_be16(struct rocker_desc_info *desc_info, int attrtype, __be16 value)
 {
-	return rocker_tlv_put(desc_info, attrtype, sizeof(__be16), &value);
+	__be16 tmp = value;
+
+	return rocker_tlv_put(desc_info, attrtype, sizeof(__be16), &tmp);
 }
 
-static inline int rocker_tlv_put_u32(struct rocker_desc_info *desc_info,
-				     int attrtype, u32 value)
+static inline int
+rocker_tlv_put_u32(struct rocker_desc_info *desc_info, int attrtype, u32 value)
 {
-	return rocker_tlv_put(desc_info, attrtype, sizeof(u32), &value);
+	u32 tmp = value;
+
+	return rocker_tlv_put(desc_info, attrtype, sizeof(u32), &tmp);
 }
 
-static inline int rocker_tlv_put_be32(struct rocker_desc_info *desc_info,
-				      int attrtype, __be32 value)
+static inline int
+rocker_tlv_put_be32(struct rocker_desc_info *desc_info, int attrtype, __be32 value)
 {
-	return rocker_tlv_put(desc_info, attrtype, sizeof(__be32), &value);
+	__be32 tmp = value;
+
+	return rocker_tlv_put(desc_info, attrtype, sizeof(__be32), &tmp);
 }
 
-static inline int rocker_tlv_put_u64(struct rocker_desc_info *desc_info,
-				     int attrtype, u64 value)
+static inline int
+rocker_tlv_put_u64(struct rocker_desc_info *desc_info, int attrtype, u64 value)
 {
-	return rocker_tlv_put(desc_info, attrtype, sizeof(u64), &value);
+	u64 tmp = value;
+
+	return rocker_tlv_put(desc_info, attrtype, sizeof(u64), &tmp);
 }
 
 static inline struct rocker_tlv *

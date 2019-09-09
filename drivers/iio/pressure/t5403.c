@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * t5403.c - Support for EPCOS T5403 pressure/temperature sensor
  *
  * Copyright (c) 2014 Peter Meerwald <pmeerw@pmeerw.net>
- *
- * This file is subject to the terms and conditions of version 2 of
- * the GNU General Public License.  See the file COPYING in the main
- * directory of this archive for more details.
  *
  * (7-bit I2C slave address 0x77)
  *
@@ -209,7 +206,6 @@ static const struct iio_info t5403_info = {
 	.read_raw = &t5403_read_raw,
 	.write_raw = &t5403_write_raw,
 	.attrs = &t5403_attribute_group,
-	.driver_module = THIS_MODULE,
 };
 
 static int t5403_probe(struct i2c_client *client,

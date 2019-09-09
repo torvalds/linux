@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *  Universal interface for Audio Codec '97
@@ -5,22 +6,6 @@
  *  For more details look to AC '97 component specification revision 2.2
  *  by Intel Corporation (http://developer.intel.com) and to datasheets
  *  for specific codecs.
- *
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include "ac97_local.h"
@@ -3093,7 +3078,7 @@ static int patch_cm9739(struct snd_ac97 * ac97)
 	/* set-up multi channel */
 	/* bit 14: 0 = SPDIF, 1 = EAPD */
 	/* bit 13: enable internal vref output for mic */
-	/* bit 12: disable center/lfe (swithable) */
+	/* bit 12: disable center/lfe (switchable) */
 	/* bit 10: disable surround/line (switchable) */
 	/* bit 9: mix 2 surround off */
 	/* bit 4: undocumented; 0 mutes the CM9739A, which defaults to 1 */

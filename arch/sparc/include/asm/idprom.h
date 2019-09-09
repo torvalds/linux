@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * idprom.h: Macros and defines for idprom routines
  *

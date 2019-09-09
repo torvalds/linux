@@ -1,24 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Ultra Wide Band Radio Control
  * Event Size Tables management
  *
  * Copyright (C) 2005-2006 Intel Corporation
  * Inaky Perez-Gonzalez <inaky.perez-gonzalez@intel.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
- *
  *
  * FIXME: docs
  *
@@ -217,7 +203,7 @@ static
 int uwb_est_grow(void)
 {
 	size_t actual_size = uwb_est_size * sizeof(uwb_est[0]);
-	void *new = kmalloc(2 * actual_size, GFP_ATOMIC);
+	void *new = kmalloc_array(2, actual_size, GFP_ATOMIC);
 	if (new == NULL)
 		return -ENOMEM;
 	memcpy(new, uwb_est, actual_size);

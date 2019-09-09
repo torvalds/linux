@@ -1,21 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
     i2c-stub.c - I2C/SMBus chip emulator
 
     Copyright (c) 2004 Mark M. Hoffman <mhoffman@lightlink.com>
     Copyright (C) 2007-2014 Jean Delvare <jdelvare@suse.de>
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
 */
 
 #define DEBUG 1
+#define pr_fmt(fmt) "i2c-stub: " fmt
 
 #include <linux/errno.h>
 #include <linux/i2c.h>
@@ -337,12 +330,13 @@ static int __init i2c_stub_allocate_banks(int i)
 		chip->bank_mask >>= 1;
 	}
 
-	chip->bank_words = kzalloc(chip->bank_mask * chip->bank_size *
-				   sizeof(u16), GFP_KERNEL);
+	chip->bank_words = kcalloc(chip->bank_mask * chip->bank_size,
+				   sizeof(u16),
+				   GFP_KERNEL);
 	if (!chip->bank_words)
 		return -ENOMEM;
 
-	pr_debug("i2c-stub: Allocated %u banks of %u words each (registers 0x%02x to 0x%02x)\n",
+	pr_debug("Allocated %u banks of %u words each (registers 0x%02x to 0x%02x)\n",
 		 chip->bank_mask, chip->bank_size, chip->bank_start,
 		 chip->bank_end);
 
@@ -363,28 +357,27 @@ static int __init i2c_stub_init(void)
 	int i, ret;
 
 	if (!chip_addr[0]) {
-		pr_err("i2c-stub: Please specify a chip address\n");
+		pr_err("Please specify a chip address\n");
 		return -ENODEV;
 	}
 
 	for (i = 0; i < MAX_CHIPS && chip_addr[i]; i++) {
 		if (chip_addr[i] < 0x03 || chip_addr[i] > 0x77) {
-			pr_err("i2c-stub: Invalid chip address 0x%02x\n",
+			pr_err("Invalid chip address 0x%02x\n",
 			       chip_addr[i]);
 			return -EINVAL;
 		}
 
-		pr_info("i2c-stub: Virtual chip at 0x%02x\n", chip_addr[i]);
+		pr_info("Virtual chip at 0x%02x\n", chip_addr[i]);
 	}
 
 	/* Allocate memory for all chips at once */
 	stub_chips_nr = i;
 	stub_chips = kcalloc(stub_chips_nr, sizeof(struct stub_chip),
 			     GFP_KERNEL);
-	if (!stub_chips) {
-		pr_err("i2c-stub: Out of memory\n");
+	if (!stub_chips)
 		return -ENOMEM;
-	}
+
 	for (i = 0; i < stub_chips_nr; i++) {
 		INIT_LIST_HEAD(&stub_chips[i].smbus_blocks);
 

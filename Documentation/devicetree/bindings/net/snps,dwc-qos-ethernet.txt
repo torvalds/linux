@@ -1,5 +1,8 @@
 * Synopsys DWC Ethernet QoS IP version 4.10 driver (GMAC)
 
+This binding is deprecated, but it continues to be supported, but new
+features should be preferably added to the stmmac binding document.
+
 This binding supports the Synopsys Designware Ethernet QoS (Quality Of Service)
 IP block. The IP supports multiple options for bus type, clocking and reset
 structure, and feature list. Consequently, a number of properties and list
@@ -80,8 +83,6 @@ Required properties:
   - "snps,dwc-qos-ethernet-4.10" (deprecated):
     - "phy_ref_clk"
     - "apb_clk"
-- interrupt-parent: Should be the phandle for the interrupt controller
-  that services interrupts for this device
 - interrupts: Should contain the core's combined interrupt signal
 - phy-mode: See ethernet.txt file in the same directory
 - resets: Phandle and reset specifiers for each entry in reset-names, in the
@@ -102,8 +103,6 @@ Required properties:
 
 Optional properties:
 - dma-coherent: Present if dma operations are coherent
-- mac-address: See ethernet.txt in the same directory
-- local-mac-address: See ethernet.txt in the same directory
 - phy-reset-gpios: Phandle and specifier for any GPIO used to reset the PHY.
   See ../gpio/gpio.txt.
 - snps,en-lpi: If present it enables use of the AXI low-power interface
@@ -131,6 +130,9 @@ Optional properties:
     - reg: phy id used to communicate to phy.
     - device_type: Must be "ethernet-phy".
     - fixed-mode device tree subnode: see fixed-link.txt in the same directory
+
+The MAC address will be determined using the optional properties
+defined in ethernet.txt.
 
 Examples:
 ethernet2@40010000 {

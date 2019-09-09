@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * PHY driver for NXP LPC18xx/43xx internal USB OTG PHY
  *
  * Copyright (C) 2015 Joachim Eastwood <manabian@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/clk.h>
@@ -60,8 +56,14 @@ static int lpc18xx_usb_otg_phy_power_on(struct phy *phy)
 		return ret;
 
 	/* The bit in CREG is cleared to enable the PHY */
-	return regmap_update_bits(lpc->reg, LPC18XX_CREG_CREG0,
+	ret = regmap_update_bits(lpc->reg, LPC18XX_CREG_CREG0,
 				  LPC18XX_CREG_CREG0_USB0PHY, 0);
+	if (ret) {
+		clk_disable(lpc->clk);
+		return ret;
+	}
+
+	return 0;
 }
 
 static int lpc18xx_usb_otg_phy_power_off(struct phy *phy)

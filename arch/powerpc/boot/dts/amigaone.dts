@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * AmigaOne Device Tree Source
  *
  * Copyright 2008 Gerhard Pircher (gerhard_pircher@gmx.net)
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 /dts-v1/;
@@ -168,6 +164,6 @@
 	};
 
 	chosen {
-		linux,stdout-path = "/pci@80000000/isa@7/serial@3f8";
+		stdout-path = "/pci@80000000/isa@7/serial@3f8";
 	};
 };

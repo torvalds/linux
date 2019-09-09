@@ -1,5 +1,8 @@
+/* SPDX-License-Identifier: LGPL-2.1+ WITH Linux-syscall-note */
 /*
- * video.h
+ * video.h - DEPRECATED MPEG-TS video decoder API
+ *
+ * NOTE: should not be used on future drivers
  *
  * Copyright (C) 2000 Marcus Metzler <marcus@convergence.de>
  *                  & Ralph  Metzler <ralph@convergence.de>
@@ -37,18 +40,6 @@ typedef enum {
 
 
 typedef enum {
-	 VIDEO_SYSTEM_PAL,
-	 VIDEO_SYSTEM_NTSC,
-	 VIDEO_SYSTEM_PALN,
-	 VIDEO_SYSTEM_PALNc,
-	 VIDEO_SYSTEM_PALM,
-	 VIDEO_SYSTEM_NTSC60,
-	 VIDEO_SYSTEM_PAL60,
-	 VIDEO_SYSTEM_PALM60
-} video_system_t;
-
-
-typedef enum {
 	VIDEO_PAN_SCAN,       /* use pan and scan format */
 	VIDEO_LETTER_BOX,     /* use letterbox format */
 	VIDEO_CENTER_CUT_OUT  /* use center cut out format */
@@ -82,11 +73,11 @@ typedef enum {
 #define VIDEO_CMD_CONTINUE    (3)
 
 /* Flags for VIDEO_CMD_FREEZE */
-#define VIDEO_CMD_FREEZE_TO_BLACK     	(1 << 0)
+#define VIDEO_CMD_FREEZE_TO_BLACK	(1 << 0)
 
 /* Flags for VIDEO_CMD_STOP */
-#define VIDEO_CMD_STOP_TO_BLACK      	(1 << 0)
-#define VIDEO_CMD_STOP_IMMEDIATELY     	(1 << 1)
+#define VIDEO_CMD_STOP_TO_BLACK		(1 << 0)
+#define VIDEO_CMD_STOP_IMMEDIATELY	(1 << 1)
 
 /* Play input formats: */
 /* The decoder has no special format requirements */
@@ -123,8 +114,8 @@ struct video_command {
 /* FIELD_UNKNOWN can be used if the hardware does not know whether
    the Vsync is for an odd, even or progressive (i.e. non-interlaced)
    field. */
-#define VIDEO_VSYNC_FIELD_UNKNOWN  	(0)
-#define VIDEO_VSYNC_FIELD_ODD 		(1)
+#define VIDEO_VSYNC_FIELD_UNKNOWN	(0)
+#define VIDEO_VSYNC_FIELD_ODD		(1)
 #define VIDEO_VSYNC_FIELD_EVEN		(2)
 #define VIDEO_VSYNC_FIELD_PROGRESSIVE	(3)
 
@@ -132,9 +123,10 @@ struct video_event {
 	__s32 type;
 #define VIDEO_EVENT_SIZE_CHANGED	1
 #define VIDEO_EVENT_FRAME_RATE_CHANGED	2
-#define VIDEO_EVENT_DECODER_STOPPED 	3
-#define VIDEO_EVENT_VSYNC 		4
-	__kernel_time_t timestamp;
+#define VIDEO_EVENT_DECODER_STOPPED	3
+#define VIDEO_EVENT_VSYNC		4
+	/* unused, make sure to use atomic time for y2038 if it ever gets used */
+	long timestamp;
 	union {
 		video_size_t size;
 		unsigned int frame_rate;	/* in frames per 1000sec */
@@ -156,44 +148,6 @@ struct video_still_picture {
 	char __user *iFrame;        /* pointer to a single iframe in memory */
 	__s32 size;
 };
-
-
-typedef
-struct video_highlight {
-	int     active;      /*    1=show highlight, 0=hide highlight */
-	__u8    contrast1;   /*    7- 4  Pattern pixel contrast */
-			     /*    3- 0  Background pixel contrast */
-	__u8    contrast2;   /*    7- 4  Emphasis pixel-2 contrast */
-			     /*    3- 0  Emphasis pixel-1 contrast */
-	__u8    color1;      /*    7- 4  Pattern pixel color */
-			     /*    3- 0  Background pixel color */
-	__u8    color2;      /*    7- 4  Emphasis pixel-2 color */
-			     /*    3- 0  Emphasis pixel-1 color */
-	__u32    ypos;       /*   23-22  auto action mode */
-			     /*   21-12  start y */
-			     /*    9- 0  end y */
-	__u32    xpos;       /*   23-22  button color number */
-			     /*   21-12  start x */
-			     /*    9- 0  end x */
-} video_highlight_t;
-
-
-typedef struct video_spu {
-	int active;
-	int stream_id;
-} video_spu_t;
-
-
-typedef struct video_spu_palette {      /* SPU Palette information */
-	int length;
-	__u8 __user *palette;
-} video_spu_palette_t;
-
-
-typedef struct video_navi_pack {
-	int length;          /* 0 ... 1024 */
-	__u8 data[1024];
-} video_navi_pack_t;
 
 
 typedef __u16 video_attributes_t;
@@ -240,17 +194,9 @@ typedef __u16 video_attributes_t;
 #define VIDEO_SLOWMOTION           _IO('o', 32)
 #define VIDEO_GET_CAPABILITIES     _IOR('o', 33, unsigned int)
 #define VIDEO_CLEAR_BUFFER         _IO('o',  34)
-#define VIDEO_SET_ID               _IO('o', 35)
 #define VIDEO_SET_STREAMTYPE       _IO('o', 36)
 #define VIDEO_SET_FORMAT           _IO('o', 37)
-#define VIDEO_SET_SYSTEM           _IO('o', 38)
-#define VIDEO_SET_HIGHLIGHT        _IOW('o', 39, video_highlight_t)
-#define VIDEO_SET_SPU              _IOW('o', 50, video_spu_t)
-#define VIDEO_SET_SPU_PALETTE      _IOW('o', 51, video_spu_palette_t)
-#define VIDEO_GET_NAVI             _IOR('o', 52, video_navi_pack_t)
-#define VIDEO_SET_ATTRIBUTES       _IO('o', 53)
 #define VIDEO_GET_SIZE             _IOR('o', 55, video_size_t)
-#define VIDEO_GET_FRAME_RATE       _IOR('o', 56, unsigned int)
 
 /**
  * VIDEO_GET_PTS
@@ -266,9 +212,9 @@ typedef __u16 video_attributes_t;
 #define VIDEO_GET_PTS              _IOR('o', 57, __u64)
 
 /* Read the number of displayed frames since the decoder was started */
-#define VIDEO_GET_FRAME_COUNT  	   _IOR('o', 58, __u64)
+#define VIDEO_GET_FRAME_COUNT	   _IOR('o', 58, __u64)
 
-#define VIDEO_COMMAND     	   _IOWR('o', 59, struct video_command)
-#define VIDEO_TRY_COMMAND 	   _IOWR('o', 60, struct video_command)
+#define VIDEO_COMMAND		   _IOWR('o', 59, struct video_command)
+#define VIDEO_TRY_COMMAND	   _IOWR('o', 60, struct video_command)
 
 #endif /* _UAPI_DVBVIDEO_H_ */

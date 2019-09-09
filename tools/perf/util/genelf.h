@@ -1,11 +1,15 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __GENELF_H__
 #define __GENELF_H__
 
 /* genelf.c */
 int jit_write_elf(int fd, uint64_t code_addr, const char *sym,
-		  const void *code, int csize, void *debug, int nr_debug_entries);
+		  const void *code, int csize, void *debug, int nr_debug_entries,
+		  void *unwinding, uint64_t unwinding_header_size, uint64_t unwinding_size);
+#ifdef HAVE_DWARF_SUPPORT
 /* genelf_debug.c */
 int jit_add_debug_info(Elf *e, uint64_t code_addr, void *debug, int nr_debug_entries);
+#endif
 
 #if   defined(__arm__)
 #define GEN_ELF_ARCH	EM_ARM
@@ -24,6 +28,12 @@ int jit_add_debug_info(Elf *e, uint64_t code_addr, void *debug, int nr_debug_ent
 #define GEN_ELF_CLASS	ELFCLASS64
 #elif defined(__powerpc__)
 #define GEN_ELF_ARCH	EM_PPC
+#define GEN_ELF_CLASS	ELFCLASS32
+#elif defined(__sparc__) && defined(__arch64__)
+#define GEN_ELF_ARCH	EM_SPARCV9
+#define GEN_ELF_CLASS	ELFCLASS64
+#elif defined(__sparc__)
+#define GEN_ELF_ARCH	EM_SPARC
 #define GEN_ELF_CLASS	ELFCLASS32
 #else
 #error "unsupported architecture"

@@ -1,15 +1,14 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * omap-mailbox: interprocessor communication module for OMAP
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef OMAP_MAILBOX_H
 #define OMAP_MAILBOX_H
 
-typedef u32 mbox_msg_t;
+typedef uintptr_t mbox_msg_t;
+
+#define omap_mbox_message(data) (u32)(mbox_msg_t)(data)
 
 typedef int __bitwise omap_mbox_irq_t;
 #define IRQ_TX ((__force omap_mbox_irq_t) 1)

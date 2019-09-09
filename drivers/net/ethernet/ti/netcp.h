@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * NetCP driver local header
  *
@@ -8,21 +9,13 @@
  *		Santosh Shilimkar <santosh.shilimkar@ti.com>
  *		Wingman Kwok <w-kwok2@ti.com>
  *		Murali Karicheri <m-karicheri2@ti.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation version 2.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 #ifndef __NETCP_H__
 #define __NETCP_H__
 
 #include <linux/netdevice.h>
 #include <linux/soc/ti/knav_dma.h>
+#include <linux/u64_stats_sync.h>
 
 /* Maximum Ethernet frame size supported by Keystone switch */
 #define NETCP_MAX_FRAME_SIZE		9504
@@ -32,6 +25,8 @@
 #define SGMII_LINK_MAC_MAC_FORCED	2
 #define SGMII_LINK_MAC_FIBER		3
 #define SGMII_LINK_MAC_PHY_NO_MDIO	4
+#define RGMII_LINK_MAC_PHY		5
+#define RGMII_LINK_MAC_PHY_NO_MDIO	7
 #define XGMII_LINK_MAC_PHY		10
 #define XGMII_LINK_MAC_MAC_FORCED	11
 
@@ -68,6 +63,20 @@ struct netcp_addr {
 	struct list_head	node;
 };
 
+struct netcp_stats {
+	struct u64_stats_sync   syncp_rx ____cacheline_aligned_in_smp;
+	u64                     rx_packets;
+	u64                     rx_bytes;
+	u32                     rx_errors;
+	u32                     rx_dropped;
+
+	struct u64_stats_sync   syncp_tx ____cacheline_aligned_in_smp;
+	u64                     tx_packets;
+	u64                     tx_bytes;
+	u32                     tx_errors;
+	u32                     tx_dropped;
+};
+
 struct netcp_intf {
 	struct device		*dev;
 	struct device		*ndev_dev;
@@ -87,6 +96,11 @@ struct netcp_intf {
 	void			*rx_fdq[KNAV_DMA_FDQ_PER_CHAN];
 	struct napi_struct	rx_napi;
 	struct napi_struct	tx_napi;
+#define ETH_SW_CAN_REMOVE_ETH_FCS	BIT(0)
+	u32			hw_cap;
+
+	/* 64-bit netcp stats */
+	struct netcp_stats	stats;
 
 	void			*rx_channel;
 	const char		*dma_chan_name;
@@ -115,13 +129,14 @@ struct netcp_packet {
 	struct sk_buff		*skb;
 	__le32			*epib;
 	u32			*psdata;
+	u32			eflags;
 	unsigned int		psdata_len;
 	struct netcp_intf	*netcp;
 	struct netcp_tx_pipe	*tx_pipe;
 	bool			rxtstamp_complete;
 	void			*ts_context;
 
-	int	(*txtstamp_complete)(void *ctx, struct netcp_packet *pkt);
+	void (*txtstamp)(void *ctx, struct sk_buff *skb);
 };
 
 static inline u32 *netcp_push_psdata(struct netcp_packet *p_info,
@@ -191,6 +206,7 @@ struct netcp_module {
 	int	(*add_vid)(void *intf_priv, int vid);
 	int	(*del_vid)(void *intf_priv, int vid);
 	int	(*ioctl)(void *intf_priv, struct ifreq *req, int cmd);
+	int	(*set_rx_mode)(void *intf_priv, bool promisc);
 
 	/* used internally */
 	struct list_head	module_list;

@@ -28,26 +28,22 @@
 #include "smu7_smumgr.h"
 
 
-
-struct fiji_smu_avfs {
-	enum AVFS_BTC_STATUS AvfsBtcStatus;
-	uint32_t           AvfsBtcParam;
+struct fiji_pt_defaults {
+	uint8_t   SviLoadLineEn;
+	uint8_t   SviLoadLineVddC;
+	uint8_t   TDC_VDDC_ThrottleReleaseLimitPerc;
+	uint8_t   TDC_MAWt;
+	uint8_t   TdcWaterfallCtl;
+	uint8_t   DTEAmbientTempBase;
 };
-
 
 struct fiji_smumgr {
 	struct smu7_smumgr                   smu7_data;
-
-	struct fiji_smu_avfs avfs;
 	struct SMU73_Discrete_DpmTable       smc_state_table;
 	struct SMU73_Discrete_Ulv            ulv_setting;
 	struct SMU73_Discrete_PmFuses  power_tune_table;
 	const struct fiji_pt_defaults  *power_tune_defaults;
-	uint32_t        activity_target[SMU73_MAX_LEVELS_GRAPHICS];
-
 };
-
-
 
 #endif
 

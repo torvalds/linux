@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /****************************************************************************
  *
  *  Filename: cpia2.h
@@ -11,20 +12,6 @@
  *
  *     This driver is modelled on the cpia usb driver by
  *     Jochen Scharrlach and Johannes Erdfeldt.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  ****************************************************************************/
 
@@ -354,7 +341,7 @@ struct cpia2_sbuf {
 };
 
 struct framebuf {
-	struct timeval timestamp;
+	u64 ts;
 	unsigned long seq;
 	int num;
 	int length;
@@ -448,7 +435,7 @@ int cpia2_allocate_buffers(struct camera_data *cam);
 void cpia2_free_buffers(struct camera_data *cam);
 long cpia2_read(struct camera_data *cam,
 		char __user *buf, unsigned long count, int noblock);
-unsigned int cpia2_poll(struct camera_data *cam,
+__poll_t cpia2_poll(struct camera_data *cam,
 			struct file *filp, poll_table *wait);
 int cpia2_remap_buffer(struct camera_data *cam, struct vm_area_struct *vma);
 void cpia2_set_property_flip(struct camera_data *cam, int prop_val);

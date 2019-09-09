@@ -1,24 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * k8temp.c - Linux kernel module for hardware monitoring
  *
  * Copyright (C) 2006 Rudolf Marek <r.marek@assembler.cz>
  *
  * Inspired from the w83785 and amd756 drivers.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301 USA.
  */
 
 #include <linux/module.h>
@@ -100,7 +86,7 @@ static struct k8temp_data *k8temp_update_device(struct device *dev)
  * Sysfs stuff
  */
 
-static ssize_t show_name(struct device *dev, struct device_attribute
+static ssize_t name_show(struct device *dev, struct device_attribute
 			 *devattr, char *buf)
 {
 	struct k8temp_data *data = dev_get_drvdata(dev);
@@ -109,8 +95,8 @@ static ssize_t show_name(struct device *dev, struct device_attribute
 }
 
 
-static ssize_t show_temp(struct device *dev,
-			 struct device_attribute *devattr, char *buf)
+static ssize_t temp_show(struct device *dev, struct device_attribute *devattr,
+			 char *buf)
 {
 	struct sensor_device_attribute_2 *attr =
 	    to_sensor_dev_attr_2(devattr);
@@ -129,11 +115,11 @@ static ssize_t show_temp(struct device *dev,
 
 /* core, place */
 
-static SENSOR_DEVICE_ATTR_2(temp1_input, S_IRUGO, show_temp, NULL, 0, 0);
-static SENSOR_DEVICE_ATTR_2(temp2_input, S_IRUGO, show_temp, NULL, 0, 1);
-static SENSOR_DEVICE_ATTR_2(temp3_input, S_IRUGO, show_temp, NULL, 1, 0);
-static SENSOR_DEVICE_ATTR_2(temp4_input, S_IRUGO, show_temp, NULL, 1, 1);
-static DEVICE_ATTR(name, S_IRUGO, show_name, NULL);
+static SENSOR_DEVICE_ATTR_2_RO(temp1_input, temp, 0, 0);
+static SENSOR_DEVICE_ATTR_2_RO(temp2_input, temp, 0, 1);
+static SENSOR_DEVICE_ATTR_2_RO(temp3_input, temp, 1, 0);
+static SENSOR_DEVICE_ATTR_2_RO(temp4_input, temp, 1, 1);
+static DEVICE_ATTR_RO(name);
 
 static const struct pci_device_id k8temp_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_K8_NB_MISC) },
@@ -187,7 +173,7 @@ static int k8temp_probe(struct pci_dev *pdev,
 		return -ENOMEM;
 
 	model = boot_cpu_data.x86_model;
-	stepping = boot_cpu_data.x86_mask;
+	stepping = boot_cpu_data.x86_stepping;
 
 	/* feature available since SH-C0, exclude older revisions */
 	if ((model == 4 && stepping == 0) ||

@@ -1,8 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2013 Pavel Machek <pavel@denx.de>
- *
- * The code contained herein is licensed under the GNU General Public
- * License V2.
  */
 
 /dts-v1/;
@@ -12,7 +10,8 @@
 	model = "MicroSys sbc6x board";
 	compatible = "microsys,sbc6x", "fsl,imx6q";
 
-	memory {
+	memory@10000000 {
+		device_type = "memory";
 		reg = <0x10000000 0x80000000>;
 	};
 };

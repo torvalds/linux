@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # 1-wire slaves configuration
 #
@@ -15,6 +16,14 @@ config W1_SLAVE_SMEM
 	help
 	  Say Y here if you want to connect 1-wire
 	  simple 64bit memory rom(ds2401/ds2411/ds1990*) to your wire.
+
+config W1_SLAVE_DS2405
+	tristate "DS2405 Addressable Switch"
+	help
+	  Say Y or M here if you want to use a DS2405 1-wire
+	  single-channel addressable switch.
+	  This device can also work as a single-channel
+	  binary remote sensor.
 
 config W1_SLAVE_DS2408
 	tristate "8-Channel Addressable Switch (IO Expander) 0x29 family support (DS2408)"
@@ -57,6 +66,14 @@ config W1_SLAVE_DS2423
 	  Say Y here if you want to use a 1-wire
 	  counter family device (DS2423).
 
+config W1_SLAVE_DS2805
+	tristate "112-byte EEPROM support (DS28E05)"
+	help
+	  Say Y here if you want to use a 1-wire
+	  is a 112-byte user-programmable EEPROM is
+          organized as 7 pages of 16 bytes each with 64bit
+          unique number. Requires OverDrive Speed to talk to.
+
 config W1_SLAVE_DS2431
 	tristate "1kb EEPROM family support (DS2431)"
 	help
@@ -78,17 +95,11 @@ config W1_SLAVE_DS2433_CRC
 	  Each block has 30 bytes of data and a two byte CRC16.
 	  Full block writes are only allowed if the CRC is valid.
 
-config W1_SLAVE_DS2760
-	tristate "Dallas 2760 battery monitor chip (HP iPAQ & others)"
+config W1_SLAVE_DS2438
+	tristate "DS2438 Smart Battery Monitor 0x26 family support"
 	help
-	  If you enable this you will have the DS2760 battery monitor
-	  chip support.
-
-	  The battery monitor chip is used in many batteries/devices
-	  as the one who is responsible for charging/discharging/monitoring
-	  Li+ batteries.
-
-	  If you are unsure, say N.
+	  Say Y here if you want to use a 1-wire
+	  DS2438 Smart Battery Monitor device support
 
 config W1_SLAVE_DS2780
 	tristate "Dallas 2780 battery monitor chip"
@@ -126,10 +137,19 @@ config W1_SLAVE_DS28E04
 
 	  If you are unsure, say N.
 
-config W1_SLAVE_BQ27000
-	tristate "BQ27000 slave support"
+config W1_SLAVE_DS28E17
+	tristate "1-wire-to-I2C master bridge (DS28E17)"
+	select CRC16
+	depends on I2C
 	help
-	  Say Y here if you want to use a hdq
-	  bq27000 slave support.
+	  Say Y here if you want to use the DS28E17 1-wire-to-I2C master bridge.
+	  For each DS28E17 detected, a new I2C adapter is created within the
+	  kernel. I2C devices on that bus can be configured to be used by the
+	  kernel and userspace tools as on any other "native" I2C bus.
+
+	  This driver is also available as a module. If so, the module
+	  will be called w1_ds28e17.
+
+	  If you are unsure, say N.
 
 endmenu

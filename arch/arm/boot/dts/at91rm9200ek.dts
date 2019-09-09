@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * at91rm9200ek.dts - Device Tree file for Atmel AT91RM9200 evaluation kit
  *
  *  Copyright (C) 2012 Joachim Eastwood <manabian@gmail.com>
- *
- * Licensed under GPLv2 only
  */
 /dts-v1/;
 #include "at91rm9200.dtsi"
@@ -32,6 +31,18 @@
 
 	ahb {
 		apb {
+			tcb0: timer@fffa0000 {
+				timer@0 {
+					compatible = "atmel,tcb-timer";
+					reg = <0>, <1>;
+				};
+
+				timer@2 {
+					compatible = "atmel,tcb-timer";
+					reg = <2>;
+				};
+			};
+
 			usb1: gadget@fffb0000 {
 				atmel,vbus-gpio = <&pioD 4 GPIO_ACTIVE_HIGH>;
 				atmel,pullup-gpio = <&pioD 5 GPIO_ACTIVE_HIGH>;
@@ -78,7 +89,7 @@
 			};
 		};
 
-		usb0: ohci@00300000 {
+		usb0: ohci@300000 {
 			num-ports = <2>;
 			status = "okay";
 		};

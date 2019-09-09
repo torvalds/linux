@@ -1,22 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ARM64 ACPI Parking Protocol implementation
  *
  * Authors: Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>
  *	    Mark Salter <msalter@redhat.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <linux/acpi.h>
+#include <linux/mm.h>
 #include <linux/types.h>
 
 #include <asm/cpu_ops.h>
@@ -70,7 +60,7 @@ static int acpi_parking_protocol_cpu_boot(unsigned int cpu)
 {
 	struct cpu_mailbox_entry *cpu_entry = &cpu_mailbox_entries[cpu];
 	struct parking_protocol_mailbox __iomem *mailbox;
-	__le32 cpu_id;
+	u32 cpu_id;
 
 	/*
 	 * Map mailbox memory with attribute device nGnRE (ie ioremap -
@@ -109,7 +99,7 @@ static int acpi_parking_protocol_cpu_boot(unsigned int cpu)
 	 * that read this address need to convert this address to the
 	 * Boot-Loader's endianness before jumping.
 	 */
-	writeq_relaxed(__pa(secondary_entry), &mailbox->entry_point);
+	writeq_relaxed(__pa_symbol(secondary_entry), &mailbox->entry_point);
 	writel_relaxed(cpu_entry->gic_cpu_id, &mailbox->cpu_id);
 
 	arch_send_wakeup_ipi_mask(cpumask_of(cpu));
@@ -122,9 +112,9 @@ static void acpi_parking_protocol_cpu_postboot(void)
 	int cpu = smp_processor_id();
 	struct cpu_mailbox_entry *cpu_entry = &cpu_mailbox_entries[cpu];
 	struct parking_protocol_mailbox __iomem *mailbox = cpu_entry->mailbox;
-	__le64 entry_point;
+	u64 entry_point;
 
-	entry_point = readl_relaxed(&mailbox->entry_point);
+	entry_point = readq_relaxed(&mailbox->entry_point);
 	/*
 	 * Check if firmware has cleared the entry_point as expected
 	 * by the protocol specification.

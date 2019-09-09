@@ -1,14 +1,9 @@
-/* fusionhdtv-mce.h - Keytable for fusionhdtv_mce Remote Controller
- *
- * keymap imported from ir-keymaps.c
- *
- * Copyright (c) 2010 by Mauro Carvalho Chehab
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- */
+// SPDX-License-Identifier: GPL-2.0+
+// fusionhdtv-mce.h - Keytable for fusionhdtv_mce Remote Controller
+//
+// keymap imported from ir-keymaps.c
+//
+// Copyright (c) 2010 by Mauro Carvalho Chehab
 
 #include <media/rc-map.h>
 #include <linux/module.h>
@@ -17,16 +12,16 @@
 
 static struct rc_map_table fusionhdtv_mce[] = {
 
-	{ 0x0b, KEY_1 },
-	{ 0x17, KEY_2 },
-	{ 0x1b, KEY_3 },
-	{ 0x07, KEY_4 },
-	{ 0x50, KEY_5 },
-	{ 0x54, KEY_6 },
-	{ 0x48, KEY_7 },
-	{ 0x4c, KEY_8 },
-	{ 0x58, KEY_9 },
-	{ 0x03, KEY_0 },
+	{ 0x0b, KEY_NUMERIC_1 },
+	{ 0x17, KEY_NUMERIC_2 },
+	{ 0x1b, KEY_NUMERIC_3 },
+	{ 0x07, KEY_NUMERIC_4 },
+	{ 0x50, KEY_NUMERIC_5 },
+	{ 0x54, KEY_NUMERIC_6 },
+	{ 0x48, KEY_NUMERIC_7 },
+	{ 0x4c, KEY_NUMERIC_8 },
+	{ 0x58, KEY_NUMERIC_9 },
+	{ 0x03, KEY_NUMERIC_0 },
 
 	{ 0x5e, KEY_OK },
 	{ 0x51, KEY_UP },
@@ -75,10 +70,10 @@ static struct rc_map_table fusionhdtv_mce[] = {
 
 static struct rc_map_list fusionhdtv_mce_map = {
 	.map = {
-		.scan    = fusionhdtv_mce,
-		.size    = ARRAY_SIZE(fusionhdtv_mce),
-		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
-		.name    = RC_MAP_FUSIONHDTV_MCE,
+		.scan     = fusionhdtv_mce,
+		.size     = ARRAY_SIZE(fusionhdtv_mce),
+		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.name     = RC_MAP_FUSIONHDTV_MCE,
 	}
 };
 

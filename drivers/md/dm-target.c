@@ -16,8 +16,6 @@
 static LIST_HEAD(_targets);
 static DECLARE_RWSEM(_lock);
 
-#define DM_MOD_NAME_SIZE 32
-
 static inline struct target_type *__find_target_type(const char *name)
 {
 	struct target_type *tt;
@@ -128,28 +126,23 @@ static void io_err_dtr(struct dm_target *tt)
 
 static int io_err_map(struct dm_target *tt, struct bio *bio)
 {
-	return -EIO;
-}
-
-static int io_err_map_rq(struct dm_target *ti, struct request *clone,
-			 union map_info *map_context)
-{
-	return -EIO;
+	return DM_MAPIO_KILL;
 }
 
 static int io_err_clone_and_map_rq(struct dm_target *ti, struct request *rq,
 				   union map_info *map_context,
 				   struct request **clone)
 {
-	return -EIO;
+	return DM_MAPIO_KILL;
 }
 
-static void io_err_release_clone_rq(struct request *clone)
+static void io_err_release_clone_rq(struct request *clone,
+				    union map_info *map_context)
 {
 }
 
-static long io_err_direct_access(struct dm_target *ti, sector_t sector,
-				 void **kaddr, pfn_t *pfn, long size)
+static long io_err_dax_direct_access(struct dm_target *ti, pgoff_t pgoff,
+		long nr_pages, void **kaddr, pfn_t *pfn)
 {
 	return -EIO;
 }
@@ -161,10 +154,9 @@ static struct target_type error_target = {
 	.ctr  = io_err_ctr,
 	.dtr  = io_err_dtr,
 	.map  = io_err_map,
-	.map_rq = io_err_map_rq,
 	.clone_and_map_rq = io_err_clone_and_map_rq,
 	.release_clone_rq = io_err_release_clone_rq,
-	.direct_access = io_err_direct_access,
+	.direct_access = io_err_dax_direct_access,
 };
 
 int __init dm_target_init(void)

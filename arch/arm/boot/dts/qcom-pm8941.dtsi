@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <dt-bindings/iio/qcom,spmi-vadc.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/spmi/spmi.h>
@@ -26,7 +27,14 @@
 			bias-pull-up;
 		};
 
-		charger@1000 {
+		usb_id: misc@900 {
+			compatible = "qcom,pm8941-misc";
+			reg = <0x900>;
+			interrupts = <0x0 0x9 0 IRQ_TYPE_EDGE_BOTH>;
+			interrupt-names = "usb_id";
+		};
+
+		smbb: charger@1000 {
 			compatible = "qcom,pm8941-charger";
 			reg = <0x1000>;
 			interrupts = <0x0 0x10 7 IRQ_TYPE_EDGE_BOTH>,
@@ -45,49 +53,20 @@
 					  "chg-gone",
 					  "usb-valid",
 					  "dc-valid";
+
+			usb-otg-in-supply = <&pm8941_5vs1>;
+
+			chg_otg: otg-vbus { };
 		};
 
 		pm8941_gpios: gpios@c000 {
 			compatible = "qcom,pm8941-gpio", "qcom,spmi-gpio";
 			reg = <0xc000>;
 			gpio-controller;
+			gpio-ranges = <&pm8941_gpios 0 0 36>;
 			#gpio-cells = <2>;
-			interrupts = <0 0xc0 0 IRQ_TYPE_NONE>,
-				     <0 0xc1 0 IRQ_TYPE_NONE>,
-				     <0 0xc2 0 IRQ_TYPE_NONE>,
-				     <0 0xc3 0 IRQ_TYPE_NONE>,
-				     <0 0xc4 0 IRQ_TYPE_NONE>,
-				     <0 0xc5 0 IRQ_TYPE_NONE>,
-				     <0 0xc6 0 IRQ_TYPE_NONE>,
-				     <0 0xc7 0 IRQ_TYPE_NONE>,
-				     <0 0xc8 0 IRQ_TYPE_NONE>,
-				     <0 0xc9 0 IRQ_TYPE_NONE>,
-				     <0 0xca 0 IRQ_TYPE_NONE>,
-				     <0 0xcb 0 IRQ_TYPE_NONE>,
-				     <0 0xcc 0 IRQ_TYPE_NONE>,
-				     <0 0xcd 0 IRQ_TYPE_NONE>,
-				     <0 0xce 0 IRQ_TYPE_NONE>,
-				     <0 0xcf 0 IRQ_TYPE_NONE>,
-				     <0 0xd0 0 IRQ_TYPE_NONE>,
-				     <0 0xd1 0 IRQ_TYPE_NONE>,
-				     <0 0xd2 0 IRQ_TYPE_NONE>,
-				     <0 0xd3 0 IRQ_TYPE_NONE>,
-				     <0 0xd4 0 IRQ_TYPE_NONE>,
-				     <0 0xd5 0 IRQ_TYPE_NONE>,
-				     <0 0xd6 0 IRQ_TYPE_NONE>,
-				     <0 0xd7 0 IRQ_TYPE_NONE>,
-				     <0 0xd8 0 IRQ_TYPE_NONE>,
-				     <0 0xd9 0 IRQ_TYPE_NONE>,
-				     <0 0xda 0 IRQ_TYPE_NONE>,
-				     <0 0xdb 0 IRQ_TYPE_NONE>,
-				     <0 0xdc 0 IRQ_TYPE_NONE>,
-				     <0 0xdd 0 IRQ_TYPE_NONE>,
-				     <0 0xde 0 IRQ_TYPE_NONE>,
-				     <0 0xdf 0 IRQ_TYPE_NONE>,
-				     <0 0xe0 0 IRQ_TYPE_NONE>,
-				     <0 0xe1 0 IRQ_TYPE_NONE>,
-				     <0 0xe2 0 IRQ_TYPE_NONE>,
-				     <0 0xe3 0 IRQ_TYPE_NONE>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
 
 			boost_bypass_n_pin: boost-bypass {
 				pins = "gpio21";
@@ -127,6 +106,9 @@
 			#size-cells = <0>;
 			#io-channel-cells = <1>;
 
+			bat_temp {
+				reg = <VADC_LR_MUX1_BAT_THERM>;
+			};
 			die_temp {
 				reg = <VADC_DIE_TEMP>;
 			};
@@ -141,6 +123,9 @@
 			};
 			ref_vdd {
 				reg = <VADC_VDD_VADC>;
+			};
+			vbat_sns {
+				reg = <VADC_VBAT_SNS>;
 			};
 		};
 
@@ -170,6 +155,29 @@
 			label = "backlight";
 
 			status = "disabled";
+		};
+
+		regulators {
+			compatible = "qcom,pm8941-regulators";
+			interrupts = <0x1 0x83 0x2 0>, <0x1 0x84 0x2 0>;
+			interrupt-names = "ocp-5vs1", "ocp-5vs2";
+			vin_5vs-supply = <&pm8941_5v>;
+
+			pm8941_5v: s4 {
+				regulator-min-microvolt = <5000000>;
+				regulator-max-microvolt = <5000000>;
+				regulator-enable-ramp-delay = <500>;
+			};
+
+			pm8941_5vs1: 5vs1 {
+				regulator-enable-ramp-delay = <1000>;
+				regulator-pull-down;
+				regulator-over-current-protection;
+				qcom,ocp-max-retries = <10>;
+				qcom,ocp-retry-delay = <30>;
+				qcom,vs-soft-start-strength = <0>;
+				regulator-initial-mode = <1>;
+			};
 		};
 	};
 };

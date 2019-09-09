@@ -1,8 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * IPv6 raw table, a port of the IPv4 raw table to IPv6
  *
- * Copyright (C) 2003 Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>
+ * Copyright (C) 2003 Jozsef Kadlecsik <kadlec@netfilter.org>
  */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
 #include <linux/netfilter_ipv6/ip6_tables.h>
 #include <linux/slab.h>
@@ -11,12 +13,25 @@
 
 static int __net_init ip6table_raw_table_init(struct net *net);
 
+static bool raw_before_defrag __read_mostly;
+MODULE_PARM_DESC(raw_before_defrag, "Enable raw table before defrag");
+module_param(raw_before_defrag, bool, 0000);
+
 static const struct xt_table packet_raw = {
 	.name = "raw",
 	.valid_hooks = RAW_VALID_HOOKS,
 	.me = THIS_MODULE,
 	.af = NFPROTO_IPV6,
 	.priority = NF_IP6_PRI_RAW,
+	.table_init = ip6table_raw_table_init,
+};
+
+static const struct xt_table packet_raw_before_defrag = {
+	.name = "raw",
+	.valid_hooks = RAW_VALID_HOOKS,
+	.me = THIS_MODULE,
+	.af = NFPROTO_IPV6,
+	.priority = NF_IP6_PRI_RAW_BEFORE_DEFRAG,
 	.table_init = ip6table_raw_table_init,
 };
 
@@ -33,15 +48,19 @@ static struct nf_hook_ops *rawtable_ops __read_mostly;
 static int __net_init ip6table_raw_table_init(struct net *net)
 {
 	struct ip6t_replace *repl;
+	const struct xt_table *table = &packet_raw;
 	int ret;
+
+	if (raw_before_defrag)
+		table = &packet_raw_before_defrag;
 
 	if (net->ipv6.ip6table_raw)
 		return 0;
 
-	repl = ip6t_alloc_initial_table(&packet_raw);
+	repl = ip6t_alloc_initial_table(table);
 	if (repl == NULL)
 		return -ENOMEM;
-	ret = ip6t_register_table(net, &packet_raw, repl, rawtable_ops,
+	ret = ip6t_register_table(net, table, repl, rawtable_ops,
 				  &net->ipv6.ip6table_raw);
 	kfree(repl);
 	return ret;
@@ -62,9 +81,16 @@ static struct pernet_operations ip6table_raw_net_ops = {
 static int __init ip6table_raw_init(void)
 {
 	int ret;
+	const struct xt_table *table = &packet_raw;
+
+	if (raw_before_defrag) {
+		table = &packet_raw_before_defrag;
+
+		pr_info("Enabling raw table before defrag\n");
+	}
 
 	/* Register hooks */
-	rawtable_ops = xt_hook_ops_alloc(&packet_raw, ip6table_raw_hook);
+	rawtable_ops = xt_hook_ops_alloc(table, ip6table_raw_hook);
 	if (IS_ERR(rawtable_ops))
 		return PTR_ERR(rawtable_ops);
 

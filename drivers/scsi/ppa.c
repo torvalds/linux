@@ -590,7 +590,7 @@ static int ppa_completion(struct scsi_cmnd *cmd)
 		if (cmd->SCp.buffer && !cmd->SCp.this_residual) {
 			/* if scatter/gather, advance to the next segment */
 			if (cmd->SCp.buffers_residual--) {
-				cmd->SCp.buffer++;
+				cmd->SCp.buffer = sg_next(cmd->SCp.buffer);
 				cmd->SCp.this_residual =
 				    cmd->SCp.buffer->length;
 				cmd->SCp.ptr = sg_virt(cmd->SCp.buffer);
@@ -717,6 +717,7 @@ static int ppa_engine(ppa_struct *dev, struct scsi_cmnd *cmd)
 			}
 			cmd->SCp.phase++;
 		}
+		/* fall through */
 
 	case 2:		/* Phase 2 - We are now talking to the scsi bus */
 		if (!ppa_select(dev, scmd_id(cmd))) {
@@ -724,6 +725,7 @@ static int ppa_engine(ppa_struct *dev, struct scsi_cmnd *cmd)
 			return 0;
 		}
 		cmd->SCp.phase++;
+		/* fall through */
 
 	case 3:		/* Phase 3 - Ready to accept a command */
 		w_ctr(ppb, 0x0c);
@@ -733,6 +735,7 @@ static int ppa_engine(ppa_struct *dev, struct scsi_cmnd *cmd)
 		if (!ppa_send_command(cmd))
 			return 0;
 		cmd->SCp.phase++;
+		/* fall through */
 
 	case 4:		/* Phase 4 - Setup scatter/gather buffers */
 		if (scsi_bufflen(cmd)) {
@@ -746,6 +749,7 @@ static int ppa_engine(ppa_struct *dev, struct scsi_cmnd *cmd)
 		}
 		cmd->SCp.buffers_residual = scsi_sg_count(cmd) - 1;
 		cmd->SCp.phase++;
+		/* fall through */
 
 	case 5:		/* Phase 5 - Data transfer stage */
 		w_ctr(ppb, 0x0c);
@@ -758,6 +762,7 @@ static int ppa_engine(ppa_struct *dev, struct scsi_cmnd *cmd)
 		if (retv == 0)
 			return 1;
 		cmd->SCp.phase++;
+		/* fall through */
 
 	case 6:		/* Phase 6 - Read status/message */
 		cmd->result = DID_OK << 16;
@@ -970,12 +975,10 @@ static struct scsi_host_template ppa_template = {
 	.name			= "Iomega VPI0 (ppa) interface",
 	.queuecommand		= ppa_queuecommand,
 	.eh_abort_handler	= ppa_abort,
-	.eh_bus_reset_handler	= ppa_reset,
 	.eh_host_reset_handler	= ppa_reset,
 	.bios_param		= ppa_biosparam,
 	.this_id		= -1,
 	.sg_tablesize		= SG_ALL,
-	.use_clustering		= ENABLE_CLUSTERING,
 	.can_queue		= 1,
 	.slave_alloc		= ppa_adjust_queue,
 };

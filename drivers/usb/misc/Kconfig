@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # USB Miscellaneous driver configuration
 #
@@ -15,7 +16,7 @@ config USB_EMI62
 	  This code is also available as a module ( = code which can be
 	  inserted in and removed from the running kernel whenever you want).
 	  The module will be called audio. If you want to compile it as a
-	  module, say M here and read <file:Documentation/kbuild/modules.txt>.
+	  module, say M here and read <file:Documentation/kbuild/modules.rst>.
 
 config USB_EMI26
 	tristate "EMI 2|6 USB Audio interface support"
@@ -50,7 +51,7 @@ config USB_RIO500
 	tristate "USB Diamond Rio500 support"
 	help
 	  Say Y here if you want to connect a USB Rio500 mp3 player to your
-	  computer's USB port. Please read <file:Documentation/usb/rio.txt>
+	  computer's USB port. Please read <file:Documentation/usb/rio.rst>
 	  for more information.
 
 	  To compile this driver as a module, choose M here: the
@@ -66,7 +67,7 @@ config USB_LEGOTOWER
 	  inserted in and removed from the running kernel whenever you want).
 	  The module will be called legousbtower. If you want to compile it as
 	  a module, say M here and read
-	  <file:Documentation/kbuild/modules.txt>.
+	  <file:Documentation/kbuild/modules.rst>.
 
 config USB_LCD
 	tristate "USB LCD driver support"
@@ -141,7 +142,6 @@ config USB_FTDI_ELAN
 
 config USB_APPLEDISPLAY
 	tristate "Apple Cinema Display support"
-	select BACKLIGHT_LCD_SUPPORT
 	select BACKLIGHT_CLASS_DEVICE
 	help
 	  Say Y here if you want to control the backlight of Apple Cinema
@@ -233,6 +233,15 @@ config USB_EZUSB_FX2
 	  Say Y here if you need EZUSB device support.
 	  (Cypress FX/FX2/FX2LP microcontrollers)
 
+config USB_HUB_USB251XB
+	tristate "USB251XB Hub Controller Configuration Driver"
+	depends on I2C
+	help
+	  This option enables support for configuration via SMBus of the
+	  Microchip USB251x/xBi USB 2.0 Hub Controller series. Configuration
+	  parameters may be set in devicetree or platform data.
+	  Say Y or M here if you need to configure such a device via SMBus.
+
 config USB_HSIC_USB3503
        tristate "USB3503 HSIC to USB20 Driver"
        depends on I2C
@@ -266,29 +275,3 @@ config USB_CHAOSKEY
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called chaoskey.
-
-config UCSI
-	tristate "USB Type-C Connector System Software Interface driver"
-	depends on ACPI
-	help
-	  UCSI driver is meant to be used as a convenience tool for desktop and
-	  server systems that are not equipped to handle USB in device mode. It
-	  will always select USB host role for the USB Type-C ports on systems
-	  that provide UCSI interface.
-
-	  USB Type-C Connector System Software Interface (UCSI) is a
-	  specification for an interface that allows the Operating System to
-	  control the USB Type-C ports on a system. Things the need controlling
-	  include the USB Data Role (host or device), and when USB Power
-	  Delivery is supported, the Power Role (source or sink). With USB
-	  Type-C connectors, when two dual role capable devices are attached
-	  together, the data role is selected randomly. Therefore it is
-	  important to give the OS a way to select the role. Otherwise the user
-	  would have to unplug and replug in order in order to attempt to swap
-	  the data and power roles.
-
-	  The UCSI specification can be downloaded from:
-	  http://www.intel.com/content/www/us/en/io/universal-serial-bus/usb-type-c-ucsi-spec.html
-
-	  To compile the driver as a module, choose M here: the module will be
-	  called ucsi.

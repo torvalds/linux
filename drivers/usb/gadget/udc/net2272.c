@@ -1,22 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Driver for PLX NET2272 USB device controller
  *
  * Copyright (C) 2005-2006 PLX Technology, Inc.
  * Copyright (C) 2006-2011 Analog Devices, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/delay.h>
@@ -181,7 +168,7 @@ static void net2272_dequeue_all(struct net2272_ep *);
 static int net2272_kick_dma(struct net2272_ep *, struct net2272_request *);
 static int net2272_fifo_status(struct usb_ep *);
 
-static struct usb_ep_ops net2272_ep_ops;
+static const struct usb_ep_ops net2272_ep_ops;
 
 /*---------------------------------------------------------------------------*/
 
@@ -202,10 +189,10 @@ net2272_enable(struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 	if (!dev->driver || dev->gadget.speed == USB_SPEED_UNKNOWN)
 		return -ESHUTDOWN;
 
-	max = usb_endpoint_maxp(desc) & 0x1fff;
+	max = usb_endpoint_maxp(desc);
 
 	spin_lock_irqsave(&dev->lock, flags);
-	_ep->maxpacket = max & 0x7fff;
+	_ep->maxpacket = max;
 	ep->desc = desc;
 
 	/* net2272_ep_reset() has already been called */
@@ -586,8 +573,7 @@ net2272_read_fifo(struct net2272_ep *ep, struct net2272_request *req)
 
 		/* completion */
 		if (unlikely(cleanup || is_short ||
-				((req->req.actual == req->req.length)
-				 && !req->req.zero))) {
+				req->req.actual == req->req.length)) {
 
 			if (cleanup) {
 				net2272_out_flush(ep);
@@ -653,7 +639,7 @@ net2272_request_dma(struct net2272 *dev, unsigned ep, u32 buf,
 	dev->dma_busy = 1;
 
 	/* initialize platform's dma */
-#ifdef CONFIG_PCI
+#ifdef CONFIG_USB_PCI
 	/* NET2272 addr, buffer addr, length, etc. */
 	switch (dev->dev_id) {
 	case PCI_DEVICE_ID_RDK1:
@@ -701,7 +687,7 @@ static void
 net2272_start_dma(struct net2272 *dev)
 {
 	/* start platform's dma controller */
-#ifdef CONFIG_PCI
+#ifdef CONFIG_USB_PCI
 	switch (dev->dev_id) {
 	case PCI_DEVICE_ID_RDK1:
 		writeb((1 << CHANNEL_ENABLE) | (1 << CHANNEL_START),
@@ -797,7 +783,7 @@ net2272_kick_dma(struct net2272_ep *ep, struct net2272_request *req)
 
 static void net2272_cancel_dma(struct net2272 *dev)
 {
-#ifdef CONFIG_PCI
+#ifdef CONFIG_USB_PCI
 	switch (dev->dev_id) {
 	case PCI_DEVICE_ID_RDK1:
 		writeb(0, dev->rdk1.plx9054_base_addr + DMACSR0);
@@ -958,6 +944,7 @@ net2272_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 			break;
 	}
 	if (&req->req != _req) {
+		ep->stopped = stopped;
 		spin_unlock_irqrestore(&ep->dev->lock, flags);
 		return -EINVAL;
 	}
@@ -1067,7 +1054,7 @@ net2272_fifo_flush(struct usb_ep *_ep)
 	net2272_ep_write(ep, EP_STAT1, 1 << BUFFER_FLUSH);
 }
 
-static struct usb_ep_ops net2272_ep_ops = {
+static const struct usb_ep_ops net2272_ep_ops = {
 	.enable        = net2272_enable,
 	.disable       = net2272_disable,
 
@@ -1190,11 +1177,6 @@ registers_show(struct device *_dev, struct device_attribute *attr, char *buf)
 	next = buf;
 	size = PAGE_SIZE;
 	spin_lock_irqsave(&dev->lock, flags);
-
-	if (dev->driver)
-		s = dev->driver->driver.name;
-	else
-		s = "(none)";
 
 	/* Main Control Registers */
 	t = scnprintf(next, size, "%s version %s,"
@@ -2096,7 +2078,7 @@ static irqreturn_t net2272_irq(int irq, void *_dev)
 #if defined(PLX_PCI_RDK2)
 	/* see if PCI int for us by checking irqstat */
 	intcsr = readl(dev->rdk2.fpga_base_addr + RDK2_IRQSTAT);
-	if (!intcsr & (1 << NET2272_PCI_IRQ)) {
+	if (!(intcsr & (1 << NET2272_PCI_IRQ))) {
 		spin_unlock(&dev->lock);
 		return IRQ_NONE;
 	}
@@ -2306,7 +2288,7 @@ err_add_udc:
 	return ret;
 }
 
-#ifdef CONFIG_PCI
+#ifdef CONFIG_USB_PCI
 
 /*
  * wrap this driver around the specified device, but

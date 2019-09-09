@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * IEEE754 floating point
  * double precision internal header file
@@ -5,19 +6,6 @@
 /*
  * MIPS floating point support
  * Copyright (C) 1994-2000 Algorithmics Ltd.
- *
- *  This program is free software; you can distribute it and/or modify it
- *  under the terms of the GNU General Public License (Version 2) as
- *  published by the Free Software Foundation.
- *
- *  This program is distributed in the hope it will be useful, but WITHOUT
- *  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- *  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- *  for more details.
- *
- *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA.
  */
 
 #include <linux/compiler.h>
@@ -45,6 +33,10 @@ static inline int ieee754sp_finite(union ieee754sp x)
 	return SPBEXP(x) != SP_EMAX + 1 + SP_EBIAS;
 }
 
+/* 64 bit right shift with rounding */
+#define XSPSRS64(v, rs)						\
+	(((rs) >= 64) ? ((v) != 0) : ((v) >> (rs)) | ((v) << (64-(rs)) != 0))
+
 /* 3bit extended single precision sticky right shift */
 #define XSPSRS(v, rs)						\
 	((rs > (SP_FBITS+3))?1:((v) >> (rs)) | ((v) << (32-(rs)) != 0))
@@ -65,7 +57,7 @@ static inline int ieee754sp_finite(union ieee754sp x)
 #define SPDNORMY	SPDNORMx(ym, ye)
 #define SPDNORMZ	SPDNORMx(zm, ze)
 
-static inline union ieee754sp buildsp(int s, int bx, unsigned m)
+static inline union ieee754sp buildsp(int s, int bx, unsigned int m)
 {
 	union ieee754sp r;
 

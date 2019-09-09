@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* leo.c: LEO frame buffer driver
  *
  * Copyright (C) 2003, 2006 David S. Miller (davem@davemloft.net)
@@ -434,7 +435,7 @@ static int leo_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 static void
 leo_init_fix(struct fb_info *info, struct device_node *dp)
 {
-	strlcpy(info->fix.id, dp->name, sizeof(info->fix.id));
+	snprintf(info->fix.id, sizeof(info->fix.id), "%pOFn", dp);
 
 	info->fix.type = FB_TYPE_PACKED_PIXELS;
 	info->fix.visual = FB_VISUAL_TRUECOLOR;
@@ -619,8 +620,8 @@ static int leo_probe(struct platform_device *op)
 
 	dev_set_drvdata(&op->dev, info);
 
-	printk(KERN_INFO "%s: leo at %lx:%lx\n",
-	       dp->full_name,
+	printk(KERN_INFO "%pOF: leo at %lx:%lx\n",
+	       dp,
 	       par->which_io, info->fix.smem_start);
 
 	return 0;

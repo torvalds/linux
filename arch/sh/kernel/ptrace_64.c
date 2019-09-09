@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * arch/sh/kernel/ptrace_64.c
  *
@@ -10,14 +11,11 @@
  *   Original x86 implementation:
  *	By Ross Biro 1/23/92
  *	edited by Linus Torvalds
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 #include <linux/kernel.h>
 #include <linux/rwsem.h>
 #include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
 #include <linux/bitops.h>
@@ -32,7 +30,7 @@
 #include <linux/elf.h>
 #include <linux/regset.h>
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/processor.h>
 #include <asm/mmu_context.h>
@@ -552,7 +550,7 @@ asmlinkage void do_single_step(unsigned long long vec, struct pt_regs *regs)
 	   continually stepping. */
 	local_irq_enable();
 	regs->sr &= ~SR_SSTEP;
-	force_sig(SIGTRAP, current);
+	force_sig(SIGTRAP);
 }
 
 /* Called with interrupts disabled */
@@ -563,7 +561,7 @@ BUILD_TRAP_HANDLER(breakpoint)
 	/* We need to forward step the PC, to counteract the backstep done
 	   in signal.c. */
 	local_irq_enable();
-	force_sig(SIGTRAP, current);
+	force_sig(SIGTRAP);
 	regs->pc += 4;
 }
 

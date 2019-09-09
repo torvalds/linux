@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * vsp1_rwpf.c  --  R-Car VSP1 Read and Write Pixel Formatters
  *
  * Copyright (C) 2013-2014 Renesas Electronics Corporation
  *
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <media/v4l2-subdev.h>
@@ -37,6 +33,7 @@ static int vsp1_rwpf_enum_mbus_code(struct v4l2_subdev *subdev,
 {
 	static const unsigned int codes[] = {
 		MEDIA_BUS_FMT_ARGB8888_1X32,
+		MEDIA_BUS_FMT_AHSV8888_1X32,
 		MEDIA_BUS_FMT_AYUV8_1X32,
 	};
 
@@ -78,13 +75,15 @@ static int vsp1_rwpf_set_format(struct v4l2_subdev *subdev,
 
 	/* Default to YUV if the requested format is not supported. */
 	if (fmt->format.code != MEDIA_BUS_FMT_ARGB8888_1X32 &&
+	    fmt->format.code != MEDIA_BUS_FMT_AHSV8888_1X32 &&
 	    fmt->format.code != MEDIA_BUS_FMT_AYUV8_1X32)
 		fmt->format.code = MEDIA_BUS_FMT_AYUV8_1X32;
 
 	format = vsp1_entity_get_pad_format(&rwpf->entity, config, fmt->pad);
 
 	if (fmt->pad == RWPF_PAD_SOURCE) {
-		/* The RWPF performs format conversion but can't scale, only the
+		/*
+		 * The RWPF performs format conversion but can't scale, only the
 		 * format code can be changed on the source pad.
 		 */
 		format->code = fmt->format.code;
@@ -117,6 +116,11 @@ static int vsp1_rwpf_set_format(struct v4l2_subdev *subdev,
 	format = vsp1_entity_get_pad_format(&rwpf->entity, config,
 					    RWPF_PAD_SOURCE);
 	*format = fmt->format;
+
+	if (rwpf->flip.rotate) {
+		format->width = fmt->format.height;
+		format->height = fmt->format.width;
+	}
 
 done:
 	mutex_unlock(&rwpf->entity.lock);
@@ -203,7 +207,8 @@ static int vsp1_rwpf_set_selection(struct v4l2_subdev *subdev,
 	format = vsp1_entity_get_pad_format(&rwpf->entity, config,
 					    RWPF_PAD_SINK);
 
-	/* Restrict the crop rectangle coordinates to multiples of 2 to avoid
+	/*
+	 * Restrict the crop rectangle coordinates to multiples of 2 to avoid
 	 * shifting the color plane.
 	 */
 	if (format->code == MEDIA_BUS_FMT_AYUV8_1X32) {

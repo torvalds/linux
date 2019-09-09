@@ -1,11 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2014 Samsung Electronics Co., Ltd.
  * Author: Naveen Krishna Ch <naveenkrishna.ch@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
 */
 
 #include <linux/clk-provider.h>
@@ -140,7 +136,7 @@ static const struct samsung_div_clock topc_div_clks[] __initconst = {
 };
 
 static const struct samsung_pll_rate_table pll1460x_24mhz_tbl[] __initconst = {
-	PLL_36XX_RATE(491520000, 20, 1, 0, 31457),
+	PLL_36XX_RATE(24 * MHZ, 491519897, 20, 1, 0, 31457),
 	{},
 };
 

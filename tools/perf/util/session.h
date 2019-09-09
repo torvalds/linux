@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __PERF_SESSION_H
 #define __PERF_SESSION_H
 
@@ -5,14 +6,15 @@
 #include "event.h"
 #include "header.h"
 #include "machine.h"
-#include "symbol.h"
-#include "thread.h"
 #include "data.h"
 #include "ordered-events.h"
+#include "util/compress.h"
+#include <linux/kernel.h>
 #include <linux/rbtree.h>
 #include <linux/perf_event.h>
 
 struct ip_callchain;
+struct symbol;
 struct thread;
 
 struct auxtrace;
@@ -32,13 +34,27 @@ struct perf_session {
 	void			*one_mmap_addr;
 	u64			one_mmap_offset;
 	struct ordered_events	ordered_events;
-	struct perf_data_file	*file;
+	struct perf_data	*data;
 	struct perf_tool	*tool;
+	u64			bytes_transferred;
+	u64			bytes_compressed;
+	struct zstd_data	zstd_data;
+	struct decomp		*decomp;
+	struct decomp		*decomp_last;
+};
+
+struct decomp {
+	struct decomp *next;
+	u64 file_pos;
+	size_t mmap_len;
+	u64 head;
+	size_t size;
+	char data[];
 };
 
 struct perf_tool;
 
-struct perf_session *perf_session__new(struct perf_data_file *file,
+struct perf_session *perf_session__new(struct perf_data *data,
 				       bool repipe, struct perf_tool *tool);
 void perf_session__delete(struct perf_session *session);
 
@@ -52,7 +68,7 @@ int perf_session__peek_event(struct perf_session *session, off_t file_offset,
 int perf_session__process_events(struct perf_session *session);
 
 int perf_session__queue_event(struct perf_session *s, union perf_event *event,
-			      struct perf_sample *sample, u64 file_offset);
+			      u64 timestamp, u64 file_offset);
 
 void perf_tool__fill_defaults(struct perf_tool *tool);
 
@@ -113,15 +129,14 @@ int __perf_session__set_tracepoints_handlers(struct perf_session *session,
 
 extern volatile int session_done;
 
-#define session_done()	ACCESS_ONCE(session_done)
+#define session_done()	READ_ONCE(session_done)
 
 int perf_session__deliver_synth_event(struct perf_session *session,
 				      union perf_event *event,
 				      struct perf_sample *sample);
 
-int perf_event__process_id_index(struct perf_tool *tool,
-				 union perf_event *event,
-				 struct perf_session *session);
+int perf_event__process_id_index(struct perf_session *session,
+				 union perf_event *event);
 
 int perf_event__synthesize_id_index(struct perf_tool *tool,
 				    perf_event__handler_t process,

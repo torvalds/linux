@@ -1,6 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef ISCSI_PARAMETERS_H
 #define ISCSI_PARAMETERS_H
 
+#include <linux/types.h>
 #include <scsi/iscsi_proto.h>
 
 struct iscsi_extra_response {
@@ -23,6 +25,11 @@ struct iscsi_param {
 	struct list_head p_list;
 } ____cacheline_aligned;
 
+struct iscsi_conn;
+struct iscsi_conn_ops;
+struct iscsi_param_list;
+struct iscsi_sess_ops;
+
 extern int iscsi_login_rx_data(struct iscsi_conn *, char *, int);
 extern int iscsi_login_tx_data(struct iscsi_conn *, char *, char *, int);
 extern void iscsi_dump_conn_ops(struct iscsi_conn_ops *);
@@ -40,7 +47,7 @@ extern int iscsi_extract_key_value(char *, char **, char **);
 extern int iscsi_update_param_value(struct iscsi_param *, char *);
 extern int iscsi_decode_text_input(u8, u8, char *, u32, struct iscsi_conn *);
 extern int iscsi_encode_text_output(u8, u8, char *, u32 *,
-			struct iscsi_param_list *);
+			struct iscsi_param_list *, bool);
 extern int iscsi_check_negotiated_keys(struct iscsi_param_list *);
 extern void iscsi_set_connection_parameters(struct iscsi_conn_ops *,
 			struct iscsi_param_list *);

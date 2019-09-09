@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * PowerNV OPAL in-memory console interface
  *
  * Copyright 2014 IBM Corp.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <asm/io.h>
@@ -43,7 +39,7 @@ ssize_t opal_msglog_copy(char *to, loff_t pos, size_t count)
 	if (!opal_memcons)
 		return -ENODEV;
 
-	out_pos = be32_to_cpu(ACCESS_ONCE(opal_memcons->out_pos));
+	out_pos = be32_to_cpu(READ_ONCE(opal_memcons->out_pos));
 
 	/* Now we've read out_pos, put a barrier in before reading the new
 	 * data it points to in conbuf. */
@@ -98,7 +94,7 @@ static ssize_t opal_msglog_read(struct file *file, struct kobject *kobj,
 }
 
 static struct bin_attribute opal_msglog_attr = {
-	.attr = {.name = "msglog", .mode = 0444},
+	.attr = {.name = "msglog", .mode = 0400},
 	.read = opal_msglog_read
 };
 
@@ -122,6 +118,10 @@ void __init opal_msglog_init(void)
 		pr_warn("OPAL: memory console version is invalid\n");
 		return;
 	}
+
+	/* Report maximum size */
+	opal_msglog_attr.size =  be32_to_cpu(mc->ibuf_size) +
+		be32_to_cpu(mc->obuf_size);
 
 	opal_memcons = mc;
 }

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Media device
  *
@@ -5,19 +6,6 @@
  *
  * Contacts: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
  *	     Sakari Ailus <sakari.ailus@iki.fi>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #ifndef _MEDIA_DEVICE_H
@@ -31,6 +19,7 @@
 
 struct ida;
 struct device;
+struct media_device;
 
 /**
  * struct media_entity_notify - Media Entity Notify
@@ -39,8 +28,10 @@ struct device;
  * @notify_data: Input data to invoke the callback
  * @notify: Callback function pointer
  *
- * Drivers may register a callback to take action when
- * new entities get registered with the media device.
+ * Drivers may register a callback to take action when new entities get
+ * registered with the media device. This handler is intended for creating
+ * links between existing entities and should not create entities and register
+ * them.
  */
 struct media_entity_notify {
 	struct list_head list;
@@ -52,10 +43,32 @@ struct media_entity_notify {
  * struct media_device_ops - Media device operations
  * @link_notify: Link state change notification callback. This callback is
  *		 called with the graph_mutex held.
+ * @req_alloc: Allocate a request. Set this if you need to allocate a struct
+ *	       larger then struct media_request. @req_alloc and @req_free must
+ *	       either both be set or both be NULL.
+ * @req_free: Free a request. Set this if @req_alloc was set as well, leave
+ *	      to NULL otherwise.
+ * @req_validate: Validate a request, but do not queue yet. The req_queue_mutex
+ *	          lock is held when this op is called.
+ * @req_queue: Queue a validated request, cannot fail. If something goes
+ *	       wrong when queueing this request then it should be marked
+ *	       as such internally in the driver and any related buffers
+ *	       must eventually return to vb2 with state VB2_BUF_STATE_ERROR.
+ *	       The req_queue_mutex lock is held when this op is called.
+ *	       It is important that vb2 buffer objects are queued last after
+ *	       all other object types are queued: queueing a buffer kickstarts
+ *	       the request processing, so all other objects related to the
+ *	       request (and thus the buffer) must be available to the driver.
+ *	       And once a buffer is queued, then the driver can complete
+ *	       or delete objects from the request before req_queue exits.
  */
 struct media_device_ops {
 	int (*link_notify)(struct media_link *link, u32 flags,
 			   unsigned int notification);
+	struct media_request *(*req_alloc)(struct media_device *mdev);
+	void (*req_free)(struct media_request *req);
+	int (*req_validate)(struct media_request *req);
+	void (*req_queue)(struct media_request *req);
 };
 
 /**
@@ -70,7 +83,6 @@ struct media_device_ops {
  * @serial:	Device serial number (optional)
  * @bus_info:	Unique and stable device location identifier
  * @hw_revision: Hardware device revision
- * @driver_version: Device driver version
  * @topology_version: Monotonic counter for storing the version of the graph
  *		topology. Should be incremented each time the topology changes.
  * @id:		Unique ID used on the last registered graph object
@@ -91,6 +103,9 @@ struct media_device_ops {
  * @disable_source: Disable Source Handler function pointer
  *
  * @ops:	Operation handler callbacks
+ * @req_queue_mutex: Serialise the MEDIA_REQUEST_IOC_QUEUE ioctl w.r.t.
+ *		     other operations that stop or start streaming.
+ * @request_id: Used to generate unique request IDs
  *
  * This structure represents an abstract high-level media device. It allows easy
  * access to entities and provides basic media device-level support. The
@@ -123,6 +138,8 @@ struct media_device_ops {
  *    bridge driver finds the media_device during probe.
  *    Bridge driver sets source_priv with information
  *    necessary to run @enable_source and @disable_source handlers.
+ *    Callers should hold graph_mutex to access and call @enable_source
+ *    and @disable_source handlers.
  */
 struct media_device {
 	/* dev->driver_data points to this struct. */
@@ -134,7 +151,6 @@ struct media_device {
 	char serial[40];
 	char bus_info[32];
 	u32 hw_revision;
-	u32 driver_version;
 
 	u64 topology_version;
 
@@ -152,7 +168,7 @@ struct media_device {
 
 	/* Serializes graph operations. */
 	struct mutex graph_mutex;
-	struct media_entity_graph pm_count_walk;
+	struct media_graph pm_count_walk;
 
 	void *source_priv;
 	int (*enable_source)(struct media_entity *entity,
@@ -160,6 +176,9 @@ struct media_device {
 	void (*disable_source)(struct media_entity *entity);
 
 	const struct media_device_ops *ops;
+
+	struct mutex req_queue_mutex;
+	atomic_t request_id;
 };
 
 /* We don't need to include pci.h or usb.h here */
@@ -248,11 +267,6 @@ void media_device_cleanup(struct media_device *mdev);
  *  - &media_entity.hw_revision is the hardware device revision in a
  *    driver-specific format. When possible the revision should be formatted
  *    with the KERNEL_VERSION() macro.
- *
- *  - &media_entity.driver_version is formatted with the KERNEL_VERSION()
- *    macro. The version minor must be incremented when new features are added
- *    to the userspace API without breaking binary compatibility. The version
- *    major must be incremented when binary compatibility is broken.
  *
  * .. note::
  *
@@ -373,30 +387,6 @@ int __must_check media_device_register_entity_notify(struct media_device *mdev,
 void media_device_unregister_entity_notify(struct media_device *mdev,
 					struct media_entity_notify *nptr);
 
-/**
- * media_device_get_devres() -	get media device as device resource
- *				creates if one doesn't exist
- *
- * @dev: pointer to struct &device.
- *
- * Sometimes, the media controller &media_device needs to be shared by more
- * than one driver. This function adds support for that, by dynamically
- * allocating the &media_device and allowing it to be obtained from the
- * struct &device associated with the common device where all sub-device
- * components belong. So, for example, on an USB device with multiple
- * interfaces, each interface may be handled by a separate per-interface
- * drivers. While each interface have its own &device, they all share a
- * common &device associated with the hole USB device.
- */
-struct media_device *media_device_get_devres(struct device *dev);
-
-/**
- * media_device_find_devres() - find media device as device resource
- *
- * @dev: pointer to struct &device.
- */
-struct media_device *media_device_find_devres(struct device *dev);
-
 /* Iterate over all entities. */
 #define media_device_for_each_entity(entity, mdev)			\
 	list_for_each_entry(entity, &(mdev)->entities, graph_obj.list)
@@ -473,14 +463,6 @@ static inline void media_device_unregister_entity_notify(
 					struct media_device *mdev,
 					struct media_entity_notify *nptr)
 {
-}
-static inline struct media_device *media_device_get_devres(struct device *dev)
-{
-	return NULL;
-}
-static inline struct media_device *media_device_find_devres(struct device *dev)
-{
-	return NULL;
 }
 
 static inline void media_device_pci_init(struct media_device *mdev,

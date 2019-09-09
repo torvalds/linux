@@ -1,0 +1,61 @@
+* Linear Technology / Analog Devices I2C bus switch
+
+Required Properties:
+
+  - compatible: Must contain one of the following.
+    "lltc,ltc4305", "lltc,ltc4306"
+  - reg: The I2C address of the device.
+
+  The following required properties are defined externally:
+
+  - Standard I2C mux properties. See i2c-mux.txt in this directory.
+  - I2C child bus nodes. See i2c-mux.txt in this directory.
+
+Optional Properties:
+
+  - enable-gpios: Reference to the GPIO connected to the enable input.
+  - i2c-mux-idle-disconnect: Boolean; if defined, forces mux to disconnect all
+    children in idle state. This is necessary for example, if there are several
+    multiplexers on the bus and the devices behind them use same I2C addresses.
+  - gpio-controller: Marks the device node as a GPIO Controller.
+  - #gpio-cells: Should be two.  The first cell is the pin number and
+	the second cell is used to specify flags.
+	See ../gpio/gpio.txt for more information.
+  - ltc,downstream-accelerators-enable: Enables the rise time accelerators
+	on the downstream port.
+  - ltc,upstream-accelerators-enable: Enables the rise time accelerators
+	on the upstream port.
+
+Example:
+
+	ltc4306: i2c-mux@4a {
+		compatible = "lltc,ltc4306";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x4a>;
+
+		gpio-controller;
+		#gpio-cells = <2>;
+
+		i2c@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0>;
+
+			eeprom@50 {
+				compatible = "atmel,24c02";
+				reg = <0x50>;
+			};
+		};
+
+		i2c@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <1>;
+
+			eeprom@50 {
+				compatible = "atmel,24c02";
+				reg = <0x50>;
+			};
+		};
+	};

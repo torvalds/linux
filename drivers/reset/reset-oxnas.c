@@ -1,24 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * drivers/reset/reset-oxnas.c
  *
  * Copyright (C) 2016 Neil Armstrong <narmstrong@baylibre.com>
  * Copyright (C) 2014 Ma Haijun <mahaijuns@gmail.com>
  * Copyright (C) 2009 Oxford Semiconductor Ltd
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <linux/err.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/reset-controller.h>
@@ -80,9 +69,9 @@ static const struct reset_control_ops oxnas_reset_ops = {
 
 static const struct of_device_id oxnas_reset_dt_ids[] = {
 	 { .compatible = "oxsemi,ox810se-reset", },
+	 { .compatible = "oxsemi,ox820-reset", },
 	 { /* sentinel */ },
 };
-MODULE_DEVICE_TABLE(of, oxnas_reset_dt_ids);
 
 static int oxnas_reset_probe(struct platform_device *pdev)
 {
@@ -122,5 +111,4 @@ static struct platform_driver oxnas_reset_driver = {
 		.of_match_table	= oxnas_reset_dt_ids,
 	},
 };
-
-module_platform_driver(oxnas_reset_driver);
+builtin_platform_driver(oxnas_reset_driver);

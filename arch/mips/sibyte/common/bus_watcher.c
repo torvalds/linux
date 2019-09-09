@@ -1,19 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2002,2003 Broadcom Corporation
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 
 /*
@@ -142,24 +129,12 @@ static int bw_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int bw_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, bw_proc_show, PDE_DATA(inode));
-}
-
-static const struct file_operations bw_proc_fops = {
-	.open		= bw_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 static void create_proc_decoder(struct bw_stats_struct *stats)
 {
 	struct proc_dir_entry *ent;
 
-	ent = proc_create_data("bus_watcher", S_IWUSR | S_IRUGO, NULL,
-			       &bw_proc_fops, stats);
+	ent = proc_create_single_data("bus_watcher", S_IWUSR | S_IRUGO, NULL,
+			bw_proc_show, stats);
 	if (!ent) {
 		printk(KERN_INFO "Unable to initialize bus_watcher /proc entry\n");
 		return;

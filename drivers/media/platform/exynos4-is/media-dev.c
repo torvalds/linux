@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * S5P/EXYNOS4 SoC series camera host interface media device driver
  *
  * Copyright (C) 2011 - 2013 Samsung Electronics Co., Ltd.
  * Author: Sylwester Nawrocki <s.nawrocki@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
- * by the Free Software Foundation, either version 2 of the License,
- * or (at your option) any later version.
  */
 
 #include <linux/bug.h>
@@ -29,7 +25,7 @@
 #include <linux/slab.h>
 #include <media/v4l2-async.h>
 #include <media/v4l2-ctrls.h>
-#include <media/v4l2-of.h>
+#include <media/v4l2-fwnode.h>
 #include <media/media-device.h>
 #include <media/drv-intf/exynos-fimc.h>
 
@@ -60,6 +56,7 @@ static void __setup_sensor_notification(struct fimc_md *fmd,
 
 /**
  * fimc_pipeline_prepare - update pipeline information with subdevice pointers
+ * @p: fimc pipeline
  * @me: media entity terminating the pipeline
  *
  * Caller holds the graph mutex.
@@ -151,8 +148,8 @@ static int __subdev_set_power(struct v4l2_subdev *sd, int on)
 
 /**
  * fimc_pipeline_s_power - change power state of all pipeline subdevs
- * @fimc: fimc device terminating the pipeline
- * @state: true to power on, false to power off
+ * @p: fimc device terminating the pipeline
+ * @on: true to power on, false to power off
  *
  * Needs to be called with the graph mutex held.
  */
@@ -219,6 +216,7 @@ static int __fimc_pipeline_enable(struct exynos_media_pipeline *ep,
 /**
  * __fimc_pipeline_open - update the pipeline information, enable power
  *                        of all pipeline subdevs and the sensor clock
+ * @ep: fimc device terminating the pipeline
  * @me: media entity to start graph walk with
  * @prepare: true to walk the current pipeline and acquire all subdevs
  *
@@ -252,7 +250,7 @@ static int __fimc_pipeline_open(struct exynos_media_pipeline *ep,
 
 /**
  * __fimc_pipeline_close - disable the sensor clock and pipeline power
- * @fimc: fimc device terminating the pipeline
+ * @ep: fimc device terminating the pipeline
  *
  * Disable power of all subdevs and turn the external sensor clock off.
  */
@@ -281,7 +279,7 @@ static int __fimc_pipeline_close(struct exynos_media_pipeline *ep)
 
 /**
  * __fimc_pipeline_s_stream - call s_stream() on pipeline subdevs
- * @pipeline: video pipeline structure
+ * @ep: video pipeline structure
  * @on: passed as the s_stream() callback argument
  */
 static int __fimc_pipeline_s_stream(struct exynos_media_pipeline *ep, bool on)
@@ -388,7 +386,7 @@ static int fimc_md_parse_port_node(struct fimc_md *fmd,
 {
 	struct fimc_source_info *pd = &fmd->sensor[index].pdata;
 	struct device_node *rem, *ep, *np;
-	struct v4l2_of_endpoint endpoint;
+	struct v4l2_fwnode_endpoint endpoint = { .bus_type = 0 };
 	int ret;
 
 	/* Assume here a port node can have only one endpoint node. */
@@ -396,22 +394,24 @@ static int fimc_md_parse_port_node(struct fimc_md *fmd,
 	if (!ep)
 		return 0;
 
-	ret = v4l2_of_parse_endpoint(ep, &endpoint);
+	ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(ep), &endpoint);
 	if (ret) {
 		of_node_put(ep);
 		return ret;
 	}
 
-	if (WARN_ON(endpoint.base.port == 0) || index >= FIMC_MAX_SENSORS)
+	if (WARN_ON(endpoint.base.port == 0) || index >= FIMC_MAX_SENSORS) {
+		of_node_put(ep);
 		return -EINVAL;
+	}
 
 	pd->mux_id = (endpoint.base.port - 1) & 0x1;
 
 	rem = of_graph_get_remote_port_parent(ep);
 	of_node_put(ep);
 	if (rem == NULL) {
-		v4l2_info(&fmd->v4l2_dev, "Remote device at %s not found\n",
-							ep->full_name);
+		v4l2_info(&fmd->v4l2_dev, "Remote device at %pOF not found\n",
+							ep);
 		return 0;
 	}
 
@@ -428,8 +428,8 @@ static int fimc_md_parse_port_node(struct fimc_md *fmd,
 		 */
 		pd->sensor_bus_type = FIMC_BUS_TYPE_MIPI_CSI2;
 	} else {
-		v4l2_err(&fmd->v4l2_dev, "Wrong port id (%u) at node %s\n",
-			 endpoint.base.port, rem->full_name);
+		v4l2_err(&fmd->v4l2_dev, "Wrong port id (%u) at node %pOF\n",
+			 endpoint.base.port, rem);
 	}
 	/*
 	 * For FIMC-IS handled sensors, that are placed under i2c-isp device
@@ -441,23 +441,29 @@ static int fimc_md_parse_port_node(struct fimc_md *fmd,
 	 */
 	np = of_get_parent(rem);
 
-	if (np && !of_node_cmp(np->name, "i2c-isp"))
+	if (of_node_name_eq(np, "i2c-isp"))
 		pd->fimc_bus_type = FIMC_BUS_TYPE_ISP_WRITEBACK;
 	else
 		pd->fimc_bus_type = pd->sensor_bus_type;
+	of_node_put(np);
 
 	if (WARN_ON(index >= ARRAY_SIZE(fmd->sensor))) {
 		of_node_put(rem);
 		return -EINVAL;
 	}
 
-	fmd->sensor[index].asd.match_type = V4L2_ASYNC_MATCH_OF;
-	fmd->sensor[index].asd.match.of.node = rem;
-	fmd->async_subdevs[index] = &fmd->sensor[index].asd;
+	fmd->sensor[index].asd.match_type = V4L2_ASYNC_MATCH_FWNODE;
+	fmd->sensor[index].asd.match.fwnode = of_fwnode_handle(rem);
+
+	ret = v4l2_async_notifier_add_subdev(&fmd->subdev_notifier,
+					     &fmd->sensor[index].asd);
+	if (ret) {
+		of_node_put(rem);
+		return ret;
+	}
 
 	fmd->num_sensors++;
 
-	of_node_put(rem);
 	return 0;
 }
 
@@ -465,7 +471,8 @@ static int fimc_md_parse_port_node(struct fimc_md *fmd,
 static int fimc_md_register_sensor_entities(struct fimc_md *fmd)
 {
 	struct device_node *parent = fmd->pdev->dev.of_node;
-	struct device_node *node, *ports;
+	struct device_node *ports = NULL;
+	struct device_node *node;
 	int index = 0;
 	int ret;
 
@@ -486,7 +493,7 @@ static int fimc_md_register_sensor_entities(struct fimc_md *fmd)
 	for_each_available_child_of_node(parent, node) {
 		struct device_node *port;
 
-		if (of_node_cmp(node->name, "csis"))
+		if (!of_node_name_eq(node, "csis"))
 			continue;
 		/* The csis node can have only port subnode. */
 		port = of_get_next_child(node, NULL);
@@ -496,7 +503,7 @@ static int fimc_md_register_sensor_entities(struct fimc_md *fmd)
 		ret = fimc_md_parse_port_node(fmd, port, index);
 		if (ret < 0) {
 			of_node_put(node);
-			goto rpm_put;
+			goto cleanup;
 		}
 		index++;
 	}
@@ -510,11 +517,19 @@ static int fimc_md_register_sensor_entities(struct fimc_md *fmd)
 		ret = fimc_md_parse_port_node(fmd, node, index);
 		if (ret < 0) {
 			of_node_put(node);
-			break;
+			goto cleanup;
 		}
 		index++;
 	}
+	of_node_put(ports);
+
 rpm_put:
+	pm_runtime_put(fmd->pmf);
+	return 0;
+
+cleanup:
+	of_node_put(ports);
+	v4l2_async_notifier_cleanup(&fmd->subdev_notifier);
 	pm_runtime_put(fmd->pmf);
 	return ret;
 }
@@ -705,13 +720,13 @@ static int fimc_md_register_platform_entities(struct fimc_md *fmd,
 			continue;
 
 		/* If driver of any entity isn't ready try all again later. */
-		if (!strcmp(node->name, CSIS_OF_NODE_NAME))
+		if (of_node_name_eq(node, CSIS_OF_NODE_NAME))
 			plat_entity = IDX_CSIS;
-		else if	(!strcmp(node->name, FIMC_IS_OF_NODE_NAME))
+		else if (of_node_name_eq(node, FIMC_IS_OF_NODE_NAME))
 			plat_entity = IDX_IS_ISP;
-		else if (!strcmp(node->name, FIMC_LITE_OF_NODE_NAME))
+		else if (of_node_name_eq(node, FIMC_LITE_OF_NODE_NAME))
 			plat_entity = IDX_FLITE;
-		else if	(!strcmp(node->name, FIMC_OF_NODE_NAME) &&
+		else if (of_node_name_eq(node, FIMC_OF_NODE_NAME) &&
 			 !of_property_read_bool(node, "samsung,lcd-wb"))
 			plat_entity = IDX_FIMC;
 
@@ -900,6 +915,7 @@ static int __fimc_md_create_fimc_is_links(struct fimc_md *fmd)
 
 /**
  * fimc_md_create_links - create default links between registered entities
+ * @fmd: fimc media device
  *
  * Parallel interface sensor entities are connected directly to FIMC capture
  * entities. The sensors using MIPI CSIS bus are connected through immutable
@@ -938,8 +954,7 @@ static int fimc_md_create_links(struct fimc_md *fmd)
 
 			csis = fmd->csis[pdata->mux_id].sd;
 			if (WARN(csis == NULL,
-				 "MIPI-CSI interface specified "
-				 "but s5p-csis module is not loaded!\n"))
+				 "MIPI-CSI interface specified but s5p-csis module is not loaded!\n"))
 				return -EINVAL;
 
 			pad = sensor->entity.num_pads - 1;
@@ -1118,7 +1133,7 @@ static int __fimc_md_modify_pipeline(struct media_entity *entity, bool enable)
 
 /* Locking: called with entity->graph_obj.mdev->graph_mutex mutex held. */
 static int __fimc_md_modify_pipelines(struct media_entity *entity, bool enable,
-				      struct media_entity_graph *graph)
+				      struct media_graph *graph)
 {
 	struct media_entity *entity_err = entity;
 	int ret;
@@ -1129,9 +1144,9 @@ static int __fimc_md_modify_pipelines(struct media_entity *entity, bool enable,
 	 * through active links. This is needed as we cannot power on/off the
 	 * subdevs in random order.
 	 */
-	media_entity_graph_walk_start(graph, entity);
+	media_graph_walk_start(graph, entity);
 
-	while ((entity = media_entity_graph_walk_next(graph))) {
+	while ((entity = media_graph_walk_next(graph))) {
 		if (!is_media_entity_v4l2_video_device(entity))
 			continue;
 
@@ -1144,9 +1159,9 @@ static int __fimc_md_modify_pipelines(struct media_entity *entity, bool enable,
 	return 0;
 
 err:
-	media_entity_graph_walk_start(graph, entity_err);
+	media_graph_walk_start(graph, entity_err);
 
-	while ((entity_err = media_entity_graph_walk_next(graph))) {
+	while ((entity_err = media_graph_walk_next(graph))) {
 		if (!is_media_entity_v4l2_video_device(entity_err))
 			continue;
 
@@ -1162,7 +1177,7 @@ err:
 static int fimc_md_link_notify(struct media_link *link, unsigned int flags,
 				unsigned int notification)
 {
-	struct media_entity_graph *graph =
+	struct media_graph *graph =
 		&container_of(link->graph_obj.mdev, struct fimc_md,
 			      media_dev)->link_setup_graph;
 	struct media_entity *sink = link->sink->entity;
@@ -1170,7 +1185,7 @@ static int fimc_md_link_notify(struct media_link *link, unsigned int flags,
 
 	/* Before link disconnection */
 	if (notification == MEDIA_DEV_NOTIFY_PRE_LINK_CH) {
-		ret = media_entity_graph_walk_init(graph,
+		ret = media_graph_walk_init(graph,
 						   link->graph_obj.mdev);
 		if (ret)
 			return ret;
@@ -1184,7 +1199,7 @@ static int fimc_md_link_notify(struct media_link *link, unsigned int flags,
 	} else if (notification == MEDIA_DEV_NOTIFY_POST_LINK_CH) {
 		if (link->flags & MEDIA_LNK_FL_ENABLED)
 			ret = __fimc_md_modify_pipelines(sink, true, graph);
-		media_entity_graph_walk_cleanup(graph);
+		media_graph_walk_cleanup(graph);
 	}
 
 	return ret ? -EPIPE : 0;
@@ -1197,21 +1212,19 @@ static const struct media_device_ops fimc_md_ops = {
 static ssize_t fimc_md_sysfs_show(struct device *dev,
 				  struct device_attribute *attr, char *buf)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct fimc_md *fmd = platform_get_drvdata(pdev);
+	struct fimc_md *fmd = dev_get_drvdata(dev);
 
 	if (fmd->user_subdev_api)
-		return strlcpy(buf, "Sub-device API (sub-dev)\n", PAGE_SIZE);
+		return strscpy(buf, "Sub-device API (sub-dev)\n", PAGE_SIZE);
 
-	return strlcpy(buf, "V4L2 video node only API (vid-dev)\n", PAGE_SIZE);
+	return strscpy(buf, "V4L2 video node only API (vid-dev)\n", PAGE_SIZE);
 }
 
 static ssize_t fimc_md_sysfs_store(struct device *dev,
 				   struct device_attribute *attr,
 				   const char *buf, size_t count)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct fimc_md *fmd = platform_get_drvdata(pdev);
+	struct fimc_md *fmd = dev_get_drvdata(dev);
 	bool subdev_api;
 	int i;
 
@@ -1360,7 +1373,8 @@ static int subdev_notifier_bound(struct v4l2_async_notifier *notifier,
 
 	/* Find platform data for this sensor subdev */
 	for (i = 0; i < ARRAY_SIZE(fmd->sensor); i++)
-		if (fmd->sensor[i].asd.match.of.node == subdev->dev->of_node)
+		if (fmd->sensor[i].asd.match.fwnode ==
+		    of_fwnode_handle(subdev->dev->of_node))
 			si = &fmd->sensor[i];
 
 	if (si == NULL)
@@ -1403,6 +1417,11 @@ unlock:
 	return media_device_register(&fmd->media_dev);
 }
 
+static const struct v4l2_async_notifier_operations subdev_notifier_ops = {
+	.bound = subdev_notifier_bound,
+	.complete = subdev_notifier_complete,
+};
+
 static int fimc_md_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -1418,7 +1437,7 @@ static int fimc_md_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&fmd->pipelines);
 	fmd->pdev = pdev;
 
-	strlcpy(fmd->media_dev.model, "SAMSUNG S5P FIMC",
+	strscpy(fmd->media_dev.model, "SAMSUNG S5P FIMC",
 		sizeof(fmd->media_dev.model));
 	fmd->media_dev.ops = &fimc_md_ops;
 	fmd->media_dev.dev = dev;
@@ -1426,7 +1445,7 @@ static int fimc_md_probe(struct platform_device *pdev)
 	v4l2_dev = &fmd->v4l2_dev;
 	v4l2_dev->mdev = &fmd->media_dev;
 	v4l2_dev->notify = fimc_sensor_notify;
-	strlcpy(v4l2_dev->name, "s5p-fimc-md", sizeof(v4l2_dev->name));
+	strscpy(v4l2_dev->name, "s5p-fimc-md", sizeof(v4l2_dev->name));
 
 	fmd->use_isp = fimc_md_is_isp_available(dev->of_node);
 	fmd->user_subdev_api = true;
@@ -1452,6 +1471,8 @@ static int fimc_md_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, fmd);
 
+	v4l2_async_notifier_init(&fmd->subdev_notifier);
+
 	ret = fimc_md_register_platform_entities(fmd, dev->of_node);
 	if (ret)
 		goto err_clk;
@@ -1462,7 +1483,7 @@ static int fimc_md_probe(struct platform_device *pdev)
 
 	ret = device_create_file(&pdev->dev, &dev_attr_subdev_conf_mode);
 	if (ret)
-		goto err_m_ent;
+		goto err_cleanup;
 	/*
 	 * FIMC platform devices need to be registered before the sclk_cam
 	 * clocks provider, as one of these devices needs to be activated
@@ -1475,10 +1496,7 @@ static int fimc_md_probe(struct platform_device *pdev)
 	}
 
 	if (fmd->num_sensors > 0) {
-		fmd->subdev_notifier.subdevs = fmd->async_subdevs;
-		fmd->subdev_notifier.num_subdevs = fmd->num_sensors;
-		fmd->subdev_notifier.bound = subdev_notifier_bound;
-		fmd->subdev_notifier.complete = subdev_notifier_complete;
+		fmd->subdev_notifier.ops = &subdev_notifier_ops;
 		fmd->num_sensors = 0;
 
 		ret = v4l2_async_notifier_register(&fmd->v4l2_dev,
@@ -1493,10 +1511,12 @@ err_clk_p:
 	fimc_md_unregister_clk_provider(fmd);
 err_attr:
 	device_remove_file(&pdev->dev, &dev_attr_subdev_conf_mode);
-err_clk:
-	fimc_md_put_clocks(fmd);
+err_cleanup:
+	v4l2_async_notifier_cleanup(&fmd->subdev_notifier);
 err_m_ent:
 	fimc_md_unregister_entities(fmd);
+err_clk:
+	fimc_md_put_clocks(fmd);
 err_md:
 	media_device_cleanup(&fmd->media_dev);
 	v4l2_device_unregister(&fmd->v4l2_dev);
@@ -1512,6 +1532,7 @@ static int fimc_md_remove(struct platform_device *pdev)
 
 	fimc_md_unregister_clk_provider(fmd);
 	v4l2_async_notifier_unregister(&fmd->subdev_notifier);
+	v4l2_async_notifier_cleanup(&fmd->subdev_notifier);
 
 	v4l2_device_unregister(&fmd->v4l2_dev);
 	device_remove_file(&pdev->dev, &dev_attr_subdev_conf_mode);

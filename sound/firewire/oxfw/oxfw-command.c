@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * oxfw_command.c - a part of driver for OXFW970/971 based devices
  *
  * Copyright (c) 2014 Takashi Sakamoto
- *
- * Licensed under the terms of the GNU General Public License, version 2.
  */
 
 #include "oxfw.h"
@@ -34,7 +33,9 @@ int avc_stream_set_format(struct fw_unit *unit, enum avc_general_plug_dir dir,
 	err = fcp_avc_transaction(unit, buf, len + 10, buf, len + 10,
 				  BIT(1) | BIT(2) | BIT(3) | BIT(4) | BIT(5) |
 				  BIT(6) | BIT(7) | BIT(8));
-	if ((err > 0) && (err < len + 10))
+	if (err < 0)
+		;
+	else if (err < len + 10)
 		err = -EIO;
 	else if (buf[0] == 0x08) /* NOT IMPLEMENTED */
 		err = -ENOSYS;
@@ -77,7 +78,9 @@ int avc_stream_get_format(struct fw_unit *unit,
 	err = fcp_avc_transaction(unit, buf, 12, buf, *len,
 				  BIT(1) | BIT(2) | BIT(3) | BIT(4) | BIT(5) |
 				  BIT(6) | BIT(7));
-	if ((err > 0) && (err < 10))
+	if (err < 0)
+		;
+	else if (err < 12)
 		err = -EIO;
 	else if (buf[0] == 0x08)	/* NOT IMPLEMENTED */
 		err = -ENOSYS;
@@ -139,7 +142,9 @@ int avc_general_inquiry_sig_fmt(struct fw_unit *unit, unsigned int rate,
 	/* do transaction and check buf[1-5] are the same against command */
 	err = fcp_avc_transaction(unit, buf, 8, buf, 8,
 				  BIT(1) | BIT(2) | BIT(3) | BIT(4) | BIT(5));
-	if ((err > 0) && (err < 8))
+	if (err < 0)
+		;
+	else if (err < 8)
 		err = -EIO;
 	else if (buf[0] == 0x08)	/* NOT IMPLEMENTED */
 		err = -ENOSYS;

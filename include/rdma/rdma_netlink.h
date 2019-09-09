@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _RDMA_NETLINK_H
 #define _RDMA_NETLINK_H
 
@@ -5,32 +6,49 @@
 #include <linux/netlink.h>
 #include <uapi/rdma/rdma_netlink.h>
 
-struct ibnl_client_cbs {
-	int (*dump)(struct sk_buff *skb, struct netlink_callback *nlcb);
-	struct module *module;
+enum {
+	RDMA_NLDEV_ATTR_EMPTY_STRING = 1,
+	RDMA_NLDEV_ATTR_ENTRY_STRLEN = 16,
+	RDMA_NLDEV_ATTR_CHARDEV_TYPE_SIZE = 32,
 };
 
-int ibnl_init(void);
-void ibnl_cleanup(void);
+struct rdma_nl_cbs {
+	int (*doit)(struct sk_buff *skb, struct nlmsghdr *nlh,
+		    struct netlink_ext_ack *extack);
+	int (*dump)(struct sk_buff *skb, struct netlink_callback *nlcb);
+	u8 flags;
+};
+
+enum rdma_nl_flags {
+	/* Require CAP_NET_ADMIN */
+	RDMA_NL_ADMIN_PERM	= 1 << 0,
+};
+
+/* Define this module as providing netlink services for NETLINK_RDMA, with
+ * index _index.  Since the client indexes were setup in a uapi header as an
+ * enum and we do no want to change that, the user must supply the expanded
+ * constant as well and the compiler checks they are the same.
+ */
+#define MODULE_ALIAS_RDMA_NETLINK(_index, _val)                                \
+	static inline void __chk_##_index(void)                                \
+	{                                                                      \
+		BUILD_BUG_ON(_index != _val);                                  \
+	}                                                                      \
+	MODULE_ALIAS("rdma-netlink-subsys-" __stringify(_val))
 
 /**
- * Add a a client to the list of IB netlink exporters.
+ * Register client in RDMA netlink.
  * @index: Index of the added client
- * @nops: Number of supported ops by the added client.
  * @cb_table: A table for op->callback
- *
- * Returns 0 on success or a negative error code.
  */
-int ibnl_add_client(int index, int nops,
-		    const struct ibnl_client_cbs cb_table[]);
+void rdma_nl_register(unsigned int index,
+		      const struct rdma_nl_cbs cb_table[]);
 
 /**
  * Remove a client from IB netlink.
  * @index: Index of the removed IB client.
- *
- * Returns 0 on success or a negative error code.
  */
-int ibnl_remove_client(int index);
+void rdma_nl_unregister(unsigned int index);
 
 /**
  * Put a new message in a supplied skb.
@@ -59,29 +77,45 @@ int ibnl_put_attr(struct sk_buff *skb, struct nlmsghdr *nlh,
 /**
  * Send the supplied skb to a specific userspace PID.
  * @skb: The netlink skb
- * @nlh: Header of the netlink message to send
  * @pid: Userspace netlink process ID
  * Returns 0 on success or a negative error code.
  */
-int ibnl_unicast(struct sk_buff *skb, struct nlmsghdr *nlh,
-			__u32 pid);
+int rdma_nl_unicast(struct sk_buff *skb, u32 pid);
+
+/**
+ * Send, with wait/1 retry, the supplied skb to a specific userspace PID.
+ * @skb: The netlink skb
+ * @pid: Userspace netlink process ID
+ * Returns 0 on success or a negative error code.
+ */
+int rdma_nl_unicast_wait(struct sk_buff *skb, __u32 pid);
 
 /**
  * Send the supplied skb to a netlink group.
  * @skb: The netlink skb
- * @nlh: Header of the netlink message to send
  * @group: Netlink group ID
  * @flags: allocation flags
  * Returns 0 on success or a negative error code.
  */
-int ibnl_multicast(struct sk_buff *skb, struct nlmsghdr *nlh,
-			unsigned int group, gfp_t flags);
+int rdma_nl_multicast(struct sk_buff *skb, unsigned int group, gfp_t flags);
 
 /**
  * Check if there are any listeners to the netlink group
  * @group: the netlink group ID
- * Returns 0 on success or a negative for no listeners.
+ * Returns true on success or false if no listeners.
  */
-int ibnl_chk_listeners(unsigned int group);
+bool rdma_nl_chk_listeners(unsigned int group);
+
+struct rdma_link_ops {
+	struct list_head list;
+	const char *type;
+	int (*newlink)(const char *ibdev_name, struct net_device *ndev);
+};
+
+void rdma_link_register(struct rdma_link_ops *ops);
+void rdma_link_unregister(struct rdma_link_ops *ops);
+
+#define MODULE_ALIAS_RDMA_LINK(type) MODULE_ALIAS("rdma-link-" type)
+#define MODULE_ALIAS_RDMA_CLIENT(type) MODULE_ALIAS("rdma-client-" type)
 
 #endif /* _RDMA_NETLINK_H */

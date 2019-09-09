@@ -1,24 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2015-2016 MediaTek Inc.
  * Author: Yong Wu <yong.wu@mediatek.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 #ifndef __DTS_IOMMU_PORT_MT8173_H
 #define __DTS_IOMMU_PORT_MT8173_H
 
 #define MTK_M4U_ID(larb, port)		(((larb) << 5) | (port))
-/* Local arbiter ID */
-#define MTK_M4U_TO_LARB(id)		(((id) >> 5) & 0x7)
-/* PortID within the local arbiter */
-#define MTK_M4U_TO_PORT(id)		((id) & 0x1f)
 
 #define M4U_LARB0_ID			0
 #define M4U_LARB1_ID			1

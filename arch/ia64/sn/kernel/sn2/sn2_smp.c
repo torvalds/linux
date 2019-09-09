@@ -13,6 +13,7 @@
 #include <linux/spinlock.h>
 #include <linux/threads.h>
 #include <linux/sched.h>
+#include <linux/mm_types.h>
 #include <linux/smp.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
@@ -117,13 +118,6 @@ void sn_migrate(struct task_struct *task)
 	while (unlikely((*adr & SH_PIO_WRITE_STATUS_PENDING_WRITE_COUNT_MASK)
 			!= val))
 		cpu_relax();
-}
-
-void sn_tlb_migrate_finish(struct mm_struct *mm)
-{
-	/* flush_tlb_mm is inefficient if more than 1 users of mm */
-	if (mm == current->mm && mm && atomic_read(&mm->mm_users) == 1)
-		flush_tlb_mm(mm);
 }
 
 static void

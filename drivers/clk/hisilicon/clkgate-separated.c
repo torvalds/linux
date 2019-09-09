@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Hisilicon clock separated gate driver
  *
@@ -6,21 +7,6 @@
  *
  * Author: Haojian Zhuang <haojian.zhuang@linaro.org>
  *	   Xin Li <li.xin@linaro.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
- *
  */
 
 #include <linux/kernel.h>
@@ -88,7 +74,7 @@ static int clkgate_separated_is_enabled(struct clk_hw *hw)
 	return reg ? 1 : 0;
 }
 
-static struct clk_ops clkgate_separated_ops = {
+static const struct clk_ops clkgate_separated_ops = {
 	.enable		= clkgate_separated_enable,
 	.disable	= clkgate_separated_disable,
 	.is_enabled	= clkgate_separated_is_enabled,
@@ -105,14 +91,12 @@ struct clk *hisi_register_clkgate_sep(struct device *dev, const char *name,
 	struct clk_init_data init;
 
 	sclk = kzalloc(sizeof(*sclk), GFP_KERNEL);
-	if (!sclk) {
-		pr_err("%s: fail to allocate separated gated clk\n", __func__);
+	if (!sclk)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	init.name = name;
 	init.ops = &clkgate_separated_ops;
-	init.flags = flags | CLK_IS_BASIC;
+	init.flags = flags;
 	init.parent_names = (parent_name ? &parent_name : NULL);
 	init.num_parents = (parent_name ? 1 : 0);
 
@@ -120,6 +104,7 @@ struct clk *hisi_register_clkgate_sep(struct device *dev, const char *name,
 	sclk->bit_idx = bit_idx;
 	sclk->flags = clk_gate_flags;
 	sclk->hw.init = &init;
+	sclk->lock = lock;
 
 	clk = clk_register(dev, &sclk->hw);
 	if (IS_ERR(clk))

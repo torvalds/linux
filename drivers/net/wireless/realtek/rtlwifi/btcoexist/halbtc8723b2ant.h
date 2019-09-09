@@ -1,35 +1,12 @@
-/******************************************************************************
- *
- * Copyright(c) 2012  Realtek Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
- *
- * Contact Information:
- * wlanfae <wlanfae@realtek.com>
- * Realtek Corporation, No. 2, Innovation Road II, Hsinchu Science Park,
- * Hsinchu 300, Taiwan.
- *
- * Larry Finger <Larry.Finger@lwfinger.net>
- *
- *****************************************************************************/
+/* SPDX-License-Identifier: GPL-2.0 */
+/* Copyright(c) 2012  Realtek Corporation.*/
+
 #ifndef _HAL8723B_2_ANT
 #define _HAL8723B_2_ANT
 
 /************************************************************************
  * The following is for 8723B 2Ant BT Co-exist definition
  ************************************************************************/
-#define	BT_AUTO_REPORT_ONLY_8723B_2ANT			1
-
 #define	BT_INFO_8723B_2ANT_B_FTP			BIT7
 #define	BT_INFO_8723B_2ANT_B_A2DP			BIT6
 #define	BT_INFO_8723B_2ANT_B_HID			BIT5
@@ -40,6 +17,11 @@
 #define	BT_INFO_8723B_2ANT_B_CONNECTION			BIT0
 
 #define BTC_RSSI_COEX_THRESH_TOL_8723B_2ANT		2
+
+/* WiFi RSSI Threshold for 2-Ant TDMA/1-Ant PS-TDMA translation */
+#define BT_8723B_2ANT_WIFI_RSSI_COEXSWITCH_THRES	42
+/* BT RSSI Threshold for 2-Ant TDMA/1-Ant PS-TDMA translation */
+#define BT_8723B_2ANT_BT_RSSI_COEXSWITCH_THRES		46
 
 enum BT_INFO_SRC_8723B_2ANT {
 	BT_INFO_SRC_8723B_2ANT_WIFI_FW			= 0x0,
@@ -75,8 +57,8 @@ enum BT_8723B_2ANT_COEX_ALGO {
 
 struct coex_dm_8723b_2ant {
 	/* fw mechanism */
-	bool pre_dec_bt_pwr;
-	bool cur_dec_bt_pwr;
+	bool pre_dec_bt_pwr_lvl;
+	bool cur_dec_bt_pwr_lvl;
 	u8 pre_fw_dac_swing_lvl;
 	u8 cur_fw_dac_swing_lvl;
 	bool cur_ignore_wlan_act;
@@ -84,7 +66,7 @@ struct coex_dm_8723b_2ant {
 	u8 pre_ps_tdma;
 	u8 cur_ps_tdma;
 	u8 ps_tdma_para[5];
-	u8 tdma_adj_type;
+	u8 ps_tdma_du_adj_type;
 	bool reset_tdma_adjust;
 	bool auto_tdma_adjust;
 	bool pre_ps_tdma_on;
@@ -122,8 +104,13 @@ struct coex_dm_8723b_2ant {
 	u8 bt_status;
 	u8 wifi_chnl_info[3];
 
-	bool need_recover_0x948;
-	u16 backup_0x948;
+	u8 pre_lps;
+	u8 cur_lps;
+	u8 pre_rpwm;
+	u8 cur_rpwm;
+
+	bool is_switch_to_1dot5_ant;
+	u8 switch_thres_offset;
 };
 
 struct coex_sta_8723b_2ant {
@@ -132,6 +119,7 @@ struct coex_sta_8723b_2ant {
 	bool a2dp_exist;
 	bool hid_exist;
 	bool pan_exist;
+	bool bt_abnormal_scan;
 
 	bool under_lps;
 	bool under_ips;
@@ -140,14 +128,33 @@ struct coex_sta_8723b_2ant {
 	u32 low_priority_tx;
 	u32 low_priority_rx;
 	u8 bt_rssi;
+	bool bt_tx_rx_mask;
 	u8 pre_bt_rssi_state;
 	u8 pre_wifi_rssi_state[4];
 	bool c2h_bt_info_req_sent;
 	u8 bt_info_c2h[BT_INFO_SRC_8723B_2ANT_MAX][10];
 	u32 bt_info_c2h_cnt[BT_INFO_SRC_8723B_2ANT_MAX];
 	bool c2h_bt_inquiry_page;
+	bool c2h_bt_remote_name_req;
 	u8 bt_retry_cnt;
 	u8 bt_info_ext;
+	u32 pop_event_cnt;
+	u8 scan_ap_num;
+
+	u32 crc_ok_cck;
+	u32 crc_ok_11g;
+	u32 crc_ok_11n;
+	u32 crc_ok_11n_agg;
+
+	u32 crc_err_cck;
+	u32 crc_err_11g;
+	u32 crc_err_11n;
+	u32 crc_err_11n_agg;
+	bool force_lps_on;
+
+	u8 dis_ver_info_cnt;
+
+	u8 a2dp_bit_pool;
 };
 
 /*********************************************************************
@@ -167,6 +174,10 @@ void ex_btc8723b2ant_bt_info_notify(struct btc_coexist *btcoexist,
 				    u8 *tmpbuf, u8 length);
 void ex_btc8723b2ant_halt_notify(struct btc_coexist *btcoexist);
 void ex_btc8723b2ant_periodical(struct btc_coexist *btcoexist);
-void ex_btc8723b2ant_display_coex_info(struct btc_coexist *btcoexist);
+void ex_btc8723b2ant_display_coex_info(struct btc_coexist *btcoexist,
+				       struct seq_file *m);
+void ex_btc8723b2ant_pnp_notify(struct btc_coexist *btcoexist, u8 pnp_state);
+void ex_btc8723b2ant_pre_load_firmware(struct btc_coexist *btcoexist);
+void ex_btc8723b2ant_power_on_setting(struct btc_coexist *btcoexist);
 
 #endif

@@ -1,22 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /******************************************************************************
  *
  * Copyright(c) 2003 - 2011 Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
  *
  * Contact Information:
  *  Intel Linux Wireless <ilw@linux.intel.com>
@@ -520,7 +505,7 @@ il3945_pass_packet_to_mac80211(struct il_priv *il, struct il_rx_buf *rxb,
 	 * and do not consume a full page
 	 */
 	if (len <= SMALL_PACKET_SIZE) {
-		memcpy(skb_put(skb, len), rx_hdr->payload, len);
+		skb_put_data(skb, rx_hdr->payload, len);
 	} else {
 		skb_add_rx_frag(skb, 0, rxb->page,
 				(void *)rx_hdr->payload - (void *)pkt, len,
@@ -570,7 +555,7 @@ il3945_hdl_rx(struct il_priv *il, struct il_rx_buf *rxb)
 
 	/* set the preamble flag if appropriate */
 	if (rx_hdr->phy_flags & RX_RES_PHY_FLAGS_SHORT_PREAMBLE_MSK)
-		rx_status.flag |= RX_FLAG_SHORTPRE;
+		rx_status.enc_flags |= RX_ENC_FLAG_SHORTPRE;
 
 	if ((unlikely(rx_stats->phy_count > 20))) {
 		D_DROP("dsp size out of range [0,20]: %d\n",
@@ -1634,7 +1619,6 @@ il3945_hw_reg_set_txpower(struct il_priv *il, s8 power)
 {
 	struct il_channel_info *ch_info;
 	s8 max_power;
-	u8 a_band;
 	u8 i;
 
 	if (il->tx_power_user_lmt == power) {
@@ -1650,7 +1634,6 @@ il3945_hw_reg_set_txpower(struct il_priv *il, s8 power)
 
 	for (i = 0; i < il->channel_count; i++) {
 		ch_info = &il->channel_info[i];
-		a_band = il_is_channel_a_band(ch_info);
 
 		/* find minimum power of all user and regulatory constraints
 		 *    (does not consider h/w clipping limitations) */

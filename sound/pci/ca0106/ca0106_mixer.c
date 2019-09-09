@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (c) 2004 James Courtier-Dutton <James@superbug.demon.co.uk>
  *  Driver CA0106 chips. e.g. Sound Blaster Audigy LS and Live 24bit
@@ -44,21 +45,6 @@
  *
  *  This code was initially based on code from ALSA's emu10k1x.c which is:
  *  Copyright (c) by Francisco Moraes <fmoraes@nc.rr.com>
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 #include <linux/delay.h>
 #include <linux/init.h>
@@ -301,7 +287,7 @@ static int snd_ca0106_capture_mic_line_in_put(struct snd_kcontrol *kcontrol,
         return change;
 }
 
-static struct snd_kcontrol_new snd_ca0106_capture_mic_line_in =
+static const struct snd_kcontrol_new snd_ca0106_capture_mic_line_in =
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name =		"Shared Mic/Line in Capture Switch",
@@ -310,7 +296,7 @@ static struct snd_kcontrol_new snd_ca0106_capture_mic_line_in =
 	.put =		snd_ca0106_capture_mic_line_in_put
 };
 
-static struct snd_kcontrol_new snd_ca0106_capture_line_in_side_out =
+static const struct snd_kcontrol_new snd_ca0106_capture_line_in_side_out =
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name =		"Shared Line in/Side out Capture Switch",

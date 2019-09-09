@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Kernel module to match one of a list of TCP/UDP(-Lite)/SCTP/DCCP ports:
    ports are in the same place so we can treat them as equal. */
 
 /* (C) 1999-2001 Paul `Rusty' Russell
  * (C) 2002-2004 Netfilter Core Team <coreteam@netfilter.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
@@ -42,29 +39,43 @@ ports_match_v1(const struct xt_multiport_v1 *minfo,
 			e = minfo->ports[++i];
 			pr_debug("src or dst matches with %d-%d?\n", s, e);
 
-			if (minfo->flags == XT_MULTIPORT_SOURCE
-			    && src >= s && src <= e)
-				return true ^ minfo->invert;
-			if (minfo->flags == XT_MULTIPORT_DESTINATION
-			    && dst >= s && dst <= e)
-				return true ^ minfo->invert;
-			if (minfo->flags == XT_MULTIPORT_EITHER
-			    && ((dst >= s && dst <= e)
-				|| (src >= s && src <= e)))
-				return true ^ minfo->invert;
+			switch (minfo->flags) {
+			case XT_MULTIPORT_SOURCE:
+				if (src >= s && src <= e)
+					return true ^ minfo->invert;
+				break;
+			case XT_MULTIPORT_DESTINATION:
+				if (dst >= s && dst <= e)
+					return true ^ minfo->invert;
+				break;
+			case XT_MULTIPORT_EITHER:
+				if ((dst >= s && dst <= e) ||
+				    (src >= s && src <= e))
+					return true ^ minfo->invert;
+				break;
+			default:
+				break;
+			}
 		} else {
 			/* exact port matching */
 			pr_debug("src or dst matches with %d?\n", s);
 
-			if (minfo->flags == XT_MULTIPORT_SOURCE
-			    && src == s)
-				return true ^ minfo->invert;
-			if (minfo->flags == XT_MULTIPORT_DESTINATION
-			    && dst == s)
-				return true ^ minfo->invert;
-			if (minfo->flags == XT_MULTIPORT_EITHER
-			    && (src == s || dst == s))
-				return true ^ minfo->invert;
+			switch (minfo->flags) {
+			case XT_MULTIPORT_SOURCE:
+				if (src == s)
+					return true ^ minfo->invert;
+				break;
+			case XT_MULTIPORT_DESTINATION:
+				if (dst == s)
+					return true ^ minfo->invert;
+				break;
+			case XT_MULTIPORT_EITHER:
+				if (src == s || dst == s)
+					return true ^ minfo->invert;
+				break;
+			default:
+				break;
+			}
 		}
 	}
 

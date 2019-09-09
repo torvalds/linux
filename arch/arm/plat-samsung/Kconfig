@@ -1,8 +1,6 @@
-# arch/arm/plat-samsung/Kconfig
+# SPDX-License-Identifier: GPL-2.0
 #
 # Copyright 2009 Simtec Electronics
-#
-# Licensed under GPLv2
 
 config PLAT_SAMSUNG
 	bool
@@ -241,10 +239,11 @@ comment "Power management"
 config SAMSUNG_PM_DEBUG
 	bool "Samsung PM Suspend debug"
 	depends on PM && DEBUG_KERNEL
+	depends on PLAT_S3C24XX || ARCH_S3C64XX || ARCH_S5PV210
 	depends on DEBUG_EXYNOS_UART || DEBUG_S3C24XX_UART || DEBUG_S3C2410_UART
 	help
 	  Say Y here if you want verbose debugging from the PM Suspend and
-	  Resume code. See <file:Documentation/arm/Samsung-S3C24XX/Suspend.txt>
+	  Resume code. See <file:Documentation/arm/samsung-s3c24xx/suspend.rst>
 	  for more information.
 
 config S3C_PM_DEBUG_LED_SMDK
@@ -258,7 +257,7 @@ config S3C_PM_DEBUG_LED_SMDK
 
 config SAMSUNG_PM_CHECK
 	bool "S3C2410 PM Suspend Memory CRC"
-	depends on PM
+	depends on PM && (PLAT_S3C24XX || ARCH_S3C64XX || ARCH_S5PV210)
 	select CRC32
 	help
 	  Enable the PM code's memory area checksum over sleep. This option
@@ -269,7 +268,7 @@ config SAMSUNG_PM_CHECK
 	  Note, this can take several seconds depending on memory size
 	  and CPU speed.
 
-	  See <file:Documentation/arm/Samsung-S3C24XX/Suspend.txt>
+	  See <file:Documentation/arm/samsung-s3c24xx/suspend.rst>
 
 config SAMSUNG_PM_CHECK_CHUNKSIZE
 	int "S3C2410 PM Suspend CRC Chunksize (KiB)"
@@ -278,10 +277,10 @@ config SAMSUNG_PM_CHECK_CHUNKSIZE
 	help
 	  Set the chunksize in Kilobytes of the CRC for checking memory
 	  corruption over suspend and resume. A smaller value will mean that
-	  the CRC data block will take more memory, but wil identify any
+	  the CRC data block will take more memory, but will identify any
 	  faults with better precision.
 
-	  See <file:Documentation/arm/Samsung-S3C24XX/Suspend.txt>
+	  See <file:Documentation/arm/samsung-s3c24xx/suspend.rst>
 
 config SAMSUNG_WAKEMASK
 	bool

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 
 /*
  * edac_module.h
@@ -10,7 +11,9 @@
 #ifndef	__EDAC_MODULE_H__
 #define	__EDAC_MODULE_H__
 
-#include "edac_core.h"
+#include "edac_mc.h"
+#include "edac_pci.h"
+#include "edac_device.h"
 
 /*
  * INTERNAL EDAC MODULE:
@@ -33,7 +36,7 @@ extern int edac_mc_get_log_ue(void);
 extern int edac_mc_get_log_ce(void);
 extern int edac_mc_get_panic_on_ue(void);
 extern int edac_get_poll_msec(void);
-extern int edac_mc_get_poll_msec(void);
+extern unsigned int edac_mc_get_poll_msec(void);
 
 unsigned edac_dimm_info_location(struct dimm_info *dimm, char *buf,
 				 unsigned len);
@@ -66,35 +69,33 @@ extern void *edac_align_ptr(void **p, unsigned size, int n_elems);
 #define edac_debugfs_remove_recursive debugfs_remove_recursive
 #define edac_debugfs_remove debugfs_remove
 #ifdef CONFIG_EDAC_DEBUG
-int edac_debugfs_init(void);
+void edac_debugfs_init(void);
 void edac_debugfs_exit(void);
-int edac_create_debugfs_nodes(struct mem_ctl_info *mci);
+void edac_create_debugfs_nodes(struct mem_ctl_info *mci);
 struct dentry *edac_debugfs_create_dir(const char *dirname);
 struct dentry *
 edac_debugfs_create_dir_at(const char *dirname, struct dentry *parent);
 struct dentry *
 edac_debugfs_create_file(const char *name, umode_t mode, struct dentry *parent,
 			 void *data, const struct file_operations *fops);
-struct dentry *
-edac_debugfs_create_x8(const char *name, umode_t mode, struct dentry *parent, u8 *value);
-struct dentry *
-edac_debugfs_create_x16(const char *name, umode_t mode, struct dentry *parent, u16 *value);
+void edac_debugfs_create_x8(const char *name, umode_t mode,
+			    struct dentry *parent, u8 *value);
+void edac_debugfs_create_x16(const char *name, umode_t mode,
+			     struct dentry *parent, u16 *value);
 #else
-static inline int edac_debugfs_init(void)					{ return -ENODEV; }
+static inline void edac_debugfs_init(void)					{ }
 static inline void edac_debugfs_exit(void)					{ }
-static inline int edac_create_debugfs_nodes(struct mem_ctl_info *mci)		{ return 0; }
+static inline void edac_create_debugfs_nodes(struct mem_ctl_info *mci)		{ }
 static inline struct dentry *edac_debugfs_create_dir(const char *dirname)	{ return NULL; }
 static inline struct dentry *
 edac_debugfs_create_dir_at(const char *dirname, struct dentry *parent)		{ return NULL; }
 static inline struct dentry *
 edac_debugfs_create_file(const char *name, umode_t mode, struct dentry *parent,
 			 void *data, const struct file_operations *fops)	{ return NULL; }
-static inline struct dentry *
-edac_debugfs_create_x8(const char *name, umode_t mode,
-		       struct dentry *parent, u8 *value)			{ return NULL; }
-static inline struct dentry *
-edac_debugfs_create_x16(const char *name, umode_t mode,
-		       struct dentry *parent, u16 *value)			{ return NULL; }
+static inline void edac_debugfs_create_x8(const char *name, umode_t mode,
+					  struct dentry *parent, u8 *value)	{ }
+static inline void edac_debugfs_create_x16(const char *name, umode_t mode,
+					   struct dentry *parent, u16 *value)	{ }
 #endif
 
 /*

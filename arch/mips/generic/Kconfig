@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 if MIPS_GENERIC
 
 config LEGACY_BOARDS
@@ -9,11 +10,77 @@ config LEGACY_BOARDS
 	  kernel is booted without being provided with an FDT via the UHI
 	  boot protocol.
 
+config YAMON_DT_SHIM
+	bool
+	help
+	  Select this from your board if the board uses the YAMON bootloader
+	  and you wish to include code which helps translate various
+	  YAMON-provided environment variables into a device tree properties.
+
+comment "Legacy (non-UHI/non-FIT) Boards"
+
 config LEGACY_BOARD_SEAD3
 	bool "Support MIPS SEAD-3 boards"
 	select LEGACY_BOARDS
+	select YAMON_DT_SHIM
 	help
 	  Enable this to include support for booting on MIPS SEAD-3 FPGA-based
 	  development boards, which boot using a legacy boot protocol.
+
+comment "MSCC Ocelot doesn't work with SEAD3 enabled"
+	depends on LEGACY_BOARD_SEAD3
+
+config LEGACY_BOARD_OCELOT
+	bool "Support MSCC Ocelot boards"
+	depends on LEGACY_BOARD_SEAD3=n
+	select LEGACY_BOARDS
+	select MSCC_OCELOT
+	select SYS_HAS_EARLY_PRINTK
+	select USE_GENERIC_EARLY_PRINTK_8250
+
+config MSCC_OCELOT
+	bool
+	select GPIOLIB
+	select MSCC_OCELOT_IRQ
+
+comment "FIT/UHI Boards"
+
+config FIT_IMAGE_FDT_BOSTON
+	bool "Include FDT for MIPS Boston boards"
+	help
+	  Enable this to include the FDT for the MIPS Boston development board
+	  from Imagination Technologies in the FIT kernel image. You should
+	  enable this if you wish to boot on a MIPS Boston board, as it is
+	  expected by the bootloader.
+
+config FIT_IMAGE_FDT_NI169445
+	bool "Include FDT for NI 169445"
+	help
+	  Enable this to include the FDT for the 169445 platform from
+	  National Instruments in the FIT kernel image.
+
+config FIT_IMAGE_FDT_XILFPGA
+	bool "Include FDT for Xilfpga"
+	help
+	  Enable this to include the FDT for the MIPSfpga platform
+	  from Imagination Technologies in the FIT kernel image.
+
+config FIT_IMAGE_FDT_OCELOT
+	bool "Include FDT for Microsemi Ocelot development platforms"
+	select MSCC_OCELOT
+	help
+	  Enable this to include the FDT for the Ocelot development platforms
+	  from Microsemi in the FIT kernel image.
+	  This requires u-boot on the platform.
+
+config VIRT_BOARD_RANCHU
+	bool "Support Ranchu platform for Android emulator"
+	help
+	  This enables support for the platform used by Android emulator.
+
+	  Ranchu platform consists of a set of virtual devices. This platform
+	  enables emulation of variety of virtual configurations while using
+	  Android emulator. Android emulator is based on Qemu, and contains
+	  the support for the same set of virtual devices.
 
 endif

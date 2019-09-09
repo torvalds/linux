@@ -16,5 +16,4 @@ usb_phy: usb_phy@2620738 {
 	#address-cells = <1>;
 	#size-cells = <1>;
 	reg = <0x2620738 32>;
-	status = "disabled";
 };

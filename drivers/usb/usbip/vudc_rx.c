@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2015 Karol Kosik <karo9@interia.eu>
  * Copyright (C) 2015-2016 Samsung Electronics
  *               Igor Kotrasinski <i.kotrasinsk@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <net/sock.h>
@@ -131,6 +119,25 @@ static int v_recv_cmd_submit(struct vudc *udc,
 
 	urb_p->new = 1;
 	urb_p->seqnum = pdu->base.seqnum;
+
+	if (urb_p->ep->type == USB_ENDPOINT_XFER_ISOC) {
+		/* validate packet size and number of packets */
+		unsigned int maxp, packets, bytes;
+
+		maxp = usb_endpoint_maxp(urb_p->ep->desc);
+		maxp *= usb_endpoint_maxp_mult(urb_p->ep->desc);
+		bytes = pdu->u.cmd_submit.transfer_buffer_length;
+		packets = DIV_ROUND_UP(bytes, maxp);
+
+		if (pdu->u.cmd_submit.number_of_packets < 0 ||
+		    pdu->u.cmd_submit.number_of_packets > packets) {
+			dev_err(&udc->gadget.dev,
+				"CMD_SUBMIT: isoc invalid num packets %d\n",
+				pdu->u.cmd_submit.number_of_packets);
+			ret = -EMSGSIZE;
+			goto free_urbp;
+		}
+	}
 
 	ret = alloc_urb_from_cmd(&urb_p->urb, pdu, urb_p->ep->type);
 	if (ret) {

@@ -1,10 +1,11 @@
+# SPDX-License-Identifier: ISC
 config ATH9K_HW
 	tristate
 config ATH9K_COMMON
 	tristate
 	select ATH_COMMON
-	select DEBUG_FS
-	select RELAY
+config ATH9K_COMMON_DEBUG
+	bool
 config ATH9K_DFS_DEBUGFS
 	def_bool y
 	depends on ATH9K_DEBUGFS && ATH9K_DFS_CERTIFIED
@@ -60,12 +61,13 @@ config ATH9K_DEBUGFS
 	bool "Atheros ath9k debugging"
 	depends on ATH9K && DEBUG_FS
 	select MAC80211_DEBUGFS
-	select RELAY
+	select ATH9K_COMMON_DEBUG
 	---help---
 	  Say Y, if you need access to ath9k's statistics for
 	  interrupts, rate control, etc.
 
-	  Also required for changing debug message flags at run time.
+	  Also required for changing debug message flags at run time and for
+	  TX99.
 
 config ATH9K_STATION_STATISTICS
 	bool "Detailed station statistics"
@@ -115,7 +117,7 @@ config ATH9K_DFS_CERTIFIED
 	  except increase code size.
 
 config ATH9K_DYNACK
-	bool "Atheros ath9k ACK timeout estimation algorithm (EXPERIMENTAL)"
+	bool "Atheros ath9k ACK timeout estimation algorithm"
 	depends on ATH9K
 	default n
 	---help---
@@ -174,8 +176,10 @@ config ATH9K_HTC
 config ATH9K_HTC_DEBUGFS
 	bool "Atheros ath9k_htc debugging"
 	depends on ATH9K_HTC && DEBUG_FS
+	select ATH9K_COMMON_DEBUG
 	---help---
 	  Say Y, if you need access to ath9k_htc's statistics.
+	  As well as access to the FFT/spectral data.
 
 config ATH9K_HWRNG
 	bool "Random number generator support"
@@ -187,3 +191,11 @@ config ATH9K_HWRNG
 
 	  Say Y, feeds the entropy directly from the WiFi driver to the input
 	  pool.
+
+config ATH9K_COMMON_SPECTRAL
+	bool "Atheros ath9k/ath9k_htc spectral scan support"
+	depends on ATH9K_DEBUGFS || ATH9K_HTC_DEBUGFS
+	select RELAY
+	default n
+	---help---
+	  Say Y to enable access to the FFT/spectral data via debugfs.

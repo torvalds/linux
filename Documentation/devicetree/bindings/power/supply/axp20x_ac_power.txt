@@ -1,0 +1,25 @@
+AXP20X and AXP22X PMICs' AC power supply
+
+Required Properties:
+ - compatible: One of:
+			"x-powers,axp202-ac-power-supply"
+			"x-powers,axp221-ac-power-supply"
+			"x-powers,axp813-ac-power-supply"
+
+This node is a subnode of the axp20x PMIC.
+
+The AXP20X can read the current current and voltage supplied by AC by
+reading ADC channels from the AXP20X ADC.
+
+The AXP22X is only able to tell if an AC power supply is present and
+usable.
+
+AXP813/AXP803 are able to limit current and supply voltage
+
+Example:
+
+&axp209 {
+	ac_power_supply: ac-power-supply {
+		compatible = "x-powers,axp202-ac-power-supply";
+	};
+};

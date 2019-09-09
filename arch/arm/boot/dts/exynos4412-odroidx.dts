@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Hardkernel's Exynos4412 based ODROID-X board device tree source
  *
@@ -5,11 +6,7 @@
  *
  * Device tree source file for Hardkernel's ODROID-X board which is based
  * on Samsung's Exynos4412 SoC.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
-*/
+ */
 
 /dts-v1/;
 #include "exynos4412-odroid-common.dtsi"
@@ -43,8 +40,6 @@
 		pinctrl-0 = <&gpio_power_key &gpio_home_key>;
 
 		home_key {
-			interrupt-parent = <&gpx2>;
-			interrupts = <2 0>;
 			gpios = <&gpx2 2 GPIO_ACTIVE_HIGH>;
 			linux,code = <KEY_HOME>;
 			label = "home key";
@@ -58,10 +53,15 @@
 		regulator-name = "p3v3_en";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
-		gpio = <&gpa1 1 GPIO_ACTIVE_LOW>;
+		gpio = <&gpa1 1 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 		regulator-always-on;
 	};
+};
+
+&adc {
+	vdd-supply = <&ldo10_reg>;
+	status = "okay";
 };
 
 /* VDDQ for MSHC (eMMC card) */
@@ -94,4 +94,17 @@
 
 &serial_3 {
 	status = "okay";
+};
+
+&sound {
+	model = "Odroid-X";
+	samsung,audio-widgets =
+		"Headphone", "Headphone Jack",
+		"Microphone", "Mic Jack",
+		"Microphone", "DMIC";
+	samsung,audio-routing =
+		"Headphone Jack", "HPL",
+		"Headphone Jack", "HPR",
+		"IN1", "Mic Jack",
+		"Mic Jack", "MICBIAS";
 };

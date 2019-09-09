@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * spca1528 subdriver
  *
  * Copyright (C) 2010-2011 Jean-Francois Moine (http://moinejf.free.fr)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -79,8 +66,8 @@ static void reg_r(struct gspca_dev *gspca_dev,
 			index,
 			gspca_dev->usb_buf, len,
 			500);
-	PDEBUG(D_USBI, "GET %02x 0000 %04x %02x", req, index,
-			 gspca_dev->usb_buf[0]);
+	gspca_dbg(gspca_dev, D_USBI, "GET %02x 0000 %04x %02x\n", req, index,
+		  gspca_dev->usb_buf[0]);
 	if (ret < 0) {
 		pr_err("reg_r err %d\n", ret);
 		gspca_dev->usb_err = ret;
@@ -97,7 +84,7 @@ static void reg_w(struct gspca_dev *gspca_dev,
 
 	if (gspca_dev->usb_err < 0)
 		return;
-	PDEBUG(D_USBO, "SET %02x %04x %04x", req, value, index);
+	gspca_dbg(gspca_dev, D_USBO, "SET %02x %04x %04x\n", req, value, index);
 	ret = usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
 			req,
 			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
@@ -120,7 +107,8 @@ static void reg_wb(struct gspca_dev *gspca_dev,
 
 	if (gspca_dev->usb_err < 0)
 		return;
-	PDEBUG(D_USBO, "SET %02x %04x %04x %02x", req, value, index, byte);
+	gspca_dbg(gspca_dev, D_USBO, "SET %02x %04x %04x %02x\n",
+		  req, value, index, byte);
 	gspca_dev->usb_buf[0] = byte;
 	ret = usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
 			req,
@@ -146,7 +134,7 @@ static void wait_status_0(struct gspca_dev *gspca_dev)
 		w += 15;
 		msleep(w);
 	} while (--i > 0);
-	PERR("wait_status_0 timeout");
+	gspca_err(gspca_dev, "wait_status_0 timeout\n");
 	gspca_dev->usb_err = -ETIME;
 }
 
@@ -164,7 +152,7 @@ static void wait_status_1(struct gspca_dev *gspca_dev)
 			return;
 		}
 	} while (--i > 0);
-	PERR("wait_status_1 timeout");
+	gspca_err(gspca_dev, "wait_status_1 timeout\n");
 	gspca_dev->usb_err = -ETIME;
 }
 
@@ -220,8 +208,8 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	reg_r(gspca_dev, 0x20, 0x0000, 1);
 	reg_r(gspca_dev, 0x20, 0x0000, 5);
 	reg_r(gspca_dev, 0x23, 0x0000, 64);
-	PDEBUG(D_PROBE, "%s%s", &gspca_dev->usb_buf[0x1c],
-				&gspca_dev->usb_buf[0x30]);
+	gspca_dbg(gspca_dev, D_PROBE, "%s%s\n", &gspca_dev->usb_buf[0x1c],
+		  &gspca_dev->usb_buf[0x30]);
 	reg_r(gspca_dev, 0x23, 0x0001, 64);
 	return gspca_dev->usb_err;
 }

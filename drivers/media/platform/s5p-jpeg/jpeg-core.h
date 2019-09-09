@@ -1,13 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* linux/drivers/media/platform/s5p-jpeg/jpeg-core.h
  *
  * Copyright (c) 2011 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
- * Author: Andrzej Pietrasiewicz <andrzej.p@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * Author: Andrzej Pietrasiewicz <andrzejtp2010@gmail.com>
  */
 
 #ifndef JPEG_CORE_H_
@@ -63,6 +60,7 @@
 
 #define S5P_JPEG_ENCODE		0
 #define S5P_JPEG_DECODE		1
+#define S5P_JPEG_DISABLE	-1
 
 #define FMT_TYPE_OUTPUT		0
 #define FMT_TYPE_CAPTURE	1
@@ -96,6 +94,11 @@ enum  exynos4_jpeg_img_quality_level {
 	QUALITY_LEVEL_2,
 	QUALITY_LEVEL_3,
 	QUALITY_LEVEL_4,	/* low */
+};
+
+enum s5p_jpeg_ctx_state {
+	JPEGCTX_RUNNING = 0,
+	JPEGCTX_RESOLUTION_CHANGE,
 };
 
 /**
@@ -147,7 +150,7 @@ struct s5p_jpeg_variant {
 
 /**
  * struct jpeg_fmt - driver's internal color format data
- * @name:	format descritpion
+ * @name:	format description
  * @fourcc:	the fourcc code, 0 if not applicable
  * @depth:	number of bits per pixel
  * @colplanes:	number of color planes (1 for packed formats)
@@ -187,7 +190,7 @@ struct s5p_jpeg_marker {
  * @sos:	SOS marker's position relative to the buffer beginning
  * @dht:	DHT markers' positions relative to the buffer beginning
  * @dqt:	DQT markers' positions relative to the buffer beginning
- * @sof:	SOF0 marker's postition relative to the buffer beginning
+ * @sof:	SOF0 marker's position relative to the buffer beginning
  * @sof_len:	SOF0 marker's payload length (without length field itself)
  * @components:	number of image components
  * @size:	image buffer size in bytes
@@ -220,6 +223,7 @@ struct s5p_jpeg_q_data {
  * @hdr_parsed:		set if header has been parsed during decompression
  * @crop_altered:	set if crop rectangle has been altered by the user space
  * @ctrl_handler:	controls handler
+ * @state:		state of the context
  */
 struct s5p_jpeg_ctx {
 	struct s5p_jpeg		*jpeg;
@@ -235,6 +239,7 @@ struct s5p_jpeg_ctx {
 	bool			hdr_parsed;
 	bool			crop_altered;
 	struct v4l2_ctrl_handler ctrl_handler;
+	enum s5p_jpeg_ctx_state	state;
 };
 
 /**

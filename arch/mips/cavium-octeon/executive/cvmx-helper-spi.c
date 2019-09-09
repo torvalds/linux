@@ -4,7 +4,7 @@
  * Contact: support@caviumnetworks.com
  * This file is part of the OCTEON SDK
  *
- * Copyright (c) 2003-2008 Cavium Networks
+ * Copyright (C) 2003-2018 Cavium, Inc.
  *
  * This file is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, Version 2, as
@@ -25,10 +25,6 @@
  * Contact Cavium Networks for more information
  ***********************license end**************************************/
 
-void __cvmx_interrupt_gmxx_enable(int interface);
-void __cvmx_interrupt_spxx_int_msk_enable(int index);
-void __cvmx_interrupt_stxx_int_msk_enable(int index);
-
 /*
  * Functions for SPI initialization, configuration,
  * and monitoring.
@@ -41,6 +37,8 @@ void __cvmx_interrupt_stxx_int_msk_enable(int index);
 
 #include <asm/octeon/cvmx-pip-defs.h>
 #include <asm/octeon/cvmx-pko-defs.h>
+#include <asm/octeon/cvmx-spxx-defs.h>
+#include <asm/octeon/cvmx-stxx-defs.h>
 
 /*
  * CVMX_HELPER_SPI_TIMEOUT is used to determine how long the SPI
@@ -188,8 +186,7 @@ cvmx_helper_link_info_t __cvmx_helper_spi_link_get(int ipd_port)
  * Configure an IPD/PKO port for the specified link state. This
  * function does not influence auto negotiation at the PHY level.
  * The passed link state must always match the link state returned
- * by cvmx_helper_link_get(). It is normally best to use
- * cvmx_helper_link_autoconf() instead.
+ * by cvmx_helper_link_get().
  *
  * @ipd_port:  IPD/PKO port to configure
  * @link_info: The new link state

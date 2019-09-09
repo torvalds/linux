@@ -1,4 +1,11 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 .. _capture:
 
@@ -42,8 +49,8 @@ Video capture devices shall support :ref:`audio input <audio>`,
 :ref:`tuner`, :ref:`controls <control>`,
 :ref:`cropping and scaling <crop>` and
 :ref:`streaming parameter <streaming-par>` ioctls as needed. The
-:ref:`video input <video>` and :ref:`video standard <standard>`
-ioctls must be supported by all video capture devices.
+:ref:`video input <video>` ioctls must be supported by all video
+capture devices.
 
 
 Image Format Negotiation
@@ -99,6 +106,6 @@ requests and always returns default parameters as :ref:`VIDIOC_G_FMT <VIDIOC_G_F
 Reading Images
 ==============
 
-A video capture device may support the ::ref:`read() function <func-read>`
+A video capture device may support the :ref:`read() function <func-read>`
 and/or streaming (:ref:`memory mapping <func-mmap>` or
 :ref:`user pointer <userp>`) I/O. See :ref:`io` for details.

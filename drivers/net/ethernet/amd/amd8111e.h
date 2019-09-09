@@ -1,19 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Advanced  Micro Devices Inc. AMD8111E Linux Network Driver
  * Copyright (C) 2003 Advanced Micro Devices
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
 
 Module Name:
 
@@ -48,7 +37,7 @@ eg., if the value 10011010b is written into the least significant byte of a comm
 /* 32 bit registers */
 
 #define  ASF_STAT		0x00	/* ASF status register */
-#define CHIPID			0x04	/* Chip ID regsiter */
+#define CHIPID			0x04	/* Chip ID register */
 #define	MIB_DATA		0x10	/* MIB data register */
 #define MIB_ADDR		0x14	/* MIB address register */
 #define STAT0			0x30	/* Status0 register */
@@ -648,7 +637,7 @@ typedef enum {
 /* driver ioctl parameters */
 #define AMD8111E_REG_DUMP_LEN	 13*sizeof(u32)
 
-/* amd8111e desriptor format */
+/* amd8111e descriptor format */
 
 struct amd8111e_tx_dr{
 

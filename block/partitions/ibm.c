@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Author(s)......: Holger Smolinski <Holger.Smolinski@de.ibm.com>
  *                  Volker Sameske <sameske@de.ibm.com>
@@ -10,7 +11,7 @@
 #include <linux/slab.h>
 #include <asm/dasd.h>
 #include <asm/ebcdic.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/vtoc.h>
 
 #include "check.h"

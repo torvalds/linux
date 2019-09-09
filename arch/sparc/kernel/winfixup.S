@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* winfixup.S: Handle cases where user stack pointer is found to be bogus.
  *
  * Copyright (C) 1997, 2006 David S. Miller (davem@davemloft.net)
@@ -152,6 +153,8 @@ fill_fixup_dax:
 	call	sun4v_data_access_exception
 	 nop
 	ba,a,pt	%xcc, rtrap
+	 nop
 1:	call	spitfire_data_access_exception
 	 nop
 	ba,a,pt	%xcc, rtrap
+	 nop

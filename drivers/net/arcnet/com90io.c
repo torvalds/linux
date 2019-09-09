@@ -34,7 +34,7 @@
 #include <linux/ioport.h>
 #include <linux/delay.h>
 #include <linux/netdevice.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -347,8 +347,8 @@ static int io;			/* use the insmod io= irq= shmem= options */
 static int irq;
 static char device[9];		/* use eg. device=arc1 to change name */
 
-module_param(io, int, 0);
-module_param(irq, int, 0);
+module_param_hw(io, int, ioport, 0);
+module_param_hw(irq, int, irq, 0);
 module_param_string(device, device, sizeof(device), 0);
 MODULE_LICENSE("GPL");
 
@@ -363,8 +363,10 @@ static int __init com90io_setup(char *s)
 	switch (ints[0]) {
 	default:		/* ERROR */
 		pr_err("Too many arguments\n");
+		/* Fall through */
 	case 2:		/* IRQ */
 		irq = ints[2];
+		/* Fall through */
 	case 1:		/* IO address */
 		io = ints[1];
 	}

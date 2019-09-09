@@ -1,16 +1,13 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (C) 2008 Mark Nelson, IBM Corp.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 #include <asm/page.h>
 #include <asm/processor.h>
 #include <asm/ppc_asm.h>
 #include <asm/asm-offsets.h>
 #include <asm/export.h>
+#include <asm/feature-fixups.h>
 
         .section        ".toc","aw"
 PPC64_CACHES:
@@ -21,13 +18,15 @@ _GLOBAL_TOC(copy_page)
 BEGIN_FTR_SECTION
 	lis	r5,PAGE_SIZE@h
 FTR_SECTION_ELSE
+#ifdef CONFIG_PPC_BOOK3S_64
 	b	copypage_power7
+#endif
 ALT_FTR_SECTION_END_IFCLR(CPU_FTR_VMX_COPY)
 	ori	r5,r5,PAGE_SIZE@l
 BEGIN_FTR_SECTION
 	ld      r10,PPC64_CACHES@toc(r2)
-	lwz	r11,DCACHEL1LOGLINESIZE(r10)	/* log2 of cache line size */
-	lwz     r12,DCACHEL1LINESIZE(r10)	/* get cache line size */
+	lwz	r11,DCACHEL1LOGBLOCKSIZE(r10)	/* log2 of cache block size */
+	lwz     r12,DCACHEL1BLOCKSIZE(r10)	/* get cache block size */
 	li	r9,0
 	srd	r8,r5,r11
 

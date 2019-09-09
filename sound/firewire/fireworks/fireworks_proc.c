@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * fireworks_proc.c - a part of driver for Fireworks based devices
  *
  * Copyright (c) 2009-2010 Clemens Ladisch
  * Copyright (c) 2013-2014 Takashi Sakamoto
- *
- * Licensed under the terms of the GNU General Public License, version 2.
  */
 
 #include "./fireworks.h"
@@ -12,7 +11,7 @@
 static inline const char*
 get_phys_name(struct snd_efw_phys_grp *grp, bool input)
 {
-	const char *const ch_type[] = {
+	static const char *const ch_type[] = {
 		"Analog", "S/PDIF", "ADAT", "S/PDIF or ADAT", "Mirroring",
 		"Headphones", "I2S", "Guitar", "Pirzo Guitar", "Guitar String",
 	};
@@ -199,12 +198,8 @@ add_node(struct snd_efw *efw, struct snd_info_entry *root, const char *name,
 	struct snd_info_entry *entry;
 
 	entry = snd_info_create_card_entry(efw->card, name, root);
-	if (entry == NULL)
-		return;
-
-	snd_info_set_text_ops(entry, efw, op);
-	if (snd_info_register(entry) < 0)
-		snd_info_free_entry(entry);
+	if (entry)
+		snd_info_set_text_ops(entry, efw, op);
 }
 
 void snd_efw_proc_init(struct snd_efw *efw)
@@ -219,11 +214,7 @@ void snd_efw_proc_init(struct snd_efw *efw)
 					  efw->card->proc_root);
 	if (root == NULL)
 		return;
-	root->mode = S_IFDIR | S_IRUGO | S_IXUGO;
-	if (snd_info_register(root) < 0) {
-		snd_info_free_entry(root);
-		return;
-	}
+	root->mode = S_IFDIR | 0555;
 
 	add_node(efw, root, "clock", proc_read_clock);
 	add_node(efw, root, "firmware", proc_read_hwinfo);

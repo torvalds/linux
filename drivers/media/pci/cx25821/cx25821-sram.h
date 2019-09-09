@@ -1,23 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *  Driver for the Conexant CX25821 PCIe bridge
  *
  *  Copyright (C) 2009 Conexant Systems Inc.
  *  Authors  <shu.lin@conexant.com>, <hiep.huynh@conexant.com>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #ifndef __ATHENA_SRAM_H__
@@ -28,7 +14,7 @@
 #define AUDIO_CMDS_SIZE           80	/* AUDIO CMDS size in bytes */
 #define MBIF_CMDS_SIZE            80	/* MBIF  CMDS size in bytes */
 
-/* #define RX_SRAM_POOL_START_SIZE   = 0;  //  Start of useable RX SRAM for buffers */
+/* #define RX_SRAM_POOL_START_SIZE   = 0;  //  Start of usable RX SRAM for buffers */
 #define VID_IQ_SIZE               64	/* VID instruction queue size in bytes */
 #define MBIF_IQ_SIZE              64
 #define AUDIO_IQ_SIZE             64	/* AUD instruction queue size in bytes */

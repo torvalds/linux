@@ -1,15 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2014 Felix Fietkau <nbd@openwrt.org>
  * Copyright (C) 2015 Jakub Kicinski <kubakici@wp.pl>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2
- * as published by the Free Software Foundation
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef __MT76_REGS_H
@@ -191,6 +183,9 @@
 
 #define MT_BCN_OFFSET_BASE		0x041c
 #define MT_BCN_OFFSET(_n)		(MT_BCN_OFFSET_BASE + ((_n) << 2))
+
+#define MT_RXQ_STA			0x0430
+#define MT_TXQ_STA			0x0434
 
 #define	MT_RF_CSR_CFG			0x0500
 #define MT_RF_CSR_CFG_DATA		GENMASK(7, 0)

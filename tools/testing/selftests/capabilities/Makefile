@@ -1,15 +1,9 @@
-TEST_FILES := validate_cap
-TEST_PROGS := test_execve
-
-BINARIES := $(TEST_FILES) $(TEST_PROGS)
+# SPDX-License-Identifier: GPL-2.0
+TEST_GEN_FILES := validate_cap
+TEST_GEN_PROGS := test_execve
 
 CFLAGS += -O2 -g -std=gnu99 -Wall
 LDLIBS += -lcap-ng -lrt -ldl
-
-all: $(BINARIES)
-
-clean:
-	$(RM) $(BINARIES)
 
 include ../lib.mk
 

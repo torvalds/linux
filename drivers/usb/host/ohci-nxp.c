@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * driver for NXP USB Host devices
  *
@@ -13,10 +14,7 @@
  * NOTE: This driver does not have suspend/resume functionality
  * This driver is intended for engineering development purposes only
  *
- * 2005-2006 (c) MontaVista Software, Inc. This file is licensed under
- * the terms of the GNU General Public License version 2. This program
- * is licensed "as is" without any warranty of any kind, whether express
- * or implied.
+ * 2005-2006 (c) MontaVista Software, Inc.
  */
 #include <linux/clk.h>
 #include <linux/dma-mapping.h>
@@ -55,8 +53,6 @@ static const char hcd_name[] = "ohci-nxp";
 static struct hc_driver __read_mostly ohci_nxp_hc_driver;
 
 static struct i2c_client *isp1301_i2c_client;
-
-extern int usb_disabled(void);
 
 static struct clk *usb_host_clk;
 
@@ -127,6 +123,7 @@ static inline void isp1301_vbus_off(void)
 static void ohci_nxp_start_hc(void)
 {
 	unsigned long tmp = __raw_readl(USB_OTG_STAT_CONTROL) | HOST_EN;
+
 	__raw_writel(tmp, USB_OTG_STAT_CONTROL);
 	isp1301_vbus_on();
 }
@@ -134,6 +131,7 @@ static void ohci_nxp_start_hc(void)
 static void ohci_nxp_stop_hc(void)
 {
 	unsigned long tmp;
+
 	isp1301_vbus_off();
 	tmp = __raw_readl(USB_OTG_STAT_CONTROL) & ~HOST_EN;
 	__raw_writel(tmp, USB_OTG_STAT_CONTROL);
@@ -155,9 +153,8 @@ static int ohci_hcd_nxp_probe(struct platform_device *pdev)
 	}
 
 	isp1301_i2c_client = isp1301_get_client(isp1301_node);
-	if (!isp1301_i2c_client) {
+	if (!isp1301_i2c_client)
 		return -EPROBE_DEFER;
-	}
 
 	ret = dma_coerce_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 	if (ret)

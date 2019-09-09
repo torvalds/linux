@@ -1,12 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * drivers/scsi/ufs/unipro.h
  *
  * Copyright (C) 2013 Samsung Electronics Co., Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #ifndef _UNIPRO_H_
@@ -52,7 +48,7 @@
 #define RX_HS_UNTERMINATED_ENABLE		0x00A6
 #define RX_ENTER_HIBERN8			0x00A7
 #define RX_BYPASS_8B10B_ENABLE			0x00A8
-#define RX_TERMINATION_FORCE_ENABLE		0x0089
+#define RX_TERMINATION_FORCE_ENABLE		0x00A9
 #define RX_MIN_ACTIVATETIME_CAPABILITY		0x008F
 #define RX_HIBERN8TIME_CAPABILITY		0x0092
 #define RX_REFCLKFREQ				0x00EB
@@ -123,6 +119,7 @@
 #define PA_MAXRXHSGEAR		0x1587
 #define PA_RXHSUNTERMCAP	0x15A5
 #define PA_RXLSTERMCAP		0x15A6
+#define PA_GRANULARITY		0x15AA
 #define PA_PACPREQTIMEOUT	0x1590
 #define PA_PACPREQEOBTIMEOUT	0x1591
 #define PA_HIBERN8TIME		0x15A7
@@ -157,6 +154,9 @@
 #define VS_MPHYCFGUPDT		0xD085
 #define VS_DEBUGOMC		0xD09E
 #define VS_POWERSTATE		0xD083
+
+#define PA_GRANULARITY_MIN_VAL	1
+#define PA_GRANULARITY_MAX_VAL	6
 
 /* PHY Adapter Protocol Constants */
 #define PA_MAXDATALANES	4

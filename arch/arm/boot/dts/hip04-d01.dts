@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Copyright (C) 2013-2014 Linaro Ltd.
  *  Author: Haojian Zhuang <haojian.zhuang@linaro.org>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  publishhed by the Free Software Foundation.
  */
 
 /dts-v1/;
@@ -18,7 +15,7 @@
 	model = "Hisilicon D01 Development Board";
 	compatible = "hisilicon,hip04-d01";
 
-	memory@00000000,10000000 {
+	memory@0,10000000 {
 		device_type = "memory";
 		reg = <0x00000000 0x10000000 0x00000000 0xc0000000>,
 		      <0x00000004 0xc0000000 0x00000003 0x40000000>;

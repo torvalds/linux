@@ -1,13 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2012 Freescale Semiconductor, Inc.
  *
  * Author: Varun Sethi <varun.sethi@freescale.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; version 2 of the
- * License.
- *
  */
 
 #include <linux/irq.h>
@@ -76,7 +71,7 @@ int mpic_setup_error_int(struct mpic *mpic, int intvec)
 	mpic->flags |= MPIC_FSL_HAS_EIMR;
 	/* allocate interrupt vectors for error interrupts */
 	for (i = MPIC_MAX_ERR - 1; i >= 0; i--)
-		mpic->err_int_vecs[i] = --intvec;
+		mpic->err_int_vecs[i] = intvec--;
 
 	return 0;
 }

@@ -1,5 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/compiler.h>
+#include <errno.h>
+#include <inttypes.h>
 #include <string.h>
+#include <sys/wait.h>
 #include "tests.h"
 #include "evlist.h"
 #include "evsel.h"
@@ -210,7 +214,7 @@ out_err:
  * and checks that enabled and running times
  * match.
  */
-int test__event_times(int subtest __maybe_unused)
+int test__event_times(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	int err, ret = 0;
 

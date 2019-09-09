@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * PC-Speaker driver for Linux
  *
@@ -166,7 +167,7 @@ static int pcsp_start_playing(struct snd_pcsp *chip)
 	atomic_set(&chip->timer_active, 1);
 	chip->thalf = 0;
 
-	hrtimer_start(&pcsp_chip.timer, ktime_set(0, 0), HRTIMER_MODE_REL);
+	hrtimer_start(&pcsp_chip.timer, 0, HRTIMER_MODE_REL);
 	return 0;
 }
 
@@ -285,7 +286,7 @@ static snd_pcm_uframes_t snd_pcsp_playback_pointer(struct snd_pcm_substream
 	return bytes_to_frames(substream->runtime, pos);
 }
 
-static struct snd_pcm_hardware snd_pcsp_playback = {
+static const struct snd_pcm_hardware snd_pcsp_playback = {
 	.info = (SNDRV_PCM_INFO_INTERLEAVED |
 		 SNDRV_PCM_INFO_HALF_DUPLEX |
 		 SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_MMAP_VALID),
@@ -323,7 +324,7 @@ static int snd_pcsp_playback_open(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static struct snd_pcm_ops snd_pcsp_playback_ops = {
+static const struct snd_pcm_ops snd_pcsp_playback_ops = {
 	.open = snd_pcsp_playback_open,
 	.close = snd_pcsp_playback_close,
 	.ioctl = snd_pcm_lib_ioctl,

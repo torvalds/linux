@@ -1,27 +1,5 @@
-/******************************************************************************
- *
- * Copyright(c) 2009-2013  Realtek Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
- *
- * Contact Information:
- * wlanfae <wlanfae@realtek.com>
- * Realtek Corporation, No. 2, Innovation Road II, Hsinchu Science Park,
- * Hsinchu 300, Taiwan.
- *
- * Larry Finger <Larry.Finger@lwfinger.net>
- *
- *****************************************************************************/
+/* SPDX-License-Identifier: GPL-2.0 */
+/* Copyright(c) 2009-2013  Realtek Corporation.*/
 
 #ifndef __RTL92CE_TRX_H__
 #define __RTL92CE_TRX_H__
@@ -782,15 +760,12 @@ bool rtl88ee_rx_query_desc(struct ieee80211_hw *hw,
 			   u8 *pdesc, struct sk_buff *skb);
 void rtl88ee_set_desc(struct ieee80211_hw *hw, u8 *pdesc,
 		      bool istx, u8 desc_name, u8 *val);
-u32 rtl88ee_get_desc(u8 *pdesc, bool istx, u8 desc_name);
+u64 rtl88ee_get_desc(struct ieee80211_hw *hw,
+		     u8 *pdesc, bool istx, u8 desc_name);
 bool rtl88ee_is_tx_desc_closed(struct ieee80211_hw *hw,
 			       u8 hw_queue, u16 index);
 void rtl88ee_tx_polling(struct ieee80211_hw *hw, u8 hw_queue);
 void rtl88ee_tx_fill_cmddesc(struct ieee80211_hw *hw, u8 *pdesc,
 			     bool firstseg, bool lastseg,
 			     struct sk_buff *skb);
-u32 rtl88ee_rx_command_packet(struct ieee80211_hw *hw,
-			      const struct rtl_stats *status,
-			      struct sk_buff *skb);
-
 #endif

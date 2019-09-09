@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*******************************************************************************
   This is the driver for the MAC 10/100 on-chip Ethernet controller
   currently tested on all the ST boards based on STb7109 and stx7200 SoCs.
@@ -9,21 +10,6 @@
 
   Copyright (C) 2007-2009  STMicroelectronics Ltd
 
-  This program is free software; you can redistribute it and/or modify it
-  under the terms and conditions of the GNU General Public License,
-  version 2, as published by the Free Software Foundation.
-
-  This program is distributed in the hope it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details.
-
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-
-  The full GNU General Public License is included in this distribution in
-  the file called "COPYING".
 
   Author: Giuseppe Cavallaro <peppe.cavallaro@st.com>
 *******************************************************************************/
@@ -32,21 +18,31 @@
 #include "dwmac100.h"
 #include "dwmac_dma.h"
 
-static void dwmac100_dma_init(void __iomem *ioaddr, int pbl, int fb, int mb,
-			      int aal, u32 dma_tx, u32 dma_rx, int atds)
+static void dwmac100_dma_init(void __iomem *ioaddr,
+			      struct stmmac_dma_cfg *dma_cfg, int atds)
 {
 	/* Enable Application Access by writing to DMA CSR0 */
-	writel(DMA_BUS_MODE_DEFAULT | (pbl << DMA_BUS_MODE_PBL_SHIFT),
+	writel(DMA_BUS_MODE_DEFAULT | (dma_cfg->pbl << DMA_BUS_MODE_PBL_SHIFT),
 	       ioaddr + DMA_BUS_MODE);
 
 	/* Mask interrupts by writing to CSR7 */
 	writel(DMA_INTR_DEFAULT_MASK, ioaddr + DMA_INTR_ENA);
+}
 
-	/* RX/TX descriptor base addr lists must be written into
-	 * DMA CSR3 and CSR4, respectively
-	 */
-	writel(dma_tx, ioaddr + DMA_TX_BASE_ADDR);
-	writel(dma_rx, ioaddr + DMA_RCV_BASE_ADDR);
+static void dwmac100_dma_init_rx(void __iomem *ioaddr,
+				 struct stmmac_dma_cfg *dma_cfg,
+				 dma_addr_t dma_rx_phy, u32 chan)
+{
+	/* RX descriptor base addr lists must be written into DMA CSR3 */
+	writel(lower_32_bits(dma_rx_phy), ioaddr + DMA_RCV_BASE_ADDR);
+}
+
+static void dwmac100_dma_init_tx(void __iomem *ioaddr,
+				 struct stmmac_dma_cfg *dma_cfg,
+				 dma_addr_t dma_tx_phy, u32 chan)
+{
+	/* TX descriptor base addr lists must be written into DMA CSR4 */
+	writel(lower_32_bits(dma_tx_phy), ioaddr + DMA_TX_BASE_ADDR);
 }
 
 /* Store and Forward capability is not used at all.
@@ -54,14 +50,14 @@ static void dwmac100_dma_init(void __iomem *ioaddr, int pbl, int fb, int mb,
  * The transmit threshold can be programmed by setting the TTC bits in the DMA
  * control register.
  */
-static void dwmac100_dma_operation_mode(void __iomem *ioaddr, int txmode,
-					int rxmode, int rxfifosz)
+static void dwmac100_dma_operation_mode_tx(void __iomem *ioaddr, int mode,
+					   u32 channel, int fifosz, u8 qmode)
 {
 	u32 csr6 = readl(ioaddr + DMA_CONTROL);
 
-	if (txmode <= 32)
+	if (mode <= 32)
 		csr6 |= DMA_CONTROL_TTC_32;
-	else if (txmode <= 64)
+	else if (mode <= 64)
 		csr6 |= DMA_CONTROL_TTC_64;
 	else
 		csr6 |= DMA_CONTROL_TTC_128;
@@ -69,19 +65,18 @@ static void dwmac100_dma_operation_mode(void __iomem *ioaddr, int txmode,
 	writel(csr6, ioaddr + DMA_CONTROL);
 }
 
-static void dwmac100_dump_dma_regs(void __iomem *ioaddr)
+static void dwmac100_dump_dma_regs(void __iomem *ioaddr, u32 *reg_space)
 {
 	int i;
 
-	pr_debug("DWMAC 100 DMA CSR\n");
-	for (i = 0; i < 9; i++)
-		pr_debug("\t CSR%d (offset 0x%x): 0x%08x\n", i,
-			 (DMA_BUS_MODE + i * 4),
-			 readl(ioaddr + DMA_BUS_MODE + i * 4));
+	for (i = 0; i < NUM_DWMAC100_DMA_REGS; i++)
+		reg_space[DMA_BUS_MODE / 4 + i] =
+			readl(ioaddr + DMA_BUS_MODE + i * 4);
 
-	pr_debug("\tCSR20 (0x%x): 0x%08x, CSR21 (0x%x): 0x%08x\n",
-		 DMA_CUR_TX_BUF_ADDR, readl(ioaddr + DMA_CUR_TX_BUF_ADDR),
-		 DMA_CUR_RX_BUF_ADDR, readl(ioaddr + DMA_CUR_RX_BUF_ADDR));
+	reg_space[DMA_CUR_TX_BUF_ADDR / 4] =
+		readl(ioaddr + DMA_CUR_TX_BUF_ADDR);
+	reg_space[DMA_CUR_RX_BUF_ADDR / 4] =
+		readl(ioaddr + DMA_CUR_RX_BUF_ADDR);
 }
 
 /* DMA controller has two counters to track the number of the missed frames. */
@@ -116,8 +111,10 @@ static void dwmac100_dma_diagnostic_fr(void *data, struct stmmac_extra_stats *x,
 const struct stmmac_dma_ops dwmac100_dma_ops = {
 	.reset = dwmac_dma_reset,
 	.init = dwmac100_dma_init,
+	.init_rx_chan = dwmac100_dma_init_rx,
+	.init_tx_chan = dwmac100_dma_init_tx,
 	.dump_regs = dwmac100_dump_dma_regs,
-	.dma_mode = dwmac100_dma_operation_mode,
+	.dma_tx_mode = dwmac100_dma_operation_mode_tx,
 	.dma_diagnostic_fr = dwmac100_dma_diagnostic_fr,
 	.enable_dma_transmission = dwmac_enable_dma_transmission,
 	.enable_dma_irq = dwmac_enable_dma_irq,

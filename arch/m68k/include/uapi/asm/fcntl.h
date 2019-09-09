@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _M68K_FCNTL_H
 #define _M68K_FCNTL_H
 

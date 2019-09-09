@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Industrial I/O generic buffer implementations
 #
@@ -28,6 +29,16 @@ config IIO_BUFFER_DMAENGINE
 	  DMAengine framework.
 
 	  Should be selected by drivers that want to use this functionality.
+
+config IIO_BUFFER_HW_CONSUMER
+	tristate "Industrial I/O HW buffering"
+	help
+	  Provides a way to bonding when an IIO device has a direct connection
+	  to another device in hardware. In this case buffers for data transfers
+	  are handled by hardware.
+
+	  Should be selected by drivers that want to use the generic Hw consumer
+	  interface.
 
 config IIO_KFIFO_BUF
 	tristate "Industrial I/O buffering based on kfifo"

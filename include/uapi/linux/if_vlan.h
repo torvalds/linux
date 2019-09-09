@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0+ WITH Linux-syscall-note */
 /*
  * VLAN		An implementation of 802.1Q VLAN tagging.
  *
@@ -31,10 +32,11 @@ enum vlan_ioctl_cmds {
 };
 
 enum vlan_flags {
-	VLAN_FLAG_REORDER_HDR	= 0x1,
-	VLAN_FLAG_GVRP		= 0x2,
-	VLAN_FLAG_LOOSE_BINDING	= 0x4,
-	VLAN_FLAG_MVRP		= 0x8,
+	VLAN_FLAG_REORDER_HDR		= 0x1,
+	VLAN_FLAG_GVRP			= 0x2,
+	VLAN_FLAG_LOOSE_BINDING		= 0x4,
+	VLAN_FLAG_MVRP			= 0x8,
+	VLAN_FLAG_BRIDGE_BINDING	= 0x10,
 };
 
 enum vlan_name_types {

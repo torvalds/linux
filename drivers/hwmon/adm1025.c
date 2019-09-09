@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * adm1025.c
  *
@@ -29,20 +30,6 @@
  * Since the ADM1025 was the first chipset supported by this driver, most
  * comments will refer to this chipset, but are actually general and
  * concern all supported chipsets, unless mentioned otherwise.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
@@ -93,7 +80,7 @@ static const int in_scale[6] = { 2500, 2250, 3300, 5000, 12000, 3300 };
 
 #define IN_FROM_REG(reg, scale)	(((reg) * (scale) + 96) / 192)
 #define IN_TO_REG(val, scale)	((val) <= 0 ? 0 : \
-				 (val) * 192 >= (scale) * 255 ? 255 : \
+				 (val) >= (scale) * 255 / 192 ? 255 : \
 				 ((val) * 192 + (scale) / 2) / (scale))
 
 #define TEMP_FROM_REG(reg)	((reg) * 1000)
@@ -174,7 +161,7 @@ static struct adm1025_data *adm1025_update_device(struct device *dev)
  */
 
 static ssize_t
-show_in(struct device *dev, struct device_attribute *attr, char *buf)
+in_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	int index = to_sensor_dev_attr(attr)->index;
 	struct adm1025_data *data = adm1025_update_device(dev);
@@ -183,7 +170,7 @@ show_in(struct device *dev, struct device_attribute *attr, char *buf)
 }
 
 static ssize_t
-show_in_min(struct device *dev, struct device_attribute *attr, char *buf)
+in_min_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	int index = to_sensor_dev_attr(attr)->index;
 	struct adm1025_data *data = adm1025_update_device(dev);
@@ -192,7 +179,7 @@ show_in_min(struct device *dev, struct device_attribute *attr, char *buf)
 }
 
 static ssize_t
-show_in_max(struct device *dev, struct device_attribute *attr, char *buf)
+in_max_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	int index = to_sensor_dev_attr(attr)->index;
 	struct adm1025_data *data = adm1025_update_device(dev);
@@ -201,7 +188,7 @@ show_in_max(struct device *dev, struct device_attribute *attr, char *buf)
 }
 
 static ssize_t
-show_temp(struct device *dev, struct device_attribute *attr, char *buf)
+temp_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	int index = to_sensor_dev_attr(attr)->index;
 	struct adm1025_data *data = adm1025_update_device(dev);
@@ -209,7 +196,7 @@ show_temp(struct device *dev, struct device_attribute *attr, char *buf)
 }
 
 static ssize_t
-show_temp_min(struct device *dev, struct device_attribute *attr, char *buf)
+temp_min_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	int index = to_sensor_dev_attr(attr)->index;
 	struct adm1025_data *data = adm1025_update_device(dev);
@@ -217,15 +204,15 @@ show_temp_min(struct device *dev, struct device_attribute *attr, char *buf)
 }
 
 static ssize_t
-show_temp_max(struct device *dev, struct device_attribute *attr, char *buf)
+temp_max_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	int index = to_sensor_dev_attr(attr)->index;
 	struct adm1025_data *data = adm1025_update_device(dev);
 	return sprintf(buf, "%d\n", TEMP_FROM_REG(data->temp_max[index]));
 }
 
-static ssize_t set_in_min(struct device *dev, struct device_attribute *attr,
-			  const char *buf, size_t count)
+static ssize_t in_min_store(struct device *dev, struct device_attribute *attr,
+			    const char *buf, size_t count)
 {
 	int index = to_sensor_dev_attr(attr)->index;
 	struct adm1025_data *data = dev_get_drvdata(dev);
@@ -245,8 +232,8 @@ static ssize_t set_in_min(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static ssize_t set_in_max(struct device *dev, struct device_attribute *attr,
-			  const char *buf, size_t count)
+static ssize_t in_max_store(struct device *dev, struct device_attribute *attr,
+			    const char *buf, size_t count)
 {
 	int index = to_sensor_dev_attr(attr)->index;
 	struct adm1025_data *data = dev_get_drvdata(dev);
@@ -266,22 +253,28 @@ static ssize_t set_in_max(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-#define set_in(offset) \
-static SENSOR_DEVICE_ATTR(in##offset##_input, S_IRUGO, \
-	show_in, NULL, offset); \
-static SENSOR_DEVICE_ATTR(in##offset##_min, S_IWUSR | S_IRUGO, \
-	show_in_min, set_in_min, offset); \
-static SENSOR_DEVICE_ATTR(in##offset##_max, S_IWUSR | S_IRUGO, \
-	show_in_max, set_in_max, offset)
-set_in(0);
-set_in(1);
-set_in(2);
-set_in(3);
-set_in(4);
-set_in(5);
+static SENSOR_DEVICE_ATTR_RO(in0_input, in, 0);
+static SENSOR_DEVICE_ATTR_RW(in0_min, in_min, 0);
+static SENSOR_DEVICE_ATTR_RW(in0_max, in_max, 0);
+static SENSOR_DEVICE_ATTR_RO(in1_input, in, 1);
+static SENSOR_DEVICE_ATTR_RW(in1_min, in_min, 1);
+static SENSOR_DEVICE_ATTR_RW(in1_max, in_max, 1);
+static SENSOR_DEVICE_ATTR_RO(in2_input, in, 2);
+static SENSOR_DEVICE_ATTR_RW(in2_min, in_min, 2);
+static SENSOR_DEVICE_ATTR_RW(in2_max, in_max, 2);
+static SENSOR_DEVICE_ATTR_RO(in3_input, in, 3);
+static SENSOR_DEVICE_ATTR_RW(in3_min, in_min, 3);
+static SENSOR_DEVICE_ATTR_RW(in3_max, in_max, 3);
+static SENSOR_DEVICE_ATTR_RO(in4_input, in, 4);
+static SENSOR_DEVICE_ATTR_RW(in4_min, in_min, 4);
+static SENSOR_DEVICE_ATTR_RW(in4_max, in_max, 4);
+static SENSOR_DEVICE_ATTR_RO(in5_input, in, 5);
+static SENSOR_DEVICE_ATTR_RW(in5_min, in_min, 5);
+static SENSOR_DEVICE_ATTR_RW(in5_max, in_max, 5);
 
-static ssize_t set_temp_min(struct device *dev, struct device_attribute *attr,
-			    const char *buf, size_t count)
+static ssize_t temp_min_store(struct device *dev,
+			      struct device_attribute *attr, const char *buf,
+			      size_t count)
 {
 	int index = to_sensor_dev_attr(attr)->index;
 	struct adm1025_data *data = dev_get_drvdata(dev);
@@ -301,8 +294,9 @@ static ssize_t set_temp_min(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static ssize_t set_temp_max(struct device *dev, struct device_attribute *attr,
-	const char *buf, size_t count)
+static ssize_t temp_max_store(struct device *dev,
+			      struct device_attribute *attr, const char *buf,
+			      size_t count)
 {
 	int index = to_sensor_dev_attr(attr)->index;
 	struct adm1025_data *data = dev_get_drvdata(dev);
@@ -322,57 +316,54 @@ static ssize_t set_temp_max(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-#define set_temp(offset) \
-static SENSOR_DEVICE_ATTR(temp##offset##_input, S_IRUGO, \
-	show_temp, NULL, offset - 1); \
-static SENSOR_DEVICE_ATTR(temp##offset##_min, S_IWUSR | S_IRUGO, \
-	show_temp_min, set_temp_min, offset - 1); \
-static SENSOR_DEVICE_ATTR(temp##offset##_max, S_IWUSR | S_IRUGO, \
-	show_temp_max, set_temp_max, offset - 1)
-set_temp(1);
-set_temp(2);
+static SENSOR_DEVICE_ATTR_RO(temp1_input, temp, 0);
+static SENSOR_DEVICE_ATTR_RW(temp1_min, temp_min, 0);
+static SENSOR_DEVICE_ATTR_RW(temp1_max, temp_max, 0);
+static SENSOR_DEVICE_ATTR_RO(temp2_input, temp, 1);
+static SENSOR_DEVICE_ATTR_RW(temp2_min, temp_min, 1);
+static SENSOR_DEVICE_ATTR_RW(temp2_max, temp_max, 1);
 
 static ssize_t
-show_alarms(struct device *dev, struct device_attribute *attr, char *buf)
+alarms_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct adm1025_data *data = adm1025_update_device(dev);
 	return sprintf(buf, "%u\n", data->alarms);
 }
-static DEVICE_ATTR(alarms, S_IRUGO, show_alarms, NULL);
+static DEVICE_ATTR_RO(alarms);
 
 static ssize_t
-show_alarm(struct device *dev, struct device_attribute *attr, char *buf)
+alarm_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	int bitnr = to_sensor_dev_attr(attr)->index;
 	struct adm1025_data *data = adm1025_update_device(dev);
 	return sprintf(buf, "%u\n", (data->alarms >> bitnr) & 1);
 }
-static SENSOR_DEVICE_ATTR(in0_alarm, S_IRUGO, show_alarm, NULL, 0);
-static SENSOR_DEVICE_ATTR(in1_alarm, S_IRUGO, show_alarm, NULL, 1);
-static SENSOR_DEVICE_ATTR(in2_alarm, S_IRUGO, show_alarm, NULL, 2);
-static SENSOR_DEVICE_ATTR(in3_alarm, S_IRUGO, show_alarm, NULL, 3);
-static SENSOR_DEVICE_ATTR(in4_alarm, S_IRUGO, show_alarm, NULL, 8);
-static SENSOR_DEVICE_ATTR(in5_alarm, S_IRUGO, show_alarm, NULL, 9);
-static SENSOR_DEVICE_ATTR(temp1_alarm, S_IRUGO, show_alarm, NULL, 5);
-static SENSOR_DEVICE_ATTR(temp2_alarm, S_IRUGO, show_alarm, NULL, 4);
-static SENSOR_DEVICE_ATTR(temp1_fault, S_IRUGO, show_alarm, NULL, 14);
+static SENSOR_DEVICE_ATTR_RO(in0_alarm, alarm, 0);
+static SENSOR_DEVICE_ATTR_RO(in1_alarm, alarm, 1);
+static SENSOR_DEVICE_ATTR_RO(in2_alarm, alarm, 2);
+static SENSOR_DEVICE_ATTR_RO(in3_alarm, alarm, 3);
+static SENSOR_DEVICE_ATTR_RO(in4_alarm, alarm, 8);
+static SENSOR_DEVICE_ATTR_RO(in5_alarm, alarm, 9);
+static SENSOR_DEVICE_ATTR_RO(temp1_alarm, alarm, 5);
+static SENSOR_DEVICE_ATTR_RO(temp2_alarm, alarm, 4);
+static SENSOR_DEVICE_ATTR_RO(temp1_fault, alarm, 14);
 
 static ssize_t
-show_vid(struct device *dev, struct device_attribute *attr, char *buf)
+cpu0_vid_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct adm1025_data *data = adm1025_update_device(dev);
 	return sprintf(buf, "%u\n", vid_from_reg(data->vid, data->vrm));
 }
-static DEVICE_ATTR(cpu0_vid, S_IRUGO, show_vid, NULL);
+static DEVICE_ATTR_RO(cpu0_vid);
 
 static ssize_t
-show_vrm(struct device *dev, struct device_attribute *attr, char *buf)
+vrm_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct adm1025_data *data = dev_get_drvdata(dev);
 	return sprintf(buf, "%u\n", data->vrm);
 }
-static ssize_t set_vrm(struct device *dev, struct device_attribute *attr,
-		       const char *buf, size_t count)
+static ssize_t vrm_store(struct device *dev, struct device_attribute *attr,
+			 const char *buf, size_t count)
 {
 	struct adm1025_data *data = dev_get_drvdata(dev);
 	unsigned long val;
@@ -388,7 +379,7 @@ static ssize_t set_vrm(struct device *dev, struct device_attribute *attr,
 	data->vrm = val;
 	return count;
 }
-static DEVICE_ATTR(vrm, S_IRUGO | S_IWUSR, show_vrm, set_vrm);
+static DEVICE_ATTR_RW(vrm);
 
 /*
  * Real code

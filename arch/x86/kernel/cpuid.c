@@ -1,12 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 2000-2008 H. Peter Anvin - All Rights Reserved
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation, Inc., 675 Mass Ave, Cambridge MA 02139,
- *   USA; either version 2 of the License, or (at your option) any later
- *   version; incorporated herein by reference.
  *
  * ----------------------------------------------------------------------- */
 
@@ -40,29 +35,35 @@
 #include <linux/notifier.h>
 #include <linux/uaccess.h>
 #include <linux/gfp.h>
+#include <linux/completion.h>
 
 #include <asm/processor.h>
 #include <asm/msr.h>
 
 static struct class *cpuid_class;
+static enum cpuhp_state cpuhp_cpuid_state;
 
-struct cpuid_regs {
-	u32 eax, ebx, ecx, edx;
+struct cpuid_regs_done {
+	struct cpuid_regs regs;
+	struct completion done;
 };
 
 static void cpuid_smp_cpuid(void *cmd_block)
 {
-	struct cpuid_regs *cmd = (struct cpuid_regs *)cmd_block;
+	struct cpuid_regs_done *cmd = cmd_block;
 
-	cpuid_count(cmd->eax, cmd->ecx,
-		    &cmd->eax, &cmd->ebx, &cmd->ecx, &cmd->edx);
+	cpuid_count(cmd->regs.eax, cmd->regs.ecx,
+		    &cmd->regs.eax, &cmd->regs.ebx,
+		    &cmd->regs.ecx, &cmd->regs.edx);
+
+	complete(&cmd->done);
 }
 
 static ssize_t cpuid_read(struct file *file, char __user *buf,
 			  size_t count, loff_t *ppos)
 {
 	char __user *tmp = buf;
-	struct cpuid_regs cmd;
+	struct cpuid_regs_done cmd;
 	int cpu = iminor(file_inode(file));
 	u64 pos = *ppos;
 	ssize_t bytes = 0;
@@ -71,19 +72,28 @@ static ssize_t cpuid_read(struct file *file, char __user *buf,
 	if (count % 16)
 		return -EINVAL;	/* Invalid chunk size */
 
+	init_completion(&cmd.done);
 	for (; count; count -= 16) {
-		cmd.eax = pos;
-		cmd.ecx = pos >> 32;
-		err = smp_call_function_single(cpu, cpuid_smp_cpuid, &cmd, 1);
+		call_single_data_t csd = {
+			.func = cpuid_smp_cpuid,
+			.info = &cmd,
+		};
+
+		cmd.regs.eax = pos;
+		cmd.regs.ecx = pos >> 32;
+
+		err = smp_call_function_single_async(cpu, &csd);
 		if (err)
 			break;
-		if (copy_to_user(tmp, &cmd, 16)) {
+		wait_for_completion(&cmd.done);
+		if (copy_to_user(tmp, &cmd.regs, 16)) {
 			err = -EFAULT;
 			break;
 		}
 		tmp += 16;
 		bytes += 16;
 		*ppos = ++pos;
+		reinit_completion(&cmd.done);
 	}
 
 	return bytes ? bytes : err;
@@ -115,7 +125,7 @@ static const struct file_operations cpuid_fops = {
 	.open = cpuid_open,
 };
 
-static int cpuid_device_create(int cpu)
+static int cpuid_device_create(unsigned int cpu)
 {
 	struct device *dev;
 
@@ -124,34 +134,11 @@ static int cpuid_device_create(int cpu)
 	return PTR_ERR_OR_ZERO(dev);
 }
 
-static void cpuid_device_destroy(int cpu)
+static int cpuid_device_destroy(unsigned int cpu)
 {
 	device_destroy(cpuid_class, MKDEV(CPUID_MAJOR, cpu));
+	return 0;
 }
-
-static int cpuid_class_cpu_callback(struct notifier_block *nfb,
-				    unsigned long action, void *hcpu)
-{
-	unsigned int cpu = (unsigned long)hcpu;
-	int err = 0;
-
-	switch (action) {
-	case CPU_UP_PREPARE:
-		err = cpuid_device_create(cpu);
-		break;
-	case CPU_UP_CANCELED:
-	case CPU_UP_CANCELED_FROZEN:
-	case CPU_DEAD:
-		cpuid_device_destroy(cpu);
-		break;
-	}
-	return notifier_from_errno(err);
-}
-
-static struct notifier_block cpuid_class_cpu_notifier =
-{
-	.notifier_call = cpuid_class_cpu_callback,
-};
 
 static char *cpuid_devnode(struct device *dev, umode_t *mode)
 {
@@ -160,15 +147,13 @@ static char *cpuid_devnode(struct device *dev, umode_t *mode)
 
 static int __init cpuid_init(void)
 {
-	int i, err = 0;
-	i = 0;
+	int err;
 
 	if (__register_chrdev(CPUID_MAJOR, 0, NR_CPUS,
 			      "cpu/cpuid", &cpuid_fops)) {
 		printk(KERN_ERR "cpuid: unable to get major %d for cpuid\n",
 		       CPUID_MAJOR);
-		err = -EBUSY;
-		goto out;
+		return -EBUSY;
 	}
 	cpuid_class = class_create(THIS_MODULE, "cpuid");
 	if (IS_ERR(cpuid_class)) {
@@ -177,45 +162,28 @@ static int __init cpuid_init(void)
 	}
 	cpuid_class->devnode = cpuid_devnode;
 
-	cpu_notifier_register_begin();
-	for_each_online_cpu(i) {
-		err = cpuid_device_create(i);
-		if (err != 0)
-			goto out_class;
-	}
-	__register_hotcpu_notifier(&cpuid_class_cpu_notifier);
-	cpu_notifier_register_done();
+	err = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "x86/cpuid:online",
+				cpuid_device_create, cpuid_device_destroy);
+	if (err < 0)
+		goto out_class;
 
-	err = 0;
-	goto out;
+	cpuhp_cpuid_state = err;
+	return 0;
 
 out_class:
-	i = 0;
-	for_each_online_cpu(i) {
-		cpuid_device_destroy(i);
-	}
-	cpu_notifier_register_done();
 	class_destroy(cpuid_class);
 out_chrdev:
 	__unregister_chrdev(CPUID_MAJOR, 0, NR_CPUS, "cpu/cpuid");
-out:
 	return err;
 }
+module_init(cpuid_init);
 
 static void __exit cpuid_exit(void)
 {
-	int cpu = 0;
-
-	cpu_notifier_register_begin();
-	for_each_online_cpu(cpu)
-		cpuid_device_destroy(cpu);
+	cpuhp_remove_state(cpuhp_cpuid_state);
 	class_destroy(cpuid_class);
 	__unregister_chrdev(CPUID_MAJOR, 0, NR_CPUS, "cpu/cpuid");
-	__unregister_hotcpu_notifier(&cpuid_class_cpu_notifier);
-	cpu_notifier_register_done();
 }
-
-module_init(cpuid_init);
 module_exit(cpuid_exit);
 
 MODULE_AUTHOR("H. Peter Anvin <hpa@zytor.com>");

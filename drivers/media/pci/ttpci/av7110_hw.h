@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _AV7110_HW_H_
 #define _AV7110_HW_H_
 
@@ -377,14 +378,14 @@ extern int av7110_fw_request(struct av7110 *av7110, u16 *request_buf,
 
 /* DEBI (saa7146 data extension bus interface) access */
 extern int av7110_debiwrite(struct av7110 *av7110, u32 config,
-			    int addr, u32 val, int count);
+			    int addr, u32 val, unsigned int count);
 extern u32 av7110_debiread(struct av7110 *av7110, u32 config,
-			   int addr, int count);
+			   int addr, unsigned int count);
 
 
 /* DEBI during interrupt */
 /* single word writes */
-static inline void iwdebi(struct av7110 *av7110, u32 config, int addr, u32 val, int count)
+static inline void iwdebi(struct av7110 *av7110, u32 config, int addr, u32 val, unsigned int count)
 {
 	av7110_debiwrite(av7110, config, addr, val, count);
 }
@@ -397,7 +398,7 @@ static inline void mwdebi(struct av7110 *av7110, u32 config, int addr,
 	av7110_debiwrite(av7110, config, addr, 0, count);
 }
 
-static inline u32 irdebi(struct av7110 *av7110, u32 config, int addr, u32 val, int count)
+static inline u32 irdebi(struct av7110 *av7110, u32 config, int addr, u32 val, unsigned int count)
 {
 	u32 res;
 
@@ -408,7 +409,7 @@ static inline u32 irdebi(struct av7110 *av7110, u32 config, int addr, u32 val, i
 }
 
 /* DEBI outside interrupts, only for count <= 4! */
-static inline void wdebi(struct av7110 *av7110, u32 config, int addr, u32 val, int count)
+static inline void wdebi(struct av7110 *av7110, u32 config, int addr, u32 val, unsigned int count)
 {
 	unsigned long flags;
 
@@ -417,7 +418,7 @@ static inline void wdebi(struct av7110 *av7110, u32 config, int addr, u32 val, i
 	spin_unlock_irqrestore(&av7110->debilock, flags);
 }
 
-static inline u32 rdebi(struct av7110 *av7110, u32 config, int addr, u32 val, int count)
+static inline u32 rdebi(struct av7110 *av7110, u32 config, int addr, u32 val, unsigned int count)
 {
 	unsigned long flags;
 	u32 res;

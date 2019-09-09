@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Time related functions for Hexagon architecture
  *
  * Copyright (c) 2010-2011, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
  */
 
 #include <linux/init.h>
@@ -72,9 +59,9 @@ struct adsp_hw_timer_struct {
 /*  Look for "TCX0" for related constants.  */
 static __iomem struct adsp_hw_timer_struct *rtos_timer;
 
-static cycle_t timer_get_cycles(struct clocksource *cs)
+static u64 timer_get_cycles(struct clocksource *cs)
 {
-	return (cycle_t) __vmgettime();
+	return (u64) __vmgettime();
 }
 
 static struct clocksource hexagon_clocksource = {
@@ -199,7 +186,9 @@ void __init time_init_deferred(void)
 	clockevents_calc_mult_shift(ce_dev, sleep_clk_freq, 4);
 
 	ce_dev->max_delta_ns = clockevent_delta2ns(0x7fffffff, ce_dev);
+	ce_dev->max_delta_ticks = 0x7fffffff;
 	ce_dev->min_delta_ns = clockevent_delta2ns(0xf, ce_dev);
+	ce_dev->min_delta_ticks = 0xf;
 
 #ifdef CONFIG_SMP
 	setup_percpu_clockdev();

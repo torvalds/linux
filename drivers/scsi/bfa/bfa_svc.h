@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2005-2014 Brocade Communications Systems, Inc.
  * Copyright (c) 2014- QLogic Corporation.
@@ -5,15 +6,6 @@
  * www.qlogic.com
  *
  * Linux driver for QLogic BR-series Fibre Channel Host Bus Adapter.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License (GPL) Version 2 as
- * published by the Free Software Foundation
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 
 #ifndef __BFA_SVC_H__
@@ -505,7 +497,7 @@ struct bfa_fcport_s {
 	struct list_head	stats_pending_q;
 	struct list_head	statsclr_pending_q;
 	bfa_boolean_t		stats_qfull;
-	u32		stats_reset_time; /*  stats reset time stamp */
+	time64_t		stats_reset_time; /*  stats reset time stamp */
 	bfa_boolean_t		diag_busy; /*  diag busy status */
 	bfa_boolean_t		beacon; /*  port beacon status */
 	bfa_boolean_t		link_e2e_beacon; /*  link beacon status */

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __SAA7146__
 #define __SAA7146__
 
@@ -96,7 +97,7 @@ struct saa7146_extension
 	   supported devices, last entry 0xffff, 0xfff */
 	struct module *module;
 	struct pci_driver driver;
-	struct pci_device_id *pci_tbl;
+	const struct pci_device_id *pci_tbl;
 
 	/* extension functions */
 	int (*probe)(struct saa7146_dev *);
@@ -117,7 +118,7 @@ struct saa7146_dev
 {
 	struct module			*module;
 
-	struct v4l2_device 		v4l2_dev;
+	struct v4l2_device		v4l2_dev;
 	struct v4l2_ctrl_handler	ctrl_handler;
 
 	/* different device locks */
@@ -138,7 +139,7 @@ struct saa7146_dev
 	void				*ext_priv;	/* pointer for extension private use (most likely some private data) */
 	struct saa7146_ext_vv		*ext_vv_data;
 
-	/* per device video/vbi informations (if available) */
+	/* per device video/vbi information (if available) */
 	struct saa7146_vv	*vv_data;
 	void (*vv_callback)(struct saa7146_dev *dev, unsigned long status);
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* -*- mode: c; c-basic-offset: 8 -*- */
 
 /* PARISC LASI driver for the 53c700 chip
@@ -5,19 +6,6 @@
  * Copyright (C) 2001 by James.Bottomley@HansenPartnership.com
 **-----------------------------------------------------------------------------
 **  
-**  This program is free software; you can redistribute it and/or modify
-**  it under the terms of the GNU General Public License as published by
-**  the Free Software Foundation; either version 2 of the License, or
-**  (at your option) any later version.
-**
-**  This program is distributed in the hope that it will be useful,
-**  but WITHOUT ANY WARRANTY; without even the implied warranty of
-**  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-**  GNU General Public License for more details.
-**
-**  You should have received a copy of the GNU General Public License
-**  along with this program; if not, write to the Free Software
-**  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 **
 **-----------------------------------------------------------------------------
  */
@@ -81,7 +69,7 @@ MODULE_LICENSE("GPL");
 #define LASI710_CLOCK	40
 #define LASI_SCSI_CORE_OFFSET 0x100
 
-static struct parisc_device_id lasi700_ids[] = {
+static const struct parisc_device_id lasi700_ids[] __initconst = {
 	LASI700_ID_TABLE,
 	LASI710_ID_TABLE,
 	{ 0 }
@@ -164,11 +152,11 @@ lasi700_driver_remove(struct parisc_device *dev)
 	return 0;
 }
 
-static struct parisc_driver lasi700_driver = {
+static struct parisc_driver lasi700_driver __refdata = {
 	.name =		"lasi_scsi",
 	.id_table =	lasi700_ids,
 	.probe =	lasi700_probe,
-	.remove =	lasi700_driver_remove,
+	.remove =	__exit_p(lasi700_driver_remove),
 };
 
 static int __init

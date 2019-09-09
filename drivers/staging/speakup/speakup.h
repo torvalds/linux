@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _SPEAKUP_H
 #define _SPEAKUP_H
 
@@ -8,10 +9,6 @@
 #define KEY_MAP_VER 119
 #define SHIFT_TBL_SIZE 64
 #define MAX_DESC_LEN 72
-
-/* proc permissions */
-#define USER_R (S_IFREG|S_IRUGO)
-#define USER_W (S_IFREG|S_IWUGO)
 
 #define TOGGLE_0 .u.n = {NULL, 0, 0, 1, 0, 0, NULL }
 #define TOGGLE_1 .u.n = {NULL, 1, 0, 1, 0, 0, NULL }
@@ -24,7 +21,7 @@
 #define A_CAP 0x0007
 #define B_NUM 0x0008
 #define NUM 0x0009
-#define ALPHANUM (B_ALPHA|B_NUM)
+#define ALPHANUM (B_ALPHA | B_NUM)
 #define SOME 0x0010
 #define MOST 0x0020
 #define PUNC 0x0040
@@ -34,13 +31,14 @@
 #define B_EXNUM 0x0100
 #define CH_RPT 0x0200
 #define B_CTL 0x0400
-#define A_CTL (B_CTL+SYNTH_OK)
+#define A_CTL (B_CTL + SYNTH_OK)
 #define B_SYM 0x0800
-#define B_CAPSYM (B_CAP|B_SYM)
+#define B_CAPSYM (B_CAP | B_SYM)
 
-#define IS_WDLM(x) (spk_chartab[((u_char)x)]&B_WDLM)
-#define IS_CHAR(x, type) (spk_chartab[((u_char)x)]&type)
-#define IS_TYPE(x, type) ((spk_chartab[((u_char)x)]&type) == type)
+/* FIXME: u16 */
+#define IS_WDLM(x) (spk_chartab[((u_char)x)] & B_WDLM)
+#define IS_CHAR(x, type) (spk_chartab[((u_char)x)] & type)
+#define IS_TYPE(x, type) ((spk_chartab[((u_char)x)] & type) == type)
 
 int speakup_thread(void *data);
 void spk_reset_default_chars(void);
@@ -70,10 +68,11 @@ void synth_release(void);
 
 void spk_do_flush(void);
 void speakup_start_ttys(void);
-void synth_buffer_add(char ch);
+void synth_buffer_add(u16 ch);
 void synth_buffer_clear(void);
 void speakup_clear_selection(void);
 int speakup_set_selection(struct tty_struct *tty);
+void speakup_cancel_selection(void);
 int speakup_paste_selection(struct tty_struct *tty);
 void speakup_cancel_paste(void);
 void speakup_register_devsynth(void);
@@ -96,7 +95,8 @@ extern struct spk_synth *synth;
 extern char spk_pitch_buff[];
 extern u_char *spk_our_keys[];
 extern short spk_punc_masks[];
-extern char spk_str_caps_start[], spk_str_caps_stop[];
+extern char spk_str_caps_start[], spk_str_caps_stop[], spk_str_pause[];
+extern bool spk_paused;
 extern const struct st_bits_data spk_punc_info[];
 extern u_char spk_key_buf[600];
 extern char *spk_characters[];
