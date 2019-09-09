@@ -120,6 +120,8 @@ int ice_vsi_manage_rss_lut(struct ice_vsi *vsi, bool ena);
 
 u32 ice_intrl_usec_to_reg(u8 intrl, u8 gran);
 
+char *ice_nvm_version_str(struct ice_hw *hw);
+
 enum ice_status
 ice_vsi_cfg_mac_fltr(struct ice_vsi *vsi, const u8 *macaddr, bool set);
 

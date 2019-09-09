@@ -3276,6 +3276,25 @@ out:
 #endif /* CONFIG_DCB */
 
 /**
+ * ice_nvm_version_str - format the NVM version strings
+ * @hw: ptr to the hardware info
+ */
+char *ice_nvm_version_str(struct ice_hw *hw)
+{
+	u8 oem_ver, oem_patch, ver_hi, ver_lo;
+	static char buf[ICE_NVM_VER_LEN];
+	u16 oem_build;
+
+	ice_get_nvm_version(hw, &oem_ver, &oem_build, &oem_patch, &ver_hi,
+			    &ver_lo);
+
+	snprintf(buf, sizeof(buf), "%x.%02x 0x%x %d.%d.%d", ver_hi, ver_lo,
+		 hw->nvm.eetrack, oem_ver, oem_build, oem_patch);
+
+	return buf;
+}
+
+/**
  * ice_vsi_cfg_mac_fltr - Add or remove a MAC address filter for a VSI
  * @vsi: the VSI being configured MAC filter
  * @macaddr: the MAC address to be added.

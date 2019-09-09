@@ -53,7 +53,6 @@ extern const char ice_drv_ver[];
 
 #define ICE_DFLT_TRAFFIC_CLASS	BIT(0)
 #define ICE_INT_NAME_STR_LEN	(IFNAMSIZ + 16)
-#define ICE_ETHTOOL_FWVER_LEN	32
 #define ICE_AQ_LEN		64
 #define ICE_MBXSQ_LEN		64
 #define ICE_MBXRQ_LEN		512

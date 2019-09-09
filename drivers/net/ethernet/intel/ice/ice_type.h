@@ -230,6 +230,8 @@ struct ice_nvm_info {
 	u8 blank_nvm_mode;        /* is NVM empty (no FW present) */
 };
 
+#define ICE_NVM_VER_LEN	32
+
 /* Max number of port to queue branches w.r.t topology */
 #define ICE_MAX_TRAFFIC_CLASS 8
 #define ICE_TXSCHED_MAX_BRANCHES ICE_MAX_TRAFFIC_CLASS

@@ -160,31 +160,6 @@ static const struct ice_priv_flag ice_gstrings_priv_flags[] = {
 
 #define ICE_PRIV_FLAG_ARRAY_SIZE	ARRAY_SIZE(ice_gstrings_priv_flags)
 
-/**
- * ice_nvm_version_str - format the NVM version strings
- * @hw: ptr to the hardware info
- */
-static char *ice_nvm_version_str(struct ice_hw *hw)
-{
-	static char buf[ICE_ETHTOOL_FWVER_LEN];
-	u8 ver, patch;
-	u32 full_ver;
-	u16 build;
-
-	full_ver = hw->nvm.oem_ver;
-	ver = (u8)((full_ver & ICE_OEM_VER_MASK) >> ICE_OEM_VER_SHIFT);
-	build = (u16)((full_ver & ICE_OEM_VER_BUILD_MASK) >>
-		      ICE_OEM_VER_BUILD_SHIFT);
-	patch = (u8)(full_ver & ICE_OEM_VER_PATCH_MASK);
-
-	snprintf(buf, sizeof(buf), "%x.%02x 0x%x %d.%d.%d",
-		 (hw->nvm.ver & ICE_NVM_VER_HI_MASK) >> ICE_NVM_VER_HI_SHIFT,
-		 (hw->nvm.ver & ICE_NVM_VER_LO_MASK) >> ICE_NVM_VER_LO_SHIFT,
-		 hw->nvm.eetrack, ver, build, patch);
-
-	return buf;
-}
-
 static void
 ice_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
 {
