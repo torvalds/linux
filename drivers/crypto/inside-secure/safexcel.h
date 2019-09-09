@@ -362,6 +362,7 @@ struct safexcel_context_record {
 #define CONTEXT_CONTROL_DIGEST_XCM		(0x2 << 21)
 #define CONTEXT_CONTROL_DIGEST_HMAC		(0x3 << 21)
 #define CONTEXT_CONTROL_CRYPTO_ALG_MD5		(0x0 << 23)
+#define CONTEXT_CONTROL_CRYPTO_ALG_CRC32	(0x0 << 23)
 #define CONTEXT_CONTROL_CRYPTO_ALG_SHA1		(0x2 << 23)
 #define CONTEXT_CONTROL_CRYPTO_ALG_SHA224	(0x4 << 23)
 #define CONTEXT_CONTROL_CRYPTO_ALG_SHA256	(0x3 << 23)
@@ -853,5 +854,6 @@ extern struct safexcel_alg_template safexcel_alg_authenc_hmac_sha512_ctr_aes;
 extern struct safexcel_alg_template safexcel_alg_xts_aes;
 extern struct safexcel_alg_template safexcel_alg_gcm;
 extern struct safexcel_alg_template safexcel_alg_ccm;
+extern struct safexcel_alg_template safexcel_alg_crc32;
 
 #endif
