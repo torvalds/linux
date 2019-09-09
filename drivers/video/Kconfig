@@ -26,6 +26,10 @@ endmenu
 
 source "drivers/video/backlight/Kconfig"
 
+menu "Rockchip Misc Video driver"
+source "drivers/video/rockchip/Kconfig"
+endmenu
+
 config VGASTATE
        tristate
        default n
