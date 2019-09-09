@@ -271,6 +271,7 @@ struct hantro_h264_reflist_builder {
 	const struct v4l2_h264_dpb_entry *dpb;
 	s32 pocs[HANTRO_H264_DPB_SIZE];
 	u8 unordered_reflist[HANTRO_H264_DPB_SIZE];
+	int frame_nums[HANTRO_H264_DPB_SIZE];
 	s32 curpoc;
 	u8 num_valid;
 };
@@ -294,13 +295,20 @@ static void
 init_reflist_builder(struct hantro_ctx *ctx,
 		     struct hantro_h264_reflist_builder *b)
 {
+	const struct v4l2_ctrl_h264_slice_params *slice_params;
 	const struct v4l2_ctrl_h264_decode_params *dec_param;
+	const struct v4l2_ctrl_h264_sps *sps;
 	struct vb2_v4l2_buffer *buf = hantro_get_dst_buf(ctx);
 	const struct v4l2_h264_dpb_entry *dpb = ctx->h264_dec.dpb;
 	struct vb2_queue *cap_q = &ctx->fh.m2m_ctx->cap_q_ctx.q;
+	int cur_frame_num, max_frame_num;
 	unsigned int i;
 
 	dec_param = ctx->h264_dec.ctrls.decode;
+	slice_params = &ctx->h264_dec.ctrls.slices[0];
+	sps = ctx->h264_dec.ctrls.sps;
+	max_frame_num = 1 << (sps->log2_max_frame_num_minus4 + 4);
+	cur_frame_num = slice_params->frame_num;
 
 	memset(b, 0, sizeof(*b));
 	b->dpb = dpb;
@@ -318,6 +326,18 @@ init_reflist_builder(struct hantro_ctx *ctx,
 			continue;
 
 		buf = to_vb2_v4l2_buffer(vb2_get_buffer(cap_q, buf_idx));
+
+		/*
+		 * Handle frame_num wraparound as described in section
+		 * '8.2.4.1 Decoding process for picture numbers' of the spec.
+		 * TODO: This logic will have to be adjusted when we start
+		 * supporting interlaced content.
+		 */
+		if (dpb[i].frame_num > cur_frame_num)
+			b->frame_nums[i] = (int)dpb[i].frame_num - max_frame_num;
+		else
+			b->frame_nums[i] = dpb[i].frame_num;
+
 		b->pocs[i] = get_poc(buf->field, dpb[i].top_field_order_cnt,
 				     dpb[i].bottom_field_order_cnt);
 		b->unordered_reflist[b->num_valid] = i;
@@ -353,7 +373,8 @@ static int p_ref_list_cmp(const void *ptra, const void *ptrb, const void *data)
 	 * ascending order.
 	 */
 	if (!(a->flags & V4L2_H264_DPB_ENTRY_FLAG_LONG_TERM))
-		return HANTRO_CMP(b->frame_num, a->frame_num);
+		return HANTRO_CMP(builder->frame_nums[idxb],
+				  builder->frame_nums[idxa]);
 
 	return HANTRO_CMP(a->pic_num, b->pic_num);
 }
