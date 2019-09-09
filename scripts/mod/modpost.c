@@ -2267,10 +2267,7 @@ static void add_depends(struct buffer *b, struct module *mod)
 			s->module->seen = is_vmlinux(s->module->name);
 
 	buf_printf(b, "\n");
-	buf_printf(b, "static const char __module_depends[]\n");
-	buf_printf(b, "__used\n");
-	buf_printf(b, "__attribute__((section(\".modinfo\"))) =\n");
-	buf_printf(b, "\"depends=");
+	buf_printf(b, "MODULE_INFO(depends, \"");
 	for (s = mod->unres; s; s = s->next) {
 		const char *p;
 		if (!s->module)
@@ -2288,7 +2285,7 @@ static void add_depends(struct buffer *b, struct module *mod)
 		buf_printf(b, "%s%s", first ? "" : ",", p);
 		first = 0;
 	}
-	buf_printf(b, "\";\n");
+	buf_printf(b, "\");\n");
 }
 
 static void add_srcversion(struct buffer *b, struct module *mod)
