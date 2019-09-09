@@ -445,7 +445,7 @@ static int host1x_device_add(struct host1x *host1x,
 	of_dma_configure(&device->dev, host1x->dev->of_node, true);
 
 	device->dev.dma_parms = &device->dma_parms;
-	dma_set_max_seg_size(&device->dev, SZ_4M);
+	dma_set_max_seg_size(&device->dev, UINT_MAX);
 
 	err = host1x_device_parse_dt(device, driver);
 	if (err < 0) {

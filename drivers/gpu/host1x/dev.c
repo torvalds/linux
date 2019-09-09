@@ -237,6 +237,9 @@ static int host1x_probe(struct platform_device *pdev)
 			return PTR_ERR(host->hv_regs);
 	}
 
+	host->dev->dma_parms = &host->dma_parms;
+	dma_set_max_seg_size(host->dev, UINT_MAX);
+
 	dma_set_mask_and_coherent(host->dev, host->info->dma_mask);
 
 	if (host->info->init) {
