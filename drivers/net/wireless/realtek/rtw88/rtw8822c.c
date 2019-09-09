@@ -3116,6 +3116,81 @@ void rtw8822c_dpk_track(struct rtw_dev *rtwdev)
 	}
 }
 
+static const struct rtw_phy_cck_pd_reg
+rtw8822c_cck_pd_reg[RTW_CHANNEL_WIDTH_40 + 1][RTW_RF_PATH_MAX] = {
+	{
+		{0x1ac8, 0x00ff, 0x1ad0, 0x01f},
+		{0x1ac8, 0xff00, 0x1ad0, 0x3e0}
+	},
+	{
+		{0x1acc, 0x00ff, 0x1ad0, 0x01F00000},
+		{0x1acc, 0xff00, 0x1ad0, 0x3E000000}
+	},
+};
+
+#define RTW_CCK_PD_MAX 255
+#define RTW_CCK_CS_MAX 31
+#define RTW_CCK_CS_ERR1 27
+#define RTW_CCK_CS_ERR2 29
+static void
+rtw8822c_phy_cck_pd_set_reg(struct rtw_dev *rtwdev,
+			    s8 pd_diff, s8 cs_diff, u8 bw, u8 nrx)
+{
+	u32 pd, cs;
+
+	if (WARN_ON(bw > RTW_CHANNEL_WIDTH_40 || nrx >= RTW_RF_PATH_MAX))
+		return;
+
+	pd = rtw_read32_mask(rtwdev,
+			     rtw8822c_cck_pd_reg[bw][nrx].reg_pd,
+			     rtw8822c_cck_pd_reg[bw][nrx].mask_pd);
+	cs = rtw_read32_mask(rtwdev,
+			     rtw8822c_cck_pd_reg[bw][nrx].reg_cs,
+			     rtw8822c_cck_pd_reg[bw][nrx].mask_cs);
+	pd += pd_diff;
+	cs += cs_diff;
+	if (pd > RTW_CCK_PD_MAX)
+		pd = RTW_CCK_PD_MAX;
+	if (cs == RTW_CCK_CS_ERR1 || cs == RTW_CCK_CS_ERR2)
+		cs++;
+	else if (cs > RTW_CCK_CS_MAX)
+		cs = RTW_CCK_CS_MAX;
+	rtw_write32_mask(rtwdev,
+			 rtw8822c_cck_pd_reg[bw][nrx].reg_pd,
+			 rtw8822c_cck_pd_reg[bw][nrx].mask_pd,
+			 pd);
+	rtw_write32_mask(rtwdev,
+			 rtw8822c_cck_pd_reg[bw][nrx].reg_cs,
+			 rtw8822c_cck_pd_reg[bw][nrx].mask_cs,
+			 cs);
+}
+
+static void rtw8822c_phy_cck_pd_set(struct rtw_dev *rtwdev, u8 new_lvl)
+{
+	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
+	s8 pd_lvl[4] = {2, 4, 6, 8};
+	s8 cs_lvl[4] = {2, 2, 2, 4};
+	u8 cur_lvl;
+	u8 nrx, bw;
+
+	nrx = (u8)rtw_read32_mask(rtwdev, 0x1a2c, 0x60000);
+	bw = (u8)rtw_read32_mask(rtwdev, 0x9b0, 0xc);
+
+	if (dm_info->cck_pd_lv[bw][nrx] == new_lvl)
+		return;
+
+	cur_lvl = dm_info->cck_pd_lv[bw][nrx];
+
+	/* update cck pd info */
+	dm_info->cck_fa_avg = CCK_FA_AVG_RESET;
+
+	rtw8822c_phy_cck_pd_set_reg(rtwdev,
+				    pd_lvl[new_lvl] - pd_lvl[cur_lvl],
+				    cs_lvl[new_lvl] - cs_lvl[cur_lvl],
+				    bw, nrx);
+	dm_info->cck_pd_lv[bw][nrx] = new_lvl;
+}
+
 static struct rtw_pwr_seq_cmd trans_carddis_to_cardemu_8822c[] = {
 	{0x0086,
 	 RTW_PWR_CUT_ALL_MSK,
@@ -3495,6 +3570,7 @@ static struct rtw_chip_ops rtw8822c_ops = {
 	.false_alarm_statistics	= rtw8822c_false_alarm_statistics,
 	.dpk_track		= rtw8822c_dpk_track,
 	.phy_calibration	= rtw8822c_phy_calibration,
+	.cck_pd_set		= rtw8822c_phy_cck_pd_set,
 
 	.coex_set_init		= rtw8822c_coex_cfg_init,
 	.coex_set_ant_switch	= NULL,

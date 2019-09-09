@@ -642,6 +642,7 @@ struct rtw_chip_ops {
 	void (*false_alarm_statistics)(struct rtw_dev *rtwdev);
 	void (*phy_calibration)(struct rtw_dev *rtwdev);
 	void (*dpk_track)(struct rtw_dev *rtwdev);
+	void (*cck_pd_set)(struct rtw_dev *rtwdev, u8 level);
 
 	/* for coex */
 	void (*coex_set_init)(struct rtw_dev *rtwdev);
@@ -1110,6 +1111,13 @@ struct rtw_dpk_info {
 	u8 dpk_bw;
 };
 
+struct rtw_phy_cck_pd_reg {
+	u32 reg_pd;
+	u32 mask_pd;
+	u32 reg_cs;
+	u32 mask_cs;
+};
+
 #define DACK_MSBK_BACKUP_NUM	0xf
 #define DACK_DCK_BACKUP_NUM	0x2
 
@@ -1145,6 +1153,10 @@ struct rtw_dm_info {
 	u8 dack_dck[RTW_RF_PATH_MAX][2][DACK_DCK_BACKUP_NUM];
 
 	struct rtw_dpk_info dpk_info;
+
+	/* [bandwidth 0:20M/1:40M][number of path] */
+	u8 cck_pd_lv[2][RTW_RF_PATH_MAX];
+	u32 cck_fa_avg;
 };
 
 struct rtw_efuse {
@@ -1379,6 +1391,11 @@ static inline void rtw_flag_clear(struct rtw_dev *rtwdev, enum rtw_flags flag)
 static inline void rtw_flag_set(struct rtw_dev *rtwdev, enum rtw_flags flag)
 {
 	set_bit(flag, rtwdev->flags);
+}
+
+static inline bool rtw_is_assoc(struct rtw_dev *rtwdev)
+{
+	return !!rtwdev->sta_cnt;
 }
 
 void rtw_get_channel_params(struct cfg80211_chan_def *chandef,

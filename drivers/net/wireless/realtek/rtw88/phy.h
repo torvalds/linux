@@ -146,4 +146,6 @@ rtw_get_tx_power_params(struct rtw_dev *rtwdev, u8 path,
 #define MASKBYTE3LOWNIBBLE	0x0f000000
 #define	MASKL3BYTES		0x00ffffff
 
+#define CCK_FA_AVG_RESET 0xffffffff
+
 #endif
