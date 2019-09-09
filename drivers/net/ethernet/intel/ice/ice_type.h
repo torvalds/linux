@@ -53,6 +53,14 @@ enum ice_aq_res_access_type {
 	ICE_RES_WRITE
 };
 
+struct ice_driver_ver {
+	u8 major_ver;
+	u8 minor_ver;
+	u8 build_ver;
+	u8 subbuild_ver;
+	u8 driver_string[32];
+};
+
 enum ice_fc_mode {
 	ICE_FC_NONE = 0,
 	ICE_FC_RX_PAUSE,

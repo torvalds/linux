@@ -1259,6 +1259,43 @@ enum ice_status ice_aq_get_fw_ver(struct ice_hw *hw, struct ice_sq_cd *cd)
 }
 
 /**
+ * ice_aq_send_driver_ver
+ * @hw: pointer to the HW struct
+ * @dv: driver's major, minor version
+ * @cd: pointer to command details structure or NULL
+ *
+ * Send the driver version (0x0002) to the firmware
+ */
+enum ice_status
+ice_aq_send_driver_ver(struct ice_hw *hw, struct ice_driver_ver *dv,
+		       struct ice_sq_cd *cd)
+{
+	struct ice_aqc_driver_ver *cmd;
+	struct ice_aq_desc desc;
+	u16 len;
+
+	cmd = &desc.params.driver_ver;
+
+	if (!dv)
+		return ICE_ERR_PARAM;
+
+	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_driver_ver);
+
+	desc.flags |= cpu_to_le16(ICE_AQ_FLAG_RD);
+	cmd->major_ver = dv->major_ver;
+	cmd->minor_ver = dv->minor_ver;
+	cmd->build_ver = dv->build_ver;
+	cmd->subbuild_ver = dv->subbuild_ver;
+
+	len = 0;
+	while (len < sizeof(dv->driver_string) &&
+	       isascii(dv->driver_string[len]) && dv->driver_string[len])
+		len++;
+
+	return ice_aq_send_cmd(hw, &desc, dv->driver_string, len, cd);
+}
+
+/**
  * ice_aq_q_shutdown
  * @hw: pointer to the HW struct
  * @unloading: is the driver unloading itself

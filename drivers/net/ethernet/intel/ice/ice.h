@@ -29,6 +29,7 @@
 #include <linux/sctp.h>
 #include <linux/ipv6.h>
 #include <linux/if_bridge.h>
+#include <linux/ctype.h>
 #include <linux/avf/virtchnl.h>
 #include <net/ipv6.h>
 #include "ice_devids.h"

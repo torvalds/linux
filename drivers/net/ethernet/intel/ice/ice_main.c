@@ -9,7 +9,13 @@
 #include "ice_lib.h"
 #include "ice_dcb_lib.h"
 
-#define DRV_VERSION	"0.7.5-k"
+#define DRV_VERSION_MAJOR 0
+#define DRV_VERSION_MINOR 7
+#define DRV_VERSION_BUILD 5
+
+#define DRV_VERSION	__stringify(DRV_VERSION_MAJOR) "." \
+			__stringify(DRV_VERSION_MINOR) "." \
+			__stringify(DRV_VERSION_BUILD) "-k"
 #define DRV_SUMMARY	"Intel(R) Ethernet Connection E800 Series Linux Driver"
 const char ice_drv_ver[] = DRV_VERSION;
 static const char ice_driver_string[] = DRV_SUMMARY;
@@ -2460,6 +2466,25 @@ static void ice_verify_cacheline_size(struct ice_pf *pf)
 }
 
 /**
+ * ice_send_version - update firmware with driver version
+ * @pf: PF struct
+ *
+ * Returns ICE_SUCCESS on success, else error code
+ */
+static enum ice_status ice_send_version(struct ice_pf *pf)
+{
+	struct ice_driver_ver dv;
+
+	dv.major_ver = DRV_VERSION_MAJOR;
+	dv.minor_ver = DRV_VERSION_MINOR;
+	dv.build_ver = DRV_VERSION_BUILD;
+	dv.subbuild_ver = 0;
+	strscpy((char *)dv.driver_string, DRV_VERSION,
+		sizeof(dv.driver_string));
+	return ice_aq_send_driver_ver(&pf->hw, &dv, NULL);
+}
+
+/**
  * ice_probe - Device initialization routine
  * @pdev: PCI device information struct
  * @ent: entry in ice_pci_tbl
@@ -2611,6 +2636,15 @@ ice_probe(struct pci_dev *pdev, const struct pci_device_id __always_unused *ent)
 	}
 
 	clear_bit(__ICE_SERVICE_DIS, pf->state);
+
+	/* tell the firmware we are up */
+	err = ice_send_version(pf);
+	if (err) {
+		dev_err(dev,
+			"probe failed sending driver version %s. error: %d\n",
+			ice_drv_ver, err);
+		goto err_alloc_sw_unroll;
+	}
 
 	/* since everything is good, start the service timer */
 	mod_timer(&pf->serv_tmr, round_jiffies(jiffies + pf->serv_tmr_period));
