@@ -429,7 +429,7 @@ static int b1_ref_list_cmp(const void *ptra, const void *ptrb, const void *data)
 
 	/*
 	 * Short term pics with POC > cur POC first in POC ascending order
-	 * followed by short term pics with POC > cur POC in POC descending
+	 * followed by short term pics with POC < cur POC in POC descending
 	 * order.
 	 */
 	if ((poca < builder->curpoc) != (pocb < builder->curpoc))
