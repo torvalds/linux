@@ -305,10 +305,33 @@ static ssize_t amdgpu_ras_debugfs_ctrl_write(struct file *f, const char __user *
 	return size;
 }
 
+/**
+ * DOC: AMDGPU RAS debugfs EEPROM table reset interface
+ *
+ * Usage: echo 1 > ../ras/ras_eeprom_reset will reset EEPROM table to 0 entries.
+ */
+static ssize_t amdgpu_ras_debugfs_eeprom_write(struct file *f, const char __user *buf,
+		size_t size, loff_t *pos)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)file_inode(f)->i_private;
+	int ret;
+
+	ret = amdgpu_ras_eeprom_reset_table(&adev->psp.ras.ras->eeprom_control);
+
+	return ret == 1 ? size : -EIO;
+}
+
 static const struct file_operations amdgpu_ras_debugfs_ctrl_ops = {
 	.owner = THIS_MODULE,
 	.read = NULL,
 	.write = amdgpu_ras_debugfs_ctrl_write,
+	.llseek = default_llseek
+};
+
+static const struct file_operations amdgpu_ras_debugfs_eeprom_ops = {
+	.owner = THIS_MODULE,
+	.read = NULL,
+	.write = amdgpu_ras_debugfs_eeprom_write,
 	.llseek = default_llseek
 };
 
@@ -953,6 +976,8 @@ static void amdgpu_ras_debugfs_create_ctrl_node(struct amdgpu_device *adev)
 	con->dir = debugfs_create_dir("ras", minor->debugfs_root);
 	con->ent = debugfs_create_file("ras_ctrl", S_IWUGO | S_IRUGO, con->dir,
 				       adev, &amdgpu_ras_debugfs_ctrl_ops);
+	con->ent = debugfs_create_file("ras_eeprom_reset", S_IWUGO | S_IRUGO, con->dir,
+					       adev, &amdgpu_ras_debugfs_eeprom_ops);
 }
 
 void amdgpu_ras_debugfs_create(struct amdgpu_device *adev,
