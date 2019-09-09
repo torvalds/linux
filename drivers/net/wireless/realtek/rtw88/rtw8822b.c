@@ -1001,8 +1001,9 @@ static void rtw8822b_do_iqk(struct rtw_dev *rtwdev)
 		counter, reload, ++do_iqk_cnt, iqk_fail_mask);
 }
 
-static void rtw8822b_do_dpk(struct rtw_dev *rtwdev)
+static void rtw8822b_phy_calibration(struct rtw_dev *rtwdev)
 {
+	rtw8822b_do_iqk(rtwdev);
 }
 
 static void rtw8822b_coex_cfg_init(struct rtw_dev *rtwdev)
@@ -1798,8 +1799,7 @@ static struct rtw_chip_ops rtw8822b_ops = {
 	.set_antenna		= rtw8822b_set_antenna,
 	.cfg_ldo25		= rtw8822b_cfg_ldo25,
 	.false_alarm_statistics	= rtw8822b_false_alarm_statistics,
-	.do_iqk			= rtw8822b_do_iqk,
-	.do_dpk			= rtw8822b_do_dpk,
+	.phy_calibration	= rtw8822b_phy_calibration,
 
 	.coex_set_init		= rtw8822b_coex_cfg_init,
 	.coex_set_ant_switch	= rtw8822b_coex_cfg_ant_switch,

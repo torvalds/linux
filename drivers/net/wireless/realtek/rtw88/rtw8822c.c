@@ -3078,6 +3078,12 @@ static void rtw8822c_do_dpk(struct rtw_dev *rtwdev)
 	rtw8822c_dpk_restore_registers(rtwdev, DPK_BB_REG_NUM, bckp);
 }
 
+static void rtw8822c_phy_calibration(struct rtw_dev *rtwdev)
+{
+	rtw8822c_do_iqk(rtwdev);
+	rtw8822c_do_dpk(rtwdev);
+}
+
 void rtw8822c_dpk_track(struct rtw_dev *rtwdev)
 {
 	struct rtw_dpk_info *dpk_info = &rtwdev->dm_info.dpk_info;
@@ -3487,9 +3493,8 @@ static struct rtw_chip_ops rtw8822c_ops = {
 	.set_tx_power_index	= rtw8822c_set_tx_power_index,
 	.cfg_ldo25		= rtw8822c_cfg_ldo25,
 	.false_alarm_statistics	= rtw8822c_false_alarm_statistics,
-	.do_iqk			= rtw8822c_do_iqk,
-	.do_dpk			= rtw8822c_do_dpk,
 	.dpk_track		= rtw8822c_dpk_track,
+	.phy_calibration	= rtw8822c_phy_calibration,
 
 	.coex_set_init		= rtw8822c_coex_cfg_init,
 	.coex_set_ant_switch	= NULL,
