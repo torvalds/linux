@@ -829,7 +829,7 @@ static int rk817_hw_params(struct snd_pcm_substream *substream,
 			    struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_component *component = rtd->codec_dai->component;
+	struct snd_soc_component *component = asoc_rtd_to_codec(rtd, 0)->component;
 	struct rk817_codec_priv *rk817 = snd_soc_component_get_drvdata(component);
 	unsigned int rate = params_rate(params);
 	unsigned char apll_cfg3_val;
@@ -903,7 +903,7 @@ static int rk817_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int rk817_digital_mute(struct snd_soc_dai *dai, int mute)
+static int rk817_digital_mute(struct snd_soc_dai *dai, int mute, int stream)
 {
 	struct snd_soc_component *component = dai->component;
 	struct rk817_codec_priv *rk817 = snd_soc_component_get_drvdata(component);
@@ -978,7 +978,8 @@ static struct snd_soc_dai_ops rk817_dai_ops = {
 	.hw_params	= rk817_hw_params,
 	.set_fmt	= rk817_set_dai_fmt,
 	.set_sysclk	= rk817_set_dai_sysclk,
-	.digital_mute	= rk817_digital_mute,
+	.mute_stream	= rk817_digital_mute,
+	.no_capture_mute = 1,
 };
 
 static struct snd_soc_dai_driver rk817_dai[] = {
