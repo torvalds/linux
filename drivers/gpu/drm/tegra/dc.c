@@ -2074,6 +2074,12 @@ static int tegra_dc_init(struct host1x_client *client)
 		goto cleanup;
 	}
 
+	/*
+	 * Inherit the DMA parameters (such as maximum segment size) from the
+	 * parent device.
+	 */
+	client->dev->dma_parms = client->parent->dma_parms;
+
 	return 0;
 
 cleanup:
@@ -2096,6 +2102,9 @@ static int tegra_dc_exit(struct host1x_client *client)
 
 	if (!tegra_dc_has_window_groups(dc))
 		return 0;
+
+	/* avoid a dangling pointer just in case this disappears */
+	client->dev->dma_parms = NULL;
 
 	devm_free_irq(dc->dev, dc->irq, dc);
 

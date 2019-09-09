@@ -214,6 +214,12 @@ static int vic_init(struct host1x_client *client)
 	if (err < 0)
 		goto free_syncpt;
 
+	/*
+	 * Inherit the DMA parameters (such as maximum segment size) from the
+	 * parent device.
+	 */
+	client->dev->dma_parms = client->parent->dma_parms;
+
 	return 0;
 
 free_syncpt:
@@ -235,6 +241,9 @@ static int vic_exit(struct host1x_client *client)
 	struct tegra_drm *tegra = dev->dev_private;
 	struct vic *vic = to_vic(drm);
 	int err;
+
+	/* avoid a dangling pointer just in case this disappears */
+	client->dev->dma_parms = NULL;
 
 	err = tegra_drm_unregister_client(tegra, drm);
 	if (err < 0)
