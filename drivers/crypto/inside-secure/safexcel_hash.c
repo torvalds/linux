@@ -2122,3 +2122,102 @@ struct safexcel_alg_template safexcel_alg_xcbcmac = {
 		},
 	},
 };
+
+static int safexcel_cmac_setkey(struct crypto_ahash *tfm, const u8 *key,
+				unsigned int len)
+{
+	struct safexcel_ahash_ctx *ctx = crypto_tfm_ctx(crypto_ahash_tfm(tfm));
+	struct crypto_aes_ctx aes;
+	__be64 consts[4];
+	u64 _const[2];
+	u8 msb_mask, gfmask;
+	int ret, i;
+
+	ret = aes_expandkey(&aes, key, len);
+	if (ret) {
+		crypto_ahash_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
+		return ret;
+	}
+
+	for (i = 0; i < len / sizeof(u32); i++)
+		ctx->ipad[i + 8] = cpu_to_be32(aes.key_enc[i]);
+
+	/* precompute the CMAC key material */
+	crypto_cipher_clear_flags(ctx->kaes, CRYPTO_TFM_REQ_MASK);
+	crypto_cipher_set_flags(ctx->kaes, crypto_ahash_get_flags(tfm) &
+				CRYPTO_TFM_REQ_MASK);
+	ret = crypto_cipher_setkey(ctx->kaes, key, len);
+	crypto_ahash_set_flags(tfm, crypto_cipher_get_flags(ctx->kaes) &
+			       CRYPTO_TFM_RES_MASK);
+	if (ret)
+		return ret;
+
+	/* code below borrowed from crypto/cmac.c */
+	/* encrypt the zero block */
+	memset(consts, 0, AES_BLOCK_SIZE);
+	crypto_cipher_encrypt_one(ctx->kaes, (u8 *)consts, (u8 *)consts);
+
+	gfmask = 0x87;
+	_const[0] = be64_to_cpu(consts[1]);
+	_const[1] = be64_to_cpu(consts[0]);
+
+	/* gf(2^128) multiply zero-ciphertext with u and u^2 */
+	for (i = 0; i < 4; i += 2) {
+		msb_mask = ((s64)_const[1] >> 63) & gfmask;
+		_const[1] = (_const[1] << 1) | (_const[0] >> 63);
+		_const[0] = (_const[0] << 1) ^ msb_mask;
+
+		consts[i + 0] = cpu_to_be64(_const[1]);
+		consts[i + 1] = cpu_to_be64(_const[0]);
+	}
+	/* end of code borrowed from crypto/cmac.c */
+
+	for (i = 0; i < 2 * AES_BLOCK_SIZE / sizeof(u32); i++)
+		ctx->ipad[i] = cpu_to_be32(((u32 *)consts)[i]);
+
+	if (len == AES_KEYSIZE_192) {
+		ctx->alg    = CONTEXT_CONTROL_CRYPTO_ALG_XCBC192;
+		ctx->key_sz = AES_MAX_KEY_SIZE + 2 * AES_BLOCK_SIZE;
+	} else if (len == AES_KEYSIZE_256) {
+		ctx->alg    = CONTEXT_CONTROL_CRYPTO_ALG_XCBC256;
+		ctx->key_sz = AES_MAX_KEY_SIZE + 2 * AES_BLOCK_SIZE;
+	} else {
+		ctx->alg    = CONTEXT_CONTROL_CRYPTO_ALG_XCBC128;
+		ctx->key_sz = AES_MIN_KEY_SIZE + 2 * AES_BLOCK_SIZE;
+	}
+	ctx->cbcmac = false;
+
+	memzero_explicit(&aes, sizeof(aes));
+	return 0;
+}
+
+struct safexcel_alg_template safexcel_alg_cmac = {
+	.type = SAFEXCEL_ALG_TYPE_AHASH,
+	.algo_mask = 0,
+	.alg.ahash = {
+		.init = safexcel_cbcmac_init,
+		.update = safexcel_ahash_update,
+		.final = safexcel_ahash_final,
+		.finup = safexcel_ahash_finup,
+		.digest = safexcel_cbcmac_digest,
+		.setkey = safexcel_cmac_setkey,
+		.export = safexcel_ahash_export,
+		.import = safexcel_ahash_import,
+		.halg = {
+			.digestsize = AES_BLOCK_SIZE,
+			.statesize = sizeof(struct safexcel_ahash_export_state),
+			.base = {
+				.cra_name = "cmac(aes)",
+				.cra_driver_name = "safexcel-cmac-aes",
+				.cra_priority = SAFEXCEL_CRA_PRIORITY,
+				.cra_flags = CRYPTO_ALG_ASYNC |
+					     CRYPTO_ALG_KERN_DRIVER_ONLY,
+				.cra_blocksize = AES_BLOCK_SIZE,
+				.cra_ctxsize = sizeof(struct safexcel_ahash_ctx),
+				.cra_init = safexcel_xcbcmac_cra_init,
+				.cra_exit = safexcel_xcbcmac_cra_exit,
+				.cra_module = THIS_MODULE,
+			},
+		},
+	},
+};
