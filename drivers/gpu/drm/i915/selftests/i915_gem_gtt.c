@@ -293,18 +293,20 @@ static int lowlevel_hole(struct drm_i915_private *i915,
 			mock_vma.node.size = BIT_ULL(size);
 			mock_vma.node.start = addr;
 
-			wakeref = intel_runtime_pm_get(&i915->runtime_pm);
-			vm->insert_entries(vm, &mock_vma, I915_CACHE_NONE, 0);
-			intel_runtime_pm_put(&i915->runtime_pm, wakeref);
+			with_intel_runtime_pm(&i915->runtime_pm, wakeref)
+				vm->insert_entries(vm, &mock_vma,
+						   I915_CACHE_NONE, 0);
 		}
 		count = n;
 
 		i915_random_reorder(order, count, &prng);
 		for (n = 0; n < count; n++) {
 			u64 addr = hole_start + order[n] * BIT_ULL(size);
+			intel_wakeref_t wakeref;
 
 			GEM_BUG_ON(addr + BIT_ULL(size) > vm->total);
-			vm->clear_range(vm, addr, BIT_ULL(size));
+			with_intel_runtime_pm(&i915->runtime_pm, wakeref)
+				vm->clear_range(vm, addr, BIT_ULL(size));
 		}
 
 		i915_gem_object_unpin_pages(obj);
