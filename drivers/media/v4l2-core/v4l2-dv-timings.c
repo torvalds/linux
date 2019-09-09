@@ -293,7 +293,7 @@ void v4l2_print_dv_timings(const char *dev_prefix, const char *prefix,
 	if (prefix == NULL)
 		prefix = "";
 
-	pr_info("%s: %s%ux%u%s%u.%u (%ux%u)\n", dev_prefix, prefix,
+	pr_info("%s: %s%ux%u%s%u.%02u (%ux%u)\n", dev_prefix, prefix,
 		bt->width, bt->height, bt->interlaced ? "i" : "p",
 		fps / 100, fps % 100, htot, vtot);
 
