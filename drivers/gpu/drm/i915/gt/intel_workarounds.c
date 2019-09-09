@@ -567,6 +567,9 @@ static void icl_ctx_workarounds_init(struct intel_engine_cs *engine,
 static void tgl_ctx_workarounds_init(struct intel_engine_cs *engine,
 				     struct i915_wa_list *wal)
 {
+	/* Wa_1409142259 */
+	WA_SET_BIT_MASKED(GEN11_COMMON_SLICE_CHICKEN3,
+			  GEN12_DISABLE_CPS_AWARE_COLOR_PIPE);
 }
 
 static void
