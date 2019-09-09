@@ -2547,10 +2547,10 @@ static int ggtt_set_pages(struct i915_vma *vma)
 	return 0;
 }
 
-static void i915_gtt_color_adjust(const struct drm_mm_node *node,
-				  unsigned long color,
-				  u64 *start,
-				  u64 *end)
+static void i915_ggtt_color_adjust(const struct drm_mm_node *node,
+				   unsigned long color,
+				   u64 *start,
+				   u64 *end)
 {
 	if (i915_node_color_differs(node, color))
 		*start += I915_GTT_PAGE_SIZE;
@@ -3206,7 +3206,7 @@ static int ggtt_init_hw(struct i915_ggtt *ggtt)
 	ggtt->vm.has_read_only = IS_VALLEYVIEW(i915);
 
 	if (!HAS_LLC(i915) && !HAS_PPGTT(i915))
-		ggtt->vm.mm.color_adjust = i915_gtt_color_adjust;
+		ggtt->vm.mm.color_adjust = i915_ggtt_color_adjust;
 
 	if (!io_mapping_init_wc(&ggtt->iomap,
 				ggtt->gmadr.start,
