@@ -830,11 +830,28 @@ void fuse_queue_forget(struct fuse_conn *fc, struct fuse_forget_link *forget,
 
 struct fuse_forget_link *fuse_alloc_forget(void);
 
-/**
+/*
  * Initialize READ or READDIR request
  */
-void fuse_read_fill(struct fuse_req *req, struct file *file,
-		    loff_t pos, size_t count, int opcode);
+struct fuse_io_args {
+	union {
+		struct {
+			struct fuse_read_in in;
+			u64 attr_ver;
+		} read;
+		struct {
+			struct fuse_write_in in;
+			struct fuse_write_out out;
+		} write;
+	};
+	struct fuse_args_pages ap;
+	struct fuse_io_priv *io;
+	struct fuse_file *ff;
+};
+
+void fuse_read_args_fill(struct fuse_io_args *ia, struct file *file, loff_t pos,
+			 size_t count, int opcode);
+
 
 /**
  * Send OPEN or OPENDIR request
