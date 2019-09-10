@@ -1341,3 +1341,77 @@ int mv88e6390_port_tag_remap(struct mv88e6xxx_chip *chip, int port)
 
 	return 0;
 }
+
+/* Offset 0x0E: Policy Control Register */
+
+int mv88e6352_port_set_policy(struct mv88e6xxx_chip *chip, int port,
+			      enum mv88e6xxx_policy_mapping mapping,
+			      enum mv88e6xxx_policy_action action)
+{
+	u16 reg, mask, val;
+	int shift;
+	int err;
+
+	switch (mapping) {
+	case MV88E6XXX_POLICY_MAPPING_DA:
+		shift = __bf_shf(MV88E6XXX_PORT_POLICY_CTL_DA_MASK);
+		mask = MV88E6XXX_PORT_POLICY_CTL_DA_MASK;
+		break;
+	case MV88E6XXX_POLICY_MAPPING_SA:
+		shift = __bf_shf(MV88E6XXX_PORT_POLICY_CTL_SA_MASK);
+		mask = MV88E6XXX_PORT_POLICY_CTL_SA_MASK;
+		break;
+	case MV88E6XXX_POLICY_MAPPING_VTU:
+		shift = __bf_shf(MV88E6XXX_PORT_POLICY_CTL_VTU_MASK);
+		mask = MV88E6XXX_PORT_POLICY_CTL_VTU_MASK;
+		break;
+	case MV88E6XXX_POLICY_MAPPING_ETYPE:
+		shift = __bf_shf(MV88E6XXX_PORT_POLICY_CTL_ETYPE_MASK);
+		mask = MV88E6XXX_PORT_POLICY_CTL_ETYPE_MASK;
+		break;
+	case MV88E6XXX_POLICY_MAPPING_PPPOE:
+		shift = __bf_shf(MV88E6XXX_PORT_POLICY_CTL_PPPOE_MASK);
+		mask = MV88E6XXX_PORT_POLICY_CTL_PPPOE_MASK;
+		break;
+	case MV88E6XXX_POLICY_MAPPING_VBAS:
+		shift = __bf_shf(MV88E6XXX_PORT_POLICY_CTL_VBAS_MASK);
+		mask = MV88E6XXX_PORT_POLICY_CTL_VBAS_MASK;
+		break;
+	case MV88E6XXX_POLICY_MAPPING_OPT82:
+		shift = __bf_shf(MV88E6XXX_PORT_POLICY_CTL_OPT82_MASK);
+		mask = MV88E6XXX_PORT_POLICY_CTL_OPT82_MASK;
+		break;
+	case MV88E6XXX_POLICY_MAPPING_UDP:
+		shift = __bf_shf(MV88E6XXX_PORT_POLICY_CTL_UDP_MASK);
+		mask = MV88E6XXX_PORT_POLICY_CTL_UDP_MASK;
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	switch (action) {
+	case MV88E6XXX_POLICY_ACTION_NORMAL:
+		val = MV88E6XXX_PORT_POLICY_CTL_NORMAL;
+		break;
+	case MV88E6XXX_POLICY_ACTION_MIRROR:
+		val = MV88E6XXX_PORT_POLICY_CTL_MIRROR;
+		break;
+	case MV88E6XXX_POLICY_ACTION_TRAP:
+		val = MV88E6XXX_PORT_POLICY_CTL_TRAP;
+		break;
+	case MV88E6XXX_POLICY_ACTION_DISCARD:
+		val = MV88E6XXX_PORT_POLICY_CTL_DISCARD;
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	err = mv88e6xxx_port_read(chip, port, MV88E6XXX_PORT_POLICY_CTL, &reg);
+	if (err)
+		return err;
+
+	reg &= ~mask;
+	reg |= (val << shift) & mask;
+
+	return mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_POLICY_CTL, reg);
+}

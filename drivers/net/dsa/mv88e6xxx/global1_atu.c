@@ -135,7 +135,7 @@ static int mv88e6xxx_g1_atu_data_read(struct mv88e6xxx_chip *chip,
 		return err;
 
 	entry->state = val & 0xf;
-	if (entry->state != MV88E6XXX_G1_ATU_DATA_STATE_UNUSED) {
+	if (entry->state) {
 		entry->trunk = !!(val & MV88E6XXX_G1_ATU_DATA_TRUNK);
 		entry->portvec = (val >> 4) & mv88e6xxx_port_mask(chip);
 	}
@@ -148,7 +148,7 @@ static int mv88e6xxx_g1_atu_data_write(struct mv88e6xxx_chip *chip,
 {
 	u16 data = entry->state & 0xf;
 
-	if (entry->state != MV88E6XXX_G1_ATU_DATA_STATE_UNUSED) {
+	if (entry->state) {
 		if (entry->trunk)
 			data |= MV88E6XXX_G1_ATU_DATA_TRUNK;
 
@@ -209,7 +209,7 @@ int mv88e6xxx_g1_atu_getnext(struct mv88e6xxx_chip *chip, u16 fid,
 		return err;
 
 	/* Write the MAC address to iterate from only once */
-	if (entry->state == MV88E6XXX_G1_ATU_DATA_STATE_UNUSED) {
+	if (!entry->state) {
 		err = mv88e6xxx_g1_atu_mac_write(chip, entry);
 		if (err)
 			return err;

@@ -222,7 +222,19 @@
 #define MV88E6XXX_PORT_PRI_OVERRIDE	0x0d
 
 /* Offset 0x0E: Policy Control Register */
-#define MV88E6XXX_PORT_POLICY_CTL	0x0e
+#define MV88E6XXX_PORT_POLICY_CTL		0x0e
+#define MV88E6XXX_PORT_POLICY_CTL_DA_MASK	0xc000
+#define MV88E6XXX_PORT_POLICY_CTL_SA_MASK	0x3000
+#define MV88E6XXX_PORT_POLICY_CTL_VTU_MASK	0x0c00
+#define MV88E6XXX_PORT_POLICY_CTL_ETYPE_MASK	0x0300
+#define MV88E6XXX_PORT_POLICY_CTL_PPPOE_MASK	0x00c0
+#define MV88E6XXX_PORT_POLICY_CTL_VBAS_MASK	0x0030
+#define MV88E6XXX_PORT_POLICY_CTL_OPT82_MASK	0x000c
+#define MV88E6XXX_PORT_POLICY_CTL_UDP_MASK	0x0003
+#define MV88E6XXX_PORT_POLICY_CTL_NORMAL	0x0000
+#define MV88E6XXX_PORT_POLICY_CTL_MIRROR	0x0001
+#define MV88E6XXX_PORT_POLICY_CTL_TRAP		0x0002
+#define MV88E6XXX_PORT_POLICY_CTL_DISCARD	0x0003
 
 /* Offset 0x0F: Port Special Ether Type */
 #define MV88E6XXX_PORT_ETH_TYPE		0x0f
@@ -324,6 +336,9 @@ int mv88e6185_port_set_egress_floods(struct mv88e6xxx_chip *chip, int port,
 				     bool unicast, bool multicast);
 int mv88e6352_port_set_egress_floods(struct mv88e6xxx_chip *chip, int port,
 				     bool unicast, bool multicast);
+int mv88e6352_port_set_policy(struct mv88e6xxx_chip *chip, int port,
+			      enum mv88e6xxx_policy_mapping mapping,
+			      enum mv88e6xxx_policy_action action);
 int mv88e6351_port_set_ether_type(struct mv88e6xxx_chip *chip, int port,
 				  u16 etype);
 int mv88e6xxx_port_set_message_port(struct mv88e6xxx_chip *chip, int port,

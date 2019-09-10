@@ -1497,7 +1497,7 @@ static int mv88e6xxx_port_db_load_purge(struct mv88e6xxx_chip *chip, int port,
 		fid = vlan.fid;
 	}
 
-	entry.state = MV88E6XXX_G1_ATU_DATA_STATE_UNUSED;
+	entry.state = 0;
 	ether_addr_copy(entry.mac, addr);
 	eth_addr_dec(entry.mac);
 
@@ -1506,23 +1506,232 @@ static int mv88e6xxx_port_db_load_purge(struct mv88e6xxx_chip *chip, int port,
 		return err;
 
 	/* Initialize a fresh ATU entry if it isn't found */
-	if (entry.state == MV88E6XXX_G1_ATU_DATA_STATE_UNUSED ||
-	    !ether_addr_equal(entry.mac, addr)) {
+	if (!entry.state || !ether_addr_equal(entry.mac, addr)) {
 		memset(&entry, 0, sizeof(entry));
 		ether_addr_copy(entry.mac, addr);
 	}
 
 	/* Purge the ATU entry only if no port is using it anymore */
-	if (state == MV88E6XXX_G1_ATU_DATA_STATE_UNUSED) {
+	if (!state) {
 		entry.portvec &= ~BIT(port);
 		if (!entry.portvec)
-			entry.state = MV88E6XXX_G1_ATU_DATA_STATE_UNUSED;
+			entry.state = 0;
 	} else {
 		entry.portvec |= BIT(port);
 		entry.state = state;
 	}
 
 	return mv88e6xxx_g1_atu_loadpurge(chip, fid, &entry);
+}
+
+static int mv88e6xxx_policy_apply(struct mv88e6xxx_chip *chip, int port,
+				  const struct mv88e6xxx_policy *policy)
+{
+	enum mv88e6xxx_policy_mapping mapping = policy->mapping;
+	enum mv88e6xxx_policy_action action = policy->action;
+	const u8 *addr = policy->addr;
+	u16 vid = policy->vid;
+	u8 state;
+	int err;
+	int id;
+
+	if (!chip->info->ops->port_set_policy)
+		return -EOPNOTSUPP;
+
+	switch (mapping) {
+	case MV88E6XXX_POLICY_MAPPING_DA:
+	case MV88E6XXX_POLICY_MAPPING_SA:
+		if (action == MV88E6XXX_POLICY_ACTION_NORMAL)
+			state = 0; /* Dissociate the port and address */
+		else if (action == MV88E6XXX_POLICY_ACTION_DISCARD &&
+			 is_multicast_ether_addr(addr))
+			state = MV88E6XXX_G1_ATU_DATA_STATE_MC_STATIC_POLICY;
+		else if (action == MV88E6XXX_POLICY_ACTION_DISCARD &&
+			 is_unicast_ether_addr(addr))
+			state = MV88E6XXX_G1_ATU_DATA_STATE_UC_STATIC_POLICY;
+		else
+			return -EOPNOTSUPP;
+
+		err = mv88e6xxx_port_db_load_purge(chip, port, addr, vid,
+						   state);
+		if (err)
+			return err;
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	/* Skip the port's policy clearing if the mapping is still in use */
+	if (action == MV88E6XXX_POLICY_ACTION_NORMAL)
+		idr_for_each_entry(&chip->policies, policy, id)
+			if (policy->port == port &&
+			    policy->mapping == mapping &&
+			    policy->action != action)
+				return 0;
+
+	return chip->info->ops->port_set_policy(chip, port, mapping, action);
+}
+
+static int mv88e6xxx_policy_insert(struct mv88e6xxx_chip *chip, int port,
+				   struct ethtool_rx_flow_spec *fs)
+{
+	struct ethhdr *mac_entry = &fs->h_u.ether_spec;
+	struct ethhdr *mac_mask = &fs->m_u.ether_spec;
+	enum mv88e6xxx_policy_mapping mapping;
+	enum mv88e6xxx_policy_action action;
+	struct mv88e6xxx_policy *policy;
+	u16 vid = 0;
+	u8 *addr;
+	int err;
+	int id;
+
+	if (fs->location != RX_CLS_LOC_ANY)
+		return -EINVAL;
+
+	if (fs->ring_cookie == RX_CLS_FLOW_DISC)
+		action = MV88E6XXX_POLICY_ACTION_DISCARD;
+	else
+		return -EOPNOTSUPP;
+
+	switch (fs->flow_type & ~FLOW_EXT) {
+	case ETHER_FLOW:
+		if (!is_zero_ether_addr(mac_mask->h_dest) &&
+		    is_zero_ether_addr(mac_mask->h_source)) {
+			mapping = MV88E6XXX_POLICY_MAPPING_DA;
+			addr = mac_entry->h_dest;
+		} else if (is_zero_ether_addr(mac_mask->h_dest) &&
+		    !is_zero_ether_addr(mac_mask->h_source)) {
+			mapping = MV88E6XXX_POLICY_MAPPING_SA;
+			addr = mac_entry->h_source;
+		} else {
+			/* Cannot support DA and SA mapping in the same rule */
+			return -EOPNOTSUPP;
+		}
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	if ((fs->flow_type & FLOW_EXT) && fs->m_ext.vlan_tci) {
+		if (fs->m_ext.vlan_tci != 0xffff)
+			return -EOPNOTSUPP;
+		vid = be16_to_cpu(fs->h_ext.vlan_tci) & VLAN_VID_MASK;
+	}
+
+	idr_for_each_entry(&chip->policies, policy, id) {
+		if (policy->port == port && policy->mapping == mapping &&
+		    policy->action == action && policy->vid == vid &&
+		    ether_addr_equal(policy->addr, addr))
+			return -EEXIST;
+	}
+
+	policy = devm_kzalloc(chip->dev, sizeof(*policy), GFP_KERNEL);
+	if (!policy)
+		return -ENOMEM;
+
+	fs->location = 0;
+	err = idr_alloc_u32(&chip->policies, policy, &fs->location, 0xffffffff,
+			    GFP_KERNEL);
+	if (err) {
+		devm_kfree(chip->dev, policy);
+		return err;
+	}
+
+	memcpy(&policy->fs, fs, sizeof(*fs));
+	ether_addr_copy(policy->addr, addr);
+	policy->mapping = mapping;
+	policy->action = action;
+	policy->port = port;
+	policy->vid = vid;
+
+	err = mv88e6xxx_policy_apply(chip, port, policy);
+	if (err) {
+		idr_remove(&chip->policies, fs->location);
+		devm_kfree(chip->dev, policy);
+		return err;
+	}
+
+	return 0;
+}
+
+static int mv88e6xxx_get_rxnfc(struct dsa_switch *ds, int port,
+			       struct ethtool_rxnfc *rxnfc, u32 *rule_locs)
+{
+	struct ethtool_rx_flow_spec *fs = &rxnfc->fs;
+	struct mv88e6xxx_chip *chip = ds->priv;
+	struct mv88e6xxx_policy *policy;
+	int err;
+	int id;
+
+	mv88e6xxx_reg_lock(chip);
+
+	switch (rxnfc->cmd) {
+	case ETHTOOL_GRXCLSRLCNT:
+		rxnfc->data = 0;
+		rxnfc->data |= RX_CLS_LOC_SPECIAL;
+		rxnfc->rule_cnt = 0;
+		idr_for_each_entry(&chip->policies, policy, id)
+			if (policy->port == port)
+				rxnfc->rule_cnt++;
+		err = 0;
+		break;
+	case ETHTOOL_GRXCLSRULE:
+		err = -ENOENT;
+		policy = idr_find(&chip->policies, fs->location);
+		if (policy) {
+			memcpy(fs, &policy->fs, sizeof(*fs));
+			err = 0;
+		}
+		break;
+	case ETHTOOL_GRXCLSRLALL:
+		rxnfc->data = 0;
+		rxnfc->rule_cnt = 0;
+		idr_for_each_entry(&chip->policies, policy, id)
+			if (policy->port == port)
+				rule_locs[rxnfc->rule_cnt++] = id;
+		err = 0;
+		break;
+	default:
+		err = -EOPNOTSUPP;
+		break;
+	}
+
+	mv88e6xxx_reg_unlock(chip);
+
+	return err;
+}
+
+static int mv88e6xxx_set_rxnfc(struct dsa_switch *ds, int port,
+			       struct ethtool_rxnfc *rxnfc)
+{
+	struct ethtool_rx_flow_spec *fs = &rxnfc->fs;
+	struct mv88e6xxx_chip *chip = ds->priv;
+	struct mv88e6xxx_policy *policy;
+	int err;
+
+	mv88e6xxx_reg_lock(chip);
+
+	switch (rxnfc->cmd) {
+	case ETHTOOL_SRXCLSRLINS:
+		err = mv88e6xxx_policy_insert(chip, port, fs);
+		break;
+	case ETHTOOL_SRXCLSRLDEL:
+		err = -ENOENT;
+		policy = idr_remove(&chip->policies, fs->location);
+		if (policy) {
+			policy->action = MV88E6XXX_POLICY_ACTION_NORMAL;
+			err = mv88e6xxx_policy_apply(chip, port, policy);
+			devm_kfree(chip->dev, policy);
+		}
+		break;
+	default:
+		err = -EOPNOTSUPP;
+		break;
+	}
+
+	mv88e6xxx_reg_unlock(chip);
+
+	return err;
 }
 
 static int mv88e6xxx_port_add_broadcast(struct mv88e6xxx_chip *chip, int port,
@@ -1732,8 +1941,7 @@ static int mv88e6xxx_port_fdb_del(struct dsa_switch *ds, int port,
 	int err;
 
 	mv88e6xxx_reg_lock(chip);
-	err = mv88e6xxx_port_db_load_purge(chip, port, addr, vid,
-					   MV88E6XXX_G1_ATU_DATA_STATE_UNUSED);
+	err = mv88e6xxx_port_db_load_purge(chip, port, addr, vid, 0);
 	mv88e6xxx_reg_unlock(chip);
 
 	return err;
@@ -1747,7 +1955,7 @@ static int mv88e6xxx_port_db_dump_fid(struct mv88e6xxx_chip *chip,
 	bool is_static;
 	int err;
 
-	addr.state = MV88E6XXX_G1_ATU_DATA_STATE_UNUSED;
+	addr.state = 0;
 	eth_broadcast_addr(addr.mac);
 
 	do {
@@ -1755,7 +1963,7 @@ static int mv88e6xxx_port_db_dump_fid(struct mv88e6xxx_chip *chip,
 		if (err)
 			return err;
 
-		if (addr.state == MV88E6XXX_G1_ATU_DATA_STATE_UNUSED)
+		if (!addr.state)
 			break;
 
 		if (addr.trunk || (addr.portvec & BIT(port)) == 0)
@@ -3134,6 +3342,7 @@ static const struct mv88e6xxx_ops mv88e6172_ops = {
 	.port_set_rgmii_delay = mv88e6352_port_set_rgmii_delay,
 	.port_set_speed = mv88e6352_port_set_speed,
 	.port_tag_remap = mv88e6095_port_tag_remap,
+	.port_set_policy = mv88e6352_port_set_policy,
 	.port_set_frame_mode = mv88e6351_port_set_frame_mode,
 	.port_set_egress_floods = mv88e6352_port_set_egress_floods,
 	.port_set_ether_type = mv88e6351_port_set_ether_type,
@@ -3220,6 +3429,7 @@ static const struct mv88e6xxx_ops mv88e6176_ops = {
 	.port_set_rgmii_delay = mv88e6352_port_set_rgmii_delay,
 	.port_set_speed = mv88e6352_port_set_speed,
 	.port_tag_remap = mv88e6095_port_tag_remap,
+	.port_set_policy = mv88e6352_port_set_policy,
 	.port_set_frame_mode = mv88e6351_port_set_frame_mode,
 	.port_set_egress_floods = mv88e6352_port_set_egress_floods,
 	.port_set_ether_type = mv88e6351_port_set_ether_type,
@@ -3305,6 +3515,7 @@ static const struct mv88e6xxx_ops mv88e6190_ops = {
 	.port_set_speed = mv88e6390_port_set_speed,
 	.port_max_speed_mode = mv88e6390_port_max_speed_mode,
 	.port_tag_remap = mv88e6390_port_tag_remap,
+	.port_set_policy = mv88e6352_port_set_policy,
 	.port_set_frame_mode = mv88e6351_port_set_frame_mode,
 	.port_set_egress_floods = mv88e6352_port_set_egress_floods,
 	.port_set_ether_type = mv88e6351_port_set_ether_type,
@@ -3353,6 +3564,7 @@ static const struct mv88e6xxx_ops mv88e6190x_ops = {
 	.port_set_speed = mv88e6390x_port_set_speed,
 	.port_max_speed_mode = mv88e6390x_port_max_speed_mode,
 	.port_tag_remap = mv88e6390_port_tag_remap,
+	.port_set_policy = mv88e6352_port_set_policy,
 	.port_set_frame_mode = mv88e6351_port_set_frame_mode,
 	.port_set_egress_floods = mv88e6352_port_set_egress_floods,
 	.port_set_ether_type = mv88e6351_port_set_ether_type,
@@ -3450,6 +3662,7 @@ static const struct mv88e6xxx_ops mv88e6240_ops = {
 	.port_set_rgmii_delay = mv88e6352_port_set_rgmii_delay,
 	.port_set_speed = mv88e6352_port_set_speed,
 	.port_tag_remap = mv88e6095_port_tag_remap,
+	.port_set_policy = mv88e6352_port_set_policy,
 	.port_set_frame_mode = mv88e6351_port_set_frame_mode,
 	.port_set_egress_floods = mv88e6352_port_set_egress_floods,
 	.port_set_ether_type = mv88e6351_port_set_ether_type,
@@ -3541,6 +3754,7 @@ static const struct mv88e6xxx_ops mv88e6290_ops = {
 	.port_set_speed = mv88e6390_port_set_speed,
 	.port_max_speed_mode = mv88e6390_port_max_speed_mode,
 	.port_tag_remap = mv88e6390_port_tag_remap,
+	.port_set_policy = mv88e6352_port_set_policy,
 	.port_set_frame_mode = mv88e6351_port_set_frame_mode,
 	.port_set_egress_floods = mv88e6352_port_set_egress_floods,
 	.port_set_ether_type = mv88e6351_port_set_ether_type,
@@ -3811,6 +4025,7 @@ static const struct mv88e6xxx_ops mv88e6352_ops = {
 	.port_set_rgmii_delay = mv88e6352_port_set_rgmii_delay,
 	.port_set_speed = mv88e6352_port_set_speed,
 	.port_tag_remap = mv88e6095_port_tag_remap,
+	.port_set_policy = mv88e6352_port_set_policy,
 	.port_set_frame_mode = mv88e6351_port_set_frame_mode,
 	.port_set_egress_floods = mv88e6352_port_set_egress_floods,
 	.port_set_ether_type = mv88e6351_port_set_ether_type,
@@ -3865,6 +4080,7 @@ static const struct mv88e6xxx_ops mv88e6390_ops = {
 	.port_set_speed = mv88e6390_port_set_speed,
 	.port_max_speed_mode = mv88e6390_port_max_speed_mode,
 	.port_tag_remap = mv88e6390_port_tag_remap,
+	.port_set_policy = mv88e6352_port_set_policy,
 	.port_set_frame_mode = mv88e6351_port_set_frame_mode,
 	.port_set_egress_floods = mv88e6352_port_set_egress_floods,
 	.port_set_ether_type = mv88e6351_port_set_ether_type,
@@ -3917,6 +4133,7 @@ static const struct mv88e6xxx_ops mv88e6390x_ops = {
 	.port_set_speed = mv88e6390x_port_set_speed,
 	.port_max_speed_mode = mv88e6390x_port_max_speed_mode,
 	.port_tag_remap = mv88e6390_port_tag_remap,
+	.port_set_policy = mv88e6352_port_set_policy,
 	.port_set_frame_mode = mv88e6351_port_set_frame_mode,
 	.port_set_egress_floods = mv88e6352_port_set_egress_floods,
 	.port_set_ether_type = mv88e6351_port_set_ether_type,
@@ -4648,6 +4865,7 @@ static struct mv88e6xxx_chip *mv88e6xxx_alloc_chip(struct device *dev)
 
 	mutex_init(&chip->reg_lock);
 	INIT_LIST_HEAD(&chip->mdios);
+	idr_init(&chip->policies);
 
 	return chip;
 }
@@ -4690,8 +4908,7 @@ static int mv88e6xxx_port_mdb_del(struct dsa_switch *ds, int port,
 	int err;
 
 	mv88e6xxx_reg_lock(chip);
-	err = mv88e6xxx_port_db_load_purge(chip, port, mdb->addr, mdb->vid,
-					   MV88E6XXX_G1_ATU_DATA_STATE_UNUSED);
+	err = mv88e6xxx_port_db_load_purge(chip, port, mdb->addr, mdb->vid, 0);
 	mv88e6xxx_reg_unlock(chip);
 
 	return err;
@@ -4733,6 +4950,8 @@ static const struct dsa_switch_ops mv88e6xxx_switch_ops = {
 	.set_eeprom		= mv88e6xxx_set_eeprom,
 	.get_regs_len		= mv88e6xxx_get_regs_len,
 	.get_regs		= mv88e6xxx_get_regs,
+	.get_rxnfc		= mv88e6xxx_get_rxnfc,
+	.set_rxnfc		= mv88e6xxx_set_rxnfc,
 	.set_ageing_time	= mv88e6xxx_set_ageing_time,
 	.port_bridge_join	= mv88e6xxx_port_bridge_join,
 	.port_bridge_leave	= mv88e6xxx_port_bridge_leave,
