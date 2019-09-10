@@ -481,7 +481,7 @@ int efa_com_get_device_attr(struct efa_com_dev *edev,
 				  EFA_ADMIN_QUEUE_ATTR);
 	if (err) {
 		ibdev_err_ratelimited(edev->efa_dev,
-				      "Failed to get network attributes %d\n",
+				      "Failed to get queue attributes %d\n",
 				      err);
 		return err;
 	}
