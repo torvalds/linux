@@ -1,0 +1,103 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2019 Fuzhou Rockchip Electronics Co., Ltd
+ */
+
+/dts-v1/;
+#include "rk3326-863-lp3-v10.dtsi"
+
+/ {
+	model = "Rockchip rk3326 863 rkisp1 board";
+	compatible = "rockchip,rk3326-863-lp3-v10-rkisp1", "rockchip,rk3326";
+};
+
+&chosen {
+	bootargs_ext = "androidboot.boot_devices=ff390000.dwmmc,ff3b0000.nandc";
+};
+
+&i2c2 {
+	status = "okay";
+
+	gc0312: gc0312@21 {
+		status = "okay";
+		compatible = "galaxycore,gc0312";
+		reg = <0x21>;
+		//pinctrl-names = "default";
+		//pinctrl-0 = <&cif_clkout_m0>;
+
+		clocks = <&cru SCLK_CIF_OUT>;
+		clock-names = "xvclk";
+
+		avdd-supply = <&vcc2v8_dvp>;
+		dovdd-supply = <&vcc1v8_dvp>;
+		dvdd-supply = <&vcc1v8_dvp>;
+
+		pwdn-gpios = <&gpio2 14 GPIO_ACTIVE_HIGH>;
+		rockchip,camera-module-index = <1>;
+		rockchip,camera-module-facing = "front";
+		rockchip,camera-module-name = "CameraKing";
+		rockchip,camera-module-lens-name = "Largan";
+		port {
+			gc0312_out: endpoint {
+				remote-endpoint = <&dvp_in_fcam>;
+			};
+		};
+	};
+
+	gc2145: gc2145@3c {
+		status = "okay";
+		compatible = "galaxycore,gc2145";
+		reg = <0x3c>;
+		//pinctrl-names = "default";
+		//pinctrl-0 = <&cif_clkout_m0>;
+
+		clocks = <&cru SCLK_CIF_OUT>;
+		clock-names = "xvclk";
+
+		avdd-supply = <&vcc2v8_dvp>;
+		dovdd-supply = <&vcc1v8_dvp>;
+		dvdd-supply = <&vcc1v8_dvp>;
+
+		pwdn-gpios = <&gpio2 13 GPIO_ACTIVE_HIGH>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "CameraKing";
+		rockchip,camera-module-lens-name = "Largan";
+		port {
+			gc2145_out: endpoint {
+				remote-endpoint = <&dvp_in_bcam>;
+			};
+		};
+	};
+};
+
+&isp_mmu {
+	status = "okay";
+};
+
+&rkisp1 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&dvp_d0d1_m0 &dvp_d2d9_m0>;
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			dvp_in_fcam: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&gc0312_out>;
+			};
+
+			dvp_in_bcam: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&gc2145_out>;
+			};
+		};
+	};
+};
