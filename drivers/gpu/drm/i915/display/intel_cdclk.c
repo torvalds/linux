@@ -1394,18 +1394,8 @@ static void bxt_get_cdclk(struct drm_i915_private *dev_priv,
 	 * Can't read this out :( Let's assume it's
 	 * at least what the CDCLK frequency requires.
 	 */
-	if (IS_ELKHARTLAKE(dev_priv))
-		cdclk_state->voltage_level =
-			ehl_calc_voltage_level(cdclk_state->cdclk);
-	else if (INTEL_GEN(dev_priv) >= 11)
-		cdclk_state->voltage_level =
-			icl_calc_voltage_level(cdclk_state->cdclk);
-	else if (INTEL_GEN(dev_priv) >= 10)
-		cdclk_state->voltage_level =
-			cnl_calc_voltage_level(cdclk_state->cdclk);
-	else
-		cdclk_state->voltage_level =
-			bxt_calc_voltage_level(cdclk_state->cdclk);
+	cdclk_state->voltage_level =
+		dev_priv->display.calc_voltage_level(cdclk_state->cdclk);
 }
 
 static void bxt_de_pll_disable(struct drm_i915_private *dev_priv)
@@ -1672,7 +1662,8 @@ static void bxt_init_cdclk(struct drm_i915_private *dev_priv)
 	 */
 	cdclk_state.cdclk = bxt_calc_cdclk(dev_priv, 0);
 	cdclk_state.vco = bxt_calc_cdclk_pll_vco(dev_priv, cdclk_state.cdclk);
-	cdclk_state.voltage_level = bxt_calc_voltage_level(cdclk_state.cdclk);
+	cdclk_state.voltage_level =
+		dev_priv->display.calc_voltage_level(cdclk_state.cdclk);
 
 	bxt_set_cdclk(dev_priv, &cdclk_state, INVALID_PIPE);
 }
@@ -1683,18 +1674,8 @@ static void bxt_uninit_cdclk(struct drm_i915_private *dev_priv)
 
 	cdclk_state.cdclk = cdclk_state.bypass;
 	cdclk_state.vco = 0;
-	if (IS_ELKHARTLAKE(dev_priv))
-		cdclk_state.voltage_level =
-			ehl_calc_voltage_level(cdclk_state.cdclk);
-	else if (INTEL_GEN(dev_priv) >= 11)
-		cdclk_state.voltage_level =
-			icl_calc_voltage_level(cdclk_state.cdclk);
-	else if (INTEL_GEN(dev_priv) >= 10)
-		cdclk_state.voltage_level =
-			cnl_calc_voltage_level(cdclk_state.cdclk);
-	else
-		cdclk_state.voltage_level =
-			bxt_calc_voltage_level(cdclk_state.cdclk);
+	cdclk_state.voltage_level =
+		dev_priv->display.calc_voltage_level(cdclk_state.cdclk);
 
 	bxt_set_cdclk(dev_priv, &cdclk_state, INVALID_PIPE);
 }
@@ -1730,12 +1711,8 @@ sanitize:
 	sanitized_state.cdclk = bxt_calc_cdclk(dev_priv, 0);
 	sanitized_state.vco = bxt_calc_cdclk_pll_vco(dev_priv,
 						     sanitized_state.cdclk);
-	if (IS_ELKHARTLAKE(dev_priv))
-		sanitized_state.voltage_level =
-			ehl_calc_voltage_level(sanitized_state.cdclk);
-	else
-		sanitized_state.voltage_level =
-			icl_calc_voltage_level(sanitized_state.cdclk);
+	sanitized_state.voltage_level =
+		dev_priv->display.calc_voltage_level(sanitized_state.cdclk);
 
 	bxt_set_cdclk(dev_priv, &sanitized_state, INVALID_PIPE);
 }
@@ -1754,7 +1731,8 @@ static void cnl_init_cdclk(struct drm_i915_private *dev_priv)
 
 	cdclk_state.cdclk = bxt_calc_cdclk(dev_priv, 0);
 	cdclk_state.vco = bxt_calc_cdclk_pll_vco(dev_priv, cdclk_state.cdclk);
-	cdclk_state.voltage_level = cnl_calc_voltage_level(cdclk_state.cdclk);
+	cdclk_state.voltage_level =
+		dev_priv->display.calc_voltage_level(cdclk_state.cdclk);
 
 	bxt_set_cdclk(dev_priv, &cdclk_state, INVALID_PIPE);
 }
@@ -2246,7 +2224,7 @@ static int bxt_modeset_calc_cdclk(struct intel_atomic_state *state)
 	state->cdclk.logical.vco = vco;
 	state->cdclk.logical.cdclk = cdclk;
 	state->cdclk.logical.voltage_level =
-		bxt_calc_voltage_level(cdclk);
+		dev_priv->display.calc_voltage_level(cdclk);
 
 	if (!state->active_pipes) {
 		cdclk = bxt_calc_cdclk(dev_priv, state->cdclk.force_min_cdclk);
@@ -2255,7 +2233,7 @@ static int bxt_modeset_calc_cdclk(struct intel_atomic_state *state)
 		state->cdclk.actual.vco = vco;
 		state->cdclk.actual.cdclk = cdclk;
 		state->cdclk.actual.voltage_level =
-			bxt_calc_voltage_level(cdclk);
+			dev_priv->display.calc_voltage_level(cdclk);
 	} else {
 		state->cdclk.actual = state->cdclk.logical;
 	}
@@ -2310,14 +2288,9 @@ static int icl_modeset_calc_cdclk(struct intel_atomic_state *state)
 
 	state->cdclk.logical.vco = vco;
 	state->cdclk.logical.cdclk = cdclk;
-	if (IS_ELKHARTLAKE(dev_priv))
-		state->cdclk.logical.voltage_level =
-			max(ehl_calc_voltage_level(cdclk),
-			    cnl_compute_min_voltage_level(state));
-	else
-		state->cdclk.logical.voltage_level =
-			max(icl_calc_voltage_level(cdclk),
-			    cnl_compute_min_voltage_level(state));
+	state->cdclk.logical.voltage_level =
+		max(dev_priv->display.calc_voltage_level(cdclk),
+		    cnl_compute_min_voltage_level(state));
 
 	if (!state->active_pipes) {
 		cdclk = bxt_calc_cdclk(dev_priv, state->cdclk.force_min_cdclk);
@@ -2325,12 +2298,8 @@ static int icl_modeset_calc_cdclk(struct intel_atomic_state *state)
 
 		state->cdclk.actual.vco = vco;
 		state->cdclk.actual.cdclk = cdclk;
-		if (IS_ELKHARTLAKE(dev_priv))
-			state->cdclk.actual.voltage_level =
-				ehl_calc_voltage_level(cdclk);
-		else
-			state->cdclk.actual.voltage_level =
-				icl_calc_voltage_level(cdclk);
+		state->cdclk.actual.voltage_level =
+			dev_priv->display.calc_voltage_level(cdclk);
 	} else {
 		state->cdclk.actual = state->cdclk.logical;
 	}
@@ -2554,17 +2523,25 @@ void intel_update_rawclk(struct drm_i915_private *dev_priv)
  */
 void intel_init_cdclk_hooks(struct drm_i915_private *dev_priv)
 {
-	if (INTEL_GEN(dev_priv) >= 11) {
+	if (IS_ELKHARTLAKE(dev_priv)) {
 		dev_priv->display.set_cdclk = bxt_set_cdclk;
 		dev_priv->display.modeset_calc_cdclk = icl_modeset_calc_cdclk;
+		dev_priv->display.calc_voltage_level = ehl_calc_voltage_level;
+		dev_priv->cdclk.table = icl_cdclk_table;
+	} else if (INTEL_GEN(dev_priv) >= 11) {
+		dev_priv->display.set_cdclk = bxt_set_cdclk;
+		dev_priv->display.modeset_calc_cdclk = icl_modeset_calc_cdclk;
+		dev_priv->display.calc_voltage_level = icl_calc_voltage_level;
 		dev_priv->cdclk.table = icl_cdclk_table;
 	} else if (IS_CANNONLAKE(dev_priv)) {
 		dev_priv->display.set_cdclk = bxt_set_cdclk;
 		dev_priv->display.modeset_calc_cdclk = cnl_modeset_calc_cdclk;
+		dev_priv->display.calc_voltage_level = cnl_calc_voltage_level;
 		dev_priv->cdclk.table = cnl_cdclk_table;
 	} else if (IS_GEN9_LP(dev_priv)) {
 		dev_priv->display.set_cdclk = bxt_set_cdclk;
 		dev_priv->display.modeset_calc_cdclk = bxt_modeset_calc_cdclk;
+		dev_priv->display.calc_voltage_level = bxt_calc_voltage_level;
 		dev_priv->cdclk.table = bxt_cdclk_table;
 	} else if (IS_GEN9_BC(dev_priv)) {
 		dev_priv->display.set_cdclk = skl_set_cdclk;
