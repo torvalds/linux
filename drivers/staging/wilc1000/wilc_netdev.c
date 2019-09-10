@@ -60,7 +60,7 @@ static int init_irq(struct net_device *dev)
 
 	ret = request_threaded_irq(wl->dev_irq_num, isr_uh_routine,
 				   isr_bh_routine,
-				   IRQF_TRIGGER_LOW | IRQF_ONESHOT,
+				   IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 				   "WILC_IRQ", dev);
 	if (ret < 0)
 		netdev_err(dev, "Failed to request IRQ\n");
