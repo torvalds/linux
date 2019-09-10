@@ -3005,6 +3005,8 @@ again:
 	p->locks[level] = BTRFS_READ_LOCK;
 
 	while (b) {
+		int dec = 0;
+
 		level = btrfs_header_level(b);
 		p->nodes[level] = b;
 
@@ -3025,47 +3027,45 @@ again:
 		if (ret < 0)
 			goto done;
 
-		if (level != 0) {
-			int dec = 0;
-			if (ret && slot > 0) {
-				dec = 1;
-				slot -= 1;
-			}
-			p->slots[level] = slot;
-			unlock_up(p, level, lowest_unlock, 0, NULL);
-
-			if (level == lowest_level) {
-				if (dec)
-					p->slots[level]++;
-				goto done;
-			}
-
-			err = read_block_for_search(root, p, &b, level,
-						    slot, key);
-			if (err == -EAGAIN)
-				goto again;
-			if (err) {
-				ret = err;
-				goto done;
-			}
-
-			level = btrfs_header_level(b);
-			if (!btrfs_tree_read_lock_atomic(b)) {
-				btrfs_set_path_blocking(p);
-				btrfs_tree_read_lock(b);
-			}
-			b = tree_mod_log_rewind(fs_info, p, b, time_seq);
-			if (!b) {
-				ret = -ENOMEM;
-				goto done;
-			}
-			p->locks[level] = BTRFS_READ_LOCK;
-			p->nodes[level] = b;
-		} else {
+		if (level == 0) {
 			p->slots[level] = slot;
 			unlock_up(p, level, lowest_unlock, 0, NULL);
 			goto done;
 		}
+
+		if (ret && slot > 0) {
+			dec = 1;
+			slot--;
+		}
+		p->slots[level] = slot;
+		unlock_up(p, level, lowest_unlock, 0, NULL);
+
+		if (level == lowest_level) {
+			if (dec)
+				p->slots[level]++;
+			goto done;
+		}
+
+		err = read_block_for_search(root, p, &b, level, slot, key);
+		if (err == -EAGAIN)
+			goto again;
+		if (err) {
+			ret = err;
+			goto done;
+		}
+
+		level = btrfs_header_level(b);
+		if (!btrfs_tree_read_lock_atomic(b)) {
+			btrfs_set_path_blocking(p);
+			btrfs_tree_read_lock(b);
+		}
+		b = tree_mod_log_rewind(fs_info, p, b, time_seq);
+		if (!b) {
+			ret = -ENOMEM;
+			goto done;
+		}
+		p->locks[level] = BTRFS_READ_LOCK;
+		p->nodes[level] = b;
 	}
 	ret = 1;
 done:
