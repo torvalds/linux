@@ -924,41 +924,8 @@ void __exit fuse_ctl_cleanup(void);
 /**
  * Allocate a request
  */
-struct fuse_req *fuse_request_alloc(unsigned npages);
-
-struct fuse_req *fuse_request_alloc_nofs(unsigned npages);
-
 struct page **fuse_pages_alloc(unsigned int npages, gfp_t flags,
 			       struct fuse_page_desc **desc);
-
-/**
- * Free a request
- */
-void fuse_request_free(struct fuse_req *req);
-
-/**
- * Get a request, may fail with -ENOMEM,
- * caller should specify # elements in req->pages[] explicitly
- */
-struct fuse_req *fuse_get_req(struct fuse_conn *fc, unsigned npages);
-struct fuse_req *fuse_get_req_for_background(struct fuse_conn *fc,
-					     unsigned npages);
-
-/*
- * Increment reference count on request
- */
-void __fuse_get_request(struct fuse_req *req);
-
-/**
- * Decrement reference count of a request.  If count goes to zero free
- * the request.
- */
-void fuse_put_request(struct fuse_conn *fc, struct fuse_req *req);
-
-/**
- * Send a request (synchronous)
- */
-void fuse_request_send(struct fuse_conn *fc, struct fuse_req *req);
 
 /**
  * Simple request sending that does request allocation and freeing
@@ -966,12 +933,6 @@ void fuse_request_send(struct fuse_conn *fc, struct fuse_req *req);
 ssize_t fuse_simple_request(struct fuse_conn *fc, struct fuse_args *args);
 int fuse_simple_background(struct fuse_conn *fc, struct fuse_args *args,
 			   gfp_t gfp_flags);
-
-/**
- * Send a request in the background
- */
-void fuse_request_send_background(struct fuse_conn *fc, struct fuse_req *req);
-bool fuse_request_queue_background(struct fuse_conn *fc, struct fuse_req *req);
 
 /* Abort all requests */
 void fuse_abort_conn(struct fuse_conn *fc);

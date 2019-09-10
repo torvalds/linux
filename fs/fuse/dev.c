@@ -79,15 +79,9 @@ static struct fuse_req *__fuse_request_alloc(unsigned npages, gfp_t flags)
 	return req;
 }
 
-struct fuse_req *fuse_request_alloc(unsigned npages)
+static struct fuse_req *fuse_request_alloc(unsigned int npages)
 {
 	return __fuse_request_alloc(npages, GFP_KERNEL);
-}
-EXPORT_SYMBOL_GPL(fuse_request_alloc);
-
-struct fuse_req *fuse_request_alloc_nofs(unsigned npages)
-{
-	return __fuse_request_alloc(npages, GFP_NOFS);
 }
 
 static void fuse_req_pages_free(struct fuse_req *req)
@@ -96,13 +90,13 @@ static void fuse_req_pages_free(struct fuse_req *req)
 		kfree(req->pages);
 }
 
-void fuse_request_free(struct fuse_req *req)
+static void fuse_request_free(struct fuse_req *req)
 {
 	fuse_req_pages_free(req);
 	kmem_cache_free(fuse_req_cachep, req);
 }
 
-void __fuse_get_request(struct fuse_req *req)
+static void __fuse_get_request(struct fuse_req *req)
 {
 	refcount_inc(&req->count);
 }
@@ -138,6 +132,8 @@ static void fuse_drop_waiting(struct fuse_conn *fc)
 		wake_up_all(&fc->blocked_waitq);
 	}
 }
+
+static void fuse_put_request(struct fuse_conn *fc, struct fuse_req *req);
 
 static struct fuse_req *__fuse_get_req(struct fuse_conn *fc, unsigned npages,
 				       bool for_background)
@@ -191,20 +187,12 @@ static struct fuse_req *__fuse_get_req(struct fuse_conn *fc, unsigned npages,
 	return ERR_PTR(err);
 }
 
-struct fuse_req *fuse_get_req(struct fuse_conn *fc, unsigned npages)
+static struct fuse_req *fuse_get_req(struct fuse_conn *fc, unsigned int npages)
 {
 	return __fuse_get_req(fc, npages, false);
 }
-EXPORT_SYMBOL_GPL(fuse_get_req);
 
-struct fuse_req *fuse_get_req_for_background(struct fuse_conn *fc,
-					     unsigned npages)
-{
-	return __fuse_get_req(fc, npages, true);
-}
-EXPORT_SYMBOL_GPL(fuse_get_req_for_background);
-
-void fuse_put_request(struct fuse_conn *fc, struct fuse_req *req)
+static void fuse_put_request(struct fuse_conn *fc, struct fuse_req *req)
 {
 	if (refcount_dec_and_test(&req->count)) {
 		if (test_bit(FR_BACKGROUND, &req->flags)) {
@@ -455,17 +443,6 @@ static void __fuse_request_send(struct fuse_conn *fc, struct fuse_req *req)
 	}
 }
 
-void fuse_request_send(struct fuse_conn *fc, struct fuse_req *req)
-{
-	__set_bit(FR_ISREPLY, &req->flags);
-	if (!test_bit(FR_WAITING, &req->flags)) {
-		__set_bit(FR_WAITING, &req->flags);
-		atomic_inc(&fc->num_waiting);
-	}
-	__fuse_request_send(fc, req);
-}
-EXPORT_SYMBOL_GPL(fuse_request_send);
-
 static void fuse_adjust_compat(struct fuse_conn *fc, struct fuse_args *args)
 {
 	if (fc->minor < 4 && args->opcode == FUSE_STATFS)
@@ -571,7 +548,8 @@ ssize_t fuse_simple_request(struct fuse_conn *fc, struct fuse_args *args)
 	return ret;
 }
 
-bool fuse_request_queue_background(struct fuse_conn *fc, struct fuse_req *req)
+static bool fuse_request_queue_background(struct fuse_conn *fc,
+					  struct fuse_req *req)
 {
 	bool queued = false;
 
@@ -643,17 +621,6 @@ int fuse_simple_background(struct fuse_conn *fc, struct fuse_args *args,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(fuse_simple_background);
-
-void fuse_request_send_background(struct fuse_conn *fc, struct fuse_req *req)
-{
-	WARN_ON(!req->end);
-	if (!fuse_request_queue_background(fc, req)) {
-		req->out.h.error = -ENOTCONN;
-		req->end(fc, req);
-		fuse_put_request(fc, req);
-	}
-}
-EXPORT_SYMBOL_GPL(fuse_request_send_background);
 
 static int fuse_simple_notify_reply(struct fuse_conn *fc,
 				    struct fuse_args *args, u64 unique)
