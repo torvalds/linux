@@ -294,6 +294,8 @@ static inline void ksz_pwrite32(struct ksz_device *dev, int port, int offset,
 #define KSZ_SPI_OP_RD		3
 #define KSZ_SPI_OP_WR		2
 
+#define swabnot_used(x)		0
+
 #define KSZ_SPI_OP_FLAG_MASK(opcode, swp, regbits, regpad)		\
 	swab##swp((opcode) << ((regbits) + (regpad)))
 
