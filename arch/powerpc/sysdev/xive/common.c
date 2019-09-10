@@ -258,10 +258,33 @@ notrace void xmon_xive_do_dump(int cpu)
 #endif
 }
 
-int xmon_xive_get_irq_config(u32 irq, u32 *target, u8 *prio,
-			     u32 *sw_irq)
+int xmon_xive_get_irq_config(u32 hw_irq, struct irq_data *d)
 {
-	return xive_ops->get_irq_config(irq, target, prio, sw_irq);
+	int rc;
+	u32 target;
+	u8 prio;
+	u32 lirq;
+
+	rc = xive_ops->get_irq_config(hw_irq, &target, &prio, &lirq);
+	if (rc) {
+		xmon_printf("IRQ 0x%08x : no config rc=%d\n", hw_irq, rc);
+		return rc;
+	}
+
+	xmon_printf("IRQ 0x%08x : target=0x%x prio=%02x lirq=0x%x ",
+		    hw_irq, target, prio, lirq);
+
+	if (d) {
+		struct xive_irq_data *xd = irq_data_get_irq_handler_data(d);
+		u64 val = xive_esb_read(xd, XIVE_ESB_GET);
+
+		xmon_printf("PQ=%c%c",
+			    val & XIVE_ESB_VAL_P ? 'P' : '-',
+			    val & XIVE_ESB_VAL_Q ? 'Q' : '-');
+	}
+
+	xmon_printf("\n");
+	return 0;
 }
 
 #endif /* CONFIG_XMON */

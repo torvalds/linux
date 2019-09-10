@@ -2572,16 +2572,9 @@ static void dump_all_xives(void)
 		dump_one_xive(cpu);
 }
 
-static void dump_one_xive_irq(u32 num)
+static void dump_one_xive_irq(u32 num, struct irq_data *d)
 {
-	int rc;
-	u32 target;
-	u8 prio;
-	u32 lirq;
-
-	rc = xmon_xive_get_irq_config(num, &target, &prio, &lirq);
-	xmon_printf("IRQ 0x%08x : target=0x%x prio=%d lirq=0x%x (rc=%d)\n",
-		    num, target, prio, lirq, rc);
+	xmon_xive_get_irq_config(num, d);
 }
 
 static void dump_all_xive_irq(void)
@@ -2599,7 +2592,7 @@ static void dump_all_xive_irq(void)
 		hwirq = (unsigned int)irqd_to_hwirq(d);
 		/* IPIs are special (HW number 0) */
 		if (hwirq)
-			dump_one_xive_irq(hwirq);
+			dump_one_xive_irq(hwirq, d);
 	}
 }
 
@@ -2619,7 +2612,7 @@ static void dump_xives(void)
 		return;
 	} else if (c == 'i') {
 		if (scanhex(&num))
-			dump_one_xive_irq(num);
+			dump_one_xive_irq(num, NULL);
 		else
 			dump_all_xive_irq();
 		return;
