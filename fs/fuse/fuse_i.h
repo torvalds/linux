@@ -294,9 +294,20 @@ struct fuse_args {
 	bool force:1;
 	bool noreply:1;
 	bool nocreds:1;
+	bool in_pages:1;
+	bool out_pages:1;
 	bool out_argvar:1;
+	bool page_zeroing:1;
+	bool page_replace:1;
 	struct fuse_in_arg in_args[3];
 	struct fuse_arg out_args[2];
+};
+
+struct fuse_args_pages {
+	struct fuse_args args;
+	struct page **pages;
+	struct fuse_page_desc *descs;
+	unsigned int num_pages;
 };
 
 #define FUSE_ARGS(args) struct fuse_args args = {}
@@ -352,6 +363,7 @@ enum fuse_req_flag {
 	FR_SENT,
 	FR_FINISHED,
 	FR_PRIVATE,
+	FR_ALLOC_PAGES,
 };
 
 /**
