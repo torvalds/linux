@@ -55,6 +55,7 @@
 #include "ivsrcid/vmc/irqsrcs_vmc_1_0.h"
 
 #include "amdgpu_ras.h"
+#include "amdgpu_xgmi.h"
 
 /* add these here since we already include dce12 headers and these are for DCN */
 #define mmHUBP0_DCSURF_PRI_VIEWPORT_DIMENSION                                                          0x055d
@@ -808,7 +809,8 @@ static int gmc_v9_0_ecc_late_init(void *handle)
 		if (r)
 			return r;
 	}
-	return 0;
+
+	return amdgpu_xgmi_ras_late_init(adev);
 }
 
 static int gmc_v9_0_late_init(void *handle)

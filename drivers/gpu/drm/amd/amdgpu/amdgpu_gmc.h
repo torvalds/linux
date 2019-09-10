@@ -123,6 +123,7 @@ struct amdgpu_xgmi {
 	/* gpu list in the same hive */
 	struct list_head head;
 	bool supported;
+	struct ras_common_if *ras_if;
 };
 
 struct amdgpu_gmc {
