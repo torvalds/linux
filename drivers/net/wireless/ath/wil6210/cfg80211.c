@@ -331,6 +331,8 @@ static const char * const key_usage_str[] = {
 	[WMI_KEY_USE_PAIRWISE]	= "PTK",
 	[WMI_KEY_USE_RX_GROUP]	= "RX_GTK",
 	[WMI_KEY_USE_TX_GROUP]	= "TX_GTK",
+	[WMI_KEY_USE_STORE_PTK]	= "STORE_PTK",
+	[WMI_KEY_USE_APPLY_PTK]	= "APPLY_PTK",
 };
 
 int wil_iftype_nl2wmi(enum nl80211_iftype type)
@@ -542,7 +544,7 @@ static int wil_cfg80211_get_station(struct wiphy *wiphy,
 /*
  * Find @idx-th active STA for specific MID for station dump.
  */
-static int wil_find_cid_by_idx(struct wil6210_priv *wil, u8 mid, int idx)
+int wil_find_cid_by_idx(struct wil6210_priv *wil, u8 mid, int idx)
 {
 	int i;
 
@@ -1554,6 +1556,7 @@ void wil_set_crypto_rx(u8 key_index, enum wmi_key_usage key_usage,
 		return;
 
 	switch (key_usage) {
+	case WMI_KEY_USE_STORE_PTK:
 	case WMI_KEY_USE_PAIRWISE:
 		for (tid = 0; tid < WIL_STA_TID_NUM; tid++) {
 			cc = &cs->tid_crypto_rx[tid].key_id[key_index];
@@ -1650,6 +1653,16 @@ static int wil_cfg80211_add_key(struct wiphy *wiphy,
 			params->seq_len, params->seq);
 		return -EINVAL;
 	}
+
+	spin_lock_bh(&wil->eap_lock);
+	if (pairwise && wdev->iftype == NL80211_IFTYPE_STATION &&
+	    (vif->ptk_rekey_state == WIL_REKEY_M3_RECEIVED ||
+	     vif->ptk_rekey_state == WIL_REKEY_WAIT_M4_SENT)) {
+		key_usage = WMI_KEY_USE_STORE_PTK;
+		vif->ptk_rekey_state = WIL_REKEY_WAIT_M4_SENT;
+		wil_dbg_misc(wil, "Store EAPOL key\n");
+	}
+	spin_unlock_bh(&wil->eap_lock);
 
 	rc = wmi_add_cipher_key(vif, key_index, mac_addr, params->key_len,
 				params->key, key_usage);

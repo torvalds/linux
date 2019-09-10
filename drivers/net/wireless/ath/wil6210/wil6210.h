@@ -731,6 +731,12 @@ enum wil_sta_status {
 	wil_sta_connected = 2,
 };
 
+enum wil_rekey_state {
+	WIL_REKEY_IDLE = 0,
+	WIL_REKEY_M3_RECEIVED = 1,
+	WIL_REKEY_WAIT_M4_SENT = 2,
+};
+
 /**
  * struct wil_sta_info - data for peer
  *
@@ -879,6 +885,10 @@ struct wil6210_vif {
 	int net_queue_stopped; /* netif_tx_stop_all_queues invoked */
 	bool fw_stats_ready; /* per-cid statistics are ready inside sta_info */
 	u64 fw_stats_tsf; /* measurement timestamp */
+
+	/* PTK rekey race prevention, this is relevant to station mode only */
+	enum wil_rekey_state ptk_rekey_state;
+	struct work_struct enable_tx_key_worker;
 };
 
 /**
@@ -979,6 +989,7 @@ struct wil6210_priv {
 	 */
 	spinlock_t wmi_ev_lock;
 	spinlock_t net_queue_lock; /* guarding stop/wake netif queue */
+	spinlock_t eap_lock; /* guarding access to eap rekey fields */
 	struct napi_struct napi_rx;
 	struct napi_struct napi_tx;
 	struct net_device napi_ndev; /* dummy net_device serving all VIFs */
@@ -1226,6 +1237,7 @@ int __wil_down(struct wil6210_priv *wil);
 void wil_refresh_fw_capabilities(struct wil6210_priv *wil);
 void wil_mbox_ring_le2cpus(struct wil6210_mbox_ring *r);
 int wil_find_cid(struct wil6210_priv *wil, u8 mid, const u8 *mac);
+int wil_find_cid_by_idx(struct wil6210_priv *wil, u8 mid, int idx);
 void wil_set_ethtoolops(struct net_device *ndev);
 
 struct fw_map *wil_find_fw_mapping(const char *section);
@@ -1351,6 +1363,7 @@ void wil6210_disconnect_complete(struct wil6210_vif *vif, const u8 *bssid,
 void wil_probe_client_flush(struct wil6210_vif *vif);
 void wil_probe_client_worker(struct work_struct *work);
 void wil_disconnect_worker(struct work_struct *work);
+void wil_enable_tx_key_worker(struct work_struct *work);
 
 void wil_init_txrx_ops(struct wil6210_priv *wil);
 
@@ -1367,6 +1380,8 @@ void wil_update_net_queues_bh(struct wil6210_priv *wil, struct wil6210_vif *vif,
 			      struct wil_ring *ring, bool check_stop);
 netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev);
 int wil_tx_complete(struct wil6210_vif *vif, int ringid);
+void wil_tx_complete_handle_eapol(struct wil6210_vif *vif,
+				  struct sk_buff *skb);
 void wil6210_unmask_irq_tx(struct wil6210_priv *wil);
 void wil6210_unmask_irq_tx_edma(struct wil6210_priv *wil);
 

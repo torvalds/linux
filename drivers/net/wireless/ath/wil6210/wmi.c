@@ -2438,10 +2438,17 @@ int wmi_add_cipher_key(struct wil6210_vif *vif, u8 key_index,
 		.key_len = key_len,
 	};
 
-	if (!key || (key_len > sizeof(cmd.key)))
+	if (key_len > sizeof(cmd.key))
 		return -EINVAL;
 
-	memcpy(cmd.key, key, key_len);
+	/* key len = 0 is allowed only for usage of WMI_KEY_USE_APPLY */
+	if ((key_len == 0 || !key) &&
+	    key_usage != WMI_KEY_USE_APPLY_PTK)
+		return -EINVAL;
+
+	if (key)
+		memcpy(cmd.key, key, key_len);
+
 	if (mac_addr)
 		memcpy(cmd.mac, mac_addr, WMI_MAC_LEN);
 
