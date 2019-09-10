@@ -237,25 +237,30 @@ static notrace void xive_dump_eq(const char *name, struct xive_q *q)
 	i0 = be32_to_cpup(q->qpage + idx);
 	idx = (idx + 1) & q->msk;
 	i1 = be32_to_cpup(q->qpage + idx);
-	xmon_printf("  %s Q T=%d %08x %08x ...\n", name,
-		    q->toggle, i0, i1);
+	xmon_printf("%s idx=%d T=%d %08x %08x ...", name,
+		     q->idx, q->toggle, i0, i1);
 }
 
 notrace void xmon_xive_do_dump(int cpu)
 {
 	struct xive_cpu *xc = per_cpu(xive_cpu, cpu);
 
-	xmon_printf("XIVE state for CPU %d:\n", cpu);
-	xmon_printf("  pp=%02x cppr=%02x\n", xc->pending_prio, xc->cppr);
-	xive_dump_eq("IRQ", &xc->queue[xive_irq_priority]);
+	xmon_printf("CPU %d:", cpu);
+	if (xc) {
+		xmon_printf("pp=%02x CPPR=%02x ", xc->pending_prio, xc->cppr);
+
 #ifdef CONFIG_SMP
-	{
-		u64 val = xive_esb_read(&xc->ipi_data, XIVE_ESB_GET);
-		xmon_printf("  IPI state: %x:%c%c\n", xc->hw_ipi,
-			val & XIVE_ESB_VAL_P ? 'P' : 'p',
-			val & XIVE_ESB_VAL_Q ? 'Q' : 'q');
-	}
+		{
+			u64 val = xive_esb_read(&xc->ipi_data, XIVE_ESB_GET);
+
+			xmon_printf("IPI=0x%08x PQ=%c%c ", xc->hw_ipi,
+				    val & XIVE_ESB_VAL_P ? 'P' : '-',
+				    val & XIVE_ESB_VAL_Q ? 'Q' : '-');
+		}
 #endif
+		xive_dump_eq("EQ", &xc->queue[xive_irq_priority]);
+	}
+	xmon_printf("\n");
 }
 
 int xmon_xive_get_irq_config(u32 hw_irq, struct irq_data *d)
