@@ -590,8 +590,8 @@ ssize_t fuse_simple_request(struct fuse_conn *fc, struct fuse_args *args)
 	__fuse_request_send(fc, req);
 	ret = req->out.h.error;
 	if (!ret && args->out_argvar) {
-		BUG_ON(args->out_numargs != 1);
-		ret = req->out.args[0].size;
+		BUG_ON(args->out_numargs == 0);
+		ret = req->out.args[args->out_numargs - 1].size;
 	}
 	fuse_put_request(fc, req);
 
