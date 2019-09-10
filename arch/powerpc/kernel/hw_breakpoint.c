@@ -195,14 +195,32 @@ void thread_change_pc(struct task_struct *tsk, struct pt_regs *regs)
 	tsk->thread.last_hit_ubp = NULL;
 }
 
+static bool is_larx_stcx_instr(struct pt_regs *regs, unsigned int instr)
+{
+	int ret, type;
+	struct instruction_op op;
+
+	ret = analyse_instr(&op, regs, instr);
+	type = GETTYPE(op.type);
+	return (!ret && (type == LARX || type == STCX));
+}
+
 /*
  * Handle debug exception notifications.
  */
 static bool stepping_handler(struct pt_regs *regs, struct perf_event *bp,
 			     unsigned long addr)
 {
-	int stepped;
-	unsigned int instr;
+	unsigned int instr = 0;
+
+	if (__get_user_inatomic(instr, (unsigned int *)regs->nip))
+		goto fail;
+
+	if (is_larx_stcx_instr(regs, instr)) {
+		printk_ratelimited("Breakpoint hit on instruction that can't be emulated."
+				   " Breakpoint at 0x%lx will be disabled.\n", addr);
+		goto disable;
+	}
 
 	/* Do not emulate user-space instructions, instead single-step them */
 	if (user_mode(regs)) {
@@ -211,23 +229,22 @@ static bool stepping_handler(struct pt_regs *regs, struct perf_event *bp,
 		return false;
 	}
 
-	stepped = 0;
-	instr = 0;
-	if (!__get_user_inatomic(instr, (unsigned int *)regs->nip))
-		stepped = emulate_step(regs, instr);
+	if (!emulate_step(regs, instr))
+		goto fail;
 
-	/*
-	 * emulate_step() could not execute it. We've failed in reliably
-	 * handling the hw-breakpoint. Unregister it and throw a warning
-	 * message to let the user know about it.
-	 */
-	if (!stepped) {
-		WARN(1, "Unable to handle hardware breakpoint. Breakpoint at "
-			"0x%lx will be disabled.", addr);
-		perf_event_disable_inatomic(bp);
-		return false;
-	}
 	return true;
+
+fail:
+	/*
+	 * We've failed in reliably handling the hw-breakpoint. Unregister
+	 * it and throw a warning message to let the user know about it.
+	 */
+	WARN(1, "Unable to handle hardware breakpoint. Breakpoint at "
+		"0x%lx will be disabled.", addr);
+
+disable:
+	perf_event_disable_inatomic(bp);
+	return false;
 }
 
 int hw_breakpoint_handler(struct die_args *args)
