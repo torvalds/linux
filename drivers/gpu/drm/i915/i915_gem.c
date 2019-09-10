@@ -888,10 +888,9 @@ void i915_gem_runtime_suspend(struct drm_i915_private *i915)
 }
 
 static long
-wait_for_timelines(struct drm_i915_private *i915,
-		   unsigned int wait, long timeout)
+wait_for_timelines(struct intel_gt *gt, unsigned int wait, long timeout)
 {
-	struct intel_gt_timelines *timelines = &i915->gt.timelines;
+	struct intel_gt_timelines *timelines = &gt->timelines;
 	struct intel_timeline *tl;
 	unsigned long flags;
 
@@ -934,15 +933,17 @@ wait_for_timelines(struct drm_i915_private *i915,
 int i915_gem_wait_for_idle(struct drm_i915_private *i915,
 			   unsigned int flags, long timeout)
 {
+	struct intel_gt *gt = &i915->gt;
+
 	/* If the device is asleep, we have no requests outstanding */
-	if (!intel_gt_pm_is_awake(&i915->gt))
+	if (!intel_gt_pm_is_awake(gt))
 		return 0;
 
 	GEM_TRACE("flags=%x (%s), timeout=%ld%s\n",
 		  flags, flags & I915_WAIT_LOCKED ? "locked" : "unlocked",
 		  timeout, timeout == MAX_SCHEDULE_TIMEOUT ? " (forever)" : "");
 
-	timeout = wait_for_timelines(i915, flags, timeout);
+	timeout = wait_for_timelines(gt, flags, timeout);
 	if (timeout < 0)
 		return timeout;
 
