@@ -164,17 +164,15 @@ enum {
 };
 
 struct fuse_conn;
+struct fuse_release_args;
 
 /** FUSE specific file data */
 struct fuse_file {
 	/** Fuse connection for this file */
 	struct fuse_conn *fc;
 
-	/*
-	 * Request reserved for flush and release.
-	 * Modified under relative fuse_inode::lock.
-	 */
-	struct fuse_req *reserved_req;
+	/* Argument space reserved for release */
+	struct fuse_release_args *release_args;
 
 	/** Kernel file handle guaranteed to be unique */
 	u64 kh;

@@ -53,6 +53,12 @@ static int fuse_send_open(struct fuse_conn *fc, u64 nodeid, struct file *file,
 	return fuse_simple_request(fc, &args);
 }
 
+struct fuse_release_args {
+	struct fuse_args args;
+	struct fuse_release_in inarg;
+	struct inode *inode;
+};
+
 struct fuse_file *fuse_file_alloc(struct fuse_conn *fc)
 {
 	struct fuse_file *ff;
@@ -62,8 +68,8 @@ struct fuse_file *fuse_file_alloc(struct fuse_conn *fc)
 		return NULL;
 
 	ff->fc = fc;
-	ff->reserved_req = fuse_request_alloc(0);
-	if (unlikely(!ff->reserved_req)) {
+	ff->release_args = kzalloc(sizeof(*ff->release_args), GFP_KERNEL);
+	if (!ff->release_args) {
 		kfree(ff);
 		return NULL;
 	}
@@ -81,7 +87,7 @@ struct fuse_file *fuse_file_alloc(struct fuse_conn *fc)
 
 void fuse_file_free(struct fuse_file *ff)
 {
-	fuse_request_free(ff->reserved_req);
+	kfree(ff->release_args);
 	mutex_destroy(&ff->readdir.lock);
 	kfree(ff);
 }
@@ -92,34 +98,31 @@ static struct fuse_file *fuse_file_get(struct fuse_file *ff)
 	return ff;
 }
 
-static void fuse_release_end(struct fuse_conn *fc, struct fuse_req *req)
+static void fuse_release_end(struct fuse_conn *fc, struct fuse_args *args,
+			     int error)
 {
-	iput(req->misc.release.inode);
+	struct fuse_release_args *ra = container_of(args, typeof(*ra), args);
+
+	iput(ra->inode);
+	kfree(ra);
 }
 
 static void fuse_file_put(struct fuse_file *ff, bool sync, bool isdir)
 {
 	if (refcount_dec_and_test(&ff->count)) {
-		struct fuse_req *req = ff->reserved_req;
+		struct fuse_args *args = &ff->release_args->args;
 
 		if (isdir ? ff->fc->no_opendir : ff->fc->no_open) {
-			/*
-			 * Drop the release request when client does not
-			 * implement 'open'
-			 */
-			__clear_bit(FR_BACKGROUND, &req->flags);
-			iput(req->misc.release.inode);
-			fuse_put_request(ff->fc, req);
+			/* Do nothing when client does not implement 'open' */
+			fuse_release_end(ff->fc, args, 0);
 		} else if (sync) {
-			__set_bit(FR_FORCE, &req->flags);
-			__clear_bit(FR_BACKGROUND, &req->flags);
-			fuse_request_send(ff->fc, req);
-			iput(req->misc.release.inode);
-			fuse_put_request(ff->fc, req);
+			fuse_simple_request(ff->fc, args);
+			fuse_release_end(ff->fc, args, 0);
 		} else {
-			req->end = fuse_release_end;
-			__set_bit(FR_BACKGROUND, &req->flags);
-			fuse_request_send_background(ff->fc, req);
+			args->end = fuse_release_end;
+			if (fuse_simple_background(ff->fc, args,
+						   GFP_KERNEL | __GFP_NOFAIL))
+				fuse_release_end(ff->fc, args, -ENOTCONN);
 		}
 		kfree(ff);
 	}
@@ -239,8 +242,7 @@ static void fuse_prepare_release(struct fuse_inode *fi, struct fuse_file *ff,
 				 int flags, int opcode)
 {
 	struct fuse_conn *fc = ff->fc;
-	struct fuse_req *req = ff->reserved_req;
-	struct fuse_release_in *inarg = &req->misc.release.in;
+	struct fuse_release_args *ra = ff->release_args;
 
 	/* Inode is NULL on error path of fuse_create_open() */
 	if (likely(fi)) {
@@ -255,32 +257,33 @@ static void fuse_prepare_release(struct fuse_inode *fi, struct fuse_file *ff,
 
 	wake_up_interruptible_all(&ff->poll_wait);
 
-	inarg->fh = ff->fh;
-	inarg->flags = flags;
-	req->in.h.opcode = opcode;
-	req->in.h.nodeid = ff->nodeid;
-	req->in.numargs = 1;
-	req->in.args[0].size = sizeof(struct fuse_release_in);
-	req->in.args[0].value = inarg;
+	ra->inarg.fh = ff->fh;
+	ra->inarg.flags = flags;
+	ra->args.in_numargs = 1;
+	ra->args.in_args[0].size = sizeof(struct fuse_release_in);
+	ra->args.in_args[0].value = &ra->inarg;
+	ra->args.opcode = opcode;
+	ra->args.nodeid = ff->nodeid;
+	ra->args.force = true;
+	ra->args.nocreds = true;
 }
 
 void fuse_release_common(struct file *file, bool isdir)
 {
 	struct fuse_inode *fi = get_fuse_inode(file_inode(file));
 	struct fuse_file *ff = file->private_data;
-	struct fuse_req *req = ff->reserved_req;
+	struct fuse_release_args *ra = ff->release_args;
 	int opcode = isdir ? FUSE_RELEASEDIR : FUSE_RELEASE;
 
 	fuse_prepare_release(fi, ff, file->f_flags, opcode);
 
 	if (ff->flock) {
-		struct fuse_release_in *inarg = &req->misc.release.in;
-		inarg->release_flags |= FUSE_RELEASE_FLOCK_UNLOCK;
-		inarg->lock_owner = fuse_lock_owner_id(ff->fc,
-						       (fl_owner_t) file);
+		ra->inarg.release_flags |= FUSE_RELEASE_FLOCK_UNLOCK;
+		ra->inarg.lock_owner = fuse_lock_owner_id(ff->fc,
+							  (fl_owner_t) file);
 	}
 	/* Hold inode until release is finished */
-	req->misc.release.inode = igrab(file_inode(file));
+	ra->inode = igrab(file_inode(file));
 
 	/*
 	 * Normally this will send the RELEASE request, however if
