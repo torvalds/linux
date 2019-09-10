@@ -28,7 +28,8 @@ static inline struct intel_gt *huc_to_gt(struct intel_huc *huc)
 }
 
 void intel_gt_init_early(struct intel_gt *gt, struct drm_i915_private *i915);
-void intel_gt_init_hw(struct drm_i915_private *i915);
+void intel_gt_init_hw_early(struct drm_i915_private *i915);
+int __must_check intel_gt_init_hw(struct intel_gt *gt);
 int intel_gt_init(struct intel_gt *gt);
 void intel_gt_driver_register(struct intel_gt *gt);
 

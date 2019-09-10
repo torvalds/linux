@@ -972,7 +972,7 @@ void intel_gt_reset(struct intel_gt *gt,
 	 * was running at the time of the reset (i.e. we weren't VT
 	 * switched away).
 	 */
-	ret = i915_gem_init_hw(gt->i915);
+	ret = intel_gt_init_hw(gt);
 	if (ret) {
 		DRM_ERROR("Failed to initialise HW following reset (%d)\n",
 			  ret);

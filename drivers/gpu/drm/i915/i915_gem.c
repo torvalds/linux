@@ -1148,95 +1148,6 @@ void i915_gem_sanitize(struct drm_i915_private *i915)
 	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 }
 
-static void init_unused_ring(struct intel_gt *gt, u32 base)
-{
-	struct intel_uncore *uncore = gt->uncore;
-
-	intel_uncore_write(uncore, RING_CTL(base), 0);
-	intel_uncore_write(uncore, RING_HEAD(base), 0);
-	intel_uncore_write(uncore, RING_TAIL(base), 0);
-	intel_uncore_write(uncore, RING_START(base), 0);
-}
-
-static void init_unused_rings(struct intel_gt *gt)
-{
-	struct drm_i915_private *i915 = gt->i915;
-
-	if (IS_I830(i915)) {
-		init_unused_ring(gt, PRB1_BASE);
-		init_unused_ring(gt, SRB0_BASE);
-		init_unused_ring(gt, SRB1_BASE);
-		init_unused_ring(gt, SRB2_BASE);
-		init_unused_ring(gt, SRB3_BASE);
-	} else if (IS_GEN(i915, 2)) {
-		init_unused_ring(gt, SRB0_BASE);
-		init_unused_ring(gt, SRB1_BASE);
-	} else if (IS_GEN(i915, 3)) {
-		init_unused_ring(gt, PRB1_BASE);
-		init_unused_ring(gt, PRB2_BASE);
-	}
-}
-
-int i915_gem_init_hw(struct drm_i915_private *i915)
-{
-	struct intel_uncore *uncore = &i915->uncore;
-	struct intel_gt *gt = &i915->gt;
-	int ret;
-
-	BUG_ON(!i915->kernel_context);
-	ret = intel_gt_terminally_wedged(gt);
-	if (ret)
-		return ret;
-
-	gt->last_init_time = ktime_get();
-
-	/* Double layer security blanket, see i915_gem_init() */
-	intel_uncore_forcewake_get(uncore, FORCEWAKE_ALL);
-
-	if (HAS_EDRAM(i915) && INTEL_GEN(i915) < 9)
-		intel_uncore_rmw(uncore, HSW_IDICR, 0, IDIHASHMSK(0xf));
-
-	if (IS_HASWELL(i915))
-		intel_uncore_write(uncore,
-				   MI_PREDICATE_RESULT_2,
-				   IS_HSW_GT3(i915) ?
-				   LOWER_SLICE_ENABLED : LOWER_SLICE_DISABLED);
-
-	/* Apply the GT workarounds... */
-	intel_gt_apply_workarounds(gt);
-	/* ...and determine whether they are sticking. */
-	intel_gt_verify_workarounds(gt, "init");
-
-	intel_gt_init_swizzling(gt);
-
-	/*
-	 * At least 830 can leave some of the unused rings
-	 * "active" (ie. head != tail) after resume which
-	 * will prevent c3 entry. Makes sure all unused rings
-	 * are totally idle.
-	 */
-	init_unused_rings(gt);
-
-	ret = i915_ppgtt_init_hw(gt);
-	if (ret) {
-		DRM_ERROR("Enabling PPGTT failed (%d)\n", ret);
-		goto out;
-	}
-
-	/* We can't enable contexts until all firmware is loaded */
-	ret = intel_uc_init_hw(&gt->uc);
-	if (ret) {
-		i915_probe_error(i915, "Enabling uc failed (%d)\n", ret);
-		goto out;
-	}
-
-	intel_mocs_init(gt);
-
-out:
-	intel_uncore_forcewake_put(uncore, FORCEWAKE_ALL);
-	return ret;
-}
-
 static int __intel_engines_record_defaults(struct drm_i915_private *i915)
 {
 	struct i915_request *requests[I915_NUM_ENGINES] = {};
@@ -1449,7 +1360,7 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 
 	intel_uc_init(&dev_priv->gt.uc);
 
-	ret = i915_gem_init_hw(dev_priv);
+	ret = intel_gt_init_hw(&dev_priv->gt);
 	if (ret)
 		goto err_uc_init;
 

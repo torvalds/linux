@@ -118,7 +118,7 @@ void mock_init_ggtt(struct drm_i915_private *i915, struct i915_ggtt *ggtt)
 
 	i915_address_space_init(&ggtt->vm, VM_CLASS_GGTT);
 
-	intel_gt_init_hw(i915);
+	intel_gt_init_hw_early(i915);
 }
 
 void mock_fini_ggtt(struct i915_ggtt *ggtt)
