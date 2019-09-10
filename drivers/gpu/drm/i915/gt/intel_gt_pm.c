@@ -13,9 +13,9 @@
 #include "intel_pm.h"
 #include "intel_wakeref.h"
 
-static void pm_notify(struct drm_i915_private *i915, int state)
+static void pm_notify(struct intel_gt *gt, int state)
 {
-	blocking_notifier_call_chain(&i915->gt.pm_notifications, state, i915);
+	blocking_notifier_call_chain(&gt->pm_notifications, state, gt->i915);
 }
 
 static int __gt_unpark(struct intel_wakeref *wf)
@@ -49,7 +49,7 @@ static int __gt_unpark(struct intel_wakeref *wf)
 
 	intel_gt_queue_hangcheck(gt);
 
-	pm_notify(i915, INTEL_GT_UNPARK);
+	pm_notify(gt, INTEL_GT_UNPARK);
 
 	return 0;
 }
@@ -62,7 +62,7 @@ static int __gt_park(struct intel_wakeref *wf)
 
 	GEM_TRACE("\n");
 
-	pm_notify(i915, INTEL_GT_PARK);
+	pm_notify(gt, INTEL_GT_PARK);
 
 	i915_pmu_gt_parked(i915);
 	if (INTEL_GEN(i915) >= 6)
