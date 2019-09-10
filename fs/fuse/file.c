@@ -705,10 +705,9 @@ static void fuse_read_update_size(struct inode *inode, loff_t size,
 	spin_unlock(&fi->lock);
 }
 
-static void fuse_short_read(struct fuse_req *req, struct inode *inode,
-			    u64 attr_ver)
+static void fuse_short_read(struct inode *inode, u64 attr_ver, size_t num_read,
+			    struct page **pages, unsigned int num_pages)
 {
-	size_t num_read = req->out.args[0].size;
 	struct fuse_conn *fc = get_fuse_conn(inode);
 
 	if (fc->writeback_cache) {
@@ -721,12 +720,12 @@ static void fuse_short_read(struct fuse_req *req, struct inode *inode,
 		int start_idx = num_read >> PAGE_SHIFT;
 		size_t off = num_read & (PAGE_SIZE - 1);
 
-		for (i = start_idx; i < req->num_pages; i++) {
-			zero_user_segment(req->pages[i], off, PAGE_SIZE);
+		for (i = start_idx; i < num_pages; i++) {
+			zero_user_segment(pages[i], off, PAGE_SIZE);
 			off = 0;
 		}
 	} else {
-		loff_t pos = page_offset(req->pages[0]) + num_read;
+		loff_t pos = page_offset(pages[0]) + num_read;
 		fuse_read_update_size(inode, pos, attr_ver);
 	}
 }
@@ -772,7 +771,8 @@ static int fuse_do_readpage(struct file *file, struct page *page)
 		 * Short read means EOF.  If file size is larger, truncate it
 		 */
 		if (num_read < count)
-			fuse_short_read(req, inode, attr_ver);
+			fuse_short_read(inode, attr_ver, num_read, req->pages,
+					req->num_pages);
 
 		SetPageUptodate(page);
 	}
@@ -815,7 +815,8 @@ static void fuse_readpages_end(struct fuse_conn *fc, struct fuse_req *req)
 		 * Short read means EOF. If file size is larger, truncate it
 		 */
 		if (!req->out.h.error && num_read < count)
-			fuse_short_read(req, inode, req->misc.read.attr_ver);
+			fuse_short_read(inode, req->misc.read.attr_ver,
+					num_read, req->pages, req->num_pages);
 
 		fuse_invalidate_atime(inode);
 	}
