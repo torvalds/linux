@@ -5,6 +5,11 @@
 #include <linux/types.h>
 #include <linux/if_vlan.h>
 #include <linux/aer.h>
+#include <linux/tcp.h>
+#include <linux/udp.h>
+#include <linux/ip.h>
+
+#include <net/ipv6.h>
 
 #include "igc.h"
 #include "igc_hw.h"
@@ -790,8 +795,96 @@ static int igc_set_mac(struct net_device *netdev, void *p)
 	return 0;
 }
 
+static void igc_tx_ctxtdesc(struct igc_ring *tx_ring,
+			    struct igc_tx_buffer *first,
+			    u32 vlan_macip_lens, u32 type_tucmd,
+			    u32 mss_l4len_idx)
+{
+	struct igc_adv_tx_context_desc *context_desc;
+	u16 i = tx_ring->next_to_use;
+	struct timespec64 ts;
+
+	context_desc = IGC_TX_CTXTDESC(tx_ring, i);
+
+	i++;
+	tx_ring->next_to_use = (i < tx_ring->count) ? i : 0;
+
+	/* set bits to identify this as an advanced context descriptor */
+	type_tucmd |= IGC_TXD_CMD_DEXT | IGC_ADVTXD_DTYP_CTXT;
+
+	/* For 82575, context index must be unique per ring. */
+	if (test_bit(IGC_RING_FLAG_TX_CTX_IDX, &tx_ring->flags))
+		mss_l4len_idx |= tx_ring->reg_idx << 4;
+
+	context_desc->vlan_macip_lens	= cpu_to_le32(vlan_macip_lens);
+	context_desc->type_tucmd_mlhl	= cpu_to_le32(type_tucmd);
+	context_desc->mss_l4len_idx	= cpu_to_le32(mss_l4len_idx);
+
+	/* We assume there is always a valid Tx time available. Invalid times
+	 * should have been handled by the upper layers.
+	 */
+	if (tx_ring->launchtime_enable) {
+		ts = ns_to_timespec64(first->skb->tstamp);
+		first->skb->tstamp = 0;
+		context_desc->launch_time = cpu_to_le32(ts.tv_nsec / 32);
+	} else {
+		context_desc->launch_time = 0;
+	}
+}
+
+static inline bool igc_ipv6_csum_is_sctp(struct sk_buff *skb)
+{
+	unsigned int offset = 0;
+
+	ipv6_find_hdr(skb, &offset, IPPROTO_SCTP, NULL, NULL);
+
+	return offset == skb_checksum_start_offset(skb);
+}
+
 static void igc_tx_csum(struct igc_ring *tx_ring, struct igc_tx_buffer *first)
 {
+	struct sk_buff *skb = first->skb;
+	u32 vlan_macip_lens = 0;
+	u32 type_tucmd = 0;
+
+	if (skb->ip_summed != CHECKSUM_PARTIAL) {
+csum_failed:
+		if (!(first->tx_flags & IGC_TX_FLAGS_VLAN) &&
+		    !tx_ring->launchtime_enable)
+			return;
+		goto no_csum;
+	}
+
+	switch (skb->csum_offset) {
+	case offsetof(struct tcphdr, check):
+		type_tucmd = IGC_ADVTXD_TUCMD_L4T_TCP;
+		/* fall through */
+	case offsetof(struct udphdr, check):
+		break;
+	case offsetof(struct sctphdr, checksum):
+		/* validate that this is actually an SCTP request */
+		if ((first->protocol == htons(ETH_P_IP) &&
+		     (ip_hdr(skb)->protocol == IPPROTO_SCTP)) ||
+		    (first->protocol == htons(ETH_P_IPV6) &&
+		     igc_ipv6_csum_is_sctp(skb))) {
+			type_tucmd = IGC_ADVTXD_TUCMD_L4T_SCTP;
+			break;
+		}
+		/* fall through */
+	default:
+		skb_checksum_help(skb);
+		goto csum_failed;
+	}
+
+	/* update TX checksum flag */
+	first->tx_flags |= IGC_TX_FLAGS_CSUM;
+	vlan_macip_lens = skb_checksum_start_offset(skb) -
+			  skb_network_offset(skb);
+no_csum:
+	vlan_macip_lens |= skb_network_offset(skb) << IGC_ADVTXD_MACLEN_SHIFT;
+	vlan_macip_lens |= first->tx_flags & IGC_TX_FLAGS_VLAN_MASK;
+
+	igc_tx_ctxtdesc(tx_ring, first, vlan_macip_lens, type_tucmd, 0);
 }
 
 static int __igc_maybe_stop_tx(struct igc_ring *tx_ring, const u16 size)
@@ -4116,6 +4209,9 @@ static int igc_probe(struct pci_dev *pdev,
 	if (err)
 		goto err_sw_init;
 
+	/* Add supported features to the features list*/
+	netdev->features |= NETIF_F_HW_CSUM;
+
 	/* setup the private structure */
 	err = igc_sw_init(adapter);
 	if (err)
@@ -4123,6 +4219,7 @@ static int igc_probe(struct pci_dev *pdev,
 
 	/* copy netdev features into list of user selectable features */
 	netdev->hw_features |= NETIF_F_NTUPLE;
+	netdev->hw_features |= netdev->features;
 
 	/* MTU range: 68 - 9216 */
 	netdev->min_mtu = ETH_MIN_MTU;
@@ -4132,6 +4229,15 @@ static int igc_probe(struct pci_dev *pdev,
 	 * known good starting state
 	 */
 	hw->mac.ops.reset_hw(hw);
+
+	if (igc_get_flash_presence_i225(hw)) {
+		if (hw->nvm.ops.validate(hw) < 0) {
+			dev_err(&pdev->dev,
+				"The NVM Checksum Is Not Valid\n");
+			err = -EIO;
+			goto err_eeprom;
+		}
+	}
 
 	if (eth_platform_get_mac_address(&pdev->dev, hw->mac.addr)) {
 		/* copy the MAC address out of the NVM */
