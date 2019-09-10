@@ -70,7 +70,7 @@ ssize_t fuse_getxattr(struct inode *inode, const char *name, void *value,
 	/* This is really two different operations rolled into one */
 	args.out_numargs = 1;
 	if (size) {
-		args.out_argvar = 1;
+		args.out_argvar = true;
 		args.out_args[0].size = size;
 		args.out_args[0].value = value;
 	} else {
@@ -129,7 +129,7 @@ ssize_t fuse_listxattr(struct dentry *entry, char *list, size_t size)
 	/* This is really two different operations rolled into one */
 	args.out_numargs = 1;
 	if (size) {
-		args.out_argvar = 1;
+		args.out_argvar = true;
 		args.out_args[0].size = size;
 		args.out_args[0].value = list;
 	} else {

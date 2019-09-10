@@ -287,12 +287,12 @@ struct fuse_page_desc {
 };
 
 struct fuse_args {
-	uint32_t opcode;
 	uint64_t nodeid;
-	unsigned int in_numargs;
+	uint32_t opcode;
+	unsigned short in_numargs;
+	unsigned short out_numargs;
+	bool out_argvar:1;
 	struct fuse_in_arg in_args[3];
-	unsigned int out_argvar:1;
-	unsigned int out_numargs;
 	struct fuse_arg out_args[2];
 };
 
