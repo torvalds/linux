@@ -672,9 +672,11 @@ static int __nvdimm_setup_pfn(struct nd_pfn *nd_pfn, struct dev_pagemap *pgmap)
 	struct nd_namespace_common *ndns = nd_pfn->ndns;
 	struct nd_namespace_io *nsio = to_nd_namespace_io(&ndns->dev);
 	resource_size_t base = nsio->res.start + start_pad;
+	resource_size_t end = nsio->res.end - end_trunc;
 	struct vmem_altmap __altmap = {
 		.base_pfn = init_altmap_base(base),
 		.reserve = init_altmap_reserve(base),
+		.end_pfn = PHYS_PFN(end),
 	};
 
 	memcpy(res, &nsio->res, sizeof(*res));
