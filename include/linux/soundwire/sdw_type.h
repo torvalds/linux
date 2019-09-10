@@ -6,13 +6,15 @@
 
 extern struct bus_type sdw_bus_type;
 
-#define drv_to_sdw_driver(_drv) container_of(_drv, struct sdw_driver, driver)
+#define drv_to_sdw_slave_driver(_drv) \
+	container_of(_drv, struct sdw_driver, driver)
 
-#define sdw_register_driver(drv) \
-	__sdw_register_driver(drv, THIS_MODULE)
+#define sdw_register_slave_driver(drv) \
+	__sdw_register_slave_driver(drv, THIS_MODULE)
 
-int __sdw_register_driver(struct sdw_driver *drv, struct module *owner);
-void sdw_unregister_driver(struct sdw_driver *drv);
+int __sdw_register_slave_driver(struct sdw_driver *drv,
+				struct module *owner);
+void sdw_unregister_slave_driver(struct sdw_driver *drv);
 
 int sdw_slave_modalias(const struct sdw_slave *slave, char *buf, size_t size);
 
@@ -24,7 +26,7 @@ int sdw_slave_modalias(const struct sdw_slave *slave, char *buf, size_t size);
  * module init/exit. This eliminates a lot of boilerplate. Each module may only
  * use this macro once, and calling it replaces module_init() and module_exit()
  */
-#define module_sdw_driver(__sdw_driver) \
-	module_driver(__sdw_driver, sdw_register_driver, \
-			sdw_unregister_driver)
+#define module_sdw_driver(__sdw_slave_driver) \
+	module_driver(__sdw_slave_driver, sdw_register_slave_driver, \
+			sdw_unregister_slave_driver)
 #endif /* __SOUNDWIRE_TYPES_H */
