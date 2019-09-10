@@ -15,6 +15,13 @@ struct intel_atomic_state;
 struct intel_cdclk_state;
 struct intel_crtc_state;
 
+struct intel_cdclk_vals {
+	u16 refclk;
+	u32 cdclk;
+	u8 divider;	/* CD2X divider * 2 */
+	u8 ratio;
+};
+
 int intel_crtc_compute_min_cdclk(const struct intel_crtc_state *crtc_state);
 void intel_cdclk_init(struct drm_i915_private *i915);
 void intel_cdclk_uninit(struct drm_i915_private *i915);

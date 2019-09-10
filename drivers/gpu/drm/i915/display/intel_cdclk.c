@@ -1161,28 +1161,88 @@ static void skl_uninit_cdclk(struct drm_i915_private *dev_priv)
 	skl_set_cdclk(dev_priv, &cdclk_state, INVALID_PIPE);
 }
 
-static int bxt_calc_cdclk(int min_cdclk)
+static const struct intel_cdclk_vals bxt_cdclk_table[] = {
+	{ .refclk = 19200, .cdclk = 144000, .divider = 8, .ratio = 60 },
+	{ .refclk = 19200, .cdclk = 288000, .divider = 4, .ratio = 60 },
+	{ .refclk = 19200, .cdclk = 384000, .divider = 3, .ratio = 60 },
+	{ .refclk = 19200, .cdclk = 576000, .divider = 2, .ratio = 60 },
+	{ .refclk = 19200, .cdclk = 624000, .divider = 2, .ratio = 65 },
+	{}
+};
+
+static const struct intel_cdclk_vals glk_cdclk_table[] = {
+	{ .refclk = 19200, .cdclk =  79200, .divider = 8, .ratio = 33 },
+	{ .refclk = 19200, .cdclk = 158400, .divider = 4, .ratio = 33 },
+	{ .refclk = 19200, .cdclk = 316800, .divider = 2, .ratio = 33 },
+	{}
+};
+
+static const struct intel_cdclk_vals cnl_cdclk_table[] = {
+	{ .refclk = 19200, .cdclk = 168000, .divider = 4, .ratio = 35 },
+	{ .refclk = 19200, .cdclk = 336000, .divider = 2, .ratio = 35 },
+	{ .refclk = 19200, .cdclk = 528000, .divider = 2, .ratio = 55 },
+
+	{ .refclk = 24000, .cdclk = 168000, .divider = 4, .ratio = 28 },
+	{ .refclk = 24000, .cdclk = 336000, .divider = 2, .ratio = 28 },
+	{ .refclk = 24000, .cdclk = 528000, .divider = 2, .ratio = 44 },
+	{}
+};
+
+static const struct intel_cdclk_vals icl_cdclk_table[] = {
+	{ .refclk = 19200, .cdclk = 172800, .divider = 2, .ratio = 18 },
+	{ .refclk = 19200, .cdclk = 192000, .divider = 2, .ratio = 20 },
+	{ .refclk = 19200, .cdclk = 307200, .divider = 2, .ratio = 32 },
+	{ .refclk = 19200, .cdclk = 326400, .divider = 4, .ratio = 68 },
+	{ .refclk = 19200, .cdclk = 556800, .divider = 2, .ratio = 58 },
+	{ .refclk = 19200, .cdclk = 652800, .divider = 2, .ratio = 68 },
+
+	{ .refclk = 24000, .cdclk = 180000, .divider = 2, .ratio = 15 },
+	{ .refclk = 24000, .cdclk = 192000, .divider = 2, .ratio = 16 },
+	{ .refclk = 24000, .cdclk = 312000, .divider = 2, .ratio = 26 },
+	{ .refclk = 24000, .cdclk = 324000, .divider = 4, .ratio = 54 },
+	{ .refclk = 24000, .cdclk = 552000, .divider = 2, .ratio = 46 },
+	{ .refclk = 24000, .cdclk = 648000, .divider = 2, .ratio = 54 },
+
+	{ .refclk = 38400, .cdclk = 172800, .divider = 2, .ratio =  9 },
+	{ .refclk = 38400, .cdclk = 192000, .divider = 2, .ratio = 10 },
+	{ .refclk = 38400, .cdclk = 307200, .divider = 2, .ratio = 16 },
+	{ .refclk = 38400, .cdclk = 326400, .divider = 4, .ratio = 34 },
+	{ .refclk = 38400, .cdclk = 556800, .divider = 2, .ratio = 29 },
+	{ .refclk = 38400, .cdclk = 652800, .divider = 2, .ratio = 34 },
+	{}
+};
+
+static int bxt_calc_cdclk(struct drm_i915_private *dev_priv, int min_cdclk)
 {
-	if (min_cdclk > 576000)
-		return 624000;
-	else if (min_cdclk > 384000)
-		return 576000;
-	else if (min_cdclk > 288000)
-		return 384000;
-	else if (min_cdclk > 144000)
-		return 288000;
-	else
-		return 144000;
+	const struct intel_cdclk_vals *table = dev_priv->cdclk.table;
+	int i;
+
+	for (i = 0; table[i].refclk; i++)
+		if (table[i].refclk == dev_priv->cdclk.hw.ref &&
+		    table[i].cdclk >= min_cdclk)
+			return table[i].cdclk;
+
+	WARN(1, "Cannot satisfy minimum cdclk %d with refclk %u\n",
+	     min_cdclk, dev_priv->cdclk.hw.ref);
+	return 0;
 }
 
-static int glk_calc_cdclk(int min_cdclk)
+static int bxt_calc_cdclk_pll_vco(struct drm_i915_private *dev_priv, int cdclk)
 {
-	if (min_cdclk > 158400)
-		return 316800;
-	else if (min_cdclk > 79200)
-		return 158400;
-	else
-		return 79200;
+	const struct intel_cdclk_vals *table = dev_priv->cdclk.table;
+	int i;
+
+	if (cdclk == dev_priv->cdclk.hw.bypass)
+		return 0;
+
+	for (i = 0; table[i].refclk; i++)
+		if (table[i].refclk == dev_priv->cdclk.hw.ref &&
+		    table[i].cdclk == cdclk)
+			return dev_priv->cdclk.hw.ref * table[i].ratio;
+
+	WARN(1, "cdclk %d not valid for refclk %u\n",
+	     cdclk, dev_priv->cdclk.hw.ref);
+	return 0;
 }
 
 static u8 bxt_calc_voltage_level(int cdclk)
@@ -1218,52 +1278,6 @@ static u8 ehl_calc_voltage_level(int cdclk)
 		return 1;
 	else
 		return 0;
-}
-
-static int bxt_de_pll_vco(struct drm_i915_private *dev_priv, int cdclk)
-{
-	int ratio;
-
-	if (cdclk == dev_priv->cdclk.hw.bypass)
-		return 0;
-
-	switch (cdclk) {
-	default:
-		MISSING_CASE(cdclk);
-		/* fall through */
-	case 144000:
-	case 288000:
-	case 384000:
-	case 576000:
-		ratio = 60;
-		break;
-	case 624000:
-		ratio = 65;
-		break;
-	}
-
-	return dev_priv->cdclk.hw.ref * ratio;
-}
-
-static int glk_de_pll_vco(struct drm_i915_private *dev_priv, int cdclk)
-{
-	int ratio;
-
-	if (cdclk == dev_priv->cdclk.hw.bypass)
-		return 0;
-
-	switch (cdclk) {
-	default:
-		MISSING_CASE(cdclk);
-		/* fall through */
-	case  79200:
-	case 158400:
-	case 316800:
-		ratio = 33;
-		break;
-	}
-
-	return dev_priv->cdclk.hw.ref * ratio;
 }
 
 static void cnl_readout_refclk(struct drm_i915_private *dev_priv,
@@ -1576,13 +1590,8 @@ static void bxt_init_cdclk(struct drm_i915_private *dev_priv)
 	 * - The initial CDCLK needs to be read from VBT.
 	 *   Need to make this change after VBT has changes for BXT.
 	 */
-	if (IS_GEMINILAKE(dev_priv)) {
-		cdclk_state.cdclk = glk_calc_cdclk(0);
-		cdclk_state.vco = glk_de_pll_vco(dev_priv, cdclk_state.cdclk);
-	} else {
-		cdclk_state.cdclk = bxt_calc_cdclk(0);
-		cdclk_state.vco = bxt_de_pll_vco(dev_priv, cdclk_state.cdclk);
-	}
+	cdclk_state.cdclk = bxt_calc_cdclk(dev_priv, 0);
+	cdclk_state.vco = bxt_calc_cdclk_pll_vco(dev_priv, cdclk_state.cdclk);
 	cdclk_state.voltage_level = bxt_calc_voltage_level(cdclk_state.cdclk);
 
 	bxt_set_cdclk(dev_priv, &cdclk_state, INVALID_PIPE);
@@ -1597,16 +1606,6 @@ static void bxt_uninit_cdclk(struct drm_i915_private *dev_priv)
 	cdclk_state.voltage_level = bxt_calc_voltage_level(cdclk_state.cdclk);
 
 	bxt_set_cdclk(dev_priv, &cdclk_state, INVALID_PIPE);
-}
-
-static int cnl_calc_cdclk(int min_cdclk)
-{
-	if (min_cdclk > 336000)
-		return 528000;
-	else if (min_cdclk > 168000)
-		return 336000;
-	else
-		return 168000;
 }
 
 static void cnl_cdclk_pll_disable(struct drm_i915_private *dev_priv)
@@ -1718,29 +1717,6 @@ static void cnl_set_cdclk(struct drm_i915_private *dev_priv,
 	dev_priv->cdclk.hw.voltage_level = cdclk_state->voltage_level;
 }
 
-static int cnl_cdclk_pll_vco(struct drm_i915_private *dev_priv, int cdclk)
-{
-	int ratio;
-
-	if (cdclk == dev_priv->cdclk.hw.bypass)
-		return 0;
-
-	switch (cdclk) {
-	default:
-		MISSING_CASE(cdclk);
-		/* fall through */
-	case 168000:
-	case 336000:
-		ratio = dev_priv->cdclk.hw.ref == 19200 ? 35 : 28;
-		break;
-	case 528000:
-		ratio = dev_priv->cdclk.hw.ref == 19200 ? 55 : 44;
-		break;
-	}
-
-	return dev_priv->cdclk.hw.ref * ratio;
-}
-
 static void cnl_sanitize_cdclk(struct drm_i915_private *dev_priv)
 {
 	u32 cdctl, expected;
@@ -1783,77 +1759,6 @@ sanitize:
 	dev_priv->cdclk.hw.vco = -1;
 }
 
-static int icl_calc_cdclk(int min_cdclk, unsigned int ref)
-{
-	static const int ranges_24[] = { 180000, 192000, 312000, 324000,
-					 552000, 648000 };
-	static const int ranges_19_38[] = { 172800, 192000, 307200, 326400,
-					    556800, 652800 };
-	const int *ranges;
-	int len, i;
-
-	switch (ref) {
-	default:
-		MISSING_CASE(ref);
-		/* fall through */
-	case 24000:
-		ranges = ranges_24;
-		len = ARRAY_SIZE(ranges_24);
-		break;
-	case 19200:
-	case 38400:
-		ranges = ranges_19_38;
-		len = ARRAY_SIZE(ranges_19_38);
-		break;
-	}
-
-	for (i = 0; i < len; i++) {
-		if (min_cdclk <= ranges[i])
-			return ranges[i];
-	}
-
-	WARN_ON(min_cdclk > ranges[len - 1]);
-	return ranges[len - 1];
-}
-
-static int icl_calc_cdclk_pll_vco(struct drm_i915_private *dev_priv, int cdclk)
-{
-	int ratio;
-
-	if (cdclk == dev_priv->cdclk.hw.bypass)
-		return 0;
-
-	switch (cdclk) {
-	default:
-		MISSING_CASE(cdclk);
-		/* fall through */
-	case 172800:
-	case 307200:
-	case 326400:
-	case 556800:
-	case 652800:
-		WARN_ON(dev_priv->cdclk.hw.ref != 19200 &&
-			dev_priv->cdclk.hw.ref != 38400);
-		break;
-	case 180000:
-	case 312000:
-	case 324000:
-	case 552000:
-	case 648000:
-		WARN_ON(dev_priv->cdclk.hw.ref != 24000);
-		break;
-	case 192000:
-		WARN_ON(dev_priv->cdclk.hw.ref != 19200 &&
-			dev_priv->cdclk.hw.ref != 38400 &&
-			dev_priv->cdclk.hw.ref != 24000);
-		break;
-	}
-
-	ratio = cdclk / (dev_priv->cdclk.hw.ref / 2);
-
-	return dev_priv->cdclk.hw.ref * ratio;
-}
-
 static void icl_init_cdclk(struct drm_i915_private *dev_priv)
 {
 	struct intel_cdclk_state sanitized_state;
@@ -1882,8 +1787,8 @@ sanitize:
 	DRM_DEBUG_KMS("Sanitizing cdclk programmed by pre-os\n");
 
 	sanitized_state.ref = dev_priv->cdclk.hw.ref;
-	sanitized_state.cdclk = icl_calc_cdclk(0, sanitized_state.ref);
-	sanitized_state.vco = icl_calc_cdclk_pll_vco(dev_priv,
+	sanitized_state.cdclk = bxt_calc_cdclk(dev_priv, 0);
+	sanitized_state.vco = bxt_calc_cdclk_pll_vco(dev_priv,
 						     sanitized_state.cdclk);
 	if (IS_ELKHARTLAKE(dev_priv))
 		sanitized_state.voltage_level =
@@ -1923,8 +1828,8 @@ static void cnl_init_cdclk(struct drm_i915_private *dev_priv)
 
 	cdclk_state = dev_priv->cdclk.hw;
 
-	cdclk_state.cdclk = cnl_calc_cdclk(0);
-	cdclk_state.vco = cnl_cdclk_pll_vco(dev_priv, cdclk_state.cdclk);
+	cdclk_state.cdclk = bxt_calc_cdclk(dev_priv, 0);
+	cdclk_state.vco = bxt_calc_cdclk_pll_vco(dev_priv, cdclk_state.cdclk);
 	cdclk_state.voltage_level = cnl_calc_voltage_level(cdclk_state.cdclk);
 
 	cnl_set_cdclk(dev_priv, &cdclk_state, INVALID_PIPE);
@@ -2426,13 +2331,8 @@ static int bxt_modeset_calc_cdclk(struct intel_atomic_state *state)
 	if (min_cdclk < 0)
 		return min_cdclk;
 
-	if (IS_GEMINILAKE(dev_priv)) {
-		cdclk = glk_calc_cdclk(min_cdclk);
-		vco = glk_de_pll_vco(dev_priv, cdclk);
-	} else {
-		cdclk = bxt_calc_cdclk(min_cdclk);
-		vco = bxt_de_pll_vco(dev_priv, cdclk);
-	}
+	cdclk = bxt_calc_cdclk(dev_priv, min_cdclk);
+	vco = bxt_calc_cdclk_pll_vco(dev_priv, cdclk);
 
 	state->cdclk.logical.vco = vco;
 	state->cdclk.logical.cdclk = cdclk;
@@ -2440,13 +2340,8 @@ static int bxt_modeset_calc_cdclk(struct intel_atomic_state *state)
 		bxt_calc_voltage_level(cdclk);
 
 	if (!state->active_pipes) {
-		if (IS_GEMINILAKE(dev_priv)) {
-			cdclk = glk_calc_cdclk(state->cdclk.force_min_cdclk);
-			vco = glk_de_pll_vco(dev_priv, cdclk);
-		} else {
-			cdclk = bxt_calc_cdclk(state->cdclk.force_min_cdclk);
-			vco = bxt_de_pll_vco(dev_priv, cdclk);
-		}
+		cdclk = bxt_calc_cdclk(dev_priv, state->cdclk.force_min_cdclk);
+		vco = bxt_calc_cdclk_pll_vco(dev_priv, cdclk);
 
 		state->cdclk.actual.vco = vco;
 		state->cdclk.actual.cdclk = cdclk;
@@ -2468,8 +2363,8 @@ static int cnl_modeset_calc_cdclk(struct intel_atomic_state *state)
 	if (min_cdclk < 0)
 		return min_cdclk;
 
-	cdclk = cnl_calc_cdclk(min_cdclk);
-	vco = cnl_cdclk_pll_vco(dev_priv, cdclk);
+	cdclk = bxt_calc_cdclk(dev_priv, min_cdclk);
+	vco = bxt_calc_cdclk_pll_vco(dev_priv, cdclk);
 
 	state->cdclk.logical.vco = vco;
 	state->cdclk.logical.cdclk = cdclk;
@@ -2478,8 +2373,8 @@ static int cnl_modeset_calc_cdclk(struct intel_atomic_state *state)
 		    cnl_compute_min_voltage_level(state));
 
 	if (!state->active_pipes) {
-		cdclk = cnl_calc_cdclk(state->cdclk.force_min_cdclk);
-		vco = cnl_cdclk_pll_vco(dev_priv, cdclk);
+		cdclk = bxt_calc_cdclk(dev_priv, state->cdclk.force_min_cdclk);
+		vco = bxt_calc_cdclk_pll_vco(dev_priv, cdclk);
 
 		state->cdclk.actual.vco = vco;
 		state->cdclk.actual.cdclk = cdclk;
@@ -2495,15 +2390,14 @@ static int cnl_modeset_calc_cdclk(struct intel_atomic_state *state)
 static int icl_modeset_calc_cdclk(struct intel_atomic_state *state)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-	unsigned int ref = state->cdclk.logical.ref;
 	int min_cdclk, cdclk, vco;
 
 	min_cdclk = intel_compute_min_cdclk(state);
 	if (min_cdclk < 0)
 		return min_cdclk;
 
-	cdclk = icl_calc_cdclk(min_cdclk, ref);
-	vco = icl_calc_cdclk_pll_vco(dev_priv, cdclk);
+	cdclk = bxt_calc_cdclk(dev_priv, min_cdclk);
+	vco = bxt_calc_cdclk_pll_vco(dev_priv, cdclk);
 
 	state->cdclk.logical.vco = vco;
 	state->cdclk.logical.cdclk = cdclk;
@@ -2517,8 +2411,8 @@ static int icl_modeset_calc_cdclk(struct intel_atomic_state *state)
 			    cnl_compute_min_voltage_level(state));
 
 	if (!state->active_pipes) {
-		cdclk = icl_calc_cdclk(state->cdclk.force_min_cdclk, ref);
-		vco = icl_calc_cdclk_pll_vco(dev_priv, cdclk);
+		cdclk = bxt_calc_cdclk(dev_priv, state->cdclk.force_min_cdclk);
+		vco = bxt_calc_cdclk_pll_vco(dev_priv, cdclk);
 
 		state->cdclk.actual.vco = vco;
 		state->cdclk.actual.cdclk = cdclk;
@@ -2754,12 +2648,15 @@ void intel_init_cdclk_hooks(struct drm_i915_private *dev_priv)
 	if (INTEL_GEN(dev_priv) >= 11) {
 		dev_priv->display.set_cdclk = cnl_set_cdclk;
 		dev_priv->display.modeset_calc_cdclk = icl_modeset_calc_cdclk;
+		dev_priv->cdclk.table = icl_cdclk_table;
 	} else if (IS_CANNONLAKE(dev_priv)) {
 		dev_priv->display.set_cdclk = cnl_set_cdclk;
 		dev_priv->display.modeset_calc_cdclk = cnl_modeset_calc_cdclk;
+		dev_priv->cdclk.table = cnl_cdclk_table;
 	} else if (IS_GEN9_LP(dev_priv)) {
 		dev_priv->display.set_cdclk = bxt_set_cdclk;
 		dev_priv->display.modeset_calc_cdclk = bxt_modeset_calc_cdclk;
+		dev_priv->cdclk.table = bxt_cdclk_table;
 	} else if (IS_GEN9_BC(dev_priv)) {
 		dev_priv->display.set_cdclk = skl_set_cdclk;
 		dev_priv->display.modeset_calc_cdclk = skl_modeset_calc_cdclk;

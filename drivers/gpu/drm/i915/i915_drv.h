@@ -1420,6 +1420,9 @@ struct drm_i915_private {
 		/* The current hardware cdclk state */
 		struct intel_cdclk_state hw;
 
+		/* cdclk, divider, and ratio table from bspec */
+		const struct intel_cdclk_vals *table;
+
 		int force_min_cdclk;
 	} cdclk;
 
