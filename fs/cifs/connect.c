@@ -2728,6 +2728,7 @@ cifs_get_tcp_session(struct smb_vol *volume_info)
 	tcp_ses->tcp_nodelay = volume_info->sockopt_tcp_nodelay;
 	tcp_ses->rdma = volume_info->rdma;
 	tcp_ses->in_flight = 0;
+	tcp_ses->max_in_flight = 0;
 	tcp_ses->credits = 1;
 	init_waitqueue_head(&tcp_ses->response_q);
 	init_waitqueue_head(&tcp_ses->request_q);

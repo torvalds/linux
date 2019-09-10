@@ -532,6 +532,8 @@ wait_for_free_credits(struct TCP_Server_Info *server, const int num_credits,
 	if ((flags & CIFS_TIMEOUT_MASK) == CIFS_NON_BLOCKING) {
 		/* oplock breaks must not be held up */
 		server->in_flight++;
+		if (server->in_flight > server->max_in_flight)
+			server->max_in_flight = server->in_flight;
 		*credits -= 1;
 		*instance = server->reconnect_instance;
 		spin_unlock(&server->req_lock);
@@ -608,6 +610,8 @@ wait_for_free_credits(struct TCP_Server_Info *server, const int num_credits,
 			if ((flags & CIFS_TIMEOUT_MASK) != CIFS_BLOCKING_OP) {
 				*credits -= num_credits;
 				server->in_flight += num_credits;
+				if (server->in_flight > server->max_in_flight)
+					server->max_in_flight = server->in_flight;
 				*instance = server->reconnect_instance;
 			}
 			spin_unlock(&server->req_lock);

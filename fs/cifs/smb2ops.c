@@ -203,6 +203,8 @@ smb2_wait_mtu_credits(struct TCP_Server_Info *server, unsigned int size,
 			credits->instance = server->reconnect_instance;
 			server->credits -= credits->value;
 			server->in_flight++;
+			if (server->in_flight > server->max_in_flight)
+				server->max_in_flight = server->in_flight;
 			break;
 		}
 	}
