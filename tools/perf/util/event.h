@@ -279,6 +279,9 @@ enum {
 
 void perf_event__print_totals(void);
 
+struct evlist;
+struct evsel;
+struct perf_session;
 struct perf_tool;
 struct perf_thread_map;
 struct perf_cpu_map;
@@ -290,6 +293,39 @@ typedef int (*perf_event__handler_t)(struct perf_tool *tool,
 				     struct perf_sample *sample,
 				     struct machine *machine);
 
+int perf_event__synthesize_attr(struct perf_tool *tool,
+				struct perf_event_attr *attr, u32 ids, u64 *id,
+				perf_event__handler_t process);
+int perf_event__synthesize_attrs(struct perf_tool *tool,
+				 struct evlist *evlist,
+				 perf_event__handler_t process);
+int perf_event__synthesize_build_id(struct perf_tool *tool,
+				    struct dso *pos, u16 misc,
+				    perf_event__handler_t process,
+				    struct machine *machine);
+int perf_event__synthesize_extra_attr(struct perf_tool *tool,
+				      struct evlist *evsel_list,
+				      perf_event__handler_t process,
+				      bool is_pipe);
+int perf_event__synthesize_event_update_cpus(struct perf_tool *tool,
+					     struct evsel *evsel,
+					     perf_event__handler_t process);
+int perf_event__synthesize_event_update_name(struct perf_tool *tool,
+					     struct evsel *evsel,
+					     perf_event__handler_t process);
+int perf_event__synthesize_event_update_scale(struct perf_tool *tool,
+					      struct evsel *evsel,
+					      perf_event__handler_t process);
+int perf_event__synthesize_event_update_unit(struct perf_tool *tool,
+					     struct evsel *evsel,
+					     perf_event__handler_t process);
+int perf_event__synthesize_features(struct perf_tool *tool,
+				    struct perf_session *session,
+				    struct evlist *evlist,
+				    perf_event__handler_t process);
+int perf_event__synthesize_tracing_data(struct perf_tool *tool,
+					int fd, struct evlist *evlist,
+					perf_event__handler_t process);
 int perf_event__synthesize_thread_map(struct perf_tool *tool,
 				      struct perf_thread_map *threads,
 				      perf_event__handler_t process,
