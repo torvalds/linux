@@ -293,6 +293,13 @@ int ion_buffer_zero(struct ion_buffer *buffer);
 struct dma_buf *ion_alloc(size_t len, unsigned int heap_id_mask,
 			  unsigned int flags);
 
+/**
+ * ion_free - Releases the ion buffer.
+ *
+ * @buffer:             ion buffer to be released
+ */
+int ion_free(struct ion_buffer *buffer);
+
 #else
 
 static inline int __ion_device_add_heap(struct ion_heap *heap,
@@ -355,6 +362,11 @@ static inline struct dma_buf *ion_alloc(size_t len, unsigned int heap_id_mask,
 					unsigned int flags)
 {
 	return ERR_PTR(-ENOMEM);
+}
+
+static inline int ion_free(struct ion_buffer *buffer)
+{
+	return 0;
 }
 
 #endif /* CONFIG_ION */

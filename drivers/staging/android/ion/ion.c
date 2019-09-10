@@ -41,6 +41,7 @@ int ion_free(struct ion_buffer *buffer)
 {
 	return ion_buffer_destroy(internal_dev, buffer);
 }
+EXPORT_SYMBOL_GPL(ion_free);
 
 static int ion_alloc_fd(size_t len, unsigned int heap_id_mask,
 			unsigned int flags)
