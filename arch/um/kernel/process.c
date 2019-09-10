@@ -220,10 +220,13 @@ static void time_travel_sleep(unsigned long long duration)
 		if (time_travel_timer_mode == TT_TMR_ONESHOT)
 			time_travel_set_timer_mode(TT_TMR_DISABLED);
 		/*
-		 * time_travel_time will be adjusted in the timer
-		 * IRQ handler so it works even when the signal
-		 * comes from the OS timer
+		 * In basic mode, time_travel_time will be adjusted in
+		 * the timer IRQ handler so it works even when the signal
+		 * comes from the OS timer, see there.
 		 */
+		if (time_travel_mode != TT_MODE_BASIC)
+			time_travel_set_time(time_travel_timer_expiry);
+
 		deliver_alarm();
 	} else {
 		time_travel_set_time(next);

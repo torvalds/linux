@@ -39,7 +39,15 @@ void timer_handler(int sig, struct siginfo *unused_si, struct uml_pt_regs *regs)
 {
 	unsigned long flags;
 
-	if (time_travel_mode != TT_MODE_OFF)
+	/*
+	 * In basic time-travel mode we still get real interrupts
+	 * (signals) but since we don't read time from the OS, we
+	 * must update the simulated time here to the expiry when
+	 * we get a signal.
+	 * This is not the case in inf-cpu mode, since there we
+	 * never get any real signals from the OS.
+	 */
+	if (time_travel_mode == TT_MODE_BASIC)
 		time_travel_set_time(time_travel_timer_expiry);
 
 	local_irq_save(flags);
