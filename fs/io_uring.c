@@ -443,6 +443,12 @@ static void __io_commit_cqring(struct io_ring_ctx *ctx)
 	}
 }
 
+static inline void io_queue_async_work(struct io_ring_ctx *ctx,
+				       struct io_kiocb *req)
+{
+	queue_work(ctx->sqo_wq, &req->work);
+}
+
 static void io_commit_cqring(struct io_ring_ctx *ctx)
 {
 	struct io_kiocb *req;
@@ -456,7 +462,7 @@ static void io_commit_cqring(struct io_ring_ctx *ctx)
 			continue;
 		}
 		req->flags |= REQ_F_IO_DRAINED;
-		queue_work(ctx->sqo_wq, &req->work);
+		io_queue_async_work(ctx, req);
 	}
 }
 
@@ -619,7 +625,7 @@ static void io_req_link_next(struct io_kiocb *req)
 
 		nxt->flags |= REQ_F_LINK_DONE;
 		INIT_WORK(&nxt->work, io_sq_wq_submit_work);
-		queue_work(req->ctx->sqo_wq, &nxt->work);
+		io_queue_async_work(req->ctx, nxt);
 	}
 }
 
@@ -1519,7 +1525,7 @@ static void io_poll_remove_one(struct io_kiocb *req)
 	WRITE_ONCE(poll->canceled, true);
 	if (!list_empty(&poll->wait.entry)) {
 		list_del_init(&poll->wait.entry);
-		queue_work(req->ctx->sqo_wq, &req->work);
+		io_queue_async_work(req->ctx, req);
 	}
 	spin_unlock(&poll->head->lock);
 
@@ -1633,7 +1639,7 @@ static int io_poll_wake(struct wait_queue_entry *wait, unsigned mode, int sync,
 		io_cqring_ev_posted(ctx);
 		io_put_req(req);
 	} else {
-		queue_work(ctx->sqo_wq, &req->work);
+		io_queue_async_work(ctx, req);
 	}
 
 	return 1;
@@ -2073,7 +2079,7 @@ static int __io_queue_sqe(struct io_ring_ctx *ctx, struct io_kiocb *req,
 				if (list)
 					atomic_inc(&list->cnt);
 				INIT_WORK(&req->work, io_sq_wq_submit_work);
-				queue_work(ctx->sqo_wq, &req->work);
+				io_queue_async_work(ctx, req);
 			}
 
 			/*
