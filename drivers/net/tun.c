@@ -801,7 +801,8 @@ static void tun_detach_all(struct net_device *dev)
 }
 
 static int tun_attach(struct tun_struct *tun, struct file *file,
-		      bool skip_filter, bool napi, bool napi_frags)
+		      bool skip_filter, bool napi, bool napi_frags,
+		      bool publish_tun)
 {
 	struct tun_file *tfile = file->private_data;
 	struct net_device *dev = tun->dev;
@@ -881,7 +882,8 @@ static int tun_attach(struct tun_struct *tun, struct file *file,
 	 * initialized tfile; otherwise we risk using half-initialized
 	 * object.
 	 */
-	rcu_assign_pointer(tfile->tun, tun);
+	if (publish_tun)
+		rcu_assign_pointer(tfile->tun, tun);
 	rcu_assign_pointer(tun->tfiles[tun->numqueues], tfile);
 	tun->numqueues++;
 	tun_set_real_num_queues(tun);
@@ -2553,7 +2555,7 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 
 		err = tun_attach(tun, file, ifr->ifr_flags & IFF_NOFILTER,
 				 ifr->ifr_flags & IFF_NAPI,
-				 ifr->ifr_flags & IFF_NAPI_FRAGS);
+				 ifr->ifr_flags & IFF_NAPI_FRAGS, true);
 		if (err < 0)
 			return err;
 
@@ -2652,13 +2654,17 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 
 		INIT_LIST_HEAD(&tun->disabled);
 		err = tun_attach(tun, file, false, ifr->ifr_flags & IFF_NAPI,
-				 ifr->ifr_flags & IFF_NAPI_FRAGS);
+				 ifr->ifr_flags & IFF_NAPI_FRAGS, false);
 		if (err < 0)
 			goto err_free_flow;
 
 		err = register_netdevice(tun->dev);
 		if (err < 0)
 			goto err_detach;
+		/* free_netdev() won't check refcnt, to aovid race
+		 * with dev_put() we need publish tun after registration.
+		 */
+		rcu_assign_pointer(tfile->tun, tun);
 	}
 
 	netif_carrier_on(tun->dev);
@@ -2802,7 +2808,7 @@ static int tun_set_queue(struct file *file, struct ifreq *ifr)
 		if (ret < 0)
 			goto unlock;
 		ret = tun_attach(tun, file, false, tun->flags & IFF_NAPI,
-				 tun->flags & IFF_NAPI_FRAGS);
+				 tun->flags & IFF_NAPI_FRAGS, true);
 	} else if (ifr->ifr_flags & IFF_DETACH_QUEUE) {
 		tun = rtnl_dereference(tfile->tun);
 		if (!tun || !(tun->flags & IFF_MULTI_QUEUE) || tfile->detached)
