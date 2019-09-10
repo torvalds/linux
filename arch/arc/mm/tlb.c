@@ -1,51 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * TLB Management (flush/create/diagnostics) for ARC700
+ * TLB Management (flush/create/diagnostics) for MMUv3 and MMUv4
  *
  * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
  *
- * vineetg: Aug 2011
- *  -Reintroduce duplicate PD fixup - some customer chips still have the issue
- *
- * vineetg: May 2011
- *  -No need to flush_cache_page( ) for each call to update_mmu_cache()
- *   some of the LMBench tests improved amazingly
- *      = page-fault thrice as fast (75 usec to 28 usec)
- *      = mmap twice as fast (9.6 msec to 4.6 msec),
- *      = fork (5.3 msec to 3.7 msec)
- *
- * vineetg: April 2011 :
- *  -MMU v3: PD{0,1} bits layout changed: They don't overlap anymore,
- *      helps avoid a shift when preparing PD0 from PTE
- *
- * vineetg: April 2011 : Preparing for MMU V3
- *  -MMU v2/v3 BCRs decoded differently
- *  -Remove TLB_SIZE hardcoding as it's variable now: 256 or 512
- *  -tlb_entry_erase( ) can be void
- *  -local_flush_tlb_range( ):
- *      = need not "ceil" @end
- *      = walks MMU only if range spans < 32 entries, as opposed to 256
- *
- * Vineetg: Sept 10th 2008
- *  -Changes related to MMU v2 (Rel 4.8)
- *
- * Vineetg: Aug 29th 2008
- *  -In TLB Flush operations (Metal Fix MMU) there is a explicit command to
- *    flush Micro-TLBS. If TLB Index Reg is invalid prior to TLBIVUTLB cmd,
- *    it fails. Thus need to load it with ANY valid value before invoking
- *    TLBIVUTLB cmd
- *
- * Vineetg: Aug 21th 2008:
- *  -Reduced the duration of IRQ lockouts in TLB Flush routines
- *  -Multiple copies of TLB erase code separated into a "single" function
- *  -In TLB Flush routines, interrupt disabling moved UP to retrieve ASID
- *       in interrupt-safe region.
- *
- * Vineetg: April 23rd Bug #93131
- *    Problem: tlb_flush_kernel_range() doesn't do anything if the range to
- *              flush is more than the size of TLB itself.
- *
- * Rahul Trivedi : Codito Technologies 2004
  */
 
 #include <linux/module.h>
@@ -56,47 +14,6 @@
 #include <asm/setup.h>
 #include <asm/mmu_context.h>
 #include <asm/mmu.h>
-
-/*			Need for ARC MMU v2
- *
- * ARC700 MMU-v1 had a Joint-TLB for Code and Data and is 2 way set-assoc.
- * For a memcpy operation with 3 players (src/dst/code) such that all 3 pages
- * map into same set, there would be contention for the 2 ways causing severe
- * Thrashing.
- *
- * Although J-TLB is 2 way set assoc, ARC700 caches J-TLB into uTLBS which has
- * much higher associativity. u-D-TLB is 8 ways, u-I-TLB is 4 ways.
- * Given this, the thrashing problem should never happen because once the 3
- * J-TLB entries are created (even though 3rd will knock out one of the prev
- * two), the u-D-TLB and u-I-TLB will have what is required to accomplish memcpy
- *
- * Yet we still see the Thrashing because a J-TLB Write cause flush of u-TLBs.
- * This is a simple design for keeping them in sync. So what do we do?
- * The solution which James came up was pretty neat. It utilised the assoc
- * of uTLBs by not invalidating always but only when absolutely necessary.
- *
- * - Existing TLB commands work as before
- * - New command (TLBWriteNI) for TLB write without clearing uTLBs
- * - New command (TLBIVUTLB) to invalidate uTLBs.
- *
- * The uTLBs need only be invalidated when pages are being removed from the
- * OS page table. If a 'victim' TLB entry is being overwritten in the main TLB
- * as a result of a miss, the removed entry is still allowed to exist in the
- * uTLBs as it is still valid and present in the OS page table. This allows the
- * full associativity of the uTLBs to hide the limited associativity of the main
- * TLB.
- *
- * During a miss handler, the new "TLBWriteNI" command is used to load
- * entries without clearing the uTLBs.
- *
- * When the OS page table is updated, TLB entries that may be associated with a
- * removed page are removed (flushed) from the TLB using TLBWrite. In this
- * circumstance, the uTLBs must also be cleared. This is done by using the
- * existing TLBWrite command. An explicit IVUTLB is also required for those
- * corner cases when TLBWrite was not executed at all because the corresp
- * J-TLB entry got evicted/replaced.
- */
-
 
 /* A copy of the ASID from the PID reg is kept in asid_cache */
 DEFINE_PER_CPU(unsigned int, asid_cache) = MM_CTXT_FIRST_CYCLE;
@@ -120,32 +37,10 @@ static inline void __tlb_entry_erase(void)
 
 static void utlb_invalidate(void)
 {
-#if (CONFIG_ARC_MMU_VER >= 2)
-
-#if (CONFIG_ARC_MMU_VER == 2)
-	/* MMU v2 introduced the uTLB Flush command.
-	 * There was however an obscure hardware bug, where uTLB flush would
-	 * fail when a prior probe for J-TLB (both totally unrelated) would
-	 * return lkup err - because the entry didn't exist in MMU.
-	 * The Workaround was to set Index reg with some valid value, prior to
-	 * flush. This was fixed in MMU v3
-	 */
-	unsigned int idx;
-
-	/* make sure INDEX Reg is valid */
-	idx = read_aux_reg(ARC_REG_TLBINDEX);
-
-	/* If not write some dummy val */
-	if (unlikely(idx & TLB_LKUP_ERR))
-		write_aux_reg(ARC_REG_TLBINDEX, 0xa);
-#endif
-
 	write_aux_reg(ARC_REG_TLBCOMMAND, TLBIVUTLB);
-#endif
-
 }
 
-#if (CONFIG_ARC_MMU_VER < 4)
+#ifdef CONFIG_ARC_MMU_V3
 
 static inline unsigned int tlb_entry_lkup(unsigned long vaddr_n_asid)
 {
@@ -206,7 +101,7 @@ static void tlb_entry_insert(unsigned int pd0, pte_t pd1)
 	write_aux_reg(ARC_REG_TLBCOMMAND, TLBWrite);
 }
 
-#else	/* CONFIG_ARC_MMU_VER >= 4) */
+#else	/* MMUv4 */
 
 static void tlb_entry_erase(unsigned int vaddr_n_asid)
 {
@@ -706,14 +601,6 @@ void read_decode_mmu_bcr(void)
 {
 	struct cpuinfo_arc_mmu *mmu = &cpuinfo_arc700[smp_processor_id()].mmu;
 	unsigned int tmp;
-	struct bcr_mmu_1_2 {
-#ifdef CONFIG_CPU_BIG_ENDIAN
-		unsigned int ver:8, ways:4, sets:4, u_itlb:8, u_dtlb:8;
-#else
-		unsigned int u_dtlb:8, u_itlb:8, sets:4, ways:4, ver:8;
-#endif
-	} *mmu2;
-
 	struct bcr_mmu_3 {
 #ifdef CONFIG_CPU_BIG_ENDIAN
 	unsigned int ver:8, ways:4, sets:4, res:3, sasid:1, pg_sz:4,
@@ -738,23 +625,14 @@ void read_decode_mmu_bcr(void)
 	tmp = read_aux_reg(ARC_REG_MMU_BCR);
 	mmu->ver = (tmp >> 24);
 
-	if (is_isa_arcompact()) {
-		if (mmu->ver <= 2) {
-			mmu2 = (struct bcr_mmu_1_2 *)&tmp;
-			mmu->pg_sz_k = TO_KB(0x2000);
-			mmu->sets = 1 << mmu2->sets;
-			mmu->ways = 1 << mmu2->ways;
-			mmu->u_dtlb = mmu2->u_dtlb;
-			mmu->u_itlb = mmu2->u_itlb;
-		} else {
-			mmu3 = (struct bcr_mmu_3 *)&tmp;
-			mmu->pg_sz_k = 1 << (mmu3->pg_sz - 1);
-			mmu->sets = 1 << mmu3->sets;
-			mmu->ways = 1 << mmu3->ways;
-			mmu->u_dtlb = mmu3->u_dtlb;
-			mmu->u_itlb = mmu3->u_itlb;
-			mmu->sasid = mmu3->sasid;
-		}
+	if (is_isa_arcompact() && mmu->ver == 3) {
+		mmu3 = (struct bcr_mmu_3 *)&tmp;
+		mmu->pg_sz_k = 1 << (mmu3->pg_sz - 1);
+		mmu->sets = 1 << mmu3->sets;
+		mmu->ways = 1 << mmu3->ways;
+		mmu->u_dtlb = mmu3->u_dtlb;
+		mmu->u_itlb = mmu3->u_itlb;
+		mmu->sasid = mmu3->sasid;
 	} else {
 		mmu4 = (struct bcr_mmu_4 *)&tmp;
 		mmu->pg_sz_k = 1 << (mmu4->sz0 - 1);
@@ -815,22 +693,17 @@ void arc_mmu_init(void)
 
 	/*
 	 * Ensure that MMU features assumed by kernel exist in hardware.
-	 * For older ARC700 cpus, it has to be exact match, since the MMU
-	 * revisions were not backwards compatible (MMUv3 TLB layout changed
-	 * so even if kernel for v2 didn't use any new cmds of v3, it would
-	 * still not work.
-	 * For HS cpus, MMUv4 was baseline and v5 is backwards compatible
-	 * (will run older software).
+	 *  - For older ARC700 cpus, only v3 supported
+	 *  - For HS cpus, v4 was baseline and v5 is backwards compatible
+	 *    (will run older software).
 	 */
-	if (is_isa_arcompact() && mmu->ver == CONFIG_ARC_MMU_VER)
+	if (is_isa_arcompact() && mmu->ver == 3)
 		compat = 1;
-	else if (is_isa_arcv2() && mmu->ver >= CONFIG_ARC_MMU_VER)
+	else if (is_isa_arcv2() && mmu->ver >= 4)
 		compat = 1;
 
-	if (!compat) {
-		panic("MMU ver %d doesn't match kernel built for %d...\n",
-		      mmu->ver, CONFIG_ARC_MMU_VER);
-	}
+	if (!compat)
+		panic("MMU ver %d doesn't match kernel built for\n", mmu->ver);
 
 	if (mmu->pg_sz_k != TO_KB(PAGE_SIZE))
 		panic("MMU pg size != PAGE_SIZE (%luk)\n", TO_KB(PAGE_SIZE));

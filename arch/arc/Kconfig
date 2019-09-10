@@ -265,31 +265,16 @@ config ARC_DCCM_BASE
 
 choice
 	prompt "MMU Version"
-	default ARC_MMU_V3 if ARC_CPU_770
-	default ARC_MMU_V4 if ARC_CPU_HS
-
-if ISA_ARCOMPACT
-
-config ARC_MMU_V1
-	bool "MMU v1"
-	help
-	  Orig ARC700 MMU
-
-config ARC_MMU_V2
-	bool "MMU v2"
-	help
-	  Fixed the deficiency of v1 - possible thrashing in memcpy scenario
-	  when 2 D-TLB and 1 I-TLB entries index into same 2way set.
+	default ARC_MMU_V3 if ISA_ARCOMPACT
+	default ARC_MMU_V4 if ISA_ARCV2
 
 config ARC_MMU_V3
 	bool "MMU v3"
-	depends on ARC_CPU_770
+	depends on ISA_ARCOMPACT
 	help
 	  Introduced with ARC700 4.10: New Features
 	  Variable Page size (1k-16k), var JTLB size 128 x (2 or 4)
 	  Shared Address Spaces (SASID)
-
-endif
 
 config ARC_MMU_V4
 	bool "MMU v4"
@@ -309,7 +294,6 @@ config ARC_PAGE_SIZE_8K
 
 config ARC_PAGE_SIZE_16K
 	bool "16KB"
-	depends on ARC_MMU_V3 || ARC_MMU_V4
 
 config ARC_PAGE_SIZE_4K
 	bool "4KB"

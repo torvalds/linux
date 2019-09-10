@@ -39,7 +39,6 @@
 #include <asm/arcregs.h>
 #include <asm/cache.h>
 #include <asm/processor.h>
-#include <asm/tlb-mmu1.h>
 
 #ifdef CONFIG_ISA_ARCOMPACT
 ;-----------------------------------------------------------------
@@ -279,7 +278,7 @@ ex_saved_reg1:
 ; Commit the TLB entry into MMU
 
 .macro COMMIT_ENTRY_TO_MMU
-#if (CONFIG_ARC_MMU_VER < 4)
+#ifdef CONFIG_ARC_MMU_V3
 
 	/* Get free TLB slot: Set = computed from vaddr, way = random */
 	sr  TLBGetIndex, [ARC_REG_TLBCOMMAND]
@@ -374,13 +373,6 @@ ENTRY(EV_TLBMissD)
 	st_s    r0, [r1]                      ; Write back PTE
 
 	CONV_PTE_TO_TLB
-
-#if (CONFIG_ARC_MMU_VER == 1)
-	; MMU with 2 way set assoc J-TLB, needs some help in pathetic case of
-	; memcpy where 3 parties contend for 2 ways, ensuing a livelock.
-	; But only for old MMU or one with Metal Fix
-	TLB_WRITE_HEURISTICS
-#endif
 
 	COMMIT_ENTRY_TO_MMU
 	TLBMISS_RESTORE_REGS

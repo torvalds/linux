@@ -10,19 +10,10 @@
 #include <linux/threads.h>	/* NR_CPUS */
 #endif
 
-#if defined(CONFIG_ARC_MMU_V1)
-#define CONFIG_ARC_MMU_VER 1
-#elif defined(CONFIG_ARC_MMU_V2)
-#define CONFIG_ARC_MMU_VER 2
-#elif defined(CONFIG_ARC_MMU_V3)
-#define CONFIG_ARC_MMU_VER 3
-#elif defined(CONFIG_ARC_MMU_V4)
-#define CONFIG_ARC_MMU_VER 4
-#endif
-
 /* MMU Management regs */
 #define ARC_REG_MMU_BCR		0x06f
-#if (CONFIG_ARC_MMU_VER < 4)
+
+#ifdef CONFIG_ARC_MMU_V3
 #define ARC_REG_TLBPD0		0x405
 #define ARC_REG_TLBPD1		0x406
 #define ARC_REG_TLBPD1HI	0	/* Dummy: allows code sharing with ARC700 */
@@ -52,7 +43,7 @@
 /* Error code if probe fails */
 #define TLB_LKUP_ERR		0x80000000
 
-#if (CONFIG_ARC_MMU_VER < 4)
+#ifdef CONFIG_ARC_MMU_V3
 #define TLB_DUP_ERR	(TLB_LKUP_ERR | 0x00000001)
 #else
 #define TLB_DUP_ERR	(TLB_LKUP_ERR | 0x40000000)
@@ -63,15 +54,10 @@
 #define TLBRead     0x2
 #define TLBGetIndex 0x3
 #define TLBProbe    0x4
-
-#if (CONFIG_ARC_MMU_VER >= 2)
 #define TLBWriteNI  0x5		/* write JTLB without inv uTLBs */
 #define TLBIVUTLB   0x6		/* explicitly inv uTLBs */
-#else
-#define TLBWriteNI  TLBWrite	/* Not present in hardware, fallback */
-#endif
 
-#if (CONFIG_ARC_MMU_VER >= 4)
+#ifdef CONFIG_ARC_MMU_V4
 #define TLBInsertEntry	0x7
 #define TLBDeleteEntry	0x8
 #endif
