@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <traceevent/event-parse.h>
 #include "evsel.h"
+#include "util/event.h"
 #include "callchain.h"
 #include "map.h"
 #include "strlist.h"

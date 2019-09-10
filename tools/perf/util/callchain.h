@@ -4,12 +4,15 @@
 
 #include <linux/list.h>
 #include <linux/rbtree.h>
-#include "event.h"
 #include "map_symbol.h"
 #include "branch.h"
 
+struct addr_location;
 struct evsel;
+struct ip_callchain;
 struct map;
+struct perf_sample;
+struct thread;
 
 #define HELP_PAD "\t\t\t\t"
 
