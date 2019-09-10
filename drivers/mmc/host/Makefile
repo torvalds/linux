@@ -21,6 +21,7 @@ obj-$(CONFIG_MMC_SDHCI_PXAV2)	+= sdhci-pxav2.o
 obj-$(CONFIG_MMC_SDHCI_S3C)	+= sdhci-s3c.o
 obj-$(CONFIG_MMC_SDHCI_SIRF)   	+= sdhci-sirf.o
 obj-$(CONFIG_MMC_SDHCI_F_SDH30)	+= sdhci_f_sdh30.o
+obj-$(CONFIG_MMC_SDHCI_MILBEAUT)	+= sdhci-milbeaut.o
 obj-$(CONFIG_MMC_SDHCI_SPEAR)	+= sdhci-spear.o
 obj-$(CONFIG_MMC_SDHCI_AM654)	+= sdhci_am654.o
 obj-$(CONFIG_MMC_WBSD)		+= wbsd.o
