@@ -728,21 +728,19 @@ static void wil_get_netif_rx_params(struct sk_buff *skb, int *cid,
  * Pass Rx packet to the netif. Update statistics.
  * Called in softirq context (NAPI poll).
  */
-void wil_netif_rx_any(struct sk_buff *skb, struct net_device *ndev)
+void wil_netif_rx(struct sk_buff *skb, struct net_device *ndev, int cid,
+		  struct wil_net_stats *stats, bool gro)
 {
 	gro_result_t rc = GRO_NORMAL;
 	struct wil6210_vif *vif = ndev_to_vif(ndev);
 	struct wil6210_priv *wil = ndev_to_wil(ndev);
 	struct wireless_dev *wdev = vif_to_wdev(vif);
 	unsigned int len = skb->len;
-	int cid;
-	int security;
 	u8 *sa, *da = wil_skb_get_da(skb);
 	/* here looking for DA, not A1, thus Rxdesc's 'mcast' indication
 	 * is not suitable, need to look at data
 	 */
 	int mcast = is_multicast_ether_addr(da);
-	struct wil_net_stats *stats;
 	struct sk_buff *xmit_skb = NULL;
 	static const char * const gro_res_str[] = {
 		[GRO_MERGED]		= "GRO_MERGED",
@@ -752,25 +750,6 @@ void wil_netif_rx_any(struct sk_buff *skb, struct net_device *ndev)
 		[GRO_DROP]		= "GRO_DROP",
 		[GRO_CONSUMED]		= "GRO_CONSUMED",
 	};
-
-	wil->txrx_ops.get_netif_rx_params(skb, &cid, &security);
-
-	stats = &wil->sta[cid].stats;
-
-	skb_orphan(skb);
-
-	if (security && (wil->txrx_ops.rx_crypto_check(wil, skb) != 0)) {
-		rc = GRO_DROP;
-		dev_kfree_skb(skb);
-		stats->rx_replay++;
-		goto stats;
-	}
-
-	/* check errors reported by HW and update statistics */
-	if (unlikely(wil->txrx_ops.rx_error_check(wil, skb, stats))) {
-		dev_kfree_skb(skb);
-		return;
-	}
 
 	if (wdev->iftype == NL80211_IFTYPE_STATION) {
 		sa = wil_skb_get_sa(skb);
@@ -817,7 +796,10 @@ void wil_netif_rx_any(struct sk_buff *skb, struct net_device *ndev)
 	if (skb) { /* deliver to local stack */
 		skb->protocol = eth_type_trans(skb, ndev);
 		skb->dev = ndev;
-		rc = napi_gro_receive(&wil->napi_rx, skb);
+		if (gro)
+			rc = napi_gro_receive(&wil->napi_rx, skb);
+		else
+			netif_rx_ni(skb);
 		wil_dbg_txrx(wil, "Rx complete %d bytes => %s\n",
 			     len, gro_res_str[rc]);
 	}
@@ -835,6 +817,36 @@ stats:
 		if (mcast)
 			ndev->stats.multicast++;
 	}
+}
+
+void wil_netif_rx_any(struct sk_buff *skb, struct net_device *ndev)
+{
+	int cid, security;
+	struct wil6210_priv *wil = ndev_to_wil(ndev);
+	struct wil_net_stats *stats;
+
+	wil->txrx_ops.get_netif_rx_params(skb, &cid, &security);
+
+	stats = &wil->sta[cid].stats;
+
+	skb_orphan(skb);
+
+	if (security && (wil->txrx_ops.rx_crypto_check(wil, skb) != 0)) {
+		dev_kfree_skb(skb);
+		ndev->stats.rx_dropped++;
+		stats->rx_replay++;
+		stats->rx_dropped++;
+		wil_dbg_txrx(wil, "Rx drop %d bytes\n", skb->len);
+		return;
+	}
+
+	/* check errors reported by HW and update statistics */
+	if (unlikely(wil->txrx_ops.rx_error_check(wil, skb, stats))) {
+		dev_kfree_skb(skb);
+		return;
+	}
+
+	wil_netif_rx(skb, ndev, cid, stats, true);
 }
 
 /**

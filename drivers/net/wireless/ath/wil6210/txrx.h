@@ -646,6 +646,8 @@ static inline void wil_skb_set_cid(struct sk_buff *skb, u8 cid)
 }
 
 void wil_netif_rx_any(struct sk_buff *skb, struct net_device *ndev);
+void wil_netif_rx(struct sk_buff *skb, struct net_device *ndev, int cid,
+		  struct wil_net_stats *stats, bool gro);
 void wil_rx_reorder(struct wil6210_priv *wil, struct sk_buff *skb);
 void wil_rx_bar(struct wil6210_priv *wil, struct wil6210_vif *vif,
 		u8 cid, u8 tid, u16 seq);
