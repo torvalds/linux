@@ -874,11 +874,19 @@ static void process_init_limits(struct fuse_conn *fc, struct fuse_init_out *arg)
 	spin_unlock(&fc->bg_lock);
 }
 
-static void process_init_reply(struct fuse_conn *fc, struct fuse_req *req)
-{
-	struct fuse_init_out *arg = &req->misc.init_out;
+struct fuse_init_args {
+	struct fuse_args args;
+	struct fuse_init_in in;
+	struct fuse_init_out out;
+};
 
-	if (req->out.h.error || arg->major != FUSE_KERNEL_VERSION)
+static void process_init_reply(struct fuse_conn *fc, struct fuse_args *args,
+			       int error)
+{
+	struct fuse_init_args *ia = container_of(args, typeof(*ia), args);
+	struct fuse_init_out *arg = &ia->out;
+
+	if (error || arg->major != FUSE_KERNEL_VERSION)
 		fc->conn_error = 1;
 	else {
 		unsigned long ra_pages;
@@ -955,18 +963,23 @@ static void process_init_reply(struct fuse_conn *fc, struct fuse_req *req)
 		fc->max_write = max_t(unsigned, 4096, fc->max_write);
 		fc->conn_init = 1;
 	}
+	kfree(ia);
+
 	fuse_set_initialized(fc);
 	wake_up_all(&fc->blocked_waitq);
 }
 
-static void fuse_send_init(struct fuse_conn *fc, struct fuse_req *req)
+static void fuse_send_init(struct fuse_conn *fc)
 {
-	struct fuse_init_in *arg = &req->misc.init_in;
+	struct fuse_init_args *ia;
 
-	arg->major = FUSE_KERNEL_VERSION;
-	arg->minor = FUSE_KERNEL_MINOR_VERSION;
-	arg->max_readahead = fc->sb->s_bdi->ra_pages * PAGE_SIZE;
-	arg->flags |= FUSE_ASYNC_READ | FUSE_POSIX_LOCKS | FUSE_ATOMIC_O_TRUNC |
+	ia = kzalloc(sizeof(*ia), GFP_KERNEL | __GFP_NOFAIL);
+
+	ia->in.major = FUSE_KERNEL_VERSION;
+	ia->in.minor = FUSE_KERNEL_MINOR_VERSION;
+	ia->in.max_readahead = fc->sb->s_bdi->ra_pages * PAGE_SIZE;
+	ia->in.flags |=
+		FUSE_ASYNC_READ | FUSE_POSIX_LOCKS | FUSE_ATOMIC_O_TRUNC |
 		FUSE_EXPORT_SUPPORT | FUSE_BIG_WRITES | FUSE_DONT_MASK |
 		FUSE_SPLICE_WRITE | FUSE_SPLICE_MOVE | FUSE_SPLICE_READ |
 		FUSE_FLOCK_LOCKS | FUSE_HAS_IOCTL_DIR | FUSE_AUTO_INVAL_DATA |
@@ -975,19 +988,23 @@ static void fuse_send_init(struct fuse_conn *fc, struct fuse_req *req)
 		FUSE_PARALLEL_DIROPS | FUSE_HANDLE_KILLPRIV | FUSE_POSIX_ACL |
 		FUSE_ABORT_ERROR | FUSE_MAX_PAGES | FUSE_CACHE_SYMLINKS |
 		FUSE_NO_OPENDIR_SUPPORT | FUSE_EXPLICIT_INVAL_DATA;
-	req->in.h.opcode = FUSE_INIT;
-	req->in.numargs = 1;
-	req->in.args[0].size = sizeof(*arg);
-	req->in.args[0].value = arg;
-	req->out.numargs = 1;
+	ia->args.opcode = FUSE_INIT;
+	ia->args.in_numargs = 1;
+	ia->args.in_args[0].size = sizeof(ia->in);
+	ia->args.in_args[0].value = &ia->in;
+	ia->args.out_numargs = 1;
 	/* Variable length argument used for backward compatibility
 	   with interface version < 7.5.  Rest of init_out is zeroed
 	   by do_get_request(), so a short reply is not a problem */
-	req->out.argvar = 1;
-	req->out.args[0].size = sizeof(struct fuse_init_out);
-	req->out.args[0].value = &req->misc.init_out;
-	req->end = process_init_reply;
-	fuse_request_send_background(fc, req);
+	ia->args.out_argvar = 1;
+	ia->args.out_args[0].size = sizeof(ia->out);
+	ia->args.out_args[0].value = &ia->out;
+	ia->args.force = true;
+	ia->args.nocreds = true;
+	ia->args.end = process_init_reply;
+
+	if (fuse_simple_background(fc, &ia->args, GFP_KERNEL) != 0)
+		process_init_reply(fc, &ia->args, -ENOTCONN);
 }
 
 static void fuse_free_conn(struct fuse_conn *fc)
@@ -1087,7 +1104,6 @@ static int fuse_fill_super(struct super_block *sb, struct fs_context *fsc)
 	struct inode *root;
 	struct file *file;
 	struct dentry *root_dentry;
-	struct fuse_req *init_req;
 	int err;
 	int is_bdev = sb->s_bdev != NULL;
 
@@ -1182,11 +1198,6 @@ static int fuse_fill_super(struct super_block *sb, struct fs_context *fsc)
 	/* Root dentry doesn't have .d_revalidate */
 	sb->s_d_op = &fuse_dentry_operations;
 
-	init_req = fuse_request_alloc(0);
-	if (!init_req)
-		goto err_put_root;
-	__set_bit(FR_BACKGROUND, &init_req->flags);
-
 	mutex_lock(&fuse_mutex);
 	err = -EINVAL;
 	if (file->private_data)
@@ -1207,14 +1218,12 @@ static int fuse_fill_super(struct super_block *sb, struct fs_context *fsc)
 	 */
 	fput(file);
 
-	fuse_send_init(fc, init_req);
+	fuse_send_init(fc);
 
 	return 0;
 
  err_unlock:
 	mutex_unlock(&fuse_mutex);
-	fuse_request_free(init_req);
- err_put_root:
 	dput(root_dentry);
  err_dev_free:
 	fuse_dev_free(fud);
