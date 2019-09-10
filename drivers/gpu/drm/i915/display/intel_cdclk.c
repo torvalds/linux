@@ -1598,6 +1598,7 @@ static void bxt_set_cdclk(struct drm_i915_private *dev_priv,
 static void bxt_sanitize_cdclk(struct drm_i915_private *dev_priv)
 {
 	u32 cdctl, expected;
+	int cdclk, vco;
 
 	intel_update_cdclk(dev_priv);
 	intel_dump_cdclk_state(&dev_priv->cdclk.hw, "Current CDCLK");
@@ -1620,8 +1621,37 @@ static void bxt_sanitize_cdclk(struct drm_i915_private *dev_priv)
 	 */
 	cdctl &= ~BXT_CDCLK_CD2X_PIPE_NONE;
 
-	expected = (cdctl & BXT_CDCLK_CD2X_DIV_SEL_MASK) |
-		skl_cdclk_decimal(dev_priv->cdclk.hw.cdclk);
+	/* Make sure this is a legal cdclk value for the platform */
+	cdclk = bxt_calc_cdclk(dev_priv, dev_priv->cdclk.hw.cdclk);
+	if (cdclk != dev_priv->cdclk.hw.cdclk)
+		goto sanitize;
+
+	/* Make sure the VCO is correct for the cdclk */
+	vco = bxt_calc_cdclk_pll_vco(dev_priv, cdclk);
+	if (vco != dev_priv->cdclk.hw.vco)
+		goto sanitize;
+
+	expected = skl_cdclk_decimal(cdclk);
+
+	/* Figure out what CD2X divider we should be using for this cdclk */
+	switch (DIV_ROUND_CLOSEST(dev_priv->cdclk.hw.vco,
+				  dev_priv->cdclk.hw.cdclk)) {
+	case 2:
+		expected |= BXT_CDCLK_CD2X_DIV_SEL_1;
+		break;
+	case 3:
+		expected |= BXT_CDCLK_CD2X_DIV_SEL_1_5;
+		break;
+	case 4:
+		expected |= BXT_CDCLK_CD2X_DIV_SEL_2;
+		break;
+	case 8:
+		expected |= BXT_CDCLK_CD2X_DIV_SEL_4;
+		break;
+	default:
+		goto sanitize;
+	}
+
 	/*
 	 * Disable SSA Precharge when CD clock frequency < 500 MHz,
 	 * enable otherwise.
