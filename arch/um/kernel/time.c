@@ -65,6 +65,7 @@ static int itimer_set_periodic(struct clock_event_device *evt)
 	if (time_travel_mode != TT_MODE_OFF) {
 		time_travel_set_timer_mode(TT_TMR_PERIODIC);
 		time_travel_set_timer_expiry(time_travel_time + interval);
+		time_travel_set_timer_interval(interval);
 	}
 
 	if (time_travel_mode != TT_MODE_INFCPU)
