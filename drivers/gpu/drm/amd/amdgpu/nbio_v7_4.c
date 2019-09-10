@@ -308,13 +308,7 @@ static void nbio_v7_4_detect_hw_virt(struct amdgpu_device *adev)
 
 static void nbio_v7_4_init_registers(struct amdgpu_device *adev)
 {
-	uint32_t def, data;
 
-	def = data = RREG32_PCIE(smnPCIE_CI_CNTL);
-	data = REG_SET_FIELD(data, PCIE_CI_CNTL, CI_SLV_ORDERING_DIS, 1);
-
-	if (def != data)
-		WREG32_PCIE(smnPCIE_CI_CNTL, data);
 }
 
 static void nbio_v7_4_handle_ras_controller_intr_no_bifring(struct amdgpu_device *adev)
