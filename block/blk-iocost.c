@@ -1957,15 +1957,15 @@ static void ioc_pd_free(struct blkg_policy_data *pd)
 	struct ioc *ioc = iocg->ioc;
 
 	if (ioc) {
-		hrtimer_cancel(&iocg->waitq_timer);
-		hrtimer_cancel(&iocg->delay_timer);
-
 		spin_lock(&ioc->lock);
 		if (!list_empty(&iocg->active_list)) {
 			propagate_active_weight(iocg, 0, 0);
 			list_del_init(&iocg->active_list);
 		}
 		spin_unlock(&ioc->lock);
+
+		hrtimer_cancel(&iocg->waitq_timer);
+		hrtimer_cancel(&iocg->delay_timer);
 	}
 	kfree(iocg);
 }
