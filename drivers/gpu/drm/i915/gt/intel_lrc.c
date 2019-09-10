@@ -2368,6 +2368,17 @@ static struct i915_request *active_request(struct i915_request *rq)
 	return active;
 }
 
+static void __execlists_reset_reg_state(const struct intel_context *ce,
+					const struct intel_engine_cs *engine)
+{
+	u32 *regs = ce->lrc_reg_state;
+
+	if (INTEL_GEN(engine->i915) >= 9) {
+		regs[GEN9_CTX_RING_MI_MODE + 1] &= ~STOP_RING;
+		regs[GEN9_CTX_RING_MI_MODE + 1] |= STOP_RING << 16;
+	}
+}
+
 static void __execlists_reset(struct intel_engine_cs *engine, bool stalled)
 {
 	struct intel_engine_execlists * const execlists = &engine->execlists;
@@ -2455,6 +2466,7 @@ out_replay:
 	GEM_TRACE("%s replay {head:%04x, tail:%04x\n",
 		  engine->name, ce->ring->head, ce->ring->tail);
 	intel_ring_update_space(ce->ring);
+	__execlists_reset_reg_state(ce, engine);
 	__execlists_update_reg_state(ce, engine);
 	mutex_release(&ce->pin_mutex.dep_map, 0, _THIS_IP_);
 

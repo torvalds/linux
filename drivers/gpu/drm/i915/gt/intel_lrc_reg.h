@@ -39,6 +39,8 @@
 #define CTX_R_PWR_CLK_STATE		0x42
 #define CTX_END				0x44
 
+#define GEN9_CTX_RING_MI_MODE		0x54
+
 /* GEN12+ Reg State Context */
 #define GEN12_CTX_BB_PER_CTX_PTR		0x12
 #define GEN12_CTX_LRI_HEADER_3			0x41
