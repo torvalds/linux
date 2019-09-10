@@ -169,7 +169,9 @@ extern int amdgpu_discovery;
 extern int amdgpu_mes;
 extern int amdgpu_noretry;
 extern int amdgpu_force_asic_type;
+#ifdef CONFIG_HSA_AMD
 extern int sched_policy;
+#endif
 
 #ifdef CONFIG_DRM_AMDGPU_SI
 extern int amdgpu_si_support;
