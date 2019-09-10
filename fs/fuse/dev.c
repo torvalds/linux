@@ -626,6 +626,51 @@ bool fuse_request_queue_background(struct fuse_conn *fc, struct fuse_req *req)
 	return queued;
 }
 
+static void fuse_simple_end(struct fuse_conn *fc, struct fuse_req *req)
+{
+	struct fuse_args *args = req->args;
+	int err = req->out.h.error;
+
+	if (!err && args->out_argvar) {
+		BUG_ON(args->out_numargs == 0);
+		args->out_args[args->out_numargs - 1].size =
+			req->out.args[args->out_numargs - 1].size;
+	}
+	req->args->end(fc, req->args, req->out.h.error);
+}
+
+int fuse_simple_background(struct fuse_conn *fc, struct fuse_args *args,
+			    gfp_t gfp_flags)
+{
+	struct fuse_req *req;
+
+	if (args->force) {
+		WARN_ON(!args->nocreds);
+		req = __fuse_request_alloc(0, gfp_flags);
+		if (!req)
+			return -ENOMEM;
+		__set_bit(FR_BACKGROUND, &req->flags);
+	} else {
+		WARN_ON(args->nocreds);
+		req = __fuse_get_req(fc, 0, true);
+		if (IS_ERR(req))
+			return PTR_ERR(req);
+	}
+
+	fuse_args_to_req(req, args);
+
+	req->args = args;
+	req->end = fuse_simple_end;
+
+	if (!fuse_request_queue_background(fc, req)) {
+		fuse_put_request(fc, req);
+		return -ENOTCONN;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(fuse_simple_background);
+
 void fuse_request_send_background(struct fuse_conn *fc, struct fuse_req *req)
 {
 	WARN_ON(!req->end);
