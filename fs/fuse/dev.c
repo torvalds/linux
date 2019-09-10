@@ -40,59 +40,26 @@ static struct fuse_dev *fuse_get_dev(struct file *file)
 	return READ_ONCE(file->private_data);
 }
 
-static void fuse_request_init(struct fuse_req *req, struct page **pages,
-			      struct fuse_page_desc *page_descs,
-			      unsigned npages)
+static void fuse_request_init(struct fuse_req *req)
 {
 	INIT_LIST_HEAD(&req->list);
 	INIT_LIST_HEAD(&req->intr_entry);
 	init_waitqueue_head(&req->waitq);
 	refcount_set(&req->count, 1);
-	req->pages = pages;
-	req->page_descs = page_descs;
-	req->max_pages = npages;
 	__set_bit(FR_PENDING, &req->flags);
 }
 
-static struct fuse_req *__fuse_request_alloc(unsigned npages, gfp_t flags)
+static struct fuse_req *fuse_request_alloc(gfp_t flags)
 {
 	struct fuse_req *req = kmem_cache_zalloc(fuse_req_cachep, flags);
-	if (req) {
-		struct page **pages = NULL;
-		struct fuse_page_desc *page_descs = NULL;
+	if (req)
+		fuse_request_init(req);
 
-		WARN_ON(npages > FUSE_MAX_MAX_PAGES);
-		if (npages > FUSE_REQ_INLINE_PAGES) {
-			pages = fuse_pages_alloc(npages, flags, &page_descs);
-			if (!pages) {
-				kmem_cache_free(fuse_req_cachep, req);
-				return NULL;
-			}
-			__set_bit(FR_ALLOC_PAGES, &req->flags);
-		} else if (npages) {
-			pages = req->inline_pages;
-			page_descs = req->inline_page_descs;
-		}
-
-		fuse_request_init(req, pages, page_descs, npages);
-	}
 	return req;
-}
-
-static struct fuse_req *fuse_request_alloc(unsigned int npages)
-{
-	return __fuse_request_alloc(npages, GFP_KERNEL);
-}
-
-static void fuse_req_pages_free(struct fuse_req *req)
-{
-	if (test_bit(FR_ALLOC_PAGES, &req->flags))
-		kfree(req->pages);
 }
 
 static void fuse_request_free(struct fuse_req *req)
 {
-	fuse_req_pages_free(req);
 	kmem_cache_free(fuse_req_cachep, req);
 }
 
@@ -135,8 +102,7 @@ static void fuse_drop_waiting(struct fuse_conn *fc)
 
 static void fuse_put_request(struct fuse_conn *fc, struct fuse_req *req);
 
-static struct fuse_req *__fuse_get_req(struct fuse_conn *fc, unsigned npages,
-				       bool for_background)
+static struct fuse_req *fuse_get_req(struct fuse_conn *fc, bool for_background)
 {
 	struct fuse_req *req;
 	int err;
@@ -159,7 +125,7 @@ static struct fuse_req *__fuse_get_req(struct fuse_conn *fc, unsigned npages,
 	if (fc->conn_error)
 		goto out;
 
-	req = fuse_request_alloc(npages);
+	req = fuse_request_alloc(GFP_KERNEL);
 	err = -ENOMEM;
 	if (!req) {
 		if (for_background)
@@ -185,11 +151,6 @@ static struct fuse_req *__fuse_get_req(struct fuse_conn *fc, unsigned npages,
  out:
 	fuse_drop_waiting(fc);
 	return ERR_PTR(err);
-}
-
-static struct fuse_req *fuse_get_req(struct fuse_conn *fc, unsigned int npages)
-{
-	return __fuse_get_req(fc, npages, false);
 }
 
 static void fuse_put_request(struct fuse_conn *fc, struct fuse_req *req)
@@ -517,7 +478,7 @@ ssize_t fuse_simple_request(struct fuse_conn *fc, struct fuse_args *args)
 
 	if (args->force) {
 		atomic_inc(&fc->num_waiting);
-		req = __fuse_request_alloc(0, GFP_KERNEL | __GFP_NOFAIL);
+		req = fuse_request_alloc(GFP_KERNEL | __GFP_NOFAIL);
 
 		if (!args->nocreds)
 			fuse_force_creds(fc, req);
@@ -526,7 +487,7 @@ ssize_t fuse_simple_request(struct fuse_conn *fc, struct fuse_args *args)
 		__set_bit(FR_FORCE, &req->flags);
 	} else {
 		WARN_ON(args->nocreds);
-		req = fuse_get_req(fc, 0);
+		req = fuse_get_req(fc, false);
 		if (IS_ERR(req))
 			return PTR_ERR(req);
 	}
@@ -597,13 +558,13 @@ int fuse_simple_background(struct fuse_conn *fc, struct fuse_args *args,
 
 	if (args->force) {
 		WARN_ON(!args->nocreds);
-		req = __fuse_request_alloc(0, gfp_flags);
+		req = fuse_request_alloc(gfp_flags);
 		if (!req)
 			return -ENOMEM;
 		__set_bit(FR_BACKGROUND, &req->flags);
 	} else {
 		WARN_ON(args->nocreds);
-		req = __fuse_get_req(fc, 0, true);
+		req = fuse_get_req(fc, true);
 		if (IS_ERR(req))
 			return PTR_ERR(req);
 	}
@@ -629,7 +590,7 @@ static int fuse_simple_notify_reply(struct fuse_conn *fc,
 	struct fuse_iqueue *fiq = &fc->iq;
 	int err = 0;
 
-	req = fuse_get_req(fc, 0);
+	req = fuse_get_req(fc, false);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 

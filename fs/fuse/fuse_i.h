@@ -362,7 +362,6 @@ enum fuse_req_flag {
 	FR_SENT,
 	FR_FINISHED,
 	FR_PRIVATE,
-	FR_ALLOC_PAGES,
 };
 
 /**
@@ -920,12 +919,6 @@ void fuse_dev_cleanup(void);
 
 int fuse_ctl_init(void);
 void __exit fuse_ctl_cleanup(void);
-
-/**
- * Allocate a request
- */
-struct page **fuse_pages_alloc(unsigned int npages, gfp_t flags,
-			       struct fuse_page_desc **desc);
 
 /**
  * Simple request sending that does request allocation and freeing
