@@ -598,12 +598,14 @@ static const struct i2c_device_id lm3630a_id[] = {
 	{}
 };
 
+MODULE_DEVICE_TABLE(i2c, lm3630a_id);
+
 static const struct of_device_id lm3630a_match_table[] = {
 	{ .compatible = "ti,lm3630a", },
 	{ },
 };
 
-MODULE_DEVICE_TABLE(i2c, lm3630a_id);
+MODULE_DEVICE_TABLE(of, lm3630a_match_table);
 
 static struct i2c_driver lm3630a_i2c_driver = {
 	.driver = {
