@@ -2785,6 +2785,8 @@ again:
 	}
 
 	while (b) {
+		int dec = 0;
+
 		level = btrfs_header_level(b);
 
 		/*
@@ -2861,73 +2863,7 @@ cow_done:
 		if (ret < 0)
 			goto done;
 
-		if (level != 0) {
-			int dec = 0;
-			if (ret && slot > 0) {
-				dec = 1;
-				slot -= 1;
-			}
-			p->slots[level] = slot;
-			err = setup_nodes_for_search(trans, root, p, b, level,
-					     ins_len, &write_lock_level);
-			if (err == -EAGAIN)
-				goto again;
-			if (err) {
-				ret = err;
-				goto done;
-			}
-			b = p->nodes[level];
-			slot = p->slots[level];
-
-			/*
-			 * slot 0 is special, if we change the key
-			 * we have to update the parent pointer
-			 * which means we must have a write lock
-			 * on the parent
-			 */
-			if (slot == 0 && ins_len &&
-			    write_lock_level < level + 1) {
-				write_lock_level = level + 1;
-				btrfs_release_path(p);
-				goto again;
-			}
-
-			unlock_up(p, level, lowest_unlock,
-				  min_write_lock_level, &write_lock_level);
-
-			if (level == lowest_level) {
-				if (dec)
-					p->slots[level]++;
-				goto done;
-			}
-
-			err = read_block_for_search(root, p, &b, level,
-						    slot, key);
-			if (err == -EAGAIN)
-				goto again;
-			if (err) {
-				ret = err;
-				goto done;
-			}
-
-			if (!p->skip_locking) {
-				level = btrfs_header_level(b);
-				if (level <= write_lock_level) {
-					if (!btrfs_try_tree_write_lock(b)) {
-						btrfs_set_path_blocking(p);
-						btrfs_tree_lock(b);
-					}
-					p->locks[level] = BTRFS_WRITE_LOCK;
-				} else {
-					if (!btrfs_tree_read_lock_atomic(b)) {
-						btrfs_set_path_blocking(p);
-						btrfs_tree_read_lock(b);
-					}
-					p->locks[level] = BTRFS_READ_LOCK;
-				}
-				p->nodes[level] = b;
-			}
-		} else {
+		if (level == 0) {
 			p->slots[level] = slot;
 			if (ins_len > 0 &&
 			    btrfs_leaf_free_space(b) < ins_len) {
@@ -2951,6 +2887,67 @@ cow_done:
 				unlock_up(p, level, lowest_unlock,
 					  min_write_lock_level, NULL);
 			goto done;
+		}
+		if (ret && slot > 0) {
+			dec = 1;
+			slot--;
+		}
+		p->slots[level] = slot;
+		err = setup_nodes_for_search(trans, root, p, b, level, ins_len,
+					     &write_lock_level);
+		if (err == -EAGAIN)
+			goto again;
+		if (err) {
+			ret = err;
+			goto done;
+		}
+		b = p->nodes[level];
+		slot = p->slots[level];
+
+		/*
+		 * Slot 0 is special, if we change the key we have to update
+		 * the parent pointer which means we must have a write lock on
+		 * the parent
+		 */
+		if (slot == 0 && ins_len && write_lock_level < level + 1) {
+			write_lock_level = level + 1;
+			btrfs_release_path(p);
+			goto again;
+		}
+
+		unlock_up(p, level, lowest_unlock, min_write_lock_level,
+			  &write_lock_level);
+
+		if (level == lowest_level) {
+			if (dec)
+				p->slots[level]++;
+			goto done;
+		}
+
+		err = read_block_for_search(root, p, &b, level, slot, key);
+		if (err == -EAGAIN)
+			goto again;
+		if (err) {
+			ret = err;
+			goto done;
+		}
+
+		if (!p->skip_locking) {
+			level = btrfs_header_level(b);
+			if (level <= write_lock_level) {
+				if (!btrfs_try_tree_write_lock(b)) {
+					btrfs_set_path_blocking(p);
+					btrfs_tree_lock(b);
+				}
+				p->locks[level] = BTRFS_WRITE_LOCK;
+			} else {
+				if (!btrfs_tree_read_lock_atomic(b)) {
+					btrfs_set_path_blocking(p);
+					btrfs_tree_read_lock(b);
+				}
+				p->locks[level] = BTRFS_READ_LOCK;
+			}
+			p->nodes[level] = b;
 		}
 	}
 	ret = 1;
