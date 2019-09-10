@@ -106,8 +106,6 @@ struct tipc_stats {
  * @transmitq: queue for sent, non-acked messages
  * @backlogq: queue for messages waiting to be sent
  * @snt_nxt: next sequence number to use for outbound messages
- * @prev_from: sequence number of most previous retransmission request
- * @stale_limit: time when repeated identical retransmits must force link reset
  * @ackers: # of peers that needs to ack each packet before it can be released
  * @acked: # last packet acked by a certain peer. Used for broadcast.
  * @rcv_nxt: next sequence number to expect for inbound messages
@@ -164,9 +162,7 @@ struct tipc_link {
 		u16 limit;
 	} backlog[5];
 	u16 snd_nxt;
-	u16 prev_from;
 	u16 window;
-	unsigned long stale_limit;
 
 	/* Reception */
 	u16 rcv_nxt;
@@ -1044,47 +1040,53 @@ static void tipc_link_advance_backlog(struct tipc_link *l,
  * link_retransmit_failure() - Detect repeated retransmit failures
  * @l: tipc link sender
  * @r: tipc link receiver (= l in case of unicast)
- * @from: seqno of the 1st packet in retransmit request
  * @rc: returned code
  *
  * Return: true if the repeated retransmit failures happens, otherwise
  * false
  */
 static bool link_retransmit_failure(struct tipc_link *l, struct tipc_link *r,
-				    u16 from, int *rc)
+				    int *rc)
 {
 	struct sk_buff *skb = skb_peek(&l->transmq);
 	struct tipc_msg *hdr;
 
 	if (!skb)
 		return false;
+
+	if (!TIPC_SKB_CB(skb)->retr_cnt)
+		return false;
+
+	if (!time_after(jiffies, TIPC_SKB_CB(skb)->retr_stamp +
+			msecs_to_jiffies(r->tolerance)))
+		return false;
+
 	hdr = buf_msg(skb);
+	if (link_is_bc_sndlink(l) && !less(r->acked, msg_seqno(hdr)))
+		return false;
 
-	/* Detect repeated retransmit failures on same packet */
-	if (r->prev_from != from) {
-		r->prev_from = from;
-		r->stale_limit = jiffies + msecs_to_jiffies(r->tolerance);
-	} else if (time_after(jiffies, r->stale_limit)) {
-		pr_warn("Retransmission failure on link <%s>\n", l->name);
-		link_print(l, "State of link ");
-		pr_info("Failed msg: usr %u, typ %u, len %u, err %u\n",
-			msg_user(hdr), msg_type(hdr), msg_size(hdr),
-			msg_errcode(hdr));
-		pr_info("sqno %u, prev: %x, src: %x\n",
-			msg_seqno(hdr), msg_prevnode(hdr), msg_orignode(hdr));
+	pr_warn("Retransmission failure on link <%s>\n", l->name);
+	link_print(l, "State of link ");
+	pr_info("Failed msg: usr %u, typ %u, len %u, err %u\n",
+		msg_user(hdr), msg_type(hdr), msg_size(hdr), msg_errcode(hdr));
+	pr_info("sqno %u, prev: %x, dest: %x\n",
+		msg_seqno(hdr), msg_prevnode(hdr), msg_destnode(hdr));
+	pr_info("retr_stamp %d, retr_cnt %d\n",
+		jiffies_to_msecs(TIPC_SKB_CB(skb)->retr_stamp),
+		TIPC_SKB_CB(skb)->retr_cnt);
 
-		trace_tipc_list_dump(&l->transmq, true, "retrans failure!");
-		trace_tipc_link_dump(l, TIPC_DUMP_NONE, "retrans failure!");
-		trace_tipc_link_dump(r, TIPC_DUMP_NONE, "retrans failure!");
+	trace_tipc_list_dump(&l->transmq, true, "retrans failure!");
+	trace_tipc_link_dump(l, TIPC_DUMP_NONE, "retrans failure!");
+	trace_tipc_link_dump(r, TIPC_DUMP_NONE, "retrans failure!");
 
-		if (link_is_bc_sndlink(l))
-			*rc = TIPC_LINK_DOWN_EVT;
-
+	if (link_is_bc_sndlink(l)) {
+		r->state = LINK_RESET;
+		*rc = TIPC_LINK_DOWN_EVT;
+	} else {
 		*rc = tipc_link_fsm_evt(l, LINK_FAILURE_EVT);
-		return true;
 	}
 
-	return false;
+	return true;
 }
 
 /* tipc_link_bc_retrans() - retransmit zero or more packets
@@ -1110,7 +1112,7 @@ static int tipc_link_bc_retrans(struct tipc_link *l, struct tipc_link *r,
 
 	trace_tipc_link_retrans(r, from, to, &l->transmq);
 
-	if (link_retransmit_failure(l, r, from, &rc))
+	if (link_retransmit_failure(l, r, &rc))
 		return rc;
 
 	skb_queue_walk(&l->transmq, skb) {
@@ -1119,11 +1121,10 @@ static int tipc_link_bc_retrans(struct tipc_link *l, struct tipc_link *r,
 			continue;
 		if (more(msg_seqno(hdr), to))
 			break;
-		if (link_is_bc_sndlink(l)) {
-			if (time_before(jiffies, TIPC_SKB_CB(skb)->nxt_retr))
-				continue;
-			TIPC_SKB_CB(skb)->nxt_retr = TIPC_BC_RETR_LIM;
-		}
+
+		if (time_before(jiffies, TIPC_SKB_CB(skb)->nxt_retr))
+			continue;
+		TIPC_SKB_CB(skb)->nxt_retr = TIPC_BC_RETR_LIM;
 		_skb = __pskb_copy(skb, LL_MAX_HEADER + MIN_H_SIZE, GFP_ATOMIC);
 		if (!_skb)
 			return 0;
@@ -1133,6 +1134,10 @@ static int tipc_link_bc_retrans(struct tipc_link *l, struct tipc_link *r,
 		_skb->priority = TC_PRIO_CONTROL;
 		__skb_queue_tail(xmitq, _skb);
 		l->stats.retransmitted++;
+
+		/* Increase actual retrans counter & mark first time */
+		if (!TIPC_SKB_CB(skb)->retr_cnt++)
+			TIPC_SKB_CB(skb)->retr_stamp = jiffies;
 	}
 	return 0;
 }
@@ -1357,11 +1362,9 @@ static int tipc_link_advance_transmq(struct tipc_link *l, u16 acked, u16 gap,
 	struct tipc_msg *hdr;
 	u16 bc_ack = l->bc_rcvlink->rcv_nxt - 1;
 	u16 ack = l->rcv_nxt - 1;
+	bool passed = false;
 	u16 seqno, n = 0;
 	int rc = 0;
-
-	if (gap && link_retransmit_failure(l, l, acked + 1, &rc))
-		return rc;
 
 	skb_queue_walk_safe(&l->transmq, skb, tmp) {
 		seqno = buf_seqno(skb);
@@ -1372,12 +1375,17 @@ next_gap_ack:
 			__skb_unlink(skb, &l->transmq);
 			kfree_skb(skb);
 		} else if (less_eq(seqno, acked + gap)) {
-			/* retransmit skb */
+			/* First, check if repeated retrans failures occurs? */
+			if (!passed && link_retransmit_failure(l, l, &rc))
+				return rc;
+			passed = true;
+
+			/* retransmit skb if unrestricted*/
 			if (time_before(jiffies, TIPC_SKB_CB(skb)->nxt_retr))
 				continue;
 			TIPC_SKB_CB(skb)->nxt_retr = TIPC_UC_RETR_TIME;
-
-			_skb = __pskb_copy(skb, MIN_H_SIZE, GFP_ATOMIC);
+			_skb = __pskb_copy(skb, LL_MAX_HEADER + MIN_H_SIZE,
+					   GFP_ATOMIC);
 			if (!_skb)
 				continue;
 			hdr = buf_msg(_skb);
@@ -1386,6 +1394,10 @@ next_gap_ack:
 			_skb->priority = TC_PRIO_CONTROL;
 			__skb_queue_tail(xmitq, _skb);
 			l->stats.retransmitted++;
+
+			/* Increase actual retrans counter & mark first time */
+			if (!TIPC_SKB_CB(skb)->retr_cnt++)
+				TIPC_SKB_CB(skb)->retr_stamp = jiffies;
 		} else {
 			/* retry with Gap ACK blocks if any */
 			if (!ga || n >= ga->gack_cnt)
@@ -2577,7 +2589,7 @@ int tipc_link_dump(struct tipc_link *l, u16 dqueues, char *buf)
 	i += scnprintf(buf + i, sz - i, " %x", l->peer_caps);
 	i += scnprintf(buf + i, sz - i, " %u", l->silent_intv_cnt);
 	i += scnprintf(buf + i, sz - i, " %u", l->rst_cnt);
-	i += scnprintf(buf + i, sz - i, " %u", l->prev_from);
+	i += scnprintf(buf + i, sz - i, " %u", 0);
 	i += scnprintf(buf + i, sz - i, " %u", 0);
 	i += scnprintf(buf + i, sz - i, " %u", l->acked);
 

@@ -136,6 +136,13 @@ static int __send_message(struct bnxt_qplib_rcfw *rcfw, struct cmdq_base *req,
 		spin_unlock_irqrestore(&cmdq->lock, flags);
 		return -EBUSY;
 	}
+
+	size = req->cmd_size;
+	/* change the cmd_size to the number of 16byte cmdq unit.
+	 * req->cmd_size is modified here
+	 */
+	bnxt_qplib_set_cmd_slots(req);
+
 	memset(resp, 0, sizeof(*resp));
 	crsqe->resp = (struct creq_qp_event *)resp;
 	crsqe->resp->cookie = req->cookie;
@@ -150,7 +157,6 @@ static int __send_message(struct bnxt_qplib_rcfw *rcfw, struct cmdq_base *req,
 
 	cmdq_ptr = (struct bnxt_qplib_cmdqe **)cmdq->pbl_ptr;
 	preq = (u8 *)req;
-	size = req->cmd_size * BNXT_QPLIB_CMDQE_UNITS;
 	do {
 		/* Locate the next cmdq slot */
 		sw_prod = HWQ_CMP(cmdq->prod, cmdq);

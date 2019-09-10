@@ -2528,7 +2528,7 @@ static int cpufreq_boost_set_sw(int state)
 		}
 
 		ret = dev_pm_qos_update_request(policy->max_freq_req, policy->max);
-		if (ret)
+		if (ret < 0)
 			break;
 	}
 

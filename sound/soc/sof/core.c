@@ -17,8 +17,8 @@
 #include "ops.h"
 
 /* SOF defaults if not provided by the platform in ms */
-#define TIMEOUT_DEFAULT_IPC_MS  5
-#define TIMEOUT_DEFAULT_BOOT_MS 100
+#define TIMEOUT_DEFAULT_IPC_MS  500
+#define TIMEOUT_DEFAULT_BOOT_MS 2000
 
 /*
  * Generic object lookup APIs.

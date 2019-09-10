@@ -162,9 +162,9 @@ static inline void print_tbl_walk(struct seq_file *m)
 			   (u64)0, (u64)0, (u64)0);
 	else
 		seq_printf(m, "%-6d\t0x%016llx:0x%016llx:0x%016llx\n",
-			   tbl_wlk->pasid, tbl_wlk->pasid_tbl_entry->val[0],
+			   tbl_wlk->pasid, tbl_wlk->pasid_tbl_entry->val[2],
 			   tbl_wlk->pasid_tbl_entry->val[1],
-			   tbl_wlk->pasid_tbl_entry->val[2]);
+			   tbl_wlk->pasid_tbl_entry->val[0]);
 }
 
 static void pasid_tbl_walk(struct seq_file *m, struct pasid_entry *tbl_entry,
@@ -235,7 +235,7 @@ static void ctx_tbl_walk(struct seq_file *m, struct intel_iommu *iommu, u16 bus)
 		tbl_wlk.ctx_entry = context;
 		m->private = &tbl_wlk;
 
-		if (pasid_supported(iommu) && is_pasid_enabled(context)) {
+		if (dmar_readq(iommu->reg + DMAR_RTADDR_REG) & DMA_RTADDR_SMT) {
 			pasid_dir_ptr = context->lo & VTD_PAGE_MASK;
 			pasid_dir_size = get_pasid_dir_size(context);
 			pasid_dir_walk(m, pasid_dir_ptr, pasid_dir_size);

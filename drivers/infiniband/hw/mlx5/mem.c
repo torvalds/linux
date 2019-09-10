@@ -57,9 +57,10 @@ void mlx5_ib_cont_pages(struct ib_umem *umem, u64 addr,
 	int entry;
 
 	if (umem->is_odp) {
-		unsigned int page_shift = to_ib_umem_odp(umem)->page_shift;
+		struct ib_umem_odp *odp = to_ib_umem_odp(umem);
+		unsigned int page_shift = odp->page_shift;
 
-		*ncont = ib_umem_page_count(umem);
+		*ncont = ib_umem_odp_num_pages(odp);
 		*count = *ncont << (page_shift - PAGE_SHIFT);
 		*shift = page_shift;
 		if (order)
