@@ -202,7 +202,8 @@ static unsigned int fuse_req_hash(u64 unique)
 static void queue_request(struct fuse_iqueue *fiq, struct fuse_req *req)
 {
 	req->in.h.len = sizeof(struct fuse_in_header) +
-		len_args(req->in.numargs, (struct fuse_arg *) req->in.args);
+		len_args(req->args->in_numargs,
+			 (struct fuse_arg *) req->args->in_args);
 	list_add_tail(&req->list, &fiq->pending);
 	wake_up(&fiq->waitq);
 	kill_fasync(&fiq->fasync, SIGIO, POLL_IN);
@@ -257,6 +258,7 @@ static void flush_bg_queue(struct fuse_conn *fc)
 static void request_end(struct fuse_conn *fc, struct fuse_req *req)
 {
 	struct fuse_iqueue *fiq = &fc->iq;
+	bool async = req->args->end;
 
 	if (test_and_set_bit(FR_FINISHED, &req->flags))
 		goto put_request;
@@ -302,8 +304,8 @@ static void request_end(struct fuse_conn *fc, struct fuse_req *req)
 		wake_up(&req->waitq);
 	}
 
-	if (req->end)
-		req->end(fc, req);
+	if (async)
+		req->args->end(fc, req->args, req->out.h.error);
 put_request:
 	fuse_put_request(fc, req);
 }
@@ -450,25 +452,12 @@ void fuse_args_to_req(struct fuse_req *req, struct fuse_args *args)
 
 	req->in.h.opcode = args->opcode;
 	req->in.h.nodeid = args->nodeid;
-	req->in.numargs = args->in_numargs;
-	memcpy(req->in.args, args->in_args,
-	       args->in_numargs * sizeof(struct fuse_in_arg));
-	req->out.argvar = args->out_argvar;
-	req->out.numargs = args->out_numargs;
-	memcpy(req->out.args, args->out_args,
-	       args->out_numargs * sizeof(struct fuse_arg));
-
 	if (args->in_pages || args->out_pages) {
-		req->in.argpages = args->in_pages;
-		req->out.argpages = args->out_pages;
-		req->out.page_zeroing = args->page_zeroing;
-		req->out.page_replace = args->page_replace;
-
 		req->pages = ap->pages;
 		req->page_descs = ap->descs;
 		req->num_pages = ap->num_pages;
 	}
-
+	req->args = args;
 }
 
 ssize_t fuse_simple_request(struct fuse_conn *fc, struct fuse_args *args)
@@ -502,7 +491,7 @@ ssize_t fuse_simple_request(struct fuse_conn *fc, struct fuse_args *args)
 	ret = req->out.h.error;
 	if (!ret && args->out_argvar) {
 		BUG_ON(args->out_numargs == 0);
-		ret = req->out.args[args->out_numargs - 1].size;
+		ret = args->out_args[args->out_numargs - 1].size;
 	}
 	fuse_put_request(fc, req);
 
@@ -538,19 +527,6 @@ static bool fuse_request_queue_background(struct fuse_conn *fc,
 	return queued;
 }
 
-static void fuse_simple_end(struct fuse_conn *fc, struct fuse_req *req)
-{
-	struct fuse_args *args = req->args;
-	int err = req->out.h.error;
-
-	if (!err && args->out_argvar) {
-		BUG_ON(args->out_numargs == 0);
-		args->out_args[args->out_numargs - 1].size =
-			req->out.args[args->out_numargs - 1].size;
-	}
-	req->args->end(fc, req->args, req->out.h.error);
-}
-
 int fuse_simple_background(struct fuse_conn *fc, struct fuse_args *args,
 			    gfp_t gfp_flags)
 {
@@ -570,9 +546,6 @@ int fuse_simple_background(struct fuse_conn *fc, struct fuse_args *args,
 	}
 
 	fuse_args_to_req(req, args);
-
-	req->args = args;
-	req->end = fuse_simple_end;
 
 	if (!fuse_request_queue_background(fc, req)) {
 		fuse_put_request(fc, req);
@@ -598,8 +571,6 @@ static int fuse_simple_notify_reply(struct fuse_conn *fc,
 	req->in.h.unique = unique;
 
 	fuse_args_to_req(req, args);
-	req->args = args;
-	req->end = fuse_simple_end;
 
 	spin_lock(&fiq->lock);
 	if (fiq->connected) {
@@ -1197,7 +1168,7 @@ static ssize_t fuse_dev_do_read(struct fuse_dev *fud, struct file *file,
 	struct fuse_iqueue *fiq = &fc->iq;
 	struct fuse_pqueue *fpq = &fud->pq;
 	struct fuse_req *req;
-	struct fuse_in *in;
+	struct fuse_args *args;
 	unsigned reqsize;
 	unsigned int hash;
 
@@ -1258,14 +1229,14 @@ static ssize_t fuse_dev_do_read(struct fuse_dev *fud, struct file *file,
 	list_del_init(&req->list);
 	spin_unlock(&fiq->lock);
 
-	in = &req->in;
-	reqsize = in->h.len;
+	args = req->args;
+	reqsize = req->in.h.len;
 
 	/* If request is too large, reply with an error and restart the read */
 	if (nbytes < reqsize) {
 		req->out.h.error = -EIO;
 		/* SETXATTR is special, since it may contain too large data */
-		if (in->h.opcode == FUSE_SETXATTR)
+		if (args->opcode == FUSE_SETXATTR)
 			req->out.h.error = -E2BIG;
 		request_end(fc, req);
 		goto restart;
@@ -1274,10 +1245,10 @@ static ssize_t fuse_dev_do_read(struct fuse_dev *fud, struct file *file,
 	list_add(&req->list, &fpq->io);
 	spin_unlock(&fpq->lock);
 	cs->req = req;
-	err = fuse_copy_one(cs, &in->h, sizeof(in->h));
+	err = fuse_copy_one(cs, &req->in.h, sizeof(req->in.h));
 	if (!err)
-		err = fuse_copy_args(cs, in->numargs, in->argpages,
-				     (struct fuse_arg *) in->args, 0);
+		err = fuse_copy_args(cs, args->in_numargs, args->in_pages,
+				     (struct fuse_arg *) args->in_args, 0);
 	fuse_copy_finish(cs);
 	spin_lock(&fpq->lock);
 	clear_bit(FR_LOCKED, &req->flags);
@@ -1808,27 +1779,25 @@ static struct fuse_req *request_find(struct fuse_pqueue *fpq, u64 unique)
 	return NULL;
 }
 
-static int copy_out_args(struct fuse_copy_state *cs, struct fuse_out *out,
+static int copy_out_args(struct fuse_copy_state *cs, struct fuse_args *args,
 			 unsigned nbytes)
 {
 	unsigned reqsize = sizeof(struct fuse_out_header);
 
-	if (out->h.error)
-		return nbytes != reqsize ? -EINVAL : 0;
+	reqsize += len_args(args->out_numargs, args->out_args);
 
-	reqsize += len_args(out->numargs, out->args);
-
-	if (reqsize < nbytes || (reqsize > nbytes && !out->argvar))
+	if (reqsize < nbytes || (reqsize > nbytes && !args->out_argvar))
 		return -EINVAL;
 	else if (reqsize > nbytes) {
-		struct fuse_arg *lastarg = &out->args[out->numargs-1];
+		struct fuse_arg *lastarg = &args->out_args[args->out_numargs-1];
 		unsigned diffsize = reqsize - nbytes;
+
 		if (diffsize > lastarg->size)
 			return -EINVAL;
 		lastarg->size -= diffsize;
 	}
-	return fuse_copy_args(cs, out->numargs, out->argpages, out->args,
-			      out->page_zeroing);
+	return fuse_copy_args(cs, args->out_numargs, args->out_pages,
+			      args->out_args, args->page_zeroing);
 }
 
 /*
@@ -1907,10 +1876,13 @@ static ssize_t fuse_dev_do_write(struct fuse_dev *fud,
 	set_bit(FR_LOCKED, &req->flags);
 	spin_unlock(&fpq->lock);
 	cs->req = req;
-	if (!req->out.page_replace)
+	if (!req->args->page_replace)
 		cs->move_pages = 0;
 
-	err = copy_out_args(cs, &req->out, nbytes);
+	if (oh.error)
+		err = nbytes != sizeof(oh) ? -EINVAL : 0;
+	else
+		err = copy_out_args(cs, req->args, nbytes);
 	fuse_copy_finish(cs);
 
 	spin_lock(&fpq->lock);
