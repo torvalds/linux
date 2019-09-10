@@ -752,18 +752,12 @@ static inline int pmd_write(pmd_t pmd)
 
 static inline int pmd_dirty(pmd_t pmd)
 {
-	int dirty = 1;
-	if (pmd_large(pmd))
-		dirty = (pmd_val(pmd) & _SEGMENT_ENTRY_DIRTY) != 0;
-	return dirty;
+	return (pmd_val(pmd) & _SEGMENT_ENTRY_DIRTY) != 0;
 }
 
 static inline int pmd_young(pmd_t pmd)
 {
-	int young = 1;
-	if (pmd_large(pmd))
-		young = (pmd_val(pmd) & _SEGMENT_ENTRY_YOUNG) != 0;
-	return young;
+	return (pmd_val(pmd) & _SEGMENT_ENTRY_YOUNG) != 0;
 }
 
 static inline int pte_present(pte_t pte)
@@ -1291,29 +1285,23 @@ static inline pmd_t pmd_wrprotect(pmd_t pmd)
 static inline pmd_t pmd_mkwrite(pmd_t pmd)
 {
 	pmd_val(pmd) |= _SEGMENT_ENTRY_WRITE;
-	if (pmd_large(pmd) && !(pmd_val(pmd) & _SEGMENT_ENTRY_DIRTY))
-		return pmd;
-	pmd_val(pmd) &= ~_SEGMENT_ENTRY_PROTECT;
+	if (pmd_val(pmd) & _SEGMENT_ENTRY_DIRTY)
+		pmd_val(pmd) &= ~_SEGMENT_ENTRY_PROTECT;
 	return pmd;
 }
 
 static inline pmd_t pmd_mkclean(pmd_t pmd)
 {
-	if (pmd_large(pmd)) {
-		pmd_val(pmd) &= ~_SEGMENT_ENTRY_DIRTY;
-		pmd_val(pmd) |= _SEGMENT_ENTRY_PROTECT;
-	}
+	pmd_val(pmd) &= ~_SEGMENT_ENTRY_DIRTY;
+	pmd_val(pmd) |= _SEGMENT_ENTRY_PROTECT;
 	return pmd;
 }
 
 static inline pmd_t pmd_mkdirty(pmd_t pmd)
 {
-	if (pmd_large(pmd)) {
-		pmd_val(pmd) |= _SEGMENT_ENTRY_DIRTY |
-				_SEGMENT_ENTRY_SOFT_DIRTY;
-		if (pmd_val(pmd) & _SEGMENT_ENTRY_WRITE)
-			pmd_val(pmd) &= ~_SEGMENT_ENTRY_PROTECT;
-	}
+	pmd_val(pmd) |= _SEGMENT_ENTRY_DIRTY | _SEGMENT_ENTRY_SOFT_DIRTY;
+	if (pmd_val(pmd) & _SEGMENT_ENTRY_WRITE)
+		pmd_val(pmd) &= ~_SEGMENT_ENTRY_PROTECT;
 	return pmd;
 }
 
@@ -1327,29 +1315,23 @@ static inline pud_t pud_wrprotect(pud_t pud)
 static inline pud_t pud_mkwrite(pud_t pud)
 {
 	pud_val(pud) |= _REGION3_ENTRY_WRITE;
-	if (pud_large(pud) && !(pud_val(pud) & _REGION3_ENTRY_DIRTY))
-		return pud;
-	pud_val(pud) &= ~_REGION_ENTRY_PROTECT;
+	if (pud_val(pud) & _REGION3_ENTRY_DIRTY)
+		pud_val(pud) &= ~_REGION_ENTRY_PROTECT;
 	return pud;
 }
 
 static inline pud_t pud_mkclean(pud_t pud)
 {
-	if (pud_large(pud)) {
-		pud_val(pud) &= ~_REGION3_ENTRY_DIRTY;
-		pud_val(pud) |= _REGION_ENTRY_PROTECT;
-	}
+	pud_val(pud) &= ~_REGION3_ENTRY_DIRTY;
+	pud_val(pud) |= _REGION_ENTRY_PROTECT;
 	return pud;
 }
 
 static inline pud_t pud_mkdirty(pud_t pud)
 {
-	if (pud_large(pud)) {
-		pud_val(pud) |= _REGION3_ENTRY_DIRTY |
-				_REGION3_ENTRY_SOFT_DIRTY;
-		if (pud_val(pud) & _REGION3_ENTRY_WRITE)
-			pud_val(pud) &= ~_REGION_ENTRY_PROTECT;
-	}
+	pud_val(pud) |= _REGION3_ENTRY_DIRTY | _REGION3_ENTRY_SOFT_DIRTY;
+	if (pud_val(pud) & _REGION3_ENTRY_WRITE)
+		pud_val(pud) &= ~_REGION_ENTRY_PROTECT;
 	return pud;
 }
 
@@ -1373,38 +1355,29 @@ static inline unsigned long massage_pgprot_pmd(pgprot_t pgprot)
 
 static inline pmd_t pmd_mkyoung(pmd_t pmd)
 {
-	if (pmd_large(pmd)) {
-		pmd_val(pmd) |= _SEGMENT_ENTRY_YOUNG;
-		if (pmd_val(pmd) & _SEGMENT_ENTRY_READ)
-			pmd_val(pmd) &= ~_SEGMENT_ENTRY_INVALID;
-	}
+	pmd_val(pmd) |= _SEGMENT_ENTRY_YOUNG;
+	if (pmd_val(pmd) & _SEGMENT_ENTRY_READ)
+		pmd_val(pmd) &= ~_SEGMENT_ENTRY_INVALID;
 	return pmd;
 }
 
 static inline pmd_t pmd_mkold(pmd_t pmd)
 {
-	if (pmd_large(pmd)) {
-		pmd_val(pmd) &= ~_SEGMENT_ENTRY_YOUNG;
-		pmd_val(pmd) |= _SEGMENT_ENTRY_INVALID;
-	}
+	pmd_val(pmd) &= ~_SEGMENT_ENTRY_YOUNG;
+	pmd_val(pmd) |= _SEGMENT_ENTRY_INVALID;
 	return pmd;
 }
 
 static inline pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
 {
-	if (pmd_large(pmd)) {
-		pmd_val(pmd) &= _SEGMENT_ENTRY_ORIGIN_LARGE |
-			_SEGMENT_ENTRY_DIRTY | _SEGMENT_ENTRY_YOUNG |
-			_SEGMENT_ENTRY_LARGE | _SEGMENT_ENTRY_SOFT_DIRTY;
-		pmd_val(pmd) |= massage_pgprot_pmd(newprot);
-		if (!(pmd_val(pmd) & _SEGMENT_ENTRY_DIRTY))
-			pmd_val(pmd) |= _SEGMENT_ENTRY_PROTECT;
-		if (!(pmd_val(pmd) & _SEGMENT_ENTRY_YOUNG))
-			pmd_val(pmd) |= _SEGMENT_ENTRY_INVALID;
-		return pmd;
-	}
-	pmd_val(pmd) &= _SEGMENT_ENTRY_ORIGIN;
+	pmd_val(pmd) &= _SEGMENT_ENTRY_ORIGIN_LARGE |
+		_SEGMENT_ENTRY_DIRTY | _SEGMENT_ENTRY_YOUNG |
+		_SEGMENT_ENTRY_LARGE | _SEGMENT_ENTRY_SOFT_DIRTY;
 	pmd_val(pmd) |= massage_pgprot_pmd(newprot);
+	if (!(pmd_val(pmd) & _SEGMENT_ENTRY_DIRTY))
+		pmd_val(pmd) |= _SEGMENT_ENTRY_PROTECT;
+	if (!(pmd_val(pmd) & _SEGMENT_ENTRY_YOUNG))
+		pmd_val(pmd) |= _SEGMENT_ENTRY_INVALID;
 	return pmd;
 }
 
