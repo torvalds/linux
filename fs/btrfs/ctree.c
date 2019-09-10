@@ -2789,10 +2789,6 @@ again:
 
 		level = btrfs_header_level(b);
 
-		/*
-		 * setup the path here so we can release it under lock
-		 * contention with the cow code
-		 */
 		if (cow) {
 			bool last_level = (level == (BTRFS_MAX_LEVEL - 1));
 
