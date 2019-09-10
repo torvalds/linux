@@ -47,9 +47,6 @@
 /** Number of dentries for each connection in the control filesystem */
 #define FUSE_CTL_NUM_DENTRIES 5
 
-/** Number of page pointers embedded in fuse_req */
-#define FUSE_REQ_INLINE_PAGES 1
-
 /** List of active connections */
 extern struct list_head fuse_conn_list;
 
@@ -397,56 +394,14 @@ struct fuse_req {
 	/** Used to wake up the task waiting for completion of request*/
 	wait_queue_head_t waitq;
 
-	/** Data for asynchronous requests */
-	union {
-		struct {
-			struct fuse_release_in in;
-			struct inode *inode;
-		} release;
-		struct fuse_init_in init_in;
-		struct fuse_init_out init_out;
-		struct cuse_init_in cuse_init_in;
-		struct {
-			struct fuse_read_in in;
-			u64 attr_ver;
-		} read;
-		struct {
-			struct fuse_write_in in;
-			struct fuse_write_out out;
-			struct fuse_req *next;
-		} write;
-		struct fuse_notify_retrieve_in retrieve_in;
-	} misc;
-
 	/** page vector */
 	struct page **pages;
 
 	/** page-descriptor vector */
 	struct fuse_page_desc *page_descs;
 
-	/** size of the 'pages' array */
-	unsigned max_pages;
-
-	/** inline page vector */
-	struct page *inline_pages[FUSE_REQ_INLINE_PAGES];
-
-	/** inline page-descriptor vector */
-	struct fuse_page_desc inline_page_descs[FUSE_REQ_INLINE_PAGES];
-
 	/** number of pages in vector */
 	unsigned num_pages;
-
-	/** File used in the request (or NULL) */
-	struct fuse_file *ff;
-
-	/** Inode used in the request or NULL */
-	struct inode *inode;
-
-	/** AIO control block */
-	struct fuse_io_priv *io;
-
-	/** Link on fi->writepages */
-	struct list_head writepages_entry;
 
 	/** Request completion callback */
 	void (*end)(struct fuse_conn *, struct fuse_req *);
