@@ -61,10 +61,10 @@ Compressed Formats
 
       - ``V4L2_PIX_FMT_H264_SLICE``
       - 'S264'
-      - H264 parsed slice data, without the start code and as
-	extracted from the H264 bitstream.  This format is adapted for
-	stateless video decoders that implement an H264 pipeline
-	(using the :ref:`mem2mem` and :ref:`media-request-api`).
+      - H264 parsed slice data, including slice headers, either with or
+	without the start code, as extracted from the H264 bitstream.
+	This format is adapted for stateless video decoders that implement an
+	H264 pipeline (using the :ref:`mem2mem` and :ref:`media-request-api`).
 	This pixelformat has two modifiers that must be set at least once
 	through the ``V4L2_CID_MPEG_VIDEO_H264_DECODE_MODE``
         and ``V4L2_CID_MPEG_VIDEO_H264_START_CODE`` controls.
@@ -79,6 +79,10 @@ Compressed Formats
 	with this pixel format. The output buffer must contain the
 	appropriate number of macroblocks to decode a full
 	corresponding frame to the matching capture buffer.
+
+	The syntax for this format is documented in :ref:`h264`, section
+	7.3.2.8 "Slice layer without partitioning RBSP syntax" and the following
+	sections.
 
 	.. note::
 
