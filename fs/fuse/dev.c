@@ -242,34 +242,6 @@ struct fuse_req *fuse_get_req_for_background(struct fuse_conn *fc,
 }
 EXPORT_SYMBOL_GPL(fuse_get_req_for_background);
 
-/*
- * Gets a requests for a file operation, always succeeds
- *
- * This is used for sending the FLUSH request, which must get to
- * userspace, due to POSIX locks which may need to be unlocked.
- *
- * If allocation fails due to OOM, use the reserved request in
- * fuse_file.
- *
- * This is very unlikely to deadlock accidentally, since the
- * filesystem should not have it's own file open.  If deadlock is
- * intentional, it can still be broken by "aborting" the filesystem.
- */
-static struct fuse_req *fuse_get_req_nofail_nopages(struct fuse_conn *fc)
-{
-	struct fuse_req *req;
-
-	atomic_inc(&fc->num_waiting);
-	req = __fuse_request_alloc(0, GFP_KERNEL | __GFP_NOFAIL);
-
-	req->in.h.uid = from_kuid_munged(fc->user_ns, current_fsuid());
-	req->in.h.gid = from_kgid_munged(fc->user_ns, current_fsgid());
-	req->in.h.pid = pid_nr_ns(task_pid(current), fc->pid_ns);
-
-	__set_bit(FR_WAITING, &req->flags);
-	return req;
-}
-
 void fuse_put_request(struct fuse_conn *fc, struct fuse_req *req)
 {
 	if (refcount_dec_and_test(&req->count)) {
@@ -565,15 +537,29 @@ static void fuse_adjust_compat(struct fuse_conn *fc, struct fuse_args *args)
 	}
 }
 
+static void fuse_force_creds(struct fuse_conn *fc, struct fuse_req *req)
+{
+	req->in.h.uid = from_kuid_munged(fc->user_ns, current_fsuid());
+	req->in.h.gid = from_kgid_munged(fc->user_ns, current_fsgid());
+	req->in.h.pid = pid_nr_ns(task_pid(current), fc->pid_ns);
+}
+
 ssize_t fuse_simple_request(struct fuse_conn *fc, struct fuse_args *args)
 {
 	struct fuse_req *req;
 	ssize_t ret;
 
 	if (args->force) {
-		req = fuse_get_req_nofail_nopages(fc);
+		atomic_inc(&fc->num_waiting);
+		req = __fuse_request_alloc(0, GFP_KERNEL | __GFP_NOFAIL);
+
+		if (!args->nocreds)
+			fuse_force_creds(fc, req);
+
+		__set_bit(FR_WAITING, &req->flags);
 		__set_bit(FR_FORCE, &req->flags);
 	} else {
+		WARN_ON(args->nocreds);
 		req = fuse_get_req(fc, 0);
 		if (IS_ERR(req))
 			return PTR_ERR(req);
