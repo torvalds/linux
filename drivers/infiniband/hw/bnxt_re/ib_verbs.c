@@ -1446,7 +1446,7 @@ struct ib_srq *bnxt_re_create_srq(struct ib_pd *ib_pd,
 			dev_err(rdev_to_dev(rdev), "SRQ copy to udata failed!");
 			bnxt_qplib_destroy_srq(&rdev->qplib_res,
 					       &srq->qplib_srq);
-			goto exit;
+			goto fail;
 		}
 	}
 	if (nq)
