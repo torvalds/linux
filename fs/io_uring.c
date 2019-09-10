@@ -203,7 +203,7 @@ struct io_ring_ctx {
 	} ____cacheline_aligned_in_smp;
 
 	/* IO offload */
-	struct workqueue_struct	*sqo_wq;
+	struct workqueue_struct	*sqo_wq[2];
 	struct task_struct	*sqo_thread;	/* if using sq thread polling */
 	struct mm_struct	*sqo_mm;
 	wait_queue_head_t	sqo_wait;
@@ -446,7 +446,19 @@ static void __io_commit_cqring(struct io_ring_ctx *ctx)
 static inline void io_queue_async_work(struct io_ring_ctx *ctx,
 				       struct io_kiocb *req)
 {
-	queue_work(ctx->sqo_wq, &req->work);
+	int rw;
+
+	switch (req->submit.sqe->opcode) {
+	case IORING_OP_WRITEV:
+	case IORING_OP_WRITE_FIXED:
+		rw = !(req->rw.ki_flags & IOCB_DIRECT);
+		break;
+	default:
+		rw = 0;
+		break;
+	}
+
+	queue_work(ctx->sqo_wq[rw], &req->work);
 }
 
 static void io_commit_cqring(struct io_ring_ctx *ctx)
@@ -2634,11 +2646,15 @@ static void io_sq_thread_stop(struct io_ring_ctx *ctx)
 
 static void io_finish_async(struct io_ring_ctx *ctx)
 {
+	int i;
+
 	io_sq_thread_stop(ctx);
 
-	if (ctx->sqo_wq) {
-		destroy_workqueue(ctx->sqo_wq);
-		ctx->sqo_wq = NULL;
+	for (i = 0; i < ARRAY_SIZE(ctx->sqo_wq); i++) {
+		if (ctx->sqo_wq[i]) {
+			destroy_workqueue(ctx->sqo_wq[i]);
+			ctx->sqo_wq[i] = NULL;
+		}
 	}
 }
 
@@ -2846,16 +2862,31 @@ static int io_sq_offload_start(struct io_ring_ctx *ctx,
 	}
 
 	/* Do QD, or 2 * CPUS, whatever is smallest */
-	ctx->sqo_wq = alloc_workqueue("io_ring-wq", WQ_UNBOUND | WQ_FREEZABLE,
+	ctx->sqo_wq[0] = alloc_workqueue("io_ring-wq",
+			WQ_UNBOUND | WQ_FREEZABLE,
 			min(ctx->sq_entries - 1, 2 * num_online_cpus()));
-	if (!ctx->sqo_wq) {
+	if (!ctx->sqo_wq[0]) {
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	/*
+	 * This is for buffered writes, where we want to limit the parallelism
+	 * due to file locking in file systems. As "normal" buffered writes
+	 * should parellelize on writeout quite nicely, limit us to having 2
+	 * pending. This avoids massive contention on the inode when doing
+	 * buffered async writes.
+	 */
+	ctx->sqo_wq[1] = alloc_workqueue("io_ring-write-wq",
+						WQ_UNBOUND | WQ_FREEZABLE, 2);
+	if (!ctx->sqo_wq[1]) {
 		ret = -ENOMEM;
 		goto err;
 	}
 
 	return 0;
 err:
-	io_sq_thread_stop(ctx);
+	io_finish_async(ctx);
 	mmdrop(ctx->sqo_mm);
 	ctx->sqo_mm = NULL;
 	return ret;
