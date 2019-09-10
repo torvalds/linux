@@ -29,14 +29,14 @@ static int fuse_send_open(struct fuse_conn *fc, u64 nodeid, struct file *file,
 	inarg.flags = file->f_flags & ~(O_CREAT | O_EXCL | O_NOCTTY);
 	if (!fc->atomic_o_trunc)
 		inarg.flags &= ~O_TRUNC;
-	args.in.h.opcode = opcode;
-	args.in.h.nodeid = nodeid;
-	args.in.numargs = 1;
-	args.in.args[0].size = sizeof(inarg);
-	args.in.args[0].value = &inarg;
-	args.out.numargs = 1;
-	args.out.args[0].size = sizeof(*outargp);
-	args.out.args[0].value = outargp;
+	args.opcode = opcode;
+	args.nodeid = nodeid;
+	args.in_numargs = 1;
+	args.in_args[0].size = sizeof(inarg);
+	args.in_args[0].value = &inarg;
+	args.out_numargs = 1;
+	args.out_args[0].size = sizeof(*outargp);
+	args.out_args[0].value = outargp;
 
 	return fuse_simple_request(fc, &args);
 }
@@ -464,11 +464,11 @@ int fuse_fsync_common(struct file *file, loff_t start, loff_t end,
 	memset(&inarg, 0, sizeof(inarg));
 	inarg.fh = ff->fh;
 	inarg.fsync_flags = datasync ? FUSE_FSYNC_FDATASYNC : 0;
-	args.in.h.opcode = opcode;
-	args.in.h.nodeid = get_node_id(inode);
-	args.in.numargs = 1;
-	args.in.args[0].size = sizeof(inarg);
-	args.in.args[0].value = &inarg;
+	args.opcode = opcode;
+	args.nodeid = get_node_id(inode);
+	args.in_numargs = 1;
+	args.in_args[0].size = sizeof(inarg);
+	args.in_args[0].value = &inarg;
 	return fuse_simple_request(fc, &args);
 }
 
@@ -2221,11 +2221,11 @@ static void fuse_lk_fill(struct fuse_args *args, struct file *file,
 	inarg->lk.pid = pid;
 	if (flock)
 		inarg->lk_flags |= FUSE_LK_FLOCK;
-	args->in.h.opcode = opcode;
-	args->in.h.nodeid = get_node_id(inode);
-	args->in.numargs = 1;
-	args->in.args[0].size = sizeof(*inarg);
-	args->in.args[0].value = inarg;
+	args->opcode = opcode;
+	args->nodeid = get_node_id(inode);
+	args->in_numargs = 1;
+	args->in_args[0].size = sizeof(*inarg);
+	args->in_args[0].value = inarg;
 }
 
 static int fuse_getlk(struct file *file, struct file_lock *fl)
@@ -2238,9 +2238,9 @@ static int fuse_getlk(struct file *file, struct file_lock *fl)
 	int err;
 
 	fuse_lk_fill(&args, file, fl, FUSE_GETLK, 0, 0, &inarg);
-	args.out.numargs = 1;
-	args.out.args[0].size = sizeof(outarg);
-	args.out.args[0].value = &outarg;
+	args.out_numargs = 1;
+	args.out_args[0].size = sizeof(outarg);
+	args.out_args[0].value = &outarg;
 	err = fuse_simple_request(fc, &args);
 	if (!err)
 		err = convert_fuse_file_lock(fc, &outarg.lk, fl);
@@ -2335,14 +2335,14 @@ static sector_t fuse_bmap(struct address_space *mapping, sector_t block)
 	memset(&inarg, 0, sizeof(inarg));
 	inarg.block = block;
 	inarg.blocksize = inode->i_sb->s_blocksize;
-	args.in.h.opcode = FUSE_BMAP;
-	args.in.h.nodeid = get_node_id(inode);
-	args.in.numargs = 1;
-	args.in.args[0].size = sizeof(inarg);
-	args.in.args[0].value = &inarg;
-	args.out.numargs = 1;
-	args.out.args[0].size = sizeof(outarg);
-	args.out.args[0].value = &outarg;
+	args.opcode = FUSE_BMAP;
+	args.nodeid = get_node_id(inode);
+	args.in_numargs = 1;
+	args.in_args[0].size = sizeof(inarg);
+	args.in_args[0].value = &inarg;
+	args.out_numargs = 1;
+	args.out_args[0].size = sizeof(outarg);
+	args.out_args[0].value = &outarg;
 	err = fuse_simple_request(fc, &args);
 	if (err == -ENOSYS)
 		fc->no_bmap = 1;
@@ -2367,14 +2367,14 @@ static loff_t fuse_lseek(struct file *file, loff_t offset, int whence)
 	if (fc->no_lseek)
 		goto fallback;
 
-	args.in.h.opcode = FUSE_LSEEK;
-	args.in.h.nodeid = ff->nodeid;
-	args.in.numargs = 1;
-	args.in.args[0].size = sizeof(inarg);
-	args.in.args[0].value = &inarg;
-	args.out.numargs = 1;
-	args.out.args[0].size = sizeof(outarg);
-	args.out.args[0].value = &outarg;
+	args.opcode = FUSE_LSEEK;
+	args.nodeid = ff->nodeid;
+	args.in_numargs = 1;
+	args.in_args[0].size = sizeof(inarg);
+	args.in_args[0].value = &inarg;
+	args.out_numargs = 1;
+	args.out_args[0].size = sizeof(outarg);
+	args.out_args[0].value = &outarg;
 	err = fuse_simple_request(fc, &args);
 	if (err) {
 		if (err == -ENOSYS) {
@@ -2860,14 +2860,14 @@ __poll_t fuse_file_poll(struct file *file, poll_table *wait)
 		fuse_register_polled_file(fc, ff);
 	}
 
-	args.in.h.opcode = FUSE_POLL;
-	args.in.h.nodeid = ff->nodeid;
-	args.in.numargs = 1;
-	args.in.args[0].size = sizeof(inarg);
-	args.in.args[0].value = &inarg;
-	args.out.numargs = 1;
-	args.out.args[0].size = sizeof(outarg);
-	args.out.args[0].value = &outarg;
+	args.opcode = FUSE_POLL;
+	args.nodeid = ff->nodeid;
+	args.in_numargs = 1;
+	args.in_args[0].size = sizeof(inarg);
+	args.in_args[0].value = &inarg;
+	args.out_numargs = 1;
+	args.out_args[0].size = sizeof(outarg);
+	args.out_args[0].value = &outarg;
 	err = fuse_simple_request(fc, &args);
 
 	if (!err)
@@ -3075,11 +3075,11 @@ static long fuse_file_fallocate(struct file *file, int mode, loff_t offset,
 	if (!(mode & FALLOC_FL_KEEP_SIZE))
 		set_bit(FUSE_I_SIZE_UNSTABLE, &fi->state);
 
-	args.in.h.opcode = FUSE_FALLOCATE;
-	args.in.h.nodeid = ff->nodeid;
-	args.in.numargs = 1;
-	args.in.args[0].size = sizeof(inarg);
-	args.in.args[0].value = &inarg;
+	args.opcode = FUSE_FALLOCATE;
+	args.nodeid = ff->nodeid;
+	args.in_numargs = 1;
+	args.in_args[0].size = sizeof(inarg);
+	args.in_args[0].value = &inarg;
 	err = fuse_simple_request(fc, &args);
 	if (err == -ENOSYS) {
 		fc->no_fallocate = 1;
@@ -3167,14 +3167,14 @@ static ssize_t __fuse_copy_file_range(struct file *file_in, loff_t pos_in,
 	if (is_unstable)
 		set_bit(FUSE_I_SIZE_UNSTABLE, &fi_out->state);
 
-	args.in.h.opcode = FUSE_COPY_FILE_RANGE;
-	args.in.h.nodeid = ff_in->nodeid;
-	args.in.numargs = 1;
-	args.in.args[0].size = sizeof(inarg);
-	args.in.args[0].value = &inarg;
-	args.out.numargs = 1;
-	args.out.args[0].size = sizeof(outarg);
-	args.out.args[0].value = &outarg;
+	args.opcode = FUSE_COPY_FILE_RANGE;
+	args.nodeid = ff_in->nodeid;
+	args.in_numargs = 1;
+	args.in_args[0].size = sizeof(inarg);
+	args.in_args[0].value = &inarg;
+	args.out_numargs = 1;
+	args.out_args[0].size = sizeof(outarg);
+	args.out_args[0].value = &outarg;
 	err = fuse_simple_request(fc, &args);
 	if (err == -ENOSYS) {
 		fc->no_copy_file_range = 1;

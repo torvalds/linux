@@ -287,20 +287,13 @@ struct fuse_page_desc {
 };
 
 struct fuse_args {
-	struct {
-		struct {
-			uint32_t opcode;
-			uint64_t nodeid;
-		} h;
-		unsigned numargs;
-		struct fuse_in_arg args[3];
-
-	} in;
-	struct {
-		unsigned argvar:1;
-		unsigned numargs;
-		struct fuse_arg args[2];
-	} out;
+	uint32_t opcode;
+	uint64_t nodeid;
+	unsigned int in_numargs;
+	struct fuse_in_arg in_args[3];
+	unsigned int out_argvar:1;
+	unsigned int out_numargs;
+	struct fuse_arg out_args[2];
 };
 
 #define FUSE_ARGS(args) struct fuse_args args = {}

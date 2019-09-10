@@ -590,32 +590,32 @@ EXPORT_SYMBOL_GPL(fuse_request_send);
 
 static void fuse_adjust_compat(struct fuse_conn *fc, struct fuse_args *args)
 {
-	if (fc->minor < 4 && args->in.h.opcode == FUSE_STATFS)
-		args->out.args[0].size = FUSE_COMPAT_STATFS_SIZE;
+	if (fc->minor < 4 && args->opcode == FUSE_STATFS)
+		args->out_args[0].size = FUSE_COMPAT_STATFS_SIZE;
 
 	if (fc->minor < 9) {
-		switch (args->in.h.opcode) {
+		switch (args->opcode) {
 		case FUSE_LOOKUP:
 		case FUSE_CREATE:
 		case FUSE_MKNOD:
 		case FUSE_MKDIR:
 		case FUSE_SYMLINK:
 		case FUSE_LINK:
-			args->out.args[0].size = FUSE_COMPAT_ENTRY_OUT_SIZE;
+			args->out_args[0].size = FUSE_COMPAT_ENTRY_OUT_SIZE;
 			break;
 		case FUSE_GETATTR:
 		case FUSE_SETATTR:
-			args->out.args[0].size = FUSE_COMPAT_ATTR_OUT_SIZE;
+			args->out_args[0].size = FUSE_COMPAT_ATTR_OUT_SIZE;
 			break;
 		}
 	}
 	if (fc->minor < 12) {
-		switch (args->in.h.opcode) {
+		switch (args->opcode) {
 		case FUSE_CREATE:
-			args->in.args[0].size = sizeof(struct fuse_open_in);
+			args->in_args[0].size = sizeof(struct fuse_open_in);
 			break;
 		case FUSE_MKNOD:
-			args->in.args[0].size = FUSE_COMPAT_MKNOD_IN_SIZE;
+			args->in_args[0].size = FUSE_COMPAT_MKNOD_IN_SIZE;
 			break;
 		}
 	}
@@ -633,19 +633,19 @@ ssize_t fuse_simple_request(struct fuse_conn *fc, struct fuse_args *args)
 	/* Needs to be done after fuse_get_req() so that fc->minor is valid */
 	fuse_adjust_compat(fc, args);
 
-	req->in.h.opcode = args->in.h.opcode;
-	req->in.h.nodeid = args->in.h.nodeid;
-	req->in.numargs = args->in.numargs;
-	memcpy(req->in.args, args->in.args,
-	       args->in.numargs * sizeof(struct fuse_in_arg));
-	req->out.argvar = args->out.argvar;
-	req->out.numargs = args->out.numargs;
-	memcpy(req->out.args, args->out.args,
-	       args->out.numargs * sizeof(struct fuse_arg));
+	req->in.h.opcode = args->opcode;
+	req->in.h.nodeid = args->nodeid;
+	req->in.numargs = args->in_numargs;
+	memcpy(req->in.args, args->in_args,
+	       args->in_numargs * sizeof(struct fuse_in_arg));
+	req->out.argvar = args->out_argvar;
+	req->out.numargs = args->out_numargs;
+	memcpy(req->out.args, args->out_args,
+	       args->out_numargs * sizeof(struct fuse_arg));
 	fuse_request_send(fc, req);
 	ret = req->out.h.error;
-	if (!ret && args->out.argvar) {
-		BUG_ON(args->out.numargs != 1);
+	if (!ret && args->out_argvar) {
+		BUG_ON(args->out_numargs != 1);
 		ret = req->out.args[0].size;
 	}
 	fuse_put_request(fc, req);

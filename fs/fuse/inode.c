@@ -437,12 +437,12 @@ static int fuse_statfs(struct dentry *dentry, struct kstatfs *buf)
 	}
 
 	memset(&outarg, 0, sizeof(outarg));
-	args.in.numargs = 0;
-	args.in.h.opcode = FUSE_STATFS;
-	args.in.h.nodeid = get_node_id(d_inode(dentry));
-	args.out.numargs = 1;
-	args.out.args[0].size = sizeof(outarg);
-	args.out.args[0].value = &outarg;
+	args.in_numargs = 0;
+	args.opcode = FUSE_STATFS;
+	args.nodeid = get_node_id(d_inode(dentry));
+	args.out_numargs = 1;
+	args.out_args[0].size = sizeof(outarg);
+	args.out_args[0].value = &outarg;
 	err = fuse_simple_request(fc, &args);
 	if (!err)
 		convert_fuse_statfs(buf, &outarg.st);

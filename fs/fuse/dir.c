@@ -139,14 +139,14 @@ static void fuse_lookup_init(struct fuse_conn *fc, struct fuse_args *args,
 			     struct fuse_entry_out *outarg)
 {
 	memset(outarg, 0, sizeof(struct fuse_entry_out));
-	args->in.h.opcode = FUSE_LOOKUP;
-	args->in.h.nodeid = nodeid;
-	args->in.numargs = 1;
-	args->in.args[0].size = name->len + 1;
-	args->in.args[0].value = name->name;
-	args->out.numargs = 1;
-	args->out.args[0].size = sizeof(struct fuse_entry_out);
-	args->out.args[0].value = outarg;
+	args->opcode = FUSE_LOOKUP;
+	args->nodeid = nodeid;
+	args->in_numargs = 1;
+	args->in_args[0].size = name->len + 1;
+	args->in_args[0].value = name->name;
+	args->out_numargs = 1;
+	args->out_args[0].size = sizeof(struct fuse_entry_out);
+	args->out_args[0].value = outarg;
 }
 
 /*
@@ -410,18 +410,18 @@ static int fuse_create_open(struct inode *dir, struct dentry *entry,
 	inarg.flags = flags;
 	inarg.mode = mode;
 	inarg.umask = current_umask();
-	args.in.h.opcode = FUSE_CREATE;
-	args.in.h.nodeid = get_node_id(dir);
-	args.in.numargs = 2;
-	args.in.args[0].size = sizeof(inarg);
-	args.in.args[0].value = &inarg;
-	args.in.args[1].size = entry->d_name.len + 1;
-	args.in.args[1].value = entry->d_name.name;
-	args.out.numargs = 2;
-	args.out.args[0].size = sizeof(outentry);
-	args.out.args[0].value = &outentry;
-	args.out.args[1].size = sizeof(outopen);
-	args.out.args[1].value = &outopen;
+	args.opcode = FUSE_CREATE;
+	args.nodeid = get_node_id(dir);
+	args.in_numargs = 2;
+	args.in_args[0].size = sizeof(inarg);
+	args.in_args[0].value = &inarg;
+	args.in_args[1].size = entry->d_name.len + 1;
+	args.in_args[1].value = entry->d_name.name;
+	args.out_numargs = 2;
+	args.out_args[0].size = sizeof(outentry);
+	args.out_args[0].value = &outentry;
+	args.out_args[1].size = sizeof(outopen);
+	args.out_args[1].value = &outopen;
 	err = fuse_simple_request(fc, &args);
 	if (err)
 		goto out_free_ff;
@@ -526,10 +526,10 @@ static int create_new_entry(struct fuse_conn *fc, struct fuse_args *args,
 		return -ENOMEM;
 
 	memset(&outarg, 0, sizeof(outarg));
-	args->in.h.nodeid = get_node_id(dir);
-	args->out.numargs = 1;
-	args->out.args[0].size = sizeof(outarg);
-	args->out.args[0].value = &outarg;
+	args->nodeid = get_node_id(dir);
+	args->out_numargs = 1;
+	args->out_args[0].size = sizeof(outarg);
+	args->out_args[0].value = &outarg;
 	err = fuse_simple_request(fc, args);
 	if (err)
 		goto out_put_forget_req;
@@ -582,12 +582,12 @@ static int fuse_mknod(struct inode *dir, struct dentry *entry, umode_t mode,
 	inarg.mode = mode;
 	inarg.rdev = new_encode_dev(rdev);
 	inarg.umask = current_umask();
-	args.in.h.opcode = FUSE_MKNOD;
-	args.in.numargs = 2;
-	args.in.args[0].size = sizeof(inarg);
-	args.in.args[0].value = &inarg;
-	args.in.args[1].size = entry->d_name.len + 1;
-	args.in.args[1].value = entry->d_name.name;
+	args.opcode = FUSE_MKNOD;
+	args.in_numargs = 2;
+	args.in_args[0].size = sizeof(inarg);
+	args.in_args[0].value = &inarg;
+	args.in_args[1].size = entry->d_name.len + 1;
+	args.in_args[1].value = entry->d_name.name;
 	return create_new_entry(fc, &args, dir, entry, mode);
 }
 
@@ -609,12 +609,12 @@ static int fuse_mkdir(struct inode *dir, struct dentry *entry, umode_t mode)
 	memset(&inarg, 0, sizeof(inarg));
 	inarg.mode = mode;
 	inarg.umask = current_umask();
-	args.in.h.opcode = FUSE_MKDIR;
-	args.in.numargs = 2;
-	args.in.args[0].size = sizeof(inarg);
-	args.in.args[0].value = &inarg;
-	args.in.args[1].size = entry->d_name.len + 1;
-	args.in.args[1].value = entry->d_name.name;
+	args.opcode = FUSE_MKDIR;
+	args.in_numargs = 2;
+	args.in_args[0].size = sizeof(inarg);
+	args.in_args[0].value = &inarg;
+	args.in_args[1].size = entry->d_name.len + 1;
+	args.in_args[1].value = entry->d_name.name;
 	return create_new_entry(fc, &args, dir, entry, S_IFDIR);
 }
 
@@ -625,12 +625,12 @@ static int fuse_symlink(struct inode *dir, struct dentry *entry,
 	unsigned len = strlen(link) + 1;
 	FUSE_ARGS(args);
 
-	args.in.h.opcode = FUSE_SYMLINK;
-	args.in.numargs = 2;
-	args.in.args[0].size = entry->d_name.len + 1;
-	args.in.args[0].value = entry->d_name.name;
-	args.in.args[1].size = len;
-	args.in.args[1].value = link;
+	args.opcode = FUSE_SYMLINK;
+	args.in_numargs = 2;
+	args.in_args[0].size = entry->d_name.len + 1;
+	args.in_args[0].value = entry->d_name.name;
+	args.in_args[1].size = len;
+	args.in_args[1].value = link;
 	return create_new_entry(fc, &args, dir, entry, S_IFLNK);
 }
 
@@ -648,11 +648,11 @@ static int fuse_unlink(struct inode *dir, struct dentry *entry)
 	struct fuse_conn *fc = get_fuse_conn(dir);
 	FUSE_ARGS(args);
 
-	args.in.h.opcode = FUSE_UNLINK;
-	args.in.h.nodeid = get_node_id(dir);
-	args.in.numargs = 1;
-	args.in.args[0].size = entry->d_name.len + 1;
-	args.in.args[0].value = entry->d_name.name;
+	args.opcode = FUSE_UNLINK;
+	args.nodeid = get_node_id(dir);
+	args.in_numargs = 1;
+	args.in_args[0].size = entry->d_name.len + 1;
+	args.in_args[0].value = entry->d_name.name;
 	err = fuse_simple_request(fc, &args);
 	if (!err) {
 		struct inode *inode = d_inode(entry);
@@ -684,11 +684,11 @@ static int fuse_rmdir(struct inode *dir, struct dentry *entry)
 	struct fuse_conn *fc = get_fuse_conn(dir);
 	FUSE_ARGS(args);
 
-	args.in.h.opcode = FUSE_RMDIR;
-	args.in.h.nodeid = get_node_id(dir);
-	args.in.numargs = 1;
-	args.in.args[0].size = entry->d_name.len + 1;
-	args.in.args[0].value = entry->d_name.name;
+	args.opcode = FUSE_RMDIR;
+	args.nodeid = get_node_id(dir);
+	args.in_numargs = 1;
+	args.in_args[0].size = entry->d_name.len + 1;
+	args.in_args[0].value = entry->d_name.name;
 	err = fuse_simple_request(fc, &args);
 	if (!err) {
 		clear_nlink(d_inode(entry));
@@ -711,15 +711,15 @@ static int fuse_rename_common(struct inode *olddir, struct dentry *oldent,
 	memset(&inarg, 0, argsize);
 	inarg.newdir = get_node_id(newdir);
 	inarg.flags = flags;
-	args.in.h.opcode = opcode;
-	args.in.h.nodeid = get_node_id(olddir);
-	args.in.numargs = 3;
-	args.in.args[0].size = argsize;
-	args.in.args[0].value = &inarg;
-	args.in.args[1].size = oldent->d_name.len + 1;
-	args.in.args[1].value = oldent->d_name.name;
-	args.in.args[2].size = newent->d_name.len + 1;
-	args.in.args[2].value = newent->d_name.name;
+	args.opcode = opcode;
+	args.nodeid = get_node_id(olddir);
+	args.in_numargs = 3;
+	args.in_args[0].size = argsize;
+	args.in_args[0].value = &inarg;
+	args.in_args[1].size = oldent->d_name.len + 1;
+	args.in_args[1].value = oldent->d_name.name;
+	args.in_args[2].size = newent->d_name.len + 1;
+	args.in_args[2].value = newent->d_name.name;
 	err = fuse_simple_request(fc, &args);
 	if (!err) {
 		/* ctime changes */
@@ -796,12 +796,12 @@ static int fuse_link(struct dentry *entry, struct inode *newdir,
 
 	memset(&inarg, 0, sizeof(inarg));
 	inarg.oldnodeid = get_node_id(inode);
-	args.in.h.opcode = FUSE_LINK;
-	args.in.numargs = 2;
-	args.in.args[0].size = sizeof(inarg);
-	args.in.args[0].value = &inarg;
-	args.in.args[1].size = newent->d_name.len + 1;
-	args.in.args[1].value = newent->d_name.name;
+	args.opcode = FUSE_LINK;
+	args.in_numargs = 2;
+	args.in_args[0].size = sizeof(inarg);
+	args.in_args[0].value = &inarg;
+	args.in_args[1].size = newent->d_name.len + 1;
+	args.in_args[1].value = newent->d_name.name;
 	err = create_new_entry(fc, &args, newdir, newent, inode->i_mode);
 	/* Contrary to "normal" filesystems it can happen that link
 	   makes two "logical" inodes point to the same "physical"
@@ -884,14 +884,14 @@ static int fuse_do_getattr(struct inode *inode, struct kstat *stat,
 		inarg.getattr_flags |= FUSE_GETATTR_FH;
 		inarg.fh = ff->fh;
 	}
-	args.in.h.opcode = FUSE_GETATTR;
-	args.in.h.nodeid = get_node_id(inode);
-	args.in.numargs = 1;
-	args.in.args[0].size = sizeof(inarg);
-	args.in.args[0].value = &inarg;
-	args.out.numargs = 1;
-	args.out.args[0].size = sizeof(outarg);
-	args.out.args[0].value = &outarg;
+	args.opcode = FUSE_GETATTR;
+	args.nodeid = get_node_id(inode);
+	args.in_numargs = 1;
+	args.in_args[0].size = sizeof(inarg);
+	args.in_args[0].value = &inarg;
+	args.out_numargs = 1;
+	args.out_args[0].size = sizeof(outarg);
+	args.out_args[0].value = &outarg;
 	err = fuse_simple_request(fc, &args);
 	if (!err) {
 		if ((inode->i_mode ^ outarg.attr.mode) & S_IFMT) {
@@ -1056,11 +1056,11 @@ static int fuse_access(struct inode *inode, int mask)
 
 	memset(&inarg, 0, sizeof(inarg));
 	inarg.mask = mask & (MAY_READ | MAY_WRITE | MAY_EXEC);
-	args.in.h.opcode = FUSE_ACCESS;
-	args.in.h.nodeid = get_node_id(inode);
-	args.in.numargs = 1;
-	args.in.args[0].size = sizeof(inarg);
-	args.in.args[0].value = &inarg;
+	args.opcode = FUSE_ACCESS;
+	args.nodeid = get_node_id(inode);
+	args.in_numargs = 1;
+	args.in_args[0].size = sizeof(inarg);
+	args.in_args[0].value = &inarg;
 	err = fuse_simple_request(fc, &args);
 	if (err == -ENOSYS) {
 		fc->no_access = 1;
@@ -1383,14 +1383,14 @@ static void fuse_setattr_fill(struct fuse_conn *fc, struct fuse_args *args,
 			      struct fuse_setattr_in *inarg_p,
 			      struct fuse_attr_out *outarg_p)
 {
-	args->in.h.opcode = FUSE_SETATTR;
-	args->in.h.nodeid = get_node_id(inode);
-	args->in.numargs = 1;
-	args->in.args[0].size = sizeof(*inarg_p);
-	args->in.args[0].value = inarg_p;
-	args->out.numargs = 1;
-	args->out.args[0].size = sizeof(*outarg_p);
-	args->out.args[0].value = outarg_p;
+	args->opcode = FUSE_SETATTR;
+	args->nodeid = get_node_id(inode);
+	args->in_numargs = 1;
+	args->in_args[0].size = sizeof(*inarg_p);
+	args->in_args[0].value = inarg_p;
+	args->out_numargs = 1;
+	args->out_args[0].size = sizeof(*outarg_p);
+	args->out_args[0].value = outarg_p;
 }
 
 /*
