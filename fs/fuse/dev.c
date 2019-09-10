@@ -448,15 +448,8 @@ static void fuse_force_creds(struct fuse_conn *fc, struct fuse_req *req)
 
 void fuse_args_to_req(struct fuse_req *req, struct fuse_args *args)
 {
-	struct fuse_args_pages *ap = container_of(args, typeof(*ap), args);
-
 	req->in.h.opcode = args->opcode;
 	req->in.h.nodeid = args->nodeid;
-	if (args->in_pages || args->out_pages) {
-		req->pages = ap->pages;
-		req->page_descs = ap->descs;
-		req->num_pages = ap->num_pages;
-	}
 	req->args = args;
 }
 
@@ -939,14 +932,15 @@ static int fuse_copy_pages(struct fuse_copy_state *cs, unsigned nbytes,
 {
 	unsigned i;
 	struct fuse_req *req = cs->req;
+	struct fuse_args_pages *ap = container_of(req->args, typeof(*ap), args);
 
-	for (i = 0; i < req->num_pages && (nbytes || zeroing); i++) {
+
+	for (i = 0; i < ap->num_pages && (nbytes || zeroing); i++) {
 		int err;
-		unsigned offset = req->page_descs[i].offset;
-		unsigned count = min(nbytes, req->page_descs[i].length);
+		unsigned int offset = ap->descs[i].offset;
+		unsigned int count = min(nbytes, ap->descs[i].length);
 
-		err = fuse_copy_page(cs, &req->pages[i], offset, count,
-				     zeroing);
+		err = fuse_copy_page(cs, &ap->pages[i], offset, count, zeroing);
 		if (err)
 			return err;
 

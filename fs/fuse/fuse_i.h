@@ -353,15 +353,6 @@ struct fuse_req {
 	/** Used to wake up the task waiting for completion of request*/
 	wait_queue_head_t waitq;
 
-	/** page vector */
-	struct page **pages;
-
-	/** page-descriptor vector */
-	struct fuse_page_desc *page_descs;
-
-	/** number of pages in vector */
-	unsigned num_pages;
-
 };
 
 struct fuse_iqueue {
