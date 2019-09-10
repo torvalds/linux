@@ -909,6 +909,8 @@ struct fuse_req *fuse_request_alloc(unsigned npages);
 
 struct fuse_req *fuse_request_alloc_nofs(unsigned npages);
 
+struct page **fuse_pages_alloc(unsigned int npages, gfp_t flags,
+			       struct fuse_page_desc **desc);
 bool fuse_req_realloc_pages(struct fuse_conn *fc, struct fuse_req *req,
 			    gfp_t flags);
 

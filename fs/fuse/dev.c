@@ -54,18 +54,6 @@ static void fuse_request_init(struct fuse_req *req, struct page **pages,
 	__set_bit(FR_PENDING, &req->flags);
 }
 
-static struct page **fuse_req_pages_alloc(unsigned int npages, gfp_t flags,
-					  struct fuse_page_desc **desc)
-{
-	struct page **pages;
-
-	pages = kzalloc(npages * (sizeof(struct page *) +
-				  sizeof(struct fuse_page_desc)), flags);
-	*desc = (void *) pages + npages * sizeof(struct page *);
-
-	return pages;
-}
-
 static struct fuse_req *__fuse_request_alloc(unsigned npages, gfp_t flags)
 {
 	struct fuse_req *req = kmem_cache_zalloc(fuse_req_cachep, flags);
@@ -75,8 +63,7 @@ static struct fuse_req *__fuse_request_alloc(unsigned npages, gfp_t flags)
 
 		WARN_ON(npages > FUSE_MAX_MAX_PAGES);
 		if (npages > FUSE_REQ_INLINE_PAGES) {
-			pages = fuse_req_pages_alloc(npages, flags,
-						     &page_descs);
+			pages = fuse_pages_alloc(npages, flags, &page_descs);
 			if (!pages) {
 				kmem_cache_free(fuse_req_cachep, req);
 				return NULL;
@@ -120,7 +107,7 @@ bool fuse_req_realloc_pages(struct fuse_conn *fc, struct fuse_req *req,
 				    fc->max_pages);
 	WARN_ON(npages <= req->max_pages);
 
-	pages = fuse_req_pages_alloc(npages, flags, &page_descs);
+	pages = fuse_pages_alloc(npages, flags, &page_descs);
 	if (!pages)
 		return false;
 
