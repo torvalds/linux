@@ -1083,9 +1083,11 @@ static int kvmppc_book3s_init(void)
 	if (xics_on_xive()) {
 		kvmppc_xive_init_module();
 		kvm_register_device_ops(&kvm_xive_ops, KVM_DEV_TYPE_XICS);
-		kvmppc_xive_native_init_module();
-		kvm_register_device_ops(&kvm_xive_native_ops,
-					KVM_DEV_TYPE_XIVE);
+		if (kvmppc_xive_native_supported()) {
+			kvmppc_xive_native_init_module();
+			kvm_register_device_ops(&kvm_xive_native_ops,
+						KVM_DEV_TYPE_XIVE);
+		}
 	} else
 #endif
 		kvm_register_device_ops(&kvm_xics_ops, KVM_DEV_TYPE_XICS);

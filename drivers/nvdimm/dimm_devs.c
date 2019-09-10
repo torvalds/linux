@@ -484,12 +484,12 @@ static ssize_t security_store(struct device *dev,
 	 * done while probing is idle and the DIMM is not in active use
 	 * in any region.
 	 */
-	device_lock(dev);
+	nd_device_lock(dev);
 	nvdimm_bus_lock(dev);
 	wait_nvdimm_bus_probe_idle(dev);
 	rc = __security_store(dev, buf, len);
 	nvdimm_bus_unlock(dev);
-	device_unlock(dev);
+	nd_device_unlock(dev);
 
 	return rc;
 }

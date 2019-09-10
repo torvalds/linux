@@ -7309,7 +7309,6 @@ int t4_fixup_host_params(struct adapter *adap, unsigned int page_size,
 	} else {
 		unsigned int pack_align;
 		unsigned int ingpad, ingpack;
-		unsigned int pcie_cap;
 
 		/* T5 introduced the separation of the Free List Padding and
 		 * Packing Boundaries.  Thus, we can select a smaller Padding
@@ -7334,8 +7333,7 @@ int t4_fixup_host_params(struct adapter *adap, unsigned int page_size,
 		 * multiple of the Maximum Payload Size.
 		 */
 		pack_align = fl_align;
-		pcie_cap = pci_find_capability(adap->pdev, PCI_CAP_ID_EXP);
-		if (pcie_cap) {
+		if (pci_is_pcie(adap->pdev)) {
 			unsigned int mps, mps_log;
 			u16 devctl;
 
@@ -7343,9 +7341,8 @@ int t4_fixup_host_params(struct adapter *adap, unsigned int page_size,
 			 * [bits 7:5] encodes sizes as powers of 2 starting at
 			 * 128 bytes.
 			 */
-			pci_read_config_word(adap->pdev,
-					     pcie_cap + PCI_EXP_DEVCTL,
-					     &devctl);
+			pcie_capability_read_word(adap->pdev, PCI_EXP_DEVCTL,
+						  &devctl);
 			mps_log = ((devctl & PCI_EXP_DEVCTL_PAYLOAD) >> 5) + 7;
 			mps = 1 << mps_log;
 			if (mps > pack_align)

@@ -190,9 +190,6 @@ echo-cmd = $(if $($(quiet)cmd_$(1)),\
 # printing commands
 cmd = @set -e; $(echo-cmd) $(cmd_$(1))
 
-# Add $(obj)/ for paths that are not absolute
-objectify = $(foreach o,$(1),$(if $(filter /%,$(o)),$(o),$(obj)/$(o)))
-
 ###
 # if_changed      - execute command if any prerequisite is newer than
 #                   target, or command line has changed
