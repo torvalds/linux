@@ -56,9 +56,9 @@ static int __gt_unpark(struct intel_wakeref *wf)
 
 static int __gt_park(struct intel_wakeref *wf)
 {
-	struct drm_i915_private *i915 =
-		container_of(wf, typeof(*i915), gt.wakeref);
-	intel_wakeref_t wakeref = fetch_and_zero(&i915->gt.awake);
+	struct intel_gt *gt = container_of(wf, typeof(*gt), wakeref);
+	intel_wakeref_t wakeref = fetch_and_zero(&gt->awake);
+	struct drm_i915_private *i915 = gt->i915;
 
 	GEM_TRACE("\n");
 
