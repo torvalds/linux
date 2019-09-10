@@ -1152,38 +1152,36 @@ static int fuse_permission(struct inode *inode, int mask)
 static int fuse_readlink_page(struct inode *inode, struct page *page)
 {
 	struct fuse_conn *fc = get_fuse_conn(inode);
-	struct fuse_req *req;
-	int err;
+	struct fuse_page_desc desc = { .length = PAGE_SIZE - 1 };
+	struct fuse_args_pages ap = {
+		.num_pages = 1,
+		.pages = &page,
+		.descs = &desc,
+	};
+	char *link;
+	ssize_t res;
 
-	req = fuse_get_req(fc, 1);
-	if (IS_ERR(req))
-		return PTR_ERR(req);
+	ap.args.opcode = FUSE_READLINK;
+	ap.args.nodeid = get_node_id(inode);
+	ap.args.out_pages = true;
+	ap.args.out_argvar = true;
+	ap.args.page_zeroing = true;
+	ap.args.out_numargs = 1;
+	ap.args.out_args[0].size = desc.length;
+	res = fuse_simple_request(fc, &ap.args);
 
-	req->out.page_zeroing = 1;
-	req->out.argpages = 1;
-	req->num_pages = 1;
-	req->pages[0] = page;
-	req->page_descs[0].length = PAGE_SIZE - 1;
-	req->in.h.opcode = FUSE_READLINK;
-	req->in.h.nodeid = get_node_id(inode);
-	req->out.argvar = 1;
-	req->out.numargs = 1;
-	req->out.args[0].size = PAGE_SIZE - 1;
-	fuse_request_send(fc, req);
-	err = req->out.h.error;
-
-	if (!err) {
-		char *link = page_address(page);
-		size_t len = req->out.args[0].size;
-
-		BUG_ON(len >= PAGE_SIZE);
-		link[len] = '\0';
-	}
-
-	fuse_put_request(fc, req);
 	fuse_invalidate_atime(inode);
 
-	return err;
+	if (res < 0)
+		return res;
+
+	if (WARN_ON(res >= PAGE_SIZE))
+		return -EIO;
+
+	link = page_address(page);
+	link[res] = '\0';
+
+	return 0;
 }
 
 static const char *fuse_get_link(struct dentry *dentry, struct inode *inode,
