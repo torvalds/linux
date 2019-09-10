@@ -504,7 +504,9 @@ static inline int amdgpu_ras_reset_gpu(struct amdgpu_device *adev,
 	/* save bad page to eeprom before gpu reset,
 	 * i2c may be unstable in gpu reset
 	 */
-	amdgpu_ras_reserve_bad_pages(adev);
+	if (in_task())
+		amdgpu_ras_reserve_bad_pages(adev);
+
 	if (atomic_cmpxchg(&ras->in_recovery, 0, 1) == 0)
 		schedule_work(&ras->recovery_work);
 	return 0;
