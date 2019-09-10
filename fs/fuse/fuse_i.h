@@ -435,8 +435,6 @@ struct fuse_req {
 	/** Request completion callback */
 	void (*end)(struct fuse_conn *, struct fuse_req *);
 
-	/** Request is stolen from fuse_file->reserved_req */
-	struct file *stolen_file;
 };
 
 struct fuse_iqueue {
@@ -579,9 +577,6 @@ struct fuse_conn {
 
 	/** waitq for blocked connection */
 	wait_queue_head_t blocked_waitq;
-
-	/** waitq for reserved requests */
-	wait_queue_head_t reserved_req_waitq;
 
 	/** Connection established, cleared on umount, connection
 	    abort and device release */
@@ -927,8 +922,7 @@ void __fuse_get_request(struct fuse_req *req);
 /**
  * Gets a requests for a file operation, always succeeds
  */
-struct fuse_req *fuse_get_req_nofail_nopages(struct fuse_conn *fc,
-					     struct file *file);
+struct fuse_req *fuse_get_req_nofail_nopages(struct fuse_conn *fc);
 
 /**
  * Decrement reference count of a request.  If count goes to zero free

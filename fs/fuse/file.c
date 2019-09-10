@@ -432,7 +432,7 @@ static int fuse_flush(struct file *file, fl_owner_t id)
 	if (err)
 		return err;
 
-	req = fuse_get_req_nofail_nopages(fc, file);
+	req = fuse_get_req_nofail_nopages(fc);
 	memset(&inarg, 0, sizeof(inarg));
 	inarg.fh = ff->fh;
 	inarg.lock_owner = fuse_lock_owner_id(fc, id);

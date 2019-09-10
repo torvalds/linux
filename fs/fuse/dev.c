@@ -243,52 +243,6 @@ struct fuse_req *fuse_get_req_for_background(struct fuse_conn *fc,
 EXPORT_SYMBOL_GPL(fuse_get_req_for_background);
 
 /*
- * Return request in fuse_file->reserved_req.  However that may
- * currently be in use.  If that is the case, wait for it to become
- * available.
- */
-static struct fuse_req *get_reserved_req(struct fuse_conn *fc,
-					 struct file *file)
-{
-	struct fuse_req *req = NULL;
-	struct fuse_inode *fi = get_fuse_inode(file_inode(file));
-	struct fuse_file *ff = file->private_data;
-
-	do {
-		wait_event(fc->reserved_req_waitq, ff->reserved_req);
-		spin_lock(&fi->lock);
-		if (ff->reserved_req) {
-			req = ff->reserved_req;
-			ff->reserved_req = NULL;
-			req->stolen_file = get_file(file);
-		}
-		spin_unlock(&fi->lock);
-	} while (!req);
-
-	return req;
-}
-
-/*
- * Put stolen request back into fuse_file->reserved_req
- */
-static void put_reserved_req(struct fuse_conn *fc, struct fuse_req *req)
-{
-	struct file *file = req->stolen_file;
-	struct fuse_inode *fi = get_fuse_inode(file_inode(file));
-	struct fuse_file *ff = file->private_data;
-
-	WARN_ON(req->max_pages);
-	spin_lock(&fi->lock);
-	memset(req, 0, sizeof(*req));
-	fuse_request_init(req, NULL, NULL, 0);
-	BUG_ON(ff->reserved_req);
-	ff->reserved_req = req;
-	wake_up_all(&fc->reserved_req_waitq);
-	spin_unlock(&fi->lock);
-	fput(file);
-}
-
-/*
  * Gets a requests for a file operation, always succeeds
  *
  * This is used for sending the FLUSH request, which must get to
@@ -301,25 +255,18 @@ static void put_reserved_req(struct fuse_conn *fc, struct fuse_req *req)
  * filesystem should not have it's own file open.  If deadlock is
  * intentional, it can still be broken by "aborting" the filesystem.
  */
-struct fuse_req *fuse_get_req_nofail_nopages(struct fuse_conn *fc,
-					     struct file *file)
+struct fuse_req *fuse_get_req_nofail_nopages(struct fuse_conn *fc)
 {
 	struct fuse_req *req;
 
 	atomic_inc(&fc->num_waiting);
-	wait_event(fc->blocked_waitq, fc->initialized);
-	/* Matches smp_wmb() in fuse_set_initialized() */
-	smp_rmb();
-	req = fuse_request_alloc(0);
-	if (!req)
-		req = get_reserved_req(fc, file);
+	req = __fuse_request_alloc(0, GFP_KERNEL | __GFP_NOFAIL);
 
 	req->in.h.uid = from_kuid_munged(fc->user_ns, current_fsuid());
 	req->in.h.gid = from_kgid_munged(fc->user_ns, current_fsgid());
 	req->in.h.pid = pid_nr_ns(task_pid(current), fc->pid_ns);
 
 	__set_bit(FR_WAITING, &req->flags);
-	__clear_bit(FR_BACKGROUND, &req->flags);
 	return req;
 }
 
@@ -342,10 +289,7 @@ void fuse_put_request(struct fuse_conn *fc, struct fuse_req *req)
 			fuse_drop_waiting(fc);
 		}
 
-		if (req->stolen_file)
-			put_reserved_req(fc, req);
-		else
-			fuse_request_free(req);
+		fuse_request_free(req);
 	}
 }
 EXPORT_SYMBOL_GPL(fuse_put_request);
@@ -719,7 +663,7 @@ void fuse_force_forget(struct file *file, u64 nodeid)
 
 	memset(&inarg, 0, sizeof(inarg));
 	inarg.nlookup = 1;
-	req = fuse_get_req_nofail_nopages(fc, file);
+	req = fuse_get_req_nofail_nopages(fc);
 	req->in.h.opcode = FUSE_FORGET;
 	req->in.h.nodeid = nodeid;
 	req->in.numargs = 1;
