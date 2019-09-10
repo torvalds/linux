@@ -1838,6 +1838,7 @@ restart:
 	do {
 		struct sqe_submit *s = &req->submit;
 		const struct io_uring_sqe *sqe = s->sqe;
+		unsigned int flags = req->flags;
 
 		/* Ensure we clear previously set non-block flag */
 		req->rw.ki_flags &= ~IOCB_NOWAIT;
@@ -1883,7 +1884,7 @@ restart:
 		kfree(sqe);
 
 		/* req from defer and link list needn't decrease async cnt */
-		if (req->flags & (REQ_F_IO_DRAINED | REQ_F_LINK_DONE))
+		if (flags & (REQ_F_IO_DRAINED | REQ_F_LINK_DONE))
 			goto out;
 
 		if (!async_list)
