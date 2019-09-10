@@ -1190,6 +1190,36 @@ static u8 bxt_calc_voltage_level(int cdclk)
 	return DIV_ROUND_UP(cdclk, 25000);
 }
 
+static u8 cnl_calc_voltage_level(int cdclk)
+{
+	if (cdclk > 336000)
+		return 2;
+	else if (cdclk > 168000)
+		return 1;
+	else
+		return 0;
+}
+
+static u8 icl_calc_voltage_level(int cdclk)
+{
+	if (cdclk > 556800)
+		return 2;
+	else if (cdclk > 312000)
+		return 1;
+	else
+		return 0;
+}
+
+static u8 ehl_calc_voltage_level(int cdclk)
+{
+	if (cdclk > 312000)
+		return 2;
+	else if (cdclk > 180000)
+		return 1;
+	else
+		return 0;
+}
+
 static int bxt_de_pll_vco(struct drm_i915_private *dev_priv, int cdclk)
 {
 	int ratio;
@@ -1236,23 +1266,69 @@ static int glk_de_pll_vco(struct drm_i915_private *dev_priv, int cdclk)
 	return dev_priv->cdclk.hw.ref * ratio;
 }
 
-static void bxt_de_pll_update(struct drm_i915_private *dev_priv,
-			      struct intel_cdclk_state *cdclk_state)
+static void cnl_readout_refclk(struct drm_i915_private *dev_priv,
+			       struct intel_cdclk_state *cdclk_state)
 {
-	u32 val;
+	if (I915_READ(SKL_DSSM) & CNL_DSSM_CDCLK_PLL_REFCLK_24MHz)
+		cdclk_state->ref = 24000;
+	else
+		cdclk_state->ref = 19200;
+}
 
-	cdclk_state->ref = 19200;
-	cdclk_state->vco = 0;
+static void icl_readout_refclk(struct drm_i915_private *dev_priv,
+			       struct intel_cdclk_state *cdclk_state)
+{
+	u32 dssm = I915_READ(SKL_DSSM) & ICL_DSSM_CDCLK_PLL_REFCLK_MASK;
+
+	switch (dssm) {
+	default:
+		MISSING_CASE(dssm);
+		/* fall through */
+	case ICL_DSSM_CDCLK_PLL_REFCLK_24MHz:
+		cdclk_state->ref = 24000;
+		break;
+	case ICL_DSSM_CDCLK_PLL_REFCLK_19_2MHz:
+		cdclk_state->ref = 19200;
+		break;
+	case ICL_DSSM_CDCLK_PLL_REFCLK_38_4MHz:
+		cdclk_state->ref = 38400;
+		break;
+	}
+}
+
+static void bxt_de_pll_readout(struct drm_i915_private *dev_priv,
+			       struct intel_cdclk_state *cdclk_state)
+{
+	u32 val, ratio;
+
+	if (INTEL_GEN(dev_priv) >= 11)
+		icl_readout_refclk(dev_priv, cdclk_state);
+	else if (IS_CANNONLAKE(dev_priv))
+		cnl_readout_refclk(dev_priv, cdclk_state);
+	else
+		cdclk_state->ref = 19200;
 
 	val = I915_READ(BXT_DE_PLL_ENABLE);
-	if ((val & BXT_DE_PLL_PLL_ENABLE) == 0)
+	if ((val & BXT_DE_PLL_PLL_ENABLE) == 0 ||
+	    (val & BXT_DE_PLL_LOCK) == 0) {
+		/*
+		 * CDCLK PLL is disabled, the VCO/ratio doesn't matter, but
+		 * setting it to zero is a way to signal that.
+		 */
+		cdclk_state->vco = 0;
 		return;
+	}
 
-	if (WARN_ON((val & BXT_DE_PLL_LOCK) == 0))
-		return;
+	/*
+	 * CNL+ have the ratio directly in the PLL enable register, gen9lp had
+	 * it in a separate PLL control register.
+	 */
+	if (INTEL_GEN(dev_priv) >= 10)
+		ratio = val & CNL_CDCLK_PLL_RATIO_MASK;
+	else
+		ratio = I915_READ(BXT_DE_PLL_CTL) & BXT_DE_PLL_RATIO_MASK;
 
-	val = I915_READ(BXT_DE_PLL_CTL);
-	cdclk_state->vco = (val & BXT_DE_PLL_RATIO_MASK) * cdclk_state->ref;
+	cdclk_state->vco = ratio * cdclk_state->ref;
 }
 
 static void bxt_get_cdclk(struct drm_i915_private *dev_priv,
@@ -1261,12 +1337,18 @@ static void bxt_get_cdclk(struct drm_i915_private *dev_priv,
 	u32 divider;
 	int div;
 
-	bxt_de_pll_update(dev_priv, cdclk_state);
+	if (INTEL_GEN(dev_priv) >= 12)
+		cdclk_state->bypass = cdclk_state->ref / 2;
+	else if (INTEL_GEN(dev_priv) >= 11)
+		cdclk_state->bypass = 50000;
+	else
+		cdclk_state->bypass = cdclk_state->ref;
 
-	cdclk_state->cdclk = cdclk_state->bypass = cdclk_state->ref;
-
-	if (cdclk_state->vco == 0)
+	bxt_de_pll_readout(dev_priv, cdclk_state);
+	if (cdclk_state->vco == 0) {
+		cdclk_state->cdclk = cdclk_state->bypass;
 		goto out;
+	}
 
 	divider = I915_READ(CDCLK_CTL) & BXT_CDCLK_CD2X_DIV_SEL_MASK;
 
@@ -1275,13 +1357,15 @@ static void bxt_get_cdclk(struct drm_i915_private *dev_priv,
 		div = 2;
 		break;
 	case BXT_CDCLK_CD2X_DIV_SEL_1_5:
-		WARN(IS_GEMINILAKE(dev_priv), "Unsupported divider\n");
+		WARN(IS_GEMINILAKE(dev_priv) || INTEL_GEN(dev_priv) >= 10,
+		     "Unsupported divider\n");
 		div = 3;
 		break;
 	case BXT_CDCLK_CD2X_DIV_SEL_2:
 		div = 4;
 		break;
 	case BXT_CDCLK_CD2X_DIV_SEL_4:
+		WARN(INTEL_GEN(dev_priv) >= 10, "Unsupported divider\n");
 		div = 8;
 		break;
 	default:
@@ -1296,8 +1380,18 @@ static void bxt_get_cdclk(struct drm_i915_private *dev_priv,
 	 * Can't read this out :( Let's assume it's
 	 * at least what the CDCLK frequency requires.
 	 */
-	cdclk_state->voltage_level =
-		bxt_calc_voltage_level(cdclk_state->cdclk);
+	if (IS_ELKHARTLAKE(dev_priv))
+		cdclk_state->voltage_level =
+			ehl_calc_voltage_level(cdclk_state->cdclk);
+	else if (INTEL_GEN(dev_priv) >= 11)
+		cdclk_state->voltage_level =
+			icl_calc_voltage_level(cdclk_state->cdclk);
+	else if (INTEL_GEN(dev_priv) >= 10)
+		cdclk_state->voltage_level =
+			cnl_calc_voltage_level(cdclk_state->cdclk);
+	else
+		cdclk_state->voltage_level =
+			bxt_calc_voltage_level(cdclk_state->cdclk);
 }
 
 static void bxt_de_pll_disable(struct drm_i915_private *dev_priv)
@@ -1513,76 +1607,6 @@ static int cnl_calc_cdclk(int min_cdclk)
 		return 336000;
 	else
 		return 168000;
-}
-
-static u8 cnl_calc_voltage_level(int cdclk)
-{
-	if (cdclk > 336000)
-		return 2;
-	else if (cdclk > 168000)
-		return 1;
-	else
-		return 0;
-}
-
-static void cnl_cdclk_pll_update(struct drm_i915_private *dev_priv,
-				 struct intel_cdclk_state *cdclk_state)
-{
-	u32 val;
-
-	if (I915_READ(SKL_DSSM) & CNL_DSSM_CDCLK_PLL_REFCLK_24MHz)
-		cdclk_state->ref = 24000;
-	else
-		cdclk_state->ref = 19200;
-
-	cdclk_state->vco = 0;
-
-	val = I915_READ(BXT_DE_PLL_ENABLE);
-	if ((val & BXT_DE_PLL_PLL_ENABLE) == 0)
-		return;
-
-	if (WARN_ON((val & BXT_DE_PLL_LOCK) == 0))
-		return;
-
-	cdclk_state->vco = (val & CNL_CDCLK_PLL_RATIO_MASK) * cdclk_state->ref;
-}
-
-static void cnl_get_cdclk(struct drm_i915_private *dev_priv,
-			 struct intel_cdclk_state *cdclk_state)
-{
-	u32 divider;
-	int div;
-
-	cnl_cdclk_pll_update(dev_priv, cdclk_state);
-
-	cdclk_state->cdclk = cdclk_state->bypass = cdclk_state->ref;
-
-	if (cdclk_state->vco == 0)
-		goto out;
-
-	divider = I915_READ(CDCLK_CTL) & BXT_CDCLK_CD2X_DIV_SEL_MASK;
-
-	switch (divider) {
-	case BXT_CDCLK_CD2X_DIV_SEL_1:
-		div = 2;
-		break;
-	case BXT_CDCLK_CD2X_DIV_SEL_2:
-		div = 4;
-		break;
-	default:
-		MISSING_CASE(divider);
-		return;
-	}
-
-	cdclk_state->cdclk = DIV_ROUND_CLOSEST(cdclk_state->vco, div);
-
- out:
-	/*
-	 * Can't read this out :( Let's assume it's
-	 * at least what the CDCLK frequency requires.
-	 */
-	cdclk_state->voltage_level =
-		cnl_calc_voltage_level(cdclk_state->cdclk);
 }
 
 static void cnl_cdclk_pll_disable(struct drm_i915_private *dev_priv)
@@ -1830,91 +1854,6 @@ static int icl_calc_cdclk_pll_vco(struct drm_i915_private *dev_priv, int cdclk)
 	return dev_priv->cdclk.hw.ref * ratio;
 }
 
-static u8 icl_calc_voltage_level(struct drm_i915_private *dev_priv, int cdclk)
-{
-	if (IS_ELKHARTLAKE(dev_priv)) {
-		if (cdclk > 312000)
-			return 2;
-		else if (cdclk > 180000)
-			return 1;
-		else
-			return 0;
-	} else {
-		if (cdclk > 556800)
-			return 2;
-		else if (cdclk > 312000)
-			return 1;
-		else
-			return 0;
-	}
-}
-
-static void icl_get_cdclk(struct drm_i915_private *dev_priv,
-			  struct intel_cdclk_state *cdclk_state)
-{
-	u32 val;
-	int div;
-
-	val = I915_READ(SKL_DSSM);
-	switch (val & ICL_DSSM_CDCLK_PLL_REFCLK_MASK) {
-	default:
-		MISSING_CASE(val);
-		/* fall through */
-	case ICL_DSSM_CDCLK_PLL_REFCLK_24MHz:
-		cdclk_state->ref = 24000;
-		break;
-	case ICL_DSSM_CDCLK_PLL_REFCLK_19_2MHz:
-		cdclk_state->ref = 19200;
-		break;
-	case ICL_DSSM_CDCLK_PLL_REFCLK_38_4MHz:
-		cdclk_state->ref = 38400;
-		break;
-	}
-
-	if (INTEL_GEN(dev_priv) >= 12)
-		cdclk_state->bypass = cdclk_state->ref / 2;
-	else
-		cdclk_state->bypass = 50000;
-
-	val = I915_READ(BXT_DE_PLL_ENABLE);
-	if ((val & BXT_DE_PLL_PLL_ENABLE) == 0 ||
-	    (val & BXT_DE_PLL_LOCK) == 0) {
-		/*
-		 * CDCLK PLL is disabled, the VCO/ratio doesn't matter, but
-		 * setting it to zero is a way to signal that.
-		 */
-		cdclk_state->vco = 0;
-		cdclk_state->cdclk = cdclk_state->bypass;
-		goto out;
-	}
-
-	cdclk_state->vco = (val & BXT_DE_PLL_RATIO_MASK) * cdclk_state->ref;
-
-	val = I915_READ(CDCLK_CTL) & BXT_CDCLK_CD2X_DIV_SEL_MASK;
-	switch (val) {
-	case BXT_CDCLK_CD2X_DIV_SEL_1:
-		div = 2;
-		break;
-	case BXT_CDCLK_CD2X_DIV_SEL_2:
-		div = 4;
-		break;
-	default:
-		MISSING_CASE(val);
-		div = 2;
-		break;
-	}
-
-	cdclk_state->cdclk = DIV_ROUND_CLOSEST(cdclk_state->vco, div);
-
-out:
-	/*
-	 * Can't read this out :( Let's assume it's
-	 * at least what the CDCLK frequency requires.
-	 */
-	cdclk_state->voltage_level =
-		icl_calc_voltage_level(dev_priv, cdclk_state->cdclk);
-}
-
 static void icl_init_cdclk(struct drm_i915_private *dev_priv)
 {
 	struct intel_cdclk_state sanitized_state;
@@ -1946,9 +1885,12 @@ sanitize:
 	sanitized_state.cdclk = icl_calc_cdclk(0, sanitized_state.ref);
 	sanitized_state.vco = icl_calc_cdclk_pll_vco(dev_priv,
 						     sanitized_state.cdclk);
-	sanitized_state.voltage_level =
-				icl_calc_voltage_level(dev_priv,
-						       sanitized_state.cdclk);
+	if (IS_ELKHARTLAKE(dev_priv))
+		sanitized_state.voltage_level =
+			ehl_calc_voltage_level(sanitized_state.cdclk);
+	else
+		sanitized_state.voltage_level =
+			icl_calc_voltage_level(sanitized_state.cdclk);
 
 	cnl_set_cdclk(dev_priv, &sanitized_state, INVALID_PIPE);
 }
@@ -1959,8 +1901,12 @@ static void icl_uninit_cdclk(struct drm_i915_private *dev_priv)
 
 	cdclk_state.cdclk = cdclk_state.bypass;
 	cdclk_state.vco = 0;
-	cdclk_state.voltage_level = icl_calc_voltage_level(dev_priv,
-							   cdclk_state.cdclk);
+	if (IS_ELKHARTLAKE(dev_priv))
+		cdclk_state.voltage_level =
+			ehl_calc_voltage_level(cdclk_state.cdclk);
+	else
+		cdclk_state.voltage_level =
+			icl_calc_voltage_level(cdclk_state.cdclk);
 
 	cnl_set_cdclk(dev_priv, &cdclk_state, INVALID_PIPE);
 }
@@ -2561,9 +2507,14 @@ static int icl_modeset_calc_cdclk(struct intel_atomic_state *state)
 
 	state->cdclk.logical.vco = vco;
 	state->cdclk.logical.cdclk = cdclk;
-	state->cdclk.logical.voltage_level =
-		max(icl_calc_voltage_level(dev_priv, cdclk),
-		    cnl_compute_min_voltage_level(state));
+	if (IS_ELKHARTLAKE(dev_priv))
+		state->cdclk.logical.voltage_level =
+			max(ehl_calc_voltage_level(cdclk),
+			    cnl_compute_min_voltage_level(state));
+	else
+		state->cdclk.logical.voltage_level =
+			max(icl_calc_voltage_level(cdclk),
+			    cnl_compute_min_voltage_level(state));
 
 	if (!state->active_pipes) {
 		cdclk = icl_calc_cdclk(state->cdclk.force_min_cdclk, ref);
@@ -2571,8 +2522,12 @@ static int icl_modeset_calc_cdclk(struct intel_atomic_state *state)
 
 		state->cdclk.actual.vco = vco;
 		state->cdclk.actual.cdclk = cdclk;
-		state->cdclk.actual.voltage_level =
-			icl_calc_voltage_level(dev_priv, cdclk);
+		if (IS_ELKHARTLAKE(dev_priv))
+			state->cdclk.actual.voltage_level =
+				ehl_calc_voltage_level(cdclk);
+		else
+			state->cdclk.actual.voltage_level =
+				icl_calc_voltage_level(cdclk);
 	} else {
 		state->cdclk.actual = state->cdclk.logical;
 	}
@@ -2819,11 +2774,7 @@ void intel_init_cdclk_hooks(struct drm_i915_private *dev_priv)
 		dev_priv->display.modeset_calc_cdclk = vlv_modeset_calc_cdclk;
 	}
 
-	if (INTEL_GEN(dev_priv) >= 11)
-		dev_priv->display.get_cdclk = icl_get_cdclk;
-	else if (IS_CANNONLAKE(dev_priv))
-		dev_priv->display.get_cdclk = cnl_get_cdclk;
-	else if (IS_GEN9_LP(dev_priv))
+	if (INTEL_GEN(dev_priv) >= 10 || IS_GEN9_LP(dev_priv))
 		dev_priv->display.get_cdclk = bxt_get_cdclk;
 	else if (IS_GEN9_BC(dev_priv))
 		dev_priv->display.get_cdclk = skl_get_cdclk;
