@@ -1704,6 +1704,7 @@ static void common_nonsnoop_hash_unmap(struct device *dev,
 				       struct ahash_request *areq)
 {
 	struct talitos_ahash_req_ctx *req_ctx = ahash_request_ctx(areq);
+	struct crypto_ahash *tfm = crypto_ahash_reqtfm(areq);
 	struct talitos_private *priv = dev_get_drvdata(dev);
 	bool is_sec1 = has_ftr_sec1(priv);
 	struct talitos_desc *desc = &edesc->desc;
@@ -1714,6 +1715,9 @@ static void common_nonsnoop_hash_unmap(struct device *dev,
 	if (desc->next_desc &&
 	    desc->ptr[5].ptr != desc2->ptr[5].ptr)
 		unmap_single_talitos_ptr(dev, &desc2->ptr[5], DMA_FROM_DEVICE);
+	if (req_ctx->last)
+		memcpy(areq->result, req_ctx->hw_context,
+		       crypto_ahash_digestsize(tfm));
 
 	if (req_ctx->psrc)
 		talitos_sg_unmap(dev, edesc, req_ctx->psrc, NULL, 0, 0);
@@ -1845,7 +1849,7 @@ static int common_nonsnoop_hash(struct talitos_edesc *edesc,
 	if (req_ctx->last)
 		map_single_talitos_ptr(dev, &desc->ptr[5],
 				       crypto_ahash_digestsize(tfm),
-				       areq->result, DMA_FROM_DEVICE);
+				       req_ctx->hw_context, DMA_FROM_DEVICE);
 	else
 		map_single_talitos_ptr_nosync(dev, &desc->ptr[5],
 					      req_ctx->hw_context_size,
