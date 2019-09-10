@@ -216,7 +216,7 @@ an involved disclosed party. The current ambassadors list:
   ARM
   AMD
   IBM
-  Intel
+  Intel		Tony Luck <tony.luck@intel.com>
   Qualcomm	Trilok Soni <tsoni@codeaurora.org>
 
   Microsoft	Sasha Levin <sashal@kernel.org>
