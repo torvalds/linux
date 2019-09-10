@@ -138,9 +138,9 @@ struct siw_umem {
 };
 
 struct siw_pble {
-	u64 addr; /* Address of assigned user buffer */
-	u64 size; /* Size of this entry */
-	u64 pbl_off; /* Total offset from start of PBL */
+	dma_addr_t addr; /* Address of assigned buffer */
+	unsigned int size; /* Size of this entry */
+	unsigned long pbl_off; /* Total offset from start of PBL */
 };
 
 struct siw_pbl {
@@ -214,7 +214,7 @@ struct siw_wqe {
 struct siw_cq {
 	struct ib_cq base_cq;
 	spinlock_t lock;
-	u64 *notify;
+	struct siw_cq_ctrl *notify;
 	struct siw_cqe *queue;
 	u32 cq_put;
 	u32 cq_get;
@@ -734,7 +734,7 @@ static inline void siw_crc_skb(struct siw_rx_stream *srx, unsigned int len)
 		  "MEM[0x%08x] %s: " fmt, mem->stag, __func__, ##__VA_ARGS__)
 
 #define siw_dbg_cep(cep, fmt, ...)                                             \
-	ibdev_dbg(&cep->sdev->base_dev, "CEP[0x%p] %s: " fmt,                  \
+	ibdev_dbg(&cep->sdev->base_dev, "CEP[0x%pK] %s: " fmt,                  \
 		  cep, __func__, ##__VA_ARGS__)
 
 void siw_cq_flush(struct siw_cq *cq);

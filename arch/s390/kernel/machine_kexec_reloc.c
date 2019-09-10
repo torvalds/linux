@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/elf.h>
+#include <asm/kexec.h>
 
 int arch_kexec_do_relocs(int r_type, void *loc, unsigned long val,
 			 unsigned long addr)

@@ -160,10 +160,8 @@ static int siw_init_cpulist(void)
 
 out_err:
 	siw_cpu_info.num_nodes = 0;
-	while (i) {
+	while (--i >= 0)
 		kfree(siw_cpu_info.tx_valid_cpus[i]);
-		siw_cpu_info.tx_valid_cpus[i--] = NULL;
-	}
 	kfree(siw_cpu_info.tx_valid_cpus);
 	siw_cpu_info.tx_valid_cpus = NULL;
 
@@ -612,6 +610,7 @@ static __init int siw_init_module(void)
 
 	if (!siw_create_tx_threads()) {
 		pr_info("siw: Could not start any TX thread\n");
+		rv = -ENOMEM;
 		goto out_error;
 	}
 	/*

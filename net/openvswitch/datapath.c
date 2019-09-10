@@ -1047,7 +1047,7 @@ error:
 }
 
 /* Factor out action copy to avoid "Wframe-larger-than=1024" warning. */
-static struct sw_flow_actions *get_flow_actions(struct net *net,
+static noinline_for_stack struct sw_flow_actions *get_flow_actions(struct net *net,
 						const struct nlattr *a,
 						const struct sw_flow_key *key,
 						const struct sw_flow_mask *mask,
@@ -1081,12 +1081,13 @@ static struct sw_flow_actions *get_flow_actions(struct net *net,
  * we should not to return match object with dangling reference
  * to mask.
  * */
-static int ovs_nla_init_match_and_action(struct net *net,
-					 struct sw_flow_match *match,
-					 struct sw_flow_key *key,
-					 struct nlattr **a,
-					 struct sw_flow_actions **acts,
-					 bool log)
+static noinline_for_stack int
+ovs_nla_init_match_and_action(struct net *net,
+			      struct sw_flow_match *match,
+			      struct sw_flow_key *key,
+			      struct nlattr **a,
+			      struct sw_flow_actions **acts,
+			      bool log)
 {
 	struct sw_flow_mask mask;
 	int error = 0;

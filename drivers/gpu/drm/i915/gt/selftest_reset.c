@@ -71,13 +71,16 @@ static int igt_atomic_reset(void *arg)
 		goto unlock;
 
 	for (p = igt_atomic_phases; p->name; p++) {
+		intel_engine_mask_t awake;
+
 		GEM_TRACE("intel_gpu_reset under %s\n", p->name);
 
+		awake = reset_prepare(i915);
 		p->critical_section_begin();
 		reset_prepare(i915);
 		err = intel_gpu_reset(i915, ALL_ENGINES);
-		reset_finish(i915);
 		p->critical_section_end();
+		reset_finish(i915, awake);
 
 		if (err) {
 			pr_err("intel_gpu_reset failed under %s\n", p->name);

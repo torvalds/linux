@@ -612,7 +612,8 @@ bool dc_stream_set_dynamic_metadata(struct dc *dc,
 
 	pipe_ctx->stream->dmdata_address = attr->address;
 
-	if (pipe_ctx->stream_res.stream_enc->funcs->set_dynamic_metadata != NULL) {
+	if (pipe_ctx->stream_res.stream_enc &&
+			pipe_ctx->stream_res.stream_enc->funcs->set_dynamic_metadata != NULL) {
 		if (pipe_ctx->stream->dmdata_address.quad_part != 0) {
 			/* if using dynamic meta, don't set up generic infopackets */
 			pipe_ctx->stream_res.encoder_info_frame.hdrsmd.valid = false;
