@@ -18,12 +18,16 @@ struct mipi_dsi_device;
 #define MIPI_DSI_MSG_REQ_ACK	BIT(0)
 /* use Low Power Mode to transmit message */
 #define MIPI_DSI_MSG_USE_LPM	BIT(1)
+/* read mipi_dsi_msg.ctrl and unicast to only that ctrls */
+#define MIPI_DSI_MSG_UNICAST	BIT(2)
 
 /**
  * struct mipi_dsi_msg - read/write DSI buffer
  * @channel: virtual channel id
  * @type: payload data type
  * @flags: flags controlling this message transmission
+ * @ctrl: ctrl index to transmit on
+ * @wait_ms: duration in ms to wait after message transmission
  * @tx_len: length of @tx_buf
  * @tx_buf: data to be written
  * @rx_len: length of @rx_buf
@@ -33,6 +37,8 @@ struct mipi_dsi_msg {
 	u8 channel;
 	u8 type;
 	u16 flags;
+	u32 ctrl;
+	u32 wait_ms;
 
 	size_t tx_len;
 	const void *tx_buf;
