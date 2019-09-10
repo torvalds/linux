@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <perf/cpumap.h>
+#include "cpumap.h"
 #include "tests.h"
 #include "session.h"
 #include "evlist.h"

@@ -22,7 +22,6 @@
 #include "symbol.h"
 #include "session.h"
 #include "tool.h"
-#include "cpumap.h"
 #include "perf_regs.h"
 #include "asm/bug.h"
 #include "auxtrace.h"

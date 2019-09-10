@@ -2,6 +2,7 @@
 #include <linux/compiler.h>
 #include <perf/cpumap.h>
 #include <string.h>
+#include "cpumap.h"
 #include "evlist.h"
 #include "evsel.h"
 #include "header.h"

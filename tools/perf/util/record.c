@@ -2,7 +2,6 @@
 #include "debug.h"
 #include "evlist.h"
 #include "evsel.h"
-#include "cpumap.h"
 #include "parse-events.h"
 #include <errno.h>
 #include <limits.h>

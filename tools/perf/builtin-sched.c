@@ -3,6 +3,7 @@
 #include "perf.h"
 #include "perf-sys.h"
 
+#include "util/cpumap.h"
 #include "util/evlist.h"
 #include "util/evsel.h"
 #include "util/symbol.h"
@@ -36,6 +37,7 @@
 #include <pthread.h>
 #include <math.h>
 #include <api/fs/fs.h>
+#include <perf/cpumap.h>
 #include <linux/time64.h>
 
 #include <linux/ctype.h>

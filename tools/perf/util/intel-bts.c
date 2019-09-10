@@ -14,7 +14,6 @@
 #include <linux/log2.h>
 #include <linux/zalloc.h>
 
-#include "cpumap.h"
 #include "color.h"
 #include "evsel.h"
 #include "evlist.h"

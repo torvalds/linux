@@ -31,7 +31,7 @@
 #include "event.h"
 #include "evsel.h"
 #include "evlist.h"
-#include "cpumap.h"
+#include <perf/cpumap.h>
 #include "thread_map.h"
 #include "target.h"
 #include "perf_regs.h"

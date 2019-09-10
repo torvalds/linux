@@ -4,6 +4,7 @@
 #include <math.h>
 #include <string.h>
 #include "counts.h"
+#include "cpumap.h"
 #include "debug.h"
 #include "header.h"
 #include "stat.h"

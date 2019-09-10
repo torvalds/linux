@@ -48,7 +48,6 @@
 #include "map.h"
 #include "symbol.h"
 #include "thread_map.h"
-#include "cpumap.h"
 #include "print_binary.h"
 #include "stat.h"
 #include "mem-events.h"

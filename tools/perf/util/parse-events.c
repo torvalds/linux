@@ -30,7 +30,6 @@
 #include "parse-events-flex.h"
 #include "pmu.h"
 #include "thread_map.h"
-#include "cpumap.h"
 #include "probe-file.h"
 #include "asm/bug.h"
 #include "util/parse-branch-options.h"

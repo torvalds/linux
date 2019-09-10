@@ -12,7 +12,6 @@
 #include "evsel.h"
 #include "record.h"
 #include "thread_map.h"
-#include "cpumap.h"
 #include "tests.h"
 
 #define CHECK__(x) {				\
@@ -143,7 +142,7 @@ int test__keep_tracking(struct test *test __maybe_unused, int subtest __maybe_un
 
 	found = find_comm(evlist, comm);
 	if (found != 1) {
-		pr_debug("Seconf time, failed to find tracking event.\n");
+		pr_debug("Second time, failed to find tracking event.\n");
 		goto out_err;
 	}
 

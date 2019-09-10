@@ -31,7 +31,6 @@
 #include "map.h"
 #include "pmu.h"
 #include "evsel.h"
-#include "cpumap.h"
 #include "symbol.h"
 #include "thread_map.h"
 #include "asm/bug.h"

@@ -4,6 +4,7 @@
 #include <inttypes.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
+#include <perf/cpumap.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -11,6 +12,7 @@
 #include <api/fs/fs.h>
 #include <linux/perf_event.h>
 #include <linux/zalloc.h>
+#include "cpumap.h"
 #include "dso.h"
 #include "event.h"
 #include "debug.h"

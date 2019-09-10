@@ -14,7 +14,6 @@
 #include "evlist.h"
 #include "evsel.h"
 #include "thread_map.h"
-#include "cpumap.h"
 #include "record.h"
 #include "tests.h"
 
