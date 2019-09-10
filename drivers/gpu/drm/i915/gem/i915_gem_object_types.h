@@ -156,6 +156,7 @@ struct drm_i915_gem_object {
 	struct {
 		struct mutex lock; /* protects the pages and their use */
 		atomic_t pages_pin_count;
+		atomic_t shrink_pin;
 
 		struct sg_table *pages;
 		void *mapping;

@@ -494,7 +494,8 @@ static void i915_gem_object_bump_inactive_ggtt(struct drm_i915_gem_object *obj)
 
 		spin_lock_irqsave(&i915->mm.obj_lock, flags);
 
-		if (obj->mm.madv == I915_MADV_WILLNEED)
+		if (obj->mm.madv == I915_MADV_WILLNEED &&
+		    !atomic_read(&obj->mm.shrink_pin))
 			list_move_tail(&obj->mm.link, &i915->mm.shrink_list);
 
 		spin_unlock_irqrestore(&i915->mm.obj_lock, flags);

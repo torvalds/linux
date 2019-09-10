@@ -134,8 +134,8 @@ static int __context_pin_state(struct i915_vma *vma)
 
 static void __context_unpin_state(struct i915_vma *vma)
 {
-	__i915_vma_unpin(vma);
 	i915_vma_make_shrinkable(vma);
+	__i915_vma_unpin(vma);
 }
 
 static void __intel_context_retire(struct i915_active *active)
