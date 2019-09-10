@@ -758,26 +758,6 @@ static void wilc_unknown_isr_ext(struct wilc *wilc)
 	wilc->hif_func->hif_clear_int_ext(wilc, 0);
 }
 
-static void wilc_pllupdate_isr_ext(struct wilc *wilc, u32 int_stats)
-{
-	int trials = 10;
-
-	wilc->hif_func->hif_clear_int_ext(wilc, PLL_INT_CLR);
-
-	if (wilc->io_type == WILC_HIF_SDIO)
-		mdelay(WILC_PLL_TO_SDIO);
-	else
-		mdelay(WILC_PLL_TO_SPI);
-
-	while (!(is_wilc1000(wilc_get_chipid(wilc, true)) && --trials))
-		mdelay(1);
-}
-
-static void wilc_sleeptimer_isr_ext(struct wilc *wilc, u32 int_stats1)
-{
-	wilc->hif_func->hif_clear_int_ext(wilc, SLEEP_INT_CLR);
-}
-
 static void wilc_wlan_handle_isr_ext(struct wilc *wilc, u32 int_status)
 {
 	u32 offset = wilc->rx_buffer_offset;
@@ -827,14 +807,8 @@ void wilc_handle_isr(struct wilc *wilc)
 	acquire_bus(wilc, WILC_BUS_ACQUIRE_AND_WAKEUP);
 	wilc->hif_func->hif_read_int(wilc, &int_status);
 
-	if (int_status & PLL_INT_EXT)
-		wilc_pllupdate_isr_ext(wilc, int_status);
-
 	if (int_status & DATA_INT_EXT)
 		wilc_wlan_handle_isr_ext(wilc, int_status);
-
-	if (int_status & SLEEP_INT_EXT)
-		wilc_sleeptimer_isr_ext(wilc, int_status);
 
 	if (!(int_status & (ALL_INT_EXT)))
 		wilc_unknown_isr_ext(wilc);
