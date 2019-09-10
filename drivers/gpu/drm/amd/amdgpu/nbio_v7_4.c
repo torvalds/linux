@@ -30,7 +30,6 @@
 #include "nbio/nbio_7_4_0_smn.h"
 #include "ivsrcid/nbio/irqsrcs_nbif_7_4.h"
 #include <uapi/linux/kfd_ioctl.h>
-#include "amdgpu_ras.h"
 
 #define smnNBIF_MGCG_CTRL_LCLK	0x1013a21c
 
