@@ -655,18 +655,32 @@ void fuse_request_send_background(struct fuse_conn *fc, struct fuse_req *req)
 }
 EXPORT_SYMBOL_GPL(fuse_request_send_background);
 
-static int fuse_request_send_notify_reply(struct fuse_conn *fc,
-					  struct fuse_req *req, u64 unique)
+static int fuse_simple_notify_reply(struct fuse_conn *fc,
+				    struct fuse_args *args, u64 unique)
 {
-	int err = -ENODEV;
+	struct fuse_req *req;
 	struct fuse_iqueue *fiq = &fc->iq;
+	int err = 0;
+
+	req = fuse_get_req(fc, 0);
+	if (IS_ERR(req))
+		return PTR_ERR(req);
 
 	__clear_bit(FR_ISREPLY, &req->flags);
 	req->in.h.unique = unique;
+
+	fuse_args_to_req(req, args);
+	req->args = args;
+	req->end = fuse_simple_end;
+
 	spin_lock(&fiq->lock);
 	if (fiq->connected) {
 		queue_request(fiq, req);
-		err = 0;
+		spin_unlock(&fiq->lock);
+	} else {
+		err = -ENODEV;
+		spin_unlock(&fiq->lock);
+		fuse_put_request(fc, req);
 	}
 	spin_unlock(&fiq->lock);
 
@@ -1691,9 +1705,19 @@ out_finish:
 	return err;
 }
 
-static void fuse_retrieve_end(struct fuse_conn *fc, struct fuse_req *req)
+struct fuse_retrieve_args {
+	struct fuse_args_pages ap;
+	struct fuse_notify_retrieve_in inarg;
+};
+
+static void fuse_retrieve_end(struct fuse_conn *fc, struct fuse_args *args,
+			      int error)
 {
-	release_pages(req->pages, req->num_pages);
+	struct fuse_retrieve_args *ra =
+		container_of(args, typeof(*ra), ap.args);
+
+	release_pages(ra->ap.pages, ra->ap.num_pages);
+	kfree(ra);
 }
 
 static int fuse_retrieve(struct fuse_conn *fc, struct inode *inode,
@@ -1701,13 +1725,16 @@ static int fuse_retrieve(struct fuse_conn *fc, struct inode *inode,
 {
 	int err;
 	struct address_space *mapping = inode->i_mapping;
-	struct fuse_req *req;
 	pgoff_t index;
 	loff_t file_size;
 	unsigned int num;
 	unsigned int offset;
 	size_t total_len = 0;
 	unsigned int num_pages;
+	struct fuse_retrieve_args *ra;
+	size_t args_size = sizeof(*ra);
+	struct fuse_args_pages *ap;
+	struct fuse_args *args;
 
 	offset = outarg->offset & ~PAGE_MASK;
 	file_size = i_size_read(inode);
@@ -1721,19 +1748,26 @@ static int fuse_retrieve(struct fuse_conn *fc, struct inode *inode,
 	num_pages = (num + offset + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	num_pages = min(num_pages, fc->max_pages);
 
-	req = fuse_get_req(fc, num_pages);
-	if (IS_ERR(req))
-		return PTR_ERR(req);
+	args_size += num_pages * (sizeof(ap->pages[0]) + sizeof(ap->descs[0]));
 
-	req->in.h.opcode = FUSE_NOTIFY_REPLY;
-	req->in.h.nodeid = outarg->nodeid;
-	req->in.numargs = 2;
-	req->in.argpages = 1;
-	req->end = fuse_retrieve_end;
+	ra = kzalloc(args_size, GFP_KERNEL);
+	if (!ra)
+		return -ENOMEM;
+
+	ap = &ra->ap;
+	ap->pages = (void *) (ra + 1);
+	ap->descs = (void *) (ap->pages + num_pages);
+
+	args = &ap->args;
+	args->nodeid = outarg->nodeid;
+	args->opcode = FUSE_NOTIFY_REPLY;
+	args->in_numargs = 2;
+	args->in_pages = true;
+	args->end = fuse_retrieve_end;
 
 	index = outarg->offset >> PAGE_SHIFT;
 
-	while (num && req->num_pages < num_pages) {
+	while (num && ap->num_pages < num_pages) {
 		struct page *page;
 		unsigned int this_num;
 
@@ -1742,27 +1776,25 @@ static int fuse_retrieve(struct fuse_conn *fc, struct inode *inode,
 			break;
 
 		this_num = min_t(unsigned, num, PAGE_SIZE - offset);
-		req->pages[req->num_pages] = page;
-		req->page_descs[req->num_pages].offset = offset;
-		req->page_descs[req->num_pages].length = this_num;
-		req->num_pages++;
+		ap->pages[ap->num_pages] = page;
+		ap->descs[ap->num_pages].offset = offset;
+		ap->descs[ap->num_pages].length = this_num;
+		ap->num_pages++;
 
 		offset = 0;
 		num -= this_num;
 		total_len += this_num;
 		index++;
 	}
-	req->misc.retrieve_in.offset = outarg->offset;
-	req->misc.retrieve_in.size = total_len;
-	req->in.args[0].size = sizeof(req->misc.retrieve_in);
-	req->in.args[0].value = &req->misc.retrieve_in;
-	req->in.args[1].size = total_len;
+	ra->inarg.offset = outarg->offset;
+	ra->inarg.size = total_len;
+	args->in_args[0].size = sizeof(ra->inarg);
+	args->in_args[0].value = &ra->inarg;
+	args->in_args[1].size = total_len;
 
-	err = fuse_request_send_notify_reply(fc, req, outarg->notify_unique);
-	if (err) {
-		fuse_retrieve_end(fc, req);
-		fuse_put_request(fc, req);
-	}
+	err = fuse_simple_notify_reply(fc, args, outarg->notify_unique);
+	if (err)
+		fuse_retrieve_end(fc, args, err);
 
 	return err;
 }
