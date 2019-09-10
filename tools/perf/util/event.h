@@ -293,6 +293,11 @@ typedef int (*perf_event__handler_t)(struct perf_tool *tool,
 				     struct perf_sample *sample,
 				     struct machine *machine);
 
+int perf_event__synthesize_stat_events(struct perf_stat_config *config,
+				       struct perf_tool *tool,
+				       struct evlist *evlist,
+				       perf_event__handler_t process,
+				       bool attrs);
 int perf_event__synthesize_attr(struct perf_tool *tool,
 				struct perf_event_attr *attr, u32 ids, u64 *id,
 				perf_event__handler_t process);

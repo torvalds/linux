@@ -7,8 +7,9 @@
 #include <sys/types.h>
 #include <sys/resource.h>
 #include "rblist.h"
-#include "event.h"
 
+struct perf_cpu_map;
+struct perf_stat_config;
 struct timespec;
 
 struct stats {
@@ -210,11 +211,6 @@ size_t perf_event__fprintf_stat_config(union perf_event *event, FILE *fp);
 int create_perf_stat_counter(struct evsel *evsel,
 			     struct perf_stat_config *config,
 			     struct target *target);
-int perf_stat_synthesize_config(struct perf_stat_config *config,
-				struct perf_tool *tool,
-				struct evlist *evlist,
-				perf_event__handler_t process,
-				bool attrs);
 void
 perf_evlist__print_counters(struct evlist *evlist,
 			    struct perf_stat_config *config,

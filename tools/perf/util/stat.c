@@ -495,11 +495,11 @@ int create_perf_stat_counter(struct evsel *evsel,
 	return perf_evsel__open_per_thread(evsel, evsel->core.threads);
 }
 
-int perf_stat_synthesize_config(struct perf_stat_config *config,
-				struct perf_tool *tool,
-				struct evlist *evlist,
-				perf_event__handler_t process,
-				bool attrs)
+int perf_event__synthesize_stat_events(struct perf_stat_config *config,
+				       struct perf_tool *tool,
+				       struct evlist *evlist,
+				       perf_event__handler_t process,
+				       bool attrs)
 {
 	int err;
 
