@@ -1710,63 +1710,6 @@ static void bxt_uninit_cdclk(struct drm_i915_private *dev_priv)
 	bxt_set_cdclk(dev_priv, &cdclk_state, INVALID_PIPE);
 }
 
-static void icl_init_cdclk(struct drm_i915_private *dev_priv)
-{
-	struct intel_cdclk_state sanitized_state;
-	u32 val;
-
-	/* This sets dev_priv->cdclk.hw. */
-	intel_update_cdclk(dev_priv);
-	intel_dump_cdclk_state(&dev_priv->cdclk.hw, "Current CDCLK");
-
-	/* This means CDCLK disabled. */
-	if (dev_priv->cdclk.hw.cdclk == dev_priv->cdclk.hw.bypass)
-		goto sanitize;
-
-	val = I915_READ(CDCLK_CTL);
-
-	if ((val & BXT_CDCLK_CD2X_DIV_SEL_MASK) != 0)
-		goto sanitize;
-
-	if ((val & CDCLK_FREQ_DECIMAL_MASK) !=
-	    skl_cdclk_decimal(dev_priv->cdclk.hw.cdclk))
-		goto sanitize;
-
-	return;
-
-sanitize:
-	DRM_DEBUG_KMS("Sanitizing cdclk programmed by pre-os\n");
-
-	sanitized_state.ref = dev_priv->cdclk.hw.ref;
-	sanitized_state.cdclk = bxt_calc_cdclk(dev_priv, 0);
-	sanitized_state.vco = bxt_calc_cdclk_pll_vco(dev_priv,
-						     sanitized_state.cdclk);
-	sanitized_state.voltage_level =
-		dev_priv->display.calc_voltage_level(sanitized_state.cdclk);
-
-	bxt_set_cdclk(dev_priv, &sanitized_state, INVALID_PIPE);
-}
-
-static void cnl_init_cdclk(struct drm_i915_private *dev_priv)
-{
-	struct intel_cdclk_state cdclk_state;
-
-	bxt_sanitize_cdclk(dev_priv);
-
-	if (dev_priv->cdclk.hw.cdclk != 0 &&
-	    dev_priv->cdclk.hw.vco != 0)
-		return;
-
-	cdclk_state = dev_priv->cdclk.hw;
-
-	cdclk_state.cdclk = bxt_calc_cdclk(dev_priv, 0);
-	cdclk_state.vco = bxt_calc_cdclk_pll_vco(dev_priv, cdclk_state.cdclk);
-	cdclk_state.voltage_level =
-		dev_priv->display.calc_voltage_level(cdclk_state.cdclk);
-
-	bxt_set_cdclk(dev_priv, &cdclk_state, INVALID_PIPE);
-}
-
 /**
  * intel_cdclk_init - Initialize CDCLK
  * @i915: i915 device
@@ -1778,14 +1721,10 @@ static void cnl_init_cdclk(struct drm_i915_private *dev_priv)
  */
 void intel_cdclk_init(struct drm_i915_private *i915)
 {
-	if (INTEL_GEN(i915) >= 11)
-		icl_init_cdclk(i915);
-	else if (IS_CANNONLAKE(i915))
-		cnl_init_cdclk(i915);
+	if (IS_GEN9_LP(i915) || INTEL_GEN(i915) >= 10)
+		bxt_init_cdclk(i915);
 	else if (IS_GEN9_BC(i915))
 		skl_init_cdclk(i915);
-	else if (IS_GEN9_LP(i915))
-		bxt_init_cdclk(i915);
 }
 
 /**
