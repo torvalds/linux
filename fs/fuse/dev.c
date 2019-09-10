@@ -255,7 +255,7 @@ EXPORT_SYMBOL_GPL(fuse_get_req_for_background);
  * filesystem should not have it's own file open.  If deadlock is
  * intentional, it can still be broken by "aborting" the filesystem.
  */
-struct fuse_req *fuse_get_req_nofail_nopages(struct fuse_conn *fc)
+static struct fuse_req *fuse_get_req_nofail_nopages(struct fuse_conn *fc)
 {
 	struct fuse_req *req;
 
@@ -570,9 +570,14 @@ ssize_t fuse_simple_request(struct fuse_conn *fc, struct fuse_args *args)
 	struct fuse_req *req;
 	ssize_t ret;
 
-	req = fuse_get_req(fc, 0);
-	if (IS_ERR(req))
-		return PTR_ERR(req);
+	if (args->force) {
+		req = fuse_get_req_nofail_nopages(fc);
+		__set_bit(FR_FORCE, &req->flags);
+	} else {
+		req = fuse_get_req(fc, 0);
+		if (IS_ERR(req))
+			return PTR_ERR(req);
+	}
 
 	/* Needs to be done after fuse_get_req() so that fc->minor is valid */
 	fuse_adjust_compat(fc, args);

@@ -291,6 +291,7 @@ struct fuse_args {
 	uint32_t opcode;
 	unsigned short in_numargs;
 	unsigned short out_numargs;
+	bool force:1;
 	bool out_argvar:1;
 	struct fuse_in_arg in_args[3];
 	struct fuse_arg out_args[2];
@@ -918,11 +919,6 @@ struct fuse_req *fuse_get_req_for_background(struct fuse_conn *fc,
  * Increment reference count on request
  */
 void __fuse_get_request(struct fuse_req *req);
-
-/**
- * Gets a requests for a file operation, always succeeds
- */
-struct fuse_req *fuse_get_req_nofail_nopages(struct fuse_conn *fc);
 
 /**
  * Decrement reference count of a request.  If count goes to zero free
