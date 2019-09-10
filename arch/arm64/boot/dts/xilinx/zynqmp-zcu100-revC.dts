@@ -274,11 +274,13 @@
 /* ULPI SMSC USB3320 */
 &usb0 {
 	status = "okay";
+	dr_mode = "peripheral";
 };
 
 /* ULPI SMSC USB3320 */
 &usb1 {
 	status = "okay";
+	dr_mode = "host";
 };
 
 &watchdog0 {
