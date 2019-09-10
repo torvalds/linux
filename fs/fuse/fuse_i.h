@@ -292,6 +292,7 @@ struct fuse_args {
 	unsigned short in_numargs;
 	unsigned short out_numargs;
 	bool force:1;
+	bool noreply:1;
 	bool out_argvar:1;
 	struct fuse_in_arg in_args[3];
 	struct fuse_arg out_args[2];
