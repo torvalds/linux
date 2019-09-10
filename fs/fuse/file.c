@@ -552,6 +552,33 @@ void fuse_read_fill(struct fuse_req *req, struct file *file, loff_t pos,
 	req->out.args[0].size = count;
 }
 
+struct fuse_io_args {
+	struct {
+		struct fuse_read_in in;
+	} read;
+	struct fuse_args_pages ap;
+};
+
+void fuse_read_args_fill(struct fuse_io_args *ia, struct file *file, loff_t pos,
+			 size_t count, int opcode)
+{
+	struct fuse_file *ff = file->private_data;
+	struct fuse_args *args = &ia->ap.args;
+
+	ia->read.in.fh = ff->fh;
+	ia->read.in.offset = pos;
+	ia->read.in.size = count;
+	ia->read.in.flags = file->f_flags;
+	args->opcode = opcode;
+	args->nodeid = ff->nodeid;
+	args->in_numargs = 1;
+	args->in_args[0].size = sizeof(ia->read.in);
+	args->in_args[0].value = &ia->read.in;
+	args->out_argvar = true;
+	args->out_numargs = 1;
+	args->out_args[0].size = count;
+}
+
 static void fuse_release_user_pages(struct fuse_req *req, bool should_dirty)
 {
 	unsigned i;
@@ -732,16 +759,19 @@ static void fuse_short_read(struct inode *inode, u64 attr_ver, size_t num_read,
 
 static int fuse_do_readpage(struct file *file, struct page *page)
 {
-	struct kiocb iocb;
-	struct fuse_io_priv io;
 	struct inode *inode = page->mapping->host;
 	struct fuse_conn *fc = get_fuse_conn(inode);
-	struct fuse_req *req;
-	size_t num_read;
 	loff_t pos = page_offset(page);
-	size_t count = PAGE_SIZE;
+	struct fuse_page_desc desc = { .length = PAGE_SIZE };
+	struct fuse_io_args ia = {
+		.ap.args.page_zeroing = true,
+		.ap.args.out_pages = true,
+		.ap.num_pages = 1,
+		.ap.pages = &page,
+		.ap.descs = &desc,
+	};
+	ssize_t res;
 	u64 attr_ver;
-	int err;
 
 	/*
 	 * Page writeback can extend beyond the lifetime of the
@@ -750,36 +780,22 @@ static int fuse_do_readpage(struct file *file, struct page *page)
 	 */
 	fuse_wait_on_page_writeback(inode, page->index);
 
-	req = fuse_get_req(fc, 1);
-	if (IS_ERR(req))
-		return PTR_ERR(req);
-
 	attr_ver = fuse_get_attr_version(fc);
 
-	req->out.page_zeroing = 1;
-	req->out.argpages = 1;
-	req->num_pages = 1;
-	req->pages[0] = page;
-	req->page_descs[0].length = count;
-	init_sync_kiocb(&iocb, file);
-	io = (struct fuse_io_priv) FUSE_IO_PRIV_SYNC(&iocb);
-	num_read = fuse_send_read(req, &io, pos, count, NULL);
-	err = req->out.h.error;
+	fuse_read_args_fill(&ia, file, pos, desc.length, FUSE_READ);
+	res = fuse_simple_request(fc, &ia.ap.args);
+	if (res < 0)
+		return res;
+	/*
+	 * Short read means EOF.  If file size is larger, truncate it
+	 */
+	if (res < desc.length)
+		fuse_short_read(inode, attr_ver, res, ia.ap.pages,
+				ia.ap.num_pages);
 
-	if (!err) {
-		/*
-		 * Short read means EOF.  If file size is larger, truncate it
-		 */
-		if (num_read < count)
-			fuse_short_read(inode, attr_ver, num_read, req->pages,
-					req->num_pages);
+	SetPageUptodate(page);
 
-		SetPageUptodate(page);
-	}
-
-	fuse_put_request(fc, req);
-
-	return err;
+	return 0;
 }
 
 static int fuse_readpage(struct file *file, struct page *page)
