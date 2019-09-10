@@ -19,6 +19,7 @@
 #define GMAC_VLAN_TAG			0x00000050
 #define GMAC_VLAN_HASH_TABLE		0x00000058
 #define GMAC_RX_FLOW_CTRL		0x00000090
+#define GMAC_VLAN_INCL			0x00000060
 #define GMAC_QX_TX_FLOW_CTRL(x)		(0x70 + x * 4)
 #define GMAC_TXQ_PRTY_MAP0		0x98
 #define GMAC_TXQ_PRTY_MAP1		0x9C
@@ -75,6 +76,10 @@
 #define GMAC_VLAN_ESVL			BIT(18)
 #define GMAC_VLAN_ETV			BIT(16)
 #define GMAC_VLAN_VID			GENMASK(15, 0)
+#define GMAC_VLAN_VLTI			BIT(20)
+#define GMAC_VLAN_CSVL			BIT(19)
+#define GMAC_VLAN_VLC			GENMASK(17, 16)
+#define GMAC_VLAN_VLC_SHIFT		16
 
 /* MAC RX Queue Enable */
 #define GMAC_RX_QUEUE_CLEAR(queue)	~(GENMASK(1, 0) << ((queue) * 2))
@@ -212,6 +217,7 @@ enum power_event {
 #define GMAC_HW_FEAT_FRPES		GENMASK(14, 13)
 #define GMAC_HW_FEAT_FRPBS		GENMASK(12, 11)
 #define GMAC_HW_FEAT_FRPSEL		BIT(10)
+#define GMAC_HW_FEAT_DVLAN		BIT(5)
 
 /* MAC HW ADDR regs */
 #define GMAC_HI_DCS			GENMASK(18, 16)
