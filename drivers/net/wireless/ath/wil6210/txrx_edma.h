@@ -421,12 +421,6 @@ static inline u8 wil_rx_status_get_tid(void *msg)
 		return val & WIL_RX_EDMA_DLPF_LU_MISS_CID_TID_MASK;
 }
 
-static inline int wil_rx_status_get_desc_rdy_bit(void *msg)
-{
-	return WIL_GET_BITS(((struct wil_rx_status_compressed *)msg)->d0,
-			    31, 31);
-}
-
 static inline int wil_rx_status_get_eop(void *msg) /* EoP = End of Packet */
 {
 	return WIL_GET_BITS(((struct wil_rx_status_compressed *)msg)->d0,
