@@ -1683,7 +1683,18 @@ static void bxt_uninit_cdclk(struct drm_i915_private *dev_priv)
 
 	cdclk_state.cdclk = cdclk_state.bypass;
 	cdclk_state.vco = 0;
-	cdclk_state.voltage_level = bxt_calc_voltage_level(cdclk_state.cdclk);
+	if (IS_ELKHARTLAKE(dev_priv))
+		cdclk_state.voltage_level =
+			ehl_calc_voltage_level(cdclk_state.cdclk);
+	else if (INTEL_GEN(dev_priv) >= 11)
+		cdclk_state.voltage_level =
+			icl_calc_voltage_level(cdclk_state.cdclk);
+	else if (INTEL_GEN(dev_priv) >= 10)
+		cdclk_state.voltage_level =
+			cnl_calc_voltage_level(cdclk_state.cdclk);
+	else
+		cdclk_state.voltage_level =
+			bxt_calc_voltage_level(cdclk_state.cdclk);
 
 	bxt_set_cdclk(dev_priv, &cdclk_state, INVALID_PIPE);
 }
@@ -1729,22 +1740,6 @@ sanitize:
 	bxt_set_cdclk(dev_priv, &sanitized_state, INVALID_PIPE);
 }
 
-static void icl_uninit_cdclk(struct drm_i915_private *dev_priv)
-{
-	struct intel_cdclk_state cdclk_state = dev_priv->cdclk.hw;
-
-	cdclk_state.cdclk = cdclk_state.bypass;
-	cdclk_state.vco = 0;
-	if (IS_ELKHARTLAKE(dev_priv))
-		cdclk_state.voltage_level =
-			ehl_calc_voltage_level(cdclk_state.cdclk);
-	else
-		cdclk_state.voltage_level =
-			icl_calc_voltage_level(cdclk_state.cdclk);
-
-	bxt_set_cdclk(dev_priv, &cdclk_state, INVALID_PIPE);
-}
-
 static void cnl_init_cdclk(struct drm_i915_private *dev_priv)
 {
 	struct intel_cdclk_state cdclk_state;
@@ -1759,17 +1754,6 @@ static void cnl_init_cdclk(struct drm_i915_private *dev_priv)
 
 	cdclk_state.cdclk = bxt_calc_cdclk(dev_priv, 0);
 	cdclk_state.vco = bxt_calc_cdclk_pll_vco(dev_priv, cdclk_state.cdclk);
-	cdclk_state.voltage_level = cnl_calc_voltage_level(cdclk_state.cdclk);
-
-	bxt_set_cdclk(dev_priv, &cdclk_state, INVALID_PIPE);
-}
-
-static void cnl_uninit_cdclk(struct drm_i915_private *dev_priv)
-{
-	struct intel_cdclk_state cdclk_state = dev_priv->cdclk.hw;
-
-	cdclk_state.cdclk = cdclk_state.bypass;
-	cdclk_state.vco = 0;
 	cdclk_state.voltage_level = cnl_calc_voltage_level(cdclk_state.cdclk);
 
 	bxt_set_cdclk(dev_priv, &cdclk_state, INVALID_PIPE);
@@ -1805,14 +1789,10 @@ void intel_cdclk_init(struct drm_i915_private *i915)
  */
 void intel_cdclk_uninit(struct drm_i915_private *i915)
 {
-	if (INTEL_GEN(i915) >= 11)
-		icl_uninit_cdclk(i915);
-	else if (IS_CANNONLAKE(i915))
-		cnl_uninit_cdclk(i915);
+	if (INTEL_GEN(i915) >= 10 || IS_GEN9_LP(i915))
+		bxt_uninit_cdclk(i915);
 	else if (IS_GEN9_BC(i915))
 		skl_uninit_cdclk(i915);
-	else if (IS_GEN9_LP(i915))
-		bxt_uninit_cdclk(i915);
 }
 
 /**
