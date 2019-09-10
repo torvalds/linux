@@ -553,9 +553,15 @@ void fuse_read_fill(struct fuse_req *req, struct file *file, loff_t pos,
 }
 
 struct fuse_io_args {
-	struct {
-		struct fuse_read_in in;
-	} read;
+	union {
+		struct {
+			struct fuse_read_in in;
+		} read;
+		struct {
+			struct fuse_write_in in;
+			struct fuse_write_out out;
+		} write;
+	};
 	struct fuse_args_pages ap;
 };
 
@@ -1001,6 +1007,40 @@ static void fuse_write_fill(struct fuse_req *req, struct fuse_file *ff,
 	req->out.args[0].value = outarg;
 }
 
+static void fuse_write_args_fill(struct fuse_io_args *ia, struct fuse_file *ff,
+				 loff_t pos, size_t count)
+{
+	struct fuse_args *args = &ia->ap.args;
+
+	ia->write.in.fh = ff->fh;
+	ia->write.in.offset = pos;
+	ia->write.in.size = count;
+	args->opcode = FUSE_WRITE;
+	args->nodeid = ff->nodeid;
+	args->in_numargs = 2;
+	if (ff->fc->minor < 9)
+		args->in_args[0].size = FUSE_COMPAT_WRITE_IN_SIZE;
+	else
+		args->in_args[0].size = sizeof(ia->write.in);
+	args->in_args[0].value = &ia->write.in;
+	args->in_args[1].size = count;
+	args->out_numargs = 1;
+	args->out_args[0].size = sizeof(ia->write.out);
+	args->out_args[0].value = &ia->write.out;
+}
+
+static unsigned int fuse_write_flags(struct kiocb *iocb)
+{
+	unsigned int flags = iocb->ki_filp->f_flags;
+
+	if (iocb->ki_flags & IOCB_DSYNC)
+		flags |= O_DSYNC;
+	if (iocb->ki_flags & IOCB_SYNC)
+		flags |= O_SYNC;
+
+	return flags;
+}
+
 static size_t fuse_send_write(struct fuse_req *req, struct fuse_io_priv *io,
 			      loff_t pos, size_t count, fl_owner_t owner)
 {
@@ -1011,11 +1051,7 @@ static size_t fuse_send_write(struct fuse_req *req, struct fuse_io_priv *io,
 	struct fuse_write_in *inarg = &req->misc.write.in;
 
 	fuse_write_fill(req, ff, pos, count);
-	inarg->flags = file->f_flags;
-	if (iocb->ki_flags & IOCB_DSYNC)
-		inarg->flags |= O_DSYNC;
-	if (iocb->ki_flags & IOCB_SYNC)
-		inarg->flags |= O_SYNC;
+	inarg->flags = fuse_write_flags(iocb);
 	if (owner != NULL) {
 		inarg->write_flags |= FUSE_WRITE_LOCKOWNER;
 		inarg->lock_owner = fuse_lock_owner_id(fc, owner);
@@ -1045,26 +1081,31 @@ bool fuse_write_update_size(struct inode *inode, loff_t pos)
 	return ret;
 }
 
-static size_t fuse_send_write_pages(struct fuse_req *req, struct kiocb *iocb,
-				    struct inode *inode, loff_t pos,
-				    size_t count)
+static ssize_t fuse_send_write_pages(struct fuse_io_args *ia,
+				     struct kiocb *iocb, struct inode *inode,
+				     loff_t pos, size_t count)
 {
-	size_t res;
-	unsigned offset;
-	unsigned i;
-	struct fuse_io_priv io = FUSE_IO_PRIV_SYNC(iocb);
+	struct fuse_args_pages *ap = &ia->ap;
+	struct file *file = iocb->ki_filp;
+	struct fuse_file *ff = file->private_data;
+	struct fuse_conn *fc = ff->fc;
+	unsigned int offset, i;
+	int err;
 
-	for (i = 0; i < req->num_pages; i++)
-		fuse_wait_on_page_writeback(inode, req->pages[i]->index);
+	for (i = 0; i < ap->num_pages; i++)
+		fuse_wait_on_page_writeback(inode, ap->pages[i]->index);
 
-	res = fuse_send_write(req, &io, pos, count, NULL);
+	fuse_write_args_fill(ia, ff, pos, count);
+	ia->write.in.flags = fuse_write_flags(iocb);
 
-	offset = req->page_descs[0].offset;
-	count = res;
-	for (i = 0; i < req->num_pages; i++) {
-		struct page *page = req->pages[i];
+	err = fuse_simple_request(fc, &ap->args);
 
-		if (!req->out.h.error && !offset && count >= PAGE_SIZE)
+	offset = ap->descs[0].offset;
+	count = ia->write.out.size;
+	for (i = 0; i < ap->num_pages; i++) {
+		struct page *page = ap->pages[i];
+
+		if (!err && !offset && count >= PAGE_SIZE)
 			SetPageUptodate(page);
 
 		if (count > PAGE_SIZE - offset)
@@ -1077,20 +1118,21 @@ static size_t fuse_send_write_pages(struct fuse_req *req, struct kiocb *iocb,
 		put_page(page);
 	}
 
-	return res;
+	return err;
 }
 
-static ssize_t fuse_fill_write_pages(struct fuse_req *req,
-			       struct address_space *mapping,
-			       struct iov_iter *ii, loff_t pos)
+static ssize_t fuse_fill_write_pages(struct fuse_args_pages *ap,
+				     struct address_space *mapping,
+				     struct iov_iter *ii, loff_t pos,
+				     unsigned int max_pages)
 {
 	struct fuse_conn *fc = get_fuse_conn(mapping->host);
 	unsigned offset = pos & (PAGE_SIZE - 1);
 	size_t count = 0;
 	int err;
 
-	req->in.argpages = 1;
-	req->page_descs[0].offset = offset;
+	ap->args.in_pages = true;
+	ap->descs[0].offset = offset;
 
 	do {
 		size_t tmp;
@@ -1126,9 +1168,9 @@ static ssize_t fuse_fill_write_pages(struct fuse_req *req,
 		}
 
 		err = 0;
-		req->pages[req->num_pages] = page;
-		req->page_descs[req->num_pages].length = tmp;
-		req->num_pages++;
+		ap->pages[ap->num_pages] = page;
+		ap->descs[ap->num_pages].length = tmp;
+		ap->num_pages++;
 
 		count += tmp;
 		pos += tmp;
@@ -1139,7 +1181,7 @@ static ssize_t fuse_fill_write_pages(struct fuse_req *req,
 		if (!fc->big_writes)
 			break;
 	} while (iov_iter_count(ii) && count < fc->max_write &&
-		 req->num_pages < req->max_pages && offset == 0);
+		 ap->num_pages < max_pages && offset == 0);
 
 	return count > 0 ? count : err;
 }
@@ -1167,27 +1209,27 @@ static ssize_t fuse_perform_write(struct kiocb *iocb,
 		set_bit(FUSE_I_SIZE_UNSTABLE, &fi->state);
 
 	do {
-		struct fuse_req *req;
 		ssize_t count;
+		struct fuse_io_args ia = {};
+		struct fuse_args_pages *ap = &ia.ap;
 		unsigned int nr_pages = fuse_wr_pages(pos, iov_iter_count(ii),
 						      fc->max_pages);
 
-		req = fuse_get_req(fc, nr_pages);
-		if (IS_ERR(req)) {
-			err = PTR_ERR(req);
+		ap->pages = fuse_pages_alloc(nr_pages, GFP_KERNEL, &ap->descs);
+		if (!ap->pages) {
+			err = -ENOMEM;
 			break;
 		}
 
-		count = fuse_fill_write_pages(req, mapping, ii, pos);
+		count = fuse_fill_write_pages(ap, mapping, ii, pos, nr_pages);
 		if (count <= 0) {
 			err = count;
 		} else {
-			size_t num_written;
-
-			num_written = fuse_send_write_pages(req, iocb, inode,
-							    pos, count);
-			err = req->out.h.error;
+			err = fuse_send_write_pages(&ia, iocb, inode,
+						    pos, count);
 			if (!err) {
+				size_t num_written = ia.write.out.size;
+
 				res += num_written;
 				pos += num_written;
 
@@ -1196,7 +1238,7 @@ static ssize_t fuse_perform_write(struct kiocb *iocb,
 					err = -EIO;
 			}
 		}
-		fuse_put_request(fc, req);
+		kfree(ap->pages);
 	} while (!err && iov_iter_count(ii));
 
 	if (res > 0)
