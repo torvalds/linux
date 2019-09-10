@@ -347,19 +347,27 @@ u64 fuse_lock_owner_id(struct fuse_conn *fc, fl_owner_t id)
 	return (u64) v0 + ((u64) v1 << 32);
 }
 
-static struct fuse_req *fuse_find_writeback(struct fuse_inode *fi,
+struct fuse_writepage_args {
+	struct fuse_io_args ia;
+	struct list_head writepages_entry;
+	struct list_head queue_entry;
+	struct fuse_writepage_args *next;
+	struct inode *inode;
+};
+
+static struct fuse_writepage_args *fuse_find_writeback(struct fuse_inode *fi,
 					    pgoff_t idx_from, pgoff_t idx_to)
 {
-	struct fuse_req *req;
+	struct fuse_writepage_args *wpa;
 
-	list_for_each_entry(req, &fi->writepages, writepages_entry) {
+	list_for_each_entry(wpa, &fi->writepages, writepages_entry) {
 		pgoff_t curr_index;
 
-		WARN_ON(get_fuse_inode(req->inode) != fi);
-		curr_index = req->misc.write.in.offset >> PAGE_SHIFT;
-		if (idx_from < curr_index + req->num_pages &&
+		WARN_ON(get_fuse_inode(wpa->inode) != fi);
+		curr_index = wpa->ia.write.in.offset >> PAGE_SHIFT;
+		if (idx_from < curr_index + wpa->ia.ap.num_pages &&
 		    curr_index <= idx_to) {
-			return req;
+			return wpa;
 		}
 	}
 	return NULL;
@@ -984,29 +992,6 @@ static ssize_t fuse_cache_read_iter(struct kiocb *iocb, struct iov_iter *to)
 	return generic_file_read_iter(iocb, to);
 }
 
-static void fuse_write_fill(struct fuse_req *req, struct fuse_file *ff,
-			    loff_t pos, size_t count)
-{
-	struct fuse_write_in *inarg = &req->misc.write.in;
-	struct fuse_write_out *outarg = &req->misc.write.out;
-
-	inarg->fh = ff->fh;
-	inarg->offset = pos;
-	inarg->size = count;
-	req->in.h.opcode = FUSE_WRITE;
-	req->in.h.nodeid = ff->nodeid;
-	req->in.numargs = 2;
-	if (ff->fc->minor < 9)
-		req->in.args[0].size = FUSE_COMPAT_WRITE_IN_SIZE;
-	else
-		req->in.args[0].size = sizeof(struct fuse_write_in);
-	req->in.args[0].value = inarg;
-	req->in.args[1].size = count;
-	req->out.numargs = 1;
-	req->out.args[0].size = sizeof(struct fuse_write_out);
-	req->out.args[0].value = outarg;
-}
-
 static void fuse_write_args_fill(struct fuse_io_args *ia, struct fuse_file *ff,
 				 loff_t pos, size_t count)
 {
@@ -1576,45 +1561,53 @@ static ssize_t fuse_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 		return fuse_direct_write_iter(iocb, from);
 }
 
-static void fuse_writepage_free(struct fuse_conn *fc, struct fuse_req *req)
+static void fuse_writepage_free(struct fuse_writepage_args *wpa)
 {
+	struct fuse_args_pages *ap = &wpa->ia.ap;
 	int i;
 
-	for (i = 0; i < req->num_pages; i++)
-		__free_page(req->pages[i]);
+	for (i = 0; i < ap->num_pages; i++)
+		__free_page(ap->pages[i]);
 
-	if (req->ff)
-		fuse_file_put(req->ff, false, false);
+	if (wpa->ia.ff)
+		fuse_file_put(wpa->ia.ff, false, false);
+
+	kfree(ap->pages);
+	kfree(wpa);
 }
 
-static void fuse_writepage_finish(struct fuse_conn *fc, struct fuse_req *req)
+static void fuse_writepage_finish(struct fuse_conn *fc,
+				  struct fuse_writepage_args *wpa)
 {
-	struct inode *inode = req->inode;
+	struct fuse_args_pages *ap = &wpa->ia.ap;
+	struct inode *inode = wpa->inode;
 	struct fuse_inode *fi = get_fuse_inode(inode);
 	struct backing_dev_info *bdi = inode_to_bdi(inode);
 	int i;
 
-	list_del(&req->writepages_entry);
-	for (i = 0; i < req->num_pages; i++) {
+	list_del(&wpa->writepages_entry);
+	for (i = 0; i < ap->num_pages; i++) {
 		dec_wb_stat(&bdi->wb, WB_WRITEBACK);
-		dec_node_page_state(req->pages[i], NR_WRITEBACK_TEMP);
+		dec_node_page_state(ap->pages[i], NR_WRITEBACK_TEMP);
 		wb_writeout_inc(&bdi->wb);
 	}
 	wake_up(&fi->page_waitq);
 }
 
 /* Called under fi->lock, may release and reacquire it */
-static void fuse_send_writepage(struct fuse_conn *fc, struct fuse_req *req,
-				loff_t size)
+static void fuse_send_writepage(struct fuse_conn *fc,
+				struct fuse_writepage_args *wpa, loff_t size)
 __releases(fi->lock)
 __acquires(fi->lock)
 {
-	struct fuse_req *aux, *next;
-	struct fuse_inode *fi = get_fuse_inode(req->inode);
-	struct fuse_write_in *inarg = &req->misc.write.in;
-	__u64 data_size = req->num_pages * PAGE_SIZE;
-	bool queued;
+	struct fuse_writepage_args *aux, *next;
+	struct fuse_inode *fi = get_fuse_inode(wpa->inode);
+	struct fuse_write_in *inarg = &wpa->ia.write.in;
+	struct fuse_args *args = &wpa->ia.ap.args;
+	__u64 data_size = wpa->ia.ap.num_pages * PAGE_SIZE;
+	int err;
 
+	fi->writectr++;
 	if (inarg->offset + data_size <= size) {
 		inarg->size = data_size;
 	} else if (inarg->offset < size) {
@@ -1624,29 +1617,36 @@ __acquires(fi->lock)
 		goto out_free;
 	}
 
-	req->in.args[1].size = inarg->size;
-	queued = fuse_request_queue_background(fc, req);
+	args->in_args[1].size = inarg->size;
+	args->force = true;
+	args->nocreds = true;
+
+	err = fuse_simple_background(fc, args, GFP_ATOMIC);
+	if (err == -ENOMEM) {
+		spin_unlock(&fi->lock);
+		err = fuse_simple_background(fc, args, GFP_NOFS | __GFP_NOFAIL);
+		spin_lock(&fi->lock);
+	}
+
 	/* Fails on broken connection only */
-	if (unlikely(!queued))
+	if (unlikely(err))
 		goto out_free;
 
-	fi->writectr++;
 	return;
 
  out_free:
-	fuse_writepage_finish(fc, req);
+	fi->writectr--;
+	fuse_writepage_finish(fc, wpa);
 	spin_unlock(&fi->lock);
 
 	/* After fuse_writepage_finish() aux request list is private */
-	for (aux = req->misc.write.next; aux; aux = next) {
-		next = aux->misc.write.next;
-		aux->misc.write.next = NULL;
-		fuse_writepage_free(fc, aux);
-		fuse_put_request(fc, aux);
+	for (aux = wpa->next; aux; aux = next) {
+		next = aux->next;
+		aux->next = NULL;
+		fuse_writepage_free(aux);
 	}
 
-	fuse_writepage_free(fc, req);
-	fuse_put_request(fc, req);
+	fuse_writepage_free(wpa);
 	spin_lock(&fi->lock);
 }
 
@@ -1663,29 +1663,34 @@ __acquires(fi->lock)
 	struct fuse_conn *fc = get_fuse_conn(inode);
 	struct fuse_inode *fi = get_fuse_inode(inode);
 	loff_t crop = i_size_read(inode);
-	struct fuse_req *req;
+	struct fuse_writepage_args *wpa;
 
 	while (fi->writectr >= 0 && !list_empty(&fi->queued_writes)) {
-		req = list_entry(fi->queued_writes.next, struct fuse_req, list);
-		list_del_init(&req->list);
-		fuse_send_writepage(fc, req, crop);
+		wpa = list_entry(fi->queued_writes.next,
+				 struct fuse_writepage_args, queue_entry);
+		list_del_init(&wpa->queue_entry);
+		fuse_send_writepage(fc, wpa, crop);
 	}
 }
 
-static void fuse_writepage_end(struct fuse_conn *fc, struct fuse_req *req)
+static void fuse_writepage_end(struct fuse_conn *fc, struct fuse_args *args,
+			       int error)
 {
-	struct inode *inode = req->inode;
+	struct fuse_writepage_args *wpa =
+		container_of(args, typeof(*wpa), ia.ap.args);
+	struct inode *inode = wpa->inode;
 	struct fuse_inode *fi = get_fuse_inode(inode);
 
-	mapping_set_error(inode->i_mapping, req->out.h.error);
+	mapping_set_error(inode->i_mapping, error);
 	spin_lock(&fi->lock);
-	while (req->misc.write.next) {
+	while (wpa->next) {
 		struct fuse_conn *fc = get_fuse_conn(inode);
-		struct fuse_write_in *inarg = &req->misc.write.in;
-		struct fuse_req *next = req->misc.write.next;
-		req->misc.write.next = next->misc.write.next;
-		next->misc.write.next = NULL;
-		next->ff = fuse_file_get(req->ff);
+		struct fuse_write_in *inarg = &wpa->ia.write.in;
+		struct fuse_writepage_args *next = wpa->next;
+
+		wpa->next = next->next;
+		next->next = NULL;
+		next->ia.ff = fuse_file_get(wpa->ia.ff);
 		list_add(&next->writepages_entry, &fi->writepages);
 
 		/*
@@ -1714,9 +1719,9 @@ static void fuse_writepage_end(struct fuse_conn *fc, struct fuse_req *req)
 		fuse_send_writepage(fc, next, inarg->offset + inarg->size);
 	}
 	fi->writectr--;
-	fuse_writepage_finish(fc, req);
+	fuse_writepage_finish(fc, wpa);
 	spin_unlock(&fi->lock);
-	fuse_writepage_free(fc, req);
+	fuse_writepage_free(wpa);
 }
 
 static struct fuse_file *__fuse_write_file_get(struct fuse_conn *fc,
@@ -1758,52 +1763,71 @@ int fuse_write_inode(struct inode *inode, struct writeback_control *wbc)
 	return err;
 }
 
+static struct fuse_writepage_args *fuse_writepage_args_alloc(void)
+{
+	struct fuse_writepage_args *wpa;
+	struct fuse_args_pages *ap;
+
+	wpa = kzalloc(sizeof(*wpa), GFP_NOFS);
+	if (wpa) {
+		ap = &wpa->ia.ap;
+		ap->num_pages = 0;
+		ap->pages = fuse_pages_alloc(1, GFP_NOFS, &ap->descs);
+		if (!ap->pages) {
+			kfree(wpa);
+			wpa = NULL;
+		}
+	}
+	return wpa;
+
+}
+
 static int fuse_writepage_locked(struct page *page)
 {
 	struct address_space *mapping = page->mapping;
 	struct inode *inode = mapping->host;
 	struct fuse_conn *fc = get_fuse_conn(inode);
 	struct fuse_inode *fi = get_fuse_inode(inode);
-	struct fuse_req *req;
+	struct fuse_writepage_args *wpa;
+	struct fuse_args_pages *ap;
 	struct page *tmp_page;
 	int error = -ENOMEM;
 
 	set_page_writeback(page);
 
-	req = fuse_request_alloc_nofs(1);
-	if (!req)
+	wpa = fuse_writepage_args_alloc();
+	if (!wpa)
 		goto err;
+	ap = &wpa->ia.ap;
 
-	/* writeback always goes to bg_queue */
-	__set_bit(FR_BACKGROUND, &req->flags);
 	tmp_page = alloc_page(GFP_NOFS | __GFP_HIGHMEM);
 	if (!tmp_page)
 		goto err_free;
 
 	error = -EIO;
-	req->ff = fuse_write_file_get(fc, fi);
-	if (!req->ff)
+	wpa->ia.ff = fuse_write_file_get(fc, fi);
+	if (!wpa->ia.ff)
 		goto err_nofile;
 
-	fuse_write_fill(req, req->ff, page_offset(page), 0);
+	fuse_write_args_fill(&wpa->ia, wpa->ia.ff, page_offset(page), 0);
 
 	copy_highpage(tmp_page, page);
-	req->misc.write.in.write_flags |= FUSE_WRITE_CACHE;
-	req->misc.write.next = NULL;
-	req->in.argpages = 1;
-	req->num_pages = 1;
-	req->pages[0] = tmp_page;
-	req->page_descs[0].offset = 0;
-	req->page_descs[0].length = PAGE_SIZE;
-	req->end = fuse_writepage_end;
-	req->inode = inode;
+	wpa->ia.write.in.write_flags |= FUSE_WRITE_CACHE;
+	wpa->next = NULL;
+	ap->args.in_pages = true;
+	ap->num_pages = 1;
+	ap->pages[0] = tmp_page;
+	ap->descs[0].offset = 0;
+	ap->descs[0].length = PAGE_SIZE;
+	ap->args.end = fuse_writepage_end;
+	wpa->inode = inode;
 
 	inc_wb_stat(&inode_to_bdi(inode)->wb, WB_WRITEBACK);
 	inc_node_page_state(tmp_page, NR_WRITEBACK_TEMP);
 
 	spin_lock(&fi->lock);
-	list_add(&req->writepages_entry, &fi->writepages);
-	list_add_tail(&req->list, &fi->queued_writes);
+	list_add(&wpa->writepages_entry, &fi->writepages);
+	list_add_tail(&wpa->queue_entry, &fi->queued_writes);
 	fuse_flush_writepages(inode);
 	spin_unlock(&fi->lock);
 
@@ -1814,7 +1838,7 @@ static int fuse_writepage_locked(struct page *page)
 err_nofile:
 	__free_page(tmp_page);
 err_free:
-	fuse_request_free(req);
+	kfree(wpa);
 err:
 	mapping_set_error(page->mapping, error);
 	end_page_writeback(page);
@@ -1844,23 +1868,50 @@ static int fuse_writepage(struct page *page, struct writeback_control *wbc)
 }
 
 struct fuse_fill_wb_data {
-	struct fuse_req *req;
+	struct fuse_writepage_args *wpa;
 	struct fuse_file *ff;
 	struct inode *inode;
 	struct page **orig_pages;
+	unsigned int max_pages;
 };
+
+static bool fuse_pages_realloc(struct fuse_fill_wb_data *data)
+{
+	struct fuse_args_pages *ap = &data->wpa->ia.ap;
+	struct fuse_conn *fc = get_fuse_conn(data->inode);
+	struct page **pages;
+	struct fuse_page_desc *descs;
+	unsigned int npages = min_t(unsigned int,
+				    max_t(unsigned int, data->max_pages * 2,
+					  FUSE_DEFAULT_MAX_PAGES_PER_REQ),
+				    fc->max_pages);
+	WARN_ON(npages <= data->max_pages);
+
+	pages = fuse_pages_alloc(npages, GFP_NOFS, &descs);
+	if (!pages)
+		return false;
+
+	memcpy(pages, ap->pages, sizeof(struct page *) * ap->num_pages);
+	memcpy(descs, ap->descs, sizeof(struct fuse_page_desc) * ap->num_pages);
+	kfree(ap->pages);
+	ap->pages = pages;
+	ap->descs = descs;
+	data->max_pages = npages;
+
+	return true;
+}
 
 static void fuse_writepages_send(struct fuse_fill_wb_data *data)
 {
-	struct fuse_req *req = data->req;
+	struct fuse_writepage_args *wpa = data->wpa;
 	struct inode *inode = data->inode;
 	struct fuse_inode *fi = get_fuse_inode(inode);
-	int num_pages = req->num_pages;
+	int num_pages = wpa->ia.ap.num_pages;
 	int i;
 
-	req->ff = fuse_file_get(data->ff);
+	wpa->ia.ff = fuse_file_get(data->ff);
 	spin_lock(&fi->lock);
-	list_add_tail(&req->list, &fi->queued_writes);
+	list_add_tail(&wpa->queue_entry, &fi->queued_writes);
 	fuse_flush_writepages(inode);
 	spin_unlock(&fi->lock);
 
@@ -1875,54 +1926,52 @@ static void fuse_writepages_send(struct fuse_fill_wb_data *data)
  * this new request onto the auxiliary list, otherwise reuse the existing one by
  * copying the new page contents over to the old temporary page.
  */
-static bool fuse_writepage_in_flight(struct fuse_req *new_req,
+static bool fuse_writepage_in_flight(struct fuse_writepage_args *new_wpa,
 				     struct page *page)
 {
-	struct fuse_conn *fc = get_fuse_conn(new_req->inode);
-	struct fuse_inode *fi = get_fuse_inode(new_req->inode);
-	struct fuse_req *tmp;
-	struct fuse_req *old_req;
+	struct fuse_inode *fi = get_fuse_inode(new_wpa->inode);
+	struct fuse_writepage_args *tmp;
+	struct fuse_writepage_args *old_wpa;
+	struct fuse_args_pages *new_ap = &new_wpa->ia.ap;
 
-	WARN_ON(new_req->num_pages != 0);
+	WARN_ON(new_ap->num_pages != 0);
 
 	spin_lock(&fi->lock);
-	list_del(&new_req->writepages_entry);
-	old_req = fuse_find_writeback(fi, page->index, page->index);
-	if (!old_req) {
-		list_add(&new_req->writepages_entry, &fi->writepages);
+	list_del(&new_wpa->writepages_entry);
+	old_wpa = fuse_find_writeback(fi, page->index, page->index);
+	if (!old_wpa) {
+		list_add(&new_wpa->writepages_entry, &fi->writepages);
 		spin_unlock(&fi->lock);
 		return false;
 	}
 
-	new_req->num_pages = 1;
-	for (tmp = old_req->misc.write.next; tmp; tmp = tmp->misc.write.next) {
+	new_ap->num_pages = 1;
+	for (tmp = old_wpa->next; tmp; tmp = tmp->next) {
 		pgoff_t curr_index;
 
-		WARN_ON(tmp->inode != new_req->inode);
-		curr_index = tmp->misc.write.in.offset >> PAGE_SHIFT;
+		WARN_ON(tmp->inode != new_wpa->inode);
+		curr_index = tmp->ia.write.in.offset >> PAGE_SHIFT;
 		if (curr_index == page->index) {
-			WARN_ON(tmp->num_pages != 1);
-			WARN_ON(!test_bit(FR_PENDING, &tmp->flags));
-			swap(tmp->pages[0], new_req->pages[0]);
+			WARN_ON(tmp->ia.ap.num_pages != 1);
+			swap(tmp->ia.ap.pages[0], new_ap->pages[0]);
 			break;
 		}
 	}
 
 	if (!tmp) {
-		new_req->misc.write.next = old_req->misc.write.next;
-		old_req->misc.write.next = new_req;
+		new_wpa->next = old_wpa->next;
+		old_wpa->next = new_wpa;
 	}
 
 	spin_unlock(&fi->lock);
 
 	if (tmp) {
-		struct backing_dev_info *bdi = inode_to_bdi(new_req->inode);
+		struct backing_dev_info *bdi = inode_to_bdi(new_wpa->inode);
 
 		dec_wb_stat(&bdi->wb, WB_WRITEBACK);
-		dec_node_page_state(new_req->pages[0], NR_WRITEBACK_TEMP);
+		dec_node_page_state(new_ap->pages[0], NR_WRITEBACK_TEMP);
 		wb_writeout_inc(&bdi->wb);
-		fuse_writepage_free(fc, new_req);
-		fuse_request_free(new_req);
+		fuse_writepage_free(new_wpa);
 	}
 
 	return true;
@@ -1932,7 +1981,8 @@ static int fuse_writepages_fill(struct page *page,
 		struct writeback_control *wbc, void *_data)
 {
 	struct fuse_fill_wb_data *data = _data;
-	struct fuse_req *req = data->req;
+	struct fuse_writepage_args *wpa = data->wpa;
+	struct fuse_args_pages *ap = &wpa->ia.ap;
 	struct inode *inode = data->inode;
 	struct fuse_inode *fi = get_fuse_inode(inode);
 	struct fuse_conn *fc = get_fuse_conn(inode);
@@ -1955,16 +2005,16 @@ static int fuse_writepages_fill(struct page *page,
 	 */
 	is_writeback = fuse_page_is_writeback(inode, page->index);
 
-	if (req && req->num_pages &&
-	    (is_writeback || req->num_pages == fc->max_pages ||
-	     (req->num_pages + 1) * PAGE_SIZE > fc->max_write ||
-	     data->orig_pages[req->num_pages - 1]->index + 1 != page->index)) {
+	if (wpa && ap->num_pages &&
+	    (is_writeback || ap->num_pages == fc->max_pages ||
+	     (ap->num_pages + 1) * PAGE_SIZE > fc->max_write ||
+	     data->orig_pages[ap->num_pages - 1]->index + 1 != page->index)) {
 		fuse_writepages_send(data);
-		data->req = NULL;
-	} else if (req && req->num_pages == req->max_pages) {
-		if (!fuse_req_realloc_pages(fc, req, GFP_NOFS)) {
+		data->wpa = NULL;
+	} else if (wpa && ap->num_pages == data->max_pages) {
+		if (!fuse_pages_realloc(data)) {
 			fuse_writepages_send(data);
-			req = data->req = NULL;
+			data->wpa = NULL;
 		}
 	}
 
@@ -1982,59 +2032,60 @@ static int fuse_writepages_fill(struct page *page,
 	 * This is ensured by holding the page lock in page_mkwrite() while
 	 * checking fuse_page_is_writeback().  We already hold the page lock
 	 * since clear_page_dirty_for_io() and keep it held until we add the
-	 * request to the fi->writepages list and increment req->num_pages.
+	 * request to the fi->writepages list and increment ap->num_pages.
 	 * After this fuse_page_is_writeback() will indicate that the page is
 	 * under writeback, so we can release the page lock.
 	 */
-	if (data->req == NULL) {
+	if (data->wpa == NULL) {
 		struct fuse_inode *fi = get_fuse_inode(inode);
 
 		err = -ENOMEM;
-		req = fuse_request_alloc_nofs(FUSE_REQ_INLINE_PAGES);
-		if (!req) {
+		wpa = fuse_writepage_args_alloc();
+		if (!wpa) {
 			__free_page(tmp_page);
 			goto out_unlock;
 		}
+		data->max_pages = 1;
 
-		fuse_write_fill(req, data->ff, page_offset(page), 0);
-		req->misc.write.in.write_flags |= FUSE_WRITE_CACHE;
-		req->misc.write.next = NULL;
-		req->in.argpages = 1;
-		__set_bit(FR_BACKGROUND, &req->flags);
-		req->num_pages = 0;
-		req->end = fuse_writepage_end;
-		req->inode = inode;
+		ap = &wpa->ia.ap;
+		fuse_write_args_fill(&wpa->ia, data->ff, page_offset(page), 0);
+		wpa->ia.write.in.write_flags |= FUSE_WRITE_CACHE;
+		wpa->next = NULL;
+		ap->args.in_pages = true;
+		ap->args.end = fuse_writepage_end;
+		ap->num_pages = 0;
+		wpa->inode = inode;
 
 		spin_lock(&fi->lock);
-		list_add(&req->writepages_entry, &fi->writepages);
+		list_add(&wpa->writepages_entry, &fi->writepages);
 		spin_unlock(&fi->lock);
 
-		data->req = req;
+		data->wpa = wpa;
 	}
 	set_page_writeback(page);
 
 	copy_highpage(tmp_page, page);
-	req->pages[req->num_pages] = tmp_page;
-	req->page_descs[req->num_pages].offset = 0;
-	req->page_descs[req->num_pages].length = PAGE_SIZE;
+	ap->pages[ap->num_pages] = tmp_page;
+	ap->descs[ap->num_pages].offset = 0;
+	ap->descs[ap->num_pages].length = PAGE_SIZE;
 
 	inc_wb_stat(&inode_to_bdi(inode)->wb, WB_WRITEBACK);
 	inc_node_page_state(tmp_page, NR_WRITEBACK_TEMP);
 
 	err = 0;
-	if (is_writeback && fuse_writepage_in_flight(req, page)) {
+	if (is_writeback && fuse_writepage_in_flight(wpa, page)) {
 		end_page_writeback(page);
-		data->req = NULL;
+		data->wpa = NULL;
 		goto out_unlock;
 	}
-	data->orig_pages[req->num_pages] = page;
+	data->orig_pages[ap->num_pages] = page;
 
 	/*
 	 * Protected by fi->lock against concurrent access by
 	 * fuse_page_is_writeback().
 	 */
 	spin_lock(&fi->lock);
-	req->num_pages++;
+	ap->num_pages++;
 	spin_unlock(&fi->lock);
 
 out_unlock:
@@ -2056,7 +2107,7 @@ static int fuse_writepages(struct address_space *mapping,
 		goto out;
 
 	data.inode = inode;
-	data.req = NULL;
+	data.wpa = NULL;
 	data.ff = NULL;
 
 	err = -ENOMEM;
@@ -2067,9 +2118,9 @@ static int fuse_writepages(struct address_space *mapping,
 		goto out;
 
 	err = write_cache_pages(mapping, wbc, fuse_writepages_fill, &data);
-	if (data.req) {
+	if (data.wpa) {
 		/* Ignore errors if we can write at least one page */
-		BUG_ON(!data.req->num_pages);
+		WARN_ON(!data.wpa->ia.ap.num_pages);
 		fuse_writepages_send(&data);
 		err = 0;
 	}
