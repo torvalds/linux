@@ -964,8 +964,8 @@ again:
 	}
 	stats = &wil->sta[cid].stats;
 
-	if (unlikely(skb->len < ETH_HLEN)) {
-		wil_dbg_txrx(wil, "Short frame, len = %d\n", skb->len);
+	if (unlikely(dmalen < ETH_HLEN)) {
+		wil_dbg_txrx(wil, "Short frame, len = %d\n", dmalen);
 		stats->rx_short_frame++;
 		rxdata->skipping = true;
 		goto skipping;
