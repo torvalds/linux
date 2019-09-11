@@ -43,7 +43,8 @@ struct vm_area_struct;
  * operations. So a buffer object that has been pinned N times with
  * drm_gem_vram_pin() must be unpinned N times with
  * drm_gem_vram_unpin(). The same applies to pairs of
- * drm_gem_vram_kmap() and drm_gem_vram_kunmap().
+ * drm_gem_vram_kmap() and drm_gem_vram_kunmap(), as well as pairs of
+ * drm_gem_vram_vmap() and drm_gem_vram_vunmap().
  */
 struct drm_gem_vram_object {
 	struct ttm_buffer_object bo;
@@ -101,6 +102,8 @@ int drm_gem_vram_unpin(struct drm_gem_vram_object *gbo);
 void *drm_gem_vram_kmap(struct drm_gem_vram_object *gbo, bool map,
 			bool *is_iomem);
 void drm_gem_vram_kunmap(struct drm_gem_vram_object *gbo);
+void *drm_gem_vram_vmap(struct drm_gem_vram_object *gbo);
+void drm_gem_vram_vunmap(struct drm_gem_vram_object *gbo, void *vaddr);
 
 int drm_gem_vram_fill_create_dumb(struct drm_file *file,
 				  struct drm_device *dev,
