@@ -2595,6 +2595,11 @@ SMB2_open(const unsigned int xid, struct cifs_open_parms *oparms, __le16 *path,
 		}
 		trace_smb3_open_err(xid, tcon->tid, ses->Suid,
 				    oparms->create_options, oparms->desired_access, rc);
+		if (rc == -EREMCHG) {
+			printk_once(KERN_WARNING "server share %s deleted\n",
+				    tcon->treeName);
+			tcon->need_reconnect = true;
+		}
 		goto creat_exit;
 	} else
 		trace_smb3_open_done(xid, rsp->PersistentFileId, tcon->tid,
