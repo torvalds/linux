@@ -1213,11 +1213,10 @@ static int smu_free_memory_pool(struct smu_context *smu)
 	return ret;
 }
 
-static int smu_hw_init(void *handle)
+static int smu_start_smc_engine(struct smu_context *smu)
 {
-	int ret;
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	struct smu_context *smu = &adev->smu;
+	struct amdgpu_device *adev = smu->adev;
+	int ret = 0;
 
 	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP) {
 		if (adev->asic_type < CHIP_NAVI10) {
@@ -1228,8 +1227,21 @@ static int smu_hw_init(void *handle)
 	}
 
 	ret = smu_check_fw_status(smu);
+	if (ret)
+		pr_err("SMC is not ready\n");
+
+	return ret;
+}
+
+static int smu_hw_init(void *handle)
+{
+	int ret;
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct smu_context *smu = &adev->smu;
+
+	ret = smu_start_smc_engine(smu);
 	if (ret) {
-		pr_err("SMC firmware status is not correct\n");
+		pr_err("SMU is not ready yet!\n");
 		return ret;
 	}
 
@@ -1380,6 +1392,12 @@ static int smu_resume(void *handle)
 	pr_info("SMU is resuming...\n");
 
 	mutex_lock(&smu->mutex);
+
+	ret = smu_start_smc_engine(smu);
+	if (ret) {
+		pr_err("SMU is not ready yet!\n");
+		return ret;
+	}
 
 	ret = smu_smc_table_hw_init(smu, false);
 	if (ret)
