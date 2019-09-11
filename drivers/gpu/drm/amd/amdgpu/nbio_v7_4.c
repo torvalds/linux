@@ -476,6 +476,36 @@ static int nbio_v7_4_init_ras_err_event_athub_interrupt (struct amdgpu_device *a
 static void nbio_v7_4_query_ras_error_count(struct amdgpu_device *adev,
 					void *ras_error_status)
 {
+	uint32_t global_sts, central_sts, int_eoi;
+	uint32_t corr, fatal, non_fatal;
+	struct ras_err_data *err_data = (struct ras_err_data *)ras_error_status;
+
+	global_sts = RREG32_PCIE(smnRAS_GLOBAL_STATUS_LO);
+	corr = REG_GET_FIELD(global_sts, RAS_GLOBAL_STATUS_LO, ParityErrCorr);
+	fatal = REG_GET_FIELD(global_sts, RAS_GLOBAL_STATUS_LO, ParityErrFatal);
+	non_fatal = REG_GET_FIELD(global_sts, RAS_GLOBAL_STATUS_LO,
+				ParityErrNonFatal);
+
+	if (corr)
+		err_data->ce_count++;
+	if (fatal)
+		err_data->ue_count++;
+
+	if (corr || fatal || non_fatal) {
+		central_sts = RREG32_PCIE(smnBIFL_RAS_CENTRAL_STATUS);
+		/* clear error status register */
+		WREG32_PCIE(smnRAS_GLOBAL_STATUS_LO, global_sts);
+
+		if (REG_GET_FIELD(central_sts, BIFL_RAS_CENTRAL_STATUS,
+				BIFL_RasContller_Intr_Recv)) {
+			/* clear interrupt status register */
+			WREG32_PCIE(smnBIFL_RAS_CENTRAL_STATUS, central_sts);
+			int_eoi = RREG32_PCIE(smnIOHC_INTERRUPT_EOI);
+			int_eoi = REG_SET_FIELD(int_eoi,
+					IOHC_INTERRUPT_EOI, SMI_EOI, 1);
+			WREG32_PCIE(smnIOHC_INTERRUPT_EOI, int_eoi);
+		}
+	}
 }
 
 const struct amdgpu_nbio_funcs nbio_v7_4_funcs = {
