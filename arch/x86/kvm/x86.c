@@ -9741,8 +9741,13 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 	 * Scan sptes if dirty logging has been stopped, dropping those
 	 * which can be collapsed into a single large-page spte.  Later
 	 * page faults will create the large-page sptes.
+	 *
+	 * There is no need to do this in any of the following cases:
+	 * CREATE:	No dirty mappings will already exist.
+	 * MOVE/DELETE:	The old mappings will already have been cleaned up by
+	 *		kvm_arch_flush_shadow_memslot()
 	 */
-	if ((change != KVM_MR_DELETE) &&
+	if (change == KVM_MR_FLAGS_ONLY &&
 		(old->flags & KVM_MEM_LOG_DIRTY_PAGES) &&
 		!(new->flags & KVM_MEM_LOG_DIRTY_PAGES))
 		kvm_mmu_zap_collapsible_sptes(kvm, new);
