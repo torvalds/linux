@@ -3249,7 +3249,20 @@ static void setup_secure_guest(unsigned long kbase, unsigned long fdt)
 	/* Switch to secure mode. */
 	prom_printf("Switching to secure mode.\n");
 
+	/*
+	 * The ultravisor will do an integrity check of the kernel image but we
+	 * relocated it so the check will fail. Restore the original image by
+	 * relocating it back to the kernel virtual base address.
+	 */
+	if (IS_ENABLED(CONFIG_RELOCATABLE))
+		relocate(KERNELBASE);
+
 	ret = enter_secure_mode(kbase, fdt);
+
+	/* Relocate the kernel again. */
+	if (IS_ENABLED(CONFIG_RELOCATABLE))
+		relocate(kbase);
+
 	if (ret != U_SUCCESS) {
 		prom_printf("Returned %d from switching to secure mode.\n", ret);
 		prom_rtas_os_term("Switch to secure mode failed.\n");
