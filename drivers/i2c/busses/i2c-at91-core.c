@@ -148,6 +148,14 @@ static struct at91_twi_pdata sama5d2_config = {
 	.has_hold_field = true,
 };
 
+static struct at91_twi_pdata sam9x60_config = {
+	.clk_max_div = 7,
+	.clk_offset = 4,
+	.has_unre_flag = true,
+	.has_alt_cmd = true,
+	.has_hold_field = true,
+};
+
 static const struct of_device_id atmel_twi_dt_ids[] = {
 	{
 		.compatible = "atmel,at91rm9200-i2c",
@@ -173,6 +181,9 @@ static const struct of_device_id atmel_twi_dt_ids[] = {
 	}, {
 		.compatible = "atmel,sama5d2-i2c",
 		.data = &sama5d2_config,
+	}, {
+		.compatible = "microchip,sam9x60-i2c",
+		.data = &sam9x60_config,
 	}, {
 		/* sentinel */
 	}
