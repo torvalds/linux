@@ -643,8 +643,8 @@ ohci_hcd_at91_drv_resume(struct device *dev)
 
 	if (ohci_at91->wakeup)
 		disable_irq_wake(hcd->irq);
-
-	at91_start_clock(ohci_at91);
+	else
+		at91_start_clock(ohci_at91);
 
 	ohci_resume(hcd, false);
 
