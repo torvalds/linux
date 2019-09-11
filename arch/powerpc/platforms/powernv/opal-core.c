@@ -13,6 +13,8 @@
 #include <linux/proc_fs.h>
 #include <linux/elf.h>
 #include <linux/elfcore.h>
+#include <linux/kobject.h>
+#include <linux/sysfs.h>
 #include <linux/slab.h>
 #include <linux/crash_core.h>
 #include <linux/of.h>
@@ -561,6 +563,36 @@ error_out:
 	of_node_put(np);
 }
 
+static ssize_t fadump_release_opalcore_store(struct kobject *kobj,
+					     struct kobj_attribute *attr,
+					     const char *buf, size_t count)
+{
+	int input = -1;
+
+	if (kstrtoint(buf, 0, &input))
+		return -EINVAL;
+
+	if (input == 1) {
+		if (oc_conf == NULL) {
+			pr_err("'/sys/firmware/opal/core' file not accessible!\n");
+			return -EPERM;
+		}
+
+		/*
+		 * Take away '/sys/firmware/opal/core' and release all memory
+		 * used for exporting this file.
+		 */
+		opalcore_cleanup();
+	} else
+		return -EINVAL;
+
+	return count;
+}
+
+static struct kobj_attribute opalcore_rel_attr = __ATTR(fadump_release_opalcore,
+						0200, NULL,
+						fadump_release_opalcore_store);
+
 static int __init opalcore_init(void)
 {
 	int rc = -1;
@@ -591,6 +623,12 @@ static int __init opalcore_init(void)
 		pr_err("Failed to export /sys/firmware/opal/core\n");
 		opalcore_cleanup();
 		return rc;
+	}
+
+	rc = sysfs_create_file(kernel_kobj, &opalcore_rel_attr.attr);
+	if (rc) {
+		pr_warn("unable to create sysfs file fadump_release_opalcore (%d)\n",
+			rc);
 	}
 
 	return 0;
