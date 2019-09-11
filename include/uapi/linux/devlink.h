@@ -203,6 +203,7 @@ enum devlink_param_fw_load_policy_value {
 	DEVLINK_PARAM_FW_LOAD_POLICY_VALUE_DRIVER,
 	DEVLINK_PARAM_FW_LOAD_POLICY_VALUE_FLASH,
 	DEVLINK_PARAM_FW_LOAD_POLICY_VALUE_DISK,
+	DEVLINK_PARAM_FW_LOAD_POLICY_VALUE_UNKNOWN,
 };
 
 enum devlink_param_reset_dev_on_drv_probe_value {
