@@ -32,7 +32,8 @@ static const struct nfp_devlink_param_u8_arg nfp_devlink_u8_args[] = {
 	[DEVLINK_PARAM_GENERIC_ID_FW_LOAD_POLICY] = {
 		.hwinfo_name = "app_fw_from_flash",
 		.default_hi_val = NFP_NSP_APP_FW_LOAD_DEFAULT,
-		.invalid_dl_val = -EINVAL,
+		.invalid_dl_val =
+			DEVLINK_PARAM_FW_LOAD_POLICY_VALUE_UNKNOWN,
 		.hi_to_dl = {
 			[NFP_NSP_APP_FW_LOAD_DISK] =
 				DEVLINK_PARAM_FW_LOAD_POLICY_VALUE_DISK,
