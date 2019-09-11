@@ -77,6 +77,9 @@ struct fad_crash_memory_ranges {
 	unsigned long long	size;
 };
 
+/* Platform specific callback functions */
+struct fadump_ops;
+
 /* Firmware-assisted dump configuration details. */
 struct fw_dump {
 	unsigned long	reserve_dump_area_start;
@@ -99,6 +102,20 @@ struct fw_dump {
 	unsigned long	dump_active:1;
 	unsigned long	dump_registered:1;
 	unsigned long	nocma:1;
+
+	struct fadump_ops	*ops;
+};
+
+struct fadump_ops {
+	u64	(*fadump_init_mem_struct)(struct fw_dump *fadump_conf);
+	int	(*fadump_register)(struct fw_dump *fadump_conf);
+	int	(*fadump_unregister)(struct fw_dump *fadump_conf);
+	int	(*fadump_invalidate)(struct fw_dump *fadump_conf);
+	int	(*fadump_process)(struct fw_dump *fadump_conf);
+	void	(*fadump_region_show)(struct fw_dump *fadump_conf,
+				      struct seq_file *m);
+	void	(*fadump_trigger)(struct fadump_crash_info_header *fdh,
+				  const char *msg);
 };
 
 /* Helper functions */
@@ -108,5 +125,12 @@ u32 *fadump_regs_to_elf_notes(u32 *buf, struct pt_regs *regs);
 void fadump_update_elfcore_header(char *bufp);
 bool is_fadump_boot_mem_contiguous(void);
 bool is_fadump_reserved_mem_contiguous(void);
+
+#ifdef CONFIG_PPC_PSERIES
+extern void rtas_fadump_dt_scan(struct fw_dump *fadump_conf, u64 node);
+#else
+static inline void
+rtas_fadump_dt_scan(struct fw_dump *fadump_conf, u64 node) { }
+#endif
 
 #endif /* _ASM_POWERPC_FADUMP_INTERNAL_H */
