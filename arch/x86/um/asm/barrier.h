@@ -23,9 +23,6 @@
 
 #endif /* CONFIG_X86_32 */
 
-#define dma_rmb()	barrier()
-#define dma_wmb()	barrier()
-
 #include <asm-generic/barrier.h>
 
 #endif
