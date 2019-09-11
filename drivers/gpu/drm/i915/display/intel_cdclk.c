@@ -2230,39 +2230,6 @@ static int cnl_modeset_calc_cdclk(struct intel_atomic_state *state)
 	state->cdclk.logical.vco = vco;
 	state->cdclk.logical.cdclk = cdclk;
 	state->cdclk.logical.voltage_level =
-		max(cnl_calc_voltage_level(cdclk),
-		    cnl_compute_min_voltage_level(state));
-
-	if (!state->active_pipes) {
-		cdclk = bxt_calc_cdclk(dev_priv, state->cdclk.force_min_cdclk);
-		vco = bxt_calc_cdclk_pll_vco(dev_priv, cdclk);
-
-		state->cdclk.actual.vco = vco;
-		state->cdclk.actual.cdclk = cdclk;
-		state->cdclk.actual.voltage_level =
-			cnl_calc_voltage_level(cdclk);
-	} else {
-		state->cdclk.actual = state->cdclk.logical;
-	}
-
-	return 0;
-}
-
-static int icl_modeset_calc_cdclk(struct intel_atomic_state *state)
-{
-	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-	int min_cdclk, cdclk, vco;
-
-	min_cdclk = intel_compute_min_cdclk(state);
-	if (min_cdclk < 0)
-		return min_cdclk;
-
-	cdclk = bxt_calc_cdclk(dev_priv, min_cdclk);
-	vco = bxt_calc_cdclk_pll_vco(dev_priv, cdclk);
-
-	state->cdclk.logical.vco = vco;
-	state->cdclk.logical.cdclk = cdclk;
-	state->cdclk.logical.voltage_level =
 		max(dev_priv->display.calc_voltage_level(cdclk),
 		    cnl_compute_min_voltage_level(state));
 
@@ -2499,12 +2466,12 @@ void intel_init_cdclk_hooks(struct drm_i915_private *dev_priv)
 {
 	if (IS_ELKHARTLAKE(dev_priv)) {
 		dev_priv->display.set_cdclk = bxt_set_cdclk;
-		dev_priv->display.modeset_calc_cdclk = icl_modeset_calc_cdclk;
+		dev_priv->display.modeset_calc_cdclk = cnl_modeset_calc_cdclk;
 		dev_priv->display.calc_voltage_level = ehl_calc_voltage_level;
 		dev_priv->cdclk.table = icl_cdclk_table;
 	} else if (INTEL_GEN(dev_priv) >= 11) {
 		dev_priv->display.set_cdclk = bxt_set_cdclk;
-		dev_priv->display.modeset_calc_cdclk = icl_modeset_calc_cdclk;
+		dev_priv->display.modeset_calc_cdclk = cnl_modeset_calc_cdclk;
 		dev_priv->display.calc_voltage_level = icl_calc_voltage_level;
 		dev_priv->cdclk.table = icl_cdclk_table;
 	} else if (IS_CANNONLAKE(dev_priv)) {
