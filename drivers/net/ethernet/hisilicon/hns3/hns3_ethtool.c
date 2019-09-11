@@ -726,6 +726,12 @@ static int hns3_check_ksettings_param(const struct net_device *netdev,
 	u8 duplex;
 	int ret;
 
+	/* hw doesn't support use specified speed and duplex to negotiate,
+	 * unnecessary to check them when autoneg on.
+	 */
+	if (cmd->base.autoneg)
+		return 0;
+
 	if (ops->get_ksettings_an_result) {
 		ops->get_ksettings_an_result(handle, &autoneg, &speed, &duplex);
 		if (cmd->base.autoneg == autoneg && cmd->base.speed == speed &&
@@ -785,6 +791,15 @@ static int hns3_set_link_ksettings(struct net_device *netdev,
 		ret = ops->set_autoneg(handle, cmd->base.autoneg);
 		if (ret)
 			return ret;
+	}
+
+	/* hw doesn't support use specified speed and duplex to negotiate,
+	 * ignore them when autoneg on.
+	 */
+	if (cmd->base.autoneg) {
+		netdev_info(netdev,
+			    "autoneg is on, ignore the speed and duplex\n");
+		return 0;
 	}
 
 	if (ops->cfg_mac_speed_dup_h)
