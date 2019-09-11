@@ -55,7 +55,6 @@ __kcrctab_\name:
 #endif
 #endif
 .endm
-#undef __put
 
 #if defined(CONFIG_TRIM_UNUSED_KSYMS)
 
