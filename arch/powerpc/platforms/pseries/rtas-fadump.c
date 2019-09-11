@@ -23,6 +23,7 @@
 #include "rtas-fadump.h"
 
 static struct rtas_fadump_mem_struct fdm;
+static const struct rtas_fadump_mem_struct *fdm_active;
 
 static void rtas_fadump_update_config(struct fw_dump *fadump_conf,
 				      const struct rtas_fadump_mem_struct *fdm)
@@ -32,6 +33,25 @@ static void rtas_fadump_update_config(struct fw_dump *fadump_conf,
 
 	fadump_conf->fadumphdr_addr = (fadump_conf->boot_mem_dest_addr +
 				       fadump_conf->boot_memory_size);
+}
+
+/*
+ * This function is called in the capture kernel to get configuration details
+ * setup in the first kernel and passed to the f/w.
+ */
+static void rtas_fadump_get_config(struct fw_dump *fadump_conf,
+				   const struct rtas_fadump_mem_struct *fdm)
+{
+	fadump_conf->boot_memory_size = be64_to_cpu(fdm->rmr_region.source_len);
+
+	/*
+	 * Start address of reserve dump area (permanent reservation) for
+	 * re-registering FADump after dump capture.
+	 */
+	fadump_conf->reserve_dump_area_start =
+		be64_to_cpu(fdm->cpu_state_data.destination_address);
+
+	rtas_fadump_update_config(fadump_conf, fdm);
 }
 
 static u64 rtas_fadump_init_mem_struct(struct fw_dump *fadump_conf)
@@ -171,7 +191,183 @@ static int rtas_fadump_unregister(struct fw_dump *fadump_conf)
 
 static int rtas_fadump_invalidate(struct fw_dump *fadump_conf)
 {
-	return -EIO;
+	unsigned int wait_time;
+	int rc;
+
+	/* TODO: Add upper time limit for the delay */
+	do {
+		rc =  rtas_call(fadump_conf->ibm_configure_kernel_dump, 3, 1,
+				NULL, FADUMP_INVALIDATE, fdm_active,
+				sizeof(struct rtas_fadump_mem_struct));
+
+		wait_time = rtas_busy_delay_time(rc);
+		if (wait_time)
+			mdelay(wait_time);
+	} while (wait_time);
+
+	if (rc) {
+		pr_err("Failed to invalidate - unexpected error (%d).\n", rc);
+		return -EIO;
+	}
+
+	fadump_conf->dump_active = 0;
+	fdm_active = NULL;
+	return 0;
+}
+
+#define RTAS_FADUMP_GPR_MASK		0xffffff0000000000
+static inline int rtas_fadump_gpr_index(u64 id)
+{
+	char str[3];
+	int i = -1;
+
+	if ((id & RTAS_FADUMP_GPR_MASK) == fadump_str_to_u64("GPR")) {
+		/* get the digits at the end */
+		id &= ~RTAS_FADUMP_GPR_MASK;
+		id >>= 24;
+		str[2] = '\0';
+		str[1] = id & 0xff;
+		str[0] = (id >> 8) & 0xff;
+		if (kstrtoint(str, 10, &i))
+			i = -EINVAL;
+		if (i > 31)
+			i = -1;
+	}
+	return i;
+}
+
+void rtas_fadump_set_regval(struct pt_regs *regs, u64 reg_id, u64 reg_val)
+{
+	int i;
+
+	i = rtas_fadump_gpr_index(reg_id);
+	if (i >= 0)
+		regs->gpr[i] = (unsigned long)reg_val;
+	else if (reg_id == fadump_str_to_u64("NIA"))
+		regs->nip = (unsigned long)reg_val;
+	else if (reg_id == fadump_str_to_u64("MSR"))
+		regs->msr = (unsigned long)reg_val;
+	else if (reg_id == fadump_str_to_u64("CTR"))
+		regs->ctr = (unsigned long)reg_val;
+	else if (reg_id == fadump_str_to_u64("LR"))
+		regs->link = (unsigned long)reg_val;
+	else if (reg_id == fadump_str_to_u64("XER"))
+		regs->xer = (unsigned long)reg_val;
+	else if (reg_id == fadump_str_to_u64("CR"))
+		regs->ccr = (unsigned long)reg_val;
+	else if (reg_id == fadump_str_to_u64("DAR"))
+		regs->dar = (unsigned long)reg_val;
+	else if (reg_id == fadump_str_to_u64("DSISR"))
+		regs->dsisr = (unsigned long)reg_val;
+}
+
+static struct rtas_fadump_reg_entry*
+rtas_fadump_read_regs(struct rtas_fadump_reg_entry *reg_entry,
+		      struct pt_regs *regs)
+{
+	memset(regs, 0, sizeof(struct pt_regs));
+
+	while (be64_to_cpu(reg_entry->reg_id) != fadump_str_to_u64("CPUEND")) {
+		rtas_fadump_set_regval(regs, be64_to_cpu(reg_entry->reg_id),
+				       be64_to_cpu(reg_entry->reg_value));
+		reg_entry++;
+	}
+	reg_entry++;
+	return reg_entry;
+}
+
+/*
+ * Read CPU state dump data and convert it into ELF notes.
+ * The CPU dump starts with magic number "REGSAVE". NumCpusOffset should be
+ * used to access the data to allow for additional fields to be added without
+ * affecting compatibility. Each list of registers for a CPU starts with
+ * "CPUSTRT" and ends with "CPUEND". Each register entry is of 16 bytes,
+ * 8 Byte ASCII identifier and 8 Byte register value. The register entry
+ * with identifier "CPUSTRT" and "CPUEND" contains 4 byte cpu id as part
+ * of register value. For more details refer to PAPR document.
+ *
+ * Only for the crashing cpu we ignore the CPU dump data and get exact
+ * state from fadump crash info structure populated by first kernel at the
+ * time of crash.
+ */
+static int __init rtas_fadump_build_cpu_notes(struct fw_dump *fadump_conf)
+{
+	struct rtas_fadump_reg_save_area_header *reg_header;
+	struct fadump_crash_info_header *fdh = NULL;
+	struct rtas_fadump_reg_entry *reg_entry;
+	u32 num_cpus, *note_buf;
+	int i, rc = 0, cpu = 0;
+	struct pt_regs regs;
+	unsigned long addr;
+	void *vaddr;
+
+	addr = be64_to_cpu(fdm_active->cpu_state_data.destination_address);
+	vaddr = __va(addr);
+
+	reg_header = vaddr;
+	if (be64_to_cpu(reg_header->magic_number) !=
+	    fadump_str_to_u64("REGSAVE")) {
+		pr_err("Unable to read register save area.\n");
+		return -ENOENT;
+	}
+
+	pr_debug("--------CPU State Data------------\n");
+	pr_debug("Magic Number: %llx\n", be64_to_cpu(reg_header->magic_number));
+	pr_debug("NumCpuOffset: %x\n", be32_to_cpu(reg_header->num_cpu_offset));
+
+	vaddr += be32_to_cpu(reg_header->num_cpu_offset);
+	num_cpus = be32_to_cpu(*((__be32 *)(vaddr)));
+	pr_debug("NumCpus     : %u\n", num_cpus);
+	vaddr += sizeof(u32);
+	reg_entry = (struct rtas_fadump_reg_entry *)vaddr;
+
+	rc = fadump_setup_cpu_notes_buf(num_cpus);
+	if (rc != 0)
+		return rc;
+
+	note_buf = (u32 *)fadump_conf->cpu_notes_buf_vaddr;
+
+	if (fadump_conf->fadumphdr_addr)
+		fdh = __va(fadump_conf->fadumphdr_addr);
+
+	for (i = 0; i < num_cpus; i++) {
+		if (be64_to_cpu(reg_entry->reg_id) !=
+		    fadump_str_to_u64("CPUSTRT")) {
+			pr_err("Unable to read CPU state data\n");
+			rc = -ENOENT;
+			goto error_out;
+		}
+		/* Lower 4 bytes of reg_value contains logical cpu id */
+		cpu = (be64_to_cpu(reg_entry->reg_value) &
+		       RTAS_FADUMP_CPU_ID_MASK);
+		if (fdh && !cpumask_test_cpu(cpu, &fdh->online_mask)) {
+			RTAS_FADUMP_SKIP_TO_NEXT_CPU(reg_entry);
+			continue;
+		}
+		pr_debug("Reading register data for cpu %d...\n", cpu);
+		if (fdh && fdh->crashing_cpu == cpu) {
+			regs = fdh->regs;
+			note_buf = fadump_regs_to_elf_notes(note_buf, &regs);
+			RTAS_FADUMP_SKIP_TO_NEXT_CPU(reg_entry);
+		} else {
+			reg_entry++;
+			reg_entry = rtas_fadump_read_regs(reg_entry, &regs);
+			note_buf = fadump_regs_to_elf_notes(note_buf, &regs);
+		}
+	}
+	final_note(note_buf);
+
+	if (fdh) {
+		pr_debug("Updating elfcore header (%llx) with cpu notes\n",
+			 fdh->elfcorehdr_addr);
+		fadump_update_elfcore_header(__va(fdh->elfcorehdr_addr));
+	}
+	return 0;
+
+error_out:
+	fadump_free_cpu_notes_buf();
+	return rc;
+
 }
 
 /*
@@ -180,14 +376,58 @@ static int rtas_fadump_invalidate(struct fw_dump *fadump_conf)
  */
 static int __init rtas_fadump_process(struct fw_dump *fadump_conf)
 {
-	return -EINVAL;
+	struct fadump_crash_info_header *fdh;
+	int rc = 0;
+
+	if (!fdm_active || !fadump_conf->fadumphdr_addr)
+		return -EINVAL;
+
+	/* Check if the dump data is valid. */
+	if ((be16_to_cpu(fdm_active->header.dump_status_flag) ==
+			RTAS_FADUMP_ERROR_FLAG) ||
+			(fdm_active->cpu_state_data.error_flags != 0) ||
+			(fdm_active->rmr_region.error_flags != 0)) {
+		pr_err("Dump taken by platform is not valid\n");
+		return -EINVAL;
+	}
+	if ((fdm_active->rmr_region.bytes_dumped !=
+			fdm_active->rmr_region.source_len) ||
+			!fdm_active->cpu_state_data.bytes_dumped) {
+		pr_err("Dump taken by platform is incomplete\n");
+		return -EINVAL;
+	}
+
+	/* Validate the fadump crash info header */
+	fdh = __va(fadump_conf->fadumphdr_addr);
+	if (fdh->magic_number != FADUMP_CRASH_INFO_MAGIC) {
+		pr_err("Crash info header is not valid.\n");
+		return -EINVAL;
+	}
+
+	rc = rtas_fadump_build_cpu_notes(fadump_conf);
+	if (rc)
+		return rc;
+
+	/*
+	 * We are done validating dump info and elfcore header is now ready
+	 * to be exported. set elfcorehdr_addr so that vmcore module will
+	 * export the elfcore header through '/proc/vmcore'.
+	 */
+	elfcorehdr_addr = fdh->elfcorehdr_addr;
+
+	return 0;
 }
 
 static void rtas_fadump_region_show(struct fw_dump *fadump_conf,
 				    struct seq_file *m)
 {
-	const struct rtas_fadump_mem_struct *fdm_ptr = &fdm;
 	const struct rtas_fadump_section *cpu_data_section;
+	const struct rtas_fadump_mem_struct *fdm_ptr;
+
+	if (fdm_active)
+		fdm_ptr = fdm_active;
+	else
+		fdm_ptr = &fdm;
 
 	cpu_data_section = &(fdm_ptr->cpu_state_data);
 	seq_printf(m, "CPU :[%#016llx-%#016llx] %#llx bytes, Dumped: %#llx\n",
@@ -210,6 +450,12 @@ static void rtas_fadump_region_show(struct fw_dump *fadump_conf,
 	seq_printf(m, "Size: %#llx, Dumped: %#llx bytes\n",
 		   be64_to_cpu(fdm_ptr->rmr_region.source_len),
 		   be64_to_cpu(fdm_ptr->rmr_region.bytes_dumped));
+
+	/* Dump is active. Show reserved area start address. */
+	if (fdm_active) {
+		seq_printf(m, "\nMemory above %#016lx is reserved for saving crash dump\n",
+			   fadump_conf->reserve_dump_area_start);
+	}
 }
 
 static void rtas_fadump_trigger(struct fadump_crash_info_header *fdh,
@@ -246,6 +492,17 @@ void __init rtas_fadump_dt_scan(struct fw_dump *fadump_conf, u64 node)
 	fadump_conf->ibm_configure_kernel_dump = be32_to_cpu(*token);
 	fadump_conf->ops		= &rtas_fadump_ops;
 	fadump_conf->fadump_supported	= 1;
+
+	/*
+	 * The 'ibm,kernel-dump' rtas node is present only if there is
+	 * dump data waiting for us.
+	 */
+	fdm_active = of_get_flat_dt_prop(node, "ibm,kernel-dump", NULL);
+	if (fdm_active) {
+		pr_info("Firmware-assisted dump is active.\n");
+		fadump_conf->dump_active = 1;
+		rtas_fadump_get_config(fadump_conf, (void *)__pa(fdm_active));
+	}
 
 	/* Get the sizes required to store dump data for the firmware provided
 	 * dump sections.
