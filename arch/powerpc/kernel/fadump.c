@@ -342,7 +342,8 @@ static void __init fadump_reserve_crash_area(unsigned long base,
 
 int __init fadump_reserve_mem(void)
 {
-	u64 base, size, mem_boundary;
+	bool is_memblock_bottom_up = memblock_bottom_up();
+	u64 base, size, mem_boundary, align = PAGE_SIZE;
 	int ret = 1;
 
 	if (!fw_dump.fadump_enabled)
@@ -362,10 +363,11 @@ int __init fadump_reserve_mem(void)
 		fw_dump.boot_memory_size =
 			PAGE_ALIGN(fadump_calculate_reserve_size());
 #ifdef CONFIG_CMA
-		if (!fw_dump.nocma)
+		if (!fw_dump.nocma) {
+			align = FADUMP_CMA_ALIGNMENT;
 			fw_dump.boot_memory_size =
-				ALIGN(fw_dump.boot_memory_size,
-							FADUMP_CMA_ALIGNMENT);
+				ALIGN(fw_dump.boot_memory_size, align);
+		}
 #endif
 	}
 
@@ -419,19 +421,15 @@ int __init fadump_reserve_mem(void)
 	} else {
 		/*
 		 * Reserve memory at an offset closer to bottom of the RAM to
-		 * minimize the impact of memory hot-remove operation. We can't
-		 * use memblock_find_in_range() here since it doesn't allocate
-		 * from bottom to top.
+		 * minimize the impact of memory hot-remove operation.
 		 */
-		while (base <= (mem_boundary - size)) {
-			if (memblock_is_region_memory(base, size) &&
-			    !memblock_is_region_reserved(base, size))
-				break;
+		memblock_set_bottom_up(true);
+		base = memblock_find_in_range(base, mem_boundary, size, align);
 
-			base += size;
-		}
+		/* Restore the previous allocation mode */
+		memblock_set_bottom_up(is_memblock_bottom_up);
 
-		if (base > (mem_boundary - size)) {
+		if (!base) {
 			pr_err("Failed to find memory chunk for reservation!\n");
 			goto error_out;
 		}
