@@ -1804,8 +1804,9 @@ static int sdma_v4_0_hw_init(void *handle)
 	int r;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	if (adev->asic_type == CHIP_RAVEN && adev->powerplay.pp_funcs &&
-			adev->powerplay.pp_funcs->set_powergating_by_smu)
+	if ((adev->asic_type == CHIP_RAVEN && adev->powerplay.pp_funcs &&
+			adev->powerplay.pp_funcs->set_powergating_by_smu) ||
+			adev->asic_type == CHIP_RENOIR)
 		amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_SDMA, false);
 
 	if (!amdgpu_sriov_vf(adev))
@@ -1832,8 +1833,9 @@ static int sdma_v4_0_hw_fini(void *handle)
 	sdma_v4_0_ctx_switch_enable(adev, false);
 	sdma_v4_0_enable(adev, false);
 
-	if (adev->asic_type == CHIP_RAVEN && adev->powerplay.pp_funcs
-			&& adev->powerplay.pp_funcs->set_powergating_by_smu)
+	if ((adev->asic_type == CHIP_RAVEN && adev->powerplay.pp_funcs
+			&& adev->powerplay.pp_funcs->set_powergating_by_smu) ||
+			adev->asic_type == CHIP_RENOIR)
 		amdgpu_dpm_set_powergating_by_smu(adev, AMD_IP_BLOCK_TYPE_SDMA, true);
 
 	return 0;
