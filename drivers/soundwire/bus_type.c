@@ -66,7 +66,10 @@ int sdw_uevent(struct device *dev, struct kobj_uevent_env *env)
 		 * callback is set to use this function for a
 		 * different device type (e.g. Master or Monitor)
 		 */
-		dev_err(dev, "uevent for unknown Soundwire type\n");
+		if (is_sdw_master_device(dev))
+			dev_err(dev, "uevent for SoundWire Master type\n");
+		else
+			dev_err(dev, "uevent for unknown Soundwire type\n");
 		return -EINVAL;
 	}
 
