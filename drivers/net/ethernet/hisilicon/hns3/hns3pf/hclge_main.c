@@ -3751,7 +3751,7 @@ static void hclge_reset_event(struct pci_dev *pdev, struct hnae3_handle *handle)
 	else if (time_after(jiffies, (hdev->last_reset_time + 4 * 5 * HZ)))
 		hdev->reset_level = HNAE3_FUNC_RESET;
 
-	dev_info(&hdev->pdev->dev, "received reset event , reset type is %d",
+	dev_info(&hdev->pdev->dev, "received reset event, reset type is %d\n",
 		 hdev->reset_level);
 
 	/* request reset & schedule reset task */

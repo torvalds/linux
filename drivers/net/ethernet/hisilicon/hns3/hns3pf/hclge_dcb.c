@@ -342,7 +342,7 @@ static int hclge_ieee_setpfc(struct hnae3_handle *h, struct ieee_pfc *pfc)
 	hdev->tm_info.pfc_en = pfc->pfc_en;
 
 	netif_dbg(h, drv, netdev,
-		  "set pfc: pfc_en=%u, pfc_map=%u, num_tc=%u\n",
+		  "set pfc: pfc_en=%x, pfc_map=%x, num_tc=%u\n",
 		  pfc->pfc_en, pfc_map, hdev->tm_info.num_tc);
 
 	hclge_tm_pfc_info_update(hdev);
