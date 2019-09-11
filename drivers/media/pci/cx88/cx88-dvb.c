@@ -1378,6 +1378,7 @@ static int dvb_register(struct cx8802_dev *dev)
 				fe->ops.tuner_ops.set_config(fe, &ctl);
 		}
 		break;
+	case CX88_BOARD_NOTONLYTV_LV3H:
 	case CX88_BOARD_PINNACLE_HYBRID_PCTV:
 	case CX88_BOARD_WINFAST_DTV1800H:
 		fe0->dvb.frontend = dvb_attach(zl10353_attach,
