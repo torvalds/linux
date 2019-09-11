@@ -2240,12 +2240,13 @@ static int qed_nvm_flash_image_validate(struct qed_dev *cdev,
 /* Binary file format -
  *     /----------------------------------------------------------------------\
  * 0B  |                       0x5 [command index]                            |
- * 4B  | Entity ID     | Reserved        |  Number of config attributes       |
- * 8B  | Config ID                       | Length        | Value              |
+ * 4B  | Number of config attributes     |          Reserved                  |
+ * 4B  | Config ID                       | Entity ID      | Length            |
+ * 4B  | Value                                                                |
  *     |                                                                      |
  *     \----------------------------------------------------------------------/
- * There can be several cfg_id-Length-Value sets as specified by 'Number of...'.
- * Entity ID - A non zero entity value for which the config need to be updated.
+ * There can be several cfg_id-entity_id-Length-Value sets as specified by
+ * 'Number of config attributes'.
  *
  * The API parses config attributes from the user provided buffer and flashes
  * them to the respective NVM path using Management FW inerface.
@@ -2265,18 +2266,17 @@ static int qed_nvm_flash_cfg_write(struct qed_dev *cdev, const u8 **data)
 
 	/* NVM CFG ID attribute header */
 	*data += 4;
-	entity_id = **data;
-	*data += 2;
 	count = *((u16 *)*data);
-	*data += 2;
+	*data += 4;
 
 	DP_VERBOSE(cdev, NETIF_MSG_DRV,
-		   "Read config ids: entity id %02x num _attrs = %0d\n",
-		   entity_id, count);
+		   "Read config ids: num_attrs = %0d\n", count);
 	/* NVM CFG ID attributes */
 	for (i = 0; i < count; i++) {
 		cfg_id = *((u16 *)*data);
 		*data += 2;
+		entity_id = **data;
+		(*data)++;
 		len = **data;
 		(*data)++;
 		memcpy(buf, *data, len);
@@ -2286,7 +2286,8 @@ static int qed_nvm_flash_cfg_write(struct qed_dev *cdev, const u8 **data)
 			QED_NVM_CFG_SET_FLAGS;
 
 		DP_VERBOSE(cdev, NETIF_MSG_DRV,
-			   "cfg_id = %d len = %d\n", cfg_id, len);
+			   "cfg_id = %d entity = %d len = %d\n", cfg_id,
+			   entity_id, len);
 		rc = qed_mcp_nvm_set_cfg(hwfn, ptt, cfg_id, entity_id, flags,
 					 buf, len);
 		if (rc) {
@@ -2298,6 +2299,31 @@ static int qed_nvm_flash_cfg_write(struct qed_dev *cdev, const u8 **data)
 	qed_ptt_release(hwfn, ptt);
 
 	return rc;
+}
+
+#define QED_MAX_NVM_BUF_LEN	32
+static int qed_nvm_flash_cfg_len(struct qed_dev *cdev, u32 cmd)
+{
+	struct qed_hwfn *hwfn = QED_LEADING_HWFN(cdev);
+	u8 buf[QED_MAX_NVM_BUF_LEN];
+	struct qed_ptt *ptt;
+	u32 len;
+	int rc;
+
+	ptt = qed_ptt_acquire(hwfn);
+	if (!ptt)
+		return QED_MAX_NVM_BUF_LEN;
+
+	rc = qed_mcp_nvm_get_cfg(hwfn, ptt, cmd, 0, QED_NVM_CFG_GET_FLAGS, buf,
+				 &len);
+	if (rc || !len) {
+		DP_ERR(cdev, "Error %d reading %d\n", rc, cmd);
+		len = QED_MAX_NVM_BUF_LEN;
+	}
+
+	qed_ptt_release(hwfn, ptt);
+
+	return len;
 }
 
 static int qed_nvm_flash_cfg_read(struct qed_dev *cdev, u8 **data,
@@ -2657,6 +2683,7 @@ const struct qed_common_ops qed_common_ops_pass = {
 	.read_module_eeprom = &qed_read_module_eeprom,
 	.get_affin_hwfn_idx = &qed_get_affin_hwfn_idx,
 	.read_nvm_cfg = &qed_nvm_flash_cfg_read,
+	.read_nvm_cfg_len = &qed_nvm_flash_cfg_len,
 	.set_grc_config = &qed_set_grc_config,
 };
 

@@ -49,7 +49,6 @@
 
 #define QEDE_SELFTEST_POLL_COUNT 100
 #define QEDE_DUMP_VERSION	0x1
-#define QEDE_DUMP_NVM_BUF_LEN	32
 #define QEDE_DUMP_NVM_ARG_COUNT	2
 
 static const struct {
@@ -2026,7 +2025,8 @@ static int qede_get_dump_flag(struct net_device *dev,
 	switch (edev->dump_info.cmd) {
 	case QEDE_DUMP_CMD_NVM_CFG:
 		dump->flag = QEDE_DUMP_CMD_NVM_CFG;
-		dump->len = QEDE_DUMP_NVM_BUF_LEN;
+		dump->len = edev->ops->common->read_nvm_cfg_len(edev->cdev,
+						edev->dump_info.args[0]);
 		break;
 	case QEDE_DUMP_CMD_GRCDUMP:
 		dump->flag = QEDE_DUMP_CMD_GRCDUMP;
@@ -2051,9 +2051,8 @@ static int qede_get_dump_data(struct net_device *dev,
 
 	if (!edev->ops || !edev->ops->common) {
 		DP_ERR(edev, "Edev ops not populated\n");
-		edev->dump_info.cmd = QEDE_DUMP_CMD_NONE;
-		edev->dump_info.num_args = 0;
-		return -EINVAL;
+		rc = -EINVAL;
+		goto err;
 	}
 
 	switch (edev->dump_info.cmd) {
@@ -2062,7 +2061,8 @@ static int qede_get_dump_data(struct net_device *dev,
 			DP_ERR(edev, "Arg count = %d required = %d\n",
 			       edev->dump_info.num_args,
 			       QEDE_DUMP_NVM_ARG_COUNT);
-			return -EINVAL;
+			rc = -EINVAL;
+			goto err;
 		}
 		rc =  edev->ops->common->read_nvm_cfg(edev->cdev, (u8 **)&buf,
 						      edev->dump_info.args[0],
@@ -2078,8 +2078,10 @@ static int qede_get_dump_data(struct net_device *dev,
 		break;
 	}
 
+err:
 	edev->dump_info.cmd = QEDE_DUMP_CMD_NONE;
 	edev->dump_info.num_args = 0;
+	memset(edev->dump_info.args, 0, sizeof(edev->dump_info.args));
 
 	return rc;
 }
