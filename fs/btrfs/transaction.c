@@ -990,7 +990,7 @@ static int __btrfs_wait_marked_extents(struct btrfs_fs_info *fs_info,
 	return werr;
 }
 
-int btrfs_wait_extents(struct btrfs_fs_info *fs_info,
+static int btrfs_wait_extents(struct btrfs_fs_info *fs_info,
 		       struct extent_io_tree *dirty_pages)
 {
 	bool errors = false;
