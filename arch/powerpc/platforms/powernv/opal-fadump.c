@@ -105,6 +105,15 @@ static int opal_fadump_invalidate(struct fw_dump *fadump_conf)
 	return -EIO;
 }
 
+static void opal_fadump_cleanup(struct fw_dump *fadump_conf)
+{
+	s64 ret;
+
+	ret = opal_mpipl_register_tag(OPAL_MPIPL_TAG_KERNEL, 0);
+	if (ret != OPAL_SUCCESS)
+		pr_warn("Could not reset (%llu) kernel metadata tag!\n", ret);
+}
+
 static int __init opal_fadump_process(struct fw_dump *fadump_conf)
 {
 	return -EINVAL;
@@ -145,6 +154,7 @@ static struct fadump_ops opal_fadump_ops = {
 	.fadump_register		= opal_fadump_register,
 	.fadump_unregister		= opal_fadump_unregister,
 	.fadump_invalidate		= opal_fadump_invalidate,
+	.fadump_cleanup			= opal_fadump_cleanup,
 	.fadump_process			= opal_fadump_process,
 	.fadump_region_show		= opal_fadump_region_show,
 	.fadump_trigger			= opal_fadump_trigger,

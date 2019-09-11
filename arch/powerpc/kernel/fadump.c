@@ -965,6 +965,9 @@ static int register_fadump(void)
 
 void fadump_cleanup(void)
 {
+	if (!fw_dump.fadump_supported)
+		return;
+
 	/* Invalidate the registration only if dump is active. */
 	if (fw_dump.dump_active) {
 		pr_debug("Invalidating firmware-assisted dump registration\n");
@@ -974,6 +977,9 @@ void fadump_cleanup(void)
 		fw_dump.ops->fadump_unregister(&fw_dump);
 		free_crash_memory_ranges();
 	}
+
+	if (fw_dump.ops->fadump_cleanup)
+		fw_dump.ops->fadump_cleanup(&fw_dump);
 }
 
 static void fadump_free_reserved_memory(unsigned long start_pfn,

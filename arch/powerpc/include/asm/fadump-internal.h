@@ -117,6 +117,7 @@ struct fadump_ops {
 	int	(*fadump_register)(struct fw_dump *fadump_conf);
 	int	(*fadump_unregister)(struct fw_dump *fadump_conf);
 	int	(*fadump_invalidate)(struct fw_dump *fadump_conf);
+	void	(*fadump_cleanup)(struct fw_dump *fadump_conf);
 	int	(*fadump_process)(struct fw_dump *fadump_conf);
 	void	(*fadump_region_show)(struct fw_dump *fadump_conf,
 				      struct seq_file *m);
