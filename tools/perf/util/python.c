@@ -6,7 +6,6 @@
 #include <linux/err.h>
 #include <perf/cpumap.h>
 #include <traceevent/event-parse.h>
-#include "debug.h"
 #include "evlist.h"
 #include "callchain.h"
 #include "evsel.h"
@@ -59,6 +58,8 @@ int parse_callchain_record(const char *arg __maybe_unused,
  * implementing 'verbose' and 'eprintf'.
  */
 int verbose;
+
+int eprintf(int level, int var, const char *fmt, ...);
 
 int eprintf(int level, int var, const char *fmt, ...)
 {
