@@ -786,33 +786,24 @@ void fadump_update_elfcore_header(char *bufp)
 
 static void *fadump_alloc_buffer(unsigned long size)
 {
-	void *vaddr;
+	unsigned long count, i;
 	struct page *page;
-	unsigned long order, count, i;
+	void *vaddr;
 
-	order = get_order(size);
-	vaddr = (void *)__get_free_pages(GFP_KERNEL|__GFP_ZERO, order);
+	vaddr = alloc_pages_exact(size, GFP_KERNEL | __GFP_ZERO);
 	if (!vaddr)
 		return NULL;
 
-	count = 1 << order;
+	count = PAGE_ALIGN(size) / PAGE_SIZE;
 	page = virt_to_page(vaddr);
 	for (i = 0; i < count; i++)
-		SetPageReserved(page + i);
+		mark_page_reserved(page + i);
 	return vaddr;
 }
 
 static void fadump_free_buffer(unsigned long vaddr, unsigned long size)
 {
-	struct page *page;
-	unsigned long order, count, i;
-
-	order = get_order(size);
-	count = 1 << order;
-	page = virt_to_page(vaddr);
-	for (i = 0; i < count; i++)
-		ClearPageReserved(page + i);
-	__free_pages(page, order);
+	free_reserved_area((void *)vaddr, (void *)(vaddr + size), -1, NULL);
 }
 
 s32 fadump_setup_cpu_notes_buf(u32 num_cpus)
