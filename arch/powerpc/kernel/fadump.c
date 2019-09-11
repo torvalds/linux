@@ -1063,7 +1063,13 @@ static void fadump_invalidate_release_mem(void)
 	fadump_release_memory(fw_dump.boot_memory_size, memblock_end_of_DRAM());
 	fadump_free_cpu_notes_buf();
 
-	/* Initialize the kernel dump memory structure for FAD registration. */
+	/*
+	 * Setup kernel metadata and initialize the kernel dump
+	 * memory structure for FADump re-registration.
+	 */
+	if (fw_dump.ops->fadump_setup_metadata &&
+	    (fw_dump.ops->fadump_setup_metadata(&fw_dump) < 0))
+		pr_warn("Failed to setup kernel metadata!\n");
 	fw_dump.ops->fadump_init_mem_struct(&fw_dump);
 }
 

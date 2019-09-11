@@ -254,7 +254,17 @@ static int opal_fadump_unregister(struct fw_dump *fadump_conf)
 
 static int opal_fadump_invalidate(struct fw_dump *fadump_conf)
 {
-	return -EIO;
+	s64 rc;
+
+	rc = opal_mpipl_update(OPAL_MPIPL_FREE_PRESERVED_MEMORY, 0, 0, 0);
+	if (rc) {
+		pr_err("Failed to invalidate - unexpected Error(%lld).\n", rc);
+		return -EIO;
+	}
+
+	fadump_conf->dump_active = 0;
+	opal_fdm_active = NULL;
+	return 0;
 }
 
 static void opal_fadump_cleanup(struct fw_dump *fadump_conf)
