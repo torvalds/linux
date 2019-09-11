@@ -896,7 +896,7 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 
 	if (i915_modparams.disable_display) {
 		DRM_INFO("Display disabled (module parameter)\n");
-		info->num_pipes = 0;
+		info->pipe_mask = 0;
 	} else if (HAS_DISPLAY(dev_priv) &&
 		   (IS_GEN_RANGE(dev_priv, 7, 8)) &&
 		   HAS_PCH_SPLIT(dev_priv)) {
@@ -917,14 +917,14 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 		    (HAS_PCH_CPT(dev_priv) &&
 		     !(sfuse_strap & SFUSE_STRAP_FUSE_LOCK))) {
 			DRM_INFO("Display fused off, disabling\n");
-			info->num_pipes = 0;
+			info->pipe_mask = 0;
 		} else if (fuse_strap & IVB_PIPE_C_DISABLE) {
 			DRM_INFO("PipeC fused off\n");
-			info->num_pipes -= 1;
+			info->pipe_mask &= ~BIT(PIPE_C);
 		}
 	} else if (HAS_DISPLAY(dev_priv) && INTEL_GEN(dev_priv) >= 9) {
 		u32 dfsm = I915_READ(SKL_DFSM);
-		u8 enabled_mask = BIT(info->num_pipes) - 1;
+		u8 enabled_mask = info->pipe_mask;
 
 		if (dfsm & SKL_DFSM_PIPE_A_DISABLE)
 			enabled_mask &= ~BIT(PIPE_A);
@@ -945,7 +945,7 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 			DRM_ERROR("invalid pipe fuse configuration: enabled_mask=0x%x\n",
 				  enabled_mask);
 		else
-			info->num_pipes = hweight8(enabled_mask);
+			info->pipe_mask = enabled_mask;
 	}
 
 	/* Initialize slice/subslice/EU info */
