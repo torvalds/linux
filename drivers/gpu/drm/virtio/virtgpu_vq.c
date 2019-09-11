@@ -302,18 +302,6 @@ retry:
 	return notify;
 }
 
-static void virtio_gpu_queue_ctrl_buffer(struct virtio_gpu_device *vgdev,
-					 struct virtio_gpu_vbuffer *vbuf)
-{
-	bool notify;
-
-	spin_lock(&vgdev->ctrlq.qlock);
-	notify = virtio_gpu_queue_ctrl_buffer_locked(vgdev, vbuf);
-	spin_unlock(&vgdev->ctrlq.qlock);
-	if (notify)
-		virtqueue_notify(vgdev->ctrlq.vq);
-}
-
 static void virtio_gpu_queue_fenced_ctrl_buffer(struct virtio_gpu_device *vgdev,
 						struct virtio_gpu_vbuffer *vbuf,
 						struct virtio_gpu_ctrl_hdr *hdr,
@@ -339,7 +327,7 @@ again:
 		goto again;
 	}
 
-	if (fence) {
+	if (hdr && fence) {
 		virtio_gpu_fence_emit(vgdev, hdr, fence);
 		if (vbuf->objs) {
 			virtio_gpu_array_add_fence(vbuf->objs, &fence->f);
@@ -350,6 +338,12 @@ again:
 	spin_unlock(&vgdev->ctrlq.qlock);
 	if (notify)
 		virtqueue_notify(vgdev->ctrlq.vq);
+}
+
+static void virtio_gpu_queue_ctrl_buffer(struct virtio_gpu_device *vgdev,
+					 struct virtio_gpu_vbuffer *vbuf)
+{
+	virtio_gpu_queue_fenced_ctrl_buffer(vgdev, vbuf, NULL, NULL);
 }
 
 static void virtio_gpu_queue_cursor(struct virtio_gpu_device *vgdev,
