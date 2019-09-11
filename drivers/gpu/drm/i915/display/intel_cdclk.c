@@ -2511,7 +2511,10 @@ void intel_init_cdclk_hooks(struct drm_i915_private *dev_priv)
 		dev_priv->display.set_cdclk = bxt_set_cdclk;
 		dev_priv->display.modeset_calc_cdclk = bxt_modeset_calc_cdclk;
 		dev_priv->display.calc_voltage_level = bxt_calc_voltage_level;
-		dev_priv->cdclk.table = bxt_cdclk_table;
+		if (IS_GEMINILAKE(dev_priv))
+			dev_priv->cdclk.table = glk_cdclk_table;
+		else
+			dev_priv->cdclk.table = bxt_cdclk_table;
 	} else if (IS_GEN9_BC(dev_priv)) {
 		dev_priv->display.set_cdclk = skl_set_cdclk;
 		dev_priv->display.modeset_calc_cdclk = skl_modeset_calc_cdclk;
