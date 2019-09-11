@@ -836,5 +836,7 @@ int smu_sys_set_pp_feature_mask(struct smu_context *smu, uint64_t new_mask);
 int smu_force_clk_levels(struct smu_context *smu,
 			 enum smu_clk_type clk_type,
 			 uint32_t mask);
+int smu_set_mp1_state(struct smu_context *smu,
+		      enum pp_mp1_state mp1_state);
 
 #endif

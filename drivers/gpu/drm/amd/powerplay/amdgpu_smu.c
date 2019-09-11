@@ -1788,6 +1788,46 @@ int smu_force_clk_levels(struct smu_context *smu,
 	return ret;
 }
 
+int smu_set_mp1_state(struct smu_context *smu,
+		      enum pp_mp1_state mp1_state)
+{
+	uint16_t msg;
+	int ret;
+
+	/*
+	 * The SMC is not fully ready. That may be
+	 * expected as the IP may be masked.
+	 * So, just return without error.
+	 */
+	if (!smu->pm_enabled)
+		return 0;
+
+	switch (mp1_state) {
+	case PP_MP1_STATE_SHUTDOWN:
+		msg = SMU_MSG_PrepareMp1ForShutdown;
+		break;
+	case PP_MP1_STATE_UNLOAD:
+		msg = SMU_MSG_PrepareMp1ForUnload;
+		break;
+	case PP_MP1_STATE_RESET:
+		msg = SMU_MSG_PrepareMp1ForReset;
+		break;
+	case PP_MP1_STATE_NONE:
+	default:
+		return 0;
+	}
+
+	/* some asics may not support those messages */
+	if (smu_msg_get_index(smu, msg) < 0)
+		return 0;
+
+	ret = smu_send_smc_msg(smu, msg);
+	if (ret)
+		pr_err("[PrepareMp1] Failed!\n");
+
+	return ret;
+}
+
 const struct amd_ip_funcs smu_ip_funcs = {
 	.name = "smu",
 	.early_init = smu_early_init,

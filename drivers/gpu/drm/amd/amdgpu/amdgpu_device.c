@@ -2233,17 +2233,17 @@ static int amdgpu_device_ip_suspend_phase2(struct amdgpu_device *adev)
 		/* handle putting the SMC in the appropriate state */
 		if (adev->ip_blocks[i].version->type == AMD_IP_BLOCK_TYPE_SMC) {
 			if (is_support_sw_smu(adev)) {
-				/* todo */
+				r = smu_set_mp1_state(&adev->smu, adev->mp1_state);
 			} else if (adev->powerplay.pp_funcs &&
 					   adev->powerplay.pp_funcs->set_mp1_state) {
 				r = adev->powerplay.pp_funcs->set_mp1_state(
 					adev->powerplay.pp_handle,
 					adev->mp1_state);
-				if (r) {
-					DRM_ERROR("SMC failed to set mp1 state %d, %d\n",
-						  adev->mp1_state, r);
-					return r;
-				}
+			}
+			if (r) {
+				DRM_ERROR("SMC failed to set mp1 state %d, %d\n",
+					  adev->mp1_state, r);
+				return r;
 			}
 		}
 
