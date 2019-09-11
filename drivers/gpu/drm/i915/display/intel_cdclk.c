@@ -1464,6 +1464,26 @@ static void cnl_cdclk_pll_enable(struct drm_i915_private *dev_priv, int vco)
 	dev_priv->cdclk.hw.vco = vco;
 }
 
+static u32 bxt_cdclk_cd2x_pipe(struct drm_i915_private *dev_priv, enum pipe pipe)
+{
+	if (INTEL_GEN(dev_priv) >= 12) {
+		if (pipe == INVALID_PIPE)
+			return TGL_CDCLK_CD2X_PIPE_NONE;
+		else
+			return TGL_CDCLK_CD2X_PIPE(pipe);
+	} else if (INTEL_GEN(dev_priv) >= 11) {
+		if (pipe == INVALID_PIPE)
+			return ICL_CDCLK_CD2X_PIPE_NONE;
+		else
+			return ICL_CDCLK_CD2X_PIPE(pipe);
+	} else {
+		if (pipe == INVALID_PIPE)
+			return BXT_CDCLK_CD2X_PIPE_NONE;
+		else
+			return BXT_CDCLK_CD2X_PIPE(pipe);
+	}
+}
+
 static void bxt_set_cdclk(struct drm_i915_private *dev_priv,
 			  const struct intel_cdclk_state *cdclk_state,
 			  enum pipe pipe)
@@ -1534,24 +1554,8 @@ static void bxt_set_cdclk(struct drm_i915_private *dev_priv,
 			bxt_de_pll_enable(dev_priv, vco);
 	}
 
-	val = divider | skl_cdclk_decimal(cdclk);
-
-	if (INTEL_GEN(dev_priv) >= 12) {
-		if (pipe == INVALID_PIPE)
-			val |= TGL_CDCLK_CD2X_PIPE_NONE;
-		else
-			val |= TGL_CDCLK_CD2X_PIPE(pipe);
-	} else if (INTEL_GEN(dev_priv) >= 11) {
-		if (pipe == INVALID_PIPE)
-			val |= ICL_CDCLK_CD2X_PIPE_NONE;
-		else
-			val |= ICL_CDCLK_CD2X_PIPE(pipe);
-	} else {
-		if (pipe == INVALID_PIPE)
-			val |= BXT_CDCLK_CD2X_PIPE_NONE;
-		else
-			val |= BXT_CDCLK_CD2X_PIPE(pipe);
-	}
+	val = divider | skl_cdclk_decimal(cdclk) |
+		bxt_cdclk_cd2x_pipe(dev_priv, pipe);
 
 	/*
 	 * Disable SSA Precharge when CD clock frequency < 500 MHz,
@@ -1620,7 +1624,7 @@ static void bxt_sanitize_cdclk(struct drm_i915_private *dev_priv)
 	 * dividers both synching to an active pipe, or asynchronously
 	 * (PIPE_NONE).
 	 */
-	cdctl &= ~BXT_CDCLK_CD2X_PIPE_NONE;
+	cdctl &= ~bxt_cdclk_cd2x_pipe(dev_priv, INVALID_PIPE);
 
 	/* Make sure this is a legal cdclk value for the platform */
 	cdclk = bxt_calc_cdclk(dev_priv, dev_priv->cdclk.hw.cdclk);
