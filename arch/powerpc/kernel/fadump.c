@@ -35,10 +35,7 @@
 static struct fw_dump fw_dump;
 
 static DEFINE_MUTEX(fadump_mutex);
-struct fad_crash_memory_ranges *crash_memory_ranges;
-int crash_memory_ranges_size;
-int crash_mem_ranges;
-int max_crash_mem_ranges;
+struct fadump_mrange_info crash_mrange_info = { "crash", NULL, 0, 0, 0 };
 
 #ifdef CONFIG_CMA
 static struct cma *fadump_cma;
@@ -629,46 +626,48 @@ void fadump_free_cpu_notes_buf(void)
 	fw_dump.cpu_notes_buf_size = 0;
 }
 
-static void free_crash_memory_ranges(void)
+static void fadump_free_mem_ranges(struct fadump_mrange_info *mrange_info)
 {
-	kfree(crash_memory_ranges);
-	crash_memory_ranges = NULL;
-	crash_memory_ranges_size = 0;
-	max_crash_mem_ranges = 0;
+	kfree(mrange_info->mem_ranges);
+	mrange_info->mem_ranges = NULL;
+	mrange_info->mem_ranges_sz = 0;
+	mrange_info->max_mem_ranges = 0;
 }
 
 /*
- * Allocate or reallocate crash memory ranges array in incremental units
+ * Allocate or reallocate mem_ranges array in incremental units
  * of PAGE_SIZE.
  */
-static int allocate_crash_memory_ranges(void)
+static int fadump_alloc_mem_ranges(struct fadump_mrange_info *mrange_info)
 {
-	struct fad_crash_memory_ranges *new_array;
+	struct fadump_memory_range *new_array;
 	u64 new_size;
 
-	new_size = crash_memory_ranges_size + PAGE_SIZE;
-	pr_debug("Allocating %llu bytes of memory for crash memory ranges\n",
-		 new_size);
+	new_size = mrange_info->mem_ranges_sz + PAGE_SIZE;
+	pr_debug("Allocating %llu bytes of memory for %s memory ranges\n",
+		 new_size, mrange_info->name);
 
-	new_array = krealloc(crash_memory_ranges, new_size, GFP_KERNEL);
+	new_array = krealloc(mrange_info->mem_ranges, new_size, GFP_KERNEL);
 	if (new_array == NULL) {
-		pr_err("Insufficient memory for setting up crash memory ranges\n");
-		free_crash_memory_ranges();
+		pr_err("Insufficient memory for setting up %s memory ranges\n",
+		       mrange_info->name);
+		fadump_free_mem_ranges(mrange_info);
 		return -ENOMEM;
 	}
 
-	crash_memory_ranges = new_array;
-	crash_memory_ranges_size = new_size;
-	max_crash_mem_ranges = (new_size /
-				sizeof(struct fad_crash_memory_ranges));
+	mrange_info->mem_ranges = new_array;
+	mrange_info->mem_ranges_sz = new_size;
+	mrange_info->max_mem_ranges = (new_size /
+				       sizeof(struct fadump_memory_range));
 	return 0;
 }
 
-static inline int fadump_add_crash_memory(unsigned long long base,
-					  unsigned long long end)
+static inline int fadump_add_mem_range(struct fadump_mrange_info *mrange_info,
+				       u64 base, u64 end)
 {
-	u64  start, size;
+	struct fadump_memory_range *mem_ranges = mrange_info->mem_ranges;
 	bool is_adjacent = false;
+	u64 start, size;
 
 	if (base == end)
 		return 0;
@@ -677,38 +676,41 @@ static inline int fadump_add_crash_memory(unsigned long long base,
 	 * Fold adjacent memory ranges to bring down the memory ranges/
 	 * PT_LOAD segments count.
 	 */
-	if (crash_mem_ranges) {
-		start = crash_memory_ranges[crash_mem_ranges - 1].base;
-		size = crash_memory_ranges[crash_mem_ranges - 1].size;
+	if (mrange_info->mem_range_cnt) {
+		start = mem_ranges[mrange_info->mem_range_cnt - 1].base;
+		size  = mem_ranges[mrange_info->mem_range_cnt - 1].size;
 
 		if ((start + size) == base)
 			is_adjacent = true;
 	}
 	if (!is_adjacent) {
 		/* resize the array on reaching the limit */
-		if (crash_mem_ranges == max_crash_mem_ranges) {
+		if (mrange_info->mem_range_cnt == mrange_info->max_mem_ranges) {
 			int ret;
 
-			ret = allocate_crash_memory_ranges();
+			ret = fadump_alloc_mem_ranges(mrange_info);
 			if (ret)
 				return ret;
+
+			/* Update to the new resized array */
+			mem_ranges = mrange_info->mem_ranges;
 		}
 
 		start = base;
-		crash_memory_ranges[crash_mem_ranges].base = start;
-		crash_mem_ranges++;
+		mem_ranges[mrange_info->mem_range_cnt].base = start;
+		mrange_info->mem_range_cnt++;
 	}
 
-	crash_memory_ranges[crash_mem_ranges - 1].size = (end - start);
-	pr_debug("crash_memory_range[%d] [%#016llx-%#016llx], %#llx bytes\n",
-		(crash_mem_ranges - 1), start, end - 1, (end - start));
+	mem_ranges[mrange_info->mem_range_cnt - 1].size = (end - start);
+	pr_debug("%s_memory_range[%d] [%#016llx-%#016llx], %#llx bytes\n",
+		 mrange_info->name, (mrange_info->mem_range_cnt - 1),
+		 start, end - 1, (end - start));
 	return 0;
 }
 
-static int fadump_exclude_reserved_area(unsigned long long start,
-					unsigned long long end)
+static int fadump_exclude_reserved_area(u64 start, u64 end)
 {
-	unsigned long long ra_start, ra_end;
+	u64 ra_start, ra_end;
 	int ret = 0;
 
 	ra_start = fw_dump.reserve_dump_area_start;
@@ -716,18 +718,22 @@ static int fadump_exclude_reserved_area(unsigned long long start,
 
 	if ((ra_start < end) && (ra_end > start)) {
 		if ((start < ra_start) && (end > ra_end)) {
-			ret = fadump_add_crash_memory(start, ra_start);
+			ret = fadump_add_mem_range(&crash_mrange_info,
+						   start, ra_start);
 			if (ret)
 				return ret;
 
-			ret = fadump_add_crash_memory(ra_end, end);
+			ret = fadump_add_mem_range(&crash_mrange_info,
+						   ra_end, end);
 		} else if (start < ra_start) {
-			ret = fadump_add_crash_memory(start, ra_start);
+			ret = fadump_add_mem_range(&crash_mrange_info,
+						   start, ra_start);
 		} else if (ra_end < end) {
-			ret = fadump_add_crash_memory(ra_end, end);
+			ret = fadump_add_mem_range(&crash_mrange_info,
+						   ra_end, end);
 		}
 	} else
-		ret = fadump_add_crash_memory(start, end);
+		ret = fadump_add_mem_range(&crash_mrange_info, start, end);
 
 	return ret;
 }
@@ -772,11 +778,11 @@ static int fadump_init_elfcore_header(char *bufp)
 static int fadump_setup_crash_memory_ranges(void)
 {
 	struct memblock_region *reg;
-	unsigned long long start, end;
+	u64 start, end;
 	int ret;
 
 	pr_debug("Setup crash memory ranges.\n");
-	crash_mem_ranges = 0;
+	crash_mrange_info.mem_range_cnt = 0;
 
 	/*
 	 * add the first memory chunk (RMA_START through boot_memory_size) as
@@ -785,13 +791,14 @@ static int fadump_setup_crash_memory_ranges(void)
 	 * specified during fadump registration. We need to create a separate
 	 * program header for this chunk with the correct offset.
 	 */
-	ret = fadump_add_crash_memory(RMA_START, fw_dump.boot_memory_size);
+	ret = fadump_add_mem_range(&crash_mrange_info,
+				   RMA_START, fw_dump.boot_memory_size);
 	if (ret)
 		return ret;
 
 	for_each_memblock(memory, reg) {
-		start = (unsigned long long)reg->base;
-		end = start + (unsigned long long)reg->size;
+		start = (u64)reg->base;
+		end = start + (u64)reg->size;
 
 		/*
 		 * skip the first memory chunk that is already added (RMA_START
@@ -876,11 +883,11 @@ static int fadump_create_elfcore_headers(char *bufp)
 
 	/* setup PT_LOAD sections. */
 
-	for (i = 0; i < crash_mem_ranges; i++) {
-		unsigned long long mbase, msize;
-		mbase = crash_memory_ranges[i].base;
-		msize = crash_memory_ranges[i].size;
+	for (i = 0; i < crash_mrange_info.mem_range_cnt; i++) {
+		u64 mbase, msize;
 
+		mbase = crash_mrange_info.mem_ranges[i].base;
+		msize = crash_mrange_info.mem_ranges[i].size;
 		if (!msize)
 			continue;
 
@@ -973,7 +980,7 @@ void fadump_cleanup(void)
 	} else if (fw_dump.dump_registered) {
 		/* Un-register Firmware-assisted dump if it was registered. */
 		fw_dump.ops->fadump_unregister(&fw_dump);
-		free_crash_memory_ranges();
+		fadump_free_mem_ranges(&crash_mrange_info);
 	}
 
 	if (fw_dump.ops->fadump_cleanup)
