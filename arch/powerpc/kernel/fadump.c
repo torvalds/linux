@@ -36,6 +36,7 @@ static struct fw_dump fw_dump;
 
 static void __init fadump_reserve_crash_area(u64 base);
 
+#ifndef CONFIG_PRESERVE_FA_DUMP
 static DEFINE_MUTEX(fadump_mutex);
 struct fadump_mrange_info crash_mrange_info = { "crash", NULL, 0, 0, 0 };
 struct fadump_mrange_info reserved_mrange_info = { "reserved", NULL, 0, 0, 0 };
@@ -437,11 +438,6 @@ int __init fadump_reserve_mem(void)
 error_out:
 	fw_dump.fadump_enabled = 0;
 	return 0;
-}
-
-unsigned long __init arch_reserved_kernel_pages(void)
-{
-	return memblock_reserved_size() / PAGE_SIZE;
 }
 
 /* Look for fadump= cmdline option. */
@@ -1358,6 +1354,39 @@ int __init setup_fadump(void)
 	return 1;
 }
 subsys_initcall(setup_fadump);
+#else /* !CONFIG_PRESERVE_FA_DUMP */
+
+/* Scan the Firmware Assisted dump configuration details. */
+int __init early_init_dt_scan_fw_dump(unsigned long node, const char *uname,
+				      int depth, void *data)
+{
+	if ((depth != 1) || (strcmp(uname, "ibm,opal") != 0))
+		return 0;
+
+	opal_fadump_dt_scan(&fw_dump, node);
+	return 1;
+}
+
+/*
+ * When dump is active but PRESERVE_FA_DUMP is enabled on the kernel,
+ * preserve crash data. The subsequent memory preserving kernel boot
+ * is likely to process this crash data.
+ */
+int __init fadump_reserve_mem(void)
+{
+	if (fw_dump.dump_active) {
+		/*
+		 * If last boot has crashed then reserve all the memory
+		 * above boot memory to preserve crash data.
+		 */
+		pr_info("Preserving crash data for processing in next boot.\n");
+		fadump_reserve_crash_area(fw_dump.boot_mem_top);
+	} else
+		pr_debug("FADump-aware kernel..\n");
+
+	return 1;
+}
+#endif /* CONFIG_PRESERVE_FA_DUMP */
 
 /* Preserve everything above the base address */
 static void __init fadump_reserve_crash_area(u64 base)
@@ -1381,4 +1410,9 @@ static void __init fadump_reserve_crash_area(u64 base)
 			(msize >> 20), mstart);
 		memblock_reserve(mstart, msize);
 	}
+}
+
+unsigned long __init arch_reserved_kernel_pages(void)
+{
+	return memblock_reserved_size() / PAGE_SIZE;
 }

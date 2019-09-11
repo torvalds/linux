@@ -9,6 +9,7 @@
 #ifndef _ASM_POWERPC_FADUMP_INTERNAL_H
 #define _ASM_POWERPC_FADUMP_INTERNAL_H
 
+#ifndef CONFIG_PRESERVE_FA_DUMP
 /*
  * The RMA region will be saved for later dumping when kernel crashes.
  * RMA is Real Mode Area, the first block of logical memory address owned
@@ -145,6 +146,16 @@ u32 *fadump_regs_to_elf_notes(u32 *buf, struct pt_regs *regs);
 void fadump_update_elfcore_header(char *bufp);
 bool is_fadump_boot_mem_contiguous(void);
 bool is_fadump_reserved_mem_contiguous(void);
+
+#else /* !CONFIG_PRESERVE_FA_DUMP */
+
+/* Firmware-assisted dump configuration details. */
+struct fw_dump {
+	u64	boot_mem_top;
+	u64	dump_active;
+};
+
+#endif /* CONFIG_PRESERVE_FA_DUMP */
 
 #ifdef CONFIG_PPC_PSERIES
 extern void rtas_fadump_dt_scan(struct fw_dump *fadump_conf, u64 node);
