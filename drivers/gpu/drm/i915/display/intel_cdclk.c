@@ -1351,6 +1351,8 @@ static void bxt_get_cdclk(struct drm_i915_private *dev_priv,
 	u32 divider;
 	int div;
 
+	bxt_de_pll_readout(dev_priv, cdclk_state);
+
 	if (INTEL_GEN(dev_priv) >= 12)
 		cdclk_state->bypass = cdclk_state->ref / 2;
 	else if (INTEL_GEN(dev_priv) >= 11)
@@ -1358,7 +1360,6 @@ static void bxt_get_cdclk(struct drm_i915_private *dev_priv,
 	else
 		cdclk_state->bypass = cdclk_state->ref;
 
-	bxt_de_pll_readout(dev_priv, cdclk_state);
 	if (cdclk_state->vco == 0) {
 		cdclk_state->cdclk = cdclk_state->bypass;
 		goto out;
