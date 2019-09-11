@@ -627,8 +627,8 @@ static int csi_idmac_start(struct csi_priv *priv)
 	}
 
 	priv->nfb4eof_irq = ipu_idmac_channel_irq(priv->ipu,
-						 priv->idmac_ch,
-						 IPU_IRQ_NFB4EOF);
+						  priv->idmac_ch,
+						  IPU_IRQ_NFB4EOF);
 	ret = devm_request_irq(priv->dev, priv->nfb4eof_irq,
 			       csi_idmac_nfb4eof_interrupt, 0,
 			       "imx-smfc-nfb4eof", priv);
@@ -1472,7 +1472,7 @@ static void csi_try_fmt(struct csi_priv *priv,
 			imx_media_enum_mbus_format(&code, 0,
 						   CS_SEL_ANY, false);
 			*cc = imx_media_find_mbus_format(code,
-							CS_SEL_ANY, false);
+							 CS_SEL_ANY, false);
 			sdformat->format.code = (*cc)->codes[0];
 		}
 
