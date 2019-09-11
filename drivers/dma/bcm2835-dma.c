@@ -691,7 +691,7 @@ static struct dma_async_tx_descriptor *bcm2835_dma_prep_dma_cyclic(
 	struct bcm2835_desc *d;
 	dma_addr_t src, dst;
 	u32 info = BCM2835_DMA_WAIT_RESP;
-	u32 extra = BCM2835_DMA_INT_EN;
+	u32 extra = 0;
 	size_t max_len = bcm2835_dma_max_frame_length(c);
 	size_t frames;
 
@@ -706,6 +706,11 @@ static struct dma_async_tx_descriptor *bcm2835_dma_prep_dma_cyclic(
 			"%s: bad buffer length (= 0)\n", __func__);
 		return NULL;
 	}
+
+	if (flags & DMA_PREP_INTERRUPT)
+		extra |= BCM2835_DMA_INT_EN;
+	else
+		period_len = buf_len;
 
 	/*
 	 * warn if buf_len is not a multiple of period_len - this may leed
@@ -778,7 +783,10 @@ static int bcm2835_dma_terminate_all(struct dma_chan *chan)
 
 	/* stop DMA activity */
 	if (c->desc) {
-		vchan_terminate_vdesc(&c->desc->vd);
+		if (c->desc->vd.tx.flags & DMA_PREP_INTERRUPT)
+			vchan_terminate_vdesc(&c->desc->vd);
+		else
+			vchan_vdesc_fini(&c->desc->vd);
 		c->desc = NULL;
 		bcm2835_dma_abort(c);
 	}
