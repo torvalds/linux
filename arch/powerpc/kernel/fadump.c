@@ -36,6 +36,7 @@ static struct fw_dump fw_dump;
 
 static DEFINE_MUTEX(fadump_mutex);
 struct fadump_mrange_info crash_mrange_info = { "crash", NULL, 0, 0, 0 };
+struct fadump_mrange_info reserved_mrange_info = { "reserved", NULL, 0, 0, 0 };
 
 #ifdef CONFIG_CMA
 static struct cma *fadump_cma;
@@ -1009,49 +1010,173 @@ static void fadump_free_reserved_memory(unsigned long start_pfn,
 /*
  * Skip memory holes and free memory that was actually reserved.
  */
-static void fadump_release_reserved_area(unsigned long start, unsigned long end)
+static void fadump_release_reserved_area(u64 start, u64 end)
 {
+	u64 tstart, tend, spfn, epfn;
 	struct memblock_region *reg;
-	unsigned long tstart, tend;
-	unsigned long start_pfn = PHYS_PFN(start);
-	unsigned long end_pfn = PHYS_PFN(end);
 
+	spfn = PHYS_PFN(start);
+	epfn = PHYS_PFN(end);
 	for_each_memblock(memory, reg) {
-		tstart = max(start_pfn, memblock_region_memory_base_pfn(reg));
-		tend = min(end_pfn, memblock_region_memory_end_pfn(reg));
+		tstart = max_t(u64, spfn, memblock_region_memory_base_pfn(reg));
+		tend   = min_t(u64, epfn, memblock_region_memory_end_pfn(reg));
 		if (tstart < tend) {
 			fadump_free_reserved_memory(tstart, tend);
 
-			if (tend == end_pfn)
+			if (tend == epfn)
 				break;
 
-			start_pfn = tend + 1;
+			spfn = tend;
 		}
 	}
 }
 
 /*
- * Release the memory that was reserved in early boot to preserve the memory
- * contents. The released memory will be available for general use.
+ * Sort the mem ranges in-place and merge adjacent ranges
+ * to minimize the memory ranges count.
  */
-static void fadump_release_memory(unsigned long begin, unsigned long end)
+static void sort_and_merge_mem_ranges(struct fadump_mrange_info *mrange_info)
 {
-	unsigned long ra_start, ra_end;
+	struct fadump_memory_range *mem_ranges;
+	struct fadump_memory_range tmp_range;
+	u64 base, size;
+	int i, j, idx;
+
+	if (!reserved_mrange_info.mem_range_cnt)
+		return;
+
+	/* Sort the memory ranges */
+	mem_ranges = mrange_info->mem_ranges;
+	for (i = 0; i < mrange_info->mem_range_cnt; i++) {
+		idx = i;
+		for (j = (i + 1); j < mrange_info->mem_range_cnt; j++) {
+			if (mem_ranges[idx].base > mem_ranges[j].base)
+				idx = j;
+		}
+		if (idx != i) {
+			tmp_range = mem_ranges[idx];
+			mem_ranges[idx] = mem_ranges[i];
+			mem_ranges[i] = tmp_range;
+		}
+	}
+
+	/* Merge adjacent reserved ranges */
+	idx = 0;
+	for (i = 1; i < mrange_info->mem_range_cnt; i++) {
+		base = mem_ranges[i-1].base;
+		size = mem_ranges[i-1].size;
+		if (mem_ranges[i].base == (base + size))
+			mem_ranges[idx].size += mem_ranges[i].size;
+		else {
+			idx++;
+			if (i == idx)
+				continue;
+
+			mem_ranges[idx] = mem_ranges[i];
+		}
+	}
+	mrange_info->mem_range_cnt = idx + 1;
+}
+
+/*
+ * Scan reserved-ranges to consider them while reserving/releasing
+ * memory for FADump.
+ */
+static inline int fadump_scan_reserved_mem_ranges(void)
+{
+	struct device_node *root;
+	const __be32 *prop;
+	int len, ret = -1;
+	unsigned long i;
+
+	root = of_find_node_by_path("/");
+	if (!root)
+		return ret;
+
+	prop = of_get_property(root, "reserved-ranges", &len);
+	if (!prop)
+		return ret;
+
+	/*
+	 * Each reserved range is an (address,size) pair, 2 cells each,
+	 * totalling 4 cells per range.
+	 */
+	for (i = 0; i < len / (sizeof(*prop) * 4); i++) {
+		u64 base, size;
+
+		base = of_read_number(prop + (i * 4) + 0, 2);
+		size = of_read_number(prop + (i * 4) + 2, 2);
+
+		if (size) {
+			ret = fadump_add_mem_range(&reserved_mrange_info,
+						   base, base + size);
+			if (ret < 0) {
+				pr_warn("some reserved ranges are ignored!\n");
+				break;
+			}
+		}
+	}
+
+	return ret;
+}
+
+/*
+ * Release the memory that was reserved during early boot to preserve the
+ * crash'ed kernel's memory contents except reserved dump area (permanent
+ * reservation) and reserved ranges used by F/W. The released memory will
+ * be available for general use.
+ */
+static void fadump_release_memory(u64 begin, u64 end)
+{
+	u64 ra_start, ra_end, tstart;
+	int i, ret;
+
+	fadump_scan_reserved_mem_ranges();
 
 	ra_start = fw_dump.reserve_dump_area_start;
 	ra_end = ra_start + fw_dump.reserve_dump_area_size;
 
 	/*
-	 * exclude the dump reserve area. Will reuse it for next
-	 * fadump registration.
+	 * Add reserved dump area to reserved ranges list
+	 * and exclude all these ranges while releasing memory.
 	 */
-	if (begin < ra_end && end > ra_start) {
-		if (begin < ra_start)
-			fadump_release_reserved_area(begin, ra_start);
-		if (end > ra_end)
-			fadump_release_reserved_area(ra_end, end);
-	} else
-		fadump_release_reserved_area(begin, end);
+	ret = fadump_add_mem_range(&reserved_mrange_info, ra_start, ra_end);
+	if (ret != 0) {
+		/*
+		 * Not enough memory to setup reserved ranges but the system is
+		 * running shortage of memory. So, release all the memory except
+		 * Reserved dump area (reused for next fadump registration).
+		 */
+		if (begin < ra_end && end > ra_start) {
+			if (begin < ra_start)
+				fadump_release_reserved_area(begin, ra_start);
+			if (end > ra_end)
+				fadump_release_reserved_area(ra_end, end);
+		} else
+			fadump_release_reserved_area(begin, end);
+
+		return;
+	}
+
+	/* Get the reserved ranges list in order first. */
+	sort_and_merge_mem_ranges(&reserved_mrange_info);
+
+	/* Exclude reserved ranges and release remaining memory */
+	tstart = begin;
+	for (i = 0; i < reserved_mrange_info.mem_range_cnt; i++) {
+		ra_start = reserved_mrange_info.mem_ranges[i].base;
+		ra_end = ra_start + reserved_mrange_info.mem_ranges[i].size;
+
+		if (tstart >= ra_end)
+			continue;
+
+		if (tstart < ra_start)
+			fadump_release_reserved_area(tstart, ra_start);
+		tstart = ra_end;
+	}
+
+	if (tstart < end)
+		fadump_release_reserved_area(tstart, end);
 }
 
 static void fadump_invalidate_release_mem(void)
