@@ -141,7 +141,7 @@ static int g_bs = 512;
 module_param_named(bs, g_bs, int, 0444);
 MODULE_PARM_DESC(bs, "Block size (in bytes)");
 
-static int nr_devices = 1;
+static unsigned int nr_devices = 1;
 module_param(nr_devices, int, 0444);
 MODULE_PARM_DESC(nr_devices, "Number of devices to register");
 
@@ -1765,6 +1765,10 @@ static int __init null_init(void)
 
 	if (g_queue_mode == NULL_Q_RQ) {
 		pr_err("null_blk: legacy IO path no longer available\n");
+		return -EINVAL;
+	}
+	if (!nr_devices) {
+		pr_err("null_blk: invalid number of devices\n");
 		return -EINVAL;
 	}
 	if (g_queue_mode == NULL_Q_MQ && g_use_per_node_hctx) {
