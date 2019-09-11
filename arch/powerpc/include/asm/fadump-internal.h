@@ -88,6 +88,10 @@ struct fw_dump {
 	unsigned long	reserve_bootvar;
 
 	unsigned long	cpu_state_data_size;
+	u64		cpu_state_dest_vaddr;
+	u32		cpu_state_data_version;
+	u32		cpu_state_entry_size;
+
 	unsigned long	hpte_region_size;
 
 	unsigned long	boot_memory_size;
