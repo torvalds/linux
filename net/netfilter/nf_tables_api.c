@@ -7694,15 +7694,20 @@ static int __init nf_tables_module_init(void)
 	if (err < 0)
 		goto err4;
 
-	/* must be last */
-	err = nfnetlink_subsys_register(&nf_tables_subsys);
+	err = nft_offload_init();
 	if (err < 0)
 		goto err5;
 
+	/* must be last */
+	err = nfnetlink_subsys_register(&nf_tables_subsys);
+	if (err < 0)
+		goto err6;
+
 	nft_chain_route_init();
-	nft_offload_init();
 
 	return err;
+err6:
+	nft_offload_exit();
 err5:
 	rhltable_destroy(&nft_objname_ht);
 err4:
@@ -7718,8 +7723,8 @@ err1:
 
 static void __exit nf_tables_module_exit(void)
 {
-	nft_offload_exit();
 	nfnetlink_subsys_unregister(&nf_tables_subsys);
+	nft_offload_exit();
 	unregister_netdevice_notifier(&nf_tables_flowtable_notifier);
 	nft_chain_filter_fini();
 	nft_chain_route_fini();

@@ -77,7 +77,7 @@ int nft_flow_rule_offload_commit(struct net *net);
 
 int nft_chain_offload_priority(struct nft_base_chain *basechain);
 
-void nft_offload_init(void);
+int nft_offload_init(void);
 void nft_offload_exit(void);
 
 #endif
