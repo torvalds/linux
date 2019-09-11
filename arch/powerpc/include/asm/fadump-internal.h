@@ -43,7 +43,25 @@
 #define FADUMP_UNREGISTER		2
 #define FADUMP_INVALIDATE		3
 
-#define FADUMP_CRASH_INFO_MAGIC		str_to_u64("FADMPINF")
+/*
+ * Copy the ascii values for first 8 characters from a string into u64
+ * variable at their respective indexes.
+ * e.g.
+ *  The string "FADMPINF" will be converted into 0x4641444d50494e46
+ */
+static inline u64 fadump_str_to_u64(const char *str)
+{
+	u64 val = 0;
+	int i;
+
+	for (i = 0; i < sizeof(val); i++)
+		val = (*str) ? (val << 8) | *str++ : val << 8;
+	return val;
+}
+
+#define FADUMP_CPU_UNKNOWN		(~((u32)0))
+
+#define FADUMP_CRASH_INFO_MAGIC		fadump_str_to_u64("FADMPINF")
 
 /* fadump crash info structure */
 struct fadump_crash_info_header {

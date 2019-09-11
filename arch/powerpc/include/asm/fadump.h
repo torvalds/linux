@@ -6,120 +6,12 @@
  * Author: Mahesh Salgaonkar <mahesh@linux.vnet.ibm.com>
  */
 
-#ifndef __PPC64_FA_DUMP_H__
-#define __PPC64_FA_DUMP_H__
+#ifndef _ASM_POWERPC_FADUMP_H
+#define _ASM_POWERPC_FADUMP_H
 
 #ifdef CONFIG_FA_DUMP
 
-/* Firmware provided dump sections */
-#define FADUMP_CPU_STATE_DATA	0x0001
-#define FADUMP_HPTE_REGION	0x0002
-#define FADUMP_REAL_MODE_REGION	0x0011
-
-/* Dump request flag */
-#define FADUMP_REQUEST_FLAG	0x00000001
-
-/* Dump status flag */
-#define FADUMP_ERROR_FLAG	0x2000
-
-#define FADUMP_CPU_ID_MASK	((1UL << 32) - 1)
-
-#define CPU_UNKNOWN		(~((u32)0))
-
-/* Utility macros */
-#define SKIP_TO_NEXT_CPU(reg_entry)					\
-({									\
-	while (be64_to_cpu(reg_entry->reg_id) != REG_ID("CPUEND"))	\
-		reg_entry++;						\
-	reg_entry++;							\
-})
-
 extern int crashing_cpu;
-
-/* Kernel Dump section info */
-struct fadump_section {
-	__be32	request_flag;
-	__be16	source_data_type;
-	__be16	error_flags;
-	__be64	source_address;
-	__be64	source_len;
-	__be64	bytes_dumped;
-	__be64	destination_address;
-};
-
-/* ibm,configure-kernel-dump header. */
-struct fadump_section_header {
-	__be32	dump_format_version;
-	__be16	dump_num_sections;
-	__be16	dump_status_flag;
-	__be32	offset_first_dump_section;
-
-	/* Fields for disk dump option. */
-	__be32	dd_block_size;
-	__be64	dd_block_offset;
-	__be64	dd_num_blocks;
-	__be32	dd_offset_disk_path;
-
-	/* Maximum time allowed to prevent an automatic dump-reboot. */
-	__be32	max_time_auto;
-};
-
-/*
- * Firmware Assisted dump memory structure. This structure is required for
- * registering future kernel dump with power firmware through rtas call.
- *
- * No disk dump option. Hence disk dump path string section is not included.
- */
-struct fadump_mem_struct {
-	struct fadump_section_header	header;
-
-	/* Kernel dump sections */
-	struct fadump_section		cpu_state_data;
-	struct fadump_section		hpte_region;
-	struct fadump_section		rmr_region;
-};
-
-/*
- * Copy the ascii values for first 8 characters from a string into u64
- * variable at their respective indexes.
- * e.g.
- *  The string "FADMPINF" will be converted into 0x4641444d50494e46
- */
-static inline u64 str_to_u64(const char *str)
-{
-	u64 val = 0;
-	int i;
-
-	for (i = 0; i < sizeof(val); i++)
-		val = (*str) ? (val << 8) | *str++ : val << 8;
-	return val;
-}
-#define STR_TO_HEX(x)	str_to_u64(x)
-#define REG_ID(x)	str_to_u64(x)
-
-#define REGSAVE_AREA_MAGIC		STR_TO_HEX("REGSAVE")
-
-/* The firmware-assisted dump format.
- *
- * The register save area is an area in the partition's memory used to preserve
- * the register contents (CPU state data) for the active CPUs during a firmware
- * assisted dump. The dump format contains register save area header followed
- * by register entries. Each list of registers for a CPU starts with
- * "CPUSTRT" and ends with "CPUEND".
- */
-
-/* Register save area header. */
-struct fadump_reg_save_area_header {
-	__be64		magic_number;
-	__be32		version;
-	__be32		num_cpu_offset;
-};
-
-/* Register entry. */
-struct fadump_reg_entry {
-	__be64		reg_id;
-	__be64		reg_value;
-};
 
 extern int is_fadump_memory_area(u64 addr, ulong size);
 extern int early_init_dt_scan_fw_dump(unsigned long node,
@@ -136,5 +28,5 @@ static inline int is_fadump_active(void) { return 0; }
 static inline int should_fadump_crash(void) { return 0; }
 static inline void crash_fadump(struct pt_regs *regs, const char *str) { }
 static inline void fadump_cleanup(void) { }
-#endif
-#endif
+#endif /* !CONFIG_FA_DUMP */
+#endif /* _ASM_POWERPC_FADUMP_H */
