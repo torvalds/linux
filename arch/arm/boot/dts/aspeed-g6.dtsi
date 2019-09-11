@@ -258,9 +258,4 @@
 	};
 };
 
-&pinctrl {
-	pinctrl_emmc_default: emmc_default {
-		function = "SD3";
-		groups = "SD3";
-	};
-};
+#include "aspeed-g6-pinctrl.dtsi"
