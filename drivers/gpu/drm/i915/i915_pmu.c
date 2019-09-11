@@ -194,6 +194,10 @@ engines_sample(struct intel_gt *gt, unsigned int period_ns)
 		if (val & RING_WAIT_SEMAPHORE)
 			add_sample(&pmu->sample[I915_SAMPLE_SEMA], period_ns);
 
+		/* No need to sample when busy stats are supported. */
+		if (intel_engine_supports_stats(engine))
+			goto skip;
+
 		/*
 		 * While waiting on a semaphore or event, MI_MODE reports the
 		 * ring as idle. However, previously using the seqno, and with
