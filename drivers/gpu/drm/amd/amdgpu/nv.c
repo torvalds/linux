@@ -54,6 +54,7 @@
 #include "vcn_v2_0.h"
 #include "dce_virtual.h"
 #include "mes_v10_1.h"
+#include "mxgpu_nv.h"
 
 static const struct amd_ip_funcs nv_common_ip_funcs;
 
@@ -427,6 +428,9 @@ int nv_set_ip_blocks(struct amdgpu_device *adev)
 
 	adev->nbio.funcs->detect_hw_virt(adev);
 
+	if (amdgpu_sriov_vf(adev))
+		adev->virt.ops = &xgpu_nv_virt_ops;
+
 	switch (adev->asic_type) {
 	case CHIP_NAVI10:
 	case CHIP_NAVI14:
@@ -667,16 +671,31 @@ static int nv_common_early_init(void *handle)
 		return -EINVAL;
 	}
 
+	if (amdgpu_sriov_vf(adev)) {
+		amdgpu_virt_init_setting(adev);
+		xgpu_nv_mailbox_set_irq_funcs(adev);
+	}
+
 	return 0;
 }
 
 static int nv_common_late_init(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	if (amdgpu_sriov_vf(adev))
+		xgpu_nv_mailbox_get_irq(adev);
+
 	return 0;
 }
 
 static int nv_common_sw_init(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	if (amdgpu_sriov_vf(adev))
+		xgpu_nv_mailbox_add_irq_id(adev);
+
 	return 0;
 }
 
