@@ -68,7 +68,7 @@ extern struct module __this_module;
 	    "__ksymtab_" #sym ":				\n"	\
 	    "	.long	" #sym "- .				\n"	\
 	    "	.long	__kstrtab_" #sym "- .			\n"	\
-	    "	.long	0 - .					\n"	\
+	    "	.long	0					\n"	\
 	    "	.previous					\n")
 
 struct kernel_symbol {

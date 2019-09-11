@@ -17,7 +17,7 @@
 
 .macro __put, val, name
 #ifdef CONFIG_HAVE_ARCH_PREL32_RELOCATIONS
-	.long	\val - ., \name - ., 0 - .
+	.long	\val - ., \name - ., 0
 #elif defined(CONFIG_64BIT)
 	.quad	\val, \name, 0
 #else

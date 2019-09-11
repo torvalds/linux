@@ -547,6 +547,8 @@ static const char *kernel_symbol_name(const struct kernel_symbol *sym)
 static const char *kernel_symbol_namespace(const struct kernel_symbol *sym)
 {
 #ifdef CONFIG_HAVE_ARCH_PREL32_RELOCATIONS
+	if (!sym->namespace_offset)
+		return NULL;
 	return offset_to_ptr(&sym->namespace_offset);
 #else
 	return sym->namespace;
