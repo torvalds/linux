@@ -2017,6 +2017,10 @@ static int intel_compute_min_cdclk(struct intel_atomic_state *state)
 }
 
 /*
+ * Account for port clock min voltage level requirements.
+ * This only really does something on CNL+ but can be
+ * called on earlier platforms as well.
+ *
  * Note that this functions assumes that 0 is
  * the lowest voltage value, and higher values
  * correspond to increasingly higher voltages.
@@ -2025,7 +2029,7 @@ static int intel_compute_min_cdclk(struct intel_atomic_state *state)
  * future platforms this code will need to be
  * adjusted.
  */
-static u8 cnl_compute_min_voltage_level(struct intel_atomic_state *state)
+static u8 bxt_compute_min_voltage_level(struct intel_atomic_state *state)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	struct intel_crtc *crtc;
@@ -2198,40 +2202,8 @@ static int bxt_modeset_calc_cdclk(struct intel_atomic_state *state)
 	state->cdclk.logical.vco = vco;
 	state->cdclk.logical.cdclk = cdclk;
 	state->cdclk.logical.voltage_level =
-		dev_priv->display.calc_voltage_level(cdclk);
-
-	if (!state->active_pipes) {
-		cdclk = bxt_calc_cdclk(dev_priv, state->cdclk.force_min_cdclk);
-		vco = bxt_calc_cdclk_pll_vco(dev_priv, cdclk);
-
-		state->cdclk.actual.vco = vco;
-		state->cdclk.actual.cdclk = cdclk;
-		state->cdclk.actual.voltage_level =
-			dev_priv->display.calc_voltage_level(cdclk);
-	} else {
-		state->cdclk.actual = state->cdclk.logical;
-	}
-
-	return 0;
-}
-
-static int cnl_modeset_calc_cdclk(struct intel_atomic_state *state)
-{
-	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-	int min_cdclk, cdclk, vco;
-
-	min_cdclk = intel_compute_min_cdclk(state);
-	if (min_cdclk < 0)
-		return min_cdclk;
-
-	cdclk = bxt_calc_cdclk(dev_priv, min_cdclk);
-	vco = bxt_calc_cdclk_pll_vco(dev_priv, cdclk);
-
-	state->cdclk.logical.vco = vco;
-	state->cdclk.logical.cdclk = cdclk;
-	state->cdclk.logical.voltage_level =
 		max(dev_priv->display.calc_voltage_level(cdclk),
-		    cnl_compute_min_voltage_level(state));
+		    bxt_compute_min_voltage_level(state));
 
 	if (!state->active_pipes) {
 		cdclk = bxt_calc_cdclk(dev_priv, state->cdclk.force_min_cdclk);
@@ -2466,17 +2438,17 @@ void intel_init_cdclk_hooks(struct drm_i915_private *dev_priv)
 {
 	if (IS_ELKHARTLAKE(dev_priv)) {
 		dev_priv->display.set_cdclk = bxt_set_cdclk;
-		dev_priv->display.modeset_calc_cdclk = cnl_modeset_calc_cdclk;
+		dev_priv->display.modeset_calc_cdclk = bxt_modeset_calc_cdclk;
 		dev_priv->display.calc_voltage_level = ehl_calc_voltage_level;
 		dev_priv->cdclk.table = icl_cdclk_table;
 	} else if (INTEL_GEN(dev_priv) >= 11) {
 		dev_priv->display.set_cdclk = bxt_set_cdclk;
-		dev_priv->display.modeset_calc_cdclk = cnl_modeset_calc_cdclk;
+		dev_priv->display.modeset_calc_cdclk = bxt_modeset_calc_cdclk;
 		dev_priv->display.calc_voltage_level = icl_calc_voltage_level;
 		dev_priv->cdclk.table = icl_cdclk_table;
 	} else if (IS_CANNONLAKE(dev_priv)) {
 		dev_priv->display.set_cdclk = bxt_set_cdclk;
-		dev_priv->display.modeset_calc_cdclk = cnl_modeset_calc_cdclk;
+		dev_priv->display.modeset_calc_cdclk = bxt_modeset_calc_cdclk;
 		dev_priv->display.calc_voltage_level = cnl_calc_voltage_level;
 		dev_priv->cdclk.table = cnl_cdclk_table;
 	} else if (IS_GEN9_LP(dev_priv)) {
