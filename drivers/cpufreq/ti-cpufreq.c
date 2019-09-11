@@ -41,6 +41,7 @@
 struct ti_cpufreq_data;
 
 struct ti_cpufreq_soc_data {
+	const char * const *reg_names;
 	unsigned long (*efuse_xlate)(struct ti_cpufreq_data *opp_data,
 				     unsigned long efuse);
 	unsigned long efuse_fallback;
@@ -165,7 +166,10 @@ static struct ti_cpufreq_soc_data omap34xx_soc_data = {
  *    seems to always read as 0).
  */
 
+static const char * const omap3_reg_names[] = {"cpu0", "vbb"};
+
 static struct ti_cpufreq_soc_data omap36xx_soc_data = {
+	.reg_names = omap3_reg_names,
 	.efuse_xlate = omap3_efuse_xlate,
 	.efuse_offset = OMAP3_CONTROL_DEVICE_STATUS - OMAP3_SYSCON_BASE,
 	.efuse_shift = 9,
@@ -299,7 +303,7 @@ static int ti_cpufreq_probe(struct platform_device *pdev)
 	const struct of_device_id *match;
 	struct opp_table *ti_opp_table;
 	struct ti_cpufreq_data *opp_data;
-	const char * const reg_names[] = {"vdd", "vbb"};
+	const char * const default_reg_names[] = {"vdd", "vbb"};
 	int ret;
 
 	match = dev_get_platdata(&pdev->dev);
@@ -355,9 +359,13 @@ static int ti_cpufreq_probe(struct platform_device *pdev)
 	opp_data->opp_table = ti_opp_table;
 
 	if (opp_data->soc_data->multi_regulator) {
+		const char * const *reg_names = default_reg_names;
+
+		if (opp_data->soc_data->reg_names)
+			reg_names = opp_data->soc_data->reg_names;
 		ti_opp_table = dev_pm_opp_set_regulators(opp_data->cpu_dev,
 							 reg_names,
-							 ARRAY_SIZE(reg_names));
+							 ARRAY_SIZE(default_reg_names));
 		if (IS_ERR(ti_opp_table)) {
 			dev_pm_opp_put_supported_hw(opp_data->opp_table);
 			ret =  PTR_ERR(ti_opp_table);
