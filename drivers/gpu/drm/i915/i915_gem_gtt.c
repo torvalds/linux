@@ -1486,8 +1486,10 @@ static struct i915_ppgtt *gen8_ppgtt_create(struct drm_i915_private *i915)
 	 *
 	 * Gen11 has HSDES#:1807136187 unresolved. Disable ro support
 	 * for now.
+	 *
+	 * Gen12 has inherited the same read-only fault issue from gen11.
 	 */
-	ppgtt->vm.has_read_only = INTEL_GEN(i915) != 11;
+	ppgtt->vm.has_read_only = !IS_GEN_RANGE(i915, 11, 12);
 
 	/* There are only few exceptions for gen >=6. chv and bxt.
 	 * And we are not sure about the latter so play safe for now.
