@@ -128,18 +128,22 @@ int __init early_init_dt_scan_fw_dump(unsigned long node, const char *uname,
  * If fadump is registered, check if the memory provided
  * falls within boot memory area and reserved memory area.
  */
-int is_fadump_memory_area(u64 addr, ulong size)
+int is_fadump_memory_area(u64 addr, unsigned long size)
 {
-	u64 d_start = fw_dump.reserve_dump_area_start;
-	u64 d_end = d_start + fw_dump.reserve_dump_area_size;
+	u64 d_start, d_end;
 
 	if (!fw_dump.dump_registered)
 		return 0;
 
+	if (!size)
+		return 0;
+
+	d_start = fw_dump.reserve_dump_area_start;
+	d_end = d_start + fw_dump.reserve_dump_area_size;
 	if (((addr + size) > d_start) && (addr <= d_end))
 		return 1;
 
-	return (addr + size) > RMA_START && addr <= fw_dump.boot_memory_size;
+	return (addr <= fw_dump.boot_memory_size);
 }
 
 int should_fadump_crash(void)
@@ -771,14 +775,14 @@ static int fadump_setup_crash_memory_ranges(void)
 	crash_mrange_info.mem_range_cnt = 0;
 
 	/*
-	 * add the first memory chunk (RMA_START through boot_memory_size) as
+	 * add the first memory chunk (0 through boot_memory_size) as
 	 * a separate memory chunk. The reason is, at the time crash firmware
 	 * will move the content of this memory chunk to different location
 	 * specified during fadump registration. We need to create a separate
 	 * program header for this chunk with the correct offset.
 	 */
 	ret = fadump_add_mem_range(&crash_mrange_info,
-				   RMA_START, fw_dump.boot_memory_size);
+				   0, fw_dump.boot_memory_size);
 	if (ret)
 		return ret;
 
@@ -787,11 +791,9 @@ static int fadump_setup_crash_memory_ranges(void)
 		end = start + (u64)reg->size;
 
 		/*
-		 * skip the first memory chunk that is already added (RMA_START
-		 * through boot_memory_size). This logic needs a relook if and
-		 * when RMA_START changes to a non-zero value.
+		 * skip the first memory chunk that is already added
+		 * (0 through boot_memory_size).
 		 */
-		BUILD_BUG_ON(RMA_START != 0);
 		if (start < fw_dump.boot_memory_size) {
 			if (end > fw_dump.boot_memory_size)
 				start = fw_dump.boot_memory_size;
@@ -815,7 +817,7 @@ static int fadump_setup_crash_memory_ranges(void)
  */
 static inline unsigned long fadump_relocate(unsigned long paddr)
 {
-	if (paddr > RMA_START && paddr < fw_dump.boot_memory_size)
+	if ((paddr > 0) && (paddr < fw_dump.boot_memory_size))
 		return fw_dump.boot_mem_dest_addr + paddr;
 	else
 		return paddr;
@@ -883,11 +885,11 @@ static int fadump_create_elfcore_headers(char *bufp)
 		phdr->p_flags	= PF_R|PF_W|PF_X;
 		phdr->p_offset	= mbase;
 
-		if (mbase == RMA_START) {
+		if (mbase == 0) {
 			/*
-			 * The entire RMA region will be moved by firmware
-			 * to the specified destination_address. Hence set
-			 * the correct offset.
+			 * The entire real memory region will be moved by
+			 * firmware to the specified destination_address.
+			 * Hence set the correct offset.
 			 */
 			phdr->p_offset = fw_dump.boot_mem_dest_addr;
 		}

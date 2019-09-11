@@ -10,14 +10,6 @@
 #define _ASM_POWERPC_FADUMP_INTERNAL_H
 
 #ifndef CONFIG_PRESERVE_FA_DUMP
-/*
- * The RMA region will be saved for later dumping when kernel crashes.
- * RMA is Real Mode Area, the first block of logical memory address owned
- * by logical partition, containing the storage that may be accessed with
- * translate off.
- */
-#define RMA_START	0x0
-#define RMA_END		(ppc64_rma_size)
 
 /* The upper limit percentage for user specified boot memory size (25%) */
 #define MAX_BOOT_MEM_RATIO			4

@@ -106,7 +106,7 @@ static u64 rtas_fadump_init_mem_struct(struct fw_dump *fadump_conf)
 	fdm.rmr_region.request_flag = cpu_to_be32(RTAS_FADUMP_REQUEST_FLAG);
 	fdm.rmr_region.source_data_type =
 		cpu_to_be16(RTAS_FADUMP_REAL_MODE_REGION);
-	fdm.rmr_region.source_address = cpu_to_be64(RMA_START);
+	fdm.rmr_region.source_address = cpu_to_be64(0);
 	fdm.rmr_region.source_len = cpu_to_be64(fadump_conf->boot_memory_size);
 	fdm.rmr_region.destination_address = cpu_to_be64(addr);
 	addr += fadump_conf->boot_memory_size;
