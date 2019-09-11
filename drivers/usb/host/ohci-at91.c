@@ -123,7 +123,7 @@ static void at91_stop_hc(struct platform_device *pdev)
 	/*
 	 * Put the USB host controller into reset.
 	 */
-	writel(0, &regs->control);
+	usb_hcd_platform_shutdown(pdev);
 
 	/*
 	 * Stop the USB clocks.
