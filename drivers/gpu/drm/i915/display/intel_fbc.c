@@ -1320,6 +1320,9 @@ void intel_fbc_init(struct drm_i915_private *dev_priv)
 	fbc->enabled = false;
 	fbc->active = false;
 
+	if (!drm_mm_initialized(&dev_priv->mm.stolen))
+		mkwrite_device_info(dev_priv)->display.has_fbc = false;
+
 	if (need_fbc_vtd_wa(dev_priv))
 		mkwrite_device_info(dev_priv)->display.has_fbc = false;
 
