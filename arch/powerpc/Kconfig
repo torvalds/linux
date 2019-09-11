@@ -592,6 +592,15 @@ config PRESERVE_FA_DUMP
 	  memory preserving kernel boot would process this crash data.
 	  Petitboot kernel is the typical usecase for this option.
 
+config OPAL_CORE
+	bool "Export OPAL memory as /sys/firmware/opal/core"
+	depends on PPC64 && PPC_POWERNV
+	help
+	  This option uses the MPIPL support in firmware to provide an
+	  ELF core of OPAL memory after a crash. The ELF core is exported
+	  as /sys/firmware/opal/core file which is helpful in debugging
+	  OPAL crashes using GDB.
+
 config IRQ_ALL_CPUS
 	bool "Distribute interrupts on all CPUs by default"
 	depends on SMP
