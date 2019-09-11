@@ -336,12 +336,6 @@ int drm_dsc_compute_rc_parameters(struct drm_dsc_config *vdsc_cfg)
 	else
 		vdsc_cfg->nfl_bpg_offset = 0;
 
-	/* 2^16 - 1 */
-	if (vdsc_cfg->nfl_bpg_offset > 65535) {
-		DRM_DEBUG_KMS("NflBpgOffset is too large for this slice height\n");
-		return -ERANGE;
-	}
-
 	/* Number of groups used to code the entire slice */
 	groups_total = groups_per_line * vdsc_cfg->slice_height;
 
@@ -369,11 +363,6 @@ int drm_dsc_compute_rc_parameters(struct drm_dsc_config *vdsc_cfg)
 		 * be used to disable the scale increment at the end of the slice
 		 */
 		vdsc_cfg->scale_increment_interval = 0;
-	}
-
-	if (vdsc_cfg->scale_increment_interval > 65535) {
-		DRM_DEBUG_KMS("ScaleIncrementInterval is large for slice height\n");
-		return -ERANGE;
 	}
 
 	/*
