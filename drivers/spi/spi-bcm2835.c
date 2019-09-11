@@ -94,7 +94,6 @@ MODULE_PARM_DESC(polling_limit_us,
  * @rx_prologue: bytes received without DMA if first RX sglist entry's
  *	length is not a multiple of 4 (to overcome hardware limitation)
  * @tx_spillover: whether @tx_prologue spills over to second TX sglist entry
- * @dma_pending: whether a DMA transfer is in progress
  * @debugfs_dir: the debugfs directory - neede to remove debugfs when
  *      unloading the module
  * @count_transfer_polling: count of how often polling mode is used
@@ -117,7 +116,6 @@ struct bcm2835_spi {
 	int tx_prologue;
 	int rx_prologue;
 	unsigned int tx_spillover;
-	unsigned int dma_pending;
 
 	struct dentry *debugfs_dir;
 	u64 count_transfer_polling;
@@ -541,6 +539,8 @@ static void bcm2835_spi_undo_prologue(struct bcm2835_spi *bs)
 		sg_dma_address(&tfr->tx_sg.sgl[1]) -= 4;
 		sg_dma_len(&tfr->tx_sg.sgl[1])     += 4;
 	}
+
+	bs->tx_prologue = 0;
 }
 
 static void bcm2835_spi_dma_done(void *data)
@@ -556,10 +556,8 @@ static void bcm2835_spi_dma_done(void *data)
 	 * is called the tx-dma must have finished - can't get to this
 	 * situation otherwise...
 	 */
-	if (cmpxchg(&bs->dma_pending, true, false)) {
-		dmaengine_terminate_async(ctlr->dma_tx);
-		bcm2835_spi_undo_prologue(bs);
-	}
+	dmaengine_terminate_async(ctlr->dma_tx);
+	bcm2835_spi_undo_prologue(bs);
 
 	/* and mark as completed */;
 	complete(&ctlr->xfer_completion);
@@ -634,9 +632,6 @@ static int bcm2835_spi_transfer_one_dma(struct spi_controller *ctlr,
 	/* start TX early */
 	dma_async_issue_pending(ctlr->dma_tx);
 
-	/* mark as dma pending */
-	bs->dma_pending = 1;
-
 	/* set the DMA length */
 	bcm2835_wr(bs, BCM2835_SPI_DLEN, bs->tx_len);
 
@@ -652,7 +647,6 @@ static int bcm2835_spi_transfer_one_dma(struct spi_controller *ctlr,
 	if (ret) {
 		/* need to reset on errors */
 		dmaengine_terminate_sync(ctlr->dma_tx);
-		bs->dma_pending = false;
 		goto err_reset_hw;
 	}
 
@@ -917,11 +911,10 @@ static void bcm2835_spi_handle_err(struct spi_controller *ctlr,
 	struct bcm2835_spi *bs = spi_controller_get_devdata(ctlr);
 
 	/* if an error occurred and we have an active dma, then terminate */
-	if (cmpxchg(&bs->dma_pending, true, false)) {
-		dmaengine_terminate_sync(ctlr->dma_tx);
-		dmaengine_terminate_sync(ctlr->dma_rx);
-		bcm2835_spi_undo_prologue(bs);
-	}
+	dmaengine_terminate_sync(ctlr->dma_tx);
+	dmaengine_terminate_sync(ctlr->dma_rx);
+	bcm2835_spi_undo_prologue(bs);
+
 	/* and reset */
 	bcm2835_spi_reset_hw(ctlr);
 }
