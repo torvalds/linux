@@ -9,7 +9,8 @@
 /* Feature bits */
 #define VHOST_USER_F_PROTOCOL_FEATURES	30
 /* Protocol feature bits */
-#define VHOST_USER_PROTOCOL_F_CONFIG	9
+#define VHOST_USER_PROTOCOL_F_SLAVE_REQ		5
+#define VHOST_USER_PROTOCOL_F_CONFIG		9
 /* Vring state index masks */
 #define VHOST_USER_VRING_INDEX_MASK	0xff
 #define VHOST_USER_VRING_POLL_MASK	BIT(8)
@@ -19,7 +20,8 @@
 /* Supported transport features */
 #define VHOST_USER_SUPPORTED_F		BIT_ULL(VHOST_USER_F_PROTOCOL_FEATURES)
 /* Supported protocol features */
-#define VHOST_USER_SUPPORTED_PROTOCOL_F	BIT_ULL(VHOST_USER_PROTOCOL_F_CONFIG)
+#define VHOST_USER_SUPPORTED_PROTOCOL_F	(BIT_ULL(VHOST_USER_PROTOCOL_F_SLAVE_REQ) | \
+					 BIT_ULL(VHOST_USER_PROTOCOL_F_CONFIG))
 
 enum vhost_user_request {
 	VHOST_USER_GET_FEATURES = 1,
@@ -49,8 +51,18 @@ enum vhost_user_request {
 	VHOST_USER_SET_CONFIG = 25,
 };
 
+enum vhost_user_slave_request {
+	VHOST_USER_SLAVE_IOTLB_MSG = 1,
+	VHOST_USER_SLAVE_CONFIG_CHANGE_MSG = 2,
+	VHOST_USER_SLAVE_VRING_HOST_NOTIFIER_MSG = 3,
+};
+
 struct vhost_user_header {
-	u32 request; /* Use enum vhost_user_request */
+	/*
+	 * Use enum vhost_user_request for outgoing messages,
+	 * uses enum vhost_user_slave_request for incoming ones.
+	 */
+	u32 request;
 	u32 flags;
 	u32 size;
 } __packed;

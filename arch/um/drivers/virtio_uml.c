@@ -46,7 +46,7 @@ struct virtio_uml_device {
 	struct virtio_device vdev;
 	struct platform_device *pdev;
 
-	int sock;
+	int sock, req_fd;
 	u64 features;
 	u64 protocol_features;
 	u8 status;
@@ -102,46 +102,67 @@ static int full_read(int fd, void *buf, int len)
 	return 0;
 }
 
-static int vhost_user_recv_header(struct virtio_uml_device *vu_dev,
-				  struct vhost_user_msg *msg)
+static int vhost_user_recv_header(int fd, struct vhost_user_msg *msg)
 {
-	size_t size = sizeof(msg->header);
-	int rc;
-
-	rc = full_read(vu_dev->sock, (void *) msg, size);
-	if (rc)
-		return rc;
-	if (msg->header.flags != (VHOST_USER_FLAG_REPLY | VHOST_USER_VERSION))
-		return -EPROTO;
-	return 0;
+	return full_read(fd, msg, sizeof(msg->header));
 }
 
-static int vhost_user_recv(struct virtio_uml_device *vu_dev,
-			   struct vhost_user_msg *msg,
+static int vhost_user_recv(int fd, struct vhost_user_msg *msg,
 			   size_t max_payload_size)
 {
 	size_t size;
-	int rc = vhost_user_recv_header(vu_dev, msg);
+	int rc = vhost_user_recv_header(fd, msg);
 
 	if (rc)
 		return rc;
 	size = msg->header.size;
 	if (size > max_payload_size)
 		return -EPROTO;
-	return full_read(vu_dev->sock, (void *) &msg->payload, size);
+	return full_read(fd, &msg->payload, size);
+}
+
+static int vhost_user_recv_resp(struct virtio_uml_device *vu_dev,
+				struct vhost_user_msg *msg,
+				size_t max_payload_size)
+{
+	int rc = vhost_user_recv(vu_dev->sock, msg, max_payload_size);
+
+	if (rc)
+		return rc;
+
+	if (msg->header.flags != (VHOST_USER_FLAG_REPLY | VHOST_USER_VERSION))
+		return -EPROTO;
+
+	return 0;
 }
 
 static int vhost_user_recv_u64(struct virtio_uml_device *vu_dev,
 			       u64 *value)
 {
 	struct vhost_user_msg msg;
-	int rc = vhost_user_recv(vu_dev, &msg, sizeof(msg.payload.integer));
+	int rc = vhost_user_recv_resp(vu_dev, &msg,
+				      sizeof(msg.payload.integer));
 
 	if (rc)
 		return rc;
 	if (msg.header.size != sizeof(msg.payload.integer))
 		return -EPROTO;
 	*value = msg.payload.integer;
+	return 0;
+}
+
+static int vhost_user_recv_req(struct virtio_uml_device *vu_dev,
+			       struct vhost_user_msg *msg,
+			       size_t max_payload_size)
+{
+	int rc = vhost_user_recv(vu_dev->req_fd, msg, max_payload_size);
+
+	if (rc)
+		return rc;
+
+	if (msg->header.flags != VHOST_USER_VERSION)
+		return -EPROTO;
+
 	return 0;
 }
 
@@ -163,6 +184,16 @@ static int vhost_user_send_no_payload(struct virtio_uml_device *vu_dev,
 	};
 
 	return vhost_user_send(vu_dev, &msg, NULL, 0);
+}
+
+static int vhost_user_send_no_payload_fd(struct virtio_uml_device *vu_dev,
+					 u32 request, int fd)
+{
+	struct vhost_user_msg msg = {
+		.header.request = request,
+	};
+
+	return vhost_user_send(vu_dev, &msg, &fd, 1);
 }
 
 static int vhost_user_send_u64(struct virtio_uml_device *vu_dev,
@@ -216,6 +247,71 @@ static int vhost_user_set_protocol_features(struct virtio_uml_device *vu_dev,
 				   protocol_features);
 }
 
+static irqreturn_t vu_req_interrupt(int irq, void *data)
+{
+	struct virtio_uml_device *vu_dev = data;
+	struct {
+		struct vhost_user_msg msg;
+		u8 extra_payload[512];
+	} msg;
+	int rc;
+
+	rc = vhost_user_recv_req(vu_dev, &msg.msg,
+				 sizeof(msg.msg.payload) +
+				 sizeof(msg.extra_payload));
+
+	if (rc)
+		return IRQ_NONE;
+
+	switch (msg.msg.header.request) {
+	case VHOST_USER_SLAVE_CONFIG_CHANGE_MSG:
+		virtio_config_changed(&vu_dev->vdev);
+		break;
+	case VHOST_USER_SLAVE_IOTLB_MSG:
+		/* not supported - VIRTIO_F_IOMMU_PLATFORM */
+	case VHOST_USER_SLAVE_VRING_HOST_NOTIFIER_MSG:
+		/* not supported - VHOST_USER_PROTOCOL_F_HOST_NOTIFIER */
+	default:
+		vu_err(vu_dev, "unexpected slave request %d\n",
+		       msg.msg.header.request);
+	}
+
+	return IRQ_HANDLED;
+}
+
+static int vhost_user_init_slave_req(struct virtio_uml_device *vu_dev)
+{
+	int rc, req_fds[2];
+
+	/* Use a pipe for slave req fd, SIGIO is not supported for eventfd */
+	rc = os_pipe(req_fds, true, true);
+	if (rc < 0)
+		return rc;
+	vu_dev->req_fd = req_fds[0];
+
+	rc = um_request_irq(VIRTIO_IRQ, vu_dev->req_fd, IRQ_READ,
+			    vu_req_interrupt, IRQF_SHARED,
+			    vu_dev->pdev->name, vu_dev);
+	if (rc)
+		goto err_close;
+
+	rc = vhost_user_send_no_payload_fd(vu_dev, VHOST_USER_SET_SLAVE_REQ_FD,
+					   req_fds[1]);
+	if (rc)
+		goto err_free_irq;
+
+	goto out;
+
+err_free_irq:
+	um_free_irq(VIRTIO_IRQ, vu_dev);
+err_close:
+	os_close_file(req_fds[0]);
+out:
+	/* Close unused write end of request fds */
+	os_close_file(req_fds[1]);
+	return rc;
+}
+
 static int vhost_user_init(struct virtio_uml_device *vu_dev)
 {
 	int rc = vhost_user_set_owner(vu_dev);
@@ -234,8 +330,18 @@ static int vhost_user_init(struct virtio_uml_device *vu_dev)
 		vu_dev->protocol_features &= VHOST_USER_SUPPORTED_PROTOCOL_F;
 		rc = vhost_user_set_protocol_features(vu_dev,
 				vu_dev->protocol_features);
+		if (rc)
+			return rc;
 	}
-	return rc;
+
+	if (vu_dev->protocol_features &
+			BIT_ULL(VHOST_USER_PROTOCOL_F_SLAVE_REQ)) {
+		rc = vhost_user_init_slave_req(vu_dev);
+		if (rc)
+			return rc;
+	}
+
+	return 0;
 }
 
 static void vhost_user_get_config(struct virtio_uml_device *vu_dev,
@@ -266,7 +372,7 @@ static void vhost_user_get_config(struct virtio_uml_device *vu_dev,
 		goto free;
 	}
 
-	rc = vhost_user_recv(vu_dev, msg, msg_size);
+	rc = vhost_user_recv_resp(vu_dev, msg, msg_size);
 	if (rc) {
 		vu_err(vu_dev,
 		       "receiving VHOST_USER_GET_CONFIG response failed: %d\n",
@@ -777,12 +883,17 @@ static const struct virtio_config_ops virtio_uml_config_ops = {
 	.bus_name = vu_bus_name,
 };
 
-
 static void virtio_uml_release_dev(struct device *d)
 {
 	struct virtio_device *vdev =
 			container_of(d, struct virtio_device, dev);
 	struct virtio_uml_device *vu_dev = to_virtio_uml_device(vdev);
+
+	/* might not have been opened due to not negotiating the feature */
+	if (vu_dev->req_fd >= 0) {
+		um_free_irq(VIRTIO_IRQ, vu_dev);
+		os_close_file(vu_dev->req_fd);
+	}
 
 	os_close_file(vu_dev->sock);
 }
@@ -813,6 +924,7 @@ static int virtio_uml_probe(struct platform_device *pdev)
 	vu_dev->vdev.id.device = pdata->virtio_device_id;
 	vu_dev->vdev.id.vendor = VIRTIO_DEV_ANY_ID;
 	vu_dev->pdev = pdev;
+	vu_dev->req_fd = -1;
 
 	do {
 		rc = os_connect_socket(pdata->socket_path);
