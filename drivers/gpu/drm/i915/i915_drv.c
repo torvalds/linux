@@ -340,7 +340,7 @@ static int i915_driver_modeset_probe(struct drm_device *dev)
 
 	if (HAS_DISPLAY(dev_priv)) {
 		ret = drm_vblank_init(&dev_priv->drm,
-				      INTEL_INFO(dev_priv)->num_pipes);
+				      INTEL_NUM_PIPES(dev_priv));
 		if (ret)
 			goto out;
 	}

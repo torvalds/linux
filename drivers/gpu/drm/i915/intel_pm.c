@@ -1909,7 +1909,7 @@ static int vlv_compute_pipe_wm(struct intel_crtc_state *crtc_state)
 
 	for (level = 0; level < wm_state->num_levels; level++) {
 		const struct g4x_pipe_wm *raw = &crtc_state->wm.vlv.raw[level];
-		const int sr_fifo_size = INTEL_INFO(dev_priv)->num_pipes * 512 - 1;
+		const int sr_fifo_size = INTEL_NUM_PIPES(dev_priv) * 512 - 1;
 
 		if (!vlv_raw_crtc_wm_is_valid(crtc_state, level))
 			break;
@@ -2648,7 +2648,7 @@ static unsigned int ilk_plane_wm_max(const struct drm_i915_private *dev_priv,
 
 	/* HSW allows LP1+ watermarks even with multiple pipes */
 	if (level == 0 || config->num_pipes_active > 1) {
-		fifo_size /= INTEL_INFO(dev_priv)->num_pipes;
+		fifo_size /= INTEL_NUM_PIPES(dev_priv);
 
 		/*
 		 * For some reason the non self refresh
@@ -9733,7 +9733,7 @@ void intel_init_pm(struct drm_i915_private *dev_priv)
 		dev_priv->display.update_wm = i9xx_update_wm;
 		dev_priv->display.get_fifo_size = i9xx_get_fifo_size;
 	} else if (IS_GEN(dev_priv, 2)) {
-		if (INTEL_INFO(dev_priv)->num_pipes == 1) {
+		if (INTEL_NUM_PIPES(dev_priv) == 1) {
 			dev_priv->display.update_wm = i845_update_wm;
 			dev_priv->display.get_fifo_size = i845_get_fifo_size;
 		} else {

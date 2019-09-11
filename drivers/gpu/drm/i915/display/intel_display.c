@@ -7190,7 +7190,7 @@ static int ironlake_check_fdi_lanes(struct drm_device *dev, enum pipe pipe,
 		}
 	}
 
-	if (INTEL_INFO(dev_priv)->num_pipes == 2)
+	if (INTEL_NUM_PIPES(dev_priv) == 2)
 		return 0;
 
 	/* Ivybridge 3 pipe is really complicated */
@@ -9574,7 +9574,7 @@ static void ironlake_compute_dpll(struct intel_crtc *crtc,
 	 * clear if it''s a win or loss power wise. No point in doing
 	 * this on ILK at all since it has a fixed DPLL<->pipe mapping.
 	 */
-	if (INTEL_INFO(dev_priv)->num_pipes == 3 &&
+	if (INTEL_NUM_PIPES(dev_priv) == 3 &&
 	    intel_crtc_has_type(crtc_state, INTEL_OUTPUT_ANALOG))
 		dpll |= DPLL_SDVO_HIGH_SPEED;
 
@@ -13899,7 +13899,7 @@ static void skl_commit_modeset_enables(struct intel_atomic_state *state)
 
 			if (skl_ddb_allocation_overlaps(&new_crtc_state->wm.skl.ddb,
 							entries,
-							INTEL_INFO(dev_priv)->num_pipes, i))
+							INTEL_NUM_PIPES(dev_priv), i))
 				continue;
 
 			updated |= cmask;
@@ -16258,8 +16258,8 @@ int intel_modeset_init(struct drm_device *dev)
 	}
 
 	DRM_DEBUG_KMS("%d display pipe%s available.\n",
-		      INTEL_INFO(dev_priv)->num_pipes,
-		      INTEL_INFO(dev_priv)->num_pipes > 1 ? "s" : "");
+		      INTEL_NUM_PIPES(dev_priv),
+		      INTEL_NUM_PIPES(dev_priv) > 1 ? "s" : "");
 
 	for_each_pipe(dev_priv, pipe) {
 		ret = intel_crtc_init(dev_priv, pipe);
@@ -17352,7 +17352,7 @@ intel_display_print_error_state(struct drm_i915_error_state_buf *m,
 	if (!error)
 		return;
 
-	err_printf(m, "Num Pipes: %d\n", INTEL_INFO(dev_priv)->num_pipes);
+	err_printf(m, "Num Pipes: %d\n", INTEL_NUM_PIPES(dev_priv));
 	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
 		err_printf(m, "PWR_WELL_CTL2: %08x\n",
 			   error->power_well_driver);

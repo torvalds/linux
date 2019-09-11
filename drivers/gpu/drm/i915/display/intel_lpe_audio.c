@@ -114,7 +114,7 @@ lpe_audio_platdev_create(struct drm_i915_private *dev_priv)
 	pinfo.size_data = sizeof(*pdata);
 	pinfo.dma_mask = DMA_BIT_MASK(32);
 
-	pdata->num_pipes = INTEL_INFO(dev_priv)->num_pipes;
+	pdata->num_pipes = INTEL_NUM_PIPES(dev_priv);
 	pdata->num_ports = IS_CHERRYVIEW(dev_priv) ? 3 : 2; /* B,C,D or B,C */
 	pdata->port[0].pipe = -1;
 	pdata->port[1].pipe = -1;

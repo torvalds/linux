@@ -307,10 +307,10 @@ enum phy_fia {
 };
 
 #define for_each_pipe(__dev_priv, __p) \
-	for ((__p) = 0; (__p) < INTEL_INFO(__dev_priv)->num_pipes; (__p)++)
+	for ((__p) = 0; (__p) < INTEL_NUM_PIPES(__dev_priv); (__p)++)
 
 #define for_each_pipe_masked(__dev_priv, __p, __mask) \
-	for ((__p) = 0; (__p) < INTEL_INFO(__dev_priv)->num_pipes; (__p)++) \
+	for ((__p) = 0; (__p) < INTEL_NUM_PIPES(__dev_priv); (__p)++) \
 		for_each_if((__mask) & BIT(__p))
 
 #define for_each_cpu_transcoder_masked(__dev_priv, __t, __mask) \
