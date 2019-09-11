@@ -9,6 +9,9 @@
 #ifndef _ASM_POWERPC_FADUMP_INTERNAL_H
 #define _ASM_POWERPC_FADUMP_INTERNAL_H
 
+/* Maximum number of memory regions kernel supports */
+#define FADUMP_MAX_MEM_REGS			128
+
 #ifndef CONFIG_PRESERVE_FA_DUMP
 
 /* The upper limit percentage for user specified boot memory size (25%) */
@@ -88,11 +91,20 @@ struct fw_dump {
 
 	unsigned long	boot_memory_size;
 	u64		boot_mem_dest_addr;
+	u64		boot_mem_addr[FADUMP_MAX_MEM_REGS];
+	u64		boot_mem_sz[FADUMP_MAX_MEM_REGS];
+	u64		boot_mem_top;
+	u64		boot_mem_regs_cnt;
 
 	unsigned long	fadumphdr_addr;
 	unsigned long	cpu_notes_buf_vaddr;
 	unsigned long	cpu_notes_buf_size;
 
+	/*
+	 * Maximum size supported by firmware to copy from source to
+	 * destination address per entry.
+	 */
+	u64		max_copy_size;
 	u64		kernel_metadata;
 
 	int		ibm_configure_kernel_dump;

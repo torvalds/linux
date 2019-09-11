@@ -69,6 +69,11 @@ struct rtas_fadump_mem_struct {
 	/* Kernel dump sections */
 	struct rtas_fadump_section		cpu_state_data;
 	struct rtas_fadump_section		hpte_region;
+
+	/*
+	 * TODO: Extend multiple boot memory regions support in the kernel
+	 *       for this platform.
+	 */
 	struct rtas_fadump_section		rmr_region;
 };
 
