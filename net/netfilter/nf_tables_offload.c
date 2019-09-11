@@ -294,12 +294,13 @@ static int nft_indr_block_offload_cmd(struct nft_base_chain *chain,
 
 #define FLOW_SETUP_BLOCK TC_SETUP_BLOCK
 
-static int nft_flow_offload_chain(struct nft_trans *trans,
+static int nft_flow_offload_chain(struct nft_chain *chain,
+				  u8 *ppolicy,
 				  enum flow_block_command cmd)
 {
-	struct nft_chain *chain = trans->ctx.chain;
 	struct nft_base_chain *basechain;
 	struct net_device *dev;
+	u8 policy;
 
 	if (!nft_is_base_chain(chain))
 		return -EOPNOTSUPP;
@@ -309,10 +310,10 @@ static int nft_flow_offload_chain(struct nft_trans *trans,
 	if (!dev)
 		return -EOPNOTSUPP;
 
+	policy = ppolicy ? *ppolicy : basechain->policy;
+
 	/* Only default policy to accept is supported for now. */
-	if (cmd == FLOW_BLOCK_BIND &&
-	    nft_trans_chain_policy(trans) != -1 &&
-	    nft_trans_chain_policy(trans) != NF_ACCEPT)
+	if (cmd == FLOW_BLOCK_BIND && policy != -1 && policy != NF_ACCEPT)
 		return -EOPNOTSUPP;
 
 	if (dev->netdev_ops->ndo_setup_tc)
@@ -325,6 +326,7 @@ int nft_flow_rule_offload_commit(struct net *net)
 {
 	struct nft_trans *trans;
 	int err = 0;
+	u8 policy;
 
 	list_for_each_entry(trans, &net->nft.commit_list, list) {
 		if (trans->ctx.family != NFPROTO_NETDEV)
@@ -335,13 +337,17 @@ int nft_flow_rule_offload_commit(struct net *net)
 			if (!(trans->ctx.chain->flags & NFT_CHAIN_HW_OFFLOAD))
 				continue;
 
-			err = nft_flow_offload_chain(trans, FLOW_BLOCK_BIND);
+			policy = nft_trans_chain_policy(trans);
+			err = nft_flow_offload_chain(trans->ctx.chain, &policy,
+						     FLOW_BLOCK_BIND);
 			break;
 		case NFT_MSG_DELCHAIN:
 			if (!(trans->ctx.chain->flags & NFT_CHAIN_HW_OFFLOAD))
 				continue;
 
-			err = nft_flow_offload_chain(trans, FLOW_BLOCK_UNBIND);
+			policy = nft_trans_chain_policy(trans);
+			err = nft_flow_offload_chain(trans->ctx.chain, &policy,
+						     FLOW_BLOCK_BIND);
 			break;
 		case NFT_MSG_NEWRULE:
 			if (!(trans->ctx.chain->flags & NFT_CHAIN_HW_OFFLOAD))
