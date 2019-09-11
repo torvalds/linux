@@ -313,6 +313,10 @@ static unsigned long get_fadump_area_size(void)
 	size += sizeof(struct elf_phdr) * (memblock_num_regions(memory) + 2);
 
 	size = PAGE_ALIGN(size);
+
+	/* This is to hold kernel metadata on platforms that support it */
+	size += (fw_dump.ops->fadump_get_metadata_size ?
+		 fw_dump.ops->fadump_get_metadata_size() : 0);
 	return size;
 }
 
@@ -348,6 +352,7 @@ int __init fadump_reserve_mem(void)
 		pr_info("Firmware-Assisted Dump is not supported on this hardware\n");
 		goto error_out;
 	}
+
 	/*
 	 * Initialize boot memory size
 	 * If dump is active then we have already calculated the size during
@@ -426,8 +431,21 @@ int __init fadump_reserve_mem(void)
 			base += size;
 		}
 
-		if ((base > (mem_boundary - size)) ||
-		    memblock_reserve(base, size)) {
+		if (base > (mem_boundary - size)) {
+			pr_err("Failed to find memory chunk for reservation!\n");
+			goto error_out;
+		}
+		fw_dump.reserve_dump_area_start = base;
+
+		/*
+		 * Calculate the kernel metadata address and register it with
+		 * f/w if the platform supports.
+		 */
+		if (fw_dump.ops->fadump_setup_metadata &&
+		    (fw_dump.ops->fadump_setup_metadata(&fw_dump) < 0))
+			goto error_out;
+
+		if (memblock_reserve(base, size)) {
 			pr_err("Failed to reserve memory!\n");
 			goto error_out;
 		}
@@ -435,7 +453,6 @@ int __init fadump_reserve_mem(void)
 		pr_info("Reserved %lldMB of memory at %#016llx (System RAM: %lldMB)\n",
 			(size >> 20), base, (memblock_phys_mem_size() >> 20));
 
-		fw_dump.reserve_dump_area_start = base;
 		ret = fadump_cma_init();
 	}
 
