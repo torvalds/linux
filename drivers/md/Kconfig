@@ -347,6 +347,20 @@ config DM_ERA
          over time.  Useful for maintaining cache coherency when using
          vendor snapshots.
 
+config DM_CLONE
+       tristate "Clone target (EXPERIMENTAL)"
+       depends on BLK_DEV_DM
+       default n
+       select DM_PERSISTENT_DATA
+       ---help---
+         dm-clone produces a one-to-one copy of an existing, read-only source
+         device into a writable destination device. The cloned device is
+         visible/mountable immediately and the copy of the source device to the
+         destination device happens in the background, in parallel with user
+         I/O.
+
+         If unsure, say N.
+
 config DM_MIRROR
        tristate "Mirror target"
        depends on BLK_DEV_DM
