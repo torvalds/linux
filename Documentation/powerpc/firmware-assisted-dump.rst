@@ -110,6 +110,16 @@ capture kernel boot to process this crash data. Kernel config
 option CONFIG_PRESERVE_FA_DUMP has to be enabled on such kernel
 to ensure that crash data is preserved to process later.
 
+-- On OPAL based machines (PowerNV), if the kernel is build with
+   CONFIG_OPAL_CORE=y, OPAL memory at the time of crash is also
+   exported as /sys/firmware/opal/core file. This procfs file is
+   helpful in debugging OPAL crashes with GDB. The kernel memory
+   used for exporting this procfs file can be released by echo'ing
+   '1' to /sys/kernel/fadump_release_opalcore node.
+
+   e.g.
+     # echo 1 > /sys/kernel/fadump_release_opalcore
+
 Implementation details:
 -----------------------
 
@@ -272,6 +282,15 @@ Here is the list of files under kernel sysfs:
     The existing userspace tools (kdump infrastructure) can be easily
     enhanced to use this interface to release the memory reserved for
     dump and continue without 2nd reboot.
+
+ /sys/kernel/fadump_release_opalcore
+
+    This file is available only on OPAL based machines when FADump is
+    active during capture kernel. This is used to release the memory
+    used by the kernel to export /sys/firmware/opal/core file. To
+    release this memory, echo '1' to it:
+
+    echo 1  > /sys/kernel/fadump_release_opalcore
 
 Here is the list of files under powerpc debugfs:
 (Assuming debugfs is mounted on /sys/kernel/debug directory.)
