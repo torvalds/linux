@@ -37,8 +37,7 @@ int mgag200_mm_init(struct mga_device *mdev)
 	struct drm_device *dev = mdev->dev;
 
 	vmm = drm_vram_helper_alloc_mm(dev, pci_resource_start(dev->pdev, 0),
-				       mdev->mc.vram_size,
-				       &drm_gem_vram_mm_funcs);
+				       mdev->mc.vram_size);
 	if (IS_ERR(vmm)) {
 		ret = PTR_ERR(vmm);
 		DRM_ERROR("Error initializing VRAM MM; %d\n", ret);

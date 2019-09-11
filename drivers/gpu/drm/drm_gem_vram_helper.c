@@ -7,7 +7,6 @@
 #include <drm/drm_gem_vram_helper.h>
 #include <drm/drm_mode.h>
 #include <drm/drm_prime.h>
-#include <drm/drm_vram_mm_helper.h>
 #include <drm/ttm/ttm_page_alloc.h>
 
 static const struct drm_gem_object_funcs drm_gem_vram_object_funcs;
@@ -464,68 +463,25 @@ static bool drm_is_gem_vram(struct ttm_buffer_object *bo)
 	return (bo->destroy == ttm_buffer_object_destroy);
 }
 
-/**
- * drm_gem_vram_bo_driver_evict_flags() - \
-	Implements &struct ttm_bo_driver.evict_flags
- * @bo:	TTM buffer object. Refers to &struct drm_gem_vram_object.bo
- * @pl:	TTM placement information.
- */
-void drm_gem_vram_bo_driver_evict_flags(struct ttm_buffer_object *bo,
-					struct ttm_placement *pl)
+static void drm_gem_vram_bo_driver_evict_flags(struct drm_gem_vram_object *gbo,
+					       struct ttm_placement *pl)
 {
-	struct drm_gem_vram_object *gbo;
-
-	/* TTM may pass BOs that are not GEM VRAM BOs. */
-	if (!drm_is_gem_vram(bo))
-		return;
-
-	gbo = drm_gem_vram_of_bo(bo);
 	drm_gem_vram_placement(gbo, TTM_PL_FLAG_SYSTEM);
 	*pl = gbo->placement;
 }
-EXPORT_SYMBOL(drm_gem_vram_bo_driver_evict_flags);
 
-/**
- * drm_gem_vram_bo_driver_verify_access() - \
-	Implements &struct ttm_bo_driver.verify_access
- * @bo:		TTM buffer object. Refers to &struct drm_gem_vram_object.bo
- * @filp:	File pointer.
- *
- * Returns:
- * 0 on success, or
- * a negative errno code otherwise.
- */
-int drm_gem_vram_bo_driver_verify_access(struct ttm_buffer_object *bo,
-					 struct file *filp)
+static int drm_gem_vram_bo_driver_verify_access(struct drm_gem_vram_object *gbo,
+						struct file *filp)
 {
-	struct drm_gem_vram_object *gbo = drm_gem_vram_of_bo(bo);
-
 	return drm_vma_node_verify_access(&gbo->bo.base.vma_node,
 					  filp->private_data);
 }
-EXPORT_SYMBOL(drm_gem_vram_bo_driver_verify_access);
 
-/**
- * drm_gem_vram_bo_driver_move_notify() -
- *	Implements &struct ttm_bo_driver.move_notify
- * @bo:		TTM buffer object. Refers to &struct drm_gem_vram_object.bo
- * @evict:	True, if the BO is being evicted from graphics memory;
- *		false otherwise.
- * @new_mem:	New memory region, or NULL on destruction
- */
-void drm_gem_vram_bo_driver_move_notify(struct ttm_buffer_object *bo,
-					bool evict,
-					struct ttm_mem_reg *new_mem)
+static void drm_gem_vram_bo_driver_move_notify(struct drm_gem_vram_object *gbo,
+					       bool evict,
+					       struct ttm_mem_reg *new_mem)
 {
-	struct drm_gem_vram_object *gbo;
-	struct ttm_bo_kmap_obj *kmap;
-
-	/* TTM may pass BOs that are not GEM VRAM BOs. */
-	if (!drm_is_gem_vram(bo))
-		return;
-
-	gbo = drm_gem_vram_of_bo(bo);
-	kmap = &gbo->kmap;
+	struct ttm_bo_kmap_obj *kmap = &gbo->kmap;
 
 	if (WARN_ON_ONCE(gbo->kmap_use_count))
 		return;
@@ -535,21 +491,6 @@ void drm_gem_vram_bo_driver_move_notify(struct ttm_buffer_object *bo,
 	ttm_bo_kunmap(kmap);
 	kmap->virtual = NULL;
 }
-EXPORT_SYMBOL(drm_gem_vram_bo_driver_move_notify);
-
-/*
- * drm_gem_vram_mm_funcs - Functions for &struct drm_vram_mm
- *
- * Most users of @struct drm_gem_vram_object will also use
- * @struct drm_vram_mm. This instance of &struct drm_vram_mm_funcs
- * can be used to connect both.
- */
-const struct drm_vram_mm_funcs drm_gem_vram_mm_funcs = {
-	.evict_flags = drm_gem_vram_bo_driver_evict_flags,
-	.verify_access = drm_gem_vram_bo_driver_verify_access,
-	.move_notify = drm_gem_vram_bo_driver_move_notify,
-};
-EXPORT_SYMBOL(drm_gem_vram_mm_funcs);
 
 /*
  * Helpers for struct drm_gem_object_funcs
@@ -815,31 +756,44 @@ static int bo_driver_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 static void bo_driver_evict_flags(struct ttm_buffer_object *bo,
 				  struct ttm_placement *placement)
 {
-	struct drm_vram_mm *vmm = drm_vram_mm_of_bdev(bo->bdev);
+	struct drm_gem_vram_object *gbo;
 
-	if (vmm->funcs && vmm->funcs->evict_flags)
-		vmm->funcs->evict_flags(bo, placement);
+	/* TTM may pass BOs that are not GEM VRAM BOs. */
+	if (!drm_is_gem_vram(bo))
+		return;
+
+	gbo = drm_gem_vram_of_bo(bo);
+
+	drm_gem_vram_bo_driver_evict_flags(gbo, placement);
 }
 
 static int bo_driver_verify_access(struct ttm_buffer_object *bo,
 				   struct file *filp)
 {
-	struct drm_vram_mm *vmm = drm_vram_mm_of_bdev(bo->bdev);
+	struct drm_gem_vram_object *gbo;
 
-	if (!vmm->funcs || !vmm->funcs->verify_access)
-		return 0;
-	return vmm->funcs->verify_access(bo, filp);
+	/* TTM may pass BOs that are not GEM VRAM BOs. */
+	if (!drm_is_gem_vram(bo))
+		return -EINVAL;
+
+	gbo = drm_gem_vram_of_bo(bo);
+
+	return drm_gem_vram_bo_driver_verify_access(gbo, filp);
 }
 
 static void bo_driver_move_notify(struct ttm_buffer_object *bo,
 				  bool evict,
 				  struct ttm_mem_reg *new_mem)
 {
-	struct drm_vram_mm *vmm = drm_vram_mm_of_bdev(bo->bdev);
+	struct drm_gem_vram_object *gbo;
 
-	if (!vmm->funcs || !vmm->funcs->move_notify)
+	/* TTM may pass BOs that are not GEM VRAM BOs. */
+	if (!drm_is_gem_vram(bo))
 		return;
-	vmm->funcs->move_notify(bo, evict, new_mem);
+
+	gbo = drm_gem_vram_of_bo(bo);
+
+	drm_gem_vram_bo_driver_move_notify(gbo, evict, new_mem);
 }
 
 static int bo_driver_io_mem_reserve(struct ttm_bo_device *bdev,
@@ -941,21 +895,18 @@ EXPORT_SYMBOL(drm_vram_mm_debugfs_init);
  * @dev:	the DRM device
  * @vram_base:	the base address of the video memory
  * @vram_size:	the size of the video memory in bytes
- * @funcs:	callback functions for buffer objects
  *
  * Returns:
  * 0 on success, or
  * a negative error code otherwise.
  */
 int drm_vram_mm_init(struct drm_vram_mm *vmm, struct drm_device *dev,
-		     uint64_t vram_base, size_t vram_size,
-		     const struct drm_vram_mm_funcs *funcs)
+		     uint64_t vram_base, size_t vram_size)
 {
 	int ret;
 
 	vmm->vram_base = vram_base;
 	vmm->vram_size = vram_size;
-	vmm->funcs = funcs;
 
 	ret = ttm_bo_device_init(&vmm->bdev, &bo_driver,
 				 dev->anon_inode->i_mapping,
@@ -1009,15 +960,13 @@ EXPORT_SYMBOL(drm_vram_mm_mmap);
  * @dev:	the DRM device
  * @vram_base:	the base address of the video memory
  * @vram_size:	the size of the video memory in bytes
- * @funcs:	callback functions for buffer objects
  *
  * Returns:
  * The new instance of &struct drm_vram_mm on success, or
  * an ERR_PTR()-encoded errno code otherwise.
  */
 struct drm_vram_mm *drm_vram_helper_alloc_mm(
-	struct drm_device *dev, uint64_t vram_base, size_t vram_size,
-	const struct drm_vram_mm_funcs *funcs)
+	struct drm_device *dev, uint64_t vram_base, size_t vram_size)
 {
 	int ret;
 
@@ -1028,7 +977,7 @@ struct drm_vram_mm *drm_vram_helper_alloc_mm(
 	if (!dev->vram_mm)
 		return ERR_PTR(-ENOMEM);
 
-	ret = drm_vram_mm_init(dev->vram_mm, dev, vram_base, vram_size, funcs);
+	ret = drm_vram_mm_init(dev->vram_mm, dev, vram_base, vram_size);
 	if (ret)
 		goto err_kfree;
 

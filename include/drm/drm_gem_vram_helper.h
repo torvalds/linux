@@ -110,22 +110,6 @@ int drm_gem_vram_fill_create_dumb(struct drm_file *file,
 				  struct drm_mode_create_dumb *args);
 
 /*
- * Helpers for struct ttm_bo_driver
- */
-
-void drm_gem_vram_bo_driver_evict_flags(struct ttm_buffer_object *bo,
-					struct ttm_placement *pl);
-
-void drm_gem_vram_bo_driver_move_notify(struct ttm_buffer_object *bo,
-					bool evict,
-					struct ttm_mem_reg *new_mem);
-
-int drm_gem_vram_bo_driver_verify_access(struct ttm_buffer_object *bo,
-					 struct file *filp);
-
-extern const struct drm_vram_mm_funcs drm_gem_vram_mm_funcs;
-
-/*
  * Helpers for struct drm_driver
  */
 
@@ -170,8 +154,6 @@ struct drm_vram_mm {
 	size_t vram_size;
 
 	struct ttm_bo_device bdev;
-
-	const struct drm_vram_mm_funcs *funcs;
 };
 
 /**
@@ -190,8 +172,7 @@ static inline struct drm_vram_mm *drm_vram_mm_of_bdev(
 
 int drm_vram_mm_debugfs_init(struct drm_minor *minor);
 int drm_vram_mm_init(struct drm_vram_mm *vmm, struct drm_device *dev,
-		     uint64_t vram_base, size_t vram_size,
-		     const struct drm_vram_mm_funcs *funcs);
+		     uint64_t vram_base, size_t vram_size);
 void drm_vram_mm_cleanup(struct drm_vram_mm *vmm);
 
 int drm_vram_mm_mmap(struct file *filp, struct vm_area_struct *vma,
@@ -202,8 +183,7 @@ int drm_vram_mm_mmap(struct file *filp, struct vm_area_struct *vma,
  */
 
 struct drm_vram_mm *drm_vram_helper_alloc_mm(
-	struct drm_device *dev, uint64_t vram_base, size_t vram_size,
-	const struct drm_vram_mm_funcs *funcs);
+	struct drm_device *dev, uint64_t vram_base, size_t vram_size);
 void drm_vram_helper_release_mm(struct drm_device *dev);
 
 /*
