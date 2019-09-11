@@ -252,6 +252,7 @@ enum smu_clk_type {
        __SMU_DUMMY_MAP(TEMP_DEPENDENT_VMIN),           	\
        __SMU_DUMMY_MAP(MMHUB_PG),                      	\
        __SMU_DUMMY_MAP(ATHUB_PG),                      	\
+       __SMU_DUMMY_MAP(APCC_DFLL),                     	\
        __SMU_DUMMY_MAP(WAFL_CG),
 
 #undef __SMU_DUMMY_MAP
