@@ -69,6 +69,30 @@ static void opal_fadump_get_config(struct fw_dump *fadump_conf,
 	 */
 	fadump_conf->reserve_dump_area_start = fdm->rgn[0].dest;
 
+	/*
+	 * Rarely, but it can so happen that system crashes before all
+	 * boot memory regions are registered for MPIPL. In such
+	 * cases, warn that the vmcore may not be accurate and proceed
+	 * anyway as that is the best bet considering free pages, cache
+	 * pages, user pages, etc are usually filtered out.
+	 *
+	 * Hope the memory that could not be preserved only has pages
+	 * that are usually filtered out while saving the vmcore.
+	 */
+	if (fdm->region_cnt > fdm->registered_regions) {
+		pr_warn("Not all memory regions were saved!!!\n");
+		pr_warn("  Unsaved memory regions:\n");
+		i = fdm->registered_regions;
+		while (i < fdm->region_cnt) {
+			pr_warn("\t[%03d] base: 0x%llx, size: 0x%llx\n",
+				i, fdm->rgn[i].src, fdm->rgn[i].size);
+			i++;
+		}
+
+		pr_warn("If the unsaved regions only contain pages that are filtered out (eg. free/user pages), the vmcore should still be usable.\n");
+		pr_warn("WARNING: If the unsaved regions contain kernel pages, the vmcore will be corrupted.\n");
+	}
+
 	opal_fadump_update_config(fadump_conf, fdm);
 }
 
