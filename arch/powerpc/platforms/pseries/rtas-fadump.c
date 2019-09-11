@@ -22,19 +22,151 @@
 
 #include "rtas-fadump.h"
 
+static struct rtas_fadump_mem_struct fdm;
+
+static void rtas_fadump_update_config(struct fw_dump *fadump_conf,
+				      const struct rtas_fadump_mem_struct *fdm)
+{
+	fadump_conf->boot_mem_dest_addr =
+		be64_to_cpu(fdm->rmr_region.destination_address);
+
+	fadump_conf->fadumphdr_addr = (fadump_conf->boot_mem_dest_addr +
+				       fadump_conf->boot_memory_size);
+}
+
 static u64 rtas_fadump_init_mem_struct(struct fw_dump *fadump_conf)
 {
-	return fadump_conf->reserve_dump_area_start;
+	u64 addr = fadump_conf->reserve_dump_area_start;
+
+	memset(&fdm, 0, sizeof(struct rtas_fadump_mem_struct));
+	addr = addr & PAGE_MASK;
+
+	fdm.header.dump_format_version = cpu_to_be32(0x00000001);
+	fdm.header.dump_num_sections = cpu_to_be16(3);
+	fdm.header.dump_status_flag = 0;
+	fdm.header.offset_first_dump_section =
+		cpu_to_be32((u32)offsetof(struct rtas_fadump_mem_struct,
+					  cpu_state_data));
+
+	/*
+	 * Fields for disk dump option.
+	 * We are not using disk dump option, hence set these fields to 0.
+	 */
+	fdm.header.dd_block_size = 0;
+	fdm.header.dd_block_offset = 0;
+	fdm.header.dd_num_blocks = 0;
+	fdm.header.dd_offset_disk_path = 0;
+
+	/* set 0 to disable an automatic dump-reboot. */
+	fdm.header.max_time_auto = 0;
+
+	/* Kernel dump sections */
+	/* cpu state data section. */
+	fdm.cpu_state_data.request_flag =
+		cpu_to_be32(RTAS_FADUMP_REQUEST_FLAG);
+	fdm.cpu_state_data.source_data_type =
+		cpu_to_be16(RTAS_FADUMP_CPU_STATE_DATA);
+	fdm.cpu_state_data.source_address = 0;
+	fdm.cpu_state_data.source_len =
+		cpu_to_be64(fadump_conf->cpu_state_data_size);
+	fdm.cpu_state_data.destination_address = cpu_to_be64(addr);
+	addr += fadump_conf->cpu_state_data_size;
+
+	/* hpte region section */
+	fdm.hpte_region.request_flag = cpu_to_be32(RTAS_FADUMP_REQUEST_FLAG);
+	fdm.hpte_region.source_data_type =
+		cpu_to_be16(RTAS_FADUMP_HPTE_REGION);
+	fdm.hpte_region.source_address = 0;
+	fdm.hpte_region.source_len =
+		cpu_to_be64(fadump_conf->hpte_region_size);
+	fdm.hpte_region.destination_address = cpu_to_be64(addr);
+	addr += fadump_conf->hpte_region_size;
+
+	/* RMA region section */
+	fdm.rmr_region.request_flag = cpu_to_be32(RTAS_FADUMP_REQUEST_FLAG);
+	fdm.rmr_region.source_data_type =
+		cpu_to_be16(RTAS_FADUMP_REAL_MODE_REGION);
+	fdm.rmr_region.source_address = cpu_to_be64(RMA_START);
+	fdm.rmr_region.source_len = cpu_to_be64(fadump_conf->boot_memory_size);
+	fdm.rmr_region.destination_address = cpu_to_be64(addr);
+	addr += fadump_conf->boot_memory_size;
+
+	rtas_fadump_update_config(fadump_conf, &fdm);
+
+	return addr;
 }
 
 static int rtas_fadump_register(struct fw_dump *fadump_conf)
 {
-	return -EIO;
+	unsigned int wait_time;
+	int rc, err = -EIO;
+
+	/* TODO: Add upper time limit for the delay */
+	do {
+		rc =  rtas_call(fadump_conf->ibm_configure_kernel_dump, 3, 1,
+				NULL, FADUMP_REGISTER, &fdm,
+				sizeof(struct rtas_fadump_mem_struct));
+
+		wait_time = rtas_busy_delay_time(rc);
+		if (wait_time)
+			mdelay(wait_time);
+
+	} while (wait_time);
+
+	switch (rc) {
+	case 0:
+		pr_info("Registration is successful!\n");
+		fadump_conf->dump_registered = 1;
+		err = 0;
+		break;
+	case -1:
+		pr_err("Failed to register. Hardware Error(%d).\n", rc);
+		break;
+	case -3:
+		if (!is_fadump_boot_mem_contiguous())
+			pr_err("Can't have holes in boot memory area.\n");
+		else if (!is_fadump_reserved_mem_contiguous())
+			pr_err("Can't have holes in reserved memory area.\n");
+
+		pr_err("Failed to register. Parameter Error(%d).\n", rc);
+		err = -EINVAL;
+		break;
+	case -9:
+		pr_err("Already registered!\n");
+		fadump_conf->dump_registered = 1;
+		err = -EEXIST;
+		break;
+	default:
+		pr_err("Failed to register. Unknown Error(%d).\n", rc);
+		break;
+	}
+
+	return err;
 }
 
 static int rtas_fadump_unregister(struct fw_dump *fadump_conf)
 {
-	return -EIO;
+	unsigned int wait_time;
+	int rc;
+
+	/* TODO: Add upper time limit for the delay */
+	do {
+		rc =  rtas_call(fadump_conf->ibm_configure_kernel_dump, 3, 1,
+				NULL, FADUMP_UNREGISTER, &fdm,
+				sizeof(struct rtas_fadump_mem_struct));
+
+		wait_time = rtas_busy_delay_time(rc);
+		if (wait_time)
+			mdelay(wait_time);
+	} while (wait_time);
+
+	if (rc) {
+		pr_err("Failed to un-register - unexpected error(%d).\n", rc);
+		return -EIO;
+	}
+
+	fadump_conf->dump_registered = 0;
+	return 0;
 }
 
 static int rtas_fadump_invalidate(struct fw_dump *fadump_conf)
@@ -54,6 +186,30 @@ static int __init rtas_fadump_process(struct fw_dump *fadump_conf)
 static void rtas_fadump_region_show(struct fw_dump *fadump_conf,
 				    struct seq_file *m)
 {
+	const struct rtas_fadump_mem_struct *fdm_ptr = &fdm;
+	const struct rtas_fadump_section *cpu_data_section;
+
+	cpu_data_section = &(fdm_ptr->cpu_state_data);
+	seq_printf(m, "CPU :[%#016llx-%#016llx] %#llx bytes, Dumped: %#llx\n",
+		   be64_to_cpu(cpu_data_section->destination_address),
+		   be64_to_cpu(cpu_data_section->destination_address) +
+		   be64_to_cpu(cpu_data_section->source_len) - 1,
+		   be64_to_cpu(cpu_data_section->source_len),
+		   be64_to_cpu(cpu_data_section->bytes_dumped));
+
+	seq_printf(m, "HPTE:[%#016llx-%#016llx] %#llx bytes, Dumped: %#llx\n",
+		   be64_to_cpu(fdm_ptr->hpte_region.destination_address),
+		   be64_to_cpu(fdm_ptr->hpte_region.destination_address) +
+		   be64_to_cpu(fdm_ptr->hpte_region.source_len) - 1,
+		   be64_to_cpu(fdm_ptr->hpte_region.source_len),
+		   be64_to_cpu(fdm_ptr->hpte_region.bytes_dumped));
+
+	seq_printf(m, "DUMP: [%#016llx-%#016llx] %#llx bytes, Dumped: %#llx\n",
+		   be64_to_cpu(fdm_ptr->rmr_region.destination_address),
+		   be64_to_cpu(fdm_ptr->rmr_region.destination_address) +
+		   be64_to_cpu(fdm_ptr->rmr_region.source_len) - 1,
+		   be64_to_cpu(fdm_ptr->rmr_region.source_len),
+		   be64_to_cpu(fdm_ptr->rmr_region.bytes_dumped));
 }
 
 static void rtas_fadump_trigger(struct fadump_crash_info_header *fdh,
