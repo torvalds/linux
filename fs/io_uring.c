@@ -167,7 +167,7 @@ struct async_list {
 	struct list_head	list;
 
 	struct file		*file;
-	off_t			io_end;
+	off_t			io_start;
 	size_t			io_len;
 };
 
@@ -1189,6 +1189,28 @@ static ssize_t io_import_iovec(struct io_ring_ctx *ctx, int rw,
 	return import_iovec(rw, buf, sqe_len, UIO_FASTIOV, iovec, iter);
 }
 
+static inline bool io_should_merge(struct async_list *al, struct kiocb *kiocb)
+{
+	if (al->file == kiocb->ki_filp) {
+		off_t start, end;
+
+		/*
+		 * Allow merging if we're anywhere in the range of the same
+		 * page. Generally this happens for sub-page reads or writes,
+		 * and it's beneficial to allow the first worker to bring the
+		 * page in and the piggy backed work can then work on the
+		 * cached page.
+		 */
+		start = al->io_start & PAGE_MASK;
+		end = (al->io_start + al->io_len + PAGE_SIZE - 1) & PAGE_MASK;
+		if (kiocb->ki_pos >= start && kiocb->ki_pos <= end)
+			return true;
+	}
+
+	al->file = NULL;
+	return false;
+}
+
 /*
  * Make a note of the last file/offset/direction we punted to async
  * context. We'll use this information to see if we can piggy back a
@@ -1200,9 +1222,8 @@ static void io_async_list_note(int rw, struct io_kiocb *req, size_t len)
 	struct async_list *async_list = &req->ctx->pending_async[rw];
 	struct kiocb *kiocb = &req->rw;
 	struct file *filp = kiocb->ki_filp;
-	off_t io_end = kiocb->ki_pos + len;
 
-	if (filp == async_list->file && kiocb->ki_pos == async_list->io_end) {
+	if (io_should_merge(async_list, kiocb)) {
 		unsigned long max_bytes;
 
 		/* Use 8x RA size as a decent limiter for both reads/writes */
@@ -1215,17 +1236,16 @@ static void io_async_list_note(int rw, struct io_kiocb *req, size_t len)
 			req->flags |= REQ_F_SEQ_PREV;
 			async_list->io_len += len;
 		} else {
-			io_end = 0;
-			async_list->io_len = 0;
+			async_list->file = NULL;
 		}
 	}
 
 	/* New file? Reset state. */
 	if (async_list->file != filp) {
-		async_list->io_len = 0;
+		async_list->io_start = kiocb->ki_pos;
+		async_list->io_len = len;
 		async_list->file = filp;
 	}
-	async_list->io_end = io_end;
 }
 
 static int io_read(struct io_kiocb *req, const struct sqe_submit *s,
@@ -1994,7 +2014,7 @@ out:
  */
 static bool io_add_to_prev_work(struct async_list *list, struct io_kiocb *req)
 {
-	bool ret = false;
+	bool ret;
 
 	if (!list)
 		return false;
