@@ -6,9 +6,11 @@
 
 /* Message flags */
 #define VHOST_USER_FLAG_REPLY		BIT(2)
+#define VHOST_USER_FLAG_NEED_REPLY	BIT(3)
 /* Feature bits */
 #define VHOST_USER_F_PROTOCOL_FEATURES	30
 /* Protocol feature bits */
+#define VHOST_USER_PROTOCOL_F_REPLY_ACK		3
 #define VHOST_USER_PROTOCOL_F_SLAVE_REQ		5
 #define VHOST_USER_PROTOCOL_F_CONFIG		9
 /* Vring state index masks */
@@ -20,7 +22,8 @@
 /* Supported transport features */
 #define VHOST_USER_SUPPORTED_F		BIT_ULL(VHOST_USER_F_PROTOCOL_FEATURES)
 /* Supported protocol features */
-#define VHOST_USER_SUPPORTED_PROTOCOL_F	(BIT_ULL(VHOST_USER_PROTOCOL_F_SLAVE_REQ) | \
+#define VHOST_USER_SUPPORTED_PROTOCOL_F	(BIT_ULL(VHOST_USER_PROTOCOL_F_REPLY_ACK) | \
+					 BIT_ULL(VHOST_USER_PROTOCOL_F_SLAVE_REQ) | \
 					 BIT_ULL(VHOST_USER_PROTOCOL_F_CONFIG))
 
 enum vhost_user_request {
