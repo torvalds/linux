@@ -9,7 +9,7 @@
 
 / {
 	model = "LG Optimus Black";
-	compatible = "lg,omap3-sniper", "ti,omap36xx", "ti,omap3";
+	compatible = "lg,omap3-sniper", "ti,omap3630", "ti,omap36xx", "ti,omap3";
 
 	cpus {
 		cpu@0 {
