@@ -1483,6 +1483,11 @@ static void update_num_rd_atomic(struct rvt_qp *qp, u32 psn,
 			req->ack_pending = cur_seg - req->comp_seg;
 			priv->pending_tid_r_segs += req->ack_pending;
 			qp->s_num_rd_atomic += req->ack_pending;
+			trace_hfi1_tid_req_update_num_rd_atomic(qp, 0,
+								wqe->wr.opcode,
+								wqe->psn,
+								wqe->lpsn,
+								req);
 		} else {
 			priv->pending_tid_r_segs += req->total_segs;
 			qp->s_num_rd_atomic += req->total_segs;
