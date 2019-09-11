@@ -31,12 +31,18 @@
 
 void at91_init_twi_bus_master(struct at91_twi_dev *dev)
 {
+	struct at91_twi_pdata *pdata = dev->pdata;
+
 	/* FIFO should be enabled immediately after the software reset */
 	if (dev->fifo_size)
 		at91_twi_write(dev, AT91_TWI_CR, AT91_TWI_FIFOEN);
 	at91_twi_write(dev, AT91_TWI_CR, AT91_TWI_MSEN);
 	at91_twi_write(dev, AT91_TWI_CR, AT91_TWI_SVDIS);
 	at91_twi_write(dev, AT91_TWI_CWGR, dev->twi_cwgr_reg);
+
+	/* enable digital filter */
+	if (pdata->has_dig_filtr && dev->enable_dig_filt)
+		at91_twi_write(dev, AT91_TWI_FILTR, AT91_TWI_FILTR_FILT);
 }
 
 /*
@@ -792,6 +798,9 @@ int at91_twi_probe_master(struct platform_device *pdev,
 				  &dev->fifo_size)) {
 		dev_info(dev->dev, "Using FIFO (%u data)\n", dev->fifo_size);
 	}
+
+	dev->enable_dig_filt = of_property_read_bool(pdev->dev.of_node,
+						     "i2c-digital-filter");
 
 	at91_calc_twi_clock(dev);
 
