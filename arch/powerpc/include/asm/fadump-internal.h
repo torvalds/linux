@@ -83,4 +83,12 @@ struct fw_dump {
 	unsigned long	nocma:1;
 };
 
+/* Helper functions */
+s32 fadump_setup_cpu_notes_buf(u32 num_cpus);
+void fadump_free_cpu_notes_buf(void);
+u32 *fadump_regs_to_elf_notes(u32 *buf, struct pt_regs *regs);
+void fadump_update_elfcore_header(char *bufp);
+bool is_fadump_boot_mem_contiguous(void);
+bool is_fadump_reserved_mem_contiguous(void);
+
 #endif /* _ASM_POWERPC_FADUMP_INTERNAL_H */
