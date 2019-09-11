@@ -175,7 +175,7 @@ static struct ti_cpufreq_soc_data omap36xx_soc_data = {
 	.efuse_shift = 9,
 	.efuse_mask = BIT(9),
 	.rev_offset = OMAP3_CONTROL_IDCODE - OMAP3_SYSCON_BASE,
-	.multi_regulator = false,
+	.multi_regulator = true,
 };
 
 /**

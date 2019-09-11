@@ -23,6 +23,7 @@
 		cpu: cpu@0 {
 			operating-points-v2 = <&cpu0_opp_table>;
 
+			vbb-supply = <&abb_mpu_iva>;
 			clock-latency = <300000>; /* From omap-cpufreq driver */
 		};
 	};
@@ -37,9 +38,11 @@
 			/*
 			 * we currently only select the max voltage from table
 			 * Table 4-19 of the DM3730 Data sheet (SPRS685B)
-			 * Format is: <target min max>
+			 * Format is:	cpu0-supply:	<target min max>
+			 *		vbb-supply:	<target min max>
 			 */
-			opp-microvolt = <1012500 1012500 1012500>;
+			opp-microvolt = <1012500 1012500 1012500>,
+					 <1012500 1012500 1012500>;
 			/*
 			 * first value is silicon revision bit mask
 			 * second one is "speed binned" bit mask
@@ -50,23 +53,31 @@
 
 		opp100-600000000 {
 			opp-hz = /bits/ 64 <600000000>;
-			opp-microvolt = <1200000 1200000 1200000>;
+			opp-microvolt = <1200000 1200000 1200000>,
+					 <1200000 1200000 1200000>;
 			opp-supported-hw = <0xffffffff 3>;
 		};
 
 		opp130-800000000 {
 			opp-hz = /bits/ 64 <800000000>;
-			opp-microvolt = <1325000 1325000 1325000>;
+			opp-microvolt = <1325000 1325000 1325000>,
+					 <1325000 1325000 1325000>;
 			opp-supported-hw = <0xffffffff 3>;
 		};
 
 		opp1g-1000000000 {
 			opp-hz = /bits/ 64 <1000000000>;
-			opp-microvolt = <1375000 1375000 1375000>;
+			opp-microvolt = <1375000 1375000 1375000>,
+					 <1375000 1375000 1375000>;
 			/* only on am/dm37x with speed-binned bit set */
 			opp-supported-hw = <0xffffffff 2>;
 			turbo-mode;
 		};
+	};
+
+	opp_supply_mpu_iva: opp_supply {
+		compatible = "ti,omap-opp-supply";
+		ti,absolute-max-voltage-uv = <1375000>;
 	};
 
 	ocp@68000000 {
