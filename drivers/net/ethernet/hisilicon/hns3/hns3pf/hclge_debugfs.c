@@ -931,22 +931,36 @@ static void hclge_dbg_fd_tcam(struct hclge_dev *hdev)
 
 static void hclge_dbg_dump_rst_info(struct hclge_dev *hdev)
 {
-	dev_info(&hdev->pdev->dev, "PF reset count: %d\n",
+	dev_info(&hdev->pdev->dev, "PF reset count: %u\n",
 		 hdev->rst_stats.pf_rst_cnt);
-	dev_info(&hdev->pdev->dev, "FLR reset count: %d\n",
+	dev_info(&hdev->pdev->dev, "FLR reset count: %u\n",
 		 hdev->rst_stats.flr_rst_cnt);
-	dev_info(&hdev->pdev->dev, "CORE reset count: %d\n",
-		 hdev->rst_stats.core_rst_cnt);
-	dev_info(&hdev->pdev->dev, "GLOBAL reset count: %d\n",
+	dev_info(&hdev->pdev->dev, "GLOBAL reset count: %u\n",
 		 hdev->rst_stats.global_rst_cnt);
-	dev_info(&hdev->pdev->dev, "IMP reset count: %d\n",
+	dev_info(&hdev->pdev->dev, "IMP reset count: %u\n",
 		 hdev->rst_stats.imp_rst_cnt);
-	dev_info(&hdev->pdev->dev, "reset done count: %d\n",
+	dev_info(&hdev->pdev->dev, "reset done count: %u\n",
 		 hdev->rst_stats.reset_done_cnt);
-	dev_info(&hdev->pdev->dev, "HW reset done count: %d\n",
+	dev_info(&hdev->pdev->dev, "HW reset done count: %u\n",
 		 hdev->rst_stats.hw_reset_done_cnt);
-	dev_info(&hdev->pdev->dev, "reset count: %d\n",
+	dev_info(&hdev->pdev->dev, "reset count: %u\n",
 		 hdev->rst_stats.reset_cnt);
+	dev_info(&hdev->pdev->dev, "reset count: %u\n",
+		 hdev->rst_stats.reset_cnt);
+	dev_info(&hdev->pdev->dev, "reset fail count: %u\n",
+		 hdev->rst_stats.reset_fail_cnt);
+	dev_info(&hdev->pdev->dev, "vector0 interrupt enable status: 0x%x\n",
+		 hclge_read_dev(&hdev->hw, HCLGE_MISC_VECTOR_REG_BASE));
+	dev_info(&hdev->pdev->dev, "reset interrupt source: 0x%x\n",
+		 hclge_read_dev(&hdev->hw, HCLGE_MISC_RESET_STS_REG));
+	dev_info(&hdev->pdev->dev, "reset interrupt status: 0x%x\n",
+		 hclge_read_dev(&hdev->hw, HCLGE_MISC_VECTOR_INT_STS));
+	dev_info(&hdev->pdev->dev, "hardware reset status: 0x%x\n",
+		 hclge_read_dev(&hdev->hw, HCLGE_GLOBAL_RESET_REG));
+	dev_info(&hdev->pdev->dev, "handshake status: 0x%x\n",
+		 hclge_read_dev(&hdev->hw, HCLGE_NIC_CSQ_DEPTH_REG));
+	dev_info(&hdev->pdev->dev, "function reset status: 0x%x\n",
+		 hclge_read_dev(&hdev->hw, HCLGE_FUN_RST_ING));
 }
 
 static void hclge_dbg_get_m7_stats_info(struct hclge_dev *hdev)
