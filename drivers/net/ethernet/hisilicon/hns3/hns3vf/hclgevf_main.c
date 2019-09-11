@@ -743,7 +743,7 @@ static int hclgevf_get_rss(struct hnae3_handle *handle, u32 *indir, u8 *key,
 }
 
 static int hclgevf_set_rss(struct hnae3_handle *handle, const u32 *indir,
-			   const  u8 *key, const  u8 hfunc)
+			   const u8 *key, const u8 hfunc)
 {
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
 	struct hclgevf_rss_cfg *rss_cfg = &hdev->rss_cfg;
@@ -2060,9 +2060,10 @@ static int hclgevf_config_gro(struct hclgevf_dev *hdev, bool en)
 static int hclgevf_rss_init_hw(struct hclgevf_dev *hdev)
 {
 	struct hclgevf_rss_cfg *rss_cfg = &hdev->rss_cfg;
-	int i, ret;
+	int ret;
+	u32 i;
 
-	rss_cfg->rss_size = hdev->rss_size_max;
+	rss_cfg->rss_size = hdev->nic.kinfo.rss_size;
 
 	if (hdev->pdev->revision >= 0x21) {
 		rss_cfg->hash_algo = HCLGEVF_RSS_HASH_ALGO_SIMPLE;
@@ -2099,13 +2100,13 @@ static int hclgevf_rss_init_hw(struct hclgevf_dev *hdev)
 
 	/* Initialize RSS indirect table */
 	for (i = 0; i < HCLGEVF_RSS_IND_TBL_SIZE; i++)
-		rss_cfg->rss_indirection_tbl[i] = i % hdev->rss_size_max;
+		rss_cfg->rss_indirection_tbl[i] = i % rss_cfg->rss_size;
 
 	ret = hclgevf_set_rss_indir_table(hdev);
 	if (ret)
 		return ret;
 
-	return hclgevf_set_rss_tc_mode(hdev, hdev->rss_size_max);
+	return hclgevf_set_rss_tc_mode(hdev, rss_cfg->rss_size);
 }
 
 static int hclgevf_init_vlan_config(struct hclgevf_dev *hdev)
@@ -2835,6 +2836,77 @@ static void hclgevf_get_tqps_and_rss_info(struct hnae3_handle *handle,
 	*max_rss_size = hdev->rss_size_max;
 }
 
+static void hclgevf_update_rss_size(struct hnae3_handle *handle,
+				    u32 new_tqps_num)
+{
+	struct hnae3_knic_private_info *kinfo = &handle->kinfo;
+	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
+	u16 max_rss_size;
+
+	kinfo->req_rss_size = new_tqps_num;
+
+	max_rss_size = min_t(u16, hdev->rss_size_max,
+			     hdev->num_tqps / kinfo->num_tc);
+
+	/* Use the user's configuration when it is not larger than
+	 * max_rss_size, otherwise, use the maximum specification value.
+	 */
+	if (kinfo->req_rss_size != kinfo->rss_size && kinfo->req_rss_size &&
+	    kinfo->req_rss_size <= max_rss_size)
+		kinfo->rss_size = kinfo->req_rss_size;
+	else if (kinfo->rss_size > max_rss_size ||
+		 (!kinfo->req_rss_size && kinfo->rss_size < max_rss_size))
+		kinfo->rss_size = max_rss_size;
+
+	kinfo->num_tqps = kinfo->num_tc * kinfo->rss_size;
+}
+
+static int hclgevf_set_channels(struct hnae3_handle *handle, u32 new_tqps_num,
+				bool rxfh_configured)
+{
+	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
+	struct hnae3_knic_private_info *kinfo = &handle->kinfo;
+	u16 cur_rss_size = kinfo->rss_size;
+	u16 cur_tqps = kinfo->num_tqps;
+	u32 *rss_indir;
+	unsigned int i;
+	int ret;
+
+	hclgevf_update_rss_size(handle, new_tqps_num);
+
+	ret = hclgevf_set_rss_tc_mode(hdev, kinfo->rss_size);
+	if (ret)
+		return ret;
+
+	/* RSS indirection table has been configuared by user */
+	if (rxfh_configured)
+		goto out;
+
+	/* Reinitializes the rss indirect table according to the new RSS size */
+	rss_indir = kcalloc(HCLGEVF_RSS_IND_TBL_SIZE, sizeof(u32), GFP_KERNEL);
+	if (!rss_indir)
+		return -ENOMEM;
+
+	for (i = 0; i < HCLGEVF_RSS_IND_TBL_SIZE; i++)
+		rss_indir[i] = i % kinfo->rss_size;
+
+	ret = hclgevf_set_rss(handle, rss_indir, NULL, 0);
+	if (ret)
+		dev_err(&hdev->pdev->dev, "set rss indir table fail, ret=%d\n",
+			ret);
+
+	kfree(rss_indir);
+
+out:
+	if (!ret)
+		dev_info(&hdev->pdev->dev,
+			 "Channels changed, rss_size from %u to %u, tqps from %u to %u",
+			 cur_rss_size, kinfo->rss_size,
+			 cur_tqps, kinfo->rss_size * kinfo->num_tc);
+
+	return ret;
+}
+
 static int hclgevf_get_status(struct hnae3_handle *handle)
 {
 	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
@@ -3042,6 +3114,7 @@ static const struct hnae3_ae_ops hclgevf_ops = {
 	.enable_hw_strip_rxvtag = hclgevf_en_hw_strip_rxvtag,
 	.reset_event = hclgevf_reset_event,
 	.set_default_reset_request = hclgevf_set_def_reset_request,
+	.set_channels = hclgevf_set_channels,
 	.get_channels = hclgevf_get_channels,
 	.get_tqps_and_rss_info = hclgevf_get_tqps_and_rss_info,
 	.get_regs_len = hclgevf_get_regs_len,
