@@ -34,6 +34,8 @@
 
 static struct fw_dump fw_dump;
 
+static void __init fadump_reserve_crash_area(u64 base);
+
 static DEFINE_MUTEX(fadump_mutex);
 struct fadump_mrange_info crash_mrange_info = { "crash", NULL, 0, 0, 0 };
 struct fadump_mrange_info reserved_mrange_info = { "reserved", NULL, 0, 0, 0 };
@@ -318,26 +320,6 @@ static unsigned long get_fadump_area_size(void)
 	return size;
 }
 
-static void __init fadump_reserve_crash_area(unsigned long base,
-					     unsigned long size)
-{
-	struct memblock_region *reg;
-	unsigned long mstart, mend, msize;
-
-	for_each_memblock(memory, reg) {
-		mstart = max_t(unsigned long, base, reg->base);
-		mend = reg->base + reg->size;
-		mend = min(base + size, mend);
-
-		if (mstart < mend) {
-			msize = mend - mstart;
-			memblock_reserve(mstart, msize);
-			pr_info("Reserved %ldMB of memory at %#016lx for saving crash dump\n",
-				(msize >> 20), mstart);
-		}
-	}
-}
-
 int __init fadump_reserve_mem(void)
 {
 	bool is_memblock_bottom_up = memblock_bottom_up();
@@ -406,12 +388,11 @@ int __init fadump_reserve_mem(void)
 #endif
 		/*
 		 * If last boot has crashed then reserve all the memory
-		 * above boot_memory_size so that we don't touch it until
+		 * above boot memory size so that we don't touch it until
 		 * dump is written to disk by userspace tool. This memory
-		 * will be released for general use once the dump is saved.
+		 * can be released for general use by invalidating fadump.
 		 */
-		size = mem_boundary - base;
-		fadump_reserve_crash_area(base, size);
+		fadump_reserve_crash_area(base);
 
 		pr_debug("fadumphdr_addr = %#016lx\n", fw_dump.fadumphdr_addr);
 		pr_debug("Reserve dump area start address: 0x%lx\n",
@@ -1377,3 +1358,27 @@ int __init setup_fadump(void)
 	return 1;
 }
 subsys_initcall(setup_fadump);
+
+/* Preserve everything above the base address */
+static void __init fadump_reserve_crash_area(u64 base)
+{
+	struct memblock_region *reg;
+	u64 mstart, msize;
+
+	for_each_memblock(memory, reg) {
+		mstart = reg->base;
+		msize  = reg->size;
+
+		if ((mstart + msize) < base)
+			continue;
+
+		if (mstart < base) {
+			msize -= (base - mstart);
+			mstart = base;
+		}
+
+		pr_info("Reserving %lluMB of memory at %#016llx for preserving crash data",
+			(msize >> 20), mstart);
+		memblock_reserve(mstart, msize);
+	}
+}
