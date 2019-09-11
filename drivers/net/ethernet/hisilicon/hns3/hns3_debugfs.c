@@ -166,6 +166,7 @@ static int hns3_dbg_bd_info(struct hnae3_handle *h, const char *cmd_buf)
 	struct hns3_enet_ring *ring;
 	u32 tx_index, rx_index;
 	u32 q_num, value;
+	dma_addr_t addr;
 	int cnt;
 
 	cnt = sscanf(&cmd_buf[8], "%u %u", &q_num, &tx_index);
@@ -194,8 +195,9 @@ static int hns3_dbg_bd_info(struct hnae3_handle *h, const char *cmd_buf)
 	}
 
 	tx_desc = &ring->desc[tx_index];
+	addr = le64_to_cpu(tx_desc->addr);
 	dev_info(dev, "TX Queue Num: %u, BD Index: %u\n", q_num, tx_index);
-	dev_info(dev, "(TX)addr: 0x%llx\n", tx_desc->addr);
+	dev_info(dev, "(TX)addr: %pad\n", &addr);
 	dev_info(dev, "(TX)vlan_tag: %u\n", tx_desc->tx.vlan_tag);
 	dev_info(dev, "(TX)send_size: %u\n", tx_desc->tx.send_size);
 	dev_info(dev, "(TX)vlan_tso: %u\n", tx_desc->tx.type_cs_vlan_tso);
@@ -217,8 +219,9 @@ static int hns3_dbg_bd_info(struct hnae3_handle *h, const char *cmd_buf)
 	rx_index = (cnt == 1) ? value : tx_index;
 	rx_desc	 = &ring->desc[rx_index];
 
+	addr = le64_to_cpu(rx_desc->addr);
 	dev_info(dev, "RX Queue Num: %u, BD Index: %u\n", q_num, rx_index);
-	dev_info(dev, "(RX)addr: 0x%llx\n", rx_desc->addr);
+	dev_info(dev, "(RX)addr: %pad\n", &addr);
 	dev_info(dev, "(RX)l234_info: %u\n", rx_desc->rx.l234_info);
 	dev_info(dev, "(RX)pkt_len: %u\n", rx_desc->rx.pkt_len);
 	dev_info(dev, "(RX)size: %u\n", rx_desc->rx.size);

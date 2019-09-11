@@ -2006,7 +2006,8 @@ static pci_ers_result_t hns3_slot_reset(struct pci_dev *pdev)
 
 	ops = ae_dev->ops;
 	/* request the reset */
-	if (ops->reset_event && ops->get_reset_level) {
+	if (ops->reset_event && ops->get_reset_level &&
+	    ops->set_default_reset_request) {
 		if (ae_dev->hw_err_reset_req) {
 			reset_type = ops->get_reset_level(ae_dev,
 						&ae_dev->hw_err_reset_req);
@@ -4410,6 +4411,30 @@ static int hns3_reset_notify(struct hnae3_handle *handle,
 	return ret;
 }
 
+static int hns3_change_channels(struct hnae3_handle *handle, u32 new_tqp_num,
+				bool rxfh_configured)
+{
+	int ret;
+
+	ret = handle->ae_algo->ops->set_channels(handle, new_tqp_num,
+						 rxfh_configured);
+	if (ret) {
+		dev_err(&handle->pdev->dev,
+			"Change tqp num(%u) fail.\n", new_tqp_num);
+		return ret;
+	}
+
+	ret = hns3_reset_notify(handle, HNAE3_INIT_CLIENT);
+	if (ret)
+		return ret;
+
+	ret =  hns3_reset_notify(handle, HNAE3_UP_CLIENT);
+	if (ret)
+		hns3_reset_notify(handle, HNAE3_UNINIT_CLIENT);
+
+	return ret;
+}
+
 int hns3_set_channels(struct net_device *netdev,
 		      struct ethtool_channels *ch)
 {
@@ -4450,24 +4475,23 @@ int hns3_set_channels(struct net_device *netdev,
 		return ret;
 
 	org_tqp_num = h->kinfo.num_tqps;
-	ret = h->ae_algo->ops->set_channels(h, new_tqp_num, rxfh_configured);
+	ret = hns3_change_channels(h, new_tqp_num, rxfh_configured);
 	if (ret) {
-		ret = h->ae_algo->ops->set_channels(h, org_tqp_num,
-						    rxfh_configured);
-		if (ret) {
-			/* If revert to old tqp failed, fatal error occurred */
-			dev_err(&netdev->dev,
-				"Revert to old tqp num fail, ret=%d", ret);
-			return ret;
-		}
-		dev_info(&netdev->dev,
-			 "Change tqp num fail, Revert to old tqp num");
-	}
-	ret = hns3_reset_notify(h, HNAE3_INIT_CLIENT);
-	if (ret)
-		return ret;
+		int ret1;
 
-	return hns3_reset_notify(h, HNAE3_UP_CLIENT);
+		netdev_warn(netdev,
+			    "Change channels fail, revert to old value\n");
+		ret1 = hns3_change_channels(h, org_tqp_num, rxfh_configured);
+		if (ret1) {
+			netdev_err(netdev,
+				   "revert to old channel fail\n");
+			return ret1;
+		}
+
+		return ret;
+	}
+
+	return 0;
 }
 
 static const struct hns3_hw_error_info hns3_hw_err[] = {

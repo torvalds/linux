@@ -3547,12 +3547,12 @@ static bool hclge_reset_err_handle(struct hclge_dev *hdev)
 			 "reset failed because new reset interrupt\n");
 		hclge_clear_reset_cause(hdev);
 		return false;
-	} else if (hdev->reset_fail_cnt < MAX_RESET_FAIL_CNT) {
-		hdev->reset_fail_cnt++;
+	} else if (hdev->rst_stats.reset_fail_cnt < MAX_RESET_FAIL_CNT) {
+		hdev->rst_stats.reset_fail_cnt++;
 		set_bit(hdev->reset_type, &hdev->reset_pending);
 		dev_info(&hdev->pdev->dev,
 			 "re-schedule reset task(%d)\n",
-			 hdev->reset_fail_cnt);
+			 hdev->rst_stats.reset_fail_cnt);
 		return true;
 	}
 
@@ -3679,7 +3679,8 @@ static void hclge_reset(struct hclge_dev *hdev)
 	/* ignore RoCE notify error if it fails HCLGE_RESET_MAX_FAIL_CNT - 1
 	 * times
 	 */
-	if (ret && hdev->reset_fail_cnt < HCLGE_RESET_MAX_FAIL_CNT - 1)
+	if (ret &&
+	    hdev->rst_stats.reset_fail_cnt < HCLGE_RESET_MAX_FAIL_CNT - 1)
 		goto err_reset;
 
 	rtnl_lock();
@@ -3695,7 +3696,7 @@ static void hclge_reset(struct hclge_dev *hdev)
 		goto err_reset;
 
 	hdev->last_reset_time = jiffies;
-	hdev->reset_fail_cnt = 0;
+	hdev->rst_stats.reset_fail_cnt = 0;
 	hdev->rst_stats.reset_done_cnt++;
 	ae_dev->reset_type = HNAE3_NONE_RESET;
 
@@ -3751,7 +3752,7 @@ static void hclge_reset_event(struct pci_dev *pdev, struct hnae3_handle *handle)
 	else if (time_after(jiffies, (hdev->last_reset_time + 4 * 5 * HZ)))
 		hdev->reset_level = HNAE3_FUNC_RESET;
 
-	dev_info(&hdev->pdev->dev, "received reset event , reset type is %d",
+	dev_info(&hdev->pdev->dev, "received reset event, reset type is %d\n",
 		 hdev->reset_level);
 
 	/* request reset & schedule reset task */
