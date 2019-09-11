@@ -338,16 +338,15 @@ static void __init fadump_reserve_crash_area(unsigned long base,
 
 int __init fadump_reserve_mem(void)
 {
-	unsigned long base, size, memory_boundary;
+	u64 base, size, mem_boundary;
+	int ret = 1;
 
 	if (!fw_dump.fadump_enabled)
 		return 0;
 
 	if (!fw_dump.fadump_supported) {
-		printk(KERN_INFO "Firmware-assisted dump is not supported on"
-				" this hardware\n");
-		fw_dump.fadump_enabled = 0;
-		return 0;
+		pr_info("Firmware-Assisted Dump is not supported on this hardware\n");
+		goto error_out;
 	}
 	/*
 	 * Initialize boot memory size
@@ -355,7 +354,8 @@ int __init fadump_reserve_mem(void)
 	 * first kernel.
 	 */
 	if (!fw_dump.dump_active) {
-		fw_dump.boot_memory_size = fadump_calculate_reserve_size();
+		fw_dump.boot_memory_size =
+			PAGE_ALIGN(fadump_calculate_reserve_size());
 #ifdef CONFIG_CMA
 		if (!fw_dump.nocma)
 			fw_dump.boot_memory_size =
@@ -381,10 +381,11 @@ int __init fadump_reserve_mem(void)
 				" dump, now %#016llx\n", memory_limit);
 	}
 	if (memory_limit)
-		memory_boundary = memory_limit;
+		mem_boundary = memory_limit;
 	else
-		memory_boundary = memblock_end_of_DRAM();
+		mem_boundary = memblock_end_of_DRAM();
 
+	base = fw_dump.boot_memory_size;
 	size = get_fadump_area_size();
 	fw_dump.reserve_dump_area_size = size;
 	if (fw_dump.dump_active) {
@@ -404,8 +405,7 @@ int __init fadump_reserve_mem(void)
 		 * dump is written to disk by userspace tool. This memory
 		 * will be released for general use once the dump is saved.
 		 */
-		base = fw_dump.boot_memory_size;
-		size = memory_boundary - base;
+		size = mem_boundary - base;
 		fadump_reserve_crash_area(base, size);
 
 		pr_debug("fadumphdr_addr = %#016lx\n", fw_dump.fadumphdr_addr);
@@ -418,29 +418,31 @@ int __init fadump_reserve_mem(void)
 		 * use memblock_find_in_range() here since it doesn't allocate
 		 * from bottom to top.
 		 */
-		for (base = fw_dump.boot_memory_size;
-		     base <= (memory_boundary - size);
-		     base += size) {
+		while (base <= (mem_boundary - size)) {
 			if (memblock_is_region_memory(base, size) &&
 			    !memblock_is_region_reserved(base, size))
 				break;
-		}
-		if ((base > (memory_boundary - size)) ||
-		    memblock_reserve(base, size)) {
-			pr_err("Failed to reserve memory\n");
-			return 0;
+
+			base += size;
 		}
 
-		pr_info("Reserved %ldMB of memory at %ldMB for firmware-"
-			"assisted dump (System RAM: %ldMB)\n",
-			(unsigned long)(size >> 20),
-			(unsigned long)(base >> 20),
-			(unsigned long)(memblock_phys_mem_size() >> 20));
+		if ((base > (mem_boundary - size)) ||
+		    memblock_reserve(base, size)) {
+			pr_err("Failed to reserve memory!\n");
+			goto error_out;
+		}
+
+		pr_info("Reserved %lldMB of memory at %#016llx (System RAM: %lldMB)\n",
+			(size >> 20), base, (memblock_phys_mem_size() >> 20));
 
 		fw_dump.reserve_dump_area_start = base;
-		return fadump_cma_init();
+		ret = fadump_cma_init();
 	}
-	return 1;
+
+	return ret;
+error_out:
+	fw_dump.fadump_enabled = 0;
+	return 0;
 }
 
 unsigned long __init arch_reserved_kernel_pages(void)
