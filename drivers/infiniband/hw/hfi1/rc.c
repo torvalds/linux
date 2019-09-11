@@ -595,11 +595,8 @@ check_s_state:
 		case IB_WR_SEND_WITH_IMM:
 		case IB_WR_SEND_WITH_INV:
 			/* If no credit, return. */
-			if (!(qp->s_flags & RVT_S_UNLIMITED_CREDIT) &&
-			    rvt_cmp_msn(wqe->ssn, qp->s_lsn + 1) > 0) {
-				qp->s_flags |= RVT_S_WAIT_SSN_CREDIT;
+			if (!rvt_rc_credit_avail(qp, wqe))
 				goto bail;
-			}
 			if (len > pmtu) {
 				qp->s_state = OP(SEND_FIRST);
 				len = pmtu;
@@ -632,11 +629,8 @@ check_s_state:
 			goto no_flow_control;
 		case IB_WR_RDMA_WRITE_WITH_IMM:
 			/* If no credit, return. */
-			if (!(qp->s_flags & RVT_S_UNLIMITED_CREDIT) &&
-			    rvt_cmp_msn(wqe->ssn, qp->s_lsn + 1) > 0) {
-				qp->s_flags |= RVT_S_WAIT_SSN_CREDIT;
+			if (!rvt_rc_credit_avail(qp, wqe))
 				goto bail;
-			}
 no_flow_control:
 			put_ib_reth_vaddr(
 				wqe->rdma_wr.remote_addr,
