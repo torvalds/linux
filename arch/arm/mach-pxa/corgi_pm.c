@@ -20,7 +20,7 @@
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
-#include <mach/corgi.h>
+#include "corgi.h"
 #include <mach/pxa2xx-regs.h>
 #include "sharpsl_pm.h"
 
