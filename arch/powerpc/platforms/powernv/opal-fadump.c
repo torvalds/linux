@@ -21,6 +21,22 @@
 
 static struct opal_fadump_mem_struct *opal_fdm;
 
+static int opal_fadump_unregister(struct fw_dump *fadump_conf);
+
+static void opal_fadump_update_config(struct fw_dump *fadump_conf,
+				      const struct opal_fadump_mem_struct *fdm)
+{
+	/*
+	 * The destination address of the first boot memory region is the
+	 * destination address of boot memory regions.
+	 */
+	fadump_conf->boot_mem_dest_addr = fdm->rgn[0].dest;
+	pr_debug("Destination address of boot memory regions: %#016llx\n",
+		 fadump_conf->boot_mem_dest_addr);
+
+	fadump_conf->fadumphdr_addr = fdm->fadumphdr_addr;
+}
+
 /* Initialize kernel metadata */
 static void opal_fadump_init_metadata(struct opal_fadump_mem_struct *fdm)
 {
@@ -49,6 +65,8 @@ static u64 opal_fadump_init_mem_struct(struct fw_dump *fadump_conf)
 	 */
 	opal_fdm->fadumphdr_addr = (opal_fdm->rgn[0].dest +
 				    fadump_conf->boot_memory_size);
+
+	opal_fadump_update_config(fadump_conf, opal_fdm);
 
 	return addr;
 }
@@ -92,12 +110,69 @@ static int opal_fadump_setup_metadata(struct fw_dump *fadump_conf)
 
 static int opal_fadump_register(struct fw_dump *fadump_conf)
 {
-	return -EIO;
+	s64 rc = OPAL_PARAMETER;
+	int i, err = -EIO;
+
+	for (i = 0; i < opal_fdm->region_cnt; i++) {
+		rc = opal_mpipl_update(OPAL_MPIPL_ADD_RANGE,
+				       opal_fdm->rgn[i].src,
+				       opal_fdm->rgn[i].dest,
+				       opal_fdm->rgn[i].size);
+		if (rc != OPAL_SUCCESS)
+			break;
+
+		opal_fdm->registered_regions++;
+	}
+
+	switch (rc) {
+	case OPAL_SUCCESS:
+		pr_info("Registration is successful!\n");
+		fadump_conf->dump_registered = 1;
+		err = 0;
+		break;
+	case OPAL_RESOURCE:
+		/* If MAX regions limit in f/w is hit, warn and proceed. */
+		pr_warn("%d regions could not be registered for MPIPL as MAX limit is reached!\n",
+			(opal_fdm->region_cnt - opal_fdm->registered_regions));
+		fadump_conf->dump_registered = 1;
+		err = 0;
+		break;
+	case OPAL_PARAMETER:
+		pr_err("Failed to register. Parameter Error(%lld).\n", rc);
+		break;
+	case OPAL_HARDWARE:
+		pr_err("Support not available.\n");
+		fadump_conf->fadump_supported = 0;
+		fadump_conf->fadump_enabled = 0;
+		break;
+	default:
+		pr_err("Failed to register. Unknown Error(%lld).\n", rc);
+		break;
+	}
+
+	/*
+	 * If some regions were registered before OPAL_MPIPL_ADD_RANGE
+	 * OPAL call failed, unregister all regions.
+	 */
+	if ((err < 0) && (opal_fdm->registered_regions > 0))
+		opal_fadump_unregister(fadump_conf);
+
+	return err;
 }
 
 static int opal_fadump_unregister(struct fw_dump *fadump_conf)
 {
-	return -EIO;
+	s64 rc;
+
+	rc = opal_mpipl_update(OPAL_MPIPL_REMOVE_ALL, 0, 0, 0);
+	if (rc) {
+		pr_err("Failed to un-register - unexpected Error(%lld).\n", rc);
+		return -EIO;
+	}
+
+	opal_fdm->registered_regions = 0;
+	fadump_conf->dump_registered = 0;
+	return 0;
 }
 
 static int opal_fadump_invalidate(struct fw_dump *fadump_conf)
