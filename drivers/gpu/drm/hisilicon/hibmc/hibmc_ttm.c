@@ -17,7 +17,6 @@
 #include <drm/drm_gem.h>
 #include <drm/drm_gem_vram_helper.h>
 #include <drm/drm_print.h>
-#include <drm/drm_vram_mm_helper.h>
 
 #include "hibmc_drm_drv.h"
 
