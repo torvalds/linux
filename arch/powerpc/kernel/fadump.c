@@ -240,10 +240,10 @@ static void fadump_show_config(void)
  * that is required for a kernel to boot successfully.
  *
  */
-static inline unsigned long fadump_calculate_reserve_size(void)
+static inline u64 fadump_calculate_reserve_size(void)
 {
+	u64 base, size, bootmem_min;
 	int ret;
-	unsigned long long base, size;
 
 	if (fw_dump.reserve_bootvar)
 		pr_warn("'fadump_reserve_mem=' parameter is deprecated in favor of 'crashkernel=' parameter.\n");
@@ -293,7 +293,8 @@ static inline unsigned long fadump_calculate_reserve_size(void)
 	if (memory_limit && size > memory_limit)
 		size = memory_limit;
 
-	return (size > MIN_BOOT_MEM ? size : MIN_BOOT_MEM);
+	bootmem_min = fw_dump.ops->fadump_get_bootmem_min();
+	return (size > bootmem_min ? size : bootmem_min);
 }
 
 /*
@@ -323,8 +324,8 @@ static unsigned long get_fadump_area_size(void)
 
 int __init fadump_reserve_mem(void)
 {
+	u64 base, size, mem_boundary, bootmem_min, align = PAGE_SIZE;
 	bool is_memblock_bottom_up = memblock_bottom_up();
-	u64 base, size, mem_boundary, align = PAGE_SIZE;
 	int ret = 1;
 
 	if (!fw_dump.fadump_enabled)
@@ -350,6 +351,13 @@ int __init fadump_reserve_mem(void)
 				ALIGN(fw_dump.boot_memory_size, align);
 		}
 #endif
+
+		bootmem_min = fw_dump.ops->fadump_get_bootmem_min();
+		if (fw_dump.boot_memory_size < bootmem_min) {
+			pr_err("Can't enable fadump with boot memory size (0x%lx) less than 0x%llx\n",
+			       fw_dump.boot_memory_size, bootmem_min);
+			goto error_out;
+		}
 	}
 
 	/*

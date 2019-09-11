@@ -11,6 +11,13 @@
 #include <asm/reg.h>
 
 /*
+ * With kernel & initrd loaded at 512MB (with 256MB size), enforce a minimum
+ * boot memory size of 768MB to ensure f/w loading kernel and initrd doesn't
+ * mess with crash'ed kernel's memory during MPIPL.
+ */
+#define OPAL_FADUMP_MIN_BOOT_MEM		(0x30000000UL)
+
+/*
  * OPAL FADump metadata structure format version
  *
  * OPAL FADump kernel metadata structure stores kernel metadata needed to

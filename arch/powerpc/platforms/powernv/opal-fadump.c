@@ -9,6 +9,7 @@
 
 #include <linux/string.h>
 #include <linux/seq_file.h>
+#include <linux/of.h>
 #include <linux/of_fdt.h>
 #include <linux/libfdt.h>
 #include <linux/mm.h>
@@ -260,6 +261,11 @@ static int opal_fadump_setup_metadata(struct fw_dump *fadump_conf)
 	}
 
 	return err;
+}
+
+static u64 opal_fadump_get_bootmem_min(void)
+{
+	return OPAL_FADUMP_MIN_BOOT_MEM;
 }
 
 static int opal_fadump_register(struct fw_dump *fadump_conf)
@@ -606,6 +612,7 @@ static struct fadump_ops opal_fadump_ops = {
 	.fadump_init_mem_struct		= opal_fadump_init_mem_struct,
 	.fadump_get_metadata_size	= opal_fadump_get_metadata_size,
 	.fadump_setup_metadata		= opal_fadump_setup_metadata,
+	.fadump_get_bootmem_min		= opal_fadump_get_bootmem_min,
 	.fadump_register		= opal_fadump_register,
 	.fadump_unregister		= opal_fadump_unregister,
 	.fadump_invalidate		= opal_fadump_invalidate,
@@ -620,8 +627,8 @@ void __init opal_fadump_dt_scan(struct fw_dump *fadump_conf, u64 node)
 	const __be32 *prop;
 	unsigned long dn;
 	u64 addr = 0;
+	int i, len;
 	s64 ret;
-
 
 	/*
 	 * Check if Firmware-Assisted Dump is supported. if yes, check
@@ -636,6 +643,27 @@ void __init opal_fadump_dt_scan(struct fw_dump *fadump_conf, u64 node)
 	if (!of_flat_dt_is_compatible(dn, "ibm,opal-dump")) {
 		pr_err("Support missing for this f/w version!\n");
 		return;
+	}
+
+	prop = of_get_flat_dt_prop(dn, "fw-load-area", &len);
+	if (prop) {
+		/*
+		 * Each f/w load area is an (address,size) pair,
+		 * 2 cells each, totalling 4 cells per range.
+		 */
+		for (i = 0; i < len / (sizeof(*prop) * 4); i++) {
+			u64 base, end;
+
+			base = of_read_number(prop + (i * 4) + 0, 2);
+			end = base;
+			end += of_read_number(prop + (i * 4) + 2, 2);
+			if (end > OPAL_FADUMP_MIN_BOOT_MEM) {
+				pr_err("F/W load area: 0x%llx-0x%llx\n",
+				       base, end);
+				pr_err("F/W version not supported!\n");
+				return;
+			}
+		}
 	}
 
 	fadump_conf->ops		= &opal_fadump_ops;

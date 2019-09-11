@@ -116,6 +116,11 @@ static u64 rtas_fadump_init_mem_struct(struct fw_dump *fadump_conf)
 	return addr;
 }
 
+static u64 rtas_fadump_get_bootmem_min(void)
+{
+	return RTAS_FADUMP_MIN_BOOT_MEM;
+}
+
 static int rtas_fadump_register(struct fw_dump *fadump_conf)
 {
 	unsigned int wait_time;
@@ -467,6 +472,7 @@ static void rtas_fadump_trigger(struct fadump_crash_info_header *fdh,
 
 static struct fadump_ops rtas_fadump_ops = {
 	.fadump_init_mem_struct		= rtas_fadump_init_mem_struct,
+	.fadump_get_bootmem_min		= rtas_fadump_get_bootmem_min,
 	.fadump_register		= rtas_fadump_register,
 	.fadump_unregister		= rtas_fadump_unregister,
 	.fadump_invalidate		= rtas_fadump_invalidate,
