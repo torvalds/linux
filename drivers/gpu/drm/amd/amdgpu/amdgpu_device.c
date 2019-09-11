@@ -1471,6 +1471,9 @@ static int amdgpu_device_parse_gpu_info_fw(struct amdgpu_device *adev)
 			(const struct gpu_info_firmware_v1_0 *)(adev->firmware.gpu_info_fw->data +
 								le32_to_cpu(hdr->header.ucode_array_offset_bytes));
 
+		if (amdgpu_discovery && adev->asic_type >= CHIP_NAVI10)
+			goto parse_soc_bounding_box;
+
 		adev->gfx.config.max_shader_engines = le32_to_cpu(gpu_info_fw->gc_num_se);
 		adev->gfx.config.max_cu_per_sh = le32_to_cpu(gpu_info_fw->gc_num_cu_per_sh);
 		adev->gfx.config.max_sh_per_se = le32_to_cpu(gpu_info_fw->gc_num_sh_per_se);
@@ -1498,7 +1501,13 @@ static int amdgpu_device_parse_gpu_info_fw(struct amdgpu_device *adev)
 			adev->gfx.config.num_packer_per_sc =
 				le32_to_cpu(gpu_info_fw->num_packer_per_sc);
 		}
+
+parse_soc_bounding_box:
 #ifdef CONFIG_DRM_AMD_DC_DCN2_0
+		/*
+		 * soc bounding box info is not integrated in disocovery table,
+		 * we always need to parse it from gpu info firmware.
+		 */
 		if (hdr->version_minor == 2) {
 			const struct gpu_info_firmware_v1_2 *gpu_info_fw =
 				(const struct gpu_info_firmware_v1_2 *)(adev->firmware.gpu_info_fw->data +
@@ -1614,6 +1623,9 @@ static int amdgpu_device_ip_early_init(struct amdgpu_device *adev)
 	r = amdgpu_device_parse_gpu_info_fw(adev);
 	if (r)
 		return r;
+
+	if (amdgpu_discovery && adev->asic_type >= CHIP_NAVI10)
+		amdgpu_discovery_get_gfx_info(adev);
 
 	amdgpu_amdkfd_device_probe(adev);
 
