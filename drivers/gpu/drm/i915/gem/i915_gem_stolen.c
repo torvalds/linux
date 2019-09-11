@@ -688,7 +688,7 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_i915_private *dev_priv
 	GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
 
 	vma->pages = obj->mm.pages;
-	vma->flags |= I915_VMA_GLOBAL_BIND;
+	set_bit(I915_VMA_GLOBAL_BIND_BIT, __i915_vma_flags(vma));
 	__i915_vma_set_map_and_fenceable(vma);
 
 	mutex_lock(&ggtt->vm.mutex);

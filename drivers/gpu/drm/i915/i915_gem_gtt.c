@@ -155,7 +155,7 @@ static int ppgtt_bind_vma(struct i915_vma *vma,
 	u32 pte_flags;
 	int err;
 
-	if (!(vma->flags & I915_VMA_LOCAL_BIND)) {
+	if (!i915_vma_is_bound(vma, I915_VMA_LOCAL_BIND)) {
 		err = vma->vm->allocate_va_range(vma->vm,
 						 vma->node.start, vma->size);
 		if (err)
@@ -1877,7 +1877,7 @@ static struct i915_vma *pd_vma_create(struct gen6_ppgtt *ppgtt, int size)
 
 	vma->size = size;
 	vma->fence_size = size;
-	vma->flags = I915_VMA_GGTT;
+	atomic_set(&vma->flags, I915_VMA_GGTT);
 	vma->ggtt_view.type = I915_GGTT_VIEW_ROTATED; /* prevent fencing */
 
 	INIT_LIST_HEAD(&vma->obj_link);
@@ -2440,7 +2440,7 @@ static int ggtt_bind_vma(struct i915_vma *vma,
 	 * GLOBAL/LOCAL_BIND, it's all the same ptes. Hence unconditionally
 	 * upgrade to both bound if we bind either to avoid double-binding.
 	 */
-	vma->flags |= I915_VMA_GLOBAL_BIND | I915_VMA_LOCAL_BIND;
+	atomic_or(I915_VMA_GLOBAL_BIND | I915_VMA_LOCAL_BIND, &vma->flags);
 
 	return 0;
 }
@@ -2470,7 +2470,7 @@ static int aliasing_gtt_bind_vma(struct i915_vma *vma,
 	if (flags & I915_VMA_LOCAL_BIND) {
 		struct i915_ppgtt *alias = i915_vm_to_ggtt(vma->vm)->alias;
 
-		if (!(vma->flags & I915_VMA_LOCAL_BIND)) {
+		if (!i915_vma_is_bound(vma, I915_VMA_LOCAL_BIND)) {
 			ret = alias->vm.allocate_va_range(&alias->vm,
 							  vma->node.start,
 							  vma->size);
@@ -2498,7 +2498,7 @@ static void aliasing_gtt_unbind_vma(struct i915_vma *vma)
 {
 	struct drm_i915_private *i915 = vma->vm->i915;
 
-	if (vma->flags & I915_VMA_GLOBAL_BIND) {
+	if (i915_vma_is_bound(vma, I915_VMA_GLOBAL_BIND)) {
 		struct i915_address_space *vm = vma->vm;
 		intel_wakeref_t wakeref;
 
@@ -2506,7 +2506,7 @@ static void aliasing_gtt_unbind_vma(struct i915_vma *vma)
 			vm->clear_range(vm, vma->node.start, vma->size);
 	}
 
-	if (vma->flags & I915_VMA_LOCAL_BIND) {
+	if (i915_vma_is_bound(vma, I915_VMA_LOCAL_BIND)) {
 		struct i915_address_space *vm =
 			&i915_vm_to_ggtt(vma->vm)->alias->vm;
 
@@ -3308,7 +3308,7 @@ static void ggtt_restore_mappings(struct i915_ggtt *ggtt)
 	list_for_each_entry_safe(vma, vn, &ggtt->vm.bound_list, vm_link) {
 		struct drm_i915_gem_object *obj = vma->obj;
 
-		if (!(vma->flags & I915_VMA_GLOBAL_BIND))
+		if (!i915_vma_is_bound(vma, I915_VMA_GLOBAL_BIND))
 			continue;
 
 		mutex_unlock(&ggtt->vm.mutex);

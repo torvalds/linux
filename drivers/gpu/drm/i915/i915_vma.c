@@ -171,7 +171,7 @@ vma_create(struct drm_i915_gem_object *obj,
 								i915_gem_object_get_stride(obj));
 		GEM_BUG_ON(!is_power_of_2(vma->fence_alignment));
 
-		vma->flags |= I915_VMA_GGTT;
+		__set_bit(I915_VMA_GGTT_BIT, __i915_vma_flags(vma));
 	}
 
 	spin_lock(&obj->vma.lock);
@@ -325,7 +325,8 @@ int i915_vma_bind(struct i915_vma *vma, enum i915_cache_level cache_level,
 	if (flags & PIN_USER)
 		bind_flags |= I915_VMA_LOCAL_BIND;
 
-	vma_flags = vma->flags & (I915_VMA_GLOBAL_BIND | I915_VMA_LOCAL_BIND);
+	vma_flags = atomic_read(&vma->flags);
+	vma_flags &= I915_VMA_GLOBAL_BIND | I915_VMA_LOCAL_BIND;
 	if (flags & PIN_UPDATE)
 		bind_flags |= vma_flags;
 	else
@@ -340,7 +341,7 @@ int i915_vma_bind(struct i915_vma *vma, enum i915_cache_level cache_level,
 	if (ret)
 		return ret;
 
-	vma->flags |= bind_flags;
+	atomic_or(bind_flags, &vma->flags);
 	return 0;
 }
 
@@ -359,7 +360,7 @@ void __iomem *i915_vma_pin_iomap(struct i915_vma *vma)
 	}
 
 	GEM_BUG_ON(!i915_vma_is_ggtt(vma));
-	GEM_BUG_ON((vma->flags & I915_VMA_GLOBAL_BIND) == 0);
+	GEM_BUG_ON(!i915_vma_is_bound(vma, I915_VMA_GLOBAL_BIND));
 
 	ptr = vma->iomap;
 	if (ptr == NULL) {
@@ -472,9 +473,9 @@ void __i915_vma_set_map_and_fenceable(struct i915_vma *vma)
 	mappable = vma->node.start + vma->fence_size <= i915_vm_to_ggtt(vma->vm)->mappable_end;
 
 	if (mappable && fenceable)
-		vma->flags |= I915_VMA_CAN_FENCE;
+		set_bit(I915_VMA_CAN_FENCE_BIT, __i915_vma_flags(vma));
 	else
-		vma->flags &= ~I915_VMA_CAN_FENCE;
+		clear_bit(I915_VMA_CAN_FENCE_BIT, __i915_vma_flags(vma));
 }
 
 bool i915_gem_valid_gtt_space(struct i915_vma *vma, unsigned long color)
@@ -544,7 +545,7 @@ i915_vma_insert(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 	int ret;
 
 	GEM_BUG_ON(i915_vma_is_closed(vma));
-	GEM_BUG_ON(vma->flags & (I915_VMA_GLOBAL_BIND | I915_VMA_LOCAL_BIND));
+	GEM_BUG_ON(i915_vma_is_bound(vma, I915_VMA_GLOBAL_BIND | I915_VMA_LOCAL_BIND));
 	GEM_BUG_ON(drm_mm_node_allocated(&vma->node));
 
 	size = max(size, vma->size);
@@ -678,7 +679,7 @@ static void
 i915_vma_remove(struct i915_vma *vma)
 {
 	GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
-	GEM_BUG_ON(vma->flags & (I915_VMA_GLOBAL_BIND | I915_VMA_LOCAL_BIND));
+	GEM_BUG_ON(i915_vma_is_bound(vma, I915_VMA_GLOBAL_BIND | I915_VMA_LOCAL_BIND));
 
 	vma->ops->clear_pages(vma);
 
@@ -709,7 +710,7 @@ i915_vma_remove(struct i915_vma *vma)
 int __i915_vma_do_pin(struct i915_vma *vma,
 		      u64 size, u64 alignment, u64 flags)
 {
-	const unsigned int bound = vma->flags;
+	const unsigned int bound = atomic_read(&vma->flags);
 	int ret;
 
 	lockdep_assert_held(&vma->vm->i915->drm.struct_mutex);
@@ -732,9 +733,9 @@ int __i915_vma_do_pin(struct i915_vma *vma,
 	if (ret)
 		goto err_remove;
 
-	GEM_BUG_ON((vma->flags & I915_VMA_BIND_MASK) == 0);
+	GEM_BUG_ON(!i915_vma_is_bound(vma, I915_VMA_BIND_MASK));
 
-	if ((bound ^ vma->flags) & I915_VMA_GLOBAL_BIND)
+	if ((bound ^ atomic_read(&vma->flags)) & I915_VMA_GLOBAL_BIND)
 		__i915_vma_set_map_and_fenceable(vma);
 
 	GEM_BUG_ON(i915_vma_misplaced(vma, size, alignment, flags));
@@ -744,7 +745,7 @@ err_remove:
 	if ((bound & I915_VMA_BIND_MASK) == 0) {
 		i915_vma_remove(vma);
 		GEM_BUG_ON(vma->pages);
-		GEM_BUG_ON(vma->flags & I915_VMA_BIND_MASK);
+		GEM_BUG_ON(atomic_read(&vma->flags) & I915_VMA_BIND_MASK);
 	}
 err_unpin:
 	__i915_vma_unpin(vma);
@@ -991,7 +992,7 @@ int i915_vma_unbind(struct i915_vma *vma)
 		mutex_unlock(&vma->vm->mutex);
 
 		__i915_vma_iounmap(vma);
-		vma->flags &= ~I915_VMA_CAN_FENCE;
+		clear_bit(I915_VMA_CAN_FENCE_BIT, __i915_vma_flags(vma));
 	}
 	GEM_BUG_ON(vma->fence);
 	GEM_BUG_ON(i915_vma_has_userfault(vma));
@@ -1000,7 +1001,7 @@ int i915_vma_unbind(struct i915_vma *vma)
 		trace_i915_vma_unbind(vma);
 		vma->ops->unbind_vma(vma);
 	}
-	vma->flags &= ~(I915_VMA_GLOBAL_BIND | I915_VMA_LOCAL_BIND);
+	atomic_and(~I915_VMA_BIND_MASK, &vma->flags);
 
 	i915_vma_remove(vma);
 

@@ -43,7 +43,7 @@ static int mock_bind_ppgtt(struct i915_vma *vma,
 			   u32 flags)
 {
 	GEM_BUG_ON(flags & I915_VMA_GLOBAL_BIND);
-	vma->flags |= I915_VMA_LOCAL_BIND;
+	set_bit(I915_VMA_LOCAL_BIND_BIT, __i915_vma_flags(vma));
 	return 0;
 }
 
@@ -86,7 +86,7 @@ static int mock_bind_ggtt(struct i915_vma *vma,
 			  enum i915_cache_level cache_level,
 			  u32 flags)
 {
-	vma->flags |= I915_VMA_GLOBAL_BIND | I915_VMA_LOCAL_BIND;
+	atomic_or(I915_VMA_GLOBAL_BIND | I915_VMA_LOCAL_BIND, &vma->flags);
 	return 0;
 }
 

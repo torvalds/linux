@@ -163,7 +163,7 @@ static void __i915_gem_free_objects(struct drm_i915_private *i915,
 
 		list_for_each_entry_safe(vma, vn, &obj->vma.list, obj_link) {
 			GEM_BUG_ON(i915_vma_is_active(vma));
-			vma->flags &= ~I915_VMA_PIN_MASK;
+			atomic_and(~I915_VMA_PIN_MASK, &vma->flags);
 			i915_vma_destroy(vma);
 		}
 		GEM_BUG_ON(!list_empty(&obj->vma.list));
