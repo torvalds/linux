@@ -53,7 +53,7 @@ struct mlx5dr_icm_pool {
 struct mlx5dr_icm_dm {
 	u32 obj_id;
 	enum mlx5_sw_icm_type type;
-	u64 addr;
+	phys_addr_t addr;
 	size_t length;
 };
 

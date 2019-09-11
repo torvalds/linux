@@ -553,9 +553,10 @@ static void mlx5_fw_tracer_save_trace(struct mlx5_fw_tracer *tracer,
 	mutex_unlock(&tracer->st_arr.lock);
 }
 
-static void mlx5_tracer_print_trace(struct tracer_string_format *str_frmt,
-				    struct mlx5_core_dev *dev,
-				    u64 trace_timestamp)
+static noinline
+void mlx5_tracer_print_trace(struct tracer_string_format *str_frmt,
+			     struct mlx5_core_dev *dev,
+			     u64 trace_timestamp)
 {
 	char	tmp[512];
 
